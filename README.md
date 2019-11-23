@@ -4,6 +4,9 @@ A front-end of warthunder port 8111.
 # dependencies
 the ui package weblaf-complete-1.29.jar is required.
 
+# notes
+it works for windows only. 
+
 # 说明
 四年前给你游写的小工具,现在回头看代码简直羞耻play...
 很早就有开源的想法,中间也有人找我问过代码的事情,但一直想把代码改好看点再开源出来
