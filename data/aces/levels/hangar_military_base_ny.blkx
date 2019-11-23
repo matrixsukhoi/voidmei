@@ -1,0 +1,123 @@
+trackDirt:b=no
+z_far:r=10000.0
+z_near:r=0.5
+mapCoord0:p2=-32768.0, -49152.0
+mapCoord1:p2=32768.0, 49152.0
+minAreaSize:p2=1.0, 1.0
+aiMapCoord0:p2=-32768.0, -49152.0
+aiMapCoord1:p2=32768.0, 49152.0
+max_wind_strength:r=2.3
+mandatoryLandquality:i=1
+water_level:r=0.0
+useGuiLevelMap:b=no
+customLevelMap:t="hangar_airfield_map*"
+weatherPreset:t="gameData/environments/weather_preset_ny.blk"
+weatherTypes:t="gameData/environments/weather_types_winter_ny.blk"
+lastClip:b=yes
+lastClipSize:i=1024
+average_ground_level:r=27.0
+numBorderCellsXPos:i=0
+numBorderCellsXNeg:i=0
+numBorderCellsZPos:i=0
+numBorderCellsZNeg:i=0
+
+stars{
+  latitude:r=60.0
+  longitude:r=0.0
+  year:i=1941
+  month:i=10
+  day:i=7
+  initialAzimuthAngle:r=285.0
+}
+
+shader_vars{
+  uncharted_white:r=3.0
+  U_A:r=1.646
+  U_B:r=0.227
+  U_C:r=3.89
+  U_D:r=1.58
+  U_E:r=0.02
+  U_F:r=1.05
+  translucency_detection_hardness:r=1.0
+  ocean_density:r=4.0
+}
+
+forceTexMQ{
+  tex:t="snow_airstrip_tex_d*"
+  tex:t="norway_metal_lighthouse_a_overlay_tex_d*"
+  tex:t="b_29_n*"
+  tex:t="tu_4_n*"
+  tex:t="tu_4_n_dmg*"
+  tex:t="b_29_c*"
+  tex:t="tu_4_c*"
+  tex:t="tu_4_c*"
+  tex:t="tu_4_c*"
+}
+
+forceTexLQ{
+  tex:t="bitumen_roof_a_n*"
+  tex:t="flak_36_set_tex_d*"
+  tex:t="b_29_inner_n*"
+  tex:t="ny_hgm_detail_snow_fresh_tex_d*"
+  tex:t="ny_hgm_detail_snow_ground_tex_d*"
+  tex:t="ny_hmb_decal_road_soil_d*"
+  tex:t="snow_airstrip_tex_n*"
+  tex:t="aircraft_hangar_building_overlay*"
+  tex:t="buildings_overlay_tex_d*"
+  tex:t="tree_populus_branches_tex_d*"
+  tex:t="hmb_runway_d_snow*"
+  tex:t="hmb_runway_n*"
+  tex:t="hmb_tank_track_d*"
+  tex:t="hmb_tank_track_n*"
+  tex:t="bunker_doors_windows_a_tex_n*"
+  tex:t="concrere_fortifications_n*"
+  tex:t="concrete_panels_b_tex_n*"
+  tex:t="concrete_panels_n*"
+  tex:t="concrete_plates_n*"
+  tex:t="debris_concrete_a_tex_n*"
+  tex:t="korsun_winter_trees*"
+  tex:t="logs_and_planks_constructor_n*"
+  tex:t="metal_painted_rusty_a_tex_n*"
+  tex:t="metal_ribbed_a_tex_n*"
+  tex:t="metal_tar_roof_b_tex_n*"
+  tex:t="metal_tar_roof_n*"
+  tex:t="modern_brick_brown_dirt_n*"
+  tex:t="modern_brick_composite_n*"
+  tex:t="moss_different_n*"
+  tex:t="port_crane_overlay*"
+  tex:t="rock_layered_tile_n*"
+  tex:t="small_buildings_overlay_tex_d*"
+  tex:t="stucco_white_broken_a_n*"
+  tex:t="stucco_white_n*"
+  tex:t="tank_hangar_building_overlay*"
+  tex:t="watch_towers_overlay_a"
+  tex:t="wood_plank_tex_e_n*"
+  tex:t="wood_rough_tex_e_n*"
+  tex:t="wood_watchtower_tex_n*"
+  tex:t="hangar_glass_door_a_tex_n*"
+}
+
+overrideRiLodRange{
+
+  hangar_fir_a{
+    lod0:r=250.0
+    lod1:r=10000.0
+  }
+
+  hangar_control_tower_a{
+    lod0:r=350.0
+    lod1:r=1000.0
+    lod2:r=3000.0
+  }
+
+  snowman_rendinst_a{
+    lod0:r=50.0
+    lod1:r=250.0
+    lod2:r=1500.0
+  }
+
+  air_cargo_snow{
+    lod0:r=250.0
+    lod1:r=500.0
+  }
+}

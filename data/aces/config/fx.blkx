@@ -1,0 +1,3043 @@
+aircraftGroundDustEnabled:b=yes
+aircraftGroundDustAlt:r=40.0
+aircraftGroundDustForce:p2=500.0, 5000.0
+aircraftGroundDustSpeed:p2=30.0, 100.0
+aircraftGroundDustVertOffset:r=3.0
+aircraftWaterSplashEnabled:b=yes
+aircraftWaterSplashAlt:r=30.0
+aircraftWaterSplashForce:p2=800.0, 10000.0
+aircraftWaterSplashSpeed:p2=30.0, 100.0
+aircraftWaterSplashVertOffset:r=3.0
+unitShellStartFxEnabled:b=yes
+unitShellStartFxTTL:r=2.0
+unitPylonSmokeTTL:r=1.0
+aircraftForceMultiplier:r=0.03
+aircraftWheelsGroundDustEnabled:b=no
+aircraftWheelsWaterSplashEnabled:b=no
+aircraftExhaustSpeedScale:r=0.002
+aircraftExhaustSpawnScale:r=10.0
+aircraftExhaustFlameInterval:p2=2.0, 4.0
+aircraftExhaustFlameTime:p2=1.0, 2.0
+timeForSmokingWrecks:r=2.0
+shipWaterSplashEnabled:b=yes
+dirtTopSpawnRateMinSpd:r=1.0
+dirtTopSpawnRateMaxSpd:r=5.0
+dirtTopSpawnRateSpdMult:r=0.1
+dirtFrontSpawnRateMinSpd:r=0.0
+dirtFrontSpawnRateMaxSpd:r=-4.0
+dirtFrontSpawnRateSpdMult:r=0.5
+dirtBackSpawnRateMinSpd:r=0.0
+dirtBackSpawnRateMaxSpd:r=3.0
+dirtBackSpawnRateSpdMult:r=0.8
+
+splashEffects{
+  name:t="ship_water_splashes"
+  horzVel:p2=1.0, 5.0
+  horzVelScale:p2=0.1, 2.0
+  vertVel:p2=0.1, 1.5
+  velSq:p2=2.0, 10.0
+  velSqScale:p2=0.0, 1.0
+}
+
+backSplashEffects{
+  name:t="ship_rear_water_splashes"
+  horzVel:p2=1.0, 5.0
+  horzVelScale:p2=0.0, 1.0
+  vertVel:p2=0.0, 1.0
+  velSq:p2=2.0, 10.0
+  velSqScale:p2=0.0, 1.0
+}
+
+propSplashEffects{
+  name:t="ship_propeller_water_splashes"
+  horzVel:p2=0.2, 1.0
+  horzVelScale:p2=0.5, 5.0
+  vertVel:p2=0.1, 6.0
+  velSq:p2=0.2, 2.0
+  velSqScale:p2=0.6, 1.0
+}
+
+platform_instance_k{
+  win32:r=1.0
+  win64:r=2.0
+  ps4:r=2.0
+}
+
+collisionAndScrapeEffects{
+
+  heavyHevicle{
+    scrapeInterval:r=0.1
+    defaultCollisionUnitFx:t="tank_collision_unit"
+    defaultCollisionUnitScrapeFx:t="tank_scrape"
+  }
+
+  warShip{
+    scrapeInterval:r=0.1
+    defaultCollisionUnitFx:t="ship_collision_unit_steel"
+    defaultCollisionUnitScrapeFx:t="ship_scrape_steel"
+    defaultCollisionGroundFx:t="ship_collision_unit_ground_steel"
+    defaultCollisionGroundScrapeFx:t="ship_scrape_ground_steel"
+  }
+}
+
+ground_splash{
+  fx:t="20_37_ap_hit_ground_composite"
+  lifeTime:r=0.0
+  softnessDepth:r=2.0
+  granularity:i=4
+  numInstances:i=100
+  numReserved:i=30
+  minScale:r=0.8
+  maxScale:r=1.0
+  onePointNumber:i=8
+}
+
+20_37_he_hit_ground{
+  fx:t="37_50_he_hit_ground_composite"
+  lifeTime:r=0.0
+  softnessDepth:r=1.0
+  granularity:i=4
+  numInstances:i=100
+  numReserved:i=30
+  minScale:r=0.5
+  maxScale:r=0.9
+}
+
+37_50_ap_hit_ground{
+  fx:t="37_50_ap_hit_ground_composite"
+  lifeTime:r=0.0
+  softnessDepth:r=1.0
+  granularity:i=4
+  numInstances:i=100
+  numReserved:i=30
+  minScale:r=1.0
+  maxScale:r=1.0
+  sfxPath:t="tanks/explosions_tanks"
+  sfxEvent:t="explosion_ground_37_50"
+}
+
+37_50_he_hit_ground{
+  fx:t="37_50_he_hit_ground_composite"
+  lifeTime:r=0.0
+  softnessDepth:r=1.0
+  granularity:i=4
+  numInstances:i=100
+  numReserved:i=30
+  minScale:r=1.0
+  maxScale:r=1.0
+  sfxPath:t="tanks/explosions_tanks"
+  sfxEvent:t="explosion_ground_37_50"
+}
+
+50_75_ap_hit_ground{
+  fx:t="50_75_ap_hit_ground_composite"
+  lifeTime:r=0.0
+  softnessDepth:r=1.0
+  granularity:i=4
+  numInstances:i=100
+  numReserved:i=30
+  minScale:r=1.0
+  maxScale:r=1.0
+  sfxPath:t="tanks/explosions_tanks"
+  sfxEvent:t="explosion_ground"
+}
+
+50_75_he_hit_ground{
+  fx:t="50_75_he_hit_ground_composite"
+  lifeTime:r=0.0
+  softnessDepth:r=1.0
+  granularity:i=4
+  numInstances:i=100
+  numReserved:i=30
+  minScale:r=1.0
+  maxScale:r=1.0
+  sfxPath:t="tanks/explosions_tanks"
+  sfxEvent:t="explosion_ground"
+}
+
+smoke_shell_explosion{
+  fx:t="smoke_shell_expl_composite"
+  lifeTime:r=0.0
+  softnessDepth:r=1.0
+  granularity:i=4
+  numInstances:i=100
+  numReserved:i=30
+  minScale:r=1.0
+  maxScale:r=1.0
+  sfxPath:t="tanks/explosions_tanks"
+  sfxEvent:t="explosion_ground"
+}
+
+big_ground_splash{
+  fx:t="50_75_ap_hit_ground_composite"
+  lifeTime:r=0.0
+  softnessDepth:r=1.0
+  granularity:i=4
+  numInstances:i=100
+  numReserved:i=30
+  minScale:r=1.0
+  maxScale:r=1.0
+  sfxPath:t="tanks/explosions_tanks"
+  sfxEvent:t="explosion_ground"
+}
+
+art_ground_splash{
+  fx:t="50_75_he_hit_ground_composite"
+  lifeTime:r=0.0
+  softnessDepth:r=1.0
+  granularity:i=4
+  numInstances:i=100
+  numReserved:i=30
+  minScale:r=1.0
+  maxScale:r=1.0
+  sfxPath:t="tanks/explosions_tanks"
+  sfxEvent:t="art_explosion_ground"
+}
+
+atgm_hit{
+  fx:t="atgm_hit_composite_fx"
+  lifeTime:r=0.0
+  softnessDepth:r=1.0
+  granularity:i=4
+  numInstances:i=100
+  numReserved:i=30
+  minScale:r=1.1
+  maxScale:r=1.3
+  sfxPath:t="tanks/explosions_tanks"
+  sfxEvent:t="art_explosion_ground"
+}
+
+big_art_ground_splash{
+  fx:t="122_152_he_hit_ground_composite"
+  lifeTime:r=0.0
+  softnessDepth:r=1.0
+  granularity:i=4
+  numInstances:i=100
+  numReserved:i=30
+  minScale:r=1.2
+  maxScale:r=1.3
+  sfxPath:t="tanks/explosions_tanks"
+  sfxEvent:t="art_explosion_ground"
+}
+
+bullet_self_expl{
+  fx:t="bullethit_ground_composite_fx"
+  lifeTime:r=0.0
+  softnessDepth:r=2.0
+  granularity:i=4
+  numInstances:i=100
+  numReserved:i=30
+  minScale:r=0.6
+  maxScale:r=1.2
+}
+
+water_splash{
+  fx:t="bulletsplash_0_20mm_composite_fx"
+  lifeTime:r=20.0
+  softnessDepth:r=0.1
+  granularity:i=8
+  numInstances:i=80
+  numReserved:i=30
+  minScale:r=0.8
+  maxScale:r=1.1
+  group:t="water_proj"
+}
+
+water_splash_20_76{
+  fx:t="bulletsplash_20_76mm_composite_fx"
+  lifeTime:r=20.0
+  softnessDepth:r=0.1
+  granularity:i=8
+  numInstances:i=80
+  numReserved:i=30
+  minScale:r=0.8
+  maxScale:r=1.1
+  group:t="water_proj"
+}
+
+water_splash_76_00{
+  fx:t="bulletsplash_76_00mm_composite_fx"
+  lifeTime:r=20.0
+  softnessDepth:r=0.1
+  granularity:i=8
+  numInstances:i=80
+  numReserved:i=30
+  minScale:r=0.8
+  maxScale:r=1.1
+  group:t="water_proj"
+}
+
+big_water_splash{
+  fx:t="pv_hit_water_composite_fx"
+  lifeTime:r=20.0
+  softnessDepth:r=0.1
+  granularity:i=8
+  numInstances:i=80
+  numReserved:i=30
+  minScale:r=0.8
+  maxScale:r=1.1
+  sfxPath:t="tanks/explosions_tanks"
+  sfxEvent:t="explosion_water"
+  group:t="water_proj"
+}
+
+flare_fire{
+  fx:t="flarefire_fx"
+  lifeTime:r=100.0
+  numInstances:i=15
+  numReserved:i=5
+  isTrail:b=yes
+  nonPlayerFadeDistScale:r=2.0
+  playerFadeDistScale:r=1.5
+  sortDistanceOffset:r=0.2
+}
+
+flare_smoke{
+  fx:t="rocket_smoke_far_fx"
+  lifeTime:r=100.0
+  isTrail:b=no
+  nonPlayerFadeDistScale:r=5.0
+  playerFadeDistScale:r=2.0
+  alphaHeightRange:p2=70.0, 300.0
+  numInstances:i=0
+  numReserved:i=0
+}
+
+flare_explosion{
+  fx:t="rocket_expl_flame_fx"
+  lifeTime:r=100.0
+  numInstances:i=0
+  numReserved:i=0
+  softnessDepth:r=5.0
+}
+
+chaff_fire{
+  fx:t="rocketflame_fx"
+  lifeTime:r=100.0
+  numInstances:i=10
+  numReserved:i=3
+  isTrail:b=yes
+  nonPlayerFadeDistScale:r=2.0
+  playerFadeDistScale:r=1.5
+  sortDistanceOffset:r=0.2
+}
+
+chaff_smoke{
+  fx:t="rocket_smoke_far_fx"
+  lifeTime:r=100.0
+  isTrail:b=yes
+  nonPlayerFadeDistScale:r=5.0
+  playerFadeDistScale:r=2.0
+  alphaHeightRange:p2=70.0, 300.0
+  numInstances:i=8
+  numReserved:i=2
+}
+
+chaff_explosion{
+  fx:t="rocket_expl_fx"
+  lifeTime:r=100.0
+  numInstances:i=0
+  numReserved:i=0
+  softnessDepth:r=5.0
+}
+
+rocket_fire{
+  fx:t="rocketflame_fx"
+  lifeTime:r=100.0
+  numInstances:i=40
+  numReserved:i=5
+  isTrail:b=yes
+  nonPlayerFadeDistScale:r=2.0
+  playerFadeDistScale:r=1.5
+  sortDistanceOffset:r=0.2
+}
+
+rocket_smoke{
+  fx:t="rocket_smoke_fx"
+  lifeTime:r=100.0
+  isTrail:b=yes
+  nonPlayerFadeDistScale:r=5.0
+  playerFadeDistScale:r=2.0
+  alphaHeightRange:p2=30.0, 200.0
+  numInstances:i=30
+  numReserved:i=5
+  sortDistanceOffset:r=1.0
+}
+
+rocket_expl{
+  fx:t="rocket_expl_fx"
+  lifeTime:r=30.0
+  groundSpotTexName:t="ground_spot"
+  groundSpotRadius:r=6.0
+  groundSpotAtTime:r=1.0
+  numInstances:i=30
+  numReserved:i=1
+  softnessDepth:r=5.0
+}
+
+crv7_expl{
+  fx:t="hydra_expl_fx"
+  lifeTime:r=30.0
+  groundSpotTexName:t="ground_spot"
+  groundSpotRadius:r=6.0
+  groundSpotAtTime:r=1.0
+  numInstances:i=0
+  numReserved:i=0
+  softnessDepth:r=5.0
+}
+
+crv7_smoke{
+  fx:t="crv7_smoke_fx"
+  lifeTime:r=100.0
+  isTrail:b=yes
+  nonPlayerFadeDistScale:r=5.0
+  playerFadeDistScale:r=2.0
+  alphaHeightRange:p2=30.0, 200.0
+  numInstances:i=0
+  numReserved:i=0
+}
+
+hydra_smoke{
+  fx:t="hydra_smoke_fx"
+  lifeTime:r=100.0
+  isTrail:b=yes
+  nonPlayerFadeDistScale:r=5.0
+  playerFadeDistScale:r=2.0
+  alphaHeightRange:p2=30.0, 200.0
+  numInstances:i=60
+  numReserved:i=30
+}
+
+hydra_expl{
+  fx:t="hydra_expl_fx"
+  groundSpotTexName:t="ground_spot"
+  groundSpotRadius:r=6.0
+  groundSpotAtTime:r=1.0
+  numInstances:i=40
+  numReserved:i=5
+  softnessDepth:r=5.0
+  onePointNumber:i=3
+  onePointRadius:r=5.0
+  onePointTime:r=5.0
+}
+
+hlfr_smoke{
+  fx:t="hellfire_smoke_fx"
+  lifeTime:r=100.0
+  isTrail:b=yes
+  nonPlayerFadeDistScale:r=5.0
+  playerFadeDistScale:r=2.0
+  alphaHeightRange:p2=30.0, 200.0
+  sortDistanceOffset:r=2.0
+  numInstances:i=0
+  numReserved:i=0
+}
+
+hlfr_expl{
+  fx:t="hellfire_expl_fx"
+  lifeTime:r=30.0
+  groundSpotTexName:t="ground_spot"
+  groundSpotRadius:r=6.0
+  groundSpotAtTime:r=1.0
+  numInstances:i=0
+  numReserved:i=0
+  softnessDepth:r=5.0
+}
+
+hlfr_fire{
+  fx:t="hellfire_flame_fx"
+  lifeTime:r=100.0
+  numInstances:i=0
+  numReserved:i=0
+  isTrail:b=yes
+  nonPlayerFadeDistScale:r=2.0
+  playerFadeDistScale:r=1.5
+  sortDistanceOffset:r=0.2
+}
+
+pylon_smoke{
+  fx:t="pv_rl_fire_composite_fx"
+  lifeTime:r=0.75
+  numInstances:i=15
+  numReserved:i=10
+  onePointNumber:i=0
+}
+
+rocket_drown{
+  fx:t="bomb_water_explosion_fx"
+  lifeTime:r=10.0
+  softnessDepth:r=5.0
+  numInstances:i=20
+  numReserved:i=3
+  group:t="water_proj"
+}
+
+bomb_ground_explosion_big{
+  fx:t="bomb_big_expl_composite_fx"
+  lifeTime:r=10.0
+  softnessDepth:r=10.0
+  minScale:r=0.6
+  maxScale:r=1.5
+  numInstances:i=14
+  numReserved:i=2
+}
+
+bomb_ground_explosion_huge{
+  fx:t="bomb_big_expl_composite_fx"
+  lifeTime:r=10.0
+  softnessDepth:r=10.0
+  minScale:r=1.6
+  maxScale:r=2.5
+  numInstances:i=14
+  numReserved:i=2
+}
+
+bomb_ground_explosion_big_sfx{
+  fx:t="bomb_big_expl_composite_fx"
+  lifeTime:r=10.0
+  softnessDepth:r=10.0
+  minScale:r=0.6
+  maxScale:r=1.5
+  numInstances:i=14
+  numReserved:i=2
+  sfxPath:t="sounds/explosions"
+  sfxEvent:t="bomb_explosion_ground"
+}
+
+bomb_ground_explosion_med{
+  fx:t="bomb_big_expl_composite_fx"
+  lifeTime:r=10.0
+  softnessDepth:r=10.0
+  minScale:r=0.3
+  maxScale:r=1.0
+  numInstances:i=28
+  numReserved:i=2
+}
+
+bomb_ground_explosion_small{
+  fx:t="bomb_small_expl_composite_fx"
+  lifeTime:r=10.0
+  softnessDepth:r=5.0
+  minScale:r=0.6
+  maxScale:r=1.9
+  numInstances:i=56
+  numReserved:i=2
+}
+
+bomb_water_explosion_big{
+  fx:t="bomb_water_big_expl_composite_fx"
+  lifeTime:r=10.0
+  softnessDepth:r=5.0
+  numInstances:i=15
+  numReserved:i=3
+  group:t="water_proj"
+}
+
+bomb_water_explosion_huge{
+  fx:t="bomb_water_big_expl_composite_fx"
+  lifeTime:r=10.0
+  softnessDepth:r=5.0
+  minScale:r=1.6
+  maxScale:r=2.5
+  numInstances:i=15
+  numReserved:i=3
+  group:t="water_proj"
+}
+
+bomb_water_explosion_med{
+  fx:t="bomb_water_med_expl_composite_fx"
+  lifeTime:r=10.0
+  softnessDepth:r=5.0
+  numInstances:i=30
+  numReserved:i=3
+  group:t="water_proj"
+}
+
+bomb_water_explosion_small{
+  fx:t="bomb_water_small_expl_composite_fx"
+  lifeTime:r=10.0
+  softnessDepth:r=5.0
+  numInstances:i=60
+  numReserved:i=3
+  farPlane:r=3000.0
+  minScale:r=1.0
+  maxScale:r=1.5
+  group:t="water_proj"
+}
+
+bomb_splash{
+  fx:t="bigsplashexplosion_fx"
+  lifeTime:r=10.0
+  softnessDepth:r=5.0
+  groundSpotTexName:t="ground_spot"
+  groundSpotRadius:r=6.0
+  groundSpotAtTime:r=3.0
+  numInstances:i=15
+  numReserved:i=3
+}
+
+torpedo_ground{
+  fx:t="bomb_ground_explosion_fx"
+  softnessDepth:r=5.0
+  numInstances:i=5
+  numReserved:i=1
+  sfxPath:t="sounds/explosions"
+  sfxEvent:t="explosion_water"
+}
+
+torpedo_broken{
+  fx:t="bigsplashexplosion_fx"
+  lifeTime:r=10.0
+  softnessDepth:r=5.0
+  numInstances:i=5
+  numReserved:i=1
+}
+
+torpedo_explosion{
+  fx:t="bomb_water_small_expl_composite_fx"
+  lifeTime:r=10.0
+  softnessDepth:r=5.0
+  numInstances:i=15
+  numReserved:i=3
+  sfxPath:t="sounds/explosions"
+  sfxEvent:t="explosion_water"
+}
+
+torpedo_explosion_unit{
+  fx:t="bomb_water_med_expl_composite_fx"
+  lifeTime:r=10.0
+  softnessDepth:r=5.0
+  numInstances:i=15
+  numReserved:i=3
+  sfxPath:t="sounds/explosions"
+  sfxEvent:t="torpedo_explosion_unit"
+}
+
+bomb_reflection{
+  fx:t="bomb_reflection_splash_fx"
+  softnessDepth:r=5.0
+  numInstances:i=5
+  numReserved:i=1
+}
+
+stone_splash{
+  fx:t="20_37_ap_hit_stone_composite"
+  lifeTime:r=0.0
+  softnessDepth:r=2.0
+  granularity:i=4
+  numInstances:i=100
+  numReserved:i=30
+  minScale:r=0.8
+  maxScale:r=1.0
+  onePointNumber:i=8
+}
+
+122_he_stone_splash{
+  fx:t="122_152_he_hit_stone_composite"
+  lifeTime:r=0.0
+  softnessDepth:r=2.0
+  granularity:i=4
+  numInstances:i=100
+  numReserved:i=30
+  minScale:r=0.8
+  maxScale:r=1.0
+  onePointNumber:i=8
+}
+
+122_ap_stone_splash{
+  fx:t="122_152_ap_hit_stone_composite"
+  lifeTime:r=0.0
+  softnessDepth:r=2.0
+  granularity:i=4
+  numInstances:i=100
+  numReserved:i=30
+  minScale:r=0.8
+  maxScale:r=1.0
+  onePointNumber:i=8
+}
+
+20_ap_wood_splash{
+  fx:t="pv_hit_wood_composite_fx"
+  lifeTime:r=0.0
+  softnessDepth:r=2.0
+  granularity:i=4
+  numInstances:i=100
+  numReserved:i=30
+  minScale:r=0.8
+  maxScale:r=1.0
+  onePointNumber:i=8
+}
+
+20_ap_water_splash{
+  fx:t="pv_cannonball_splash_fx"
+  group:t="water_proj"
+  lifeTime:r=0.0
+  softnessDepth:r=2.0
+  granularity:i=4
+  numInstances:i=100
+  numReserved:i=30
+  minScale:r=0.8
+  maxScale:r=1.0
+  onePointNumber:i=8
+}
+
+gun_fire{
+  cols:i=4
+  rows:i=2
+  minShotFreq:r=5.0
+  maxShotFreq:r=20.0
+  fps:r=25.0
+  showTime:r=0.1
+  action:r=1.0
+
+  minFreq{
+    fps:r=25.0
+    showTime:r=0.1
+    action:r=1.0
+  }
+
+  maxFreq{
+    fps:r=25.0
+    showTime:r=0.1
+    action:r=1.0
+  }
+}
+
+shell_reject{
+  emitter:t="emtr_shellrejection"
+  fx:t="ShellRejection_fx"
+  lifeTime:r=50.0
+  onePointNumber:i=15
+  numInstances:i=15
+  numReserved:i=5
+}
+
+aircraft_propellers_ground_dust{
+  fx:t="aircraft_ground_dust_fx"
+  lifeTime:r=10.0
+  softnessDepth:r=5.0
+  numInstances:i=20
+  numReserved:i=5
+}
+
+aircraft_wheels_ground_dust{
+  fx:t="aircraft_wheels_dust_fx"
+  lifeTime:r=10.0
+  softnessDepth:r=1.0
+  numInstances:i=20
+  numReserved:i=5
+}
+
+aircraft_wheels_ground_friction{
+  fx:t="aircraft_wheels_friction_fx"
+  lifeTime:r=10.0
+  softnessDepth:r=2.0
+  numInstances:i=20
+  numReserved:i=5
+}
+
+aircraft_propellers_water_splashes{
+  fx:t="water_oceanwave_splash_fx"
+  lifeTime:r=10.0
+  softnessDepth:r=1.0
+  numInstances:i=20
+  numReserved:i=5
+}
+
+aircraft_wheels_water_splashes{
+  fx:t="water_oceanwave_splash_fx"
+  lifeTime:r=10.0
+  softnessDepth:r=1.0
+  numInstances:i=20
+  numReserved:i=5
+}
+
+rotor_ground_dust{
+  fx:t="rotor_dust_fx"
+  lifeTime:r=10.0
+  softnessDepth:r=1.0
+  numInstances:i=8
+  numReserved:i=1
+}
+
+rotor_water_splashes{
+  fx:t="rotor_water_fx"
+  softnessDepth:r=1.0
+  numInstances:i=7
+  numReserved:i=1
+}
+
+rotor_water_foam{
+  fx:t="rotor_foam_fx"
+  softnessDepth:r=1.0
+  numInstances:i=7
+  numReserved:i=1
+}
+
+air_hit{
+  fx:t="airhit_fx"
+  lifeTime:r=10.0
+  numInstances:i=80
+  numReserved:i=3
+}
+
+cannon_air_hit{
+  fx:t="cannon_airhit_fx"
+  lifeTime:r=10.0
+  numInstances:i=30
+  numReserved:i=3
+}
+
+explosion_plane{
+  fx:t="air_expl_composite_fx"
+  lifeTime:r=10.0
+  groundSpotTexName:t="ground_spot"
+  groundSpotRadius:r=8.0
+  groundSpotAtTime:r=0.0
+  numInstances:i=20
+  numReserved:i=3
+}
+
+explosion_pony{
+  fx:t="expl_pieces_fx"
+  lifeTime:r=10.0
+  numInstances:i=20
+  numReserved:i=3
+}
+
+land_explosion_plane{
+  fx:t="crsh_expl_composite_fx"
+  lifeTime:r=10.0
+  softnessDepth:r=8.0
+  sortDistanceOffset:r=0.0
+  nonPlayerFadeDistScale:r=2.0
+  playerFadeDistScale:r=1.0
+  groundSpotTexName:t="ground_spot"
+  groundSpotRadius:r=8.0
+  groundSpotAtTime:r=0.0
+  numInstances:i=20
+  numReserved:i=2
+}
+
+explosion_plane_pieces{
+  fx:t="expl_pieces_fx"
+  lifeTime:r=10.0
+  sortDistanceOffset:r=0.0
+  nonPlayerFadeDistScale:r=0.8
+  playerFadeDistScale:r=0.5
+  numInstances:i=20
+  numReserved:i=2
+}
+
+water_explosion_plane{
+  fx:t="bigsplashexplosion_fx"
+  lifeTime:r=10.0
+  softnessDepth:r=8.0
+  numInstances:i=20
+  numReserved:i=5
+}
+
+aircraft_ground_dust{
+  fx:t="aircraft_ground_dust_fx"
+  lifeTime:r=10.0
+  softnessDepth:r=1.0
+  numInstances:i=10
+  numReserved:i=2
+}
+
+aircraft_wheels_dust{
+  fx:t="aircraft_wheels_dust_fx"
+  lifeTime:r=10.0
+  softnessDepth:r=1.0
+  numInstances:i=10
+  numReserved:i=2
+}
+
+land_crash_fire{
+  fx:t="land_crash_fire_fx"
+  lifeTime:r=180.0
+  softnessDepth:r=5.0
+  minScale:r=1.0
+  maxScale:r=1.2
+  sortDistanceOffset:r=1.0
+  nonPlayerFadeDistScale:r=1.5
+  playerFadeDistScale:r=1.0
+  numInstances:i=20
+  numReserved:i=3
+  farPlane:r=10000.0
+}
+
+land_crash_smoke{
+  fx:t="land_crash_smoke_fx"
+  lifeTime:r=180.0
+  softnessDepth:r=5.0
+  minScale:r=1.0
+  maxScale:r=1.2
+  sortDistanceOffset:r=1.0
+  nonPlayerFadeDistScale:r=1.5
+  playerFadeDistScale:r=1.0
+  numInstances:i=20
+  numReserved:i=3
+  farPlane:r=10000.0
+}
+
+motor_exhaust{
+  fx:t="motor_exhaust_fx"
+  lifeTime:r=3.0
+  isTrail:b=yes
+  onePointNumber:i=8
+  numInstances:i=20
+  numReserved:i=8
+}
+
+pony_exhaust{
+  fx:t="motor_exhaust_fx"
+  lifeTime:r=3.0
+  isTrail:b=yes
+  numInstances:i=20
+  numReserved:i=8
+}
+
+motor_exhaust_wep{
+  fx:t="motor_exhaust_wep_fx"
+  lifeTime:r=2.0
+  isTrail:b=yes
+  onePointNumber:i=8
+  numInstances:i=8
+  numReserved:i=0
+}
+
+trail_inversion{
+  fx:t="trail_inversion_fx"
+  lifeTime:r=2.0
+  isTrail:b=yes
+  nonPlayerFadeDistScale:r=1.0
+  playerFadeDistScale:r=2.0
+  sortDistanceOffset:r=0.0
+  farPlane:r=15000.0
+  numInstances:i=20
+  numReserved:i=5
+}
+
+trail_oil{
+  fx:t="trail_oil_large_fx"
+  lifeTime:r=10.0
+  alphaHeightRange:p2=50.0, 200.0
+  isTrail:b=yes
+  nonPlayerFadeDistScale:r=2.0
+  playerFadeDistScale:r=1.5
+  sortDistanceOffset:r=20.0
+  onMoving:b=yes
+  numInstances:i=25
+  numReserved:i=5
+}
+
+trail_fuel{
+  fx:t="airsmoke_engine_minor"
+  lifeTime:r=10.0
+  alphaHeightRange:p2=50.0, 300.0
+  isTrail:b=yes
+  sortDistanceOffset:r=15.0
+  nonPlayerFadeDistScale:r=3.0
+  playerFadeDistScale:r=1.5
+  onMoving:b=yes
+  numInstances:i=20
+  numReserved:i=4
+}
+
+major_engine_smoke{
+  fx:t="major_engine_smoke_fx"
+  lifeTime:r=10.0
+  alphaHeightRange:p2=0.0, 100.0
+  isTrail:b=yes
+  sortDistanceOffset:r=20.0
+  nonPlayerFadeDistScale:r=2.0
+  playerFadeDistScale:r=0.4
+  numInstances:i=20
+  numReserved:i=4
+}
+
+minor_engine_smoke{
+  fx:t="minor_engine_smoke_fx"
+  lifeTime:r=5.0
+  alphaHeightRange:p2=0.0, 50.0
+  isTrail:b=yes
+  nonPlayerFadeDistScale:r=2.0
+  playerFadeDistScale:r=0.4
+  sortDistanceOffset:r=10.0
+  numInstances:i=20
+  numReserved:i=5
+}
+
+major_engine_fire{
+  fx:t="major_engine_fire_fx"
+  lifeTime:r=10.0
+  alphaHeightRange:p2=0.0, 300.0
+  isTrail:b=yes
+  nonPlayerFadeDistScale:r=3.0
+  playerFadeDistScale:r=0.4
+  sortDistanceOffset:r=25.0
+  numInstances:i=20
+  numReserved:i=4
+}
+
+major_fuel_smoke{
+  fx:t="major_fuel_smoke_fx"
+  lifeTime:r=15.0
+  alphaHeightRange:p2=0.0, 300.0
+  isTrail:b=yes
+  sortDistanceOffset:r=2.5
+  nonPlayerFadeDistScale:r=3.0
+  playerFadeDistScale:r=0.4
+  numInstances:i=20
+  numReserved:i=4
+}
+
+major_fuel_fire{
+  fx:t="major_fuel_fire_fx"
+  lifeTime:r=10.0
+  isTrail:b=yes
+  sortDistanceOffset:r=7.5
+  nonPlayerFadeDistScale:r=6.0
+  playerFadeDistScale:r=0.4
+  numInstances:i=20
+  numReserved:i=4
+}
+
+major_skin_smoke{
+  fx:t="major_skin_smoke_fx"
+  lifeTime:r=10.0
+  isTrail:b=yes
+  sortDistanceOffset:r=7.5
+  nonPlayerFadeDistScale:r=6.0
+  playerFadeDistScale:r=0.4
+  numInstances:i=20
+  numReserved:i=4
+}
+
+major_skin_fire{
+  fx:t="major_skin_fire_fx"
+  lifeTime:r=10.0
+  isTrail:b=yes
+  sortDistanceOffset:r=7.5
+  nonPlayerFadeDistScale:r=6.0
+  playerFadeDistScale:r=0.4
+  numInstances:i=20
+  numReserved:i=4
+}
+
+wrecked_smoke{
+  fx:t="trail_oil_fx"
+  lifeTime:r=18.0
+  alphaHeightRange:p2=50.0, 300.0
+  isTrail:b=yes
+  nonPlayerFadeDistScale:r=3.0
+  playerFadeDistScale:r=1.5
+  sortDistanceOffset:r=20.0
+  onMoving:b=yes
+  minScale:r=1.0
+  maxScale:r=1.0
+  numInstances:i=20
+  numReserved:i=5
+}
+
+contrail{
+  fx:t="trail_contrail_fx"
+  lifeTime:r=18.0
+  alphaHeightRange:p2=50.0, 300.0
+  isTrail:b=yes
+  nonPlayerFadeDistScale:r=3.0
+  playerFadeDistScale:r=1.5
+  sortDistanceOffset:r=20.0
+  onMoving:b=yes
+  minScale:r=1.0
+  maxScale:r=1.0
+  numInstances:i=50
+  numReserved:i=5
+}
+
+aerobatics_smoke_wing_1{
+  fx:t="pilotage_trail_white_fx"
+  lifeTime:r=18.0
+  alphaHeightRange:p2=50.0, 300.0
+  isTrail:b=yes
+  nonPlayerFadeDistScale:r=3.0
+  playerFadeDistScale:r=1.5
+  sortDistanceOffset:r=20.0
+  onMoving:b=yes
+  minScale:r=1.0
+  maxScale:r=1.0
+  numInstances:i=20
+  numReserved:i=5
+}
+
+aerobatics_smoke_wing_2{
+  fx:t="pilotage_trail_red_fx"
+  lifeTime:r=18.0
+  alphaHeightRange:p2=50.0, 300.0
+  isTrail:b=yes
+  nonPlayerFadeDistScale:r=3.0
+  playerFadeDistScale:r=1.5
+  sortDistanceOffset:r=20.0
+  onMoving:b=yes
+  minScale:r=1.0
+  maxScale:r=1.0
+  numInstances:i=20
+  numReserved:i=5
+}
+
+aerobatics_smoke_wing_3{
+  fx:t="pilotage_trail_orange_fx"
+  lifeTime:r=18.0
+  alphaHeightRange:p2=50.0, 300.0
+  isTrail:b=yes
+  nonPlayerFadeDistScale:r=3.0
+  playerFadeDistScale:r=1.5
+  sortDistanceOffset:r=20.0
+  onMoving:b=yes
+  minScale:r=1.0
+  maxScale:r=1.0
+  numInstances:i=20
+  numReserved:i=5
+}
+
+aerobatics_smoke_wing_4{
+  fx:t="pilotage_trail_yellow_fx"
+  lifeTime:r=18.0
+  alphaHeightRange:p2=50.0, 300.0
+  isTrail:b=yes
+  nonPlayerFadeDistScale:r=3.0
+  playerFadeDistScale:r=1.5
+  sortDistanceOffset:r=20.0
+  onMoving:b=yes
+  minScale:r=1.0
+  maxScale:r=1.0
+  numInstances:i=20
+  numReserved:i=5
+}
+
+aerobatics_smoke_wing_5{
+  fx:t="pilotage_trail_green_fx"
+  lifeTime:r=18.0
+  alphaHeightRange:p2=50.0, 300.0
+  isTrail:b=yes
+  nonPlayerFadeDistScale:r=3.0
+  playerFadeDistScale:r=1.5
+  sortDistanceOffset:r=20.0
+  onMoving:b=yes
+  minScale:r=1.0
+  maxScale:r=1.0
+  numInstances:i=20
+  numReserved:i=5
+}
+
+aerobatics_smoke_wing_6{
+  fx:t="pilotage_trail_blue_fx"
+  lifeTime:r=18.0
+  alphaHeightRange:p2=50.0, 300.0
+  isTrail:b=yes
+  nonPlayerFadeDistScale:r=3.0
+  playerFadeDistScale:r=1.5
+  sortDistanceOffset:r=20.0
+  onMoving:b=yes
+  minScale:r=1.0
+  maxScale:r=1.0
+  numInstances:i=20
+  numReserved:i=5
+}
+
+aerobatics_smoke_wing_7{
+  fx:t="pilotage_trail_magenta_fx"
+  lifeTime:r=18.0
+  alphaHeightRange:p2=50.0, 300.0
+  isTrail:b=yes
+  nonPlayerFadeDistScale:r=3.0
+  playerFadeDistScale:r=1.5
+  sortDistanceOffset:r=20.0
+  onMoving:b=yes
+  minScale:r=1.0
+  maxScale:r=1.0
+  numInstances:i=20
+  numReserved:i=5
+}
+
+aerobatics_smoke_tail_1{
+  fx:t="pilotage_trail_white_fx"
+  lifeTime:r=18.0
+  alphaHeightRange:p2=50.0, 300.0
+  isTrail:b=yes
+  nonPlayerFadeDistScale:r=3.0
+  playerFadeDistScale:r=1.5
+  sortDistanceOffset:r=20.0
+  onMoving:b=yes
+  minScale:r=1.0
+  maxScale:r=1.0
+  numInstances:i=20
+  numReserved:i=5
+}
+
+aerobatics_smoke_tail_2{
+  fx:t="pilotage_trail_red_fx"
+  lifeTime:r=18.0
+  alphaHeightRange:p2=50.0, 300.0
+  isTrail:b=yes
+  nonPlayerFadeDistScale:r=3.0
+  playerFadeDistScale:r=1.5
+  sortDistanceOffset:r=20.0
+  onMoving:b=yes
+  minScale:r=1.0
+  maxScale:r=1.0
+  numInstances:i=20
+  numReserved:i=5
+}
+
+aerobatics_smoke_tail_3{
+  fx:t="pilotage_trail_orange_fx"
+  lifeTime:r=18.0
+  alphaHeightRange:p2=50.0, 300.0
+  isTrail:b=yes
+  nonPlayerFadeDistScale:r=3.0
+  playerFadeDistScale:r=1.5
+  sortDistanceOffset:r=20.0
+  onMoving:b=yes
+  minScale:r=1.0
+  maxScale:r=1.0
+  numInstances:i=20
+  numReserved:i=5
+}
+
+aerobatics_smoke_tail_4{
+  fx:t="pilotage_trail_yellow_fx"
+  lifeTime:r=18.0
+  alphaHeightRange:p2=50.0, 300.0
+  isTrail:b=yes
+  nonPlayerFadeDistScale:r=3.0
+  playerFadeDistScale:r=1.5
+  sortDistanceOffset:r=20.0
+  onMoving:b=yes
+  minScale:r=1.0
+  maxScale:r=1.0
+  numInstances:i=20
+  numReserved:i=5
+}
+
+aerobatics_smoke_tail_5{
+  fx:t="pilotage_trail_green_fx"
+  lifeTime:r=18.0
+  alphaHeightRange:p2=50.0, 300.0
+  isTrail:b=yes
+  nonPlayerFadeDistScale:r=3.0
+  playerFadeDistScale:r=1.5
+  sortDistanceOffset:r=20.0
+  onMoving:b=yes
+  minScale:r=1.0
+  maxScale:r=1.0
+  numInstances:i=20
+  numReserved:i=5
+}
+
+aerobatics_smoke_tail_6{
+  fx:t="pilotage_trail_blue_fx"
+  lifeTime:r=18.0
+  alphaHeightRange:p2=50.0, 300.0
+  isTrail:b=yes
+  nonPlayerFadeDistScale:r=3.0
+  playerFadeDistScale:r=1.5
+  sortDistanceOffset:r=20.0
+  onMoving:b=yes
+  minScale:r=1.0
+  maxScale:r=1.0
+  numInstances:i=20
+  numReserved:i=5
+}
+
+aerobatics_smoke_tail_7{
+  fx:t="pilotage_trail_magenta_fx"
+  lifeTime:r=18.0
+  alphaHeightRange:p2=50.0, 300.0
+  isTrail:b=yes
+  nonPlayerFadeDistScale:r=3.0
+  playerFadeDistScale:r=1.5
+  sortDistanceOffset:r=20.0
+  onMoving:b=yes
+  minScale:r=1.0
+  maxScale:r=1.0
+  numInstances:i=20
+  numReserved:i=5
+}
+
+jet_flame{
+  fps:r=45.0
+  numFrames:i=4
+  enginePowerScale:p2=0.2, 1.0
+  randomScale:p2=0.07, 0.3
+}
+
+trail_jet{
+  fx:t="trail_jet_fx"
+  lifeTime:r=18.0
+  alphaHeightRange:p2=1200.0, 3000.0
+  isTrail:b=yes
+  nonPlayerFadeDistScale:r=5.0
+  playerFadeDistScale:r=2.0
+  numInstances:i=20
+  numReserved:i=4
+}
+
+gun_smoke_0{
+  fx:t="aircraft_guns_smoke_fx"
+  isTrail:b=yes
+  onePointNumber:i=20
+  numInstances:i=40
+  numReserved:i=20
+}
+
+gun_smoke_1{
+  fx:t="artillery_flash_fx"
+  numInstances:i=15
+  numReserved:i=0
+  softnessDepth:r=1.0
+}
+
+gun_smoke_2{
+  fx:t="tank_flash_fx"
+  numInstances:i=15
+  numReserved:i=0
+  softnessDepth:r=1.0
+}
+
+part_cut{
+  fx:t="part_cut_fx"
+  numInstances:i=5
+  numReserved:i=2
+}
+
+part_meet_ground{
+  fx:t="rotor_collision_ground_fx"
+  numInstances:i=8
+  numReserved:i=4
+}
+
+part_meet_water{
+  fx:t="water_singlesplash_fx"
+  numInstances:i=10
+  numReserved:i=4
+}
+
+propellor_meet_ground{
+  fx:t="rotor_collision_ground_fx"
+  numInstances:i=10
+  numReserved:i=4
+}
+
+propellor_meet_water{
+  fx:t="water_singlesplash_fx"
+  numInstances:i=10
+  numReserved:i=4
+}
+
+track_dirt_back{
+  fx:t="pv_track_dirt_back_composite_fx"
+  numInstances:i=50
+  numReserved:i=8
+}
+
+track_dirt_front{
+  fx:t="pv_track_dirt_front_composite_fx"
+  numInstances:i=50
+  numReserved:i=8
+}
+
+track_dirt_top{
+  fx:t="pv_track_dirt_top_composite_fx"
+  numInstances:i=50
+  numReserved:i=8
+}
+
+track_move_dirt{
+  fx:t="pv_move_dirt_fx"
+  numInstances:i=50
+  numReserved:i=8
+}
+
+track_sand_back{
+  fx:t="pv_track_sand_back_composite_fx"
+  numInstances:i=50
+  numReserved:i=8
+}
+
+track_sand_front{
+  fx:t="pv_track_sand_front_composite_fx"
+  numInstances:i=50
+  numReserved:i=8
+}
+
+track_sand_top{
+  fx:t="pv_track_sand_top_composite_fx"
+  numInstances:i=50
+  numReserved:i=8
+}
+
+track_move_sand{
+  fx:t="pv_move_sand_fx"
+  numInstances:i=50
+  numReserved:i=8
+}
+
+track_snow_back{
+  fx:t="pv_track_snow_back_composite_fx"
+  numInstances:i=50
+  numReserved:i=8
+}
+
+track_snow_front{
+  fx:t="pv_track_snow_front_composite_fx"
+  numInstances:i=50
+  numReserved:i=8
+}
+
+track_snow_top{
+  fx:t="pv_track_snow_top_composite_fx"
+  numInstances:i=50
+  numReserved:i=8
+}
+
+track_move_snow{
+  fx:t="pv_move_snow_fx"
+  numInstances:i=50
+  numReserved:i=8
+}
+
+tank_water_splashes{
+  fx:t="pv_move_water_fx"
+  numInstances:i=50
+  numReserved:i=20
+  onePointNumber:i=20
+}
+
+tank_explosion{
+  fx:t="pv_explosion_composite_fx"
+  numInstances:i=50
+  numReserved:i=8
+  sfxPath:t="tanks/explosions_tanks"
+  sfxEvent:t="destroy"
+  lightColor:p4=10.0, 2.0, 2.0, 100.0
+}
+
+tank_explosion_flowers{
+  fx:t="pv_explosion_flowers_composite_fx"
+  numInstances:i=50
+  numReserved:i=8
+  sfxPath:t="tanks/explosions_tanks"
+  sfxEvent:t="destroy"
+}
+
+slug_explosion{
+  fx:t="slug_expl_splash_composite_fx"
+  numInstances:i=50
+  numReserved:i=8
+  sfxPath:t="tanks/explosions_tanks"
+  sfxEvent:t="destroy"
+  minScale:r=4.0
+  maxScale:r=4.0
+}
+
+tank_exhaust{
+  fx:t="pv_exhaust_fx"
+  numInstances:i=50
+  numReserved:i=8
+}
+
+lightning_ball{
+  fx:t="lightning_ball_continuous_fx"
+  numInstances:i=50
+  numReserved:i=8
+}
+
+big_gun_flame{
+  fx:t="pv_gun_flame_composite_fx"
+  lifeTime:r=10.0
+  softnessDepth:r=5.0
+  sortDistanceOffset:r=0.0
+  numInstances:i=50
+  numReserved:i=1
+}
+
+400m_gun_flame{
+  fx:t="ps_gun_flame_400mm_fire_composite_fx"
+  lifeTime:r=10.0
+  softnessDepth:r=5.0
+  sortDistanceOffset:r=0.0
+  numInstances:i=50
+  numReserved:i=1
+}
+
+gunpowder_gun_flame{
+  fx:t="pv_gunpowder_flame_composite_fx"
+  lifeTime:r=10.0
+  softnessDepth:r=5.0
+  sortDistanceOffset:r=0.0
+  group:t="highres"
+  numInstances:i=50
+  numReserved:i=1
+}
+
+aaa_gun_flame{
+  fx:t="pv_gun_flame_fire_composite_fx"
+  lifeTime:r=10.0
+  softnessDepth:r=5.0
+  sortDistanceOffset:r=0.0
+  numInstances:i=50
+  numReserved:i=1
+}
+
+big_gun_mb_flame{
+  fx:t="pv_gun_mb_flame_composite_fx"
+  lifeTime:r=10.0
+  softnessDepth:r=5.0
+  sortDistanceOffset:r=0.0
+  numInstances:i=50
+  numReserved:i=1
+}
+
+pv_gun_dust_special{
+  fx:t="lightning_composite_fx"
+  lifeTime:r=10.0
+  softnessDepth:r=5.0
+  sortDistanceOffset:r=0.0
+  numInstances:i=50
+  numReserved:i=1
+  farPlane:r=15000.0
+}
+
+machine_gun_flame{
+  fx:t="pv_mg_flame_composite_fx"
+  lifeTime:r=10.0
+  softnessDepth:r=5.0
+  sortDistanceOffset:r=0.0
+  numInstances:i=80
+  numReserved:i=1
+  onePointNumber:i=50
+}
+
+small_gun_flame{
+  fx:t="pv_gun_sc_flame_fire_composite_fx"
+  lifeTime:r=10.0
+  softnessDepth:r=5.0
+  sortDistanceOffset:r=0.0
+  numInstances:i=50
+  numReserved:i=1
+  onePointNumber:i=50
+}
+
+small_gun_mb_flame{
+  fx:t="pv_aa_quadruple_gun_mb_composite_fx"
+  lifeTime:r=10.0
+  softnessDepth:r=5.0
+  sortDistanceOffset:r=0.0
+  numInstances:i=50
+  numReserved:i=1
+  onePointNumber:i=50
+}
+
+23mm_aa_gun_flame{
+  fx:t="pv_aa_gun_front_composite_fx"
+  lifeTime:r=10.0
+  softnessDepth:r=5.0
+  sortDistanceOffset:r=0.0
+  numInstances:i=50
+  numReserved:i=1
+  onePointNumber:i=50
+}
+
+ground_shock_wave_dust{
+  fx:t="pv_gun_dust_fx"
+  lifeTime:r=10.0
+  softnessDepth:r=5.0
+  sortDistanceOffset:r=0.0
+  numInstances:i=50
+  numReserved:i=1
+}
+
+cannon_hit_light{
+  fx:t="pv_hit_penetration_composite_fx"
+  lifeTime:r=10.0
+  numInstances:i=80
+  numReserved:i=3
+  onePointNumber:i=80
+  sfxPath:t="tanks/explosions_tanks"
+  sfxEvent:t="explosion_metal"
+}
+
+cannon_hit_armor{
+  fx:t="pv_hit_penetration_composite_fx"
+  lifeTime:r=10.0
+  numInstances:i=80
+  numReserved:i=3
+  onePointNumber:i=80
+  sfxPath:t="tanks/explosions_tanks"
+  sfxEvent:t="explosion_metal"
+}
+
+cannon_ricochet{
+  fx:t="pv_hit_ricochet_composite_fx"
+  lifeTime:r=10.0
+  numInstances:i=30
+  numReserved:i=3
+  onePointNumber:i=40
+  sfxPath:t="tanks/effects_tanks"
+  sfxEvent:t="rico"
+}
+
+tank_engine_fire{
+  fx:t="pv_engine_fire_composite_fx"
+  lifeTime:r=10.0
+  numInstances:i=30
+  numReserved:i=3
+  sfxPath:t="tanks/explosions_tanks"
+  sfxEvent:t="engine_burn"
+  lightColor:p4=10.0, 2.0, 2.0, 50.0
+}
+
+tank_engine_smoke{
+  fx:t="pv_engine_smoke_fx"
+  lifeTime:r=10.0
+  numInstances:i=30
+  numReserved:i=3
+}
+
+tank_ammo_fire{
+  fx:t="pv_ammo_fire_composite_fx"
+  lifeTime:r=10.0
+  numInstances:i=30
+  numReserved:i=3
+  sfxPath:t="tanks/explosions_tanks"
+  sfxEvent:t="ammo_explode"
+}
+
+tank_fire_small{
+  fx:t="pv_fire_small_composite_fx"
+  lifeTime:r=10.0
+  numInstances:i=30
+  numReserved:i=3
+}
+
+tank_fire_big{
+  fx:t="pv_fire_composite_fx"
+  lifeTime:r=10.0
+  numInstances:i=30
+  numReserved:i=3
+  sfxPath:t="tanks/explosions_tanks"
+  sfxEvent:t="fire_destroyed"
+}
+
+tank_smoke_small{
+  fx:t="pv_smoke_small_composite_fx"
+  lifeTime:r=10.0
+  numInstances:i=30
+  numReserved:i=3
+}
+
+tank_smoke_big{
+  fx:t="pv_smoke_composite_fx"
+  lifeTime:r=10.0
+  numInstances:i=30
+  numReserved:i=3
+}
+
+tank_fuel_explosion{
+  fx:t="pv_fuel_explosion_composite_fx"
+  lifeTime:r=10.0
+  numInstances:i=30
+  numReserved:i=3
+}
+
+cannon_hit_armor_cumulative{
+  fx:t="pv_hit_cumulative_composite_fx"
+  lifeTime:r=10.0
+  numInstances:i=80
+  numReserved:i=3
+  onePointNumber:i=80
+  sfxPath:t="tanks/explosions_tanks"
+  sfxEvent:t="explosion_metal"
+}
+
+cannon_hit_ship_cumulative{
+  fx:t="ps_hit_cumulative_composite_fx"
+  lifeTime:r=10.0
+  numInstances:i=80
+  numReserved:i=3
+  onePointNumber:i=80
+  sfxPath:t="tanks/explosions_tanks"
+  sfxEvent:t="explosion_metal"
+}
+
+pv_point_smoke_blue{
+  fx:t="pv_point_smoke_blue_fx"
+  lifeTime:r=10.0
+  numInstances:i=30
+  numReserved:i=3
+}
+
+pv_point_smoke_white{
+  fx:t="pv_point_smoke_blue_fx"
+  lifeTime:r=10.0
+  numInstances:i=30
+  numReserved:i=3
+}
+
+pv_point_smoke_red{
+  fx:t="pv_point_smoke_blue_fx"
+  lifeTime:r=10.0
+  numInstances:i=30
+  numReserved:i=3
+}
+
+ji_ha_death{
+  fx:t="slug_expl_splash_composite_fx"
+  numInstances:i=50
+  numReserved:i=8
+  sfxPath:t="tanks/effects_tanks"
+  sfxEvent:t="snail_death"
+  minScale:r=4.0
+  maxScale:r=4.0
+  farPlane:r=15000.0
+}
+
+tank_light_smoke{
+  fx:t="pv_smoke_small_composite_fx"
+  lifeTime:r=10.0
+  numInstances:i=30
+  numReserved:i=3
+}
+
+ship_engine_fire{
+  fx:t="ps_engine_fire_composite_fx"
+  lifeTime:r=10.0
+  numInstances:i=30
+  numReserved:i=3
+  sfxPath:t="tanks/explosions_tanks"
+  sfxEvent:t="fire_destroyed"
+  minScale:r=1.2
+  maxScale:r=1.5
+  group:t="water_proj"
+}
+
+ship_hit_fire{
+  fx:t="ps_hit_fire_composite_fx"
+  lifeTime:r=10.0
+  numInstances:i=30
+  numReserved:i=3
+}
+
+location_smoke_city{
+  fx:t="location_smoke_city_fx"
+  lifeTime:r=10.0
+  numInstances:i=30
+  numReserved:i=3
+}
+
+location_fire_composite{
+  fx:t="location_fire_composite_fx"
+  lifeTime:r=10.0
+  numInstances:i=30
+  numReserved:i=3
+}
+
+bonfire_composite{
+  fx:t="bonfire_composite_fx"
+  lifeTime:r=10.0
+  numInstances:i=30
+  onePointNumber:i=30
+  numReserved:i=3
+  sfxPath:t="sounds/effects"
+  sfxEvent:t="fire_hangar"
+}
+
+xmass_tree_sparklers_composite{
+  fx:t="xmass_sparkles_composite_fx"
+  lifeTime:r=10.0
+  numInstances:i=30
+  numReserved:i=5
+  onePointNumber:i=10
+}
+
+hangar_hmb_light{
+  fx:t="hmb_light_composite_fx"
+  lifeTime:r=10.0
+  numInstances:i=250
+  numReserved:i=5
+  onePointNumber:i=10
+}
+
+hangar_hmb_light_noshaft{
+  fx:t="hmb_light_noshaft_composite_fx"
+  lifeTime:r=10.0
+  numInstances:i=250
+  numReserved:i=5
+  onePointNumber:i=10
+}
+
+hangar_hmb_low_light_yellow{
+  fx:t="hmb_low_light_yellow_composite_fx"
+  lifeTime:r=10.0
+  numInstances:i=250
+  numReserved:i=20
+  onePointNumber:i=10
+}
+
+impact_dust{
+  fx:t="pv_step_dirt_composite_fx"
+  numInstances:i=15
+  numReserved:i=2
+  minScale:r=0.8
+  maxScale:r=1.1
+}
+
+water_jet{
+  fx:t="pv_water_jet_composite_fx"
+  numInstances:i=16
+  numReserved:i=2
+}
+
+old_ship_hit_ball{
+  fx:t="pv_hit_wood_composite_fx"
+  lifeTime:r=0.0
+  softnessDepth:r=2.0
+  granularity:i=4
+  numInstances:i=100
+  numReserved:i=30
+  minScale:r=0.8
+  maxScale:r=1.0
+  onePointNumber:i=8
+  sfxPath:t="sounds/effects"
+  sfxEvent:t="old_ship_hit"
+}
+
+old_ship_expl{
+  fx:t="grnd_expl_composite_fx"
+  lifeTime:r=100.0
+  softnessDepth:r=5.0
+  sortDistanceOffset:r=1.0
+  numInstances:i=10
+  numReserved:i=1
+  sfxPath:t="sounds/explosions"
+  sfxEvent:t="explosion_old_ship"
+}
+
+old_ship_expl_battle_area{
+  fx:t="water_crash_splash_fx"
+  lifeTime:r=100.0
+  softnessDepth:r=5.0
+  sortDistanceOffset:r=1.0
+  numInstances:i=10
+  numReserved:i=1
+  sfxPath:t="sounds/explosions"
+  sfxEvent:t="explosion_old_ship_cr"
+}
+
+ship_explosion{
+  fx:t="ps_explosion_composite_fx"
+  numInstances:i=50
+  numReserved:i=8
+  sfxPath:t="tanks/explosions_tanks"
+  sfxEvent:t="destroy"
+  lightColor:p4=10.0, 2.0, 2.0, 100.0
+  minScale:r=0.6
+  maxScale:r=0.7
+}
+
+start_torpedo{
+  fx:t="ps_trp_fire_composite_fx"
+  lifeTime:r=2.0
+  numInstances:i=10
+  numReserved:i=4
+  onePointNumber:i=0
+}
+
+pumpkin_expl{
+  fx:t="pumpkin_expl_composite_fx"
+  lifeTime:r=2.0
+  numInstances:i=20
+  numReserved:i=4
+  onePointNumber:i=0
+}
+
+pumpkin_flame{
+  fx:t="pumpkin_flame_composite_fx"
+  lifeTime:r=2.0
+  numInstances:i=200
+  onePointNumber:i=200
+  numReserved:i=4
+}
+
+light_indoor_20{
+  fx:t="light_indoor_20_fx"
+  lifeTime:r=2.0
+  numInstances:i=30
+  numReserved:i=10
+  onePointNumber:i=0
+}
+
+light_indoor_10_yellow{
+  fx:t="light_indoor_10_yellow_fx"
+  lifeTime:r=2.0
+  numInstances:i=30
+  numReserved:i=10
+  onePointNumber:i=0
+}
+
+trail_water{
+  fx:t="trail_water_fx"
+  lifeTime:r=40.0
+  alphaHeightRange:p2=50.0, 300.0
+  isTrail:b=yes
+  nonPlayerFadeDistScale:r=3.0
+  playerFadeDistScale:r=1.0
+  onMoving:b=yes
+  sortDistanceOffset:r=5.0
+  numInstances:i=14
+  numReserved:i=2
+}
+
+medium_water_splash{
+  fx:t="water_crash_splash_fx"
+  lifeTime:r=20.0
+  softnessDepth:r=10.0
+  granularity:i=8
+  numInstances:i=40
+  numReserved:i=20
+  minScale:r=0.65
+  maxScale:r=1.1
+}
+
+water_units_dust{
+  fx:t="water_engine_fx"
+  lifeTime:r=20.0
+  softnessDepth:r=2.0
+  granularity:i=8
+  numInstances:i=30
+  numReserved:i=1
+  minScale:r=0.8
+  maxScale:r=1.1
+}
+
+water_units_move_splash{
+  fx:t="water_oceanwave_splash_fx"
+  lifeTime:r=20.0
+  softnessDepth:r=2.0
+  granularity:i=8
+  numInstances:i=30
+  numReserved:i=1
+  minScale:r=0.8
+  maxScale:r=1.1
+}
+
+hit_pieces{
+  fx:t="HitPieces_fx"
+  lifeTime:r=1000.0
+  numInstances:i=20
+  numReserved:i=5
+}
+
+shell_expl_long_fireworks{
+  fx:t="fireworks_expl_composite_fx"
+  lifeTime:r=4.0
+  nonPlayerFadeDistScale:r=1.2
+  numInstances:i=100
+  numReserved:i=0
+  updateInvisible:b=yes
+  minScale:r=0.3
+  maxScale:r=0.8
+}
+
+firework_large_single{
+  fx:t="firework_large_composite_fx"
+  lifeTime:r=4.0
+  nonPlayerFadeDistScale:r=1.2
+  numInstances:i=100
+  numReserved:i=0
+  updateInvisible:b=yes
+  minScale:r=1.0
+  maxScale:r=4.0
+  sfxPath:t="sounds/effects"
+  sfxEvent:t="firework"
+}
+
+firework_large_yellow_single{
+  fx:t="firework_large_yellow_composite_fx"
+  lifeTime:r=4.0
+  nonPlayerFadeDistScale:r=1.2
+  numInstances:i=100
+  numReserved:i=0
+  updateInvisible:b=yes
+  minScale:r=1.0
+  maxScale:r=4.0
+  sfxPath:t="sounds/effects"
+  sfxEvent:t="firework"
+}
+
+firework_large_red_single{
+  fx:t="firework_large_red_composite_fx"
+  lifeTime:r=4.0
+  nonPlayerFadeDistScale:r=1.2
+  numInstances:i=100
+  numReserved:i=0
+  updateInvisible:b=yes
+  minScale:r=1.0
+  maxScale:r=4.0
+  sfxPath:t="sounds/effects"
+  sfxEvent:t="firework"
+}
+
+firework_large_green_single{
+  fx:t="firework_large_green_composite_fx"
+  lifeTime:r=4.0
+  nonPlayerFadeDistScale:r=1.2
+  numInstances:i=100
+  numReserved:i=0
+  updateInvisible:b=yes
+  minScale:r=1.0
+  maxScale:r=4.0
+  sfxPath:t="sounds/effects"
+  sfxEvent:t="firework"
+}
+
+firework_large_blue_single{
+  fx:t="firework_large_blue_composite_fx"
+  lifeTime:r=4.0
+  nonPlayerFadeDistScale:r=1.2
+  numInstances:i=100
+  numReserved:i=0
+  updateInvisible:b=yes
+  minScale:r=1.0
+  maxScale:r=4.0
+  sfxPath:t="sounds/effects"
+  sfxEvent:t="firework"
+}
+
+shell_expl_long{
+  fx:t="shell_expl_fx"
+  lifeTime:r=4.0
+  nonPlayerFadeDistScale:r=1.2
+  numInstances:i=100
+  numReserved:i=0
+  updateInvisible:b=yes
+  minScale:r=0.3
+  maxScale:r=0.8
+}
+
+shell_expl_short{
+  fx:t="shell_expl_fast_fx"
+  lifeTime:r=1.0
+  nonPlayerFadeDistScale:r=1.6
+  numInstances:i=90
+  numReserved:i=0
+  updateInvisible:b=yes
+  minScale:r=0.3
+  maxScale:r=0.8
+}
+
+explosion_pieces{
+  fx:t="expl_pieces_smoke_fx"
+  lifeTime:r=2.0
+  isTrail:b=yes
+  nonPlayerFadeDistScale:r=5.0
+  playerFadeDistScale:r=5.0
+  numInstances:i=10
+  numReserved:i=3
+}
+
+explosion_pieces_gm{
+  fx:t="expl_pieces_smoke_fx"
+  lifeTime:r=2.0
+  isTrail:b=yes
+  nonPlayerFadeDistScale:r=5.0
+  playerFadeDistScale:r=5.0
+  onePointNumber:i=0
+  numInstances:i=20
+  numReserved:i=0
+}
+
+water_explosion_pieces{
+  fx:t="waterpieceSmoke_fx"
+  lifeTime:r=2.0
+  softnessDepth:r=5.0
+  numInstances:i=12
+  numReserved:i=3
+}
+
+ground_model_fire{
+  fx:t="gm_fire_fx"
+  lifeTime:r=1800.0
+  softnessDepth:r=5.0
+  sortDistanceOffset:r=0.0
+  numInstances:i=60
+  numReserved:i=1
+  minScale:r=0.6
+  maxScale:r=1.4
+}
+
+ground_model_expl{
+  fx:t="grnd_expl_composite_fx"
+  lifeTime:r=100.0
+  softnessDepth:r=5.0
+  sortDistanceOffset:r=1.0
+  numInstances:i=10
+  numReserved:i=1
+}
+
+cut_tail_smoke{
+  fx:t="gm_fire_fx"
+  lifeTime:r=10.0
+  softnessDepth:r=0.5
+  sortDistanceOffset:r=0.0
+  numInstances:i=0
+  numReserved:i=0
+}
+
+ground_model_smoke{
+  fx:t="gm_enginesmoke_fx"
+  lifeTime:r=10.0
+  softnessDepth:r=5.0
+  sortDistanceOffset:r=0.0
+  numInstances:i=18
+  numReserved:i=1
+}
+
+ship_model_fire{
+  fx:t="gm_fire_fx"
+  lifeTime:r=10.0
+  softnessDepth:r=5.0
+  sortDistanceOffset:r=0.0
+  numInstances:i=15
+  numReserved:i=1
+}
+
+ship_model_expl{
+  fx:t="ship_expl_composite_fx"
+  lifeTime:r=100.0
+  softnessDepth:r=5.0
+  sortDistanceOffset:r=1.0
+  numInstances:i=10
+  numReserved:i=1
+}
+
+ship_model_expl_sfx{
+  fx:t="ship_expl_composite_fx"
+  lifeTime:r=100.0
+  softnessDepth:r=5.0
+  sortDistanceOffset:r=1.0
+  numInstances:i=10
+  numReserved:i=1
+  sfxPath:t="sounds/explosions"
+  sfxEvent:t="explosion_ground"
+}
+
+ground_light{
+  fx:t="artillery_ground_fx"
+  lifeTime:r=10.0
+  softnessDepth:r=5.0
+  numInstances:i=10
+  numReserved:i=1
+}
+
+ground_flash{
+  fx:t="artillery_flash_fx"
+  lifeTime:r=10.0
+  softnessDepth:r=5.0
+  numInstances:i=10
+  numReserved:i=0
+}
+
+tank_dust{
+  fx:t="tanks_dust_fx"
+  lifeTime:r=10.0
+  softnessDepth:r=5.0
+  numInstances:i=90
+  numReserved:i=1
+}
+
+object_ground_explosion{
+  fx:t="grnd_expl_composite_fx"
+  lifeTime:r=4.0
+  softnessDepth:r=5.0
+  numInstances:i=18
+  numReserved:i=1
+}
+
+object_water_explosion{
+  fx:t="bigsplashexplosion_fx"
+  lifeTime:r=4.0
+  softnessDepth:r=5.0
+  numInstances:i=10
+  numReserved:i=5
+}
+
+wind_particles{
+  fx:t="air_dust_fx"
+  lifeTime:r=10.0
+  softnessDepth:r=5.0
+  isTrail:b=yes
+  heightRange:p2=300.0, 1000.0
+  spawnRange:p2=1.0, 0.0
+  cameraOffset:p3=0.0, 0.0, 600.0
+  spawnKoefByType:r=0.5
+  numInstances:i=0
+  numReserved:i=0
+}
+
+haze{
+  fx:t="trail_haze_fx"
+  lifeTime:r=0.0
+  isTrail:b=yes
+  numInstances:i=12
+  numReserved:i=5
+}
+
+area_fx_0{
+  fx:t="gm_enginesmoke_fx"
+  lifeTime:r=10.0
+  softnessDepth:r=5.0
+  sortDistanceOffset:r=0.0
+  numInstances:i=18
+  numReserved:i=2
+  minScale:r=15.0
+  maxScale:r=27.0
+}
+
+area_fx_1{
+  fx:t="gm_fire_fx"
+  numInstances:i=20
+  numReserved:i=2
+  updateInvisible:b=no
+  farPlane:r=7000.0
+  softnessDepth:r=5.0
+}
+
+part_damage{
+  fx:t="part_damage_fx"
+  softnessDepth:r=1.0
+  numInstances:i=10
+  numReserved:i=5
+}
+
+building_expl{
+  fx:t="building_expl_fx"
+  numInstances:i=50
+  numReserved:i=5
+  softnessDepth:r=5.0
+  minScale:r=0.8
+  maxScale:r=1.2
+  sfxEvent:t="building_fall"
+}
+
+tree_expl{
+  fx:t="tree_expl_fx"
+  numInstances:i=15
+  numReserved:i=2
+  minScale:r=0.8
+  maxScale:r=1.1
+  sfxEvent:t="tree_falling"
+}
+
+ground_model_hit{
+  fx:t="HitPieces_fx"
+  numInstances:i=12
+  numReserved:i=0
+}
+
+ground_explosion_fx{
+  fx:t="ground_explosion_fx"
+  numInstances:i=10
+  numReserved:i=0
+  softnessDepth:r=2.0
+  farPlane:r=3000.0
+  minScale:r=1.0
+  maxScale:r=2.0
+}
+
+rocks_explosion_fx{
+  fx:t="rocks_explosion_fx"
+  numInstances:i=10
+  numReserved:i=0
+}
+
+beton_explosion_fx{
+  fx:t="beton_explosion_fx"
+  numInstances:i=10
+  numReserved:i=0
+}
+
+buildings_explosion_fx{
+  fx:t="buildings_explosion_fx"
+  numInstances:i=10
+  numReserved:i=0
+}
+
+crash_smoke_burst_fx{
+  fx:t="crash_smoke_burst_fx"
+  numInstances:i=0
+  numReserved:i=0
+}
+
+crash_smoke_fx{
+  fx:t="crash_smoke_fx"
+  numInstances:i=0
+  numReserved:i=0
+}
+
+huge_explosion_fx{
+  fx:t="huge_explosion_fx"
+  numInstances:i=1
+  numReserved:i=0
+  minScale:r=3.0
+  maxScale:r=3.0
+}
+
+hangar_smoke_fx{
+  fx:t="hangar_smoke_fx"
+  numInstances:i=0
+  numReserved:i=0
+  softnessDepth:r=1.0
+}
+
+rain_splash{
+  fx:t="rain_splash_fx"
+  numInstances:i=800
+  numReserved:i=4
+  softnessDepth:r=5.0
+}
+
+ship_exhaust{
+  fx:t="ship_exhaust_fx"
+  numInstances:i=50
+  numReserved:i=0
+  softnessDepth:r=1.0
+}
+
+ps_exhaust{
+  fx:t="ps_exhaust_composite_fx"
+  numInstances:i=50
+  numReserved:i=8
+}
+
+ps_exhaust_large{
+  fx:t="ps_exhaust_large_composite_fx"
+  numInstances:i=50
+  numReserved:i=8
+}
+
+boat_exhaust{
+  fx:t="boat_exhaust_fx"
+  numInstances:i=50
+  numReserved:i=0
+  softnessDepth:r=1.0
+}
+
+water_foam{
+  fx:t="water_foam_fx"
+  numInstances:i=50
+  numReserved:i=5
+  waterTexRender:b=yes
+}
+
+water_small_splash{
+  fx:t="water_splash_small_fx"
+  numInstances:i=50
+  numReserved:i=0
+  waterTexRender:b=yes
+  softnessDepth:r=3.0
+}
+
+ground_smoke{
+  fx:t="engine_smoke_fx"
+  numInstances:i=10
+  numReserved:i=0
+  softnessDepth:r=3.0
+}
+
+white_smoke{
+  fx:t="whitesmoke"
+  numInstances:i=10
+  numReserved:i=0
+  softnessDepth:r=2.0
+}
+
+lightning_ray{
+  fx:t="lightning_ray_fx.fx"
+  softnessDepth:r=5.0
+  numInstances:i=10
+  numReserved:i=0
+}
+
+lightning_ball_continuous{
+  fx:t="lightning_ball_continuous_fx"
+  softnessDepth:r=5.0
+  numInstances:i=25
+  numReserved:i=0
+}
+
+waypoint_ground{
+  fx:t="waypoint_ground_fx"
+  group:t="highres"
+  softnessDepth:r=5.0
+  numInstances:i=5
+  numReserved:i=0
+}
+
+am_ap_smoke_fx{
+  fx:t="am_ap_smoke_fx"
+  numInstances:i=10
+  numReserved:i=0
+  softnessDepth:r=2.0
+}
+
+ad_wood_small{
+  fx:t="ad_wood_small_composite_fx"
+  numInstances:i=20
+  numReserved:i=5
+  softnessDepth:r=5.0
+  onePointNumber:i=5
+  minScale:r=0.8
+  maxScale:r=1.2
+  sfxPath:t="tanks/object_crash"
+  sfxEvent:t="wood_mid"
+}
+
+ad_wood_big{
+  fx:t="ad_wood_big_composite_fx"
+  numInstances:i=20
+  numReserved:i=5
+  softnessDepth:r=5.0
+  onePointNumber:i=5
+  minScale:r=0.8
+  maxScale:r=1.2
+  sfxPath:t="tanks/object_crash"
+  sfxEvent:t="wood_big"
+}
+
+ad_wood_metal_big{
+  fx:t="ad_wood_big_composite_fx"
+  numInstances:i=20
+  numReserved:i=5
+  softnessDepth:r=5.0
+  onePointNumber:i=5
+  minScale:r=0.8
+  maxScale:r=1.2
+  sfxPath:t="tanks/object_crash"
+  sfxEvent:t="wood_metal_big"
+}
+
+ad_wood_snow_big{
+  fx:t="ad_wood_snow_big_composite_fx"
+  numInstances:i=20
+  numReserved:i=5
+  softnessDepth:r=5.0
+  onePointNumber:i=5
+  minScale:r=0.8
+  maxScale:r=1.2
+  sfxPath:t="tanks/object_crash"
+  sfxEvent:t="wood_big"
+}
+
+ad_wood_metal_snow_big{
+  fx:t="ad_wood_snow_big_composite_fx"
+  numInstances:i=20
+  numReserved:i=5
+  softnessDepth:r=5.0
+  onePointNumber:i=5
+  minScale:r=0.8
+  maxScale:r=1.2
+  sfxPath:t="tanks/object_crash"
+  sfxEvent:t="wood_metal_big"
+}
+
+ad_snowman{
+  fx:t="ad_snow_explotion_medium_composite_fx"
+  numInstances:i=20
+  numReserved:i=5
+  softnessDepth:r=5.0
+  onePointNumber:i=5
+  minScale:r=0.5
+  maxScale:r=0.9
+  sfxPath:t="tanks/object_crash"
+  sfxEvent:t="sandbag"
+}
+
+ad_fence_wood_small{
+  fx:t="ad_wood_small_composite_fx"
+  numInstances:i=20
+  numReserved:i=5
+  softnessDepth:r=5.0
+  onePointNumber:i=5
+  minScale:r=0.8
+  maxScale:r=1.2
+  sfxPath:t="tanks/object_crash"
+  sfxEvent:t="wood_small"
+}
+
+ad_wood_snow_small{
+  fx:t="ad_wood_snow_small_composite_fx"
+  numInstances:i=20
+  numReserved:i=5
+  softnessDepth:r=5.0
+  onePointNumber:i=5
+  minScale:r=0.8
+  maxScale:r=1.2
+  sfxPath:t="tanks/object_crash"
+  sfxEvent:t="wood_small"
+}
+
+ad_shlagbaum{
+  fx:t="ad_wood_small_composite_fx"
+  numInstances:i=20
+  numReserved:i=5
+  softnessDepth:r=5.0
+  onePointNumber:i=5
+  minScale:r=0.8
+  maxScale:r=1.2
+  sfxPath:t="tanks/object_crash"
+  sfxEvent:t="wood_metal"
+}
+
+ad_dust_red_bricks{
+  fx:t="ad_dust_red_bricks_fx"
+  numInstances:i=20
+  numReserved:i=5
+  softnessDepth:r=5.0
+  onePointNumber:i=5
+  minScale:r=0.8
+  maxScale:r=1.2
+  sfxPath:t="tanks/object_crash"
+  sfxEvent:t="concrete_mid"
+}
+
+ad_dust_stucco{
+  fx:t="ad_dust_stucco_fx"
+  numInstances:i=20
+  numReserved:i=5
+  softnessDepth:r=5.0
+  onePointNumber:i=5
+  minScale:r=0.8
+  maxScale:r=1.2
+  sfxPath:t="tanks/object_crash"
+  sfxEvent:t="concrete_mid"
+}
+
+ad_dust_snow{
+  fx:t="ad_snow_explotion_medium_composite_fx"
+  numInstances:i=20
+  numReserved:i=5
+  softnessDepth:r=5.0
+  onePointNumber:i=5
+  minScale:r=0.5
+  maxScale:r=0.9
+  sfxPath:t="tanks/object_crash"
+  sfxEvent:t="concrete_mid"
+}
+
+ad_metal{
+  fx:t="ad_metal_sparks_large_fx"
+  numInstances:i=20
+  numReserved:i=5
+  softnessDepth:r=5.0
+  onePointNumber:i=5
+  minScale:r=0.8
+  maxScale:r=1.2
+  sfxPath:t="tanks/object_crash"
+  sfxEvent:t="bollard"
+}
+
+ad_metal_small{
+  fx:t="ad_metal_sparks_small_fx"
+  numInstances:i=20
+  numReserved:i=5
+  softnessDepth:r=5.0
+  onePointNumber:i=5
+  minScale:r=0.8
+  maxScale:r=1.2
+  sfxPath:t="tanks/object_crash"
+  sfxEvent:t="metal_small"
+}
+
+ad_metal_snow{
+  fx:t="ad_metal_snow_big_composite_fx"
+  numInstances:i=20
+  numReserved:i=5
+  softnessDepth:r=5.0
+  onePointNumber:i=5
+  minScale:r=0.8
+  maxScale:r=1.2
+  sfxPath:t="tanks/object_crash"
+  sfxEvent:t="bollard"
+}
+
+ad_metal_snow_small{
+  fx:t="ad_metal_snow_small_composite_fx"
+  numInstances:i=20
+  numReserved:i=5
+  softnessDepth:r=5.0
+  onePointNumber:i=5
+  minScale:r=0.8
+  maxScale:r=1.2
+  sfxPath:t="tanks/object_crash"
+  sfxEvent:t="metal_small"
+}
+
+ad_metal_fence_grid{
+  fx:t="ad_metal_sparks_small_fx"
+  numInstances:i=20
+  numReserved:i=5
+  softnessDepth:r=5.0
+  onePointNumber:i=5
+  minScale:r=0.8
+  maxScale:r=1.2
+  sfxPath:t="tanks/object_crash"
+  sfxEvent:t="metal_grid"
+}
+
+ad_dust_bollard{
+  fx:t="ad_metal_sparks_large_fx"
+  numInstances:i=20
+  numReserved:i=5
+  softnessDepth:r=5.0
+  onePointNumber:i=5
+  minScale:r=0.8
+  maxScale:r=1.2
+  sfxPath:t="tanks/object_crash"
+  sfxEvent:t="bollard"
+}
+
+ad_sand{
+  fx:t="ad_dust_sand_fx"
+  numInstances:i=20
+  numReserved:i=5
+  softnessDepth:r=5.0
+  onePointNumber:i=5
+  minScale:r=0.8
+  maxScale:r=1.2
+  sfxPath:t="tanks/object_crash"
+  sfxEvent:t="sandbag"
+}
+
+ad_haystack{
+  fx:t="ad_haystack_composite_fx"
+  numInstances:i=20
+  numReserved:i=5
+  softnessDepth:r=5.0
+  onePointNumber:i=5
+  minScale:r=0.8
+  maxScale:r=1.2
+  sfxPath:t="tanks/object_crash"
+  sfxEvent:t="haystack"
+}
+
+ad_explosion_small{
+  fx:t="ad_explosion_small_composite_fx"
+  numInstances:i=20
+  numReserved:i=5
+  softnessDepth:r=5.0
+  onePointNumber:i=5
+  minScale:r=0.9
+  maxScale:r=1.1
+  sfxPath:t="tanks/object_crash"
+  sfxEvent:t="explosion_gasoline"
+}
+
+ad_explosion_big{
+  fx:t="ad_explosion_big_composite_fx"
+  numInstances:i=20
+  numReserved:i=5
+  softnessDepth:r=5.0
+  onePointNumber:i=5
+  minScale:r=0.9
+  maxScale:r=1.1
+  sfxPath:t="tanks/object_crash"
+  sfxEvent:t="explosion_gasoline"
+}
+
+ad_chemicals_explosion_small{
+  fx:t="ad_chemicals_explosion_small_composite_fx"
+  numInstances:i=20
+  numReserved:i=5
+  softnessDepth:r=5.0
+  onePointNumber:i=5
+  minScale:r=0.9
+  maxScale:r=1.1
+  sfxPath:t="tanks/object_crash"
+  sfxEvent:t="explosion_gasoline"
+}
+
+ad_explosion_mine{
+  fx:t="ad_explosion_mine_composite_fx"
+  numInstances:i=20
+  numReserved:i=5
+  softnessDepth:r=5.0
+  onePointNumber:i=5
+  minScale:r=0.8
+  maxScale:r=1.2
+  sfxPath:t="tanks/object_crash"
+  sfxEvent:t="explosion_mine"
+}
+
+ad_explosion_glass{
+  fx:t="ad_glass_composite_fx"
+  numInstances:i=20
+  numReserved:i=5
+  softnessDepth:r=5.0
+  onePointNumber:i=5
+  minScale:r=0.8
+  maxScale:r=1.2
+  sfxPath:t="tanks/object_crash"
+  sfxEvent:t="projector"
+}
+
+ad_explosion_glass_snow{
+  fx:t="ad_glass_snow_composite_fx"
+  numInstances:i=20
+  numReserved:i=5
+  softnessDepth:r=5.0
+  onePointNumber:i=5
+  minScale:r=0.8
+  maxScale:r=1.2
+  sfxPath:t="tanks/object_crash"
+  sfxEvent:t="projector"
+}
+
+ad_icefloe_big{
+  fx:t="ad_icefloe_composite_fx"
+  numInstances:i=20
+  numReserved:i=5
+  softnessDepth:r=5.0
+  onePointNumber:i=5
+  minScale:r=0.8
+  maxScale:r=1.2
+  sfxPath:t="tanks/object_crash"
+  sfxEvent:t="wood_big"
+}
+
+ad_car_wreck{
+  fx:t="pv_explosion_composite_fx"
+  numInstances:i=20
+  numReserved:i=5
+  softnessDepth:r=5.0
+  onePointNumber:i=5
+  minScale:r=0.8
+  maxScale:r=1.2
+  sfxPath:t="tanks/object_crash"
+  sfxEvent:t="car_wreck"
+}
+
+ad_buildings_destructions_big{
+  fx:t="ad_buildings_big_composite_fx"
+  numInstances:i=20
+  numReserved:i=5
+  softnessDepth:r=5.0
+  onePointNumber:i=5
+  minScale:r=0.8
+  maxScale:r=1.2
+  sfxPath:t="tanks/object_crash"
+  sfxEvent:t="building_big"
+}
+
+ad_buildings_straw_destructions_big{
+  fx:t="ad_buildings_straw_big_composite_fx"
+  numInstances:i=20
+  numReserved:i=5
+  softnessDepth:r=5.0
+  onePointNumber:i=5
+  minScale:r=0.8
+  maxScale:r=1.2
+  sfxPath:t="tanks/object_crash"
+  sfxEvent:t="building_big"
+}
+
+ad_buildings_destructions_part{
+  fx:t="ad_buildings_part_composite_fx"
+  numInstances:i=20
+  numReserved:i=5
+  softnessDepth:r=5.0
+  onePointNumber:i=5
+  minScale:r=0.8
+  maxScale:r=1.2
+  sfxPath:t="tanks/object_crash"
+  sfxEvent:t="concrete_big"
+}
+
+ad_metal_buildings_destructions_part{
+  fx:t="ad_buildings_part_composite_fx"
+  numInstances:i=20
+  numReserved:i=5
+  softnessDepth:r=5.0
+  onePointNumber:i=5
+  minScale:r=0.8
+  maxScale:r=1.2
+  sfxPath:t="tanks/object_crash"
+  sfxEvent:t="wood_metal_big"
+}
+
+ad_hydrant_destruction{
+  fx:t="pv_water_jet_small_composite_fx"
+  numInstances:i=20
+  numReserved:i=5
+  softnessDepth:r=5.0
+  onePointNumber:i=5
+  sfxPath:t="tanks/object_crash"
+  sfxEvent:t="projector"
+}
+
+px_ground_fx{
+  fx:t="ad_buildings_part_composite_fx"
+  lifeTime:r=4.0
+  softnessDepth:r=5.0
+  minScale:r=0.8
+  maxScale:r=1.2
+  numInstances:i=1000
+  numReserved:i=25
+}
+
+px_ground_sand_fx{
+  fx:t="ad_buildings_part_sand_composite_fx"
+  lifeTime:r=4.0
+  softnessDepth:r=5.0
+  minScale:r=0.8
+  maxScale:r=1.2
+  numInstances:i=1000
+  numReserved:i=25
+}
+
+px_ground_snow_fx{
+  fx:t="ad_buildings_part_snow_composite_fx"
+  lifeTime:r=4.0
+  softnessDepth:r=5.0
+  minScale:r=0.8
+  maxScale:r=1.2
+  numInstances:i=1000
+  numReserved:i=25
+}
+
+px_fracture_fx{
+  fx:t="ad_buildings_fracture_composite_fx"
+  lifeTime:r=4.0
+  numInstances:i=200
+  numReserved:i=50
+  softnessDepth:r=5.0
+  onePointNumber:i=5
+  minScale:r=0.8
+  maxScale:r=1.2
+}
+
+ship_water_splashes{
+  fx:t="ps_water_splash_composite"
+  lifeTime:r=2.0
+  numInstances:i=200
+  numReserved:i=50
+  softnessDepth:r=0.5
+  onePointNumber:i=20
+  granularity:i=8
+  group:t="water_proj"
+}
+
+ship_rear_water_splashes{
+  fx:t="ps_rear_water_splash_composite"
+  lifeTime:r=2.0
+  numInstances:i=200
+  numReserved:i=50
+  softnessDepth:r=0.5
+  onePointNumber:i=20
+  granularity:i=8
+  group:t="water_proj"
+}
+
+ship_propeller_water_splashes{
+  fx:t="ps_propeller_water_splash_composite"
+  lifeTime:r=2.0
+  numInstances:i=200
+  numReserved:i=50
+  softnessDepth:r=0.5
+  onePointNumber:i=20
+  granularity:i=8
+  group:t="water_proj"
+}
+
+golden_light_area_fx{
+  fx:t="golden_trails_composite_fx"
+  lifeTime:r=10.0
+  softnessDepth:r=5.0
+  sortDistanceOffset:r=0.0
+  numInstances:i=18
+  numReserved:i=2
+  minScale:r=1.0
+  maxScale:r=1.0
+}
+
+location_factory_smoke_large_fx{
+  fx:t="location_factory_smoke_large_fx"
+  lifeTime:r=2.0
+  numInstances:i=200
+  numReserved:i=50
+  softnessDepth:r=0.5
+  onePointNumber:i=20
+  granularity:i=8
+}
+
+location_factory_smoke_small_fx{
+  fx:t="location_factory_smoke_small_fx"
+  lifeTime:r=2.0
+  numInstances:i=200
+  numReserved:i=50
+  softnessDepth:r=0.5
+  onePointNumber:i=20
+  granularity:i=8
+}
+
+location_lighthouse_50_fx{
+  fx:t="lighthouse_50_composite_fx"
+  lifeTime:r=2.0
+  numInstances:i=500
+  numReserved:i=50
+  softnessDepth:r=0.5
+  onePointNumber:i=20
+  granularity:i=8
+}
+
+location_sand_wind_composite_fx{
+  fx:t="location_sand_wind_composite_fx"
+  lifeTime:r=2.0
+  numInstances:i=500
+  numReserved:i=50
+  softnessDepth:r=0.5
+  onePointNumber:i=20
+  granularity:i=8
+}
+
+location_sand_wind_dense_composite_fx{
+  fx:t="location_sand_wind_dense_composite_fx"
+  lifeTime:r=2.0
+  numInstances:i=650
+  numReserved:i=650
+  softnessDepth:r=5.0
+  onePointNumber:i=20
+  granularity:i=8
+}
+
+location_waterfall_10m_composite_fx{
+  fx:t="location_waterfall_10m_composite"
+  lifeTime:r=2.0
+  numInstances:i=500
+  numReserved:i=50
+  softnessDepth:r=0.5
+  onePointNumber:i=20
+  granularity:i=8
+  group:t="water_proj"
+}
+
+tank_collision_unit{
+  fx:t="ps_collision_sparks_composite_fx"
+  lifeTime:r=4.0
+  softnessDepth:r=5.0
+  numInstances:i=10
+  numReserved:i=5
+}
+
+tank_scrape{
+  fx:t="ps_collision_sparks_composite_fx"
+  lifeTime:r=4.0
+  softnessDepth:r=5.0
+  numInstances:i=10
+  numReserved:i=5
+}
+
+ship_collision_unit_steel{
+  fx:t="ps_collision_sparks_composite_fx"
+  lifeTime:r=4.0
+  softnessDepth:r=5.0
+  numInstances:i=10
+  numReserved:i=5
+}
+
+ship_collision_unit_wood{
+  fx:t="ps_collision_sparks_composite_fx"
+  lifeTime:r=4.0
+  softnessDepth:r=5.0
+  numInstances:i=10
+  numReserved:i=5
+}
+
+ship_collision_unit_ground_wood{
+  fx:t="ps_collision_sparks_composite_fx"
+  lifeTime:r=4.0
+  softnessDepth:r=5.0
+  numInstances:i=18
+  numReserved:i=1
+}
+
+ship_collision_unit_ground_steel{
+  fx:t="ps_collision_sparks_composite_fx"
+  lifeTime:r=4.0
+  softnessDepth:r=5.0
+  numInstances:i=18
+  numReserved:i=1
+}
+
+ship_scrape_steel{
+  fx:t="ps_collision_sparks_composite_fx"
+  lifeTime:r=4.0
+  softnessDepth:r=5.0
+  numInstances:i=10
+  numReserved:i=5
+}
+
+ship_scrape_wood{
+  fx:t="ps_collision_sparks_composite_fx"
+  lifeTime:r=4.0
+  softnessDepth:r=5.0
+  numInstances:i=10
+  numReserved:i=5
+}
+
+ship_scrape_ground_wood{
+  fx:t="ps_collision_sparks_composite_fx"
+  lifeTime:r=4.0
+  softnessDepth:r=5.0
+  numInstances:i=10
+  numReserved:i=5
+}
+
+ship_scrape_ground_steel{
+  fx:t="ps_collision_sparks_composite_fx"
+  lifeTime:r=4.0
+  softnessDepth:r=5.0
+  numInstances:i=10
+  numReserved:i=5
+}
+
+world_map_click{
+  fx:t="world_map_click_composite_fx"
+  numInstances:i=30
+  numReserved:i=0
+  softnessDepth:r=3.0
+  group:t="highres"
+  farPlane:r=30000.0
+  onePointNumber:i=30
+}
+
+world_map_marker{
+  fx:t="world_map_marker_composite_fx"
+  numInstances:i=30
+  numReserved:i=0
+  softnessDepth:r=3.0
+  group:t="highres"
+  farPlane:r=30000.0
+}
+
+world_map_hover{
+  fx:t="world_map_target_composite_fx"
+  numInstances:i=30
+  numReserved:i=0
+  softnessDepth:r=3.0
+  group:t="highres"
+  farPlane:r=30000.0
+  onePointNumber:i=30
+}

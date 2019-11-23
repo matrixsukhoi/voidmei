@@ -1,0 +1,127 @@
+z_far:r=50000.0
+mapCoord0:p2=-32768.0, -32768.0
+mapCoord1:p2=32768.0, 32768.0
+minAreaSize:p2=12000.0, 12000.0
+aiMapCoord0:p2=-42768.0, -42768.0
+aiMapCoord1:p2=42768.0, 42768.0
+numBorderCellsXPos:i=0
+numBorderCellsXNeg:i=0
+numBorderCellsZPos:i=0
+numBorderCellsZNeg:i=0
+gridSteps:p2=3250.0, 3250.0
+vsmAngleThreshold:r=20.0
+weatherPreset:t="gameData/environments/weather_preset_1.blk"
+weatherTypes:t="gameData/environments/weather_types.blk"
+water_level:r=0.0
+average_ground_level:r=0.0
+
+earth{
+  clampZ:b=yes
+  clampX:b=yes
+}
+
+stars{
+  latitude:r=24.0
+  longitude:r=141.0
+  year:i=1942
+  month:i=8
+  day:i=29
+}
+
+shader_vars{
+  max_river_width:r=500.0
+  ocean_density:r=0.6
+  ocean0:p4=0.27, 0.68, 0.53, 0.0
+  ocean1:p4=0.57, 0.91, 0.84, 0.0
+  river0:p4=0.5, 0.35, 0.12, 0.0
+  river1:p4=0.36, 0.41, 0.17, 0.0
+  water_color_noise_size:r=1737.0
+}
+
+randomGrass{
+  iwo_jima_airfields_unic:t="iwo_jima_airfields_unic_b_tex_m"
+  iwo_jima_fields_a:t="iwo_jima_fields_a_tex_m"
+  iwo_jima_fields_b:t="iwo_jima_fields_b_tex_m"
+  iwo_jima_rock:t="iwo_jima_rock_tex_m"
+  iwo_jima_village:t="iwo_jima_village_tex_m"
+
+  layer{
+    maskChannel:p4=0.0, 0.0, 1.0, 0.0
+    res:t="grass_scatter_a_2"
+    density:r=0.1
+    horScale:r=1.0
+    verScale:r=1.0
+    windMul:r=0.05
+    color_mask_r_from:c=255, 192, 28, 127
+    color_mask_r_to:c=203, 148, 33, 127
+    color_mask_b_from:c=106, 121, 45, 127
+    color_mask_b_to:c=151, 126, 62, 127
+    color_mask_g_from:c=2, 24, 54, 255
+    color_mask_g_to:c=247, 242, 186, 255
+  }
+
+  layer{
+    maskChannel:p4=0.0, 0.0, 1.0, 0.0
+    res:t="grass_scatter_a_2"
+    density:r=0.35
+    horScale:r=2.5
+    verScale:r=2.5
+    windMul:r=0.05
+    color_mask_r_from:c=255, 192, 28, 127
+    color_mask_r_to:c=203, 148, 33, 127
+    color_mask_b_from:c=106, 121, 45, 127
+    color_mask_b_to:c=151, 126, 62, 127
+    color_mask_g_from:c=2, 24, 54, 255
+    color_mask_g_to:c=247, 242, 186, 255
+  }
+
+  layer{
+    maskChannel:p4=1.0, 0.0, 0.0, 0.0
+    res:t="grass_scatter_b_2"
+    density:r=1.0
+    horScale:r=4.0
+    verScale:r=4.0
+    windMul:r=0.05
+    color_mask_r_from:c=255, 192, 28, 127
+    color_mask_r_to:c=203, 148, 33, 127
+    color_mask_b_from:c=106, 121, 45, 127
+    color_mask_b_to:c=151, 126, 62, 127
+    color_mask_g_from:c=2, 24, 54, 255
+    color_mask_g_to:c=247, 242, 186, 255
+  }
+
+  layer{
+    maskChannel:p4=0.0, 1.0, 0.0, 0.0
+    res:t="grass_scatter_b_1"
+    density:r=3.0
+    horScale:r=2.5
+    verScale:r=3.0
+    windMul:r=0.05
+    color_mask_r_from:c=255, 236, 187, 127
+    color_mask_r_to:c=255, 220, 23, 127
+    color_mask_b_from:c=106, 121, 45, 127
+    color_mask_b_to:c=52, 75, 18, 127
+    color_mask_g_from:c=2, 24, 54, 255
+    color_mask_g_to:c=247, 242, 186, 255
+  }
+
+  layer{
+    maskChannel:p4=1.0, 1.0, 1.0, 0.0
+    res:t="grass_scatter_a_3"
+    density:r=15.0
+    horScale:r=2.0
+    verScale:r=2.0
+    windMul:r=0.05
+    color_mask_r_from:c=99, 103, 27, 127
+    color_mask_r_to:c=194, 134, 84, 127
+    color_mask_b_from:c=226, 191, 52, 127
+    color_mask_b_to:c=200, 166, 77, 127
+    color_mask_g_from:c=2, 24, 54, 255
+    color_mask_g_to:c=247, 242, 186, 255
+  }
+}
+
+technicsSkins{
+  groundSkin:t="jungle"
+  groundSkin:t="default"
+}

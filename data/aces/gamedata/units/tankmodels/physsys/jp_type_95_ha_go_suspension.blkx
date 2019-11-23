@@ -1,0 +1,77 @@
+PhysSys{
+  find:t="^bone_suspension_(\w)_(\d+)$"
+
+  points{
+
+    lever{
+      name:t="bone_suspension_$1_$2"
+      limitMin:p3=0.0, 0.0, 0.0
+      limitMax:p3=0.0, 0.0, 0.0
+    }
+
+    suspension_01_01{
+      name:t="bone_suspension_$1_$2_01"
+      limitMin:p3=-0.5, -0.5, 0.0
+      limitMax:p3=0.5, 0.5, 0.0
+    }
+
+    wheel_01{
+
+      searchChildren{
+        parent:t="suspension_01_01"
+        find:t="bone_wheel_"
+        occurence:i=2
+        limitMin:p3=-1.0, -1.0, 0.0
+        limitMax:p3=1.0, 1.0, 0.0
+      }
+    }
+
+    wheel_02{
+
+      searchChildren{
+        parent:t="suspension_01_01"
+        find:t="bone_wheel_"
+        occurence:i=1
+        limitMin:p3=-1.0, -1.0, 0.0
+        limitMax:p3=1.0, 1.0, 0.0
+      }
+    }
+
+    suspension_01_02{
+      limitMin:p3=-0.5, 0.0, 0.0
+      limitMax:p3=0.5, 0.0, 0.0
+      name:t="suspension_$1_$2_02"
+    }
+  }
+
+  constraints{
+
+    projection{
+      point:t="suspension_01_01"
+      from:t="wheel_01"
+      to:t="wheel_02"
+      moveEdge:b=yes
+    }
+
+    edge{
+      from:t="lever"
+      to:t="suspension_01_01"
+      moveSecond:b=no
+    }
+
+    edge{
+      moveSecond:b=no
+      from:t="suspension_01_02"
+      to:t="suspension_01_01"
+      moveOnly:b=yes
+    }
+
+    direction{
+      moveNodes:b=yes
+      rotateSecond:b=no
+      from:t="wheel_01"
+      to:t="wheel_02"
+      point:t="suspension_01_01"
+    }
+  }
+}

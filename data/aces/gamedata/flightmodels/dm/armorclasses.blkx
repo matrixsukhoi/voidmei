@@ -1,0 +1,1814 @@
+none{
+  armorThickness:r=0.001
+  armorThrough:r=0.05
+  restrainDamage:r=1.0
+  ricochetAngle:r=99.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+wood{
+  armorThickness:r=0.1
+  armorThrough:r=0.1
+  restrainDamage:r=1.0
+  ricochetAngle:r=89.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+dural{
+  armorThickness:r=0.5
+  armorThrough:r=0.5
+  restrainDamage:r=0.3
+  ricochetAngle:r=89.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+steel{
+  armorThickness:r=1.0
+  armorThrough:r=1.0
+  restrainDamage:r=0.2
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.3
+}
+
+glass{
+  armorThickness:r=0.5
+  armorThrough:r=0.5
+  restrainDamage:r=0.2
+  ricochetAngle:r=85.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+armor_engine{
+  armorThickness:r=3.0
+  armorThrough:r=30.0
+  restrainDamage:r=0.3
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.05
+}
+
+armor_engine_light{
+  armorThickness:r=1.0
+  armorThrough:r=10.0
+  restrainDamage:r=0.2
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.1
+}
+
+steel_cooling_sys{
+  armorThickness:r=0.5
+  armorThrough:r=5.0
+  restrainDamage:r=1.0
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.5
+}
+
+steel_cooling_sys_light{
+  armorThickness:r=0.1
+  armorThrough:r=1.0
+  restrainDamage:r=1.0
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.5
+}
+
+steel_tank_armor{
+  armorThickness:r=3.0
+  armorThrough:r=9.0
+  restrainDamage:r=0.0
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.0
+}
+
+steel_tank_light{
+  armorThickness:r=0.25
+  armorThrough:r=1.0
+  restrainDamage:r=0.3
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.3
+}
+
+steel_tank_s{
+  armorThickness:r=0.5
+  armorThrough:r=2.5
+  restrainDamage:r=0.1
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.1
+}
+
+steel_tank_m{
+  armorThickness:r=0.75
+  armorThrough:r=5.0
+  restrainDamage:r=0.2
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.2
+}
+
+steel_tank_l{
+  armorThickness:r=1.0
+  armorThrough:r=7.5
+  restrainDamage:r=0.3
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.3
+}
+
+steel_pilot{
+  armorThickness:r=0.5
+  armorThrough:r=7.5
+  restrainDamage:r=0.2
+  ricochetAngle:r=90.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+  createSecondaryShatters:b=no
+}
+
+steel_tankman{
+  armorThickness:r=0.5
+  armorThrough:r=7.5
+  restrainDamage:r=0.2
+  ricochetAngle:r=90.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+  createSecondaryShatters:b=no
+}
+
+glass12{
+  armorThickness:r=12.0
+  armorThrough:r=1.4
+  restrainDamage:r=0.2
+  armorQuality:r=0.2
+  ricochetAngle:r=85.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+glass38{
+  armorThickness:r=38.0
+  armorThrough:r=7.6
+  restrainDamage:r=0.2
+  armorQuality:r=0.2
+  ricochetAngle:r=85.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+glass40{
+  armorThickness:r=40.0
+  armorThrough:r=8.0
+  restrainDamage:r=0.2
+  armorQuality:r=0.2
+  ricochetAngle:r=85.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+glass42_8{
+  armorThickness:r=42.8
+  armorThrough:r=8.48
+  restrainDamage:r=0.2
+  armorQuality:r=0.2
+  ricochetAngle:r=85.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+glass44_45{
+  armorThickness:r=44.45
+  armorThrough:r=8.9
+  restrainDamage:r=0.2
+  armorQuality:r=0.2
+  ricochetAngle:r=85.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+glass45{
+  armorThickness:r=45.0
+  armorThrough:r=9.0
+  restrainDamage:r=0.2
+  armorQuality:r=0.2
+  ricochetAngle:r=85.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+glass50{
+  armorThickness:r=50.0
+  armorThrough:r=10.0
+  restrainDamage:r=0.2
+  armorQuality:r=0.2
+  ricochetAngle:r=85.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+glass55{
+  armorThickness:r=55.0
+  armorThrough:r=11.0
+  restrainDamage:r=0.2
+  armorQuality:r=0.2
+  ricochetAngle:r=85.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+glass57{
+  armorThickness:r=57.0
+  armorThrough:r=11.6
+  restrainDamage:r=0.2
+  armorQuality:r=0.2
+  ricochetAngle:r=85.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+glass58{
+  armorThickness:r=58.0
+  armorThrough:r=11.6
+  restrainDamage:r=0.2
+  armorQuality:r=0.2
+  ricochetAngle:r=85.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+glass60{
+  armorThickness:r=60.0
+  armorThrough:r=12.0
+  restrainDamage:r=0.2
+  armorQuality:r=0.2
+  ricochetAngle:r=85.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+glass64{
+  armorThickness:r=64.0
+  armorThrough:r=12.8
+  restrainDamage:r=0.2
+  armorQuality:r=0.2
+  ricochetAngle:r=85.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+glass66{
+  armorThickness:r=66.0
+  armorThrough:r=13.2
+  restrainDamage:r=0.2
+  armorQuality:r=0.2
+  ricochetAngle:r=85.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+glass68{
+  armorThickness:r=68.0
+  armorThrough:r=13.6
+  restrainDamage:r=0.2
+  armorQuality:r=0.2
+  ricochetAngle:r=85.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+glass70{
+  armorThickness:r=70.0
+  armorThrough:r=16.0
+  restrainDamage:r=0.2
+  armorQuality:r=0.2
+  ricochetAngle:r=85.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+glass75{
+  armorThickness:r=75.0
+  armorThrough:r=17.0
+  restrainDamage:r=0.2
+  armorQuality:r=0.2
+  ricochetAngle:r=85.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+glass90{
+  armorThickness:r=90.0
+  armorThrough:r=18.0
+  restrainDamage:r=0.2
+  armorQuality:r=0.2
+  ricochetAngle:r=85.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+glass105{
+  armorThickness:r=105.0
+  armorThrough:r=21.0
+  restrainDamage:r=0.2
+  armorQuality:r=0.2
+  ricochetAngle:r=85.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+glass155{
+  armorThickness:r=155.0
+  armorThrough:r=31.0
+  restrainDamage:r=0.2
+  armorQuality:r=0.2
+  ricochetAngle:r=85.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+wood2{
+  armorThickness:r=0.2
+  armorThrough:r=0.2
+  restrainDamage:r=1.0
+  ricochetAngle:r=89.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+wood3{
+  armorThickness:r=0.3
+  armorThrough:r=0.3
+  restrainDamage:r=1.0
+  ricochetAngle:r=89.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+wood5{
+  armorThickness:r=0.5
+  armorThrough:r=0.5
+  restrainDamage:r=1.0
+  ricochetAngle:r=89.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+wood7{
+  armorThickness:r=0.7
+  armorThrough:r=0.7
+  restrainDamage:r=1.0
+  ricochetAngle:r=89.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+wood8_5{
+  armorThickness:r=0.85
+  armorThrough:r=0.85
+  restrainDamage:r=0.75
+  ricochetAngle:r=89.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+wood10{
+  armorThickness:r=1.0
+  armorThrough:r=1.0
+  restrainDamage:r=0.5
+  ricochetAngle:r=89.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+wood15{
+  armorThickness:r=1.5
+  armorThrough:r=1.5
+  restrainDamage:r=0.375
+  ricochetAngle:r=89.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+wood20{
+  armorThickness:r=2.0
+  armorThrough:r=2.0
+  restrainDamage:r=0.25
+  ricochetAngle:r=89.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+wood30{
+  armorThickness:r=3.0
+  armorThrough:r=3.0
+  restrainDamage:r=0.2
+  ricochetAngle:r=89.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+wood40{
+  armorThickness:r=4.0
+  armorThrough:r=4.0
+  restrainDamage:r=0.15
+  ricochetAngle:r=89.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+wood45{
+  armorThickness:r=4.5
+  armorThrough:r=4.5
+  restrainDamage:r=0.1
+  ricochetAngle:r=89.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+wood50{
+  armorThickness:r=5.0
+  armorThrough:r=5.0
+  restrainDamage:r=0.085
+  ricochetAngle:r=89.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+wood55{
+  armorThickness:r=7.0
+  armorThrough:r=7.0
+  restrainDamage:r=0.075
+  ricochetAngle:r=89.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+wood60{
+  armorThickness:r=10.0
+  armorThrough:r=10.0
+  restrainDamage:r=0.05
+  ricochetAngle:r=89.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+wood66{
+  armorThickness:r=12.0
+  armorThrough:r=12.0
+  restrainDamage:r=0.025
+  ricochetAngle:r=89.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+wood70{
+  armorThickness:r=14.0
+  armorThrough:r=14.0
+  restrainDamage:r=0.015
+  ricochetAngle:r=85.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+wood75{
+  armorThickness:r=15.0
+  armorThrough:r=15.0
+  restrainDamage:r=0.007
+  ricochetAngle:r=80.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+wood80{
+  armorThickness:r=20.0
+  armorThrough:r=20.0
+  restrainDamage:r=0.0055
+  ricochetAngle:r=75.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+wood99{
+  armorThickness:r=25.0
+  armorThrough:r=25.0
+  restrainDamage:r=0.003
+  ricochetAngle:r=70.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+wood100{
+  armorThickness:r=25.0
+  armorThrough:r=25.0
+  restrainDamage:r=0.003
+  ricochetAngle:r=70.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+wood120{
+  armorThickness:r=30.0
+  armorThrough:r=30.0
+  restrainDamage:r=0.03
+  ricochetAngle:r=70.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+wood140{
+  armorThickness:r=35.0
+  armorThrough:r=35.0
+  restrainDamage:r=0.03
+  ricochetAngle:r=70.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+wood160{
+  armorThickness:r=40.0
+  armorThrough:r=40.0
+  restrainDamage:r=0.03
+  ricochetAngle:r=70.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+wood180{
+  armorThickness:r=45.0
+  armorThrough:r=45.0
+  restrainDamage:r=0.03
+  ricochetAngle:r=70.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+wood200{
+  armorThickness:r=50.0
+  armorThrough:r=50.0
+  restrainDamage:r=0.03
+  ricochetAngle:r=70.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+dural2{
+  armorThickness:r=1.0
+  armorThrough:r=1.0
+  restrainDamage:r=0.3
+  ricochetAngle:r=85.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+dural3{
+  armorThickness:r=1.5
+  armorThrough:r=1.0
+  restrainDamage:r=0.3
+  ricochetAngle:r=85.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+dural5{
+  armorThickness:r=2.5
+  armorThrough:r=2.5
+  restrainDamage:r=0.3
+  ricochetAngle:r=85.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+dural7{
+  armorThickness:r=3.5
+  armorThrough:r=3.5
+  restrainDamage:r=0.3
+  ricochetAngle:r=85.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+dural8_5{
+  armorThickness:r=4.3
+  armorThrough:r=4.3
+  restrainDamage:r=0.23
+  ricochetAngle:r=85.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+dural10{
+  armorThickness:r=5.0
+  armorThrough:r=5.0
+  restrainDamage:r=0.15
+  ricochetAngle:r=85.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+dural15{
+  armorThickness:r=7.5
+  armorThrough:r=7.5
+  restrainDamage:r=0.113
+  ricochetAngle:r=85.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+dural20{
+  armorThickness:r=10.0
+  armorThrough:r=10.0
+  restrainDamage:r=0.075
+  ricochetAngle:r=85.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+dural30{
+  armorThickness:r=15.0
+  armorThrough:r=15.0
+  restrainDamage:r=0.045
+  ricochetAngle:r=85.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+dural40{
+  armorThickness:r=20.0
+  armorThrough:r=20.0
+  restrainDamage:r=0.045
+  ricochetAngle:r=85.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+dural50{
+  armorThickness:r=25.0
+  armorThrough:r=25.0
+  restrainDamage:r=0.04
+  ricochetAngle:r=85.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+dural60{
+  armorThickness:r=30.0
+  armorThrough:r=30.0
+  restrainDamage:r=0.03
+  ricochetAngle:r=85.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+dural70{
+  armorThickness:r=35.0
+  armorThrough:r=35.0
+  restrainDamage:r=0.03
+  ricochetAngle:r=85.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+dural80{
+  armorThickness:r=40.0
+  armorThrough:r=40.0
+  restrainDamage:r=0.02
+  ricochetAngle:r=85.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+dural90{
+  armorThickness:r=45.0
+  armorThrough:r=45.0
+  restrainDamage:r=0.015
+  ricochetAngle:r=85.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+dural100{
+  armorThickness:r=50.0
+  armorThrough:r=50.0
+  restrainDamage:r=0.015
+  ricochetAngle:r=85.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.3
+}
+
+armor2{
+  armorThickness:r=2.0
+  armorThrough:r=2.0
+  restrainDamage:r=0.2
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.3
+}
+
+armor3{
+  armorThickness:r=3.0
+  armorThrough:r=3.0
+  restrainDamage:r=0.2
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.3
+}
+
+armor4{
+  armorThickness:r=4.0
+  armorThrough:r=4.0
+  restrainDamage:r=0.2
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.3
+}
+
+armor4_7{
+  armorThickness:r=4.7
+  armorThrough:r=4.7
+  restrainDamage:r=0.2
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.3
+}
+
+armor5{
+  armorThickness:r=5.0
+  armorThrough:r=5.0
+  restrainDamage:r=0.2
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.3
+}
+
+armor5_5{
+  armorThickness:r=5.5
+  armorThrough:r=5.5
+  restrainDamage:r=0.2
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.3
+}
+
+armor6{
+  armorThickness:r=6.0
+  armorThrough:r=6.0
+  restrainDamage:r=0.2
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.3
+}
+
+armor6_35{
+  armorThickness:r=6.35
+  armorThrough:r=6.35
+  restrainDamage:r=0.2
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.3
+}
+
+armor6_5{
+  armorThickness:r=6.5
+  armorThrough:r=6.5
+  restrainDamage:r=0.2
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.3
+}
+
+armor7{
+  armorThickness:r=7.0
+  armorThrough:r=7.0
+  restrainDamage:r=0.2
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.3
+}
+
+armor8{
+  armorThickness:r=8.0
+  armorThrough:r=8.0
+  restrainDamage:r=0.15
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.3
+}
+
+armor8_5{
+  armorThickness:r=8.5
+  armorThrough:r=8.5
+  restrainDamage:r=0.15
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.3
+}
+
+armor9{
+  armorThickness:r=9.0
+  armorThrough:r=9.0
+  restrainDamage:r=0.15
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.3
+}
+
+armor9_5{
+  armorThickness:r=9.5
+  armorThrough:r=9.5
+  restrainDamage:r=0.15
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.3
+}
+
+armor10{
+  armorThickness:r=10.0
+  armorThrough:r=10.0
+  restrainDamage:r=0.1
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.3
+}
+
+armor10_5{
+  armorThickness:r=10.5
+  armorThrough:r=10.5
+  restrainDamage:r=0.1
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.3
+}
+
+armor11{
+  armorThickness:r=11.0
+  armorThrough:r=11.0
+  restrainDamage:r=0.1
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.3
+}
+
+armor11_11{
+  armorThickness:r=11.11
+  armorThrough:r=11.11
+  restrainDamage:r=0.1
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.3
+}
+
+armor12{
+  armorThickness:r=12.0
+  armorThrough:r=12.0
+  restrainDamage:r=0.1
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.3
+}
+
+armor12_5{
+  armorThickness:r=12.5
+  armorThrough:r=12.5
+  restrainDamage:r=0.1
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.3
+}
+
+armor12_7{
+  armorThickness:r=12.7
+  armorThrough:r=12.7
+  restrainDamage:r=0.1
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.3
+}
+
+armor13{
+  armorThickness:r=13.0
+  armorThrough:r=13.0
+  restrainDamage:r=0.1
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.3
+}
+
+armor13_5{
+  armorThickness:r=13.5
+  armorThrough:r=13.5
+  restrainDamage:r=0.1
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.3
+}
+
+armor15{
+  armorThickness:r=15.0
+  armorThrough:r=15.0
+  restrainDamage:r=0.1
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.3
+}
+
+armor15_87{
+  armorThickness:r=15.87
+  armorThrough:r=15.87
+  restrainDamage:r=0.1
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.3
+}
+
+armor16{
+  armorThickness:r=16.5
+  armorThrough:r=16.0
+  restrainDamage:r=0.1
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.3
+}
+
+armor16_5{
+  armorThickness:r=16.5
+  armorThrough:r=16.5
+  restrainDamage:r=0.1
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.3
+}
+
+armor16_9{
+  armorThickness:r=16.9
+  armorThrough:r=16.9
+  restrainDamage:r=0.1
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.3
+}
+
+armor19_05{
+  armorThickness:r=19.05
+  armorThrough:r=19.05
+  restrainDamage:r=0.05
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.3
+}
+
+armor20{
+  armorThickness:r=20.0
+  armorThrough:r=20.0
+  restrainDamage:r=0.05
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.3
+}
+
+armor21{
+  armorThickness:r=21.0
+  armorThrough:r=21.0
+  restrainDamage:r=0.05
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.3
+}
+
+armor25{
+  armorThickness:r=25.0
+  armorThrough:r=25.0
+  restrainDamage:r=0.05
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.3
+}
+
+armor25_5{
+  armorThickness:r=25.5
+  armorThrough:r=25.5
+  restrainDamage:r=0.05
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.3
+}
+
+armor30{
+  armorThickness:r=30.0
+  armorThrough:r=30.0
+  restrainDamage:r=0.02
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.3
+}
+
+armor38{
+  armorThickness:r=38.0
+  armorThrough:r=38.0
+  restrainDamage:r=0.1
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.3
+}
+
+armor40{
+  armorThickness:r=40.0
+  armorThrough:r=40.0
+  restrainDamage:r=0.1
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.3
+}
+
+armor45{
+  armorThickness:r=45.0
+  armorThrough:r=45.0
+  restrainDamage:r=0.1
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.3
+}
+
+armor50{
+  armorThickness:r=50.0
+  armorThrough:r=50.0
+  restrainDamage:r=0.05
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.3
+}
+
+armor55{
+  armorThickness:r=55.0
+  armorThrough:r=55.0
+  restrainDamage:r=0.04
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.3
+}
+
+armor60{
+  armorThickness:r=60.0
+  armorThrough:r=60.0
+  restrainDamage:r=0.03
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.3
+}
+
+armor64{
+  armorThickness:r=64.0
+  armorThrough:r=64.0
+  restrainDamage:r=0.01
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.3
+}
+
+armor66{
+  armorThickness:r=66.0
+  armorThrough:r=66.0
+  restrainDamage:r=0.01
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.3
+}
+
+armor70{
+  armorThickness:r=70.0
+  armorThrough:r=70.0
+  restrainDamage:r=0.001
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.3
+}
+
+armor75{
+  armorThickness:r=75.0
+  armorThrough:r=75.0
+  restrainDamage:r=0.0008
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.3
+}
+
+armor80{
+  armorThickness:r=80.0
+  armorThrough:r=80.0
+  restrainDamage:r=0.0005
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.3
+}
+
+armor99{
+  armorThickness:r=99.0
+  armorThrough:r=99.0
+  restrainDamage:r=0.0001
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.3
+}
+
+armor250{
+  armorThickness:r=250.0
+  armorThrough:r=250.0
+  restrainDamage:r=0.0
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.3
+}
+
+armor_arado{
+  armorThickness:r=2500.0
+  armorThrough:r=2500.0
+  restrainDamage:r=1.0
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=1.0
+}
+
+armor2_tanks{
+  armorThickness:r=2.0
+  armorThrough:r=2.0
+  restrainDamage:r=0.0001
+  ricochetAngle:r=70.0
+  ricochetCosinePower:r=3.0
+  ricochetDamage:r=0.1
+}
+
+armor3_tanks{
+  armorThickness:r=3.0
+  armorThrough:r=3.0
+  restrainDamage:r=0.0001
+  ricochetAngle:r=70.0
+  ricochetCosinePower:r=3.0
+  ricochetDamage:r=0.1
+}
+
+armor5_tanks{
+  armorThickness:r=5.0
+  armorThrough:r=5.0
+  restrainDamage:r=0.0001
+  ricochetAngle:r=70.0
+  ricochetCosinePower:r=3.0
+  ricochetDamage:r=0.1
+}
+
+armor7_tanks{
+  armorThickness:r=7.0
+  armorThrough:r=7.0
+  restrainDamage:r=0.0001
+  ricochetAngle:r=70.0
+  ricochetCosinePower:r=3.0
+  ricochetDamage:r=0.1
+}
+
+armor8_tanks{
+  armorThickness:r=8.0
+  armorThrough:r=8.0
+  restrainDamage:r=0.0001
+  ricochetAngle:r=70.0
+  ricochetCosinePower:r=3.0
+  ricochetDamage:r=0.1
+}
+
+armor8_5_tanks{
+  armorThickness:r=8.5
+  armorThrough:r=8.5
+  restrainDamage:r=0.0001
+  ricochetAngle:r=70.0
+  ricochetCosinePower:r=3.0
+  ricochetDamage:r=0.1
+}
+
+armor10_tanks{
+  armorThickness:r=10.0
+  armorThrough:r=10.0
+  restrainDamage:r=0.0001
+  ricochetAngle:r=70.0
+  ricochetCosinePower:r=3.0
+  ricochetDamage:r=0.1
+}
+
+armor13_tanks{
+  armorThickness:r=13.0
+  armorThrough:r=13.0
+  restrainDamage:r=0.0001
+  ricochetAngle:r=70.0
+  ricochetCosinePower:r=3.0
+  ricochetDamage:r=0.1
+}
+
+armor15_tanks{
+  armorThickness:r=15.0
+  armorThrough:r=15.0
+  restrainDamage:r=0.0001
+  ricochetAngle:r=70.0
+  ricochetCosinePower:r=3.0
+  ricochetDamage:r=0.1
+}
+
+armor16_tanks{
+  armorThickness:r=16.0
+  armorThrough:r=16.0
+  restrainDamage:r=0.0001
+  ricochetAngle:r=70.0
+  ricochetCosinePower:r=3.0
+  ricochetDamage:r=0.1
+}
+
+armor18_tanks{
+  armorThickness:r=18.0
+  armorThrough:r=18.0
+  restrainDamage:r=0.0001
+  ricochetAngle:r=70.0
+  ricochetCosinePower:r=3.0
+  ricochetDamage:r=0.1
+}
+
+armor20_tanks{
+  armorThickness:r=20.0
+  armorThrough:r=20.0
+  restrainDamage:r=0.0001
+  ricochetAngle:r=70.0
+  ricochetCosinePower:r=3.0
+  ricochetDamage:r=0.1
+}
+
+armor25_tanks{
+  armorThickness:r=25.0
+  armorThrough:r=25.0
+  restrainDamage:r=0.0001
+  ricochetAngle:r=70.0
+  ricochetCosinePower:r=3.0
+  ricochetDamage:r=0.1
+}
+
+armor30_tanks{
+  armorThickness:r=30.0
+  armorThrough:r=30.0
+  restrainDamage:r=0.0001
+  ricochetAngle:r=70.0
+  ricochetCosinePower:r=3.0
+  ricochetDamage:r=0.1
+}
+
+armor35_tanks{
+  armorThickness:r=35.0
+  armorThrough:r=35.0
+  restrainDamage:r=0.0001
+  ricochetAngle:r=70.0
+  ricochetCosinePower:r=3.0
+  ricochetDamage:r=0.1
+}
+
+armor38_tanks{
+  armorThickness:r=38.0
+  armorThrough:r=38.0
+  restrainDamage:r=0.0001
+  ricochetAngle:r=70.0
+  ricochetCosinePower:r=3.0
+  ricochetDamage:r=0.1
+}
+
+armor40_tanks{
+  armorThickness:r=40.0
+  armorThrough:r=40.0
+  restrainDamage:r=0.0001
+  ricochetAngle:r=70.0
+  ricochetCosinePower:r=3.0
+  ricochetDamage:r=0.1
+}
+
+armor45_tanks{
+  armorThickness:r=45.0
+  armorThrough:r=45.0
+  restrainDamage:r=0.0001
+  ricochetAngle:r=70.0
+  ricochetCosinePower:r=3.0
+  ricochetDamage:r=0.1
+}
+
+armor50_tanks{
+  armorThickness:r=50.0
+  armorThrough:r=50.0
+  restrainDamage:r=0.0001
+  ricochetAngle:r=70.0
+  ricochetCosinePower:r=3.0
+  ricochetDamage:r=0.1
+}
+
+armor52_tanks{
+  armorThickness:r=52.0
+  armorThrough:r=52.0
+  restrainDamage:r=0.0001
+  ricochetAngle:r=70.0
+  ricochetCosinePower:r=3.0
+  ricochetDamage:r=0.1
+}
+
+armor55_tanks{
+  armorThickness:r=55.0
+  armorThrough:r=55.0
+  restrainDamage:r=0.0001
+  ricochetAngle:r=70.0
+  ricochetCosinePower:r=3.0
+  ricochetDamage:r=0.1
+}
+
+armor57_tanks{
+  armorThickness:r=57.0
+  armorThrough:r=57.0
+  restrainDamage:r=0.0001
+  ricochetAngle:r=70.0
+  ricochetCosinePower:r=3.0
+  ricochetDamage:r=0.1
+}
+
+armor60_tanks{
+  armorThickness:r=60.0
+  armorThrough:r=60.0
+  restrainDamage:r=0.0001
+  ricochetAngle:r=70.0
+  ricochetCosinePower:r=3.0
+  ricochetDamage:r=0.1
+}
+
+armor64_tanks{
+  armorThickness:r=64.0
+  armorThrough:r=64.0
+  restrainDamage:r=0.0001
+  ricochetAngle:r=70.0
+  ricochetCosinePower:r=3.0
+  ricochetDamage:r=0.1
+}
+
+armor66_tanks{
+  armorThickness:r=66.0
+  armorThrough:r=66.0
+  restrainDamage:r=0.0001
+  ricochetAngle:r=70.0
+  ricochetCosinePower:r=3.0
+  ricochetDamage:r=0.1
+}
+
+armor70_tanks{
+  armorThickness:r=70.0
+  armorThrough:r=70.0
+  restrainDamage:r=0.0001
+  ricochetAngle:r=70.0
+  ricochetCosinePower:r=3.0
+  ricochetDamage:r=0.1
+}
+
+armor75_tanks{
+  armorThickness:r=75.0
+  armorThrough:r=75.0
+  restrainDamage:r=0.0001
+  ricochetAngle:r=70.0
+  ricochetCosinePower:r=3.0
+  ricochetDamage:r=0.1
+}
+
+armor80_tanks{
+  armorThickness:r=80.0
+  armorThrough:r=80.0
+  restrainDamage:r=0.0001
+  ricochetAngle:r=70.0
+  ricochetCosinePower:r=3.0
+  ricochetDamage:r=0.1
+}
+
+armor90_tanks{
+  armorThickness:r=90.0
+  armorThrough:r=90.0
+  restrainDamage:r=0.0001
+  ricochetAngle:r=70.0
+  ricochetCosinePower:r=3.0
+  ricochetDamage:r=0.1
+}
+
+armor99_tanks{
+  armorThickness:r=99.0
+  armorThrough:r=99.0
+  restrainDamage:r=0.0001
+  ricochetAngle:r=70.0
+  ricochetCosinePower:r=3.0
+  ricochetDamage:r=0.1
+}
+
+armor100_tanks{
+  armorThickness:r=100.0
+  armorThrough:r=100.0
+  restrainDamage:r=0.0001
+  ricochetAngle:r=70.0
+  ricochetCosinePower:r=3.0
+  ricochetDamage:r=0.1
+}
+
+armor110_tanks{
+  armorThickness:r=110.0
+  armorThrough:r=110.0
+  restrainDamage:r=0.0001
+  ricochetAngle:r=70.0
+  ricochetCosinePower:r=3.0
+  ricochetDamage:r=0.1
+}
+
+armor150_tanks{
+  armorThickness:r=150.0
+  armorThrough:r=150.0
+  restrainDamage:r=0.0001
+  ricochetAngle:r=70.0
+  ricochetCosinePower:r=3.0
+  ricochetDamage:r=0.1
+}
+
+armor200_tanks{
+  armorThickness:r=200.0
+  armorThrough:r=200.0
+  restrainDamage:r=0.0
+  ricochetAngle:r=70.0
+  ricochetCosinePower:r=3.0
+  ricochetDamage:r=0.1
+}
+
+armor250_tanks{
+  armorThickness:r=250.0
+  armorThrough:r=250.0
+  restrainDamage:r=0.0
+  ricochetAngle:r=70.0
+  ricochetCosinePower:r=3.0
+  ricochetDamage:r=0.1
+}
+
+c_wood2{
+  wood:r=0.8
+  wood2:r=0.2
+}
+
+c_wood3{
+  wood:r=0.8
+  wood3:r=0.2
+}
+
+c_wood5{
+  wood:r=0.8
+  wood5:r=0.2
+}
+
+c_wood7{
+  wood:r=0.8
+  wood7:r=0.2
+}
+
+c_wood8_5{
+  wood:r=0.8
+  wood8_5:r=0.2
+}
+
+c_wood10{
+  wood:r=0.8
+  wood10:r=0.2
+}
+
+c_wood15{
+  wood:r=0.8
+  wood15:r=0.2
+}
+
+c_wood20{
+  wood:r=0.8
+  wood20:r=0.2
+}
+
+c_wood30{
+  wood:r=0.8
+  wood30:r=0.2
+}
+
+c_wood40{
+  wood:r=0.8
+  wood40:r=0.2
+}
+
+c_wood45{
+  wood:r=0.8
+  wood45:r=0.2
+}
+
+c_wood50{
+  wood:r=0.8
+  wood50:r=0.2
+}
+
+c_wood55{
+  wood:r=0.8
+  wood55:r=0.2
+}
+
+c_wood60{
+  wood:r=0.8
+  wood60:r=0.2
+}
+
+c_wood66{
+  wood:r=0.8
+  wood66:r=0.2
+}
+
+c_wood70{
+  wood:r=0.8
+  wood70:r=0.2
+}
+
+c_wood75{
+  wood:r=0.8
+  wood75:r=0.2
+}
+
+c_wood80{
+  wood:r=0.8
+  wood80:r=0.2
+}
+
+c_wood99{
+  wood:r=0.8
+  wood99:r=0.2
+}
+
+c_dural2{
+  dural:r=0.9
+  dural2:r=0.1
+}
+
+c_dural3{
+  dural:r=0.9
+  dural3:r=0.1
+}
+
+c_dural5{
+  dural:r=0.9
+  dural5:r=0.1
+}
+
+c_dural7{
+  dural:r=0.9
+  dural7:r=0.1
+}
+
+c_dural8_5{
+  dural:r=0.9
+  dural8_5:r=0.1
+}
+
+c_dural10{
+  dural:r=0.9
+  dural8_5:r=0.1
+}
+
+c_dural15{
+  dural:r=0.9
+  dural15:r=0.1
+}
+
+c_dural20{
+  dural:r=0.9
+  dural20:r=0.1
+}
+
+c_dural30{
+  dural:r=0.9
+  dural30:r=0.1
+}
+
+c_percal_wood{
+  none:r=0.9
+  wood:r=0.1
+}
+
+c_percal_dural{
+  none:r=0.9
+  dural:r=0.1
+}
+
+mod_protected_vest{
+  steel_pilot:r=0.7
+  armor5:r=0.3
+}
+
+protected_controls{
+  steel:r=0.3
+  armor5:r=0.7
+}
+
+RHA_tank{
+  armorThickness:r=1.0
+  armorThrough:r=1.0
+  restrainDamage:r=0.0001
+  ricochetAngle:r=70.0
+  ricochetCosinePower:r=3.0
+  ricochetDamage:r=0.1
+}
+
+ERA_tank{
+  armorThickness:r=1.0
+  armorThrough:r=1.0
+  restrainDamage:r=0.0001
+  ricochetAngle:r=70.0
+  ricochetCosinePower:r=3.0
+  ricochetDamage:r=0.1
+  cumulativeArmorQuality:r=20.0
+}
+
+CHA_tank{
+  armorThickness:r=1.0
+  armorThrough:r=1.0
+  restrainDamage:r=0.0001
+  ricochetAngle:r=70.0
+  ricochetCosinePower:r=3.0
+  ricochetDamage:r=0.1
+  armorQuality:r=0.94
+}
+
+RHA_tiger_II{
+  armorThickness:r=1.0
+  armorThrough:r=1.0
+  restrainDamage:r=0.3
+  ricochetAngle:r=70.0
+  ricochetCosinePower:r=3.0
+  ricochetDamage:r=0.9
+  armorQuality:r=0.95
+}
+
+RHA_is_3{
+  armorThickness:r=1.0
+  armorThrough:r=1.0
+  restrainDamage:r=0.0001
+  ricochetAngle:r=70.0
+  ricochetCosinePower:r=3.0
+  ricochetDamage:r=0.1
+  armorQuality:r=1.0
+}
+
+RHAHH_tank{
+  armorThickness:r=1.0
+  armorThrough:r=1.0
+  restrainDamage:r=0.3
+  ricochetAngle:r=70.0
+  ricochetCosinePower:r=3.0
+  ricochetDamage:r=0.4
+  armorQuality:r=1.25
+}
+
+aluminum_armor_7039{
+  armorThickness:r=1.0
+  armorThrough:r=1.0
+  restrainDamage:r=0.0001
+  ricochetAngle:r=70.0
+  ricochetCosinePower:r=3.0
+  ricochetDamage:r=0.1
+  armorQuality:r=0.47
+}
+
+ABT-101{
+  armorThickness:r=1.0
+  armorThrough:r=1.0
+  restrainDamage:r=0.0001
+  ricochetAngle:r=70.0
+  ricochetCosinePower:r=3.0
+  ricochetDamage:r=0.1
+  armorQuality:r=0.53
+}
+
+armor_tank_engine{
+  armorThickness:r=3.0
+  armorThrough:r=30.0
+  restrainDamage:r=0.5
+  ricochetAngle:r=80.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.0
+}
+
+tanks_fuel_tank{
+  armorThickness:r=1.0
+  armorThrough:r=5.0
+  restrainDamage:r=0.0
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.0
+}
+
+tank_traks{
+  armorThickness:r=1.0
+  armorThrough:r=1.0
+  restrainDamage:r=0.1
+  ricochetAngle:r=70.0
+  ricochetCosinePower:r=3.0
+  ricochetDamage:r=0.1
+  armorQuality:r=0.75
+  createSecondaryShatters:b=no
+}
+
+tank_barrel{
+  armorThickness:r=1.0
+  armorThrough:r=200.0
+  restrainDamage:r=0.0001
+  ricochetAngle:r=70.0
+  ricochetCosinePower:r=3.0
+  ricochetDamage:r=0.1
+  armorQuality:r=1.1
+}
+
+tank_steel_wheels{
+  armorThickness:r=1.0
+  armorThrough:r=1.0
+  restrainDamage:r=0.0001
+  ricochetAngle:r=70.0
+  ricochetCosinePower:r=3.0
+  ricochetDamage:r=0.1
+  armorQuality:r=0.6
+  createSecondaryShatters:b=no
+}
+
+car_wheels{
+  armorThickness:r=1.0
+  armorThrough:r=1.0
+  restrainDamage:r=0.1
+  ricochetAngle:r=90.0
+  ricochetCosinePower:r=3.0
+  ricochetDamage:r=0.1
+  armorQuality:r=0.3
+  createSecondaryShatters:b=no
+}
+
+tank_structural_steel{
+  armorThickness:r=1.0
+  armorThrough:r=2.5
+  restrainDamage:r=0.0
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.0
+  armorQuality:r=0.45
+}
+
+ship_structural_steel{
+  armorThickness:r=1.0
+  armorThrough:r=2.5
+  restrainDamage:r=0.0
+  genericDamageMult:r=0.1
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.0
+  armorQuality:r=0.45
+  createSecondaryShatters:b=no
+}
+
+optics_tank{
+  armorThickness:r=1.0
+  armorThrough:r=2.5
+  restrainDamage:r=0.0
+  ricochetAngle:r=60.0
+  ricochetCosinePower:r=2.0
+  ricochetDamage:r=0.0
+  armorQuality:r=0.4
+}
+
+brick{
+  armorThickness:r=1.0
+  armorThrough:r=1.0
+  restrainDamage:r=0.01
+  ricochetAngle:r=80.0
+  ricochetCosinePower:r=3.0
+  ricochetDamage:r=0.01
+}
+
+concrete{
+  armorThickness:r=1.0
+  armorThrough:r=1.0
+  restrainDamage:r=0.001
+  ricochetAngle:r=80.0
+  ricochetCosinePower:r=3.0
+  ricochetDamage:r=0.001
+}
+
+ship_wood{
+  armorThickness:r=1.0
+  armorThrough:r=1.0
+  restrainDamage:r=0.0
+  genericDamageMult:r=0.1
+  ricochetAngle:r=89.0
+  ricochetCosinePower:r=1.0
+  ricochetDamage:r=0.1
+  armorQuality:r=0.08
+  createSecondaryShatters:b=no
+  physMaterial:t="wood"
+}

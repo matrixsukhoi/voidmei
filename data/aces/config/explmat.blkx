@@ -1,0 +1,99 @@
+explMats{
+
+  default{
+    shader:t="explosion_patch"
+    normalMap:t="explosion_patch_rocks_n"
+  }
+
+  horLandMesh{
+    shader:t="explosion_patch_color"
+    normalMap:t="explosion_patch_ground_n"
+    colorMap:t="explosion_patch_ground_c"
+    heightScale:r=0.01
+  }
+
+  ships{
+    shader:t="explosion_patch_color"
+    normalMap:t="explosion_patch_ship_n"
+    colorMap:t="explosion_patch_ship_c"
+    heightScale:r=0.008
+  }
+
+  steel{
+    shader:t="explosion_patch_color"
+    normalMap:t="explosion_patch_ps_n"
+    colorMap:t="explosion_patch_ps_c"
+
+    props{
+
+      pr_gen{
+        tc:p4=0.0, 0.25, 0.25, 0.5
+        sizeScale:r=6.5
+      }
+
+      st_gen{
+        tc:p4=0.25, 0.25, 0.5, 0.5
+        sizeScale:r=6.5
+      }
+
+      pr_splash{
+        tc:p4=0.5, 0.25, 0.75, 0.5
+        sizeScale:r=5.0
+      }
+
+      st_splash{
+        tc:p4=0.75, 0.25, 1.0, 0.5
+        sizeScale:r=6.0
+      }
+
+      pr_sub{
+        tc:p4=0.0, 0.5, 0.25, 0.75
+        sizeScale:r=5.0
+      }
+
+      st_sub{
+        tc:p4=0.25, 0.5, 0.5, 0.75
+        sizeScale:r=5.0
+      }
+
+      pr_jet{
+        tc:p4=0.5, 0.5, 0.75, 0.75
+        sizeScale:r=6.0
+      }
+
+      st_jet{
+        tc:p4=0.75, 0.5, 1.0, 0.75
+        sizeScale:r=5.0
+      }
+    }
+  }
+
+  wood{
+    shader:t="explosion_patch_color"
+    normalMap:t="explosion_patch_ps_n"
+    colorMap:t="explosion_patch_ps_c"
+
+    props{
+
+      pr_gen{
+        tc:p4=0.0, 0.0, 0.25, 0.25
+        sizeScale:r=6.0
+      }
+
+      st_gen{
+        tc:p4=0.25, 0.0, 0.5, 0.25
+        sizeScale:r=6.0
+      }
+
+      pr_splash{
+        tc:p4=0.5, 0.0, 0.75, 0.25
+        sizeScale:r=2.5
+      }
+
+      st_splash{
+        tc:p4=0.75, 0.0, 1.0, 0.25
+        sizeScale:r=2.5
+      }
+    }
+  }
+}

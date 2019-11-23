@@ -1,0 +1,8 @@
+className:t="composit"
+size:p2=250.0, 250.0
+
+node{
+  name:t="^capture_zone_circle_color_mesh"
+  tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [0.0, 0.0, 0.0]]
+  toGround:b=no
+}

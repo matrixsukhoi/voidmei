@@ -1,0 +1,1074 @@
+minModeName:i=3
+maxModeName:i=15
+resetViralAcquisitionDaysCounter:i=1
+moderatorPresenceCheckMaxCode:i=65536
+moderatorPresenceCheckPeriodSec:i=1200
+mapTypes:t="AfDto;AfD;BC;BfDn;BfD;ADto;AD;GS;GSA;GSB;DF;BfD_norespawn;GS_norespawn;BfDn_arcade;GSn;BfD_noresp;Dom;Dom_no_respawn;Conq;Conq_no_respawn;Bttl;Bttl_no_respawn;bfd_norespawn;day_norespawn;bfd_norespawn;duel;AfDn;tm;race;race_straight;race_inverted;Bto;Conq1;Conq2;Conq3;Conq4;Conq5;Conq6;;DBttlA;DBttlB;PvE;I2M;Tdm;Capt;NTDM;NDom;NA;NAleft;NAright;4x4_norespawn;FFA;BDB;BDA;MBD;GSA;GSB;CnvA;CnvB"
+ordersPerSession:i=3
+
+randomBattle{
+
+  classiness{
+    minRank:i=1000
+  }
+}
+
+tournamentSimple{
+  defaultRating:r=0.0
+  eloPowerDivisor:r=1300.0
+  fastGrowthLimit:r=1000.0
+  tier1Limit:r=2100.0
+  tier2Limit:r=2400.0
+  tier1EloK:r=100.0
+  tier2EloK:r=60.0
+  tier3EloK:r=30.0
+}
+
+tournamentClan{
+  defaultRating:r=0.0
+  fastGrowthLimit:r=1500.0
+  tier1Limit:r=2100.0
+  tier2Limit:r=2400.0
+  tier1EloK:r=32.0
+  tier2EloK:r=24.0
+  tier3EloK:r=16.0
+}
+
+race{
+  defaultRating:r=0.0
+  eloPowerDivisor:r=1300.0
+  fastGrowthLimit:r=1000.0
+  tier1Limit:r=1500.0
+  tier2Limit:r=2400.0
+  tier1EloK:r=100.0
+  tier2EloK:r=60.0
+  tier3EloK:r=30.0
+}
+
+clanDuel{
+  useSingleEra:b=yes
+  fastGrowthLimit:r=1500.0
+  tier1Limit:r=2100.0
+  tier2Limit:r=2400.0
+  tier1EloK:r=32.0
+  tier2EloK:r=24.0
+  tier3EloK:r=16.0
+  topPlayersCountForClanRating:i=20
+  otherPlayersDivisorForClanRating:r=20.0
+  periodicDiminish1Multiplier:r=0.9
+  periodicDiminish1PeriodDays:i=7
+  periodicDiminish2Multiplier:r=0.8
+  periodicDiminish2PeriodDays:i=7
+  periodicDiminish3Multiplier:r=0.5
+  periodicDiminish3PeriodDays:i=7
+
+  reward{
+    firstRewardDayUnixTime:i64=1402927200
+    rewardPeriodDays:i=14
+    topPlayersRewarded:i=20
+    place1Gold:i=0
+
+    arcade{
+      place1Gold:i=0
+
+      era5{
+        place1Gold:i=10000
+        place2Gold:i=5000
+        place3Gold:i=2500
+      }
+    }
+
+    historical{
+      place1Gold:i=0
+
+      era5{
+        place1Gold:i=10000
+        place2Gold:i=5000
+        place3Gold:i=2500
+      }
+    }
+
+    simulation{
+      place1Gold:i=0
+
+      era5{
+        place1Gold:i=10000
+        place2Gold:i=5000
+        place3Gold:i=2500
+      }
+    }
+  }
+}
+
+tribunal{
+  minComplaintCount:i=10
+  maxComplaintCount:i=10
+  maxDaysToCheckComplains:i=7
+  maxComplaintsFromMe:i=5
+}
+
+chat{
+  threadsListAutoUpdatePeriodMsec:i=60000
+  threadsListPlayerUpdateTimeoutMsec:i=15000
+  threadTitleLenMin:i=8
+  threadTitleLenMax:i=160
+}
+
+mapNameToMode{
+  _GS:i=0
+  _GSn:i=0
+  _Dom_no_respawn:i=3
+  Conq_no_respawn:i=3
+  Bttl_no_respawn:i=3
+  _Dom_norespawn:i=3
+  Conq_norespawn:i=3
+  Bttl_norespawn:i=3
+
+  from_diff{
+    AfD:i=0
+    _BfDn:i=0
+    _race:i=0
+    race_straight:i=0
+    race_inverted:i=0
+    _BfD_norespawn:i=0
+    _bfd_norespawn:i=0
+    _day_norespawn:i=0
+    4x4_norespawn:i=0
+    _I2M:i=0
+    _Dom:i=3
+    Bttl:i=3
+    Conq:i=3
+    _Bto:i=3
+    Conq1:i=3
+    Conq2:i=3
+    Conq3:i=3
+    Conq4:i=3
+    Conq5:i=3
+    Conq6:i=3
+    _NA:i=3
+    _NAright:i=3
+    _NAleft:i=3
+    _FFA:i=0
+    MDB:i=0
+    BDA:i=0
+    BDB:i=0
+    GSA:i=0
+    GSB:i=0
+    DBttlA:i=3
+    DBttlB:i=3
+    CnvA:i=3
+    CnvB:i=3
+  }
+}
+
+mapIntDiffToName{
+  0:t="air_event_arcade"
+  1:t="air_event_historical"
+  2:t="air_event_simulator"
+  3:t="tank_event_arcade"
+  4:t="tank_event_historical"
+  5:t="tank_event_simulator"
+}
+
+newPlayersBattles{
+
+  aircraft{
+    event:t="aircraft_new_players_battle_single"
+    kills:i=3
+    games:i=3
+  }
+
+  aircraft{
+    event:t="aircraft_new_players_battle_coop"
+    kills:i=10
+    games:i=10
+  }
+
+  tank{
+    event:t="tank_new_players_battle_single"
+    kills:i=3
+    games:i=3
+  }
+
+  tank{
+    event:t="tank_new_players_battle_coop"
+    kills:i=10
+    games:i=10
+  }
+}
+
+newPlayersBattlesExp{
+  battle_mod:i=2
+  battle_unit:i=3
+  tutorial_end_battle:i=4
+}
+
+features{
+
+  SpendGold{
+    condition:t=""
+  }
+
+  CrewSkills{
+    condition:t=""
+  }
+
+  UserLog{
+    condition:t=""
+  }
+
+  Voice{
+    condition:t=""
+  }
+
+  Friends{
+    condition:t=""
+  }
+
+  Squad{
+    condition:t=""
+  }
+
+  Battalions{
+    condition:t=""
+  }
+
+  Radio{
+    condition:t=""
+    platform_lock:t="android"
+  }
+
+  Twitch{
+    condition:t=""
+    platform_lock:t="ps4;android"
+  }
+
+  Facebook{
+    condition:t=""
+    platform_lock:t="android"
+  }
+
+  FacebookWallPost{
+  }
+
+  FacebookScreenshots{
+  }
+
+  Events{
+    condition:t=""
+  }
+
+  Invites{
+    condition:t=""
+    platform_lock:t="ps4"
+  }
+
+  EmbeddedBrowser{
+    condition:t=""
+  }
+
+  EmbeddedBrowserOnlineShop{
+    condition:t=""
+  }
+
+  Chat{
+    condition:t=""
+  }
+
+  ChatThreadsView{
+    condition:t=""
+  }
+
+  ChatThreadLang{
+    condition:t="role_GAIJIN"
+    condition:t="role_DEVELOPER"
+    condition:t="role_GM_(RO+BAN)"
+    condition:t="role_CHAT_GM_(IN-GAME)"
+  }
+
+  ChatThreadCategories{
+    condition:t=""
+  }
+
+  AerobaticTricolorSmoke{
+    condition:t="role_DEVELOPER"
+    condition:t="aerobatic_tricolor_smoke_en"
+    condition:t="wt_thunder_league_fan_token"
+  }
+
+  UserExterior{
+    condition:t=""
+  }
+
+  AnyTankEntitlements{
+    condition:t="tank_advanced_pack_t-34_m4a2_ru"
+    condition:t="tank_advanced_pack_t-34_m4a2_en"
+    condition:t="tank_starter_pack_t-34_ru"
+    condition:t="tank_starter_pack_m4a2_en"
+    condition:t="tank_advanced_pack_t-34_ru"
+    condition:t="tank_advanced_pack_t-34_en"
+    condition:t="tank_advanced_pack_m4a2_en"
+    condition:t="tank_advanced_pack_m4a2_ru"
+    condition:t="tank_starter_pack_t-34_3rdwave_ru"
+    condition:t="tank_starter_pack_m4a2_3rdwave_en"
+    condition:t="tank_advanced_pack_t-34_3rdwave_ru"
+    condition:t="tank_advanced_pack_t-34_3rdwave_en"
+    condition:t="tank_advanced_pack_m4a2_3rdwave_en"
+    condition:t="tank_advanced_pack_m4a2_3rdwave_ru"
+    condition:t="tank_advanced_pack_t-34_m4a2_3rdwave_ru"
+    condition:t="tank_advanced_pack_t-34_m4a2_3rdwave_en"
+    condition:t="tank_advanced_pack_t-26_sdkfz_140_1_ru"
+    condition:t="tank_advanced_pack_t-26_sdkfz_140_1_en"
+    condition:t="tank_pack_sdkfz_140_1_en"
+    condition:t="tank_advanced_pack_t-34e_28panfilovcev_ru"
+  }
+
+  Ships{
+    condition:t="role_GAIJIN"
+    condition:t="role_DEVELOPER"
+    condition:t="role_TESTER"
+    condition:t="ShipEventTicketAccess"
+    condition:t="ShipsVisibleInShop"
+    condition:t="ShipsFirstChoice"
+    platform_lock:t="android"
+    reqPack:t="pkg_ships"
+  }
+
+  ShipsVisibleInShop{
+    condition:t="role_GAIJIN"
+    condition:t="role_DEVELOPER"
+    condition:t="role_TESTER"
+  }
+
+  ShipsFirstChoice{
+    condition:t="role_GAIJIN"
+    condition:t="role_DEVELOPER"
+    condition:t="role_TESTER"
+  }
+
+  ShipBotsOption{
+    condition:t="role_GAIJIN"
+    condition:t="role_DEVELOPER"
+    condition:t="role_TESTER"
+  }
+
+  Tanks{
+    condition:t=""
+    platform_lock:t="android"
+  }
+
+  TanksPs4{
+    condition:t=""
+  }
+
+  TanksInCustomBattles{
+    condition:t="Tanks"
+  }
+
+  TanksInRandomBattles{
+    condition:t="Tanks"
+  }
+
+  SpendGoldForTanks{
+    condition:t="Tanks"
+  }
+
+  BritainTanksInFirstCountryChoice{
+    condition:t=""
+  }
+
+  JapanTanksInFirstCountryChoice{
+  }
+
+  Tribunal{
+    condition:t=""
+  }
+
+  ModeSkirmish{
+    condition:t=""
+  }
+
+  ModeBuilder{
+    condition:t=""
+  }
+
+  ModeDynamic{
+    condition:t=""
+  }
+
+  QmbCoopPc{
+  }
+
+  QmbCoopPs4{
+  }
+
+  DynCampaignCoopPc{
+    condition:t=""
+  }
+
+  DynCampaignCoopPs4{
+    condition:t=""
+  }
+
+  SingleMissionsCoopPc{
+    condition:t=""
+  }
+
+  SingleMissionsCoopPs4{
+    condition:t=""
+  }
+
+  CustomBattlesPc{
+    condition:t=""
+  }
+
+  CustomBattlesPs4{
+    condition:t=""
+  }
+
+  WorldWar{
+    condition:t="role_GAIJIN"
+    condition:t="role_DEVELOPER"
+    condition:t="role_TESTER"
+  }
+
+  worldWarMaster{
+    condition:t="role_WW_MASTER"
+  }
+
+  worldWarShowTestMaps{
+    condition:t="role_DEVELOPER"
+  }
+
+  GraphicsOptions{
+    condition:t=""
+  }
+
+  Spectator{
+    condition:t=""
+  }
+
+  TouchScreen{
+    condition:t=""
+  }
+
+  BuyAllModifications{
+    condition:t="role_GAIJIN"
+    condition:t="role_DEVELOPER"
+    condition:t="role_TESTER"
+  }
+
+  Packages{
+    condition:t=""
+  }
+
+  DecalsUse{
+    condition:t=""
+  }
+
+  AttachablesUse{
+    condition:t=""
+  }
+
+  DecoratorPreview{
+    condition:t=""
+  }
+
+  UserSkins{
+    condition:t=""
+    platform_lock:t="ps4"
+  }
+
+  SkinsPreviewOnUnboughtUnits{
+    condition:t="role_GAIJIN"
+    condition:t="role_DEVELOPER"
+    condition:t="role_TESTER"
+  }
+
+  UserMissions{
+    condition:t=""
+    platform_lock:t="ps4;android"
+  }
+
+  UserMissionsSkirmishByUrl{
+    condition:t=""
+    platform_lock:t="ps4"
+  }
+
+  UserMissionsSkirmishByUrlCreate{
+    platform_lock:t="ps4"
+    condition:t="user_mission_access_en"
+    condition:t="user_mission_access"
+    condition:t="role_DEVELOPER"
+  }
+
+  Replays{
+    condition:t=""
+    platform_lock:t="ps4;android"
+  }
+
+  ServerReplay{
+    condition:t=""
+    platform_lock:t="android"
+  }
+
+  Benchmark{
+    condition:t=""
+    platform_lock:t="android"
+  }
+
+  BenchmarkPS4{
+    condition:t="role_GAIJIN"
+    condition:t="role_DEVELOPER"
+    condition:t="role_TESTER"
+  }
+
+  DamageModelViewer{
+    condition:t=""
+  }
+
+  DamageModelViewerAircraft{
+    condition:t=""
+  }
+
+  XrayCrewAircraft{
+    condition:t=""
+  }
+
+  XrayDmgIndicator{
+    condition:t=""
+  }
+
+  animatedRewardMessages{
+    condition:t=""
+  }
+
+  VideoPreview{
+    condition:t=""
+  }
+
+  Clans{
+    condition:t=""
+  }
+
+  ClanRegions{
+    condition:t=""
+  }
+
+  ClanAnnouncements{
+    condition:t=""
+  }
+
+  ClanActivity{
+    condition:t=""
+  }
+
+  ClansMembershipEditor{
+    condition:t=""
+  }
+
+  ClanUpgradeMembers{
+    condition:t=""
+  }
+
+  ClanLog{
+    condition:t=""
+  }
+
+  ClanBattleSeasonAvailable{
+    condition:t=""
+  }
+
+  ShowNextUnlockInfo{
+  }
+
+  extendedReplayInfo{
+    condition:t=""
+  }
+
+  RankVersusInfo{
+    condition:t="role_GAIJIN"
+    condition:t="role_DEVELOPER"
+    condition:t="role_TESTER"
+  }
+
+  showAllUnitsRanks{
+    condition:t="role_DEVELOPER"
+  }
+
+  EarlyExitCrewUnlock{
+    condition:t="role_DEVELOPER"
+  }
+
+  LiveBroadcast{
+    condition:t="role_DEVELOPER"
+  }
+
+  ActivityFeedPs4{
+    condition:t=""
+  }
+
+  UnlockAllCountries{
+    condition:t=""
+  }
+
+  AllModesInRandomBattles{
+    condition:t=""
+  }
+
+  SimulatorDifficulty{
+    condition:t=""
+    platform_lock:t="android"
+  }
+
+  SimulatorDifficultyInRandomBattles{
+    condition:t=""
+  }
+
+  XrayDeath{
+    condition:t=""
+  }
+
+  XrayKill{
+    condition:t=""
+  }
+
+  NetworkDebug{
+    condition:t=""
+    platform_lock:t="ps4"
+  }
+
+  ShowDebugInterface{
+    platform_lock:t="ps4"
+    condition:t="role_DEVELOPER"
+    condition:t="role_ALPHA_TESTER"
+  }
+
+  ControlRec{
+    condition:t=""
+  }
+
+  UnitTooltipImage{
+    condition:t=""
+  }
+
+  Items{
+    condition:t=""
+  }
+
+  enableApex{
+    platform_lock:t="android;iOS"
+  }
+
+  TelescopeCamera{
+    condition:t=""
+  }
+
+  AdvancedMouseAim{
+    condition:t=""
+  }
+
+  OptimizedMouseAim{
+    condition:t="role_GAIJIN"
+    condition:t="role_DEVELOPER"
+    condition:t="role_TESTER"
+    condition:t="role_ALPHA_TESTER"
+  }
+
+  AdvancedInstructor{
+    condition:t=""
+  }
+
+  AdvancedStickPusher{
+    condition:t=""
+  }
+
+  EnableGoldPurchase{
+    condition:t=""
+    platform_lock:t="android"
+  }
+
+  EnablePremiumPurchase{
+    condition:t=""
+  }
+
+  OnlineShopPacks{
+    condition:t=""
+    platform_lock:t="android"
+  }
+
+  ManuallyUpdateBalance{
+  }
+
+  everyDayLoginAward{
+    condition:t=""
+  }
+
+  devItemShop{
+    condition:t="role_DEVELOPER"
+    condition:t="role_TESTER"
+    condition:t="role_ALPHA_TESTER"
+  }
+
+  CanBuyDiscountItems{
+    condition:t="role_DEVELOPER"
+  }
+
+  everyDayLoginAwardDebugEnable{
+    condition:t="dev_test_feature_access"
+  }
+
+  ShowDebugEvents{
+    condition:t="role_DEVELOPER"
+    condition:t="role_TESTER"
+    condition:t="role_ALPHA_TESTER"
+  }
+
+  Wagers{
+    condition:t=""
+  }
+
+  ItemsRoulette{
+    condition:t=""
+  }
+
+  TankModEffect{
+    condition:t=""
+  }
+
+  pc_only_events{
+    condition:t=""
+    platform_lock:t="ps4"
+  }
+
+  ps4_only_events{
+    condition:t=""
+    platform_lock:t="pc;android"
+  }
+
+  Orders{
+    condition:t=""
+  }
+
+  BattleTasks{
+    condition:t=""
+  }
+
+  PersonalUnlocks{
+    condition:t="role_GAIJIN"
+    condition:t="role_DEVELOPER"
+    condition:t="role_TESTER"
+  }
+
+  BulletParamsForAirs{
+    condition:t=""
+  }
+
+  TournamentTesters{
+    condition:t="wt_events_tester"
+    condition:t="role_GAIJIN"
+    condition:t="role_DEVELOPER"
+    condition:t="role_TESTER"
+    condition:t="role_GM_(RO+BAN)"
+    condition:t="role_ALPHA_TESTER"
+  }
+
+  TournamentSuperTesters{
+    condition:t="wt_events_supertester"
+    condition:t="role_GAIJIN"
+    condition:t="role_DEVELOPER"
+    condition:t="role_TESTER"
+    condition:t="role_GRAND_CM"
+    condition:t="role_ALPHA_SUPERVISOR"
+  }
+
+  TankDetailedDamageIndicator{
+    condition:t=""
+  }
+
+  KillLogWithIcons{
+    condition:t=""
+  }
+
+  LiveStats{
+    condition:t=""
+  }
+
+  ShowAllPromoBlocks{
+    condition:t="role_DEVELOPER"
+    condition:t="role_TESTER"
+    condition:t="role_ALPHA_TESTER"
+  }
+
+  SpectatorUnitDmgIndicator{
+    condition:t=""
+  }
+
+  SlotbarShowBattleRating{
+    condition:t=""
+  }
+
+  GlobalShowBattleRating{
+    condition:t=""
+  }
+
+  GamercardDrawerSwitchBR{
+    condition:t=""
+  }
+
+  DebriefingShowRewardsFromServer{
+    condition:t=""
+  }
+
+  DebriefingRowAdvancedTooltip{
+    condition:t=""
+  }
+
+  ShowAllBattleTasks{
+    condition:t="role_DEVELOPER"
+  }
+
+  AnimatedHangar{
+    condition:t=""
+  }
+
+  ExtendedCrewSkillsDescription{
+    condition:t=""
+  }
+
+  CrewInfoPanel{
+    condition:t=""
+  }
+
+  HiddenLeaderboardRows{
+    condition:t="role_DEVELOPER"
+  }
+
+  ExpertToAce{
+    condition:t=""
+  }
+
+  pacific_41_43{
+    condition:t="pacific_41_43_unlock"
+  }
+
+  usa_pacific_41_43{
+    condition:t="pacific_41_43_unlock"
+  }
+
+  jpn_pacific_41_43{
+    condition:t="pacific_41_43_unlock"
+  }
+
+  league_fan_token{
+    condition:t="wt_thunder_league_fan_token"
+  }
+
+  Warbonds{
+    condition:t=""
+  }
+
+  WarbondsShop{
+    condition:t="Warbonds"
+  }
+
+  ControllerLight{
+    condition:t=""
+  }
+
+  DisableSwitchPresetOnTutorialForHotas4{
+    condition:t=""
+  }
+
+  BritainTanksUnlocked{
+    condition:t=""
+  }
+
+  JapanTanksUnlocked{
+    condition:t="role_GAIJIN"
+    condition:t="role_DEVELOPER"
+    condition:t="role_TESTER"
+    condition:t="role_ALPHA_TESTER"
+    condition:t="wt_access_japan_tanks_unlocks"
+  }
+
+  CountryChina{
+    condition:t="role_DEVELOPER"
+  }
+
+  CountryJapan{
+    condition:t=""
+  }
+
+  MissionsChapterHidden{
+    condition:t="role_GAIJIN"
+    condition:t="role_DEVELOPER"
+    condition:t="role_TESTER"
+  }
+
+  MissionsChapterTest{
+    condition:t="role_GAIJIN"
+    condition:t="role_DEVELOPER"
+    condition:t="role_TESTER"
+    condition:t="role_ALPHA_TESTER"
+  }
+
+  ChinaForbidden{
+    condition:t=""
+  }
+
+  ScriptMissionHints{
+    condition:t=""
+  }
+
+  ScriptImportExportControls{
+    condition:t=""
+    platform_lock:t="ps4;android"
+  }
+
+  SquadWidget{
+    condition:t=""
+  }
+
+  SquadTransferLeadership{
+    condition:t=""
+  }
+
+  ClanSeasonRewardsLog{
+    condition:t=""
+  }
+
+  ClanSeasons_3_0{
+    condition:t=""
+  }
+
+  ClanSeasonAttributes{
+    condition:t=""
+  }
+
+  ShipDetailedDamageIndicator{
+    condition:t="Ships"
+  }
+
+  XRayDescription{
+    condition:t=""
+  }
+
+  GamepadCursorControl{
+    condition:t=""
+  }
+
+  QaTestTiketLocker{
+    condition:t="qa_tiket_locker1"
+  }
+
+  ShipEventTicketAccess{
+    condition:t="role_GAIJIN"
+    condition:t="role_DEVELOPER"
+    condition:t="role_TESTER"
+    condition:t="ship_event_tiket_access"
+    reqPack:t="pkg_ships"
+  }
+}
+
+avgAirRankSpeed{
+  rank0:i=300
+  rank1:i=310
+  rank2:i=320
+  rank3:i=330
+  rank4:i=340
+  rank5:i=350
+  rank6:i=360
+  rank7:i=370
+  rank8:i=380
+  rank9:i=390
+  rank10:i=400
+  rank11:i=410
+  rank12:i=420
+  rank13:i=430
+  rank14:i=440
+  rank15:i=450
+  rank16:i=460
+  rank17:i=600
+  rank18:i=610
+  rank19:i=620
+  rank20:i=630
+  rank21:i=640
+  rank22:i=650
+  rank23:i=660
+  rank24:i=670
+  rank25:i=680
+}
+
+avgTankRankSpeed{
+  rank0:i=40
+  rank1:i=40
+  rank2:i=40
+  rank3:i=40
+  rank4:i=40
+  rank5:i=40
+  rank6:i=40
+  rank7:i=40
+  rank8:i=40
+  rank9:i=40
+  rank10:i=40
+  rank11:i=40
+  rank12:i=40
+  rank13:i=40
+  rank14:i=40
+  rank15:i=40
+  rank16:i=40
+  rank17:i=40
+  rank18:i=40
+  rank19:i=40
+  rank20:i=40
+  rank21:i=40
+  rank22:i=40
+  rank23:i=40
+  rank24:i=40
+  rank25:i=40
+}
+
+squadronStatisticsFilter{
+  fullreal:b=no
+}
+
+promo_block{
+
+  events_mainmenu_button{
+    color:t="#33556126"
+    action:t="events"
+  }
+
+  tutorial_mainmenu_button{
+    color:t="#331e5876"
+    notifyNew:b=yes
+    action:t="tutorial"
+  }
+
+  battle_tasks_mainmenu_button{
+    color:t="#33fb4417"
+    text:t="#mainmenu/btnBattleTasks"
+    action:t="battle_tasks"
+  }
+}
+
+time_to_kick{
+  show_timer_threshold:i=30
+  show_alert_threshold:i=15
+  in_battle_show_timer_threshold:i=150
+  in_battle_show_alert_threshold:i=50
+}
+
+testFlight_override{
+
+  HChinese{
+    testFlight_sicily:t="testFlight_alps"
+    testFlight_norway:t="testFlight_alps"
+    testFlight_norway_hydrobase:t="testFlight_crater_hydroplane"
+    testFlight_ruhr:t="testFlight_alps"
+    testFlight_ruhr_me:t="testFlight_alps_me"
+    testFlight_peleliu:t="testFlight_crater"
+    testFlight_peleliu_hydrobase:t="testFlight_crater_hydroplane"
+  }
+}

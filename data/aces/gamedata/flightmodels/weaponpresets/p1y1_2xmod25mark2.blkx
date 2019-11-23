@@ -1,0 +1,15 @@
+Weapon{
+  trigger:t="bombs"
+  external:b=no
+  blk:t="gameData/Weapons/bombGuns/jp_mod25mark2.blk"
+  emitter:t="bomb3"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  external:b=no
+  blk:t="gameData/Weapons/bombGuns/jp_mod25mark2.blk"
+  emitter:t="bomb4"
+  bullets:i=1
+}

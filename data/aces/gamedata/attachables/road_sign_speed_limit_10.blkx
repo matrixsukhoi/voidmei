@@ -1,0 +1,3 @@
+model:t="road_sign_speed_limit_10"
+collision:t="road_sign_speed_limit_10_aces"
+bboxMult:r=0.1

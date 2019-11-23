@@ -1,0 +1,16 @@
+hideNodes{
+  node:t="vikkers_l"
+  node:t="vikkers_r"
+  node:t="flare1"
+  node:t="flare2"
+  node:t="rocket_pylon"
+  node:t="rocket_pylon1"
+  node:t="rocket_pylon2"
+  node:t="rocket_pylon3"
+  node:t="rocket_pylon4"
+  node:t="rocket_pylon5"
+  node:t="rocket_pylon6"
+  node:t="rocket_pylon7"
+  node:t="rocket_pylon8"
+  node:t="rocket_pylon9"
+}

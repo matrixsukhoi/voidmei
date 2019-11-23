@@ -1,0 +1,93 @@
+font:t="small_text"
+
+line{
+  loc:t="jpn_honolulu_video_1"
+  from:i=1039
+  to:i=45394
+}
+
+line{
+  loc:t="jpn_honolulu_video_2"
+  from:i=45625
+  to:i=68900
+}
+
+line{
+  loc:t="jpn_honolulu_video_3"
+  from:i=69073
+  to:i=83801
+}
+
+line{
+  loc:t="jpn_honolulu_video_4"
+  from:i=84089
+  to:i=100261
+
+  German{
+    from:i=84089
+    to:i=100578
+  }
+
+  French{
+    from:i=84000
+    to:i=98200
+  }
+}
+
+line{
+  loc:t="jpn_honolulu_video_5"
+  from:i=100261
+  to:i=121110
+
+  German{
+    from:i=101295
+    to:i=121602
+  }
+}
+
+line{
+  loc:t="jpn_honolulu_video_6"
+  from:i=121283
+  to:i=140226
+
+  German{
+    from:i=122080
+    to:i=140237
+  }
+}
+
+line{
+  loc:t="jpn_honolulu_video_7"
+  from:i=140515
+  to:i=149409
+}
+
+line{
+  loc:t="jpn_honolulu_video_8"
+  from:i=149698
+  to:i=176149
+}
+
+line{
+  loc:t="jpn_honolulu_video_9"
+  from:i=176323
+  to:i=194284
+}
+
+line{
+  loc:t="jpn_honolulu_video_10"
+  from:i=194631
+  to:i=214960
+}
+
+line{
+  loc:t="jpn_honolulu_video_11"
+  from:i=215249
+  to:i=229803
+}
+
+line{
+  loc:t="jpn_honolulu_video_12"
+  from:i=230149
+  to:i=250941
+}

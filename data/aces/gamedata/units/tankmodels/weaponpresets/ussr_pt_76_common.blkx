@@ -1,0 +1,97 @@
+Weapon{
+  trigger:t="gunner0"
+  blk:t="gameData/Weapons/groundModels_weapons/76mm_D56_T_user_cannon.blk"
+  emitter:t="bone_gun_barrel"
+  flash:t="emtr_gun_flame"
+  defaultYaw:r=0.0
+  defaultPitch:r=0.0
+  barrelDP:t="gun_barrel_dm"
+  breechDP:t="cannon_breech_dm"
+  speedYaw:r=17.0
+  speedPitch:r=35.0
+  fireConeAngle:r=1.0
+  bullets:i=40
+  salvoAmount:r=100.0
+  ChainfireTime:r=0.0
+  DelayAfterShoot:r=5.0
+  AttackMaxDistance:r=1000.0
+  AttackMaxRadius:r=1000.0
+  AttackMaxHeight:r=1000.0
+  accuracyAir:r=0.0
+  accuracyGnd:r=1.5
+  errMeasureVel:r=0.0
+  errMeasureVelFast:r=0.0
+  errMeasureVelFwdShift:r=0.0
+  errMeasureVelDir:r=0.0
+  errTargettingOn100kmph:r=0.0
+  errTargetting:r=3.0
+  errExplTime:r=0.0
+
+  turret{
+    head:t="bone_turret"
+    gun:t="bone_gun"
+    barrel:t="bone_gun_barrel"
+    gunnerDm:t="commander_dm"
+
+    linkedAnimPart{
+      verNode:t="bone_mg_gun_twin"
+      verLimits:p2=-4.5, 31.0
+      verOriginLimits:p2=-4.5, 31.0
+    }
+  }
+
+  limits{
+    yaw:p2=-180.0, 180.0
+    pitch:p2=-4.5, 31.0
+  }
+
+  limitsTable{
+    lim1:p4=-180.0, -160.0, -3.5, 31.0
+    lim2:p4=-160.0, -130.0, 10.0, 31.0
+    lim3:p4=-130.0, 140.0, -4.5, 31.0
+    lim4:p4=140.0, 170.0, 10.0, 31.0
+    lim5:p4=170.0, 180.0, -3.5, 31.0
+  }
+}
+
+Weapon{
+  trigger:t="gunner1"
+  triggerGroup:t="coaxial"
+  blk:t="gameData/Weapons/groundModels_weapons/7_62mm_SGMT_user_machinegun.blk"
+  emitter:t="bone_mg_gun_twin"
+  flash:t="emtr_mg_flame_01"
+  defaultYaw:r=0.0
+  defaultPitch:r=0.0
+  barrelDP:t="gun_barrel_01_dm"
+  breechDP:t="cannon_breech_01_dm"
+  speedYaw:r=17.0
+  speedPitch:r=35.0
+  fireConeAngle:r=1.0
+  bullets:i=1000
+  salvoAmount:r=100.0
+  ChainfireTime:r=0.0
+  DelayAfterShoot:r=5.0
+  AttackMaxDistance:r=1000.0
+  AttackMaxRadius:r=1000.0
+  AttackMaxHeight:r=1000.0
+  accuracyAir:r=0.0
+  accuracyGnd:r=1.5
+  errMeasureVel:r=0.0
+  errMeasureVelFast:r=0.0
+  errMeasureVelFwdShift:r=0.0
+  errMeasureVelDir:r=0.0
+  errTargettingOn100kmph:r=0.0
+  errTargetting:r=3.0
+  errExplTime:r=0.0
+
+  turret{
+    head:t="bone_mg_gun_twin"
+    gun:t="bone_mg_gun_twin"
+    gunnerDm:t="commander_dm"
+  }
+
+  limits{
+    yaw:p2=-0.0, 0.0
+    pitch:p2=-0.0, 0.0
+  }
+}

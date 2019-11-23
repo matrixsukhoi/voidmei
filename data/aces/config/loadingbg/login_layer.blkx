@@ -1,0 +1,122 @@
+imgLayer{
+  layerSensitivity:t="1"
+
+  img{
+    size:t="pw, ph"
+    re-type:t="9rect"
+    background-image:t="ui/bkg/login_layer_0.jpg?P1"
+    background-repeat:t="expand"
+  }
+}
+
+imgLayer{
+  layerSensitivity:t="-2"
+
+  img{
+    pos:t="55%pw-w, ph-h"
+    position:t="absolute"
+    width:t="h"
+    height:t="ph"
+    re-type:t="9rect"
+    background-image:t="ui/bkg/login_layer_3_l?x1ac"
+  }
+
+  img{
+    pos:t="45%pw, ph-h"
+    position:t="absolute"
+    width:t="h"
+    height:t="ph"
+    re-type:t="9rect"
+    background-image:t="ui/bkg/login_layer_3_r?x1ac"
+  }
+}
+
+imgLayer{
+  layerSensitivity:t="-3"
+
+  img{
+    pos:t="50%pw-50%w,ph-h+0.06@scrn_tgt"
+    position:t="absolute"
+    width:t="0.7pw"
+    height:t="0.25w"
+    re-type:t="9rect"
+    background-position:t="w,0"
+    background-repeat:t="stretch"
+    background-image:t="ui/bkg/login_layer_1?x1ac"
+  }
+}
+
+imgLayer{
+  layerSensitivity:t="-4"
+
+  img{
+    pos:t="22%pw, -10%ph"
+    position:t="absolute"
+    height:t="ph"
+    width:t="1.34*h"
+    re-type:t="9rect"
+    background-image:t="ui/bkg/login_layer_2?x1ac"
+  }
+}
+
+imgLayer{
+  layerSensitivity:t="-6"
+
+  img{
+    pos:t="45%pw-w, ph-h"
+    position:t="absolute"
+    width:t="h"
+    height:t="ph"
+    re-type:t="9rect"
+    background-position:t="w,0"
+    background-repeat:t="stretch"
+    background-image:t="ui/bkg/login_layer_3_r?x1ac"
+  }
+
+  img{
+    pos:t="50%pw, ph-h"
+    position:t="absolute"
+    width:t="h"
+    height:t="ph"
+    re-type:t="9rect"
+    background-position:t="w,0"
+    background-repeat:t="stretch"
+    background-image:t="ui/bkg/login_layer_3_l?x1ac"
+  }
+}
+
+imgLayer{
+  layerSensitivity:t="-14"
+
+  img{
+    pos:t="0, ph-h+0.09@scrn_tgt"
+    position:t="absolute"
+    width:t="pw"
+    height:t="25%w"
+    re-type:t="9rect"
+    background-image:t="ui/bkg/login_layer_1?x1ac"
+  }
+}
+
+img{
+  pos:t="50%pw-50%w, 50%ph-50%h"
+  position:t="absolute"
+  width:t="1.3sw"
+  height:t="sh"
+  re-type:t="9rect"
+  background-image:t="ui/bkg/login_layer_4?x1ac"
+
+  tdiv{
+    size:t="ph, ph"
+    pos:t="-w+1"
+    position:t="absolute"
+    background-color:t="@black"
+  }
+
+  tdiv{
+    size:t="ph, ph"
+    pos:t="pw-1"
+    position:t="absolute"
+    background-color:t="@black"
+  }
+}

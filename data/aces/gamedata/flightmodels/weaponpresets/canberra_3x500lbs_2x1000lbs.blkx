@@ -1,0 +1,34 @@
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/uk_500lbs.blk"
+  emitter:t="bomb6"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/uk_500lbs.blk"
+  emitter:t="bomb7"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/uk_500lbs.blk"
+  emitter:t="bomb8"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/uk_1000lbs_gp.blk"
+  emitter:t="bomb4"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/uk_1000lbs_gp.blk"
+  emitter:t="bomb5"
+  bullets:i=1
+}

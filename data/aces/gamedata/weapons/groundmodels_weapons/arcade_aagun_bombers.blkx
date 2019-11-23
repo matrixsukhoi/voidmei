@@ -1,0 +1,43 @@
+weaponType:i=1
+bUseHookAsRel:b=yes
+emitColor:p3=1.0, 1.0, 0.0
+emitI:r=10.0
+emitR:r=3.0
+emitTime:r=0.03
+aimMinDist:r=500.0
+aimMaxDist:r=8500.0
+maxDeltaAngle:r=0.44
+shotFreq:r=0.33
+traceFreq:i=3
+bEnablePause:b=no
+bullets:i=2500
+bulletsCluster:i=2
+sound:t="aa_big_gun_fire"
+
+bullet{
+  explosionInAir:b=yes
+  mass:r=9.5
+  caliber:r=0.088
+  speed:r=795.0
+  maxDistance:r=10000.0
+  traceColor:p3=0.0, 0.0, 0.0
+  hitPowerMult:r=30.0
+  nearHitPower:p2=1.0, 50.0
+  midHitPower:p2=0.9, 300.0
+  farHitPower:p2=0.1, 700.0
+  endHitPower:p2=0.008, 1500.0
+  relativeVelHitShift:p2=300.0, 1000.0
+  explodeTreshold:r=0.001
+  explodeHitPower:r=60.0
+  explodeArmorPower:r=21.0
+  explodeRadius:p2=1.5, 3.0
+  nearArmorPower:p2=127.0, 500.0
+  midArmorPower:p2=70.0, 1000.0
+  farArmorPower:p2=50.0, 5000.0
+  relativeVelArmorShift:p2=200.0, 1000.0
+  shutterDamage:b=yes
+  shutterDamageRadius:r=25.0
+  shutterAmount:i=2500
+  shutterArmorPower:r=30.0
+  shutterHit:r=0.4
+}

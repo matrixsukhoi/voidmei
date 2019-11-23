@@ -1,0 +1,6 @@
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/us_2000lbs_anm66.blk"
+  emitter:t="bomb1"
+  bullets:i=1
+}

@@ -1,0 +1,20 @@
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/uk_mk2_cookie.blk"
+  emitter:t="bomb7"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/uk_1000lbs_gp.blk"
+  emitter:t="bomb2"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/uk_1000lbs_gp.blk"
+  emitter:t="bomb4"
+  bullets:i=1
+}

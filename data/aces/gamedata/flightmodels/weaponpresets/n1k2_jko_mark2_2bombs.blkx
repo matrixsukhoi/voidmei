@@ -1,0 +1,23 @@
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/jp_mod50mark2.blk"
+  emitter:t="bomb1"
+  bullets:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/jp_mod50mark2.blk"
+  emitter:t="bomb2"
+  bullets:i=1
+  external:b=yes
+}
+
+hideNodes{
+  node:t="pylon_60kg_on"
+  node:t="pylon_250kg_on_1"
+  node:t="pylon_250kg_on_2"
+  node:t="pylon_500kg_off"
+  node:t="pylon_rocket1"
+}

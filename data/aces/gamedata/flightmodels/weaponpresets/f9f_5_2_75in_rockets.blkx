@@ -1,0 +1,60 @@
+hideNodes{
+  node:t="mk_55_bomb_pylon_l"
+  node:t="mk_55_bomb_pylon_r"
+  node:t="mk_55_bomb_pylon2_l"
+  node:t="mk_55_bomb_pylon2_r"
+  node:t="mk_51_bomb_pylon_l"
+  node:t="mk_51_bomb_pylon_r"
+  node:t="mk_51_bomb_pylon2_l"
+  node:t="mk_51_bomb_pylon2_r"
+  node:t="mk12_150_gal_ft_l"
+  node:t="mk12_150_gal_ft_r"
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/us_2_75_in_hvar.blk"
+  emitter:t="275_in_hvar_1"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/us_2_75_in_hvar.blk"
+  emitter:t="275_in_hvar_2"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/us_2_75_in_hvar.blk"
+  emitter:t="275_in_hvar_3"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/us_2_75_in_hvar.blk"
+  emitter:t="275_in_hvar_4"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/us_2_75_in_hvar.blk"
+  emitter:t="275_in_hvar_5"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/us_2_75_in_hvar.blk"
+  emitter:t="275_in_hvar_6"
+  bullets:i=1
+}

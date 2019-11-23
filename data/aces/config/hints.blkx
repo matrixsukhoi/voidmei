@@ -1,0 +1,646 @@
+objective_success{
+  showType:t="none"
+  maxTime:r=5.0
+  hideType:t="none"
+  showInVR:b=yes
+  isBlink:b=no
+  totalCount:i=-1
+  missionCount:i=-1
+  priority:t="catastrophic"
+  icon:t="icon_primary_success"
+
+  difficulty{
+    arcade:b=yes
+    realistic:b=yes
+    hardcore:b=yes
+  }
+}
+
+objective_fail{
+  showType:t="none"
+  maxTime:r=5.0
+  hideType:t="none"
+  showInVR:b=yes
+  isBlink:b=no
+  totalCount:i=-1
+  missionCount:i=-1
+  priority:t="catastrophic"
+  icon:t="icon_primary_fail"
+
+  difficulty{
+    arcade:b=yes
+    realistic:b=yes
+    hardcore:b=yes
+  }
+}
+
+secondary_added{
+  showType:t="none"
+  maxTime:r=5.0
+  hideType:t="none"
+  showInVR:b=yes
+  isBlink:b=no
+  totalCount:i=-1
+  missionCount:i=-1
+  priority:t="catastrophic"
+  icon:t="icon_primary"
+
+  difficulty{
+    arcade:b=yes
+    realistic:b=yes
+    hardcore:b=yes
+  }
+}
+
+secondary_success{
+  showType:t="none"
+  maxTime:r=5.0
+  hideType:t="none"
+  showInVR:b=yes
+  isBlink:b=no
+  totalCount:i=-1
+  missionCount:i=-1
+  priority:t="catastrophic"
+  icon:t="icon_primary_success"
+
+  difficulty{
+    arcade:b=yes
+    realistic:b=yes
+    hardcore:b=yes
+  }
+}
+
+one_minute_left{
+  showType:t="none"
+  maxTime:r=5.0
+  hideType:t="none"
+  isBlink:b=no
+  totalCount:i=-1
+  missionCount:i=-1
+  priority:t="catastrophic"
+
+  difficulty{
+    arcade:b=yes
+    realistic:b=yes
+    hardcore:b=yes
+  }
+}
+
+five_minutes_left{
+  showType:t="none"
+  maxTime:r=5.0
+  hideType:t="none"
+  isBlink:b=no
+  totalCount:i=-1
+  missionCount:i=-1
+  priority:t="catastrophic"
+
+  difficulty{
+    arcade:b=yes
+    realistic:b=yes
+    hardcore:b=yes
+  }
+}
+
+ten_minutes_left{
+  showType:t="none"
+  maxTime:r=5.0
+  hideType:t="none"
+  isBlink:b=no
+  totalCount:i=-1
+  missionCount:i=-1
+  priority:t="catastrophic"
+
+  difficulty{
+    arcade:b=yes
+    realistic:b=yes
+    hardcore:b=yes
+  }
+}
+
+only_you_alive{
+  showType:t="none"
+  maxTime:r=1000.0
+  hideType:t="none"
+  isBlink:b=yes
+  totalCount:i=-1
+  missionCount:i=-1
+  priority:t="catastrophic"
+
+  difficulty{
+    arcade:b=yes
+    realistic:b=yes
+    hardcore:b=yes
+  }
+}
+
+full_throttle{
+  showType:t="none"
+  maxTime:r=5.0
+  hideType:t="none"
+  isBlink:b=no
+  totalCount:i=-1
+  missionCount:i=-1
+  priority:t="catastrophic"
+  delayTime:r=10.0
+  intervalTime:r=30.0
+
+  difficulty{
+    arcade:b=yes
+    realistic:b=yes
+    hardcore:b=yes
+  }
+}
+
+disconnect{
+  showType:t="none"
+  maxTime:r=10.0
+  hideType:t="none"
+  isBlink:b=no
+  totalCount:i=-1
+  missionCount:i=-1
+  priority:t="catastrophic"
+  delayTime:r=3600.0
+  intervalTime:r=20.0
+
+  difficulty{
+    arcade:b=yes
+    realistic:b=yes
+    hardcore:b=yes
+  }
+}
+
+auto_rearm{
+  showType:t="none"
+  maxTime:r=5.0
+  hideType:t="none"
+  isBlink:b=no
+  totalCount:i=-1
+  missionCount:i=-1
+  priority:t="catastrophic"
+  showOnce:b=yes
+
+  difficulty{
+    arcade:b=yes
+  }
+}
+
+shot_too_far{
+  showType:t="none"
+  maxTime:r=5.0
+  hideType:t="none"
+  isBlink:b=no
+  totalCount:i=-1
+  missionCount:i=-1
+  priority:t="catastrophic"
+  interval0:p2=5.0, 60.0
+  interval1:p2=5.0, 100000.0
+  delayTime:r=5.0
+  parameter1:r=5.0
+  parameter2:r=1.5
+
+  difficulty{
+    arcade:b=yes
+    realistic:b=yes
+    hardcore:b=yes
+  }
+}
+
+shot_forestall{
+  showType:t="none"
+  maxTime:r=5.0
+  hideType:t="none"
+  isBlink:b=no
+  totalCount:i=-1
+  missionCount:i=-1
+  priority:t="catastrophic"
+  interval0:p2=5.0, 60.0
+  interval1:p2=5.0, 100000.0
+  delayTime:r=5.0
+  parameter1:r=2.0
+  parameter2:r=4.0
+
+  difficulty{
+    arcade:b=yes
+    realistic:b=yes
+  }
+}
+
+ineffective_hit{
+  showType:t="none"
+  maxTime:r=5.0
+  hideType:t="none"
+  isBlink:b=no
+  totalCount:i=-1
+  missionCount:i=-1
+  priority:t="catastrophic"
+  interval0:p2=5.0, 60.0
+  interval1:p2=5.0, 100000.0
+
+  difficulty{
+    arcade:b=yes
+    realistic:b=yes
+    hardcore:b=yes
+  }
+}
+
+dead_pilot{
+  showType:t="none"
+  maxTime:r=5.0
+  hideType:t="none"
+  isBlink:b=no
+  totalCount:i=20
+  missionCount:i=-1
+  priority:t="catastrophic"
+
+  difficulty{
+    arcade:b=yes
+    realistic:b=yes
+    hardcore:b=yes
+  }
+}
+
+pilot_lose_control{
+  showType:t="none"
+  maxTime:r=10.0
+  hideType:t="none"
+  isBlink:b=no
+  totalCount:i=20
+  missionCount:i=-1
+  priority:t="catastrophic"
+
+  difficulty{
+    arcade:b=yes
+    realistic:b=yes
+    hardcore:b=yes
+  }
+}
+
+autothrottle{
+  showType:t="none"
+  maxTime:r=10.0
+  hideType:t="none"
+  isBlink:b=no
+  totalCount:i=-1
+  missionCount:i=-1
+  priority:t="catastrophic"
+
+  difficulty{
+    arcade:b=yes
+    realistic:b=yes
+    hardcore:b=yes
+  }
+}
+
+f1_controls{
+  showType:t="none"
+  maxTime:r=5.0
+  hideType:t="none"
+  disableType:t="show_help"
+  isBlink:b=no
+  totalCount:i=10
+  missionCount:i=-1
+  priority:t="catastrophic"
+  delayTime:r=10.0
+
+  difficulty{
+    arcade:b=yes
+    realistic:b=yes
+    hardcore:b=yes
+  }
+}
+
+track_repair{
+  showType:t="none"
+  maxTime:r=5.0
+  hideType:t="none"
+  isBlink:b=no
+  totalCount:i=-1
+  missionCount:i=-1
+  priority:t="catastrophic"
+
+  difficulty{
+    arcade:b=yes
+    realistic:b=yes
+    hardcore:b=yes
+  }
+}
+
+gun_jammed{
+  showType:t="none"
+  maxTime:r=2.0
+  hideType:t="none"
+  isBlink:b=no
+  totalCount:i=-1
+  missionCount:i=-1
+  priority:t="catastrophic"
+
+  difficulty{
+    arcade:b=yes
+    realistic:b=yes
+    hardcore:b=yes
+  }
+}
+
+more_kills_for_kill_streak{
+  showType:t="none"
+  maxTime:r=5.0
+  hideType:t="none"
+  isBlink:b=no
+  totalCount:i=-1
+  missionCount:i=-1
+  priority:t="catastrophic"
+
+  difficulty{
+    arcade:b=yes
+    realistic:b=yes
+    hardcore:b=yes
+  }
+}
+
+needs_kills_streak_event{
+  showType:t="none"
+  maxTime:r=5.0
+  hideType:t="none"
+  isBlink:b=no
+  totalCount:i=-1
+  missionCount:i=-1
+  priority:t="catastrophic"
+
+  difficulty{
+    arcade:b=yes
+    realistic:b=yes
+    hardcore:b=yes
+  }
+}
+
+active_event{
+  showType:t="none"
+  maxTime:r=5.0
+  hideType:t="none"
+  isBlink:b=no
+  totalCount:i=-1
+  missionCount:i=-1
+  priority:t="catastrophic"
+
+  difficulty{
+    arcade:b=yes
+    realistic:b=yes
+    hardcore:b=yes
+  }
+}
+
+no_event_slots{
+  showType:t="none"
+  maxTime:r=5.0
+  hideType:t="none"
+  isBlink:b=no
+  totalCount:i=-1
+  missionCount:i=-1
+  priority:t="catastrophic"
+
+  difficulty{
+    arcade:b=yes
+    realistic:b=yes
+    hardcore:b=yes
+  }
+}
+
+already_participating{
+  showType:t="none"
+  maxTime:r=5.0
+  hideType:t="none"
+  isBlink:b=no
+  totalCount:i=-1
+  missionCount:i=-1
+  priority:t="catastrophic"
+
+  difficulty{
+    arcade:b=yes
+    realistic:b=yes
+    hardcore:b=yes
+  }
+}
+
+partial_download{
+  showType:t="none"
+  maxTime:r=5.0
+  hideType:t="none"
+  isBlink:b=no
+  totalCount:i=-1
+  missionCount:i=-1
+  priority:t="catastrophic"
+
+  difficulty{
+    arcade:b=yes
+    realistic:b=yes
+    hardcore:b=yes
+  }
+}
+
+use_artillery{
+  showType:t="none"
+  maxTime:r=10.0
+  hideType:t="none"
+  isBlink:b=no
+  totalCount:i=10
+  missionCount:i=-1
+  priority:t="catastrophic"
+  shortcutName:t="ID_SHOOT_ARTILLERY"
+
+  difficulty{
+    arcade:b=yes
+    realistic:b=yes
+    hardcore:b=yes
+  }
+}
+
+have_art_support{
+  showType:t="none"
+  maxTime:r=10.0
+  hideType:t="none"
+  isBlink:b=no
+  totalCount:i=10
+  missionCount:i=-1
+  priority:t="catastrophic"
+  shortcutName:t="ID_ACTION_BAR_ITEM_5"
+
+  difficulty{
+    arcade:b=yes
+    realistic:b=yes
+    hardcore:b=yes
+  }
+}
+
+tank_rearm_process{
+  showType:t="none"
+  maxTime:r=10.0
+  hideType:t="none"
+  showInVR:b=yes
+  isBlink:b=no
+  totalCount:i=10
+  missionCount:i=-1
+  priority:t="catastrophic"
+  shortcutName:t="ID_REPAIR_TANK"
+
+  difficulty{
+    arcade:b=yes
+    realistic:b=yes
+    hardcore:b=yes
+  }
+}
+
+winch_request{
+  showType:t="none"
+  delayTime:r=4.0
+  maxTime:r=10.0
+  hideType:t="none"
+  isBlink:b=no
+  totalCount:i=-1
+  missionCount:i=-1
+  priority:t="common"
+  shortcutName:t="ID_ACTION_BAR_ITEM_10"
+  shortcutNameXinput:t="ID_KILLSTREAK_WHEEL_MENU"
+
+  difficulty{
+    arcade:b=yes
+    realistic:b=yes
+    hardcore:b=yes
+  }
+}
+
+winch_use{
+  showType:t="none"
+  delayTime:r=2.0
+  maxTime:r=10.0
+  hideType:t="none"
+  isBlink:b=no
+  totalCount:i=-1
+  missionCount:i=-1
+  priority:t="common"
+  shortcutName:t="ID_ACTION_BAR_ITEM_10"
+  shortcutNameXinput:t="ID_KILLSTREAK_WHEEL_MENU"
+
+  difficulty{
+    arcade:b=yes
+    realistic:b=yes
+    hardcore:b=yes
+  }
+}
+
+winch_detach{
+  showType:t="none"
+  delayTime:r=4.0
+  maxTime:r=10.0
+  hideType:t="none"
+  isBlink:b=no
+  totalCount:i=-1
+  missionCount:i=-1
+  priority:t="common"
+  shortcutName:t="ID_ACTION_BAR_ITEM_10"
+  shortcutNameXinput:t="ID_KILLSTREAK_WHEEL_MENU"
+
+  difficulty{
+    arcade:b=yes
+    realistic:b=yes
+    hardcore:b=yes
+  }
+}
+
+crew_busy_extinguishing{
+  showType:t="none"
+  delayTime:r=4.0
+  maxTime:r=10.0
+  hideType:t="none"
+  isBlink:b=no
+  totalCount:i=-1
+  missionCount:i=-1
+  priority:t="common"
+
+  difficulty{
+    arcade:b=yes
+    realistic:b=yes
+    hardcore:b=yes
+  }
+}
+
+atgm_aim{
+  showType:t="none"
+  maxTime:r=10.0
+  hideType:t="none"
+  isBlink:b=no
+  totalCount:i=5
+  missionCount:i=-1
+  priority:t="catastrophic"
+
+  difficulty{
+    arcade:b=yes
+    realistic:b=yes
+    hardcore:b=yes
+  }
+}
+
+atgm_manual{
+  showType:t="none"
+  maxTime:r=10.0
+  hideType:t="none"
+  isBlink:b=no
+  totalCount:i=5
+  missionCount:i=-1
+  priority:t="catastrophic"
+
+  difficulty{
+    arcade:b=yes
+    realistic:b=yes
+    hardcore:b=yes
+  }
+}
+
+hotkeys{
+
+  select_target{
+    item:t="ID_LOCK_TARGET"
+  }
+
+  change_view{
+    item:t="ID_TOGGLE_VIEW"
+  }
+
+  left_stick{
+    item:t="l_stick_left"
+    item:t="comma"
+    item:t="l_stick_up"
+  }
+
+  right_stick_up{
+    item:t="r_stick_up"
+  }
+
+  right_stick_down{
+    item:t="r_stick_down"
+  }
+
+  right_stick_y_axis{
+    item:t="r_stick_left"
+    item:t="comma"
+    item:t="r_stick_right"
+  }
+
+  fire_rocket{
+    item:t="ID_ROCKETS"
+  }
+
+  switch_rockets{
+    item:t="ID_HELI_CHANGE_MISSILE_TYPE"
+  }
+
+  gunner_view{
+    item:t="ID_HELI_FLIR"
+    item:t="comma"
+    item:t="r_trigger"
+  }
+
+  autohover{
+    item:t="ID_HELI_TOGGLE_KEEP_POS"
+  }
+}

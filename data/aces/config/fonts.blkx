@@ -1,0 +1,18 @@
+fontSizeByWidthCap:r=0.75
+
+fontbins{
+  name:t="ui/pxfonts"
+  name:t="ui/fonts"
+}
+
+alias{
+  small_bold_text:t="hud"
+  subtitles:t="small_text"
+  wall_text_hud:t="small_text_hud"
+}
+
+dynamicGen{
+  texCount:i=2
+  texSz:i=2048
+  prefix:t="ui"
+}

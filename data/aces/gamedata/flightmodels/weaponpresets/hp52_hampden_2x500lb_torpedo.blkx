@@ -1,0 +1,31 @@
+hideNodes{
+  node:t="hatch1"
+  node:t="hatch2"
+  node:t="hatch3"
+  node:t="hatch4"
+  node:t="hatch5"
+  node:t="hatch6"
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/uk_500lbs_43.blk"
+  emitter:t="bomb_5"
+  bullets:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/uk_500lbs_43.blk"
+  emitter:t="bomb_6"
+  bullets:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="torpedoes"
+  blk:t="gameData/Weapons/torpedoes/uk_mk12_torpedo.blk"
+  emitter:t="torpedo"
+  bullets:i=1
+}

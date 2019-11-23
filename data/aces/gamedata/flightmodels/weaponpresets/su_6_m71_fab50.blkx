@@ -1,0 +1,66 @@
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/su_fab50.blk"
+  emitter:t="bomb5"
+  bullets:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/su_fab50.blk"
+  emitter:t="bomb6"
+  bullets:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/su_fab50.blk"
+  emitter:t="bomb1"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/su_fab50.blk"
+  emitter:t="bomb2"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/su_fab50.blk"
+  emitter:t="bomb3"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/su_fab50.blk"
+  emitter:t="bomb4"
+  bullets:i=1
+}
+
+hideNodes{
+  node:t="pylon_rocket_1"
+  node:t="pylon_rocket_2"
+  node:t="pylon_rocket_3"
+  node:t="pylon_rocket_4"
+  node:t="pylon_rocket_5"
+  node:t="pylon_rocket_6"
+  node:t="pylon_rocket_7"
+  node:t="pylon_rocket_8"
+  node:t="pylon_rocket_9"
+  node:t="pylon_rocket_10"
+  node:t="pylon_rocket_11"
+  node:t="pylon_rocket_12"
+  node:t="pylon_rocket_13"
+  node:t="pylon_rocket_14"
+  node:t="pylon_rocket_15"
+  node:t="pylon_rocket_16"
+  node:t="pylon_rocket_17"
+  node:t="pylon_rocket_18"
+  node:t="pylon_rocket_19"
+  node:t="pylon_rocket_20"
+}

@@ -1,0 +1,5 @@
+arcadeDamageFunction{
+  near:p2=50.0, 10.0
+  mid:p2=500.0, 1.0
+  far:p2=1000.0, 0.1
+}

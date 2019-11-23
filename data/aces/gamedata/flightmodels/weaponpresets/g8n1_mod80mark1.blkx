@@ -1,0 +1,20 @@
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/jp_mod80mark1.blk"
+  emitter:t="bomb27"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/jp_mod80mark1.blk"
+  emitter:t="bomb28"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/jp_mod80mark1.blk"
+  emitter:t="bomb29"
+  bullets:i=1
+}

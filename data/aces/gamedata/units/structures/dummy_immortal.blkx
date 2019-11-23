@@ -1,0 +1,43 @@
+model:t="dummy_for_missions_a"
+subclass:t="fortification"
+damageableByGun:b=no
+bulletTransparent:b=yes
+timeToFire:r=5.0
+moveType:t="vehicle"
+maxFwdSpeed:r=0.0
+maxRevSpeed:r=0.0
+maxAngSpeed:r=0.0
+maxAccel:r=0.0
+maxDecel:r=0.0
+maxAngAccel0:r=0.0
+maxAngAccelV:r=0.0
+maxAngAccel:r=0.0
+groundNormSmoothViscosity:r=0.1
+mass:r=1800.0
+
+DamageParts{
+
+  armor250{
+
+    body_dm{
+      hp:r=1000000.0
+    }
+  }
+}
+
+DamageEffects{
+
+  part{
+    name:t="body_dm"
+
+    onHit{
+      smoke:r=0.01
+      fire:r=0.01
+    }
+
+    onKill{
+      fire:r=0.3
+      smoke:r=1.0
+    }
+  }
+}

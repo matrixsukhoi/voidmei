@@ -1,0 +1,6 @@
+hideNodes{
+  node:t="rack"
+  node:t="torpcord"
+  node:t="pylon_l"
+  node:t="pylon_r"
+}

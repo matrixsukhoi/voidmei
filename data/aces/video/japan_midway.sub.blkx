@@ -1,0 +1,31 @@
+font:t="small_text"
+
+line{
+  loc:t="jpn_midway_video_1"
+  from:i=1690
+  to:i=19961
+}
+
+line{
+  loc:t="jpn_midway_video_2"
+  from:i=20100
+  to:i=36055
+}
+
+line{
+  loc:t="jpn_midway_video_3"
+  from:i=36542
+  to:i=57082
+}
+
+line{
+  loc:t="jpn_midway_video_4"
+  from:i=57221
+  to:i=86816
+}
+
+line{
+  loc:t="jpn_midway_video_5"
+  from:i=86955
+  to:i=99807
+}

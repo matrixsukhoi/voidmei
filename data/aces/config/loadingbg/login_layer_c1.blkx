@@ -1,0 +1,85 @@
+imgLayer{
+  layerSensitivity:t="2"
+
+  img{
+    size:t="pw, ph"
+    re-type:t="9rect"
+    background-image:t="ui/bkg/login_layer_c1_0.jpg?P1"
+    background-repeat:t="expand"
+  }
+}
+
+imgLayer{
+  layerSensitivity:t="3"
+
+  img{
+    pos:t="pw-w, 22.56%ph"
+    position:t="absolute"
+    width:t="pw"
+    height:t="0.525ph"
+    re-type:t="9rect"
+    background-image:t="ui/bkg/login_layer_c1_1?x1ac"
+  }
+}
+
+imgLayer{
+  layerSensitivity:t="1"
+
+  img{
+    pos:t="28%pw, 25%ph"
+    position:t="absolute"
+    width:t="0.23pw"
+    height:t="0.28ph"
+    re-type:t="9rect"
+    background-image:t="ui/bkg/login_layer_c1_2?x1ac"
+  }
+}
+
+imgLayer{
+  layerSensitivity:t="-1.3"
+
+  img{
+    pos:t="33%pw,-4%ph"
+    position:t="absolute"
+    height:t="0.9ph"
+    width:t="0.6pw"
+    re-type:t="9rect"
+    background-image:t="ui/bkg/login_layer_c1_3?x1ac"
+  }
+}
+
+imgLayer{
+  layerSensitivity:t="-1"
+
+  img{
+    pos:t="38%pw,-2.9%ph"
+    position:t="absolute"
+    height:t="0.99ph"
+    width:t="0.5pw"
+    re-type:t="9rect"
+    background-image:t="ui/bkg/login_layer_c1_4?x1ac"
+  }
+}
+
+img{
+  pos:t="50%pw-50%w, 50%ph-50%h"
+  position:t="absolute"
+  width:t="1.3sw"
+  height:t="sh"
+  re-type:t="9rect"
+  background-image:t="ui/bkg/login_layer_4?x1ac"
+
+  tdiv{
+    size:t="ph, ph"
+    pos:t="-w+1"
+    position:t="absolute"
+    background-color:t="@black"
+  }
+
+  tdiv{
+    size:t="ph, ph"
+    pos:t="pw-1"
+    position:t="absolute"
+    background-color:t="@black"
+  }
+}

@@ -1,0 +1,47 @@
+Weapon{
+  trigger:t="gunner0"
+  blk:t="gameData/Weapons/groundModels_weapons/40mm_QF_2pdr_race_user_cannon.blk"
+  emitter:t="bone_gun_barrel"
+  flash:t="emtr_gun_flame"
+  maxAdditionalPitch:r=0.0
+  defaultYaw:r=0.0
+  defaultPitch:r=0.0
+  barrelDP:t="gun_barrel_dm"
+  breechDP:t="cannon_breech_dm"
+  speedYaw:r=7.0
+  speedPitch:r=4.0
+  fireConeAngle:r=1.0
+  bullets:i=50
+  salvoAmount:r=100.0
+  ChainfireTime:r=0.0
+  DelayAfterShoot:r=5.0
+  AttackMaxDistance:r=1000.0
+  AttackMaxRadius:r=1000.0
+  AttackMaxHeight:r=1000.0
+  accuracyAir:r=0.0
+  accuracyGnd:r=1.5
+  errMeasureVel:r=0.0
+  errMeasureVelFast:r=0.0
+  errMeasureVelFwdShift:r=0.0
+  errMeasureVelDir:r=0.0
+  errTargettingOn100kmph:r=0.0
+  errTargetting:r=3.0
+  errExplTime:r=0.0
+
+  turret{
+    head:t="bone_turret"
+    gun:t="bone_gun"
+    barrel:t="bone_gun_barrel"
+  }
+
+  limits{
+    yaw:p2=-180.0, 180.0
+    pitch:p2=-15.0, 25.0
+  }
+
+  limitsTable{
+    lim1:p4=-180.0, -135.0, -3.0, 25.0
+    lim2:p4=-135.0, 135.0, -11.0, 25.0
+    lim3:p4=135.0, 180.0, -3.0, 25.0
+  }
+}

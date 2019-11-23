@@ -1,0 +1,6030 @@
+infantry_render_distance:r=750.0
+gather_sparse_freq:i=0
+treeAOdefault:r=0.8
+treeAOnoShadow:r=0.0
+helipadRearmTime:r=25.0
+glassShadowK:r=0.5
+upscaleMinResolution:i=720
+lodRangeDeviation:r=0.2
+relativePartHealthForVisibleDamage:r=0.7
+relativePartHealthForCockpitHoles:r=0.7
+relativePartHealthForCockpitOil:r=0.7
+instructorSpeedRestrictionBelowBuoyancy:r=0.7
+loaderWoundPenalty:r=1.25
+loaderMaxPenalty:r=2.0
+hmap_detail_tex_ofs:p2=0.0, 0.0
+hmap_detail_tex_mul:p2=0.6, 0.6
+maxIntroVideoPlayed:i=7
+tankInvulnerabilityResetByShoot:b=no
+tankInvulnerabilityTime:r=20.0
+noCollisionDurationForTankRespawn:r=1.5
+screenshotAsJpeg:b=no
+unit_attachments_enabled:b=yes
+unit_attachments_show_at_lods_other_than_zero:b=yes
+replace_attachments_with_ik_pilot:b=yes
+replay_key_reducing_enabled:b=no
+debug_rend_inst_loading_delay_on_pc_ms:i=0
+collimatorSize:r=0.14
+tracer_limit_enabled:b=yes
+long_flak_explosion_percent:i=25
+groundRicochetAngle:r=60.0
+groundRicochetCosinePower:r=2.0
+artilleryCooldown:r=120.0
+collisionImpulseScaleForTankBots:r=5.0
+tank_vision_grass_displacement_rad:r=10.0
+bombingZoneHpToTntEquivalentTons:r=0.0001
+maxDistForWatchXRayInSpectator:r=50.0
+effectsZNearOffsetInCockpit:r=2.0
+invisibleSupportUnits:b=yes
+minMassMultApexObjectsCollidedWithHero:r=0.002
+maxMassMultApexObjectsCollidedWithHero:r=0.04
+minViscosityApexObjectsCollidedWithHero:r=0.95
+maxViscosityApexObjectsCollidedWithHero:r=1.0
+multipointVisibilityAgainstTreesWithoutMarkers:b=yes
+multipointVisibilityTreeTransparencyThreshold:r=0.1
+multipointVisibilityForMarkersDistK:r=3.5
+multipointVisibilityOnePointBackDistK:r=2.0
+teleScale:r=0.03
+minSkyAmbientLighting:p3=0.00954, 0.012756, 0.026677
+propeller_side_angle:r=0.1
+propeller_side_bias:r=0.4
+cockpitShadowSphereMultiplier:r=0.5
+modelShadowCascadeMul1:r=0.3
+modelShadowCascadeMul2:r=1.0
+maxMediumSplashScale:r=1.5
+gunLightColor:p3=1.5, 1.0, 0.2
+gunLightSourceRadius:r=1.5
+gunLightAttenuation:r=0.2
+gunLightSourceRadiusInCockpit:r=0.5
+gunLightAttenuationInCockpit:r=2.0
+tankGunLightAttenuation:r=0.0
+tankGunLightSourceRadius:r=2.0
+tankGunLightColor:p3=1.5, 1.0, 0.2
+impostorSizeScaleCoefficient:r=4.0
+rendinstPreloadDistance:r=7000.0
+rendinstMaxLod0Dist:r=1200.0
+rendinstTransparencyDelta:r=350.0
+rendinstStartTransK:r=0.66
+rendinstMaxDestructibleSizeSum:r=30.0
+frameTimeToReduceRendinst:r=-1.0
+rendinstDistMulFromFrameTimeSmoothing:r=0.99
+minRendinstDistMulFromFrameTime:r=0.7
+frameTimeToReduceLod:r=-1.0
+rendinstLodMulFromFrameTimeSmoothing:r=0.95
+rendinstLodMul:r=3.5
+minRendinstLodMulFromFrameTime:r=0.34
+rendinstDamageRadiusFromCrash:r=20.0
+rendinstDamageDelay:r=5.0
+rendinstDamageFxScale:r=0.05
+rendinstFallBlendTime:r=1.0
+rendinstGravitation:r=2.0
+collideWithDynGeom:b=no
+groundModelDamageDelay:r=0.5
+deadlyHeightForGMs:r=30.0
+treeCollisionFraction:r=0.85
+lod0Scale:r=0.5
+lod0ScaleFrom:r=300.0
+slowUpdateRadius:r=200000.0
+slowUpdateDivider:i=1
+timeToReturnToMap:r=10.0
+landingTimeAfterSpawnToBailout:r=3600.0
+maxTimeToReturnToMapForTanks:r=25.0
+killDistFromBattleAreaForTanks:r=20.0
+maxTimeToReturnToMapForShips:r=40.0
+killDistFromBattleAreaForShips:r=200.0
+dynamicCubeTexSize:i=128
+dynamicCubePos:p3=0.0, 500.0, 0.0
+dynamicCubeBlur:r=0.05
+waterCubePos:p3=0.0, 500.0, 0.0
+numAircraftThreads:i=6
+lastMissionName:t="reichstagassault"
+mp_defaultPlayersModel:t="dummy_plane"
+mp_defaultPlayersWeapons:t=""
+friendlyFireImmortalOnLandTime:r=30.0
+criticalOffenderPriorityTimer:r=90.0
+readyToDieRepairTimeMult:r=3.0
+bailoutReadyToDieTime:r=15.0
+airfieldRepairDamageLimit:r=0.5
+rocketShakeCamera:r=1.0
+gunShakeCamera:r=0.02
+cannonShakeCamera:r=0.4
+autostartTime:r=60.0
+autostartShowTime:r=30.0
+autostartShowInColorTime:r=10.0
+rendinstExtraMaxCnt:i=65536
+rendinstExtraSubstFaceThres:i=65536
+maxTankInactiveTime:r=10.0
+cockpit_target_brightness_mul:r=0.9
+cockpit_adaptation_max_mul:r=0.9
+thresholdTimeForActivateDelayTimerInBombByDrop:r=4.5
+supportUnitClassForTutorial:t="structures/ussr_122mm_m30"
+supportUnitTagForTutorial:t="artillery"
+maxContrailTemperature:r=-20.0
+use_uav_feedback:b=yes
+cloudShadowIntensityTankMul:r=0.95
+
+tracers{
+  numHeadMeshes:i=3
+  hdrMultiplier:r=3.0
+  headFadeTime:r=0.1
+  headMinimumOpacity:r=0.7
+  headMinimumOpacityProjection:r=0.0
+  numTailParticles:i=1000
+  numTailLods:i=6
+  tailFartherLodDist:r=800.0
+  tailLengthMeters:r=800.0
+  tailParticleExtension:r=1.5
+  tailFadeInDistance:r=10.0
+  tailNoisePeriodMeters:r=20.0
+  tailDirectionalScale:r=0.4
+}
+
+tracerColors{
+
+  m230{
+    halfSize:r=10.0
+    distScaleStart:r=100.0
+    distScaleEnd:r=2000.0
+    distScale:r=6.0
+    color1:c=255, 231, 209, 200
+    color2:c=255, 170, 48, 200
+  }
+
+  fake_rpg{
+    halfSize:r=5.0
+    distScaleStart:r=100.0
+    distScaleEnd:r=2000.0
+    distScale:r=5.0
+    color1:c=255, 231, 209, 200
+    color2:c=255, 170, 48, 200
+  }
+
+  fake_ak_47{
+    halfSize:r=1.5
+    distScaleStart:r=100.0
+    distScaleEnd:r=2000.0
+    distScale:r=5.0
+    color1:c=255, 236, 248, 200
+    color2:c=255, 65, 154, 200
+  }
+
+  7mmRed{
+    halfSize:r=2.5
+    distScaleStart:r=100.0
+    distScaleEnd:r=1500.0
+    distScale:r=3.0
+    color1:c=255, 171, 120, 180
+    color2:c=255, 40, 37, 180
+  }
+
+  12mmRed{
+    halfSize:r=4.5
+    distScaleStart:r=150.0
+    distScaleEnd:r=3000.0
+    distScale:r=3.5
+    color1:c=255, 171, 120, 180
+    color2:c=255, 40, 37, 180
+  }
+
+  20mmRed{
+    halfSize:r=5.0
+    distScaleStart:r=150.0
+    distScaleEnd:r=3000.0
+    distScale:r=3.5
+    color1:c=255, 171, 120, 180
+    color2:c=255, 40, 37, 180
+  }
+
+  30mmRed{
+    halfSize:r=6.0
+    distScaleStart:r=200.0
+    distScaleEnd:r=2000.0
+    distScale:r=1.5
+    color1:c=255, 171, 120, 180
+    color2:c=255, 40, 37, 180
+  }
+
+  37mmRed{
+    halfSize:r=7.0
+    distScaleStart:r=150.0
+    distScaleEnd:r=2000.0
+    distScale:r=2.5
+    color1:c=255, 171, 120, 180
+    color2:c=255, 40, 37, 180
+  }
+
+  50mmRed{
+    halfSize:r=15.0
+    distScaleStart:r=250.0
+    distScaleEnd:r=2000.0
+    distScale:r=2.0
+    color1:c=255, 171, 120, 180
+    color2:c=255, 40, 37, 180
+  }
+
+  rocketRed{
+    halfSize:r=20.0
+    distScaleStart:r=500.0
+    distScaleEnd:r=2000.0
+    distScale:r=1.0
+    color1:c=255, 71, 54, 180
+    color2:c=255, 36, 0, 180
+  }
+
+  7mmDarkRed{
+    halfSize:r=2.5
+    distScaleStart:r=100.0
+    distScaleEnd:r=1500.0
+    distScale:r=3.0
+    color1:c=240, 76, 74, 180
+    color2:c=181, 23, 21, 180
+  }
+
+  12mmDarkRed{
+    halfSize:r=4.5
+    distScaleStart:r=150.0
+    distScaleEnd:r=3000.0
+    distScale:r=3.5
+    color1:c=240, 76, 74, 180
+    color2:c=181, 23, 21, 180
+  }
+
+  20mmDarkRed{
+    halfSize:r=5.0
+    distScaleStart:r=150.0
+    distScaleEnd:r=3000.0
+    distScale:r=3.5
+    color1:c=240, 76, 74, 180
+    color2:c=181, 23, 21, 180
+  }
+
+  30mmDarkRed{
+    halfSize:r=6.0
+    distScaleStart:r=200.0
+    distScaleEnd:r=2000.0
+    distScale:r=1.5
+    color1:c=240, 76, 74, 180
+    color2:c=181, 23, 21, 180
+  }
+
+  37mmDarkRed{
+    halfSize:r=7.0
+    distScaleStart:r=150.0
+    distScaleEnd:r=2000.0
+    distScale:r=2.5
+    color1:c=240, 76, 74, 180
+    color2:c=181, 23, 21, 180
+  }
+
+  50mmDarkRed{
+    halfSize:r=15.0
+    distScaleStart:r=250.0
+    distScaleEnd:r=2000.0
+    distScale:r=2.0
+    color1:c=240, 76, 74, 180
+    color2:c=181, 23, 21, 180
+  }
+
+  7mmBrightRed{
+    halfSize:r=2.5
+    distScaleStart:r=100.0
+    distScaleEnd:r=1500.0
+    distScale:r=3.0
+    color1:c=255, 71, 54, 180
+    color2:c=255, 36, 0, 180
+  }
+
+  12mmBrightRed{
+    halfSize:r=4.5
+    distScaleStart:r=150.0
+    distScaleEnd:r=3000.0
+    distScale:r=3.5
+    color1:c=255, 71, 54, 180
+    color2:c=255, 36, 0, 180
+  }
+
+  20mmBrightRed{
+    halfSize:r=5.0
+    distScaleStart:r=150.0
+    distScaleEnd:r=3000.0
+    distScale:r=3.5
+    color1:c=255, 71, 54, 180
+    color2:c=255, 36, 0, 180
+  }
+
+  30mmBrightRed{
+    halfSize:r=6.0
+    distScaleStart:r=200.0
+    distScaleEnd:r=2000.0
+    distScale:r=1.5
+    color1:c=255, 71, 54, 180
+    color2:c=255, 36, 0, 180
+  }
+
+  37mmBrightRed{
+    halfSize:r=7.0
+    distScaleStart:r=150.0
+    distScaleEnd:r=2000.0
+    distScale:r=2.5
+    color1:c=255, 71, 54, 180
+    color2:c=255, 36, 0, 180
+  }
+
+  50mmBrightRed{
+    halfSize:r=15.0
+    distScaleStart:r=250.0
+    distScaleEnd:r=2000.0
+    distScale:r=2.0
+    color1:c=255, 71, 54, 180
+    color2:c=255, 36, 0, 180
+  }
+
+  7mmWhite{
+    halfSize:r=2.5
+    distScaleStart:r=100.0
+    distScaleEnd:r=1500.0
+    distScale:r=3.0
+    color1:c=255, 255, 255, 200
+    color2:c=213, 237, 255, 200
+  }
+
+  12mmWhite{
+    halfSize:r=4.5
+    distScaleStart:r=150.0
+    distScaleEnd:r=3000.0
+    distScale:r=3.5
+    color1:c=255, 255, 255, 200
+    color2:c=213, 237, 255, 200
+  }
+
+  20mmWhite{
+    halfSize:r=5.0
+    distScaleStart:r=150.0
+    distScaleEnd:r=3000.0
+    distScale:r=3.5
+    color1:c=255, 255, 255, 200
+    color2:c=213, 237, 255, 200
+  }
+
+  30mmWhite{
+    halfSize:r=6.0
+    distScaleStart:r=200.0
+    distScaleEnd:r=2000.0
+    distScale:r=1.5
+    color1:c=255, 255, 255, 200
+    color2:c=213, 237, 255, 200
+  }
+
+  37mWhite{
+    halfSize:r=7.0
+    distScaleStart:r=150.0
+    distScaleEnd:r=2000.0
+    distScale:r=2.5
+    color1:c=255, 255, 255, 200
+    color2:c=213, 237, 255, 200
+  }
+
+  50mWhite{
+    halfSize:r=15.0
+    distScaleStart:r=250.0
+    distScaleEnd:r=2000.0
+    distScale:r=2.0
+    color1:c=255, 255, 255, 200
+    color2:c=213, 237, 255, 200
+  }
+
+  7mmPaleWhite{
+    halfSize:r=2.5
+    distScaleStart:r=100.0
+    distScaleEnd:r=1500.0
+    distScale:r=3.0
+    color1:c=255, 255, 255, 40
+    color2:c=213, 237, 255, 80
+  }
+
+  12mmPaleWhite{
+    halfSize:r=4.5
+    distScaleStart:r=150.0
+    distScaleEnd:r=3000.0
+    distScale:r=3.5
+    color1:c=255, 255, 255, 40
+    color2:c=213, 237, 255, 80
+  }
+
+  20mmPaleWhite{
+    halfSize:r=5.0
+    distScaleStart:r=150.0
+    distScaleEnd:r=3000.0
+    distScale:r=3.5
+    color1:c=255, 255, 255, 40
+    color2:c=213, 237, 255, 80
+  }
+
+  30mmPaleWhite{
+    halfSize:r=6.0
+    distScaleStart:r=200.0
+    distScaleEnd:r=2000.0
+    distScale:r=1.5
+    color1:c=255, 255, 255, 40
+    color2:c=213, 237, 255, 80
+  }
+
+  37mPaleWhite{
+    halfSize:r=7.0
+    distScaleStart:r=150.0
+    distScaleEnd:r=2000.0
+    distScale:r=2.5
+    color1:c=255, 255, 255, 40
+    color2:c=213, 237, 255, 80
+  }
+
+  50mPaleWhite{
+    halfSize:r=15.0
+    distScaleStart:r=250.0
+    distScaleEnd:r=2000.0
+    distScale:r=2.0
+    color1:c=255, 255, 255, 40
+    color2:c=213, 237, 255, 80
+  }
+
+  7mmLightRed{
+    halfSize:r=2.5
+    distScaleStart:r=100.0
+    distScaleEnd:r=1500.0
+    distScale:r=3.0
+    color1:c=255, 247, 212, 200
+    color2:c=255, 144, 132, 200
+  }
+
+  12mmLightRed{
+    halfSize:r=4.5
+    distScaleStart:r=150.0
+    distScaleEnd:r=3000.0
+    distScale:r=3.5
+    color1:c=255, 247, 212, 200
+    color2:c=255, 144, 132, 200
+  }
+
+  20mmLightRed{
+    halfSize:r=5.0
+    distScaleStart:r=150.0
+    distScaleEnd:r=3000.0
+    distScale:r=3.5
+    color1:c=255, 247, 212, 200
+    color2:c=255, 144, 132, 200
+  }
+
+  30mmLightRed{
+    halfSize:r=6.0
+    distScaleStart:r=200.0
+    distScaleEnd:r=2000.0
+    distScale:r=1.5
+    color1:c=255, 247, 212, 200
+    color2:c=255, 144, 132, 200
+  }
+
+  37mmLightRed{
+    halfSize:r=7.0
+    distScaleStart:r=150.0
+    distScaleEnd:r=2000.0
+    distScale:r=2.5
+    color1:c=255, 247, 212, 200
+    color2:c=255, 144, 132, 200
+  }
+
+  50mmLightRed{
+    halfSize:r=15.0
+    distScaleStart:r=250.0
+    distScaleEnd:r=2000.0
+    distScale:r=2.0
+    color1:c=255, 247, 212, 200
+    color2:c=255, 144, 132, 200
+  }
+
+  noColor{
+    color1:c=0, 0, 0, 0
+    color2:c=0, 0, 0, 0
+    halfSize:r=1.5
+  }
+
+  7mmGreenBlue{
+    halfSize:r=2.5
+    distScaleStart:r=100.0
+    distScaleEnd:r=1500.0
+    distScale:r=3.0
+    color1:c=195, 255, 253, 200
+    color2:c=52, 255, 171, 200
+  }
+
+  12mmGreenBlue{
+    halfSize:r=4.5
+    distScaleStart:r=150.0
+    distScaleEnd:r=3000.0
+    distScale:r=3.5
+    color1:c=195, 255, 253, 200
+    color2:c=52, 255, 171, 200
+  }
+
+  20mmGreenBlue{
+    halfSize:r=5.0
+    distScaleStart:r=150.0
+    distScaleEnd:r=3000.0
+    distScale:r=3.5
+    color1:c=195, 255, 253, 200
+    color2:c=52, 255, 171, 200
+  }
+
+  30mmGreenBlue{
+    halfSize:r=6.0
+    distScaleStart:r=200.0
+    distScaleEnd:r=2000.0
+    distScale:r=1.5
+    color1:c=195, 255, 253, 200
+    color2:c=52, 255, 171, 200
+  }
+
+  37mmGreenBlue{
+    halfSize:r=7.0
+    distScaleStart:r=150.0
+    distScaleEnd:r=2000.0
+    distScale:r=2.5
+    color1:c=195, 255, 253, 200
+    color2:c=52, 255, 171, 200
+  }
+
+  50mmGreenBlue{
+    halfSize:r=15.0
+    distScaleStart:r=250.0
+    distScaleEnd:r=2000.0
+    distScale:r=2.0
+    color1:c=195, 255, 253, 200
+    color2:c=52, 255, 171, 200
+  }
+
+  7mmYellow{
+    halfSize:r=2.5
+    distScaleStart:r=100.0
+    distScaleEnd:r=1500.0
+    distScale:r=3.0
+    color1:c=255, 248, 60, 200
+    color2:c=255, 248, 50, 200
+  }
+
+  12mmYellow{
+    halfSize:r=4.5
+    distScaleStart:r=150.0
+    distScaleEnd:r=3000.0
+    distScale:r=3.5
+    color1:c=255, 248, 60, 200
+    color2:c=255, 248, 50, 200
+  }
+
+  20mmYellow{
+    halfSize:r=5.0
+    distScaleStart:r=150.0
+    distScaleEnd:r=3000.0
+    distScale:r=3.5
+    color1:c=255, 248, 60, 200
+    color2:c=255, 248, 50, 200
+  }
+
+  30mmYellow{
+    halfSize:r=6.0
+    distScaleStart:r=200.0
+    distScaleEnd:r=2000.0
+    distScale:r=1.5
+    color1:c=255, 248, 60, 200
+    color2:c=255, 248, 50, 200
+  }
+
+  37mmYellow{
+    halfSize:r=7.0
+    distScaleStart:r=150.0
+    distScaleEnd:r=2000.0
+    distScale:r=2.5
+    color1:c=255, 248, 60, 200
+    color2:c=255, 248, 50, 200
+  }
+
+  50mmYellow{
+    halfSize:r=15.0
+    distScaleStart:r=250.0
+    distScaleEnd:r=2000.0
+    distScale:r=2.0
+    color1:c=255, 248, 60, 200
+    color2:c=255, 248, 50, 200
+  }
+
+  7mmBlue{
+    halfSize:r=2.5
+    distScaleStart:r=100.0
+    distScaleEnd:r=1500.0
+    distScale:r=3.0
+    color1:c=219, 231, 255, 200
+    color2:c=21, 98, 255, 200
+  }
+
+  12mmBlue{
+    halfSize:r=4.5
+    distScaleStart:r=150.0
+    distScaleEnd:r=3000.0
+    distScale:r=3.5
+    color1:c=219, 231, 255, 200
+    color2:c=21, 98, 255, 200
+  }
+
+  20mmBlue{
+    halfSize:r=5.0
+    distScaleStart:r=150.0
+    distScaleEnd:r=3000.0
+    distScale:r=3.5
+    color1:c=219, 231, 255, 200
+    color2:c=21, 98, 255, 200
+  }
+
+  30mmBlue{
+    halfSize:r=6.0
+    distScaleStart:r=200.0
+    distScaleEnd:r=2000.0
+    distScale:r=1.5
+    color1:c=219, 231, 255, 200
+    color2:c=21, 98, 255, 200
+  }
+
+  37mmBlue{
+    halfSize:r=7.0
+    distScaleStart:r=150.0
+    distScaleEnd:r=2000.0
+    distScale:r=2.5
+    color1:c=219, 231, 255, 200
+    color2:c=21, 98, 255, 200
+  }
+
+  50mmBlue{
+    halfSize:r=7.0
+    distScaleStart:r=150.0
+    distScaleEnd:r=2000.0
+    distScale:r=2.5
+    color1:c=219, 231, 255, 200
+    color2:c=21, 98, 255, 200
+  }
+
+  7mmDark_Blue{
+    halfSize:r=2.5
+    distScaleStart:r=100.0
+    distScaleEnd:r=1500.0
+    distScale:r=3.0
+    color1:c=150, 150, 255, 220
+    color2:c=0, 0, 255, 220
+  }
+
+  12mmDark_Blue{
+    halfSize:r=4.5
+    distScaleStart:r=150.0
+    distScaleEnd:r=3000.0
+    distScale:r=3.5
+    color1:c=150, 150, 255, 220
+    color2:c=0, 0, 255, 220
+  }
+
+  20mmDark_Blue{
+    halfSize:r=5.0
+    distScaleStart:r=150.0
+    distScaleEnd:r=3000.0
+    distScale:r=3.5
+    color1:c=150, 150, 255, 220
+    color2:c=0, 0, 255, 220
+  }
+
+  30mmDark_Blue{
+    halfSize:r=6.0
+    distScaleStart:r=200.0
+    distScaleEnd:r=2000.0
+    distScale:r=1.5
+    color1:c=150, 150, 255, 220
+    color2:c=0, 0, 255, 220
+  }
+
+  37mmDark_Blue{
+    halfSize:r=7.0
+    distScaleStart:r=150.0
+    distScaleEnd:r=2000.0
+    distScale:r=2.5
+    color1:c=150, 150, 255, 220
+    color2:c=0, 0, 255, 220
+  }
+
+  50mmDark_Blue{
+    halfSize:r=7.0
+    distScaleStart:r=150.0
+    distScaleEnd:r=2000.0
+    distScale:r=2.5
+    color1:c=150, 150, 255, 220
+    color2:c=0, 0, 255, 220
+  }
+
+  7mmPink{
+    halfSize:r=2.5
+    distScaleStart:r=100.0
+    distScaleEnd:r=1500.0
+    distScale:r=3.0
+    color1:c=255, 236, 248, 200
+    color2:c=255, 65, 154, 200
+  }
+
+  12mmPink{
+    halfSize:r=4.5
+    distScaleStart:r=150.0
+    distScaleEnd:r=3000.0
+    distScale:r=3.5
+    color1:c=255, 236, 248, 200
+    color2:c=255, 65, 154, 200
+  }
+
+  20mmPink{
+    halfSize:r=5.0
+    distScaleStart:r=150.0
+    distScaleEnd:r=3000.0
+    distScale:r=3.5
+    color1:c=255, 236, 248, 200
+    color2:c=255, 65, 154, 200
+  }
+
+  30mmPink{
+    halfSize:r=6.0
+    distScaleStart:r=200.0
+    distScaleEnd:r=2000.0
+    distScale:r=1.5
+    color1:c=255, 236, 248, 200
+    color2:c=255, 65, 154, 200
+  }
+
+  37mmPink{
+    halfSize:r=7.0
+    distScaleStart:r=150.0
+    distScaleEnd:r=2000.0
+    distScale:r=2.5
+    color1:c=255, 236, 248, 200
+    color2:c=255, 65, 154, 200
+  }
+
+  50mmPink{
+    halfSize:r=15.0
+    distScaleStart:r=250.0
+    distScaleEnd:r=2000.0
+    distScale:r=2.0
+    color1:c=255, 236, 248, 200
+    color2:c=255, 65, 154, 200
+  }
+
+  7mmOrange{
+    halfSize:r=2.5
+    distScaleStart:r=100.0
+    distScaleEnd:r=1500.0
+    distScale:r=3.0
+    color1:c=255, 231, 209, 200
+    color2:c=255, 170, 48, 200
+  }
+
+  12mmOrange{
+    halfSize:r=4.5
+    distScaleStart:r=150.0
+    distScaleEnd:r=3000.0
+    distScale:r=3.5
+    color1:c=255, 231, 209, 200
+    color2:c=255, 170, 48, 200
+  }
+
+  20mmOrange{
+    halfSize:r=5.0
+    distScaleStart:r=150.0
+    distScaleEnd:r=3000.0
+    distScale:r=3.5
+    color1:c=255, 231, 209, 200
+    color2:c=255, 170, 48, 200
+  }
+
+  30mmOrange{
+    halfSize:r=6.0
+    distScaleStart:r=200.0
+    distScaleEnd:r=2000.0
+    distScale:r=1.5
+    color1:c=255, 231, 209, 200
+    color2:c=255, 170, 48, 200
+  }
+
+  37mmOrange{
+    halfSize:r=7.0
+    distScaleStart:r=150.0
+    distScaleEnd:r=2000.0
+    distScale:r=2.5
+    color1:c=255, 231, 209, 200
+    color2:c=255, 170, 48, 200
+  }
+
+  50mmOrange{
+    halfSize:r=15.0
+    distScaleStart:r=250.0
+    distScaleEnd:r=2000.0
+    distScale:r=2.0
+    color1:c=255, 231, 209, 200
+    color2:c=255, 170, 48, 200
+  }
+
+  7mmGreen{
+    halfSize:r=2.5
+    distScaleStart:r=100.0
+    distScaleEnd:r=1500.0
+    distScale:r=3.0
+    color1:c=254, 255, 182, 200
+    color2:c=83, 255, 43, 200
+  }
+
+  12mmGreen{
+    halfSize:r=4.5
+    distScaleStart:r=150.0
+    distScaleEnd:r=3000.0
+    distScale:r=3.5
+    color1:c=254, 255, 182, 200
+    color2:c=83, 255, 43, 200
+  }
+
+  20mmGreen{
+    halfSize:r=5.0
+    distScaleStart:r=150.0
+    distScaleEnd:r=3000.0
+    distScale:r=3.5
+    color1:c=254, 255, 182, 200
+    color2:c=83, 255, 43, 200
+  }
+
+  30mmGreen{
+    halfSize:r=6.0
+    distScaleStart:r=200.0
+    distScaleEnd:r=2000.0
+    distScale:r=1.5
+    color1:c=254, 255, 182, 200
+    color2:c=83, 255, 43, 200
+  }
+
+  37mmGreen{
+    halfSize:r=7.0
+    distScaleStart:r=150.0
+    distScaleEnd:r=2000.0
+    distScale:r=2.5
+    color1:c=254, 255, 182, 200
+    color2:c=83, 255, 43, 200
+  }
+
+  50mmGreen{
+    halfSize:r=15.0
+    distScaleStart:r=250.0
+    distScaleEnd:r=2000.0
+    distScale:r=2.0
+    color1:c=254, 255, 182, 200
+    color2:c=83, 255, 43, 200
+  }
+
+  7mmWhiteGreen{
+    halfSize:r=2.5
+    distScaleStart:r=100.0
+    distScaleEnd:r=1500.0
+    distScale:r=3.0
+    color1:c=208, 255, 191, 200
+    color2:c=83, 255, 43, 200
+  }
+
+  12mmWhiteGreen{
+    halfSize:r=4.5
+    distScaleStart:r=150.0
+    distScaleEnd:r=3000.0
+    distScale:r=3.5
+    color1:c=208, 255, 191, 200
+    color2:c=83, 255, 43, 200
+  }
+
+  20mmWhiteGreen{
+    halfSize:r=5.0
+    distScaleStart:r=150.0
+    distScaleEnd:r=3000.0
+    distScale:r=3.5
+    color1:c=208, 255, 191, 200
+    color2:c=83, 255, 43, 200
+  }
+
+  30mmWhiteGreen{
+    halfSize:r=6.0
+    distScaleStart:r=200.0
+    distScaleEnd:r=2000.0
+    distScale:r=1.5
+    color1:c=208, 255, 191, 200
+    color2:c=83, 255, 43, 200
+  }
+
+  37mmWhiteGreen{
+    halfSize:r=7.0
+    distScaleStart:r=150.0
+    distScaleEnd:r=2000.0
+    distScale:r=2.5
+    color1:c=208, 255, 191, 200
+    color2:c=83, 255, 43, 200
+  }
+
+  50mmWhiteGreen{
+    halfSize:r=15.0
+    distScaleStart:r=250.0
+    distScaleEnd:r=2000.0
+    distScale:r=2.0
+    color1:c=208, 255, 191, 200
+    color2:c=83, 255, 43, 200
+  }
+
+  7mmGold{
+    halfSize:r=2.5
+    distScaleStart:r=100.0
+    distScaleEnd:r=1500.0
+    distScale:r=3.0
+    color1:c=255, 224, 132, 200
+    color2:c=255, 156, 43, 200
+  }
+
+  12mmGold{
+    halfSize:r=4.5
+    distScaleStart:r=150.0
+    distScaleEnd:r=3000.0
+    distScale:r=3.5
+    color1:c=255, 224, 132, 200
+    color2:c=255, 156, 43, 200
+  }
+
+  20mmGold{
+    halfSize:r=5.0
+    distScaleStart:r=150.0
+    distScaleEnd:r=3000.0
+    distScale:r=3.5
+    color1:c=255, 224, 132, 200
+    color2:c=255, 156, 43, 200
+  }
+
+  30mmGold{
+    halfSize:r=6.0
+    distScaleStart:r=200.0
+    distScaleEnd:r=2000.0
+    distScale:r=1.5
+    color1:c=255, 224, 132, 200
+    color2:c=255, 156, 43, 200
+  }
+
+  37mmGold{
+    halfSize:r=7.0
+    distScaleStart:r=150.0
+    distScaleEnd:r=2000.0
+    distScale:r=2.5
+    color1:c=255, 224, 132, 200
+    color2:c=255, 156, 43, 200
+  }
+
+  50mmGold{
+    halfSize:r=15.0
+    distScaleStart:r=250.0
+    distScaleEnd:r=2000.0
+    distScale:r=2.0
+    color1:c=255, 224, 132, 200
+    color2:c=255, 156, 43, 200
+  }
+
+  12mmYellowAAgun{
+    halfSize:r=3.0
+    distScaleStart:r=100.0
+    distScaleEnd:r=4000.0
+    distScale:r=5.0
+    color1:c=255, 248, 60, 200
+    color2:c=255, 248, 50, 200
+  }
+}
+
+tracerTrails{
+
+  thin{
+    particleHalfSizeFrom:r=0.1
+    particleHalfSizeTo:r=1.5
+    color:c=128, 128, 128, 128
+    deviation:r=15.0
+  }
+
+  curved{
+    particleHalfSizeFrom:r=0.1
+    particleHalfSizeTo:r=1.0
+    color:c=158, 158, 158, 158
+    deviation:r=10.0
+  }
+
+  noTrail{
+    particleHalfSizeFrom:r=0.0
+    particleHalfSizeTo:r=0.04
+    color:c=228, 228, 228, 228
+    deviation:r=0.1
+  }
+
+  black{
+    particleHalfSizeFrom:r=0.1
+    particleHalfSizeTo:r=0.5
+    color:c=80, 80, 80, 186
+    deviation:r=3.0
+  }
+
+  black_rpg{
+    particleHalfSizeFrom:r=0.9
+    particleHalfSizeTo:r=2.0
+    color:c=80, 80, 80, 255
+    deviation:r=0.0
+  }
+
+  smallTrail{
+    particleHalfSizeFrom:r=0.05
+    particleHalfSizeTo:r=0.1
+    color:c=228, 228, 228, 228
+    deviation:r=5.0
+  }
+}
+
+turbulence{
+  turbulenceMultiplier:r=0.7
+  shakeKoeffNearPlane:r=1.1
+  shakeKoeffJetWash:r=1.0
+  shakeKoeffExplode:r=20.1
+  shakeKoeffTurbulence:r=3.1
+  shakeKoeffExplodeHiFreq:r=0.3
+}
+
+difficulty_presets{
+
+  arcade{
+    baseDifficulty:i=0
+    engineControl:i=0
+    respDifficulty:i=0
+    realGunnery:b=no
+    realDamageModels:b=no
+    stallsAndSpins:b=no
+    redOuts:b=yes
+    mortalPilots:b=yes
+    manualTrimming:b=no
+    torqueAndGyro:b=no
+    limitedBombsMissiles:b=no
+    noArcadeBoost:b=no
+    limitViews:i=0
+    flutter:b=no
+    hudAimPrediction:b=yes
+    hudShowSpeedVector:b=no
+    hudMarkers:i=2
+    hudMarkerArrows:b=yes
+    hudAircraftMarkersMaxDist:i=3
+    hudIndicators:b=yes
+    hudShowTankDistance:b=yes
+    hudMapAircraftMarkers:i=2
+    hudMapGroundMarkers:i=2
+    hudTankMapAircraftMarkers:i=2
+    hudTankMapGroundMarkers:i=2
+    hudMarkersBlink:b=yes
+    hudRadar:b=yes
+    hudDamageModel:i=0
+    hudDamageIndicator:b=yes
+    hudTankDamageLog:b=yes
+    hudLargeAwardMessages:b=yes
+    hudWarnings:b=yes
+    hudOutline:b=yes
+    noRespawns:b=no
+    aircraftHelpers:b=yes
+    collectiveDetection:b=yes
+    distDetection:i=2
+    allowControlHelpers:i=0
+    forceInstructor:b=no
+    playerTurretDeviation:i=0
+    boostersFuel:i=0
+    ctaCaptureMul:i=0
+    damageModel:i=0
+    hudTankRangefinder:i=0
+  }
+
+  realistic{
+    baseDifficulty:i=1
+    engineControl:i=1
+    respDifficulty:i=1
+    realGunnery:b=yes
+    realDamageModels:b=yes
+    stallsAndSpins:b=yes
+    redOuts:b=yes
+    mortalPilots:b=yes
+    manualTrimming:b=no
+    torqueAndGyro:b=no
+    limitedBombsMissiles:b=yes
+    noArcadeBoost:b=yes
+    limitViews:i=0
+    flutter:b=yes
+    hudAimPrediction:b=no
+    hudShowSpeedVector:b=no
+    hudMarkers:i=2
+    hudMarkerArrows:b=yes
+    hudAircraftMarkersMaxDist:i=3
+    hudIndicators:b=yes
+    hudShowTankDistance:b=no
+    hudMapAircraftMarkers:i=2
+    hudMapGroundMarkers:i=2
+    hudTankMapAircraftMarkers:i=2
+    hudTankMapGroundMarkers:i=1
+    hudMarkersBlink:b=yes
+    hudRadar:b=yes
+    hudDamageModel:i=1
+    hudDamageIndicator:b=yes
+    hudTankDamageLog:b=yes
+    hudLargeAwardMessages:b=yes
+    hudWarnings:b=yes
+    hudOutline:b=no
+    noRespawns:b=no
+    aircraftHelpers:b=no
+    collectiveDetection:b=yes
+    distDetection:i=1
+    allowControlHelpers:i=0
+    forceInstructor:b=no
+    playerTurretDeviation:i=1
+    boostersFuel:i=1
+    ctaCaptureMul:i=1
+    damageModel:i=1
+    hudTankRangefinder:i=1
+    hudSendSquareTimeInterval:i=45
+    hudSendSquareNumPlayers:i=3
+    hudSendSquareTimeFromStart:i=900
+  }
+
+  hardcore{
+    baseDifficulty:i=2
+    engineControl:i=2
+    respDifficulty:i=2
+    realGunnery:b=yes
+    realDamageModels:b=yes
+    stallsAndSpins:b=yes
+    redOuts:b=yes
+    mortalPilots:b=yes
+    manualTrimming:b=yes
+    torqueAndGyro:b=yes
+    limitedBombsMissiles:b=yes
+    noArcadeBoost:b=yes
+    limitViews:i=2
+    flutter:b=yes
+    hudAimPrediction:b=no
+    hudShowSpeedVector:b=no
+    hudMarkers:i=3
+    hudMarkerArrows:b=no
+    hudAircraftMarkersMaxDist:i=0
+    hudIndicators:b=yes
+    hudShowTankDistance:b=no
+    hudMapAircraftMarkers:i=1
+    hudMapGroundMarkers:i=2
+    hudTankMapAircraftMarkers:i=1
+    hudTankMapGroundMarkers:i=0
+    hudMarkersBlink:b=yes
+    hudRadar:b=no
+    hudDamageModel:i=2
+    hudDamageIndicator:b=no
+    hudTankDamageLog:b=yes
+    hudLargeAwardMessages:b=no
+    hudWarnings:b=no
+    hudOutline:b=no
+    noRespawns:b=no
+    aircraftHelpers:b=no
+    collectiveDetection:b=yes
+    distDetection:i=0
+    allowControlHelpers:i=3
+    forceInstructor:b=no
+    playerTurretDeviation:i=2
+    boostersFuel:i=2
+    ctaCaptureMul:i=2
+    damageModel:i=2
+    hudTankRangefinder:i=2
+  }
+}
+
+difficulty_check{
+
+  arcade{
+    engineControl:i=0
+    realGunnery:b=no
+    realDamageModels:b=no
+    stallsAndSpins:b=no
+    noArcadeBoost:b=no
+    aircraftHelpers:b=yes
+    flutter:b=no
+  }
+
+  hardcore{
+    engineControl:i=2
+    realGunnery:b=yes
+    realDamageModels:b=yes
+    stallsAndSpins:b=yes
+    redOuts:b=yes
+    noArcadeBoost:b=yes
+    hudAimPrediction:b=no
+    hudMarkerArrows:b=no
+    hudRadar:b=no
+    hudMarkers:i=0
+    aircraftHelpers:b=no
+    flutter:b=yes
+  }
+}
+
+difficulty_settings{
+
+  baseDifficulty{
+
+    easy{
+      mouseAimMaxAnglesSmoothness:r=0.02
+      mouseAimNoiseDirDistMul:r=0.08
+      mouseAimNoiseInvFovMul:r=0.5
+      showBombSight:b=yes
+      showZoneIcons:b=yes
+      instructorCritAngle:r=0.9
+      isArcadeGunnerBehavior:b=yes
+      damageAreaInfluence:r=0.6
+      cyMultiplier:r=1.2
+      tankTrackRepairTime:r=15.0
+      tankRepairSpeed:r=5.0
+      lightTankArcadeBoostInfluence:r=1.0
+      mediumTankArcadeBoostInfluence:r=1.0
+      heavyTankArcadeBoostInfluence:r=0.6
+      tankDestroyerArcadeBoostInfluence:r=0.8
+      spaaArcadeBoostInfluence:r=0.8
+      tankRepairOnCaptureZone:b=yes
+      tankRearmOnCaptureZone:b=yes
+      tankRearmOnField:b=yes
+      maxDetectionDistByTeam:r=9000.0
+      tankInvisibleForAirplaneDistance:r=5000.0
+      hudTankDetectedByAircraft:b=yes
+      hudTankHideForestallForNonAa:b=no
+      lastOffenderTimer:r=12.0
+      seriousOffenderTimer:r=30.0
+      tankGunnerCameraFromSight:b=no
+      canLoseControlsByStamina:b=yes
+      staminaIndication:b=yes
+      attenuationControlsByStaminaMult:r=1.0
+      staminaUsageSpeedMult:r=1.0
+      bombAssaultFuseTime:r=0.5
+      gForceBlackoutMult:r=1.3
+      gForceRedoutMult:r=1.3
+      tankLockShootingByAlly:b=yes
+      tankFriendlyFireDamage:b=no
+      tankMainGearRatioMult:r=0.9
+      maxBombDamageHeight:r=5.0
+      automaticBayDoor:b=yes
+      allowCrewHealing:b=yes
+      allowAutoCrewHealing:b=yes
+      crewHealingOnlyOnCaptureZone:b=no
+      allowMovingAtCrewHealing:b=no
+      shipExtinguishSpeed:r=1.0
+      shipCollisionDamageAllyWithEnemy:r=1.0
+      shipCollisionDamageAllyWithAlly:r=-1.0
+      shipCollisionDamageGround:r=1.0
+      radioGunnerRadioDistanceMult:r=1.0
+    }
+
+    medium{
+      mouseAimMaxAnglesSmoothness:r=0.05
+      mouseAimNoiseDirDistMul:r=0.1
+      mouseAimNoiseInvFovMul:r=0.5
+      showBombSight:b=no
+      showZoneIcons:b=yes
+      instructorCritAngle:r=0.7
+      isArcadeGunnerBehavior:b=no
+      damageAreaInfluence:r=0.5
+      cyMultiplier:r=1.0
+      tankTrackRepairTime:r=150.0
+      tankRepairSpeed:r=3.5
+      lightTankArcadeBoostInfluence:r=1.0
+      mediumTankArcadeBoostInfluence:r=1.0
+      heavyTankArcadeBoostInfluence:r=1.0
+      tankDestroyerArcadeBoostInfluence:r=1.0
+      spaaArcadeBoostInfluence:r=1.0
+      tankRepairOnCaptureZone:b=yes
+      tankRearmOnCaptureZone:b=yes
+      tankRearmOnField:b=no
+      tankInvisibleForAirplaneDistance:r=3000.0
+      maxDetectionDistByTeam:r=8000.0
+      hudTankDetectedByAircraft:b=yes
+      hudTankHideForestallForNonAa:b=yes
+      lastOffenderTimer:r=15.0
+      seriousOffenderTimer:r=60.0
+      hudShowUpEnemyByHit:b=yes
+      hudShowUpVisibleEnemy:b=yes
+      tankGunnerCameraFromSight:b=no
+      canLoseControlsByStamina:b=yes
+      staminaIndication:b=no
+      attenuationControlsByStaminaMult:r=1.0
+      staminaUsageSpeedMult:r=1.0
+      tankLockShootingByAlly:b=no
+      tankFriendlyFireDamage:b=no
+      maxBombDamageHeight:r=200.0
+      automaticBayDoor:b=no
+      bombAssaultFuseTime:r=1.5
+      allowCrewHealing:b=yes
+      allowAutoCrewHealing:b=no
+      crewHealingOnlyOnCaptureZone:b=yes
+      allowMovingAtCrewHealing:b=no
+      shipExtinguishSpeed:r=1.0
+      shipCollisionDamageAllyWithEnemy:r=1.0
+      shipCollisionDamageAllyWithAlly:r=-1.0
+      shipCollisionDamageGround:r=1.0
+      radioGunnerRadioDistanceMult:r=2.0
+    }
+
+    hard{
+      mouseAimMaxAnglesSmoothness:r=0.25
+      mouseAimNoiseDirDistMul:r=0.5
+      mouseAimNoiseInvFovMul:r=2.0
+      showBombSight:b=no
+      showZoneIcons:b=no
+      instructorCritAngle:r=0.6
+      isArcadeGunnerBehavior:b=no
+      damageAreaInfluence:r=0.3
+      cyMultiplier:r=1.0
+      tankTrackRepairTime:r=180.0
+      tankRepairSpeed:r=3.5
+      lightTankArcadeBoostInfluence:r=1.0
+      mediumTankArcadeBoostInfluence:r=1.0
+      heavyTankArcadeBoostInfluence:r=1.0
+      tankDestroyerArcadeBoostInfluence:r=1.0
+      spaaArcadeBoostInfluence:r=1.0
+      tankRepairOnCaptureZone:b=yes
+      tankRearmOnCaptureZone:b=yes
+      tankRearmOnField:b=no
+      tankInvisibleForAirplaneDistance:r=6000.0
+      maxDetectionDistByTeam:r=6000.0
+      hudTankHideForestallForNonAa:b=yes
+      lastOffenderTimer:r=15.0
+      seriousOffenderTimer:r=80.0
+      hudShowUpEnemyByHit:b=no
+      hudShowUpVisibleEnemy:b=yes
+      tankGunnerCameraFromSight:b=yes
+      canLoseControlsByStamina:b=yes
+      staminaIndication:b=no
+      attenuationControlsByStaminaMult:r=1.0
+      staminaUsageSpeedMult:r=1.0
+      unlimitedGunnerAmmo:b=no
+      tankLockShootingByAlly:b=no
+      tankFriendlyFireDamage:b=yes
+      maxBombDamageHeight:r=200.0
+      automaticBayDoor:b=no
+      bombAssaultFuseTime:r=1.5
+      allowCrewHealing:b=yes
+      allowAutoCrewHealing:b=no
+      crewHealingOnlyOnCaptureZone:b=yes
+      allowMovingAtCrewHealing:b=no
+      shipExtinguishSpeed:r=1.0
+      shipCollisionDamageAllyWithEnemy:r=1.0
+      shipCollisionDamageAllyWithAlly:r=-1.0
+      shipCollisionDamageGround:r=1.0
+      radioGunnerRadioDistanceMult:r=2.0
+    }
+  }
+
+  engineControl{
+
+    easy{
+      highSpeedControlEffects:b=no
+      Engine_Overheat:b=no
+      ComplexEManagement:b=no
+      Realistic_Landings:b=no
+      controlEngineManagement:b=no
+      controlFlaps:b=no
+      autoPropPitch:b=yes
+      elevatorAssist:r=0.3
+      rudderAssist:r=0.33
+      aileronAssist:r=1.0
+      currentRollRateMult:r=1.0
+      maxRollRateMult:r=1.5
+      rollRateLerpT:r=0.65
+      RealisticEngineEffects:b=no
+      autoIgnition:b=yes
+      autoThrottle:b=no
+      realisticFm:b=no
+      realisticHud:b=no
+    }
+
+    medium{
+      highSpeedControlEffects:b=yes
+      Engine_Overheat:b=yes
+      ComplexEManagement:b=no
+      Realistic_Landings:b=yes
+      controlEngineManagement:b=yes
+      controlFlaps:b=no
+      autoPropPitch:b=yes
+      rudderAssist:r=0.0
+      aileronAssist:r=0.0
+      RealisticEngineEffects:b=yes
+      autoIgnition:b=yes
+      autoThrottle:b=no
+      realisticFm:b=yes
+      realisticHud:b=yes
+    }
+
+    hard{
+      highSpeedControlEffects:b=yes
+      Engine_Overheat:b=yes
+      ComplexEManagement:b=no
+      Realistic_Landings:b=yes
+      controlEngineManagement:b=yes
+      controlFlaps:b=yes
+      autoPropPitch:b=yes
+      rudderAssist:r=0.0
+      aileronAssist:r=0.0
+      RealisticEngineEffects:b=yes
+      autoIgnition:b=no
+      autoThrottle:b=no
+      realisticFm:b=yes
+      realisticHud:b=yes
+    }
+  }
+
+  noRespawns{
+
+    off{
+      maxAttempt:i=4
+      enableRespawn:b=yes
+    }
+
+    on{
+      maxAttempt:i=1
+      enableRespawn:b=no
+    }
+  }
+
+  respDifficulty{
+
+    easy{
+      singleRespTime:r=3.0
+      botRespTime:r=300.0
+      versusRespTime:r=5.0
+      coopRespTime:r=25.0
+      coopMaxRespTime:r=180.0
+      coopDeathPenaltyK:r=2.0
+      coopPenaltyDecay:r=0.166
+    }
+
+    medium{
+      singleRespTime:r=3.0
+      botRespTime:r=300.0
+      versusRespTime:r=15.0
+      coopRespTime:r=30.0
+      coopMaxRespTime:r=180.0
+      coopDeathPenaltyK:r=2.0
+      coopPenaltyDecay:r=0.166
+    }
+
+    hard{
+      singleRespTime:r=3.0
+      botRespTime:r=300.0
+      versusRespTime:r=15.0
+      coopRespTime:r=30.0
+      coopMaxRespTime:r=180.0
+      coopDeathPenaltyK:r=2.0
+      coopPenaltyDecay:r=0.166
+    }
+  }
+
+  mortalPilots{
+
+    off{
+      playerPilotCanBeKilled:b=no
+    }
+
+    on{
+      playerPilotCanBeKilled:b=yes
+    }
+  }
+
+  limitedBombsMissiles{
+
+    off{
+      unlimitedBombsMissiles:b=yes
+      bombGunCoolDown:r=5.0
+      rocketGunCoolDown:r=5.0
+      arcadeBombGunCoolDownMpMult:r=6.0
+      arcadeRocketGunCoolDownMpMult:r=6.0
+      autoRearmGun:b=yes
+      autoRearmHydra:b=yes
+      autoRearmHellfire:b=yes
+      autoRearmStinger:b=yes
+      autoRearmChaff:b=yes
+      autoRearmFlare:b=yes
+      gunCoolDownK:r=1.0
+    }
+
+    on{
+      unlimitedBombsMissiles:b=no
+      bombGunCoolDown:r=5.0
+      rocketGunCoolDown:r=5.0
+      arcadeBombGunCoolDownMpMult:r=6.0
+      arcadeRocketGunCoolDownMpMult:r=6.0
+      gunCoolDownK:r=1.0
+      autoRearmGun:b=no
+      autoRearmHydra:b=no
+      autoRearmHellfire:b=no
+      autoRearmStinger:b=no
+      autoRearmChaff:b=no
+      autoRearmFlare:b=no
+    }
+  }
+
+  flutter{
+
+    off{
+      Flutter_Effect:b=no
+    }
+
+    on{
+      Flutter_Effect:b=yes
+    }
+  }
+
+  torqueAndGyro{
+
+    off{
+      Torque_N_Gyro_Effects:b=no
+      isTorqueAndGyroEffectsMandatory:b=no
+    }
+
+    on{
+      Torque_N_Gyro_Effects:b=yes
+      isTorqueAndGyroEffectsMandatory:b=yes
+    }
+  }
+
+  noArcadeBoost{
+
+    off{
+      arcadeBoost:b=yes
+      wepOverspeed:r=1.25
+      maxSpeedMultiplier:r=1.15
+      arcadePowerMult:r=1.716
+      arcadeTurretBoostHorz:r=1.6
+      arcadeTurretBoostVert:r=2.8
+      tankTurretHorzSpeedAccel:r=5.0
+      tankTurretVertSpeedAccel:r=10.0
+      modificationsEffect:r=1.0
+      wholeModificationsEffect:r=0.5
+      enableNegativeModifications:b=yes
+      shellLoadingTimeMult:r=1.0
+      arcadeTurnPowerMult:r=1.7
+      tankTurretPitchInc:r=10.0
+    }
+
+    on{
+      arcadeBoost:b=no
+      wepOverspeed:r=1.0
+      maxSpeedMultiplier:r=1.0
+      arcadePowerMult:r=1.0
+      arcadeTurretBoostHorz:r=1.0
+      arcadeTurretBoostVert:r=1.0
+      tankTurretHorzSpeedAccel:r=2.0
+      tankTurretVertSpeedAccel:r=2.0
+      modificationsEffect:r=0.6
+      wholeModificationsEffect:r=1.0
+      enableNegativeModifications:b=no
+      shellLoadingTimeMult:r=1.0
+      arcadeTurnPowerMult:r=1.0
+      tankTurretPitchInc:r=0.0
+    }
+  }
+
+  manualTrimming{
+
+    off{
+      autotrim:b=yes
+      isAutotrimAllowed:b=yes
+    }
+
+    on{
+      autotrim:b=no
+      isAutotrimAllowed:b=no
+    }
+  }
+
+  redOuts{
+
+    off{
+      Blackouts_N_Redouts:b=no
+    }
+
+    on{
+      Blackouts_N_Redouts:b=yes
+    }
+  }
+
+  stallsAndSpins{
+
+    off{
+      Stalls_N_Spins:b=no
+      realisticFm:b=no
+      realisticHud:b=no
+      Head_Shake:b=no
+      Wind_N_Turbulence:b=no
+      isRotationDampeningEnabled:b=yes
+    }
+
+    on{
+      Stalls_N_Spins:b=yes
+      realisticFm:b=yes
+      realisticHud:b=yes
+      Head_Shake:b=yes
+      Wind_N_Turbulence:b=yes
+      isRotationDampeningEnabled:b=no
+    }
+  }
+
+  realDamageModels{
+
+    off{
+      useArcadeSphere:b=yes
+      arcadeDamage:b=yes
+      arcadeSphereAngularRadiusDeg:r=0.8
+      arcadeSphereMaxRadius:r=8.0
+      arcadeSphereFadeOut:p2=500.0, 700.0
+      aircraftCollisionRadius:r=3.0
+      playerArcadeDamageKoeff:r=1.0
+      aiArcadeDamageKoeff:r=1.0
+      partHealingTime:r=120.0
+      shouldHealParts:b=no
+      enableNoviceHelpers:b=yes
+      tankToAirSphereDistK:r=0.0
+      tankToAirSphereDistForAutocannonK:r=0.0
+    }
+
+    on{
+      useArcadeSphere:b=no
+      arcadeDamage:b=no
+      arcadeSphereAngularRadiusDeg:r=5.0
+      arcadeSphereMaxRadius:r=1.0
+      arcadeSphereFadeOut:p2=500.0, 700.0
+      aircraftCollisionRadius:r=5.0
+      playerArcadeDamageKoeff:r=0.0
+      aiArcadeDamageKoeff:r=0.0
+      partHealingTime:r=90.0
+      shouldHealParts:b=no
+      tankToAirSphereDistK:r=0.0
+      enableNoviceHelpers:b=no
+    }
+  }
+
+  realGunnery{
+
+    off{
+      Realistic_Gunnery:b=no
+      Realistic_Ballistic:b=yes
+      autoAim:b=no
+      realisticBombing:b=no
+      bulletSpeedMultiplier:r=1.0
+      bulletGMultiplier:r=1.0
+      bulletWindageMultiplier:r=1.0
+      bulletKineticEnergyMultiplier:r=1.0
+      turretMaxAutoAimDist:r=780.0
+      turretMaxAutoAimAngle:r=4.0
+      bulletDeltaMultiplier:r=1.0
+      bulletDeltaMultiplierVert:r=1.0
+      bulletDeltaMultiplierAir:r=1.0
+      bulletDeltaMultiplierAirVert:r=1.0
+      bulletDeltaMultiplierTank:r=1.5
+      bulletDeltaMultiplierTankVert:r=2.0
+      autoLevelingViscosity:r=-1.0
+      autoTargettingViscosity:r=-1.0
+      hydraAutoaimAngle:r=0.2
+      hydraAutoaimMinDist:r=500.0
+      hydraAutoaimMaxDist:r=900.0
+      gunnerAutoaimAngle:r=1.0
+      gunnerAutoaimMinDist:r=700.0
+      gunnerAutoaimMaxDist:r=1200.0
+      rearmAfterRespawnGun:b=yes
+      rearmAfterRespawnHydra:b=yes
+      rearmAfterRespawnHellfire:b=yes
+      rearmAfterRespawnStinger:b=yes
+      rearmAfterRespawnChaff:b=yes
+      rearmAfterRespawnFlare:b=yes
+      gunVerticalConvergenceAllowed:b=no
+    }
+
+    on{
+      Realistic_Gunnery:b=yes
+      Realistic_Ballistic:b=yes
+      autoAim:b=no
+      realisticBombing:b=yes
+      bulletSpeedMultiplier:r=1.0
+      bulletGMultiplier:r=1.0
+      bulletWindageMultiplier:r=1.0
+      bulletKineticEnergyMultiplier:r=1.0
+      turretMaxAutoAimDist:r=580.0
+      turretMaxAutoAimAngle:r=4.0
+      bulletDeltaMultiplier:r=1.0
+      bulletDeltaMultiplierVert:r=1.0
+      bulletDeltaMultiplierAir:r=1.0
+      bulletDeltaMultiplierAirVert:r=1.0
+      bulletDeltaMultiplierTank:r=1.0
+      bulletDeltaMultiplierTankVert:r=1.0
+      autoLevelingViscosity:r=-1.0
+      autoTargettingViscosity:r=-1.0
+      hydraAutoaimAngle:r=0.0
+      hydraAutoaimMinDist:r=500.0
+      hydraAutoaimMaxDist:r=900.0
+      gunnerAutoaimAngle:r=1.0
+      gunnerAutoaimMinDist:r=700.0
+      gunnerAutoaimMaxDist:r=1200.0
+      rearmAfterRespawnGun:b=yes
+      rearmAfterRespawnHydra:b=yes
+      rearmAfterRespawnHellfire:b=no
+      rearmAfterRespawnStinger:b=no
+      rearmAfterRespawnChaff:b=yes
+      rearmAfterRespawnFlare:b=yes
+      gunVerticalConvergenceAllowed:b=yes
+    }
+  }
+
+  limitViews{
+
+    full{
+      allowTpsViews:b=yes
+      allowVirtualViews:b=yes
+    }
+
+    fps{
+      allowTpsViews:b=no
+      allowVirtualViews:b=yes
+    }
+
+    cockpit{
+      allowTpsViews:b=no
+      allowVirtualViews:b=no
+      enableArtilleryCamera:b=no
+    }
+  }
+
+  hudAimPrediction{
+
+    off{
+      hudAimPrediction:b=no
+      hudShowGunBallistics:b=no
+      hudTankAimPrediction:b=yes
+    }
+
+    on{
+      hudAimPrediction:b=yes
+      hudShowGunBallistics:b=yes
+      hudTankAimPrediction:b=yes
+    }
+  }
+
+  hudShowSpeedVector{
+
+    off{
+      hudShowSpeedVector:b=no
+    }
+
+    on{
+      hudShowSpeedVector:b=yes
+    }
+  }
+
+  hudPip{
+
+    off{
+      hudPip:b=no
+    }
+
+    on{
+      hudPip:b=yes
+    }
+  }
+
+  hudMarkers{
+
+    off{
+      hudMarkers:i=0
+      useLockSphere:b=no
+      lockSphereAngularRadiusDeg:r=5.0
+      lockSphereMaxRadius:r=1.0
+      allowTargeting:b=no
+      hudTankDetectedByAircraft:b=no
+      offenderUnmaskingTime:r=0.0
+      victimUnmaskingTime:r=0.0
+      shotSpawnTime:r=0.0
+      hitSpawnTime:r=0.0
+    }
+
+    team{
+      hudMarkers:i=1
+      useLockSphere:b=no
+      lockSphereAngularRadiusDeg:r=5.0
+      lockSphereMaxRadius:r=1.0
+      allowTargeting:b=no
+      hudTankDetectedByAircraft:b=no
+      offenderUnmaskingTime:r=0.0
+      victimUnmaskingTime:r=0.0
+      shotSpawnTime:r=0.0
+      hitSpawnTime:r=5.0
+    }
+
+    all{
+      hudMarkers:i=2
+      useLockSphere:b=yes
+      lockSphereAngularRadiusDeg:r=2.0
+      lockSphereMaxRadius:r=160.0
+      allowTargeting:b=yes
+      gmAllowTargeting:b=yes
+      hudTankDetectedByAircraft:b=no
+      offenderUnmaskingTime:r=0.0
+      victimUnmaskingTime:r=10.0
+      shotSpawnTime:r=0.0
+      hitSpawnTime:r=0.0
+    }
+
+    team_air_sb{
+      hudMarkers:i=3
+      useLockSphere:b=no
+      lockSphereAngularRadiusDeg:r=5.0
+      lockSphereMaxRadius:r=1.0
+      allowTargeting:b=no
+      hudTankDetectedByAircraft:b=no
+      offenderUnmaskingTime:r=10.0
+      victimUnmaskingTime:r=10.0
+      shotSpawnTime:r=0.0
+      hitSpawnTime:r=0.0
+    }
+  }
+
+  hudAircraftMarkersMaxDist{
+
+    near{
+      hudAircraftMarkersMaxDist:r=900.0
+    }
+
+    normal{
+      hudAircraftMarkersMaxDist:r=2000.0
+    }
+
+    far{
+      hudAircraftMarkersMaxDist:r=10000.0
+    }
+
+    maximum{
+      hudAircraftMarkersMaxDist:r=-1.0
+    }
+  }
+
+  hudMarkerArrows{
+
+    off{
+      hudMarkerArrows:b=no
+    }
+
+    on{
+      hudMarkerArrows:b=yes
+    }
+  }
+
+  hudIndicators{
+
+    off{
+      hudIndicators:b=no
+    }
+
+    on{
+      hudIndicators:b=yes
+      hudTankMaxLosTraceDistance:r=2500.0
+    }
+  }
+
+  hudShowTankDistance{
+
+    off{
+      hudShowTankDistance:b=no
+    }
+
+    on{
+      hudShowTankDistance:b=yes
+    }
+  }
+
+  hudTankRangefinder{
+
+    arcade{
+      hudUseRangefinder:b=no
+      hudRealisticDistanceError:b=no
+    }
+
+    realistic{
+      hudUseRangefinder:b=yes
+      hudRealisticDistanceError:b=yes
+    }
+
+    hardcore{
+      hudUseRangefinder:b=yes
+      hudRealisticDistanceError:b=yes
+    }
+  }
+
+  hudOutline{
+
+    off{
+      hudShowOutline:b=no
+    }
+
+    on{
+      hudShowOutline:b=yes
+    }
+  }
+
+  hudMapAircraftMarkers{
+
+    off{
+      hudMapAircraftMarkers:i=0
+    }
+
+    team{
+      hudMapAircraftMarkers:i=1
+    }
+
+    all{
+      hudMapAircraftMarkers:i=2
+    }
+
+    hero{
+      hudMapAircraftMarkers:i=3
+    }
+  }
+
+  hudMapGroundMarkers{
+
+    off{
+      hudMapGroundMarkers:i=0
+    }
+
+    team{
+      hudMapGroundMarkers:i=1
+    }
+
+    all{
+      hudMapGroundMarkers:i=2
+    }
+
+    hero{
+      hudMapGroundMarkers:i=3
+    }
+  }
+
+  hudTankMapAircraftMarkers{
+
+    off{
+      hudTankMapAircraftMarkers:i=0
+    }
+
+    team{
+      hudTankMapAircraftMarkers:i=1
+    }
+
+    all{
+      hudTankMapAircraftMarkers:i=2
+    }
+
+    hero{
+      hudTankMapAircraftMarkers:i=3
+    }
+  }
+
+  hudTankMapGroundMarkers{
+
+    off{
+      hudTankMapGroundMarkers:i=0
+    }
+
+    team{
+      hudTankMapGroundMarkers:i=1
+    }
+
+    all{
+      hudTankMapGroundMarkers:i=2
+    }
+
+    hero{
+      hudTankMapGroundMarkers:i=3
+    }
+  }
+
+  hudMarkersBlink{
+
+    off{
+      hudMarkersBlink:b=no
+    }
+
+    on{
+      hudMarkersBlink:b=yes
+    }
+  }
+
+  hudRadar{
+
+    off{
+      hudRadar:b=no
+    }
+
+    on{
+      hudRadar:b=yes
+    }
+  }
+
+  hudDamageModel{
+
+    arcade{
+      hudDamageModel:b=yes
+      hudTankDamageModel:b=yes
+    }
+
+    realistic{
+      hudDamageModel:b=yes
+      hudTankDamageModel:b=yes
+    }
+
+    hardcore{
+      hudDamageModel:b=no
+      hudTankDamageModel:b=yes
+    }
+  }
+
+  hudDamageIndicator{
+
+    off{
+      hudDamageIndicator:b=no
+    }
+
+    on{
+      hudDamageIndicator:b=yes
+    }
+  }
+
+  hudTankDamageLog{
+
+    off{
+      hudTankDamageLog:b=no
+    }
+
+    on{
+      hudTankDamageLog:b=yes
+    }
+  }
+
+  hudLargeAwardMessages{
+
+    off{
+      hudLargeAwardMessages:b=no
+    }
+
+    on{
+      hudLargeAwardMessages:b=yes
+    }
+  }
+
+  hudWarnings{
+
+    off{
+      hudWarnings:b=no
+    }
+
+    on{
+      hudWarnings:b=yes
+    }
+  }
+
+  aircraftHelpers{
+
+    off{
+      matchTargetSpeed:b=no
+      autoAirBrake:b=no
+      allowSimpleJoy:b=no
+    }
+
+    on{
+      matchTargetSpeed:b=yes
+      autoAirBrake:b=no
+      allowSimpleJoy:b=yes
+    }
+  }
+
+  collectiveDetection{
+
+    off{
+      serverSideCollectiveDetection:b=no
+      instantDetection:b=yes
+      timeToLoseInstantDetection:r=5.0
+    }
+
+    on{
+      serverSideCollectiveDetection:b=yes
+      instantDetection:b=yes
+      timeToLoseInstantDetection:r=5.0
+    }
+  }
+
+  distDetection{
+
+    near{
+      distDetectionK:r=0.5
+      belowHorizonDetectionRangeDeg:p2=10.0, 65.0
+      belowHorizonDetectionMultiplier:p2=1.0, 3.2
+      nightTimeDetectionMultiplier:r=3.0
+      nearSunDetectionRangeDeg:p2=15.0, 0.0
+      nearSunDetectionMultiplier:p2=1.0, 4.0
+      boundingRadiusDetectionRange:p2=20.0, 150.0
+      boundingRadiusDetectionMultiplier:p2=1.0, 0.2
+      isSeparateFarAwayIndicatorsAllowed:b=yes
+      tankBoundingHeightDetectionRange:p2=1.8, 3.6
+      tankBoundingHeightDetectionMult:p2=1.6, 0.4
+    }
+
+    normal{
+      distDetectionK:r=0.95
+      belowHorizonDetectionRangeDeg:p2=10.0, 65.0
+      belowHorizonDetectionMultiplier:p2=1.0, 4.0
+      nightTimeDetectionMultiplier:r=3.0
+      nearSunDetectionRangeDeg:p2=15.0, 0.0
+      nearSunDetectionMultiplier:p2=1.0, 4.0
+      boundingRadiusDetectionRange:p2=20.0, 150.0
+      boundingRadiusDetectionMultiplier:p2=1.0, 0.2
+      isSeparateFarAwayIndicatorsAllowed:b=yes
+      tankBoundingHeightDetectionRange:p2=1.8, 3.6
+      tankBoundingHeightDetectionMult:p2=1.6, 0.4
+    }
+
+    far{
+      distDetectionK:r=1.3
+      belowHorizonDetectionRangeDeg:p2=10.0, 65.0
+      belowHorizonDetectionMultiplier:p2=1.0, 2.2
+      nightTimeDetectionMultiplier:r=3.0
+      nearSunDetectionRangeDeg:p2=15.0, 0.0
+      nearSunDetectionMultiplier:p2=1.0, 4.0
+      boundingRadiusDetectionRange:p2=20.0, 150.0
+      boundingRadiusDetectionMultiplier:p2=1.0, 0.2
+      isSeparateFarAwayIndicatorsAllowed:b=yes
+      tankBoundingHeightDetectionRange:p2=1.8, 3.6
+      tankBoundingHeightDetectionMult:p2=1.6, 0.4
+    }
+  }
+
+  allowControlHelpers{
+
+    all{
+      allowControlHelpers:i=0
+    }
+
+    instructor{
+      allowControlHelpers:i=1
+    }
+
+    realistic{
+      allowControlHelpers:i=2
+    }
+
+    off{
+      allowControlHelpers:i=3
+    }
+  }
+
+  forceInstructor{
+
+    off{
+      forceInstructor:b=no
+    }
+
+    on{
+      forceInstructor:b=yes
+    }
+  }
+
+  playerTurretDeviation{
+
+    arcade{
+      playerTurretDeviationAngle:r=0.02
+      playerTurretDeviationK:p2=0.5, 1.0
+    }
+
+    realistic{
+      playerTurretDeviationAngle:r=0.05
+      playerTurretDeviationK:p2=0.7, 1.0
+    }
+
+    simulator{
+      playerTurretDeviationAngle:r=0.175
+      playerTurretDeviationK:p2=0.35, 1.0
+    }
+  }
+
+  boostersFuel{
+
+    arcade{
+      boostersFuel:r=1.0
+    }
+
+    realistic{
+      boostersFuel:r=0.5
+    }
+
+    simulator{
+      boostersFuel:r=0.5
+    }
+  }
+
+  ctaCaptureMul{
+
+    arcade{
+      timeDelay:i=15
+      timeFromMissionStart:i=120
+      minPlayers:i=2
+      maxPlayers:i=12
+      maxMul:r=3.0
+    }
+
+    realistic{
+      timeDelay:i=15
+      timeFromMissionStart:i=120
+      minPlayers:i=2
+      maxPlayers:i=12
+      maxMul:r=3.0
+    }
+
+    simulator{
+      timeDelay:i=15
+      timeFromMissionStart:i=120
+      minPlayers:i=2
+      maxPlayers:i=12
+      maxMul:r=3.0
+    }
+  }
+
+  damageModel{
+
+    arcade{
+      armorPenetrationDispersionMult:r=1.0
+      armorPenetrationDispersionGauss:b=yes
+      brokenBarrelAllowShoot:b=yes
+      explodeBulletInMalfunctionBreech:b=no
+      brokenBarrelDispersionMult:r=15.0
+      brokenBarrelBulletSpeedMult:r=0.5
+      brokenBarrelPenetrationMult:r=0.5
+      brokenHorTurretDriveSpeed:r=4.0
+      brokenHorTurretDriveJammedTime:r=3.0
+      brokenVerTurretDriveAngle:r=3.0
+      showDestroyedParts:b=no
+      gunFreqRange:p2=0.35, 0.03
+      misfireChance:p2=0.2, 0.5
+      misfireTime:p2=2.0, 4.0
+      maxMisfires:i=2
+      destroyAircraftWithRocketHit:b=no
+      brokenEngineRedynessMult:r=0.4
+      brokenEngineCooldownTimer:r=10.0
+      brokenTransmissionGearPenalty:r=0.5
+      brokenTransmissionCooldownTimer:r=10.0
+      bombShatterDamageScaleForAircraft:p3=1.0, 1.0, 1.0
+    }
+
+    realistic{
+      brokenBarrelAllowShoot:b=no
+      explodeBulletInMalfunctionBreech:b=yes
+      destroyAircraftWithRocketHit:b=no
+      showDestroyedParts:b=no
+      brokenHorTurretDriveSpeed:r=0.0
+      brokenVerTurretDriveAngle:r=0.0
+      bombShatterDamageScaleForAircraft:p3=0.5, 0.55, 0.6
+    }
+
+    simulator{
+      brokenBarrelAllowShoot:b=no
+      explodeBulletInMalfunctionBreech:b=yes
+      destroyAircraftWithRocketHit:b=no
+      showDestroyedParts:b=no
+      brokenHorTurretDriveSpeed:r=0.0
+      brokenVerTurretDriveAngle:r=0.0
+      bombShatterDamageScaleForAircraft:p3=0.5, 0.55, 0.6
+    }
+  }
+
+  bombAssaultFuseTimeOverride{
+
+    off{
+    }
+
+    on{
+      bombAssaultFuseTimeOverride:r=2.0
+    }
+  }
+}
+
+GrassSettingsPlanes{
+  distance_mul:r=1.0
+  distance_add:r=0.0
+  density_mul:r=1.0
+  density_add:r=0.0
+}
+
+GrassSettingsTanks{
+  distance_mul:r=0.4
+  distance_add:r=0.0
+  density_mul:r=0.45
+  density_add:r=0.1
+}
+
+lenseFlare{
+  lenseRadialColor:t="lense_color"
+  lenseDustTex:t="lense_dust"
+}
+
+dynamicMirror{
+  dynamicMirrorTexWidth:i=400
+  dynamicMirrorTexHeight:i=300
+}
+
+explosionPatch{
+  traceDist:r=10.0
+  radius:r=10.0
+  bias:r=0.1
+  tessellation:i=10
+  maxPatches:i=200
+  landVerticalBias:r=0.1
+}
+
+glassScratches{
+  texcoord_mul:r=10.0
+  radius_pow:r=45.0
+  mul:r=0.1
+}
+
+rocketHitEffect{
+  length:r=2.0
+  blur:r=0.005
+}
+
+airHitEffect{
+  minScale:r=1.0
+  maxScale:r=3.0
+  minDist:r=400.0
+  maxDist:r=1200.0
+}
+
+bulletHoles{
+  numHolesInTexture:i=16
+  radius:r=0.2
+  delta:r=0.5
+  softness:r=0.1
+}
+
+gyroSight{
+  size:r=0.1
+  sensitivity:r=0.005
+  distance:r=274.0
+  damping:r=0.92
+  limit:r=0.8
+}
+
+leavesWind{
+
+  rustling{
+    amp:r=0.8
+    pk:r=1.0
+    ik:r=0.0
+    dk:r=0.1
+  }
+
+  rocking{
+    amp:r=0.4
+    pk:r=1.0
+    ik:r=0.0
+    dk:r=0.1
+  }
+}
+
+randomGrass{
+  density:r=0.75
+  maxRadius:r=400.0
+  sowPerlinFreq:r=0.1
+  fadeDelta:r=100.0
+  lodFadeDelta:r=30.0
+  minLodDensity:r=0.2
+  blendToLandDelta:r=100.0
+  texSize:i=256
+  noise_first_rnd:r=23.1407
+  noise_first_val_mul:r=1.0
+  noise_first_val_add:r=0.0
+  noise_second_rnd:r=0.05
+  noise_second_val_mul:r=1.0
+  noise_second_val_add:r=0.0
+  directWindMul:r=1.0
+  noiseWindMul:r=1.0
+  windPerlinFreq:r=50000.0
+  directWindFreq:r=1.0
+  directWindModulationFreq:r=1.0
+  windWaveLength:r=100.0
+  windToColor:r=0.2
+  helicopterHorMul:r=2.0
+  helicopterVerMul:r=1.0
+  helicopterToDirectWindMul:r=2.0
+  helicopterFalloff:r=0.001
+}
+
+water{
+  objectReflectionDistortion:r=0.4
+  waterReflectionZFar:r=20000.0
+  heightmapTexSize:i=512
+  foamTexWidth:i=1024
+  foamTexHeight:i=1024
+  waterSplitDist0:r=1200.0
+  waterSplitDist1:r=12000.0
+  waveDisplacementDistance:p2=80.0, 120.0
+}
+
+shadows{
+  hangarShadowDist:r=160.0
+  hangarShadowStart:r=1.0
+  hangarPowWeight:r=0.9
+  hangarCascades:i=2
+  zExpansion:r=100.0
+  depthBlend:r=10000.0
+  depthBias:r=0.25
+  depthSlopeBias:r=0.7
+  depthConstBias:r=0.0
+  staticCascadeForcedRiExtraLod:i=-1
+
+  ultralow{
+    staticCascadeTexWidth:i=512
+    staticCascadeSlices:i=10
+    staticCascadeRegWidth:r=500.0
+    staticCascadeStarting:i=0
+  }
+
+  low{
+    cascadeWidth:i=600
+    splitsW:i=2
+    splitsH:i=1
+    cascadeDepth24bit:b=no
+    tpsShadowDist:r=70.0
+    tpsPowWeight:r=0.9991
+    cockpitShadowDist:r=65.0
+    cockpitPowWeight:r=0.95
+    tanksShadowDist:r=20.0
+    tanksPowWeight:r=0.4
+    anchorToWorldFrom:r=30.0
+    fadeOut:r=30.0
+    rotationMargin:r=0.1
+    staticCascadeTexWidth:i=512
+    staticCascadeSlices:i=10
+    staticCascadeRegWidth:r=500.0
+    staticCascadeStarting:i=0
+  }
+
+  medium{
+    cascadeWidth:i=768
+    splitsW:i=2
+    splitsH:i=2
+    cascadeDepth24bit:b=no
+    tpsShadowDist:r=340.0
+    tpsPowWeight:r=0.92
+    cockpitShadowDist:r=300.0
+    cockpitPowWeight:r=0.992
+    tanksShadowDist:r=125.0
+    tanksPowWeight:r=0.8
+    anchorToWorldFrom:r=40.0
+    fadeOut:r=80.0
+    rotationMargin:r=0.1
+    staticCascadeTexWidth:i=1024
+    staticCascadeSlices:i=16
+    staticCascadeRegWidth:r=750.0
+    staticCascadeStarting:i=3
+  }
+
+  ps4shadows{
+    cascadeWidth:i=1024
+    splitsW:i=2
+    splitsH:i=2
+    cascadeDepth24bit:b=no
+    tpsShadowDist:r=340.0
+    tpsPowWeight:r=0.92
+    cockpitShadowDist:r=300.0
+    cockpitPowWeight:r=0.992
+    tanksShadowDist:r=100.0
+    tanksPowWeight:r=0.7
+    anchorToWorldFrom:r=40.0
+    fadeOut:r=80.0
+    rotationMargin:r=0.1
+    staticCascadeTexWidth:i=1024
+    staticCascadeSlices:i=16
+    staticCascadeRegWidth:r=750.0
+    staticCascadeStarting:i=3
+  }
+
+  high{
+    cascadeWidth:i=1024
+    splitsW:i=2
+    splitsH:i=2
+    cascadeDepth24bit:b=no
+    tpsShadowDist:r=810.0
+    tpsPowWeight:r=0.91
+    cockpitShadowDist:r=600.0
+    cockpitPowWeight:r=0.997
+    tanksShadowDist:r=200.0
+    tanksPowWeight:r=0.96
+    anchorToWorldFrom:r=32.0
+    fadeOut:r=100.0
+    rotationMargin:r=0.1
+    staticCascadeTexWidth:i=2048
+    staticCascadeSlices:i=20
+    staticCascadeRegWidth:r=1000.0
+    staticCascadeStarting:i=3
+  }
+
+  ultrahigh{
+    cascadeWidth:i=1200
+    splitsW:i=3
+    splitsH:i=2
+    cascadeDepth24bit:b=no
+    tpsShadowDist:r=1800.0
+    tpsPowWeight:r=0.99
+    cockpitShadowDist:r=1500.0
+    cockpitPowWeight:r=0.9991
+    tanksShadowDist:r=500.0
+    tanksPowWeight:r=0.97
+    anchorToWorldFrom:r=35.0
+    fadeOut:r=250.0
+    rotationMargin:r=0.1
+    vsmSize:i=2048
+    staticCascadeTexWidth:i=4096
+    staticCascadeSlices:i=20
+    staticCascadeRegWidth:r=1250.0
+    staticCascadeStarting:i=4
+  }
+}
+
+ambShadows{
+  shadowRad:r=1.1
+  density:r=0.35
+  distance:r=300.0
+  bSphMult:r=0.2
+  frontMult:r=3.4
+  frontOffset:r=-0.3
+  sideMult:r=0.5
+  heightOffset:p2=0.1, 0.5
+  boxFrontMult:r=0.7
+  boxSideMult:r=0.5
+}
+
+targeting{
+  targetingSpaceAngle:r=100.0
+  targetingMaxDistance:r=4999.0
+  targetingLooseLockDistance:r=5010.0
+  targetingModeByClass:b=no
+  angleMaxCameraTarget:r=60.0
+  targetingMaxDistanceObjectives:r=5000.0
+  targetingLooseLockDistanceObjectives:r=5000.0
+  autoSwitchTarget:b=no
+  targetingFovScale:r=0.9
+  targetingFovScaleTurret:r=0.5
+  targetingFovScaleTankToAirplane:r=0.7
+  targetingNearDist:r=150.0
+  targetingNearDistK:r=0.1
+  targetingDistancePower:r=2.0
+  pointsInactive:r=100.0
+  pointsObjecive:r=0.0
+  pointsAlive:r=25.0
+  pointsWorthWeight:r=4.0
+  pointsHorAngleWeight:r=1.67
+  pointsVertAngleWeight:r=3.33
+  pointsVertAnglePenalty:r=2.0
+  pointsDistWeight:r=0.033
+  bombSpeedAdjustDir:r=-10.0
+  bombSpeedAdjustUp:r=-30.0
+  rocketExplosionMaxDist:r=20.0
+
+  targeting_list{
+    timeIdle:r=5.0
+    timeIdleTarget:r=1.5
+  }
+}
+
+group_rating{
+  w0_Lead00:r=4.5
+  w0_WMan00:r=2.5
+  w0_Lead01:r=3.5
+  w0_WMan01:r=1.5
+  w1_Lead00:r=4.0
+  w1_WMan00:r=2.0
+  w1_Lead01:r=3.0
+  w1_WMan01:r=1.0
+  w2_Lead00:r=4.0
+  w2_WMan00:r=2.0
+  w2_Lead01:r=3.0
+  w2_WMan01:r=1.0
+  w3_Lead00:r=4.0
+  w3_WMan00:r=2.0
+  w3_Lead01:r=3.0
+  w3_WMan01:r=1.0
+}
+
+game_sim{
+  stepTime:r=0.2
+  missionTimeOut:r=1800.0
+}
+
+overload{
+  useGOverload:b=yes
+}
+
+common{
+  explosionWreckageSpeed:r=24.0
+  controlsIdleTime:r=10000.0
+  rumble:b=yes
+  wind:b=yes
+  spectatorPointTime:r=15.0
+  wepFovIncrease:r=10.0
+  returnToMapBorder:r=5000.0
+  forceKillTime:r=10.0
+  forceKillAltitude:r=200.0
+  forceKillPlayerDist:r=2000.0
+  forceKillDmgLevel:r=0.5
+  aircraftBurnTime:r=90.0
+  aircraftBurnDeviation:r=60.0
+  timeToReplayCameraDebriefing:r=260.0
+  timeTacticalControlAfterDeath:r=-1.0
+  timeToFailMissionAfterDeath:r=63.0
+  timeToRespawnAfterDeath:r=999999.0
+  timeToSuccessDebriefingAfterDeath:r=15.0
+  overload_redout_strength:r=0.85
+  overload_blackout_strength:r=1.3
+  overload_redout_limit:r=0.68
+  overload_blackout_limit:r=0.7
+  searchLightPostFxColor:c=255, 255, 255, 255
+  forceWepSpeedMaxHeight:r=4500.0
+  forceWepSpeedMaxSpeed:r=220.0
+  forceWepSpeedApproachViscosity:r=2.5
+  timeToBeAbleToShootLockAgain:r=2.0
+  timeForEmergencyLanding:r=1.0
+  timeToBailOut:r=4.1
+  timeBailOutInterval:r=1.5
+  timeBailOutIntervalDeviation:r=0.5
+  timeToBailOutDeviation:r=1.0
+  paratrooperMinHeight:r=300.0
+  dmgBailOutNotAirport:r=0.2
+  shakeKoeffDamage:r=0.06
+  minGroundSpeedForGears:r=80.0
+  minGroundSpeedForBombs:r=140.0
+  minGroundHeightForBombs:r=40.0
+  radioCooldownTime:r=1.0
+  partDamageTresholdForRadio:r=0.7
+  radioIdleTime:r=60.0
+  radioGoodAttackCooldownTime:r=300.0
+  numArcadeRockets:i=100
+  numArcadeBombs:i=100
+  TacticalControl:b=yes
+  boostFactorMultiplier:r=2.2
+  guiJoystickRelativeDeadzone:r=0.75
+  initialThrottle:r=1.0
+  autoThrottleIdle:r=3.0
+  autoThrottleValue:r=1.0
+  autoThrottleViscosity:r=0.6
+  autoThrottleHeight:r=80.0
+  autoThrottleAirfieldDistance:r=1000.0
+  autoThrottleMinSpeedFactor:r=1.5
+  autoThrottleAccelerationG:r=0.5
+  arcadeBombMinHeightMultiplier:r=3.0
+  arcadeBombRadiusMultiplier:r=3.0
+  arcadeRocketsMinDistance:r=200.0
+  arcadeRocketsMaxCrosshairRadius:r=40.0
+  arcadeEngineSmokeRelativeHealth:r=0.75
+  arcadePlayerHpMultiplier:r=1.0
+  reloadingCooldownTime:r=10.0
+  isUnlimitedBombsOnArcade:b=yes
+  isUnlimitedMissilesOnArcade:b=yes
+  resqueRadius:r=200.0
+  resqueTime:r=0.3
+  burnArmorThreshold:r=50.0
+  burnRadiusMultHV:r=1.7
+}
+
+gameLimits{
+  maxAircrafts:i=255
+  maxGroundModels:i=1024
+  maxInfantryTroops:i=255
+  maxMissionAIModels:i=40
+}
+
+guiLimits{
+  main_gui_quads:i=100000
+  main_gui_extra:i=1024
+  main_hud_quads:i=8192
+  main_hud_extra:i=2048
+  imm_gui_quads:i=8192
+  imm_hud_quads:i=8192
+  par_hud_quads:i=8192
+  par_hud_extra:i=2048
+  par_gui_quads:i=4096
+}
+
+clouds{
+  mapTexWidth:i=256
+  overlapScale:r=0.5
+  opacityScale:r=3.0
+  shadowTexWidth:i=256
+  shadowOpacity:r=1.0
+}
+
+sky{
+  texDiv:r=2.0
+}
+
+stars{
+  starSize:r=0.002
+  tex:t="stars"
+  numTextures:i=4
+}
+
+moon{
+  tex:t="moon"
+  size:r=0.04
+  color:c=100, 100, 100, 255
+}
+
+vignette{
+  multiplier:r=0.5
+  start:p2=0.6, 0.55
+  size:p2=0.5, 0.5
+}
+
+splatter{
+  screenTex:t="splatter"
+  glassTex:t="splatter"
+  levelIncreaseSpeed:r=0.2
+  opacityIncreaseSpeed:r=0.5
+  levelDecreaseSpeed:r=0.1
+  opacityDecreaseSpeed:r=0.2
+  opacityDecreaseAfterLevel:r=0.8
+  distance:r=600.0
+  angleDeg:r=2.0
+  sourceMinSpeed:r=10.0
+}
+
+dust{
+  tex:t="dust"
+  totalNumTextures:i=4
+
+  ground{
+    onProbability:r=0.0
+    offProbability:r=0.2
+    maxHeight:r=300.0
+    numParticles:i=80
+    boxSize:r=50.0
+    particleSize:r=2.0
+    startTexture:i=2
+    numTextures:i=2
+  }
+
+  clouds{
+    numParticles:i=75
+    boxSize:r=120.0
+    particleSize:r=27.0
+    startTexture:i=0
+    numTextures:i=2
+  }
+}
+
+dustRain{
+  enabled:b=no
+  minHeight:r=0.0
+  maxHeight:r=120.0
+  minSpeed:r=30.0
+  maxSpeed:r=100.0
+  alphaFreq:r=50000.0
+  alphaFadeSpeedBegin:r=50.0
+  alphaFadeSpeedEnd:r=200.0
+  length:r=0.7
+  speed:r=0.0
+  width:r=0.014
+  density:r=0.6
+  wind:r=0.5
+  alpha:r=0.3
+  lighting:c=255, 255, 255, 255
+}
+
+waterTail{
+  maskTex:t="water_tail_mask"
+  bumpTex:t="water_tail_n"
+  foamTex:t="water_tail_foam"
+  colorTex:t="underocean"
+  tailWidth:r=200.0
+  tailLength:r=480.0
+  tailPeriod:r=50.0
+  centerWidth:r=56.0
+  sideWidth:r=38.0
+}
+
+fx{
+  lowResDist:r=10000.0
+  hiResDist:r=10200.0
+}
+
+loading{
+  numTips:i=21
+  splashPos:p2=640.0, 280.0
+  textPos:p2=640.0, 606.0
+  animPos:p2=640.0, 480.0
+  textColor:c=255, 255, 255, 255
+  labelPos:p2=640.0, 520.0
+  fadeTime:p2=0.5, 0.5
+  maxCharsLine:i=100
+  guiStrPoolSize:i=131072
+  font:t="small_text"
+  bgd:t="ui/title.ddsx"
+  animated:t="ui/loadingAnim.ddsx"
+  animatedBgd:t="ui/loadingAnim_cock.ddsx"
+  legalPos:p2=640.0, 550.0
+  legal:t="ui/legal.ddsx"
+}
+
+searchlight{
+  blindnessPow:r=50.0
+}
+
+motion_blur{
+  enabled:b=yes
+  accumulationWidth:i=512
+  accumulationHeight:i=288
+  velocityMultiplier:r=0.02
+  maxVelocity:r=0.05
+  alphaMulOnApply:r=4.0
+  overscanMul:r=0.01
+  numHistoryFrames:i=5
+  forwardBlur:r=0.5
+  velocityAlphaMul:r=16.0
+  velocityAlphaAdd:r=-1.9
+}
+
+haze{
+  offsetScale:r=0.0135
+  distortionScale:r=0.1
+  noiseScale:r=0.135
+  offsetTexWidth:i=512
+  offsetTexHeight:i=512
+  luminanceScale:p2=4.0, 0.1
+}
+
+hangar{
+  shadow_p1:p2=-24.5, -19.8
+  shadow_p2:p2=15.5, 20.2
+  decalScaleRange:p2=0.1, 3.0
+}
+
+guiSettings{
+
+  KeyRepeater{
+    useKeyRepeater:b=yes
+    keyRepeaterRepeatKeyboard:b=no
+    keyRepeaterRepeatJoystick:b=yes
+    repeatDelay:i=5
+    repeatFrequency:i=2
+
+    Accelerator{
+      repeatDelay:i=100
+      buildUpTime:i=100
+      repeatFinalFrequency:i=10
+    }
+  }
+}
+
+floodFilter{
+  duplicatedTime:r=3.0
+  chatMessagesTime:r=0.5
+  voiceMessagesTime:r=1.0
+  messagesPerTime1:i=5
+  messagesTime1:r=5.0
+  messagesPerTime2:i=15
+  messagesTime2:r=30.0
+}
+
+joystickSettings{
+  relativeAxisTimeThreshold:r=0.25
+  relativeAxisStepViscosity:r=0.2
+  mouseAimJoystickSensitivity:r=10.0
+  mouseAimGmJoystickSensitivity:r=20.0
+  tankCameraYLimits:p2=-85.0, 85.0
+  tankCameraVRLimits:p2=-45.0, 34.0
+  tankCameraVRLimitDelay:r=3.0
+  groundZoomSwitchDeltaMax:r=5.0
+  groundZoomSwitchValueThreshold:r=10.0
+  groundZoomSwitchValuePerSecond:r=5.0
+  controlsThresholdToCenterMouseAim:r=0.1
+  mouseAimInCockpitMaxAngles:p2=55.0, 35.0
+  tpsGroundVertClampAngle:r=18.0
+}
+
+mp_respawn_time{
+  arcade:i=15
+  realistic:i=15
+  hardcore:i=15
+}
+
+detectDefaults{
+  timeToDetect:r=3.0
+  instantDetectDistance:r=600.0
+  detectDistance:r=5000.0
+  timeToLoseDetection:r=15.0
+  noPenaltyDetectionAngle:r=10.0
+  maxDetectionAngle:r=80.0
+  angleMult:r=15.0
+  posUpOffsetForTanks:r=4.0
+  distanceMultForMovingTanks:r=1.1
+  distanceMultForUnmaskingItself:r=2.5
+  distanceMultForTargetingView:r=2.0
+  distanceMultForBinocularView:r=1.4
+  angleForTargetingView:r=10.0
+  angleForBinocularView:r=10.0
+  enableMultipointVisibilityForShips:b=yes
+  closeItemsUpdatePerFrame:i=8
+  mediumItemsUpdatePerFrame:i=24
+  mediumItemsUpdatePerFrameWithoutMarkers:i=96
+  farItemsUpdatePerFrame:i=16
+  distanceForMultiTrace:r=500.0
+  multiTraceCount:i=2
+  multiTraceCountWithoutMarkers:i=4
+  predictionTime:r=0.5
+}
+
+antialiasing{
+  fxaaQuality:i=29
+  fxaaQualitySubpix:r=0.5
+  fxaaQualityEdgeThreshold:r=0.166
+  fxaaQualityEdgeThresholdMin:r=0.0833
+}
+
+rendinstShadows{
+  clipmapTexSize:i=128
+  blurRadiusTm:r=3.0
+  blurRadiusPos:r=0.5
+  intensity:r=1.0
+  globalTexSize:i=256
+}
+
+bombReflection{
+  timeLimit:r=0.5
+  minAngle:r=0.0
+  maxAngle:r=18.0
+  minSpeed:r=50.0
+  maxSpeed:r=150.0
+  minAltitude:r=0.0
+  maxAltitude:r=45.0
+  speedMul:r=0.7
+  drownSpeedK:r=0.05
+  reflectionMaxSpeed:r=10.0
+}
+
+news{
+  host:t="yunetwork3.yuplay.com"
+}
+
+fmControls{
+  aileronTau:r=0.1
+  aileronDv:r=0.025
+  rudderTau:r=0.55
+  rudderDv:r=0.025
+  elevatorTau:r=0.1
+  elevatorDv:r=0.025
+  AlphaAileronMin:r=0.1
+  AlphaRudderMin:r=0.1
+  AlphaElevatorMin:r=0.2
+  AllowStrongControlsRestrictions:b=yes
+  forceAdvancedEngineThermodynamics:b=yes
+  stickPusher:b=no
+}
+
+tankControls{
+  manualGearHelperMode:i=3
+
+  ps4{
+    manualGearHelperMode:i=3
+  }
+}
+
+preloadGuiTex{
+  tex:t="ui/decor2"
+  tex:t="ui/decor3"
+  tex:t="ui/map_back"
+  tex:t="ui/slidescreen"
+}
+
+groundProximity{
+  landedHeight:r=5.0
+  landedSpeed:r=10.0
+  drivingHeight:r=7.0
+  drivingSpeed:r=180.0
+  nearGroundHeight:r=100.0
+  nearGroundSpeed:r=200.0
+  flyingMaximumHeight:r=200.0
+  flyingMaximumSpeed:r=300.0
+}
+
+tankPartGeneralizedNames{
+
+  engine{
+    my:t="tank_engine"
+    enemy:t="tank_engine"
+  }
+
+  transmission{
+    my:t="tank_transmission"
+    enemy:t="tank_transmission"
+  }
+
+  fuel_tank{
+    my:t="tank_fuel_tank"
+    enemy:t="tank_fuel_tank"
+  }
+
+  fuel_tank_01{
+    my:t="tank_fuel_tank"
+    enemy:t="tank_fuel_tank"
+  }
+
+  fuel_tank_02{
+    my:t="tank_fuel_tank"
+    enemy:t="tank_fuel_tank"
+  }
+
+  fuel_tank_03{
+    my:t="tank_fuel_tank"
+    enemy:t="tank_fuel_tank"
+  }
+
+  fuel_tank_04{
+    my:t="tank_fuel_tank"
+    enemy:t="tank_fuel_tank"
+  }
+
+  fuel_tank_05{
+    my:t="tank_fuel_tank"
+    enemy:t="tank_fuel_tank"
+  }
+
+  fuel_tank_r_01{
+    my:t="tank_fuel_tank"
+    enemy:t="tank_fuel_tank"
+  }
+
+  fuel_tank_r_02{
+    my:t="tank_fuel_tank"
+    enemy:t="tank_fuel_tank"
+  }
+
+  fuel_tank_r_03{
+    my:t="tank_fuel_tank"
+    enemy:t="tank_fuel_tank"
+  }
+
+  fuel_tank_r_04{
+    my:t="tank_fuel_tank"
+    enemy:t="tank_fuel_tank"
+  }
+
+  fuel_tank_r_05{
+    my:t="tank_fuel_tank"
+    enemy:t="tank_fuel_tank"
+  }
+
+  fuel_tank_l_01{
+    my:t="tank_fuel_tank"
+    enemy:t="tank_fuel_tank"
+  }
+
+  fuel_tank_l_02{
+    my:t="tank_fuel_tank"
+    enemy:t="tank_fuel_tank"
+  }
+
+  fuel_tank_l_03{
+    my:t="tank_fuel_tank"
+    enemy:t="tank_fuel_tank"
+  }
+
+  fuel_tank_l_04{
+    my:t="tank_fuel_tank"
+    enemy:t="tank_fuel_tank"
+  }
+
+  fuel_tank_l_05{
+    my:t="tank_fuel_tank"
+    enemy:t="tank_fuel_tank"
+  }
+
+  radiator{
+    my:t="tank_radiator"
+    enemy:t="tank_radiator"
+  }
+
+  radiator_l{
+    my:t="tank_radiator"
+    enemy:t="tank_radiator"
+  }
+
+  radiator_r{
+    my:t="tank_radiator"
+    enemy:t="tank_radiator"
+  }
+
+  break_line{
+  }
+
+  commander{
+    my:t="tank_commander"
+    enemy:t="tank_commander"
+  }
+
+  loader{
+    my:t="tank_loader"
+    enemy:t="tank_loader"
+  }
+
+  loader_01{
+    my:t="tank_loader"
+    enemy:t="tank_loader"
+  }
+
+  loader_02{
+    my:t="tank_loader"
+    enemy:t="tank_loader"
+  }
+
+  gunner{
+    my:t="tank_gunner"
+    enemy:t="tank_gunner"
+  }
+
+  gunner_01{
+    my:t="tank_gunner"
+    enemy:t="tank_gunner"
+  }
+
+  gunner_02{
+    my:t="tank_gunner"
+    enemy:t="tank_gunner"
+  }
+
+  driver{
+    my:t="tank_driver"
+    enemy:t="tank_driver"
+  }
+
+  machine_gunner{
+    my:t="tank_machine_gunner"
+    enemy:t="tank_machine_gunner"
+  }
+
+  machine_gunner_01{
+    my:t="tank_machine_gunner"
+    enemy:t="tank_machine_gunner"
+  }
+
+  machine_gunner_02{
+    my:t="tank_machine_gunner"
+    enemy:t="tank_machine_gunner"
+  }
+
+  break_line{
+  }
+
+  track_l{
+    my:t="tank_track"
+    enemy:t="tank_track"
+  }
+
+  track_r{
+    my:t="tank_track"
+    enemy:t="tank_track"
+  }
+
+  drive_turret_v{
+    my:t="tank_drive_turret_v"
+    enemy:t="tank_drive_turret_v"
+  }
+
+  drive_turret_h{
+    my:t="tank_drive_turret_h"
+    enemy:t="tank_drive_turret_h"
+  }
+
+  gun_barrel{
+    my:t="tank_gun_barrel"
+    enemy:t="tank_gun_barrel"
+  }
+
+  cannon_breech{
+    my:t="tank_cannon_breech"
+    enemy:t="tank_cannon_breech"
+  }
+
+  wheel_r_01{
+    my:t="tank_suspension"
+    enemy:t="tank_suspension"
+  }
+
+  wheel_r_02{
+    my:t="tank_suspension"
+    enemy:t="tank_suspension"
+  }
+
+  wheel_r_03{
+    my:t="tank_suspension"
+    enemy:t="tank_suspension"
+  }
+
+  wheel_r_04{
+    my:t="tank_suspension"
+    enemy:t="tank_suspension"
+  }
+
+  wheel_r_05{
+    my:t="tank_suspension"
+    enemy:t="tank_suspension"
+  }
+
+  wheel_r_05{
+    my:t="tank_suspension"
+    enemy:t="tank_suspension"
+  }
+
+  wheel_r_06{
+    my:t="tank_suspension"
+    enemy:t="tank_suspension"
+  }
+
+  wheel_r_07{
+    my:t="tank_suspension"
+    enemy:t="tank_suspension"
+  }
+
+  wheel_r_08{
+    my:t="tank_suspension"
+    enemy:t="tank_suspension"
+  }
+
+  wheel_r_09{
+    my:t="tank_suspension"
+    enemy:t="tank_suspension"
+  }
+
+  wheel_l_01{
+    my:t="tank_suspension"
+    enemy:t="tank_suspension"
+  }
+
+  wheel_l_02{
+    my:t="tank_suspension"
+    enemy:t="tank_suspension"
+  }
+
+  wheel_l_03{
+    my:t="tank_suspension"
+    enemy:t="tank_suspension"
+  }
+
+  wheel_l_04{
+    my:t="tank_suspension"
+    enemy:t="tank_suspension"
+  }
+
+  wheel_l_05{
+    my:t="tank_suspension"
+    enemy:t="tank_suspension"
+  }
+
+  wheel_l_06{
+    my:t="tank_suspension"
+    enemy:t="tank_suspension"
+  }
+
+  wheel_l_07{
+    my:t="tank_suspension"
+    enemy:t="tank_suspension"
+  }
+
+  wheel_l_08{
+    my:t="tank_suspension"
+    enemy:t="tank_suspension"
+  }
+
+  wheel_l_09{
+    my:t="tank_suspension"
+    enemy:t="tank_suspension"
+  }
+
+  wheel_r_drive{
+    my:t="tank_suspension"
+    enemy:t="tank_suspension"
+  }
+
+  wheel_l_drive{
+    my:t="tank_suspension"
+    enemy:t="tank_suspension"
+  }
+
+  wheel_r_front{
+    my:t="tank_suspension"
+    enemy:t="tank_suspension"
+  }
+
+  wheel_l_front{
+    my:t="tank_suspension"
+    enemy:t="tank_suspension"
+  }
+
+  ammo_turret{
+    my:t="tank_ammo"
+    enemy:t="tank_ammo"
+  }
+
+  ammo_turret_01{
+    my:t="tank_ammo"
+    enemy:t="tank_ammo"
+  }
+
+  ammo_turret_02{
+    my:t="tank_ammo"
+    enemy:t="tank_ammo"
+  }
+
+  ammo_turret_03{
+    my:t="tank_ammo"
+    enemy:t="tank_ammo"
+  }
+
+  ammo_turret_04{
+    my:t="tank_ammo"
+    enemy:t="tank_ammo"
+  }
+
+  ammo_turret_05{
+    my:t="tank_ammo"
+    enemy:t="tank_ammo"
+  }
+
+  ammo_body{
+    my:t="tank_ammo"
+    enemy:t="tank_ammo"
+  }
+
+  ammo_body_01{
+    my:t="tank_ammo"
+    enemy:t="tank_ammo"
+  }
+
+  ammo_body_02{
+    my:t="tank_ammo"
+    enemy:t="tank_ammo"
+  }
+
+  ammo_body_03{
+    my:t="tank_ammo"
+    enemy:t="tank_ammo"
+  }
+
+  ammo_body_04{
+    my:t="tank_ammo"
+    enemy:t="tank_ammo"
+  }
+
+  ammo_body_05{
+    my:t="tank_ammo"
+    enemy:t="tank_ammo"
+  }
+
+  ammo_body_06{
+    my:t="tank_ammo"
+    enemy:t="tank_ammo"
+  }
+
+  ammo_body_07{
+    my:t="tank_ammo"
+    enemy:t="tank_ammo"
+  }
+
+  ammo_body_08{
+    my:t="tank_ammo"
+    enemy:t="tank_ammo"
+  }
+
+  ammo_body_09{
+    my:t="tank_ammo"
+    enemy:t="tank_ammo"
+  }
+
+  ammo_body_l_01{
+    my:t="tank_ammo"
+    enemy:t="tank_ammo"
+  }
+
+  ammo_body_l_02{
+    my:t="tank_ammo"
+    enemy:t="tank_ammo"
+  }
+
+  ammo_body_l_03{
+    my:t="tank_ammo"
+    enemy:t="tank_ammo"
+  }
+
+  ammo_body_l_04{
+    my:t="tank_ammo"
+    enemy:t="tank_ammo"
+  }
+
+  ammo_body_l_05{
+    my:t="tank_ammo"
+    enemy:t="tank_ammo"
+  }
+
+  ammo_body_r_01{
+    my:t="tank_ammo"
+    enemy:t="tank_ammo"
+  }
+
+  ammo_body_r_02{
+    my:t="tank_ammo"
+    enemy:t="tank_ammo"
+  }
+
+  ammo_body_r_03{
+    my:t="tank_ammo"
+    enemy:t="tank_ammo"
+  }
+
+  ammo_body_r_04{
+    my:t="tank_ammo"
+    enemy:t="tank_ammo"
+  }
+
+  ammo_body_r_05{
+    my:t="tank_ammo"
+    enemy:t="tank_ammo"
+  }
+
+  emtr_fire_engine{
+    my:t="tank_engine_fire"
+    enemy:t=""
+  }
+}
+
+shipPartGeneralizedNames{
+
+  engine{
+    my:t="tank_engine"
+    enemy:t="tank_engine"
+  }
+
+  engine_l{
+    my:t="tank_engine"
+    enemy:t="tank_engine"
+  }
+
+  engine_r{
+    my:t="tank_engine"
+    enemy:t="tank_engine"
+  }
+
+  engine_01{
+    my:t="tank_engine"
+    enemy:t="tank_engine"
+  }
+
+  engine_02{
+    my:t="tank_engine"
+    enemy:t="tank_engine"
+  }
+
+  engine_03{
+    my:t="tank_engine"
+    enemy:t="tank_engine"
+  }
+
+  engine_04{
+    my:t="tank_engine"
+    enemy:t="tank_engine"
+  }
+
+  engine_l_01{
+    my:t="tank_engine"
+    enemy:t="tank_engine"
+  }
+
+  engine_l_02{
+    my:t="tank_engine"
+    enemy:t="tank_engine"
+  }
+
+  engine_r_01{
+    my:t="tank_engine"
+    enemy:t="tank_engine"
+  }
+
+  engine_r_02{
+    my:t="tank_engine"
+    enemy:t="tank_engine"
+  }
+
+  transmission{
+    my:t="tank_transmission"
+    enemy:t="tank_transmission"
+  }
+
+  transmission_01{
+    my:t="tank_transmission"
+    enemy:t="tank_transmission"
+  }
+
+  transmission_02{
+    my:t="tank_transmission"
+    enemy:t="tank_transmission"
+  }
+
+  transmission_03{
+    my:t="tank_transmission"
+    enemy:t="tank_transmission"
+  }
+
+  transmission_04{
+    my:t="tank_transmission"
+    enemy:t="tank_transmission"
+  }
+
+  fuel_tank{
+    my:t="tank_fuel_tank"
+    enemy:t="tank_fuel_tank"
+  }
+
+  fuel_tank_01{
+    my:t="tank_fuel_tank"
+    enemy:t="tank_fuel_tank"
+  }
+
+  fuel_tank_02{
+    my:t="tank_fuel_tank"
+    enemy:t="tank_fuel_tank"
+  }
+
+  fuel_tank_03{
+    my:t="tank_fuel_tank"
+    enemy:t="tank_fuel_tank"
+  }
+
+  fuel_tank_04{
+    my:t="tank_fuel_tank"
+    enemy:t="tank_fuel_tank"
+  }
+
+  fuel_tank_05{
+    my:t="tank_fuel_tank"
+    enemy:t="tank_fuel_tank"
+  }
+
+  fuel_tank_r_01{
+    my:t="tank_fuel_tank"
+    enemy:t="tank_fuel_tank"
+  }
+
+  fuel_tank_r_02{
+    my:t="tank_fuel_tank"
+    enemy:t="tank_fuel_tank"
+  }
+
+  fuel_tank_r_03{
+    my:t="tank_fuel_tank"
+    enemy:t="tank_fuel_tank"
+  }
+
+  fuel_tank_r_04{
+    my:t="tank_fuel_tank"
+    enemy:t="tank_fuel_tank"
+  }
+
+  fuel_tank_r_05{
+    my:t="tank_fuel_tank"
+    enemy:t="tank_fuel_tank"
+  }
+
+  fuel_tank_l_01{
+    my:t="tank_fuel_tank"
+    enemy:t="tank_fuel_tank"
+  }
+
+  fuel_tank_l_02{
+    my:t="tank_fuel_tank"
+    enemy:t="tank_fuel_tank"
+  }
+
+  fuel_tank_l_03{
+    my:t="tank_fuel_tank"
+    enemy:t="tank_fuel_tank"
+  }
+
+  fuel_tank_l_04{
+    my:t="tank_fuel_tank"
+    enemy:t="tank_fuel_tank"
+  }
+
+  fuel_tank_l_05{
+    my:t="tank_fuel_tank"
+    enemy:t="tank_fuel_tank"
+  }
+
+  radiator{
+    my:t="tank_radiator"
+    enemy:t="tank_radiator"
+  }
+
+  radiator_l{
+    my:t="tank_radiator"
+    enemy:t="tank_radiator"
+  }
+
+  radiator_r{
+    my:t="tank_radiator"
+    enemy:t="tank_radiator"
+  }
+
+  pump{
+    my:t="ship_pump"
+    enemy:t="ship_pump"
+  }
+
+  rudder_01{
+    my:t="ship_rudder"
+    enemy:t="ship_rudder"
+  }
+
+  rudder_02{
+    my:t="ship_rudder"
+    enemy:t="ship_rudder"
+  }
+
+  rudder_03{
+    my:t="ship_rudder"
+    enemy:t="ship_rudder"
+  }
+
+  rudder_04{
+    my:t="ship_rudder"
+    enemy:t="ship_rudder"
+  }
+
+  rudder_l{
+    my:t="ship_rudder"
+    enemy:t="ship_rudder"
+  }
+
+  rudder_r{
+    my:t="ship_rudder"
+    enemy:t="ship_rudder"
+  }
+
+  break_line{
+  }
+
+  commander{
+    my:t="tank_commander"
+    enemy:t="tank_commander"
+  }
+
+  loader{
+    my:t="tank_loader"
+    enemy:t="tank_loader"
+  }
+
+  loader_01{
+    my:t="tank_loader"
+    enemy:t="tank_loader"
+  }
+
+  loader_02{
+    my:t="tank_loader"
+    enemy:t="tank_loader"
+  }
+
+  loader_03{
+    my:t="tank_loader"
+    enemy:t="tank_loader"
+  }
+
+  loader_04{
+    my:t="tank_loader"
+    enemy:t="tank_loader"
+  }
+
+  gunner{
+    my:t="tank_gunner"
+    enemy:t="tank_gunner"
+  }
+
+  gunner_01{
+    my:t="tank_gunner"
+    enemy:t="tank_gunner"
+  }
+
+  gunner_02{
+    my:t="tank_gunner"
+    enemy:t="tank_gunner"
+  }
+
+  gunner_03{
+    my:t="tank_gunner"
+    enemy:t="tank_gunner"
+  }
+
+  gunner_04{
+    my:t="tank_gunner"
+    enemy:t="tank_gunner"
+  }
+
+  driver{
+    my:t="ship_driver"
+    enemy:t="ship_driver"
+  }
+
+  machine_gunner{
+    my:t="tank_machine_gunner"
+    enemy:t="tank_machine_gunner"
+  }
+
+  machine_gunner_01{
+    my:t="tank_machine_gunner"
+    enemy:t="tank_machine_gunner"
+  }
+
+  machine_gunner_02{
+    my:t="tank_machine_gunner"
+    enemy:t="tank_machine_gunner"
+  }
+
+  operator{
+    my:t="ship_operator"
+    enemy:t="ship_operator"
+  }
+
+  motorist{
+    my:t="ship_motorist"
+    enemy:t="ship_motorist"
+  }
+
+  era{
+    my:t="ship_motorist"
+    enemy:t="ship_motorist"
+  }
+
+  era_01{
+    my:t="ship_motorist"
+    enemy:t="ship_motorist"
+  }
+
+  era_02{
+    my:t="ship_motorist"
+    enemy:t="ship_motorist"
+  }
+
+  sailor_01{
+    my:t="ship_sailor"
+    enemy:t="ship_sailor"
+  }
+
+  sailor_02{
+    my:t="ship_sailor"
+    enemy:t="ship_sailor"
+  }
+
+  sailor_03{
+    my:t="ship_sailor"
+    enemy:t="ship_sailor"
+  }
+
+  sailor_04{
+    my:t="ship_sailor"
+    enemy:t="ship_sailor"
+  }
+
+  sailor_05{
+    my:t="ship_sailor"
+    enemy:t="ship_sailor"
+  }
+
+  sailor_06{
+    my:t="ship_sailor"
+    enemy:t="ship_sailor"
+  }
+
+  sailor_07{
+    my:t="ship_sailor"
+    enemy:t="ship_sailor"
+  }
+
+  sailor_08{
+    my:t="ship_sailor"
+    enemy:t="ship_sailor"
+  }
+
+  sailor_09{
+    my:t="ship_sailor"
+    enemy:t="ship_sailor"
+  }
+
+  sailor_10{
+    my:t="ship_sailor"
+    enemy:t="ship_sailor"
+  }
+
+  sailor_11{
+    my:t="ship_sailor"
+    enemy:t="ship_sailor"
+  }
+
+  sailor_12{
+    my:t="ship_sailor"
+    enemy:t="ship_sailor"
+  }
+
+  sailor_13{
+    my:t="ship_sailor"
+    enemy:t="ship_sailor"
+  }
+
+  sailor_14{
+    my:t="ship_sailor"
+    enemy:t="ship_sailor"
+  }
+
+  sailor_15{
+    my:t="ship_sailor"
+    enemy:t="ship_sailor"
+  }
+
+  sailor_16{
+    my:t="ship_sailor"
+    enemy:t="ship_sailor"
+  }
+
+  sailor_17{
+    my:t="ship_sailor"
+    enemy:t="ship_sailor"
+  }
+
+  sailor_18{
+    my:t="ship_sailor"
+    enemy:t="ship_sailor"
+  }
+
+  sailor_19{
+    my:t="ship_sailor"
+    enemy:t="ship_sailor"
+  }
+
+  sailor_20{
+    my:t="ship_sailor"
+    enemy:t="ship_sailor"
+  }
+
+  sailor_21{
+    my:t="ship_sailor"
+    enemy:t="ship_sailor"
+  }
+
+  sailor_22{
+    my:t="ship_sailor"
+    enemy:t="ship_sailor"
+  }
+
+  sailor_23{
+    my:t="ship_sailor"
+    enemy:t="ship_sailor"
+  }
+
+  sailor_24{
+    my:t="ship_sailor"
+    enemy:t="ship_sailor"
+  }
+
+  sailor_25{
+    my:t="ship_sailor"
+    enemy:t="ship_sailor"
+  }
+
+  sailor_26{
+    my:t="ship_sailor"
+    enemy:t="ship_sailor"
+  }
+
+  sailor_27{
+    my:t="ship_sailor"
+    enemy:t="ship_sailor"
+  }
+
+  sailor_28{
+    my:t="ship_sailor"
+    enemy:t="ship_sailor"
+  }
+
+  sailor_29{
+    my:t="ship_sailor"
+    enemy:t="ship_sailor"
+  }
+
+  sailor_30{
+    my:t="ship_sailor"
+    enemy:t="ship_sailor"
+  }
+
+  sailor_31{
+    my:t="ship_sailor"
+    enemy:t="ship_sailor"
+  }
+
+  sailor_32{
+    my:t="ship_sailor"
+    enemy:t="ship_sailor"
+  }
+
+  sailor_33{
+    my:t="ship_sailor"
+    enemy:t="ship_sailor"
+  }
+
+  sailor_34{
+    my:t="ship_sailor"
+    enemy:t="ship_sailor"
+  }
+
+  sailor_35{
+    my:t="ship_sailor"
+    enemy:t="ship_sailor"
+  }
+
+  sailor_36{
+    my:t="ship_sailor"
+    enemy:t="ship_sailor"
+  }
+
+  sailor_37{
+    my:t="ship_sailor"
+    enemy:t="ship_sailor"
+  }
+
+  sailor_38{
+    my:t="ship_sailor"
+    enemy:t="ship_sailor"
+  }
+
+  sailor_39{
+    my:t="ship_sailor"
+    enemy:t="ship_sailor"
+  }
+
+  sailor_40{
+    my:t="ship_sailor"
+    enemy:t="ship_sailor"
+  }
+
+  break_line{
+  }
+
+  drive_turret_v_01{
+    my:t="tank_drive_turret_v"
+    enemy:t="tank_drive_turret_v"
+  }
+
+  drive_turret_v_02{
+    my:t="tank_drive_turret_v"
+    enemy:t="tank_drive_turret_v"
+  }
+
+  drive_turret_v_03{
+    my:t="tank_drive_turret_v"
+    enemy:t="tank_drive_turret_v"
+  }
+
+  drive_turret_v_04{
+    my:t="tank_drive_turret_v"
+    enemy:t="tank_drive_turret_v"
+  }
+
+  drive_turret_v_05{
+    my:t="tank_drive_turret_v"
+    enemy:t="tank_drive_turret_v"
+  }
+
+  drive_turret_h_01{
+    my:t="tank_drive_turret_h"
+    enemy:t="tank_drive_turret_h"
+  }
+
+  drive_turret_h_02{
+    my:t="tank_drive_turret_h"
+    enemy:t="tank_drive_turret_h"
+  }
+
+  drive_turret_h_03{
+    my:t="tank_drive_turret_h"
+    enemy:t="tank_drive_turret_h"
+  }
+
+  drive_turret_h_04{
+    my:t="tank_drive_turret_h"
+    enemy:t="tank_drive_turret_h"
+  }
+
+  drive_turret_h_05{
+    my:t="tank_drive_turret_h"
+    enemy:t="tank_drive_turret_h"
+  }
+
+  cannon_breech{
+    my:t="tank_cannon_breech"
+    enemy:t="tank_cannon_breech"
+  }
+
+  cannon_breech_01{
+    my:t="tank_cannon_breech"
+    enemy:t="tank_cannon_breech"
+  }
+
+  cannon_breech_02{
+    my:t="tank_cannon_breech"
+    enemy:t="tank_cannon_breech"
+  }
+
+  cannon_breech_03{
+    my:t="tank_cannon_breech"
+    enemy:t="tank_cannon_breech"
+  }
+
+  cannon_breech_04{
+    my:t="tank_cannon_breech"
+    enemy:t="tank_cannon_breech"
+  }
+
+  cannon_breech_05{
+    my:t="tank_cannon_breech"
+    enemy:t="tank_cannon_breech"
+  }
+
+  cannon_breech_06{
+    my:t="tank_cannon_breech"
+    enemy:t="tank_cannon_breech"
+  }
+
+  cannon_breech_07{
+    my:t="tank_cannon_breech"
+    enemy:t="tank_cannon_breech"
+  }
+
+  cannon_breech_08{
+    my:t="tank_cannon_breech"
+    enemy:t="tank_cannon_breech"
+  }
+
+  cannon_breech_09{
+    my:t="tank_cannon_breech"
+    enemy:t="tank_cannon_breech"
+  }
+
+  cannon_breech_10{
+    my:t="tank_cannon_breech"
+    enemy:t="tank_cannon_breech"
+  }
+
+  mg_01{
+    my:t="ship_machine_gun"
+    enemy:t="ship_machine_gun"
+  }
+
+  mg_02{
+    my:t="ship_machine_gun"
+    enemy:t="ship_machine_gun"
+  }
+
+  mg_03{
+    my:t="ship_machine_gun"
+    enemy:t="ship_machine_gun"
+  }
+
+  mg_04{
+    my:t="ship_machine_gun"
+    enemy:t="ship_machine_gun"
+  }
+
+  mg_05{
+    my:t="ship_machine_gun"
+    enemy:t="ship_machine_gun"
+  }
+
+  mg_l_01{
+    my:t="ship_machine_gun"
+    enemy:t="ship_machine_gun"
+  }
+
+  mg_l_02{
+    my:t="ship_machine_gun"
+    enemy:t="ship_machine_gun"
+  }
+
+  mg_r_01{
+    my:t="ship_machine_gun"
+    enemy:t="ship_machine_gun"
+  }
+
+  mg_r_02{
+    my:t="ship_machine_gun"
+    enemy:t="ship_machine_gun"
+  }
+
+  gun_mask_01_dm{
+    my:t="ship_machine_gun"
+    enemy:t="ship_machine_gun"
+  }
+
+  gun_mask_02_dm{
+    my:t="ship_machine_gun"
+    enemy:t="ship_machine_gun"
+  }
+
+  gun_mask_03_dm{
+    my:t="ship_machine_gun"
+    enemy:t="ship_machine_gun"
+  }
+
+  gun_mask_04_dm{
+    my:t="ship_machine_gun"
+    enemy:t="ship_machine_gun"
+  }
+
+  gun_mask_05_dm{
+    my:t="ship_machine_gun"
+    enemy:t="ship_machine_gun"
+  }
+
+  ammo_turret{
+    my:t="tank_ammo"
+    enemy:t="tank_ammo"
+  }
+
+  ammo_turret_01{
+    my:t="tank_ammo"
+    enemy:t="tank_ammo"
+  }
+
+  ammo_turret_02{
+    my:t="tank_ammo"
+    enemy:t="tank_ammo"
+  }
+
+  ammo_turret_03{
+    my:t="tank_ammo"
+    enemy:t="tank_ammo"
+  }
+
+  ammo_turret_04{
+    my:t="tank_ammo"
+    enemy:t="tank_ammo"
+  }
+
+  ammo_turret_05{
+    my:t="tank_ammo"
+    enemy:t="tank_ammo"
+  }
+
+  ammo_body{
+    my:t="tank_ammo"
+    enemy:t="tank_ammo"
+  }
+
+  ammo_body_01{
+    my:t="tank_ammo"
+    enemy:t="tank_ammo"
+  }
+
+  ammo_body_02{
+    my:t="tank_ammo"
+    enemy:t="tank_ammo"
+  }
+
+  ammo_body_03{
+    my:t="tank_ammo"
+    enemy:t="tank_ammo"
+  }
+
+  ammo_body_04{
+    my:t="tank_ammo"
+    enemy:t="tank_ammo"
+  }
+
+  ammo_body_05{
+    my:t="tank_ammo"
+    enemy:t="tank_ammo"
+  }
+
+  ammo_body_06{
+    my:t="tank_ammo"
+    enemy:t="tank_ammo"
+  }
+
+  ammo_body_07{
+    my:t="tank_ammo"
+    enemy:t="tank_ammo"
+  }
+
+  ammo_body_08{
+    my:t="tank_ammo"
+    enemy:t="tank_ammo"
+  }
+
+  ammo_body_09{
+    my:t="tank_ammo"
+    enemy:t="tank_ammo"
+  }
+
+  ammo_body_l_01{
+    my:t="tank_ammo"
+    enemy:t="tank_ammo"
+  }
+
+  ammo_body_l_02{
+    my:t="tank_ammo"
+    enemy:t="tank_ammo"
+  }
+
+  ammo_body_l_03{
+    my:t="tank_ammo"
+    enemy:t="tank_ammo"
+  }
+
+  ammo_body_l_04{
+    my:t="tank_ammo"
+    enemy:t="tank_ammo"
+  }
+
+  ammo_body_l_05{
+    my:t="tank_ammo"
+    enemy:t="tank_ammo"
+  }
+
+  ammo_body_r_01{
+    my:t="tank_ammo"
+    enemy:t="tank_ammo"
+  }
+
+  ammo_body_r_02{
+    my:t="tank_ammo"
+    enemy:t="tank_ammo"
+  }
+
+  ammo_body_r_03{
+    my:t="tank_ammo"
+    enemy:t="tank_ammo"
+  }
+
+  ammo_body_r_04{
+    my:t="tank_ammo"
+    enemy:t="tank_ammo"
+  }
+
+  ammo_body_r_05{
+    my:t="tank_ammo"
+    enemy:t="tank_ammo"
+  }
+
+  tt_01{
+    my:t="ship_torpedo_tube"
+    enemy:t="ship_torpedo_tube"
+  }
+
+  tt_02{
+    my:t="ship_torpedo_tube"
+    enemy:t="ship_torpedo_tube"
+  }
+
+  tt_03{
+    my:t="ship_torpedo_tube"
+    enemy:t="ship_torpedo_tube"
+  }
+
+  tt_04{
+    my:t="ship_torpedo_tube"
+    enemy:t="ship_torpedo_tube"
+  }
+
+  torpedo_01{
+    my:t="ship_torpedo"
+    enemy:t="ship_torpedo"
+  }
+
+  torpedo_02{
+    my:t="ship_torpedo"
+    enemy:t="ship_torpedo"
+  }
+
+  torpedo_03{
+    my:t="ship_torpedo"
+    enemy:t="ship_torpedo"
+  }
+
+  torpedo_04{
+    my:t="ship_torpedo"
+    enemy:t="ship_torpedo"
+  }
+
+  depth_charge_01{
+    my:t="ship_depth_charge"
+    enemy:t="ship_depth_charge"
+  }
+
+  depth_charge_02{
+    my:t="ship_depth_charge"
+    enemy:t="ship_depth_charge"
+  }
+
+  depth_charge_03{
+    my:t="ship_depth_charge"
+    enemy:t="ship_depth_charge"
+  }
+
+  depth_charge_04{
+    my:t="ship_depth_charge"
+    enemy:t="ship_depth_charge"
+  }
+
+  depth_charge_05{
+    my:t="ship_depth_charge"
+    enemy:t="ship_depth_charge"
+  }
+
+  depth_charge_06{
+    my:t="ship_depth_charge"
+    enemy:t="ship_depth_charge"
+  }
+
+  depth_charge_07{
+    my:t="ship_depth_charge"
+    enemy:t="ship_depth_charge"
+  }
+
+  depth_charge_08{
+    my:t="ship_depth_charge"
+    enemy:t="ship_depth_charge"
+  }
+
+  depth_charge_09{
+    my:t="ship_depth_charge"
+    enemy:t="ship_depth_charge"
+  }
+
+  depth_charge_10{
+    my:t="ship_depth_charge"
+    enemy:t="ship_depth_charge"
+  }
+
+  depth_charge_11{
+    my:t="ship_depth_charge"
+    enemy:t="ship_depth_charge"
+  }
+
+  depth_charge_12{
+    my:t="ship_depth_charge"
+    enemy:t="ship_depth_charge"
+  }
+
+  depth_charge_r_01{
+    my:t="ship_depth_charge"
+    enemy:t="ship_depth_charge"
+  }
+
+  depth_charge_r_02{
+    my:t="ship_depth_charge"
+    enemy:t="ship_depth_charge"
+  }
+
+  depth_charge_r_03{
+    my:t="ship_depth_charge"
+    enemy:t="ship_depth_charge"
+  }
+
+  depth_charge_r_04{
+    my:t="ship_depth_charge"
+    enemy:t="ship_depth_charge"
+  }
+
+  depth_charge_r_05{
+    my:t="ship_depth_charge"
+    enemy:t="ship_depth_charge"
+  }
+
+  depth_charge_r_06{
+    my:t="ship_depth_charge"
+    enemy:t="ship_depth_charge"
+  }
+
+  depth_charge_r_07{
+    my:t="ship_depth_charge"
+    enemy:t="ship_depth_charge"
+  }
+
+  depth_charge_r_08{
+    my:t="ship_depth_charge"
+    enemy:t="ship_depth_charge"
+  }
+
+  depth_charge_l_01{
+    my:t="ship_depth_charge"
+    enemy:t="ship_depth_charge"
+  }
+
+  depth_charge_l_02{
+    my:t="ship_depth_charge"
+    enemy:t="ship_depth_charge"
+  }
+
+  depth_charge_l_03{
+    my:t="ship_depth_charge"
+    enemy:t="ship_depth_charge"
+  }
+
+  depth_charge_l_04{
+    my:t="ship_depth_charge"
+    enemy:t="ship_depth_charge"
+  }
+
+  depth_charge_l_05{
+    my:t="ship_depth_charge"
+    enemy:t="ship_depth_charge"
+  }
+
+  depth_charge_l_06{
+    my:t="ship_depth_charge"
+    enemy:t="ship_depth_charge"
+  }
+
+  depth_charge_l_07{
+    my:t="ship_depth_charge"
+    enemy:t="ship_depth_charge"
+  }
+
+  depth_charge_l_08{
+    my:t="ship_depth_charge"
+    enemy:t="ship_depth_charge"
+  }
+}
+
+wodParams{
+  gForce:r=0.1
+  angVel:r=1.0
+  speed:p2=7.0, 25.0
+  turretYaw:p2=5.0, 15.0
+  turretPitch:p2=5.0, 15.0
+  omega:p2=5.0, 12.0
+
+  aircrafts{
+    increaseMul:r=1.0
+    decreaseMul:r=2.0
+    limitationTimer:b=yes
+    dev:p2=1.0, 0.0
+    dev:p2=2.0, 0.0
+  }
+
+  tanks{
+    increaseMul:r=1.0
+    decreaseMul:r=2.0
+    limitationTimer:b=yes
+    dev:p2=0.5, 0.5
+    dev:p2=1.0, 2.0
+  }
+
+  exp_SPAA{
+    increaseMul:r=1.0
+    decreaseMul:r=1.0
+    limitationTimer:b=yes
+    dev:p2=1.0, 0.0
+  }
+}
+
+facebook{
+  website:t="http://www.facebook.com"
+  permissions:t="public_profile,user_friends"
+}
+
+oculusGui{
+  uiDepth:r=5.0
+  uiVFovScale:r=0.9
+  cursorResetTimeout:r=20.0
+}
+
+outline{
+  lineWidth:r=0.5
+  lineWidthThick:r=1.0
+  whiteCircle:t="white_circle_hi"
+  noiseTexture:t="snow_noise_mask"
+  armorThicknessMax:r=300.0
+  hsvRange:p2=160.0, 0.0
+  damageOutlineEnabled:b=no
+  xraySelectionColor:p4=1.0, 1.0, 1.0, 1.0
+  xrayColor:p4=0.68, 0.88, 1.0, 0.7
+  xrayFrensel:p4=0.1, 0.1, 0.1, 1.0
+  xrayBgOutlineColor:p4=0.3, 0.3, 0.3, 1.0
+  xrayBgSurfaceColor:p4=0.0, 0.0, 0.0, 0.5
+  xrayHColorEnabled:b=no
+  xrayColorPlane:p4=0.68, 0.88, 1.0, 0.7
+  xrayFrenselPlane:p4=0.1, 0.1, 0.1, 1.0
+  xrayBgOutlineColorPlane:p4=0.3, 0.3, 0.3, 1.0
+  xrayBgSurfaceColorPlane:p4=0.0, 0.0, 0.0, 0.5
+  xrayHColorEnabledPlane:b=no
+  armorPartOutlineColor:p4=1.0, 1.0, 1.0, 0.4
+  armorPartSurfaceColor:p4=1.0, 1.0, 1.0, 0.15
+  armorPartOutlineColorPlane:p4=1.0, 1.0, 1.0, 0.4
+  armorPartSurfaceColorPlane:p4=1.0, 1.0, 1.0, 0.15
+  armorFixedColorCount:i=16
+  armorFixedColorThreshold:r=1.0
+  attachObstructPartOutlineColor:p4=0.8, 0.0, 0.0, 1.0
+  attachObstructPartSurfaceColor:p4=1.0, 0.0, 0.0, 0.25
+  minCropIconSize:r=16.0
+  minCropElementSize:r=0.25
+  cropIconFade:r=0.25
+  cropIconFarFade:r=15.0
+}
+
+repairTanks{
+  repairDelayTimer:r=5.0
+  partRepairHp:r=0.7
+
+  engine{
+    speed:r=0.5
+    completely:b=yes
+  }
+
+  transmission{
+    speed:r=0.5
+    completely:b=yes
+  }
+
+  radiator{
+    completely:b=yes
+  }
+
+  track_l{
+    speed:r=1.5
+    serially:b=yes
+    completely:b=yes
+    modRequired:b=no
+  }
+
+  track_r{
+    speed:r=1.5
+    serially:b=yes
+    completely:b=yes
+    modRequired:b=no
+  }
+
+  gun_barrel{
+    speed:r=0.9
+    completely:b=yes
+  }
+
+  cannon_breech{
+    speed:r=0.7
+    completely:b=yes
+  }
+
+  drive_turret_v{
+    speed:r=0.3
+    completely:b=yes
+  }
+
+  drive_turret_h{
+    speed:r=0.3
+    completely:b=yes
+  }
+}
+
+camoSettings{
+  skinConditionMin:r=0.3
+  skinConditionMax:r=3.0
+  camoScaleMin:r=0.2
+  camoScaleMax:r=2.0
+}
+
+armorPartNamesGround{
+
+  viewer_armor{
+    p:t="body"
+    p:t="superstructure"
+    p:t="turret"
+    p:t="gun_barrel"
+    p:t="gun_mask"
+    p:t="bow"
+    p:t="mid"
+    p:t="stern"
+    p:t="deckhouse"
+    p:t="bulkhead_"
+    p:t="turret_h_"
+    p:t="wheel_"
+    p:t="track_r_"
+    p:t="track_l_"
+    p:t="rudder_"
+    p:t="ex_armor_"
+    p:t="body_shield_"
+    p:t="gun_mask_shield_"
+    p:t="mg_"
+    p:t="ex_decor_"
+
+    p{
+      name:t="cannon_breech_"
+      useThicknessThrough:b=yes
+    }
+  }
+
+  viewer_xray{
+    p:t="driver_"
+    p:t="machine_gunner_"
+    p:t="loader_"
+    p:t="commander_"
+    p:t="gunner_"
+    p:t="sailor_"
+    p:t="era_"
+    p:t="operator_"
+    p:t="optic_"
+    p:t="drive_turret_h_"
+    p:t="drive_turret_v_"
+    p:t="cannon_breech_"
+    p:t="fuel_tank_"
+    p:t="ammo_"
+    p:t="radiator_"
+    p:t="radio_station_"
+    p:t="engine_"
+    p:t="transmission_"
+    p:t="gun_barrel_dm"
+    p:t="gun_barrel_0"
+    p:t="gun_barrel_1"
+    p:t="tt_"
+    p:t="torpedo_"
+    p:t="mg_"
+
+    p{
+      name:t="gun_mask_"
+      unit:t="ship"
+    }
+
+    p{
+      name:t="depth_charge_0"
+      unit:t="ship"
+    }
+
+    p{
+      name:t="depth_charge_1"
+      unit:t="ship"
+    }
+
+    p{
+      name:t="depth_charge_2"
+      unit:t="ship"
+    }
+
+    p{
+      name:t="depth_charge_l"
+      unit:t="ship"
+    }
+
+    p{
+      name:t="depth_charge_r"
+      unit:t="ship"
+    }
+  }
+
+  body{
+    p:t="body"
+    p:t="superstructure"
+    p:t="turret"
+    p:t="gun_barrel"
+    p:t="gun_mask"
+
+    p{
+      name:t="bow"
+      color_h:r=0.1
+      usePrefix:b=no
+    }
+
+    p{
+      name:t="bow_l"
+      color_h:r=0.1
+      layer:t="top"
+    }
+
+    p{
+      name:t="bow_r"
+      color_h:r=0.1
+      layer:t="top"
+    }
+
+    p{
+      name:t="mid"
+      color_h:r=0.1
+      usePrefix:b=no
+    }
+
+    p{
+      name:t="mid_l"
+      color_h:r=0.1
+      layer:t="top"
+    }
+
+    p{
+      name:t="mid_r"
+      color_h:r=0.1
+      layer:t="top"
+    }
+
+    p{
+      name:t="mid_bottom"
+      color_h:r=0.1
+    }
+
+    p{
+      name:t="mid_top"
+      color_h:r=0.1
+    }
+
+    p{
+      name:t="stern"
+      color_h:r=0.1
+      usePrefix:b=no
+    }
+
+    p{
+      name:t="stern_l"
+      color_h:r=0.1
+      layer:t="top"
+    }
+
+    p{
+      name:t="stern_r"
+      color_h:r=0.1
+      layer:t="top"
+    }
+
+    p{
+      name:t="stern_back"
+      color_h:r=0.1
+    }
+
+    p{
+      name:t="bow_top"
+      color_h:r=0.1
+    }
+
+    p{
+      name:t="stern_top"
+      color_h:r=0.1
+    }
+
+    p{
+      name:t="stern_bottom"
+      color_h:r=0.1
+    }
+  }
+
+  track{
+    p:t="wheel_"
+
+    p{
+      name:t="track_r_"
+      color_h:r=0.0
+      dmgThreshold:r=0.5
+    }
+
+    p{
+      name:t="track_l_"
+      color_h:r=0.0
+      dmgThreshold:r=0.5
+    }
+  }
+
+  crew{
+
+    p{
+      name:t="driver_"
+      color_h:r=1.0
+    }
+
+    p{
+      name:t="machine_gunner_"
+      color_h:r=1.0
+    }
+
+    p{
+      name:t="loader_"
+      color_h:r=1.0
+    }
+
+    p{
+      name:t="commander_"
+      color_h:r=1.0
+    }
+
+    p{
+      name:t="gunner_"
+      color_h:r=1.0
+    }
+
+    p{
+      name:t="sailor_"
+      color_h:r=1.0
+    }
+
+    p{
+      name:t="era_"
+      color_h:r=1.0
+    }
+
+    p{
+      name:t="operator_"
+      color_h:r=1.0
+    }
+  }
+
+  outer{
+    p:t="body_shield_"
+    p:t="gun_mask_shield_"
+  }
+
+  inner{
+
+    p{
+      name:t="optic_"
+      color_h:r=1.0
+    }
+
+    p{
+      name:t="drive_turret_h_"
+      color_h:r=0.9
+    }
+
+    p{
+      name:t="drive_turret_v_"
+      color_h:r=0.8
+    }
+
+    p{
+      name:t="cannon_breech_"
+      color_h:r=0.7
+    }
+
+    p{
+      name:t="fuel_tank_"
+      color_h:r=0.6
+    }
+
+    p{
+      name:t="ammo_"
+      color_h:r=0.5
+    }
+
+    p{
+      name:t="radiator_"
+      color_h:r=0.4
+    }
+
+    p{
+      name:t="radio_station_"
+      color_h:r=0.3
+    }
+
+    p{
+      name:t="engine_"
+      color_h:r=0.2
+    }
+
+    p{
+      name:t="transmission_"
+      color_h:r=0.1
+    }
+
+    p{
+      name:t="gun_barrel_dm"
+      color_h:r=0.1
+    }
+
+    p{
+      name:t="gun_barrel_0"
+      color_h:r=0.1
+    }
+
+    p{
+      name:t="gun_barrel_1"
+      color_h:r=0.1
+    }
+
+    p{
+      name:t="ship_hull_dm"
+      color_h:r=0.1
+    }
+
+    p{
+      name:t="foremast_dm"
+      color_h:r=0.1
+    }
+
+    p{
+      name:t="mainmast_dm"
+      color_h:r=0.1
+    }
+
+    p{
+      name:t="mizzenmast_dm"
+      color_h:r=0.1
+    }
+
+    p{
+      name:t="foremast_coursesail_dm"
+      color_h:r=0.1
+    }
+
+    p{
+      name:t="foremast_topsail_dm"
+      color_h:r=0.1
+    }
+
+    p{
+      name:t="bowsprit_sail_dm"
+      color_h:r=0.1
+    }
+
+    p{
+      name:t="mainmast_coursesail_dm"
+      color_h:r=0.1
+    }
+
+    p{
+      name:t="mainmast_topsail_dm"
+      color_h:r=0.1
+    }
+
+    p{
+      name:t="mizzenmast_sail_dm"
+      color_h:r=0.1
+    }
+
+    p{
+      name:t="deckhouse_dm"
+      color_h:r=0.1
+    }
+
+    p{
+      name:t="depth_charge_0"
+      unit:t="ship"
+    }
+
+    p{
+      name:t="depth_charge_1"
+      unit:t="ship"
+    }
+
+    p{
+      name:t="depth_charge_2"
+      unit:t="ship"
+    }
+
+    p{
+      name:t="depth_charge_l"
+      unit:t="ship"
+    }
+
+    p{
+      name:t="depth_charge_r"
+      unit:t="ship"
+    }
+
+    p{
+      name:t="tt_"
+      color_h:r=0.1
+    }
+
+    p{
+      name:t="torpedo_"
+      color_h:r=0.1
+    }
+
+    p{
+      name:t="mg_"
+      color_h:r=0.1
+    }
+
+    p{
+      name:t="gun_mask_"
+      color_h:r=0.1
+      unit:t="ship"
+    }
+  }
+
+  decorators{
+
+    p{
+      name:t="ex_decor_"
+      color_h:r=0.8
+    }
+  }
+
+  destroyed_equipment{
+    p:t="optic_"
+    p:t="drive_turret_h_"
+    p:t="fuel_tank_"
+    p:t="radiator_"
+    p:t="radio_station_"
+    p:t="engine_"
+    p:t="transmission_"
+    p:t="drive_turret_v_"
+    p:t="cannon_breech_"
+    p:t="ammo_"
+    p:t="ammo_rack_turret"
+    p:t="ammo_rack_body_xray"
+  }
+
+  body_hull{
+    p:t="bow"
+    p:t="bow_l"
+    p:t="bow_r"
+    p:t="mid"
+    p:t="mid_l"
+    p:t="mid_r"
+    p:t="mid_bottom"
+    p:t="mid_top"
+    p:t="stern"
+    p:t="stern_l"
+    p:t="stern_r"
+    p:t="stern_back"
+    p:t="bow_top"
+    p:t="stern_top"
+    p:t="stern_bottom"
+  }
+}
+
+armorPartNamesAir{
+
+  viewer_armor{
+    p:t="armor"
+  }
+
+  viewer_xray{
+    p:t="pilot"
+    p:t="gunner"
+    p:t="wingcontrol"
+    p:t="wingcontrol"
+    p:t="wingcontrol"
+    p:t="tailcontrol"
+    p:t="spar"
+    p:t="engine"
+    p:t="tank"
+    p:t="oil"
+    p:t="water"
+    p:t="cannon"
+    p:t="mgun"
+    p:t="gun0"
+    p:t="gun1"
+    p:t="gun2"
+    p:t="gun3"
+    p:t="gun4"
+    p:t="gun5"
+    p:t="gun6"
+    p:t="gun7"
+    p:t="gun8"
+    p:t="gun9"
+  }
+
+  body{
+
+    p{
+      name:t="fuse"
+      color_h:r=1.0
+    }
+
+    p{
+      name:t="tail_dm"
+      color_h:r=1.0
+    }
+
+    p{
+      name:t="wing"
+      color_h:r=1.0
+    }
+
+    p{
+      name:t="fin"
+      color_h:r=1.0
+    }
+
+    p{
+      name:t="stab"
+      color_h:r=1.0
+    }
+
+    p{
+      name:t="rudder"
+      color_h:r=1.0
+    }
+
+    p{
+      name:t="elevator"
+      color_h:r=1.0
+    }
+
+    p{
+      name:t="aileron"
+      color_h:r=1.0
+    }
+
+    p{
+      name:t="flap"
+      color_h:r=1.0
+    }
+
+    p{
+      name:t="cover"
+      color_h:r=1.0
+    }
+
+    p{
+      name:t="armor"
+      color_h:r=1.0
+    }
+  }
+
+  crew{
+
+    p{
+      name:t="pilot"
+      color_h:r=0.9
+    }
+
+    p{
+      name:t="gunner"
+      color_h:r=0.9
+    }
+  }
+
+  inner{
+
+    p{
+      name:t="wingcontrol"
+      color_h:r=0.7
+    }
+
+    p{
+      name:t="wingcontrol"
+      color_h:r=0.7
+    }
+
+    p{
+      name:t="wingcontrol"
+      color_h:r=0.7
+    }
+
+    p{
+      name:t="tailcontrol"
+      color_h:r=0.7
+    }
+
+    p{
+      name:t="spar"
+      color_h:r=0.7
+    }
+
+    p{
+      name:t="engine"
+      color_h:r=5.0
+    }
+
+    p{
+      name:t="tank"
+      color_h:r=0.5
+    }
+
+    p{
+      name:t="oil"
+      color_h:r=0.3
+    }
+
+    p{
+      name:t="water"
+      color_h:r=0.3
+    }
+
+    p{
+      name:t="cannon"
+      color_h:r=0.0
+    }
+
+    p{
+      name:t="mgun"
+      color_h:r=0.0
+    }
+
+    p{
+      name:t="gun0"
+      color_h:r=0.0
+    }
+
+    p{
+      name:t="gun1"
+      color_h:r=0.0
+    }
+
+    p{
+      name:t="gun2"
+      color_h:r=0.0
+    }
+
+    p{
+      name:t="gun3"
+      color_h:r=0.0
+    }
+
+    p{
+      name:t="gun4"
+      color_h:r=0.0
+    }
+
+    p{
+      name:t="gun5"
+      color_h:r=0.0
+    }
+
+    p{
+      name:t="gun6"
+      color_h:r=0.0
+    }
+
+    p{
+      name:t="gun7"
+      color_h:r=0.0
+    }
+
+    p{
+      name:t="gun8"
+      color_h:r=0.0
+    }
+
+    p{
+      name:t="gun9"
+      color_h:r=0.0
+    }
+  }
+}
+
+rendinstExtra{
+  ri:t="firewood_a"
+  ri:t="wood_pier_a"
+  ri:t="wood_market_stall_a"
+  ri:t="wood_market_stall_b"
+  ri:t="wood_table_b"
+  ri:t="wood_bus_stop_a"
+  ri:t="european_wooden_cart_a"
+  ri:t="european_wooden_cart_b"
+  ri:t="european_statue_woman_a"
+  ri:t="european_statue_woman_b"
+  ri:t="european_statue_woman_c"
+  ri:t="damaged_stone_fence_a"
+  ri:t="damaged_stone_fence_b"
+  ri:t="damaged_stone_fence_c"
+  ri:t="stone_fence_a"
+  ri:t="european_road_column_a"
+  ri:t="european_road_column_b"
+  ri:t="european_road_column_c"
+  ri:t="european_road_column_d"
+  ri:t="concrete_fence_a_column"
+  ri:t="concrete_fence_b"
+  ri:t="concrete_fence_b_column"
+  ri:t="concrete_fence_c_column"
+  ri:t="concrete_fence_d_column"
+  ri:t="concrete_fence_e_column"
+  ri:t="metal_lattice_fence_a"
+  ri:t="wrought_fence_a"
+  ri:t="wrought_fence_b"
+  ri:t="wrought_fence_c"
+  ri:t="wrought_fence_d"
+  ri:t="wrought_fence_e"
+  ri:t="wood_fence_a"
+  ri:t="wood_fence_b"
+  ri:t="wood_fence_c"
+  ri:t="wood_fence_d"
+  ri:t="wood_fence_e"
+  ri:t="wood_fence_f"
+  ri:t="wood_fence_g"
+  ri:t="wood_fence_h"
+  ri:t="wood_fence_j"
+  ri:t="wood_fence_j_snow"
+  ri:t="brick_fence_a"
+  ri:t="brick_fence_a_snow"
+  ri:t="brick_fence_b"
+  ri:t="brick_fence_b_snow"
+  ri:t="brick_fence_c"
+  ri:t="brick_fence_d"
+  ri:t="brick_fence_column_a"
+  ri:t="brick_fence_column_b"
+  ri:t="concrete_fence_a"
+  ri:t="concrete_fence_f_column"
+  ri:t="concrete_fence_f_column_snow"
+  ri:t="concrete_fence_g_column"
+  ri:t="hedgehog_a"
+  ri:t="log_post_a"
+  ri:t="log_ramp_a"
+  ri:t="metal_lattice_gates_a"
+  ri:t="stone_fence_b"
+  ri:t="stone_fence_d"
+  ri:t="barbedwire_a"
+  ri:t="barbed_wire_b"
+  ri:t="european_barrel_a"
+  ri:t="european_barrel_b"
+  ri:t="european_barrel_c"
+  ri:t="european_barrel_d"
+  ri:t="european_barrel_e"
+  ri:t="european_barrel_small_a"
+  ri:t="european_barrel_small_b"
+  ri:t="european_bench_a"
+  ri:t="european_bench_b"
+  ri:t="czech_hedgehog_a"
+  ri:t="czech_hedgehog_b"
+  ri:t="firewood_a"
+  ri:t="firewood_b"
+  ri:t="firewood_d"
+  ri:t="wood_debris_a"
+  ri:t="wood_debris_e"
+  ri:t="wood_barrel_a"
+  ri:t="kennel_a"
+  ri:t="kennel_b"
+  ri:t="wood_bench_a"
+  ri:t="wood_bench_b"
+  ri:t="wood_bench_c"
+  ri:t="wood_ladder_a"
+  ri:t="european_lamp_d"
+  ri:t="european_lamp_small_b"
+  ri:t="european_lamp_small_c"
+  ri:t="european_lamp_small_f"
+  ri:t="modern_simple_brick_fence"
+  ri:t="modern_simple_brick_fence_b"
+  ri:t="modern_simple_brick_fence_column"
+  ri:t="modern_simple_brick_fence_column_b"
+  ri:t="fence_chain_wire_section_a"
+  ri:t="embankment_lattice_fence_a"
+  ri:t="embankment_lattice_fence_b"
+  ri:t="embankment_stone_column_a"
+  ri:t="embankment_stone_column_b"
+  ri:t="karelia_cliff_a"
+  ri:t="karelia_cliff_b"
+  ri:t="finland_cliff_a"
+  ri:t="finland_cliff_a2"
+  ri:t="finland_cliff_b"
+  ri:t="finland_cliff_b2"
+  ri:t="finland_cliff_c"
+  ri:t="finland_cliff_c2"
+  ri:t="finland_cliff_d"
+  ri:t="finland_cliff_d2"
+  ri:t="finland_cliff_e"
+  ri:t="finland_cliff_e2"
+  ri:t="finland_cliff_f"
+  ri:t="finland_cliff_f2"
+  ri:t="finland_cliff_small_a"
+  ri:t="finland_cliff_small_b"
+  ri:t="finland_cliff_small_d"
+  ri:t="finland_cliff_small_f"
+  ri:t="finland_stone_small_a"
+  ri:t="finland_stone_small_b"
+  ri:t="finland_stone_small_c"
+  ri:t="finland_stone_small_d"
+  ri:t="finland_stone_small_e"
+  ri:t="icefloe_a"
+  ri:t="icefloe_c"
+  ri:t="icefloe_c_imm"
+  ri:t="icefloe_e"
+  ri:t="kv_1_zis_5_turret_rendinst"
+  ri:t="kv_1_zis_5_hull_rendinst"
+  ri:t="pzkpfw_V_ausf_a_panther_hull_rendinst"
+  ri:t="pzkpfw_V_ausf_a_panther_turret_rendinst"
+  ri:t="nvrsk_2_floors_a"
+  ri:t="nvrsk_2_floors_a_dp_01"
+  ri:t="nvrsk_2_floors_b"
+  ri:t="nvrsk_2_floors_b_dp_01"
+  ri:t="nvrsk_2_floors_c"
+  ri:t="nvrsk_2_floors_c_dp_01"
+  ri:t="nvrsk_2_floors_d"
+  ri:t="nvrsk_2_floors_d_dp_01"
+  ri:t="nvrsk_3_floors_a"
+  ri:t="nvrsk_3_floors_a_dp_01"
+  ri:t="nvrsk_3_floors_b"
+  ri:t="nvrsk_3_floors_b_dp_01"
+  ri:t="nvrsk_3_floors_c"
+  ri:t="nvrsk_3_floors_c_dp_01"
+  ri:t="nvrsk_port_authority"
+  ri:t="nvrsk_port_authority_dp_01"
+  ri:t="nvrsk_power_station"
+  ri:t="nvrsk_power_station_dp_01"
+  ri:t="nvrsk_railroad_station"
+  ri:t="nvrsk_railroad_station_dp_01"
+  ri:t="belgian_gates"
+  ri:t="krymsk_cliff_a"
+  ri:t="krymsk_cliff_b"
+  ri:t="karelia_stone_small_a"
+  ri:t="karelia_stone_small_b"
+  ri:t="karelia_stone_small_c"
+  ri:t="karelia_stone_small_d"
+  ri:t="karelia_stone_small_e"
+  ri:t="debris_brick_small_b"
+  ri:t="debris_brick_small_e"
+  ri:t="debris_brick_small_f"
+  ri:t="debris_brick_medium_b"
+  ri:t="debris_wood_trash_small_b"
+  ri:t="debris_wood_trash_small"
+  ri:t="debris_wood_trash_medium"
+  ri:t="european_trash_can_a"
+  ri:t="european_trash_can_b"
+  ri:t="european_flower_urn_a"
+  ri:t="debris_artillery_shell_casing_a"
+  ri:t="debris_wooden_plank_a"
+  ri:t="debris_wooden_plank_b"
+  ri:t="debris_wooden_plank_c"
+  ri:t="sandbag_a"
+  ri:t="sandbags_a"
+  ri:t="sandbags_b"
+  ri:t="sandbags_c"
+  ri:t="sandbags_d"
+  ri:t="sandbags_f"
+  ri:t="sandbags_j"
+  ri:t="brick_fence_e"
+  ri:t="brick_fence_e_dmg"
+  ri:t="brick_fence_column_c"
+  ri:t="berlin_power_pole_a"
+  ri:t="european_lamp_a"
+  ri:t="pavement_border_a"
+  ri:t="pavement_border_b"
+  ri:t="pavement_border_c"
+  ri:t="pavement_border_d"
+  ri:t="pavement_border_e"
+  ri:t="pavement_border_f"
+  ri:t="pavement_border_g"
+  ri:t="hatch_a"
+  ri:t="hatch_b"
+  ri:t="hatch_c"
+  ri:t="hatch_d"
+  ri:t="hatch_e"
+  ri:t="hatch_f"
+  ri:t="hatch_g"
+  ri:t="african_jug_a"
+  ri:t="african_jug_b"
+  ri:t="african_jug_c"
+  ri:t="european_market_box_a"
+  ri:t="european_market_box_b"
+  ri:t="european_market_box_c"
+  ri:t="european_market_box_d"
+  ri:t="european_market_box_e"
+  ri:t="european_market_box_small_e"
+  ri:t="european_market_box_small_f"
+  ri:t="norway_cliffs_a"
+  ri:t="norway_cliffs_b"
+  ri:t="norway_cliffs_c"
+  ri:t="norway_cliffs_d"
+  ri:t="norway_cliffs_e"
+  ri:t="norway_cliffs_f"
+  ri:t="norway_rocks_small_a"
+  ri:t="norway_rocks_small_b"
+  ri:t="norway_rocks_small_c"
+  ri:t="norway_rocks_small_d"
+  ri:t="norway_rocks_small_e"
+  ri:t="small_rock_moss_a"
+  ri:t="small_rock_moss_b"
+  ri:t="concrete_fence_c"
+  ri:t="rail_crosstie"
+}
+
+rendinstOpt{
+  minLodForMode0:i=3
+  maxLodForMode0:i=15
+  minBoundRadForMode0:r=3.0
+
+  hideForMode0re{
+    incRE:t="_dp_"
+    excRE:t="factory_shop_roof"
+    excRE:t="af_ruin_roof"
+    excRE:t="soviet_town_building_4_floors"
+    excRE:t="factory_small_building_i"
+  }
+
+  hideForMode1{
+    ri:t="european_barrel_a"
+    ri:t="european_barrel_b"
+    ri:t="european_barrel_small_a"
+    ri:t="european_barrel_small_b"
+    ri:t="european_bycicle_parking_a"
+    ri:t="european_flower_urn_a"
+    ri:t="european_flower_urn_b"
+    ri:t="european_flower_urn_c"
+    ri:t="european_flower_urn_d"
+    ri:t="european_hydrant_a"
+    ri:t="european_hydrant_b"
+    ri:t="european_mailbox_a"
+    ri:t="european_mailbox_b"
+    ri:t="european_road_column_a"
+    ri:t="european_road_column_b"
+    ri:t="european_road_column_c"
+    ri:t="european_road_column_d"
+    ri:t="european_telephone_booth_a"
+    ri:t="european_telephone_booth_b"
+    ri:t="european_trash_can_a"
+    ri:t="european_trash_can_b"
+    ri:t="european_news_board_a"
+    ri:t="european_news_board_b"
+    ri:t="european_news_board_c"
+    ri:t="european_news_board_d"
+    ri:t="european_market_box_a"
+    ri:t="european_market_box_b"
+    ri:t="european_market_box_c"
+    ri:t="european_market_box_d"
+    ri:t="european_market_box_e"
+    ri:t="european_market_box_small_e"
+    ri:t="european_market_box_small_f"
+    ri:t="hatch_a"
+    ri:t="hatch_b"
+    ri:t="hatch_c"
+    ri:t="hatch_d"
+    ri:t="hatch_e"
+    ri:t="hatch_f"
+    ri:t="hatch_g"
+    ri:t="firewood_a"
+    ri:t="firewood_b"
+    ri:t="wood_debris_a"
+    ri:t="wood_debris_c"
+    ri:t="wood_debris_d"
+    ri:t="wood_debris_e"
+    ri:t="wood_ladder_a"
+    ri:t="wood_ladder_b"
+    ri:t="wood_table_small_b"
+    ri:t="wood_barrel_a"
+    ri:t="wood_bench_a"
+    ri:t="wood_bench_b"
+    ri:t="wood_bench_c"
+    ri:t="wood_gates_a"
+    ri:t="european_waymark_a"
+    ri:t="european_waymark_b"
+    ri:t="european_waymark_c"
+    ri:t="european_waymark_d"
+    ri:t="european_waymark_e"
+    ri:t="european_waymark_f"
+    ri:t="axe_in_stump_a"
+    ri:t="horse_plough_a"
+    ri:t="grab_a"
+    ri:t="mowing_machine_a"
+    ri:t="barbed_wire_a"
+    ri:t="barbedwire_a"
+    ri:t="barbedwire_a_dmg"
+    ri:t="concrete_fence_g_column"
+    ri:t="box_a"
+    ri:t="box_b"
+    ri:t="box_c"
+    ri:t="box_d"
+    ri:t="box_f"
+    ri:t="box_g"
+    ri:t="box_h"
+    ri:t="box_i"
+    ri:t="box_j"
+    ri:t="box_k"
+    ri:t="egypt_arcade_stone1_01"
+    ri:t="egypt_arcade_stone1_02"
+    ri:t="egypt_arcade_stone1_03"
+    ri:t="egypt_arcade_stone2_01"
+    ri:t="egypt_arcade_stone2_02"
+    ri:t="egypt_arcade_stone2_03"
+    ri:t="african_jug_a"
+    ri:t="african_jug_b"
+    ri:t="african_jug_c"
+    ri:t="sandbag_a"
+    ri:t="sandbags_d"
+    ri:t="sandbags_e"
+    ri:t="sandbags_f"
+    ri:t="sandbags_j"
+  }
+
+  hideForMode0{
+    ri:t="european_barrel_a"
+    ri:t="european_barrel_b"
+    ri:t="european_barrel_small_a"
+    ri:t="european_barrel_small_b"
+    ri:t="european_bycicle_parking_a"
+    ri:t="european_flower_urn_a"
+    ri:t="european_flower_urn_b"
+    ri:t="european_flower_urn_c"
+    ri:t="european_flower_urn_d"
+    ri:t="european_hydrant_a"
+    ri:t="european_hydrant_b"
+    ri:t="european_mailbox_a"
+    ri:t="european_mailbox_b"
+    ri:t="european_road_column_a"
+    ri:t="european_road_column_b"
+    ri:t="european_road_column_c"
+    ri:t="european_road_column_d"
+    ri:t="european_telephone_booth_a"
+    ri:t="european_telephone_booth_b"
+    ri:t="european_trash_can_a"
+    ri:t="european_trash_can_b"
+    ri:t="european_news_board_a"
+    ri:t="european_news_board_b"
+    ri:t="european_news_board_c"
+    ri:t="european_news_board_d"
+    ri:t="european_market_box_a"
+    ri:t="european_market_box_b"
+    ri:t="european_market_box_c"
+    ri:t="european_market_box_d"
+    ri:t="european_market_box_e"
+    ri:t="european_market_box_small_e"
+    ri:t="european_market_box_small_f"
+    ri:t="hatch_a"
+    ri:t="hatch_b"
+    ri:t="hatch_c"
+    ri:t="hatch_d"
+    ri:t="hatch_e"
+    ri:t="hatch_f"
+    ri:t="hatch_g"
+    ri:t="firewood_a"
+    ri:t="firewood_b"
+    ri:t="wood_debris_a"
+    ri:t="wood_debris_c"
+    ri:t="wood_debris_d"
+    ri:t="wood_debris_e"
+    ri:t="wood_ladder_a"
+    ri:t="wood_ladder_b"
+    ri:t="wood_table_small_b"
+    ri:t="wood_barrel_a"
+    ri:t="wood_bench_a"
+    ri:t="wood_bench_b"
+    ri:t="wood_bench_c"
+    ri:t="wood_gates_a"
+    ri:t="european_waymark_a"
+    ri:t="european_waymark_b"
+    ri:t="european_waymark_c"
+    ri:t="european_waymark_d"
+    ri:t="european_waymark_e"
+    ri:t="european_waymark_f"
+    ri:t="axe_in_stump_a"
+    ri:t="horse_plough_a"
+    ri:t="grab_a"
+    ri:t="mowing_machine_a"
+    ri:t="barbed_wire_a"
+    ri:t="barbedwire_a"
+    ri:t="barbedwire_a_dmg"
+    ri:t="concrete_fence_g_column"
+    ri:t="box_a"
+    ri:t="box_b"
+    ri:t="box_c"
+    ri:t="box_d"
+    ri:t="box_f"
+    ri:t="box_g"
+    ri:t="box_h"
+    ri:t="box_i"
+    ri:t="box_j"
+    ri:t="box_k"
+    ri:t="egypt_arcade_stone1_01"
+    ri:t="egypt_arcade_stone1_02"
+    ri:t="egypt_arcade_stone1_03"
+    ri:t="egypt_arcade_stone2_01"
+    ri:t="egypt_arcade_stone2_02"
+    ri:t="egypt_arcade_stone2_03"
+    ri:t="african_jug_a"
+    ri:t="african_jug_b"
+    ri:t="african_jug_c"
+    ri:t="sandbag_a"
+    ri:t="sandbags_d"
+    ri:t="sandbags_e"
+    ri:t="sandbags_f"
+    ri:t="sandbags_j"
+    ri:t="european_advertising_column_a"
+    ri:t="european_advertising_column_b"
+    ri:t="european_advertising_column_c"
+    ri:t="european_advertising_column_d"
+    ri:t="european_advertising_column_e"
+    ri:t="european_advertising_column_f"
+    ri:t="european_bench_a"
+    ri:t="european_bench_b"
+    ri:t="european_bycicle_a"
+    ri:t="european_bycicle_damaged_a"
+    ri:t="european_menu_board_street_a"
+    ri:t="european_menu_board_street_b"
+    ri:t="european_wooden_cart_a"
+    ri:t="european_wooden_cart_b"
+    ri:t="european_wooden_well_a"
+    ri:t="european_wooden_well_b"
+    ri:t="european_gas_pump_a"
+    ri:t="european_gas_pump_b"
+    ri:t="european_watch_a"
+    ri:t="european_watch_b"
+    ri:t="european_watch_c"
+    ri:t="canopy_a"
+    ri:t="canopy_b"
+    ri:t="canopy_c"
+    ri:t="canopy_d"
+    ri:t="canopy_e"
+    ri:t="canopy_f"
+    ri:t="canopy_g"
+    ri:t="canopy_h"
+    ri:t="wrought_fence_a"
+    ri:t="wrought_fence_b"
+    ri:t="wrought_fence_c"
+    ri:t="european_road_sign_a"
+    ri:t="european_road_sign_b"
+    ri:t="european_road_sign_c"
+    ri:t="european_road_sign_d"
+    ri:t="european_road_sign_e"
+    ri:t="european_road_sign_f"
+    ri:t="european_road_sign_g"
+    ri:t="european_road_sign_h"
+    ri:t="european_road_sign_i"
+    ri:t="european_road_sign_j"
+    ri:t="european_lamp_a"
+    ri:t="european_lamp_b"
+    ri:t="european_lamp_c"
+    ri:t="european_lamp_d"
+    ri:t="european_lamp_e"
+    ri:t="european_lamp_big_a"
+    ri:t="european_lamp_big_b"
+    ri:t="european_lamp_big_c"
+    ri:t="european_lamp_big_d"
+    ri:t="european_lamp_big_e"
+    ri:t="european_lamp_small_a"
+    ri:t="european_lamp_small_b"
+    ri:t="european_lamp_small_c"
+    ri:t="european_lamp_small_d"
+    ri:t="european_lamp_small_e"
+    ri:t="european_lamp_small_f"
+    ri:t="european_traffic_light_a"
+    ri:t="european_traffic_light_b"
+    ri:t="european_traffic_light_c"
+    ri:t="european_traffic_light_small_a"
+    ri:t="european_traffic_light_small_b"
+    ri:t="european_traffic_light_small_c"
+    ri:t="european_traffic_light_small_d"
+    ri:t="wood_fence_a"
+    ri:t="wood_fence_b"
+    ri:t="wood_fence_c"
+    ri:t="wood_fence_d"
+    ri:t="wood_fence_e"
+    ri:t="wood_fence_f"
+    ri:t="wood_debris_b"
+    ri:t="wood_debris_f"
+    ri:t="wood_market_stall_b"
+    ri:t="wood_market_stall_c"
+    ri:t="wood_toilet_a"
+    ri:t="debris_wood_trash_medium"
+  }
+
+  leaveLod0{
+    ri:t="karelia_stone_small_a"
+    ri:t="karelia_stone_small_b"
+    ri:t="karelia_stone_small_c"
+    ri:t="karelia_stone_small_d"
+    ri:t="karelia_stone_small_e"
+  }
+}
+
+tankDirt{
+  dirtMaxAmount:p2=1000.0, 1000.0
+
+  ground{
+    tdustColor:p4=0.09, 0.065, 0.05, 1.0
+    dustParams:p4=1.0, 0.5, 1.0, 0.2
+    dustParams2:p4=2.0, 0.75, 0.6, 1.0
+    mudColor:p4=0.035, 0.022, 0.017, 1.0
+    dirtParams:p4=0.28, 4.0, 0.0, 1.0
+    mudParams:p4=0.98, 1.0, 0.0, 0.392
+    tankDirtMask:t="mud_mask_m"
+    tankDirtNoise:t="mud_noise_n"
+    dirtMaskScale:r=1.0
+  }
+
+  snow{
+    tdustColor:p4=1.0, 1.0, 1.0, 1.0
+    dustParams:p4=1.0, 0.5, 1.0, 0.1
+    dustParams2:p4=1.0, 0.25, 0.5, 0.8
+    mudColor:p4=0.0, 0.0, 0.0, 0.0
+    dirtParams:p4=0.6, 6.0, 1.0, 0.7
+    mudParams:p4=0.98, 1.0, 0.0, 0.392
+    tankDirtMask:t="snow_color"
+    tankDirtNoise:t="snow_noise_mask"
+    dirtMaskScale:r=6.0
+  }
+}
+
+cutHoles{
+  fuseTolerance:r=0.5
+  decal:t="explosion_patch_ship_soot_c"
+  noise:t="explosion_patch_ship_metal_n"
+  explosionMinRadius:r=0.15
+  explosionMaxRadius:r=2.5
+  explosionRadiusK:r=1.4
+  woodMat:t="wood"
+}
+
+trackEffectsPresets{
+
+  default{
+    effect:t="track_dirt_back"
+    effectFront:t="track_dirt_front"
+    effectTop:t="track_dirt_top"
+    effectDust:t="track_move_dirt"
+  }
+
+  sand{
+    effect:t="track_sand_back"
+    effectFront:t="track_sand_front"
+    effectTop:t="track_sand_top"
+    effectDust:t="track_move_sand"
+  }
+
+  snow{
+    effect:t="track_snow_back"
+    effectFront:t="track_snow_front"
+    effectTop:t="track_snow_top"
+    effectDust:t="track_move_snow"
+  }
+
+  soil{
+    effect:t="track_dirt_back"
+    effectFront:t="track_dirt_front"
+    effectTop:t="track_dirt_top"
+    effectDust:t="track_move_dirt"
+  }
+}
+
+treeDestractible{
+  heightThreshold:r=5.0
+  impulseThresholdMult:r=1000.0
+}
+
+ground_decals_detail{
+  usegroundDecalsDetail:b=yes
+  uvScale:r=1.0
+  sharpness:r=1.5
+  scale:r=0.5
+}
+
+TreesTopProjection{
+  texName:t="tree_snow_d"
+  texNameCompatibility:t="tree_snow_comp_d"
+  normalY:r=0.07
+  sharpness:r=3.5
+}
+
+apex{
+  gravity:r=-9.8
+  randomTorque:r=100000.0
+  calculatePlayerViscosity:b=yes
+  numActiveChunks:ip2=40, 80
+  numLandscapeCollidableChunks:ip2=80, 200
+  numCollisionPairs:ip2=300, 600
+  minCaliber:r=0.03
+  caliber2SimpleRadius:r=50.0
+  simpleDamageRadius:p2=2.0, 6.0
+  hitPower2ApexDmg:r=5.0
+  explosionHitPower2ApexDmg:r=9.0
+  apexExplosionRadiusMultiplier:r=10.0
+  explosionRadius:p2=2.0, 8.0
+  minRadiusExplosionStrength:p2=400.0, 1200.0
+  maxRadiusExplosionStrength:p2=80.0, 400.0
+  fractureTimeCurvePower:r=0.4
+  fractureEffectProbability:r=1.0
+  groundEffectProbability:r=1.0
+  groundFxScaleAccordingToSize:p3=1.0, 0.1, 2.0
+  chunkVelocityForFxScale:p2=2.0, 10.0
+  fxScaleAccordingToVelocity:p2=0.7, 1.5
+  groundFxMinMaxScale:p2=0.05, 2.5
+  fractureSoundProbability:r=1.0
+  assetSizeCategory:p2=0.25, 0.65
+  groundSoundSmallNumChunks:i=3
+  groundSoundMediumNumChunks:i=5
+  woodAssetArea:p2=9.0, 42.0
+  woodAssetHeight:p2=2.0, 5.0
+  timeToSinkDelta:r=10.0
+  timeToFractureMin:r=3.0
+  timeToFractureMax:r=20.0
+  maxRandomDestrTimePercent:r=0.75
+  destructionSpeedAssetAreaInfo:p2=60.0, 100.0
+  destructionSpeedAssetHeightInfo:p2=5.0, 20.0
+  firstShootBuildingSize:p2=4.0, 30.0
+  firstShootKineticDamageMult:p2=1.0, 3.0
+  firstShootKineticDamageRadiusMult:p2=0.2, 0.7
+  firstShootExplDamageMult:p2=0.3, 0.1
+  firstShootExplDamageRadiusMult:p2=2.0, 6.0
+  eventLogEnabled:b=yes
+  eventLogMaxCriticalFrames:i=10
+  eventLogCriticalFramerate:r=10.0
+  eventLogMaxSendsPerSession:i=3
+  eventLogSendInterval:i=30
+  eventLogMaxmEvents:i=20
+  eventLogMaxTimemarks:i=20
+  maxSeparateVboForRender:i=10000000
+  maxSeparateVboMemory:i=524288000
+  maxSeparateTexturesForRender:i=1000000
+}
+
+ShipCaustics{
+  scale:r=0.7
+  fade:r=0.2
+  heightAboveWater:r=1.5
+  scrollSpeed:r=2.5
+}
+
+hero_wetness{
+  drySpeed:p2=0.25, 0.45
+}
+
+heroFoam{
+  enabled:b=yes
+}
+
+waterGeometryDecal{
+  enable:b=yes
+  decalName:t="wave_a"
+}
+
+camoMicroNoise{
+  tex:t="haze_noise"
+  tile_ship:r=3.8
+  amplitude_ship:r=0.18
+  tile_tank:r=7.0
+  amplitude_tank:r=0.15
+}
+
+airplane{
+  glowMul:r=0.0
+  starGlowMul:r=1.0
+}
+
+tank{
+  glowMul:r=1.0
+  starGlowMul:r=1.0
+  adaptationMultiplierMul:r=0.64
+}
+
+scene{
+  z_near:r=4.5
+  z_far:r=40000.0
+  tank_z_near:r=0.1
+  tank_z_far:r=10000.0
+}
+
+default_stars{
+  longitude:r=0.0
+  latitude:r=21.3
+  year:i=1943
+  month:i=7
+  day:i=9
+}
+
+timesOfDay{
+  night:p2=-0.01, -0.99
+  dawn:p2=0.0, 0.01
+  morning:p2=0.05, 0.1
+  day:p2=0.25, 0.42
+  noon:p2=0.55, 0.8
+  evening:p2=0.9, 0.95
+  dusk:p2=0.99, 1.0
+}
+
+replay{
+  segmentLengthSec:i=90
+}
+
+wakeFromBullet{
+  minCal:r=0.076
+  maxCal:r=0.38
+  minOfs:r=5.0
+  maxOfs:r=10.0
+  minStr:r=50.0
+  maxStr:r=2000.0
+}
+
+globe{
+  globeMinCameraDistance:r=15000.0
+  globeCameraViscosity:p2=0.4, 0.2
+  globeMouseRotSpeed:r=0.002
+  globeMinSunAngle:r=90.0
+  globeSunViscosity:r=0.3
+  globeCameraZFar:r=100000.0
+  colorTex:t="land_ocean_ice"
+  normalsTex:t="earth_bump_n"
+  markerIconFx:t="world_map_marker"
+  markerClickFx:t="world_map_click"
+  markerHoverFx:t="world_map_hover"
+  markerFxScale:r=200.0
+  markerFxColor:p4=1.0, 0.5, 0.0, 1.0
+  markerHoverFxColor:p4=1.0, 0.0, 0.0, 1.0
+}

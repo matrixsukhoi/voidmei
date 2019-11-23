@@ -1,0 +1,6 @@
+hideNodes{
+  node:t="hatch1_open"
+  node:t="hatch2_open"
+  node:t="pylon_bomb1"
+  node:t="pylon_bomb2"
+}

@@ -1,0 +1,13 @@
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/uk_500lbs.blk"
+  emitter:t="bomb1"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/uk_500lbs.blk"
+  emitter:t="bomb2"
+  bullets:i=1
+}

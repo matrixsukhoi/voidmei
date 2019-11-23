@@ -1,0 +1,88 @@
+cannon:b=yes
+weaponType:i=-1
+bUseHookAsRel:b=yes
+emitColor:p3=1.0, 1.0, 0.0
+emitI:r=10.0
+emitR:r=3.0
+emitTime:r=0.03
+aimMinDist:r=0.1
+aimMaxDist:r=2000.0
+maxDeltaAngle:r=0.229
+shotFreq:r=0.06
+traceFreq:i=4
+bEnablePause:b=no
+bullets:i=-1
+bulletsCluster:i=1
+fxType:t="big_gun_flame"
+fxGroundDust:t="ground_shock_wave_dust"
+shouldCollideWithRendinsts:b=yes
+sound_path:t="tanks/weapon_tanks/cannons"
+sound:t="122mm_d25t"
+sound_inside:t="122mm_d25t_interior"
+sfxReloadBullet:t="grd_cannon_reload"
+fxMultipleSpawn:b=yes
+isBulletBelt:b=no
+
+bullet{
+  bulletCount:i=25
+  mass:r=14.81
+  explosiveType:t="fp02"
+  explosiveMass:r=1.75
+  caliber:r=0.105
+  speed:r=472.0
+  maxDistance:r=10000.0
+  bulletType:t="he_frag_tank"
+  bulletName:t="105mm_fhgr"
+  hitPowerMult:r=40.0
+  relativeVelHitShift:p2=300.0, 1000.0
+  nearArmorPower:p2=22.0, 150.0
+  midArmorPower:p2=21.0, 600.0
+  farArmorPower:p2=20.0, 2000.0
+  relativeVelArmorShift:p2=200.0, 1000.0
+  fuseDelayDist:r=0.1
+  explodeTreshold:r=0.1
+  explodeHitPower:r=350.0
+  explodeArmorPower:r=28.0
+  explodeRadius:p2=0.35, 1.0
+  explosionPatchRadius:r=2.1
+  shutterDamage:b=yes
+  shutterDamageRadius:r=20.0
+  shutterAmount:i=1000
+  shutterArmorPower:r=10.0
+  shutterHit:r=10.0
+  groundCollisionEffect:t="art_ground_splash"
+  ricochetEffect:t="cannon_ricochet"
+  defFxScale:p2=1.9, 2.0
+
+  hitpower{
+    HitPower0m:p2=1.0, 500.0
+    HitPower1000m:p2=0.9, 1000.0
+    HitPower1500m:p2=0.65, 1500.0
+    HitPower2500m:p2=0.5, 2500.0
+    HitPower10000m:p2=0.0, 10000.0
+  }
+
+  visual{
+    range_percent_of_ammo:p2=100.0, 0.0
+    traceFreq:i=1
+    tracer:t="noColor"
+  }
+
+  collisions{
+
+    steel{
+      fx:t="cannon_hit_armor_cumulative"
+      fxScale:p2=3.0, 4.0
+    }
+
+    armor{
+      fx:t="cannon_hit_armor_cumulative"
+      fxScale:p2=3.0, 4.0
+    }
+
+    buildings{
+      fx:t="122_he_stone_splash"
+      fxScale:p2=0.8, 1.2
+    }
+  }
+}

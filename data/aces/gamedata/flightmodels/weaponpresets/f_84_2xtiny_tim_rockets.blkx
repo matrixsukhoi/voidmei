@@ -1,0 +1,24 @@
+hideNodes{
+  node:t="pylon_rocket1"
+  node:t="pylon_rocket2"
+  node:t="pylon_rocket3"
+  node:t="pylon_rocket4"
+}
+
+Weapon{
+  trigger:t="rockets"
+  blk:t="gameData/Weapons/rocketGuns/us_11_75_in_tiny_tim_army.blk"
+  emitter:t="tiny_tim_1"
+  bullets:i=1
+  external:b=yes
+  separate:b=yes
+}
+
+Weapon{
+  trigger:t="rockets"
+  blk:t="gameData/Weapons/rocketGuns/us_11_75_in_tiny_tim_army.blk"
+  emitter:t="tiny_tim_2"
+  bullets:i=1
+  external:b=yes
+  separate:b=yes
+}

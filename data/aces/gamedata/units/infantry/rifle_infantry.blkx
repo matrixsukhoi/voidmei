@@ -1,0 +1,548 @@
+model:t="usa_marine01_char"
+defaultSkin:t="usa"
+subclass:t="infantry"
+expClass:t="exp_infantry"
+walkSpeed:r=6.0
+runSpeed:r=14.0
+rotSpeed:r=180.0
+mass:r=200.0
+bnl_idle:t="inf_idle1"
+bnl_idle:t="inf_idle2"
+bnl_idle:t="inf_idle3"
+bnl_idle:t="inf_idle4"
+bnl_walk:t="inf_walk_var01"
+bnl_walk:t="inf_walk_var02"
+bnl_walk:t="inf_walk_var03"
+bnl_runhide:t="inf_shoot_run_gun"
+bnl_crawl:t="inf_shoot_crawl"
+bnl_die1:t="inf_dead1"
+bnl_die2:t="inf_dead2"
+bnl_die3:t="inf_dead3"
+bnl_swimhold:t="inwater_hold"
+bnl_swimto:t="inwater_move"
+bnl_die1_inwater:t="inwater_dead1"
+bnl_die2_inwater:t="inwater_dead2"
+bnl_die3_inwater:t="inwater_dead3"
+
+soldier{
+  probabilityWt:r=1.0
+  rocketWeapNode:t="RPG18"
+  rocketWeapProbability:r=0.0
+
+  usa{
+    animChar:t="usa_marine_01a_char"
+  }
+
+  japan{
+    animChar:t="jpn_soldier01a_01_char"
+  }
+
+  ussr{
+    animChar:t="sov_soldier01a_01_char"
+  }
+
+  germany{
+    animChar:t="ger_soldier01a_01_char"
+  }
+
+  britain{
+    animChar:t="uk_soldier01b_01_char"
+  }
+
+  australia{
+    animChar:t="usa_marine_01a_char"
+  }
+
+  italy{
+    animChar:t="ger_soldier01a_01_char"
+  }
+
+  groundModels_weapons/common_rifle7mm{
+    wt:r=1.0
+  }
+
+  no_gun{
+    wt:r=1.0
+  }
+}
+
+soldier{
+  probabilityWt:r=0.1
+  rocketWeapProbability:r=0.0
+  rocketWeapNode:t="RPG18"
+
+  usa{
+    animChar:t="usa_marine_01b_char"
+  }
+
+  japan{
+    animChar:t="jpn_soldier01a_02_char"
+  }
+
+  ussr{
+    animChar:t="sov_soldier01a_01_char"
+  }
+
+  germany{
+    animChar:t="ger_soldier01a_01_char"
+  }
+
+  britain{
+    animChar:t="uk_soldier01b_01_char"
+  }
+
+  australia{
+    animChar:t="usa_marine_01b_char"
+  }
+
+  italy{
+    animChar:t="ger_soldier01a_01_char"
+  }
+
+  groundModels_weapons/common_rifle7mm{
+    wt:r=1.0
+  }
+
+  no_gun{
+    wt:r=1.0
+  }
+}
+
+soldier{
+  probabilityWt:r=1.0
+  rocketWeapProbability:r=0.0
+  rocketWeapNode:t="RPG18"
+
+  usa{
+    animChar:t="usa_marine_02a_char"
+  }
+
+  japan{
+    animChar:t="jpn_soldier01b_01_char"
+  }
+
+  ussr{
+    animChar:t="sov_soldier01a_01_char"
+  }
+
+  germany{
+    animChar:t="ger_soldier01b_01_char"
+  }
+
+  britain{
+    animChar:t="uk_soldier01c_01_char"
+  }
+
+  australia{
+    animChar:t="usa_marine_02a_char"
+  }
+
+  italy{
+    animChar:t="ger_soldier01a_01_char"
+  }
+
+  groundModels_weapons/common_rifle7mm{
+    wt:r=1.0
+  }
+
+  no_gun{
+    wt:r=1.0
+  }
+}
+
+soldier{
+  probabilityWt:r=0.1
+  rocketWeapProbability:r=0.0
+  rocketWeapNode:t="RPG18"
+
+  usa{
+    animChar:t="usa_marine_02a_char"
+  }
+
+  japan{
+    animChar:t="jpn_soldier01b_02_char"
+  }
+
+  ussr{
+    animChar:t="sov_soldier01b_01_char"
+  }
+
+  germany{
+    animChar:t="ger_soldier01b_01_char"
+  }
+
+  britain{
+    animChar:t="uk_soldier01c_01_char"
+  }
+
+  australia{
+    animChar:t="usa_marine_02a_char"
+  }
+
+  italy{
+    animChar:t="ger_soldier01b_01_char"
+  }
+
+  groundModels_weapons/common_rifle7mm{
+    wt:r=1.0
+  }
+
+  no_gun{
+    wt:r=1.0
+  }
+}
+
+soldier{
+  probabilityWt:r=1.0
+  rocketWeapProbability:r=0.0
+  rocketWeapNode:t="RPG18"
+
+  usa{
+    animChar:t="usa_marine_02a_char"
+  }
+
+  japan{
+    animChar:t="jpn_soldier01b_01_char"
+  }
+
+  ussr{
+    animChar:t="sov_soldier01a_02_char"
+  }
+
+  germany{
+    animChar:t="ger_soldier01a_02_char"
+  }
+
+  britain{
+    animChar:t="uk_soldier01b_02_char"
+  }
+
+  australia{
+    animChar:t="usa_marine_02a_char"
+  }
+
+  italy{
+    animChar:t="ger_soldier01a_02_char"
+  }
+
+  groundModels_weapons/common_rifle7mm{
+    wt:r=1.0
+  }
+
+  no_gun{
+    wt:r=1.0
+  }
+}
+
+soldier{
+  probabilityWt:r=1.0
+  rocketWeapProbability:r=0.0
+  rocketWeapNode:t="RPG18"
+
+  usa{
+    animChar:t="usa_marine_02a_char"
+  }
+
+  japan{
+    animChar:t="jpn_soldier01c_02_char"
+  }
+
+  ussr{
+    animChar:t="sov_soldier01a_02_char"
+  }
+
+  germany{
+    animChar:t="ger_soldier01a_02_char"
+  }
+
+  britain{
+    animChar:t="uk_soldier01b_02_char"
+  }
+
+  australia{
+    animChar:t="usa_marine_02a_char"
+  }
+
+  italy{
+    animChar:t="ger_soldier01a_02_char"
+  }
+
+  groundModels_weapons/common_rifle7mm{
+    wt:r=1.0
+  }
+
+  no_gun{
+    wt:r=1.0
+  }
+}
+
+soldier{
+  probabilityWt:r=0.1
+  rocketWeapProbability:r=0.0
+  rocketWeapNode:t="RPG18"
+
+  usa{
+    animChar:t="usa_marine_02b_char"
+  }
+
+  japan{
+    animChar:t="jpn_soldier02b_01_char"
+  }
+
+  ussr{
+    animChar:t="sov_soldier01a_02_char"
+  }
+
+  germany{
+    animChar:t="ger_soldier01a_02_char"
+  }
+
+  britain{
+    animChar:t="uk_soldier01b_02_char"
+  }
+
+  australia{
+    animChar:t="usa_marine_02b_char"
+  }
+
+  italy{
+    animChar:t="ger_soldier01a_02_char"
+  }
+
+  groundModels_weapons/common_rifle7mm{
+    wt:r=1.0
+  }
+
+  no_gun{
+    wt:r=1.0
+  }
+}
+
+soldier{
+  probabilityWt:r=0.1
+  rocketWeapProbability:r=0.0
+  rocketWeapNode:t="RPG18"
+
+  usa{
+    animChar:t="usa_marine_02b_char"
+  }
+
+  japan{
+    animChar:t="jpn_soldier02b_02_char"
+  }
+
+  ussr{
+    animChar:t="sov_soldier01a_02_char"
+  }
+
+  germany{
+    animChar:t="ger_soldier01a_02_char"
+  }
+
+  britain{
+    animChar:t="uk_soldier01b_02_char"
+  }
+
+  australia{
+    animChar:t="usa_marine_02b_char"
+  }
+
+  italy{
+    animChar:t="ger_soldier01a_02_char"
+  }
+
+  groundModels_weapons/common_rifle7mm{
+    wt:r=1.0
+  }
+
+  no_gun{
+    wt:r=1.0
+  }
+}
+
+soldier{
+  probabilityWt:r=0.1
+  rocketWeapProbability:r=0.0
+  rocketWeapNode:t="RPG18"
+
+  usa{
+    animChar:t="usa_marine_02c_char"
+  }
+
+  japan{
+    animChar:t="jpn_soldier01a_01_char"
+  }
+
+  ussr{
+    animChar:t="sov_soldier01b_02_char"
+  }
+
+  germany{
+    animChar:t="ger_soldier01b_02_char"
+  }
+
+  britain{
+    animChar:t="uk_soldier01c_02_char"
+  }
+
+  australia{
+    animChar:t="usa_marine_02c_char"
+  }
+
+  italy{
+    animChar:t="ger_soldier01b_02_char"
+  }
+
+  groundModels_weapons/common_rifle7mm{
+    wt:r=1.0
+  }
+
+  no_gun{
+    wt:r=1.0
+  }
+}
+
+soldier{
+  probabilityWt:r=1.0
+  rocketWeapProbability:r=0.0
+  rocketWeapNode:t="RPG18"
+
+  usa{
+    animChar:t="usa_marine_03a_char"
+  }
+
+  japan{
+    animChar:t="jpn_soldier01c_02_char"
+  }
+
+  ussr{
+    animChar:t="sov_soldier01a_03_char"
+  }
+
+  germany{
+    animChar:t="ger_soldier01b_03_char"
+  }
+
+  britain{
+    animChar:t="uk_soldier01b_02_char"
+  }
+
+  australia{
+    animChar:t="usa_marine_03a_char"
+  }
+
+  italy{
+    animChar:t="ger_soldier01b_03_char"
+  }
+
+  groundModels_weapons/common_rifle7mm{
+    wt:r=1.0
+  }
+
+  no_gun{
+    wt:r=1.0
+  }
+}
+
+soldier{
+  probabilityWt:r=0.1
+  rocketWeapProbability:r=0.0
+  rocketWeapNode:t="RPG18"
+
+  usa{
+    animChar:t="usa_marine_03b_char"
+  }
+
+  japan{
+    animChar:t="jpn_soldier01b_01_char"
+  }
+
+  ussr{
+    animChar:t="sov_soldier01b_03_char"
+  }
+
+  germany{
+    animChar:t="ger_soldier01b_03_char"
+  }
+
+  britain{
+    animChar:t="uk_soldier01c_03_char"
+  }
+
+  australia{
+    animChar:t="usa_marine_03b_char"
+  }
+
+  italy{
+    animChar:t="ger_soldier01b_03_char"
+  }
+
+  groundModels_weapons/common_rifle7mm{
+    wt:r=1.0
+  }
+
+  no_gun{
+    wt:r=1.0
+  }
+}
+
+damageModel{
+
+  default{
+    width:r=1.0
+    height:r=2.0
+    offset:p3=0.0, 0.0, 0.0
+  }
+
+  crouch{
+    width:r=0.8
+    height:r=1.0
+    offset:p3=0.0, 0.0, 0.0
+  }
+
+  crawl{
+    width:r=1.2
+    height:r=-0.5
+    offset:p3=0.0, 0.0, 0.0
+  }
+}
+
+class_tags{
+  mediterran:b=yes
+  westernfront:b=yes
+  easternfront:b=yes
+  pacific:b=yes
+  country_usa:b=yes
+  country_ussr:b=yes
+  country_germany:b=yes
+  country_japan:b=yes
+  country_australia:b=yes
+  country_britain:b=yes
+  country_italy:b=yes
+  infantry:b=yes
+  year1940:b=yes
+  year1941:b=yes
+  year1942:b=yes
+  year1943:b=yes
+  year1944:b=yes
+  year1945:b=yes
+}
+
+weapon{
+  name:t="groundModels_weapons/common_rifle7mm"
+  primary:b=yes
+  emitter:t="gun"
+  flash:t="flame"
+  accuracyAir:r=0.4
+  accuracyGnd:r=-1.0
+  errTargetting:r=10.0
+  ChainfireTime:r=12.0
+  DelayAfterShoot:r=3.0
+  node:t="AKS74U"
+  bnl_run:t="inf_shoot_run_gun"
+  bnl_run_up:t="inf_shoot_run_up_gun"
+  bnl_shoot:t="inf_shoot_gun"
+  bnl_shoot_up:t="inf_shoot_up_gun"
+  bnl_shoot_crouch:t="inf_shootcrouch_gun"
+  bnl_shoot_crouch_up:t="inf_shootcrouch_up_gun"
+}

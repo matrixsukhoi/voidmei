@@ -1,0 +1,388 @@
+hideNodes{
+  node:t="rocket_pylon1"
+  node:t="rocket_pylon2"
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/de_r4m_orkan_rocket.blk"
+  emitter:t="rocket1"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/de_r4m_orkan_rocket.blk"
+  emitter:t="rocket2"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/de_r4m_orkan_rocket.blk"
+  emitter:t="rocket3"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/de_r4m_orkan_rocket.blk"
+  emitter:t="rocket4"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/de_r4m_orkan_rocket.blk"
+  emitter:t="rocket5"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/de_r4m_orkan_rocket.blk"
+  emitter:t="rocket6"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/de_r4m_orkan_rocket.blk"
+  emitter:t="rocket7"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/de_r4m_orkan_rocket.blk"
+  emitter:t="rocket8"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/de_r4m_orkan_rocket.blk"
+  emitter:t="rocket9"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/de_r4m_orkan_rocket.blk"
+  emitter:t="rocket10"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/de_r4m_orkan_rocket.blk"
+  emitter:t="rocket11"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/de_r4m_orkan_rocket.blk"
+  emitter:t="rocket12"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/de_r4m_orkan_rocket.blk"
+  emitter:t="rocket13"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/de_r4m_orkan_rocket.blk"
+  emitter:t="rocket14"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/de_r4m_orkan_rocket.blk"
+  emitter:t="rocket15"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/de_r4m_orkan_rocket.blk"
+  emitter:t="rocket16"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/de_r4m_orkan_rocket.blk"
+  emitter:t="rocket17"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/de_r4m_orkan_rocket.blk"
+  emitter:t="rocket18"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/de_r4m_orkan_rocket.blk"
+  emitter:t="rocket19"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/de_r4m_orkan_rocket.blk"
+  emitter:t="rocket20"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/de_r4m_orkan_rocket.blk"
+  emitter:t="rocket21"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/de_r4m_orkan_rocket.blk"
+  emitter:t="rocket22"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/de_r4m_orkan_rocket.blk"
+  emitter:t="rocket23"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/de_r4m_orkan_rocket.blk"
+  emitter:t="rocket24"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/de_r4m_orkan_rocket.blk"
+  emitter:t="rocket25"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/de_r4m_orkan_rocket.blk"
+  emitter:t="rocket26"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/de_r4m_orkan_rocket.blk"
+  emitter:t="rocket27"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/de_r4m_orkan_rocket.blk"
+  emitter:t="rocket28"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/de_r4m_orkan_rocket.blk"
+  emitter:t="rocket29"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/de_r4m_orkan_rocket.blk"
+  emitter:t="rocket30"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/de_r4m_orkan_rocket.blk"
+  emitter:t="rocket31"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/de_r4m_orkan_rocket.blk"
+  emitter:t="rocket32"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/de_r4m_orkan_rocket.blk"
+  emitter:t="rocket33"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/de_r4m_orkan_rocket.blk"
+  emitter:t="rocket34"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/de_r4m_orkan_rocket.blk"
+  emitter:t="rocket35"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/de_r4m_orkan_rocket.blk"
+  emitter:t="rocket36"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/de_r4m_orkan_rocket.blk"
+  emitter:t="rocket37"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/de_r4m_orkan_rocket.blk"
+  emitter:t="rocket38"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/de_r4m_orkan_rocket.blk"
+  emitter:t="rocket39"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/de_r4m_orkan_rocket.blk"
+  emitter:t="rocket40"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/de_r4m_orkan_rocket.blk"
+  emitter:t="rocket41"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/de_r4m_orkan_rocket.blk"
+  emitter:t="rocket42"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/de_r4m_orkan_rocket.blk"
+  emitter:t="rocket43"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/de_r4m_orkan_rocket.blk"
+  emitter:t="rocket44"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/de_r4m_orkan_rocket.blk"
+  emitter:t="rocket45"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/de_r4m_orkan_rocket.blk"
+  emitter:t="rocket46"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/de_r4m_orkan_rocket.blk"
+  emitter:t="rocket47"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/de_r4m_orkan_rocket.blk"
+  emitter:t="rocket48"
+  bullets:i=1
+}

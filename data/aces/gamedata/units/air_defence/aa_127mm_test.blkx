@@ -1,0 +1,94 @@
+model:t="40mm_bofors_a"
+collisionSphere0:p4=0.0, -1.5, 0.0, 5.0
+collisionSphere1:p4=5.0, 2.0, 0.0, 1.0
+timeToFire:r=5.0
+subclass:t="fortification"
+onRadarAs:t="aam"
+moveType:t="vehicle"
+maxFwdSpeed:r=0.0
+maxRevSpeed:r=0.0
+maxAngSpeed:r=0.0
+maxAccel:r=0.0
+maxDecel:r=0.0
+maxAngAccel0:r=0.0
+maxAngAccelV:r=0.0
+maxAngAccel:r=0.0
+groundNormSmoothViscosity:r=0.1
+bulletHitFx:t="ground_model_hit"
+partDamageFx:t="part_damage"
+explosionFx:t="ground_model_expl"
+fireFx:t="ground_model_fire"
+
+attach{
+  inc_gunner01:t="usa_young_gunner_sit1"
+  inc_gunner00:t="usa_young_gunner_sit2"
+  inc_soldier:t="usa_young_stand_soldier"
+}
+
+DamageParts{
+
+  steel{
+
+    body_dm{
+      hp:r=10.0
+    }
+  }
+}
+
+DamageEffects{
+
+  part{
+    name:t="body_dm"
+
+    onHit{
+    }
+
+    onKill{
+      fire:r=2.0
+      smoke:r=5.0
+      expl:r=5.0
+    }
+  }
+}
+
+class_tags{
+  fortest:b=yes
+}
+
+weapon{
+  trigger:t="gunner0"
+  blk:t="gameData/weapons/groundModels_weapons/common_AAgun127mm.blk"
+  emitter:t="gun1"
+  flash:t="flame1"
+  defaultYaw:r=0.0
+  defaultPitch:r=30.0
+  speedYaw:r=80.0
+  speedPitch:r=80.0
+  fireConeAngle:r=0.0
+  bullets:i=-1
+  salvoAmount:r=100.0
+  ChainfireTime:r=0.0
+  DelayAfterShoot:r=0.0
+  AttackMaxDistance:r=10000.0
+  AttackMaxRadius:r=10000.0
+  AttackMaxHeight:r=10000.0
+  accuracyAir:r=0.1
+  accuracyGnd:r=0.0
+  errMeasureVel:r=0.0
+  errTargettingOn100kmph:r=0.0
+  errMeasureVelFast:r=100.0
+  errMeasureVelFwdShift:r=1.0
+  errMeasureVelDir:r=10.0
+  errTargetting:r=1.0
+  errExplTime:r=0.02
+
+  turret{
+    head:t="turret1"
+    gun:t="gun1"
+  }
+
+  limits{
+    yaw:p2=-180.0, 180.0
+    pitch:p2=10.0, 80.0
+  }
+}

@@ -1,0 +1,83 @@
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/jp_type94mod5.blk"
+  emitter:t="bomb6"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/jp_type94mod5.blk"
+  emitter:t="bomb7"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/jp_type94mod5.blk"
+  emitter:t="bomb8"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/jp_type94mod5.blk"
+  emitter:t="bomb9"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/jp_type94mod5.blk"
+  emitter:t="bomb10"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/jp_type94mod5.blk"
+  emitter:t="bomb11"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/jp_type94mod5.blk"
+  emitter:t="bomb12"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/jp_type94mod5.blk"
+  emitter:t="bomb13"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/jp_type94mod5.blk"
+  emitter:t="bomb14"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/jp_type94mod5.blk"
+  emitter:t="bomb15"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/jp_type94mod5.blk"
+  emitter:t="bomb16"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/jp_type94mod5.blk"
+  emitter:t="bomb17"
+  bullets:i=1
+}

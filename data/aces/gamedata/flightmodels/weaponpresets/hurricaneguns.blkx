@@ -1,0 +1,146 @@
+Weapon{
+  trigger:t="machine gun"
+  blk:t="gameData/Weapons/gunBrowning303_raf.blk"
+  emitter:t="flare1"
+  flash:t="flare1"
+  shell:t="emtr_shellrejection1"
+  dm:t="mgun1_dm"
+  bullets:i=350
+  light:b=yes
+  spread:r=1.25
+}
+
+Weapon{
+  trigger:t="machine gun"
+  blk:t="gameData/Weapons/gunBrowning303_raf.blk"
+  emitter:t="flare2"
+  flash:t="flare2"
+  dm:t="mgun1_dm"
+  bullets:i=350
+  light:b=no
+  spread:r=1.25
+  traceOffset:i=1
+}
+
+Weapon{
+  trigger:t="machine gun"
+  blk:t="gameData/Weapons/gunBrowning303_raf.blk"
+  emitter:t="flare3"
+  flash:t="flare3"
+  shell:t="emtr_shellrejection2"
+  dm:t="mgun2_dm"
+  bullets:i=350
+  light:b=no
+  spread:r=1.25
+  traceOffset:i=2
+}
+
+Weapon{
+  trigger:t="machine gun"
+  blk:t="gameData/Weapons/gunBrowning303_raf.blk"
+  emitter:t="flare4"
+  flash:t="flare4"
+  dm:t="mgun2_dm"
+  bullets:i=350
+  light:b=yes
+  spread:r=1.25
+  traceOffset:i=3
+}
+
+Weapon{
+  trigger:t="machine gun"
+  blk:t="gameData/Weapons/gunBrowning303_raf.blk"
+  emitter:t="flare5"
+  flash:t="flare5"
+  dm:t="mgun2_dm"
+  bullets:i=350
+  light:b=no
+  spread:r=1.25
+  traceOffset:i=0
+}
+
+Weapon{
+  trigger:t="machine gun"
+  blk:t="gameData/Weapons/gunBrowning303_raf.blk"
+  emitter:t="flare6"
+  flash:t="flare6"
+  dm:t="mgun2_dm"
+  bullets:i=350
+  light:b=no
+  spread:r=1.25
+  traceOffset:i=3
+}
+
+Weapon{
+  trigger:t="machine gun"
+  blk:t="gameData/Weapons/gunBrowning303_raf.blk"
+  emitter:t="flare7"
+  flash:t="flare7"
+  shell:t="emtr_shellrejection3"
+  dm:t="mgun3_dm"
+  bullets:i=350
+  light:b=no
+  spread:r=1.25
+  traceOffset:i=2
+}
+
+Weapon{
+  trigger:t="machine gun"
+  blk:t="gameData/Weapons/gunBrowning303_raf.blk"
+  emitter:t="flare8"
+  flash:t="flare8"
+  dm:t="mgun3_dm"
+  bullets:i=350
+  light:b=yes
+  spread:r=1.25
+  traceOffset:i=1
+}
+
+Weapon{
+  trigger:t="machine gun"
+  blk:t="gameData/Weapons/gunBrowning303_raf.blk"
+  emitter:t="flare9"
+  flash:t="flare9"
+  dm:t="mgun3_dm"
+  bullets:i=350
+  light:b=no
+  spread:r=1.25
+  traceOffset:i=3
+}
+
+Weapon{
+  trigger:t="machine gun"
+  blk:t="gameData/Weapons/gunBrowning303_raf.blk"
+  emitter:t="flare10"
+  flash:t="flare10"
+  dm:t="mgun3_dm"
+  bullets:i=350
+  light:b=no
+  spread:r=1.25
+  traceOffset:i=2
+}
+
+Weapon{
+  trigger:t="machine gun"
+  blk:t="gameData/Weapons/gunBrowning303_raf.blk"
+  emitter:t="flare11"
+  flash:t="flare11"
+  shell:t="emtr_shellrejection4"
+  dm:t="mgun4_dm"
+  bullets:i=350
+  light:b=no
+  spread:r=1.25
+  traceOffset:i=1
+}
+
+Weapon{
+  trigger:t="machine gun"
+  blk:t="gameData/Weapons/gunBrowning303_raf.blk"
+  emitter:t="flare12"
+  flash:t="flare12"
+  dm:t="mgun4_dm"
+  bullets:i=350
+  light:b=yes
+  spread:r=1.25
+  traceOffset:i=0
+}

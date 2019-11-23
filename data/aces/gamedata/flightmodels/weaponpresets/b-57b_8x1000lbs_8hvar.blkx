@@ -1,0 +1,123 @@
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/us_1000lb_anm65_cone.blk"
+  emitter:t="bomb1"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/us_1000lb_anm65_cone.blk"
+  emitter:t="bomb2"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/us_1000lb_anm65_cone.blk"
+  emitter:t="bomb3"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/us_1000lb_anm65_cone.blk"
+  emitter:t="bomb4"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/us_1000lb_anm65_cone.blk"
+  emitter:t="bomb38"
+  bullets:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/us_1000lb_anm65_cone.blk"
+  emitter:t="bomb39"
+  bullets:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/us_1000lb_anm65_cone.blk"
+  emitter:t="bomb40"
+  bullets:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/us_1000lb_anm65_cone.blk"
+  emitter:t="bomb41"
+  bullets:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/us_5_in_hvar_b.blk"
+  emitter:t="rocket1"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/us_5_in_hvar_b.blk"
+  emitter:t="rocket2"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/us_5_in_hvar_b.blk"
+  emitter:t="rocket3"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/us_5_in_hvar_b.blk"
+  emitter:t="rocket4"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/us_5_in_hvar_a.blk"
+  emitter:t="rocket5"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/us_5_in_hvar_a.blk"
+  emitter:t="rocket6"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/us_5_in_hvar_a.blk"
+  emitter:t="rocket7"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/us_5_in_hvar_a.blk"
+  emitter:t="rocket8"
+  bullets:i=1
+}

@@ -1,0 +1,95 @@
+Weapon{
+  trigger:t="additional gun"
+  blk:t="gameData/Weapons/gunBrowning50_M3.blk"
+  emitter:t="flare7"
+  flash:t="flare7"
+  bullets:i=400
+  traceOffset:i=1
+  spread:r=1.0
+  counterIndex:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="additional gun"
+  blk:t="gameData/Weapons/gunBrowning50_M3.blk"
+  emitter:t="flare8"
+  flash:t="flare8"
+  bullets:i=400
+  traceOffset:i=2
+  spread:r=1.0
+  counterIndex:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="additional gun"
+  blk:t="gameData/Weapons/gunBrowning50_M3.blk"
+  emitter:t="flare9"
+  flash:t="flare9"
+  bullets:i=400
+  traceOffset:i=3
+  spread:r=1.0
+  counterIndex:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="additional gun"
+  blk:t="gameData/Weapons/gunBrowning50_M3.blk"
+  emitter:t="flare10"
+  flash:t="flare10"
+  bullets:i=400
+  traceOffset:i=4
+  spread:r=1.0
+  counterIndex:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="additional gun"
+  blk:t="gameData/Weapons/gunBrowning50_M3.blk"
+  emitter:t="flare11"
+  flash:t="flare11"
+  bullets:i=400
+  traceOffset:i=5
+  spread:r=1.0
+  counterIndex:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="additional gun"
+  blk:t="gameData/Weapons/gunBrowning50_M3.blk"
+  emitter:t="flare12"
+  flash:t="flare12"
+  bullets:i=400
+  traceOffset:i=6
+  spread:r=1.0
+  counterIndex:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="additional gun"
+  blk:t="gameData/Weapons/gunBrowning50_M3.blk"
+  emitter:t="flare13"
+  flash:t="flare13"
+  bullets:i=400
+  traceOffset:i=7
+  spread:r=1.0
+  counterIndex:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="additional gun"
+  blk:t="gameData/Weapons/gunBrowning50_M3.blk"
+  emitter:t="flare14"
+  flash:t="flare14"
+  bullets:i=400
+  traceOffset:i=8
+  spread:r=1.0
+  counterIndex:i=1
+  external:b=yes
+}

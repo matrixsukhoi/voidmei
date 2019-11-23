@@ -1,0 +1,81 @@
+speed{
+
+  kmh{
+    koef:r=3.6
+    round:i=1
+    roundAfter:p2=30.0, 1.0
+  }
+
+  mph{
+    koef:r=2.237
+    round:i=1
+    roundAfter:p2=30.0, 1.0
+  }
+
+  kt{
+    koef:r=1.94
+    round:i=1
+    roundAfter:p2=30.0, 1.0
+  }
+}
+
+alt{
+
+  meters_alt{
+    koef:r=1.0
+    round:i=0
+  }
+
+  feet_alt{
+    koef:r=3.28
+    round:i=0
+  }
+}
+
+dist{
+
+  km_dist{
+    koef:r=0.001
+    round:i=2
+    roundAfter:p2=20.0, 1.0
+  }
+
+  feet_dist{
+    koef:r=3.28
+    round:i=0
+    roundAfter:p2=15000.0, 1000.0
+  }
+
+  mile_dist{
+    koef:r=0.0006
+    round:i=2
+    roundAfter:p2=20.0, 1.0
+  }
+}
+
+climbSpeed{
+
+  metersPerSecond_climbSpeed{
+    koef:r=1.0
+    round:i=1
+  }
+
+  feetPerMinute_climbSpeed{
+    koef:r=196.85
+    round:i=0
+  }
+}
+
+temperature{
+
+  celsius_temperature{
+    koef:r=1.0
+    round:i=0
+  }
+
+  fahrenheit_temperature{
+    koef:r=1.8
+    addition:r=32.0
+    round:i=0
+  }
+}

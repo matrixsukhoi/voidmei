@@ -1,0 +1,71 @@
+takeoffDistance:r=309.992
+landingDistance:r=309.992
+
+altSpecs{
+
+  altSpecs0{
+    maxSpeed:r=171.599
+    optSpeed:r=81.1999
+    maxClimb:r=24.0406
+  }
+
+  altSpecs1000{
+    maxSpeed:r=176.999
+    optSpeed:r=81.1999
+    maxClimb:r=24.6698
+  }
+
+  altSpecs2000{
+    maxSpeed:r=184.398
+    optSpeed:r=84.282
+    maxClimb:r=22.0891
+  }
+
+  altSpecs3000{
+    maxSpeed:r=185.598
+    optSpeed:r=84.282
+    maxClimb:r=21.7658
+  }
+
+  altSpecs4000{
+    maxSpeed:r=189.798
+    optSpeed:r=84.282
+    maxClimb:r=21.0577
+  }
+
+  altSpecs5000{
+    maxSpeed:r=194.998
+    optSpeed:r=84.282
+    maxClimb:r=17.8451
+  }
+
+  altSpecs6000{
+    maxSpeed:r=191.398
+    optSpeed:r=84.282
+    maxClimb:r=14.4157
+  }
+
+  altSpecs7000{
+    maxSpeed:r=185.598
+    optSpeed:r=84.282
+    maxClimb:r=11.2422
+  }
+
+  altSpecs8000{
+    maxSpeed:r=179.398
+    optSpeed:r=84.282
+    maxClimb:r=8.3381
+  }
+
+  altSpecs9000{
+    maxSpeed:r=172.799
+    optSpeed:r=84.282
+    maxClimb:r=5.5285
+  }
+
+  altSpecs10000{
+    maxSpeed:r=165.599
+    optSpeed:r=84.282
+    maxClimb:r=2.8658
+  }
+}

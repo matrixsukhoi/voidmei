@@ -1,0 +1,46 @@
+z_far:r=180000.0
+mapCoord0:p2=-12288.0, -10240.0
+mapCoord1:p2=8192.0, 10240.0
+minAreaSize:p2=6000.0, 6000.0
+aiMapCoord0:p2=-16000.0, -16000.0
+aiMapCoord1:p2=9365.0, 16000.0
+water_level:r=0.0
+numBorderCellsXPos:i=1
+numBorderCellsXNeg:i=0
+numBorderCellsZPos:i=0
+numBorderCellsZNeg:i=0
+mirrorShrinkXPos:r=256.0
+mirrorShrinkXNeg:r=0.0
+mirrorShrinkZPos:r=0.0
+mirrorShrinkZNeg:r=0.0
+gridSteps:p2=3250.0, 3250.0
+average_ground_level:r=16.0
+weatherPreset:t="gameData/environments/weather_preset_1.blk"
+weatherTypes:t="gameData/environments/weather_types.blk"
+land_translucency:t="some"
+
+earth{
+  clampZ:b=yes
+  clampX:b=yes
+}
+
+shader_vars{
+  specular_detect_land_color:p4=1.0, -0.5, 0.9, 0.1
+  translucency_detection_hardness:r=50.0
+  land_smoothness_detect_color:p4=0.57, 0.52, 0.46, 0.2
+  smoothness_detection_hardness:r=1.0
+  land_bump_scale:r=0.4
+  max_river_width:r=1500.0
+  ocean_density:r=1.0
+  river_density:r=2.0
+  ocean0:p4=0.27, 0.68, 0.53, 0.0
+  ocean1:p4=0.57, 0.91, 0.84, 0.0
+  river0:p4=0.5, 0.35, 0.12, 0.0
+  river1:p4=0.36, 0.41, 0.17, 0.0
+  water_color_noise_size:r=1137.0
+}
+
+technicsSkins{
+  groundSkin:t="urban"
+  groundSkin:t="default"
+}

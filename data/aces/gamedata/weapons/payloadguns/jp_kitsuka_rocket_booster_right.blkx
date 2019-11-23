@@ -1,0 +1,24 @@
+boosterGun:b=yes
+preset_cost:i=100
+shotFreq:r=10.0
+sound:t="weapon.bombgun"
+mesh:t="rocket_engine_kitsuka"
+
+tags{
+  booster:b=yes
+}
+
+payload{
+  mass:r=50.0
+  mass_lbs:r=1100.0
+  dragCx:r=0.09
+  caliber:r=1.0
+  length:r=2.2
+  distFromCmToStab:r=0.1
+  sound:t="weapon.bomb_std"
+  type:t="fm module"
+  itemType0:t="booster"
+  itemIndex0:i=1
+  itemType1:t="fuel tank"
+  itemIndex1:i=2
+}

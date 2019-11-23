@@ -1,0 +1,3 @@
+model:t="road_sign_speed_limit_60"
+collision:t="road_sign_speed_limit_60_aces"
+bboxMult:r=0.1

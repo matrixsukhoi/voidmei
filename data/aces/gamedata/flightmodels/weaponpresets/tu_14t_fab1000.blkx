@@ -1,0 +1,13 @@
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/bombGuns/su_fab1000.blk"
+  emitter:t="su_fab1000_1"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/bombGuns/su_fab1000.blk"
+  emitter:t="su_fab1000_2"
+  bullets:i=1
+}

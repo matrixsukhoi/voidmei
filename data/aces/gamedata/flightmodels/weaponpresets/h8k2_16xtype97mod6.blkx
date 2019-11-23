@@ -1,0 +1,133 @@
+Weapon{
+  trigger:t="bombs"
+  external:b=yes
+  blk:t="gameData/Weapons/bombGuns/jp_type97mod6.blk"
+  emitter:t="60_jp_bomb_1"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  external:b=yes
+  blk:t="gameData/Weapons/bombGuns/jp_type97mod6.blk"
+  emitter:t="60_jp_bomb_2"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  external:b=yes
+  blk:t="gameData/Weapons/bombGuns/jp_type97mod6.blk"
+  emitter:t="60_jp_bomb_3"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  external:b=yes
+  blk:t="gameData/Weapons/bombGuns/jp_type97mod6.blk"
+  emitter:t="60_jp_bomb_4"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  external:b=yes
+  blk:t="gameData/Weapons/bombGuns/jp_type97mod6.blk"
+  emitter:t="60_jp_bomb_5"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  external:b=yes
+  blk:t="gameData/Weapons/bombGuns/jp_type97mod6.blk"
+  emitter:t="60_jp_bomb_6"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  external:b=yes
+  blk:t="gameData/Weapons/bombGuns/jp_type97mod6.blk"
+  emitter:t="60_jp_bomb_7"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  external:b=yes
+  blk:t="gameData/Weapons/bombGuns/jp_type97mod6.blk"
+  emitter:t="60_jp_bomb_8"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  external:b=yes
+  blk:t="gameData/Weapons/bombGuns/jp_type97mod6.blk"
+  emitter:t="60_jp_bomb_9"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  external:b=yes
+  blk:t="gameData/Weapons/bombGuns/jp_type97mod6.blk"
+  emitter:t="60_jp_bomb_10"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  external:b=yes
+  blk:t="gameData/Weapons/bombGuns/jp_type97mod6.blk"
+  emitter:t="60_jp_bomb_11"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  external:b=yes
+  blk:t="gameData/Weapons/bombGuns/jp_type97mod6.blk"
+  emitter:t="60_jp_bomb_12"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  external:b=yes
+  blk:t="gameData/Weapons/bombGuns/jp_type97mod6.blk"
+  emitter:t="60_jp_bomb_13"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  external:b=yes
+  blk:t="gameData/Weapons/bombGuns/jp_type97mod6.blk"
+  emitter:t="60_jp_bomb_14"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  external:b=yes
+  blk:t="gameData/Weapons/bombGuns/jp_type97mod6.blk"
+  emitter:t="60_jp_bomb_15"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  external:b=yes
+  blk:t="gameData/Weapons/bombGuns/jp_type97mod6.blk"
+  emitter:t="60_jp_bomb_16"
+  bullets:i=1
+}
+
+hideNodes{
+  node:t="pylon_torp"
+  node:t="pylon_800kg"
+  node:t="pylon_250kg"
+}

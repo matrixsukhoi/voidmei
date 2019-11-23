@@ -1,0 +1,6 @@
+Weapon{
+  trigger:t="torpedoes"
+  blk:t="gameData/Weapons/torpedoes/jp_type91mod2_torpedo.blk"
+  emitter:t="bomb1"
+  bullets:i=1
+}

@@ -1,0 +1,137 @@
+Weapon{
+  trigger:t="gunner0"
+  triggerGroup:t="primary"
+  blk:t="gameData/Weapons/groundModels_weapons/37mm_M5_user_cannon_for_M3_Lee.blk"
+  emitter:t="bone_gun_barrel_01"
+  flash:t="emtr_gun_flame_01"
+  defaultYaw:r=0.0
+  defaultPitch:r=0.0
+  parkInDeadzone:b=no
+  speedYaw:r=18.0
+  speedPitch:r=4.0
+  fireConeAngle:r=1.0
+  bullets:i=128
+  salvoAmount:r=100.0
+  ChainfireTime:r=0.0
+  DelayAfterShoot:r=5.0
+  AttackMaxDistance:r=1000.0
+  AttackMaxRadius:r=1000.0
+  AttackMaxHeight:r=1000.0
+  accuracyAir:r=0.0
+  accuracyGnd:r=1.5
+  errMeasureVel:r=0.0
+  errMeasureVelFast:r=0.0
+  errMeasureVelFwdShift:r=0.0
+  errMeasureVelDir:r=0.0
+  errTargettingOn100kmph:r=0.0
+  errTargetting:r=3.0
+  errExplTime:r=0.0
+
+  turret{
+    head:t="bone_turret_01"
+    gun:t="bone_gun_01"
+    barrel:t="bone_gun_barrel_01"
+    gunnerDm:t="gunner_01_dm"
+  }
+
+  limits{
+    yaw:p2=-180.0, 180.0
+    pitch:p2=-7.0, 60.0
+  }
+}
+
+Weapon{
+  trigger:t="gunner1"
+  triggerGroup:t="secondary"
+  blk:t="gameData/Weapons/groundModels_weapons/75mm_M2_user_cannon.blk"
+  emitter:t="bone_gun_barrel_02"
+  flash:t="emtr_gun_flame_02"
+  defaultYaw:r=0.0
+  defaultPitch:r=0.0
+  hudSightIconOffset:p2=15.0, -35.0
+  barrelDP:t="gun_barrel_02_dm"
+  breechDP:t="cannon_breech_02_dm"
+  speedYaw:r=12.0
+  speedPitch:r=4.0
+  fireConeAngle:r=1.0
+  bullets:i=65
+  salvoAmount:r=100.0
+  ChainfireTime:r=0.0
+  DelayAfterShoot:r=5.0
+  AttackMaxDistance:r=1000.0
+  AttackMaxRadius:r=1000.0
+  AttackMaxHeight:r=1000.0
+  accuracyAir:r=0.0
+  accuracyGnd:r=1.5
+  errMeasureVel:r=0.0
+  errMeasureVelFast:r=0.0
+  errMeasureVelFwdShift:r=0.0
+  errMeasureVelDir:r=0.0
+  errTargettingOn100kmph:r=0.0
+  errTargetting:r=3.0
+  errExplTime:r=0.0
+
+  turret{
+    head:t="bone_turret_02"
+    gun:t="bone_gun_02"
+    barrel:t="bone_gun_barrel_02"
+    gunnerDm:t="gunner_dm"
+  }
+
+  limits{
+    yaw:p2=-15.0, 15.0
+    pitch:p2=-9.0, 20.0
+  }
+}
+
+Weapon{
+  trigger:t="gunner2"
+  triggerGroup:t="coaxial"
+  blk:t="gameData/Weapons/groundModels_weapons/7_62mm_M1919A4_user_machinegun.blk"
+  emitter:t="bone_mg_gun_twin"
+  flash:t="emtr_mg_flame_01"
+  defaultYaw:r=0.0
+  defaultPitch:r=0.0
+  useAnimFlashNode:b=yes
+  speedYaw:r=5.5
+  speedPitch:r=4.0
+  fireConeAngle:r=1.0
+  bullets:i=4000
+  isBulletBelt:b=yes
+  salvoAmount:r=100.0
+  ChainfireTime:r=0.0
+  DelayAfterShoot:r=5.0
+  AttackMaxDistance:r=1000.0
+  AttackMaxRadius:r=1000.0
+  AttackMaxHeight:r=1000.0
+  accuracyAir:r=0.0
+  accuracyGnd:r=1.5
+  errMeasureVel:r=0.0
+  errMeasureVelFast:r=0.0
+  errMeasureVelFwdShift:r=0.0
+  errMeasureVelDir:r=0.0
+  errTargettingOn100kmph:r=0.0
+  errTargetting:r=3.0
+  errExplTime:r=0.0
+
+  turret{
+    head:t="bone_mg_gun_twin"
+    gun:t="bone_mg_gun_twin"
+    gunnerDm:t="gunner_dm"
+  }
+
+  limits{
+    yaw:p2=-0.0, 0.0
+    pitch:p2=-0.0, 0.0
+  }
+}
+
+hideNodes{
+  node:t="ex_decor_l_02"
+  node:t="ex_decor_l_03"
+  node:t="ex_decor_r_02"
+  node:t="ex_decor_r_03"
+  node:t="ex_decor_r_04"
+  node:t="ex_decor_r_06"
+  node:t="ex_lantern_l_01"
+}

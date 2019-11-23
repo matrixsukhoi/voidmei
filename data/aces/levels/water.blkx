@@ -1,0 +1,33 @@
+z_far:r=35000.0
+mapCoord0:p2=-128000.0, -128000.0
+mapCoord1:p2=128000.0, 128000.0
+minAreaSize:p2=22768.0, 22768.0
+aiMapCoord0:p2=-90068.0, -90068.0
+aiMapCoord1:p2=90068.0, 90068.0
+numBorderCellsXPos:i=0
+numBorderCellsXNeg:i=0
+numBorderCellsZPos:i=0
+numBorderCellsZNeg:i=0
+gridSteps:p2=3250.0, 3250.0
+vsmAngleThreshold:r=0.0
+weatherPreset:t="gameData/environments/weather_preset_1.blk"
+weatherTypes:t="gameData/environments/weather_types.blk"
+wind_scale:r=1.2
+max_wind_strength:r=6.5
+lmesh_enabled:b=no
+water_level:r=0.0
+
+shader_vars{
+  max_river_width:r=1500.0
+  ocean_density:r=0.4
+  river_density:r=2.0
+  ocean0:p4=0.27, 0.68, 0.53, 0.0
+  ocean1:p4=0.57, 0.91, 0.84, 0.0
+  river0:p4=0.5, 0.35, 0.12, 0.0
+  river1:p4=0.36, 0.41, 0.17, 0.0
+  water_color_noise_size:r=1737.0
+}
+
+technicsSkins{
+  groundSkin:t="urban"
+}

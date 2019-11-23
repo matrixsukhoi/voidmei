@@ -1,0 +1,92 @@
+hideNodes{
+  node:t="pylon_bomb3"
+  node:t="pylon_bomb4"
+  node:t="wb151_r"
+  node:t="wb151_l"
+  node:t="wb81b_r"
+  node:t="wb81b_l"
+  node:t="etc50_pylon_l"
+  node:t="etc50_pylon_r"
+  node:t="flare6"
+  node:t="flare7"
+  node:t="flare8"
+  node:t="flare9"
+  node:t="flare10"
+  node:t="flare11"
+  node:t="flare12"
+  node:t="flare13"
+  node:t="flare14"
+  node:t="flare15"
+  node:t="flare16"
+  node:t="flare17"
+  node:t="flare18"
+  node:t="flare19"
+  node:t="flare20"
+  node:t="flare21"
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/de_sc250.blk"
+  emitter:t="bomb2"
+  dm:t="bomb2_dm"
+  bullets:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/de_sc250.blk"
+  emitter:t="bomb3"
+  dm:t="bomb3_dm"
+  bullets:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/de_sc1000.blk"
+  emitter:t="bomb8"
+  dm:t="bomb8_dm"
+  bullets:i=1
+  external:b=yes
+}
+
+Bombing{
+
+  canBeDropped{
+    altitude:p2=-100.0, 20000.0
+    tangage:p2=-95.0, 60.0
+    roll:r=65.0
+  }
+
+  maxDispersionAt{
+    altitude:p2=20.0, 10000.0
+    tangage:p2=-100.0, 55.0
+    roll:r=65.0
+  }
+
+  noDispersionAt{
+    altitude:p2=20.0, 6000.0
+    tangage:p2=-90.0, 15.0
+    roll:r=40.0
+  }
+
+  sightDisappears{
+    altitude:p2=40.0, 10000.0
+    tangage:p2=-100.0, 45.0
+    roll:r=55.0
+  }
+
+  sightStartsFading{
+    altitude:p2=95.0, 6000.0
+    tangage:p2=-30.0, 18.0
+    roll:r=40.0
+  }
+
+  sightEnabled{
+    altitude:p2=20.0, 15000.0
+    tangage:p2=-120.0, 60.0
+    roll:r=180.0
+  }
+}

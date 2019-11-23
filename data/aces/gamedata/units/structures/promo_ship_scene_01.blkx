@@ -1,0 +1,32 @@
+model:t="soviet_sailor_officer_scene_01"
+subclass:t="fortification"
+playAnimName:t="sailor_idle"
+animCharRootName:t="fifo3"
+dynCollisionGeom:b=no
+hasExpl:b=no
+hasDmg2:b=no
+hasDmg2Aces:b=no
+hasDmg:b=no
+damageableByGun:b=no
+renderInWaterReflection:b=yes
+
+DamageParts{
+
+  armor45{
+
+    body_dm{
+      hp:r=2200.0
+    }
+  }
+}
+
+DamageEffects{
+
+  part{
+    name:t="body_dm"
+
+    onKill{
+      expl:r=1.0
+    }
+  }
+}

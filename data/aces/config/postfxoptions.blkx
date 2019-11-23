@@ -1,0 +1,42 @@
+lut_list{
+
+  lut{
+    id:t="hudDefault"
+    texture:t=""
+  }
+
+  lut{
+    id:t="nothing"
+    texture:t="none"
+  }
+
+  lut{
+    id:t="lut/contrast"
+    texture:t="postfxlut_contrast"
+  }
+
+  lut{
+    id:t="lut/fall_colors"
+    texture:t="postfxlut_fall_colors"
+  }
+
+  lut{
+    id:t="lut/filmstock"
+    texture:t="postfxlut_filmstock"
+  }
+
+  lut{
+    id:t="lut/greyscale"
+    texture:t="postfxlut_greyscale"
+  }
+
+  lut{
+    id:t="lut/night_from_day"
+    texture:t="postfxlut_night_from_day"
+  }
+
+  lut{
+    id:t="lut/sepia"
+    texture:t="postfxlut_sepia"
+  }
+}

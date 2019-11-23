@@ -1,0 +1,1019 @@
+fov:r=70.0
+modelRotation:r=85.0
+modelVerticalShift:r=0.01
+objectSphereDefaultScreenAspectRatio:r=1.1778
+objectSphereViscosity:r=0.333
+objectSphereAirplaneYFactor:r=0.65
+objectSphereTankYFactor:r=0.75
+spheroidFov:p2=45.0, 65.0
+modelPos:p3=0.0, 2.77, 0.0
+cameraTargetPos:p3=0.0, 1.77, 0.0
+cameraRelativePos:p3=0.14, 1.54, 12.1
+yScale:r=0.5
+cameraPlanes:p2=1.0, 13000.0
+fovRange:p2=50.0, 90.0
+vertRange:p2=-30.0, 85.0
+rotationSpeed:r=90.0
+vrotationSpeed:r=90.0
+defaultDir:p2=57.0, 4.0
+passiveRotSpeed:r=1.0
+minCamAlt:r=0.7
+zoomSpeed:r=40.0
+shakeSpeed:r=0.02
+shakeRange:p2=0.01, 0.06
+cursorSpeed:p2=100.0, 100.0
+decalRotationSpeed:r=90.0
+decalScaleSpeed:r=0.5
+decalScaleRange:p2=0.1, 3.0
+level:t="levels/hangar_airfield_2014.bin"
+defCameraTime:p2=5.0, 10.0
+fadeTime:p2=0.6, 0.4
+mouseRotationSpeed:r=0.01
+mouseZoomSpeed:r=0.0001
+mouseDecalRotSpeed:r=0.0002
+mouseDecalSizeSpeed:r=0.001
+dof_near_proc_cam_settings:p3=0.9, 0.4, 1.0
+dof_far_proc_cam_settings:p3=40.0, 250.0, 0.75
+dof_near_settings:p3=3.0, 0.5, 0.8
+dof_near_base_radius:r=7.0
+dof_far_settings_unzoom:p3=400.0, 1200.0, 0.0
+dof_far_settings_zoom:p3=40.0, 120.0, 0.6
+timeForMouselookCamera:r=90.0
+timeToIdle:r=91.0
+additionalHangarCameraBias:r=0.13
+stereoMinPositionY:r=3.0
+
+unitPos{
+  modelPos:p3=0.0, 2.77, 0.0
+  modelRotation:r=85.0
+  requiredTag:t="tank"
+}
+
+backgroundObject{
+  res:t="hangar_flag_usa_dynmodel"
+  tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [-52.4, 18.2, 1.2]]
+  tag:t="country_usa"
+}
+
+backgroundObject{
+  res:t="hangar_flag_usa_single_dynmodel"
+  tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [-29.1, 18.1, -32.8]]
+  tag:t="country_usa"
+}
+
+backgroundObject{
+  res:t="hangar_flag_usa_single_dynmodel"
+  tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [-29.1, 18.1, 35.0]]
+  tag:t="country_usa"
+}
+
+backgroundObject{
+  res:t="hangar_flag_usa_single_dynmodel"
+  tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [-29.1, 18.1, 101.9]]
+  tag:t="country_usa"
+}
+
+backgroundObject{
+  res:t="hangar_flag_usa_single_dynmodel"
+  tm:m=[[7.54979e-08, 0.0, 1.0] [0.0, 1.0, 0.0] [-1.0, 0.0, 7.54979e-08] [42.7, 15.2, -39.5]]
+  tag:t="country_usa"
+}
+
+backgroundObject{
+  res:t="hangar_flag_usa_single_dynmodel"
+  tm:m=[[-1.0, 0.0, 1.50996e-07] [0.0, 1.0, 0.0] [-1.50996e-07, 0.0, -1.0] [40.0, 15.2, -42.4]]
+  tag:t="country_usa"
+}
+
+backgroundObject{
+  res:t="hangar_flag_germany_dynmodel"
+  tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [-52.4, 18.2, 1.2]]
+  tag:t="country_germany"
+}
+
+backgroundObject{
+  res:t="hangar_flag_germany_single_dynmodel"
+  tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [-29.1, 18.1, -32.8]]
+  tag:t="country_germany"
+}
+
+backgroundObject{
+  res:t="hangar_flag_germany_single_dynmodel"
+  tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [-29.1, 18.1, 35.0]]
+  tag:t="country_germany"
+}
+
+backgroundObject{
+  res:t="hangar_flag_germany_single_dynmodel"
+  tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [-29.1, 18.1, 101.9]]
+  tag:t="country_germany"
+}
+
+backgroundObject{
+  res:t="hangar_flag_germany_single_dynmodel"
+  tm:m=[[7.54979e-08, 0.0, 1.0] [0.0, 1.0, 0.0] [-1.0, 0.0, 7.54979e-08] [42.7, 15.2, -39.5]]
+  tag:t="country_germany"
+}
+
+backgroundObject{
+  res:t="hangar_flag_germany_single_dynmodel"
+  tm:m=[[-1.0, 0.0, 1.50996e-07] [0.0, 1.0, 0.0] [-1.50996e-07, 0.0, -1.0] [40.0, 15.2, -42.4]]
+  tag:t="country_germany"
+}
+
+backgroundObject{
+  res:t="hangar_flag_germany_dynmodel"
+  tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [-52.4, 18.2, 1.2]]
+  tag:t="country_italy"
+}
+
+backgroundObject{
+  res:t="hangar_flag_germany_single_dynmodel"
+  tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [-29.1, 18.1, -32.8]]
+  tag:t="country_italy"
+}
+
+backgroundObject{
+  res:t="hangar_flag_germany_single_dynmodel"
+  tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [-29.1, 18.1, 35.0]]
+  tag:t="country_italy"
+}
+
+backgroundObject{
+  res:t="hangar_flag_germany_single_dynmodel"
+  tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [-29.1, 18.1, 101.9]]
+  tag:t="country_italy"
+}
+
+backgroundObject{
+  res:t="hangar_flag_germany_single_dynmodel"
+  tm:m=[[7.54979e-08, 0.0, 1.0] [0.0, 1.0, 0.0] [-1.0, 0.0, 7.54979e-08] [42.7, 15.2, -39.5]]
+  tag:t="country_italy"
+}
+
+backgroundObject{
+  res:t="hangar_flag_germany_single_dynmodel"
+  tm:m=[[-1.0, 0.0, 1.50996e-07] [0.0, 1.0, 0.0] [-1.50996e-07, 0.0, -1.0] [40.0, 15.2, -42.4]]
+  tag:t="country_italy"
+}
+
+backgroundObject{
+  res:t="hangar_flag_ussr_dynmodel"
+  tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [-52.4, 18.2, 1.2]]
+  tag:t="country_ussr"
+}
+
+backgroundObject{
+  res:t="hangar_flag_ussr_single_dynmodel"
+  tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [-29.1, 18.1, -32.8]]
+  tag:t="country_ussr"
+}
+
+backgroundObject{
+  res:t="hangar_flag_ussr_single_dynmodel"
+  tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [-29.1, 18.1, 35.0]]
+  tag:t="country_ussr"
+}
+
+backgroundObject{
+  res:t="hangar_flag_ussr_single_dynmodel"
+  tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [-29.1, 18.1, 101.9]]
+  tag:t="country_ussr"
+}
+
+backgroundObject{
+  res:t="hangar_flag_ussr_single_dynmodel"
+  tm:m=[[7.54979e-08, 0.0, 1.0] [0.0, 1.0, 0.0] [-1.0, 0.0, 7.54979e-08] [42.7, 15.2, -39.5]]
+  tag:t="country_ussr"
+}
+
+backgroundObject{
+  res:t="hangar_flag_ussr_single_dynmodel"
+  tm:m=[[-1.0, 0.0, 1.50996e-07] [0.0, 1.0, 0.0] [-1.50996e-07, 0.0, -1.0] [40.0, 15.2, -42.4]]
+  tag:t="country_ussr"
+}
+
+backgroundObject{
+  res:t="hangar_flag_japan_dynmodel"
+  tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [-52.4, 18.2, 1.2]]
+  tag:t="country_japan"
+}
+
+backgroundObject{
+  res:t="hangar_flag_japan_single_dynmodel"
+  tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [-29.1, 18.1, -32.8]]
+  tag:t="country_japan"
+}
+
+backgroundObject{
+  res:t="hangar_flag_japan_single_dynmodel"
+  tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [-29.1, 18.1, 35.0]]
+  tag:t="country_japan"
+}
+
+backgroundObject{
+  res:t="hangar_flag_japan_single_dynmodel"
+  tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [-29.1, 18.1, 101.9]]
+  tag:t="country_japan"
+}
+
+backgroundObject{
+  res:t="hangar_flag_japan_single_dynmodel"
+  tm:m=[[7.54979e-08, 0.0, 1.0] [0.0, 1.0, 0.0] [-1.0, 0.0, 7.54979e-08] [42.7, 15.2, -39.5]]
+  tag:t="country_japan"
+}
+
+backgroundObject{
+  res:t="hangar_flag_japan_single_dynmodel"
+  tm:m=[[-1.0, 0.0, 1.50996e-07] [0.0, 1.0, 0.0] [-1.50996e-07, 0.0, -1.0] [40.0, 15.2, -42.4]]
+  tag:t="country_japan"
+}
+
+backgroundObject{
+  res:t="hangar_flag_britain_dynmodel"
+  tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [-52.4, 18.2, 1.2]]
+  tag:t="country_britain"
+}
+
+backgroundObject{
+  res:t="hangar_flag_britain_single_dynmodel"
+  tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [-29.1, 18.1, -32.8]]
+  tag:t="country_britain"
+}
+
+backgroundObject{
+  res:t="hangar_flag_britain_single_dynmodel"
+  tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [-29.1, 18.1, 35.0]]
+  tag:t="country_britain"
+}
+
+backgroundObject{
+  res:t="hangar_flag_britain_single_dynmodel"
+  tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [-29.1, 18.1, 101.9]]
+  tag:t="country_britain"
+}
+
+backgroundObject{
+  res:t="hangar_flag_britain_single_dynmodel"
+  tm:m=[[7.54979e-08, 0.0, 1.0] [0.0, 1.0, 0.0] [-1.0, 0.0, 7.54979e-08] [42.7, 15.2, -39.5]]
+  tag:t="country_britain"
+}
+
+backgroundObject{
+  res:t="hangar_flag_britain_single_dynmodel"
+  tm:m=[[-1.0, 0.0, 1.50996e-07] [0.0, 1.0, 0.0] [-1.50996e-07, 0.0, -1.0] [40.0, 15.2, -42.4]]
+  tag:t="country_britain"
+}
+
+backgroundObject{
+  res:t="hangar_flag_britain_dynmodel"
+  tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [-52.4, 18.2, 1.2]]
+  tag:t="country_australia"
+}
+
+backgroundObject{
+  res:t="hangar_flag_britain_single_dynmodel"
+  tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [-29.1, 18.1, -32.8]]
+  tag:t="country_australia"
+}
+
+backgroundObject{
+  res:t="hangar_flag_britain_single_dynmodel"
+  tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [-29.1, 18.1, 35.0]]
+  tag:t="country_australia"
+}
+
+backgroundObject{
+  res:t="hangar_flag_britain_single_dynmodel"
+  tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [-29.1, 18.1, 101.9]]
+  tag:t="country_australia"
+}
+
+backgroundObject{
+  res:t="hangar_flag_britain_single_dynmodel"
+  tm:m=[[7.54979e-08, 0.0, 1.0] [0.0, 1.0, 0.0] [-1.0, 0.0, 7.54979e-08] [42.7, 15.2, -39.5]]
+  tag:t="country_australia"
+}
+
+backgroundObject{
+  res:t="hangar_flag_britain_single_dynmodel"
+  tm:m=[[-1.0, 0.0, 1.50996e-07] [0.0, 1.0, 0.0] [-1.50996e-07, 0.0, -1.0] [40.0, 15.2, -42.4]]
+  tag:t="country_australia"
+}
+
+backgroundObject{
+  res:t="hangar_flag_britain_dynmodel"
+  tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [-52.4, 18.2, 1.2]]
+  tag:t="country_france"
+}
+
+backgroundObject{
+  res:t="hangar_flag_britain_single_dynmodel"
+  tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [-29.1, 18.1, -32.8]]
+  tag:t="country_france"
+}
+
+backgroundObject{
+  res:t="hangar_flag_britain_single_dynmodel"
+  tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [-29.1, 18.1, 35.0]]
+  tag:t="country_france"
+}
+
+backgroundObject{
+  res:t="hangar_flag_britain_single_dynmodel"
+  tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [-29.1, 18.1, 101.9]]
+  tag:t="country_france"
+}
+
+backgroundObject{
+  res:t="hangar_flag_britain_single_dynmodel"
+  tm:m=[[7.54979e-08, 0.0, 1.0] [0.0, 1.0, 0.0] [-1.0, 0.0, 7.54979e-08] [42.7, 15.2, -39.5]]
+  tag:t="country_france"
+}
+
+backgroundObject{
+  res:t="hangar_flag_britain_single_dynmodel"
+  tm:m=[[-1.0, 0.0, 1.50996e-07] [0.0, 1.0, 0.0] [-1.50996e-07, 0.0, -1.0] [40.0, 15.2, -42.4]]
+  tag:t="country_france"
+}
+
+backgroundObject{
+  res:t="hangar_flag_china_dynmodel"
+  tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [-52.4, 18.2, 1.2]]
+  tag:t="country_china"
+}
+
+backgroundObject{
+  res:t="hangar_flag_china_single_dynmodel"
+  tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [-29.1, 18.1, -32.8]]
+  tag:t="country_china"
+}
+
+backgroundObject{
+  res:t="hangar_flag_china_single_dynmodel"
+  tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [-29.1, 18.1, 35.0]]
+  tag:t="country_china"
+}
+
+backgroundObject{
+  res:t="hangar_flag_china_single_dynmodel"
+  tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [-29.1, 18.1, 101.9]]
+  tag:t="country_china"
+}
+
+backgroundObject{
+  res:t="hangar_flag_china_single_dynmodel"
+  tm:m=[[7.54979e-08, 0.0, 1.0] [0.0, 1.0, 0.0] [-1.0, 0.0, 7.54979e-08] [42.7, 15.2, -39.5]]
+  tag:t="country_china"
+}
+
+backgroundObject{
+  res:t="hangar_flag_china_single_dynmodel"
+  tm:m=[[-1.0, 0.0, 1.50996e-07] [0.0, 1.0, 0.0] [-1.50996e-07, 0.0, -1.0] [40.0, 15.2, -42.4]]
+  tag:t="country_china"
+}
+
+backgroundModel{
+  fmName:t="b_24d"
+  pos:p3=-45.0, 2.0, -7.0
+  rotation:r=-12.0
+  tag:t="country_usa"
+}
+
+backgroundModel{
+  fmName:t="he-111h-6"
+  pos:p3=-40.0, 2.0, -7.0
+  rotation:r=-12.0
+  tag:t="country_germany"
+}
+
+backgroundModel{
+  fmName:t="he-111h-6"
+  pos:p3=-40.0, 2.0, -7.0
+  rotation:r=-12.0
+  tag:t="country_italy"
+}
+
+backgroundModel{
+  fmName:t="er-2_ach30b_late"
+  pos:p3=-40.0, 2.0, -7.0
+  rotation:r=-12.0
+  tag:t="country_ussr"
+}
+
+backgroundModel{
+  fmName:t="lancaster_mk3"
+  pos:p3=-45.0, 2.0, -7.0
+  rotation:r=-12.0
+  tag:t="country_britain"
+}
+
+backgroundModel{
+  fmName:t="lancaster_mk3"
+  pos:p3=-45.0, 2.0, -7.0
+  rotation:r=-12.0
+  tag:t="country_australia"
+}
+
+backgroundModel{
+  fmName:t="g5n1"
+  pos:p3=-45.0, 2.0, -7.0
+  rotation:r=-12.0
+  tag:t="country_japan"
+}
+
+backgroundModel{
+  fmName:t="p-39q_5"
+  pos:p3=-6.0, 2.0, 56.0
+  rotation:r=-9.0
+  tag:t="country_usa"
+}
+
+backgroundModel{
+  fmName:t="fw-190f-8"
+  pos:p3=-6.0, 2.0, 56.0
+  rotation:r=-9.0
+  tag:t="country_italy"
+}
+
+backgroundModel{
+  fmName:t="fw-190f-8"
+  pos:p3=-6.0, 2.0, 56.0
+  rotation:r=-9.0
+  tag:t="country_germany"
+}
+
+backgroundModel{
+  fmName:t="yak-3"
+  pos:p3=-6.0, 2.0, 56.0
+  rotation:r=-9.0
+  tag:t="country_ussr"
+}
+
+backgroundModel{
+  fmName:t="typhoon_mk1b_late"
+  pos:p3=-6.0, 2.0, 56.0
+  rotation:r=-9.0
+  tag:t="country_britain"
+}
+
+backgroundModel{
+  fmName:t="typhoon_mk1b_late"
+  pos:p3=-6.0, 2.0, 56.0
+  rotation:r=-9.0
+  tag:t="country_australia"
+}
+
+backgroundModel{
+  fmName:t="a6m5_zero"
+  pos:p3=-6.0, 2.0, 56.0
+  rotation:r=-9.0
+  tag:t="country_japan"
+}
+
+backgroundModel{
+  fmName:t="b_24d"
+  pos:p3=98.0, 2.0, 12.0
+  rotation:r=170.0
+  tag:t="country_usa"
+}
+
+backgroundModel{
+  fmName:t="he-111h-6"
+  pos:p3=98.0, 2.0, 12.0
+  rotation:r=170.0
+  tag:t="country_germany"
+}
+
+backgroundModel{
+  fmName:t="he-111h-6"
+  pos:p3=98.0, 2.0, 12.0
+  rotation:r=170.0
+  tag:t="country_italy"
+}
+
+backgroundModel{
+  fmName:t="er-2_ach30b_late"
+  pos:p3=98.0, 2.0, 12.0
+  rotation:r=170.0
+  tag:t="country_ussr"
+}
+
+backgroundModel{
+  fmName:t="lancaster_mk3"
+  pos:p3=98.0, 2.0, 12.0
+  rotation:r=170.0
+  tag:t="country_britain"
+}
+
+backgroundModel{
+  fmName:t="lancaster_mk3"
+  pos:p3=98.0, 2.0, 12.0
+  rotation:r=170.0
+  tag:t="country_australia"
+}
+
+backgroundModel{
+  fmName:t="g5n1"
+  pos:p3=98.0, 2.0, 12.0
+  rotation:r=170.0
+  tag:t="country_japan"
+}
+
+backgroundModel{
+  fmName:t="p-38g"
+  pos:p3=10.0, 2.0, -55.0
+  rotation:r=-30.0
+  tag:t="country_usa"
+}
+
+backgroundModel{
+  fmName:t="ta-152h-1"
+  pos:p3=10.0, 2.0, -55.0
+  rotation:r=-30.0
+  tag:t="country_germany"
+}
+
+backgroundModel{
+  fmName:t="bf-109g-2"
+  pos:p3=10.0, 2.0, -55.0
+  rotation:r=-30.0
+  tag:t="country_italy"
+}
+
+backgroundModel{
+  fmName:t="il-10"
+  pos:p3=10.0, 2.0, -55.0
+  rotation:r=-30.0
+  tag:t="country_ussr"
+}
+
+backgroundModel{
+  fmName:t="spitfire_ix"
+  pos:p3=10.0, 2.0, -55.0
+  rotation:r=-30.0
+  tag:t="country_britain"
+}
+
+backgroundModel{
+  fmName:t="spitfire_ix"
+  pos:p3=10.0, 2.0, -55.0
+  rotation:r=-30.0
+  tag:t="country_australia"
+}
+
+backgroundModel{
+  fmName:t="ki_61_1a_otsu"
+  pos:p3=10.0, 2.0, -55.0
+  rotation:r=-30.0
+  tag:t="country_japan"
+}
+
+env{
+  env:t="6"
+  weight:r=3.0
+}
+
+env{
+  env:t="7"
+  weight:r=5.0
+}
+
+env{
+  env:t="8"
+  weight:r=15.0
+}
+
+env{
+  env:t="9"
+  weight:r=20.0
+}
+
+env{
+  env:t="10"
+  weight:r=30.0
+}
+
+env{
+  env:t="11"
+  weight:r=70.0
+}
+
+env{
+  env:t="12"
+  weight:r=20.0
+}
+
+env{
+  env:t="13"
+  weight:r=70.0
+}
+
+env{
+  env:t="14"
+  weight:r=30.0
+}
+
+env{
+  env:t="15"
+  weight:r=20.0
+}
+
+env{
+  env:t="16"
+  weight:r=15.0
+}
+
+env{
+  env:t="17"
+  weight:r=5.0
+}
+
+env{
+  env:t="17.5"
+  weight:r=5.0
+}
+
+procCamera{
+  fov:r=80.0
+  zNear:r=0.05
+  time:r=8.0
+
+  from{
+
+    start{
+      nodeName:t="wing_l_dm"
+      offset:p3=0.0, 1.0, 0.5
+    }
+
+    end{
+      nodeName:t="wing_l_dm"
+      offset:p3=1.0, 1.0, 0.7
+    }
+  }
+
+  to{
+
+    start{
+      nodeName:t="pilot_dm"
+      offset:p3=0.0, 1.0, 0.0
+    }
+
+    end{
+      nodeName:t="pilot_dm"
+      offset:p3=0.0, 1.0, 1.0
+    }
+  }
+}
+
+procCamera{
+  fov:r=80.0
+  zNear:r=0.05
+  time:r=8.0
+
+  from{
+
+    start{
+      nodeName:t="wing_r_dm"
+      offset:p3=0.0, 1.0, 0.5
+    }
+
+    end{
+      nodeName:t="wing_r_dm"
+      offset:p3=1.0, 1.0, 0.3
+    }
+  }
+
+  to{
+
+    start{
+      nodeName:t="pilot_dm"
+      offset:p3=0.0, 1.0, 0.0
+    }
+
+    end{
+      nodeName:t="pilot_dm"
+      offset:p3=0.0, 1.0, 1.0
+    }
+  }
+}
+
+procCamera{
+  fov:r=80.0
+  zNear:r=0.05
+  time:r=10.0
+
+  from{
+
+    start{
+      nodeName:t="fuse_dm"
+      offset:p3=1.3, 1.5, 0.3
+    }
+
+    end{
+      nodeName:t="fuse_dm"
+      offset:p3=-0.2, 1.5, 0.3
+    }
+  }
+
+  to{
+
+    start{
+      nodeName:t="fuse_dm"
+      offset:p3=1.0, 0.3, 0.3
+    }
+
+    end{
+      nodeName:t="fuse_dm"
+      offset:p3=-0.5, 0.3, 0.3
+    }
+  }
+}
+
+procCamera{
+  fov:r=80.0
+  zNear:r=0.05
+  time:r=10.0
+
+  from{
+
+    start{
+      nodeName:t="fuse_dm"
+      offset:p3=1.3, 1.1, -0.3
+    }
+
+    end{
+      nodeName:t="fuse_dm"
+      offset:p3=0.2, 1.1, -0.3
+    }
+  }
+
+  to{
+
+    start{
+      nodeName:t="fuse_dm"
+      offset:p3=1.1, 0.8, 0.3
+    }
+
+    end{
+      nodeName:t="fuse_dm"
+      offset:p3=0.0, 0.8, 0.3
+    }
+  }
+}
+
+procCamera{
+  fov:r=80.0
+  zNear:r=0.05
+  time:r=10.0
+
+  from{
+
+    start{
+      nodeName:t="fuse_dm"
+      offset:p3=1.3, 1.1, 1.3
+    }
+
+    end{
+      nodeName:t="fuse_dm"
+      offset:p3=0.2, 1.1, 1.3
+    }
+  }
+
+  to{
+
+    start{
+      nodeName:t="fuse_dm"
+      offset:p3=1.1, 0.8, 0.7
+    }
+
+    end{
+      nodeName:t="fuse_dm"
+      offset:p3=0.0, 0.8, 0.7
+    }
+  }
+}
+
+procCamera{
+  fov:r=80.0
+  zNear:r=0.05
+  time:r=8.0
+
+  from{
+
+    start{
+      nodeName:t="fuse_dm"
+      offset:p3=0.5, 1.7, 2.0
+    }
+
+    end{
+      nodeName:t="fuse_dm"
+      offset:p3=1.0, 0.5, 3.0
+    }
+  }
+
+  to{
+
+    start{
+      nodeName:t="tail_dm"
+      offset:p3=0.0, 0.0, 0.0
+    }
+
+    end{
+      nodeName:t="wing_r_dm"
+      offset:p3=0.0, 0.0, 0.0
+    }
+  }
+}
+
+procCamera{
+  fov:r=80.0
+  zNear:r=0.05
+  time:r=8.0
+
+  from{
+
+    start{
+      nodeName:t="wing_r_dm"
+      offset:p3=1.4, 1.5, 0.0
+    }
+
+    end{
+      nodeName:t="wing_r_dm"
+      offset:p3=1.4, 1.5, 0.8
+    }
+  }
+
+  to{
+
+    start{
+      nodeName:t="wing_r_dm"
+      offset:p3=0.0, 0.0, 0.0
+    }
+
+    end{
+      nodeName:t="wing_r_dm"
+      offset:p3=0.0, 0.0, 0.8
+    }
+  }
+}
+
+procCamera{
+  fov:r=80.0
+  zNear:r=0.05
+  time:r=8.0
+
+  from{
+
+    start{
+      nodeName:t="wing_l_dm"
+      offset:p3=1.4, 1.5, 1.0
+    }
+
+    end{
+      nodeName:t="wing_l_dm"
+      offset:p3=1.4, 1.5, 0.2
+    }
+  }
+
+  to{
+
+    start{
+      nodeName:t="wing_l_dm"
+      offset:p3=0.0, 0.0, 1.0
+    }
+
+    end{
+      nodeName:t="wing_l_dm"
+      offset:p3=0.0, 0.0, 0.2
+    }
+  }
+}
+
+procCamera{
+  fov:r=80.0
+  zNear:r=0.05
+  time:r=12.0
+
+  from{
+
+    start{
+      nodeName:t="tail_dm"
+      offset:p3=0.5, 1.0, 0.9
+    }
+
+    end{
+      nodeName:t="pilot_dm"
+      offset:p3=0.5, 1.0, 1.7
+    }
+  }
+
+  to{
+
+    start{
+      nodeName:t="pilot_dm"
+      offset:p3=1.5, 1.0, 0.5
+    }
+
+    end{
+      nodeName:t="pilot_dm"
+      offset:p3=1.5, 1.0, 0.5
+    }
+  }
+}
+
+procCamera{
+  fov:r=80.0
+  zNear:r=0.05
+  time:r=12.0
+
+  from{
+
+    start{
+      nodeName:t="tail_dm"
+      offset:p3=0.5, 1.0, 0.1
+    }
+
+    end{
+      nodeName:t="pilot_dm"
+      offset:p3=0.5, 1.0, -0.7
+    }
+  }
+
+  to{
+
+    start{
+      nodeName:t="pilot_dm"
+      offset:p3=1.5, 1.0, 1.5
+    }
+
+    end{
+      nodeName:t="pilot_dm"
+      offset:p3=1.5, 1.0, 1.5
+    }
+  }
+}
+
+procCamera{
+  fov:r=80.0
+  zNear:r=0.05
+  time:r=8.0
+
+  from{
+
+    start{
+      nodeName:t="track_l_dm"
+      offset:p3=0.0, 1.0, 1.1
+    }
+
+    end{
+      nodeName:t="track_l_dm"
+      offset:p3=1.0, 1.0, 1.1
+    }
+  }
+
+  to{
+
+    start{
+      nodeName:t="track_l_dm"
+      offset:p3=0.1, 1.0, 0.9
+    }
+
+    end{
+      nodeName:t="track_l_dm"
+      offset:p3=1.1, 1.0, 0.9
+    }
+  }
+}
+
+procCamera{
+  fov:r=80.0
+  zNear:r=0.05
+  time:r=8.0
+
+  from{
+
+    start{
+      nodeName:t="track_r_dm"
+      offset:p3=0.0, 1.0, -0.1
+    }
+
+    end{
+      nodeName:t="track_r_dm"
+      offset:p3=1.0, 1.0, -0.1
+    }
+  }
+
+  to{
+
+    start{
+      nodeName:t="track_r_dm"
+      offset:p3=0.1, 1.0, 0.1
+    }
+
+    end{
+      nodeName:t="track_r_dm"
+      offset:p3=1.1, 1.0, 0.1
+    }
+  }
+}

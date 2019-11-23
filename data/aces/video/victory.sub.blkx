@@ -1,0 +1,37 @@
+font:t="small_text"
+
+line{
+  loc:t="final_video_p1"
+  from:i=903
+  to:i=25166
+}
+
+line{
+  loc:t="final_video_p2"
+  from:i=25663
+  to:i=63444
+}
+
+line{
+  loc:t="final_video_p3"
+  from:i=64285
+  to:i=87738
+}
+
+line{
+  loc:t="final_video_p4"
+  from:i=87988
+  to:i=116019
+}
+
+line{
+  loc:t="final_video_p5"
+  from:i=116331
+  to:i=129139
+}
+
+line{
+  loc:t="final_video_p6"
+  from:i=129505
+  to:i=131499
+}

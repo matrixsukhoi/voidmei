@@ -1,0 +1,367 @@
+cannon:b=yes
+weaponType:i=-1
+bUseHookAsRel:b=yes
+emitColor:p3=1.0, 1.0, 0.0
+emitI:r=10.0
+emitR:r=3.0
+emitTime:r=0.03
+aimMinDist:r=0.1
+aimMaxDist:r=2000.0
+maxDeltaAngle:r=0.075
+maxDeltaAngleVertical:r=0.075
+shotFreq:r=0.17
+traceFreq:i=4
+bEnablePause:b=no
+bullets:i=-1
+bulletsCluster:i=1
+fxType:t="big_gun_flame"
+fxGroundDust:t="ground_shock_wave_dust"
+shouldCollideWithRendinsts:b=yes
+sound_path:t="tanks/weapon_tanks/cannons"
+sound:t="76mm_m7"
+sound_inside:t="76mm_m7_interior"
+sfxReloadBullet:t="grd_cannon_reload"
+fxMultipleSpawn:b=yes
+isBulletBelt:b=no
+notUseDefaultBulletInGui:b=yes
+
+bullet{
+  bulletCount:i=25
+  mass:r=7.0
+  explosiveType:t="exp_d"
+  explosiveMass:r=0.065
+  caliber:r=0.0762
+  speed:r=792.0
+  maxDistance:r=10000.0
+  bulletType:t="apcbc_tank"
+  bulletName:t="76mm_m62"
+  hitPowerMult:r=220.0
+  relativeVelHitShift:p2=300.0, 1000.0
+  armorFragmentsDamage:b=yes
+  armorFragmentsDamageRadius:r=3.5
+  armorFragmentsDamageAngle:r=22.0
+  armorFragmentsAmount:i=35
+  armorFragmentsArmorPower:r=4.0
+  armorFragmentsHit:r=10.0
+  relativeVelArmorShift:p2=200.0, 1000.0
+  fuseDelayDist:r=1.2
+  explodeTreshold:r=20.0
+  explodeHitPower:r=30.0
+  explodeArmorPower:r=7.0
+  explodeRadius:p2=0.2, 0.32
+  explosionPatchRadius:r=1.1
+  shutterDamage:b=yes
+  shutterDamageRadius:r=1.2
+  shutterAmount:i=30
+  shutterArmorPower:r=8.0
+  shutterHit:r=7.0
+  groundCollisionEffect:t="big_ground_splash"
+  groundFxScale:p2=0.9, 1.1
+  ricochetEffect:t="cannon_ricochet"
+  waterCollisionEffect:t="big_water_splash"
+
+  hitpower{
+    HitPower0m:p2=0.85, 500.0
+    HitPower10000m:p2=0.8, 10000.0
+  }
+
+  armorpower{
+    ArmorPower0m:p2=127.0, 10.0
+    ArmorPower100m:p2=125.0, 100.0
+    ArmorPower250m:p2=121.0, 250.0
+    ArmorPower500m:p2=116.0, 500.0
+    ArmorPower750m:p2=111.0, 750.0
+    ArmorPower1000m:p2=106.0, 1000.0
+    ArmorPower1250m:p2=101.0, 1250.0
+    ArmorPower1500m:p2=97.0, 1500.0
+    ArmorPower1750m:p2=93.0, 1750.0
+    ArmorPower2000m:p2=89.0, 2000.0
+    ArmorPower2500m:p2=81.0, 2500.0
+    ArmorPower3000m:p2=74.0, 3000.0
+    ArmorPower10000m:p2=2.0, 10000.0
+  }
+
+  visual{
+    range_percent_of_ammo:p2=100.0, 0.0
+    traceFreq:i=1
+    tracer:t="50mmRed"
+    trail:t="black"
+  }
+
+  collisions{
+
+    steel{
+      fx:t="cannon_hit_light"
+    }
+
+    armor{
+      fx:t="cannon_hit_armor"
+    }
+  }
+}
+
+76mm_usa_M62_APCBC{
+
+  bullet{
+    bulletCount:i=25
+    mass:r=7.0
+    explosiveType:t="exp_d"
+    explosiveMass:r=0.065
+    caliber:r=0.0762
+    speed:r=792.0
+    maxDistance:r=10000.0
+    bulletType:t="apcbc_tank"
+    bulletName:t="76mm_m62"
+    hitPowerMult:r=220.0
+    relativeVelHitShift:p2=300.0, 1000.0
+    armorFragmentsDamage:b=yes
+    armorFragmentsDamageRadius:r=3.5
+    armorFragmentsDamageAngle:r=22.0
+    armorFragmentsAmount:i=35
+    armorFragmentsArmorPower:r=4.0
+    armorFragmentsHit:r=10.0
+    relativeVelArmorShift:p2=200.0, 1000.0
+    fuseDelayDist:r=1.2
+    explodeTreshold:r=20.0
+    explodeHitPower:r=30.0
+    explodeArmorPower:r=7.0
+    explodeRadius:p2=0.2, 0.32
+    explosionPatchRadius:r=1.1
+    shutterDamage:b=yes
+    shutterDamageRadius:r=1.2
+    shutterAmount:i=30
+    shutterArmorPower:r=8.0
+    shutterHit:r=7.0
+    groundCollisionEffect:t="big_ground_splash"
+    groundFxScale:p2=0.9, 1.1
+    ricochetEffect:t="cannon_ricochet"
+    waterCollisionEffect:t="big_water_splash"
+
+    hitpower{
+      HitPower0m:p2=0.85, 500.0
+      HitPower10000m:p2=0.8, 10000.0
+    }
+
+    armorpower{
+      ArmorPower0m:p2=127.0, 10.0
+      ArmorPower100m:p2=125.0, 100.0
+      ArmorPower250m:p2=121.0, 250.0
+      ArmorPower500m:p2=116.0, 500.0
+      ArmorPower750m:p2=111.0, 750.0
+      ArmorPower1000m:p2=106.0, 1000.0
+      ArmorPower1250m:p2=101.0, 1250.0
+      ArmorPower1500m:p2=97.0, 1500.0
+      ArmorPower1750m:p2=93.0, 1750.0
+      ArmorPower2000m:p2=89.0, 2000.0
+      ArmorPower2500m:p2=81.0, 2500.0
+      ArmorPower3000m:p2=74.0, 3000.0
+      ArmorPower10000m:p2=2.0, 10000.0
+    }
+
+    visual{
+      range_percent_of_ammo:p2=100.0, 0.0
+      traceFreq:i=1
+      tracer:t="50mmRed"
+      trail:t="black"
+    }
+
+    collisions{
+
+      steel{
+        fx:t="cannon_hit_light"
+      }
+
+      armor{
+        fx:t="cannon_hit_armor"
+      }
+    }
+  }
+}
+
+76mm_usa_M42A1_HE{
+
+  bullet{
+    bulletCount:i=40
+    mass:r=5.84
+    explosiveType:t="tnt"
+    explosiveMass:r=0.39
+    caliber:r=0.0762
+    speed:r=800.0
+    maxDistance:r=10000.0
+    bulletType:t="he_frag_tank"
+    bulletName:t="76mm_m42a1"
+    hitPowerMult:r=2.0
+    nearHitPower:p2=1.0, 50.0
+    midHitPower:p2=0.9, 300.0
+    farHitPower:p2=0.1, 700.0
+    endHitPower:p2=0.008, 1500.0
+    relativeVelHitShift:p2=300.0, 1000.0
+    nearArmorPower:p2=8.0, 150.0
+    midArmorPower:p2=7.0, 600.0
+    farArmorPower:p2=6.0, 1000.0
+    relativeVelArmorShift:p2=200.0, 1000.0
+    explodeTreshold:r=0.5
+    explodeHitPower:r=60.0
+    explodeArmorPower:r=7.0
+    explodeRadius:p2=0.3, 0.5
+    fuseDelayDist:r=0.1
+    shutterDamage:b=yes
+    shutterDamageRadius:r=12.5
+    shutterAmount:i=90
+    shutterArmorPower:r=7.5
+    shutterHit:r=10.0
+    groundCollisionEffect:t="50_75_he_hit_ground"
+    ricochetEffect:t="cannon_ricochet"
+    groundFxScale:p2=1.1, 1.2
+
+    visual{
+      range_percent_of_ammo:p2=100.0, 0.0
+      traceFreq:i=1
+      tracer:t="noColor"
+    }
+
+    collisions{
+
+      steel{
+        fx:t="cannon_hit_armor_cumulative"
+        fxScale:p2=2.0, 3.0
+      }
+
+      armor{
+        fx:t="cannon_hit_armor_cumulative"
+        fxScale:p2=2.0, 3.0
+      }
+    }
+  }
+}
+
+76mm_usa_M79_AP{
+
+  bullet{
+    bulletCount:i=25
+    mass:r=6.8
+    caliber:r=0.0762
+    speed:r=792.0
+    maxDistance:r=10000.0
+    bulletType:t="ap_tank"
+    bulletName:t="76mm_m79"
+    hitPowerMult:r=220.0
+    relativeVelHitShift:p2=300.0, 1000.0
+    armorFragmentsDamage:b=yes
+    armorFragmentsDamageRadius:r=3.5
+    armorFragmentsDamageAngle:r=22.0
+    armorFragmentsAmount:i=35
+    armorFragmentsArmorPower:r=4.0
+    armorFragmentsHit:r=10.0
+    relativeVelArmorShift:p2=200.0, 1000.0
+    groundCollisionEffect:t="big_ground_splash"
+    groundFxScale:p2=0.9, 1.1
+    ricochetEffect:t="cannon_ricochet"
+    waterCollisionEffect:t="big_water_splash"
+
+    hitpower{
+      HitPower0m:p2=0.85, 500.0
+      HitPower10000m:p2=0.8, 10000.0
+    }
+
+    armorpower{
+      ArmorPower0m:p2=155.0, 10.0
+      ArmorPower100m:p2=154.0, 100.0
+      ArmorPower250m:p2=145.0, 250.0
+      ArmorPower500m:p2=131.0, 500.0
+      ArmorPower750m:p2=119.0, 750.0
+      ArmorPower1000m:p2=107.0, 1000.0
+      ArmorPower1250m:p2=97.0, 1250.0
+      ArmorPower1500m:p2=88.0, 1500.0
+      ArmorPower1750m:p2=79.0, 1750.0
+      ArmorPower2000m:p2=72.0, 2000.0
+      ArmorPower2500m:p2=59.0, 2500.0
+      ArmorPower3000m:p2=48.0, 3000.0
+      ArmorPower10000m:p2=2.0, 10000.0
+    }
+
+    visual{
+      range_percent_of_ammo:p2=100.0, 0.0
+      traceFreq:i=1
+      tracer:t="50mmRed"
+      trail:t="black"
+    }
+
+    collisions{
+
+      steel{
+        fx:t="cannon_hit_light"
+      }
+
+      armor{
+        fx:t="cannon_hit_armor"
+      }
+    }
+  }
+}
+
+76mm_usa_M93_APCR{
+
+  bullet{
+    bulletCount:i=25
+    mass:r=4.26
+    caliber:r=0.0762
+    damageCaliber:r=0.035
+    speed:r=1036.0
+    maxDistance:r=10000.0
+    bulletType:t="apcr_tank"
+    bulletName:t="76mm_m93"
+    hitPowerMult:r=120.0
+    relativeVelHitShift:p2=300.0, 1000.0
+    armorFragmentsDamage:b=yes
+    armorFragmentsDamageRadius:r=2.5
+    armorFragmentsDamageAngle:r=25.0
+    armorFragmentsAmount:i=25
+    armorFragmentsArmorPower:r=3.0
+    armorFragmentsHit:r=10.0
+    relativeVelArmorShift:p2=200.0, 1000.0
+    groundCollisionEffect:t="big_ground_splash"
+    groundFxScale:p2=0.9, 1.1
+    ricochetEffect:t="cannon_ricochet"
+    waterCollisionEffect:t="big_water_splash"
+
+    hitpower{
+      HitPower0m:p2=0.85, 500.0
+      HitPower10000m:p2=0.8, 10000.0
+    }
+
+    armorpower{
+      ArmorPower0m:p2=221.0, 10.0
+      ArmorPower100m:p2=215.0, 100.0
+      ArmorPower250m:p2=208.0, 250.0
+      ArmorPower500m:p2=203.0, 500.0
+      ArmorPower750m:p2=196.0, 750.0
+      ArmorPower1000m:p2=181.0, 1000.0
+      ArmorPower1250m:p2=161.0, 1250.0
+      ArmorPower1500m:p2=154.0, 1500.0
+      ArmorPower1750m:p2=137.0, 1750.0
+      ArmorPower2000m:p2=124.0, 2000.0
+      ArmorPower2500m:p2=107.0, 2500.0
+      ArmorPower3000m:p2=86.0, 3000.0
+      ArmorPower10000m:p2=2.0, 10000.0
+    }
+
+    visual{
+      range_percent_of_ammo:p2=100.0, 0.0
+      traceFreq:i=1
+      tracer:t="30mmWhite"
+      trail:t="black"
+    }
+
+    collisions{
+
+      steel{
+        fx:t="cannon_hit_light"
+      }
+
+      armor{
+        fx:t="cannon_hit_armor"
+      }
+    }
+  }
+}

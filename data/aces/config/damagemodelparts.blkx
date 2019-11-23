@@ -1,0 +1,1063 @@
+default{
+  type:t="common"
+  type2:t="common"
+  type3:t="common"
+  vital:b=no
+  hp:r=0.0
+  hitTestType:t="armor"
+  malfunctionDamage:r=0.7
+  stopChanceOnDeadPart:r=1.0
+  castOnKillAfterTankPartDead:b=yes
+  fireProtectionHp:r=-1.0
+  externalArmor:b=no
+}
+
+body{
+  type:t="body"
+  externalArmor:b=yes
+}
+
+body_front{
+  type:t="body"
+  externalArmor:b=yes
+}
+
+body_back{
+  type:t="body"
+  externalArmor:b=yes
+}
+
+body_side{
+  type:t="body"
+  externalArmor:b=yes
+}
+
+body_top{
+  type:t="body"
+  externalArmor:b=yes
+}
+
+body_bottom{
+  type:t="body"
+  externalArmor:b=yes
+}
+
+ship_hull{
+  type:t="body"
+  externalArmor:b=yes
+}
+
+bow{
+  type:t="body"
+  externalArmor:b=yes
+}
+
+bow_l{
+  type:t="body"
+  externalArmor:b=yes
+}
+
+bow_r{
+  type:t="body"
+  externalArmor:b=yes
+}
+
+bow_back{
+  type:t="body"
+  externalArmor:b=yes
+}
+
+bow_bottom{
+  type:t="body"
+  externalArmor:b=yes
+}
+
+bow_front{
+  type:t="body"
+  externalArmor:b=yes
+}
+
+bow_side{
+  type:t="body"
+  externalArmor:b=yes
+}
+
+bow_shield{
+  type:t="body"
+  externalArmor:b=yes
+}
+
+bow_top{
+  type:t="body"
+  externalArmor:b=yes
+}
+
+mid{
+  type:t="body"
+  externalArmor:b=yes
+}
+
+mid_l{
+  type:t="body"
+  externalArmor:b=yes
+}
+
+mid_r{
+  type:t="body"
+  externalArmor:b=yes
+}
+
+mid_back{
+  type:t="body"
+  externalArmor:b=yes
+}
+
+mid_bottom{
+  type:t="body"
+  externalArmor:b=yes
+}
+
+mid_front{
+  type:t="body"
+  externalArmor:b=yes
+}
+
+mid_side{
+  type:t="body"
+  externalArmor:b=yes
+}
+
+mid_shield{
+  type:t="body"
+  externalArmor:b=yes
+}
+
+mid_top{
+  type:t="body"
+  externalArmor:b=yes
+}
+
+stern{
+  type:t="body"
+  externalArmor:b=yes
+}
+
+stern_l{
+  type:t="body"
+  externalArmor:b=yes
+}
+
+stern_r{
+  type:t="body"
+  externalArmor:b=yes
+}
+
+stern_back{
+  type:t="body"
+  externalArmor:b=yes
+}
+
+stern_bottom{
+  type:t="body"
+  externalArmor:b=yes
+}
+
+stern_front{
+  type:t="body"
+  externalArmor:b=yes
+}
+
+stern_side{
+  type:t="body"
+  externalArmor:b=yes
+}
+
+stern_shield{
+  type:t="body"
+  externalArmor:b=yes
+}
+
+stern_top{
+  type:t="body"
+  externalArmor:b=yes
+}
+
+deckhouse{
+  type:t="body"
+  externalArmor:b=yes
+}
+
+deckhouse_side{
+  type:t="body"
+  externalArmor:b=yes
+}
+
+hydrofoil_NN{
+  template:t="hydrofoil_#10#"
+  type:t="body"
+  externalArmor:b=yes
+}
+
+superstructure_front{
+  externalArmor:b=yes
+}
+
+superstructure_back{
+  externalArmor:b=yes
+}
+
+superstructure_side{
+  externalArmor:b=yes
+}
+
+superstructure_top{
+  externalArmor:b=yes
+}
+
+superstructure_bottom{
+  externalArmor:b=yes
+}
+
+engine{
+  type:t="engine"
+  hitTestType:t="inner"
+  genName:t="tank_engine"
+  vital:b=yes
+  movement:b=yes
+  fire:b=yes
+}
+
+engine_NN{
+  template:t="engine_#10#"
+  type:t="engine"
+  hitTestType:t="inner"
+  genName:t="tank_engine"
+  vital:b=yes
+  movement:b=yes
+  fire:b=yes
+}
+
+engineN{
+  template:t="engine#4#"
+  type:t="engine"
+  hitTestType:t="inner"
+  genName:t="tank_engine"
+  vital:b=yes
+  movement:b=yes
+  fire:b=yes
+}
+
+engine_l_NN{
+  template:t="engine_l_#10#"
+  type:t="engine"
+  hitTestType:t="inner"
+  genName:t="tank_engine"
+  vital:b=yes
+  movement:b=yes
+  fire:b=yes
+}
+
+engine_r_NN{
+  template:t="engine_r_#10#"
+  type:t="engine"
+  hitTestType:t="inner"
+  genName:t="tank_engine"
+  vital:b=yes
+  movement:b=yes
+  fire:b=yes
+}
+
+emtr_fire_engine{
+  genName:t="tank_engine_fire"
+  vital:b=yes
+  type:t="engine_fire"
+}
+
+transmission{
+  type:t="transmission"
+  hitTestType:t="inner"
+  genName:t="tank_transmission"
+  vital:b=yes
+  movement:b=yes
+  fire:b=yes
+}
+
+transmission_NN{
+  template:t="transmission_#10#"
+  type:t="transmission"
+  hitTestType:t="inner"
+  genName:t="tank_transmission"
+  vital:b=yes
+  movement:b=yes
+  fire:b=yes
+}
+
+fuel_tank{
+  type:t="fuel"
+  hitTestType:t="inner"
+  genName:t="tank_fuel_tank"
+  vital:b=yes
+  fire:b=yes
+}
+
+fuel_tank_NN{
+  template:t="fuel_tank_#06#"
+  type:t="fuel"
+  hitTestType:t="inner"
+  genName:t="tank_fuel_tank"
+  vital:b=yes
+  fire:b=yes
+}
+
+fuel_tank_l_NN{
+  template:t="fuel_tank_l_#05#"
+  type:t="fuel"
+  hitTestType:t="inner"
+  genName:t="tank_fuel_tank"
+  vital:b=yes
+  fire:b=yes
+}
+
+fuel_tank_r_NN{
+  template:t="fuel_tank_r_#05#"
+  type:t="fuel"
+  hitTestType:t="inner"
+  genName:t="tank_fuel_tank"
+  vital:b=yes
+  fire:b=yes
+}
+
+gun{
+  type:t="gun"
+}
+
+gunN{
+  template:t="gun#0:12#"
+  type:t="gun"
+}
+
+gun_barrel{
+  type:t="gun_barrel"
+  genName:t="tank_gun_barrel"
+  vital:b=yes
+}
+
+gun_barrel_NN{
+  template:t="gun_barrel_#20#"
+  type:t="gun_barrel"
+  genName:t="tank_gun_barrel"
+  vital:b=yes
+}
+
+mg_NN{
+  template:t="mg_#20#"
+  type:t="gun_barrel"
+  genName:t="tank_gun_barrel"
+  vital:b=yes
+}
+
+mg_l_NN{
+  template:t="mg_l_#10#"
+  type:t="gun_barrel"
+  genName:t="tank_gun_barrel"
+  vital:b=yes
+}
+
+mg_r_NN{
+  template:t="mg_r_#10#"
+  type:t="gun_barrel"
+  genName:t="tank_gun_barrel"
+  vital:b=yes
+}
+
+cannon_breech{
+  type:t="cannon_breech"
+  hitTestType:t="inner"
+  genName:t="tank_cannon_breech"
+  vital:b=yes
+}
+
+cannon_breech_NN{
+  template:t="cannon_breech_#10#"
+  type:t="cannon_breech"
+  hitTestType:t="inner"
+  genName:t="tank_cannon_breech"
+  vital:b=yes
+}
+
+drive_turret_h{
+  type:t="drive_turret_h"
+  hitTestType:t="inner"
+  genName:t="tank_drive_turret_h"
+  vital:b=yes
+}
+
+drive_turret_h_NN{
+  template:t="drive_turret_h_#10#"
+  type:t="drive_turret_h"
+  hitTestType:t="inner"
+  genName:t="tank_drive_turret_h"
+  vital:b=yes
+}
+
+drive_turret_v{
+  type:t="drive_turret_v"
+  hitTestType:t="inner"
+  genName:t="tank_drive_turret_v"
+  vital:b=yes
+}
+
+drive_turret_v_NN{
+  template:t="drive_turret_v_#10#"
+  type:t="drive_turret_v"
+  hitTestType:t="inner"
+  genName:t="tank_drive_turret_v"
+  vital:b=yes
+}
+
+track_l{
+  type:t="chassis"
+  type2:t="track"
+  type3:t="track_left"
+  hitTestType:t="exclude"
+  genName:t="tank_track"
+  vital:b=yes
+  movement:b=yes
+}
+
+track_l_01{
+  type:t="chassis"
+  type2:t="track"
+  type3:t="track_left"
+  hitTestType:t="exclude"
+  genName:t="tank_track"
+  vital:b=yes
+  movement:b=yes
+}
+
+track_r{
+  type:t="chassis"
+  type2:t="track"
+  type3:t="track_right"
+  hitTestType:t="exclude"
+  genName:t="tank_track"
+  vital:b=yes
+  movement:b=yes
+}
+
+track_r_01{
+  type:t="chassis"
+  type2:t="track"
+  type3:t="track_right"
+  hitTestType:t="exclude"
+  genName:t="tank_track"
+  vital:b=yes
+  movement:b=yes
+}
+
+wheel_r_NN{
+  template:t="wheel_r_#12#"
+  type:t="chassis"
+  type2:t="wheel"
+  hitTestType:t="exclude"
+  genName:t="tank_suspension"
+  vital:b=yes
+}
+
+wheel_l_NN{
+  template:t="wheel_l_#12#"
+  type:t="chassis"
+  type2:t="wheel"
+  hitTestType:t="exclude"
+  genName:t="tank_suspension"
+  vital:b=yes
+}
+
+wheel_r_drive{
+  type:t="chassis"
+  type2:t="wheel"
+  hitTestType:t="exclude"
+  genName:t="tank_suspension"
+  vital:b=yes
+}
+
+wheel_l_drive{
+  type:t="chassis"
+  type2:t="wheel"
+  hitTestType:t="exclude"
+  genName:t="tank_suspension"
+  vital:b=yes
+}
+
+wheel_r_front{
+  type:t="chassis"
+  type2:t="wheel"
+  hitTestType:t="exclude"
+  genName:t="tank_suspension"
+  vital:b=yes
+}
+
+wheel_l_front{
+  type:t="chassis"
+  type2:t="wheel"
+  hitTestType:t="exclude"
+  genName:t="tank_suspension"
+  vital:b=yes
+}
+
+wheel_r_back{
+  type:t="chassis"
+  type2:t="wheel"
+  hitTestType:t="exclude"
+  genName:t="tank_suspension"
+  vital:b=yes
+}
+
+wheel_l_back{
+  type:t="chassis"
+  type2:t="wheel"
+  hitTestType:t="exclude"
+  genName:t="tank_suspension"
+  vital:b=yes
+}
+
+wheel_r_top_NN{
+  template:t="wheel_r_top_#07#"
+  type:t="chassis"
+  type2:t="wheel"
+  hitTestType:t="exclude"
+  genName:t="tank_suspension"
+  vital:b=yes
+}
+
+wheel_l_top_NN{
+  template:t="wheel_l_top_#07#"
+  type:t="chassis"
+  type2:t="wheel"
+  hitTestType:t="exclude"
+  genName:t="tank_suspension"
+  vital:b=yes
+}
+
+wheel_support{
+  type:t="chassis"
+  type2:t="wheel"
+  hitTestType:t="exclude"
+  genName:t="tank_suspension"
+  vital:b=yes
+}
+
+suspension_l_NN{
+  template:t="suspension_l_#03#"
+  type:t="chassis"
+  type2:t="suspension"
+  hitTestType:t="exclude"
+}
+
+suspension_r_NN{
+  template:t="suspension_r_#03#"
+  type:t="chassis"
+  type2:t="suspension"
+  hitTestType:t="exclude"
+}
+
+commander{
+  type:t="crew"
+  type2:t="commander"
+  hitTestType:t="inner"
+  genName:t="tank_commander"
+  vital:b=yes
+}
+
+driver{
+  type:t="crew"
+  type2:t="driver"
+  hitTestType:t="inner"
+  genName:t="tank_driver"
+  vital:b=yes
+  movement:b=yes
+}
+
+gunner{
+  type:t="crew"
+  type2:t="gunner"
+  hitTestType:t="inner"
+  genName:t="tank_gunner"
+  vital:b=yes
+}
+
+gunner_01{
+  template:t="gunner_#20#"
+  type:t="crew"
+  type2:t="gunner"
+  hitTestType:t="inner"
+  genName:t="tank_gunner"
+  vital:b=yes
+}
+
+loader{
+  type:t="crew"
+  type2:t="loader"
+  hitTestType:t="inner"
+  genName:t="tank_loader"
+  vital:b=yes
+}
+
+loader_01{
+  template:t="loader_#20#"
+  type:t="crew"
+  type2:t="loader"
+  hitTestType:t="inner"
+  genName:t="tank_loader"
+  vital:b=yes
+}
+
+machine_gunner{
+  type:t="crew"
+  type2:t="machinegunner"
+  hitTestType:t="inner"
+  genName:t="tank_machine_gunner"
+  vital:b=yes
+}
+
+machine_gunner_NN{
+  template:t="machine_gunner_#04#"
+  type:t="crew"
+  type2:t="machinegunner"
+  hitTestType:t="inner"
+  genName:t="tank_machine_gunner"
+  vital:b=yes
+}
+
+sailor_NN{
+  type:t="crew"
+  template:t="sailor_#70#"
+}
+
+motorist{
+  type:t="crew"
+}
+
+era{
+  type:t="crew"
+}
+
+era_NN{
+  template:t="era_#10#"
+  type:t="crew"
+}
+
+motorist_NN{
+  type:t="crew"
+  template:t="motorist_#10#"
+}
+
+operator{
+  type:t="crew"
+}
+
+ammo_turret{
+  type:t="ammo"
+  hitTestType:t="inner"
+  genName:t="tank_ammo"
+  vital:b=yes
+}
+
+ammo_turret_NN{
+  template:t="ammo_turret_#06#"
+  type:t="ammo"
+  hitTestType:t="inner"
+  genName:t="tank_ammo"
+  vital:b=yes
+}
+
+ammo_body{
+  type:t="ammo"
+  hitTestType:t="inner"
+  genName:t="tank_ammo"
+  vital:b=yes
+}
+
+ammo_body_NN{
+  template:t="ammo_body_#09#"
+  type:t="ammo"
+  hitTestType:t="inner"
+  genName:t="tank_ammo"
+  vital:b=yes
+}
+
+ammo_body_l_NN{
+  template:t="ammo_body_l_#06#"
+  type:t="ammo"
+  hitTestType:t="inner"
+  genName:t="tank_ammo"
+  vital:b=yes
+}
+
+ammo_body_r_NN{
+  template:t="ammo_body_r_#06#"
+  type:t="ammo"
+  hitTestType:t="inner"
+  genName:t="tank_ammo"
+  vital:b=yes
+}
+
+optic{
+}
+
+optic_gun{
+}
+
+optic_gun_1{
+}
+
+optic_turret{
+}
+
+optic_turret_NN{
+  template:t="optic_turret_#14#"
+}
+
+optic_body_mg{
+}
+
+optic_body{
+}
+
+optic_body_r{
+}
+
+optic_body_l{
+}
+
+optic_body_1{
+}
+
+optic_body_2{
+}
+
+optic_body_NN{
+  template:t="optic_body_#05#"
+}
+
+radiator{
+  type:t="radiator"
+  hitTestType:t="inner"
+  genName:t="tank_radiator"
+  vital:b=yes
+}
+
+radiator_l{
+  type:t="radiator"
+  hitTestType:t="inner"
+  genName:t="tank_radiator"
+  vital:b=yes
+}
+
+radiator_r{
+  type:t="radiator"
+  hitTestType:t="inner"
+  genName:t="tank_radiator"
+  vital:b=yes
+}
+
+radio_station{
+  hitTestType:t="inner"
+}
+
+gun_mask{
+}
+
+gun_mask_NN{
+  template:t="gun_mask_#10#"
+}
+
+bodypartN{
+  template:t="bodypart#0:9#"
+}
+
+armorN{
+  template:t="armor#0:30#"
+}
+
+pump{
+}
+
+torpedo_NN{
+  template:t="torpedo_#10#"
+}
+
+torpedo_l_NN{
+  template:t="torpedo_l_#10#"
+}
+
+torpedo_r_NN{
+  template:t="torpedo_r_#10#"
+}
+
+mast_NN{
+  template:t="mast_#10#"
+}
+
+radar_NN{
+  template:t="radar_#10#"
+}
+
+depth_charge_NN{
+  template:t="depth_charge_#20#"
+}
+
+depth_charge_l_NN{
+  template:t="depth_charge_l_#20#"
+}
+
+depth_charge_r_NN{
+  template:t="depth_charge_r_#20#"
+}
+
+depth_charge_mount_NN{
+  template:t="depth_charge_mount_#20#"
+}
+
+depth_charge_mount_l_NN{
+  template:t="depth_charge_mount_l_#20#"
+}
+
+depth_charge_mount_r_NN{
+  template:t="depth_charge_mount_r_#20#"
+}
+
+holder_NN{
+  template:t="holder_#20#"
+}
+
+holder_l_NN{
+  template:t="holder_l_#20#"
+}
+
+holder_r_NN{
+  template:t="holder_r_#20#"
+}
+
+bulkhead_NN{
+  template:t="bulkhead_#20#"
+}
+
+tt_NN{
+  template:t="tt_#20#"
+  type:t="torpedo_tube"
+}
+
+tt_l_NN{
+  template:t="tt_l_#10#"
+  type:t="torpedo_tube"
+}
+
+tt_r_NN{
+  template:t="tt_r_#10#"
+  type:t="torpedo_tube"
+}
+
+turret_front{
+  externalArmor:b=yes
+}
+
+turret_back{
+  externalArmor:b=yes
+}
+
+turret_side{
+  externalArmor:b=yes
+}
+
+turret_top{
+  externalArmor:b=yes
+}
+
+turret_bottom{
+  externalArmor:b=yes
+}
+
+turret_NN_front{
+  template:t="turret_#10#_front"
+  externalArmor:b=yes
+}
+
+turret_NN_back{
+  template:t="turret_#10#_back"
+  externalArmor:b=yes
+}
+
+turret_NN_side{
+  template:t="turret_#10#_side"
+  externalArmor:b=yes
+}
+
+turret_NN_top{
+  template:t="turret_#10#_top"
+  externalArmor:b=yes
+}
+
+turret_NN_bottom{
+  template:t="turret_#10#_bottom"
+  externalArmor:b=yes
+}
+
+turret_NN{
+  template:t="turret_#10#"
+  externalArmor:b=yes
+}
+
+turret_h_NN{
+  template:t="turret_h_#20#"
+}
+
+turret_v_NN{
+  template:t="turret_v_#20#"
+}
+
+rudder{
+  type:t="rudder"
+}
+
+rudder0{
+  type:t="rudder"
+}
+
+rudder1{
+  type:t="rudder"
+}
+
+rudder_l{
+  type:t="rudder"
+}
+
+rudder_r{
+  type:t="rudder"
+}
+
+rudder_NN{
+  template:t="rudder_#10#"
+  type:t="rudder"
+}
+
+ex_armor_NN{
+  template:t="ex_armor_#10#"
+}
+
+ex_armor_r_NN{
+  template:t="ex_armor_r_#10#"
+}
+
+ex_armor_l_NN{
+  template:t="ex_armor_l_#10#"
+}
+
+ex_armor_body_NN{
+  template:t="ex_armor_body_#05#"
+}
+
+ex_armor_body_r_NN{
+  template:t="ex_armor_body_r_#11#"
+}
+
+ex_armor_body_l_NN{
+  template:t="ex_armor_body_l_#11#"
+}
+
+ex_armor_turret_NN{
+  template:t="ex_armor_turret_#10#"
+}
+
+ex_armor_turret_r_NN{
+  template:t="ex_armor_turret_r_#05#"
+}
+
+ex_armor_turret_l_NN{
+  template:t="ex_armor_turret_l_#05#"
+}
+
+ex_decor_body_r_NN{
+  template:t="ex_decor_body_r_#12#"
+  externalArmor:b=yes
+}
+
+ex_decor_body_l_NN{
+  template:t="ex_decor_body_l_#12#"
+  externalArmor:b=yes
+}
+
+ex_decor_r_NN{
+  template:t="ex_decor_r_#12#"
+  externalArmor:b=yes
+}
+
+ex_decor_l_NN{
+  template:t="ex_decor_l_#12#"
+  externalArmor:b=yes
+}
+
+ex_decor_NN{
+  template:t="ex_decor_#10#"
+  externalArmor:b=yes
+}
+
+fuse{
+}
+
+fuseN{
+  template:t="fuse#4#"
+}
+
+gun_barrel_armor{
+  externalArmor:b=yes
+}
+
+body_shield{
+  externalArmor:b=yes
+}
+
+gun_mask_shield{
+  externalArmor:b=yes
+}
+
+mg_twin_armor{
+  externalArmor:b=yes
+}
+
+mg_aft_mask{
+  externalArmor:b=yes
+}
+
+body_front_hatch{
+}
+
+turret_commander{
+}
+
+foremast{
+}
+
+mainmast{
+}
+
+mizzenmast{
+}
+
+foremast_coursesail{
+}
+
+foremast_topsail{
+}
+
+bowsprit_sail{
+}
+
+mainmast_coursesail{
+}
+
+mainmast_topsail{
+}
+
+mizzenmast_sail{
+}

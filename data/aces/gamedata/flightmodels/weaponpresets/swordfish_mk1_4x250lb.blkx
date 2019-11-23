@@ -1,0 +1,35 @@
+hideNodes{
+  node:t="pylon_torpedo"
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/bombGuns/uk_250lbs.blk"
+  emitter:t="bomb2"
+  bullets:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/bombGuns/uk_250lbs.blk"
+  emitter:t="bomb5"
+  bullets:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/bombGuns/uk_250lbs.blk"
+  emitter:t="bomb4"
+  bullets:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/bombGuns/uk_250lbs.blk"
+  emitter:t="bomb3"
+  bullets:i=1
+  external:b=yes
+}

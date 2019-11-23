@@ -1,0 +1,147 @@
+clear{
+  scatteringEffect:p2=0.0, 0.0
+  cloud_shadow_intensity:r=0.0
+  wind_strength:r=4.2
+  waterWindStrength:r=3.5
+  rainSplashFxType:t="rain_splash"
+  rainSplashEnabled:b=no
+  rainSound:t="rain"
+  rainCockpitSound:t="rain_cockpit"
+  skyLightFactor:r=1.0
+  cloudAircraftReflectMul:r=4.0
+  cloudAircraftReflectPowerMul:r=0.5
+  clouds_fly_cube_tex:t="cloud_fly_cube"
+
+  sky{
+    mie_height:p2=0.7, 0.7
+    mieG:p2=0.45, 0.45
+    betaMScale:p2=0.5, 0.5
+    clouds_overcast:p2=0.5, 0.5
+  }
+
+  clouds_gen{
+    humidity:p2=0.4, 0.55
+    persistence:p2=0.67, 0.9
+    asymmetry:p2=0.04, 0.18
+  }
+
+  clouds_position{
+    sizeX:p2=111.0, 111.0
+    sizeZ:p2=99.0, 99.0
+    start_altitude:p2=3.2, 5.5
+    thickness:p2=4.0, 5.0
+    light_extinction:p2=2.5, 4.0
+    amb_extinction_mul:p2=0.8, 1.5
+  }
+
+  clouds_render{
+    silver_lining:p2=0.89, 0.95
+    sun_light:p2=0.15, 0.4
+    ambient:p2=0.2, 0.5
+    silver_lining_eccentricity:p2=0.05, 0.15
+  }
+
+  strata_clouds{
+    amount:p2=0.3, 0.4
+    altitude:p2=8.0, 8.0
+  }
+
+  windParams{
+    defaultWindSpeed:r=0.1
+    height0:r=300.0
+    turbulence0:r=1.0
+    windMul0:r=1.0
+    height1:r=2000.0
+    turbulence1:r=0.8
+    windMul1:r=1.0
+    height2:r=8000.0
+    turbulence2:r=0.2
+    windMul2:r=0.01
+  }
+
+  rain{
+    probability:r=0.0
+  }
+
+  rainDroplets{
+    droplets_scale:r=1.0
+    droplets_reflection_min:r=0.1
+    droplets_reflection_max:r=0.3
+    droplets_size_scale:p3=20.0, 20.0, 4.0
+    droplets_speed:r=0.9
+  }
+}
+
+good{
+  scatteringEffect:p2=0.0, 0.0
+  cloud_shadow_intensity:r=0.0
+  wind_strength:r=4.2
+  waterWindStrength:r=3.5
+  rainSplashFxType:t="rain_splash"
+  rainSplashEnabled:b=no
+  rainSound:t="rain"
+  rainCockpitSound:t="rain_cockpit"
+  skyLightFactor:r=1.0
+  cloudAircraftReflectMul:r=4.0
+  cloudAircraftReflectPowerMul:r=0.5
+  clouds_fly_cube_tex:t="cloud_fly_cube"
+
+  sky{
+    mie_height:p2=0.7, 0.7
+    mieG:p2=0.45, 0.45
+    betaMScale:p2=0.5, 0.5
+    clouds_overcast:p2=0.5, 0.5
+  }
+
+  clouds_gen{
+    humidity:p2=0.4, 0.55
+    persistence:p2=0.67, 0.9
+    asymmetry:p2=0.04, 0.18
+  }
+
+  clouds_position{
+    sizeX:p2=111.0, 111.0
+    sizeZ:p2=99.0, 99.0
+    start_altitude:p2=3.2, 5.5
+    thickness:p2=4.0, 5.0
+    light_extinction:p2=2.5, 4.0
+    amb_extinction_mul:p2=0.8, 1.5
+  }
+
+  clouds_render{
+    silver_lining:p2=0.89, 0.95
+    sun_light:p2=0.15, 0.4
+    ambient:p2=0.2, 0.5
+    silver_lining_eccentricity:p2=0.05, 0.15
+  }
+
+  strata_clouds{
+    amount:p2=0.3, 0.4
+    altitude:p2=8.0, 8.0
+  }
+
+  windParams{
+    defaultWindSpeed:r=0.1
+    height0:r=300.0
+    turbulence0:r=1.0
+    windMul0:r=1.0
+    height1:r=2000.0
+    turbulence1:r=0.8
+    windMul1:r=1.0
+    height2:r=8000.0
+    turbulence2:r=0.2
+    windMul2:r=0.01
+  }
+
+  rain{
+    probability:r=0.0
+  }
+
+  rainDroplets{
+    droplets_scale:r=1.0
+    droplets_reflection_min:r=0.1
+    droplets_reflection_max:r=0.3
+    droplets_size_scale:p3=20.0, 20.0, 4.0
+    droplets_speed:r=0.9
+  }
+}

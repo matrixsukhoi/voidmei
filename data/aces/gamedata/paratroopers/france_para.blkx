@@ -1,0 +1,7 @@
+anim:t="france_paratrooper_char"
+timeStartChute:r=2.0
+startDeviation:r=0.8
+openingTime:r=2.0
+lifeTime:r=10.0
+flyDeviation:r=0.2
+heightRange:p2=600.0, 1500.0

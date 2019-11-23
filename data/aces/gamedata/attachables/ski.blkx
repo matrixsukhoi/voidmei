@@ -1,0 +1,3 @@
+model:t="ski"
+collision:t="ski_aces"
+bboxMult:r=0.1

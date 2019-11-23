@@ -1,0 +1,49 @@
+model:t="dummy_airfield_1200x250m_a"
+subclass:t="fortification"
+damageableByGun:b=no
+expClass:t="exp_zero"
+bulletTransparent:b=yes
+fireFx:t="ground_model_smoke"
+timeToFire:r=600.0
+timeToSmoke:r=600.0
+toGround:b=yes
+moveType:t="vehicle"
+maxFwdSpeed:r=0.0
+maxRevSpeed:r=0.0
+maxAngSpeed:r=0.0
+maxAccel:r=0.0
+maxDecel:r=0.0
+maxAngAccel0:r=0.0
+maxAngAccelV:r=0.0
+maxAngAccel:r=0.0
+groundNormSmoothViscosity:r=0.1
+mass:r=1800.0
+
+DamageParts{
+
+  armor45{
+
+    body_dm{
+      hp:r=60000.0
+    }
+  }
+}
+
+DamageEffects{
+
+  part{
+    name:t="body_dm"
+
+    onHit{
+      smoke:r=0.01
+      fire:r=0.01
+    }
+
+    onKill{
+      fire:r=1.0
+    }
+  }
+}
+
+class_tags{
+}

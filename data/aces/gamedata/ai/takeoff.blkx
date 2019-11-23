@@ -1,0 +1,37 @@
+selector{
+  selectStrategy:t="ordered"
+  name:t="taxi_and_takeoff"
+
+  reaction{
+    event:t="groundAhead"
+  }
+
+  reaction{
+    event:t="collisionAhead"
+  }
+
+  reaction{
+    event:t="outsideBattleField"
+  }
+
+  sequencer{
+
+    isOnAirfield{
+    }
+
+    findClosestAirfield{
+    }
+
+    waitForAirfieldClearance{
+    }
+
+    taxiOnAirfield{
+    }
+
+    takeoff{
+    }
+  }
+
+  waitOnLand{
+  }
+}

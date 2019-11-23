@@ -1,0 +1,28 @@
+hideNodes{
+  node:t="rocket_pylon_l"
+  node:t="rocket_pylon_r"
+  node:t="rocket1"
+  node:t="rocket2"
+  node:t="rocket3"
+  node:t="rocket4"
+  node:t="rocket5"
+  node:t="rocket6"
+  node:t="rocket7"
+  node:t="rocket8"
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/uk_500lbs.blk"
+  emitter:t="bomb3"
+  bullets:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/uk_500lbs.blk"
+  emitter:t="bomb4"
+  bullets:i=1
+  external:b=yes
+}

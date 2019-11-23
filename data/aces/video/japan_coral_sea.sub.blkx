@@ -1,0 +1,43 @@
+font:t="small_text"
+
+line{
+  loc:t="jpn_coral_sea_1"
+  from:i=1808
+  to:i=15117
+}
+
+line{
+  loc:t="jpn_coral_sea_2"
+  from:i=15335
+  to:i=23955
+}
+
+line{
+  loc:t="jpn_coral_sea_3"
+  from:i=24262
+  to:i=39072
+}
+
+line{
+  loc:t="jpn_coral_sea_4"
+  from:i=39242
+  to:i=58932
+}
+
+line{
+  loc:t="jpn_coral_sea_5"
+  from:i=59308
+  to:i=95786
+}
+
+line{
+  loc:t="jpn_coral_sea_6"
+  from:i=96742
+  to:i=124383
+}
+
+line{
+  loc:t="jpn_coral_sea_7"
+  from:i=124826
+  to:i=148474
+}

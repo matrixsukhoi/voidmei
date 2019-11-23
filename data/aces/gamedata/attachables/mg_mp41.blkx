@@ -1,0 +1,3 @@
+model:t="ger_mp_40"
+collision:t="ger_mp_40_aces"
+bboxMult:r=0.1

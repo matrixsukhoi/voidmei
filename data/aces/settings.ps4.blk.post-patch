@@ -1,0 +1,5 @@
+"@override:texStreaming"{
+  "@override:biasGroup[1]"{
+    "@override:lqMipBiasHQ":i=3
+  }
+}

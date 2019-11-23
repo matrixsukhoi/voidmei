@@ -1,0 +1,6 @@
+hideNodes{
+  node:t="bomb_pylon_250kg_l"
+  node:t="bomb_pylon_250kg_r"
+  node:t="bomb_pylon_50kg_l"
+  node:t="bomb_pylon_50kg_r"
+}

@@ -1,0 +1,13 @@
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/uk_mk2_cookie.blk"
+  emitter:t="mine1"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/uk_mk2_cookie.blk"
+  emitter:t="mine2"
+  bullets:i=1
+}

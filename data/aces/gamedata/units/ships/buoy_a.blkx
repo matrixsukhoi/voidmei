@@ -1,0 +1,60 @@
+hasQualityModels:b=yes
+useBotForAi:b=yes
+timeToFire:r=20.0
+timeToSmoke:r=23.0
+hasExpl:b=no
+exhaustFx:t="ps_exhaust"
+expClass:t="exp_ship"
+model:t="buoy_a"
+subclass:t="warShip"
+dynCollisionGeom:b=yes
+moveType:t="ship"
+maxFwdSpeed:r=80.0
+maxRevSpeed:r=5.0
+maxAngSpeed:r=15.0
+maxAccel:r=20.0
+maxDecel:r=5.0
+maxAngAccel:r=15.0
+maxAngAccel0:r=2.0
+maxAngAccelV:r=15.0
+groundNormSmoothViscosity:r=0.1
+customUpdateDiv:i=5
+SoundMove:t="models.Ship"
+tailStartOffset:r=0.0
+
+DamageParts{
+
+  armor10{
+
+    body_dm{
+      hp:r=6.0
+    }
+  }
+}
+
+class_tags{
+  pacific:b=yes
+  mediterran:b=yes
+  westernfront:b=yes
+}
+
+DamageEffects{
+
+  part{
+    name:t="body_dm"
+
+    onHit{
+      smoke:r=0.01
+      fire:r=0.01
+    }
+
+    onKill{
+      expl:r=1.0
+    }
+  }
+}
+
+sound{
+  path:t="sounds/engines"
+  engine:t="boat"
+}

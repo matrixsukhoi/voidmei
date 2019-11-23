@@ -1,0 +1,1006 @@
+model:t="gh"
+subclass:t="warShip"
+dustFx:t="water_units_dust"
+explosionFx:t="old_ship_expl"
+explosionFxBA:t="old_ship_expl_battle_area"
+battleAreaUnhideVarName:t="tentacle_hide"
+battleAreaAnimName:t="tentacle_action"
+timeToSink:r=25.0
+wakeBboxMin:p3=-10.0, -1.0, -5.0
+wakeBboxMax:p3=8.0, 1.0, 5.0
+type:t="typeShip"
+expClass:t="exp_ship"
+timeToFire:r=40.0
+timeToSmoke:r=300.0
+hasExpl:b=no
+moveType:t="ship"
+maxFwdSpeed:r=80.0
+maxRevSpeed:r=5.0
+maxAngSpeed:r=15.0
+maxAccel:r=20.0
+maxDecel:r=5.0
+maxAngAccel:r=15.0
+maxAngAccel0:r=2.0
+maxAngAccelV:r=15.0
+groundNormSmoothViscosity:r=0.1
+customUpdateDiv:i=5
+SoundMove:t="models.Ship"
+tailStartOffset:r=10.0
+
+DamageParts{
+  formatVersion:i=2
+  armorClass:t="RHA_tank"
+  hp:r=8000.0
+
+  hull{
+    armorClass:t="RHA_tank"
+    hp:r=10000.0
+
+    ship_hull_dm{
+      armorThickness:r=4.0
+      restrainDamage:r=0.0
+      armorThrough:r=4.0
+      explosionDamageMult:r=0.0
+    }
+
+    ammo_body_dm{
+      armorThickness:r=5.0
+      hp:r=500.0
+      restrainDamage:r=0.0
+      armorThrough:r=4.0
+      explosionDamageMult:r=0.33
+    }
+
+    foremast_dm{
+      armorThickness:r=50.0
+      restrainDamage:r=0.0
+      armorThrough:r=4.0
+    }
+
+    mainmast_dm{
+      armorThickness:r=50.0
+      restrainDamage:r=0.0
+      armorThrough:r=4.0
+    }
+
+    mizzenmast_dm{
+      armorThickness:r=50.0
+      restrainDamage:r=0.0
+      armorThrough:r=4.0
+    }
+  }
+
+  sails{
+    armorClass:t="wood"
+    hp:r=3500.0
+
+    foremast_coursesail_dm{
+      armorThickness:r=2.0
+      restrainDamage:r=0.05
+      armorThrough:r=2.0
+      genericDamageMult:r=0.0
+    }
+
+    foremast_topsail_dm{
+      armorThickness:r=2.0
+      restrainDamage:r=0.05
+      armorThrough:r=2.0
+      genericDamageMult:r=0.0
+    }
+
+    bowsprit_sail_dm{
+      armorThickness:r=2.0
+      restrainDamage:r=0.05
+      armorThrough:r=2.0
+      genericDamageMult:r=0.0
+    }
+
+    mainmast_coursesail_dm{
+      armorThickness:r=2.0
+      restrainDamage:r=0.05
+      armorThrough:r=2.0
+      genericDamageMult:r=0.0
+    }
+
+    mainmast_topsail_dm{
+      armorThickness:r=2.0
+      restrainDamage:r=0.05
+      armorThrough:r=2.0
+      genericDamageMult:r=0.0
+    }
+
+    mizzenmast_sail_dm{
+      armorThickness:r=2.0
+      restrainDamage:r=0.05
+      armorThrough:r=2.0
+      genericDamageMult:r=0.0
+    }
+  }
+}
+
+MetaParts{
+
+  body{
+    hp:r=10000.0
+    part:t="ship_hull_dm"
+
+    effects{
+
+      killUnit{
+        nothing:r=1.0
+      }
+    }
+  }
+}
+
+DamageEffects{
+  relativePartHealthForVisibleDamage:r=0.05
+
+  part{
+    name:t="ammo_body_dm"
+
+    onKill{
+      expl:r=1.0
+      fHitCritical:b=yes
+    }
+  }
+}
+
+partsToRepair{
+
+  foremast_coursesail_dm{
+    time:r=60.0
+    hp:r=0.5
+  }
+
+  foremast_topsail_dm{
+    time:r=80.0
+    hp:r=0.5
+  }
+
+  bowsprit_sail_dm{
+    time:r=60.0
+    hp:r=0.5
+  }
+
+  mainmast_coursesail_dm{
+    time:r=60.0
+    hp:r=0.5
+  }
+
+  mainmast_topsail_dm{
+    time:r=80.0
+    hp:r=0.5
+  }
+
+  mizzenmast_sail_dm{
+    time:r=60.0
+    hp:r=0.5
+  }
+}
+
+damagePartsToAnim{
+  foremast_coursesail_dm:t="foremast_coursesail_damage"
+  foremast_topsail_dm:t="foremast_topsail_damage"
+  mainmast_coursesail_dm:t="mainmast_coursesail_damage"
+  mainmast_topsail_dm:t="mainmast_topsail_damage"
+  bowsprit_sail_dm:t="bowsprit_sail_damage"
+}
+
+breaches{
+  repairSpeed:r=1.0
+  waterMassVel:r=-50.0
+  waterMassMult:r=10.0
+  breachGrowVelThr:r=8.0
+  breachGrowSpd:r=1.0
+  breachLinePosY:r=0.2
+  hpToBreachSize:p4=5.0, 200.0, 0.01, 0.25
+  hpToRepair:p4=5.0, 200.0, 10.0, 400.0
+  additionalWaterDeathThreshold:r=250000.0
+}
+
+class_tags{
+  pacific:b=yes
+  mediterran:b=yes
+  westernfront:b=yes
+}
+
+optics{
+  binoculars:t="tube"
+}
+
+ShipPhys{
+
+  mass{
+    Empty:r=191379.0
+    Fuel:r=0.0
+    TakeOff:r=191379.0
+    momentOfInertia:p3=27.2, 70.0, 86.0
+    CenterOfGravity:p3=-1.0, 0.0, 0.0
+  }
+
+  engines{
+
+    engine{
+      pos:p3=-10.0, -1.0, -2.0
+      maxThrust:r=100000.0
+      zeroThrustSpd:r=1.0
+    }
+
+    engine{
+      pos:p3=-10.0, -1.0, 2.0
+      maxThrust:r=100000.0
+      zeroThrustSpd:r=1.0
+    }
+  }
+
+  settings{
+    velMult:r=3.0
+  }
+
+  collisionProps{
+    cls_body_01:t="convex_hull"
+  }
+
+  hydrodynamics{
+    keelArea:r=10.0
+    bodyArea:r=50.0
+    keelArm:p3=-20.0, -1.0, 0.0
+    bodyArm:p3=-0.5, -1.0, 0.0
+    frontAng:r=0.4
+    vertVelLinCoeff:r=0.5
+    normVelCoeff:r=0.8
+    perpVelCoeff:r=0.05
+
+    rudder{
+      pos:p3=-12.0, -1.0, 0.0
+      area:r=30.0
+      deflection:r=45.0
+      outputParam:t="rudder"
+    }
+
+    ignoreNodes{
+      mizzenmast_sail_dm:b=yes
+      mainmast_coursesail_dm:b=yes
+      mainmast_topsail_dm:b=yes
+      foremast_coursesail_dm:b=yes
+      foremast_topsail_dm:b=yes
+      bowsprit_sail_dm:b=yes
+    }
+  }
+
+  sails{
+
+    mast{
+      tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [10.0, 4.0, 0.0]]
+
+      sailYard{
+        tm:m=[[0.0, -1.0, 0.0] [1.0, 0.0, 0.0] [0.0, 0.0, 1.0] [1.0, 4.3, 0.0]]
+        limits:p2=-40.0, 40.0
+        rotDir:p3=0.0, 1.0, 0.0
+        outputParam:t="foremast_coursesail_rotate"
+
+        sail{
+          center:p3=0.0, 0.0, 0.0
+          area:r=55.0
+          width:r=12.0
+          outputParam:t="foremast_coursesail_unfold"
+          partName:t="foremast_coursesail_dm"
+          OswaldsEfficiencyNumber:r=0.5
+          lineClCoeff:r=0.1
+
+          minPos{
+            Cl0:r=0.0
+            alphaCritHigh:r=30.0
+            alphaCritLow:r=-30.0
+            ClCritHigh:r=2.6
+            ClCritLow:r=-2.6
+            CdMin:r=0.15
+          }
+        }
+      }
+
+      sailYard{
+        tm:m=[[0.0, -1.0, 0.0] [1.0, 0.0, 0.0] [0.0, 0.0, 1.0] [1.0, 10.8, 0.0]]
+        limits:p2=-45.0, 45.0
+        rotDir:p3=0.0, 1.0, 0.0
+        outputParam:t="foremast_topsail_rotate"
+
+        sail{
+          center:p3=0.0, 0.0, 0.0
+          area:r=60.0
+          width:r=9.5
+          outputParam:t="foremast_topsail_unfold"
+          partName:t="foremast_topsail_dm"
+          OswaldsEfficiencyNumber:r=0.5
+          lineClCoeff:r=0.1
+
+          minPos{
+            Cl0:r=0.0
+            alphaCritHigh:r=30.0
+            alphaCritLow:r=-30.0
+            ClCritHigh:r=2.6
+            ClCritLow:r=-2.6
+            CdMin:r=0.15
+          }
+        }
+      }
+    }
+
+    mast{
+      tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [0.0, 3.0, 0.0]]
+
+      sailYard{
+        tm:m=[[0.0, -1.0, 0.0] [1.0, 0.0, 0.0] [0.0, 0.0, 1.0] [1.0, 6.3, 0.0]]
+        limits:p2=-40.0, 40.0
+        rotDir:p3=0.0, 1.0, 0.0
+        outputParam:t="mainmast_coursesail_rotate"
+
+        sail{
+          center:p3=0.0, 0.0, 0.0
+          area:r=78.0
+          width:r=13.5
+          outputParam:t="mainmast_coursesail_unfold"
+          partName:t="mainmast_coursesail_dm"
+          OswaldsEfficiencyNumber:r=0.5
+          lineClCoeff:r=0.1
+
+          minPos{
+            Cl0:r=0.0
+            alphaCritHigh:r=30.0
+            alphaCritLow:r=-30.0
+            ClCritHigh:r=2.6
+            ClCritLow:r=-2.6
+            CdMin:r=0.15
+          }
+        }
+      }
+
+      sailYard{
+        tm:m=[[0.0, -1.0, 0.0] [1.0, 0.0, 0.0] [0.0, 0.0, 1.0] [1.0, 13.8, 0.0]]
+        limits:p2=-45.0, 45.0
+        rotDir:p3=0.0, 1.0, 0.0
+        outputParam:t="mainmast_topsail_rotate"
+
+        sail{
+          center:p3=0.0, 0.0, 0.0
+          area:r=83.0
+          width:r=10.5
+          outputParam:t="mainmast_topsail_unfold"
+          partName:t="mainmast_topsail_dm"
+          OswaldsEfficiencyNumber:r=0.5
+          lineClCoeff:r=0.1
+
+          minPos{
+            Cl0:r=0.0
+            alphaCritHigh:r=30.0
+            alphaCritLow:r=-30.0
+            ClCritHigh:r=2.6
+            ClCritLow:r=-2.6
+            CdMin:r=0.15
+          }
+        }
+      }
+    }
+
+    mast{
+      tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [18.0, 4.0, 0.0]]
+
+      sailYard{
+        tm:m=[[0.0, -1.0, 0.0] [1.0, 0.0, 0.0] [0.0, 0.0, 1.0] [0.0, 0.0, 0.0]]
+        limits:p2=-75.0, 75.0
+        rotDir:p3=0.0, 1.0, 0.0
+        outputParam:t="bowsprit_rotate"
+
+        sail{
+          center:p3=0.0, 0.0, 0.0
+          area:r=30.0
+          width:r=8.0
+          outputParam:t="bowsprit_sail_unfold"
+          partName:t="bowsprit_sail_dm"
+          OswaldsEfficiencyNumber:r=0.5
+          lineClCoeff:r=0.1
+
+          minPos{
+            Cl0:r=0.0
+            alphaCritHigh:r=30.0
+            alphaCritLow:r=-30.0
+            ClCritHigh:r=2.6
+            ClCritLow:r=-2.6
+            CdMin:r=0.15
+          }
+        }
+      }
+    }
+
+    mast{
+      tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [-7.0, 9.0, 0.0]]
+
+      sailYard{
+        tm:m=[[0.0, -1.0, 0.0] [0.342, 0.0, -0.9396] [-0.9396, 0.0, 0.342] [0.0, 3.0, 0.0]]
+        limits:p2=-65.0, 45.0
+        rotDir:p3=0.0, 1.0, 0.0
+        outputParam:t="mizzenmast_rotate"
+
+        sail{
+          center:p3=0.0, 0.0, 0.0
+          area:r=80.0
+          width:r=10.0
+          outputParam:t="mizzenmast_sail_unfold"
+          partName:t="mizzenmast_sail_dm"
+          OswaldsEfficiencyNumber:r=0.5
+          lineClCoeff:r=0.1
+
+          minPos{
+            Cl0:r=0.0
+            alphaCritHigh:r=30.0
+            alphaCritLow:r=-30.0
+            ClCritHigh:r=2.6
+            ClCritLow:r=-2.6
+            CdMin:r=0.15
+          }
+        }
+      }
+    }
+  }
+}
+
+commonWeapons{
+
+  Weapon{
+    trigger:t="gunner0"
+    triggerGroup:t="primary"
+    blk:t="gameData/Weapons/groundModels_weapons/gh_user_cannon.blk"
+    emitter:t="gun_r_01"
+    flash:t="emtr_gun_flame_r_01"
+    checkFlash:b=no
+    drawCrosshair:b=no
+    allowableDelta:r=40.0
+    defaultYaw:r=0.0
+    defaultPitch:r=0.0
+    speedYaw:r=2.0
+    speedPitch:r=2.0
+    fireConeAngle:r=1.0
+    bullets:i=200
+    speedYaw:r=45.0
+    speedPitch:r=45.0
+    fireConeAngle:r=20.0
+    ChainfireTime:r=2.0
+    DelayAfterShoot:r=2.0
+    aimMinDist:r=20.0
+    aimMaxDist:r=4000.0
+    randomAngle:r=0.0
+    accuracyAir:r=0.5
+    accuracyGnd:r=0.5
+    errMeasureVel:r=0.0
+    errTargettingOn100kmph:r=0.0
+    errMeasureVelFast:r=100.0
+    errMeasureVelFwdShift:r=1.0
+    errMeasureVelDir:r=3.0
+    errTargetting:r=1.0
+    errExplTime:r=0.0
+
+    turret{
+      head:t="gun_r_01"
+      gun:t="gun_r_01_barrel"
+    }
+
+    limits{
+      yaw:p2=-10.0, 10.0
+      pitch:p2=-5.0, 5.0
+    }
+  }
+
+  Weapon{
+    trigger:t="gunner0"
+    triggerGroup:t="primary"
+    blk:t="gameData/Weapons/groundModels_weapons/gh_user_cannon.blk"
+    emitter:t="gun_r_02"
+    flash:t="emtr_gun_flame_r_02"
+    checkFlash:b=no
+    drawCrosshair:b=no
+    allowableDelta:r=40.0
+    defaultYaw:r=0.0
+    defaultPitch:r=0.0
+    speedYaw:r=2.0
+    speedPitch:r=2.0
+    fireConeAngle:r=1.0
+    bullets:i=200
+    speedYaw:r=45.0
+    speedPitch:r=45.0
+    fireConeAngle:r=20.0
+    ChainfireTime:r=2.0
+    DelayAfterShoot:r=2.0
+    aimMinDist:r=20.0
+    aimMaxDist:r=4000.0
+    randomAngle:r=0.0
+    accuracyAir:r=0.5
+    accuracyGnd:r=0.5
+    errMeasureVel:r=0.0
+    errTargettingOn100kmph:r=0.0
+    errMeasureVelFast:r=100.0
+    errMeasureVelFwdShift:r=1.0
+    errMeasureVelDir:r=3.0
+    errTargetting:r=1.0
+    errExplTime:r=0.0
+
+    turret{
+      head:t="gun_r_02"
+      gun:t="gun_r_02_barrel"
+    }
+
+    limits{
+      yaw:p2=-10.0, 10.0
+      pitch:p2=-5.0, 5.0
+    }
+  }
+
+  Weapon{
+    trigger:t="gunner0"
+    triggerGroup:t="primary"
+    blk:t="gameData/Weapons/groundModels_weapons/gh_user_cannon.blk"
+    emitter:t="gun_r_03"
+    flash:t="emtr_gun_flame_r_03"
+    checkFlash:b=no
+    allowableDelta:r=40.0
+    defaultYaw:r=0.0
+    defaultPitch:r=0.0
+    speedYaw:r=2.0
+    speedPitch:r=2.0
+    fireConeAngle:r=1.0
+    bullets:i=200
+    speedYaw:r=45.0
+    speedPitch:r=45.0
+    fireConeAngle:r=20.0
+    ChainfireTime:r=2.0
+    DelayAfterShoot:r=2.0
+    aimMinDist:r=20.0
+    aimMaxDist:r=4000.0
+    randomAngle:r=0.0
+    accuracyAir:r=0.5
+    accuracyGnd:r=0.5
+    errMeasureVel:r=0.0
+    errTargettingOn100kmph:r=0.0
+    errMeasureVelFast:r=100.0
+    errMeasureVelFwdShift:r=1.0
+    errMeasureVelDir:r=3.0
+    errTargetting:r=1.0
+    errExplTime:r=0.0
+
+    turret{
+      head:t="gun_r_03"
+      gun:t="gun_r_03_barrel"
+    }
+
+    limits{
+      yaw:p2=-10.0, 10.0
+      pitch:p2=-5.0, 5.0
+    }
+  }
+
+  Weapon{
+    trigger:t="gunner0"
+    triggerGroup:t="primary"
+    blk:t="gameData/Weapons/groundModels_weapons/gh_user_cannon.blk"
+    emitter:t="gun_r_04"
+    flash:t="emtr_gun_flame_r_04"
+    checkFlash:b=no
+    drawCrosshair:b=no
+    allowableDelta:r=40.0
+    defaultYaw:r=0.0
+    defaultPitch:r=0.0
+    speedYaw:r=2.0
+    speedPitch:r=2.0
+    fireConeAngle:r=1.0
+    bullets:i=200
+    speedYaw:r=45.0
+    speedPitch:r=45.0
+    fireConeAngle:r=20.0
+    ChainfireTime:r=2.0
+    DelayAfterShoot:r=2.0
+    aimMinDist:r=20.0
+    aimMaxDist:r=4000.0
+    randomAngle:r=0.0
+    accuracyAir:r=0.5
+    accuracyGnd:r=0.5
+    errMeasureVel:r=0.0
+    errTargettingOn100kmph:r=0.0
+    errMeasureVelFast:r=100.0
+    errMeasureVelFwdShift:r=1.0
+    errMeasureVelDir:r=3.0
+    errTargetting:r=1.0
+    errExplTime:r=0.0
+
+    turret{
+      head:t="gun_r_04"
+      gun:t="gun_r_04_barrel"
+    }
+
+    limits{
+      yaw:p2=-10.0, 10.0
+      pitch:p2=-5.0, 5.0
+    }
+  }
+
+  Weapon{
+    trigger:t="gunner0"
+    triggerGroup:t="primary"
+    blk:t="gameData/Weapons/groundModels_weapons/gh_user_cannon.blk"
+    emitter:t="gun_r_05"
+    flash:t="emtr_gun_flame_r_05"
+    checkFlash:b=no
+    drawCrosshair:b=no
+    allowableDelta:r=40.0
+    defaultYaw:r=0.0
+    defaultPitch:r=0.0
+    speedYaw:r=2.0
+    speedPitch:r=2.0
+    fireConeAngle:r=1.0
+    bullets:i=200
+    speedYaw:r=45.0
+    speedPitch:r=45.0
+    fireConeAngle:r=20.0
+    ChainfireTime:r=2.0
+    DelayAfterShoot:r=2.0
+    aimMinDist:r=20.0
+    aimMaxDist:r=4000.0
+    randomAngle:r=0.0
+    accuracyAir:r=0.5
+    accuracyGnd:r=0.5
+    errMeasureVel:r=0.0
+    errTargettingOn100kmph:r=0.0
+    errMeasureVelFast:r=100.0
+    errMeasureVelFwdShift:r=1.0
+    errMeasureVelDir:r=3.0
+    errTargetting:r=1.0
+    errExplTime:r=0.0
+
+    turret{
+      head:t="gun_r_05"
+      gun:t="gun_r_05_barrel"
+    }
+
+    limits{
+      yaw:p2=-10.0, 10.0
+      pitch:p2=-5.0, 5.0
+    }
+  }
+
+  Weapon{
+    trigger:t="gunner0"
+    triggerGroup:t="primary"
+    blk:t="gameData/Weapons/groundModels_weapons/gh_user_cannon.blk"
+    emitter:t="gun_r_06"
+    flash:t="emtr_gun_flame_r_06"
+    checkFlash:b=no
+    drawCrosshair:b=no
+    allowableDelta:r=40.0
+    defaultYaw:r=0.0
+    defaultPitch:r=0.0
+    speedYaw:r=2.0
+    speedPitch:r=2.0
+    fireConeAngle:r=1.0
+    bullets:i=200
+    speedYaw:r=45.0
+    speedPitch:r=45.0
+    fireConeAngle:r=20.0
+    ChainfireTime:r=2.0
+    DelayAfterShoot:r=2.0
+    aimMinDist:r=20.0
+    aimMaxDist:r=4000.0
+    randomAngle:r=0.0
+    accuracyAir:r=0.5
+    accuracyGnd:r=0.5
+    errMeasureVel:r=0.0
+    errTargettingOn100kmph:r=0.0
+    errMeasureVelFast:r=100.0
+    errMeasureVelFwdShift:r=1.0
+    errMeasureVelDir:r=3.0
+    errTargetting:r=1.0
+    errExplTime:r=0.0
+
+    turret{
+      head:t="gun_r_06"
+      gun:t="gun_r_06_barrel"
+    }
+
+    limits{
+      yaw:p2=-10.0, 10.0
+      pitch:p2=-5.0, 5.0
+    }
+  }
+
+  Weapon{
+    trigger:t="gunner1"
+    triggerGroup:t="primary"
+    blk:t="gameData/Weapons/groundModels_weapons/gh_user_cannon.blk"
+    emitter:t="gun_l_01"
+    flash:t="emtr_gun_flame_l_01"
+    checkFlash:b=no
+    drawCrosshair:b=no
+    allowableDelta:r=40.0
+    defaultYaw:r=0.0
+    defaultPitch:r=0.0
+    speedYaw:r=2.0
+    speedPitch:r=2.0
+    fireConeAngle:r=1.0
+    bullets:i=200
+    speedYaw:r=45.0
+    speedPitch:r=45.0
+    fireConeAngle:r=20.0
+    ChainfireTime:r=2.0
+    DelayAfterShoot:r=2.0
+    aimMinDist:r=20.0
+    aimMaxDist:r=4000.0
+    randomAngle:r=0.0
+    accuracyAir:r=0.5
+    accuracyGnd:r=0.5
+    errMeasureVel:r=0.0
+    errTargettingOn100kmph:r=0.0
+    errMeasureVelFast:r=100.0
+    errMeasureVelFwdShift:r=1.0
+    errMeasureVelDir:r=3.0
+    errTargetting:r=1.0
+    errExplTime:r=0.0
+
+    turret{
+      head:t="gun_l_01"
+      gun:t="gun_l_01_barrel"
+    }
+
+    limits{
+      yaw:p2=-10.0, 10.0
+      pitch:p2=-5.0, 5.0
+    }
+  }
+
+  Weapon{
+    trigger:t="gunner1"
+    triggerGroup:t="primary"
+    blk:t="gameData/Weapons/groundModels_weapons/gh_user_cannon.blk"
+    emitter:t="gun_l_02"
+    flash:t="emtr_gun_flame_l_02"
+    checkFlash:b=no
+    drawCrosshair:b=no
+    allowableDelta:r=40.0
+    defaultYaw:r=0.0
+    defaultPitch:r=0.0
+    speedYaw:r=2.0
+    speedPitch:r=2.0
+    fireConeAngle:r=1.0
+    bullets:i=200
+    speedYaw:r=45.0
+    speedPitch:r=45.0
+    fireConeAngle:r=20.0
+    ChainfireTime:r=2.0
+    DelayAfterShoot:r=2.0
+    aimMinDist:r=20.0
+    aimMaxDist:r=4000.0
+    randomAngle:r=0.0
+    accuracyAir:r=0.5
+    accuracyGnd:r=0.5
+    errMeasureVel:r=0.0
+    errTargettingOn100kmph:r=0.0
+    errMeasureVelFast:r=100.0
+    errMeasureVelFwdShift:r=1.0
+    errMeasureVelDir:r=3.0
+    errTargetting:r=1.0
+    errExplTime:r=0.0
+
+    turret{
+      head:t="gun_l_02"
+      gun:t="gun_l_02_barrel"
+    }
+
+    limits{
+      yaw:p2=-10.0, 10.0
+      pitch:p2=-5.0, 5.0
+    }
+  }
+
+  Weapon{
+    trigger:t="gunner1"
+    triggerGroup:t="primary"
+    blk:t="gameData/Weapons/groundModels_weapons/gh_user_cannon.blk"
+    emitter:t="gun_l_03"
+    flash:t="emtr_gun_flame_l_03"
+    checkFlash:b=no
+    allowableDelta:r=40.0
+    defaultYaw:r=0.0
+    defaultPitch:r=0.0
+    speedYaw:r=2.0
+    speedPitch:r=2.0
+    fireConeAngle:r=1.0
+    bullets:i=200
+    speedYaw:r=45.0
+    speedPitch:r=45.0
+    fireConeAngle:r=20.0
+    ChainfireTime:r=2.0
+    DelayAfterShoot:r=2.0
+    aimMinDist:r=20.0
+    aimMaxDist:r=4000.0
+    randomAngle:r=0.0
+    accuracyAir:r=0.5
+    accuracyGnd:r=0.5
+    errMeasureVel:r=0.0
+    errTargettingOn100kmph:r=0.0
+    errMeasureVelFast:r=100.0
+    errMeasureVelFwdShift:r=1.0
+    errMeasureVelDir:r=3.0
+    errTargetting:r=1.0
+    errExplTime:r=0.0
+
+    turret{
+      head:t="gun_l_03"
+      gun:t="gun_l_03_barrel"
+    }
+
+    limits{
+      yaw:p2=-10.0, 10.0
+      pitch:p2=-5.0, 5.0
+    }
+  }
+
+  Weapon{
+    trigger:t="gunner1"
+    triggerGroup:t="primary"
+    blk:t="gameData/Weapons/groundModels_weapons/gh_user_cannon.blk"
+    emitter:t="gun_l_04"
+    flash:t="emtr_gun_flame_l_04"
+    checkFlash:b=no
+    drawCrosshair:b=no
+    allowableDelta:r=40.0
+    defaultYaw:r=0.0
+    defaultPitch:r=0.0
+    speedYaw:r=2.0
+    speedPitch:r=2.0
+    fireConeAngle:r=1.0
+    bullets:i=200
+    speedYaw:r=45.0
+    speedPitch:r=45.0
+    fireConeAngle:r=20.0
+    ChainfireTime:r=2.0
+    DelayAfterShoot:r=2.0
+    aimMinDist:r=20.0
+    aimMaxDist:r=4000.0
+    randomAngle:r=0.0
+    accuracyAir:r=0.5
+    accuracyGnd:r=0.5
+    errMeasureVel:r=0.0
+    errTargettingOn100kmph:r=0.0
+    errMeasureVelFast:r=100.0
+    errMeasureVelFwdShift:r=1.0
+    errMeasureVelDir:r=3.0
+    errTargetting:r=1.0
+    errExplTime:r=0.0
+
+    turret{
+      head:t="gun_l_04"
+      gun:t="gun_l_04_barrel"
+    }
+
+    limits{
+      yaw:p2=-10.0, 10.0
+      pitch:p2=-5.0, 5.0
+    }
+  }
+
+  Weapon{
+    trigger:t="gunner1"
+    triggerGroup:t="primary"
+    blk:t="gameData/Weapons/groundModels_weapons/gh_user_cannon.blk"
+    emitter:t="gun_l_05"
+    flash:t="emtr_gun_flame_l_05"
+    checkFlash:b=no
+    drawCrosshair:b=no
+    allowableDelta:r=40.0
+    defaultYaw:r=0.0
+    defaultPitch:r=0.0
+    speedYaw:r=2.0
+    speedPitch:r=2.0
+    fireConeAngle:r=1.0
+    bullets:i=200
+    speedYaw:r=45.0
+    speedPitch:r=45.0
+    fireConeAngle:r=20.0
+    ChainfireTime:r=2.0
+    DelayAfterShoot:r=2.0
+    aimMinDist:r=20.0
+    aimMaxDist:r=4000.0
+    randomAngle:r=0.0
+    accuracyAir:r=0.5
+    accuracyGnd:r=0.5
+    errMeasureVel:r=0.0
+    errTargettingOn100kmph:r=0.0
+    errMeasureVelFast:r=100.0
+    errMeasureVelFwdShift:r=1.0
+    errMeasureVelDir:r=3.0
+    errTargetting:r=1.0
+    errExplTime:r=0.0
+
+    turret{
+      head:t="gun_l_05"
+      gun:t="gun_l_05_barrel"
+    }
+
+    limits{
+      yaw:p2=-10.0, 10.0
+      pitch:p2=-5.0, 5.0
+    }
+  }
+
+  Weapon{
+    trigger:t="gunner1"
+    triggerGroup:t="primary"
+    blk:t="gameData/Weapons/groundModels_weapons/gh_user_cannon.blk"
+    emitter:t="gun_l_06"
+    flash:t="emtr_gun_flame_l_06"
+    checkFlash:b=no
+    drawCrosshair:b=no
+    allowableDelta:r=40.0
+    defaultYaw:r=0.0
+    defaultPitch:r=0.0
+    speedYaw:r=2.0
+    speedPitch:r=2.0
+    fireConeAngle:r=1.0
+    bullets:i=200
+    speedYaw:r=45.0
+    speedPitch:r=45.0
+    fireConeAngle:r=20.0
+    ChainfireTime:r=2.0
+    DelayAfterShoot:r=2.0
+    aimMinDist:r=20.0
+    aimMaxDist:r=4000.0
+    randomAngle:r=0.0
+    accuracyAir:r=0.5
+    accuracyGnd:r=0.5
+    errMeasureVel:r=0.0
+    errTargettingOn100kmph:r=0.0
+    errMeasureVelFast:r=100.0
+    errMeasureVelFwdShift:r=1.0
+    errMeasureVelDir:r=3.0
+    errTargetting:r=1.0
+    errExplTime:r=0.0
+
+    turret{
+      head:t="gun_l_06"
+      gun:t="gun_l_06_barrel"
+    }
+
+    limits{
+      yaw:p2=-10.0, 10.0
+      pitch:p2=-5.0, 5.0
+    }
+  }
+}
+
+weapon_presets{
+
+  preset{
+    name:t="gh_ps_default"
+    blk:t="gameData/units/ships/weaponPresets/gh_ps_default.blk"
+  }
+}
+
+cockpit{
+  headPos:p3=0.0, 20.0, -40.0
+  headPosOnShooting:p3=3.0, 4.5, 0.0
+}
+
+sound{
+  engine:t=""
+  TrackSoundPath:t="sounds/engines"
+  TrackSoundName:t="old_ship"
+  TrackSoundNameCockpit:t="old_ship"
+  TrackSoundNameAi:t="old_ship"
+  ineffectiveSailsPath:t="sounds/effects"
+  ineffectiveSailsEvent:t="old_ship_sails"
+
+  dialog_events{
+    onDrive:t="sh_com_01"
+    onStop:t="sh_com_02"
+    onHit:t="sh_com_04"
+    onEnemyHit:t="sh_com_03"
+    onEnemyKill:t="sh_com_05"
+  }
+}

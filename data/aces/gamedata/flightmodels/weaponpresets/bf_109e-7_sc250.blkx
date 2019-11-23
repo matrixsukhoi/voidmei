@@ -1,0 +1,13 @@
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/de_sc250.blk"
+  emitter:t="bomb1"
+  bullets:i=1
+  external:b=yes
+}
+
+hideNodes{
+  node:t="droptank"
+  node:t="rack_droptank"
+  node:t="pylon_bomb2"
+}

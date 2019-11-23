@@ -1,0 +1,8 @@
+hideNodes{
+  node:t="pylon1_bomb50kg"
+  node:t="pylon2_bomb50kg"
+  node:t="pylon3_bomb50kg"
+  node:t="pylon4_bomb50kg"
+  node:t="pylon1_bomb100kg"
+  node:t="pylon2_bomb100kg"
+}

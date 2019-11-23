@@ -1,0 +1,168 @@
+cannon:b=yes
+weaponType:i=-1
+bUseHookAsRel:b=yes
+emitColor:p3=1.0, 1.0, 0.0
+emitI:r=10.0
+emitR:r=3.0
+emitTime:r=0.03
+aimMinDist:r=0.1
+aimMaxDist:r=2000.0
+maxDeltaAngle:r=0.06
+maxDeltaAngleVertical:r=0.07
+shotFreq:r=0.13
+traceFreq:i=4
+bEnablePause:b=no
+bullets:i=-1
+bulletsCluster:i=1
+fxType:t="big_gun_flame"
+fxGroundDust:t="ground_shock_wave_dust"
+shouldCollideWithRendinsts:b=yes
+sound_path:t="tanks/weapon_tanks/cannons"
+sound:t="120mm_obl"
+sound_inside:t="120mm_obl_interior"
+sfxReloadBullet:t="grd_cannon_reload"
+fxMultipleSpawn:b=yes
+isBulletBelt:b=no
+
+bullet{
+  bulletCount:i=25
+  mass:r=10.4
+  caliber:r=0.12
+  damageCaliber:r=0.05
+  ballisticCaliber:r=0.1
+  speed:r=1370.0
+  maxDistance:r=10000.0
+  bulletType:t="apds_tank"
+  bulletName:t="120mm_l15a3"
+  hitPowerMult:r=380.0
+  relativeVelHitShift:p2=300.0, 1000.0
+  relativeVelArmorShift:p2=200.0, 1000.0
+  groundCollisionEffect:t="big_ground_splash"
+  groundFxScale:p2=1.1, 1.2
+  ricochetEffect:t="cannon_ricochet"
+  waterCollisionEffect:t="big_water_splash"
+
+  hitpower{
+    HitPower0m:p2=0.85, 500.0
+    HitPower10000m:p2=0.8, 10000.0
+  }
+
+  armorpower{
+    ArmorPower0m:p2=400.0, 10.0
+    ArmorPower100m:p2=397.0, 100.0
+    ArmorPower500m:p2=393.0, 500.0
+    ArmorPower1000m:p2=389.0, 1000.0
+    ArmorPower1500m:p2=385.0, 1500.0
+    ArmorPower2000m:p2=379.0, 2000.0
+    ArmorPower2500m:p2=348.0, 2500.0
+    ArmorPower3000m:p2=323.0, 3000.0
+    ArmorPower3500m:p2=290.0, 3500.0
+    ArmorPower4000m:p2=211.0, 4000.0
+    ArmorPower4500m:p2=174.0, 4500.0
+    ArmorPower10000m:p2=15.0, 10000.0
+  }
+
+  visual{
+    range_percent_of_ammo:p2=100.0, 0.0
+    traceFreq:i=1
+    tracer:t="30mmWhite"
+    trail:t="black"
+  }
+
+  collisions{
+
+    steel{
+      fx:t="cannon_hit_light"
+    }
+
+    armor{
+      fx:t="cannon_hit_armor"
+    }
+
+    buildings{
+      fx:t="122_ap_stone_splash"
+      fxScale:p2=0.7, 1.1
+    }
+  }
+}
+
+120mm_britain_L37A7_HESH{
+
+  bullet{
+    bulletCount:i=25
+    mass:r=17.1
+    explosiveType:t="rdx_tnt"
+    explosiveMass:r=3.1
+    caliber:r=0.12
+    speed:r=670.0
+    maxDistance:r=10000.0
+    bulletType:t="hesh_tank"
+    bulletName:t="120mm_l37a7"
+    hitPowerMult:r=20.0
+    relativeVelHitShift:p2=300.0, 1000.0
+    relativeVelArmorShift:p2=200.0, 1000.0
+    fuseDelayDist:r=0.4
+    explodeTreshold:r=0.1
+    explodeHitPower:r=200.0
+    explodeArmorPower:r=12.0
+    explodeRadius:p2=0.3, 1.0
+    explosionPatchRadius:r=1.1
+    shutterDamage:b=yes
+    shutterDamageRadius:r=15.4
+    shutterAmount:i=200
+    shutterArmorPower:r=8.0
+    shutterHit:r=20.0
+    groundCollisionEffect:t="art_ground_splash"
+    ricochetEffect:t="cannon_ricochet"
+    defFxScale:p2=1.9, 2.0
+
+    hitpower{
+      HitPower0m:p2=1.0, 500.0
+      HitPower1000m:p2=0.9, 1000.0
+      HitPower1500m:p2=0.65, 1500.0
+      HitPower2500m:p2=0.5, 2500.0
+      HitPower10000m:p2=0.0, 10000.0
+    }
+
+    armorpower{
+      ArmorPower0m:p2=5.0, 10.0
+      ArmorPower100m:p2=5.0, 100.0
+      ArmorPower500m:p2=5.0, 500.0
+      ArmorPower1000m:p2=5.0, 1000.0
+      ArmorPower1500m:p2=5.0, 1500.0
+      ArmorPower2500m:p2=2.0, 2500.0
+      ArmorPower10000m:p2=1.0, 10000.0
+    }
+
+    cumulativeDamage{
+      armorPower:r=150.0
+      distance:r=0.05
+      damage:r=5.0
+    }
+
+    visual{
+      range_percent_of_ammo:p2=100.0, 0.0
+      traceFreq:i=1
+      tracer:t="50mmRed"
+      trail:t="black"
+    }
+
+    collisions{
+
+      steel{
+        fx:t="cannon_hit_armor_cumulative"
+        fxScale:p2=3.0, 4.0
+      }
+
+      armor{
+        fx:t="cannon_hit_armor_cumulative"
+        fxScale:p2=3.0, 4.0
+      }
+
+      buildings{
+        fx:t="122_he_stone_splash"
+        fxScale:p2=0.8, 1.2
+      }
+    }
+  }
+}

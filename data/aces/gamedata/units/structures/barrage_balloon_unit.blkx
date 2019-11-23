@@ -1,0 +1,54 @@
+balloonCollision:b=yes
+balloonRadius:r=20.0
+model:t="barrage_balloon_a"
+subclass:t="barrageBalloon"
+dynCollisionGeom:b=yes
+damageableByGun:b=yes
+ropeAttachPoint:p3=0.6, -9.0, 0.0
+balloonCxOnSq:r=500.0
+liftForce:r=100500.0
+ropeStiffness:r=100000.0
+mass:r=2800.0
+toGround:b=no
+useOldExplosion:b=no
+expClass:t="exp_aaa"
+
+DamageParts{
+
+  armor10{
+
+    body_dm{
+      hp:r=200.0
+    }
+  }
+}
+
+DamageEffects{
+
+  part{
+    name:t="body_dm"
+
+    onHit{
+      fire:r=1.0
+    }
+
+    onKill{
+      expl:r=1.0
+    }
+  }
+}
+
+explosion{
+
+  expl{
+    partNo:i=0
+    timeToExplode:r=0.0
+    preEffectName:t="ship_model_fire"
+    postEffectName:t="ship_model_fire"
+    explosionEffectName:t="ship_model_expl"
+    timeForPostEffect:r=100500.0
+    preScale:r=2.0
+    explScale:r=2.3
+    postScale:r=4.0
+  }
+}

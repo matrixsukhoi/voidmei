@@ -1,0 +1,22 @@
+Weapon{
+  trigger:t="torpedoes"
+  blk:t="gameData/Weapons/torpedoes/de_f5w_torpedo.blk"
+  emitter:t="torp1"
+  bullets:i=1
+  external:b=yes
+  separate:b=yes
+}
+
+Weapon{
+  trigger:t="torpedoes"
+  blk:t="gameData/Weapons/torpedoes/de_f5w_torpedo.blk"
+  emitter:t="torp2"
+  bullets:i=1
+  external:b=yes
+  separate:b=yes
+}
+
+hideNodes{
+  node:t="pylon_bomb1"
+  node:t="pylon_bomb2"
+}

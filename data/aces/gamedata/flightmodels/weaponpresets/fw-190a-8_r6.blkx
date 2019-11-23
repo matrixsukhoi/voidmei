@@ -1,0 +1,30 @@
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/de_br20.blk"
+  emitter:t="210_mm_1"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/de_br20.blk"
+  emitter:t="210_mm_2"
+  bullets:i=1
+}
+
+hideNodes{
+  node:t="flare7"
+  node:t="flare8"
+  node:t="flare9"
+  node:t="flare10"
+  node:t="flare11"
+  node:t="flare12"
+  node:t="no_cannon_mg_151/20_l"
+  node:t="no_cannon_mg_151/20_r"
+  node:t="pylon_cannon_r1_l"
+  node:t="pylon_cannon_r1_r"
+  node:t="r3_l"
+  node:t="r3_r"
+}

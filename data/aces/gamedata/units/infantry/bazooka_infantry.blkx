@@ -1,0 +1,132 @@
+model:t="usa_marine01_char"
+defaultSkin:t="usa"
+subclass:t="infantry"
+expClass:t="exp_infantry"
+walkSpeed:r=6.0
+runSpeed:r=14.0
+rotSpeed:r=180.0
+mass:r=200.0
+bnl_idle:t="inf_idle1"
+bnl_idle:t="inf_idle2"
+bnl_idle:t="inf_idle3"
+bnl_idle:t="inf_idle4"
+bnl_walk:t="inf_walk_var01"
+bnl_walk:t="inf_walk_var02"
+bnl_walk:t="inf_walk_var03"
+bnl_runhide:t="inf_shoot_run_gun"
+bnl_crawl:t="inf_shoot_crawl"
+bnl_die1:t="inf_dead1"
+bnl_die2:t="inf_dead2"
+bnl_die3:t="inf_dead3"
+bnl_swimhold:t="inwater_hold"
+bnl_swimto:t="inwater_move"
+bnl_die1_inwater:t="inwater_dead1"
+bnl_die2_inwater:t="inwater_dead2"
+bnl_die3_inwater:t="inwater_dead3"
+
+soldier{
+  probabilityWt:r=1.0
+  rocketWeapNode:t="RPG18"
+  rocketWeapProbability:r=1.0
+
+  usa{
+    animChar:t="ger_soldier01a_01_char"
+  }
+
+  japan{
+    animChar:t="ger_soldier01a_01_char"
+  }
+
+  ussr{
+    animChar:t="ger_soldier01a_01_char"
+  }
+
+  germany{
+    animChar:t="ger_soldier01a_01_char"
+  }
+
+  britain{
+    animChar:t="ger_soldier01a_01_char"
+  }
+
+  australia{
+    animChar:t="ger_soldier01a_01_char"
+  }
+
+  italy{
+    animChar:t="ger_soldier01a_01_char"
+  }
+
+  groundModels_weapons/common_rifle7mm{
+    wt:r=1.0
+  }
+
+  groundModels_weapons/bazooka{
+    wt:r=1.0
+  }
+}
+
+damageModel{
+
+  default{
+    width:r=0.5
+    height:r=1.8
+    offset:p3=0.0, 0.0, 0.0
+  }
+
+  crouch{
+    width:r=0.5
+    height:r=1.0
+    offset:p3=0.0, 0.0, 0.0
+  }
+
+  crawl{
+    width:r=1.0
+    height:r=-0.5
+    offset:p3=0.0, 0.0, 0.0
+  }
+}
+
+weapon{
+  name:t="groundModels_weapons/common_rifle7mm"
+  primary:b=yes
+  emitter:t="gun"
+  flash:t="flame"
+  accuracyAir:r=0.4
+  accuracyGnd:r=0.0
+  errTargetting:r=10.0
+  ChainfireTime:r=12.0
+  DelayAfterShoot:r=3.0
+  AttackMaxDistance:r=100.0
+  AttackMaxRadius:r=100.0
+  AttackMaxHeight:r=100.0
+  node:t="AKS74U"
+  bnl_run:t="inf_shoot_run_gun"
+  bnl_run_up:t="inf_shoot_run_up_gun"
+  bnl_shoot:t="inf_shoot_gun"
+  bnl_shoot_up:t="inf_shoot_up_gun"
+  bnl_shoot_crouch:t="inf_shootcrouch_gun"
+  bnl_shoot_crouch_up:t="inf_shootcrouch_up_gun"
+}
+
+weapon{
+  name:t="groundModels_weapons/bazooka"
+  primary:b=no
+  emitter:t="stinger"
+  accuracyAir:r=0.1
+  accuracyGnd:r=0.5
+  accuracyLight:r=0.2
+  accuracyInfantry:r=0.0
+  errTargetting:r=10.0
+  shotFreq:r=0.033
+  maxCountSimultaneous:i=10
+  AttackMaxDistance:r=50.0
+  AttackMaxRadius:r=50.0
+  AttackMaxHeight:r=50.0
+  node:t="RPG18"
+  amm_node:t="RPG18Raketa"
+  bnl_shoot:t="inf_shoot_rpg"
+  bnl_shoot_up:t="inf_shoot_up_rpg"
+  bnl_shoot_crouch:t="inf_shootcrouch_rpg"
+  bnl_shoot_crouch_up:t="inf_shootcrouch_up_rpg"
+}

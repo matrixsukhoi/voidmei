@@ -1,0 +1,15 @@
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/de_sc1000.blk"
+  emitter:t="bomb1"
+  bullets:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/de_sc1000.blk"
+  emitter:t="bomb2"
+  bullets:i=1
+  external:b=yes
+}

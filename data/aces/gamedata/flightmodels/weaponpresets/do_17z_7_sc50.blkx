@@ -1,0 +1,69 @@
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/de_sc50.blk"
+  emitter:t="de_sc50_1"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/de_sc50.blk"
+  emitter:t="de_sc50_2"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/de_sc50.blk"
+  emitter:t="de_sc50_3"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/de_sc50.blk"
+  emitter:t="de_sc50_4"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/de_sc50.blk"
+  emitter:t="de_sc50_5"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/de_sc50.blk"
+  emitter:t="de_sc50_6"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/de_sc50.blk"
+  emitter:t="de_sc50_7"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/de_sc50.blk"
+  emitter:t="de_sc50_8"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/de_sc50.blk"
+  emitter:t="de_sc50_9"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/de_sc50.blk"
+  emitter:t="de_sc50_10"
+  bullets:i=1
+}

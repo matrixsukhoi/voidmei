@@ -1,0 +1,12 @@
+hideNodes{
+  node:t="pylon_bomb1"
+  node:t="pylon_bomb2"
+  node:t="pylon_bomb3"
+  node:t="pylon_bomb4"
+  node:t="pylon_bomb5"
+  node:t="pylon_bomb6"
+  node:t="pylon_bomb7"
+  node:t="pylon_bomb8"
+  node:t="pylon_bomb9"
+  node:t="pylon_bomb10"
+}

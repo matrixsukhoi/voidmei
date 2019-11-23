@@ -1,0 +1,108 @@
+hideNodes{
+  node:t="m10_bazooka_0"
+  node:t="m10_bazooka_1"
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/us_500lb_anm64a1.blk"
+  emitter:t="bomb1"
+  bullets:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/us_500lb_anm64a1.blk"
+  emitter:t="bomb2"
+  bullets:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/us_500lb_anm64a1.blk"
+  emitter:t="bomb3"
+  bullets:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/uk_hvar.blk"
+  emitter:t="rocket5"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/uk_hvar.blk"
+  emitter:t="rocket6"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/uk_hvar.blk"
+  emitter:t="rocket4"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/uk_hvar.blk"
+  emitter:t="rocket7"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/uk_hvar.blk"
+  emitter:t="rocket3"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/uk_hvar.blk"
+  emitter:t="rocket8"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/uk_hvar.blk"
+  emitter:t="rocket2"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/uk_hvar.blk"
+  emitter:t="rocket9"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/uk_hvar.blk"
+  emitter:t="rocket1"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/uk_hvar.blk"
+  emitter:t="rocket10"
+  bullets:i=1
+}

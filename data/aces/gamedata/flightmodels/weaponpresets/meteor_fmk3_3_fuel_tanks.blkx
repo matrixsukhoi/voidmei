@@ -1,0 +1,8 @@
+hideNodes{
+  node:t="bomb_pylon_l"
+  node:t="bomb_pylon_r"
+  node:t="rocket_pylon_l"
+  node:t="rocket_pylon_r"
+  node:t="rocket_pylon2_l"
+  node:t="rocket_pylon2_r"
+}

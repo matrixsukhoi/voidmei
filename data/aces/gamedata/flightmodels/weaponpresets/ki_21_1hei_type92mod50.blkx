@@ -1,0 +1,18 @@
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/bombGuns/jp_type92mod50.blk"
+  emitter:t="bomb31"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/bombGuns/jp_type92mod50.blk"
+  emitter:t="bomb30"
+  bullets:i=1
+}
+
+hideNodes{
+  node:t="bomb_pylon_50kg"
+  node:t="bomb_pylon_100kg"
+}

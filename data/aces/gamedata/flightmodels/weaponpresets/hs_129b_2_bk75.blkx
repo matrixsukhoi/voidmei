@@ -1,0 +1,26 @@
+Weapon{
+  trigger:t="cannon"
+  blk:t="gameData/Weapons/cannonBK37.blk"
+  emitter:t="flare6"
+  flash:t="flare6"
+  shell:t="emtr_shellrejection5"
+  dm:t="cannon5_dm"
+  bullets:i=100
+  spread:r=1.1
+  external:b=yes
+}
+
+hideNodes{
+  node:t="mk103"
+  node:t="flare5"
+  node:t="gun_37mm"
+  node:t="37mm_bk"
+  node:t="flare7"
+  node:t="gunsight"
+}
+
+hideDmParts{
+  node:t="cannon3_dm"
+  node:t="cannon4_dm"
+  node:t="cover4_dm"
+}

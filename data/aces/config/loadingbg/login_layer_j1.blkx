@@ -1,0 +1,116 @@
+imgLayer{
+  layerSensitivity:t="1"
+
+  img{
+    size:t="pw, ph"
+    re-type:t="9rect"
+    background-image:t="ui/bkg/login_layer_j1_0.jpg?P1"
+    background-repeat:t="expand"
+  }
+}
+
+imgLayer{
+  layerSensitivity:t="2"
+  rotation:t="33"
+  rotation-sensitivity:t="0.1"
+  rotation-center:t="46%w,29.5%h"
+
+  img{
+    pos:t="40%pw,2%ph"
+    position:t="absolute"
+    height:t="0.55ph"
+    width:t="0.75pw"
+    re-type:t="9rect"
+    background-image:t="ui/bkg/login_layer_j1_1?x1ac"
+  }
+}
+
+imgLayer{
+  layerSensitivity:t="3"
+
+  img{
+    pos:t="49%pw,58.9%ph"
+    position:t="absolute"
+    width:t="0.03pw"
+    height:t="0.05ph"
+    re-type:t="9rect"
+    background-image:t="ui/bkg/login_layer_j1_5?x1ac"
+  }
+}
+
+imgLayer{
+  layerSensitivity:t="4"
+
+  img{
+    pos:t="28%pw,30%ph"
+    position:t="absolute"
+    width:t="0.56pw"
+    height:t="0.55ph"
+    re-type:t="9rect"
+    background-image:t="ui/bkg/login_layer_j1_2?x1ac"
+  }
+}
+
+imgLayer{
+  layerSensitivity:t="3"
+
+  img{
+    pos:t="66.45%pw,44.5%ph"
+    position:t="absolute"
+    width:t="0.03pw"
+    height:t="0.05ph"
+    re-type:t="9rect"
+    background-image:t="ui/bkg/login_layer_j1_6?x1ac"
+  }
+}
+
+imgLayer{
+  layerSensitivity:t="2"
+
+  img{
+    rotation:t="50"
+    rotation-center:t="16%w,22%h"
+    pos:t="26.25%pw,22%ph"
+    position:t="absolute"
+    height:t="0.08ph"
+    width:t="0.6pw"
+    re-type:t="9rect"
+    background-image:t="ui/bkg/login_layer_j1_3?x1ac"
+  }
+}
+
+imgLayer{
+  layerSensitivity:t="2"
+
+  img{
+    pos:t="27.5%pw,14%ph"
+    position:t="absolute"
+    height:t="0.24ph"
+    width:t="0.38pw"
+    re-type:t="9rect"
+    background-image:t="ui/bkg/login_layer_j1_4?x1ac"
+  }
+}
+
+img{
+  pos:t="50%pw-50%w, 50%ph-50%h"
+  position:t="absolute"
+  width:t="1.2sw"
+  height:t="1.2sh"
+  re-type:t="9rect"
+  background-image:t="ui/bkg/login_layer_4?x1ac"
+
+  tdiv{
+    size:t="ph, ph"
+    pos:t="-w+1"
+    position:t="absolute"
+    background-color:t="@black"
+  }
+
+  tdiv{
+    size:t="ph, ph"
+    pos:t="pw-1"
+    position:t="absolute"
+    background-color:t="@black"
+  }
+}

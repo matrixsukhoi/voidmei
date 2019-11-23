@@ -1,0 +1,169 @@
+z_far:r=50000.0
+tank_z_far:r=6000.0
+mandatoryLandquality:i=1
+mapCoord0:p2=-32768.0, -32768.0
+mapCoord1:p2=32768.0, 32768.0
+aiMapCoord0:p2=-32768.0, -32768.0
+aiMapCoord1:p2=32768.0, 32768.0
+minAreaSize:p2=12000.0, 12000.0
+gridSteps:p2=2048.0, 2048.0
+gridZeroPoint:p2=-32768.0, -32768.0
+gridSize:p2=16384.0, 16384.0
+aiTanksMapCoord0:p2=120.0, 120.0
+aiTanksMapCoord1:p2=1960.0, 1960.0
+tankMapCoord0:p2=0.0, 0.0
+tankMapCoord1:p2=2048.0, 2048.0
+tankGridSteps:p2=205.0, 205.0
+tankGridSize:p2=2048.0, 2048.0
+tankMapColorMult:c=255, 255, 245, 200
+numBorderCellsXPos:i=32
+numBorderCellsXNeg:i=32
+numBorderCellsZPos:i=32
+numBorderCellsZNeg:i=32
+mirrorShrinkXPos:r=256.0
+mirrorShrinkXNeg:r=256.0
+mirrorShrinkZPos:r=256.0
+mirrorShrinkZNeg:r=256.0
+gridSteps:p2=3250.0, 3250.0
+water_level:r=0.0
+tankFogMul:r=1.0
+dirt_type:t="snow"
+weatherPreset:t="gameData/environments/weather_preset_1.blk"
+weatherTypes:t="gameData/environments/weather_types_winter_ground.blk"
+average_ground_albedo:r=0.7
+average_ground_level:r=40.0
+lastclip_horizon:b=yes
+vsmAngleThreshold:r=20.0
+soundAmbientPath:t="sounds/ambient"
+soundAmbientEvent:t="global_amb_winter"
+land_translucency:t="no"
+windDir:p2=-0.4, -0.5
+wind_scale:r=0.8
+max_wind_strength:r=3.5
+
+alternativeMapCoord{
+  aiTanksMapCoord0:p2=360.0, 320.0
+  aiTanksMapCoord1:p2=1910.0, 1870.0
+  tankGridZeroPoint:p2=360.0, 1820.0
+  tankGridSteps:p2=160.0, 160.0
+  tankGridSize:p2=1600.0, 1600.0
+}
+
+stars{
+  latitude:r=38.0
+  longitude:r=28.0
+  year:i=1943
+  month:i=1
+  day:i=17
+}
+
+earth{
+  earthWorldEnabled:b=yes
+  earthWorldMin:p2=-65536.0, -65536.0
+  earthWorldMax:p2=65536.0, 65536.0
+}
+
+shader_vars{
+  parallax_shadow_strength:r=5.0
+  parallax_shadow_length:r=2.0
+  land_bump_scale:r=-4.0
+  specular_detect_land_color:p4=0.0, 0.2, 0.35, 0.0
+  max_river_width:r=550.0
+  ocean_density:r=4.0
+  river_density:r=6.0
+  ocean0:p4=0.11, 0.25, 0.12, 0.0
+  ocean1:p4=0.19, 0.28, 0.14, 0.0
+  river0:p4=0.11, 0.2, 0.12, 0.0
+  river1:p4=0.19, 0.28, 0.24, 0.0
+}
+
+overrideRiLodRange{
+
+  finland_stone_small_a{
+    lod0:r=270.0
+    lod1:r=1460.0
+  }
+
+  finland_stone_small_b{
+    lod0:r=260.0
+    lod1:r=1250.0
+  }
+
+  finland_stone_small_c{
+    lod0:r=250.0
+    lod1:r=1240.0
+  }
+
+  finland_stone_small_d{
+    lod0:r=230.0
+    lod1:r=1130.0
+  }
+
+  finland_stone_small_e{
+    lod0:r=220.0
+    lod1:r=1110.0
+  }
+
+  finland_cliff_a{
+    lod0:r=520.0
+    lod1:r=1100.0
+    lod2:r=7000.0
+  }
+
+  finland_cliff_b{
+    lod0:r=460.0
+    lod1:r=850.0
+    lod2:r=7000.0
+  }
+
+  finland_cliff_c{
+    lod0:r=430.0
+    lod1:r=810.0
+    lod2:r=7000.0
+  }
+
+  finland_cliff_d{
+    lod0:r=400.0
+    lod1:r=780.0
+    lod2:r=7000.0
+  }
+
+  finland_cliff_e{
+    lod0:r=330.0
+    lod1:r=400.0
+    lod2:r=7000.0
+  }
+
+  flak36_sdkfz6_2_hull_snow_rendinst{
+    lod0:r=120.0
+    lod1:r=300.0
+    lod2:r=1800.0
+  }
+
+  flak36_sdkfz6_2_turret_snow_rendinst{
+    lod0:r=120.0
+    lod1:r=300.0
+    lod2:r=1800.0
+  }
+
+  pzkpfw_III_ausf_l_hull_snow_rendinst{
+    lod0:r=120.0
+    lod1:r=300.0
+    lod2:r=1800.0
+  }
+
+  pzkpfw_III_ausf_l_turret_snow_rendinst{
+    lod0:r=120.0
+    lod1:r=300.0
+    lod2:r=1800.0
+  }
+
+  122mm-m30_snow_rendinst{
+    lod0:r=250.0
+    lod1:r=1000.0
+  }
+}
+
+technicsSkins{
+  groundSkin:t="snow"
+}

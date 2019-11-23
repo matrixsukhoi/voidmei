@@ -1,0 +1,207 @@
+mandatoryLandquality:i=1
+clipmap_tex_mips:i=7
+mapCoord0:p2=-32768.0, -32768.0
+mapCoord1:p2=32768.0, 32768.0
+minAreaSize:p2=12000.0, 12000.0
+gridSteps:p2=2048.0, 2048.0
+gridZeroPoint:p2=-32768.0, -32768.0
+gridSize:p2=16384.0, 16384.0
+aiTanksMapCoord0:p2=0.0, 0.0
+aiTanksMapCoord1:p2=4096.0, 4096.0
+tankMapCoord0:p2=0.0, 0.0
+tankMapCoord1:p2=4096.0, 4096.0
+tankGridSteps:p2=410.0, 410.0
+tankGridSize:p2=4096.0, 4096.0
+numBorderCellsXPos:i=6
+numBorderCellsXNeg:i=0
+numBorderCellsZPos:i=6
+numBorderCellsZNeg:i=6
+mirrorShrinkXPos:r=64.0
+mirrorShrinkXNeg:r=64.0
+mirrorShrinkZPos:r=64.0
+mirrorShrinkZNeg:r=64.0
+gridSteps:p2=3250.0, 3250.0
+soundAmbientPath:t="sounds/ambient"
+soundAmbientEvent:t="global_amb_europe"
+weatherPreset:t="gameData/environments/weather_preset_1.blk"
+weatherTypes:t="gameData/environments/weather_types.blk"
+lastclip_horizon:b=yes
+water_level:r=0.0
+wind_scale:r=0.9
+
+earth{
+  earthWorldEnabled:b=yes
+  earthWorldMin:p2=-16384.0, -16384.0
+  earthWorldMax:p2=98304.0, 16384.0
+}
+
+stars{
+  latitude:r=55.0
+  year:i=1944
+  month:i=9
+  day:i=1
+}
+
+shader_vars{
+  parallax_shadow_strength:r=7.0
+  parallax_shadow_length:r=4.0
+  land_bump_scale:r=-4.0
+  translucency_detection_hardness:r=1.0
+  land_smoothness_detect_color:p4=0.17, 0.17, 0.17, 0.3
+  water_color_noise_size:r=1737.0
+  ocean_density:r=0.4
+  river_density:r=1.0
+  ocean0:p4=0.11, 0.25, 0.12, 0.0
+  ocean1:p4=0.19, 0.28, 0.14, 0.0
+  river0:p4=0.4, 0.34, 0.22, 0.0
+  river1:p4=0.53, 0.41, 0.31, 0.0
+}
+
+randomGrass{
+  density:r=5.0
+  maxRadius:r=200.0
+  sowPerlinFreq:r=0.1
+  fadeDelta:r=100.0
+  lodFadeDelta:r=30.0
+  minLodDensity:r=0.15
+  blendToLandDelta:r=100.0
+  texSize:i=1024
+  noise_first_rnd:r=23.1407
+  noise_first_val_mul:r=1.0
+  noise_first_val_add:r=0.0
+  noise_second_rnd:r=0.05
+  noise_second_val_mul:r=1.0
+  noise_second_val_add:r=0.0
+  directWindMul:r=1.0
+  noiseWindMul:r=1.0
+  windPerlinFreq:r=50000.0
+  directWindFreq:r=1.0
+  directWindModulationFreq:r=1.0
+  windWaveLength:r=100.0
+  windToColor:r=0.2
+  helicopterHorMul:r=2.0
+  helicopterVerMul:r=1.0
+  helicopterToDirectWindMul:r=2.0
+  helicopterFalloff:r=0.001
+  norway_islands_fields_forest:t="stalingrad_forest_tex_m"
+  norway_fjords_heightlc_coastal_land:t="stalingrad_forest_tex_m"
+  norway_islands_detailed_fields_forest:t="stalingrad_forest_tex_m"
+  norway_islands_village:t="norway_villages_tex_m"
+
+  layer{
+    maskChannel:p4=0.0, 0.0, 1.0, 0.0
+    res:t="grass_scatter_b_4"
+    density:r=0.2
+    horScale:r=2.0
+    verScale:r=2.0
+    windMul:r=0.05
+    color_mask_r_from:c=152, 80, 49, 127
+    color_mask_r_to:c=127, 109, 94, 127
+    color_mask_g_from:c=7, 15, 25, 255
+    color_mask_g_to:c=209, 202, 127, 255
+    color_mask_b_from:c=35, 32, 19, 127
+    color_mask_b_to:c=238, 194, 78, 127
+  }
+
+  layer{
+    maskChannel:p4=0.0, 0.0, 1.0, 0.0
+    res:t="grass_scatter_b_1"
+    density:r=0.25
+    horScale:r=3.5
+    verScale:r=3.5
+    windMul:r=0.05
+    color_mask_r_from:c=152, 80, 49, 127
+    color_mask_r_to:c=127, 109, 94, 127
+    color_mask_g_from:c=7, 15, 25, 255
+    color_mask_g_to:c=209, 202, 127, 255
+    color_mask_b_from:c=35, 32, 19, 127
+    color_mask_b_to:c=238, 194, 78, 127
+  }
+
+  layer{
+    maskChannel:p4=1.0, 0.0, 0.0, 0.0
+    res:t="grass_scatter_a_4"
+    density:r=0.5
+    horScale:r=5.0
+    verScale:r=5.0
+    windMul:r=0.05
+    color_mask_r_from:c=152, 80, 49, 127
+    color_mask_r_to:c=127, 109, 94, 127
+    color_mask_g_from:c=7, 15, 25, 255
+    color_mask_g_to:c=209, 202, 127, 255
+    color_mask_b_from:c=35, 32, 19, 127
+    color_mask_b_to:c=238, 194, 78, 127
+  }
+
+  layer{
+    maskChannel:p4=0.0, 1.0, 0.0, 0.0
+    res:t="grass_scatter_a_1"
+    density:r=2.0
+    horScale:r=3.5
+    verScale:r=4.0
+    windMul:r=0.05
+    color_mask_r_from:c=152, 80, 49, 127
+    color_mask_r_to:c=127, 109, 94, 127
+    color_mask_g_from:c=7, 15, 25, 255
+    color_mask_g_to:c=209, 202, 127, 255
+    color_mask_b_from:c=35, 32, 19, 127
+    color_mask_b_to:c=238, 194, 78, 127
+  }
+
+  layer{
+    maskChannel:p4=1.0, 1.0, 1.0, 0.0
+    res:t="grass_scatter_a_3"
+    density:r=10.0
+    horScale:r=3.0
+    verScale:r=3.0
+    windMul:r=0.05
+    color_mask_r_from:c=152, 80, 49, 127
+    color_mask_r_to:c=127, 109, 94, 127
+    color_mask_g_from:c=7, 15, 25, 255
+    color_mask_g_to:c=209, 202, 127, 255
+    color_mask_b_from:c=35, 32, 19, 127
+    color_mask_b_to:c=238, 194, 78, 127
+  }
+}
+
+technicsSkins{
+  groundSkin:t="jungle"
+  groundSkin:t="default"
+}
+
+overrideRiLodRange{
+
+  tree_asian_pine_large_a{
+    lod0:r=300.0
+    lod1:r=10000.0
+  }
+
+  tree_asian_pine_large_b{
+    lod0:r=300.0
+    lod1:r=10000.0
+  }
+
+  tree_asian_pine_large_c{
+    lod0:r=300.0
+    lod1:r=10000.0
+  }
+
+  tree_asian_pine_large_d{
+    lod0:r=300.0
+    lod1:r=10000.0
+  }
+}
+
+forceTexMQ{
+  tex:t="european_fortressconstructor_overlay_tex_d*"
+  tex:t="european_fortressconstructor_tex_n*"
+  tex:t="norway_islands_village*"
+  tex:t="decal_road_soil_a_tex_d*"
+  tex:t="stone_buildings_constructor_tex_n*"
+  tex:t="vertical_detail_zhang_park*"
+  tex:t="norway_port_ground*"
+}
+
+forceTexLQ{
+  tex:t="soviet_village_overlay*"
+}

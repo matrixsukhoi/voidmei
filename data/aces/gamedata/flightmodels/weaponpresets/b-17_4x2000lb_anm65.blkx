@@ -1,0 +1,36 @@
+hideNodes{
+  node:t="pylon_1000lb_l"
+  node:t="pylon_1000lb_r"
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/us_2000lbs_anm66.blk"
+  emitter:t="bomb27"
+  bullets:i=1
+  external:b=yes
+  separate:b=yes
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/us_2000lbs_anm66.blk"
+  emitter:t="bomb28"
+  bullets:i=1
+  external:b=yes
+  separate:b=yes
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/us_2000lbs_anm66.blk"
+  emitter:t="bomb25"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/us_2000lbs_anm66.blk"
+  emitter:t="bomb26"
+  bullets:i=1
+}

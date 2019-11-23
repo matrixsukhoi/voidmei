@@ -1,0 +1,166 @@
+model:t="type97_chi_ha_a"
+hasExpl:b=yes
+hasDmg2:b=yes
+collisionSphere0:p4=0.0, -1.5, 0.0, 5.0
+collisionSphere1:p4=5.0, 2.0, 0.0, 1.0
+timeToFire:r=180.0
+averageArmor:r=60.0
+subclass:t="heavyVehicle"
+onRadarAs:t="tracked"
+moveType:t="vehicle"
+maxFwdSpeed:r=60.0
+maxRevSpeed:r=10.0
+maxAngSpeed:r=30.0
+maxAccel:r=4.0
+maxDecel:r=8.0
+maxAngAccel0:r=20.0
+maxAngAccelV:r=0.0
+maxAngAccel:r=40.0
+groundNormSmoothViscosity:r=0.1
+minDistBetween:r=10.0
+expClass:t="exp_ai_tank"
+mass:r=15000.0
+bulletHitFx:t="ground_model_hit"
+partDamageFx:t="part_damage"
+explosionFx:t="ground_model_expl"
+fireFx:t="ground_model_fire"
+destroysRendInstances:b=yes
+destroysTrees:b=yes
+
+DamageParts{
+  formatVersion:i=2
+  armorClass:t="RHA_tank"
+  hp:r=8000.0
+
+  hull{
+    armorClass:t="RHA_tank"
+    hp:r=10000.0
+
+    armor1_dm{
+      armorThickness:r=50.0
+      restrainDamage:r=0.0
+    }
+
+    armor2_dm{
+      armorThickness:r=30.0
+      restrainDamage:r=0.0
+    }
+
+    armor3_dm{
+      armorThickness:r=23.0
+      restrainDamage:r=0.0
+      hp:r=20.0
+      explosionDamageMult:r=10.0
+      genericDamageMult:r=0.0
+      secondaryShatterDamageMult:r=0.0
+      shatterDamageMult:r=0.0
+    }
+
+    engine_dm{
+      armorThickness:r=1.0
+      restrainDamage:r=0.5
+      hp:r=40.0
+      secondaryShatterDamageMult:r=0.0
+    }
+
+    body_dm{
+      armorThickness:r=1.0
+      restrainDamage:r=0.5
+      hp:r=40.0
+      secondaryShatterDamageMult:r=0.0
+    }
+  }
+}
+
+DamageEffects{
+
+  part{
+    name:t="body_dm"
+    name:t="armor3_dm"
+
+    onHit{
+    }
+
+    onKill{
+      fire:r=2.0
+      smoke:r=5.0
+      expl:r=5.0
+    }
+  }
+
+  part{
+    name:t="engine_dm"
+
+    onHit{
+      smoke:r=0.1
+    }
+
+    onKill{
+      body_dm:r=1.0
+    }
+  }
+}
+
+sound{
+  path:t="sounds/engines"
+  engine:t="tank"
+}
+
+class_tags{
+  pacific:b=yes
+  country_japan:b=yes
+  heavy_vehicles:b=yes
+  year1940:b=yes
+  year1941:b=yes
+  year1942:b=yes
+  year1943:b=yes
+  year1944:b=yes
+  year1945:b=yes
+  max_ratio:r=0.5
+}
+
+weapon{
+  trigger:t="gunner0"
+  blk:t="gameData/Weapons/groundModels_weapons/common_cannon50mm.blk"
+  emitter:t="gun1"
+  flash:t="flame1"
+  defaultYaw:r=0.0
+  defaultPitch:r=0.0
+  speedYaw:r=24.0
+  speedPitch:r=24.0
+  fireConeAngle:r=1.0
+  salvoAmount:r=100.0
+  ChainfireTime:r=0.0
+  DelayAfterShoot:r=0.0
+  AttackMaxDistance:r=7000.0
+  AttackMaxRadius:r=7000.0
+  AttackMaxHeight:r=7000.0
+  accuracyAir:r=0.0
+  accuracyGnd:r=0.5
+  errMeasureVel:r=20.0
+  errMeasureVelFast:r=40.0
+  errMeasureVelFwdShift:r=0.7
+  errMeasureVelDir:r=3.0
+  errTargettingOn100kmph:r=0.0
+  errTargetting:r=0.0
+  errExplTime:r=0.0
+
+  turret{
+    head:t="turret1"
+    gun:t="gun1"
+  }
+
+  limits{
+    yaw:p2=-180.0, 180.0
+    pitch:p2=-15.0, 20.0
+  }
+}
+
+skin{
+  name:t="jungle"
+
+  replace_tex{
+    from:t="type97_chi_ha_main_olive_c*"
+    to:t="type97_chi_ha_main_jungle_c*"
+  }
+}

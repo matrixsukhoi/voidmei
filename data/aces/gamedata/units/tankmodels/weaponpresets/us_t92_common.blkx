@@ -1,0 +1,132 @@
+Weapon{
+  trigger:t="gunner0"
+  blk:t="gameData/Weapons/groundModels_weapons/76mm_T185E1_user_cannon.blk"
+  emitter:t="bone_gun_barrel_01"
+  flash:t="emtr_gun_flame_01"
+  defaultYaw:r=0.0
+  defaultPitch:r=0.0
+  barrelDP:t="gun_barrel_dm"
+  breechDP:t="cannon_breech_dm"
+  speedYaw:r=24.0
+  speedPitch:r=4.0
+  fireConeAngle:r=1.0
+  bullets:i=60
+  salvoAmount:r=100.0
+  ChainfireTime:r=0.0
+  DelayAfterShoot:r=5.0
+  AttackMaxDistance:r=1000.0
+  AttackMaxRadius:r=1000.0
+  AttackMaxHeight:r=1000.0
+  accuracyAir:r=0.0
+  accuracyGnd:r=1.5
+  errMeasureVel:r=0.0
+  errMeasureVelFast:r=0.0
+  errMeasureVelFwdShift:r=0.0
+  errMeasureVelDir:r=0.0
+  errTargettingOn100kmph:r=0.0
+  errTargetting:r=3.0
+  errExplTime:r=0.0
+
+  turret{
+    head:t="bone_turret_01"
+    gun:t="bone_gun_01"
+    barrel:t="bone_gun_barrel_01"
+  }
+
+  limits{
+    yaw:p2=-180.0, 180.0
+    pitch:p2=-10.0, 20.0
+  }
+
+  limitsTable{
+    lim1:p4=-180.0, -43.0, -10.0, 20.0
+    lim2:p4=-43.0, -10.0, -7.0, 20.0
+    lim3:p4=-10.0, 180.0, -10.0, 20.0
+  }
+}
+
+Weapon{
+  trigger:t="gunner1"
+  triggerGroup:t="machinegun"
+  blk:t="gameData/Weapons/groundModels_weapons/12_7mm_M85_user_machinegun.blk"
+  emitter:t="bone_gun_barrel_02"
+  flash:t="emtr_gun_flame_02"
+  recoilOffset:r=0.0
+  defaultYaw:r=0.0
+  defaultPitch:r=0.0
+  barrelDP:t="gun_barrel_02_dm"
+  speedYaw:r=15.0
+  speedPitch:r=15.0
+  fireConeAngle:r=1.0
+  bullets:i=700
+  salvoAmount:r=100.0
+  ChainfireTime:r=0.0
+  DelayAfterShoot:r=5.0
+  AttackMaxDistance:r=1000.0
+  AttackMaxRadius:r=1000.0
+  AttackMaxHeight:r=1000.0
+  accuracyAir:r=0.0
+  accuracyGnd:r=1.5
+  errMeasureVel:r=0.0
+  errMeasureVelFast:r=0.0
+  errMeasureVelFwdShift:r=0.0
+  errMeasureVelDir:r=0.0
+  errTargettingOn100kmph:r=0.0
+  errTargetting:r=3.0
+  errExplTime:r=0.0
+
+  turret{
+    head:t="bone_turret_02"
+    gun:t="bone_gun_02"
+    barrel:t="bone_gun_barrel_02"
+    gunnerDm:t="commander_dm"
+  }
+
+  limits{
+    yaw:p2=-10.0, 160.0
+    pitch:p2=-5.0, 60.0
+  }
+}
+
+Weapon{
+  trigger:t="gunner2"
+  triggerGroup:t="machinegun"
+  blk:t="gameData/Weapons/groundModels_weapons/7_62mm_M73_user_machinegun.blk"
+  emitter:t="bone_gun_barrel_03"
+  flash:t="emtr_gun_flame_03"
+  defaultYaw:r=0.0
+  defaultPitch:r=0.0
+  barrelDP:t="gun_barrel_01_dm"
+  recoilOffset:r=0.0
+  speedYaw:r=36.0
+  speedPitch:r=4.0
+  fireConeAngle:r=1.0
+  bullets:i=5000
+  salvoAmount:r=100.0
+  ChainfireTime:r=0.0
+  DelayAfterShoot:r=5.0
+  AttackMaxDistance:r=1000.0
+  AttackMaxRadius:r=1000.0
+  AttackMaxHeight:r=1000.0
+  accuracyAir:r=0.0
+  accuracyGnd:r=1.5
+  errMeasureVel:r=0.0
+  errMeasureVelFast:r=0.0
+  errMeasureVelFwdShift:r=0.0
+  errMeasureVelDir:r=0.0
+  errTargettingOn100kmph:r=0.0
+  errTargetting:r=3.0
+  errExplTime:r=0.0
+
+  turret{
+    head:t="bone_turret_03"
+    gun:t="bone_gun_03"
+    barrel:t="bone_gun_barrel_03"
+    gunnerDm:t="gunner_dm"
+  }
+
+  limits{
+    yaw:p2=-160.0, 10.0
+    pitch:p2=-5.0, 60.0
+  }
+}

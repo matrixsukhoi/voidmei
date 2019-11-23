@@ -1,0 +1,8 @@
+className:t="composit"
+
+node{
+  type:t="rendInst"
+  name:t="#studebaker_us6_bm_13h"
+  tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [0.0, 0.0, 0.0]]
+  placeOnCollision:b=yes
+}

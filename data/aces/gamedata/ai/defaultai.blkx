@@ -1,0 +1,2283 @@
+selector{
+  name:t="missionFighter"
+  selectStrategy:t="ordered"
+
+  reaction{
+    event:t="groundAhead"
+
+    parallel{
+
+      turnToEvasiveDir{
+      }
+
+      stayAtSpeed{
+        speedMode:t="boostOn"
+      }
+    }
+  }
+
+  reaction{
+    event:t="collisionAhead"
+
+    parallel{
+
+      turnToEvasiveDir{
+      }
+
+      stayAtSpeed{
+        speedMode:t="boostOn"
+      }
+    }
+  }
+
+  reaction{
+    event:t="outsideBattleField"
+
+    flyToPos{
+      speed:r=550.0
+      dist:r=-1.0
+      minAlt:r=100.0
+      destType:t="battleField"
+    }
+  }
+
+  selector{
+    selectStrategy:t="ordered"
+    name:t="taxi_and_takeoff"
+
+    reaction{
+      event:t="groundAhead"
+    }
+
+    reaction{
+      event:t="collisionAhead"
+    }
+
+    reaction{
+      event:t="outsideBattleField"
+    }
+
+    sequencer{
+
+      isOnAirfield{
+      }
+
+      findClosestAirfield{
+      }
+
+      waitForAirfieldClearance{
+      }
+
+      taxiOnAirfield{
+      }
+
+      takeoff{
+      }
+    }
+
+    waitOnLand{
+    }
+  }
+
+  sequencer{
+    repeat:b=yes
+
+    reaction{
+      event:t="almostBeenHit"
+
+      setNodeWithName{
+        nodeName:t="doPanic"
+      }
+    }
+
+    reaction{
+      event:t="almostBeenHitFront"
+
+      setNodeWithName{
+        nodeName:t="doFrontalPanic"
+      }
+    }
+
+    stayInFightArea{
+    }
+
+    reaction{
+      event:t="regularCheck"
+
+      sequencer{
+
+        not{
+
+          isInOuterFightArea{
+          }
+        }
+
+        recalculateTree{
+        }
+      }
+    }
+
+    clearTargetList{
+      listName:t="targets"
+    }
+
+    ifThenElse{
+
+      and{
+
+        not{
+
+          isUnitDead{
+            unitName:t="specialTarget"
+          }
+        }
+
+        setAsTarget{
+          varName:t="specialTarget"
+        }
+      }
+
+      copyVarTo{
+        from:t="specialTarget"
+        to:t="currentTarget"
+      }
+
+      ifThenElse{
+
+        isIndependentAttacker{
+        }
+
+        getTargetFromList{
+          listName:t="targets"
+          varName:t="currentTarget"
+        }
+
+        parallel{
+
+          cycle{
+
+            findLeader{
+            }
+          }
+
+          getTargetFromListAfterLeader{
+            listName:t="targets"
+            varName:t="currentTarget"
+          }
+
+          followTarget{
+            offsetFromBot:b=yes
+            useTarget:b=no
+          }
+        }
+      }
+    }
+
+    setAsTarget{
+      varName:t="currentTarget"
+    }
+
+    selector{
+      selectStrategy:t="ordered"
+
+      sequencer{
+
+        isTargetType{
+          type:t="fighter"
+        }
+
+        selector{
+          selectStrategy:t="ordered"
+
+          energyAttack{
+          }
+
+          fighterAttackFighter{
+          }
+        }
+      }
+
+      sequencer{
+
+        isTargetType{
+          type:t="bomber"
+        }
+
+        fighterAttackBomber{
+        }
+      }
+
+      selector{
+        selectStrategy:t="ordered"
+
+        diveBombTarget{
+        }
+
+        sequencer{
+
+          not{
+
+            ifThenElse{
+
+              hasDependentAttackers{
+              }
+
+              selector{
+                selectStrategy:t="ordered"
+
+                fighterAttackGround{
+                }
+
+                parallel{
+
+                  cycle{
+
+                    hasGroupWeaponForTarget{
+                    }
+                  }
+
+                  attackGroundFake{
+                  }
+                }
+              }
+
+              fighterAttackGround{
+              }
+            }
+          }
+
+          selector{
+
+            spiralUp{
+              time:r=5.0
+            }
+
+            flyToPlane{
+              dist:r=800.0
+            }
+          }
+        }
+      }
+    }
+  }
+
+  resetTarget{
+  }
+
+  sequencer{
+
+    reaction{
+      event:t="outsideBattleField"
+    }
+
+    ifThenElse{
+
+      findLeader{
+      }
+
+      followTarget{
+        offsetFromBot:b=yes
+        useTarget:b=no
+      }
+
+      selector{
+        selectStrategy:t="ordered"
+
+        sequencer{
+
+          setControls{
+            controls:t="flaps"
+            setTo:r=0.0
+            timeTo:r=0.0
+          }
+
+          flyToPos{
+            speed:r=350.0
+            dist:r=-1.0
+            minAlt:r=10.0
+          }
+        }
+
+        waypointFollow{
+        }
+      }
+    }
+  }
+
+  sequencer{
+    name:t="unitLandOnAirfield"
+
+    reaction{
+      event:t="groundAhead"
+    }
+
+    reaction{
+      event:t="outsideBattleField"
+    }
+
+    land{
+    }
+
+    afterLanding{
+    }
+  }
+
+  selector{
+    name:t="doPanic"
+
+    rollManeuver{
+    }
+
+    bellManeuver{
+    }
+
+    roll180Man{
+    }
+
+    waveout{
+    }
+
+    sinus{
+    }
+
+    zigzagSplit{
+    }
+
+    turn{
+      direction:t="right"
+      extremeElevator:b=yes
+      timeToTurn:r=1.3
+    }
+
+    turn{
+      direction:t="left"
+      extremeElevator:b=yes
+      timeToTurn:r=1.3
+    }
+
+    turn{
+      direction:t="right"
+      extremeElevator:b=yes
+      timeToTurn:r=0.4
+    }
+
+    turn{
+      direction:t="left"
+      extremeElevator:b=yes
+      timeToTurn:r=0.4
+    }
+
+    turn{
+      direction:t="right"
+      extremeElevator:b=yes
+      timeToTurn:r=0.5
+    }
+
+    turn{
+      direction:t="left"
+      extremeElevator:b=yes
+      timeToTurn:r=0.5
+    }
+  }
+
+  selector{
+    name:t="doFrontalPanic"
+
+    rollManeuver{
+    }
+
+    roll180Man{
+    }
+
+    sinus{
+    }
+
+    turn{
+      direction:t="right"
+      extremeElevator:b=yes
+      timeToTurn:r=1.3
+    }
+
+    turn{
+      direction:t="left"
+      extremeElevator:b=yes
+      timeToTurn:r=1.3
+    }
+
+    turn{
+      direction:t="right"
+      extremeElevator:b=yes
+      timeToTurn:r=0.4
+    }
+
+    turn{
+      direction:t="left"
+      extremeElevator:b=yes
+      timeToTurn:r=0.4
+    }
+
+    turn{
+      direction:t="right"
+      extremeElevator:b=yes
+      timeToTurn:r=0.5
+    }
+
+    turn{
+      direction:t="left"
+      extremeElevator:b=yes
+      timeToTurn:r=0.5
+    }
+  }
+}
+
+selector{
+  name:t="missionBomber"
+  selectStrategy:t="ordered"
+
+  reaction{
+    event:t="groundAhead"
+
+    parallel{
+
+      turnToEvasiveDir{
+      }
+
+      stayAtSpeed{
+        speedMode:t="boostOn"
+      }
+    }
+  }
+
+  reaction{
+    event:t="collisionAhead"
+
+    parallel{
+
+      turnToEvasiveDir{
+      }
+
+      stayAtSpeed{
+        speedMode:t="boostOn"
+      }
+    }
+  }
+
+  reaction{
+    event:t="outsideBattleField"
+
+    flyToPos{
+      speed:r=550.0
+      dist:r=-1.0
+      minAlt:r=100.0
+      destType:t="battleField"
+    }
+  }
+
+  selector{
+    selectStrategy:t="ordered"
+    name:t="taxi_and_takeoff"
+
+    reaction{
+      event:t="groundAhead"
+    }
+
+    reaction{
+      event:t="collisionAhead"
+    }
+
+    reaction{
+      event:t="outsideBattleField"
+    }
+
+    sequencer{
+
+      isOnAirfield{
+      }
+
+      findClosestAirfield{
+      }
+
+      waitForAirfieldClearance{
+      }
+
+      taxiOnAirfield{
+      }
+
+      takeoff{
+      }
+    }
+
+    waitOnLand{
+    }
+  }
+
+  sequencer{
+
+    clearTargetList{
+      listName:t="targets"
+    }
+
+    ifThenElse{
+
+      isIndependentAttacker{
+      }
+
+      ifThenElse{
+
+        isRandomTargets{
+        }
+
+        getFromListBTB{
+          listName:t="targets"
+          varName:t="currentTarget"
+          indexType:t="random"
+        }
+
+        getFromListBTB{
+          listName:t="targets"
+          varName:t="currentTarget"
+          indexType:t="first"
+        }
+      }
+
+      parallel{
+
+        cycle{
+
+          findLeader{
+          }
+        }
+
+        getFromListBTBAfterLeader{
+          listName:t="targets"
+          varName:t="currentTarget"
+        }
+
+        followTarget{
+          offsetFromBot:b=yes
+          useTarget:b=no
+        }
+      }
+    }
+
+    setAsTarget{
+      varName:t="currentTarget"
+    }
+
+    selector{
+      selectStrategy:t="ordered"
+      selectOnSuccess:b=yes
+
+      sequencer{
+
+        isTargetType{
+          type:t="fighter"
+        }
+      }
+
+      sequencer{
+
+        isTargetType{
+          type:t="bomber"
+        }
+      }
+
+      sequencer{
+
+        isTargetType{
+          type:t="bigShip"
+        }
+
+        selector{
+          selectStrategy:t="ordered"
+
+          torpedoTarget{
+          }
+
+          bombTarget{
+          }
+
+          airDropDelivery{
+          }
+
+          ifThenElse{
+
+            hasDependentAttackers{
+            }
+
+            selector{
+              selectStrategy:t="ordered"
+
+              sequencer{
+
+                isAuxWeaponAllowed{
+                }
+
+                fighterAttackGround{
+                }
+              }
+
+              parallel{
+
+                cycle{
+
+                  hasGroupWeaponForTarget{
+                    checkAuxWeapon:b=yes
+                  }
+                }
+
+                attackGroundFake{
+                }
+              }
+            }
+
+            sequencer{
+
+              isAuxWeaponAllowed{
+              }
+
+              fighterAttackGround{
+              }
+            }
+          }
+        }
+      }
+
+      sequencer{
+
+        selector{
+          selectStrategy:t="ordered"
+
+          bombTarget{
+          }
+
+          airDropDelivery{
+          }
+
+          ifThenElse{
+
+            hasDependentAttackers{
+            }
+
+            selector{
+              selectStrategy:t="ordered"
+
+              sequencer{
+
+                isAuxWeaponAllowed{
+                }
+
+                fighterAttackGround{
+                }
+              }
+
+              parallel{
+
+                cycle{
+
+                  hasGroupWeaponForTarget{
+                    checkAuxWeapon:b=yes
+                  }
+                }
+
+                attackGroundFake{
+                }
+              }
+            }
+
+            sequencer{
+
+              isAuxWeaponAllowed{
+              }
+
+              fighterAttackGround{
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  resetTarget{
+  }
+
+  sequencer{
+
+    reaction{
+      event:t="outsideBattleField"
+    }
+
+    ifThenElse{
+
+      findLeader{
+      }
+
+      followTarget{
+        offsetFromBot:b=yes
+        useTarget:b=no
+      }
+
+      selector{
+        selectStrategy:t="ordered"
+
+        sequencer{
+
+          setControls{
+            controls:t="flaps"
+            setTo:r=0.0
+            timeTo:r=0.0
+          }
+
+          flyToPos{
+            speed:r=350.0
+            dist:r=-1.0
+            minAlt:r=10.0
+          }
+        }
+
+        waypointFollow{
+        }
+      }
+    }
+  }
+
+  sequencer{
+    name:t="unitLandOnAirfield"
+
+    reaction{
+      event:t="groundAhead"
+    }
+
+    reaction{
+      event:t="outsideBattleField"
+    }
+
+    land{
+    }
+
+    afterLanding{
+    }
+  }
+}
+
+selector{
+  name:t="missionAssault"
+  selectStrategy:t="ordered"
+
+  reaction{
+    event:t="groundAhead"
+
+    parallel{
+
+      turnToEvasiveDir{
+      }
+
+      stayAtSpeed{
+        speedMode:t="boostOn"
+      }
+    }
+  }
+
+  reaction{
+    event:t="collisionAhead"
+
+    parallel{
+
+      turnToEvasiveDir{
+      }
+
+      stayAtSpeed{
+        speedMode:t="boostOn"
+      }
+    }
+  }
+
+  reaction{
+    event:t="outsideBattleField"
+
+    flyToPos{
+      speed:r=550.0
+      dist:r=-1.0
+      minAlt:r=100.0
+      destType:t="battleField"
+    }
+  }
+
+  selector{
+    selectStrategy:t="ordered"
+    name:t="taxi_and_takeoff"
+
+    reaction{
+      event:t="groundAhead"
+    }
+
+    reaction{
+      event:t="collisionAhead"
+    }
+
+    reaction{
+      event:t="outsideBattleField"
+    }
+
+    sequencer{
+
+      isOnAirfield{
+      }
+
+      findClosestAirfield{
+      }
+
+      waitForAirfieldClearance{
+      }
+
+      taxiOnAirfield{
+      }
+
+      takeoff{
+      }
+    }
+
+    waitOnLand{
+    }
+  }
+
+  sequencer{
+
+    clearTargetList{
+      listName:t="targets"
+    }
+
+    ifThenElse{
+
+      isIndependentAttacker{
+      }
+
+      ifThenElse{
+
+        isRandomTargets{
+        }
+
+        getFromListBTB{
+          listName:t="targets"
+          varName:t="currentTarget"
+          indexType:t="random"
+        }
+
+        getFromListBTB{
+          listName:t="targets"
+          varName:t="currentTarget"
+          indexType:t="first"
+        }
+      }
+
+      parallel{
+
+        cycle{
+
+          findLeader{
+          }
+        }
+
+        getFromListBTBAfterLeader{
+          listName:t="targets"
+          varName:t="currentTarget"
+        }
+
+        followTarget{
+          offsetFromBot:b=yes
+          useTarget:b=no
+        }
+      }
+    }
+
+    setAsTarget{
+      varName:t="currentTarget"
+    }
+
+    selector{
+      selectStrategy:t="ordered"
+
+      sequencer{
+
+        isTargetType{
+          type:t="fighter"
+        }
+
+        fighterAttackFighter{
+        }
+      }
+
+      sequencer{
+
+        isTargetType{
+          type:t="bomber"
+        }
+
+        fighterAttackBomber{
+        }
+      }
+
+      sequencer{
+
+        isTargetType{
+          type:t="bigShip"
+        }
+
+        selector{
+          selectStrategy:t="ordered"
+
+          torpedoTarget{
+          }
+
+          diveBombTarget{
+          }
+
+          bombTarget{
+          }
+
+          ifThenElse{
+
+            hasDependentAttackers{
+            }
+
+            selector{
+              selectStrategy:t="ordered"
+
+              fighterAttackGround{
+              }
+
+              parallel{
+
+                cycle{
+
+                  hasGroupWeaponForTarget{
+                  }
+                }
+
+                attackGroundFake{
+                }
+              }
+            }
+
+            fighterAttackGround{
+            }
+          }
+        }
+      }
+
+      sequencer{
+
+        selector{
+          selectStrategy:t="ordered"
+
+          diveBombTarget{
+          }
+
+          bombTarget{
+          }
+
+          ifThenElse{
+
+            hasDependentAttackers{
+            }
+
+            selector{
+              selectStrategy:t="ordered"
+
+              fighterAttackGround{
+              }
+
+              parallel{
+
+                cycle{
+
+                  hasGroupWeaponForTarget{
+                  }
+                }
+
+                attackGroundFake{
+                }
+              }
+            }
+
+            fighterAttackGround{
+            }
+          }
+        }
+      }
+    }
+  }
+
+  resetTarget{
+  }
+
+  sequencer{
+
+    reaction{
+      event:t="outsideBattleField"
+    }
+
+    ifThenElse{
+
+      findLeader{
+      }
+
+      followTarget{
+        offsetFromBot:b=yes
+        useTarget:b=no
+      }
+
+      selector{
+        selectStrategy:t="ordered"
+
+        sequencer{
+
+          setControls{
+            controls:t="flaps"
+            setTo:r=0.0
+            timeTo:r=0.0
+          }
+
+          flyToPos{
+            speed:r=350.0
+            dist:r=-1.0
+            minAlt:r=10.0
+          }
+        }
+
+        waypointFollow{
+        }
+      }
+    }
+  }
+
+  sequencer{
+    name:t="unitLandOnAirfield"
+
+    reaction{
+      event:t="groundAhead"
+    }
+
+    reaction{
+      event:t="outsideBattleField"
+    }
+
+    land{
+    }
+
+    afterLanding{
+    }
+  }
+}
+
+selector{
+  name:t="diveBomber"
+  selectStrategy:t="ordered"
+
+  reaction{
+    event:t="groundAhead"
+
+    parallel{
+
+      turnToEvasiveDir{
+      }
+
+      stayAtSpeed{
+        speedMode:t="boostOn"
+      }
+    }
+  }
+
+  reaction{
+    event:t="collisionAhead"
+
+    parallel{
+
+      turnToEvasiveDir{
+      }
+
+      stayAtSpeed{
+        speedMode:t="boostOn"
+      }
+    }
+  }
+
+  reaction{
+    event:t="outsideBattleField"
+
+    flyToPos{
+      speed:r=550.0
+      dist:r=-1.0
+      minAlt:r=100.0
+      destType:t="battleField"
+    }
+  }
+
+  selector{
+    selectStrategy:t="ordered"
+    name:t="taxi_and_takeoff"
+
+    reaction{
+      event:t="groundAhead"
+    }
+
+    reaction{
+      event:t="collisionAhead"
+    }
+
+    reaction{
+      event:t="outsideBattleField"
+    }
+
+    sequencer{
+
+      isOnAirfield{
+      }
+
+      findClosestAirfield{
+      }
+
+      waitForAirfieldClearance{
+      }
+
+      taxiOnAirfield{
+      }
+
+      takeoff{
+      }
+    }
+
+    waitOnLand{
+    }
+  }
+
+  sequencer{
+
+    clearTargetList{
+      listName:t="targets"
+    }
+
+    ifThenElse{
+
+      isIndependentAttacker{
+      }
+
+      ifThenElse{
+
+        isRandomTargets{
+        }
+
+        getFromListBTB{
+          listName:t="targets"
+          varName:t="currentTarget"
+          indexType:t="random"
+        }
+
+        getFromListBTB{
+          listName:t="targets"
+          varName:t="currentTarget"
+          indexType:t="first"
+        }
+      }
+
+      parallel{
+
+        cycle{
+
+          findLeader{
+          }
+        }
+
+        getFromListBTBAfterLeader{
+          listName:t="targets"
+          varName:t="currentTarget"
+        }
+
+        followTarget{
+          offsetFromBot:b=yes
+          useTarget:b=no
+        }
+      }
+    }
+
+    setAsTarget{
+      varName:t="currentTarget"
+    }
+
+    selector{
+      selectStrategy:t="ordered"
+      selectOnSuccess:b=yes
+
+      sequencer{
+
+        isTargetType{
+          type:t="fighter"
+        }
+      }
+
+      sequencer{
+
+        isTargetType{
+          type:t="bomber"
+        }
+      }
+
+      sequencer{
+
+        isTargetType{
+          type:t="bigShip"
+        }
+
+        selector{
+          selectStrategy:t="ordered"
+
+          torpedoTarget{
+          }
+
+          diveBombTarget{
+          }
+
+          bombTarget{
+          }
+
+          ifThenElse{
+
+            hasDependentAttackers{
+            }
+
+            selector{
+              selectStrategy:t="ordered"
+
+              sequencer{
+
+                isAuxWeaponAllowed{
+                }
+
+                fighterAttackGround{
+                }
+              }
+
+              parallel{
+
+                cycle{
+
+                  hasGroupWeaponForTarget{
+                    checkAuxWeapon:b=yes
+                  }
+                }
+
+                attackGroundFake{
+                }
+              }
+            }
+
+            sequencer{
+
+              isAuxWeaponAllowed{
+              }
+
+              fighterAttackGround{
+              }
+            }
+          }
+        }
+      }
+
+      sequencer{
+
+        selector{
+          selectStrategy:t="ordered"
+
+          diveBombTarget{
+          }
+
+          bombTarget{
+          }
+
+          ifThenElse{
+
+            hasDependentAttackers{
+            }
+
+            selector{
+              selectStrategy:t="ordered"
+
+              sequencer{
+
+                isAuxWeaponAllowed{
+                }
+
+                fighterAttackGround{
+                }
+              }
+
+              parallel{
+
+                cycle{
+
+                  hasGroupWeaponForTarget{
+                    checkAuxWeapon:b=yes
+                  }
+                }
+
+                attackGroundFake{
+                }
+              }
+            }
+
+            sequencer{
+
+              isAuxWeaponAllowed{
+              }
+
+              fighterAttackGround{
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  resetTarget{
+  }
+
+  sequencer{
+
+    reaction{
+      event:t="outsideBattleField"
+    }
+
+    ifThenElse{
+
+      findLeader{
+      }
+
+      followTarget{
+        offsetFromBot:b=yes
+        useTarget:b=no
+      }
+
+      selector{
+        selectStrategy:t="ordered"
+
+        sequencer{
+
+          setControls{
+            controls:t="flaps"
+            setTo:r=0.0
+            timeTo:r=0.0
+          }
+
+          flyToPos{
+            speed:r=350.0
+            dist:r=-1.0
+            minAlt:r=10.0
+          }
+        }
+
+        waypointFollow{
+        }
+      }
+    }
+  }
+
+  sequencer{
+    name:t="unitLandOnAirfield"
+
+    reaction{
+      event:t="groundAhead"
+    }
+
+    reaction{
+      event:t="outsideBattleField"
+    }
+
+    land{
+    }
+
+    afterLanding{
+    }
+  }
+}
+
+selector{
+  name:t="missionTransport"
+  selectStrategy:t="ordered"
+
+  reaction{
+    event:t="groundAhead"
+
+    parallel{
+
+      turnToEvasiveDir{
+      }
+
+      stayAtSpeed{
+        speedMode:t="boostOn"
+      }
+    }
+  }
+
+  reaction{
+    event:t="collisionAhead"
+
+    parallel{
+
+      turnToEvasiveDir{
+      }
+
+      stayAtSpeed{
+        speedMode:t="boostOn"
+      }
+    }
+  }
+
+  reaction{
+    event:t="outsideBattleField"
+
+    flyToPos{
+      speed:r=550.0
+      dist:r=-1.0
+      minAlt:r=100.0
+      destType:t="battleField"
+    }
+  }
+
+  selector{
+    selectStrategy:t="ordered"
+    name:t="taxi_and_takeoff"
+
+    reaction{
+      event:t="groundAhead"
+    }
+
+    reaction{
+      event:t="collisionAhead"
+    }
+
+    reaction{
+      event:t="outsideBattleField"
+    }
+
+    sequencer{
+
+      isOnAirfield{
+      }
+
+      findClosestAirfield{
+      }
+
+      waitForAirfieldClearance{
+      }
+
+      taxiOnAirfield{
+      }
+
+      takeoff{
+      }
+    }
+
+    waitOnLand{
+    }
+  }
+
+  sequencer{
+
+    clearTargetList{
+      listName:t="targets"
+    }
+
+    ifThenElse{
+
+      isRandomTargets{
+      }
+
+      getFromListBTB{
+        listName:t="targets"
+        varName:t="currentTarget"
+        indexType:t="random"
+      }
+
+      getFromListBTB{
+        listName:t="targets"
+        varName:t="currentTarget"
+        indexType:t="first"
+      }
+    }
+
+    setAsTarget{
+      varName:t="currentTarget"
+    }
+
+    selector{
+      selectStrategy:t="ordered"
+      selectOnSuccess:b=yes
+
+      sequencer{
+
+        isTargetType{
+          type:t="fighter"
+        }
+      }
+
+      sequencer{
+
+        isTargetType{
+          type:t="bomber"
+        }
+      }
+
+      sequencer{
+
+        isTargetType{
+          type:t="bigShip"
+        }
+
+        selector{
+          selectStrategy:t="ordered"
+
+          torpedoTarget{
+          }
+
+          bombTarget{
+          }
+        }
+      }
+
+      bombTarget{
+      }
+
+      airDropDelivery{
+      }
+    }
+  }
+
+  sequencer{
+
+    reaction{
+      event:t="outsideBattleField"
+    }
+
+    ifThenElse{
+
+      findLeader{
+      }
+
+      followTarget{
+        offsetFromBot:b=yes
+        useTarget:b=no
+      }
+
+      selector{
+        selectStrategy:t="ordered"
+
+        sequencer{
+
+          setControls{
+            controls:t="flaps"
+            setTo:r=0.0
+            timeTo:r=0.0
+          }
+
+          flyToPos{
+            speed:r=350.0
+            dist:r=-1.0
+            minAlt:r=10.0
+          }
+        }
+
+        waypointFollow{
+        }
+      }
+    }
+  }
+
+  sequencer{
+    name:t="unitLandOnAirfield"
+
+    reaction{
+      event:t="groundAhead"
+    }
+
+    reaction{
+      event:t="outsideBattleField"
+    }
+
+    land{
+    }
+
+    afterLanding{
+    }
+  }
+}
+
+selector{
+  name:t="missionKamikaze"
+  selectStrategy:t="ordered"
+
+  sequencer{
+
+    clearTargetList{
+      listName:t="targets"
+    }
+
+    ifThenElse{
+
+      isRandomTargets{
+      }
+
+      getFromListBTB{
+        listName:t="targets"
+        varName:t="currentTarget"
+        indexType:t="random"
+      }
+
+      getFromListBTB{
+        listName:t="targets"
+        varName:t="currentTarget"
+        indexType:t="first"
+      }
+    }
+
+    setAsTarget{
+      varName:t="currentTarget"
+    }
+
+    selector{
+      selectStrategy:t="ordered"
+
+      kamikazeAttack{
+      }
+    }
+  }
+
+  sequencer{
+
+    reaction{
+      event:t="outsideBattleField"
+    }
+
+    ifThenElse{
+
+      findLeader{
+      }
+
+      followTarget{
+        offsetFromBot:b=yes
+        useTarget:b=no
+      }
+
+      selector{
+        selectStrategy:t="ordered"
+
+        sequencer{
+
+          setControls{
+            controls:t="flaps"
+            setTo:r=0.0
+            timeTo:r=0.0
+          }
+
+          flyToPos{
+            speed:r=350.0
+            dist:r=-1.0
+            minAlt:r=10.0
+          }
+        }
+
+        waypointFollow{
+        }
+      }
+    }
+  }
+}
+
+selector{
+  name:t="missionRacer"
+  selectStrategy:t="ordered"
+
+  reaction{
+    event:t="groundAhead"
+
+    parallel{
+
+      turnToEvasiveDir{
+      }
+
+      stayAtSpeed{
+        speedMode:t="boostOn"
+      }
+    }
+  }
+
+  reaction{
+    event:t="collisionAhead"
+
+    parallel{
+
+      turnToEvasiveDir{
+      }
+
+      stayAtSpeed{
+        speedMode:t="boostOn"
+      }
+    }
+  }
+
+  reaction{
+    event:t="outsideBattleField"
+
+    flyToPos{
+      speed:r=550.0
+      dist:r=-1.0
+      minAlt:r=100.0
+      destType:t="battleField"
+    }
+  }
+
+  selector{
+    selectStrategy:t="ordered"
+    name:t="taxi_and_takeoff"
+
+    reaction{
+      event:t="groundAhead"
+    }
+
+    reaction{
+      event:t="collisionAhead"
+    }
+
+    reaction{
+      event:t="outsideBattleField"
+    }
+
+    sequencer{
+
+      isOnAirfield{
+      }
+
+      findClosestAirfield{
+      }
+
+      waitForAirfieldClearance{
+      }
+
+      taxiOnAirfield{
+      }
+
+      takeoff{
+      }
+    }
+
+    waitOnLand{
+    }
+  }
+
+  sequencer{
+
+    reaction{
+      event:t="outsideBattleField"
+    }
+
+    ifThenElse{
+
+      findLeader{
+      }
+
+      followTarget{
+        offsetFromBot:b=yes
+        useTarget:b=no
+      }
+
+      selector{
+        selectStrategy:t="ordered"
+
+        sequencer{
+
+          setControls{
+            controls:t="flaps"
+            setTo:r=0.0
+            timeTo:r=0.0
+          }
+
+          flyToPos{
+            speed:r=350.0
+            dist:r=-1.0
+            minAlt:r=10.0
+          }
+        }
+
+        waypointFollow{
+          maxRoll:r=90.0
+          maxPitch:r=80.0
+          aggressiveness:r=5.0
+        }
+      }
+    }
+  }
+
+  sequencer{
+    name:t="unitLandOnAirfield"
+
+    reaction{
+      event:t="groundAhead"
+    }
+
+    reaction{
+      event:t="outsideBattleField"
+    }
+
+    land{
+    }
+
+    afterLanding{
+    }
+  }
+}
+
+selector{
+  name:t="missionHitThePoint"
+  selectStrategy:t="ordered"
+
+  hitThePoint{
+  }
+}
+
+selector{
+  name:t="missionAssault_torpedo_all"
+  selectStrategy:t="ordered"
+
+  reaction{
+    event:t="groundAhead"
+
+    parallel{
+
+      turnToEvasiveDir{
+      }
+
+      stayAtSpeed{
+        speedMode:t="boostOn"
+      }
+    }
+  }
+
+  reaction{
+    event:t="collisionAhead"
+
+    parallel{
+
+      turnToEvasiveDir{
+      }
+
+      stayAtSpeed{
+        speedMode:t="boostOn"
+      }
+    }
+  }
+
+  reaction{
+    event:t="outsideBattleField"
+
+    flyToPos{
+      speed:r=550.0
+      dist:r=-1.0
+      minAlt:r=100.0
+      destType:t="battleField"
+    }
+  }
+
+  selector{
+    selectStrategy:t="ordered"
+    name:t="taxi_and_takeoff"
+
+    reaction{
+      event:t="groundAhead"
+    }
+
+    reaction{
+      event:t="collisionAhead"
+    }
+
+    reaction{
+      event:t="outsideBattleField"
+    }
+
+    sequencer{
+
+      isOnAirfield{
+      }
+
+      findClosestAirfield{
+      }
+
+      waitForAirfieldClearance{
+      }
+
+      taxiOnAirfield{
+      }
+
+      takeoff{
+      }
+    }
+
+    waitOnLand{
+    }
+  }
+
+  sequencer{
+
+    clearTargetList{
+      listName:t="targets"
+    }
+
+    ifThenElse{
+
+      isRandomTargets{
+      }
+
+      getFromListBTB{
+        listName:t="targets"
+        varName:t="currentTarget"
+        indexType:t="random"
+      }
+
+      getFromListBTB{
+        listName:t="targets"
+        varName:t="currentTarget"
+        indexType:t="first"
+      }
+    }
+
+    setAsTarget{
+      varName:t="currentTarget"
+    }
+
+    selector{
+      selectStrategy:t="ordered"
+      selectOnSuccess:b=yes
+
+      sequencer{
+
+        isTargetType{
+          type:t="fighter"
+        }
+      }
+
+      sequencer{
+
+        isTargetType{
+          type:t="bomber"
+        }
+      }
+
+      sequencer{
+
+        selector{
+          selectStrategy:t="ordered"
+
+          torpedoTarget{
+          }
+
+          diveBombTarget{
+          }
+
+          bombTarget{
+          }
+
+          fighterAttackGround{
+          }
+
+          spiralUp{
+          }
+        }
+      }
+    }
+  }
+
+  sequencer{
+
+    reaction{
+      event:t="outsideBattleField"
+    }
+
+    ifThenElse{
+
+      findLeader{
+      }
+
+      followTarget{
+        offsetFromBot:b=yes
+        useTarget:b=no
+      }
+
+      selector{
+        selectStrategy:t="ordered"
+
+        sequencer{
+
+          setControls{
+            controls:t="flaps"
+            setTo:r=0.0
+            timeTo:r=0.0
+          }
+
+          flyToPos{
+            speed:r=350.0
+            dist:r=-1.0
+            minAlt:r=10.0
+          }
+        }
+
+        waypointFollow{
+        }
+      }
+    }
+  }
+
+  sequencer{
+    name:t="unitLandOnAirfield"
+
+    reaction{
+      event:t="groundAhead"
+    }
+
+    reaction{
+      event:t="outsideBattleField"
+    }
+
+    land{
+    }
+
+    afterLanding{
+    }
+  }
+}
+
+selector{
+  name:t="missionAssaultT"
+  selectStrategy:t="ordered"
+
+  reaction{
+    event:t="groundAhead"
+
+    parallel{
+
+      turnToEvasiveDir{
+      }
+
+      stayAtSpeed{
+        speedMode:t="boostOn"
+      }
+    }
+  }
+
+  reaction{
+    event:t="collisionAhead"
+
+    parallel{
+
+      turnToEvasiveDir{
+      }
+
+      stayAtSpeed{
+        speedMode:t="boostOn"
+      }
+    }
+  }
+
+  reaction{
+    event:t="outsideBattleField"
+
+    flyToPos{
+      speed:r=550.0
+      dist:r=-1.0
+      minAlt:r=100.0
+      destType:t="battleField"
+    }
+  }
+
+  selector{
+    selectStrategy:t="ordered"
+    name:t="taxi_and_takeoff"
+
+    reaction{
+      event:t="groundAhead"
+    }
+
+    reaction{
+      event:t="collisionAhead"
+    }
+
+    reaction{
+      event:t="outsideBattleField"
+    }
+
+    sequencer{
+
+      isOnAirfield{
+      }
+
+      findClosestAirfield{
+      }
+
+      waitForAirfieldClearance{
+      }
+
+      taxiOnAirfield{
+      }
+
+      takeoff{
+      }
+    }
+
+    waitOnLand{
+    }
+  }
+
+  sequencer{
+
+    clearTargetList{
+      listName:t="targets"
+    }
+
+    ifThenElse{
+
+      isRandomTargets{
+      }
+
+      getFromListBTB{
+        listName:t="targets"
+        varName:t="currentTarget"
+        indexType:t="random"
+      }
+
+      getFromListBTB{
+        listName:t="targets"
+        varName:t="currentTarget"
+        indexType:t="first"
+      }
+    }
+
+    setAsTarget{
+      varName:t="currentTarget"
+    }
+
+    selector{
+      selectStrategy:t="ordered"
+      selectOnSuccess:b=yes
+
+      sequencer{
+
+        isTargetType{
+          type:t="fighter"
+        }
+      }
+
+      sequencer{
+
+        isTargetType{
+          type:t="bomber"
+        }
+      }
+
+      sequencer{
+
+        isTargetType{
+          type:t="bigShip"
+        }
+
+        selector{
+          selectStrategy:t="ordered"
+
+          torpedoTarget{
+          }
+
+          diveBombTarget{
+          }
+
+          bombTarget{
+          }
+
+          fighterAttackGround{
+          }
+        }
+      }
+
+      sequencer{
+
+        selector{
+          selectStrategy:t="ordered"
+
+          diveBombTarget{
+          }
+
+          bombTarget{
+          }
+
+          fighterAttackGround{
+          }
+        }
+      }
+    }
+  }
+
+  sequencer{
+
+    reaction{
+      event:t="outsideBattleField"
+    }
+
+    ifThenElse{
+
+      findLeader{
+      }
+
+      followTarget{
+        offsetFromBot:b=yes
+        useTarget:b=no
+      }
+
+      selector{
+        selectStrategy:t="ordered"
+
+        sequencer{
+
+          setControls{
+            controls:t="flaps"
+            setTo:r=0.0
+            timeTo:r=0.0
+          }
+
+          flyToPos{
+            speed:r=350.0
+            dist:r=-1.0
+            minAlt:r=10.0
+          }
+        }
+
+        waypointFollow{
+        }
+      }
+    }
+  }
+
+  sequencer{
+    name:t="unitLandOnAirfield"
+
+    reaction{
+      event:t="groundAhead"
+    }
+
+    reaction{
+      event:t="outsideBattleField"
+    }
+
+    land{
+    }
+
+    afterLanding{
+    }
+  }
+}

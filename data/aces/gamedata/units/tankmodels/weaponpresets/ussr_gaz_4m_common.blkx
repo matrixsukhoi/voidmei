@@ -1,0 +1,177 @@
+Weapon{
+  trigger:t="gunner0"
+  blk:t="gameData/Weapons/groundModels_weapons/7_62mm_Maxim_user_machinegun.blk"
+  reloadTime:r=6.0
+  emitter:t="bone_gun_barrel_01"
+  flash:t="emtr_gun_flame_01"
+  useEmitter:b=yes
+  recoilOffset:r=0.0
+  defaultYaw:r=0.0
+  defaultPitch:r=0.0
+  barrelDP:t="gun_barrel_01_dm"
+  breechDP:t="cannon_breech_dm"
+  speedYaw:r=60.0
+  speedPitch:r=20.0
+  bullets:i=1000
+  fireConeAngle:r=15.0
+  ChainfireTime:r=3.0
+  DelayAfterShoot:r=3.0
+  accuracyAir:r=1.5
+  accuracyGnd:r=1.0
+  errMeasureVel:r=0.0
+  errMeasureVelFast:r=0.0
+  errMeasureVelFwdShift:r=0.0
+  errMeasureVelDir:r=0.0
+  errTargettingOn100kmph:r=0.0
+  errTargetting:r=3.0
+  errExplTime:r=0.0
+
+  turret{
+    head:t="bone_turret"
+    gun:t="bone_gun"
+    barrel:t="bone_gun_barrel_01"
+    gunnerDm:t="gunner_dm"
+    verDriveDm:t="drive_turret_v_dm"
+    horDriveDm:t="drive_turret_h_dm"
+  }
+
+  limits{
+    yaw:p2=-180.0, 180.0
+    pitch:p2=-10.0, 45.0
+  }
+}
+
+Weapon{
+  trigger:t="gunner0"
+  blk:t="gameData/Weapons/groundModels_weapons/7_62mm_Maxim_user_machinegun.blk"
+  reloadTime:r=6.0
+  emitter:t="bone_gun_barrel_02"
+  flash:t="emtr_gun_flame_02"
+  useEmitter:b=yes
+  recoilOffset:r=0.0
+  defaultYaw:r=0.0
+  defaultPitch:r=0.0
+  barrelDP:t="gun_barrel_02_dm"
+  breechDP:t="cannon_breech_dm"
+  speedYaw:r=60.0
+  speedPitch:r=20.0
+  bullets:i=1000
+  fireConeAngle:r=15.0
+  ChainfireTime:r=3.0
+  DelayAfterShoot:r=3.0
+  accuracyAir:r=1.5
+  accuracyGnd:r=1.0
+  errMeasureVel:r=0.0
+  errMeasureVelFast:r=0.0
+  errMeasureVelFwdShift:r=0.0
+  errMeasureVelDir:r=0.0
+  errTargettingOn100kmph:r=0.0
+  errTargetting:r=3.0
+  errExplTime:r=0.0
+  reuseYawTrigger:i=10
+  reusePitchTrigger:i=10
+
+  turret{
+    head:t="bone_turret"
+    gun:t="bone_gun"
+    barrel:t="bone_gun_barrel_02"
+    gunnerDm:t="gunner_dm"
+    verDriveDm:t="drive_turret_v_dm"
+    horDriveDm:t="drive_turret_h_dm"
+  }
+
+  limits{
+    yaw:p2=-180.0, 180.0
+    pitch:p2=-10.0, 45.0
+  }
+}
+
+Weapon{
+  trigger:t="gunner0"
+  blk:t="gameData/Weapons/groundModels_weapons/7_62mm_Maxim_user_machinegun.blk"
+  reloadTime:r=6.0
+  emitter:t="bone_gun_barrel_03"
+  flash:t="emtr_gun_flame_03"
+  useEmitter:b=yes
+  recoilOffset:r=0.0
+  defaultYaw:r=0.0
+  defaultPitch:r=0.0
+  barrelDP:t="gun_barrel_03_dm"
+  breechDP:t="cannon_breech_dm"
+  speedYaw:r=60.0
+  speedPitch:r=20.0
+  bullets:i=1000
+  fireConeAngle:r=15.0
+  ChainfireTime:r=3.0
+  DelayAfterShoot:r=3.0
+  accuracyAir:r=1.5
+  accuracyGnd:r=1.0
+  errMeasureVel:r=0.0
+  errMeasureVelFast:r=0.0
+  errMeasureVelFwdShift:r=0.0
+  errMeasureVelDir:r=0.0
+  errTargettingOn100kmph:r=0.0
+  errTargetting:r=3.0
+  errExplTime:r=0.0
+  reuseYawTrigger:i=10
+  reusePitchTrigger:i=10
+
+  turret{
+    head:t="bone_turret"
+    gun:t="bone_gun"
+    barrel:t="bone_gun_barrel_03"
+    gunnerDm:t="gunner_dm"
+    verDriveDm:t="drive_turret_v_dm"
+    horDriveDm:t="drive_turret_h_dm"
+  }
+
+  limits{
+    yaw:p2=-180.0, 180.0
+    pitch:p2=-10.0, 45.0
+  }
+}
+
+Weapon{
+  trigger:t="gunner0"
+  blk:t="gameData/Weapons/groundModels_weapons/7_62mm_Maxim_user_machinegun.blk"
+  reloadTime:r=6.0
+  emitter:t="bone_gun_barrel_04"
+  flash:t="emtr_gun_flame_04"
+  useEmitter:b=yes
+  recoilOffset:r=0.0
+  defaultYaw:r=0.0
+  defaultPitch:r=0.0
+  barrelDP:t="gun_barrel_04_dm"
+  breechDP:t="cannon_breech_dm"
+  speedYaw:r=60.0
+  speedPitch:r=20.0
+  bullets:i=1000
+  fireConeAngle:r=15.0
+  ChainfireTime:r=3.0
+  DelayAfterShoot:r=3.0
+  accuracyAir:r=1.5
+  accuracyGnd:r=1.0
+  errMeasureVel:r=0.0
+  errMeasureVelFast:r=0.0
+  errMeasureVelFwdShift:r=0.0
+  errMeasureVelDir:r=0.0
+  errTargettingOn100kmph:r=0.0
+  errTargetting:r=3.0
+  errExplTime:r=0.0
+  reuseYawTrigger:i=10
+  reusePitchTrigger:i=10
+
+  turret{
+    head:t="bone_turret"
+    gun:t="bone_gun"
+    barrel:t="bone_gun_barrel_04"
+    gunnerDm:t="gunner_dm"
+    verDriveDm:t="drive_turret_v_dm"
+    horDriveDm:t="drive_turret_h_dm"
+  }
+
+  limits{
+    yaw:p2=-180.0, 180.0
+    pitch:p2=-10.0, 45.0
+  }
+}

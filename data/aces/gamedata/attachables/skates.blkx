@@ -1,0 +1,3 @@
+model:t="skates"
+collision:t="skates_aces"
+bboxMult:r=0.1

@@ -1,0 +1,14 @@
+hideNodes{
+  node:t="m10_bazooka_0"
+  node:t="m10_bazooka_1"
+  node:t="pylon_bomb1"
+  node:t="pylon_bomb2"
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/us_500lb_anm64a1.blk"
+  emitter:t="bomb3"
+  bullets:i=1
+  external:b=yes
+}

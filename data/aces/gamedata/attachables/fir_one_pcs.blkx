@@ -1,0 +1,3 @@
+model:t="vgt_fir_b"
+collision:t="vgt_fir_b_aces"
+bboxMult:r=0.1

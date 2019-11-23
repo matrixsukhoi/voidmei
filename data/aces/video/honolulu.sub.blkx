@@ -1,0 +1,65 @@
+font:t="small_text"
+
+line{
+  loc:t="honolulu_video_p1"
+  from:i=3273
+  to:i=26352
+}
+
+line{
+  loc:t="honolulu_video_p2"
+  from:i=27127
+  to:i=51782
+}
+
+line{
+  loc:t="honolulu_video_p3"
+  from:i=72495
+  to:i=89199
+}
+
+line{
+  loc:t="honolulu_video_p4"
+  from:i=98352
+  to:i=122206
+}
+
+line{
+  loc:t="honolulu_video_p5"
+  from:i=122607
+  to:i=174923
+}
+
+line{
+  loc:t="honolulu_video_p6"
+  from:i=175257
+  to:i=188821
+}
+
+line{
+  loc:t="honolulu_video_p7"
+  from:i=190692
+  to:i=214545
+
+  Russian{
+    from:i=190692
+    to:i=207830
+  }
+}
+
+line{
+  loc:t="honolulu_video_p8"
+  from:i=229311
+  to:i=259846
+}
+
+line{
+  loc:t="honolulu_video_p9"
+  from:i=260915
+  to:i=290849
+
+  Russian{
+    from:i=260915
+    to:i=283130
+  }
+}

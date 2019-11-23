@@ -1,0 +1,35 @@
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/us_100lb_anm30.blk"
+  emitter:t="bomb1"
+  bullets:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/us_100lb_anm30.blk"
+  emitter:t="bomb4"
+  bullets:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/us_100lb_anm30.blk"
+  emitter:t="bomb2"
+  bullets:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/us_100lb_anm30.blk"
+  emitter:t="bomb3"
+  bullets:i=1
+  external:b=yes
+}
+
+hideNodes{
+  part:t="pylon_bomb5"
+}

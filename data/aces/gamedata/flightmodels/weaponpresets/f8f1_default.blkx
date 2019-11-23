@@ -1,0 +1,11 @@
+hideNodes{
+  node:t="bomb_pylon_1000_l"
+  node:t="bomb_pylon_1000_r"
+  node:t="bomb_pylon_1000_c"
+  node:t="bomb_pylon_500_l"
+  node:t="bomb_pylon_500_r"
+  node:t="pylon_tiny_l"
+  node:t="pylon_tiny_r"
+  node:t="aero_14a_pylon_l"
+  node:t="aero_14a_pylon_r"
+}

@@ -1,0 +1,1436 @@
+AileronEffectiveSpeed:r=260.0
+RudderEffectiveSpeed:r=270.0
+ElevatorsEffectiveSpeed:r=270.0
+AileronPowerLoss:r=2.1
+RudderPowerLoss:r=2.7
+ElevatorPowerLoss:r=2.8
+AlphaAileronMin:r=0.1
+AlphaRudderMin:r=0.1
+AlphaElevatorMin:r=0.1
+AllowStrongControlsRestrictions:b=yes
+RudderSens:r=0.34
+ElevatorSens:r=0.35
+AileronSens:r=0.11
+GearActuatorSpeed:r=0.1
+WingActuatorSpeed:r=0.1
+CockpitDoorSpeedOpen:p4=150.0, 300.0, 0.5, 0.9
+CockpitDoorSpeedClose:p4=150.0, 300.0, 0.5, 0.1
+CockpitDoorBlockSpeed:r=500.0
+CockpitOpenedDoorBreakSpeed:r=350.0
+AirBrakeSpeed:r=0.5
+dvFlapsIn:p4=150.0, 280.0, 0.15, 0.18
+dvFlapsOut:p4=150.0, 280.0, 0.15, 0.12
+Wingspan:r=21.2
+SweptWingAngle:r=0.0
+WingTaperRatio:r=2.35
+Length:r=15.6
+StabWidth:r=6.006
+FinHeight:r=2.2
+Crew:i=5
+WingAngle:r=1.5
+StabAngle:r=1.0
+KeelAngle:r=0.0
+AileronAngles:p2=26.0, 13.0
+ElevatorAngles:p2=22.0, 18.0
+InvertElevator:b=no
+RudderAngles:p2=28.0, 28.0
+InterceptorType:i=0
+Elevon:b=no
+VSlats:p2=85.0, 100.0
+Vne:r=530.0
+VneMach:r=0.61
+MaxSpeedNearGround:r=400.0
+MaxSpeedAtAltitude:r=450.0
+CriticalSpeed:r=40.0
+VneCockpitDoor:r=500.0
+ArcadeLimitWepMultiplier:r=1.1
+ArcadeHelpersSensitivity:r=1.0
+AllowModsToChangeLongidutialBalance:b=yes
+ArcadeRollCorrectionMultiplier:r=1.0
+ArcadeMaxRollCoeff:r=1.0
+ArcadeYawMutilpliers:p3=1.5, 3.0, 1.0
+MomentOfInertia:p3=63988.2, 136735.0, 72747.2
+
+AvailableControls{
+  hasAileronControl:b=yes
+  hasAileronTrimControl:b=yes
+  hasAileronTrimGroundControl:b=no
+  dvAileronTrim:r=0.125
+  hasElevatorControl:b=yes
+  hasElevatorTrimControl:b=yes
+  hasElevatorTrimGroundControl:b=no
+  dvElevatorTrim:r=0.125
+  hasRudderControl:b=yes
+  hasRudderTrimControl:b=yes
+  hasRudderTrimGroundControl:b=no
+  dvRudderTrim:r=0.125
+  hasFlapsControl:b=yes
+  canTakeoffWithoutFlaps:b=yes
+  hasTakeoffFlapsPosition:b=yes
+  hasCombatFlapsPosition:b=yes
+  hasAirbrake:b=no
+  isAirBrakeAvailableOnGround:b=no
+  hasIndependentAirbrakesAndFlaps:b=no
+  hasGearControl:b=yes
+  hasArrestorControl:b=no
+  hasWingFoldControl:b=no
+  hasCockpitDoorControl:b=yes
+  hasWheelBrakeControl:b=yes
+  hasLockGearControl:b=yes
+  bHasBoosterSwitcher:b=no
+}
+
+Areas{
+  WingLeftIn:r=14.0
+  WingLeftMid:r=10.85
+  WingLeftOut:r=6.0
+  WingRightIn:r=14.0
+  WingRightMid:r=10.85
+  WingRightOut:r=6.0
+  Aileron:r=4.052
+  Stabilizer:r=6.04
+  Elevator:r=3.36
+  Keel:r=2.9
+  Rudder:r=1.5
+  WingLeftCut:r=0.23
+  WingRightCut:r=0.28
+}
+
+Focus{
+  FocusOffset:r=0.029
+  WingVertPos:r=0.33
+  AlphaShift:r=-0.04
+  FlapsShift:r=0.05
+  AirbrakesShift:r=0.0
+  GearShift:r=0.0
+  WingInFocus:r=1.68
+  WingMidFocus:r=4.22
+  WingOutFocus:r=8.64
+  WingV:r=2.0
+  Stabilizer:r=10.6
+  Keel:r=10.6
+  Rudder:r=9.0
+  Fuselage:p3=-0.09, 0.24, 0.0
+  LeftStab:p3=-9.5, 0.92, 1.4
+  RightStab:p3=-9.5, 0.92, -1.4
+  VertStab:p3=-9.9, 1.52, 0.0
+  WingVWingFocusMultiplier:r=1.0
+  SineAOSMultiplier:r=0.2
+}
+
+Aerodynamics{
+  GearCd:r=0.02
+  RadiatorCd:r=0.01
+  OilRadiatorCd:r=0.0
+  FuseCd:r=0.0
+  AirbrakeCd:r=0.0
+  CockpitDoorCd:r=0.15
+  ClToCmCoeff:r=0.025
+  UseSpinLoss:b=yes
+  SpinClLoss:r=0.2
+  SpinCdLoss:r=0.1
+  OswaldsEfficiencyNumber:r=0.72
+  lineClCoeff:r=0.09
+  AfterCritParabAngle:r=4.0
+  AfterCritDeclineCoeff:r=0.011
+  AfterCritMaxDistanceAngle:r=30.0
+  ClAfterCrit:r=1.0
+  MachFactor:i=3
+  MachCrit1:r=0.65
+  MachMax1:r=0.8
+  MultMachMax1:r=5.0
+  MultLineCoeff1:r=-2.2
+  MultLimit1:r=1.0
+  MachCrit2:r=0.65
+  MachMax2:r=0.8
+  MultMachMax2:r=2.5
+  MultLineCoeff2:r=-10.7
+  MultLimit2:r=1.0
+  MachCrit3:r=0.35
+  MachMax3:r=0.8
+  MultMachMax3:r=0.32
+  MultLineCoeff3:r=-0.44
+  MultLimit3:r=0.25
+  MachCrit4:r=0.35
+  MachMax4:r=0.8
+  MultMachMax4:r=0.4
+  MultLineCoeff4:r=-0.2
+  MultLimit4:r=0.25
+  MachCrit5:r=0.6
+  MachMax5:r=1.5
+  MultMachMax5:r=2.0
+  MultLineCoeff5:r=1.1
+  MultLimit5:r=5.0
+  MachCrit6:r=0.55
+  MachMax6:r=0.8
+  MultMachMax6:r=0.3
+  MultLineCoeff6:r=-0.2
+  MultLimit6:r=0.3
+  CombinedCl:b=no
+  DownwashType:i=2
+  DownwashCoeff:r=1.0
+  StabFlowInertia:r=0.05
+  VertStabFlowInertia:r=0.07
+
+  NoFlaps{
+    Cl0:r=0.2
+    alphaCritHigh:r=14.5
+    alphaCritLow:r=-12.0
+    ClCritHigh:r=1.48
+    ClCritLow:r=-0.85
+    CdMin:r=0.012
+  }
+
+  FullFlaps{
+    Cl0:r=0.5
+    alphaCritHigh:r=14.5
+    alphaCritLow:r=-13.0
+    ClCritHigh:r=1.63
+    ClCritLow:r=-0.39
+    CdMin:r=0.11
+  }
+
+  Fuselage{
+    OswaldsEfficiencyNumber:r=0.05
+    lineClCoeff:r=0.02
+    AfterCritParabAngle:r=5.0
+    AfterCritDeclineCoeff:r=0.002
+    AfterCritMaxDistanceAngle:r=30.0
+    ClAfterCrit:r=0.1
+    MachFactor:i=3
+    MachCrit1:r=0.75
+    MachMax1:r=1.0
+    MultMachMax1:r=3.5
+    MultLineCoeff1:r=-5.2
+    MultLimit1:r=1.0
+    MachCrit2:r=0.75
+    MachMax2:r=0.97
+    MultMachMax2:r=3.7
+    MultLineCoeff2:r=-14.7
+    MultLimit2:r=1.0
+    MachCrit3:r=0.3
+    MachMax3:r=1.0
+    MultMachMax3:r=0.32
+    MultLineCoeff3:r=-0.44
+    MultLimit3:r=0.25
+    MachCrit4:r=0.3
+    MachMax4:r=1.0
+    MultMachMax4:r=0.4
+    MultLineCoeff4:r=-0.2
+    MultLimit4:r=0.25
+    MachCrit5:r=0.6
+    MachMax5:r=1.5
+    MultMachMax5:r=2.0
+    MultLineCoeff5:r=1.1
+    MultLimit5:r=5.0
+    MachCrit6:r=0.0
+    MachMax6:r=0.0
+    MultMachMax6:r=0.0
+    MultLineCoeff6:r=0.0
+    MultLimit6:r=0.0
+    CombinedCl:b=no
+    Cl0:r=0.0
+    alphaCritHigh:r=17.0
+    alphaCritLow:r=-17.0
+    ClCritHigh:r=0.12
+    ClCritLow:r=-0.12
+    CdMin:r=0.0129
+  }
+
+  Stab{
+    OswaldsEfficiencyNumber:r=0.6
+    lineClCoeff:r=0.066
+    AfterCritParabAngle:r=5.0
+    AfterCritDeclineCoeff:r=0.007
+    AfterCritMaxDistanceAngle:r=30.0
+    ClAfterCrit:r=1.09
+    MachFactor:i=3
+    MachCrit1:r=0.7
+    MachMax1:r=1.0
+    MultMachMax1:r=6.0
+    MultLineCoeff1:r=-5.2
+    MultLimit1:r=1.0
+    MachCrit2:r=0.7
+    MachMax2:r=1.0
+    MultMachMax2:r=3.0
+    MultLineCoeff2:r=-9.7
+    MultLimit2:r=1.0
+    MachCrit3:r=0.3
+    MachMax3:r=1.0
+    MultMachMax3:r=0.32
+    MultLineCoeff3:r=-0.44
+    MultLimit3:r=0.25
+    MachCrit4:r=0.3
+    MachMax4:r=1.0
+    MultMachMax4:r=0.4
+    MultLineCoeff4:r=-0.2
+    MultLimit4:r=0.25
+    MachCrit5:r=0.6
+    MachMax5:r=1.5
+    MultMachMax5:r=2.0
+    MultLineCoeff5:r=1.1
+    MultLimit5:r=5.0
+    MachCrit6:r=0.0
+    MachMax6:r=0.0
+    MultMachMax6:r=0.0
+    MultLineCoeff6:r=0.0
+    MultLimit6:r=0.0
+    CombinedCl:b=no
+    Cl0:r=0.0
+    alphaCritHigh:r=17.0
+    alphaCritLow:r=-17.0
+    ClCritHigh:r=1.1
+    ClCritLow:r=-1.1
+    CdMin:r=0.012
+  }
+
+  Fin{
+    OswaldsEfficiencyNumber:r=0.45
+    lineClCoeff:r=0.067
+    AfterCritParabAngle:r=5.0
+    AfterCritDeclineCoeff:r=0.007
+    AfterCritMaxDistanceAngle:r=30.0
+    ClAfterCrit:r=1.09
+    MachFactor:i=3
+    MachCrit1:r=0.6
+    MachMax1:r=1.0
+    MultMachMax1:r=7.0
+    MultLineCoeff1:r=-5.2
+    MultLimit1:r=1.0
+    MachCrit2:r=0.65
+    MachMax2:r=1.0
+    MultMachMax2:r=3.0
+    MultLineCoeff2:r=-9.7
+    MultLimit2:r=1.0
+    MachCrit3:r=0.3
+    MachMax3:r=1.0
+    MultMachMax3:r=0.32
+    MultLineCoeff3:r=-0.44
+    MultLimit3:r=0.25
+    MachCrit4:r=0.3
+    MachMax4:r=1.0
+    MultMachMax4:r=0.4
+    MultLineCoeff4:r=-0.2
+    MultLimit4:r=0.25
+    MachCrit5:r=0.6
+    MachMax5:r=1.5
+    MultMachMax5:r=2.0
+    MultLineCoeff5:r=1.1
+    MultLimit5:r=5.0
+    MachCrit6:r=0.0
+    MachMax6:r=0.0
+    MultMachMax6:r=0.0
+    MultLineCoeff6:r=0.0
+    MultLimit6:r=0.0
+    CombinedCl:b=no
+    Cl0:r=0.0
+    alphaCritHigh:r=17.0
+    alphaCritLow:r=-17.0
+    ClCritHigh:r=1.1
+    ClCritLow:r=-1.1
+    CdMin:r=0.012
+  }
+}
+
+Engine0{
+  Position:p3=3.8, 0.0, 0.0
+  Direction:p2=-0.0, 0.0
+  PropPos:p3=2.24, -0.55, 2.6
+
+  Main{
+    FuelSystemNum:i=0
+    Type:t="Radial"
+    Cylinders:i=9
+    Mass:r=485.0
+    Thrust:r=10.7
+    ThrottleBoost:r=1.001
+    AfterburnerBoost:r=1.061
+    RPMMin:r=390.0
+    RPMMax:r=2301.0
+    RPMMaxAllowed:r=2500.0
+    FuelConsumptionOnIdle:r=0.4
+    FuelConsumptionOnHalfThr:r=0.22
+    FuelConsumptionOnFullThr:r=0.3
+    FuelConsumptionOnWEP:r=0.32
+    CarbueretorType:i=2
+    CarbureutorCapacity:r=0.1303
+    IsAutonomous:b=yes
+    ExtinguisherNum:i=0
+    MinThrMult:r=0.115
+    MaxThrMult:r=1.0
+    IsWaterCooled:b=no
+    EngineInertiaMoment:r=1.0
+    EngineAcceleration:r=4.0
+    RPMAmplitude0:p2=2300.0, 0.0
+    RPMAmplitude1:p2=0.0, 10.0
+    ConsumptionOmegaMax:r=1.05
+    ConsumptionOmegaMinCoeff:r=6.1897
+    ThrustOmegaMinCoeff:r=0.0016
+    TorqueOmegaMinCoeff:r=1.0
+    TorqueZeroOmegaMult:r=3.0
+    TurbineTimeConstant:r=3.4
+    Power:r=670.0
+
+    ThrustMax{
+      ThrustMax0:r=2700.0
+    }
+  }
+
+  Propellor{
+    AllowAutoProp:b=no
+    IsControllable:b=yes
+    HasFeatheringControl:b=yes
+    UseAutoPropInertia:b=no
+    Reductor:r=0.6548
+    NumBlades:i=3
+    AdvancedPropRadius:r=1.75
+    PropPhi0:r=18.0
+    PropWidth0:r=0.12
+    PropPhi1:r=9.0
+    PropWidth1:r=0.15
+    PropPhi2:r=0.0
+    PropWidth2:r=0.14
+    PropPhi3:r=-8.0
+    PropWidth3:r=0.07
+    InertiaMomentCoeff:r=1.0
+    Diameter:r=3.5
+    Mass:r=130.0
+    GovernorType:i=2
+    GovernorSpeed:r=0.5
+    GovernorMinParam:r=1100.0
+    GovernorMaxParam:r=2300.0
+    GovernorAfterburnerParam:r=2301.0
+    PhiMin:r=14.0
+    PhiMax:r=66.0
+    PhiAlpha0:r=12.0
+    PhiFeather:r=1.5
+    Direction:i=0
+    CoaxProps:b=no
+    ThrottleRPMAuto0:p2=0.0, 1100.0
+    ThrottleRPMAuto1:p2=0.4, 1750.0
+    ThrottleRPMAuto2:p2=0.9, 2100.0
+    ThrottleRPMAuto3:p2=1.0, 2300.0
+    ThrottleRPMAuto4:p2=1.1, 2301.0
+
+    Polar{
+      lineClCoeff:r=0.075
+      Cl0:r=0.1
+      alphaCritHigh:r=18.0
+      alphaCritLow:r=-14.0
+      ClCritHigh:r=1.3
+      ClCritLow:r=-0.8
+      CdMin:r=0.01
+      AfterCritParabAngle:r=3.0
+      AfterCritDeclineCoeff:r=0.02
+      AfterCritMaxDistanceAngle:r=36.0
+      ClAfterCrit:r=1.05
+      MachFactor:i=3
+      CombinedCl:b=no
+      MachCrit1:r=0.8
+      MachMax1:r=1.0
+      MultMachMax1:r=3.0
+      MultLineCoeff1:r=-3.2
+      MultLimit1:r=1.0
+      MachCrit2:r=0.8
+      MachMax2:r=1.0
+      MultMachMax2:r=3.0
+      MultLineCoeff2:r=-7.7
+      MultLimit2:r=1.0
+      MachCrit3:r=0.25
+      MachMax3:r=1.0
+      MultMachMax3:r=0.32
+      MultLineCoeff3:r=-0.44
+      MultLimit3:r=0.25
+      MachCrit4:r=0.25
+      MachMax4:r=1.0
+      MultMachMax4:r=0.4
+      MultLineCoeff4:r=-0.2
+      MultLimit4:r=0.25
+      MachCrit5:r=0.01
+      MachMax5:r=0.02
+      MultMachMax5:r=19.0
+      MultLineCoeff5:r=1.0
+      MultLimit5:r=19.0
+      MachCrit6:r=0.0
+      MachMax6:r=0.0
+      MultMachMax6:r=0.0
+      MultLineCoeff6:r=0.0
+      MultLimit6:r=0.0
+    }
+  }
+
+  Afterburner{
+    IsControllable:b=yes
+    Type:i=6
+    NitroConsumption:r=0.0
+  }
+
+  Temperature{
+    RadiatorType:i=3
+    OilRadiatorType:i=3
+    TempChangeSpeed:r=0.01
+    WaterMaxRPMTemp:r=210.0
+    OilOutMaxRPMTemp:r=70.0
+    OverheatTime:r=90.0
+    UnderheatTime:r=999.0
+    WaterMaxTemp:r=215.0
+    EmptyWaterPipeMaxRPMTemp:r=537.5
+    WaterMinTemp:r=60.0
+    OilMaxTemp:r=100.0
+    EmptyOilPipeOutMaxRPMTemp:r=130.0
+    OilMinTemp:r=50.0
+    EffectiveRadSpeed:r=200.0
+    IneffectiveRadMult:r=1.1
+    AdvancedThermodynamics:b=yes
+    NoIgnitionWaterHeatProducingFactor:r=0.15
+    WaterTemperatureInertia:r=0.75
+    WaterAirDensityPower:r=0.0
+    WaterRadiatorEffectPower:r=5.0
+    WaterMinRadiatorThermalConductionCoeff:r=0.77
+    WaterMinThermostatThermalConductionCoeff:r=0.3
+    WaterMinLevelThermalConductionCoeff:r=0.2
+    WaterBoilingTemperature:r=265.0
+    WaterThermostatInertia:r=20.0
+    WaterThermostatSetPoint:r=80.0
+    NoFlowMode:i=1
+    NoIgnitionOilHeatProducingFactor:r=0.15
+    OilTemperatureInertia:r=1.6
+    OilRadiatorEffectPower:r=5.0
+    OilMinRadiatorThermalConductionCoeff:r=0.69
+    OilMinThermostatThermalConductionCoeff:r=0.3
+    OilMinLevelThermalConductionCoeff:r=0.2
+    OilAirDensityPower:r=0.0
+    OilBoilingTemperature:r=160.0
+    OilThermostatInertia:r=20.0
+    OilThermostatSetPoint:r=45.0
+    DegradationTime_10_5:p2=180.0, 171.0
+    HalfHealthWaterTemperatureToleranceDecrease:r=21.0
+    HalfHealthOilTemperatureToleranceDecrease:r=10.0
+    CoolingEffectiveAirSpeed:r=307.488
+    WaterTemperatureNoFlow:r=260.0
+    OilTemperatureNoFlow:r=100.0
+
+    Mode0{
+      Altitude:r=1000.0
+      RPM:r=400.0
+      ManifoldPressure:r=0.61
+      WaterTemperature:r=140.0
+      OilTemperature:r=51.0
+    }
+
+    Mode1{
+      Altitude:r=1000.0
+      RPM:r=1750.0
+      ManifoldPressure:r=1.0
+      WaterTemperature:r=204.0
+      OilTemperature:r=71.0
+    }
+
+    Mode2{
+      Altitude:r=1000.0
+      RPM:r=2100.0
+      ManifoldPressure:r=1.184
+      WaterTemperature:r=216.0
+      OilTemperature:r=79.0
+    }
+
+    Mode3{
+      Altitude:r=1000.0
+      RPM:r=2300.0
+      ManifoldPressure:r=1.25
+      WaterTemperature:r=240.0
+      OilTemperature:r=90.0
+    }
+
+    Load0{
+      WaterTemperature:r=150.0
+      OilTemperature:r=60.0
+    }
+
+    Load1{
+      WaterTemperature:r=200.0
+      OilTemperature:r=70.0
+      WorkTime:r=7200.0
+      RecoverTime:r=3600.0
+    }
+
+    Load2{
+      WaterTemperature:r=220.0
+      OilTemperature:r=80.0
+      WorkTime:r=3600.0
+      RecoverTime:r=1800.0
+    }
+
+    Load3{
+      WaterTemperature:r=240.0
+      OilTemperature:r=90.0
+      WorkTime:r=300.0
+      RecoverTime:r=150.0
+    }
+
+    Load4{
+      WaterTemperature:r=250.0
+      OilTemperature:r=95.0
+      WorkTime:r=120.0
+      RecoverTime:r=60.0
+    }
+
+    RadiatorMode0{
+      Throttle:r=0.4
+      WaterTemperature:r=200.0
+      OilTemperature:r=70.0
+    }
+
+    RadiatorMode1{
+      Throttle:r=0.9
+      WaterTemperature:r=220.0
+      OilTemperature:r=80.0
+    }
+
+    RadiatorMode2{
+      Throttle:r=1.0
+      WaterTemperature:r=240.0
+      OilTemperature:r=90.0
+    }
+  }
+
+  Compressor{
+    IsControllable:b=no
+    Type:i=1
+    NumSteps:i=1
+    RPM0:r=500.0
+    ATA0:r=0.65
+    RPM1:r=1750.0
+    ATA1:r=1.0
+    RPM2:r=1900.0
+    ATA2:r=1.015
+    RPM3:r=2000.0
+    ATA3:r=1.03
+    RPM4:r=2100.0
+    ATA4:r=1.184
+    RPM5:r=2300.0
+    ATA5:r=1.25
+    ExactAltitudes:b=yes
+    CompressorOmegaFactorSq:r=0.0
+    CompressorPressureAtRPM0:r=0.3
+    Altitude0:r=3400.0
+    AfterburnerBoostMul0:r=1.0
+    Power0:r=740.0
+    AltitudeConstRPM0:r=3400.0
+    PowerConstRPM0:r=740.0
+    PowerConstRPMCurvature0:r=1.0
+    Ceiling0:r=3401.0
+    PowerAtCeiling0:r=740.0
+    AfterburnerManifoldPressure:r=1.3
+    SpeedManifoldMultiplier:r=1.0
+    ExternalPressureLimit:b=no
+    AllowAutoTurboCharger:b=no
+    TurboChargerRPMMin:r=0.0
+    TurboChargerRPMMaxAllowed:r=18250.0
+    TurboChargerRPMMax:r=25000.0
+    TurboChargerTimeConst:r=1.0
+  }
+
+  Mixer{
+    IsControllable:b=no
+    Type:i=0
+    AltitudePressureToP0:r=0.54
+  }
+
+  Controls{
+    hasThrottleControl:b=yes
+    hasMagnetoControl:b=yes
+    hasRadiatorControl:b=no
+    hasOilRadiatorControl:b=no
+    hasCommonRadiator:b=no
+  }
+}
+
+Engine1{
+  Position:p3=2.18, 0.0, 2.6
+  Direction:p2=-0.0, 0.0
+  PropPos:p3=2.24, -0.55, -2.6
+
+  Main{
+    FuelSystemNum:i=0
+    Type:t="Radial"
+    Cylinders:i=9
+    Mass:r=485.0
+    Thrust:r=10.7
+    ThrottleBoost:r=1.001
+    AfterburnerBoost:r=1.061
+    RPMMin:r=390.0
+    RPMMax:r=2301.0
+    RPMMaxAllowed:r=2500.0
+    FuelConsumptionOnIdle:r=0.4
+    FuelConsumptionOnHalfThr:r=0.22
+    FuelConsumptionOnFullThr:r=0.3
+    FuelConsumptionOnWEP:r=0.32
+    CarbueretorType:i=2
+    CarbureutorCapacity:r=0.1303
+    IsAutonomous:b=yes
+    ExtinguisherNum:i=0
+    MinThrMult:r=0.115
+    MaxThrMult:r=1.0
+    IsWaterCooled:b=no
+    EngineInertiaMoment:r=1.0
+    EngineAcceleration:r=4.0
+    RPMAmplitude0:p2=2300.0, 0.0
+    RPMAmplitude1:p2=0.0, 10.0
+    ConsumptionOmegaMax:r=1.05
+    ConsumptionOmegaMinCoeff:r=6.1897
+    ThrustOmegaMinCoeff:r=0.0016
+    TorqueOmegaMinCoeff:r=1.0
+    TorqueZeroOmegaMult:r=3.0
+    TurbineTimeConstant:r=3.4
+    Power:r=670.0
+
+    ThrustMax{
+      ThrustMax0:r=2700.0
+    }
+  }
+
+  Propellor{
+    AllowAutoProp:b=no
+    IsControllable:b=yes
+    HasFeatheringControl:b=yes
+    UseAutoPropInertia:b=no
+    Reductor:r=0.6548
+    NumBlades:i=3
+    AdvancedPropRadius:r=1.75
+    PropPhi0:r=18.0
+    PropWidth0:r=0.12
+    PropPhi1:r=9.0
+    PropWidth1:r=0.15
+    PropPhi2:r=0.0
+    PropWidth2:r=0.14
+    PropPhi3:r=-8.0
+    PropWidth3:r=0.07
+    InertiaMomentCoeff:r=1.0
+    Diameter:r=3.5
+    Mass:r=130.0
+    GovernorType:i=2
+    GovernorSpeed:r=0.5
+    GovernorMinParam:r=1100.0
+    GovernorMaxParam:r=2300.0
+    GovernorAfterburnerParam:r=2301.0
+    PhiMin:r=14.0
+    PhiMax:r=66.0
+    PhiAlpha0:r=12.0
+    PhiFeather:r=1.5
+    Direction:i=0
+    CoaxProps:b=no
+    ThrottleRPMAuto0:p2=0.0, 1100.0
+    ThrottleRPMAuto1:p2=0.4, 1750.0
+    ThrottleRPMAuto2:p2=0.9, 2100.0
+    ThrottleRPMAuto3:p2=1.0, 2300.0
+    ThrottleRPMAuto4:p2=1.1, 2301.0
+
+    Polar{
+      lineClCoeff:r=0.075
+      Cl0:r=0.1
+      alphaCritHigh:r=18.0
+      alphaCritLow:r=-14.0
+      ClCritHigh:r=1.3
+      ClCritLow:r=-0.8
+      CdMin:r=0.01
+      AfterCritParabAngle:r=3.0
+      AfterCritDeclineCoeff:r=0.02
+      AfterCritMaxDistanceAngle:r=36.0
+      ClAfterCrit:r=1.05
+      MachFactor:i=3
+      CombinedCl:b=no
+      MachCrit1:r=0.8
+      MachMax1:r=1.0
+      MultMachMax1:r=3.0
+      MultLineCoeff1:r=-3.2
+      MultLimit1:r=1.0
+      MachCrit2:r=0.8
+      MachMax2:r=1.0
+      MultMachMax2:r=3.0
+      MultLineCoeff2:r=-7.7
+      MultLimit2:r=1.0
+      MachCrit3:r=0.25
+      MachMax3:r=1.0
+      MultMachMax3:r=0.32
+      MultLineCoeff3:r=-0.44
+      MultLimit3:r=0.25
+      MachCrit4:r=0.25
+      MachMax4:r=1.0
+      MultMachMax4:r=0.4
+      MultLineCoeff4:r=-0.2
+      MultLimit4:r=0.25
+      MachCrit5:r=0.01
+      MachMax5:r=0.02
+      MultMachMax5:r=19.0
+      MultLineCoeff5:r=1.0
+      MultLimit5:r=19.0
+      MachCrit6:r=0.0
+      MachMax6:r=0.0
+      MultMachMax6:r=0.0
+      MultLineCoeff6:r=0.0
+      MultLimit6:r=0.0
+    }
+  }
+
+  Afterburner{
+    IsControllable:b=yes
+    Type:i=6
+    NitroConsumption:r=0.0
+  }
+
+  Temperature{
+    RadiatorType:i=3
+    OilRadiatorType:i=3
+    TempChangeSpeed:r=0.01
+    WaterMaxRPMTemp:r=210.0
+    OilOutMaxRPMTemp:r=70.0
+    OverheatTime:r=90.0
+    UnderheatTime:r=999.0
+    WaterMaxTemp:r=215.0
+    EmptyWaterPipeMaxRPMTemp:r=537.5
+    WaterMinTemp:r=60.0
+    OilMaxTemp:r=100.0
+    EmptyOilPipeOutMaxRPMTemp:r=130.0
+    OilMinTemp:r=50.0
+    EffectiveRadSpeed:r=200.0
+    IneffectiveRadMult:r=1.1
+    AdvancedThermodynamics:b=yes
+    NoIgnitionWaterHeatProducingFactor:r=0.15
+    WaterTemperatureInertia:r=0.75
+    WaterAirDensityPower:r=0.0
+    WaterRadiatorEffectPower:r=5.0
+    WaterMinRadiatorThermalConductionCoeff:r=0.77
+    WaterMinThermostatThermalConductionCoeff:r=0.3
+    WaterMinLevelThermalConductionCoeff:r=0.2
+    WaterBoilingTemperature:r=265.0
+    WaterThermostatInertia:r=20.0
+    WaterThermostatSetPoint:r=80.0
+    NoFlowMode:i=1
+    NoIgnitionOilHeatProducingFactor:r=0.15
+    OilTemperatureInertia:r=1.6
+    OilRadiatorEffectPower:r=5.0
+    OilMinRadiatorThermalConductionCoeff:r=0.69
+    OilMinThermostatThermalConductionCoeff:r=0.3
+    OilMinLevelThermalConductionCoeff:r=0.2
+    OilAirDensityPower:r=0.0
+    OilBoilingTemperature:r=160.0
+    OilThermostatInertia:r=20.0
+    OilThermostatSetPoint:r=45.0
+    DegradationTime_10_5:p2=180.0, 171.0
+    HalfHealthWaterTemperatureToleranceDecrease:r=21.0
+    HalfHealthOilTemperatureToleranceDecrease:r=10.0
+    CoolingEffectiveAirSpeed:r=307.488
+    WaterTemperatureNoFlow:r=260.0
+    OilTemperatureNoFlow:r=100.0
+
+    Mode0{
+      Altitude:r=1000.0
+      RPM:r=400.0
+      ManifoldPressure:r=0.61
+      WaterTemperature:r=140.0
+      OilTemperature:r=51.0
+    }
+
+    Mode1{
+      Altitude:r=1000.0
+      RPM:r=1750.0
+      ManifoldPressure:r=1.0
+      WaterTemperature:r=204.0
+      OilTemperature:r=71.0
+    }
+
+    Mode2{
+      Altitude:r=1000.0
+      RPM:r=2100.0
+      ManifoldPressure:r=1.184
+      WaterTemperature:r=216.0
+      OilTemperature:r=79.0
+    }
+
+    Mode3{
+      Altitude:r=1000.0
+      RPM:r=2300.0
+      ManifoldPressure:r=1.25
+      WaterTemperature:r=240.0
+      OilTemperature:r=90.0
+    }
+
+    Load0{
+      WaterTemperature:r=150.0
+      OilTemperature:r=60.0
+    }
+
+    Load1{
+      WaterTemperature:r=200.0
+      OilTemperature:r=70.0
+      WorkTime:r=7200.0
+      RecoverTime:r=3600.0
+    }
+
+    Load2{
+      WaterTemperature:r=220.0
+      OilTemperature:r=80.0
+      WorkTime:r=3600.0
+      RecoverTime:r=1800.0
+    }
+
+    Load3{
+      WaterTemperature:r=240.0
+      OilTemperature:r=90.0
+      WorkTime:r=304.0
+      RecoverTime:r=150.0
+    }
+
+    Load4{
+      WaterTemperature:r=250.0
+      OilTemperature:r=95.0
+      WorkTime:r=124.0
+      RecoverTime:r=60.0
+    }
+
+    RadiatorMode0{
+      Throttle:r=0.4
+      WaterTemperature:r=200.0
+      OilTemperature:r=70.0
+    }
+
+    RadiatorMode1{
+      Throttle:r=0.9
+      WaterTemperature:r=220.0
+      OilTemperature:r=80.0
+    }
+
+    RadiatorMode2{
+      Throttle:r=1.0
+      WaterTemperature:r=240.0
+      OilTemperature:r=90.0
+    }
+  }
+
+  Compressor{
+    IsControllable:b=no
+    Type:i=1
+    NumSteps:i=1
+    RPM0:r=500.0
+    ATA0:r=0.65
+    RPM1:r=1750.0
+    ATA1:r=1.0
+    RPM2:r=1900.0
+    ATA2:r=1.015
+    RPM3:r=2000.0
+    ATA3:r=1.03
+    RPM4:r=2100.0
+    ATA4:r=1.184
+    RPM5:r=2300.0
+    ATA5:r=1.25
+    ExactAltitudes:b=yes
+    CompressorOmegaFactorSq:r=0.0
+    CompressorPressureAtRPM0:r=0.3
+    Altitude0:r=3400.0
+    AfterburnerBoostMul0:r=1.0
+    Power0:r=740.0
+    AltitudeConstRPM0:r=3400.0
+    PowerConstRPM0:r=740.0
+    PowerConstRPMCurvature0:r=1.0
+    Ceiling0:r=3401.0
+    PowerAtCeiling0:r=740.0
+    AfterburnerManifoldPressure:r=1.3
+    SpeedManifoldMultiplier:r=1.0
+    ExternalPressureLimit:b=no
+    AllowAutoTurboCharger:b=no
+    TurboChargerRPMMin:r=0.0
+    TurboChargerRPMMaxAllowed:r=18250.0
+    TurboChargerRPMMax:r=25000.0
+    TurboChargerTimeConst:r=1.0
+  }
+
+  Mixer{
+    IsControllable:b=no
+    Type:i=0
+    AltitudePressureToP0:r=0.54
+  }
+
+  Controls{
+    hasThrottleControl:b=yes
+    hasMagnetoControl:b=yes
+    hasRadiatorControl:b=no
+    hasOilRadiatorControl:b=no
+    hasCommonRadiator:b=no
+  }
+}
+
+Engine2{
+  Position:p3=2.18, 0.0, -2.6
+  Direction:p2=-0.0, 0.0
+  PropPos:p3=3.9, 0.0, 0.0
+
+  Main{
+    FuelSystemNum:i=0
+    Type:t="Radial"
+    Cylinders:i=9
+    Mass:r=485.0
+    Thrust:r=10.7
+    ThrottleBoost:r=1.001
+    AfterburnerBoost:r=1.061
+    RPMMin:r=390.0
+    RPMMax:r=2301.0
+    RPMMaxAllowed:r=2500.0
+    FuelConsumptionOnIdle:r=0.4
+    FuelConsumptionOnHalfThr:r=0.22
+    FuelConsumptionOnFullThr:r=0.3
+    FuelConsumptionOnWEP:r=0.32
+    CarbueretorType:i=2
+    CarbureutorCapacity:r=0.1303
+    IsAutonomous:b=yes
+    ExtinguisherNum:i=0
+    MinThrMult:r=0.115
+    MaxThrMult:r=1.0
+    IsWaterCooled:b=no
+    EngineInertiaMoment:r=1.0
+    EngineAcceleration:r=4.0
+    RPMAmplitude0:p2=2300.0, 0.0
+    RPMAmplitude1:p2=0.0, 10.0
+    ConsumptionOmegaMax:r=1.05
+    ConsumptionOmegaMinCoeff:r=6.1897
+    ThrustOmegaMinCoeff:r=0.0016
+    TorqueOmegaMinCoeff:r=1.0
+    TorqueZeroOmegaMult:r=3.0
+    TurbineTimeConstant:r=3.4
+    Power:r=670.0
+
+    ThrustMax{
+      ThrustMax0:r=2700.0
+    }
+  }
+
+  Propellor{
+    AllowAutoProp:b=no
+    IsControllable:b=yes
+    HasFeatheringControl:b=yes
+    UseAutoPropInertia:b=no
+    Reductor:r=0.6548
+    NumBlades:i=3
+    AdvancedPropRadius:r=1.75
+    PropPhi0:r=18.0
+    PropWidth0:r=0.12
+    PropPhi1:r=9.0
+    PropWidth1:r=0.15
+    PropPhi2:r=0.0
+    PropWidth2:r=0.14
+    PropPhi3:r=-8.0
+    PropWidth3:r=0.07
+    InertiaMomentCoeff:r=1.0
+    Diameter:r=3.5
+    Mass:r=130.0
+    GovernorType:i=2
+    GovernorSpeed:r=0.5
+    GovernorMinParam:r=1100.0
+    GovernorMaxParam:r=2300.0
+    GovernorAfterburnerParam:r=2301.0
+    PhiMin:r=14.0
+    PhiMax:r=66.0
+    PhiAlpha0:r=12.0
+    PhiFeather:r=1.5
+    Direction:i=0
+    CoaxProps:b=no
+    ThrottleRPMAuto0:p2=0.0, 1100.0
+    ThrottleRPMAuto1:p2=0.4, 1750.0
+    ThrottleRPMAuto2:p2=0.9, 2100.0
+    ThrottleRPMAuto3:p2=1.0, 2300.0
+    ThrottleRPMAuto4:p2=1.1, 2301.0
+
+    Polar{
+      lineClCoeff:r=0.075
+      Cl0:r=0.1
+      alphaCritHigh:r=18.0
+      alphaCritLow:r=-14.0
+      ClCritHigh:r=1.3
+      ClCritLow:r=-0.8
+      CdMin:r=0.01
+      AfterCritParabAngle:r=3.0
+      AfterCritDeclineCoeff:r=0.02
+      AfterCritMaxDistanceAngle:r=36.0
+      ClAfterCrit:r=1.05
+      MachFactor:i=3
+      CombinedCl:b=no
+      MachCrit1:r=0.8
+      MachMax1:r=1.0
+      MultMachMax1:r=3.0
+      MultLineCoeff1:r=-3.2
+      MultLimit1:r=1.0
+      MachCrit2:r=0.8
+      MachMax2:r=1.0
+      MultMachMax2:r=3.0
+      MultLineCoeff2:r=-7.7
+      MultLimit2:r=1.0
+      MachCrit3:r=0.25
+      MachMax3:r=1.0
+      MultMachMax3:r=0.32
+      MultLineCoeff3:r=-0.44
+      MultLimit3:r=0.25
+      MachCrit4:r=0.25
+      MachMax4:r=1.0
+      MultMachMax4:r=0.4
+      MultLineCoeff4:r=-0.2
+      MultLimit4:r=0.25
+      MachCrit5:r=0.01
+      MachMax5:r=0.02
+      MultMachMax5:r=19.0
+      MultLineCoeff5:r=1.0
+      MultLimit5:r=19.0
+      MachCrit6:r=0.0
+      MachMax6:r=0.0
+      MultMachMax6:r=0.0
+      MultLineCoeff6:r=0.0
+      MultLimit6:r=0.0
+    }
+  }
+
+  Afterburner{
+    IsControllable:b=yes
+    Type:i=6
+    NitroConsumption:r=0.0
+  }
+
+  Temperature{
+    RadiatorType:i=3
+    OilRadiatorType:i=3
+    TempChangeSpeed:r=0.01
+    WaterMaxRPMTemp:r=210.0
+    OilOutMaxRPMTemp:r=70.0
+    OverheatTime:r=90.0
+    UnderheatTime:r=999.0
+    WaterMaxTemp:r=215.0
+    EmptyWaterPipeMaxRPMTemp:r=537.5
+    WaterMinTemp:r=60.0
+    OilMaxTemp:r=100.0
+    EmptyOilPipeOutMaxRPMTemp:r=130.0
+    OilMinTemp:r=50.0
+    EffectiveRadSpeed:r=200.0
+    IneffectiveRadMult:r=1.1
+    AdvancedThermodynamics:b=yes
+    NoIgnitionWaterHeatProducingFactor:r=0.15
+    WaterTemperatureInertia:r=0.75
+    WaterAirDensityPower:r=0.0
+    WaterRadiatorEffectPower:r=5.0
+    WaterMinRadiatorThermalConductionCoeff:r=0.77
+    WaterMinThermostatThermalConductionCoeff:r=0.3
+    WaterMinLevelThermalConductionCoeff:r=0.2
+    WaterBoilingTemperature:r=265.0
+    WaterThermostatInertia:r=20.0
+    WaterThermostatSetPoint:r=80.0
+    NoFlowMode:i=1
+    NoIgnitionOilHeatProducingFactor:r=0.15
+    OilTemperatureInertia:r=1.6
+    OilRadiatorEffectPower:r=5.0
+    OilMinRadiatorThermalConductionCoeff:r=0.69
+    OilMinThermostatThermalConductionCoeff:r=0.3
+    OilMinLevelThermalConductionCoeff:r=0.2
+    OilAirDensityPower:r=0.0
+    OilBoilingTemperature:r=160.0
+    OilThermostatInertia:r=20.0
+    OilThermostatSetPoint:r=45.0
+    DegradationTime_10_5:p2=180.0, 171.0
+    HalfHealthWaterTemperatureToleranceDecrease:r=21.0
+    HalfHealthOilTemperatureToleranceDecrease:r=10.0
+    CoolingEffectiveAirSpeed:r=307.488
+    WaterTemperatureNoFlow:r=260.0
+    OilTemperatureNoFlow:r=100.0
+
+    Mode0{
+      Altitude:r=1000.0
+      RPM:r=400.0
+      ManifoldPressure:r=0.61
+      WaterTemperature:r=140.0
+      OilTemperature:r=51.0
+    }
+
+    Mode1{
+      Altitude:r=1000.0
+      RPM:r=1750.0
+      ManifoldPressure:r=1.0
+      WaterTemperature:r=204.0
+      OilTemperature:r=71.0
+    }
+
+    Mode2{
+      Altitude:r=1000.0
+      RPM:r=2100.0
+      ManifoldPressure:r=1.184
+      WaterTemperature:r=216.0
+      OilTemperature:r=79.0
+    }
+
+    Mode3{
+      Altitude:r=1000.0
+      RPM:r=2300.0
+      ManifoldPressure:r=1.25
+      WaterTemperature:r=240.0
+      OilTemperature:r=90.0
+    }
+
+    Load0{
+      WaterTemperature:r=150.0
+      OilTemperature:r=60.0
+    }
+
+    Load1{
+      WaterTemperature:r=200.0
+      OilTemperature:r=70.0
+      WorkTime:r=7200.0
+      RecoverTime:r=3600.0
+    }
+
+    Load2{
+      WaterTemperature:r=220.0
+      OilTemperature:r=80.0
+      WorkTime:r=3600.0
+      RecoverTime:r=1800.0
+    }
+
+    Load3{
+      WaterTemperature:r=240.0
+      OilTemperature:r=90.0
+      WorkTime:r=306.0
+      RecoverTime:r=150.0
+    }
+
+    Load4{
+      WaterTemperature:r=250.0
+      OilTemperature:r=95.0
+      WorkTime:r=127.0
+      RecoverTime:r=60.0
+    }
+
+    RadiatorMode0{
+      Throttle:r=0.4
+      WaterTemperature:r=200.0
+      OilTemperature:r=70.0
+    }
+
+    RadiatorMode1{
+      Throttle:r=0.9
+      WaterTemperature:r=220.0
+      OilTemperature:r=80.0
+    }
+
+    RadiatorMode2{
+      Throttle:r=1.0
+      WaterTemperature:r=240.0
+      OilTemperature:r=90.0
+    }
+  }
+
+  Compressor{
+    IsControllable:b=no
+    Type:i=1
+    NumSteps:i=1
+    RPM0:r=500.0
+    ATA0:r=0.65
+    RPM1:r=1750.0
+    ATA1:r=1.0
+    RPM2:r=1900.0
+    ATA2:r=1.015
+    RPM3:r=2000.0
+    ATA3:r=1.03
+    RPM4:r=2100.0
+    ATA4:r=1.184
+    RPM5:r=2300.0
+    ATA5:r=1.25
+    ExactAltitudes:b=yes
+    CompressorOmegaFactorSq:r=0.0
+    CompressorPressureAtRPM0:r=0.3
+    Altitude0:r=3400.0
+    AfterburnerBoostMul0:r=1.0
+    Power0:r=740.0
+    AltitudeConstRPM0:r=3400.0
+    PowerConstRPM0:r=740.0
+    PowerConstRPMCurvature0:r=1.0
+    Ceiling0:r=3401.0
+    PowerAtCeiling0:r=740.0
+    AfterburnerManifoldPressure:r=1.3
+    SpeedManifoldMultiplier:r=1.0
+    ExternalPressureLimit:b=no
+    AllowAutoTurboCharger:b=no
+    TurboChargerRPMMin:r=0.0
+    TurboChargerRPMMaxAllowed:r=18250.0
+    TurboChargerRPMMax:r=25000.0
+    TurboChargerTimeConst:r=1.0
+  }
+
+  Mixer{
+    IsControllable:b=no
+    Type:i=0
+    AltitudePressureToP0:r=0.54
+  }
+
+  Controls{
+    hasThrottleControl:b=yes
+    hasMagnetoControl:b=yes
+    hasRadiatorControl:b=no
+    hasOilRadiatorControl:b=no
+    hasCommonRadiator:b=no
+  }
+}
+
+Mass{
+  EmptyMass:r=7082.0
+  MaxFuelMass0:r=2391.0
+  FuelAccumulatorCapacity0:r=0.95
+  FuelAccumulatorLink0:i=1
+  MinimalLoadFactor:r=0.0
+  FuelAccumulatorFlowRate:r=0.19
+  MaxNitro:r=0.0
+  OilMass:r=128.0
+  AdvancedMass:b=yes
+  SeparateFuelTanks:b=yes
+  Takeoff:r=10740.0
+  CenterOfGravity:p3=-0.1, 0.5, 0.0
+  WingCritOverload:p2=-120000.0, 193592.0
+  GearDestructionIndSpeed:r=300.0
+  FlapsDestructionIndSpeedP1:p2=0.1, 480.0
+  FlapsDestructionIndSpeedP2:p2=1.0, 280.0
+
+  Parts{
+    engine3_dm:r=1185.0
+    engine2_dm:r=1185.0
+    engine1_dm:r=1185.0
+    tank1_capacity:r=108.0
+    tank1_system:i=0
+    tank1_priority:i=2
+    tank1_external:b=no
+    tank2_capacity:r=295.0
+    tank2_system:i=0
+    tank2_priority:i=1
+    tank2_external:b=no
+    tank3_capacity:r=508.0
+    tank3_system:i=0
+    tank3_priority:i=3
+    tank3_external:b=no
+    tank4_capacity:r=508.0
+    tank4_system:i=0
+    tank4_priority:i=3
+    tank4_external:b=no
+    tank5_capacity:r=295.0
+    tank5_system:i=0
+    tank5_priority:i=1
+    tank5_external:b=no
+    tank6_capacity:r=108.0
+    tank6_system:i=0
+    tank6_priority:i=2
+    tank6_external:b=no
+    tank7_capacity:r=569.0
+    tank7_system:i=0
+    tank7_priority:i=3
+    tank7_external:b=no
+  }
+
+  PartsWithSurface{
+    wingcontrol_dm:r=2.0
+    wingcontrol_l_dm:r=6.0
+    fuse2_dm:r=1200.0
+    fuse1_dm:r=900.0
+    stab_dm:r=60.0
+    fin_dm:r=40.0
+    wing_l_dm:r=229.828
+    wing1_l_dm:r=319.772
+    wing2_l_dm:r=207.37
+    spar2_l_dm:r=33.254
+    spar_l_dm:r=28.7015
+    spar1_l_dm:r=41.1768
+    spar1_r_dm:r=41.1768
+    spar2_r_dm:r=33.254
+    wing1_r_dm:r=319.772
+    wing2_r_dm:r=207.37
+    cover2_dm:r=217.234
+    cover1_dm:r=219.536
+    gunner3_dm:r=90.0
+    gunner4_dm:r=90.0
+    flap_r_dm:r=75.0
+    flap_l_dm:r=75.0
+    aileron_r_dm:r=25.0
+    aileron_l_dm:r=25.0
+    gunner1_dm:r=90.0
+    pilot1_dm:r=90.0
+    pilot_dm:r=90.0
+    gear_c_dm:r=45.0
+    oil6_dm:r=25.0
+    oil5_dm:r=25.0
+    oil4_dm:r=25.0
+    cover6_dm:r=18.0874
+    cover5_dm:r=18.0874
+    cover4_dm:r=18.0874
+    mgun1_dm:r=9.0
+    oil3_dm:r=30.0
+    oil1_dm:r=25.0
+    oil2_dm:r=25.0
+    gun2_dm:r=12.0
+    cover3_dm:r=87.3383
+    gun3_dm:r=12.0
+    gun4_dm:r=12.0
+    gun1_dm:r=12.0
+    wing_r_dm:r=229.828
+    tail_dm:r=130.0
+    rudder_dm:r=20.0
+    fuse_dm:r=150.0
+    elevator_dm:r=20.0
+    gear_r_dm:r=150.0
+    gear_l_dm:r=150.0
+    wingcontrol_r_dm:r=6.0
+    tailcontrol_dm:r=7.0
+    spar_r_dm:r=28.7015
+  }
+}
+
+SelfSealingTanks{
+  tank1_dm:b=yes
+  tank2_dm:b=yes
+  tank3_dm:b=yes
+  tank4_dm:b=yes
+  tank5_dm:b=yes
+  tank6_dm:b=yes
+  tank7_dm:b=yes
+  tank8_dm:b=yes
+}
+
+Gear{
+  SinkFactor:r=2000.0
+  SinkRateMult:r=0.05
+  WaterFriction:r=1.0
+  WaterFrictionDefault:r=2.5
+  UseCenterOfGravity:b=yes
+  RetractableTailStrut:b=no
+  SteerableWheel:b=no
+  FullBrakeSlidingFrictionMult:r=0.4
+  FrontalSpringsHeight:r=0.3
+  TailSpringsHeight:r=0.1
+  FrontalSpringsCoeff:r=1023720.0
+  TailSpringsCoeff:r=1023720.0
+  HasWheels:b=yes
+  LeftWheelRadius:r=0.4
+  RightWheelRadius:r=0.4
+  CenterWheelRadius:r=0.3
+  Height:r=2.25
+  Pitch:r=12.0
+  WaterWaveHeightForCheck:p2=0.0, 100.0
+  WaterSpeedPropCheckVal:p2=0.1, 0.1
+  Floats:b=no
+}
+
+Passport{
+  mass:r=0.0
+  climbSpeedNum:i=0
+  climbSpeedIAS:b=yes
+  turnTimeFlaps:i=0
+
+  Alt{
+  }
+
+  IAS{
+  }
+}
+
+Test{
+  mass:r=10740.0
+}

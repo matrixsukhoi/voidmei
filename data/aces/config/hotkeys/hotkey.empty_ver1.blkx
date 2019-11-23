@@ -1,0 +1,66 @@
+controls{
+  version:i=5
+
+  hotkeys{
+
+    ID_CONTINUE{
+      keyboardKey:i=57
+    }
+
+    ID_FLIGHTMENU{
+      keyboardKey:i=1
+    }
+  }
+
+  axes{
+  }
+
+  squarePairs{
+  }
+
+  params{
+    USEROPT_HELPERS_MODE:i=0
+    USEROPT_MOUSE_USAGE:i=1
+    USEROPT_MOUSE_USAGE_NO_AIM:i=2
+    USEROPT_INSTRUCTOR_ENABLED:b=yes
+    USEROPT_AUTOTRIM:b=yes
+    USEROPT_AUTOMATIC_TRANSMISSION_TANK:b=yes
+    USEROPT_SEPERATED_ENGINE_CONTROL_SHIP:b=no
+    USEROPT_INSTRUCTOR_GROUND_AVOIDANCE:b=yes
+    USEROPT_INSTRUCTOR_GEAR_CONTROL:b=yes
+    USEROPT_INSTRUCTOR_FLAPS_CONTROL:b=yes
+    USEROPT_INSTRUCTOR_ENGINE_CONTROL:b=yes
+    USEROPT_INSTRUCTOR_SIMPLE_JOY:b=yes
+    USEROPT_AILERONS_MULTIPLIER:i=79
+    USEROPT_ELEVATOR_MULTIPLIER:i=64
+    USEROPT_RUDDER_MULTIPLIER:i=43
+    USEROPT_MOUSE_SENSE:i=25
+    USEROPT_MOUSE_AIM_SENSE:i=25
+    USEROPT_GUNNER_VIEW_SENSE:i=50
+    USEROPT_MOUSE_SMOOTH:b=no
+    USEROPT_INVERTY:b=no
+    USEROPT_INVERTX:i=0
+    USEROPT_INVERTY_TANK:b=no
+    USEROPT_GUNNER_INVERTY:b=no
+    USEROPT_FORCE_GAIN:i=50
+    USEROPT_FREE_CAMERA_INERTIA:i=100
+    USEROPT_REPLAY_CAMERA_WIGGLE:i=100
+    USEROPT_FPS_CAMERA_PHYSICS:i=50
+    USEROPT_ZOOM_SENSE:i=100
+    USEROPT_HEADTRACK_ENABLE:b=no
+    USEROPT_HEADTRACK_SCALE_X:i=5
+    USEROPT_HEADTRACK_SCALE_Y:i=5
+    useX360:b=no
+    isXInput:b=no
+    isHatViewMouse:b=yes
+    trackIrZoom:b=yes
+    cameraSmooth:r=0.0
+    cameraSpeed:r=4.0
+    cameraMouseSpeed:r=4.0
+    isMouseLookHold:b=yes
+    isFlightStick:b=no
+    holdThrottleForWEP:b=yes
+    useMouseAim:b=yes
+    mouseJoystick:b=yes
+  }
+}

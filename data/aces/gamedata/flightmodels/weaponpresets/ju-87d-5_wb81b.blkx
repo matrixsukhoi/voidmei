@@ -1,0 +1,181 @@
+overrideFM{
+
+  AvailableControls{
+    hasAirbrake:b=no
+  }
+}
+
+hideNodes{
+  node:t="pylon_bomb1"
+  node:t="pylon_bomb2"
+  node:t="pylon_bomb3"
+  node:t="pylon_bomb4"
+  node:t="wb151_r"
+  node:t="wb151_l"
+  node:t="flare6"
+  node:t="flare7"
+  node:t="flare8"
+  node:t="flare9"
+  node:t="airbrake_l"
+  node:t="airbrake_l1"
+  node:t="abpoint_l"
+  node:t="airbrake_r"
+  node:t="airbrake_r1"
+  node:t="abpoint_r"
+}
+
+Weapon{
+  trigger:t="additional gun"
+  blk:t="gameData/Weapons/gunMG81.blk"
+  emitter:t="flare10"
+  flash:t="flare10"
+  shell:t="emtr_shellrejection4"
+  bullets:i=250
+  traceOffset:i=1
+  spread:r=1.0
+  counterIndex:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="additional gun"
+  blk:t="gameData/Weapons/gunMG81.blk"
+  emitter:t="flare11"
+  flash:t="flare11"
+  shell:t="emtr_shellrejection4"
+  bullets:i=250
+  traceOffset:i=1
+  spread:r=1.0
+  counterIndex:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="additional gun"
+  blk:t="gameData/Weapons/gunMG81.blk"
+  emitter:t="flare12"
+  flash:t="flare12"
+  shell:t="emtr_shellrejection4"
+  bullets:i=250
+  traceOffset:i=1
+  spread:r=1.0
+  counterIndex:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="additional gun"
+  blk:t="gameData/Weapons/gunMG81.blk"
+  emitter:t="flare13"
+  flash:t="flare13"
+  shell:t="emtr_shellrejection4"
+  bullets:i=250
+  traceOffset:i=1
+  spread:r=1.0
+  counterIndex:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="additional gun"
+  blk:t="gameData/Weapons/gunMG81.blk"
+  emitter:t="flare14"
+  flash:t="flare14"
+  shell:t="emtr_shellrejection4"
+  bullets:i=250
+  traceOffset:i=1
+  spread:r=1.0
+  counterIndex:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="additional gun"
+  blk:t="gameData/Weapons/gunMG81.blk"
+  emitter:t="flare15"
+  flash:t="flare15"
+  shell:t="emtr_shellrejection4"
+  bullets:i=250
+  traceOffset:i=1
+  spread:r=1.0
+  counterIndex:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="additional gun"
+  blk:t="gameData/Weapons/gunMG81.blk"
+  emitter:t="flare16"
+  flash:t="flare16"
+  shell:t="emtr_shellrejection3"
+  bullets:i=250
+  traceOffset:i=1
+  spread:r=1.0
+  counterIndex:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="additional gun"
+  blk:t="gameData/Weapons/gunMG81.blk"
+  emitter:t="flare17"
+  flash:t="flare17"
+  shell:t="emtr_shellrejection3"
+  bullets:i=250
+  traceOffset:i=1
+  spread:r=1.0
+  counterIndex:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="additional gun"
+  blk:t="gameData/Weapons/gunMG81.blk"
+  emitter:t="flare18"
+  flash:t="flare18"
+  shell:t="emtr_shellrejection3"
+  bullets:i=250
+  traceOffset:i=1
+  spread:r=1.0
+  counterIndex:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="additional gun"
+  blk:t="gameData/Weapons/gunMG81.blk"
+  emitter:t="flare19"
+  flash:t="flare19"
+  shell:t="emtr_shellrejection3"
+  bullets:i=250
+  traceOffset:i=1
+  spread:r=1.0
+  counterIndex:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="additional gun"
+  blk:t="gameData/Weapons/gunMG81.blk"
+  emitter:t="flare20"
+  flash:t="flare20"
+  shell:t="emtr_shellrejection3"
+  bullets:i=250
+  traceOffset:i=1
+  spread:r=1.0
+  counterIndex:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="additional gun"
+  blk:t="gameData/Weapons/gunMG81.blk"
+  emitter:t="flare21"
+  flash:t="flare21"
+  shell:t="emtr_shellrejection3"
+  bullets:i=250
+  traceOffset:i=1
+  spread:r=1.0
+  counterIndex:i=1
+  external:b=yes
+}

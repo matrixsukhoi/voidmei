@@ -1,0 +1,34 @@
+hasDmg2:b=no
+hasDmg2Aces:b=no
+hasDmg:b=no
+hasExpl:b=no
+damageableByGun:b=no
+expClass:t="exp_bridge"
+model:t="airshow_balloon_a"
+subclass:t="fortification"
+dynCollisionGeom:b=yes
+
+DamageParts{
+
+  armor99{
+
+    body_dm{
+      hp:r=10000.0
+    }
+  }
+}
+
+DamageEffects{
+
+  part{
+    name:t="body_dm"
+
+    onHit{
+      fire:r=1.0
+    }
+
+    onKill{
+      expl:r=1.0
+    }
+  }
+}

@@ -1,0 +1,1834 @@
+model:t="m18_hellcat_black_cat"
+hasExpl:b=no
+hasDmg2:b=no
+hasQualityModels:b=yes
+collisionSphere0:p4=0.0, -1.5, 0.0, 5.0
+collisionSphere1:p4=5.0, 2.0, 0.0, 1.0
+exhaustFx:t="tank_exhaust"
+support_unit_class:t="structures/ussr_152mm_d1"
+support_unit_tag:t="artillery"
+useSimpleDeathConditionsAndEffects:b=no
+subclass:t="heavyVehicle"
+onRadarAs:t="tracked"
+moveType:t="vehicle"
+maxFwdSpeed:r=60.0
+maxRevSpeed:r=10.0
+maxAngSpeed:r=30.0
+maxAccel:r=4.0
+maxDecel:r=8.0
+maxAngAccel0:r=20.0
+maxAngAccelV:r=0.0
+maxAngAccel:r=40.0
+groundNormSmoothViscosity:r=0.1
+minDistBetween:r=10.0
+expClass:t="exp_tank_destroyer"
+mass:r=17690.0
+bulletHitFx:t="ground_model_hit"
+partDamageFx:t="part_damage"
+explosionFx:t="tank_explosion"
+fireFx:t="ground_model_fire"
+destroysRendInstances:b=yes
+destroysTrees:b=yes
+type:t="typeTankDestroyer"
+arcadeTurnPowerMult:r=0.1
+customClassIco:t="!#ui/unitskin_tank#us_m18_hellcat_black_cat_ico"
+customImage:t="!#ui/unitskin_tank#us_m18_hellcat_black_cat"
+customTooltipImage:t=""
+
+controlDevices{
+
+  device{
+    type:t="turretTurnH"
+    turnSpeed:r=0.6
+    node:t="bone_roll_turret_h"
+    node_handle:t="bone_roll_turret_h_handle"
+  }
+
+  device{
+    type:t="turretTurnV"
+    turnSpeed:r=-1.0
+    node:t="bone_roll_turret_v"
+    node_handle:t="bone_roll_turret_v_handle"
+  }
+
+  device{
+    type:t="steeringWheel"
+    turnSpeed:r=-3.0
+    node:t="bone_roll_driver"
+    absoluteValue:b=yes
+  }
+
+  device{
+    type:t="engineFan"
+    turnSpeed:r=1.0
+    node:t="bone_roll_engine_01"
+  }
+
+  device{
+    type:t="engineFan"
+    turnSpeed:r=1.0
+    node:t="bone_roll_engine_02"
+  }
+
+  device{
+    type:t="engineFan"
+    turnSpeed:r=1.0
+    node:t="bone_roll_engine_03"
+  }
+
+  device{
+    type:t="engineFan"
+    turnSpeed:r=1.0
+    node:t="bone_roll_engine_04"
+  }
+
+  device{
+    type:t="waterJetShutter"
+    turnSpeed:r=1.5
+    maxValue:r=-1.7
+    node:t="body_shutter_l"
+    absoluteValue:b=yes
+    progressive:b=yes
+  }
+
+  device{
+    type:t="waterJetShutter"
+    turnSpeed:r=1.5
+    maxValue:r=1.7
+    node:t="body_shutter_r"
+    absoluteValue:b=yes
+    progressive:b=yes
+  }
+}
+
+sound{
+  EngineName:t="engine_hellcat_m18"
+  TrackSoundPath:t="tanks/engines_tanks"
+  TrackSoundName:t="tracks_light"
+  TrackSoundNameCockpit:t="tracks_light_interior"
+  turret_turn:t="turret_turn_manual"
+  EngineNameAi:t="engine_tank_ai_light"
+  TrackSoundNameAi:t="tracks_ai_light"
+}
+
+DamageEffects{
+
+  part{
+    name:t="ammo_body_dm"
+    name:t="ammo_body_01_dm"
+    name:t="ammo_body_02_dm"
+    name:t="ammo_body_03_dm"
+    name:t="ammo_body_04_dm"
+    name:t="ammo_body_05_dm"
+    name:t="ammo_body_l_01_dm"
+    name:t="ammo_body_l_02_dm"
+    name:t="ammo_body_l_03_dm"
+    name:t="ammo_body_l_04_dm"
+    name:t="ammo_body_l_05_dm"
+    name:t="ammo_body_r_01_dm"
+    name:t="ammo_body_r_02_dm"
+    name:t="ammo_body_r_03_dm"
+    name:t="ammo_body_r_04_dm"
+    name:t="ammo_body_r_05_dm"
+    name:t="ammo_turret_dm"
+    name:t="ammo_turret_01_dm"
+    name:t="ammo_turret_02_dm"
+    name:t="ammo_turret_03_dm"
+    name:t="ammo_turret_04_dm"
+    name:t="ammo_turret_05_dm"
+
+    onHit{
+      fCumulative:b=yes
+      expl:r=0.4
+      fire:r=0.5
+      damage:r=75.0
+      fHitCritical:b=yes
+    }
+
+    onHit{
+      fCumulative:b=yes
+      expl:r=0.5
+      fire:r=0.5
+      damage:r=200.0
+      fHitCritical:b=yes
+    }
+
+    onHit{
+      fExplosion:b=yes
+      expl:r=0.1
+      fire:r=0.1
+      damage:r=20.0
+      fHitCritical:b=yes
+    }
+
+    onHit{
+      fExplosion:b=yes
+      expl:r=0.15
+      fire:r=0.15
+      damage:r=50.0
+      fHitCritical:b=yes
+    }
+
+    onHit{
+      fExplosion:b=yes
+      expl:r=0.2
+      fire:r=0.15
+      damage:r=200.0
+      fHitCritical:b=yes
+    }
+
+    onHit{
+      fExplosion:b=yes
+      expl:r=0.4
+      fire:r=0.2
+      damage:r=400.0
+      fHitCritical:b=yes
+    }
+
+    onHit{
+      fGeneric:b=yes
+      expl:r=0.05
+      fire:r=0.1
+      damage:r=70.0
+      fHitCritical:b=yes
+    }
+
+    onHit{
+      fGeneric:b=yes
+      expl:r=0.1
+      fire:r=0.2
+      damage:r=200.0
+      fHitCritical:b=yes
+    }
+
+    onHit{
+      fGeneric:b=yes
+      expl:r=0.1
+      fire:r=0.4
+      damage:r=300.0
+      fHitCritical:b=yes
+    }
+
+    onHit{
+      fSecondaryShatter:b=yes
+      fire:r=0.05
+      damage:r=50.0
+      fHitCritical:b=yes
+    }
+
+    onHit{
+      fSecondaryShatter:b=yes
+      fire:r=0.15
+      damage:r=150.0
+      fHitCritical:b=yes
+    }
+
+    onHit{
+      fSecondaryShatter:b=yes
+      fire:r=0.4
+      damage:r=200.0
+      fHitCritical:b=yes
+    }
+
+    onHit{
+      fFire:b=yes
+      fire:r=0.02
+      expl:r=0.01
+    }
+
+    onKill{
+      fCumulative:b=yes
+      expl:r=0.25
+      fire:r=0.25
+      nothing:r=0.5
+    }
+
+    onKill{
+      fExplosion:b=yes
+      expl:r=0.25
+      fire:r=0.25
+      nothing:r=0.5
+    }
+
+    onKill{
+      fGeneric:b=yes
+      expl:r=0.25
+      fire:r=0.25
+      nothing:r=0.5
+    }
+  }
+
+  part{
+    name:t="fuel_tank_dm"
+    name:t="fuel_tank_01_dm"
+    name:t="fuel_tank_02_dm"
+    name:t="fuel_tank_03_dm"
+    name:t="fuel_tank_04_dm"
+    name:t="fuel_tank_05_dm"
+    name:t="fuel_tank_r_01_dm"
+    name:t="fuel_tank_r_02_dm"
+    name:t="fuel_tank_r_03_dm"
+    name:t="fuel_tank_r_04_dm"
+    name:t="fuel_tank_r_05_dm"
+    name:t="fuel_tank_l_01_dm"
+    name:t="fuel_tank_l_02_dm"
+    name:t="fuel_tank_l_03_dm"
+    name:t="fuel_tank_l_04_dm"
+    name:t="fuel_tank_l_05_dm"
+
+    onHit{
+      fCumulative:b=yes
+      expl:r=0.1
+      fire:r=0.2
+      damage:r=100.0
+      fHitCritical:b=yes
+    }
+
+    onHit{
+      fCumulative:b=yes
+      expl:r=0.2
+      fire:r=0.3
+      damage:r=250.0
+      fHitCritical:b=yes
+    }
+
+    onHit{
+      fExplosion:b=yes
+      expl:r=0.125
+      fire:r=0.225
+      damage:r=25.0
+      fHitCritical:b=yes
+    }
+
+    onHit{
+      fExplosion:b=yes
+      expl:r=0.25
+      fire:r=0.35
+      damage:r=50.0
+      fHitCritical:b=yes
+    }
+
+    onHit{
+      fGeneric:b=yes
+      fire:r=0.1
+      damage:r=20.0
+      fHitCritical:b=yes
+    }
+
+    onHit{
+      fGeneric:b=yes
+      fire:r=0.25
+      damage:r=70.0
+      fHitCritical:b=yes
+    }
+
+    onHit{
+      fGeneric:b=yes
+      fire:r=0.4
+      damage:r=200.0
+      fHitCritical:b=yes
+    }
+
+    onHit{
+      fGeneric:b=yes
+      fire:r=0.8
+      damage:r=300.0
+      fHitCritical:b=yes
+    }
+
+    onHit{
+      fFire:b=yes
+      fire:r=0.2
+    }
+
+    onKill{
+      fire:r=0.3
+      nothing:r=0.7
+      fHitCritical:b=yes
+    }
+  }
+
+  part{
+    name:t="engine_dm"
+
+    onHit{
+      fCumulative:b=yes
+      fire:r=0.2
+      damage:r=75.0
+      fHitCritical:b=yes
+    }
+
+    onHit{
+      fExplosion:b=yes
+      fire:r=0.3
+      damage:r=30.0
+      fHitCritical:b=yes
+    }
+
+    onHit{
+      fGeneric:b=yes
+      fire:r=0.2
+      damage:r=70.0
+      fHitCritical:b=yes
+    }
+
+    onHit{
+      fGeneric:b=yes
+      fire:r=0.55
+      damage:r=300.0
+      fHitCritical:b=yes
+    }
+
+    onHit{
+      fGeneric:b=yes
+      fire:r=0.35
+      damage:r=200.0
+      fHitCritical:b=yes
+    }
+
+    onHit{
+      fGeneric:b=yes
+      fire:r=0.1
+      damage:r=20.0
+      fHitCritical:b=yes
+    }
+
+    onHit{
+      fFire:b=yes
+      fire:r=0.1
+    }
+
+    onKill{
+      fire:r=0.5
+      nothing:r=0.5
+      fHitCritical:b=yes
+    }
+  }
+
+  part{
+    name:t="transmission_dm"
+
+    onHit{
+      fCumulative:b=yes
+      fire:r=0.15
+      damage:r=75.0
+      fHitCritical:b=yes
+    }
+
+    onHit{
+      fExplosion:b=yes
+      fire:r=0.1
+      damage:r=30.0
+      fHitCritical:b=yes
+    }
+
+    onHit{
+      fGeneric:b=yes
+      fire:r=0.05
+      damage:r=70.0
+      fHitCritical:b=yes
+    }
+
+    onHit{
+      fGeneric:b=yes
+      fire:r=0.1
+      damage:r=200.0
+      fHitCritical:b=yes
+    }
+
+    onHit{
+      fFire:b=yes
+      fire:r=0.02
+    }
+  }
+
+  part{
+    name:t="wheel_r_drive_dm"
+
+    onKill{
+      track_r_dm:r=1.0
+    }
+  }
+
+  part{
+    name:t="wheel_r_back_dm"
+
+    onKill{
+      track_r_dm:r=1.0
+    }
+  }
+
+  part{
+    name:t="wheel_r_front_dm"
+
+    onKill{
+      track_r_dm:r=1.0
+    }
+  }
+
+  part{
+    name:t="wheel_l_drive_dm"
+
+    onKill{
+      track_l_dm:r=1.0
+    }
+  }
+
+  part{
+    name:t="wheel_l_back_dm"
+
+    onKill{
+      track_l_dm:r=1.0
+    }
+  }
+
+  part{
+    name:t="wheel_l_front_dm"
+
+    onKill{
+      track_l_dm:r=1.0
+    }
+  }
+}
+
+tank_crew{
+  changeTimeMult:r=1.0
+
+  gunner{
+    dmPart:t="gunner_dm"
+    role:t="tank_gunner"
+    substitute:t="machine_gunner"
+    substitute:t="commander"
+    substitute:t="loader"
+  }
+
+  driver{
+    dmPart:t="driver_dm"
+    role:t="driver"
+    substitute:t="machine_gunner"
+    substitute:t="commander"
+    substitute:t="loader"
+  }
+
+  loader{
+    dmPart:t="loader_dm"
+    role:t="loader"
+    substitute:t="machine_gunner"
+    substitute:t="commander"
+  }
+
+  commander{
+    dmPart:t="commander_dm"
+    role:t="commander"
+  }
+
+  machine_gunner{
+    dmPart:t="machine_gunner_dm"
+    role:t="radio_gunner"
+  }
+}
+
+MetaParts{
+
+  crew{
+    killAllPartsForDeath:b=yes
+    killNumPartsForDeath:i=4
+    part:t="loader_dm"
+    part:t="driver_dm"
+    part:t="gunner_dm"
+    part:t="machine_gunner_dm"
+    part:t="commander_dm"
+
+    effects{
+
+      killUnit{
+        nothing:r=1.0
+      }
+    }
+  }
+}
+
+class_tags{
+}
+
+ammo{
+  combustionTime:r=10.0
+  detonateProb:r=0.08
+  detonatePortion:p2=0.3, 0.9
+  explodeHitPower:r=500.0
+  hitPowerMult:r=1.0
+  nearHitPower:p2=1.0, 50.0
+  midHitPower:p2=0.9, 400.0
+  farHitPower:p2=0.1, 1000.0
+  endHitPower:p2=0.01, 1500.0
+  relativeVelHitShift:p2=300.0, 1000.0
+  nearArmorPower:p2=10.0, 50.0
+  midArmorPower:p2=7.0, 400.0
+  farArmorPower:p2=0.2, 700.0
+  relativeVelArmorShift:p2=200.0, 1000.0
+  explodeTreshold:r=0.0001
+  explodeArmorPower:r=30.0
+  explodeRadius:p2=1.5, 10.0
+}
+
+wreckedParts{
+
+  part{
+    node:t="bone_turret"
+    mass:r=3500.0
+    cutDamage:r=200.0
+    deviation:r=0.5
+    rotation:r=0.5
+    collisionNode:t="cls_turret_01"
+  }
+}
+
+unitFx{
+
+  event{
+    name:t="engine_fire"
+
+    fx{
+      name:t="tank_engine_fire"
+      emitter:t="emtr_fire_engine"
+    }
+
+    fx{
+      name:t="tank_engine_fire"
+      emitter:t="emtr_fire_engine_01"
+    }
+
+    fx{
+      name:t="tank_engine_fire"
+      emitter:t="emtr_fire_engine_02"
+    }
+
+    fx{
+      name:t="tank_engine_smoke"
+      emitter:t="emtr_fire_engine"
+    }
+
+    fx{
+      name:t="tank_engine_smoke"
+      emitter:t="emtr_fire_engine_01"
+    }
+
+    fx{
+      name:t="tank_engine_smoke"
+      emitter:t="emtr_fire_engine_02"
+    }
+  }
+
+  event{
+    name:t="ammo_fire"
+
+    fx{
+      name:t="tank_ammo_fire"
+      emitter:t="emtr_fire_ammo"
+    }
+
+    fx{
+      name:t="tank_ammo_fire"
+      emitter:t="emtr_fire_ammo_01"
+    }
+
+    fx{
+      name:t="tank_ammo_fire"
+      emitter:t="emtr_fire_ammo_02"
+    }
+  }
+
+  event{
+    name:t="light_smoke"
+
+    fx{
+      name:t="tank_smoke_small"
+      emitter:t="emtr_fire_ammo"
+    }
+
+    fx{
+      name:t="tank_smoke_small"
+      emitter:t="emtr_fire_ammo_01"
+    }
+
+    fx{
+      name:t="tank_smoke_small"
+      emitter:t="emtr_fire_ammo_02"
+    }
+  }
+
+  event{
+    name:t="total_smoke"
+
+    fx{
+      name:t="tank_smoke_big"
+      emitter:t="emtr_smoke_dmg"
+    }
+
+    fx{
+      name:t="tank_smoke_small"
+      emitter:t="emtr_smoke_small_dmg_01"
+    }
+
+    fx{
+      name:t="tank_smoke_small"
+      emitter:t="emtr_smoke_small_dmg_02"
+    }
+
+    fx{
+      name:t="tank_smoke_small"
+      emitter:t="emtr_smoke_small_dmg_03"
+    }
+
+    fx{
+      name:t="tank_smoke_small"
+      emitter:t="emtr_smoke_small_dmg_04"
+    }
+
+    fx{
+      name:t="tank_smoke_small"
+      emitter:t="emtr_smoke_small_dmg_05"
+    }
+
+    fx{
+      name:t="tank_smoke_small"
+      emitter:t="emtr_smoke_small_dmg_06"
+    }
+
+    fx{
+      name:t="tank_smoke_small"
+      emitter:t="emtr_smoke_small_dmg_07"
+    }
+
+    fx{
+      name:t="tank_smoke_small"
+      emitter:t="emtr_smoke_small_dmg_08"
+    }
+
+    fx{
+      name:t="tank_smoke_small"
+      emitter:t="emtr_smoke_small_dmg_09"
+    }
+
+    fx{
+      name:t="tank_smoke_small"
+      emitter:t="emtr_smoke_small_dmg_10"
+    }
+
+    fx{
+      name:t="tank_smoke_small"
+      emitter:t="emtr_smoke_small_dmg_11"
+    }
+
+    fx{
+      name:t="tank_smoke_small"
+      emitter:t="emtr_smoke_small_dmg_12"
+    }
+
+    fx{
+      name:t="tank_smoke_small"
+      emitter:t="emtr_smoke_small_dmg_13"
+    }
+
+    fx{
+      name:t="tank_smoke_small"
+      emitter:t="emtr_smoke_small_dmg_14"
+    }
+
+    fx{
+      name:t="tank_smoke_small"
+      emitter:t="emtr_smoke_small_dmg_15"
+    }
+
+    fx{
+      name:t="tank_smoke_small"
+      emitter:t="emtr_smoke_small_dmg_16"
+    }
+  }
+
+  event{
+    name:t="total_fire"
+
+    fx{
+      name:t="tank_smoke_big"
+      emitter:t="emtr_smoke_dmg"
+    }
+
+    fx{
+      name:t="tank_smoke_small"
+      emitter:t="emtr_smoke_small_dmg_01"
+    }
+
+    fx{
+      name:t="tank_smoke_small"
+      emitter:t="emtr_smoke_small_dmg_02"
+    }
+
+    fx{
+      name:t="tank_smoke_small"
+      emitter:t="emtr_smoke_small_dmg_03"
+    }
+
+    fx{
+      name:t="tank_smoke_small"
+      emitter:t="emtr_smoke_small_dmg_04"
+    }
+
+    fx{
+      name:t="tank_smoke_small"
+      emitter:t="emtr_smoke_small_dmg_05"
+    }
+
+    fx{
+      name:t="tank_smoke_small"
+      emitter:t="emtr_smoke_small_dmg_06"
+    }
+
+    fx{
+      name:t="tank_smoke_small"
+      emitter:t="emtr_smoke_small_dmg_07"
+    }
+
+    fx{
+      name:t="tank_smoke_small"
+      emitter:t="emtr_smoke_small_dmg_08"
+    }
+
+    fx{
+      name:t="tank_smoke_small"
+      emitter:t="emtr_smoke_small_dmg_09"
+    }
+
+    fx{
+      name:t="tank_smoke_small"
+      emitter:t="emtr_smoke_small_dmg_10"
+    }
+
+    fx{
+      name:t="tank_smoke_small"
+      emitter:t="emtr_smoke_small_dmg_11"
+    }
+
+    fx{
+      name:t="tank_smoke_small"
+      emitter:t="emtr_smoke_small_dmg_12"
+    }
+
+    fx{
+      name:t="tank_smoke_small"
+      emitter:t="emtr_smoke_small_dmg_13"
+    }
+
+    fx{
+      name:t="tank_smoke_small"
+      emitter:t="emtr_smoke_small_dmg_14"
+    }
+
+    fx{
+      name:t="tank_smoke_small"
+      emitter:t="emtr_smoke_small_dmg_15"
+    }
+
+    fx{
+      name:t="tank_smoke_small"
+      emitter:t="emtr_smoke_small_dmg_16"
+    }
+
+    fx{
+      name:t="tank_fire_big"
+      emitter:t="emtr_fire_dmg"
+    }
+
+    fx{
+      name:t="tank_fire_small"
+      emitter:t="emtr_fire_small_dmg_01"
+    }
+
+    fx{
+      name:t="tank_fire_small"
+      emitter:t="emtr_fire_small_dmg_02"
+    }
+
+    fx{
+      name:t="tank_fire_small"
+      emitter:t="emtr_fire_small_dmg_03"
+    }
+
+    fx{
+      name:t="tank_fire_small"
+      emitter:t="emtr_fire_small_dmg_04"
+    }
+
+    fx{
+      name:t="tank_fire_small"
+      emitter:t="emtr_fire_small_dmg_05"
+    }
+
+    fx{
+      name:t="tank_fire_small"
+      emitter:t="emtr_fire_small_dmg_06"
+    }
+
+    fx{
+      name:t="tank_fire_small"
+      emitter:t="emtr_fire_small_dmg_07"
+    }
+
+    fx{
+      name:t="tank_fire_small"
+      emitter:t="emtr_fire_small_dmg_08"
+    }
+
+    fx{
+      name:t="tank_fire_small"
+      emitter:t="emtr_fire_small_dmg_09"
+    }
+
+    fx{
+      name:t="tank_fire_small"
+      emitter:t="emtr_fire_small_dmg_10"
+    }
+
+    fx{
+      name:t="tank_fire_small"
+      emitter:t="emtr_fire_small_dmg_11"
+    }
+
+    fx{
+      name:t="tank_fire_small"
+      emitter:t="emtr_fire_small_dmg_12"
+    }
+
+    fx{
+      name:t="tank_fire_small"
+      emitter:t="emtr_fire_small_dmg_13"
+    }
+
+    fx{
+      name:t="tank_fire_small"
+      emitter:t="emtr_fire_small_dmg_14"
+    }
+
+    fx{
+      name:t="tank_fire_small"
+      emitter:t="emtr_fire_small_dmg_15"
+    }
+
+    fx{
+      name:t="tank_fire_small"
+      emitter:t="emtr_fire_small_dmg_16"
+    }
+  }
+
+  event{
+    name:t="big_bang"
+
+    fx{
+      name:t="tank_explosion"
+      emitter:t="emtr_explosion_center"
+    }
+  }
+
+  event{
+    name:t="salute"
+
+    fx{
+      name:t="tank_explosion_flowers"
+      emitter:t="emtr_explosion_center"
+    }
+  }
+
+  procedural{
+    name:t="default"
+
+    fx{
+      name:t="tank_engine_fire"
+    }
+  }
+}
+
+cockpit{
+  zoomOutFov:r=40.0
+  zoomInFov:r=21.0
+  headPos:p3=0.0, 3.6, -7.5
+  headPosOnShooting:p3=-0.0, 3.5, 0.0
+  detectionHeight:r=2.36
+}
+
+ammoLoadDistribution{
+
+  primaryShells{
+
+    ammo_turret_dm{
+      count:i=9
+    }
+
+    ammo_body_l_01_dm{
+      count:i=5
+    }
+
+    ammo_body_l_02_dm{
+      count:i=5
+    }
+
+    ammo_body_r_02_dm{
+      count:i=5
+    }
+
+    ammo_body_r_01_dm{
+      count:i=5
+    }
+
+    ammo_body_02_dm{
+      count:i=8
+    }
+
+    ammo_body_01_dm{
+      count:i=8
+    }
+  }
+}
+
+ikGunner{
+  model:t="us_gunner_char"
+  maxHeadHorAngle:r=60.0
+  maxHeadDownAngle:r=60.0
+  maxHeadUpAngle:r=10.0
+  headNode:t="Bip01 Head"
+  pelvisNode:t="Bip01 Pelvis"
+  pelvisTargetNode:t="Bip01 Pelvis_"
+  suffix:t="1"
+  dmName:t="loader_dm"
+  deadHeadAttitudeMin:r=-40.0
+  deadHeadAttitudeMax:r=-55.0
+
+  ikNode{
+    downNode:t="Bip01 L Hand"
+    midNode:t="Bip01 L Forearm"
+    upNode:t="Bip01 L UpperArm"
+    targetNode:t="lefthand_"
+    flexionDir:p3=0.5, -0.5, 0.3
+  }
+
+  ikNode{
+    downNode:t="Bip01 R Hand"
+    midNode:t="Bip01 R Forearm"
+    upNode:t="Bip01 R UpperArm"
+    targetNode:t="righthand_"
+    flexionDir:p3=-0.5, -0.5, 0.3
+  }
+
+  ikNode{
+    downNode:t="Bip01 L Foot"
+    midNode:t="Bip01 L Calf"
+    upNode:t="Bip01 L Thigh"
+    targetNode:t="pedal_lfoot_"
+    flexionDir:p3=-0.2, 1.0, -1.0
+  }
+
+  ikNode{
+    downNode:t="Bip01 R Foot"
+    midNode:t="Bip01 R Calf"
+    upNode:t="Bip01 R Thigh"
+    targetNode:t="pedal_rfoot_"
+    flexionDir:p3=-0.6, 1.0, -1.0
+  }
+}
+
+ikGunner{
+  model:t="us_gunner_char"
+  maxHeadHorAngle:r=60.0
+  maxHeadDownAngle:r=60.0
+  maxHeadUpAngle:r=10.0
+  headNode:t="Bip01 Head"
+  pelvisNode:t="Bip01 Pelvis"
+  pelvisTargetNode:t="Bip01 Pelvis_"
+  suffix:t="2"
+  dmName:t="gunner_dm"
+  deadHeadAttitudeMin:r=-40.0
+  deadHeadAttitudeMax:r=-55.0
+
+  ikNode{
+    downNode:t="Bip01 L Hand"
+    midNode:t="Bip01 L Forearm"
+    upNode:t="Bip01 L UpperArm"
+    targetNode:t="lefthand_"
+    flexionDir:p3=0.5, -0.5, 0.3
+  }
+
+  ikNode{
+    downNode:t="Bip01 R Hand"
+    midNode:t="Bip01 R Forearm"
+    upNode:t="Bip01 R UpperArm"
+    targetNode:t="righthand_"
+    flexionDir:p3=-0.5, -0.5, 0.3
+  }
+
+  ikNode{
+    downNode:t="Bip01 L Foot"
+    midNode:t="Bip01 L Calf"
+    upNode:t="Bip01 L Thigh"
+    targetNode:t="pedal_lfoot_"
+    flexionDir:p3=-0.2, 1.0, -1.0
+  }
+
+  ikNode{
+    downNode:t="Bip01 R Foot"
+    midNode:t="Bip01 R Calf"
+    upNode:t="Bip01 R Thigh"
+    targetNode:t="pedal_rfoot_"
+    flexionDir:p3=-0.6, 1.0, -1.0
+  }
+}
+
+ikGunner{
+  model:t="us_gunner_char"
+  maxHeadHorAngle:r=60.0
+  maxHeadDownAngle:r=60.0
+  maxHeadUpAngle:r=10.0
+  headNode:t="Bip01 Head"
+  pelvisNode:t="Bip01 Pelvis"
+  pelvisTargetNode:t="Bip01 Pelvis_"
+  suffix:t="3"
+  dmName:t="machine_gunner_dm"
+  deadHeadAttitudeMin:r=-40.0
+  deadHeadAttitudeMax:r=-55.0
+
+  ikNode{
+    downNode:t="Bip01 L Hand"
+    midNode:t="Bip01 L Forearm"
+    upNode:t="Bip01 L UpperArm"
+    targetNode:t="lefthand_"
+    flexionDir:p3=0.5, -0.5, 0.3
+  }
+
+  ikNode{
+    downNode:t="Bip01 R Hand"
+    midNode:t="Bip01 R Forearm"
+    upNode:t="Bip01 R UpperArm"
+    targetNode:t="righthand_"
+    flexionDir:p3=-0.5, -0.5, 0.3
+  }
+
+  ikNode{
+    downNode:t="Bip01 L Foot"
+    midNode:t="Bip01 L Calf"
+    upNode:t="Bip01 L Thigh"
+    targetNode:t="pedal_lfoot_"
+    flexionDir:p3=-0.2, 1.0, -1.0
+  }
+
+  ikNode{
+    downNode:t="Bip01 R Foot"
+    midNode:t="Bip01 R Calf"
+    upNode:t="Bip01 R Thigh"
+    targetNode:t="pedal_rfoot_"
+    flexionDir:p3=-0.6, 1.0, -1.0
+  }
+}
+
+ikGunner{
+  model:t="us_gunner_char"
+  maxHeadHorAngle:r=60.0
+  maxHeadDownAngle:r=60.0
+  maxHeadUpAngle:r=10.0
+  headNode:t="Bip01 Head"
+  pelvisNode:t="Bip01 Pelvis"
+  pelvisTargetNode:t="Bip01 Pelvis_"
+  suffix:t="4"
+  dmName:t="driver_dm"
+  deadHeadAttitudeMin:r=-40.0
+  deadHeadAttitudeMax:r=-55.0
+
+  ikNode{
+    downNode:t="Bip01 L Hand"
+    midNode:t="Bip01 L Forearm"
+    upNode:t="Bip01 L UpperArm"
+    targetNode:t="lefthand_"
+    flexionDir:p3=0.5, -0.5, 0.3
+  }
+
+  ikNode{
+    downNode:t="Bip01 R Hand"
+    midNode:t="Bip01 R Forearm"
+    upNode:t="Bip01 R UpperArm"
+    targetNode:t="righthand_"
+    flexionDir:p3=-0.5, -0.5, 0.3
+  }
+
+  ikNode{
+    downNode:t="Bip01 L Foot"
+    midNode:t="Bip01 L Calf"
+    upNode:t="Bip01 L Thigh"
+    targetNode:t="pedal_lfoot_"
+    flexionDir:p3=-0.2, 1.0, -1.0
+  }
+
+  ikNode{
+    downNode:t="Bip01 R Foot"
+    midNode:t="Bip01 R Calf"
+    upNode:t="Bip01 R Thigh"
+    targetNode:t="pedal_rfoot_"
+    flexionDir:p3=-0.6, 1.0, -1.0
+  }
+}
+
+DamageParts{
+  formatVersion:i=2
+  armorClass:t="RHA_tank"
+  hp:r=10000.0
+  armorThickness:r=500.0
+
+  hull{
+
+    superstructure_front_dm{
+    }
+
+    body_front_dm{
+    }
+
+    body_bottom_dm{
+    }
+
+    superstructure_side_dm{
+    }
+
+    body_side_dm{
+    }
+
+    body_back_dm{
+    }
+
+    superstructure_top_dm{
+    }
+
+    ex_armor_02_dm{
+    }
+
+    superstructure_bottom_dm{
+    }
+  }
+
+  turret{
+
+    turret_back_dm{
+    }
+
+    turret_bottom_dm{
+    }
+
+    turret_side_dm{
+    }
+
+    turret_top_dm{
+    }
+  }
+
+  mask{
+    armorClass:t="CHA_tank"
+
+    turret_front_dm{
+    }
+
+    gun_mask_01_dm{
+    }
+
+    gun_mask_02_dm{
+    }
+  }
+
+  optics{
+    armorClass:t="optics_tank"
+
+    optic_gun_dm{
+      armorThickness:r=10.0
+      hp:r=50.0
+    }
+
+    optic_turret_01_dm{
+      armorThickness:r=3.0
+      hp:r=20.0
+    }
+
+    optic_turret_02_dm{
+      armorThickness:r=3.0
+      hp:r=20.0
+    }
+
+    optic_body_01_dm{
+      armorThickness:r=3.0
+      hp:r=20.0
+    }
+
+    optic_body_02_dm{
+      armorThickness:r=3.0
+      hp:r=20.0
+    }
+  }
+
+  gun{
+    armorClass:t="tank_barrel"
+
+    gun_barrel_dm{
+    }
+  }
+
+  chassis{
+    armorClass:t="tank_steel_wheels"
+    hp:r=250.0
+    armorThickness:r=500.0
+
+    wheel_r_01_dm{
+    }
+
+    wheel_r_02_dm{
+    }
+
+    wheel_r_03_dm{
+    }
+
+    wheel_r_04_dm{
+    }
+
+    wheel_r_05_dm{
+    }
+
+    wheel_l_01_dm{
+    }
+
+    wheel_l_02_dm{
+    }
+
+    wheel_l_03_dm{
+    }
+
+    wheel_l_04_dm{
+    }
+
+    wheel_l_05_dm{
+    }
+
+    wheel_r_drive_dm{
+    }
+
+    wheel_l_drive_dm{
+    }
+
+    wheel_r_back_dm{
+    }
+
+    wheel_l_back_dm{
+    }
+
+    wheel_r_top_01_dm{
+    }
+
+    wheel_r_top_02_dm{
+    }
+
+    wheel_r_top_03_dm{
+    }
+
+    wheel_r_top_04_dm{
+    }
+
+    wheel_l_top_01_dm{
+    }
+
+    wheel_l_top_02_dm{
+    }
+
+    wheel_l_top_03_dm{
+    }
+
+    wheel_l_top_04_dm{
+    }
+
+    submodule{
+      armorClass:t="tank_traks"
+      armorThickness:r=500.0
+
+      track_r_dm{
+      }
+
+      track_l_dm{
+      }
+
+      ex_armor_01_dm{
+      }
+    }
+  }
+
+  crew{
+    armorClass:t="steel_tankman"
+    hp:r=40.0
+    genericDamageMult:r=3.0
+
+    driver_dm{
+      genericDamageMult:r=3.0
+    }
+
+    loader_dm{
+      genericDamageMult:r=3.0
+    }
+
+    loader_01_dm{
+      genericDamageMult:r=3.0
+    }
+
+    loader_02_dm{
+      genericDamageMult:r=3.0
+    }
+
+    gunner_dm{
+      genericDamageMult:r=3.0
+    }
+
+    gunner_01_dm{
+      genericDamageMult:r=3.0
+    }
+
+    gunner_02_dm{
+      genericDamageMult:r=3.0
+    }
+
+    commander_dm{
+      genericDamageMult:r=3.0
+    }
+
+    machine_gunner_dm{
+      genericDamageMult:r=3.0
+    }
+
+    machine_gunner_01_dm{
+      genericDamageMult:r=3.0
+    }
+
+    machine_gunner_02_dm{
+      genericDamageMult:r=3.0
+    }
+  }
+
+  equipment{
+    armorClass:t="tank_structural_steel"
+    hp:r=100.0
+    armorThickness:r=12.0
+    armorThrough:r=12.0
+    fireProtectionHp:r=15.0
+
+    drive_turret_v_dm{
+    }
+
+    drive_turret_h_dm{
+    }
+
+    radio_station_dm{
+    }
+  }
+
+  cannon_breech{
+    armorClass:t="tank_structural_steel"
+    hp:r=150.0
+    armorThickness:r=10.0
+    armorThrough:r=60.0
+    fireProtectionHp:r=10.0
+
+    cannon_breech_dm{
+    }
+
+    cannon_breech_01_dm{
+      armorThrough:r=15.0
+    }
+  }
+
+  radiators{
+    armorClass:t="tank_structural_steel"
+    hp:r=50.0
+    armorThickness:r=5.0
+    armorThrough:r=15.0
+    fireProtectionHp:r=5.0
+
+    radiator_dm{
+    }
+
+    radiator_l_dm{
+    }
+
+    radiator_r_dm{
+    }
+  }
+
+  engine{
+    armorClass:t="armor_tank_engine"
+    hp:r=100.0
+    armorThickness:r=2.0
+    armorThrough:r=40.0
+    fireProtectionHp:r=5.0
+
+    engine_dm{
+    }
+
+    transmission_dm{
+    }
+  }
+
+  ammo{
+    armorClass:t="tank_structural_steel"
+    hp:r=500.0
+    armorThickness:r=2.0
+    armorThrough:r=10.0
+    fireProtectionHp:r=20.0
+
+    ammo_turret_dm{
+    }
+
+    ammo_turret_01_dm{
+    }
+
+    ammo_turret_02_dm{
+    }
+
+    ammo_turret_03_dm{
+    }
+
+    ammo_turret_04_dm{
+    }
+
+    ammo_turret_05_dm{
+    }
+
+    ammo_body_dm{
+    }
+
+    ammo_body_01_dm{
+    }
+
+    ammo_body_02_dm{
+    }
+
+    ammo_body_03_dm{
+    }
+
+    ammo_body_04_dm{
+    }
+
+    ammo_body_05_dm{
+    }
+
+    ammo_body_06_dm{
+    }
+
+    ammo_body_07_dm{
+    }
+
+    ammo_body_08_dm{
+    }
+
+    ammo_body_l_01_dm{
+    }
+
+    ammo_body_l_02_dm{
+    }
+
+    ammo_body_l_03_dm{
+    }
+
+    ammo_body_l_04_dm{
+    }
+
+    ammo_body_l_05_dm{
+    }
+
+    ammo_body_r_01_dm{
+    }
+
+    ammo_body_r_02_dm{
+    }
+
+    ammo_body_r_03_dm{
+    }
+
+    ammo_body_r_04_dm{
+    }
+
+    ammo_body_r_05_dm{
+    }
+  }
+
+  equipment_body{
+    armorClass:t="tank_structural_steel"
+    hp:r=250.0
+    armorThickness:r=2.0
+    armorThrough:r=10.0
+    fireProtectionHp:r=10.0
+
+    fuel_tank_dm{
+    }
+
+    fuel_tank_01_dm{
+    }
+
+    fuel_tank_02_dm{
+    }
+
+    fuel_tank_03_dm{
+    }
+
+    fuel_tank_04_dm{
+    }
+
+    fuel_tank_05_dm{
+    }
+
+    fuel_tank_r_01_dm{
+    }
+
+    fuel_tank_r_02_dm{
+    }
+
+    fuel_tank_r_03_dm{
+    }
+
+    fuel_tank_r_04_dm{
+    }
+
+    fuel_tank_r_05_dm{
+    }
+
+    fuel_tank_l_01_dm{
+    }
+
+    fuel_tank_l_02_dm{
+    }
+
+    fuel_tank_l_03_dm{
+    }
+
+    fuel_tank_l_04_dm{
+    }
+
+    fuel_tank_l_05_dm{
+    }
+  }
+}
+
+commonWeapons{
+
+  Weapon{
+    dummy:b=yes
+    trigger:t="gunner0"
+    blk:t="gameData/Weapons/groundModels_weapons/76mm_M1_user_cannon.blk"
+    emitter:t="bone_gun_barrel"
+    flash:t="emtr_gun_flame"
+    shotFreq:r=0.165
+    defaultYaw:r=0.0
+    defaultPitch:r=0.0
+    barrelDP:t="gun_barrel_dm"
+    breechDP:t="cannon_breech_dm"
+    speedYaw:r=24.0
+    speedPitch:r=4.0
+    fireConeAngle:r=1.0
+    bullets:i=45
+    salvoAmount:r=100.0
+    ChainfireTime:r=0.0
+    DelayAfterShoot:r=5.0
+    AttackMaxDistance:r=1000.0
+    AttackMaxRadius:r=1000.0
+    AttackMaxHeight:r=1000.0
+    accuracyAir:r=0.0
+    accuracyGnd:r=1.5
+    errMeasureVel:r=0.0
+    errMeasureVelFast:r=0.0
+    errMeasureVelFwdShift:r=0.0
+    errMeasureVelDir:r=0.0
+    errTargettingOn100kmph:r=0.0
+    errTargetting:r=3.0
+    errExplTime:r=0.0
+
+    turret{
+      head:t="bone_turret"
+      gun:t="bone_gun"
+      barrel:t="bone_gun_barrel"
+      gunnerDm:t="gunner_dm"
+    }
+
+    limits{
+      yaw:p2=-180.0, 180.0
+      pitch:p2=-10.0, 20.0
+    }
+
+    limitsTable{
+      lim1:p4=-180.0, -140.0, -5.0, 20.0
+      lim2:p4=-140.0, 140.0, -10.0, 20.0
+      lim3:p4=140.0, 180.0, -5.0, 20.0
+    }
+  }
+
+  hideNodes{
+    node:t="commander"
+    node:t="bone_mg_aa_v_01"
+  }
+}
+
+weapon_presets{
+
+  preset{
+    name:t="us_m18_hellcat_race_default"
+    blk:t="gameData/units/tankModels/weaponPresets/us_m18_hellcat_race_default.blk"
+  }
+}
+
+VehiclePhys{
+
+  Mass{
+    Empty:r=17390.0
+    Fuel:r=300.0
+    TakeOff:r=20000.0
+    momentOfInertia:p3=2.5, 2.5, 5.0
+    CenterOfGravity:p3=0.6, 0.5, 0.0
+    CenterOfGravityClampY:p2=0.0, 0.4
+    AdvancedMass:b=yes
+    trackMass:r=700.0
+  }
+
+  tracks{
+    animationMultiplier:r=-0.66
+    height:r=0.06
+    width:r=0.35
+  }
+
+  collisionProps{
+    cls_turret:t="convex_hull"
+    cls_body:t="convex_hull"
+  }
+
+  engine{
+    horsePowers:r=1200.0
+    maxRPM:r=2400.0
+    minRPM:r=600.0
+  }
+
+  mechanics{
+    maxBrakeForce:r=60000.0
+    driveGearRadius:r=0.385
+    mainGearRatio:r=4.588
+    sideGearRatio:r=3.0
+
+    gearRatios{
+      ratio:r=-0.756
+      ratio:r=-1.512
+      ratio:r=0.0
+      ratio:r=2.0
+      ratio:r=1.0
+      ratio:r=0.842
+      ratio:r=0.421
+      ratio:r=0.244
+    }
+  }
+
+  suspension{
+    suspensionOffsets:p3=-0.12, -0.1, 0.07
+    defaultGearRadius:r=0.324
+    topGearRadius:r=0.1435
+    defaultDampeningForce:p2=67000.0, 67000.0
+    frontBackGearRadius:r=0.2545
+    dampeningRelaxationRatio:r=0.4
+    dampeningCompressionRatio:r=0.15
+  }
+}
+
+modifications{
+
+  new_tank_tracks{
+  }
+
+  new_tank_suspension{
+  }
+
+  new_tank_filter{
+  }
+
+  new_tank_brakes{
+  }
+
+  new_tank_transmission{
+  }
+
+  new_tank_engine{
+  }
+
+  tank_camouflage{
+  }
+
+  tank_additional_armor{
+  }
+
+  manual_extinguisher{
+  }
+
+  tank_tool_kit{
+  }
+
+  tank_medical_kit{
+    image:t="#ui/gameuiskin#tank_reinforcement_us"
+  }
+
+  tank_medical_kit_expendable{
+    image:t="#ui/gameuiskin#tank_reinforcement_us"
+  }
+}
+
+default_skin{
+  name:t="fire_range"
+
+  replace_tex{
+    from:t="us_camo_olive*"
+    to:t="ussr_camo_inside_darkgold*"
+  }
+}
+
+defaultDecals{
+  skin_condition:r=0.0
+  camo_scale:r=0.0
+  camo_rotation:r=0.0
+  decal0Line0:p4=5.73122e-08, -5.73122e-08, 1.92308, 0.483743
+  decal0Line1:p4=1.35982, -1.35982, -8.40604e-08, -0.96344
+  decal0HaveCP:b=yes
+  decal0CP:p3=1807.02, 60.1181, -1097.2
+  decal0CPNormDepth:p4=0.707107, 0.707107, 0.0, -2.38543
+  decal0RotScale:p2=1.5708, 0.52
+  decal0Mirrored:b=no
+  decal0Wrap:b=no
+  decal0Abs:b=no
+  decal0Tex:t="pumpkin"
+  decal1Line0:p4=-0.0844761, 0.0, -1.13322, 0.378654
+  decal1Line1:p4=-1.13322, 0.0, 0.0844761, -1.02566
+  decal1HaveCP:b=yes
+  decal1CP:p3=1806.15, 61.0641, -1100.69
+  decal1CPNormDepth:p4=0.0, 1.0, 0.0, -2.1853
+  decal1RotScale:p2=4.7868, 0.88
+  decal1Mirrored:b=no
+  decal1Wrap:b=no
+  decal1Abs:b=no
+  decal1Tex:t="pumpkin"
+  decal2Line0:p4=2.5, -1.09278e-07, 0.0, -3.04584
+  decal2Line1:p4=-1.09278e-07, -2.5, 0.0, 3.75584
+  decal2HaveCP:b=yes
+  decal2CP:p3=1808.15, 60.252, -1098.32
+  decal2CPNormDepth:p4=0.0, 0.0, -1.0, -1.35922
+  decal2RotScale:p2=1.5708, 0.4
+  decal2Mirrored:b=no
+  decal2Wrap:b=no
+  decal2Abs:b=yes
+  decal2Tex:t="witch"
+  decal3Line0:p4=0.0, -8.40604e-08, -1.92308, -0.598809
+  decal3Line1:p4=0.0, -1.92308, 8.40604e-08, 3.16651
+  decal3HaveCP:b=yes
+  decal3CP:p3=1806.37, 60.2314, -1102.13
+  decal3CPNormDepth:p4=-1.0, 0.0, 0.0, -2.71289
+  decal3RotScale:p2=1.5708, 0.52
+  decal3Mirrored:b=no
+  decal3Wrap:b=no
+  decal3Abs:b=no
+  decal3Tex:t="witch"
+}

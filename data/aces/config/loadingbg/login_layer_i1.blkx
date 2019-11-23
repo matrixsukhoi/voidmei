@@ -1,0 +1,130 @@
+imgLayer{
+  layerSensitivity:t="1"
+
+  img{
+    size:t="pw, ph"
+    re-type:t="9rect"
+    background-image:t="ui/bkg/login_layer_i1_0.jpg?P1"
+    background-repeat:t="expand"
+  }
+}
+
+imgLayer{
+  layerSensitivity:t="2"
+
+  img{
+    rotation:t="12"
+    rotation-center:t="65%w,50%h"
+    pos:t="63%pw,65%ph"
+    position:t="absolute"
+    height:t="0.2ph"
+    width:t="0.3pw"
+    re-type:t="9rect"
+    background-image:t="ui/bkg/login_layer_i1_6?x1ac"
+  }
+}
+
+imgLayer{
+  layerSensitivity:t="2"
+
+  img{
+    rotation:t="20"
+    rotation-center:t="25%w,40%h"
+    pos:t="26%pw,34.5%ph"
+    position:t="absolute"
+    height:t="0.2ph"
+    width:t="0.3pw"
+    re-type:t="9rect"
+    background-image:t="ui/bkg/login_layer_i1_7?x1ac"
+  }
+}
+
+imgLayer{
+  layerSensitivity:t="2"
+
+  img{
+    pos:t="45%pw,5%ph"
+    position:t="absolute"
+    width:t="0.09pw"
+    height:t="0.235ph"
+    re-type:t="9rect"
+    background-image:t="ui/bkg/login_layer_i1_1?x1ac"
+  }
+}
+
+imgLayer{
+  layerSensitivity:t="3"
+
+  img{
+    pos:t="57.9%pw,11.8%ph"
+    position:t="absolute"
+    width:t="0.095pw"
+    height:t="0.24ph"
+    re-type:t="9rect"
+    background-image:t="ui/bkg/login_layer_i1_2?x1ac"
+  }
+}
+
+imgLayer{
+  layerSensitivity:t="3"
+
+  img{
+    pos:t="56%pw,-7%ph"
+    position:t="absolute"
+    height:t="0.94 ph"
+    width:t="0.38pw"
+    re-type:t="9rect"
+    background-image:t="ui/bkg/login_layer_i1_3?x1ac"
+  }
+}
+
+imgLayer{
+  layerSensitivity:t="4"
+
+  img{
+    pos:t="40%pw,36%ph"
+    position:t="absolute"
+    height:t="0.5ph"
+    width:t="0.4pw"
+    re-type:t="9rect"
+    background-image:t="ui/bkg/login_layer_i1_4?x1ac"
+  }
+}
+
+img{
+  pos:t="50%pw-50%w, 50%ph-50%h"
+  position:t="absolute"
+  width:t="2sw"
+  height:t="1.5sh"
+  re-type:t="9rect"
+  background-image:t="ui/bkg/login_layer_4?x1ac"
+
+  tdiv{
+    size:t="ph, ph"
+    pos:t="-w+1"
+    position:t="absolute"
+    background-color:t="@black"
+  }
+
+  tdiv{
+    size:t="ph, ph"
+    pos:t="pw-1"
+    position:t="absolute"
+    background-color:t="@black"
+  }
+}
+
+imgLayer{
+  layerSensitivity:t="3"
+  rotation:t="0"
+  rotation-center:t="65%w,27%h"
+
+  img{
+    pos:t="33.3%pw,25.8%ph"
+    position:t="absolute"
+    height:t="1.06ph"
+    width:t="0.31pw"
+    re-type:t="9rect"
+    background-image:t="ui/bkg/login_layer_i1_5?x1ac"
+  }
+}

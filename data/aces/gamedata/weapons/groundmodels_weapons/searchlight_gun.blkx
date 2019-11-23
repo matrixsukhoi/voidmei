@@ -1,0 +1,10 @@
+lightBeam:b=yes
+maxDistance:r=8000.0
+looseDistance:r=8000.0
+tanga:r=0.01
+startRadius:r=5.0
+pitch:p2=30.0, 90.0
+yaw:p2=0.0, 360.0
+speed:r=0.5
+catchRadius:r=40.0
+tex:t="searchlight"

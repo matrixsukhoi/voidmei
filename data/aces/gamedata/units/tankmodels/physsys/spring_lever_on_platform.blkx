@@ -1,0 +1,47 @@
+PhysSys{
+  find:t="^bone_suspension_(._\d\d)$"
+
+  points{
+
+    suspension_01{
+      name:t="bone_suspension_$1_01"
+    }
+
+    wheel_01{
+
+      searchChildren{
+        parent:t="suspension_01"
+        find:t="bone_wheel_.*"
+        limitMin:p3=-1000.0, 0.0, 0.0
+        limitMax:p3=1000.0, 0.0, 0.0
+      }
+    }
+
+    suspension_02{
+      name:t="bone_suspension_$1_02"
+    }
+
+    wheel_02{
+
+      searchChildren{
+        parent:t="suspension_02"
+        find:t="bone_wheel_.*"
+        limitMin:p3=-1000.0, 0.0, 0.0
+        limitMax:p3=1000.0, 0.0, 0.0
+      }
+    }
+  }
+
+  constraints{
+
+    edge{
+      from:t="suspension_01"
+      to:t="wheel_01"
+    }
+
+    edge{
+      from:t="suspension_02"
+      to:t="wheel_02"
+    }
+  }
+}

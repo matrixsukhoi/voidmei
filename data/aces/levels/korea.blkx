@@ -1,0 +1,132 @@
+mapCoord0:p2=-32768.0, -32768.0
+mapCoord1:p2=32768.0, 32768.0
+minAreaSize:p2=12000.0, 12000.0
+aiMapCoord0:p2=-32768.0, -32768.0
+aiMapCoord1:p2=32768.0, 32768.0
+numBorderCellsXPos:i=8
+numBorderCellsXNeg:i=8
+numBorderCellsZPos:i=8
+numBorderCellsZNeg:i=8
+mirrorShrinkXPos:r=256.0
+mirrorShrinkXNeg:r=256.0
+mirrorShrinkZPos:r=256.0
+mirrorShrinkZNeg:r=256.0
+gridSteps:p2=3250.0, 3250.0
+weatherPreset:t="gameData/environments/weather_preset_1.blk"
+weatherTypes:t="gameData/environments/weather_types.blk"
+lastclip_horizon:b=yes
+water_level:r=1.0
+levelMapAltOffset:r=1.0
+average_ground_level:r=95.0
+wind_scale:r=0.8
+max_wind_strength:r=4.0
+
+stars{
+  latitude:r=40.0
+  longitude:r=125.0
+  year:i=1946
+  month:i=7
+  day:i=13
+}
+
+shader_vars{
+  translucency_detection_hardness:r=1.0
+  smoothness_detection_hardness:r=1.5
+  land_smoothness_detect_color:p4=0.55, 0.56, 0.49, 0.9
+  max_river_width:r=800.0
+  ocean_density:r=0.4
+  river_density:r=1.0
+  ocean0:p4=0.3, 0.25, 0.08, 0.0
+  ocean1:p4=0.56, 0.54, 0.28, 0.0
+  river0:p4=0.5, 0.45, 0.08, 0.0
+  river1:p4=0.44, 0.45, 0.19, 0.0
+}
+
+randomGrass{
+  korea_fields:t="korea_fields_tex_m"
+  korea_airfields_unic:t="korea_airfields_unic_tex_m"
+  korea_forest_a:t="stalingrad_forest_tex_m"
+  korea_forest_b:t="korea_forest_b_tex_m"
+  korea_hollows:t="korea_hollows_tex_m"
+  korea_town:t="korea_town_tex_m"
+
+  layer{
+    maskChannel:p4=0.0, 0.0, 1.0, 0.0
+    res:t="grass_scatter_a_2"
+    density:r=0.1
+    horScale:r=1.0
+    verScale:r=1.0
+    windMul:r=0.05
+    color_mask_r_from:c=255, 192, 28, 127
+    color_mask_r_to:c=203, 148, 33, 127
+    color_mask_b_from:c=106, 121, 45, 127
+    color_mask_b_to:c=151, 126, 62, 127
+    color_mask_g_from:c=2, 24, 54, 255
+    color_mask_g_to:c=247, 242, 186, 255
+  }
+
+  layer{
+    maskChannel:p4=0.0, 0.0, 1.0, 0.0
+    res:t="grass_scatter_a_2"
+    density:r=0.35
+    horScale:r=2.5
+    verScale:r=2.5
+    windMul:r=0.05
+    color_mask_r_from:c=255, 192, 28, 127
+    color_mask_r_to:c=203, 148, 33, 127
+    color_mask_b_from:c=106, 121, 45, 127
+    color_mask_b_to:c=151, 126, 62, 127
+    color_mask_g_from:c=2, 24, 54, 255
+    color_mask_g_to:c=247, 242, 186, 255
+  }
+
+  layer{
+    maskChannel:p4=1.0, 0.0, 0.0, 0.0
+    res:t="grass_scatter_b_2"
+    density:r=1.0
+    horScale:r=4.0
+    verScale:r=4.0
+    windMul:r=0.05
+    color_mask_r_from:c=255, 192, 28, 127
+    color_mask_r_to:c=203, 148, 33, 127
+    color_mask_b_from:c=106, 121, 45, 127
+    color_mask_b_to:c=151, 126, 62, 127
+    color_mask_g_from:c=2, 24, 54, 255
+    color_mask_g_to:c=247, 242, 186, 255
+  }
+
+  layer{
+    maskChannel:p4=0.0, 1.0, 0.0, 0.0
+    res:t="grass_scatter_a_1"
+    density:r=3.0
+    horScale:r=2.5
+    verScale:r=3.0
+    windMul:r=0.05
+    color_mask_r_from:c=255, 236, 187, 127
+    color_mask_r_to:c=255, 220, 23, 127
+    color_mask_b_from:c=106, 121, 45, 127
+    color_mask_b_to:c=52, 75, 18, 127
+    color_mask_g_from:c=2, 24, 54, 255
+    color_mask_g_to:c=247, 242, 186, 255
+  }
+
+  layer{
+    maskChannel:p4=1.0, 1.0, 1.0, 0.0
+    res:t="grass_scatter_a_3"
+    density:r=15.0
+    horScale:r=2.0
+    verScale:r=2.0
+    windMul:r=0.05
+    color_mask_r_from:c=99, 103, 27, 127
+    color_mask_r_to:c=194, 134, 84, 127
+    color_mask_b_from:c=226, 191, 52, 127
+    color_mask_b_to:c=200, 166, 77, 127
+    color_mask_g_from:c=2, 24, 54, 255
+    color_mask_g_to:c=247, 242, 186, 255
+  }
+}
+
+technicsSkins{
+  groundSkin:t="jungle"
+  groundSkin:t="default"
+}

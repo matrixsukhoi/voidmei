@@ -1,0 +1,5 @@
+hideNodes{
+  node:t="bomb_pylon1"
+  node:t="bomb_pylon2"
+  node:t="pylon_torpedo"
+}

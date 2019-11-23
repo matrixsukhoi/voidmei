@@ -1,0 +1,59 @@
+rocketGun:b=yes
+preset_cost:i=20
+bullets:i=1
+shotFreq:r=1000.25
+sound:t="weapon.rocketgun_132"
+helicopterGroup:i=2
+mesh:t="us_tiny_tim"
+
+tags{
+  antiTankRocket:b=yes
+  antiShipRocket:b=yes
+}
+
+rocket{
+  caliber:r=0.298
+  mass:r=583.0
+  massEnd:r=500.0
+  maxDeltaAngle:r=4.0
+  dragCx:r=0.02
+  length:r=3.12
+  distFromCmToStab:r=0.1
+  CxK:r=0.1
+  WdK:p3=0.1, 0.1, 0.1
+  force:r=10000.0
+  timeFire:r=5.0
+  explosionEffect:t="hydra_expl"
+  smokeEffect:t="hydra_smoke"
+  maxDistance:r=8000.0
+  minDistance:r=30.0
+  distanceFuse:b=no
+  hitPowerMult:r=1.0
+  nearHitPower:p2=1.0, 50.0
+  midHitPower:p2=0.9, 400.0
+  farHitPower:p2=0.1, 1000.0
+  endHitPower:p2=0.01, 1500.0
+  relativeVelHitShift:p2=300.0, 1000.0
+  nearArmorPower:p2=10.0, 50.0
+  midArmorPower:p2=7.0, 400.0
+  farArmorPower:p2=0.2, 700.0
+  relativeVelArmorShift:p2=200.0, 1000.0
+  explodeTreshold:r=0.1
+  explodeHitPower:r=1750.0
+  explodeArmorPower:r=120.0
+  explodeRadius:p2=3.8, 8.0
+  explosionPatchRadius:r=5.0
+  rendinstDamageRadius:r=15.0
+  statType:t="hydra"
+  shutterDamage:b=yes
+  shutterDamageRadius:r=45.0
+  shutterAmount:i=3000
+  shutterArmorPower:r=12.0
+  shutterHit:r=12.0
+  advancedMissiles:b=no
+  startSpeed:r=245.0
+  endSpeed:r=300.0
+  speedViscosity:r=0.2
+  timeToLive:r=20.0
+  price:r=3000.0
+}

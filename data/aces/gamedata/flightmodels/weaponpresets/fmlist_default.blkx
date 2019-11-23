@@ -1,0 +1,269 @@
+A-20G{
+  year:i=1943
+  pilotable:b=yes
+  standart:b=yes
+}
+
+Arado-234{
+  year:i=1945
+  pilotable:b=yes
+  standart:b=yes
+}
+
+AS-51{
+  year:i=1943
+  pilotable:b=yes
+  standart:b=yes
+}
+
+B-17G{
+  year:i=1944
+  pilotable:b=yes
+  standart:b=yes
+}
+
+Bf-109E-3{
+  year:i=1940
+  pilotable:b=yes
+  standart:b=yes
+}
+
+Bf-109F-4{
+  year:i=1942
+  pilotable:b=yes
+  standart:b=yes
+}
+
+Bf-109G-2{
+  year:i=1943
+  pilotable:b=yes
+  standart:b=yes
+}
+
+Bf-109G-6{
+  year:i=1943
+  pilotable:b=yes
+  standart:b=yes
+}
+
+Bf-109G-10{
+  year:i=1944
+  pilotable:b=yes
+  standart:b=yes
+}
+
+Bf-109K-4{
+  year:i=1945
+  pilotable:b=yes
+  standart:b=yes
+}
+
+Bf-110C-4{
+  year:i=1940
+  pilotable:b=yes
+  standart:b=yes
+}
+
+Blenheim_MkIV{
+  year:i=1940
+  pilotable:b=yes
+  standart:b=yes
+}
+
+C-47{
+  year:i=1943
+  pilotable:b=yes
+  standart:b=yes
+}
+
+FAU-1{
+  year:i=1944
+  pilotable:b=no
+  standart:b=yes
+}
+
+Fw-190A-5{
+  year:i=1941
+  pilotable:b=yes
+  standart:b=yes
+}
+
+Fw-190D-9{
+  year:i=1943
+  pilotable:b=yes
+  standart:b=yes
+}
+
+He-111H-2{
+  year:i=1940
+  pilotable:b=yes
+  standart:b=yes
+}
+
+He-111H-6{
+  year:i=1942
+  pilotable:b=yes
+  standart:b=yes
+}
+
+He-111H-16{
+  year:i=1943
+  pilotable:b=yes
+  standart:b=yes
+}
+
+He-162A-2{
+  year:i=1945
+  pilotable:b=yes
+  standart:b=yes
+}
+
+HurricaneMkII{
+  year:i=1940
+  pilotable:b=yes
+  standart:b=yes
+}
+
+I-153{
+  year:i=1942
+  pilotable:b=yes
+  standart:b=yes
+}
+
+I-16_type24{
+  year:i=1940
+  pilotable:b=yes
+  standart:b=yes
+}
+
+Il-10{
+  year:i=1945
+  pilotable:b=yes
+  standart:b=yes
+}
+
+Il-2I{
+  year:i=1942
+  pilotable:b=yes
+  standart:b=yes
+}
+
+Il-2M{
+  year:i=1943
+  pilotable:b=yes
+  standart:b=yes
+}
+
+Ju-52{
+  year:i=1942
+  pilotable:b=yes
+  standart:b=yes
+}
+
+Ju-87B-2{
+  year:i=1940
+  pilotable:b=yes
+  standart:b=yes
+}
+
+Ju-87D-3{
+  year:i=1942
+  pilotable:b=yes
+  standart:b=yes
+}
+
+La-5FN{
+  year:i=1943
+  pilotable:b=yes
+  standart:b=yes
+}
+
+La-7{
+  year:i=1944
+  pilotable:b=yes
+  standart:b=yes
+}
+
+Li-2{
+  year:i=1943
+  pilotable:b=yes
+  standart:b=yes
+}
+
+MC-202{
+  year:i=1943
+  pilotable:b=yes
+  standart:b=yes
+}
+
+Me-163B{
+  year:i=1944
+  pilotable:b=yes
+  standart:b=yes
+}
+
+Me-262A-1a{
+  year:i=1945
+  pilotable:b=yes
+  standart:b=yes
+}
+
+P-47D{
+  year:i=1944
+  pilotable:b=yes
+  standart:b=yes
+}
+
+P-51B{
+  year:i=1943
+  pilotable:b=yes
+  standart:b=yes
+}
+
+P-51D-5{
+  year:i=1944
+  pilotable:b=yes
+  standart:b=yes
+}
+
+Po-2{
+  year:i=1943
+  pilotable:b=yes
+  standart:b=yes
+}
+
+SpitfireMkII{
+  year:i=1940
+  pilotable:b=yes
+  standart:b=yes
+}
+
+Spitfire_IX{
+  year:i=1943
+  pilotable:b=yes
+  standart:b=yes
+}
+
+Ta-152H-1{
+  year:i=1945
+  pilotable:b=yes
+  standart:b=yes
+}
+
+Yak-1B{
+  year:i=1942
+  pilotable:b=yes
+  standart:b=yes
+}
+
+Yak-3{
+  year:i=1943
+  pilotable:b=yes
+  standart:b=yes
+}
+
+Yak-9{
+  year:i=1944
+  pilotable:b=yes
+  standart:b=yes
+}

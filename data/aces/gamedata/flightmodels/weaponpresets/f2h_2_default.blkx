@@ -1,0 +1,10 @@
+hideNodes{
+  node:t="pylon_rocket1"
+  node:t="pylon_rocket2"
+  node:t="pylon3"
+  node:t="pylon4"
+  node:t="pylon5"
+  node:t="pylon6"
+  node:t="pylon_rocket7"
+  node:t="pylon_rocket8"
+}

@@ -1,0 +1,306 @@
+cannon:b=yes
+weaponType:i=-1
+bUseHookAsRel:b=yes
+emitColor:p3=1.0, 1.0, 0.0
+emitI:r=10.0
+emitR:r=3.0
+emitTime:r=0.03
+aimMinDist:r=0.1
+aimMaxDist:r=2000.0
+maxDeltaAngle:r=0.06
+maxDeltaAngleVertical:r=0.06
+shotFreq:r=0.117
+traceFreq:i=4
+bEnablePause:b=no
+bullets:i=-1
+bulletsCluster:i=1
+fxType:t="big_gun_mb_flame"
+fxGroundDust:t="ground_shock_wave_dust"
+shouldCollideWithRendinsts:b=yes
+sound_path:t="tanks/weapon_tanks/cannons"
+sound:t="88mm_kwk43"
+sound_inside:t="88mm_kwk43_interior"
+sfxReloadBullet:t="grd_cannon_reload"
+fxMultipleSpawn:b=yes
+isBulletBelt:b=no
+
+bullet{
+  bulletCount:i=40
+  mass:r=10.16
+  explosiveType:t="h10"
+  explosiveMass:r=0.064
+  caliber:r=0.088
+  speed:r=1000.0
+  maxDistance:r=10000.0
+  bulletType:t="apcbc_tank"
+  bulletName:t="88mm_pzrg_39_43"
+  hitPowerMult:r=300.0
+  relativeVelHitShift:p2=300.0, 1000.0
+  relativeVelArmorShift:p2=200.0, 1000.0
+  armorFragmentsDamage:b=yes
+  armorFragmentsDamageRadius:r=3.5
+  armorFragmentsDamageAngle:r=25.0
+  armorFragmentsAmount:i=50
+  armorFragmentsArmorPower:r=5.0
+  armorFragmentsHit:r=17.0
+  fuseDelayDist:r=0.8
+  explodeTreshold:r=28.0
+  explodeHitPower:r=50.0
+  explodeArmorPower:r=8.0
+  explodeRadius:p2=0.3, 0.45
+  explosionPatchRadius:r=1.1
+  shutterDamage:b=yes
+  shutterDamageRadius:r=2.8
+  shutterAmount:i=52
+  shutterArmorPower:r=8.0
+  shutterHit:r=8.0
+  groundCollisionEffect:t="big_ground_splash"
+  groundFxScale:p2=0.9, 1.1
+  ricochetEffect:t="cannon_ricochet"
+  waterCollisionEffect:t="big_water_splash"
+
+  hitpower{
+    HitPower0m:p2=0.85, 500.0
+    HitPower10000m:p2=0.8, 10000.0
+  }
+
+  armorpower{
+    ArmorPower0m:p2=235.0, 10.0
+    ArmorPower100m:p2=232.0, 100.0
+    ArmorPower250m:p2=227.0, 250.0
+    ArmorPower500m:p2=219.0, 500.0
+    ArmorPower750m:p2=211.0, 750.0
+    ArmorPower1000m:p2=204.0, 1000.0
+    ArmorPower1250m:p2=196.0, 1250.0
+    ArmorPower1500m:p2=190.0, 1500.0
+    ArmorPower2000m:p2=176.0, 2000.0
+    ArmorPower2500m:p2=164.0, 2500.0
+    ArmorPower3000m:p2=153.0, 3000.0
+    ArmorPower10000m:p2=0.0, 10000.0
+  }
+
+  visual{
+    range_percent_of_ammo:p2=100.0, 0.0
+    traceFreq:i=1
+    tracer:t="30mmWhite"
+    trail:t="black"
+  }
+
+  collisions{
+
+    steel{
+      fx:t="cannon_hit_light"
+    }
+
+    armor{
+      fx:t="cannon_hit_armor"
+    }
+  }
+}
+
+88mm_ger_kwk43_default_HE{
+
+  bullet{
+    bulletCount:i=40
+    mass:r=10.6
+    explosiveType:t="fp60_40"
+    explosiveMass:r=0.935
+    caliber:r=0.088
+    speed:r=820.0
+    maxDistance:r=10000.0
+    bulletType:t="he_frag_tank"
+    bulletName:t="88mm_sprgr"
+    hitPowerMult:r=10.0
+    nearHitPower:p2=1.0, 50.0
+    midHitPower:p2=0.9, 300.0
+    farHitPower:p2=0.1, 700.0
+    endHitPower:p2=0.008, 1500.0
+    relativeVelHitShift:p2=300.0, 1000.0
+    nearArmorPower:p2=13.0, 150.0
+    midArmorPower:p2=12.0, 600.0
+    farArmorPower:p2=11.0, 10000.0
+    relativeVelArmorShift:p2=200.0, 1000.0
+    explodeTreshold:r=0.5
+    explodeHitPower:r=120.0
+    explodeArmorPower:r=16.0
+    explodeRadius:p2=0.35, 0.45
+    fuseDelayDist:r=0.1
+    shutterDamage:b=yes
+    shutterDamageRadius:r=22.5
+    shutterAmount:i=170
+    shutterArmorPower:r=8.0
+    shutterHit:r=15.0
+    groundCollisionEffect:t="art_ground_splash"
+    ricochetEffect:t="cannon_ricochet"
+    groundFxScale:p2=1.5, 1.6
+
+    visual{
+      range_percent_of_ammo:p2=100.0, 0.0
+      traceFreq:i=1
+      tracer:t="50mmBrightRed"
+      trail:t="black"
+    }
+
+    collisions{
+
+      steel{
+        fx:t="cannon_hit_armor_cumulative"
+        fxScale:p2=2.0, 3.0
+      }
+
+      armor{
+        fx:t="cannon_hit_armor_cumulative"
+        fxScale:p2=2.0, 3.0
+      }
+    }
+  }
+}
+
+88mm_ger_kwk43_HEAT{
+
+  bullet{
+    bulletCount:i=30
+    mass:r=7.64
+    explosiveType:t="h5"
+    explosiveMass:r=0.646
+    caliber:r=0.088
+    speed:r=600.0
+    maxDistance:r=7000.0
+    bulletType:t="heat_tank"
+    bulletName:t="88mm_grhl39"
+    hitPowerMult:r=10.0
+    relativeVelHitShift:p2=300.0, 1000.0
+    relativeVelArmorShift:p2=200.0, 1000.0
+    explodeTreshold:r=0.3
+    explodeHitPower:r=80.0
+    explodeArmorPower:r=9.0
+    explodeRadius:p2=0.3, 0.4
+    explosionPatchRadius:r=1.1
+    shutterDamage:b=yes
+    shutterDamageRadius:r=5.5
+    shutterAmount:i=45
+    shutterArmorPower:r=5.0
+    shutterHit:r=12.0
+    groundCollisionEffect:t="art_ground_splash"
+    ricochetEffect:t="cannon_ricochet"
+    groundFxScale:p2=1.6, 1.7
+
+    hitpower{
+      HitPower0m:p2=1.0, 500.0
+      HitPower1000m:p2=0.9, 1000.0
+      HitPower1500m:p2=0.65, 1500.0
+      HitPower2500m:p2=0.5, 2500.0
+      HitPower7000m:p2=0.0, 7000.0
+    }
+
+    armorpower{
+      ArmorPower0m:p2=2.0, 10.0
+      ArmorPower100m:p2=2.0, 100.0
+      ArmorPower500m:p2=2.0, 500.0
+      ArmorPower1000m:p2=2.0, 1000.0
+      ArmorPower1500m:p2=2.0, 1500.0
+      ArmorPower1800m:p2=2.0, 1800.0
+      ArmorPower2500m:p2=2.0, 2500.0
+      ArmorPower7000m:p2=1.0, 7000.0
+    }
+
+    cumulativeDamage{
+      armorPower:r=110.0
+      distance:r=2.5
+      damage:r=150.0
+      onHitChanceMultFire:r=15.0
+      cumulativeFragmentsDamageRadius:r=3.0
+      cumulativeFragmentsDamageAngle:r=25.0
+      cumulativeFragmentsAmount:i=40
+      cumulativeFragmentsArmorPower:r=6.0
+      cumulativeFragmentsHit:r=7.0
+    }
+
+    visual{
+      range_percent_of_ammo:p2=100.0, 0.0
+      traceFreq:i=1
+      tracer:t="30mmWhite"
+      trail:t="black"
+    }
+
+    collisions{
+
+      steel{
+        fx:t="cannon_hit_armor_cumulative"
+        fxScale:p2=2.0, 3.0
+      }
+
+      armor{
+        fx:t="cannon_hit_armor_cumulative"
+        fxScale:p2=2.0, 3.0
+      }
+    }
+  }
+}
+
+88mm_ger_kwk43_APCR{
+
+  bullet{
+    bulletCount:i=10
+    mass:r=7.3
+    caliber:r=0.088
+    speed:r=1200.0
+    maxDistance:r=10000.0
+    bulletType:t="apcr_tank"
+    bulletName:t="88mm_pzrg_40_43"
+    hitPowerMult:r=200.0
+    relativeVelHitShift:p2=300.0, 1000.0
+    armorFragmentsDamage:b=yes
+    armorFragmentsDamageRadius:r=2.5
+    armorFragmentsDamageAngle:r=12.0
+    armorFragmentsAmount:i=20
+    armorFragmentsArmorPower:r=6.0
+    armorFragmentsHit:r=8.0
+    relativeVelArmorShift:p2=200.0, 1000.0
+    groundCollisionEffect:t="big_ground_splash"
+    groundFxScale:p2=0.9, 1.1
+    ricochetEffect:t="cannon_ricochet"
+    waterCollisionEffect:t="big_water_splash"
+
+    hitpower{
+      HitPower0m:p2=0.8, 300.0
+      HitPower1000m:p2=0.7, 1000.0
+      HitPower1500m:p2=0.6, 1500.0
+      HitPower2500m:p2=0.6, 2500.0
+      HitPower10000m:p2=0.5, 10000.0
+    }
+
+    armorpower{
+      ArmorPower0m:p2=272.0, 10.0
+      ArmorPower100m:p2=270.0, 100.0
+      ArmorPower250m:p2=263.0, 250.0
+      ArmorPower500m:p2=250.0, 500.0
+      ArmorPower750m:p2=239.0, 750.0
+      ArmorPower1000m:p2=228.0, 1000.0
+      ArmorPower1250m:p2=218.0, 1250.0
+      ArmorPower1500m:p2=208.0, 1500.0
+      ArmorPower2000m:p2=189.0, 2000.0
+      ArmorPower2500m:p2=172.0, 2500.0
+      ArmorPower3000m:p2=157.0, 3000.0
+      ArmorPower10000m:p2=0.0, 10000.0
+    }
+
+    visual{
+      range_percent_of_ammo:p2=100.0, 0.0
+      traceFreq:i=1
+      tracer:t="50mmPink"
+      trail:t="black"
+    }
+
+    collisions{
+
+      steel{
+        fx:t="cannon_hit_light"
+      }
+
+      armor{
+        fx:t="cannon_hit_armor"
+      }
+    }
+  }
+}

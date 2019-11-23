@@ -1,0 +1,6 @@
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/jp_mod50mark2.blk"
+  emitter:t="bomb1"
+  bullets:i=1
+}

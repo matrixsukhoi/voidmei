@@ -1,0 +1,40 @@
+bombGun:b=yes
+preset_cost:i=20
+shotFreq:r=10.0
+sound:t="weapon.bombgun"
+mesh:t="jp_type94mod5"
+
+bomb{
+  mass:r=50.0
+  explosiveType:t="tnt"
+  explosiveMass:r=19.6
+  bombType:t="he_bomb"
+  bombName:t="type94_mod5"
+  caliber:r=0.18
+  length:r=1.01
+  distFromCmToStab:r=0.3
+  dragCx:r=0.02
+  sound:t="weapon.bomb_mid"
+  waterExplosionEffect:t="bigesplashxplosion_fx"
+  hitPowerMult:r=1.0
+  nearHitPower:p2=1.0, 50.0
+  midHitPower:p2=0.9, 400.0
+  farHitPower:p2=0.1, 1000.0
+  endHitPower:p2=0.01, 1500.0
+  relativeVelHitShift:p2=300.0, 1000.0
+  nearArmorPower:p2=10.0, 50.0
+  midArmorPower:p2=7.0, 400.0
+  farArmorPower:p2=0.2, 700.0
+  relativeVelArmorShift:p2=200.0, 1000.0
+  explodeTreshold:r=0.0
+  explodeHitPower:r=120.0
+  explodeArmorPower:r=35.0
+  explodeRadius:p2=1.0, 3.0
+  explosionPatchRadius:r=3.0
+  rendinstDamageRadius:r=15.0
+  shutterDamage:b=yes
+  shutterDamageRadius:r=40.0
+  shutterAmount:i=2000
+  shutterArmorPower:r=10.0
+  shutterHit:r=10.0
+}

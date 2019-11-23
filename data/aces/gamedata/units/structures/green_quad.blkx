@@ -1,0 +1,29 @@
+model:t="green_quad"
+subclass:t="fortification"
+hasExpl:b=no
+hasDmg2:b=no
+hasDmg2Aces:b=no
+hasDmg:b=no
+damageableByGun:b=no
+renderInWaterReflection:b=yes
+
+DamageParts{
+
+  armor45{
+
+    body_dm{
+      hp:r=1000.0
+    }
+  }
+}
+
+DamageEffects{
+
+  part{
+    name:t="body_dm"
+
+    onKill{
+      expl:r=1.0
+    }
+  }
+}

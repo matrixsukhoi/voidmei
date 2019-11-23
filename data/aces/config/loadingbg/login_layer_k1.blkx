@@ -1,0 +1,72 @@
+imgLayer{
+  layerSensitivity:t="1"
+
+  img{
+    size:t="pw, ph"
+    re-type:t="9rect"
+    background-image:t="ui/bkg/login_layer_k1_0.jpg?P1"
+    background-repeat:t="expand"
+  }
+}
+
+imgLayer{
+  layerSensitivity:t="2"
+
+  img{
+    pos:t="14%pw,20%ph"
+    position:t="absolute"
+    height:t="0.98ph"
+    width:t="0.38pw"
+    re-type:t="9rect"
+    background-image:t="ui/bkg/login_layer_k1_1?x1ac"
+  }
+}
+
+imgLayer{
+  layerSensitivity:t="3"
+
+  img{
+    pos:t="40%pw,5%ph"
+    position:t="absolute"
+    width:t="0.38pw"
+    height:t="1.05ph"
+    re-type:t="9rect"
+    background-image:t="ui/bkg/login_layer_k1_2?x1ac"
+  }
+}
+
+imgLayer{
+  layerSensitivity:t="3"
+
+  img{
+    pos:t="33.2%pw,-3%ph"
+    position:t="absolute"
+    height:t="0.93ph"
+    width:t="0.7pw"
+    re-type:t="9rect"
+    background-image:t="ui/bkg/login_layer_k1_3?x1ac"
+  }
+}
+
+img{
+  pos:t="50%pw-50%w, 50%ph-50%h"
+  position:t="absolute"
+  width:t="1.2sw"
+  height:t="1.2sh"
+  re-type:t="9rect"
+  background-image:t="ui/bkg/login_layer_4?x1ac"
+
+  tdiv{
+    size:t="ph, ph"
+    pos:t="-w+1"
+    position:t="absolute"
+    background-color:t="@black"
+  }
+
+  tdiv{
+    size:t="ph, ph"
+    pos:t="pw-1"
+    position:t="absolute"
+    background-color:t="@black"
+  }
+}

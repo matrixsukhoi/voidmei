@@ -1,0 +1,11 @@
+windows{
+  probe_send:b=no
+  probe_send_and_apply:b=no
+  probe_send_timeout:r=10.0
+}
+
+dedicated{
+  probe_send:b=no
+  probe_send_and_apply:b=no
+  probe_send_timeout:r=10.0
+}

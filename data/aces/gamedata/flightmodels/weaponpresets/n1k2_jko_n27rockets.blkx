@@ -1,0 +1,22 @@
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/ijnaf_60kg.blk"
+  emitter:t="rocket1"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/ijnaf_60kg.blk"
+  emitter:t="rocket2"
+  bullets:i=1
+}
+
+hideNodes{
+  node:t="pylon_250kg_on_1"
+  node:t="pylon_250kg_on_2"
+  node:t="pylon_500kg_on"
+  node:t="pylon_60kg_on"
+}

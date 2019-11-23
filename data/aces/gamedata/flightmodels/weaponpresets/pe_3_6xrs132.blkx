@@ -1,0 +1,58 @@
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/su_rs132.blk"
+  emitter:t="rocket3"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/su_rs132.blk"
+  emitter:t="rocket8"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/su_rs132.blk"
+  emitter:t="rocket4"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/su_rs132.blk"
+  emitter:t="rocket7"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/su_rs132.blk"
+  emitter:t="rocket5"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/su_rs132.blk"
+  emitter:t="rocket6"
+  bullets:i=1
+}
+
+hideNodes{
+  node:t="pylon_rocket1"
+  node:t="pylon_rocket2"
+  node:t="pylon_rocket9"
+  node:t="pylon_rocket10"
+  node:t="rocket1"
+  node:t="rocket2"
+  node:t="rocket9"
+  node:t="rocket10"
+}

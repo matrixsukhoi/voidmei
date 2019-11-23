@@ -1,0 +1,102 @@
+cannon:b=yes
+weaponType:i=-1
+bUseHookAsRel:b=yes
+emitColor:p3=1.0, 1.0, 0.0
+emitI:r=10.0
+emitR:r=3.0
+emitTime:r=0.03
+aimMinDist:r=0.1
+aimMaxDist:r=2000.0
+maxDeltaAngle:r=1.0
+maxDeltaAngleVertical:r=1.5
+shotFreq:r=0.6
+traceFreq:i=4
+bEnablePause:b=no
+bullets:i=-1
+bulletsCluster:i=1
+shouldCollideWithRendinsts:b=yes
+sound_path:t="tanks/effects_tanks"
+sound:t="gui_bns_fail0"
+sound_inside:t="gui_bns_fail1"
+sfxReloadBullet:t="grd_cannon_reload"
+fxMultipleSpawn:b=yes
+isBulletBelt:b=no
+
+bullet{
+  bulletCount:i=25
+  mass:r=0.2
+  caliber:r=0.12
+  speed:r=150.0
+  maxDistance:r=400.0
+  bulletType:t="tp_tank"
+  bulletName:t="100mm_tp"
+  maxDeltaAngle:r=0.5
+  maxDeltaAngleVertical:r=1.0
+  hitPowerMult:r=2000.0
+  relativeVelHitShift:p2=300.0, 1000.0
+  relativeVelArmorShift:p2=200.0, 1000.0
+  groundCollisionEffect:t="big_ground_splash"
+  groundFxScale:p2=0.09, 0.01
+  ricochetEffect:t="cannon_ricochet"
+  waterCollisionEffect:t="water_splash"
+
+  hitpower{
+    HitPower0m:p2=0.85, 500.0
+    HitPower10000m:p2=0.8, 10000.0
+  }
+
+  armorpower{
+    ArmorPower0m:p2=3.0, 10.0
+    ArmorPower100m:p2=2.0, 100.0
+    ArmorPower150m:p2=1.0, 150.0
+    ArmorPower400m:p2=0.5, 400.0
+  }
+
+  visual{
+    range_percent_of_ammo:p2=100.0, 0.0
+    traceFreq:i=1
+    tracer:t="noColor"
+    trail:t="curved"
+  }
+}
+
+100mm_usa_fake_tphv{
+
+  bullet{
+    bulletCount:i=25
+    mass:r=0.05
+    caliber:r=0.05
+    speed:r=200.0
+    maxDistance:r=300.0
+    bulletType:t="tphv_tank"
+    bulletName:t="100mm_tphv"
+    maxDeltaAngle:r=0.4
+    maxDeltaAngleVertical:r=0.7
+    hitPowerMult:r=1000.0
+    relativeVelHitShift:p2=300.0, 1000.0
+    relativeVelArmorShift:p2=200.0, 1000.0
+    groundCollisionEffect:t="big_ground_splash"
+    groundFxScale:p2=0.09, 0.01
+    ricochetEffect:t="cannon_ricochet"
+    waterCollisionEffect:t="water_splash"
+
+    hitpower{
+      HitPower0m:p2=0.85, 500.0
+      HitPower10000m:p2=0.8, 10000.0
+    }
+
+    armorpower{
+      ArmorPower0m:p2=6.0, 10.0
+      ArmorPower50m:p2=4.0, 50.0
+      ArmorPower100m:p2=3.0, 100.0
+      ArmorPower400m:p2=2.0, 400.0
+    }
+
+    visual{
+      range_percent_of_ammo:p2=100.0, 0.0
+      traceFreq:i=1
+      tracer:t="noColor"
+      trail:t="curved"
+    }
+  }
+}

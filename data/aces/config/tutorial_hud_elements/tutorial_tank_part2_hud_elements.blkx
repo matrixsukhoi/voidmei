@@ -1,0 +1,604 @@
+frame{
+  id:t="tutorial_tank_armor_explanation_img"
+  position:t="absolute"
+  pos:t="100%pw-100%w, 60%ph-100%h"
+  size:t="410/720@shHud, 269/720@shHud"
+
+  img{
+    size:t="pw,ph"
+    display:t="show"
+    background-image:t="@!ui/images/tutorial/tutorial_tank_armor_explanation_img.jpg?P1"
+  }
+
+  textareaNoTab{
+    shadeStyle:t="HudHeader3D"
+    id:t="hud_tutorial_tank_armor_front"
+    position:t="absolute"
+    pos:t="40%pw-100%w, 23%ph-100%h"
+    width:t="0.38pw"
+    display:t="show"
+    style:t="font:small_text_hud; text-align:right; color:#c90000;"
+    text:t="#hud_tutorial_tank_armor_front"
+
+    img{
+      id:t="tutorial_tank_arrow_front_armor01"
+      position:t="absolute"
+      pos:t="105%pw-0%w, 40%ph-0%h"
+      size:t="30/720@shHud, 50/720@shHud"
+      rotation:t="130"
+      display:t="show"
+      background-image:t="@!ui/images/tutorial/tutorial_tank_arrow_yellow.png"
+    }
+
+    img{
+      id:t="tutorial_tank_arrow_front_armor02"
+      position:t="absolute"
+      pos:t="75%pw-0%w, 100%ph-0%h"
+      size:t="30/720@shHud, 70/720@shHud"
+      rotation:t="170"
+      display:t="show"
+      background-image:t="@!ui/images/tutorial/tutorial_tank_arrow_yellow.png"
+    }
+  }
+
+  textareaNoTab{
+    shadeStyle:t="HudHeader3D"
+    id:t="hud_tutorial_tank_armor_side"
+    position:t="absolute"
+    pos:t="95%pw-100%w, 85%ph-50%h"
+    display:t="show"
+    width:t="0.7pw"
+    style:t="font:small_text_hud; text-align:right; color:#ebeb22;"
+    text:t="#hud_tutorial_tank_armor_side"
+
+    img{
+      id:t="tutorial_tank_arrow_side_armor01"
+      position:t="absolute"
+      pos:t="60%pw-100%w, 0%ph-100%h"
+      size:t="30/720@shHud, 70/720@shHud"
+      rotation:t="320"
+      display:t="show"
+      background-image:t="@!ui/images/tutorial/tutorial_tank_arrow_yellow.png"
+    }
+
+    img{
+      id:t="tutorial_tank_arrow_side_armor02"
+      position:t="absolute"
+      pos:t="85%pw-100%w, 0%ph-100%h"
+      size:t="30/720@shHud, 100/720@shHud"
+      rotation:t="15"
+      display:t="show"
+      background-image:t="@!ui/images/tutorial/tutorial_tank_arrow_yellow.png"
+    }
+  }
+
+  textareaNoTab{
+    shadeStyle:t="HudHeader3D"
+    id:t="hud_tutorial_tank_armor_rear"
+    position:t="absolute"
+    pos:t="98%pw-100%w, 2%ph-0%h"
+    display:t="show"
+    width:t="0.3pw"
+    style:t="font:small_text_hud; text-align:right; color:#47c93e;"
+    text:t="#hud_tutorial_tank_armor_rear"
+
+    img{
+      id:t="tutorial_tank_arrow_rear_armor"
+      position:t="absolute"
+      pos:t="85%pw-100%w, 100%ph-30%h"
+      size:t="30/720@shHud, 50/720@shHud"
+      rotation:t="250"
+      display:t="show"
+      background-image:t="@!ui/images/tutorial/tutorial_tank_arrow_yellow.png"
+    }
+  }
+}
+
+frame{
+  id:t="tutorial_tank_ammo_explanation_img"
+  position:t="absolute"
+  pos:t="50%pw-50%w, 10%ph-0%w"
+  width:t="600/720sh"
+
+  textareaNoTab{
+    shadeStyle:t="HudHeader3D"
+    id:t="hud_tutorial_tank_ammo_general_info"
+    position:t="relative"
+    pos:t="50%pw-50%w, 0"
+    display:t="show"
+    style:t="font:small_text_hud; text-align:center; color:#ffffff;"
+    text:t="#hud_tutorial_tank_ammo_general_info"
+  }
+
+  tdiv{
+    id:t="hud_tutorial_tank_ammo_shells_with_arrows"
+    size:t="0.9pw, 56/720sh"
+    pos:t="50%pw-50%w, 0.01sh"
+    position:t="relative"
+    display:t="hide"
+
+    img{
+      id:t="tutorial_shells_default"
+      size:t="54/56ph, ph"
+      position:t="absolute"
+      pos:t="0, 0"
+      display:t="show"
+      background-image:t="@!ui/images/tutorial/tutorial_shells_default.jpg?P1"
+      flow:t="vertical"
+    }
+
+    img{
+      id:t="tutorial_shells_apcr"
+      size:t="54/56ph, ph"
+      position:t="absolute"
+      pos:t="pw-w, 0"
+      display:t="show"
+      background-image:t="@!ui/images/tutorial/tutorial_shells_apcr.jpg?P1"
+    }
+
+    tdiv{
+      size:t="pw - 2*0.6ph, 30/720sh"
+      position:t="absolute"
+      pos:t="50%pw-50%w, 17%ph-50%h"
+
+      img{
+        size:t="0.5fw, ph"
+        re-type:t="rotation"
+        background-rotation:t="180"
+        display:t="show"
+        background-image:t="@!ui/images/tutorial/tutorial_tank_arrow_yellow_right.png"
+      }
+
+      textAreaCentered{
+        shadeStyle:t="HudHeader3D"
+        id:t="hud_tutorial_tank_ammo_damage_gen"
+        position:t="relative"
+        pos:t="0, 50%ph-50%h"
+        display:t="show"
+        style:t="font:small_text_hud; color:#ffffff;"
+        text:t="#hud_tutorial_tank_ammo_damage_gen"
+      }
+
+      img{
+        size:t="0.5fw, ph"
+        display:t="show"
+        background-image:t="@!ui/images/tutorial/tutorial_tank_arrow_yellow_right.png"
+      }
+    }
+
+    tdiv{
+      size:t="pw - 2*0.7ph, 30/720sh"
+      position:t="absolute"
+      pos:t="50%pw-50%w, 55%ph-50%h"
+      display:t="show"
+
+      img{
+        size:t="0.5fw, ph"
+        re-type:t="rotation"
+        background-rotation:t="180"
+        background-image:t="@!ui/images/tutorial/tutorial_tank_arrow_yellow_right.png"
+      }
+
+      textAreaCentered{
+        shadeStyle:t="HudHeader3D"
+        id:t="hud_tutorial_tank_ammo_penetration_gen"
+        position:t="relative"
+        pos:t="0, 50%ph-50%h"
+        display:t="show"
+        style:t="font:small_text_hud; color:#ffffff;"
+        text:t="#hud_tutorial_tank_ammo_penetration_gen"
+      }
+
+      img{
+        size:t="0.5fw, ph"
+        display:t="show"
+        background-image:t="@!ui/images/tutorial/tutorial_tank_arrow_yellow_right.png"
+      }
+    }
+  }
+
+  tdiv{
+    id:t="hud_tutorial_tank_ammo_damage_full_info"
+    width:t="0.9pw"
+    pos:t="50%pw-50%w, 0.02sh"
+    position:t="relative"
+    display:t="hide"
+    flow:t="vertical"
+
+    textAreaCentered{
+      shadeStyle:t="HudHeader3D"
+      id:t="hud_tutorial_tank_ammo_damage_gen"
+      position:t="relative"
+      pos:t="0, 0"
+      display:t="show"
+      style:t="font:very_tiny_text_hud; color:#c1c1c1;"
+      text:t="#hud_tutorial_tank_ammo_damage_gen"
+    }
+
+    tdiv{
+      flow:t="horizontal"
+      width:t="pw"
+      position:t="relative"
+
+      img{
+        position:t="relative"
+        pos:t="0, 50%ph-50%h"
+        size:t="54/720sh, 56/720sh"
+        display:t="show"
+        background-image:t="@!ui/images/tutorial/tutorial_shells_explosion.jpg?P1"
+      }
+
+      img{
+        position:t="relative"
+        pos:t="2%pw, 50%ph-50%h"
+        size:t="50/720sh, 50/720sh"
+        display:t="show"
+        background-image:t="@!ui/images/tutorial/tutorial_sign_greater.png"
+      }
+
+      img{
+        position:t="relative"
+        pos:t="2%pw, 50%ph-50%h"
+        size:t="54/720sh, 56/720sh"
+        display:t="show"
+        background-image:t="@!ui/images/tutorial/tutorial_shells_frag.jpg?P1"
+      }
+
+      textareaNoTab{
+        shadeStyle:t="HudHeader3D"
+        position:t="relative"
+        pos:t="4%pw, 50%ph-50%h"
+        width:t="fw"
+        display:t="show"
+        style:t="font:small_text_hud; text-align:left; color:#ffffff;"
+        text:t="#hud_tutorial_tank_ammo_damage_full_info"
+      }
+    }
+  }
+
+  tdiv{
+    id:t="hud_tutorial_tank_ammo_penetration_full_info"
+    width:t="0.9pw"
+    pos:t="50%pw-50%w, 0.02sh"
+    position:t="relative"
+    display:t="hide"
+    flow:t="vertical"
+
+    textAreaCentered{
+      shadeStyle:t="HudHeader3D"
+      id:t="hud_tutorial_tank_ammo_penetration_general_header"
+      position:t="relative"
+      pos:t="0, 0"
+      display:t="show"
+      style:t="font:very_tiny_text_hud; color:#c1c1c1;"
+      text:t="#hud_tutorial_tank_ammo_penetration_general_header"
+    }
+
+    tdiv{
+      flow:t="horizontal"
+      width:t="pw"
+      position:t="relative"
+
+      img{
+        position:t="relative"
+        pos:t="0, 50%ph-50%h"
+        size:t="54/720sh, 56/720sh"
+        display:t="show"
+        background-image:t="@!ui/images/tutorial/tutorial_shells_penetration_bad.jpg?P1"
+      }
+
+      img{
+        position:t="relative"
+        pos:t="2%pw, 50%ph-50%h"
+        size:t="50/720sh, 50/720sh"
+        rotation:t="180"
+        background-position:t="0, h"
+        display:t="show"
+        background-image:t="@!ui/images/tutorial/tutorial_sign_greater.png"
+      }
+
+      img{
+        position:t="relative"
+        pos:t="2%pw, 50%ph-50%h"
+        size:t="54/720sh, 56/720sh"
+        display:t="show"
+        background-image:t="@!ui/images/tutorial/tutorial_shells_penetration_good.jpg?P1"
+      }
+
+      textareaNoTab{
+        shadeStyle:t="HudHeader3D"
+        position:t="relative"
+        pos:t="4%pw, 50%ph-50%h"
+        width:t="fw"
+        display:t="show"
+        style:t="font:small_text_hud; text-align:left; color:#ffffff;"
+        text:t="#hud_tutorial_tank_ammo_penetration_full_info"
+      }
+    }
+  }
+
+  tdiv{
+    id:t="hud_tutorial_tank_ammo_final"
+    width:t="0.9pw"
+    pos:t="50%pw-50%w, 0.02sh"
+    position:t="relative"
+    display:t="hide"
+    flow:t="vertical"
+
+    textAreaCentered{
+      shadeStyle:t="HudHeader3D"
+      id:t="hud_tutorial_tank_ammo_penetration_comparison_header"
+      position:t="relative"
+      pos:t="0, 0"
+      display:t="show"
+      style:t="font:very_tiny_text_hud; color:#c1c1c1;"
+      text:t="#hud_tutorial_tank_ammo_penetration_comparison_header"
+    }
+
+    tdiv{
+      flow:t="horizontal"
+      width:t="pw"
+      position:t="relative"
+
+      img{
+        position:t="relative"
+        pos:t="0, 50%ph-50%h"
+        size:t="54/720sh, 56/720sh"
+        display:t="show"
+        background-image:t="@!ui/images/tutorial/tutorial_shells_default.jpg?P1"
+      }
+
+      img{
+        position:t="relative"
+        pos:t="2%pw, 50%ph-50%h"
+        size:t="50/720sh, 50/720sh"
+        rotation:t="180"
+        background-position:t="0, h"
+        display:t="show"
+        background-image:t="@!ui/images/tutorial/tutorial_sign_greater.png"
+      }
+
+      img{
+        position:t="relative"
+        pos:t="2%pw, 50%ph-50%h"
+        size:t="54/720sh, 56/720sh"
+        display:t="show"
+        background-image:t="@!ui/images/tutorial/tutorial_shells_apcr.jpg?P1"
+      }
+
+      textareaNoTab{
+        shadeStyle:t="HudHeader3D"
+        position:t="relative"
+        pos:t="4%pw, 50%ph-50%h"
+        width:t="fw"
+        display:t="show"
+        style:t="font:small_text_hud; text-align:left; color:#ffffff;"
+        text:t="#hud_tutorial_tank_ammo_final"
+      }
+    }
+  }
+}
+
+frame{
+  id:t="tutorial_tank_ammo_summary_all_texts"
+  position:t="absolute"
+  pos:t="50%pw-50%w, 10%ph-0%w"
+  width:t="600/720sh"
+
+  textareaNoTab{
+    shadeStyle:t="HudHeader3D"
+    id:t="hud_tutorial_tank_ammo_summary_header"
+    position:t="relative"
+    pos:t="50%pw-50%w, 0"
+    display:t="show"
+    style:t="font:small_text_hud; text-align:center; color:#ffffff;"
+    text:t="#hud_tutorial_tank_ammo_summary"
+  }
+
+  tdiv{
+    id:t="tutorial_tank_ammo_summary_icons_and_text"
+    width:t="0.9pw"
+    pos:t="50%pw-50%w, 0.02sh"
+    position:t="relative"
+    display:t="show"
+    flow:t="vertical"
+
+    textAreaCentered{
+      shadeStyle:t="HudHeader3D"
+      id:t="hud_tutorial_tank_ammo_for_light_tanks"
+      position:t="relative"
+      pos:t="0, 0"
+      display:t="show"
+      style:t="font:very_tiny_text_hud; color:#c1c1c1;"
+      text:t="#hud_tutorial_tank_ammo_for_light_tanks"
+    }
+
+    tdiv{
+      flow:t="horizontal"
+      width:t="pw"
+      position:t="relative"
+
+      img{
+        position:t="relative"
+        pos:t="0, 50%ph-50%h"
+        size:t="54/720sh, 56/720sh"
+        display:t="show"
+        background-image:t="@!ui/images/tutorial/tutorial_shells_default.jpg?P1"
+      }
+
+      textareaNoTab{
+        shadeStyle:t="HudHeader3D"
+        position:t="relative"
+        pos:t="4%pw, 50%ph-50%h"
+        width:t="fw"
+        display:t="show"
+        style:t="font:small_text_hud; text-align:left; color:#ffffff;"
+        text:t="#hud_tutorial_tank_ammo_for_light_tanks_use"
+      }
+    }
+  }
+
+  tdiv{
+    id:t="tutorial_tank_ammo_summary_icons_and_text_2nd_part"
+    width:t="0.9pw"
+    pos:t="50%pw-50%w, 0.02sh"
+    position:t="relative"
+    display:t="show"
+    flow:t="vertical"
+
+    textAreaCentered{
+      shadeStyle:t="HudHeader3D"
+      id:t="hud_tutorial_tank_ammo_for_heavy_tanks"
+      position:t="relative"
+      pos:t="0, 0"
+      display:t="show"
+      style:t="font:very_tiny_text_hud; color:#c1c1c1;"
+      text:t="#hud_tutorial_tank_ammo_for_heavy_tanks"
+    }
+
+    tdiv{
+      flow:t="horizontal"
+      width:t="pw"
+      position:t="relative"
+
+      img{
+        position:t="relative"
+        pos:t="0%pw, 50%ph-50%h"
+        size:t="54/720sh, 56/720sh"
+        display:t="show"
+        background-image:t="@!ui/images/tutorial/tutorial_shells_apcr.jpg?P1"
+      }
+
+      textareaNoTab{
+        shadeStyle:t="HudHeader3D"
+        position:t="relative"
+        pos:t="4%pw, 50%ph-50%h"
+        width:t="fw"
+        display:t="show"
+        style:t="font:small_text_hud; text-align:left; color:#ffffff;"
+        text:t="#hud_tutorial_tank_ammo_for_heavy_tanks_use"
+      }
+    }
+  }
+}
+
+frame{
+  id:t="tank_tutorial_advanced_shooting_screen01"
+  position:t="root"
+  pos:t="0.5sw-0.5w, 0.05sh-0"
+  max-width:t="1383"
+  max-height:t="576"
+  height:t="576/1280w"
+  width:t="0.95@rw"
+
+  img{
+    size:t="pw,ph"
+    display:t="show"
+    background-image:t="@!ui/images/tutorial/tank_tutorial_advanced_shooting_screen01.jpg?P1"
+
+    textareaNoTab{
+      shadeStyle:t="HudHeader3D"
+      position:t="absolute"
+      pos:t="0.05pw, 5%ph-0%h"
+      width:t="0.9pw"
+      display:t="show"
+      style:t="font:small_text_hud; text-align:center; color:#ffffff;"
+      text:t="#hud_tutorial_tank_lr_how_the_shells_fly"
+    }
+
+    textareaNoTab{
+      shadeStyle:t="HudHeader3D"
+      position:t="absolute"
+      pos:t="0.05pw, 50%ph-0%h"
+      width:t="0.9pw"
+      display:t="show"
+      style:t="font:small_text_hud; text-align:center; color:#ffffff;"
+      text:t="#hud_tutorial_tank_lr_what_to_do_with_cannon"
+    }
+  }
+}
+
+frame{
+  id:t="tank_tutorial_advanced_shooting_screen02"
+  position:t="root"
+  pos:t="0.5sw-0.5w, 0.5sh-0.5h"
+  height:t="720/1280w"
+  width:t="0.95@rw"
+  max-width:t="1280"
+  max-height:t="720"
+
+  img{
+    size:t="pw,ph"
+    display:t="show"
+    background-image:t="@!ui/images/tutorial/tank_tutorial_advanced_shooting_screen02.jpg?P1"
+  }
+}
+
+frame{
+  id:t="tank_tutorial_advanced_shooting_screen03"
+  position:t="root"
+  pos:t="0.5sw-0.5w, 0.5sh-0.5h"
+  height:t="720/1280w"
+  width:t="0.95@rw"
+  max-width:t="1280"
+  max-height:t="720"
+
+  img{
+    size:t="pw,ph"
+    display:t="show"
+    background-image:t="@!ui/images/tutorial/tank_tutorial_advanced_shooting_screen03.jpg?P1"
+  }
+}
+
+frame{
+  id:t="tutorial_tank_advanced_shooting_in_short"
+  position:t="absolute"
+  pos:t="0, 0"
+  size:t="400/720@shHud, 200/720@shHud"
+  max-width:t="600"
+  max-height:t="300"
+
+  img{
+    size:t="pw,ph"
+    display:t="show"
+    background-image:t="@!ui/images/tutorial/tutorial_tank_advanced_shooting_in_short.jpg?P1"
+  }
+}
+
+frame{
+  id:t="tank_tutorial_advanced_shooting01"
+  position:t="root"
+  pos:t="0.5sw-0.5w, 0.5sh-0.5h"
+  height:t="720/1280w"
+  display:t="hide"
+  width:t="0.95@rw"
+  max-width:t="1280"
+  max-height:t="720"
+
+  movie{
+    size:t="pw,ph"
+    movie-autoStart:t="yes"
+    movie-loop:t="no"
+    movie-state:t="playing"
+    movie-load:t="video/tutorial_video/tank_tutorial_advanced_shooting01.ogv"
+  }
+}
+
+frame{
+  id:t="tank_tutorial_advanced_shooting02"
+  position:t="root"
+  pos:t="0.5sw-0.5w, 0.5sh-0.5h"
+  height:t="720/1280w"
+  display:t="hide"
+  width:t="0.95@rw"
+  max-width:t="1280"
+  max-height:t="720"
+
+  movie{
+    size:t="pw,ph"
+    movie-autoStart:t="yes"
+    movie-loop:t="no"
+    movie-state:t="playing"
+    movie-load:t="video/tutorial_video/tank_tutorial_advanced_shooting02.ogv"
+  }
+}

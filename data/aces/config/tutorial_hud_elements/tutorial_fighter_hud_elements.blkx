@@ -1,0 +1,296 @@
+frame{
+  id:t="air_tutorial_basic_shooting_all_images_and_texts"
+  position:t="root"
+  pos:t="0.5sw-0.5w, 0.5sh-0.5h"
+  height:t="720/1280w"
+  width:t="0.95@rw"
+  max-width:t="1280"
+  max-height:t="720"
+
+  img{
+    id:t="air_tutorial_basic_shooting_screen01_MA"
+    size:t="pw,ph"
+    display:t="show"
+    background-image:t="@!ui/images/tutorial/air_tutorial_basic_shooting_screen01.jpg?P1"
+
+    tdiv{
+      id:t="hud_tutorial_air_ma_cursor_location"
+      size:t="pw - 2*0.6ph, 30/720sh"
+      position:t="absolute"
+      pos:t="50%pw-50%w, 34%ph-100%h"
+      flow:t="vertical"
+
+      textAreaCentered{
+        shadeStyle:t="HudHeader3D"
+        position:t="relative"
+        pos:t="50%pw-50%w, 0"
+        display:t="show"
+        style:t="font:small_text_hud; color:#ffffff;"
+        text:t="#hud_tutorial_air_ma_cursor_location"
+      }
+
+      img{
+        position:t="relative"
+        pos:t="50%pw-50%w, 0"
+        size:t="30/720@shHud, 50/720@shHud"
+        rotation:t="180"
+        display:t="show"
+        background-image:t="@!ui/images/tutorial/tutorial_tank_arrow_yellow.png"
+      }
+    }
+
+    tdiv{
+      id:t="hud_tutorial_air_aiming_location"
+      size:t="pw - 2*0.6ph, 30/720sh"
+      position:t="absolute"
+      pos:t="50%pw-50%w, 48.5%ph-50%h"
+      flow:t="vertical"
+
+      img{
+        position:t="relative"
+        pos:t="50%pw-50%w, 0"
+        size:t="30/720@shHud, 50/720@shHud"
+        display:t="show"
+        background-image:t="@!ui/images/tutorial/tutorial_tank_arrow_yellow.png"
+      }
+
+      textAreaCentered{
+        shadeStyle:t="HudHeader3D"
+        position:t="relative"
+        pos:t="50%pw-50%w, 0"
+        display:t="show"
+        style:t="font:small_text_hud; color:#ffffff;"
+        text:t="#hud_tutorial_air_aiming_location"
+      }
+    }
+
+    tdiv{
+      id:t="hud_tutorial_air_forestall_location"
+      size:t="pw - 2*0.6ph, 30/720sh"
+      position:t="absolute"
+      pos:t="2%pw, 44%ph-50%h"
+      flow:t="horizontal"
+
+      textAreaCentered{
+        shadeStyle:t="HudHeader3D"
+        position:t="relative"
+        pos:t="0, 50%ph-50%h"
+        display:t="show"
+        width:t="0.8fw"
+        style:t="font:small_text_hud; color:#ffffff;"
+        text:t="#hud_tutorial_air_forestall_location"
+      }
+
+      img{
+        size:t="0.2fw, ph"
+        display:t="show"
+        background-image:t="@!ui/images/tutorial/tutorial_tank_arrow_yellow_right.png"
+      }
+    }
+  }
+}
+
+frame{
+  id:t="air_tutorial_basic_shooting_all_images_and_texts_noMA"
+  position:t="root"
+  pos:t="0.5sw-0.5w, 0.5sh-0.5h"
+  height:t="720/1280w"
+  width:t="0.95@rw"
+  max-width:t="1280"
+  max-height:t="720"
+
+  img{
+    id:t="air_tutorial_basic_shooting_screen01_noMA"
+    size:t="pw,ph"
+    display:t="show"
+    background-image:t="@!ui/images/tutorial/air_tutorial_basic_shooting_screen01_noMouseAim.jpg?P1"
+
+    tdiv{
+      id:t="hud_tutorial_air_aiming_location"
+      size:t="pw - 2*0.6ph, 30/720sh"
+      position:t="absolute"
+      pos:t="50%pw-50%w, 34%ph-100%h"
+      flow:t="vertical"
+
+      textAreaCentered{
+        shadeStyle:t="HudHeader3D"
+        position:t="relative"
+        pos:t="50%pw-50%w, 0"
+        display:t="show"
+        style:t="font:small_text_hud; color:#ffffff;"
+        text:t="#hud_tutorial_air_aiming_location"
+      }
+
+      img{
+        position:t="relative"
+        pos:t="50%pw-50%w, 0"
+        size:t="30/720@shHud, 50/720@shHud"
+        rotation:t="180"
+        display:t="show"
+        background-image:t="@!ui/images/tutorial/tutorial_tank_arrow_yellow.png"
+      }
+    }
+
+    tdiv{
+      id:t="hud_tutorial_air_forestall_location"
+      size:t="pw - 2*0.6ph, 30/720sh"
+      position:t="absolute"
+      pos:t="35.5%pw-50%w, 48.5%ph-50%h"
+      flow:t="vertical"
+
+      img{
+        position:t="relative"
+        pos:t="50%pw-50%w, 0"
+        size:t="30/720@shHud, 50/720@shHud"
+        display:t="show"
+        background-image:t="@!ui/images/tutorial/tutorial_tank_arrow_yellow.png"
+      }
+
+      textAreaCentered{
+        shadeStyle:t="HudHeader3D"
+        position:t="relative"
+        pos:t="50%pw-50%w, 0"
+        display:t="show"
+        style:t="font:small_text_hud; color:#ffffff;"
+        text:t="#hud_tutorial_air_forestall_location"
+      }
+    }
+  }
+}
+
+frame{
+  id:t="air_tutorial_basic_shooting01"
+  position:t="root"
+  pos:t="0.5sw-0.5w, 0.5sh-0.5h"
+  height:t="720/1280w"
+  display:t="hide"
+  width:t="0.95@rw"
+  max-width:t="1280"
+  max-height:t="720"
+
+  movie{
+    size:t="pw,ph"
+    movie-autoStart:t="yes"
+    movie-loop:t="no"
+    movie-state:t="playing"
+    movie-load:t="video/tutorial_video/air_tutorial_basic_shooting01.ogv"
+  }
+}
+
+frame{
+  id:t="air_tutorial_basic_shooting_screen02"
+  position:t="root"
+  pos:t="0.5sw-0.5w, 0.5sh-0.5h"
+  height:t="720/1280w"
+  width:t="0.95@rw"
+  max-width:t="1280"
+  max-height:t="720"
+
+  img{
+    size:t="pw,ph"
+    display:t="show"
+    background-image:t="@!ui/images/tutorial/air_tutorial_basic_shooting_screen02.jpg?P1"
+  }
+}
+
+frame{
+  id:t="air_tutorial_basic_shooting02"
+  position:t="root"
+  pos:t="0.5sw-0.5w, 0.5sh-0.5h"
+  height:t="720/1280w"
+  display:t="hide"
+  width:t="0.95@rw"
+  max-width:t="1280"
+  max-height:t="720"
+
+  movie{
+    size:t="pw,ph"
+    movie-autoStart:t="yes"
+    movie-loop:t="no"
+    movie-state:t="playing"
+    movie-load:t="video/tutorial_video/air_tutorial_basic_shooting02.ogv"
+  }
+}
+
+frame{
+  id:t="air_tutorial_basic_shooting_screen03"
+  position:t="root"
+  pos:t="0.5sw-0.5w, 0.5sh-0.5h"
+  height:t="720/1280w"
+  width:t="0.95@rw"
+  max-width:t="1280"
+  max-height:t="720"
+
+  img{
+    size:t="pw,ph"
+    display:t="show"
+    background-image:t="@!ui/images/tutorial/air_tutorial_basic_shooting_screen03.jpg?P1"
+  }
+}
+
+frame{
+  id:t="air_tutorial_basic_shooting_screen03_noMA"
+  position:t="root"
+  pos:t="0.5sw-0.5w, 0.5sh-0.5h"
+  height:t="720/1280w"
+  width:t="0.95@rw"
+  max-width:t="1280"
+  max-height:t="720"
+
+  img{
+    size:t="pw,ph"
+    display:t="show"
+    background-image:t="@!ui/images/tutorial/air_tutorial_basic_shooting_screen03_noMouseAim.jpg?P1"
+  }
+}
+
+frame{
+  id:t="air_tutorial_basic_shooting03"
+  position:t="root"
+  pos:t="0.5sw-0.5w, 0.5sh-0.5h"
+  height:t="720/1280w"
+  display:t="hide"
+  width:t="0.95@rw"
+  max-width:t="1280"
+  max-height:t="720"
+
+  movie{
+    size:t="pw,ph"
+    movie-autoStart:t="yes"
+    movie-loop:t="no"
+    movie-state:t="playing"
+    movie-load:t="video/tutorial_video/air_tutorial_basic_shooting03.ogv"
+  }
+}
+
+frame{
+  id:t="air_tutorial_basic_shooting_screen04"
+  position:t="root"
+  pos:t="0.5sw-0.5w, 0.5sh-0.5h"
+  height:t="720/1280w"
+  width:t="0.95@rw"
+  max-width:t="1280"
+  max-height:t="720"
+
+  img{
+    size:t="pw,ph"
+    display:t="show"
+    background-image:t="@!ui/images/tutorial/air_tutorial_basic_shooting_screen04.jpg?P1"
+  }
+}
+
+frame{
+  id:t="air_tutorial_basic_shooting_screen04_noMA"
+  position:t="root"
+  pos:t="0.5sw-0.5w, 0.5sh-0.5h"
+  height:t="720/1280w"
+  width:t="0.95@rw"
+  max-width:t="1280"
+  max-height:t="720"
+
+  img{
+    size:t="pw,ph"
+    display:t="show"
+    background-image:t="@!ui/images/tutorial/air_tutorial_basic_shooting_screen04_noMouseAim.jpg?P1"
+  }
+}

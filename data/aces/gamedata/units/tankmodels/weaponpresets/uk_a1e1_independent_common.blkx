@@ -1,0 +1,164 @@
+Weapon{
+  trigger:t="gunner0"
+  blk:t="gameData/Weapons/groundModels_weapons/47mm_OQF_3pdr_user_cannon.blk"
+  emitter:t="bone_gun_barrel"
+  flash:t="emtr_gun_flame"
+  defaultYaw:r=0.0
+  defaultPitch:r=0.0
+  barrelDP:t="gun_barrel_dm"
+  breechDP:t="cannon_breech_dm"
+  speedYaw:r=10.0
+  speedPitch:r=7.0
+  fireConeAngle:r=1.0
+  bullets:i=201
+  salvoAmount:r=100.0
+  ChainfireTime:r=0.0
+  DelayAfterShoot:r=5.0
+  AttackMaxDistance:r=1000.0
+  AttackMaxRadius:r=1000.0
+  AttackMaxHeight:r=1000.0
+  accuracyAir:r=0.0
+  accuracyGnd:r=1.5
+  errMeasureVel:r=0.0
+  errMeasureVelFast:r=0.0
+  errMeasureVelFwdShift:r=0.0
+  errMeasureVelDir:r=0.0
+  errTargettingOn100kmph:r=0.0
+  errTargetting:r=3.0
+  errExplTime:r=0.0
+
+  turret{
+    head:t="bone_turret"
+    gun:t="bone_gun"
+    barrel:t="bone_gun_barrel"
+  }
+
+  limits{
+    yaw:p2=-180.0, 180.0
+    pitch:p2=-4.0, 20.0
+  }
+
+  limitsTable{
+    lim1:p4=-180.0, -168.0, -3.0, 20.0
+    lim2:p4=-168.0, -122.0, 19.9, 20.0
+    lim3:p4=-122.0, -60.0, -5.0, 20.0
+    lim4:p4=-60.0, -10.0, -4.0, 20.0
+    lim4:p4=-10.0, 10.0, -7.0, 20.0
+    lim4:p4=10.0, 60.0, -4.0, 20.0
+    lim5:p4=60.0, 122.0, -5.0, 20.0
+    lim6:p4=122.0, 164.0, -1.0, 20.0
+    lim7:p4=164.0, 180.0, -3.0, 20.0
+  }
+}
+
+Weapon{
+  trigger:t="gunner1"
+  triggerGroup:t="machinegun"
+  blk:t="gameData/Weapons/groundModels_weapons/7_7mm_Vikkers_user_machinegun.blk"
+  emitter:t="bone_mg_v_01"
+  flash:t="emtr_mg_flame_01"
+  recoilOffset:r=0.0
+  defaultYaw:r=0.0
+  defaultPitch:r=0.0
+  parkInDeadzone:b=no
+  useAnimFlashNode:b=no
+  speedYaw:r=25.0
+  speedPitch:r=15.0
+  fireConeAngle:r=1.0
+  bullets:i=4000
+
+  turret{
+    head:t="bone_turret_01"
+    gun:t="bone_mg_h_01"
+    gunnerDm:t="machine_gunner_01_dm"
+  }
+
+  limits{
+    yaw:p2=-130.0, 40.0
+    pitch:p2=-10.0, 15.0
+  }
+}
+
+Weapon{
+  trigger:t="gunner2"
+  triggerGroup:t="machinegun"
+  blk:t="gameData/Weapons/groundModels_weapons/7_7mm_Vikkers_user_machinegun.blk"
+  emitter:t="bone_mg_v_02"
+  flash:t="emtr_mg_flame_02"
+  recoilOffset:r=0.0
+  defaultYaw:r=0.0
+  defaultPitch:r=0.0
+  parkInDeadzone:b=no
+  useAnimFlashNode:b=no
+  speedYaw:r=25.0
+  speedPitch:r=15.0
+  fireConeAngle:r=1.0
+  bullets:i=4000
+
+  turret{
+    head:t="bone_turret_02"
+    gun:t="bone_mg_h_02"
+    gunnerDm:t="machine_gunner_02_dm"
+  }
+
+  limits{
+    yaw:p2=-40.0, 130.0
+    pitch:p2=-10.0, 15.0
+  }
+}
+
+Weapon{
+  trigger:t="gunner3"
+  triggerGroup:t="machinegun"
+  blk:t="gameData/Weapons/groundModels_weapons/7_7mm_Vikkers_user_machinegun.blk"
+  emitter:t="bone_mg_v_03"
+  flash:t="emtr_mg_flame_03"
+  recoilOffset:r=0.0
+  defaultYaw:r=0.0
+  defaultPitch:r=0.0
+  parkInDeadzone:b=no
+  useAnimFlashNode:b=no
+  speedYaw:r=25.0
+  speedPitch:r=15.0
+  fireConeAngle:r=1.0
+  bullets:i=4000
+
+  turret{
+    head:t="bone_turret_03"
+    gun:t="bone_mg_h_03"
+    gunnerDm:t="gunner_02_dm"
+  }
+
+  limits{
+    yaw:p2=-160.0, 0.0
+    pitch:p2=-3.0, 15.0
+  }
+}
+
+Weapon{
+  trigger:t="gunner4"
+  triggerGroup:t="machinegun"
+  blk:t="gameData/Weapons/groundModels_weapons/7_7mm_Vikkers_user_machinegun.blk"
+  emitter:t="bone_mg_v_04"
+  flash:t="emtr_mg_flame_04"
+  recoilOffset:r=0.0
+  defaultYaw:r=0.0
+  defaultPitch:r=0.0
+  parkInDeadzone:b=no
+  useAnimFlashNode:b=no
+  speedYaw:r=25.0
+  speedPitch:r=15.0
+  fireConeAngle:r=1.0
+  bullets:i=4000
+
+  turret{
+    head:t="bone_turret_04"
+    gun:t="bone_mg_h_04"
+    gunnerDm:t="gunner_01_dm"
+  }
+
+  limits{
+    yaw:p2=0.0, 130.0
+    pitch:p2=-3.0, 15.0
+  }
+}

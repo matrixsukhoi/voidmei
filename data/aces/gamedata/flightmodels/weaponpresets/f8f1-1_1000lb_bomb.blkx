@@ -1,0 +1,18 @@
+hideNodes{
+  node:t="bomb_pylon_1000_l"
+  node:t="bomb_pylon_1000_r"
+  node:t="bomb_pylon_500_l"
+  node:t="bomb_pylon_500_r"
+  node:t="pylon_tiny_l"
+  node:t="pylon_tiny_r"
+  node:t="aero_14a_pylon_l"
+  node:t="aero_14a_pylon_r"
+}
+
+Weapon{
+  trigger:t="bombs"
+  external:b=yes
+  blk:t="gameData/Weapons/BombGuns/us_1000lb_anm65a1.blk"
+  emitter:t="bomb_1000_1"
+  bullets:i=1
+}

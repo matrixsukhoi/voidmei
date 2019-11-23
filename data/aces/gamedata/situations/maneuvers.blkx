@@ -1,0 +1,228 @@
+nesterov{
+
+  state{
+    a_max:r=15.0
+  }
+
+  state{
+    pv_min:r=2.0
+    rv_min:r=-25.0
+    rv_max:r=25.0
+    timeout:r=20.0
+  }
+
+  state{
+    pv_min:r=2.0
+    rv_min:r=-25.0
+    rv_max:r=25.0
+    a_min:r=150.0
+    timeout:r=6.0
+  }
+
+  state{
+    pv_min:r=2.0
+    rv_min:r=-25.0
+    rv_max:r=25.0
+    timeout:r=20.0
+  }
+
+  state{
+    a_max:r=40.0
+  }
+}
+
+barrel_left{
+
+  state{
+    h_min:r=-30.0
+    h_max:r=30.0
+    rv_min:r=3.0
+    timeout:r=10.0
+  }
+
+  state{
+    rv_min:r=3.0
+    a_min:r=130.0
+    timeout:r=6.0
+  }
+
+  state{
+    h_min:r=-30.0
+    h_max:r=30.0
+    rv_min:r=3.0
+    timeout:r=10.0
+  }
+}
+
+barrel_right{
+
+  state{
+    h_min:r=-30.0
+    h_max:r=30.0
+    rv_max:r=-3.0
+    timeout:r=10.0
+  }
+
+  state{
+    rv_max:r=-3.0
+    a_min:r=130.0
+    timeout:r=6.0
+  }
+
+  state{
+    h_min:r=-30.0
+    h_max:r=30.0
+    rv_max:r=-3.0
+    timeout:r=10.0
+  }
+}
+
+immelman_left{
+
+  state{
+    vs_g:r=1.4
+    a_max:r=25.0
+  }
+
+  state{
+    vs_g:r=1.0
+    pv_min:r=2.0
+    rv_min:r=-10.0
+    rv_max:r=10.0
+    timeout:r=20.0
+  }
+
+  state{
+    vs_g:r=1.0
+    a_min:r=165.0
+    timeout:r=10.0
+  }
+
+  state{
+    vs_g:r=1.0
+    h_min:r=-30.0
+    h_max:r=30.0
+    rv_min:r=3.0
+    timeout:r=10.0
+  }
+
+  state{
+    vs_g:r=1.0
+    a_max:r=25.0
+  }
+}
+
+immelman_right{
+
+  state{
+    vs_g:r=1.4
+    a_max:r=25.0
+  }
+
+  state{
+    vs_g:r=1.0
+    pv_min:r=2.0
+    rv_min:r=-10.0
+    rv_max:r=10.0
+    timeout:r=20.0
+  }
+
+  state{
+    vs_g:r=1.0
+    a_min:r=165.0
+    timeout:r=10.0
+  }
+
+  state{
+    vs_g:r=1.0
+    h_min:r=-30.0
+    h_max:r=30.0
+    rv_max:r=-3.0
+    timeout:r=10.0
+  }
+
+  state{
+    vs_g:r=1.0
+    a_max:r=25.0
+  }
+}
+
+diving{
+
+  state{
+    vs_g:r=1.0
+    h_max:r=-70.0
+    pv_max:r=3.0
+    rv_max:r=6.0
+  }
+}
+
+split_right{
+
+  state{
+    vs_g:r=1.0
+    a_max:r=25.0
+  }
+
+  state{
+    vs_g:r=1.0
+    h_min:r=-30.0
+    h_max:r=30.0
+    rv_max:r=-3.0
+    timeout:r=10.0
+  }
+
+  state{
+    vs_g:r=1.0
+    a_min:r=145.0
+    timeout:r=10.0
+  }
+
+  state{
+    vs_g:r=1.0
+    pv_min:r=2.0
+    rv_min:r=-10.0
+    rv_max:r=10.0
+    timeout:r=20.0
+  }
+
+  state{
+    vs_g:r=1.0
+    a_max:r=25.0
+  }
+}
+
+split_left{
+
+  state{
+    vs_g:r=1.0
+    a_max:r=25.0
+  }
+
+  state{
+    vs_g:r=1.0
+    h_min:r=-30.0
+    h_max:r=30.0
+    rv_min:r=3.0
+    timeout:r=10.0
+  }
+
+  state{
+    vs_g:r=1.0
+    a_min:r=145.0
+    timeout:r=10.0
+  }
+
+  state{
+    vs_g:r=1.0
+    pv_min:r=2.0
+    rv_min:r=-10.0
+    rv_max:r=10.0
+    timeout:r=20.0
+  }
+
+  state{
+    vs_g:r=1.0
+    a_max:r=25.0
+  }
+}

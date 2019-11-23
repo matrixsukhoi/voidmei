@@ -1,0 +1,3 @@
+model:t="jp_mg_type_99"
+collision:t="jp_mg_type_99_aces"
+bboxMult:r=0.1

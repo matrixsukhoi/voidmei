@@ -1,0 +1,22 @@
+hideNodes{
+  node:t="pylon_rocket1"
+  node:t="pylon_rocket2"
+  node:t="pylon_rocket3"
+  node:t="pylon_rocket4"
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/us_500lb_anm64a1.blk"
+  emitter:t="bomb500_1"
+  bullets:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/us_500lb_anm64a1.blk"
+  emitter:t="bomb500_2"
+  bullets:i=1
+  external:b=yes
+}

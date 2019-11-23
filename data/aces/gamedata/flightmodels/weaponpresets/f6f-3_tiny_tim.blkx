@@ -1,0 +1,28 @@
+hideNodes{
+  node:t="drop_fueltank"
+  node:t="torpedo_pylon"
+  node:t="pylon_rocket1"
+  node:t="pylon_rocket2"
+  node:t="pylon_rocket3"
+  node:t="pylon_rocket4"
+  node:t="pylon_rocket5"
+  node:t="pylon_rocket6"
+}
+
+Weapon{
+  trigger:t="rockets"
+  blk:t="gameData/Weapons/rocketGuns/us_11_75_in_tiny_tim.blk"
+  emitter:t="tiny_l"
+  bullets:i=1
+  external:b=yes
+  separate:b=yes
+}
+
+Weapon{
+  trigger:t="rockets"
+  blk:t="gameData/Weapons/rocketGuns/us_11_75_in_tiny_tim.blk"
+  emitter:t="tiny_r"
+  bullets:i=1
+  external:b=yes
+  separate:b=yes
+}

@@ -1,0 +1,311 @@
+cannon:b=yes
+weaponType:i=-1
+bUseHookAsRel:b=yes
+emitColor:p3=1.0, 1.0, 0.0
+emitI:r=10.0
+emitR:r=3.0
+emitTime:r=0.03
+aimMinDist:r=10.0
+aimMaxDist:r=1000.0
+maxDeltaAngle:r=15.0
+shotFreq:r=1.0
+shotFreqRndK:r=0.0
+traceFreq:i=4
+bEnablePause:b=no
+bullets:i=250
+bulletsCluster:i=1
+soundLoop:b=no
+
+bullet{
+  mass:r=0.092
+  caliber:r=0.02
+  speed:r=785.0
+  maxDistance:r=2000.0
+  groundCollisionEffect:t="cannon_air_hit"
+  groundFxScale:p2=0.7, 1.2
+  bulletType:t="he_i_mine"
+  hitPowerMult:r=1.0
+  onHitChanceMultFire:r=2.5
+  nearHitPower:p2=1.0, 50.0
+  midHitPower:p2=0.9, 300.0
+  farHitPower:p2=0.1, 700.0
+  endHitPower:p2=0.008, 1500.0
+  relativeVelHitShift:p2=300.0, 1000.0
+  relativeVelArmorShift:p2=200.0, 1000.0
+  explodeTreshold:r=0.4
+  explodeHitPower:r=13.0
+  explodeArmorPower:r=3.0
+  explodeRadius:p2=0.05, 0.5
+  shutterDamage:b=yes
+  shutterDamageRadius:r=1.7
+  shutterAmount:i=12
+  shutterArmorPower:r=2.0
+  shutterHit:r=1.5
+
+  armorpower{
+    ArmorPower0m:p2=4.0, 10.0
+    ArmorPower100m:p2=3.0, 100.0
+    ArmorPower500m:p2=2.0, 500.0
+    ArmorPower1000m:p2=1.0, 1000.0
+  }
+
+  visual{
+    range_percent_of_ammo:p2=100.0, 0.0
+    traceFreq:i=1
+    tracer:t="50mmRed"
+    trail:t="smallTrail"
+  }
+}
+
+bullet{
+  mass:r=0.092
+  caliber:r=0.02
+  speed:r=785.0
+  maxDistance:r=2000.0
+  groundCollisionEffect:t="cannon_air_hit"
+  groundFxScale:p2=0.7, 1.2
+  bulletType:t="he_i_mine"
+  hitPowerMult:r=1.0
+  onHitChanceMultFire:r=2.5
+  nearHitPower:p2=1.0, 50.0
+  midHitPower:p2=0.9, 300.0
+  farHitPower:p2=0.1, 700.0
+  endHitPower:p2=0.008, 1500.0
+  relativeVelHitShift:p2=300.0, 1000.0
+  relativeVelArmorShift:p2=200.0, 1000.0
+  explodeTreshold:r=0.4
+  explodeHitPower:r=13.0
+  explodeArmorPower:r=3.0
+  explodeRadius:p2=0.05, 0.5
+  shutterDamage:b=yes
+  shutterDamageRadius:r=1.7
+  shutterAmount:i=12
+  shutterArmorPower:r=2.0
+  shutterHit:r=1.5
+
+  armorpower{
+    ArmorPower0m:p2=4.0, 10.0
+    ArmorPower100m:p2=3.0, 100.0
+    ArmorPower500m:p2=2.0, 500.0
+    ArmorPower1000m:p2=1.0, 1000.0
+  }
+
+  visual{
+    range_percent_of_ammo:p2=100.0, 0.0
+    traceFreq:i=1
+    tracer:t="50mmOrange"
+    trail:t="smallTrail"
+  }
+}
+
+bullet{
+  mass:r=0.092
+  caliber:r=0.02
+  speed:r=785.0
+  maxDistance:r=2000.0
+  groundCollisionEffect:t="cannon_air_hit"
+  groundFxScale:p2=0.7, 1.2
+  bulletType:t="he_i_mine"
+  hitPowerMult:r=1.0
+  onHitChanceMultFire:r=2.5
+  nearHitPower:p2=1.0, 50.0
+  midHitPower:p2=0.9, 300.0
+  farHitPower:p2=0.1, 700.0
+  endHitPower:p2=0.008, 1500.0
+  relativeVelHitShift:p2=300.0, 1000.0
+  relativeVelArmorShift:p2=200.0, 1000.0
+  explodeTreshold:r=0.4
+  explodeHitPower:r=13.0
+  explodeArmorPower:r=3.0
+  explodeRadius:p2=0.05, 0.5
+  shutterDamage:b=yes
+  shutterDamageRadius:r=1.7
+  shutterAmount:i=12
+  shutterArmorPower:r=2.0
+  shutterHit:r=1.5
+
+  armorpower{
+    ArmorPower0m:p2=4.0, 10.0
+    ArmorPower100m:p2=3.0, 100.0
+    ArmorPower500m:p2=2.0, 500.0
+    ArmorPower1000m:p2=1.0, 1000.0
+  }
+
+  visual{
+    range_percent_of_ammo:p2=100.0, 0.0
+    traceFreq:i=1
+    tracer:t="50mmYellow"
+    trail:t="smallTrail"
+  }
+}
+
+bullet{
+  mass:r=0.092
+  caliber:r=0.02
+  speed:r=785.0
+  maxDistance:r=2000.0
+  groundCollisionEffect:t="cannon_air_hit"
+  groundFxScale:p2=0.7, 1.2
+  bulletType:t="he_i_mine"
+  hitPowerMult:r=1.0
+  onHitChanceMultFire:r=2.5
+  nearHitPower:p2=1.0, 50.0
+  midHitPower:p2=0.9, 300.0
+  farHitPower:p2=0.1, 700.0
+  endHitPower:p2=0.008, 1500.0
+  relativeVelHitShift:p2=300.0, 1000.0
+  relativeVelArmorShift:p2=200.0, 1000.0
+  explodeTreshold:r=0.4
+  explodeHitPower:r=13.0
+  explodeArmorPower:r=3.0
+  explodeRadius:p2=0.05, 0.5
+  shutterDamage:b=yes
+  shutterDamageRadius:r=1.7
+  shutterAmount:i=12
+  shutterArmorPower:r=2.0
+  shutterHit:r=1.5
+
+  armorpower{
+    ArmorPower0m:p2=4.0, 10.0
+    ArmorPower100m:p2=3.0, 100.0
+    ArmorPower500m:p2=2.0, 500.0
+    ArmorPower1000m:p2=1.0, 1000.0
+  }
+
+  visual{
+    range_percent_of_ammo:p2=100.0, 0.0
+    traceFreq:i=1
+    tracer:t="50mmGreen"
+    trail:t="smallTrail"
+  }
+}
+
+bullet{
+  mass:r=0.092
+  caliber:r=0.02
+  speed:r=785.0
+  maxDistance:r=2000.0
+  groundCollisionEffect:t="cannon_air_hit"
+  groundFxScale:p2=0.7, 1.2
+  bulletType:t="he_i_mine"
+  hitPowerMult:r=1.0
+  onHitChanceMultFire:r=2.5
+  nearHitPower:p2=1.0, 50.0
+  midHitPower:p2=0.9, 300.0
+  farHitPower:p2=0.1, 700.0
+  endHitPower:p2=0.008, 1500.0
+  relativeVelHitShift:p2=300.0, 1000.0
+  relativeVelArmorShift:p2=200.0, 1000.0
+  explodeTreshold:r=0.4
+  explodeHitPower:r=13.0
+  explodeArmorPower:r=3.0
+  explodeRadius:p2=0.05, 0.5
+  shutterDamage:b=yes
+  shutterDamageRadius:r=1.7
+  shutterAmount:i=12
+  shutterArmorPower:r=2.0
+  shutterHit:r=1.5
+
+  armorpower{
+    ArmorPower0m:p2=4.0, 10.0
+    ArmorPower100m:p2=3.0, 100.0
+    ArmorPower500m:p2=2.0, 500.0
+    ArmorPower1000m:p2=1.0, 1000.0
+  }
+
+  visual{
+    range_percent_of_ammo:p2=100.0, 0.0
+    traceFreq:i=1
+    tracer:t="50mmBlue"
+    trail:t="smallTrail"
+  }
+}
+
+bullet{
+  mass:r=0.092
+  caliber:r=0.02
+  speed:r=785.0
+  maxDistance:r=2000.0
+  groundCollisionEffect:t="cannon_air_hit"
+  groundFxScale:p2=0.7, 1.2
+  bulletType:t="he_i_mine"
+  hitPowerMult:r=1.0
+  onHitChanceMultFire:r=2.5
+  nearHitPower:p2=1.0, 50.0
+  midHitPower:p2=0.9, 300.0
+  farHitPower:p2=0.1, 700.0
+  endHitPower:p2=0.008, 1500.0
+  relativeVelHitShift:p2=300.0, 1000.0
+  relativeVelArmorShift:p2=200.0, 1000.0
+  explodeTreshold:r=0.4
+  explodeHitPower:r=13.0
+  explodeArmorPower:r=3.0
+  explodeRadius:p2=0.05, 0.5
+  shutterDamage:b=yes
+  shutterDamageRadius:r=1.7
+  shutterAmount:i=12
+  shutterArmorPower:r=2.0
+  shutterHit:r=1.5
+
+  armorpower{
+    ArmorPower0m:p2=4.0, 10.0
+    ArmorPower100m:p2=3.0, 100.0
+    ArmorPower500m:p2=2.0, 500.0
+    ArmorPower1000m:p2=1.0, 1000.0
+  }
+
+  visual{
+    range_percent_of_ammo:p2=100.0, 0.0
+    traceFreq:i=1
+    tracer:t="50mmDark_Blue"
+    trail:t="smallTrail"
+  }
+}
+
+bullet{
+  mass:r=0.092
+  caliber:r=0.02
+  speed:r=785.0
+  maxDistance:r=2000.0
+  groundCollisionEffect:t="cannon_air_hit"
+  groundFxScale:p2=0.7, 1.2
+  bulletType:t="he_i_mine"
+  hitPowerMult:r=1.0
+  onHitChanceMultFire:r=2.5
+  nearHitPower:p2=1.0, 50.0
+  midHitPower:p2=0.9, 300.0
+  farHitPower:p2=0.1, 700.0
+  endHitPower:p2=0.008, 1500.0
+  relativeVelHitShift:p2=300.0, 1000.0
+  relativeVelArmorShift:p2=200.0, 1000.0
+  explodeTreshold:r=0.4
+  explodeHitPower:r=13.0
+  explodeArmorPower:r=3.0
+  explodeRadius:p2=0.05, 0.5
+  shutterDamage:b=yes
+  shutterDamageRadius:r=1.7
+  shutterAmount:i=12
+  shutterArmorPower:r=2.0
+  shutterHit:r=1.5
+
+  armorpower{
+    ArmorPower0m:p2=4.0, 10.0
+    ArmorPower100m:p2=3.0, 100.0
+    ArmorPower500m:p2=2.0, 500.0
+    ArmorPower1000m:p2=1.0, 1000.0
+  }
+
+  visual{
+    range_percent_of_ammo:p2=100.0, 0.0
+    traceFreq:i=1
+    tracer:t="50mmPink"
+    trail:t="smallTrail"
+  }
+}
+
+gunSound{
+  path:t="sounds/guns"
+  outside:t="bk37_gun_outside"
+  cockpit:t="bk37_gun_inside"
+  ai:t="bk37_gun_ai"
+}

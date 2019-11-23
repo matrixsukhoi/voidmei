@@ -1,0 +1,19 @@
+hideNodes{
+  node:t="mk_51_bomb_pylon"
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/su_rs132.blk"
+  emitter:t="su_rs132_1"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/su_rs132.blk"
+  emitter:t="su_rs132_2"
+  bullets:i=1
+}

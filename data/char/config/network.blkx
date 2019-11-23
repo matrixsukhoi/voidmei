@@ -1,0 +1,451 @@
+curCircuit:t="production"
+baseP2PPort:i=20010
+maxP2PConnections:i=200
+voiceMinPort:i=20400
+voiceMaxPort:i=20500
+
+timeouts{
+
+  dedicated{
+    loadLimitTime:i=35000
+    loadWaitTime:i=4000
+    saveLimitTime:i=65000
+    saveWaitTime:i=4000
+    curlConnectionTimeout:i=10
+    curlProcessingTimeout:i=60
+  }
+
+  client{
+    loadLimitTime:i=35000
+    loadWaitTime:i=4000
+    saveLimitTime:i=35000
+    saveWaitTime:i=4000
+    curlConnectionTimeout:i=10
+    curlProcessingTimeout:i=20
+  }
+}
+
+_common{
+  vivoxServerURL:t="https://www.wtp.vivox.com/api2"
+  vivoxEcho:t="sip:confctl-2@wtp.vivox.com"
+  skinsDecalsCacheSzPS4:i64=314572800
+
+  eventLog{
+    host:t="client-logs.warthunder.com"
+  }
+
+  additionalDNS{
+    dns:t="8.8.8.8"
+    dns:t="1.2.4.8"
+  }
+
+  guiWebCache{
+    maxSize:i64=1073741824
+    maxSizePS4:i64=209715200
+    timeoutSec:i=10
+  }
+}
+
+_common_skinsDecalsCDN{
+  url:t="http://dldata.warthunder.com/staging/"
+  hashesReqUrl:t="http://public-configs.warthunder.com/staging/dldata.info"
+}
+
+message_queue{
+  port:i=11300
+  host:t="127.0.0.1"
+}
+
+production{
+  matchServer:t="mgate-elb-01.warthunder.com:7853"
+  useTamVoice:b=yes
+  vivoxServerURL:t="https://not.used"
+  vivoxEcho:t="tamvchn://echo123"
+  ircServer:t="chat05sl-nl.warthunder.com:443"
+  ircServer:t="chat06sl-nl.warthunder.com:443"
+  charServer:t="https://char14sl-nl.warthunder.com/char"
+  charServer:t="https://char15sl-nl.warthunder.com/char"
+  charServer:t="https://char17sl-nl.warthunder.com/char"
+  enableSslCertCheck:b=yes
+  skinsDecalsCDN_useCommon:b=no
+  skinsDecalsCDN:t="http://dldata.warthunder.com/production/"
+  hashesReqUrl:t="http://public-configs.warthunder.com/production/dldata.info"
+  enableApex:b=yes
+}
+
+production_scee{
+  matchServer:t="mgate-elb-01.warthunder.com:7853"
+  useTamVoice:b=yes
+  vivoxServerURL:t="https://not.used"
+  vivoxEcho:t="tamvchn://echo123"
+  ircServer:t="chat05sl-nl.warthunder.com:443"
+  ircServer:t="chat06sl-nl.warthunder.com:443"
+  charServer:t="https://char14sl-nl.warthunder.com/char"
+  charServer:t="https://char15sl-nl.warthunder.com/char"
+  charServer:t="https://char17sl-nl.warthunder.com/char"
+  enableSslCertCheck:b=yes
+  skinsDecalsCDN_useCommon:b=no
+  skinsDecalsCDN:t="http://dldata.warthunder.com/production/"
+  hashesReqUrl:t="http://public-configs.warthunder.com/production/dldata.info"
+  enableApex:b=yes
+}
+
+production_scea{
+  matchServer:t="mgate-elb-01.warthunder.com:7853"
+  useTamVoice:b=yes
+  vivoxServerURL:t="https://not.used"
+  vivoxEcho:t="tamvchn://echo123"
+  ircServer:t="chat05sl-nl.warthunder.com:443"
+  ircServer:t="chat06sl-nl.warthunder.com:443"
+  charServer:t="https://char14sl-nl.warthunder.com/char"
+  charServer:t="https://char15sl-nl.warthunder.com/char"
+  charServer:t="https://char17sl-nl.warthunder.com/char"
+  enableSslCertCheck:b=yes
+  skinsDecalsCDN_useCommon:b=no
+  skinsDecalsCDN:t="http://dldata.warthunder.com/production/"
+  hashesReqUrl:t="http://public-configs.warthunder.com/production/dldata.info"
+  enableApex:b=yes
+}
+
+dev-stable{
+  matchServer:t="dev01lw-nl.warthunder.com:7853"
+  useTamVoice:b=yes
+  vivoxServerURL:t="https://not.used"
+  vivoxEcho:t="tamvchn://echo123"
+  ircServer:t="dev01lw-nl.warthunder.com:6667"
+  charServer:t="https://char-dev-02.warthunder.com:10443/char"
+  charServer:t="https://char-dev-01.warthunder.com:10443/char"
+  disableScaleWPByPlayers:b=yes
+  enableSslCertCheck:b=yes
+}
+
+dev{
+  matchServer:t="dev01lw-nl.warthunder.com:7852"
+  useTamVoice:b=yes
+  vivoxServerURL:t="https://not.used"
+  vivoxEcho:t="tamvchn://echo123"
+  ircServer:t="dev01lw-nl.warthunder.com:6668"
+  charServer:t="https://char-dev-01.warthunder.com:443/char"
+  charServer:t="https://char-dev-02.warthunder.com:443/char"
+  circuitPostfix:t="-dev"
+  disableScaleWPByPlayers:b=yes
+  enableSslCertCheck:b=yes
+  enableApex:b=yes
+}
+
+nightly{
+  matchServer:t="dev01lw-nl.warthunder.com:7854"
+  useTamVoice:b=yes
+  vivoxServerURL:t="https://not.used"
+  vivoxEcho:t="tamvchn://echo123"
+  ircServer:t="test01os-ru.warthunder.com:6668"
+  charServer:t="https://test01os-ru.warthunder.com:443/char"
+  charServer:t="https://test01os-ru.warthunder.com:10443/char"
+  circuitPostfix:t="-test"
+  queryTimeoutMs:i=180000
+  disableScaleWPByPlayers:b=yes
+  enableApex:b=yes
+}
+
+ps4submission{
+  matchServer:t="dev01lw-nl.warthunder.com:7870"
+  useTamVoice:b=yes
+  vivoxServerURL:t="https://not.used"
+  vivoxEcho:t="tamvchn://echo123"
+  ircServer:t="test01os-ru.warthunder.com:6667"
+  charServer:t="https://test01os-ru.warthunder.com:2443/char"
+  circuitPostfix:t="-test"
+  queryTimeoutMs:i=180000
+  disableScaleWPByPlayers:b=yes
+}
+
+test{
+  matchServer:t="matchserver.gaijin.lan:7852"
+  ircServer:t="chat-test.gaijin.lan:6668"
+  useTamVoice:b=yes
+  vivoxServerURL:t="https://not.used"
+  vivoxEcho:t="tamvchn://echo123"
+  charServer:t="https://warthunder.gaijin.lan:443/char"
+  charServer:t="https://warthunder.gaijin.lan:10443/char"
+  circuitPostfix:t="-test"
+  queryTimeoutMs:i=180000
+  disableScaleWPByPlayers:b=yes
+  enableApex:b=yes
+
+  guiWebCache{
+    yupConfUrl:t=""
+
+    baseUrls{
+      url:t="http://wthost.gaijin.lan:8000/guiWebCache"
+    }
+  }
+}
+
+experimental{
+  matchServer:t="matchserver.gaijin.lan:7870"
+  ircServer:t="chat-test.gaijin.lan:7001"
+  useTamVoice:b=yes
+  vivoxServerURL:t="https://not.used"
+  vivoxEcho:t="tamvchn://echo123"
+  charServer:t="https://wtdb.gaijin.lan:2443/char"
+  charServer:t="https://wtdb.gaijin.lan:12443/char"
+  circuitPostfix:t="-test"
+  queryTimeoutMs:i=180000
+  disableScaleWPByPlayers:b=yes
+  enableApex:b=yes
+}
+
+tournament{
+  matchServer:t="mgate-elb-02.warthunder.com:7853"
+  charServer:t="https://char-elb-01.warthunder.com/char"
+  ircServer:t="54.194.237.51:443"
+  enableSslCertCheck:b=yes
+  skinsDecalsCDN_useCommon:b=no
+  skinsDecalsCDN:t="http://dldata.warthunder.com/production/"
+  hashesReqUrl:t="http://public-configs.warthunder.com/production/dldata.info"
+  enableApex:b=yes
+}
+
+china-test{
+  matchServer:t="mgate-cn-01.gaijin.lan:7852"
+  matchServer:t="mgate-cn-02.gaijin.lan:7852"
+  ircServer:t="chat-cn-01.gaijin.lan:6668"
+  charServer:t="https://char-cn-01.gaijin.lan:10443/char"
+  charServer:t="https://char-cn-02.gaijin.lan:10443/char"
+
+  yuplay{
+    loginURL:t="https://auth-cn-01.gaijin.lan/login.php"
+  }
+
+  guiWebCache{
+    yupConfUrl:t=""
+    noIndex:b=yes
+  }
+}
+
+china-dev{
+  matchServer:t="match-cn-dev-01.gaijin.lan:7852"
+  ircServer:t="chat-cn-01.gaijin.lan:6669"
+  charServer:t="https://char-cn-dev-01.gaijin.lan:10443/char"
+
+  yuplay{
+    loginURL:t="https://auth-cn-01.gaijin.lan/login.php"
+  }
+
+  guiWebCache{
+    yupConfUrl:t=""
+    noIndex:b=yes
+  }
+}
+
+china-precoop{
+  matchServer:t="46.46.160.79:7852"
+  matchServer:t="46.46.160.80:7852"
+  ircServer:t="46.46.160.80:6668"
+  charServer:t="https://46.46.160.79:10443/char"
+  charServer:t="https://46.46.160.80:10443/char"
+  skinsDecalsCDN_useCommon:b=no
+  skinsDecalsCDN:t="http://down.qq.com/warthunder/decals/production/"
+  hashesReqUrl:t="http://down.qq.com/warthunder/decals/dldata.info"
+
+  yuplay{
+    loginURL:t="https://46.46.160.79/login.php"
+  }
+
+  guiWebCache{
+    yupConfUrl:t=""
+    noIndex:b=yes
+  }
+}
+
+china-coop{
+  matchServer:t="183.60.118.35:7852"
+  matchServer:t="183.60.118.78:7852"
+  ircServer:t="183.60.118.64:12123"
+  charServer:t="https://183.60.118.68:1443/char"
+  charServer:t="https://183.60.118.66:1443/char"
+
+  yuplay{
+    loginURL:t="https://183.60.118.35:2001/login.php"
+  }
+
+  guiWebCache{
+    yupConfUrl:t=""
+    noIndex:b=yes
+  }
+}
+
+china-gov{
+  matchServer:t="183.61.232.31:7852"
+  ircServer:t="183.61.232.31:12123"
+  chatNotificatorURL:t="http://183.61.227.41:7000"
+  charServer:t="https://183.61.232.31:1443/char"
+  skinsDecalsCDN_useCommon:b=no
+  skinsDecalsCDN:t="http://down.qq.com/warthunder/decals/production_obt/"
+  hashesReqUrl:t="http://down.qq.com/warthunder/decals/dldata_obt.info"
+
+  yuplay{
+    loginURL:t="https://183.61.227.41:2001/login.php"
+  }
+
+  guiWebCache{
+    yupConfUrl:t=""
+    noIndex:b=yes
+  }
+}
+
+china-antibot{
+  matchServer:t="119.147.117.147:7852"
+  ircServer:t="119.147.109.80:12123"
+  chatNotificatorURL:t="http://119.147.109.80:7000"
+  charServer:t="https://119.147.117.147:1443/char"
+  skinsDecalsCDN_useCommon:b=no
+  skinsDecalsCDN:t="http://down.qq.com/warthunder/decals/production/"
+  hashesReqUrl:t="http://down.qq.com/warthunder/decals/dldata.info"
+
+  yuplay{
+    loginURL:t="https://119.147.109.80:2001/login.php"
+  }
+
+  guiWebCache{
+    yupConfUrl:t=""
+    noIndex:b=yes
+  }
+}
+
+china-formal{
+
+  yuplay{
+  }
+}
+
+china-exp{
+
+  yuplay{
+  }
+}
+
+china-test-1{
+  matchServer:t="183.61.232.32:7852"
+  ircServer:t="183.61.232.32:12123"
+  chatNotificatorURL:t="http://183.61.232.32:7000"
+  charServer:t="https://183.61.232.32:1443/char"
+  skinsDecalsCDN_useCommon:b=no
+  skinsDecalsCDN:t="http://down.qq.com/warthunder/decals/production_test/"
+  hashesReqUrl:t="http://down.qq.com/warthunder/decals/production_test/dldata_obt.info"
+  circuitTencentId:t="2000"
+
+  yuplay{
+    loginURL:t="https://test1-auth.warthunder.qq.com:2001/login.php"
+  }
+
+  guiWebCache{
+    yupConfUrl:t=""
+    noIndex:b=yes
+  }
+}
+
+china-test-2{
+  matchServer:t="121.14.134.57:7852"
+  matchServer:t="121.12.114.121:7852"
+  ircServer:t="183.61.227.171:12123"
+  ircServer:t="121.12.114.12:12123"
+  chatNotificatorURL:t="http://121.12.114.18:7000"
+  charServer:t="https://183.61.227.171:1443/char"
+  charServer:t="https://121.12.114.121:1443/char"
+  skinsDecalsCDN_useCommon:b=no
+  skinsDecalsCDN:t="http://down.qq.com/warthunder/decals/production_exp/"
+  hashesReqUrl:t="http://down.qq.com/warthunder/decals/production_exp/dldata_obt.info"
+  circuitTencentId:t="1000"
+
+  yuplay{
+    loginURL:t="https://121.12.114.242:2001/login.php"
+  }
+
+  guiWebCache{
+    yupConfUrl:t=""
+    noIndex:b=yes
+  }
+}
+
+china-test-3{
+  matchServer:t="125.39.211.144:7852"
+  matchServer:t="123.126.124.108:7852"
+  ircServer:t="125.39.211.144:12123"
+  ircServer:t="123.126.124.108:12123"
+  chatNotificatorURL:t="http://10.170.6.99:7000"
+  charServer:t="https://111.161.91.112:1443/char"
+  charServer:t="https://111.161.91.113:1443/char"
+  skinsDecalsCDN_useCommon:b=no
+  skinsDecalsCDN:t="http://down.qq.com/warthunder/decals/production_exp/"
+  hashesReqUrl:t="http://down.qq.com/warthunder/decals/production_exp/dldata_obt.info"
+  circuitTencentId:t="1000"
+
+  yuplay{
+    loginURL:t="https://125.39.211.144:2001/login.php"
+  }
+
+  guiWebCache{
+    yupConfUrl:t=""
+    noIndex:b=yes
+  }
+}
+
+china-test-4{
+  matchServer:t="183.2.176.220:7852"
+  matchServer:t="183.57.48.253:7852"
+  ircServer:t="183.2.176.219:12123"
+  ircServer:t="14.215.139.214:12123"
+  chatNotificatorURL:t="http://10.170.6.99:7000"
+  charServer:t="https://183.2.176.218:1443/char"
+  charServer:t="https://14.215.139.215:1443/char"
+  charServer:t="https://14.215.139.216:1443/char"
+  charServer:t="https://14.215.139.213:1443/char"
+  skinsDecalsCDN_useCommon:b=no
+  skinsDecalsCDN:t="http://down.qq.com/warthunder/decals/production_obt/"
+  hashesReqUrl:t="http://down.qq.com/warthunder/decals/dldata_obt.info"
+  circuitTencentId:t="3000"
+
+  yuplay{
+    loginURL:t="https://dx1-auth.warthunder.qq.com:2001/login.php"
+  }
+
+  guiWebCache{
+    yupConfUrl:t=""
+    noIndex:b=yes
+  }
+}
+
+china-test-5{
+  matchServer:t="111.161.62.12:7852"
+  matchServer:t="111.161.62.141:7852"
+  ircServer:t="111.161.57.67:12123"
+  ircServer:t="123.126.125.156:12123"
+  chatNotificatorURL:t="http://10.170.6.99:7000"
+  charServer:t="https://111.161.62.142:1443/char"
+  charServer:t="https://111.161.62.143:1443/char"
+  skinsDecalsCDN_useCommon:b=no
+  skinsDecalsCDN:t="http://down.qq.com/warthunder/decals/production_obt/"
+  hashesReqUrl:t="http://down.qq.com/warthunder/decals/dldata_obt.info"
+  circuitTencentId:t="4000"
+
+  yuplay{
+    loginURL:t="https://wt1-auth.warthunder.qq.com:2001/login.php"
+  }
+
+  guiWebCache{
+    yupConfUrl:t=""
+    noIndex:b=yes
+  }
+}
+
+curCircuitRemap{
+
+  client{
+
+    ps4{
+      production_scea:t="production"
+      production_scee:t="production"
+    }
+  }
+}

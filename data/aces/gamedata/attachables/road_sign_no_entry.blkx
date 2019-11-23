@@ -1,0 +1,3 @@
+model:t="road_sign_no_entry"
+collision:t="road_sign_no_entry_aces"
+bboxMult:r=0.1

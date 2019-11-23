@@ -1,0 +1,2491 @@
+cameraHeightOnGround:r=3.5
+globalCameraShakeLimit:r=0.2
+
+tps{
+  fov:r=90.0
+  zoomFov:r=30.0
+  transitionSpeed:r=4.0
+  targetOffset:p3=500.0, 0.0, 0.0
+  cameraOffsetNeutral:p3=-17.0, 4.0, 0.0
+  cameraUpNeutral:p3=0.0, 2.0, 0.0
+  cameraOffsetSmoothing:r=0.04
+  cameraUpSmoothing:r=0.0
+  cameraFovSmoothing:r=0.005
+  cameraControlSmooth:r=0.0
+  cameraControlSmoothY:r=0.0
+  cameraControlSmoothX:r=0.0
+  cameraOffsetElevatorUp:p3=-14.0, 4.0, 0.0
+  cameraOffsetElevatorDown:p3=-14.0, 4.0, 0.0
+  sensitivityElevatorDown:r=1.0
+  sensitivityElevatorUp:r=1.0
+  cameraOffsetRudderLeft:p3=-14.0, 4.0, -1.0
+  cameraOffsetRudderRight:p3=-14.0, 4.0, 1.0
+  sensitivityRudder:r=10.0
+  cameraUpAileronsLeft:p3=0.0, 2.0, 0.7
+  cameraUpAileronsRight:p3=0.0, 2.0, -0.7
+  sensitivityAilerons:r=0.3
+  cameraFovAccelerationPositive:r=1.0
+  cameraFovAccelerationNegative:r=2.0
+  sensitivityAcceleration:r=10.0
+  cameraTpsSmoothing:r=0.1
+  maxCameraSlowAngle:r=9.0
+  cameraTpsAngleAccelaration:r=2.0
+  cameraShakeMultiplier:r=0.35
+  cameraShakeMultiplierZoom:r=0.1
+  transitionFadeInTime:r=0.12
+  transitionFadeOutTime:r=0.2
+  viscosity:r=0.07
+  viscosityCameraHoldFactor:r=0.5
+  minimumDistanceMultiplier:r=1.7
+  rollAngleFactor:r=0.01
+  overturnAngle:r=80.0
+  schraegeMusikCameraEllipsoidUpOffset:r=1.0
+  schraegeMusikCameraScreenPart:r=0.25
+
+  condition{
+
+    and{
+
+      isTPSViewsAllowed{
+      }
+
+      isFlightModel{
+      }
+    }
+  }
+
+  up{
+    angle:p2=0.0, -90.0
+    dist:r=20.0
+  }
+
+  down{
+    angle:p2=180.0, 0.0
+    dist:r=40.0
+  }
+
+  left{
+    angle:p2=-110.0, 0.0
+    dist:r=20.0
+  }
+
+  right{
+    angle:p2=110.0, 0.0
+    dist:r=20.0
+  }
+}
+
+fps{
+  fov:r=90.0
+  zoomFov:r=30.0
+  targetOffset:p3=500.0, 0.0, 0.0
+  transitionSpeed:r=40.0
+  cameraFpXSmoothing:r=0.05
+  cameraFpYSmoothing:r=0.05
+  angleFpHorizontal:r=160.0
+  angleFpVerticalUp:r=85.0
+  angleFpVerticalDown:r=55.0
+  angleFpRoll:r=45.0
+  headAccelScale:p3=0.03, 0.03, 0.1
+  headMoveLimits:p3=0.12, 0.1, 0.12
+  headFovLimits:p2=8.0, 30.0
+  headPosLookingDown:p3=0.0, 0.0, 0.0
+  headPosLookingBack:p3=0.0, 0.0, 0.12
+  headAccelRotScale:p3=0.25, 0.25, 0.25
+  headAccelRotGravScale:p2=0.025, 0.045
+  headAccelRotLimits:p3=0.3, 0.3, 0.78
+  immediateToRotVisc:r=0.07
+  cameraShakePosInfluence:p3=0.0, 0.5, 0.03
+  cameraShakeDirInfluence:p3=0.3, 0.0, 0.0
+  shootingTrigger:r=0.95
+  shootingFov:r=40.0
+  shootingFovTransitionSpeedTo:r=10.0
+  shootingFovTransitionSpeedFrom:r=50.0
+  cameraShakeMultiplier:r=0.35
+  cameraShakeMultiplierOnShooting:r=0.1
+  transitionFadeInTime:r=0.12
+  transitionFadeOutTime:r=0.2
+  viscosity:r=0.0001
+  cameraControlSmooth:r=0.15
+  accelAdaptationVisc:r=0.94
+  schraegeMusikCameraScreenPart:r=0.25
+
+  condition{
+
+    and{
+
+      isFPSViewsAllowed{
+      }
+
+      isCockpit{
+      }
+
+      isFlightModel{
+      }
+    }
+  }
+}
+
+rocket{
+  fov:r=70.0
+  zoomFov:r=30.0
+  transitionSpeed:r=4.0
+  viewDistanceAir:r=35.0
+  viewDistanceGround:r=35.0
+  minHeight:r=70.0
+  velocity:r=15.0
+  maxTimeToStop:r=20.0
+  cameraShakeMultiplier:r=1.0
+  transitionFadeInTime:r=0.12
+  transitionFadeOutTime:r=0.2
+  viscosity:r=0.01
+}
+
+loose{
+  fov:r=55.0
+  transitionSpeed:r=4.0
+  viewDistanceAir:r=250.0
+  viewDistanceGround:r=35.0
+  minHeight:r=100.0
+  velocity:r=90.0
+  maxTimeToStop:r=20.0
+  cameraShakeMultiplier:r=1.0
+  transitionFadeInTime:r=0.12
+  transitionFadeOutTime:r=0.2
+  viscosity:r=0.01
+
+  condition{
+
+    isFlightModel{
+    }
+  }
+}
+
+killer{
+  fov:r=30.0
+  transitionSpeed:r=4.0
+  viewDistanceAir:r=35.0
+  viewDistanceGround:r=35.0
+  minHeight:r=40.0
+  velocity:r=15.0
+  maxTimeToStop:r=5.0
+  cameraShakeMultiplier:r=1.0
+  transitionFadeInTime:r=0.12
+  transitionFadeOutTime:r=0.2
+  viscosity:r=0.01
+
+  condition{
+
+    isKillerFlightModel{
+    }
+  }
+}
+
+camera_cutscene{
+  fov:r=30.0
+  transitionSpeed:r=4.0
+  viewDistanceAir:r=35.0
+  viewDistanceGround:r=35.0
+  minHeight:r=40.0
+  velocity:r=15.0
+  maxTimeToStop:r=5.0
+  cameraShakeMultiplier:r=1.0
+  transitionFadeInTime:r=0.12
+  transitionFadeOutTime:r=0.2
+  viscosity:r=0.01
+}
+
+target_tps{
+  fov:r=40.0
+  zoomFov:r=20.0
+  transitionSpeedToTarget:r=0.7
+  transitionSpeedFromTarget:r=2.0
+  targetingCameraModelPoint:p3=0.0, 5.0, 0.0
+  targetingCameraDistance:r=23.0
+  targetTransitionSpeed:r=0.7
+  showtimeOnInactive:r=5.0
+  showtimeOnDestroyed:r=0.5
+  cameraShakeMultiplier:r=0.15
+  transitionFadeInTime:r=0.12
+  transitionFadeOutTime:r=0.2
+  viscosity:r=0.15
+  cameraControlSmooth:r=0.0
+  cameraEllipsoidDownOffset:r=1.5
+  useEllipsoidOffset:b=no
+}
+
+target_fps{
+  fov:r=60.0
+  zoomFov:r=30.0
+  targetOffset:p3=500.0, 0.0, 0.0
+  transitionSpeedToTarget:r=2.0
+  transitionSpeedFromTarget:r=0.7
+  targetTransitionSpeed:r=0.7
+  cameraFpXSmoothing:r=0.9
+  cameraFpYSmoothing:r=0.85
+  angleFpHorizontal:r=160.0
+  angleFpVerticalUp:r=85.0
+  angleFpVerticalDown:r=55.0
+  showtimeOnInactive:r=5.0
+  showtimeOnDestroyed:r=0.5
+  cameraShakeMultiplier:r=0.2
+  transitionFadeInTime:r=0.12
+  transitionFadeOutTime:r=0.16
+  viscosity:r=0.1
+
+  condition{
+
+    and{
+
+      isFPSViewsAllowed{
+      }
+
+      isCockpit{
+      }
+
+      isFlightModel{
+      }
+    }
+  }
+}
+
+virtual_fps{
+  fov:r=85.0
+  zoomFov:r=30.0
+  targetOffset:p3=500.0, 0.0, 0.0
+  transitionSpeed:r=4.0
+  cameraFpXSmoothing:r=0.05
+  cameraFpYSmoothing:r=0.05
+  angleFpHorizontal:r=160.0
+  angleFpVerticalUp:r=85.0
+  angleFpVerticalDown:r=55.0
+  angleFpRoll:r=20.0
+  headMoveLimits:p3=0.1, 0.1, 0.1
+  headFovLimits:p2=8.0, 30.0
+  cameraShakePosInfluence:p3=0.0, 0.0, 0.0
+  cameraShakeDirInfluence:p3=0.4, 0.3, 0.3
+  shootingTrigger:r=0.95
+  shootingFov:r=40.0
+  shootingFovTransitionSpeedTo:r=1.0
+  shootingFovTransitionSpeedFrom:r=5.0
+  cameraShakeMultiplier:r=0.1
+  cameraShakeMultiplierOnShooting:r=0.15
+  transitionFadeInTime:r=0.12
+  transitionFadeOutTime:r=0.2
+  viscosity:r=0.0001
+
+  condition{
+
+    and{
+
+      isFPSViewsAllowed{
+      }
+
+      or{
+
+        isVirtualViewsAllowed{
+        }
+
+        not{
+
+          isCockpit{
+          }
+        }
+      }
+    }
+  }
+}
+
+flight_camera_target_view{
+  subtype:t="targeting_view"
+  isAimCamera:b=no
+  fov:r=85.0
+  zoomFov:r=30.0
+  targetOffset:p3=500.0, 0.0, 0.0
+  transitionSpeed:r=4.0
+  cameraFpXSmoothing:r=0.05
+  cameraFpYSmoothing:r=0.05
+  angleFpHorizontal:r=160.0
+  angleFpVerticalUp:r=85.0
+  angleFpVerticalDown:r=55.0
+  angleFpRoll:r=20.0
+  headMoveLimits:p3=0.1, 0.1, 0.1
+  headFovLimits:p2=8.0, 30.0
+  cameraShakePosInfluence:p3=0.0, 0.0, 0.0
+  cameraShakeDirInfluence:p3=0.8, 0.8, 0.8
+  shootingTrigger:r=0.95
+  shootingFov:r=40.0
+  shootingFovTransitionSpeedTo:r=1.0
+  shootingFovTransitionSpeedFrom:r=5.0
+  cameraShakeMultiplier:r=0.06
+  cameraShakeMultiplierOnShooting:r=0.09
+  transitionFadeInTime:r=0.12
+  transitionFadeOutTime:r=0.2
+  viscosity:r=0.0001
+
+  condition{
+
+    isTelescopeEnabled{
+    }
+  }
+}
+
+virtual_target_fps{
+  fov:r=60.0
+  zoomFov:r=30.0
+  targetOffset:p3=500.0, 0.0, 0.0
+  transitionSpeedToTarget:r=2.0
+  transitionSpeedFromTarget:r=0.7
+  targetTransitionSpeed:r=0.7
+  cameraFpXSmoothing:r=0.9
+  cameraFpYSmoothing:r=0.85
+  angleFpHorizontal:r=160.0
+  angleFpVerticalUp:r=85.0
+  angleFpVerticalDown:r=55.0
+  showtimeOnInactive:r=5.0
+  showtimeOnDestroyed:r=0.5
+  cameraShakeMultiplier:r=0.1
+  transitionFadeInTime:r=0.12
+  transitionFadeOutTime:r=0.16
+  viscosity:r=0.1
+
+  condition{
+
+    and{
+
+      isFPSViewsAllowed{
+      }
+
+      or{
+
+        isVirtualViewsAllowed{
+        }
+
+        not{
+
+          isCockpit{
+          }
+        }
+      }
+    }
+  }
+}
+
+target_turret{
+  fov:r=55.0
+  zoomFov:r=25.0
+  transitionSpeed:r=4.0
+  cameraControlSmoothX:r=0.0
+  cameraControlSmoothY:r=0.0
+  cameraControlViewRadius:r=14.0
+  verticalLimit:r=10.0
+  verticalSpeed:r=1.5
+  horizontalSpeed:r=1.5
+  velocitySmooth:r=0.0
+  cameraUpOffset:r=4.0
+  cameraEllipsoidUpOffset:r=1.0
+  useEllipsoidOffset:b=yes
+  cameraShakeMultiplier:r=0.18
+  transitionFadeInTime:r=1.12
+  transitionFadeOutTime:r=0.05
+  viscosity:r=0.05
+  tiltShakeMultiplierForTanks:r=0.0
+  tiltShakeMultiplierForShips:r=0.0
+
+  condition{
+
+    or{
+
+      and{
+
+        hasGunners{
+        }
+
+        not{
+
+          hasFPSGunner{
+          }
+        }
+      }
+
+      not{
+
+        isFlightModel{
+        }
+      }
+    }
+  }
+}
+
+gunner_fps{
+  fov:r=55.0
+  zoomFov:r=25.0
+  transitionSpeed:r=4.0
+  cameraControlSmoothX:r=0.0
+  cameraControlSmoothY:r=0.0
+  cameraControlViewRadius:r=14.0
+  subtype:t="gunner_fps"
+  horLimit:p2=-1.0, 1.0
+  verLimit:p2=-1.0, 1.0
+  verticalLimit:r=10.0
+  verticalSpeed:r=1.5
+  horizontalSpeed:r=1.5
+  velocitySmooth:r=0.0
+  cameraUpOffset:r=4.0
+  cameraShakeMultiplier:r=0.18
+  transitionFadeInTime:r=1.12
+  transitionFadeOutTime:r=0.05
+  viscosity:r=0.05
+  tiltShakeMultiplierForTanks:r=0.0
+  tiltShakeMultiplierForShips:r=0.0
+
+  condition{
+
+    and{
+
+      hasFPSGunner{
+      }
+
+      isFlightModel{
+      }
+    }
+  }
+}
+
+spectator{
+  fov:r=80.0
+  transitionSpeed:r=4.0
+  cameraControlSmoothX:r=0.0
+  cameraControlSmoothY:r=0.0
+  cameraControlViewRadius:r=32.0
+  verticalLimit:r=10.0
+  verticalSpeed:r=1.5
+  horizontalSpeed:r=1.5
+  velocitySmooth:r=0.1
+  cameraUpOffset:r=4.0
+  cameraShakeMultiplier:r=0.1
+  transitionFadeInTime:r=0.12
+  transitionFadeOutTime:r=0.2
+  viscosity:r=0.2
+  offsetForAircraft:r=23.0
+  offsetForGround:r=5.6
+  vertOffsetForAircraft:r=4.2
+  vertOffsetForGround:r=2.2
+  znearSafeDist:r=3.5
+  groundSpeedMin:r=20.0
+  groundSpeedMax:r=20.0
+  groundSpeedAccelTime:r=0.1
+  hoverOffsetFromGround:r=6.0
+  minHoverDist:r=10.0
+  maxHoverDist:r=250.0
+}
+
+bomber_view{
+  fov:r=80.0
+  zoomFov:r=40.0
+  transitionSpeed:r=4.0
+  cameraControlSmoothX:r=0.05
+  cameraControlSmoothY:r=0.05
+  cameraControlViewRadius:r=14.0
+  aircraftOffset:r=14.0
+  cameraShakeMultiplier:r=0.1
+  transitionFadeInTime:r=0.12
+  transitionFadeOutTime:r=0.2
+  viscosity:r=0.2
+
+  condition{
+
+    and{
+
+      isBomber{
+      }
+
+      hasBombguns{
+      }
+    }
+  }
+}
+
+tps_const_angles{
+  fov:r=90.0
+  zoomFov:r=30.0
+  transitionSpeed:r=4.0
+  targetOffset:p3=500.0, 0.0, 0.0
+  cameraOffsetNeutral:p3=-17.0, 3.0, 0.0
+  cameraUpNeutral:p3=0.0, 1.0, 0.0
+  cameraOffsetSmoothing:r=0.04
+  cameraUpSmoothing:r=0.0
+  cameraFovSmoothing:r=0.005
+  cameraOffsetElevatorUp:p3=-14.0, 3.0, 0.0
+  cameraOffsetElevatorDown:p3=-14.0, 3.0, 0.0
+  sensitivityElevatorDown:r=1.0
+  sensitivityElevatorUp:r=1.0
+  cameraOffsetRudderLeft:p3=-14.0, 3.0, -1.0
+  cameraOffsetRudderRight:p3=-14.0, 3.0, 1.0
+  sensitivityRudder:r=10.0
+  cameraUpAileronsLeft:p3=0.0, 1.0, 0.7
+  cameraUpAileronsRight:p3=0.0, 1.0, -0.7
+  sensitivityAilerons:r=0.3
+  cameraFovAccelerationPositive:r=1.0
+  cameraFovAccelerationNegative:r=2.0
+  sensitivityAcceleration:r=10.0
+  cameraTpsSmoothing:r=0.1
+  maxCameraSlowAngle:r=9.0
+  cameraTpsAngleAccelaration:r=2.0
+  cameraShakeMultiplier:r=0.8
+  transitionFadeInTime:r=0.12
+  transitionFadeOutTime:r=0.2
+  viscosity:r=0.2
+  constViewDirection:b=yes
+
+  condition{
+
+    isTPSViewsAllowed{
+    }
+  }
+
+  up{
+    angle:p2=0.0, -90.0
+    dist:r=20.0
+  }
+
+  down{
+    angle:p2=180.0, 0.0
+    dist:r=40.0
+  }
+
+  left{
+    angle:p2=-110.0, 0.0
+    dist:r=20.0
+  }
+
+  right{
+    angle:p2=110.0, 0.0
+    dist:r=20.0
+  }
+}
+
+tps_const_pos{
+  fov:r=90.0
+  zoomFov:r=30.0
+  transitionSpeed:r=4.0
+  targetOffset:p3=500.0, 0.0, 0.0
+  cameraOffsetNeutral:p3=-17.0, 3.0, 0.0
+  cameraUpNeutral:p3=0.0, 1.0, 0.0
+  cameraOffsetSmoothing:r=0.04
+  cameraUpSmoothing:r=0.0
+  cameraFovSmoothing:r=0.005
+  cameraOffsetElevatorUp:p3=-14.0, 3.0, 0.0
+  cameraOffsetElevatorDown:p3=-14.0, 3.0, 0.0
+  sensitivityElevatorDown:r=1.0
+  sensitivityElevatorUp:r=1.0
+  cameraOffsetRudderLeft:p3=-14.0, 3.0, -1.0
+  cameraOffsetRudderRight:p3=-14.0, 3.0, 1.0
+  sensitivityRudder:r=10.0
+  cameraUpAileronsLeft:p3=0.0, 1.0, 0.7
+  cameraUpAileronsRight:p3=0.0, 1.0, -0.7
+  sensitivityAilerons:r=0.3
+  cameraFovAccelerationPositive:r=1.0
+  cameraFovAccelerationNegative:r=2.0
+  sensitivityAcceleration:r=10.0
+  cameraTpsSmoothing:r=0.1
+  maxCameraSlowAngle:r=9.0
+  cameraTpsAngleAccelaration:r=2.0
+  cameraShakeMultiplier:r=0.8
+  transitionFadeInTime:r=0.12
+  transitionFadeOutTime:r=0.2
+  viscosity:r=0.2
+  constPosition:b=yes
+
+  condition{
+
+    isTPSViewsAllowed{
+    }
+  }
+
+  up{
+    angle:p2=0.0, -90.0
+    dist:r=20.0
+  }
+
+  down{
+    angle:p2=180.0, 0.0
+    dist:r=40.0
+  }
+
+  left{
+    angle:p2=-110.0, 0.0
+    dist:r=20.0
+  }
+
+  right{
+    angle:p2=110.0, 0.0
+    dist:r=20.0
+  }
+}
+
+satellite{
+  timeToStart:r=1.0
+  timeToApproach:r=1.0
+  initialHeight:r=1500.0
+  maxDistance:r=4500.0
+  fov:r=45.0
+}
+
+tps_ground{
+  fov:r=80.0
+  zoomFov:r=80.0
+  gunFov:r=5.0
+  transitionSpeed:r=4.0
+  targetOffset:p3=500.0, 2.0, 0.0
+  cameraOffsetNeutral:p3=-17.0, 2.0, 0.0
+  cameraUpNeutral:p3=0.0, 1.0, 0.0
+  cameraOffsetSmoothing:r=0.04
+  cameraUpSmoothing:r=0.0
+  cameraFovSmoothing:r=0.005
+  cameraOffsetElevatorUp:p3=-14.0, 3.0, 0.0
+  cameraOffsetElevatorDown:p3=-14.0, 3.0, 0.0
+  sensitivityElevatorDown:r=1.0
+  sensitivityElevatorUp:r=1.0
+  cameraOffsetRudderLeft:p3=-14.0, 3.0, -1.0
+  cameraOffsetRudderRight:p3=-14.0, 3.0, 1.0
+  sensitivityRudder:r=10.0
+  cameraUpAileronsLeft:p3=0.0, 1.0, 0.7
+  cameraUpAileronsRight:p3=0.0, 1.0, -0.7
+  sensitivityAilerons:r=0.3
+  cameraOffset:p3=0.0, 3.0, -8.0
+  cameraOffsetZoomed:p3=1.5, 2.3, -5.0
+  targetOffset:p3=10.0, 4.0, 0.0
+  useOffset:b=yes
+  clipType:t="trace"
+  zoomToGun:b=no
+  useCockpitOffsets:b=yes
+  fovVertAnglesOffsetPart:r=-0.15
+  isMouseView:b=yes
+  cameraControlViewRadius:r=5.0
+  cameraUpOffset:r=1.0
+  cameraFovAccelerationPositive:r=1.0
+  cameraFovAccelerationNegative:r=2.0
+  sensitivityAcceleration:r=10.0
+  cameraTpsSmoothing:r=0.001
+  maxCameraSlowAngle:r=9.0
+  cameraTpsAngleAccelaration:r=2.0
+  minimumDistanceMultiplier:r=1.2
+  targOffsMult:r=0.0
+  cameraShakeMultiplier:r=0.1
+  cameraShakeMultiplierOnShooting:r=1.0
+  transitionFadeInTime:r=0.12
+  transitionFadeOutTime:r=0.14
+  viscosity:r=0.14
+  trackGunDirection:b=yes
+  tiltShakeMultiplierForTanks:r=0.0
+  tiltShakeMultiplierForShips:r=0.0
+
+  condition{
+
+    not{
+
+      isFlightModel{
+      }
+    }
+  }
+
+  up{
+    angle:p2=0.0, -90.0
+    dist:r=20.0
+  }
+
+  down{
+    angle:p2=180.0, 0.0
+    dist:r=40.0
+  }
+
+  left{
+    angle:p2=-110.0, 0.0
+    dist:r=20.0
+  }
+
+  right{
+    angle:p2=110.0, 0.0
+    dist:r=20.0
+  }
+}
+
+camera_binoculars{
+  fov:r=12.3
+  zoomFov:r=12.3
+  gunFov:r=10.0
+  transitionSpeed:r=4.0
+  targetOffset:p3=500.0, 2.0, 0.0
+  cameraOffsetNeutral:p3=-17.0, 2.0, 0.0
+  cameraUpNeutral:p3=0.0, 1.0, 0.0
+  cameraOffsetSmoothing:r=0.04
+  cameraUpSmoothing:r=0.0
+  cameraFovSmoothing:r=0.005
+  startDofDist:r=0.1
+  maxDofDist:r=10.0
+  maxDofEffect:r=1.0
+  useDof:b=yes
+  allowHeadControl:b=no
+  cameraOffsetElevatorUp:p3=-14.0, 3.0, 0.0
+  cameraOffsetElevatorDown:p3=-14.0, 3.0, 0.0
+  sensitivityElevatorDown:r=1.0
+  sensitivityElevatorUp:r=1.0
+  cameraOffsetRudderLeft:p3=-14.0, 3.0, -1.0
+  cameraOffsetRudderRight:p3=-14.0, 3.0, 1.0
+  sensitivityRudder:r=10.0
+  cameraUpAileronsLeft:p3=0.0, 1.0, 0.7
+  cameraUpAileronsRight:p3=0.0, 1.0, -0.7
+  sensitivityAilerons:r=0.3
+  subtype:t="binoculars"
+  cameraOffset:p3=0.0, 3.0, -8.0
+  cameraOffsetZoomed:p3=1.5, 2.3, -5.0
+  targetOffset:p3=10.0, 4.0, 0.0
+  useOffset:b=yes
+  clipType:t="trace"
+  zoomToGun:b=no
+  useCockpitOffsets:b=yes
+  fovVertAnglesOffsetPart:r=0.0
+  isMouseView:b=yes
+  isAimCamera:b=no
+  cockpitOffsetsRange:p2=1.0, 1.0
+  cameraControlViewRadius:r=5.0
+  cameraUpOffset:r=1.0
+  cameraFovAccelerationPositive:r=1.0
+  cameraFovAccelerationNegative:r=2.0
+  sensitivityAcceleration:r=10.0
+  cameraTpsSmoothing:r=0.001
+  maxCameraSlowAngle:r=9.0
+  cameraTpsAngleAccelaration:r=2.0
+  minimumDistanceMultiplier:r=1.2
+  targOffsMult:r=0.0
+  cameraShakeMultiplier:r=0.8
+  cameraShakeMultiplierOnShooting:r=0.2
+  transitionFadeInTime:r=0.12
+  transitionFadeOutTime:r=0.05
+  viscosity:r=0.05
+  trackGunDirection:b=yes
+  tiltShakeMultiplierForTanks:r=0.0
+  tiltShakeMultiplierForShips:r=0.0
+
+  condition{
+
+    not{
+
+      isFlightModel{
+      }
+    }
+  }
+
+  up{
+    angle:p2=0.0, -90.0
+    dist:r=20.0
+  }
+
+  down{
+    angle:p2=180.0, 0.0
+    dist:r=40.0
+  }
+
+  left{
+    angle:p2=-110.0, 0.0
+    dist:r=20.0
+  }
+
+  right{
+    angle:p2=110.0, 0.0
+    dist:r=20.0
+  }
+}
+
+camera_binoculars_targeting{
+  fov:r=22.0
+  zoomFov:r=22.0
+  gunFov:r=10.0
+  transitionSpeed:r=4.0
+  targetOffset:p3=500.0, 2.0, 0.0
+  cameraOffsetNeutral:p3=-17.0, 2.0, 0.0
+  cameraUpNeutral:p3=0.0, 1.0, 0.0
+  cameraOffsetSmoothing:r=0.04
+  cameraUpSmoothing:r=0.0
+  cameraFovSmoothing:r=0.005
+  startDofDist:r=0.1
+  maxDofDist:r=10.0
+  maxDofEffect:r=1.0
+  useDof:b=yes
+  allowHeadControl:b=no
+  allowViewControl:b=no
+  cameraOffsetElevatorUp:p3=-14.0, 3.0, 0.0
+  cameraOffsetElevatorDown:p3=-14.0, 3.0, 0.0
+  sensitivityElevatorDown:r=1.0
+  sensitivityElevatorUp:r=1.0
+  cameraOffsetRudderLeft:p3=-14.0, 3.0, -1.0
+  cameraOffsetRudderRight:p3=-14.0, 3.0, 1.0
+  sensitivityRudder:r=10.0
+  cameraUpAileronsLeft:p3=0.0, 1.0, 0.7
+  cameraUpAileronsRight:p3=0.0, 1.0, -0.7
+  sensitivityAilerons:r=0.3
+  subtype:t="binoculars_targeting"
+  cameraOffset:p3=0.0, 3.0, -8.0
+  cameraOffsetZoomed:p3=1.5, 2.3, -5.0
+  targetOffset:p3=10.0, 4.0, 0.0
+  useOffset:b=yes
+  clipType:t="trace"
+  zoomToGun:b=no
+  useCockpitOffsets:b=yes
+  fovVertAnglesOffsetPart:r=0.0
+  isMouseView:b=yes
+  isAimCamera:b=yes
+  cockpitOffsetsRange:p2=1.0, 1.0
+  cameraControlViewRadius:r=5.0
+  cameraUpOffset:r=1.0
+  cameraFovAccelerationPositive:r=1.0
+  cameraFovAccelerationNegative:r=2.0
+  sensitivityAcceleration:r=10.0
+  cameraTpsSmoothing:r=0.001
+  maxCameraSlowAngle:r=9.0
+  cameraTpsAngleAccelaration:r=2.0
+  minimumDistanceMultiplier:r=1.2
+  targOffsMult:r=0.0
+  cameraShakeMultiplier:r=0.1
+  cameraShakeMultiplierOnShooting:r=0.0
+  transitionFadeInTime:r=0.12
+  transitionFadeOutTime:r=0.05
+  viscosity:r=0.0
+  trackGunDirection:b=yes
+  tiltShakeMultiplierForTanks:r=0.0
+  tiltShakeMultiplierForShips:r=0.0
+
+  condition{
+
+    not{
+
+      isFlightModel{
+      }
+    }
+  }
+
+  up{
+    angle:p2=0.0, -90.0
+    dist:r=20.0
+  }
+
+  down{
+    angle:p2=180.0, 0.0
+    dist:r=40.0
+  }
+
+  left{
+    angle:p2=-110.0, 0.0
+    dist:r=20.0
+  }
+
+  right{
+    angle:p2=110.0, 0.0
+    dist:r=20.0
+  }
+}
+
+aim_ground{
+  fov:r=30.0
+  zoomFov:r=20.0
+  gunFov:r=10.0
+  transitionSpeed:r=4.0
+  targetOffset:p3=500.0, 2.0, 0.0
+  cameraOffsetNeutral:p3=-17.0, 2.0, 0.0
+  cameraUpNeutral:p3=0.0, 1.0, 0.0
+  cameraOffsetSmoothing:r=0.04
+  cameraUpSmoothing:r=0.0
+  cameraFovSmoothing:r=0.005
+  isOrientationLocked:b=no
+  subtype:t="targeting_view"
+  allowViewControl:b=no
+  cameraOffsetElevatorUp:p3=-14.0, 3.0, 0.0
+  cameraOffsetElevatorDown:p3=-14.0, 3.0, 0.0
+  sensitivityElevatorDown:r=1.0
+  sensitivityElevatorUp:r=1.0
+  cameraOffsetRudderLeft:p3=-14.0, 3.0, -1.0
+  cameraOffsetRudderRight:p3=-14.0, 3.0, 1.0
+  sensitivityRudder:r=10.0
+  cameraUpAileronsLeft:p3=0.0, 1.0, 0.7
+  cameraUpAileronsRight:p3=0.0, 1.0, -0.7
+  sensitivityAilerons:r=0.3
+  cameraOffset:p3=0.0, 3.0, -8.0
+  cameraOffsetZoomed:p3=1.5, 2.3, -5.0
+  targetOffset:p3=10.0, 4.0, 0.0
+  useOffset:b=no
+  clipType:t="none"
+  useCockpitZoom:b=yes
+  isMouseView:b=yes
+  cameraControlViewRadius:r=5.0
+  cameraUpOffset:r=1.0
+  cameraFovAccelerationPositive:r=1.0
+  cameraFovAccelerationNegative:r=2.0
+  sensitivityAcceleration:r=10.0
+  cameraTpsSmoothing:r=0.001
+  maxCameraSlowAngle:r=9.0
+  cameraTpsAngleAccelaration:r=2.0
+  minimumDistanceMultiplier:r=1.2
+  targOffsMult:r=0.0
+  cameraShakeMultiplier:r=0.05
+  cameraShakeMultiplierOnShooting:r=0.2
+  transitionFadeInTime:r=0.12
+  transitionFadeOutTime:r=0.05
+  viscosity:r=0.05
+  trackGunDirection:b=yes
+  tiltShakeMultiplierForTanks:r=0.0
+  tiltShakeMultiplierForShips:r=0.0
+
+  condition{
+
+    and{
+
+      not{
+
+        isSight{
+        }
+      }
+
+      not{
+
+        isFlightModel{
+        }
+      }
+    }
+  }
+
+  up{
+    angle:p2=0.0, -90.0
+    dist:r=20.0
+  }
+
+  down{
+    angle:p2=180.0, 0.0
+    dist:r=40.0
+  }
+
+  left{
+    angle:p2=-110.0, 0.0
+    dist:r=20.0
+  }
+
+  right{
+    angle:p2=110.0, 0.0
+    dist:r=20.0
+  }
+}
+
+aim_ground_from_sight{
+  fov:r=40.0
+  zoomFov:r=21.0
+  gunFov:r=10.0
+  transitionSpeed:r=5.0
+  targetOffset:p3=500.0, 2.0, 0.0
+  cameraOffsetNeutral:p3=-17.0, 2.0, 0.0
+  cameraUpNeutral:p3=0.0, 1.0, 0.0
+  cameraOffsetSmoothing:r=0.04
+  cameraUpSmoothing:r=0.0
+  cameraFovSmoothing:r=0.005
+  hookNodeName:t="bone_camera_gunner"
+  isOrientationLocked:b=yes
+  isOrientationLockedToNode:b=no
+  subtype:t="targeting_view"
+  allowViewControl:b=no
+  showModel:b=yes
+  cameraOffsetElevatorUp:p3=-14.0, 3.0, 0.0
+  cameraOffsetElevatorDown:p3=-14.0, 3.0, 0.0
+  sensitivityElevatorDown:r=1.0
+  sensitivityElevatorUp:r=1.0
+  cameraOffsetRudderLeft:p3=-14.0, 3.0, -1.0
+  cameraOffsetRudderRight:p3=-14.0, 3.0, 1.0
+  sensitivityRudder:r=10.0
+  cameraUpAileronsLeft:p3=0.0, 1.0, 0.7
+  cameraUpAileronsRight:p3=0.0, 1.0, -0.7
+  sensitivityAilerons:r=0.3
+  cameraOffset:p3=0.0, 3.0, -8.0
+  cameraOffsetZoomed:p3=1.5, 2.3, -5.0
+  targetOffset:p3=10.0, 4.0, 0.0
+  useOffset:b=no
+  clipType:t="none"
+  useCockpitZoom:b=no
+  overrideCockpitZoom:b=yes
+  isMouseView:b=yes
+  cameraControlViewRadius:r=5.0
+  cameraUpOffset:r=1.0
+  cameraFovAccelerationPositive:r=1.0
+  cameraFovAccelerationNegative:r=2.0
+  sensitivityAcceleration:r=10.0
+  cameraTpsSmoothing:r=0.001
+  maxCameraSlowAngle:r=9.0
+  cameraTpsAngleAccelaration:r=2.0
+  minimumDistanceMultiplier:r=1.2
+  targOffsMult:r=0.0
+  cameraShakeMultiplier:r=0.05
+  cameraShakeMultiplierOnShooting:r=0.2
+  tiltShakeMultiplierForTanks:r=0.0
+  tiltShakeMultiplierForShips:r=0.0
+  transitionFadeInTime:r=0.12
+  transitionFadeOutTime:r=0.05
+  viscosity:r=0.05
+  trackGunDirection:b=yes
+
+  condition{
+
+    and{
+
+      isSight{
+      }
+
+      not{
+
+        isFlightModel{
+        }
+      }
+    }
+  }
+
+  up{
+    angle:p2=0.0, -90.0
+    dist:r=20.0
+  }
+
+  down{
+    angle:p2=180.0, 0.0
+    dist:r=40.0
+  }
+
+  left{
+    angle:p2=-110.0, 0.0
+    dist:r=20.0
+  }
+
+  right{
+    angle:p2=110.0, 0.0
+    dist:r=20.0
+  }
+}
+
+driver_ground{
+  fov:r=80.0
+  zoomFov:r=80.0
+  gunFov:r=5.0
+  transitionSpeed:r=4.0
+  targetOffset:p3=500.0, 2.0, 0.0
+  cameraOffsetNeutral:p3=-17.0, 2.0, 0.0
+  cameraUpNeutral:p3=0.0, 1.0, 0.0
+  cameraOffsetSmoothing:r=0.04
+  cameraUpSmoothing:r=0.0
+  cameraFovSmoothing:r=0.005
+  hookNodeName:t="bone_camera_driver"
+  isOrientationLocked:b=no
+  shouldWrapCamera:b=no
+  horLimit:p2=-0.35, 0.35
+  verLimit:p2=-0.05, 0.5
+  startDofDist:r=0.1
+  maxDofDist:r=1.0
+  maxDofEffect:r=1.0
+  useDof:b=yes
+  cameraOffsetElevatorUp:p3=-14.0, 3.0, 0.0
+  cameraOffsetElevatorDown:p3=-14.0, 3.0, 0.0
+  sensitivityElevatorDown:r=1.0
+  sensitivityElevatorUp:r=1.0
+  cameraOffsetRudderLeft:p3=-14.0, 3.0, -1.0
+  cameraOffsetRudderRight:p3=-14.0, 3.0, 1.0
+  sensitivityRudder:r=10.0
+  cameraUpAileronsLeft:p3=0.0, 1.0, 0.7
+  cameraUpAileronsRight:p3=0.0, 1.0, -0.7
+  sensitivityAilerons:r=0.3
+  cameraOffset:p3=0.0, 3.0, -8.0
+  cameraOffsetZoomed:p3=1.5, 2.3, -5.0
+  targetOffset:p3=10.0, 4.0, 0.0
+  useOffset:b=yes
+  clipType:t="none"
+  zoomToGun:b=no
+  useCockpitOffsets:b=yes
+  subtype:t="driver"
+  isMouseView:b=yes
+  isAimCamera:b=no
+  cameraControlViewRadius:r=5.0
+  cameraUpOffset:r=1.0
+  cameraFovAccelerationPositive:r=1.0
+  cameraFovAccelerationNegative:r=2.0
+  sensitivityAcceleration:r=10.0
+  cameraTpsSmoothing:r=0.001
+  maxCameraSlowAngle:r=9.0
+  cameraTpsAngleAccelaration:r=2.0
+  minimumDistanceMultiplier:r=1.2
+  targOffsMult:r=0.0
+  cameraShakeMultiplier:r=0.8
+  cameraShakeMultiplierOnShooting:r=0.2
+  tiltShakeMultiplierForTanks:r=0.0
+  tiltShakeMultiplierForShips:r=0.0
+  transitionFadeInTime:r=0.12
+  transitionFadeOutTime:r=0.013
+  viscosity:r=0.013
+  trackGunDirection:b=yes
+
+  up{
+    angle:p2=0.0, -90.0
+    dist:r=20.0
+  }
+
+  down{
+    angle:p2=180.0, 0.0
+    dist:r=40.0
+  }
+
+  left{
+    angle:p2=-110.0, 0.0
+    dist:r=20.0
+  }
+
+  right{
+    angle:p2=110.0, 0.0
+    dist:r=20.0
+  }
+}
+
+camera_ground_death{
+  fov:r=90.0
+  zoomFov:r=90.0
+  gunFov:r=5.0
+  transitionSpeed:r=4.0
+  targetOffset:p3=500.0, 2.0, 0.0
+  cameraOffsetNeutral:p3=-17.0, 2.0, 0.0
+  cameraUpNeutral:p3=0.0, 1.0, 0.0
+  cameraOffsetSmoothing:r=0.04
+  cameraUpSmoothing:r=0.0
+  cameraFovSmoothing:r=0.005
+  cameraOffsetElevatorUp:p3=-14.0, 3.0, 0.0
+  cameraOffsetElevatorDown:p3=-14.0, 3.0, 0.0
+  sensitivityElevatorDown:r=1.0
+  sensitivityElevatorUp:r=1.0
+  cameraOffsetRudderLeft:p3=-14.0, 3.0, -1.0
+  cameraOffsetRudderRight:p3=-14.0, 3.0, 1.0
+  sensitivityRudder:r=10.0
+  cameraUpAileronsLeft:p3=0.0, 1.0, 0.7
+  cameraUpAileronsRight:p3=0.0, 1.0, -0.7
+  sensitivityAilerons:r=0.3
+  cameraOffset:p3=0.0, 3.0, -12.0
+  cameraOffsetZoomed:p3=0.0, 3.0, -12.0
+  targetOffset:p3=10.0, 4.0, 0.0
+  useOffset:b=yes
+  clipType:t="trace"
+  zoomToGun:b=no
+  useCockpitOffsets:b=no
+  fovVertAnglesOffsetPart:r=0.0
+  isMouseView:b=yes
+  cameraControlViewRadius:r=5.0
+  cameraUpOffset:r=1.0
+  cameraFovAccelerationPositive:r=1.0
+  cameraFovAccelerationNegative:r=2.0
+  sensitivityAcceleration:r=10.0
+  cameraTpsSmoothing:r=0.001
+  maxCameraSlowAngle:r=9.0
+  cameraTpsAngleAccelaration:r=2.0
+  minimumDistanceMultiplier:r=1.2
+  targOffsMult:r=0.0
+  cameraShakeMultiplier:r=0.8
+  cameraShakeMultiplierOnShooting:r=0.2
+  transitionFadeInTime:r=0.12
+  transitionFadeOutTime:r=0.2
+  viscosity:r=0.2
+  trackGunDirection:b=yes
+  requestDmEvents:b=yes
+
+  condition{
+
+    not{
+
+      isFlightModel{
+      }
+    }
+  }
+
+  up{
+    angle:p2=0.0, -90.0
+    dist:r=20.0
+  }
+
+  down{
+    angle:p2=180.0, 0.0
+    dist:r=40.0
+  }
+
+  left{
+    angle:p2=-110.0, 0.0
+    dist:r=20.0
+  }
+
+  right{
+    angle:p2=110.0, 0.0
+    dist:r=20.0
+  }
+}
+
+camera_ground_killer{
+  fov:r=90.0
+  zoomFov:r=90.0
+  gunFov:r=5.0
+  transitionSpeed:r=4.0
+  targetOffset:p3=500.0, 2.0, 0.0
+  cameraOffsetNeutral:p3=-17.0, 2.0, 0.0
+  cameraUpNeutral:p3=0.0, 1.0, 0.0
+  cameraOffsetSmoothing:r=0.04
+  cameraUpSmoothing:r=0.0
+  cameraFovSmoothing:r=0.005
+  cameraOffsetElevatorUp:p3=-14.0, 3.0, 0.0
+  cameraOffsetElevatorDown:p3=-14.0, 3.0, 0.0
+  sensitivityElevatorDown:r=1.0
+  sensitivityElevatorUp:r=1.0
+  cameraOffsetRudderLeft:p3=-14.0, 3.0, -1.0
+  cameraOffsetRudderRight:p3=-14.0, 3.0, 1.0
+  sensitivityRudder:r=10.0
+  cameraUpAileronsLeft:p3=0.0, 1.0, 0.7
+  cameraUpAileronsRight:p3=0.0, 1.0, -0.7
+  sensitivityAilerons:r=0.3
+  cameraOffset:p3=0.0, 3.0, -12.0
+  cameraOffsetZoomed:p3=0.0, 3.0, -12.0
+  targetOffset:p3=10.0, 4.0, 0.0
+  useOffset:b=yes
+  clipType:t="trace"
+  zoomToGun:b=no
+  useCockpitOffsets:b=no
+  fovVertAnglesOffsetPart:r=0.0
+  isMouseView:b=yes
+  allowKiller:b=yes
+  cameraControlViewRadius:r=5.0
+  cameraUpOffset:r=1.0
+  cameraFovAccelerationPositive:r=1.0
+  cameraFovAccelerationNegative:r=2.0
+  sensitivityAcceleration:r=10.0
+  cameraTpsSmoothing:r=0.001
+  maxCameraSlowAngle:r=9.0
+  cameraTpsAngleAccelaration:r=2.0
+  minimumDistanceMultiplier:r=1.2
+  targOffsMult:r=0.0
+  cameraShakeMultiplier:r=0.8
+  cameraShakeMultiplierOnShooting:r=0.2
+  transitionFadeInTime:r=0.12
+  transitionFadeOutTime:r=0.2
+  viscosity:r=0.2
+  trackGunDirection:b=yes
+  tiltShakeMultiplierForTanks:r=0.0
+  tiltShakeMultiplierForShips:r=0.0
+
+  condition{
+
+    not{
+
+      isKillerFlightModel{
+      }
+    }
+  }
+
+  up{
+    angle:p2=0.0, -90.0
+    dist:r=20.0
+  }
+
+  down{
+    angle:p2=180.0, 0.0
+    dist:r=40.0
+  }
+
+  left{
+    angle:p2=-110.0, 0.0
+    dist:r=20.0
+  }
+
+  right{
+    angle:p2=110.0, 0.0
+    dist:r=20.0
+  }
+}
+
+camera_xray_shot{
+  fov:r=90.0
+  zoomFov:r=90.0
+  gunFov:r=5.0
+  transitionSpeed:r=4.0
+  targetOffset:p3=500.0, 2.0, 0.0
+  cameraOffsetNeutral:p3=-17.0, 2.0, 0.0
+  cameraUpNeutral:p3=0.0, 1.0, 0.0
+  cameraOffsetSmoothing:r=0.04
+  cameraUpSmoothing:r=0.0
+  cameraFovSmoothing:r=0.005
+  cameraOffsetElevatorUp:p3=-14.0, 3.0, 0.0
+  cameraOffsetElevatorDown:p3=-14.0, 3.0, 0.0
+  sensitivityElevatorDown:r=1.0
+  sensitivityElevatorUp:r=1.0
+  cameraOffsetRudderLeft:p3=-14.0, 3.0, -1.0
+  cameraOffsetRudderRight:p3=-14.0, 3.0, 1.0
+  sensitivityRudder:r=10.0
+  cameraUpAileronsLeft:p3=0.0, 1.0, 0.7
+  cameraUpAileronsRight:p3=0.0, 1.0, -0.7
+  sensitivityAilerons:r=0.3
+  cameraOffset:p3=0.0, 3.0, -12.0
+  cameraOffsetZoomed:p3=0.0, 3.0, -12.0
+  targetOffset:p3=10.0, 4.0, 0.0
+  useOffset:b=no
+  clipType:t="none"
+  zoomToGun:b=no
+  useCockpitOffsets:b=no
+  fovVertAnglesOffsetPart:r=0.0
+  isMouseView:b=yes
+  allowKiller:b=no
+  cameraControlViewRadius:r=0.5
+  cameraUpOffset:r=1.0
+  cameraFovAccelerationPositive:r=1.0
+  cameraFovAccelerationNegative:r=2.0
+  sensitivityAcceleration:r=10.0
+  cameraTpsSmoothing:r=0.001
+  maxCameraSlowAngle:r=9.0
+  cameraTpsAngleAccelaration:r=2.0
+  minimumDistanceMultiplier:r=1.2
+  targOffsMult:r=0.0
+  cameraShakeMultiplier:r=0.8
+  cameraShakeMultiplierOnShooting:r=0.2
+  transitionFadeInTime:r=0.0
+  transitionFadeOutTime:r=0.0
+  viscosity:r=0.0
+  trackGunDirection:b=no
+  deathWaitTime:r=2.0
+  shouldSmoothView:b=no
+  cameraFlyOffset:r=0.75
+  focusSmoothNear:r=0.5
+
+  condition{
+
+    and{
+
+      isXrayEnabled{
+      }
+
+      not{
+
+        isFlightModel{
+        }
+      }
+    }
+  }
+
+  curves{
+
+    shot1{
+
+      points{
+
+        p1{
+          angles:p2=5.0, -20.0
+          dist:r=8.5
+          fov:r=90.0
+          rt:r=0.0
+          tleft:r=0.5
+          tright:r=0.5
+          bulletSpeed:r=1.0
+        }
+
+        p2{
+          angles:p2=-20.0, -10.0
+          dist:r=2.0
+          fov:r=90.0
+          rt:r=2.0
+          tleft:r=0.0
+          tright:r=0.0
+          bulletSpeed:r=5.0
+        }
+      }
+    }
+
+    shot2{
+
+      points{
+
+        p1{
+          angles:p2=170.0, -10.0
+          dist:r=1.0
+          fov:r=90.0
+          rt:r=0.0
+          tleft:r=0.5
+          tright:r=0.5
+          bulletSpeed:r=0.5
+        }
+
+        p2{
+          angles:p2=160.0, -15.0
+          dist:r=2.0
+          fov:r=90.0
+          rt:r=2.0
+          tleft:r=0.5
+          tright:r=0.5
+          bulletSpeed:r=5.0
+        }
+      }
+    }
+
+    shot3{
+
+      points{
+
+        p1{
+          angles:p2=180.0, -10.0
+          dist:r=1.0
+          fov:r=90.0
+          rt:r=0.0
+          tleft:r=0.5
+          tright:r=0.5
+          bulletSpeed:r=0.5
+        }
+
+        p2{
+          angles:p2=180.0, -20.0
+          dist:r=6.0
+          fov:r=90.0
+          rt:r=2.0
+          tleft:r=0.5
+          tright:r=0.5
+          bulletSpeed:r=5.0
+        }
+      }
+    }
+
+    shot4{
+      viscosity:r=0.2
+
+      points{
+
+        p1{
+          angles:p2=-130.0, -30.0
+          dist:r=3.5
+          fov:r=90.0
+          rt:r=0.0
+          tleft:r=0.5
+          tright:r=0.5
+          bulletSpeed:r=0.5
+        }
+
+        p2{
+          angles:p2=-75.0, -20.0
+          dist:r=2.0
+          fov:r=90.0
+          rt:r=1.0
+          tleft:r=0.5
+          tright:r=0.5
+          bulletSpeed:r=5.0
+        }
+
+        p3{
+          angles:p2=-20.0, -10.0
+          dist:r=2.0
+          fov:r=90.0
+          rt:r=2.0
+          tleft:r=0.5
+          tright:r=0.5
+          bulletSpeed:r=12.0
+        }
+      }
+    }
+
+    shot5{
+      focus:b=yes
+      showFx:b=yes
+
+      points{
+
+        p1{
+          angles:p2=15.0, -15.0
+          dist:r=4.0
+          fov:r=90.0
+          rt:r=0.0
+          tleft:r=0.5
+          tright:r=0.5
+          bulletSpeed:r=0.5
+        }
+
+        p1{
+          angles:p2=15.0, -15.0
+          dist:r=4.0
+          fov:r=90.0
+          rt:r=1.5
+          tleft:r=0.5
+          tright:r=0.5
+          bulletSpeed:r=0.5
+        }
+      }
+    }
+
+    shot6{
+
+      points{
+
+        p1{
+          angles:p2=-70.0, -10.0
+          dist:r=6.5
+          fov:r=90.0
+          rt:r=0.0
+          tleft:r=0.5
+          tright:r=0.5
+          bulletSpeed:r=0.5
+        }
+
+        p1{
+          angles:p2=-160.0, -10.0
+          dist:r=2.0
+          fov:r=90.0
+          rt:r=2.0
+          tleft:r=0.5
+          tright:r=0.5
+          bulletSpeed:r=0.5
+        }
+      }
+    }
+
+    fly1{
+
+      points{
+
+        p1{
+          angles:p2=-90.0, 10.0
+          dist:r=4.0
+          fov:r=90.0
+          rt:r=0.0
+          tleft:r=1.0
+          tright:r=1.0
+          bulletSpeed:r=2.0
+        }
+
+        p2{
+          angles:p2=-90.0, 10.0
+          dist:r=2.0
+          fov:r=90.0
+          rt:r=1.0
+          tleft:r=0.0
+          tright:r=0.0
+          bulletSpeed:r=2.0
+        }
+
+        p3{
+          angles:p2=5.0, -10.0
+          dist:r=2.0
+          fov:r=90.0
+          rt:r=2.0
+          tleft:r=0.0
+          tright:r=0.0
+          bulletSpeed:r=2.0
+        }
+
+        p3{
+          angles:p2=5.0, -10.0
+          dist:r=3.0
+          fov:r=90.0
+          rt:r=2.5
+          tleft:r=0.0
+          tright:r=0.0
+          bulletSpeed:r=2.0
+        }
+      }
+
+      fly{
+        angles:p2=0.0, 0.0
+        dist:r=0.0
+        fov:r=0.0
+      }
+    }
+
+    fly2{
+
+      points{
+
+        p1{
+          angles:p2=-180.0, -10.0
+          dist:r=2.0
+          fov:r=90.0
+          rt:r=0.0
+          tleft:r=0.5
+          tright:r=0.5
+          bulletSpeed:r=50.0
+        }
+
+        p2{
+          angles:p2=-180.0, -10.0
+          dist:r=2.0
+          fov:r=90.0
+          rt:r=2.5
+          tleft:r=0.5
+          tright:r=0.5
+          bulletSpeed:r=250.0
+        }
+      }
+
+      fly{
+        angles:p2=0.0, 0.0
+        dist:r=0.0
+        fov:r=0.0
+      }
+    }
+
+    fly3{
+
+      points{
+
+        p1{
+          angles:p2=0.0, -20.0
+          dist:r=8.0
+          fov:r=90.0
+          rt:r=0.0
+          tleft:r=0.5
+          tright:r=0.5
+          bulletSpeed:r=50.0
+        }
+
+        p2{
+          angles:p2=0.0, -10.0
+          dist:r=3.0
+          fov:r=90.0
+          rt:r=2.5
+          tleft:r=0.5
+          tright:r=0.5
+          bulletSpeed:r=250.0
+        }
+      }
+
+      fly{
+        angles:p2=0.0, 0.0
+        dist:r=0.0
+        fov:r=0.0
+      }
+    }
+
+    fly4{
+      viscosity:r=0.2
+
+      points{
+
+        p1{
+          angles:p2=110.0, -20.0
+          dist:r=4.0
+          fov:r=90.0
+          rt:r=0.0
+          tleft:r=0.5
+          tright:r=0.5
+          bulletSpeed:r=50.0
+        }
+
+        p2{
+          angles:p2=140.0, -10.0
+          dist:r=3.0
+          fov:r=90.0
+          rt:r=1.25
+          tleft:r=0.0
+          tright:r=0.0
+          bulletSpeed:r=250.0
+        }
+
+        p3{
+          angles:p2=170.0, 0.0
+          dist:r=2.0
+          fov:r=90.0
+          rt:r=2.5
+          tleft:r=0.0
+          tright:r=0.0
+          bulletSpeed:r=250.0
+        }
+      }
+
+      fly{
+        angles:p2=0.0, 0.0
+        dist:r=0.0
+        fov:r=0.0
+      }
+    }
+
+    fly5{
+
+      points{
+
+        p1{
+          angles:p2=70.0, -5.0
+          dist:r=5.0
+          fov:r=90.0
+          rt:r=0.0
+          tleft:r=0.5
+          tright:r=0.5
+          bulletSpeed:r=250.0
+        }
+
+        p2{
+          angles:p2=90.0, -10.0
+          dist:r=2.0
+          fov:r=90.0
+          rt:r=2.5
+          tleft:r=0.5
+          tright:r=0.5
+          bulletSpeed:r=250.0
+        }
+      }
+
+      fly{
+        angles:p2=0.0, 0.0
+        dist:r=0.0
+        fov:r=0.0
+      }
+    }
+
+    fly6{
+
+      points{
+
+        p1{
+          angles:p2=0.0, -5.0
+          dist:r=4.0
+          fov:r=90.0
+          rt:r=0.0
+          tleft:r=0.5
+          tright:r=0.5
+          bulletSpeed:r=100.0
+        }
+
+        p2{
+          angles:p2=0.0, -10.0
+          dist:r=2.0
+          fov:r=90.0
+          rt:r=2.5
+          tleft:r=0.5
+          tright:r=0.5
+          bulletSpeed:r=250.0
+        }
+      }
+
+      fly{
+        angles:p2=0.0, 0.0
+        dist:r=0.0
+        fov:r=0.0
+      }
+    }
+
+    hit1{
+
+      points{
+
+        p1{
+          angles:p2=5.0, -10.0
+          dist:r=3.0
+          fov:r=90.0
+          rt:r=0.0
+          tleft:r=0.5
+          tright:r=0.5
+          bulletSpeed:r=1.0
+        }
+
+        p2{
+          angles:p2=45.0, -30.0
+          dist:r=5.0
+          fov:r=90.0
+          rt:r=1.5
+          tleft:r=0.5
+          tright:r=0.5
+          bulletSpeed:r=2.0
+        }
+      }
+
+      fly{
+        angles:p2=15.0, 0.0
+        dist:r=0.0
+        fov:r=0.0
+      }
+    }
+
+    hit2{
+
+      points{
+
+        p1{
+          angles:p2=0.0, -10.0
+          dist:r=3.0
+          fov:r=90.0
+          rt:r=0.0
+          tleft:r=0.5
+          tright:r=0.5
+          bulletSpeed:r=2.0
+        }
+
+        p2{
+          angles:p2=0.0, -10.0
+          dist:r=3.0
+          fov:r=90.0
+          rt:r=0.5
+          tleft:r=0.5
+          tright:r=0.5
+          bulletSpeed:r=2.0
+        }
+
+        p3{
+          angles:p2=45.0, -20.0
+          dist:r=5.0
+          fov:r=90.0
+          rt:r=1.5
+          tleft:r=0.5
+          tright:r=0.5
+          bulletSpeed:r=2.0
+        }
+      }
+
+      fly{
+        angles:p2=0.0, 0.0
+        dist:r=0.0
+        fov:r=0.0
+      }
+    }
+
+    hit3{
+
+      points{
+
+        p1{
+          angles:p2=0.0, -10.0
+          dist:r=3.0
+          fov:r=90.0
+          rt:r=0.0
+          tleft:r=0.0
+          tright:r=0.0
+          bulletSpeed:r=1.0
+        }
+
+        p2{
+          angles:p2=65.0, -10.0
+          dist:r=5.0
+          fov:r=90.0
+          rt:r=1.5
+          tleft:r=0.0
+          tright:r=0.0
+          bulletSpeed:r=2.0
+        }
+      }
+
+      fly{
+        angles:p2=0.0, 0.0
+        dist:r=0.0
+        fov:r=0.0
+      }
+    }
+
+    hit4{
+      focus:b=yes
+
+      points{
+
+        p1{
+          angles:p2=15.0, -25.0
+          dist:r=3.5
+          fov:r=90.0
+          rt:r=0.0
+          tleft:r=0.5
+          tright:r=0.5
+          bulletSpeed:r=2.0
+        }
+
+        p2{
+          angles:p2=45.0, -25.0
+          dist:r=5.0
+          fov:r=90.0
+          rt:r=1.0
+          tleft:r=0.5
+          tright:r=0.5
+          bulletSpeed:r=2.0
+        }
+      }
+
+      fly{
+        angles:p2=15.0, 0.0
+        dist:r=0.0
+        fov:r=0.0
+      }
+    }
+
+    hit5{
+      focus:b=yes
+
+      points{
+
+        p1{
+          angles:p2=15.0, -15.0
+          dist:r=5.0
+          fov:r=90.0
+          rt:r=0.0
+          tleft:r=0.5
+          tright:r=0.5
+          bulletSpeed:r=2.0
+        }
+
+        p2{
+          angles:p2=15.0, -15.0
+          dist:r=5.0
+          fov:r=90.0
+          rt:r=0.5
+          tleft:r=0.5
+          tright:r=0.5
+          bulletSpeed:r=2.0
+        }
+      }
+
+      fly{
+        angles:p2=0.0, 0.0
+        dist:r=0.0
+        fov:r=0.0
+      }
+    }
+
+    hit6{
+      focus:b=yes
+
+      points{
+
+        p1{
+          angles:p2=90.0, -10.0
+          dist:r=5.0
+          fov:r=90.0
+          rt:r=0.0
+          tleft:r=0.5
+          tright:r=0.5
+          bulletSpeed:r=50.0
+        }
+
+        p2{
+          angles:p2=90.0, -10.0
+          dist:r=5.0
+          fov:r=90.0
+          rt:r=0.5
+          tleft:r=0.5
+          tright:r=0.5
+          bulletSpeed:r=2.0
+        }
+      }
+
+      fly{
+        angles:p2=0.0, 0.0
+        dist:r=0.0
+        fov:r=0.0
+      }
+    }
+
+    fly_near{
+
+      points{
+
+        p1{
+          angles:p2=10.0, -10.0
+          dist:r=8.0
+          fov:r=90.0
+          rt:r=0.0
+          tleft:r=0.5
+          tright:r=0.5
+          bulletSpeed:r=4.0
+        }
+
+        p2{
+          angles:p2=45.0, -30.0
+          dist:r=5.0
+          fov:r=90.0
+          rt:r=2.0
+          tleft:r=0.5
+          tright:r=0.5
+          bulletSpeed:r=1.0
+        }
+      }
+
+      fly{
+        angles:p2=17.5, 0.0
+        dist:r=0.0
+        fov:r=0.0
+      }
+    }
+
+    fly_short{
+
+      points{
+
+        p1{
+          angles:p2=45.0, -30.0
+          dist:r=5.0
+          fov:r=90.0
+          rt:r=0.0
+          tleft:r=0.0
+          tright:r=0.0
+          bulletSpeed:r=2.0
+        }
+
+        p2{
+          angles:p2=45.0, -30.0
+          dist:r=5.0
+          fov:r=90.0
+          rt:r=1.0
+          tleft:r=0.0
+          tright:r=0.0
+          bulletSpeed:r=2.0
+        }
+      }
+
+      fly{
+        angles:p2=15.0, 0.0
+        dist:r=0.0
+        fov:r=0.0
+      }
+    }
+  }
+
+  pathes{
+
+    p{
+      shot:t="shot1"
+      fly:t="fly1"
+      hit:t="hit1"
+      fly_near:t="fly_near"
+      fly_short:t="fly_short"
+    }
+
+    p{
+      shot:t="shot2"
+      fly:t="fly2"
+      hit:t="hit2"
+      fly_near:t="fly_near"
+      fly_short:t="fly_short"
+    }
+
+    p{
+      shot:t="shot3"
+      fly:t="fly3"
+      hit:t="hit3"
+      fly_near:t="fly_near"
+      fly_short:t="fly_short"
+    }
+
+    p{
+      shot:t="shot4"
+      fly:t="fly4"
+      hit:t="hit4"
+      fly_near:t="fly_near"
+      fly_short:t="fly_short"
+    }
+
+    p{
+      shot:t="shot5"
+      fly:t="fly5"
+      hit:t="hit5"
+      fly_near:t="fly_near"
+      fly_short:t="fly_short"
+    }
+
+    p{
+      shot:t="shot6"
+      fly:t="fly6"
+      hit:t="hit6"
+      fly_near:t="fly_near"
+      fly_short:t="fly_short"
+    }
+  }
+
+  up{
+    angle:p2=0.0, -90.0
+    dist:r=20.0
+  }
+
+  down{
+    angle:p2=180.0, 0.0
+    dist:r=40.0
+  }
+
+  left{
+    angle:p2=-110.0, 0.0
+    dist:r=20.0
+  }
+
+  right{
+    angle:p2=110.0, 0.0
+    dist:r=20.0
+  }
+}
+
+camera_fps_ground_turret{
+  fov:r=45.0
+  zoomFov:r=5.0
+  transitionSpeed:r=4.0
+  targetOffset:p3=500.0, 2.0, 0.0
+  cameraOffsetNeutral:p3=-17.0, 2.0, 0.0
+  cameraUpNeutral:p3=0.0, 1.0, 0.0
+  cameraOffsetSmoothing:r=0.04
+  cameraUpSmoothing:r=0.0
+  cameraFovSmoothing:r=0.005
+  cameraOffsetElevatorUp:p3=-14.0, 3.0, 0.0
+  cameraOffsetElevatorDown:p3=-14.0, 3.0, 0.0
+  sensitivityElevatorDown:r=1.0
+  sensitivityElevatorUp:r=1.0
+  cameraOffsetRudderLeft:p3=-14.0, 3.0, -1.0
+  cameraOffsetRudderRight:p3=-14.0, 3.0, 1.0
+  sensitivityRudder:r=10.0
+  cameraUpAileronsLeft:p3=0.0, 1.0, 0.7
+  cameraUpAileronsRight:p3=0.0, 1.0, -0.7
+  sensitivityAilerons:r=0.3
+  cameraOffset:p3=0.0, 4.3, -15.0
+  cameraOffsetZoomed:p3=1.5, 1.3, -5.0
+  targetOffset:p3=10.0, 4.0, 0.0
+  useOffset:b=yes
+  cameraControlViewRadius:r=5.0
+  cameraUpOffset:r=1.0
+  cameraFovAccelerationPositive:r=1.0
+  cameraFovAccelerationNegative:r=2.0
+  sensitivityAcceleration:r=10.0
+  cameraTpsSmoothing:r=0.001
+  maxCameraSlowAngle:r=9.0
+  cameraTpsAngleAccelaration:r=2.0
+  minimumDistanceMultiplier:r=1.2
+  targOffsMult:r=0.0
+  cameraShakeMultiplier:r=0.8
+  cameraShakeMultiplierOnShooting:r=0.01
+  transitionFadeInTime:r=0.12
+  transitionFadeOutTime:r=0.2
+  viscosity:r=0.2
+  trackGunDirection:b=yes
+  tiltShakeMultiplierForTanks:r=0.0
+  tiltShakeMultiplierForShips:r=0.0
+
+  condition{
+
+    isTPSViewsAllowed{
+    }
+  }
+
+  up{
+    angle:p2=0.0, -90.0
+    dist:r=20.0
+  }
+
+  down{
+    angle:p2=180.0, 0.0
+    dist:r=40.0
+  }
+
+  left{
+    angle:p2=-110.0, 0.0
+    dist:r=20.0
+  }
+
+  right{
+    angle:p2=110.0, 0.0
+    dist:r=20.0
+  }
+}
+
+tps_ship{
+  fov:r=80.0
+  zoomFov:r=80.0
+  gunFov:r=5.0
+  transitionSpeed:r=4.0
+  targetOffset:p3=500.0, 2.0, 0.0
+  cameraOffsetNeutral:p3=-17.0, 2.0, 0.0
+  cameraUpNeutral:p3=0.0, 1.0, 0.0
+  cameraOffsetSmoothing:r=0.04
+  cameraUpSmoothing:r=0.0
+  cameraFovSmoothing:r=0.005
+  cameraOffsetElevatorUp:p3=-14.0, 3.0, 0.0
+  cameraOffsetElevatorDown:p3=-14.0, 3.0, 0.0
+  sensitivityElevatorDown:r=1.0
+  sensitivityElevatorUp:r=1.0
+  cameraOffsetRudderLeft:p3=-14.0, 3.0, -1.0
+  cameraOffsetRudderRight:p3=-14.0, 3.0, 1.0
+  sensitivityRudder:r=10.0
+  cameraUpAileronsLeft:p3=0.0, 1.0, 0.7
+  cameraUpAileronsRight:p3=0.0, 1.0, -0.7
+  sensitivityAilerons:r=0.3
+  cameraOffset:p3=0.0, 10.0, -60.0
+  cameraOffsetZoomed:p3=1.5, 2.3, -60.0
+  targetOffset:p3=10.0, 4.0, 0.0
+  useOffset:b=yes
+  clipType:t="trace"
+  zoomToGun:b=no
+  useCockpitOffsets:b=yes
+  fovVertAnglesOffsetPart:r=-0.15
+  isMouseView:b=yes
+  cameraControlViewRadius:r=5.0
+  cameraUpOffset:r=1.0
+  cameraFovAccelerationPositive:r=1.0
+  cameraFovAccelerationNegative:r=2.0
+  sensitivityAcceleration:r=10.0
+  cameraTpsSmoothing:r=0.001
+  maxCameraSlowAngle:r=9.0
+  cameraTpsAngleAccelaration:r=2.0
+  minimumDistanceMultiplier:r=1.2
+  targOffsMult:r=0.0
+  cameraShakeMultiplier:r=0.8
+  cameraShakeMultiplierOnShooting:r=0.2
+  tiltShakeMultiplierForTanks:r=0.0
+  tiltShakeMultiplierForShips:r=0.0
+  transitionFadeInTime:r=0.12
+  transitionFadeOutTime:r=0.2
+  viscosity:r=0.2
+  trackGunDirection:b=yes
+
+  condition{
+
+    not{
+
+      isFlightModel{
+      }
+    }
+  }
+
+  up{
+    angle:p2=0.0, -90.0
+    dist:r=20.0
+  }
+
+  down{
+    angle:p2=180.0, 0.0
+    dist:r=40.0
+  }
+
+  left{
+    angle:p2=-110.0, 0.0
+    dist:r=20.0
+  }
+
+  right{
+    angle:p2=110.0, 0.0
+    dist:r=20.0
+  }
+}
+
+follow_object_camera{
+  bombDistance:r=25.0
+  torpedoDistance:r=55.0
+  rocketDistance:r=120.0
+  rocketCameraViscosity:r=0.02
+  cameraShakeMultiplier:r=2.0
+}
+
+target_fps_shake{
+  freeCamOrientInert:r=0.5
+  freeCamPosInert:r=1.2
+  freeCamOrientMaxSpeed:r=0.5
+}
+
+artillery_crosshair{
+  fov:r=80.0
+  zoomFov:r=30.0
+  gunFov:r=5.0
+  transitionSpeed:r=4.0
+  targetOffset:p3=500.0, 2.0, 0.0
+  cameraOffsetNeutral:p3=-17.0, 2.0, 0.0
+  cameraUpNeutral:p3=0.0, 1.0, 0.0
+  cameraOffsetSmoothing:r=0.04
+  cameraUpSmoothing:r=0.0
+  cameraFovSmoothing:r=0.005
+  cameraOffsetElevatorUp:p3=-14.0, 3.0, 0.0
+  cameraOffsetElevatorDown:p3=-14.0, 3.0, 0.0
+  sensitivityElevatorDown:r=1.0
+  sensitivityElevatorUp:r=1.0
+  cameraOffsetRudderLeft:p3=-14.0, 3.0, -1.0
+  cameraOffsetRudderRight:p3=-14.0, 3.0, 1.0
+  sensitivityRudder:r=10.0
+  cameraUpAileronsLeft:p3=0.0, 1.0, 0.7
+  cameraUpAileronsRight:p3=0.0, 1.0, -0.7
+  sensitivityAilerons:r=0.3
+  cameraOffset:p3=0.0, 5.0, 0.0
+  cameraOffsetZoomed:p3=0.0, 5.0, 0.0
+  offsetByUnit:b=yes
+  targetOffset:p3=10.0, 20.0, 0.0
+  useOffset:b=yes
+  clipType:t="trace"
+  zoomToGun:b=no
+  useCockpitOffsets:b=no
+  fovVertAnglesOffsetPart:r=-0.15
+  isMouseView:b=yes
+  cameraControlViewRadius:r=5.0
+  cameraUpOffset:r=1.0
+  cameraFovAccelerationPositive:r=1.0
+  cameraFovAccelerationNegative:r=2.0
+  sensitivityAcceleration:r=10.0
+  cameraTpsSmoothing:r=0.001
+  maxCameraSlowAngle:r=9.0
+  cameraTpsAngleAccelaration:r=2.0
+  minimumDistanceMultiplier:r=1.2
+  targOffsMult:r=0.0
+  cameraShakeMultiplier:r=0.8
+  cameraShakeMultiplierOnShooting:r=0.2
+  transitionFadeInTime:r=0.12
+  transitionFadeOutTime:r=0.2
+  viscosity:r=0.2
+  trackGunDirection:b=yes
+  tiltShakeMultiplierForTanks:r=0.0
+  tiltShakeMultiplierForShips:r=0.0
+
+  condition{
+
+    isArtilleryAvailable{
+    }
+  }
+
+  up{
+    angle:p2=0.0, -90.0
+    dist:r=20.0
+  }
+
+  down{
+    angle:p2=180.0, 0.0
+    dist:r=40.0
+  }
+
+  left{
+    angle:p2=-110.0, 0.0
+    dist:r=20.0
+  }
+
+  right{
+    angle:p2=110.0, 0.0
+    dist:r=20.0
+  }
+}
+
+cameraLists{
+
+  plane{
+    camName:t="tps"
+    camName:t="gunner_fps"
+    camName:t="target_turret"
+    camName:t="bomber_view"
+    camName:t="fps"
+    camName:t="flight_camera_target_view"
+    camName:t="virtual_fps"
+  }
+
+  replay{
+    camName:t="spectator"
+    camName:t="target_fps_shake"
+    camName:t="tps"
+    camName:t="fps"
+    camName:t="tps_ground"
+  }
+
+  flir{
+    camName:t="target_turret"
+  }
+
+  cutscene{
+    camName:t="camera_cutscene"
+  }
+
+  diary{
+    camName:t="target_tps_shake_diary"
+  }
+
+  dead{
+    camName:t="loose"
+    camName:t="camera_ground_death"
+  }
+
+  killer{
+    camName:t="killer"
+    camName:t="camera_xray_shot"
+    camName:t="camera_ground_killer"
+  }
+
+  ground_model{
+    camName:t="tps_ground"
+    camName:t="aim_ground"
+    camName:t="aim_ground_from_sight"
+  }
+
+  ship{
+    camName:t="tps_ship"
+    camName:t="aim_ground"
+    camName:t="aim_ground_from_sight"
+  }
+
+  specialCamerasList{
+    camName:t="follow_object_camera"
+    camName:t="artillery_crosshair"
+    camName:t="camera_binoculars"
+    camName:t="driver_ground"
+    camName:t="camera_binoculars_targeting"
+  }
+
+  spectator{
+    camName:t="spectator"
+    camName:t="target_fps_shake"
+    camName:t="tps"
+    camName:t="fps"
+    camName:t="virtual_fps"
+    camName:t="tps_ground"
+  }
+
+  gunner_at_plane{
+    camName:t="gunner_fps"
+    camName:t="target_turret"
+  }
+}
+
+transitions{
+
+  transition{
+    from:t="tps"
+    to:t="target_tps"
+    smooth:b=yes
+    blur:b=yes
+  }
+
+  transition{
+    from:t="target_tps"
+    to:t="tps"
+    smooth:b=yes
+    blur:b=yes
+  }
+
+  transition{
+    from:t="fps"
+    to:t="target_fps"
+    smooth:b=yes
+    blur:b=yes
+  }
+
+  transition{
+    from:t="target_fps"
+    to:t="fps"
+    smooth:b=yes
+    blur:b=yes
+  }
+
+  transition{
+    from:t="virtual_fps"
+    to:t="virtual_target_fps"
+    smooth:b=yes
+    blur:b=yes
+  }
+
+  transition{
+    from:t="virtual_target_fps"
+    to:t="virtual_fps"
+    smooth:b=yes
+    blur:b=yes
+  }
+
+  transition{
+    from:t="tps"
+    to:t="follow_object_camera"
+    smooth:b=yes
+    blur:b=yes
+  }
+
+  transition{
+    from:t="tps_ground"
+    to:t="artillery_crosshair"
+    smooth:b=yes
+    blur:b=no
+  }
+
+  transition{
+    from:t="artillery_crosshair"
+    to:t="tps_ground"
+    smooth:b=yes
+    blur:b=no
+  }
+}

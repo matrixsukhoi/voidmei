@@ -1,0 +1,47 @@
+bombGun:b=yes
+preset_cost:i=200
+shotFreq:r=10.0
+sound:t="weapon.bombgun"
+mesh:t="ufobomb500"
+
+tags{
+  antiTankBomb:b=yes
+  antiShipBomb:b=yes
+}
+
+bomb{
+  mass:r=501.0
+  explosiveType:t="tnt"
+  explosiveMass:r=234.9
+  bombType:t="he_bomb"
+  bombName:t="fab500sv_39"
+  dragCx:r=0.097
+  caliber:r=0.45
+  length:r=2.4
+  distFromCmToStab:r=1.05
+  sound:t="weapon.bomb_std"
+  waterExplosionEffect:t="bigesplashxplosion_fx"
+  hitPowerMult:r=1.0
+  nearHitPower:p2=1.0, 50.0
+  midHitPower:p2=0.9, 400.0
+  farHitPower:p2=0.1, 1000.0
+  endHitPower:p2=0.01, 1500.0
+  relativeVelHitShift:p2=300.0, 1000.0
+  nearArmorPower:p2=10.0, 50.0
+  midArmorPower:p2=7.0, 400.0
+  farArmorPower:p2=0.2, 700.0
+  relativeVelArmorShift:p2=200.0, 1000.0
+  explodeTreshold:r=0.0
+  explodeHitPower:r=1000.0
+  explodeArmorPower:r=160.0
+  explodeRadius:p2=10.0, 25.0
+  explosionPatchRadius:r=20.0
+  explosionPatchHeightScale:r=0.15
+  rendinstDamageRadius:r=50.0
+  shutterDamage:b=yes
+  shutterDamageRadius:r=120.0
+  shutterAmount:i=3000
+  shutterArmorPower:r=15.0
+  shutterHit:r=15.0
+  explosionFx:t="explosion_pony"
+}

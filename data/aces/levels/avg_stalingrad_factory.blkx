@@ -1,0 +1,76 @@
+enableApex:b=yes
+tag:t="stalingrad factory"
+mandatoryLandquality:i=1
+mapCoord0:p2=-32768.0, -36864.0
+mapCoord1:p2=32768.0, 28672.0
+minAreaSize:p2=12000.0, 12000.0
+aiMapCoord0:p2=-32768.0, -36864.0
+aiMapCoord1:p2=32768.0, 28672.0
+customLevelMap:t="stalingrad_w_map*"
+aiTanksMapCoord0:p2=2170.0, 930.0
+aiTanksMapCoord1:p2=4020.0, 2870.0
+tankMapCoord0:p2=0.0, 0.0
+tankMapCoord1:p2=4096.0, 4096.0
+gridSteps:p2=3250.0, 3250.0
+tankGridSteps:p2=190.0, 190.0
+tankGridZeroPoint:p2=2100.0, 2800.0
+tankGridSize:p2=1900.0, 1900.0
+numBorderCellsXPos:i=8
+numBorderCellsXNeg:i=8
+numBorderCellsZPos:i=8
+numBorderCellsZNeg:i=8
+mirrorShrinkXPos:r=256.0
+mirrorShrinkXNeg:r=256.0
+mirrorShrinkZPos:r=256.0
+mirrorShrinkZNeg:r=256.0
+water_level:r=-12.0
+levelMapAltOffset:r=11.0
+tankFogMul:r=1.0
+dirt_type:t="snow"
+weatherPreset:t="gameData/environments/weather_preset_1.blk"
+weatherTypes:t="gameData/environments/weather_types_winter_ground.blk"
+average_ground_albedo:r=0.7
+lastClip:b=yes
+land_translucency:t="no"
+soundAmbientPath:t="sounds/ambient"
+soundAmbientEvent:t="global_amb_winter"
+wind_scale:r=0.6
+max_wind_strength:r=2.0
+average_ground_level:r=16.0
+
+alternativeMapCoord{
+  aiTanksMapCoord0:p2=2470.0, 1200.0
+  aiTanksMapCoord1:p2=4020.0, 2870.0
+  tankGridSteps:p2=160.0, 160.0
+  tankGridZeroPoint:p2=2400.0, 2800.0
+  tankGridSize:p2=1600.0, 1600.0
+}
+
+stars{
+  latitude:r=36.0
+  longitude:r=44.0
+  year:i=1943
+  month:i=1
+  day:i=20
+}
+
+shader_vars{
+  parallax_shadow_length:r=0.0
+  land_smoothness_detect_color:p4=0.23, 0.23, 0.22, 0.5
+  max_river_width:r=550.0
+  ocean_density:r=4.0
+  river_density:r=6.0
+  ocean0:p4=0.11, 0.25, 0.12, 0.0
+  ocean1:p4=0.19, 0.28, 0.14, 0.0
+  river0:p4=0.11, 0.2, 0.12, 0.0
+  river1:p4=0.19, 0.28, 0.24, 0.0
+}
+
+waterStub{
+  enable:b=yes
+}
+
+technicsSkins{
+  groundSkin:t="forest"
+  groundSkin:t="default"
+}

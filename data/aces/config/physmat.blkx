@@ -1,0 +1,762 @@
+PhysMats{
+
+  __DefaultParams{
+    iak:r=1.0
+    damage_k:r=1.0
+  }
+
+  default{
+    bf_class:t="default"
+    color:c=255, 162, 0, 100
+    isWater:b=no
+    shakeMultiplier:r=1.0
+    frictionMultiplier:r=1.0
+    explosionPatchShader:t="explosion_patch"
+    explosionPatchTexture:t="explosion_patch_rocks_n"
+    explosionPatchTexcoord:p4=0.0, 0.0, 1.0, 1.0
+    explosionWreckage:t="rocks_expl"
+    damage_k:r=0.3
+    deformable_width:r=0.05
+    tankTracksTexId:i=0
+    arcadeBoostMult:r=1.0
+    resistanceK:r=0.0003
+    explMat:t="default"
+    shakePeriod:p2=0.35, 0.7
+    shakePower:p2=1.0, 1.0
+    shakeMult:p2=0.5, 0.2
+    dustFactor:r=0.14
+    mudFactor:r=0.1
+
+    shakeProps{
+      period:p2=0.35, 0.7
+      power:p2=1.0, 1.0
+      mult:p2=0.5, 0.2
+    }
+
+    arcadeProps{
+      boost:r=1.0
+    }
+  }
+
+  horLandMesh{
+    bf_class:t="horLandMesh"
+    color:c=255, 162, 0, 100
+    isWater:b=no
+    shakeMultiplier:r=9.0
+    frictionMultiplier:r=4.0
+    explosionPatchShader:t="explosion_patch_color"
+    explosionPatchTexture:t="explosion_patch_ground_n"
+    explosionPatchColorTex:t="explosion_patch_ground_c"
+    explosionPatchTexcoord:p4=0.0, 0.0, 1.0, 1.0
+    explosionPatchHeightScale:r=0.01
+    explosionWreckage:t="ground_expl"
+    explosionFx:t="ground_explosion_fx"
+    iak:r=0.2
+    damage_k:r=0.3
+    deformable_width:r=0.15
+    tankTracksTexId:i=0
+    arcadeBoostMult:r=0.5
+    resistanceK:r=0.0006
+    explMat:t="horLandMesh"
+    shakePeriod:p2=0.35, 0.7
+    shakePower:p2=1.0, 1.0
+    shakeMult:p2=0.5, 0.3
+
+    shakeProps{
+      period:p2=0.35, 0.7
+      power:p2=1.0, 1.0
+      mult:p2=0.5, 0.3
+    }
+
+    arcadeProps{
+      boost:r=0.5
+    }
+  }
+
+  verLandMesh{
+    color:c=255, 162, 0, 100
+    isWater:b=no
+    shakeMultiplier:r=6.0
+    frictionMultiplier:r=1.0
+    explosionPatchShader:t="explosion_patch_ground"
+    explosionPatchTexture:t="explosion_patch_rocks_n"
+    explosionPatchTexcoord:p4=0.0, 0.0, 1.0, 1.0
+    explosionWreckage:t="rocks_expl"
+    explosionFx:t="rocks_explosion_fx"
+    damage_k:r=0.3
+    explMat:t="default"
+  }
+
+  water3d{
+    color:c=255, 162, 0, 100
+    isWater:b=yes
+    shakeMultiplier:r=1.0
+    frictionMultiplier:r=1.0
+    dustFactor:r=-60.0
+    mudFactor:r=-20.0
+  }
+
+  water{
+    color:c=0, 0, 255, 200
+    isWater:b=yes
+    shakeFactor:r=0.0
+    frictionMultiplier:r=2.0
+  }
+
+  beton{
+    bf_class:t="beton"
+    color:c=255, 255, 0, 200
+    isWater:b=no
+    shakeMultiplier:r=3.0
+    frictionMultiplier:r=1.0
+    explosionPatchShader:t="explosion_patch"
+    explosionPatchTexture:t="explosion_patch_rocks_n"
+    explosionPatchTexcoord:p4=0.0, 0.0, 1.0, 1.0
+    explosionWreckage:t="wall_expl"
+    explosionFx:t="beton_explosion_fx"
+    damage_k:r=0.3
+    trackDirtSpawnRateMult:r=0.0
+    tankTracksTexId:i=3
+    explMat:t="default"
+  }
+
+  buildings{
+    color:c=255, 255, 0, 200
+    isWater:b=no
+    shakeMultiplier:r=1.0
+    frictionMultiplier:r=1.0
+    explosionPatchShader:t="explosion_patch"
+    explosionPatchTexture:t="explosion_patch_rocks_n"
+    explosionPatchTexcoord:p4=0.0, 0.0, 1.0, 1.0
+    explosionWreckage:t="bricks_expl"
+    explosionFx:t="buildings_explosion_fx"
+    hitFxType:t="stone_splash"
+    damage_k:r=0.3
+    tankTracksTexId:i=3
+    explMat:t="default"
+  }
+
+  ships{
+    color:c=255, 162, 0, 100
+    isWater:b=no
+    shakeMultiplier:r=1.0
+    frictionMultiplier:r=1.0
+    explosionPatchShader:t="explosion_patch_color"
+    explosionPatchTexture:t="explosion_patch_ship_n"
+    explosionPatchColorTex:t="explosion_patch_ship_c"
+    explosionPatchTexcoord:p4=0.0, 0.0, 1.0, 1.0
+    explosionPatchHeightScale:r=0.008
+    explosionWreckage:t="ships_expl"
+    dustFxAlpha:r=0.2
+    explMat:t="ships"
+  }
+
+  airfield{
+    color:c=255, 162, 0, 100
+    isWater:b=no
+    shakeMultiplier:r=1.0
+    frictionMultiplier:r=1.0
+    explosionPatchShader:t="explosion_patch"
+    explosionPatchTexture:t="explosion_patch_rocks_n"
+    explosionPatchTexcoord:p4=0.0, 0.0, 1.0, 1.0
+    explosionWreckage:t="rocks_expl"
+    explMat:t="default"
+  }
+
+  wood{
+    damage_k:r=0.3
+    explMat:t="wood"
+    breachMat:t="wood"
+  }
+
+  steel{
+    color:c=0, 0, 255, 200
+    isUnit:b=yes
+    isWater:b=no
+    shakeMultiplier:r=1.0
+    frictionMultiplier:r=1.0
+    explMat:t="steel"
+    breachMat:t="steel"
+  }
+
+  armorPierceLowCal{
+    color:c=0, 0, 255, 200
+    isWater:b=no
+    isUnit:b=yes
+    shakeMultiplier:r=1.0
+    frictionMultiplier:r=1.0
+    explosionPatchShader:t="explosion_patch_color"
+    explosionPatchTexture:t="explosion_patch_tank_n"
+    explosionPatchColorTex:t="explosion_patch_tank_c"
+    explosionPatchTexcoord:p4=0.0, 0.61, 0.39, 1.0
+    sizeInCalibers:r=2.0
+  }
+
+  armorPierceMedCal{
+    color:c=0, 0, 255, 200
+    isWater:b=no
+    isUnit:b=yes
+    shakeMultiplier:r=1.0
+    frictionMultiplier:r=1.0
+    explosionPatchShader:t="explosion_patch_color"
+    explosionPatchTexture:t="explosion_patch_tank_n"
+    explosionPatchColorTex:t="explosion_patch_tank_c"
+    explosionPatchTexcoord:p4=0.39, 0.61, 0.61, 0.825
+    sizeInCalibers:r=3.0
+  }
+
+  armorPierceHiCal{
+    color:c=0, 0, 255, 200
+    isWater:b=no
+    isUnit:b=yes
+    shakeMultiplier:r=1.0
+    frictionMultiplier:r=1.0
+    explosionPatchShader:t="explosion_patch_color"
+    explosionPatchTexture:t="explosion_patch_tank_n"
+    explosionPatchColorTex:t="explosion_patch_tank_c"
+    explosionPatchTexcoord:p4=0.0, 0.0, 0.61, 0.61
+    sizeInCalibers:r=2.5
+  }
+
+  armorNPLowCal{
+    color:c=0, 0, 255, 200
+    isWater:b=no
+    isUnit:b=yes
+    shakeMultiplier:r=1.0
+    frictionMultiplier:r=1.0
+    explosionPatchShader:t="explosion_patch_color"
+    explosionPatchTexture:t="explosion_patch_tank_n"
+    explosionPatchColorTex:t="explosion_patch_tank_c"
+    explosionPatchTexcoord:p4=0.61, 0.43, 0.735, 0.555
+    sizeInCalibers:r=1.5
+  }
+
+  armorNPMedCal{
+    color:c=0, 0, 255, 200
+    isWater:b=no
+    isUnit:b=yes
+    shakeMultiplier:r=1.0
+    frictionMultiplier:r=1.0
+    explosionPatchShader:t="explosion_patch_color"
+    explosionPatchTexture:t="explosion_patch_tank_n"
+    explosionPatchColorTex:t="explosion_patch_tank_c"
+    explosionPatchTexcoord:p4=0.735, 0.43, 1.0, 0.69
+    sizeInCalibers:r=1.5
+  }
+
+  armorNPHiCal{
+    color:c=0, 0, 255, 200
+    isWater:b=no
+    isUnit:b=yes
+    shakeMultiplier:r=1.0
+    frictionMultiplier:r=1.0
+    explosionPatchShader:t="explosion_patch_color"
+    explosionPatchTexture:t="explosion_patch_tank_n"
+    explosionPatchColorTex:t="explosion_patch_tank_c"
+    explosionPatchTexcoord:p4=0.61, 0.0, 1.0, 0.43
+    sizeInCalibers:r=1.5
+  }
+
+  soil{
+    bf_class:t="soil"
+    deformable_width:r=0.2
+    trackEffectsPreset:t="soil"
+    trackDirtSpawnRateMult:r=1.2
+    resistanceK:r=0.0008
+    explMat:t="default"
+    explosionPatchShader:t="explosion_patch"
+    explosionPatchTexture:t="explosion_patch_rocks_n"
+    explosionPatchTexcoord:p4=0.0, 0.0, 1.0, 1.0
+    arcadeBoostMult:r=0.5
+    shakePeriod:p2=0.8, 1.4
+    shakePower:p2=1.0, 1.0
+    shakeMult:p2=0.7, 0.4
+    tankTracksTexId:i=0
+    dustFactor:r=0.8
+    mudFactor:r=0.5
+
+    shakeProps{
+      period:p2=0.8, 1.4
+      power:p2=1.0, 1.0
+      mult:p2=0.7, 0.4
+    }
+
+    arcadeProps{
+      boost:r=0.5
+    }
+  }
+
+  tankTrack{
+    bf_class:t="tankTrack"
+  }
+
+  wheel{
+    bf_class:t="wheel"
+  }
+
+  road{
+    bf_class:t="road"
+    trackDirtSpawnRateMult:r=0.0
+    explMat:t="default"
+    explosionPatchShader:t="explosion_patch"
+    explosionPatchTexture:t="explosion_patch_rocks_n"
+    explosionPatchTexcoord:p4=0.0, 0.0, 1.0, 1.0
+    tankTracksTexId:i=3
+    dustFactor:r=0.4
+    mudFactor:r=0.0
+  }
+
+  dirt{
+    bf_class:t="dirt"
+    deformable_width:r=0.3
+    trackDirtSpawnRateMult:r=1.4
+    resistanceK:r=0.001
+    explMat:t="default"
+    explosionPatchShader:t="explosion_patch"
+    explosionPatchTexture:t="explosion_patch_rocks_n"
+    explosionPatchTexcoord:p4=0.0, 0.0, 1.0, 1.0
+    arcadeBoostMult:r=0.0
+    shakePeriod:p2=0.6, 1.2
+    shakePower:p2=1.0, 1.0
+    shakeMult:p2=1.2, 0.6
+    tankTracksTexId:i=0
+    dustFactor:r=0.0
+    mudFactor:r=5.0
+
+    shakeProps{
+      period:p2=0.6, 1.2
+      power:p2=1.0, 1.0
+      mult:p2=1.2, 0.6
+    }
+
+    arcadeProps{
+      boost:r=0.0
+    }
+  }
+
+  visibilityRay{
+    bf_class:t="visibilityRay"
+  }
+
+  roadSoil{
+    bf_class:t="roadSoil"
+    deformable_width:r=0.05
+    resistanceK:r=0.0002
+    explMat:t="default"
+    explosionPatchShader:t="explosion_patch"
+    explosionPatchTexture:t="explosion_patch_rocks_n"
+    explosionPatchTexcoord:p4=0.0, 0.0, 1.0, 1.0
+    arcadeBoostMult:r=0.8
+    tankTracksTexId:i=0
+    dustFactor:r=1.5
+    mudFactor:r=0.0
+
+    arcadeProps{
+      boost:r=0.8
+    }
+  }
+
+  sand{
+    bf_class:t="sand"
+    deformable_width:r=0.2
+    trackEffectsPreset:t="sand"
+    explMat:t="default"
+    explosionPatchShader:t="explosion_patch"
+    explosionPatchTexture:t="explosion_patch_rocks_n"
+    explosionPatchTexcoord:p4=0.0, 0.0, 1.0, 1.0
+    arcadeBoostMult:r=0.8
+    shakePeriod:p2=0.3, 0.7
+    shakePower:p2=1.0, 1.0
+    shakeMult:p2=0.7, 0.4
+    tankTracksTexId:i=1
+    dustFactor:r=1.5
+    mudFactor:r=0.01
+    apexGroundCollisionFx:t="px_ground_sand_fx"
+
+    shakeProps{
+      period:p2=0.3, 0.7
+      power:p2=1.0, 1.0
+      mult:p2=0.7, 0.4
+    }
+
+    arcadeProps{
+      boost:r=0.8
+    }
+  }
+
+  duneSand{
+    bf_class:t="duneSand"
+    deformable_width:r=0.2
+    trackEffectsPreset:t="sand"
+    explMat:t="default"
+    explosionPatchShader:t="explosion_patch"
+    explosionPatchTexture:t="explosion_patch_rocks_n"
+    explosionPatchTexcoord:p4=0.0, 0.0, 1.0, 1.0
+    arcadeBoostMult:r=0.8
+    shakePeriod:p2=0.3, 0.7
+    shakePower:p2=1.0, 1.0
+    shakeMult:p2=0.7, 0.4
+    tankTracksTexId:i=1
+    dustFactor:r=1.5
+    mudFactor:r=0.01
+    apexGroundCollisionFx:t="px_ground_sand_fx"
+
+    shakeProps{
+      period:p2=0.3, 0.7
+      power:p2=1.0, 1.0
+      mult:p2=0.7, 0.4
+    }
+
+    arcadeProps{
+      boost:r=0.8
+    }
+  }
+
+  roadSand{
+    bf_class:t="roadSand"
+    deformable_width:r=0.1
+    resistanceK:r=0.0002
+    trackEffectsPreset:t="sand"
+    explMat:t="default"
+    explosionPatchShader:t="explosion_patch"
+    explosionPatchTexture:t="explosion_patch_rocks_n"
+    explosionPatchTexcoord:p4=0.0, 0.0, 1.0, 1.0
+    arcadeBoostMult:r=0.8
+    shakePeriod:p2=0.3, 0.7
+    shakePower:p2=1.0, 1.0
+    shakeMult:p2=0.7, 0.4
+    tankTracksTexId:i=1
+    dustFactor:r=1.0
+    mudFactor:r=0.01
+    apexGroundCollisionFx:t="px_ground_sand_fx"
+
+    shakeProps{
+      period:p2=0.3, 0.7
+      power:p2=1.0, 1.0
+      mult:p2=0.7, 0.4
+    }
+
+    arcadeProps{
+      boost:r=0.8
+    }
+  }
+
+  quickSand{
+    bf_class:t="sand"
+    deformable_width:r=0.6
+    trackEffectsPreset:t="sand"
+    explMat:t="default"
+    explosionPatchShader:t="explosion_patch"
+    explosionPatchTexture:t="explosion_patch_rocks_n"
+    explosionPatchTexcoord:p4=0.0, 0.0, 1.0, 1.0
+    arcadeBoostMult:r=0.2
+    shakePeriod:p2=0.3, 0.7
+    shakePower:p2=1.0, 1.0
+    shakeMult:p2=0.7, 0.4
+    tankTracksTexId:i=1
+    dustFactor:r=3.0
+    mudFactor:r=0.01
+    apexGroundCollisionFx:t="px_ground_sand_fx"
+
+    shakeProps{
+      period:p2=0.3, 0.7
+      power:p2=1.0, 1.0
+      mult:p2=0.7, 0.4
+    }
+
+    arcadeProps{
+      boost:r=0.2
+    }
+  }
+
+  snow{
+    bf_class:t="snow"
+    deformable_width:r=0.3
+    trackEffectsPreset:t="snow"
+    explMat:t="default"
+    explosionPatchShader:t="explosion_patch"
+    explosionPatchTexture:t="explosion_patch_rocks_n"
+    explosionPatchTexcoord:p4=0.0, 0.0, 1.0, 1.0
+    arcadeBoostMult:r=0.8
+    shakePeriod:p2=0.5, 1.2
+    shakePower:p2=1.0, 1.0
+    shakeMult:p2=0.4, 0.2
+    tankTracksTexId:i=2
+    apexGroundCollisionFx:t="px_ground_snow_fx"
+
+    shakeProps{
+      period:p2=0.5, 1.2
+      power:p2=1.0, 1.0
+      mult:p2=0.4, 0.2
+    }
+
+    arcadeProps{
+      boost:r=0.8
+    }
+  }
+
+  ice{
+    bf_class:t="ice"
+    trackEffectsPreset:t="snow"
+    trackDirtSpawnRateMult:r=0.0
+    explMat:t="default"
+    explosionPatchShader:t="explosion_patch"
+    explosionPatchTexture:t="explosion_patch_rocks_n"
+    explosionPatchTexcoord:p4=0.0, 0.0, 1.0, 1.0
+    tankTracksTexId:i=2
+  }
+
+  snowLower{
+    bf_class:t="snow"
+    deformable_width:r=0.2
+    trackEffectsPreset:t="snow"
+    explMat:t="default"
+    explosionPatchShader:t="explosion_patch"
+    explosionPatchTexture:t="explosion_patch_rocks_n"
+    explosionPatchTexcoord:p4=0.0, 0.0, 1.0, 1.0
+    arcadeBoostMult:r=0.8
+    shakePeriod:p2=0.5, 1.2
+    shakePower:p2=1.0, 1.0
+    shakeMult:p2=0.4, 0.2
+    tankTracksTexId:i=2
+    apexGroundCollisionFx:t="px_ground_snow_fx"
+
+    shakeProps{
+      period:p2=0.5, 1.2
+      power:p2=1.0, 1.0
+      mult:p2=0.4, 0.2
+    }
+
+    arcadeProps{
+      boost:r=0.8
+    }
+  }
+
+  roadSnow{
+    bf_class:t="roadSnow"
+    deformable_width:r=0.05
+    trackEffectsPreset:t="snow"
+    explMat:t="default"
+    explosionPatchShader:t="explosion_patch"
+    explosionPatchTexture:t="explosion_patch_rocks_n"
+    explosionPatchTexcoord:p4=0.0, 0.0, 1.0, 1.0
+    arcadeBoostMult:r=0.8
+    shakePeriod:p2=0.5, 1.2
+    shakePower:p2=1.0, 1.0
+    shakeMult:p2=0.4, 0.2
+    tankTracksTexId:i=2
+    apexGroundCollisionFx:t="px_ground_snow_fx"
+
+    shakeProps{
+      period:p2=0.5, 1.2
+      power:p2=1.0, 1.0
+      mult:p2=0.4, 0.2
+    }
+
+    arcadeProps{
+      boost:r=0.8
+    }
+  }
+
+  rocks{
+    bf_class:t="rocks"
+    trackDirtSpawnRateMult:r=0.0
+    explMat:t="default"
+    explosionPatchShader:t="explosion_patch"
+    explosionPatchTexture:t="explosion_patch_rocks_n"
+    explosionPatchTexcoord:p4=0.0, 0.0, 1.0, 1.0
+    tankTracksTexId:i=3
+  }
+
+  rocksSlippery{
+    bf_class:t="rocksSlippery"
+    trackEffectsPreset:t="rocks"
+    trackDirtSpawnRateMult:r=0.0
+    explMat:t="default"
+    explosionPatchShader:t="explosion_patch"
+    explosionPatchTexture:t="explosion_patch_rocks_n"
+    explosionPatchTexcoord:p4=0.0, 0.0, 1.0, 1.0
+    tankTracksTexId:i=3
+  }
+
+  transparentBeton{
+    bf_class:t="transparentBeton"
+    color:c=255, 255, 0, 200
+    isWater:b=no
+    shakeMultiplier:r=3.0
+    frictionMultiplier:r=1.0
+    explosionPatchShader:t="explosion_patch"
+    explosionPatchTexture:t="explosion_patch_rocks_n"
+    explosionPatchTexcoord:p4=0.0, 0.0, 1.0, 1.0
+    explosionWreckage:t="wall_expl"
+    explosionFx:t="beton_explosion_fx"
+    damage_k:r=0.3
+    explMat:t="default"
+  }
+}
+
+InteractPropsList{
+
+  visibilityRay{
+
+    transparentBeton{
+      en:b=no
+    }
+  }
+
+  tankTrack{
+
+    default{
+      fk:r=1.0
+      rollingFrictionK:r=0.045
+    }
+
+    horLandMesh{
+      fk:r=1.0
+      rollingFrictionK:r=0.1
+    }
+
+    soil{
+      fk:r=1.0
+      rollingFrictionK:r=0.12
+    }
+
+    dirt{
+      fk:r=0.8
+      rollingFrictionK:r=0.2
+    }
+
+    road{
+      fk:r=0.9
+      rollingFrictionK:r=0.05
+    }
+
+    roadSoil{
+      fk:r=1.0
+      rollingFrictionK:r=0.06
+    }
+
+    beton{
+      fk:r=0.8
+      rollingFrictionK:r=0.05
+    }
+
+    sand{
+      fk:r=0.8
+      rollingFrictionK:r=0.08
+    }
+
+    duneSand{
+      fk:r=0.8
+      rollingFrictionK:r=0.1
+    }
+
+    roadSand{
+      fk:r=0.9
+      rollingFrictionK:r=0.05
+    }
+
+    snow{
+      fk:r=0.8
+      rollingFrictionK:r=0.09
+    }
+
+    ice{
+      fk:r=0.3
+      rollingFrictionK:r=0.2
+    }
+
+    roadSnow{
+      fk:r=0.7
+      rollingFrictionK:r=0.1
+    }
+
+    rocks{
+      fk:r=0.75
+      rollingFrictionK:r=0.05
+    }
+
+    rocksSlippery{
+      fk:r=0.7
+      rollingFrictionK:r=0.07
+    }
+  }
+
+  wheel{
+
+    default{
+      fk:r=1.0
+      rollingFrictionK:r=0.065
+    }
+
+    horLandMesh{
+      fk:r=1.0
+      rollingFrictionK:r=0.2
+    }
+
+    soil{
+      fk:r=1.0
+      rollingFrictionK:r=0.15
+    }
+
+    dirt{
+      fk:r=0.8
+      rollingFrictionK:r=0.5
+    }
+
+    road{
+      fk:r=1.0
+      rollingFrictionK:r=0.05
+    }
+
+    roadSoil{
+      fk:r=1.0
+      rollingFrictionK:r=0.055
+    }
+
+    beton{
+      fk:r=0.8
+      rollingFrictionK:r=0.05
+    }
+
+    sand{
+      fk:r=0.8
+      rollingFrictionK:r=0.12
+    }
+
+    duneSand{
+      fk:r=1.0
+      rollingFrictionK:r=0.05
+    }
+
+    roadSand{
+      fk:r=1.0
+      rollingFrictionK:r=0.05
+    }
+
+    snow{
+      fk:r=0.8
+      rollingFrictionK:r=0.15
+    }
+
+    ice{
+      fk:r=0.35
+      rollingFrictionK:r=0.25
+    }
+
+    roadSnow{
+      fk:r=0.7
+      rollingFrictionK:r=0.15
+    }
+
+    rocks{
+      fk:r=0.7
+      rollingFrictionK:r=0.07
+    }
+
+    rocksSlippery{
+      fk:r=0.65
+      rollingFrictionK:r=0.09
+    }
+  }
+}

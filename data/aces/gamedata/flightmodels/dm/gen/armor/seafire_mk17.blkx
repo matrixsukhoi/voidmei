@@ -1,0 +1,34 @@
+DamageGen{
+
+  armor1_dm{
+    mat:t="armor3"
+  }
+
+  armor2_dm{
+    mat:t="armor3"
+  }
+
+  armor3_dm{
+    mat:t="armor1"
+  }
+
+  armor4_dm{
+    mat:t="armor_glass38"
+  }
+
+  armor5_dm{
+    mat:t="armor4"
+  }
+
+  armor6_dm{
+    mat:t="armor4"
+  }
+
+  armor7_dm{
+    mat:t="armor6"
+  }
+
+  armor8_dm{
+    mat:t="armor7"
+  }
+}

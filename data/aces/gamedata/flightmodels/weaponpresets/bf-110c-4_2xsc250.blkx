@@ -1,0 +1,21 @@
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/de_sc250.blk"
+  emitter:t="bomb1"
+  bullets:i=1
+  external:b=yes
+  separate:b=yes
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/de_sc250.blk"
+  emitter:t="bomb2"
+  bullets:i=1
+  external:b=yes
+  separate:b=yes
+}
+
+hideNodes{
+  node:t="pylon_bomb2"
+}

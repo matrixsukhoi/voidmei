@@ -1,0 +1,1264 @@
+freeSessionsCount:i=2
+freeSessionsCountForPremium:i=11
+resetPeriod:i=12
+resetPeriodForPremium:i=12
+timeAllowedBetweenWin:i=3
+timeAllowedBetweenFail:i=1
+antibotMissionCount:i=70
+multXPByNumPlayers_1:r=1.0
+multXPByNumPlayers_2:r=1.0
+multXPByNumPlayers_3:r=1.0
+multXPByNumPlayers_4:r=1.0
+multWPByNumPlayers_1:r=1.0
+multWPByNumPlayers_2:r=1.0
+multWPByNumPlayers_3:r=1.0
+multWPByNumPlayers_4:r=1.0
+
+dynamic{
+  xpPow:r=2.0
+  xpPowForPremium:r=2.0
+  wpPow:r=2.0
+  wpPowForPremium:r=2.0
+  xpEarnedWinDiff0:i=50
+  xpEarnedWinDiff1:i=75
+  xpEarnedWinDiff2:i=100
+  xpEarnedFail:i=0
+  wpEarnedWinDiff0:i=120
+  wpEarnedWinDiff1:i=180
+  wpEarnedWinDiff2:i=240
+  wpEarnedFail:i=0
+  xpEarnedMinWin:i=0
+  wpEarnedMinWin:i=0
+  xpEarnedMinWinForPremium:i=4
+  wpEarnedMinWinForPremium:i=2
+  xpEarnedMinFail:i=0
+  wpEarnedMinFail:i=0
+  xpEarnedMinFailForPremium:i=0
+  wpEarnedMinFailForPremium:i=0
+  multWPByNumPlayers_1:r=1.0
+  multWPByNumPlayers_2:r=1.5
+  multWPByNumPlayers_3:r=1.75
+  multWPByNumPlayers_4:r=2.0
+  multXPByNumPlayers_1:r=1.0
+  multXPByNumPlayers_2:r=1.5
+  multXPByNumPlayers_3:r=1.75
+  multXPByNumPlayers_4:r=2.0
+  dynamic_bombing:r=2.0
+  dynamic_cover:r=2.0
+  dynamic_assault_cover:r=2.0
+  dynamic_dogfight:r=2.5
+  screen_mission:r=0.0
+  dynamic_free_flight01:r=0.0
+  dynamic_free_flight02:r=0.0
+  dynamic_ground_attack01:r=1.5
+  dynamic_ground_defense01:r=2.0
+  dynamic_ground_defense02:r=1.5
+  dynamic_head_to_head:r=1.0
+  dynamic_intercept_bombers:r=1.0
+  multFinishDCForXPWin:r=0.5
+  multFinishDCForWPWin:r=0.5
+  multFinishDCForXPFail:r=0.1
+  multFinishDCForWPFail:r=0.1
+}
+
+skirmish{
+  timeLimit:r=0.0
+  timeLimitPremium:r=0.0
+  xpPow:r=2.0
+  xpPowForPremium:r=2.0
+  wpPow:r=2.0
+  wpPowForPremium:r=2.0
+  xpEarnedWinDiff0:i=0
+  xpEarnedWinDiff1:i=0
+  xpEarnedWinDiff2:i=0
+  xpEarnedFail:i=5
+  wpEarnedWinDiff0:i=0
+  wpEarnedWinDiff1:i=0
+  wpEarnedWinDiff2:i=0
+  wpEarnedFail:i=0
+  xpEarnedMinWin:i=0
+  wpEarnedMinWin:i=0
+  xpEarnedMinWinForPremium:i=0
+  wpEarnedMinWinForPremium:i=0
+  xpEarnedMinFail:i=0
+  wpEarnedMinFail:i=0
+  xpEarnedMinFailForPremium:i=0
+  wpEarnedMinFailForPremium:i=0
+  minPlayersRequire:i=2
+  maxPlayersAllowed:i=10
+  multMin:r=0.1
+  multPerPlayer:r=0.24
+}
+
+builder{
+  xpPow:r=1.0
+  xpPowForPremium:r=1.0
+  wpPow:r=1.0
+  wpPowForPremium:r=1.0
+  xpEarnedWinDiff0:i=0
+  xpEarnedWinDiff1:i=0
+  xpEarnedWinDiff2:i=0
+  xpEarnedFail:i=0
+  wpEarnedWinDiff0:i=0
+  wpEarnedWinDiff1:i=0
+  wpEarnedWinDiff2:i=0
+  wpEarnedFail:i=0
+  xpEarnedMinWin:i=0
+  wpEarnedMinWin:i=0
+  xpEarnedMinWinForPremium:i=0
+  wpEarnedMinWinForPremium:i=0
+  xpEarnedMinFail:i=0
+  wpEarnedMinFail:i=0
+  xpEarnedMinFailForPremium:i=0
+  wpEarnedMinFailForPremium:i=0
+}
+
+training{
+
+  tutorialB_fighter{
+    xpEarnedWinDiff0:i=0
+    wpEarnedWinDiff0:i=0
+    xpEarnedWinDiff1:i=0
+    wpEarnedWinDiff1:i=0
+    xpEarnedWinDiff2:i=0
+    wpEarnedWinDiff2:i=0
+    goldEarnedWinDiff0:i=100
+    slot:i=3
+  }
+
+  tutorialB_assaulter{
+    xpEarnedWinDiff0:i=0
+    wpEarnedWinDiff0:i=5000
+    xpEarnedWinDiff1:i=0
+    wpEarnedWinDiff1:i=0
+    xpEarnedWinDiff2:i=0
+    wpEarnedWinDiff2:i=0
+    goldEarnedWinDiff0:i=0
+  }
+
+  tutorialB_bomber{
+    xpEarnedWinDiff0:i=0
+    wpEarnedWinDiff0:i=5000
+    xpEarnedWinDiff1:i=0
+    wpEarnedWinDiff1:i=0
+    xpEarnedWinDiff2:i=0
+    wpEarnedWinDiff2:i=0
+    goldEarnedWinDiff0:i=0
+  }
+
+  tutorial01{
+    xpEarnedWinDiff0:i=0
+    wpEarnedWinDiff0:i=5000
+    xpEarnedWinDiff1:i=0
+    wpEarnedWinDiff1:i=0
+    xpEarnedWinDiff2:i=0
+    wpEarnedWinDiff2:i=0
+  }
+
+  tutorial02{
+    xpEarnedWinDiff0:i=0
+    wpEarnedWinDiff0:i=5000
+    xpEarnedWinDiff1:i=0
+    wpEarnedWinDiff1:i=0
+    xpEarnedWinDiff2:i=0
+    wpEarnedWinDiff2:i=0
+  }
+
+  tutorial03{
+    xpEarnedWinDiff0:i=0
+    wpEarnedWinDiff0:i=5000
+    xpEarnedWinDiff1:i=0
+    wpEarnedWinDiff1:i=0
+    xpEarnedWinDiff2:i=0
+    wpEarnedWinDiff2:i=0
+  }
+
+  tutorial04{
+    xpEarnedWinDiff0:i=0
+    wpEarnedWinDiff0:i=5000
+    xpEarnedWinDiff1:i=0
+    wpEarnedWinDiff1:i=0
+    xpEarnedWinDiff2:i=0
+    wpEarnedWinDiff2:i=0
+  }
+
+  tutorialB_takeoff_and_landing{
+    xpEarnedWinDiff0:i=0
+    wpEarnedWinDiff0:i=5000
+    xpEarnedWinDiff1:i=0
+    wpEarnedWinDiff1:i=0
+    xpEarnedWinDiff2:i=0
+    wpEarnedWinDiff2:i=0
+  }
+
+  tutorial_tank_basics_arcade{
+    xpEarnedWinDiff0:i=0
+    wpEarnedWinDiff0:i=5000
+    xpEarnedWinDiff1:i=0
+    wpEarnedWinDiff1:i=0
+    xpEarnedWinDiff2:i=0
+    wpEarnedWinDiff2:i=0
+    goldEarnedWinDiff0:i=100
+  }
+
+  tutorial_tank_basics_arcade_part2{
+    xpEarnedWinDiff0:i=0
+    wpEarnedWinDiff0:i=5000
+    xpEarnedWinDiff1:i=0
+    wpEarnedWinDiff1:i=0
+    xpEarnedWinDiff2:i=0
+    wpEarnedWinDiff2:i=0
+    goldEarnedWinDiff0:i=0
+  }
+}
+
+singleMission{
+  xpEarnedWin:i=300
+  xpEarnedFail:i=0
+  wpEarnedWin:i=1000
+  wpEarnedFail:i=0
+
+  ireland_gamescon_single{
+    xpEarnedWinDiff0:i=150
+    wpEarnedWinDiff0:i=500
+    xpEarnedWinDiff1:i=75
+    wpEarnedWinDiff1:i=250
+    xpEarnedWinDiff2:i=75
+    wpEarnedWinDiff2:i=250
+  }
+
+  spain_blind_work{
+    xpEarnedWinDiff0:i=150
+    wpEarnedWinDiff0:i=500
+    xpEarnedWinDiff1:i=75
+    wpEarnedWinDiff1:i=250
+    xpEarnedWinDiff2:i=75
+    wpEarnedWinDiff2:i=250
+  }
+
+  spain_evacuation{
+    xpEarnedWinDiff0:i=150
+    wpEarnedWinDiff0:i=500
+    xpEarnedWinDiff1:i=75
+    wpEarnedWinDiff1:i=250
+    xpEarnedWinDiff2:i=75
+    wpEarnedWinDiff2:i=250
+  }
+
+  spain_face_to_face{
+    xpEarnedWinDiff0:i=150
+    wpEarnedWinDiff0:i=500
+    xpEarnedWinDiff1:i=75
+    wpEarnedWinDiff1:i=250
+    xpEarnedWinDiff2:i=75
+    wpEarnedWinDiff2:i=250
+  }
+
+  spain_hot_day{
+    xpEarnedWinDiff0:i=300
+    wpEarnedWinDiff0:i=1000
+    xpEarnedWinDiff1:i=150
+    wpEarnedWinDiff1:i=500
+    xpEarnedWinDiff2:i=150
+    wpEarnedWinDiff2:i=500
+  }
+
+  spain_wet_job{
+    xpEarnedWinDiff0:i=150
+    wpEarnedWinDiff0:i=500
+    xpEarnedWinDiff1:i=75
+    wpEarnedWinDiff1:i=250
+    xpEarnedWinDiff2:i=75
+    wpEarnedWinDiff2:i=250
+  }
+
+  moresby_s03{
+    xpEarnedWinDiff0:i=150
+    wpEarnedWinDiff0:i=500
+    xpEarnedWinDiff1:i=75
+    wpEarnedWinDiff1:i=250
+    xpEarnedWinDiff2:i=75
+    wpEarnedWinDiff2:i=250
+  }
+
+  guadalcanal_night_fight{
+    xpEarnedWinDiff0:i=300
+    wpEarnedWinDiff0:i=1000
+    xpEarnedWinDiff1:i=150
+    wpEarnedWinDiff1:i=500
+    xpEarnedWinDiff2:i=150
+    wpEarnedWinDiff2:i=500
+  }
+
+  guadalcanal_s01{
+    xpEarnedWinDiff0:i=600
+    wpEarnedWinDiff0:i=2000
+    xpEarnedWinDiff1:i=300
+    wpEarnedWinDiff1:i=1000
+    xpEarnedWinDiff2:i=300
+    wpEarnedWinDiff2:i=1000
+  }
+
+  saipan_single01{
+    xpEarnedWinDiff0:i=900
+    wpEarnedWinDiff0:i=3000
+    xpEarnedWinDiff1:i=450
+    wpEarnedWinDiff1:i=1500
+    xpEarnedWinDiff2:i=450
+    wpEarnedWinDiff2:i=1500
+  }
+
+  philippine_sea_single_m01{
+    xpEarnedWinDiff0:i=900
+    wpEarnedWinDiff0:i=3000
+    xpEarnedWinDiff1:i=450
+    wpEarnedWinDiff1:i=1500
+    xpEarnedWinDiff2:i=450
+    wpEarnedWinDiff2:i=1500
+  }
+
+  pkg3_guam_mission_02{
+    xpEarnedWinDiff0:i=1050
+    wpEarnedWinDiff0:i=3500
+    xpEarnedWinDiff1:i=525
+    wpEarnedWinDiff1:i=1750
+    xpEarnedWinDiff2:i=525
+    wpEarnedWinDiff2:i=1750
+  }
+
+  pkg3_peleliu_mission_01{
+    xpEarnedWinDiff0:i=1200
+    wpEarnedWinDiff0:i=4000
+    xpEarnedWinDiff1:i=600
+    wpEarnedWinDiff1:i=2000
+    xpEarnedWinDiff2:i=600
+    wpEarnedWinDiff2:i=2000
+  }
+
+  pkg3_iwo_jima_mission_03{
+    xpEarnedWinDiff0:i=1350
+    wpEarnedWinDiff0:i=4500
+    xpEarnedWinDiff1:i=675
+    wpEarnedWinDiff1:i=2250
+    xpEarnedWinDiff2:i=675
+    wpEarnedWinDiff2:i=2250
+  }
+
+  east_china_s01{
+    xpEarnedWinDiff0:i=300
+    wpEarnedWinDiff0:i=1000
+    xpEarnedWinDiff1:i=150
+    wpEarnedWinDiff1:i=500
+    xpEarnedWinDiff2:i=150
+    wpEarnedWinDiff2:i=500
+  }
+
+  ruhr_s01{
+    xpEarnedWinDiff0:i=300
+    wpEarnedWinDiff0:i=1000
+    xpEarnedWinDiff1:i=150
+    wpEarnedWinDiff1:i=500
+    xpEarnedWinDiff2:i=150
+    wpEarnedWinDiff2:i=500
+  }
+
+  dlc_stalingrad_swim_catalina{
+    xpEarnedWinDiff0:i=450
+    wpEarnedWinDiff0:i=1500
+    xpEarnedWinDiff1:i=225
+    wpEarnedWinDiff1:i=750
+    xpEarnedWinDiff2:i=225
+    wpEarnedWinDiff2:i=750
+  }
+
+  moresby_s02{
+    xpEarnedWinDiff0:i=450
+    wpEarnedWinDiff0:i=1500
+    xpEarnedWinDiff1:i=225
+    wpEarnedWinDiff1:i=750
+    xpEarnedWinDiff2:i=225
+    wpEarnedWinDiff2:i=750
+  }
+
+  moresby_s04{
+    xpEarnedWinDiff0:i=600
+    wpEarnedWinDiff0:i=2000
+    xpEarnedWinDiff1:i=300
+    wpEarnedWinDiff1:i=1000
+    xpEarnedWinDiff2:i=300
+    wpEarnedWinDiff2:i=1000
+  }
+
+  honolulu_s01{
+    xpEarnedWinDiff0:i=600
+    wpEarnedWinDiff0:i=2000
+    xpEarnedWinDiff1:i=300
+    wpEarnedWinDiff1:i=1000
+    xpEarnedWinDiff2:i=300
+    wpEarnedWinDiff2:i=1000
+  }
+
+  guadalcanal_s02{
+    xpEarnedWinDiff0:i=750
+    wpEarnedWinDiff0:i=2500
+    xpEarnedWinDiff1:i=375
+    wpEarnedWinDiff1:i=1250
+    xpEarnedWinDiff2:i=375
+    wpEarnedWinDiff2:i=1250
+  }
+
+  honolulu_s02{
+    xpEarnedWinDiff0:i=1050
+    wpEarnedWinDiff0:i=3500
+    xpEarnedWinDiff1:i=525
+    wpEarnedWinDiff1:i=1750
+    xpEarnedWinDiff2:i=525
+    wpEarnedWinDiff2:i=1750
+  }
+
+  saipan_single02{
+    xpEarnedWinDiff0:i=900
+    wpEarnedWinDiff0:i=3000
+    xpEarnedWinDiff1:i=450
+    wpEarnedWinDiff1:i=1500
+    xpEarnedWinDiff2:i=450
+    wpEarnedWinDiff2:i=1500
+  }
+
+  philippine_sea_single_m02{
+    xpEarnedWinDiff0:i=900
+    wpEarnedWinDiff0:i=3000
+    xpEarnedWinDiff1:i=450
+    wpEarnedWinDiff1:i=1500
+    xpEarnedWinDiff2:i=450
+    wpEarnedWinDiff2:i=1500
+  }
+
+  pkg3_guam_mission_03{
+    xpEarnedWinDiff0:i=1050
+    wpEarnedWinDiff0:i=3500
+    xpEarnedWinDiff1:i=525
+    wpEarnedWinDiff1:i=1750
+    xpEarnedWinDiff2:i=525
+    wpEarnedWinDiff2:i=1750
+  }
+
+  pkg3_peleliu_mission_02{
+    xpEarnedWinDiff0:i=1200
+    wpEarnedWinDiff0:i=4000
+    xpEarnedWinDiff1:i=600
+    wpEarnedWinDiff1:i=2000
+    xpEarnedWinDiff2:i=600
+    wpEarnedWinDiff2:i=2000
+  }
+
+  pkg3_peleliu_mission_03{
+    xpEarnedWinDiff0:i=1200
+    wpEarnedWinDiff0:i=4000
+    xpEarnedWinDiff1:i=600
+    wpEarnedWinDiff1:i=2000
+    xpEarnedWinDiff2:i=600
+    wpEarnedWinDiff2:i=2000
+  }
+
+  pkg3_iwo_jima_mission_01{
+    xpEarnedWinDiff0:i=1350
+    wpEarnedWinDiff0:i=4500
+    xpEarnedWinDiff1:i=675
+    wpEarnedWinDiff1:i=2250
+    xpEarnedWinDiff2:i=675
+    wpEarnedWinDiff2:i=2250
+  }
+
+  pkg3_iwo_jima_mission_02{
+    xpEarnedWinDiff0:i=1350
+    wpEarnedWinDiff0:i=4500
+    xpEarnedWinDiff1:i=675
+    wpEarnedWinDiff1:i=2250
+    xpEarnedWinDiff2:i=675
+    wpEarnedWinDiff2:i=2250
+  }
+
+  dlc_divide_and_conquer{
+    xpEarnedWinDiff0:i=150
+    wpEarnedWinDiff0:i=500
+    xpEarnedWinDiff1:i=75
+    wpEarnedWinDiff1:i=250
+    xpEarnedWinDiff2:i=75
+    wpEarnedWinDiff2:i=250
+  }
+
+  bulge_single01{
+    xpEarnedWinDiff0:i=300
+    wpEarnedWinDiff0:i=1000
+    xpEarnedWinDiff1:i=150
+    wpEarnedWinDiff1:i=500
+    xpEarnedWinDiff2:i=150
+    wpEarnedWinDiff2:i=500
+  }
+
+  bulge_single02{
+    xpEarnedWinDiff0:i=450
+    wpEarnedWinDiff0:i=1500
+    xpEarnedWinDiff1:i=225
+    wpEarnedWinDiff1:i=750
+    xpEarnedWinDiff2:i=225
+    wpEarnedWinDiff2:i=750
+  }
+
+  blindness_hunt{
+    xpEarnedWinDiff0:i=1500
+    wpEarnedWinDiff0:i=5000
+    xpEarnedWinDiff1:i=750
+    wpEarnedWinDiff1:i=2500
+    xpEarnedWinDiff2:i=750
+    wpEarnedWinDiff2:i=2500
+  }
+
+  britain_eagleDay{
+    xpEarnedWinDiff0:i=300
+    wpEarnedWinDiff0:i=1000
+    xpEarnedWinDiff1:i=150
+    wpEarnedWinDiff1:i=500
+    xpEarnedWinDiff2:i=150
+    wpEarnedWinDiff2:i=500
+  }
+
+  malta_s03{
+    xpEarnedWinDiff0:i=450
+    wpEarnedWinDiff0:i=1500
+    xpEarnedWinDiff1:i=225
+    wpEarnedWinDiff1:i=750
+    xpEarnedWinDiff2:i=225
+    wpEarnedWinDiff2:i=750
+  }
+
+  moresby_s01{
+    xpEarnedWinDiff0:i=150
+    wpEarnedWinDiff0:i=500
+    xpEarnedWinDiff1:i=75
+    wpEarnedWinDiff1:i=250
+    xpEarnedWinDiff2:i=75
+    wpEarnedWinDiff2:i=250
+  }
+
+  malta_s02{
+    xpEarnedWinDiff0:i=450
+    wpEarnedWinDiff0:i=1500
+    xpEarnedWinDiff1:i=225
+    wpEarnedWinDiff1:i=750
+    xpEarnedWinDiff2:i=225
+    wpEarnedWinDiff2:i=750
+  }
+
+  dlc_britain_battle_of_britain_day{
+    xpEarnedWinDiff0:i=600
+    wpEarnedWinDiff0:i=2000
+    xpEarnedWinDiff1:i=300
+    wpEarnedWinDiff1:i=1000
+    xpEarnedWinDiff2:i=300
+    wpEarnedWinDiff2:i=1000
+  }
+
+  britain_theHardestDay{
+    xpEarnedWinDiff0:i=750
+    wpEarnedWinDiff0:i=2500
+    xpEarnedWinDiff1:i=375
+    wpEarnedWinDiff1:i=1250
+    xpEarnedWinDiff2:i=375
+    wpEarnedWinDiff2:i=1250
+  }
+
+  ruhr_defence{
+    xpEarnedWinDiff0:i=1050
+    wpEarnedWinDiff0:i=3500
+    xpEarnedWinDiff1:i=525
+    wpEarnedWinDiff1:i=1750
+    xpEarnedWinDiff2:i=525
+    wpEarnedWinDiff2:i=1750
+  }
+
+  dlc_cover_the_descent{
+    xpEarnedWinDiff0:i=1200
+    wpEarnedWinDiff0:i=4000
+    xpEarnedWinDiff1:i=600
+    wpEarnedWinDiff1:i=2000
+    xpEarnedWinDiff2:i=600
+    wpEarnedWinDiff2:i=2000
+  }
+
+  dlc_in_tennets_of_berlin{
+    xpEarnedWinDiff0:i=1200
+    wpEarnedWinDiff0:i=4000
+    xpEarnedWinDiff1:i=600
+    wpEarnedWinDiff1:i=2000
+    xpEarnedWinDiff2:i=600
+    wpEarnedWinDiff2:i=2000
+  }
+
+  norway_single_alone{
+    xpEarnedWinDiff0:i=900
+    wpEarnedWinDiff0:i=3000
+    xpEarnedWinDiff1:i=450
+    wpEarnedWinDiff1:i=1500
+    xpEarnedWinDiff2:i=450
+    wpEarnedWinDiff2:i=1500
+  }
+
+  norway_single_bruno{
+    xpEarnedWinDiff0:i=1050
+    wpEarnedWinDiff0:i=3500
+    xpEarnedWinDiff1:i=525
+    wpEarnedWinDiff1:i=1750
+    xpEarnedWinDiff2:i=525
+    wpEarnedWinDiff2:i=1750
+  }
+
+  norway_single_fleet{
+    xpEarnedWinDiff0:i=1350
+    wpEarnedWinDiff0:i=4500
+    xpEarnedWinDiff1:i=675
+    wpEarnedWinDiff1:i=2250
+    xpEarnedWinDiff2:i=675
+    wpEarnedWinDiff2:i=2250
+  }
+
+  norway_single_swordfish{
+    xpEarnedWinDiff0:i=150
+    wpEarnedWinDiff0:i=500
+    xpEarnedWinDiff1:i=75
+    wpEarnedWinDiff1:i=250
+    xpEarnedWinDiff2:i=75
+    wpEarnedWinDiff2:i=250
+  }
+
+  norway_single_water{
+    xpEarnedWinDiff0:i=900
+    wpEarnedWinDiff0:i=3000
+    xpEarnedWinDiff1:i=450
+    wpEarnedWinDiff1:i=1500
+    xpEarnedWinDiff2:i=450
+    wpEarnedWinDiff2:i=1500
+  }
+
+  malta_s01{
+    xpEarnedWinDiff0:i=300
+    wpEarnedWinDiff0:i=1000
+    xpEarnedWinDiff1:i=150
+    wpEarnedWinDiff1:i=500
+    xpEarnedWinDiff2:i=150
+    wpEarnedWinDiff2:i=500
+  }
+
+  britain_channelBattles{
+    xpEarnedWinDiff0:i=450
+    wpEarnedWinDiff0:i=1500
+    xpEarnedWinDiff1:i=225
+    wpEarnedWinDiff1:i=750
+    xpEarnedWinDiff2:i=225
+    wpEarnedWinDiff2:i=750
+  }
+
+  malta04_after_bombing{
+    xpEarnedWinDiff0:i=450
+    wpEarnedWinDiff0:i=1500
+    xpEarnedWinDiff1:i=225
+    wpEarnedWinDiff1:i=750
+    xpEarnedWinDiff2:i=225
+    wpEarnedWinDiff2:i=750
+  }
+
+  malta_calendar{
+    xpEarnedWinDiff0:i=450
+    wpEarnedWinDiff0:i=1500
+    xpEarnedWinDiff1:i=225
+    wpEarnedWinDiff1:i=750
+    xpEarnedWinDiff2:i=225
+    wpEarnedWinDiff2:i=750
+  }
+
+  dlc_britain_the_blitz{
+    xpEarnedWinDiff0:i=300
+    wpEarnedWinDiff0:i=1000
+    xpEarnedWinDiff1:i=150
+    wpEarnedWinDiff1:i=500
+    xpEarnedWinDiff2:i=150
+    wpEarnedWinDiff2:i=500
+  }
+
+  ruhr_bridge_bombing{
+    xpEarnedWinDiff0:i=600
+    wpEarnedWinDiff0:i=2000
+    xpEarnedWinDiff1:i=300
+    wpEarnedWinDiff1:i=1000
+    xpEarnedWinDiff2:i=300
+    wpEarnedWinDiff2:i=1000
+  }
+
+  krymsk_s02{
+    xpEarnedWinDiff0:i=300
+    wpEarnedWinDiff0:i=1000
+    xpEarnedWinDiff1:i=150
+    wpEarnedWinDiff1:i=500
+    xpEarnedWinDiff2:i=150
+    wpEarnedWinDiff2:i=500
+  }
+
+  ruhr_s02{
+    xpEarnedWinDiff0:i=1050
+    wpEarnedWinDiff0:i=3500
+    xpEarnedWinDiff1:i=525
+    wpEarnedWinDiff1:i=1750
+    xpEarnedWinDiff2:i=525
+    wpEarnedWinDiff2:i=1750
+  }
+
+  ruhr_m1_luft_night{
+    xpEarnedWinDiff0:i=1200
+    wpEarnedWinDiff0:i=4000
+    xpEarnedWinDiff1:i=600
+    wpEarnedWinDiff1:i=2000
+    xpEarnedWinDiff2:i=600
+    wpEarnedWinDiff2:i=2000
+  }
+
+  single_krymsk_bombing{
+    xpEarnedWinDiff0:i=1350
+    wpEarnedWinDiff0:i=4500
+    xpEarnedWinDiff1:i=675
+    wpEarnedWinDiff1:i=2250
+    xpEarnedWinDiff2:i=675
+    wpEarnedWinDiff2:i=2250
+  }
+
+  ruhr_s03{
+    xpEarnedWinDiff0:i=1500
+    wpEarnedWinDiff0:i=5000
+    xpEarnedWinDiff1:i=750
+    wpEarnedWinDiff1:i=2500
+    xpEarnedWinDiff2:i=750
+    wpEarnedWinDiff2:i=2500
+  }
+
+  ruhr_airfield_atack{
+    xpEarnedWinDiff0:i=1500
+    wpEarnedWinDiff0:i=5000
+    xpEarnedWinDiff1:i=750
+    wpEarnedWinDiff1:i=2500
+    xpEarnedWinDiff2:i=750
+    wpEarnedWinDiff2:i=2500
+  }
+
+  dlc_damn_landing{
+    xpEarnedWinDiff0:i=1350
+    wpEarnedWinDiff0:i=4500
+    xpEarnedWinDiff1:i=675
+    wpEarnedWinDiff1:i=2250
+    xpEarnedWinDiff2:i=675
+    wpEarnedWinDiff2:i=2250
+  }
+
+  dlc_siege_of_bastogne{
+    xpEarnedWinDiff0:i=1050
+    wpEarnedWinDiff0:i=3500
+    xpEarnedWinDiff1:i=525
+    wpEarnedWinDiff1:i=1750
+    xpEarnedWinDiff2:i=525
+    wpEarnedWinDiff2:i=1750
+  }
+
+  berlin_single01{
+    xpEarnedWinDiff0:i=1200
+    wpEarnedWinDiff0:i=4000
+    xpEarnedWinDiff1:i=600
+    wpEarnedWinDiff1:i=2000
+    xpEarnedWinDiff2:i=600
+    wpEarnedWinDiff2:i=2000
+  }
+
+  covert_infiltration{
+    xpEarnedWinDiff0:i=750
+    wpEarnedWinDiff0:i=2500
+    xpEarnedWinDiff1:i=375
+    wpEarnedWinDiff1:i=1250
+    xpEarnedWinDiff2:i=375
+    wpEarnedWinDiff2:i=1250
+  }
+
+  frontline_airfield{
+    xpEarnedWinDiff0:i=750
+    wpEarnedWinDiff0:i=2500
+    xpEarnedWinDiff1:i=375
+    wpEarnedWinDiff1:i=1250
+    xpEarnedWinDiff2:i=375
+    wpEarnedWinDiff2:i=1250
+  }
+
+  on_the_grozny_way{
+    xpEarnedWinDiff0:i=900
+    wpEarnedWinDiff0:i=3000
+    xpEarnedWinDiff1:i=450
+    wpEarnedWinDiff1:i=1500
+    xpEarnedWinDiff2:i=450
+    wpEarnedWinDiff2:i=1500
+  }
+
+  single_kursk_german_spearhead{
+    xpEarnedWinDiff0:i=750
+    wpEarnedWinDiff0:i=2500
+    xpEarnedWinDiff1:i=375
+    wpEarnedWinDiff1:i=1250
+    xpEarnedWinDiff2:i=375
+    wpEarnedWinDiff2:i=1250
+  }
+
+  krymsk_s04{
+    xpEarnedWinDiff0:i=300
+    wpEarnedWinDiff0:i=1000
+    xpEarnedWinDiff1:i=150
+    wpEarnedWinDiff1:i=500
+    xpEarnedWinDiff2:i=150
+    wpEarnedWinDiff2:i=500
+  }
+
+  dlc_stalingrad_w_resque{
+    xpEarnedWinDiff0:i=450
+    wpEarnedWinDiff0:i=1500
+    xpEarnedWinDiff1:i=225
+    wpEarnedWinDiff1:i=750
+    xpEarnedWinDiff2:i=225
+    wpEarnedWinDiff2:i=750
+  }
+
+  krymsk_s05{
+    xpEarnedWinDiff0:i=450
+    wpEarnedWinDiff0:i=1500
+    xpEarnedWinDiff1:i=225
+    wpEarnedWinDiff1:i=750
+    xpEarnedWinDiff2:i=225
+    wpEarnedWinDiff2:i=750
+  }
+
+  dlc_stalingrad_w_paulus_last_tanks{
+    xpEarnedWinDiff0:i=450
+    wpEarnedWinDiff0:i=1500
+    xpEarnedWinDiff1:i=225
+    wpEarnedWinDiff1:i=750
+    xpEarnedWinDiff2:i=225
+    wpEarnedWinDiff2:i=750
+  }
+
+  krymsk_s03{
+    xpEarnedWinDiff0:i=600
+    wpEarnedWinDiff0:i=2000
+    xpEarnedWinDiff1:i=300
+    wpEarnedWinDiff1:i=1000
+    xpEarnedWinDiff2:i=300
+    wpEarnedWinDiff2:i=1000
+  }
+
+  dlc_stalingrad_fire_rain{
+    xpEarnedWinDiff0:i=600
+    wpEarnedWinDiff0:i=2000
+    xpEarnedWinDiff1:i=300
+    wpEarnedWinDiff1:i=1000
+    xpEarnedWinDiff2:i=300
+    wpEarnedWinDiff2:i=1000
+  }
+
+  dlc_stalingrad_evacuate{
+    xpEarnedWinDiff0:i=750
+    wpEarnedWinDiff0:i=2500
+    xpEarnedWinDiff1:i=375
+    wpEarnedWinDiff1:i=1250
+    xpEarnedWinDiff2:i=375
+    wpEarnedWinDiff2:i=1250
+  }
+
+  dlc_save_the_neighbor{
+    xpEarnedWinDiff0:i=900
+    wpEarnedWinDiff0:i=3000
+    xpEarnedWinDiff1:i=450
+    wpEarnedWinDiff1:i=1500
+    xpEarnedWinDiff2:i=450
+    wpEarnedWinDiff2:i=1500
+  }
+
+  krymsk_s01{
+    xpEarnedWinDiff0:i=1200
+    wpEarnedWinDiff0:i=4000
+    xpEarnedWinDiff1:i=600
+    wpEarnedWinDiff1:i=2000
+    xpEarnedWinDiff2:i=600
+    wpEarnedWinDiff2:i=2000
+  }
+
+  dlc_korsun_fly_over_mist{
+    xpEarnedWinDiff0:i=1350
+    wpEarnedWinDiff0:i=4500
+    xpEarnedWinDiff1:i=675
+    wpEarnedWinDiff1:i=2250
+    xpEarnedWinDiff2:i=675
+    wpEarnedWinDiff2:i=2250
+  }
+
+  dlc_newbie_fight{
+    xpEarnedWinDiff0:i=750
+    wpEarnedWinDiff0:i=2500
+    xpEarnedWinDiff1:i=375
+    wpEarnedWinDiff1:i=1250
+    xpEarnedWinDiff2:i=375
+    wpEarnedWinDiff2:i=1250
+  }
+
+  dlc_surgical_strike{
+    xpEarnedWinDiff0:i=900
+    wpEarnedWinDiff0:i=3000
+    xpEarnedWinDiff1:i=450
+    wpEarnedWinDiff1:i=1500
+    xpEarnedWinDiff2:i=450
+    wpEarnedWinDiff2:i=1500
+  }
+
+  storm_warning{
+    xpEarnedWinDiff0:i=1500
+    wpEarnedWinDiff0:i=5000
+    xpEarnedWinDiff1:i=750
+    wpEarnedWinDiff1:i=2500
+    xpEarnedWinDiff2:i=750
+    wpEarnedWinDiff2:i=2500
+  }
+
+  escape_from_death{
+    xpEarnedWinDiff0:i=1650
+    wpEarnedWinDiff0:i=5500
+    xpEarnedWinDiff1:i=825
+    wpEarnedWinDiff1:i=2750
+    xpEarnedWinDiff2:i=825
+    wpEarnedWinDiff2:i=2750
+  }
+
+  night_breakktrough{
+    xpEarnedWinDiff0:i=900
+    wpEarnedWinDiff0:i=3000
+    xpEarnedWinDiff1:i=450
+    wpEarnedWinDiff1:i=1500
+    xpEarnedWinDiff2:i=450
+    wpEarnedWinDiff2:i=1500
+  }
+
+  burning_tanks_of_luftwaffe{
+    xpEarnedWinDiff0:i=1050
+    wpEarnedWinDiff0:i=3500
+    xpEarnedWinDiff1:i=525
+    wpEarnedWinDiff1:i=1750
+    xpEarnedWinDiff2:i=525
+    wpEarnedWinDiff2:i=1750
+  }
+
+  mountain_fly{
+    xpEarnedWinDiff0:i=1050
+    wpEarnedWinDiff0:i=3500
+    xpEarnedWinDiff1:i=525
+    wpEarnedWinDiff1:i=1750
+    xpEarnedWinDiff2:i=525
+    wpEarnedWinDiff2:i=1750
+  }
+
+  help_the_il2{
+    xpEarnedWinDiff0:i=1200
+    wpEarnedWinDiff0:i=4000
+    xpEarnedWinDiff1:i=600
+    wpEarnedWinDiff1:i=2000
+    xpEarnedWinDiff2:i=600
+    wpEarnedWinDiff2:i=2000
+  }
+
+  single_kursk_ussr_atack_field{
+    xpEarnedWinDiff0:i=1050
+    wpEarnedWinDiff0:i=3500
+    xpEarnedWinDiff1:i=525
+    wpEarnedWinDiff1:i=1750
+    xpEarnedWinDiff2:i=525
+    wpEarnedWinDiff2:i=1750
+  }
+
+  single_kursk_ussr_night_witch{
+    xpEarnedWinDiff0:i=1200
+    wpEarnedWinDiff0:i=4000
+    xpEarnedWinDiff1:i=600
+    wpEarnedWinDiff1:i=2000
+    xpEarnedWinDiff2:i=600
+    wpEarnedWinDiff2:i=2000
+  }
+
+  single_kursk_ussr_spotters{
+    xpEarnedWinDiff0:i=1350
+    wpEarnedWinDiff0:i=4500
+    xpEarnedWinDiff1:i=675
+    wpEarnedWinDiff1:i=2250
+    xpEarnedWinDiff2:i=675
+    wpEarnedWinDiff2:i=2250
+  }
+
+  ge_moscow_cold_night{
+    xpEarnedWinDiff0:i=600
+    wpEarnedWinDiff0:i=2000
+    xpEarnedWinDiff1:i=300
+    wpEarnedWinDiff1:i=1000
+    xpEarnedWinDiff2:i=300
+    wpEarnedWinDiff2:i=1000
+  }
+
+  moscow_baloons{
+    xpEarnedWinDiff0:i=750
+    wpEarnedWinDiff0:i=2500
+    xpEarnedWinDiff1:i=375
+    wpEarnedWinDiff1:i=1250
+    xpEarnedWinDiff2:i=375
+    wpEarnedWinDiff2:i=1250
+  }
+
+  ussr_moscow_the_last_stand{
+    xpEarnedWinDiff0:i=300
+    wpEarnedWinDiff0:i=1000
+    xpEarnedWinDiff1:i=150
+    wpEarnedWinDiff1:i=500
+    xpEarnedWinDiff2:i=150
+    wpEarnedWinDiff2:i=500
+  }
+
+  ussr_moscow_they_shall_not_pass{
+    xpEarnedWinDiff0:i=450
+    wpEarnedWinDiff0:i=1500
+    xpEarnedWinDiff1:i=225
+    wpEarnedWinDiff1:i=750
+    xpEarnedWinDiff2:i=225
+    wpEarnedWinDiff2:i=750
+  }
+
+  poland_pe_2_chronicle{
+    xpEarnedWinDiff0:i=300
+    wpEarnedWinDiff0:i=1000
+    xpEarnedWinDiff1:i=150
+    wpEarnedWinDiff1:i=500
+    xpEarnedWinDiff2:i=150
+    wpEarnedWinDiff2:i=500
+  }
+}
+
+campaign{
+  xpEarnedWin:i=600
+  wpEarnedWin:i=2000
+  xpEarnedFail:i=0
+  wpEarnedFail:i=0
+
+  campaigns{
+
+    pacific_usa{
+      hon_usa_sbd:r=1.0
+      wakeIs_02:r=1.0
+      wakeIs_03:r=1.0
+      wakeIs_05:r=1.0
+      coS_0:r=1.0
+      coS_1:r=1.0
+      us_midway_m2:r=1.0
+      us_midway_m4:r=1.0
+      us_guadalcanal_m1:r=1.0
+      us_guadalcanal_m3:r=1.0
+      us_guadalcanal_m4:r=1.0
+    }
+
+    pacific_jpn{
+      hon_jpn_first_wave:r=1.0
+      hon_jpn_second_wave:r=1.0
+      coS_2:r=1.0
+      coS_3:r=1.0
+      jpn_midway_m1:r=1.0
+      jpn_midway_m2:r=1.0
+      jpn_midway_m3:r=1.0
+      jpn_guadalcanal_m2:r=1.0
+      jpn_guadalcanal_m4:r=1.0
+    }
+  }
+
+  hon_usa_sbd{
+    xpEarnedWinDiff0:i=300
+    wpEarnedWinDiff0:i=1000
+    xpEarnedWinDiff1:i=150
+    wpEarnedWinDiff1:i=500
+    xpEarnedWinDiff2:i=150
+    wpEarnedWinDiff2:i=500
+  }
+
+  wakeIs_02{
+    xpEarnedWinDiff0:i=300
+    wpEarnedWinDiff0:i=1000
+    xpEarnedWinDiff1:i=150
+    wpEarnedWinDiff1:i=500
+    xpEarnedWinDiff2:i=150
+    wpEarnedWinDiff2:i=500
+  }
+
+  wakeIs_03{
+    xpEarnedWinDiff0:i=300
+    wpEarnedWinDiff0:i=1000
+    xpEarnedWinDiff1:i=150
+    wpEarnedWinDiff1:i=500
+    xpEarnedWinDiff2:i=150
+    wpEarnedWinDiff2:i=500
+  }
+
+  wakeIs_05{
+    xpEarnedWinDiff0:i=300
+    wpEarnedWinDiff0:i=1000
+    xpEarnedWinDiff1:i=150
+    wpEarnedWinDiff1:i=500
+    xpEarnedWinDiff2:i=150
+    wpEarnedWinDiff2:i=500
+  }
+
+  coS_0{
+    xpEarnedWinDiff0:i=300
+    wpEarnedWinDiff0:i=1000
+    xpEarnedWinDiff1:i=150
+    wpEarnedWinDiff1:i=500
+    xpEarnedWinDiff2:i=150
+    wpEarnedWinDiff2:i=500
+  }
+
+  coS_1{
+    xpEarnedWinDiff0:i=300
+    wpEarnedWinDiff0:i=1000
+    xpEarnedWinDiff1:i=150
+    wpEarnedWinDiff1:i=500
+    xpEarnedWinDiff2:i=150
+    wpEarnedWinDiff2:i=500
+  }
+
+  us_midway_m2{
+    xpEarnedWinDiff0:i=300
+    wpEarnedWinDiff0:i=1000
+    xpEarnedWinDiff1:i=150
+    wpEarnedWinDiff1:i=500
+    xpEarnedWinDiff2:i=150
+    wpEarnedWinDiff2:i=500
+  }
+
+  us_midway_m4{
+    xpEarnedWinDiff0:i=300
+    wpEarnedWinDiff0:i=1000
+    xpEarnedWinDiff1:i=150
+    wpEarnedWinDiff1:i=500
+    xpEarnedWinDiff2:i=150
+    wpEarnedWinDiff2:i=500
+  }
+
+  us_guadalcanal_m1{
+    xpEarnedWinDiff0:i=300
+    wpEarnedWinDiff0:i=1000
+    xpEarnedWinDiff1:i=150
+    wpEarnedWinDiff1:i=500
+    xpEarnedWinDiff2:i=150
+    wpEarnedWinDiff2:i=500
+  }
+
+  us_guadalcanal_m3{
+    xpEarnedWinDiff0:i=300
+    wpEarnedWinDiff0:i=1000
+    xpEarnedWinDiff1:i=150
+    wpEarnedWinDiff1:i=500
+    xpEarnedWinDiff2:i=150
+    wpEarnedWinDiff2:i=500
+  }
+
+  us_guadalcanal_m4{
+    xpEarnedWinDiff0:i=300
+    wpEarnedWinDiff0:i=1000
+    xpEarnedWinDiff1:i=150
+    wpEarnedWinDiff1:i=500
+    xpEarnedWinDiff2:i=150
+    wpEarnedWinDiff2:i=500
+  }
+
+  hon_jpn_first_wave{
+    xpEarnedWinDiff0:i=300
+    wpEarnedWinDiff0:i=1000
+    xpEarnedWinDiff1:i=150
+    wpEarnedWinDiff1:i=500
+    xpEarnedWinDiff2:i=150
+    wpEarnedWinDiff2:i=500
+  }
+
+  hon_jpn_second_wave{
+    xpEarnedWinDiff0:i=300
+    wpEarnedWinDiff0:i=1000
+    xpEarnedWinDiff1:i=150
+    wpEarnedWinDiff1:i=500
+    xpEarnedWinDiff2:i=150
+    wpEarnedWinDiff2:i=500
+  }
+
+  coS_2{
+    xpEarnedWinDiff0:i=300
+    wpEarnedWinDiff0:i=1000
+    xpEarnedWinDiff1:i=150
+    wpEarnedWinDiff1:i=500
+    xpEarnedWinDiff2:i=150
+    wpEarnedWinDiff2:i=500
+  }
+
+  coS_3{
+    xpEarnedWinDiff0:i=300
+    wpEarnedWinDiff0:i=1000
+    xpEarnedWinDiff1:i=150
+    wpEarnedWinDiff1:i=500
+    xpEarnedWinDiff2:i=150
+    wpEarnedWinDiff2:i=500
+  }
+
+  jpn_midway_m1{
+    xpEarnedWinDiff0:i=300
+    wpEarnedWinDiff0:i=1000
+    xpEarnedWinDiff1:i=150
+    wpEarnedWinDiff1:i=500
+    xpEarnedWinDiff2:i=150
+    wpEarnedWinDiff2:i=500
+  }
+
+  jpn_midway_m2{
+    xpEarnedWinDiff0:i=300
+    wpEarnedWinDiff0:i=1000
+    xpEarnedWinDiff1:i=150
+    wpEarnedWinDiff1:i=500
+    xpEarnedWinDiff2:i=150
+    wpEarnedWinDiff2:i=500
+  }
+
+  jpn_midway_m3{
+    xpEarnedWinDiff0:i=300
+    wpEarnedWinDiff0:i=1000
+    xpEarnedWinDiff1:i=150
+    wpEarnedWinDiff1:i=500
+    xpEarnedWinDiff2:i=150
+    wpEarnedWinDiff2:i=500
+  }
+
+  jpn_guadalcanal_m2{
+    xpEarnedWinDiff0:i=300
+    wpEarnedWinDiff0:i=1000
+    xpEarnedWinDiff1:i=150
+    wpEarnedWinDiff1:i=500
+    xpEarnedWinDiff2:i=150
+    wpEarnedWinDiff2:i=500
+  }
+
+  jpn_guadalcanal_m4{
+    xpEarnedWinDiff0:i=300
+    wpEarnedWinDiff0:i=1000
+    xpEarnedWinDiff1:i=150
+    wpEarnedWinDiff1:i=500
+    xpEarnedWinDiff2:i=150
+    wpEarnedWinDiff2:i=500
+  }
+}

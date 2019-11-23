@@ -1,0 +1,415 @@
+Weapon{
+  trigger:t="gunner0"
+  triggerGroup:t="primary"
+  blk:t="gameData/Weapons/groundModels_weapons/20mm_Oerlikon_mk_v_twin_mount.blk"
+  emitter:t="emtr_gun_flame_01"
+  flash:t="emtr_gun_flame_01"
+  useEmitter:b=yes
+  recoilOffset:r=0.2
+  defaultYaw:r=0.0
+  defaultPitch:r=0.0
+  speedYaw:r=60.0
+  speedPitch:r=20.0
+  fireConeAngle:r=1.0
+  ChainfireTime:r=1.0
+  bullets:i=2400
+  speedYaw:r=45.0
+  speedPitch:r=45.0
+  fireConeAngle:r=20.0
+  ChainfireTime:r=2.0
+  DelayAfterShoot:r=2.0
+  aimMinDist:r=20.0
+  aimMaxDist:r=4000.0
+  randomAngle:r=0.0
+  accuracyAir:r=0.5
+  accuracyGnd:r=0.5
+  errMeasureVel:r=0.0
+  errTargettingOn100kmph:r=0.0
+  errMeasureVelFast:r=100.0
+  errMeasureVelFwdShift:r=1.0
+  errMeasureVelDir:r=3.0
+  errTargetting:r=1.0
+  errExplTime:r=0.0
+
+  turret{
+    head:t="turret_h_01"
+    gun:t="mg_01"
+    barrel:t="gun_barrel_01"
+    gunnerDm:t="gunner_01_dm"
+
+    linkedAnimPart{
+      verNode:t="bone_radius_pelvis_01"
+      verLimits:p2=0.0, 7.0
+      verOriginLimits:p2=5.0, 55.0
+    }
+  }
+
+  limits{
+    yaw:p2=-180.0, 180.0
+    pitch:p2=-5.0, 55.0
+  }
+}
+
+Weapon{
+  trigger:t="gunner1"
+  triggerGroup:t="primary"
+  blk:t="gameData/Weapons/groundModels_weapons/20mm_Oerlikon_mk_v_twin_mount.blk"
+  emitter:t="emtr_gun_flame_02"
+  flash:t="emtr_gun_flame_02"
+  useEmitter:b=yes
+  recoilOffset:r=0.2
+  defaultYaw:r=0.0
+  defaultPitch:r=0.0
+  speedYaw:r=60.0
+  speedPitch:r=20.0
+  fireConeAngle:r=1.0
+  ChainfireTime:r=1.0
+  bullets:i=2400
+  speedYaw:r=45.0
+  speedPitch:r=45.0
+  fireConeAngle:r=20.0
+  ChainfireTime:r=2.0
+  DelayAfterShoot:r=2.0
+  aimMinDist:r=20.0
+  aimMaxDist:r=4000.0
+  randomAngle:r=0.0
+  accuracyAir:r=0.5
+  accuracyGnd:r=0.5
+  errMeasureVel:r=0.0
+  errTargettingOn100kmph:r=0.0
+  errMeasureVelFast:r=100.0
+  errMeasureVelFwdShift:r=1.0
+  errMeasureVelDir:r=3.0
+  errTargetting:r=1.0
+  errExplTime:r=0.0
+
+  turret{
+    head:t="turret_h_02"
+    gun:t="mg_02"
+    barrel:t="gun_barrel_02"
+    gunnerDm:t="gunner_02_dm"
+
+    linkedAnimPart{
+      verNode:t="bone_radius_pelvis_02"
+      verLimits:p2=0.0, 7.0
+      verOriginLimits:p2=5.0, 55.0
+    }
+  }
+
+  limits{
+    yaw:p2=-180.0, 180.0
+    pitch:p2=-5.0, 55.0
+  }
+}
+
+Weapon{
+  trigger:t="gunner2"
+  triggerGroup:t="primary"
+  blk:t="gameData/Weapons/groundModels_weapons/20mm_Oerlikon_mk_v_twin_mount.blk"
+  emitter:t="emtr_gun_flame_03"
+  flash:t="emtr_gun_flame_03"
+  useEmitter:b=yes
+  recoilOffset:r=0.2
+  defaultYaw:r=0.0
+  defaultPitch:r=0.0
+  speedYaw:r=60.0
+  speedPitch:r=20.0
+  fireConeAngle:r=1.0
+  ChainfireTime:r=1.0
+  bullets:i=2400
+  speedYaw:r=45.0
+  speedPitch:r=45.0
+  fireConeAngle:r=20.0
+  ChainfireTime:r=2.0
+  DelayAfterShoot:r=2.0
+  aimMinDist:r=20.0
+  aimMaxDist:r=4000.0
+  randomAngle:r=0.0
+  accuracyAir:r=0.5
+  accuracyGnd:r=0.5
+  errMeasureVel:r=0.0
+  errTargettingOn100kmph:r=0.0
+  errMeasureVelFast:r=100.0
+  errMeasureVelFwdShift:r=1.0
+  errMeasureVelDir:r=3.0
+  errTargetting:r=1.0
+  errExplTime:r=0.0
+
+  turret{
+    head:t="turret_h_03"
+    gun:t="mg_03"
+    barrel:t="gun_barrel_03"
+    gunnerDm:t="gunner_03_dm"
+
+    linkedAnimPart{
+      verNode:t="bone_radius_pelvis_03"
+      verLimits:p2=0.0, 7.0
+      verOriginLimits:p2=5.0, 55.0
+    }
+  }
+
+  limits{
+    yaw:p2=-180.0, 180.0
+    pitch:p2=-5.0, 55.0
+  }
+}
+
+Weapon{
+  trigger:t="gunner3"
+  triggerGroup:t="primary"
+  blk:t="gameData/Weapons/groundModels_weapons/20mm_Oerlikon_mk_v_twin_mount.blk"
+  emitter:t="emtr_gun_flame_04"
+  flash:t="emtr_gun_flame_04"
+  useEmitter:b=yes
+  recoilOffset:r=0.2
+  defaultYaw:r=0.0
+  defaultPitch:r=0.0
+  speedYaw:r=60.0
+  speedPitch:r=20.0
+  fireConeAngle:r=1.0
+  ChainfireTime:r=1.0
+  bullets:i=2400
+  speedYaw:r=45.0
+  speedPitch:r=45.0
+  fireConeAngle:r=20.0
+  ChainfireTime:r=2.0
+  DelayAfterShoot:r=2.0
+  aimMinDist:r=20.0
+  aimMaxDist:r=4000.0
+  randomAngle:r=0.0
+  accuracyAir:r=0.5
+  accuracyGnd:r=0.5
+  errMeasureVel:r=0.0
+  errTargettingOn100kmph:r=0.0
+  errMeasureVelFast:r=100.0
+  errMeasureVelFwdShift:r=1.0
+  errMeasureVelDir:r=3.0
+  errTargetting:r=1.0
+  errExplTime:r=0.0
+
+  turret{
+    head:t="turret_h_04"
+    gun:t="mg_04"
+    barrel:t="gun_barrel_04"
+    gunnerDm:t="gunner_04_dm"
+
+    linkedAnimPart{
+      verNode:t="bone_radius_pelvis_04"
+      verLimits:p2=0.0, 7.0
+      verOriginLimits:p2=5.0, 55.0
+    }
+  }
+
+  limits{
+    yaw:p2=-180.0, 180.0
+    pitch:p2=-5.0, 55.0
+  }
+}
+
+Weapon{
+  trigger:t="gunner4"
+  triggerGroup:t="primary"
+  blk:t="gameData/Weapons/groundModels_weapons/20mm_Oerlikon_mk_v_twin_mount.blk"
+  emitter:t="emtr_gun_flame_05"
+  flash:t="emtr_gun_flame_05"
+  useEmitter:b=yes
+  recoilOffset:r=0.2
+  defaultYaw:r=0.0
+  defaultPitch:r=0.0
+  speedYaw:r=60.0
+  speedPitch:r=20.0
+  fireConeAngle:r=1.0
+  ChainfireTime:r=1.0
+  bullets:i=2400
+  speedYaw:r=45.0
+  speedPitch:r=45.0
+  fireConeAngle:r=20.0
+  ChainfireTime:r=2.0
+  DelayAfterShoot:r=2.0
+  aimMinDist:r=20.0
+  aimMaxDist:r=4000.0
+  randomAngle:r=0.0
+  accuracyAir:r=0.5
+  accuracyGnd:r=0.5
+  errMeasureVel:r=0.0
+  errTargettingOn100kmph:r=0.0
+  errMeasureVelFast:r=100.0
+  errMeasureVelFwdShift:r=1.0
+  errMeasureVelDir:r=3.0
+  errTargetting:r=1.0
+  errExplTime:r=0.0
+
+  turret{
+    head:t="turret_h_05"
+    gun:t="mg_05"
+    barrel:t="gun_barrel_05"
+    gunnerDm:t="gunner_05_dm"
+
+    linkedAnimPart{
+      verNode:t="bone_radius_pelvis_05"
+      verLimits:p2=0.0, 7.0
+      verOriginLimits:p2=5.0, 55.0
+    }
+  }
+
+  limits{
+    yaw:p2=-180.0, 180.0
+    pitch:p2=-5.0, 55.0
+  }
+}
+
+Weapon{
+  trigger:t="gunner5"
+  triggerGroup:t="primary"
+  blk:t="gameData/Weapons/groundModels_weapons/20mm_Oerlikon_mk_v_twin_mount.blk"
+  emitter:t="emtr_gun_flame_06"
+  flash:t="emtr_gun_flame_06"
+  useEmitter:b=yes
+  recoilOffset:r=0.2
+  defaultYaw:r=0.0
+  defaultPitch:r=0.0
+  speedYaw:r=60.0
+  speedPitch:r=20.0
+  fireConeAngle:r=1.0
+  ChainfireTime:r=1.0
+  bullets:i=2400
+  speedYaw:r=45.0
+  speedPitch:r=45.0
+  fireConeAngle:r=20.0
+  ChainfireTime:r=2.0
+  DelayAfterShoot:r=2.0
+  aimMinDist:r=20.0
+  aimMaxDist:r=4000.0
+  randomAngle:r=0.0
+  accuracyAir:r=0.5
+  accuracyGnd:r=0.5
+  errMeasureVel:r=0.0
+  errTargettingOn100kmph:r=0.0
+  errMeasureVelFast:r=100.0
+  errMeasureVelFwdShift:r=1.0
+  errMeasureVelDir:r=3.0
+  errTargetting:r=1.0
+  errExplTime:r=0.0
+
+  turret{
+    head:t="turret_h_06"
+    gun:t="mg_06"
+    barrel:t="gun_barrel_06"
+    gunnerDm:t="gunner_06_dm"
+
+    linkedAnimPart{
+      verNode:t="bone_radius_pelvis_06"
+      verLimits:p2=0.0, 7.0
+      verOriginLimits:p2=5.0, 55.0
+    }
+  }
+
+  limits{
+    yaw:p2=-180.0, 180.0
+    pitch:p2=-5.0, 55.0
+  }
+}
+
+Weapon{
+  trigger:t="gunner6"
+  triggerGroup:t="primary"
+  blk:t="gameData/Weapons/groundModels_weapons/20mm_Oerlikon_mk_v_twin_mount.blk"
+  emitter:t="emtr_gun_flame_07"
+  flash:t="emtr_gun_flame_07"
+  useEmitter:b=yes
+  recoilOffset:r=0.2
+  defaultYaw:r=0.0
+  defaultPitch:r=0.0
+  speedYaw:r=60.0
+  speedPitch:r=20.0
+  fireConeAngle:r=1.0
+  ChainfireTime:r=1.0
+  bullets:i=2400
+  speedYaw:r=45.0
+  speedPitch:r=45.0
+  fireConeAngle:r=20.0
+  ChainfireTime:r=2.0
+  DelayAfterShoot:r=2.0
+  aimMinDist:r=20.0
+  aimMaxDist:r=4000.0
+  randomAngle:r=0.0
+  accuracyAir:r=0.5
+  accuracyGnd:r=0.5
+  errMeasureVel:r=0.0
+  errTargettingOn100kmph:r=0.0
+  errMeasureVelFast:r=100.0
+  errMeasureVelFwdShift:r=1.0
+  errMeasureVelDir:r=3.0
+  errTargetting:r=1.0
+  errExplTime:r=0.0
+
+  turret{
+    head:t="turret_h_07"
+    gun:t="mg_07"
+    barrel:t="gun_barrel_07"
+    gunnerDm:t="gunner_07_dm"
+
+    linkedAnimPart{
+      verNode:t="bone_radius_pelvis_07"
+      verLimits:p2=0.0, 7.0
+      verOriginLimits:p2=5.0, 55.0
+    }
+  }
+
+  limits{
+    yaw:p2=-180.0, 180.0
+    pitch:p2=-5.0, 55.0
+  }
+}
+
+Weapon{
+  trigger:t="gunner7"
+  triggerGroup:t="primary"
+  blk:t="gameData/Weapons/groundModels_weapons/20mm_Oerlikon_mk_v_twin_mount.blk"
+  emitter:t="emtr_gun_flame_08"
+  flash:t="emtr_gun_flame_08"
+  useEmitter:b=yes
+  recoilOffset:r=0.2
+  defaultYaw:r=0.0
+  defaultPitch:r=0.0
+  speedYaw:r=60.0
+  speedPitch:r=20.0
+  fireConeAngle:r=1.0
+  ChainfireTime:r=1.0
+  bullets:i=2400
+  speedYaw:r=45.0
+  speedPitch:r=45.0
+  fireConeAngle:r=20.0
+  ChainfireTime:r=2.0
+  DelayAfterShoot:r=2.0
+  aimMinDist:r=20.0
+  aimMaxDist:r=4000.0
+  randomAngle:r=0.0
+  accuracyAir:r=0.5
+  accuracyGnd:r=0.5
+  errMeasureVel:r=0.0
+  errTargettingOn100kmph:r=0.0
+  errMeasureVelFast:r=100.0
+  errMeasureVelFwdShift:r=1.0
+  errMeasureVelDir:r=3.0
+  errTargetting:r=1.0
+  errExplTime:r=0.0
+
+  turret{
+    head:t="turret_h_08"
+    gun:t="mg_08"
+    barrel:t="gun_barrel_08"
+    gunnerDm:t="gunner_08_dm"
+
+    linkedAnimPart{
+      verNode:t="bone_radius_pelvis_08"
+      verLimits:p2=0.0, 7.0
+      verOriginLimits:p2=5.0, 55.0
+    }
+  }
+
+  limits{
+    yaw:p2=-180.0, 180.0
+    pitch:p2=-5.0, 55.0
+  }
+}

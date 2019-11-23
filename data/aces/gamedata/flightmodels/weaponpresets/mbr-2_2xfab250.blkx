@@ -1,0 +1,23 @@
+Weapon{
+  trigger:t="bombs"
+  external:b=yes
+  blk:t="gameData/Weapons/BombGuns/su_fab250.blk"
+  emitter:t="fab250_bomb_1"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  external:b=yes
+  blk:t="gameData/Weapons/BombGuns/su_fab250.blk"
+  emitter:t="fab250_bomb_2"
+  bullets:i=1
+}
+
+hideNodes{
+  node:t="pylon2_bomb100kg"
+  node:t="pylon1_bomb50kg"
+  node:t="pylon2_bomb50kg"
+  node:t="pylon3_bomb50kg"
+  node:t="pylon4_bomb50kg"
+}

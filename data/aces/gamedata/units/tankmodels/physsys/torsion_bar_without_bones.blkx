@@ -1,0 +1,24 @@
+PhysSys{
+  find:t="^suspension_(._\d\d)$"
+
+  points{
+
+    suspension{
+      name:t="suspension_$1"
+    }
+
+    wheel{
+      name:t="bone_wheel_$1"
+      limitMin:p3=-1000.0, 0.0, 0.0
+      limitMax:p3=1000.0, 0.0, 0.0
+    }
+  }
+
+  constraints{
+
+    edge{
+      from:t="suspension"
+      to:t="wheel"
+    }
+  }
+}

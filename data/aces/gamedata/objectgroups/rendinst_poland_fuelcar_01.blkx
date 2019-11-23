@@ -1,0 +1,15 @@
+className:t="composit"
+
+node{
+  type:t="rendInst"
+  name:t="#zis_6_bz"
+  tm:m=[[-0.541598, 0.0, -0.840638] [0.0, 1.0, 0.0] [0.840638, 0.0, -0.541598] [0.0, 0.0, 0.0]]
+  placeOnCollision:b=yes
+}
+
+node{
+  type:t="rendInst"
+  name:t="#debris_cable_d"
+  tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [2.44995, 0.00711727, -1.75]]
+  placeOnCollision:b=yes
+}

@@ -1,0 +1,609 @@
+Weapon{
+  trigger:t="gunner0"
+  triggerGroup:t="primary"
+  blk:t="gameData/Weapons/groundModels_weapons/85mm_90_K_naval_user_cannon.blk"
+  emitter:t="emtr_gun_flame_01"
+  flash:t="emtr_gun_flame_01"
+  useEmitter:b=yes
+  recoilOffset:r=0.3
+  barrelDP:t="gun_barrel_01_dm"
+  breechDP:t="cannon_breech_01_dm"
+  defaultYaw:r=0.0
+  defaultPitch:r=0.0
+  speedYaw:r=25.0
+  speedPitch:r=8.0
+  fireConeAngle:r=1.0
+  bullets:i=230
+  fireConeAngle:r=15.0
+  ChainfireTime:r=3.0
+  DelayAfterShoot:r=3.0
+  accuracyAir:r=1.5
+  accuracyGnd:r=1.0
+  errMeasureVel:r=0.0
+  errMeasureVelFast:r=0.0
+  errMeasureVelFwdShift:r=0.0
+  errMeasureVelDir:r=0.0
+  errTargettingOn100kmph:r=0.0
+  errTargetting:r=3.0
+  errExplTime:r=0.0
+
+  turret{
+    head:t="turret_01"
+    gun:t="cannon_breech_01"
+    barrel:t="gun_barrel_01"
+    gunnerDm:t="gunner_01_dm"
+    verDriveDm:t="drive_turret_v_01_dm"
+    horDriveDm:t="drive_turret_h_01_dm"
+  }
+
+  limits{
+    yaw:p2=-160.0, 160.0
+    pitch:p2=-5.0, 77.0
+  }
+}
+
+Weapon{
+  trigger:t="gunner1"
+  triggerGroup:t="machinegun"
+  blk:t="gameData/Weapons/groundModels_weapons/12_7mm_DShK_naval_user_machinegun.blk"
+  emitter:t="emtr_gun_flame_02"
+  flash:t="emtr_gun_flame_02"
+  useEmitter:b=yes
+  recoilOffset:r=0.0
+  barrelDP:t="mg_01_dm"
+  breechDP:t="mg_01_dm"
+  defaultYaw:r=0.0
+  defaultPitch:r=0.0
+  speedYaw:r=25.0
+  speedPitch:r=8.0
+  fireConeAngle:r=1.0
+  bullets:i=2000
+  fireConeAngle:r=15.0
+  ChainfireTime:r=3.0
+  DelayAfterShoot:r=3.0
+  accuracyAir:r=1.5
+  accuracyGnd:r=1.0
+  errMeasureVel:r=0.0
+  errMeasureVelFast:r=0.0
+  errMeasureVelFwdShift:r=0.0
+  errMeasureVelDir:r=0.0
+  errTargettingOn100kmph:r=0.0
+  errTargetting:r=3.0
+  errExplTime:r=0.0
+  reuseYawTrigger:i=11
+  reusePitchTrigger:i=11
+
+  turret{
+    head:t="turret_h_02"
+    gun:t="mg_01"
+    gunnerDm:t="gunner_03_dm"
+  }
+
+  limits{
+    yaw:p2=-75.0, 75.0
+    pitch:p2=-5.0, 77.0
+  }
+}
+
+Weapon{
+  trigger:t="gunner1"
+  triggerGroup:t="machinegun"
+  blk:t="gameData/Weapons/groundModels_weapons/12_7mm_DShK_naval_user_machinegun.blk"
+  emitter:t="emtr_gun_flame_03"
+  flash:t="emtr_gun_flame_03"
+  useEmitter:b=yes
+  recoilOffset:r=0.0
+  barrelDP:t="mg_02_dm"
+  breechDP:t="mg_02_dm"
+  defaultYaw:r=0.0
+  defaultPitch:r=0.0
+  speedYaw:r=25.0
+  speedPitch:r=8.0
+  fireConeAngle:r=1.0
+  bullets:i=2000
+  fireConeAngle:r=15.0
+  ChainfireTime:r=3.0
+  DelayAfterShoot:r=3.0
+  accuracyAir:r=1.5
+  accuracyGnd:r=1.0
+  errMeasureVel:r=0.0
+  errMeasureVelFast:r=0.0
+  errMeasureVelFwdShift:r=0.0
+  errMeasureVelDir:r=0.0
+  errTargettingOn100kmph:r=0.0
+  errTargetting:r=3.0
+  errExplTime:r=0.0
+  reuseYawTrigger:i=11
+  reusePitchTrigger:i=11
+
+  turret{
+    head:t="turret_h_02"
+    gun:t="mg_02"
+    gunnerDm:t="gunner_03_dm"
+  }
+
+  limits{
+    yaw:p2=-75.0, 75.0
+    pitch:p2=-5.0, 77.0
+  }
+}
+
+Weapon{
+  trigger:t="gunner2"
+  triggerGroup:t="machinegun"
+  blk:t="gameData/Weapons/groundModels_weapons/12_7mm_DShK_naval_user_machinegun.blk"
+  emitter:t="emtr_gun_flame_04"
+  flash:t="emtr_gun_flame_04"
+  useEmitter:b=yes
+  recoilOffset:r=0.0
+  barrelDP:t="mg_03_dm"
+  breechDP:t="mg_03_dm"
+  defaultYaw:r=0.0
+  defaultPitch:r=0.0
+  speedYaw:r=25.0
+  speedPitch:r=8.0
+  fireConeAngle:r=1.0
+  bullets:i=2000
+  fireConeAngle:r=15.0
+  ChainfireTime:r=3.0
+  DelayAfterShoot:r=3.0
+  accuracyAir:r=1.5
+  accuracyGnd:r=1.0
+  errMeasureVel:r=0.0
+  errMeasureVelFast:r=0.0
+  errMeasureVelFwdShift:r=0.0
+  errMeasureVelDir:r=0.0
+  errTargettingOn100kmph:r=0.0
+  errTargetting:r=3.0
+  errExplTime:r=0.0
+  reuseYawTrigger:i=12
+  reusePitchTrigger:i=12
+
+  turret{
+    head:t="turret_h_03"
+    gun:t="mg_03"
+    gunnerDm:t="gunner_05_dm"
+  }
+
+  limits{
+    yaw:p2=-160.0, 160.0
+    pitch:p2=-5.0, 77.0
+  }
+}
+
+Weapon{
+  trigger:t="gunner2"
+  triggerGroup:t="machinegun"
+  blk:t="gameData/Weapons/groundModels_weapons/12_7mm_DShK_naval_user_machinegun.blk"
+  emitter:t="emtr_gun_flame_05"
+  flash:t="emtr_gun_flame_05"
+  useEmitter:b=yes
+  recoilOffset:r=0.0
+  barrelDP:t="mg_04_dm"
+  breechDP:t="mg_04_dm"
+  defaultYaw:r=0.0
+  defaultPitch:r=0.0
+  speedYaw:r=25.0
+  speedPitch:r=8.0
+  fireConeAngle:r=1.0
+  bullets:i=2000
+  fireConeAngle:r=15.0
+  ChainfireTime:r=3.0
+  DelayAfterShoot:r=3.0
+  accuracyAir:r=1.5
+  accuracyGnd:r=1.0
+  errMeasureVel:r=0.0
+  errMeasureVelFast:r=0.0
+  errMeasureVelFwdShift:r=0.0
+  errMeasureVelDir:r=0.0
+  errTargettingOn100kmph:r=0.0
+  errTargetting:r=3.0
+  errExplTime:r=0.0
+  reuseYawTrigger:i=12
+  reusePitchTrigger:i=12
+
+  turret{
+    head:t="turret_h_03"
+    gun:t="mg_04"
+    gunnerDm:t="gunner_05_dm"
+  }
+
+  limits{
+    yaw:p2=-160.0, 160.0
+    pitch:p2=-5.0, 77.0
+  }
+}
+
+Weapon{
+  trigger:t="gunner3"
+  triggerGroup:t="machinegun"
+  blk:t="gameData/Weapons/groundModels_weapons/12_7mm_DShK_naval_user_machinegun.blk"
+  emitter:t="emtr_gun_flame_06"
+  flash:t="emtr_gun_flame_06"
+  useEmitter:b=yes
+  recoilOffset:r=0.0
+  barrelDP:t="mg_05_dm"
+  breechDP:t="mg_05_dm"
+  defaultYaw:r=0.0
+  defaultPitch:r=0.0
+  speedYaw:r=25.0
+  speedPitch:r=8.0
+  fireConeAngle:r=1.0
+  bullets:i=2000
+  fireConeAngle:r=15.0
+  ChainfireTime:r=3.0
+  DelayAfterShoot:r=3.0
+  accuracyAir:r=1.5
+  accuracyGnd:r=1.0
+  errMeasureVel:r=0.0
+  errMeasureVelFast:r=0.0
+  errMeasureVelFwdShift:r=0.0
+  errMeasureVelDir:r=0.0
+  errTargettingOn100kmph:r=0.0
+  errTargetting:r=3.0
+  errExplTime:r=0.0
+  reuseYawTrigger:i=13
+  reusePitchTrigger:i=13
+
+  turret{
+    head:t="turret_h_04"
+    gun:t="mg_05"
+    gunnerDm:t="gunner_04_dm"
+  }
+
+  limits{
+    yaw:p2=-160.0, 160.0
+    pitch:p2=-5.0, 77.0
+  }
+}
+
+Weapon{
+  trigger:t="gunner3"
+  triggerGroup:t="machinegun"
+  blk:t="gameData/Weapons/groundModels_weapons/12_7mm_DShK_naval_user_machinegun.blk"
+  emitter:t="emtr_gun_flame_07"
+  flash:t="emtr_gun_flame_07"
+  useEmitter:b=yes
+  recoilOffset:r=0.0
+  barrelDP:t="mg_06_dm"
+  breechDP:t="mg_06_dm"
+  defaultYaw:r=0.0
+  defaultPitch:r=0.0
+  speedYaw:r=25.0
+  speedPitch:r=8.0
+  fireConeAngle:r=1.0
+  bullets:i=2000
+  fireConeAngle:r=15.0
+  ChainfireTime:r=3.0
+  DelayAfterShoot:r=3.0
+  accuracyAir:r=1.5
+  accuracyGnd:r=1.0
+  errMeasureVel:r=0.0
+  errMeasureVelFast:r=0.0
+  errMeasureVelFwdShift:r=0.0
+  errMeasureVelDir:r=0.0
+  errTargettingOn100kmph:r=0.0
+  errTargetting:r=3.0
+  errExplTime:r=0.0
+  reuseYawTrigger:i=13
+  reusePitchTrigger:i=13
+
+  turret{
+    head:t="turret_h_04"
+    gun:t="mg_06"
+    gunnerDm:t="gunner_04_dm"
+  }
+
+  limits{
+    yaw:p2=-160.0, 160.0
+    pitch:p2=-5.0, 77.0
+  }
+}
+
+Weapon{
+  trigger:t="gunner4"
+  triggerGroup:t="secondary"
+  blk:t="gameData/Weapons/groundModels_weapons/37mm_70_K_naval_user_cannon.blk"
+  emitter:t="emtr_gun_flame_08"
+  flash:t="emtr_gun_flame_08"
+  useEmitter:b=yes
+  recoilOffset:r=0.3
+  barrelDP:t="gun_barrel_02_dm"
+  breechDP:t="cannon_breech_02_dm"
+  defaultYaw:r=0.0
+  defaultPitch:r=0.0
+  speedYaw:r=25.0
+  speedPitch:r=8.0
+  fireConeAngle:r=1.0
+  bullets:i=1000
+  fireConeAngle:r=15.0
+  ChainfireTime:r=3.0
+  DelayAfterShoot:r=3.0
+  accuracyAir:r=1.5
+  accuracyGnd:r=1.0
+  errMeasureVel:r=0.0
+  errMeasureVelFast:r=0.0
+  errMeasureVelFwdShift:r=0.0
+  errMeasureVelDir:r=0.0
+  errTargettingOn100kmph:r=0.0
+  errTargetting:r=3.0
+  errExplTime:r=0.0
+
+  turret{
+    head:t="turret_h_05"
+    gun:t="cannon_breech_02"
+    barrel:t="gun_barrel_02"
+    gunnerDm:t="gunner_02_dm"
+    verDriveDm:t="drive_turret_v_05_dm"
+    horDriveDm:t="drive_turret_h_05_dm"
+  }
+
+  limits{
+    yaw:p2=-160.0, 160.0
+    pitch:p2=-5.0, 77.0
+  }
+}
+
+Weapon{
+  trigger:t="gunner5"
+  triggerGroup:t="secondary"
+  blk:t="gameData/Weapons/groundModels_weapons/37mm_70_K_naval_user_cannon.blk"
+  emitter:t="emtr_gun_flame_09"
+  flash:t="emtr_gun_flame_09"
+  useEmitter:b=yes
+  recoilOffset:r=0.3
+  barrelDP:t="gun_barrel_03_dm"
+  breechDP:t="cannon_breech_03_dm"
+  defaultYaw:r=0.0
+  defaultPitch:r=0.0
+  speedYaw:r=25.0
+  speedPitch:r=8.0
+  fireConeAngle:r=1.0
+  bullets:i=1000
+  fireConeAngle:r=15.0
+  ChainfireTime:r=3.0
+  DelayAfterShoot:r=3.0
+  accuracyAir:r=1.5
+  accuracyGnd:r=1.0
+  errMeasureVel:r=0.0
+  errMeasureVelFast:r=0.0
+  errMeasureVelFwdShift:r=0.0
+  errMeasureVelDir:r=0.0
+  errTargettingOn100kmph:r=0.0
+  errTargetting:r=3.0
+  errExplTime:r=0.0
+
+  turret{
+    head:t="turret_h_06"
+    gun:t="cannon_breech_03"
+    barrel:t="gun_barrel_03"
+    gunnerDm:t="gunner_06_dm"
+    verDriveDm:t="drive_turret_v_06_dm"
+    horDriveDm:t="drive_turret_h_06_dm"
+  }
+
+  limits{
+    yaw:p2=-160.0, 160.0
+    pitch:p2=-5.0, 77.0
+  }
+}
+
+Weapon{
+  trigger:t="bombs"
+  triggerGroup:t="depth_charge"
+  blk:t="gameData/weapons/bombguns/dive_bomb_ussr_pr_183.blk"
+  emitter:t="bone_bomb_01"
+  bullets:i=1
+  external:b=yes
+  dropSpeed:r=3.0
+}
+
+Weapon{
+  trigger:t="bombs"
+  triggerGroup:t="depth_charge"
+  blk:t="gameData/weapons/bombguns/dive_bomb_ussr_pr_183.blk"
+  emitter:t="bone_bomb_02"
+  bullets:i=1
+  external:b=yes
+  dropSpeed:r=3.0
+}
+
+Weapon{
+  trigger:t="bombs"
+  triggerGroup:t="depth_charge"
+  blk:t="gameData/weapons/bombguns/dive_bomb_ussr_pr_183.blk"
+  emitter:t="bone_bomb_03"
+  bullets:i=1
+  external:b=yes
+  dropSpeed:r=5.0
+}
+
+Weapon{
+  trigger:t="bombs"
+  triggerGroup:t="depth_charge"
+  blk:t="gameData/weapons/bombguns/dive_bomb_ussr_pr_183.blk"
+  emitter:t="bone_bomb_04"
+  bullets:i=1
+  external:b=yes
+  dropSpeed:r=5.0
+}
+
+Weapon{
+  trigger:t="bombs"
+  triggerGroup:t="depth_charge"
+  blk:t="gameData/weapons/bombguns/dive_bomb_ussr_pr_183.blk"
+  emitter:t="bone_bomb_05"
+  bullets:i=1
+  external:b=yes
+  dropSpeed:r=7.0
+}
+
+Weapon{
+  trigger:t="bombs"
+  triggerGroup:t="depth_charge"
+  blk:t="gameData/weapons/bombguns/dive_bomb_ussr_pr_183.blk"
+  emitter:t="bone_bomb_06"
+  bullets:i=1
+  external:b=yes
+  dropSpeed:r=7.0
+}
+
+Weapon{
+  trigger:t="bombs"
+  triggerGroup:t="depth_charge"
+  blk:t="gameData/weapons/bombguns/dive_bomb_ussr_pr_183.blk"
+  emitter:t="bone_bomb_07"
+  bullets:i=1
+  external:b=yes
+  dropSpeed:r=9.0
+}
+
+Weapon{
+  trigger:t="bombs"
+  triggerGroup:t="depth_charge"
+  blk:t="gameData/weapons/bombguns/dive_bomb_ussr_pr_183.blk"
+  emitter:t="bone_bomb_08"
+  bullets:i=1
+  external:b=yes
+  dropSpeed:r=9.0
+}
+
+Weapon{
+  trigger:t="bombs"
+  triggerGroup:t="depth_charge"
+  blk:t="gameData/weapons/bombguns/dive_bomb_ussr_pr_183.blk"
+  emitter:t="bone_bomb_09"
+  bullets:i=1
+  external:b=yes
+  dropSpeed:r=11.0
+}
+
+Weapon{
+  trigger:t="bombs"
+  triggerGroup:t="depth_charge"
+  blk:t="gameData/weapons/bombguns/dive_bomb_ussr_pr_183.blk"
+  emitter:t="bone_bomb_10"
+  bullets:i=1
+  external:b=yes
+  dropSpeed:r=11.0
+}
+
+Weapon{
+  trigger:t="bombs"
+  triggerGroup:t="depth_charge"
+  blk:t="gameData/weapons/bombguns/dive_bomb_ussr_pr_183.blk"
+  emitter:t="bone_bomb_11"
+  bullets:i=1
+  external:b=yes
+  dropSpeed:r=13.0
+}
+
+Weapon{
+  trigger:t="bombs"
+  triggerGroup:t="depth_charge"
+  blk:t="gameData/weapons/bombguns/dive_bomb_ussr_pr_183.blk"
+  emitter:t="bone_bomb_12"
+  bullets:i=1
+  external:b=yes
+  dropSpeed:r=13.0
+}
+
+Weapon{
+  trigger:t="bombs"
+  triggerGroup:t="depth_charge"
+  blk:t="gameData/weapons/bombguns/depth_charge_ussr_bb1_mortar.blk"
+  emitter:t="bone_bomb_13"
+  bullets:i=1
+  external:b=yes
+  dropSpeed:r=20.0
+}
+
+Weapon{
+  trigger:t="bombs"
+  triggerGroup:t="depth_charge"
+  blk:t="gameData/weapons/bombguns/depth_charge_ussr_bb1_mortar.blk"
+  emitter:t="bone_bomb_14"
+  bullets:i=1
+  external:b=yes
+  dropSpeed:r=20.0
+}
+
+Weapon{
+  trigger:t="bombs"
+  triggerGroup:t="depth_charge"
+  blk:t="gameData/weapons/bombguns/bomb_ussr_rbm.blk"
+  emitter:t="bone_rocket_01"
+  bullets:i=1
+  external:b=yes
+  dropSpeed:r=30.0
+}
+
+Weapon{
+  trigger:t="bombs"
+  triggerGroup:t="depth_charge"
+  blk:t="gameData/weapons/bombguns/bomb_ussr_rbm.blk"
+  emitter:t="bone_rocket_02"
+  bullets:i=1
+  external:b=yes
+  dropSpeed:r=30.0
+}
+
+Weapon{
+  trigger:t="bombs"
+  triggerGroup:t="depth_charge"
+  blk:t="gameData/weapons/bombguns/bomb_ussr_rbm.blk"
+  emitter:t="bone_rocket_03"
+  bullets:i=1
+  external:b=yes
+  dropSpeed:r=30.0
+}
+
+Weapon{
+  trigger:t="bombs"
+  triggerGroup:t="depth_charge"
+  blk:t="gameData/weapons/bombguns/bomb_ussr_rbm.blk"
+  emitter:t="bone_rocket_04"
+  bullets:i=1
+  external:b=yes
+  dropSpeed:r=30.0
+}
+
+Weapon{
+  trigger:t="bombs"
+  triggerGroup:t="depth_charge"
+  blk:t="gameData/weapons/bombguns/bomb_ussr_rbm.blk"
+  emitter:t="bone_rocket_05"
+  bullets:i=1
+  external:b=yes
+  dropSpeed:r=30.0
+}
+
+Weapon{
+  trigger:t="bombs"
+  triggerGroup:t="depth_charge"
+  blk:t="gameData/weapons/bombguns/bomb_ussr_rbm.blk"
+  emitter:t="bone_rocket_06"
+  bullets:i=1
+  external:b=yes
+  dropSpeed:r=30.0
+}
+
+Weapon{
+  trigger:t="bombs"
+  triggerGroup:t="depth_charge"
+  blk:t="gameData/weapons/bombguns/bomb_ussr_rbm.blk"
+  emitter:t="bone_rocket_07"
+  bullets:i=1
+  external:b=yes
+  dropSpeed:r=30.0
+}
+
+Weapon{
+  trigger:t="bombs"
+  triggerGroup:t="depth_charge"
+  blk:t="gameData/weapons/bombguns/bomb_ussr_rbm.blk"
+  emitter:t="bone_rocket_08"
+  bullets:i=1
+  external:b=yes
+  dropSpeed:r=30.0
+}

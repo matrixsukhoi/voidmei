@@ -1,0 +1,41 @@
+takeoffDistance:r=701.296
+landingDistance:r=701.296
+
+altSpecs{
+
+  altSpecs0{
+    maxSpeed:r=74.6
+    optSpeed:r=43.8001
+    maxClimb:r=3.0148
+  }
+
+  altSpecs1000{
+    maxSpeed:r=78.1999
+    optSpeed:r=44.9433
+    maxClimb:r=3.1133
+  }
+
+  altSpecs2000{
+    maxSpeed:r=82.1999
+    optSpeed:r=46.2124
+    maxClimb:r=3.2647
+  }
+
+  altSpecs3000{
+    maxSpeed:r=80.7999
+    optSpeed:r=46.2124
+    maxClimb:r=2.3751
+  }
+
+  altSpecs4000{
+    maxSpeed:r=76.8
+    optSpeed:r=46.2124
+    maxClimb:r=1.4651
+  }
+
+  altSpecs5000{
+    maxSpeed:r=70.6001
+    optSpeed:r=46.2124
+    maxClimb:r=0.539
+  }
+}

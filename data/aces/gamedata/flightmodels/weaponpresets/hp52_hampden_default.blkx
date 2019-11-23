@@ -1,0 +1,13 @@
+hideNodes{
+  node:t="pylon_bomb1"
+  node:t="pylon_bomb2"
+  node:t="pylon_torpedo"
+  node:t="hatch1"
+  node:t="hatch2"
+  node:t="hatch3"
+  node:t="hatch4"
+  node:t="hatch5"
+  node:t="hatch6"
+  node:t="hatch7"
+  node:t="hatch8"
+}

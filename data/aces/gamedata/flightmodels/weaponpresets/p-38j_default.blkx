@@ -1,0 +1,6 @@
+hideNodes{
+  node:t="bazooka_l"
+  node:t="bazooka_r"
+  node:t="pilon_l"
+  node:t="pilon_r"
+}

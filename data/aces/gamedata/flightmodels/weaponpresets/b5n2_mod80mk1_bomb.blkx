@@ -1,0 +1,14 @@
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/jp_mod80mark1.blk"
+  emitter:t="bomb2"
+  bullets:i=1
+  external:b=yes
+}
+
+hideNodes{
+  node:t="pylon_torpedo"
+  node:t="pylon_bomb2"
+  node:t="pylon_bomb3"
+  node:t="pylon_bomb4"
+}

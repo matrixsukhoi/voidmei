@@ -1,0 +1,316 @@
+cannon:b=yes
+weaponType:i=-1
+bUseHookAsRel:b=yes
+emitColor:p3=1.0, 1.0, 0.0
+emitI:r=10.0
+emitR:r=3.0
+emitTime:r=0.03
+aimMinDist:r=0.1
+aimMaxDist:r=2000.0
+maxDeltaAngle:r=0.12
+maxDeltaAngleVertical:r=0.12
+shotFreq:r=0.25
+traceFreq:i=4
+bEnablePause:b=no
+bullets:i=-1
+bulletsCluster:i=1
+fxType:t="big_gun_flame"
+fxGroundDust:t="ground_shock_wave_dust"
+shouldCollideWithRendinsts:b=yes
+sound_path:t="tanks/weapon_tanks/cannons"
+sound:t="57mm_qf6"
+sound_inside:t="57mm_qf6_interior"
+sfxReloadBullet:t="grd_cannon_reload"
+fxMultipleSpawn:b=yes
+isBulletBelt:b=no
+
+bullet{
+  bulletCount:i=20
+  mass:r=2.87
+  caliber:r=0.057
+  speed:r=883.0
+  maxDistance:r=10000.0
+  bulletType:t="apc_tank"
+  bulletName:t="57mm_shot_mk8t"
+  hitPowerMult:r=120.0
+  relativeVelHitShift:p2=300.0, 1000.0
+  relativeVelArmorShift:p2=200.0, 1000.0
+  groundCollisionEffect:t="big_ground_splash"
+  groundFxScale:p2=0.7, 0.8
+  ricochetEffect:t="cannon_ricochet"
+  waterCollisionEffect:t="big_water_splash"
+
+  hitpower{
+    HitPower0m:p2=0.85, 500.0
+    HitPower10000m:p2=0.8, 10000.0
+  }
+
+  armorpower{
+    ArmorPower0m:p2=103.0, 10.0
+    ArmorPower100m:p2=101.0, 100.0
+    ArmorPower250m:p2=98.0, 250.0
+    ArmorPower500m:p2=91.0, 500.0
+    ArmorPower750m:p2=84.0, 750.0
+    ArmorPower1000m:p2=79.0, 1000.0
+    ArmorPower1250m:p2=73.0, 1250.0
+    ArmorPower1500m:p2=69.0, 1500.0
+    ArmorPower2000m:p2=57.0, 2000.0
+    ArmorPower2500m:p2=50.0, 2500.0
+    ArmorPower3000m:p2=45.0, 3000.0
+    ArmorPower10000m:p2=0.0, 10000.0
+  }
+
+  visual{
+    range_percent_of_ammo:p2=100.0, 0.0
+    traceFreq:i=1
+    tracer:t="30mmRed"
+    trail:t="black"
+  }
+
+  collisions{
+
+    steel{
+      fx:t="cannon_hit_light"
+    }
+
+    armor{
+      fx:t="cannon_hit_armor"
+    }
+  }
+}
+
+57mm_britain_6pdr_HE{
+
+  bullet{
+    bulletCount:i=40
+    mass:r=2.96
+    explosiveType:t="tnt"
+    explosiveMass:r=0.153
+    caliber:r=0.057
+    speed:r=807.0
+    maxDistance:r=10000.0
+    bulletType:t="he_frag_tank"
+    bulletName:t="57mm_shell_mk10t"
+    hitPowerMult:r=10.0
+    nearHitPower:p2=1.0, 50.0
+    midHitPower:p2=0.9, 300.0
+    farHitPower:p2=0.1, 700.0
+    endHitPower:p2=0.008, 1500.0
+    relativeVelHitShift:p2=300.0, 1000.0
+    nearArmorPower:p2=3.0, 150.0
+    midArmorPower:p2=3.0, 600.0
+    farArmorPower:p2=2.0, 1000.0
+    relativeVelArmorShift:p2=200.0, 1000.0
+    explodeTreshold:r=0.1
+    explodeHitPower:r=45.0
+    explodeArmorPower:r=5.0
+    explodeRadius:p2=0.5, 0.8
+    fuseDelayDist:r=0.4
+    shutterDamage:b=yes
+    shutterDamageRadius:r=10.5
+    shutterAmount:i=100
+    shutterArmorPower:r=7.5
+    shutterHit:r=9.0
+    groundCollisionEffect:t="art_ground_splash"
+    ricochetEffect:t="cannon_ricochet"
+    groundFxScale:p2=1.2, 1.3
+
+    visual{
+      range_percent_of_ammo:p2=100.0, 0.0
+      traceFreq:i=1
+      tracer:t="noColor"
+    }
+
+    collisions{
+
+      steel{
+        fx:t="cannon_hit_armor_cumulative"
+        fxScale:p2=1.0, 2.0
+      }
+
+      armor{
+        fx:t="cannon_hit_armor_cumulative"
+        fxScale:p2=1.0, 2.0
+      }
+
+      wood{
+        fx:t="cannon_hit_ship_cumulative"
+        fxScale:p2=1.0, 2.0
+      }
+    }
+  }
+}
+
+57mm_britain_6pdr_APC{
+
+  bullet{
+    bulletCount:i=20
+    mass:r=2.8
+    caliber:r=0.057
+    speed:r=883.0
+    maxDistance:r=10000.0
+    bulletType:t="ap_tank"
+    bulletName:t="57mm_shot_mk5t_hv"
+    hitPowerMult:r=120.0
+    relativeVelHitShift:p2=300.0, 1000.0
+    relativeVelArmorShift:p2=200.0, 1000.0
+    groundCollisionEffect:t="big_ground_splash"
+    groundFxScale:p2=0.7, 0.8
+    ricochetEffect:t="cannon_ricochet"
+    waterCollisionEffect:t="big_water_splash"
+
+    hitpower{
+      HitPower0m:p2=0.85, 500.0
+      HitPower10000m:p2=0.8, 10000.0
+    }
+
+    armorpower{
+      ArmorPower0m:p2=122.0, 10.0
+      ArmorPower100m:p2=121.0, 100.0
+      ArmorPower250m:p2=113.0, 250.0
+      ArmorPower500m:p2=100.0, 500.0
+      ArmorPower750m:p2=92.0, 750.0
+      ArmorPower1000m:p2=81.0, 1000.0
+      ArmorPower1250m:p2=71.0, 1250.0
+      ArmorPower1500m:p2=62.0, 1500.0
+      ArmorPower2000m:p2=55.0, 2000.0
+      ArmorPower2500m:p2=49.0, 2500.0
+      ArmorPower3000m:p2=38.0, 3000.0
+      ArmorPower10000m:p2=0.0, 10000.0
+    }
+
+    visual{
+      range_percent_of_ammo:p2=100.0, 0.0
+      traceFreq:i=1
+      tracer:t="30mmRed"
+      trail:t="black"
+    }
+
+    collisions{
+
+      steel{
+        fx:t="cannon_hit_light"
+      }
+
+      armor{
+        fx:t="cannon_hit_armor"
+      }
+    }
+  }
+}
+
+57mm_britain_6pdr_APCBC{
+
+  bullet{
+    bulletCount:i=20
+    mass:r=3.23
+    caliber:r=0.057
+    speed:r=847.0
+    maxDistance:r=10000.0
+    bulletType:t="apcbc_tank"
+    bulletName:t="57mm_shot_mk9t"
+    hitPowerMult:r=120.0
+    relativeVelHitShift:p2=300.0, 1000.0
+    relativeVelArmorShift:p2=200.0, 1000.0
+    groundCollisionEffect:t="big_ground_splash"
+    groundFxScale:p2=0.7, 0.8
+    ricochetEffect:t="cannon_ricochet"
+    waterCollisionEffect:t="big_water_splash"
+
+    hitpower{
+      HitPower0m:p2=0.85, 500.0
+      HitPower10000m:p2=0.8, 10000.0
+    }
+
+    armorpower{
+      ArmorPower0m:p2=127.0, 10.0
+      ArmorPower100m:p2=126.0, 100.0
+      ArmorPower250m:p2=120.0, 250.0
+      ArmorPower500m:p2=112.0, 500.0
+      ArmorPower750m:p2=104.0, 750.0
+      ArmorPower1000m:p2=101.0, 1000.0
+      ArmorPower1250m:p2=97.0, 1250.0
+      ArmorPower1500m:p2=94.0, 1500.0
+      ArmorPower2000m:p2=90.0, 2000.0
+      ArmorPower2500m:p2=85.0, 2500.0
+      ArmorPower3000m:p2=79.0, 3000.0
+      ArmorPower10000m:p2=0.0, 10000.0
+    }
+
+    visual{
+      range_percent_of_ammo:p2=100.0, 0.0
+      traceFreq:i=1
+      tracer:t="30mmRed"
+      trail:t="black"
+    }
+
+    collisions{
+
+      steel{
+        fx:t="cannon_hit_light"
+      }
+
+      armor{
+        fx:t="cannon_hit_armor"
+      }
+    }
+  }
+}
+
+57mm_britain_6pdr_APDS{
+
+  bullet{
+    bulletCount:i=20
+    mass:r=1.5
+    caliber:r=0.057
+    speed:r=1219.0
+    maxDistance:r=10000.0
+    bulletType:t="apds_tank"
+    bulletName:t="57mm_shot_mk1bt"
+    hitPowerMult:r=140.0
+    relativeVelHitShift:p2=300.0, 1000.0
+    relativeVelArmorShift:p2=200.0, 1000.0
+    groundCollisionEffect:t="big_ground_splash"
+    groundFxScale:p2=0.7, 0.8
+    ricochetEffect:t="cannon_ricochet"
+    waterCollisionEffect:t="big_water_splash"
+
+    hitpower{
+      HitPower0m:p2=0.85, 500.0
+      HitPower10000m:p2=0.8, 10000.0
+    }
+
+    armorpower{
+      ArmorPower0m:p2=177.0, 10.0
+      ArmorPower100m:p2=176.0, 100.0
+      ArmorPower250m:p2=167.0, 250.0
+      ArmorPower500m:p2=161.0, 500.0
+      ArmorPower750m:p2=156.0, 750.0
+      ArmorPower1000m:p2=147.0, 1000.0
+      ArmorPower1250m:p2=131.0, 1250.0
+      ArmorPower1500m:p2=124.0, 1500.0
+      ArmorPower2000m:p2=104.0, 2000.0
+      ArmorPower2500m:p2=89.0, 2500.0
+      ArmorPower3000m:p2=75.0, 3000.0
+      ArmorPower10000m:p2=0.0, 10000.0
+    }
+
+    visual{
+      range_percent_of_ammo:p2=100.0, 0.0
+      traceFreq:i=1
+      tracer:t="30mmRed"
+      trail:t="black"
+    }
+
+    collisions{
+
+      steel{
+        fx:t="cannon_hit_light"
+      }
+
+      armor{
+        fx:t="cannon_hit_armor"
+      }
+    }
+  }
+}

@@ -1,0 +1,95 @@
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/su_fab100.blk"
+  emitter:t="bomb1"
+  dm:t="bomb1_dm"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/su_fab100.blk"
+  emitter:t="bomb4"
+  dm:t="bomb2_dm"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/su_fab100.blk"
+  emitter:t="bomb2"
+  dm:t="bomb1_dm"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/su_fab100.blk"
+  emitter:t="bomb3"
+  dm:t="bomb2_dm"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/su_rs82.blk"
+  emitter:t="rocket9"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/su_rs82.blk"
+  emitter:t="rocket16"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/su_rs82.blk"
+  emitter:t="rocket10"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/su_rs82.blk"
+  emitter:t="rocket15"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/su_rs82.blk"
+  emitter:t="rocket11"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/su_rs82.blk"
+  emitter:t="rocket14"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/su_rs82.blk"
+  emitter:t="rocket12"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/su_rs82.blk"
+  emitter:t="rocket13"
+  bullets:i=1
+}

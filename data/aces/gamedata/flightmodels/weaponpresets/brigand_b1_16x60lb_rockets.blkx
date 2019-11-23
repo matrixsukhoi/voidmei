@@ -1,0 +1,150 @@
+hideNodes{
+  node:t="pylon_bomb1"
+  node:t="pylon_bomb2"
+  node:t="pylon_bomb3"
+  node:t="pylon_bomb4"
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/uk_rp3_4b.blk"
+  emitter:t="rocket_60lb_1"
+  bullets:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/uk_rp3_4b.blk"
+  emitter:t="rocket_60lb_2"
+  bullets:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/uk_rp3_4b.blk"
+  emitter:t="rocket_60lb_3"
+  bullets:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/uk_rp3_4b.blk"
+  emitter:t="rocket_60lb_4"
+  bullets:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/uk_rp3_4b.blk"
+  emitter:t="rocket_60lb_5"
+  bullets:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/uk_rp3_4b.blk"
+  emitter:t="rocket_60lb_6"
+  bullets:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/uk_rp3_4b.blk"
+  emitter:t="rocket_60lb_7"
+  bullets:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/uk_rp3_4b.blk"
+  emitter:t="rocket_60lb_8"
+  bullets:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/uk_rp3_4a.blk"
+  emitter:t="rocket_60lb_9"
+  bullets:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/uk_rp3_4a.blk"
+  emitter:t="rocket_60lb_10"
+  bullets:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/uk_rp3_4a.blk"
+  emitter:t="rocket_60lb_11"
+  bullets:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/uk_rp3_4a.blk"
+  emitter:t="rocket_60lb_12"
+  bullets:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/uk_rp3_4a.blk"
+  emitter:t="rocket_60lb_13"
+  bullets:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/uk_rp3_4a.blk"
+  emitter:t="rocket_60lb_14"
+  bullets:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/uk_rp3_4a.blk"
+  emitter:t="rocket_60lb_15"
+  bullets:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="rockets"
+  external:b=yes
+  blk:t="gameData/Weapons/rocketGuns/uk_rp3_4a.blk"
+  emitter:t="rocket_60lb_16"
+  bullets:i=1
+  external:b=yes
+}

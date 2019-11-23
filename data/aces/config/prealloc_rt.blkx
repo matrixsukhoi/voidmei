@@ -1,0 +1,479 @@
+rt{
+  backBufSz:b=yes
+  count:i=1
+  msaa:b=no
+  fmt:t="A16B16G16R16F"
+  tile:b=yes
+  name:t="targetTex"
+}
+
+rt{
+  backBufSz:b=yes
+  count:i=1
+  msaa:b=no
+  fmt:t="R32F"
+  tile:b=yes
+  name:t="targetZTex"
+}
+
+rt{
+  backBufSz:b=yes
+  szDiv:ip2=2, 2
+  fmt:t="R32F"
+  tile:b=yes
+  name:t="targetLowZTex"
+}
+
+rt{
+  size:ip2=32, 64
+  count:i=1
+  fmt:t="G16R16F"
+  tile:b=no
+  name:t="SimulInscatterTex"
+}
+
+rt{
+  size:ip2=32, 64
+  count:i=1
+  fmt:t="G16R16F"
+  tile:b=no
+  name:t="SimulInscatterTexZW"
+}
+
+rt{
+  size:ip2=16, 64
+  count:i=1
+  fmt:t="A16B16G16R16F"
+  tile:b=no
+  alias:t="SimulInscatterTex"
+  name:t="SimulInscatterTexRT"
+}
+
+rt{
+  size:ip2=16, 64
+  count:i=1
+  fmt:t="A16B16G16R16F"
+  tile:b=no
+  alias:t="SimulInscatterTexZW"
+  name:t="SimulInscatterTexZWRT"
+}
+
+rt{
+  size:ip2=1024, 1024
+  fmt:t="R32F"
+  tile:b=yes
+  name:t="dest_vsm_tex"
+}
+
+rt{
+  size:ip2=1024, 1024
+  fmt:t="G16R16F"
+  tile:b=yes
+  name:t="temp_vsm_tex"
+}
+
+rt{
+  size:ip2=1024, 1024
+  fmt:t="G16R16F"
+  levels:i=1
+  tile:b=yes
+  name:t="targ_vsm_tex"
+}
+
+rt{
+  size:ip2=512, 1024
+  fmt:t="A16B16G16R16F"
+  tile:b=yes
+  alias:t="temp_vsm_tex"
+  name:t="temp_vsm_wrtex"
+}
+
+rt{
+  size:ip2=512, 1024
+  fmt:t="A16B16G16R16F"
+  levels:i=1
+  tile:b=yes
+  alias:t="targ_vsm_tex"
+  name:t="targ_vsm_wrtex"
+}
+
+rt{
+  size:ip2=1280, 1024
+  count:i=1
+  tile:b=yes
+  name:t="localmem_area"
+}
+
+rt{
+  backBufSz:b=yes
+  count:i=1
+  tile:b=yes
+  alias:t="localmem_area"
+  name:t="lowResolutionFxTex"
+}
+
+rt{
+  size:ip2=1280, 1024
+  count:i=1
+  tile:b=no
+  cpuread:b=yes
+  name:t="mainmem_area"
+}
+
+rt{
+  backBufSz:b=yes
+  count:i=1
+  tile:b=no
+  cpuread:b=yes
+  alias:t="mainmem_area"
+  name:t="mlaaTex"
+}
+
+rt{
+  size:ip2=256, 256
+  count:i=2
+  tile:b=yes
+}
+
+rt{
+  size:ip2=256, 256
+  count:i=1
+  fmt:t="R8"
+  tile:b=yes
+}
+
+rt{
+  backBufSz:b=yes
+  count:i=1
+  tile:b=yes
+  name:t="DemonPostFx LDR RT"
+}
+
+rt{
+  backBufSz:b=yes
+  szDiv:ip2=4, 4
+  count:i=2
+  fmt:t="R8"
+  tile:b=no
+  cpuread:b=yes
+  name:t="DemonPostFx luminance RT"
+}
+
+rt{
+  backBufSz:b=yes
+  szDiv:ip2=4, 4
+  count:i=1
+  tile:b=yes
+  alias:t="localmem_area"
+  offset:ip2=0, 0
+  name:t="DemonPostFx lowresA RT"
+}
+
+rt{
+  backBufSz:b=yes
+  szDiv:ip2=4, 4
+  count:i=1
+  tile:b=yes
+  alias:t="localmem_area"
+  offset:ip2=512, 0
+  name:t="DemonPostFx lowResTexB RT"
+}
+
+rt{
+  backBufSz:b=yes
+  szDiv:ip2=4, 4
+  count:i=1
+  tile:b=yes
+  alias:t="localmem_area"
+  offset:ip2=0, 256
+  name:t="DemonPostFx glowTex RT"
+}
+
+rt{
+  backBufSz:b=yes
+  szDiv:ip2=4, 4
+  count:i=1
+  tile:b=yes
+  alias:t="localmem_area"
+  offset:ip2=512, 256
+  name:t="DemonPostFx low-res previous frame RT"
+}
+
+rt{
+  backBufSz:b=yes
+  szDiv:ip2=4, 4
+  count:i=1
+  tile:b=yes
+  cpuread:b=yes
+  name:t="DemonPostFx skyTex RT"
+}
+
+rt{
+  backBufSz:b=yes
+  szDiv:ip2=4, 4
+  count:i=1
+  fmt:t="R8"
+  tile:b=no
+  name:t="DemonPostFx lowresA lum RT"
+}
+
+rt{
+  backBufSz:b=yes
+  szDiv:ip2=4, 4
+  count:i=1
+  fmt:t="R8"
+  tile:b=no
+  name:t="DemonPostFx lowResTexB lum RT"
+}
+
+rt{
+  size:ip2=128, 128
+  tile:b=no
+  levels:i=4
+  fmt:t="A8R8G8B8"
+  name:t="commonImpostorTex"
+}
+
+rt{
+  size:ip2=128, 128
+  tile:b=no
+  levels:i=4
+  fmt:t="A8R8G8B8"
+  name:t="commonNormalImpostorTex"
+}
+
+rt{
+  size:ip2=512, 512
+  swizzle:b=yes
+  levels:i=6
+  fmt:t="A8R8G8B8"
+  name:t="water_near_normal_map"
+}
+
+rt{
+  size:ip2=512, 512
+  swizzle:b=yes
+  levels:i=8
+  fmt:t="A8R8G8B8"
+  name:t="water_far_normal_map"
+}
+
+rt{
+  size:ip2=1024, 1024
+  levels:i=1
+  fmt:t="A8R8G8B8"
+  name:t="clipmapLocal"
+  alias:t="localmem_area"
+}
+
+rt{
+  size:ip2=1024, 1024
+  cpuread:b=yes
+  levels:i=1
+  fmt:t="A8R8G8B8"
+  name:t="clipmapMain"
+  alias:t="mainmem_area"
+}
+
+rt{
+  size:ip2=3072, 2048
+  cpuread:b=no
+  levels:i=1
+  fmt:t="DXT5"
+  name:t="clipmap"
+}
+
+rt{
+  size:ip2=512, 512
+  count:i=1
+  fmt:t="R5G6B5"
+  swizzle:b=yes
+}
+
+rt{
+  size:ip2=512, 512
+  count:i=1
+  fmt:t="D16"
+  swizzle:b=yes
+}
+
+rt{
+  size:ip2=1024, 1024
+  count:i=1
+  fmt:t="NVD16"
+  swizzle:b=no
+  tile:b=yes
+  name:t="FlightModelWrap shadowDepthTex RT"
+}
+
+rt{
+  size:ip2=128, 128
+  count:i=1
+  fmt:t="D16"
+  swizzle:b=yes
+  name:t="cubeMapDepthTex"
+}
+
+rt{
+  size:ip2=128, 128
+  count:i=1
+  fmt:t="D16"
+  swizzle:b=yes
+  name:t="dynamicCubeDepthTex"
+}
+
+rt{
+  size:ip2=128, 128
+  count:i=3
+  fmt:t="R5G6B5"
+  cube:b=yes
+  swizzle:b=yes
+}
+
+rt{
+  size:ip2=128, 128
+  count:i=1
+  fmt:t="R5G6B5"
+  cube:b=yes
+  swizzle:b=yes
+  name:t="waterCubeTex"
+}
+
+rt{
+  size:ip2=320, 180
+  count:i=1
+  tile:b=yes
+  alias:t="localmem_area"
+  offset:ip2=0, 512
+  name:t="waterReflectionTex"
+}
+
+rt{
+  size:ip2=320, 180
+  count:i=1
+  tile:b=yes
+  name:t="waterReflectionBlurredTex"
+}
+
+rt{
+  backBufSz:b=yes
+  count:i=1
+  fmt:t="R8"
+  tile:b=yes
+  name:t="mblurMaskTex"
+}
+
+rt{
+  backBufSz:b=yes
+  szDiv:ip2=2, 2
+  count:i=1
+  fmt:t="R32F"
+  cpuread:b=yes
+  tile:b=no
+  pitch_align:i=256
+  name:t="blurDepthTex"
+  alias:t="mainmem_area"
+  offset:ip2=0, 0
+}
+
+rt{
+  backBufSz:b=yes
+  szDiv:ip2=2, 2
+  count:i=1
+  cpuread:b=yes
+  tile:b=no
+  pitch_align:i=256
+  name:t="mblurVectors"
+  alias:t="mainmem_area"
+  offset:ip2=0, 0
+}
+
+rt{
+  backBufSz:b=yes
+  szDiv:ip2=2, 2
+  count:i=1
+  cpuread:b=no
+  tile:b=yes
+  pitch_align:i=256
+  name:t="mblurInputColorMaskTex"
+}
+
+rt{
+  backBufSz:b=yes
+  szDiv:ip2=2, 2
+  count:i=1
+  cpuread:b=no
+  tile:b=yes
+  pitch_align:i=256
+  name:t="mblurOutputColorTex"
+  alias:t="localmem_area"
+  offset:ip2=640, 360
+}
+
+rt{
+  size:ip2=512, 512
+  count:i=1
+  tile:b=yes
+  name:t="hazeOffsetTex"
+}
+
+rt{
+  size:ip2=512, 512
+  count:i=1
+  tile:b=yes
+  alias:t="localmem_area"
+  offset:ip2=0, 0
+  name:t="landColorTex"
+}
+
+rt{
+  size:ip2=512, 512
+  count:i=1
+  tile:b=no
+  cpuread:b=yes
+  name:t="landColorTexXdr"
+}
+
+rt{
+  size:ip2=512, 512
+  count:i=1
+  fmt:t="R32F"
+  tile:b=no
+  cpuread:b=yes
+  name:t="landHeightTex"
+}
+
+rt{
+  size:ip2=32, 256
+  fmt:t="A8R8G8B8"
+  name:t="cloudVolume2DTex"
+}
+
+rt{
+  volume:b=yes
+  alias:t="cloudVolume2DTex"
+  size:typex8=32, 16, 16
+  fmt:t="A8R8G8B8"
+  name:t="cloudVolume3DTex"
+}
+
+rt{
+  size:ip2=1024, 512
+  fmt:t="A8R8G8B8"
+  tile:b=yes
+  name:t="waterFoamTexTex"
+}
+
+rt{
+  size:ip2=1024, 512
+  fmt:t="NVD24"
+  tile:b=yes
+  name:t="Global shadow depth"
+}
+
+rt{
+  size:ip2=1024, 512
+  fmt:t="R8"
+  tile:b=yes
+  name:t="Land shadow"
+}

@@ -1,0 +1,138 @@
+Weapon{
+  trigger:t="gunner0"
+  triggerGroup:t="primary"
+  blk:t="gameData/Weapons/groundModels_weapons/12_7mm_M2_HB_user_machinegun_for_M15.blk"
+  emitter:t="bone_gun_barrel_01"
+  flash:t="emtr_gun_flame_01"
+  defaultYaw:r=0.0
+  defaultPitch:r=0.0
+  barrelDP:t="gun_barrel_01_dm"
+  breechDP:t="cannon_breech_01_dm"
+  parkInDeadzone:b=no
+  speedYaw:r=15.0
+  speedPitch:r=3.0
+  fireConeAngle:r=1.0
+  bullets:i=1400
+  salvoAmount:r=100.0
+  ChainfireTime:r=0.0
+  DelayAfterShoot:r=5.0
+  AttackMaxDistance:r=1000.0
+  AttackMaxRadius:r=1000.0
+  AttackMaxHeight:r=1000.0
+  accuracyAir:r=0.0
+  accuracyGnd:r=1.5
+  errMeasureVel:r=0.0
+  errMeasureVelFast:r=0.0
+  errMeasureVelFwdShift:r=0.0
+  errMeasureVelDir:r=0.0
+  errTargettingOn100kmph:r=0.0
+  errTargetting:r=3.0
+  errExplTime:r=0.0
+
+  turret{
+    head:t="bone_turret_01"
+    gun:t="bone_gun_01"
+    gunnerDm:t="commander_dm"
+    verDriveDm:t="drive_turret_v_01_dm"
+    horDriveDm:t="drive_turret_h_01_dm"
+  }
+
+  limits{
+    yaw:p2=-170.0, 20.0
+    pitch:p2=-10.0, 20.0
+  }
+
+  limitsTable{
+    lim1:p4=-170.0, -158.0, -5.0, 20.0
+    lim2:p4=-158.0, 20.0, -10.0, 20.0
+  }
+}
+
+Weapon{
+  trigger:t="gunner1"
+  triggerGroup:t="machinegun"
+  blk:t="gameData/Weapons/groundModels_weapons/7_62mm_M1919A4_user_machinegun.blk"
+  emitter:t="bone_gun_02"
+  flash:t="emtr_gun_flame_02"
+  recoilOffset:r=0.0
+  defaultYaw:r=0.0
+  defaultPitch:r=0.0
+  parkInDeadzone:b=no
+  useAnimFlashNode:b=no
+  speedYaw:r=25.0
+  speedPitch:r=15.0
+  fireConeAngle:r=1.0
+  bullets:i=9500
+  salvoAmount:r=100.0
+  ChainfireTime:r=0.0
+  DelayAfterShoot:r=5.0
+  AttackMaxDistance:r=1000.0
+  AttackMaxRadius:r=1000.0
+  AttackMaxHeight:r=1000.0
+  accuracyAir:r=0.0
+  accuracyGnd:r=1.5
+  errMeasureVel:r=0.0
+  errMeasureVelFast:r=0.0
+  errMeasureVelFwdShift:r=0.0
+  errMeasureVelDir:r=0.0
+  errTargettingOn100kmph:r=0.0
+  errTargetting:r=3.0
+  errExplTime:r=0.0
+
+  turret{
+    head:t="bone_turret_02"
+    gun:t="bone_gun_02"
+    barrel:t="bone_gun_barrel_02"
+    gunnerDm:t="gunner_dm"
+    verDriveDm:t="drive_turret_v_02_dm"
+    horDriveDm:t="drive_turret_h_02_dm"
+  }
+
+  limits{
+    yaw:p2=-5.0, 160.0
+    pitch:p2=-10.0, 20.0
+  }
+}
+
+Weapon{
+  trigger:t="gunner2"
+  triggerGroup:t="machinegun"
+  blk:t="gameData/Weapons/groundModels_weapons/7_62mm_M1919A4_user_machinegun.blk"
+  emitter:t="bone_mg_body_01"
+  flash:t="emtr_mg_flame_03"
+  recoilOffset:r=0.0
+  defaultYaw:r=0.0
+  defaultPitch:r=0.0
+  parkInDeadzone:b=no
+  useAnimFlashNode:b=no
+  speedYaw:r=25.0
+  speedPitch:r=15.0
+  fireConeAngle:r=1.0
+  bullets:i=9500
+  salvoAmount:r=100.0
+  ChainfireTime:r=0.0
+  DelayAfterShoot:r=5.0
+  AttackMaxDistance:r=1000.0
+  AttackMaxRadius:r=1000.0
+  AttackMaxHeight:r=1000.0
+  accuracyAir:r=0.0
+  accuracyGnd:r=1.5
+  errMeasureVel:r=0.0
+  errMeasureVelFast:r=0.0
+  errMeasureVelFwdShift:r=0.0
+  errMeasureVelDir:r=0.0
+  errTargettingOn100kmph:r=0.0
+  errTargetting:r=3.0
+  errExplTime:r=0.0
+
+  turret{
+    head:t="bone_mg_body_01"
+    gun:t="bone_mg_body_01"
+    gunnerDm:t="machine_gunner_dm"
+  }
+
+  limits{
+    yaw:p2=-0.0, 0.0
+    pitch:p2=-0.0, 0.0
+  }
+}

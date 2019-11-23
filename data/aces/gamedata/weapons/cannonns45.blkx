@@ -1,0 +1,105 @@
+cannon:b=yes
+weaponType:i=-1
+bUseHookAsRel:b=yes
+emitColor:p3=1.0, 1.0, 0.0
+emitI:r=10.0
+emitR:r=3.0
+emitTime:r=0.03
+aimMinDist:r=10.0
+aimMaxDist:r=1000.0
+maxDeltaAngle:r=0.32
+shotFreq:r=4.3
+traceFreq:i=1
+bEnablePause:b=no
+bullets:i=30
+bulletsCluster:i=1
+
+bullet{
+  mass:r=1.065
+  caliber:r=0.045
+  speed:r=780.0
+  maxDistance:r=3500.0
+  shellExplScale:r=0.7
+  bulletType:t="he_frag_i_t"
+  hitPowerMult:r=3.0
+  onHitChanceMultFire:r=3.0
+  nearHitPower:p2=1.0, 50.0
+  midHitPower:p2=0.9, 300.0
+  farHitPower:p2=0.1, 700.0
+  endHitPower:p2=0.008, 1500.0
+  relativeVelHitShift:p2=300.0, 1000.0
+  nearArmorPower:p2=4.0, 150.0
+  midArmorPower:p2=4.0, 600.0
+  farArmorPower:p2=4.0, 1000.0
+  relativeVelArmorShift:p2=200.0, 1000.0
+  fuseDelayDist:r=1.2
+  explodeTreshold:r=0.1
+  explodeHitPower:r=45.0
+  explodeArmorPower:r=8.6
+  explodeRadius:p2=0.22, 1.24
+  shutterDamage:b=yes
+  shutterDamageRadius:r=5.0
+  shutterAmount:i=80
+  shutterArmorPower:r=6.0
+  shutterHit:r=6.0
+  groundCollisionEffect:t="37_50_he_hit_ground"
+  groundFxScale:p2=0.9, 1.1
+  ricochetEffect:t="cannon_ricochet"
+  waterCollisionEffect:t="big_water_splash"
+  defFxScale:p2=1.5, 1.8
+  waterFxScale:p2=1.5, 1.8
+
+  visual{
+    range_percent_of_ammo:p2=100.0, 0.0
+    traceFreq:i=1
+    tracer:t="37mmLightRed"
+    trail:t="black"
+  }
+
+  collisions{
+
+    steel{
+      fx:t="cannon_hit_ship_cumulative"
+      fxScale:p2=1.3, 1.5
+    }
+
+    armor{
+      fx:t="cannon_hit_ship_cumulative"
+      fxScale:p2=1.3, 1.5
+    }
+
+    wood{
+      fx:t="cannon_hit_ship_cumulative"
+      fxScale:p2=1.3, 1.5
+    }
+  }
+}
+
+gunSound{
+  path:t="sounds/guns"
+  outside:t="ns45_gun_outside"
+  cockpit:t="ns45_gun_inside"
+  ai:t="ns45_gun_ai"
+}
+
+overheat{
+  overheat:p2=1.5, 0.0
+  overheat:p2=8.0, 0.5
+  overheat:p2=12.5, 0.9
+}
+
+deviation{
+  deviation:p2=0.5, 5.0
+  deviation:p2=0.8, 20.0
+  deviation:p2=4.0, 40.0
+}
+
+ns45_new_gun{
+  maxDeltaAngle:r=0.5
+
+  overheat{
+    overheat:p2=1.0, 0.0
+    overheat:p2=6.0, 0.5
+    overheat:p2=10.0, 0.9
+  }
+}

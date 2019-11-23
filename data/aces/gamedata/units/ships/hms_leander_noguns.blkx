@@ -1,0 +1,96 @@
+timeToFire:r=60.0
+timeToSmoke:r=600.0
+hasExpl:b=yes
+damageableByGun:b=no
+expClass:t="exp_ship"
+model:t="leander_no_guns_a"
+subclass:t="warShip"
+dustFx:t="water_units_dust"
+dynCollisionGeom:b=yes
+moveType:t="ship"
+maxFwdSpeed:r=55.0
+maxRevSpeed:r=5.0
+maxAngSpeed:r=1.0
+maxAccel:r=0.5
+maxDecel:r=0.5
+maxAngAccel:r=0.7
+maxAngAccel0:r=0.0
+maxAngAccelV:r=0.01
+groundNormSmoothViscosity:r=4.5
+customUpdateDiv:i=5
+drownGFactor:r=0.0
+drownRollSpeed:r=0.01
+SoundMove:t="models.Ship"
+tailStartOffset:r=-10.0
+
+DamageParts{
+
+  armor40{
+
+    engine_dm{
+      hp:r=800.0
+    }
+
+    body_dm{
+      hp:r=800.0
+    }
+
+    bodypart1_dm{
+      hp:r=800.0
+    }
+  }
+}
+
+class_tags{
+  mediterran:b=yes
+  westernfront:b=yes
+  pacific:b=yes
+  country_britain:b=yes
+  ship:b=yes
+  year1940:b=yes
+  year1941:b=yes
+  year1942:b=yes
+  year1943:b=yes
+  year1944:b=yes
+  year1945:b=yes
+}
+
+DamageEffects{
+
+  part{
+    name:t="body_dm"
+
+    onHit{
+      smoke:r=0.01
+      fire:r=0.01
+    }
+
+    onKill{
+      expl:r=1.0
+    }
+  }
+
+  part{
+    name:t="engine_dm"
+
+    onHit{
+      smoke:r=0.1
+      fire:r=0.01
+    }
+
+    onKill{
+      body_dm:r=1.0
+    }
+  }
+}
+
+attach{
+  flag_front:t="flag_brtn"
+  flag_middle:t="flag_brtn"
+  flag_back:t="flag_brtn"
+}
+
+sound{
+  path:t="sounds/engines/boat"
+  engine:t="boat_engine"
+}

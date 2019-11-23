@@ -1,0 +1,23 @@
+Weapon{
+  trigger:t="torpedoes"
+  separate:b=yes
+  external:b=yes
+  blk:t="gameData/Weapons/torpedoes/jp_type91mod2_torpedo.blk"
+  emitter:t="torpedo1"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="torpedoes"
+  separate:b=yes
+  external:b=yes
+  blk:t="gameData/Weapons/torpedoes/jp_type91mod2_torpedo.blk"
+  emitter:t="torpedo2"
+  bullets:i=1
+}
+
+hideNodes{
+  node:t="pylon_800kg"
+  node:t="pylon_250kg"
+  node:t="pylon_60kg"
+}

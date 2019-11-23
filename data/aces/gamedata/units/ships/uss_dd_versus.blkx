@@ -1,0 +1,466 @@
+expClass:t="exp_ship"
+timeToFire:r=60.0
+timeToSmoke:r=600.0
+hasExpl:b=yes
+model:t="destroyer_anderson_a"
+subclass:t="warShip"
+dustFx:t="water_units_dust"
+dynCollisionGeom:b=yes
+damageableByGun:b=no
+moveType:t="ship"
+maxFwdSpeed:r=55.0
+maxRevSpeed:r=5.0
+maxAngSpeed:r=1.0
+maxAccel:r=0.5
+maxDecel:r=0.5
+maxAngAccel:r=0.7
+maxAngAccel0:r=0.0
+maxAngAccelV:r=0.01
+groundNormSmoothViscosity:r=4.5
+customUpdateDiv:i=5
+drownGFactor:r=0.0
+drownRollSpeed:r=0.01
+SoundMove:t="models.Ship"
+tailStartOffset:r=0.0
+
+DamageParts{
+
+  steel{
+
+    gun0_dm{
+      hp:r=2.0
+    }
+
+    gun5_dm{
+      hp:r=2.0
+    }
+
+    gun6_dm{
+      hp:r=2.0
+    }
+
+    gun7_dm{
+      hp:r=2.0
+    }
+
+    gun8_dm{
+      hp:r=2.0
+    }
+  }
+
+  armor40{
+
+    engine_dm{
+      hp:r=3500.0
+    }
+
+    body_dm{
+      hp:r=3500.0
+    }
+
+    bodypart1_dm{
+      hp:r=3500.0
+    }
+  }
+
+  armor40{
+
+    gun1_dm{
+      hp:r=50.0
+    }
+
+    gun2_dm{
+      hp:r=50.0
+    }
+
+    gun3_dm{
+      hp:r=50.0
+    }
+
+    gun4_dm{
+      hp:r=50.0
+    }
+  }
+}
+
+DamageEffects{
+
+  part{
+    name:t="body_dm"
+
+    onHit{
+      smoke:r=0.01
+      fire:r=0.01
+    }
+
+    onKill{
+      expl:r=1.0
+    }
+  }
+
+  part{
+    name:t="engine_dm"
+    name:t="bodypart1_dm"
+
+    onHit{
+      smoke:r=0.1
+      fire:r=0.01
+    }
+
+    onKill{
+      body_dm:r=1.0
+    }
+  }
+}
+
+class_tags{
+}
+
+sound{
+  path:t="sounds/engines/boat"
+  engine:t="boat_engine"
+}
+
+weapon{
+  trigger:t="gunner0"
+  blk:t="gameData/weapons/groundModels_weapons/common_AAgun127mm.blk"
+  dm:t="gun0_dm"
+  emitter:t="gun0"
+  flash:t="flame0"
+  speedYaw:r=10.0
+  speedPitch:r=20.0
+  fireConeAngle:r=3.0
+  salvoAmount:r=1.0
+  ChainfireTime:r=0.0
+  DelayAfterShoot:r=0.0
+  AttackMaxDistance:r=10000.0
+  AttackMaxRadius:r=5000.0
+  AttackMaxHeight:r=10000.0
+  accuracyAir:r=1.0
+  accuracyGnd:r=0.0
+  errMeasureVel:r=0.0
+  errTargettingOn100kmph:r=0.0
+  errMeasureVelFast:r=120.0
+  errMeasureVelFwdShift:r=1.0
+  errMeasureVelDir:r=10.0
+  errTargetting:r=1.0
+  errExplTime:r=0.02
+  defaultYaw:r=0.0
+  defaultPitch:r=10.0
+
+  turret{
+    head:t="turret0"
+    gun:t="gun0"
+  }
+
+  limits{
+    yaw:p2=-150.0, 150.0
+    pitch:p2=-10.0, 80.0
+  }
+}
+
+weapon{
+  trigger:t="gunner1"
+  blk:t="gameData/weapons/groundModels_weapons/common_AAgun127mm.blk"
+  dm:t="gun1_dm"
+  emitter:t="gun1"
+  flash:t="flame1"
+  speedYaw:r=10.0
+  speedPitch:r=20.0
+  fireConeAngle:r=3.0
+  salvoAmount:r=1.0
+  ChainfireTime:r=0.0
+  DelayAfterShoot:r=0.0
+  AttackMaxDistance:r=10000.0
+  AttackMaxRadius:r=5000.0
+  AttackMaxHeight:r=10000.0
+  accuracyAir:r=1.0
+  accuracyGnd:r=0.0
+  errMeasureVel:r=0.0
+  errTargettingOn100kmph:r=0.0
+  errMeasureVelFast:r=120.0
+  errMeasureVelFwdShift:r=1.0
+  errMeasureVelDir:r=10.0
+  errTargetting:r=1.0
+  errExplTime:r=0.02
+  defaultYaw:r=0.0
+  defaultPitch:r=10.0
+
+  turret{
+    head:t="turret1"
+    gun:t="gun1"
+  }
+
+  limits{
+    yaw:p2=-150.0, 150.0
+    pitch:p2=-10.0, 80.0
+  }
+}
+
+weapon{
+  trigger:t="gunner2"
+  blk:t="gameData/weapons/groundModels_weapons/common_AAgun127mm.blk"
+  dm:t="gun2_dm"
+  emitter:t="gun2"
+  flash:t="flame2"
+  speedYaw:r=10.0
+  speedPitch:r=20.0
+  fireConeAngle:r=3.0
+  salvoAmount:r=1.0
+  ChainfireTime:r=0.0
+  DelayAfterShoot:r=0.0
+  AttackMaxDistance:r=10000.0
+  AttackMaxRadius:r=5000.0
+  AttackMaxHeight:r=10000.0
+  accuracyAir:r=1.0
+  accuracyGnd:r=0.0
+  errMeasureVel:r=0.0
+  errTargettingOn100kmph:r=0.0
+  errMeasureVelFast:r=120.0
+  errMeasureVelFwdShift:r=1.0
+  errMeasureVelDir:r=10.0
+  errTargetting:r=1.0
+  errExplTime:r=0.02
+  defaultYaw:r=0.0
+  defaultPitch:r=10.0
+
+  turret{
+    head:t="turret2"
+    gun:t="gun2"
+  }
+
+  limits{
+    yaw:p2=-150.0, 150.0
+    pitch:p2=-10.0, 80.0
+  }
+}
+
+weapon{
+  trigger:t="gunner3"
+  blk:t="gameData/weapons/groundModels_weapons/common_AAgun127mm.blk"
+  dm:t="gun3_dm"
+  emitter:t="gun3"
+  flash:t="flame3"
+  speedYaw:r=45.0
+  speedPitch:r=45.0
+  fireConeAngle:r=20.0
+  salvoAmount:r=100.0
+  ChainfireTime:r=3.0
+  DelayAfterShoot:r=3.0
+  AttackMaxDistance:r=1000.0
+  AttackMaxRadius:r=1000.0
+  AttackMaxHeight:r=1000.0
+  accuracyAir:r=0.5
+  accuracyGnd:r=0.1
+  errMeasureVel:r=0.0
+  errTargettingOn100kmph:r=0.0
+  errMeasureVelFast:r=40.0
+  errMeasureVelFwdShift:r=1.0
+  errMeasureVelDir:r=3.0
+  errTargetting:r=1.0
+  errExplTime:r=0.0
+  defaultYaw:r=0.0
+  defaultPitch:r=10.0
+
+  turret{
+    head:t="turret3"
+    gun:t="gun3"
+  }
+
+  limits{
+    yaw:p2=-150.0, 150.0
+    pitch:p2=-10.0, 80.0
+  }
+}
+
+weapon{
+  trigger:t="gunner4"
+  blk:t="gameData/weapons/groundModels_weapons/common_AAgun40mm.blk"
+  dm:t="gun4_dm"
+  emitter:t="gun4"
+  flash:t="flame4"
+  speedYaw:r=26.0
+  speedPitch:r=24.0
+  fireConeAngle:r=15.0
+  salvoAmount:r=1.0
+  ChainfireTime:r=5.0
+  DelayAfterShoot:r=2.0
+  AttackMaxDistance:r=5000.0
+  AttackMaxRadius:r=3000.0
+  AttackMaxHeight:r=5000.0
+  accuracyAir:r=0.1
+  accuracyGnd:r=0.0
+  errMeasureVel:r=0.0
+  errTargettingOn100kmph:r=0.0
+  errMeasureVelFast:r=80.0
+  errMeasureVelFwdShift:r=1.0
+  errMeasureVelDir:r=10.0
+  errTargetting:r=1.0
+  errExplTime:r=0.02
+  defaultYaw:r=-20.0
+  defaultPitch:r=10.0
+
+  turret{
+    head:t="turret4"
+    gun:t="gun4"
+  }
+
+  limits{
+    yaw:p2=-100.0, 100.0
+    pitch:p2=-10.0, 89.0
+  }
+}
+
+weapon{
+  trigger:t="gunner5"
+  blk:t="gameData/weapons/groundModels_weapons/common_AAgun40mm.blk"
+  dm:t="gun5_dm"
+  emitter:t="gun5"
+  flash:t="flame5"
+  speedYaw:r=26.0
+  speedPitch:r=24.0
+  fireConeAngle:r=15.0
+  salvoAmount:r=1.0
+  ChainfireTime:r=5.0
+  DelayAfterShoot:r=2.0
+  AttackMaxDistance:r=5000.0
+  AttackMaxRadius:r=3000.0
+  AttackMaxHeight:r=5000.0
+  accuracyAir:r=0.1
+  accuracyGnd:r=0.0
+  errMeasureVel:r=0.0
+  errTargettingOn100kmph:r=0.0
+  errMeasureVelFast:r=80.0
+  errMeasureVelFwdShift:r=1.0
+  errMeasureVelDir:r=10.0
+  errTargetting:r=1.0
+  errExplTime:r=0.02
+  defaultYaw:r=20.0
+  defaultPitch:r=10.0
+
+  turret{
+    head:t="turret5"
+    gun:t="gun5"
+  }
+
+  limits{
+    yaw:p2=-100.0, 100.0
+    pitch:p2=-10.0, 89.0
+  }
+}
+
+weapon{
+  trigger:t="gunner6"
+  blk:t="gameData/weapons/groundModels_weapons/common_mGun12mm.blk"
+  dm:t="gun6_dm"
+  emitter:t="gun6"
+  flash:t="flame6"
+  speedYaw:r=45.0
+  speedPitch:r=45.0
+  fireConeAngle:r=20.0
+  salvoAmount:r=100.0
+  ChainfireTime:r=3.0
+  DelayAfterShoot:r=3.0
+  AttackMaxDistance:r=1000.0
+  AttackMaxRadius:r=1000.0
+  AttackMaxHeight:r=1000.0
+  accuracyAir:r=0.5
+  accuracyGnd:r=0.1
+  errMeasureVel:r=0.0
+  errTargettingOn100kmph:r=0.0
+  errMeasureVelFast:r=40.0
+  errMeasureVelFwdShift:r=1.0
+  errMeasureVelDir:r=3.0
+  errTargetting:r=1.0
+  errExplTime:r=0.0
+  defaultYaw:r=20.0
+  defaultPitch:r=10.0
+
+  turret{
+    head:t="turret6"
+    gun:t="gun6"
+  }
+
+  limits{
+    yaw:p2=-100.0, 100.0
+    pitch:p2=-10.0, 89.0
+  }
+}
+
+weapon{
+  trigger:t="gunner7"
+  blk:t="gameData/weapons/groundModels_weapons/common_mGun12mm.blk"
+  dm:t="gun7_dm"
+  emitter:t="gun7"
+  flash:t="flame7"
+  speedYaw:r=45.0
+  speedPitch:r=45.0
+  fireConeAngle:r=20.0
+  salvoAmount:r=100.0
+  ChainfireTime:r=3.0
+  DelayAfterShoot:r=3.0
+  AttackMaxDistance:r=1000.0
+  AttackMaxRadius:r=1000.0
+  AttackMaxHeight:r=1000.0
+  accuracyAir:r=0.5
+  accuracyGnd:r=0.1
+  errMeasureVel:r=0.0
+  errTargettingOn100kmph:r=0.0
+  errMeasureVelFast:r=40.0
+  errMeasureVelFwdShift:r=1.0
+  errMeasureVelDir:r=3.0
+  errTargetting:r=1.0
+  errExplTime:r=0.0
+  defaultYaw:r=-20.0
+  defaultPitch:r=10.0
+
+  turret{
+    head:t="turret7"
+    gun:t="gun7"
+  }
+
+  limits{
+    yaw:p2=-100.0, 100.0
+    pitch:p2=-10.0, 89.0
+  }
+}
+
+weapon{
+  trigger:t="gunner8"
+  blk:t="gameData/weapons/groundModels_weapons/searchLight_ship_gun.blk"
+  dm:t="gun8_dm"
+  emitter:t="gun8"
+  flash:t="flame8"
+  defaultYaw:r=0.0
+  defaultPitch:r=10.0
+
+  turret{
+    head:t="turret8"
+    gun:t="gun8"
+  }
+
+  limits{
+    yaw:p2=-90.0, 90.0
+    pitch:p2=10.0, 90.0
+  }
+}
+
+weapon{
+  trigger:t="gunner9"
+  blk:t="gameData/weapons/groundModels_weapons/searchLight_ship_gun.blk"
+  dm:t="gun9_dm"
+  emitter:t="gun9"
+  flash:t="flame9"
+  defaultYaw:r=0.0
+  defaultPitch:r=10.0
+
+  turret{
+    head:t="turret9"
+    gun:t="gun9"
+  }
+
+  limits{
+    yaw:p2=-90.0, 90.0
+    pitch:p2=10.0, 90.0
+  }
+}

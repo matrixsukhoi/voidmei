@@ -1,0 +1,10126 @@
+booster_tl_s1_basic{
+  locId:t="item/booster_tl_s1"
+  type:t="rateBooster"
+  expiredTimeH:r=216.0
+
+  rateBoosterParams{
+    xpRate:i=100
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=1000
+    }
+  }
+}
+
+booster_shop_pub_wp_22{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  costGold:i=222
+  sell_count_step:i=1
+  sell_count_max:i=1000
+  expiredTimeHAfterActivation:r=24.0
+  limitPersonalTotal:i=1
+
+  rateBoosterParams{
+    wpRate:i=22
+    spentInSessionTimeMin:i=30
+    personal:b=no
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=1
+    }
+  }
+}
+
+booster_shop_pub_wp_10{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  costGold:i=99
+  sell_count_step:i=1
+  sell_count_max:i=1000
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    wpRate:i=10
+    spentInSessionTimeMin:i=30
+    personal:b=no
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=1
+    }
+  }
+}
+
+booster_shop_pub_rp_10{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  costGold:i=99
+  sell_count_step:i=1
+  sell_count_max:i=1000
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    xpRate:i=10
+    spentInSessionTimeMin:i=30
+    personal:b=no
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=1
+    }
+  }
+}
+
+booster_shop_wp_900_1mp{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    wpRate:i=900
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=1
+    }
+  }
+}
+
+booster_shop_rp_900_1mp{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    xpRate:i=900
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=1
+    }
+  }
+}
+
+booster_shop_wp_800_1mp{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    wpRate:i=800
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=1
+    }
+  }
+}
+
+booster_shop_rp_800_1mp{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    xpRate:i=800
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=1
+    }
+  }
+}
+
+booster_shop_wp_700_1mp{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    wpRate:i=700
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=1
+    }
+  }
+}
+
+booster_shop_rp_700_1mp{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    xpRate:i=700
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=1
+    }
+  }
+}
+
+booster_shop_wp_600_1mp{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    wpRate:i=600
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=1
+    }
+  }
+}
+
+booster_shop_rp_600_1mp{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    xpRate:i=600
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=1
+    }
+  }
+}
+
+booster_shop_wp_300_1mp{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    wpRate:i=300
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=1
+    }
+  }
+}
+
+booster_shop_rp_300_1mp{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    xpRate:i=300
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=1
+    }
+  }
+}
+
+booster_shop_wp_90_1mp{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    wpRate:i=90
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=1
+    }
+  }
+}
+
+booster_shop_rp_90_1mp{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    xpRate:i=90
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=1
+    }
+  }
+}
+
+booster_shop_wp_60_1mp{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    wpRate:i=60
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=1
+    }
+  }
+}
+
+booster_shop_rp_60_1mp{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    xpRate:i=60
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=1
+    }
+  }
+}
+
+booster_shop_wp_30_1mp{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    wpRate:i=30
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=1
+    }
+  }
+}
+
+booster_shop_rp_30_1mp{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    xpRate:i=30
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=1
+    }
+  }
+}
+
+booster_rp_180_2mp{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    xpRate:i=180
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=2
+    }
+  }
+}
+
+booster_rp_150_2mp{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    xpRate:i=150
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=2
+    }
+  }
+}
+
+booster_shop_wp_500_10mp{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    wpRate:i=500
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=1
+    }
+  }
+}
+
+booster_shop_rp_500_10mp{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    xpRate:i=500
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=1
+    }
+  }
+}
+
+booster_shop_wp_400_10mp{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    wpRate:i=400
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=1
+    }
+  }
+}
+
+booster_shop_rp_400_10mp{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    xpRate:i=400
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=1
+    }
+  }
+}
+
+booster_shop_wp_300_10mp{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    wpRate:i=300
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=2
+    }
+  }
+}
+
+booster_shop_rp_300_10mp{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    xpRate:i=300
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=2
+    }
+  }
+}
+
+booster_shop_wp_250_10mp{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    wpRate:i=250
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=1
+    }
+  }
+}
+
+booster_shop_rp_250_10mp{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    xpRate:i=250
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=1
+    }
+  }
+}
+
+booster_shop_wp_200_10mp{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    wpRate:i=200
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=3
+    }
+  }
+}
+
+booster_shop_rp_200_10mp{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    xpRate:i=200
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=3
+    }
+  }
+}
+
+booster_shop_wp_200_1mp{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    wpRate:i=200
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=1
+    }
+  }
+}
+
+booster_shop_rp_200_1mp{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    xpRate:i=200
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=1
+    }
+  }
+}
+
+booster_shop_wp_150_1mp{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    wpRate:i=150
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=1
+    }
+  }
+}
+
+booster_shop_rp_150_1mp{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    xpRate:i=150
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=1
+    }
+  }
+}
+
+booster_shop_wp_150_10mp{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    wpRate:i=150
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=5
+    }
+  }
+}
+
+booster_shop_rp_150_10mp{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    xpRate:i=150
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=5
+    }
+  }
+}
+
+booster_shop_wp_100_10mp{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    wpRate:i=100
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=1
+    }
+  }
+}
+
+booster_shop_rp_100_10mp{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    xpRate:i=100
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=1
+    }
+  }
+}
+
+booster_shop_wp_100_5mp{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    wpRate:i=100
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=5
+    }
+  }
+}
+
+booster_shop_rp_100_5mp{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    xpRate:i=100
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=5
+    }
+  }
+}
+
+booster_shop_wt_wp_50_10mp{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    wpRate:i=50
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=10
+    }
+  }
+}
+
+booster_shop_wt_rp_50_10mp{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    xpRate:i=50
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=10
+    }
+  }
+}
+
+booster_shop_wp_50_30mp{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  expiredTimeHAfterActivation:r=72.0
+
+  rateBoosterParams{
+    wpRate:i=50
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=50
+    }
+  }
+}
+
+booster_shop_rp_50_30mp{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  expiredTimeHAfterActivation:r=72.0
+
+  rateBoosterParams{
+    xpRate:i=50
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=50
+    }
+  }
+}
+
+booster_shop_wp_50_10mp{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    wpRate:i=50
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=1
+    }
+  }
+}
+
+booster_shop_rp_50_10mp{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    xpRate:i=50
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=1
+    }
+  }
+}
+
+booster_shop_wp_30_10mp{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    wpRate:i=30
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=10
+    }
+  }
+}
+
+booster_shop_rp_30_10mp{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    xpRate:i=30
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=10
+    }
+  }
+}
+
+booster_shop_wt_wp_25_10mp{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    wpRate:i=25
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=10
+    }
+  }
+}
+
+booster_shop_wt_rp_25_10mp{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    xpRate:i=25
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=10
+    }
+  }
+}
+
+booster_shop_wp_10_10mp{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    wpRate:i=10
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=10
+    }
+  }
+}
+
+booster_shop_rp_10_10mp{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    xpRate:i=10
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=10
+    }
+  }
+}
+
+booster_shop_wp_75_10mp{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  costGold:i=499
+  sell_count_step:i=1
+  sell_count_max:i=1000
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    wpRate:i=75
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=10
+    }
+  }
+}
+
+booster_shop_rp_75_10mp{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  costGold:i=499
+  sell_count_step:i=1
+  sell_count_max:i=1000
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    xpRate:i=75
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=10
+    }
+  }
+}
+
+booster_shop_wp_40_10mp{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  costGold:i=250
+  sell_count_step:i=1
+  sell_count_max:i=1000
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    wpRate:i=40
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=10
+    }
+  }
+}
+
+booster_shop_rp_40_10mp{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  costGold:i=250
+  sell_count_step:i=1
+  sell_count_max:i=1000
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    xpRate:i=40
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=10
+    }
+  }
+}
+
+booster_shop_wp_15_10mp{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  costGold:i=99
+  sell_count_step:i=1
+  sell_count_max:i=1000
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    wpRate:i=15
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=10
+    }
+  }
+}
+
+booster_shop_rp_15_10mp{
+  locId:t="item/booster_shop_name"
+  type:t="rateBooster"
+  costGold:i=99
+  sell_count_step:i=1
+  sell_count_max:i=1000
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    xpRate:i=15
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=10
+    }
+  }
+}
+
+booster_pub_wp_10{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    wpRate:i=10
+    spentInSessionTimeMin:i=30
+    personal:b=no
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=1
+    }
+  }
+}
+
+booster_pub_rp_10{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    xpRate:i=10
+    spentInSessionTimeMin:i=30
+    personal:b=no
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=1
+    }
+  }
+}
+
+booster_pub_wp_15_pk{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    wpRate:i=15
+    spentInSessionTimeMin:i=30
+    personal:b=no
+
+    event{
+      type:t="kill"
+
+      condition{
+        type:t="targetIsPlayer"
+        includeBots:b=yes
+      }
+    }
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=1
+    }
+  }
+}
+
+booster_pub_rp_15_pk{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    xpRate:i=15
+    spentInSessionTimeMin:i=30
+    personal:b=no
+
+    event{
+      type:t="kill"
+
+      condition{
+        type:t="targetIsPlayer"
+        includeBots:b=yes
+      }
+    }
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=1
+    }
+  }
+}
+
+booster_pub_wp_15_gk{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    wpRate:i=15
+    spentInSessionTimeMin:i=30
+    personal:b=no
+
+    event{
+      type:t="kill_ground"
+    }
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=1
+    }
+  }
+}
+
+booster_pub_rp_15_gk{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    xpRate:i=15
+    spentInSessionTimeMin:i=30
+    personal:b=no
+
+    event{
+      type:t="kill_ground"
+    }
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=1
+    }
+  }
+}
+
+booster_pub_wp_15_assist{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    wpRate:i=15
+    spentInSessionTimeMin:i=30
+    personal:b=no
+
+    event{
+      type:t="assist"
+    }
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=1
+    }
+  }
+}
+
+booster_pub_rp_15_assist{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    xpRate:i=15
+    spentInSessionTimeMin:i=30
+    personal:b=no
+
+    event{
+      type:t="assist"
+    }
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=1
+    }
+  }
+}
+
+booster_wp_500_1mp{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    wpRate:i=500
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=1
+    }
+  }
+}
+
+booster_rp_500_1mp{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    xpRate:i=500
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=1
+    }
+  }
+}
+
+booster_wp_300_1mp{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    wpRate:i=300
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=1
+    }
+  }
+}
+
+booster_rp_300_1mp{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    xpRate:i=300
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=1
+    }
+  }
+}
+
+booster_wp_200_1mp{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    wpRate:i=200
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=1
+    }
+  }
+}
+
+booster_rp_200_1mp{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    xpRate:i=200
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=1
+    }
+  }
+}
+
+booster_wp_150_1mp{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    wpRate:i=150
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=1
+    }
+  }
+}
+
+booster_rp_150_1mp{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    xpRate:i=150
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=1
+    }
+  }
+}
+
+booster_wp_75_2mp{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    wpRate:i=75
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=2
+    }
+  }
+}
+
+booster_rp_75_2mp{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    xpRate:i=75
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=2
+    }
+  }
+}
+
+booster_wp_30_5mp{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    wpRate:i=30
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=5
+    }
+  }
+}
+
+booster_rp_30_5mp{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    xpRate:i=30
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=5
+    }
+  }
+}
+
+booster_wp_15_10mp{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    wpRate:i=15
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=10
+    }
+  }
+}
+
+booster_rp_15_10mp{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    xpRate:i=15
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=10
+    }
+  }
+}
+
+booster_wp_30_10mp{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    wpRate:i=30
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=10
+    }
+  }
+}
+
+booster_rp_30_10mp{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    xpRate:i=30
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=10
+    }
+  }
+}
+
+booster_wp_10_20mp{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    wpRate:i=10
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=20
+    }
+  }
+}
+
+booster_rp_10_20mp{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    xpRate:i=10
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=20
+    }
+  }
+}
+
+booster_wp_15_20mp{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    wpRate:i=15
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=20
+    }
+  }
+}
+
+booster_rp_15_20mp{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    xpRate:i=15
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=20
+    }
+  }
+}
+
+booster_wp_500_6pk{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    wpRate:i=500
+
+    event{
+      type:t="kill"
+
+      condition{
+        type:t="targetIsPlayer"
+        includeBots:b=yes
+      }
+    }
+
+    stop{
+      type:t="killedPlayers"
+      num:i=6
+    }
+  }
+}
+
+booster_rp_500_6pk{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    xpRate:i=500
+
+    event{
+      type:t="kill"
+
+      condition{
+        type:t="targetIsPlayer"
+        includeBots:b=yes
+      }
+    }
+
+    stop{
+      type:t="killedPlayers"
+      num:i=6
+    }
+  }
+}
+
+booster_wp_300_6pk{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    wpRate:i=300
+
+    event{
+      type:t="kill"
+
+      condition{
+        type:t="targetIsPlayer"
+        includeBots:b=yes
+      }
+    }
+
+    stop{
+      type:t="killedPlayers"
+      num:i=6
+    }
+  }
+}
+
+booster_rp_300_6pk{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    xpRate:i=300
+
+    event{
+      type:t="kill"
+
+      condition{
+        type:t="targetIsPlayer"
+        includeBots:b=yes
+      }
+    }
+
+    stop{
+      type:t="killedPlayers"
+      num:i=6
+    }
+  }
+}
+
+booster_wp_200_6pk{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    wpRate:i=200
+
+    event{
+      type:t="kill"
+
+      condition{
+        type:t="targetIsPlayer"
+        includeBots:b=yes
+      }
+    }
+
+    stop{
+      type:t="killedPlayers"
+      num:i=6
+    }
+  }
+}
+
+booster_rp_200_6pk{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    xpRate:i=200
+
+    event{
+      type:t="kill"
+
+      condition{
+        type:t="targetIsPlayer"
+        includeBots:b=yes
+      }
+    }
+
+    stop{
+      type:t="killedPlayers"
+      num:i=6
+    }
+  }
+}
+
+booster_wp_150_6pk{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    wpRate:i=150
+
+    event{
+      type:t="kill"
+
+      condition{
+        type:t="targetIsPlayer"
+        includeBots:b=yes
+      }
+    }
+
+    stop{
+      type:t="killedPlayers"
+      num:i=6
+    }
+  }
+}
+
+booster_rp_150_6pk{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    xpRate:i=150
+
+    event{
+      type:t="kill"
+
+      condition{
+        type:t="targetIsPlayer"
+        includeBots:b=yes
+      }
+    }
+
+    stop{
+      type:t="killedPlayers"
+      num:i=6
+    }
+  }
+}
+
+booster_wp_75_12pk{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    wpRate:i=75
+
+    event{
+      type:t="kill"
+
+      condition{
+        type:t="targetIsPlayer"
+        includeBots:b=yes
+      }
+    }
+
+    stop{
+      type:t="killedPlayers"
+      num:i=12
+    }
+  }
+}
+
+booster_rp_75_12pk{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    xpRate:i=75
+
+    event{
+      type:t="kill"
+
+      condition{
+        type:t="targetIsPlayer"
+        includeBots:b=yes
+      }
+    }
+
+    stop{
+      type:t="killedPlayers"
+      num:i=12
+    }
+  }
+}
+
+booster_wp_30_30pk{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    wpRate:i=30
+
+    event{
+      type:t="kill"
+
+      condition{
+        type:t="targetIsPlayer"
+        includeBots:b=yes
+      }
+    }
+
+    stop{
+      type:t="killedPlayers"
+      num:i=30
+    }
+  }
+}
+
+booster_rp_30_30pk{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    xpRate:i=30
+
+    event{
+      type:t="kill"
+
+      condition{
+        type:t="targetIsPlayer"
+        includeBots:b=yes
+      }
+    }
+
+    stop{
+      type:t="killedPlayers"
+      num:i=30
+    }
+  }
+}
+
+booster_wp_15_60pk{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    wpRate:i=15
+
+    event{
+      type:t="kill"
+
+      condition{
+        type:t="targetIsPlayer"
+        includeBots:b=yes
+      }
+    }
+
+    stop{
+      type:t="killedPlayers"
+      num:i=60
+    }
+  }
+}
+
+booster_rp_15_60pk{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    xpRate:i=15
+
+    event{
+      type:t="kill"
+
+      condition{
+        type:t="targetIsPlayer"
+        includeBots:b=yes
+      }
+    }
+
+    stop{
+      type:t="killedPlayers"
+      num:i=60
+    }
+  }
+}
+
+booster_wp_30_60pk{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    wpRate:i=30
+
+    event{
+      type:t="kill"
+
+      condition{
+        type:t="targetIsPlayer"
+        includeBots:b=yes
+      }
+    }
+
+    stop{
+      type:t="killedPlayers"
+      num:i=60
+    }
+  }
+}
+
+booster_rp_30_60pk{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    xpRate:i=30
+
+    event{
+      type:t="kill"
+
+      condition{
+        type:t="targetIsPlayer"
+        includeBots:b=yes
+      }
+    }
+
+    stop{
+      type:t="killedPlayers"
+      num:i=60
+    }
+  }
+}
+
+booster_wp_10_120pk{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    wpRate:i=10
+
+    event{
+      type:t="kill"
+
+      condition{
+        type:t="targetIsPlayer"
+        includeBots:b=yes
+      }
+    }
+
+    stop{
+      type:t="killedPlayers"
+      num:i=120
+    }
+  }
+}
+
+booster_rp_10_120pk{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    xpRate:i=10
+
+    event{
+      type:t="kill"
+
+      condition{
+        type:t="targetIsPlayer"
+        includeBots:b=yes
+      }
+    }
+
+    stop{
+      type:t="killedPlayers"
+      num:i=120
+    }
+  }
+}
+
+booster_wp_15_120pk{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    wpRate:i=15
+
+    event{
+      type:t="kill"
+
+      condition{
+        type:t="targetIsPlayer"
+        includeBots:b=yes
+      }
+    }
+
+    stop{
+      type:t="killedPlayers"
+      num:i=120
+    }
+  }
+}
+
+booster_rp_15_120pk{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    xpRate:i=15
+
+    event{
+      type:t="kill"
+
+      condition{
+        type:t="targetIsPlayer"
+        includeBots:b=yes
+      }
+    }
+
+    stop{
+      type:t="killedPlayers"
+      num:i=120
+    }
+  }
+}
+
+booster_wp_500_12gk{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    wpRate:i=500
+
+    event{
+      type:t="kill_ground"
+    }
+
+    stop{
+      type:t="killedGround"
+      num:i=12
+    }
+  }
+}
+
+booster_rp_500_12gk{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    xpRate:i=500
+
+    event{
+      type:t="kill_ground"
+    }
+
+    stop{
+      type:t="killedGround"
+      num:i=12
+    }
+  }
+}
+
+booster_wp_300_12gk{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    wpRate:i=300
+
+    event{
+      type:t="kill_ground"
+    }
+
+    stop{
+      type:t="killedGround"
+      num:i=12
+    }
+  }
+}
+
+booster_rp_300_12gk{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    xpRate:i=300
+
+    event{
+      type:t="kill_ground"
+    }
+
+    stop{
+      type:t="killedGround"
+      num:i=12
+    }
+  }
+}
+
+booster_wp_200_12gk{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    wpRate:i=200
+
+    event{
+      type:t="kill_ground"
+    }
+
+    stop{
+      type:t="killedGround"
+      num:i=12
+    }
+  }
+}
+
+booster_rp_200_12gk{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    xpRate:i=200
+
+    event{
+      type:t="kill_ground"
+    }
+
+    stop{
+      type:t="killedGround"
+      num:i=12
+    }
+  }
+}
+
+booster_wp_150_12gk{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    wpRate:i=150
+
+    event{
+      type:t="kill_ground"
+    }
+
+    stop{
+      type:t="killedGround"
+      num:i=12
+    }
+  }
+}
+
+booster_rp_150_12gk{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    xpRate:i=150
+
+    event{
+      type:t="kill_ground"
+    }
+
+    stop{
+      type:t="killedGround"
+      num:i=12
+    }
+  }
+}
+
+booster_wp_75_24gk{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    wpRate:i=75
+
+    event{
+      type:t="kill_ground"
+    }
+
+    stop{
+      type:t="killedGround"
+      num:i=24
+    }
+  }
+}
+
+booster_rp_75_24gk{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    xpRate:i=75
+
+    event{
+      type:t="kill_ground"
+    }
+
+    stop{
+      type:t="killedGround"
+      num:i=24
+    }
+  }
+}
+
+booster_wp_30_60gk{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    wpRate:i=30
+
+    event{
+      type:t="kill_ground"
+    }
+
+    stop{
+      type:t="killedGround"
+      num:i=60
+    }
+  }
+}
+
+booster_rp_30_60gk{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    xpRate:i=30
+
+    event{
+      type:t="kill_ground"
+    }
+
+    stop{
+      type:t="killedGround"
+      num:i=60
+    }
+  }
+}
+
+booster_wp_15_120gk{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    wpRate:i=15
+
+    event{
+      type:t="kill_ground"
+    }
+
+    stop{
+      type:t="killedGround"
+      num:i=120
+    }
+  }
+}
+
+booster_rp_15_120gk{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    xpRate:i=15
+
+    event{
+      type:t="kill_ground"
+    }
+
+    stop{
+      type:t="killedGround"
+      num:i=120
+    }
+  }
+}
+
+booster_wp_30_120gk{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    wpRate:i=30
+
+    event{
+      type:t="kill_ground"
+    }
+
+    stop{
+      type:t="killedGround"
+      num:i=120
+    }
+  }
+}
+
+booster_rp_30_120gk{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    xpRate:i=30
+
+    event{
+      type:t="kill_ground"
+    }
+
+    stop{
+      type:t="killedGround"
+      num:i=120
+    }
+  }
+}
+
+booster_wp_10_240gk{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    wpRate:i=10
+
+    event{
+      type:t="kill_ground"
+    }
+
+    stop{
+      type:t="killedGround"
+      num:i=240
+    }
+  }
+}
+
+booster_rp_10_240gk{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    xpRate:i=10
+
+    event{
+      type:t="kill_ground"
+    }
+
+    stop{
+      type:t="killedGround"
+      num:i=240
+    }
+  }
+}
+
+booster_wp_15_240gk{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    wpRate:i=15
+
+    event{
+      type:t="kill_ground"
+    }
+
+    stop{
+      type:t="killedGround"
+      num:i=240
+    }
+  }
+}
+
+booster_rp_15_240gk{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="rateBooster"
+
+  rateBoosterParams{
+    xpRate:i=15
+
+    event{
+      type:t="kill_ground"
+    }
+
+    stop{
+      type:t="killedGround"
+      num:i=240
+    }
+  }
+}
+
+wagerGold_20win_3fail{
+  type:t="wager"
+
+  wagerParams{
+    maxWins:i=20
+    maxFails:i=3
+    minWager:i=0
+    maxWager:i=0
+    wagerStep:i=0
+
+    win{
+      type:t="unlocks"
+      unlock:t="hidden_win_streak"
+      unlock:t="hidden_kill_streak"
+      typeLocIDWithoutValue:t="conditions/win_with_1_kill"
+    }
+
+    active{
+      type:t="maxUnitsRankOnStartMission"
+      minRank:i=3
+      maxRank:i=4
+
+      condition{
+        type:t="online"
+      }
+
+      condition{
+        type:t="eventMode"
+        is_event:b=no
+      }
+    }
+
+    winParams{
+
+      reward{
+        param:i=1
+        goldRewardParams:p3=0.0, 0.0, 50.0
+      }
+
+      reward{
+        param:i=2
+        goldRewardParams:p3=0.0, 0.0, 50.0
+      }
+
+      reward{
+        param:i=3
+        goldRewardParams:p3=0.0, 0.0, 100.0
+      }
+
+      reward{
+        param:i=4
+        goldRewardParams:p3=0.0, 0.0, 100.0
+      }
+
+      reward{
+        param:i=5
+        goldRewardParams:p3=0.0, 0.0, 150.0
+      }
+
+      reward{
+        param:i=6
+        goldRewardParams:p3=0.0, 0.0, 150.0
+      }
+
+      reward{
+        param:i=7
+        goldRewardParams:p3=0.0, 0.0, 200.0
+      }
+
+      reward{
+        param:i=8
+        goldRewardParams:p3=0.0, 0.0, 200.0
+      }
+
+      reward{
+        param:i=9
+        goldRewardParams:p3=0.0, 0.0, 250.0
+      }
+
+      reward{
+        param:i=10
+        goldRewardParams:p3=0.0, 0.0, 300.0
+      }
+
+      reward{
+        param:i=11
+        goldRewardParams:p3=0.0, 0.0, 300.0
+      }
+
+      reward{
+        param:i=12
+        goldRewardParams:p3=0.0, 0.0, 400.0
+      }
+
+      reward{
+        param:i=13
+        goldRewardParams:p3=0.0, 0.0, 400.0
+      }
+
+      reward{
+        param:i=14
+        goldRewardParams:p3=0.0, 0.0, 500.0
+      }
+
+      reward{
+        param:i=15
+        goldRewardParams:p3=0.0, 0.0, 500.0
+      }
+
+      reward{
+        param:i=16
+        goldRewardParams:p3=0.0, 0.0, 600.0
+      }
+
+      reward{
+        param:i=17
+        goldRewardParams:p3=0.0, 0.0, 600.0
+      }
+
+      reward{
+        param:i=18
+        goldRewardParams:p3=0.0, 0.0, 700.0
+      }
+
+      reward{
+        param:i=19
+        goldRewardParams:p3=0.0, 0.0, 700.0
+      }
+
+      reward{
+        param:i=20
+        goldRewardParams:p3=0.0, 0.0, 1000.0
+      }
+    }
+  }
+}
+
+wagerGold_10win_3fail{
+  type:t="wager"
+
+  wagerParams{
+    maxWins:i=10
+    maxFails:i=3
+    minWager:i=0
+    maxWager:i=0
+    wagerStep:i=0
+
+    win{
+      type:t="unlocks"
+      unlock:t="hidden_win_streak"
+      unlock:t="hidden_kill_streak"
+      typeLocIDWithoutValue:t="conditions/win_with_1_kill"
+    }
+
+    active{
+      type:t="maxUnitsRankOnStartMission"
+      minRank:i=3
+      maxRank:i=4
+
+      condition{
+        type:t="online"
+      }
+
+      condition{
+        type:t="eventMode"
+        is_event:b=no
+      }
+    }
+
+    winParams{
+
+      reward{
+        param:i=1
+        goldRewardParams:p3=0.0, 0.0, 50.0
+      }
+
+      reward{
+        param:i=2
+        goldRewardParams:p3=0.0, 0.0, 50.0
+      }
+
+      reward{
+        param:i=3
+        goldRewardParams:p3=0.0, 0.0, 100.0
+      }
+
+      reward{
+        param:i=4
+        goldRewardParams:p3=0.0, 0.0, 100.0
+      }
+
+      reward{
+        param:i=5
+        goldRewardParams:p3=0.0, 0.0, 150.0
+      }
+
+      reward{
+        param:i=6
+        goldRewardParams:p3=0.0, 0.0, 150.0
+      }
+
+      reward{
+        param:i=7
+        goldRewardParams:p3=0.0, 0.0, 200.0
+      }
+
+      reward{
+        param:i=8
+        goldRewardParams:p3=0.0, 0.0, 200.0
+      }
+
+      reward{
+        param:i=9
+        goldRewardParams:p3=0.0, 0.0, 300.0
+      }
+
+      reward{
+        param:i=10
+        goldRewardParams:p3=0.0, 0.0, 500.0
+      }
+    }
+  }
+}
+
+wagerGold_25win_3fail{
+  type:t="wager"
+
+  wagerParams{
+    maxWins:i=25
+    maxFails:i=3
+    minWager:i=0
+    maxWager:i=0
+    wagerStep:i=0
+
+    win{
+      type:t="unlocks"
+      unlock:t="hidden_win_streak"
+      unlock:t="hidden_kill3_streak"
+      typeLocIDWithoutValue:t="conditions/win_with_3_kill"
+    }
+
+    active{
+      type:t="maxUnitsRankOnStartMission"
+      minRank:i=3
+      maxRank:i=4
+
+      condition{
+        type:t="online"
+      }
+
+      condition{
+        type:t="eventMode"
+        is_event:b=no
+      }
+    }
+
+    winParams{
+
+      reward{
+        param:i=1
+        goldRewardParams:p3=0.0, 0.0, 50.0
+      }
+
+      reward{
+        param:i=2
+        goldRewardParams:p3=0.0, 0.0, 50.0
+      }
+
+      reward{
+        param:i=3
+        goldRewardParams:p3=0.0, 0.0, 100.0
+      }
+
+      reward{
+        param:i=4
+        goldRewardParams:p3=0.0, 0.0, 100.0
+      }
+
+      reward{
+        param:i=5
+        goldRewardParams:p3=0.0, 0.0, 150.0
+      }
+
+      reward{
+        param:i=6
+        goldRewardParams:p3=0.0, 0.0, 150.0
+      }
+
+      reward{
+        param:i=7
+        goldRewardParams:p3=0.0, 0.0, 200.0
+      }
+
+      reward{
+        param:i=8
+        goldRewardParams:p3=0.0, 0.0, 200.0
+      }
+
+      reward{
+        param:i=9
+        goldRewardParams:p3=0.0, 0.0, 250.0
+      }
+
+      reward{
+        param:i=10
+        goldRewardParams:p3=0.0, 0.0, 300.0
+      }
+
+      reward{
+        param:i=11
+        goldRewardParams:p3=0.0, 0.0, 300.0
+      }
+
+      reward{
+        param:i=12
+        goldRewardParams:p3=0.0, 0.0, 400.0
+      }
+
+      reward{
+        param:i=13
+        goldRewardParams:p3=0.0, 0.0, 400.0
+      }
+
+      reward{
+        param:i=14
+        goldRewardParams:p3=0.0, 0.0, 500.0
+      }
+
+      reward{
+        param:i=15
+        goldRewardParams:p3=0.0, 0.0, 500.0
+      }
+
+      reward{
+        param:i=16
+        goldRewardParams:p3=0.0, 0.0, 600.0
+      }
+
+      reward{
+        param:i=17
+        goldRewardParams:p3=0.0, 0.0, 600.0
+      }
+
+      reward{
+        param:i=18
+        goldRewardParams:p3=0.0, 0.0, 700.0
+      }
+
+      reward{
+        param:i=19
+        goldRewardParams:p3=0.0, 0.0, 700.0
+      }
+
+      reward{
+        param:i=20
+        goldRewardParams:p3=0.0, 0.0, 1200.0
+      }
+
+      reward{
+        param:i=21
+        goldRewardParams:p3=0.0, 0.0, 1300.0
+      }
+
+      reward{
+        param:i=22
+        goldRewardParams:p3=0.0, 0.0, 1300.0
+      }
+
+      reward{
+        param:i=23
+        goldRewardParams:p3=0.0, 0.0, 1400.0
+      }
+
+      reward{
+        param:i=24
+        goldRewardParams:p3=0.0, 0.0, 1400.0
+      }
+
+      reward{
+        param:i=25
+        goldRewardParams:p3=0.0, 0.0, 1500.0
+      }
+    }
+  }
+}
+
+wager_10win_3fail_everyDayAward{
+  type:t="wager"
+
+  wagerParams{
+    maxWins:i=10
+    maxFails:i=3
+    minWager:i=0
+    maxWager:i=10000
+    wagerStep:i=500
+
+    win{
+      type:t="missionsWon"
+      num:i=1
+      typeLocIDWithoutValue:t="conditions/win"
+    }
+
+    active{
+      type:t="maxUnitsRankOnStartMission"
+      minRank:i=3
+      maxRank:i=4
+
+      condition{
+        type:t="online"
+      }
+
+      condition{
+        type:t="eventMode"
+        is_event:b=no
+      }
+    }
+
+    winParams{
+
+      reward{
+        param:i=1
+        wpRewardParams:p3=0.5, 0.0, 5000.0
+      }
+
+      reward{
+        param:i=2
+        wpRewardParams:p3=1.25, 0.0, 12500.0
+      }
+
+      reward{
+        param:i=3
+        wpRewardParams:p3=2.5, 0.0, 25000.0
+      }
+
+      reward{
+        param:i=4
+        wpRewardParams:p3=3.75, 0.0, 37500.0
+      }
+
+      reward{
+        param:i=5
+        wpRewardParams:p3=5.0, 0.0, 50000.0
+      }
+
+      reward{
+        param:i=6
+        wpRewardParams:p3=6.25, 0.0, 62500.0
+      }
+
+      reward{
+        param:i=7
+        wpRewardParams:p3=7.5, 0.0, 75000.0
+      }
+
+      reward{
+        param:i=8
+        wpRewardParams:p3=8.75, 0.0, 87500.0
+      }
+
+      reward{
+        param:i=9
+        wpRewardParams:p3=10.0, 0.0, 100000.0
+      }
+
+      reward{
+        param:i=10
+        wpRewardParams:p3=12.5, 0.0, 125000.0
+      }
+    }
+  }
+}
+
+wager_3win5kills_3fail_everyDayAward{
+  type:t="wager"
+
+  wagerParams{
+    maxWins:i=3
+    maxFails:i=3
+    minWager:i=0
+    maxWager:i=10000
+    wagerStep:i=500
+
+    win{
+      type:t="killedPlayersScore"
+      num:i=5
+      mulArcade:i=1
+      mulRealistic:i=2
+      mulHardcore:i=2
+    }
+
+    active{
+      type:t="maxUnitsRankOnStartMission"
+      minRank:i=3
+      maxRank:i=4
+
+      condition{
+        type:t="online"
+      }
+
+      condition{
+        type:t="eventMode"
+        is_event:b=no
+      }
+    }
+
+    winParams{
+
+      reward{
+        param:i=1
+        wpRewardParams:p3=0.1, 0.0, 10000.0
+      }
+
+      reward{
+        param:i=2
+        wpRewardParams:p3=2.5, 0.0, 25000.0
+      }
+
+      reward{
+        param:i=3
+        wpRewardParams:p3=5.0, 0.0, 50000.0
+      }
+    }
+  }
+}
+
+wager_10win10kills_10fail_everyDayAward{
+  type:t="wager"
+
+  wagerParams{
+    maxWins:i=10
+    maxFails:i=10
+    minWager:i=0
+    maxWager:i=10000
+    wagerStep:i=500
+
+    win{
+      type:t="killedPlayersScore"
+      num:i=10
+      mulArcade:i=1
+      mulRealistic:i=2
+      mulHardcore:i=2
+    }
+
+    active{
+      type:t="maxUnitsRankOnStartMission"
+      minRank:i=3
+      maxRank:i=4
+
+      condition{
+        type:t="online"
+      }
+
+      condition{
+        type:t="eventMode"
+        is_event:b=no
+      }
+    }
+
+    winParams{
+
+      reward{
+        param:i=1
+        wpRewardParams:p3=5.0, 0.0, 50000.0
+      }
+
+      reward{
+        param:i=2
+        wpRewardParams:p3=6.25, 0.0, 62500.0
+      }
+
+      reward{
+        param:i=3
+        wpRewardParams:p3=7.5, 0.0, 75000.0
+      }
+
+      reward{
+        param:i=4
+        wpRewardParams:p3=8.75, 0.0, 87500.0
+      }
+
+      reward{
+        param:i=5
+        wpRewardParams:p3=10.0, 0.0, 100000.0
+      }
+
+      reward{
+        param:i=6
+        wpRewardParams:p3=11.25, 0.0, 112500.0
+      }
+
+      reward{
+        param:i=7
+        wpRewardParams:p3=12.5, 0.0, 125000.0
+      }
+
+      reward{
+        param:i=8
+        wpRewardParams:p3=13.57, 0.0, 137500.0
+      }
+
+      reward{
+        param:i=9
+        wpRewardParams:p3=15.0, 0.0, 150000.0
+      }
+
+      reward{
+        param:i=10
+        wpRewardParams:p3=25.0, 0.0, 250000.0
+      }
+    }
+  }
+}
+
+wager_10winMission_maker_3fail_everyDayAward{
+  type:t="wager"
+
+  wagerParams{
+    maxWins:i=10
+    maxFails:i=10
+    minWager:i=0
+    maxWager:i=10000
+    wagerStep:i=500
+
+    win{
+      type:t="unlocks"
+      unlock:t="heroic_mission_maker"
+    }
+
+    active{
+      type:t="maxUnitsRankOnStartMission"
+      minRank:i=3
+      maxRank:i=4
+
+      condition{
+        type:t="online"
+      }
+
+      condition{
+        type:t="eventMode"
+        is_event:b=no
+      }
+    }
+
+    winParams{
+
+      reward{
+        param:i=1
+        wpRewardParams:p3=5.0, 0.0, 50000.0
+      }
+
+      reward{
+        param:i=2
+        wpRewardParams:p3=6.25, 0.0, 62500.0
+      }
+
+      reward{
+        param:i=3
+        wpRewardParams:p3=7.5, 0.0, 75000.0
+      }
+
+      reward{
+        param:i=4
+        wpRewardParams:p3=8.75, 0.0, 87500.0
+      }
+
+      reward{
+        param:i=5
+        wpRewardParams:p3=10.0, 0.0, 100000.0
+      }
+
+      reward{
+        param:i=6
+        wpRewardParams:p3=11.25, 0.0, 112500.0
+      }
+
+      reward{
+        param:i=7
+        wpRewardParams:p3=12.5, 0.0, 125000.0
+      }
+
+      reward{
+        param:i=8
+        wpRewardParams:p3=13.57, 0.0, 137500.0
+      }
+
+      reward{
+        param:i=9
+        wpRewardParams:p3=15.0, 0.0, 150000.0
+      }
+
+      reward{
+        param:i=10
+        wpRewardParams:p3=25.0, 0.0, 250000.0
+      }
+    }
+  }
+}
+
+wager_10winHeroic_fighter_3fail_everyDayAward{
+  type:t="wager"
+
+  wagerParams{
+    maxWins:i=10
+    maxFails:i=6
+    minWager:i=0
+    maxWager:i=10000
+    wagerStep:i=500
+
+    win{
+      type:t="unlocks"
+      num:i=1
+      unlock:t="heroic_fighter"
+      unlock:t="trophy_near_fighter"
+    }
+
+    active{
+      type:t="maxUnitsRankOnStartMission"
+      minRank:i=3
+      maxRank:i=4
+
+      condition{
+        type:t="online"
+      }
+
+      condition{
+        type:t="eventMode"
+        is_event:b=no
+      }
+    }
+
+    winParams{
+
+      reward{
+        param:i=1
+        wpRewardParams:p3=1.25, 0.0, 12500.0
+      }
+
+      reward{
+        param:i=2
+        wpRewardParams:p3=2.5, 0.0, 25000.0
+      }
+
+      reward{
+        param:i=3
+        wpRewardParams:p3=3.75, 0.0, 37500.0
+      }
+
+      reward{
+        param:i=4
+        wpRewardParams:p3=5.0, 0.0, 50000.0
+      }
+
+      reward{
+        param:i=5
+        wpRewardParams:p3=6.25, 0.0, 62500.0
+      }
+
+      reward{
+        param:i=6
+        wpRewardParams:p3=7.5, 0.0, 75000.0
+      }
+
+      reward{
+        param:i=7
+        wpRewardParams:p3=10.0, 0.0, 100000.0
+      }
+
+      reward{
+        param:i=8
+        wpRewardParams:p3=12.5, 0.0, 125000.0
+      }
+
+      reward{
+        param:i=9
+        wpRewardParams:p3=15.0, 0.0, 150000.0
+      }
+
+      reward{
+        param:i=10
+        wpRewardParams:p3=25.0, 0.0, 250000.0
+      }
+    }
+  }
+}
+
+wager_10winTank_best_antiAircraft_3fail_everyDayAward{
+  type:t="wager"
+
+  wagerParams{
+    maxWins:i=10
+    maxFails:i=3
+    minWager:i=0
+    maxWager:i=10000
+    wagerStep:i=500
+
+    win{
+      type:t="unlocks"
+      unlock:t="tank_best_antiAircraft"
+    }
+
+    active{
+      type:t="maxUnitsRankOnStartMission"
+      minRank:i=3
+      maxRank:i=4
+
+      condition{
+        type:t="online"
+      }
+
+      condition{
+        type:t="eventMode"
+        is_event:b=no
+      }
+    }
+
+    winParams{
+
+      reward{
+        param:i=1
+        wpRewardParams:p3=1.25, 0.0, 12500.0
+      }
+
+      reward{
+        param:i=2
+        wpRewardParams:p3=2.5, 0.0, 25000.0
+      }
+
+      reward{
+        param:i=3
+        wpRewardParams:p3=3.75, 0.0, 37500.0
+      }
+
+      reward{
+        param:i=4
+        wpRewardParams:p3=5.0, 0.0, 50000.0
+      }
+
+      reward{
+        param:i=5
+        wpRewardParams:p3=6.25, 0.0, 62500.0
+      }
+
+      reward{
+        param:i=6
+        wpRewardParams:p3=7.5, 0.0, 75000.0
+      }
+
+      reward{
+        param:i=7
+        wpRewardParams:p3=10.0, 0.0, 100000.0
+      }
+
+      reward{
+        param:i=8
+        wpRewardParams:p3=12.5, 0.0, 125000.0
+      }
+
+      reward{
+        param:i=9
+        wpRewardParams:p3=15.0, 0.0, 150000.0
+      }
+
+      reward{
+        param:i=10
+        wpRewardParams:p3=25.0, 0.0, 250000.0
+      }
+    }
+  }
+}
+
+wager_10winHeroic_bomber_3fail_everyDayAward{
+  type:t="wager"
+
+  wagerParams{
+    maxWins:i=10
+    maxFails:i=6
+    minWager:i=0
+    maxWager:i=10000
+    wagerStep:i=500
+
+    win{
+      type:t="unlocks"
+      num:i=1
+      unlock:t="heroic_bomber"
+      unlock:t="trophy_near_bomber"
+      unlock:t="heroic_tankman"
+      unlock:t="trophy_near_tankman"
+      unlock:t="trophy_near_water"
+      unlock:t="heroic_water"
+    }
+
+    active{
+      type:t="maxUnitsRankOnStartMission"
+      minRank:i=3
+      maxRank:i=4
+
+      condition{
+        type:t="online"
+      }
+
+      condition{
+        type:t="eventMode"
+        is_event:b=no
+      }
+
+      condition{
+        type:t="missionPostfix"
+        allowed:b=no
+        postfix:t="_AD"
+      }
+    }
+
+    winParams{
+
+      reward{
+        param:i=1
+        wpRewardParams:p3=1.25, 0.0, 12500.0
+      }
+
+      reward{
+        param:i=2
+        wpRewardParams:p3=2.5, 0.0, 25000.0
+      }
+
+      reward{
+        param:i=3
+        wpRewardParams:p3=3.75, 0.0, 37500.0
+      }
+
+      reward{
+        param:i=4
+        wpRewardParams:p3=5.0, 0.0, 50000.0
+      }
+
+      reward{
+        param:i=5
+        wpRewardParams:p3=6.25, 0.0, 62500.0
+      }
+
+      reward{
+        param:i=6
+        wpRewardParams:p3=7.5, 0.0, 75000.0
+      }
+
+      reward{
+        param:i=7
+        wpRewardParams:p3=10.0, 0.0, 100000.0
+      }
+
+      reward{
+        param:i=8
+        wpRewardParams:p3=12.5, 0.0, 125000.0
+      }
+
+      reward{
+        param:i=9
+        wpRewardParams:p3=15.0, 0.0, 150000.0
+      }
+
+      reward{
+        param:i=10
+        wpRewardParams:p3=25.0, 0.0, 250000.0
+      }
+    }
+  }
+}
+
+wager_10winHeroic_wingman_3fail_everyDayAward{
+  type:t="wager"
+
+  wagerParams{
+    maxWins:i=10
+    maxFails:i=6
+    minWager:i=0
+    maxWager:i=10000
+    wagerStep:i=500
+
+    win{
+      type:t="unlocks"
+      num:i=1
+      unlock:t="heroic_wingman"
+      unlock:t="trophy_near_wingman"
+    }
+
+    active{
+      type:t="maxUnitsRankOnStartMission"
+      minRank:i=3
+      maxRank:i=4
+
+      condition{
+        type:t="online"
+      }
+
+      condition{
+        type:t="eventMode"
+        is_event:b=no
+      }
+    }
+
+    winParams{
+
+      reward{
+        param:i=1
+        wpRewardParams:p3=1.25, 0.0, 12500.0
+      }
+
+      reward{
+        param:i=2
+        wpRewardParams:p3=2.5, 0.0, 25000.0
+      }
+
+      reward{
+        param:i=3
+        wpRewardParams:p3=3.75, 0.0, 37500.0
+      }
+
+      reward{
+        param:i=4
+        wpRewardParams:p3=5.0, 0.0, 50000.0
+      }
+
+      reward{
+        param:i=5
+        wpRewardParams:p3=6.25, 0.0, 62500.0
+      }
+
+      reward{
+        param:i=6
+        wpRewardParams:p3=7.5, 0.0, 75000.0
+      }
+
+      reward{
+        param:i=7
+        wpRewardParams:p3=10.0, 0.0, 100000.0
+      }
+
+      reward{
+        param:i=8
+        wpRewardParams:p3=12.5, 0.0, 125000.0
+      }
+
+      reward{
+        param:i=9
+        wpRewardParams:p3=15.0, 0.0, 150000.0
+      }
+
+      reward{
+        param:i=10
+        wpRewardParams:p3=25.0, 0.0, 250000.0
+      }
+    }
+  }
+}
+
+wager_10winSquad_best_3fail_everyDayAward{
+  type:t="wager"
+
+  wagerParams{
+    maxWins:i=10
+    maxFails:i=4
+    minWager:i=0
+    maxWager:i=10000
+    wagerStep:i=500
+
+    win{
+      type:t="unlocks"
+      unlock:t="squad_best"
+    }
+
+    active{
+      type:t="maxUnitsRankOnStartMission"
+      minRank:i=3
+      maxRank:i=4
+
+      condition{
+        type:t="online"
+      }
+
+      condition{
+        type:t="eventMode"
+        is_event:b=no
+      }
+
+      condition{
+        type:t="inSquad"
+      }
+    }
+
+    winParams{
+
+      reward{
+        param:i=1
+        wpRewardParams:p3=0.5, 0.0, 5000.0
+      }
+
+      reward{
+        param:i=2
+        wpRewardParams:p3=1.25, 0.0, 12500.0
+      }
+
+      reward{
+        param:i=3
+        wpRewardParams:p3=2.5, 0.0, 25000.0
+      }
+
+      reward{
+        param:i=4
+        wpRewardParams:p3=3.75, 0.0, 37500.0
+      }
+
+      reward{
+        param:i=5
+        wpRewardParams:p3=5.0, 0.0, 50000.0
+      }
+
+      reward{
+        param:i=6
+        wpRewardParams:p3=7.5, 0.0, 75000.0
+      }
+
+      reward{
+        param:i=7
+        wpRewardParams:p3=10.0, 0.0, 100000.0
+      }
+
+      reward{
+        param:i=8
+        wpRewardParams:p3=12.5, 0.0, 125000.0
+      }
+
+      reward{
+        param:i=9
+        wpRewardParams:p3=15.0, 0.0, 150000.0
+      }
+
+      reward{
+        param:i=10
+        wpRewardParams:p3=25.0, 0.0, 250000.0
+      }
+    }
+  }
+}
+
+order_score{
+  type:t="missionOrder"
+  sell_count_step:i=10
+  sell_count_max:i=1000
+
+  missionOrderParams{
+    name:t="order_score"
+    onlyIssuerTeam:b=no
+    timeTotal:i=300
+    cooldown:i=30
+    cooldownOtherTeam:i=15
+    delayFromStart:i=30
+    awardOnCancel:b=yes
+    disabledDifficulty:t="hardcore"
+    awardWp:p3=10000.0, 15000.0, 20000.0
+    awardModeRaw:b=yes
+    awardModeMulProgress:b=no
+    awardModeMulAward:b=no
+
+    mode{
+      type:t="score"
+    }
+  }
+}
+
+order_universalKiller{
+  type:t="missionOrder"
+  sell_count_step:i=10
+  sell_count_max:i=1000
+
+  missionOrderParams{
+    name:t="order_universalKiller"
+    onlyIssuerTeam:b=no
+    timeTotal:i=300
+    cooldown:i=30
+    cooldownOtherTeam:i=15
+    delayFromStart:i=30
+    awardOnCancel:b=no
+    disabledDifficulty:t="hardcore"
+    awardWp:p3=10000.0, 15000.0, 20000.0
+    awardModeRaw:b=yes
+
+    mode{
+      type:t="universalKiller"
+    }
+  }
+}
+
+order_streak{
+  type:t="missionOrder"
+  sell_count_step:i=10
+  sell_count_max:i=1000
+
+  missionOrderParams{
+    name:t="order_streak"
+    onlyIssuerTeam:b=no
+    timeTotal:i=300
+    cooldown:i=30
+    cooldownOtherTeam:i=15
+    delayFromStart:i=30
+    awardOnCancel:b=no
+    disabledDifficulty:t="hardcore"
+    awardWp:p3=10000.0, 15000.0, 20000.0
+    awardModeRaw:b=yes
+
+    mode{
+      type:t="streak"
+      num:i=3
+    }
+  }
+}
+
+order_rocketMan{
+  type:t="missionOrder"
+  sell_count_step:i=10
+  sell_count_max:i=1000
+
+  missionOrderParams{
+    name:t="order_rocketMan"
+    onlyIssuerTeam:b=no
+    timeTotal:i=300
+    cooldown:i=30
+    cooldownOtherTeam:i=15
+    delayFromStart:i=30
+    awardOnCancel:b=no
+    disabledDifficulty:t="hardcore"
+    awardWp:p3=10000.0, 15000.0, 20000.0
+    awardModeRaw:b=yes
+
+    mode{
+      type:t="rocketMan"
+    }
+  }
+}
+
+order_randomHunt{
+  type:t="missionOrder"
+  sell_count_step:i=10
+  sell_count_max:i=1000
+
+  missionOrderParams{
+    name:t="order_randomHunt"
+    onlyIssuerTeam:b=no
+    timeTotal:i=360
+    cooldown:i=30
+    cooldownOtherTeam:i=15
+    delayFromStart:i=30
+    awardOnCancel:b=no
+    disabledDifficulty:t="hardcore"
+    awardWp:p3=3000.0, 5000.0, 7000.0
+    awardModeRaw:b=yes
+
+    mode{
+      type:t="randomHunt"
+      huntTime:i=120
+      numTargets:i=5
+    }
+  }
+}
+
+order_revengeHunt{
+  type:t="missionOrder"
+  sell_count_step:i=10
+  sell_count_max:i=1000
+
+  missionOrderParams{
+    name:t="order_revengeHunt"
+    onlyIssuerTeam:b=no
+    timeTotal:i=360
+    cooldown:i=30
+    cooldownOtherTeam:i=15
+    delayFromStart:i=30
+    awardOnCancel:b=no
+    disabledDifficulty:t="hardcore"
+    awardWp:p3=3000.0, 5000.0, 7000.0
+    awardModeRaw:b=yes
+
+    mode{
+      type:t="revengeHunt"
+      huntTime:i=120
+      numTargets:i=5
+    }
+  }
+}
+
+order_eventMul_kill{
+  type:t="missionOrder"
+  sell_count_step:i=10
+  sell_count_max:i=1000
+
+  missionOrderParams{
+    name:t="order_eventMul"
+    onlyIssuerTeam:b=no
+    timeTotal:i=300
+    cooldown:i=30
+    cooldownOtherTeam:i=15
+    delayFromStart:i=30
+    awardOnCancel:b=yes
+    disabledDifficulty:t="hardcore"
+    awardWp:p3=3.0, 3.0, 3.0
+    awardXp:p3=0.0, 0.0, 0.0
+    awardModeMulAward:b=yes
+
+    mode{
+      type:t="eventMul"
+      event:t="GAMEPLAY_EVENT_KILL"
+      target:t="aircraft"
+    }
+  }
+}
+
+order_eventMul_ground{
+  type:t="missionOrder"
+  sell_count_step:i=10
+  sell_count_max:i=1000
+  iconStyle:t="order_eventMul_ground"
+
+  missionOrderParams{
+    name:t="order_eventMul"
+    onlyIssuerTeam:b=no
+    timeTotal:i=300
+    cooldown:i=30
+    cooldownOtherTeam:i=15
+    delayFromStart:i=30
+    awardOnCancel:b=yes
+    disabledDifficulty:t="hardcore"
+    awardWp:p3=3.0, 3.0, 3.0
+    awardXp:p3=0.0, 0.0, 0.0
+    awardModeMulAward:b=yes
+
+    mode{
+      type:t="eventMul"
+      event:t="GAMEPLAY_EVENT_KILL"
+      target:t="ground"
+
+      missionRestriction{
+        type:t="missionPostfix"
+        postfix:t="_AD"
+      }
+    }
+  }
+}
+
+order_score_dev_item_1{
+  type:t="missionOrder"
+  costGold:i=300
+  sell_count_step:i=10
+  sell_count_max:i=1000
+  purchase_feature:t="devItemShop"
+
+  missionOrderParams{
+    name:t="order_score_dev_item_1"
+    onlyIssuerTeam:b=no
+    timeTotal:i=20
+    cooldown:i=15
+    cooldownOtherTeam:i=15
+    delayFromStart:i=5
+    awardOnCancel:b=yes
+    disabledDifficulty:t="hardcore"
+    awardXp:p3=10000.0, 20000.0, 30000.0
+    awardWp:p3=10000.0, 20000.0, 30000.0
+    awardModeRaw:b=yes
+    awardModeMulProgress:b=no
+    awardModeMulAward:b=no
+
+    mode{
+      type:t="score"
+    }
+  }
+}
+
+order_score_dev_item_2{
+  type:t="missionOrder"
+  costGold:i=300
+  sell_count_step:i=10
+  sell_count_max:i=1000
+  purchase_feature:t="devItemShop"
+
+  missionOrderParams{
+    name:t="order_score_dev_item_2"
+    onlyIssuerTeam:b=no
+    timeTotal:i=20
+    cooldown:i=15
+    cooldownOtherTeam:i=15
+    delayFromStart:i=5
+    awardOnCancel:b=yes
+    disabledDifficulty:t="hardcore"
+    awardXp:p3=10000.0, 20000.0, 30000.0
+    awardWp:p3=10000.0, 20000.0, 30000.0
+    awardModeRaw:b=yes
+    awardModeMulProgress:b=no
+    awardModeMulAward:b=no
+
+    mode{
+      type:t="score"
+    }
+  }
+}
+
+discount_20_p-39n_su{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=72.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          p-39n_su:i=20
+        }
+      }
+    }
+  }
+}
+
+discount_50_p-39n_su{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=72.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          p-39n_su:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_5_us_m46_patton_73_armor_bat{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+  showAmountInsteadPercent:b=yes
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          us_m46_patton_73_armor_bat:i=5
+        }
+      }
+    }
+  }
+}
+
+discount_10_us_m46_patton_73_armor_bat{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+  showAmountInsteadPercent:b=yes
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          us_m46_patton_73_armor_bat:i=10
+        }
+      }
+    }
+  }
+}
+
+discount_25_us_m46_patton_73_armor_bat{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+  showAmountInsteadPercent:b=yes
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          us_m46_patton_73_armor_bat:i=25
+        }
+      }
+    }
+  }
+}
+
+discount_5_spitfire_ix_usa{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+  showAmountInsteadPercent:b=yes
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          spitfire_ix_usa:i=5
+        }
+      }
+    }
+  }
+}
+
+discount_25_spitfire_ix_usa{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+  showAmountInsteadPercent:b=yes
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          spitfire_ix_usa:i=25
+        }
+      }
+    }
+  }
+}
+
+discount_5_germ_panzerbefelhswagen_VI_P{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+  showAmountInsteadPercent:b=yes
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          germ_panzerbefelhswagen_VI_P:i=5
+        }
+      }
+    }
+  }
+}
+
+discount_10_germ_panzerbefelhswagen_VI_P{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+  showAmountInsteadPercent:b=yes
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          germ_panzerbefelhswagen_VI_P:i=10
+        }
+      }
+    }
+  }
+}
+
+discount_25_germ_panzerbefelhswagen_VI_P{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+  showAmountInsteadPercent:b=yes
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          germ_panzerbefelhswagen_VI_P:i=25
+        }
+      }
+    }
+  }
+}
+
+discount_5_la-5fn_luftwaffe{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+  showAmountInsteadPercent:b=yes
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          la-5fn_luftwaffe:i=5
+        }
+      }
+    }
+  }
+}
+
+discount_10_la-5fn_luftwaffe{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+  showAmountInsteadPercent:b=yes
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          la-5fn_luftwaffe:i=10
+        }
+      }
+    }
+  }
+}
+
+discount_25_la-5fn_luftwaffe{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+  showAmountInsteadPercent:b=yes
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          la-5fn_luftwaffe:i=25
+        }
+      }
+    }
+  }
+}
+
+discount_5_ussr_su_122P{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+  showAmountInsteadPercent:b=yes
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          ussr_su_122P:i=5
+        }
+      }
+    }
+  }
+}
+
+discount_10_ussr_su_122P{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+  showAmountInsteadPercent:b=yes
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          ussr_su_122P:i=10
+        }
+      }
+    }
+  }
+}
+
+discount_25_ussr_su_122P{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+  showAmountInsteadPercent:b=yes
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          ussr_su_122P:i=25
+        }
+      }
+    }
+  }
+}
+
+discount_5_fw-190d-9_ussr{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+  showAmountInsteadPercent:b=yes
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          fw-190d-9_ussr:i=5
+        }
+      }
+    }
+  }
+}
+
+discount_10_fw-190d-9_ussr{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+  showAmountInsteadPercent:b=yes
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          fw-190d-9_ussr:i=10
+        }
+      }
+    }
+  }
+}
+
+discount_25_fw-190d-9_ussr{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+  showAmountInsteadPercent:b=yes
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          fw-190d-9_ussr:i=25
+        }
+      }
+    }
+  }
+}
+
+discount_5_spitfire_mk14c{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+  showAmountInsteadPercent:b=yes
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          spitfire_mk14c:i=5
+        }
+      }
+    }
+  }
+}
+
+discount_10_spitfire_mk14c{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+  showAmountInsteadPercent:b=yes
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          spitfire_mk14c:i=10
+        }
+      }
+    }
+  }
+}
+
+discount_25_spitfire_mk14c{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+  showAmountInsteadPercent:b=yes
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          spitfire_mk14c:i=25
+        }
+      }
+    }
+  }
+}
+
+discount_5_b-17e_japan{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+  showAmountInsteadPercent:b=yes
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          b-17e_japan:i=5
+        }
+      }
+    }
+  }
+}
+
+discount_10_b-17e_japan{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+  showAmountInsteadPercent:b=yes
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          b-17e_japan:i=10
+        }
+      }
+    }
+  }
+}
+
+discount_25_b-17e_japan{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+  showAmountInsteadPercent:b=yes
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          b-17e_japan:i=25
+        }
+      }
+    }
+  }
+}
+
+discount_ussr{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=5
+
+    discountsDesc{
+
+      buy{
+        country_ussr:i=10
+        rank2:i=20
+        rank3_premium:i=30
+        country_ussr_rank4:i=40
+        country_ussr_rank5_premium:i=50
+      }
+
+      specialization{
+        all:i=36
+      }
+
+      expConvert{
+        country_ussr:i=44
+      }
+    }
+  }
+}
+
+wager_firstBlood_test{
+  type:t="wager"
+  costGold:i=10000
+  purchase_feature:t="devItemShop"
+
+  wagerParams{
+    maxWins:i=3
+    maxFails:i=2
+    minWager:i=0
+    maxWager:i=10000
+    wagerStep:i=500
+
+    win{
+      type:t="unlocks"
+      unlock:t="first_blood"
+    }
+
+    active{
+      type:t="maxUnitsRankOnStartMission"
+      minRank:i=3
+      maxRank:i=4
+
+      condition{
+        type:t="online"
+      }
+
+      condition{
+        type:t="eventMode"
+        is_event:b=no
+      }
+    }
+
+    winParams{
+
+      reward{
+        param:i=1
+        wpRewardParams:p3=1.0, 0.0, 10000.0
+      }
+
+      reward{
+        param:i=2
+        wpRewardParams:p3=0.0, 0.0, 0.0
+      }
+
+      reward{
+        param:i=3
+        wpRewardParams:p3=10.0, 0.0, 100000.0
+      }
+    }
+  }
+}
+
+discount_10_d_520{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          d_520:i=10
+        }
+      }
+    }
+  }
+}
+
+discount_20_d_520{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          d_520:i=20
+        }
+      }
+    }
+  }
+}
+
+discount_25_boomerang_mki{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          boomerang_mki:i=25
+        }
+      }
+    }
+  }
+}
+
+discount_25_boomerang_mkii{
+  expiredTimeH:r=72.0
+  expiredTimeHAfterActivation:r=24.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          boomerang_mkii:i=25
+        }
+      }
+    }
+  }
+}
+
+discount_10_us_m26e1_pershing{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          us_m26e1_pershing:i=10
+        }
+      }
+    }
+  }
+}
+
+discount_10_us_m4a3e2_sherman_jumbo_cobra_king{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          us_m4a3e2_sherman_jumbo_cobra_king:i=10
+        }
+      }
+    }
+  }
+}
+
+discount_10_germ_panzerbefelhswagen_jagdpanther{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          germ_panzerbefelhswagen_jagdpanther:i=10
+        }
+      }
+    }
+  }
+}
+
+discount_20_germ_panzerbefelhswagen_IV_ausf_J{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          germ_panzerbefelhswagen_IV_ausf_J:i=20
+        }
+      }
+    }
+  }
+}
+
+discount_20_ussr_t_35{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          ussr_t_35:i=20
+        }
+      }
+    }
+  }
+}
+
+discount_30_xp-50{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          xp-50:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_10_tempest_mkv_luftwaffe{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          tempest_mkv_luftwaffe:i=10
+        }
+      }
+    }
+  }
+}
+
+discount_30_p-47d_luftwaffe{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          p-47d_luftwaffe:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_30_b_25j_30_vvs_ussr{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          b_25j_30_vvs_ussr:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_20_p-51b{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          p-51b:i=20
+        }
+      }
+    }
+  }
+}
+
+discount_30_ki-96{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          ki-96:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_10_spitfire_ix_usa{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          spitfire_ix_usa:i=10
+        }
+      }
+    }
+  }
+}
+
+discount_50_hellcat_fmk1{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          hellcat_fmk1:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_50_avenger_mk1{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          avenger_mk1:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_50_ki_43_2_late{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          ki_43_2_late:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_50_wirraway{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          wirraway:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_30_a6m2_zero_usa{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          a6m2_zero_usa:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_a6m2_zero_usa{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          a6m2_zero_usa:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_30_a7he1{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          a7he1:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_30_avenger_mk1{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          avenger_mk1:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_b_25j_30_vvs_ussr{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          b_25j_30_vvs_ussr:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_75_b_25j_30_vvs_ussr{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          b_25j_30_vvs_ussr:i=75
+        }
+      }
+    }
+  }
+}
+
+discount_30_b-17e_japan{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          b-17e_japan:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_b-17e_japan{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          b-17e_japan:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_75_b-17e_japan{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          b-17e_japan:i=75
+        }
+      }
+    }
+  }
+}
+
+discount_30_bf-109e-3_japan{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          bf-109e-3_japan:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_bf-109e-3_japan{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          bf-109e-3_japan:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_30_bf-109f-4_usa{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          bf-109f-4_usa:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_bf-109f-4_usa{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          bf-109f-4_usa:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_75_bf-109f-4_usa{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          bf-109f-4_usa:i=75
+        }
+      }
+    }
+  }
+}
+
+discount_30_boomerang_mki{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          boomerang_mki:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_boomerang_mki{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          boomerang_mki:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_30_boomerang_mkii{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          boomerang_mkii:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_boomerang_mkii{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          boomerang_mkii:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_75_boomerang_mkii{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          boomerang_mkii:i=75
+        }
+      }
+    }
+  }
+}
+
+discount_10_btd-1{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          btd-1:i=10
+        }
+      }
+    }
+  }
+}
+
+discount_30_btd-1{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          btd-1:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_btd-1{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          btd-1:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_75_btd-1{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          btd-1:i=75
+        }
+      }
+    }
+  }
+}
+
+discount_30_f4u-1a_japan{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          f4u-1a_japan:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_f4u-1a_japan{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          f4u-1a_japan:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_10_fw-190a-5_japan{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          fw-190a-5_japan:i=10
+        }
+      }
+    }
+  }
+}
+
+discount_30_fw-190a-5_japan{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          fw-190a-5_japan:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_fw-190a-5_japan{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          fw-190a-5_japan:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_75_fw-190a-5_japan{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          fw-190a-5_japan:i=75
+        }
+      }
+    }
+  }
+}
+
+discount_10_fw-190a-8_usa{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          fw-190a-8_usa:i=10
+        }
+      }
+    }
+  }
+}
+
+discount_30_fw-190a-8_usa{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          fw-190a-8_usa:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_fw-190a-8_usa{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          fw-190a-8_usa:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_75_fw-190a-8_usa{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          fw-190a-8_usa:i=75
+        }
+      }
+    }
+  }
+}
+
+discount_30_fw-190d-9_ussr{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          fw-190d-9_ussr:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_fw-190d-9_ussr{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          fw-190d-9_ussr:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_75_fw-190d-9_ussr{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          fw-190d-9_ussr:i=75
+        }
+      }
+    }
+  }
+}
+
+discount_10_germ_kv_1_kwk_40{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          germ_kv_1_kwk_40:i=10
+        }
+      }
+    }
+  }
+}
+
+discount_30_germ_kv_1_kwk_40{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          germ_kv_1_kwk_40:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_germ_kv_1_kwk_40{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          germ_kv_1_kwk_40:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_75_germ_kv_1_kwk_40{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          germ_kv_1_kwk_40:i=75
+        }
+      }
+    }
+  }
+}
+
+discount_10_germ_panzerbefelhswagen_IV_ausf_J{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          germ_panzerbefelhswagen_IV_ausf_J:i=10
+        }
+      }
+    }
+  }
+}
+
+discount_30_germ_panzerbefelhswagen_IV_ausf_J{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          germ_panzerbefelhswagen_IV_ausf_J:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_germ_panzerbefelhswagen_IV_ausf_J{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          germ_panzerbefelhswagen_IV_ausf_J:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_75_germ_panzerbefelhswagen_IV_ausf_J{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          germ_panzerbefelhswagen_IV_ausf_J:i=75
+        }
+      }
+    }
+  }
+}
+
+discount_30_germ_panzerbefelhswagen_jagdpanther{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          germ_panzerbefelhswagen_jagdpanther:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_germ_panzerbefelhswagen_jagdpanther{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          germ_panzerbefelhswagen_jagdpanther:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_75_germ_panzerbefelhswagen_jagdpanther{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          germ_panzerbefelhswagen_jagdpanther:i=75
+        }
+      }
+    }
+  }
+}
+
+discount_30_germ_panzerbefelhswagen_VI_P{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          germ_panzerbefelhswagen_VI_P:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_germ_panzerbefelhswagen_VI_P{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          germ_panzerbefelhswagen_VI_P:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_75_germ_panzerbefelhswagen_VI_P{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          germ_panzerbefelhswagen_VI_P:i=75
+        }
+      }
+    }
+  }
+}
+
+discount_30_germ_pzkpfw_III_ausf_N{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          germ_pzkpfw_III_ausf_N:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_germ_pzkpfw_III_ausf_N{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          germ_pzkpfw_III_ausf_N:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_30_he_112b_1{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          he_112b_1:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_30_hellcat_fmk1{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          hellcat_fmk1:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_75_hellcat_fmk1{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          hellcat_fmk1:i=75
+        }
+      }
+    }
+  }
+}
+
+discount_30_i-153p{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          i-153p:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_i-153p{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          i-153p:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_30_i-16_type28{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          i-16_type28:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_i-16_type28{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          i-16_type28:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_75_i-16_type28{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          i-16_type28:i=75
+        }
+      }
+    }
+  }
+}
+
+discount_10_j2m4_kai{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          j2m4_kai:i=10
+        }
+      }
+    }
+  }
+}
+
+discount_30_j2m4_kai{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          j2m4_kai:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_j2m4_kai{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          j2m4_kai:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_75_j2m4_kai{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          j2m4_kai:i=75
+        }
+      }
+    }
+  }
+}
+
+discount_30_ki_43_2_late{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          ki_43_2_late:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_30_ki_61_1a_otsu_usa{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          ki_61_1a_otsu_usa:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_ki_61_1a_otsu_usa{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          ki_61_1a_otsu_usa:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_10_ki-96{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          ki-96:i=10
+        }
+      }
+    }
+  }
+}
+
+discount_50_ki-96{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          ki-96:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_75_ki-96{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          ki-96:i=75
+        }
+      }
+    }
+  }
+}
+
+discount_30_la-5fn_luftwaffe{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          la-5fn_luftwaffe:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_la-5fn_luftwaffe{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          la-5fn_luftwaffe:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_75_la-5fn_luftwaffe{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          la-5fn_luftwaffe:i=75
+        }
+      }
+    }
+  }
+}
+
+discount_30_p-39k_1{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          p-39k_1:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_p-39k_1{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          p-39k_1:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_30_p-40e_ussr{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          p-40e_ussr:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_p-40e_ussr{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          p-40e_ussr:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_50_p-47d_luftwaffe{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          p-47d_luftwaffe:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_75_p-47d_luftwaffe{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          p-47d_luftwaffe:i=75
+        }
+      }
+    }
+  }
+}
+
+discount_10_p-47d_ussr{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          p-47d_ussr:i=10
+        }
+      }
+    }
+  }
+}
+
+discount_30_p-47d_ussr{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          p-47d_ussr:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_p-47d_ussr{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          p-47d_ussr:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_75_p-47d_ussr{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          p-47d_ussr:i=75
+        }
+      }
+    }
+  }
+}
+
+discount_10_p-51b{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          p-51b:i=10
+        }
+      }
+    }
+  }
+}
+
+discount_30_p-51b{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          p-51b:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_p-51b{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          p-51b:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_75_p-51b{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          p-51b:i=75
+        }
+      }
+    }
+  }
+}
+
+discount_10_p-63a-5_ussr{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          p-63a-5_ussr:i=10
+        }
+      }
+    }
+  }
+}
+
+discount_30_p-63a-5_ussr{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          p-63a-5_ussr:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_p-63a-5_ussr{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          p-63a-5_ussr:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_75_p-63a-5_ussr{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          p-63a-5_ussr:i=75
+        }
+      }
+    }
+  }
+}
+
+discount_30_pby-5a_raf{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          pby-5a_raf:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_pby-5a_raf{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          pby-5a_raf:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_30_pby-5a_ussr{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          pby-5a_ussr:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_pby-5a_ussr{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          pby-5a_ussr:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_30_spitfire_ix_usa{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          spitfire_ix_usa:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_spitfire_ix_usa{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          spitfire_ix_usa:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_75_spitfire_ix_usa{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          spitfire_ix_usa:i=75
+        }
+      }
+    }
+  }
+}
+
+discount_30_spitfire_mk14c{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          spitfire_mk14c:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_spitfire_mk14c{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          spitfire_mk14c:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_75_spitfire_mk14c{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          spitfire_mk14c:i=75
+        }
+      }
+    }
+  }
+}
+
+discount_30_tempest_mkv_luftwaffe{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          tempest_mkv_luftwaffe:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_tempest_mkv_luftwaffe{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          tempest_mkv_luftwaffe:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_75_tempest_mkv_luftwaffe{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          tempest_mkv_luftwaffe:i=75
+        }
+      }
+    }
+  }
+}
+
+discount_30_us_m26e1_pershing{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          us_m26e1_pershing:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_us_m26e1_pershing{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          us_m26e1_pershing:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_75_us_m26e1_pershing{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          us_m26e1_pershing:i=75
+        }
+      }
+    }
+  }
+}
+
+discount_30_us_m46_patton_73_armor_bat{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          us_m46_patton_73_armor_bat:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_us_m46_patton_73_armor_bat{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          us_m46_patton_73_armor_bat:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_75_us_m46_patton_73_armor_bat{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          us_m46_patton_73_armor_bat:i=75
+        }
+      }
+    }
+  }
+}
+
+discount_30_us_m4a3e2_sherman_jumbo_cobra_king{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          us_m4a3e2_sherman_jumbo_cobra_king:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_us_m4a3e2_sherman_jumbo_cobra_king{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          us_m4a3e2_sherman_jumbo_cobra_king:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_75_us_m4a3e2_sherman_jumbo_cobra_king{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          us_m4a3e2_sherman_jumbo_cobra_king:i=75
+        }
+      }
+    }
+  }
+}
+
+discount_10_ussr_m4a2_76w_sherman{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          ussr_m4a2_76w_sherman:i=10
+        }
+      }
+    }
+  }
+}
+
+discount_30_ussr_m4a2_76w_sherman{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          ussr_m4a2_76w_sherman:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_ussr_m4a2_76w_sherman{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          ussr_m4a2_76w_sherman:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_75_ussr_m4a2_76w_sherman{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          ussr_m4a2_76w_sherman:i=75
+        }
+      }
+    }
+  }
+}
+
+discount_30_ussr_pzkpfw_III_ausf_J_L42{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          ussr_pzkpfw_III_ausf_J_L42:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_30_ussr_smk{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          ussr_smk:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_ussr_smk{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          ussr_smk:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_75_ussr_smk{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          ussr_smk:i=75
+        }
+      }
+    }
+  }
+}
+
+discount_30_ussr_su_122P{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          ussr_su_122P:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_ussr_su_122P{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          ussr_su_122P:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_75_ussr_su_122P{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          ussr_su_122P:i=75
+        }
+      }
+    }
+  }
+}
+
+discount_30_ussr_t_126sp{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          ussr_t_126sp:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_10_ussr_t_34_57_1943{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          ussr_t_34_57_1943:i=10
+        }
+      }
+    }
+  }
+}
+
+discount_30_ussr_t_34_57_1943{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          ussr_t_34_57_1943:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_ussr_t_34_57_1943{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          ussr_t_34_57_1943:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_75_ussr_t_34_57_1943{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          ussr_t_34_57_1943:i=75
+        }
+      }
+    }
+  }
+}
+
+discount_10_ussr_t_35{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          ussr_t_35:i=10
+        }
+      }
+    }
+  }
+}
+
+discount_30_ussr_t_35{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          ussr_t_35:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_ussr_t_35{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          ussr_t_35:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_75_ussr_t_35{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          ussr_t_35:i=75
+        }
+      }
+    }
+  }
+}
+
+discount_30_ussr_zut_37{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          ussr_zut_37:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_ussr_zut_37{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          ussr_zut_37:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_30_wellington_mk1c_luftwaffe{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          wellington_mk1c_luftwaffe:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_wellington_mk1c_luftwaffe{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          wellington_mk1c_luftwaffe:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_10_xp-50{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          xp-50:i=10
+        }
+      }
+    }
+  }
+}
+
+discount_50_xp-50{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          xp-50:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_75_xp-50{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          xp-50:i=75
+        }
+      }
+    }
+  }
+}
+
+discount_10_xp-55{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          xp-55:i=10
+        }
+      }
+    }
+  }
+}
+
+discount_30_xp-55{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          xp-55:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_xp-55{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          xp-55:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_75_xp-55{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          xp-55:i=75
+        }
+      }
+    }
+  }
+}
+
+discount_30_yak-1b_luftwaffe{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          yak-1b_luftwaffe:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_yak-1b_luftwaffe{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          yak-1b_luftwaffe:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_30_ussr_su_57{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          ussr_su_57:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_10_ussr_su_100Y{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          ussr_su_100Y:i=10
+        }
+      }
+    }
+  }
+}
+
+discount_30_ussr_su_100Y{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          ussr_su_100Y:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_ussr_su_100Y{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          ussr_su_100Y:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_75_ussr_su_100Y{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          ussr_su_100Y:i=75
+        }
+      }
+    }
+  }
+}
+
+discount_10_ussr_t_34_100{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          ussr_t_34_100:i=10
+        }
+      }
+    }
+  }
+}
+
+discount_30_ussr_t_34_100{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          ussr_t_34_100:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_ussr_t_34_100{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          ussr_t_34_100:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_75_ussr_t_34_100{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          ussr_t_34_100:i=75
+        }
+      }
+    }
+  }
+}
+
+discount_10_germ_nbfz_VI{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          germ_nbfz_VI:i=10
+        }
+      }
+    }
+  }
+}
+
+discount_30_germ_nbfz_VI{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          germ_nbfz_VI:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_germ_nbfz_VI{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          germ_nbfz_VI:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_75_germ_nbfz_VI{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          germ_nbfz_VI:i=75
+        }
+      }
+    }
+  }
+}
+
+discount_10_us_m18_super_hellcat{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          us_m18_super_hellcat:i=10
+        }
+      }
+    }
+  }
+}
+
+discount_30_us_m18_super_hellcat{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          us_m18_super_hellcat:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_us_m18_super_hellcat{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          us_m18_super_hellcat:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_75_us_m18_super_hellcat{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          us_m18_super_hellcat:i=75
+        }
+      }
+    }
+  }
+}
+
+discount_10_us_m4_sherman_calliope{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          us_m4_sherman_calliope:i=10
+        }
+      }
+    }
+  }
+}
+
+discount_30_us_m4_sherman_calliope{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          us_m4_sherman_calliope:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_us_m4_sherman_calliope{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          us_m4_sherman_calliope:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_75_us_m4_sherman_calliope{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          us_m4_sherman_calliope:i=75
+        }
+      }
+    }
+  }
+}
+
+discount_10_us_t28{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          us_t28:i=10
+        }
+      }
+    }
+  }
+}
+
+discount_30_us_t28{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          us_t28:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_us_t28{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          us_t28:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_75_us_t28{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          us_t28:i=75
+        }
+      }
+    }
+  }
+}
+
+discount_10_us_m26_t99{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          us_m26_t99:i=10
+        }
+      }
+    }
+  }
+}
+
+discount_30_us_m26_t99{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          us_m26_t99:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_us_m26_t99{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          us_m26_t99:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_75_us_m26_t99{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          us_m26_t99:i=75
+        }
+      }
+    }
+  }
+}
+
+discount_10_germ_panzerwerfer_42{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          germ_panzerwerfer_42:i=10
+        }
+      }
+    }
+  }
+}
+
+discount_30_germ_panzerwerfer_42{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          germ_panzerwerfer_42:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_germ_panzerwerfer_42{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          germ_panzerwerfer_42:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_75_germ_panzerwerfer_42{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          germ_panzerwerfer_42:i=75
+        }
+      }
+    }
+  }
+}
+
+discount_10_ussr_bm_8_24{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          ussr_bm_8_24:i=10
+        }
+      }
+    }
+  }
+}
+
+discount_30_ussr_bm_8_24{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          ussr_bm_8_24:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_ussr_bm_8_24{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          ussr_bm_8_24:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_75_ussr_bm_8_24{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          ussr_bm_8_24:i=75
+        }
+      }
+    }
+  }
+}
+
+discount_30_germ_infanterie_kampfpanzer_churchill{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          germ_infanterie_kampfpanzer_churchill:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_germ_infanterie_kampfpanzer_churchill{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          germ_infanterie_kampfpanzer_churchill:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_75_germ_infanterie_kampfpanzer_churchill{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          germ_infanterie_kampfpanzer_churchill:i=75
+        }
+      }
+    }
+  }
+}
+
+discount_10_ussr_t_44_122{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          ussr_t_44_122:i=10
+        }
+      }
+    }
+  }
+}
+
+discount_30_ussr_t_44_122{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          ussr_t_44_122:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_ussr_t_44_122{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          ussr_t_44_122:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_75_ussr_t_44_122{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          ussr_t_44_122:i=75
+        }
+      }
+    }
+  }
+}
+
+discount_30_ki_44_2_otsu{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          ki_44_2_otsu:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_ki_44_2_otsu{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          ki_44_2_otsu:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_30_il_2_1942_luftwaffe{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          il_2_1942_luftwaffe:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_il_2_1942_luftwaffe{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          il_2_1942_luftwaffe:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_10_yak-3_vk107{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          yak-3_vk107:i=10
+        }
+      }
+    }
+  }
+}
+
+discount_30_yak-3_vk107{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          yak-3_vk107:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_yak-3_vk107{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          yak-3_vk107:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_75_yak-3_vk107{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          yak-3_vk107:i=75
+        }
+      }
+    }
+  }
+}
+
+discount_10_j2m5_30mm{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          j2m5_30mm:i=10
+        }
+      }
+    }
+  }
+}
+
+discount_30_j2m5_30mm{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          j2m5_30mm:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_j2m5_30mm{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          j2m5_30mm:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_75_j2m5_30mm{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          j2m5_30mm:i=75
+        }
+      }
+    }
+  }
+}
+
+discount_10_a7m1{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          a7m1:i=10
+        }
+      }
+    }
+  }
+}
+
+discount_30_a7m1{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          a7m1:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_a7m1{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          a7m1:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_75_a7m1{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          a7m1:i=75
+        }
+      }
+    }
+  }
+}
+
+discount_30_hurricanemkii_ussr{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          hurricanemkii_ussr:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_hurricanemkii_ussr{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          hurricanemkii_ussr:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_10_p-61a_1{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          p-61a_1:i=10
+        }
+      }
+    }
+  }
+}
+
+discount_30_p-61a_1{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          p-61a_1:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_p-61a_1{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          p-61a_1:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_75_p-61a_1{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          p-61a_1:i=75
+        }
+      }
+    }
+  }
+}
+
+discount_10_do_335b_2{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          do_335b_2:i=10
+        }
+      }
+    }
+  }
+}
+
+discount_30_do_335b_2{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          do_335b_2:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_do_335b_2{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          do_335b_2:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_75_do_335b_2{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          do_335b_2:i=75
+        }
+      }
+    }
+  }
+}
+
+discount_10_h8k3{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          h8k3:i=10
+        }
+      }
+    }
+  }
+}
+
+discount_30_h8k3{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          h8k3:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_h8k3{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          h8k3:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_75_h8k3{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          h8k3:i=75
+        }
+      }
+    }
+  }
+}
+
+discount_10_uk_ac4_thunderbolt{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          uk_ac4_thunderbolt:i=10
+        }
+      }
+    }
+  }
+}
+
+discount_30_uk_ac4_thunderbolt{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          uk_ac4_thunderbolt:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_uk_ac4_thunderbolt{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          uk_ac4_thunderbolt:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_75_uk_ac4_thunderbolt{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          uk_ac4_thunderbolt:i=75
+        }
+      }
+    }
+  }
+}
+
+discount_10_uk_a27m_cromwell_5_rp3{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          uk_a27m_cromwell_5_rp3:i=10
+        }
+      }
+    }
+  }
+}
+
+discount_30_uk_a27m_cromwell_5_rp3{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          uk_a27m_cromwell_5_rp3:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_uk_a27m_cromwell_5_rp3{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          uk_a27m_cromwell_5_rp3:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_75_uk_a27m_cromwell_5_rp3{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          uk_a27m_cromwell_5_rp3:i=75
+        }
+      }
+    }
+  }
+}
+
+discount_10_germ_t_34_747{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          germ_t_34_747:i=10
+        }
+      }
+    }
+  }
+}
+
+discount_30_germ_t_34_747{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          germ_t_34_747:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_germ_t_34_747{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          germ_t_34_747:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_75_germ_t_34_747{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          germ_t_34_747:i=75
+        }
+      }
+    }
+  }
+}
+
+discount_10_germ_kv_2_754r{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          germ_kv_2_754r:i=10
+        }
+      }
+    }
+  }
+}
+
+discount_30_germ_kv_2_754r{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          germ_kv_2_754r:i=30
+        }
+      }
+    }
+  }
+}
+
+discount_50_germ_kv_2_754r{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          germ_kv_2_754r:i=50
+        }
+      }
+    }
+  }
+}
+
+discount_75_germ_kv_2_754r{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+
+        aircrafts{
+          germ_kv_2_754r:i=75
+        }
+      }
+    }
+  }
+}
+
+discount_75_country_ussr_rank1{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+        country_ussr_rank1:i=75
+      }
+    }
+  }
+}
+
+discount_75_country_ussr_rank1_premium{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+        country_ussr_rank1_premium:i=75
+      }
+    }
+  }
+}
+
+discount_75_country_ussr_rank2{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+        country_ussr_rank2:i=75
+      }
+    }
+  }
+}
+
+discount_75_country_ussr_rank2_premium{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+        country_ussr_rank2_premium:i=75
+      }
+    }
+  }
+}
+
+discount_75_country_ussr_rank3{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+        country_ussr_rank3:i=75
+      }
+    }
+  }
+}
+
+discount_75_country_ussr_rank3_premium{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+        country_ussr_rank3_premium:i=75
+      }
+    }
+  }
+}
+
+discount_75_country_usa_rank1{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+        country_usa_rank1:i=75
+      }
+    }
+  }
+}
+
+discount_75_country_usa_rank1_premium{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+        country_usa_rank1_premium:i=75
+      }
+    }
+  }
+}
+
+discount_75_country_usa_rank2{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+        country_usa_rank2:i=75
+      }
+    }
+  }
+}
+
+discount_75_country_usa_rank2_premium{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+        country_usa_rank2_premium:i=75
+      }
+    }
+  }
+}
+
+discount_75_country_usa_rank3{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+        country_usa_rank3:i=75
+      }
+    }
+  }
+}
+
+discount_75_country_usa_rank3_premium{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+        country_usa_rank3_premium:i=75
+      }
+    }
+  }
+}
+
+discount_75_country_germany_rank1{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+        country_germany_rank1:i=75
+      }
+    }
+  }
+}
+
+discount_75_country_germany_rank1_premium{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+        country_germany_rank1_premium:i=75
+      }
+    }
+  }
+}
+
+discount_75_country_germany_rank2{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+        country_germany_rank2:i=75
+      }
+    }
+  }
+}
+
+discount_75_country_germany_rank2_premium{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+        country_germany_rank2_premium:i=75
+      }
+    }
+  }
+}
+
+discount_75_country_germany_rank3{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+        country_germany_rank3:i=75
+      }
+    }
+  }
+}
+
+discount_75_country_germany_rank3_premium{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+        country_germany_rank3_premium:i=75
+      }
+    }
+  }
+}
+
+discount_75_country_britain_rank1{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+        country_britain_rank1:i=75
+      }
+    }
+  }
+}
+
+discount_75_country_britain_rank1_premium{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+        country_britain_rank1_premium:i=75
+      }
+    }
+  }
+}
+
+discount_75_country_britain_rank2{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+        country_britain_rank2:i=75
+      }
+    }
+  }
+}
+
+discount_75_country_britain_rank2_premium{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+        country_britain_rank2_premium:i=75
+      }
+    }
+  }
+}
+
+discount_75_country_britain_rank3{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+        country_britain_rank3:i=75
+      }
+    }
+  }
+}
+
+discount_75_country_britain_rank3_premium{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+        country_britain_rank3_premium:i=75
+      }
+    }
+  }
+}
+
+discount_75_country_japan_rank1{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+        country_japan_rank1:i=75
+      }
+    }
+  }
+}
+
+discount_75_country_japan_rank1_premium{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+        country_japan_rank1_premium:i=75
+      }
+    }
+  }
+}
+
+discount_75_country_japan_rank2{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+        country_japan_rank2:i=75
+      }
+    }
+  }
+}
+
+discount_75_country_japan_rank2_premium{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+        country_japan_rank2_premium:i=75
+      }
+    }
+  }
+}
+
+discount_75_country_japan_rank3{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+        country_japan_rank3:i=75
+      }
+    }
+  }
+}
+
+discount_75_country_japan_rank3_premium{
+  expiredTimeH:r=48.0
+  expiredTimeHAfterActivation:r=48.0
+  type:t="personalDiscounts"
+
+  personalDiscountsParams{
+    purchasesMaxCount:i=1
+
+    discountsDesc{
+
+      buy{
+        country_japan_rank3_premium:i=75
+      }
+    }
+  }
+}
+
+booster_wp_500_spentinsessiontime_3min_1mp{
+  type:t="rateBooster"
+  costGold:i=100
+  expiredTimeHAfterActivation:r=24.0
+  locId:t="booster_wp_500_spentinsessiontime_3min_1mp"
+  purchase_feature:t="devItemShop"
+
+  rateBoosterParams{
+    wpRate:i=500
+    spentInSessionTimeMin:i=3
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=1
+    }
+  }
+}
+
+booster_wp_500_spentinsessiontime_3min_10mp{
+  type:t="rateBooster"
+  costGold:i=100
+  expiredTimeHAfterActivation:r=24.0
+  locId:t="booster_wp_500_spentinsessiontime_3min_10mp"
+  purchase_feature:t="devItemShop"
+
+  rateBoosterParams{
+    wpRate:i=300
+    spentInSessionTimeMin:i=3
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=10
+    }
+  }
+}
+
+test_item_not_limited{
+  type:t="rateBooster"
+  expiredTimeHAfterActivation:r=24.0
+
+  rateBoosterParams{
+    wpRate:i=500
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=1
+    }
+  }
+}
+
+test_item_limit_personal_total{
+  type:t="rateBooster"
+  expiredTimeHAfterActivation:r=24.0
+  limitPersonalTotal:i=15
+
+  rateBoosterParams{
+    wpRate:i=500
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=1
+    }
+  }
+}
+
+test_item_limit_global{
+  type:t="rateBooster"
+  expiredTimeHAfterActivation:r=24.0
+  limitGlobal:i=12
+
+  rateBoosterParams{
+    wpRate:i=500
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=1
+    }
+  }
+}
+
+test_item_limit_personal_at_time{
+  type:t="rateBooster"
+  expiredTimeHAfterActivation:r=24.0
+  limitPersonalAtTime:i=14
+
+  rateBoosterParams{
+    wpRate:i=500
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=1
+    }
+  }
+}
+
+test_item_limit_all{
+  type:t="rateBooster"
+  expiredTimeHAfterActivation:r=24.0
+  limitGlobal:i=20
+  limitPersonalTotal:i=20
+  limitPersonalAtTime:i=20
+
+  rateBoosterParams{
+    wpRate:i=500
+    spentInSessionTimeMin:i=30
+
+    stop{
+      type:t="sessionsStarted"
+      num:i=1
+    }
+  }
+}
+
+ticket_test_linkage_first{
+  type:t="tournamentTicket"
+  costGold:i=10
+  iconStyle:t="silver_blue"
+  purchase_feature:t="devItemShop"
+  locId:t="tickets/common_ticket"
+
+  tournamentTicketParams{
+  }
+}
+
+ticket_test_linkage_second{
+  type:t="tournamentTicket"
+  cost:i=100000
+  iconStyle:t="silver_blue"
+  purchase_feature:t="devItemShop"
+  locId:t="tickets/common_ticket"
+
+  tournamentTicketParams{
+  }
+}
+
+ticket_test_linkage_third{
+  type:t="tournamentTicket"
+  costGold:i=111
+  iconStyle:t="silver_blue"
+  purchase_feature:t="devItemShop"
+  locId:t="tickets/common_ticket"
+
+  tournamentTicketParams{
+  }
+}

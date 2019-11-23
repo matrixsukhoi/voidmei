@@ -1,0 +1,157 @@
+mapCoord0:p2=-32768.0, -32768.0
+mapCoord1:p2=32768.0, 32768.0
+minAreaSize:p2=32768.0, 32768.0
+aiMapCoord0:p2=-32768.0, -32768.0
+aiMapCoord1:p2=32768.0, 32768.0
+gridZeroPoint:p2=-28672.0, 28672.0
+numBorderCellsXPos:i=8
+numBorderCellsXNeg:i=8
+numBorderCellsZPos:i=8
+numBorderCellsZNeg:i=8
+mirrorShrinkXPos:r=256.0
+mirrorShrinkXNeg:r=256.0
+mirrorShrinkZPos:r=256.0
+mirrorShrinkZNeg:r=256.0
+gridSteps:p2=8192.0, 8192.0
+vsmAngleThreshold:r=20.0
+weatherPreset:t="gameData/environments/weather_preset_1.blk"
+weatherTypes:t="gameData/environments/weather_types.blk"
+lastclip_horizon:b=yes
+water_level:r=0.0
+wind_scale:r=0.8
+max_wind_strength:r=3.5
+average_ground_level:r=60.0
+
+shader_vars{
+  translucency_detection_hardness:r=1.0
+  smoothness_detection_hardness:r=8.0
+  land_smoothness_detect_color:p4=0.48, 0.45, 0.34, 0.4
+  max_river_width:r=4800.0
+  ocean0:p4=0.11, 0.25, 0.12, 0.0
+  ocean1:p4=0.19, 0.28, 0.14, 0.0
+  river0:p4=0.4, 0.34, 0.22, 0.0
+  river1:p4=0.53, 0.41, 0.31, 0.0
+}
+
+stars{
+  latitude:r=51.0
+  longitude:r=7.0
+  year:i=1944
+  month:i=7
+  day:i=5
+}
+
+randomGrass{
+  density:r=0.75
+  maxRadius:r=400.0
+  sowPerlinFreq:r=0.1
+  fadeDelta:r=100.0
+  lodFadeDelta:r=30.0
+  minLodDensity:r=0.2
+  blendToLandDelta:r=100.0
+  texSize:i=256
+  noise_first_rnd:r=23.1407
+  noise_first_val_mul:r=1.0
+  noise_first_val_add:r=0.0
+  noise_second_rnd:r=0.05
+  noise_second_val_mul:r=1.0
+  noise_second_val_add:r=0.0
+  directWindMul:r=1.0
+  noiseWindMul:r=1.0
+  windPerlinFreq:r=50000.0
+  directWindFreq:r=1.0
+  directWindModulationFreq:r=1.0
+  windWaveLength:r=100.0
+  windToColor:r=0.2
+  helicopterHorMul:r=2.0
+  helicopterVerMul:r=1.0
+  helicopterToDirectWindMul:r=2.0
+  helicopterFalloff:r=0.001
+  ruhr_fields_a:t="ruhr_fields_a_tex_m"
+  ruhr_fields_b:t="berlin_fields_b_tex_m"
+  ruhr_fields_c:t="berlin_fields_b_tex_m"
+  ruhr_forest:t="berlin_forest_tex_m"
+  ruhr_village:t="berlin_village_tex_m"
+  ruhr_city_a:t="berlin_city_a_tex_m"
+  ruhr_factory:t="ruhr_factory_tex_m"
+
+  layer{
+    maskChannel:p4=0.0, 0.0, 1.0, 0.0
+    res:t="grass_scatter_a_2"
+    density:r=0.1
+    horScale:r=1.0
+    verScale:r=1.0
+    windMul:r=0.05
+    color_mask_r_from:c=255, 192, 28, 127
+    color_mask_r_to:c=203, 148, 33, 127
+    color_mask_b_from:c=106, 121, 45, 127
+    color_mask_b_to:c=151, 126, 62, 127
+    color_mask_g_from:c=2, 24, 54, 255
+    color_mask_g_to:c=247, 242, 186, 255
+  }
+
+  layer{
+    maskChannel:p4=0.0, 0.0, 1.0, 0.0
+    res:t="grass_scatter_a_2"
+    density:r=0.35
+    horScale:r=2.5
+    verScale:r=2.5
+    windMul:r=0.05
+    color_mask_r_from:c=255, 192, 28, 127
+    color_mask_r_to:c=203, 148, 33, 127
+    color_mask_b_from:c=106, 121, 45, 127
+    color_mask_b_to:c=151, 126, 62, 127
+    color_mask_g_from:c=2, 24, 54, 255
+    color_mask_g_to:c=247, 242, 186, 255
+  }
+
+  layer{
+    maskChannel:p4=1.0, 0.0, 0.0, 0.0
+    res:t="grass_scatter_b_2"
+    density:r=1.0
+    horScale:r=4.0
+    verScale:r=4.0
+    windMul:r=0.05
+    color_mask_r_from:c=255, 192, 28, 127
+    color_mask_r_to:c=203, 148, 33, 127
+    color_mask_b_from:c=106, 121, 45, 127
+    color_mask_b_to:c=151, 126, 62, 127
+    color_mask_g_from:c=2, 24, 54, 255
+    color_mask_g_to:c=247, 242, 186, 255
+  }
+
+  layer{
+    maskChannel:p4=0.0, 1.0, 0.0, 0.0
+    res:t="grass_scatter_a_1"
+    density:r=3.0
+    horScale:r=2.5
+    verScale:r=3.0
+    windMul:r=0.05
+    color_mask_r_from:c=255, 236, 187, 127
+    color_mask_r_to:c=255, 220, 23, 127
+    color_mask_b_from:c=106, 121, 45, 127
+    color_mask_b_to:c=52, 75, 18, 127
+    color_mask_g_from:c=2, 24, 54, 255
+    color_mask_g_to:c=247, 242, 186, 255
+  }
+
+  layer{
+    maskChannel:p4=1.0, 1.0, 1.0, 0.0
+    res:t="grass_scatter_a_3"
+    density:r=15.0
+    horScale:r=2.0
+    verScale:r=2.0
+    windMul:r=0.05
+    color_mask_r_from:c=99, 103, 27, 127
+    color_mask_r_to:c=194, 134, 84, 127
+    color_mask_b_from:c=226, 191, 52, 127
+    color_mask_b_to:c=200, 166, 77, 127
+    color_mask_g_from:c=2, 24, 54, 255
+    color_mask_g_to:c=247, 242, 186, 255
+  }
+}
+
+technicsSkins{
+  groundSkin:t="urban"
+  groundSkin:t="default"
+}

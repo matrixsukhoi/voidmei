@@ -1,0 +1,6 @@
+hideNodes{
+  node:t="aero_15a_pylon_l"
+  node:t="aero_15a_pylon_r"
+  node:t="aero_65a_pylon_l"
+  node:t="aero_65a_pylon_r"
+}

@@ -1,0 +1,24 @@
+Weapon{
+  trigger:t="bombs"
+  external:b=yes
+  blk:t="gameData/Weapons/bombGuns/jp_type92mod25.blk"
+  emitter:t="bomb13"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  external:b=yes
+  blk:t="gameData/Weapons/bombGuns/jp_type92mod25.blk"
+  emitter:t="bomb14"
+  bullets:i=1
+}
+
+hideNodes{
+  node:t="pylon_bomb1"
+  node:t="pylon_bomb2"
+  node:t="pylon_bomb3"
+  node:t="pylon_bomb4"
+  node:t="pylon_bomb7"
+  node:t="pylon_bomb8"
+}

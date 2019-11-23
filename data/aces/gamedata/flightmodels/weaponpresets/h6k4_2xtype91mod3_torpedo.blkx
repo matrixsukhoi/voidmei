@@ -1,0 +1,28 @@
+Weapon{
+  trigger:t="torpedoes"
+  separate:b=yes
+  external:b=yes
+  blk:t="gameData/Weapons/torpedoes/jp_type91mod3_torpedo.blk"
+  emitter:t="bomb1"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="torpedoes"
+  separate:b=yes
+  external:b=yes
+  blk:t="gameData/Weapons/torpedoes/jp_type91mod3_torpedo.blk"
+  emitter:t="bomb2"
+  bullets:i=1
+}
+
+hideNodes{
+  node:t="adaptor1"
+  node:t="adaptor2"
+  node:t="pylon_bomb3"
+  node:t="pylon_bomb4"
+  node:t="pylon_bomb5"
+  node:t="pylon_bomb6"
+  node:t="pylon_bomb7"
+  node:t="pylon_bomb8"
+}

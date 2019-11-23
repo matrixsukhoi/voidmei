@@ -1,0 +1,373 @@
+player_canon_damaged_cockpit{
+  type:i=2
+  priority:i=0
+  resetIdle:b=yes
+  exclude:t=""
+}
+
+player_main_rotor_damaged_cockpit{
+  type:i=2
+  priority:i=0
+  resetIdle:b=yes
+  exclude:t=""
+}
+
+player_engine1_damaged_cockpit{
+  type:i=2
+  priority:i=0
+  resetIdle:b=yes
+  exclude:t=""
+}
+
+player_engine2_damaged_cockpit{
+  type:i=2
+  priority:i=0
+  resetIdle:b=yes
+  exclude:t=""
+}
+
+player_radar_damaged_cockpit{
+  type:i=2
+  priority:i=0
+  resetIdle:b=yes
+  exclude:t=""
+}
+
+player_undercarriage_damaged_cockpit{
+  type:i=2
+  priority:i=0
+  resetIdle:b=yes
+  exclude:t=""
+}
+
+player_back_rotor_damaged_cockpit{
+  type:i=2
+  priority:i=0
+  resetIdle:b=yes
+  exclude:t=""
+}
+
+ally_helicopter_canon_damaged{
+  type:i=1
+  channel:i=1
+}
+
+ally_helicopter_rotor_damaged{
+  type:i=1
+  channel:i=1
+}
+
+ally_helicopter_engine1_damaged{
+  type:i=1
+  channel:i=1
+}
+
+ally_helicopter_engine2_damaged{
+  type:i=1
+  channel:i=1
+}
+
+ally_helicopter_radar_damaged{
+  type:i=1
+  channel:i=1
+}
+
+ally_helicopter_undercarriage_damaged{
+  type:i=1
+  channel:i=1
+}
+
+ally_force_damaged{
+  type:i=1
+  channel:i=1
+}
+
+ally_force_aircraft_damaged{
+  type:i=1
+  channel:i=1
+}
+
+ally_force_under_fire{
+  type:i=1
+  channel:i=1
+}
+
+ally_force_player_frendly_fire{
+  type:i=1
+  channel:i=1
+}
+
+ally_force_aircraft_destroyed{
+  type:i=1
+  channel:i=1
+}
+
+ally_force_target_destroyed{
+  type:i=1
+  channel:i=1
+}
+
+ally_helicopter_target_destroyed{
+  type:i=1
+  channel:i=1
+}
+
+ally_helicopter_was_hit{
+  type:i=1
+  channel:i=1
+}
+
+ally_helicopter_missile_hit{
+  type:i=1
+  channel:i=1
+}
+
+ally_helicopter_player_frendly_fire{
+  type:i=1
+  channel:i=1
+}
+
+ally_helicopter_player_under_attack{
+  type:i=1
+  channel:i=1
+}
+
+ally_helicopter_player_target_destroyed{
+  type:i=1
+  channel:i=1
+}
+
+ally_helicopter_rpg_hit{
+  type:i=1
+  channel:i=1
+}
+
+ally_helicopter_under_fire{
+  type:i=1
+  channel:i=1
+}
+
+ally_helicopter_player_was_hit{
+  type:i=1
+  channel:i=1
+}
+
+ally_helicopter_player_was_hit{
+  type:i=2
+  resetIdle:b=yes
+}
+
+player_was_hit_cockpit{
+  type:i=2
+  resetIdle:b=yes
+}
+
+player_rpg_hit{
+  type:i=2
+  resetIdle:b=yes
+}
+
+player_under_attack_cockpit{
+  type:i=2
+  resetIdle:b=yes
+}
+
+player_frendly_fire_cockpit{
+  type:i=2
+  resetIdle:b=yes
+}
+
+player_under_artillery_attack_cockpit{
+  type:i=2
+  resetIdle:b=yes
+}
+
+player_target_hit_cockpit{
+  type:i=2
+  resetIdle:b=yes
+}
+
+player_low_ammo_cockpit{
+  type:i=2
+}
+
+player_low_missiles_cockpit{
+  type:i=2
+}
+
+player_low_rockets_cockpit{
+  type:i=2
+}
+
+player_low_stingers_cockpit{
+  type:i=2
+}
+
+player_low_antimissiles_cockpit{
+  type:i=2
+}
+
+player_no_ammo_cockpit{
+  type:i=2
+}
+
+player_no_missiles_cockpit{
+  type:i=2
+}
+
+player_no_rockets_cockpit{
+  type:i=2
+}
+
+player_no_stingers_cockpit{
+  type:i=2
+}
+
+player_no_antimissiles_cockpit{
+  type:i=2
+}
+
+player_missile_locked_cockpit{
+  type:i=2
+}
+
+player_objective_complete_cockpit{
+  type:i=2
+}
+
+player_rpg_alert_cockpit{
+  type:i=2
+  resetIdle:b=yes
+}
+
+player_hellfire_minimum_distance{
+  type:i=2
+}
+
+player_helicopter_flares_deployed_cockpit{
+  type:i=2
+}
+
+player_helicopter_reload_complete_cockpit{
+  type:i=2
+}
+
+player_target_locked_cockpit{
+  type:i=2
+  resetIdle:b=yes
+}
+
+player_evasive_action_cockpit_gunner{
+  type:i=2
+}
+
+player_evasive_action_cockpit_pilot{
+  type:i=2
+}
+
+player_helicopter_on_windmilling_cockpit{
+  type:i=2
+}
+
+player_good_attack_position_cockpit{
+  type:i=2
+}
+
+player_helicopter_rdy_to_take_off_cockpit{
+  type:i=2
+}
+
+player_attack_miss_cockpit{
+  type:i=2
+  resetIdle:b=yes
+}
+
+player_air_trick_cockpit{
+  type:i=2
+}
+
+player_is_goingdown_cockpit{
+  type:i=2
+  priority:i=0
+  resetIdle:b=yes
+  exclude:t=""
+}
+
+player_copilot_serching_for_targets{
+  type:i=2
+}
+
+player_was_detected_cockpit{
+  type:i=2
+  resetIdle:b=yes
+}
+
+player_moves_toengage_cockpit{
+  type:i=2
+  resetIdle:b=yes
+}
+
+player_air_threat_cockpit{
+  type:i=2
+}
+
+player_target_detected_cockpit{
+  type:i=2
+  resetIdle:b=yes
+}
+
+ally_force_enemy_detected{
+  type:i=1
+  channel:i=1
+}
+
+ally_helicopter_targets_in_sight_of_view{
+  type:i=1
+  channel:i=1
+}
+
+ally_helicopter_player_was_detected{
+  type:i=1
+  channel:i=1
+}
+
+ally_helicopter_readyto_attack{
+  type:i=1
+  channel:i=1
+}
+
+ally_helicopter_air_threat{
+  type:i=1
+  channel:i=1
+}
+
+ally_force_target_marked{
+  type:i=1
+  channel:i=1
+}
+
+ally_helicopter_radar_warning{
+  type:i=1
+  channel:i=1
+}
+
+ally_helicopter_laser_detected{
+  type:i=1
+  channel:i=1
+  priority:i=50
+}
+
+ally_helicopter_falling_down{
+  type:i=1
+  channel:i=1
+}
+
+ally_helicopter_rpg_alert{
+  type:i=1
+  channel:i=1
+}
+
+ally_helicopter_missile_alert{
+  type:i=1
+  channel:i=1
+}

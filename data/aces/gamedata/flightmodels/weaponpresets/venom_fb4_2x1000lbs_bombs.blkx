@@ -1,0 +1,37 @@
+hideNodes{
+  node:t="rocket_pylon_l"
+  node:t="rocket_pylon_r"
+  node:t="rocket1"
+  node:t="rocket2"
+  node:t="rocket3"
+  node:t="rocket4"
+  node:t="rocket5"
+  node:t="rocket6"
+  node:t="rocket7"
+  node:t="rocket8"
+  node:t="bomb3"
+  node:t="bomb4"
+  node:t="tank_l"
+  node:t="tank_r"
+}
+
+hideDmParts{
+  node:t="tank6_dm"
+  node:t="tank7_dm"
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/uk_1000lbs_gp.blk"
+  emitter:t="bomb1"
+  bullets:i=1
+  external:b=yes
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/BombGuns/uk_1000lbs_gp.blk"
+  emitter:t="bomb2"
+  bullets:i=1
+  external:b=yes
+}

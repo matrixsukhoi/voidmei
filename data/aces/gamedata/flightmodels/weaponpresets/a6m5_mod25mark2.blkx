@@ -1,0 +1,11 @@
+Weapon{
+  trigger:t="bombs"
+  external:b=yes
+  blk:t="gameData/Weapons/bombGuns/jp_mod25mark2.blk"
+  emitter:t="bomb1"
+  bullets:i=1
+}
+
+hideNodes{
+  node:t="drop_fueltank"
+}

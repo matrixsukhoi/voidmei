@@ -1,0 +1,211 @@
+model:t="halftrack_251_1c_a"
+hasExpl:b=yes
+hasDmg2:b=yes
+collisionSphere0:p4=0.0, -1.5, 0.0, 5.0
+collisionSphere1:p4=5.0, 2.0, 0.0, 1.0
+timeToFire:r=5.0
+subclass:t="lightVehicle"
+expClass:t="exp_vehicle"
+moveType:t="vehicle"
+maxFwdSpeed:r=60.0
+maxRevSpeed:r=30.0
+maxAngSpeed:r=50.0
+maxAccel:r=40.0
+maxDecel:r=40.0
+maxAngAccel0:r=4.0
+maxAngAccelV:r=3.0
+maxAngAccel:r=170.0
+groundNormSmoothViscosity:r=0.1
+minDistBetween:r=10.0
+mass:r=60000.0
+bulletHitFx:t="ground_model_hit"
+partDamageFx:t="part_damage"
+explosionFx:t="ground_model_expl"
+fireFx:t="ground_model_fire"
+destroysRendInstances:b=no
+destroysTrees:b=no
+
+attach{
+  inc_driver:t="german_middle_cap_driver"
+  inc_sit00:t="german_middle2_sit"
+  inc_sit01:t="german_middle_sit"
+  inc_sit02:t="german_middle2_sit"
+  inc_sit03:t="german_middle_sit"
+  inc_gunner:t="german_middle_gunner"
+}
+
+DamageParts{
+
+  steel{
+
+    engine_dm{
+      hp:r=30.0
+    }
+
+    body_dm{
+      hp:r=90.0
+    }
+  }
+}
+
+DamageEffects{
+
+  part{
+    name:t="body_dm"
+
+    onHit{
+    }
+
+    onKill{
+      fire:r=2.0
+      smoke:r=5.0
+      expl:r=5.0
+    }
+  }
+
+  part{
+    name:t="engine_dm"
+
+    onHit{
+      smoke:r=0.1
+    }
+
+    onKill{
+      body_dm:r=1.0
+    }
+  }
+}
+
+class_tags{
+  mediterran:b=yes
+  westernfront:b=yes
+  easternfront:b=yes
+  country_germany:b=yes
+  country_italy:b=yes
+  light_vehicles:b=yes
+  year1940:b=yes
+  year1941:b=yes
+  year1942:b=yes
+  year1943:b=yes
+  year1944:b=yes
+  year1945:b=yes
+}
+
+sound{
+  path:t="sounds/engines"
+  engine:t="truck"
+}
+
+weapon{
+  trigger:t="gunner0"
+  blk:t="gameData/Weapons/groundModels_weapons/common_mGun7mm.blk"
+  emitter:t="gun1"
+  flash:t="flame1"
+  defaultYaw:r=0.0
+  defaultPitch:r=10.0
+  speedYaw:r=15.0
+  speedPitch:r=15.0
+  fireConeAngle:r=8.0
+  bullets:i=-1
+  salvoAmount:r=100.0
+  ChainfireTime:r=3.0
+  DelayAfterShoot:r=3.0
+  AttackMaxDistance:r=500.0
+  AttackMaxRadius:r=500.0
+  AttackMaxHeight:r=500.0
+  accuracyAir:r=0.1
+  accuracyGnd:r=0.5
+  errMeasureVel:r=0.0
+  errTargettingOn100kmph:r=0.0
+  errMeasureVelFast:r=80.0
+  errMeasureVelFwdShift:r=1.0
+  errMeasureVelDir:r=3.0
+  errTargetting:r=1.0
+  errExplTime:r=0.0
+
+  turret{
+    head:t="turret1"
+    gun:t="gun1"
+  }
+
+  limits{
+    yaw:p2=-35.0, 35.0
+    pitch:p2=-10.0, 80.0
+  }
+}
+
+skin{
+  name:t="snow"
+
+  replace_tex{
+    from:t="halftrack_251_1c_main_olive_c*"
+    to:t="halftrack_251_1c_main_snow_c*"
+  }
+
+  replace_tex{
+    from:t="halftrack_251_1c_alpha_olive_c*"
+    to:t="halftrack_251_1c_alpha_snow_c*"
+  }
+
+  replace_tex{
+    from:t="halftrack_251_1c_inside_olive_c*"
+    to:t="halftrack_251_1c_inside_snow_c*"
+  }
+}
+
+skin{
+  name:t="sand"
+
+  replace_tex{
+    from:t="halftrack_251_1c_main_olive_c*"
+    to:t="halftrack_251_1c_main_sand_c*"
+  }
+
+  replace_tex{
+    from:t="halftrack_251_1c_alpha_olive_c*"
+    to:t="halftrack_251_1c_alpha_sand_c*"
+  }
+
+  replace_tex{
+    from:t="halftrack_251_1c_inside_olive_c*"
+    to:t="halftrack_251_1c_inside_sand_c*"
+  }
+}
+
+skin{
+  name:t="forest"
+
+  replace_tex{
+    from:t="halftrack_251_1c_main_olive_c*"
+    to:t="halftrack_251_1c_main_forest_c*"
+  }
+
+  replace_tex{
+    from:t="halftrack_251_1c_alpha_olive_c*"
+    to:t="halftrack_251_1c_alpha_forest_c*"
+  }
+
+  replace_tex{
+    from:t="halftrack_251_1c_inside_olive_c*"
+    to:t="halftrack_251_1c_inside_forest_c*"
+  }
+}
+
+skin{
+  name:t="urban"
+
+  replace_tex{
+    from:t="halftrack_251_1c_main_olive_c*"
+    to:t="halftrack_251_1c_main_urban_c*"
+  }
+
+  replace_tex{
+    from:t="halftrack_251_1c_alpha_olive_c*"
+    to:t="halftrack_251_1c_alpha_urban_c*"
+  }
+
+  replace_tex{
+    from:t="halftrack_251_1c_inside_olive_c*"
+    to:t="halftrack_251_1c_inside_urban_c*"
+  }
+}

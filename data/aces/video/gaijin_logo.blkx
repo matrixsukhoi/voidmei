@@ -1,0 +1,24 @@
+_video_settings{
+  length:i=7000
+  fadeInTime:i=3500
+  fadeOutTime:i=1000
+}
+
+root{
+
+  tdiv{
+    position:t="root"
+    left:t="(sw-w)/2"
+    top:t="(sh-h)/2"
+    size:t="2sw, 2sh"
+    style:t="background-repeat:expand;background-color:#000000;"
+  }
+
+  tdiv{
+    position:t="absolute"
+    left:t="(sw-w)/2"
+    top:t="(sh-h)/2.5"
+    size:t="614/720*sh, 293/720*sh"
+    style:t="background-repeat:expand;background-image:ui/bkg/gaijin_logo.jpg?P1;background-color:#FFFFFF;"
+  }
+}

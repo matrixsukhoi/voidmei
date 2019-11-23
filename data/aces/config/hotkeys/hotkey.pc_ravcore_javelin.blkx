@@ -1,0 +1,2807 @@
+controls{
+  version:i=5
+
+  basePresetPaths{
+    default:t="config/hotkeys/hotkey.empty.blk"
+  }
+
+  hotkeys{
+
+    ID_AIR_BRAKE{
+      joyButton:i=6
+    }
+
+    ID_BAILOUT{
+      keyboardKey:i=36
+    }
+
+    ID_BAILOUT{
+      joyButton:i=12
+    }
+
+    ID_BOMBS{
+      joyButton:i=5
+    }
+
+    ID_CHANGE_ARTILLERY_TARGETING_MODE{
+      mouseButton:i=2
+    }
+
+    ID_FIRE_ADDITIONAL_GUNS{
+      joyButton:i=17
+    }
+
+    ID_FIRE_CANNONS{
+      joyButton:i=19
+    }
+
+    ID_FIRE_GM{
+      joyButton:i=13
+    }
+
+    ID_FIRE_GM_MACHINE_GUN{
+      joyButton:i=13
+    }
+
+    ID_FIRE_GM_SECONDARY_GUN{
+      joyButton:i=13
+    }
+
+    ID_FIRE_GM_SPECIAL_GUN{
+      joyButton:i=8
+    }
+
+    ID_FIRE_MGUNS{
+      joyButton:i=15
+    }
+
+    ID_FLAPS_DOWN{
+      joyButton:i=0
+    }
+
+    ID_FLAPS_UP{
+      joyButton:i=1
+    }
+
+    ID_GEAR{
+      joyButton:i=7
+    }
+
+    ID_MPSTATSCREEN{
+      keyboardKey:i=15
+    }
+
+    ID_MPSTATSCREEN{
+      keyboardKey:i=49
+    }
+
+    ID_MPSTATSCREEN{
+      joyButton:i=10
+    }
+
+    ID_PTT{
+      keyboardKey:i=157
+    }
+
+    ID_REPLAY_PAUSE{
+      keyboardKey:i=57
+    }
+
+    ID_ROCKETS{
+      joyButton:i=8
+    }
+
+    ID_SHOOT_ARTILLERY{
+      joyButton:i=13
+    }
+
+    ID_SPECTATOR_CAMERA_ROTATION{
+      mouseButton:i=1
+    }
+
+    ID_TACTICAL_MAP{
+      keyboardKey:i=50
+    }
+
+    ID_TACTICAL_MAP{
+      joyButton:i=9
+    }
+
+    ID_TOGGLE_ENGINE{
+      joyButton:i=11
+    }
+
+    ID_ZOOM_TOGGLE{
+      joyButton:i=3
+    }
+
+    camx_rangeSet{
+      joyButton:i=2
+    }
+
+    camy_rangeSet{
+      joyButton:i=2
+    }
+
+    gm_camx_rangeSet{
+      joyButton:i=2
+    }
+
+    gm_camy_rangeSet{
+      joyButton:i=2
+    }
+
+    ship_camx_rangeSet{
+      joyButton:i=2
+    }
+
+    ship_camy_rangeSet{
+      joyButton:i=2
+    }
+
+    turret_x_rangeSet{
+      joyButton:i=2
+    }
+
+    turret_y_rangeSet{
+      joyButton:i=2
+    }
+  }
+
+  axes{
+
+    ailerons{
+      axisId:i=0
+      innerDeadzone:r=0.02
+      nonlinearity:r=1.0
+    }
+
+    camx{
+      axisId:i=7
+      innerDeadzone:r=0.25
+      nonlinearity:r=1.0
+      relSens:r=0.64
+      relative:b=yes
+    }
+
+    camy{
+      axisId:i=8
+      innerDeadzone:r=0.25
+      nonlinearity:i=1
+      relSens:r=0.75
+      relative:b=yes
+    }
+
+    elevator{
+      axisId:i=1
+      innerDeadzone:r=0.02
+      nonlinearity:i=1
+    }
+
+    gm_camx{
+      axisId:i=7
+      innerDeadzone:r=0.25
+      inverse:b=yes
+      nonlinearity:i=1
+      relSens:r=0.75
+      relative:b=yes
+    }
+
+    gm_camy{
+      axisId:i=8
+      innerDeadzone:r=0.25
+      nonlinearity:i=1
+      relSens:r=0.75
+      relative:b=yes
+    }
+
+    rudder{
+      axisId:i=2
+      innerDeadzone:r=0.02
+      nonlinearity:i=1
+    }
+
+    ship_camx{
+      axisId:i=7
+      innerDeadzone:r=0.25
+      inverse:b=yes
+      nonlinearity:i=1
+      relSens:r=0.75
+      relative:b=yes
+    }
+
+    ship_camy{
+      axisId:i=8
+      innerDeadzone:r=0.25
+      nonlinearity:i=1
+      relSens:r=0.75
+      relative:b=yes
+    }
+
+    throttle{
+      axisId:i=3
+      innerDeadzone:i=0
+      kAdd:r=-0.0
+      kMul:r=1.1
+    }
+
+    turret_x{
+      axisId:i=7
+      innerDeadzone:r=0.25
+      inverse:b=yes
+      nonlinearity:i=1
+      relSens:r=0.75
+      relative:b=yes
+    }
+
+    turret_y{
+      axisId:i=8
+      innerDeadzone:r=0.25
+      nonlinearity:i=1
+      relSens:r=0.75
+      relative:b=yes
+    }
+  }
+
+  squarePairs{
+  }
+
+  params{
+  }
+
+  deviceMapping{
+
+    joystick{
+      connected:b=yes
+      buttonsOffset:i=0
+      axesOffset:i=0
+      buttonsCount:i=33
+      name:t="RAVCORE JAVELIN"
+      devId:t="11C0:5607"
+      axesCount:i=9
+    }
+
+    joystick{
+      connected:b=no
+      buttonsOffset:i=33
+      axesOffset:i=9
+      buttonsCount:i=33
+      name:t="VKBsim Gladiator"
+      devId:t="231D:0121"
+      axesCount:i=9
+    }
+  }
+}
+
+hotkeys{
+
+  event{
+    name:t="ID_REPAIR_TANK"
+  }
+
+  event{
+    name:t="ID_TOGGLE_VIEW_GM"
+  }
+
+  event{
+    name:t="ID_TRANS_GEAR_UP"
+  }
+
+  event{
+    name:t="ID_TRANS_GEAR_DOWN"
+  }
+
+  event{
+    name:t="ID_ACTION_BAR_ITEM_1"
+  }
+
+  event{
+    name:t="ID_ACTION_BAR_ITEM_2"
+  }
+
+  event{
+    name:t="ID_ACTION_BAR_ITEM_3"
+  }
+
+  event{
+    name:t="ID_ACTION_BAR_ITEM_4"
+  }
+
+  event{
+    name:t="ID_ACTION_BAR_ITEM_5"
+  }
+
+  event{
+    name:t="ID_ACTION_BAR_ITEM_6"
+  }
+
+  event{
+    name:t="ID_ACTION_BAR_ITEM_7"
+  }
+
+  event{
+    name:t="ID_ACTION_BAR_ITEM_8"
+  }
+
+  event{
+    name:t="ID_ACTION_BAR_ITEM_9"
+  }
+
+  event{
+    name:t="ID_ACTION_BAR_ITEM_10"
+  }
+
+  event{
+    name:t="ID_ACTION_BAR_ITEM_11"
+  }
+
+  event{
+    name:t="ID_ACTION_BAR_ITEM_12"
+  }
+
+  event{
+    name:t="brake_right_rangeSet"
+  }
+
+  event{
+    name:t="ID_FLIGHTMENU"
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=1
+      }
+    }
+
+    shortcut{
+
+      button{
+        deviceId:i=3
+        buttonId:i=4
+      }
+    }
+  }
+
+  event{
+    name:t="ID_CONTINUE"
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=57
+      }
+    }
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=28
+      }
+    }
+
+    shortcut{
+
+      button{
+        deviceId:i=3
+        buttonId:i=12
+      }
+    }
+  }
+
+  event{
+    name:t="gm_throttle_rangeDec"
+  }
+
+  event{
+    name:t="gm_throttle_rangeInc"
+  }
+
+  event{
+    name:t="brake_right_rangeMin"
+  }
+
+  event{
+    name:t="brake_right"
+  }
+
+  event{
+    name:t="brake_left_rangeSet"
+  }
+
+  event{
+    name:t="gm_turret_y_rangeDec"
+  }
+
+  event{
+    name:t="gm_turret_y_rangeInc"
+  }
+
+  event{
+    name:t="brake_left_rangeMin"
+  }
+
+  event{
+    name:t="brake_left"
+  }
+
+  event{
+    name:t="cam_vert_rangeSet"
+  }
+
+  event{
+    name:t="gm_turret_x_rangeDec"
+  }
+
+  event{
+    name:t="gm_turret_x_rangeInc"
+  }
+
+  event{
+    name:t="cam_vert"
+  }
+
+  event{
+    name:t="cam_strafe_rangeSet"
+  }
+
+  event{
+    name:t="ID_PAUSE_GAME"
+  }
+
+  event{
+    name:t="cam_strafe"
+  }
+
+  event{
+    name:t="cam_fwd_rangeSet"
+  }
+
+  event{
+    name:t="ailerons_rangeInc"
+  }
+
+  event{
+    name:t="ailerons_rangeDec"
+  }
+
+  event{
+    name:t="cam_fwd"
+  }
+
+  event{
+    name:t="brake_rangeMax"
+  }
+
+  event{
+    name:t="camx_rangeMax"
+  }
+
+  event{
+    name:t="camx_rangeMin"
+  }
+
+  event{
+    name:t="ID_REPLAY_CAMERA_FREE"
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=29
+      }
+
+      button{
+        deviceId:i=2
+        buttonId:i=63
+      }
+    }
+  }
+
+  event{
+    name:t="ID_REPLAY_SHOW_MARKERS"
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=52
+      }
+    }
+  }
+
+  event{
+    name:t="cam_fwd_rangeMin"
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=31
+      }
+    }
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=29
+      }
+    }
+  }
+
+  event{
+    name:t="cam_fwd_rangeMax"
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=17
+      }
+    }
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=42
+      }
+    }
+  }
+
+  event{
+    name:t="cam_strafe_rangeMin"
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=30
+      }
+    }
+  }
+
+  event{
+    name:t="cam_strafe_rangeMax"
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=32
+      }
+    }
+  }
+
+  event{
+    name:t="cam_vert_rangeMin"
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=16
+      }
+    }
+  }
+
+  event{
+    name:t="cam_vert_rangeMax"
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=18
+      }
+    }
+  }
+
+  event{
+    name:t="ID_TOGGLE_CHAT"
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=28
+      }
+
+      button{
+        deviceId:i=2
+        buttonId:i=42
+      }
+    }
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=28
+      }
+
+      button{
+        deviceId:i=2
+        buttonId:i=54
+      }
+    }
+  }
+
+  event{
+    name:t="weapon_rangeSet"
+  }
+
+  event{
+    name:t="elevator_rangeInc"
+  }
+
+  event{
+    name:t="elevator_rangeDec"
+  }
+
+  event{
+    name:t="weapon_rangeMax"
+  }
+
+  event{
+    name:t="weapon_rangeMin"
+  }
+
+  event{
+    name:t="weapon"
+  }
+
+  event{
+    name:t="brake_rangeSet"
+  }
+
+  event{
+    name:t="rudder_rangeInc"
+  }
+
+  event{
+    name:t="rudder_rangeDec"
+  }
+
+  event{
+    name:t="brake_left_rangeMax"
+  }
+
+  event{
+    name:t="brake_right_rangeMax"
+  }
+
+  event{
+    name:t="brake_rangeMin"
+  }
+
+  event{
+    name:t="brake"
+  }
+
+  event{
+    name:t="radiator_rangeSet"
+  }
+
+  event{
+    name:t="throttle_rangeDec"
+  }
+
+  event{
+    name:t="throttle_rangeInc"
+  }
+
+  event{
+    name:t="radiator_rangeMax"
+  }
+
+  event{
+    name:t="radiator_rangeMin"
+  }
+
+  event{
+    name:t="radiator"
+  }
+
+  event{
+    name:t="prop_pitch_rangeSet"
+  }
+
+  event{
+    name:t="camy_rangeDec"
+  }
+
+  event{
+    name:t="camy_rangeInc"
+  }
+
+  event{
+    name:t="prop_pitch_rangeMax"
+  }
+
+  event{
+    name:t="prop_pitch_rangeMin"
+  }
+
+  event{
+    name:t="prop_pitch"
+  }
+
+  event{
+    name:t="mixture_rangeSet"
+  }
+
+  event{
+    name:t="camx_rangeDec"
+  }
+
+  event{
+    name:t="camx_rangeInc"
+  }
+
+  event{
+    name:t="mixture_rangeMax"
+  }
+
+  event{
+    name:t="mixture_rangeMin"
+  }
+
+  event{
+    name:t="mixture"
+  }
+
+  event{
+    name:t="trim_rudder_rangeSet"
+  }
+
+  event{
+    name:t="turret_x_rangeInc"
+  }
+
+  event{
+    name:t="turret_x_rangeDec"
+  }
+
+  event{
+    name:t="trim_rudder_rangeMax"
+  }
+
+  event{
+    name:t="trim_rudder_rangeMin"
+  }
+
+  event{
+    name:t="trim_ailerons_rangeSet"
+  }
+
+  event{
+    name:t="turret_y_rangeInc"
+  }
+
+  event{
+    name:t="turret_y_rangeDec"
+  }
+
+  event{
+    name:t="trim_ailerons_rangeMax"
+  }
+
+  event{
+    name:t="trim_ailerons_rangeMin"
+  }
+
+  event{
+    name:t="trim_elevator_rangeSet"
+  }
+
+  event{
+    name:t="flir_x_rangeInc"
+  }
+
+  event{
+    name:t="flir_x_rangeDec"
+  }
+
+  event{
+    name:t="trim_elevator_rangeMax"
+  }
+
+  event{
+    name:t="trim_elevator_rangeMin"
+  }
+
+  event{
+    name:t="fire_rangeSet"
+  }
+
+  event{
+    name:t="flir_y_rangeInc"
+  }
+
+  event{
+    name:t="flir_y_rangeDec"
+  }
+
+  event{
+    name:t="fire_rangeMax"
+  }
+
+  event{
+    name:t="fire_rangeMin"
+  }
+
+  event{
+    name:t="rudder_right_rangeSet"
+  }
+
+  event{
+    name:t="zoom_rangeInc"
+  }
+
+  event{
+    name:t="zoom_rangeDec"
+  }
+
+  event{
+    name:t="rudder_right_rangeMax"
+  }
+
+  event{
+    name:t="rudder_right_rangeMin"
+  }
+
+  event{
+    name:t="rudder_left_rangeSet"
+  }
+
+  event{
+    name:t="rudder_left_rangeInc"
+  }
+
+  event{
+    name:t="rudder_left_rangeDec"
+  }
+
+  event{
+    name:t="rudder_left_rangeMax"
+  }
+
+  event{
+    name:t="rudder_left_rangeMin"
+  }
+
+  event{
+    name:t="zoom_rangeSet"
+  }
+
+  event{
+    name:t="rudder_right_rangeInc"
+  }
+
+  event{
+    name:t="rudder_right_rangeDec"
+  }
+
+  event{
+    name:t="zoom_rangeMax"
+  }
+
+  event{
+    name:t="ID_ZOOM_TOGGLE"
+  }
+
+  event{
+    name:t="ID_HIDE_HUD"
+  }
+
+  event{
+    name:t="zoom_rangeMin"
+  }
+
+  event{
+    name:t="zoom"
+  }
+
+  event{
+    name:t="flir_y_rangeSet"
+  }
+
+  event{
+    name:t="fire_rangeInc"
+  }
+
+  event{
+    name:t="fire_rangeDec"
+  }
+
+  event{
+    name:t="flir_y_rangeMax"
+  }
+
+  event{
+    name:t="flir_y_rangeMin"
+  }
+
+  event{
+    name:t="flir_y"
+  }
+
+  event{
+    name:t="flir_x_rangeSet"
+  }
+
+  event{
+    name:t="trim_elevator_rangeInc"
+  }
+
+  event{
+    name:t="trim_elevator_rangeDec"
+  }
+
+  event{
+    name:t="flir_x_rangeMax"
+  }
+
+  event{
+    name:t="flir_x_rangeMin"
+  }
+
+  event{
+    name:t="flir_x"
+  }
+
+  event{
+    name:t="turret_y_rangeSet"
+  }
+
+  event{
+    name:t="trim_ailerons_rangeInc"
+  }
+
+  event{
+    name:t="trim_ailerons_rangeDec"
+  }
+
+  event{
+    name:t="turret_y_rangeMin"
+  }
+
+  event{
+    name:t="turret_y_rangeMax"
+  }
+
+  event{
+    name:t="turret_y"
+  }
+
+  event{
+    name:t="turret_x_rangeSet"
+  }
+
+  event{
+    name:t="trim_rudder_rangeInc"
+  }
+
+  event{
+    name:t="trim_rudder_rangeDec"
+  }
+
+  event{
+    name:t="turret_x_rangeMin"
+  }
+
+  event{
+    name:t="turret_x_rangeMax"
+  }
+
+  event{
+    name:t="turret_x"
+  }
+
+  event{
+    name:t="mixture_rangeInc"
+  }
+
+  event{
+    name:t="mixture_rangeDec"
+  }
+
+  event{
+    name:t="camx_rangeSet"
+  }
+
+  event{
+    name:t="camy_rangeMin"
+  }
+
+  event{
+    name:t="camy_rangeMax"
+  }
+
+  event{
+    name:t="prop_pitch_rangeInc"
+  }
+
+  event{
+    name:t="prop_pitch_rangeDec"
+  }
+
+  event{
+    name:t="camy_rangeSet"
+  }
+
+  event{
+    name:t="throttle_rangeSet"
+  }
+
+  event{
+    name:t="throttle_rangeMin"
+  }
+
+  event{
+    name:t="throttle_rangeMax"
+  }
+
+  event{
+    name:t="radiator_rangeInc"
+  }
+
+  event{
+    name:t="radiator_rangeDec"
+  }
+
+  event{
+    name:t="rudder_rangeSet"
+  }
+
+  event{
+    name:t="brake_rangeInc"
+  }
+
+  event{
+    name:t="brake_rangeDec"
+  }
+
+  event{
+    name:t="rudder_rangeMax"
+  }
+
+  event{
+    name:t="rudder_rangeMin"
+  }
+
+  event{
+    name:t="elevator_rangeSet"
+  }
+
+  event{
+    name:t="weapon_rangeInc"
+  }
+
+  event{
+    name:t="weapon_rangeDec"
+  }
+
+  event{
+    name:t="elevator_rangeMax"
+  }
+
+  event{
+    name:t="elevator_rangeMin"
+  }
+
+  event{
+    name:t="ailerons_rangeSet"
+  }
+
+  event{
+    name:t="cam_fwd_rangeInc"
+  }
+
+  event{
+    name:t="cam_fwd_rangeDec"
+  }
+
+  event{
+    name:t="ailerons_rangeMax"
+  }
+
+  event{
+    name:t="ailerons_rangeMin"
+  }
+
+  event{
+    name:t="ailerons"
+  }
+
+  event{
+    name:t="elevator"
+  }
+
+  event{
+    name:t="rudder"
+  }
+
+  event{
+    name:t="throttle"
+  }
+
+  event{
+    name:t="camx"
+  }
+
+  event{
+    name:t="camy"
+  }
+
+  event{
+    name:t="rudder_left"
+  }
+
+  event{
+    name:t="rudder_right"
+  }
+
+  event{
+    name:t="fire"
+  }
+
+  event{
+    name:t="trim_elevator"
+  }
+
+  event{
+    name:t="trim_ailerons"
+  }
+
+  event{
+    name:t="trim_rudder"
+  }
+
+  event{
+    name:t="ID_NEXT_PLANE"
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=27
+      }
+    }
+  }
+
+  event{
+    name:t="ID_PREV_PLANE"
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=26
+      }
+    }
+  }
+
+  event{
+    name:t="ID_TOGGLE_FOLLOWING_CAMERA"
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=39
+      }
+    }
+  }
+
+  event{
+    name:t="ID_CAMERA_NEUTRAL"
+
+    shortcut{
+
+      button{
+        deviceId:i=1
+        buttonId:i=2
+      }
+    }
+  }
+
+  event{
+    name:t="ID_FLAPS_UP"
+  }
+
+  event{
+    name:t="ID_FLAPS_DOWN"
+  }
+
+  event{
+    name:t="ID_SUPERCHARGER"
+  }
+
+  event{
+    name:t="ID_MPSTATSCREEN"
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=15
+      }
+    }
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=49
+      }
+    }
+  }
+
+  event{
+    name:t="ID_BAILOUT"
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=36
+      }
+    }
+  }
+
+  event{
+    name:t="ID_TOGGLE_COLLIMATOR"
+  }
+
+  event{
+    name:t="ID_GAME_PAUSE"
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=25
+      }
+    }
+  }
+
+  event{
+    name:t="ID_REPLAY_PAUSE"
+  }
+
+  event{
+    name:t="ID_LOCK_TARGET"
+  }
+
+  event{
+    name:t="ID_BOMBS"
+  }
+
+  event{
+    name:t="ID_ROCKETS"
+  }
+
+  event{
+    name:t="ID_TRIM"
+  }
+
+  event{
+    name:t="ID_FLAPS"
+  }
+
+  event{
+    name:t="ID_TOGGLE_VIEW"
+  }
+
+  event{
+    name:t="ID_GEAR"
+  }
+
+  event{
+    name:t="ID_TACTICAL_MAP"
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=50
+      }
+    }
+  }
+
+  event{
+    name:t="ID_TARGET_CAMERA"
+  }
+
+  event{
+    name:t="ID_SKIP_CUTSCENE"
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=57
+      }
+    }
+  }
+
+  event{
+    name:t="ID_CONTROL_CAMERA_SHIFT"
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=76
+      }
+    }
+  }
+
+  event{
+    name:t="ID_FIRE_MGUNS"
+  }
+
+  event{
+    name:t="ID_FIRE_CANNONS"
+  }
+
+  event{
+    name:t="ID_COMPLEX_ENGINE"
+  }
+
+  event{
+    name:t="ID_TOGGLE_ENGINE"
+  }
+
+  event{
+    name:t="ID_CAMERA_TPS"
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=61
+      }
+    }
+  }
+
+  event{
+    name:t="ID_CAMERA_FPS"
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=60
+      }
+    }
+  }
+
+  event{
+    name:t="ID_CAMERA_DEFAULT"
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=63
+      }
+    }
+  }
+
+  event{
+    name:t="ID_CAMERA_VIRTUAL_FPS"
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=62
+      }
+    }
+  }
+
+  event{
+    name:t="cam_strafe_rangeInc"
+  }
+
+  event{
+    name:t="ID_FLIGHTMENU_SETUP"
+  }
+
+  event{
+    name:t="ID_CONTINUE_SETUP"
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=19
+      }
+    }
+  }
+
+  event{
+    name:t="ID_PROP_PITCH_AUTO"
+  }
+
+  event{
+    name:t="ID_CAMERA_GUNNER"
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=64
+      }
+    }
+  }
+
+  event{
+    name:t="ID_CAMERA_BOMBVIEW"
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=65
+      }
+    }
+  }
+
+  event{
+    name:t="ID_SCREENSHOT"
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=183
+      }
+    }
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=42
+      }
+
+      button{
+        deviceId:i=2
+        buttonId:i=183
+      }
+    }
+  }
+
+  event{
+    name:t="ID_SCREENSHOT_WO_HUD"
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=88
+      }
+    }
+  }
+
+  event{
+    name:t="ID_DUMP_FPS_LOG"
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=87
+      }
+    }
+  }
+
+  event{
+    name:t="ID_WHEEL_BRAKE"
+  }
+
+  event{
+    name:t="ID_AIR_BRAKE"
+  }
+
+  event{
+    name:t="ID_AILERONS_LEFT"
+  }
+
+  event{
+    name:t="ID_AILERONS_RIGHT"
+  }
+
+  event{
+    name:t="ID_ELEVATOR_UP"
+  }
+
+  event{
+    name:t="ID_ELEVATOR_DOWN"
+  }
+
+  event{
+    name:t="ID_RUDDER_LEFT"
+  }
+
+  event{
+    name:t="ID_RUDDER_RIGHT"
+  }
+
+  event{
+    name:t="ID_THROTTLE_MORE"
+  }
+
+  event{
+    name:t="ID_THROTTLE_LESS"
+  }
+
+  event{
+    name:t="ID_FIRE"
+  }
+
+  event{
+    name:t="ID_COMMAND_UP"
+  }
+
+  event{
+    name:t="ID_COMMAND_DOWN"
+  }
+
+  event{
+    name:t="ID_COMMAND_LEFT"
+  }
+
+  event{
+    name:t="ID_COMMAND_RIGHT"
+  }
+
+  event{
+    name:t="ID_HATVIEW_UP"
+  }
+
+  event{
+    name:t="ID_HATVIEW_DOWN"
+  }
+
+  event{
+    name:t="ID_HATVIEW_LEFT"
+  }
+
+  event{
+    name:t="ID_HATVIEW_RIGHT"
+  }
+
+  event{
+    name:t="cam_strafe_rangeDec"
+  }
+
+  event{
+    name:t="ID_ZOOM_MORE"
+  }
+
+  event{
+    name:t="ID_ZOOM_LESS"
+  }
+
+  event{
+    name:t="ID_TOGGLE_CHAT_TEAM"
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=28
+      }
+    }
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=156
+      }
+    }
+  }
+
+  event{
+    name:t="ID_TOGGLE_CHAT_MODE"
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=15
+      }
+    }
+  }
+
+  event{
+    name:t="ID_MIXTURE_INCREASE"
+  }
+
+  event{
+    name:t="ID_MIXTURE_DECREASE"
+  }
+
+  event{
+    name:t="ID_RADIATOR_INCREASE"
+  }
+
+  event{
+    name:t="ID_RADIATOR_DECREASE"
+  }
+
+  event{
+    name:t="ID_PROP_PITCH_INCREASE"
+  }
+
+  event{
+    name:t="ID_PROP_PITCH_DECREASE"
+  }
+
+  event{
+    name:t="ID_TRIM_AILERONS_PLUS"
+  }
+
+  event{
+    name:t="ID_TRIM_AILERONS_MINUS"
+  }
+
+  event{
+    name:t="ID_TRIM_AILERONS_NEUTRAL"
+  }
+
+  event{
+    name:t="ID_TRIM_ELEVATOR_PLUS"
+  }
+
+  event{
+    name:t="ID_TRIM_ELEVATOR_MINUS"
+  }
+
+  event{
+    name:t="ID_TRIM_ELEVATOR_NEUTRAL"
+  }
+
+  event{
+    name:t="ID_TRIM_RUDDER_PLUS"
+  }
+
+  event{
+    name:t="ID_TRIM_RUDDER_MINUS"
+  }
+
+  event{
+    name:t="ID_TRIM_RUDDER_NEUTRAL"
+  }
+
+  event{
+    name:t="ID_TRIM_RESET"
+  }
+
+  event{
+    name:t="ID_PTT_ALL"
+  }
+
+  event{
+    name:t="ID_PTT_TEAM"
+  }
+
+  event{
+    name:t="ID_HELI_CHANGE_MISSILE_TYPE"
+  }
+
+  event{
+    name:t="ID_HELI_PREV_MISSILE_TYPE"
+  }
+
+  event{
+    name:t="ID_HELI_TOGGLE_KEEP_POS"
+  }
+
+  event{
+    name:t="ID_HELI_TOGGLE_KEEP_HEIGHT"
+  }
+
+  event{
+    name:t="ID_HELI_ANTIMISSILE_SYSTEM"
+  }
+
+  event{
+    name:t="ID_HELI_TOGGLE_SEAT"
+  }
+
+  event{
+    name:t="ID_HELI_DEBUG_FLIGHTMODEL"
+  }
+
+  event{
+    name:t="ID_HELI_FLIR"
+  }
+
+  event{
+    name:t="ID_RESET_TARGET"
+  }
+
+  event{
+    name:t="ID_SAT_VIEW"
+  }
+
+  event{
+    name:t="ID_REPLAY_CAMERA_RANDOMIZE"
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=29
+      }
+
+      button{
+        deviceId:i=2
+        buttonId:i=64
+      }
+    }
+  }
+
+  event{
+    name:t="ID_REPLAY_CAMERA_GUN"
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=29
+      }
+
+      button{
+        deviceId:i=2
+        buttonId:i=59
+      }
+    }
+  }
+
+  event{
+    name:t="ID_REPLAY_CAMERA_WING"
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=29
+      }
+
+      button{
+        deviceId:i=2
+        buttonId:i=60
+      }
+    }
+  }
+
+  event{
+    name:t="ID_REPLAY_CAMERA_FLYBY"
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=29
+      }
+
+      button{
+        deviceId:i=2
+        buttonId:i=61
+      }
+    }
+  }
+
+  event{
+    name:t="ID_REPLAY_CAMERA_OPERATOR"
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=29
+      }
+
+      button{
+        deviceId:i=2
+        buttonId:i=62
+      }
+    }
+  }
+
+  event{
+    name:t="ID_REPLAY_CAMERA_ZOOM_IN"
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=210
+      }
+    }
+  }
+
+  event{
+    name:t="ID_REPLAY_CAMERA_ZOOM_OUT"
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=211
+      }
+    }
+  }
+
+  event{
+    name:t="ID_REPLAY_SLOWER"
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=209
+      }
+    }
+  }
+
+  event{
+    name:t="ID_REPLAY_FASTER"
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=201
+      }
+    }
+  }
+
+  event{
+    name:t="gm_turret_x"
+  }
+
+  event{
+    name:t="gm_turret_x_rangeMin"
+  }
+
+  event{
+    name:t="gm_turret_x_rangeMax"
+  }
+
+  event{
+    name:t="cam_vert_rangeInc"
+  }
+
+  event{
+    name:t="cam_vert_rangeDec"
+  }
+
+  event{
+    name:t="gm_turret_x_rangeSet"
+  }
+
+  event{
+    name:t="gm_turret_y"
+  }
+
+  event{
+    name:t="gm_turret_y_rangeMin"
+  }
+
+  event{
+    name:t="gm_turret_y_rangeMax"
+  }
+
+  event{
+    name:t="brake_left_rangeInc"
+  }
+
+  event{
+    name:t="brake_left_rangeDec"
+  }
+
+  event{
+    name:t="gm_turret_y_rangeSet"
+  }
+
+  event{
+    name:t="gm_throttle"
+  }
+
+  event{
+    name:t="gm_throttle_rangeMin"
+  }
+
+  event{
+    name:t="gm_throttle_rangeMax"
+  }
+
+  event{
+    name:t="brake_right_rangeInc"
+  }
+
+  event{
+    name:t="brake_right_rangeDec"
+  }
+
+  event{
+    name:t="gm_throttle_rangeSet"
+  }
+
+  event{
+    name:t="ID_HELP"
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=59
+      }
+    }
+  }
+
+  event{
+    name:t="ID_TOGGLE_INSTRUCTOR"
+  }
+
+  event{
+    name:t="ID_SHOW_VOICE_MESSAGE_LIST"
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=20
+      }
+    }
+  }
+
+  event{
+    name:t="ID_SHOW_VOICE_MESSAGE_LIST_SQUAD"
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=37
+      }
+    }
+  }
+
+  event{
+    name:t="ID_VOICE_MESSAGE_1"
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=2
+      }
+    }
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=79
+      }
+    }
+  }
+
+  event{
+    name:t="ID_VOICE_MESSAGE_2"
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=3
+      }
+    }
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=80
+      }
+    }
+  }
+
+  event{
+    name:t="ID_VOICE_MESSAGE_3"
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=4
+      }
+    }
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=81
+      }
+    }
+  }
+
+  event{
+    name:t="ID_VOICE_MESSAGE_4"
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=5
+      }
+    }
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=75
+      }
+    }
+  }
+
+  event{
+    name:t="ID_VOICE_MESSAGE_5"
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=6
+      }
+    }
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=76
+      }
+    }
+  }
+
+  event{
+    name:t="ID_VOICE_MESSAGE_6"
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=7
+      }
+    }
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=77
+      }
+    }
+  }
+
+  event{
+    name:t="ID_VOICE_MESSAGE_7"
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=8
+      }
+    }
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=71
+      }
+    }
+  }
+
+  event{
+    name:t="ID_VOICE_MESSAGE_8"
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=9
+      }
+    }
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=72
+      }
+    }
+  }
+
+  event{
+    name:t="ID_VOICE_MESSAGE_9"
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=10
+      }
+    }
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=73
+      }
+    }
+  }
+
+  event{
+    name:t="ID_VOICE_MESSAGE_10"
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=11
+      }
+    }
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=82
+      }
+    }
+  }
+
+  event{
+    name:t="ID_VOICE_MESSAGE_11"
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=12
+      }
+    }
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=74
+      }
+    }
+  }
+
+  event{
+    name:t="ID_VOICE_MESSAGE_12"
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=13
+      }
+    }
+
+    shortcut{
+
+      button{
+        deviceId:i=2
+        buttonId:i=78
+      }
+    }
+  }
+}
+
+joysticks{
+
+  joystickSettings{
+    name:t=""
+    useX360:b=no
+    isHatViewMouse:b=yes
+    trackIrZoom:b=yes
+    cameraSmooth:r=0.0
+    cameraSpeed:r=2.0
+    cameraMouseSpeed:r=4.0
+    isMouseLookHold:b=yes
+    isFlightStick:b=no
+    holdThrottleForWEP:b=no
+
+    head_pos_x{
+      axisId:i=-1
+      innerDeadzone:r=0.05
+      outerDeadzone:r=0.05
+      rangeMin:r=0.0
+      rangeMax:r=1.0
+      inverse:b=no
+      nonlinearity:r=0.0
+      kAdd:r=0.0
+      kMul:r=1.0
+      relSens:r=1.0
+      relStep:r=0.0
+      relative:b=yes
+      useSliders:b=no
+    }
+
+    head_pos_y{
+      axisId:i=-1
+      innerDeadzone:r=0.05
+      outerDeadzone:r=0.05
+      rangeMin:r=-1.0
+      rangeMax:r=1.0
+      inverse:b=no
+      nonlinearity:r=0.0
+      kAdd:r=0.0
+      kMul:r=1.0
+      relSens:r=1.0
+      relStep:r=0.0
+      relative:b=yes
+      useSliders:b=no
+    }
+
+    head_pos_z{
+      axisId:i=-1
+      innerDeadzone:r=0.05
+      outerDeadzone:r=0.05
+      rangeMin:r=-1.0
+      rangeMax:r=1.0
+      inverse:b=no
+      nonlinearity:r=0.0
+      kAdd:r=0.0
+      kMul:r=1.0
+      relSens:r=1.0
+      relStep:r=0.0
+      relative:b=yes
+      useSliders:b=no
+    }
+
+    tracker_camx{
+      axisId:i=-1
+      innerDeadzone:r=0.0
+      outerDeadzone:r=0.05
+      rangeMin:r=-1.0
+      rangeMax:r=1.0
+      inverse:b=no
+      nonlinearity:r=0.0
+      kAdd:r=0.0
+      kMul:r=1.0
+      relSens:r=0.01
+      relStep:r=0.0
+      relative:b=no
+    }
+
+    tracker_camy{
+      axisId:i=-1
+      innerDeadzone:r=0.0
+      outerDeadzone:r=0.05
+      rangeMin:r=-1.0
+      rangeMax:r=1.0
+      inverse:b=yes
+      nonlinearity:r=0.0
+      kAdd:r=0.0
+      kMul:r=1.0
+      relSens:r=0.01
+      relStep:r=0.0
+      relative:b=no
+    }
+
+    ailerons{
+      axisId:i=-1
+      innerDeadzone:r=0.0
+      outerDeadzone:r=0.05
+      rangeMin:r=-1.0
+      rangeMax:r=1.0
+      inverse:b=no
+      nonlinearity:r=1.0
+      kAdd:r=0.0
+      kMul:r=0.5
+      relSens:r=0.01
+      relative:b=no
+    }
+
+    elevator{
+      axisId:i=-1
+      innerDeadzone:r=0.0
+      outerDeadzone:r=0.05
+      rangeMin:r=-1.0
+      rangeMax:r=1.0
+      inverse:b=no
+      nonlinearity:r=1.0
+      kAdd:r=0.0
+      kMul:r=0.5
+      relSens:r=0.01
+      relative:b=no
+    }
+
+    rudder{
+      axisId:i=-1
+      innerDeadzone:r=0.0
+      outerDeadzone:r=0.05
+      rangeMin:r=-1.0
+      rangeMax:r=1.0
+      inverse:b=no
+      nonlinearity:r=1.0
+      kAdd:r=0.0
+      kMul:r=0.5
+      relSens:r=0.01
+      relative:b=no
+    }
+
+    throttle{
+      axisId:i=-1
+      innerDeadzone:r=0.0
+      outerDeadzone:r=0.05
+      rangeMin:r=0.0
+      rangeMax:r=1.0
+      inverse:b=no
+      nonlinearity:r=0.0
+      kAdd:r=0.0
+      kMul:r=0.5
+      relSens:r=0.01
+      relative:b=no
+    }
+
+    camx{
+      axisId:i=-1
+      innerDeadzone:r=0.0
+      outerDeadzone:r=0.05
+      rangeMin:r=-1.0
+      rangeMax:r=1.0
+      inverse:b=no
+      nonlinearity:r=0.0
+      kAdd:r=0.0
+      kMul:r=0.6
+      relSens:r=0.01
+      relative:b=no
+    }
+
+    camy{
+      axisId:i=-1
+      innerDeadzone:r=0.0
+      outerDeadzone:r=0.05
+      rangeMin:r=-1.0
+      rangeMax:r=1.0
+      inverse:b=no
+      nonlinearity:r=0.0
+      kAdd:r=0.0
+      kMul:r=0.95
+      relSens:r=0.01
+      relative:b=no
+    }
+
+    turret_x{
+      axisId:i=-1
+      innerDeadzone:r=0.0
+      outerDeadzone:r=0.05
+      rangeMin:r=-1.0
+      rangeMax:r=1.0
+      inverse:b=no
+      nonlinearity:r=0.0
+      kAdd:r=0.0
+      kMul:r=0.5
+      relSens:r=0.01
+      relative:b=no
+    }
+
+    turret_y{
+      axisId:i=-1
+      innerDeadzone:r=0.0
+      outerDeadzone:r=0.05
+      rangeMin:r=-1.0
+      rangeMax:r=1.0
+      inverse:b=no
+      nonlinearity:r=0.0
+      kAdd:r=0.0
+      kMul:r=0.5
+      relSens:r=0.01
+      relative:b=no
+    }
+
+    flir_x{
+      axisId:i=-1
+      innerDeadzone:r=0.05
+      outerDeadzone:r=0.05
+      rangeMin:r=-1.0
+      rangeMax:r=1.0
+      inverse:b=no
+      nonlinearity:r=0.0
+      kAdd:r=0.0
+      kMul:r=1.0
+      relSens:r=1.0
+      relative:b=no
+    }
+
+    flir_y{
+      axisId:i=-1
+      innerDeadzone:r=0.05
+      outerDeadzone:r=0.05
+      rangeMin:r=-1.0
+      rangeMax:r=1.0
+      inverse:b=no
+      nonlinearity:r=0.0
+      kAdd:r=0.0
+      kMul:r=1.0
+      relSens:r=1.0
+      relative:b=no
+    }
+
+    zoom{
+      axisId:i=-1
+      innerDeadzone:r=0.02
+      outerDeadzone:r=0.05
+      rangeMin:r=-1.0
+      rangeMax:r=1.0
+      inverse:b=no
+      nonlinearity:r=0.0
+      kAdd:r=0.0
+      kMul:r=1.0
+      relSens:r=1.0
+      relative:b=yes
+    }
+
+    rudder_left{
+      axisId:i=-1
+      innerDeadzone:r=0.02
+      outerDeadzone:r=0.05
+      rangeMin:r=-1.0
+      rangeMax:r=1.0
+      inverse:b=no
+      nonlinearity:r=0.0
+      kAdd:r=0.0
+      kMul:r=1.0
+      relSens:r=1.0
+      relative:b=no
+    }
+
+    rudder_right{
+      axisId:i=-1
+      innerDeadzone:r=0.02
+      outerDeadzone:r=0.05
+      rangeMin:r=-1.0
+      rangeMax:r=1.0
+      inverse:b=no
+      nonlinearity:r=0.0
+      kAdd:r=0.0
+      kMul:r=1.0
+      relSens:r=1.0
+      relative:b=no
+    }
+
+    fire{
+      axisId:i=-1
+      innerDeadzone:r=0.02
+      outerDeadzone:r=0.05
+      rangeMin:r=-1.0
+      rangeMax:r=1.0
+      inverse:b=no
+      nonlinearity:r=0.0
+      kAdd:r=0.0
+      kMul:r=1.0
+      relSens:r=1.0
+      relative:b=no
+    }
+
+    trim_elevator{
+      axisId:i=-1
+      innerDeadzone:r=0.02
+      outerDeadzone:r=0.05
+      rangeMin:r=-1.0
+      rangeMax:r=1.0
+      inverse:b=no
+      nonlinearity:r=0.0
+      kAdd:r=0.0
+      kMul:r=1.0
+      relSens:r=0.2
+      relative:b=no
+    }
+
+    trim_ailerons{
+      axisId:i=-1
+      innerDeadzone:r=0.02
+      outerDeadzone:r=0.05
+      rangeMin:r=-1.0
+      rangeMax:r=1.0
+      inverse:b=no
+      nonlinearity:r=0.0
+      kAdd:r=0.0
+      kMul:r=1.0
+      relSens:r=0.2
+      relative:b=no
+    }
+
+    trim_rudder{
+      axisId:i=-1
+      innerDeadzone:r=0.02
+      outerDeadzone:r=0.05
+      rangeMin:r=-1.0
+      rangeMax:r=1.0
+      inverse:b=no
+      nonlinearity:r=0.0
+      kAdd:r=0.0
+      kMul:r=1.0
+      relSens:r=0.2
+      relative:b=no
+    }
+
+    mixture{
+      axisId:i=-1
+      innerDeadzone:r=0.02
+      outerDeadzone:r=0.05
+      rangeMin:r=-1.0
+      rangeMax:r=1.0
+      inverse:b=no
+      nonlinearity:r=0.0
+      kAdd:r=0.0
+      kMul:r=1.0
+      relSens:r=1.0
+      relative:b=no
+    }
+
+    prop_pitch{
+      axisId:i=-1
+      innerDeadzone:r=0.02
+      outerDeadzone:r=0.05
+      rangeMin:r=-1.0
+      rangeMax:r=1.0
+      inverse:b=no
+      nonlinearity:r=0.0
+      kAdd:r=0.0
+      kMul:r=1.0
+      relSens:r=1.0
+      relative:b=no
+    }
+
+    radiator{
+      axisId:i=-1
+      innerDeadzone:r=0.02
+      outerDeadzone:r=0.05
+      rangeMin:r=-1.0
+      rangeMax:r=1.0
+      inverse:b=no
+      nonlinearity:r=0.0
+      kAdd:r=0.0
+      kMul:r=1.0
+      relSens:r=1.0
+      relative:b=no
+    }
+
+    brake{
+      axisId:i=-1
+      innerDeadzone:r=0.05
+      outerDeadzone:r=0.05
+      rangeMin:r=-1.0
+      rangeMax:r=1.0
+      inverse:b=no
+      nonlinearity:r=0.0
+      kAdd:r=0.0
+      kMul:r=1.0
+      relSens:r=1.0
+      relative:b=no
+    }
+
+    weapon{
+      axisId:i=-1
+      innerDeadzone:r=0.05
+      outerDeadzone:r=0.05
+      rangeMin:r=-1.0
+      rangeMax:r=1.0
+      inverse:b=no
+      nonlinearity:r=0.0
+      kAdd:r=0.0
+      kMul:r=1.0
+      relSens:r=1.0
+      relative:b=no
+    }
+
+    gm_turret_x{
+      axisId:i=-1
+      innerDeadzone:r=0.02
+      outerDeadzone:r=0.05
+      rangeMin:r=-1.0
+      rangeMax:r=1.0
+      inverse:b=no
+      nonlinearity:r=0.0
+      kAdd:r=0.0
+      kMul:r=0.02
+      relSens:r=1.0
+      relative:b=no
+    }
+
+    gm_turret_y{
+      axisId:i=-1
+      innerDeadzone:r=0.02
+      outerDeadzone:r=0.05
+      rangeMin:r=-1.0
+      rangeMax:r=1.0
+      inverse:b=no
+      nonlinearity:r=0.0
+      kAdd:r=0.0
+      kMul:r=0.02
+      relSens:r=1.0
+      relative:b=no
+    }
+
+    gm_throttle{
+      axisId:i=-1
+      innerDeadzone:r=0.02
+      outerDeadzone:r=0.05
+      rangeMin:r=-1.0
+      rangeMax:r=1.0
+      inverse:b=no
+      nonlinearity:r=0.0
+      kAdd:r=0.0
+      kMul:r=1.0
+      relSens:r=1.0
+      relative:b=no
+    }
+
+    cam_fwd{
+      axisId:i=-1
+      innerDeadzone:r=0.05
+      outerDeadzone:r=0.05
+      rangeMin:r=-1.0
+      rangeMax:r=1.0
+      inverse:b=no
+      nonlinearity:r=0.0
+      kAdd:r=0.0
+      kMul:r=1.0
+      relSens:r=1.0
+      relative:b=no
+    }
+
+    cam_strafe{
+      axisId:i=-1
+      innerDeadzone:r=0.05
+      outerDeadzone:r=0.05
+      rangeMin:r=-1.0
+      rangeMax:r=1.0
+      inverse:b=no
+      nonlinearity:r=0.0
+      kAdd:r=0.0
+      kMul:r=1.0
+      relSens:r=1.0
+      relative:b=no
+    }
+
+    cam_vert{
+      axisId:i=-1
+      innerDeadzone:r=0.05
+      outerDeadzone:r=0.05
+      rangeMin:r=-1.0
+      rangeMax:r=1.0
+      inverse:b=no
+      nonlinearity:r=0.0
+      kAdd:r=0.0
+      kMul:r=1.0
+      relSens:r=1.0
+      relative:b=no
+    }
+
+    brake_left{
+      axisId:i=-1
+      innerDeadzone:r=0.0
+      outerDeadzone:r=0.05
+      rangeMin:r=-1.0
+      rangeMax:r=1.0
+      inverse:b=no
+      nonlinearity:r=0.0
+      kAdd:r=0.0
+      kMul:r=0.5
+      relSens:r=0.01
+      relative:b=no
+    }
+
+    brake_right{
+      axisId:i=-1
+      innerDeadzone:r=0.0
+      outerDeadzone:r=0.05
+      rangeMin:r=-1.0
+      rangeMax:r=1.0
+      inverse:b=no
+      nonlinearity:r=0.0
+      kAdd:r=0.0
+      kMul:r=0.5
+      relSens:r=0.01
+      relative:b=no
+    }
+
+    square0{
+      axisId1:i=-1
+      axisId2:i=-1
+    }
+
+    square1{
+      axisId1:i=-1
+      axisId2:i=-1
+    }
+
+    mouse{
+      axis:i=-1
+      axis:i=-1
+      axis:i=-1
+      axis:i=-1
+    }
+
+    devices{
+
+      dev{
+        name:t="Logitech Force 3D Pro USB"
+        isXInput:b=no
+        numButtons:i=12
+        numPovs:i=1
+        numAxes:i=6
+      }
+
+      dev{
+        name:t="Logitech Attack 3 USB"
+        isXInput:b=no
+        numButtons:i=11
+        numPovs:i=0
+        numAxes:i=3
+      }
+    }
+  }
+}
+
+settings{
+  aileronsMultiplier:r=0.79
+  elevatorMultiplier:r=0.64
+  rudderMultiplier:r=0.43
+  freeCameraInertia:r=1.0
+  replayCameraWiggle:r=1.0
+  zoomSens:r=0.0
+  mouseSens:r=0.5
+  mouseAimSens:r=0.5
+  gunnerViewSens:r=1.0
+  mouseSmooth:b=no
+  mouseJoystickDeadZone:r=0.1
+  mouseJoystickScreenSize:r=0.6
+  mouseJoystickScreenPlace:r=0.0
+  mouseJoystickSensitivity:r=2.0
+  mouseAileronRudderFactor:r=0.5
+  mouseJoystickSquare:b=no
+  mouseJoyMode:i=0
+  cameraSmooth:r=0.0
+  cameraSpeed:r=1.1
+  cameraMouseSpeed:r=3.95
+  cameraFpsPhysMult:r=0.5
+  invertY:b=no
+  invertX:b=no
+  invertT:b=no
+  invertYTank:b=no
+  cameraInvertY:b=no
+  isXChgSticks:b=no
+  secondaryInvert:b=no
+  secondaryXChgSticks:b=yes
+  zoomForTurret:b=no
+  isVibration:b=yes
+  forceGain:r=1.0
+}

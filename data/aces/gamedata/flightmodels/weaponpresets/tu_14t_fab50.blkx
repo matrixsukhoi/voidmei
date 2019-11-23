@@ -1,0 +1,111 @@
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/bombGuns/su_fab50.blk"
+  emitter:t="su_fab50_1"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/bombGuns/su_fab50.blk"
+  emitter:t="su_fab50_2"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/bombGuns/su_fab50.blk"
+  emitter:t="su_fab50_3"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/bombGuns/su_fab50.blk"
+  emitter:t="su_fab50_4"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/bombGuns/su_fab50.blk"
+  emitter:t="su_fab50_5"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/bombGuns/su_fab50.blk"
+  emitter:t="su_fab50_6"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/bombGuns/su_fab50.blk"
+  emitter:t="su_fab50_7"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/bombGuns/su_fab50.blk"
+  emitter:t="su_fab50_8"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/bombGuns/su_fab50.blk"
+  emitter:t="su_fab50_9"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/bombGuns/su_fab50.blk"
+  emitter:t="su_fab50_10"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/bombGuns/su_fab50.blk"
+  emitter:t="su_fab50_11"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/bombGuns/su_fab50.blk"
+  emitter:t="su_fab50_12"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/bombGuns/su_fab50.blk"
+  emitter:t="su_fab50_13"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/bombGuns/su_fab50.blk"
+  emitter:t="su_fab50_14"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/bombGuns/su_fab50.blk"
+  emitter:t="su_fab50_15"
+  bullets:i=1
+}
+
+Weapon{
+  trigger:t="bombs"
+  blk:t="gameData/Weapons/bombGuns/su_fab50.blk"
+  emitter:t="su_fab50_16"
+  bullets:i=1
+}
