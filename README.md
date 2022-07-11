@@ -1,16 +1,19 @@
-# voidmei
-A front-end of warthunder port 8111.
+# VoidMei - 战争雷霆8111端口Java图形前端
 
-# dependencies
-the ui package weblaf-complete-1.29.jar is required.
+# 工作原理
+- 通过HTTP/GET请求读取127.0.01:8111端口中的飞行状态(state)以及飞行仪表(indicators)信息
+- 解析离线拆包的气动模型文件(FM blkx)
+- 综合以上信息,以图形界面的形式呈现给用户
 
-# notes
-it works for windows only. 
+# 编译
+- 使用eclipse导入工程,程序入口设置到app.java中的main函数
+- 导入外部UI库 weblaf-complete-1.29.jar
 
-# 说明
-四年前给你游写的小工具,现在回头看代码简直羞耻play...
-很早就有开源的想法,中间也有人找我问过代码的事情,但一直想把代码改好看点再开源出来
-然而由于各种原因一拖再拖,拖到现在也不打算再重构了,就这样开源出来也好吧
-
-# 最后
-辣鸡WT,害我浪费了3000多小时的人生,劝大家吸取教训,早日脱坑,好好学习,天天向上
+# 代码结构说明
+代码结构,变量命名目前还比较乱,后期有时间会调整
+- src/prog/app.java - 程序入口
+- src/prog/controller.java - 程序状态转换控制
+- src/prog/service.java - 主HTTP数据请求与处理线程
+- src/prog/uiThread.java - UI绘制线程
+- src/parser - state/indicator/blkx等解析器代码
+- src/ui - 各ui界面的绘制代码

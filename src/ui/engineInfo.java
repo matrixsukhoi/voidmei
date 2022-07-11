@@ -1,830 +1,71 @@
 package ui;
+
 import java.awt.Color;
+import java.awt.Container;
 import java.awt.Font;
-import java.awt.GraphicsConfiguration;
-import java.awt.GraphicsDevice;
-import java.awt.GraphicsEnvironment;
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
-import java.awt.GridLayout;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionAdapter;
-import java.awt.event.MouseMotionListener;
-
-
-import javax.swing.SwingConstants;
-
-import com.alee.extended.panel.WebComponentPanel;
-import com.alee.extended.progress.WebStepProgress;
-import com.alee.laf.label.WebLabel;
 import com.alee.laf.panel.WebPanel;
-import com.alee.laf.progressbar.WebProgressBar;
 import com.alee.laf.rootpane.WebFrame;
-import com.alee.laf.separator.WebSeparator;
-import com.alee.laf.slider.WebSlider;
 import com.alee.laf.splitpane.WebSplitPane;
 
+import parser.blkxparser;
 import prog.app;
 import prog.controller;
-import prog.language;
+import prog.lang;
 import prog.service;
 
-import static javax.swing.JSplitPane.HORIZONTAL_SPLIT;
-import static com.alee.laf.splitpane.WebSplitPane.VERTICAL_SPLIT;
 public class engineInfo extends WebFrame implements Runnable {
 	/**
 	 * 
 	 */
-	
+
 	int isDragging = 0;
-	int xx=0;
-	int yy=0;
-	public volatile boolean doit=true;
+	int xx = 0;
+	int yy = 0;
+	public volatile boolean doit = true;
 	WebSplitPane splitPane;
 	public int overheattime;
 	private static final long serialVersionUID = 3063042782594625576L;
-	public controller c;
+	public controller xc;
 	public service s;
+	public blkxparser p;
+	public int wtload1;
+	public int oilload1;
 	public String status;
 	String NumFont;
-	int freq;
+
+	long freq;
 	long MainCheckMili;
 	int WIDTH;
 	int HEIGHT;
 	int lx;
 	int ly;
 	int OP;
-	Color transParentWhite = new Color(255, 255, 255, 100);
+	Color transParentWhite = app.colorNum;
+	Color transParentWhitePlus = app.colorNum;
+
+	Color transparent = new Color(0, 0, 0, 0);
+	Color lblShadeColor = app.colorShade;
+
 	WebPanel panel;
-	WebComponentPanel webComponentPanel;
-	WebProgressBar progressBar1;
-	WebSlider slider1;
-	WebSlider slider2;
-	WebSlider slider3;
-	WebSlider slider4;
-	WebStepProgress wsp1;
-	WebStepProgress wsp2;
-	WebLabel lblAta;
-	WebPanel topPanel;
-	WebPanel bottomPanel;
-	WebPanel leftPanel;
-	WebPanel rightPanel;
-	WebLabel lefttitle;
-	WebLabel bottomtitle;
 
-	WebLabel bottomTypel;
-	WebLabel bottomType;// »úÐÍ
-	WebLabel bottomTyper;
-
-	WebLabel bottomThrl;// ÍÆÁ¦
-	WebLabel bottomThr;// ÍÆÁ¦
-	WebLabel bottomThrr;// ÍÆÁ¦
-
-	WebLabel bottomRpml;// ×ªËÙ
-	WebLabel bottomRpm;// ×ªËÙ
-	WebLabel bottomRpmr;// ×ªËÙ
-
-	WebLabel bottomHpl;// ¹¦ÂÊ
-	WebLabel bottomHp;// ¹¦ÂÊ
-	WebLabel bottomHpr;// ¹¦ÂÊ
-
-	WebLabel bottomEhpl;// Öá¹¦ÂÊ
-	WebLabel bottomEhp;// Öá¹¦ÂÊ
-	WebLabel bottomEhpr;// Öá¹¦ÂÊ
-
-	WebLabel bottomEffl;// Öá¹¦ÂÊ
-	WebLabel bottomEff;// Öá¹¦ÂÊ
-	WebLabel bottomEffr;// Öá¹¦ÂÊ
-
-	WebLabel bottomPrel;// ½øÆøÑ¹
-	WebLabel bottomPre;// ½øÆøÑ¹
-	WebLabel bottomPrer;// ½øÆøÑ¹
-
-	WebLabel bottomEngl;// ·¢¶¯»úÎÂ
-	WebLabel bottomEng;// ·¢¶¯»úÎÂ
-	WebLabel bottomEngr;// ·¢¶¯»úÎÂ
-
-	WebLabel bottomWatl;// Ë®ÎÂ
-	WebLabel bottomWat;// Ë®ÎÂ
-	WebLabel bottomWatr;// Ë®ÎÂ
-
-	WebLabel bottomOill;// ÓÍÎÂ
-	WebLabel bottomOil;// ÓÍÎÂ
-	WebLabel bottomOilr;// ÓÍÎÂ
-
-	WebLabel bottomWeil;// ÓÍÖØ
-	WebLabel bottomWei;// ÓÍÖØ
-	WebLabel bottomWeir;// ÓÍÖØ
-
-	WebLabel bottomTiml;// Ô¤¹ÀÊ±¼ä
-	WebLabel bottomTim;// Ô¤¹ÀÊ±¼ä
-	WebLabel bottomTimr;// Ô¤¹ÀÊ±¼ä
-
-	WebLabel bottomProl;// ½¬¾à½Ç
-	WebLabel bottomPro;// ½¬¾à½Ç
-	WebLabel bottomPror;// ½¬¾à½Ç
-	
-	WebLabel lblKg;
-	WebLabel lblFwd ;
-	WebLabel label_3;
-	WebLabel label_6;
-	WebLabel label_9;
-	WebLabel label_12;
-	WebLabel label_15;
-	WebLabel label_18;
-	WebLabel label_21;
-	WebLabel label_24;
-	WebLabel label_27;
-	WebLabel label_30;
-	WebLabel label_33;
-	WebLabel label_13;
 	public String FontName;
 	int font1 = 12;
 	int font2 = 14;
 	int font3 = 10;
-	int fontadd=0;
-	
-	WebLabel createWebLabel(String text){
-		WebLabel x=new WebLabel(text);
-		x.setDrawShade(true);
-		x.setForeground(new Color(245, 248, 250, 240));
-		x.setShadeColor(Color.BLACK);
-		return x;
-	}
-	void initLabel(WebLabel x, int font) {
-
-		x.setHorizontalAlignment(SwingConstants.CENTER);
-		x.setDrawShade(true);
-		x.setForeground(new Color(245, 248, 250, 240));
-		x.setShadeColor(Color.BLACK);
-		x.setFont(new Font(FontName, Font.PLAIN, font));
-		if (font == font3)
-			x.setHorizontalAlignment(SwingConstants.LEFT);
-		if (font == font2)
-			x.setHorizontalAlignment(SwingConstants.CENTER);
-		topPanel.add(x);
-	}
-
-	public void initgroup() {
-
-		GridBagLayout layout = new GridBagLayout();
-
-		bottomTypel = new WebLabel("»ú¡¡ÐÍ");
-		initLabel(bottomTypel, font1);
-		bottomType = new WebLabel("");
-		// initLabel(bottomType, 14);
-		bottomType.setHorizontalAlignment(SwingConstants.CENTER);
-		bottomType.setDrawShade(true);
-		bottomType.setForeground(new Color(245, 248, 250, 240));
-		bottomType.setShadeColor(Color.BLACK);
-		bottomType.setFont(new Font(FontName, Font.PLAIN, 14));
-		topPanel.add(bottomType);
-		
-		bottomTyper = new WebLabel("");
-		initLabel(bottomTyper, font3);
-
-		bottomThrl = new WebLabel("ÍÆ¡¡Á¦");
-		initLabel(bottomThrl, font1);
-		bottomThr = new WebLabel();
-		initLabel(bottomThr, font2);
-		bottomThrr = new WebLabel("kg");
-		initLabel(bottomThrr, font3);
-
-		bottomRpml = new WebLabel("×ª¡¡ËÙ");
-		initLabel(bottomRpml, font1);
-		bottomRpm = new WebLabel();
-		initLabel(bottomRpm, font2);
-		bottomRpmr = new WebLabel("×ª/·Ö");
-		initLabel(bottomRpmr, font3);
-
-		bottomHpl = new WebLabel("¹¦¡¡ÂÊ");
-		initLabel(bottomHpl, font1);
-		bottomHp = new WebLabel();
-		initLabel(bottomHp, font2);
-		bottomHpr = new WebLabel("bhp");
-		initLabel(bottomHpr, font3);
-
-		bottomEhpl = new WebLabel("Öá¹¦ÂÊ");
-		initLabel(bottomEhpl, font1);
-		bottomEhp = new WebLabel();
-		initLabel(bottomEhp, font2);
-		bottomEhpr = new WebLabel("bhp");
-		initLabel(bottomEhpr, font3);
-
-		bottomEffl = new WebLabel("½°Ð§ÂÊ");
-		initLabel(bottomEffl, font1);
-		bottomEff = new WebLabel();
-		initLabel(bottomEff, font2);
-		bottomEffr = new WebLabel("%");
-		initLabel(bottomEffr, font3);
-
-		bottomPrel = new WebLabel("½øÆøÑ¹");
-		initLabel(bottomPrel, font1);
-		bottomPre = new WebLabel();
-		initLabel(bottomPre, font2);
-		bottomPrer = new WebLabel("ATA");
-		initLabel(bottomPrer, font3);
-
-		bottomEngl = new WebLabel("ÎÂ¡¡¶È");
-		initLabel(bottomEngl, font1);
-		bottomEng = new WebLabel();
-		initLabel(bottomEng, font2);
-		bottomEngr = new WebLabel("¡æ");
-		initLabel(bottomEngr, font3);
-
-		bottomOill = new WebLabel("ÓÍ¡¡ÎÂ");
-		initLabel(bottomOill, font1);
-		bottomOil = new WebLabel();
-		initLabel(bottomOil, font2);
-		bottomOilr = new WebLabel("¡æ");
-		initLabel(bottomOilr, font3);
-
-		bottomWeil = new WebLabel("ÓÍ¡¡ÖØ");
-		initLabel(bottomWeil, font1);
-		bottomWei = new WebLabel();
-		initLabel(bottomWei, font2);
-		bottomWeir = new WebLabel("kg");
-		initLabel(bottomWeir, font3);
-
-		bottomTiml = new WebLabel("Ê±¡¡¼ä");
-		initLabel(bottomTiml, font1);
-		bottomTim = new WebLabel();
-		initLabel(bottomTim, font2);
-		bottomTimr = new WebLabel("·ÖÖÓ");
-		initLabel(bottomTimr, font3);
-
-		bottomProl = new WebLabel("¹ý¡¡ÈÈ");
-		initLabel(bottomProl, font1);
-		bottomPro = new WebLabel("0");
-		initLabel(bottomPro, font2);
-		bottomPror = new WebLabel("Ãë");
-		initLabel(bottomPror, font3);
-
-		// bottomType.setText("asdafsasfas");
-		GridBagConstraints s = new GridBagConstraints();// ¶¨ÒåÒ»¸öGridBagConstraints£¬
-		// ÊÇÓÃÀ´¿ØÖÆÌí¼Ó½øµÄ×é¼þµÄÏÔÊ¾Î»ÖÃ
-	
-		s.fill=GridBagConstraints.BASELINE;
-		s.gridwidth = 1;
-		s.weightx = 1;
-		s.weighty = 1;
-		s.gridx = 0;
-		s.gridy = 0;
-		layout.setConstraints(bottomTypel, s);
-
-		s.weightx = 2;
-		s.gridwidth = 2;
-		s.weighty = 1;
-		s.gridx = 1;
-		s.gridy = 0;
-		layout.setConstraints(bottomType, s);
-
-		s.gridwidth = 1;
-		s.weightx = 1;
-		s.weighty = 1;
-		s.gridx = 3;
-		s.gridy = 0;
-		layout.setConstraints(bottomHpl, s);
-
-		s.weightx = 1;
-		s.weighty = 1;
-		s.gridx = 4;
-		s.gridy = 0;
-		layout.setConstraints(bottomHp, s);
-
-		s.weightx = 1;
-		s.weighty = 1;
-		s.gridx = 5;
-		s.gridy = 0;
-		layout.setConstraints(bottomHpr, s);
-
-		s.weightx = 1;
-		s.weighty = 1;
-		s.gridx = 6;
-		s.gridy = 0;
-		layout.setConstraints(bottomEngl, s);
-
-		s.weightx = 1;
-		s.weighty = 1;
-		s.gridx = 7;
-		s.gridy = 0;
-		layout.setConstraints(bottomEng, s);
-
-		s.weightx = 1;
-		s.weighty = 1;
-		s.gridx = 8;
-		s.gridy = 0;
-		layout.setConstraints(bottomEngr, s);
-
-		s.weightx = 1;
-		s.weighty = 1;
-		s.gridx = 9;
-		s.gridy = 0;
-		layout.setConstraints(bottomWeil, s);
-
-		s.weightx = 1;
-		s.weighty = 1;
-		s.gridx = 10;
-		s.gridy = 0;
-		layout.setConstraints(bottomWei, s);
-
-		s.weightx = 1;
-		s.weighty = 1;
-		s.gridx = 11;
-		s.gridy = 0;
-		layout.setConstraints(bottomWeir, s);
-
-		s.weightx = 1;
-		s.weighty = 1;
-		s.gridx = 0;
-		s.gridy = 1;
-		layout.setConstraints(bottomThrl, s);
-
-		s.weightx = 1;
-		s.weighty = 1;
-		s.gridx = 1;
-		s.gridy = 1;
-		layout.setConstraints(bottomThr, s);
-
-		s.weightx = 1;
-		s.weighty = 1;
-		s.gridx = 2;
-		s.gridy = 1;
-		layout.setConstraints(bottomThrr, s);
-
-		s.weightx = 1;
-		s.weighty = 1;
-		s.gridx = 3;
-		s.gridy = 1;
-		layout.setConstraints(bottomEhpl, s);
-
-		s.weightx = 1;
-		s.weighty = 1;
-		s.gridx = 4;
-		s.gridy = 1;
-		layout.setConstraints(bottomEhp, s);
-
-		s.weightx = 1;
-		s.weighty = 1;
-		s.gridx = 5;
-		s.gridy = 1;
-		layout.setConstraints(bottomEhpr, s);
-
-		s.weightx = 1;
-		s.weighty = 1;
-		s.gridx = 6;
-		s.gridy = 1;
-		layout.setConstraints(bottomOill, s);
-
-		s.weightx = 1;
-		s.weighty = 1;
-		s.gridx = 7;
-		s.gridy = 1;
-		layout.setConstraints(bottomOil, s);
-
-		s.weightx = 1;
-		s.weighty = 1;
-		s.gridx = 8;
-		s.gridy = 1;
-		layout.setConstraints(bottomOilr, s);
-
-		s.weightx = 1;
-		s.weighty = 1;
-		s.gridx = 9;
-		s.gridy = 1;
-		layout.setConstraints(bottomTiml, s);
-
-		s.weightx = 1;
-		s.weighty = 1;
-		s.gridx = 10;
-		s.gridy = 1;
-		layout.setConstraints(bottomTim, s);
-
-		s.weightx = 1;
-		s.weighty = 1;
-		s.gridx = 11;
-		s.gridy = 1;
-		layout.setConstraints(bottomTimr, s);
-
-		s.weightx = 1;
-		s.weighty = 1;
-		s.gridx = 0;
-		s.gridy = 2;
-		layout.setConstraints(bottomRpml, s);
-
-		s.weightx = 1;
-		s.weighty = 1;
-		s.gridx = 1;
-		s.gridy = 2;
-		layout.setConstraints(bottomRpm, s);
-
-		s.weightx = 1;
-		s.weighty = 1;
-		s.gridx = 2;
-		s.gridy = 2;
-		layout.setConstraints(bottomRpmr, s);
-
-		s.weightx = 1;
-		s.weighty = 1;
-		s.gridx = 3;
-		s.gridy = 2;
-		layout.setConstraints(bottomEffl, s);
-
-		s.weightx = 1;
-		s.weighty = 1;
-		s.gridx = 4;
-		s.gridy = 2;
-		layout.setConstraints(bottomEff, s);
-
-		s.weightx = 1;
-		s.weighty = 1;
-		s.gridx = 5;
-		s.gridy = 2;
-		layout.setConstraints(bottomEffr, s);
-
-		s.weightx = 1;
-		s.weighty = 1;
-		s.gridx = 6;
-		s.gridy = 2;
-		layout.setConstraints(bottomPrel, s);
-
-		s.weightx = 1;
-		s.weighty = 1;
-		s.gridx = 7;
-		s.gridy = 2;
-		layout.setConstraints(bottomPre, s);
-
-		s.weightx = 1;
-		s.weighty = 1;
-		s.gridx = 8;
-		s.gridy = 2;
-		layout.setConstraints(bottomPrer, s);
-
-		s.weightx = 1;
-		s.weighty = 1;
-		s.gridx = 9;
-		s.gridy = 2;
-		layout.setConstraints(bottomProl, s);
-
-		s.weightx = 1;
-		s.weighty = 1;
-		s.gridx = 10;
-		s.gridy = 2;
-		layout.setConstraints(bottomPro, s);
-
-		s.weightx = 1;
-		s.weighty = 1;
-		s.gridx = 11;
-		s.gridy = 2;
-		layout.setConstraints(bottomPror, s);
-
-		topPanel.setLayout(layout);
-
-	}
-
-	public void initPanel() {
-		// Top part content
-		topPanel = new WebPanel(true);
-		topPanel.setWebColoredBackground(false);
-		topPanel.setShadeWidth(0);
-		topPanel.setBackground(new Color(0, 0, 0, 0));
-		topPanel.setBorderColor(new Color(0, 0, 0, 0));
-
-		// Bottom part content
-		bottomPanel = new WebPanel(true);
-		bottomPanel.setWebColoredBackground(false);
-		bottomPanel.setShadeWidth(0);
-		bottomPanel.setBackground(new Color(0, 0, 0, 0));
-		bottomPanel.setBorderColor(new Color(0, 0, 0, 0));
-
-		// Left part content
-		leftPanel = new WebPanel(true);
-		leftPanel.setWebColoredBackground(false);
-		leftPanel.setShadeWidth(0);
-		leftPanel.setBackground(new Color(0, 0, 0, 0));
-		leftPanel.setBorderColor(new Color(0, 0, 0, 0));
-
-		// Right part content
-		rightPanel = new WebPanel(true);
-
-		rightPanel.setWebColoredBackground(false);
-		rightPanel.setShadeWidth(0);
-		rightPanel.setBackground(new Color(0, 0, 0, 0));
-		rightPanel.setBorderColor(new Color(0, 0, 0, 0));
-
-		// ×ópanel¿Ø¼þ
-		lefttitle = new WebLabel(language.eThrottle);
-		lefttitle.setHorizontalAlignment(SwingConstants.CENTER);
-		lefttitle.setDrawShade(true);
-		lefttitle.setForeground(new Color(245, 248, 250, 240));
-		lefttitle.setShadeColor(Color.BLACK);
-		lefttitle.setFont(new Font(FontName, Font.PLAIN, font1));
-
-		
-		WebLabel lefttitle1 = new WebLabel(language.eProppitch);
-		lefttitle1.setHorizontalAlignment(SwingConstants.CENTER);
-		lefttitle1.setDrawShade(true);
-		lefttitle1.setForeground(new Color(245, 248, 250, 240));
-		lefttitle1.setShadeColor(Color.BLACK);
-		lefttitle1.setFont(new Font(FontName, Font.PLAIN, font1));
-		
-		WebLabel lefttitle2 = new WebLabel(language.eMixture);
-		lefttitle2.setHorizontalAlignment(SwingConstants.CENTER);
-		lefttitle2.setDrawShade(true);
-		lefttitle2.setForeground(new Color(245, 248, 250, 240));
-		lefttitle2.setShadeColor(Color.BLACK);
-		lefttitle2.setFont(new Font(FontName, Font.PLAIN, font1));
-
-
-		
-		slider1 = new WebSlider(WebSlider.VERTICAL);
-		slider1.setMinimum(0);
-		slider1.setMaximum(110);
-		slider1.setDrawProgress(true);
-		slider1.setMinorTickSpacing(5);
-		slider1.setMajorTickSpacing(50);
-		slider1.setPaintTicks(true);
-		slider1.setPaintLabels(true);
-		slider1.setPreferredHeight(120);
-		// slider1.setSnapToTicks(true);
-		slider1.setProgressShadeWidth(0);
-		slider1.setTrackShadeWidth(1);
-		// slider1.setDrawThumb(false);
-		slider1.setThumbShadeWidth(2);
-		slider1.setThumbBgBottom(new Color(0, 0, 0, 0));
-		slider1.setThumbBgTop(new Color(0, 0, 0, 0));
-		slider1.setTrackBgBottom(new Color(0, 0, 0, 0));
-		slider1.setTrackBgTop(new Color(0, 0, 0, 0));
-		slider1.setProgressBorderColor(new Color(0, 0, 0, 0));
-		slider1.setProgressTrackBgBottom(transParentWhite);
-		slider1.setProgressTrackBgTop(transParentWhite);
-		slider1.setFocusable(false);
-		// È¡Ïûslider1ÏìÓ¦
-		MouseListener[] mls = slider1.getMouseListeners();
-		MouseMotionListener[] mmls = slider1.getMouseMotionListeners();
-		for (int t = 0; t < mls.length; t++) {
-			slider1.removeMouseListener(mls[t]);
-
-		}
-		for (int t = 0; t < mmls.length; t++) {
-			slider1.removeMouseMotionListener(mmls[t]);
-		}
-
-		slider2 = new WebSlider(WebSlider.VERTICAL);
-		slider2.setMinimum(0);
-		slider2.setMaximum(100);
-		slider2.setDrawProgress(true);
-		slider2.setMinorTickSpacing(5);
-		slider2.setMajorTickSpacing(50);
-		slider2.setPaintTicks(true);
-		slider2.setPreferredHeight(120);
-		slider2.setPaintLabels(true);
-		// slider1.setSnapToTicks(true);
-		slider2.setProgressShadeWidth(0);
-		slider2.setTrackShadeWidth(1);
-		// slider1.setDrawThumb(false);
-		slider2.setThumbShadeWidth(2);
-		slider2.setThumbBgBottom(new Color(0, 0, 0, 0));
-		slider2.setThumbBgTop(new Color(0, 0, 0, 0));
-		slider2.setTrackBgBottom(new Color(0, 0, 0, 0));
-		slider2.setTrackBgTop(new Color(0, 0, 0, 0));
-		slider2.setProgressBorderColor(new Color(0, 0, 0, 0));
-		slider2.setProgressTrackBgBottom(transParentWhite);
-		slider2.setProgressTrackBgTop(transParentWhite);
-		slider2.setFocusable(false);
-		// È¡Ïûslider2ÏìÓ¦
-		MouseListener[] mls2 = slider2.getMouseListeners();
-		MouseMotionListener[] mmls2 = slider2.getMouseMotionListeners();
-		for (int t = 0; t < mls2.length; t++) {
-			slider2.removeMouseListener(mls2[t]);
-
-		}
-		for (int t = 0; t < mmls2.length; t++) {
-			slider2.removeMouseMotionListener(mmls2[t]);
-		}
-
-		slider3 = new WebSlider(WebSlider.VERTICAL);
-		slider3.setMinimum(0);
-		slider3.setMaximum(120);
-		slider3.setPreferredHeight(120);
-		slider3.setDrawProgress(true);
-		slider3.setMinorTickSpacing(5);
-		slider3.setMajorTickSpacing(50);
-		slider3.setPaintTicks(true);
-		slider3.setPaintLabels(true);
-		// slider1.setSnapToTicks(true);
-		slider3.setProgressShadeWidth(0);
-		slider3.setTrackShadeWidth(1);
-		// slider1.setDrawThumb(false);
-		slider3.setThumbShadeWidth(2);
-		slider3.setThumbBgBottom(new Color(0, 0, 0, 0));
-		slider3.setThumbBgTop(new Color(0, 0, 0, 0));
-		slider3.setTrackBgBottom(new Color(0, 0, 0, 0));
-		slider3.setTrackBgTop(new Color(0, 0, 0, 0));
-		slider3.setProgressBorderColor(new Color(0, 0, 0, 0));
-		slider3.setProgressTrackBgBottom(transParentWhite);
-		slider3.setProgressTrackBgTop(transParentWhite);
-		slider3.setFocusable(false);
-		// È¡Ïûslider1ÏìÓ¦
-		MouseListener[] mls3 = slider3.getMouseListeners();
-		MouseMotionListener[] mmls3 = slider3.getMouseMotionListeners();
-		for (int t = 0; t < mls3.length; t++) {
-			slider3.removeMouseListener(mls3[t]);
-
-		}
-		for (int t = 0; t < mmls3.length; t++) {
-			slider3.removeMouseMotionListener(mmls3[t]);
-		}
-
-		// ÓÒpanel¿Ø¼þ
-
-		/*
-		 * progressBar1 = new WebProgressBar(WebProgressBar.VERTICAL, 0, 100);
-		 * progressBar1.setValue(0); progressBar1.setIndeterminate(false);
-		 * progressBar1.setStringPainted(true); //
-		 * progressBar1.setForeground(new Color(0,0,0,0));
-		 * progressBar1.setBgBottom(new Color(0, 0, 0, 0));
-		 * progressBar1.setBgTop(new Color(0, 0, 0, 0)); //
-		 * progressBar1.setBackground(new Color(0,0,0));
-		 * progressBar1.setProgressBottomColor(new Color(255, 255, 255, 255));
-		 * progressBar1.setProgressTopColor(new Color(255, 255, 255, 255));
-		 * progressBar1.setForeground(new Color(245, 248, 250));
-		 * progressBar1.setBorderPainted(true); progressBar1.setShadeWidth(1);
-		 * // progressBar1.setHighlightDarkWhite(new Color(255,255,255,0));
-		 * progressBar1.setFont(new Font(FontName, Font.PLAIN, 12));
-		 * progressBar1.setHighlightDarkWhite(new Color(0, 0, 0));
-		 * progressBar1.setHighlightWhite(new Color(0, 0, 0));
-		 */
-		// ÏÂpanel
-		bottomtitle = new WebLabel(language.eCompressor);
-		bottomtitle.setHorizontalAlignment(SwingConstants.CENTER);
-		bottomtitle.setDrawShade(true);
-		bottomtitle.setForeground(new Color(245, 248, 250, 240));
-		bottomtitle.setShadeColor(Color.BLACK);
-		bottomtitle.setFont(new Font(FontName, Font.PLAIN, font1));
-		
-		WebLabel bottomtitle1 = new WebLabel(language.eRadiator);
-		bottomtitle1.setHorizontalAlignment(SwingConstants.CENTER);
-		bottomtitle1.setDrawShade(true);
-		bottomtitle1.setForeground(new Color(245, 248, 250, 240));
-		bottomtitle1.setShadeColor(Color.BLACK);
-		bottomtitle1.setFont(new Font(FontName, Font.PLAIN, font1));
-		
-		WebLabel bottomtitle2 = new WebLabel(language.eMagneto);
-		bottomtitle2.setHorizontalAlignment(SwingConstants.CENTER);
-		bottomtitle2.setDrawShade(true);
-		bottomtitle2.setForeground(new Color(245, 248, 250, 240));
-		bottomtitle2.setShadeColor(Color.BLACK);
-		bottomtitle2.setFont(new Font(FontName, Font.PLAIN, font1));
-
-
-		slider4 = new WebSlider(WebSlider.HORIZONTAL);
-		slider4.setMinimum(0);
-		slider4.setMaximum(100);
-		slider4.setDrawProgress(true);
-		slider4.setPaintTicks(false);
-		slider4.setPaintLabels(false);
-
-		wsp1 = new WebStepProgress(1);
-		wsp1.setPreferredWidth(200);
-		wsp1.setSelectedStepIndex(0);
-		wsp1.setShadeWidth(0);
-		wsp1.setPathWidth(0);
-		wsp1.setStepControlWidth(0);
-		wsp1.setDisplayLabels(false);
-		MouseListener[] mlsws1 = wsp1.getMouseListeners();
-		MouseMotionListener[] mmlsws1 = wsp1.getMouseMotionListeners();
-		for (int t = 0; t < mlsws1.length; t++) {
-			wsp1.removeMouseListener(mlsws1[t]);
-
-		}
-		for (int t = 0; t < mmlsws1.length; t++) {
-			wsp1.removeMouseMotionListener(mmlsws1[t]);
-		}
-		// wsp1.setForeground(transParentWhite);
-		// wsp1.setBackground(transParentWhite);
-		// wsp1.setDisabledProgressColor(transParentWhite);
-		// wsp1.setPathFillWidth(0);
-
-		wsp2 = new WebStepProgress(4);
-		wsp2.setPreferredWidth(150);
-		wsp2.setSelectedStepIndex(0);
-		wsp2.setShadeWidth(0);
-		wsp2.setPathWidth(0);
-		wsp2.setStepControlWidth(0);
-		wsp2.setDisplayLabels(false);
-		MouseListener[] mlsws2 = wsp2.getMouseListeners();
-		MouseMotionListener[] mmlsws2 = wsp2.getMouseMotionListeners();
-		for (int t = 0; t < mlsws2.length; t++) {
-			wsp2.removeMouseListener(mlsws2[t]);
-
-		}
-		for (int t = 0; t < mmlsws1.length; t++) {
-			wsp2.removeMouseMotionListener(mmlsws2[t]);
-		}
-		// wsp1.setSize(100, 30);
-
-		//slider4.setSnapToTicks(true);
-
-		slider4.setPreferredWidth(100);
-		slider4.setProgressShadeWidth(0);
-		slider4.setTrackShadeWidth(1);
-		slider4.setDrawThumb(true);
-		slider4.setSharpThumbAngle(true);
-		slider4.setThumbShadeWidth(2);
-		slider4.setThumbBgBottom(new Color(0, 0, 0, 0));
-		slider4.setThumbBgTop(new Color(0, 0, 0, 0));
-		slider4.setTrackBgBottom(new Color(0, 0, 0, 0));
-		slider4.setTrackBgTop(new Color(0, 0, 0, 0));
-		slider4.setProgressBorderColor(new Color(0, 0, 0, 0));
-		slider4.setProgressTrackBgBottom(transParentWhite);
-		slider4.setProgressTrackBgTop(transParentWhite);
-		slider4.setFocusable(false); // È¡Ïûslider4ÏìÓ¦
-		MouseListener[] mls4 = slider4.getMouseListeners();
-		MouseMotionListener[] mmls4 = slider4.getMouseMotionListeners();
-		for (int t = 0; t < mls4.length; t++) {
-			slider4.removeMouseListener(mls4[t]);
-
-		}
-		for (int t = 0; t < mmls4.length; t++) {
-			slider4.removeMouseMotionListener(mmls4[t]);
-		}
-
-		// ²¼¾Ö
-
-		// ×óPanel
-		GridBagLayout G=new GridBagLayout();
-		GridBagConstraints s = new GridBagConstraints();// ¶¨ÒåÒ»¸öGridBagConstraints£¬
-		// ÊÇÓÃÀ´¿ØÖÆÌí¼Ó½øµÄ×é¼þµÄÏÔÊ¾Î»ÖÃ
-	
-		s.fill=GridBagConstraints.BELOW_BASELINE;
-		
-		s.gridwidth=1;
-		s.gridheight = 1;
-		s.weightx = 1;
-		s.weighty = 0;
-		s.gridx = 0;
-		s.gridy = 0;
-		G.setConstraints(lefttitle, s);
-		s.gridheight = 1;
-		s.weightx = 1;
-		s.weighty = 0;
-		s.gridx = 1;
-		s.gridy = 0;
-		G.setConstraints(lefttitle1, s);
-		s.gridheight = 1;
-		s.weightx = 1;
-		s.weighty = 0;
-		s.gridx = 2;
-		s.gridy = 0;
-		G.setConstraints(lefttitle2, s);
-		s.gridheight = 3;
-		s.weightx = 1;
-		s.weighty = 0;
-		s.gridx = 0;
-		s.gridy = 1;
-		G.setConstraints(slider1, s);
-		s.gridheight = 3;
-		s.weightx = 1;
-		s.weighty = 0;
-		s.gridx = 1;
-		s.gridy = 1;
-		G.setConstraints(slider2, s);
-		s.gridheight = 3;
-		s.weightx = 1;
-		s.weighty = 0;
-		s.gridx = 2;
-		s.gridy = 1;
-		G.setConstraints(slider3, s);
-		
-		
-		leftPanel.setLayout(G);
-		leftPanel.add(lefttitle);
-		leftPanel.add(lefttitle1);
-		leftPanel.add(lefttitle2);
-		leftPanel.add(slider1);
-		leftPanel.add(slider2);
-		leftPanel.add(slider3);
-		// final TableLayout groupLayout = new TableLayout ( new double[][]{
-		// columns, rows } );
-		// groupLayout.setHGap ( 4 );
-		// groupLayout.setVGap ( 4 );
-		// panel.setLayout ( groupLayout );
-
-		// ÓÒPanel
-
-		bottomPanel.setLayout(new GridLayout(2,3));
-		bottomPanel.add(bottomtitle);
-		bottomPanel.add(bottomtitle1);
-		bottomPanel.add(bottomtitle2);
-		bottomPanel.add(wsp1);
-		bottomPanel.add(slider4);
-		bottomPanel.add(wsp2);
-
-		initPanelText();//
-	}
+	int fontadd = 0;
+	private int fontsize;
+	private Font fontNum;
+	private Font fontLabel;
+	private Font fontUnit;
+	static Color lblColor = app.colorUnit;
+	static Color lblNameColor = app.colorLabel;
+	static Color lblNumColor = app.colorNum;
 
 	public void fclose() {
 		// this.setVisible(false);
@@ -833,17 +74,16 @@ public class engineInfo extends WebFrame implements Runnable {
 		// this.close();
 	}
 
-	public void initPreview(controller c){
+	public void initPreview(controller c) {
 
-		init(c,null);
-		setShadeWidth(10);
+		init(c, null, null);
+		// setShadeWidth(10);
 		this.setVisible(false);
-		//this.getWebRootPaneUI().setTopBg(new Color(0, 0, 0, 50));
-		this.getWebRootPaneUI().setMiddleBg(new Color(0, 0, 0, 1));// ÖÐ²¿Í¸Ã÷
-		this.getWebRootPaneUI().setTopBg(new Color(0, 0, 0, 1));// ¶¥²¿Í¸Ã÷
+		// this.getWebRootPaneUI().setTopBg(new Color(0, 0, 0, 50));
+		this.getWebRootPaneUI().setMiddleBg(app.previewColor);// ä¸­éƒ¨é€æ˜Ž
+		this.getWebRootPaneUI().setTopBg(app.previewColor);// é¡¶éƒ¨é€æ˜Ž
 
-		
-		leftPanel.addMouseListener(new MouseAdapter() {
+		panel.addMouseListener(new MouseAdapter() {
 			public void mouseEntered(MouseEvent e) {
 				/*
 				 * if(A.tag==0){ if(f.mode==1){ A.setVisible(false);
@@ -852,10 +92,10 @@ public class engineInfo extends WebFrame implements Runnable {
 			}
 
 			public void mousePressed(MouseEvent e) {
-					isDragging = 1;
-					xx = e.getX();
-					yy = e.getY();
-	
+				isDragging = 1;
+				xx = e.getX();
+				yy = e.getY();
+
 			}
 
 			public void mouseReleased(MouseEvent e) {
@@ -871,10 +111,10 @@ public class engineInfo extends WebFrame implements Runnable {
 			 * A.setVisible(true); } }
 			 */
 		});
-		leftPanel.addMouseMotionListener(new MouseMotionAdapter() {
+		panel.addMouseMotionListener(new MouseMotionAdapter() {
 			public void mouseDragged(MouseEvent e) {
 				if (isDragging == 1) {
-					int left =getLocation().x;
+					int left = getLocation().x;
 					int top = getLocation().y;
 					setLocation(left + e.getX() - xx, top + e.getY() - yy);
 					setVisible(true);
@@ -882,681 +122,583 @@ public class engineInfo extends WebFrame implements Runnable {
 				}
 			}
 		});
-		
-		topPanel.addMouseListener(new MouseAdapter() {
-			public void mouseEntered(MouseEvent e) {
-				/*
-				 * if(A.tag==0){ if(f.mode==1){ A.setVisible(false);
-				 * A.visibletag=0; } }
-				 */
-			}
 
-			public void mousePressed(MouseEvent e) {
-					isDragging = 1;
-					xx = e.getX();
-					yy = e.getY();
-	
-			}
-
-			public void mouseReleased(MouseEvent e) {
-				if (isDragging == 1) {
-					isDragging = 0;
-				}
-				/*
-				 * if(A.tag==0){ A.setVisible(false); }
-				 */
-			}
-			/*
-			 * public void mouseReleased(MouseEvent e){ if(A.tag==0){
-			 * A.setVisible(true); } }
-			 */
-		});
-		topPanel.addMouseMotionListener(new MouseMotionAdapter() {
-			public void mouseDragged(MouseEvent e) {
-				if (isDragging == 1) {
-					int left =getLocation().x;
-					int top = getLocation().y;
-					setLocation(left + e.getX() - xx, top + e.getY() - yy);
-					setVisible(true);
-					repaint();
-				}
-			}
-		});
-		
-		
-		bottomPanel.addMouseListener(new MouseAdapter() {
-			public void mouseEntered(MouseEvent e) {
-				/*
-				 * if(A.tag==0){ if(f.mode==1){ A.setVisible(false);
-				 * A.visibletag=0; } }
-				 */
-			}
-
-			public void mousePressed(MouseEvent e) {
-					isDragging = 1;
-					xx = e.getX();
-					yy = e.getY();
-	
-			}
-
-			public void mouseReleased(MouseEvent e) {
-				if (isDragging == 1) {
-					isDragging = 0;
-				}
-				/*
-				 * if(A.tag==0){ A.setVisible(false); }
-				 */
-			}
-			/*
-			 * public void mouseReleased(MouseEvent e){ if(A.tag==0){
-			 * A.setVisible(true); } }
-			 */
-		});
-		bottomPanel.addMouseMotionListener(new MouseMotionAdapter() {
-			public void mouseDragged(MouseEvent e) {
-				if (isDragging == 1) {
-					int left =getLocation().x;
-					int top = getLocation().y;
-					setLocation(left + e.getX() - xx, top + e.getY() - yy);
-					setVisible(true);
-					repaint();
-				}
-			}
-		});
+		this.setCursor(null);
 		setVisible(true);
-		//setFocusable(true);
-		//setFocusableWindowState(true);
-		
-	}
-	public void initPanelText(){
-		topPanel.setLayout(null);
-		
-		WebPanel panel_1 = new WebPanel();
-		panel_1.setLayout(null);
-		panel_1.setWebColoredBackground(false);
-		panel_1.setBackground(new Color(0,0,0,0));
-		panel_1.setBounds(0, 0, 110, 36);
-		topPanel.add(panel_1);
-		
-		lblFwd = createWebLabel("Fw-190D");
-		lblFwd.setHorizontalAlignment(SwingConstants.CENTER);
-		lblFwd.setForeground(Color.WHITE);
-		lblFwd.setFont(new Font(NumFont, Font.PLAIN, 20+fontadd));
-		lblFwd.setBounds(0, 0, 72, 36);
-		panel_1.add(lblFwd);
-		
-		WebLabel label = createWebLabel(language.eType);
-		label.setBounds(72, 0, 36, 18);
-		panel_1.add(label);
-		label.setVerticalAlignment(SwingConstants.BOTTOM);
-		label.setHorizontalAlignment(SwingConstants.LEFT);
-		label.setForeground(Color.WHITE);
-		label.setFont(new Font(FontName, Font.PLAIN, 12+fontadd));
-		
-		WebLabel label_2 = createWebLabel("");
-		label_2.setBounds(72, 18, 36, 18);
-		panel_1.add(label_2);
-		label_2.setVerticalAlignment(SwingConstants.TOP);
-		label_2.setHorizontalAlignment(SwingConstants.LEFT);
-		label_2.setForeground(Color.LIGHT_GRAY);
-		label_2.setFont(new Font(NumFont, Font.PLAIN, 10+fontadd));
-		
-		WebPanel panel = new WebPanel();
-		panel.setLayout(null);
-		panel.setWebColoredBackground(false);
-		panel.setBackground(new Color(0,0,0,0));
-		panel.setBounds(110, 0, 110, 36);
-		topPanel.add(panel);
-		
-		label_3 = createWebLabel("2050");
-		label_3.setHorizontalAlignment(SwingConstants.CENTER);
-		label_3.setForeground(Color.WHITE);
-		label_3.setFont(new Font(NumFont, Font.PLAIN, 26+fontadd));
-		label_3.setBounds(0, 0, 72, 36);
-		panel.add(label_3);
-		
-		WebLabel label_4 = createWebLabel(language.ePower);
-		label_4.setVerticalAlignment(SwingConstants.BOTTOM);
-		label_4.setHorizontalAlignment(SwingConstants.LEFT);
-		label_4.setForeground(Color.WHITE);
-		label_4.setFont(new Font(FontName, Font.PLAIN, 12+fontadd));
-		label_4.setBounds(72, 0, 36, 18);
-		panel.add(label_4);
-		
-		WebLabel lblBhp = createWebLabel("Bhp");
-		lblBhp.setVerticalAlignment(SwingConstants.TOP);
-		lblBhp.setHorizontalAlignment(SwingConstants.LEFT);
-		lblBhp.setForeground(Color.LIGHT_GRAY);
-		lblBhp.setFont(new Font(NumFont, Font.PLAIN, 10+fontadd));
-		lblBhp.setBounds(72, 18, 36, 18);
-		panel.add(lblBhp);
-		
-		WebPanel panel_2 = new WebPanel();
-		panel_2.setLayout(null);
-		panel_2.setWebColoredBackground(false);
-		panel_2.setBackground(new Color(0,0,0,0));
-		panel_2.setBounds(220, 0, 110, 36);
-		topPanel.add(panel_2);
-		
-		label_6 = createWebLabel("1200");
-		label_6.setHorizontalAlignment(SwingConstants.CENTER);
-		label_6.setForeground(Color.WHITE);
-		label_6.setFont(new Font(NumFont, Font.PLAIN, 26+fontadd));
-		label_6.setBounds(0, 0, 72, 36);
-		panel_2.add(label_6);
-		
-		WebLabel label_7 = createWebLabel(language.eThurst);
-		label_7.setVerticalAlignment(SwingConstants.BOTTOM);
-		label_7.setHorizontalAlignment(SwingConstants.LEFT);
-		label_7.setForeground(Color.WHITE);
-		label_7.setFont(new Font(FontName, Font.PLAIN, 12+fontadd));
-		label_7.setBounds(72, 0, 36, 18);
-		panel_2.add(label_7);
-		
-		WebLabel lblKgf = createWebLabel("Kgf");
-		lblKgf.setVerticalAlignment(SwingConstants.TOP);
-		lblKgf.setHorizontalAlignment(SwingConstants.LEFT);
-		lblKgf.setForeground(Color.LIGHT_GRAY);
-		lblKgf.setFont(new Font(NumFont, Font.PLAIN, 10+fontadd));
-		lblKgf.setBounds(72, 18, 36, 18);
-		panel_2.add(lblKgf);
-		
-		WebPanel panel_3 = new WebPanel();
-		panel_3.setLayout(null);
-		panel_3.setWebColoredBackground(false);
-		panel_3.setBackground(new Color(0,0,0,0));
-		panel_3.setBounds(330, 0, 110, 36);
-		topPanel.add(panel_3);
-		
-		label_9 = createWebLabel("1860");
-		label_9.setHorizontalAlignment(SwingConstants.CENTER);
-		label_9.setForeground(Color.WHITE);
-		label_9.setFont(new Font(NumFont, Font.PLAIN, 26+fontadd));
-		label_9.setBounds(0, 0, 72, 36);
-		panel_3.add(label_9);
-		
-		WebLabel label_10 = createWebLabel(language.eEffPower);
-		label_10.setVerticalAlignment(SwingConstants.BOTTOM);
-		label_10.setHorizontalAlignment(SwingConstants.LEFT);
-		label_10.setForeground(Color.WHITE);
-		label_10.setFont(new Font(FontName, Font.PLAIN, 12+fontadd));
-		label_10.setBounds(72, 0, 36, 18);
-		panel_3.add(label_10);
-		
-		WebLabel lblBhp_1 = createWebLabel("Bhp");
-		lblBhp_1.setVerticalAlignment(SwingConstants.TOP);
-		lblBhp_1.setHorizontalAlignment(SwingConstants.LEFT);
-		lblBhp_1.setForeground(Color.LIGHT_GRAY);
-		lblBhp_1.setFont(new Font(NumFont, Font.PLAIN, 10+fontadd));
-		lblBhp_1.setBounds(72, 18, 36, 18);
-		panel_3.add(lblBhp_1);
-		
-		WebPanel panel_4 = new WebPanel();
-		panel_4.setLayout(null);
-		panel_4.setWebColoredBackground(false);
-		panel_4.setBackground(new Color(0,0,0,0));
-		panel_4.setBounds(0, 36, 110, 36);
-		topPanel.add(panel_4);
-		
-		label_12 = createWebLabel("165");
-		label_12.setHorizontalAlignment(SwingConstants.CENTER);
-		label_12.setForeground(Color.WHITE);
-		label_12.setFont(new Font(NumFont, Font.PLAIN, 26+fontadd));
-		label_12.setBounds(0, 0, 72, 36);
-		panel_4.add(label_12);
-		
-		label_13 = createWebLabel(language.eFuel);
-		label_13.setVerticalAlignment(SwingConstants.BOTTOM);
-		label_13.setHorizontalAlignment(SwingConstants.LEFT);
-		label_13.setForeground(Color.WHITE);
-		label_13.setFont(new Font(FontName, Font.PLAIN, 12+fontadd));
-		label_13.setBounds(72, 0, 36, 18);
-		panel_4.add(label_13);
-		
-		lblKg = createWebLabel("Kg");
-		lblKg.setVerticalAlignment(SwingConstants.TOP);
-		lblKg.setHorizontalAlignment(SwingConstants.LEFT);
-		lblKg.setForeground(Color.LIGHT_GRAY);
-		lblKg.setFont(new Font(NumFont, Font.PLAIN, 10+fontadd));
-		lblKg.setBounds(72, 18, 36, 18);
-		panel_4.add(lblKg);
-		
-		WebPanel panel_5 = new WebPanel();
-		panel_5.setLayout(null);
-		panel_5.setWebColoredBackground(false);
-		panel_5.setBackground(new Color(0,0,0,0));
-		panel_5.setBounds(110, 36, 110, 36);
-		topPanel.add(panel_5);
-		
-		label_15 = createWebLabel("3000");
-		label_15.setHorizontalAlignment(SwingConstants.CENTER);
-		label_15.setForeground(Color.WHITE);
-		label_15.setFont(new Font(NumFont, Font.PLAIN, 26+fontadd));
-		label_15.setBounds(0, 0, 72, 36);
-		panel_5.add(label_15);
-		
-		WebLabel label_16 = createWebLabel(language.eRPM);
-		label_16.setVerticalAlignment(SwingConstants.BOTTOM);
-		label_16.setHorizontalAlignment(SwingConstants.LEFT);
-		label_16.setForeground(Color.WHITE);
-		label_16.setFont(new Font(FontName, Font.PLAIN, 12+fontadd));
-		label_16.setBounds(72, 0, 36, 18);
-		panel_5.add(label_16);
-		
-		WebLabel lblRpm = createWebLabel("RPM");
-		lblRpm.setVerticalAlignment(SwingConstants.TOP);
-		lblRpm.setHorizontalAlignment(SwingConstants.LEFT);
-		lblRpm.setForeground(Color.LIGHT_GRAY);
-		lblRpm.setFont(new Font(NumFont, Font.PLAIN, 10+fontadd));
-		lblRpm.setBounds(72, 18, 36, 18);
-		panel_5.add(lblRpm);
-		
-		WebPanel panel_6 = new WebPanel();
-		panel_6.setLayout(null);
-		panel_6.setWebColoredBackground(false);
-		panel_6.setBackground(new Color(0,0,0,0));
-		panel_6.setBounds(220, 36, 110, 36);
-		topPanel.add(panel_6);
-		
-		label_18 = createWebLabel("110");
-		label_18.setHorizontalAlignment(SwingConstants.CENTER);
-		label_18.setForeground(Color.WHITE);
-		label_18.setFont(new Font(NumFont, Font.PLAIN, 26+fontadd));
-		label_18.setBounds(0, 0, 72, 36);
-		panel_6.add(label_18);
-		
-		WebLabel label_19 = createWebLabel(language.eTemp);
-		label_19.setVerticalAlignment(SwingConstants.BOTTOM);
-		label_19.setHorizontalAlignment(SwingConstants.LEFT);
-		label_19.setForeground(Color.WHITE);
-		label_19.setFont(new Font(FontName, Font.PLAIN, 12+fontadd));
-		label_19.setBounds(72, 0, 36, 18);
-		panel_6.add(label_19);
-		
-		WebLabel lblc_1 = createWebLabel("\u00B0C");
-		lblc_1.setVerticalAlignment(SwingConstants.TOP);
-		lblc_1.setHorizontalAlignment(SwingConstants.LEFT);
-		lblc_1.setForeground(Color.LIGHT_GRAY);
-		lblc_1.setFont(new Font(NumFont, Font.PLAIN, 12+fontadd));
-		lblc_1.setBounds(72, 18, 36, 18);
-		panel_6.add(lblc_1);
-		
-		WebPanel panel_7 = new WebPanel();
-		panel_7.setLayout(null);
-		panel_7.setWebColoredBackground(false);
-		panel_7.setBackground(new Color(0,0,0,0));
-		panel_7.setBounds(330, 36, 110, 36);
-		topPanel.add(panel_7);
-		
-		label_21 = createWebLabel("90");
-		label_21.setHorizontalAlignment(SwingConstants.CENTER);
-		label_21.setForeground(Color.WHITE);
-		label_21.setFont(new Font(NumFont, Font.PLAIN, 26+fontadd+fontadd));
-		label_21.setBounds(0, 0, 72, 36);
-		panel_7.add(label_21);
-		
-		WebLabel label_22 = createWebLabel(language.eEff);
-		label_22.setVerticalAlignment(SwingConstants.BOTTOM);
-		label_22.setHorizontalAlignment(SwingConstants.LEFT);
-		label_22.setForeground(Color.WHITE);
-		label_22.setFont(new Font(FontName, Font.PLAIN, 12+fontadd));
-		label_22.setBounds(72, 0, 36, 18);
-		panel_7.add(label_22);
-		
-		WebLabel label_23 = createWebLabel("%");
-		label_23.setVerticalAlignment(SwingConstants.TOP);
-		label_23.setHorizontalAlignment(SwingConstants.LEFT);
-		label_23.setForeground(Color.LIGHT_GRAY);
-		label_23.setFont(new Font(NumFont, Font.PLAIN, 10+fontadd));
-		label_23.setBounds(72, 18, 36, 18);
-		panel_7.add(label_23);
-		
-		WebPanel panel_8 = new WebPanel();
-		panel_8.setLayout(null);
-		panel_8.setWebColoredBackground(false);
-		panel_8.setBackground(new Color(0,0,0,0));
-		panel_8.setBounds(0, 72, 110, 36);
-		topPanel.add(panel_8);
-		
-		label_24 = createWebLabel("20");
-		label_24.setHorizontalAlignment(SwingConstants.CENTER);
-		label_24.setForeground(Color.WHITE);
-		label_24.setFont(new Font(NumFont, Font.PLAIN, 26+fontadd));
-		label_24.setBounds(0, 0, 72, 36);
-		panel_8.add(label_24);
-		
-		WebLabel label_25 = createWebLabel(language.eFueltime);
-		label_25.setVerticalAlignment(SwingConstants.BOTTOM);
-		label_25.setHorizontalAlignment(SwingConstants.LEFT);
-		label_25.setForeground(Color.WHITE);
-		label_25.setFont(new Font(FontName, Font.PLAIN, 12+fontadd));
-		label_25.setBounds(72, 0, 36, 18);
-		panel_8.add(label_25);
-		
-		WebLabel lblMin = createWebLabel("Min");
-		lblMin.setVerticalAlignment(SwingConstants.TOP);
-		lblMin.setHorizontalAlignment(SwingConstants.LEFT);
-		lblMin.setForeground(Color.LIGHT_GRAY);
-		lblMin.setFont(new Font(NumFont, Font.PLAIN, 10+fontadd));
-		lblMin.setBounds(72, 18, 36, 18);
-		panel_8.add(lblMin);
-		
-		WebPanel panel_9 = new WebPanel();
-		panel_9.setLayout(null);
-		panel_9.setWebColoredBackground(false);
-		panel_9.setBackground(new Color(0,0,0,0));
-		panel_9.setBounds(110, 72, 110, 36);
-		topPanel.add(panel_9);
-		
-		label_27 = createWebLabel("2.1");
-		label_27.setHorizontalAlignment(SwingConstants.CENTER);
-		label_27.setForeground(Color.WHITE);
-		label_27.setFont(new Font(NumFont, Font.PLAIN, 26+fontadd));
-		label_27.setBounds(0, 0, 72, 36);
-		panel_9.add(label_27);
-		
-		WebLabel label_28 = createWebLabel(language.eATM);
-		label_28.setVerticalAlignment(SwingConstants.BOTTOM);
-		label_28.setHorizontalAlignment(SwingConstants.LEFT);
-		label_28.setForeground(Color.WHITE);
-		label_28.setFont(new Font(FontName, Font.PLAIN, 12+fontadd));
-		label_28.setBounds(72, 0, 36, 18);
-		panel_9.add(label_28);
-		
-		lblAta = createWebLabel("Ata");
-		lblAta.setVerticalAlignment(SwingConstants.TOP);
-		lblAta.setHorizontalAlignment(SwingConstants.LEFT);
-		lblAta.setForeground(Color.LIGHT_GRAY);
-		lblAta.setFont(new Font(NumFont, Font.PLAIN, 10+fontadd));
-		lblAta.setBounds(72, 18, 36, 18);
-		panel_9.add(lblAta);
-		
-		WebPanel panel_10 = new WebPanel();
-		panel_10.setLayout(null);
-		panel_10.setWebColoredBackground(false);
-		panel_10.setBackground(new Color(0,0,0,0));
-		panel_10.setBounds(220, 72, 110, 36);
-		topPanel.add(panel_10);
-		
-		label_30 = createWebLabel("100");
-		label_30.setHorizontalAlignment(SwingConstants.CENTER);
-		label_30.setForeground(Color.WHITE);
-		label_30.setFont(new Font(NumFont, Font.PLAIN, 26+fontadd));
-		label_30.setBounds(0, 0, 72, 36);
-		panel_10.add(label_30);
-		
-		WebLabel label_31 = createWebLabel(language.eOil);
-		label_31.setVerticalAlignment(SwingConstants.BOTTOM);
-		label_31.setHorizontalAlignment(SwingConstants.LEFT);
-		label_31.setForeground(Color.WHITE);
-		label_31.setFont(new Font(FontName, Font.PLAIN, 12+fontadd));
-		label_31.setBounds(72, 0, 36, 18);
-		panel_10.add(label_31);
-		
-		WebLabel lblc = createWebLabel("\u00B0C");
-		lblc.setVerticalAlignment(SwingConstants.TOP);
-		lblc.setHorizontalAlignment(SwingConstants.LEFT);
-		lblc.setForeground(Color.LIGHT_GRAY);
-		lblc.setFont(new Font(NumFont, Font.PLAIN, 12+fontadd));
-		lblc.setBounds(72, 18, 36, 18);
-		panel_10.add(lblc);
-		
-		WebPanel panel_11 = new WebPanel();
-		panel_11.setLayout(null);
-		panel_11.setWebColoredBackground(false);
-		panel_11.setBackground(new Color(0,0,0,0));
-		panel_11.setBounds(330, 72, 110, 36);
-		topPanel.add(panel_11);
-		
-		label_33 = createWebLabel("0");
-		label_33.setHorizontalAlignment(SwingConstants.CENTER);
-		label_33.setForeground(Color.WHITE);
-		label_33.setFont(new Font(NumFont, Font.PLAIN, 26+fontadd));
-		label_33.setBounds(0, 0, 72, 36);
-		panel_11.add(label_33);
-		
-		WebLabel label_34 = createWebLabel(language.eOverheat);
-		label_34.setVerticalAlignment(SwingConstants.BOTTOM);
-		label_34.setHorizontalAlignment(SwingConstants.LEFT);
-		label_34.setForeground(Color.WHITE);
-		label_34.setFont(new Font(FontName, Font.PLAIN, 12+fontadd));
-		label_34.setBounds(72, 0, 36, 18);
-		panel_11.add(label_34);
-		
-		WebLabel lblS = createWebLabel("S");
-		lblS.setVerticalAlignment(SwingConstants.TOP);
-		lblS.setHorizontalAlignment(SwingConstants.LEFT);
-		lblS.setForeground(Color.LIGHT_GRAY);
-		lblS.setFont(new Font(NumFont, Font.PLAIN, 10+fontadd));
-		lblS.setBounds(72, 18, 36, 18);
-		panel_11.add(lblS);
-		
-		//WebSeparator separator1 = new WebSeparator();
-		//separator1.setBounds(0, 0, 1024, 1);
-		//topPanel.add(separator1);
-		
-		//WebSeparator separator2 = new WebSeparator();
-		//separator2.setOrientation(SwingConstants.VERTICAL);
-		//separator2.setBounds(471, -50, 1, 256);
-		//topPanel.add(separator2);
-		
-		//WebSeparator separator3 = new WebSeparator();
-		//separator3.setBounds(0, 100, 1024, 1);
-		//topPanel.add(separator3);
+		// setFocusable(true);
+		// setFocusableWindowState(true);
 
 	}
-	public void init(controller xc, service ts) {
-		this.c = xc;
+
+	String[][] totalString;
+	int useNum = 0;
+
+	// åŠŸçŽ‡,å–·æ°”ä¸º0çš„è¯ä¸æ˜¾ç¤º
+	int idx_hp = Integer.MAX_VALUE;
+	// æŽ¨åŠ›
+	int idx_thrust = Integer.MAX_VALUE;
+	// è½¬é€Ÿ
+	int idx_rpm = Integer.MAX_VALUE;
+	// æ¡¨è·è§’, å–·æ°”ä¸º0çš„è¯ä¸æ˜¾ç¤º
+	int idx_prop = Integer.MAX_VALUE;
+	// æ¡¨æ•ˆçŽ‡,å–·æ°”ä¸º0çš„è¯ä¸æ˜¾ç¤º
+	int idx_eff = Integer.MAX_VALUE;
+	// æœ‰æ•ˆåŠŸçŽ‡
+	int idx_ehp = Integer.MAX_VALUE;
+
+	// æœ‰æ•ˆåŠŸçŽ‡æˆ–æŽ¨åŠ›ç™¾åˆ†æ¯”
+	int idx_eper = Integer.MAX_VALUE;
+
+	// è¿›æ°”åŽ‹
+	int idx_map = Integer.MAX_VALUE;
+
+	// ç‡ƒæ²¹é‡é‡
+	int idx_mfuel = Integer.MAX_VALUE;
+	// ç‡ƒæ²¹æ—¶é—´
+	int idx_fueltime = Integer.MAX_VALUE;
+
+	// åŠ åŠ›é‡é‡(å¦‚æžœä¸º0ä¸æ˜¾ç¤º)
+	int idx_mwep = Integer.MAX_VALUE;
+	// åŠ åŠ›æ—¶é—´(å¦‚æžœä¸º0ä¸æ˜¾ç¤º)
+	int idx_weptime = Integer.MAX_VALUE;
+
+	// æ¸©åº¦
+	int idx_temp = Integer.MAX_VALUE;
+	// æ²¹æ¸©
+	int idx_oiltemp = Integer.MAX_VALUE;
+	// è€çƒ­æ—¶
+	int idx_heattlr = Integer.MAX_VALUE;
+	// å“åº”é€Ÿ
+	int idx_engres = Integer.MAX_VALUE;
+
+	private int[] doffset;
+	private int numHeight;
+	private int columnNum;
+	Boolean[] totalSwitch;
+	private Container root;
+
+	public void initTextString() {
+		totalSwitch = new Boolean[20];
+		totalString = new String[20][];
+		String tmp;
+		for (int i = 0; i < 20; i++)
+			totalString[i] = new String[3];
+
+		// é©¬åŠ›
+		tmp = xc.getconfig("disableEngineInfoHorsePower");
+		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
+			totalString[useNum][0] = String.format("%5s", "1200");
+			totalString[useNum][1] = String.format("%s", lang.ePower);
+			totalString[useNum][2] = String.format("%s", "Hp");
+			totalSwitch[useNum] = true;
+			idx_hp = useNum++;
+		}
+
+		// æŽ¨åŠ›
+		tmp = xc.getconfig("disableEngineInfoThrust");
+		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
+			totalString[useNum][0] = String.format("%5s", "1004");
+			totalString[useNum][1] = String.format("%s", lang.eThurst);
+			totalString[useNum][2] = String.format("%s", "Kgf");
+			totalSwitch[useNum] = true;
+			idx_thrust = useNum++;
+		}
+
+		// è½¬é€Ÿ
+		tmp = xc.getconfig("disableEngineInfoRPM");
+		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
+			totalString[useNum][0] = String.format("%5s", "2400");
+			totalString[useNum][1] = String.format("%s", lang.eRPM);
+			totalString[useNum][2] = String.format("%s", "Rpm");
+			totalSwitch[useNum] = true;
+			idx_rpm = useNum++;
+		}
+
+		// æ¡¨è·
+		tmp = xc.getconfig("disableEngineInfoPropPitch");
+		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
+			totalString[useNum][0] = String.format("%5s", "55");
+			totalString[useNum][1] = String.format("%s", lang.ePitchDeg);
+			totalString[useNum][2] = String.format("%s", "Deg");
+			totalSwitch[useNum] = true;
+			idx_prop = useNum++;
+		}
+
+		// æ¡¨æ•ˆçŽ‡
+		tmp = xc.getconfig("disableEngineInfoEffEta");
+		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
+			totalString[useNum][0] = String.format("%5s", "90");
+			totalString[useNum][1] = String.format("%s", lang.eEff);
+			totalString[useNum][2] = String.format("%s", "%");
+			totalSwitch[useNum] = true;
+			idx_eff = useNum++;
+		}
+
+		// æœ‰æ•ˆåŠŸçŽ‡
+		tmp = xc.getconfig("disableEngineInfoEffHp");
+		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
+			totalString[useNum][0] = String.format("%5s", "1005");
+			totalString[useNum][1] = String.format("%s", lang.eEffPower);
+			totalString[useNum][2] = String.format("%s", "Hp");
+			totalSwitch[useNum] = true;
+			idx_ehp = useNum++;
+		}
+
+		// è¿›æ°”åŽ‹
+		// æœ‰æ•ˆåŠŸçŽ‡æˆ–æŽ¨åŠ›ç™¾åˆ†æ¯”
+		tmp = xc.getconfig("disableEngineInfoPressure");
+		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
+			totalString[useNum][0] = String.format("%5s", "1.52");
+			totalString[useNum][1] = String.format("%s", lang.eATM);
+			totalString[useNum][2] = String.format("%s", "");
+			totalSwitch[useNum] = true;
+			idx_map = useNum++;
+		}
+
+		// æœ‰æ•ˆåŠŸçŽ‡æˆ–æŽ¨åŠ›ç™¾åˆ†æ¯”
+		tmp = xc.getconfig("disableEngineInfoPowerPercent");
+		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
+			totalString[useNum][0] = String.format("%5s", "85");
+			totalString[useNum][1] = String.format("%s", lang.ePowerPercent);
+			totalString[useNum][2] = String.format("%s", "%");
+			totalSwitch[useNum] = true;
+			idx_eper = useNum++;
+		}
+
+		// ç‡ƒæ²¹é‡
+		tmp = xc.getconfig("disableEngineInfoFuelKg");
+		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
+			totalString[useNum][0] = String.format("%5s", "121");
+			totalString[useNum][1] = String.format("%s", lang.eFuel);
+			totalString[useNum][2] = String.format("%s", "Kg");
+			totalSwitch[useNum] = true;
+			idx_mfuel = useNum++;
+		}
+
+		// ç‡ƒæ²¹æ—¶
+		tmp = xc.getconfig("disableEngineInfoFuelTime");
+		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
+			totalString[useNum][0] = String.format("%5s", "15");
+			totalString[useNum][1] = String.format("%s", lang.eFueltime);
+			totalString[useNum][2] = String.format("%s", "Min");
+			totalSwitch[useNum] = true;
+			idx_fueltime = useNum++;
+		}
+
+		// åŠ åŠ›é‡
+		tmp = xc.getconfig("disableEngineInfoWepKg");
+		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
+			totalString[useNum][0] = String.format("%5s", "15");
+			totalString[useNum][1] = String.format("%s", lang.eWep);
+			totalString[useNum][2] = String.format("%s", "Kg");
+			totalSwitch[useNum] = true;
+			idx_mwep = useNum++;
+		}
+
+		// åŠ åŠ›æ—¶
+		tmp = xc.getconfig("disableEngineInfoWepTime");
+		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
+			totalString[useNum][0] = String.format("%5s", "8");
+			totalString[useNum][1] = String.format("%s", lang.eWeptime);
+			totalString[useNum][2] = String.format("%s", "Min");
+			totalSwitch[useNum] = true;
+			idx_weptime = useNum++;
+		}
+
+		// æ¸©åº¦
+		tmp = xc.getconfig("disableEngineInfoTemp");
+		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
+			totalString[useNum][0] = String.format("%5s", "115");
+			totalString[useNum][1] = String.format("%s", lang.eTemp);
+			totalString[useNum][2] = String.format("%s", "C");
+			totalSwitch[useNum] = true;
+			idx_temp = useNum++;
+		}
+
+		// æ²¹æ¸©
+		tmp = xc.getconfig("disableEngineInfoOilTemp");
+		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
+			totalString[useNum][0] = String.format("%5s", "105");
+			totalString[useNum][1] = String.format("%s", lang.eOil);
+			totalString[useNum][2] = String.format("%s", "C");
+			totalSwitch[useNum] = true;
+			idx_oiltemp = useNum++;
+		}
+
+		// è€çƒ­æ—¶
+		tmp = xc.getconfig("disableEngineInfoHeatTolerance");
+		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
+			totalString[useNum][0] = String.format("%5s", "3600");
+			totalString[useNum][1] = String.format("%s", lang.eOverheat);
+			totalString[useNum][2] = String.format("%s", "S");
+			totalSwitch[useNum] = true;
+			idx_heattlr = useNum++;
+		}
+
+		tmp = xc.getconfig("disableEngineInfoEngResponse");
+		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
+			totalString[useNum][0] = String.format("%5s", "10");
+			totalString[useNum][1] = String.format("%s", lang.eEngRes);
+			totalString[useNum][2] = String.format("%s", "%/s");
+			totalSwitch[useNum] = true;
+			idx_engres = useNum++;
+		}
+
+	}
+
+	public void __update_num(int idx, String s) {
+		if (idx < useNum) {
+			totalString[idx][0] = String.format("%5s", s);
+		}
+	}
+
+	public static final String hp = "Hp";
+	public static final String mhp = "MHp";
+
+	public void updateString() {
+
+		__update_num(idx_hp, s.sTotalHp);
+		// æŽ¨åŠ›
+		__update_num(idx_thrust, s.sTotalThr);
+		// è½¬é€Ÿ
+		__update_num(idx_rpm, s.rpm);
+		// æ¡¨è·è§’, å–·æ°”ä¸º0çš„è¯ä¸æ˜¾ç¤º
+		__update_num(idx_prop, s.pitch[0]);
+		// æ¡¨æ•ˆçŽ‡,å–·æ°”ä¸º0çš„è¯ä¸æ˜¾ç¤º
+		__update_num(idx_eff, s.sAvgEff);
+		// æœ‰æ•ˆåŠŸçŽ‡
+		__update_num(idx_ehp, s.sTotalHpEff);
+		
+		if (idx_ehp < useNum) {
+			if (s.bUnitMHp) {
+				totalString[idx_ehp][2] = mhp;
+
+			} else {
+				totalString[idx_ehp][2] = hp;
+			}
+		}
+
+		// è¿›æ°”åŽ‹
+		// é£žé©¬è‹±åˆ¶
+		// ç­‰äºŽ-ä¸æ˜¾ç¤º
+		if (idx_map < useNum) {
+			if (s.manifoldpressure == null || s.manifoldpressure.equals(service.nastring)) {
+				totalSwitch[idx_map] = false;
+			} else {
+				totalSwitch[idx_map] = true;
+			}
+		}
+
+		if (s.iCheckAlt > 0) {
+			__update_num(idx_map, s.pressurePounds);
+			if (idx_map < useNum) {
+				totalString[idx_map][2] = s.pressureInchHg;
+			}
+			
+		} else {
+			__update_num(idx_map, s.manifoldpressure);
+			if (idx_map < useNum) {
+				totalString[idx_map][2] = service.pressureUnit;
+			}
+		}
+
+		// æœ‰æ•ˆåŠŸçŽ‡æˆ–æŽ¨åŠ›ç™¾åˆ†æ¯”
+		__update_num(idx_eper, s.sThurstPercent);
+		// ç‡ƒæ²¹é‡é‡
+		__update_num(idx_mfuel, s.sTotalFuel);
+		// ç‡ƒæ²¹æ—¶é—´
+		__update_num(idx_fueltime, s.sfueltime);
+		// åŠ åŠ›é‡é‡(å¦‚æžœä¸º0ä¸æ˜¾ç¤º)
+		// ç­‰äºŽ-ä¸æ˜¾ç¤º
+		if (idx_mwep < useNum) {
+			if (s.sNitro == null || s.sNitro.equals(service.nastring)) {
+				totalSwitch[idx_mwep] = false;
+			}
+		}
+		__update_num(idx_mwep, s.sNitro);
+		// åŠ åŠ›æ—¶é—´(å¦‚æžœä¸º0ä¸æ˜¾ç¤º)
+		if (idx_weptime < useNum) {
+			if (s.sWepTime == null || s.sWepTime.equals(service.nastring)) {
+				totalSwitch[idx_weptime] = false;
+			}
+		}
+		__update_num(idx_weptime, s.sWepTime);
+
+		// æ¸©åº¦
+		__update_num(idx_temp, s.watertemp);
+		// æ²¹æ¸©
+		__update_num(idx_oiltemp, s.oiltemp);
+		// è€çƒ­æ—¶
+		__update_num(idx_heattlr, s.sEngWorkTime);
+
+		__update_num(idx_engres, s.SdThrustPercent);
+		// åˆ¤æ–­
+
+		if (s.checkEngineFlag && s.isEngJet()) {
+			// å…³é—­æ¡¨è·
+			if (idx_hp < useNum)
+				totalSwitch[idx_hp] = false;
+			if (idx_prop < useNum)
+				totalSwitch[idx_prop] = false;
+			if (idx_eff < useNum)
+				totalSwitch[idx_eff] = false;
+
+		} else {
+			if (idx_hp < useNum)
+				totalSwitch[idx_hp] = true;
+			if (idx_prop < useNum)
+				totalSwitch[idx_prop] = true;
+			if (idx_eff < useNum)
+				totalSwitch[idx_eff] = true;
+
+		}
+
+		// hp
+		// if (idx_hp < useNum){
+		// if (s.sTotalHp.equals(service.nastring)){
+		// totalSwitch[idx_hp] = false;
+		//// System.out.println("å…³é—­"+idx_hp);
+		// }
+		// else{
+		// totalSwitch[idx_hp] = true;
+		// }
+		// }
+		//
+		// if (idx_prop < useNum){
+		// if (s.pitch[0].equals(service.nastring)){
+		// totalSwitch[idx_prop] = false;
+		// }
+		// else{
+		// totalSwitch[idx_prop] = true;
+		// }
+		// }
+		//
+		// if (idx_eff < useNum){
+		// if (s.sAvgEff.equals(service.nastring)){
+		// totalSwitch[idx_eff] = false;
+		// }
+		// else{
+		// totalSwitch[idx_eff] = true;
+		// }
+		// }
+
+	}
+
+	private void updateDxDy(int num, int[] doffset) {
+		// TODO Auto-generated method stub
+		if (num % columnNum == 0) {
+			doffset[1] += Math.round(1 * numHeight);
+			// doffset[0] = 0;;
+			doffset[0] = fontsize >> 1;
+		} else {
+			doffset[0] += 5 * fontsize;
+		}
+
+	}
+
+	public void init(controller xc, service ts, blkxparser tp) {
+		this.xc = xc;
 		this.s = ts;
-		overheattime=0;
-		freq = controller.freqengineInfo;
+		this.p = tp;
 
-		if(xc.getconfig("GlobalNumFont")!="")NumFont=xc.getconfig("GlobalNumFont");
-		else NumFont=app.DefaultNumfontName;
-		
-		if(xc.getconfig("engineInfoFont")!="")FontName=xc.getconfig("engineInfoFont");
-		else FontName=app.DefaultFont.getFontName();
-		if(xc.getconfig("engineInfoFontadd")!="")fontadd=Integer.parseInt(xc.getconfig("engineInfoFontadd"));
-		else fontadd=0;
-		//System.out.println(fontadd);
-		font1=font1+fontadd;
-		font2=font2+fontadd;
-		font3=font3+fontadd;
-		if(xc.getconfig("engineInfoX")!="")lx=Integer.parseInt(xc.getconfig("engineInfoX"));
-		else lx=0;
-		if(xc.getconfig("engineInfoY")!="")ly=Integer.parseInt(xc.getconfig("engineInfoY"));
-		else ly=860;
-		
-		WIDTH = 730;
-		HEIGHT = 210;
-		//OP = 100;
+		overheattime = 0;
+		freq = xc.freqEngineInfo;
 
-		setSize(WIDTH, HEIGHT);
-		setLocation(lx, ly);
-		//setIconImage(Toolkit.getDefaultToolkit().createImage("image/form1.jpg"));
+		if (xc.getconfig("GlobalNumFont") != "")
+			NumFont = xc.getconfig("GlobalNumFont");
+		else
+			NumFont = app.DefaultNumfontName;
 
-		WebPanel panel = new WebPanel();
+		if (xc.getconfig("engineInfoFont") != "")
+			FontName = xc.getconfig("engineInfoFont");
+		else
+			FontName = app.DefaultFont.getFontName();
+		if (xc.getconfig("engineInfoFontadd") != "")
+			fontadd = Integer.parseInt(xc.getconfig("engineInfoFontadd"));
+		else
+			fontadd = 0;
+		// System.out.println(fontadd);
+		if (xc.getconfig("engineInfoX") != "")
+			lx = Integer.parseInt(xc.getconfig("engineInfoX"));
+		else
+			lx = 0;
+		if (xc.getconfig("engineInfoY") != "")
+			ly = Integer.parseInt(xc.getconfig("engineInfoY"));
+		else
+			ly = 860;
 
-		this.getWebRootPaneUI().setMiddleBg(new Color(0, 0, 0, 0));// ÖÐ²¿Í¸Ã÷
-		this.getWebRootPaneUI().setTopBg(new Color(0, 0, 0, 0));// ¶¥²¿Í¸Ã÷
-		this.getWebRootPaneUI().setBorderColor(new Color(0, 0, 0, 0));// ÄÚÃè±ßÍ¸Ã÷
-		this.getWebRootPaneUI().setInnerBorderColor(new Color(0, 0, 0, 0));// ÍâÃè±ßÍ¸Ã÷
+		// setIconImage(Toolkit.getDefaultToolkit().createImage("image/form1.jpg"));
 
-		//this.setUndecorated(true);
+		// åˆå§‹åŒ–Panel
+		// initPanel();
+		fontsize = 24 + fontadd;
+		// è®¾ç½®å­—ä½“
+		fontNum = new Font(FontName, Font.BOLD, fontsize);
+		fontLabel = new Font(FontName, Font.BOLD, Math.round(fontsize / 2.0f));
+		fontUnit = new Font(FontName, Font.PLAIN, Math.round(fontsize / 2.0f));
 
-		panel.setBorderColor(new Color(0, 0, 0, 0));
+		numHeight = getFontMetrics(fontNum).getHeight();
+		getFontMetrics(fontLabel).getHeight();
 
-		// ³õÊ¼»¯Panel
-		initPanel();
+		// numWidth = getFontMetrics(fontNum).getWidths();
+		// åˆ—
+		if (xc.getconfig("engineInfoColumn") != "")
+			columnNum = Integer.parseInt(xc.getconfig("engineInfoColumn"));
+		else
+			columnNum = 3;
 
-		// Split
-		WebSplitPane splitPane2 = new WebSplitPane(VERTICAL_SPLIT, topPanel, bottomPanel);
-		splitPane2.setOneTouchExpandable(false);
-		// splitPane.setPreferredSize ( new Dimension ( 250, 200 ) );
-		splitPane2.setDividerLocation(110);
-		splitPane2.setContinuousLayout(false);
-		splitPane2.setDividerSize(0);
-		splitPane2.setEnabled(false);
-		
+		initTextString();
 
-		// Split
-		splitPane = new WebSplitPane(HORIZONTAL_SPLIT, leftPanel, rightPanel);
-		splitPane.setOneTouchExpandable(false);
-		splitPane.setDrawDividerBorder(false);
-		splitPane.setDividerSize(1);
-		splitPane.setEnabled(false);
-		// splitPane.setPreferredSize ( new Dimension ( 250, 200 ) );
-		splitPane.setDividerLocation(200);
-		splitPane.setContinuousLayout(true);
-		splitPane.setDividerBorderColor(new Color(0, 0, 0, 0));
+		int addnum = (useNum % columnNum == 0) ? 0 : 1;
 
-		panel.setLayout(new GridLayout(1, 2));
-		// ±êÇ©
+		WIDTH = (fontsize >> 1) + (int) ((columnNum + 0.5) * 5f * fontsize);
+		HEIGHT = (int) (numHeight + (useNum / columnNum + addnum + 1) * 1.0f * numHeight);
+		// OP = 100;
 
-		// panelÍ¸Ã÷
+		doffset = new int[2];
+		this.setBounds(lx, ly, WIDTH, HEIGHT);
+
+		panel = new WebPanel() {
+
+			private static final long serialVersionUID = -9061280572815010060L;
+
+			public void paintComponent(Graphics g) {
+				Graphics2D g2d = (Graphics2D) g;
+				// å¼€å§‹ç»˜å›¾
+				// g2d.draw
+				g2d.setPaintMode();
+				g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+				g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+				// g2d.setRenderingHint(RenderingHints.KEY_RENDERING,
+				// RenderingHints.VALUE_RENDER_QUALITY);
+				g2d.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION,
+						RenderingHints.VALUE_ALPHA_INTERPOLATION_SPEED);
+
+				doffset[0] = fontsize >> 1;
+				doffset[1] = fontsize >> 1;
+				int k = 0;
+				for (int i = 0; i < useNum; i++) {
+					if (totalSwitch[i] == false) {
+						// System.out.println("è·³è¿‡"+i);
+						continue;
+					}
+					uiBaseElem.drawLabelBOSType(g2d, doffset[0], doffset[1], 1, fontNum, fontLabel, fontUnit,
+							totalString[i][0], totalString[i][1], totalString[i][2]);
+					updateDxDy(++k, doffset);
+
+				}
+
+				g.dispose();
+			}
+		};
+
 		panel.setWebColoredBackground(false);
 		panel.setBackground(new Color(0, 0, 0, 0));
 
-		
-		
-		// Ìí¼Ó»æÖÆÎï¼þÖÁpanel
-		rightPanel.add(splitPane2);
-		panel.add(splitPane);
+		this.getWebRootPaneUI().setMiddleBg(transparent);// ä¸­éƒ¨é€æ˜Ž
+		this.getWebRootPaneUI().setTopBg(transparent);// é¡¶éƒ¨é€æ˜Ž
+		this.getWebRootPaneUI().setBorderColor(transparent);// å†…æè¾¹é€æ˜Ž
+		this.getWebRootPaneUI().setInnerBorderColor(transparent);// å¤–æè¾¹é€æ˜Ž
+
 		this.add(panel);
-		
-		WebSeparator separator1 = new WebSeparator();
-		separator1.setBounds(200, 162, 800, 1);
-		//this.getRootPane().add(separator1);
-		
-		WebSeparator separator2 = new WebSeparator();
-		separator2.setOrientation(SwingConstants.VERTICAL);
-		separator2.setBounds(678, -30, 1, 256);
-	
-		//this.getRootPane().add(separator2);
-		
+
+		// separator2.setBounds(678, -30, 1, 256);
+
+		// this.getRootPane().add(separator2);
+
 		// this.setOpacity((float) (OP / 100.0f));
 
-		
-		setShowWindowButtons(false);
-		setShowTitleComponent(false);
-		setShowResizeCorner(false);
-
-		
-	
-		setDefaultCloseOperation(3);
-		setTitle(language.eTitle);
-		getWebRootPaneUI().getTitleComponent().getComponent(1).setFont(app.DefaultFont);//ÉèÖÃtitle×ÖÌå
-		setAlwaysOnTop(true);
-		setFocusableWindowState(false);// È¡Ïû´°¿Ú½¹µã
-		setFocusable(false);
-		setVisible(true);
-
-		
-		
-		//this.setCloseOnFocusLoss(true);
-	
-		if(xc.getconfig("engineInfoEdge").equals("true"))setShadeWidth(10);//²£Á§Ð§¹û±ß¿ò
+//		setShowWindowButtons(false);
+//		setShowTitleComponent(false);
+//		setShowResizeCorner(false);
+//
+//		setDefaultCloseOperation(3);
+//		setTitle(lang.eTitle);
+//		getWebRootPaneUI().getTitleComponent().getComponent(1).setFont(app.DefaultFont);// è®¾ç½®titleå­—ä½“
+//		setAlwaysOnTop(true);
+//		setFocusableWindowState(false);// å–æ¶ˆçª—å£ç„¦ç‚¹
+//		setFocusable(false);
+//		this.setCursor(app.blankCursor);
+//		setVisible(true);
+		uiWebLafSetting.setWindowOpaque(this);
+		jetChecked = false;
+		// this.setCloseOnFocusLoss(true);
+		root = this.getContentPane();
+		if (xc.getconfig("engineInfoEdge").equals("true"))
+			setShadeWidth(10);// çŽ»ç’ƒæ•ˆæžœè¾¹æ¡†
 		else {
 			setShadeWidth(0);
-			//this.getRootPane().add(separator1);
-			this.getRootPane().add(separator2);
+			// this.getRootPane().add(separator1);
+			// this.getRootPane().add(separator2);
 		}
 	}
 
+	long engineCheckMili;
+	private boolean isJet;
+	private boolean jetChecked;
 
-	public void wspsetStep(WebStepProgress wsp, int step) {
-		if (step > wsp.getStepsAmount()) {
-			wsp.addSteps("");
-			// System.out.println("³É¹¦");
-			//wsp.setPathWidth(5);
-		}
-		
-		wsp1.setSelectedStepIndex(step - 1);
-	}
-	public void updateOverheatTime(int Time){
-		overheattime=Time;
-		label_33.setText(Integer.toString(overheattime));
+	public void drawTick() {
+
+		// æ›´æ–°å­—ç¬¦ä¸²
+
+		updateString();
+
+		root.repaint();
 	}
 
-	
-	void setValueold(){
-
-
-		bottomType.setText(s.iIndic.stype);
-		bottomThr.setText(s.stotalthr);
-		bottomRpm.setText(s.rpm);
-
-		bottomHp.setText(s.stotalhp);
-		bottomEhp.setText(s.stotalhpeff);
-		bottomEff.setText(s.efficiency[0]);
-
-		bottomEng.setText(s.watertemp);
-		bottomOil.setText(s.oiltemp);
-
-		bottomPre.setText(s.manifoldpressure);
-
-		bottomWei.setText(s.stotalfuel);
-		bottomTim.setText(s.sfueltime);
-	}
 	@Override
 	public void run() {
 		while (doit) {
 
 			try {
-				Thread.sleep(freq);
+				Thread.sleep(app.threadSleepTime);
 			} catch (InterruptedException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 
-			slider1.setValue(s.sState.throttle);
-			slider2.setValue(s.sState.RPMthrottle);
-			slider3.setValue(s.sState.mixture);
-			slider4.setValue(s.sState.radiator);
-			wspsetStep(wsp1, s.sState.compressorstage);
-			wsp2.setSelectedStepIndex(s.sState.magenato);
-			
-			lblFwd.setText(s.iIndic.stype);
-			label_3.setText(s.stotalhp);
-			label_6.setText(s.stotalthr);
+			if (s.SystemTime - engineCheckMili > xc.freqService) {
+				engineCheckMili = s.SystemTime;
+				if (s.sState != null) {
+					if (jetChecked == false) {
+						if (xc.blkx != null && xc.blkx.valid == true) {
+							if (xc.blkx.isJet) {
 
-			label_9.setText(s.stotalhpeff);
-			label_12.setText(s.stotalfuel);
-			label_15.setText(s.rpm);
+								isJet = true;
+								// slider1.setVisible(false);
+								// slider2.setVisible(false);
+								// slider4.setVisible(false);
+								// wsp1.setVisible(false);
+								// // label_16.setVisible(false);
+								// lefttitle1.setVisible(false);
+								// lefttitle.setVisible(false);
+								// bottomtitle1.setVisible(false);
+								// bottomtitle.setVisible(false);
+								//
+								// // æ²¹é—¨è®¾ç½®
+								// lefttitle2.setText(language.eThrottle);
+								// slider3.setMaximum(110);
+								// ä¿®æ”¹ä¸ºæŽ¨åŠ›ç™¾åˆ†æ¯”
+							}
+							jetChecked = true;
+						}
+					}
+					if (isJet) {
+						// slider3.setValue(s.sState.throttle);
+					} else {
+						// slider1.setValue(s.sState.throttle);
+						// slider2.setValue(s.sState.RPMthrottle);
+						// slider3.setValue(s.sState.mixture);
+						// slider4.setValue(s.sState.radiator);
+						//
+						// // slider5.setValue(s.sState.mfuel1);
+						// wspsetStep(wsp1, s.sState.compressorstage);
+					}
 
-			label_18.setText(s.watertemp);
-			label_21.setText(s.efficiency[0]);
+					drawTick();
 
-			label_24.setText(s.sfueltime);
-			if(s.isFuelpressure){
-				label_13.setText(language.eFuelPrs);
-				lblKg.setText("%");
+				}
 			}
-			else{
-				label_13.setText(language.eFuel);
-				lblKg.setText("Kg");
-			}
-
-			if(s.checkAlt>0) {
-				label_27.setText(s.pressurePounds);
-				lblAta.setText("Psi "+s.pressureInchHg+"''");
-			}
-			else {
-				label_27.setText(s.manifoldpressure);
-				lblAta.setText("Ata ");
-			}
-			label_30.setText(s.oiltemp);
-			
-			//bottomPro.setText(s.pitch[0]);
-			//System.out.println("engineInfoÖ´ÐÐÁË");
-			repaint();
-			// this.status="infolist¾ÍÐ÷";
-			// System.out.println(this.status);
-			// »æÍ¼
-
-			// this.status="infolistµÈ´ý";
-			// System.out.println(this.status);
-
 		}
 	}
 }

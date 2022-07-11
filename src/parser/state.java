@@ -3,163 +3,200 @@ package parser;
 public class state {
 	public String valid;
 	public boolean flag;
-	public boolean engineAlive=false;
+//	public boolean engineAlive = false;
 
-	
-	public volatile int engineNum;
-	public volatile int engineType;
-	public volatile int aileron;
-	public volatile int elevator;
-	public volatile int rudder;
-	public volatile int flaps;
-	public volatile int gear;
-	public volatile int TAS;
-	public volatile int IAS;
-	public volatile float M;
-	public volatile float AoA;
-	public volatile float AoS;
-	public volatile float Ny;
-	public volatile float Vy;
-	public volatile float Wx;
-	public volatile int throttle;
-	public volatile int RPMthrottle;
-	public volatile int radiator;
-	public volatile int mixture;
-	public volatile int compressorstage;
-	public volatile int magenato;
-	public volatile float power[];
-	public volatile int RPM;
-	public volatile float manifoldpressure;
-	public volatile float watertemp;
-	public volatile float oiltemp;
-	public volatile float pitch[];
-	public volatile int thrust[];
-	public volatile float efficiency[];
-	public volatile int airbrake;
+	public static final int maxEngNum = 8;
+	public int engineNum;
+//	public int isEngineJet;
+	public int aileron;
+	public int elevator;
+	public int rudder;
+	public int flaps;
+	public int gear;
+	public int TAS;
+	public int IAS;
+	public float M;
+	public float AoA;
+	public float heightm;
+	public float AoS;
+	public float Ny;
+	public float Vy;
+	public float Wx;
+	public int throttle;
+	public int RPMthrottle;
+	public int radiator;
+	public int oilradiator;
+	public int mixture;
+	public int compressorstage;
+	public int magenato;
+	public float power[];
+	public int RPM;
+	public float manifoldpressure;
+	public float watertemp;
+	public float oiltemp;
+	public float mfuel;
+	public float mfuel_1;
+	public float mfuel0;
+	public float pitch[];
+	public int thrust[];
+	public float efficiency[];
+	public int airbrake;
+	public float totalThr;
 
-	// ÁÙÊ±±äÁ¿
-	int i;
-
-	public String getString(String R, String S) {
-		int bix;
-		int eix;
-		bix = R.indexOf(S);
-		if (bix >= 0) {
-			eix = bix;
-			while (R.charAt(eix) != ':') {
-				eix++;
-			}
-			eix++;
-			bix = eix + 1;
-			while (R.charAt(eix) != ',' && R.charAt(eix) != '}') {
-				eix++;
-				if (eix == R.length() + 1)
-					break;
-			}
-			return R.substring(bix, eix);
-		} else
-			return null;
-	}
-
-	public float getDatafloat(String sdata) {
-		if (sdata != null)
-			return Float.parseFloat(sdata);
-		else
-			return -65535;
-	}
-
-	public int getDateint(String sdata) {
-		if (sdata != null)
-			return Integer.parseInt(sdata);
-		else
-			return -65535;
-	}
+	// ä¸´æ—¶å˜é‡
 
 	public void init() {
-		//System.out.println("state³õÊ¼»¯ÁË");
+		// System.out.println("stateåˆå§‹åŒ–äº†");
 		valid = "false";
-		power = new float[5];
-		pitch = new float[5];
-		thrust = new int[5];
-		efficiency = new float[5];
+		power = new float[maxEngNum];
+		pitch = new float[maxEngNum];
+		thrust = new int[maxEngNum];
+		efficiency = new float[maxEngNum];
 		engineNum = 0;
-		engineType = -1;
+//		isEngineJet = -1;
+//		engineAlive = false;
+		airbrake = 0;
+	}
+
+	public void getEngNum(String buf) {
+		for (int i = 0; i < maxEngNum; i++) {
+			thrust[i] = stringHelper.getDataInt(stringHelper.getString(buf, "thrust "+i));
+			if (thrust[i] != -65535)
+				engineNum++;
+		}
+//		thrust[0] = stringHelper.getDataInt(stringHelper.getString(buf, "thrust 1"));
+//		if (thrust[0] != -65535)
+//			engineNum++;
+//		thrust[1] = stringHelper.getDataInt(stringHelper.getString(buf, "thrust 2"));
+//		if (thrust[1] != -65535)
+//			engineNum++;
+//		thrust[2] = stringHelper.getDataInt(stringHelper.getString(buf, "thrust 3"));
+//		if (thrust[2] != -65535)
+//			engineNum++;
+//		thrust[3] = stringHelper.getDataInt(stringHelper.getString(buf, "thrust 4"));
+//		if (thrust[3] != -65535)
+//			engineNum++;
+//		thrust[4] = stringHelper.getDataInt(stringHelper.getString(buf, "thrust 5"));
+//		if (thrust[4] != -65535)
+//			engineNum++;
 	}
 
 	public void update(String buf) {
-		valid = getString(buf, "valid");
+		int i;
+		valid = stringHelper.getString(buf, "valid");
 		// System.out.println(valid);
-		flag = false;
+
 		if (valid.equals("true")) {
-			// ÎŞÒì³£µÄ
+			// æ— å¼‚å¸¸çš„
 			flag = true;
-			if (engineNum == 0&&engineAlive) {
-				thrust[0] = getDateint(getString(buf, "thrust 1"));
-				if (thrust[0] != -65535)
-					engineNum++;
-				thrust[1] = getDateint(getString(buf, "thrust 2"));
-				if (thrust[1] != -65535)
-					engineNum++;
-				thrust[2] = getDateint(getString(buf, "thrust 3"));
-				if (thrust[2] != -65535)
-					engineNum++;
-				thrust[3] = getDateint(getString(buf, "thrust 4"));
-				if (thrust[3] != -65535)
-					engineNum++;
-				thrust[4] = getDateint(getString(buf, "thrust 5"));
-				if (thrust[4] != -65535)
-					engineNum++;
-			}
-			aileron = getDateint(getString(buf, "aileron"));
-			elevator = getDateint(getString(buf, "elevator"));
-			rudder = getDateint(getString(buf, "rudder"));
-			flaps = getDateint(getString(buf, "flaps"));
-			airbrake=getDateint(getString(buf, "airbrake"));
-			gear = getDateint(getString(buf, "gear"));
-			TAS = getDateint(getString(buf, "TAS"));
-			IAS = getDateint(getString(buf, "IAS"));
-			M = getDatafloat(getString(buf, "M"));
-			AoA = getDatafloat(getString(buf, "AoA"));
-			AoS = getDatafloat(getString(buf, "AoS"));
-			Ny = getDatafloat(getString(buf, "Ny"));
-			Vy = getDatafloat(getString(buf, "Vy"));
-			Wx = getDatafloat(getString(buf, "Wx"));
-			throttle = getDateint(getString(buf, "throttle"));
-			RPMthrottle = getDateint(getString(buf, "RPM throttle"));
-			radiator = getDateint(getString(buf, "radiator"));
-			power[0] = getDatafloat(getString(buf, "power 1"));
-			RPM = getDateint(getString(buf, "RPM 1"));
-			manifoldpressure = getDatafloat(getString(buf, "manifold"));
+//			if (engineNum == 0) {
+//				getEngNum(buf);
+//			}
+//			 System.out.println(engineNum);
+			aileron = stringHelper.getDataInt(stringHelper.getString(buf, "aileron"));
+			elevator = stringHelper.getDataInt(stringHelper.getString(buf, "elevator"));
+			rudder = stringHelper.getDataInt(stringHelper.getString(buf, "rudder"));
+			flaps = stringHelper.getDataInt(stringHelper.getString(buf, "flaps"));
+			airbrake = stringHelper.getDataInt(stringHelper.getString(buf, "airbrake"));
+			gear = stringHelper.getDataInt(stringHelper.getString(buf, "gear"));
+			TAS = stringHelper.getDataInt(stringHelper.getString(buf, "TAS"));
+			IAS = stringHelper.getDataInt(stringHelper.getString(buf, "IAS"));
+			M = stringHelper.getDataFloat(stringHelper.getString(buf, "M"));
+			heightm = stringHelper.getDataFloat(stringHelper.getString(buf, "H, m"));
+			AoA = stringHelper.getDataFloat(stringHelper.getString(buf, "AoA"));
+			AoS = stringHelper.getDataFloat(stringHelper.getString(buf, "AoS"));
+			Ny = stringHelper.getDataFloat(stringHelper.getString(buf, "Ny"));
+			Vy = stringHelper.getDataFloat(stringHelper.getString(buf, "Vy"));
+			Wx = stringHelper.getDataFloat(stringHelper.getString(buf, "Wx"));
+			throttle = stringHelper.getDataInt(stringHelper.getString(buf, "throttle"));
+			RPMthrottle = stringHelper.getDataInt(stringHelper.getString(buf, "RPM throttle"));
+//			if (RPMthrottle == -65535)
+//				RPMthrottle = 0;
+			radiator = stringHelper.getDataInt(stringHelper.getString(buf, "radiator"));
+//			if (radiator == -65535)
+//				radiator = 0;
+			// oilradiator = stringHelper.getDataInt(stringHelper.getString(buf, "oilraditor"));
+//			power[0] = stringHelper.getDataFloat(stringHelper.getString(buf, "power 1"));
+			RPM = stringHelper.getDataInt(stringHelper.getString(buf, "RPM 1"));
 
-			oiltemp = getDatafloat(getString(buf, "oil temp"));
-			thrust[0] = getDateint(getString(buf, "thrust 1"));
+			manifoldpressure = stringHelper.getDataFloat(stringHelper.getString(buf, "manifold"));
 
-			efficiency[0] = getDatafloat(getString(buf, "efficiency 1"));
+			mfuel = stringHelper.getDataFloat(stringHelper.getString(buf, "Mfuel"));
+			mfuel_1 = stringHelper.getDataFloat(stringHelper.getString(buf, "Mfuel 1"));
+			mfuel0 = stringHelper.getDataFloat(stringHelper.getString(buf, "Mfuel0"));
+
+			oiltemp = stringHelper.getDataFloat(stringHelper.getString(buf, "oil temp"));
+//			thrust[0] = stringHelper.getDataInt(stringHelper.getString(buf, "thrust 1"));
+//
+//			efficiency[0] = stringHelper.getDataFloat(stringHelper.getString(buf, "efficiency 1"));
 			// engineNum = 1;
-			mixture = getDateint(getString(buf, "mixture"));
-			compressorstage = getDateint(getString(buf, "compressor stage"));
-			magenato = getDateint(getString(buf, "magneto"));
+			mixture = stringHelper.getDataInt(stringHelper.getString(buf, "mixture"));
+			if (mixture == -65535)
+				mixture = -1;
+			compressorstage = stringHelper.getDataInt(stringHelper.getString(buf, "compressor stage"));
+			if (compressorstage == -65535)
+				compressorstage = 0;
 
-			watertemp = getDatafloat(getString(buf, "water temp"));
+			magenato = stringHelper.getDataInt(stringHelper.getString(buf, "magneto"));
 
-			for (i = 0; i < engineNum; i++) {
+			watertemp = stringHelper.getDataFloat(stringHelper.getString(buf, "water temp"));
+			
+			float tmpThrust = 0;
+
+			int totalEngineNum = 0;
+			for (i = 0; i < maxEngNum; i++) {
 				// System.out.println(engineType);
-				
-				power[i] = getDatafloat(getString(buf, "power " + (i + 1)));
-				thrust[i] = getDateint(getString(buf, "thrust " + (i + 1)));
-				pitch[i] = getDatafloat(getString(buf, "pitch " + (i + 1)));
-				efficiency[i] = getDateint(getString(buf, "efficiency " + (i + 1)));
-				//System.out.println("power "+i+" "+power[i]);
-				// System.out.println(efficiency[0]);
-			}
-			//System.out.println(power[0]);
-			if(thrust[0]!=0||Vy!=0)engineAlive=true;
-			if (power[0] == 0 && thrust[0]!=0){
-				engineType = 1;
-			}
-			else
-				engineType = 0;
 
+				power[i] = stringHelper.getDataFloat(stringHelper.getString(buf, "power " + (i+1)));
+//				if(power[i] == -65535)break;
+				thrust[i] = stringHelper.getDataInt(stringHelper.getString(buf, "thrust " + (i+1)));
+				pitch[i] = stringHelper.getDataFloat(stringHelper.getString(buf, "pitch " + (i+1)));
+//				if(pitch[i] == -65535)break;
+				efficiency[i] = stringHelper.getDataInt(stringHelper.getString(buf, "efficiency " + (i+1)));
+//				if(efficiency[i] == -65535)break;
+				// System.out.println("power "+i+" "+power[i]);
+				// System.out.println(pitch[0]);
+
+				if(thrust[i] == -65535)break;
+				tmpThrust += thrust[i];
+				totalEngineNum ++;
+			}
+			engineNum = totalEngineNum;
+			totalThr = tmpThrust;
+			// System.out.println(power[0]);
+//			if (thrust[0] != 0){
+//				engineAlive = true;
+//			}
+//			else{
+//				engineAlive = false;
+//			}
+//			
+//			else{
+//				// æ¨åŠ›ä¸ºç©ºä¸”
+//			}
+//			if (thrust[0] != 0 || Vy != 0)
+//				engineAlive = true;
+//			else{
+//				// deadé€»è¾‘
+//				if (gear >= 0 && IAS < 10 && Vy < 1)
+//					engineAlive = false;				
+//			}
+
+
+//			if (pitch[0] <= 0 && efficiency[0] <= 0 && power[0] == 0 && thrust[0] != 0) {
+//				isEngineJet = 1;
+//			} else
+//				isEngineJet = 0;
+			 
+//			if(magenato >= 0){
+//				isEngineJet = 0;
+//			}
+//			else{
+//				isEngineJet = 1;
+//			}
+
+		} else {
+			flag = false;
 		}
 
 	}

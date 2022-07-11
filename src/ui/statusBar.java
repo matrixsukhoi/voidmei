@@ -12,8 +12,10 @@ import com.alee.laf.label.WebLabel;
 import com.alee.laf.panel.WebPanel;
 import com.alee.laf.rootpane.WebFrame;
 
+import prog.app;
 import prog.controller;
-import prog.language;
+import prog.lang;
+import prog.service;
 
 public class statusBar extends WebFrame implements Runnable {
 	/**
@@ -22,6 +24,7 @@ public class statusBar extends WebFrame implements Runnable {
 	private static final long serialVersionUID = 285137206980711202L;
 	public volatile boolean doit=true;
 	controller xc;
+	service xs;
 	WebLabel title;
 	WebPanel panel;
 	int WIDTH;
@@ -32,7 +35,7 @@ public class statusBar extends WebFrame implements Runnable {
 		WIDTH = 250;
 		HEIGHT = 80;
 
-		//System.out.println("statusBar³õÊ¼»¯ÁË");
+		//System.out.println("statusBaråˆå§‹åŒ–äº†");
 		//setSize(WIDTH, HEIGHT);
 		//setLocation(Toolkit.getDefaultToolkit().getScreenSize().width - WIDTH, 50);
 		this.setBounds(Toolkit.getDefaultToolkit().getScreenSize().width - WIDTH, 50,WIDTH, HEIGHT);
@@ -49,6 +52,18 @@ public class statusBar extends WebFrame implements Runnable {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+		
+		String FontName = null;
+		if (xc.getconfig("flightInfoFontC") != "")
+			FontName = xc.getconfig("flightInfoFontC");
+		Font f;
+		if (!FontName.isEmpty()) {
+//			System.out.println(FontName);
+			f = new Font(FontName, Font.PLAIN, 14);
+		} else {
+			f = app.DefaultFont;
+		}
+		
 		//WebImage webimage1=new WebImage(I);
 		//java.awt.Image L=Toolkit.getDefaultToolkit().createImage("image/loader.gif");
 		// System.out.println(I);
@@ -56,10 +71,10 @@ public class statusBar extends WebFrame implements Runnable {
 		// TooltipManager.setTooltip ( Image1, "Simple preferred-size image",
 		// TooltipWay.up );
 		//WebImage webimage1=new WebImage(I);
-		this.getWebRootPaneUI().setMiddleBg(new Color(0, 0, 0, 0));// ÖĞ²¿Í¸Ã÷
-		this.getWebRootPaneUI().setTopBg(new Color(0, 0, 0, 0));// ¶¥²¿Í¸Ã÷
-		this.getWebRootPaneUI().setBorderColor(new Color(0, 0, 0, 0));// ÄÚÃè±ßÍ¸Ã÷
-		this.getWebRootPaneUI().setInnerBorderColor(new Color(0, 0, 0, 0));// ÍâÃè±ßÍ¸Ã÷
+		this.getWebRootPaneUI().setMiddleBg(new Color(0, 0, 0, 0));// ä¸­éƒ¨é€æ˜
+		this.getWebRootPaneUI().setTopBg(new Color(0, 0, 0, 0));// é¡¶éƒ¨é€æ˜
+		this.getWebRootPaneUI().setBorderColor(new Color(0, 0, 0, 0));// å†…æè¾¹é€æ˜
+		this.getWebRootPaneUI().setInnerBorderColor(new Color(0, 0, 0, 0));// å¤–æè¾¹é€æ˜
 
 		this.setUndecorated(true);
 
@@ -67,8 +82,8 @@ public class statusBar extends WebFrame implements Runnable {
 		title.setHorizontalAlignment(SwingConstants.CENTER);
 		title.setDrawShade(true);
 		title.setForeground(new Color(245, 248, 250, 240));
-		title.setShadeColor(Color.BLACK);
-		title.setFont(new Font("Microsoft Yahei UI", Font.PLAIN, 12));
+		title.setShadeColor(app.colorShadeShape);
+		title.setFont(f);
 		title.setIconTextGap(3);
 
 		panel.setLayout(new BorderLayout());
@@ -84,27 +99,27 @@ public class statusBar extends WebFrame implements Runnable {
 		setShowTitleComponent(false);
 		setShowResizeCorner(false);
 		setDefaultCloseOperation(3);
-		setTitle(language.sTitle);
+		setTitle(lang.sTitle);
 		setAlwaysOnTop(true);
 		
 		setFocusable(false);
-		setFocusableWindowState(false);// È¡Ïû´°¿Ú½¹µã
+		setFocusableWindowState(false);// å–æ¶ˆçª—å£ç„¦ç‚¹
 		setVisible(true);
 		
 	}
 
 	public void S1() {
-		title.setText(language.sWait);
+		title.setText(lang.sWait);
 		repaint();
 	}
 
 	public void S2() {
-		title.setText(language.sEnter);
+		title.setText(lang.sEnter);
 		repaint();
 	}
 
 	public void S3() {
-		title.setText(language.sCheck);
+		title.setText(lang.sCheck);
 		repaint();
 		try {
 			Thread.sleep(3000);
@@ -118,13 +133,13 @@ public class statusBar extends WebFrame implements Runnable {
 	public void run() {
 		while (doit) {
 			try {
-				Thread.sleep(15);
+				Thread.sleep(100);
 			} catch (InterruptedException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-			//System.out.println("statusBarÖ´ĞĞÁË");
-			//System.out.println("Ë¢ĞÂÁË");
+			//System.out.println("statusBaræ‰§è¡Œäº†");
+			//System.out.println("åˆ·æ–°äº†");
 			this.repaint();
 		}
 	}

@@ -8,7 +8,7 @@ import java.io.IOException;
 import java.util.Calendar;
 
 import prog.controller;
-import prog.language;
+import prog.lang;
 import prog.service;
 
 public class flightLog implements Runnable {
@@ -23,78 +23,83 @@ public class flightLog implements Runnable {
 	Calendar c;
 
 	boolean firstAnalyze = true;
+	private String climbName;
+	private String maneuverName;
+	private String rollName;
+	private String loadName;
+	private BufferedWriter csvWritter;
+	private long writeTime;
 
 	void writeLabel(FileWriter txt) throws IOException {
 		BufferedWriter bw = new BufferedWriter(txt);
-		bw.write(language.l1);// 1
+		bw.write(lang.l1);// 1
 
-		bw.write(language.l2);// 2
+		bw.write(lang.l2);// 2
 
-		bw.write(language.l3);// 3
+		bw.write(lang.l3);// 3
 
-		bw.write(language.l4);// 4
+		bw.write(lang.l4);// 4
 
-		bw.write(language.l5);// 5
+		bw.write(lang.l5);// 5
 
-		bw.write(language.l6);// 6
+		bw.write(lang.l6);// 6
 
-		bw.write(language.l7);// 7
+		bw.write(lang.l7);// 7
 
-		bw.write(language.l8);// 8
+		bw.write(lang.l8);// 8
 
-		bw.write(language.l9);// 9
+		bw.write(lang.l9);// 9
 
-		bw.write(language.l10);// 10
+		bw.write(lang.l10);// 10
 
-		bw.write(language.l11);// 11
+		bw.write(lang.l11);// 11
 
-		bw.write(language.l12);// 12
+		bw.write(lang.l12);// 12
 
-		bw.write(language.l13);// 13
+		bw.write(lang.l13);// 13
 
-		bw.write(language.l14);// 16
+		bw.write(lang.l14);// 16
 
-		bw.write(language.l15);// 14
+		bw.write(lang.l15);// 14
 
-		bw.write(language.l16);// 15
+		bw.write(lang.l16);// 15
 
-		bw.write(language.l17);// 16
+		bw.write(lang.l17);// 16
 
-		bw.write(language.l18);// 17
+		bw.write(lang.l18);// 17
 
-		bw.write(language.l19);// 18
+		bw.write(lang.l19);// 18
 
-		bw.write(language.l20);// 19
+		bw.write(lang.l20);// 19
 
-		bw.write(language.l21);// 20
+		bw.write(lang.l21);// 20
 
-		bw.write(language.l22);// 21
+		bw.write(lang.l22);// 21
 
-		bw.write(language.l23);// 22
+		bw.write(lang.l23);// 22
 
-		bw.write(language.l24);// 23
+		bw.write(lang.l24);// 23
 
-		bw.write(language.l25);// 24
+		bw.write(lang.l25);// 24
 
-		bw.write(language.l26);// 25
+		bw.write(lang.l26);// 25
 
-		bw.write(language.l27);// 26
+		bw.write(lang.l27);// 26
 
-		bw.write(language.l28);// 27
+		bw.write(lang.l28);// 27
 
-		bw.write(language.l29);// 28
+		bw.write(lang.l29);// 28
 
-		bw.write(language.l30);// 29
+		bw.write(lang.l30);// 29
 
-		bw.write(language.l31);// 30
+		bw.write(lang.l31);// 30
 
-		bw.write("\r\n");
+		bw.write("\n");
 		bw.flush();
-		bw.close();
+//		bw.close();
 	}
 
-	void writeData(FileWriter txt) throws IOException {
-		BufferedWriter bw = new BufferedWriter(txt);
+	void writeData(BufferedWriter bw) throws IOException {
 		String tmp = "";
 
 		bw.write(xs.sTime + ",");// 1
@@ -122,15 +127,15 @@ public class flightLog implements Runnable {
 
 		bw.write(xs.Wx + ",");// 12
 
-		bw.write(xs.stotalhp + ",");// 13
+		bw.write(xs.sTotalHp + ",");// 13
 
 		bw.write(xs.efficiency[0] + ",");// 16
 
-		bw.write(xs.stotalhpeff + ",");// 14
+		bw.write(xs.sTotalHpEff + ",");// 14
 
 		bw.write(xs.rpm + ",");// 15
 
-		bw.write(xs.stotalthr + ",");// 16
+		bw.write(xs.sTotalThr + ",");// 16
 
 		bw.write(xs.acceleration + ",");// 17
 
@@ -161,70 +166,302 @@ public class flightLog implements Runnable {
 		bw.write(xs.AoS + ",");// 30
 
 		bw.write("\n");
-		bw.flush();
-		bw.close();
+//		bw.flush();
+//		bw.close();
 	}
 
-	// ½øĞĞÊı¾İ·ÖÎö
+	// è¿›è¡Œæ•°æ®åˆ†æ
 	void analyzeData() {
 		int stage = (int) xs.alt / 100;
-		if (Math.abs(xs.checkAlt)>10) {
+		if (Math.abs(xs.iCheckAlt)>10) {
 			if (firstAnalyze) {
-				// µÚÒ»´Î·ÖÎö£¬ÏÈÈ¡µ±Ç°¸ß¶È
+				// ç¬¬ä¸€æ¬¡åˆ†æï¼Œå…ˆå–å½“å‰é«˜åº¦
 				fA = new flightAnalyzer();
 				fA.init(stage, xs);
 				firstAnalyze = false;
 			} else {
-				// ¿ªÊ¼·ÖÎö
+				// å¼€å§‹åˆ†æ
 				fA.analyze(stage);
+				fA.updateEMChart(xs.IASv, xs.sState.Ny, (int)Math.abs(xs.sState.Wx), xs.SEP/9.78f, Math.abs(xs.sState.elevator), Math.abs(xs.sState.aileron));
 			}
 		}
+		
+		// åˆ†æé€Ÿåº¦
 
 	}
+	
+	void writeClimbLabel(FileWriter txt) throws IOException {
+		BufferedWriter bw = new BufferedWriter(txt);
+		// é«˜åº¦
+		bw.write(lang.fAlt +"/m, ");
+		
+		// æ—¶é—´
+		bw.write("t/s" + ", ");
+		
+		// åŠ¨åŠ›
+		bw.write(lang.ePower + "/hp, ");
+		
+		// æ¨åŠ›
+		bw.write(lang.eThurst + "/kgf, ");
+		
+		// SEP
+		bw.write(lang.fSEP+"/m/s");
+		
+		bw.write("\n");
+		bw.flush();
+//		bw.close();
+	}
+	void writeClimbData(FileWriter txt) throws IOException {
+		BufferedWriter bw = new BufferedWriter(txt);
+		 
+		for (int i = 0; i < fA.curaltStage; i++){
+			
+			bw.write(i * 100 + ", ");
+			bw.write(fA.time[i] + ", ");
+			bw.write(fA.power[i] + ", ");
+			bw.write(fA.thrust[i] + ", ");
+			bw.write(fA.sep[i]+"\n");
+			
+//			bw.write("\n");
+			
+		}
+//		System.out.println(String.format("total %d climb data logged", fA.curaltStage));
+		bw.flush();
+	}
+	
+	public void saveClimbData(){
+		FileWriter tcsv = null;
+//		System.out.println("climbdata save to "+ climbName);
+		try {
+			tcsv = new FileWriter(climbName, true);
+			// System.out.println("æ‰“å¼€æ–‡ä»¶æˆåŠŸ");
+		} catch (IOException e) {
+			controller.notification(lang.lfailCreate);
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			return;
+		}
+		
+		try {
+			writeClimbLabel(tcsv);
+			writeClimbData(tcsv);
 
+			tcsv.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+	
+	void writeRollLabel(FileWriter txt) throws IOException {
+		BufferedWriter bw = new BufferedWriter(txt);
+		// é€Ÿåº¦
+		bw.write(lang.fIAS +"/km/h, ");
+
+		// å‰¯ç¿¼
+		bw.write(lang.vAileron + "/%, ");
+		
+		
+		// æ»šè½¬ç‡
+		bw.write(lang.fWx + "/Deg/s");
+		
+		
+		bw.write("\n");
+		bw.flush();
+//		bw.close();
+	}
+	void writeRollData(FileWriter txt) throws IOException {
+		BufferedWriter bw = new BufferedWriter(txt);
+		int k = 0;
+		for (int i = 0; i < flightAnalyzer.maxIASStage; i++){
+			// é€Ÿåº¦åŒºé—´
+			if (fA.roll_rate[i] > 0){
+				k++;
+				bw.write(i * 10 +", ");
+				bw.write(fA.roll_alr[i]+", ");
+				bw.write(fA.roll_rate[i]+"\n");
+			}
+//			bw.write("\n");
+			
+		}
+//		System.out.println(String.format("total %d roll data logged", k));
+		bw.flush();
+	}
+	
+	public void saveRollData(){
+		FileWriter tcsv = null;
+//		System.out.println("rolldata save to "+ climbName);
+		try {
+			tcsv = new FileWriter(rollName, true);
+			// System.out.println("æ‰“å¼€æ–‡ä»¶æˆåŠŸ");
+		} catch (IOException e) {
+			controller.notification(lang.lfailCreate);
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			return;
+		}
+		
+		try {
+			writeRollLabel(tcsv);
+			writeRollData(tcsv);
+
+			tcsv.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+	
+	void writeNyLabel(FileWriter txt) throws IOException {
+		BufferedWriter bw = new BufferedWriter(txt);
+		// é€Ÿåº¦
+		bw.write(lang.fIAS +"/km/h, ");
+		
+		// å‡é™èˆµ
+		bw.write(lang.vElevator + "/%, ");
+		
+		// è¿‡è½½
+		bw.write(lang.fGL + "/G, ");
+		
+		// SEP
+		bw.write(lang.fSEP + "/m/s");
+		
+		
+		bw.write("\n");
+		bw.flush();
+//		bw.close();
+	}
+	void writeNyData(FileWriter txt) throws IOException {
+		BufferedWriter bw = new BufferedWriter(txt);
+		int k = 0;
+		for (int i = 0; i < flightAnalyzer.maxIASStage; i++){
+			// é€Ÿåº¦åŒºé—´
+			if (fA.turn_load[i] > 0){
+				k++;
+				bw.write(i * 10 +", ");
+				bw.write(fA.turn_elev[i]+", ");
+				bw.write(fA.turn_load[i]+", ");
+				bw.write(fA.sep_loss[i] + "\n");
+			}
+//			bw.write("\n");
+			
+		}
+//		System.out.println(String.format("total %d roll data logged", k));
+		bw.flush();
+	}
+	
+	public void saveNyData(){
+		FileWriter tcsv = null;
+//		System.out.println("rolldata save to "+ climbName);
+		try {
+			tcsv = new FileWriter(loadName, true);
+			// System.out.println("æ‰“å¼€æ–‡ä»¶æˆåŠŸ");
+		} catch (IOException e) {
+			controller.notification(lang.lfailCreate);
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			return;
+		}
+		
+		try {
+			writeNyLabel(tcsv);
+			writeNyData(tcsv);
+
+			tcsv.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+	
+
+	
 	public void init(controller tc, service s) {
 		xc = tc;
 		xs = s;
 		doit = false;
-		//System.out.println("flightlog³õÊ¼»¯ÁË");
+		//System.out.println("flightlogåˆå§‹åŒ–äº†");
 		c = Calendar.getInstance();
 		c.setTimeInMillis(System.currentTimeMillis());
-		String name=s.iIndic.type.toUpperCase();
+		String name=s.sIndic.type.toUpperCase();
 		if(name=="NO COCKPIT")name="Unknown";
 		fileName = "records/"+name+"_" +(c.get(Calendar.MONTH) + 1) + "_" + c.get(Calendar.DATE) + "_" + c.get(Calendar.HOUR)
 				+ "." + c.get(Calendar.MINUTE) + "." + c.get(Calendar.SECOND) + ".csv";
+		climbName = "records/"+name+"_" +(c.get(Calendar.MONTH) + 1) + "_" + c.get(Calendar.DATE) + "_" + c.get(Calendar.HOUR)
+		+ "." + c.get(Calendar.MINUTE) + "." + c.get(Calendar.SECOND) + "_climb.csv";
+		rollName = "records/"+name+"_" +(c.get(Calendar.MONTH) + 1) + "_" + c.get(Calendar.DATE) + "_" + c.get(Calendar.HOUR)
+		+ "." + c.get(Calendar.MINUTE) + "." + c.get(Calendar.SECOND) + "_roll.csv";
+		loadName = "records/"+name+"_" +(c.get(Calendar.MONTH) + 1) + "_" + c.get(Calendar.DATE) + "_" + c.get(Calendar.HOUR)
+		+ "." + c.get(Calendar.MINUTE) + "." + c.get(Calendar.SECOND) + "_ny.csv";
+		
 		try {
 
 			resultsFile = new FileOutputStream(fileName);
-			// System.out.println("ÎÄ¼ş´´½¨³É¹¦");
+			// System.out.println("æ–‡ä»¶åˆ›å»ºæˆåŠŸ");
 		} catch (FileNotFoundException e) {
-			controller.notification(language.lfailCreate);
+			controller.notification(lang.lfailCreate);
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 			xc.logon = false;
 		}
 		try {
 			csv = new FileWriter(fileName, true);
-			// System.out.println("´ò¿ªÎÄ¼ş³É¹¦");
+			// System.out.println("æ‰“å¼€æ–‡ä»¶æˆåŠŸ");
 		} catch (IOException e) {
-			controller.notification(language.lfailCreate);
+			controller.notification(lang.lfailCreate);
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+//		csvWritter = 
 		try {
 			writeLabel(csv);
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+		csvWritter = new BufferedWriter(csv);
+		
 		logon = true;
 	}
 
 	public void close() {
 
+		// ä¿å­˜
+		try {
+			csvWritter.close();
+			csv.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		saveClimbData();
+		saveRollData();
+		saveNyData();
 		logon = false;
 	}
+	public void logTick(){
+		
+		try {
+//			csv = new FileWriter(fileName, true);
+			// System.out.println("å¼€å§‹å†™å…¥");
+			analyzeData();
+			writeData(csvWritter);
 
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			//
+			controller.notification(lang.lfailWrite);
+			e.printStackTrace();
+		}
+		if (writeTime++ % 1024 == 0){
+			try {
+				csvWritter.flush();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+	}
 	@Override
 	public void run() {
 		// TODO Auto-generated method stub
@@ -236,22 +473,11 @@ public class flightLog implements Runnable {
 				// e.printStackTrace();
 
 			}
-			//System.out.println("flightlogÄÚ´æÒç³ö²âÊÔ");
-			// System.out.println("Ö´ĞĞ");
+			//System.out.println("flightlogå†…å­˜æº¢å‡ºæµ‹è¯•");
+			// System.out.println("æ‰§è¡Œ");
 			while (doit) {
-				try {
-					csv = new FileWriter(fileName, true);
-					// System.out.println("¿ªÊ¼Ğ´Èë");
-					analyzeData();
-					writeData(csv);
-
-				} catch (IOException e) {
-					// TODO Auto-generated catch block
-					//
-					controller.notification(language.lfailWrite);
-					e.printStackTrace();
-				}
-				doit = false;// Ğ´Íêºó¹Ø±Õ
+				logTick();
+				doit = false;// å†™å®Œåå…³é—­
 			}
 		}
 	}

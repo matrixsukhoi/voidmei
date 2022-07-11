@@ -1,19 +1,23 @@
 package ui;
 
+import static javax.swing.JSplitPane.VERTICAL_SPLIT;
+
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Container;
 import java.awt.FlowLayout;
 import java.awt.Font;
+import java.awt.Image;
+import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-
 import java.io.File;
 
 import javax.swing.ImageIcon;
 import javax.swing.SwingConstants;
 
 import com.alee.extended.button.WebSwitch;
+import com.alee.extended.image.WebImage;
 import com.alee.extended.panel.WebButtonGroup;
 import com.alee.global.StyleConstants;
 import com.alee.laf.WebLookAndFeel;
@@ -26,12 +30,12 @@ import com.alee.laf.slider.WebSlider;
 import com.alee.laf.splitpane.WebSplitPane;
 import com.alee.laf.tabbedpane.TabbedPaneStyle;
 import com.alee.laf.tabbedpane.WebTabbedPane;
+import com.alee.laf.text.WebTextField;
+import com.alee.utils.ImageUtils;
 
 import prog.app;
 import prog.controller;
-import prog.language;
-
-import static com.alee.laf.splitpane.WebSplitPane.VERTICAL_SPLIT;
+import prog.lang;
 
 public class mainform extends WebFrame implements Runnable {
 	/**
@@ -39,50 +43,50 @@ public class mainform extends WebFrame implements Runnable {
 	 */
 	private static final long serialVersionUID = 5917570099029563038L;
 	public volatile Boolean doit=true;
-	public int WIDTH;
-	public int HEIGHT;
+	public int width;
+	public int height;
 	public controller tc;
-	int GCcount=0;
+	int gcCount=0;
 	Container root;
-	WebPanel Jp1;
-	WebPanel Jp2;
-	WebPanel Jp3;
-	WebPanel Jp4;
-	WebPanel Jp5;
-	WebPanel Jp6;
+	WebPanel jp1;
+	WebPanel jp2;
+	WebPanel jp3;
+	WebPanel jp4;
+	WebPanel jp5;
+	WebPanel jp6;
 	// test
 	
-	WebSwitch bflightInfoSwitch;
-	WebSwitch bflightInfoEdge;
-	WebComboBox sflightInfoFontC;
-	WebSlider iflightInfoFontsizeaddC;
+	WebSwitch bFlightInfoSwitch;
+	WebSwitch bFlightInfoEdge;
+	WebComboBox sFlightInfoFont;
+	WebSlider iFlightInfoFontSizeIncr;
 	
-	WebSwitch bengineInfoSwitch;
-	WebSwitch bengineInfoEdge;
-	WebComboBox sengineInfoFont;
-	WebSlider iengineInfoFontsizeadd;
+	WebSwitch bEngineInfoSwitch;
+	WebSwitch bEngineInfoEdge;
+	WebComboBox fEngineInfoFont;
+	WebSlider iEngineInfoFontSizeIncr;
 
-	WebSwitch bcrosshairSwitch;
-	WebSlider icrosshairScale;
-	WebSwitch busetexturecrosshair;
-	WebComboBox scrosshairName;
-	WebSwitch bdrawHUDtext;
+	WebSwitch bCrosshairSwitch;
+	WebSlider iCrosshairScale;
+	WebSwitch bTextureCrosshairSwitch;
+	WebComboBox sCrosshairName;
+	WebSwitch bDrawHudTextSwitch;
 
-	WebSwitch benableLogging;
-	WebSwitch benableInformation;
+	WebSwitch bEnableLogging;
+	WebSwitch bEnableInformation;
 	
-	WebSwitch benableAxis;
-	WebSwitch benableAxisEdge;
-	WebSwitch benablegearAndFlaps;
-	WebSwitch benablegearAndFlapsEdge;
+	WebSwitch bEnableAxis;
+	WebSwitch bEnableAxisEdge;
+	WebSwitch bEnablegearAndFlaps;
+	WebSwitch bEnablegearAndFlapsEdge;
 	
-	Boolean movecheck;
+	Boolean moveCheckFlag;
 
 	
-	WebSwitch busetempInfoSwitch;
+	WebSwitch bTempInfoSwitch;
 	WebSlider iInterval;
 	WebComboBox sGlobalNumFont;
-	
+	Color whiteBg = new Color(255,255,255,255); 
 	public static String[] getFilelistNameNoEx(String[] list){
 		int i;
 		String[] a=new String[list.length];
@@ -104,10 +108,10 @@ public class mainform extends WebFrame implements Runnable {
 	}
 	
 	public void setFrameOpaque() {
-		this.getWebRootPaneUI().setMiddleBg(new Color(255, 255, 255, 255));// ÷–≤øÕ∏√˜
-		this.getWebRootPaneUI().setTopBg(new Color(255, 255, 255, 255));// ∂•≤øÕ∏√˜
-		this.getWebRootPaneUI().setBorderColor(new Color(255, 255, 255, 255));// ƒ⁄√Ë±ﬂÕ∏√˜
-		this.getWebRootPaneUI().setInnerBorderColor(new Color(255, 255, 255, 255));// Õ‚√Ë±ﬂÕ∏√˜
+		this.getWebRootPaneUI().setMiddleBg(new Color(255, 255, 255, 255));// ‰∏≠ÈÉ®ÈÄèÊòé
+		this.getWebRootPaneUI().setTopBg(new Color(255, 255, 255, 255));// È°∂ÈÉ®ÈÄèÊòé
+		this.getWebRootPaneUI().setBorderColor(new Color(255, 255, 255, 255));// ÂÜÖÊèèËæπÈÄèÊòé
+		this.getWebRootPaneUI().setInnerBorderColor(new Color(255, 255, 255, 255));// Â§ñÊèèËæπÈÄèÊòé
 	}
 
 	public void initJP(WebPanel JP) {
@@ -140,7 +144,7 @@ public class mainform extends WebFrame implements Runnable {
 
 	}
 
-	// JP1≤ºæ÷
+	// JP1Â∏ÉÂ±Ä
 	public WebButton createButton(String text) {
 		WebButton a = new WebButton(text);
 		a.setShadeWidth(1);
@@ -159,8 +163,8 @@ public class mainform extends WebFrame implements Runnable {
 	}
 
 	public WebButtonGroup createbuttonGroup() {
-		WebButton A = createButton(language.mCancel);
-		WebButton B = createButton(language.mStart);
+		WebButton A = createButton(lang.mCancel);
+		WebButton B = createButton(lang.mStart);
 
 		WebButtonGroup G = new WebButtonGroup(true, A, B);
 		// G.setBorderColor(new Color(0, 0, 0, 0));
@@ -186,8 +190,8 @@ public class mainform extends WebFrame implements Runnable {
 		});
 		B.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				if (movecheck) {
-					controller.notification(language.mPlsclosePreview);
+				if (moveCheckFlag) {
+					controller.notification(lang.mPlsclosePreview);
 				} else {
 					confirm();
 				}
@@ -317,47 +321,194 @@ public class mainform extends WebFrame implements Runnable {
 
 		// lb.setDrawShade(true);
 
-		lb.setForeground(new Color(0, 0, 0, 200));
+		lb.setForeground(new Color(0, 0, 0, 230));
 		lb.setShadeColor(Color.WHITE);
 		lb.setFont(app.DefaultFont);
 		return lb;
 	}
+	public WebButton displayPreview;
+	public WebSwitch battitudeIndicatorSwitch;
+	public WebSwitch bFMPrintSwitch;
+	private WebSwitch bcrosshairdisplaySwitch;
+	private WebSwitch bFlightInfoIAS;
+	private WebSwitch bFlightInfoTAS;
+	private WebSwitch bFlightInfoMach;
+	private WebSwitch bFlightInfoHeight;
+	private WebSwitch bFlightInfoCompass;
+	private WebSwitch bFlightInfoVario;
+	private WebSwitch bFlightInfoSEP;
+	private WebSwitch bFlightInfoAcc;
+	private WebSwitch bFlightInfoWx;
+	private WebSwitch bFlightInfoNy;
+	private WebSwitch bFlightInfoTurn;
+	private WebSwitch bFlightInfoTurnRadius;
+	private WebSwitch bFlightInfoAoA;
+	private WebSwitch bFlightInfoAoS;
+	private WebSwitch bFlightInfoWingSweep;
+	private WebSlider iflightInfoColumnNum;
+	private WebSlider iengineInfoColumnNum;
+	private WebSwitch bvoiceWarningSwitch;
+	private WebSwitch bFlightInfoRadioAlt;
+	private WebSwitch benableEngineControl;
+	private WebSwitch bdrawShadeSwitch;
+	private WebTextField cNumColor;
+	private WebTextField cLabelColor;
+	private WebTextField cUnitColor;
+	private WebTextField cWarnColor;
+	private WebTextField cShadeColor;
+	private WebSwitch bEngineControlRadiator;
+	private WebSwitch bEngineControlMixture;
+	private WebSwitch bEngineControlPitch;
+	private WebSwitch bEngineControlCompressor;
+	private WebSwitch bEngineControlLFuel;
+	private WebSwitch bEngineControlThrottle;
+	private WebSwitch bEngineInfoHorsePower;
+	private WebSwitch bEngineInfoThrust;
+	private WebSwitch bEngineInfoRPM;
+	private WebSwitch bEngineInfoPropPitch;
+	private WebSwitch bEngineInfoEffEta;
+	private WebSwitch bEngineInfoEffHp;
+	private WebSwitch bEngineInfoPressure;
+	private WebSwitch bEngineInfoPowerPercent;
+	private WebSwitch bEngineInfoFuelKg;
+	private WebSwitch bEngineInfoFuelTime;
+	private WebSwitch bEngineInfoWepKg;
+	private WebSwitch bEngineInfoWepTime;
+	private WebSwitch bEngineInfoTemp;
+	private WebSwitch bEngineInfoOilTemp;
+	private WebSwitch bEngineInfoHeatTolerance;
+	private WebSwitch bEngineInfoEngResponse;
+	private WebSwitch bstatusSwitch;
+	private WebSlider ivoiceVolume;
+	
+    private String getColorText ( final Color color )
+    {
+        return color.getRed () + ", " + color.getGreen () + ", " + color.getBlue () + ", " + color.getAlpha();
+    }
+    
+    private Color textToColor(String t){
+    	int R,G,B,A;
+    	t = t.replaceAll(" ", "");
+        String []ts = t.split(",");
+        if (ts.length < 4) return Color.BLACK;
+        R = Integer.parseInt(ts[0]);
+        G = Integer.parseInt(ts[1]);
+        B = Integer.parseInt(ts[2]);
+        A = Integer.parseInt(ts[3]);
+        Color c = new Color(R, G, B, A);
+//        System.out.println(getColorText(c));
+        return c;
+    }
+    
+    public Color updateColorGroupColor(WebTextField trailing){
+    	Color c = textToColor(trailing.getText());
+//    	System.out.println(getColorText(c));
+    	trailing.setLeadingComponent ( new WebImage ( ImageUtils.createColorIcon ( c ) ) );	
+    	return c;
+    }
+	public WebTextField createColorGroup(WebPanel topPanel, String text){
+        // Initial color
+        final Color initialColor = Color.WHITE;
 
+        WebLabel lb = createWebLabel(text);
+        String S = getColorText(initialColor);
+        
+//        textToColor(S);
+        
+        
+        WebTextField trailing = new WebTextField ( getColorText(initialColor), 15 );
+        trailing.setMargin ( 0, 0, 0, 2 );
+        trailing.setLeadingComponent ( new WebImage ( ImageUtils.createColorIcon ( initialColor ) ) );
+        trailing.setShadeWidth(2);
+        
+        trailing.addActionListener(new ActionListener(){
+
+            public void actionPerformed(ActionEvent e){
+
+            	Color c = updateColorGroupColor(trailing);
+            }
+        });
+        
+        topPanel.add(lb);
+        topPanel.add(trailing);
+        
+        
+        
+        return trailing;
+        
+        
+        // Simple color chooser
+//        final WebButton colorChooserButton = new WebButton ( getColorText ( initialColor ), ImageUtils.createColorIcon ( initialColor ) );
+//        colorChooserButton.setLeftRightSpacing ( 0 );
+//        colorChooserButton.setMargin ( 0, 0, 0, 3 );
+//        colorChooserButton.addActionListener ( new ActionListener ()
+//        {
+//            private WebColorChooserDialog colorChooser = null;
+//            private Color lastColor = initialColor;
+//
+//            @Override
+//            public void actionPerformed ( final ActionEvent e )
+//            {
+//                if ( colorChooser == null )
+//                {
+//                    colorChooser = new WebColorChooserDialog ( topPanel );
+//                }
+//                colorChooser.setColor ( lastColor );
+//                colorChooser.setVisible ( true );
+//
+//                if ( colorChooser.getResult () == DialogOptions.OK_OPTION )
+//                {
+//                    final Color color = colorChooser.getColor ();
+//                    lastColor = color;
+//
+//                    colorChooserButton.setIcon ( ImageUtils.createColorIcon ( color ) );
+//                    colorChooserButton.setText ( getColorText ( color ) );
+//                }
+//            }
+//        } );
+//        GroupPanel t = new GroupPanel ( colorChooserButton );
+//        topPanel.add(lb);
+//        topPanel.add(t);
+//        return t;
+
+	}
 	public WebButtonGroup createLBGroup(WebPanel topPanel) {
-		WebButton B = createButton(language.mDisplayPreview);
-		WebButton C = createButton(language.mSavePosition);
-		WebButtonGroup G = new WebButtonGroup(true, B, C);
-		B.setPreferredWidth(120);
+		displayPreview = createButton(lang.mDisplayPreview);
+		WebButton C = createButton(lang.mSavePosition);
+		WebButtonGroup G = new WebButtonGroup(true, displayPreview, C);
+		displayPreview.setPreferredWidth(120);
 		
 		C.setPreferredWidth(120);
-		B.setFont(app.DefaultFont);
+		displayPreview.setFont(app.DefaultFont);
 		C.setFont(app.DefaultFont);
 		G.setButtonsShadeWidth(3);
 
-		// WebLabel lb=createWebLabel("µ˜’˚Œª÷√");
-		B.addActionListener(new ActionListener() {
+		// WebLabel lb=createWebLabel("Ë∞ÉÊï¥‰ΩçÁΩÆ");
+		displayPreview.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				if (movecheck == false) {
+				if (moveCheckFlag == false) {
 
-					controller.notification(language.mMovePanel);
+					controller.notification(lang.mMovePanel);
 					saveconfig();
 					tc.Preview();
 
-					movecheck = true;
+					moveCheckFlag = true;
 				} else {
-					controller.notification(language.mPreviewWarning);
+//					System.out.println("ÈáçÁΩÆ\n");
+//					config_init();
+					controller.notification(lang.mPreviewWarning);
 				}
 			}
 		});
 		C.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				if (movecheck) {
-					controller.notification(language.mPositionSaved);
-					tc.endPreviewengineInfo();
-					movecheck = false;
+				if (moveCheckFlag) {
+					controller.notification(lang.mPositionSaved);
+					tc.endPreview();
+					moveCheckFlag = false;
 				} else {
 
-					controller.notification(language.mPreviewNotOpen);
+					controller.notification(lang.mPreviewNotOpen);
 				}
 			}
 		});
@@ -382,14 +533,14 @@ public class mainform extends WebFrame implements Runnable {
 		ws.setProgressShadeWidth(0);
 		ws.setTrackShadeWidth(1);
 		// slider1.setDrawThumb(false);
-		ws.setThumbShadeWidth(2);
-		ws.setThumbBgBottom(new Color(0, 0, 0, 0));
-		ws.setThumbBgTop(new Color(0, 0, 0, 0));
-		ws.setTrackBgBottom(new Color(0, 0, 0, 0));
-		ws.setTrackBgTop(new Color(0, 0, 0, 0));
-		ws.setProgressBorderColor(new Color(0, 0, 0, 0));
-		ws.setProgressTrackBgBottom(new Color(0, 0, 0, 0));
-		ws.setProgressTrackBgTop(new Color(0, 0, 0, 0));
+		ws.setThumbShadeWidth(1);
+		ws.setThumbBgBottom(whiteBg);
+		ws.setThumbBgTop(whiteBg);
+		ws.setTrackBgBottom(whiteBg);
+		ws.setTrackBgTop(whiteBg);
+		ws.setProgressBorderColor(whiteBg);
+		ws.setProgressTrackBgBottom(whiteBg);
+		ws.setProgressTrackBgTop(whiteBg);
 
 		topPanel.add(lb);
 		topPanel.add(ws);
@@ -407,11 +558,12 @@ public class mainform extends WebFrame implements Runnable {
 		ws.setWebColoredBackground(false);
 		// System.out.println(ws.getComponent(0).getIgnoreRepaint());
 		// ws.getComponent(0).getIgnoreRepaint();
-		ws.setBackground(new Color(0, 0, 0, 0));
+		ws.setBackground(whiteBg);
 		ws.getWebUI().setPaintSides(true, false, true, false);
 		//ws.getWebUI().setPaintSides(false, true, false, true);
 		ws.setRound(5);
-		ws.setShadeWidth(0);
+//		ws.setAnimate(false);
+		ws.setShadeWidth(1);
 		ws.getLeftComponent().setFont(new Font(app.DefaultNumfontName,Font.PLAIN,14));
 		ws.getRightComponent().setFont(new Font(app.DefaultNumfontName,Font.PLAIN,14));
 		ws.getLeftComponent().setDrawShade(false);
@@ -440,7 +592,7 @@ public class mainform extends WebFrame implements Runnable {
 	
 	
 	public void initJP1() {
-		initJP(Jp1);
+		initJP(jp1);
 		WebPanel topPanel = new WebPanel();
 		WebPanel bottomPanel = new WebPanel();
 		initJPinside(topPanel);
@@ -454,20 +606,56 @@ public class mainform extends WebFrame implements Runnable {
 		splitPane.setDrawDividerBorder(false);
 		splitPane.setOneTouchExpandable(false);
 		splitPane.setEnabled(false);
-
+		
+		
 		// topPanel
-		if(app.debug)busetempInfoSwitch = createLCGroup(topPanel, language.mP1TempNotification);
-		if(app.debug)createvoidWebLabel(topPanel,language.mP1TempNotificationBlank);
-		sGlobalNumFont = createFontList(topPanel,language.mP1GlobalNumberFont);
-		createvoidWebLabel(topPanel,language.mP1GlobalNumberFontBlank);
-		iInterval=createLSGroup(topPanel,language.mP1Interval, 30, 300,500,20 , 50);
+		
+		if(app.debug)bTempInfoSwitch = createLCGroup(topPanel, lang.mP1statusBar);
+		if(app.debug)createvoidWebLabel(topPanel,lang.mP1statusBarBlank);
+		
+		bstatusSwitch = createLCGroup(topPanel, lang.mP1statusBar);
+		createvoidWebLabel(topPanel,lang.mP1statusBarBlank);
+		
+		bvoiceWarningSwitch = createLCGroup(topPanel, lang.mP1VoiceWarning);
+		createvoidWebLabel(topPanel,lang.mP1VoiceWarningBlank);
+		
+		ivoiceVolume = createLSGroup(topPanel, lang.mP1voiceVolume, 0, 200, 300, 10, 50);
+		createvoidWebLabel(topPanel,lang.mP1voiceVolumeBlank);
+		
+		
+		
+		bdrawShadeSwitch = createLCGroup(topPanel, lang.mP1drawFontShape);
+		createvoidWebLabel(topPanel,lang.mP1drawFontShapeBlank);
+
+
+		sGlobalNumFont = createFontList(topPanel,lang.mP1GlobalNumberFont);
+		createvoidWebLabel(topPanel,lang.mP1GlobalNumberFontBlank);
+		
+		cNumColor = createColorGroup(topPanel, lang.mP1NumColor);
+		createvoidWebLabel(topPanel,lang.mP1NumColorBlank);
+		cLabelColor = createColorGroup(topPanel, lang.mP1LabelColor);
+		createvoidWebLabel(topPanel,lang.mP1LabelColorBlank);
+		
+		cUnitColor = createColorGroup(topPanel, lang.mP1UnitColor);
+		createvoidWebLabel(topPanel,lang.mP1UnitColorBlank);
+		
+		cWarnColor = createColorGroup(topPanel, lang.mP1WarnColor);
+		createvoidWebLabel(topPanel,lang.mP1WarnColorBlank);
+		
+		cShadeColor = createColorGroup(topPanel, lang.mP1ShadeColor);
+		createvoidWebLabel(topPanel,lang.mP1ShadeColorBlank);
+		
+		iInterval=createLSGroup(topPanel,lang.mP1Interval, 10, 300,500,5 , 40);
+		
+
+
 		/*
 		 * GridBagLayout layout1 = new GridBagLayout(); GridBagConstraints s1 =
 		 * new GridBagConstraints(); s1.fill = GridBagConstraints.BOTH;
 		 * s1.gridwidth = 1; s1.weightx = 0; s1.weighty = 0; s1.gridx = 0;
 		 * s1.gridy = 0;
 		 */
-		// createLCGroup(topPanel, "œ‘ æ∑¢∂Øª˙√Ê∞Â ");
+		// createLCGroup(topPanel, "ÊòæÁ§∫ÂèëÂä®Êú∫Èù¢Êùø ");
 
 		// topPanel.setLayout(layout1);
 		topPanel.setLayout(new FlowLayout());
@@ -477,18 +665,22 @@ public class mainform extends WebFrame implements Runnable {
 
 		// bottomPanel
 
+//		WebButtonGroup G = createbuttonGroup();
+//		bottomPanel.add(G, BorderLayout.LINE_END);
 		WebButtonGroup G = createbuttonGroup();
 		bottomPanel.add(G, BorderLayout.LINE_END);
-
-		Jp1.add(splitPane);
+		WebButtonGroup G1 = createLBGroup(bottomPanel);
+		bottomPanel.add(G1, BorderLayout.LINE_START);
+		
+		jp1.add(splitPane);
 
 	}
 
 
-	// JP2≤ºæ÷
+	// JP2Â∏ÉÂ±Ä
 	public void initJP2() {
 
-		initJP(Jp2);
+		initJP(jp2);
 
 		WebPanel topPanel = new WebPanel();
 		WebPanel bottomPanel = new WebPanel();
@@ -503,15 +695,59 @@ public class mainform extends WebFrame implements Runnable {
 		splitPane.setOneTouchExpandable(false);
 		splitPane.setEnabled(false);
 
-		bengineInfoSwitch = createLCGroup(topPanel, language.mP2EnginePanel);
-		createvoidWebLabel(topPanel,language.mP2EnginePanelBlank);
-		bengineInfoEdge = createLCGroup(topPanel, language.mP2EngineGlassEdge);
-		createvoidWebLabel(topPanel,language.mP2EngineGlassEdgeBlank);
+		
+		
+		bEngineInfoSwitch = createLCGroup(topPanel, lang.mP2EnginePanel);
+		createvoidWebLabel(topPanel,lang.mP2EnginePanelBlank);
+		bEngineInfoEdge = createLCGroup(topPanel, lang.mP2EngineGlassEdge);
+		createvoidWebLabel(topPanel,lang.mP2EngineGlassEdgeBlank);
 
-		// createLCGroup(topPanel, "√Ê∞ÂÕ∏√˜∂» ");
+
+		bEngineInfoHorsePower = createLCGroup(topPanel, lang.mP2eiHorsePower);
+		createvoidWebLabel(topPanel,lang.mP2eiHorsePowerBlank);
+		bEngineInfoThrust = createLCGroup(topPanel, lang.mP2eiThrust);
+		createvoidWebLabel(topPanel,lang.mP2eiThrustBlank);
+		bEngineInfoRPM = createLCGroup(topPanel, lang.mP2eiRPM);
+		createvoidWebLabel(topPanel,lang.mP2eiRPMBlank);
+		bEngineInfoPropPitch = createLCGroup(topPanel, lang.mP2eiPropPitch);
+		createvoidWebLabel(topPanel,lang.mP2eiPropPitchBlank);
+		bEngineInfoEffEta = createLCGroup(topPanel, lang.mP2eiEffEta);
+		createvoidWebLabel(topPanel,lang.mP2eiEffEtaBlank);
+		bEngineInfoEffHp = createLCGroup(topPanel, lang.mP2eiEffHp);
+		createvoidWebLabel(topPanel,lang.mP2eiEffHpBlank);
+		bEngineInfoPressure = createLCGroup(topPanel, lang.mP2eiPressure);
+		createvoidWebLabel(topPanel,lang.mP2eiPressureBlank);
+		bEngineInfoPowerPercent = createLCGroup(topPanel, lang.mP2eiPowerPercent);
+		createvoidWebLabel(topPanel,lang.mP2eiPowerPercentBlank);
+		bEngineInfoFuelKg = createLCGroup(topPanel, lang.mP2eiFuelKg);
+		createvoidWebLabel(topPanel,lang.mP2eiFuelKgBlank);
+		bEngineInfoFuelTime = createLCGroup(topPanel, lang.mP2eiFuelTime);
+		createvoidWebLabel(topPanel,lang.mP2eiFuelTimeBlank);
+		bEngineInfoWepKg = createLCGroup(topPanel, lang.mP2eiWepKg);
+		createvoidWebLabel(topPanel,lang.mP2eiWepKgBlank);
+		bEngineInfoWepTime = createLCGroup(topPanel, lang.mP2eiWepTime);
+		createvoidWebLabel(topPanel,lang.mP2eiWepTimeBlank);
+		bEngineInfoTemp = createLCGroup(topPanel, lang.mP2eiTemp);
+		createvoidWebLabel(topPanel,lang.mP2eiTempBlank);
+		bEngineInfoOilTemp = createLCGroup(topPanel, lang.mP2eiOilTemp);
+		createvoidWebLabel(topPanel,lang.mP2eiOilTempBlank);
+		bEngineInfoHeatTolerance = createLCGroup(topPanel, lang.mP2eiHeatTolerance);
+		createvoidWebLabel(topPanel,lang.mP2eiHeatToleranceBlank);
+		bEngineInfoEngResponse = createLCGroup(topPanel, lang.mP2eiEngResponse);
+		createvoidWebLabel(topPanel,lang.mP2eiEngResponseBlank);
+		
+//		bEngineInfoHp = createLCGroup(topPanel, language.mP4fiIAS);
+//		createvoidWebLabel(topPanel,language.mP4fiIASBlank);
+//		
+		
+		// createLCGroup(topPanel, "Èù¢ÊùøÈÄèÊòéÂ∫¶ ");
 		// createLBGroup(topPanel);
-		sengineInfoFont = createFontList(topPanel,language.mP2PanelFont);
-		iengineInfoFontsizeadd = createLSGroup(topPanel, language.mP2FontAdjust, -5, 7,200, 1, 1);
+		fEngineInfoFont = createFontList(topPanel,lang.mP2PanelFont);
+		iEngineInfoFontSizeIncr = createLSGroup(topPanel, lang.mP2FontAdjust, -6, 20,200, 1, 4);
+		iengineInfoColumnNum = createLSGroup(topPanel, lang.mP4ColumnAdjust, 1, 16,200, 1, 2);
+
+		createvoidWebLabel(topPanel,lang.mP2EngineBlank);
+		
 		FlowLayout layout = new FlowLayout();
 		layout.setAlignment(FlowLayout.LEFT);
 		topPanel.setLayout(layout);
@@ -522,13 +758,13 @@ public class mainform extends WebFrame implements Runnable {
 		bottomPanel.add(G, BorderLayout.LINE_END);
 		WebButtonGroup G1 = createLBGroup(bottomPanel);
 		bottomPanel.add(G1, BorderLayout.LINE_START);
-		Jp2.add(splitPane);
+		jp2.add(splitPane);
 
 	}
 
-	// JP3≤ºæ÷
+	// JP3Â∏ÉÂ±Ä
 	public void initJP3() {
-		initJP(Jp3);
+		initJP(jp3);
 
 		WebPanel topPanel = new WebPanel();
 		WebPanel bottomPanel = new WebPanel();
@@ -543,17 +779,20 @@ public class mainform extends WebFrame implements Runnable {
 		splitPane.setOneTouchExpandable(false);
 		splitPane.setEnabled(false);
 
-		bcrosshairSwitch = createLCGroup(topPanel, language.mP3Crosshair);
-		createvoidWebLabel(topPanel,language.mP3CrosshairBlank);
-		bdrawHUDtext=createLCGroup(topPanel, language.mP3Text);
-		createvoidWebLabel(topPanel,language.mP3TextBlank);
-		busetexturecrosshair = createLCGroup(topPanel, language.mP3CrosshairTexture);
-		createvoidWebLabel(topPanel,language.mP3CrosshairTextureBlank);
-		scrosshairName = createCrosshairList(topPanel,language.mP3ChooseTexture);
-		createvoidWebLabel(topPanel,language.mP3ChooseTextureBlank);
-		icrosshairScale = createLSGroup(topPanel, language.mP3CrosshairSize, 0, 150,500, 5, 20);
+		bCrosshairSwitch = createLCGroup(topPanel, lang.mP3Crosshair);
+		createvoidWebLabel(topPanel,lang.mP3CrosshairBlank);
+		bcrosshairdisplaySwitch = createLCGroup(topPanel, lang.mP3CrosshairDisplay);
+		createvoidWebLabel(topPanel,lang.mP3CrosshairDisplayBlank);
+		createvoidWebLabel(topPanel,lang.mP3CrosshairBlank);
+		bDrawHudTextSwitch=createLCGroup(topPanel, lang.mP3Text);
+		createvoidWebLabel(topPanel,lang.mP3TextBlank);
+		bTextureCrosshairSwitch = createLCGroup(topPanel, lang.mP3CrosshairTexture);
+		createvoidWebLabel(topPanel,lang.mP3CrosshairTextureBlank);
+		sCrosshairName = createCrosshairList(topPanel,lang.mP3ChooseTexture);
+		createvoidWebLabel(topPanel,lang.mP3ChooseTextureBlank);
+		iCrosshairScale = createLSGroup(topPanel, lang.mP3CrosshairSize, 0, 200,500, 5, 20);
 		
-		// createLCGroup(topPanel, "√Ê∞ÂÕ∏√˜∂» ");
+		// createLCGroup(topPanel, "Èù¢ÊùøÈÄèÊòéÂ∫¶ ");
 		// createLBGroup(topPanel);
 		// sengineInfoFont = createFontList(topPanel);
 
@@ -567,11 +806,11 @@ public class mainform extends WebFrame implements Runnable {
 		bottomPanel.add(G, BorderLayout.LINE_END);
 		WebButtonGroup G1 = createLBGroup(bottomPanel);
 		bottomPanel.add(G1, BorderLayout.LINE_START);
-		Jp3.add(splitPane);
+		jp3.add(splitPane);
 	}
 
 	public void initJP4(){
-		initJP(Jp4);
+		initJP(jp4);
 
 		WebPanel topPanel = new WebPanel();
 		WebPanel bottomPanel = new WebPanel();
@@ -586,14 +825,72 @@ public class mainform extends WebFrame implements Runnable {
 		splitPane.setOneTouchExpandable(false);
 		splitPane.setEnabled(false);
 
-		bflightInfoSwitch = createLCGroup(topPanel, language.mP4FlightInfoPanel);
-		createvoidWebLabel(topPanel,language.mP4FlightInfoBlank);
-		bflightInfoEdge = createLCGroup(topPanel, language.mP4FlightInfoGlassEdge);
-		createvoidWebLabel(topPanel,language.mP4FlightInfoGlassEdgeBlank);
-		// createLCGroup(topPanel, "√Ê∞ÂÕ∏√˜∂» ");
+		bFlightInfoSwitch = createLCGroup(topPanel, lang.mP4FlightInfoPanel);
+		createvoidWebLabel(topPanel,lang.mP4FlightInfoBlank);
+		bFlightInfoEdge = createLCGroup(topPanel, lang.mP4FlightInfoGlassEdge);
+		createvoidWebLabel(topPanel,lang.mP4FlightInfoGlassEdgeBlank);
+		
+		battitudeIndicatorSwitch = createLCGroup(topPanel, lang.mP4attitudeIndicatorPanel);
+		createvoidWebLabel(topPanel,lang.mP4attitudeIndicatorPanelBlank);
+		
+		bFMPrintSwitch = createLCGroup(topPanel, lang.mP4FMPanel);
+		createvoidWebLabel(topPanel,lang.mP4FMPanelBlank);
+		
+		bFlightInfoIAS = createLCGroup(topPanel, lang.mP4fiIAS);
+		createvoidWebLabel(topPanel,lang.mP4fiIASBlank);
+		
+		bFlightInfoTAS = createLCGroup(topPanel, lang.mP4fiTAS);
+		createvoidWebLabel(topPanel,lang.mP4fiIASBlank);
+		
+		bFlightInfoMach = createLCGroup(topPanel, lang.mP4fiMach);
+		createvoidWebLabel(topPanel,lang.mP4fiMachBlank);
+		
+		bFlightInfoCompass = createLCGroup(topPanel, lang.mP4fiCompass);
+		createvoidWebLabel(topPanel,lang.mP4fiCompassBlank);
+		
+		bFlightInfoHeight = createLCGroup(topPanel, lang.mP4fiHeight);
+		createvoidWebLabel(topPanel,lang.mP4fiHeightBlank);
+
+		
+		bFlightInfoVario = createLCGroup(topPanel, lang.mP4fiVario);
+		createvoidWebLabel(topPanel,lang.mP4fiVarioBlank);
+		
+		bFlightInfoSEP = createLCGroup(topPanel, lang.mP4fiSEP);
+		createvoidWebLabel(topPanel,lang.mP4fiSEPBlank);
+		
+		bFlightInfoAcc = createLCGroup(topPanel, lang.mP4fiAcc);
+		createvoidWebLabel(topPanel,lang.mP4fiAccBlank);
+		
+		bFlightInfoWx = createLCGroup(topPanel, lang.mP4fiWx);
+		createvoidWebLabel(topPanel,lang.mP4fiWxBlank);
+		
+		bFlightInfoNy = createLCGroup(topPanel, lang.mP4fiNy);
+		createvoidWebLabel(topPanel,lang.mP4fiNyBlank);
+		
+		bFlightInfoTurn = createLCGroup(topPanel, lang.mP4fiTurn);
+		createvoidWebLabel(topPanel,lang.mP4fiTurnBlank);
+		
+		bFlightInfoTurnRadius = createLCGroup(topPanel, lang.mP4fiTurnRadius);
+		createvoidWebLabel(topPanel,lang.mP4fiTurnRadiusBlank);
+		
+		bFlightInfoAoA = createLCGroup(topPanel, lang.mP4fiAoA);
+		createvoidWebLabel(topPanel,lang.mP4fiAoABlank);
+		
+		bFlightInfoAoS = createLCGroup(topPanel, lang.mP4fiAoS);
+		createvoidWebLabel(topPanel,lang.mP4fiAoSBlank);
+		
+		bFlightInfoWingSweep = createLCGroup(topPanel, lang.mP4fiWingSweep);
+		createvoidWebLabel(topPanel,lang.mP4fiWingSweepBlank);
+		
+
+		bFlightInfoRadioAlt = createLCGroup(topPanel, lang.mP4fiRadioAlt);
+		createvoidWebLabel(topPanel,lang.mP4fiRadioAltBlank);
+		
+		// createLCGroup(topPanel, "Èù¢ÊùøÈÄèÊòéÂ∫¶ ");
 		// createLBGroup(topPanel);
-		sflightInfoFontC = createFontList(topPanel,language.mP4PanelFont);
-		iflightInfoFontsizeaddC = createLSGroup(topPanel, language.mP4FontAdjust, -5, 7,200, 1, 1);
+		sFlightInfoFont = createFontList(topPanel,lang.mP4PanelFont);
+		iFlightInfoFontSizeIncr = createLSGroup(topPanel, lang.mP4FontAdjust, -6, 20,200, 1, 4);
+		iflightInfoColumnNum = createLSGroup(topPanel, lang.mP4ColumnAdjust, 1, 16,200, 1, 2);
 		FlowLayout layout = new FlowLayout();
 		layout.setAlignment(FlowLayout.LEFT);
 		topPanel.setLayout(layout);
@@ -605,11 +902,11 @@ public class mainform extends WebFrame implements Runnable {
 		WebButtonGroup G1 = createLBGroup(bottomPanel);
 		bottomPanel.add(G1, BorderLayout.LINE_START);
 		
-		Jp4.add(splitPane);
+		jp4.add(splitPane);
 	}
 	
 	public void initJP5() {
-		initJP(Jp5);
+		initJP(jp5);
 		WebPanel topPanel = new WebPanel();
 		WebPanel bottomPanel = new WebPanel();
 		initJPinside(topPanel);
@@ -625,17 +922,17 @@ public class mainform extends WebFrame implements Runnable {
 		splitPane.setEnabled(false);
 
 		// topPanel
-		benableLogging = createLCGroup(topPanel, language.mP5LoggingAndCharting);
-		createvoidWebLabel(topPanel,language.mP5LoggingAndChartingBlank);
-		benableInformation= createLCGroup(topPanel, language.mP5Information);
-		createvoidWebLabel(topPanel,language.mP5InformationBlank);
+		bEnableLogging = createLCGroup(topPanel, lang.mP5LoggingAndCharting);
+		createvoidWebLabel(topPanel,lang.mP5LoggingAndChartingBlank);
+		bEnableInformation= createLCGroup(topPanel, lang.mP5Information);
+		createvoidWebLabel(topPanel,lang.mP5InformationBlank);
 		/*
 		 * GridBagLayout layout1 = new GridBagLayout(); GridBagConstraints s1 =
 		 * new GridBagConstraints(); s1.fill = GridBagConstraints.BOTH;
 		 * s1.gridwidth = 1; s1.weightx = 0; s1.weighty = 0; s1.gridx = 0;
 		 * s1.gridy = 0;
 		 */
-		// createLCGroup(topPanel, "œ‘ æ∑¢∂Øª˙√Ê∞Â ");
+		// createLCGroup(topPanel, "ÊòæÁ§∫ÂèëÂä®Êú∫Èù¢Êùø ");
 
 		// topPanel.setLayout(layout1);
 		topPanel.setLayout(new FlowLayout());
@@ -649,11 +946,11 @@ public class mainform extends WebFrame implements Runnable {
 		WebButtonGroup G = createbuttonGroup();
 		bottomPanel.add(G, BorderLayout.LINE_END);
 
-		Jp5.add(splitPane);
+		jp5.add(splitPane);
 
 	}
 	public void initJP6() {
-		initJP(Jp6);
+		initJP(jp6);
 		WebPanel topPanel = new WebPanel();
 		WebPanel bottomPanel = new WebPanel();
 		initJPinside(topPanel);
@@ -669,19 +966,46 @@ public class mainform extends WebFrame implements Runnable {
 		splitPane.setEnabled(false);
 
 		// topPanel
-		benableAxis = createLCGroup(topPanel, language.mP6AxisPanel);
-		createvoidWebLabel(topPanel,language.mP6AxisPanelBlank);
-		benableAxisEdge = createLCGroup(topPanel, language.mP6AxisEdge);
-		createvoidWebLabel(topPanel,language.mP6AxisEdgeBlank);
-		benablegearAndFlaps=createLCGroup(topPanel, language.mP6GearAndFlaps);
-		benablegearAndFlapsEdge=createLCGroup(topPanel, language.mP6GearAndFlapsEdge);
+		bEnableAxis = createLCGroup(topPanel, lang.mP6AxisPanel);
+		createvoidWebLabel(topPanel,lang.mP6AxisPanelBlank);
+		bEnableAxisEdge = createLCGroup(topPanel, lang.mP6AxisEdge);
+		createvoidWebLabel(topPanel,lang.mP6AxisEdgeBlank);
+		bEnablegearAndFlaps=createLCGroup(topPanel, lang.mP6GearAndFlaps);
+		bEnablegearAndFlapsEdge=createLCGroup(topPanel, lang.mP6GearAndFlapsEdge);
+		createvoidWebLabel(topPanel,lang.mP6GearAndFlapsEdgeBlank);
+		benableEngineControl = createLCGroup(topPanel, lang.mP6engineControl);
+		createvoidWebLabel(topPanel,lang.mP6engineControlBlank);
+		
+		// ÂºïÊìéÊéßÂà∂
+
+
+		// Ê≤πÈó®
+		bEngineControlThrottle = createLCGroup(topPanel, lang.mP6ecThrottle);
+		createvoidWebLabel(topPanel,lang.mP6ecThrottleBlank);
+		// Ê°®Ë∑ù
+		bEngineControlPitch = createLCGroup(topPanel, lang.mP6ecPitch);
+		createvoidWebLabel(topPanel,lang.mP6ecPitchBlank);
+		// Ê∑∑ÂêàÊØî
+		bEngineControlMixture = createLCGroup(topPanel, lang.mP6ecMixture);
+		createvoidWebLabel(topPanel,lang.mP6ecMixtureBlank);
+		// Êï£ÁÉ≠Âô®
+		bEngineControlRadiator = createLCGroup(topPanel, lang.mP6ecRadiator);
+		createvoidWebLabel(topPanel,lang.mP6ecRadiatorBlank);
+		// Â¢ûÂéãÂô®
+		bEngineControlCompressor = createLCGroup(topPanel, lang.mP6ecCompressor);
+		createvoidWebLabel(topPanel,lang.mP6ecCompressorBlank);
+		// ÁáÉÊ≤πÈáè
+		bEngineControlLFuel = createLCGroup(topPanel, lang.mP6ecLFuel);
+		createvoidWebLabel(topPanel,lang.mP6ecLFuelBlank);
+		
+		
 		/*
 		 * GridBagLayout layout1 = new GridBagLayout(); GridBagConstraints s1 =
 		 * new GridBagConstraints(); s1.fill = GridBagConstraints.BOTH;
 		 * s1.gridwidth = 1; s1.weightx = 0; s1.weighty = 0; s1.gridx = 0;
 		 * s1.gridy = 0;
 		 */
-		// createLCGroup(topPanel, "œ‘ æ∑¢∂Øª˙√Ê∞Â ");
+		// createLCGroup(topPanel, "ÊòæÁ§∫ÂèëÂä®Êú∫Èù¢Êùø ");
 
 		// topPanel.setLayout(layout1);
 		topPanel.setLayout(new FlowLayout());
@@ -695,7 +1019,7 @@ public class mainform extends WebFrame implements Runnable {
 		WebButtonGroup G = createbuttonGroup();
 		bottomPanel.add(G, BorderLayout.LINE_END);
 
-		Jp6.add(splitPane);
+		jp6.add(splitPane);
 
 	}
 	
@@ -705,25 +1029,25 @@ public class mainform extends WebFrame implements Runnable {
 		tabbedPane.setTabPlacement(WebTabbedPane.LEFT);
 		// tabbedPane.setTabLayoutPolicy(JTabbedPane.SCROLL_TAB_LAYOUT);
 
-		Jp1 = new WebPanel();
-		Jp2 = new WebPanel();
-		Jp3 = new WebPanel();
-		Jp4 = new WebPanel();
-		Jp5 = new WebPanel();
-		Jp6=new WebPanel();
+		jp1 = new WebPanel();
+		jp2 = new WebPanel();
+		jp3 = new WebPanel();
+		jp4 = new WebPanel();
+		jp5 = new WebPanel();
+		jp6 = new WebPanel();
 		initJP1();
 		initJP2();
-		if(!app.ForeignLanguage)initJP3();
+		if(!app.foreignLanguage)initJP3();
 		initJP4();
 		initJP5();
 		initJP6();
 		
-		tabbedPane.addTab(language.mFlightInfo, Jp4);
-		tabbedPane.addTab(language.mEngineInfo, Jp2);
-		tabbedPane.addTab(language.mControlInfo, Jp6);
-		tabbedPane.addTab(language.mLoggingAndAnalysis, Jp5);
-		if(!app.ForeignLanguage)tabbedPane.addTab(language.mCrosshair, Jp3);
-		tabbedPane.addTab(language.mAdvancedOption, Jp1);
+		tabbedPane.addTab(lang.mFlightInfo, jp4);
+		tabbedPane.addTab(lang.mEngineInfo, jp2);
+		tabbedPane.addTab(lang.mControlInfo, jp6);
+		tabbedPane.addTab(lang.mLoggingAndAnalysis, jp5);
+		if(!app.foreignLanguage)tabbedPane.addTab(lang.mCrosshair, jp3);
+		tabbedPane.addTab(lang.mAdvancedOption, jp1);
 		// tabbedPane.setTabBorderColor(new Color(0, 0, 0, 0));
 		// tabbedPane.setContentBorderColor(new Color(0, 0, 0, 0));
 		// tabbedPane.setShadeWidth(1);
@@ -751,105 +1075,296 @@ public class mainform extends WebFrame implements Runnable {
 
 	public void initConfig() {
 		// tc.initconfig();
-		// ¥”TC÷–»°≤Œ ˝º¥ø…
+		// ‰ªéTC‰∏≠ÂèñÂèÇÊï∞Âç≥ÂèØ
 		// System.out.println(Boolean.parseBoolean(tc.getconfig("engineInfoSwitch")));
 
-		bflightInfoSwitch.setSelected(Boolean.parseBoolean(tc.getconfig("flightInfoSwitch")));
-		bflightInfoEdge.setSelected(Boolean.parseBoolean(tc.getconfig("flightInfoEdge")));
-		sflightInfoFontC.setSelectedItem(tc.getconfig("flightInfoFontC"));
-		iflightInfoFontsizeaddC.setValue(Integer.parseInt(tc.getconfig("flightInfoFontaddC")));
+		bFlightInfoSwitch.setSelected(Boolean.parseBoolean(tc.getconfig("flightInfoSwitch")));
+		bFlightInfoEdge.setSelected(Boolean.parseBoolean(tc.getconfig("flightInfoEdge")));
+		sFlightInfoFont.setSelectedItem(tc.getconfig("flightInfoFontC"));
+		iFlightInfoFontSizeIncr.setValue(Integer.parseInt(tc.getconfig("flightInfoFontaddC")));
+		battitudeIndicatorSwitch.setSelected(Boolean.parseBoolean(tc.getconfig("enableAttitudeIndicator")));
+		bFMPrintSwitch.setSelected(Boolean.parseBoolean(tc.getconfig("enableFMPrint")));
 		
-		bengineInfoSwitch.setSelected(Boolean.parseBoolean(tc.getconfig("engineInfoSwitch")));
-		bengineInfoEdge.setSelected(Boolean.parseBoolean(tc.getconfig("engineInfoEdge")));
-		sengineInfoFont.setSelectedItem(tc.getconfig("engineInfoFont"));
-		iengineInfoFontsizeadd.setValue(Integer.parseInt(tc.getconfig("engineInfoFontadd")));
+		bFlightInfoIAS.setSelected(!Boolean.parseBoolean(tc.getconfig("disableFlightInfoIAS")));
+		bFlightInfoTAS.setSelected(!Boolean.parseBoolean(tc.getconfig("disableFlightInfoTAS")));
+		bFlightInfoMach.setSelected(!Boolean.parseBoolean(tc.getconfig("disableFlightInfoMach")));
+		bFlightInfoCompass.setSelected(!Boolean.parseBoolean(tc.getconfig("disableFlightInfoCompass")));
+		bFlightInfoHeight.setSelected(!Boolean.parseBoolean(tc.getconfig("disableFlightInfoHeight")));
+		bFlightInfoVario.setSelected(!Boolean.parseBoolean(tc.getconfig("disableFlightInfoVario")));
+		bFlightInfoSEP.setSelected(!Boolean.parseBoolean(tc.getconfig("disableFlightInfoSEP")));
+		bFlightInfoAcc.setSelected(!Boolean.parseBoolean(tc.getconfig("disableFlightInfoAcc")));
+		bFlightInfoWx.setSelected(!Boolean.parseBoolean(tc.getconfig("disableFlightInfoWx")));
+		bFlightInfoNy.setSelected(!Boolean.parseBoolean(tc.getconfig("disableFlightInfoNy")));
+		bFlightInfoTurn.setSelected(!Boolean.parseBoolean(tc.getconfig("disableFlightInfoTurn")));
+		bFlightInfoTurnRadius.setSelected(!Boolean.parseBoolean(tc.getconfig("disableFlightInfoTurnRadius")));
+		bFlightInfoAoA.setSelected(!Boolean.parseBoolean(tc.getconfig("disableFlightInfoAoA")));
+		bFlightInfoAoS.setSelected(!Boolean.parseBoolean(tc.getconfig("disableFlightInfoAoS")));
+		bFlightInfoWingSweep.setSelected(!Boolean.parseBoolean(tc.getconfig("disableFlightInfoWingSweep")));
+		bFlightInfoRadioAlt.setSelected(!Boolean.parseBoolean(tc.getconfig("disableFlightInfoRadioAlt")));
 		
-		if(!app.ForeignLanguage)bcrosshairSwitch.setSelected(Boolean.parseBoolean(tc.getconfig("crosshairSwitch")));
-		if(!app.ForeignLanguage)icrosshairScale.setValue(Integer.parseInt(tc.getconfig("crosshairScale")));
-		if(!app.ForeignLanguage)busetexturecrosshair.setSelected(Boolean.parseBoolean(tc.getconfig("usetexturecrosshair")));
-		if(!app.ForeignLanguage)scrosshairName.setSelectedItem(tc.getconfig("crosshairName"));
-		if(!app.ForeignLanguage)bdrawHUDtext.setSelected(Boolean.parseBoolean(tc.getconfig("drawHUDtext")));
+		iflightInfoColumnNum.setValue(Integer.parseInt(tc.getconfig("flightInfoColumn")));
 		
-		if(app.debug)busetempInfoSwitch.setSelected(Boolean.parseBoolean(tc.getconfig("usetempInfoSwitch")));
+		
+		bEngineInfoSwitch.setSelected(Boolean.parseBoolean(tc.getconfig("engineInfoSwitch")));
+		bEngineInfoEdge.setSelected(Boolean.parseBoolean(tc.getconfig("engineInfoEdge")));
+		fEngineInfoFont.setSelectedItem(tc.getconfig("engineInfoFont"));
+		iEngineInfoFontSizeIncr.setValue(Integer.parseInt(tc.getconfig("engineInfoFontadd")));
+		iengineInfoColumnNum.setValue(Integer.parseInt(tc.getconfig("engineInfoColumn")));
+		
+		bEngineInfoHorsePower.setSelected(!Boolean.parseBoolean(tc.getconfig("disableEngineInfoHorsePower")));
+		bEngineInfoThrust.setSelected(!Boolean.parseBoolean(tc.getconfig("disableEngineInfoThrust")));
+        bEngineInfoRPM.setSelected(!Boolean.parseBoolean(tc.getconfig("disableEngineInfoRPM")));
+        bEngineInfoPropPitch.setSelected(!Boolean.parseBoolean(tc.getconfig("disableEngineInfoPropPitch")));
+        bEngineInfoEffEta.setSelected(!Boolean.parseBoolean(tc.getconfig("disableEngineInfoEffEta")));
+        bEngineInfoEffHp.setSelected(!Boolean.parseBoolean(tc.getconfig("disableEngineInfoEffHp")));
+        bEngineInfoPressure.setSelected(!Boolean.parseBoolean(tc.getconfig("disableEngineInfoPressure")));
+        bEngineInfoPowerPercent.setSelected(!Boolean.parseBoolean(tc.getconfig("disableEngineInfoPowerPercent")));
+        bEngineInfoFuelKg.setSelected(!Boolean.parseBoolean(tc.getconfig("disableEngineInfoFuelKg")));
+        bEngineInfoFuelTime.setSelected(!Boolean.parseBoolean(tc.getconfig("disableEngineInfoFuelTime")));
+        bEngineInfoWepKg.setSelected(!Boolean.parseBoolean(tc.getconfig("disableEngineInfoWepKg")));
+        bEngineInfoWepTime.setSelected(!Boolean.parseBoolean(tc.getconfig("disableEngineInfoWepTime")));
+        bEngineInfoTemp.setSelected(!Boolean.parseBoolean(tc.getconfig("disableEngineInfoTemp")));
+        bEngineInfoOilTemp.setSelected(!Boolean.parseBoolean(tc.getconfig("disableEngineInfoOilTemp")));
+        bEngineInfoHeatTolerance.setSelected(!Boolean.parseBoolean(tc.getconfig("disableEngineInfoHeatTolerance")));
+        bEngineInfoEngResponse.setSelected(!Boolean.parseBoolean(tc.getconfig("disableEngineInfoEngResponse")));
+        
+
+		
+		
+		if(!app.foreignLanguage)bCrosshairSwitch.setSelected(Boolean.parseBoolean(tc.getconfig("crosshairSwitch")));
+		if(!app.foreignLanguage)iCrosshairScale.setValue(Integer.parseInt(tc.getconfig("crosshairScale")));
+		if(!app.foreignLanguage)bTextureCrosshairSwitch.setSelected(Boolean.parseBoolean(tc.getconfig("usetexturecrosshair")));
+		if(!app.foreignLanguage)sCrosshairName.setSelectedItem(tc.getconfig("crosshairName"));
+		if(!app.foreignLanguage)bDrawHudTextSwitch.setSelected(Boolean.parseBoolean(tc.getconfig("drawHUDtext")));
+		if(!app.foreignLanguage)bcrosshairdisplaySwitch.setSelected(Boolean.parseBoolean(tc.getconfig("displayCrosshair")));
+
+		bdrawShadeSwitch.setSelected(Boolean.parseBoolean(tc.getconfig("simpleFont")));
+		bvoiceWarningSwitch.setSelected(Boolean.parseBoolean(tc.getconfig("enableVoiceWarn")));
+		if(app.debug)bTempInfoSwitch.setSelected(Boolean.parseBoolean(tc.getconfig("usetempInfoSwitch")));
 		sGlobalNumFont.setSelectedItem(tc.getconfig("GlobalNumFont"));
 		iInterval.setValue(Integer.parseInt(tc.getconfig("Interval")));
+	
+		bstatusSwitch.setSelected(Boolean.parseBoolean(tc.getconfig("enableStatusBar")));
+		ivoiceVolume.setValue(Integer.parseInt(tc.getconfig("voiceVolume")));
+//		tc.setconfig("enableStatusBar", Boolean.toString(bstatusSwitch.isSelected()));
+//		tc.setconfig("voiceVolumn", Integer.toString(ivoiceVolume.getValue()));
 		
-		benableLogging.setSelected(Boolean.parseBoolean(tc.getconfig("enableLogging")));
-		benableInformation.setSelected(Boolean.parseBoolean(tc.getconfig("enableAltInformation")));
 		
-		benableAxis.setSelected(Boolean.parseBoolean(tc.getconfig("enableAxis")));
-		benableAxisEdge.setSelected(Boolean.parseBoolean(tc.getconfig("enableAxisEdge")));
-		benablegearAndFlaps.setSelected(Boolean.parseBoolean(tc.getconfig("enablegearAndFlaps")));
-		benablegearAndFlapsEdge.setSelected(Boolean.parseBoolean(tc.getconfig("enablegearAndFlapsEdge")));
-	}
+		// È¢úËâ≤
+		cNumColor.setText(getColorText(tc.getColorConfig("fontNum")));
+		updateColorGroupColor(cNumColor);
 
+		cLabelColor.setText(getColorText(tc.getColorConfig("fontLabel")));
+		updateColorGroupColor(cLabelColor);
+
+		cUnitColor.setText(getColorText(tc.getColorConfig("fontUnit")));
+		updateColorGroupColor(cUnitColor);
+
+		cWarnColor.setText(getColorText(tc.getColorConfig("fontWarn")));
+		updateColorGroupColor(cWarnColor);
+
+		cShadeColor.setText(getColorText(tc.getColorConfig("fontShade")));
+		updateColorGroupColor(cShadeColor);
+		
+		
+		bEnableLogging.setSelected(Boolean.parseBoolean(tc.getconfig("enableLogging")));
+		bEnableInformation.setSelected(Boolean.parseBoolean(tc.getconfig("enableAltInformation")));
+		
+		bEnableAxis.setSelected(Boolean.parseBoolean(tc.getconfig("enableAxis")));
+		bEnableAxisEdge.setSelected(Boolean.parseBoolean(tc.getconfig("enableAxisEdge")));
+		bEnablegearAndFlaps.setSelected(Boolean.parseBoolean(tc.getconfig("enablegearAndFlaps")));
+		bEnablegearAndFlapsEdge.setSelected(Boolean.parseBoolean(tc.getconfig("enablegearAndFlapsEdge")));
+		benableEngineControl.setSelected(Boolean.parseBoolean(tc.getconfig("enableEngineControl")));
+		
+
+		bEngineControlThrottle.setSelected(!Boolean.parseBoolean(tc.getconfig("disableEngineInfoThrottle")));
+		bEngineControlPitch.setSelected(!Boolean.parseBoolean(tc.getconfig("disableEngineInfoPitch")));
+		bEngineControlMixture.setSelected(!Boolean.parseBoolean(tc.getconfig("disableEngineInfoMixture")));
+		bEngineControlRadiator.setSelected(!Boolean.parseBoolean(tc.getconfig("disableEngineInfoRadiator")));
+		bEngineControlCompressor.setSelected(!Boolean.parseBoolean(tc.getconfig("disableEngineInfoCompressor")));
+		bEngineControlLFuel.setSelected(!Boolean.parseBoolean(tc.getconfig("disableEngineInfoLFuel")));
+	}
+	
+	public void config_init() {
+		tc.setconfig("flightInfoSwitch", Boolean.toString(Boolean.TRUE));
+		tc.setconfig("flightInfoEdge", Boolean.toString(Boolean.FALSE));
+		tc.setconfig("flightInfoFontC", app.DefaultFontName);
+		tc.setconfig("flightInfoFontaddC", Integer.toString(0));
+		
+		
+		tc.setconfig("engineInfoSwitch", Boolean.toString(bEngineInfoSwitch.isSelected()));
+		tc.setconfig("engineInfoEdge", Boolean.toString(Boolean.FALSE));
+		tc.setconfig("engineInfoFont", fEngineInfoFont.getSelectedItem().toString());
+		tc.setconfig("engineInfoFontadd", Integer.toString(iEngineInfoFontSizeIncr.getValue()));
+		
+		if(!app.foreignLanguage)tc.setconfig("crosshairSwitch", Boolean.toString(Boolean.FALSE));
+		if(!app.foreignLanguage)tc.setconfig("crosshairScale", Integer.toString(10));
+		if(!app.foreignLanguage)tc.setconfig("usetexturecrosshair", Boolean.toString(Boolean.FALSE));
+		if(!app.foreignLanguage)tc.setconfig("crosshairName", sCrosshairName.getSelectedItem().toString());
+		if(!app.foreignLanguage)tc.setconfig("drawHUDtext",  Boolean.toString(Boolean.FALSE));
+		if(!app.foreignLanguage)tc.setconfig("displayCrossharir", Boolean.toString(Boolean.FALSE));
+		
+		if(app.debug)tc.setconfig("usetempInfoSwitch", Boolean.toString(Boolean.FALSE));
+//		tc.setconfig(", value);
+		tc.setconfig("GlobalNumFont", app.DefaultNumfontName);
+		tc.setconfig("Interval", Integer.toString(80));
+
+		tc.setconfig("enableLogging", Boolean.toString(Boolean.FALSE));
+		tc.setconfig("enableAltInformation", Boolean.toString(Boolean.FALSE));
+		
+		tc.setconfig("enableAxis", Boolean.toString(Boolean.FALSE));
+		tc.setconfig("enableAxisEdge", Boolean.toString(Boolean.FALSE));
+		tc.setconfig("enablegearAndFlaps", Boolean.toString(Boolean.FALSE));
+		tc.setconfig("enablegearAndFlapsEdge", Boolean.toString(Boolean.FALSE));
+		
+	}
+	
 	public void saveconfig() {
 		// System.out.println(Boolean.toString(bengineInfoSwitch.isSelected()));
 		
-		tc.setconfig("flightInfoSwitch", Boolean.toString(bflightInfoSwitch.isSelected()));
-		tc.setconfig("flightInfoEdge", Boolean.toString(bflightInfoEdge.isSelected()));
+		tc.setconfig("flightInfoSwitch", Boolean.toString(bFlightInfoSwitch.isSelected()));
+		tc.setconfig("flightInfoEdge", Boolean.toString(bFlightInfoEdge.isSelected()));
+		tc.setconfig("enableAttitudeIndicator", Boolean.toString(battitudeIndicatorSwitch.isSelected()));
+		
+		tc.setconfig("enableFMPrint", Boolean.toString(bFMPrintSwitch.isSelected()));
+		
+		tc.setconfig("disableFlightInfoIAS", Boolean.toString(!bFlightInfoIAS.isSelected()));
+		tc.setconfig("disableFlightInfoTAS", Boolean.toString(!bFlightInfoTAS.isSelected()));
+		tc.setconfig("disableFlightInfoMach", Boolean.toString(!bFlightInfoMach.isSelected()));
+		tc.setconfig("disableFlightInfoCompass", Boolean.toString(!bFlightInfoCompass.isSelected()));
+		tc.setconfig("disableFlightInfoHeight", Boolean.toString(!bFlightInfoHeight.isSelected()));
+		tc.setconfig("disableFlightInfoVario", Boolean.toString(!bFlightInfoVario.isSelected()));
+		
+		tc.setconfig("disableFlightInfoSEP", Boolean.toString(!bFlightInfoSEP.isSelected()));
+		
+		tc.setconfig("disableFlightInfoAcc", Boolean.toString(!bFlightInfoAcc.isSelected()));
+		
+		tc.setconfig("disableFlightInfoVario", Boolean.toString(!bFlightInfoVario.isSelected()));
+		tc.setconfig("disableFlightInfoWx", Boolean.toString(!bFlightInfoWx.isSelected()));
+		tc.setconfig("disableFlightInfoNy", Boolean.toString(!bFlightInfoNy.isSelected()));
+		tc.setconfig("disableFlightInfoTurn", Boolean.toString(!bFlightInfoTurn.isSelected()));
+		tc.setconfig("disableFlightInfoTurnRadius", Boolean.toString(!bFlightInfoTurnRadius.isSelected()));
+		
+		tc.setconfig("disableFlightInfoAoA", Boolean.toString(!bFlightInfoAoA.isSelected()));
+		tc.setconfig("disableFlightInfoAoS", Boolean.toString(!bFlightInfoAoS.isSelected()));
+		tc.setconfig("disableFlightInfoWingSweep", Boolean.toString(!bFlightInfoWingSweep.isSelected()));
+		tc.setconfig("disableFlightInfoRadioAlt", Boolean.toString(!bFlightInfoRadioAlt.isSelected()));
+		
+		
+		tc.setconfig("flightInfoColumn", Integer.toString(iflightInfoColumnNum.getValue()));
 		//System.out.println(sengineInfoFont.getSelectedItem().toString());
-		tc.setconfig("flightInfoFontC", sflightInfoFontC.getSelectedItem().toString());
-		tc.setconfig("flightInfoFontaddC", Integer.toString(iflightInfoFontsizeaddC.getValue()));
+		tc.setconfig("flightInfoFontC", sFlightInfoFont.getSelectedItem().toString());
+		tc.setconfig("flightInfoFontaddC", Integer.toString(iFlightInfoFontSizeIncr.getValue()));
 		
-		tc.setconfig("engineInfoSwitch", Boolean.toString(bengineInfoSwitch.isSelected()));
-		tc.setconfig("engineInfoEdge", Boolean.toString(bengineInfoEdge.isSelected()));
+		tc.setconfig("engineInfoSwitch", Boolean.toString(bEngineInfoSwitch.isSelected()));
+		tc.setconfig("engineInfoEdge", Boolean.toString(bEngineInfoEdge.isSelected()));
 		// System.out.println(sengineInfoFont.getSelectedValue());
-		tc.setconfig("engineInfoFont", sengineInfoFont.getSelectedItem().toString());
-		tc.setconfig("engineInfoFontadd", Integer.toString(iengineInfoFontsizeadd.getValue()));
+		tc.setconfig("engineInfoFont", fEngineInfoFont.getSelectedItem().toString());
+		tc.setconfig("engineInfoFontadd", Integer.toString(iEngineInfoFontSizeIncr.getValue()));
+		tc.setconfig("engineInfoColumn", Integer.toString(iengineInfoColumnNum.getValue()));
 		
-		if(!app.ForeignLanguage)tc.setconfig("crosshairSwitch", Boolean.toString(bcrosshairSwitch.isSelected()));
-		if(!app.ForeignLanguage)tc.setconfig("crosshairScale", Integer.toString(icrosshairScale.getValue()));
-		if(!app.ForeignLanguage)tc.setconfig("usetexturecrosshair", Boolean.toString(busetexturecrosshair.isSelected()));
-		if(!app.ForeignLanguage)tc.setconfig("crosshairName", scrosshairName.getSelectedItem().toString());
-		if(!app.ForeignLanguage)tc.setconfig("drawHUDtext",  Boolean.toString(bdrawHUDtext.isSelected()));
 		
-		if(app.debug)tc.setconfig("usetempInfoSwitch", Boolean.toString(busetempInfoSwitch.isSelected()));
+		tc.setconfig("disableEngineInfoHorsePower", Boolean.toString(!bEngineInfoHorsePower.isSelected()));
+		tc.setconfig("disableEngineInfoThrust", Boolean.toString(!bEngineInfoThrust.isSelected()));
+		tc.setconfig("disableEngineInfoRPM", Boolean.toString(!bEngineInfoRPM.isSelected()));
+		tc.setconfig("disableEngineInfoPropPitch", Boolean.toString(!bEngineInfoPropPitch.isSelected()));
+		tc.setconfig("disableEngineInfoEffEta", Boolean.toString(!bEngineInfoEffEta.isSelected()));
+		tc.setconfig("disableEngineInfoEffHp", Boolean.toString(!bEngineInfoEffHp.isSelected()));
+		tc.setconfig("disableEngineInfoPressure", Boolean.toString(!bEngineInfoPressure.isSelected()));
+		tc.setconfig("disableEngineInfoPowerPercent", Boolean.toString(!bEngineInfoPowerPercent.isSelected()));
+		tc.setconfig("disableEngineInfoFuelKg", Boolean.toString(!bEngineInfoFuelKg.isSelected()));
+		tc.setconfig("disableEngineInfoFuelTime", Boolean.toString(!bEngineInfoFuelTime.isSelected()));
+		tc.setconfig("disableEngineInfoWepKg", Boolean.toString(!bEngineInfoWepKg.isSelected()));
+		tc.setconfig("disableEngineInfoWepTime", Boolean.toString(!bEngineInfoWepTime.isSelected()));
+		tc.setconfig("disableEngineInfoTemp", Boolean.toString(!bEngineInfoTemp.isSelected()));
+		tc.setconfig("disableEngineInfoOilTemp", Boolean.toString(!bEngineInfoOilTemp.isSelected()));
+		tc.setconfig("disableEngineInfoHeatTolerance", Boolean.toString(!bEngineInfoHeatTolerance.isSelected()));
+		tc.setconfig("disableEngineInfoEngResponse", Boolean.toString(!bEngineInfoEngResponse.isSelected()));
+		
+		if(!app.foreignLanguage)tc.setconfig("crosshairSwitch", Boolean.toString(bCrosshairSwitch.isSelected()));
+		if(!app.foreignLanguage)tc.setconfig("crosshairScale", Integer.toString(iCrosshairScale.getValue()));
+		if(!app.foreignLanguage)tc.setconfig("usetexturecrosshair", Boolean.toString(bTextureCrosshairSwitch.isSelected()));
+		if(!app.foreignLanguage)tc.setconfig("crosshairName", sCrosshairName.getSelectedItem().toString());
+		if(!app.foreignLanguage)tc.setconfig("drawHUDtext",  Boolean.toString(bDrawHudTextSwitch.isSelected()));
+		if(!app.foreignLanguage)tc.setconfig("displayCrosshair", Boolean.toString(bcrosshairdisplaySwitch.isSelected()));
+		
+		
+		tc.setconfig("simpleFont", Boolean.toString(bdrawShadeSwitch.isSelected()));
+		tc.setconfig("enableVoiceWarn", Boolean.toString(bvoiceWarningSwitch.isSelected()));
+		if(app.debug)tc.setconfig("usetempInfoSwitch", Boolean.toString(bTempInfoSwitch.isSelected()));
 		tc.setconfig("GlobalNumFont",sGlobalNumFont.getSelectedItem().toString());
 		tc.setconfig("Interval", Integer.toString(iInterval.getValue()));
+		
+		tc.setconfig("enableStatusBar", Boolean.toString(bstatusSwitch.isSelected()));
+		tc.setconfig("voiceVolume", Integer.toString(ivoiceVolume.getValue()));
+		
+		
+		// È¢úËâ≤
+		tc.setColorConfig("fontNum" ,textToColor(cNumColor.getText()));
+		tc.setColorConfig("fontLabel" ,textToColor(cLabelColor.getText()));
+		tc.setColorConfig("fontUnit" ,textToColor(cUnitColor.getText()));
+		tc.setColorConfig("fontWarn" ,textToColor(cWarnColor.getText()));
+		tc.setColorConfig("fontShade" ,textToColor(cShadeColor.getText()));
+		
+		
+		
+		tc.setconfig("enableLogging", Boolean.toString(bEnableLogging.isSelected()));
+		tc.setconfig("enableAltInformation", Boolean.toString(bEnableInformation.isSelected()));
+		
+		tc.setconfig("enableAxis", Boolean.toString(bEnableAxis.isSelected()));
+		tc.setconfig("enableAxisEdge", Boolean.toString(bEnableAxisEdge.isSelected()));
+		tc.setconfig("enablegearAndFlaps", Boolean.toString(bEnablegearAndFlaps.isSelected()));
+		tc.setconfig("enablegearAndFlapsEdge", Boolean.toString(bEnablegearAndFlapsEdge.isSelected()));
+		tc.setconfig("enableEngineControl", Boolean.toString(benableEngineControl.isSelected()));
+		
 
-		tc.setconfig("enableLogging", Boolean.toString(benableLogging.isSelected()));
-		tc.setconfig("enableAltInformation", Boolean.toString(benableInformation.isSelected()));
-		
-		tc.setconfig("enableAxis", Boolean.toString(benableAxis.isSelected()));
-		tc.setconfig("enableAxisEdge", Boolean.toString(benableAxisEdge.isSelected()));
-		tc.setconfig("enablegearAndFlaps", Boolean.toString(benablegearAndFlaps.isSelected()));
-		tc.setconfig("enablegearAndFlapsEdge", Boolean.toString(benablegearAndFlapsEdge.isSelected()));
-		
+		tc.setconfig("disableEngineInfoThrottle", Boolean.toString(!bEngineControlThrottle.isSelected()));
+		tc.setconfig("disableEngineInfoPitch", Boolean.toString(!bEngineControlPitch.isSelected()));
+		tc.setconfig("disableEngineInfoMixture", Boolean.toString(!bEngineControlMixture.isSelected()));
+		tc.setconfig("disableEngineInfoRadiator", Boolean.toString(!bEngineControlRadiator.isSelected()));
+		tc.setconfig("disableEngineInfoCompressor", Boolean.toString(!bEngineControlCompressor.isSelected()));
+		tc.setconfig("disableEngineInfoLFuel", Boolean.toString(!bEngineControlLFuel.isSelected()));
 		
 	}
 
 	public void confirm() {
 		saveconfig();
 		tc.saveconfig();
+		tc.loadFromConfig();
+		
+		this.setVisible(false);
 		tc.flag = 1;
 		tc.start();
-		// this.dispose();
+//		this.dispose();
 	}
 
-	public void init(controller c) {
+	public mainform(controller c) {
 		//System.setProperty("awt.useSystemAAFontSettings", "on");
-		//System.out.println("mainForm≥ı ºªØ¡À");
-		WebLookAndFeel.globalTitleFont = app.DefaultFontBigBold;
-		WIDTH = 800;
-		HEIGHT = 450;
-		//Image I=Toolkit.getDefaultToolkit().getImage("image/form1.png");
-		//I=I.getScaledInstance(32, 32,  Image.SCALE_SMOOTH);
-		//this.setIconImage(I);
-		tc = c;
-		movecheck = false;
-		this.setUndecorated(true);
-		this.setLocation(app.ScreenWidth/2-WIDTH/2, app.ScreenHeight/2-HEIGHT/2);
-		this.setFont(app.DefaultFont);
-		this.setSize(WIDTH, HEIGHT);
+		//System.out.println("mainFormÂàùÂßãÂåñ‰∫Ü");
+		width = 800;
+		height = 480;
+		doit = true;
+		Image I=Toolkit.getDefaultToolkit().getImage("image/form1.png");
+		I=I.getScaledInstance(32, 32,  Image.SCALE_SMOOTH);
+		this.setIconImage(I);
 		
-		setFrameOpaque();// ¥∞ø⁄Õ∏√˜
+		tc = c;
+		moveCheckFlag = false;
+		
+		
+		
+		this.setUndecorated(true);
+		this.setLocation(app.ScreenWidth/2-width/2, app.ScreenHeight/2-height/2);
+		this.setFont(app.DefaultFont);
+		this.setSize(width, height);
+		
+//		setFrameOpaque();// Á™óÂè£ÈÄèÊòé
 		String ti=app.appName +" v"+ app.version;
 		if(app.debug)ti=ti+"beta";
-		//ti=ti+"°°°°°™°™°™°™"+app.appTooltips;
+//		ti=ti+"„ÄÄ„ÄÄ‚Äî‚Äî‚Äî‚Äî"+app.appTooltips;
 		setTitle(ti);
 		this.setShowMaximizeButton(false);
-		this.getWebRootPaneUI().getTitleComponent().getComponent(1).setFont(new Font(app.DefaultFont.getName(),Font.PLAIN,14));// …Ë÷√title◊÷ÃÂ
+		this.getWebRootPaneUI().getTitleComponent().getComponent(1).setFont(new Font(app.DefaultFont.getName(),Font.PLAIN,14));// ËÆæÁΩÆtitleÂ≠ó‰Ωì
 		// this.getWebRootPaneUI().getWindowButtons().setButtonsInnerShadeWidth(0);
 		// this.getWebRootPaneUI().getWindowButtons().setButtonsShadeWidth(0);
 		this.getWebRootPaneUI().getWindowButtons().setBorderColor(new Color(0, 0, 0, 0));
@@ -859,27 +1374,22 @@ public class mainform extends WebFrame implements Runnable {
 		this.getWebRootPaneUI().getWindowButtons().getWebButton(0).setBottomBgColor(new Color(0, 0, 0, 0));
 		this.getWebRootPaneUI().getWindowButtons().getWebButton(1).setTopBgColor(new Color(0, 0, 0, 0));
 		this.getWebRootPaneUI().getWindowButtons().getWebButton(1).setBottomBgColor(new Color(0, 0, 0, 0));
-		root=this.getContentPane();
 		
-	
-		/*
-		 * »Áπ˚”–◊Ó¥ÛªØ this.getWebRootPaneUI().getWindowButtons().getWebButton(2).
-		 * setTopBgColor(new Color(0, 0, 0, 0));
-		 * this.getWebRootPaneUI().getWindowButtons().getWebButton(2).
-		 * setBottomBgColor(new Color(0, 0, 0, 0));
-		 */
+		root = this.getContentPane();
+		
 		setDrawWatermark(true);
 		setWatermark(new ImageIcon("image/watermark.png"));
 		
+//		this.getTitleComponent().setForeground(new Color(0,0,0,255));
 		// this.getWebRootPaneUI().getWindowButtons().getWebButton(2).setBorderPainted(false);
 		initPanel();
-		initConfig();// ∂¡»ÎConfig
-
+		initConfig();// ËØªÂÖ•Config
+		
 		setShowResizeCorner(false);
 		setDefaultCloseOperation(3);
 		setVisible(true);
 		this.setShadeWidth(10);
-		//controller.notificationtime("1°¢±æ≥Ã–Ú∂‘”Œœ∑º∞”Œœ∑Ω¯≥ÃŒﬁ»Œ∫Œ–ﬁ∏ƒ£¨À˘”– ˝æ›¿¥◊‘”⁄πŸ∑Ωø™∑≈µƒ8111∂Àø⁄°£\n\r2°¢±æ≥Ã–Ú÷ª «±æ»À–À»§ π»ªµƒ¥¥◊˜£¨Œﬁ»Œ∫Œ”™¿˚–‘÷ °£\n\r3°¢«ÎŒΩ´±æ≥Ã–Ú¿©…¢÷¡∞Ÿ∂»WTœ‡πÿÃ˘∞…£¨≥˝¥À÷ÆÕ‚ÀÊ“‚◊™‘ÿ",10000);
+		
 	}
 	
 
@@ -888,20 +1398,22 @@ public class mainform extends WebFrame implements Runnable {
 		// TODO Auto-generated method stub
 		while (doit) {
 			try {
-				Thread.sleep(40);
+				Thread.sleep(33);
 			} catch (InterruptedException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-			GCcount++;
+			gcCount++;
 			// System.out.println("As");
-			//System.out.println("MainFrame÷¥––¡À");
-			this.repaint();
-			if(GCcount==100){
+			//System.out.println("MainFrameÊâßË°å‰∫Ü");
+			root.repaint();
+			if(gcCount==100){
 				//System.out.println("MainFrameGC");
 				System.gc();
-				GCcount=0;
+				gcCount=0;
 			}
+			
 		}
+//		tc.loadFromConfig();
 	}
 }

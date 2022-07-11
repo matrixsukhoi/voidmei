@@ -1,8 +1,10 @@
 package prog;
 
 import java.awt.AWTException;
+import java.awt.Color;
 import java.awt.Font;
 import java.awt.Image;
+import java.awt.Robot;
 import java.awt.Toolkit;
 
 import javax.swing.ImageIcon;
@@ -15,17 +17,22 @@ import com.alee.managers.notification.NotificationIcon;
 import com.alee.managers.notification.NotificationManager;
 import com.alee.managers.notification.WebNotification;
 
+import parser.blkxparser;
 import parser.flightAnalyzer;
 import parser.flightLog;
 import ui.statusBar;
 import ui.stickValue;
-import ui.crosshair;
+import ui.attitudeIndicator;
+import ui.minimalHUD;
 import ui.drawFrame;
+import ui.drawFrameSimpl;
 import ui.engineInfo;
+import ui.engineControl;
 import ui.flightInfo;
 import ui.gearAndFlaps;
 import ui.mainform;
 import ui.situationAware;
+import ui.someUsefulData;
 
 public class controller {
 
@@ -33,10 +40,14 @@ public class controller {
 
 	public boolean logon = false;
 
-	engineInfo F;
+	public blkxparser blkx;
+
+	Robot robot;
+
+	engineControl F;
 	statusBar SB;
 	mainform M;
-	crosshair H;
+	minimalHUD H;
 	otherService O;
 	situationAware SA;
 	flightInfo FL;
@@ -45,7 +56,9 @@ public class controller {
 	stickValue sV;
 	gearAndFlaps fS;
 	flapsControl flc;
-	
+
+	attitudeIndicator aI;
+
 	Thread S1;
 	Thread F1;
 	Thread SB1;
@@ -58,48 +71,97 @@ public class controller {
 	Thread sV1;
 	Thread fS1;
 	Thread flc1;
-	
-	service S;
+	Thread pt1;
+
+	Thread aI1;
+
+	someUsefulData pt;
+	public service S;
 	public config cfg;
-	// ´æ´¢²ÎÊý
-	// Ö÷²ÎÊý
+	// å­˜å‚¨å‚æ•°
+	// ä¸»å‚æ•°
 
-	public static int freqService;// ServiceÈ¡Êý¾ÝÓë¼ÆËãÖÜÆÚ
-	// ·¢¶¯»úÃæ°å
-	public static int freqengineInfo;// engineInfoË¢ÐÂÖÜÆÚ
+	public long freqService;// Serviceå–æ•°æ®ä¸Žè®¡ç®—å‘¨æœŸ
+	// å‘åŠ¨æœºé¢æ¿
+	public long freqEngineInfo;// engineInfoåˆ·æ–°å‘¨æœŸ
+	public long freqFlightInfo;
+	// äººå·¥åœ°å¹³ä»ª
+	public long freqAltitude;
 
-	public static boolean engineInfoSwitch;// engineInfoÃæ°å¿ªÆô
-	public static boolean engineInfoEdge;// engineInfoÃæ°å±ßÔµ¿ªÆô
+	public long freqGearAndFlap;
 
-	public static int engineInfoX;// engineInfo´°¿ÚÎ»ÖÃ
+	public long freqStickValue;
+	//
+
+	gcThread G;
+
+	public static boolean engineInfoSwitch;// engineInfoé¢æ¿å¼€å¯
+	public static boolean engineInfoEdge;// engineInfoé¢æ¿è¾¹ç¼˜å¼€å¯
+
+	public static int engineInfoX;// engineInfoçª—å£ä½ç½®
 	public static int engineInfoY;
 
 	public static Font engineInfoFont;
 
-	public static int engineInfoOpaque;// engineInfo±³¾°Í¸Ã÷¶È
+	public static int engineInfoOpaque;// engineInfoèƒŒæ™¯é€æ˜Žåº¦
 
 	public static boolean usetempratureInformation;
 
 	public int lastEvt;
 	public int lastDmg;
 	public int step;
-	long overheatCheckMili;
-	long restoreCheckMili;
-	public int overheattime;
-	public int restoretime;
-	public int availableoverheattime;
-	public boolean isfirstOverheat;
-	WebNotification tempCheck;
+
+	Thread gc;
+
+	public drawFrameSimpl thrustdFS;
+
+	private Thread thrustdFS1;
+
+	engineInfo FI;
+
+	private Thread FI1;
+
+	private voiceWarning vW;
+
+	private Thread vW1;
+
+	private uiThread uT;
+
+	private Thread uT1;
+
+	private boolean showStatus;
+
+	public void hideTaskbarSw() {
+		if (app.debug) {
+			robot.keyPress(17);
+			robot.keyPress(192);
+			try {
+				Thread.sleep(50);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			robot.keyRelease(17);
+			robot.keyRelease(192);
+		}
+	}
 
 	public void initStatusBar() {
-		// ×´Ì¬1£¬³õÊ¼»¯×´Ì¬Ìõ
+
+		// æµ‹è¯•å…¨å±€
+
+		// çŠ¶æ€1ï¼Œåˆå§‹åŒ–çŠ¶æ€æ¡
 		if (flag == 1) {
-			// System.out.println("×´Ì¬1£¬³õÊ¼»¯×´Ì¬Ìõ");
-			SB = new statusBar();
-			SB.init(this);
-			SB.S1();
-			SB1 = new Thread(SB);
-			SB1.start();
+			// System.out.println("çŠ¶æ€1ï¼Œåˆå§‹åŒ–çŠ¶æ€æ¡");
+
+			if (showStatus) {
+				SB = new statusBar();
+				SB.init(this);
+				SB.S1();
+				SB1 = new Thread(SB);
+				SB1.start();
+			}
+
 			flag = 2;
 
 		}
@@ -107,40 +169,46 @@ public class controller {
 	}
 
 	public void changeS2() {
-		// ×´Ì¬2£¬×´Ì¬ÌõÁ¬½Ó³É¹¦£¬µÈ´ý½øÈëÓÎÏ·
+		// çŠ¶æ€2ï¼ŒçŠ¶æ€æ¡è¿žæŽ¥æˆåŠŸï¼Œç­‰å¾…è¿›å…¥æ¸¸æˆ
 		// System.out.println(flag);
 		// SB.repaint();
 		if (flag == 2) {
-			// System.out.println("×´Ì¬2£¬×´Ì¬ÌõÁ¬½Ó³É¹¦£¬µÈ´ý½øÈëÓÎÏ·");
-			// NotificationManager.showNotification(createWebNotification("ÄúÒÑÁ¬½Ó³É¹¦£¬Çë¼ÓÈëÓÎÏ·"));
-			SB.S2();
+			// System.out.println("çŠ¶æ€2ï¼ŒçŠ¶æ€æ¡è¿žæŽ¥æˆåŠŸï¼Œç­‰å¾…è¿›å…¥æ¸¸æˆ");
+			// NotificationManager.showNotification(createWebNotification("æ‚¨å·²è¿žæŽ¥æˆåŠŸï¼Œè¯·åŠ å…¥æ¸¸æˆ"));
+			if (showStatus)
+				SB.S2();
 			flag = 3;
 		}
 	}
 
 	public void changeS3() {
-		// ×´Ì¬3£¬Á¬½Ó³É¹¦£¬ÊÍ·Å×´Ì¬Ìõ£¬´ò¿ªÃæ°å
+		// çŠ¶æ€3ï¼Œè¿žæŽ¥æˆåŠŸï¼Œé‡Šæ”¾çŠ¶æ€æ¡ï¼Œæ‰“å¼€é¢æ¿
 		// SB.repaint();
 		if (flag == 3) {
-			// ³õÊ¼»¯MapObjÒÔ¼°Msg¡¢gamechat
 
-			// System.out.println("×´Ì¬3£¬Á¬½Ó³É¹¦£¬ÊÍ·Å×´Ì¬Ìõ£¬´ò¿ªÃæ°å");
-			usetempratureInformation = Boolean.parseBoolean(getconfig("usetempInfoSwitch"));
+			// è‡ªåŠ¨éšè—ä»»åŠ¡æ 
+
+			// åˆå§‹åŒ–MapObjä»¥åŠMsgã€gamechat
+			// System.out.println(S.iIndic.type);
+			getfmdata(S.sIndic.type);
+			// System.out.println("çŠ¶æ€3ï¼Œè¿žæŽ¥æˆåŠŸï¼Œé‡Šæ”¾çŠ¶æ€æ¡ï¼Œæ‰“å¼€é¢æ¿");
+			// usetempratureInformation =
+			// Boolean.parseBoolean(getconfig("usetempInfoSwitch"));
 			// System.out.println(usetempratureInformation);
-			NotificationManager.showNotification(createWebNotificationTime(3000));
-			SB.S3();
-			SB.doit = false;
-			SB.dispose();
-			SB = null;
-			restoretime = 120;
-			isfirstOverheat = true;
-			restoreCheckMili = System.currentTimeMillis();
-			O = new otherService();
-			O.init(this);
-			O1 = new Thread(O);
-			O1.start();
-			
-
+			// NotificationManager.showNotification(createWebNotificationTime(3000));
+			if (showStatus) {
+				SB.S3();
+				SB.doit = false;
+				SB.dispose();
+				SB = null;
+			}
+			System.gc();
+			if (app.debug) {
+				O = new otherService();
+				O.init(this);
+				O1 = new Thread(O);
+				O1.start();
+			}
 			flag = 4;
 			openpad();
 
@@ -148,79 +216,129 @@ public class controller {
 	}
 
 	public void S4toS1() {
-		// ×´Ì¬4£¬ÓÎÏ··µ»Ø£¬·µ»ØÖÁ×´Ì¬1
+		// çŠ¶æ€4ï¼Œæ¸¸æˆè¿”å›žï¼Œè¿”å›žè‡³çŠ¶æ€1
 		if (flag == 4) {
-			// System.out.println("×´Ì¬4£¬ÓÎÏ·ÍË³ö£¬ÊÍ·ÅService×ÊÔ´£¬·µ»ØÖÁ×´Ì¬1");
+			// System.out.println("çŠ¶æ€4ï¼Œæ¸¸æˆé€€å‡ºï¼Œé‡Šæ”¾Serviceèµ„æºï¼Œè¿”å›žè‡³çŠ¶æ€1");
+			// ä¸è§¦å‘ç‡ƒæ²¹ä½Žå‘Šè­¦
+			// S.fuelPercent = 100;
+
 			closepad();
-			// ÊÍ·Å×ÊÔ´
-			lastEvt = O.lastEvt;
-			lastDmg = O.lastDmg;
-			// System.out.println("×îºóDMGID"+lastDmg);
-			O.close();
-			O = null;
-			O1 = null;
+			// é‡Šæ”¾èµ„æº
+			if (app.debug) {
+				lastEvt = O.lastEvt;
+				lastDmg = O.lastDmg;
+				// System.out.println("æœ€åŽDMGID"+lastDmg);
+				O.close();
+				O = null;
+				O1 = null;
+			}
+
 			S.clear();
 			flag = 1;
+
+			// è‡ªåŠ¨æ˜¾ç¤ºä»»åŠ¡æ 
+			hideTaskbarSw();
 		}
 
 	}
 
 	public void openpad() {
-		if (getconfig("engineInfoSwitch").equals("true")) {
-			F = new engineInfo();
-			F1 = new Thread(F);
-			F.init(this, S);
-			F1.start();
-			//
-		}
-		if(getconfig("flapsControlSwitch").equals("true")){
-			flc=new flapsControl();
-			try {
-				flc.init(this);
-			} catch (AWTException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+		// hideTaskbarSw();
+
+		if (getconfig("enableFMPrint").equals("true")) {
+			pt = new someUsefulData();
+			pt1 = new Thread(pt);
+			pt.init(this, blkx);
+			pt1.start();
+
+			if (blkx.isJet) {
+				thrustdFS = new drawFrameSimpl();
+
+				thrustdFS1 = new Thread(thrustdFS);
+				thrustdFS.init(this);
+				thrustdFS1.start();
+
 			}
-			flc1=new Thread(flc);
-			flc1.start();
+		}
+		if (getconfig("enableVoiceWarn").equals("true")) {
+			vW = new voiceWarning();
+			vW1 = new Thread(vW);
+			vW.init(this, this.S);
+			vW1.start();
 		}
 
+		if (getconfig("engineInfoSwitch").equals("true")) {
+			// F1 = new Thread(F);
+			// FI1 = new Thread(FI);
+			FI = new engineInfo();
+			FI.init(this, S, blkx);
+
+			// F1.start();
+			// FI1.start();
+			//
+		}
+
+		if (getconfig("enableEngineControl").equals("true")) {
+			F = new engineControl();
+			F.init(this, S, blkx);
+		}
+
+		// if (getconfig("flapsControlSwitch").equals("true")) {
+		// flc = new flapsControl();
+		// try {
+		// flc.init(this);
+		// } catch (AWTException e) {
+		// // TODO Auto-generated catch block
+		// e.printStackTrace();
+		// }
+		// flc1 = new Thread(flc);
+		// flc1.start();
+		// }
+
 		if (Boolean.parseBoolean(getconfig("crosshairSwitch"))) {
-			H = new crosshair();
-			H1 = new Thread(H);
-			H.init(this, S,O);
-			H1.start();
+			H = new minimalHUD();
+			// H1 = new Thread(H);
+			H.init(this, S, O);
+			// H1.start();
 		}
 		if (Boolean.parseBoolean(getconfig("flightInfoSwitch"))) {
 			FL = new flightInfo();
-			FL1 = new Thread(FL);
+			// FL1 = new Thread(FL);
 			FL.init(this, S);
-			FL1.start();
+			// FL1.start();
 		}
 		if (Boolean.parseBoolean(getconfig("enableLogging"))) {
 			if (dF != null) {
 				dF.doit = false;
 				dF = null;
 			}
-			notification(language.cStartlog);
+			notification(lang.cStartlog);
 			Log = new flightLog();
 			Log.init(this, S);
-			Log1 = new Thread(Log);
-			Log1.start();
+			// Log1 = new Thread(Log);
+			// Log1.start();
 			logon = true;
 		}
 
 		if (Boolean.parseBoolean(getconfig("enableAxis"))) {
 			sV = new stickValue();
 			sV.init(this, S);
-			sV1 = new Thread(sV);
-			sV1.start();
+			// sV1 = new Thread(sV);
+			// sV1.start();
 		}
+
+		if (Boolean.parseBoolean(getconfig("enableAttitudeIndicator"))) {
+			aI = new attitudeIndicator();
+			aI.init(this, S);
+			// aI1 = new Thread(aI);
+			// aI1.start();
+		}
+
 		if (Boolean.parseBoolean(getconfig("enablegearAndFlaps"))) {
 			fS = new gearAndFlaps();
 			fS.init(this, S);
-			fS1 = new Thread(fS);
-			fS1.start();
+			// fS1 = new Thread(fS);
+			// fS1.start();
 
 		}
 		if (app.debug) {
@@ -231,22 +349,44 @@ public class controller {
 			SA1.start();
 
 		}
+
+		uT = new uiThread(this);
+		uT1 = new Thread(uT);
+		uT1.start();
 		S.startTime = System.currentTimeMillis();
 	}
 
 	public void closepad() {
+		if (getconfig("enableVoiceWarn").equals("true")) {
+			vW.doit = false;
+			vW1 = null;
+			vW = null;
+		}
+
 		if (getconfig("engineInfoSwitch").equals("true")) {
-			F.doit = false;
-			F1 = null;
-			F.fclose();
-			F = null;
+			// F.doit = false;
+			FI.doit = false;
+			FI1 = null;
+			// F1 = null;
+			FI.dispose();
+			// F.dispose();
+			FI = null;
+			// F = null;
 
 		}
-		if(getconfig("flapsControlSwitch").equals("true")){
-			flc.close();
-			flc=null;
-			flc1=null;
+
+		if ((getconfig("enableEngineControl").equals("true"))) {
+			F.doit = false;
+			F1 = null;
+			F.dispose();
+			F = null;
 		}
+		// if (getconfig("flapsControlSwitch").equals("true")) {
+		// flc.close();
+		// flc = null;
+		// flc1 = null;
+		// }
+
 		if (getconfig("crosshairSwitch").equals("true")) {
 			H.doit = false;
 			H1 = null;
@@ -262,16 +402,17 @@ public class controller {
 		}
 
 		if (getconfig("enableLogging").equals("true")) {
-			notification(language.cSavelog + Log.fileName + language.cPlsopen);
-			//System.out.println("½×¶Î²î:"+(Log.fA.curaltStage - Log.fA.initaltStage));
+			notification(lang.cSavelog + Log.fileName + lang.cPlsopen);
+			// System.out.println("é˜¶æ®µå·®:"+(Log.fA.curaltStage -
+			// Log.fA.initaltStage));
 			if (Log.fA.curaltStage - Log.fA.initaltStage >= 1) {
 				dF = new drawFrame();
 				showdrawFrame(Log.fA);
 			}
 
-			logon = false;
+			// logon = false;
 			Log.close();
-			Log1 = null;
+			// Log1 = null;
 			Log = null;
 
 		}
@@ -282,6 +423,13 @@ public class controller {
 			sV = null;
 
 		}
+		if (getconfig("enableAttitudeIndicator").equals("true")) {
+			aI.doit = false;
+			aI1 = null;
+			aI.dispose();
+			aI = null;
+		}
+
 		if (getconfig("enablegearAndFlaps").equals("true")) {
 			fS.doit = false;
 			fS1 = null;
@@ -296,55 +444,175 @@ public class controller {
 			SA.dispose();
 			SA = null;
 
-			// ÊÍ·Å
+			// é‡Šæ”¾
 
 		}
+		if (getconfig("enableFMPrint").equals("true")) {
+			if (pt != null) {
+				pt.doit = false;
+				pt1 = null;
+				pt.dispose();
+				pt = null;
+			}
+
+			if (thrustdFS != null) {
+				thrustdFS.doit = false;
+				thrustdFS1 = null;
+				thrustdFS.dispose();
+				thrustdFS = null;
+			}
+		}
+		uT.doit = false;
+		uT1 = null;
 	}
 
-	public void init() {
-		initconfig();// ×°ÔØÉèÖÃÎÄ¼þ
-		// ½ÓÊÕÆµÂÊ
-		// System.out.println("controllerÖ´ÐÐÁË");
+	public void initconfig() {
+		cfg = new config("./config/config.properties");
+		if (cfg.getValue("firstTime").equals("True")) {
+			// config_init()?
+		}
+		// NotificationManager.showNotification(createWebNotification("é…ç½®ä¿¡æ¯è¯»å…¥å®Œæ¯•"));
+	}
+
+	public String getconfig(String key) {
+		return cfg.getValue(key);
+	}
+
+	public Color getColorConfig(String key) {
+		int R, G, B, A;
+		R = Integer.parseInt(getconfig(key + "R"));
+		G = Integer.parseInt(getconfig(key + "G"));
+		B = Integer.parseInt(getconfig(key + "B"));
+		A = Integer.parseInt(getconfig(key + "A"));
+		return new Color(R, G, B, A);
+	}
+
+	public void setColorConfig(String key, Color c) {
+		int R = c.getRed();
+		int G = c.getGreen();
+		int B = c.getBlue();
+		int A = c.getAlpha();
+
+		setconfig(key + "R", Integer.toString(R));
+		setconfig(key + "G", Integer.toString(G));
+		setconfig(key + "B", Integer.toString(B));
+		setconfig(key + "A", Integer.toString(A));
+	}
+
+	public void loadFromConfig() {
+		// ä¿®æ”¹å®Œè®¾ç½®åœ¨è¯»å–
+		freqService = Long.parseLong(getconfig("Interval"));
+
+		// åˆ·æ–°é¢‘çŽ‡æ¯”ä¾‹
+		freqEngineInfo = (long) (freqService * 2f);
+
+		freqFlightInfo = (long) (freqService * 1.5f);
+		freqAltitude = (long) (freqService * 1.5f);
+
+		freqGearAndFlap = (long) (freqService * 2f);
+		freqStickValue = (long) (freqService * 1f);
+		app.threadSleepTime = (long) (freqService / 2);
+
+		// System.out.println(freqService);
+
+		// é¢œè‰²
+
+		// ä¿®æ”¹é¢œè‰²
+		// System.out.println(R +", " + G + ", " + B + "," +A);
+		app.colorNum = getColorConfig("fontNum");
+
+		// æ ‡ç­¾é¢œè‰²
+		app.colorLabel = getColorConfig("fontLabel");
+
+		// å•ä½é¢œè‰²
+		app.colorUnit = getColorConfig("fontUnit");
+
+		// è­¦å‘Šé¢œè‰²
+		app.colorWarning = getColorConfig("fontWarn");
+
+		// æè¾¹é¢œè‰²
+		app.colorShadeShape = getColorConfig("fontShade");
+		
+		
+		// å£°éŸ³
+		app.voiceVolumn = Integer.parseInt(getconfig("voiceVolume"));
+		// fontLabelR=32
+		// fontLabelG=222
+		// fontLabelB=64
+		// fontLabelA=140
+		//
+		// fontUnitR=166
+		// fontUnitG=166
+		// fontUnitB=166
+		// fontUnitA=220
+		//
+		// fontWarnR=216
+		// fontWarnG=33
+		// fontWarnB=13
+		// fontWarnA=100
+		//
+		// fontShadeR=0
+		// fontShadeG=0
+		// fontShadeB=0
+		// fontShadeA=42
+		showStatus = true;
+		if (getconfig("enableStatusBar") != "")
+			showStatus = Boolean.parseBoolean(getconfig("enableStatusBar"));
+		// è¯»å–å­—ä½“ç»˜åˆ¶æ–¹å¼
+		app.drawFontShape = !Boolean.parseBoolean(getconfig("simpleFont"));
+	}
+
+	public controller() {
+		initconfig();// è£…è½½è®¾ç½®æ–‡ä»¶
+		// æŽ¥æ”¶é¢‘çŽ‡
+		// System.out.println("controlleræ‰§è¡Œäº†");
+		loadFromConfig();
 		usetempratureInformation = false;
-		freqService = 80;
-		overheatCheckMili = System.currentTimeMillis();
-		// Ë¢ÐÂÆµÂÊ
-		freqengineInfo = 100;
+
+		// åˆ·æ–°é¢‘çŽ‡
 		flag = 0;
 		lastEvt = 0;
 		lastDmg = 0;
 
-		// ×´Ì¬0£¬³õÊ¼»¯Ö÷½çÃæºÍÉèÖÃÎÄ¼þ
-		// System.out.println("×´Ì¬0£¬³õÊ¼»¯Ö÷½çÃæ");
-		initconfig();// ×°ÔØÉèÖÃÎÄ¼þ
-		M = new mainform();
+		// çŠ¶æ€0ï¼Œåˆå§‹åŒ–ä¸»ç•Œé¢å’Œè®¾ç½®æ–‡ä»¶
+		// System.out.println("çŠ¶æ€0ï¼Œåˆå§‹åŒ–ä¸»ç•Œé¢");
+
+		M = new mainform(this);
 		M1 = new Thread(M);
-		M.init(this);
 		M1.start();
-		M.doit = true;
+
+		// G = new gcThread();
+		// G.init(this);
+		// gc = new Thread(G);
+		// gc.start();
 		// start();
+
+		// åˆå§‹åŒ–ROBOT
+		// try {
+		// robot = new Robot();
+		// } catch (AWTException e) {
+		// // TODO Auto-generated catch block
+		// e.printStackTrace();
+		// }
 
 	}
 
 	public void start() {
 		if (flag == 1) {
-			freqService = Integer.parseInt(getconfig("Interval"));
 
 			// System.out.println(freqService);
-			// ×´Ì¬1£¬ÊÍ·ÅÉèÖÃ´°¿Ú´«²Î³õÊ¼»¯ºóÌ¨
-			// System.out.println("×´Ì¬1£¬´«²Î³õÊ¼»¯Service");
+			// çŠ¶æ€1ï¼Œé‡Šæ”¾è®¾ç½®çª—å£ä¼ å‚åˆå§‹åŒ–åŽå°
+			// System.out.println("çŠ¶æ€1ï¼Œä¼ å‚åˆå§‹åŒ–Service");
 			M.doit = false;
+			M1 = null;
 			M.dispose();
 			M = null;
+
 			System.gc();
-			// NotificationManager.showNotification(createWebNotification("³ÌÐò×îÐ¡»¯ÖÁÍÐÅÌ£¬×¢ÒâÓÒÉÏ½Ç×´Ì¬ÌõÌáÊ¾"));
+			// NotificationManager.showNotification(createWebNotification("ç¨‹åºæœ€å°åŒ–è‡³æ‰˜ç›˜ï¼Œæ³¨æ„å³ä¸Šè§’çŠ¶æ€æ¡æç¤º"));
 
-			S = new service();
-
+			S = new service(this);
 			S1 = new Thread(S);
-
-			S.init(this);
-
 			S1.start();
 
 		}
@@ -352,12 +620,18 @@ public class controller {
 	}
 
 	public void Preview() {
+
+		loadFromConfig();
 		if (Boolean.parseBoolean(getconfig("engineInfoSwitch"))) {
-			F = new engineInfo();
+			FI = new engineInfo();
+			FI.initPreview(this);
+		}
+		if (Boolean.parseBoolean(getconfig("enableEngineControl"))) {
+			F = new engineControl();
 			F.initPreview(this);
 		}
 		if (Boolean.parseBoolean(getconfig("crosshairSwitch"))) {
-			H = new crosshair();
+			H = new minimalHUD();
 			H.initPreview(this);
 		}
 		if (Boolean.parseBoolean(getconfig("flightInfoSwitch"))) {
@@ -368,6 +642,11 @@ public class controller {
 			sV = new stickValue();
 			sV.initpreview(this);
 		}
+		if (Boolean.parseBoolean(getconfig("enableAttitudeIndicator"))) {
+			aI = new attitudeIndicator();
+			aI.initpreview(this);
+		}
+
 		if (Boolean.parseBoolean(getconfig("enablegearAndFlaps"))) {
 			fS = new gearAndFlaps();
 			fS.initPreview(this);
@@ -375,54 +654,68 @@ public class controller {
 		if (app.debug) {
 			SA = new situationAware();
 			SA.initPreview(this);
-
-			// dF=new drawFrame();
-			// showdrawFrame(null);
-
 		}
 	}
 
-	public void endPreviewengineInfo() {
+	public void endPreview() {
 
 		// System.out.println(F.getLocationOnScreen().x);
 		// System.out.println(F.getLocationOnScreen().y);
 		if (Boolean.parseBoolean(getconfig("engineInfoSwitch"))) {
-			// shadeÎÊÌâÐèÒª¼Ó²¹³¥
+			// shadeé—®é¢˜éœ€è¦åŠ è¡¥å¿
 			// System.out.println(F.getLocationOnScreen().x);
 			// System.out.println(F.getLocationOnScreen().y);
-			setconfig("engineInfoX", Integer.toString(F.getLocationOnScreen().x - 15));
-			setconfig("engineInfoY", Integer.toString(F.getLocationOnScreen().y - 15));
+			setconfig("engineInfoX", Integer.toString(FI.getLocationOnScreen().x - 25));
+			setconfig("engineInfoY", Integer.toString(FI.getLocationOnScreen().y - 25));
+
+			FI.dispose();
+			FI = null;
+
+		}
+		if (Boolean.parseBoolean(getconfig("enableEngineControl"))) {
+			setconfig("engineControlX", Integer.toString(F.getLocationOnScreen().x - 25));
+			setconfig("engineControlY", Integer.toString(F.getLocationOnScreen().y - 25));
 			F.dispose();
 			F = null;
 		}
+
 		if (Boolean.parseBoolean(getconfig("crosshairSwitch"))) {
-			// shadeÎÊÌâÐèÒª¼Ó²¹³¥
-			setconfig("crosshairX", Integer.toString(H.getLocationOnScreen().x + 10));
-			setconfig("crosshairY", Integer.toString(H.getLocationOnScreen().y + 10));
+			// shadeé—®é¢˜éœ€è¦åŠ è¡¥å¿
+			setconfig("crosshairX", Integer.toString(H.getLocationOnScreen().x));
+			setconfig("crosshairY", Integer.toString(H.getLocationOnScreen().y));
 			H.dispose();
 			H = null;
 		}
 		if (Boolean.parseBoolean(getconfig("flightInfoSwitch"))) {
 
-			setconfig("flightInfoX", Integer.toString(FL.getLocationOnScreen().x - 15));
-			setconfig("flightInfoY", Integer.toString(FL.getLocationOnScreen().y - 15));
+			setconfig("flightInfoX", Integer.toString(FL.getLocationOnScreen().x - 25));
+			setconfig("flightInfoY", Integer.toString(FL.getLocationOnScreen().y - 25));
 			FL.dispose();
 			FL = null;
 		}
 		if (Boolean.parseBoolean(getconfig("enableAxis"))) {
 			// System.out.println(sV.getLocationOnScreen().x );
 			// System.out.println(sV.getLocationOnScreen().y);
-			setconfig("stickValueX", Integer.toString(sV.getLocationOnScreen().x + 10));
-			setconfig("stickValueY", Integer.toString(sV.getLocationOnScreen().y + 10));
+			setconfig("stickValueX", Integer.toString(sV.getLocationOnScreen().x));
+			setconfig("stickValueY", Integer.toString(sV.getLocationOnScreen().y));
 			sV.dispose();
 			sV = null;
 		}
+		if (Boolean.parseBoolean(getconfig("enableAttitudeIndicator"))) {
+			setconfig("attitudeIndicatorX", Integer.toString(aI.getLocationOnScreen().x));
+			setconfig("attitudeIndicatorY", Integer.toString(aI.getLocationOnScreen().y));
+			setconfig("attitudeIndicatorWidth", Integer.toString(aI.getWidth() - 4));
+			setconfig("attitudeIndicatorHeight", Integer.toString(aI.getHeight() - 4));
+			aI.dispose();
+			aI = null;
+		}
+
 		if (Boolean.parseBoolean(getconfig("enablegearAndFlaps"))) {
 			// System.out.println(fS.getLocationOnScreen().x );
 			// System.out.println(fS.getLocationOnScreen().y);
 
-			setconfig("gearAndFlapsX", Integer.toString(fS.getLocationOnScreen().x + 10));
-			setconfig("gearAndFlapsY", Integer.toString(fS.getLocationOnScreen().y + 10));
+			setconfig("gearAndFlapsX", Integer.toString(fS.getLocationOnScreen().x));
+			setconfig("gearAndFlapsY", Integer.toString(fS.getLocationOnScreen().y));
 
 			fS.dispose();
 			fS = null;
@@ -439,19 +732,11 @@ public class controller {
 		}
 		saveconfig();
 
-		// ÊÍ·Å
+		loadFromConfig();
+		// é‡Šæ”¾
 
 		System.gc();
 
-	}
-
-	public void initconfig() {
-		cfg = new config("./config/config.properties");
-		// NotificationManager.showNotification(createWebNotification("ÅäÖÃÐÅÏ¢¶ÁÈëÍê±Ï"));
-	}
-
-	public String getconfig(String key) {
-		return cfg.getValue(key);
 	}
 
 	public void setconfig(String key, String value) {
@@ -460,12 +745,13 @@ public class controller {
 
 	public void saveconfig() {
 		cfg.saveFile("./config/config.properties", "8111");
-		// NotificationManager.showNotification(createWebNotification("ÅäÖÃÐÅÏ¢Ð´ÈëÍê±Ï"));
+		// NotificationManager.showNotification(createWebNotification("é…ç½®ä¿¡æ¯å†™å…¥å®Œæ¯•"));
 	}
 
 	public static void notificationtime(String text, int time) {
 		NotificationManager.showNotification(createWebNotifications(text, time));
 	}
+
 	public static void notificationtimeAbout(String text, int time) {
 		NotificationManager.showNotification(createWebNotificationsAbout(text, time));
 	}
@@ -487,7 +773,7 @@ public class controller {
 		clock.setClockType(ClockType.timer);
 		clock.setTimeLeft(time);
 		clock.setFont(app.DefaultFont);
-		clock.setTimePattern(language.cOpenpad);
+		clock.setTimePattern(lang.cOpenpad);
 		a.setContent(new GroupPanel(clock));
 		// a.setOpaque(true);
 		clock.start();
@@ -497,8 +783,6 @@ public class controller {
 		return a;
 
 	}
-	
-	
 
 	static WebNotification createWebNotificationEngineTime(long time) {
 		WebNotification a = new WebNotification();
@@ -513,7 +797,7 @@ public class controller {
 		clock.setClockType(ClockType.timer);
 		clock.setTimeLeft(time);
 		clock.setFont(app.DefaultFont);
-		clock.setTimePattern(language.cEnginedmg);
+		clock.setTimePattern(lang.cEnginedmg);
 		a.setContent(new GroupPanel(clock));
 		// a.setOpaque(true);
 		clock.start();
@@ -543,11 +827,11 @@ public class controller {
 	static WebNotification createWebNotificationsAbout(String text, int time) {
 		WebNotification a = new WebNotification();
 		WebLabel text1 = new WebLabel(text);
-		text1.setFont(new Font(app.DefaultFontName,Font.PLAIN,14));
+		text1.setFont(new Font(app.DefaultFontName, Font.PLAIN, 14));
 		// text1.setVisible(false);
 		// a.setWindowOpacity((float) (0.5));
-		Image I=Toolkit.getDefaultToolkit().createImage("image/fubuki.jpg");
-		ImageIcon A=new ImageIcon(I);
+		Image I = Toolkit.getDefaultToolkit().createImage("image/fubuki.jpg");
+		ImageIcon A = new ImageIcon(I);
 		a.setFont(app.DefaultFont);
 		a.setIcon(A);
 		a.add(text1);
@@ -556,6 +840,7 @@ public class controller {
 		return a;
 
 	}
+
 	static WebNotification createWebNotification(String text) {
 		WebNotification a = new WebNotification();
 		WebLabel text1 = new WebLabel(text);
@@ -588,54 +873,6 @@ public class controller {
 
 	}
 
-	void startOverheatTime() {
-		overheatCheckMili = System.currentTimeMillis();
-		step = 0;
-		if (!isfirstOverheat) {
-			/*
-			 * System.out.println("µÚ¶þ´Î¹ýÈÈ,ÉÏ´Î¹ýÈÈÊ±¼ä£º" + overheattime + "ÉÏ´ÎÓµÓÐÊ±¼ä" +
-			 * restoretime + "±¾´Î»Ö¸´Ê±³¤" + (overheatCheckMili - restoreCheckMili) /
-			 * 500 + "ÏÂ´Î¿ÉÓÃÊ±¼ä" + ((restoretime - overheattime) +
-			 * (overheatCheckMili - restoreCheckMili) / 500));
-			 */
-			restoretime = (int) ((restoretime - overheattime) + (overheatCheckMili - restoreCheckMili));
-		}
-		if (restoretime > 120)
-			restoretime = 120;
-	}
-
-	void updateOverheatTime() {
-		int Time = (int) ((System.currentTimeMillis() - overheatCheckMili) / 1000);
-		if (F != null)
-			F.updateOverheatTime(Time);
-		availableoverheattime = restoretime - Time;
-		if (usetempratureInformation) {
-			if (availableoverheattime < 60) {
-				if (step == 0) {
-					tempCheck = createWebNotification(language.cWarn1min);
-					NotificationManager.showNotification(tempCheck);
-					step = 1;
-				}
-			}
-			if (availableoverheattime < 30) {
-
-				if (step == 1) {
-					tempCheck = createWebNotificationEngineTime(30000);
-					NotificationManager.showNotification(tempCheck);
-					step = 2;
-				}
-			}
-			if (availableoverheattime < 1) {
-				if (step == 2) {
-					tempCheck = createWebNotificationEngineBomb(language.cEngBomb);
-					NotificationManager.showNotification(tempCheck);
-					step = 3;
-				}
-
-			}
-		}
-	}
-
 	public void showdrawFrame(flightAnalyzer fA) {
 		dF.init(this, fA);
 	}
@@ -649,20 +886,45 @@ public class controller {
 
 			} else {
 				Log.doit = true;
-				System.out.println("Ïß³ÌÍ¬²½´íÎó");
+				System.out.println("çº¿ç¨‹åŒæ­¥é”™è¯¯");
 			}
 			// System.out.println(Log.doit);
 		}
 	}
 
-	void endOverheatTime() {
+	void getfmdata(String planename) {
+		String fmfile = null;
+		// String unitSystem;
+		int i;
+		// è¯»å…¥fm
 
-		restoreCheckMili = System.currentTimeMillis() - 1000;
-		overheattime = F.overheattime;
-		if (overheattime > 5)
-			isfirstOverheat = false;
-		step = 0;
-		if (F != null)
-			F.updateOverheatTime(0);
+		blkx = new blkxparser("./data/aces/gamedata/flightmodels/" + planename + ".blkx", planename + ".blk");
+		if (blkx.valid == true) {
+			fmfile = blkx.getlastone("fmfile");
+			fmfile = fmfile.substring(1, fmfile.length() - 1);
+			if (fmfile.indexOf("blk") == -1)
+				fmfile = fmfile + ".blk";
+			for (i = 0; i < fmfile.length(); i++) {
+				if (fmfile.charAt(i) == '/')
+					break;
+			}
+			// System.out.println(fmfile);
+			if (i + 1 >= fmfile.length()) {
+				fmfile = planename + ".blk";
+			} else
+				fmfile = fmfile.substring(i + 1);
+		}
+		// System.out.println(fmfile);
+
+		// è¯»å…¥fmfile
+		if (fmfile != null)
+			blkx = new blkxparser("./data/aces/gamedata/flightmodels/fm/" + fmfile + "x", fmfile);
+
+		if (blkx.valid == true) {// System.out.println(blkx.data);
+			blkx.getAllplotdata();
+			blkx.getload();
+		}
+
 	}
+
 }

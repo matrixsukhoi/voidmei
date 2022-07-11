@@ -3,70 +3,74 @@ package prog;
 import java.io.FileInputStream; 
 import java.io.FileNotFoundException; 
 import java.io.FileOutputStream; 
-import java.io.IOException; 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.Properties;
 
 /** *//** 
-* ¶ÁÈ¡propertiesÎÄ¼ş 
+* è¯»å–propertiesæ–‡ä»¶ 
 * @author Qutr 
 * 
 */ 
 public class config
 { 
     private Properties propertie; 
-    private FileInputStream inputFile; 
+    private InputStreamReader inputFile; 
     private FileOutputStream outputFile; 
     /** *//** 
-     * ³õÊ¼»¯ConfigurationÀà 
+     * åˆå§‹åŒ–Configurationç±» 
      */ 
     public config() 
     { 
         propertie = new Properties(); 
     } 
     /** *//** 
-     * ³õÊ¼»¯ConfigurationÀà 
-     * @param filePath Òª¶ÁÈ¡µÄÅäÖÃÎÄ¼şµÄÂ·¾¶+Ãû³Æ 
+     * åˆå§‹åŒ–Configurationç±» 
+     * @param filePath è¦è¯»å–çš„é…ç½®æ–‡ä»¶çš„è·¯å¾„+åç§° 
      */ 
     public config(String filePath) 
     { 
         propertie = new Properties(); 
         try { 
-            inputFile = new FileInputStream(filePath); 
+        	InputStream in = new FileInputStream(filePath);
+            inputFile = new InputStreamReader(in,"utf-8"); 
             propertie.load(inputFile); 
             inputFile.close(); 
         } catch (FileNotFoundException ex){ 
-            System.out.println("¶ÁÈ¡ÊôĞÔÎÄ¼ş--->Ê§°Ü£¡- Ô­Òò£ºÎÄ¼şÂ·¾¶´íÎó»òÕßÎÄ¼ş²»´æÔÚ"); 
+            System.out.println("è¯»å–å±æ€§æ–‡ä»¶--->å¤±è´¥ï¼- åŸå› ï¼šæ–‡ä»¶è·¯å¾„é”™è¯¯æˆ–è€…æ–‡ä»¶ä¸å­˜åœ¨"); 
             ex.printStackTrace(); 
         } catch (IOException ex) { 
-            System.out.println("×°ÔØÎÄ¼ş--->Ê§°Ü!"); 
+            System.out.println("è£…è½½æ–‡ä»¶--->å¤±è´¥!"); 
             ex.printStackTrace(); 
         } 
     }//end ReadConfigInfo(...) 
     /** *//** 
-     * ÖØÔØº¯Êı£¬µÃµ½keyµÄÖµ 
-     * @param key È¡µÃÆäÖµµÄ¼ü 
-     * @return keyµÄÖµ 
+     * é‡è½½å‡½æ•°ï¼Œå¾—åˆ°keyçš„å€¼ 
+     * @param key å–å¾—å…¶å€¼çš„é”® 
+     * @return keyçš„å€¼ 
      */ 
     public String getValue(String key) 
     { 
         if(propertie.containsKey(key)){ 
-            String value = propertie.getProperty(key);//µÃµ½Ä³Ò»ÊôĞÔµÄÖµ 
+            String value = propertie.getProperty(key);//å¾—åˆ°æŸä¸€å±æ€§çš„å€¼ 
             return value; 
         } 
         else 
             return ""; 
     }//end getValue(...) 
     /** *//** 
-     * ÖØÔØº¯Êı£¬µÃµ½keyµÄÖµ 
-     * @param fileName propertiesÎÄ¼şµÄÂ·¾¶+ÎÄ¼şÃû 
-     * @param key È¡µÃÆäÖµµÄ¼ü 
-     * @return keyµÄÖµ 
+     * é‡è½½å‡½æ•°ï¼Œå¾—åˆ°keyçš„å€¼ 
+     * @param fileName propertiesæ–‡ä»¶çš„è·¯å¾„+æ–‡ä»¶å 
+     * @param key å–å¾—å…¶å€¼çš„é”® 
+     * @return keyçš„å€¼ 
      */ 
     public String getValue(String fileName, String key) 
     { 
         try{ 
             String value = ""; 
-            inputFile = new FileInputStream(fileName); 
+            InputStream in = new FileInputStream(fileName);
+            inputFile = new InputStreamReader(in,"utf-8"); 
             propertie.load(inputFile); 
             inputFile.close(); 
             if(propertie.containsKey(key)){ 
@@ -86,26 +90,26 @@ public class config
         } 
     }//end getValue(...) 
     /** *//** 
-     * Çå³ıpropertiesÎÄ¼şÖĞËùÓĞµÄkeyºÍÆäÖµ 
+     * æ¸…é™¤propertiesæ–‡ä»¶ä¸­æ‰€æœ‰çš„keyå’Œå…¶å€¼ 
      */ 
     public void clear() 
     { 
         propertie.clear(); 
     }//end clear(); 
     /** *//** 
-     * ¸Ä±ä»òÌí¼ÓÒ»¸ökeyµÄÖµ£¬µ±key´æÔÚÓÚpropertiesÎÄ¼şÖĞÊ±¸ÃkeyµÄÖµ±»valueËù´úÌæ£¬ 
-     * µ±key²»´æÔÚÊ±£¬¸ÃkeyµÄÖµÊÇvalue 
-     * @param key Òª´æÈëµÄ¼ü 
-     * @param value Òª´æÈëµÄÖµ 
+     * æ”¹å˜æˆ–æ·»åŠ ä¸€ä¸ªkeyçš„å€¼ï¼Œå½“keyå­˜åœ¨äºpropertiesæ–‡ä»¶ä¸­æ—¶è¯¥keyçš„å€¼è¢«valueæ‰€ä»£æ›¿ï¼Œ 
+     * å½“keyä¸å­˜åœ¨æ—¶ï¼Œè¯¥keyçš„å€¼æ˜¯value 
+     * @param key è¦å­˜å…¥çš„é”® 
+     * @param value è¦å­˜å…¥çš„å€¼ 
      */ 
     public void setValue(String key, String value) 
     { 
         propertie.setProperty(key, value); 
     }//end setValue(...) 
     /** *//** 
-     * ½«¸ü¸ÄºóµÄÎÄ¼şÊı¾İ´æÈëÖ¸¶¨µÄÎÄ¼şÖĞ£¬¸ÃÎÄ¼ş¿ÉÒÔÊÂÏÈ²»´æÔÚ¡£ 
-     * @param fileName ÎÄ¼şÂ·¾¶+ÎÄ¼şÃû³Æ 
-     * @param description ¶Ô¸ÃÎÄ¼şµÄÃèÊö 
+     * å°†æ›´æ”¹åçš„æ–‡ä»¶æ•°æ®å­˜å…¥æŒ‡å®šçš„æ–‡ä»¶ä¸­ï¼Œè¯¥æ–‡ä»¶å¯ä»¥äº‹å…ˆä¸å­˜åœ¨ã€‚ 
+     * @param fileName æ–‡ä»¶è·¯å¾„+æ–‡ä»¶åç§° 
+     * @param description å¯¹è¯¥æ–‡ä»¶çš„æè¿° 
      */ 
     public void saveFile(String fileName, String description) 
     { 

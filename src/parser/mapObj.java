@@ -74,9 +74,9 @@ public class mapObj {
 		if (bix != -1) {
 			eix = s.indexOf('}');
 			buf = s.substring(bix, eix + 1);
-			// System.out.println("ÇĞÆ¬Öµ"+buf);
+			// System.out.println("åˆ‡ç‰‡å€¼"+buf);
 			s = s.substring(eix + 1, s.length());
-			// System.out.println("ÇĞÆ¬ºó"+s);
+			// System.out.println("åˆ‡ç‰‡å"+s);
 			return buf;
 		} else
 			return ("");
@@ -100,7 +100,7 @@ public class mapObj {
 
 		boolean isPlayer = false;
 		boolean isSelected = false;
-		// ÏÈÕÒtype
+		// å…ˆæ‰¾type
 		bix = t.indexOf('"');
 		if (bix != -1) {
 			eix = bix + 5;
@@ -114,9 +114,9 @@ public class mapObj {
 			}
 			type = t.substring(bix, eix);
 			// System.out.println(type.charAt(3));
-			// ¼ÌĞøÏòÏÂËÑË÷Color
+			// ç»§ç»­å‘ä¸‹æœç´¢Color
 			eix = eix + 2;
-			// ÕÒÈı¸öÒıºÅ
+			// æ‰¾ä¸‰ä¸ªå¼•å·
 			while (t.charAt(eix) != '"') {
 				eix++;
 			}
@@ -135,9 +135,9 @@ public class mapObj {
 			}
 			color = t.substring(bix, eix);
 
-			// ¼ÌĞøÏòÏÂËÑË÷Color[]
+			// ç»§ç»­å‘ä¸‹æœç´¢Color[]
 			eix = eix + 2;
-			// ÕÒ2¸öÒıºÅ
+			// æ‰¾2ä¸ªå¼•å·
 			while (t.charAt(eix) != '"') {
 				eix++;
 			}
@@ -171,9 +171,9 @@ public class mapObj {
 			colorg = new Color(red, green, blue);
 			// System.out.println(colorg);
 
-			// ¼ÌĞøÏòÏÂËÑË÷blink
+			// ç»§ç»­å‘ä¸‹æœç´¢blink
 			eix = eix + 2;
-			// ÕÒ2¸öÒıºÅ
+			// æ‰¾2ä¸ªå¼•å·
 			while (t.charAt(eix) != '"') {
 				eix++;
 			}
@@ -193,9 +193,9 @@ public class mapObj {
 			blink = Integer.parseInt(t.substring(bix, eix));
 			// System.out.println(blink);
 
-			// ¼ÌĞøÏòÏÂËÑË÷icon
+			// ç»§ç»­å‘ä¸‹æœç´¢icon
 			eix = eix + 1;
-			// ÕÒÈı¸öÒıºÅ
+			// æ‰¾ä¸‰ä¸ªå¼•å·
 			while (t.charAt(eix) != '"') {
 				eix++;
 			}
@@ -218,9 +218,9 @@ public class mapObj {
 
 			// System.out.println(icon);
 
-			// ¼ÌĞøÏòÏÂËÑË÷icon_bg
+			// ç»§ç»­å‘ä¸‹æœç´¢icon_bg
 			eix = eix + 2;
-			// ÕÒÈı¸öÒıºÅ
+			// æ‰¾ä¸‰ä¸ªå¼•å·
 			while (t.charAt(eix) != '"') {
 				eix++;
 			}
@@ -241,9 +241,9 @@ public class mapObj {
 			if (iconBg.equals("none") != true)
 				isSelected = true;
 			// System.out.println(iconBg);
-			// ¼ÌĞøÏòÏÂËÑË÷x
+			// ç»§ç»­å‘ä¸‹æœç´¢x
 			eix = eix + 2;
-			// ÕÒ2¸öÒıºÅ
+			// æ‰¾2ä¸ªå¼•å·
 			while (t.charAt(eix) != '"') {
 				eix++;
 			}
@@ -262,9 +262,9 @@ public class mapObj {
 			}
 			x = Float.parseFloat(t.substring(bix, eix));
 			// System.out.println(x);
-			// ¼ÌĞøÏòÏÂËÑË÷y
+			// ç»§ç»­å‘ä¸‹æœç´¢y
 			eix = eix + 1;
-			// ÕÒ2¸öÒıºÅ
+			// æ‰¾2ä¸ªå¼•å·
 			while (t.charAt(eix) != '"') {
 				eix++;
 			}
@@ -290,11 +290,11 @@ public class mapObj {
 
 			// System.out.println(t.substring(bix,eix));
 
-			// ÔÙ¸ù¾İtypeÅĞ¶ÏÊÇ·ñÈ¡dx¡¢dy
+			// å†æ ¹æ®typeåˆ¤æ–­æ˜¯å¦å–dxã€dy
 			// System.out.println(flag);
 
 			if (flag == 0) {
-				// ½øÈëstaobjĞ´Öµ
+				// è¿›å…¥staobjå†™å€¼
 				if (isSelected) {
 					slc.type = type;
 					slc.color = color;
@@ -315,16 +315,16 @@ public class mapObj {
 					sta[stacur].iconBg = iconBg;
 					sta[stacur].x = x;
 					sta[stacur].y = y;
-					// System.out.println("sĞ´Öµ³É¹¦" + sta[stacur].toString());
+					// System.out.println("så†™å€¼æˆåŠŸ" + sta[stacur].toString());
 					stacur++;
 				}
 			}
 			if (flag == 1) {
-				// ½øÈëmovobjÅĞ¶Ï
-				// ¼ÌĞøÏòÏÂËÑË÷y
+				// è¿›å…¥movobjåˆ¤æ–­
+				// ç»§ç»­å‘ä¸‹æœç´¢y
 				// System.out.println(t);
 				eix = eix + 1;
-				// ÕÒ2¸öÒıºÅ
+				// æ‰¾2ä¸ªå¼•å·
 				// System.out.println(t);
 				// System.out.println("sad");
 				while (t.charAt(eix) != '"') {
@@ -346,9 +346,9 @@ public class mapObj {
 				// System.out.println(t.substring(bix,eix));
 				dx = Float.parseFloat(t.substring(bix, eix));
 
-				// ¼ÌĞøÏòÏÂËÑË÷y
+				// ç»§ç»­å‘ä¸‹æœç´¢y
 				eix = eix + 1;
-				// ÕÒ2¸öÒıºÅ
+				// æ‰¾2ä¸ªå¼•å·
 				while (t.charAt(eix) != '"') {
 					eix++;
 				}
@@ -391,7 +391,7 @@ public class mapObj {
 						mov[movcur].iconBg = iconBg;
 						mov[movcur].x = x;
 						mov[movcur].y = y;
-						// System.out.println("mĞ´Öµ³É¹¦" + mov[movcur].toString());
+						// System.out.println("må†™å€¼æˆåŠŸ" + mov[movcur].toString());
 						movcur++;
 					}
 				} else {
@@ -405,7 +405,7 @@ public class mapObj {
 					pla.y = y;
 					pla.dx = dx;
 					pla.dy = dy;
-					// System.out.println("Íæ¼ÒĞ´Öµ³É¹¦" + pla.toString());
+					// System.out.println("ç©å®¶å†™å€¼æˆåŠŸ" + pla.toString());
 				}
 			}
 
@@ -420,9 +420,9 @@ public class mapObj {
 			parseObj(sobj);
 			sobj = getLine();
 		}
-		// testmov();//²âÊÔÓÃ
+		// testmov();//æµ‹è¯•ç”¨
 		// System.out.println(mov[movcur-1].x);
-		//System.out.println("ÇĞÆ¬Íê³É");
+		//System.out.println("åˆ‡ç‰‡å®Œæˆ");
 
 	}
 
@@ -444,8 +444,8 @@ public class mapObj {
 	}
 
 	public void init() {
-		num = 100;
-		//System.out.println("mapObj³õÊ¼»¯ÁË");
+		num = 500;
+		//System.out.println("mapObjåˆå§‹åŒ–äº†");
 		mov = new Movobj[num];
 		sta = new Staobj[num];
 		initMobj();
@@ -459,7 +459,7 @@ public class mapObj {
 	}
 	public void update(String S) {
 		s = S;
-		// System.out.println("³õÊ¼Öµ"+s);
+		// System.out.println("åˆå§‹å€¼"+s);
 		movcur = 0;
 		stacur = 0;
 		slc.type="";

@@ -140,7 +140,7 @@ public class otherService implements Runnable {
 			msg.init();
 		}
 
-		// ³õÊ¼»¯µØÍ¼ÉèÖÃ£¬¼ÆËã³ß´ç
+		// åˆå§‹åŒ–åœ°å›¾è®¾ç½®ï¼Œè®¡ç®—å°ºå¯¸
 		try {
 			sMapInfo = sendGet("127.0.0.1", 8111, "/map_info.json");
 			mapi.update(sMapInfo);
@@ -152,7 +152,7 @@ public class otherService implements Runnable {
 	}
 
 	public void calculate() {
-		// ¼ÆËãÑ¡ÔñÄ¿±êµÄË®Æ½Ïà¶Ô¾àÀë¼°ËÙ¶È¼°AOT
+		// è®¡ç®—é€‰æ‹©ç›®æ ‡çš„æ°´å¹³ç›¸å¯¹è·ç¦»åŠé€Ÿåº¦åŠAOT
 		double pys;
 		double eys;
 		if (mapo.slc.type != "") {
@@ -181,7 +181,7 @@ public class otherService implements Runnable {
 			// System.out.println(enemycount);
 		}
 
-		// Í³¼ÆÖÜÎ§µĞ»úÊıºÍÓÑ»úÊı
+		// ç»Ÿè®¡å‘¨å›´æ•Œæœºæ•°å’Œå‹æœºæ•°
 		int i;
 		for (i = 0; i < mapo.movcur; i++) {
 			double sdistance = Math.sqrt(
@@ -191,7 +191,7 @@ public class otherService implements Runnable {
 			if (sdistance < dislmt && sdistance < mapo.mov[i].distance) {
 				if (mapo.mov[i].colorg.getBlue() > 200 || mapo.mov[i].colorg.getGreen() > 200) {
 					friendcount++;
-					// System.out.println((mapo.mov[i].type+"ÓÑ¾ü"+i+"¾àÀë"+sdistance));
+					// System.out.println((mapo.mov[i].type+"å‹å†›"+i+"è·ç¦»"+sdistance));
 				}
 				if (mapo.mov[i].colorg.getRed() > 200) {
 					enemycount++;
@@ -200,7 +200,7 @@ public class otherService implements Runnable {
 			mapo.mov[i].distance = sdistance;
 		}
 
-		// System.out.println("ÖÜÎ§ÓÑ»úÊı" + friendcount + " ÖÜÎ§µĞ»úÊı" + enemycount);
+		// System.out.println("å‘¨å›´å‹æœºæ•°" + friendcount + " å‘¨å›´æ•Œæœºæ•°" + enemycount);
 	}
 
 	public void close() {
@@ -208,50 +208,54 @@ public class otherService implements Runnable {
 	}
 
 	public void judgeOverheat() {
-		// ³õ´Î
+//		xc.judgeEngineload();
+		
+		/*
+		// åˆæ¬¡
 		if (!hisOverheat && isOverheat) {
 			hisOverheat = true;
-			// System.out.println("´ò¿ª¹ıÈÈ¼ÆÊ±Æ÷");
-			check = 3;// Áù´Î¼ì²â
+			// System.out.println("æ‰“å¼€è¿‡çƒ­è®¡æ—¶å™¨");
+			check = 3;// å…­æ¬¡æ£€æµ‹
 			xc.startOverheatTime();
 		}
-		// ¸üĞÂ¹ıÈÈÊ±¼ä
+		// æ›´æ–°è¿‡çƒ­æ—¶é—´
 		if (hisOverheat && isOverheat) {
-			// System.out.println("¸üĞÂ¹ıÈÈÊ±¼ä");
+			// System.out.println("æ›´æ–°è¿‡çƒ­æ—¶é—´");
 			check = 3;
 			xc.updateOverheatTime();
 
 		}
-		// Èç¹û²»ÔÙ½ÓÊÜ¹ıÈÈÏûÏ¢
+		// å¦‚æœä¸å†æ¥å—è¿‡çƒ­æ¶ˆæ¯
 		if (!isOverheat) {
 			if (hisOverheat) {
 				if (check == 0) {
-					// System.out.println("ÖÕ½á¹ıÈÈ¼ÆÊ±Æ÷");
+					// System.out.println("ç»ˆç»“è¿‡çƒ­è®¡æ—¶å™¨");
 					xc.endOverheatTime();
 					hisOverheat = false;
 					check--;
 
 				} else {
-					// System.out.println("²»¹ıÈÈ¼ì²é´ÎÊı-1");
+					// System.out.println("ä¸è¿‡çƒ­æ£€æŸ¥æ¬¡æ•°-1");
 					check--;
 				}
 			}
 		}
+		*/
 	}
 
 	@Override
 	public void run() {
 		// TODO Auto-generated method stub
 		while (isRun) {
-			// 500ºÁÃëÖ´ĞĞÒ»´Î
+			// 500æ¯«ç§’æ‰§è¡Œä¸€æ¬¡
 			try {
 				Thread.sleep(500);
 			} catch (InterruptedException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-			// È¡µÃµØÍ¼Êı¾İ
-			// System.out.println("ÕıÔÚ´¦ÀíµØÍ¼Êı¾İ");
+			// å–å¾—åœ°å›¾æ•°æ®
+			// System.out.println("æ­£åœ¨å¤„ç†åœ°å›¾æ•°æ®");
 			enemycount = 0;
 			friendcount = 0;
 			try {
@@ -269,28 +273,28 @@ public class otherService implements Runnable {
 			if (isgetMsg) {
 				lastDmg = msg.update(shudMsg, lastDmg);
 				if (msg.dmg.updated) {
-					// System.out.println("¹ıÈÈ¼ì²é" + msg.dmg.msg.indexOf("ÈÈ") +
-					// "¹ı¸ß¼ì²é" + msg.dmg.msg.indexOf("ÎÂ"));
-					if (msg.dmg.msg.indexOf(language.oSkeyWord1) != -1
-							|| msg.dmg.msg.indexOf(language.oSkeyWord2) != -1) {
+					// System.out.println("è¿‡çƒ­æ£€æŸ¥" + msg.dmg.msg.indexOf("çƒ­") +
+					// "è¿‡é«˜æ£€æŸ¥" + msg.dmg.msg.indexOf("æ¸©"));
+					if (msg.dmg.msg.indexOf(lang.oSkeyWord1) != -1
+							|| msg.dmg.msg.indexOf(lang.oSkeyWord2) != -1) {
 						isOverheat = true;
-						// System.out.println("¼ì²âµ½¹ıÈÈ±êÖ¾" + isOverheat);
+						// System.out.println("æ£€æµ‹åˆ°è¿‡çƒ­æ ‡å¿—" + isOverheat);
 					}
 				} else {
 
 					isOverheat = false;
-					// System.out.println("¼ì²âµ½²»¹ıÈÈ±êÖ¾" + isOverheat);
+					// System.out.println("æ£€æµ‹åˆ°ä¸è¿‡çƒ­æ ‡å¿—" + isOverheat);
 				}
 			}
-			// ´¦ÀíµØÍ¼Êı¾İ
+			// å¤„ç†åœ°å›¾æ•°æ®
 
 			calculate();
 			pX = mapo.slc.x;
 			pY = mapo.slc.y;
 
-			// »ñµÃHUDMSGÏûÏ¢²¢Í¨ÖªÍæ¼Ò¹ıÈÈ
+			// è·å¾—HUDMSGæ¶ˆæ¯å¹¶é€šçŸ¥ç©å®¶è¿‡çƒ­
 			judgeOverheat();
-			// System.out.println("otherServiceÖ´ĞĞÁË");
+			// System.out.println("otherServiceæ‰§è¡Œäº†");
 		}
 
 	}

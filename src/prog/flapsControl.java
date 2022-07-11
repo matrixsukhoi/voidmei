@@ -26,7 +26,7 @@ public class flapsControl implements Runnable {
 		flaps = 0;
 		objflaps = 30;
 
-		// System.out.println("³õÊ¼»¯Íê±Ï");
+		// System.out.println("åˆå§‹åŒ–å®Œæ¯•");
 	}
 
 	public void updateflaps() {
@@ -102,20 +102,20 @@ public class flapsControl implements Runnable {
 			}
 			updateflaps();
 			// System.out.println(flaps);
-			// ×Ô¶¯½óÒí
+			// è‡ªåŠ¨è¥Ÿç¿¼
 			/*
 			 * if (flaps > 0) { //System.out.println(spd+" "+objflaps); if
-			 * (flaps > objflaps&&isDown) { //System.out.println("½óÒíÊÕ»Ø");
+			 * (flaps > objflaps&&isDown) { //System.out.println("è¥Ÿç¿¼æ”¶å›ž");
 			 * A.keyPress(KeyEvent.VK_CAPS_LOCK); try { Thread.sleep(20); }
 			 * catch (InterruptedException e) { // TODO Auto-generated catch
 			 * block e.printStackTrace(); } A.keyRelease(KeyEvent.VK_CAPS_LOCK);
 			 * isDown = false; } if (flaps < objflaps&&! isDown ) {
-			 * //System.out.println("½óÒí·ÅÏÂ"); A.keyPress(KeyEvent.VK_TAB); try {
+			 * //System.out.println("è¥Ÿç¿¼æ”¾ä¸‹"); A.keyPress(KeyEvent.VK_TAB); try {
 			 * Thread.sleep(20); } catch (InterruptedException e) { // TODO
 			 * Auto-generated catch block e.printStackTrace(); }
 			 * A.keyRelease(KeyEvent.VK_TAB); isDown = true; } }
 			 */
-			// ½óÒí±£»¤
+			// è¥Ÿç¿¼ä¿æŠ¤
 			protectFlaps();
 		}
 

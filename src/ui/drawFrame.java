@@ -20,7 +20,7 @@ import parser.blkxparser;
 import parser.flightAnalyzer;
 import prog.app;
 import prog.controller;
-import prog.language;
+import prog.lang;
 
 public class drawFrame extends WebFrame implements Runnable {
 	/**
@@ -39,6 +39,7 @@ public class drawFrame extends WebFrame implements Runnable {
 	blkxparser blkx;
 	double fY[];
 	double fX[];
+
 	public WebButton createButton(String text) {
 		WebButton a = new WebButton(text);
 		a.setShadeWidth(1);
@@ -57,8 +58,8 @@ public class drawFrame extends WebFrame implements Runnable {
 	}
 
 	public WebButtonGroup createbuttonGroup() {
-		WebButton A = createButton(language.dFprev);
-		WebButton B = createButton(language.dFnext);
+		WebButton A = createButton(lang.dFprev);
+		WebButton B = createButton(lang.dFnext);
 
 		WebButtonGroup G = new WebButtonGroup(true, A, B);
 		// G.setBorderColor(new Color(0, 0, 0, 0));
@@ -93,22 +94,42 @@ public class drawFrame extends WebFrame implements Runnable {
 		return G;
 	}
 
-	double findMin(double X[]){
+	int findMin(int X[]) {
 		int i;
-		double min=Double.MAX_VALUE;
-		for(i=0;i<X.length;i++){
-			if(X[i]<min)
-				min=X[i];
+		int min = Integer.MAX_VALUE;
+		for (i = 0; i < X.length; i++) {
+			if (X[i] < min)
+				min = X[i];
 		}
 		return min;
 	}
 
-	double findMax(double X[]){
+	int findMax(int X[]) {
 		int i;
-		double max=Double.MIN_VALUE;
-		for(i=0;i<X.length;i++){
-			if(X[i]>max)
-				max=X[i];
+		int max = Integer.MIN_VALUE;
+		for (i = 0; i < X.length; i++) {
+			if (X[i] > max)
+				max = X[i];
+		}
+		return max;
+	}
+
+	double findMin(double X[]) {
+		int i;
+		double min = Double.MAX_VALUE;
+		for (i = 0; i < X.length; i++) {
+			if (X[i] < min)
+				min = X[i];
+		}
+		return min;
+	}
+
+	double findMax(double X[]) {
+		int i;
+		double max = Double.MIN_VALUE;
+		for (i = 0; i < X.length; i++) {
+			if (X[i] > max)
+				max = X[i];
 		}
 		return max;
 	}
@@ -159,37 +180,45 @@ public class drawFrame extends WebFrame implements Runnable {
 	}
 
 	void setFrameOpaque() {
-		this.getWebRootPaneUI().setMiddleBg(new Color(255, 255, 255, 255));// ÖĞ²¿Í¸Ã÷
-		this.getWebRootPaneUI().setTopBg(new Color(255, 255, 255, 255));// ¶¥²¿Í¸Ã÷
-		this.getWebRootPaneUI().setBorderColor(new Color(255, 255, 255, 255));// ÄÚÃè±ßÍ¸Ã÷
-		this.getWebRootPaneUI().setInnerBorderColor(new Color(255, 255, 255, 255));// ÍâÃè±ßÍ¸Ã÷
+		this.getWebRootPaneUI().setMiddleBg(new Color(255, 255, 255, 255));// ä¸­éƒ¨é€æ˜
+		this.getWebRootPaneUI().setTopBg(new Color(255, 255, 255, 255));// é¡¶éƒ¨é€æ˜
+		this.getWebRootPaneUI().setBorderColor(new Color(255, 255, 255, 255));// å†…æè¾¹é€æ˜
+		this.getWebRootPaneUI().setInnerBorderColor(new Color(255, 255, 255, 255));// å¤–æè¾¹é€æ˜
 	}
 
-	void getdata(String planename){
+	void getdata(String planename) {
 		String fmfile;
 		String unitSystem;
 		int i;
-		//¶ÁÈëfm
-		blkx=new blkxparser("./data/aces/gamedata/flightmodels/"+planename+".blkx");
-		fmfile=blkx.getlastone("fmfile");
-		fmfile=fmfile.substring(1, fmfile.length()-1);
-		if(fmfile.indexOf("blk")==-1)fmfile=fmfile+".blk";
-		for( i=0;i<fmfile.length();i++){
-			if(fmfile.charAt(i)=='/')break;
+		// è¯»å…¥fm
+		blkx = new blkxparser("./data/aces/gamedata/flightmodels/" + planename + ".blkx", planename + ".blk");
+		if (blkx.valid) {
+			fmfile = blkx.getlastone("fmfile");
+			fmfile = fmfile.substring(1, fmfile.length() - 1);
+			if (fmfile.indexOf("blk") == -1)
+				fmfile = fmfile + ".blk";
+			for (i = 0; i < fmfile.length(); i++) {
+				if (fmfile.charAt(i) == '/')
+					break;
+			}
+			if (i + 1 >= fmfile.length()) {
+				fmfile = planename + ".blk";
+			} else
+				fmfile = fmfile.substring(i + 1);
+			// System.out.println(fmfile);
+
+			// è¯»å…¥fmfile
+			blkx = new blkxparser("./data/aces/gamedata/flightmodels/fm/" + fmfile + "x", planename + ".blk");
+			// System.out.println(blkx.data);
+			if (blkx.valid)
+				blkx.getAllplotdata();
 		}
-		fmfile=fmfile.substring(i+1);
-		//System.out.println(fmfile);
-		
-		//¶ÁÈëfmfile
-		blkx=new blkxparser("./data/aces/gamedata/flightmodels/fm/"+fmfile+"x");
-		//System.out.println(blkx.data);
-		blkx.getAllplotdata();
-		
 
 	}
-	void drawXY(Graphics2D g, int x, int y, int dwidth, int dheight, String title, String xName, String yName,String xD,String yD,
-		double xmin, double xmax, double ymin, double ymax, int xgap, int ygap) {
-		// È·¶¨»­±Ê
+
+	void drawXY(Graphics2D g, int x, int y, int dwidth, int dheight, String title, String xName, String yName,
+			String xD, String yD, double xmin, double xmax, double ymin, double ymax, int xgap, int ygap) {
+		// ç¡®å®šç”»ç¬”
 		g.setStroke(new BasicStroke(3));
 		g.setColor(new Color(0, 0, 0, 250));
 		int pxmin = (int) xmin;
@@ -200,87 +229,86 @@ public class drawFrame extends WebFrame implements Runnable {
 		int intervalY = ygap;
 		double ggx = 0;
 		double ggy = 0;
-		if(intervalX==0)intervalX=1;
-		if(intervalY==0)intervalY=1;
+		if (intervalX == 0)
+			intervalX = 1;
+		if (intervalY == 0)
+			intervalY = 1;
 		if (pxmax - pxmin != 0) {
-			ggx = (double)dwidth / (double) (pxmax - pxmin);
+			ggx = (double) dwidth / (double) (pxmax - pxmin);
 		}
 		if (pymax - pymin != 0) {
-			ggy =  (double)dheight/ (double)(pymax-pymin);
+			ggy = (double) dheight / (double) (pymax - pymin);
 		}
-		
-		// ±êÌâ
+
+		// æ ‡é¢˜
 		g.setFont(new Font(app.DefaultFontName, Font.PLAIN, 16));
 		g.drawString(title, x + dwidth / 2, y);
-		y = y + 10;// ÍùÏÂÍÆ10
+		y = y + 10;// å¾€ä¸‹æ¨10
 		g.setFont(new Font(app.DefaultFontName, Font.PLAIN, 10));
-		
-		// xÖáÓë¼ıÍ·
+
+		// xè½´ä¸ç®­å¤´
 		g.drawLine(x, y + dheight, x + dwidth, y + dheight);
 
 		int ii = (int) ((pxmax - pxmin) / intervalX);
 		for (; ii >= 0; ii--) {
-			// ×ø±êÖá¿Ì¶È
+			// åæ ‡è½´åˆ»åº¦
 			g.setStroke(new BasicStroke(1));
-			g.drawLine((int) (  x + ii * intervalX * ggx), y + dheight, (int) ( x + ii * intervalX * ggx),
-					y);
-			g.drawString(String.valueOf(pxmin + ii * intervalX), (int) ( x + ii * intervalX * ggx),
-					y + dheight + 15);
+			g.drawLine((int) (x + ii * intervalX * ggx), y + dheight, (int) (x + ii * intervalX * ggx), y);
+			g.drawString(String.valueOf(pxmin + ii * intervalX), (int) (x + ii * intervalX * ggx), y + dheight + 15);
 		}
-		// xÖáµ¥Î»
+		// xè½´å•ä½
 		g.setFont(new Font(app.DefaultFontName, Font.PLAIN, 14));
 		g.drawString(xD, x + dwidth + 5, y + dheight);
 		g.setFont(new Font(app.DefaultFontName, Font.PLAIN, 10));
 
 		g.setStroke(new BasicStroke(3));
-		// yÖáÓë¼ıÍ·
+		// yè½´ä¸ç®­å¤´
 		g.drawLine(x, y + dheight, x, y);
-		// yÖá¿Ì¶È
-		ii = (int) ((pymax-pymin)/ intervalY);
+		// yè½´åˆ»åº¦
+		ii = (int) ((pymax - pymin) / intervalY);
 		for (; ii >= 0; ii--) {
 			g.setStroke(new BasicStroke(1));
 			g.drawLine(x, (int) (y + dheight - ii * intervalY * ggy), x + dwidth,
 					(int) (y + dheight - ii * intervalY * ggy));
 
-			g.drawString(String.valueOf(pymin+ii * intervalY), x - 30, (int) (y + dheight - ii * intervalY * ggy));
+			g.drawString(String.valueOf(pymin + ii * intervalY), x - 30, (int) (y + dheight - ii * intervalY * ggy));
 		}
-		// yÖáµ¥Î»
+		// yè½´å•ä½
 		g.setFont(new Font(app.DefaultFontName, Font.PLAIN, 14));
 		g.drawString(yD, x - 5, y - 10);
-		
+
 	}
 
-
-	
-	void drawPoint(Graphics2D g,int x,int y,int dwidth,int dheight,double ggx,double ggy,double ix[], double iy[],int pxmin,int pymin,Color C) {
+	void drawPoint(Graphics2D g, int x, int y, int dwidth, int dheight, double ggx, double ggy, double ix[],
+			double iy[], int pxmin, int pymin, Color C) {
 		g.setStroke(new BasicStroke(1));
 		g.setColor(C);
-		y = y + 10;// ÍùÏÂÍÆ10
-		// »æµã
-		int ii=0;
+		y = y + 10;// å¾€ä¸‹æ¨10
+		// ç»˜ç‚¹
+		int ii = 0;
 		for (ii = 0; ii < ix.length; ii++) {
-			//System.out.println((y + dheight) +" "+(y + dheight -(iy[ii]-pymin) * ggy));	
-			g.drawOval((int) ( x + (ix[ii] -pxmin ) * ggx) - 1, (int) (y + dheight -(iy[ii]-pymin) * ggy) - 1, 2, 2);
+			// System.out.println((y + dheight) +" "+(y + dheight
+			// -(iy[ii]-pymin) * ggy));
+			g.drawOval((int) (x + (ix[ii] - pxmin) * ggx) - 1, (int) (y + dheight - (iy[ii] - pymin) * ggy) - 1, 2, 2);
 		}
-	
-		// Á¬Ïß
+
+		// è¿çº¿
 		g.setStroke(new BasicStroke(1));
-	
-		for (ii = 0; ii <ix.length-1 ; ii++) {
-			g.drawLine((int) ( x + (ix[ii] - pxmin) * ggx), (int) (y + dheight - (iy[ii]-pymin)  * ggy),
-					(int) ( x+ (ix[ii + 1] - pxmin) * ggx), (int) (y + dheight - (iy[ii + 1]-pymin) * ggy));
+
+		for (ii = 0; ii < ix.length - 1; ii++) {
+			g.drawLine((int) (x + (ix[ii] - pxmin) * ggx), (int) (y + dheight - (iy[ii] - pymin) * ggy),
+					(int) (x + (ix[ii + 1] - pxmin) * ggx), (int) (y + dheight - (iy[ii + 1] - pymin) * ggy));
 		}
-		
-		
+
 	}
-	
-	void drawExample(Graphics2D g,int x,int y,int dheight,Color C,String name){
+
+	void drawExample(Graphics2D g, int x, int y, int dheight, Color C, String name) {
 		g.setStroke(new BasicStroke(1));
 		g.setColor(C);
-		g.drawLine(x, y+dheight+40, x+20, y+dheight+40);
-		g.setColor(new Color(0,0,0,250));
+		g.drawLine(x, y + dheight + 40, x + 20, y + dheight + 40);
+		g.setColor(new Color(0, 0, 0, 250));
 		g.setFont(new Font(app.DefaultFontName, Font.PLAIN, 10));
-		g.drawString(name, x+25, y+dheight+45);
+		g.drawString(name, x + 25, y + dheight + 45);
 	}
 
 	void drawCoordinates(Graphics2D g, int x, int y, int dwidth, int dheight, String title, String xName, String yName,
@@ -292,47 +320,47 @@ public class drawFrame extends WebFrame implements Runnable {
 		int pmax = (int) searchMax(X) + 1;
 		double ggx = 0;
 		double ggy = 0;
-		int intervalX = Math.round(((pmax - pmin) / 10) / 10.0f) * 10;// XÖá¼ä¾à
-		int intervalY = Math.round((fA.curaltStage - fA.initaltStage) * 100 / 800.0f) * 100;// YÖá¸ß¶È¼ä¾à
+		int intervalX = Math.round(((pmax - pmin) / 10) / 10.0f) * 10;// Xè½´é—´è·
+		int intervalY = Math.round((fA.curaltStage - fA.initaltStage) * 100 / 800.0f) * 100;// Yè½´é«˜åº¦é—´è·
 		if (pmax - pmin != 0) {
 			ggx = (dwidth - movex) / (double) (pmax - pmin);
 		}
 		ggy = (double) (dheight) / (fA.curaltStage * 100);
 
-		// ±êÌâ
+		// æ ‡é¢˜
 		g.setFont(new Font(app.DefaultFontName, Font.PLAIN, 16));
 		g.drawString(title, x + dwidth / 2, y);
-		y = y + 10;// ÍùÏÂÍÆ10
+		y = y + 10;// å¾€ä¸‹æ¨10
 		g.setFont(new Font(app.DefaultFontName, Font.PLAIN, 10));
-		// xÖáÓë¼ıÍ·
+		// xè½´ä¸ç®­å¤´
 		g.drawLine(x, y + dheight, x + dwidth, y + dheight);
 
-		// xÖá¿Ì¶È
+		// xè½´åˆ»åº¦
 		if (intervalX == 0)
 			intervalX = 1;
 		int ii = (int) ((pmax - pmin) / intervalX);
 		for (; ii >= 0; ii--) {
-			// ×ø±êÖá¿Ì¶È
+			// åæ ‡è½´åˆ»åº¦
 			g.setStroke(new BasicStroke(1));
 			g.drawLine((int) (movex + x + ii * intervalX * ggx), y + dheight, (int) (movex + x + ii * intervalX * ggx),
 					y);
-			// System.out.println("X×ø±ê"+(pmin + ii * intervalX)+"Î»ÖÃ"+(int)
+			// System.out.println("Xåæ ‡"+(pmin + ii * intervalX)+"ä½ç½®"+(int)
 			// (movex + x + ii * intervalX * ggx));
 			g.drawString(String.valueOf(pmin + ii * intervalX), (int) (movex + x + ii * intervalX * ggx),
 					y + dheight + 15);
 		}
-		// xÖáµ¥Î»
+		// xè½´å•ä½
 		g.setFont(new Font(app.DefaultFontName, Font.PLAIN, 14));
 		g.drawString(xD, x + dwidth + 5, y + dheight);
 		g.setFont(new Font(app.DefaultFontName, Font.PLAIN, 10));
 
 		g.setStroke(new BasicStroke(3));
 
-		// yÖáÓë¼ıÍ·
+		// yè½´ä¸ç®­å¤´
 		g.drawLine(x, y + dheight, x, y);
 		// g.drawLine(x - 5, y + 5, x, y);
 		// g.drawLine(x + 5, y + 5, x, y);
-		// yÖá¿Ì¶È
+		// yè½´åˆ»åº¦
 		if (intervalY == 0)
 			intervalY = 100;
 		ii = (int) (fA.curaltStage * 100 / intervalY);
@@ -343,16 +371,16 @@ public class drawFrame extends WebFrame implements Runnable {
 
 			g.drawString(String.valueOf(ii * intervalY), x - 30, (int) (y + dheight - ii * intervalY * ggy));
 		}
-		// yÖáµ¥Î»
+		// yè½´å•ä½
 		g.setFont(new Font(app.DefaultFontName, Font.PLAIN, 14));
 		g.drawString(yD, x - 5, y - 10);
 
-		// »æµã
+		// ç»˜ç‚¹
 		for (ii = fA.initaltStage; ii <= fA.curaltStage - 1; ii++) {
 			g.drawOval((int) (movex + x + (X[ii] - pmin) * ggx) - 1, (int) (y + dheight - (ii) * 100 * ggy) - 1, 2, 2);
 		}
 
-		// Á¬Ïß
+		// è¿çº¿
 		g.setStroke(new BasicStroke(1));
 		for (ii = fA.initaltStage; ii < fA.curaltStage - 1; ii++) {
 			if (Math.abs(X[ii] - X[ii + 1]) > 100) {
@@ -373,52 +401,52 @@ public class drawFrame extends WebFrame implements Runnable {
 		int pmax = searchMax(X);
 		double ggx = 0;
 		double ggy = 0;
-		int intervalX = Math.round(((pmax - pmin) / 10) / 10.0f) * 10;// XÖá¼ä¾à
-		int intervalY = Math.round((fA.curaltStage - fA.initaltStage) * 100 / 800.0f) * 100;// YÖá¸ß¶È¼ä¾à
+		int intervalX = Math.round(((pmax - pmin) / 10) / 10.0f) * 10;// Xè½´é—´è·
+		int intervalY = Math.round((fA.curaltStage - fA.initaltStage) * 100 / 800.0f) * 100;// Yè½´é«˜åº¦é—´è·
 		if (pmax - pmin != 0) {
 			ggx = (dwidth - movex) / (double) (pmax - pmin);
 		}
 		ggy = (double) (dheight) / (fA.curaltStage * 100);
 
-		// ±êÌâ
+		// æ ‡é¢˜
 		g.setFont(new Font(app.DefaultFontName, Font.PLAIN, 16));
 		g.drawString(title, x + dwidth / 2, y);
-		y = y + 10;// ÍùÏÂÍÆ10
+		y = y + 10;// å¾€ä¸‹æ¨10
 
 		g.setFont(new Font(app.DefaultFontName, Font.PLAIN, 10));
-		// xÖáÓë¼ıÍ·
+		// xè½´ä¸ç®­å¤´
 		g.drawLine(x, y + dheight, x + dwidth, y + dheight);
 		// g.drawLine(x + dwidth, y + dheight, x + dwidth - 5, y + dheight -
-		// 5);¼ıÍ·
+		// 5);ç®­å¤´
 		// g.drawLine(x + dwidth - 5, y + dheight + 5, x + dwidth, y +
-		// dheight);¼ıÍ·
+		// dheight);ç®­å¤´
 
-		// xÖá¿Ì¶È
+		// xè½´åˆ»åº¦
 		if (intervalX == 0)
 			intervalX = 1;
 		int ii = (int) ((pmax - pmin) / intervalX);
 		for (; ii >= 0; ii--) {
-			// ×ø±êÖá¿Ì¶È
+			// åæ ‡è½´åˆ»åº¦
 			g.setStroke(new BasicStroke(1));
 			g.drawLine((int) (movex + x + ii * intervalX * ggx), y + dheight, (int) (movex + x + ii * intervalX * ggx),
 					y);
-			// System.out.println("X×ø±ê"+(pmin + ii * intervalX)+"Î»ÖÃ"+(int)
+			// System.out.println("Xåæ ‡"+(pmin + ii * intervalX)+"ä½ç½®"+(int)
 			// (movex + x + ii * intervalX * ggx));
 			g.drawString(String.valueOf(pmin + ii * intervalX), (int) (movex + x + ii * intervalX * ggx),
 					y + dheight + 15);
 		}
-		// xÖáµ¥Î»
+		// xè½´å•ä½
 		g.setFont(new Font(app.DefaultFontName, Font.PLAIN, 14));
 		g.drawString(xD, x + dwidth + 5, y + dheight);
 		g.setFont(new Font(app.DefaultFontName, Font.PLAIN, 10));
 
 		g.setStroke(new BasicStroke(3));
 
-		// yÖáÓë¼ıÍ·
+		// yè½´ä¸ç®­å¤´
 		g.drawLine(x, y + dheight, x, y);
 		// g.drawLine(x - 5, y + 5, x, y);
 		// g.drawLine(x + 5, y + 5, x, y);
-		// yÖá¿Ì¶È
+		// yè½´åˆ»åº¦
 		if (intervalY == 0)
 			intervalY = 100;
 		ii = (int) (fA.curaltStage * 100 / intervalY);
@@ -429,18 +457,18 @@ public class drawFrame extends WebFrame implements Runnable {
 
 			g.drawString(String.valueOf(ii * intervalY), x - 30, (int) (y + dheight - ii * intervalY * ggy));
 		}
-		// yÖáµ¥Î»
-		
+		// yè½´å•ä½
+
 		g.setFont(new Font(app.DefaultFontName, Font.PLAIN, 14));
 		g.drawString(yD, x - 5, y - 10);
 
-		// »æµã
+		// ç»˜ç‚¹
 		for (ii = fA.initaltStage; ii <= fA.curaltStage - 1; ii++) {
-			
+
 			g.drawOval((int) (movex + x + (X[ii] - pmin) * ggx) - 1, (int) (y + dheight - (ii) * 100 * ggy) - 1, 2, 2);
 		}
 
-		// Á¬Ïß
+		// è¿çº¿
 		g.setStroke(new BasicStroke(1));
 		for (ii = fA.initaltStage; ii < fA.curaltStage - 1; ii++) {
 			if (Math.abs(X[ii] - X[ii + 1]) > 100) {
@@ -453,7 +481,7 @@ public class drawFrame extends WebFrame implements Runnable {
 	}
 
 	public void init(controller c, flightAnalyzer A) {
-		// ÌØÊâ´¦Àí
+		// ç‰¹æ®Šå¤„ç†
 		xc = c;
 		fA = A;
 
@@ -466,16 +494,16 @@ public class drawFrame extends WebFrame implements Runnable {
 				- fA.eff[fA.initaltStage + 2];
 		fA.sep[fA.initaltStage] = fA.sep[fA.initaltStage + 1] + fA.sep[fA.initaltStage + 1]
 				- fA.sep[fA.initaltStage + 2];
-		
-		fY=new double[fA.curaltStage-fA.initaltStage];
-		int xk=fA.initaltStage;
-		for(int i=0;i<fY.length;i++){
-			fY[i]=xk*100;
+
+		fY = new double[fA.curaltStage - fA.initaltStage];
+		int xk = fA.initaltStage;
+		for (int i = 0; i < fY.length; i++) {
+			fY[i] = xk * 100;
 			xk++;
 		}
-	
+
 		getdata(fA.type);
-		
+
 		setFrameOpaque();
 
 		this.setBounds(0, 0, 1200, 830);
@@ -486,48 +514,123 @@ public class drawFrame extends WebFrame implements Runnable {
 
 			public void paintComponent(Graphics g) {
 				Graphics2D g2d = (Graphics2D) g;
-				// ¿ªÊ¼»æÍ¼
+				// å¼€å§‹ç»˜å›¾
 				// g2d.draw
 
 				g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 				g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
-				// »æÖÆ×ø±êÏµ
+				// ç»˜åˆ¶åæ ‡ç³»
 				if (pixIndex == 0)
-					drawCoordinates(g2d, 50, 50, 1024, 576, language.dFTitle1, language.dFTitle1X, language.dFTitle1Y,
+					drawCoordinates(g2d, 50, 50, 1024, 576, lang.dFTitle1, lang.dFTitle1X, lang.dFTitle1Y,
 							fA.time, "s", "m");
-				// »æÖÆ¿Ì¶È
+				// ç»˜åˆ¶åˆ»åº¦
 				if (pixIndex == 1) {
 					if (fA.engineType == 0) {
-						drawCoordinates(g2d, 50, 50, 1024, 576, language.dFTitle2, language.dFTitle2X,
-								language.dFTitle2Y, fA.power, "bhp", "m");
+						drawCoordinates(g2d, 50, 50, 1024, 576, lang.dFTitle2, lang.dFTitle2X,
+								lang.dFTitle2Y, fA.power, "bhp", "m");
 					} else {
-						drawCoordinates(g2d, 50, 50, 1024, 576, language.dFTitle3, language.dFTitle3X,
-								language.dFTitle3Y, fA.thrust, "kg", "m");
+						drawCoordinates(g2d, 50, 50, 1024, 576, lang.dFTitle3, lang.dFTitle3X,
+								lang.dFTitle3Y, fA.thrust, "kg", "m");
 					}
 				}
 				if (pixIndex == 2)
-					drawCoordinates(g2d, 50, 50, 1024, 576, language.dFTitle4, language.dFTitle4X, language.dFTitle4Y,
+					drawCoordinates(g2d, 50, 50, 1024, 576, lang.dFTitle4, lang.dFTitle4X, lang.dFTitle4Y,
 							fA.eff, "bhp", "m");
 				if (pixIndex == 3)
-					drawCoordinates(g2d, 50, 50, 1024, 576, language.dFTitle5, language.dFTitle5X, language.dFTitle5Y,
+					drawCoordinates(g2d, 50, 50, 1024, 576, lang.dFTitle5, lang.dFTitle5X, lang.dFTitle5Y,
 							fA.sep, "m/s", "m");
-				if(pixIndex==5){
-					int xk=fA.initaltStage;
-					fX=new double[fA.curaltStage-fA.initaltStage];
-					for(int i=0;i<fX.length;i++){
-						fX[i]=fA.time[xk];
-						//System.out.println(fX[i]);
-						xk++;
+				if (pixIndex == 5) {
+					int num = fA.getNoZerosNum(fA.turn_load);
+
+					double[] iasx = new double[num];
+					double[] gy = new double[num];
+					double[] gseploss = new double[num];
+					fA.removeLoadZeroes(iasx, gy, gseploss);
+
+					double xmin = findMin(iasx);
+					double xmax = findMax(iasx);
+					// System.out.println(xmin+" "+xmax);
+					double ymin = findMin(gy);
+					double ymax = findMax(gy);
+					int dwidth = 1024;
+					int dheight = 576;
+					int xgap = Math.round((((int) xmax + 1 - (int) xmin) / 10) / 10.0f) * 10;
+					int ygap = 1;
+					int pxmin = (int) xmin;
+					int pxmax = (int) xmax + xgap;
+					int pymin = (int) (ymin / 1.0f) * 1;
+					int pymax = (int) (ymax / 1.0f) * 1 + ygap;
+					double ggx4 = 0;
+					double ggy4 = 0;
+					if (pxmax - pxmin != 0) {
+						ggx4 = (double) dwidth / (double) (pxmax - pxmin);
 					}
-					double xmin=0;
-					double xmax=findMax(blkx.loc.x)>findMax(fA.time)?findMax(blkx.loc.x):findMax(fA.time);
-					double ymin=0;
-					double ymax=findMax(blkx.loc.y)>findMax(fY)?findMax(blkx.loc.y):findMax(fY);
-					int dwidth=1024;
-					int dheight=576;
-					int xgap=Math.round((((int)xmax+1 - (int)xmin) / 10) / 10.0f) * 10;
-					int ygap=1000;
+					if (pymax - pymin != 0) {
+						ggy4 = (double) dheight / (double) (pymax - pymin);
+					}
+
+					drawXY(g2d, 50, 50, dwidth, dheight, "ç¤ºç©ºé€Ÿ-æ³•å‘è¿‡è½½æ›²çº¿", "ç¤ºç©ºé€Ÿ", "æ³•å‘è¿‡è½½", "km/h", "G", xmin, xmax, ymin,
+							ymax, xgap, ygap);
+					drawPoint(g2d, 50, 50, dwidth, dheight, ggx4, ggy4, iasx, gy, pxmin, pymin,
+							new Color(0, 0, 0, 250));
+					drawExample(g2d, 50, 60, dheight, new Color(0, 0, 0, 250), "æ³•å‘è¿‡è½½");
+
+					// int xk = fA.initaltStage;
+					// fX = new double[fA.curaltStage - fA.initaltStage];
+					// for (int i = 0; i < fX.length; i++) {
+					// fX[i] = fA.time[xk];
+					// // System.out.println(fX[i]);
+					// xk++;
+					// }
+					// double xmin = 0;
+					// double xmax = findMax(blkx.loc.x) > findMax(fA.time) ?
+					// findMax(blkx.loc.x) : findMax(fA.time);
+					// double ymin = 0;
+					// double ymax = findMax(blkx.loc.y) > findMax(fY) ?
+					// findMax(blkx.loc.y) : findMax(fY);
+					// int dwidth = 1024;
+					// int dheight = 576;
+					// int xgap = Math.round((((int) xmax + 1 - (int) xmin) /
+					// 10) / 10.0f) * 10;
+					// int ygap = 1000;
+					// int pxmin = (int) xmin;
+					// int pxmax = (int) xmax + xgap;
+					// int pymin = (int) ymin;
+					// int pymax = (int) ymax + ygap;
+					// double ggx4 = 0;
+					// double ggy4 = 0;
+					// if (pxmax - pxmin != 0) {
+					// ggx4 = (double) dwidth / (double) (pxmax - pxmin);
+					// }
+					// if (pymax - pymin != 0) {
+					// ggy4 = (double) dheight / (double) (pymax - pymin);
+					// }
+					//
+					// drawXY(g2d, 50, 50, dwidth, dheight, "çˆ¬å‡å¯¹æ¯”", "æ—¶é—´", "é«˜åº¦",
+					// "s", "m", xmin, xmax, ymin, ymax, xgap,
+					// ygap);
+					// drawPoint(g2d, 50, 50, dwidth, dheight, ggx4, ggy4,
+					// blkx.loc.x, blkx.loc.y, pxmin, pymin,
+					// Color.blue);
+					// drawExample(g2d, 50, 50, dheight, Color.blue, "FMæå–æ•°æ®");
+					// drawPoint(g2d, 50, 50, dwidth, dheight, ggx4, ggy4, fX,
+					// fY, pxmin, pymin, Color.red);
+					// drawExample(g2d, 50, 60, dheight, Color.red, "è¯•é£æ•°æ®");
+				}
+				if (pixIndex == 6) {
+					double xmin = findMin(blkx.loc2.x) < findMin(blkx.loc1.x) ? findMin(blkx.loc2.x)
+							: findMin(blkx.loc1.x);
+					double xmax = findMax(blkx.loc1.x) > findMax(blkx.loc1.x) ? findMax(blkx.loc1.x)
+							: findMax(blkx.loc1.x);
+					// System.out.println(xmin+" "+xmax);
+					double ymin = 0;
+					double ymax = findMax(blkx.loc1.y) > findMax(blkx.loc2.y) ? findMax(blkx.loc1.y)
+							: findMax(blkx.loc2.y);
+					int dwidth = 1024;
+					int dheight = 576;
+					int xgap = Math.round((((int) xmax + 1 - (int) xmin) / 10) / 10.0f) * 10;
+					int ygap = 1000;
 					int pxmin = (int) xmin;
 					int pxmax = (int) xmax + xgap;
 					int pymin = (int) ymin;
@@ -535,80 +638,63 @@ public class drawFrame extends WebFrame implements Runnable {
 					double ggx4 = 0;
 					double ggy4 = 0;
 					if (pxmax - pxmin != 0) {
-						ggx4 =(double) dwidth / (double) (pxmax - pxmin);
+						ggx4 = (double) dwidth / (double) (pxmax - pxmin);
 					}
 					if (pymax - pymin != 0) {
-						ggy4 =  (double)dheight/ (double)(pymax-pymin);
+						ggy4 = (double) dheight / (double) (pymax - pymin);
 					}
-					
 
-					drawXY(g2d,50,50,dwidth,dheight,"ÅÀÉı¶Ô±È","Ê±¼ä","¸ß¶È","s","m",xmin,xmax,ymin,ymax,xgap,ygap);
-					drawPoint(g2d,50,50,dwidth,dheight,ggx4,ggy4,blkx.loc.x,blkx.loc.y,pxmin,pymin,Color.blue);
-					drawExample(g2d,50,50,dheight,Color.blue,"FMÌáÈ¡Êı¾İ");
-					drawPoint(g2d,50,50,dwidth,dheight,ggx4,ggy4,fX,fY,pxmin,pymin,Color.red);
-					drawExample(g2d,50,60,dheight,Color.red,"ÊÔ·ÉÊı¾İ");
+					drawXY(g2d, 50, 50, dwidth, dheight, "é€Ÿåº¦-é«˜åº¦æ›²çº¿ï¼ˆFMæ–‡ä»¶éšè—é¢æ¿æ•°æ®ï¼‰", "é€Ÿåº¦", "é«˜åº¦", "km/h", "m", xmin, xmax,
+							ymin, ymax, xgap, ygap);
+					drawPoint(g2d, 50, 50, dwidth, dheight, ggx4, ggy4, blkx.loc1.x, blkx.loc1.y, pxmin, pymin,
+							Color.red);
+					drawExample(g2d, 50, 60, dheight, Color.red, "WEPé€Ÿåº¦");
+					drawPoint(g2d, 50, 50, dwidth, dheight, ggx4, ggy4, blkx.loc2.x, blkx.loc2.y, pxmin, pymin,
+							Color.blue);
+					drawExample(g2d, 50, 50, dheight, Color.blue, "100%æ²¹é—¨é€Ÿåº¦");
+
 				}
-				if(pixIndex==6){
-					double xmin=findMin(blkx.loc2.x)<findMin(blkx.loc1.x)?findMin(blkx.loc2.x):findMin(blkx.loc1.x);
-					double xmax=findMax(blkx.loc1.x)>findMax(blkx.loc1.x)?findMax(blkx.loc1.x):findMax(blkx.loc1.x);
-					//System.out.println(xmin+" "+xmax);
-					double ymin=0;
-					double ymax=findMax(blkx.loc1.y)>findMax(blkx.loc2.y)?findMax(blkx.loc1.y):findMax(blkx.loc2.y);
-					int dwidth=1024;
-					int dheight=576;
-					int xgap=Math.round((((int)xmax+1 - (int)xmin) / 10) / 10.0f) * 10;
-					int ygap=1000;
+				if (pixIndex == 7) {
+
+					int num = fA.getNoZerosNum(fA.roll_rate);
+
+					double[] iasx = new double[num];
+					double[] wx = new double[num];
+
+					fA.removeRollRatesZeroes(iasx, wx);
+
+					double xmin = findMin(iasx);
+					double xmax = findMax(iasx);
+					// System.out.println(xmin+" "+xmax);
+					double ymin = findMin(wx);
+					double ymax = findMax(wx);
+					int dwidth = 1024;
+					int dheight = 576;
+					int xgap = Math.round((((int) xmax + 1 - (int) xmin) / 10) / 10.0f) * 10;
+					int ygap = 5;
 					int pxmin = (int) xmin;
 					int pxmax = (int) xmax + xgap;
-					int pymin = (int) ymin;
-					int pymax = (int) ymax + ygap;
+					int pymin = (int) (ymin / 5) * 5;
+					int pymax = (int) (ymax / 5) * 5 + ygap;
 					double ggx4 = 0;
 					double ggy4 = 0;
 					if (pxmax - pxmin != 0) {
-						ggx4 =(double) dwidth / (double) (pxmax - pxmin);
+						ggx4 = (double) dwidth / (double) (pxmax - pxmin);
 					}
 					if (pymax - pymin != 0) {
-						ggy4 =  (double)dheight/ (double)(pymax-pymin);
+						ggy4 = (double) dheight / (double) (pymax - pymin);
 					}
 
-					drawXY(g2d,50,50,dwidth,dheight,"ËÙ¶È-¸ß¶ÈÇúÏß£¨FMÎÄ¼şÒş²ØÃæ°åÊı¾İ£©","ËÙ¶È","¸ß¶È","km/h","m",xmin,xmax,ymin,ymax,xgap,ygap);
-					drawPoint(g2d,50,50,dwidth,dheight,ggx4,ggy4,blkx.loc1.x,blkx.loc1.y,pxmin,pymin,Color.red);
-					drawExample(g2d,50,60,dheight,Color.red,"WEPËÙ¶È");
-					drawPoint(g2d,50,50,dwidth,dheight,ggx4,ggy4,blkx.loc2.x,blkx.loc2.y,pxmin,pymin,Color.blue);
-					drawExample(g2d,50,50,dheight,Color.blue,"100%ÓÍÃÅËÙ¶È");
-					
+					drawXY(g2d, 50, 50, dwidth, dheight, "ç¤ºé€Ÿåº¦-æ»šè½¬ç‡æ›²çº¿", "ç¤ºé€Ÿåº¦", "æ»šè½¬ç‡", "km/h", "Deg/s", xmin, xmax, ymin,
+							ymax, xgap, ygap);
+					drawPoint(g2d, 50, 50, dwidth, dheight, ggx4, ggy4, iasx, wx, pxmin, pymin,
+							new Color(0, 0, 0, 250));
+					drawExample(g2d, 50, 60, dheight, new Color(0, 0, 0, 250), "æ»šè½¬ç‡");
+
 				}
-				if(pixIndex==7){
-					double xmin=findMin(blkx.loc3.y);
-					double xmax=findMax(blkx.loc3.y);
-					//System.out.println(xmin+" "+xmax);
-					double ymin=findMin(blkx.loc3.x);
-					double ymax=findMax(blkx.loc3.x);
-					int dwidth=1024;
-					int dheight=576;
-					int xgap=Math.round((((int)xmax+1 - (int)xmin) / 10) / 10.0f) * 10;
-					int ygap=5;
-					int pxmin = (int) xmin;
-					int pxmax = (int) xmax + xgap;
-					int pymin = (int) (ymin/5)*5;
-					int pymax = (int) (ymax/5)*5 + ygap;
-					double ggx4 = 0;
-					double ggy4 = 0;
-					if (pxmax - pxmin != 0) {
-						ggx4 =(double) dwidth / (double) (pxmax - pxmin);
-					}
-					if (pymax - pymin != 0) {
-						ggy4 =  (double)dheight/ (double)(pymax-pymin);
-					}
+				// ç»˜åˆ¶ç‚¹
 
-					drawXY(g2d,50,50,dwidth,dheight,"ËÙ¶È-¹ö×ªÂÊÇúÏß£¨½âÎö×ÔFMÎÄ¼ş£©","ËÙ¶È","¹ö×ªÂÊ","km/h","Deg/s",xmin,xmax,ymin,ymax,xgap,ygap);
-					drawPoint(g2d,50,50,dwidth,dheight,ggx4,ggy4,blkx.loc3.y,blkx.loc3.x,pxmin,pymin,new Color(0,0,0,250));
-					drawExample(g2d,50,60,dheight,new Color(0,0,0,250),"¹ö×ªÂÊ");
-					
-				}
-				// »æÖÆµã
-
-				// Á¬½Óµã
+				// è¿æ¥ç‚¹
 			}
 
 		};
@@ -621,7 +707,7 @@ public class drawFrame extends WebFrame implements Runnable {
 		this.add(panel);
 		this.setShowMaximizeButton(false);
 		this.getWebRootPaneUI().getTitleComponent().getComponent(1)
-				.setFont(new Font(app.DefaultFont.getName(), Font.PLAIN, 14));// ÉèÖÃtitle×ÖÌå
+				.setFont(new Font(app.DefaultFont.getName(), Font.PLAIN, 14));// è®¾ç½®titleå­—ä½“
 		this.getWebRootPaneUI().getWindowButtons().setBorderColor(new Color(0, 0, 0, 0));
 		// this.getWebRootPaneUI().getWindowButtons().setButtonsDrawBottom(false);
 		this.getWebRootPaneUI().getWindowButtons().setButtonsDrawSides(false, false, false, false);
@@ -634,26 +720,29 @@ public class drawFrame extends WebFrame implements Runnable {
 		// setShowTitleComponent(false);
 		setShowResizeCorner(false);
 		setDefaultCloseOperation(2);
-		setTitle(fA.type + language.dFTitleHZ);
+		setTitle(fA.type + lang.dFTitleHZ);
 		setAlwaysOnTop(true);
 
 		// setFocusable(false);
-		// setFocusableWindowState(false);// È¡Ïû´°¿Ú½¹µã
+		// setFocusableWindowState(false);// å–æ¶ˆçª—å£ç„¦ç‚¹
 		setVisible(true);
-		
+
 	}
 
 	@Override
 	public void run() {
 		while (doit) {
+			// textArea.setText(xp.fmdata);
+			this.getContentPane().repaint();
 			try {
 				Thread.sleep(1000);
 			} catch (InterruptedException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-			// System.out.println("drawFrameÖ´ĞĞÁË");
-			repaint();
+			
 		}
+		this.dispose();
+		System.gc();
 	}
 }

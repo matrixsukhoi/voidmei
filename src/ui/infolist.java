@@ -56,14 +56,14 @@ public class infolist extends WebFrame implements Runnable {
 
 
 		
-		this.getWebRootPaneUI().setMiddleBg(new Color(0, 0, 0, 0));// ÖÐ²¿Í¸Ã÷
-		this.getWebRootPaneUI().setTopBg(new Color(0, 0, 0, 0));// ¶¥²¿Í¸Ã÷
-		this.getWebRootPaneUI().setBorderColor(new Color(0, 0, 0, 0));// ÄÚÃè±ßÍ¸Ã÷
-		this.getWebRootPaneUI().setInnerBorderColor(new Color(0, 0, 0, 0));// ÍâÃè±ßÍ¸Ã÷
+		this.getWebRootPaneUI().setMiddleBg(new Color(0, 0, 0, 0));// ä¸­éƒ¨é€æ˜Ž
+		this.getWebRootPaneUI().setTopBg(new Color(0, 0, 0, 0));// é¡¶éƒ¨é€æ˜Ž
+		this.getWebRootPaneUI().setBorderColor(new Color(0, 0, 0, 0));// å†…æè¾¹é€æ˜Ž
+		this.getWebRootPaneUI().setInnerBorderColor(new Color(0, 0, 0, 0));// å¤–æè¾¹é€æ˜Ž
 		
 		this.setUndecorated(true);
 
-		//²¼¾Ö
+		//å¸ƒå±€
 		panel.setLayout(new GridLayout(1,3));
 		panel.setMargin(20);
 		
@@ -72,7 +72,7 @@ public class infolist extends WebFrame implements Runnable {
         //groupLayout.setVGap ( 4 );
         //panel.setLayout ( groupLayout );
         
-		//±êÇ©
+		//æ ‡ç­¾
 		xm = new WebMultiLineLabel("");
 		xm.setDrawShade(true);
 		xm.setForeground(new Color(245, 248, 250, 240));
@@ -99,12 +99,12 @@ public class infolist extends WebFrame implements Runnable {
 	
 		
 		
-		//panelÍ¸Ã÷
+		//panelé€æ˜Ž
 		panel.setWebColoredBackground(false);
 		panel.setBackground(new Color(0, 0, 0, 0));
 		// panel.setOpaque(false);
 		
-		//Ìí¼Ó»æÖÆÎï¼þÖÁpanel
+		//æ·»åŠ ç»˜åˆ¶ç‰©ä»¶è‡³panel
 		panel.add(xm);
 		panel.add(data);
 		
@@ -113,7 +113,7 @@ public class infolist extends WebFrame implements Runnable {
 		
 		add(panel);
 		this.setOpacity((float) (OP / 100.0f));
-		//setFocusableWindowState(false);//È¡Ïû´°¿Ú½¹µã
+		//setFocusableWindowState(false);//å–æ¶ˆçª—å£ç„¦ç‚¹
 		setShowWindowButtons(false);
 		setShowTitleComponent(false);
 		setShowResizeCorner(true);
@@ -131,15 +131,15 @@ public class infolist extends WebFrame implements Runnable {
 		while (true) {
 			try {
 				
-				xm.setText("±í¡¡ËÙ\n" +"Õæ¿ÕËÙ\n");
+				xm.setText("è¡¨ã€€é€Ÿ\n" +"çœŸç©ºé€Ÿ\n");
 				data.setText(s.sState.IAS+"\n"+s.sState.TAS+"\n");
 				repaint();
 				Thread.sleep(50);
-				// this.status="infolist¾ÍÐ÷";
+				// this.status="infolistå°±ç»ª";
 				// System.out.println(this.status);
-				// »æÍ¼
+				// ç»˜å›¾
 
-				// this.status="infolistµÈ´ý";
+				// this.status="infolistç­‰å¾…";
 				// System.out.println(this.status);
 
 			} catch (Exception e) {

@@ -1,5 +1,8 @@
 package parser;
 
+import parser.hudMsg.damage;
+
+//http://127.0.0.1:8111/hudmsg?lastEvt=0&lastDmg=0
 public class hudMsg {
 	String s;
 	public damage dmg;
@@ -94,7 +97,7 @@ public class hudMsg {
 	}
 
 	public void init() {
-		//System.out.println("hudMSG³õÊ¼»¯ÁË");
+		//System.out.println("hudMSGåˆå§‹åŒ–äº†");
 		dmg = new damage();
 	}
 

@@ -105,18 +105,18 @@ public class situationAware extends WebFrame implements Runnable{
 		panel.setWebColoredBackground(false);
 		panel.setBackground(new Color(0, 0, 0, 0));
 		fontadd=2;
-		WebLabel a1=createNewWebLabel("µÐ»úÍþÐ²",14);
+		WebLabel a1=createNewWebLabel("æ•Œæœºå¨èƒ",14);
 		enemy=createNewWebLabel("0",14+fontadd);
-		WebLabel b1=createNewWebLabel("¼Ü",14-fontadd);
+		WebLabel b1=createNewWebLabel("æž¶",14-fontadd);
 		//enemy.setForeground(Color.RED);
 		panel.add(a1);
 		panel.add(enemy);
 		panel.add(b1);
 		
 		/*
-		WebLabel a2=createNewWebLabel("Ö§Ô®ÓÑ»ú",14);
+		WebLabel a2=createNewWebLabel("æ”¯æ´å‹æœº",14);
 		friend=createNewWebLabel("0",14+fontadd);
-		WebLabel b2=createNewWebLabel("¼Ü",14-2);
+		WebLabel b2=createNewWebLabel("æž¶",14-2);
 		//friend.setForeground(Color.BLUE);
 		panel.add(a2);
 		panel.add(friend);
@@ -127,7 +127,7 @@ public class situationAware extends WebFrame implements Runnable{
 		panel.add(new WebLabel(""));
 		panel.add(new WebLabel(""));
 		
-		WebLabel a3=createNewWebLabel("Ë®Æ½ËÙ¶È",14);
+		WebLabel a3=createNewWebLabel("æ°´å¹³é€Ÿåº¦",14);
 		enemySpeed=createNewWebLabel("0",14+fontadd);
 		WebLabel b3=createNewWebLabel("km/h",14-fontadd);
 		
@@ -135,7 +135,7 @@ public class situationAware extends WebFrame implements Runnable{
 		panel.add(enemySpeed);
 		panel.add(b3);
 		
-		WebLabel a4=createNewWebLabel("Ë®Æ½¾àÀë",14);
+		WebLabel a4=createNewWebLabel("æ°´å¹³è·ç¦»",14);
 		enemyDistance=createNewWebLabel("0",14+fontadd);
 		WebLabel b4=createNewWebLabel("m",14-fontadd);
 
@@ -163,10 +163,10 @@ public class situationAware extends WebFrame implements Runnable{
 		this.setBounds(lx, ly,WIDTH, HEIGHT);
 		panel = new WebPanel();
 		//panel.setSize(WIDTH, HEIGHT);
-		this.getWebRootPaneUI().setMiddleBg(new Color(0, 0, 0, 0));// ÖÐ²¿Í¸Ã÷
-		this.getWebRootPaneUI().setTopBg(new Color(0, 0, 0, 0));// ¶¥²¿Í¸Ã÷
-		this.getWebRootPaneUI().setBorderColor(new Color(0, 0, 0, 0));// ÄÚÃè±ßÍ¸Ã÷
-		this.getWebRootPaneUI().setInnerBorderColor(new Color(0, 0, 0, 0));// ÍâÃè±ßÍ¸Ã÷
+		this.getWebRootPaneUI().setMiddleBg(new Color(0, 0, 0, 0));// ä¸­éƒ¨é€æ˜Ž
+		this.getWebRootPaneUI().setTopBg(new Color(0, 0, 0, 0));// é¡¶éƒ¨é€æ˜Ž
+		this.getWebRootPaneUI().setBorderColor(new Color(0, 0, 0, 0));// å†…æè¾¹é€æ˜Ž
+		this.getWebRootPaneUI().setInnerBorderColor(new Color(0, 0, 0, 0));// å¤–æè¾¹é€æ˜Ž
 
 		//this.setUndecorated(true);
 		
@@ -180,10 +180,10 @@ public class situationAware extends WebFrame implements Runnable{
 		setShowTitleComponent(false);
 		setShowResizeCorner(false);
 		setDefaultCloseOperation(3);
-		setTitle("SAÐÅÏ¢Ìõ");
+		setTitle("SAä¿¡æ¯æ¡");
 		setAlwaysOnTop(true);
 		setFocusable(false);
-		setFocusableWindowState(false);// È¡Ïû´°¿Ú½¹µã
+		setFocusableWindowState(false);// å–æ¶ˆçª—å£ç„¦ç‚¹
 		setVisible(true);
 	}
 	public void run(){
@@ -194,7 +194,7 @@ public class situationAware extends WebFrame implements Runnable{
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-			//System.out.println("Ë¢ÐÂÁË");
+			//System.out.println("åˆ·æ–°äº†");
 			enemy.setText(Integer.toString(xs.enemycount));
 			if(xs.enemycount>0)enemy.setForeground(Color.RED);
 			else enemy.setForeground(new Color(245, 248, 250, 240));

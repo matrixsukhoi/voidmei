@@ -1,89 +1,72 @@
 package parser;
 public class indicators{
-	public volatile String valid;
-	public volatile String type;
-	public volatile boolean isdummyplane=false;
-	public volatile String stype;
-	public volatile boolean flag;
-	public volatile boolean fuelpressure;
-	public volatile float speed;
-	public volatile float pedals;
-	public volatile float stick_elevator;
-	public volatile float stick_ailerons;
-	public volatile float altitude_hour;
-	public volatile float altitude_min;
-	public volatile float altitude_10k;
-	public volatile float bank;
-	public volatile float turn;
-	public volatile float compass;
-	public volatile float clock_hour;
-	public volatile float clock_min;
-	public volatile float clock_sec;
-	public volatile float manifold_pressure;
-	public volatile float rpm;
-	public volatile float oil_pressure;
-	public volatile float water_temperature;
-	public volatile float engine_temperature;
-	public volatile float mixture;
-	public volatile float fuel[];
-	public volatile float fuel_pressure;
-	public volatile float oxygen;
-	public volatile float gears_lamp;
-	public volatile float flaps;
-	public volatile float trimmer;
-	public volatile float throttle;
-	public volatile float weapon1;
-	public volatile float weapon2;
-	public volatile float weapon3;
-	public volatile float prop_pitch_hour;
-	public volatile float prop_pitch_min;
-	public volatile float ammo_counter1;
-	public volatile float ammo_counter2;
-	public volatile float ammo_counter3;
-	public volatile int fuelnum;
-	public String getString(String R, String S) {
-		int bix;
-		int eix;
-		bix = R.indexOf(S);
-		if (bix >= 0) {
-			eix = bix;
-			while (R.charAt(eix) != ':') {
-				eix++;
-			}
-			eix++;
-			bix = eix + 1;
-			while (R.charAt(eix) != ',' && R.charAt(eix) != '}') {
-				eix++;
-				if (eix == R.length() + 1)
-					break;
-			}
-			return R.substring(bix, eix);
-		} else
-			return null;
-	}
-	public float getDatafloat(String sdata){
-		if(sdata!=null)return Float.parseFloat(sdata);
-		else return -65535;
-	}
+	public String valid;
+	public String type;
+	public boolean isdummyplane=false;
+	public String stype;
+	public boolean flag;
+//	public boolean fuelpressure;
+	public float speed;
+	public float pedals;
+	public float stick_elevator;
+	public float stick_ailerons;
+	public float altitude_hour;
+	public float altitude_min;
+	public float altitude_10k;
+	public float bank;
+	public float turn;
+	public float compass;
+	public float clock_hour;
+	public float clock_min;
+	public float clock_sec;
+	public float manifold_pressure;
+	public float rpm;
+	public float oil_pressure;
+	public float water_temperature;
+	public float engine_temperature;
+	public float mixture;
+	public float fuel[];
+	public float fuel_pressure;
+	public float oxygen;
+	public float gears_lamp;
+	public float flaps;
+	public float trimmer;
+	public float throttle;
+	public float weapon1;
+	public float weapon2;
+	public float weapon3;
+	public float prop_pitch_hour;
+	public float prop_pitch_min;
+	public float ammo_counter1;
+	public float ammo_counter2;
+	public float ammo_counter3;
+	public float oilTemp;
+	public float waterTemp;
+	public int fuelnum;
+	public float vario;
+	public float aviahorizon_pitch;
+	public float aviahorizon_roll;
+	public float wsweep_indicator;
+	public float radio_altitude;
+
 
 	public void init() {
-		//System.out.println("indicator³õÊ¼»¯ÁË");
+		//System.out.println("indicatoråˆå§‹åŒ–äº†");
 		valid = "false";
 		fuelnum=0;
 		fuel=new float[5];
-		fuelpressure=false;
+//		fuelpressure=false;
 	}
 	
 	public void update(String buf) {
-		valid = getString(buf, "valid");
-		flag=false;
+		valid = stringHelper.getString(buf, "valid");
 		if (valid.equals("true")){
 			flag=true;
-			type=getString(buf, "type").toUpperCase();
+			type=stringHelper.getString(buf, "type").toUpperCase();
 		
-			if(type!=""){
+			if(type.length()>0){
 				type=type.substring(1, type.length()-1);
-				//ÅÐ¶¨ÊÇ·ñdummyplane
+				//åˆ¤å®šæ˜¯å¦dummyplane
 				//if(type.equals("DUMMY_PLANE"))isdummyplane=true;
 				//else isdummyplane=false;
 				if(type.length()>9)stype=type.substring(0, 8);
@@ -91,50 +74,72 @@ public class indicators{
 				
 			}
 			
-			speed=getDatafloat(getString(buf, "speed"));
-			pedals=getDatafloat(getString(buf, "pedals"));
-			stick_elevator=getDatafloat(getString(buf, "stick_elevator"));
-			stick_ailerons=getDatafloat(getString(buf, "stick_ailerons"));
-			altitude_hour=getDatafloat(getString(buf, "altitude_hour"));
-			altitude_min=getDatafloat(getString(buf, "altitude_min"));;
-			altitude_10k=getDatafloat(getString(buf, "altitude_10k"));
-			bank=getDatafloat(getString(buf, "bank"));
-			turn=getDatafloat(getString(buf, "turn"));
-			compass=getDatafloat(getString(buf, "compass"));
-			clock_hour=getDatafloat(getString(buf, "clock_hour"));
-			clock_min=getDatafloat(getString(buf, "clock_min"));
-			clock_sec=getDatafloat(getString(buf, "clock_sec"));
-			manifold_pressure=getDatafloat(getString(buf, "manifold_pressure"));
-			rpm=getDatafloat(getString(buf, "rpm"));
-			oil_pressure=getDatafloat(getString(buf, "oil_pressure"));
-			water_temperature=getDatafloat(getString(buf, "water_temperature"));
-			engine_temperature=getDatafloat(getString(buf, "head_temperature"));
-			mixture=getDatafloat(getString(buf, "mixture"));
-			fuel[0]=getDatafloat(getString(buf, "fuel1"));
+			speed=stringHelper.getDataFloat(stringHelper.getString(buf, "speed"));
+			pedals=stringHelper.getDataFloat(stringHelper.getString(buf, "pedals"));
+			stick_elevator=stringHelper.getDataFloat(stringHelper.getString(buf, "stick_elevator"));
+			stick_ailerons=stringHelper.getDataFloat(stringHelper.getString(buf, "stick_ailerons"));
+			altitude_hour=stringHelper.getDataFloat(stringHelper.getString(buf, "altitude_hour"));
+			altitude_min=stringHelper.getDataFloat(stringHelper.getString(buf, "altitude_min"));;
+			altitude_10k=stringHelper.getDataFloat(stringHelper.getString(buf, "altitude_10k"));
+			bank=stringHelper.getDataFloat(stringHelper.getString(buf, "bank"));
+			turn=stringHelper.getDataFloat(stringHelper.getString(buf, "turn"));
+			compass=stringHelper.getDataFloat(stringHelper.getString(buf, "compass"));
+			clock_hour=stringHelper.getDataFloat(stringHelper.getString(buf, "clock_hour"));
+			clock_min=stringHelper.getDataFloat(stringHelper.getString(buf, "clock_min"));
+			clock_sec=stringHelper.getDataFloat(stringHelper.getString(buf, "clock_sec"));
+			manifold_pressure=stringHelper.getDataFloat(stringHelper.getString(buf, "manifold_pressure"));
+			rpm=stringHelper.getDataFloat(stringHelper.getString(buf, "rpm"));
+			wsweep_indicator = stringHelper.getDataFloat(stringHelper.getString(buf, "wing_sweep_indicator"));
+//			System.out.println(wsweep_indicator);
+			oil_pressure=stringHelper.getDataFloat(stringHelper.getString(buf, "oil_pressure"));
+//			water_temperature=stringHelper.getDatafloat(stringHelper.getString(buf, "water_temperature"));
+			engine_temperature=stringHelper.getDataFloat(stringHelper.getString(buf, "head_temperature"));
+			mixture=stringHelper.getDataFloat(stringHelper.getString(buf, "mixture"));
+			
+			// é˜²æ­¢è¯»åˆ°æ²¹åŽ‹
+			fuel[0]=stringHelper.getDataFloat(stringHelper.getString(buf, "\"fuel\""));
+			
+			for (int i = 1 ; i < 5; i++){
+				fuel[i] = stringHelper.getDataFloat(stringHelper.getString(buf, "fuel"+i));
+				if(fuel[i] == -65535) fuel[i] = 0;
+			}
+//			fuel[0]=stringHelper.getDatafloat(stringHelper.getString(buf, "fuel1"));
+//			if (fuel[0] == -65535){
+//				fuel[0] = stringHelper.getDatafloat(stringHelper.getString(buf, "fuel"));
+//				if
+//			}
+			aviahorizon_pitch = stringHelper.getDataFloat(stringHelper.getString(buf, "aviahorizon_pitch"));
+			aviahorizon_roll = stringHelper.getDataFloat(stringHelper.getString(buf, "aviahorizon_roll"));
+			radio_altitude = stringHelper.getDataFloat(stringHelper.getString(buf, "radio_altitude"));
+			oilTemp = stringHelper.getDataFloat(stringHelper.getString(buf, "oil_temperature"));
+			waterTemp = stringHelper.getDataFloat(stringHelper.getString(buf, "water_temperature"));
 			if(fuel[0]==-65535){
-				fuel[0]=getDatafloat(getString(buf, "fuel_pressure"))*10;
-				fuelpressure=true;
+				fuel[0] = 0;
+//				fuel[0]=stringHelper.getDatafloat(stringHelper.getString(buf, "fuel_pressure"))*10;
+//				fuelpressure=true;
 			}
-			else{
-				fuelpressure=false;
-			}
-			fuel[1]=getDatafloat(getString(buf, "fuel2"));
-			fuel[2]=getDatafloat(getString(buf, "fuel3"));
-			fuel[3]=getDatafloat(getString(buf, "fuel4"));
-			fuel_pressure=getDatafloat(getString(buf, "mixture"));
-			oxygen=getDatafloat(getString(buf, "oxygen"));
-			gears_lamp=getDatafloat(getString(buf, "gears_lamp"));
-			flaps=getDatafloat(getString(buf, "flaps"));
-			trimmer=getDatafloat(getString(buf, "trimmer"));
-			throttle=getDatafloat(getString(buf, "throttle"));
-			weapon1=getDatafloat(getString(buf, "weapon1"));
-			weapon2=getDatafloat(getString(buf, "weapon2"));
-			weapon3=getDatafloat(getString(buf, "weapon3"));
-			prop_pitch_hour=getDatafloat(getString(buf, "prop_pitch_hour"));
-			prop_pitch_min=getDatafloat(getString(buf, "prop_pitch_min"));
-			ammo_counter1=getDatafloat(getString(buf, "ammo_counter1"));
-			ammo_counter2=getDatafloat(getString(buf, "ammo_counter2"));
-			ammo_counter3=getDatafloat(getString(buf, "ammo_counter3"));
+//			else{
+//				fuelpressure=false;
+//			}
+//			fuelpressure=false;
+			fuel[1]=stringHelper.getDataFloat(stringHelper.getString(buf, "fuel2"));
+			fuel[2]=stringHelper.getDataFloat(stringHelper.getString(buf, "fuel3"));
+			fuel[3]=stringHelper.getDataFloat(stringHelper.getString(buf, "fuel4"));
+			fuel_pressure=stringHelper.getDataFloat(stringHelper.getString(buf, "fuel_pressure"));
+			oxygen=stringHelper.getDataFloat(stringHelper.getString(buf, "oxygen"));
+			gears_lamp=stringHelper.getDataFloat(stringHelper.getString(buf, "gears_lamp"));
+			flaps=stringHelper.getDataFloat(stringHelper.getString(buf, "flaps"));
+			vario = stringHelper.getDataFloat(stringHelper.getString(buf, "vario"));
+			trimmer=stringHelper.getDataFloat(stringHelper.getString(buf, "trimmer"));
+			throttle=stringHelper.getDataFloat(stringHelper.getString(buf, "throttle"));
+			weapon1=stringHelper.getDataFloat(stringHelper.getString(buf, "weapon1"));
+			weapon2=stringHelper.getDataFloat(stringHelper.getString(buf, "weapon2"));
+			weapon3=stringHelper.getDataFloat(stringHelper.getString(buf, "weapon3"));
+			prop_pitch_hour=stringHelper.getDataFloat(stringHelper.getString(buf, "prop_pitch_hour"));
+			prop_pitch_min=stringHelper.getDataFloat(stringHelper.getString(buf, "prop_pitch_min"));
+			ammo_counter1=stringHelper.getDataFloat(stringHelper.getString(buf, "ammo_counter1"));
+			ammo_counter2=stringHelper.getDataFloat(stringHelper.getString(buf, "ammo_counter2"));
+			ammo_counter3=stringHelper.getDataFloat(stringHelper.getString(buf, "ammo_counter3"));
 			
 			if(fuelnum==0){
 				if(fuel[0]!=-65535)fuelnum=fuelnum+1;
@@ -148,6 +153,8 @@ public class indicators{
 		else{
 			type="No Cockpit";
 			stype="NoCockpit";
+
+			flag=false;
 		}
 	}
 }
