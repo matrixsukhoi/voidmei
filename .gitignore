@@ -3,8 +3,11 @@ bin/
 data/aces/
 data/char/
 temp/
+image/
+dep/
 fonts/
 records/
+voice/
 .project
 .classpath
 *.jar

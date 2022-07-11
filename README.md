@@ -17,3 +17,11 @@
 - src/prog/uiThread.java - UI绘制线程
 - src/parser - state/indicator/blkx等解析器代码
 - src/ui - 各ui界面的绘制代码
+
+# 执行环境
+- 安装 Jave Runtime Environment 即可
+## Linux执行环境配置 
+VoidMei可使用Linux wine执行(测试环境Fedora 35, GNOME 41.7, Wine 7.10),执行步骤如下: 
+- winecfg 兼容性设置为win10 
+- 安装jre8, 执行wine jre-8uXXX-windows-x64.exe /s
+- 运行Voidmei.exe
