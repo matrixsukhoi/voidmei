@@ -1,6 +1,0 @@
-Weapon{
-  trigger:t="torpedoes"
-  blk:t="gameData/Weapons/torpedoes/us_mk13_torpedo.blk"
-  emitter:t="torp1"
-  bullets:i=1
-}

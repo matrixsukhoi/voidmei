@@ -1,6 +1,7 @@
 bin/
 .settings/
 data/aces/
+data/char/
 temp/
 fonts/
 records/

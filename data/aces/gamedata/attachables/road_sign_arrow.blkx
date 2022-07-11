@@ -1,3 +1,0 @@
-model:t="road_sign_arrow"
-collision:t="road_sign_arrow_aces"
-bboxMult:r=0.1

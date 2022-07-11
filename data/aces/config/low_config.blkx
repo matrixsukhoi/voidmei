@@ -1,9 +1,0 @@
-graphics{
-  advancedShore:b=no
-  lastClipSize:i=4096
-}
-
-render{
-  ssaoQuality:i=0
-  waterReflection:b=no
-}

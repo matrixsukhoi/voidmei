@@ -1,6 +1,0 @@
-className:t="composit"
-
-node{
-  name:t="#tank_barbwire2"
-  tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [0.0, 0.0, 0.0]]
-}

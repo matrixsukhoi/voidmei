@@ -1,7 +1,0 @@
-Weapon{
-  trigger:t="bombs"
-  blk:t="gameData/Weapons/BombGuns/us_500lb_anm64a1.blk"
-  emitter:t="bomb1"
-  bullets:i=1
-  external:b=yes
-}

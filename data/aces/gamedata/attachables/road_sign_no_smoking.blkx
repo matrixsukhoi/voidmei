@@ -1,3 +1,0 @@
-model:t="road_sign_no_smoking"
-collision:t="road_sign_no_smoking_aces"
-bboxMult:r=0.1

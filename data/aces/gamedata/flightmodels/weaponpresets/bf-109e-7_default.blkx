@@ -1,6 +1,0 @@
-hideNodes{
-  node:t="droptank"
-  node:t="rack_droptank"
-  node:t="pylon_bomb1"
-  node:t="pylon_bomb2"
-}

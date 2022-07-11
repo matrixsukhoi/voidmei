@@ -1,6 +1,0 @@
-Weapon{
-  trigger:t="bombs"
-  blk:t="gameData/Weapons/bombGuns/su_fab_3000m_46.blk"
-  emitter:t="fab_3000m"
-  bullets:i=1
-}

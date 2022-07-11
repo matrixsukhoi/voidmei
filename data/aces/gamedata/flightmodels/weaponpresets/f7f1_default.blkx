@@ -1,7 +1,0 @@
-hideNodes{
-  node:t="bomb_pylon_c"
-  node:t="bomb_pylon_r"
-  node:t="bomb_pylon_l"
-  node:t="aero_14a_pylon_l"
-  node:t="aero_14a_pylon_r"
-}

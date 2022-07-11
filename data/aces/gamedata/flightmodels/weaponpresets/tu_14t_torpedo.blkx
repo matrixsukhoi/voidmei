@@ -1,6 +1,0 @@
-Weapon{
-  trigger:t="torpedoes"
-  blk:t="gameData/weapons/torpedoes/su_45_36man_1952_torpedo.blk"
-  emitter:t="torp"
-  bullets:i=1
-}

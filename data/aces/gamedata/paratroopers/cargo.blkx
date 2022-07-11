@@ -1,7 +1,0 @@
-model:t="cargo"
-timeStartChute:r=2.0
-startDeviation:r=0.8
-openingTime:r=2.0
-lifeTime:r=20.0
-flyDeviation:r=0.2
-heightRange:p2=600.0, 1500.0

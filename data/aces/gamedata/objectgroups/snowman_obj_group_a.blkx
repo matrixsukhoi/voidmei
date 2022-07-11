@@ -1,7 +1,0 @@
-className:t="composit"
-size:p2=250.0, 250.0
-
-node{
-  name:t="snowman_rendinst_a"
-  tm:m=[[1.0, 0.0, 0.0] [0.0, 1.0, 0.0] [0.0, 0.0, 1.0] [0.0, 0.0, 0.0]]
-}

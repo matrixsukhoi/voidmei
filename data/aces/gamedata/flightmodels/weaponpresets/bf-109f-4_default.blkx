@@ -1,8 +1,0 @@
-hideNodes{
-  node:t="pylon_cannon_l"
-  node:t="pylon_cannon_r"
-  node:t="flare4"
-  node:t="flare5"
-  node:t="rocket_pylon1"
-  node:t="rocket_pylon2"
-}
