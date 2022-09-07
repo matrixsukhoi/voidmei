@@ -13,7 +13,7 @@ import com.alee.laf.panel.WebPanel;
 import com.alee.laf.rootpane.WebFrame;
 import com.alee.laf.splitpane.WebSplitPane;
 
-import parser.blkxparser;
+import parser.blkx;
 import prog.app;
 import prog.controller;
 import prog.lang;
@@ -33,7 +33,7 @@ public class engineControl extends WebFrame implements Runnable {
 	private static final long serialVersionUID = 3063042782594625576L;
 	public controller xc;
 	public service s;
-	public blkxparser p;
+	public blkx p;
 	public int wtload1;
 	public int oilload1;
 	public String status;
@@ -255,7 +255,7 @@ public class engineControl extends WebFrame implements Runnable {
 
 	}
 
-	public void init(controller xc, service ts, blkxparser tp) {
+	public void init(controller xc, service ts, blkx tp) {
 		this.xc = xc;
 		this.s = ts;
 		this.p = tp;
@@ -311,36 +311,33 @@ public class engineControl extends WebFrame implements Runnable {
 				// 开始绘图
 				// g2d.draw
 				g2d.setPaintMode();
-				g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-				g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+				g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, app.graphAASetting);
+				g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, app.textAASetting);
 				// g2d.setRenderingHint(RenderingHints.KEY_RENDERING,
 				// RenderingHints.VALUE_RENDER_QUALITY);
 				g2d.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION,
 						RenderingHints.VALUE_ALPHA_INTERPOLATION_SPEED);
-
+				g2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_SPEED);
 				// 先画左边的条 4.5f
 				drawTPMRC(g2d, 0, (fontsize * 9) >> 1);
 
-				g.dispose();
+				// g.dispose();
 			}
 		};
 
-//		panel.setWebColoredBackground(false);
-//		panel.setBackground(new Color(0, 0, 0, 0));
-
+		// panel.setWebColoredBackground(false);
+		// panel.setBackground(new Color(0, 0, 0, 0));
 
 		this.add(panel);
 
 		setSize(WIDTH, HEIGHT);
 		setLocation(lx, ly);
 
-
 		uiWebLafSetting.setWindowOpaque(this);
-		
-		
+
 		jetChecked = false;
 		root = getContentPane();
-		
+
 		if (xc.getconfig("engineInfoEdge").equals("true"))
 			setShadeWidth(10);// 玻璃效果边框
 		else {
@@ -406,7 +403,6 @@ public class engineControl extends WebFrame implements Runnable {
 				if (s.isEngJet()) {
 					isJet = true;
 
-
 					// 修改为推力百分比
 					if (lidx_p < leftUseNum)
 						leftLblNum[lidx_p][0] = lang.eThurstP;
@@ -439,7 +435,6 @@ public class engineControl extends WebFrame implements Runnable {
 			if (s.SystemTime - engineCheckMili > xc.freqService) {
 				engineCheckMili = s.SystemTime;
 				if (s.sState != null) {
-
 
 					drawTick();
 

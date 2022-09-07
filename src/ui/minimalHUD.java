@@ -579,12 +579,14 @@ public class minimalHUD extends WebFrame implements Runnable {
 				// 开始绘图
 				// g2d.draw
 				g2d.setPaintMode();
-				g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-				g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+				g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, app.graphAASetting);
+				g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, app.textAASetting);
 				// g2d.setRenderingHint(RenderingHints.KEY_RENDERING,
 				// RenderingHints.VALUE_RENDER_QUALITY);
 				g2d.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION,
 						RenderingHints.VALUE_ALPHA_INTERPOLATION_SPEED);
+				g2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_SPEED);
+				
 				// if (busetexturecrosshair) {
 				// g2d.drawImage(C, CrossX - CrossWidthVario, CrossY -
 				// CrossWidthVario, CrossWidthVario * 2, CrossWidthVario * 2,
@@ -606,7 +608,7 @@ public class minimalHUD extends WebFrame implements Runnable {
 						drawCrossair(g2d, 2 * Width, 1 * Height, Width + CrossX, CrossY, CrossWidth);
 					}
 				}
-				g.dispose();
+//				g.dispose();
 			}
 		};
 		// initpanel();
@@ -651,8 +653,9 @@ public class minimalHUD extends WebFrame implements Runnable {
 			} else {
 				if (throttle >= 50) {
 					throttleColor = app.colorUnit;
-				} else
-					throttleColor = app.colorShadeShape;
+				} 
+//				else
+//					throttleColor = app.colorShadeShape;
 			}
 		}
 		throttley = throttle * HUDFontsize * 5 / 110;

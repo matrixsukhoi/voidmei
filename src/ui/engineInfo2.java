@@ -23,7 +23,7 @@ import com.alee.laf.separator.WebSeparator;
 import com.alee.laf.slider.WebSlider;
 import com.alee.laf.splitpane.WebSplitPane;
 
-import parser.blkxparser;
+import parser.blkx;
 import prog.app;
 import prog.controller;
 import prog.lang;
@@ -46,7 +46,7 @@ public class engineInfo2 extends WebFrame implements Runnable {
 	private static final long serialVersionUID = 3063042782594625576L;
 	public controller c;
 	public service s;
-	public blkxparser p;
+	public blkx p;
 	public int wtload1;
 	public int oilload1;
 	public String status;
@@ -1832,7 +1832,7 @@ public class engineInfo2 extends WebFrame implements Runnable {
 		this.setCursor(app.blankCursor);
 	}
 
-	public void init(controller xc, service ts, blkxparser tp) {
+	public void init(controller xc, service ts, blkx tp) {
 		this.c = xc;
 		this.s = ts;
 		this.p = tp;

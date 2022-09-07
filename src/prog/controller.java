@@ -4,6 +4,7 @@ import java.awt.AWTException;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.Image;
+import java.awt.RenderingHints;
 import java.awt.Robot;
 import java.awt.Toolkit;
 
@@ -17,7 +18,7 @@ import com.alee.managers.notification.NotificationIcon;
 import com.alee.managers.notification.NotificationManager;
 import com.alee.managers.notification.WebNotification;
 
-import parser.blkxparser;
+import parser.blkx;
 import parser.flightAnalyzer;
 import parser.flightLog;
 import ui.statusBar;
@@ -40,7 +41,7 @@ public class controller {
 
 	public boolean logon = false;
 
-	public blkxparser blkx;
+	public blkx blkx;
 
 	Robot robot;
 
@@ -560,6 +561,18 @@ public class controller {
 			showStatus = Boolean.parseBoolean(getconfig("enableStatusBar"));
 		// 读取字体绘制方式
 		app.drawFontShape = !Boolean.parseBoolean(getconfig("simpleFont"));
+		
+		// 读取抗锯齿
+		app.aaEnable = Boolean.parseBoolean(getconfig("AAEnable"));
+		if (app.aaEnable){
+//			app.textAASetting = RenderingHints.VALUE_TEXT_ANTIALIAS_GASP;
+			app.textAASetting = RenderingHints.VALUE_TEXT_ANTIALIAS_ON;
+			app.graphAASetting = RenderingHints.VALUE_ANTIALIAS_ON;
+		}
+		else{
+			app.textAASetting = RenderingHints.VALUE_TEXT_ANTIALIAS_OFF;
+			app.graphAASetting = RenderingHints.VALUE_ANTIALIAS_OFF;
+		}
 	}
 
 	public controller() {
@@ -898,7 +911,7 @@ public class controller {
 		int i;
 		// 读入fm
 
-		blkx = new blkxparser("./data/aces/gamedata/flightmodels/" + planename + ".blkx", planename + ".blk");
+		blkx = new blkx("./data/aces/gamedata/flightmodels/" + planename + ".blkx", planename + ".blk");
 		if (blkx.valid == true) {
 			fmfile = blkx.getlastone("fmfile");
 			fmfile = fmfile.substring(1, fmfile.length() - 1);
@@ -918,7 +931,7 @@ public class controller {
 
 		// 读入fmfile
 		if (fmfile != null)
-			blkx = new blkxparser("./data/aces/gamedata/flightmodels/fm/" + fmfile + "x", fmfile);
+			blkx = new blkx("./data/aces/gamedata/flightmodels/fm/" + fmfile + "x", fmfile);
 
 		if (blkx.valid == true) {// System.out.println(blkx.data);
 			blkx.getAllplotdata();

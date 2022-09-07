@@ -39,7 +39,7 @@ public class app {
 	public static String appName = lang.appName;
 	public static String DefaultNumfontName = "Roboto";
 	public static String appTooltips = lang.appTooltips;
-	public static String version = "1.44";
+	public static String version = "1.46";
 	public static String httpHeader = lang.httpHeader;
 	public static int voiceVolumn = 100;
 	public static String DefaultFontName = "Microsoft YaHei UI";
@@ -51,7 +51,13 @@ public class app {
 
 	public static Process plugin = null;
 	public static Runtime r;
-
+	
+	// 抗锯齿
+	public static Boolean aaEnable = true;
+	public static Object textAASetting = RenderingHints.VALUE_TEXT_ANTIALIAS_GASP;
+	public static Object graphAASetting = RenderingHints.VALUE_ANTIALIAS_ON;
+//	public static Object textAASetting = RenderingHints.VALUE_TEXT_ANTIALIAS_ON;
+	
 	public static Color colorFailure = new Color(255, 69, 0, 100);
 	public static Color colorWarning = new Color(216, 33, 13, 100);
 	public static Color colorShade = new Color(0, 0, 0, 240);

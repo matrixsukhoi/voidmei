@@ -12,7 +12,7 @@ import com.alee.laf.panel.WebPanel;
 import com.alee.laf.rootpane.WebFrame;
 import com.alee.laf.text.WebTextArea;
 
-import parser.blkxparser;
+import parser.blkx;
 import prog.app;
 import prog.controller;
 import prog.lang;
@@ -24,7 +24,7 @@ public class someUsefulData extends WebFrame implements Runnable {
 	private static final long serialVersionUID = 285137206980711202L;
 	public volatile boolean doit = true;
 	controller xc;
-	blkxparser xp;
+	blkx xp;
 	WebLabel title;
 	WebPanel panel;
 	int WIDTH;
@@ -32,7 +32,7 @@ public class someUsefulData extends WebFrame implements Runnable {
 	WebTextArea textArea;
 	String FontName;
 
-	public void init(controller c, blkxparser p) {
+	public void init(controller c, blkx p) {
 		xc = c;
 		xp = p;
 		WIDTH = 320;

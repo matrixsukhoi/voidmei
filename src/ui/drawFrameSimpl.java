@@ -11,7 +11,7 @@ import java.awt.Toolkit;
 import com.alee.laf.panel.WebPanel;
 import com.alee.laf.rootpane.WebFrame;
 
-import parser.blkxparser;
+import parser.blkx;
 import parser.flightAnalyzer;
 import prog.app;
 import prog.controller;
@@ -31,7 +31,7 @@ public class drawFrameSimpl extends WebFrame implements Runnable {
 	boolean useBlkx = true;
 	float ggx4;
 	float ggy4;
-	blkxparser blkx;
+	blkx blkx;
 	float fY[];
 	float fX[];
 
@@ -113,7 +113,7 @@ public class drawFrameSimpl extends WebFrame implements Runnable {
 		String unitSystem;
 		int i;
 		// 读入fm
-		blkx = new blkxparser("./data/aces/gamedata/flightmodels/" + planename + ".blkx", planename + ".blk");
+		blkx = new blkx("./data/aces/gamedata/flightmodels/" + planename + ".blkx", planename + ".blk");
 		fmfile = blkx.getlastone("fmfile");
 		fmfile = fmfile.substring(1, fmfile.length() - 1);
 		if (fmfile.indexOf("blk") == -1)
@@ -129,7 +129,7 @@ public class drawFrameSimpl extends WebFrame implements Runnable {
 		// System.out.println(fmfile);
 
 		// 读入fmfile
-		blkx = new blkxparser("./data/aces/gamedata/flightmodels/fm/" + fmfile + "x", planename + ".blk");
+		blkx = new blkx("./data/aces/gamedata/flightmodels/fm/" + fmfile + "x", planename + ".blk");
 		// System.out.println(blkx.data);
 		blkx.getAllplotdata();
 

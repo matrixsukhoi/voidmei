@@ -380,6 +380,7 @@ public class mainform extends WebFrame implements Runnable {
 	private WebSwitch bEngineInfoEngResponse;
 	private WebSwitch bstatusSwitch;
 	private WebSlider ivoiceVolume;
+	private WebSwitch bAAEnable;
 	
     private String getColorText ( final Color color )
     {
@@ -627,6 +628,9 @@ public class mainform extends WebFrame implements Runnable {
 		bdrawShadeSwitch = createLCGroup(topPanel, lang.mP1drawFontShape);
 		createvoidWebLabel(topPanel,lang.mP1drawFontShapeBlank);
 
+		bAAEnable = createLCGroup(topPanel, lang.mP1AAEnable);
+		createvoidWebLabel(topPanel,lang.mP1AAEnableBlank);
+		
 
 		sGlobalNumFont = createFontList(topPanel,lang.mP1GlobalNumberFont);
 		createvoidWebLabel(topPanel,lang.mP1GlobalNumberFontBlank);
@@ -1139,6 +1143,7 @@ public class mainform extends WebFrame implements Runnable {
 		if(!app.foreignLanguage)bcrosshairdisplaySwitch.setSelected(Boolean.parseBoolean(tc.getconfig("displayCrosshair")));
 
 		bdrawShadeSwitch.setSelected(Boolean.parseBoolean(tc.getconfig("simpleFont")));
+		bAAEnable.setSelected(Boolean.parseBoolean(tc.getconfig("AAEnable")));
 		bvoiceWarningSwitch.setSelected(Boolean.parseBoolean(tc.getconfig("enableVoiceWarn")));
 		if(app.debug)bTempInfoSwitch.setSelected(Boolean.parseBoolean(tc.getconfig("usetempInfoSwitch")));
 		sGlobalNumFont.setSelectedItem(tc.getconfig("GlobalNumFont"));
@@ -1289,7 +1294,10 @@ public class mainform extends WebFrame implements Runnable {
 		if(!app.foreignLanguage)tc.setconfig("displayCrosshair", Boolean.toString(bcrosshairdisplaySwitch.isSelected()));
 		
 		
+		
 		tc.setconfig("simpleFont", Boolean.toString(bdrawShadeSwitch.isSelected()));
+		tc.setconfig("AAEnable", Boolean.toString(bAAEnable.isSelected()));
+		
 		tc.setconfig("enableVoiceWarn", Boolean.toString(bvoiceWarningSwitch.isSelected()));
 		if(app.debug)tc.setconfig("usetempInfoSwitch", Boolean.toString(bTempInfoSwitch.isSelected()));
 		tc.setconfig("GlobalNumFont",sGlobalNumFont.getSelectedItem().toString());

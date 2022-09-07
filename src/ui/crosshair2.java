@@ -450,7 +450,7 @@ public class crosshair2 extends WebFrame implements Runnable {
 					drawTextseries(g2d, 5, 15);
 					// drawTextseries2(g2d, 15, 15);
 				}
-				g.dispose();
+//				g.dispose();
 			}
 		};
 		initpanel();

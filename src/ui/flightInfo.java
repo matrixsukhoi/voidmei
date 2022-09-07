@@ -491,11 +491,14 @@ public class flightInfo extends WebFrame implements Runnable {
 		// wx
 		__update_num(idx_wx, xs.Wx);
 		// ny
-		__update_num(idx_ny, xs.Ny);
+//		__update_num(idx_ny, xs.Ny);
+		// 使用修正过的过载
+		__update_num(idx_ny, xs.sN);
 		// turn
 		__update_num(idx_turn, xs.sTurnRate);
 		// rds
 		__update_num(idx_rds, xs.sTurnRds);
+//		totalString[idx_rds][2] = "m"+xs.sN;
 		// aoa
 		__update_num(idx_aoa, xs.AoA);
 		// aos
@@ -503,7 +506,7 @@ public class flightInfo extends WebFrame implements Runnable {
 		// ws
 		__update_num(idx_ws, xs.sWingSweep);
 
-		// 雷达高
+		// 无线电测距高
 		__update_num(idx_rda, xs.sRadioAlt);
 
 	}
@@ -604,13 +607,14 @@ public class flightInfo extends WebFrame implements Runnable {
 				// 开始绘图
 				// g2d.draw
 				g2d.setPaintMode();
-				g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-				g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+				g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, app.graphAASetting);
+				g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, app.textAASetting);
 				// g2d.setRenderingHint(RenderingHints.KEY_RENDERING,
 				// RenderingHints.VALUE_RENDER_QUALITY);
-				// 先试试垂直分布
 				g2d.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION,
 						RenderingHints.VALUE_ALPHA_INTERPOLATION_SPEED);
+				g2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_SPEED);
+				
 				doffset[0] = fontsize >> 1;
 				doffset[1] = fontsize >> 1;
 				int d = 0;
@@ -633,7 +637,7 @@ public class flightInfo extends WebFrame implements Runnable {
 				// drawLabelBOSType(g2d, doffset[0], doffset[1], 1, fontNum,
 				// fontLabel, fontUnit, sIAS, language.fIAS, "Km/h");
 				// updateDxDy(++num, doffset);
-				g.dispose();
+//				g.dispose();
 			}
 
 		};

@@ -8,7 +8,7 @@ import java.io.IOException;
 
 import prog.lang;
 
-public class blkxparser {
+public class blkx {
 	public boolean valid;
 
 	public class XY {
@@ -366,6 +366,15 @@ public class blkxparser {
 	public float GearDestructionIndSpeed;
 	public float maxRPM;
 	public float maxAllowedRPM;
+	private float Cl_a;
+	private float[] AileronDefl;
+	private float Wx100;
+	private float Wx_vcoff;
+	private float Wx250;
+	private float Wx300;
+	private float Wx350;
+	private float WxMax;
+	private float Wx600;
 
 	public void getload() {
 		// String Load0 = cut(data, "Load0");
@@ -834,8 +843,36 @@ public class blkxparser {
 		maxAllowGload[1] = (2 * maxAllowGload[1] / (9.78f * grossweight) - 1);
 		
 		
-
-
+		
+		// 计算滚转率
+		
+		// 先计算Cla
+		Cl_a = (NoFlapsWing.ClCritHigh - NoFlapsWing.Cl0)/(NoFlapsWing.AoACritHigh);
+		
+		
+		// 获得襟翼偏转角度(上偏和下偏)
+		AileronDefl = new float[2];
+		
+		if (null == getfloats("AileronAngles", AileronDefl, 2)){
+			getfloats("Ailerons.AnglesRoll", AileronDefl, 2);
+		}
+//		AAileron
+		// 
+//		Wx_vcoff = ((Cl_a * (AileronDefl[0]+AileronDefl[1]) + NoFlapsWing.Cl0) * AAileron / (2 * Wingspan * 5f /*c*/)) * 57.3f;
+//		// 得到滚转率函数(高速要考虑到线性减少)
+//		Wx250= 69.444f * Wx_vcoff;
+//		Wx300= 83.333f  * Wx_vcoff;
+//		Wx350= 97.222f * Wx_vcoff;
+//		// 最大滚转率
+//		WxMax = aileronEff/3.6f * Wx_vcoff * 1.0f;
+//		// 如果大于最大速度则需要乘以舵面值
+////		Wx600 = 600/3.6f * Wx_vcoff * (1.0f - (((600 - aileronEff) * aileronPowerLoss)/100.0f));
+//		
+////		System.out.println(String.format("Wx 250, 300, 350: %.0f, %.0f, %.0f", Wx250, Wx300, Wx350));
+//		
+//		System.out.println("滚转效率 :" + 83.333f* Wx_vcoff);
+//		System.out.println("Wx_max :" + WxMax);
+//		System.out.println("Wx_600 :" + Wx600 +", aileronMax:" + ((600 - aileronEff) * aileronPowerLoss));
 //		s += 		
 		s += String.format(lang.bInertia, MomentOfInertia[0], MomentOfInertia[1], MomentOfInertia[2]);
 		
@@ -940,7 +977,7 @@ public class blkxparser {
 		fmdata = lang.noblkx;
 	}
 
-	public blkxparser(String filepath, String name) {
+	public blkx(String filepath, String name) {
 		File file = new File(filepath);
 		fmdata = lang.noblkx;
 		if (file.exists()) {

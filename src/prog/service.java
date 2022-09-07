@@ -13,7 +13,7 @@ import java.net.Socket;
 import java.net.SocketAddress;
 import java.net.URL;
 
-import parser.blkxparser.engineLoad;
+import parser.blkx.engineLoad;
 import parser.flightLog;
 import parser.indicators;
 import parser.state;
@@ -23,7 +23,7 @@ public class service implements Runnable {
 	// public static URL urlstate;
 	// public static URL urlindicators;
 	public static String buf;
-
+	public static final float g = 9.80f;
 	public long timeStamp;
 	public long freq;
 	public state sState;
@@ -115,6 +115,7 @@ public class service implements Runnable {
 	public String Ny;
 	public String Vy;
 	public String Wx;
+	public String sN;
 	public String throttle;
 	public String RPMthrottle;
 	public String radiator;
@@ -162,9 +163,9 @@ public class service implements Runnable {
 	public float radioAlt;
 	public float pRadioAlt;
 	public float dRadioAlt;
-
+	public float An;
 	public int iEngType;
-
+	
 	private int checkEngineType;
 	private int checkPitch;
 	public boolean checkEngineFlag;
@@ -186,7 +187,7 @@ public class service implements Runnable {
 	public boolean isPlayerLive(){
 		return playerLive;
 	}
-	public static final String pressureUnit = "Atm";
+	public static final String pressureUnit = "Ata";
 	public void transtoString() {
 
 		// 数据转换格式
@@ -304,13 +305,14 @@ public class service implements Runnable {
 			sAvgEff = String.format("%d", Math.round(avgeff));
 		// System.out.println(sWingSweep);
 		Vy = String.format("%.1f", nVy);
+		sN = String.format("%.1f", An/g);
 		IAS = String.format("%d", sState.IAS);
 		TAS = String.format("%d", sState.TAS);
 		salt = String.format("%.0f", alt);
 		Wx = String.format("%.0f", Math.abs(sState.Wx));
 		M = String.format("%.2f", sState.M);
 		Ny = String.format("%.1f", sState.Ny);
-		sSEP = String.format("%.0f", SEP / 9.78f);
+		sSEP = String.format("%.0f", SEP / g);
 		aclrt = String.format("%.3f", acceleration);
 		// Ao=String.format("%.1f",
 		// Math.sqrt(sState.AoA*sState.AoA+sState.AoS*sState.AoS));
@@ -331,8 +333,11 @@ public class service implements Runnable {
 			if (twepTime < 0) {
 				twepTime = 0;
 			}
-
-			sWepTime = String.format("%d:%d", twepTime / 60, twepTime % 60);
+			if (twepTime / 60 >= 100){
+				sWepTime = String.format("%d", twepTime / 60);
+			}
+			else
+				sWepTime = String.format("%d:%02d", twepTime / 60, twepTime % 60);
 
 		} else {
 			sNitro = nastring;
@@ -657,17 +662,25 @@ public class service implements Runnable {
 
 	public void updateTurn() {
 		// 转弯半径等于speedv*speedv/9.78*G
-		float an = (9.78f * sState.Ny);
-		// 计算时取两次速度间隔的平均值
+		
+		// 转弯加速度约等于法向过载与重力的合力
+		if(sIndic.aviahorizon_roll != -65535){
+			// 获得横滚角
+			An = (float)(g * Math.sqrt(sState.Ny*sState.Ny + 1 - 2 * sState.Ny * Math.cos(Math.toRadians(sIndic.aviahorizon_roll))));
+		}
+		else
+			An = (g * sState.Ny);
+//		System.out.println(Math.cos(sIndic.aviahorizon_roll));
+		// 计算时取前后两次采样的速度平均值
 		if (sIndic.turn != -65535) {
-			horizontalLoad = Math.abs(sIndic.turn) * (speedvp + speedv) / (2 * 9.78f);
+			horizontalLoad = Math.abs(sIndic.turn) * (speedvp + speedv) / (2 * g);
 		} else {
 			horizontalLoad = 0;
 		}
 
-		turnRds = (speedvp + speedv) * (speedvp + speedv) / (4 * an);
+		turnRds = (speedvp + speedv) * (speedvp + speedv) / (4 * An);
 		// 转弯率等于向心加速度除以半径开根号
-		turnRate = (float) (Math.toDegrees(Math.sqrt(an / turnRds)));
+		turnRate = (float) (Math.toDegrees(Math.sqrt(An / turnRds)));
 	}
 
 	public void updateSpeed() {
@@ -715,7 +728,7 @@ public class service implements Runnable {
 				ttotalthr = ttotalthr + sState.thrust[i];
 				// System.out.println(sState.engineNum);
 				ttotalhp = ttotalhp + sState.power[i];
-				ttotalhpeff = ttotalhpeff + sState.thrust[i] * 9.78f * speedv / 735;
+				ttotalhpeff = ttotalhpeff + sState.thrust[i] * g * speedv / 735;
 			}
 			// System.out.println(totalhp);
 			// System.out.println(totalhpeff);
@@ -736,7 +749,7 @@ public class service implements Runnable {
 				ttotalthr = ttotalthr + sState.thrust[i];
 			}
 			// System.out.println(totalthr+" "+totalhpeff);
-			float ttotalhpeff = ((ttotalthr * 9.78f * speedv) / 735);
+			float ttotalhpeff = ((ttotalthr * g * speedv) / 735);
 
 			iTotalThr = (int) ttotalthr;
 			iTotalHpEff = (int) ttotalhpeff;
@@ -806,7 +819,7 @@ public class service implements Runnable {
 			// sState.IAS) + 9.78f * sState.Vy;
 			// 积累
 			// SEP = acceleration * (speedvp + speedv) / 2 + 9.78f * sState.Vy;
-			SEP += acceleration * (speedvp + speedv) / 2 + 9.78f * nVy;
+			SEP += acceleration * (speedvp + speedv) / 2 + g * nVy;
 			SEP /= 2;
 			// SEP = (SEP + (acceleration * (speedvp + speedv) / 2 + 9.78f *
 			// sState.Vy) )/2;

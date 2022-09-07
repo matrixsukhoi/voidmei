@@ -320,13 +320,13 @@ public class gearAndFlaps extends WebFrame implements Runnable {
 				Graphics2D g2d = (Graphics2D) g;
 				// 开始绘图
 				g2d.setPaintMode();
-				g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-				g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+				g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, app.graphAASetting);
+				g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, app.textAASetting);
 				// g2d.setRenderingHint(RenderingHints.KEY_RENDERING,
 				// RenderingHints.VALUE_RENDER_QUALITY);
-				// 先试试垂直分布
 				g2d.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION,
 						RenderingHints.VALUE_ALPHA_INTERPOLATION_SPEED);
+				g2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_SPEED);
 
 				// 绘制襟翼百分比,起落架百分比
 				int dy = fontSize >> 1;
@@ -338,7 +338,7 @@ public class gearAndFlaps extends WebFrame implements Runnable {
 				// g2d.drawLine(0, 0, 100, 100);
 				// dy+=1.5 * fontSize;
 
-				g.dispose();
+//				g.dispose();
 			}
 		};
 		panel.setWebColoredBackground(false);

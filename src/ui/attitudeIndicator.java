@@ -340,16 +340,19 @@ public class attitudeIndicator extends WebFrame implements Runnable {
 				// g2d.draw
 				g2d.setPaintMode();
 				// g2d.set
-				g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-				// g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING,
-				// RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+				g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, app.graphAASetting);
+				g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, app.textAASetting);
+				// g2d.setRenderingHint(RenderingHints.KEY_RENDERING,
+				// RenderingHints.VALUE_RENDER_QUALITY);
 				g2d.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION,
 						RenderingHints.VALUE_ALPHA_INTERPOLATION_SPEED);
+				g2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_SPEED);
+				
 				// g2d.setColor(Color.white);
 				// g2d.fillRect(0, 0, 200, 200);
 				// 绘制十字星
 				locater(g2d, xWidth, xHeight, AoS, AoA, Pitch, 12, 6);
-				g.dispose();
+//				g.dispose();
 			}
 		};
 
@@ -452,7 +455,7 @@ public class attitudeIndicator extends WebFrame implements Runnable {
 				// g2d.fillRect(0, 0, 200, 200);
 				// 绘制十字星
 				locater(g2d, xWidth, xHeight, AoS, AoA, Pitch, 12, 6);
-				g.dispose();
+				//g.dispose();
 			}
 		};
 

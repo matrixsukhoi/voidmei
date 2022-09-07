@@ -16,7 +16,7 @@ import com.alee.laf.button.WebButton;
 import com.alee.laf.panel.WebPanel;
 import com.alee.laf.rootpane.WebFrame;
 
-import parser.blkxparser;
+import parser.blkx;
 import parser.flightAnalyzer;
 import prog.app;
 import prog.controller;
@@ -36,7 +36,7 @@ public class drawFrame extends WebFrame implements Runnable {
 	boolean useBlkx = true;
 	double ggx4;
 	double ggy4;
-	blkxparser blkx;
+	blkx blkx;
 	double fY[];
 	double fX[];
 
@@ -191,7 +191,7 @@ public class drawFrame extends WebFrame implements Runnable {
 		String unitSystem;
 		int i;
 		// 读入fm
-		blkx = new blkxparser("./data/aces/gamedata/flightmodels/" + planename + ".blkx", planename + ".blk");
+		blkx = new blkx("./data/aces/gamedata/flightmodels/" + planename + ".blkx", planename + ".blk");
 		if (blkx.valid) {
 			fmfile = blkx.getlastone("fmfile");
 			fmfile = fmfile.substring(1, fmfile.length() - 1);
@@ -208,7 +208,7 @@ public class drawFrame extends WebFrame implements Runnable {
 			// System.out.println(fmfile);
 
 			// 读入fmfile
-			blkx = new blkxparser("./data/aces/gamedata/flightmodels/fm/" + fmfile + "x", planename + ".blk");
+			blkx = new blkx("./data/aces/gamedata/flightmodels/fm/" + fmfile + "x", planename + ".blk");
 			// System.out.println(blkx.data);
 			if (blkx.valid)
 				blkx.getAllplotdata();
@@ -516,10 +516,13 @@ public class drawFrame extends WebFrame implements Runnable {
 				Graphics2D g2d = (Graphics2D) g;
 				// 开始绘图
 				// g2d.draw
-
-				g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-				g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-
+				g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, app.graphAASetting);
+				g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, app.textAASetting);
+				// g2d.setRenderingHint(RenderingHints.KEY_RENDERING,
+				// RenderingHints.VALUE_RENDER_QUALITY);
+				g2d.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION,
+						RenderingHints.VALUE_ALPHA_INTERPOLATION_SPEED);
+				g2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_SPEED);
 				// 绘制坐标系
 				if (pixIndex == 0)
 					drawCoordinates(g2d, 50, 50, 1024, 576, lang.dFTitle1, lang.dFTitle1X, lang.dFTitle1Y,

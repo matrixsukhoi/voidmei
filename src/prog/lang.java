@@ -41,6 +41,8 @@ public class lang{
 	public static String mP1VoiceWarningBlank;
 	public static String mP1drawFontShape;
 	public static String mP1drawFontShapeBlank;
+	public static String mP1AAEnable;
+	public static String mP1AAEnableBlank;
 	public static String mP1GlobalNumberFont;
 	public static String mP1GlobalNumberFontBlank;
 	public static String mP1Interval;
@@ -787,6 +789,8 @@ public class lang{
 		mP1TempNotificationBlank = updateLanguage("mP1TempNotificationBlank", mP1TempNotificationBlank);
 		mP1drawFontShape = updateLanguage("mP1drawFontShape", mP1drawFontShape);
 		mP1drawFontShapeBlank = updateLanguage("mP1drawFontShapeBlank", mP1drawFontShapeBlank);
+		mP1AAEnable = updateLanguage("mP1AAEnable", mP1AAEnable);
+		mP1AAEnableBlank = updateLanguage("mP1AAEnableBlank", mP1AAEnableBlank);
 		mP1VoiceWarning = updateLanguage("mP1VoiceWarning", mP1VoiceWarning);
 		mP1VoiceWarningBlank = updateLanguage("mP1VoiceWarningBlank", mP1VoiceWarningBlank);
 		mP1GlobalNumberFont = updateLanguage("mP1GlobalNumberFont", mP1GlobalNumberFont);
@@ -811,7 +815,7 @@ public class lang{
 		mP1WarnColorBlank = updateLanguage("mP1WarnColorBlank", mP1WarnColorBlank);
 		mP1ShadeColor = updateLanguage("mP1ShadeColor", mP1ShadeColor);
 		mP1ShadeColorBlank = updateLanguage("mP1ShadeColorBlank", mP1ShadeColorBlank);
-		
+
 
 		
 		mP2EnginePanel = updateLanguage("mP2EnginePanel", mP2EnginePanel);
