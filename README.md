@@ -9,6 +9,7 @@
 - 使用eclipse导入工程,程序入口设置为app.java中的main函数
 - 设置jdk/jre版本为1.8 (java 8)
 - 导入外部UI库 weblaf-complete-1.29.jar
+- 下载release版本,将其他缺失的资源文件复制到本目录
 - 运行或调试程序
 
 # 代码结构说明
@@ -33,4 +34,4 @@
 VoidMei可使用Linux wine执行(测试环境Fedora 35, GNOME 41.7, Wine 7.10),执行步骤如下: 
 - winecfg 兼容性设置为win10 
 - 安装jre8, 执行wine jre-8uXXX-windows-x64.exe /s
-- 运行Voidmei.exe
+- 运行VoidMei
