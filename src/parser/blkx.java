@@ -375,6 +375,8 @@ public class blkx {
 	private float Wx350;
 	private float WxMax;
 	private float Wx600;
+	private float[] modeEngineRPMMult;
+	private float engineRPMMultWEP;
 
 	public void getload() {
 		// String Load0 = cut(data, "Load0");
@@ -405,6 +407,7 @@ public class blkx {
 				}
 			}
 		}
+		engineRPMMultWEP = 1.0f;
 		if (isJet) {
 			aftbCoff = getfloat(hdrString + "Main.AfterburnerBoost");
 			thrMax0 = getfloat("ThrustMax.ThrustMax0");
@@ -438,20 +441,27 @@ public class blkx {
 
 			modeEngineNum = 0;
 			modeEngineMult = new float[10];
+			modeEngineRPMMult = new float[10];
 			for (int i = 0; i < 10; i++, modeEngineNum++){
-				modeEngineMult[i] = getfloat_exc("Mode"+i+".ThrustMult");
+				modeEngineMult[i] = getfloat_exc("Main.Mode"+i+".ThrustMult");
+				modeEngineRPMMult[i] =  getfloat_exc("Main.Mode"+i+".RPM");
 				if (modeEngineMult[i] == Float.MAX_VALUE){
 					modeEngineMult[i] = 0;
+					modeEngineRPMMult[i] = 1;
 					break;
 				}	
 			}
+			
 			
 			
 			float engineMultWEP = 1.0f;
 			
 			if (modeEngineNum != 0){
 				engineMultWEP = modeEngineMult[modeEngineNum - 1];
+				engineRPMMultWEP = modeEngineRPMMult[modeEngineNum - 1];
 			}
+
+			
 			// 读取推力系数包线
 			maxThrCoff = new float[altThrNum][];
 			maxThr = new float[altThrNum][];
@@ -477,9 +487,9 @@ public class blkx {
 		} else {
 			// radial inline
 			// 获得增压器工作高度
-			System.out.println("not a jet");
+//			System.out.println("not a jet");
 			aftbCoff = getfloat(hdrString + "Main.AfterburnerBoost");
-			System.out.println(hdrString);
+//			System.out.println(hdrString);
 			compNumSteps = (int) getfloat("Compressor.NumSteps");
 			speedToManifoldMultiplier = getfloat("Compressor.SpeedManifoldMultiplier");
 
@@ -506,9 +516,16 @@ public class blkx {
 
 		// 读取最大转速和最大允许转速
 		maxRPM = getfloat("RPMAfterburner");
-		if (maxRPM == 0) maxRPM = getfloat(" RPMMax");
+		float maxRPMNormal = getfloat(" RPMMax");
+		if (maxRPM < maxRPMNormal) maxRPM = maxRPMNormal;
+
+		System.out.println("RPMMult"+engineRPMMultWEP);
+		// 针对幻影2000C mode6 rpm乘数1.01的修复
+		maxRPM = maxRPM * engineRPMMultWEP;
+		System.out.println("RPM"+maxRPM);
 		maxAllowedRPM = getfloat("RPMMaxAllowed");
-				
+//		System.out.println("RPM"+maxAllowedRPM);
+		
 		avgEngRecoveryRate = 0.0f;
 		version = getVersion();
 
@@ -730,7 +747,7 @@ public class blkx {
 				WingAngle = getfloat("WingPlaneSweep0. Angle");
 			}
 		}
-		System.out.println("机翼安装角" + WingAngle);
+//		System.out.println("机翼安装角" + WingAngle);
 
 		StabAngle = getfloat("StabAngle");
 		if (WingAngle == 0) {

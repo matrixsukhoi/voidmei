@@ -354,7 +354,7 @@ public class flightInfo extends WebFrame implements Runnable {
 		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
 			totalString[useNum][0] = String.format("%5s", "1000");
 			totalString[useNum][1] = String.format("%s", lang.fRa);
-			totalString[useNum][2] = String.format("%s", "m");
+			totalString[useNum][2] = String.format("%s", "M");
 			idx_rda = useNum++;
 		}
 

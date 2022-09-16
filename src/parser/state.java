@@ -81,11 +81,13 @@ public class state {
 //			engineNum++;
 	}
 
-	public void update(String buf) {
+	public int update(String buf) {
 		int i;
 		valid = stringHelper.getString(buf, "valid");
 		// System.out.println(valid);
-
+		if (valid == null){
+			return -1;
+		}
 		if (valid.equals("true")) {
 			// 无异常的
 			flag = true;
@@ -194,10 +196,10 @@ public class state {
 //			else{
 //				isEngineJet = 1;
 //			}
-
+			
 		} else {
 			flag = false;
 		}
-
+		return 0;
 	}
 }

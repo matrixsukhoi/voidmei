@@ -64,11 +64,13 @@ public class voiceWarning implements Runnable {
 		Boolean isAct;
 		long lastTimePlay;
 		long coolDown;
+		Boolean available;
 
 		public audClip(String path, long coolDownSeconds) {
 			File audioFile = new File(path);
 			playCompleted = false;
 			Clip audioClip = null;
+			available = true;
 			try {
 				AudioInputStream audioStream = AudioSystem.getAudioInputStream(audioFile);
 
@@ -84,43 +86,48 @@ public class voiceWarning implements Runnable {
 
 				FloatControl gainControl = (FloatControl) audioClip.getControl(FloatControl.Type.MASTER_GAIN);
 				float range = gainControl.getMaximum() - gainControl.getMinimum();
-//				System.out.println(range);
-				// 
+				// System.out.println(range);
+				//
 				float rangen = 0 - gainControl.getMinimum();
 				float rangep = gainControl.getMaximum() - 0;
 				float val = 0.0f;
-				if (app.voiceVolumn <= 100){
-					val = gainControl.getMinimum() + (float)Math.log10(app.voiceVolumn) * rangen/2.0f;
-					if (val < gainControl.getMinimum()) val = gainControl.getMinimum();
-				}
-				
-				// 大于100属于增益
-				if (app.voiceVolumn > 100){
-					val = (app.voiceVolumn - 100) * rangep/100.0f;
-					if (val > gainControl.getMaximum()) val = gainControl.getMaximum();
-					
+				if (app.voiceVolumn <= 100) {
+					val = gainControl.getMinimum() + (float) Math.log10(app.voiceVolumn) * rangen / 2.0f;
+					if (val < gainControl.getMinimum())
+						val = gainControl.getMinimum();
 				}
 
-//				System.out.println(val);
-				if (gainControl != null)gainControl.setValue(val);
-//				Math.log10(app.voiceVolumn)/2.0f;
+				// 大于100属于增益
+				if (app.voiceVolumn > 100) {
+					val = (app.voiceVolumn - 100) * rangep / 100.0f;
+					if (val > gainControl.getMaximum())
+						val = gainControl.getMaximum();
+
+				}
+
+				// System.out.println(val);
+				if (gainControl != null)
+					gainControl.setValue(val);
+				// Math.log10(app.voiceVolumn)/2.0f;
 				// 映射使用log方式
-				// f(x) [0, 200] -> [0, ]; 越接近1的越密 
-				
-				
+				// f(x) [0, 200] -> [0, ]; 越接近1的越密
+
 				// audioClip.start();
 
 				// audioClip.close();
 
 			} catch (UnsupportedAudioFileException ex) {
-				System.out.println("The specified audio file is not supported.");
-				ex.printStackTrace();
+				System.out.println("The specified audio file is not supported." + path);
+				// ex.printStackTrace();
+				available = false;
 			} catch (LineUnavailableException ex) {
-				System.out.println("Audio line for playing back is unavailable.");
-				ex.printStackTrace();
+				System.out.println("Audio line for playing back is unavailable." + path);
+				// ex.printStackTrace();
+				available = false;
 			} catch (IOException ex) {
-				System.out.println("Error playing the audio file.");
-				ex.printStackTrace();
+				System.out.println("Error playing the audio file." + path);
+				// ex.printStackTrace();
+				available = false;
 			}
 			// 获得clip
 			this.clip = audioClip;
@@ -136,6 +143,8 @@ public class voiceWarning implements Runnable {
 				this.lastTimePlay = time;
 				// this.clip.stop();
 
+				if (!this.available)
+					return;
 				if (cnt++ == 0)
 					this.clip.start();
 				else
@@ -177,7 +186,7 @@ public class voiceWarning implements Runnable {
 
 			audioClip = (Clip) AudioSystem.getLine(info);
 
-//			audioClip.getCon
+			// audioClip.getCon
 			// audioClip.addLineListener(this);
 
 			audioClip.open(audioStream);
@@ -231,6 +240,13 @@ public class voiceWarning implements Runnable {
 	private audClip terrainWarn;
 	private boolean isGearAlive;
 	private boolean isFlapAlive;
+	private audClip aoaHigh;
+	private int rudderEffIAS;
+	private int elevatorEffIAS;
+	private int aileronEffIAS;
+	private audClip rudderEff;
+	private audClip elevatorEff;
+	private audClip aileronEff;
 
 	public void init(controller c, service S) {
 		xS = S;
@@ -238,11 +254,25 @@ public class voiceWarning implements Runnable {
 		st = xS.sState;
 		indic = xS.sIndic;
 		// 加载其他
-		aoaCrit = new audClip("./voice/aoalimit.wav", 2);
+		aoaCrit = new audClip("./voice/aoaCrit.wav", 2);
+		aoaHigh = new audClip("./voice/aoaHigh.wav", 8);
 		aoaWarningLine = 15;
 		if (xc.blkx != null && xc.blkx.valid)
 			aoaWarningLine = xc.blkx.NoFlapsWing.AoACritHigh;
 
+		rudderEffIAS = 65535;
+		elevatorEffIAS = 65535;
+		aileronEffIAS = 65535;
+		int lowEff = 20;
+		if (xc.blkx != null && xc.blkx.valid) {
+			rudderEffIAS = (int) (xc.blkx.rudderEff + 200);
+			elevatorEffIAS = (int) (xc.blkx.elavEff + 200);
+			aileronEffIAS = (int) (xc.blkx.aileronEff + 200);
+		}
+
+		rudderEff = new audClip("./voice/rudderEff.wav", 10);
+		elevatorEff = new audClip("./voice/elevatorEff.wav", 10);
+		aileronEff = new audClip("./voice/aileronEff.wav", 10);
 		//
 		// rpmThrottleWarn = new audClip("./voice/warn_pitch.wav", 10);
 		rpmLowWarn = new audClip("./voice/warn_lowrpm.wav", 10);
@@ -339,6 +369,9 @@ public class voiceWarning implements Runnable {
 	private int oofCheck;
 	private long gearCheck;
 	private long flapCheck;
+	private boolean elevatorEffCheck = false;
+	private boolean aileronEffCheck = false;
+	private boolean rudderEffCheck = false;
 	public static final long sleepTime = 100;
 
 	// 问题:不能收起落架的飞机怎么办??
@@ -352,42 +385,59 @@ public class voiceWarning implements Runnable {
 			e1.printStackTrace();
 		}
 		while (doit) {
-
 			try {
 				Thread.sleep(sleepTime);
 			} catch (InterruptedException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
+			Boolean fatal = false;
 			Boolean noRPM = false;
 			long t = xS.SystemTime;
 
 			// 攻角判断
-			if (xS.playerLive && st.IAS > 80 && st.AoA >= aoaWarningLine - 1)
-				aoaCrit.playOnce(t);
+			if (xS.playerLive && st.IAS > 80) {
+				if (st.AoA > aoaWarningLine - 1) {
+					fatal = true;
+					aoaCrit.playOnce(t);
+					aoaHigh.lastTimePlay = t;
+					aoaHigh.isAct = true;
+
+				} else {
+					if (st.AoA > ((2 * aoaWarningLine) / 3.0f))
+						aoaHigh.playOnce(t);
+				}
+			}
 
 			// 速度判断
-			if (st.IAS >= iasWarningLine - 40)
+			if (st.IAS >= iasWarningLine - 40){
+				fatal = true;
 				iasWarn.playOnce(t);
+			}
 
 			// 马赫数判断
-			if (st.M >= machWarningLine - 0.05f)
+			if (st.M >= machWarningLine - 0.05f){
+				fatal = true;
 				machWarn.playOnce(t);
+			}
 
 			// 起落架判断
 			if (isGearAlive && st.gear > 0 && st.IAS >= gearWarningLine - 25) {
+				fatal = true;
 				gearWarn.playOnce(t);
 			}
 			// 襟翼判断逻辑
 			// 先得判断襟翼在哪个段内
 			// 使用线性方式获得襟翼的限速
 			if (isFlapAlive && st.IAS >= xS.flapAllowSpeed - 25) {
+				fatal = true;
 				flapWarn.playOnce(t);
 			}
 
 			// 下降率逻辑
 			if (isGearAlive && st.gear >= 50 && st.Vy <= -8) {
 				// 下降率高
+
 				varioWarn.playOnce(t);
 			}
 
@@ -445,14 +495,17 @@ public class voiceWarning implements Runnable {
 			// 下降率等于高度的10分之一会触发警告
 
 			// TODO: 使用无线电高度
-
-			if (st.gear <= 0 && xS.playerLive && st.Vy < -st.heightm / 10.0f) {
-				heightWarn.playOnce(t);
-			} else {
-				// 触发高度警告，但触发地形警告
-				if (st.gear <= 0 && xS.playerLive && xS.radioAlt > 0) {
-					if (xS.dRadioAlt < -xS.radioAlt / 10.0f) {
-						terrainWarn.playOnce(t);
+			if (st.gear <= 0 && xS.playerLive) {
+				if (st.Vy < -st.heightm / 10.0f) {
+					heightWarn.playOnce(t);
+					fatal = true;
+				} else {
+					// 触发高度警告优先，其次是触发地形警告
+					if (xS.radioAlt > 0) {
+						if (xS.dRadioAlt < -xS.radioAlt / 10.0f) {
+							fatal = true;
+							terrainWarn.playOnce(t);
+						}
 					}
 				}
 			}
@@ -511,19 +564,21 @@ public class voiceWarning implements Runnable {
 
 			// 失速逻辑
 			// 有起落架
-			if (xS.playerLive && st.gear == 0 && st.Vy != 0&& st.IAS <= speedWarningLine) {
+			if (xS.playerLive && st.gear == 0 && st.Vy != 0 && st.IAS <= speedWarningLine) {
 				// 失速
 				stallWarn.playOnce(t);
 			}
-//			// 无起落架不告失速
-//			if(st.engineAlive && st.gear < 0 && st.Vy != 0 && st.IAS <= speedWarningLine && st.IAS > 70){
-//				// 失速
-//				stallWarn.playOnce(t);
-//			}
+			// // 无起落架不告失速
+			// if(st.engineAlive && st.gear < 0 && st.Vy != 0 && st.IAS <=
+			// speedWarningLine && st.IAS > 70){
+			// // 失速
+			// stallWarn.playOnce(t);
+			// }
 
 			// 过载
 			if (xS.playerLive && st.Ny > nyWarningLine1 || st.Ny < nyWarningLine0) {
 				// 高过载
+				fatal = true;
 				nyWarn.playOnce(t);
 			}
 
@@ -535,6 +590,35 @@ public class voiceWarning implements Runnable {
 
 			// 负G是否直接可以判断油压?
 
+			// 舵面效率
+			if (st.IAS >= elevatorEffIAS) {
+				if (!elevatorEffCheck) {
+					elevatorEff.playOnce(t);
+				}
+				elevatorEffCheck = true;
+			} else {
+				elevatorEffCheck = false;
+			}
+
+			if (st.IAS >= aileronEffIAS) {
+				if (!aileronEffCheck) {
+					aileronEff.playOnce(t);
+				}
+				aileronEffCheck = true;
+			} else {
+				aileronEffCheck = false;
+			}
+
+			if (st.IAS >= rudderEffIAS) {
+				if (!rudderEffCheck) {
+					rudderEff.playOnce(t);
+				}
+				rudderEffCheck = true;
+			} else {
+				rudderEffCheck = false;
+			}
+
+			xS.fatalWarn = fatal;
 		}
 		// try {
 		// Thread.sleep(1000);

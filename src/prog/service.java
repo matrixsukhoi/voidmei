@@ -93,7 +93,10 @@ public class service implements Runnable {
 	public String s1;
 	public String s2;
 	public controller c;
-
+	
+	// 对飞机结构有重大影响的警告
+	public Boolean fatalWarn = false;
+	
 	// sState转换后
 	public boolean hasWingSweepVario;
 	public boolean isStateJet;
@@ -165,7 +168,8 @@ public class service implements Runnable {
 	public float dRadioAlt;
 	public float An;
 	public int iEngType;
-	
+
+	Boolean portOcupied = false;
 	private int checkEngineType;
 	private int checkPitch;
 	public boolean checkEngineFlag;
@@ -336,8 +340,10 @@ public class service implements Runnable {
 			if (twepTime / 60 >= 100){
 				sWepTime = String.format("%d", twepTime / 60);
 			}
-			else
-				sWepTime = String.format("%d:%02d", twepTime / 60, twepTime % 60);
+			else{
+//				sWepTime = String.format("%d:%02d", twepTime / 60, twepTime % 60);
+				sWepTime = String.format("%.1f", (float)twepTime / 60.0f);
+			}
 
 		} else {
 			sNitro = nastring;
@@ -564,6 +570,7 @@ public class service implements Runnable {
 	private boolean downflap;
 	private long flapCheck;
 	float maximumThrRPM;
+//	float maximumAllowedRPM;
 	private long checkMaxiumRPM;
 	public boolean getMaximumRPM;
 
@@ -863,6 +870,8 @@ public class service implements Runnable {
 			if (c.blkx != null && c.blkx.valid) {
 				// FM合法直接取FM
 				maximumThrRPM = c.blkx.maxRPM;
+				// 使用最大允许RPM
+//				maximumThrRPM = c.blkx.maxAllowedRPM;
 				// System.out.println(maximumThrRPM);
 				getMaximumRPM = true;
 			} else {
@@ -1006,16 +1015,19 @@ public class service implements Runnable {
 			+ "127.0.0.1" + "\n" + "Cache-Control:no-cache\n" + app.httpHeader + "\n";
 
 	// Socket socketp = new Socket();
-	static final public SocketAddress ins_dest = new InetSocketAddress("127.0.0.1", 8111);
+	static final public SocketAddress insDest = new InetSocketAddress("127.0.0.1", 8111);
+	
+	// 如果8111端口被占用尝试9222端口
+	static final public SocketAddress insDestBackup = new InetSocketAddress("127.0.0.1", 9222);
 
 	// StringBuilder contentBuf = new StringBuilder();
 	// BufferedWriter bufferedWriter = new BufferedWriter(streamWriter);
-	public String sendGetFast(String req_string) throws IOException {
+	public String sendGetFast(String req_string, SocketAddress dest) throws IOException {
 
 		String result = null;
 		Socket socket = new Socket();
 		// socket.
-		socket.connect(ins_dest);
+		socket.connect(dest);
 		OutputStreamWriter streamWriter = new OutputStreamWriter(socket.getOutputStream());
 		BufferedWriter bufferedWriter = new BufferedWriter(streamWriter);
 
@@ -1212,6 +1224,8 @@ public class service implements Runnable {
 	}
 
 	public void checkState() {
+		int conState;
+		// 更新时间戳
 		timeStamp = SystemTime;
 		// System.out.println("s:"+s+"s1:"+s1);
 		// 更新state
@@ -1220,7 +1234,7 @@ public class service implements Runnable {
 		if (s.length() > 2 && s1.length() > 2) {
 			// 改变状态为连接成功
 			// System.out.println(sState);
-			sState.update(s);
+			conState = sState.update(s);
 			c.changeS2();
 			if (sState.flag) {
 				sIndic.update(s1);
@@ -1263,20 +1277,29 @@ public class service implements Runnable {
 
 		} else {
 			// 状态置为等待连接中
+			conState = -1;
 			c.S4toS1();
 			// System.out.println("等待连接中");
 		}
+		if (conState == -1){
+			// 端口连接可能有问题，切换端口
+			System.out.println("切换端口\n");
+			portOcupied = !portOcupied;
+		}
 	}
-
 	public void getReqResult() {
 		try {
 
 			// s = sendGet("127.0.0.1", 8111, "/state");
 			// s1 = sendGet("127.0.0.1", 8111, "/indicators");
-
-			s = sendGetFast(state_request);
-			s1 = sendGetFast(indic_request);
-
+			if (!portOcupied){
+				s = sendGetFast(state_request, insDest);
+				s1 = sendGetFast(indic_request, insDest);
+			}
+			else{
+				s = sendGetFast(state_request, insDestBackup);
+				s1 = sendGetFast(indic_request, insDestBackup);
+			}
 			// intv = (ctime - intvCheckMili);
 			// intvCheckMili = ctime;
 			// if (intv == 0)
@@ -1313,8 +1336,10 @@ public class service implements Runnable {
 				}
 				MainCheckMili = SystemTime;
 
+				// 尝试GET数据
 				getReqResult();
-				// 更新时间戳
+				
+				// 检查是否需要改变状态
 				checkState();
 
 				// 记录

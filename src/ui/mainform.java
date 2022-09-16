@@ -617,12 +617,6 @@ public class mainform extends WebFrame implements Runnable {
 		bstatusSwitch = createLCGroup(topPanel, lang.mP1statusBar);
 		createvoidWebLabel(topPanel,lang.mP1statusBarBlank);
 		
-		bvoiceWarningSwitch = createLCGroup(topPanel, lang.mP1VoiceWarning);
-		createvoidWebLabel(topPanel,lang.mP1VoiceWarningBlank);
-		
-		ivoiceVolume = createLSGroup(topPanel, lang.mP1voiceVolume, 0, 200, 300, 10, 50);
-		createvoidWebLabel(topPanel,lang.mP1voiceVolumeBlank);
-		
 		
 		
 		bdrawShadeSwitch = createLCGroup(topPanel, lang.mP1drawFontShape);
@@ -630,6 +624,7 @@ public class mainform extends WebFrame implements Runnable {
 
 		bAAEnable = createLCGroup(topPanel, lang.mP1AAEnable);
 		createvoidWebLabel(topPanel,lang.mP1AAEnableBlank);
+		
 		
 
 		sGlobalNumFont = createFontList(topPanel,lang.mP1GlobalNumberFont);
@@ -650,6 +645,11 @@ public class mainform extends WebFrame implements Runnable {
 		createvoidWebLabel(topPanel,lang.mP1ShadeColorBlank);
 		
 		iInterval=createLSGroup(topPanel,lang.mP1Interval, 10, 300,500,5 , 40);
+		bvoiceWarningSwitch = createLCGroup(topPanel, lang.mP1VoiceWarning);
+		createvoidWebLabel(topPanel,lang.mP1VoiceWarningBlank);
+		
+		ivoiceVolume = createLSGroup(topPanel, lang.mP1voiceVolume, 0, 200, 300, 10, 50);
+		createvoidWebLabel(topPanel,lang.mP1voiceVolumeBlank);
 		
 
 
@@ -1041,7 +1041,7 @@ public class mainform extends WebFrame implements Runnable {
 		jp6 = new WebPanel();
 		initJP1();
 		initJP2();
-		if(!app.foreignLanguage)initJP3();
+		initJP3();
 		initJP4();
 		initJP5();
 		initJP6();
@@ -1050,7 +1050,7 @@ public class mainform extends WebFrame implements Runnable {
 		tabbedPane.addTab(lang.mEngineInfo, jp2);
 		tabbedPane.addTab(lang.mControlInfo, jp6);
 		tabbedPane.addTab(lang.mLoggingAndAnalysis, jp5);
-		if(!app.foreignLanguage)tabbedPane.addTab(lang.mCrosshair, jp3);
+		tabbedPane.addTab(lang.mCrosshair, jp3);
 		tabbedPane.addTab(lang.mAdvancedOption, jp1);
 		// tabbedPane.setTabBorderColor(new Color(0, 0, 0, 0));
 		// tabbedPane.setContentBorderColor(new Color(0, 0, 0, 0));
@@ -1135,12 +1135,12 @@ public class mainform extends WebFrame implements Runnable {
 
 		
 		
-		if(!app.foreignLanguage)bCrosshairSwitch.setSelected(Boolean.parseBoolean(tc.getconfig("crosshairSwitch")));
-		if(!app.foreignLanguage)iCrosshairScale.setValue(Integer.parseInt(tc.getconfig("crosshairScale")));
-		if(!app.foreignLanguage)bTextureCrosshairSwitch.setSelected(Boolean.parseBoolean(tc.getconfig("usetexturecrosshair")));
-		if(!app.foreignLanguage)sCrosshairName.setSelectedItem(tc.getconfig("crosshairName"));
-		if(!app.foreignLanguage)bDrawHudTextSwitch.setSelected(Boolean.parseBoolean(tc.getconfig("drawHUDtext")));
-		if(!app.foreignLanguage)bcrosshairdisplaySwitch.setSelected(Boolean.parseBoolean(tc.getconfig("displayCrosshair")));
+		bCrosshairSwitch.setSelected(Boolean.parseBoolean(tc.getconfig("crosshairSwitch")));
+		iCrosshairScale.setValue(Integer.parseInt(tc.getconfig("crosshairScale")));
+		bTextureCrosshairSwitch.setSelected(Boolean.parseBoolean(tc.getconfig("usetexturecrosshair")));
+		sCrosshairName.setSelectedItem(tc.getconfig("crosshairName"));
+		bDrawHudTextSwitch.setSelected(Boolean.parseBoolean(tc.getconfig("drawHUDtext")));
+		bcrosshairdisplaySwitch.setSelected(Boolean.parseBoolean(tc.getconfig("displayCrosshair")));
 
 		bdrawShadeSwitch.setSelected(Boolean.parseBoolean(tc.getconfig("simpleFont")));
 		bAAEnable.setSelected(Boolean.parseBoolean(tc.getconfig("AAEnable")));
@@ -1202,12 +1202,12 @@ public class mainform extends WebFrame implements Runnable {
 		tc.setconfig("engineInfoFont", fEngineInfoFont.getSelectedItem().toString());
 		tc.setconfig("engineInfoFontadd", Integer.toString(iEngineInfoFontSizeIncr.getValue()));
 		
-		if(!app.foreignLanguage)tc.setconfig("crosshairSwitch", Boolean.toString(Boolean.FALSE));
-		if(!app.foreignLanguage)tc.setconfig("crosshairScale", Integer.toString(10));
-		if(!app.foreignLanguage)tc.setconfig("usetexturecrosshair", Boolean.toString(Boolean.FALSE));
-		if(!app.foreignLanguage)tc.setconfig("crosshairName", sCrosshairName.getSelectedItem().toString());
-		if(!app.foreignLanguage)tc.setconfig("drawHUDtext",  Boolean.toString(Boolean.FALSE));
-		if(!app.foreignLanguage)tc.setconfig("displayCrossharir", Boolean.toString(Boolean.FALSE));
+		tc.setconfig("crosshairSwitch", Boolean.toString(Boolean.FALSE));
+		tc.setconfig("crosshairScale", Integer.toString(10));
+		tc.setconfig("usetexturecrosshair", Boolean.toString(Boolean.FALSE));
+		tc.setconfig("crosshairName", sCrosshairName.getSelectedItem().toString());
+		tc.setconfig("drawHUDtext",  Boolean.toString(Boolean.FALSE));
+		tc.setconfig("displayCrossharir", Boolean.toString(Boolean.FALSE));
 		
 		if(app.debug)tc.setconfig("usetempInfoSwitch", Boolean.toString(Boolean.FALSE));
 //		tc.setconfig(", value);
@@ -1286,12 +1286,12 @@ public class mainform extends WebFrame implements Runnable {
 		tc.setconfig("disableEngineInfoHeatTolerance", Boolean.toString(!bEngineInfoHeatTolerance.isSelected()));
 		tc.setconfig("disableEngineInfoEngResponse", Boolean.toString(!bEngineInfoEngResponse.isSelected()));
 		
-		if(!app.foreignLanguage)tc.setconfig("crosshairSwitch", Boolean.toString(bCrosshairSwitch.isSelected()));
-		if(!app.foreignLanguage)tc.setconfig("crosshairScale", Integer.toString(iCrosshairScale.getValue()));
-		if(!app.foreignLanguage)tc.setconfig("usetexturecrosshair", Boolean.toString(bTextureCrosshairSwitch.isSelected()));
-		if(!app.foreignLanguage)tc.setconfig("crosshairName", sCrosshairName.getSelectedItem().toString());
-		if(!app.foreignLanguage)tc.setconfig("drawHUDtext",  Boolean.toString(bDrawHudTextSwitch.isSelected()));
-		if(!app.foreignLanguage)tc.setconfig("displayCrosshair", Boolean.toString(bcrosshairdisplaySwitch.isSelected()));
+		tc.setconfig("crosshairSwitch", Boolean.toString(bCrosshairSwitch.isSelected()));
+		tc.setconfig("crosshairScale", Integer.toString(iCrosshairScale.getValue()));
+		tc.setconfig("usetexturecrosshair", Boolean.toString(bTextureCrosshairSwitch.isSelected()));
+		tc.setconfig("crosshairName", sCrosshairName.getSelectedItem().toString());
+		tc.setconfig("drawHUDtext",  Boolean.toString(bDrawHudTextSwitch.isSelected()));
+		tc.setconfig("displayCrosshair", Boolean.toString(bcrosshairdisplaySwitch.isSelected()));
 		
 		
 		

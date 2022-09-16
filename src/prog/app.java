@@ -31,15 +31,18 @@ public class app {
 
 	// 一些全局配置
 	public static final boolean debug = false;
-	public static final boolean foreignLanguage = false;
+	
+	// 调试日芷
+	public static final boolean debugLog = true;
 
+	
 	public static final long gcSeconds = 10;
 	public static final Color previewColor = new Color(0, 0, 0, 10);
 
 	public static String appName = lang.appName;
 	public static String DefaultNumfontName = "Roboto";
 	public static String appTooltips = lang.appTooltips;
-	public static String version = "1.46";
+	public static String version = "1.48";
 	public static String httpHeader = lang.httpHeader;
 	public static int voiceVolumn = 100;
 	public static String DefaultFontName = "Microsoft YaHei UI";
@@ -273,10 +276,10 @@ public class app {
 
 		// set output stream
 		setUTF8();
-
-		setDebugLog("./output.log");
-		setErrLog("./error.log");
-		
+		if(app.debugLog){
+			setDebugLog("./output.log");
+			setErrLog("./error.log");
+		}
 		lang.initLang();
 		appName = lang.appName;
 		appTooltips = lang.appTooltips;

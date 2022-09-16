@@ -62,7 +62,8 @@ public class minimalHUD extends WebFrame implements Runnable {
 	public int roundCompass;
 	public boolean warnVne;
 	public boolean drawAttitude;
-
+	int blinkTicks=1;
+	int blinkCheckTicks=0;
 	/*
 	 * public static Image makeColorTransparent(Image im, final Color color) {
 	 * ImageFilter filter = new RGBImageFilter() {
@@ -88,6 +89,35 @@ public class minimalHUD extends WebFrame implements Runnable {
 	public void initpanel() {
 		panel.setWebColoredBackground(false);
 		panel.setBackground(new Color(0, 0, 0, 0));
+	}
+
+	public Boolean blinkX = false;
+	public Boolean blinkActing = false;
+
+	public void drawBlinkX(Graphics2D g) {
+		// 高度警告标记
+		if (blinkX) {
+			if (!blinkActing) {
+				//  
+				g.setStroke(new BasicStroke(5));
+				g.setColor(app.colorShadeShape);
+
+				g.drawLine(2 , 2, Width/3*2 - 2 , Height - 2);
+				g.drawLine(Width/3*2 - 2, 2, 2 , Height - 2);
+				
+				g.setStroke(new BasicStroke(3));
+				g.setColor(app.colorNum);
+				g.drawLine(1, 1, Width/3*2 - 1, Height- 1);
+				g.drawLine(Width/3*2 - 1, 1, 1, Height - 1);
+				
+				
+			}
+			blinkCheckTicks+=1;
+			if (blinkCheckTicks % blinkTicks == 0){
+//				System.out.println(blinkTicks +"?" + blinkCheckTicks);
+				blinkActing = !blinkActing;		
+			}
+		}
 	}
 
 	public void drawCrossair(Graphics2D g, int dx, int dy, int CrossX, int CrossY, int CrossWidth) {
@@ -315,7 +345,9 @@ public class minimalHUD extends WebFrame implements Runnable {
 
 		uiBaseElem.drawStringShade(g, x, n + (r - HUDFontsize / 2) + y, 1, lineCompass, drawFont);
 		n = n + 3 * roundCompass;
+		
 
+		drawBlinkX(g);
 		// drawLabelBOSType(g, 0, n, 1, drawFont, drawFont, drawFont, "500",
 		// "IAS", "km/h");
 		// drawLabelBOSType(g, 0, n, 1,)
@@ -586,7 +618,7 @@ public class minimalHUD extends WebFrame implements Runnable {
 				g2d.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION,
 						RenderingHints.VALUE_ALPHA_INTERPOLATION_SPEED);
 				g2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_SPEED);
-				
+
 				// if (busetexturecrosshair) {
 				// g2d.drawImage(C, CrossX - CrossWidthVario, CrossY -
 				// CrossWidthVario, CrossWidthVario * 2, CrossWidthVario * 2,
@@ -608,7 +640,7 @@ public class minimalHUD extends WebFrame implements Runnable {
 						drawCrossair(g2d, 2 * Width, 1 * Height, Width + CrossX, CrossY, CrossWidth);
 					}
 				}
-//				g.dispose();
+				// g.dispose();
 			}
 		};
 		// initpanel();
@@ -625,7 +657,10 @@ public class minimalHUD extends WebFrame implements Runnable {
 		// setFocusableWindowState(false);// 取消窗口焦点
 		// this.setCursor(app.blankCursor);
 		// setVisible(true);
-
+		// 1miao 8 ci
+		blinkTicks = (int) ((1000/xc.freqService) >> 3);
+		if (blinkTicks == 0)blinkTicks = 1;
+		
 		uiWebLafSetting.setWindowOpaque(this);
 		root = this.getContentPane();
 		// this.createBufferStrategy(2);
@@ -644,6 +679,7 @@ public class minimalHUD extends WebFrame implements Runnable {
 	public void drawTick() {
 
 		warnVne = false;
+		blinkX = xs.fatalWarn;
 		int throttle = xs.sState.throttle;
 		if (throttle >= 100) {
 			throttleColor = app.colorNum;
@@ -653,9 +689,9 @@ public class minimalHUD extends WebFrame implements Runnable {
 			} else {
 				if (throttle >= 50) {
 					throttleColor = app.colorUnit;
-				} 
-//				else
-//					throttleColor = app.colorShadeShape;
+				}
+				// else
+				// throttleColor = app.colorShadeShape;
 			}
 		}
 		throttley = throttle * HUDFontsize * 5 / 110;
@@ -788,6 +824,7 @@ public class minimalHUD extends WebFrame implements Runnable {
 
 	@Override
 	public void run() {
+
 		while (doit) {
 			try {
 				Thread.sleep(app.threadSleepTime);
