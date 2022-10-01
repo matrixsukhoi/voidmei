@@ -11,6 +11,8 @@ public class lang{
 	public static String aboutcontentsub2;
 	public static String failaddtoTray;
 	public static String httpHeader;
+	public static String httpIp;
+	public static String httpPort;
 	public static String Systemerror;
 	//mainform
 	public static String mCancel;
@@ -750,11 +752,11 @@ public class lang{
 	public static String updateLanguage(String key, String dft){
 		String v = lanuageConfig.getValue(key);
 		if (!v.equals("")){
-//			System.out.println(v);
+//			app.debugPrint(v);
 			return v;
 		}
 		else{
-//			System.out.println(key);
+//			app.debugPrint(key);
 			dft = "";
 		}
 		return dft;
@@ -773,7 +775,9 @@ public class lang{
 		aboutcontentsub2 = updateLanguage("aboutcontentsub2", aboutcontentsub2);
 		failaddtoTray = updateLanguage("failaddtoTray", failaddtoTray);
 		httpHeader = updateLanguage("httpHeader", httpHeader);
-//		System.out.println(httpHeader);
+		httpIp = updateLanguage("httpIp", httpIp);
+		httpPort = updateLanguage("httpPort", httpPort);
+//		app.debugPrint(httpHeader);
 		Systemerror = updateLanguage("Systemerror", Systemerror);
 		mCancel = updateLanguage("mCancel", mCancel);
 		mStart = updateLanguage("mStart", mStart);
@@ -1114,7 +1118,7 @@ public class lang{
 //		public static String bLift = "主升力面积: %.1f机翼, %.1f机身\n主升力面积因数载荷: %.2f / %.2f(襟)\n翼展效率: %.2f 展弦比: %.1f 后掠角: %.1f\n";
 //		public static String bDrag = "主阻力面积因数与加速度系数: %.2f / %.2f\n诱导阻力因数及加速度系数: %.3f / %.0f\n散热/油冷器阻力系数: %.3f / %.3f\n";
 //		
-		//		System.out.println("语言初始化完成\n");
+		//		app.debugPrint("语言初始化完成\n");
 	}
 //	
 //	public static void initEng(){

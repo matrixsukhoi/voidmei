@@ -239,7 +239,7 @@ public class service implements Runnable {
 		else
 			efficiency[0] = String.format("%.0f", sState.efficiency[0]);
 		// if (sState.watertemp == -65535) {
-		// // System.out.println(iIndic.engine_temperature);
+		// // app.debugPrint(iIndic.engine_temperature);
 		// watertemp = String.format("%.0f", 0.0);
 		// if (iIndic.water_temperature != -65535)
 		// watertemp = String.format("%.0f", iIndic.water_temperature);
@@ -294,7 +294,7 @@ public class service implements Runnable {
 		sfuelPercent = String.format("%d", fuelPercent);
 		if (hasWingSweepVario) {
 			sWingSweep = String.format("%.0f", sIndic.wsweep_indicator * 100.f);
-			// System.out.println(sWingSweep);
+			// app.debugPrint(sWingSweep);
 		} else
 			sWingSweep = nastring;
 		if (sIndic.radio_altitude >= 0) {
@@ -307,7 +307,7 @@ public class service implements Runnable {
 			sAvgEff = nastring;
 		else
 			sAvgEff = String.format("%d", Math.round(avgeff));
-		// System.out.println(sWingSweep);
+		// app.debugPrint(sWingSweep);
 		Vy = String.format("%.1f", nVy);
 		sN = String.format("%.1f", An/g);
 		IAS = String.format("%d", sState.IAS);
@@ -367,8 +367,8 @@ public class service implements Runnable {
 		else
 			sTurnRate = nastring;
 		sHorizontalLoad = String.format("%.1f", horizontalLoad);
-		// System.out.println("已加力时间(秒)"+wepTime/1000);
-		// System.out.println("剩余加力时间(分钟)"+rwepTime);
+		// app.debugPrint("已加力时间(秒)"+wepTime/1000);
+		// app.debugPrint("剩余加力时间(分钟)"+rwepTime);
 
 	}
 
@@ -415,22 +415,22 @@ public class service implements Runnable {
 				// 涡桨
 				if (checkPitch > 0) {
 					iEngType = ENGINE_TYPE_TURBOPROP;
-					// System.out.println("涡桨\n");
+					// app.debugPrint("涡桨\n");
 				} else
 					iEngType = ENGINE_TYPE_JET;
 			}
 		}
-		// System.out.println(iEngType);
+		// app.debugPrint(iEngType);
 	}
 
 	public void slowcalculate() {
 		// 计算耗油率及持续时间
-		// System.out.println(totalfuelp - totalfuel);
+		// app.debugPrint(totalfuelp - totalfuel);
 		// if (MainCheckMili - FuelCheckMili > 1000) {
 		if ((sState.gear == 100 || sState.gear < 0) && fTotalFuel > fTotalFuelP) {
 			// 加油,重置
 
-			System.out.println("reset " + fTotalFuel + "," + fTotalFuelP);
+			app.debugPrint("reset " + fTotalFuel + "," + fTotalFuelP);
 			resetvaria();
 
 		}
@@ -444,7 +444,7 @@ public class service implements Runnable {
 			FuelchangeTime = MainCheckMili - FuelLastchangeMili;
 			FuelLastchangeMili = MainCheckMili;
 			fuelChange = fTotalFuelP - fTotalFuel; // 改变1公斤花了多长时间
-			// System.out.println(fuelChange);
+			// app.debugPrint(fuelChange);
 
 		} else {
 			// 没有变化，使用上次
@@ -458,7 +458,7 @@ public class service implements Runnable {
 				fueltime = (long)(fTotalFuel * FuelchangeTime / fuelChange);
 			} else
 				fueltime = 0;
-			// System.out.println(fueltime);
+			// app.debugPrint(fueltime);
 		}
 
 		if (fueltime < 0)
@@ -507,12 +507,12 @@ public class service implements Runnable {
 			}
 		}
 
-		// System.out.println("当前水工作负载: " + curLoad + "," + minWorkTime);
-		// System.out.println("水工作负载数组: [");
+		// app.debugPrint("当前水工作负载: " + curLoad + "," + minWorkTime);
+		// app.debugPrint("水工作负载数组: [");
 		// for (int i = 0; i < c.blkx.maxEngLoad; i++) {
 		// System.out.print(pL[i].curWaterWorkTimeMili / 1000 + " ");
 		// }
-		// System.out.println("]");
+		// app.debugPrint("]");
 
 		// 油冷
 		curOLoad = c.blkx.findmaxOilLoad(pL, noilTemp);
@@ -537,12 +537,12 @@ public class service implements Runnable {
 			}
 		}
 
-		//// System.out.println("当前油工作负载: " + curLoad + "," + minWorkTime);
-		// System.out.println("油工作负载数组: [");
+		//// app.debugPrint("当前油工作负载: " + curLoad + "," + minWorkTime);
+		// app.debugPrint("油工作负载数组: [");
 		// for (int i = 0; i < c.blkx.maxEngLoad; i++) {
 		// System.out.print(pL[i].curOilWorkTimeMili / 1000 + " ");
 		// }
-		// System.out.println("]");
+		// app.debugPrint("]");
 
 		curLoadMinWorkTime = minWorkTime;
 	}
@@ -589,7 +589,7 @@ public class service implements Runnable {
 		// 2 * 9.78 / pow_vcostheta) )) * pow_vcostheta / 9.78;
 		// double angleR = Math.toDegrees(Math.atan(alt/xoffset));
 
-		// System.out.println(bangleR +"," + bxoffset);
+		// app.debugPrint(bangleR +"," + bxoffset);
 
 		// 问题是怎么把斜抛角度映射到屏幕空间上
 		// degree to Pixel
@@ -599,7 +599,7 @@ public class service implements Runnable {
 	public void updateWepTime() {
 		if (sState.throttle > 100) {
 			// 进入Wep状态
-			// System.out.println(TimeIncrMili);
+			// app.debugPrint(TimeIncrMili);
 			wepTime += TimeIncrMili;
 		}
 	}
@@ -637,12 +637,12 @@ public class service implements Runnable {
 
 		// if (checkAlt > 2)
 		// alt = alt * 0.3048f;
-		// // System.out.println(Math.abs(alt - altp)*1000+"?"+Math.abs(2 *
+		// // app.debugPrint(Math.abs(alt - altp)*1000+"?"+Math.abs(2 *
 		// // sState.Vy * intv));
 		//
 		// // 解决熊猫的高度问题
 		// alt = alt + altperCircle * altreg;
-		// System.out.println("checkalt"+checkAlt);
+		// app.debugPrint("checkalt"+checkAlt);
 
 		// 雷达高度
 		pRadioAlt = radioAlt;
@@ -653,7 +653,7 @@ public class service implements Runnable {
 			radioAlt = sIndic.radio_altitude;
 		}
 		dRadioAlt = (ratio_1 * dRadioAlt) + ratio * 1000.0f * (radioAlt - pRadioAlt) / intv;
-		// System.out.println(dRadioAlt);
+		// app.debugPrint(dRadioAlt);
 
 	}
 
@@ -677,7 +677,7 @@ public class service implements Runnable {
 		}
 		else
 			An = (g * sState.Ny);
-//		System.out.println(Math.cos(sIndic.aviahorizon_roll));
+//		app.debugPrint(Math.cos(sIndic.aviahorizon_roll));
 		// 计算时取前后两次采样的速度平均值
 		if (sIndic.turn != -65535) {
 			horizontalLoad = Math.abs(sIndic.turn) * (speedvp + speedv) / (2 * g);
@@ -706,9 +706,9 @@ public class service implements Runnable {
 				iastotascoff = (1000 * ratio_1 * iastotascoff + 1000 * ratio * vTAS / (speedv * 3.6f)) / 1000.0f;
 			// iastotascoff = 1+(float) (0.02 * sState.heightm * 3.2808 / 1000);
 			speedv = speedv * iastotascoff;
-			// System.out.println("校正TAS:"+ speedv*3.6);
+			// app.debugPrint("校正TAS:"+ speedv*3.6);
 			// 订正后加速度还是会有跳变
-			// System.out.println("校正TAS:"+ speedv*3.6 + "," + iastotascoff);
+			// app.debugPrint("校正TAS:"+ speedv*3.6 + "," + iastotascoff);
 
 		} else {
 			// 使用IASv作为辅助订正TAS
@@ -733,12 +733,12 @@ public class service implements Runnable {
 			float ttotalthr = 0;
 			for (i = 0; i < sState.engineNum; i++) {
 				ttotalthr = ttotalthr + sState.thrust[i];
-				// System.out.println(sState.engineNum);
+				// app.debugPrint(sState.engineNum);
 				ttotalhp = ttotalhp + sState.power[i];
 				ttotalhpeff = ttotalhpeff + sState.thrust[i] * g * speedv / 735;
 			}
-			// System.out.println(totalhp);
-			// System.out.println(totalhpeff);
+			// app.debugPrint(totalhp);
+			// app.debugPrint(totalhpeff);
 
 			iTotalHp = (int) (ttotalhp);
 			iTotalHpEff = (int) (ttotalhpeff);
@@ -752,10 +752,10 @@ public class service implements Runnable {
 			// 喷气机
 			float ttotalthr = 0;
 			for (i = 0; i < sState.engineNum; i++) {
-				// System.out.println(sState.thrust[0]);
+				// app.debugPrint(sState.thrust[0]);
 				ttotalthr = ttotalthr + sState.thrust[i];
 			}
-			// System.out.println(totalthr+" "+totalhpeff);
+			// app.debugPrint(totalthr+" "+totalhpeff);
 			float ttotalhpeff = ((ttotalthr * g * speedv) / 735);
 
 			iTotalThr = (int) ttotalthr;
@@ -798,7 +798,7 @@ public class service implements Runnable {
 			fTotalFuel = ttotalfuel;
 
 		}
-		// System.out.println("I"+totalfuel);
+		// app.debugPrint("I"+totalfuel);
 		if (fTotalFuel == 0) {
 			bLowAccFuel = Boolean.TRUE;
 			fTotalFuel = sState.mfuel;
@@ -820,7 +820,7 @@ public class service implements Runnable {
 			diffspeed = (ratio_1 * diffspeed + ratio * (speedv - speedvp));
 			// diffspeed = diffspeed/2 + ((speedvp - speedvvp) + (speedv -
 			// speedvp))/4 ;
-			// System.out.println(diffspeed);
+			// app.debugPrint(diffspeed);
 			acceleration = diffspeed * 1000.0f / intv;
 			// SEP = acceleration * (speedvp + speedv) * sState.TAS / (2 *
 			// sState.IAS) + 9.78f * sState.Vy;
@@ -872,7 +872,7 @@ public class service implements Runnable {
 				maximumThrRPM = c.blkx.maxRPM;
 				// 使用最大允许RPM
 //				maximumThrRPM = c.blkx.maxAllowedRPM;
-				// System.out.println(maximumThrRPM);
+				// app.debugPrint(maximumThrRPM);
 				getMaximumRPM = true;
 			} else {
 				// 自适应获得(无FM)
@@ -881,7 +881,7 @@ public class service implements Runnable {
 				if (checkMaxiumRPM < 20000 / freq) {
 					if (sState.IAS > 50) {
 						if (sState.RPM >= maximumThrRPM) {
-							// System.out.println(sState.RPM
+							// app.debugPrint(sState.RPM
 							// +","+maximumThrRPM);
 							maximumThrRPM = (ratio_1 * maximumThrRPM) + ratio * (sState.RPM);
 						}
@@ -920,7 +920,7 @@ public class service implements Runnable {
 		// 更新转弯半径
 		updateTurn();
 
-		// System.out.println(horizontalLoad);
+		// app.debugPrint(horizontalLoad);
 		// 计算总推力、总功率和总轴功率
 		updateEngineState();
 		// 计算总油量
@@ -934,7 +934,7 @@ public class service implements Runnable {
 
 		// 襟翼判断
 		checkFlap();
-		// System.out.println(flapAllowSpeed);
+		// app.debugPrint(flapAllowSpeed);
 
 		// 获得最大转速
 		getMaximumRPM();
@@ -1001,7 +1001,7 @@ public class service implements Runnable {
 				k = 0;
 			}
 			// 速度等于
-			// System.out.println(x0 + "-" + x1 + ", " + y0 + "-" + y1);
+			// app.debugPrint(x0 + "-" + x1 + ", " + y0 + "-" + y1);
 			return y0 + (flapPercent - x0) * k;
 		}
 
@@ -1015,10 +1015,7 @@ public class service implements Runnable {
 			+ "127.0.0.1" + "\n" + "Cache-Control:no-cache\n" + app.httpHeader + "\n";
 
 	// Socket socketp = new Socket();
-	static final public SocketAddress insDest = new InetSocketAddress("127.0.0.1", 8111);
-	
-	// 如果8111端口被占用尝试9222端口
-	static final public SocketAddress insDestBackup = new InetSocketAddress("127.0.0.1", 9222);
+
 
 	// StringBuilder contentBuf = new StringBuilder();
 	// BufferedWriter bufferedWriter = new BufferedWriter(streamWriter);
@@ -1065,7 +1062,7 @@ public class service implements Runnable {
 		// else{
 		// result = nastring;
 		// }
-		// System.out.println(result);
+		// app.debugPrint(result);
 		bufferedReader.close();
 		bufferedWriter.close();
 		socket.close();
@@ -1114,7 +1111,7 @@ public class service implements Runnable {
 			contentBuf.append(line);
 		}
 		result = contentBuf.toString();
-		// System.out.println(result);
+		// app.debugPrint(result);
 		bufferedReader.close();
 		bufferedWriter.close();
 		socket.close();
@@ -1176,7 +1173,7 @@ public class service implements Runnable {
 	}
 
 	public void clear() {
-		// System.out.println("执行清洁");
+		// app.debugPrint("执行清洁");
 		clearvaria();
 
 		System.gc();
@@ -1203,7 +1200,7 @@ public class service implements Runnable {
 		// // TODO Auto-generated catch block
 		// e.printStackTrace();
 		// }
-		// System.out.println("service执行了");
+		// app.debugPrint("service执行了");
 		c = xc;
 		clearvaria();
 
@@ -1227,13 +1224,13 @@ public class service implements Runnable {
 		int conState;
 		// 更新时间戳
 		timeStamp = SystemTime;
-		// System.out.println("s:"+s+"s1:"+s1);
+		// app.debugPrint("s:"+s+"s1:"+s1);
 		// 更新state
 
 		c.initStatusBar();
 		if (s.length() > 2 && s1.length() > 2) {
 			// 改变状态为连接成功
-			// System.out.println(sState);
+			// app.debugPrint(sState);
 			conState = sState.update(s);
 			c.changeS2();
 			if (sState.flag) {
@@ -1266,7 +1263,7 @@ public class service implements Runnable {
 				// c.changeS2();//连接成功等待游戏开始
 
 				c.S4toS1();
-				// System.out.println("等待游戏开始");
+				// app.debugPrint("等待游戏开始");
 				try {
 					Thread.sleep(500);
 				} catch (InterruptedException e) {
@@ -1279,11 +1276,11 @@ public class service implements Runnable {
 			// 状态置为等待连接中
 			conState = -1;
 			c.S4toS1();
-			// System.out.println("等待连接中");
+			// app.debugPrint("等待连接中");
 		}
 		if (conState == -1){
 			// 端口连接可能有问题，切换端口
-			System.out.println("切换端口\n");
+//			app.debugPrint("切换端口\n");
 			portOcupied = !portOcupied;
 		}
 	}
@@ -1293,12 +1290,12 @@ public class service implements Runnable {
 			// s = sendGet("127.0.0.1", 8111, "/state");
 			// s1 = sendGet("127.0.0.1", 8111, "/indicators");
 			if (!portOcupied){
-				s = sendGetFast(state_request, insDest);
-				s1 = sendGetFast(indic_request, insDest);
+				s = sendGetFast(state_request, app.requestDest);
+				s1 = sendGetFast(indic_request, app.requestDest);
 			}
 			else{
-				s = sendGetFast(state_request, insDestBackup);
-				s1 = sendGetFast(indic_request, insDestBackup);
+				s = sendGetFast(state_request, app.requestDestBkp);
+				s1 = sendGetFast(indic_request, app.requestDestBkp);
 			}
 			// intv = (ctime - intvCheckMili);
 			// intvCheckMili = ctime;
@@ -1329,7 +1326,7 @@ public class service implements Runnable {
 
 			if (SystemTime - MainCheckMili >= freq) {
 				// status = "Service就绪";
-				// System.out.println(th
+				// app.debugPrint(th
 				TimeIncrMili = SystemTime - MainCheckMili;
 				if (TimeIncrMili > 1000000 * freq) {
 					TimeIncrMili = 0;
@@ -1352,19 +1349,12 @@ public class service implements Runnable {
 			}
 
 			if (SystemTime - SlowCheckMili >= (freq << 2)) {
-				// System.out.println(SystemTime - SlowCheckMili);
+				// app.debugPrint(SystemTime - SlowCheckMili);
 				SlowCheckMili = SystemTime;
 				// 慢速计算
 				slowcalculate();
 
 			}
-			// 不能让GC影响他的执行时间
-			// 20秒回收一次内存
-			// if (SystemTime - GCCheckMili > 20000) {
-			// // System.out.println("内存回收");
-			// GCCheckMili = SystemTime;
-			// System.gc();
-			// }
 
 		}
 	}

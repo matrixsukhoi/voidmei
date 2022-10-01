@@ -266,17 +266,17 @@ public class engineControl extends WebFrame implements Runnable {
 		if (xc.getconfig("GlobalNumFont") != "")
 			NumFont = xc.getconfig("GlobalNumFont");
 		else
-			NumFont = app.DefaultNumfontName;
+			NumFont = app.defaultNumfontName;
 
 		if (xc.getconfig("engineInfoFont") != "")
 			FontName = xc.getconfig("engineInfoFont");
 		else
-			FontName = app.DefaultFont.getFontName();
+			FontName = app.defaultFont.getFontName();
 		if (xc.getconfig("engineInfoFontadd") != "")
 			fontadd = Integer.parseInt(xc.getconfig("engineInfoFontadd"));
 		else
 			fontadd = 0;
-		// System.out.println(fontadd);
+		// app.debugPrint(fontadd);
 		if (xc.getconfig("engineControlX") != "")
 			lx = Integer.parseInt(xc.getconfig("engineControlX"));
 		else

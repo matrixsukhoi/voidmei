@@ -457,7 +457,7 @@ public class engineInfo extends WebFrame implements Runnable {
 		// if (idx_hp < useNum){
 		// if (s.sTotalHp.equals(service.nastring)){
 		// totalSwitch[idx_hp] = false;
-		//// System.out.println("关闭"+idx_hp);
+		//// app.debugPrint("关闭"+idx_hp);
 		// }
 		// else{
 		// totalSwitch[idx_hp] = true;
@@ -507,17 +507,17 @@ public class engineInfo extends WebFrame implements Runnable {
 		if (xc.getconfig("GlobalNumFont") != "")
 			NumFont = xc.getconfig("GlobalNumFont");
 		else
-			NumFont = app.DefaultNumfontName;
+			NumFont = app.defaultNumfontName;
 
 		if (xc.getconfig("engineInfoFont") != "")
 			FontName = xc.getconfig("engineInfoFont");
 		else
-			FontName = app.DefaultFont.getFontName();
+			FontName = app.defaultFont.getFontName();
 		if (xc.getconfig("engineInfoFontadd") != "")
 			fontadd = Integer.parseInt(xc.getconfig("engineInfoFontadd"));
 		else
 			fontadd = 0;
-		// System.out.println(fontadd);
+		// app.debugPrint(fontadd);
 		if (xc.getconfig("engineInfoX") != "")
 			lx = Integer.parseInt(xc.getconfig("engineInfoX"));
 		else
@@ -580,7 +580,7 @@ public class engineInfo extends WebFrame implements Runnable {
 				int k = 0;
 				for (int i = 0; i < useNum; i++) {
 					if (totalSwitch[i] == false) {
-						// System.out.println("跳过"+i);
+						// app.debugPrint("跳过"+i);
 						continue;
 					}
 					uiBaseElem.drawLabelBOSType(g2d, doffset[0], doffset[1], 1, fontNum, fontLabel, fontUnit,

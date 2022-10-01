@@ -377,11 +377,11 @@ public class stickValue extends WebFrame implements Runnable {
 
 		xc = c;
 		xs = s;
-		// System.out.println("stickValue初始化了");
+		// app.debugPrint("stickValue初始化了");
 		if (xc.getconfig("GlobalNumFont") != "")
 			NumFont = xc.getconfig("GlobalNumFont");
 		else
-			NumFont = app.DefaultNumfontName;
+			NumFont = app.defaultNumfontName;
 
 		if (xc.getconfig("stickValueX") != "")
 			lx = Integer.parseInt(xc.getconfig("stickValueX"));
@@ -394,7 +394,7 @@ public class stickValue extends WebFrame implements Runnable {
 		if (xc.getconfig("flightInfoFontC") != "")
 			FontName = xc.getconfig("flightInfoFontC");
 		else
-			FontName = app.DefaultFont.getFontName();
+			FontName = app.defaultFont.getFontName();
 		if (xc.getconfig("flightInfoFontaddC") != "")
 			fontadd = Integer.parseInt(xc.getconfig("flightInfoFontaddC"));
 		else
@@ -514,7 +514,7 @@ public class stickValue extends WebFrame implements Runnable {
 //			label_3.setText(xs.elevator);
 //			slider.setValue(xs.sState.rudder);
 
-			// System.out.println("stickValue执行了");
+			// app.debugPrint("stickValue执行了");
 
 			this.getContentPane().repaint();
 		}

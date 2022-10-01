@@ -1,5 +1,6 @@
 package parser;
 
+import prog.app;
 import prog.controller;
 import prog.lang;
 import prog.service;
@@ -21,7 +22,7 @@ public class flightAnalyzer {
 	int count;
 
 	void init(int stage, service st) {
-		// System.out.println("analyzer初始化了");
+		// app.debugPrint("analyzer初始化了");
 		xs = st;
 		count = 1;
 		isInformation = Boolean.parseBoolean(st.c.getconfig("enableAltInformation"));
@@ -34,14 +35,14 @@ public class flightAnalyzer {
 		thrust[curaltStage] = xs.iTotalThr;
 		eff[curaltStage] = xs.iTotalHpEff;
 		sep[curaltStage] = xs.SEP;
-		// System.out.println("已经记录stage"+curaltStage+"时间戳"+time[curaltStage]+"功率"+power[curaltStage]+"轴功率"+eff[curaltStage]+"SEP"+sep[curaltStage]);
+		// app.debugPrint("已经记录stage"+curaltStage+"时间戳"+time[curaltStage]+"功率"+power[curaltStage]+"轴功率"+eff[curaltStage]+"SEP"+sep[curaltStage]);
 	}
 
 	void analyze(int stage) {
 		if (stage == curaltStage + 1) {
 			eff[curaltStage] = eff[curaltStage] / count;
 			sep[curaltStage] = sep[curaltStage] / (count * 9.78f);
-			// System.out.println("已经记录stage"+curaltStage+"时间戳"+time[curaltStage]+"功率"+power[curaltStage]+"推力"+thrust[curaltStage]+"轴功率"+eff[curaltStage]+"SEP"+sep[curaltStage]);
+			// app.debugPrint("已经记录stage"+curaltStage+"时间戳"+time[curaltStage]+"功率"+power[curaltStage]+"推力"+thrust[curaltStage]+"轴功率"+eff[curaltStage]+"SEP"+sep[curaltStage]);
 			curaltStage++;
 
 			time[curaltStage] = (xs.elapsedTime / 1000f);
@@ -174,12 +175,12 @@ public class flightAnalyzer {
 	}
 
 	public void showAllEMChart() {
-		System.out.println("roll rate:");
+		app.debugPrint("roll rate:");
 		for (int i = 0; i < 256; i++) {
 			System.out.print(roll_rate[i] + ",");
 		}
 
-		// System.out.println("turn:");
+		// app.debugPrint("turn:");
 		// for(int i = 0; i < 256; i++){
 		// System.out.print(turn_load[i]+",");
 		// }

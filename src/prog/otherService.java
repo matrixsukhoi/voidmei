@@ -100,7 +100,7 @@ public class otherService implements Runnable {
 		bufferedReader.readLine();
 		bufferedReader.readLine();
 		bufferedReader.readLine();
-		// System.out.println(System.currentTimeMillis()-testCheckMili);
+		// app.debugPrint(System.currentTimeMillis()-testCheckMili);
 		StringBuilder contentBuf = new StringBuilder();
 		while ((line = bufferedReader.readLine()) != null) {
 			contentBuf.append(line);
@@ -160,7 +160,7 @@ public class otherService implements Runnable {
 			distance = (float) Math.sqrt((mapo.slc.x - mapo.pla.x) * (mapo.slc.x - mapo.pla.x) * mapi.cmapmaxsizeX
 					* mapi.cmapmaxsizeX
 					+ (mapo.slc.y - mapo.pla.y) * (mapo.slc.y - mapo.pla.y) * mapi.cmapmaxsizeY * mapi.cmapmaxsizeY);
-			// System.out.println(distance);
+			// app.debugPrint(distance);
 
 			if (mapo.slc.dx != 0 && distance < dislmt) {
 				enemycount++;
@@ -175,10 +175,10 @@ public class otherService implements Runnable {
 			eys = dxdyToangle(mapo.slc.dx, mapo.slc.dy);
 			AOT = Math.abs(pys - eys);
 			if(AOT>180)AOT=360-AOT;
-			// System.out.println(enemyspeed*3.6 );
+			// app.debugPrint(enemyspeed*3.6 );
 			AZI = angleToclock(dxdyToangle(mapo.slc.x - mapo.pla.x, mapo.slc.y - mapo.pla.y) - pys);
-			// System.out.println(mapo.slc.dx);
-			// System.out.println(enemycount);
+			// app.debugPrint(mapo.slc.dx);
+			// app.debugPrint(enemycount);
 		}
 
 		// 统计周围敌机数和友机数
@@ -191,7 +191,7 @@ public class otherService implements Runnable {
 			if (sdistance < dislmt && sdistance < mapo.mov[i].distance) {
 				if (mapo.mov[i].colorg.getBlue() > 200 || mapo.mov[i].colorg.getGreen() > 200) {
 					friendcount++;
-					// System.out.println((mapo.mov[i].type+"友军"+i+"距离"+sdistance));
+					// app.debugPrint((mapo.mov[i].type+"友军"+i+"距离"+sdistance));
 				}
 				if (mapo.mov[i].colorg.getRed() > 200) {
 					enemycount++;
@@ -200,7 +200,7 @@ public class otherService implements Runnable {
 			mapo.mov[i].distance = sdistance;
 		}
 
-		// System.out.println("周围友机数" + friendcount + " 周围敌机数" + enemycount);
+		// app.debugPrint("周围友机数" + friendcount + " 周围敌机数" + enemycount);
 	}
 
 	public void close() {
@@ -214,13 +214,13 @@ public class otherService implements Runnable {
 		// 初次
 		if (!hisOverheat && isOverheat) {
 			hisOverheat = true;
-			// System.out.println("打开过热计时器");
+			// app.debugPrint("打开过热计时器");
 			check = 3;// 六次检测
 			xc.startOverheatTime();
 		}
 		// 更新过热时间
 		if (hisOverheat && isOverheat) {
-			// System.out.println("更新过热时间");
+			// app.debugPrint("更新过热时间");
 			check = 3;
 			xc.updateOverheatTime();
 
@@ -229,13 +229,13 @@ public class otherService implements Runnable {
 		if (!isOverheat) {
 			if (hisOverheat) {
 				if (check == 0) {
-					// System.out.println("终结过热计时器");
+					// app.debugPrint("终结过热计时器");
 					xc.endOverheatTime();
 					hisOverheat = false;
 					check--;
 
 				} else {
-					// System.out.println("不过热检查次数-1");
+					// app.debugPrint("不过热检查次数-1");
 					check--;
 				}
 			}
@@ -255,7 +255,7 @@ public class otherService implements Runnable {
 				e.printStackTrace();
 			}
 			// 取得地图数据
-			// System.out.println("正在处理地图数据");
+			// app.debugPrint("正在处理地图数据");
 			enemycount = 0;
 			friendcount = 0;
 			try {
@@ -267,23 +267,23 @@ public class otherService implements Runnable {
 				// TODO Auto-generated catch block
 				// e.printStackTrace();
 			}
-			// System.out.println(sMapObj);
+			// app.debugPrint(sMapObj);
 			if (isgetmapObj)
 				mapo.update(sMapObj);
 			if (isgetMsg) {
 				lastDmg = msg.update(shudMsg, lastDmg);
 				if (msg.dmg.updated) {
-					// System.out.println("过热检查" + msg.dmg.msg.indexOf("热") +
+					// app.debugPrint("过热检查" + msg.dmg.msg.indexOf("热") +
 					// "过高检查" + msg.dmg.msg.indexOf("温"));
 					if (msg.dmg.msg.indexOf(lang.oSkeyWord1) != -1
 							|| msg.dmg.msg.indexOf(lang.oSkeyWord2) != -1) {
 						isOverheat = true;
-						// System.out.println("检测到过热标志" + isOverheat);
+						// app.debugPrint("检测到过热标志" + isOverheat);
 					}
 				} else {
 
 					isOverheat = false;
-					// System.out.println("检测到不过热标志" + isOverheat);
+					// app.debugPrint("检测到不过热标志" + isOverheat);
 				}
 			}
 			// 处理地图数据
@@ -294,7 +294,7 @@ public class otherService implements Runnable {
 
 			// 获得HUDMSG消息并通知玩家过热
 			judgeOverheat();
-			// System.out.println("otherService执行了");
+			// app.debugPrint("otherService执行了");
 		}
 
 	}

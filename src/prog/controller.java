@@ -1,6 +1,5 @@
 package prog;
 
-import java.awt.AWTException;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.Image;
@@ -120,7 +119,7 @@ public class controller {
 
 	engineInfo FI;
 
-	private Thread FI1;
+//	private Thread FI1;
 
 	private voiceWarning vW;
 
@@ -153,7 +152,7 @@ public class controller {
 
 		// 状态1，初始化状态条
 		if (flag == 1) {
-			// System.out.println("状态1，初始化状态条");
+			// app.debugPrint("状态1，初始化状态条");
 
 			if (showStatus) {
 				SB = new statusBar();
@@ -171,10 +170,10 @@ public class controller {
 
 	public void changeS2() {
 		// 状态2，状态条连接成功，等待进入游戏
-		// System.out.println(flag);
+		// app.debugPrint(flag);
 		// SB.repaint();
 		if (flag == 2) {
-			// System.out.println("状态2，状态条连接成功，等待进入游戏");
+			// app.debugPrint("状态2，状态条连接成功，等待进入游戏");
 			// NotificationManager.showNotification(createWebNotification("您已连接成功，请加入游戏"));
 			if (showStatus)
 				SB.S2();
@@ -190,12 +189,12 @@ public class controller {
 			// 自动隐藏任务栏
 
 			// 初始化MapObj以及Msg、gamechat
-			// System.out.println(S.iIndic.type);
+			// app.debugPrint(S.iIndic.type);
 			getfmdata(S.sIndic.type);
-			// System.out.println("状态3，连接成功，释放状态条，打开面板");
+			// app.debugPrint("状态3，连接成功，释放状态条，打开面板");
 			// usetempratureInformation =
 			// Boolean.parseBoolean(getconfig("usetempInfoSwitch"));
-			// System.out.println(usetempratureInformation);
+			// app.debugPrint(usetempratureInformation);
 			// NotificationManager.showNotification(createWebNotificationTime(3000));
 			if (showStatus) {
 				SB.S3();
@@ -219,7 +218,7 @@ public class controller {
 	public void S4toS1() {
 		// 状态4，游戏返回，返回至状态1
 		if (flag == 4) {
-			// System.out.println("状态4，游戏退出，释放Service资源，返回至状态1");
+			// app.debugPrint("状态4，游戏退出，释放Service资源，返回至状态1");
 			// 不触发燃油低告警
 			// S.fuelPercent = 100;
 
@@ -228,7 +227,7 @@ public class controller {
 			if (app.debug) {
 				lastEvt = O.lastEvt;
 				lastDmg = O.lastDmg;
-				// System.out.println("最后DMGID"+lastDmg);
+				// app.debugPrint("最后DMGID"+lastDmg);
 				O.close();
 				O = null;
 				O1 = null;
@@ -367,7 +366,7 @@ public class controller {
 		if (getconfig("engineInfoSwitch").equals("true")) {
 			// F.doit = false;
 			FI.doit = false;
-			FI1 = null;
+//			FI1 = null;
 			// F1 = null;
 			FI.dispose();
 			// F.dispose();
@@ -404,7 +403,7 @@ public class controller {
 
 		if (getconfig("enableLogging").equals("true")) {
 			notification(lang.cSavelog + Log.fileName + lang.cPlsopen);
-			// System.out.println("阶段差:"+(Log.fA.curaltStage -
+			// app.debugPrint("阶段差:"+(Log.fA.curaltStage -
 			// Log.fA.initaltStage));
 			if (Log.fA.curaltStage - Log.fA.initaltStage >= 1) {
 				dF = new drawFrame();
@@ -514,12 +513,12 @@ public class controller {
 		freqStickValue = (long) (freqService * 1f);
 		app.threadSleepTime = (long) (freqService / 2);
 
-		// System.out.println(freqService);
+		// app.debugPrint(freqService);
 
 		// 颜色
 
 		// 修改颜色
-		// System.out.println(R +", " + G + ", " + B + "," +A);
+		// app.debugPrint(R +", " + G + ", " + B + "," +A);
 		app.colorNum = getColorConfig("fontNum");
 
 		// 标签颜色
@@ -578,7 +577,7 @@ public class controller {
 	public controller() {
 		initconfig();// 装载设置文件
 		// 接收频率
-		// System.out.println("controller执行了");
+		// app.debugPrint("controller执行了");
 		loadFromConfig();
 		usetempratureInformation = false;
 
@@ -588,7 +587,7 @@ public class controller {
 		lastDmg = 0;
 
 		// 状态0，初始化主界面和设置文件
-		// System.out.println("状态0，初始化主界面");
+		// app.debugPrint("状态0，初始化主界面");
 
 		M = new mainform(this);
 		M1 = new Thread(M);
@@ -613,9 +612,9 @@ public class controller {
 	public void start() {
 		if (flag == 1) {
 
-			// System.out.println(freqService);
+			// app.debugPrint(freqService);
 			// 状态1，释放设置窗口传参初始化后台
-			// System.out.println("状态1，传参初始化Service");
+			// app.debugPrint("状态1，传参初始化Service");
 			M.doit = false;
 			M1 = null;
 			M.dispose();
@@ -672,12 +671,12 @@ public class controller {
 
 	public void endPreview() {
 
-		// System.out.println(F.getLocationOnScreen().x);
-		// System.out.println(F.getLocationOnScreen().y);
+		// app.debugPrint(F.getLocationOnScreen().x);
+		// app.debugPrint(F.getLocationOnScreen().y);
 		if (Boolean.parseBoolean(getconfig("engineInfoSwitch"))) {
 			// shade问题需要加补偿
-			// System.out.println(F.getLocationOnScreen().x);
-			// System.out.println(F.getLocationOnScreen().y);
+			// app.debugPrint(F.getLocationOnScreen().x);
+			// app.debugPrint(F.getLocationOnScreen().y);
 			setconfig("engineInfoX", Integer.toString(FI.getLocationOnScreen().x - 25));
 			setconfig("engineInfoY", Integer.toString(FI.getLocationOnScreen().y - 25));
 
@@ -707,8 +706,8 @@ public class controller {
 			FL = null;
 		}
 		if (Boolean.parseBoolean(getconfig("enableAxis"))) {
-			// System.out.println(sV.getLocationOnScreen().x );
-			// System.out.println(sV.getLocationOnScreen().y);
+			// app.debugPrint(sV.getLocationOnScreen().x );
+			// app.debugPrint(sV.getLocationOnScreen().y);
 			setconfig("stickValueX", Integer.toString(sV.getLocationOnScreen().x));
 			setconfig("stickValueY", Integer.toString(sV.getLocationOnScreen().y));
 			sV.dispose();
@@ -724,8 +723,8 @@ public class controller {
 		}
 
 		if (Boolean.parseBoolean(getconfig("enablegearAndFlaps"))) {
-			// System.out.println(fS.getLocationOnScreen().x );
-			// System.out.println(fS.getLocationOnScreen().y);
+			// app.debugPrint(fS.getLocationOnScreen().x );
+			// app.debugPrint(fS.getLocationOnScreen().y);
 
 			setconfig("gearAndFlapsX", Integer.toString(fS.getLocationOnScreen().x));
 			setconfig("gearAndFlapsY", Integer.toString(fS.getLocationOnScreen().y));
@@ -734,8 +733,8 @@ public class controller {
 			fS = null;
 		}
 		if (app.debug) {
-			// System.out.println(SA.getLocationOnScreen().x );
-			// System.out.println(SA.getLocationOnScreen().y);
+			// app.debugPrint(SA.getLocationOnScreen().x );
+			// app.debugPrint(SA.getLocationOnScreen().y);
 			setconfig("situationAwareX", Integer.toString(SA.getLocationOnScreen().x - 15));
 			setconfig("situationAwareY", Integer.toString(SA.getLocationOnScreen().y - 15));
 
@@ -778,14 +777,14 @@ public class controller {
 		// WebLabel text1=new WebLabel(text);
 		// text1.setFont(app.DefaultFont);
 		// text1.setVisible(false);
-		a.setFont(app.DefaultFont);
+		a.setFont(app.defaultFont);
 		a.setIcon(NotificationIcon.clock.getIcon());
 
 		a.setWindowOpacity((float) (0.5));
 		WebClock clock = new WebClock();
 		clock.setClockType(ClockType.timer);
 		clock.setTimeLeft(time);
-		clock.setFont(app.DefaultFont);
+		clock.setFont(app.defaultFont);
 		clock.setTimePattern(lang.cOpenpad);
 		a.setContent(new GroupPanel(clock));
 		// a.setOpaque(true);
@@ -802,14 +801,14 @@ public class controller {
 		// WebLabel text1=new WebLabel(text);
 		// text1.setFont(app.DefaultFont);
 		// text1.setVisible(false);
-		a.setFont(app.DefaultFont);
+		a.setFont(app.defaultFont);
 		a.setIcon(NotificationIcon.clock.getIcon());
 
 		a.setWindowOpacity((float) (0.5));
 		WebClock clock = new WebClock();
 		clock.setClockType(ClockType.timer);
 		clock.setTimeLeft(time);
-		clock.setFont(app.DefaultFont);
+		clock.setFont(app.defaultFont);
 		clock.setTimePattern(lang.cEnginedmg);
 		a.setContent(new GroupPanel(clock));
 		// a.setOpaque(true);
@@ -824,11 +823,11 @@ public class controller {
 	static WebNotification createWebNotifications(String text, int time) {
 		WebNotification a = new WebNotification();
 		WebLabel text1 = new WebLabel(text);
-		text1.setFont(app.DefaultFont);
+		text1.setFont(app.defaultFont);
 		// text1.setVisible(false);
 		// a.setWindowOpacity((float) (0.5));
 
-		a.setFont(app.DefaultFont);
+		a.setFont(app.defaultFont);
 		a.setIcon(NotificationIcon.information.getIcon());
 		a.add(text1);
 		a.setDisplayTime(time);
@@ -840,12 +839,12 @@ public class controller {
 	static WebNotification createWebNotificationsAbout(String text, int time) {
 		WebNotification a = new WebNotification();
 		WebLabel text1 = new WebLabel(text);
-		text1.setFont(new Font(app.DefaultFontName, Font.PLAIN, 14));
+		text1.setFont(new Font(app.defaultFontName, Font.PLAIN, 14));
 		// text1.setVisible(false);
 		// a.setWindowOpacity((float) (0.5));
 		Image I = Toolkit.getDefaultToolkit().createImage("image/fubuki.jpg");
 		ImageIcon A = new ImageIcon(I);
-		a.setFont(app.DefaultFont);
+		a.setFont(app.defaultFont);
 		a.setIcon(A);
 		a.add(text1);
 		a.setDisplayTime(time);
@@ -857,11 +856,11 @@ public class controller {
 	static WebNotification createWebNotification(String text) {
 		WebNotification a = new WebNotification();
 		WebLabel text1 = new WebLabel(text);
-		text1.setFont(app.DefaultFont);
+		text1.setFont(app.defaultFont);
 		// text1.setVisible(false);
 		// a.setWindowOpacity((float) (0.5));
 
-		a.setFont(app.DefaultFont);
+		a.setFont(app.defaultFont);
 		a.setIcon(NotificationIcon.information.getIcon());
 		a.add(text1);
 		a.setDisplayTime(5000);
@@ -873,11 +872,11 @@ public class controller {
 	static WebNotification createWebNotificationEngineBomb(String text) {
 		WebNotification a = new WebNotification();
 		WebLabel text1 = new WebLabel(text);
-		text1.setFont(app.DefaultFont);
+		text1.setFont(app.defaultFont);
 		// text1.setVisible(false);
 		// a.setWindowOpacity((float) (0.5));
 
-		a.setFont(app.DefaultFont);
+		a.setFont(app.defaultFont);
 		a.setIcon(NotificationIcon.error);
 		a.add(text1);
 		a.setDisplayTime(3000);
@@ -899,9 +898,9 @@ public class controller {
 
 			} else {
 				Log.doit = true;
-				System.out.println("线程同步错误");
+				app.debugPrint("线程同步错误");
 			}
-			// System.out.println(Log.doit);
+			// app.debugPrint(Log.doit);
 		}
 	}
 
@@ -921,19 +920,19 @@ public class controller {
 				if (fmfile.charAt(i) == '/')
 					break;
 			}
-			// System.out.println(fmfile);
+			// app.debugPrint(fmfile);
 			if (i + 1 >= fmfile.length()) {
 				fmfile = planename + ".blk";
 			} else
 				fmfile = fmfile.substring(i + 1);
 		}
-		// System.out.println(fmfile);
+		// app.debugPrint(fmfile);
 
 		// 读入fmfile
 		if (fmfile != null)
 			blkx = new blkx("./data/aces/gamedata/flightmodels/fm/" + fmfile + "x", fmfile);
 
-		if (blkx.valid == true) {// System.out.println(blkx.data);
+		if (blkx.valid == true) {// app.debugPrint(blkx.data);
 			blkx.getAllplotdata();
 			blkx.getload();
 		}

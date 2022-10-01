@@ -6,6 +6,7 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 
+import prog.app;
 import prog.lang;
 
 public class blkx {
@@ -180,9 +181,9 @@ public class blkx {
 
 	public boolean getEngineLoad(engineLoad[] eL, int loadIndex) {
 		String c = "Load" + loadIndex;
-		// System.out.println(c);
+		// app.debugPrint(c);
 		eL[loadIndex].WaterLimit = getfloat(c + ".WaterTemperature");
-		// System.out.println(eL[loadIndex].WaterLimit);
+		// app.debugPrint(eL[loadIndex].WaterLimit);
 		if (eL[loadIndex].WaterLimit == 0)
 			return Boolean.FALSE;
 		eL[loadIndex].OilLimit = getfloat(c + ".OilTemperature");
@@ -201,7 +202,7 @@ public class blkx {
 		String c = "Load" + loadIndex;
 		c = c.concat("水温/油温限制: [" + eL[loadIndex].WaterLimit + "," + eL[loadIndex].OilLimit + "]\n");
 		c = c.concat("加力/恢复时间: [" + eL[loadIndex].WorkTime + "," + eL[loadIndex].RecoverTime + "]\n");
-		System.out.println(c);
+		app.debugPrint(c);
 	}
 
 	public String WritePartsFm(String s, fm_parts p) {
@@ -217,11 +218,11 @@ public class blkx {
 //		s = s.concat("临界攻角:[" + p.AoACritLow + ", " + p.AoACritHigh + "]" + "\n");
 //		s = s.concat("临界攻角升力系数:[" + p.ClCritLow + ", " + p.ClCritHigh + "]" + "\n");
 		//
-		// System.out.println("------fm器件 "+p.name+"------");
-		// System.out.println("零升阻力系数:"+p.CdMin);
-		// System.out.println("零攻角升力:"+p.Cl0);
-		// System.out.println("临界攻角:["+p.AoACritLow+","+p.AoACritHigh+"]");
-		// System.out.println("临界攻角升力系数:["+p.ClCritLow+","+p.ClCritHigh+"]");
+		// app.debugPrint("------fm器件 "+p.name+"------");
+		// app.debugPrint("零升阻力系数:"+p.CdMin);
+		// app.debugPrint("零攻角升力:"+p.Cl0);
+		// app.debugPrint("临界攻角:["+p.AoACritLow+","+p.AoACritHigh+"]");
+		// app.debugPrint("临界攻角升力系数:["+p.ClCritLow+","+p.ClCritHigh+"]");
 		return s;
 	}
 
@@ -236,7 +237,7 @@ public class blkx {
 
 					ret[i] = Float.parseFloat(tmp[i]);
 				} catch (Exception e) {
-					System.out.println("getfloat error" + c);
+					app.debugPrint("getfloat error" + c);
 					return null;
 				}
 			}
@@ -252,7 +253,7 @@ public class blkx {
 			try {
 				ret = Float.parseFloat(tmp[0]);
 			} catch (Exception e) {
-				System.out.println("getfloat error" + c);
+				app.debugPrint("getfloat error" + c);
 				return 0;
 			}
 		}
@@ -266,7 +267,7 @@ public class blkx {
 			try {
 				ret = Float.parseFloat(tmp[0]);
 			} catch (Exception e) {
-				System.out.println("getfloat error" + c);
+				app.debugPrint("getfloat error" + c);
 				return 0;
 			}
 		}
@@ -380,19 +381,19 @@ public class blkx {
 
 	public void getload() {
 		// String Load0 = cut(data, "Load0");
-		// System.out.println(getone("Load0.WaterTemperature"));
+		// app.debugPrint(getone("Load0.WaterTemperature"));
 		isJet = false;
 		
 		// 读取推力高度
 		engineNum = 1;
-//		System.out.println(getone("EngineType0.Main.Type"));
+//		app.debugPrint(getone("EngineType0.Main.Type"));
 		String hdrString = "EngineType0.";
 		String res = getone("EngineType0.Main.Type");
-//		System.out.println(res);
+//		app.debugPrint(res);
 		if (res.equals("\"Jet\"")) {
 			// 判断喷气
 			isJet = true;
-			System.out.println(getone("Engine"+engineNum));
+			app.debugPrint(getone("Engine"+engineNum));
 			while (!getone("Engine"+engineNum).equals("null")){
 				engineNum++;
 			}
@@ -413,7 +414,7 @@ public class blkx {
 			thrMax0 = getfloat("ThrustMax.ThrustMax0");
 //			thrMax0 = getfloat(hdrString + "Main.Thrust");
 			
-			System.out.println("engineType: jet, afterburner coeff" + aftbCoff);
+			app.debugPrint("engineType: jet, afterburner coeff" + aftbCoff);
 			altThrNum = 0;
 			altitudeThr = new float[30];
 			for (int i = 0; i < 30; i++, altThrNum++) {
@@ -422,7 +423,7 @@ public class blkx {
 					altitudeThr[i] = 0;
 					break;
 				}
-				// System.out.println(altitudeThr[i]);
+				// app.debugPrint(altitudeThr[i]);
 			}
 			// 读取推力速度
 			velThrNum = 0;
@@ -434,7 +435,7 @@ public class blkx {
 					velocityThr[i] = 0;
 					break;
 				}
-				// System.out.println(altitudeThr[i]);
+				// app.debugPrint(altitudeThr[i]);
 			}
 			
 			// 读取发动机工作模式
@@ -481,15 +482,15 @@ public class blkx {
 					}
 					maxThr[i][j] = thrMax0 * maxThrCoff[i][j] * engineNum;
 					maxThrAft[i][j] = thrMax0 * maxThrCoff[i][j] * aftbCoff * maxThrAftCoff[i][j] * engineMultWEP * engineNum;
-					System.out.println(String.format("[%.0f]%.0f:%.0f kgf", altitudeThr[i], velocityThr[j], maxThrAft[i][j]));
+					app.debugPrint(String.format("[%.0f]%.0f:%.0f kgf", altitudeThr[i], velocityThr[j], maxThrAft[i][j]));
 				}
 			}
 		} else {
 			// radial inline
 			// 获得增压器工作高度
-//			System.out.println("not a jet");
+//			app.debugPrint("not a jet");
 			aftbCoff = getfloat(hdrString + "Main.AfterburnerBoost");
-//			System.out.println(hdrString);
+//			app.debugPrint(hdrString);
 			compNumSteps = (int) getfloat("Compressor.NumSteps");
 			speedToManifoldMultiplier = getfloat("Compressor.SpeedManifoldMultiplier");
 
@@ -508,7 +509,7 @@ public class blkx {
 				compRpmRatio[i] = getfloat("Compressor.PowerConstRPMCurvature" + i);
 				compCeil[i] = getfloat("Compressor.Ceiling" + i);
 				compCeilPwr[i] = getfloat("Compressor.PowerAtCeiling"+i);
-//				System.out.println(String.format("*s%d*:[%.0f]%.0fhp - [%.0f]%.0fhp", i, compAlt[i], compPower[i] * compRpmRatio[i] * aftbCoff, compCeil[i], compCeilPwr[i] * compRpmRatio[i] * aftbCoff));
+//				app.debugPrint(String.format("*s%d*:[%.0f]%.0fhp - [%.0f]%.0fhp", i, compAlt[i], compPower[i] * compRpmRatio[i] * aftbCoff, compCeil[i], compCeilPwr[i] * compRpmRatio[i] * aftbCoff));
 			}
 
 			//
@@ -519,12 +520,12 @@ public class blkx {
 		float maxRPMNormal = getfloat(" RPMMax");
 		if (maxRPM < maxRPMNormal) maxRPM = maxRPMNormal;
 
-		System.out.println("RPMMult"+engineRPMMultWEP);
+		app.debugPrint("RPMMult"+engineRPMMultWEP);
 		// 针对幻影2000C mode6 rpm乘数1.01的修复
 		maxRPM = maxRPM * engineRPMMultWEP;
-		System.out.println("RPM"+maxRPM);
+		app.debugPrint("RPM"+maxRPM);
 		maxAllowedRPM = getfloat("RPMMaxAllowed");
-//		System.out.println("RPM"+maxAllowedRPM);
+//		app.debugPrint("RPM"+maxAllowedRPM);
 		
 		avgEngRecoveryRate = 0.0f;
 		version = getVersion();
@@ -547,7 +548,7 @@ public class blkx {
 				avgEngRecoveryRate = avgEngRecoveryRate + engLoad[i].WorkTime / engLoad[i].RecoverTime;
 			showEngineLoad(engLoad, i);
 		}
-		// System.out.println(engLoad[0].WorkTime/engLoad[i].RecoverTime);
+		// app.debugPrint(engLoad[0].WorkTime/engLoad[i].RecoverTime);
 		avgEngRecoveryRate = avgEngRecoveryRate / (maxEngLoad - 1);
 		emptyweight = getfloat("EmptyMass");
 		vne = getfloat("Vne:");
@@ -586,7 +587,7 @@ public class blkx {
 		nitro = getfloat("MaxNitro");
 		oil = getfloat("OilMass");
 
-		System.out.println("作战空重" + (emptyweight + oil + nitro));
+		app.debugPrint("作战空重" + (emptyweight + oil + nitro));
 		grossweight = emptyweight + maxfuelweight + nitro + oil;
 		halfweight = emptyweight + maxfuelweight / 2 + nitro + oil;
 
@@ -747,7 +748,7 @@ public class blkx {
 				WingAngle = getfloat("WingPlaneSweep0. Angle");
 			}
 		}
-//		System.out.println("机翼安装角" + WingAngle);
+//		app.debugPrint("机翼安装角" + WingAngle);
 
 		StabAngle = getfloat("StabAngle");
 		if (WingAngle == 0) {
@@ -792,7 +793,7 @@ public class blkx {
 		NoFlapWLL = AWing * NoFlapsWing.ClCritHigh + AFuselage * fuseClHigh;
 		NoFlapWLL = NoFlapWLL / (halfweight / 1000.f);
 		
-		// System.out.println(AWing * NoFlapsWing.ClCritHigh/)
+		// app.debugPrint(AWing * NoFlapsWing.ClCritHigh/)
 		fuseClHigh = Fuselage.ClCritHigh * Fuselage.lineClCoeff;
 		if (Fuselage.AoACritHigh < FullFlapsWing.AoACritHigh)
 			fuseClHigh = Fuselage.ClAfterCrit * Fuselage.lineClCoeff;
@@ -817,7 +818,7 @@ public class blkx {
 		// 诱导阻力还要
 		indCdF = 1 / (Math.PI * AspectRatio * OswaldsEfficiencyNumber);
 
-		// System.out.println(NoFlapWLL+","+FullFlapWLL + ","+CdS);
+		// app.debugPrint(NoFlapWLL+","+FullFlapWLL + ","+CdS);
 
 		// FmCdMin = 0;
 		// FmCdMin += NoFlapsWing.CdMin;
@@ -885,11 +886,11 @@ public class blkx {
 //		// 如果大于最大速度则需要乘以舵面值
 ////		Wx600 = 600/3.6f * Wx_vcoff * (1.0f - (((600 - aileronEff) * aileronPowerLoss)/100.0f));
 //		
-////		System.out.println(String.format("Wx 250, 300, 350: %.0f, %.0f, %.0f", Wx250, Wx300, Wx350));
+////		app.debugPrint(String.format("Wx 250, 300, 350: %.0f, %.0f, %.0f", Wx250, Wx300, Wx350));
 //		
-//		System.out.println("滚转效率 :" + 83.333f* Wx_vcoff);
-//		System.out.println("Wx_max :" + WxMax);
-//		System.out.println("Wx_600 :" + Wx600 +", aileronMax:" + ((600 - aileronEff) * aileronPowerLoss));
+//		app.debugPrint("滚转效率 :" + 83.333f* Wx_vcoff);
+//		app.debugPrint("Wx_max :" + WxMax);
+//		app.debugPrint("Wx_600 :" + Wx600 +", aileronMax:" + ((600 - aileronEff) * aileronPowerLoss));
 //		s += 		
 		s += String.format(lang.bInertia, MomentOfInertia[0], MomentOfInertia[1], MomentOfInertia[2]);
 		
@@ -910,15 +911,15 @@ public class blkx {
 		s = WritePartsFm(s, Stab);
 
 		fmdata = s;
-//		System.out.println(s);
-//		System.out.println(GearDestructionIndSpeed);
-		// System.out.println(wtload0+" "+oilload0);
-		// System.out.println(wtload1+" "+oilload1);
-		// System.out.println(wtload2+" "+oilload2);
-		// System.out.println(wtload3+" "+oilload3);
-		// System.out.println(wtload4+" "+oilload4);
-		// System.out.println(wtload5+" "+oilload5);
-		// System.out.println(subSt(getone("Load0")));
+//		app.debugPrint(s);
+//		app.debugPrint(GearDestructionIndSpeed);
+		// app.debugPrint(wtload0+" "+oilload0);
+		// app.debugPrint(wtload1+" "+oilload1);
+		// app.debugPrint(wtload2+" "+oilload2);
+		// app.debugPrint(wtload3+" "+oilload3);
+		// app.debugPrint(wtload4+" "+oilload4);
+		// app.debugPrint(wtload5+" "+oilload5);
+		// app.debugPrint(subSt(getone("Load0")));
 	}
 
 	public void getperformancedata(String t) {
@@ -935,7 +936,7 @@ public class blkx {
 		unitSystem = getone("PASSPORT.UNITSYSTEM");
 		unitSystem = subSt(unitSystem);
 		if (unitSystem.indexOf("Imperial") != -1) {
-			// System.out.println("英制");
+			// app.debugPrint("英制");
 			for (int i = 0; i < loc.cur; i++) {
 				loc.y[i] = loc.y[i] * 0.3048f;
 			}
@@ -952,7 +953,7 @@ public class blkx {
 			}
 			for (int i = 0; i < loc3.cur; i++) {
 				loc3.y[i] = loc3.y[i] * 1.609344f;
-				// System.out.println(loc3.x[i]+" "+loc3.y[i]);
+				// app.debugPrint(loc3.x[i]+" "+loc3.y[i]);
 			}
 
 		}
@@ -1059,7 +1060,7 @@ public class blkx {
 			}
 		}
 		label = label.substring(clsbix);
-		// System.out.println(text);
+		// app.debugPrint(text);
 		// 第二步获得值
 		int bix = 0;
 		int eix = 0;
@@ -1120,7 +1121,7 @@ public class blkx {
 			}
 		}
 		label = label.substring(clsbix);
-//		System.out.println(label);
+//		app.debugPrint(label);
 		// 第二步获得值
 		int bix = 0;
 		int eix = 0;
@@ -1150,7 +1151,7 @@ public class blkx {
 			}
 		}
 		label = label.substring(clsbix);
-		// System.out.println(text);
+		// app.debugPrint(text);
 		// 第二步获得值
 		int bix = 0;
 		int eix = 0;

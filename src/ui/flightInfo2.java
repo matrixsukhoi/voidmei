@@ -62,7 +62,7 @@ public class flightInfo2 extends WebFrame implements Runnable {
 		// label.get
 		Component[] tmp = label.getComponents();
 		for (int i = 0; i < tmp.length; i++) {
-			System.out.println("remove compnents" + tmp[i] + "mouseListener");
+			app.debugPrint("remove compnents" + tmp[i] + "mouseListener");
 			MouseListener[] mls = tmp[i].getMouseListeners();
 			MouseMotionListener[] mmls = tmp[i].getMouseMotionListeners();
 			for (int j = 0; j < mls.length; j++) {
@@ -82,17 +82,17 @@ public class flightInfo2 extends WebFrame implements Runnable {
 		MouseListener[] mls = label.getMouseListeners();
 		MouseMotionListener[] mmls = label.getMouseMotionListeners();
 		for (int j = 0; j < mls.length; j++) {
-			System.out.println("remove ml" + mls[j]);
+			app.debugPrint("remove ml" + mls[j]);
 			label.removeMouseListener(mls[j]);
 		}
 		for (int j = 0; j < mmls.length; j++) {
-			System.out.println("remove mls" + mmls[j]);
+			app.debugPrint("remove mls" + mmls[j]);
 			label.removeMouseMotionListener(mmls[j]);
 		}
 
 		Component[] tmp = label.getComponents();
 		for (int i = 0; i < tmp.length; i++) {
-			System.out.println("remove compnents" + tmp[i] + "mouseListener");
+			app.debugPrint("remove compnents" + tmp[i] + "mouseListener");
 			mls = tmp[i].getMouseListeners();
 			mmls = tmp[i].getMouseMotionListeners();
 			for (int j = 0; j < mls.length; j++) {
@@ -108,7 +108,7 @@ public class flightInfo2 extends WebFrame implements Runnable {
 	
 	public void initPreview(controller c) {
 		init(c, null);
-		// System.out.println("初始化");
+		// app.debugPrint("初始化");
 		// setShadeWidth(10);
 		this.setVisible(false);
 		// this.getWebRootPaneUI().setTopBg(new Color(0, 0, 0, 50));
@@ -169,7 +169,7 @@ public class flightInfo2 extends WebFrame implements Runnable {
 //		l1.setCursor(app.blankCursor);
 		// l1.setEnabled(false);
 		// l1.setCursor(app.blankCursor);
-		// System.out.println(l1.text);
+		// app.debugPrint(l1.text);
 		return l1;
 	}
 
@@ -182,17 +182,17 @@ public class flightInfo2 extends WebFrame implements Runnable {
 		if (xc.getconfig("GlobalNumFont") != "")
 			NumFont = xc.getconfig("GlobalNumFont");
 		else
-			NumFont = app.DefaultNumfontName;
+			NumFont = app.defaultNumfontName;
 
 		if (xc.getconfig("flightInfoFontC") != "")
 			FontName = xc.getconfig("flightInfoFontC");
 		else
-			FontName = app.DefaultFont.getFontName();
+			FontName = app.defaultFont.getFontName();
 		if (xc.getconfig("flightInfoFontaddC") != "")
 			fontadd = Integer.parseInt(xc.getconfig("flightInfoFontaddC"));
 		else
 			fontadd = 0;
-		// System.out.println(fontadd);
+		// app.debugPrint(fontadd);
 
 		if (xc.getconfig("flightInfoX") != "")
 			lx = Integer.parseInt(xc.getconfig("flightInfoX"));
@@ -237,16 +237,16 @@ public class flightInfo2 extends WebFrame implements Runnable {
 		// addMouseListener(new MouseAdapter() {
 		// @Override
 		// public void mouseEntered(MouseEvent e) {
-		// System.out.println(e);
+		// app.debugPrint(e);
 		// }
 		// @Override
 		// public void mousePressed(MouseEvent e) {
-		// System.out.println(e);
+		// app.debugPrint(e);
 		//
 		// }
 		// @Override
 		// public void mouseReleased(MouseEvent e) {
-		// System.out.println(e);
+		// app.debugPrint(e);
 		// }
 		//
 		// });
@@ -254,11 +254,11 @@ public class flightInfo2 extends WebFrame implements Runnable {
 		// addMouseMotionListener(new MouseMotionAdapter() {
 		// @Override
 		// public void mouseDragged(MouseEvent e) {
-		// System.out.println(e);
+		// app.debugPrint(e);
 		// }
 		// @Override
 		// public void mouseMoved(MouseEvent e) {
-		// System.out.println(e);
+		// app.debugPrint(e);
 		// }
 		// });
 		// this.getWebRootPaneUI().lis
@@ -672,7 +672,7 @@ public class flightInfo2 extends WebFrame implements Runnable {
 		setFocusableWindowState(false);
 		setFocusable(false);
 
-		// System.out.println(this.isAlwaysOnTopSupported());
+		// app.debugPrint(this.isAlwaysOnTopSupported());
 		// setAlwaysOnTop(true);
 		setShowWindowButtons(false);
 		setShowTitleComponent(false);
@@ -740,7 +740,7 @@ public class flightInfo2 extends WebFrame implements Runnable {
 				label_28.setText(xs.sAcc);
 				label_30.setText(xs.sTurnRate);
 				label_30.repaint();
-				// System.out.println("flightInfo执行了");
+				// app.debugPrint("flightInfo执行了");
 //				repaint();
 				this.getContentPane().repaint();
 //				this.pa

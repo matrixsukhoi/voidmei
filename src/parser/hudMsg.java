@@ -1,6 +1,6 @@
 package parser;
 
-import parser.hudMsg.damage;
+
 
 //http://127.0.0.1:8111/hudmsg?lastEvt=0&lastDmg=0
 public class hudMsg {
@@ -47,7 +47,7 @@ public class hudMsg {
 	}
 
 	public int parseObj(String buf) {
-		// System.out.println(buf);
+		// app.debugPrint(buf);
 		int bix = 0;
 		int eix = 0;
 		// id
@@ -97,19 +97,19 @@ public class hudMsg {
 	}
 
 	public void init() {
-		//System.out.println("hudMSG初始化了");
+		//app.debugPrint("hudMSG初始化了");
 		dmg = new damage();
 	}
 
 	public int update(String S, int lastDmg) {
 		s = S;
-		// System.out.println(S);
+		// app.debugPrint(S);
 		//String buf = getLine("damage");
 		dmg.updated=false;
 		String lastbuf = getDmglastLine();
-		//System.out.println(lastbuf);
+		//app.debugPrint(lastbuf);
 		if (parseObj(lastbuf) == 1) {
-			//System.out.println(dmg.id + " " + dmg.msg);
+			//app.debugPrint(dmg.id + " " + dmg.msg);
 			dmg.updated=true;
 			return dmg.id;
 		}

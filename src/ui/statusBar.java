@@ -35,7 +35,7 @@ public class statusBar extends WebFrame implements Runnable {
 		WIDTH = 250;
 		HEIGHT = 80;
 
-		//System.out.println("statusBar初始化了");
+		//app.debugPrint("statusBar初始化了");
 		//setSize(WIDTH, HEIGHT);
 		//setLocation(Toolkit.getDefaultToolkit().getScreenSize().width - WIDTH, 50);
 		this.setBounds(Toolkit.getDefaultToolkit().getScreenSize().width - WIDTH, 50,WIDTH, HEIGHT);
@@ -58,15 +58,15 @@ public class statusBar extends WebFrame implements Runnable {
 			FontName = xc.getconfig("flightInfoFontC");
 		Font f;
 		if (!FontName.isEmpty()) {
-//			System.out.println(FontName);
+//			app.debugPrint(FontName);
 			f = new Font(FontName, Font.PLAIN, 14);
 		} else {
-			f = app.DefaultFont;
+			f = app.defaultFont;
 		}
 		
 		//WebImage webimage1=new WebImage(I);
 		//java.awt.Image L=Toolkit.getDefaultToolkit().createImage("image/loader.gif");
-		// System.out.println(I);
+		// app.debugPrint(I);
 		// WebDecoratedImage Image1=new WebDecoratedImage(I);
 		// TooltipManager.setTooltip ( Image1, "Simple preferred-size image",
 		// TooltipWay.up );
@@ -138,8 +138,8 @@ public class statusBar extends WebFrame implements Runnable {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-			//System.out.println("statusBar执行了");
-			//System.out.println("刷新了");
+			//app.debugPrint("statusBar执行了");
+			//app.debugPrint("刷新了");
 			this.repaint();
 		}
 	}

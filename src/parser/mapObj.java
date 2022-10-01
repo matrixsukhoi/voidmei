@@ -2,6 +2,8 @@ package parser;
 
 import java.awt.Color;
 
+import prog.app;
+
 public class mapObj {
 
 	public class Movobj {
@@ -74,9 +76,9 @@ public class mapObj {
 		if (bix != -1) {
 			eix = s.indexOf('}');
 			buf = s.substring(bix, eix + 1);
-			// System.out.println("切片值"+buf);
+			// app.debugPrint("切片值"+buf);
 			s = s.substring(eix + 1, s.length());
-			// System.out.println("切片后"+s);
+			// app.debugPrint("切片后"+s);
 			return buf;
 		} else
 			return ("");
@@ -113,7 +115,7 @@ public class mapObj {
 				eix++;
 			}
 			type = t.substring(bix, eix);
-			// System.out.println(type.charAt(3));
+			// app.debugPrint(type.charAt(3));
 			// 继续向下搜索Color
 			eix = eix + 2;
 			// 找三个引号
@@ -155,7 +157,7 @@ public class mapObj {
 				eix++;
 			}
 			int red = Integer.parseInt(t.substring(bix, eix));
-			// System.out.println(red);
+			// app.debugPrint(red);
 			eix++;
 			bix = eix;
 			while (t.charAt(eix) != ',') {
@@ -169,7 +171,7 @@ public class mapObj {
 			}
 			int blue = Integer.parseInt(t.substring(bix, eix));
 			colorg = new Color(red, green, blue);
-			// System.out.println(colorg);
+			// app.debugPrint(colorg);
 
 			// 继续向下搜索blink
 			eix = eix + 2;
@@ -191,7 +193,7 @@ public class mapObj {
 				eix++;
 			}
 			blink = Integer.parseInt(t.substring(bix, eix));
-			// System.out.println(blink);
+			// app.debugPrint(blink);
 
 			// 继续向下搜索icon
 			eix = eix + 1;
@@ -216,7 +218,7 @@ public class mapObj {
 			if (icon.equals("Player"))
 				isPlayer = true;
 
-			// System.out.println(icon);
+			// app.debugPrint(icon);
 
 			// 继续向下搜索icon_bg
 			eix = eix + 2;
@@ -240,7 +242,7 @@ public class mapObj {
 			iconBg = t.substring(bix, eix);
 			if (iconBg.equals("none") != true)
 				isSelected = true;
-			// System.out.println(iconBg);
+			// app.debugPrint(iconBg);
 			// 继续向下搜索x
 			eix = eix + 2;
 			// 找2个引号
@@ -261,7 +263,7 @@ public class mapObj {
 				eix++;
 			}
 			x = Float.parseFloat(t.substring(bix, eix));
-			// System.out.println(x);
+			// app.debugPrint(x);
 			// 继续向下搜索y
 			eix = eix + 1;
 			// 找2个引号
@@ -288,10 +290,10 @@ public class mapObj {
 			else
 				flag = 1;
 
-			// System.out.println(t.substring(bix,eix));
+			// app.debugPrint(t.substring(bix,eix));
 
 			// 再根据type判断是否取dx、dy
-			// System.out.println(flag);
+			// app.debugPrint(flag);
 
 			if (flag == 0) {
 				// 进入staobj写值
@@ -315,18 +317,18 @@ public class mapObj {
 					sta[stacur].iconBg = iconBg;
 					sta[stacur].x = x;
 					sta[stacur].y = y;
-					// System.out.println("s写值成功" + sta[stacur].toString());
+					// app.debugPrint("s写值成功" + sta[stacur].toString());
 					stacur++;
 				}
 			}
 			if (flag == 1) {
 				// 进入movobj判断
 				// 继续向下搜索y
-				// System.out.println(t);
+				// app.debugPrint(t);
 				eix = eix + 1;
 				// 找2个引号
-				// System.out.println(t);
-				// System.out.println("sad");
+				// app.debugPrint(t);
+				// app.debugPrint("sad");
 				while (t.charAt(eix) != '"') {
 					eix++;
 				}
@@ -343,7 +345,7 @@ public class mapObj {
 				while (t.charAt(eix) != ',' && t.charAt(eix) != '}') {
 					eix++;
 				}
-				// System.out.println(t.substring(bix,eix));
+				// app.debugPrint(t.substring(bix,eix));
 				dx = Float.parseFloat(t.substring(bix, eix));
 
 				// 继续向下搜索y
@@ -365,7 +367,7 @@ public class mapObj {
 				while (t.charAt(eix) != ',' && t.charAt(eix) != '}') {
 					eix++;
 				}
-				// System.out.println(t.substring(bix,eix));
+				// app.debugPrint(t.substring(bix,eix));
 				dy = Float.parseFloat(t.substring(bix, eix));
 				if (!isPlayer) {
 					if (isSelected) {
@@ -391,7 +393,7 @@ public class mapObj {
 						mov[movcur].iconBg = iconBg;
 						mov[movcur].x = x;
 						mov[movcur].y = y;
-						// System.out.println("m写值成功" + mov[movcur].toString());
+						// app.debugPrint("m写值成功" + mov[movcur].toString());
 						movcur++;
 					}
 				} else {
@@ -405,7 +407,7 @@ public class mapObj {
 					pla.y = y;
 					pla.dx = dx;
 					pla.dy = dy;
-					// System.out.println("玩家写值成功" + pla.toString());
+					// app.debugPrint("玩家写值成功" + pla.toString());
 				}
 			}
 
@@ -421,8 +423,8 @@ public class mapObj {
 			sobj = getLine();
 		}
 		// testmov();//测试用
-		// System.out.println(mov[movcur-1].x);
-		//System.out.println("切片完成");
+		// app.debugPrint(mov[movcur-1].x);
+		//app.debugPrint("切片完成");
 
 	}
 
@@ -432,7 +434,7 @@ public class mapObj {
 			System.out.print(mov[i].x + " ");
 
 		}
-		System.out.println(i);
+		app.debugPrint(String.format("%d",i));
 	}
 
 	void initMobj() {
@@ -445,7 +447,7 @@ public class mapObj {
 
 	public void init() {
 		num = 500;
-		//System.out.println("mapObj初始化了");
+		//app.debugPrint("mapObj初始化了");
 		mov = new Movobj[num];
 		sta = new Staobj[num];
 		initMobj();
@@ -459,7 +461,7 @@ public class mapObj {
 	}
 	public void update(String S) {
 		s = S;
-		// System.out.println("初始值"+s);
+		// app.debugPrint("初始值"+s);
 		movcur = 0;
 		stacur = 0;
 		slc.type="";

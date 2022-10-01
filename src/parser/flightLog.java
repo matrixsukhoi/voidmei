@@ -225,16 +225,16 @@ public class flightLog implements Runnable {
 //			bw.write("\n");
 			
 		}
-//		System.out.println(String.format("total %d climb data logged", fA.curaltStage));
+//		app.debugPrint(String.format("total %d climb data logged", fA.curaltStage));
 		bw.flush();
 	}
 	
 	public void saveClimbData(){
 		FileWriter tcsv = null;
-//		System.out.println("climbdata save to "+ climbName);
+//		app.debugPrint("climbdata save to "+ climbName);
 		try {
 			tcsv = new FileWriter(climbName, true);
-			// System.out.println("打开文件成功");
+			// app.debugPrint("打开文件成功");
 		} catch (IOException e) {
 			controller.notification(lang.lfailCreate);
 			// TODO Auto-generated catch block
@@ -284,16 +284,16 @@ public class flightLog implements Runnable {
 //			bw.write("\n");
 			
 		}
-//		System.out.println(String.format("total %d roll data logged", k));
+//		app.debugPrint(String.format("total %d roll data logged", k));
 		bw.flush();
 	}
 	
 	public void saveRollData(){
 		FileWriter tcsv = null;
-//		System.out.println("rolldata save to "+ climbName);
+//		app.debugPrint("rolldata save to "+ climbName);
 		try {
 			tcsv = new FileWriter(rollName, true);
-			// System.out.println("打开文件成功");
+			// app.debugPrint("打开文件成功");
 		} catch (IOException e) {
 			controller.notification(lang.lfailCreate);
 			// TODO Auto-generated catch block
@@ -346,16 +346,16 @@ public class flightLog implements Runnable {
 //			bw.write("\n");
 			
 		}
-//		System.out.println(String.format("total %d roll data logged", k));
+//		app.debugPrint(String.format("total %d roll data logged", k));
 		bw.flush();
 	}
 	
 	public void saveNyData(){
 		FileWriter tcsv = null;
-//		System.out.println("rolldata save to "+ climbName);
+//		app.debugPrint("rolldata save to "+ climbName);
 		try {
 			tcsv = new FileWriter(loadName, true);
-			// System.out.println("打开文件成功");
+			// app.debugPrint("打开文件成功");
 		} catch (IOException e) {
 			controller.notification(lang.lfailCreate);
 			// TODO Auto-generated catch block
@@ -380,7 +380,7 @@ public class flightLog implements Runnable {
 		xc = tc;
 		xs = s;
 		doit = false;
-		//System.out.println("flightlog初始化了");
+		//app.debugPrint("flightlog初始化了");
 		c = Calendar.getInstance();
 		c.setTimeInMillis(System.currentTimeMillis());
 		String name=s.sIndic.type.toUpperCase();
@@ -397,7 +397,7 @@ public class flightLog implements Runnable {
 		try {
 
 			resultsFile = new FileOutputStream(fileName);
-			// System.out.println("文件创建成功");
+			// app.debugPrint("文件创建成功");
 		} catch (FileNotFoundException e) {
 			controller.notification(lang.lfailCreate);
 			// TODO Auto-generated catch block
@@ -406,7 +406,7 @@ public class flightLog implements Runnable {
 		}
 		try {
 			csv = new FileWriter(fileName, true);
-			// System.out.println("打开文件成功");
+			// app.debugPrint("打开文件成功");
 		} catch (IOException e) {
 			controller.notification(lang.lfailCreate);
 			// TODO Auto-generated catch block
@@ -443,7 +443,7 @@ public class flightLog implements Runnable {
 		
 		try {
 //			csv = new FileWriter(fileName, true);
-			// System.out.println("开始写入");
+			// app.debugPrint("开始写入");
 			analyzeData();
 			writeData(csvWritter);
 
@@ -473,8 +473,8 @@ public class flightLog implements Runnable {
 				// e.printStackTrace();
 
 			}
-			//System.out.println("flightlog内存溢出测试");
-			// System.out.println("执行");
+			//app.debugPrint("flightlog内存溢出测试");
+			// app.debugPrint("执行");
 			while (doit) {
 				logTick();
 				doit = false;// 写完后关闭

@@ -20,6 +20,8 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.lang.reflect.Field;
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.nio.charset.Charset;
 
 import javax.swing.SwingUtilities;
@@ -39,17 +41,17 @@ public class app {
 	public static final long gcSeconds = 10;
 	public static final Color previewColor = new Color(0, 0, 0, 10);
 
-	public static String appName = lang.appName;
-	public static String DefaultNumfontName = "Roboto";
-	public static String appTooltips = lang.appTooltips;
-	public static String version = "1.48";
-	public static String httpHeader = lang.httpHeader;
+	public static String appName;
+	public static String defaultNumfontName = "Roboto";
+	public static String appTooltips;
+	public static String version = "1.49";
+	public static String httpHeader;
 	public static int voiceVolumn = 100;
-	public static String DefaultFontName = "Microsoft YaHei UI";
-	public static Font DefaultFont;
-	public static Font DefaultFontBig;
-	public static Font DefaultFontBigBold;
-	public static Font DefaultFontsmall;
+	public static String defaultFontName = "Microsoft YaHei UI";
+	public static Font defaultFont;
+	public static Font defaultFontBig;
+	public static Font defaultFontBigBold;
+	public static Font defaultFontSmall;
 	public static int defaultFontsize;
 
 	public static Process plugin = null;
@@ -69,13 +71,19 @@ public class app {
 	public static Color colorLabel = new Color(27, 255, 128, 166);
 	public static Color colorNum = new Color(27, 255, 128, 240);
 
-	// 线程睡眠时间
 
+	public static SocketAddress requestDest; //= new InetSocketAddress("127.0.0.1", 8111);
+	public static SocketAddress requestDestBkp; //= new InetSocketAddress("127.0.0.1", 9222);
+	public static int appPort;
+	public static int appPortBkp;
+	
+	
+	// 线程休眠时间
 	public static long threadSleepTime = 33;
 	// 图形环境
 	public static GraphicsEnvironment environment;
-	public static int ScreenWidth;
-	public static int ScreenHeight;
+	public static int screenWidth;
+	public static int screenHeight;
 	public static String[] fonts;
 	
 	public static controller ctr;
@@ -114,7 +122,7 @@ public class app {
 			}
 		} else {
 			if (debug)
-				System.out.println("TaskBarHider程序已经打开!");
+				debugPrint("TaskBarHider程序已经打开!");
 		}
 
 		// robot.keyRelease(17);
@@ -124,7 +132,9 @@ public class app {
 	public void pluginoff() {
 		plugin.destroy();
 	}
-
+	public static void debugPrint(String t){
+		System.out.println(t);
+	}
 	public static void initSystemTray() {
 		if (SystemTray.isSupported()) {
 			SystemTray st = SystemTray.getSystemTray();
@@ -134,9 +144,9 @@ public class app {
 			PopupMenu p = new PopupMenu("");
 			MenuItem close = new MenuItem(lang.close);
 			MenuItem about = new MenuItem(lang.about);
-			close.setFont(DefaultFont);
-			about.setFont(DefaultFont);
-			p.setFont(DefaultFont);
+			close.setFont(defaultFont);
+			about.setFont(defaultFont);
+			p.setFont(defaultFont);
 			close.addActionListener(new ActionListener() {
 
 				public void actionPerformed(ActionEvent e) {
@@ -162,7 +172,7 @@ public class app {
 			} catch (AWTException e1) {
 				// TODO Auto-generated catch block
 				// e1.printStackTrace();
-				System.out.println(lang.failaddtoTray);
+				debugPrint(lang.failaddtoTray);
 			}
 		}
 	}
@@ -184,30 +194,29 @@ public class app {
 		fonts = environment.getAvailableFontFamilyNames();// 获得系统字体
 		Boolean findFont = false;
 		for (int i = 0; i < fonts.length; i++) {
-			// System.out.println(fonts[i]);
-			if (fonts[i].equals(DefaultFontName)) {
+			// debugPrint(fonts[i]);
+			if (fonts[i].equals(defaultFontName)) {
 				findFont = true;
 			}
 		}
 		if (!findFont) {
-			System.out.println("font can not find\n");
-			if (DefaultFontName.equals("Microsoft YaHei UI")){
-				DefaultFontName = "宋体";
+			debugPrint("font can not find\n");
+			if (defaultFontName.equals("Microsoft YaHei UI")){
+				defaultFontName = "宋体";
 			}
 			else
-				DefaultFontName = "Arial";
+				defaultFontName = "Arial";
 		}
-		DefaultFont = new Font(DefaultFontName, Font.PLAIN, defaultFontsize);
-		DefaultFontBig = new Font(DefaultFontName, Font.PLAIN, defaultFontsize + 2);
-		DefaultFontBigBold = new Font(DefaultFontName, Font.BOLD, defaultFontsize + 4);
-		DefaultFontsmall = new Font(DefaultFontName, Font.PLAIN, defaultFontsize - 2);
+		defaultFont = new Font(defaultFontName, Font.PLAIN, defaultFontsize);
+		defaultFontBig = new Font(defaultFontName, Font.PLAIN, defaultFontsize + 2);
+		defaultFontBigBold = new Font(defaultFontName, Font.BOLD, defaultFontsize + 4);
+		defaultFontSmall = new Font(defaultFontName, Font.PLAIN, defaultFontsize - 2);
 		environment = null;
-//		fonts = null;
 	}
 
 	public static void getScreenSize(){
-		ScreenWidth = Toolkit.getDefaultToolkit().getScreenSize().width;
-		ScreenHeight = Toolkit.getDefaultToolkit().getScreenSize().height;
+		screenWidth = Toolkit.getDefaultToolkit().getScreenSize().width;
+		screenHeight = Toolkit.getDefaultToolkit().getScreenSize().height;
 	}
 	
 	public static void setDebugLog(String path){
@@ -260,13 +269,13 @@ public class app {
 				RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 		
 		// WebLookAndFeel.set
-		WebLookAndFeel.globalControlFont = DefaultFont;
-		WebLookAndFeel.globalTooltipFont = DefaultFont;
-		WebLookAndFeel.globalAlertFont = DefaultFont;
-		WebLookAndFeel.globalMenuFont = DefaultFont;
-		WebLookAndFeel.globalAcceleratorFont = DefaultFont;
-		WebLookAndFeel.globalTitleFont = DefaultFont;
-		WebLookAndFeel.globalTextFont = DefaultFont;
+		WebLookAndFeel.globalControlFont = defaultFont;
+		WebLookAndFeel.globalTooltipFont = defaultFont;
+		WebLookAndFeel.globalAlertFont = defaultFont;
+		WebLookAndFeel.globalMenuFont = defaultFont;
+		WebLookAndFeel.globalAcceleratorFont = defaultFont;
+		WebLookAndFeel.globalTitleFont = defaultFont;
+		WebLookAndFeel.globalTextFont = defaultFont;
 		WebLookAndFeel.setDecorateFrames(true);
 		WebLookAndFeel.setDecorateAllWindows(true);
 
@@ -276,15 +285,24 @@ public class app {
 
 		// set output stream
 		setUTF8();
+		
 		if(app.debugLog){
 			setDebugLog("./output.log");
 			setErrLog("./error.log");
 		}
+		
 		lang.initLang();
+		// 初始化端口
+		appPort = Integer.parseInt(lang.httpPort);
+		appPortBkp = appPort + 1111;
+		requestDest = new InetSocketAddress(lang.httpIp, appPort);
+		requestDestBkp = new InetSocketAddress(lang.httpIp, appPortBkp);
+		
+		// 相关
 		appName = lang.appName;
 		appTooltips = lang.appTooltips;
 		httpHeader = lang.httpHeader;
-		DefaultFontName = lang.lanuageConfig.getValue("defaultFontName");
+		defaultFontName = lang.lanuageConfig.getValue("defaultFontName");
 		defaultFontsize = Integer.parseInt(lang.lanuageConfig.getValue("defaultFontSize"));
 
 //		checkOS();;

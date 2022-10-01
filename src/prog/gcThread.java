@@ -27,7 +27,7 @@ public class gcThread implements Runnable {
 
 				// 20秒回收一次内存
 				if (stime - GCCheckMili > app.gcSeconds * 1000) {
-//					System.out.println("内存回收");
+//					app.debugPrint("内存回收");
 					GCCheckMili = stime;
 					System.gc();
 				}

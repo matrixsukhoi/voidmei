@@ -65,7 +65,7 @@ public class gearAndFlaps extends WebFrame implements Runnable {
 
 	public void initPreview(controller xc) {
 		init(xc, null);
-		// System.out.println("初始化");
+		// app.debugPrint("初始化");
 		// setShadeWidth(10);
 		this.setVisible(false);
 		// this.getWebRootPaneUI().setTopBg(new Color(0, 0, 0, 50));
@@ -207,7 +207,7 @@ public class gearAndFlaps extends WebFrame implements Runnable {
 		l1.setShadeColor(app.colorShade);
 		l1.setDrawShade(true);
 		l1.setForeground(app.colorLabel);
-		l1.setFont(new Font(app.DefaultFontName, Font.PLAIN, 12));
+		l1.setFont(new Font(app.defaultFontName, Font.PLAIN, 12));
 		return l1;
 	}
 
@@ -232,7 +232,7 @@ public class gearAndFlaps extends WebFrame implements Runnable {
 		s1.setShadeColor(app.colorShade);
 		s1.setBottomBgColor(new Color(0, 0, 0, 0));
 		s1.setTopBgColor(new Color(0, 0, 0, 0));
-		s1.setFont(app.DefaultFont);
+		s1.setFont(app.defaultFont);
 		// s1.setSelected(true);
 		s1.setSelectedBgColor(warning);
 
@@ -276,7 +276,7 @@ public class gearAndFlaps extends WebFrame implements Runnable {
 		if (xc.getconfig("flightInfoFontC") != "")
 			FontName = xc.getconfig("flightInfoFontC");
 		else
-			FontName = app.DefaultFont.getFontName();
+			FontName = app.defaultFont.getFontName();
 		if (xc.getconfig("flightInfoFontaddC") != "")
 			fontadd = Integer.parseInt(xc.getconfig("flightInfoFontaddC"));
 		else
@@ -374,11 +374,11 @@ public class gearAndFlaps extends WebFrame implements Runnable {
 				// if (xs.sState.airbrake > 0) {
 				// warnText= warnText + " " + lang.gBrake;
 				// warnColor = app.colorWarning;
-				// // System.out.println(xs.sState.airbrake);
+				// // app.debugPrint(xs.sState.airbrake);
 				// } else {
 				warnText = "";
 				warnColor = app.colorNum;
-				// System.out.println(xs.sState.airbrake);
+				// app.debugPrint(xs.sState.airbrake);
 				// s1.setText(language.gBrake);
 				// }
 
@@ -412,7 +412,7 @@ public class gearAndFlaps extends WebFrame implements Runnable {
 		
 		flapText = String.format("%3d", flps);
 
-		// // System.out.println("gearandFlaps执行了");
+		// // app.debugPrint("gearandFlaps执行了");
 		// slider.setValue(xs.sState.flaps);
 
 		root.repaint();

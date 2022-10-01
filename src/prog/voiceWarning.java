@@ -86,7 +86,7 @@ public class voiceWarning implements Runnable {
 
 				FloatControl gainControl = (FloatControl) audioClip.getControl(FloatControl.Type.MASTER_GAIN);
 				float range = gainControl.getMaximum() - gainControl.getMinimum();
-				// System.out.println(range);
+				// app.debugPrint(range);
 				//
 				float rangen = 0 - gainControl.getMinimum();
 				float rangep = gainControl.getMaximum() - 0;
@@ -105,7 +105,7 @@ public class voiceWarning implements Runnable {
 
 				}
 
-				// System.out.println(val);
+				// app.debugPrint(val);
 				if (gainControl != null)
 					gainControl.setValue(val);
 				// Math.log10(app.voiceVolumn)/2.0f;
@@ -117,15 +117,15 @@ public class voiceWarning implements Runnable {
 				// audioClip.close();
 
 			} catch (UnsupportedAudioFileException ex) {
-				System.out.println("The specified audio file is not supported." + path);
+				app.debugPrint("The specified audio file is not supported: " + path);
 				// ex.printStackTrace();
 				available = false;
 			} catch (LineUnavailableException ex) {
-				System.out.println("Audio line for playing back is unavailable." + path);
+				app.debugPrint("Audio line for playing back is unavailable: " + path);
 				// ex.printStackTrace();
 				available = false;
 			} catch (IOException ex) {
-				System.out.println("Error playing the audio file." + path);
+				app.debugPrint("Error playing the audio file: " + path);
 				// ex.printStackTrace();
 				available = false;
 			}
@@ -151,11 +151,13 @@ public class voiceWarning implements Runnable {
 					this.clip.loop(1);
 				// this.clip.start();
 				// cnt++;
-				// System.out.println(cnt);
+				// app.debugPrint(cnt);
 			}
 		}
 
 		public Boolean isPlaying(long time) {
+			if (!this.available)
+				return true;
 			if (this.isAct) {
 				if (time - this.lastTimePlay <= this.coolDown) {
 					return true;
@@ -167,7 +169,7 @@ public class voiceWarning implements Runnable {
 		}
 
 		public void close() {
-			this.clip.close();
+			if (!this.available)this.clip.close();
 			this.clip = null;
 
 		}
@@ -196,13 +198,13 @@ public class voiceWarning implements Runnable {
 			// audioClip.close();
 
 		} catch (UnsupportedAudioFileException ex) {
-			System.out.println("The specified audio file is not supported.");
+			app.debugPrint("The specified audio file is not supported.");
 			ex.printStackTrace();
 		} catch (LineUnavailableException ex) {
-			System.out.println("Audio line for playing back is unavailable.");
+			app.debugPrint("Audio line for playing back is unavailable.");
 			ex.printStackTrace();
 		} catch (IOException ex) {
-			System.out.println("Error playing the audio file.");
+			app.debugPrint("Error playing the audio file.");
 			ex.printStackTrace();
 		}
 
@@ -287,7 +289,7 @@ public class voiceWarning implements Runnable {
 			speedWarningLine = xc.blkx.CriticalSpeed * 3.6f;
 		if (speedWarningLine == 0)
 			speedWarningLine = 100;
-		// System.out.println(speedWarningLine);
+		// app.debugPrint(speedWarningLine);
 		stallWarn = new audClip("./voice/warn_stall.wav", 2);
 
 		// 过载
@@ -301,35 +303,35 @@ public class voiceWarning implements Runnable {
 			nyWarningLine0 = -4;
 		if (nyWarningLine1 == 0)
 			nyWarningLine1 = 10;
-		// System.out.println(nyWarningLine0);
-		// System.out.println(nyWarningLine1);
+		// app.debugPrint(nyWarningLine0);
+		// app.debugPrint(nyWarningLine1);
 		nyWarn = new audClip("./voice/warn_loadfactor.wav", 2);
 
 		// ias
 		iasWarn = new audClip("./voice/warn_ias.wav", 10);
 		iasWarningLine = 0;
 		if (xc.blkx != null && xc.blkx.valid)
-			iasWarningLine = xc.blkx.vne;
+			iasWarningLine = xc.blkx.vne * 0.95f;
 		if (iasWarningLine == 0)
-			iasWarningLine = 2000;
+			iasWarningLine = Float.MAX_VALUE;
 
 		// mach
 		machWarn = new audClip("./voice/warn_mach.wav", 10);
 		machWarningLine = 0;
 		if (xc.blkx != null && xc.blkx.valid)
-			machWarningLine = xc.blkx.vneMach;
+			machWarningLine = xc.blkx.vneMach * 0.95f;
 		if (machWarningLine == 0)
-			machWarningLine = 3.0f;
-		// System.out.println(machWarningLine);
+			machWarningLine = Float.MAX_VALUE;
+		// app.debugPrint(machWarningLine);
 
 		// gear
 		gearWarningLine = 0;
 		gearWarn = new audClip("./voice/warn_gear.wav", 7);
 		if (xc.blkx != null && xc.blkx.valid)
-			gearWarningLine = xc.blkx.GearDestructionIndSpeed;
+			gearWarningLine = xc.blkx.GearDestructionIndSpeed * 0.93f;
 		if (gearWarningLine == 0)
 			gearWarningLine = 450;
-		// System.out.println(gearWarningLine);
+		// app.debugPrint(gearWarningLine);
 
 		// 温度
 		engWarn = new audClip("./voice/warn_engineoverheat.wav", 60);
@@ -404,32 +406,32 @@ public class voiceWarning implements Runnable {
 					aoaHigh.isAct = true;
 
 				} else {
-					if (st.AoA > ((2 * aoaWarningLine) / 3.0f))
+					if (st.AoA > (aoaWarningLine * 0.75f))
 						aoaHigh.playOnce(t);
 				}
 			}
 
 			// 速度判断
-			if (st.IAS >= iasWarningLine - 40){
+			if (st.IAS >= iasWarningLine){
 				fatal = true;
 				iasWarn.playOnce(t);
 			}
 
 			// 马赫数判断
-			if (st.M >= machWarningLine - 0.05f){
+			if (st.M >= machWarningLine){
 				fatal = true;
 				machWarn.playOnce(t);
 			}
 
 			// 起落架判断
-			if (isGearAlive && st.gear > 0 && st.IAS >= gearWarningLine - 25) {
+			if (isGearAlive && st.gear > 0 && st.IAS >= gearWarningLine ) {
 				fatal = true;
 				gearWarn.playOnce(t);
 			}
 			// 襟翼判断逻辑
 			// 先得判断襟翼在哪个段内
 			// 使用线性方式获得襟翼的限速
-			if (isFlapAlive && st.IAS >= xS.flapAllowSpeed - 25) {
+			if (isFlapAlive && st.IAS >= xS.flapAllowSpeed * 0.95f) {
 				fatal = true;
 				flapWarn.playOnce(t);
 			}
@@ -533,12 +535,12 @@ public class voiceWarning implements Runnable {
 
 			if (st.Ny < 0 && st.throttle > 50) {
 				if (st.thrust[0] < 50) {
-					// System.out.println(xS.totalthr);
+					// app.debugPrint(xS.totalthr);
 					noRPM = true;
 					engFailInvert.playOnce(t);
 				}
 				// if (st.engineType == 0 && xS.totalhp == 0){
-				// System.out.println("??");
+				// app.debugPrint("??");
 				// engFailInvert.playOnce(t);
 				// }
 			}
@@ -554,7 +556,7 @@ public class voiceWarning implements Runnable {
 				}
 
 				// 超过30
-				// System.out.println(st.RPM * 100.0f/xS.maximumThrRPM -
+				// app.debugPrint(st.RPM * 100.0f/xS.maximumThrRPM -
 				// st.throttle);
 				if (xS.getMaximumRPM && xS.maximumThrRPM > 0 && st.RPM * 100.0f / xS.maximumThrRPM >= 105) {
 					// 转速高

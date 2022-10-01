@@ -345,15 +345,15 @@ public class crosshair2 extends WebFrame implements Runnable {
 		if (xc.getconfig("MonoNumFont") != "")
 			NumFont = xc.getconfig("MonoNumFont");
 		else
-			NumFont = app.DefaultNumfontName;
+			NumFont = app.defaultNumfontName;
 		if (xc.getconfig("crosshairX") != "")
 			lx = Integer.parseInt(xc.getconfig("crosshairX"));
 		else
-			lx = (app.ScreenWidth - Width) / 2;
+			lx = (app.screenWidth - Width) / 2;
 		if (xc.getconfig("crosshairY") != "")
 			ly = Integer.parseInt(xc.getconfig("crosshairY"));
 		else
-			ly = (app.ScreenHeight - Height) / 2;
+			ly = (app.screenHeight - Height) / 2;
 		if (xc.getconfig("crosshairScale") != "")
 			CrossWidth = Integer.parseInt(xc.getconfig("crosshairScale"));
 		else
@@ -377,7 +377,7 @@ public class crosshair2 extends WebFrame implements Runnable {
 			crosshairName = xc.getconfig("crosshairName");
 		else
 			crosshairName = "";
-		// System.out.println(xc.getconfig("usetexturecrosshair"));
+		// app.debugPrint(xc.getconfig("usetexturecrosshair"));
 		if (xc.getconfig("usetexturecrosshair") != "")
 			busetexturecrosshair = Boolean.parseBoolean(xc.getconfig("usetexturecrosshair"));
 		else
@@ -412,8 +412,8 @@ public class crosshair2 extends WebFrame implements Runnable {
 		lineHorizon = " " + String.format("%5s", "45");
 		throttley = 100;
 		aoaY = 10;
-		// System.out.println(lx);
-		// System.out.println(ly);
+		// app.debugPrint(lx);
+		// app.debugPrint(ly);
 		A = Toolkit.getDefaultToolkit().createImage("image/gunsight/" + crosshairName + ".png");
 		C = A.getScaledInstance(CrossWidth * 2, CrossWidth * 2, Image.SCALE_SMOOTH);
 		// B=setAlpha("image/gunsight/" + crosshairName + ".png",200);

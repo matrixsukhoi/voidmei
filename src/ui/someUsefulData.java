@@ -38,7 +38,7 @@ public class someUsefulData extends WebFrame implements Runnable {
 		WIDTH = 320;
 		HEIGHT = 960;
 
-		// System.out.println("statusBar初始化了");
+		// app.debugPrint("statusBar初始化了");
 		// setSize(WIDTH, HEIGHT);
 		// setLocation(Toolkit.getDefaultToolkit().getScreenSize().width -
 		// WIDTH, 50);
@@ -49,7 +49,7 @@ public class someUsefulData extends WebFrame implements Runnable {
 		// WebImage webimage1=new WebImage(I);
 		// java.awt.Image
 		// L=Toolkit.getDefaultToolkit().createImage("image/loader.gif");
-		// System.out.println(I);
+		// app.debugPrint(I);
 		// WebDecoratedImage Image1=new WebDecoratedImage(I);
 		// TooltipManager.setTooltip ( Image1, "Simple preferred-size image",
 		// TooltipWay.up );
@@ -65,15 +65,15 @@ public class someUsefulData extends WebFrame implements Runnable {
 			FontName = xc.getconfig("flightInfoFontC");
 		Font f;
 		if (!FontName.isEmpty()) {
-//			System.out.println(FontName);
+//			app.debugPrint(FontName);
 			f = new Font(FontName, Font.PLAIN, 13);
 		} else {
-			f = app.DefaultFont;
+			f = app.defaultFont;
 		}
 
 		textArea = new WebTextArea();
 //		if (f.equals(null)) {
-//			System.out.println("error " + "FontName");
+//			app.debugPrint("error " + "FontName");
 //		}
 
 		textArea.setFont(f);
@@ -108,16 +108,16 @@ public class someUsefulData extends WebFrame implements Runnable {
 		addMouseListener(new MouseAdapter() {
 			@Override
 			public void mouseEntered(MouseEvent e) {
-				System.out.println(e);
+				//app.debugPrint(e);
 			}
 			@Override
 			public void mousePressed(MouseEvent e) {
-				System.out.println(e);
+				//app.debugPrint(e);
 
 			}
 			@Override
 			public void mouseReleased(MouseEvent e) {
-				System.out.println(e);
+				//app.debugPrint(e);
 			}
 
 		});
@@ -125,11 +125,11 @@ public class someUsefulData extends WebFrame implements Runnable {
 		addMouseMotionListener(new MouseMotionAdapter() {
 			@Override
 			public void mouseDragged(MouseEvent e) {
-				System.out.println(e);
+				//app.debugPrint(e);
 			}
 			@Override
 			public void mouseMoved(MouseEvent e) {
-				System.out.println(e);
+				//app.debugPrint(e);
 			}
 		});
 
@@ -185,8 +185,8 @@ public class someUsefulData extends WebFrame implements Runnable {
 		// // TODO Auto-generated catch block
 		// e.printStackTrace();
 		// }
-		// //System.out.println("statusBar执行了");
-		// //System.out.println("刷新了");
+		// //app.debugPrint("statusBar执行了");
+		// //app.debugPrint("刷新了");
 		// this.repaint();
 		// }
 		while (doit) {

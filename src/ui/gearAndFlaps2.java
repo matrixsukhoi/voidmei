@@ -46,7 +46,7 @@ public class gearAndFlaps2 extends WebFrame implements Runnable {
 
 	public void initPreview(controller xc) {
 		init(xc, null);
-		// System.out.println("初始化");
+		// app.debugPrint("初始化");
 		// setShadeWidth(10);
 		this.setVisible(false);
 		// this.getWebRootPaneUI().setTopBg(new Color(0, 0, 0, 50));
@@ -188,7 +188,7 @@ public class gearAndFlaps2 extends WebFrame implements Runnable {
 		l1.setShadeColor(app.colorShade);
 		l1.setDrawShade(true);
 		l1.setForeground(app.colorLabel);
-		l1.setFont(new Font(app.DefaultFontName, Font.PLAIN, 12));
+		l1.setFont(new Font(app.defaultFontName, Font.PLAIN, 12));
 		return l1;
 	}
 
@@ -213,7 +213,7 @@ public class gearAndFlaps2 extends WebFrame implements Runnable {
 		s1.setShadeColor(app.colorShade);
 		s1.setBottomBgColor(new Color(0, 0, 0, 0));
 		s1.setTopBgColor(new Color(0, 0, 0, 0));
-		s1.setFont(app.DefaultFont);
+		s1.setFont(app.defaultFont);
 		// s1.setSelected(true);
 		s1.setSelectedBgColor(warning);
 
@@ -290,11 +290,11 @@ public class gearAndFlaps2 extends WebFrame implements Runnable {
 				if (xs.sState.airbrake > 0) {
 					// s1.setText("");
 					s1.setText(lang.gBrake);
-					// System.out.println(xs.sState.airbrake);
+					// app.debugPrint(xs.sState.airbrake);
 				} else {
 					s1.setText("");
 
-					// System.out.println(xs.sState.airbrake);
+					// app.debugPrint(xs.sState.airbrake);
 					// s1.setText(language.gBrake);
 				}
 
@@ -312,7 +312,7 @@ public class gearAndFlaps2 extends WebFrame implements Runnable {
 				s1.setText(lang.gBrake);
 			}
 		}
-		// System.out.println("gearandFlaps执行了");
+		// app.debugPrint("gearandFlaps执行了");
 		slider.setValue(xs.sState.flaps);
 		root.repaint();
 		// }

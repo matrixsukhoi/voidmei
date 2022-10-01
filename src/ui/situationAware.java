@@ -194,7 +194,7 @@ public class situationAware extends WebFrame implements Runnable{
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-			//System.out.println("刷新了");
+			//app.debugPrint("刷新了");
 			enemy.setText(Integer.toString(xs.enemycount));
 			if(xs.enemycount>0)enemy.setForeground(Color.RED);
 			else enemy.setForeground(new Color(245, 248, 250, 240));

@@ -126,11 +126,11 @@ public class drawFrameSimpl extends WebFrame implements Runnable {
 			fmfile = planename + ".blk";
 		} else
 			fmfile = fmfile.substring(i + 1);
-		// System.out.println(fmfile);
+		// app.debugPrint(fmfile);
 
 		// 读入fmfile
 		blkx = new blkx("./data/aces/gamedata/flightmodels/fm/" + fmfile + "x", planename + ".blk");
-		// System.out.println(blkx.data);
+		// app.debugPrint(blkx.data);
 		blkx.getAllplotdata();
 
 	}
@@ -160,10 +160,10 @@ public class drawFrameSimpl extends WebFrame implements Runnable {
 		}
 
 		// 标题
-		g.setFont(new Font(app.DefaultFontName, Font.PLAIN, fontsize+6));
+		g.setFont(new Font(app.defaultFontName, Font.PLAIN, fontsize+6));
 		g.drawString(title, x + dwidth / 2, y);
 		y = y + 10;// 往下推10
-		g.setFont(new Font(app.DefaultFontName, Font.PLAIN, fontsize));
+		g.setFont(new Font(app.defaultFontName, Font.PLAIN, fontsize));
 
 		// x轴与箭头
 		g.drawLine(x, y + dheight, x + dwidth, y + dheight);
@@ -176,9 +176,9 @@ public class drawFrameSimpl extends WebFrame implements Runnable {
 			g.drawString(String.valueOf(pxmin + ii * intervalX), (int) (x + ii * intervalX * ggx), y + dheight + 15);
 		}
 		// x轴单位
-		g.setFont(new Font(app.DefaultFontName, Font.PLAIN, fontsize+4));
+		g.setFont(new Font(app.defaultFontName, Font.PLAIN, fontsize+4));
 		g.drawString(xD, x + dwidth + 5, y + dheight);
-		g.setFont(new Font(app.DefaultFontName, Font.PLAIN, fontsize));
+		g.setFont(new Font(app.defaultFontName, Font.PLAIN, fontsize));
 
 		g.setStroke(new BasicStroke(3));
 		// y轴与箭头
@@ -193,7 +193,7 @@ public class drawFrameSimpl extends WebFrame implements Runnable {
 			g.drawString(String.valueOf(pymin + ii * intervalY), x - 40, (int) (y + dheight - ii * intervalY * ggy));
 		}
 		// y轴单位
-		g.setFont(new Font(app.DefaultFontName, Font.PLAIN, fontsize+4));
+		g.setFont(new Font(app.defaultFontName, Font.PLAIN, fontsize+4));
 		g.drawString(yD, x - 5, y - 10);
 
 	}
@@ -206,7 +206,7 @@ public class drawFrameSimpl extends WebFrame implements Runnable {
 		// 绘点
 		int ii = 0;
 		for (ii = 0; ii < ix.length; ii++) {
-			// System.out.println((y + dheight) +" "+(y + dheight
+			// app.debugPrint((y + dheight) +" "+(y + dheight
 			// -(iy[ii]-pymin) * ggy));
 			g.drawOval((int) (x + (ix[ii] - pxmin) * ggx) - 1, (int) (y + dheight - (iy[ii] - pymin) * ggy) - 1, 2, 2);
 		}
@@ -226,7 +226,7 @@ public class drawFrameSimpl extends WebFrame implements Runnable {
 		g.setColor(C);
 		g.drawLine(x, y + dheight + 40, x + 20, y + dheight + 40);
 		g.setColor(new Color(0, 0, 0, 250));
-		g.setFont(new Font(app.DefaultFontName, Font.PLAIN, fontsize));
+		g.setFont(new Font(app.defaultFontName, Font.PLAIN, fontsize));
 		g.drawString(name, x + 25, y + dheight + 45);
 	}
 
@@ -247,10 +247,10 @@ public class drawFrameSimpl extends WebFrame implements Runnable {
 		ggy = (float) (dheight) / (fA.curaltStage * 100);
 
 		// 标题
-		g.setFont(new Font(app.DefaultFontName, Font.PLAIN, 16));
+		g.setFont(new Font(app.defaultFontName, Font.PLAIN, 16));
 		g.drawString(title, x + dwidth / 2, y);
 		y = y + 10;// 往下推10
-		g.setFont(new Font(app.DefaultFontName, Font.PLAIN, 10));
+		g.setFont(new Font(app.defaultFontName, Font.PLAIN, 10));
 		// x轴与箭头
 		g.drawLine(x, y + dheight, x + dwidth, y + dheight);
 
@@ -263,15 +263,15 @@ public class drawFrameSimpl extends WebFrame implements Runnable {
 			g.setStroke(new BasicStroke(1));
 			g.drawLine((int) (movex + x + ii * intervalX * ggx), y + dheight, (int) (movex + x + ii * intervalX * ggx),
 					y);
-			// System.out.println("X坐标"+(pmin + ii * intervalX)+"位置"+(int)
+			// app.debugPrint("X坐标"+(pmin + ii * intervalX)+"位置"+(int)
 			// (movex + x + ii * intervalX * ggx));
 			g.drawString(String.valueOf(pmin + ii * intervalX), (int) (movex + x + ii * intervalX * ggx),
 					y + dheight + 15);
 		}
 		// x轴单位
-		g.setFont(new Font(app.DefaultFontName, Font.PLAIN, 14));
+		g.setFont(new Font(app.defaultFontName, Font.PLAIN, 14));
 		g.drawString(xD, x + dwidth + 5, y + dheight);
-		g.setFont(new Font(app.DefaultFontName, Font.PLAIN, 10));
+		g.setFont(new Font(app.defaultFontName, Font.PLAIN, 10));
 
 		g.setStroke(new BasicStroke(3));
 
@@ -291,7 +291,7 @@ public class drawFrameSimpl extends WebFrame implements Runnable {
 			g.drawString(String.valueOf(ii * intervalY), x - 30, (int) (y + dheight - ii * intervalY * ggy));
 		}
 		// y轴单位
-		g.setFont(new Font(app.DefaultFontName, Font.PLAIN, 14));
+		g.setFont(new Font(app.defaultFontName, Font.PLAIN, 14));
 		g.drawString(yD, x - 5, y - 10);
 
 		// 绘点
@@ -328,11 +328,11 @@ public class drawFrameSimpl extends WebFrame implements Runnable {
 		ggy = (float) (dheight) / (fA.curaltStage * 100);
 
 		// 标题
-		g.setFont(new Font(app.DefaultFontName, Font.PLAIN, 16));
+		g.setFont(new Font(app.defaultFontName, Font.PLAIN, 16));
 		g.drawString(title, x + dwidth / 2, y);
 		y = y + 10;// 往下推10
 
-		g.setFont(new Font(app.DefaultFontName, Font.PLAIN, 10));
+		g.setFont(new Font(app.defaultFontName, Font.PLAIN, 10));
 		// x轴与箭头
 		g.drawLine(x, y + dheight, x + dwidth, y + dheight);
 		// g.drawLine(x + dwidth, y + dheight, x + dwidth - 5, y + dheight -
@@ -349,15 +349,15 @@ public class drawFrameSimpl extends WebFrame implements Runnable {
 			g.setStroke(new BasicStroke(1));
 			g.drawLine((int) (movex + x + ii * intervalX * ggx), y + dheight, (int) (movex + x + ii * intervalX * ggx),
 					y);
-			// System.out.println("X坐标"+(pmin + ii * intervalX)+"位置"+(int)
+			// app.debugPrint("X坐标"+(pmin + ii * intervalX)+"位置"+(int)
 			// (movex + x + ii * intervalX * ggx));
 			g.drawString(String.valueOf(pmin + ii * intervalX), (int) (movex + x + ii * intervalX * ggx),
 					y + dheight + 15);
 		}
 		// x轴单位
-		g.setFont(new Font(app.DefaultFontName, Font.PLAIN, 14));
+		g.setFont(new Font(app.defaultFontName, Font.PLAIN, 14));
 		g.drawString(xD, x + dwidth + 5, y + dheight);
-		g.setFont(new Font(app.DefaultFontName, Font.PLAIN, 10));
+		g.setFont(new Font(app.defaultFontName, Font.PLAIN, 10));
 
 		g.setStroke(new BasicStroke(3));
 
@@ -378,7 +378,7 @@ public class drawFrameSimpl extends WebFrame implements Runnable {
 		}
 		// y轴单位
 
-		g.setFont(new Font(app.DefaultFontName, Font.PLAIN, 14));
+		g.setFont(new Font(app.defaultFontName, Font.PLAIN, 14));
 		g.drawString(yD, x - 5, y - 10);
 
 		// 绘点
@@ -430,7 +430,7 @@ public class drawFrameSimpl extends WebFrame implements Runnable {
 				float xmin = findMin(xn);
 				float xmax = findMax(xn);
 				
-				// System.out.println(xmin+" "+xmax);
+				// app.debugPrint(xmin+" "+xmax);
 				float ymin = findMin(blkx.maxThrAft[blkx.altThrNum - 1]);
 				float ymax = findMax(blkx.maxThrAft[0]);
 				

@@ -586,7 +586,7 @@ public class engineInfo2 extends WebFrame implements Runnable {
 		slider1.setProgressTrackBgTop(transParentWhite);
 		// slider1.settick
 
-		// System.out.println(slider1.getComponents()[0]);
+		// app.debugPrint(slider1.getComponents()[0]);
 		slider1.setProgressRound(0);
 		slider1.setTrackRound(1);
 		slider1.setSharpThumbAngle(true);
@@ -1843,17 +1843,17 @@ public class engineInfo2 extends WebFrame implements Runnable {
 		if (xc.getconfig("GlobalNumFont") != "")
 			NumFont = xc.getconfig("GlobalNumFont");
 		else
-			NumFont = app.DefaultNumfontName;
+			NumFont = app.defaultNumfontName;
 
 		if (xc.getconfig("engineInfoFont") != "")
 			FontName = xc.getconfig("engineInfoFont");
 		else
-			FontName = app.DefaultFont.getFontName();
+			FontName = app.defaultFont.getFontName();
 		if (xc.getconfig("engineInfoFontadd") != "")
 			fontadd = Integer.parseInt(xc.getconfig("engineInfoFontadd"));
 		else
 			fontadd = 0;
-		// System.out.println(fontadd);
+		// app.debugPrint(fontadd);
 		font1 = font1 + fontadd;
 		font2 = font2 + fontadd;
 		font3 = font3 + fontadd;
@@ -1945,7 +1945,7 @@ public class engineInfo2 extends WebFrame implements Runnable {
 
 		setDefaultCloseOperation(3);
 		setTitle(lang.eTitle);
-		getWebRootPaneUI().getTitleComponent().getComponent(1).setFont(app.DefaultFont);// 设置title字体
+		getWebRootPaneUI().getTitleComponent().getComponent(1).setFont(app.defaultFont);// 设置title字体
 		setAlwaysOnTop(true);
 		setFocusableWindowState(false);// 取消窗口焦点
 		setFocusable(false);
@@ -1965,7 +1965,7 @@ public class engineInfo2 extends WebFrame implements Runnable {
 	public void wspsetStep(WebStepProgress wsp, int step) {
 		if (step > wsp.getStepsAmount()) {
 			wsp.addSteps("");
-			// System.out.println("成功");
+			// app.debugPrint("成功");
 			// wsp.setPathWidth(5);
 		}
 
@@ -2110,16 +2110,16 @@ public class engineInfo2 extends WebFrame implements Runnable {
 					}
 
 					// bottomPro.setText(s.pitch[0]);
-					// System.out.println("engineInfo执行了");
+					// app.debugPrint("engineInfo执行了");
 					// repaint();
 					this.getContentPane().repaint();
 					// this.getContentPane().getGraphics().dispose();
 					// this.status="infolist就绪";
-					// System.out.println(this.status);
+					// app.debugPrint(this.status);
 					// 绘图
 
 					// this.status="infolist等待";
-					// System.out.println(this.status);
+					// app.debugPrint(this.status);
 
 				}
 			}

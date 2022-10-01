@@ -51,7 +51,7 @@ public class indicators{
 
 
 	public void init() {
-		//System.out.println("indicator初始化了");
+		//app.debugPrint("indicator初始化了");
 		valid = "false";
 		fuelnum=0;
 		fuel=new float[5];
@@ -90,7 +90,7 @@ public class indicators{
 			manifold_pressure=stringHelper.getDataFloat(stringHelper.getString(buf, "manifold_pressure"));
 			rpm=stringHelper.getDataFloat(stringHelper.getString(buf, "rpm"));
 			wsweep_indicator = stringHelper.getDataFloat(stringHelper.getString(buf, "wing_sweep_indicator"));
-//			System.out.println(wsweep_indicator);
+//			app.debugPrint(wsweep_indicator);
 			oil_pressure=stringHelper.getDataFloat(stringHelper.getString(buf, "oil_pressure"));
 //			water_temperature=stringHelper.getDatafloat(stringHelper.getString(buf, "water_temperature"));
 			engine_temperature=stringHelper.getDataFloat(stringHelper.getString(buf, "head_temperature"));

@@ -180,7 +180,7 @@ public class attitudeIndicator extends WebFrame implements Runnable {
 
 		for (int i = 0; i < 2 * tickLine; i++) {
 			g2d.drawLine(pT[4 + 2 * i].x, pT[4 + 2 * i].y, pT[4 + 2 * i + 1].x, pT[4 + 2 * i + 1].y);
-			// System.out.println("draw" + (4 + 2 * i));
+			// app.debugPrint("draw" + (4 + 2 * i));
 		}
 		// g2d.drawLine(pT[6].x, pT[6].y, pT[7].x, pT[7].y);
 
@@ -366,11 +366,11 @@ public class attitudeIndicator extends WebFrame implements Runnable {
 
 		xc = c;
 		xs = s;
-		// System.out.println("stickValue初始化了");
+		// app.debugPrint("stickValue初始化了");
 		if (xc.getconfig("GlobalNumFont") != "")
 			NumFont = xc.getconfig("GlobalNumFont");
 		else
-			NumFont = app.DefaultNumfontName;
+			NumFont = app.defaultNumfontName;
 
 		if (xc.getconfig("attitudeIndicatorX") != "")
 			lx = Integer.parseInt(xc.getconfig("attitudeIndicatorX"));
@@ -523,7 +523,7 @@ public class attitudeIndicator extends WebFrame implements Runnable {
 		}
 
 		// 使用剩余
-		// System.out.println(1/2 * xc.blkx.aoaHigh);
+		// app.debugPrint(1/2 * xc.blkx.aoaHigh);
 		if (xc.blkx.valid) {
 			if (showAoALimits) {
 				if (xs.sState.AoA >= 0) {
@@ -585,11 +585,11 @@ public class attitudeIndicator extends WebFrame implements Runnable {
 
 			pS[4 + 4 * i + 3].x = xWidth;
 			pS[4 + 4 * i + 3].y = (int) Math.round((-start - (dTick * (i + 1))) / (2 * MaxAoA) * xHeight);
-			// System.out.println("pS" + (4 + 4 * i) + "角度" + (start
+			// app.debugPrint("pS" + (4 + 4 * i) + "角度" + (start
 			// +
 			// (dTick * (i + 1))) + ","
 			// + (-start - (dTick * (i + 1))));
-			// System.out.println((int) Math.round((start + (dTick *
+			// app.debugPrint((int) Math.round((start + (dTick *
 			// (i
 			// + 1))) / MaxAoA * xHeight) + ","
 			// + (int) Math.round((-start - (dTick * (i + 1))) /
@@ -630,7 +630,7 @@ public class attitudeIndicator extends WebFrame implements Runnable {
 		//
 		// pY[1] = Pitch - 1;
 
-		// System.out.println(AoA + "," + AoS +":["+xs.AoA
+		// app.debugPrint(AoA + "," + AoS +":["+xs.AoA
 		// +","+xs.AoS+"]");
 
 		// 屏幕空间映射,乘以像素/角度
@@ -655,7 +655,7 @@ public class attitudeIndicator extends WebFrame implements Runnable {
 			// label_3.setText(xs.elevator);
 			// slider.setValue(xs.sState.rudder);
 			// label_6.setText(xs.rudder);
-			// System.out.println("stickValue执行了");
+			// app.debugPrint("stickValue执行了");
 			// 计算AoA偏移
 			// if(xs.sState.AoA + MaxAoA >= 0){
 			if (xs.SystemTime - freqCheckMili > freqMili) {

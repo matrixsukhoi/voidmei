@@ -38,10 +38,10 @@ public class config
             propertie.load(inputFile); 
             inputFile.close(); 
         } catch (FileNotFoundException ex){ 
-            System.out.println("读取属性文件--->失败！- 原因：文件路径错误或者文件不存在"); 
+            app.debugPrint("读取属性文件--->失败！- 原因：文件路径错误或者文件不存在"); 
             ex.printStackTrace(); 
         } catch (IOException ex) { 
-            System.out.println("装载文件--->失败!"); 
+            app.debugPrint("装载文件--->失败!"); 
             ex.printStackTrace(); 
         } 
     }//end ReadConfigInfo(...) 

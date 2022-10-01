@@ -64,20 +64,7 @@ public class minimalHUD extends WebFrame implements Runnable {
 	public boolean drawAttitude;
 	int blinkTicks=1;
 	int blinkCheckTicks=0;
-	/*
-	 * public static Image makeColorTransparent(Image im, final Color color) {
-	 * ImageFilter filter = new RGBImageFilter() {
-	 * 
-	 * // the color we are looking for... Alpha bits are set to opaque public
-	 * int markerRGB = color.getRGB() | 0xFF000000;
-	 * 
-	 * @Override public final int filterRGB(int x, int y, int rgb) { if ((rgb |
-	 * 0xFF000000) == markerRGB) { // Mark the alpha bits as zero - transparent
-	 * return 0x00FFFFFF & rgb; } else { // nothing to do return rgb; } } };
-	 * 
-	 * ImageProducer ip = new FilteredImageSource(im.getSource(), filter);
-	 * return Toolkit.getDefaultToolkit().createImage(ip); }
-	 */
+
 	public void setFrameOpaque() {
 		this.getWebRootPaneUI().setMiddleBg(new Color(0, 0, 0, 0));// 中部透明
 		this.getWebRootPaneUI().setTopBg(new Color(0, 0, 0, 0));// 顶部透明
@@ -114,7 +101,7 @@ public class minimalHUD extends WebFrame implements Runnable {
 			}
 			blinkCheckTicks+=1;
 			if (blinkCheckTicks % blinkTicks == 0){
-//				System.out.println(blinkTicks +"?" + blinkCheckTicks);
+//				app.debugPrint(blinkTicks +"?" + blinkCheckTicks);
 				blinkActing = !blinkActing;		
 			}
 		}
@@ -213,7 +200,7 @@ public class minimalHUD extends WebFrame implements Runnable {
 				// g.drawLine(((HUDFontsize * 3) >> 1) - 1, 1 + y, rightDraw -
 				// 3, 1 + y);
 
-				int linex = (HUDFontsize * 3) >> 1;
+//				int linex = (HUDFontsize * 3) >> 1;
 				int liney = 1 + y;
 
 				// uiBaseElem.drawHRect(g, linex, liney, rightDraw - 2 - linex,
@@ -481,15 +468,15 @@ public class minimalHUD extends WebFrame implements Runnable {
 		if (xc.getconfig("MonoNumFont") != "")
 			NumFont = xc.getconfig("MonoNumFont");
 		else
-			NumFont = app.DefaultNumfontName;
+			NumFont = app.defaultNumfontName;
 		if (xc.getconfig("crosshairX") != "")
 			lx = Integer.parseInt(xc.getconfig("crosshairX"));
 		else
-			lx = (app.ScreenWidth - Width) / 2;
+			lx = (app.screenWidth - Width) / 2;
 		if (xc.getconfig("crosshairY") != "")
 			ly = Integer.parseInt(xc.getconfig("crosshairY"));
 		else
-			ly = (app.ScreenHeight - Height) / 2;
+			ly = (app.screenHeight - Height) / 2;
 		if (xc.getconfig("crosshairScale") != "")
 			CrossWidth = Integer.parseInt(xc.getconfig("crosshairScale"));
 		else
@@ -500,7 +487,7 @@ public class minimalHUD extends WebFrame implements Runnable {
 			crosshairName = xc.getconfig("crosshairName");
 		else
 			crosshairName = "";
-		// System.out.println(xc.getconfig("usetexturecrosshair"));
+		// app.debugPrint(xc.getconfig("usetexturecrosshair"));
 		if (xc.getconfig("displayCrosshair") != "") {
 			crossOn = Boolean.parseBoolean(xc.getconfig("displayCrosshair"));
 
@@ -586,8 +573,8 @@ public class minimalHUD extends WebFrame implements Runnable {
 		if (aoaY > rightDraw)
 			aoaY = rightDraw;
 		aoaColor = app.colorNum;
-		// System.out.println(lx);
-		// System.out.println(ly);
+		// app.debugPrint(lx);
+		// app.debugPrint(ly);
 		A = Toolkit.getDefaultToolkit().createImage("image/gunsight/" + crosshairName + ".png");
 		C = A.getScaledInstance(CrossWidth * 2, CrossWidth * 2, Image.SCALE_SMOOTH);
 		// B=setAlpha("image/gunsight/" + crosshairName + ".png",200);
@@ -716,7 +703,7 @@ public class minimalHUD extends WebFrame implements Runnable {
 			pitch = (int) ((-aviahp * pitchLimit / 90.0f));
 		else
 			pitch = 0;
-		// System.out.println(-(aviahp+aoa));
+		// app.debugPrint(-(aviahp+aoa));
 		if (xs.sState.AoS != -65535) {
 			aosX = (int) (-xs.sState.AoS * pitchLimit / 30.0f);
 		} else

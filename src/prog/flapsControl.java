@@ -26,7 +26,7 @@ public class flapsControl implements Runnable {
 		flaps = 0;
 		objflaps = 30;
 
-		// System.out.println("初始化完毕");
+		// app.debugPrint("初始化完毕");
 	}
 
 	public void updateflaps() {
@@ -91,7 +91,7 @@ public class flapsControl implements Runnable {
 	@Override
 	public void run() {
 		// TODO Auto-generated method stub
-		// System.out.println(flaps+" "+isRun);
+		// app.debugPrint(flaps+" "+isRun);
 		while (isRun) {
 
 			try {
@@ -101,16 +101,16 @@ public class flapsControl implements Runnable {
 				e.printStackTrace();
 			}
 			updateflaps();
-			// System.out.println(flaps);
+			// app.debugPrint(flaps);
 			// 自动襟翼
 			/*
-			 * if (flaps > 0) { //System.out.println(spd+" "+objflaps); if
-			 * (flaps > objflaps&&isDown) { //System.out.println("襟翼收回");
+			 * if (flaps > 0) { //app.debugPrint(spd+" "+objflaps); if
+			 * (flaps > objflaps&&isDown) { //app.debugPrint("襟翼收回");
 			 * A.keyPress(KeyEvent.VK_CAPS_LOCK); try { Thread.sleep(20); }
 			 * catch (InterruptedException e) { // TODO Auto-generated catch
 			 * block e.printStackTrace(); } A.keyRelease(KeyEvent.VK_CAPS_LOCK);
 			 * isDown = false; } if (flaps < objflaps&&! isDown ) {
-			 * //System.out.println("襟翼放下"); A.keyPress(KeyEvent.VK_TAB); try {
+			 * //app.debugPrint("襟翼放下"); A.keyPress(KeyEvent.VK_TAB); try {
 			 * Thread.sleep(20); } catch (InterruptedException e) { // TODO
 			 * Auto-generated catch block e.printStackTrace(); }
 			 * A.keyRelease(KeyEvent.VK_TAB); isDown = true; } }

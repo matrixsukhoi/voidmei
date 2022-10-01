@@ -136,11 +136,11 @@ public class infolist extends WebFrame implements Runnable {
 				repaint();
 				Thread.sleep(50);
 				// this.status="infolist就绪";
-				// System.out.println(this.status);
+				// app.debugPrint(this.status);
 				// 绘图
 
 				// this.status="infolist等待";
-				// System.out.println(this.status);
+				// app.debugPrint(this.status);
 
 			} catch (Exception e) {
 				// TODO Auto-generated catch block
