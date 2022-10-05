@@ -15,13 +15,13 @@ public class state {
 	public int gear;
 	public int TAS;
 	public int IAS;
-	public float M;
-	public float AoA;
-	public float heightm;
-	public float AoS;
-	public float Ny;
-	public float Vy;
-	public float Wx;
+	public double M;
+	public double AoA;
+	public double heightm;
+	public double AoS;
+	public double Ny;
+	public double Vy;
+	public double Wx;
 	public int throttle;
 	public int RPMthrottle;
 	public int radiator;
@@ -29,29 +29,29 @@ public class state {
 	public int mixture;
 	public int compressorstage;
 	public int magenato;
-	public float power[];
+	public double power[];
 	public int RPM;
-	public float manifoldpressure;
-	public float watertemp;
-	public float oiltemp;
-	public float mfuel;
-	public float mfuel_1;
-	public float mfuel0;
-	public float pitch[];
+	public double manifoldpressure;
+	public double watertemp;
+	public double oiltemp;
+	public double mfuel;
+	public double mfuel_1;
+	public double mfuel0;
+	public double pitch[];
 	public int thrust[];
-	public float efficiency[];
+	public double efficiency[];
 	public int airbrake;
-	public float totalThr;
+	public double totalThr;
 
 	// 临时变量
 
 	public void init() {
 		// System.out.println("state初始化了");
 		valid = "false";
-		power = new float[maxEngNum];
-		pitch = new float[maxEngNum];
+		power = new double[maxEngNum];
+		pitch = new double[maxEngNum];
 		thrust = new int[maxEngNum];
-		efficiency = new float[maxEngNum];
+		efficiency = new double[maxEngNum];
 		engineNum = 0;
 //		isEngineJet = -1;
 //		engineAlive = false;
@@ -143,7 +143,7 @@ public class state {
 
 			watertemp = stringHelper.getDataFloat(stringHelper.getString(buf, "water temp"));
 			
-			float tmpThrust = 0;
+			double tmpThrust = 0;
 
 			int totalEngineNum = 0;
 			for (i = 0; i < maxEngNum; i++) {

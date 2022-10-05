@@ -37,12 +37,12 @@ public class blkx {
 	public String fmdata;
 
 	public class engineLoad {
-		public float WaterLimit;
-		public float OilLimit;
-		public float WorkTime;
-		public float RecoverTime;
-		public float curWaterWorkTimeMili;
-		public float curOilWorkTimeMili;
+		public double WaterLimit;
+		public double OilLimit;
+		public double WorkTime;
+		public double RecoverTime;
+		public double curWaterWorkTimeMili;
+		public double curOilWorkTimeMili;
 	}
 
 	public engineLoad[] engLoad;
@@ -65,68 +65,68 @@ public class blkx {
 	public int tmload4;
 	public int tmload5;
 
-	public float vne;
-	public float clmax;
-	public float aoaHigh;
-	public float aoaLow;
-	public float flapAoaHigh;
-	public float flapAoaLow;
+	public double vne;
+	public double clmax;
+	public double aoaHigh;
+	public double aoaLow;
+	public double flapAoaHigh;
+	public double flapAoaLow;
 
-	public float aoaFuselageHigh;
-	public float aoaFuselageLow;
+	public double aoaFuselageHigh;
+	public double aoaFuselageLow;
 
-	public float flapClmax;
-	public float emptyweight;
+	public double flapClmax;
+	public double emptyweight;
 
-	public float[] maxAllowGload;
+	public double[] maxAllowGload;
 
 	public int emptyweightToLoad;
-	public float aileronEff;
-	public float aileronPowerLoss;
-	public float rudderEff;
-	public float rudderPowerLoss;
-	public float elavEff;
-	public float elavPowerLoss;
-	public float nitro;
+	public double aileronEff;
+	public double aileronPowerLoss;
+	public double rudderEff;
+	public double rudderPowerLoss;
+	public double elavEff;
+	public double elavPowerLoss;
+	public double nitro;
 
-	public float grossweight;
+	public double grossweight;
 
-	public float oil;
+	public double oil;
 
-	public float nitroDecr;
-	public float maxfuelweight;
+	public double nitroDecr;
+	public double maxfuelweight;
 
-	public float FmCdMin;
+	public double FmCdMin;
 
-	public float WingAngle;
-	public float StabAngle;
-	public float KeelAngle;
+	public double WingAngle;
+	public double StabAngle;
+	public double KeelAngle;
 
-	public float RadiatorCd;
-	public float OilRadiatorCd;
-	public float AirbrakeCd;
-	public float OswaldsEfficiencyNumber;
+	public double RadiatorCd;
+	public double OilRadiatorCd;
+	public double AirbrakeCd;
+	public double OswaldsEfficiencyNumber;
 
 	public class fm_parts {
 		public String name;
 		
-		public float Sq;
-		public float CdMin;
+		public double Sq;
+		public double CdMin;
 
-		public float Cl0;
+		public double Cl0;
 
-		public float ClCritHigh;
-		public float ClCritLow;
+		public double ClCritHigh;
+		public double ClCritLow;
 
-		public float ClAfterCrit;
+		public double ClAfterCrit;
 
-		public float AoACritHigh;
-		public float AoACritLow;
+		public double AoACritHigh;
+		public double AoACritLow;
 
-		public float lineClCoeff;
+		public double lineClCoeff;
 
 		// 翼展效率因数，影响诱导阻力，因数越大阻力越小
-		// public float oswaldEff;
+		// public double oswaldEff;
 
 	}
 
@@ -136,62 +136,62 @@ public class blkx {
 	public fm_parts Fuselage;
 	public fm_parts Fin;
 	public fm_parts Stab;
-	public float SweptWingAngle;
-	public float WingTaperRatio;
-	public float CriticalSpeed;
-	public float AWingLeftIn;
-	public float AWingLeftMid;
-	public float AWingLeftOut;
-	public float AWingRightIn;
-	public float AWingRightMid;
-	public float AWingRightOut;
-	public float AFuselage;
-	public float AWing;
-	public float NoFlapWLL;
-	public float FullFlapWLL;
-	public float CdS;
+	public double SweptWingAngle;
+	public double WingTaperRatio;
+	public double CriticalSpeed;
+	public double AWingLeftIn;
+	public double AWingLeftMid;
+	public double AWingLeftOut;
+	public double AWingRightIn;
+	public double AWingRightMid;
+	public double AWingRightOut;
+	public double AFuselage;
+	public double AWing;
+	public double NoFlapWLL;
+	public double FullFlapWLL;
+	public double CdS;
 
-	public float[] MomentOfInertia;
-	public float AAileron;
-	public float Wingspan;
-	public float AspectRatio;
+	public double[] MomentOfInertia;
+	public double AAileron;
+	public double Wingspan;
+	public double AspectRatio;
 	public double indCdF;
 	public String version;
-	public float avgEngRecoveryRate;
+	public double avgEngRecoveryRate;
 	public int FlapsDestructionNum;
-	public float[][] FlapsDestructionIndSpeed;
-	private float halfweight;
+	public double[][] FlapsDestructionIndSpeed;
+	private double halfweight;
 
 	// public
 
 	public void getPartsFm(String c, fm_parts p) {
 		p.name = c;
-		p.CdMin = getfloat(c + ".CdMin");
-		p.Cl0 = getfloat(c + ".Cl0");
-		p.ClCritHigh = getfloat(c + ".ClCritHigh");
-		p.ClCritLow = getfloat(c + ".ClCritLow");
+		p.CdMin = getdouble(c + ".CdMin");
+		p.Cl0 = getdouble(c + ".Cl0");
+		p.ClCritHigh = getdouble(c + ".ClCritHigh");
+		p.ClCritLow = getdouble(c + ".ClCritLow");
 
-		p.ClAfterCrit = getfloat(c + ".ClAfterCrit");
-		p.lineClCoeff = getfloat(c + ".lineClCoeff");
+		p.ClAfterCrit = getdouble(c + ".ClAfterCrit");
+		p.lineClCoeff = getdouble(c + ".lineClCoeff");
 
-		p.AoACritHigh = getfloat(c + ".alphaCritHigh");
-		p.AoACritLow = getfloat(c + ".alphaCritLow");
+		p.AoACritHigh = getdouble(c + ".alphaCritHigh");
+		p.AoACritLow = getdouble(c + ".alphaCritLow");
 
 	}
 
 	public boolean getEngineLoad(engineLoad[] eL, int loadIndex) {
 		String c = "Load" + loadIndex;
 		// app.debugPrint(c);
-		eL[loadIndex].WaterLimit = getfloat(c + ".WaterTemperature");
+		eL[loadIndex].WaterLimit = getdouble(c + ".WaterTemperature");
 		// app.debugPrint(eL[loadIndex].WaterLimit);
 		if (eL[loadIndex].WaterLimit == 0)
 			return Boolean.FALSE;
-		eL[loadIndex].OilLimit = getfloat(c + ".OilTemperature");
+		eL[loadIndex].OilLimit = getdouble(c + ".OilTemperature");
 		if (eL[loadIndex].OilLimit == 0)
 			return Boolean.FALSE;
-		eL[loadIndex].WorkTime = getfloat(c + ".WorkTime");
+		eL[loadIndex].WorkTime = getdouble(c + ".WorkTime");
 		// if(eL[loadIndex].WorkTime == 0)
-		eL[loadIndex].RecoverTime = getfloat(c + ".RecoverTime");
+		eL[loadIndex].RecoverTime = getdouble(c + ".RecoverTime");
 		// eL[loadIndex].curWorkTimeMili = eL[loadIndex].WorkTime * 1000;
 		eL[loadIndex].curWaterWorkTimeMili = eL[loadIndex].WorkTime * 1000;
 		eL[loadIndex].curOilWorkTimeMili = eL[loadIndex].WorkTime * 1000;
@@ -226,7 +226,7 @@ public class blkx {
 		return s;
 	}
 
-	public float[] getfloats(String c, float[] ret, int num) {
+	public double[] getdoubles(String c, double[] ret, int num) {
 		if (num <= 0)
 			return null;
 
@@ -237,7 +237,7 @@ public class blkx {
 
 					ret[i] = Float.parseFloat(tmp[i]);
 				} catch (Exception e) {
-					app.debugPrint("getfloat error" + c);
+					app.debugPrint("getdouble error" + c);
 					return null;
 				}
 			}
@@ -246,35 +246,35 @@ public class blkx {
 
 	}
 
-	public float getfloat(String c) {
-		float ret = 0;
+	public double getdouble(String c) {
+		double ret = 0;
 		if (!getone(c).equals("null")) {
 			String[] tmp = getone(c).split(",");
 			try {
 				ret = Float.parseFloat(tmp[0]);
 			} catch (Exception e) {
-				app.debugPrint("getfloat error" + c);
+				app.debugPrint("getdouble error" + c);
 				return 0;
 			}
 		}
 		return ret;
 	}
 
-	public float getfloat_exc(String c) {
-		float ret = Float.MAX_VALUE;
+	public double getdouble_exc(String c) {
+		double ret = Float.MAX_VALUE;
 		if (!getone(c).equals("null")) {
 			String[] tmp = getone(c).split(",");
 			try {
 				ret = Float.parseFloat(tmp[0]);
 			} catch (Exception e) {
-				app.debugPrint("getfloat error" + c);
+				app.debugPrint("getdouble error" + c);
 				return 0;
 			}
 		}
 		return ret;
 	}
 
-	public int findmaxLoad(engineLoad[] eL, float water, float oil) {
+	public int findmaxLoad(engineLoad[] eL, double water, double oil) {
 		for (int i = 0; i < maxEngLoad; i++) {
 			// 大于还是小于等于呢？
 			if (water < eL[i].WaterLimit && oil < eL[i].OilLimit)
@@ -284,7 +284,7 @@ public class blkx {
 		return maxEngLoad;
 	}
 
-	public int findmaxWaterLoad(engineLoad[] eL, float water) {
+	public int findmaxWaterLoad(engineLoad[] eL, double water) {
 		for (int i = 0; i < maxEngLoad; i++) {
 			// 大于还是小于等于呢？
 			if (water < eL[i].WaterLimit)
@@ -294,7 +294,7 @@ public class blkx {
 		return maxEngLoad;
 	}
 
-	public int findmaxOilLoad(engineLoad[] eL, float oil) {
+	public int findmaxOilLoad(engineLoad[] eL, double oil) {
 		for (int i = 0; i < maxEngLoad; i++) {
 			// 大于还是小于等于呢？
 			if (oil < eL[i].OilLimit)
@@ -332,52 +332,52 @@ public class blkx {
 		return tmp_data;
 	}
 
-	public float altitudeThr[];
-	public float velocityThr[];
-	public float maxThrCoff[][];
-	public float maxThrAftCoff[][];
-	public float maxThr[][];
-	public float maxThrAft[][];
-	public float thrMax0; // 静推力
-	public float aftbCoff;
+	public double altitudeThr[];
+	public double velocityThr[];
+	public double maxThrCoff[][];
+	public double maxThrAftCoff[][];
+	public double maxThr[][];
+	public double maxThrAft[][];
+	public double thrMax0; // 静推力
+	public double aftbCoff;
 	public int altThrNum;
 	public int velThrNum;
 	public boolean isJet;
 	public int engineNum;
 
 	public int compNumSteps;
-	public float compAlt[];
-	public float compPower[];
+	public double compAlt[];
+	public double compPower[];
 
-	public float compCeil[];
-	public float compCeilPwr[];
+	public double compCeil[];
+	public double compCeilPwr[];
 	
-	public float compBoost[];
-	public float compRpmRatio[];
+	public double compBoost[];
+	public double compRpmRatio[];
 	
-	public float modeEngineMult[];
+	public double modeEngineMult[];
 	
 
 	// 冲压系数
-	public float speedToManifoldMultiplier;
+	public double speedToManifoldMultiplier;
 	private int modeEngineNum;
-	private float AWingRightCut;
-	private float AWingLeftCut;
-	public float vneMach;
-	public float GearDestructionIndSpeed;
-	public float maxRPM;
-	public float maxAllowedRPM;
-	private float Cl_a;
-	private float[] AileronDefl;
-	private float Wx100;
-	private float Wx_vcoff;
-	private float Wx250;
-	private float Wx300;
-	private float Wx350;
-	private float WxMax;
-	private float Wx600;
-	private float[] modeEngineRPMMult;
-	private float engineRPMMultWEP;
+	private double AWingRightCut;
+	private double AWingLeftCut;
+	public double vneMach;
+	public double GearDestructionIndSpeed;
+	public double maxRPM;
+	public double maxAllowedRPM;
+	private double Cl_a;
+	private double[] AileronDefl;
+	private double Wx100;
+	private double Wx_vcoff;
+	private double Wx250;
+	private double Wx300;
+	private double Wx350;
+	private double WxMax;
+	private double Wx600;
+	private double[] modeEngineRPMMult;
+	private double engineRPMMultWEP;
 
 	public void getload() {
 		// String Load0 = cut(data, "Load0");
@@ -410,15 +410,15 @@ public class blkx {
 		}
 		engineRPMMultWEP = 1.0f;
 		if (isJet) {
-			aftbCoff = getfloat(hdrString + "Main.AfterburnerBoost");
-			thrMax0 = getfloat("ThrustMax.ThrustMax0");
-//			thrMax0 = getfloat(hdrString + "Main.Thrust");
+			aftbCoff = getdouble(hdrString + "Main.AfterburnerBoost");
+			thrMax0 = getdouble("ThrustMax.ThrustMax0");
+//			thrMax0 = getdouble(hdrString + "Main.Thrust");
 			
 			app.debugPrint("engineType: jet, afterburner coeff" + aftbCoff);
 			altThrNum = 0;
-			altitudeThr = new float[30];
+			altitudeThr = new double[30];
 			for (int i = 0; i < 30; i++, altThrNum++) {
-				altitudeThr[i] = getfloat_exc("ThrustMax.Altitude_" + i);
+				altitudeThr[i] = getdouble_exc("ThrustMax.Altitude_" + i);
 				if (altitudeThr[i] == Float.MAX_VALUE){
 					altitudeThr[i] = 0;
 					break;
@@ -427,10 +427,10 @@ public class blkx {
 			}
 			// 读取推力速度
 			velThrNum = 0;
-			velocityThr = new float[30];
+			velocityThr = new double[30];
 
 			for (int i = 0; i < 30; i++, velThrNum++) {
-				velocityThr[i] = getfloat_exc("ThrustMax.Velocity_" + i);
+				velocityThr[i] = getdouble_exc("ThrustMax.Velocity_" + i);
 				if (velocityThr[i] == Float.MAX_VALUE){
 					velocityThr[i] = 0;
 					break;
@@ -441,11 +441,11 @@ public class blkx {
 			// 读取发动机工作模式
 
 			modeEngineNum = 0;
-			modeEngineMult = new float[10];
-			modeEngineRPMMult = new float[10];
+			modeEngineMult = new double[10];
+			modeEngineRPMMult = new double[10];
 			for (int i = 0; i < 10; i++, modeEngineNum++){
-				modeEngineMult[i] = getfloat_exc("Main.Mode"+i+".ThrustMult");
-				modeEngineRPMMult[i] =  getfloat_exc("Main.Mode"+i+".RPM");
+				modeEngineMult[i] = getdouble_exc("Main.Mode"+i+".ThrustMult");
+				modeEngineRPMMult[i] =  getdouble_exc("Main.Mode"+i+".RPM");
 				if (modeEngineMult[i] == Float.MAX_VALUE){
 					modeEngineMult[i] = 0;
 					modeEngineRPMMult[i] = 1;
@@ -455,7 +455,7 @@ public class blkx {
 			
 			
 			
-			float engineMultWEP = 1.0f;
+			double engineMultWEP = 1.0f;
 			
 			if (modeEngineNum != 0){
 				engineMultWEP = modeEngineMult[modeEngineNum - 1];
@@ -464,19 +464,19 @@ public class blkx {
 
 			
 			// 读取推力系数包线
-			maxThrCoff = new float[altThrNum][];
-			maxThr = new float[altThrNum][];
-			maxThrAft = new float[altThrNum][];
-			maxThrAftCoff = new float[altThrNum][];
+			maxThrCoff = new double[altThrNum][];
+			maxThr = new double[altThrNum][];
+			maxThrAft = new double[altThrNum][];
+			maxThrAftCoff = new double[altThrNum][];
 			for (int i = 0; i < altThrNum; i++) {
-				maxThrCoff[i] = new float[velThrNum];
-				maxThr[i] = new float[velThrNum];
-				maxThrAft[i] = new float[velThrNum];
-				maxThrAftCoff[i] = new float[velThrNum];
+				maxThrCoff[i] = new double[velThrNum];
+				maxThr[i] = new double[velThrNum];
+				maxThrAft[i] = new double[velThrNum];
+				maxThrAftCoff[i] = new double[velThrNum];
 				
 				for (int j = 0; j < velThrNum; j++) {
-					maxThrCoff[i][j] = getfloat("ThrustMax.ThrustMaxCoeff_" + i + "_" + j);
-					maxThrAftCoff[i][j] = getfloat("ThrustMax.ThrAftMaxCoeff_"+ i +"_" + j);
+					maxThrCoff[i][j] = getdouble("ThrustMax.ThrustMaxCoeff_" + i + "_" + j);
+					maxThrAftCoff[i][j] = getdouble("ThrustMax.ThrAftMaxCoeff_"+ i +"_" + j);
 					if(maxThrAftCoff[i][j] == 0){
 						maxThrAftCoff[i][j] = 1.0f;
 					}
@@ -489,26 +489,26 @@ public class blkx {
 			// radial inline
 			// 获得增压器工作高度
 //			app.debugPrint("not a jet");
-			aftbCoff = getfloat(hdrString + "Main.AfterburnerBoost");
+			aftbCoff = getdouble(hdrString + "Main.AfterburnerBoost");
 //			app.debugPrint(hdrString);
-			compNumSteps = (int) getfloat("Compressor.NumSteps");
-			speedToManifoldMultiplier = getfloat("Compressor.SpeedManifoldMultiplier");
+			compNumSteps = (int) getdouble("Compressor.NumSteps");
+			speedToManifoldMultiplier = getdouble("Compressor.SpeedManifoldMultiplier");
 
-			compAlt = new float[compNumSteps];
-			compBoost = new float[compNumSteps];
-			compPower = new float[compNumSteps];
-			compRpmRatio = new float[compNumSteps];
-			compCeil = new float[compNumSteps];
-			compCeilPwr = new float[compNumSteps];;
+			compAlt = new double[compNumSteps];
+			compBoost = new double[compNumSteps];
+			compPower = new double[compNumSteps];
+			compRpmRatio = new double[compNumSteps];
+			compCeil = new double[compNumSteps];
+			compCeilPwr = new double[compNumSteps];;
 			
 			
 			for (int i = 0; i < compNumSteps; i++) {
-				compAlt[i] = getfloat("Compressor.Altitude" + i);
-				compPower[i] = getfloat("Compressor.Power" + i);
-				compBoost[i] = getfloat("Compressor.AfterburnerBoostMul" + i);
-				compRpmRatio[i] = getfloat("Compressor.PowerConstRPMCurvature" + i);
-				compCeil[i] = getfloat("Compressor.Ceiling" + i);
-				compCeilPwr[i] = getfloat("Compressor.PowerAtCeiling"+i);
+				compAlt[i] = getdouble("Compressor.Altitude" + i);
+				compPower[i] = getdouble("Compressor.Power" + i);
+				compBoost[i] = getdouble("Compressor.AfterburnerBoostMul" + i);
+				compRpmRatio[i] = getdouble("Compressor.PowerConstRPMCurvature" + i);
+				compCeil[i] = getdouble("Compressor.Ceiling" + i);
+				compCeilPwr[i] = getdouble("Compressor.PowerAtCeiling"+i);
 //				app.debugPrint(String.format("*s%d*:[%.0f]%.0fhp - [%.0f]%.0fhp", i, compAlt[i], compPower[i] * compRpmRatio[i] * aftbCoff, compCeil[i], compCeilPwr[i] * compRpmRatio[i] * aftbCoff));
 			}
 
@@ -516,15 +516,15 @@ public class blkx {
 		}
 
 		// 读取最大转速和最大允许转速
-		maxRPM = getfloat("RPMAfterburner");
-		float maxRPMNormal = getfloat(" RPMMax");
+		maxRPM = getdouble("RPMAfterburner");
+		double maxRPMNormal = getdouble(" RPMMax");
 		if (maxRPM < maxRPMNormal) maxRPM = maxRPMNormal;
 
 		app.debugPrint("RPMMult"+engineRPMMultWEP);
 		// 针对幻影2000C mode6 rpm乘数1.01的修复
 		maxRPM = maxRPM * engineRPMMultWEP;
 		app.debugPrint("RPM"+maxRPM);
-		maxAllowedRPM = getfloat("RPMMaxAllowed");
+		maxAllowedRPM = getdouble("RPMMaxAllowed");
 //		app.debugPrint("RPM"+maxAllowedRPM);
 		
 		avgEngRecoveryRate = 0.0f;
@@ -550,75 +550,75 @@ public class blkx {
 		}
 		// app.debugPrint(engLoad[0].WorkTime/engLoad[i].RecoverTime);
 		avgEngRecoveryRate = avgEngRecoveryRate / (maxEngLoad - 1);
-		emptyweight = getfloat("EmptyMass");
-		vne = getfloat("Vne:");
+		emptyweight = getdouble("EmptyMass");
+		vne = getdouble("Vne:");
 		if(vne == 0){
-			vne = getfloat("WingPlane.Strength.VNE");
+			vne = getdouble("WingPlane.Strength.VNE");
 			if(vne == 0){
-				vne = getfloat("WingPlaneSweep1.Strength.VNE");
+				vne = getdouble("WingPlaneSweep1.Strength.VNE");
 			}
 		}
-		vneMach = getfloat("VneMach");
+		vneMach = getdouble("VneMach");
 		if(vneMach == 0){
-			vneMach = getfloat("WingPlane.Strength.MNE");
+			vneMach = getdouble("WingPlane.Strength.MNE");
 			if(vneMach == 0){
-				vneMach = getfloat("WingPlaneSweep1.Strength.MNE");
+				vneMach = getdouble("WingPlaneSweep1.Strength.MNE");
 			}
 		}
 		
-		aileronEff = getfloat("AileronEffectiveSpeed");
-		aileronPowerLoss = getfloat("AileronPowerLoss");
-		rudderEff = getfloat("RudderEffectiveSpeed");
-		rudderPowerLoss = getfloat("RudderPowerLoss");
-		elavEff = getfloat("ElevatorsEffectiveSpeed");
-		elavPowerLoss = getfloat("ElevatorPowerLoss");
-		maxfuelweight = getfloat("MaxFuelMass0");
+		aileronEff = getdouble("AileronEffectiveSpeed");
+		aileronPowerLoss = getdouble("AileronPowerLoss");
+		rudderEff = getdouble("RudderEffectiveSpeed");
+		rudderPowerLoss = getdouble("RudderPowerLoss");
+		elavEff = getdouble("ElevatorsEffectiveSpeed");
+		elavPowerLoss = getdouble("ElevatorPowerLoss");
+		maxfuelweight = getdouble("MaxFuelMass0");
 
-		clmax = getfloat("NoFlaps.ClCritHigh");
-		flapClmax = getfloat("FullFlaps.ClCritHigh");
+		clmax = getdouble("NoFlaps.ClCritHigh");
+		flapClmax = getdouble("FullFlaps.ClCritHigh");
 
-		aoaHigh = getfloat("NoFlaps.alphaCritHigh");
-		aoaLow = getfloat("NoFlaps.alphaCritLow");
+		aoaHigh = getdouble("NoFlaps.alphaCritHigh");
+		aoaLow = getdouble("NoFlaps.alphaCritLow");
 
-		flapAoaHigh = getfloat("FullFlaps.alphaCritHigh");
-		flapAoaLow = getfloat("FullFlaps.alphaCritLow");
+		flapAoaHigh = getdouble("FullFlaps.alphaCritHigh");
+		flapAoaLow = getdouble("FullFlaps.alphaCritLow");
 
-		nitroDecr = getfloat("NitroConsumption");
-		nitro = getfloat("MaxNitro");
-		oil = getfloat("OilMass");
+		nitroDecr = getdouble("NitroConsumption");
+		nitro = getdouble("MaxNitro");
+		oil = getdouble("OilMass");
 
 		app.debugPrint("作战空重" + (emptyweight + oil + nitro));
 		grossweight = emptyweight + maxfuelweight + nitro + oil;
 		halfweight = emptyweight + maxfuelweight / 2 + nitro + oil;
 
-		RadiatorCd = getfloat("RadiatorCd");
-		OilRadiatorCd = getfloat("OilRadiatorCd");
-		OswaldsEfficiencyNumber = getfloat("OswaldsEfficiencyNumber");
+		RadiatorCd = getdouble("RadiatorCd");
+		OilRadiatorCd = getdouble("OilRadiatorCd");
+		OswaldsEfficiencyNumber = getdouble("OswaldsEfficiencyNumber");
 
-		SweptWingAngle = getfloat("SweptWingAngle");
+		SweptWingAngle = getdouble("SweptWingAngle");
 		if (SweptWingAngle == 0) {
-			SweptWingAngle = getfloat("WingPlane.SweptAngle");
+			SweptWingAngle = getdouble("WingPlane.SweptAngle");
 			if (SweptWingAngle == 0) {
-				SweptWingAngle = getfloat("WingPlaneSweep0.SweptAngle");
+				SweptWingAngle = getdouble("WingPlaneSweep0.SweptAngle");
 			}
 		}
 
-		WingTaperRatio = getfloat("WingTaperRatio");
+		WingTaperRatio = getdouble("WingTaperRatio");
 		if (WingTaperRatio == 0) {
-			WingTaperRatio = getfloat("WingPlane.TaperRatio");
+			WingTaperRatio = getdouble("WingPlane.TaperRatio");
 			if (WingTaperRatio == 0) {
-				WingTaperRatio = getfloat("WingPlaneSweep0.TaperRatio");
+				WingTaperRatio = getdouble("WingPlaneSweep0.TaperRatio");
 			}
 		}
 
-		CriticalSpeed = getfloat("CriticalSpeed");
+		CriticalSpeed = getdouble("CriticalSpeed");
 
-		FlapsDestructionIndSpeed = new float[5][2];
+		FlapsDestructionIndSpeed = new double[5][2];
 		FlapsDestructionNum = 0;
 		{
 			int p = 0;
 			while (true) {
-				getfloats("FlapsDestructionIndSpeedP" + (p++), FlapsDestructionIndSpeed[FlapsDestructionNum], 2);
+				getdoubles("FlapsDestructionIndSpeedP" + (p++), FlapsDestructionIndSpeed[FlapsDestructionNum], 2);
 				if (p >= 5)
 					break;
 				if (FlapsDestructionIndSpeed[FlapsDestructionNum][1] == 0)
@@ -630,81 +630,81 @@ public class blkx {
 		}
 		if (FlapsDestructionNum == 0){
 			FlapsDestructionIndSpeed[0][0] = 1.0f;
-			FlapsDestructionIndSpeed[0][1] = getfloat("FlapsDestructionIndSpeed");
+			FlapsDestructionIndSpeed[0][1] = getdouble("FlapsDestructionIndSpeed");
 		}
 //		if (FlapsDestructionIndSpeed[0][1] != 0){
 //			FlapsDestructionNum++;
 //		}
-		GearDestructionIndSpeed = getfloat("GearDestructionIndSpeed");
+		GearDestructionIndSpeed = getdouble("GearDestructionIndSpeed");
 		
 		// 面积
-		AWingLeftIn = getfloat("Areas.WingLeftIn");
+		AWingLeftIn = getdouble("Areas.WingLeftIn");
 		if (AWingLeftIn == 0)
-			AWingLeftIn = getfloat("WingPlane.Areas.LeftIn");
+			AWingLeftIn = getdouble("WingPlane.Areas.LeftIn");
 		if (AWingLeftIn == 0)
-			AWingLeftIn = getfloat("WingPlaneSweep0.Areas.LeftIn");
+			AWingLeftIn = getdouble("WingPlaneSweep0.Areas.LeftIn");
 
-		AWingLeftMid = getfloat("Areas.WingLeftMid");
+		AWingLeftMid = getdouble("Areas.WingLeftMid");
 		if (AWingLeftMid == 0)
-			AWingLeftMid = getfloat("WingPlane.Areas.LeftMid");
+			AWingLeftMid = getdouble("WingPlane.Areas.LeftMid");
 		if (AWingLeftMid == 0)
-			AWingLeftMid = getfloat("WingPlaneSweep0.Areas.LeftMid");
+			AWingLeftMid = getdouble("WingPlaneSweep0.Areas.LeftMid");
 
-		AWingLeftOut = getfloat("Areas.WingLeftOut");
+		AWingLeftOut = getdouble("Areas.WingLeftOut");
 		if (AWingLeftOut == 0)
-			AWingLeftOut = getfloat("WingPlane.Areas.LeftOut");
+			AWingLeftOut = getdouble("WingPlane.Areas.LeftOut");
 		if (AWingLeftOut == 0)
-			AWingLeftOut = getfloat("WingPlaneSweep0.Areas.LeftOut");
+			AWingLeftOut = getdouble("WingPlaneSweep0.Areas.LeftOut");
 
-		AWingLeftCut = getfloat("Areas.WingLeftCut");
+		AWingLeftCut = getdouble("Areas.WingLeftCut");
 		if (AWingLeftCut == 0)
-			AWingLeftCut = getfloat("WingPlane.Areas.LeftCut");
+			AWingLeftCut = getdouble("WingPlane.Areas.LeftCut");
 		if (AWingLeftCut == 0)
-			AWingLeftCut = getfloat("WingPlaneSweep0.Areas.LeftCut");
+			AWingLeftCut = getdouble("WingPlaneSweep0.Areas.LeftCut");
 
 		
-		AWingRightIn = getfloat("Areas.WingRightIn");
+		AWingRightIn = getdouble("Areas.WingRightIn");
 		if (AWingRightIn == 0)
-			AWingRightIn = getfloat("WingPlane.Areas.RightIn");
+			AWingRightIn = getdouble("WingPlane.Areas.RightIn");
 		if (AWingRightIn == 0)
-			AWingRightIn = getfloat("WingPlaneSweep0.Areas.RightIn");
+			AWingRightIn = getdouble("WingPlaneSweep0.Areas.RightIn");
 
-		AWingRightMid = getfloat("Areas.WingRightMid");
+		AWingRightMid = getdouble("Areas.WingRightMid");
 		if (AWingRightMid == 0)
-			AWingRightMid = getfloat("WingPlane.Areas.RightMid");
+			AWingRightMid = getdouble("WingPlane.Areas.RightMid");
 		if (AWingRightMid == 0)
-			AWingRightMid = getfloat("WingPlaneSweep0.Areas.RightMid");
+			AWingRightMid = getdouble("WingPlaneSweep0.Areas.RightMid");
 
-		AWingRightOut = getfloat("Areas.WingRightOut");
+		AWingRightOut = getdouble("Areas.WingRightOut");
 		if (AWingRightOut == 0)
-			AWingRightOut = getfloat("WingPlane.Areas.RightOut");
+			AWingRightOut = getdouble("WingPlane.Areas.RightOut");
 		if (AWingRightOut == 0)
-			AWingRightOut = getfloat("WingPlaneSweep0.Areas.RightOut");
+			AWingRightOut = getdouble("WingPlaneSweep0.Areas.RightOut");
 
-		AWingRightCut = getfloat("Areas.WingRightCut");
+		AWingRightCut = getdouble("Areas.WingRightCut");
 		if (AWingRightCut == 0)
-			AWingRightCut = getfloat("WingPlane.Areas.RightCut");
+			AWingRightCut = getdouble("WingPlane.Areas.RightCut");
 		if (AWingRightCut == 0)
-			AWingRightCut = getfloat("WingPlaneSweep0.Areas.RightCut");
+			AWingRightCut = getdouble("WingPlaneSweep0.Areas.RightCut");
 
 		
-		AAileron = getfloat("Areas.Aileron");
+		AAileron = getdouble("Areas.Aileron");
 		if (AAileron == 0)
-			AAileron = getfloat("WingPlane.Areas.Aileron");
+			AAileron = getdouble("WingPlane.Areas.Aileron");
 		if (AAileron == 0)
-			AAileron = getfloat("WingPlaneSweep0.Areas.Aileron");
+			AAileron = getdouble("WingPlaneSweep0.Areas.Aileron");
 
-		AFuselage = getfloat("Areas.Fuselage");
+		AFuselage = getdouble("Areas.Fuselage");
 		if (AFuselage == 0)
-			AFuselage = getfloat("FuselagePlane.Areas.Main");
+			AFuselage = getdouble("FuselagePlane.Areas.Main");
 		if (AFuselage == 0)
-			AFuselage = getfloat("WingPlaneSweep0.Areas.Main");
+			AFuselage = getdouble("WingPlaneSweep0.Areas.Main");
 		
-		AFuselage = getfloat("Areas.Fuselage");
+		AFuselage = getdouble("Areas.Fuselage");
 		if (AFuselage == 0)
-			AFuselage = getfloat("FuselagePlane.Areas.Main");
+			AFuselage = getdouble("FuselagePlane.Areas.Main");
 		if (AFuselage == 0)
-			AFuselage = getfloat("WingPlaneSweep0.Areas.Main");
+			AFuselage = getdouble("WingPlaneSweep0.Areas.Main");
 
 		
 		
@@ -741,23 +741,23 @@ public class blkx {
 		}
 
 		// 获得安装角
-		WingAngle = getfloat("\nWingAngle");
+		WingAngle = getdouble("\nWingAngle");
 		if (WingAngle == 0) {
-			WingAngle = getfloat("WingPlane. Angle");
+			WingAngle = getdouble("WingPlane. Angle");
 			if (WingAngle == 0) {
-				WingAngle = getfloat("WingPlaneSweep0. Angle");
+				WingAngle = getdouble("WingPlaneSweep0. Angle");
 			}
 		}
 //		app.debugPrint("机翼安装角" + WingAngle);
 
-		StabAngle = getfloat("StabAngle");
+		StabAngle = getdouble("StabAngle");
 		if (WingAngle == 0) {
-			WingAngle = getfloat("VerStabPlane.Angle");
+			WingAngle = getdouble("VerStabPlane.Angle");
 		}
 
-		KeelAngle = getfloat("KeelAngle");
+		KeelAngle = getdouble("KeelAngle");
 		if (WingAngle == 0) {
-			WingAngle = getfloat("FuselagePlane.Angle");
+			WingAngle = getdouble("FuselagePlane.Angle");
 		}
 
 		// 计算安装角补偿
@@ -772,12 +772,12 @@ public class blkx {
 		Stab.AoACritHigh -= StabAngle;
 		Stab.AoACritLow -= StabAngle;
 
-		MomentOfInertia = new float[3];
-		getfloats("MomentOfInertia", MomentOfInertia, 3);
+		MomentOfInertia = new double[3];
+		getdoubles("MomentOfInertia", MomentOfInertia, 3);
 
 		// 最大升力面积因子载荷计算(气动升力系数x部件面积除以满油重量）
 		// 最大攻角转弯时机身是失速的
-		float fuseClHigh = Fuselage.ClCritHigh * Fuselage.lineClCoeff;
+		double fuseClHigh = Fuselage.ClCritHigh * Fuselage.lineClCoeff;
 		if (Fuselage.AoACritHigh < NoFlapsWing.AoACritHigh)
 			fuseClHigh = Fuselage.ClAfterCrit * Fuselage.lineClCoeff;
 
@@ -805,11 +805,11 @@ public class blkx {
 		// 计算阻力抵消的攻角
 
 		// 翼展
-		Wingspan = getfloat("Wingspan");
+		Wingspan = getdouble("Wingspan");
 		if (Wingspan == 0) {
-			Wingspan = getfloat("WingPlane.Span");
+			Wingspan = getdouble("WingPlane.Span");
 			if (Wingspan == 0) {
-				Wingspan = getfloat("WingPlaneSweep0.Span");
+				Wingspan = getdouble("WingPlaneSweep0.Span");
 			}
 		}
 
@@ -826,10 +826,10 @@ public class blkx {
 		// FmCdMin += Fin.CdMin;
 		// FmCdMin += Stab.CdMin;
 
-		maxAllowGload = new float[2];
-		getfloats("WingCritOverload", maxAllowGload, 2);
+		maxAllowGload = new double[2];
+		getdoubles("WingCritOverload", maxAllowGload, 2);
 		if (maxAllowGload[0] == 0) {
-			getfloats("Strength.CritOverload", maxAllowGload, 2);
+			getdoubles("Strength.CritOverload", maxAllowGload, 2);
 		}
 		// 减去机身升力承载的重量
 		// WingLoad =
@@ -869,10 +869,10 @@ public class blkx {
 		
 		
 		// 获得襟翼偏转角度(上偏和下偏)
-		AileronDefl = new float[2];
+		AileronDefl = new double[2];
 		
-		if (null == getfloats("AileronAngles", AileronDefl, 2)){
-			getfloats("Ailerons.AnglesRoll", AileronDefl, 2);
+		if (null == getdoubles("AileronAngles", AileronDefl, 2)){
+			getdoubles("Ailerons.AnglesRoll", AileronDefl, 2);
 		}
 //		AAileron
 		// 

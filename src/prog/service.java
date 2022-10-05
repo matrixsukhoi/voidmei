@@ -19,11 +19,16 @@ import parser.indicators;
 import parser.state;
 
 public class service implements Runnable {
-
+	public static calcHelper cH = new calcHelper();
+	public calcHelper.simpleMovingAverage diffSpeedSMA;
+	public calcHelper.simpleMovingAverage sumSpeedSMA;
+	public calcHelper.simpleMovingAverage calcSpeedSMA;
+	public calcHelper.simpleMovingAverage fuelTimeSMA;
 	// public static URL urlstate;
 	// public static URL urlindicators;
+	public long calcPeriod;
 	public static String buf;
-	public static final float g = 9.80f;
+	public static final double g = 9.80f;
 	public long timeStamp;
 	public long freq;
 	public state sState;
@@ -37,29 +42,29 @@ public class service implements Runnable {
 	public boolean bUnitMHp;
 	public int iTotalThr;
 	public String sTotalThr;
-	public float fTotalFuel;
-	public float fTotalFuelP;
+	public double fTotalFuel;
+	public double fTotalFuelP;
 	public boolean bLowAccFuel;
 	public String sTotalFuel;
 	public int iCheckAlt;
-	public float dfuel;
+	public double dfuel;
 	public long fueltime;
 	public String sfueltime;
 	public boolean notCheckInch;
 	// public boolean isFuelpressure;
 	public boolean altperCirclflag;
 	public long intv;
-	public float althour;
-	public float altperCircle;
-	public float alt;
-	public float altp;
-	public float altreg;
-	public float iastotascoff;
+	public double althour;
+	public double altperCircle;
+	public double alt;
+	public double altp;
+	public double altreg;
+	public double iastotascoff;
 	public long SystemTime;
 	public long TimeIncrMili;
 	long MainCheckMili;
 	long FuelCheckMili;
-	public float fuelChange;
+	public double fuelChange;
 	long FuelLastchangeMili;
 	long FuelchangeTime;
 	long GCCheckMili;
@@ -68,18 +73,18 @@ public class service implements Runnable {
 	long startTime;
 	public long elapsedTime;
 
-	public float noilTemp;
-	public float nwaterTemp;
+	public double noilTemp;
+	public double nwaterTemp;
 	// public int enginenum;
 	// public int enginetype;
 
-	public float speedv;
-	public float speedvp;
-	public float IASv;
-	public float IASvp;
-	public float diffspeed;
-	public float acceleration;
-	public float SEP;
+	public double speedv;
+	public double speedvp;
+	public double IASv;
+	public double IASvp;
+	public double diffspeed;
+	public double acceleration;
+	public double SEP;
 
 	public long wepTime;
 
@@ -141,19 +146,19 @@ public class service implements Runnable {
 	public String thrust[];
 	public String aclrt;
 	public int curLoad;
-	public float curLoadMinWorkTime;
+	public double curLoadMinWorkTime;
 	public String efficiency[];
 	long testCheckMili;
 
 	public long loadWorkTimeMili[];
 
-	public float ratio;
-	public float ratio_1;
+	public double ratio;
+	public double ratio_1;
 	// iIndic
 	public String rpm;
 	private int curWLoad;
 	private int curOLoad;
-	private float nVy;
+	private double nVy;
 	public String sHorizontalLoad;
 	public String sEngWorkTime;
 	public String sPitchUp;
@@ -163,10 +168,10 @@ public class service implements Runnable {
 	public String SdThrustPercent;
 	public String sRadioAlt;
 
-	public float radioAlt;
-	public float pRadioAlt;
-	public float dRadioAlt;
-	public float An;
+	public double radioAlt;
+	public double pRadioAlt;
+	public double dRadioAlt;
+	public double An;
 	public int iEngType;
 
 	Boolean portOcupied = false;
@@ -181,7 +186,7 @@ public class service implements Runnable {
 		return String.format("%0" + arg + "d", Num);
 	}
 
-	public String NumtoString(float Num, int arg1, int arg2) {
+	public String NumtoString(double Num, int arg1, int arg2) {
 		return String.format("%-" + arg1 + "." + arg2 + "f", Num);
 	}
 
@@ -216,8 +221,14 @@ public class service implements Runnable {
 			// if (fueltime < 60 * 1000)
 			// sfueltime = String.format(".%d", fueltime / 1000);
 			// else
-//			sfueltime = String.format("%d:%02d", fueltime / 60000, (int) ((fueltime / 1000) % 60 / 30) * 30);
-			sfueltime = String.format("%d", fueltime / 60000);
+
+//			sfueltime = String.format("%d:%02d", fueltime / 60000, (int) ((fueltime / 1000) % 60 ));
+			if (fueltime / 60000 < 100 && !bLowAccFuel){
+				sfueltime = String.format("%d:%02d", fueltime / 60000, (long) ((fueltime / 1000) % 60 / 10) * 10);
+//				sfueltime = String.format("%d.%d", fueltime / 60000, (fueltime % 60000) / 6000);
+			}
+			else
+				sfueltime = String.format("%d", fueltime / 60000);
 
 		}
 		sTotalThr = String.format("%d", iTotalThr);
@@ -316,7 +327,7 @@ public class service implements Runnable {
 		Wx = String.format("%.0f", Math.abs(sState.Wx));
 		M = String.format("%.2f", sState.M);
 		Ny = String.format("%.1f", sState.Ny);
-		sSEP = String.format("%.0f", SEP / g);
+		sSEP = String.format("%.0f", SEP);
 		aclrt = String.format("%.3f", acceleration);
 		// Ao=String.format("%.1f",
 		// Math.sqrt(sState.AoA*sState.AoA+sState.AoS*sState.AoS));
@@ -327,7 +338,7 @@ public class service implements Runnable {
 		sPitchUp = String.format("%.0f", sIndic.aviahorizon_pitch);
 
 		if (c.blkx != null && c.blkx.valid && c.blkx.nitro != 0) {
-			float nitrokg = c.blkx.nitro - wepTime * c.blkx.nitroDecr / 1000;
+			double nitrokg = c.blkx.nitro - wepTime * c.blkx.nitroDecr / 1000;
 			if (nitrokg < 0)
 				nitrokg = 0;
 
@@ -342,7 +353,7 @@ public class service implements Runnable {
 			}
 			else{
 //				sWepTime = String.format("%d:%02d", twepTime / 60, twepTime % 60);
-				sWepTime = String.format("%.1f", (float)twepTime / 60.0f);
+				sWepTime = String.format("%.1f", (double)twepTime / 60.0f);
 			}
 
 		} else {
@@ -423,10 +434,11 @@ public class service implements Runnable {
 		// app.debugPrint(iEngType);
 	}
 
-	public void slowcalculate() {
+	public void slowcalculate(long dtime) {
 		// 计算耗油率及持续时间
 		// app.debugPrint(totalfuelp - totalfuel);
 		// if (MainCheckMili - FuelCheckMili > 1000) {
+		
 		if ((sState.gear == 100 || sState.gear < 0) && fTotalFuel > fTotalFuelP) {
 			// 加油,重置
 
@@ -435,10 +447,17 @@ public class service implements Runnable {
 
 		}
 
-		dfuel = (fTotalFuelP - fTotalFuel) / (MainCheckMili - FuelCheckMili);
+//		dfuel = (fTotalFuelP - fTotalFuel) / (MainCheckMili - FuelCheckMili);
+		dfuel = (fTotalFuelP - fTotalFuel) / dtime;
 
 		if (dfuel > 0 ){
-			if (!bLowAccFuel)fueltime = (long) (fueltime + (fTotalFuel / dfuel)) / 2;
+			
+			if (!bLowAccFuel){
+//				fueltime = (long) (fueltime + (fTotalFuel / dfuel)) / 2;
+				// 改用滑动平均
+				fueltime = (long)fuelTimeSMA.addNewData(fTotalFuel / dfuel);
+				
+			}
 			// fueltime = (long)(ratio_1 * fueltime + ratio *(fTotalFuel /
 			// dfuel));
 			FuelchangeTime = MainCheckMili - FuelLastchangeMili;
@@ -482,7 +501,7 @@ public class service implements Runnable {
 		engineLoad[] pL = c.blkx.engLoad;
 		curLoad = c.blkx.findmaxLoad(pL, nwaterTemp, noilTemp);
 		// 减去时间
-		float minWorkTime = 99999 * 1000;
+		double minWorkTime = 99999 * 1000;
 
 		// 水冷
 		curWLoad = c.blkx.findmaxWaterLoad(pL, nwaterTemp);
@@ -500,7 +519,7 @@ public class service implements Runnable {
 				// if (i >= curLoad) {
 				if (sState.throttle <= 100) {
 					if (pL[i].RecoverTime != 0 && (1000 * pL[i].WorkTime > pL[i].curWaterWorkTimeMili)) {
-						pL[i].curWaterWorkTimeMili += (float) TimeIncrMili * pL[i].WorkTime / pL[i].RecoverTime;
+						pL[i].curWaterWorkTimeMili += (double) TimeIncrMili * pL[i].WorkTime / pL[i].RecoverTime;
 					}
 				}
 				// }
@@ -530,7 +549,7 @@ public class service implements Runnable {
 				// if (i >= curLoad) {CCCCCCC
 				if (sState.throttle <= 100) {
 					if (pL[i].RecoverTime != 0 && (1000 * pL[i].WorkTime > pL[i].curOilWorkTimeMili)) {
-						pL[i].curOilWorkTimeMili += (float) TimeIncrMili * pL[i].WorkTime / pL[i].RecoverTime;
+						pL[i].curOilWorkTimeMili += (double) TimeIncrMili * pL[i].WorkTime / pL[i].RecoverTime;
 					}
 				}
 				// }
@@ -548,29 +567,29 @@ public class service implements Runnable {
 	}
 
 	// 转弯半径和转弯时间计算
-	public float turnRds;
-	public float turnRate;
+	public double turnRds;
+	public double turnRate;
 
-	public float horizontalLoad;
+	public double horizontalLoad;
 	public double bangleR;
 
-	public float altmeterp;
-	public float altmeter;
-	public float thurstPercent;
+	public double altmeterp;
+	public double altmeter;
+	public double thurstPercent;
 	private int maxTotalThr;
 	public int fuelPercent;
-	public float avgeff;
+	public double avgeff;
 	private int maxTotalHp;
-	private float vTAS;
-	private float pThurstPercent;
-	public float tEngResponse;
-	public float flapAllowSpeed;
+	private double vTAS;
+	private double pThurstPercent;
+	public double tEngResponse;
+	public double flapAllowSpeed;
 	private int flapp;
 	private int flap;
 	private boolean downflap;
 	private long flapCheck;
-	float maximumThrRPM;
-//	float maximumAllowedRPM;
+	double maximumThrRPM;
+//	double maximumAllowedRPM;
 	private long checkMaxiumRPM;
 	public boolean getMaximumRPM;
 
@@ -670,24 +689,38 @@ public class service implements Runnable {
 	public void updateTurn() {
 		// 转弯半径等于speedv*speedv/9.78*G
 		
-		// 转弯加速度约等于法向过载与重力的合力
-		if(sIndic.aviahorizon_roll != -65535){
+		// 转弯加速度约等于法向过载与重力过载之和
+		if(sIndic.aviahorizon_roll != -65535 && sIndic.aviahorizon_pitch != -65535){
 			// 获得横滚角
-			An = (float)(g * Math.sqrt(sState.Ny*sState.Ny + 1 - 2 * sState.Ny * Math.cos(Math.toRadians(sIndic.aviahorizon_roll))));
+			An = (double)(g * 
+					Math.sqrt(sState.Ny*sState.Ny + 1 - 2 * sState.Ny * 
+							Math.cos(Math.toRadians(sIndic.aviahorizon_roll)) * 
+									Math.cos(Math.toRadians(sIndic.aviahorizon_pitch + sState.AoA)) 
+									)
+					);
+//			An = (double)(g * Math.sqrt(a))
 		}
 		else
 			An = (g * sState.Ny);
 //		app.debugPrint(Math.cos(sIndic.aviahorizon_roll));
 		// 计算时取前后两次采样的速度平均值
+
+		double sumspeed1 = sumSpeedSMA.addNewData(speedv + speedvp);
+		
+		
 		if (sIndic.turn != -65535) {
 			horizontalLoad = Math.abs(sIndic.turn) * (speedvp + speedv) / (2 * g);
+//			horizontalLoad = Math.abs(sIndic.turn) * sumspeed1 / (2 * g);
 		} else {
 			horizontalLoad = 0;
 		}
+		
 
-		turnRds = (speedvp + speedv) * (speedvp + speedv) / (4 * An);
+		turnRds = (sumspeed1 * sumspeed1) / (4 * An);
+//		turnRds = (speedvp + speedv) * (speedvp + speedv) / (4 * An) ;
 		// 转弯率等于向心加速度除以半径开根号
-		turnRate = (float) (Math.toDegrees(Math.sqrt(An / turnRds)));
+		turnRate = (double) (Math.toDegrees(Math.sqrt(An / turnRds)));
+//		turnRds = turnRds/10 * 10
 	}
 
 	public void updateSpeed() {
@@ -697,18 +730,21 @@ public class service implements Runnable {
 		IASv = sState.IAS;
 
 		// vTASp = vTAS;;
-		vTAS = (float) sState.TAS;
+		vTAS = (double) sState.TAS;
 
 		if (sIndic.speed != -65535) {
 			// 指示空速，需要进行TAS校正
 			speedv = sIndic.speed;
-			if (speedv != 0)
-				iastotascoff = (1000 * ratio_1 * iastotascoff + 1000 * ratio * vTAS / (speedv * 3.6f)) / 1000.0f;
-			// iastotascoff = 1+(float) (0.02 * sState.heightm * 3.2808 / 1000);
+			if (speedv != 0){
+				//iastotascoff = (1000 * ratio_1 * iastotascoff + 1000 * ratio * vTAS / (speedv * 3.6f)) / 1000.0f;
+				// 改用滑动平均
+				iastotascoff = calcSpeedSMA.addNewData(vTAS / (speedv * 3.6f));
+			}
+			// iastotascoff = 1+(double) (0.02 * sState.heightm * 3.2808 / 1000);
 			speedv = speedv * iastotascoff;
 			// app.debugPrint("校正TAS:"+ speedv*3.6);
 			// 订正后加速度还是会有跳变
-			// app.debugPrint("校正TAS:"+ speedv*3.6 + "," + iastotascoff);
+			//app.debugPrint("校正TAS:"+ speedv*3.6 + "," + iastotascoff);
 
 		} else {
 			// 使用IASv作为辅助订正TAS
@@ -728,9 +764,9 @@ public class service implements Runnable {
 		if (!isEngJet()) {
 			// 活塞机
 
-			float ttotalhp = 0;
-			float ttotalhpeff = 0;
-			float ttotalthr = 0;
+			double ttotalhp = 0;
+			double ttotalhpeff = 0;
+			double ttotalthr = 0;
 			for (i = 0; i < sState.engineNum; i++) {
 				ttotalthr = ttotalthr + sState.thrust[i];
 				// app.debugPrint(sState.engineNum);
@@ -745,18 +781,18 @@ public class service implements Runnable {
 			iTotalThr = (int) (ttotalthr);
 
 			if (iTotalHp != 0)
-				avgeff = (float) 100 * iTotalHpEff / iTotalHp;
+				avgeff = (double) 100 * iTotalHpEff / iTotalHp;
 			else
 				avgeff = 0;
 		} else {
 			// 喷气机
-			float ttotalthr = 0;
+			double ttotalthr = 0;
 			for (i = 0; i < sState.engineNum; i++) {
 				// app.debugPrint(sState.thrust[0]);
 				ttotalthr = ttotalthr + sState.thrust[i];
 			}
 			// app.debugPrint(totalthr+" "+totalhpeff);
-			float ttotalhpeff = ((ttotalthr * g * speedv) / 735);
+			double ttotalhpeff = ((ttotalthr * g * speedv) / 735);
 
 			iTotalThr = (int) ttotalthr;
 			iTotalHpEff = (int) ttotalhpeff;
@@ -790,7 +826,7 @@ public class service implements Runnable {
 	public void updateFuel() {
 		int i;
 		if (sIndic.fuelnum != 0) {
-			float ttotalfuel = 0;
+			double ttotalfuel = 0;
 			bLowAccFuel = Boolean.FALSE;
 			for (i = 0; i < sIndic.fuelnum; i++) {
 				ttotalfuel = ttotalfuel + sIndic.fuel[i];
@@ -809,31 +845,39 @@ public class service implements Runnable {
 
 	public void updateSEP() {
 		if (sState.IAS != 0) {
-			// acceleration = (speedv - speedvp) * sState.TAS * 1000.0f/ (intv *
-			// sState.IAS);
-			// 问题是精度不够，使用IAS计算增加精度
-			// acceleration = (speedv - speedvp) * sState.IAS * 1000.0f/ (intv *
-			// sState.IAS);
-
+			double diffspeed1 = diffSpeedSMA.addNewData(speedv - speedvp);
 			// 这是不是示空速的差?
 			// 使用修正
-			diffspeed = (ratio_1 * diffspeed + ratio * (speedv - speedvp));
-			// diffspeed = diffspeed/2 + ((speedvp - speedvvp) + (speedv -
-			// speedvp))/4 ;
+//			diffspeed = (ratio_1 * diffspeed + ratio * (speedv - speedvp));
+			diffspeed = diffspeed1;
 			// app.debugPrint(diffspeed);
 			acceleration = diffspeed * 1000.0f / intv;
-			// SEP = acceleration * (speedvp + speedv) * sState.TAS / (2 *
-			// sState.IAS) + 9.78f * sState.Vy;
-			// 积累
-			// SEP = acceleration * (speedvp + speedv) / 2 + 9.78f * sState.Vy;
-			SEP += acceleration * (speedvp + speedv) / 2 + g * nVy;
+
+			// 三种计算方式
+			
+			// 这两种等价
+			SEP += acceleration * (speedvp + speedv) / (2 * g) +  nVy;
+//			SEP /= 2;
+			
+			
+//			SEP += (diffspeed * (speedv + speedvp)) /((2 * intv * g)/ 1000.0f) + nVy;
+			
+//			SEP = SEP1;
+			
+			// 跳变太大, 没法读数
+//			SEP += ((speedv * speedv) - (speedvp * speedvp))*1000.0f/(2 * intv * g) + nVy;
 			SEP /= 2;
-			// SEP = (SEP + (acceleration * (speedvp + speedv) / 2 + 9.78f *
-			// sState.Vy) )/2;
+			
 		} else {
 			acceleration = 0;
 			SEP = 0;
 		}
+
+		// SEP取整改善SEP过高时的可读性 
+		double SEPAccuracy = (long)(SEP / 50);
+		SEPAccuracy = SEPAccuracy * 2.5f;
+		if (SEPAccuracy == 0) SEPAccuracy = 1;
+		SEP = (long)(SEP / SEPAccuracy) * SEPAccuracy;
 	}
 
 	public void checkWing() {
@@ -946,7 +990,7 @@ public class service implements Runnable {
 
 	}
 
-	public float getFlapAllowSpeed(int flapPercent, Boolean isDowningFlap) {
+	public double getFlapAllowSpeed(int flapPercent, Boolean isDowningFlap) {
 		// fm文件无法解析
 		if (flapPercent == 0 || c.blkx == null || !c.blkx.valid)
 			return Float.MAX_VALUE;
@@ -963,8 +1007,8 @@ public class service implements Runnable {
 		// 找到档位了
 		// 线性求值
 		// 找前面的flap值
-		float x0, x1, y0, y1;
-		float k;
+		double x0, x1, y0, y1;
+		double k;
 		// 没有找到，都小于
 
 		if (i == 0) {
@@ -1134,6 +1178,7 @@ public class service implements Runnable {
 		altreg = 0;
 		altp = 0;
 		alt = 0;
+		calcPeriod = 0;
 		maximumThrRPM = 1;
 		maxTotalThr = 0;
 		iastotascoff = 1;
@@ -1155,6 +1200,11 @@ public class service implements Runnable {
 		flapAllowSpeed = Float.MAX_VALUE;
 		fTotalFuelP = 0;
 		isStateJet = false;
+		
+		calcSpeedSMA = cH.new simpleMovingAverage((int) (1000/freq));
+		diffSpeedSMA = cH.new simpleMovingAverage((int) (1000/freq));
+		sumSpeedSMA = cH.new simpleMovingAverage((int) (1000/freq));
+		fuelTimeSMA = cH.new simpleMovingAverage(4);
 		if (c.blkx != null) {
 			engineLoad[] pL = c.blkx.engLoad;
 			if (pL != null) {
@@ -1202,9 +1252,10 @@ public class service implements Runnable {
 		// }
 		// app.debugPrint("service执行了");
 		c = xc;
-		clearvaria();
 
 		freq = xc.freqService;
+		clearvaria();
+
 		ratio = freq / 1000.0f;
 		ratio_1 = 1.0f - ratio;
 		sState = new state();
@@ -1219,7 +1270,7 @@ public class service implements Runnable {
 		// isFuelpressure = false;
 
 	}
-
+	
 	public void checkState() {
 		int conState;
 		// 更新时间戳
@@ -1247,9 +1298,14 @@ public class service implements Runnable {
 					// 开始计算数据
 					calculate();
 
+					
+					// 0.5秒一次
+					if (((calcPeriod++) % (500/freq)) == 0)
+						slowcalculate((500/freq)*freq);
+					
 					// 将数据转换格式
 					transtoString();
-
+					
 					// 写入文档
 					// c.writeDown();
 
@@ -1347,14 +1403,13 @@ public class service implements Runnable {
 				}
 
 			}
-
-			if (SystemTime - SlowCheckMili >= (freq << 2)) {
-				// app.debugPrint(SystemTime - SlowCheckMili);
-				SlowCheckMili = SystemTime;
-				// 慢速计算
-				slowcalculate();
-
-			}
+//			if (SystemTime - SlowCheckMili >= (freq << 2)) {
+//				// app.debugPrint(SystemTime - SlowCheckMili);
+//				SlowCheckMili = SystemTime;
+//				// 慢速计算
+//				slowcalculate();
+//
+//			}
 
 		}
 	}

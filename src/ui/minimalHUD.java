@@ -449,7 +449,7 @@ public class minimalHUD extends WebFrame implements Runnable {
 	private boolean crossOn;
 	private int barWidth;
 	private int lineWidth;
-	private float aoaLength;
+	private double aoaLength;
 	private Font drawFontSmall;
 	private boolean disableAoA;
 	private Container root;
@@ -657,11 +657,11 @@ public class minimalHUD extends WebFrame implements Runnable {
 	public long hudCheckMili;
 	private int compassDx;
 	private int compassDy;
-	private float availableAoA;
+	private double availableAoA;
 	private String lineAoA;
 	private int aosX;
 
-	float realSpdPitch;
+	double realSpdPitch;
 
 	public void drawTick() {
 
@@ -683,18 +683,18 @@ public class minimalHUD extends WebFrame implements Runnable {
 		}
 		throttley = throttle * HUDFontsize * 5 / 110;
 
-		float compassRads = (float) Math.toRadians(xs.sIndic.compass);
+		double compassRads = (double) Math.toRadians(xs.sIndic.compass);
 		compassDx = (int) ((roundCompass * 1.2f) * Math.sin(compassRads));
 		compassDy = (int) ((roundCompass * 1.2f) * Math.cos(compassRads));
-		float aoa = xs.sState.AoA;
+		double aoa = xs.sState.AoA;
 		// lineHorizon = " " + String.format("%5s", xs.sPitchUp);
-		float p = xs.curLoadMinWorkTime < xs.fueltime ? xs.curLoadMinWorkTime : xs.fueltime;
+		double p = xs.curLoadMinWorkTime < xs.fueltime ? xs.curLoadMinWorkTime : xs.fueltime;
 		OilX = (int) (p * 360 / 600000);
 		if (OilX > 360)
 			OilX = 360;
 		OilX = OilX - 360;
 		// OilX = OilX - 180;
-		float aviahp = xs.sIndic.aviahorizon_pitch;
+		double aviahp = xs.sIndic.aviahorizon_pitch;
 
 		// int pitchLimit = HUDFontsize * 5;
 		int pitchLimit = roundCompass << 1;

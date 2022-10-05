@@ -2,24 +2,24 @@ package parser;
 
 
 class zb{
-	float x;
-	float y;
+	double x;
+	double y;
 }
 public class mapInfo {
 	String s;
-	public float grid_stepsX;
-	public float grid_stepsY;
-	public float grid_zeroX;
-	public float grid_zeroY;
+	public double grid_stepsX;
+	public double grid_stepsY;
+	public double grid_zeroX;
+	public double grid_zeroY;
 	public int map_generation;
-	public float map_maxX;
-	public float map_maxY;
-	public float map_minX;
-	public float map_minY;
-	public float cmapmaxsizeX;
-	public float cmapmaxsizeY;
+	public double map_maxX;
+	public double map_maxY;
+	public double map_minX;
+	public double map_minY;
+	public double cmapmaxsizeX;
+	public double cmapmaxsizeY;
 	zb tp;
-	float StringtoFloat(String a) {
+	double StringtoFloat(String a) {
 		if (a.length() != 0)return Float.parseFloat(a);
 		else return 0;
 

@@ -607,7 +607,7 @@ public class engineInfo extends WebFrame implements Runnable {
 
 		// this.getRootPane().add(separator2);
 
-		// this.setOpacity((float) (OP / 100.0f));
+		// this.setOpacity((double) (OP / 100.0f));
 
 //		setShowWindowButtons(false);
 //		setShowTitleComponent(false);

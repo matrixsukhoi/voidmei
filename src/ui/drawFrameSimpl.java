@@ -29,15 +29,15 @@ public class drawFrameSimpl extends WebFrame implements Runnable {
 	int pixIndex = 0;
 	int Index = 8;
 	boolean useBlkx = true;
-	float ggx4;
-	float ggy4;
+	double ggx4;
+	double ggy4;
 	blkx blkx;
-	float fY[];
-	float fX[];
+	double fY[];
+	double fX[];
 
-	float findMin(float X[]) {
+	double findMin(double X[]) {
 		int i;
-		float min = Float.MAX_VALUE;
+		double min = Float.MAX_VALUE;
 		for (i = 0; i < X.length; i++) {
 			if (X[i] < min)
 				min = X[i];
@@ -45,9 +45,9 @@ public class drawFrameSimpl extends WebFrame implements Runnable {
 		return min;
 	}
 
-	float findMax(float X[]) {
+	double findMax(double X[]) {
 		int i;
-		float max = Float.MIN_VALUE;
+		double max = Float.MIN_VALUE;
 		for (i = 0; i < X.length; i++) {
 			if (X[i] > max)
 				max = X[i];
@@ -75,9 +75,9 @@ public class drawFrameSimpl extends WebFrame implements Runnable {
 		return max;
 	}
 
-	float searchMin(float X[]) {
+	double searchMin(double X[]) {
 		int i;
-		float min = 655353535;
+		double min = 655353535;
 		for (i = fA.initaltStage; i <= fA.curaltStage - 1; i++) {
 			if (X[i] < min)
 				min = X[i];
@@ -85,9 +85,9 @@ public class drawFrameSimpl extends WebFrame implements Runnable {
 		return min;
 	}
 
-	float searchMax(float X[]) {
+	double searchMax(double X[]) {
 		int i;
-		float max = -655353535;
+		double max = -655353535;
 		for (i = fA.initaltStage; i <= fA.curaltStage - 1; i++) {
 			if (X[i] > max)
 				max = X[i];
@@ -136,7 +136,7 @@ public class drawFrameSimpl extends WebFrame implements Runnable {
 	}
 
 	void drawXY(Graphics2D g, int x, int y, int dwidth, int dheight, String title, String xName, String yName,
-			String xD, String yD, float xmin, float xmax, float ymin, float ymax, int xgap, int ygap, int fontsize) {
+			String xD, String yD, double xmin, double xmax, double ymin, double ymax, int xgap, int ygap, int fontsize) {
 		// 确定画笔
 		g.setStroke(new BasicStroke(3));
 		g.setColor(new Color(0, 0, 0, 250));
@@ -146,17 +146,17 @@ public class drawFrameSimpl extends WebFrame implements Runnable {
 		int pymax = (int) ymax + ygap;
 		int intervalX = xgap;
 		int intervalY = ygap;
-		float ggx = 0;
-		float ggy = 0;
+		double ggx = 0;
+		double ggy = 0;
 		if (intervalX == 0)
 			intervalX = 1;
 		if (intervalY == 0)
 			intervalY = 1;
 		if (pxmax - pxmin != 0) {
-			ggx = (float) dwidth / (float) (pxmax - pxmin);
+			ggx = (double) dwidth / (double) (pxmax - pxmin);
 		}
 		if (pymax - pymin != 0) {
-			ggy = (float) dheight / (float) (pymax - pymin);
+			ggy = (double) dheight / (double) (pymax - pymin);
 		}
 
 		// 标题
@@ -198,7 +198,7 @@ public class drawFrameSimpl extends WebFrame implements Runnable {
 
 	}
 
-	void drawPoint(Graphics2D g, int x, int y, int dwidth, int dheight, float ggx, float ggy, float ix[], float iy[],
+	void drawPoint(Graphics2D g, int x, int y, int dwidth, int dheight, double ggx, double ggy, double ix[], double iy[],
 			int pxmin, int pymin, Color C) {
 		g.setStroke(new BasicStroke(1));
 		g.setColor(C);
@@ -231,20 +231,20 @@ public class drawFrameSimpl extends WebFrame implements Runnable {
 	}
 
 	void drawCoordinates(Graphics2D g, int x, int y, int dwidth, int dheight, String title, String xName, String yName,
-			float X[], String xD, String yD) {
+			double X[], String xD, String yD) {
 		g.setStroke(new BasicStroke(3));
 		g.setColor(new Color(0, 0, 0, 250));
 		int movex = 0;
 		int pmin = (int) searchMin(X);
 		int pmax = (int) searchMax(X) + 1;
-		float ggx = 0;
-		float ggy = 0;
+		double ggx = 0;
+		double ggy = 0;
 		int intervalX = Math.round(((pmax - pmin) / 10) / 10.0f) * 10;// X轴间距
 		int intervalY = Math.round((fA.curaltStage - fA.initaltStage) * 100 / 800.0f) * 100;// Y轴高度间距
 		if (pmax - pmin != 0) {
-			ggx = (dwidth - movex) / (float) (pmax - pmin);
+			ggx = (dwidth - movex) / (double) (pmax - pmin);
 		}
-		ggy = (float) (dheight) / (fA.curaltStage * 100);
+		ggy = (double) (dheight) / (fA.curaltStage * 100);
 
 		// 标题
 		g.setFont(new Font(app.defaultFontName, Font.PLAIN, 16));
@@ -318,14 +318,14 @@ public class drawFrameSimpl extends WebFrame implements Runnable {
 		int movex = 0;
 		int pmin = searchMin(X) / 10 * 10;
 		int pmax = searchMax(X);
-		float ggx = 0;
-		float ggy = 0;
+		double ggx = 0;
+		double ggy = 0;
 		int intervalX = Math.round(((pmax - pmin) / 10) / 10.0f) * 10;// X轴间距
 		int intervalY = Math.round((fA.curaltStage - fA.initaltStage) * 100 / 800.0f) * 100;// Y轴高度间距
 		if (pmax - pmin != 0) {
-			ggx = (dwidth - movex) / (float) (pmax - pmin);
+			ggx = (dwidth - movex) / (double) (pmax - pmin);
 		}
-		ggy = (float) (dheight) / (fA.curaltStage * 100);
+		ggy = (double) (dheight) / (fA.curaltStage * 100);
 
 		// 标题
 		g.setFont(new Font(app.defaultFontName, Font.PLAIN, 16));
@@ -422,23 +422,23 @@ public class drawFrameSimpl extends WebFrame implements Runnable {
 				g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
 				// 绘制坐标系
-				float[] xn = new float[blkx.velThrNum];
+				double[] xn = new double[blkx.velThrNum];
 				for (int i = 0; i < blkx.velThrNum; i++) {
 					xn[i] = blkx.velocityThr[i];
 				}
 
-				float xmin = findMin(xn);
-				float xmax = findMax(xn);
+				double xmin = findMin(xn);
+				double xmax = findMax(xn);
 				
 				// app.debugPrint(xmin+" "+xmax);
-				float ymin = findMin(blkx.maxThrAft[blkx.altThrNum - 1]);
-				float ymax = findMax(blkx.maxThrAft[0]);
+				double ymin = findMin(blkx.maxThrAft[blkx.altThrNum - 1]);
+				double ymax = findMax(blkx.maxThrAft[0]);
 				
 //				xmax对齐10
-				xmin = (float)(((int)(xmin/10))  *10);
-				xmax = (float)((int)(xmax/10)*10);
-				ymin = (float)(((int)(ymin/10)) *10);
-				ymax = (float)((int)(ymax/10)*10);
+				xmin = (double)(((int)(xmin/10))  *10);
+				xmax = (double)((int)(xmax/10)*10);
+				ymin = (double)(((int)(ymin/10)) *10);
+				ymax = (double)((int)(ymax/10)*10);
 				int dwidth = 800;
 				int dheight  = 400;
 				int xgap = Math.round((((int) xmax + 1 - (int) xmin) / 5) / 5.0f) * 5;
@@ -447,13 +447,13 @@ public class drawFrameSimpl extends WebFrame implements Runnable {
 				int pxmax = (int) xmax + xgap;
 				int pymin = (int) (ymin / 10) * 10;
 				int pymax = (int) (ymax / 10) * 10 + (int) (ygap / 10) * 10;
-				float ggx4 = 0;
-				float ggy4 = 0;
+				double ggx4 = 0;
+				double ggy4 = 0;
 				if (pxmax - pxmin != 0) {
-					ggx4 = (float) dwidth / (float) (pxmax - pxmin);
+					ggx4 = (double) dwidth / (double) (pxmax - pxmin);
 				}
 				if (pymax - pymin != 0) {
-					ggy4 = (float) dheight / (float) (pymax - pymin);
+					ggy4 = (double) dheight / (double) (pymax - pymin);
 				}
 				int fontsize = 12;
 				int rgbx = (int)(255.0f/(blkx.altThrNum+1));	

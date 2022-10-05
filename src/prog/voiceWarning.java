@@ -53,9 +53,9 @@ public class voiceWarning implements Runnable {
 	}
 
 	public static final int maxEndVoiceNum = 4;
-	public float aoaWarningLine;
-	public float iasWarningLine;
-	public float machWarningLine;
+	public double aoaWarningLine;
+	public double iasWarningLine;
+	public double machWarningLine;
 
 	public class audClip {
 
@@ -216,7 +216,7 @@ public class voiceWarning implements Runnable {
 	audClip aoaCrit;
 	private controller xc;
 	private audClip iasWarn;
-	private float gearWarningLine;
+	private double gearWarningLine;
 	private audClip gearWarn;
 	private audClip engWarn;
 	private audClip fuelWarn;
@@ -227,9 +227,9 @@ public class voiceWarning implements Runnable {
 	private audClip heightWarn;
 	private audClip fuelPrsWarn;
 	private int fuelPCheck;
-	public float speedWarningLine;
-	public float nyWarningLine0;
-	public float nyWarningLine1;
+	public double speedWarningLine;
+	public double nyWarningLine0;
+	public double nyWarningLine1;
 	private audClip varioWarn;
 	private audClip stallWarn;
 	private audClip nyWarn;

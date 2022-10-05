@@ -825,7 +825,7 @@ public class controller {
 		WebLabel text1 = new WebLabel(text);
 		text1.setFont(app.defaultFont);
 		// text1.setVisible(false);
-		// a.setWindowOpacity((float) (0.5));
+		// a.setWindowOpacity((double) (0.5));
 
 		a.setFont(app.defaultFont);
 		a.setIcon(NotificationIcon.information.getIcon());
@@ -841,7 +841,7 @@ public class controller {
 		WebLabel text1 = new WebLabel(text);
 		text1.setFont(new Font(app.defaultFontName, Font.PLAIN, 14));
 		// text1.setVisible(false);
-		// a.setWindowOpacity((float) (0.5));
+		// a.setWindowOpacity((double) (0.5));
 		Image I = Toolkit.getDefaultToolkit().createImage("image/fubuki.jpg");
 		ImageIcon A = new ImageIcon(I);
 		a.setFont(app.defaultFont);
@@ -858,7 +858,7 @@ public class controller {
 		WebLabel text1 = new WebLabel(text);
 		text1.setFont(app.defaultFont);
 		// text1.setVisible(false);
-		// a.setWindowOpacity((float) (0.5));
+		// a.setWindowOpacity((double) (0.5));
 
 		a.setFont(app.defaultFont);
 		a.setIcon(NotificationIcon.information.getIcon());
@@ -874,7 +874,7 @@ public class controller {
 		WebLabel text1 = new WebLabel(text);
 		text1.setFont(app.defaultFont);
 		// text1.setVisible(false);
-		// a.setWindowOpacity((float) (0.5));
+		// a.setWindowOpacity((double) (0.5));
 
 		a.setFont(app.defaultFont);
 		a.setIcon(NotificationIcon.error);

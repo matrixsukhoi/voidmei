@@ -510,18 +510,18 @@ public class crosshair2 extends WebFrame implements Runnable {
 				
 				throttley = xs.sState.throttle * HUDFontsize * 5 / 110;
 
-				float compassRads = (float) Math.toRadians(xs.sIndic.compass);
+				double compassRads = (double) Math.toRadians(xs.sIndic.compass);
 				compassDx = (int) (roundCompass * Math.sin(compassRads));
 				compassDy = (int) (roundCompass * Math.cos(compassRads));
 
 				// lineHorizon = " " + String.format("%5s", xs.sPitchUp);
-				float p = xs.curLoadMinWorkTime < xs.fueltime ? xs.curLoadMinWorkTime : xs.fueltime;
+				double p = xs.curLoadMinWorkTime < xs.fueltime ? xs.curLoadMinWorkTime : xs.fueltime;
 				OilX = (int) (p * 360 / 600000);
 				if (OilX > 360)
 					OilX = 360;
 				OilX = OilX - 360;
 				// OilX = OilX - 180;
-				float aviahp = -xs.sIndic.aviahorizon_pitch;
+				double aviahp = -xs.sIndic.aviahorizon_pitch;
 				if (aviahp != 65535)
 					pitch = (int) (aviahp * HUDFontsize * 5 / 90.0f);
 				else
@@ -588,7 +588,7 @@ public class crosshair2 extends WebFrame implements Runnable {
 						warnVne = true;
 					}
 					
-					float availableAoA;
+					double availableAoA;
 					int flaps = xs.sState.flaps > 0 ? xs.sState.flaps : 0;
 					availableAoA = (xc.blkx.NoFlapsWing.AoACritHigh
 							+ (xc.blkx.FullFlapsWing.AoACritHigh - xc.blkx.NoFlapsWing.AoACritHigh) * flaps / 100.0f)

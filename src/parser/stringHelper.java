@@ -3,7 +3,7 @@ package parser;
 public class stringHelper {
 	
 	public static final int iInvalid = -65535;
-	public static final float fInvalid = -65535;
+	public static final double fInvalid = -65535;
 	public static String getString(String R, String S) {
 		int bix;
 		int eix;
@@ -25,7 +25,7 @@ public class stringHelper {
 			return null;
 	}
 
-	public static float getDataFloat(String sdata){
+	public static double getDataFloat(String sdata){
 		if(sdata!=null)return Float.parseFloat(sdata);
 		else return fInvalid;
 	}

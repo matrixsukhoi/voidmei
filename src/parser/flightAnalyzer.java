@@ -69,18 +69,18 @@ public class flightAnalyzer {
 	public int[] roll_rate = new int[maxIASStage];
 	public int[] roll_alr = new int[maxIASStage];
 
-	public float[] turn_load = new float[maxIASStage];
+	public double[] turn_load = new double[maxIASStage];
 	public int[] turn_elev = new int[maxIASStage];
 
-	public float[] sep_loss = new float[maxIASStage];
+	public double[] sep_loss = new double[maxIASStage];
 
 	// 获得速度阶段
-	public int getSpeedStage(float ias) {
-		return Math.round(ias / 10.0f);
+	public int getSpeedStage(double ias) {
+		return (int)Math.round(ias / 10.0f);
 	}
 
 	// 使用舵面辅助判断
-	public void updateEMChart(float ias, float g_load, int wx, float sep, int abs_elev, int abs_alr) {
+	public void updateEMChart(double ias, double g_load, int wx, double sep, int abs_elev, int abs_alr) {
 		int stage = getSpeedStage(ias);
 		if (stage >= 0 && stage < maxIASStage) {
 			// 如果当前roll_rate比记录值高则更新
@@ -124,7 +124,7 @@ public class flightAnalyzer {
 		return ret;
 	}
 	
-	public int getNoZerosNum(float[] arr) {
+	public int getNoZerosNum(double[] arr) {
 		int ret = 0;
 		for (int i = 0; i < arr.length; i++) {
 			if (arr[i] != 0)
@@ -144,7 +144,7 @@ public class flightAnalyzer {
 		}
 	}
 	
-	public void removeZeroes(double[] x, double[] y, float[] oy) {
+	public void removeZeroes(double[] x, double[] y, double[] oy) {
 		int j = 0;
 		for (int i = 1; i < oy.length-1; i++) {
 			if (oy[i] != 0) {

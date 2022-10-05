@@ -24,8 +24,8 @@ public class otherService implements Runnable {
 	public mapInfo mapi;
 	public mapObj mapo;
 
-	public float distance;
-	public float enemyspeed;
+	public double distance;
+	public double enemyspeed;
 	public double AOT;
 	public double AZI;
 
@@ -33,8 +33,8 @@ public class otherService implements Runnable {
 	public int friendcount;
 
 	public int dislmt;
-	float pX;
-	float pY;
+	double pX;
+	double pY;
 	long SpeedCheckMili;
 
 	hudMsg msg;
@@ -157,7 +157,7 @@ public class otherService implements Runnable {
 		double eys;
 		if (mapo.slc.type != "") {
 
-			distance = (float) Math.sqrt((mapo.slc.x - mapo.pla.x) * (mapo.slc.x - mapo.pla.x) * mapi.cmapmaxsizeX
+			distance = (double) Math.sqrt((mapo.slc.x - mapo.pla.x) * (mapo.slc.x - mapo.pla.x) * mapi.cmapmaxsizeX
 					* mapi.cmapmaxsizeX
 					+ (mapo.slc.y - mapo.pla.y) * (mapo.slc.y - mapo.pla.y) * mapi.cmapmaxsizeY * mapi.cmapmaxsizeY);
 			// app.debugPrint(distance);
@@ -166,7 +166,7 @@ public class otherService implements Runnable {
 				enemycount++;
 			}
 
-			enemyspeed = (float) (Math
+			enemyspeed = (double) (Math
 					.sqrt(((mapo.slc.x - pX) * mapi.cmapmaxsizeX) * ((mapo.slc.x - pX) * mapi.cmapmaxsizeX)
 							+ ((mapo.slc.y - pY) * mapi.cmapmaxsizeX) * ((mapo.slc.y - pY) * mapi.cmapmaxsizeY))
 					* 1000 / (System.currentTimeMillis() - SpeedCheckMili));

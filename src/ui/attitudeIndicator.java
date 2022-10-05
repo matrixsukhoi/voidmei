@@ -43,25 +43,25 @@ public class attitudeIndicator extends WebFrame implements Runnable {
 	WebLabel label_3;
 	WebLabel label_6;
 	String NumFont;
-	int AoA;
-	int AoS;
+	long AoA;
+	long AoS;
 	Boolean showDirection;
 
 	Boolean showAoALimits;
 
-	int bomb_dy;
+	long bomb_dy;
 
-	int AoALimitU;
-	int AoALimitD;
-	int AoAFLimitU;
-	int AoAFLimitD;
+	long AoALimitU;
+	long AoALimitD;
+	long AoAFLimitU;
+	long AoAFLimitD;
 
-	int compassX;
-	int compassY;
+	long compassX;
+	long compassY;
 
-	int Pitch;
+	long Pitch;
 
-	int Roll;
+	long Roll;
 
 	Polygon groundLevel;
 
@@ -80,7 +80,7 @@ public class attitudeIndicator extends WebFrame implements Runnable {
 
 	// Color trans
 	//
-	public void rotateXY(int x[], int y[], int numPoints, float deg) {
+	public void rotateXY(int x[], int y[], int numPoints, double deg) {
 		double rads = deg * Math.PI / 180.0;
 
 		for (int i = 0; i < numPoints; i++) {
@@ -197,7 +197,7 @@ public class attitudeIndicator extends WebFrame implements Runnable {
 		g2d.setColor(app.colorUnit);
 		g2d.fillPolygon(pX, pY, 4);
 		if (showDirection)
-			g2d.drawLine(width / 2, height / 2, width / 2 + compassX, height / 2 + compassY);
+			g2d.drawLine(width / 2, height / 2, (int)(width / 2 + compassX), (int)(height / 2 + compassY));
 		// g2d.drawRect(x, y, width, height);
 		// g2d.setColor(Color.white);
 		// g2d.drawLine(0, height/2 - 1, width/2 - center_round/2 - 1 , height/2
@@ -266,19 +266,19 @@ public class attitudeIndicator extends WebFrame implements Runnable {
 		g2d.drawLine(x - 1, y - locator_size / 2 - 1, x - 1, y + locator_size / 2 - 1);
 
 		g2d.setColor(app.colorWarning);
-		g2d.drawLine(0, AoAFLimitU, width - 1, AoAFLimitU);
-		g2d.drawLine(0, AoAFLimitD, width - 1, AoAFLimitD);
+		g2d.drawLine(0, (int)AoAFLimitU, width - 1, (int)AoAFLimitU);
+		g2d.drawLine(0, (int)AoAFLimitD, width - 1, (int)AoAFLimitD);
 
 		g2d.setColor(app.colorLabel);
 		// 两条线
-		g2d.drawLine(0, AoALimitU, width - 1, AoALimitU);
-		g2d.drawLine(0, AoALimitD, width - 1, AoALimitD);
+		g2d.drawLine(0, (int)AoALimitU, width - 1, (int)AoALimitU);
+		g2d.drawLine(0, (int)AoALimitD, width - 1, (int)AoALimitD);
 
 		if (showDirection) {
-			g2d.drawLine(width / 2, height / 2, width / 2 + compassX, height / 2 + compassY);
+			g2d.drawLine(width / 2, height / 2, (int)(width / 2 + compassX), (int)(height / 2 + compassY));
 
 			g2d.setColor(app.colorUnit);
-			g2d.drawLine(width / 2, height / 2, width / 2 - compassX, height / 2 - compassY);
+			g2d.drawLine(width / 2, height / 2, (int)(width / 2 - compassX), (int)(height / 2 - compassY));
 		}
 
 		// g2d.drawOval(width/2 - 2, bomb_dy - 2, 2, 2);
@@ -351,7 +351,7 @@ public class attitudeIndicator extends WebFrame implements Runnable {
 				// g2d.setColor(Color.white);
 				// g2d.fillRect(0, 0, 200, 200);
 				// 绘制十字星
-				locater(g2d, xWidth, xHeight, AoS, AoA, Pitch, 12, 6);
+				locater(g2d, xWidth, xHeight, (int)AoS, (int)AoA, (int)Pitch, 12, 6);
 //				g.dispose();
 			}
 		};
@@ -454,7 +454,7 @@ public class attitudeIndicator extends WebFrame implements Runnable {
 				// g2d.setColor(Color.white);
 				// g2d.fillRect(0, 0, 200, 200);
 				// 绘制十字星
-				locater(g2d, xWidth, xHeight, AoS, AoA, Pitch, 12, 6);
+				locater(g2d, xWidth, xHeight, (int)AoS, (int)AoA, (int)Pitch, 12, 6);
 				//g.dispose();
 			}
 		};
@@ -517,7 +517,7 @@ public class attitudeIndicator extends WebFrame implements Runnable {
 		// }
 		// else AoS = 0;
 		if (showDirection) {
-			float compassRads = (float) Math.toRadians(xs.sIndic.compass);
+			double compassRads = (double) Math.toRadians(xs.sIndic.compass);
 			compassX = (int) (xWidth / 4 * Math.sin(compassRads));
 			compassY = (int) (xWidth / 4 * Math.cos(compassRads));
 		}
@@ -570,8 +570,8 @@ public class attitudeIndicator extends WebFrame implements Runnable {
 		pS[3].x = -2 * xWidth;
 		pS[3].y = 180 / MaxAoA * xHeight;
 
-		float start = -90.0f;
-		float dTick = 90 / (tickLine + 1);
+		double start = -90.0f;
+		double dTick = 90 / (tickLine + 1);
 		for (int i = 0; i < tickLine; i++) {
 			pS[4 + 4 * i].x = -xWidth;
 			pS[4 + 4 * i].y = (int) Math.round((start + (dTick * (i + 1))) / (2 * MaxAoA) * xHeight);

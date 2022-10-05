@@ -6,55 +6,55 @@ public class indicators{
 	public String stype;
 	public boolean flag;
 //	public boolean fuelpressure;
-	public float speed;
-	public float pedals;
-	public float stick_elevator;
-	public float stick_ailerons;
-	public float altitude_hour;
-	public float altitude_min;
-	public float altitude_10k;
-	public float bank;
-	public float turn;
-	public float compass;
-	public float clock_hour;
-	public float clock_min;
-	public float clock_sec;
-	public float manifold_pressure;
-	public float rpm;
-	public float oil_pressure;
-	public float water_temperature;
-	public float engine_temperature;
-	public float mixture;
-	public float fuel[];
-	public float fuel_pressure;
-	public float oxygen;
-	public float gears_lamp;
-	public float flaps;
-	public float trimmer;
-	public float throttle;
-	public float weapon1;
-	public float weapon2;
-	public float weapon3;
-	public float prop_pitch_hour;
-	public float prop_pitch_min;
-	public float ammo_counter1;
-	public float ammo_counter2;
-	public float ammo_counter3;
-	public float oilTemp;
-	public float waterTemp;
+	public double speed;
+	public double pedals;
+	public double stick_elevator;
+	public double stick_ailerons;
+	public double altitude_hour;
+	public double altitude_min;
+	public double altitude_10k;
+	public double bank;
+	public double turn;
+	public double compass;
+	public double clock_hour;
+	public double clock_min;
+	public double clock_sec;
+	public double manifold_pressure;
+	public double rpm;
+	public double oil_pressure;
+	public double water_temperature;
+	public double engine_temperature;
+	public double mixture;
+	public double fuel[];
+	public double fuel_pressure;
+	public double oxygen;
+	public double gears_lamp;
+	public double flaps;
+	public double trimmer;
+	public double throttle;
+	public double weapon1;
+	public double weapon2;
+	public double weapon3;
+	public double prop_pitch_hour;
+	public double prop_pitch_min;
+	public double ammo_counter1;
+	public double ammo_counter2;
+	public double ammo_counter3;
+	public double oilTemp;
+	public double waterTemp;
 	public int fuelnum;
-	public float vario;
-	public float aviahorizon_pitch;
-	public float aviahorizon_roll;
-	public float wsweep_indicator;
-	public float radio_altitude;
+	public double vario;
+	public double aviahorizon_pitch;
+	public double aviahorizon_roll;
+	public double wsweep_indicator;
+	public double radio_altitude;
 
 
 	public void init() {
 		//app.debugPrint("indicator初始化了");
 		valid = "false";
 		fuelnum=0;
-		fuel=new float[5];
+		fuel=new double[5];
 //		fuelpressure=false;
 	}
 	
@@ -92,7 +92,7 @@ public class indicators{
 			wsweep_indicator = stringHelper.getDataFloat(stringHelper.getString(buf, "wing_sweep_indicator"));
 //			app.debugPrint(wsweep_indicator);
 			oil_pressure=stringHelper.getDataFloat(stringHelper.getString(buf, "oil_pressure"));
-//			water_temperature=stringHelper.getDatafloat(stringHelper.getString(buf, "water_temperature"));
+//			water_temperature=stringHelper.getDatadouble(stringHelper.getString(buf, "water_temperature"));
 			engine_temperature=stringHelper.getDataFloat(stringHelper.getString(buf, "head_temperature"));
 			mixture=stringHelper.getDataFloat(stringHelper.getString(buf, "mixture"));
 			
@@ -103,9 +103,9 @@ public class indicators{
 				fuel[i] = stringHelper.getDataFloat(stringHelper.getString(buf, "fuel"+i));
 				if(fuel[i] == -65535) fuel[i] = 0;
 			}
-//			fuel[0]=stringHelper.getDatafloat(stringHelper.getString(buf, "fuel1"));
+//			fuel[0]=stringHelper.getDatadouble(stringHelper.getString(buf, "fuel1"));
 //			if (fuel[0] == -65535){
-//				fuel[0] = stringHelper.getDatafloat(stringHelper.getString(buf, "fuel"));
+//				fuel[0] = stringHelper.getDatadouble(stringHelper.getString(buf, "fuel"));
 //				if
 //			}
 			aviahorizon_pitch = stringHelper.getDataFloat(stringHelper.getString(buf, "aviahorizon_pitch"));
@@ -115,7 +115,7 @@ public class indicators{
 			waterTemp = stringHelper.getDataFloat(stringHelper.getString(buf, "water_temperature"));
 			if(fuel[0]==-65535){
 				fuel[0] = 0;
-//				fuel[0]=stringHelper.getDatafloat(stringHelper.getString(buf, "fuel_pressure"))*10;
+//				fuel[0]=stringHelper.getDatadouble(stringHelper.getString(buf, "fuel_pressure"))*10;
 //				fuelpressure=true;
 			}
 //			else{

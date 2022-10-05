@@ -14,10 +14,10 @@ public class mapObj {
 		public double distance;
 		public String icon;
 		public String iconBg;
-		public float x;
-		public float y;
-		public float dx;
-		public float dy;
+		public double x;
+		public double y;
+		public double dx;
+		public double dy;
 
 	}
 
@@ -28,8 +28,8 @@ public class mapObj {
 		public int blink;
 		public String icon;
 		public String iconBg;
-		public float x;
-		public float y;
+		public double x;
+		public double y;
 	}
 
 	public class Plaobj {
@@ -39,10 +39,10 @@ public class mapObj {
 		public int blink;
 		public String icon;
 		public String iconBg;
-		public float x;
-		public float y;
-		public float dx;
-		public float dy;
+		public double x;
+		public double y;
+		public double dx;
+		public double dy;
 	}
 
 	public class Slcobj {
@@ -52,10 +52,10 @@ public class mapObj {
 		public int blink;
 		public String icon;
 		public String iconBg;
-		public float x;
-		public float y;
-		public float dx;
-		public float dy;
+		public double x;
+		public double y;
+		public double dx;
+		public double dy;
 	}
 
 	int num;
@@ -95,10 +95,10 @@ public class mapObj {
 		int blink;
 		String icon;
 		String iconBg;
-		float x;
-		float y;
-		float dx;
-		float dy;
+		double x;
+		double y;
+		double dx;
+		double dy;
 
 		boolean isPlayer = false;
 		boolean isSelected = false;

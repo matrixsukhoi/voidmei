@@ -119,7 +119,7 @@ public class mainform extends WebFrame implements Runnable {
 		JP.setBackground(new Color(0, 0, 0, 0));
 		JP.setUndecorated(false);
 		// JP.setMargin ( 20 );
-		//JP.setShadeTransparency((float) 0.1);
+		//JP.setShadeTransparency((double) 0.1);
 
 		JP.setShadeWidth(2);
 		JP.setRound(StyleConstants.largeRound);
