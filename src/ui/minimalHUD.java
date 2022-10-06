@@ -764,7 +764,7 @@ public class minimalHUD extends WebFrame implements Runnable {
 		}
 
 		// 襟翼告警
-		if (xs.sState.IAS > xs.flapAllowSpeed - 40) {
+		if (xs.sState.IAS > xs.flapAllowSpeed * 0.95f) {
 			//
 			inAction = true;
 		}
@@ -772,7 +772,7 @@ public class minimalHUD extends WebFrame implements Runnable {
 		if (xc.blkx != null && xc.blkx.valid) {
 			// 速度
 
-			if (xs.IASv + 50 > xc.blkx.vne) {
+			if (xs.IASv >= xc.blkx.vne * 0.95) {
 				warnVne = true;
 			}
 
@@ -780,7 +780,7 @@ public class minimalHUD extends WebFrame implements Runnable {
 			availableAoA = (xc.blkx.NoFlapsWing.AoACritHigh
 					+ (xc.blkx.FullFlapsWing.AoACritHigh - xc.blkx.NoFlapsWing.AoACritHigh) * flaps / 100.0f) - aoa;
 
-			if (availableAoA < 0.35f * xc.blkx.NoFlapsWing.AoACritHigh)
+			if (availableAoA < 0.25f * xc.blkx.NoFlapsWing.AoACritHigh)
 				aoaColor = app.colorWarning;
 			else {
 				aoaColor = app.colorNum;

@@ -502,7 +502,6 @@ public class controller {
 	public void loadFromConfig() {
 		// 修改完设置在读取
 		freqService = Long.parseLong(getconfig("Interval"));
-
 		// 刷新频率比例
 		freqEngineInfo = (long) (freqService * 2f);
 
@@ -511,7 +510,8 @@ public class controller {
 
 		freqGearAndFlap = (long) (freqService * 2f);
 		freqStickValue = (long) (freqService * 1f);
-		app.threadSleepTime = (long) (freqService / 2);
+		// 取频率的八分之一作为休眠时间
+		app.threadSleepTime = (long) (freqService >> 3);
 
 		// app.debugPrint(freqService);
 

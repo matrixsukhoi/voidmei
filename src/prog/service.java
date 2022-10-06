@@ -12,23 +12,37 @@ import java.net.MalformedURLException;
 import java.net.Socket;
 import java.net.SocketAddress;
 import java.net.URL;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import parser.blkx.engineLoad;
 import parser.flightLog;
 import parser.indicators;
 import parser.state;
+import sun.net.www.http.HttpClient;
 
 public class service implements Runnable {
 	public static calcHelper cH = new calcHelper();
 	public calcHelper.simpleMovingAverage diffSpeedSMA;
+	public calcHelper.simpleMovingAverage sepSMA;
+	public calcHelper.simpleMovingAverage turnrdsSMA;
 	public calcHelper.simpleMovingAverage sumSpeedSMA;
 	public calcHelper.simpleMovingAverage calcSpeedSMA;
 	public calcHelper.simpleMovingAverage fuelTimeSMA;
+
+	public calcHelper.simpleMovingAverage energyDiffSMA;
 	// public static URL urlstate;
 	// public static URL urlindicators;
+
+	public double energyJKg;
+	public double pEnergyJKg;
 	public long calcPeriod;
 	public static String buf;
-	public static final double g = 9.80f;
+	public static final double g = 9.80;
 	public long timeStamp;
 	public long freq;
 	public state sState;
@@ -94,14 +108,11 @@ public class service implements Runnable {
 	public String sNitro;
 	public String sWepTime;
 
-	public String s;
-	public String s1;
-	public String s2;
 	public controller c;
-	
+
 	// 对飞机结构有重大影响的警告
 	public Boolean fatalWarn = false;
-	
+
 	// sState转换后
 	public boolean hasWingSweepVario;
 	public boolean isStateJet;
@@ -182,6 +193,7 @@ public class service implements Runnable {
 	public static final int ENGINE_TYPE_JET = 1;
 	public static final int ENGINE_TYPE_TURBOPROP = 2;
 	public static final int ENGINE_TYPE_UNKNOWN = -1;
+
 	public String NumtoString(int Num, int arg) {
 		return String.format("%0" + arg + "d", Num);
 	}
@@ -191,12 +203,15 @@ public class service implements Runnable {
 	}
 
 	public static final String nastring = "-";
-	
+	public static final String nullstring = "";
 	public boolean playerLive;
-	public boolean isPlayerLive(){
+
+	public boolean isPlayerLive() {
 		return playerLive;
 	}
+
 	public static final String pressureUnit = "Ata";
+
 	public void transtoString() {
 
 		// 数据转换格式
@@ -206,10 +221,10 @@ public class service implements Runnable {
 		// if (iIndic.fuelpressure == true)
 		// isFuelpressure = true;
 
-//		if(sState.throttle <= 100)
-			throttle = String.format("%d", sState.throttle);
-//		else
-//			throttle = "WEP";
+		// if(sState.throttle <= 100)
+		throttle = String.format("%d", sState.throttle);
+		// else
+		// throttle = "WEP";
 		aileron = String.format("%d", sState.aileron);
 		elevator = String.format("%d", sState.elevator);
 		rudder = String.format("%d", sState.rudder);
@@ -222,12 +237,13 @@ public class service implements Runnable {
 			// sfueltime = String.format(".%d", fueltime / 1000);
 			// else
 
-//			sfueltime = String.format("%d:%02d", fueltime / 60000, (int) ((fueltime / 1000) % 60 ));
-			if (fueltime / 60000 < 100 && !bLowAccFuel){
+			// sfueltime = String.format("%d:%02d", fueltime / 60000, (int)
+			// ((fueltime / 1000) % 60 ));
+			if (fueltime / 60000 < 100 && !bLowAccFuel) {
 				sfueltime = String.format("%d:%02d", fueltime / 60000, (long) ((fueltime / 1000) % 60 / 10) * 10);
-//				sfueltime = String.format("%d.%d", fueltime / 60000, (fueltime % 60000) / 6000);
-			}
-			else
+				// sfueltime = String.format("%d.%d", fueltime / 60000,
+				// (fueltime % 60000) / 6000);
+			} else
 				sfueltime = String.format("%d", fueltime / 60000);
 
 		}
@@ -268,9 +284,12 @@ public class service implements Runnable {
 		if (sState.manifoldpressure != 1) {
 			manifoldpressure = String.format("%.2f", sState.manifoldpressure);
 			pressurePounds = String.format("%+d", Math.round((sState.manifoldpressure - 1f) * 14.696f));
-//			pressurePounds = String.format("%+d", Math.round((sState.manifoldpressure - 1f) * 14.696f), Math.round(sState.manifoldpressure * 760f / 25.4f));
-//			Math.round(sState.manifoldpressure * 760f / 25.4f)
-//			pressureMmHg = String.format("%d", Math.round(sState.manifoldpressure));
+			// pressurePounds = String.format("%+d",
+			// Math.round((sState.manifoldpressure - 1f) * 14.696f),
+			// Math.round(sState.manifoldpressure * 760f / 25.4f));
+			// Math.round(sState.manifoldpressure * 760f / 25.4f)
+			// pressureMmHg = String.format("%d",
+			// Math.round(sState.manifoldpressure));
 			pressureInchHg = String.format("P/%d''", Math.round(sState.manifoldpressure * 760f / 25.4f));
 		} else {
 			manifoldpressure = nastring;
@@ -320,14 +339,22 @@ public class service implements Runnable {
 			sAvgEff = String.format("%d", Math.round(avgeff));
 		// app.debugPrint(sWingSweep);
 		Vy = String.format("%.1f", nVy);
-		sN = String.format("%.1f", An/g);
+		sN = String.format("%.1f", An / g);
 		IAS = String.format("%d", sState.IAS);
 		TAS = String.format("%d", sState.TAS);
 		salt = String.format("%.0f", alt);
 		Wx = String.format("%.0f", Math.abs(sState.Wx));
 		M = String.format("%.2f", sState.M);
 		Ny = String.format("%.1f", sState.Ny);
-		sSEP = String.format("%.0f", SEP);
+
+		// SEP取整改善SEP过高时的可读性
+		double SEPAccuracy = (double) ((long) SEP / 50);
+		SEPAccuracy = SEPAccuracy * 2.5;
+		if (SEPAccuracy == 0)
+			SEPAccuracy = 1;
+
+		sSEP = String.format("%.0f", Math.round(SEP / SEPAccuracy) * SEPAccuracy);
+
 		aclrt = String.format("%.3f", acceleration);
 		// Ao=String.format("%.1f",
 		// Math.sqrt(sState.AoA*sState.AoA+sState.AoS*sState.AoS));
@@ -348,12 +375,12 @@ public class service implements Runnable {
 			if (twepTime < 0) {
 				twepTime = 0;
 			}
-			if (twepTime / 60 >= 100){
+			if (twepTime / 60 >= 100) {
 				sWepTime = String.format("%d", twepTime / 60);
-			}
-			else{
-//				sWepTime = String.format("%d:%02d", twepTime / 60, twepTime % 60);
-				sWepTime = String.format("%.1f", (double)twepTime / 60.0f);
+			} else {
+				// sWepTime = String.format("%d:%02d", twepTime / 60, twepTime %
+				// 60);
+				sWepTime = String.format("%.1f", (double) twepTime / 60.0f);
 			}
 
 		} else {
@@ -438,7 +465,7 @@ public class service implements Runnable {
 		// 计算耗油率及持续时间
 		// app.debugPrint(totalfuelp - totalfuel);
 		// if (MainCheckMili - FuelCheckMili > 1000) {
-		
+
 		if ((sState.gear == 100 || sState.gear < 0) && fTotalFuel > fTotalFuelP) {
 			// 加油,重置
 
@@ -447,16 +474,16 @@ public class service implements Runnable {
 
 		}
 
-//		dfuel = (fTotalFuelP - fTotalFuel) / (MainCheckMili - FuelCheckMili);
+		// dfuel = (fTotalFuelP - fTotalFuel) / (MainCheckMili - FuelCheckMili);
 		dfuel = (fTotalFuelP - fTotalFuel) / dtime;
 
-		if (dfuel > 0 ){
-			
-			if (!bLowAccFuel){
-//				fueltime = (long) (fueltime + (fTotalFuel / dfuel)) / 2;
+		if (dfuel > 0) {
+
+			if (!bLowAccFuel) {
+				// fueltime = (long) (fueltime + (fTotalFuel / dfuel)) / 2;
 				// 改用滑动平均
-				fueltime = (long)fuelTimeSMA.addNewData(fTotalFuel / dfuel);
-				
+				fueltime = (long) fuelTimeSMA.addNewData(fTotalFuel / dfuel);
+
 			}
 			// fueltime = (long)(ratio_1 * fueltime + ratio *(fTotalFuel /
 			// dfuel));
@@ -473,8 +500,9 @@ public class service implements Runnable {
 			// totalfuel)/MainCheckMili-FuelLastchangeMili);
 
 			if (fuelChange != 0) {
-//				fueltime = (long) ((ratio * (fTotalFuel * FuelchangeTime / fuelChange)) + ratio_1 * fueltime);
-				fueltime = (long)(fTotalFuel * FuelchangeTime / fuelChange);
+				// fueltime = (long) ((ratio * (fTotalFuel * FuelchangeTime /
+				// fuelChange)) + ratio_1 * fueltime);
+				fueltime = (long) (fTotalFuel * FuelchangeTime / fuelChange);
 			} else
 				fueltime = 0;
 			// app.debugPrint(fueltime);
@@ -589,9 +617,10 @@ public class service implements Runnable {
 	private boolean downflap;
 	private long flapCheck;
 	double maximumThrRPM;
-//	double maximumAllowedRPM;
+	// double maximumAllowedRPM;
 	private long checkMaxiumRPM;
 	public boolean getMaximumRPM;
+	public httpHelper httpClient;
 
 	public void calculateB() {
 		// 计算斜抛角度,基本是正确的
@@ -663,7 +692,7 @@ public class service implements Runnable {
 		// alt = alt + altperCircle * altreg;
 		// app.debugPrint("checkalt"+checkAlt);
 
-		// 雷达高度
+		// 无线电高度
 		pRadioAlt = radioAlt;
 		// radioAlt = iIndic.radio_altitude;
 		if (iCheckAlt > 0) {
@@ -684,43 +713,69 @@ public class service implements Runnable {
 		} else {
 			nVy = sState.Vy;
 		}
+
 	}
 
 	public void updateTurn() {
 		// 转弯半径等于speedv*speedv/9.78*G
-		
+
 		// 转弯加速度约等于法向过载与重力过载之和
-		if(sIndic.aviahorizon_roll != -65535 && sIndic.aviahorizon_pitch != -65535){
+		double alpha = 0;
+		double beta = 0;
+//		if (sIndic.aviahorizon_roll != -65535) {
+//			alpha = sIndic.aviahorizon_roll;
+//		}
+//		if (sIndic.aviahorizon_pitch != -65535) {
+//			beta = sIndic.aviahorizon_pitch + sState.AoA;
+//		}
+
+		if (sIndic.aviahorizon_roll != -65535 && sIndic.aviahorizon_pitch != -65535) {
 			// 获得横滚角
-			An = (double)(g * 
-					Math.sqrt(sState.Ny*sState.Ny + 1 - 2 * sState.Ny * 
-							Math.cos(Math.toRadians(sIndic.aviahorizon_roll)) * 
-									Math.cos(Math.toRadians(sIndic.aviahorizon_pitch + sState.AoA)) 
-									)
-					);
-//			An = (double)(g * Math.sqrt(a))
-		}
-		else
+			
+			An = (double) (g * Math
+					.sqrt(sState.Ny * sState.Ny + 1 - 2 * sState.Ny * Math.cos(Math.toRadians(sIndic.aviahorizon_roll))
+							* Math.cos(Math.toRadians(sIndic.aviahorizon_pitch + sState.AoA))));
+			// An = (double)(g * Math.sqrt(a))
+		} else
 			An = (g * sState.Ny);
-//		app.debugPrint(Math.cos(sIndic.aviahorizon_roll));
+		// app.debugPrint(Math.cos(sIndic.aviahorizon_roll));
 		// 计算时取前后两次采样的速度平均值
 
-		double sumspeed1 = sumSpeedSMA.addNewData(speedv + speedvp);
-		
-		
+		// double sumspeed1 = sumSpeedSMA.addNewData(speedv + speedvp);
+
 		if (sIndic.turn != -65535) {
+
+			// double cosa = Math.cos(Math.toRadians(sIndic.aviahorizon_roll));
+			// double cosb = Math.cos(Math.toRadians(sIndic.aviahorizon_pitch +
+			// sState.AoA)) ;
+			// double tAn = (double)(g*
+			// Math.sqrt(sState.Ny*sState.Ny * cosa * cosa * cosb * cosb
+			// + 1
+			// - 2 * sState.Ny * cosa * cosb
+			// + Math.abs(sIndic.turn) * Math.abs(sIndic.turn) * (speedvp +
+			// speedv) * (speedvp + speedv) / (4*g*g))
+			// );
+			//
+			// System.out.println(tAn - An);
+			// An = tAn;
 			horizontalLoad = Math.abs(sIndic.turn) * (speedvp + speedv) / (2 * g);
-//			horizontalLoad = Math.abs(sIndic.turn) * sumspeed1 / (2 * g);
+			// horizontalLoad = Math.abs(sIndic.turn) * sumspeed1 / (2 * g);s
+
 		} else {
 			horizontalLoad = 0;
 		}
-		
 
-		turnRds = (sumspeed1 * sumspeed1) / (4 * An);
-//		turnRds = (speedvp + speedv) * (speedvp + speedv) / (4 * An) ;
-		// 转弯率等于向心加速度除以半径开根号
-		turnRate = (double) (Math.toDegrees(Math.sqrt(An / turnRds)));
-//		turnRds = turnRds/10 * 10
+		// turnRds = (sumspeed1 * sumspeed1) / (4 * An);
+		// turnRds = (speedvp + speedv) * (speedvp + speedv) / (4 * An) ;
+		if (An != 0) {
+			turnRds = turnrdsSMA.addNewData((speedvp + speedv) * (speedvp + speedv) / (4 * An));
+			// 转弯率等于向心加速度除以半径开根号
+			turnRate = (double) (Math.toDegrees(Math.sqrt(An / turnRds)));
+			// turnRds = turnRds/10 * 10
+		}
+		else{
+			
+		}
 	}
 
 	public void updateSpeed() {
@@ -734,21 +789,23 @@ public class service implements Runnable {
 
 		if (sIndic.speed != -65535) {
 			// 指示空速，需要进行TAS校正
-			speedv = sIndic.speed;
-			if (speedv != 0){
-				//iastotascoff = (1000 * ratio_1 * iastotascoff + 1000 * ratio * vTAS / (speedv * 3.6f)) / 1000.0f;
+			double tspeedv = sIndic.speed;
+			if (tspeedv != 0) {
+				// iastotascoff = (1000 * ratio_1 * iastotascoff + 1000 * ratio
+				// * vTAS / (speedv * 3.6f)) / 1000.0f;
 				// 改用滑动平均
-				iastotascoff = calcSpeedSMA.addNewData(vTAS / (speedv * 3.6f));
+				iastotascoff = calcSpeedSMA.addNewData(vTAS / (tspeedv * 3.6));
 			}
-			// iastotascoff = 1+(double) (0.02 * sState.heightm * 3.2808 / 1000);
-			speedv = speedv * iastotascoff;
+			// iastotascoff = 1+(double) (0.02 * sState.heightm * 3.2808 /
+			// 1000);
+			speedv = tspeedv * iastotascoff;
 			// app.debugPrint("校正TAS:"+ speedv*3.6);
 			// 订正后加速度还是会有跳变
-			//app.debugPrint("校正TAS:"+ speedv*3.6 + "," + iastotascoff);
+			// app.debugPrint("校正TAS:"+ speedv*3.6 + "," + iastotascoff);
 
 		} else {
 			// 使用IASv作为辅助订正TAS
-			speedv = vTAS * IASv / (3.6f * IASvp);
+			speedv = vTAS * IASv / (3.6 * IASvp);
 		}
 	}
 
@@ -844,40 +901,46 @@ public class service implements Runnable {
 	}
 
 	public void updateSEP() {
-		if (sState.IAS != 0) {
-			double diffspeed1 = diffSpeedSMA.addNewData(speedv - speedvp);
-			// 这是不是示空速的差?
-			// 使用修正
-//			diffspeed = (ratio_1 * diffspeed + ratio * (speedv - speedvp));
-			diffspeed = diffspeed1;
-			// app.debugPrint(diffspeed);
-			acceleration = diffspeed * 1000.0f / intv;
+		// if (sState.IAS != 0) {
+		double diffspeed1 = diffSpeedSMA.addNewData(speedv - speedvp);
+		// 这是不是示空速的差?
+		// 使用修正
+		// diffspeed = (ratio_1 * diffspeed + ratio * (speedv - speedvp));
+		diffspeed = diffspeed1;
+		// app.debugPrint(diffspeed);
+		acceleration = diffspeed * 1000.0 / intv;
 
-			// 三种计算方式
-			
-			// 这两种等价
-			SEP += acceleration * (speedvp + speedv) / (2 * g) +  nVy;
-//			SEP /= 2;
-			
-			
-//			SEP += (diffspeed * (speedv + speedvp)) /((2 * intv * g)/ 1000.0f) + nVy;
-			
-//			SEP = SEP1;
-			
-			// 跳变太大, 没法读数
-//			SEP += ((speedv * speedv) - (speedvp * speedvp))*1000.0f/(2 * intv * g) + nVy;
-			SEP /= 2;
-			
-		} else {
-			acceleration = 0;
-			SEP = 0;
-		}
+		// 三种计算方式
 
-		// SEP取整改善SEP过高时的可读性 
-		double SEPAccuracy = (long)(SEP / 50);
-		SEPAccuracy = SEPAccuracy * 2.5f;
-		if (SEPAccuracy == 0) SEPAccuracy = 1;
-		SEP = (long)(SEP / SEPAccuracy) * SEPAccuracy;
+		// 这两种等价
+		// SEP = acceleration * (speedvp + speedv) / (2 * g) + nVy;
+		// SEP /= 2;
+
+		// SEP = (diffspeed * (speedv + speedvp)) /((2 * intv * g)/ 1000.0f) +
+		// nVy;
+		// -38.8 4.7 = 28
+		// SEP = SEP1;
+
+		// 跳变太大, 没法读数
+
+		// SEP = ((speedv * speedv) - (speedvp * speedvp))*1000.0f/(2 * intv *
+		// g) + nVy;
+
+		SEP = sepSMA.addNewData(((speedv + speedvp) * (speedv - speedvp) * 1000) / (2 * intv * g) + nVy);
+		// SEP /= 2;
+
+		// } else {
+		// acceleration = 0;
+		// SEP = 0;
+		// }
+
+		// 总能量
+		pEnergyJKg = energyJKg;
+		// energyJKg = ((speedv + speedvp) * (speedv + speedvp) / (8 * g) +
+		// sState.heightm);
+		energyJKg = ((speedv + speedvp) * (speedv + speedvp) / (8 * g) + sState.heightm);
+		// System.out.println(String.format("%.0f",
+		// energyDiffSMA.addNewData((energyJKg - pEnergyJKg)*1000/intv)));
 	}
 
 	public void checkWing() {
@@ -915,7 +978,7 @@ public class service implements Runnable {
 				// FM合法直接取FM
 				maximumThrRPM = c.blkx.maxRPM;
 				// 使用最大允许RPM
-//				maximumThrRPM = c.blkx.maxAllowedRPM;
+				// maximumThrRPM = c.blkx.maxAllowedRPM;
 				// app.debugPrint(maximumThrRPM);
 				getMaximumRPM = true;
 			} else {
@@ -993,7 +1056,7 @@ public class service implements Runnable {
 	public double getFlapAllowSpeed(int flapPercent, Boolean isDowningFlap) {
 		// fm文件无法解析
 		if (flapPercent == 0 || c.blkx == null || !c.blkx.valid)
-			return Float.MAX_VALUE;
+			return Double.MAX_VALUE;
 
 		// 找到襟翼档位
 		int i = 0;
@@ -1020,7 +1083,7 @@ public class service implements Runnable {
 			// if(c.blkx.FlapsDestructionNum == 0){
 			// return c.blkx.FlapsDestructionIndSpeed[0][1];
 			// }
-			return Float.MAX_VALUE;
+			return Double.MAX_VALUE;
 		} else {
 			// 下襟翼时直接越级使用
 			// if (isDowningFlap) {
@@ -1051,118 +1114,6 @@ public class service implements Runnable {
 
 	}
 
-	public String state_request = "GET " + "/state" + " HTTP/1.1\n" + "Host: " + "127.0.0.1" + "\n"
-			+ "Cache-Control:no-cache\n" + app.httpHeader + "\n";
-	public String indic_request = "GET " + "/indicators" + " HTTP/1.1\n" + "Host: " + "127.0.0.1" + "\n"
-			+ "Cache-Control:no-cache\n" + app.httpHeader + "\n";
-	public String fmcm_request = "GET " + "/editor/fm_commands?cmd=getFmProperties" + " HTTP/1.1\n" + "Host: "
-			+ "127.0.0.1" + "\n" + "Cache-Control:no-cache\n" + app.httpHeader + "\n";
-
-	// Socket socketp = new Socket();
-
-
-	// StringBuilder contentBuf = new StringBuilder();
-	// BufferedWriter bufferedWriter = new BufferedWriter(streamWriter);
-	public String sendGetFast(String req_string, SocketAddress dest) throws IOException {
-
-		String result = null;
-		Socket socket = new Socket();
-		// socket.
-		socket.connect(dest);
-		OutputStreamWriter streamWriter = new OutputStreamWriter(socket.getOutputStream());
-		BufferedWriter bufferedWriter = new BufferedWriter(streamWriter);
-
-		BufferedInputStream streamReader = new BufferedInputStream(socket.getInputStream());
-
-		BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(streamReader, "utf-8"));
-
-		bufferedWriter.write(req_string);
-		// bufferedWriter.write("\r\n");
-		bufferedWriter.flush();
-
-		// BufferedInputStream streamReader = new
-		// BufferedInputStream(socket.getInputStream());
-		//
-		// BufferedReader bufferedReader = new BufferedReader(new
-		// InputStreamReader(streamReader, "utf-8"));
-
-		String line = null;
-
-		// if (bufferedReader.ready()) {
-		bufferedReader.readLine();
-
-		bufferedReader.readLine();
-		bufferedReader.readLine();
-		bufferedReader.readLine();
-		bufferedReader.readLine();
-		bufferedReader.readLine();
-
-		StringBuilder contentBuf = new StringBuilder();
-		while ((line = bufferedReader.readLine()) != null) {
-			contentBuf.append(line);
-		}
-		result = contentBuf.toString();
-		// }
-		// else{
-		// result = nastring;
-		// }
-		// app.debugPrint(result);
-		bufferedReader.close();
-		bufferedWriter.close();
-		socket.close();
-		// socket = null;
-		// bufferedReader = null;
-		// bufferedWriter = null;
-		//
-		// streamWriter = null;
-		// contentBuf = null;
-		return result;
-	}
-
-	public String sendGet(String host, int port, String path) throws IOException {
-
-		String result = "";
-		Socket socket = new Socket();
-		SocketAddress dest = new InetSocketAddress(host, port);
-		socket.connect(dest);
-		OutputStreamWriter streamWriter = new OutputStreamWriter(socket.getOutputStream());
-		BufferedWriter bufferedWriter = new BufferedWriter(streamWriter);
-
-		bufferedWriter.write("GET " + path + " HTTP/1.1\r\n");
-		bufferedWriter.write("Host: " + host + "\r\n");
-		bufferedWriter.write("Cache-Control:no-cache");
-		bufferedWriter.write(app.httpHeader);
-		bufferedWriter.write("\r\n");
-		bufferedWriter.flush();
-
-		BufferedInputStream streamReader = new BufferedInputStream(socket.getInputStream());
-
-		BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(streamReader, "utf-8"));
-
-		String line = null;
-
-		bufferedReader.ready();
-		bufferedReader.readLine();
-
-		bufferedReader.readLine();
-		bufferedReader.readLine();
-		bufferedReader.readLine();
-		bufferedReader.readLine();
-		bufferedReader.readLine();
-
-		StringBuilder contentBuf = new StringBuilder();
-		while ((line = bufferedReader.readLine()) != null) {
-			contentBuf.append(line);
-		}
-		result = contentBuf.toString();
-		// app.debugPrint(result);
-		bufferedReader.close();
-		bufferedWriter.close();
-		socket.close();
-
-		return result;
-	}
-
 	// 重置变量
 	public void resetvaria() {
 		playerLive = false;
@@ -1172,6 +1123,8 @@ public class service implements Runnable {
 		dRadioAlt = 0;
 		curLoad = 0;
 		wepTime = 0;
+		energyJKg = 0;
+		pEnergyJKg = 0;
 		elapsedTime = 0;
 		altperCircle = 0;
 		iCheckAlt = 0;
@@ -1192,6 +1145,7 @@ public class service implements Runnable {
 		diffspeed = 0;
 		curLoadMinWorkTime = 99999 * 1000;
 		FuelCheckMili = System.currentTimeMillis();
+		MainCheckMili = FuelCheckMili;
 		notCheckInch = false;
 		altperCirclflag = false;
 		// isFuelpressure = false;
@@ -1200,10 +1154,13 @@ public class service implements Runnable {
 		flapAllowSpeed = Float.MAX_VALUE;
 		fTotalFuelP = 0;
 		isStateJet = false;
-		
-		calcSpeedSMA = cH.new simpleMovingAverage((int) (1000/freq));
-		diffSpeedSMA = cH.new simpleMovingAverage((int) (1000/freq));
-		sumSpeedSMA = cH.new simpleMovingAverage((int) (1000/freq));
+
+		calcSpeedSMA = cH.new simpleMovingAverage((int) (1000 / freq));
+		diffSpeedSMA = cH.new simpleMovingAverage((int) (1000 / freq));
+		sepSMA = cH.new simpleMovingAverage((int) (1000 / freq));
+		turnrdsSMA = cH.new simpleMovingAverage((int) (1000 / freq));
+		sumSpeedSMA = cH.new simpleMovingAverage((int) (1000 / freq));
+		energyDiffSMA = cH.new simpleMovingAverage((int) (1000 / freq));
 		fuelTimeSMA = cH.new simpleMovingAverage(4);
 		if (c.blkx != null) {
 			engineLoad[] pL = c.blkx.engLoad;
@@ -1229,28 +1186,11 @@ public class service implements Runnable {
 		System.gc();
 		sState.init();
 		sIndic.init();
-		// state a = new state();
-		// indicators b= new indicators();
-		// a.init();
-		// b.init();
-		//
-		// // 这才更新state
-		// sState = a;
-		// iIndic = b;
 
 	}
 
 	public service(controller xc) {
-		// try {
-		//
-		// urlstate = new URL("http://127.0.0.1:8111/state");
-		// urlindicators = new URL("http://127.0.0.1:8111/indicators");
-		//
-		// } catch (MalformedURLException e) {
-		// // TODO Auto-generated catch block
-		// e.printStackTrace();
-		// }
-		// app.debugPrint("service执行了");
+
 		c = xc;
 
 		freq = xc.freqService;
@@ -1262,6 +1202,7 @@ public class service implements Runnable {
 		sState.init();
 		sIndic = new indicators();
 		sIndic.init();
+		httpClient = new httpHelper();
 		power = new String[state.maxEngNum];
 		pitch = new String[state.maxEngNum];
 		thrust = new String[state.maxEngNum];
@@ -1270,7 +1211,7 @@ public class service implements Runnable {
 		// isFuelpressure = false;
 
 	}
-	
+
 	public void checkState() {
 		int conState;
 		// 更新时间戳
@@ -1279,18 +1220,18 @@ public class service implements Runnable {
 		// 更新state
 
 		c.initStatusBar();
-		if (s.length() > 2 && s1.length() > 2) {
+		if (httpClient.strState.length() > 2 && httpClient.strIndic.length() > 2) {
 			// 改变状态为连接成功
 			// app.debugPrint(sState);
-			conState = sState.update(s);
+			conState = sState.update(httpClient.strState);
 			c.changeS2();
 			if (sState.flag) {
-				sIndic.update(s1);
-				
-				if(sState.totalThr != 0){
+				sIndic.update(httpClient.strIndic);
+
+				if (sState.totalThr != 0) {
 					playerLive = true;
 				}
-				
+
 				if (isPlayerLive()) {
 					c.changeS3();// 打开面板
 
@@ -1298,20 +1239,19 @@ public class service implements Runnable {
 					// 开始计算数据
 					calculate();
 
-					
 					// 0.5秒一次
-					if (((calcPeriod++) % (500/freq)) == 0)
-						slowcalculate((500/freq)*freq);
-					
+					if (((calcPeriod++) % (500 / freq)) == 0)
+						slowcalculate((500 / freq) * freq);
+
 					// 将数据转换格式
 					transtoString();
-					
+
 					// 写入文档
 					// c.writeDown();
 
 					// 检查死亡
-					if (sState.totalThr == 0 && sState.RPM <= 0 && sState.IAS < 10){
-						playerLive=false;
+					if (sState.totalThr == 0 && sState.RPM <= 0 && sState.IAS < 10) {
+						playerLive = false;
 					}
 				}
 			} else {
@@ -1334,64 +1274,41 @@ public class service implements Runnable {
 			c.S4toS1();
 			// app.debugPrint("等待连接中");
 		}
-		if (conState == -1){
+		if (conState == -1) {
 			// 端口连接可能有问题，切换端口
-//			app.debugPrint("切换端口\n");
+			// app.debugPrint("切换端口\n");
 			portOcupied = !portOcupied;
-		}
-	}
-	public void getReqResult() {
-		try {
-
-			// s = sendGet("127.0.0.1", 8111, "/state");
-			// s1 = sendGet("127.0.0.1", 8111, "/indicators");
-			if (!portOcupied){
-				s = sendGetFast(state_request, app.requestDest);
-				s1 = sendGetFast(indic_request, app.requestDest);
-			}
-			else{
-				s = sendGetFast(state_request, app.requestDestBkp);
-				s1 = sendGetFast(indic_request, app.requestDestBkp);
-			}
-			// intv = (ctime - intvCheckMili);
-			// intvCheckMili = ctime;
-			// if (intv == 0)
-			// intv = freq;
-			intv = freq;
-
-		} catch (IOException e1) {
-			// TODO Auto-generated catch block
-			s = nastring;
-			s1 = nastring;
 		}
 	}
 
 	@Override
 	public void run() {
-
+		long waitMili = app.threadSleepTime;
+		// app.debugPrint("" + waitMili);
 		while (true) {
 
 			try {
-				Thread.sleep(app.threadSleepTime);
+				Thread.sleep(waitMili);
 			} catch (InterruptedException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 
 			SystemTime = System.currentTimeMillis();
-
-			if (SystemTime - MainCheckMili >= freq) {
-				// status = "Service就绪";
-				// app.debugPrint(th
-				TimeIncrMili = SystemTime - MainCheckMili;
-				if (TimeIncrMili > 1000000 * freq) {
-					TimeIncrMili = 0;
-				}
-				MainCheckMili = SystemTime;
+			long diffTime = SystemTime - MainCheckMili;
+			if (diffTime >= freq) {
 
 				// 尝试GET数据
-				getReqResult();
-				
+				if (!portOcupied)
+					httpClient.getReqResult(app.requestDest);
+				else
+					httpClient.getReqResult(app.requestDestBkp);
+
+				intv = (diffTime / freq) * freq;
+				TimeIncrMili = diffTime;
+				MainCheckMili += intv;
+				// MainCheckMili = SystemTime;
+
 				// 检查是否需要改变状态
 				checkState();
 
@@ -1402,14 +1319,13 @@ public class service implements Runnable {
 						tempLog.logTick();
 				}
 
+				// 检查超时
+				// if (MainCheckMili <= (System.currentTimeMillis() - intv)) {
+				// app.debugPrint("deadline Miss, try catch\n" + SystemTime +
+				// "," + MainCheckMili);
+				// }
+
 			}
-//			if (SystemTime - SlowCheckMili >= (freq << 2)) {
-//				// app.debugPrint(SystemTime - SlowCheckMili);
-//				SlowCheckMili = SystemTime;
-//				// 慢速计算
-//				slowcalculate();
-//
-//			}
 
 		}
 	}
