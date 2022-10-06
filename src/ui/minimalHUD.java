@@ -145,6 +145,8 @@ public class minimalHUD extends WebFrame implements Runnable {
 	private boolean drawHudMach = false;
 	public Color throttleColor;
 	public Color aoaColor;
+
+	public Color aoaBarColor;
 	public int throttleLineWidth = 1;
 
 	public void drawTextseries(Graphics2D g, int x, int y) {
@@ -210,7 +212,7 @@ public class minimalHUD extends WebFrame implements Runnable {
 				// / 30), 2+lineWidth, 1, app.lblNumColor);
 				// availableAoA
 
-				uiBaseElem.drawHRect(g, x + (rightDraw - aoaY), liney, aoaY, lineWidth + 3, 1, aoaColor);
+				uiBaseElem.drawHRect(g, x + (rightDraw - aoaY), liney, aoaY, lineWidth + 3, 1, aoaBarColor);
 				// uiBaseElem.drawHBar(g, x + (rightDraw - aoaY), liney, width,
 				// height, aoaY, borderwidth, c);b
 
@@ -454,6 +456,8 @@ public class minimalHUD extends WebFrame implements Runnable {
 	private boolean disableAoA;
 	private Container root;
 	private int rollDeg;
+	private double aoaWarningRatio;
+	private double aoaBarWarningRatio;
 
 	public void init(controller c, service s, otherService os) {
 		int lx;
@@ -512,6 +516,18 @@ public class minimalHUD extends WebFrame implements Runnable {
 			drawAttitude = true;
 		}
 
+		if (xc.getconfig("miniHUDaoaWarningRatio") != "") {
+			aoaWarningRatio = Double.parseDouble(xc.getconfig("miniHUDaoaWarningRatio"));
+		} else {
+			aoaWarningRatio = 0.25;
+		}
+		
+		if (xc.getconfig("miniHUDaoaBarWarningRatio") != "") {
+			aoaBarWarningRatio = Double.parseDouble(xc.getconfig("miniHUDaoaBarWarningRatio"));
+		} else {
+			aoaBarWarningRatio = 0;
+		}
+		
 		HUDFontsize = CrossWidth / 4;
 		barWidth = HUDFontsize / 4;
 		lineWidth = HUDFontsize / 10;
@@ -573,6 +589,7 @@ public class minimalHUD extends WebFrame implements Runnable {
 		if (aoaY > rightDraw)
 			aoaY = rightDraw;
 		aoaColor = app.colorNum;
+		aoaBarColor = app.colorNum;
 		// app.debugPrint(lx);
 		// app.debugPrint(ly);
 		A = Toolkit.getDefaultToolkit().createImage("image/gunsight/" + crosshairName + ".png");
@@ -764,7 +781,7 @@ public class minimalHUD extends WebFrame implements Runnable {
 		}
 
 		// 襟翼告警
-		if (xs.sState.IAS > xs.flapAllowSpeed * 0.95f) {
+		if (xs.sState.IAS > xs.flapAllowSpeed * 0.95) {
 			//
 			inAction = true;
 		}
@@ -780,10 +797,15 @@ public class minimalHUD extends WebFrame implements Runnable {
 			availableAoA = (xc.blkx.NoFlapsWing.AoACritHigh
 					+ (xc.blkx.FullFlapsWing.AoACritHigh - xc.blkx.NoFlapsWing.AoACritHigh) * flaps / 100.0f) - aoa;
 
-			if (availableAoA < 0.25f * xc.blkx.NoFlapsWing.AoACritHigh)
+			if (availableAoA < aoaWarningRatio * xc.blkx.NoFlapsWing.AoACritHigh)
 				aoaColor = app.colorWarning;
 			else {
 				aoaColor = app.colorNum;
+			}
+			if (availableAoA < aoaBarWarningRatio * xc.blkx.NoFlapsWing.AoACritHigh)	
+				aoaBarColor  = app.colorWarning;
+			else{
+				aoaBarColor  = app.colorNum;
 			}
 			aoaY = (int) (availableAoA * aoaLength / xc.blkx.NoFlapsWing.AoACritHigh);
 

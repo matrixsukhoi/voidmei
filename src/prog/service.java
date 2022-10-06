@@ -283,14 +283,16 @@ public class service implements Runnable {
 		oiltemp = String.format("%.0f", noilTemp);
 		if (sState.manifoldpressure != 1) {
 			manifoldpressure = String.format("%.2f", sState.manifoldpressure);
-			pressurePounds = String.format("%+d", Math.round((sState.manifoldpressure - 1f) * 14.696f));
+//			pressurePounds = String.format("%+d", Math.round((sState.manifoldpressure - 1) * 14.696));
+			pressurePounds = String.format("%+.1f", (sState.manifoldpressure - 1) * 14.696);
 			// pressurePounds = String.format("%+d",
 			// Math.round((sState.manifoldpressure - 1f) * 14.696f),
 			// Math.round(sState.manifoldpressure * 760f / 25.4f));
 			// Math.round(sState.manifoldpressure * 760f / 25.4f)
 			// pressureMmHg = String.format("%d",
 			// Math.round(sState.manifoldpressure));
-			pressureInchHg = String.format("P/%d''", Math.round(sState.manifoldpressure * 760f / 25.4f));
+//			pressureInchHg = String.format("P/%d''", Math.round(sState.manifoldpressure * 760 / 25.4));
+			pressureInchHg = String.format("P/%.1f''", (sState.manifoldpressure * 760 / 25.4));
 		} else {
 			manifoldpressure = nastring;
 			pressurePounds = nastring;

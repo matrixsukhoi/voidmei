@@ -24,10 +24,11 @@ public class httpHelper {
 			+ "127.0.0.1" + "\n" + "Cache-Control:no-cache\n" + app.httpHeader + "\n";
 	public String strState;
 	public String strIndic;
+	public static final String nstring="";
 
 	public String sendGet(String host, int port, String path) throws IOException {
 
-		String result = "";
+		String result = nstring;
 		Socket socket = new Socket();
 		SocketAddress dest = new InetSocketAddress(host, port);
 		socket.connect(dest);
@@ -195,15 +196,24 @@ public class httpHelper {
 		} catch (InterruptedException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-			// System.out.println("InterruptedException\n");
+			System.out.println("InterruptedException\n");
+			strState = nstring;
+			strIndic = nstring;
+			 
 		} catch (ExecutionException e) {
 			// TODO Auto-generated catch block
-			// System.out.println("ExecutionException\n");
-			e.printStackTrace();
+//			System.out.println("ExecutionException\n");
+//			e.printStackTrace();
+			strState = nstring;
+			strIndic = nstring;
 		} catch (IOException e1) {
 			// TODO Auto-generated catch block
-			e1.printStackTrace();
-		}
+//			System.out.println("IOException\n");
+//			e1.printStackTrace();
+			strState = nstring;
+			strIndic = nstring;
+			
+		} 
 	}
 
 }
