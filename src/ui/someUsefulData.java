@@ -35,8 +35,8 @@ public class someUsefulData extends WebFrame implements Runnable {
 	public void init(controller c, blkx p) {
 		xc = c;
 		xp = p;
-		WIDTH = 320;
-		HEIGHT = 960;
+		WIDTH = app.defaultFontsize * 32;
+		HEIGHT = app.defaultFontsize * 72;
 
 		// app.debugPrint("statusBar初始化了");
 		// setSize(WIDTH, HEIGHT);

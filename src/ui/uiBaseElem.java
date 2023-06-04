@@ -179,13 +179,9 @@ public class uiBaseElem {
 		// 数字
 		__drawStringShade(g2d, x + val_width, y + height + 1 * numFont.getSize(), 1, num, numFont, app.colorLabel);
 	}
-
-	// BOS 类型的标签
-	public static void drawLabelBOSType(Graphics2D g2d, int x_offset, int y_offset, int shadeWidth, Font num,
+	public static void _drawLabelBOSType(Graphics2D g2d, int x_offset, int y_offset, int shadeWidth, int lwidth, Font num,
 			Font label, Font unit, String sNum, String sLabel, String sUnit) {
 
-		// 数字
-		int lwidth = (13 * num.getSize()) >> 2;
 		// y偏移式加下底边再减去自己字体大小的一半
 		__drawStringShade(g2d, x_offset, (y_offset + y_offset + label.getSize() + unit.getSize()) >> 1, shadeWidth,
 				sNum, num, app.colorNum);
@@ -194,6 +190,14 @@ public class uiBaseElem {
 		__drawStringShade(g2d, x_offset + lwidth, y_offset, shadeWidth, sLabel, label, app.colorLabel);
 		// 单位名
 		__drawStringShade(g2d, x_offset + lwidth, y_offset + label.getSize(), shadeWidth, sUnit, unit, app.colorUnit);
+	}
+	// BOS 类型的标签
+	public static void drawLabelBOSType(Graphics2D g2d, int x_offset, int y_offset, int shadeWidth, Font num,
+			Font label, Font unit, String sNum, String sLabel, String sUnit) {
+
+		// 数字
+		int lwidth = (13 * num.getSize()) >> 2;
+		_drawLabelBOSType(g2d, x_offset, y_offset, shadeWidth, lwidth, num, label, unit, sNum, sLabel, sUnit);
 	}
 	public static void __drawLabelBOSType(Graphics2D g2d, int x_offset, int y_offset, int shadeWidth, Font num,
 			Font label, Font unit, String sNum, String sLabel, String sUnit, int lwwidth) {

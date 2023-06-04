@@ -180,7 +180,7 @@ public class controller {
 			flag = 3;
 		}
 	}
-
+	public String cur_fmtype;
 	public void changeS3() {
 		// 状态3，连接成功，释放状态条，打开面板
 		// SB.repaint();
@@ -190,7 +190,8 @@ public class controller {
 
 			// 初始化MapObj以及Msg、gamechat
 			// app.debugPrint(S.iIndic.type);
-			getfmdata(S.sIndic.type);
+			cur_fmtype = S.sIndic.type;
+			getfmdata(cur_fmtype);
 			// app.debugPrint("状态3，连接成功，释放状态条，打开面板");
 			// usetempratureInformation =
 			// Boolean.parseBoolean(getconfig("usetempInfoSwitch"));
@@ -934,7 +935,7 @@ public class controller {
 
 		if (blkx.valid == true) {// app.debugPrint(blkx.data);
 			blkx.getAllplotdata();
-			blkx.getload();
+//			blkx.getload();
 		}
 
 	}

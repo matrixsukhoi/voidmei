@@ -11,6 +11,9 @@ import java.awt.Image;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseMotionAdapter;
 import java.io.File;
 
 import javax.swing.ImageIcon;
@@ -18,7 +21,9 @@ import javax.swing.SwingConstants;
 
 import com.alee.extended.button.WebSwitch;
 import com.alee.extended.image.WebImage;
+import com.alee.extended.layout.VerticalFlowLayout;
 import com.alee.extended.panel.WebButtonGroup;
+import com.alee.extended.window.WebPopOver;
 import com.alee.global.StyleConstants;
 import com.alee.laf.WebLookAndFeel;
 import com.alee.laf.button.WebButton;
@@ -30,9 +35,11 @@ import com.alee.laf.slider.WebSlider;
 import com.alee.laf.splitpane.WebSplitPane;
 import com.alee.laf.tabbedpane.TabbedPaneStyle;
 import com.alee.laf.tabbedpane.WebTabbedPane;
+import com.alee.laf.text.WebTextArea;
 import com.alee.laf.text.WebTextField;
 import com.alee.utils.ImageUtils;
 
+import parser.blkx;
 import prog.app;
 import prog.controller;
 import prog.lang;
@@ -205,35 +212,6 @@ public class mainform extends WebFrame implements Runnable {
 	public WebComboBox createCrosshairList(WebPanel topPanel,String text) {
 
 		WebLabel lb = createWebLabel(text);
-		/*
-		 * WebList editableList = new WebList(app.fonts); //
-		 * app.debugPrint(app.fonts.length);
-		 * editableList.setFont(app.DefaultFont);
-		 * editableList.setSelectionShadeWidth(0);
-		 * editableList.setSelectionBorderColor(new Color(0, 0, 0, 0));
-		 * editableList.setVisibleRowCount(5); editableList.setBackground(new
-		 * Color(0, 0, 0, 0)); //editableList.setSelectionBackgroundColor(new
-		 * Color(0, 0, 0, 0));
-		 * editableList.getWebUI().setWebColoredSelection(false);
-		 * editableList.getWebUI().setSelectionShadeWidth(1);
-		 * editableList.getWebUI().setSelectionBorderColor(new Color(0, 0, 0,
-		 * 100)); editableList.getWebUI().setSelectionRound(5);
-		 * editableList.getWebUI().setSelectionBackgroundColor(new Color(0, 0,
-		 * 0, 0)); editableList.getWebUI().setHighlightRolloverCell(true); //
-		 * editableList.setSelectedIndex ( 0 ); //
-		 * editableList.setSelectedValue("", true); //
-		 * editableList.getSelectedValue(); editableList.setEditable(false);
-		 * editableList.setSelectionBackground(new Color(0, 0, 0, 0));
-		 * //editableList.setSelectionForeground(new Color(0, 0, 0, 0)); //
-		 * app.debugPrint(editableList.getScrollableTracksViewportWidth());
-		 * // editableList.setPreferredSize(400, 200); WebScrollPane WSP = new
-		 * WebScrollPane(editableList); WSP.setWheelScrollingEnabled(true);
-		 * WSP.getWebVerticalScrollBar().setPaintButtons(false); //
-		 * WSP.getWebUI().setDrawBackground(false); WSP.setBackground(new
-		 * Color(0, 0, 0, 0));
-		 * WSP.getWebVerticalScrollBar().setPaintTrack(false);
-		 * WSP.setShadeWidth(0);
-		 */
 		File file = new File("image/gunsight");
 		String[] filelist = file.list();
 		//app.debugPrint(file.list());
@@ -259,7 +237,36 @@ public class mainform extends WebFrame implements Runnable {
 		topPanel.add(comboBox);
 		return comboBox;
 	}
+	
+	public WebComboBox createFMList(WebPanel topPanel,String text) {
 
+		WebLabel lb = createWebLabel(text);
+		File file = new File("data/aces/gamedata/flightmodels/fm");
+		String[] filelist = file.list();
+		//app.debugPrint(file.list());
+		filelist=getFilelistNameNoEx(filelist);
+		//app.debugPrint(filelist[0]);
+		WebComboBox comboBox = new WebComboBox(filelist);
+		comboBox.setWebColoredBackground(false);
+		// comboBox.getWebUI().setDrawBorder(false);
+		comboBox.setShadeWidth(1);
+		comboBox.setDrawFocus(false);
+		// comboBox.getWebUI().setWebColoredBackground(false);
+		// comboBox.getComponent(0).setBackground(new Color(0, 0, 0, 0));
+		comboBox.setFont(app.defaultFont);
+
+		// comboBox.getComponentPopupMenu().setBackground(new Color(0, 0, 0,
+		// 0));
+		// comboBox.getWebUI().setDrawBorder(false);
+		comboBox.setExpandedBgColor(new Color(0, 0, 0, 0));
+		// comboBox.getWebUI().setExpandedBgColor(new Color(0, 0, 0, 0));
+		comboBox.setBackground(new Color(0, 0, 0, 0));
+		
+		
+		topPanel.add(lb);
+		topPanel.add(comboBox);
+		return comboBox;
+	}
 	public WebComboBox createFontList(WebPanel topPanel,String text) {
 
 		WebLabel lb = createWebLabel(text);
@@ -381,7 +388,75 @@ public class mainform extends WebFrame implements Runnable {
 	private WebSwitch bstatusSwitch;
 	private WebSlider ivoiceVolume;
 	private WebSwitch bAAEnable;
-	
+	private int isDragging;
+	private int xx;
+	private int yy;
+	private WebComboBox bFMList0;
+	private WebComboBox bFMList1;
+	private WebComboBox sMonoFont;
+	private void displayFM(WebComboBox bFMList, int idx){
+		String planeName = bFMList.getSelectedItem().toString();
+		String path = "data/aces/gamedata/flightmodels/fm/" + planeName + ".blkx";
+//		System.out.println(path);
+		blkx fmblk = new blkx(path, planeName);
+//		fmblk.getload();
+//		System.out.println(fmblk.fmdata);
+		WebPopOver popOver = new WebPopOver ( this );
+//		popOver.setCloseOnFocusLoss ( true );
+        popOver.setMargin ( 5 );
+        popOver.setLayout ( new VerticalFlowLayout () );
+        WebButton closeButton = new WebButton ( lang.mCancel, new ActionListener ()
+        {
+            @Override
+            public void actionPerformed ( final ActionEvent e )
+            {
+                popOver.dispose ();
+            }
+        } );
+        closeButton.setUndecorated ( true );
+        closeButton.setFont(app.defaultFont);
+        closeButton.setFontSize((int)(app.defaultFontsize * 1.5f));
+        closeButton.setFontStyle(Font.BOLD);
+        WebTextArea textArea = new WebTextArea(fmblk.fmdata);
+        popOver.add(textArea);
+        popOver.setFont(app.defaultFont);
+        textArea.setFont(app.defaultFont);
+        textArea.setFontSize((int)(app.defaultFontsize * 1.2f));
+        popOver.add(closeButton);
+        popOver.show ( this );
+        
+        /* 增加拖动功能 */
+		textArea.addMouseListener(new MouseAdapter() {
+			public void mouseEntered(MouseEvent e) {
+				/*
+				 * if(A.tag==0){ if(f.mode==1){ A.setVisible(false);
+				 * A.visibletag=0; } }
+				 */
+			}
+
+			public void mousePressed(MouseEvent e) {
+				isDragging = 1;
+				xx = e.getX();
+				yy = e.getY();
+
+			}
+
+			public void mouseReleased(MouseEvent e) {
+				if (isDragging == 1) {
+					isDragging = 0;
+				}
+			}
+		});
+        textArea.addMouseMotionListener(new MouseMotionAdapter() {
+			public void mouseDragged(MouseEvent e) {
+					int left = popOver.getLocation().x;
+					int top = popOver.getLocation().y;
+					popOver.setLocation(left + e.getX() - xx , top + e.getY() - yy);
+				}
+			});
+        // 移动位置
+       popOver.setLocation(popOver.getLocation().x + idx * popOver.getSize().width, popOver.getLocation().y);
+	}
     private String getColorText ( final Color color )
     {
         return color.getRed () + ", " + color.getGreen () + ", " + color.getBlue () + ", " + color.getAlpha();
@@ -518,7 +593,63 @@ public class mainform extends WebFrame implements Runnable {
 		topPanel.add(G);
 		return G;
 	}
+	public WebButtonGroup createLBGroupFM(WebPanel topPanel, WebComboBox fmSelectd0, WebComboBox fmSelectd1) {
+		displayPreview = createButton(lang.mDisplayPreview);
+		WebButton C = createButton(lang.mSavePosition);
+		/* 显示FM */
+		WebButton D = createButton(lang.mDisplayPreview);
+		WebButtonGroup G = new WebButtonGroup(true, displayPreview, C, D);
+		displayPreview.setPreferredWidth(120);
+		
+		C.setPreferredWidth(120);
+		D.setPreferredWidth(120);
+		displayPreview.setFont(app.defaultFont);
+		C.setFont(app.defaultFont);
+		G.setButtonsShadeWidth(3);
+		D.setFont(app.defaultFont);
 
+		// WebLabel lb=createWebLabel("调整位置");
+		displayPreview.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				if (moveCheckFlag == false) {
+
+					controller.notification(lang.mMovePanel);
+					saveconfig();
+					tc.Preview();
+
+					moveCheckFlag = true;
+				} else {
+//					app.debugPrint("重置\n");
+//					config_init();
+					controller.notification(lang.mPreviewWarning);
+				}
+			}
+		});
+		C.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				if (moveCheckFlag) {
+					controller.notification(lang.mPositionSaved);
+					tc.endPreview();
+					moveCheckFlag = false;
+				} else {
+
+					controller.notification(lang.mPreviewNotOpen);
+				}
+			}
+		});
+		
+		D.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+//				app.debugPrint("打开FM");
+				displayFM(fmSelectd0, 0);
+				displayFM(fmSelectd1, 1);
+			}
+		});
+		G.setButtonsDrawSides(false, false, false, true);
+
+		topPanel.add(G);
+		return G;
+	}
 	public WebSlider createLSGroup(WebPanel topPanel, String text, int min, int max,int size, int tick1, int tick2) {
 		WebLabel lb = createWebLabel(text);
 		WebSlider ws = new WebSlider(WebSlider.HORIZONTAL);
@@ -796,6 +927,9 @@ public class mainform extends WebFrame implements Runnable {
 		createvoidWebLabel(topPanel,lang.mP3ChooseTextureBlank);
 		iCrosshairScale = createLSGroup(topPanel, lang.mP3CrosshairSize, 0, 200,500, 5, 20);
 		
+		sMonoFont = createFontList(topPanel,lang.mP3MonoFont);
+		createvoidWebLabel(topPanel,lang.mP3MonoFontBlank);
+		
 		// createLCGroup(topPanel, "面板透明度 ");
 		// createLBGroup(topPanel);
 		// sengineInfoFont = createFontList(topPanel);
@@ -930,6 +1064,25 @@ public class mainform extends WebFrame implements Runnable {
 		createvoidWebLabel(topPanel,lang.mP5LoggingAndChartingBlank);
 		bEnableInformation= createLCGroup(topPanel, lang.mP5Information);
 		createvoidWebLabel(topPanel,lang.mP5InformationBlank);
+		/* FM文件列表 */
+		bFMList0 = createFMList(topPanel,lang.mP5FMChoose+"0");
+		createvoidWebLabel(topPanel,lang.mP5FMChooseBlank);
+		bFMList0.addActionListener(new ActionListener() {
+			private int t = 0;
+			public void actionPerformed(ActionEvent e) {
+				if (t++ != 0)displayFM(bFMList0, 0);
+			}
+		});
+		
+		bFMList1 = createFMList(topPanel,lang.mP5FMChoose+"1");
+		createvoidWebLabel(topPanel,lang.mP5FMChooseBlank);
+		bFMList1.addActionListener(new ActionListener() {
+			private int t = 0;
+			public void actionPerformed(ActionEvent e) {
+				if (t++ != 0)displayFM(bFMList1, 1);
+			}
+		});
+		
 		/*
 		 * GridBagLayout layout1 = new GridBagLayout(); GridBagConstraints s1 =
 		 * new GridBagConstraints(); s1.fill = GridBagConstraints.BOTH;
@@ -945,6 +1098,7 @@ public class mainform extends WebFrame implements Runnable {
 		topPanel.setLayout(layout);
 
 		// bottomPanel
+//		WebButtonGroup G1 = createLBGroupFM(bottomPanel, bFMList0, bFMList1);
 		WebButtonGroup G1 = createLBGroup(bottomPanel);
 		bottomPanel.add(G1, BorderLayout.LINE_START);
 		WebButtonGroup G = createbuttonGroup();
@@ -1141,12 +1295,15 @@ public class mainform extends WebFrame implements Runnable {
 		sCrosshairName.setSelectedItem(tc.getconfig("crosshairName"));
 		bDrawHudTextSwitch.setSelected(Boolean.parseBoolean(tc.getconfig("drawHUDtext")));
 		bcrosshairdisplaySwitch.setSelected(Boolean.parseBoolean(tc.getconfig("displayCrosshair")));
-
+		sMonoFont.setSelectedItem(tc.getconfig("MonoNumFont"));
+		
 		bdrawShadeSwitch.setSelected(Boolean.parseBoolean(tc.getconfig("simpleFont")));
 		bAAEnable.setSelected(Boolean.parseBoolean(tc.getconfig("AAEnable")));
 		bvoiceWarningSwitch.setSelected(Boolean.parseBoolean(tc.getconfig("enableVoiceWarn")));
 		if(app.debug)bTempInfoSwitch.setSelected(Boolean.parseBoolean(tc.getconfig("usetempInfoSwitch")));
 		sGlobalNumFont.setSelectedItem(tc.getconfig("GlobalNumFont"));
+		
+
 		iInterval.setValue(Integer.parseInt(tc.getconfig("Interval")));
 	
 		bstatusSwitch.setSelected(Boolean.parseBoolean(tc.getconfig("enableStatusBar")));
@@ -1174,6 +1331,9 @@ public class mainform extends WebFrame implements Runnable {
 		
 		bEnableLogging.setSelected(Boolean.parseBoolean(tc.getconfig("enableLogging")));
 		bEnableInformation.setSelected(Boolean.parseBoolean(tc.getconfig("enableAltInformation")));
+		bFMList0.setSelectedItem(tc.getconfig("selectedFM0"));
+		bFMList1.setSelectedItem(tc.getconfig("selectedFM1"));
+		
 		
 		bEnableAxis.setSelected(Boolean.parseBoolean(tc.getconfig("enableAxis")));
 		bEnableAxisEdge.setSelected(Boolean.parseBoolean(tc.getconfig("enableAxisEdge")));
@@ -1216,6 +1376,7 @@ public class mainform extends WebFrame implements Runnable {
 
 		tc.setconfig("enableLogging", Boolean.toString(Boolean.FALSE));
 		tc.setconfig("enableAltInformation", Boolean.toString(Boolean.FALSE));
+
 		
 		tc.setconfig("enableAxis", Boolean.toString(Boolean.FALSE));
 		tc.setconfig("enableAxisEdge", Boolean.toString(Boolean.FALSE));
@@ -1292,7 +1453,7 @@ public class mainform extends WebFrame implements Runnable {
 		tc.setconfig("crosshairName", sCrosshairName.getSelectedItem().toString());
 		tc.setconfig("drawHUDtext",  Boolean.toString(bDrawHudTextSwitch.isSelected()));
 		tc.setconfig("displayCrosshair", Boolean.toString(bcrosshairdisplaySwitch.isSelected()));
-		
+		tc.setconfig("MonoNumFont", sMonoFont.getSelectedItem().toString());
 		
 		
 		tc.setconfig("simpleFont", Boolean.toString(bdrawShadeSwitch.isSelected()));
@@ -1318,6 +1479,9 @@ public class mainform extends WebFrame implements Runnable {
 		
 		tc.setconfig("enableLogging", Boolean.toString(bEnableLogging.isSelected()));
 		tc.setconfig("enableAltInformation", Boolean.toString(bEnableInformation.isSelected()));
+		tc.setconfig("selectedFM0", bFMList0.getSelectedItem().toString());
+		tc.setconfig("selectedFM1", bFMList1.getSelectedItem().toString());
+		
 		
 		tc.setconfig("enableAxis", Boolean.toString(bEnableAxis.isSelected()));
 		tc.setconfig("enableAxisEdge", Boolean.toString(bEnableAxisEdge.isSelected()));

@@ -111,6 +111,8 @@ public class lang{
 	public static String mP3ChooseTexture;
 	public static String mP3ChooseTextureBlank;
 	public static String mP3CrosshairSize;
+	public static String mP3MonoFont;
+	public static String mP3MonoFontBlank;
 	
 	public static String mP4FlightInfoPanel;
 	public static String mP4attitudeIndicatorPanel;
@@ -163,6 +165,8 @@ public class lang{
 	public static String mP5LoggingAndChartingBlank;
 	public static String mP5Information;
 	public static String mP5InformationBlank;
+	public static String mP5FMChoose;
+	public static String mP5FMChooseBlank;
 	
 	public static String mP6AxisPanel;
 	public static String mP6AxisPanelBlank;
@@ -875,6 +879,10 @@ public class lang{
 		mP3ChooseTexture = updateLanguage("mP3ChooseTexture", mP3ChooseTexture);
 		mP3ChooseTextureBlank = updateLanguage("mP3ChooseTextureBlank", mP3ChooseTextureBlank);
 		mP3CrosshairSize = updateLanguage("mP3CrosshairSize", mP3CrosshairSize);
+		mP3MonoFont = updateLanguage("mP3MonoFont", mP3MonoFont);
+		mP3MonoFontBlank = updateLanguage("mP3MonoFontBlank", mP3MonoFontBlank);
+		
+		
 		mP4FlightInfoPanel = updateLanguage("mP4FlightInfoPanel", mP4FlightInfoPanel);
 		mP4attitudeIndicatorPanel = updateLanguage("mP4attitudeIndicatorPanel", mP4attitudeIndicatorPanel);
 		mP4attitudeIndicatorPanelBlank = updateLanguage("mP4attitudeIndicatorPanelBlank", mP4attitudeIndicatorPanelBlank);
@@ -922,6 +930,8 @@ public class lang{
 		mP5LoggingAndChartingBlank = updateLanguage("mP5LoggingAndChartingBlank", mP5LoggingAndChartingBlank);
 		mP5Information = updateLanguage("mP5Information", mP5Information);
 		mP5InformationBlank = updateLanguage("mP5InformationBlank", mP5InformationBlank);
+		mP5FMChoose = updateLanguage("mP5FMChoose", mP5FMChoose);
+		mP5FMChooseBlank = updateLanguage("mP5FMChooseBlank", mP5FMChooseBlank);
 		
 		
 		mP6AxisPanel = updateLanguage("mP6AxisPanel", mP6AxisPanel);

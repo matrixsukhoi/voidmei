@@ -1017,6 +1017,7 @@ public class blkx {
 			}
 			readFileName = name;
 			data = sb.toString();
+			this.getload();
 			valid = true;
 		} else {
 			valid = false;

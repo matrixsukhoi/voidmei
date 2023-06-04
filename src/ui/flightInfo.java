@@ -444,6 +444,7 @@ public class flightInfo extends WebFrame implements Runnable {
 	public void __update_num(int idx, String s) {
 		if (idx < useNum) {
 			totalString[idx][0] = String.format("%5s", s);
+//			totalString[idx][0] = s;
 		}
 	}
 
@@ -575,9 +576,9 @@ public class flightInfo extends WebFrame implements Runnable {
 		// setLayout(null);
 		fontsize = 24 + fontadd;
 		// 设置字体
-		fontNum = new Font(FontName, Font.BOLD, fontsize);
+		fontNum = new Font(NumFont, Font.BOLD, fontsize);
 		fontLabel = new Font(FontName, Font.BOLD, Math.round(fontsize / 2.0f));
-		fontUnit = new Font(FontName, Font.PLAIN, Math.round(fontsize / 2.0f));
+		fontUnit = new Font(NumFont, Font.PLAIN, Math.round(fontsize / 2.0f));
 
 		numHeight = getFontMetrics(fontNum).getHeight();
 		labelHeight = getFontMetrics(fontLabel).getHeight();
@@ -623,7 +624,8 @@ public class flightInfo extends WebFrame implements Runnable {
 						d++;
 						continue;
 					}
-					uiBaseElem.drawLabelBOSType(g2d, doffset[0], doffset[1], 1, fontNum, fontLabel, fontUnit,
+					int fwitdh = 3 * fontsize;
+					uiBaseElem._drawLabelBOSType(g2d, doffset[0], doffset[1], 1, fwitdh, fontNum, fontLabel, fontUnit,
 							totalString[i][0], totalString[i][1], totalString[i][2]);
 					updateDxDy(i + 1 - d, doffset);
 				}

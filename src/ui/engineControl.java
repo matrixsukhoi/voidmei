@@ -292,9 +292,9 @@ public class engineControl extends WebFrame implements Runnable {
 		// initPanel();
 		fontsize = 24 + fontadd;
 		// 设置字体
-		fontNum = new Font(FontName, Font.BOLD, fontsize);
+		fontNum = new Font(NumFont, Font.BOLD, fontsize);
 		fontLabel = new Font(FontName, Font.BOLD, Math.round(fontsize / 2.0f));
-		fontUnit = new Font(FontName, Font.PLAIN, Math.round(fontsize / 2.0f));
+		fontUnit = new Font(NumFont, Font.PLAIN, Math.round(fontsize / 2.0f));
 
 		initLeftString();
 
@@ -435,7 +435,7 @@ public class engineControl extends WebFrame implements Runnable {
 			if (s.SystemTime - engineCheckMili > xc.freqService) {
 				engineCheckMili = s.SystemTime;
 				if (s.sState != null) {
-
+					
 					drawTick();
 
 				}

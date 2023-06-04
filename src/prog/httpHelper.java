@@ -70,8 +70,8 @@ public class httpHelper {
 		return result;
 	}
 
-	public String sendGetFast(String req_string, SocketAddress dest) throws IOException {
 
+	public String sendGetFast(String req_string, SocketAddress dest) throws IOException {
 		String result = null;
 		Socket socket = new Socket();
 		// socket.

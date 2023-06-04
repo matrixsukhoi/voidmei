@@ -21,16 +21,15 @@ https://www.java.com/zh-CN/download/
 
 4、如果发现程序资源占用过高，请增大"高级设置-数据帧延时(毫秒)"，并启用"高级设置-简化字体描边"
 
-5、如发现程序界面刷新频率不达预期，请尝试关闭Nvidia Reflex低延迟模式（游戏内选项-图像设定-NVIDIA Reflex低延迟模式：关）
+5、如发现程序界面帧数较低，出现卡顿或者帧数频率不达预期，但游戏帧数大大超出屏幕刷新率，开启垂直同步也无法限制游戏帧数。这可能是win11调度导致的游戏帧数bug。请尝试打开显卡驱动修改最大帧数限制，如[Nvidia控制面板-管理3d设置-最大帧速率]设置为屏幕刷新率
 
-6、Win10.1存在任务栏无法隐藏的BUG，请搭配TaskBarHider使用，打开后按CTRL+~隐藏任务栏
 
 ————————————————————————————————————
 配置说明
 
 以下功能配置需要用记事本打开./config/config.properties,手动修改配置中的属性
 
-人工地平仪大小：修改attitudeIndicatorWidth和attitudeIndicatorHeight调整人工地平仪大小
+人工地平仪大小：修改attitudeIndicatorWidth和attitudeIndicatorHeight调整人工地平仪面板大小
 
 最简HUD控制标签显示:设置disableHUDXXXLabel=true可关闭最简HUD的一些标签
 最简HUD界面地平(俯仰角,横滚角与侧滑角)显示:设置drawHUDAttitude=false关闭绘制地平信息

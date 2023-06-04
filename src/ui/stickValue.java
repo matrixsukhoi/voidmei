@@ -418,9 +418,9 @@ public class stickValue extends WebFrame implements Runnable {
 		
 		
 		fontSize = 24 + fontadd;
-		fontNum = new Font(FontName, Font.BOLD, fontSize);
+		fontNum = new Font(NumFont, Font.BOLD, fontSize);
 		fontLabel = new Font(FontName, Font.BOLD, Math.round(fontSize / 2.0f));
-		fontUnit = new Font(FontName, Font.PLAIN, Math.round(fontSize / 2.0f));
+		fontUnit = new Font(NumFont, Font.PLAIN, Math.round(fontSize / 2.0f));
 		
 		
 		width = fontSize * 6;

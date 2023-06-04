@@ -4,6 +4,7 @@ import java.awt.AWTException;
 import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.Font;
+import java.awt.FontFormatException;
 import java.awt.GraphicsEnvironment;
 import java.awt.Image;
 import java.awt.MenuItem;
@@ -16,6 +17,7 @@ import java.awt.TrayIcon;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.image.BufferedImage;
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -30,21 +32,19 @@ import com.alee.global.StyleConstants;
 import com.alee.laf.WebLookAndFeel;
 
 public class app {
-
 	// 一些全局配置
 	public static final boolean debug = false;
-	
+
 	// 调试日芷
 	public static final boolean debugLog = true;
 
-	
 	public static final long gcSeconds = 10;
 	public static final Color previewColor = new Color(0, 0, 0, 10);
 
 	public static String appName;
 	public static String defaultNumfontName = "Roboto";
 	public static String appTooltips;
-	public static String version = "1.511";
+	public static String version = "1.541";
 	public static String httpHeader;
 	public static int voiceVolumn = 100;
 	public static String defaultFontName = "Microsoft YaHei UI";
@@ -56,13 +56,13 @@ public class app {
 
 	public static Process plugin = null;
 	public static Runtime r;
-	
+
 	// 抗锯齿
 	public static Boolean aaEnable = true;
 	public static Object textAASetting = RenderingHints.VALUE_TEXT_ANTIALIAS_GASP;
 	public static Object graphAASetting = RenderingHints.VALUE_ANTIALIAS_ON;
 //	public static Object textAASetting = RenderingHints.VALUE_TEXT_ANTIALIAS_ON;
-	
+
 	public static Color colorFailure = new Color(255, 69, 0, 100);
 	public static Color colorWarning = new Color(216, 33, 13, 100);
 	public static Color colorShade = new Color(0, 0, 0, 240);
@@ -71,13 +71,11 @@ public class app {
 	public static Color colorLabel = new Color(27, 255, 128, 166);
 	public static Color colorNum = new Color(27, 255, 128, 240);
 
-
-	public static SocketAddress requestDest; //= new InetSocketAddress("127.0.0.1", 8111);
-	public static SocketAddress requestDestBkp; //= new InetSocketAddress("127.0.0.1", 9222);
+	public static SocketAddress requestDest; // = new InetSocketAddress("127.0.0.1", 8111);
+	public static SocketAddress requestDestBkp; // = new InetSocketAddress("127.0.0.1", 9222);
 	public static int appPort;
 	public static int appPortBkp;
-	
-	
+
 	// 线程休眠时间
 	public static long threadSleepTime = 33;
 	// 图形环境
@@ -85,7 +83,8 @@ public class app {
 	public static int screenWidth;
 	public static int screenHeight;
 	public static String[] fonts;
-	
+
+
 	public static controller ctr;
 
 	// 空鼠标指针
@@ -132,9 +131,11 @@ public class app {
 	public void pluginoff() {
 		plugin.destroy();
 	}
-	public static void debugPrint(String t){
+
+	public static void debugPrint(String t) {
 		System.out.println(t);
 	}
+
 	public static void initSystemTray() {
 		if (SystemTray.isSupported()) {
 			SystemTray st = SystemTray.getSystemTray();
@@ -188,10 +189,33 @@ public class app {
 			}
 		}
 	}
-	
-	public static void initFont(){
+
+	public static void initFont() {
 		environment = GraphicsEnvironment.getLocalGraphicsEnvironment();
+		
+		// 遍历所有font
+		File file = new File("fonts/");
+		String[] filelist = file.list();
+		for (int i = 0; i < filelist.length; i++) {
+			try {
+
+			    //create the font to use. Specify the size!
+			    Font customFont = Font.createFont(Font.TRUETYPE_FONT, new File("fonts/"+filelist[i]));
+			    //register the font
+
+			    environment.registerFont(customFont);
+
+			} catch (IOException e) {
+			    e.printStackTrace();
+
+			} catch(FontFormatException e) {
+			    e.printStackTrace();
+			}
+		}
+		
+		
 		fonts = environment.getAvailableFontFamilyNames();// 获得系统字体
+		
 		Boolean findFont = false;
 		for (int i = 0; i < fonts.length; i++) {
 			// debugPrint(fonts[i]);
@@ -201,10 +225,9 @@ public class app {
 		}
 		if (!findFont) {
 			debugPrint("font can not find\n");
-			if (defaultFontName.equals("Microsoft YaHei UI")){
+			if (defaultFontName.equals("Microsoft YaHei UI")) {
 				defaultFontName = "宋体";
-			}
-			else
+			} else
 				defaultFontName = "Arial";
 		}
 		defaultFont = new Font(defaultFontName, Font.PLAIN, defaultFontsize);
@@ -214,12 +237,12 @@ public class app {
 		environment = null;
 	}
 
-	public static void getScreenSize(){
+	public static void getScreenSize() {
 		screenWidth = Toolkit.getDefaultToolkit().getScreenSize().width;
 		screenHeight = Toolkit.getDefaultToolkit().getScreenSize().height;
 	}
-	
-	public static void setDebugLog(String path){
+
+	public static void setDebugLog(String path) {
 		PrintStream out = null;
 		try {
 			out = new PrintStream(path);
@@ -229,8 +252,8 @@ public class app {
 		}
 		System.setOut(out);
 	}
-	
-	public static void setErrLog(String path){
+
+	public static void setErrLog(String path) {
 		PrintStream out = null;
 		try {
 			out = new PrintStream(path);
@@ -240,34 +263,42 @@ public class app {
 		}
 		System.setErr(out);
 	}
-	public static void setUTF8(){
-		System.setProperty("file.encoding","UTF-8");
-		Field charset;
-		try {
-			charset = Charset.class.getDeclaredField("defaultCharset");
 
-			charset.setAccessible(true);
-			charset.set(null,null);
-		} catch (NoSuchFieldException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (SecurityException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (IllegalArgumentException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (IllegalAccessException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+	public static void setUTF8() {
+		if (!System.getProperty("file.encoding").equals("UTF-8")) {
+
+			System.out.println("Default Charset=" + Charset.defaultCharset());
+			System.out.println("file.encoding=" + System.getProperty("file.encoding"));
+			System.out.println("Default Charset=" + Charset.defaultCharset());
+			System.setProperty("file.encoding", "UTF-8");
+			Field charset;
+			try {
+				charset = Charset.class.getDeclaredField("defaultCharset");
+
+				charset.setAccessible(true);
+				charset.set(null, null);
+			} catch (NoSuchFieldException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (SecurityException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (IllegalArgumentException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (IllegalAccessException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 		}
 	}
-	public static void initWebLaf(){
+
+	public static void initWebLaf() {
 		WebLookAndFeel.install();
 
 		StyleConstants.textRenderingHints = new RenderingHints(RenderingHints.KEY_TEXT_ANTIALIASING,
 				RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-		
+
 		// WebLookAndFeel.set
 		WebLookAndFeel.globalControlFont = defaultFont;
 		WebLookAndFeel.globalTooltipFont = defaultFont;
@@ -281,23 +312,24 @@ public class app {
 
 		WebLookAndFeel.setAllowLinuxTransparency(true);
 	}
+
 	public static void main(String[] args) {
 
 		// set output stream
 		setUTF8();
-		
-		if(app.debugLog){
+
+		if (app.debugLog) {
 			setDebugLog("./output.log");
 			setErrLog("./error.log");
 		}
-		
+
 		lang.initLang();
 		// 初始化端口
 		appPort = Integer.parseInt(lang.httpPort);
 		appPortBkp = appPort + 1111;
 		requestDest = new InetSocketAddress(lang.httpIp, appPort);
 		requestDestBkp = new InetSocketAddress(lang.httpIp, appPortBkp);
-		
+
 		// 相关
 		appName = lang.appName;
 		appTooltips = lang.appTooltips;
@@ -316,13 +348,11 @@ public class app {
 			public void run() {
 				// Install WebLaF as application L&F
 				initWebLaf();
-				
 
 				ctr = new controller();
 			}
 		});
 
 	}
-
 
 }

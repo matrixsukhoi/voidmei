@@ -533,9 +533,9 @@ public class engineInfo extends WebFrame implements Runnable {
 		// initPanel();
 		fontsize = 24 + fontadd;
 		// 设置字体
-		fontNum = new Font(FontName, Font.BOLD, fontsize);
+		fontNum = new Font(NumFont, Font.BOLD, fontsize);
 		fontLabel = new Font(FontName, Font.BOLD, Math.round(fontsize / 2.0f));
-		fontUnit = new Font(FontName, Font.PLAIN, Math.round(fontsize / 2.0f));
+		fontUnit = new Font(NumFont, Font.PLAIN, Math.round(fontsize / 2.0f));
 
 		numHeight = getFontMetrics(fontNum).getHeight();
 		getFontMetrics(fontLabel).getHeight();
@@ -583,7 +583,7 @@ public class engineInfo extends WebFrame implements Runnable {
 						// app.debugPrint("跳过"+i);
 						continue;
 					}
-					uiBaseElem.drawLabelBOSType(g2d, doffset[0], doffset[1], 1, fontNum, fontLabel, fontUnit,
+					uiBaseElem._drawLabelBOSType(g2d, doffset[0], doffset[1], 1, 3*fontsize, fontNum, fontLabel, fontUnit,
 							totalString[i][0], totalString[i][1], totalString[i][2]);
 					updateDxDy(++k, doffset);
 

@@ -156,6 +156,7 @@ public class service implements Runnable {
 	public String pitch[];
 	public String thrust[];
 	public String aclrt;
+	public String relEnergy;
 	public int curLoad;
 	public double curLoadMinWorkTime;
 	public String efficiency[];
@@ -356,7 +357,10 @@ public class service implements Runnable {
 			SEPAccuracy = 1;
 
 		sSEP = String.format("%.0f", Math.round(SEP / SEPAccuracy) * SEPAccuracy);
-
+		// 相对能量(v^2/2+g*h)
+		
+		relEnergy = String.format("%.0f", energyJKg);
+		
 		aclrt = String.format("%.3f", acceleration);
 		// Ao=String.format("%.1f",
 		// Math.sqrt(sState.AoA*sState.AoA+sState.AoS*sState.AoS));
@@ -468,15 +472,8 @@ public class service implements Runnable {
 		// app.debugPrint(totalfuelp - totalfuel);
 		// if (MainCheckMili - FuelCheckMili > 1000) {
 
-		if ((sState.gear == 100 || sState.gear < 0) && fTotalFuel > fTotalFuelP) {
-			// 加油,重置
-
-			app.debugPrint("reset " + fTotalFuel + "," + fTotalFuelP);
-			resetvaria();
-
-		}
-
 		// dfuel = (fTotalFuelP - fTotalFuel) / (MainCheckMili - FuelCheckMili);
+		
 		dfuel = (fTotalFuelP - fTotalFuel) / dtime;
 
 		if (dfuel > 0) {
@@ -623,6 +620,7 @@ public class service implements Runnable {
 	private long checkMaxiumRPM;
 	public boolean getMaximumRPM;
 	public httpHelper httpClient;
+	public double energyM;
 
 	public void calculateB() {
 		// 计算斜抛角度,基本是正确的
@@ -859,10 +857,10 @@ public class service implements Runnable {
 			avgeff = 0;
 		}
 
-		if (maxTotalThr < iTotalThr) {
+		if (maxTotalThr < iTotalThr && sState.throttle >= 100) {
 			maxTotalThr = (int) (ratio_1 * maxTotalThr + ratio * iTotalThr);
 		}
-		if (maxTotalHp < iTotalHpEff) {
+		if (maxTotalHp < iTotalHpEff && sState.throttle >= 100) {
 			maxTotalHp = (int) (ratio_1 * maxTotalHp + ratio * iTotalHpEff);
 		}
 
@@ -937,10 +935,11 @@ public class service implements Runnable {
 		// }
 
 		// 总能量
-		pEnergyJKg = energyJKg;
+		//pEnergyJKg = energyJKg;
 		// energyJKg = ((speedv + speedvp) * (speedv + speedvp) / (8 * g) +
 		// sState.heightm);
-		energyJKg = ((speedv + speedvp) * (speedv + speedvp) / (8 * g) + sState.heightm);
+		energyJKg = ((speedv + speedvp) * (speedv + speedvp) / 8 + g * sState.heightm);
+		energyM = ((speedv + speedvp) * (speedv + speedvp) / (8*g) + sState.heightm);
 		// System.out.println(String.format("%.0f",
 		// energyDiffSMA.addNewData((energyJKg - pEnergyJKg)*1000/intv)));
 	}
@@ -1229,19 +1228,32 @@ public class service implements Runnable {
 			c.changeS2();
 			if (sState.flag) {
 				sIndic.update(httpClient.strIndic);
-
+				
 				if (sState.totalThr != 0) {
 					playerLive = true;
 				}
 
 				if (isPlayerLive()) {
 					c.changeS3();// 打开面板
-
+					if (!c.cur_fmtype.equals(sIndic.type)) {
+						// 机型变化
+						app.debugPrint("机型变化，重启程序");
+						c.S4toS1();
+					}
 					speedvp = sState.IAS;
 					// 开始计算数据
 					calculate();
+					
+					
+					// 检测到加油，重置数据
+					if (fTotalFuel > fTotalFuelP) {
+						app.debugPrint("检测到油量增加 " + fTotalFuel + "," + fTotalFuelP);
+						app.debugPrint("重新加油，重置变量");
+						resetvaria();
+					}
 
-					// 0.5秒一次
+					
+					// 0.5秒一次慢计算
 					if (((calcPeriod++) % (500 / freq)) == 0)
 						slowcalculate((500 / freq) * freq);
 
