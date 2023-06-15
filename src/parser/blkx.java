@@ -393,7 +393,7 @@ public class blkx {
 		if (res.equals("\"Jet\"")) {
 			// 判断喷气
 			isJet = true;
-			app.debugPrint(getone("Engine"+engineNum));
+//			app.debugPrint(getone("Engine"+engineNum));
 			while (!getone("Engine"+engineNum).equals("null")){
 				engineNum++;
 			}
@@ -402,12 +402,13 @@ public class blkx {
 				hdrString = "Engine0.";
 				if (getone("Engine0.Main.Type").equals("\"Jet\"")) {
 					isJet = true;
-					while (!getone("Engine"+engineNum).equals("null")){
-						engineNum++;
-					}
+				}
+				while (!getone("Engine"+engineNum).equals("null")){
+					engineNum++;
 				}
 			}
 		}
+		app.debugPrint("engineNum" + engineNum);
 		engineRPMMultWEP = 1.0f;
 		if (isJet) {
 			aftbCoff = getdouble(hdrString + "Main.AfterburnerBoost");
@@ -1018,10 +1019,12 @@ public class blkx {
 			readFileName = name;
 			data = sb.toString();
 			this.getload();
+
 			valid = true;
 		} else {
 			valid = false;
 		}
+	
 	}
 
 	String cut(String t, String clslabel) {

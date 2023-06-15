@@ -118,7 +118,7 @@ public class service implements Runnable {
 	public boolean isStateJet;
 
 	public String svalid;
-	public String engineNum;
+	public int engineNum;
 	public String engineType;
 	public String aileron;
 	public String elevator;
@@ -185,11 +185,14 @@ public class service implements Runnable {
 	public double dRadioAlt;
 	public double An;
 	public int iEngType;
-
+	public double nitrokg;
+	public double nitroConsump;
+	public int nitroEngNr;
+	
 	Boolean portOcupied = false;
 	private int checkEngineType;
 	private int checkPitch;
-	public boolean checkEngineFlag;
+	public boolean checkEngineFlag = false;
 	public static final int ENGINE_TYPE_PROP = 0;
 	public static final int ENGINE_TYPE_JET = 1;
 	public static final int ENGINE_TYPE_TURBOPROP = 2;
@@ -213,7 +216,7 @@ public class service implements Runnable {
 
 	public static final String pressureUnit = "Ata";
 
-	public void transtoString() {
+	public void trans2String() {
 
 		// 数据转换格式
 		// sState
@@ -351,7 +354,7 @@ public class service implements Runnable {
 		Ny = String.format("%.1f", sState.Ny);
 
 		// SEP取整改善SEP过高时的可读性
-		double SEPAccuracy = (double) ((long) SEP / 50);
+		double SEPAccuracy = (double)((long) SEP / 50);
 		SEPAccuracy = SEPAccuracy * 2.5;
 		if (SEPAccuracy == 0)
 			SEPAccuracy = 1;
@@ -369,24 +372,28 @@ public class service implements Runnable {
 		// iIndic
 		compass = String.format("%.0f", sIndic.compass);
 		sPitchUp = String.format("%.0f", sIndic.aviahorizon_pitch);
-
+		
 		if (c.blkx != null && c.blkx.valid && c.blkx.nitro != 0) {
-			double nitrokg = c.blkx.nitro - wepTime * c.blkx.nitroDecr / 1000;
-			if (nitrokg < 0)
-				nitrokg = 0;
-
+			
 			sNitro = String.format("%.0f", nitrokg);
-			long twepTime = (int) ((c.blkx.nitro / c.blkx.nitroDecr - wepTime / 1000));
-
-			if (twepTime < 0) {
-				twepTime = 0;
+			long twepTime = 0;
+			if (nitroEngNr == 0) {
+//				nitroEngNr = sState.engineNum;
+//				sWepTime = nastring;
 			}
-			if (twepTime / 60 >= 100) {
-				sWepTime = String.format("%d", twepTime / 60);
-			} else {
-				// sWepTime = String.format("%d:%02d", twepTime / 60, twepTime %
-				// 60);
-				sWepTime = String.format("%.1f", (double) twepTime / 60.0f);
+			else {
+				twepTime = (int) (((c.blkx.nitro / c.blkx.nitroDecr - wepTime / 1000)) / nitroEngNr) ;
+			
+				if (twepTime < 0) {
+					twepTime = 0;
+				}
+	//			if (twepTime / 60 >= 100) {
+	//				sWepTime = String.format("%d", twepTime / 60);
+	//			} else {
+					// sWepTime = String.format("%d:%02d", twepTime / 60, twepTime %
+					// 60);
+					sWepTime = String.format("%.0f", (double) twepTime);
+	//			}
 			}
 
 		} else {
@@ -450,7 +457,7 @@ public class service implements Runnable {
 				checkPitch--;
 			}
 		}
-		if (Math.abs(checkEngineType) >= 100) {
+		if (!checkEngineFlag && (Math.abs(checkEngineType) >= 100)) {
 			checkEngineFlag = true;
 			if (checkEngineType >= 0) {
 				iEngType = ENGINE_TYPE_PROP;
@@ -463,8 +470,9 @@ public class service implements Runnable {
 				} else
 					iEngType = ENGINE_TYPE_JET;
 			}
+
+//			 app.debugPrint(String.format("自适应判断引擎类型 %d\n", iEngType));
 		}
-		// app.debugPrint(iEngType);
 	}
 
 	public void slowcalculate(long dtime) {
@@ -645,11 +653,21 @@ public class service implements Runnable {
 	}
 
 	public void updateWepTime() {
-		if (sState.throttle > 100) {
-			// 进入Wep状态
-			// app.debugPrint(TimeIncrMili);
-			wepTime += TimeIncrMili;
+		nitroEngNr = 0;
+
+		engineNum = sState.engineNum;
+		for (int i = 0; i < engineNum; i++) {
+			if (sState.throttles[i] > 100) {
+				// 进入Wep状态
+				// app.debugPrint(TimeIncrMili);
+				wepTime += TimeIncrMili;
+				nitroEngNr += 1;
+			}
 		}
+		nitrokg = c.blkx.nitro - (wepTime * nitroConsump) / 1000;
+		if (nitrokg < 0)
+			nitrokg = 0;
+		
 	}
 
 	public void updateTemp() {
@@ -816,23 +834,23 @@ public class service implements Runnable {
 	public void updateEngineState() {
 		int i;
 
-		checkEngineJet();
 
+		checkEngineJet();
 		if (!isEngJet()) {
-			// 活塞机
+			// 活塞机或者涡浆机
 
 			double ttotalhp = 0;
 			double ttotalhpeff = 0;
 			double ttotalthr = 0;
-			for (i = 0; i < sState.engineNum; i++) {
+			for (i = 0; i < engineNum; i++) {
 				ttotalthr = ttotalthr + sState.thrust[i];
 				// app.debugPrint(sState.engineNum);
 				ttotalhp = ttotalhp + sState.power[i];
 				ttotalhpeff = ttotalhpeff + sState.thrust[i] * g * speedv / 735;
 			}
-			// app.debugPrint(totalhp);
+//			System.out.println(ttotalhp);
 			// app.debugPrint(totalhpeff);
-
+//			app.debugPrint(String.format("sevice 引擎数量%d, 功率%.0f", engineNum, ttotalhp));
 			iTotalHp = (int) (ttotalhp);
 			iTotalHpEff = (int) (ttotalhpeff);
 			iTotalThr = (int) (ttotalthr);
@@ -844,7 +862,7 @@ public class service implements Runnable {
 		} else {
 			// 喷气机
 			double ttotalthr = 0;
-			for (i = 0; i < sState.engineNum; i++) {
+			for (i = 0; i < engineNum; i++) {
 				// app.debugPrint(sState.thrust[0]);
 				ttotalthr = ttotalthr + sState.thrust[i];
 			}
@@ -1155,7 +1173,10 @@ public class service implements Runnable {
 		flapAllowSpeed = Float.MAX_VALUE;
 		fTotalFuelP = 0;
 		isStateJet = false;
-
+		nitrokg = 0;
+		nitroConsump = 0;
+		nitroEngNr = 0;
+		
 		calcSpeedSMA = cH.new simpleMovingAverage((int) (1000 / freq));
 		diffSpeedSMA = cH.new simpleMovingAverage((int) (1000 / freq));
 		sepSMA = cH.new simpleMovingAverage((int) (1000 / freq));
@@ -1165,6 +1186,8 @@ public class service implements Runnable {
 		fuelTimeSMA = cH.new simpleMovingAverage(4);
 		if (c.blkx != null) {
 			engineLoad[] pL = c.blkx.engLoad;
+			nitrokg = c.blkx.nitro;
+			nitroConsump = c.blkx.nitroDecr;
 			if (pL != null) {
 				for (int i = 0; i < c.blkx.maxEngLoad; i++) {
 					pL[i].curWaterWorkTimeMili = pL[i].curWaterWorkTimeMili;
@@ -1172,6 +1195,7 @@ public class service implements Runnable {
 				}
 			}
 		}
+		
 	}
 
 	public void clearvaria() {
@@ -1221,14 +1245,15 @@ public class service implements Runnable {
 		// 更新state
 
 		c.initStatusBar();
-		if (httpClient.strState.length() > 2 && httpClient.strIndic.length() > 2) {
+		if (httpClient.strState.length() > 0 && httpClient.strIndic.length() > 0) {
 			// 改变状态为连接成功
 			// app.debugPrint(sState);
 			conState = sState.update(httpClient.strState);
+
+			sIndic.update(httpClient.strIndic);
 			c.changeS2();
-			if (sState.flag) {
-				sIndic.update(httpClient.strIndic);
-				
+			if (sState.flag && sIndic.flag) {
+
 				if (sState.totalThr != 0) {
 					playerLive = true;
 				}
@@ -1246,9 +1271,10 @@ public class service implements Runnable {
 					
 					
 					// 检测到加油，重置数据
-					if (fTotalFuel > fTotalFuelP) {
-						app.debugPrint("检测到油量增加 " + fTotalFuel + "," + fTotalFuelP);
+					if (fTotalFuel - fTotalFuelP > 1) {
+//						app.debugPrint("检测到油量增加 " + fTotalFuel + "," + fTotalFuelP);
 						app.debugPrint("重新加油，重置变量");
+						
 						resetvaria();
 					}
 
@@ -1258,13 +1284,14 @@ public class service implements Runnable {
 						slowcalculate((500 / freq) * freq);
 
 					// 将数据转换格式
-					transtoString();
+					trans2String();
 
 					// 写入文档
 					// c.writeDown();
 
 					// 检查死亡
 					if (sState.totalThr == 0 && sState.RPM <= 0 && sState.IAS < 10) {
+						app.debugPrint("检测到玩家坠毁");
 						playerLive = false;
 					}
 				}
@@ -1334,10 +1361,10 @@ public class service implements Runnable {
 				}
 
 				// 检查超时
-				// if (MainCheckMili <= (System.currentTimeMillis() - intv)) {
-				// app.debugPrint("deadline Miss, try catch\n" + SystemTime +
-				// "," + MainCheckMili);
-				// }
+//				 if (MainCheckMili <= (System.currentTimeMillis() - intv)) {
+//					 app.debugPrint("deadline Miss, try catch\n" + SystemTime +
+//							 "," + MainCheckMili);
+//				 }
 
 			}
 

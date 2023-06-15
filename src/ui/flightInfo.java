@@ -678,7 +678,7 @@ public class flightInfo extends WebFrame implements Runnable {
 	public void drawTick() {
 
 		// 更新字符串
-		updateString();
+//		updateString();
 
 		root.repaint();
 

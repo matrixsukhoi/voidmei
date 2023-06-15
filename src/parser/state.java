@@ -1,5 +1,7 @@
 package parser;
 
+import prog.app;
+
 public class state {
 	public String valid;
 	public boolean flag;
@@ -42,12 +44,13 @@ public class state {
 	public double efficiency[];
 	public int airbrake;
 	public double totalThr;
-
+	public int throttles[];
 	// 临时变量
 
 	public void init() {
 		// System.out.println("state初始化了");
 		valid = "false";
+		throttles = new int[maxEngNum];
 		power = new double[maxEngNum];
 		pitch = new double[maxEngNum];
 		thrust = new int[maxEngNum];
@@ -103,7 +106,7 @@ public class state {
 			gear = stringHelper.getDataInt(stringHelper.getString(buf, "gear"));
 			TAS = stringHelper.getDataInt(stringHelper.getString(buf, "TAS"));
 			IAS = stringHelper.getDataInt(stringHelper.getString(buf, "IAS"));
-			M = stringHelper.getDataFloat(stringHelper.getString(buf, "M"));
+			M = stringHelper.getDataFloat(stringHelper.getString(buf, "\"M\""));
 			heightm = stringHelper.getDataFloat(stringHelper.getString(buf, "H, m"));
 			AoA = stringHelper.getDataFloat(stringHelper.getString(buf, "AoA"));
 			AoS = stringHelper.getDataFloat(stringHelper.getString(buf, "AoS"));
@@ -148,7 +151,7 @@ public class state {
 			int totalEngineNum = 0;
 			for (i = 0; i < maxEngNum; i++) {
 				// System.out.println(engineType);
-
+				throttles[i] = stringHelper.getDataInt(stringHelper.getString(buf, "throttle " + (i+1)));
 				power[i] = stringHelper.getDataFloat(stringHelper.getString(buf, "power " + (i+1)));
 //				if(power[i] == -65535)break;
 				thrust[i] = stringHelper.getDataInt(stringHelper.getString(buf, "thrust " + (i+1)));
@@ -156,16 +159,17 @@ public class state {
 //				if(pitch[i] == -65535)break;
 				efficiency[i] = stringHelper.getDataInt(stringHelper.getString(buf, "efficiency " + (i+1)));
 //				if(efficiency[i] == -65535)break;
-				// System.out.println("power "+i+" "+power[i]);
 				// System.out.println(pitch[0]);
-
-				if(thrust[i] == -65535)break;
+//				System.out.println("thrust "+i+" "+thrust[i]);
+				if(thrust[i] == -65535) break;
+				
 				tmpThrust += thrust[i];
-				totalEngineNum ++;
+				totalEngineNum += 1;
+				
 			}
 			engineNum = totalEngineNum;
 			totalThr = tmpThrust;
-			// System.out.println(power[0]);
+//			app.debugPrint(String.format("引擎数量%d, 功率%.0f", engineNum, power[0]));
 //			if (thrust[0] != 0){
 //				engineAlive = true;
 //			}

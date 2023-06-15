@@ -1,4 +1,7 @@
 package parser;
+
+import prog.service;
+
 public class indicators{
 	public String valid;
 	public String type;
@@ -52,9 +55,10 @@ public class indicators{
 
 	public void init() {
 		//app.debugPrint("indicator初始化了");
-		valid = "false";
+		valid = service.nastring;
 		fuelnum=0;
-		fuel=new double[5];
+		fuel = new double[5];
+		flag = false;
 //		fuelpressure=false;
 	}
 	
@@ -98,10 +102,11 @@ public class indicators{
 			
 			// 防止读到油压
 			fuel[0]=stringHelper.getDataFloat(stringHelper.getString(buf, "\"fuel\""));
-			
+			fuelnum = 1;
 			for (int i = 1 ; i < 5; i++){
 				fuel[i] = stringHelper.getDataFloat(stringHelper.getString(buf, "fuel"+i));
 				if(fuel[i] == -65535) fuel[i] = 0;
+				else fuelnum += 1;
 			}
 //			fuel[0]=stringHelper.getDatadouble(stringHelper.getString(buf, "fuel1"));
 //			if (fuel[0] == -65535){
@@ -122,9 +127,17 @@ public class indicators{
 //				fuelpressure=false;
 //			}
 //			fuelpressure=false;
-			fuel[1]=stringHelper.getDataFloat(stringHelper.getString(buf, "fuel2"));
-			fuel[2]=stringHelper.getDataFloat(stringHelper.getString(buf, "fuel3"));
-			fuel[3]=stringHelper.getDataFloat(stringHelper.getString(buf, "fuel4"));
+//			fuel[1]=stringHelper.getDataFloat(stringHelper.getString(buf, "fuel2"));
+//			fuel[2]=stringHelper.getDataFloat(stringHelper.getString(buf, "fuel3"));
+//			fuel[3]=stringHelper.getDataFloat(stringHelper.getString(buf, "fuel4"));
+//			if(fuelnum==0){
+//				if(fuel[0]!=-65535)fuelnum=fuelnum+1;
+//				if(fuel[1]!=-65535)fuelnum=fuelnum+1;
+//				if(fuel[2]!=-65535)fuelnum=fuelnum+1;
+//				if(fuel[3]!=-65535)fuelnum=fuelnum+1;
+//
+//			}
+			
 			fuel_pressure=stringHelper.getDataFloat(stringHelper.getString(buf, "fuel_pressure"));
 			oxygen=stringHelper.getDataFloat(stringHelper.getString(buf, "oxygen"));
 			gears_lamp=stringHelper.getDataFloat(stringHelper.getString(buf, "gears_lamp"));
@@ -141,13 +154,7 @@ public class indicators{
 			ammo_counter2=stringHelper.getDataFloat(stringHelper.getString(buf, "ammo_counter2"));
 			ammo_counter3=stringHelper.getDataFloat(stringHelper.getString(buf, "ammo_counter3"));
 			
-			if(fuelnum==0){
-				if(fuel[0]!=-65535)fuelnum=fuelnum+1;
-				if(fuel[1]!=-65535)fuelnum=fuelnum+1;
-				if(fuel[2]!=-65535)fuelnum=fuelnum+1;
-				if(fuel[3]!=-65535)fuelnum=fuelnum+1;
 
-			}
 		
 		}
 		else{

@@ -298,9 +298,9 @@ public class engineInfo extends WebFrame implements Runnable {
 		// 加力时
 		tmp = xc.getconfig("disableEngineInfoWepTime");
 		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
-			totalString[useNum][0] = String.format("%5s", "8");
+			totalString[useNum][0] = String.format("%5s", "81");
 			totalString[useNum][1] = String.format("%s", lang.eWeptime);
-			totalString[useNum][2] = String.format("%s", "Min");
+			totalString[useNum][2] = String.format("%s", "S");
 			totalSwitch[useNum] = true;
 			idx_weptime = useNum++;
 		}
@@ -358,6 +358,7 @@ public class engineInfo extends WebFrame implements Runnable {
 	public void updateString() {
 
 		__update_num(idx_hp, s.sTotalHp);
+		
 		// 推力
 		__update_num(idx_thrust, s.sTotalThr);
 		// 转速
@@ -420,6 +421,8 @@ public class engineInfo extends WebFrame implements Runnable {
 		if (idx_weptime < useNum) {
 			if (s.sWepTime == null || s.sWepTime.equals(service.nastring)) {
 				totalSwitch[idx_weptime] = false;
+			}else {
+				totalSwitch[idx_weptime] = true;
 			}
 		}
 		__update_num(idx_weptime, s.sWepTime);
@@ -642,7 +645,7 @@ public class engineInfo extends WebFrame implements Runnable {
 
 		// 更新字符串
 
-		updateString();
+//		updateString();
 
 		root.repaint();
 	}

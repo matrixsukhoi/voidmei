@@ -13,6 +13,9 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionAdapter;
 import java.awt.image.BufferedImage;
+
+import javax.swing.RepaintManager;
+
 import com.alee.laf.panel.WebPanel;
 import com.alee.laf.rootpane.WebFrame;
 
@@ -646,6 +649,8 @@ public class minimalHUD extends WebFrame implements Runnable {
 			private static final long serialVersionUID = -9061280572815010060L;
 
 			public void paintComponent(Graphics g) {
+				
+				  
 				Graphics2D g2d = (Graphics2D) g;
 				// 开始绘图
 				// g2d.draw
@@ -683,6 +688,11 @@ public class minimalHUD extends WebFrame implements Runnable {
 			}
 		};
 		// initpanel();
+
+//		RepaintManager rm = RepaintManager.currentManager(this);
+//		boolean b = rm.isDoubleBufferingEnabled();
+//		rm.setDoubleBufferingEnabled(false);
+//		
 		this.add(panel);
 		// if (app.debug)setShadeWidth(8);
 		// setShowWindowButtons(false);
@@ -718,7 +728,7 @@ public class minimalHUD extends WebFrame implements Runnable {
 	private String sAttitude;
 	private String sAttitudeRoll;
 
-	public void drawTick() {
+	public void updateString() {
 
 		warnVne = false;
 		blinkX = xs.fatalWarn;
@@ -767,56 +777,68 @@ public class minimalHUD extends WebFrame implements Runnable {
 		rollDeg = (int) (-aviar);
 		lineCompass = String.format("%3s", xs.compass);
 		if (drawHudMach)
-			lines[0] = "M" + String.format("%6s", xs.M);
+			lines[0] = String.format("M%5s", xs.M);
 		else
-			lines[0] = ILbl + String.format("%6s", xs.IAS);
+			lines[0] = String.format("%s%6s", ILbl, xs.IAS);
 		lines[1] = HLbl + String.format("%6s", xs.salt);
 
 
 		// if(xs.sState.se)
 		if (xs.SEP > 0) {
-			lines[3] = SLbl + String.format("↑%4.0f", xs.SEP);
+			lines[3] = String.format("%s↑%4s", SLbl, xs.sSEP);
 		}
 		else {
-			lines[3] = SLbl + String.format("↓%4.0f", xs.SEP);
+			lines[3] = String.format("%s↓%4s", SLbl, xs.sSEP);
 		}
 		if (xs.sState.Ny > 1.5f || xs.sState.Ny < -0.5f)
-			lines[4] = "G" + String.format("%5s", xs.Ny);
+			lines[4] = String.format("G%5s", xs.Ny);
 		else {
 			// 燃油量和增压器
 			String s = xs.sfueltime;
-			for (int i = 1; i < xs.sState.compressorstage; i++) {
-				s += "C";
+			String compressor;
+			switch (xs.sState.compressorstage) {
+				case 1:
+					compressor = "C";
+				case 2:
+					compressor = "CC";
+				case 3:
+					compressor = "CCC";
+				default:
+					compressor = "";
 			}
 
-			lines[4] = "L" + String.format("%5s", s);
+			lines[4] = String.format("L%5s%s", s, compressor);
 			// if(xs.sState.compressorstage != 0){
 			// lines[3] += "S"
 			// +String.format("%d",xs.sState.compressorstage);
 			// }
 			s = null;
 		}
-		if (xs.sState.flaps > 0) {
-			lines[2] = "F" + String.format("%3s", xs.flaps);
-		} else {
-			if (xs.hasWingSweepVario) {
-				lines[2] = "W" + String.format("%3s", xs.sWingSweep);
-			} else {
-				lines[2] = "";
-			}
-		}
+		String brk = "";
+		String gear = "";
 		inAction = false;
 		if (xs.sState.airbrake > 0) {
-			lines[2] += "BRK";
+			brk = "BRK";
 			if (xs.sState.airbrake != 100) {
 				inAction |= true;
 			}
 		}
 
 		if (xs.sState.gear > 0) {
-			lines[2] += "GEAR";
+			gear = "GEAR";
 			if (xs.sState.gear != 100)
 				inAction |= true;
+		}
+
+		
+		if (xs.sState.flaps > 0) {
+			lines[2] = String.format("F%3s%s%s", xs.flaps, brk, gear);
+		} else {
+			if (xs.hasWingSweepVario) {
+				lines[2] = String.format("W%3s%s%s", xs.sWingSweep, brk, gear);
+			} else {
+				lines[2] = "";
+			}
 		}
 
 		// 襟翼告警
@@ -888,11 +910,14 @@ public class minimalHUD extends WebFrame implements Runnable {
 		if (aviar != -65535) {
 			int roundRoll = (int) Math.round(-aviar);
 			if (roundRoll > 0)
-				sAttitudeRoll = String.format("→%3d", roundRoll);
+				sAttitudeRoll = String.format("\\%3d", roundRoll);
 			if (roundRoll < 0)
-				sAttitudeRoll = String.format("←%3d", -roundRoll);
+				sAttitudeRoll = String.format("/%3d", -roundRoll);
 		}
-		
+	}
+	public void drawTick() {
+
+//		updateString();
 		root.repaint();
 	}
 

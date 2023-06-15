@@ -26,6 +26,7 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.nio.charset.Charset;
 
+import javax.swing.RepaintManager;
 import javax.swing.SwingUtilities;
 
 import com.alee.global.StyleConstants;
@@ -44,7 +45,7 @@ public class app {
 	public static String appName;
 	public static String defaultNumfontName = "Roboto";
 	public static String appTooltips;
-	public static String version = "1.541";
+	public static String version = "1.542";
 	public static String httpHeader;
 	public static int voiceVolumn = 100;
 	public static String defaultFontName = "Microsoft YaHei UI";

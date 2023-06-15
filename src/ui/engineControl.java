@@ -359,7 +359,23 @@ public class engineControl extends WebFrame implements Runnable {
 	}
 
 	public void updateString() {
+		if (jetChecked == false) {
+			if (s.checkEngineFlag) {
+				if (s.isEngJet()) {
+					isJet = true;
 
+					// 修改为推力百分比
+					if (lidx_p < leftUseNum)
+						leftLblNum[lidx_p][0] = lang.eThurstP;
+				}
+				jetChecked = true;
+			}
+		}
+		if (isJet) {
+		} else {
+
+		}
+		
 		// 油门
 		__update_num(lidx_t, s.throttle, s.sState.throttle);
 
@@ -398,22 +414,7 @@ public class engineControl extends WebFrame implements Runnable {
 	}
 
 	public void drawTick() {
-		if (jetChecked == false) {
-			if (s.checkEngineFlag) {
-				if (s.isEngJet()) {
-					isJet = true;
 
-					// 修改为推力百分比
-					if (lidx_p < leftUseNum)
-						leftLblNum[lidx_p][0] = lang.eThurstP;
-				}
-				jetChecked = true;
-			}
-		}
-		if (isJet) {
-		} else {
-
-		}
 		// 更新字符串
 		updateString();
 

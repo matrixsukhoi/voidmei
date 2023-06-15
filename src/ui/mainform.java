@@ -1575,11 +1575,11 @@ public class mainform extends WebFrame implements Runnable {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-			gcCount++;
+//			gcCount++;
 			// app.debugPrint("As");
 			//app.debugPrint("MainFrame执行了");
 			root.repaint();
-			if(gcCount%128 == 0){
+			if(gcCount++%256 == 0){
 				//app.debugPrint("MainFrameGC");
 				System.gc();
 			}

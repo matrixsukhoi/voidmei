@@ -212,7 +212,7 @@ public class controller {
 			}
 			flag = 4;
 			openpad();
-
+			
 		}
 	}
 
@@ -350,7 +350,7 @@ public class controller {
 			SA1.start();
 
 		}
-
+		
 		uT = new uiThread(this);
 		uT1 = new Thread(uT);
 		uT1.start();
@@ -465,6 +465,8 @@ public class controller {
 		}
 		uT.doit = false;
 		uT1 = null;
+
+		System.gc();
 	}
 
 	public void initconfig() {
@@ -511,8 +513,8 @@ public class controller {
 
 		freqGearAndFlap = (long) (freqService * 2f);
 		freqStickValue = (long) (freqService * 1f);
-		// 取频率的八分之一作为休眠时间
-		app.threadSleepTime = (long) (freqService >> 3);
+		// 取频率的3分之一作为休眠时间
+		app.threadSleepTime = (long) (freqService / 3);
 
 		// app.debugPrint(freqService);
 
@@ -915,27 +917,20 @@ public class controller {
 		if (blkx.valid == true) {
 			fmfile = blkx.getlastone("fmfile");
 			fmfile = fmfile.substring(1, fmfile.length() - 1);
-			if (fmfile.indexOf("blk") == -1)
-				fmfile = fmfile + ".blk";
-			for (i = 0; i < fmfile.length(); i++) {
-				if (fmfile.charAt(i) == '/')
-					break;
-			}
-			// app.debugPrint(fmfile);
-			if (i + 1 >= fmfile.length()) {
-				fmfile = planename + ".blk";
-			} else
-				fmfile = fmfile.substring(i + 1);
+			/* 去除多余的/ */
+			if (fmfile.charAt(0) == '/')
+				fmfile = fmfile.substring(1);
 		}
-		// app.debugPrint(fmfile);
+		app.debugPrint(fmfile);
 
 		// 读入fmfile
 		if (fmfile != null)
-			blkx = new blkx("./data/aces/gamedata/flightmodels/fm/" + fmfile + "x", fmfile);
+			blkx = new blkx("./data/aces/gamedata/flightmodels/" + fmfile + "x", fmfile);
 
 		if (blkx.valid == true) {// app.debugPrint(blkx.data);
 			blkx.getAllplotdata();
 //			blkx.getload();
+			blkx.data = null;
 		}
 
 	}

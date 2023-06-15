@@ -24,6 +24,10 @@ public class httpHelper {
 			+ "127.0.0.1" + "\n" + "Cache-Control:no-cache\n" + app.httpHeader + "\n";
 	public String strState;
 	public String strIndic;
+	
+	public StringBuilder strBState = new StringBuilder();
+	public StringBuilder strBIndic = new StringBuilder();
+	
 	public static final String nstring="";
 
 	public String sendGet(String host, int port, String path) throws IOException {
@@ -69,8 +73,62 @@ public class httpHelper {
 
 		return result;
 	}
+	
+	public static final int buf_len = 8192;
+	public char buf_indic[] = new char[buf_len];
+	public char buf_state[] = new char[buf_len];
+
+	public void sendGetFastBufB(char[] buf, String req_string, SocketAddress dest, StringBuilder bd) throws IOException {
+		Socket socket = new Socket();
+		// socket.
+		socket.connect(dest);
+		OutputStreamWriter streamWriter = new OutputStreamWriter(socket.getOutputStream());
+		BufferedWriter bufferedWriter = new BufferedWriter(streamWriter);
+
+		BufferedInputStream streamReader = new BufferedInputStream(socket.getInputStream());
+
+		BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(streamReader, "utf-8"));
+
+		bufferedWriter.write(req_string);
+		// bufferedWriter.write("\r\n");
+		bufferedWriter.flush();
+
+		
+		bufferedReader.read(buf, 0, buf_len);
+		
+
+		bufferedReader.close();
+		bufferedWriter.close();
+		socket.close();
+		bd.delete(0, bd.length());
+		bd.append(buf);
+	}
+	public String sendGetFastBuf(char[] buf, String req_string, SocketAddress dest) throws IOException {
+		Socket socket = new Socket();
+		// socket.
+		socket.connect(dest);
+		OutputStreamWriter streamWriter = new OutputStreamWriter(socket.getOutputStream());
+		BufferedWriter bufferedWriter = new BufferedWriter(streamWriter);
+
+		BufferedInputStream streamReader = new BufferedInputStream(socket.getInputStream());
+
+		BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(streamReader, "utf-8"));
+
+		bufferedWriter.write(req_string);
+		// bufferedWriter.write("\r\n");
+		bufferedWriter.flush();
+
+		
+		int rlen = bufferedReader.read(buf, 0, buf_len);
 
 
+		bufferedReader.close();
+		bufferedWriter.close();
+		socket.close();
+		return String.valueOf(buf, 0, rlen);
+		//.valueOf(buf);
+	}
+	
 	public String sendGetFast(String req_string, SocketAddress dest) throws IOException {
 		String result = null;
 		Socket socket = new Socket();
@@ -96,6 +154,11 @@ public class httpHelper {
 		String line = null;
 
 		// if (bufferedReader.ready()) {
+
+		StringBuilder contentBuf = new StringBuilder();
+//		bufferedReader.read()
+		
+		// TODO: 优化过程，一次性读取
 		bufferedReader.readLine();
 		bufferedReader.readLine();
 		bufferedReader.readLine();
@@ -103,25 +166,13 @@ public class httpHelper {
 		bufferedReader.readLine();
 		bufferedReader.readLine();
 
-		StringBuilder contentBuf = new StringBuilder();
 		while ((line = bufferedReader.readLine()) != null) {
 			contentBuf.append(line);
 		}
 		result = contentBuf.toString();
-		// }
-		// else{
-		// result = nastring;
-		// }
-		// app.debugPrint(result);
 		bufferedReader.close();
 		bufferedWriter.close();
 		socket.close();
-		// socket = null;
-		// bufferedReader = null;
-		// bufferedWriter = null;
-		//
-		// streamWriter = null;
-		// contentBuf = null;
 		return result;
 	}
 	// public Future<String> sendGetAsync(CompletableFuture<String>
@@ -144,54 +195,27 @@ public class httpHelper {
 	public void getReqResult(SocketAddress req_addr) {
 		try {
 
-			// Executors.newCachedThreadPool().submit(() -> {
-			// s = sendGetFast(state_request, req_addr);
-			// completableFuture0.complete(true);
-			// return null;
-			// });
-			// Executors.newCachedThreadPool().submit(() -> {
-			// s1 = sendGetFast(indic_request, req_addr);
-			// completableFuture1.complete(true);
-			// return null;
-			// });
-			//// s1 = sendGetFast(indic_request, req_addr);
-			// try {
-			// completableFuture0.get(4, TimeUnit.MILLISECONDS);
-			// } catch (TimeoutException e) {
-			//
-			// System.out.println("s Time Out\n");
-			//
-			//// completableFuture0.cancel(true);
-			// s = nullstring;
-			// }
-			//
-			// try {
-			// completableFuture1.get(4, TimeUnit.MILLISECONDS);
-			// } catch (TimeoutException e) {
-			// System.out.println("s1 Time Out\n");
-			//// completableFuture1.cancel(true);
-			// s1 = nullstring;
-			// }
 
+//			Executors.newCachedThreadPool().submit(() -> {
+//				strState = sendGetFast(state_request, req_addr);
+//				completableFuture0.complete(true);
+//				return null;
+//			});
+//			
+////			strIndic = sendGetFast(indic_request, req_addr);
+//			strIndic = sendGetFastBuf(buf_indic, indic_request, req_addr);
+//			
 			Executors.newCachedThreadPool().submit(() -> {
-				strState = sendGetFast(state_request, req_addr);
+//				sendGetFastBufB(buf_state, state_request, req_addr, strBState);
+				strState = sendGetFastBuf(buf_state, state_request, req_addr);
+//				System.out.println(strState);
 				completableFuture0.complete(true);
 				return null;
 			});
-
-			strIndic = sendGetFast(indic_request, req_addr);
+//			sendGetFastBufB(buf_state, state_request, req_addr, strBIndic);
+			strIndic = sendGetFastBuf(buf_indic, indic_request, req_addr);
 			completableFuture0.get();
-			// try {
-			// completableFuture0.get(4, TimeUnit.MILLISECONDS);
-			// } catch (TimeoutException e) {
-			//
-			// System.out.println("s Time Out\n");
-			//
-			//// completableFuture0.cancel(true);
-			// s = nullstring;
-			// }
-
-			// intv = freq;
+			
 
 		} catch (InterruptedException e) {
 			// TODO Auto-generated catch block

@@ -1,6 +1,7 @@
 package prog;
 
 import java.awt.AWTException;
+import java.awt.Toolkit;
 
 import parser.flightLog;
 import ui.attitudeIndicator;
@@ -24,15 +25,21 @@ public class uiThread implements Runnable {
 	private long GCheckMili;
 	private long SCheckMili;
 	private long GCCheckMili;
+	private int drawTickNr;
 
 	public uiThread(controller xc) {
 		c = xc;
 		doit = Boolean.TRUE;
+		drawTickNr = 0;
 	}
 
 	@Override
 	public void run() {
-
+		Boolean repaintH;
+		Boolean repaintFL;
+		Boolean repaintF;
+		Boolean repaintFI;
+		long stime;
 		while (doit) {
 			// 每多少秒更新一次ui
 			try {
@@ -41,64 +48,96 @@ public class uiThread implements Runnable {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-
-			long stime = c.S.SystemTime;
-
+			repaintH = false;
+			repaintFL = false;
+			repaintF = false;
+			repaintFI = false;
+			stime = c.S.SystemTime;
+			
 			// 刷新时间
 			if (stime - HCheckMili >= c.freqService) {
 				HCheckMili = stime;
-
+				
+				/* 刷新字符串 */
 				if (c.H != null) {
-					c.H.drawTick();
+					c.H.updateString();
+					repaintH = true;
+					drawTickNr ++;
 				}
 			}
 			if (stime - FCheckMili >= c.freqFlightInfo) {
 				// 飞行信息
 				FCheckMili = stime;
 				if (c.FL != null) {
-					c.FL.drawTick();
+					c.FL.updateString();
+					repaintFL = true;
+					drawTickNr ++;
 				}
 			}
 
 			if (stime - ECheckMili >= c.freqEngineInfo) {
 				ECheckMili = stime;
 				if (c.F != null) {
-					c.F.drawTick();
+					c.F.updateString();
+					repaintF = true;
+					drawTickNr ++;
 				}
 
 				if (c.FI != null) {
-					c.FI.drawTick();
+					c.FI.updateString();
+					repaintFI = true;
+					drawTickNr ++;
 				}
 			}
 
+
+
+			// 立即刷新，提升实时性
+//			Toolkit.getDefaultToolkit().sync();
+			if (repaintH) c.H.drawTick();
+			if (repaintFL) c.FL.drawTick();
+			if (repaintF) c.F.drawTick();
+			if (repaintFI) c.FI.drawTick();
+			
 			if (stime - ACheckMili >= c.freqAltitude) {
 				ACheckMili = stime;
 				if (c.aI != null) {
-					if (c.S.sState != null && c.S.sIndic != null)
+					if (c.S.sState != null && c.S.sIndic != null) {
 						c.aI.drawTick();
+						drawTickNr ++;
+					}
 				}
 			}
 			
 			if (stime - GCheckMili >= c.freqGearAndFlap) {
 				GCheckMili = stime;
 				if (c.fS != null) {
+					drawTickNr ++;
 					c.fS.drawTick();
 				}
 			}
 			if (stime - SCheckMili >= c.freqStickValue) {
 				SCheckMili = stime;
 				if (c.sV != null) {
+					drawTickNr ++;
 					c.sV.drawTick();
 				}
 			}
+			// 10秒回收一次内存
+//			if (stime - GCCheckMili > app.gcSeconds * 1000) {
+////				app.debugPrint("内存回收");
+//				GCCheckMili = stime;
+//				System.gc();
+//			}
+//			System.gc();
+			// 8 * 4096次回收一次内存
 			
-			// 20秒回收一次内存
-			if (stime - GCCheckMili > app.gcSeconds * 1000) {
-//				app.debugPrint("内存回收");
-				GCCheckMili = stime;
+			if (drawTickNr >= 0x400) {
+//				GCCheckMili = stime;
+				drawTickNr = 0;
 				System.gc();
 			}
-			
+
 			// if (Boolean.parseBoolean(getconfig("crosshairSwitch"))) {
 			// H = new minimalHUD();
 			// H1 = new Thread(H);
