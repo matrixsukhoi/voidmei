@@ -22,6 +22,10 @@ public class httpHelper {
 			+ "Cache-Control:no-cache\n" + app.httpHeader + "\n";
 	public String fmcm_request = "GET " + "/editor/fm_commands?cmd=getFmProperties" + " HTTP/1.1\n" + "Host: "
 			+ "127.0.0.1" + "\n" + "Cache-Control:no-cache\n" + app.httpHeader + "\n";
+	public String setAltReq = "GET " + "/editor/fm_commands?cmd=setAlt&value=%d"+ " HTTP/1.1\n" + "Host: "
+			+ "127.0.0.1" + "\n" + "Cache-Control:no-cache\n" + app.httpHeader + "\n";
+	public String setVelReq = "GET " + "/editor/fm_commands?cmd=setVelocity&value=%.0f"+ " HTTP/1.1\n" + "Host: "
+			+ "127.0.0.1" + "\n" + "Cache-Control:no-cache\n" + app.httpHeader + "\n";
 	public String strState;
 	public String strIndic;
 	
@@ -29,6 +33,40 @@ public class httpHelper {
 	public StringBuilder strBIndic = new StringBuilder();
 	
 	public static final String nstring="";
+	public void fmCmdSetAlt(int alt, SocketAddress dest) throws IOException{
+		String tmp_req = String.format(setAltReq, alt);
+		Socket socket = new Socket();
+		// socket.
+		socket.connect(dest);
+		OutputStreamWriter streamWriter = new OutputStreamWriter(socket.getOutputStream());
+		BufferedWriter bufferedWriter = new BufferedWriter(streamWriter);
+
+		BufferedInputStream streamReader = new BufferedInputStream(socket.getInputStream());
+
+		BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(streamReader, "utf-8"));
+
+		bufferedWriter.write(tmp_req);
+		bufferedWriter.flush();
+		bufferedReader.close();
+		socket.close();
+	}
+	public void fmCmdSetSpd(double spd, SocketAddress dest) throws IOException{
+		String tmp_req = String.format(setVelReq, spd);
+		Socket socket = new Socket();
+		// socket.
+		socket.connect(dest);
+		OutputStreamWriter streamWriter = new OutputStreamWriter(socket.getOutputStream());
+		BufferedWriter bufferedWriter = new BufferedWriter(streamWriter);
+
+		BufferedInputStream streamReader = new BufferedInputStream(socket.getInputStream());
+
+		BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(streamReader, "utf-8"));
+
+		bufferedWriter.write(tmp_req);
+		bufferedWriter.flush();
+		bufferedReader.close();
+		socket.close();
+	}
 
 	public String sendGet(String host, int port, String path) throws IOException {
 

@@ -1,29 +1,10 @@
 package prog;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
-import java.net.InetSocketAddress;
-import java.net.MalformedURLException;
-import java.net.Socket;
-import java.net.SocketAddress;
-import java.net.URL;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 import parser.blkx.engineLoad;
 import parser.flightLog;
 import parser.indicators;
 import parser.state;
-import sun.net.www.http.HttpClient;
 
 public class service implements Runnable {
 	public static calcHelper cH = new calcHelper();
@@ -244,11 +225,11 @@ public class service implements Runnable {
 			// sfueltime = String.format("%d:%02d", fueltime / 60000, (int)
 			// ((fueltime / 1000) % 60 ));
 			if (fueltime / 60000 < 100 && !bLowAccFuel) {
-				sfueltime = String.format("%d:%02d", fueltime / 60000, (long) ((fueltime / 1000) % 60 / 10) * 10);
+				sfueltime = String.format("%02d'%02d", fueltime / 60000, (long) ((fueltime / 1000) % 60 / 10) * 10);
 				// sfueltime = String.format("%d.%d", fueltime / 60000,
 				// (fueltime % 60000) / 6000);
 			} else
-				sfueltime = String.format("%d", fueltime / 60000);
+				sfueltime = String.format("%.0f", (float)fueltime / 60000);
 
 		}
 		sTotalThr = String.format("%d", iTotalThr);
@@ -387,13 +368,13 @@ public class service implements Runnable {
 				if (twepTime < 0) {
 					twepTime = 0;
 				}
-	//			if (twepTime / 60 >= 100) {
-	//				sWepTime = String.format("%d", twepTime / 60);
-	//			} else {
-					// sWepTime = String.format("%d:%02d", twepTime / 60, twepTime %
-					// 60);
-					sWepTime = String.format("%.0f", (double) twepTime);
-	//			}
+				if (twepTime / 60 >= 100) {
+					sWepTime = String.format("%3d", twepTime / 60);
+				} else {
+					sWepTime = String.format("%02d'%02d", twepTime / 60, twepTime %
+					60);
+					// sWepTime = String.format("%.0f", (double) twepTime);
+				}
 			}
 
 		} else {
@@ -532,12 +513,19 @@ public class service implements Runnable {
 		// }
 	}
 
+	// public engineLoad[] sPL;
 	public void checkOverheat() {
 		engineLoad[] pL = c.blkx.engLoad;
-		curLoad = c.blkx.findmaxLoad(pL, nwaterTemp, noilTemp);
+//		curLoad = c.blkx.findmaxLoad(pL, nwaterTemp, noilTemp);
 		// 减去时间
 		double minWorkTime = 99999 * 1000;
-
+		/* 关发动机后，温度降到最低load后恢复 */
+		Boolean engOff = false;
+		if (sState.power[0] == 0 && sState.throttle > 0){
+			/* 关发动机 */
+			engOff = true;
+//			app.debugPrint("监测到引擎关闭");
+		}
 		// 水冷
 		curWLoad = c.blkx.findmaxWaterLoad(pL, nwaterTemp);
 		for (int i = 0; i < c.blkx.maxEngLoad; i++) {
@@ -550,14 +538,24 @@ public class service implements Runnable {
 				}
 
 			} else {
-				// 大于load且工作时长不满则进行恢复
-				// if (i >= curLoad) {
-				if (sState.throttle <= 100) {
-					if (pL[i].RecoverTime != 0 && (1000 * pL[i].WorkTime > pL[i].curWaterWorkTimeMili)) {
-						pL[i].curWaterWorkTimeMili += (double) TimeIncrMili * pL[i].WorkTime / pL[i].RecoverTime;
+				
+				if (engOff){
+					// 关闭引擎直接回满
+					if (curWLoad == 0 || pL[curWLoad - 1].WorkTime < 0.1) {
+//						 app.debugPrint("回复水温耐久条");
+						pL[i].curWaterWorkTimeMili = pL[i].WorkTime * 1000;
 					}
 				}
-				// }
+				else{
+					// 大于load且工作时长不满则进行恢复
+					if (sState.throttle <= 100) {
+						if (pL[i].RecoverTime != 0 && (1000 * pL[i].WorkTime > pL[i].curWaterWorkTimeMili)) {
+							pL[i].curWaterWorkTimeMili += (double) TimeIncrMili * pL[i].WorkTime / pL[i].RecoverTime;
+						}
+					}
+				}
+
+			
 			}
 		}
 
@@ -580,14 +578,21 @@ public class service implements Runnable {
 				}
 
 			} else {
-				// 大于load且工作时长不满则进行恢复
-				// if (i >= curLoad) {CCCCCCC
-				if (sState.throttle <= 100) {
-					if (pL[i].RecoverTime != 0 && (1000 * pL[i].WorkTime > pL[i].curOilWorkTimeMili)) {
-						pL[i].curOilWorkTimeMili += (double) TimeIncrMili * pL[i].WorkTime / pL[i].RecoverTime;
+				if (engOff){
+					// 关闭引擎直接回满
+					if (curOLoad ==0 || pL[curOLoad - 1].WorkTime < 0.1) {
+//						 app.debugPrint("回复油温耐久条");
+						pL[i].curOilWorkTimeMili = pL[i].WorkTime * 1000;
 					}
 				}
-				// }
+				else{
+					// 大于load且工作时长不满则进行恢复
+					if (sState.throttle <= 100) {
+						if (pL[i].RecoverTime != 0 && (1000 * pL[i].WorkTime > pL[i].curOilWorkTimeMili)) {
+							pL[i].curOilWorkTimeMili += (double) TimeIncrMili * pL[i].WorkTime / pL[i].RecoverTime;
+						}
+					}
+				}
 			}
 		}
 
@@ -673,12 +678,12 @@ public class service implements Runnable {
 	public void updateTemp() {
 		noilTemp = sIndic.oilTemp;
 		nwaterTemp = sIndic.waterTemp;
-		if (noilTemp == -65535) {
+		if (noilTemp <= -65534) {
 			noilTemp = sState.oiltemp;
 		}
-		if (nwaterTemp == -65535) {
+		if (nwaterTemp <= -65534) {
 			nwaterTemp = sIndic.engine_temperature;
-			if (nwaterTemp == -65535)
+			if (nwaterTemp <= -65534)
 				nwaterTemp = sState.watertemp;
 		}
 	}
@@ -1021,7 +1026,6 @@ public class service implements Runnable {
 	}
 
 	public void calculate() {
-		int i;
 
 		// 获得开始时间
 		elapsedTime = SystemTime - startTime;
@@ -1132,7 +1136,14 @@ public class service implements Runnable {
 		}
 
 	}
-
+	public void resetEngLoad(){
+		if(c.blkx != null && c.blkx.valid){
+			for (int idx = 0; idx < c.blkx.maxEngLoad; idx++){
+				c.blkx.engLoad[idx].curWaterWorkTimeMili = c.blkx.engLoad[idx].WorkTime * 1000;
+				c.blkx.engLoad[idx].curOilWorkTimeMili = c.blkx.engLoad[idx].WorkTime * 1000;
+			}
+		}
+	}
 	// 重置变量
 	public void resetvaria() {
 		playerLive = false;
@@ -1163,6 +1174,9 @@ public class service implements Runnable {
 		maxTotalThr = 0;
 		diffspeed = 0;
 		curLoadMinWorkTime = 99999 * 1000;
+		/* 刷新引擎工作时间 */
+		resetEngLoad();
+		// if(c.blkx != null && c.blkx.maxEngLoad != 0)c.blkx.resetEngineLoad();
 		FuelCheckMili = System.currentTimeMillis();
 		MainCheckMili = FuelCheckMili;
 		notCheckInch = false;

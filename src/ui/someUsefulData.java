@@ -7,6 +7,8 @@ import java.awt.Toolkit;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionAdapter;
+import java.io.IOException;
+
 import com.alee.laf.label.WebLabel;
 import com.alee.laf.panel.WebPanel;
 import com.alee.laf.rootpane.WebFrame;
@@ -200,6 +202,17 @@ public class someUsefulData extends WebFrame implements Runnable {
 			}	
 			if (this.xc.S.sState.gear != 100 || (this.xc.S.speedv > 10 && this.xc.S.sState.throttle > 0)) {
 				// 如果收起落架则关闭break
+				/* 测试，开始传送 */
+				// if (app.fmTesting){
+				// 	/* 先上10000米 */
+				// 	try {
+				// 		xc.S.httpClient.fmCmdSetAlt(10000, app.requestDest);
+				// 		xc.S.httpClient.fmCmdSetSpd(100.0f, app.requestDest);
+				// 	} catch (IOException e) {
+				// 		// TODO Auto-generated catch block
+				// 		e.printStackTrace();
+				// 	}
+				// }
 				try {
 					Thread.sleep(10000);
 				} catch (InterruptedException e) {

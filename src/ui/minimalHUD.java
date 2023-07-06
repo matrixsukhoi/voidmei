@@ -14,8 +14,6 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionAdapter;
 import java.awt.image.BufferedImage;
 
-import javax.swing.RepaintManager;
-
 import com.alee.laf.panel.WebPanel;
 import com.alee.laf.rootpane.WebFrame;
 
@@ -837,7 +835,7 @@ public class minimalHUD extends WebFrame implements Runnable {
 			if (xs.hasWingSweepVario) {
 				lines[2] = String.format("W%3s%s%s", xs.sWingSweep, brk, gear);
 			} else {
-				lines[2] = "";
+				lines[2] = String.format("%4s%s%s", "", brk, gear);
 			}
 		}
 

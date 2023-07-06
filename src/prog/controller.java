@@ -41,7 +41,7 @@ public class controller {
 	public boolean logon = false;
 
 	public blkx blkx;
-
+	
 	Robot robot;
 
 	engineControl F;
@@ -181,6 +181,10 @@ public class controller {
 		}
 	}
 	public String cur_fmtype;
+
+	private autoMeasure aM;
+
+	private Thread aM1;
 	public void changeS3() {
 		// 状态3，连接成功，释放状态条，打开面板
 		// SB.repaint();
@@ -245,6 +249,11 @@ public class controller {
 
 	public void openpad() {
 		// hideTaskbarSw();
+		if (app.fmTesting){
+			aM = new autoMeasure(S);
+			aM1 = new Thread(aM);
+			aM1.start();
+		}
 
 		if (getconfig("enableFMPrint").equals("true")) {
 			pt = new someUsefulData();
@@ -358,6 +367,11 @@ public class controller {
 	}
 
 	public void closepad() {
+		if (app.fmTesting){
+			aM.doit = false;
+			aM1 = null;
+			aM = null;
+		}
 		if (getconfig("enableVoiceWarn").equals("true")) {
 			vW.doit = false;
 			vW1 = null;
@@ -910,22 +924,26 @@ public class controller {
 	void getfmdata(String planename) {
 		String fmfile = null;
 		// String unitSystem;
-		int i;
 		// 读入fm
-
-		blkx = new blkx("./data/aces/gamedata/flightmodels/" + planename + ".blkx", planename + ".blk");
+		String planeFileName = planename.toLowerCase();
+		blkx = new blkx("./data/aces/gamedata/flightmodels/" + planeFileName + ".blkx", planeFileName + ".blk");
 		if (blkx.valid == true) {
 			fmfile = blkx.getlastone("fmfile");
-			fmfile = fmfile.substring(1, fmfile.length() - 1);
-			/* 去除多余的/ */
-			if (fmfile.charAt(0) == '/')
-				fmfile = fmfile.substring(1);
+			if (fmfile != null) {
+				fmfile = fmfile.substring(1, fmfile.length() - 1);
+				/* 去除多余的/ */
+				if (fmfile.charAt(0) == '/')
+					fmfile = fmfile.substring(1);
+			}
+		}
+		if (fmfile == null) {
+			/* 直接读取 */
+			fmfile = "fm/" + planeFileName + ".blk";
 		}
 		app.debugPrint(fmfile);
 
 		// 读入fmfile
-		if (fmfile != null)
-			blkx = new blkx("./data/aces/gamedata/flightmodels/" + fmfile + "x", fmfile);
+		blkx = new blkx("./data/aces/gamedata/flightmodels/" + fmfile + "x", fmfile);
 
 		if (blkx.valid == true) {// app.debugPrint(blkx.data);
 			blkx.getAllplotdata();

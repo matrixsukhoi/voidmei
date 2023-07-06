@@ -1,18 +1,5 @@
 package prog;
 
-import java.awt.AWTException;
-import java.awt.Toolkit;
-
-import parser.flightLog;
-import ui.attitudeIndicator;
-import ui.drawFrameSimpl;
-import ui.engineInfo;
-import ui.engineControl;
-import ui.flightInfo;
-import ui.gearAndFlaps;
-import ui.minimalHUD;
-import ui.someUsefulData;
-import ui.stickValue;
 
 public class uiThread implements Runnable {
 	long CheckMili;
@@ -24,7 +11,7 @@ public class uiThread implements Runnable {
 	private long ACheckMili;
 	private long GCheckMili;
 	private long SCheckMili;
-	private long GCCheckMili;
+	// private long GCCheckMili;
 	private int drawTickNr;
 
 	public uiThread(controller xc) {

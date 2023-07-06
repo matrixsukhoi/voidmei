@@ -274,21 +274,23 @@ public class blkx {
 		return ret;
 	}
 
-	public int findmaxLoad(engineLoad[] eL, double water, double oil) {
-		for (int i = 0; i < maxEngLoad; i++) {
-			// 大于还是小于等于呢？
-			if (water < eL[i].WaterLimit && oil < eL[i].OilLimit)
-				return i;
-		}
-
-		return maxEngLoad;
-	}
+//	public int findmaxLoad(engineLoad[] eL, double water, double oil) {
+//		for (int i = 0; i < maxEngLoad; i++) {
+//			// 大于还是小于等于呢？
+//			if (water < eL[i].WaterLimit && oil < eL[i].OilLimit)
+//				return i;
+//		}
+//
+//		return maxEngLoad;
+//	}
 
 	public int findmaxWaterLoad(engineLoad[] eL, double water) {
 		for (int i = 0; i < maxEngLoad; i++) {
 			// 大于还是小于等于呢？
 			if (water < eL[i].WaterLimit)
 				return i;
+//			if (Math.round(water) < eL[i].WaterLimit)
+//				return i;
 		}
 
 		return maxEngLoad;
@@ -299,6 +301,8 @@ public class blkx {
 			// 大于还是小于等于呢？
 			if (oil < eL[i].OilLimit)
 				return i;
+//			if (Math.round(oil) < eL[i].OilLimit)
+//				return i;
 		}
 
 		return maxEngLoad;
@@ -378,7 +382,29 @@ public class blkx {
 	private double Wx600;
 	private double[] modeEngineRPMMult;
 	private double engineRPMMultWEP;
+	private fm_parts FullFlapsWingS;
+	private fm_parts NoFlapsWingS;
+	public void initEngineLoad(){
+		avgEngRecoveryRate = 0.0f;
+		engLoad = new engineLoad[app.maxEngLoad];
+		for (int i = 0; i < app.maxEngLoad; i++) {
+			engLoad[i] = new engineLoad();
+		}
+		maxEngLoad = 0;
+		do {
 
+		} while (getEngineLoad(engLoad, maxEngLoad++));
+		maxEngLoad -= 1;
+		engLoad[maxEngLoad].WaterLimit = 999;
+		engLoad[maxEngLoad].OilLimit = 999;
+
+		for (int i = 0; i < maxEngLoad; i++) {
+			if (engLoad[i].RecoverTime != 0)
+				avgEngRecoveryRate = avgEngRecoveryRate + engLoad[i].WorkTime / engLoad[i].RecoverTime;
+			showEngineLoad(engLoad, i);
+		}
+		avgEngRecoveryRate = avgEngRecoveryRate / (maxEngLoad - 1);
+	}
 	public void getload() {
 		// String Load0 = cut(data, "Load0");
 		// app.debugPrint(getone("Load0.WaterTemperature"));
@@ -528,29 +554,25 @@ public class blkx {
 		maxAllowedRPM = getdouble("RPMMaxAllowed");
 //		app.debugPrint("RPM"+maxAllowedRPM);
 		
-		avgEngRecoveryRate = 0.0f;
+		// avgEngRecoveryRate = 0.0f;
 		version = getVersion();
+		initEngineLoad();
+		// engLoad = new engineLoad[10];
+		// for (int i = 0; i < 10; i++) {
+		// 	engLoad[i] = new engineLoad();
+		// }
 
-		engLoad = new engineLoad[10];
-		for (int i = 0; i < 10; i++) {
-			engLoad[i] = new engineLoad();
-		}
-		maxEngLoad = 0;
-		do {
+		// maxEngLoad -= 1;
+		// engLoad[maxEngLoad].WaterLimit = 999;
+		// engLoad[maxEngLoad].OilLimit = 999;
 
-		} while (getEngineLoad(engLoad, maxEngLoad++));
-
-		maxEngLoad -= 1;
-		engLoad[maxEngLoad].WaterLimit = 999;
-		engLoad[maxEngLoad].OilLimit = 999;
-
-		for (int i = 0; i < maxEngLoad; i++) {
-			if (engLoad[i].RecoverTime != 0)
-				avgEngRecoveryRate = avgEngRecoveryRate + engLoad[i].WorkTime / engLoad[i].RecoverTime;
-			showEngineLoad(engLoad, i);
-		}
+		// for (int i = 0; i < maxEngLoad; i++) {
+		// 	if (engLoad[i].RecoverTime != 0)
+		// 		avgEngRecoveryRate = avgEngRecoveryRate + engLoad[i].WorkTime / engLoad[i].RecoverTime;
+		// 	showEngineLoad(engLoad, i);
+		// }
 		// app.debugPrint(engLoad[0].WorkTime/engLoad[i].RecoverTime);
-		avgEngRecoveryRate = avgEngRecoveryRate / (maxEngLoad - 1);
+		// avgEngRecoveryRate = avgEngRecoveryRate / (maxEngLoad - 1);
 		emptyweight = getdouble("EmptyMass");
 		vne = getdouble("Vne:");
 		if(vne == 0){
@@ -720,6 +742,21 @@ public class blkx {
 		if (FullFlapsWing.AoACritHigh == 0) {
 			getPartsFm("FlapsPolar1", FullFlapsWing);
 		}
+
+		/* 判断最大可变后掠角 */
+		// if (getone(""))
+		// NoFlapsWingS = new fm_parts();
+		// getPartsFm("FullFlaps", FullFlapsWing);
+		// if (FullFlapsWing.AoACritHigh == 0) {
+		// 	getPartsFm("FlapsPolar1", FullFlapsWing);
+		// }
+
+		// FullFlapsWingS = new fm_parts();
+		// getPartsFm("FullFlaps", FullFlapsWing);
+		// if (FullFlapsWing.AoACritHigh == 0) {
+		// 	getPartsFm("FlapsPolar1", FullFlapsWing);
+		// }
+
 
 		Fuselage = new fm_parts();
 		getPartsFm("Fuselage", Fuselage);
@@ -1101,7 +1138,7 @@ public class blkx {
 		int eix = 0;
 		bix = text.toUpperCase().lastIndexOf(label.toUpperCase());
 		if (bix == -1)
-			return "null";
+			return null;
 		while (text.charAt(bix) != '=')
 			bix++;
 		bix++;

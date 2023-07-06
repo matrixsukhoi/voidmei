@@ -17,16 +17,19 @@ import java.awt.TrayIcon;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.image.BufferedImage;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.lang.reflect.Field;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.nio.charset.Charset;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
-import javax.swing.RepaintManager;
 import javax.swing.SwingUtilities;
 
 import com.alee.global.StyleConstants;
@@ -35,9 +38,12 @@ import com.alee.laf.WebLookAndFeel;
 public class app {
 	// 一些全局配置
 	public static final boolean debug = false;
-
-	// 调试日芷
-	public static final boolean debugLog = true;
+	// 测试FM
+	public static boolean fmTesting = false;
+	
+	// 调试日志
+	public static final boolean debugLog = false;
+	public static final int maxEngLoad = 10;
 
 	public static final long gcSeconds = 10;
 	public static final Color previewColor = new Color(0, 0, 0, 10);
@@ -45,7 +51,7 @@ public class app {
 	public static String appName;
 	public static String defaultNumfontName = "Roboto";
 	public static String appTooltips;
-	public static String version = "1.542";
+	public static String version = "1.545";
 	public static String httpHeader;
 	public static int voiceVolumn = 100;
 	public static String defaultFontName = "Microsoft YaHei UI";
@@ -96,6 +102,37 @@ public class app {
 	// 是否开启
 	public static boolean drawFontShape = false;
 
+	public static String getJavaVersion() {
+		r = Runtime.getRuntime();
+		try {
+
+			String cmd1 = "java -version";
+			Process p = r.exec(cmd1);
+			/* 读取执行结果 */
+			BufferedReader br = new BufferedReader(new InputStreamReader(p.getErrorStream(), "UTF-8"));
+			String line = null;
+			StringBuilder sb = new StringBuilder();
+			while ((line = br.readLine()) != null) {
+				sb.append(line);
+			}
+			p.getInputStream().close();
+			/* 正则提取版本 */
+			
+			Pattern pt = Pattern.compile("\"[0-9].[0-9].*\"");
+			Matcher m = pt.matcher(sb.toString());
+			
+			
+//			app.debugPrint("输出"+sb.toString());
+			if (m.find()) {
+				String ret = m.group(0);
+				return ret;
+			}
+			
+		} catch (Exception e1) {
+			e1.printStackTrace();
+		}
+		return "0.0";
+	}
 	public void pluginopen() {
 		r = Runtime.getRuntime();
 		int tasklist1 = -1;
@@ -318,7 +355,13 @@ public class app {
 
 		// set output stream
 		setUTF8();
-
+		
+		app.debugPrint("Java版本为 " + System.getProperty("java.version"));
+		if (System.getProperty("java.version").indexOf("1.8.0") == -1) {
+			System.out.println("检测到java版本非1.8.0版本，程序运行可能出现问题");
+		}
+		
+		
 		if (app.debugLog) {
 			setDebugLog("./output.log");
 			setErrLog("./error.log");
@@ -349,8 +392,11 @@ public class app {
 			public void run() {
 				// Install WebLaF as application L&F
 				initWebLaf();
-
 				ctr = new controller();
+
+				if (System.getProperty("java.version").indexOf("1.8") == -1) {
+					controller.notificationtimeAbout(String.format("Detected current Java version %s. Java 1.8 is needed.", System.getProperty("java.version")) , 3000);
+				}
 			}
 		});
 

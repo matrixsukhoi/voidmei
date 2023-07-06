@@ -629,10 +629,10 @@ public class voiceWarning implements Runnable {
 		// e1.printStackTrace();
 		// }
 		// 随机播放
-		int i = (int) (Math.random() * maxEndVoiceNum);
-		audClip aC = new audClip("./voice/end" + i + ".wav", 1);
-		aC.playOnce(xS.SystemTime);
-		// aC.close();
-		aC = null;
+//		int i = (int) (Math.random() * maxEndVoiceNum);
+//		audClip aC = new audClip("./voice/end" + i + ".wav", 1);
+//		aC.playOnce(xS.SystemTime);
+//		// aC.close();
+//		aC = null;
 	}
 }
