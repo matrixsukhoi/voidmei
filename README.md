@@ -33,19 +33,37 @@
 - 
 ## Windows命令行模式安装VoidMei
 打开非管理员模式的终端[按下WIN+R-输入cmd-按下回车]，跳出终端窗口后输入以下命令
-# 先安装scoop(如果已安装可跳过)
+
+先安装scoop(如果已安装可跳过)
+```
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 irm get.scoop.sh | iex
-# 设置代理(如果网络无问题可以直接跳过)
+```
+
+设置代理(如果网络无问题可以直接跳过)
+```
 scoop config proxy [ip:port]
-# 安装git(如果已安装可跳过)
+```
+
+安装git(如果已安装可跳过)
+```
 scoop install git
-# 添加@Lustra-Fs大佬提供的bucket
+```
+
+添加@Lustra-Fs大佬提供的bucket
+```
 scoop bucket add Lutra-Fs_scoop-bucket https://github.com/Lutra-Fs/scoop-bucket
-# 安装Voidmei
+```
+
+安装Voidmei
+```
 scoop install Lutra-Fs_scoop-bucket/voidmei
-# 升级请用该命令
+```
+
+版本升级请用该命令
+```
 scoop update voidmei
+```
 
 ## Linux执行环境配置 
 VoidMei可使用Linux wine执行(测试环境Fedora 35, GNOME 41.7, Wine 7.10),执行步骤如下: 
