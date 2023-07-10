@@ -30,7 +30,7 @@
 
 # 执行环境
 - 安装 Jave Runtime Environment 1.8(jre 1.8) 即可
-- 
+
 ## Windows命令行模式安装VoidMei
 打开非管理员模式的终端[按下WIN+R-输入cmd-按下回车]，跳出终端窗口后输入以下命令
 
@@ -55,7 +55,7 @@ scoop install git
 scoop bucket add Lutra-Fs_scoop-bucket https://github.com/Lutra-Fs/scoop-bucket
 ```
 
-安装Voidmei
+安装Voidmei，安装完成后开始菜单中应该能看到VoidMei可执行文件
 ```
 scoop install Lutra-Fs_scoop-bucket/voidmei
 ```
