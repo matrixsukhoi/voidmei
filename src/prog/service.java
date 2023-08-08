@@ -452,7 +452,7 @@ public class service implements Runnable {
 					iEngType = ENGINE_TYPE_JET;
 			}
 
-//			 app.debugPrint(String.format("自适应判断引擎类型 %d\n", iEngType));
+			 //app.debugPrint(String.format("自适应判断引擎类型 %d\n", iEngType));
 		}
 	}
 

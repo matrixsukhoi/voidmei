@@ -39,6 +39,7 @@ public class flightAnalyzer {
 	}
 
 	void analyze(int stage) {
+		engineType = xs.iEngType;
 		if (stage == curaltStage + 1) {
 			eff[curaltStage] = eff[curaltStage] / count;
 			sep[curaltStage] = sep[curaltStage] / (count * 9.78f);

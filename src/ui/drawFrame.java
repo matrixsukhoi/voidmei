@@ -21,6 +21,7 @@ import parser.flightAnalyzer;
 import prog.app;
 import prog.controller;
 import prog.lang;
+import prog.service;
 
 public class drawFrame extends WebFrame implements Runnable {
 	/**
@@ -529,17 +530,19 @@ public class drawFrame extends WebFrame implements Runnable {
 							fA.time, "s", "m");
 				// 绘制刻度
 				if (pixIndex == 1) {
-					if (fA.engineType == 0) {
+					if ((fA.engineType == service.ENGINE_TYPE_PROP) || fA.engineType == (service.ENGINE_TYPE_TURBOPROP)  ) {
+						//System.out.println("绘制引擎功率");
 						drawCoordinates(g2d, 50, 50, 1024, 576, lang.dFTitle2, lang.dFTitle2X,
-								lang.dFTitle2Y, fA.power, "bhp", "m");
+								lang.dFTitle2Y, fA.power, "hp", "m");
 					} else {
+						//System.out.println("绘制引擎推力");
 						drawCoordinates(g2d, 50, 50, 1024, 576, lang.dFTitle3, lang.dFTitle3X,
 								lang.dFTitle3Y, fA.thrust, "kg", "m");
 					}
 				}
 				if (pixIndex == 2)
 					drawCoordinates(g2d, 50, 50, 1024, 576, lang.dFTitle4, lang.dFTitle4X, lang.dFTitle4Y,
-							fA.eff, "bhp", "m");
+							fA.eff, "hp", "m");
 				if (pixIndex == 3)
 					drawCoordinates(g2d, 50, 50, 1024, 576, lang.dFTitle5, lang.dFTitle5X, lang.dFTitle5Y,
 							fA.sep, "m/s", "m");
