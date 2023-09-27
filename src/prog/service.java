@@ -5,6 +5,7 @@ import parser.blkx.engineLoad;
 import parser.flightLog;
 import parser.indicators;
 import parser.state;
+import parser.stringHelper;
 
 public class service implements Runnable {
 	public static calcHelper cH = new calcHelper();
@@ -718,10 +719,15 @@ public class service implements Runnable {
 		// 无线电高度
 		pRadioAlt = radioAlt;
 		// radioAlt = iIndic.radio_altitude;
-		if (iCheckAlt > 0) {
-			radioAlt = sIndic.radio_altitude * 0.3048f;
-		} else {
-			radioAlt = sIndic.radio_altitude;
+
+		if (sIndic.radio_altitude == stringHelper.fInvalid) {
+			radioAlt = alt;
+		}else {
+			if (iCheckAlt > 0) {
+				radioAlt = sIndic.radio_altitude * 0.3048f;
+			} else {
+				radioAlt = sIndic.radio_altitude;
+			}
 		}
 		dRadioAlt = (ratio_1 * dRadioAlt) + ratio * 1000.0f * (radioAlt - pRadioAlt) / intv;
 		// app.debugPrint(dRadioAlt);

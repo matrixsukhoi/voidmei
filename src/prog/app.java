@@ -45,13 +45,13 @@ public class app {
 	public static final boolean debugLog = false;
 	public static final int maxEngLoad = 10;
 
-	public static final long gcSeconds = 10;
+	public static final long gcSeconds = 15;
 	public static final Color previewColor = new Color(0, 0, 0, 10);
 
 	public static String appName;
 	public static String defaultNumfontName = "Roboto";
 	public static String appTooltips;
-	public static String version = "1.546";
+	public static String version = "1.547";
 	public static String httpHeader;
 	public static int voiceVolumn = 100;
 	public static String defaultFontName = "Microsoft YaHei UI";

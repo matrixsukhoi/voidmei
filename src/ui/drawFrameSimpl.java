@@ -34,7 +34,64 @@ public class drawFrameSimpl extends WebFrame implements Runnable {
 	blkx blkx;
 	double fY[];
 	double fX[];
+	void paintAction(Graphics g, blkx fmblk) {
+		Graphics2D g2d = (Graphics2D) g;
+		// 开始绘图
+		// g2d.draw
 
+		g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+		g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+
+		// 绘制坐标系
+		double[] xn = new double[fmblk.velThrNum];
+		for (int i = 0; i < fmblk.velThrNum; i++) {
+			xn[i] = fmblk.velocityThr[i];
+		}
+
+		double xmin = findMin(xn);
+		double xmax = findMax(xn);
+		
+		// app.debugPrint(xmin+" "+xmax);
+		double ymin = findMin(fmblk.maxThrAft[fmblk.altThrNum - 1]);
+		double ymax = findMax(fmblk.maxThrAft[0]);
+		
+//		xmax对齐10
+		xmin = (double)(((int)(xmin/10))  *10);
+		xmax = (double)((int)(xmax/10)*10);
+		ymin = (double)(((int)(ymin/10)) *10);
+		ymax = (double)((int)(ymax/10)*10);
+		int dwidth = 800;
+		int dheight  = 400;
+		int xgap = Math.round((((int) xmax + 1 - (int) xmin) / 5) / 5.0f) * 5;
+		int ygap = Math.round((((int) ymax + 1 - (int) ymin) / 5) / 5.0f) * 5;
+		int pxmin = (int) xmin;
+		int pxmax = (int) xmax + xgap;
+		int pymin = (int) (ymin / 10) * 10;
+		int pymax = (int) (ymax / 10) * 10 + (int) (ygap / 10) * 10;
+		double ggx4 = 0;
+		double ggy4 = 0;
+		if (pxmax - pxmin != 0) {
+			ggx4 = (double) dwidth / (double) (pxmax - pxmin);
+		}
+		if (pymax - pymin != 0) {
+			ggy4 = (double) dheight / (double) (pymax - pymin);
+		}
+		int fontsize = 12;
+		int rgbx = (int)(255.0f/(fmblk.altThrNum+1));	
+		drawXY(g2d, 50, 50, dwidth, dheight, "推力-真空速曲线", "真空速", "推力", "km/h", "kgf", xmin, xmax, ymin, ymax,
+				xgap, ygap, fontsize);
+		for (int i = 0; i < fmblk.altThrNum; i++) {
+			drawPoint(g2d, 50, 50, dwidth, dheight, ggx4, ggy4, xn, fmblk.maxThrAft[i], pxmin, pymin,
+					new Color((i+1) *rgbx , (i+1) *rgbx , (i+1) *rgbx , 250));
+			
+			drawExample(g2d, dwidth - 40 , 60 + i * fontsize - dheight, dheight, new Color((i+1) *rgbx , (i+1) *rgbx , (i+1) *rgbx , 250),
+					String.format("高度%.0fm", fmblk.altitudeThr[i]), fontsize);
+		}
+
+		// 绘制点
+
+		// 连接点
+	}
 	double findMin(double X[]) {
 		int i;
 		double min = Float.MAX_VALUE;

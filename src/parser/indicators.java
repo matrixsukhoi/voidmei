@@ -64,7 +64,7 @@ public class indicators{
 	
 	public void update(String buf) {
 		valid = stringHelper.getString(buf, "valid");
-		if (valid.equals("true")){
+		if (valid != null && valid.equals("true")){
 			flag=true;
 			type=stringHelper.getString(buf, "type").toUpperCase();
 		
