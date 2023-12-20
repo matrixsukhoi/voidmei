@@ -66,6 +66,13 @@ public class blkx {
 	public int tmload5;
 
 	public double vne;
+	public double vne_V50;
+	public double vne_V100;
+	
+	public double vneMach;
+	public double vneMach_V50;
+	public double vneMach_V100;
+	
 	public double clmax;
 	public double aoaHigh;
 	public double aoaLow;
@@ -131,8 +138,15 @@ public class blkx {
 	}
 
 	public fm_parts NoFlapsWing;
+	public fm_parts NoFlapsWing_V50;
+	public fm_parts NoFlapsWing_V100;
+	
 	public fm_parts FullFlapsWing;
-
+	public fm_parts FullFlapsWing_V50;
+	public fm_parts FullFlapsWing_V100;
+	
+	public Boolean isVWing;
+	
 	public fm_parts Fuselage;
 	public fm_parts Fin;
 	public fm_parts Stab;
@@ -336,6 +350,7 @@ public class blkx {
 		return tmp_data;
 	}
 
+	
 	public double altitudeThr[];
 	public double velocityThr[];
 	public double maxThrCoff[][];
@@ -367,7 +382,8 @@ public class blkx {
 	private int modeEngineNum;
 	private double AWingRightCut;
 	private double AWingLeftCut;
-	public double vneMach;
+
+	
 	public double GearDestructionIndSpeed;
 	public double maxRPM;
 	public double maxAllowedRPM;
@@ -384,6 +400,42 @@ public class blkx {
 	private double engineRPMMultWEP;
 	private fm_parts FullFlapsWingS;
 	private fm_parts NoFlapsWingS;
+	
+	/* 计算可变翼 */
+	public double getAoAHighVWing(double vwing, int flaps_percent) {
+		if (vwing == 0) {
+			/* 计算flaps */
+			return NoFlapsWing.AoACritHigh
+					+ (FullFlapsWing.AoACritHigh - NoFlapsWing.AoACritHigh) * flaps_percent / 100.0f;
+			
+		}
+		if (vwing < 0.5)
+			return NoFlapsWing.AoACritHigh + (NoFlapsWing_V50.AoACritHigh - NoFlapsWing.AoACritHigh) * (vwing / 0.5);
+		else 
+			return NoFlapsWing_V50.AoACritHigh + (NoFlapsWing_V100.AoACritHigh - NoFlapsWing_V50.AoACritHigh) * ((vwing - 0.5) / 0.5);
+	}
+	public double getAoALowVWing(double vwing, int flaps_percent) {
+		if (vwing < 0.5)
+			return NoFlapsWing.AoACritLow + (NoFlapsWing_V50.AoACritLow - NoFlapsWing.AoACritLow) * (vwing / 0.5);
+		else 
+			return NoFlapsWing_V50.AoACritLow + (NoFlapsWing_V100.AoACritLow - NoFlapsWing_V50.AoACritLow) * ((vwing - 0.5) / 0.5);
+	}
+	
+	public double getVNEVWing(double vwing) {
+		if (vwing < 0.5)
+			return (vne + (vne_V50 - vne) * (vwing/0.5));
+		else 
+			return (vne_V50 + (vne_V100 - vne_V50)  * ((vwing - 0.5)/0.5));
+	}
+	
+	public double getMNEVWing(double vwing) {
+		if (vwing < 0.5)
+			return (vneMach + (vneMach_V50 - vneMach) * (vwing/0.5));
+		else 
+			return (vneMach_V50 + (vneMach_V100 - vneMach_V50)  * ((vwing - 0.5)/0.5));
+	}
+	
+	
 	public void initEngineLoad(){
 		avgEngRecoveryRate = 0.0f;
 		engLoad = new engineLoad[app.maxEngLoad];
@@ -578,16 +630,23 @@ public class blkx {
 		if(vne == 0){
 			vne = getdouble("WingPlane.Strength.VNE");
 			if(vne == 0){
-				vne = getdouble("WingPlaneSweep1.Strength.VNE");
+				vne = getdouble("WingPlaneSweep0.Strength.VNE");
 			}
 		}
+		
+		vne_V50 = getdouble("WingPlaneSweep1.Strength.VNE");
+		vne_V100 = getdouble("WingPlaneSweep2.Strength.VNE");
+		
 		vneMach = getdouble("VneMach");
 		if(vneMach == 0){
 			vneMach = getdouble("WingPlane.Strength.MNE");
 			if(vneMach == 0){
-				vneMach = getdouble("WingPlaneSweep1.Strength.MNE");
+				vneMach = getdouble("WingPlaneSweep0.Strength.MNE");
 			}
 		}
+		
+		vneMach_V50 = getdouble("WingPlaneSweep1.Strength.MNE");
+		vneMach_V100 = getdouble("WingPlaneSweep2.Strength.MNE");
 		
 		aileronEff = getdouble("AileronEffectiveSpeed");
 		aileronPowerLoss = getdouble("AileronPowerLoss");
@@ -736,27 +795,44 @@ public class blkx {
 		if (NoFlapsWing.AoACritHigh == 0) {
 			getPartsFm("FlapsPolar0", NoFlapsWing);
 		}
-
+		
+		/* 可变翼 */
+		NoFlapsWing_V50 = new fm_parts();
+		getPartsFm("WingPlaneSweep1.NoFlaps", NoFlapsWing_V50);
+		if (NoFlapsWing_V50.AoACritHigh == 0) {
+			getPartsFm("WingPlaneSweep1.FlapsPolar0", NoFlapsWing_V50);
+		}
+		
+		NoFlapsWing_V100 = new fm_parts();
+		getPartsFm("WingPlaneSweep2.NoFlaps", NoFlapsWing_V100);
+		if (NoFlapsWing_V100.AoACritHigh == 0) {
+			getPartsFm("WingPlaneSweep2.FlapsPolar0", NoFlapsWing_V100);
+		}
+		
 		FullFlapsWing = new fm_parts();
 		getPartsFm("FullFlaps", FullFlapsWing);
 		if (FullFlapsWing.AoACritHigh == 0) {
 			getPartsFm("FlapsPolar1", FullFlapsWing);
 		}
-
-		/* 判断最大可变后掠角 */
-		// if (getone(""))
-		// NoFlapsWingS = new fm_parts();
-		// getPartsFm("FullFlaps", FullFlapsWing);
-		// if (FullFlapsWing.AoACritHigh == 0) {
-		// 	getPartsFm("FlapsPolar1", FullFlapsWing);
-		// }
-
-		// FullFlapsWingS = new fm_parts();
-		// getPartsFm("FullFlaps", FullFlapsWing);
-		// if (FullFlapsWing.AoACritHigh == 0) {
-		// 	getPartsFm("FlapsPolar1", FullFlapsWing);
-		// }
-
+		
+		FullFlapsWing_V50 = new fm_parts();
+		getPartsFm("WingPlaneSweep1.FullFlaps", FullFlapsWing_V50);
+		if (FullFlapsWing_V50.AoACritHigh == 0) {
+			getPartsFm("WingPlaneSweep1.FlapsPolar1", FullFlapsWing_V50);
+		}
+		
+		/* 可变翼 */
+		FullFlapsWing_V100 = new fm_parts();
+		getPartsFm("WingPlaneSweep2.FullFlaps", FullFlapsWing_V100);
+		if (FullFlapsWing_V100.AoACritHigh == 0) {
+			getPartsFm("WingPlaneSweep2.FlapsPolar1", FullFlapsWing_V100);
+		}
+		
+		/* 可变翼判断 */
+		isVWing = false;
+		if ((NoFlapsWing_V100.AoACritHigh != 0) || (NoFlapsWing_V50.AoACritHigh != 0)) {
+			isVWing = true;
+		}
 
 		Fuselage = new fm_parts();
 		getPartsFm("Fuselage", Fuselage);
@@ -943,6 +1019,8 @@ public class blkx {
 //				+ "\n散热器/油冷器阻力系数: [" + RadiatorCd + ", " + OilRadiatorCd + "]\n";
 
 		s = WritePartsFm(s, NoFlapsWing);
+		if (NoFlapsWing_V50.ClCritHigh != 0) s = WritePartsFm(s, NoFlapsWing_V50);
+		if (NoFlapsWing_V100.ClCritHigh != 0) s = WritePartsFm(s, NoFlapsWing_V100);
 		s = WritePartsFm(s, FullFlapsWing);
 		s = WritePartsFm(s, Fuselage);
 		s = WritePartsFm(s, Fin);

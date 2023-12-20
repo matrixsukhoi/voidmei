@@ -396,7 +396,25 @@ public class voiceWarning implements Runnable {
 			Boolean fatal = false;
 			Boolean noRPM = false;
 			long t = xS.SystemTime;
-
+			
+			/* 可变翼更新攻角限制和速度警告 */
+			double vwing = 0;
+			int flaps = st.flaps > 0 ? st.flaps : 0;
+			if (xc.blkx != null && xc.blkx.valid) {
+				if (xc.blkx.isVWing) {
+					vwing = indic.wsweep_indicator;
+				}
+				aoaWarningLine = xc.blkx.getAoAHighVWing(vwing, flaps);
+				iasWarningLine = xc.blkx.getVNEVWing(vwing) * 0.95f;
+				machWarningLine = xc.blkx.getMNEVWing(vwing) * 0.95f;
+			}
+			
+//			System.out.println("wing: " + vwing);
+//			System.out.println("aoa: " + aoaWarningLine);
+//			System.out.println("ias: " + iasWarningLine);
+//			System.out.println("mach: " + machWarningLine);
+			
+			
 			// 攻角判断
 			if (xS.playerLive && st.IAS > 80) {
 				if (st.AoA > aoaWarningLine - 1) {

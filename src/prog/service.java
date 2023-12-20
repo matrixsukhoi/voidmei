@@ -1364,7 +1364,7 @@ public class service implements Runnable {
 					httpClient.getReqResult(app.requestDest);
 				else
 					httpClient.getReqResult(app.requestDestBkp);
-
+				
 				intv = (diffTime / freq) * freq;
 				TimeIncrMili = diffTime;
 				MainCheckMili += intv;

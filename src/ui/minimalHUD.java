@@ -851,13 +851,18 @@ public class minimalHUD extends WebFrame implements Runnable {
 
 		if (xc.blkx != null && xc.blkx.valid) {
 			// 速度
-
-			if (xs.IASv >= xc.blkx.vne * 0.95) {
+			double vwing = 0;
+			if (xc.blkx.isVWing) {
+				vwing = xs.sIndic.wsweep_indicator;
+			}
+			
+			if ((xs.IASv >= xc.blkx.getVNEVWing(vwing) * 0.95) || (xs.sState.M >= xc.blkx.getMNEVWing(vwing) * 0.95f)) {
 				warnVne = true;
 			}
+			
 			int flaps = xs.sState.flaps > 0 ? xs.sState.flaps : 0;
-			double maxAvailableAoA = (xc.blkx.NoFlapsWing.AoACritHigh
-					+ (xc.blkx.FullFlapsWing.AoACritHigh - xc.blkx.NoFlapsWing.AoACritHigh) * flaps / 100.0f);
+
+			double maxAvailableAoA = xc.blkx.getAoAHighVWing(vwing, flaps);
 			
 			availableAoA = maxAvailableAoA - aoa;
 
