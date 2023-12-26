@@ -12,6 +12,7 @@ import java.awt.Toolkit;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionAdapter;
+import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 
 import com.alee.laf.panel.WebPanel;
@@ -38,6 +39,7 @@ public class minimalHUD extends WebFrame implements Runnable {
 	int CrossY;
 	int AoAFuselagePix;
 	int Vx;
+	int compass;
 	service xs;
 	otherService cs;
 	Image A;
@@ -107,7 +109,15 @@ public class minimalHUD extends WebFrame implements Runnable {
 			}
 		}
 	}
-
+	public void drawAttitude(Graphics2D g, int dx, int dy, int CrossWidth, double realSpdPitch, double rad) {
+		/* 圆圈 */
+		/* 2直线 */
+		/* 1直线 */
+		
+		/* 旋转 */
+	}
+	
+	
 	public void drawCrossair(Graphics2D g, int dx, int dy, int CrossX, int CrossY, int CrossWidth) {
 		int l = 4;
 
@@ -156,25 +166,60 @@ public class minimalHUD extends WebFrame implements Runnable {
 		int kx = 0;
 		// drawStringShade(g, x, n+y, lines[0], drawFont);
 		int n5 = 5 * HUDFontsize;
-		
+//		BasicStroke outBs = new BasicStroke(lineWidth + 2, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
+//		BasicStroke inBs = new BasicStroke(lineWidth, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
 		// 油门
-		uiBaseElem.drawVRect(g, kx, n5 + lineWidth + 2 , barWidth, throttley, 1, throttleColor);
-		if(throttley > throttlem) {
-			g.setStroke(new BasicStroke(lineWidth + 2, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+		if(throttley >= throttleh) {
 			g.setColor(app.colorShadeShape);
-			g.drawLine(kx , n5 - throttley + lineWidth, kx + barWidth + barWidth, n5 - throttley + lineWidth);
-			g.setStroke(new BasicStroke(lineWidth, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+			g.setStroke(outBs);
+			g.drawLine(kx + barWidth + 1, n5 - throttleh + lineWidth + 2 , kx + barWidth, n5 - throttleh + lineWidth + 2);
 			g.setColor(app.colorNum);
-			g.drawLine(kx, n5 - throttley + lineWidth, kx + barWidth + barWidth, n5 - throttley + lineWidth);
+			g.setStroke(inBs);
+			g.drawLine(kx + barWidth + 1, n5 - throttleh + lineWidth + 2 , kx + barWidth, n5 - throttleh + lineWidth + 2);
 		}
+		if(throttley >= throttlec) {
+			g.setColor(app.colorShadeShape);
+			g.setStroke(outBs);
+			g.drawLine(kx + barWidth + 1, n5 - throttlec + lineWidth + 2 , (int)(kx + 1.25 * barWidth), n5 - throttlec + lineWidth + 2);
+			g.setColor(app.colorNum);
+			g.setStroke(inBs);
+			g.drawLine(kx + barWidth + 1, n5 - throttlec + lineWidth + 2 , (int)(kx + 1.25 * barWidth), n5 - throttlec + lineWidth + 2);
+		}
+		if(throttley >= throttlem) {
+			g.setColor(app.colorShadeShape);
+			g.setStroke(outBs);
+			g.drawLine(kx + barWidth + 1, n5 - throttlem + lineWidth + 2 , (int)(kx + 1.5 * barWidth), n5 - throttlem + lineWidth + 2);
+			g.setColor(app.colorNum);
+			g.setStroke(inBs);
+			g.drawLine(kx + barWidth + 1, n5 - throttlem + lineWidth + 2 , (int)(kx + 1.5 * barWidth), n5 - throttlem + lineWidth + 2);
+		}
+		if(throttley >= throttlew) {
+			g.setColor(app.colorShadeShape);
+			g.setStroke(outBs);
+			g.drawLine(kx + barWidth + 1, n5 - throttlew + lineWidth + 2 , kx + barWidth + barWidth, n5 - throttlew + lineWidth + 2);
+			g.setColor(app.colorNum);
+			g.setStroke(inBs);
+			g.drawLine(kx + barWidth + 1, n5 - throttlew + lineWidth + 2 , kx + barWidth + barWidth, n5 - throttlew + lineWidth + 2);
+		}
+		uiBaseElem.drawVRect(g, kx, n5 + lineWidth + 2 , barWidth, throttley, 1, throttleColor);
+
+//		if(throttley >= throttlem) {
+//			g.setStroke(new BasicStroke(lineWidth + 2, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+//			g.setColor(app.colorShadeShape);
+//			g.drawLine(kx , n5 - throttley + 2 , kx + barWidth + barWidth, n5 - throttley + 2);
+//			g.setStroke(new BasicStroke(lineWidth, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+//			g.setColor(app.colorNum);
+//			g.drawLine(kx, n5 - throttley + 2, kx + barWidth + barWidth, n5 - throttley + 2);
+//		}
 		// uiBaseElem.__drawVRect(g, kx, n5 + 2, barWidth, throttley,
 		// throttleLineWidth, app.colorNum, throttleColor);
 		kx += barWidth;
 		
 		// 姿态
-		int round = 4 * roundCompass;
-//		if (drawAttitude) {
-//			if (!blinkX || (blinkX && !blinkActing)) {
+		int round = (int) (5 * roundCompass);
+		int rnd = (int) (HUDFontsize * 0.618f);
+		if (drawAttitude) {
+			if (!blinkX || (blinkX && !blinkActing)) {
 //				g.setStroke(new BasicStroke(lineWidth + 2, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
 //				g.setColor(app.colorShadeShape);
 //				g.drawArc(lineWidth + aosX + round / 2, n5 - HUDFontsize + pitch, round, 2*HUDFontsize, rollDeg, -180);
@@ -199,8 +244,70 @@ public class minimalHUD extends WebFrame implements Runnable {
 //				
 ////				g.setColor(app.colorUnit);
 ////				g.drawLine(lineWidth + round + aosX, n5+ pitch, lineWidth + round + aosX + HUDFontsize/2, n5 + pitch);
-//			}
-//		}
+		        // 计算小圆形的位置
+
+		        int circleX = lineWidth + aosX + round;
+		        int circleY = (int) (n5 - 2.5 * HUDFontsize + rnd/2 - pitch);
+
+		        // 绘制地面和牵引线
+		        g.setStroke(outBs);
+		        g.setColor(app.colorShadeShape);
+		        g.drawLine(circleX - aosX, circleY + pitch, circleX - lineWidth, circleY);
+		        g.drawLine(circleX - aosX - rnd/4 , circleY + pitch, circleX - aosX + rnd/4, circleY + pitch);
+		        g.setStroke(inBs);
+		        g.setColor(app.colorNum);
+		        g.drawLine(circleX - aosX, circleY + pitch, circleX - lineWidth, circleY);
+		        g.drawLine(circleX - aosX - rnd/4, circleY + pitch, circleX - aosX + rnd/4, circleY + pitch);
+		        
+		        
+		        // 旋转整个组合图形表示横滚角
+		        AffineTransform oldTransform = g.getTransform();
+		        AffineTransform transform = AffineTransform.getRotateInstance(Math.toRadians(rollDeg), circleX, circleY);
+		        
+		        g.setTransform(transform);
+		        
+		        g.setStroke(new BasicStroke(lineWidth + 2, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+		        g.setColor(app.colorShadeShape);
+		        
+
+		        // 画小圆形
+		        g.drawOval(circleX - rnd / 2, circleY - rnd / 2, rnd, rnd);
+		        
+//		        g.drawLine(circleX - aosX, circleY + pitch, circleX, circleY + pitch);
+		        
+		        // 画三条支线表示水平和垂直方向
+		        g.drawLine(circleX , circleY - rnd/2 - lineWidth - 1, circleX, circleY - rnd);
+		        g.drawLine(circleX + rnd/2 + lineWidth + 1, circleY, circleX + rnd, circleY);
+		        g.drawLine(circleX - rnd/2 - lineWidth - 1, circleY, circleX - rnd, circleY);
+		        
+		        g.setStroke(new BasicStroke(lineWidth, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+		        g.setColor(app.colorNum);
+				
+		        g.drawOval(circleX - rnd / 2, circleY - rnd / 2, rnd, rnd);
+		        
+//		        g.drawLine(circleX - aosX, circleY + pitch, circleX, circleY + pitch);
+		        
+		        // 画三条支线表示水平和垂直方向
+		        g.drawLine(circleX , circleY - rnd/2 - lineWidth, circleX, circleY - rnd);
+		        g.drawLine(circleX + rnd/2 + lineWidth, circleY, circleX + rnd, circleY);
+		        g.drawLine(circleX - rnd/2 - lineWidth, circleY, circleX - rnd, circleY);
+		        
+		        g.setTransform(oldTransform);
+
+
+		        // 画文字
+		      if (roundHorizon >= 0) {
+		    	  uiBaseElem.__drawStringShade(g, circleX , circleY - 1, 1, sAttitude, drawFontSmall, app.colorNum);
+		      }else {
+		    	  uiBaseElem.__drawStringShade(g, circleX , circleY - 1, 1, sAttitude, drawFontSmall, app.colorUnit);
+		      }
+//		        uiBaseElem.__drawStringShade(g, circleX - HUDFontsize / 2, circleY + 3 * HUDFontsize / 2, 1, sAttitudeRoll, drawFontSmall, app.colorNum);
+		        
+		        
+		        // 恢复原始的图形变换
+//		        g.setTransform(oldTransform);
+			}
+		}
 
 		for (int i = 0; i < 5; i++) {
 
@@ -331,21 +438,24 @@ public class minimalHUD extends WebFrame implements Runnable {
 		int r = roundCompass;
 		n -= 2*HUDFontsize - 2;
 		kx += rightDraw + r;
-		g.setStroke(new BasicStroke(lineWidth + 2, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+		
+		
+		g.setStroke(outBs);
 		g.setColor(app.colorShadeShape);
-		// g.drawLine(2 + r + 1, n + r + 1, 2 + r + compassDx + 1, n + r -
-		// compassDy + 1);
-		// g.drawOval(2 + 1, n + 1, r + r, r + r);
-		g.drawLine(kx + r, n + r, kx + r + compassDx, n + r - compassDy);
-		g.drawOval(kx, n, r + r, r + r);
 
+		g.drawLine(kx + r + (int)(0.618 * r * Math.sin(compassRads)), n + r - (int)(0.618 * r * Math.cos(compassRads)), kx + r + compassDx, n + r - compassDy);
+		g.drawOval(kx, n, r + r, r + r);
+//		g.drawArc(kx, n, r + r, r + r, compass - 5, compass + 365 );
+		
 		// 引擎健康度
 		// g.drawArc(2 + 3, n + 3, r + r - 4, r + r - 4, -180, OilX);
 
-		g.setStroke(new BasicStroke(lineWidth, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+		g.setStroke(inBs);
 		g.setColor(app.colorNum);
-		g.drawLine(kx + r, n + r, kx + r + compassDx, n + r - compassDy);
+//		g.drawLine(kx + r + r * compassRads, n + r, kx + r + compassDx, n + r - compassDy);
+		g.drawLine(kx + r + (int)(0.618 * r *  Math.sin(compassRads)), n + r - (int)(0.618 * r *  Math.cos(compassRads)), kx + r + compassDx, n + r - compassDy);
 		g.drawOval(kx, n, r + r, r + r);
+//		g.drawArc(kx, n, r + r, r + r, compass - 5, compass + 365);
 
 		// g.setColor(app.warning);
 		// g.drawArc(2 + 2, n + 2, r + r - 4, r + r - 4, -180, OilX);
@@ -490,6 +600,8 @@ public class minimalHUD extends WebFrame implements Runnable {
 	private double aoaBarWarningRatio;
 	private int HUDFontSizeSmall;
 	private String relEnergy;
+	private BasicStroke outBs;
+	private BasicStroke inBs;
 
 	public void init(controller c, service s, otherService os) {
 		int lx;
@@ -626,6 +738,14 @@ public class minimalHUD extends WebFrame implements Runnable {
 			aoaY = rightDraw;
 		aoaColor = app.colorNum;
 		aoaBarColor = app.colorNum;
+		
+		throttlew = (110 * HUDFontsize * 5) / 110;
+		throttlem = (100 * HUDFontsize * 5) / 110;
+		throttlec = (80 * HUDFontsize * 5) / 110;
+		throttleh = (50 * HUDFontsize * 5) / 110;
+	
+		outBs = new BasicStroke(lineWidth + 2, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
+		inBs = new BasicStroke(lineWidth, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
 		// app.debugPrint(lx);
 		// app.debugPrint(ly);
 		A = Toolkit.getDefaultToolkit().createImage("image/gunsight/" + crosshairName + ".png");
@@ -724,8 +844,13 @@ public class minimalHUD extends WebFrame implements Runnable {
 
 	double realSpdPitch;
 	private int throttlem;
+	private int throttlec;
+	private int throttleh;
 	private String sAttitude;
 	private String sAttitudeRoll;
+	private double compassRads;
+	private int roundHorizon;
+	private int throttlew;
 
 	public void updateString() {
 
@@ -736,19 +861,25 @@ public class minimalHUD extends WebFrame implements Runnable {
 		if (throttle >= 100) {
 			throttleColor = app.colorNum;
 		} else {
-			if (throttle >= 85) {
-				throttleColor = app.colorLabel;
-			} else {
-				if (throttle >= 50) {
-					throttleColor = app.colorUnit;
-				}
-				// else
-				// throttleColor = app.colorShadeShape;
-			}
+			throttleColor = app.colorNum;
+//			if (throttle >= 85) {
+//				throttleColor = app.colorLabel;
+//			} else {
+//				if (throttle >= 50) {
+//					throttleColor = app.colorUnit;
+//				}
+//				// else
+//				// throttleColor = app.colorShadeShape;
+//			}
 		}
-		throttley = throttle * HUDFontsize * 6 / 110;
-		throttlem = 100 * HUDFontsize * 6 / 110;
-		double compassRads = (double) Math.toRadians(xs.sIndic.compass);
+		throttley = (throttle * HUDFontsize * 5) / 110;
+		
+
+		compass = (int)xs.sIndic.compass;
+		compassRads = (double)Math.toRadians(xs.sIndic.compass);
+		
+//		double compassRads = (double) Math.toRadians(xs.sIndic.compass);
+		
 		compassDx = (int) ((roundCompass * 1.3f) * Math.sin(compassRads));
 		compassDy = (int) ((roundCompass * 1.3f) * Math.cos(compassRads));
 		double aoa = xs.sState.AoA;
@@ -780,15 +911,19 @@ public class minimalHUD extends WebFrame implements Runnable {
 			lines[0] = String.format("M%5s", xs.M);
 		else
 			lines[0] = String.format("%s%6s", ILbl, xs.IAS);
-		lines[1] = HLbl + String.format("%6s", xs.salt);
+		
+		/* 近地告警 */
+		if (xs.radioAltValid && xs.radioAlt <= 500) 
+			lines[1] = HLbl + String.format("R%5s", xs.sRadioAlt);
+		else
+			lines[1] = HLbl + String.format("%6s", xs.salt);
 
 
-		// if(xs.sState.se)
 		if (xs.SEP > 0) {
-			lines[3] = String.format("%s↑%4s", SLbl, xs.sSEP);
+			lines[3] = String.format("%s↑%5s", SLbl, xs.sSEP);
 		}
 		else {
-			lines[3] = String.format("%s↓%4s", SLbl, xs.sSEP);
+			lines[3] = String.format("%s↓%5s", SLbl, xs.sSEP);
 		}
 		if (xs.sState.Ny > 1.5f || xs.sState.Ny < -0.5f)
 			lines[4] = String.format("G%5s", xs.Ny);
@@ -906,12 +1041,12 @@ public class minimalHUD extends WebFrame implements Runnable {
 		sAttitude = "";
 		sAttitudeRoll = "";
 
-		int roundHorizon = (int) Math.round(-aviahp);
+		roundHorizon = (int) Math.round(-aviahp);
 		if (aviahp != -65535) {
 			if (roundHorizon > 0)
-				sAttitude = String.format("↑%2d", roundHorizon);
+				sAttitude = String.format("%3d", roundHorizon);
 			if (roundHorizon < 0)
-				sAttitude = String.format("↓%2d", -roundHorizon);
+				sAttitude = String.format("%3d", -roundHorizon);
 		}
 		if (aviar != -65535) {
 			int roundRoll = (int) Math.round(-aviar);

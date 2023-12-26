@@ -409,30 +409,47 @@ public class blkx {
 					+ (FullFlapsWing.AoACritHigh - NoFlapsWing.AoACritHigh) * flaps_percent / 100.0f;
 			
 		}
-		if (vwing < 0.5)
-			return NoFlapsWing.AoACritHigh + (NoFlapsWing_V50.AoACritHigh - NoFlapsWing.AoACritHigh) * (vwing / 0.5);
-		else 
-			return NoFlapsWing_V50.AoACritHigh + (NoFlapsWing_V100.AoACritHigh - NoFlapsWing_V50.AoACritHigh) * ((vwing - 0.5) / 0.5);
+		/* 针对只有2级的 */
+		if(NoFlapsWing_V100.AoACritHigh == 0) {
+			return NoFlapsWing.AoACritHigh + (NoFlapsWing_V50.AoACritHigh - NoFlapsWing.AoACritHigh) * (vwing);
+		} else {
+			if (vwing < 0.5)
+				return NoFlapsWing.AoACritHigh + (NoFlapsWing_V50.AoACritHigh - NoFlapsWing.AoACritHigh) * (vwing / 0.5);
+			else 
+				return NoFlapsWing_V50.AoACritHigh + (NoFlapsWing_V100.AoACritHigh - NoFlapsWing_V50.AoACritHigh) * ((vwing - 0.5) / 0.5);
+		}
 	}
 	public double getAoALowVWing(double vwing, int flaps_percent) {
-		if (vwing < 0.5)
-			return NoFlapsWing.AoACritLow + (NoFlapsWing_V50.AoACritLow - NoFlapsWing.AoACritLow) * (vwing / 0.5);
-		else 
-			return NoFlapsWing_V50.AoACritLow + (NoFlapsWing_V100.AoACritLow - NoFlapsWing_V50.AoACritLow) * ((vwing - 0.5) / 0.5);
+		if(NoFlapsWing_V100.AoACritLow == 0) {
+			return NoFlapsWing.AoACritLow + (NoFlapsWing_V50.AoACritLow - NoFlapsWing.AoACritLow) * (vwing);
+		} else {
+			if (vwing < 0.5)
+				return NoFlapsWing.AoACritLow + (NoFlapsWing_V50.AoACritLow - NoFlapsWing.AoACritLow) * (vwing / 0.5);
+			else 
+				return NoFlapsWing_V50.AoACritLow + (NoFlapsWing_V100.AoACritLow - NoFlapsWing_V50.AoACritLow) * ((vwing - 0.5) / 0.5);
+		}
 	}
 	
 	public double getVNEVWing(double vwing) {
-		if (vwing < 0.5)
-			return (vne + (vne_V50 - vne) * (vwing/0.5));
-		else 
-			return (vne_V50 + (vne_V100 - vne_V50)  * ((vwing - 0.5)/0.5));
+		if (vne_V100 == 0) {
+			return (vne + (vne_V50 - vne) * vwing);
+		}else {
+			if (vwing < 0.5)
+				return (vne + (vne_V50 - vne) * (vwing/0.5));
+			else 
+				return (vne_V50 + (vne_V100 - vne_V50)  * ((vwing - 0.5)/0.5));
+		}
 	}
 	
 	public double getMNEVWing(double vwing) {
-		if (vwing < 0.5)
-			return (vneMach + (vneMach_V50 - vneMach) * (vwing/0.5));
-		else 
-			return (vneMach_V50 + (vneMach_V100 - vneMach_V50)  * ((vwing - 0.5)/0.5));
+		if (vneMach_V100 == 0) {
+			return (vneMach + (vneMach_V50 - vneMach) * vwing);
+		}else {
+			if (vwing < 0.5)
+				return (vneMach + (vneMach_V50 - vneMach) * (vwing/0.5));
+			else 
+				return (vneMach_V50 + (vneMach_V100 - vneMach_V50)  * ((vwing - 0.5)/0.5));
+		}
 	}
 	
 	
@@ -636,7 +653,7 @@ public class blkx {
 		
 		vne_V50 = getdouble("WingPlaneSweep1.Strength.VNE");
 		vne_V100 = getdouble("WingPlaneSweep2.Strength.VNE");
-		
+
 		vneMach = getdouble("VneMach");
 		if(vneMach == 0){
 			vneMach = getdouble("WingPlane.Strength.MNE");

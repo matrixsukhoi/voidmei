@@ -86,7 +86,8 @@ public class service implements Runnable {
 
 	public String salt;
 	public String sSEP;
-
+	public String sSEPAbs;
+	
 	public String sNitro;
 	public String sWepTime;
 
@@ -161,7 +162,7 @@ public class service implements Runnable {
 	public String sAvgEff;
 	public String SdThrustPercent;
 	public String sRadioAlt;
-
+	public Boolean radioAltValid;
 	public double radioAlt;
 	public double pRadioAlt;
 	public double dRadioAlt;
@@ -225,7 +226,8 @@ public class service implements Runnable {
 
 			// sfueltime = String.format("%d:%02d", fueltime / 60000, (int)
 			// ((fueltime / 1000) % 60 ));
-			if (fueltime / 60000 < 100 && !bLowAccFuel) {
+			if (fueltime / 60000 < 100
+					/* && !bLowAccFuel */) {
 				sfueltime = String.format("%02d'%02d", fueltime / 60000, (long) ((fueltime / 1000) % 60 / 10) * 10);
 				// sfueltime = String.format("%d.%d", fueltime / 60000,
 				// (fueltime % 60000) / 6000);
@@ -342,6 +344,7 @@ public class service implements Runnable {
 			SEPAccuracy = 1;
 
 		sSEP = String.format("%.0f", Math.round(SEP / SEPAccuracy) * SEPAccuracy);
+		sSEPAbs =  String.format("%.0f", Math.abs(Math.round(SEP / SEPAccuracy) * SEPAccuracy));
 		// 相对能量(v^2/2+g*h)
 		
 		relEnergy = String.format("%.0f", energyJKg);
@@ -352,7 +355,11 @@ public class service implements Runnable {
 		AoA = String.format("%.1f", sState.AoA);
 		AoS = String.format("%.1f", sState.AoS);
 		// iIndic
-		compass = String.format("%.0f", sIndic.compass);
+		if (sIndic.compass != -65535)
+			compass = String.format("%.0f", sIndic.compass);
+		else 
+			compass = "UND";
+		
 		sPitchUp = String.format("%.0f", sIndic.aviahorizon_pitch);
 		
 		if (c.blkx != null && c.blkx.valid && c.blkx.nitro != 0) {
@@ -461,57 +468,53 @@ public class service implements Runnable {
 		// 计算耗油率及持续时间
 		// app.debugPrint(totalfuelp - totalfuel);
 		// if (MainCheckMili - FuelCheckMili > 1000) {
-
-		// dfuel = (fTotalFuelP - fTotalFuel) / (MainCheckMili - FuelCheckMili);
+	
 		
 		dfuel = (fTotalFuelP - fTotalFuel) / dtime;
 
 		if (dfuel > 0) {
 
+
+			FuelchangeTime = MainCheckMili - FuelLastchangeMili;
+			FuelLastchangeMili = MainCheckMili;
+			fuelChange = fTotalFuelP - fTotalFuel; // 改变1公斤花了多长时间
+
 			if (!bLowAccFuel) {
-				// fueltime = (long) (fueltime + (fTotalFuel / dfuel)) / 2;
 				// 改用滑动平均
 				fueltime = (long) fuelTimeSMA.addNewData(fTotalFuel / dfuel);
 
 			}
-			// fueltime = (long)(ratio_1 * fueltime + ratio *(fTotalFuel /
-			// dfuel));
-			FuelchangeTime = MainCheckMili - FuelLastchangeMili;
-			FuelLastchangeMili = MainCheckMili;
-			fuelChange = fTotalFuelP - fTotalFuel; // 改变1公斤花了多长时间
+			else {
+//				/* 已知油量不可能递增，考虑计算精度问题导致油量增多，因此取两者间最小值 */
+				long tmpft = (long )fuelTimeSMA.addNewData(fTotalFuel * FuelchangeTime / fuelChange);
+				if (fueltime > 0)
+					fueltime = fueltime < tmpft ? fueltime : tmpft;
+				else
+					fueltime = tmpft;
+//				app.debugPrint("" + fueltime +" " + tmpft);
+			}
 			// app.debugPrint(fuelChange);
 
 		} else {
 			// 没有变化，使用上次
-			// fueltime = (MainCheckMili - FuelLastchangeMili)
-			// fueltime = 0;
-			// fueltime = (totalfuelp -
-			// totalfuel)/MainCheckMili-FuelLastchangeMili);
-
-			if (fuelChange != 0) {
-				// fueltime = (long) ((ratio * (fTotalFuel * FuelchangeTime /
-				// fuelChange)) + ratio_1 * fueltime);
-				fueltime = (long) (fTotalFuel * FuelchangeTime / fuelChange);
-			} else
+			if (fuelChange == 0) 
 				fueltime = 0;
-			// app.debugPrint(fueltime);
+			else {
+				/* 已知油量不可能递增，考虑计算精度问题导致油量增多，因此取两者间最小值 */
+				long tmpft = (long )fuelTimeSMA.addNewData(fTotalFuel * FuelchangeTime / fuelChange);
+				fueltime = tmpft;
+			}
+
 		}
 
 		if (fueltime < 0)
-			fueltime = 0;
+			fueltime = Long.MAX_VALUE;
 
 		FuelCheckMili = MainCheckMili;
 		fTotalFuelP = fTotalFuel;
-
+//		prev_throttle = sState.throttle;
 		// 计算变化率
-		// long TPchangeTime;
-		// int dthrust = thurstPercent - pThurstPercent;
-		// if (thurstPercent - pThurstPercent > 0){
-		// TPchangeTime = MainCheckMili - TPLastchangeMili;
-		// TPLastchangeMili = MainCheckMili;
-		// }
-
-		// }
+//		app.debugPrint("" + fueltime);
 	}
 
 	// public engineLoad[] sPL;
@@ -722,7 +725,9 @@ public class service implements Runnable {
 
 		if (sIndic.radio_altitude == stringHelper.fInvalid) {
 			radioAlt = alt;
+			radioAltValid = false;
 		}else {
+			radioAltValid = true;
 			if (iCheckAlt > 0) {
 				radioAlt = sIndic.radio_altitude * 0.3048f;
 			} else {
@@ -1152,6 +1157,7 @@ public class service implements Runnable {
 	}
 	// 重置变量
 	public void resetvaria() {
+		radioAltValid = false;
 		playerLive = false;
 		iEngType = ENGINE_TYPE_UNKNOWN;
 		checkMaxiumRPM = 0;
@@ -1174,6 +1180,7 @@ public class service implements Runnable {
 		thurstPercent = 0;
 		checkEngineFlag = false;
 		checkEngineType = 0;
+		fueltime = Long.MAX_VALUE;
 		checkPitch = 0;
 		fuelPercent = 0;
 		maxTotalHp = 0;
