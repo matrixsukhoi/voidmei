@@ -5,12 +5,44 @@
 - 解析离线拆包的气动模型文件(FM blkx)
 - 处理/计算上述信息,以图形界面的形式呈现给用户
 
-# 编译
-- 使用eclipse导入工程,程序入口设置为app.java中的main函数
-- 设置jdk/jre版本为1.8 (java 8)
-- 导入外部UI库 weblaf-complete-1.29.jar
-- 下载release版本,将其他缺失的资源文件复制到本目录
-- 运行或调试程序
+# 编译/构建
+
+### 运行:
+需要安装java8, maven, python3, 7zip, 无需下载额外的依赖.
+
+java, maven和7zip可以通过scoop安装:
+
+![alt text](image.png)
+
+``` powershell
+
+```
+
+python3 最好安装3.8以后的版本.
+
+#### 运行自动构建脚本:
+``` powershell
+python ./build.py build
+
+```
+
+### clean:
+!!! 会删除掉目录下所有的图片音效等资源文件, 请确认图片音效已经保存到resources.7z里 !!!
+
+TODO: 检查文件夹和resources的mdate
+
+``` powershell
+python ./build.py clean
+
+```
+
+### 发布
+
+TODO: 没做完
+
+``` powershell
+python ./build.py publish
+```
 
 # 代码结构说明
 由于编程过程比较随意,目前代码结构与变量命名比较混乱,后面有时间会调整
