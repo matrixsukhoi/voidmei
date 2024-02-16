@@ -77,7 +77,7 @@ def build(args):
     # run
     root = ET.parse("pom.xml").getroot()
     version = root.find("{http://maven.apache.org/POM/4.0.0}version").text
-    execute("java -jar ./target/voidmei-" + version + ".jar")
+    execute("java -jar ./target/voidmei-" + version + ".jar", timeout=None)
 
 
 # 7z a -t7z resources.7z -mx9 config/* data/* fonts/* image/* language/* records/* voice/*
@@ -91,7 +91,8 @@ def publish(args):
     execute(
         "7z a -t7z resources.7z -mx9 config data fonts image language records voice", timeout=None
     )
-
+        "7z a -t7z voidmei.7z -stl -mx9 config data fonts image language records voice README.md ReadMe.txt voidmei.exe voidmei.jar 更新日志.txt 计算说明.md 使用说明.txt", timeout=None)
+        
 
 def run(args):
     args.func(args)

@@ -7,26 +7,39 @@
 
 # 编译/构建
 
-### 运行:
+## 运行:
 需要安装java8, maven, python3, 7zip, 无需下载额外的依赖.
 
-java, maven和7zip可以通过scoop安装:
+java, maven和7zip可以通过scoop安装, 安装java需要加-g参数:
 
 ![alt text](image.png)
 
-``` powershell
-
+安装maven后更改本地repo存储路径, 以及换源:
+`C:\Users\username\scoop\persist\maven\conf\settings.xml`
+``` xml
+  -->
+  <localRepository>D:/maven/repository</localRepository>
+  <!-- interactiveMode
+  ......
+     -->
+    <mirror>
+      <id>nexus-aliyun</id>
+      <mirrorOf>central</mirrorOf>
+      <name>Nexus aliyun</name>
+      <url>http://maven.aliyun.com/nexus/content/groups/public</url>
+    </mirror>
+  </mirrors>
 ```
 
 python3 最好安装3.8以后的版本.
 
-#### 运行自动构建脚本:
+### 运行自动构建脚本:
 ``` powershell
 python ./build.py build
 
 ```
 
-### clean:
+## clean:
 !!! 会删除掉目录下所有的图片音效等资源文件, 请确认图片音效已经保存到resources.7z里 !!!
 
 TODO: 检查文件夹和resources的mdate
@@ -36,7 +49,7 @@ python ./build.py clean
 
 ```
 
-### 发布
+## 发布
 
 TODO: 没做完
 
@@ -62,6 +75,9 @@ python ./build.py publish
 
 # 执行环境
 - 安装 Jave Runtime Environment 1.8(jre 1.8) 即可
+
+## 网页右侧`release`处下载压缩包
+然后选择`解压到voidmei文件夹`, 否则会解压出一堆小文件而非单独一个文件夹
 
 ## Windows命令行模式安装VoidMei
 打开非管理员模式的终端[按下WIN+R-输入cmd-按下回车]，跳出终端窗口后输入以下命令

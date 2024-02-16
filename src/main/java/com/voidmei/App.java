@@ -5,6 +5,7 @@ import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.Font;
 import java.awt.FontFormatException;
+import java.awt.Frame;
 import java.awt.GraphicsEnvironment;
 import java.awt.Image;
 import java.awt.MenuItem;
@@ -16,6 +17,7 @@ import java.awt.Toolkit;
 import java.awt.TrayIcon;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.MouseAdapter;
 import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
 import java.io.File;
@@ -32,6 +34,10 @@ import java.util.regex.Pattern;
 
 import javax.swing.SwingUtilities;
 
+// import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+// import org.w3c.dom.events.MouseEvent;
+
 import com.alee.global.StyleConstants;
 import com.alee.laf.WebLookAndFeel;
 
@@ -40,7 +46,7 @@ public class App {
 	public static final boolean debug = false;
 	// 测试FM
 	public static boolean fmTesting = false;
-	
+
 	// 调试日志
 	public static final boolean debugLog = false;
 	public static final int maxEngLoad = 10;
@@ -68,7 +74,7 @@ public class App {
 	public static Boolean aaEnable = true;
 	public static Object textAASetting = RenderingHints.VALUE_TEXT_ANTIALIAS_GASP;
 	public static Object graphAASetting = RenderingHints.VALUE_ANTIALIAS_ON;
-//	public static Object textAASetting = RenderingHints.VALUE_TEXT_ANTIALIAS_ON;
+	// public static Object textAASetting = RenderingHints.VALUE_TEXT_ANTIALIAS_ON;
 
 	public static Color colorFailure = new Color(255, 69, 0, 100);
 	public static Color colorWarning = new Color(216, 33, 13, 100);
@@ -91,7 +97,6 @@ public class App {
 	public static int screenHeight;
 	public static String[] fonts;
 
-
 	public static controller ctr;
 
 	// 空鼠标指针
@@ -105,7 +110,6 @@ public class App {
 	public static String getJavaVersion() {
 		r = Runtime.getRuntime();
 		try {
-
 			String cmd1 = "java -version";
 			Process p = r.exec(cmd1);
 			/* 读取执行结果 */
@@ -117,28 +121,28 @@ public class App {
 			}
 			p.getInputStream().close();
 			/* 正则提取版本 */
-			
+
 			Pattern pt = Pattern.compile("\"[0-9].[0-9].*\"");
 			Matcher m = pt.matcher(sb.toString());
-			
-			
-//			App.debugPrint("输出"+sb.toString());
+
+			// App.debugPrint("输出"+sb.toString());
 			if (m.find()) {
 				String ret = m.group(0);
 				return ret;
 			}
-			
+
 		} catch (Exception e1) {
 			e1.printStackTrace();
 		}
 		return "0.0";
 	}
+
 	public void pluginopen() {
 		r = Runtime.getRuntime();
 		int tasklist1 = -1;
 		try {
 
-			String cmd1 = "cmd.exe /c  tasklist";
+			String cmd1 = "cmd.exe /c tasklist";
 			Process p = Runtime.getRuntime().exec(cmd1);
 			StringBuffer out = new StringBuffer();
 			byte[] b = new byte[1024];
@@ -176,10 +180,10 @@ public class App {
 
 	public static void initSystemTray() {
 		if (SystemTray.isSupported()) {
-			SystemTray st = SystemTray.getSystemTray();
+			SystemTray tray = SystemTray.getSystemTray();
 			Image image = Toolkit.getDefaultToolkit().getImage("image/16x16.png");
-			TrayIcon ti = new TrayIcon(image);
-			ti.setToolTip(appName);
+			TrayIcon icon = new TrayIcon(image);
+			icon.setToolTip(appName);
 			PopupMenu p = new PopupMenu("");
 			MenuItem close = new MenuItem(lang.close);
 			MenuItem about = new MenuItem(lang.about);
@@ -187,16 +191,15 @@ public class App {
 			about.setFont(defaultFont);
 			p.setFont(defaultFont);
 			close.addActionListener(new ActionListener() {
-
 				public void actionPerformed(ActionEvent e) {
-					st.remove(ti);
+					tray.remove(icon);
 					System.exit(0);
 				}
 			});
 			about.addActionListener(new ActionListener() {
-
 				public void actionPerformed(ActionEvent e) {
 					// controller.s
+					// TODO: time not working
 					controller.notificationtimeAbout(lang.aboutcontentsub2, 24000);
 					controller.notificationtimeAbout(lang.aboutcontentsub1, 16000);
 					controller.notificationtimeAbout(lang.aboutcontent, 8000);
@@ -205,9 +208,26 @@ public class App {
 			});
 			p.add(about);
 			p.add(close);
-			ti.setPopupMenu(p);
+			icon.setPopupMenu(p);
+
+			// left click
+			final Frame frame = new Frame("");
+			frame.setUndecorated(true);
+
+			icon.addMouseListener(new MouseAdapter() {
+				@Override
+				public void mouseClicked(MouseEvent e) {
+					if (e.getButton() == MouseEvent.BUTTON1) {
+						// TODO:
+						debugPrint("conosuba");
+						ctr.stop();
+						ctr = new controller();
+					}
+				}
+			});
+
 			try {
-				st.add(ti);
+				tray.add(icon);
 			} catch (AWTException e1) {
 				// TODO Auto-generated catch block
 				// e1.printStackTrace();
@@ -230,30 +250,25 @@ public class App {
 
 	public static void initFont() {
 		environment = GraphicsEnvironment.getLocalGraphicsEnvironment();
-		
+
 		// 遍历所有font
 		File file = new File("fonts/");
 		String[] filelist = file.list();
 		for (int i = 0; i < filelist.length; i++) {
 			try {
-
-			    //create the font to use. Specify the size!
-			    Font customFont = Font.createFont(Font.TRUETYPE_FONT, new File("fonts/"+filelist[i]));
-			    //register the font
-
-			    environment.registerFont(customFont);
-
+				// create the font to use. Specify the size!
+				Font customFont = Font.createFont(Font.TRUETYPE_FONT, new File("fonts/" + filelist[i]));
+				// register the font
+				environment.registerFont(customFont);
 			} catch (IOException e) {
-			    e.printStackTrace();
-
-			} catch(FontFormatException e) {
-			    e.printStackTrace();
+				e.printStackTrace();
+			} catch (FontFormatException e) {
+				e.printStackTrace();
 			}
 		}
-		
-		
+
 		fonts = environment.getAvailableFontFamilyNames();// 获得系统字体
-		
+
 		Boolean findFont = false;
 		for (int i = 0; i < fonts.length; i++) {
 			// debugPrint(fonts[i]);
@@ -304,7 +319,6 @@ public class App {
 
 	public static void setUTF8() {
 		if (!System.getProperty("file.encoding").equals("UTF-8")) {
-
 			System.out.println("Default Charset=" + Charset.defaultCharset());
 			System.out.println("file.encoding=" + System.getProperty("file.encoding"));
 			System.out.println("Default Charset=" + Charset.defaultCharset());
@@ -352,16 +366,14 @@ public class App {
 	}
 
 	public static void main(String[] args) {
-
 		// set output stream
 		setUTF8();
-		
+
 		App.debugPrint("Java版本为 " + System.getProperty("java.version"));
 		if (System.getProperty("java.version").indexOf("1.8.0") == -1) {
 			System.out.println("检测到java版本非1.8.0版本，程序运行可能出现问题");
 		}
-		
-		
+
 		if (App.debugLog) {
 			setDebugLog("./output.log");
 			setErrLog("./error.log");
@@ -381,7 +393,7 @@ public class App {
 		defaultFontName = lang.lanuageConfig.getValue("defaultFontName");
 		defaultFontsize = Integer.parseInt(lang.lanuageConfig.getValue("defaultFontSize"));
 
-//		checkOS();;
+		// checkOS();;
 		initFont();
 		getScreenSize();
 
@@ -395,11 +407,12 @@ public class App {
 				ctr = new controller();
 
 				if (System.getProperty("java.version").indexOf("1.8") == -1) {
-					controller.notificationtimeAbout(String.format("Detected current Java version %s. Java 1.8 is needed.", System.getProperty("java.version")) , 3000);
+					controller.notificationtimeAbout(
+							String.format("Detected current Java version %s. Java 1.8 is needed.",
+									System.getProperty("java.version")),
+							3000);
 				}
 			}
 		});
-
 	}
-
 }

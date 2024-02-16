@@ -398,12 +398,12 @@ public class mainform extends WebFrame implements Runnable {
 	private void displayFM(WebComboBox bFMList, int idx) {
 		String planeName = bFMList.getSelectedItem().toString();
 		String path = "data/aces/gamedata/flightmodels/fm/" + planeName + ".blkx";
-//		System.out.println(path);
+		// System.out.println(path);
 		blkx fmblk = new blkx(path, planeName);
-//		fmblk.getload();
-//		System.out.println(fmblk.fmdata);
+		// fmblk.getload();
+		// System.out.println(fmblk.fmdata);
 		WebPopOver popOver = new WebPopOver(this);
-//		popOver.setCloseOnFocusLoss ( true );
+		// popOver.setCloseOnFocusLoss ( true );
 		popOver.setMargin(5);
 		popOver.setLayout(new VerticalFlowLayout());
 		WebButton closeButton = new WebButton(lang.mCancel, new ActionListener() {
@@ -456,42 +456,43 @@ public class mainform extends WebFrame implements Runnable {
 		// 移动位置
 		popOver.setLocation(popOver.getLocation().x + idx * popOver.getSize().width, popOver.getLocation().y);
 
-//		drawFrameSimpl = new drawFrameSimpl();
-//		WebPopOver popOver1 = new WebPopOver(this);
-////		popOver1.setMargin(5);
-//		popOver1.setLayout(new VerticalFlowLayout());
-//		WebPanel panel = new WebPanel() {
-//
-//			private static final long serialVersionUID = -9061280572815010060L;
-//
-//			public void paintComponent(Graphics g) {
-//				
-//				drawFrameSimpl.paintAction(g, fmblk);
-//			}
-//
-//		};
-//
-//		panel.setBounds(0, Toolkit.getDefaultToolkit().getScreenSize().height - 500, 900, 500);
-//		panel.setWebColoredBackground(false);
-//		panel.setBackground(new Color(0,0,0,0));
-//		panel.setLayout(null);
-//		WebButton closeButton1 = new WebButton(lang.mCancel, new ActionListener() {
-//			@Override
-//			public void actionPerformed(final ActionEvent e) {
-//				popOver1.dispose();
-//			}
-//		});
-//		closeButton1.setUndecorated(true);
-//		closeButton1.setFont(App.defaultFont);
-//		closeButton1.setFontSize((int) (App.defaultFontsize * 1.5f));
-//		closeButton1.setFontStyle(Font.BOLD);
-//		
-//		
-//		popOver1.add(panel);
-//		popOver1.setFont(App.defaultFont);
-//		popOver1.add(closeButton1);
-//		popOver1.show(this);
-//		popOver1.repaint();
+		// drawFrameSimpl = new drawFrameSimpl();
+		// WebPopOver popOver1 = new WebPopOver(this);
+		//// popOver1.setMargin(5);
+		// popOver1.setLayout(new VerticalFlowLayout());
+		// WebPanel panel = new WebPanel() {
+		//
+		// private static final long serialVersionUID = -9061280572815010060L;
+		//
+		// public void paintComponent(Graphics g) {
+		//
+		// drawFrameSimpl.paintAction(g, fmblk);
+		// }
+		//
+		// };
+		//
+		// panel.setBounds(0, Toolkit.getDefaultToolkit().getScreenSize().height - 500,
+		// 900, 500);
+		// panel.setWebColoredBackground(false);
+		// panel.setBackground(new Color(0,0,0,0));
+		// panel.setLayout(null);
+		// WebButton closeButton1 = new WebButton(lang.mCancel, new ActionListener() {
+		// @Override
+		// public void actionPerformed(final ActionEvent e) {
+		// popOver1.dispose();
+		// }
+		// });
+		// closeButton1.setUndecorated(true);
+		// closeButton1.setFont(App.defaultFont);
+		// closeButton1.setFontSize((int) (App.defaultFontsize * 1.5f));
+		// closeButton1.setFontStyle(Font.BOLD);
+		//
+		//
+		// popOver1.add(panel);
+		// popOver1.setFont(App.defaultFont);
+		// popOver1.add(closeButton1);
+		// popOver1.show(this);
+		// popOver1.repaint();
 	}
 
 	private String getColorText(final Color color) {
@@ -509,13 +510,13 @@ public class mainform extends WebFrame implements Runnable {
 		B = Integer.parseInt(ts[2]);
 		A = Integer.parseInt(ts[3]);
 		Color c = new Color(R, G, B, A);
-//        App.debugPrint(getColorText(c));
+		// App.debugPrint(getColorText(c));
 		return c;
 	}
 
 	public Color updateColorGroupColor(WebTextField trailing) {
 		Color c = textToColor(trailing.getText());
-//    	App.debugPrint(getColorText(c));
+		// App.debugPrint(getColorText(c));
 		trailing.setLeadingComponent(new WebImage(ImageUtils.createColorIcon(c)));
 		return c;
 	}
@@ -527,7 +528,7 @@ public class mainform extends WebFrame implements Runnable {
 		WebLabel lb = createWebLabel(text);
 		String S = getColorText(initialColor);
 
-//        textToColor(S);
+		// textToColor(S);
 
 		WebTextField trailing = new WebTextField(getColorText(initialColor), 15);
 		trailing.setMargin(0, 0, 0, 2);
@@ -548,38 +549,39 @@ public class mainform extends WebFrame implements Runnable {
 		return trailing;
 
 		// Simple color chooser
-//        final WebButton colorChooserButton = new WebButton ( getColorText ( initialColor ), ImageUtils.createColorIcon ( initialColor ) );
-//        colorChooserButton.setLeftRightSpacing ( 0 );
-//        colorChooserButton.setMargin ( 0, 0, 0, 3 );
-//        colorChooserButton.addActionListener ( new ActionListener ()
-//        {
-//            private WebColorChooserDialog colorChooser = null;
-//            private Color lastColor = initialColor;
-//
-//            @Override
-//            public void actionPerformed ( final ActionEvent e )
-//            {
-//                if ( colorChooser == null )
-//                {
-//                    colorChooser = new WebColorChooserDialog ( topPanel );
-//                }
-//                colorChooser.setColor ( lastColor );
-//                colorChooser.setVisible ( true );
-//
-//                if ( colorChooser.getResult () == DialogOptions.OK_OPTION )
-//                {
-//                    final Color color = colorChooser.getColor ();
-//                    lastColor = color;
-//
-//                    colorChooserButton.setIcon ( ImageUtils.createColorIcon ( color ) );
-//                    colorChooserButton.setText ( getColorText ( color ) );
-//                }
-//            }
-//        } );
-//        GroupPanel t = new GroupPanel ( colorChooserButton );
-//        topPanel.add(lb);
-//        topPanel.add(t);
-//        return t;
+		// final WebButton colorChooserButton = new WebButton ( getColorText (
+		// initialColor ), ImageUtils.createColorIcon ( initialColor ) );
+		// colorChooserButton.setLeftRightSpacing ( 0 );
+		// colorChooserButton.setMargin ( 0, 0, 0, 3 );
+		// colorChooserButton.addActionListener ( new ActionListener ()
+		// {
+		// private WebColorChooserDialog colorChooser = null;
+		// private Color lastColor = initialColor;
+		//
+		// @Override
+		// public void actionPerformed ( final ActionEvent e )
+		// {
+		// if ( colorChooser == null )
+		// {
+		// colorChooser = new WebColorChooserDialog ( topPanel );
+		// }
+		// colorChooser.setColor ( lastColor );
+		// colorChooser.setVisible ( true );
+		//
+		// if ( colorChooser.getResult () == DialogOptions.OK_OPTION )
+		// {
+		// final Color color = colorChooser.getColor ();
+		// lastColor = color;
+		//
+		// colorChooserButton.setIcon ( ImageUtils.createColorIcon ( color ) );
+		// colorChooserButton.setText ( getColorText ( color ) );
+		// }
+		// }
+		// } );
+		// GroupPanel t = new GroupPanel ( colorChooserButton );
+		// topPanel.add(lb);
+		// topPanel.add(t);
+		// return t;
 
 	}
 
@@ -605,8 +607,8 @@ public class mainform extends WebFrame implements Runnable {
 
 					moveCheckFlag = true;
 				} else {
-//					App.debugPrint("重置\n");
-//					config_init();
+					// App.debugPrint("重置\n");
+					// config_init();
 					controller.notification(lang.mPreviewWarning);
 				}
 			}
@@ -655,8 +657,8 @@ public class mainform extends WebFrame implements Runnable {
 
 					moveCheckFlag = true;
 				} else {
-//					App.debugPrint("重置\n");
-//					config_init();
+					// App.debugPrint("重置\n");
+					// config_init();
 					controller.notification(lang.mPreviewWarning);
 				}
 			}
@@ -676,7 +678,7 @@ public class mainform extends WebFrame implements Runnable {
 
 		D.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-//				App.debugPrint("打开FM");
+				// App.debugPrint("打开FM");
 				displayFM(fmSelectd0, 0);
 				displayFM(fmSelectd1, 1);
 			}
@@ -730,7 +732,7 @@ public class mainform extends WebFrame implements Runnable {
 		ws.getWebUI().setPaintSides(true, false, true, false);
 		// ws.getWebUI().setPaintSides(false, true, false, true);
 		ws.setRound(5);
-//		ws.setAnimate(false);
+		// ws.setAnimate(false);
 		ws.setShadeWidth(1);
 		ws.getLeftComponent().setFont(new Font(App.defaultNumfontName, Font.PLAIN, 14));
 		ws.getRightComponent().setFont(new Font(App.defaultNumfontName, Font.PLAIN, 14));
@@ -827,8 +829,8 @@ public class mainform extends WebFrame implements Runnable {
 
 		// bottomPanel
 
-//		WebButtonGroup G = createbuttonGroup();
-//		bottomPanel.add(G, BorderLayout.LINE_END);
+		// WebButtonGroup G = createbuttonGroup();
+		// bottomPanel.add(G, BorderLayout.LINE_END);
 		WebButtonGroup G = createbuttonGroup();
 		bottomPanel.add(G, BorderLayout.LINE_END);
 		WebButtonGroup G1 = createLBGroup(bottomPanel);
@@ -894,9 +896,9 @@ public class mainform extends WebFrame implements Runnable {
 		bEngineInfoEngResponse = createLCGroup(topPanel, lang.mP2eiEngResponse);
 		createvoidWebLabel(topPanel, lang.mP2eiEngResponseBlank);
 
-//		bEngineInfoHp = createLCGroup(topPanel, language.mP4fiIAS);
-//		createvoidWebLabel(topPanel,language.mP4fiIASBlank);
-//		
+		// bEngineInfoHp = createLCGroup(topPanel, language.mP4fiIAS);
+		// createvoidWebLabel(topPanel,language.mP4fiIASBlank);
+		//
 
 		// createLCGroup(topPanel, "面板透明度 ");
 		// createLBGroup(topPanel);
@@ -1122,7 +1124,7 @@ public class mainform extends WebFrame implements Runnable {
 		topPanel.setLayout(layout);
 
 		// bottomPanel
-//		WebButtonGroup G1 = createLBGroupFM(bottomPanel, bFMList0, bFMList1);
+		// WebButtonGroup G1 = createLBGroupFM(bottomPanel, bFMList0, bFMList1);
 		WebButtonGroup G1 = createLBGroup(bottomPanel);
 		bottomPanel.add(G1, BorderLayout.LINE_START);
 		WebButtonGroup G = createbuttonGroup();
@@ -1326,8 +1328,9 @@ public class mainform extends WebFrame implements Runnable {
 
 		bstatusSwitch.setSelected(Boolean.parseBoolean(tc.getconfig("enableStatusBar")));
 		ivoiceVolume.setValue(Integer.parseInt(tc.getconfig("voiceVolume")));
-//		tc.setconfig("enableStatusBar", Boolean.toString(bstatusSwitch.isSelected()));
-//		tc.setconfig("voiceVolumn", Integer.toString(ivoiceVolume.getValue()));
+		// tc.setconfig("enableStatusBar",
+		// Boolean.toString(bstatusSwitch.isSelected()));
+		// tc.setconfig("voiceVolumn", Integer.toString(ivoiceVolume.getValue()));
 
 		// 颜色
 		cNumColor.setText(getColorText(tc.getColorConfig("fontNum")));
@@ -1384,7 +1387,7 @@ public class mainform extends WebFrame implements Runnable {
 
 		if (App.debug)
 			tc.setconfig("usetempInfoSwitch", Boolean.toString(Boolean.FALSE));
-//		tc.setconfig(", value);
+		// tc.setconfig(", value);
 		tc.setconfig("GlobalNumFont", App.defaultNumfontName);
 		tc.setconfig("Interval", Integer.toString(80));
 
@@ -1513,7 +1516,7 @@ public class mainform extends WebFrame implements Runnable {
 		this.setVisible(false);
 		tc.flag = 1;
 		tc.start();
-//		this.dispose();
+		// this.dispose();
 	}
 
 	public mainform(controller c) {
@@ -1534,11 +1537,11 @@ public class mainform extends WebFrame implements Runnable {
 		this.setFont(App.defaultFont);
 		this.setSize(width, height);
 
-//		setFrameOpaque();// 窗口透明
+		// setFrameOpaque();// 窗口透明
 		String ti = App.appName + " v" + App.version;
 		if (App.debug)
 			ti = ti + "beta";
-//		ti=ti+"　　————"+App.appTooltips;
+		// ti=ti+" ————"+App.appTooltips;
 		setTitle(ti);
 		this.setShowMaximizeButton(false);
 		this.getWebRootPaneUI().getTitleComponent().getComponent(1)
@@ -1558,7 +1561,7 @@ public class mainform extends WebFrame implements Runnable {
 		setDrawWatermark(true);
 		setWatermark(new ImageIcon("image/watermark.png"));
 
-//		this.getTitleComponent().setForeground(new Color(0,0,0,255));
+		// this.getTitleComponent().setForeground(new Color(0,0,0,255));
 		// this.getWebRootPaneUI().getWindowButtons().getWebButton(2).setBorderPainted(false);
 		initPanel();
 		initConfig();// 读入Config
@@ -1567,7 +1570,6 @@ public class mainform extends WebFrame implements Runnable {
 		setDefaultCloseOperation(3);
 		setVisible(true);
 		this.setShadeWidth(10);
-
 	}
 
 	@Override
@@ -1580,7 +1582,7 @@ public class mainform extends WebFrame implements Runnable {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-//			gcCount++;
+			// gcCount++;
 			// App.debugPrint("As");
 			// App.debugPrint("MainFrame执行了");
 			root.repaint();
@@ -1590,6 +1592,6 @@ public class mainform extends WebFrame implements Runnable {
 			}
 
 		}
-//		tc.loadFromConfig();
+		// tc.loadFromConfig();
 	}
 }

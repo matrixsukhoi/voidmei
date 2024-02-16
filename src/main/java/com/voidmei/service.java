@@ -850,7 +850,6 @@ public class service implements Runnable {
 	public void updateEngineState() {
 		int i;
 
-
 		checkEngineJet();
 		if (!isEngJet()) {
 			// 活塞机或者涡浆机
@@ -1354,12 +1353,18 @@ public class service implements Runnable {
 		long waitMili = App.threadSleepTime;
 		// App.debugPrint("" + waitMili);
 		while (true) {
-
 			try {
 				Thread.sleep(waitMili);
 			} catch (InterruptedException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
+				App.debugPrint("termiante thread");
+				return;
+			}
+
+			if (Thread.interrupted()) {
+				App.debugPrint("termiante thread");
+				return;
 			}
 
 			SystemTime = System.currentTimeMillis();
@@ -1392,9 +1397,7 @@ public class service implements Runnable {
 //					 App.debugPrint("deadline Miss, try catch\n" + SystemTime +
 //							 "," + MainCheckMili);
 //				 }
-
 			}
-
 		}
 	}
 }

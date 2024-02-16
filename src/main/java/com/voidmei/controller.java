@@ -40,7 +40,7 @@ public class controller {
 	public boolean logon = false;
 
 	public blkx blkx;
-	
+
 	Robot robot;
 
 	engineControl F;
@@ -118,7 +118,7 @@ public class controller {
 
 	engineInfo FI;
 
-//	private Thread FI1;
+	// private Thread FI1;
 
 	private voiceWarning vW;
 
@@ -179,11 +179,13 @@ public class controller {
 			flag = 3;
 		}
 	}
+
 	public String cur_fmtype;
 
 	private autoMeasure aM;
 
 	private Thread aM1;
+
 	public void changeS3() {
 		// 状态3，连接成功，释放状态条，打开面板
 		// SB.repaint();
@@ -215,7 +217,7 @@ public class controller {
 			}
 			flag = 4;
 			openpad();
-			
+
 		}
 	}
 
@@ -248,7 +250,7 @@ public class controller {
 
 	public void openpad() {
 		// hideTaskbarSw();
-		if (App.fmTesting){
+		if (App.fmTesting) {
 			aM = new autoMeasure(S);
 			aM1 = new Thread(aM);
 			aM1.start();
@@ -358,7 +360,7 @@ public class controller {
 			SA1.start();
 
 		}
-		
+
 		uT = new uiThread(this);
 		uT1 = new Thread(uT);
 		uT1.start();
@@ -366,7 +368,7 @@ public class controller {
 	}
 
 	public void closepad() {
-		if (App.fmTesting){
+		if (App.fmTesting) {
 			aM.doit = false;
 			aM1 = null;
 			aM = null;
@@ -380,7 +382,7 @@ public class controller {
 		if (getconfig("engineInfoSwitch").equals("true")) {
 			// F.doit = false;
 			FI.doit = false;
-//			FI1 = null;
+			// FI1 = null;
 			// F1 = null;
 			FI.dispose();
 			// F.dispose();
@@ -548,8 +550,7 @@ public class controller {
 
 		// 描边颜色
 		App.colorShadeShape = getColorConfig("fontShade");
-		
-		
+
 		// 声音
 		App.voiceVolumn = Integer.parseInt(getconfig("voiceVolume"));
 		// fontLabelR=32
@@ -576,15 +577,14 @@ public class controller {
 			showStatus = Boolean.parseBoolean(getconfig("enableStatusBar"));
 		// 读取字体绘制方式
 		App.drawFontShape = !Boolean.parseBoolean(getconfig("simpleFont"));
-		
+
 		// 读取抗锯齿
 		App.aaEnable = Boolean.parseBoolean(getconfig("AAEnable"));
-		if (App.aaEnable){
-//			App.textAASetting = RenderingHints.VALUE_TEXT_ANTIALIAS_GASP;
+		if (App.aaEnable) {
+			// App.textAASetting = RenderingHints.VALUE_TEXT_ANTIALIAS_GASP;
 			App.textAASetting = RenderingHints.VALUE_TEXT_ANTIALIAS_ON;
 			App.graphAASetting = RenderingHints.VALUE_ANTIALIAS_ON;
-		}
-		else{
+		} else {
 			App.textAASetting = RenderingHints.VALUE_TEXT_ANTIALIAS_OFF;
 			App.graphAASetting = RenderingHints.VALUE_ANTIALIAS_OFF;
 		}
@@ -627,7 +627,6 @@ public class controller {
 
 	public void start() {
 		if (flag == 1) {
-
 			// App.debugPrint(freqService);
 			// 状态1，释放设置窗口传参初始化后台
 			// App.debugPrint("状态1，传参初始化Service");
@@ -642,9 +641,28 @@ public class controller {
 			S = new service(this);
 			S1 = new Thread(S);
 			S1.start();
+		}
+	}
 
+	public void stop() {
+		if (M != null) {
+			M.doit = false;
+			M1 = null;
+			M.dispose();
+			M = null;
+			System.gc();
+			return;
 		}
 
+		// if (S1 == null) {
+		// 	return;
+		// }
+		if (flag == 4) {
+			closepad();
+		}
+
+		S1.interrupt();
+		System.gc();
 	}
 
 	public void Preview() {
@@ -946,7 +964,7 @@ public class controller {
 
 		if (blkx.valid == true) {// App.debugPrint(blkx.data);
 			blkx.getAllplotdata();
-//			blkx.getload();
+			// blkx.getload();
 			blkx.data = null;
 		}
 
