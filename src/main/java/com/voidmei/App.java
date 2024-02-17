@@ -33,12 +33,20 @@ import java.util.regex.Pattern;
 
 import javax.swing.SwingUtilities;
 
+import org.json.JSONObject;
+
 // import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 // import org.w3c.dom.events.MouseEvent;
 
 import com.alee.global.StyleConstants;
 import com.alee.laf.WebLookAndFeel;
+
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 
 public class App {
 	// 一些全局配置
@@ -358,6 +366,37 @@ public class App {
 		WebLookAndFeel.setAllowLinuxTransparency(true);
 	}
 
+	public static void notifyUpdate() {
+		OkHttpClient client = new OkHttpClient();
+		String owner = "matrixsukhoi";
+		String repository = "voidmei";
+
+		Request request = new Request.Builder()
+				.url("https://api.github.com/repos/" + owner + "/" + repository + "/releases/latest")
+				.build();
+
+		Call call = client.newCall(request);
+		call.enqueue(new Callback() {
+			public void onResponse(Call call, Response response)
+					throws IOException {
+				String responseBody = response.body().string();
+				JSONObject json = new JSONObject(responseBody);
+				String latestVersion = json.getString("tag_name");
+
+				if (version.equals(latestVersion)) {
+				} else {
+					String notice = "A new version is release on github, version: " + latestVersion;
+					controller.notificationtimeAbout(String.format(notice), 10000);
+					debugPrint(notice);
+				}
+			}
+
+			public void onFailure(Call call, IOException e) {
+				debugPrint("[failed] timeout connecting github.");
+			}
+		});
+	}
+
 	public static void main(String[] args) {
 		// set output stream
 		setUTF8();
@@ -393,6 +432,9 @@ public class App {
 		// System.setProperty("awt.useSystemAAFontSettings", "on");
 
 		initSystemTray();
+
+		notifyUpdate();
+
 		SwingUtilities.invokeLater(new Runnable() {
 			public void run() {
 				// Install WebLaF as application L&F
