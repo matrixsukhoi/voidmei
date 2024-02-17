@@ -68,5 +68,10 @@
       <artifactId>weblaf-complete</artifactId>
       <version>1.29</version>
     </dependency>
+    <dependency>
+      <groupId>com.github.kwhat</groupId>
+      <artifactId>jnativehook</artifactId>
+      <version>2.2.2</version>
+    </dependency>
   </dependencies>
 </project>

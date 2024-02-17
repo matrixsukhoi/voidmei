@@ -13,6 +13,10 @@ import com.alee.laf.label.WebLabel;
 import com.alee.laf.panel.WebPanel;
 import com.alee.laf.rootpane.WebFrame;
 import com.alee.laf.text.WebTextArea;
+import com.github.kwhat.jnativehook.GlobalScreen;
+import com.github.kwhat.jnativehook.NativeHookException;
+import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent;
+import com.github.kwhat.jnativehook.keyboard.NativeKeyListener;
 import com.voidmei.App;
 import com.voidmei.controller;
 import com.voidmei.parser.blkx;
@@ -31,6 +35,7 @@ public class someUsefulData extends WebFrame implements Runnable {
 	int HEIGHT;
 	WebTextArea textArea;
 	String FontName;
+	Boolean displayp = true;
 
 	public void init(controller c, blkx p) {
 		xc = c;
@@ -160,8 +165,25 @@ public class someUsefulData extends WebFrame implements Runnable {
 //		panel.add(title);
 		uiWebLafSetting.setWindowFocus(this);
 
-//		this.getWindows()[0].toBack();
+		//		this.getWindows()[0].toBack();
 		
+		try {
+			GlobalScreen.registerNativeHook();
+		}
+		catch (NativeHookException ex) {
+			App.debugPrint("There was a problem registering the native hook.");
+			App.debugPrint(ex.getMessage());
+		}
+
+		GlobalScreen.addNativeKeyListener(new NativeKeyListener() {
+			public void nativeKeyReleased(NativeKeyEvent e) {
+				if (e.getKeyCode() == NativeKeyEvent.VC_P) {
+					displayp = !displayp;
+					// System.out.println("Key Released: " + NativeKeyEvent.getKeyText(e.getKeyCode()));
+					// System.out.println("" + displayp);
+				}
+			}
+		});
 	}
 
 	public void S() {
@@ -190,10 +212,17 @@ public class someUsefulData extends WebFrame implements Runnable {
 		// this.repaint();
 		// }
 		while (doit) {
-			textArea.setText(xp.fmdata);
+			if (displayp) {
+				textArea.setText(xp.fmdata);
+				textArea.setBackground(new Color(250, 250, 250, 85));
+			} else {
+				textArea.setText("");
+				textArea.setBackground(new Color(0, 0, 0, 0));
+			}
+
 			this.getContentPane().repaint();
 			try {
-				Thread.sleep(1000);
+				Thread.sleep(500);
 			} catch (InterruptedException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
