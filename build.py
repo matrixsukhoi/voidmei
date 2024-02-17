@@ -88,11 +88,26 @@ def clean(args=None):
 
 
 def publish(args):
+    if any(
+        mtime > os.path.getmtime("./resources.7z")
+        for mtime in map(os.path.getmtime, RESOURCES)
+    ):
+        execute(
+            "7z a -t7z resources.7z -stl -mx9 config data fonts image language records voice",
+            timeout=None,
+        )
+
+    root = ET.parse("pom.xml").getroot()
+    version = root.find("{http://maven.apache.org/POM/4.0.0}version").text
+    shutil.copyfile("./target/voidmei-" + version + ".jar", "./voidmei.jar")
+    # execute("cp ./target/voidmei-" + version + ".jar ./voidmei.jar")
+
+    execute("launch4jc ./config.xml")
     execute(
-        "7z a -t7z resources.7z -mx9 config data fonts image language records voice", timeout=None
+        "7z a -t7z voidmei.7z -stl -mx9 config data fonts image language records voice README.md ReadMe.txt voidmei.exe voidmei.jar 更新日志.txt 计算说明.md 使用说明.txt",
+        timeout=None,
     )
-        "7z a -t7z voidmei.7z -stl -mx9 config data fonts image language records voice README.md ReadMe.txt voidmei.exe voidmei.jar 更新日志.txt 计算说明.md 使用说明.txt", timeout=None)
-        
+
 
 def run(args):
     args.func(args)

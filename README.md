@@ -50,8 +50,9 @@ python ./build.py clean
 ```
 
 ## 发布
+需要下载[`launch4jc`](https://sourceforge.net/projects/launch4j/files/launch4j-3/3.50/), 并手动添加到`PATH` (TODO: 有没有其他的可以用scoop下载的打包软件)
 
-TODO: 没做完
+然后运行:
 
 ``` powershell
 python ./build.py publish

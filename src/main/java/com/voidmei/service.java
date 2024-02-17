@@ -1356,14 +1356,12 @@ public class service implements Runnable {
 			try {
 				Thread.sleep(waitMili);
 			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-				App.debugPrint("termiante thread");
+				App.debugPrint("service: termiante thread");
 				return;
 			}
 
 			if (Thread.interrupted()) {
-				App.debugPrint("termiante thread");
+				App.debugPrint("service: termiante thread");
 				return;
 			}
 

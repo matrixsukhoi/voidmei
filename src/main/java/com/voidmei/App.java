@@ -5,7 +5,6 @@ import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.Font;
 import java.awt.FontFormatException;
-import java.awt.Frame;
 import java.awt.GraphicsEnvironment;
 import java.awt.Image;
 import java.awt.MenuItem;
@@ -141,7 +140,6 @@ public class App {
 		r = Runtime.getRuntime();
 		int tasklist1 = -1;
 		try {
-
 			String cmd1 = "cmd.exe /c tasklist";
 			Process p = Runtime.getRuntime().exec(cmd1);
 			StringBuffer out = new StringBuffer();
@@ -211,15 +209,10 @@ public class App {
 			icon.setPopupMenu(p);
 
 			// left click
-			final Frame frame = new Frame("");
-			frame.setUndecorated(true);
-
 			icon.addMouseListener(new MouseAdapter() {
 				@Override
 				public void mouseClicked(MouseEvent e) {
 					if (e.getButton() == MouseEvent.BUTTON1) {
-						// TODO:
-						debugPrint("conosuba");
 						ctr.stop();
 						ctr = new controller();
 					}
