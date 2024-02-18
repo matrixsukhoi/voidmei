@@ -1,0 +1,11 @@
+./config/
+./data/
+./dep/
+./fonts/
+./image/
+./lang/
+./voice/
+VoidMei.exe
+VoidMei.jar
+使用说明.txt
+更新日志.txt
