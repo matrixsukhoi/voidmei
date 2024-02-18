@@ -5,12 +5,58 @@
 - 解析离线拆包的气动模型文件(FM blkx)
 - 处理/计算上述信息,以图形界面的形式呈现给用户
 
-# 编译
-- 使用eclipse导入工程,程序入口设置为app.java中的main函数
-- 设置jdk/jre版本为1.8 (java 8)
-- 导入外部UI库 weblaf-complete-1.29.jar
-- 下载release版本,将其他缺失的资源文件复制到本目录
-- 运行或调试程序
+# 编译/构建
+
+## 运行:
+需要安装java8, maven, python3, 7zip, 无需下载额外的依赖.
+
+java, maven和7zip可以通过scoop安装, 安装java需要加-g参数:
+
+![alt text](image.png)
+
+安装maven后更改本地repo存储路径, 以及换源:
+`C:\Users\username\scoop\persist\maven\conf\settings.xml`
+``` xml
+  -->
+  <localRepository>D:/maven/repository</localRepository>
+  <!-- interactiveMode
+  ......
+     -->
+    <mirror>
+      <id>nexus-aliyun</id>
+      <mirrorOf>central</mirrorOf>
+      <name>Nexus aliyun</name>
+      <url>http://maven.aliyun.com/nexus/content/groups/public</url>
+    </mirror>
+  </mirrors>
+```
+
+python3 最好安装3.8以后的版本.
+
+### 运行自动构建脚本:
+``` powershell
+python ./build.py build
+
+```
+
+## clean:
+!!! 会删除掉目录下所有的图片音效等资源文件, 请确认图片音效已经保存到resources.7z里 !!!
+
+TODO: 检查文件夹和resources的mdate
+
+``` powershell
+python ./build.py clean
+
+```
+
+## 发布
+需要下载[`launch4jc`](https://sourceforge.net/projects/launch4j/files/launch4j-3/3.50/), 并手动添加到`PATH` (TODO: 有没有其他的可以用scoop下载的打包软件)
+
+然后运行:
+
+``` powershell
+python ./build.py publish
+```
 
 # 代码结构说明
 由于编程过程比较随意,目前代码结构与变量命名比较混乱,后面有时间会调整
@@ -30,6 +76,9 @@
 
 # 执行环境
 - 安装 Jave Runtime Environment 1.8(jre 1.8) 即可
+
+## 网页右侧`release`处下载压缩包
+然后选择`解压到voidmei文件夹`, 否则会解压出一堆小文件而非单独一个文件夹
 
 ## Windows命令行模式安装VoidMei
 打开非管理员模式的终端[按下WIN+R-输入cmd-按下回车]，跳出终端窗口后输入以下命令
