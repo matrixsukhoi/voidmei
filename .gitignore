@@ -8,3 +8,6 @@ records/
 voice/
 VoidMei.exe
 VoidMei.jar
+*.zip
+*.exe
+*.dll

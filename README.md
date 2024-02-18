@@ -20,6 +20,8 @@ jar -cvfm VoidMei.jar MANIFEST.MF -C ./bin .
 java -jar VoidMei.jar
 # 使用launch4j打包为exe, 确保launch4j环境目录已配置
 launch4jc ./script/voidmeil4j.xml
+# 在linux或者WSL下执行脚本打包发行版本
+bash ./script/zip.sh
 ```
 
 # 编译方式2: Eclipse IDE
