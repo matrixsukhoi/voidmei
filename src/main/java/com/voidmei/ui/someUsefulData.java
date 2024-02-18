@@ -35,7 +35,6 @@ public class someUsefulData extends WebFrame implements Runnable {
 	int HEIGHT;
 	WebTextArea textArea;
 	String FontName;
-	Boolean displayp = true;
 
 	public void init(controller c, blkx p) {
 		xc = c;
@@ -167,23 +166,9 @@ public class someUsefulData extends WebFrame implements Runnable {
 
 		//		this.getWindows()[0].toBack();
 		
-		try {
-			GlobalScreen.registerNativeHook();
-		}
-		catch (NativeHookException ex) {
-			App.debugPrint("There was a problem registering the native hook.");
-			App.debugPrint(ex.getMessage());
-		}
 
-		GlobalScreen.addNativeKeyListener(new NativeKeyListener() {
-			public void nativeKeyReleased(NativeKeyEvent e) {
-				if (e.getKeyCode() == NativeKeyEvent.VC_P) {
-					displayp = !displayp;
-					// System.out.println("Key Released: " + NativeKeyEvent.getKeyText(e.getKeyCode()));
-					// System.out.println("" + displayp);
-				}
-			}
-		});
+
+
 	}
 
 	public void S() {
@@ -212,7 +197,7 @@ public class someUsefulData extends WebFrame implements Runnable {
 		// this.repaint();
 		// }
 		while (doit) {
-			if (displayp) {
+			if (App.displayFm) {
 				textArea.setText(xp.fmdata);
 				textArea.setBackground(new Color(250, 250, 250, 85));
 			} else {
@@ -227,29 +212,27 @@ public class someUsefulData extends WebFrame implements Runnable {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}	
-			if (this.xc.S.sState.gear != 100 || (this.xc.S.speedv > 10 && this.xc.S.sState.throttle > 0)) {
-				// 如果收起落架则关闭break
-				/* 测试，开始传送 */
-				// if (App.fmTesting){
-				// 	/* 先上10000米 */
-				// 	try {
-				// 		xc.S.httpClient.fmCmdSetAlt(10000, App.requestDest);
-				// 		xc.S.httpClient.fmCmdSetSpd(100.0f, App.requestDest);
-				// 	} catch (IOException e) {
-				// 		// TODO Auto-generated catch block
-				// 		e.printStackTrace();
-				// 	}
-				// }
-				try {
-					Thread.sleep(10000);
-				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}	
-				break;
-			}
-//			else{
-//			}
+			// if (this.xc.S.sState.gear != 100 || (this.xc.S.speedv > 10 && this.xc.S.sState.throttle > 0)) {
+			// 	// 如果收起落架则关闭break
+			// 	/* 测试，开始传送 */
+			// 	// if (App.fmTesting){
+			// 	// 	/* 先上10000米 */
+			// 	// 	try {
+			// 	// 		xc.S.httpClient.fmCmdSetAlt(10000, App.requestDest);
+			// 	// 		xc.S.httpClient.fmCmdSetSpd(100.0f, App.requestDest);
+			// 	// 	} catch (IOException e) {
+			// 	// 		// TODO Auto-generated catch block
+			// 	// 		e.printStackTrace();
+			// 	// 	}
+			// 	// }
+			// 	try {
+			// 		Thread.sleep(10000);
+			// 	} catch (InterruptedException e) {
+			// 		// TODO Auto-generated catch block
+			// 		e.printStackTrace();
+			// 	}	
+			// 	break;
+			// }
 		}
 		this.dispose();
 	}

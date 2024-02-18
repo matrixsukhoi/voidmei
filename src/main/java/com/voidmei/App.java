@@ -17,6 +17,7 @@ import java.awt.TrayIcon;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
 import java.io.File;
@@ -34,13 +35,12 @@ import java.util.regex.Pattern;
 import javax.swing.SwingUtilities;
 
 import org.json.JSONObject;
-
-// import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
-// import org.w3c.dom.events.MouseEvent;
-
 import com.alee.global.StyleConstants;
 import com.alee.laf.WebLookAndFeel;
+import com.github.kwhat.jnativehook.GlobalScreen;
+import com.github.kwhat.jnativehook.NativeHookException;
+import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent;
+import com.github.kwhat.jnativehook.keyboard.NativeKeyListener;
 
 import okhttp3.Call;
 import okhttp3.Callback;
@@ -113,6 +113,8 @@ public class App {
 
 	// 是否开启
 	public static boolean drawFontShape = false;
+
+	public static Boolean displayFm = true;
 
 	public static String getJavaVersion() {
 		r = Runtime.getRuntime();
@@ -397,6 +399,23 @@ public class App {
 		});
 	}
 
+	public static void addDisplayFmListener() {
+		try {
+			GlobalScreen.registerNativeHook();
+		} catch (NativeHookException ex) {
+			App.debugPrint("There was a problem registering the native hook.");
+			App.debugPrint(ex.getMessage());
+		}
+
+		GlobalScreen.addNativeKeyListener(new NativeKeyListener() {
+			public void nativeKeyReleased(NativeKeyEvent e) {
+				if (e.getKeyCode() == NativeKeyEvent.VC_P) {
+					displayFm = !displayFm;
+				}
+			}
+		});
+	}
+
 	public static void main(String[] args) {
 		// set output stream
 		setUTF8();
@@ -434,6 +453,8 @@ public class App {
 		initSystemTray();
 
 		notifyUpdate();
+
+		addDisplayFmListener();
 
 		SwingUtilities.invokeLater(new Runnable() {
 			public void run() {

@@ -7,7 +7,7 @@
   <errTitle></errTitle>
   <cmdLine></cmdLine>
   <chdir>.</chdir>
-  <priority>normal</priority>
+  <priority>high</priority>
   <downloadUrl></downloadUrl>
   <supportUrl></supportUrl>
   <stayAlive>false</stayAlive>
