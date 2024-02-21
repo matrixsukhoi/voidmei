@@ -34,9 +34,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import javax.swing.SwingUtilities;
-import javax.xml.ws.Response;
 
-import org.omg.CORBA.Request;
 
 import com.alee.global.StyleConstants;
 import com.alee.laf.WebLookAndFeel;
@@ -45,7 +43,7 @@ import com.github.kwhat.jnativehook.NativeHookException;
 import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent;
 import com.github.kwhat.jnativehook.keyboard.NativeKeyListener;
 
-import parser.stringHelper;
+// import parser.stringHelper;
 
 public class app {
 	// 一些全局配置
@@ -67,7 +65,7 @@ public class app {
 	public static String appName;
 	public static String defaultNumfontName = "Roboto";
 	public static String appTooltips;
-	public static String version = "1.560";
+	public static String version = "1.561";
 	public static String httpHeader;
 	public static int voiceVolumn = 100;
 	public static String defaultFontName = "Microsoft YaHei UI";
@@ -474,7 +472,7 @@ public class app {
 
 		checkUpdate();
 
-		addDisplayFmListener();
+		if (displayFmCtrl) addDisplayFmListener();
 
 		SwingUtilities.invokeLater(new Runnable() {
 			public void run() {

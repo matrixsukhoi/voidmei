@@ -1,6 +1,7 @@
 ./config/
 ./data/
-./dep/
+./dep/weblaf-complete-1.29.jar
+./dep/jnativehook-2.2.2.jar
 ./fonts/
 ./image/
 ./lang/

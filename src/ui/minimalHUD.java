@@ -1014,16 +1014,15 @@ public class minimalHUD extends WebFrame implements Runnable {
 			
 			availableAoA = maxAvailableAoA - aoa;
 
-//			if (availableAoA < aoaWarningRatio * maxAvailableAoA)
-			if (aoa > xc.blkx.Fuselage.AoACritHigh)
+			if (availableAoA < aoaWarningRatio * maxAvailableAoA) {
 				aoaColor = app.colorWarning;
+			}
 			else {
 				aoaColor = app.colorNum;
 			}
-//			if (availableAoA < aoaBarWarningRatio * maxAvailableAoA)	
-//			if (aoa > xc.blkx.Fuselage.AoACritHigh)	
-			if (availableAoA <= 0)
-				aoaBarColor  = app.colorWarning;
+			if (availableAoA < aoaBarWarningRatio * maxAvailableAoA) {
+				aoaBarColor  = app.colorUnit;
+			}
 			else{
 				aoaBarColor  = app.colorNum;
 			}
