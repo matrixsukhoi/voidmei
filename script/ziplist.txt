@@ -6,6 +6,7 @@
 ./image/
 ./lang/
 ./voice/
+./records/
 VoidMei.exe
 VoidMei.jar
 使用说明.txt

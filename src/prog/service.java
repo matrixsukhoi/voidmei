@@ -329,7 +329,10 @@ public class service implements Runnable {
 			sAvgEff = String.format("%d", Math.round(avgeff));
 		// app.debugPrint(sWingSweep);
 		Vy = String.format("%.1f", nVy);
-		sN = String.format("%.1f", An / g);
+		if (Math.abs(An) <= 1000)
+			sN = String.format("%.1f", An / g);
+		else
+			sN = nastring;
 		IAS = String.format("%d", sState.IAS);
 		TAS = String.format("%d", sState.TAS);
 		salt = String.format("%.0f", alt);

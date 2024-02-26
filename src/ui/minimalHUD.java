@@ -165,7 +165,6 @@ public class minimalHUD extends WebFrame implements Runnable {
 		g.setFont(drawFont);
 		int kx = 0;
 		// drawStringShade(g, x, n+y, lines[0], drawFont);
-		int n5 = 5 * HUDFontsize;
 //		BasicStroke outBs = new BasicStroke(lineWidth + 2, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
 //		BasicStroke inBs = new BasicStroke(lineWidth, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
 		// 油门
@@ -216,95 +215,55 @@ public class minimalHUD extends WebFrame implements Runnable {
 		kx += barWidth;
 		
 		// 姿态
-		int round = (int) (5 * roundCompass);
-		int rnd = (int) (HUDFontsize * 0.618f);
+
 		if (drawAttitude) {
 			if (!blinkX || (blinkX && !blinkActing)) {
-//				g.setStroke(new BasicStroke(lineWidth + 2, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-//				g.setColor(app.colorShadeShape);
-//				g.drawArc(lineWidth + aosX + round / 2, n5 - HUDFontsize + pitch, round, 2*HUDFontsize, rollDeg, -180);
-//				g.drawLine(lineWidth + round, n5, lineWidth + round + aosX, n5 + pitch);
-//				
-//				
-////				g.drawLine(lineWidth + round + aosX, n5+ pitch, lineWidth + round + aosX + HUDFontsize/2, n5 + pitch);
-//
-//				uiBaseElem.__drawStringShade(g, lineWidth + round + aosX , n5 + pitch - 1, 1, sAttitude, drawFontSmall, app.colorNum);
-//				uiBaseElem.__drawStringShade(g, lineWidth + round + aosX - HUDFontsize/2 , n5 + 3 * HUDFontsize/2 + pitch, 1, sAttitudeRoll, drawFontSmall, app.colorNum);
-//				
-////				uiBaseElem.__drawStringShade(g, lineWidth + round + aosX , n5 + pitch , 1, sAttitudeRoll, drawFontSmall, app.colorNum);
-////				sAttitudeRoll
-//				g.setStroke(new BasicStroke(lineWidth, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-//				if (realSpdPitch < 0) {
-//					g.setColor(app.colorUnit);
-//				}
-//				else
-//					g.setColor(app.colorNum);
-//				g.drawArc(lineWidth + aosX + round / 2, n5 - HUDFontsize + pitch, round, 2*HUDFontsize, rollDeg, -180);
-//				g.drawLine(lineWidth + round, n5, lineWidth + round + aosX, n5 + pitch);
-//				
-////				g.setColor(app.colorUnit);
-////				g.drawLine(lineWidth + round + aosX, n5+ pitch, lineWidth + round + aosX + HUDFontsize/2, n5 + pitch);
-		        // 计算小圆形的位置
+				// 计算小圆形的位置
 
-		        int circleX = lineWidth - aosX + round;
-		        int circleY = (int) (n5 - 2.5 * HUDFontsize + rnd/2 - pitch);
-		        double rollDegRad = Math.toRadians(rollDeg);
-		        // 绘制地面和牵引线
-//		        g.setStroke(Bs3);
-//		        g.setColor(app.colorShadeShape);
-//		        g.drawLine(circleX + aosX - rnd/4, circleY + pitch , circleX + aosX + rnd/4, circleY + pitch);
-//		        g.setStroke(Bs1);
-//		        g.setColor(app.colorNum);
-//		        g.drawLine(circleX + aosX - rnd/4, circleY + pitch, circleX  + aosX + rnd/4, circleY + pitch);
-//		        
-		        g.setStroke(Bs3);
-		        g.setColor(app.colorShadeShape);
-		        g.drawLine(circleX + aosX - halfLine - 1, circleY + pitch, circleX - halfLine, circleY);
-		        g.setStroke(Bs1);
-		        g.setColor(app.colorNum);
-		        g.drawLine(circleX + aosX - halfLine - 1, circleY + pitch, circleX - halfLine, circleY);
-		        
-		        // 旋转整个组合图形表示横滚角
-		        AffineTransform oldTransform = g.getTransform();
-		        AffineTransform transform = AffineTransform.getRotateInstance(rollDegRad, circleX, circleY);
-		        
-		        g.setTransform(transform);
-		        
-		        g.setStroke(new BasicStroke(lineWidth + 2, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-		        g.setColor(app.colorShadeShape);
-		        
-
-		        // 画小圆形
-//		        g.drawOval(circleX - rnd / 2, circleY - rnd / 2, rnd, rnd);
-		        
-//		        g.drawLine(circleX - aosX, circleY + pitch, circleX, circleY + pitch);
-		        
-		        // 画三条支线表示水平和垂直方向
-		        g.drawLine(circleX , circleY - rnd/2, circleX, circleY - rnd + lineWidth);
-		        g.drawLine(circleX + rnd/2 + lineWidth, circleY + lineWidth, circleX + rnd, circleY + lineWidth);
-		        g.drawLine(circleX - rnd/2 - lineWidth, circleY + lineWidth, circleX - rnd, circleY + lineWidth);
-		        
-		        g.setStroke(new BasicStroke(lineWidth, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-		        g.setColor(app.colorNum);
+				int circleX = lineWidth - aosX + round;
+				int circleY = (int) (n5 - 2.5 * HUDFontsize + rnd/2 - pitch);
+				double rollDegRad = Math.toRadians(rollDeg);
+				// 绘制地面和牵引线
+				g.setStroke(Bs3);
+				g.setColor(app.colorShadeShape);
+				g.drawLine(circleX + aosX, circleY + pitch, circleX, circleY);
+				g.setStroke(Bs1);
+				g.setColor(app.colorLabel);
+				g.drawLine(circleX + aosX, circleY + pitch, circleX, circleY);
+					
+				// 旋转整个组合图形表示横滚角
+				AffineTransform oldTransform = g.getTransform();
+				AffineTransform transform = AffineTransform.getRotateInstance(rollDegRad, circleX, circleY);
 				
-//		        g.drawOval(circleX - rnd / 2, circleY - rnd / 2, rnd, rnd);
-		        
-//		        g.drawLine(circleX - aosX, circleY + pitch, circleX, circleY + pitch);
-		        
-		        // 画三条支线表示水平和垂直方向
-		        g.drawLine(circleX , circleY - rnd/2, circleX, circleY - rnd + lineWidth);
-		        g.drawLine(circleX + rnd/2 + lineWidth, circleY + lineWidth, circleX + rnd, circleY + lineWidth);
-		        g.drawLine(circleX - rnd/2 - lineWidth, circleY + lineWidth, circleX - rnd, circleY + lineWidth);
-		        
-		        g.setTransform(oldTransform);
+				g.setTransform(transform);
+					
+				g.setStroke(new BasicStroke(lineWidth + 2, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+				g.setColor(app.colorShadeShape);
 
 
-		        // 画文字
-		      if (roundHorizon >= 0) {
-		    	  uiBaseElem.__drawStringShade(g, circleX , circleY - 1, 1, sAttitude, drawFontSmall, app.colorNum);
-		      }else {
-		    	  uiBaseElem.__drawStringShade(g, circleX , circleY - 1, 1, sAttitude, drawFontSmall, app.colorUnit);
-		      }
+				int hbs = halfLine;
+				// 画三条支线表示水平和垂直方向
+				g.drawLine(circleX + hbs, circleY - hrnd + hbs, circleX + hbs, circleY - rnd + hbs);
+				g.drawLine(circleX + hrnd + hbs, circleY + hbs, circleX + rnd + hbs, circleY + hbs);
+				g.drawLine(circleX - hrnd + hbs, circleY + hbs, circleX - rnd + hbs, circleY + hbs);
+
+				g.setStroke(new BasicStroke(lineWidth, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+				g.setColor(app.colorNum);
+
+				// 画三条支线表示水平和垂直方向
+				g.drawLine(circleX + hbs, circleY - hrnd + hbs, circleX + hbs, circleY - rnd + hbs);
+				g.drawLine(circleX + hrnd + hbs, circleY + hbs, circleX + rnd + hbs, circleY + hbs);
+				g.drawLine(circleX - hrnd + hbs, circleY + hbs, circleX - rnd + hbs, circleY + hbs);
+					
+				g.setTransform(oldTransform);
+
+
+					// 画文字
+				if (roundHorizon >= 0) {
+					uiBaseElem.__drawStringShade(g, circleX , circleY - 1, 1, sAttitude, drawFontSmall, app.colorNum);
+				}else {
+					uiBaseElem.__drawStringShade(g, circleX , circleY - 1, 1, sAttitude, drawFontSmall, app.colorUnit);
+				}
 //		        uiBaseElem.__drawStringShade(g, circleX - HUDFontsize / 2, circleY + 3 * HUDFontsize / 2, 1, sAttitudeRoll, drawFontSmall, app.colorNum);
 		        
 		        
@@ -609,6 +568,10 @@ public class minimalHUD extends WebFrame implements Runnable {
 	private BasicStroke Bs3;
 	private BasicStroke Bs1;
 	private int halfLine;
+	private int n5;
+	private int round;
+	private int rnd;
+	private int hrnd;
 
 	public void init(controller c, service s, otherService os) {
 		int lx;
@@ -693,6 +656,12 @@ public class minimalHUD extends WebFrame implements Runnable {
 			lineWidth = 1;
 		roundCompass = (int) (Math.round(HUDFontsize * 0.8f));
 		rightDraw = (int) (HUDFontsize * 3.5f);
+
+		n5 = 5 * HUDFontsize;
+		round = (int) (5 * roundCompass);
+		rnd = (int) (HUDFontsize * 0.618f);
+		hrnd = (int) Math.round(rnd / 2.0f);
+
 		if (xc.getconfig("hudMach") != "")
 			drawHudMach = Boolean.parseBoolean(c.getconfig("hudMach"));
 
@@ -753,7 +722,7 @@ public class minimalHUD extends WebFrame implements Runnable {
 	
 		outBs = new BasicStroke(lineWidth + 2, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
 		inBs = new BasicStroke(lineWidth, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
-		halfLine = lineWidth/2 == 0? 1 : lineWidth/2;
+		halfLine = (lineWidth/2 == 0) ? 1 : (int)Math.round(lineWidth/2.0f);
 		Bs3 = new BasicStroke(halfLine + 2, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
 		Bs1 = new BasicStroke(halfLine, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
 		// app.debugPrint(lx);

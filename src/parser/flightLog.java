@@ -102,7 +102,7 @@ public class flightLog implements Runnable {
 	void writeData(BufferedWriter bw) throws IOException {
 		String tmp = "";
 
-		bw.write(xs.sTime + ",");// 1
+		bw.write(xs.elapsedTime / 60000.0f + ",");// 1
 
 		tmp=xs.throttle;
 		bw.write(tmp + ",");// 2
@@ -135,7 +135,7 @@ public class flightLog implements Runnable {
 
 		bw.write(xs.rpm + ",");// 15
 
-		bw.write(xs.sTotalThr + ",");// 16
+		bw.write(xs.iTotalThr + ",");// 16
 
 		bw.write(xs.acceleration + ",");// 17
 
