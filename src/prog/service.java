@@ -1285,7 +1285,8 @@ public class service implements Runnable {
 			c.changeS2();
 			if (sState.flag && sIndic.flag) {
 
-				if (sState.totalThr != 0) {
+				/* 修复录像中没法使用的问题 */
+				if ((sState.totalThr != 0) || (sState.RPM != 0)) {
 					playerLive = true;
 				}
 
