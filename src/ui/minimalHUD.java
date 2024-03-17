@@ -939,8 +939,7 @@ public class minimalHUD extends WebFrame implements Runnable {
 			if (xs.sState.airbrake != 100) {
 				inAction |= true;
 			}
-			else
-				warnVne = true;
+			warnVne = true;
 		}
 
 		if (xs.sState.gear > 0) {

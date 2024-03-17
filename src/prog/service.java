@@ -628,7 +628,7 @@ public class service implements Runnable {
 	public int fuelPercent;
 	public double avgeff;
 	private int maxTotalHp;
-	private double vTAS;
+	private double TASv;
 	private double pThurstPercent;
 	public double tEngResponse;
 	public double flapAllowSpeed;
@@ -820,31 +820,35 @@ public class service implements Runnable {
 
 		speedvp = speedv;
 		IASvp = IASv;
+		// TASvp = TASv;
+
 		IASv = sState.IAS;
 
 		// vTASp = vTAS;;
-		vTAS = (double) sState.TAS;
-
+		TASv = (double) sState.TAS;
+		double tspeedv;
+		/* 有速度表使用速度表 */
 		if (sIndic.speed != -65535) {
-			// 指示空速，需要进行TAS校正
-			double tspeedv = sIndic.speed;
-			if (tspeedv != 0) {
-				// iastotascoff = (1000 * ratio_1 * iastotascoff + 1000 * ratio
-				// * vTAS / (speedv * 3.6f)) / 1000.0f;
-				// 改用滑动平均
-				iastotascoff = calcSpeedSMA.addNewData(vTAS / (tspeedv * 3.6));
-			}
-			// iastotascoff = 1+(double) (0.02 * sState.heightm * 3.2808 /
-			// 1000);
-			speedv = tspeedv * iastotascoff;
-			// app.debugPrint("校正TAS:"+ speedv*3.6);
-			// 订正后加速度还是会有跳变
-			// app.debugPrint("校正TAS:"+ speedv*3.6 + "," + iastotascoff);
-
-		} else {
-			// 使用IASv作为辅助订正TAS
-			speedv = vTAS * IASv / (3.6 * IASvp);
+			// 高精度指示空速，需要进行TAS校正
+			tspeedv = sIndic.speed;
 		}
+		else{
+			tspeedv = IASv / 3.6;
+		}
+
+		if (tspeedv != 0) {
+			// iastotascoff = (1000 * ratio_1 * iastotascoff + 1000 * ratio
+			// * vTAS / (speedv * 3.6f)) / 1000.0f;
+			// 改用滑动平均
+			iastotascoff = calcSpeedSMA.addNewData(TASv / (tspeedv * 3.6));
+		}
+		// iastotascoff = 1+(double) (0.02 * sState.heightm * 3.2808 /
+		// 1000);
+		speedv = tspeedv * iastotascoff;
+		// app.debugPrint("校正TAS:"+ speedv*3.6);
+		// 订正后加速度还是会有跳变
+		// app.debugPrint("校正TAS:"+ speedv*3.6 + "," + iastotascoff);
+
 	}
 
 	public boolean isEngJet() {
@@ -1297,7 +1301,7 @@ public class service implements Runnable {
 						app.debugPrint("机型变化，重启程序");
 						c.S4toS1();
 					}
-					speedvp = sState.IAS;
+					// speedvp = sState.IAS;
 					// 开始计算数据
 					calculate();
 					
