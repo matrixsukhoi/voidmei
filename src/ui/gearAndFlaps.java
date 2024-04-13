@@ -338,7 +338,7 @@ public class gearAndFlaps extends WebFrame implements Runnable {
 				// g2d.drawLine(0, 0, 100, 100);
 				// dy+=1.5 * fontSize;
 
-//				g.dispose();
+				g.dispose();
 			}
 		};
 		panel.setWebColoredBackground(false);

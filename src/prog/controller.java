@@ -362,6 +362,8 @@ public class controller {
 		
 		uT = new uiThread(this);
 		uT1 = new Thread(uT);
+		/* 设置高优先级 */
+		uT1.setPriority(Thread.MAX_PRIORITY);
 		uT1.start();
 		S.startTime = System.currentTimeMillis();
 	}
@@ -645,6 +647,8 @@ public class controller {
 
 			S = new service(this);
 			S1 = new Thread(S);
+			/* 设置高优先级 */
+			S1.setPriority(Thread.MAX_PRIORITY);
 			S1.start();
 
 		}

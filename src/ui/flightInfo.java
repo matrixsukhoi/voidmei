@@ -639,7 +639,7 @@ public class flightInfo extends WebFrame implements Runnable {
 				// drawLabelBOSType(g2d, doffset[0], doffset[1], 1, fontNum,
 				// fontLabel, fontUnit, sIAS, language.fIAS, "Km/h");
 				// updateDxDy(++num, doffset);
-//				g.dispose();
+				g.dispose();
 			}
 
 		};

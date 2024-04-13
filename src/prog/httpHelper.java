@@ -189,6 +189,7 @@ public class httpHelper {
 		bufferedReader.close();
 		bufferedWriter.close();
 		socket.close();
+		if (rlen == -1) return "";
 		return String.valueOf(buf, 0, rlen);
 		//.valueOf(buf);
 	}

@@ -352,7 +352,7 @@ public class attitudeIndicator extends WebFrame implements Runnable {
 				// g2d.fillRect(0, 0, 200, 200);
 				// 绘制十字星
 				locater(g2d, xWidth, xHeight, (int)AoS, (int)AoA, (int)Pitch, 12, 6);
-//				g.dispose();
+				g.dispose();
 			}
 		};
 
@@ -455,7 +455,7 @@ public class attitudeIndicator extends WebFrame implements Runnable {
 				// g2d.fillRect(0, 0, 200, 200);
 				// 绘制十字星
 				locater(g2d, xWidth, xHeight, (int)AoS, (int)AoA, (int)Pitch, 12, 6);
-				//g.dispose();
+				g.dispose();
 			}
 		};
 

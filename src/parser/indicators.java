@@ -51,6 +51,7 @@ public class indicators{
 	public double aviahorizon_roll;
 	public double wsweep_indicator;
 	public double radio_altitude;
+	private String army;
 
 
 	public void init() {
@@ -64,7 +65,8 @@ public class indicators{
 	
 	public void update(String buf) {
 		valid = stringHelper.getString(buf, "valid");
-		if (valid != null && valid.equals("true")){
+		army = stringHelper.getString(buf, "army");
+		if (valid != null && valid.equals("true") && !army.equals("tank")){
 			flag=true;
 			type=stringHelper.getString(buf, "type").toUpperCase();
 		

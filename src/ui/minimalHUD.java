@@ -782,7 +782,7 @@ public class minimalHUD extends WebFrame implements Runnable {
 						drawCrossair(g2d, 2 * Width, 1 * Height, Width + CrossX, CrossY, CrossWidth);
 					}
 				}
-				// g.dispose();
+				g.dispose();
 			}
 		};
 		// initpanel();

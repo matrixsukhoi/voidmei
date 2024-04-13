@@ -927,11 +927,13 @@ public class service implements Runnable {
 		if (sIndic.fuelnum != 0) {
 			double ttotalfuel = 0;
 			bLowAccFuel = Boolean.FALSE;
-			for (i = 0; i < sIndic.fuelnum; i++) {
+			/* 修复su-27油箱显示不正确的问题 */
+			// for (i = 0; i < sIndic.fuelnum; i++) {
+			for (i = 0; i < 1; i++){
 				ttotalfuel = ttotalfuel + sIndic.fuel[i];
 			}
 			fTotalFuel = ttotalfuel;
-
+			
 		}
 		// app.debugPrint("I"+totalfuel);
 		if (fTotalFuel == 0) {
@@ -1290,7 +1292,7 @@ public class service implements Runnable {
 			if (sState.flag && sIndic.flag) {
 
 				/* 修复录像中没法使用的问题 */
-				if ((sState.totalThr != 0) || (sState.RPM != 0)) {
+				if ((!sIndic.type.equals("DUMMY_PLANE")) && ((sState.totalThr != 0) || (sState.RPM != 0))) {
 					playerLive = true;
 				}
 

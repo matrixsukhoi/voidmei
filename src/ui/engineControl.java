@@ -321,7 +321,7 @@ public class engineControl extends WebFrame implements Runnable {
 				// 先画左边的条 4.5f
 				drawTPMRC(g2d, 0, (fontsize * 9) >> 1);
 
-				// g.dispose();
+				g.dispose();
 			}
 		};
 
