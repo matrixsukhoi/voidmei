@@ -100,6 +100,8 @@ public class blkx {
 
 	public double oil;
 
+	public double nofuelweight;
+
 	public double nitroDecr;
 	public double maxfuelweight;
 
@@ -689,6 +691,7 @@ public class blkx {
 		app.debugPrint("作战空重" + (emptyweight + oil + nitro));
 		grossweight = emptyweight + maxfuelweight + nitro + oil;
 		halfweight = emptyweight + maxfuelweight / 2 + nitro + oil;
+		nofuelweight = emptyweight + nitro + oil;
 
 		RadiatorCd = getdouble("RadiatorCd");
 		OilRadiatorCd = getdouble("OilRadiatorCd");

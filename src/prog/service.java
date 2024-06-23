@@ -4,6 +4,7 @@ package prog;
 import parser.blkx.engineLoad;
 import parser.flightLog;
 import parser.indicators;
+import parser.mapObj;
 import parser.state;
 import parser.stringHelper;
 
@@ -19,7 +20,7 @@ public class service implements Runnable {
 	public calcHelper.simpleMovingAverage energyDiffSMA;
 	// public static URL urlstate;
 	// public static URL urlindicators;
-
+	public double loc[];
 	public double energyJKg;
 	public double pEnergyJKg;
 	public long calcPeriod;
@@ -59,6 +60,7 @@ public class service implements Runnable {
 	public long SystemTime;
 	public long TimeIncrMili;
 	long MainCheckMili;
+	long MapCheckMili;
 	long FuelCheckMili;
 	public double fuelChange;
 	long FuelLastchangeMili;
@@ -192,6 +194,7 @@ public class service implements Runnable {
 	public static final String nastring = "-";
 	public static final String nullstring = "";
 	public boolean playerLive;
+	public String sLoc;
 
 	public boolean isPlayerLive() {
 		return playerLive;
@@ -412,29 +415,29 @@ public class service implements Runnable {
 		sHorizontalLoad = String.format("%.1f", horizontalLoad);
 		// app.debugPrint("已加力时间(秒)"+wepTime/1000);
 		// app.debugPrint("剩余加力时间(分钟)"+rwepTime);
+		
+		//loc
+		// char[] tmp = new char[8];
+		// int stepx = (int)(loc[0] / 0.1);
+		// int stepy = (int)(loc[1] / 0.1);
 
+		// tmp[0] = (char) ('A' + stepy);
+		// if (stepx < 9){
+		// 	tmp[1] = (char) ('1' + stepx);
+		// 	tmp[2] = '\0';
+		// }
+		// else{
+		// 	tmp[1] = '1';
+		// 	tmp[2] = (char)('0' + (stepx - 9));
+		// 	tmp[3] = '\0';
+		// }
+		// sLoc = new String(tmp);
+		// System.out.println("current location is:" + sLoc + "[stepx, stepy]" + stepx + ", " + stepy);
+		
 	}
 
 	public void checkEngineJet() {
 
-		// if(c.blkx != null && c.blkx.valid){
-		// if (c.blkx.isJet){
-		// iEngType = ENGINE_TYPE_JET;
-		// }
-		// else{
-		// iEngType = ENGINE_TYPE_PROP;
-		// }
-		// return ;
-		// }
-		// else{
-		// // TODO:自适应方式获得,由磁电机判断. 只有活塞才有磁电机
-		// if (sState.magenato >= 0){
-		// iEngType = ENGINE_TYPE_PROP;
-		// }
-		// else{
-		// iEngType = ENGINE_TYPE_JET;
-		// }
-		// }
 		// TODO:自适应方式获得,由磁电机判断. 只有活塞才有磁电机
 		if (!checkEngineFlag) {
 			if (sState.magenato < 0) {
@@ -467,6 +470,7 @@ public class service implements Runnable {
 			}
 		}
 	}
+
 
 	public void slowcalculate(long dtime) {
 		// 计算耗油率及持续时间
@@ -1167,6 +1171,7 @@ public class service implements Runnable {
 	}
 	// 重置变量
 	public void resetvaria() {
+		loc = new double[2];
 		radioAltValid = false;
 		playerLive = false;
 		iEngType = ENGINE_TYPE_UNKNOWN;
@@ -1201,6 +1206,7 @@ public class service implements Runnable {
 		resetEngLoad();
 		// if(c.blkx != null && c.blkx.maxEngLoad != 0)c.blkx.resetEngineLoad();
 		FuelCheckMili = System.currentTimeMillis();
+		MapCheckMili = FuelCheckMili;
 		MainCheckMili = FuelCheckMili;
 		notCheckInch = false;
 		altperCirclflag = false;
@@ -1278,7 +1284,7 @@ public class service implements Runnable {
 		int conState;
 		// 更新时间戳
 		timeStamp = SystemTime;
-		// app.debugPrint("s:"+s+"s1:"+s1);
+		// app.debugPrint("s:"+httpClient.strState+"s1:"+httpClient.strIndic);
 		// 更新state
 
 		c.initStatusBar();
@@ -1309,7 +1315,7 @@ public class service implements Runnable {
 					
 					
 					// 检测到加油，重置数据
-					if (fTotalFuel - fTotalFuelP > 1) {
+					if ((Math.abs(speedv) < 10) && (fTotalFuel - fTotalFuelP > 1)) {
 //						app.debugPrint("检测到油量增加 " + fTotalFuel + "," + fTotalFuelP);
 						app.debugPrint("重新加油，重置变量");
 						
@@ -1351,7 +1357,7 @@ public class service implements Runnable {
 			// 状态置为等待连接中
 			conState = -1;
 			c.S4toS1();
-			// app.debugPrint("等待连接中");
+			app.debugPrint("等待连接中");
 		}
 		if (conState == -1) {
 			// 端口连接可能有问题，切换端口
@@ -1398,14 +1404,24 @@ public class service implements Runnable {
 					if (tempLog != null)
 						tempLog.logTick();
 				}
-
+				// app.debugPrint("?\n");
 				// 检查超时
 //				 if (MainCheckMili <= (System.currentTimeMillis() - intv)) {
 //					 app.debugPrint("deadline Miss, try catch\n" + SystemTime +
 //							 "," + MainCheckMili);
 //				 }
-
 			}
+			long diffTime1 = SystemTime - MapCheckMili;
+			if (diffTime1 >= 10 * freq) {
+				MapCheckMili = SystemTime;
+				if (!portOcupied)
+					httpClient.getReqMapObjResult(app.requestDest);
+				else
+					httpClient.getReqMapObjResult(app.requestDestBkp);
+				mapObj.getPlayerLoc(httpClient.strMapObj, loc);
+				// mapObj.getAirfieldLoc(httpClient.strMapObj, null);
+			}
+			
 
 		}
 	}

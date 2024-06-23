@@ -1,6 +1,8 @@
 package parser;
 
 import java.awt.Color;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import prog.app;
 
@@ -458,6 +460,35 @@ public class mapObj {
 	}
 	public void calculate(){
 		aot = Math.abs(Math.atan(slc.dy/slc.dx) - Math.atan(pla.dy/pla.dx));
+	}
+	
+	public static void getPlayerLoc(String jsonText, double[] loc){
+		// 正则表达式用于匹配整个JSON对象，并捕获icon为"Player"的x和y坐标
+		String pattern = "\\{[^{}]*\\\"icon\\\"\\s*:\\s*\\\"Player\\\"[^{}]*,[^{}]*\\\"x\\\"\\s*:\\s*(-?\\d+(\\.\\d+)?),[^{}]*\\\"y\\\"\\s*:\\s*(-?\\d+(\\.\\d+)?)[^{}]*\\}";
+		Pattern r = Pattern.compile(pattern);
+		Matcher m = r.matcher(jsonText);
+
+		while (m.find()) {
+			double x = Double.parseDouble(m.group(1));
+			double y = Double.parseDouble(m.group(3));
+			// System.out.println("Player coordinates: x = " + x + ", y = " + y);
+			loc[0] = x;
+			loc[1] = y;
+        }
+	}
+	public static void getAirfieldLoc(String jsonText, double[][] loc){
+		// 正则表达式用于匹配整个JSON对象，并捕获icon为"Player"的x和y坐标
+		String pattern = "\\{[^{}]*\\\"type\\\"\\s*:\\s*\\\"airfield\\\"[^{}]*,[^{}]*\\\"sx\\\"\\s*:\\s*(-?\\d+(\\.\\d+)?),[^{}]*\\\"sy\\\"\\s*:\\s*(-?\\d+(\\.\\d+)?)[^{}]*\\}";
+		Pattern r = Pattern.compile(pattern);
+		Matcher m = r.matcher(jsonText);
+
+		while (m.find()) {
+			double x = Double.parseDouble(m.group(1));
+			double y = Double.parseDouble(m.group(3));
+			// System.out.println("Airfield coordinates: x = " + x + ", y = " + y);
+			// loc[0] = x;
+			// loc[1] = y;
+		}
 	}
 	public void update(String S) {
 		s = S;

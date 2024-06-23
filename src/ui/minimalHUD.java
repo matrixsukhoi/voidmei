@@ -202,16 +202,7 @@ public class minimalHUD extends WebFrame implements Runnable {
 		}
 		uiBaseElem.drawVRect(g, kx, n5 + lineWidth + 2 , barWidth, throttley, 1, throttleColor);
 
-//		if(throttley >= throttlem) {
-//			g.setStroke(new BasicStroke(lineWidth + 2, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-//			g.setColor(app.colorShadeShape);
-//			g.drawLine(kx , n5 - throttley + 2 , kx + barWidth + barWidth, n5 - throttley + 2);
-//			g.setStroke(new BasicStroke(lineWidth, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-//			g.setColor(app.colorNum);
-//			g.drawLine(kx, n5 - throttley + 2, kx + barWidth + barWidth, n5 - throttley + 2);
-//		}
-		// uiBaseElem.__drawVRect(g, kx, n5 + 2, barWidth, throttley,
-		// throttleLineWidth, app.colorNum, throttleColor);
+
 		kx += barWidth;
 		
 		// 姿态
@@ -274,44 +265,13 @@ public class minimalHUD extends WebFrame implements Runnable {
 
 		for (int i = 0; i < 5; i++) {
 
-			//
-			// g.setColor(app.lblShadeColorMinor);
-			// g.drawString(lines[i], x + 1, n + y + 1);
-			// // g.drawString(lines[i], x - 1, n + y - 1);
-			//// g.drawString(lines[i], x - 1, n + y - 1);
-			// g.setColor(app.lblNumColor);
-			// if (i == 2 && inAction) {
-			// g.setColor(app.warning);
-			// }
-			// if (i == 0 && warnVne) {
-			// g.setColor(app.warning);
-			// }
-			// g.drawString(lines[i], x, n + y);
-
 			// i = 0画直线提示
 			if (i == 0) {
 
-				// g.setColor(app.lblShadeColorMinor);
-				// g.drawLine((HUDFontsize * 3) >> 1, 2 + y, rightDraw - 2, 2 +
-				// y);
-				// g.setColor(app.lblNumColor);
-				// g.drawLine(((HUDFontsize * 3) >> 1) - 1, 1 + y, rightDraw -
-				// 3, 1 + y);
-
-//				int linex = (HUDFontsize * 3) >> 1;
 				int liney = 1 + y;
 
-				// uiBaseElem.drawHRect(g, linex, liney, rightDraw - 2 - linex,
-				// 2+lineWidth, 1, app.lblNumColor);
-				// uiBaseElem.drawHRect(g, (int)((rightDraw - x) * availableAoA
-				// / 30) + x, liney, (int)((rightDraw - x) * (30 - availableAoA)
-				// / 30), 2+lineWidth, 1, app.lblNumColor);
 				// availableAoA
-
 				uiBaseElem.drawHRect(g, x + (rightDraw - aoaY), liney, aoaY, lineWidth + 3, 1, aoaBarColor);
-				// uiBaseElem.drawHBar(g, x + (rightDraw - aoaY), liney, width,
-				// height, aoaY, borderwidth, c);b
-
 				uiBaseElem.__drawStringShade(g, x + rightDraw, liney - 1, 1, lineAoA, drawFontSmall, aoaColor);
 
 			}
@@ -324,13 +284,65 @@ public class minimalHUD extends WebFrame implements Runnable {
 				uiBaseElem.__drawStringShade(g, x, n + y, 1, lines[i], drawFont, app.colorWarning);
 			} else
 				uiBaseElem.__drawStringShade(g, x, n + y, 1, lines[i], drawFont, app.colorNum);
-			// if( i==1){
+			
+			if (i == 4){
+				// 机动性指标线
+
+				
+				g.setColor(app.colorShadeShape);
+				g.setStroke(Bs3);
+				g.drawLine(x + rightDraw - maneuverIndexLen10, n + y + halfLine + lineWidth + lineWidth, x + rightDraw - maneuverIndexLen10, n + y + halfLine - lineWidth + lineWidth);
+				g.setColor(app.colorNum);
+				g.setStroke(Bs1);
+				g.drawLine(x + rightDraw - maneuverIndexLen10, n + y + halfLine + lineWidth + lineWidth, x + rightDraw - maneuverIndexLen10, n + y + halfLine - lineWidth + lineWidth);
+	
+				if (maneuverIndex >= 0.1){
+					g.setColor(app.colorShadeShape);
+					g.setStroke(Bs3);
+					g.drawLine(x + rightDraw - maneuverIndexLen20, n + y + halfLine + lineWidth + lineWidth, x + rightDraw - maneuverIndexLen20, n + y + halfLine - lineWidth + lineWidth);
+					g.setColor(app.colorNum);
+					g.setStroke(Bs1);
+					g.drawLine(x + rightDraw - maneuverIndexLen20, n + y + halfLine + lineWidth + lineWidth, x + rightDraw - maneuverIndexLen20, n + y + halfLine - lineWidth + lineWidth);
+				}
+				if (maneuverIndex >= 0.2){
+					g.setColor(app.colorShadeShape);
+					g.setStroke(Bs3);
+					g.drawLine(x + rightDraw - maneuverIndexLen30, n + y + halfLine + lineWidth + lineWidth, x + rightDraw - maneuverIndexLen30, n + y + halfLine - lineWidth + lineWidth);
+					g.setColor(app.colorNum);
+					g.setStroke(Bs1);
+					g.drawLine(x + rightDraw - maneuverIndexLen30, n + y + halfLine + lineWidth + lineWidth, x + rightDraw - maneuverIndexLen30, n + y + halfLine - lineWidth + lineWidth);
+				}
+				if (maneuverIndex >= 0.3){
+					g.setColor(app.colorShadeShape);
+					g.setStroke(Bs3);
+					g.drawLine(x + rightDraw - maneuverIndexLen40, n + y + halfLine + lineWidth + lineWidth, x + rightDraw - maneuverIndexLen40, n + y + halfLine - lineWidth + lineWidth);
+					g.setColor(app.colorNum);
+					g.setStroke(Bs1);
+					g.drawLine(x + rightDraw - maneuverIndexLen40, n + y + halfLine + lineWidth + lineWidth, x + rightDraw - maneuverIndexLen40, n + y + halfLine - lineWidth + lineWidth);
+				}
+				if (maneuverIndex >= 0.4){
+					g.setColor(app.colorShadeShape);
+					g.setStroke(Bs3);
+					g.drawLine(x + rightDraw - maneuverIndexLen50, n + y + halfLine + lineWidth + lineWidth, x + rightDraw - maneuverIndexLen50, n + y + halfLine - lineWidth + lineWidth);
+					g.setColor(app.colorNum);
+					g.setStroke(Bs1);
+					g.drawLine(x + rightDraw - maneuverIndexLen50, n + y + halfLine + lineWidth + lineWidth, x + rightDraw - maneuverIndexLen50, n + y + halfLine - lineWidth + lineWidth);
+				}
+				g.setStroke(Bs3);
+				g.setColor(app.colorShadeShape);
+				g.drawLine(x + rightDraw, n + y + halfLine + lineWidth, x + rightDraw - maneuverIndexLen, n + y + halfLine + lineWidth);
+				
+				g.setStroke(Bs1);
+				g.setColor(app.colorNum);
+				g.drawLine(x + rightDraw, n + y + halfLine + lineWidth, x + rightDraw - maneuverIndexLen, n + y + halfLine + lineWidth);
+
+			}
+
 			n = n + HUDFontsize;
-			// }
+		
 		}
-
 		n += 2;
-
+		
 		// g.setColor(app.lblShadeColorMinor);
 		// g.drawLine(3, n, 3, n - throttley);
 		// g.setColor(app.lblNumColor);
@@ -435,6 +447,8 @@ public class minimalHUD extends WebFrame implements Runnable {
 		// g.setColor(app.lblNumColor);
 		// g.drawString(lineCompass, x, n + (r - HUDFontsize / 2) + y);
 		uiBaseElem.drawStringShade(g, kx + lineWidth + 3, n + y - (r - HUDFontsize) / 2 , 1, lineCompass, drawFontSmall);
+		uiBaseElem.drawStringShade(g, kx + lineWidth + 3, n + y + r + HUDFontSizeSmall / 2, 1, lineLoc, drawFontSmall);
+		
 //		uiBaseElem.drawStringShade(g, kx + x, n + (r - HUDFontsize / 2) + y, 1, lineCompass, drawFont);
 		n = n + 3 * roundCompass;
 		
@@ -572,6 +586,7 @@ public class minimalHUD extends WebFrame implements Runnable {
 	private int round;
 	private int rnd;
 	private int hrnd;
+	private String lineLoc;
 
 	public void init(controller c, service s, otherService os) {
 		int lx;
@@ -691,6 +706,7 @@ public class minimalHUD extends WebFrame implements Runnable {
 		lines[2] += "GEAR";
 		// lines[4] = "A" + String.format("%5s", "1.0");
 		lineCompass = String.format("%3s", "102");
+		lineLoc = "A1";
 		lineHorizon = String.format("%3s", "45");
 		throttley = 100;
 		aoaY = 10;
@@ -830,6 +846,14 @@ public class minimalHUD extends WebFrame implements Runnable {
 	private double compassRads;
 	private int roundHorizon;
 	private int throttlew;
+	private double maneuverIndex;
+	private int maneuverIndexLen;
+	private int maneuverIndexLen15;
+	private int maneuverIndexLen30;
+	private int maneuverIndexLen10;
+	private int maneuverIndexLen20;
+	private int maneuverIndexLen40;
+	private int maneuverIndexLen50;
 
 	public void updateString() {
 
@@ -886,6 +910,7 @@ public class minimalHUD extends WebFrame implements Runnable {
 			aosX = 0;
 		rollDeg = (int) (-aviar);
 		lineCompass = String.format("%3s", xs.compass);
+		lineLoc = String.format("%c%d", (char)('A' + (xs.loc[1]/0.1)), (int)(xs.loc[0]/0.1 + 1));
 		if (drawHudMach)
 			lines[0] = String.format("M%5s", xs.M);
 		else
@@ -966,6 +991,16 @@ public class minimalHUD extends WebFrame implements Runnable {
 		}
 
 		if (xc.blkx != null && xc.blkx.valid) {
+			// 机动指标(1 - 空油重/(空油重 + 油重))
+			// 指标越低说明机动性越好
+			double nfweight = xc.blkx.nofuelweight;
+			maneuverIndex = 1 - (nfweight / (nfweight + xs.fTotalFuel)) ;
+			maneuverIndexLen = (int)Math.round(maneuverIndex / 0.5 * rightDraw);
+			maneuverIndexLen10 = (int)Math.round(0.10 / 0.5 * rightDraw);
+			maneuverIndexLen20 = (int)Math.round(0.20 / 0.5 * rightDraw);
+			maneuverIndexLen30 = (int)Math.round(0.30 / 0.5 * rightDraw);
+			maneuverIndexLen40 = (int)Math.round(0.40 / 0.5 * rightDraw);
+			maneuverIndexLen50 = (int)Math.round(0.50 / 0.5 * rightDraw);
 			// 速度
 			double vwing = 0;
 			if (xc.blkx.isVWing) {

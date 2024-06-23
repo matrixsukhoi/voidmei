@@ -65,7 +65,7 @@ public class app {
 	public static String appName;
 	public static String defaultNumfontName = "Roboto";
 	public static String appTooltips;
-	public static String version = "1.564";
+	public static String version = "1.565";
 	public static String httpHeader;
 	public static int voiceVolumn = 100;
 	public static String defaultFontName = "Microsoft YaHei UI";
@@ -392,6 +392,38 @@ public class app {
 		
 	}
 
+	public static void checkBlkxUpdate() {
+		httpHelper httpClient = new httpHelper();
+		try {
+			/* 异步请求 */
+			Executors.newCachedThreadPool().submit(() -> {
+				String res;
+				res = httpClient.sendGetURL("https://api.github.com/repos/"+ owner + "/" + repository + "/releases/latest");
+				// debugPrint(res);
+				/* 截取tag_name */
+				int sidx = res.indexOf("tag_name");
+				int eidx = res.indexOf(",", sidx);
+				res = res.substring(sidx, eidx);
+				/* 正则匹配版本号 */
+				Pattern pt = Pattern.compile("[0-9].([0-9])*");
+				Matcher m = pt.matcher(res);
+				if (m.find()) {
+					String latestVersion = m.group(0);
+					debugPrint("latest version is:" + latestVersion);
+					if (Double.parseDouble(version) < Double.parseDouble(latestVersion)){
+						String notice = "A newer version is released on github, version: " + latestVersion;
+						controller.notificationtimeAbout(String.format(notice), 5000);
+					}
+				}
+				return null;
+			});
+
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+	}
 	public static void addDisplayFmListener() {
 		try {
 			GlobalScreen.registerNativeHook();

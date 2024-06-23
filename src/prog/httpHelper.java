@@ -22,6 +22,8 @@ public class httpHelper {
 			+ "Cache-Control:no-cache\n" + app.httpHeader + "\n";
 	public String indic_request = "GET " + "/indicators" + " HTTP/1.1\n" + "Host: " + "127.0.0.1" + "\n"
 			+ "Cache-Control:no-cache\n" + app.httpHeader + "\n";
+	public String mapobj_request = "GET " + "/map_obj.json" + " HTTP/1.1\n" + "Host: " + "127.0.0.1" + "\n"
+			+ "Cache-Control:no-cache\n" + app.httpHeader + "\n";
 	public String fmcm_request = "GET " + "/editor/fm_commands?cmd=getFmProperties" + " HTTP/1.1\n" + "Host: "
 			+ "127.0.0.1" + "\n" + "Cache-Control:no-cache\n" + app.httpHeader + "\n";
 	public String setAltReq = "GET " + "/editor/fm_commands?cmd=setAlt&value=%d"+ " HTTP/1.1\n" + "Host: "
@@ -30,7 +32,7 @@ public class httpHelper {
 			+ "127.0.0.1" + "\n" + "Cache-Control:no-cache\n" + app.httpHeader + "\n";
 	public String strState;
 	public String strIndic;
-	
+	public String strMapObj;
 	public StringBuilder strBState = new StringBuilder();
 	public StringBuilder strBIndic = new StringBuilder();
 	
@@ -141,7 +143,7 @@ public class httpHelper {
 	public static final int buf_len = 8192;
 	public char buf_indic[] = new char[buf_len];
 	public char buf_state[] = new char[buf_len];
-
+	public char buf_mapobj[] = new char[buf_len * 4];
 	public void sendGetFastBufB(char[] buf, String req_string, SocketAddress dest, StringBuilder bd) throws IOException {
 		Socket socket = new Socket();
 		// socket.
@@ -305,4 +307,13 @@ public class httpHelper {
 		} 
 	}
 
+	public void getReqMapObjResult(SocketAddress req_addr) {
+		try {
+
+			strMapObj = sendGetFastBuf(buf_mapobj, mapobj_request, req_addr);
+			
+		} catch (IOException e1) {
+			strMapObj = nstring;
+		} 
+	}
 }
