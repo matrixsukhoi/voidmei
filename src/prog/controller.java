@@ -725,8 +725,12 @@ public class controller {
 			// shade问题需要加补偿
 			// app.debugPrint(F.getLocationOnScreen().x);
 			// app.debugPrint(F.getLocationOnScreen().y);
-			setconfig("engineInfoX", Integer.toString(FI.getLocationOnScreen().x - 25));
-			setconfig("engineInfoY", Integer.toString(FI.getLocationOnScreen().y - 25));
+			int offst = 0;
+			if (getconfig("engineInfoEdge").equals("true")){
+				offst = 10;
+			}
+			setconfig("engineInfoX", Integer.toString(FI.getLocationOnScreen().x - 25 + offst));
+			setconfig("engineInfoY", Integer.toString(FI.getLocationOnScreen().y - 25 + offst));
 
 			FI.dispose();
 			FI = null;
@@ -747,17 +751,24 @@ public class controller {
 			H = null;
 		}
 		if (Boolean.parseBoolean(getconfig("flightInfoSwitch"))) {
-
-			setconfig("flightInfoX", Integer.toString(FL.getLocationOnScreen().x - 25));
-			setconfig("flightInfoY", Integer.toString(FL.getLocationOnScreen().y - 25));
+			int offst = 0;
+			if (getconfig("flightInfoEdge").equals("true")){
+				offst = 10;
+			}
+			setconfig("flightInfoX", Integer.toString(FL.getLocationOnScreen().x - 25 + offst));
+			setconfig("flightInfoY", Integer.toString(FL.getLocationOnScreen().y - 25 + offst));
 			FL.dispose();
 			FL = null;
 		}
 		if (Boolean.parseBoolean(getconfig("enableAxis"))) {
 			// app.debugPrint(sV.getLocationOnScreen().x );
 			// app.debugPrint(sV.getLocationOnScreen().y);
-			setconfig("stickValueX", Integer.toString(sV.getLocationOnScreen().x));
-			setconfig("stickValueY", Integer.toString(sV.getLocationOnScreen().y));
+			int offst = 0;
+			if (getconfig("enableAxisEdge").equals("true")){
+				offst = 10;
+			}
+			setconfig("stickValueX", Integer.toString(sV.getLocationOnScreen().x + offst));
+			setconfig("stickValueY", Integer.toString(sV.getLocationOnScreen().y + offst));
 			sV.dispose();
 			sV = null;
 		}
@@ -773,9 +784,12 @@ public class controller {
 		if (Boolean.parseBoolean(getconfig("enablegearAndFlaps"))) {
 			// app.debugPrint(fS.getLocationOnScreen().x );
 			// app.debugPrint(fS.getLocationOnScreen().y);
-
-			setconfig("gearAndFlapsX", Integer.toString(fS.getLocationOnScreen().x));
-			setconfig("gearAndFlapsY", Integer.toString(fS.getLocationOnScreen().y));
+			int offst = 0;
+			if (getconfig("enablegearAndFlapsEdge").equals("true")){
+				offst = 10;
+			}
+			setconfig("gearAndFlapsX", Integer.toString(fS.getLocationOnScreen().x + offst));
+			setconfig("gearAndFlapsY", Integer.toString(fS.getLocationOnScreen().y + offst));
 
 			fS.dispose();
 			fS = null;

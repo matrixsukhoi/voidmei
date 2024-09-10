@@ -910,7 +910,7 @@ public class minimalHUD extends WebFrame implements Runnable {
 			aosX = 0;
 		rollDeg = (int) (-aviar);
 		lineCompass = String.format("%3s", xs.compass);
-		lineLoc = String.format("%c%d", (char)('A' + (xs.loc[1]/0.1)), (int)(xs.loc[0]/0.1 + 1));
+		lineLoc = String.format("%c%d", (char)('A' + (xs.loc[1]/0.125)), (int)(xs.loc[0]/0.125 + 1));
 		if (drawHudMach)
 			lines[0] = String.format("M%5s", xs.M);
 		else

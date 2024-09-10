@@ -662,8 +662,9 @@ public class flightInfo extends WebFrame implements Runnable {
 		uiWebLafSetting.setWindowOpaque(this);
 		root = this.getContentPane();
 		
-		if (xc.getconfig("flightInfoEdge").equals("true"))
+		if (xc.getconfig("flightInfoEdge").equals("true")){
 			setShadeWidth(10);
+		}
 		else {
 			setShadeWidth(0);
 			// this.getRootPane().add(separator1);
