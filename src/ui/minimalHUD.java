@@ -18,6 +18,7 @@ import java.awt.image.BufferedImage;
 import com.alee.laf.panel.WebPanel;
 import com.alee.laf.rootpane.WebFrame;
 
+import parser.mapInfo;
 import prog.app;
 import prog.controller;
 import prog.otherService;
@@ -224,7 +225,7 @@ public class minimalHUD extends WebFrame implements Runnable {
 					
 				// 旋转整个组合图形表示横滚角
 				AffineTransform oldTransform = g.getTransform();
-				AffineTransform transform = AffineTransform.getRotateInstance(rollDegRad, circleX, circleY);
+				AffineTransform transform = AffineTransform.getRotateInstance(-rollDegRad, circleX, circleY);
 				
 				g.setTransform(transform);
 					
@@ -234,17 +235,20 @@ public class minimalHUD extends WebFrame implements Runnable {
 
 				int hbs = halfLine;
 				// 画三条支线表示水平和垂直方向
-				g.drawLine(circleX + hbs, circleY - hrnd + hbs, circleX + hbs, circleY - rnd + hbs);
-				g.drawLine(circleX + hrnd + hbs, circleY + hbs, circleX + rnd + hbs, circleY + hbs);
-				g.drawLine(circleX - hrnd + hbs, circleY + hbs, circleX - rnd + hbs, circleY + hbs);
+				
+				g.drawArc(circleX - hrnd + hbs, circleY - hrnd + hbs, rnd, rnd, -180, 180);
+				g.drawLine(circleX + hbs, circleY - hrnd/2 + hbs, circleX + hbs, circleY - urnd + hbs);
+				g.drawLine(circleX + hrnd + hbs, circleY + hbs, circleX + urnd + hbs, circleY + hbs);
+				g.drawLine(circleX - hrnd + hbs, circleY + hbs, circleX - urnd + hbs, circleY + hbs);
 
 				g.setStroke(new BasicStroke(lineWidth, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
 				g.setColor(app.colorNum);
 
 				// 画三条支线表示水平和垂直方向
-				g.drawLine(circleX + hbs, circleY - hrnd + hbs, circleX + hbs, circleY - rnd + hbs);
-				g.drawLine(circleX + hrnd + hbs, circleY + hbs, circleX + rnd + hbs, circleY + hbs);
-				g.drawLine(circleX - hrnd + hbs, circleY + hbs, circleX - rnd + hbs, circleY + hbs);
+				g.drawArc(circleX - hrnd + hbs, circleY - hrnd + hbs, rnd, rnd, -180, 180);
+				g.drawLine(circleX + hbs, circleY - hrnd/2 + hbs, circleX + hbs, circleY - urnd + hbs);
+				g.drawLine(circleX + hrnd + hbs, circleY + hbs, circleX + urnd + hbs, circleY + hbs);
+				g.drawLine(circleX - hrnd + hbs, circleY + hbs, circleX - urnd + hbs, circleY + hbs);
 					
 				g.setTransform(oldTransform);
 
@@ -587,95 +591,97 @@ public class minimalHUD extends WebFrame implements Runnable {
 	private int rnd;
 	private int hrnd;
 	private String lineLoc;
-
-	public void init(controller c, service s, otherService os) {
-		int lx;
-		int ly;
-
-		xs = s;
-		xc = c;
-		Vx = 0;
-		cs = os;
-		setFrameOpaque();
-
-		if (xc.getconfig("MonoNumFont") != "")
-			NumFont = xc.getconfig("MonoNumFont");
-		else
-			NumFont = app.defaultNumfontName;
-		if (xc.getconfig("crosshairX") != "")
-			lx = Integer.parseInt(xc.getconfig("crosshairX"));
-		else
-			lx = (app.screenWidth - Width) / 2;
-		if (xc.getconfig("crosshairY") != "")
-			ly = Integer.parseInt(xc.getconfig("crosshairY"));
-		else
-			ly = (app.screenHeight - Height) / 2;
-		if (xc.getconfig("crosshairScale") != "")
-			CrossWidth = Integer.parseInt(xc.getconfig("crosshairScale"));
-		else
-			CrossWidth = 70;
-		if (CrossWidth == 0)
-			CrossWidth = 1;
-		if (xc.getconfig("crosshairName") != "")
-			crosshairName = xc.getconfig("crosshairName");
-		else
-			crosshairName = "";
-		// app.debugPrint(xc.getconfig("usetexturecrosshair"));
-		if (xc.getconfig("displayCrosshair") != "") {
-			crossOn = Boolean.parseBoolean(xc.getconfig("displayCrosshair"));
-
-		} else {
-			crossOn = false;
-		}
-
-		if (xc.getconfig("usetexturecrosshair") != "")
-			busetexturecrosshair = Boolean.parseBoolean(xc.getconfig("usetexturecrosshair"));
-		else
-			busetexturecrosshair = false;
-
-		if (xc.getconfig("drawHUDtext") != "") {
-			on = Boolean.parseBoolean(xc.getconfig("drawHUDtext"));
-
-		} else {
-			on = true;
-		}
-		if (xc.getconfig("drawHUDAttitude") != "") {
-			drawAttitude = Boolean.parseBoolean(xc.getconfig("drawHUDAttitude"));
-		} else {
-			drawAttitude = true;
-		}
-
-		if (xc.getconfig("miniHUDaoaWarningRatio") != "") {
-			aoaWarningRatio = Double.parseDouble(xc.getconfig("miniHUDaoaWarningRatio"));
-		} else {
-			aoaWarningRatio = 0.25;
-		}
-		
-		if (xc.getconfig("miniHUDaoaBarWarningRatio") != "") {
-			aoaBarWarningRatio = Double.parseDouble(xc.getconfig("miniHUDaoaBarWarningRatio"));
-		} else {
-			aoaBarWarningRatio = 0;
-		}
-		
-		HUDFontsize = CrossWidth / 4;
-		barWidth = HUDFontsize / 4;
-		lineWidth = HUDFontsize / 10;
-		if (!crossOn)
-			Width = (int) (CrossWidth * 2) - HUDFontsize;
-		else {
-			Width = (int) (CrossWidth * 2);
-		}
-		Height = (int) (CrossWidth * 1.5);
-		CrossWidthVario = CrossWidth;
-		if (lineWidth == 0)
-			lineWidth = 1;
-		roundCompass = (int) (Math.round(HUDFontsize * 0.8f));
-		rightDraw = (int) (HUDFontsize * 3.5f);
-
-		n5 = 5 * HUDFontsize;
-		round = (int) (5 * roundCompass);
-		rnd = (int) (HUDFontsize * 0.618f);
-		hrnd = (int) Math.round(rnd / 2.0f);
+		private int urnd;
+	
+		public void init(controller c, service s, otherService os) {
+			int lx;
+			int ly;
+	
+			xs = s;
+			xc = c;
+			Vx = 0;
+			cs = os;
+			setFrameOpaque();
+	
+			if (xc.getconfig("MonoNumFont") != "")
+				NumFont = xc.getconfig("MonoNumFont");
+			else
+				NumFont = app.defaultNumfontName;
+			if (xc.getconfig("crosshairX") != "")
+				lx = Integer.parseInt(xc.getconfig("crosshairX"));
+			else
+				lx = (app.screenWidth - Width) / 2;
+			if (xc.getconfig("crosshairY") != "")
+				ly = Integer.parseInt(xc.getconfig("crosshairY"));
+			else
+				ly = (app.screenHeight - Height) / 2;
+			if (xc.getconfig("crosshairScale") != "")
+				CrossWidth = Integer.parseInt(xc.getconfig("crosshairScale"));
+			else
+				CrossWidth = 70;
+			if (CrossWidth == 0)
+				CrossWidth = 1;
+			if (xc.getconfig("crosshairName") != "")
+				crosshairName = xc.getconfig("crosshairName");
+			else
+				crosshairName = "";
+			// app.debugPrint(xc.getconfig("usetexturecrosshair"));
+			if (xc.getconfig("displayCrosshair") != "") {
+				crossOn = Boolean.parseBoolean(xc.getconfig("displayCrosshair"));
+	
+			} else {
+				crossOn = false;
+			}
+	
+			if (xc.getconfig("usetexturecrosshair") != "")
+				busetexturecrosshair = Boolean.parseBoolean(xc.getconfig("usetexturecrosshair"));
+			else
+				busetexturecrosshair = false;
+	
+			if (xc.getconfig("drawHUDtext") != "") {
+				on = Boolean.parseBoolean(xc.getconfig("drawHUDtext"));
+	
+			} else {
+				on = true;
+			}
+			if (xc.getconfig("drawHUDAttitude") != "") {
+				drawAttitude = Boolean.parseBoolean(xc.getconfig("drawHUDAttitude"));
+			} else {
+				drawAttitude = true;
+			}
+	
+			if (xc.getconfig("miniHUDaoaWarningRatio") != "") {
+				aoaWarningRatio = Double.parseDouble(xc.getconfig("miniHUDaoaWarningRatio"));
+			} else {
+				aoaWarningRatio = 0.25;
+			}
+			
+			if (xc.getconfig("miniHUDaoaBarWarningRatio") != "") {
+				aoaBarWarningRatio = Double.parseDouble(xc.getconfig("miniHUDaoaBarWarningRatio"));
+			} else {
+				aoaBarWarningRatio = 0;
+			}
+			
+			HUDFontsize = CrossWidth / 4;
+			barWidth = HUDFontsize / 4;
+			lineWidth = HUDFontsize / 10;
+			if (!crossOn)
+				Width = (int) (CrossWidth * 2) - HUDFontsize;
+			else {
+				Width = (int) (CrossWidth * 2);
+			}
+			Height = (int) (CrossWidth * 1.5);
+			CrossWidthVario = CrossWidth;
+			if (lineWidth == 0)
+				lineWidth = 1;
+			roundCompass = (int) (Math.round(HUDFontsize * 0.8f));
+			rightDraw = (int) (HUDFontsize * 3.5f);
+	
+			n5 = 5 * HUDFontsize;
+			round = (int) (5 * roundCompass);
+			rnd = (int) Math.round(2.5 * HUDFontsize * 0.618);
+			hrnd = (int) Math.round(rnd / 2.0);
+			urnd =  (int) Math.round(0.618 * rnd);
 
 		if (xc.getconfig("hudMach") != "")
 			drawHudMach = Boolean.parseBoolean(c.getconfig("hudMach"));
@@ -798,7 +804,7 @@ public class minimalHUD extends WebFrame implements Runnable {
 						drawCrossair(g2d, 2 * Width, 1 * Height, Width + CrossX, CrossY, CrossWidth);
 					}
 				}
-				g.dispose();
+				// g.dispose();
 			}
 		};
 		// initpanel();
@@ -878,8 +884,8 @@ public class minimalHUD extends WebFrame implements Runnable {
 		throttley = (throttle * HUDFontsize * 5) / 110;
 		
 
-		compass = (int)xs.sIndic.compass;
-		compassRads = (double)Math.toRadians(xs.sIndic.compass);
+		compass = (int)xs.dCompass;
+		compassRads = (double)Math.toRadians(xs.dCompass);
 		
 //		double compassRads = (double) Math.toRadians(xs.sIndic.compass);
 		
@@ -910,7 +916,11 @@ public class minimalHUD extends WebFrame implements Runnable {
 			aosX = 0;
 		rollDeg = (int) (-aviar);
 		lineCompass = String.format("%3s", xs.compass);
-		lineLoc = String.format("%c%d", (char)('A' + (xs.loc[1]/0.125)), (int)(xs.loc[0]/0.125 + 1));
+
+		char map_x = (char)('A' + (xs.loc[1] * xs.mapinfo.mapStage) + xs.mapinfo.inGameOffset);
+		int map_y =  (int)(xs.loc[0] * xs.mapinfo.mapStage + xs.mapinfo.inGameOffset + 1);
+
+		lineLoc = String.format("%c%d", map_x, map_y);
 		if (drawHudMach)
 			lines[0] = String.format("M%5s", xs.M);
 		else

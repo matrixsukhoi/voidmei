@@ -476,6 +476,21 @@ public class mapObj {
 			loc[1] = y;
         }
 	}
+
+	public static void getPlayerDir(String jsonText, double[] dir){
+		// 正则表达式用于匹配整个JSON对象，并捕获icon为"Player"的x和y坐标
+		String pattern = "\\{[^{}]*\\\"icon\\\"\\s*:\\s*\\\"Player\\\"[^{}]*,[^{}]*\\\"dx\\\"\\s*:\\s*(-?\\d+(\\.\\d+)?),[^{}]*\\\"dy\\\"\\s*:\\s*(-?\\d+(\\.\\d+)?)[^{}]*\\}";
+		Pattern r = Pattern.compile(pattern);
+		Matcher m = r.matcher(jsonText);
+
+		while (m.find()) {
+			double dx = Double.parseDouble(m.group(1));
+			double dy = Double.parseDouble(m.group(3));
+			// System.out.println("Player direction: dx = " + dx + ", dy = " + dy);
+			dir[0] = dx;
+			dir[1] = dy;
+        }
+	}
 	public static void getAirfieldLoc(String jsonText, double[][] loc){
 		// 正则表达式用于匹配整个JSON对象，并捕获icon为"Player"的x和y坐标
 		String pattern = "\\{[^{}]*\\\"type\\\"\\s*:\\s*\\\"airfield\\\"[^{}]*,[^{}]*\\\"sx\\\"\\s*:\\s*(-?\\d+(\\.\\d+)?),[^{}]*\\\"sy\\\"\\s*:\\s*(-?\\d+(\\.\\d+)?)[^{}]*\\}";

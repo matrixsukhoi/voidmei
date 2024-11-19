@@ -29,6 +29,7 @@ import java.lang.reflect.Field;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.nio.charset.Charset;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -65,7 +66,7 @@ public class app {
 	public static String appName;
 	public static String defaultNumfontName = "Roboto";
 	public static String appTooltips;
-	public static String version = "1.566";
+	public static String version = "1.567";
 	public static String httpHeader;
 	public static int voiceVolumn = 100;
 	public static String defaultFontName = "Microsoft YaHei UI";
@@ -117,7 +118,7 @@ public class app {
 
 	// 是否开启
 	public static boolean drawFontShape = false;
-
+	public static ExecutorService threadPool;
 	public static String getJavaVersion() {
 		r = Runtime.getRuntime();
 		try {
@@ -363,7 +364,7 @@ public class app {
 		httpHelper httpClient = new httpHelper();
 		try {
 			/* 异步请求 */
-			Executors.newCachedThreadPool().submit(() -> {
+			threadPool.submit(() -> {
 				String res;
 				res = httpClient.sendGetURL("https://api.github.com/repos/"+ owner + "/" + repository + "/releases/latest");
 				// debugPrint(res);
@@ -396,7 +397,7 @@ public class app {
 		httpHelper httpClient = new httpHelper();
 		try {
 			/* 异步请求 */
-			Executors.newCachedThreadPool().submit(() -> {
+			threadPool.submit(() -> {
 				String res;
 				res = httpClient.sendGetURL("https://api.github.com/repos/"+ owner + "/" + repository + "/releases/latest");
 				// debugPrint(res);
@@ -493,6 +494,9 @@ public class app {
 		httpHeader = lang.httpHeader;
 		defaultFontName = lang.lanuageConfig.getValue("defaultFontName");
 		defaultFontsize = Integer.parseInt(lang.lanuageConfig.getValue("defaultFontSize"));
+
+		// 线程池
+		threadPool = Executors.newCachedThreadPool();
 
 		// checkOS();
 		initFont();

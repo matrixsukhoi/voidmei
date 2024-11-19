@@ -329,7 +329,7 @@ public class voiceWarning implements Runnable {
 		gearWarningLine = 0;
 		gearWarn = new audClip("./voice/warn_gear.wav", 7);
 		if (xc.blkx != null && xc.blkx.valid)
-			gearWarningLine = xc.blkx.GearDestructionIndSpeed * 0.93f;
+			gearWarningLine = xc.blkx.GearDestructionIndSpeed;
 		if (gearWarningLine == 0)
 			gearWarningLine = 450;
 		// app.debugPrint(gearWarningLine);

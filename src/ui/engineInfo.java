@@ -592,7 +592,7 @@ public class engineInfo extends WebFrame implements Runnable {
 
 				}
 
-				g.dispose();
+				// g.dispose();
 			}
 		};
 

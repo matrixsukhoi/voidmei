@@ -1048,7 +1048,7 @@ public class blkx {
 
 		fmdata = s;
 //		app.debugPrint(s);
-//		app.debugPrint(GearDestructionIndSpeed);
+		// app.debugPrint("" + GearDestructionIndSpeed);
 		// app.debugPrint(wtload0+" "+oilload0);
 		// app.debugPrint(wtload1+" "+oilload1);
 		// app.debugPrint(wtload2+" "+oilload2);

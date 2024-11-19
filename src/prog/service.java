@@ -1,9 +1,9 @@
 package prog;
 
-
 import parser.blkx.engineLoad;
 import parser.flightLog;
 import parser.indicators;
+import parser.mapInfo;
 import parser.mapObj;
 import parser.state;
 import parser.stringHelper;
@@ -21,6 +21,7 @@ public class service implements Runnable {
 	// public static URL urlstate;
 	// public static URL urlindicators;
 	public double loc[];
+	public double dir[];
 	public double energyJKg;
 	public double pEnergyJKg;
 	public long calcPeriod;
@@ -89,7 +90,7 @@ public class service implements Runnable {
 	public String salt;
 	public String sSEP;
 	public String sSEPAbs;
-	
+
 	public String sNitro;
 	public String sWepTime;
 
@@ -101,7 +102,7 @@ public class service implements Runnable {
 	// sState转换后
 	public boolean hasWingSweepVario;
 	public boolean isStateJet;
-
+	public double dCompass;
 	public String svalid;
 	public int engineNum;
 	public String engineType;
@@ -173,7 +174,7 @@ public class service implements Runnable {
 	public double nitrokg;
 	public double nitroConsump;
 	public int nitroEngNr;
-	
+
 	Boolean portOcupied = false;
 	private int checkEngineType;
 	private int checkPitch;
@@ -182,6 +183,7 @@ public class service implements Runnable {
 	public static final int ENGINE_TYPE_JET = 1;
 	public static final int ENGINE_TYPE_TURBOPROP = 2;
 	public static final int ENGINE_TYPE_UNKNOWN = -1;
+	public mapInfo mapinfo;
 
 	public String NumtoString(int Num, int arg) {
 		return String.format("%0" + arg + "d", Num);
@@ -219,7 +221,7 @@ public class service implements Runnable {
 		elevator = String.format("%d", sState.elevator);
 		rudder = String.format("%d", sState.rudder);
 
-		sTime = String.format("%02d'%02d", elapsedTime / 60000,  (elapsedTime / 1000) % 60);
+		sTime = String.format("%02d'%02d", elapsedTime / 60000, (elapsedTime / 1000) % 60);
 		if (fueltime <= 0 || fueltime > 24 * 3600 * 1000)
 			sfueltime = nastring;
 		else {
@@ -230,12 +232,12 @@ public class service implements Runnable {
 			// sfueltime = String.format("%d:%02d", fueltime / 60000, (int)
 			// ((fueltime / 1000) % 60 ));
 			if (fueltime / 60000 < 100
-					/* && !bLowAccFuel */) {
+			/* && !bLowAccFuel */) {
 				sfueltime = String.format("%02d'%02d", fueltime / 60000, (long) ((fueltime / 1000) % 60 / 10) * 10);
 				// sfueltime = String.format("%d.%d", fueltime / 60000,
 				// (fueltime % 60000) / 6000);
 			} else
-				sfueltime = String.format("%.0f", (float)fueltime / 60000);
+				sfueltime = String.format("%.0f", (float) fueltime / 60000);
 
 		}
 		sTotalThr = String.format("%d", iTotalThr);
@@ -274,7 +276,8 @@ public class service implements Runnable {
 		oiltemp = String.format("%.0f", noilTemp);
 		if (sState.manifoldpressure != 1) {
 			manifoldpressure = String.format("%.2f", sState.manifoldpressure);
-//			pressurePounds = String.format("%+d", Math.round((sState.manifoldpressure - 1) * 14.696));
+			// pressurePounds = String.format("%+d", Math.round((sState.manifoldpressure -
+			// 1) * 14.696));
 			pressurePounds = String.format("%+.1f", (sState.manifoldpressure - 1) * 14.696);
 			// pressurePounds = String.format("%+d",
 			// Math.round((sState.manifoldpressure - 1f) * 14.696f),
@@ -282,7 +285,8 @@ public class service implements Runnable {
 			// Math.round(sState.manifoldpressure * 760f / 25.4f)
 			// pressureMmHg = String.format("%d",
 			// Math.round(sState.manifoldpressure));
-//			pressureInchHg = String.format("P/%d''", Math.round(sState.manifoldpressure * 760 / 25.4));
+			// pressureInchHg = String.format("P/%d''", Math.round(sState.manifoldpressure *
+			// 760 / 25.4));
 			pressureInchHg = String.format("P/%.1f''", (sState.manifoldpressure * 760 / 25.4));
 		} else {
 			manifoldpressure = nastring;
@@ -344,41 +348,36 @@ public class service implements Runnable {
 		Ny = String.format("%.1f", sState.Ny);
 
 		// SEP取整改善SEP过高时的可读性
-		double SEPAccuracy = (double)((long) SEP / 50);
+		double SEPAccuracy = (double) ((long) SEP / 50);
 		SEPAccuracy = SEPAccuracy * 2.5;
 		if (SEPAccuracy == 0)
 			SEPAccuracy = 1;
 
 		sSEP = String.format("%.0f", Math.round(SEP / SEPAccuracy) * SEPAccuracy);
-		sSEPAbs =  String.format("%.0f", Math.abs(Math.round(SEP / SEPAccuracy) * SEPAccuracy));
+		sSEPAbs = String.format("%.0f", Math.abs(Math.round(SEP / SEPAccuracy) * SEPAccuracy));
 		// 相对能量(v^2/2+g*h)
-		
+
 		relEnergy = String.format("%.0f", energyJKg);
-		
+
 		aclrt = String.format("%.3f", acceleration);
 		// Ao=String.format("%.1f",
 		// Math.sqrt(sState.AoA*sState.AoA+sState.AoS*sState.AoS));
 		AoA = String.format("%.1f", sState.AoA);
 		AoS = String.format("%.1f", sState.AoS);
-		// iIndic
-		if (sIndic.compass != -65535)
-			compass = String.format("%.0f", sIndic.compass);
-		else 
-			compass = "UND";
-		
+
+		compass = String.format("%.0f", dCompass);
 		sPitchUp = String.format("%.0f", sIndic.aviahorizon_pitch);
-		
+
 		if (c.blkx != null && c.blkx.valid && c.blkx.nitro != 0) {
-			
+
 			sNitro = String.format("%.0f", nitrokg);
 			long twepTime = 0;
 			if (nitroEngNr == 0) {
-//				nitroEngNr = sState.engineNum;
-//				sWepTime = nastring;
-			}
-			else {
-				twepTime = (int) (((c.blkx.nitro / c.blkx.nitroDecr - wepTime / 1000)) / nitroEngNr) ;
-			
+				// nitroEngNr = sState.engineNum;
+				// sWepTime = nastring;
+			} else {
+				twepTime = (int) (((c.blkx.nitro / c.blkx.nitroDecr - wepTime / 1000)) / nitroEngNr);
+
 				if (twepTime < 0) {
 					twepTime = 0;
 				}
@@ -386,7 +385,7 @@ public class service implements Runnable {
 					sWepTime = String.format("%3d", twepTime / 60);
 				} else {
 					sWepTime = String.format("%02d'%02d", twepTime / 60, twepTime %
-					60);
+							60);
 					// sWepTime = String.format("%.0f", (double) twepTime);
 				}
 			}
@@ -415,25 +414,26 @@ public class service implements Runnable {
 		sHorizontalLoad = String.format("%.1f", horizontalLoad);
 		// app.debugPrint("已加力时间(秒)"+wepTime/1000);
 		// app.debugPrint("剩余加力时间(分钟)"+rwepTime);
-		
-		//loc
+
+		// loc
 		// char[] tmp = new char[8];
 		// int stepx = (int)(loc[0] / 0.1);
 		// int stepy = (int)(loc[1] / 0.1);
 
 		// tmp[0] = (char) ('A' + stepy);
 		// if (stepx < 9){
-		// 	tmp[1] = (char) ('1' + stepx);
-		// 	tmp[2] = '\0';
+		// tmp[1] = (char) ('1' + stepx);
+		// tmp[2] = '\0';
 		// }
 		// else{
-		// 	tmp[1] = '1';
-		// 	tmp[2] = (char)('0' + (stepx - 9));
-		// 	tmp[3] = '\0';
+		// tmp[1] = '1';
+		// tmp[2] = (char)('0' + (stepx - 9));
+		// tmp[3] = '\0';
 		// }
 		// sLoc = new String(tmp);
-		// System.out.println("current location is:" + sLoc + "[stepx, stepy]" + stepx + ", " + stepy);
-		
+		// System.out.println("current location is:" + sLoc + "[stepx, stepy]" + stepx +
+		// ", " + stepy);
+
 	}
 
 	public void checkEngineJet() {
@@ -451,13 +451,13 @@ public class service implements Runnable {
 			} else {
 				checkPitch--;
 			}
-		
+
 			if (Math.abs(checkEngineType) >= 100) {
 				checkEngineFlag = true;
 				if (checkEngineType >= 0) {
 					iEngType = ENGINE_TYPE_PROP;
 				} else {
-	
+
 					// 涡桨
 					if (checkPitch > 0) {
 						iEngType = ENGINE_TYPE_TURBOPROP;
@@ -465,23 +465,20 @@ public class service implements Runnable {
 					} else
 						iEngType = ENGINE_TYPE_JET;
 				}
-	
-				 //app.debugPrint(String.format("自适应判断引擎类型 %d\n", iEngType));
+
+				// app.debugPrint(String.format("自适应判断引擎类型 %d\n", iEngType));
 			}
 		}
 	}
-
 
 	public void slowcalculate(long dtime) {
 		// 计算耗油率及持续时间
 		// app.debugPrint(totalfuelp - totalfuel);
 		// if (MainCheckMili - FuelCheckMili > 1000) {
-	
-		
+
 		dfuel = (fTotalFuelP - fTotalFuel) / dtime;
 
 		if (dfuel > 0) {
-
 
 			FuelchangeTime = MainCheckMili - FuelLastchangeMili;
 			FuelLastchangeMili = MainCheckMili;
@@ -491,25 +488,24 @@ public class service implements Runnable {
 				// 改用滑动平均
 				fueltime = (long) fuelTimeSMA.addNewData(fTotalFuel / dfuel);
 
-			}
-			else {
-//				/* 已知油量不可能递增，考虑计算精度问题导致油量增多，因此取两者间最小值 */
-				long tmpft = (long )fuelTimeSMA.addNewData(fTotalFuel * FuelchangeTime / fuelChange);
+			} else {
+				// /* 已知油量不可能递增，考虑计算精度问题导致油量增多，因此取两者间最小值 */
+				long tmpft = (long) fuelTimeSMA.addNewData(fTotalFuel * FuelchangeTime / fuelChange);
 				if (fueltime > 0)
 					fueltime = fueltime < tmpft ? fueltime : tmpft;
 				else
 					fueltime = tmpft;
-//				app.debugPrint("" + fueltime +" " + tmpft);
+				// app.debugPrint("" + fueltime +" " + tmpft);
 			}
 			// app.debugPrint(fuelChange);
 
 		} else {
 			// 没有变化，使用上次
-			if (fuelChange == 0) 
+			if (fuelChange == 0)
 				fueltime = 0;
 			else {
 				/* 已知油量不可能递增，考虑计算精度问题导致油量增多，因此取两者间最小值 */
-				long tmpft = (long )fuelTimeSMA.addNewData(fTotalFuel * FuelchangeTime / fuelChange);
+				long tmpft = (long) fuelTimeSMA.addNewData(fTotalFuel * FuelchangeTime / fuelChange);
 				fueltime = tmpft;
 			}
 
@@ -520,23 +516,23 @@ public class service implements Runnable {
 
 		FuelCheckMili = MainCheckMili;
 		fTotalFuelP = fTotalFuel;
-//		prev_throttle = sState.throttle;
+		// prev_throttle = sState.throttle;
 		// 计算变化率
-//		app.debugPrint("" + fueltime);
+		// app.debugPrint("" + fueltime);
 	}
 
 	// public engineLoad[] sPL;
 	public void checkOverheat() {
 		engineLoad[] pL = c.blkx.engLoad;
-//		curLoad = c.blkx.findmaxLoad(pL, nwaterTemp, noilTemp);
+		// curLoad = c.blkx.findmaxLoad(pL, nwaterTemp, noilTemp);
 		// 减去时间
 		double minWorkTime = 99999 * 1000;
 		/* 关发动机后，温度降到最低load后恢复 */
 		Boolean engOff = false;
-		if (sState.power[0] == 0 && sState.throttle > 0){
+		if (sState.power[0] == 0 && sState.throttle > 0) {
 			/* 关发动机 */
 			engOff = true;
-//			app.debugPrint("监测到引擎关闭");
+			// app.debugPrint("监测到引擎关闭");
 		}
 		// 水冷
 		curWLoad = c.blkx.findmaxWaterLoad(pL, nwaterTemp);
@@ -550,15 +546,14 @@ public class service implements Runnable {
 				}
 
 			} else {
-				
-				if (engOff){
+
+				if (engOff) {
 					// 关闭引擎直接回满
 					if (curWLoad == 0 || pL[curWLoad - 1].WorkTime < 0.1) {
-//						 app.debugPrint("回复水温耐久条");
+						// app.debugPrint("回复水温耐久条");
 						pL[i].curWaterWorkTimeMili = pL[i].WorkTime * 1000;
 					}
-				}
-				else{
+				} else {
 					// 大于load且工作时长不满则进行恢复
 					if (sState.throttle <= 100) {
 						if (pL[i].RecoverTime != 0 && (1000 * pL[i].WorkTime > pL[i].curWaterWorkTimeMili)) {
@@ -567,7 +562,6 @@ public class service implements Runnable {
 					}
 				}
 
-			
 			}
 		}
 
@@ -590,14 +584,13 @@ public class service implements Runnable {
 				}
 
 			} else {
-				if (engOff){
+				if (engOff) {
 					// 关闭引擎直接回满
-					if (curOLoad ==0 || pL[curOLoad - 1].WorkTime < 0.1) {
-//						 app.debugPrint("回复油温耐久条");
+					if (curOLoad == 0 || pL[curOLoad - 1].WorkTime < 0.1) {
+						// app.debugPrint("回复油温耐久条");
 						pL[i].curOilWorkTimeMili = pL[i].WorkTime * 1000;
 					}
-				}
-				else{
+				} else {
 					// 大于load且工作时长不满则进行恢复
 					if (sState.throttle <= 100) {
 						if (pL[i].RecoverTime != 0 && (1000 * pL[i].WorkTime > pL[i].curOilWorkTimeMili)) {
@@ -684,7 +677,7 @@ public class service implements Runnable {
 		nitrokg = c.blkx.nitro - (wepTime * nitroConsump) / 1000;
 		if (nitrokg < 0)
 			nitrokg = 0;
-		
+
 	}
 
 	public void updateTemp() {
@@ -734,7 +727,7 @@ public class service implements Runnable {
 		if (sIndic.radio_altitude == stringHelper.fInvalid) {
 			radioAlt = alt;
 			radioAltValid = false;
-		}else {
+		} else {
 			radioAltValid = true;
 			if (iCheckAlt > 0) {
 				radioAlt = sIndic.radio_altitude * 0.3048f;
@@ -764,16 +757,16 @@ public class service implements Runnable {
 		// 转弯加速度约等于法向过载与重力过载之和
 		double alpha = 0;
 		double beta = 0;
-//		if (sIndic.aviahorizon_roll != -65535) {
-//			alpha = sIndic.aviahorizon_roll;
-//		}
-//		if (sIndic.aviahorizon_pitch != -65535) {
-//			beta = sIndic.aviahorizon_pitch + sState.AoA;
-//		}
+		// if (sIndic.aviahorizon_roll != -65535) {
+		// alpha = sIndic.aviahorizon_roll;
+		// }
+		// if (sIndic.aviahorizon_pitch != -65535) {
+		// beta = sIndic.aviahorizon_pitch + sState.AoA;
+		// }
 
 		if (sIndic.aviahorizon_roll != -65535 && sIndic.aviahorizon_pitch != -65535) {
 			// 获得横滚角
-			
+
 			An = (double) (g * Math
 					.sqrt(sState.Ny * sState.Ny + 1 - 2 * sState.Ny * Math.cos(Math.toRadians(sIndic.aviahorizon_roll))
 							* Math.cos(Math.toRadians(sIndic.aviahorizon_pitch + sState.AoA))));
@@ -814,9 +807,8 @@ public class service implements Runnable {
 			// 转弯率等于向心加速度除以半径开根号
 			turnRate = (double) (Math.toDegrees(Math.sqrt(An / turnRds)));
 			// turnRds = turnRds/10 * 10
-		}
-		else{
-			
+		} else {
+
 		}
 	}
 
@@ -835,8 +827,7 @@ public class service implements Runnable {
 		if (sIndic.speed != -65535) {
 			// 高精度指示空速，需要进行TAS校正
 			tspeedv = sIndic.speed;
-		}
-		else{
+		} else {
 			tspeedv = IASv / 3.6;
 		}
 
@@ -862,7 +853,6 @@ public class service implements Runnable {
 	public void updateEngineState() {
 		int i;
 
-
 		checkEngineJet();
 		if (!isEngJet()) {
 			// 活塞机或者涡浆机
@@ -876,9 +866,9 @@ public class service implements Runnable {
 				ttotalhp = ttotalhp + sState.power[i];
 				ttotalhpeff = ttotalhpeff + sState.thrust[i] * g * speedv / 735;
 			}
-//			System.out.println(ttotalhp);
+			// System.out.println(ttotalhp);
 			// app.debugPrint(totalhpeff);
-//			app.debugPrint(String.format("sevice 引擎数量%d, 功率%.0f", engineNum, ttotalhp));
+			// app.debugPrint(String.format("sevice 引擎数量%d, 功率%.0f", engineNum, ttotalhp));
 			iTotalHp = (int) (ttotalhp);
 			iTotalHpEff = (int) (ttotalhpeff);
 			iTotalThr = (int) (ttotalthr);
@@ -933,11 +923,11 @@ public class service implements Runnable {
 			bLowAccFuel = Boolean.FALSE;
 			/* 修复su-27油箱显示不正确的问题 */
 			// for (i = 0; i < sIndic.fuelnum; i++) {
-			for (i = 0; i < 1; i++){
+			for (i = 0; i < 1; i++) {
 				ttotalfuel = ttotalfuel + sIndic.fuel[i];
 			}
 			fTotalFuel = ttotalfuel;
-			
+
 		}
 		// app.debugPrint("I"+totalfuel);
 		if (fTotalFuel == 0) {
@@ -983,11 +973,11 @@ public class service implements Runnable {
 		// }
 
 		// 总能量
-		//pEnergyJKg = energyJKg;
+		// pEnergyJKg = energyJKg;
 		// energyJKg = ((speedv + speedvp) * (speedv + speedvp) / (8 * g) +
 		// sState.heightm);
 		energyJKg = ((speedv + speedvp) * (speedv + speedvp) / 8 + g * sState.heightm);
-		energyM = ((speedv + speedvp) * (speedv + speedvp) / (8*g) + sState.heightm);
+		energyM = ((speedv + speedvp) * (speedv + speedvp) / (8 * g) + sState.heightm);
 		// System.out.println(String.format("%.0f",
 		// energyDiffSMA.addNewData((energyJKg - pEnergyJKg)*1000/intv)));
 	}
@@ -1050,6 +1040,20 @@ public class service implements Runnable {
 		}
 	}
 
+	public void updateCompass() {
+		if (sIndic.compass != -65535) {
+			// 如果有仪表罗盘，读取仪表罗表盘数据
+			dCompass = sIndic.compass;
+		} else {
+			// 否则读取地图中的方向数据
+			if (dir[1] < 0) {
+				dCompass = (360 - Math.toDegrees(Math.atan(dir[0] / dir[1]))) % 360;
+			} else {
+				dCompass = (180 - Math.toDegrees(Math.atan(dir[0] / dir[1])));
+			}
+		}
+	}
+
 	public void calculate() {
 
 		// 获得开始时间
@@ -1062,6 +1066,9 @@ public class service implements Runnable {
 		updateTemp();
 		// 检查是否过热，如果过热，计算引擎健康度
 		checkOverheat();
+
+		// 更新方向
+		updateCompass();
 
 		// 更新爬升率
 		updateClimbRate();
@@ -1101,6 +1108,15 @@ public class service implements Runnable {
 
 	}
 
+	double calcK(double x0, double y0, double x1, double y1) {
+		double k = 0;
+		;
+		if (x1 - x0 != 0) {
+			k = (y1 - y0) / (x1 - x0);
+		}
+		return k;
+	}
+
 	public double getFlapAllowSpeed(int flapPercent, Boolean isDowningFlap) {
 		// fm文件无法解析
 		if (flapPercent == 0 || c.blkx == null || !c.blkx.valid)
@@ -1125,7 +1141,18 @@ public class service implements Runnable {
 		if (i == 0) {
 			// 下襟翼时直接越级使用下一级
 			if (isDowningFlap) {
-				return c.blkx.FlapsDestructionIndSpeed[i][1];
+				// 根据@隐居 寒天的建议，增加0档位的线性插值
+
+				x0 = c.blkx.FlapsDestructionIndSpeed[i][0] * 100.0f;
+				y0 = c.blkx.FlapsDestructionIndSpeed[i][1];
+				x1 = c.blkx.FlapsDestructionIndSpeed[i + 1][0] * 100.0f;
+				y1 = c.blkx.FlapsDestructionIndSpeed[i + 1][1];
+				k = this.calcK(x0, y0, x1, y1);
+
+				// app.debugPrint(x0 + "-" + x1 + ", " + y0 + "-" + y1 + " : " + y0 +
+				// (flapPercent - x0) * k);
+				return y0 + (flapPercent - x0) * k;
+				// return c.blkx.FlapsDestructionIndSpeed[i][1];
 			}
 			// 襟翼只有0级
 			// if(c.blkx.FlapsDestructionNum == 0){
@@ -1150,32 +1177,33 @@ public class service implements Runnable {
 			y0 = c.blkx.FlapsDestructionIndSpeed[i - 1][1];
 			x1 = c.blkx.FlapsDestructionIndSpeed[i][0] * 100.0f;
 			y1 = c.blkx.FlapsDestructionIndSpeed[i][1];
-			if (x1 - x0 != 0) {
-				k = (y1 - y0) / (x1 - x0);
-			} else {
-				k = 0;
-			}
+			k = this.calcK(x0, y0, x1, y1);
+
 			// 速度等于
 			// app.debugPrint(x0 + "-" + x1 + ", " + y0 + "-" + y1);
 			return y0 + (flapPercent - x0) * k;
 		}
 
 	}
-	public void resetEngLoad(){
-		if(c.blkx != null && c.blkx.valid){
-			for (int idx = 0; idx < c.blkx.maxEngLoad; idx++){
+
+	public void resetEngLoad() {
+		if (c.blkx != null && c.blkx.valid) {
+			for (int idx = 0; idx < c.blkx.maxEngLoad; idx++) {
 				c.blkx.engLoad[idx].curWaterWorkTimeMili = c.blkx.engLoad[idx].WorkTime * 1000;
 				c.blkx.engLoad[idx].curOilWorkTimeMili = c.blkx.engLoad[idx].WorkTime * 1000;
 			}
 		}
 	}
+
 	// 重置变量
 	public void resetvaria() {
 		loc = new double[2];
+		dir = new double[2];
 		radioAltValid = false;
 		playerLive = false;
 		iEngType = ENGINE_TYPE_UNKNOWN;
 		checkMaxiumRPM = 0;
+		dCompass = 0;
 		getMaximumRPM = false;
 		dRadioAlt = 0;
 		curLoad = 0;
@@ -1219,7 +1247,7 @@ public class service implements Runnable {
 		nitrokg = 0;
 		nitroConsump = 0;
 		nitroEngNr = 0;
-		
+
 		calcSpeedSMA = cH.new simpleMovingAverage((int) (1000 / freq));
 		diffSpeedSMA = cH.new simpleMovingAverage((int) (1000 / freq));
 		sepSMA = cH.new simpleMovingAverage((int) (1000 / freq));
@@ -1238,7 +1266,7 @@ public class service implements Runnable {
 				}
 			}
 		}
-		
+
 	}
 
 	public void clearvaria() {
@@ -1263,7 +1291,7 @@ public class service implements Runnable {
 
 		freq = xc.freqService;
 		clearvaria();
-
+		mapinfo = new mapInfo();
 		ratio = freq / 1000.0f;
 		ratio_1 = 1.0f - ratio;
 		sState = new state();
@@ -1299,10 +1327,21 @@ public class service implements Runnable {
 
 				/* 修复录像中没法使用的问题 */
 				if ((!sIndic.type.equals("DUMMY_PLANE")) && ((sState.totalThr != 0) || (sState.RPM != 0))) {
+					if (playerLive == false) {
+						if (!portOcupied)
+							httpClient.getReqMapInfoResult(app.requestDest);
+						else
+							httpClient.getReqMapInfoResult(app.requestDestBkp);
+						mapinfo.update(httpClient.strMapInfo);
+					}
 					playerLive = true;
+					// app.debugPrint("grid_zero: " + mapinfo.grid_zeroX + ", " +
+					// mapinfo.grid_zeroY);
 				}
 
 				if (isPlayerLive()) {
+					// 读取map info
+
 					c.changeS3();// 打开面板
 					if (!c.cur_fmtype.equals(sIndic.type)) {
 						// 机型变化
@@ -1312,17 +1351,15 @@ public class service implements Runnable {
 					// speedvp = sState.IAS;
 					// 开始计算数据
 					calculate();
-					
-					
+
 					// 检测到加油，重置数据
 					if ((Math.abs(speedv) < 10) && (fTotalFuel - fTotalFuelP > 1)) {
-//						app.debugPrint("检测到油量增加 " + fTotalFuel + "," + fTotalFuelP);
+						// app.debugPrint("检测到油量增加 " + fTotalFuel + "," + fTotalFuelP);
 						app.debugPrint("重新加油，重置变量");
-						
+
 						resetvaria();
 					}
 
-					
 					// 0.5秒一次慢计算
 					if (((calcPeriod++) % (500 / freq)) == 0)
 						slowcalculate((500 / freq) * freq);
@@ -1389,7 +1426,7 @@ public class service implements Runnable {
 					httpClient.getReqResult(app.requestDest);
 				else
 					httpClient.getReqResult(app.requestDestBkp);
-				
+
 				intv = (diffTime / freq) * freq;
 				TimeIncrMili = diffTime;
 				MainCheckMili += intv;
@@ -1406,10 +1443,10 @@ public class service implements Runnable {
 				}
 				// app.debugPrint("?\n");
 				// 检查超时
-//				 if (MainCheckMili <= (System.currentTimeMillis() - intv)) {
-//					 app.debugPrint("deadline Miss, try catch\n" + SystemTime +
-//							 "," + MainCheckMili);
-//				 }
+				// if (MainCheckMili <= (System.currentTimeMillis() - intv)) {
+				// app.debugPrint("deadline Miss, try catch\n" + SystemTime +
+				// "," + MainCheckMili);
+				// }
 			}
 			long diffTime1 = SystemTime - MapCheckMili;
 			if (diffTime1 >= 10 * freq) {
@@ -1419,9 +1456,9 @@ public class service implements Runnable {
 				else
 					httpClient.getReqMapObjResult(app.requestDestBkp);
 				mapObj.getPlayerLoc(httpClient.strMapObj, loc);
+				mapObj.getPlayerDir(httpClient.strMapObj, dir);
 				// mapObj.getAirfieldLoc(httpClient.strMapObj, null);
 			}
-			
 
 		}
 	}

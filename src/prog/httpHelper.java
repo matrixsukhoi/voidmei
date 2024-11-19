@@ -24,6 +24,8 @@ public class httpHelper {
 			+ "Cache-Control:no-cache\n" + app.httpHeader + "\n";
 	public String mapobj_request = "GET " + "/map_obj.json" + " HTTP/1.1\n" + "Host: " + "127.0.0.1" + "\n"
 			+ "Cache-Control:no-cache\n" + app.httpHeader + "\n";
+	public String mapinfo_request = "GET " + "/map_info.json" + " HTTP/1.1\n" + "Host: " + "127.0.0.1" + "\n"
+			+ "Cache-Control:no-cache\n" + app.httpHeader + "\n";	
 	public String fmcm_request = "GET " + "/editor/fm_commands?cmd=getFmProperties" + " HTTP/1.1\n" + "Host: "
 			+ "127.0.0.1" + "\n" + "Cache-Control:no-cache\n" + app.httpHeader + "\n";
 	public String setAltReq = "GET " + "/editor/fm_commands?cmd=setAlt&value=%d"+ " HTTP/1.1\n" + "Host: "
@@ -33,6 +35,7 @@ public class httpHelper {
 	public String strState;
 	public String strIndic;
 	public String strMapObj;
+	public String strMapInfo;
 	public StringBuilder strBState = new StringBuilder();
 	public StringBuilder strBIndic = new StringBuilder();
 	
@@ -144,6 +147,7 @@ public class httpHelper {
 	public char buf_indic[] = new char[buf_len];
 	public char buf_state[] = new char[buf_len];
 	public char buf_mapobj[] = new char[buf_len * 4];
+	public char buf_mapinfo[] = new char[buf_len];
 	public void sendGetFastBufB(char[] buf, String req_string, SocketAddress dest, StringBuilder bd) throws IOException {
 		Socket socket = new Socket();
 		// socket.
@@ -272,7 +276,7 @@ public class httpHelper {
 ////			strIndic = sendGetFast(indic_request, req_addr);
 //			strIndic = sendGetFastBuf(buf_indic, indic_request, req_addr);
 //			
-			Executors.newCachedThreadPool().submit(() -> {
+			app.threadPool.submit(() -> {
 //				sendGetFastBufB(buf_state, state_request, req_addr, strBState);
 				strState = sendGetFastBuf(buf_state, state_request, req_addr);
 //				System.out.println(strState);
@@ -314,6 +318,16 @@ public class httpHelper {
 			
 		} catch (IOException e1) {
 			strMapObj = nstring;
+		} 
+	}
+
+	public void getReqMapInfoResult(SocketAddress req_addr) {
+		try {
+
+			strMapInfo = sendGetFastBuf(buf_mapinfo, mapinfo_request, req_addr);
+			
+		} catch (IOException e1) {
+			strMapInfo = nstring;
 		} 
 	}
 }

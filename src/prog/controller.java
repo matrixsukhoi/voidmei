@@ -48,7 +48,7 @@ public class controller {
 	statusBar SB;
 	mainform M;
 	minimalHUD H;
-	otherService O;
+	public otherService O;
 	situationAware SA;
 	flightInfo FL;
 	flightLog Log;
