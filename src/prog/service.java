@@ -629,6 +629,7 @@ public class service implements Runnable {
 	private double pThurstPercent;
 	public double tEngResponse;
 	public double flapAllowSpeed;
+	public double flapAllowAngle;
 	private int flapp;
 	private int flap;
 	private boolean downflap;
@@ -1009,6 +1010,7 @@ public class service implements Runnable {
 		}
 
 		flapAllowSpeed = getFlapAllowSpeed(sState.flaps, downflap);
+		flapAllowAngle = getFlapAllowAngle(sState.IAS,downflap);
 	}
 
 	public void getMaximumRPM() {
@@ -1124,7 +1126,7 @@ public class service implements Runnable {
 
 		// 找到襟翼档位
 		int i = 0;
-		for (; i < c.blkx.FlapsDestructionNum; i++) {
+		for (; i < c.blkx.FlapsDestructionNum - 1; i++) {
 			// 大于
 			if (flapPercent < c.blkx.FlapsDestructionIndSpeed[i][0] * 100.0f) {
 				break;
@@ -1185,7 +1187,84 @@ public class service implements Runnable {
 		}
 
 	}
+	public double THEsolution(double t) {
+		if(t<0)
+			return 0;
+		if(t<125)
+			return t;
+		else {
+			return 125;
+		}
+			
+	}
+	
+	//000000000000000000000
+	public double getFlapAllowAngle(int ias, Boolean isDowningFlap) {
+		// fm文件无法解析
+		if (ias == 0 || c.blkx == null || !c.blkx.valid)
+			return 125;
 
+		// 找到襟翼档位
+		int i = 0;
+		for (; i < c.blkx.FlapsDestructionNum - 1; i++) {
+			// 大于
+			if (ias > c.blkx.FlapsDestructionIndSpeed[i][1]) {
+				break;
+			}
+		}
+
+		// 找到档位了
+		// 线性求值
+		// 找前面的flap值
+		double x0, x1, y0, y1,t;
+		double k;
+		// 没有找到，都小于
+
+		if (i == 0) {
+			// 下襟翼时直接越级使用下一级
+			
+			x0 = c.blkx.FlapsDestructionIndSpeed[i][1];
+			y0 = c.blkx.FlapsDestructionIndSpeed[i][0] * 100.0f;
+			x1 = c.blkx.FlapsDestructionIndSpeed[i + 1][1];
+			y1 = c.blkx.FlapsDestructionIndSpeed[i + 1][0] * 100.0f;
+			k = this.calcK(x0, y0, x1, y1);
+
+			t = y0 + (ias - x0) * k;
+			return THEsolution(t);
+			
+			// 襟翼只有0级
+			// if(c.blkx.FlapsDestructionNum == 0){
+			// return c.blkx.FlapsDestructionIndSpeed[0][1];
+			// }
+
+		} else {
+			// 下襟翼时直接越级使用
+			// if (isDowningFlap) {
+			// return c.blkx.FlapsDestructionIndSpeed[i][1];
+			// }
+
+			// 相等
+			if (ias == c.blkx.FlapsDestructionIndSpeed[i - 1][1]) {
+				// 直接返回速度
+				return c.blkx.FlapsDestructionIndSpeed[i - 1][0] * 100.0f;
+			}
+
+			// 否则进行线性插值运算
+			// 算斜率
+			x0 = c.blkx.FlapsDestructionIndSpeed[i - 1][1];
+			y0 = c.blkx.FlapsDestructionIndSpeed[i - 1][0] * 100.0f;
+			x1 = c.blkx.FlapsDestructionIndSpeed[i][1];
+			y1 = c.blkx.FlapsDestructionIndSpeed[i][0] * 100.0f;
+			k = this.calcK(x0, y0, x1, y1);
+
+			// 速度等于
+			// app.debugPrint(x0 + "-" + x1 + ", " + y0 + "-" + y1);
+			t = y0 + (ias - x0) * k;
+			return THEsolution(t);
+		}
+
+	}
+	//00000000000000000000
 	public void resetEngLoad() {
 		if (c.blkx != null && c.blkx.valid) {
 			for (int idx = 0; idx < c.blkx.maxEngLoad; idx++) {
@@ -1242,12 +1321,13 @@ public class service implements Runnable {
 		notCheckInch = false;
 		hasWingSweepVario = false;
 		flapAllowSpeed = Float.MAX_VALUE;
+		flapAllowAngle = Float.MAX_VALUE;
 		fTotalFuelP = 0;
 		isStateJet = false;
 		nitrokg = 0;
 		nitroConsump = 0;
 		nitroEngNr = 0;
-
+		
 		calcSpeedSMA = cH.new simpleMovingAverage((int) (1000 / freq));
 		diffSpeedSMA = cH.new simpleMovingAverage((int) (1000 / freq));
 		sepSMA = cH.new simpleMovingAverage((int) (1000 / freq));
