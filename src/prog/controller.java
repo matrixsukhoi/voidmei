@@ -985,6 +985,11 @@ public class controller {
 			/* 直接读取 */
 			fmfile = "fm/" + planeFileName + ".blk";
 		}
+
+		/* F**k Gaijin's shit-mountain code */
+		if (-1 == fmfile.indexOf(".blk")) {
+			fmfile += ".blk";
+		}
 		app.debugPrint(fmfile);
 
 		// 读入fmfile

@@ -35,7 +35,7 @@ public class flightAnalyzer {
 		thrust[curaltStage] = xs.iTotalThr;
 		eff[curaltStage] = xs.iTotalHpEff;
 		sep[curaltStage] = xs.SEP;
-		// app.debugPrint("已经记录stage"+curaltStage+"时间戳"+time[curaltStage]+"功率"+power[curaltStage]+"轴功率"+eff[curaltStage]+"SEP"+sep[curaltStage]);
+		// app.debugPrint("已经记录stage"+curaltStage+"时间戳"+time[curaltStage]+"功率"+power[curaltStage]+"实功率"+eff[curaltStage]+"SEP"+sep[curaltStage]);
 	}
 
 	void analyze(int stage) {
@@ -43,7 +43,7 @@ public class flightAnalyzer {
 		if (stage == curaltStage + 1) {
 			eff[curaltStage] = eff[curaltStage] / count;
 			sep[curaltStage] = sep[curaltStage] / (count * 9.78f);
-			// app.debugPrint("已经记录stage"+curaltStage+"时间戳"+time[curaltStage]+"功率"+power[curaltStage]+"推力"+thrust[curaltStage]+"轴功率"+eff[curaltStage]+"SEP"+sep[curaltStage]);
+			// app.debugPrint("已经记录stage"+curaltStage+"时间戳"+time[curaltStage]+"功率"+power[curaltStage]+"推力"+thrust[curaltStage]+"实功率"+eff[curaltStage]+"SEP"+sep[curaltStage]);
 			curaltStage++;
 
 			time[curaltStage] = (xs.elapsedTime / 1000f);

@@ -446,7 +446,7 @@ public class voiceWarning implements Runnable {
 			}
 
 			// 起落架判断
-			if (isGearAlive && st.gear > 0 && st.IAS >= gearWarningLine ) {
+			if (isGearAlive && (st.gear > 0) && st.IAS >= gearWarningLine) {
 				fatal = true;
 				gearWarn.playOnce(t);
 			}
@@ -459,7 +459,8 @@ public class voiceWarning implements Runnable {
 			// 襟翼判断逻辑
 			// 先得判断襟翼在哪个段内
 			// 使用线性方式获得襟翼的限速
-			if (isFlapAlive && xS.flapAllowAngle - st.flaps < 8 && st.flaps > 1) {
+			// if (isFlapAlive && st.IAS > xS.flapAllowSpeed * 0.95) {
+			if (isFlapAlive && (xS.flapAllowAngle - st.flaps < 8) && st.flaps > 1) {
 				fatal = true;
 				flapWarn.playOnce(t);
 			}
@@ -483,9 +484,9 @@ public class voiceWarning implements Runnable {
 				gearCheck = 0;
 			}
 			if (isFlapAlive && st.IAS > xS.flapAllowSpeed) {
-				// 超速持续10秒
+				// 超速持续15秒
 				flapCheck += sleepTime;
-				if (flapCheck >= 10000) {
+				if (flapCheck >= 15000) {
 					flapCheck = 0;
 					isFlapAlive = false;
 				}

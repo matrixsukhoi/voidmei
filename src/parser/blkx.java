@@ -719,16 +719,23 @@ public class blkx {
 		FlapsDestructionNum = 0;
 		{
 			int p = 0;
-			while (true) {
+			while (p < 5) {
 				getdoubles("FlapsDestructionIndSpeedP" + (p++), FlapsDestructionIndSpeed[FlapsDestructionNum], 2);
-				if (p >= 5)
-					break;
 				if (FlapsDestructionIndSpeed[FlapsDestructionNum][1] == 0)
 					continue;
 				// if (p >= 5)
 				// break;
 				FlapsDestructionNum++;
 			}
+		}
+		if (FlapsDestructionNum == 0) {
+			double tmp[] = new double[4];
+			getdoubles("FlapsDestructionIndSpeedP", tmp, 4);
+			FlapsDestructionIndSpeed[0][0] = tmp[0];
+			FlapsDestructionIndSpeed[0][1] = tmp[1];
+			FlapsDestructionIndSpeed[1][0] = tmp[2];
+			FlapsDestructionIndSpeed[1][1] = tmp[3];
+			FlapsDestructionNum = 2;
 		}
 		if (FlapsDestructionNum == 0){
 			FlapsDestructionIndSpeed[0][0] = 1.0f;
@@ -737,8 +744,12 @@ public class blkx {
 //		if (FlapsDestructionIndSpeed[0][1] != 0){
 //			FlapsDestructionNum++;
 //		}
+
+
 		GearDestructionIndSpeed = getdouble("GearDestructionIndSpeed");
-		
+
+		app.debugPrint("flaps destruction num " + FlapsDestructionNum + "gear " + GearDestructionIndSpeed);
+
 		// 面积
 		AWingLeftIn = getdouble("Areas.WingLeftIn");
 		if (AWingLeftIn == 0)

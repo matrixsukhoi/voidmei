@@ -448,7 +448,7 @@ public class lang{
 //	public static String mP2eiPropPitchBlank="    ";
 //	public static String mP2eiEffEta="显示桨效率";
 //	public static String mP2eiEffEtaBlank="    ";
-//	public static String mP2eiEffHp="显示轴功率";
+//	public static String mP2eiEffHp="显示实功率";
 //	public static String mP2eiEffHpBlank="    ";
 //	public static String mP2eiPressure="显示进气压";
 //	public static String mP2eiPressureBlank="    ";
@@ -584,8 +584,8 @@ public class lang{
 //	public static String dFTitle3="推力-高度包线";
 //	public static String dFTitle3X="推力";
 //	public static String dFTitle3Y="高度";
-//	public static String dFTitle4="轴功率-高度包线";
-//	public static String dFTitle4X="轴功率";
+//	public static String dFTitle4="实功率-高度包线";
+//	public static String dFTitle4X="实功率";
 //	public static String dFTitle4Y="高度";
 //	public static String dFTitle5="SEP-高度包线";
 //	public static String dFTitle5X="SEP";
@@ -610,7 +610,7 @@ public class lang{
 //	public static String eType="机　型";
 //	public static String ePower="功　率";
 //	public static String eThurst="推　力";
-//	public static String eEffPower="轴功率";
+//	public static String eEffPower="实功率";
 //	public static String ePowerPercent="动力量";
 //	public static String eFuel="燃油量";
 //	public static String eFuelP="燃加力";
@@ -691,7 +691,7 @@ public class lang{
 //	public static String l12="滚转率/deg/s,";
 //	public static String l13="功　率/bhp,";
 //	public static String l14="桨效率/%,";
-//	public static String l15="轴功率*/bhp,";
+//	public static String l15="实功率*/bhp,";
 //	public static String l16="转　速/rpm,";
 //	public static String l17="推　力/kg,";
 //	public static String l18="加速度*/m/s^2,";
