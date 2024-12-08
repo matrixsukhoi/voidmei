@@ -257,7 +257,7 @@ public class voiceWarning implements Runnable {
 		st = xS.sState;
 		indic = xS.sIndic;
 		// 加载其他
-		aoaCrit = new audClip("./voice/aoaCrit.wav", 2);
+		aoaCrit = new audClip("./voice/aoaCrit.wav", 1);
 		aoaHigh = new audClip("./voice/aoaHigh.wav", 8);
 		aoaWarningLine = 15;
 		if (xc.blkx != null && xc.blkx.valid)
@@ -268,9 +268,9 @@ public class voiceWarning implements Runnable {
 		aileronEffIAS = 65535;
 		int lowEff = 20;
 		if (xc.blkx != null && xc.blkx.valid) {
-			rudderEffIAS = (int) (xc.blkx.rudderEff + 200);
-			elevatorEffIAS = (int) (xc.blkx.elavEff + 200);
-			aileronEffIAS = (int) (xc.blkx.aileronEff + 200);
+			rudderEffIAS = (int) (xc.blkx.rudderEff);
+			elevatorEffIAS = (int) (xc.blkx.elavEff);
+			aileronEffIAS = (int) (xc.blkx.aileronEff);
 		}
 
 		rudderEff = new audClip("./voice/rudderEff.wav", 10);
@@ -282,7 +282,7 @@ public class voiceWarning implements Runnable {
 		rpmHighWarn = new audClip("./voice/warn_highrpm.wav", 10);
 
 		// 襟翼
-		flapWarn = new audClip("./voice/warn_flap.wav", 5);
+		flapWarn = new audClip("./voice/warn_flap.wav", 1);
 
 		// 失速
 		speedWarningLine = 0;
@@ -459,7 +459,7 @@ public class voiceWarning implements Runnable {
 			// 襟翼判断逻辑
 			// 先得判断襟翼在哪个段内
 			// 使用线性方式获得襟翼的限速
-			if (isFlapAlive && st.IAS >= xS.flapAllowSpeed * 0.95f) {
+			if (isFlapAlive && xS.flapAllowAngle - st.flaps < 8 && st.flaps > 1) {
 				fatal = true;
 				flapWarn.playOnce(t);
 			}
