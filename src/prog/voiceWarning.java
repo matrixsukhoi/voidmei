@@ -459,8 +459,8 @@ public class voiceWarning implements Runnable {
 			// 襟翼判断逻辑
 			// 先得判断襟翼在哪个段内
 			// 使用线性方式获得襟翼的限速
-			// if (isFlapAlive && st.IAS > xS.flapAllowSpeed * 0.95) {
-			if (isFlapAlive && (xS.flapAllowAngle - st.flaps < 8) && st.flaps > 1) {
+			if (isFlapAlive && st.IAS > xS.flapAllowSpeed * 0.95) {
+			// if (isFlapAlive && (xS.flapAllowAngle - st.flaps < 8) && st.flaps > 1) { /* 部分机型上存在问题，例如F104S */
 				fatal = true;
 				flapWarn.playOnce(t);
 			}

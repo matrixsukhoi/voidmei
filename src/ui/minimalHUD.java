@@ -679,7 +679,7 @@ public class minimalHUD extends WebFrame implements Runnable {
 	
 			n5 = 5 * HUDFontsize;
 			round = (int) (5 * roundCompass);
-			rnd = (int) Math.round(2.5 * HUDFontsize * 0.618);
+			rnd = (int) Math.round(2 * HUDFontsize * 0.618);
 			hrnd = (int) Math.round(rnd / 2.0);
 			urnd =  (int) Math.round(0.618 * rnd);
 
