@@ -140,6 +140,17 @@ public class uiBaseElem {
 		__drawStringShade(g2d, x + width, y - val_height - 2, 1, num, numFont, app.colorLabel);
 	}
 
+	public static void drawVBarTextNumLeft(Graphics2D g2d, int x, int y, int width, int height, int val_height,
+			int borderwidth, Color c, Color fontc, String lbl, String num, Font lblFont, Font numFont) {
+		if (val_height > height)
+			val_height = height;
+		drawVBarText(g2d, x + width + 3 * numFont.getSize() / 2, y, width, height, val_height, borderwidth, c, lbl, lblFont);
+		// 直线
+		drawHRect(g2d, x, y - val_height - 1, 2 * width + 3 * numFont.getSize() / 2, 3, 1, fontc);
+		// 数字
+		__drawStringShade(g2d, x, y - val_height - 2, 1, num, numFont, fontc);
+	}
+
 	// 横条系列
 	public static void drawHBar(Graphics2D g2d, int x, int y, int width, int height, int val_width, int borderwidth,
 			Color c) {

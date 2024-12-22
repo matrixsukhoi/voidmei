@@ -741,6 +741,9 @@ public class blkx {
 			FlapsDestructionIndSpeed[0][0] = 1.0f;
 			FlapsDestructionIndSpeed[0][1] = getdouble("FlapsDestructionIndSpeed");
 		}
+		/* 125襟翼档位插值，辅助运算 */
+		FlapsDestructionIndSpeed[FlapsDestructionNum][0] = 1.25f;
+		FlapsDestructionIndSpeed[FlapsDestructionNum][1] = 0;
 //		if (FlapsDestructionIndSpeed[0][1] != 0){
 //			FlapsDestructionNum++;
 //		}

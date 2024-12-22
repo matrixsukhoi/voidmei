@@ -93,6 +93,6 @@ public class mapInfo {
 		inGameOffset = ((grid_zeroY - grid_zeroX) - (map_maxX + map_maxY)) / (grid_stepsX + grid_stepsY);
 		mapStage = (map_maxX + map_maxY) * 2 / (grid_stepsX + grid_stepsY);
 
-		app.debugPrint("ingame mapinfo offset:" + inGameOffset + "map stage: " + mapStage);
+		// app.debugPrint("ingame mapinfo offset:" + inGameOffset + "map stage: " + mapStage);
 	}
 }
