@@ -1462,17 +1462,9 @@ public class service implements Runnable {
 
 	@Override
 	public void run() {
-		long waitMili = app.threadSleepTime;
 		// app.debugPrint("" + waitMili);
 		while (true) {
 
-			try {
-				Thread.sleep(waitMili);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-				return;
-			}
 
 			SystemTime = System.currentTimeMillis();
 			long diffTime = SystemTime - MainCheckMili;
@@ -1517,6 +1509,15 @@ public class service implements Runnable {
 				// mapObj.getAirfieldLoc(httpClient.strMapObj, null);
 			}
 
+			try {
+				long sleeptime = SystemTime + freq - System.currentTimeMillis();
+				if (sleeptime > 0)
+					Thread.sleep(sleeptime);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+				return;
+			}
 		}
 	}
 }

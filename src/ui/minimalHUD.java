@@ -217,7 +217,7 @@ public class minimalHUD extends WebFrame implements Runnable {
 				lineThrottle, drawFontSSmall, drawFontSSmall);
 
 		x += barWidth + 3 * drawFontSSmall.getSize() / 2;
-
+		kx += barWidth + 3 * drawFontSSmall.getSize() / 2;
 		// 姿态
 
 		if (drawAttitude && !disableAttitude) {
