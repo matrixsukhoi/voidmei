@@ -485,7 +485,7 @@ public class stickValue extends WebFrame implements Runnable {
 
 //		initpanel(topPanel);
 		add(topPanel);
-
+		setTitle("stickValue");
 		uiWebLafSetting.setWindowOpaque(this);
 		
 		if (xc.getconfig("enableAxisEdge").equals("true"))

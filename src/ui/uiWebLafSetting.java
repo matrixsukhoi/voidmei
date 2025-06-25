@@ -15,12 +15,11 @@ public class uiWebLafSetting {
 		t.setShowResizeCorner(false);
 		
 		t.setDefaultCloseOperation(3);
-		
 		t.setIgnoreRepaint(true);
 //		t.setRound(100);
 //		t.setUndecorated(false);
 //		t.setDefaultLookAndFeelDecorated(false);
-		
+
 		t.setAlwaysOnTop(true);
 		t.setFocusableWindowState(false);// 取消窗口焦点
 		t.setFocusable(false);

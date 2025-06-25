@@ -333,6 +333,7 @@ public class engineControl extends WebFrame implements Runnable {
 		setSize(WIDTH, HEIGHT);
 		setLocation(lx, ly);
 
+		setTitle("engineControl");
 		uiWebLafSetting.setWindowOpaque(this);
 
 		jetChecked = false;

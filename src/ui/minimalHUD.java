@@ -857,7 +857,8 @@ public class minimalHUD extends WebFrame implements Runnable {
 		blinkTicks = (int) ((1000 / xc.freqService) >> 3);
 		if (blinkTicks == 0)
 			blinkTicks = 1;
-
+		
+		setTitle("miniHUD");
 		uiWebLafSetting.setWindowOpaque(this);
 		root = this.getContentPane();
 		// this.createBufferStrategy(2);

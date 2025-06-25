@@ -95,6 +95,7 @@ public class statusBar extends WebFrame implements Runnable {
 
 		//panel.add(webimage1,BorderLayout.LINE_START);
 		panel.add(title, BorderLayout.CENTER);
+		setTitle("statusBar");
 		setShowWindowButtons(false);
 		setShowTitleComponent(false);
 		setShowResizeCorner(false);

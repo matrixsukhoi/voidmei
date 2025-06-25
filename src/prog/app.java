@@ -51,6 +51,7 @@ public class app {
 	public static final boolean debug = false;
 	// 测试FM
 	public static boolean fmTesting = false;
+	public static boolean isVR = true;
 	
 	// 调试日志
 	public static final boolean debugLog = false;
@@ -66,7 +67,7 @@ public class app {
 	public static String appName;
 	public static String defaultNumfontName = "Roboto";
 	public static String appTooltips;
-	public static String version = "1.570";
+	public static String version = "1.571";
 	public static String httpHeader;
 	public static int voiceVolumn = 100;
 	public static String defaultFontName = "Microsoft YaHei UI";

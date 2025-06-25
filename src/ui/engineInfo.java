@@ -606,24 +606,7 @@ public class engineInfo extends WebFrame implements Runnable {
 
 		this.add(panel);
 
-		// separator2.setBounds(678, -30, 1, 256);
-
-		// this.getRootPane().add(separator2);
-
-		// this.setOpacity((double) (OP / 100.0f));
-
-//		setShowWindowButtons(false);
-//		setShowTitleComponent(false);
-//		setShowResizeCorner(false);
-//
-//		setDefaultCloseOperation(3);
-//		setTitle(lang.eTitle);
-//		getWebRootPaneUI().getTitleComponent().getComponent(1).setFont(app.DefaultFont);// 设置title字体
-//		setAlwaysOnTop(true);
-//		setFocusableWindowState(false);// 取消窗口焦点
-//		setFocusable(false);
-//		this.setCursor(app.blankCursor);
-//		setVisible(true);
+		setTitle("engineInfo");
 		uiWebLafSetting.setWindowOpaque(this);
 		jetChecked = false;
 		// this.setCloseOnFocusLoss(true);

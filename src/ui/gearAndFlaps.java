@@ -357,6 +357,7 @@ public class gearAndFlaps extends WebFrame implements Runnable {
 //		setFocusableWindowState(false);// 取消窗口焦点
 //		setVisible(true);
 //		this.setCursor(app.blankCursor)
+		setTitle("gearAndFlaps");
 		uiWebLafSetting.setWindowOpaque(this);
 		root = this.getContentPane();
 		if (xc.getconfig("enablegearAndFlapsEdge").equals("true"))

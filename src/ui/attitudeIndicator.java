@@ -474,6 +474,7 @@ public class attitudeIndicator extends WebFrame implements Runnable {
 //
 //		setFocusable(false);
 //		setFocusableWindowState(false);// 取消窗口焦点
+		setTitle("attitude");
 		uiWebLafSetting.setWindowOpaque(this);
 		if (xc.getconfig("enableAttituteIndicatorEdge").equals("true"))
 			setShadeWidth(10);
