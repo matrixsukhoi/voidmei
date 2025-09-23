@@ -4,6 +4,11 @@
 - TODO:弹药计数器显示(如果有)
 
 _______________________________________
+v1.572
+- FM文件更新到2.49.
+- FM文件适配调整为wt_ext_cli解包格式 (https://github.com/Warthunder-Open-Source-Foundation/wt_ext_cli)
+
+_______________________________________
 v1.571
 - FM文件更新到2.47.0.10
 - 增加VR支持(需配合overlay使用)

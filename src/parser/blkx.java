@@ -486,8 +486,8 @@ public class blkx {
 //		app.debugPrint(getone("EngineType0.Main.Type"));
 		String hdrString = "EngineType0.";
 		String res = getone("EngineType0.Main.Type");
-//		app.debugPrint(res);
-		if (res.equals("\"Jet\"")) {
+		app.debugPrint(res);
+		if (res.indexOf("Jet") != -1) {
 			// 判断喷气
 			isJet = true;
 //			app.debugPrint(getone("Engine"+engineNum));
@@ -497,8 +497,9 @@ public class blkx {
 		} else {
 			if (res.equals("null")) {
 				hdrString = "Engine0.";
-				if (getone("Engine0.Main.Type").equals("\"Jet\"")) {
+				if (getone("Engine0.Main.Type").indexOf("Jet") != -1) {
 					isJet = true;
+					app.debugPrint("isJet");
 				}
 				while (!getone("Engine"+engineNum).equals("null")){
 					engineNum++;
@@ -1181,7 +1182,7 @@ public class blkx {
 		int i = 0;
 		int left = 0;
 		int right = 0;
-		int bix = tmp.toUpperCase().indexOf(clslabel.toUpperCase() + '{');
+		int bix = tmp.toUpperCase().indexOf(clslabel.toUpperCase() + " {");
 		if (bix == -1)
 			return "null";
 		int cutleft = bix;

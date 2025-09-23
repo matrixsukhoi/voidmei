@@ -974,8 +974,10 @@ public class controller {
 		blkx = new blkx("./data/aces/gamedata/flightmodels/" + planeFileName + ".blkx", planeFileName + ".blk");
 		if (blkx.valid == true) {
 			fmfile = blkx.getlastone("fmfile");
+			/* 去除多余的空格 */
 			if (fmfile != null) {
-				fmfile = fmfile.substring(1, fmfile.length() - 1);
+				fmfile = fmfile.substring(fmfile.indexOf("\"") + 1, fmfile.length() - 1);
+				app.debugPrint(fmfile);
 				/* 去除多余的/ */
 				if (fmfile.charAt(0) == '/')
 					fmfile = fmfile.substring(1);
@@ -990,7 +992,7 @@ public class controller {
 		if (-1 == fmfile.indexOf(".blk")) {
 			fmfile += ".blk";
 		}
-		app.debugPrint(fmfile);
+		app.debugPrint("fmfile :" + fmfile);
 
 		// 读入fmfile
 		blkx = new blkx("./data/aces/gamedata/flightmodels/" + fmfile + "x", fmfile);
