@@ -95,3 +95,62 @@ VoidMei可使用Linux wine执行(测试环境Fedora 35, GNOME 41.7, Wine 7.10),�
 - winecfg 兼容性设置为win10 
 - 安装jre8, 执行wine jre-8uXXX-windows-x64.exe /s
 - 运行VoidMei
+
+### 准备编译环境
+
+``` bash
+# 下载voidmei源码
+pushd ~/project/
+git clone git@github.com:matrixsukhoi/voidmei.git
+popd
+
+# 准备资源文件
+pushd ~/downloads/
+# download VoidMei_v1_573.zip to ~/downloads/voidmei_v1_573.zip from github release
+mkdir -p voidmei
+cp VoidMei_v1_573.zip voidmei/
+cd voidmei
+unzip VoidMei_v1_573.zip
+popd
+
+# 准备wine和java环境
+pushd ~/downloads/
+# download jre8 zip from https://www.azul.com/downloads/?version=java-8-lts&os=windows&architecture=x86-64-bit&package=jre
+unzip zulu8.90.0.19-ca-jre8.0.472-win_x64.zip
+cp -r ~/Downloads/zulu/zulu8.90.0.19-ca-jre8.0.472-win_x64/ ./
+WINEPREFIX=$(pwd)/.wine_voidmei winetricks corefonts fakechinese cjkfonts
+## 运行voidmei
+WINEPREFIX=$(pwd)/.wine_voidmei wine ./zulu8.90.0.19-ca-jre8.0.472-win_x64/bin/java.exe -jar VoidMei.jar
+popd
+
+# 准备其他工具
+sudo pacman -Ss launch4j
+
+```
+
+### 本地编译voidmei并运行
+
+``` bash
+pushd ~/project/voidmei
+
+```
+
+把下面内容添加到script/build.sh文件末尾
+
+``` bash
+
+mv ~/Downloads/voidmei/VoidMei.jar ~/Downloads/voidmei/VoidMei.jar.bak
+cp VoidMei.jar ~/Downloads/voidmei/VoidMei.jar
+
+pushd ~/Downloads/voidmei/
+WINEPREFIX=$(pwd)/.wine_voidmei wine ./zulu8.90.0.19-ca-jre8.0.472-win_x64/bin/java.exe -jar VoidMei.jar
+popd
+
+```
+
+然后运行
+
+``` bash
+./script/build.sh
+
+```
