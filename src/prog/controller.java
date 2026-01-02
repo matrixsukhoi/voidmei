@@ -4,7 +4,6 @@ import java.awt.Color;
 import java.awt.Font;
 import java.awt.Image;
 import java.awt.RenderingHints;
-import java.awt.Robot;
 import java.awt.Toolkit;
 
 import javax.swing.ImageIcon;
@@ -41,7 +40,7 @@ public class controller {
 	public boolean logon = false;
 
 	public blkx blkx;
-	
+
 	// Robot robot;
 
 	engineControl F;
@@ -119,7 +118,7 @@ public class controller {
 
 	engineInfo FI;
 
-//	private Thread FI1;
+	// private Thread FI1;
 
 	private voiceWarning vW;
 
@@ -132,18 +131,18 @@ public class controller {
 	private boolean showStatus;
 
 	// public void hideTaskbarSw() {
-	// 	if (app.debug) {
-	// 		robot.keyPress(17);
-	// 		robot.keyPress(192);
-	// 		try {
-	// 			Thread.sleep(50);
-	// 		} catch (InterruptedException e) {
-	// 			// TODO Auto-generated catch block
-	// 			e.printStackTrace();
-	// 		}
-	// 		robot.keyRelease(17);
-	// 		robot.keyRelease(192);
-	// 	}
+	// if (app.debug) {
+	// robot.keyPress(17);
+	// robot.keyPress(192);
+	// try {
+	// Thread.sleep(50);
+	// } catch (InterruptedException e) {
+	// // TODO Auto-generated catch block
+	// e.printStackTrace();
+	// }
+	// robot.keyRelease(17);
+	// robot.keyRelease(192);
+	// }
 	// }
 
 	public void initStatusBar() {
@@ -180,11 +179,13 @@ public class controller {
 			flag = 3;
 		}
 	}
+
 	public String cur_fmtype;
 
 	private autoMeasure aM;
 
 	private Thread aM1;
+
 	public void changeS3() {
 		// 状态3，连接成功，释放状态条，打开面板
 		// SB.repaint();
@@ -216,7 +217,7 @@ public class controller {
 			}
 			flag = 4;
 			openpad();
-			
+
 		}
 	}
 
@@ -249,7 +250,7 @@ public class controller {
 
 	public void openpad() {
 		// hideTaskbarSw();
-		if (app.fmTesting){
+		if (app.fmTesting) {
 			aM = new autoMeasure(S);
 			aM1 = new Thread(aM);
 			aM1.start();
@@ -359,7 +360,7 @@ public class controller {
 			SA1.start();
 
 		}
-		
+
 		uT = new uiThread(this);
 		uT1 = new Thread(uT);
 		/* 设置高优先级 */
@@ -369,7 +370,7 @@ public class controller {
 	}
 
 	public void closepad() {
-		if (app.fmTesting){
+		if (app.fmTesting) {
 			aM.doit = false;
 			aM1 = null;
 			aM = null;
@@ -383,7 +384,7 @@ public class controller {
 		if (getconfig("engineInfoSwitch").equals("true") && (FI != null)) {
 			// F.doit = false;
 			FI.doit = false;
-//			FI1 = null;
+			// FI1 = null;
 			// F1 = null;
 			FI.dispose();
 			// F.dispose();
@@ -480,11 +481,11 @@ public class controller {
 			}
 		}
 
-		if (uT != null){
+		if (uT != null) {
 			uT.doit = false;
 			uT1 = null;
 		}
-		
+
 		System.gc();
 	}
 
@@ -554,8 +555,7 @@ public class controller {
 
 		// 描边颜色
 		app.colorShadeShape = getColorConfig("fontShade");
-		
-		
+
 		// 声音
 		app.voiceVolumn = Integer.parseInt(getconfig("voiceVolume"));
 		// fontLabelR=32
@@ -582,15 +582,14 @@ public class controller {
 			showStatus = Boolean.parseBoolean(getconfig("enableStatusBar"));
 		// 读取字体绘制方式
 		app.drawFontShape = !Boolean.parseBoolean(getconfig("simpleFont"));
-		
+
 		// 读取抗锯齿
 		app.aaEnable = Boolean.parseBoolean(getconfig("AAEnable"));
-		if (app.aaEnable){
-//			app.textAASetting = RenderingHints.VALUE_TEXT_ANTIALIAS_GASP;
+		if (app.aaEnable) {
+			// app.textAASetting = RenderingHints.VALUE_TEXT_ANTIALIAS_GASP;
 			app.textAASetting = RenderingHints.VALUE_TEXT_ANTIALIAS_ON;
 			app.graphAASetting = RenderingHints.VALUE_ANTIALIAS_ON;
-		}
-		else{
+		} else {
 			app.textAASetting = RenderingHints.VALUE_TEXT_ANTIALIAS_OFF;
 			app.graphAASetting = RenderingHints.VALUE_ANTIALIAS_OFF;
 		}
@@ -666,13 +665,12 @@ public class controller {
 		}
 
 		// if (S1 == null) {
-		// 	return;
+		// return;
 		// }
 		if (flag == 4) {
 			closepad();
 		}
 
-		
 		S = null;
 		S1.interrupt();
 		S1 = null;
@@ -726,7 +724,7 @@ public class controller {
 			// app.debugPrint(F.getLocationOnScreen().x);
 			// app.debugPrint(F.getLocationOnScreen().y);
 			int offst = 0;
-			if (getconfig("engineInfoEdge").equals("true")){
+			if (getconfig("engineInfoEdge").equals("true")) {
 				offst = 10;
 			}
 			setconfig("engineInfoX", Integer.toString(FI.getLocationOnScreen().x - 25 + offst));
@@ -752,7 +750,7 @@ public class controller {
 		}
 		if (Boolean.parseBoolean(getconfig("flightInfoSwitch"))) {
 			int offst = 0;
-			if (getconfig("flightInfoEdge").equals("true")){
+			if (getconfig("flightInfoEdge").equals("true")) {
 				offst = 10;
 			}
 			setconfig("flightInfoX", Integer.toString(FL.getLocationOnScreen().x - 25 + offst));
@@ -764,7 +762,7 @@ public class controller {
 			// app.debugPrint(sV.getLocationOnScreen().x );
 			// app.debugPrint(sV.getLocationOnScreen().y);
 			int offst = 0;
-			if (getconfig("enableAxisEdge").equals("true")){
+			if (getconfig("enableAxisEdge").equals("true")) {
 				offst = 10;
 			}
 			setconfig("stickValueX", Integer.toString(sV.getLocationOnScreen().x + offst));
@@ -785,7 +783,7 @@ public class controller {
 			// app.debugPrint(fS.getLocationOnScreen().x );
 			// app.debugPrint(fS.getLocationOnScreen().y);
 			int offst = 0;
-			if (getconfig("enablegearAndFlapsEdge").equals("true")){
+			if (getconfig("enablegearAndFlapsEdge").equals("true")) {
 				offst = 10;
 			}
 			setconfig("gearAndFlapsX", Integer.toString(fS.getLocationOnScreen().x + offst));
@@ -999,7 +997,7 @@ public class controller {
 
 		if (blkx.valid == true) {// app.debugPrint(blkx.data);
 			blkx.getAllplotdata();
-//			blkx.getload();
+			// blkx.getload();
 			blkx.data = null;
 		}
 

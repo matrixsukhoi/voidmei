@@ -376,7 +376,7 @@ public class engineControl extends WebFrame implements Runnable {
 		} else {
 
 		}
-		
+
 		// 油门
 		__update_num(lidx_t, s.throttle, s.sState.throttle);
 
@@ -437,7 +437,7 @@ public class engineControl extends WebFrame implements Runnable {
 			if (s.SystemTime - engineCheckMili > xc.freqService) {
 				engineCheckMili = s.SystemTime;
 				if (s.sState != null) {
-					
+
 					drawTick();
 
 				}

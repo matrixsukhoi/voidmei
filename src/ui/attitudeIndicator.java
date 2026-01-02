@@ -434,10 +434,9 @@ public class attitudeIndicator extends WebFrame implements Runnable {
 			pT[i] = new Point(0, 0);
 		}
 
-		this.setBounds(lx, ly, xWidth+4, xHeight+4);
+		this.setBounds(lx, ly, xWidth + 4, xHeight + 4);
 
-
-		topPanel =new WebPanel() {
+		topPanel = new WebPanel() {
 			private static final long serialVersionUID = -9061280572815010060L;
 
 			public void paintComponent(Graphics g) {
@@ -459,21 +458,21 @@ public class attitudeIndicator extends WebFrame implements Runnable {
 			}
 		};
 
-//		topPanel.setWebColoredBackground(false);
-//		topPanel.setBackground(new Color(0, 0, 0, 0));
+		// topPanel.setWebColoredBackground(false);
+		// topPanel.setBackground(new Color(0, 0, 0, 0));
 
 		initpanel(topPanel);
 		add(topPanel);
 		root = this.getContentPane();
-//		setShowWindowButtons(false);
-//		setShowTitleComponent(false);
-//		setShowResizeCorner(false);
-//		setDefaultCloseOperation(3);
-//		setTitle(lang.vTitle);
-//		setAlwaysOnTop(true);
-//
-//		setFocusable(false);
-//		setFocusableWindowState(false);// 取消窗口焦点
+		// setShowWindowButtons(false);
+		// setShowTitleComponent(false);
+		// setShowResizeCorner(false);
+		// setDefaultCloseOperation(3);
+		// setTitle(lang.vTitle);
+		// setAlwaysOnTop(true);
+		//
+		// setFocusable(false);
+		// setFocusableWindowState(false);// 取消窗口焦点
 		setTitle("attitude");
 		uiWebLafSetting.setWindowOpaque(this);
 		if (xc.getconfig("enableAttituteIndicatorEdge").equals("true"))

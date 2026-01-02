@@ -346,17 +346,17 @@ public class gearAndFlaps extends WebFrame implements Runnable {
 		// panel.setBounds(lx, ly, 100, 160);
 
 		this.add(panel);
-//		setShowWindowButtons(false);
-//		setShowTitleComponent(false);
-//		setShowResizeCorner(false);
-//		setDefaultCloseOperation(3);
-//		setTitle(lang.gTitle);
-//		setAlwaysOnTop(true);
-//		root = this.getContentPane();
-//		setFocusable(false);
-//		setFocusableWindowState(false);// 取消窗口焦点
-//		setVisible(true);
-//		this.setCursor(app.blankCursor)
+		// setShowWindowButtons(false);
+		// setShowTitleComponent(false);
+		// setShowResizeCorner(false);
+		// setDefaultCloseOperation(3);
+		// setTitle(lang.gTitle);
+		// setAlwaysOnTop(true);
+		// root = this.getContentPane();
+		// setFocusable(false);
+		// setFocusableWindowState(false);// 取消窗口焦点
+		// setVisible(true);
+		// this.setCursor(app.blankCursor)
 		setTitle("gearAndFlaps");
 		uiWebLafSetting.setWindowOpaque(this);
 		root = this.getContentPane();
@@ -410,7 +410,7 @@ public class gearAndFlaps extends WebFrame implements Runnable {
 			flapPix = 0;
 			flps = 0;
 		}
-		
+
 		flapText = String.format("%3d", flps);
 
 		// // app.debugPrint("gearandFlaps执行了");

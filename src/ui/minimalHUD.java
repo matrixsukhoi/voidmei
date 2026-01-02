@@ -18,7 +18,6 @@ import java.awt.image.BufferedImage;
 import com.alee.laf.panel.WebPanel;
 import com.alee.laf.rootpane.WebFrame;
 
-import parser.mapInfo;
 import prog.app;
 import prog.controller;
 import prog.otherService;

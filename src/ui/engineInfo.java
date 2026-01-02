@@ -358,7 +358,7 @@ public class engineInfo extends WebFrame implements Runnable {
 	public void updateString() {
 
 		__update_num(idx_hp, s.sTotalHp);
-		
+
 		// 推力
 		__update_num(idx_thrust, s.sTotalThr);
 		// 转速
@@ -369,7 +369,7 @@ public class engineInfo extends WebFrame implements Runnable {
 		__update_num(idx_eff, s.sAvgEff);
 		// 有效功率
 		__update_num(idx_ehp, s.sTotalHpEff);
-		
+
 		if (idx_ehp < useNum) {
 			if (s.bUnitMHp) {
 				totalString[idx_ehp][2] = mhp;
@@ -395,7 +395,7 @@ public class engineInfo extends WebFrame implements Runnable {
 			if (idx_map < useNum) {
 				totalString[idx_map][2] = s.pressureInchHg;
 			}
-			
+
 		} else {
 			__update_num(idx_map, s.manifoldpressure);
 			if (idx_map < useNum) {
@@ -421,7 +421,7 @@ public class engineInfo extends WebFrame implements Runnable {
 		if (idx_weptime < useNum) {
 			if (s.sWepTime == null || s.sWepTime.equals(service.nastring)) {
 				totalSwitch[idx_weptime] = false;
-			}else {
+			} else {
 				totalSwitch[idx_weptime] = true;
 			}
 		}
@@ -586,7 +586,8 @@ public class engineInfo extends WebFrame implements Runnable {
 						// app.debugPrint("跳过"+i);
 						continue;
 					}
-					uiBaseElem._drawLabelBOSType(g2d, doffset[0], doffset[1], 1, 3*fontsize, fontNum, fontLabel, fontUnit,
+					uiBaseElem._drawLabelBOSType(g2d, doffset[0], doffset[1], 1, 3 * fontsize, fontNum, fontLabel,
+							fontUnit,
 							totalString[i][0], totalString[i][1], totalString[i][2]);
 					updateDxDy(++k, doffset);
 
@@ -628,7 +629,7 @@ public class engineInfo extends WebFrame implements Runnable {
 
 		// 更新字符串
 
-//		updateString();
+		// updateString();
 
 		root.repaint();
 	}
