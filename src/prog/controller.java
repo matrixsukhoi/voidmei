@@ -679,61 +679,115 @@ public class controller {
 	}
 
 	public void Preview() {
-
-		loadFromConfig();
-		if (Boolean.parseBoolean(getconfig("engineInfoSwitch"))) {
-			FI = new engineInfo();
-			FI.initPreview(this);
-		}
-		if (Boolean.parseBoolean(getconfig("enableEngineControl"))) {
-			F = new engineControl();
-			F.initPreview(this);
-		}
-		if (Boolean.parseBoolean(getconfig("crosshairSwitch"))) {
-			H = new minimalHUD();
-			H.initPreview(this);
-		}
-		if (Boolean.parseBoolean(getconfig("flightInfoSwitch"))) {
-			FL = new flightInfo();
-			FL.initPreview(this);
-		}
-		if (Boolean.parseBoolean(getconfig("enableAxis"))) {
-			sV = new stickValue();
-			sV.initpreview(this);
-		}
-		if (Boolean.parseBoolean(getconfig("enableAttitudeIndicator"))) {
-			aI = new attitudeIndicator();
-			aI.initpreview(this);
-		}
-
-		if (Boolean.parseBoolean(getconfig("enablegearAndFlaps"))) {
-			fS = new gearAndFlaps();
-			fS.initPreview(this);
-		}
-		if (app.debug) {
-			SA = new situationAware();
-			SA.initPreview(this);
-		}
+		refreshPreviews();
 	}
 
 	public void refreshPreviews() {
 		loadFromConfig();
-		if (FI != null)
-			FI.reinitConfig();
-		if (F != null)
-			F.reinitConfig();
-		if (H != null)
-			H.reinitConfig();
-		if (FL != null)
-			FL.reinitConfig();
-		if (sV != null)
-			sV.reinitConfig();
-		if (aI != null)
-			aI.reinitConfig();
-		if (fS != null)
-			fS.reinitConfig();
-		if (SA != null)
-			SA.reinitConfig();
+
+		// Engine Info
+		if (Boolean.parseBoolean(getconfig("engineInfoSwitch"))) {
+			if (FI == null) {
+				FI = new engineInfo();
+				FI.initPreview(this);
+			} else {
+				FI.reinitConfig();
+			}
+		} else if (FI != null) {
+			FI.dispose();
+			FI = null;
+		}
+
+		// Engine Control
+		if (Boolean.parseBoolean(getconfig("enableEngineControl"))) {
+			if (F == null) {
+				F = new engineControl();
+				F.initPreview(this);
+			} else {
+				F.reinitConfig();
+			}
+		} else if (F != null) {
+			F.dispose();
+			F = null;
+		}
+
+		// Minimal HUD (Crosshair)
+		if (Boolean.parseBoolean(getconfig("crosshairSwitch"))) {
+			if (H == null) {
+				H = new minimalHUD();
+				H.initPreview(this);
+			} else {
+				H.reinitConfig();
+			}
+		} else if (H != null) {
+			H.dispose();
+			H = null;
+		}
+
+		// Flight Info
+		if (Boolean.parseBoolean(getconfig("flightInfoSwitch"))) {
+			if (FL == null) {
+				FL = new flightInfo();
+				FL.initPreview(this);
+			} else {
+				FL.reinitConfig();
+			}
+		} else if (FL != null) {
+			FL.dispose();
+			FL = null;
+		}
+
+		// Stick Value (Axis)
+		if (Boolean.parseBoolean(getconfig("enableAxis"))) {
+			if (sV == null) {
+				sV = new stickValue();
+				sV.initpreview(this);
+			} else {
+				sV.reinitConfig();
+			}
+		} else if (sV != null) {
+			sV.dispose();
+			sV = null;
+		}
+
+		// Attitude Indicator
+		if (Boolean.parseBoolean(getconfig("enableAttitudeIndicator"))) {
+			if (aI == null) {
+				aI = new attitudeIndicator();
+				aI.initpreview(this);
+			} else {
+				aI.reinitConfig();
+			}
+		} else if (aI != null) {
+			aI.dispose();
+			aI = null;
+		}
+
+		// Gear and Flaps
+		if (Boolean.parseBoolean(getconfig("enablegearAndFlaps"))) {
+			if (fS == null) {
+				fS = new gearAndFlaps();
+				fS.initPreview(this);
+			} else {
+				fS.reinitConfig();
+			}
+		} else if (fS != null) {
+			fS.dispose();
+			fS = null;
+		}
+
+		// Situation Aware (FM Print / Unpacked Info)
+		if (Boolean.parseBoolean(getconfig("enableFMPrint"))) {
+			if (SA == null) {
+				SA = new situationAware();
+				SA.initPreview(this);
+			} else {
+				SA.reinitConfig();
+			}
+		} else if (SA != null) {
+			SA.dispose();
+			SA = null;
+		}
 	}
 
 	public void endPreview() {
