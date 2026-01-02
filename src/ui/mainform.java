@@ -1136,7 +1136,6 @@ public class mainform extends WebFrame implements Runnable {
 			}
 		});
 
-		createvoidWebLabel(topPanel, lang.mP5FMChooseBlank);
 		WebLabel keyLb = createWebLabel(lang.mP5FMDisplayKey);
 		bDisplayFmKey = new WebButton(NativeKeyEvent.getKeyText(app.displayFmKey));
 		bDisplayFmKey.setFocusable(false);

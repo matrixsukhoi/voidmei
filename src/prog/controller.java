@@ -799,7 +799,16 @@ public class controller {
 
 		// someUsefulData (Unpacked Info)
 		if (Boolean.parseBoolean(getconfig("enableFMPrint"))) {
-			// 确保 blkx 已初始化以便预览
+			// 尝试从 8111 端口获取当前飞机型号
+			httpHelper httpDataFetcher = new httpHelper();
+			String livePlaneName = httpDataFetcher.getLiveAircraftType();
+
+			if (livePlaneName != null) {
+				// app.debugPrint("Preview live plane: " + livePlaneName);
+				getfmdata(livePlaneName);
+			}
+
+			// 确保 blkx 已初始化以便预览 (Fallback to config)
 			if (blkx == null) {
 				String planeName = getconfig("selectedFM0");
 				if (planeName != null && !planeName.isEmpty()) {
@@ -807,6 +816,7 @@ public class controller {
 				}
 			}
 
+			// pt: Unpacked FM Data Window (拆包数据/FM信息窗口)
 			if (pt == null) {
 				pt = new someUsefulData();
 				pt1 = new Thread(pt);
@@ -817,6 +827,7 @@ public class controller {
 			}
 
 			// drawFrameSimpl (Thrust curve)
+			// thrustdFS: Thrust Curve Draw Frame (推力曲线窗口)
 			if (blkx != null && blkx.isJet) {
 				if (thrustdFS == null) {
 					thrustdFS = new drawFrameSimpl();
