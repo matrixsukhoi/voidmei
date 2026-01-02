@@ -160,6 +160,8 @@ public class lang {
 	public static String mP5InformationBlank;
 	public static String mP5FMChoose;
 	public static String mP5FMChooseBlank;
+	public static String mP5FMDisplayKey;
+	public static String mP5FMDisplayKeyTip;
 
 	public static String mP6AxisPanel;
 	public static String mP6AxisPanelBlank;
@@ -923,6 +925,8 @@ public class lang {
 		mP5InformationBlank = updateLanguage("mP5InformationBlank", mP5InformationBlank);
 		mP5FMChoose = updateLanguage("mP5FMChoose", mP5FMChoose);
 		mP5FMChooseBlank = updateLanguage("mP5FMChooseBlank", mP5FMChooseBlank);
+		mP5FMDisplayKey = updateLanguage("mP5FMDisplayKey", mP5FMDisplayKey);
+		mP5FMDisplayKeyTip = updateLanguage("mP5FMDisplayKeyTip", mP5FMDisplayKeyTip);
 
 		mP6AxisPanel = updateLanguage("mP6AxisPanel", mP6AxisPanel);
 		mP6AxisPanelBlank = updateLanguage("mP6AxisPanelBlank", mP6AxisPanelBlank);

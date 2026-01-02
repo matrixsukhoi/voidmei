@@ -11,6 +11,8 @@ import java.awt.Image;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionAdapter;
@@ -37,6 +39,9 @@ import com.alee.laf.tabbedpane.WebTabbedPane;
 import com.alee.laf.text.WebTextArea;
 import com.alee.laf.text.WebTextField;
 import com.alee.utils.ImageUtils;
+import com.github.kwhat.jnativehook.GlobalScreen;
+import com.github.kwhat.jnativehook.keyboard.NativeKeyListener;
+import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent;
 
 import parser.blkx;
 import prog.app;
@@ -81,6 +86,7 @@ public class mainform extends WebFrame implements Runnable {
 
 	WebSwitch bEnableLogging;
 	WebSwitch bEnableInformation;
+	WebButton bDisplayFmKey;
 
 	WebSwitch bEnableAxis;
 	WebSwitch bEnableAxisEdge;
@@ -192,9 +198,9 @@ public class mainform extends WebFrame implements Runnable {
 		// G.setButtonsDrawFocus(false);
 		A.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-
+				saveconfig();
+				tc.saveconfig();
 				System.exit(0);
-
 			}
 		});
 		B.addActionListener(new ActionListener() {
@@ -1130,6 +1136,32 @@ public class mainform extends WebFrame implements Runnable {
 			}
 		});
 
+		createvoidWebLabel(topPanel, lang.mP5FMChooseBlank);
+		WebLabel keyLb = createWebLabel(lang.mP5FMDisplayKey);
+		bDisplayFmKey = new WebButton(NativeKeyEvent.getKeyText(app.displayFmKey));
+		bDisplayFmKey.setFocusable(false);
+		bDisplayFmKey.addActionListener(e -> {
+			bDisplayFmKey.setText(lang.mP5FMDisplayKeyTip);
+			// 使用一个一次性的全局监听器来捕获下一个按键
+			GlobalScreen.addNativeKeyListener(new NativeKeyListener() {
+				@Override
+				public void nativeKeyPressed(NativeKeyEvent e) {
+					int code = e.getKeyCode();
+					// 过滤掉虚假的锁定键事件 (Num Lock 等在 Linux 下可能频繁触发)
+					if (code == NativeKeyEvent.VC_NUM_LOCK || code == NativeKeyEvent.VC_CAPS_LOCK
+							|| code == NativeKeyEvent.VC_SCROLL_LOCK) {
+						return;
+					}
+					app.displayFmKey = code;
+					bDisplayFmKey.setText(NativeKeyEvent.getKeyText(app.displayFmKey));
+					saveconfig();
+					GlobalScreen.removeNativeKeyListener(this);
+				}
+			});
+		});
+		topPanel.add(keyLb);
+		topPanel.add(bDisplayFmKey);
+
 		/*
 		 * GridBagLayout layout1 = new GridBagLayout(); GridBagConstraints s1 = new
 		 * GridBagConstraints(); s1.fill = GridBagConstraints.BOTH; s1.gridwidth = 1;
@@ -1528,6 +1560,7 @@ public class mainform extends WebFrame implements Runnable {
 		tc.setconfig("disableEngineInfoRadiator", Boolean.toString(!bEngineControlRadiator.isSelected()));
 		tc.setconfig("disableEngineInfoCompressor", Boolean.toString(!bEngineControlCompressor.isSelected()));
 		tc.setconfig("disableEngineInfoLFuel", Boolean.toString(!bEngineControlLFuel.isSelected()));
+		tc.setconfig("displayFmKey", Integer.toString(app.displayFmKey));
 
 	}
 
@@ -1593,6 +1626,15 @@ public class mainform extends WebFrame implements Runnable {
 		isInitializing = true;
 		initPanel();
 		initConfig();// 读入Config
+		try {
+			String keyStr = tc.getconfig("displayFmKey");
+			if (keyStr != null && !keyStr.isEmpty() && !keyStr.equals("null")) {
+				app.displayFmKey = Integer.parseInt(keyStr);
+				bDisplayFmKey.setText(NativeKeyEvent.getKeyText(app.displayFmKey));
+			}
+		} catch (Exception e) {
+		}
+
 		isInitializing = false;
 
 		setShowResizeCorner(false);

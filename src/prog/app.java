@@ -33,9 +33,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import javax.swing.SwingUtilities;
-
 
 import com.alee.global.StyleConstants;
 import com.alee.laf.WebLookAndFeel;
@@ -52,7 +53,7 @@ public class app {
 	// 测试FM
 	public static boolean fmTesting = false;
 	public static boolean isVR = true;
-	
+
 	// 调试日志
 	public static final boolean debugLog = false;
 	public static final int maxEngLoad = 10;
@@ -76,6 +77,7 @@ public class app {
 	public static Font defaultFontBigBold;
 	public static Font defaultFontSmall;
 	public static int defaultFontsize;
+	public static int displayFmKey = NativeKeyEvent.VC_P;
 
 	public static Process plugin = null;
 	public static Runtime r;
@@ -84,7 +86,7 @@ public class app {
 	public static Boolean aaEnable = true;
 	public static Object textAASetting = RenderingHints.VALUE_TEXT_ANTIALIAS_GASP;
 	public static Object graphAASetting = RenderingHints.VALUE_ANTIALIAS_ON;
-//	public static Object textAASetting = RenderingHints.VALUE_TEXT_ANTIALIAS_ON;
+	// public static Object textAASetting = RenderingHints.VALUE_TEXT_ANTIALIAS_ON;
 
 	public static Color colorFailure = new Color(255, 69, 0, 100);
 	public static Color colorWarning = new Color(216, 33, 13, 100);
@@ -107,11 +109,10 @@ public class app {
 	public static int screenHeight;
 	public static String[] fonts;
 
-
 	public static controller ctr;
 
 	public static Boolean displayFm = true;
-	public static Boolean displayFmCtrl = false;
+	public static Boolean displayFmCtrl = true;
 	// 空鼠标指针
 	public static BufferedImage cursorImg = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
 	public static Cursor blankCursor = Toolkit.getDefaultToolkit().createCustomCursor(cursorImg, new Point(0, 0),
@@ -120,6 +121,7 @@ public class app {
 	// 是否开启
 	public static boolean drawFontShape = false;
 	public static ExecutorService threadPool;
+
 	public static String getJavaVersion() {
 		r = Runtime.getRuntime();
 		try {
@@ -135,22 +137,22 @@ public class app {
 			}
 			p.getInputStream().close();
 			/* 正则提取版本 */
-			
+
 			Pattern pt = Pattern.compile("\"[0-9].[0-9].*\"");
 			Matcher m = pt.matcher(sb.toString());
-			
-			
-//			app.debugPrint("输出"+sb.toString());
+
+			// app.debugPrint("输出"+sb.toString());
 			if (m.find()) {
 				String ret = m.group(0);
 				return ret;
 			}
-			
+
 		} catch (Exception e1) {
 			e1.printStackTrace();
 		}
 		return "0.0";
 	}
+
 	public void pluginopen() {
 		r = Runtime.getRuntime();
 		int tasklist1 = -1;
@@ -227,9 +229,9 @@ public class app {
 
 			// left click
 			icon.addMouseListener(new MouseAdapter() {
-			@Override
-			public void mouseClicked(MouseEvent e) {
-				if (e.getButton() == MouseEvent.BUTTON1) {
+				@Override
+				public void mouseClicked(MouseEvent e) {
+					if (e.getButton() == MouseEvent.BUTTON1) {
 						ctr.stop();
 						ctr = new controller();
 					}
@@ -260,30 +262,29 @@ public class app {
 
 	public static void initFont() {
 		environment = GraphicsEnvironment.getLocalGraphicsEnvironment();
-		
+
 		// 遍历所有font
 		File file = new File("fonts/");
 		String[] filelist = file.list();
 		for (int i = 0; i < filelist.length; i++) {
 			try {
 
-			    //create the font to use. Specify the size!
-			    Font customFont = Font.createFont(Font.TRUETYPE_FONT, new File("fonts/"+filelist[i]));
-			    //register the font
+				// create the font to use. Specify the size!
+				Font customFont = Font.createFont(Font.TRUETYPE_FONT, new File("fonts/" + filelist[i]));
+				// register the font
 
-			    environment.registerFont(customFont);
+				environment.registerFont(customFont);
 
 			} catch (IOException e) {
-			    e.printStackTrace();
+				e.printStackTrace();
 
-			} catch(FontFormatException e) {
-			    e.printStackTrace();
+			} catch (FontFormatException e) {
+				e.printStackTrace();
 			}
 		}
-		
-		
+
 		fonts = environment.getAvailableFontFamilyNames();// 获得系统字体
-		
+
 		Boolean findFont = false;
 		for (int i = 0; i < fonts.length; i++) {
 			// debugPrint(fonts[i]);
@@ -367,7 +368,8 @@ public class app {
 			/* 异步请求 */
 			threadPool.submit(() -> {
 				String res;
-				res = httpClient.sendGetURL("https://api.github.com/repos/"+ owner + "/" + repository + "/releases/latest");
+				res = httpClient
+						.sendGetURL("https://api.github.com/repos/" + owner + "/" + repository + "/releases/latest");
 				// debugPrint(res);
 				/* 截取tag_name */
 				int sidx = res.indexOf("tag_name");
@@ -379,7 +381,7 @@ public class app {
 				if (m.find()) {
 					String latestVersion = m.group(0);
 					debugPrint("latest version is:" + latestVersion);
-					if (Double.parseDouble(version) < Double.parseDouble(latestVersion)){
+					if (Double.parseDouble(version) < Double.parseDouble(latestVersion)) {
 						String notice = "A newer version is released on github, version: " + latestVersion;
 						controller.notificationtimeAbout(String.format(notice), 5000);
 					}
@@ -391,7 +393,7 @@ public class app {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		
+
 	}
 
 	public static void checkBlkxUpdate() {
@@ -400,7 +402,8 @@ public class app {
 			/* 异步请求 */
 			threadPool.submit(() -> {
 				String res;
-				res = httpClient.sendGetURL("https://api.github.com/repos/"+ owner + "/" + repository + "/releases/latest");
+				res = httpClient
+						.sendGetURL("https://api.github.com/repos/" + owner + "/" + repository + "/releases/latest");
 				// debugPrint(res);
 				/* 截取tag_name */
 				int sidx = res.indexOf("tag_name");
@@ -412,7 +415,7 @@ public class app {
 				if (m.find()) {
 					String latestVersion = m.group(0);
 					debugPrint("latest version is:" + latestVersion);
-					if (Double.parseDouble(version) < Double.parseDouble(latestVersion)){
+					if (Double.parseDouble(version) < Double.parseDouble(latestVersion)) {
 						String notice = "A newer version is released on github, version: " + latestVersion;
 						controller.notificationtimeAbout(String.format(notice), 5000);
 					}
@@ -424,9 +427,15 @@ public class app {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		
+
 	}
+
 	public static void addDisplayFmListener() {
+		// 禁用 JNativeHook 的日志输出
+		Logger logger = Logger.getLogger(GlobalScreen.class.getPackage().getName());
+		logger.setLevel(Level.OFF);
+		logger.setUseParentHandlers(false);
+
 		try {
 			GlobalScreen.registerNativeHook();
 		} catch (NativeHookException ex) {
@@ -436,14 +445,21 @@ public class app {
 
 		GlobalScreen.addNativeKeyListener(new NativeKeyListener() {
 			public void nativeKeyPressed(NativeKeyEvent e) {
-				if (e.getKeyCode() == NativeKeyEvent.VC_P) {
-					debugPrint("switch fmDisplay");
+				int code = e.getKeyCode();
+				// 过滤虚假的 NumLock 事件
+				if (code == NativeKeyEvent.VC_NUM_LOCK) {
+					return;
+				}
+				debugPrint("key pressed: " + code);
+				if (code == displayFmKey) {
+					debugPrint("switch fmDisplay: " + displayFm + " -> " + !displayFm);
 					displayFm = !displayFm;
 				}
 			}
 		});
+		debugPrint(
+				"Native hook registered and listener added. Global status: " + GlobalScreen.isNativeHookRegistered());
 	}
-
 
 	public static void initWebLaf() {
 		WebLookAndFeel.install();
@@ -469,13 +485,12 @@ public class app {
 
 		// set output stream
 		setUTF8();
-		
+
 		app.debugPrint("Java版本为 " + System.getProperty("java.version"));
 		if (System.getProperty("java.version").indexOf("1.8.0") == -1) {
 			System.out.println("检测到java版本非1.8.0版本，程序运行可能出现问题");
 		}
-		
-		
+
 		if (app.debugLog) {
 			setDebugLog("./output.log");
 			setErrLog("./error.log");
@@ -509,7 +524,8 @@ public class app {
 
 		checkUpdate();
 
-		if (displayFmCtrl) addDisplayFmListener();
+		if (displayFmCtrl)
+			addDisplayFmListener();
 
 		SwingUtilities.invokeLater(new Runnable() {
 			public void run() {
@@ -518,7 +534,10 @@ public class app {
 				ctr = new controller();
 
 				if (System.getProperty("java.version").indexOf("1.8") == -1) {
-					controller.notificationtimeAbout(String.format("Detected current Java version %s. Java 1.8 is needed.", System.getProperty("java.version")) , 3000);
+					controller.notificationtimeAbout(
+							String.format("Detected current Java version %s. Java 1.8 is needed.",
+									System.getProperty("java.version")),
+							3000);
 				}
 			}
 		});
