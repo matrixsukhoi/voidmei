@@ -776,8 +776,8 @@ public class controller {
 			fS = null;
 		}
 
-		// Situation Aware (FM Print / Unpacked Info)
-		if (Boolean.parseBoolean(getconfig("enableFMPrint"))) {
+		// Situation Aware
+		if (app.debug) {
 			if (SA == null) {
 				SA = new situationAware();
 				SA.initPreview(this);

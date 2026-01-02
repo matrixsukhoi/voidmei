@@ -82,7 +82,7 @@ public class stickValue extends WebFrame implements Runnable {
 		init(c, null);
 
 		// setShadeWidth(10);
-		this.setVisible(false);
+		// this.setVisible(false);
 		this.getWebRootPaneUI().setTopBg(app.previewColor);
 		this.getWebRootPaneUI().setMiddleBg(app.previewColor);
 		// setFocusableWindowState(true);
@@ -524,6 +524,9 @@ public class stickValue extends WebFrame implements Runnable {
 
 		if (xc.getconfig("enableAxisEdge").equals("true"))
 			setShadeWidth(10);
+
+		if (s != null)
+			setVisible(true);
 
 	}
 

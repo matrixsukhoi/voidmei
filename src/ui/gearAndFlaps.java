@@ -67,7 +67,7 @@ public class gearAndFlaps extends WebFrame implements Runnable {
 		init(xc, null);
 		// app.debugPrint("初始化");
 		// setShadeWidth(10);
-		this.setVisible(false);
+		// this.setVisible(false);
 		// this.getWebRootPaneUI().setTopBg(new Color(0, 0, 0, 50));
 		this.getWebRootPaneUI().setMiddleBg(app.previewColor);// 中部透明
 		this.getWebRootPaneUI().setTopBg(app.previewColor);// 顶部透明
@@ -298,6 +298,8 @@ public class gearAndFlaps extends WebFrame implements Runnable {
 		width = 2 * fontSize;
 		height = 5 * fontSize;
 
+		warnText = "";
+		warnColor = app.colorNum;
 		if (xc.getconfig("enablegearAndFlapsEdge").equals("true"))
 			setShadeWidth(10);
 		else
@@ -352,7 +354,7 @@ public class gearAndFlaps extends WebFrame implements Runnable {
 				// g2d.drawLine(0, 0, 100, 100);
 				// dy+=1.5 * fontSize;
 
-				g.dispose();
+				// g.dispose();
 			}
 		};
 		panel.setWebColoredBackground(false);
@@ -376,6 +378,9 @@ public class gearAndFlaps extends WebFrame implements Runnable {
 		root = this.getContentPane();
 		if (xc.getconfig("enablegearAndFlapsEdge").equals("true"))
 			setShadeWidth(10);
+
+		if (xs != null)
+			setVisible(true);
 
 	}
 

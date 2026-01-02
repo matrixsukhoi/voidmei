@@ -595,7 +595,7 @@ public class minimalHUD extends WebFrame implements Runnable {
 	public void initPreview(controller c) {
 		init(c, null, null);
 		// setShadeWidth(10);
-		this.setVisible(false);
+		// this.setVisible(false);
 		this.getWebRootPaneUI().setTopBg(app.previewColor);
 		this.getWebRootPaneUI().setMiddleBg(app.previewColor);
 		// setFocusableWindowState(true);
@@ -1001,6 +1001,9 @@ public class minimalHUD extends WebFrame implements Runnable {
 		uiWebLafSetting.setWindowOpaque(this);
 		root = this.getContentPane();
 		// this.createBufferStrategy(2);
+
+		if (s != null)
+			setVisible(true);
 
 	}
 

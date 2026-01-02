@@ -53,7 +53,7 @@ public class situationAware extends WebFrame implements Runnable {
 	public void initPreview(controller c) {
 		init(c, null);
 		setShadeWidth(10);
-		this.setVisible(false);
+		// this.setVisible(false);
 		this.getWebRootPaneUI().setTopBg(new Color(0, 0, 0, 1));
 		this.getWebRootPaneUI().setMiddleBg(new Color(0, 0, 0, 1));
 		setFocusableWindowState(true);
@@ -201,7 +201,8 @@ public class situationAware extends WebFrame implements Runnable {
 		setAlwaysOnTop(true);
 		setFocusable(false);
 		setFocusableWindowState(false);// 取消窗口焦点
-		setVisible(true);
+		if (s != null)
+			setVisible(true);
 	}
 
 	public void run() {

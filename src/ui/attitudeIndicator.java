@@ -118,7 +118,7 @@ public class attitudeIndicator extends WebFrame implements Runnable {
 		init(c, null);
 
 		// setShadeWidth(10);
-		this.setVisible(false);
+		// this.setVisible(false);
 		this.getWebRootPaneUI().setTopBg(app.previewColor);
 		this.getWebRootPaneUI().setMiddleBg(app.previewColor);
 		// setFocusableWindowState(true);
@@ -355,7 +355,7 @@ public class attitudeIndicator extends WebFrame implements Runnable {
 				// g2d.fillRect(0, 0, 200, 200);
 				// 绘制十字星
 				locater(g2d, xWidth, xHeight, (int) AoS, (int) AoA, (int) Pitch, 12, 6);
-				g.dispose();
+				// g.dispose();
 			}
 		};
 
@@ -475,7 +475,7 @@ public class attitudeIndicator extends WebFrame implements Runnable {
 				// g2d.fillRect(0, 0, 200, 200);
 				// 绘制十字星
 				locater(g2d, xWidth, xHeight, (int) AoS, (int) AoA, (int) Pitch, 12, 6);
-				g.dispose();
+				// g.dispose();
 			}
 		};
 
@@ -504,6 +504,9 @@ public class attitudeIndicator extends WebFrame implements Runnable {
 		// MaxAoA));
 		// AoALimitD = Math.round((-xc.blkx.aoaLow + MaxAoA) * xHeight / (2 *
 		// MaxAoA));
+
+		if (s != null)
+			setVisible(true);
 
 	}
 

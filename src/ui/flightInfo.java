@@ -220,7 +220,7 @@ public class flightInfo extends WebFrame implements Runnable {
 		init(c, null);
 		// app.debugPrint("初始化");
 		// setShadeWidth(10);
-		this.setVisible(false);
+		// this.setVisible(false);
 		// this.getWebRootPaneUI().setTopBg(new Color(0, 0, 0, 50));
 		this.getWebRootPaneUI().setMiddleBg(app.previewColor);// 中部透明
 		this.getWebRootPaneUI().setTopBg(app.previewColor);// 顶部透明
@@ -680,6 +680,9 @@ public class flightInfo extends WebFrame implements Runnable {
 			// this.getRootPane().add(separator2);
 		}
 		// setAlwaysOnTop(true);
+
+		if (s != null)
+			setVisible(true);
 
 	}
 

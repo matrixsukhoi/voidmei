@@ -77,7 +77,7 @@ public class engineControl extends WebFrame implements Runnable {
 
 		init(c, null, null);
 		// setShadeWidth(10);
-		this.setVisible(false);
+		// this.setVisible(false);
 		// this.getWebRootPaneUI().setTopBg(new Color(0, 0, 0, 50));
 		this.getWebRootPaneUI().setMiddleBg(app.previewColor);// 中部透明
 		this.getWebRootPaneUI().setTopBg(app.previewColor);// 顶部透明
@@ -334,7 +334,7 @@ public class engineControl extends WebFrame implements Runnable {
 				// 先画左边的条 4.5f
 				drawTPMRC(g2d, 0, (fontsize * 9) >> 1);
 
-				g.dispose();
+				// g.dispose();
 			}
 		};
 
@@ -356,9 +356,9 @@ public class engineControl extends WebFrame implements Runnable {
 			setShadeWidth(10);// 玻璃效果边框
 		else {
 			setShadeWidth(0);
-			// this.getRootPane().add(separator1);
-			// this.getRootPane().add(separator2);
 		}
+		if (ts != null)
+			setVisible(true);
 	}
 
 	long engineCheckMili;

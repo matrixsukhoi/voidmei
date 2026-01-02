@@ -228,7 +228,12 @@ public class mainform extends WebFrame implements Runnable {
 		// comboBox.getWebUI().setDrawBorder(false);
 		comboBox.setExpandedBgColor(new Color(0, 0, 0, 0));
 		// comboBox.getWebUI().setExpandedBgColor(new Color(0, 0, 0, 0));
-		comboBox.setBackground(new Color(0, 0, 0, 0));
+		comboBox.addActionListener(e -> {
+			if (isInitializing)
+				return;
+			saveconfig();
+			tc.refreshPreviews();
+		});
 
 		topPanel.add(lb);
 		topPanel.add(comboBox);
