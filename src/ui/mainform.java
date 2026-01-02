@@ -199,11 +199,7 @@ public class mainform extends WebFrame implements Runnable {
 		});
 		B.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				if (moveCheckFlag) {
-					controller.notification(lang.mPlsclosePreview);
-				} else {
-					confirm();
-				}
+				confirm();
 			}
 		});
 		// G.setPaintSides(false, false, false, false);
@@ -623,10 +619,6 @@ public class mainform extends WebFrame implements Runnable {
 					tc.Preview();
 
 					moveCheckFlag = true;
-				} else {
-					// app.debugPrint("重置\n");
-					// config_init();
-					controller.notification(lang.mPreviewWarning);
 				}
 			}
 		});
@@ -669,10 +661,6 @@ public class mainform extends WebFrame implements Runnable {
 					tc.Preview();
 
 					moveCheckFlag = true;
-				} else {
-					// app.debugPrint("重置\n");
-					// config_init();
-					controller.notification(lang.mPreviewWarning);
 				}
 			}
 		});
@@ -1606,7 +1594,8 @@ public class mainform extends WebFrame implements Runnable {
 		setDefaultCloseOperation(3);
 		setVisible(true);
 		this.setShadeWidth(10);
-
+		tc.Preview();
+		moveCheckFlag = true;
 	}
 
 	@Override

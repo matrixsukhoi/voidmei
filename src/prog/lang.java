@@ -17,11 +17,9 @@ public class lang {
 	// mainform
 	public static String mCancel;
 	public static String mStart;
-	public static String mPlsclosePreview;
 	public static String mDisplayPreview;
 	public static String mClosePreview;
 	public static String mMovePanel;
-	public static String mPreviewWarning;
 
 	public static String mP1NumColor;
 	public static String mP1NumColorBlank;
@@ -785,11 +783,9 @@ public class lang {
 		Systemerror = updateLanguage("Systemerror", Systemerror);
 		mCancel = updateLanguage("mCancel", mCancel);
 		mStart = updateLanguage("mStart", mStart);
-		mPlsclosePreview = updateLanguage("mPlsclosePreview", mPlsclosePreview);
 		mDisplayPreview = updateLanguage("mDisplayPreview", mDisplayPreview);
 		mClosePreview = updateLanguage("mClosePreview", mClosePreview);
 		mMovePanel = updateLanguage("mMovePanel", mMovePanel);
-		mPreviewWarning = updateLanguage("mPreviewWarning", mPreviewWarning);
 
 		mP1TempNotification = updateLanguage("mP1TempNotification", mP1TempNotification);
 		mP1TempNotificationBlank = updateLanguage("mP1TempNotificationBlank", mP1TempNotificationBlank);
