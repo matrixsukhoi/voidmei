@@ -116,8 +116,7 @@ public class engineControl extends WebFrame implements Runnable {
 					int left = getLocation().x;
 					int top = getLocation().y;
 					setLocation(left + e.getX() - xx, top + e.getY() - yy);
-					xc.setconfig("engineControlX", Integer.toString(getLocation().x));
-					xc.setconfig("engineControlY", Integer.toString(getLocation().y));
+					saveCurrentPosition();
 					setVisible(true);
 					repaint();
 				}
@@ -126,9 +125,11 @@ public class engineControl extends WebFrame implements Runnable {
 
 		this.setCursor(null);
 		setVisible(true);
-		// setFocusable(true);
-		// setFocusableWindowState(true);
+	}
 
+	public void saveCurrentPosition() {
+		xc.setconfig("engineControlX", Integer.toString(getLocation().x));
+		xc.setconfig("engineControlY", Integer.toString(getLocation().y));
 	}
 
 	public int leftUseNum;

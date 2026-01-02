@@ -635,8 +635,7 @@ public class minimalHUD extends WebFrame implements Runnable {
 					int left = getLocation().x;
 					int top = getLocation().y;
 					setLocation(left + e.getX() - xx, top + e.getY() - yy);
-					xc.setconfig("crosshairX", Integer.toString(getLocation().x));
-					xc.setconfig("crosshairY", Integer.toString(getLocation().y));
+					saveCurrentPosition();
 					setVisible(true);
 					repaint();
 				}
@@ -644,6 +643,11 @@ public class minimalHUD extends WebFrame implements Runnable {
 		});
 		this.setCursor(null);
 		setVisible(true);
+	}
+
+	public void saveCurrentPosition() {
+		xc.setconfig("crosshairX", Integer.toString(getLocation().x));
+		xc.setconfig("crosshairY", Integer.toString(getLocation().y));
 	}
 
 	public String ILbl = "I";

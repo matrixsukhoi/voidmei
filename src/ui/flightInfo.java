@@ -259,8 +259,7 @@ public class flightInfo extends WebFrame implements Runnable {
 					int left = getLocation().x;
 					int top = getLocation().y;
 					setLocation(left + e.getX() - xx, top + e.getY() - yy);
-					xc.setconfig("flightInfoX", Integer.toString(getLocation().x));
-					xc.setconfig("flightInfoY", Integer.toString(getLocation().y));
+					saveCurrentPosition();
 					setVisible(true);
 					repaint();
 				}
@@ -268,9 +267,15 @@ public class flightInfo extends WebFrame implements Runnable {
 		});
 		this.setCursor(null);
 		setVisible(true);
-		// setFocusableWindowState(true);
-		// setFocusable(true);
 	}
+
+	public void saveCurrentPosition() {
+		xc.setconfig("flightInfoX", Integer.toString(getLocation().x));
+		xc.setconfig("flightInfoY", Integer.toString(getLocation().y));
+	}
+	// setFocusableWindowState(true);
+	// setFocusable(true);
+	// } // This closing brace was for initPreview, now it's moved up.
 
 	String[][] totalString;
 	int useNum = 0;
@@ -579,13 +584,13 @@ public class flightInfo extends WebFrame implements Runnable {
 
 		int addnum = (useNum % columnNum == 0) ? 0 : 1;
 		// app.debugPrint(useNum / columnNum + addnum + 1);
-		this.setBounds(lx, ly, (fontsize >> 1) + (int) ((columnNum + 0.5) * 5f * fontsize),
-				(int) (numHeight + (useNum / columnNum + addnum + 1) * 1.0f * numHeight));
-
 		if (xc.getconfig("flightInfoEdge").equals("true"))
 			setShadeWidth(10);
 		else
 			setShadeWidth(0);
+
+		this.setBounds(lx, ly, (fontsize >> 1) + (int) ((columnNum + 0.5) * 5f * fontsize),
+				(int) (numHeight + (useNum / columnNum + addnum + 1) * 1.0f * numHeight));
 
 		repaint();
 	}

@@ -7,10 +7,7 @@ import java.awt.Color;
 import java.awt.Container;
 import java.awt.FlowLayout;
 import java.awt.Font;
-import java.awt.Graphics;
-import java.awt.Graphics2D;
 import java.awt.Image;
-import java.awt.RenderingHints;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -28,7 +25,6 @@ import com.alee.extended.layout.VerticalFlowLayout;
 import com.alee.extended.panel.WebButtonGroup;
 import com.alee.extended.window.WebPopOver;
 import com.alee.global.StyleConstants;
-import com.alee.laf.WebLookAndFeel;
 import com.alee.laf.button.WebButton;
 import com.alee.laf.combobox.WebComboBox;
 import com.alee.laf.label.WebLabel;
@@ -608,7 +604,7 @@ public class mainform extends WebFrame implements Runnable {
 
 	public WebButtonGroup createLBGroup(WebPanel topPanel) {
 		displayPreview = createButton(lang.mDisplayPreview);
-		WebButton C = createButton(lang.mSavePosition);
+		WebButton C = createButton(lang.mClosePreview);
 		WebButtonGroup G = new WebButtonGroup(true, displayPreview, C);
 		displayPreview.setPreferredWidth(120);
 
@@ -637,12 +633,8 @@ public class mainform extends WebFrame implements Runnable {
 		C.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				if (moveCheckFlag) {
-					controller.notification(lang.mPositionSaved);
 					tc.endPreview();
 					moveCheckFlag = false;
-				} else {
-
-					controller.notification(lang.mPreviewNotOpen);
 				}
 			}
 		});
@@ -654,7 +646,7 @@ public class mainform extends WebFrame implements Runnable {
 
 	public WebButtonGroup createLBGroupFM(WebPanel topPanel, WebComboBox fmSelectd0, WebComboBox fmSelectd1) {
 		displayPreview = createButton(lang.mDisplayPreview);
-		WebButton C = createButton(lang.mSavePosition);
+		WebButton C = createButton(lang.mClosePreview);
 		/* 显示FM */
 		WebButton D = createButton(lang.mDisplayPreview);
 		WebButtonGroup G = new WebButtonGroup(true, displayPreview, C, D);
@@ -687,12 +679,8 @@ public class mainform extends WebFrame implements Runnable {
 		C.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				if (moveCheckFlag) {
-					controller.notification(lang.mPositionSaved);
 					tc.endPreview();
 					moveCheckFlag = false;
-				} else {
-
-					controller.notification(lang.mPreviewNotOpen);
 				}
 			}
 		});
@@ -1551,6 +1539,10 @@ public class mainform extends WebFrame implements Runnable {
 	}
 
 	public void confirm() {
+		if (moveCheckFlag) {
+			tc.endPreview();
+			moveCheckFlag = false;
+		}
 		saveconfig();
 		tc.saveconfig();
 		tc.loadFromConfig();

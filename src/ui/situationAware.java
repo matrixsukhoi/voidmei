@@ -93,14 +93,18 @@ public class situationAware extends WebFrame implements Runnable {
 					int left = getLocation().x;
 					int top = getLocation().y;
 					setLocation(left + e.getX() - xx, top + e.getY() - yy);
-					xc.setconfig("situationAwareX", Integer.toString(getLocation().x));
-					xc.setconfig("situationAwareY", Integer.toString(getLocation().y));
+					saveCurrentPosition();
 					setVisible(true);
 					repaint();
 				}
 			}
 		});
 		setVisible(true);
+	}
+
+	public void saveCurrentPosition() {
+		xc.setconfig("situationAwareX", Integer.toString(getLocation().x));
+		xc.setconfig("situationAwareY", Integer.toString(getLocation().y));
 	}
 
 	public void initpanel() {
@@ -163,6 +167,7 @@ public class situationAware extends WebFrame implements Runnable {
 		else
 			ly = 50;
 
+		setShadeWidth(0);
 		this.setBounds(lx, ly, WIDTH, HEIGHT);
 		repaint();
 	}

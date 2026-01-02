@@ -741,87 +741,46 @@ public class controller {
 		// app.debugPrint(F.getLocationOnScreen().x);
 		// app.debugPrint(F.getLocationOnScreen().y);
 		if (Boolean.parseBoolean(getconfig("engineInfoSwitch"))) {
-			// shade问题需要加补偿
-			// app.debugPrint(F.getLocationOnScreen().x);
-			// app.debugPrint(F.getLocationOnScreen().y);
-			int offst = 0;
-			if (getconfig("engineInfoEdge").equals("true")) {
-				offst = 10;
-			}
-			setconfig("engineInfoX", Integer.toString(FI.getLocationOnScreen().x - 25 + offst));
-			setconfig("engineInfoY", Integer.toString(FI.getLocationOnScreen().y - 25 + offst));
-
+			FI.saveCurrentPosition();
 			FI.dispose();
 			FI = null;
-
 		}
 		if (Boolean.parseBoolean(getconfig("enableEngineControl"))) {
-			setconfig("engineControlX", Integer.toString(F.getLocationOnScreen().x - 25));
-			setconfig("engineControlY", Integer.toString(F.getLocationOnScreen().y - 25));
+			F.saveCurrentPosition();
 			F.dispose();
 			F = null;
 		}
 
 		if (Boolean.parseBoolean(getconfig("crosshairSwitch"))) {
-			// shade问题需要加补偿
-			setconfig("crosshairX", Integer.toString(H.getLocationOnScreen().x));
-			setconfig("crosshairY", Integer.toString(H.getLocationOnScreen().y));
+			H.saveCurrentPosition();
 			H.dispose();
 			H = null;
 		}
 		if (Boolean.parseBoolean(getconfig("flightInfoSwitch"))) {
-			int offst = 0;
-			if (getconfig("flightInfoEdge").equals("true")) {
-				offst = 10;
-			}
-			setconfig("flightInfoX", Integer.toString(FL.getLocationOnScreen().x - 25 + offst));
-			setconfig("flightInfoY", Integer.toString(FL.getLocationOnScreen().y - 25 + offst));
+			FL.saveCurrentPosition();
 			FL.dispose();
 			FL = null;
 		}
 		if (Boolean.parseBoolean(getconfig("enableAxis"))) {
-			// app.debugPrint(sV.getLocationOnScreen().x );
-			// app.debugPrint(sV.getLocationOnScreen().y);
-			int offst = 0;
-			if (getconfig("enableAxisEdge").equals("true")) {
-				offst = 10;
-			}
-			setconfig("stickValueX", Integer.toString(sV.getLocationOnScreen().x + offst));
-			setconfig("stickValueY", Integer.toString(sV.getLocationOnScreen().y + offst));
+			sV.saveCurrentPosition();
 			sV.dispose();
 			sV = null;
 		}
 		if (Boolean.parseBoolean(getconfig("enableAttitudeIndicator"))) {
-			setconfig("attitudeIndicatorX", Integer.toString(aI.getLocationOnScreen().x));
-			setconfig("attitudeIndicatorY", Integer.toString(aI.getLocationOnScreen().y));
-			setconfig("attitudeIndicatorWidth", Integer.toString(aI.getWidth() - 4));
-			setconfig("attitudeIndicatorHeight", Integer.toString(aI.getHeight() - 4));
+			aI.saveCurrentPosition();
 			aI.dispose();
 			aI = null;
 		}
 
 		if (Boolean.parseBoolean(getconfig("enablegearAndFlaps"))) {
-			// app.debugPrint(fS.getLocationOnScreen().x );
-			// app.debugPrint(fS.getLocationOnScreen().y);
-			int offst = 0;
-			if (getconfig("enablegearAndFlapsEdge").equals("true")) {
-				offst = 10;
-			}
-			setconfig("gearAndFlapsX", Integer.toString(fS.getLocationOnScreen().x + offst));
-			setconfig("gearAndFlapsY", Integer.toString(fS.getLocationOnScreen().y + offst));
-
+			fS.saveCurrentPosition();
 			fS.dispose();
 			fS = null;
 		}
 		if (app.debug) {
-			// app.debugPrint(SA.getLocationOnScreen().x );
-			// app.debugPrint(SA.getLocationOnScreen().y);
-			setconfig("situationAwareX", Integer.toString(SA.getLocationOnScreen().x - 15));
-			setconfig("situationAwareY", Integer.toString(SA.getLocationOnScreen().y - 15));
-
+			SA.saveCurrentPosition();
 			SA.dispose();
 			SA = null;
-
 		}
 		saveconfig();
 

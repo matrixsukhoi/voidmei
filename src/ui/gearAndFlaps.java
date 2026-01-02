@@ -108,56 +108,60 @@ public class gearAndFlaps extends WebFrame implements Runnable {
 					int left = getLocation().x;
 					int top = getLocation().y;
 					setLocation(left + e.getX() - xx, top + e.getY() - yy);
-					xc.setconfig("gearAndFlapsX", Integer.toString(getLocation().x));
-					xc.setconfig("gearAndFlapsY", Integer.toString(getLocation().y));
+					saveCurrentPosition();
 					setVisible(true);
 					repaint();
 				}
 			}
 		});
-		//
-		// slider.addMouseListener(new MouseAdapter() {
-		// public void mouseEntered(MouseEvent e) {
-		// /*
-		// * if(A.tag==0){ if(f.mode==1){ A.setVisible(false);
-		// * A.visibletag=0; } }
-		// */
-		// }
-		//
-		// public void mousePressed(MouseEvent e) {
-		// isDragging = 1;
-		// xx = e.getX();
-		// yy = e.getY();
-		//
-		// }
-		//
-		// public void mouseReleased(MouseEvent e) {
-		// if (isDragging == 1) {
-		// isDragging = 0;
-		// }
-		// /*
-		// * if(A.tag==0){ A.setVisible(false); }
-		// */
-		// }
-		// /*
-		// * public void mouseReleased(MouseEvent e){ if(A.tag==0){
-		// * A.setVisible(true); } }
-		// */
-		// });
-		// slider.addMouseMotionListener(new MouseMotionAdapter() {
-		// public void mouseDragged(MouseEvent e) {
-		// if (isDragging == 1) {
-		// int left = getLocation().x;
-		// int top = getLocation().y;
-		// setLocation(left + e.getX() - xx, top + e.getY() - yy);
-		// setVisible(true);
-		// repaint();
-		// }
-		// }
-		// });
-		this.setCursor(null);
 		setVisible(true);
 	}
+
+	public void saveCurrentPosition() {
+		xc.setconfig("gearAndFlapsX", Integer.toString(getLocation().x));
+		xc.setconfig("gearAndFlapsY", Integer.toString(getLocation().y));
+	}
+
+	//
+	// slider.addMouseListener(new MouseAdapter() {
+	// public void mouseEntered(MouseEvent e) {
+	// /*
+	// * if(A.tag==0){ if(f.mode==1){ A.setVisible(false);
+	// * A.visibletag=0; } }
+	// */
+	// }
+	//
+	// public void mousePressed(MouseEvent e) {
+	// isDragging = 1;
+	// xx = e.getX();
+	// yy = e.getY();
+	//
+	// }
+	//
+	// public void mouseReleased(MouseEvent e) {
+	// if (isDragging == 1) {
+	// isDragging = 0;
+	// }
+	// /*
+	// * if(A.tag==0){ A.setVisible(false); }
+	// */
+	// }
+	// /*
+	// * public void mouseReleased(MouseEvent e){ if(A.tag==0){
+	// * A.setVisible(true); } }
+	// */
+	// });
+	// slider.addMouseMotionListener(new MouseMotionAdapter() {
+	// public void mouseDragged(MouseEvent e) {
+	// if (isDragging == 1) {
+	// int left = getLocation().x;
+	// int top = getLocation().y;
+	// setLocation(left + e.getX() - xx, top + e.getY() - yy);
+	// setVisible(true);
+	// repaint();
+	// }
+	// }
+	// });
 
 	public void initslider(WebSlider slider1) {
 		slider1.setMinimum(0);

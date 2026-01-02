@@ -117,8 +117,7 @@ public class engineInfo extends WebFrame implements Runnable {
 					int left = getLocation().x;
 					int top = getLocation().y;
 					setLocation(left + e.getX() - xx, top + e.getY() - yy);
-					xc.setconfig("engineInfoX", Integer.toString(getLocation().x));
-					xc.setconfig("engineInfoY", Integer.toString(getLocation().y));
+					saveCurrentPosition();
 					setVisible(true);
 					repaint();
 				}
@@ -130,6 +129,11 @@ public class engineInfo extends WebFrame implements Runnable {
 		// setFocusable(true);
 		// setFocusableWindowState(true);
 
+	}
+
+	public void saveCurrentPosition() {
+		xc.setconfig("engineInfoX", Integer.toString(getLocation().x));
+		xc.setconfig("engineInfoY", Integer.toString(getLocation().y));
 	}
 
 	String[][] totalString;

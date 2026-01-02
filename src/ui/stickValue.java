@@ -112,15 +112,20 @@ public class stickValue extends WebFrame implements Runnable {
 					int left = getLocation().x;
 					int top = getLocation().y;
 					setLocation(left + e.getX() - xx, top + e.getY() - yy);
-					xc.setconfig("stickValueX", Integer.toString(getLocation().x));
-					xc.setconfig("stickValueY", Integer.toString(getLocation().y));
+					saveCurrentPosition();
 					setVisible(true);
 					repaint();
 				}
 			}
 		});
-		setVisible(true);
 
+		this.setCursor(null);
+		setVisible(true);
+	}
+
+	public void saveCurrentPosition() {
+		xc.setconfig("stickValueX", Integer.toString(getLocation().x));
+		xc.setconfig("stickValueY", Integer.toString(getLocation().y));
 	}
 
 	public void locater(Graphics2D g2d, int x, int y, int r, int width, int stroke) {
@@ -417,17 +422,16 @@ public class stickValue extends WebFrame implements Runnable {
 		int theight = (int) (height + 1.5 * fontSize);
 
 		this.setBounds(lx, ly, twidth, theight);
-
 		px = width / 2;
 		py = width / 2;
 
 		locateSize = width / 30;
-		strokeSize = width / 60;
-
 		if (xc.getconfig("enableAxisEdge").equals("true"))
 			setShadeWidth(10);
 		else
 			setShadeWidth(0);
+
+		this.setBounds(lx, ly, twidth, theight);
 
 		repaint();
 	}
@@ -455,9 +459,9 @@ public class stickValue extends WebFrame implements Runnable {
 		sWingSweepUnit = "%";
 
 		setFrameOpaque();
-		
-		int twidth = (int)(width + 4 * fontSize);
-		int theight = (int)(height + 1.5 * fontSize);
+
+		int twidth = (int) (width + 4 * fontSize);
+		int theight = (int) (height + 1.5 * fontSize);
 
 		this.setBounds(lx, ly, twidth, theight);
 
