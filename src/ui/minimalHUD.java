@@ -160,6 +160,59 @@ public class minimalHUD extends WebFrame implements Runnable {
 	public Color aoaBarColor;
 	public int throttleLineWidth = 1;
 
+	public void drawFlapAngleBar(Graphics2D g, int x, int y) {
+		// 绘制襟翼角度文本
+		int strWidth = g.getFontMetrics(drawFontSmall).stringWidth(lineFlapAngle);
+		int strX = x + (Width - x - HUDFontsize / 2 - strWidth) / 2;
+		uiBaseElem.__drawStringShade(g, strX, y, 1, lineFlapAngle, drawFontSmall, app.colorNum);
+
+		// 横条参数
+		int barY = y + HUDFontSizeSmall / 4;
+		int barHeight = lineWidth + 2;
+		// 让横条填满右侧空间 (Width 是总宽, x 是起始x坐标, 预留一点右边距)
+		int barTotalWidth = Width - x - HUDFontsize / 2;
+
+		// 计算三色区域宽度 (0-125范围映射到barTotalWidth)
+		int blueWidth = (int) (flapA * barTotalWidth / 125.0);
+		int greenWidth = (int) ((flapAllowA - flapA) * barTotalWidth / 125.0);
+		int redWidth = barTotalWidth - blueWidth - greenWidth;
+
+		// 画刻度线
+		g.setColor(app.colorLabel);
+		g.setStroke(new BasicStroke(2));
+
+		int[] ticks = { 20, 33, 60, 100 };
+		for (int t : ticks) {
+			int tx = x + (int) (t * barTotalWidth / 125.0);
+			// 100处刻度更长 (延伸 barHeight), 其他较短 (延伸 1/4)
+			int ext = (t == 100) ? barHeight : barHeight / 4;
+
+			// 绘制白色本体
+			g.setColor(app.colorLabel);
+			g.setStroke(new BasicStroke(2));
+			g.drawLine(tx, barY - ext - 4, tx, barY);
+		}
+
+		// 绘制蓝色区域 (0 → flapA)
+		if (blueWidth > 0) {
+			g.setColor(app.colorShadeShape);
+			g.fillRect(x, barY, blueWidth, barHeight);
+		}
+
+		// 绘制绿色区域 (flapA → flapAllowA)
+		if (greenWidth > 0) {
+			g.setColor(app.colorNum);
+			g.fillRect(x + blueWidth, barY, greenWidth, barHeight);
+		}
+
+		// 绘制红色区域 (flapAllowA → 125)
+		if (redWidth > 0) {
+			g.setColor(app.colorWarning);
+			g.fillRect(x + blueWidth + greenWidth, barY, redWidth, barHeight);
+		}
+
+	}
+
 	public void drawTextseries(Graphics2D g, int x, int y) {
 		int n = 0;
 		g.setFont(drawFont);
@@ -212,7 +265,9 @@ public class minimalHUD extends WebFrame implements Runnable {
 		// }
 		// uiBaseElem.drawVRect(g, kx, n5 + lineWidth + 2 , barWidth, throttley, 1,
 		// throttleColor);
-		uiBaseElem.drawVBarTextNumLeft(g, kx + barWidth, n5 + lineWidth + 2, barWidth, throttley_max, throttley, 1,
+		int yOffset = y - HUDFontsize;
+		uiBaseElem.drawVBarTextNumLeft(g, kx + barWidth, n5 + yOffset + lineWidth + 2, barWidth, throttley_max,
+				throttley, 1,
 				app.colorNum, throttleColor, "",
 				lineThrottle, drawFontSSmall, drawFontSSmall);
 
@@ -225,7 +280,7 @@ public class minimalHUD extends WebFrame implements Runnable {
 				// 计算小圆形的位置
 
 				int circleX = lineWidth - aosX + round;
-				int circleY = (int) (n5 - 2.5 * HUDFontsize + rnd / 2 - pitch);
+				int circleY = (int) (n5 + yOffset - 2.5 * HUDFontsize + rnd / 2 - pitch);
 				double rollDegRad = Math.toRadians(rollDeg);
 				// 绘制地面和牵引线
 				g.setStroke(Bs3);
@@ -443,8 +498,9 @@ public class minimalHUD extends WebFrame implements Runnable {
 		g.setColor(app.colorShadeShape);
 
 		g.drawLine(kx + r + (int) (0.618 * r * Math.sin(compassRads)),
-				n + r - (int) (0.618 * r * Math.cos(compassRads)), kx + r + compassDx, n + r - compassDy);
-		g.drawOval(kx, n, r + r, r + r);
+				n + yOffset + r - (int) (0.618 * r * Math.cos(compassRads)), kx + r + compassDx,
+				n + yOffset + r - compassDy);
+		g.drawOval(kx, n + yOffset, r + r, r + r);
 		// g.drawArc(kx, n, r + r, r + r, compass - 5, compass + 365 );
 
 		// 引擎健康度
@@ -455,8 +511,9 @@ public class minimalHUD extends WebFrame implements Runnable {
 		// g.drawLine(kx + r + r * compassRads, n + r, kx + r + compassDx, n + r -
 		// compassDy);
 		g.drawLine(kx + r + (int) (0.618 * r * Math.sin(compassRads)),
-				n + r - (int) (0.618 * r * Math.cos(compassRads)), kx + r + compassDx, n + r - compassDy);
-		g.drawOval(kx, n, r + r, r + r);
+				n + yOffset + r - (int) (0.618 * r * Math.cos(compassRads)), kx + r + compassDx,
+				n + yOffset + r - compassDy);
+		g.drawOval(kx, n + yOffset, r + r, r + r);
 		// g.drawArc(kx, n, r + r, r + r, compass - 5, compass + 365);
 
 		// g.setColor(app.warning);
@@ -617,6 +674,12 @@ public class minimalHUD extends WebFrame implements Runnable {
 	private int urnd;
 	private Font drawFontSSmall;
 
+	// 襟翼角度
+	private double flapA;
+	private double flapAllowA;
+	private String lineFlapAngle;
+	private boolean enableFlapAngleBar;
+
 	public void init(controller c, service s, otherService os) {
 		int lx;
 		int ly;
@@ -686,6 +749,12 @@ public class minimalHUD extends WebFrame implements Runnable {
 			aoaBarWarningRatio = 0;
 		}
 
+		if (xc.getconfig("enableFlapAngleBar") != "") {
+			enableFlapAngleBar = Boolean.parseBoolean(xc.getconfig("enableFlapAngleBar"));
+		} else {
+			enableFlapAngleBar = true;
+		}
+
 		HUDFontsize = CrossWidth / 4;
 		barWidth = HUDFontsize / 4;
 		lineWidth = HUDFontsize / 10;
@@ -694,7 +763,7 @@ public class minimalHUD extends WebFrame implements Runnable {
 		else {
 			Width = (int) (CrossWidth * 2.25);
 		}
-		Height = (int) (CrossWidth * 1.5);
+		Height = (int) (CrossWidth * 1.5) + (int) (HUDFontsize * 3.5);
 		CrossWidthVario = CrossWidth;
 		if (lineWidth == 0)
 			lineWidth = 1;
@@ -792,6 +861,11 @@ public class minimalHUD extends WebFrame implements Runnable {
 		drawFontSSmall = new Font(NumFont, Font.BOLD, HUDFontsize / 2);
 		CrossX = Width / 2;
 		CrossY = Height / 2;
+
+		flapA = 20.0;
+		flapAllowA = 100.0;
+		lineFlapAngle = String.format("%3.0f/%3.0f", flapA, flapAllowA);
+
 		panel = new WebPanel() {
 
 			private static final long serialVersionUID = -9061280572815010060L;
@@ -820,7 +894,14 @@ public class minimalHUD extends WebFrame implements Runnable {
 				// }
 				// 显示攻角和水平
 				if (on) {
-					drawTextseries(g2d, HUDFontsize / 2, HUDFontsize);
+					// 绘制襟翼角度
+					// 显示在顶部, 并向右偏移以避开左侧油门条
+					if (enableFlapAngleBar) {
+						int flapXOffset = barWidth + 3 * drawFontSSmall.getSize() / 2;
+						drawFlapAngleBar(g2d, HUDFontsize / 2 + flapXOffset, (int) (HUDFontsize * 1.2));
+					}
+
+					drawTextseries(g2d, HUDFontsize / 2, (int) (HUDFontsize * 2.5));
 
 				}
 				if (crossOn) {
@@ -857,7 +938,7 @@ public class minimalHUD extends WebFrame implements Runnable {
 		blinkTicks = (int) ((1000 / xc.freqService) >> 3);
 		if (blinkTicks == 0)
 			blinkTicks = 1;
-		
+
 		setTitle("miniHUD");
 		uiWebLafSetting.setWindowOpaque(this);
 		root = this.getContentPane();
@@ -1106,6 +1187,11 @@ public class minimalHUD extends WebFrame implements Runnable {
 		if (xs.radioAlt >= 0 && xs.radioAlt < 50) {
 			warnRH = true;
 		}
+
+		// 襟翼角度显示
+		flapA = xs.sState.flaps;
+		flapAllowA = xs.getFlapAllowAngle(xs.sState.IAS, xs.isDowningFlap);
+		lineFlapAngle = String.format("%3.0f/%3.0f", flapA, flapAllowA);
 	}
 
 	public void drawTick() {

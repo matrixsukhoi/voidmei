@@ -1207,37 +1207,65 @@ public class service implements Runnable {
 		// fm文件无法解析
 		if (ias == 0 || c.blkx == null || !c.blkx.valid)
 			return 125;
+
 		// 找到襟翼档位
-		int i = -1;
+		int i = 0;
 		for (; i < c.blkx.FlapsDestructionNum - 1; i++) {
 			// 大于
-			if (ias >= c.blkx.FlapsDestructionIndSpeed[i + 1][1]) {
+			if (ias > c.blkx.FlapsDestructionIndSpeed[i][1]) {
 				break;
 			}
 		}
 
-		if (i == -1) {
-			// app.debugPrint(c.blkx.FlapsDestructionIndSpeed[i + 1][1] + " spd " + ias);
-			return 0;
-		}
-		
 		// 找到档位了
 		// 线性求值
 		// 找前面的flap值
-		double x0, x1, y0, y1,t;
+		double x0, x1, y0, y1, t;
 		double k;
+		// 没有找到，都小于
 
-		// 进行线性插值运算
-		// 算斜率
-		x0 = c.blkx.FlapsDestructionIndSpeed[i][1];
-		y0 = c.blkx.FlapsDestructionIndSpeed[i][0] * 100.0f;
-		x1 = c.blkx.FlapsDestructionIndSpeed[i + 1][1];
-		y1 = c.blkx.FlapsDestructionIndSpeed[i + 1][0] * 100.0f;
-		k = this.calcK(x0, y0, x1, y1);
-		// 速度等于
-		// app.debugPrint("[" +i + "]" + "ias" + ias + "limit" + x0 + "-" + x1 + ", " + y0 + "-" + y1);
-		t = y0 + (ias - x0) * k;
-		return normFlapAngle(t);
+		if (i == 0) {
+			// 下襟翼时直接越级使用下一级
+
+			x0 = c.blkx.FlapsDestructionIndSpeed[i][1];
+			y0 = c.blkx.FlapsDestructionIndSpeed[i][0] * 100.0f;
+			x1 = c.blkx.FlapsDestructionIndSpeed[i + 1][1];
+			y1 = c.blkx.FlapsDestructionIndSpeed[i + 1][0] * 100.0f;
+			k = this.calcK(x0, y0, x1, y1);
+
+			t = y0 + (ias - x0) * k;
+			return normFlapAngle(t);
+
+			// 襟翼只有0级
+			// if(c.blkx.FlapsDestructionNum == 0){
+			// return c.blkx.FlapsDestructionIndSpeed[0][1];
+			// }
+
+		} else {
+			// 下襟翼时直接越级使用
+			// if (isDowningFlap) {
+			// return c.blkx.FlapsDestructionIndSpeed[i][1];
+			// }
+
+			// 相等
+			if (ias == c.blkx.FlapsDestructionIndSpeed[i - 1][1]) {
+				// 直接返回速度
+				return c.blkx.FlapsDestructionIndSpeed[i - 1][0] * 100.0f;
+			}
+
+			// 否则进行线性插值运算
+			// 算斜率
+			x0 = c.blkx.FlapsDestructionIndSpeed[i - 1][1];
+			y0 = c.blkx.FlapsDestructionIndSpeed[i - 1][0] * 100.0f;
+			x1 = c.blkx.FlapsDestructionIndSpeed[i][1];
+			y1 = c.blkx.FlapsDestructionIndSpeed[i][0] * 100.0f;
+			k = this.calcK(x0, y0, x1, y1);
+
+			// 速度等于
+			// app.debugPrint(x0 + "-" + x1 + ", " + y0 + "-" + y1);
+			t = y0 + (ias - x0) * k;
+			return normFlapAngle(t);
+		}
 	}
 
 	public void resetEngLoad() {

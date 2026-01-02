@@ -3,7 +3,7 @@ package prog;
 public class lang{
 	public static String appName;
 	public static String appTooltips;
-	
+
 	public static String close;
 	public static String about;
 	public static String aboutcontent;
@@ -24,7 +24,7 @@ public class lang{
 	public static String mPreviewWarning;
 	public static String mPositionSaved;
 	public static String mPreviewNotOpen;
-		
+
 	
 	public static String mP1NumColor;
 	public static String mP1NumColorBlank;
@@ -36,7 +36,7 @@ public class lang{
 	public static String mP1WarnColorBlank;
 	public static String mP1ShadeColor;
 	public static String mP1ShadeColorBlank;
-	
+
 	public static String mP1TempNotification;
 	public static String mP1TempNotificationBlank;
 	public static String mP1VoiceWarning;
@@ -48,7 +48,7 @@ public class lang{
 	public static String mP1GlobalNumberFont;
 	public static String mP1GlobalNumberFontBlank;
 	public static String mP1Interval;
-	
+
 	// 新增音量
 	public static String mP1voiceVolume;
 	public static String mP1voiceVolumeBlank;
@@ -56,7 +56,7 @@ public class lang{
 	public static String mP1statusBar;
 	public static String mP1statusBarBlank;
 	
-	
+
 	public static String mP2EnginePanel;
 	public static String mP2EnginePanelBlank;
 	public static String mP2EngineGlassEdge;
@@ -64,7 +64,7 @@ public class lang{
 	public static String mP2PanelFont;
 	public static String mP2FontAdjust;
 	
-	
+
 	public static String mP2EngineBlank;
 	public static String mP2eiHorsePower;
 	public static String mP2eiHorsePowerBlank;
@@ -99,13 +99,15 @@ public class lang{
 	public static String mP2eiEngResponse;
 	public static String mP2eiEngResponseBlank;
 	
-	
+
 	public static String mP3Crosshair;
 	public static String mP3CrosshairBlank;
 	public static String mP3CrosshairDisplay;
 	public static String mP3CrosshairDisplayBlank;
 	public static String mP3Text;
 	public static String mP3TextBlank;
+	public static String mP3FlapAngleBar;
+	public static String mP3FlapAngleBarBlank;
 	public static String mP3CrosshairTexture;
 	public static String mP3CrosshairTextureBlank;
 	public static String mP3ChooseTexture;
@@ -113,14 +115,14 @@ public class lang{
 	public static String mP3CrosshairSize;
 	public static String mP3MonoFont;
 	public static String mP3MonoFontBlank;
-	
+
 	public static String mP4FlightInfoPanel;
 	public static String mP4attitudeIndicatorPanel;
 	public static String mP4attitudeIndicatorPanelBlank;
 	public static String mP4FMPanel;
 	public static String mP4FMPanelBlank;
 	
-	
+
 	public static String mP4fiIAS;
 	public static String mP4fiIASBlank;
 	public static String mP4fiTAS;
@@ -153,28 +155,28 @@ public class lang{
 	public static String mP4fiWingSweepBlank;
 	public static String mP4fiRadioAlt;
 	public static String mP4fiRadioAltBlank;
-	
+
 	public static String mP4FlightInfoBlank;
 	public static String mP4FlightInfoGlassEdge;
 	public static String mP4FlightInfoGlassEdgeBlank;
 	public static String mP4PanelFont;
 	public static String mP4FontAdjust;
 	public static String mP4ColumnAdjust;
-	
+
 	public static String mP5LoggingAndCharting;
 	public static String mP5LoggingAndChartingBlank;
 	public static String mP5Information;
 	public static String mP5InformationBlank;
 	public static String mP5FMChoose;
 	public static String mP5FMChooseBlank;
-	
+
 	public static String mP6AxisPanel;
 	public static String mP6AxisPanelBlank;
 	public static String mP6AxisEdge;
 	public static String mP6AxisEdgeBlank;
 	public static String mP6GearAndFlaps;
 	public static String mP6GearAndFlapsEdge;
-	
+
 	public static String mP6GearAndFlapsEdgeBlank;
 	public static String mP6engineControl;
 	public static String mP6engineControlBlank;
@@ -192,18 +194,18 @@ public class lang{
 	public static String mP6ecLFuel;
 	public static String mP6ecLFuelBlank;
 	
-	
+
 	public static String mFlightInfo;
 	public static String mEngineInfo;
 	public static String mControlInfo;
 	public static String mLoggingAndAnalysis;
 	public static String mCrosshair;
 	public static String mAdvancedOption;
-	
+
 	//otherService
 	public static String oSkeyWord1;
 	public static String oSkeyWord2;
-	
+
 	//drawFrame
 	public static String dFprev;
 	public static String dFnext;
@@ -223,7 +225,7 @@ public class lang{
 	public static String dFTitle5X;
 	public static String dFTitle5Y;
 	public static String dFTitleHZ;
-	
+
 	//engineInfo
 	public static String eThrottle;
 	public static String eProppitch;
@@ -259,7 +261,7 @@ public class lang{
 	public static String eOverheat;
 	public static String eEngRes;
 	public static String eTitle;
-	
+
 	//flightInfo
 	public static String fIAS;
 	public static String fTAS;
@@ -278,27 +280,27 @@ public class lang{
 	public static String fRa;
 	public static String fGL;
 	public static String fTitle;
-	
+
 	//gearAndFlaps
 	public static String gFlaps;
 	public static String gTitle;
 	public static String gGear;
 	public static String gGearDown;
 	public static String gBrake;
-	
+
 	//statusBar
 	public static String sTitle;
 	public static String sWait;
 	public static String sEnter;
 	public static String sCheck;
-	
+
 	//stickValue
 	public static String vAileron;
 	public static String vElevator;
 	public static String vRudder;
 	public static String vVarioW;
 	public static String vTitle;
-	
+
 	//controller
 	public static String cStartlog;
 	public static String cSavelog;
@@ -307,7 +309,7 @@ public class lang{
 	public static String cEnginedmg;
 	public static String cWarn1min;
 	public static String cEngBomb;
-	
+
 	//flightlog
 	public static String l1;
 	public static String l2;
@@ -342,7 +344,7 @@ public class lang{
 	public static String l31;
 	public static String lfailCreate;
 	public static String lfailWrite;
-	
+
 	//flightAnalyzer
 	public static String fA1;
 	public static String fA2;
@@ -358,7 +360,7 @@ public class lang{
 	public static String fA_turn3;
 	public static String fA_turn4;
 	
-	
+
 	public static String noblkx;
 	public static String bFmParts;
 	public static String bCdMin;
@@ -366,7 +368,7 @@ public class lang{
 	public static String bAoACrit;
 	public static String bAoACritCl;
 	
-	
+
 	// 还未加入
 	public static String bFmVersion;
 	public static String bWeight;
@@ -377,16 +379,16 @@ public class lang{
 	public static String bFlapRestrict;
 	public static String bEffSpeedAndPowerLoss;
 	public static String bInertia;
-	
+
 	public static String bMaxLiftLoad350;
-	
+
 	public static String bLift;
 	public static String bDrag;
-	
+
 	//app
 //	public static String appName = "VoidMei";
 //	public static String appTooltips = "WT8111端口信息分析、显示、记录工具";
-//	
+	//
 //	public static String close="关闭";
 //	public static String about="关于";
 //	public static String aboutcontent="1.本程序对游戏程序及进程无任何修改,所有信息通过HTTP/GET请求读取WT官方提供的8111端口或离线拆包数据获得.\n\r";
@@ -406,8 +408,8 @@ public class lang{
 //	public static String mPreviewWarning="预览窗口已经打开，请勿再次打开";
 //	public static String mPositionSaved="窗口位置已保存";
 //	public static String mPreviewNotOpen="请打开预览窗口移动位置再保存";
-//		
-//	
+	//
+	//
 //	public static String mP1NumColor="　　　　数字色　　";
 //	public static String mP1NumColorBlank="　";
 //	public static String mP1LabelColor="　　　　标签色　　";
@@ -418,7 +420,7 @@ public class lang{
 //	public static String mP1WarnColorBlank="　";
 //	public static String mP1ShadeColor="　　　　描边色　　";
 //	public static String mP1ShadeColorBlank="　　　　　　　　　　　　　　　　　　　　　　　";
-//	
+	//
 //	public static String mP1TempNotification="　　　　温度通知　";
 //	public static String mP1TempNotificationBlank="　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　";
 //	public static String mP1VoiceWarning="　　　　语音告警　";
@@ -428,15 +430,15 @@ public class lang{
 //	public static String mP1GlobalNumberFont="　　全局数字字体　";
 //	public static String mP1GlobalNumberFontBlank="　　　　　　　　　　　　　　　　　　　　";
 //	public static String mP1Interval="数据采集时间间隔";
-//	
+	//
 //	public static String mP2EnginePanel="　发动机面板";
 //	public static String mP2EnginePanelBlank="　　";
 //	public static String mP2EngineGlassEdge="玻璃边框";
 //	public static String mP2EngineGlassEdgeBlank="　　　　　　　　　　　　　　　　　　　　　　　　";
 //	public static String mP2PanelFont="面板显示字体";
 //	public static String mP2FontAdjust="字体大小调整　　";
-//	
-//	
+	//
+	//
 //	public static String mP2EngineBlank="　　　　　　　　　　　　　　";
 //	public static String mP2eiHorsePower="显示功　率";
 //	public static String mP2eiHorsePowerBlank="    ";
@@ -470,8 +472,8 @@ public class lang{
 //	public static String mP2eiHeatToleranceBlank="    ";
 //	public static String mP2eiEngResponse="显示响应速";
 //	public static String mP2eiEngResponseBlank="    ";
-//	
-//	
+	//
+	//
 //	public static String mP3Crosshair="　自定义HUD　";
 //	public static String mP3CrosshairBlank="　　";
 //	public static String mP3CrosshairDisplay="　显示准星　";
@@ -483,14 +485,14 @@ public class lang{
 //	public static String mP3ChooseTexture="选择准星贴图　";
 //	public static String mP3ChooseTextureBlank="　                               ";
 //	public static String mP3CrosshairSize="　　自定义HUD大小";
-//	
+	//
 //	public static String mP4FlightInfoPanel="飞行信息面板";
 //	public static String mP4attitudeIndicatorPanel="地平仪面板   ";
 //	public static String mP4attitudeIndicatorPanelBlank="      ";
 //	public static String mP4FMPanel="FM拆包信息";
 //	public static String mP4FMPanelBlank="　　　                               　　　　　                    ";
-//	
-//	
+	//
+	//
 //	public static String mP4fiIAS="显示示空速";
 //	public static String mP4fiIASBlank="    ";
 //	public static String mP4fiTAS="显示真空速";
@@ -523,30 +525,30 @@ public class lang{
 //	public static String mP4fiWingSweepBlank="    ";
 //	public static String mP4fiRadioAlt="显示雷达高";
 //	public static String mP4fiRadioAltBlank="    ";
-//	
+	//
 //	public static String mP4FlightInfoBlank="　　     ";
 //	public static String mP4FlightInfoGlassEdge="玻璃边框";
 //	public static String mP4FlightInfoGlassEdgeBlank="　　　　         　　　　　　　　　　　　　　　　　　　　";
 //	public static String mP4PanelFont="面板显示字体                                            ";
 //	public static String mP4FontAdjust="字体大小调整　                                     　";
 //	public static String mP4ColumnAdjust="面板每行个数　                                     　";
-//	
+	//
 //	public static String mP5LoggingAndCharting="飞行记录和图表生成";
 //	public static String mP5LoggingAndChartingBlank="　　";
 //	public static String mP5Information="通知记录信息";
 //	public static String mP5InformationBlank="　　";
-//	
+	//
 //	public static String mP6AxisPanel="　　　舵面值面板";
 //	public static String mP6AxisPanelBlank="　　";
 //	public static String mP6AxisEdge="  舵面值边框";
 //	public static String mP6AxisEdgeBlank="　　　　　　　　　　　　　　　　　　　　　　　　　　";
 //	public static String mP6GearAndFlaps="起落架与襟翼面板";
 //	public static String mP6GearAndFlapsEdge="起落架与襟翼边框";
-//	
+	//
 //	public static String mP6GearAndFlapsEdgeBlank="　　　　　　　　　　　　　　　　　　　　";
 //	public static String mP6engineControl="　发动机控制面板";
 //	public static String mP6engineControlBlank="";
-//
+	//
 //	public static String mP6ecThrottle="显示节流阀";
 //	public static String mP6ecThrottleBlank="    ";
 //	public static String mP6ecPitch="显示桨　距";
@@ -559,19 +561,19 @@ public class lang{
 //	public static String mP6ecCompressorBlank="    ";
 //	public static String mP6ecLFuel="显示燃油量";
 //	public static String mP6ecLFuelBlank="    ";
-//	
-//	
+	//
+	//
 //	public static String mFlightInfo="飞行信息";
 //	public static String mEngineInfo="发动机信息";
 //	public static String mControlInfo="飞行控制信息";
 //	public static String mLoggingAndAnalysis="记录与分析";
 //	public static String mCrosshair="自定义HUD";
 //	public static String mAdvancedOption="高级设置";
-//	
+	//
 //	//otherService
 //	public static String oSkeyWord1="热";
 //	public static String oSkeyWord2="温";
-//	
+	//
 //	//drawFrame
 //	public static String dFprev="上一个";
 //	public static String dFnext="下一个";
@@ -591,7 +593,7 @@ public class lang{
 //	public static String dFTitle5X="SEP";
 //	public static String dFTitle5Y="高度";
 //	public static String dFTitleHZ="性能曲线生成";
-//	
+	//
 //	//engineInfo
 //	public static String eThrottle="节";
 //	public static String eProppitch="桨";
@@ -627,7 +629,7 @@ public class lang{
 //	public static String eOverheat="耐热时";
 //	public static String eEngRes="响应速";
 //	public static String eTitle="发动机面板";
-//	
+	//
 //	//flightInfo
 //	public static String fIAS="表　速";
 //	public static String fTAS="真空速";
@@ -646,27 +648,27 @@ public class lang{
 //	public static String fRa="雷达高";
 //	public static String fGL="过　载";
 //	public static String fTitle="飞行信息面板";
-//	
+	//
 //	//gearAndFlaps
 //	public static String gFlaps="襟　翼";
 //	public static String gTitle="飞行状态";
 //	public static String gGear="起落架";
 //	public static String gGearDown="收起落";
 //	public static String gBrake="减速板";
-//	
+	//
 //	//statusBar
 //	public static String sTitle="状态条";
 //	public static String sWait="等待建立连接";
 //	public static String sEnter="等待进入游戏";
 //	public static String sCheck="检测到游戏开始";
-//	
+	//
 //	//stickValue
 //	public static String vAileron="副　翼";
 //	public static String vElevator="升降舵";
 //	public static String vRudder="方向舵";
 //	public static String vVarioW="可变翼";
 //	public static String vTitle="操纵面面板";
-//	
+	//
 //	//controller
 //	public static String cStartlog="开始记录端口信息";
 //	public static String cSavelog="端口信息保存至";
@@ -675,7 +677,7 @@ public class lang{
 //	public static String cEnginedmg="'发动机将在' s '秒内损坏，请及时散热'";
 //	public static String cWarn1min="引擎还有一分钟损坏";
 //	public static String cEngBomb="引擎爆炸了，请立即回航";
-//	
+	//
 //	//flightlog
 //	public static String l1="时间/s,";
 //	public static String l2="节流阀/%,";
@@ -710,31 +712,31 @@ public class lang{
 //	public static String l31="侧滑角/deg,";
 //	public static String lfailCreate="记录文件创建失败";
 //	public static String lfailWrite="记录文件写入失败";
-//	
+	//
 //	//flightAnalyzer
 //	public static String fA1="到达 ";
 //	public static String fA2="米，用时 ";
 //	public static String fA3="秒，平均爬升率 ";
 //	public static String fA4="米/秒，记录完成";
-//
+	//
 //	public static String fA_roll1="速度  ";
 //	public static String fA_roll2="km/h下的最大滚转率: ";
 //	public static String fA_roll3="度/秒,记录完成";
-//
+	//
 //	public static String fA_turn1="速度  ";
 //	public static String fA_turn2="km/h下的最大法向过载: ";
 //	public static String fA_turn3="G, 此时SEP为: ";
 //	public static String fA_turn4="m/s, 记录完成;";
-//	
-//	
+	//
+	//
 //	public static String noblkx = "找不到blkx文件,请使用最新WT拆包aces.vromfs.bin";
 //	public static String bFmParts = "------fm器件 %s------\n";
 //	public static String bCdMin = "零升阻力系数: %.3f\n";
 //	public static String bCl0 = "零攻角升力: %.3f\n";
 //	public static String bAoACrit = "临界攻角: [%.1f, %.1f]\n";
 //	public static String bAoACritCl = "临界攻角升力系数: [%.2f, %.2f]\n";
-//	
-//	
+	//
+	//
 //	// 还未加入
 //	public static String bFmVersion = "FM文件: %s - %s";
 //	public static String bWeight = "空重(kg): %.1f\n最大燃油重量(kg): %.1f\n";
@@ -745,14 +747,14 @@ public class lang{
 //	public static String bFlapRestrict = "襟翼限速(km/h)%d: %.0f%% / %.0f\n";
 //	public static String bEffSpeedAndPowerLoss = "三舵有效速度(km/h): [ %.0f, %.0f, %.0f ]\n三舵锁舵因数: [ %.1f, %.1f, %.1f ]\n";
 //	public static String bInertia = "三轴转动惯量: [ %.0f, %.0f, %.0f ]\n";
-//	
+	//
 //	public static String bMaxLiftLoad350 = "千米最大升力过载: %.1f / %.1f(襟) @ 350IAS\n";
-//	
+	//
 //	public static String bLift = "主升力面积: %.1f机翼, %.1f机身\n主升力面积因数载荷: %.2f / %.2f(襟)\n翼展效率: %.2f 展弦比: %.1f 后掠角: %.1f\n";
 //	public static String bDrag = "主阻力面积因数与加速度系数: %.2f / %.2f\n诱导阻力因数及加速度系数: %.3f / %.0f\n散热/油冷器阻力系数: %.3f / %.3f\n";
-//	
+	//
 	public static config lanuageConfig;
-	
+
 	public static String updateLanguage(String key, String dft){
 		String v = lanuageConfig.getValue(key);
 		if (!v.equals("")){
@@ -765,10 +767,10 @@ public class lang{
 		}
 		return dft;
 	}
-	
+
 	public static void initLang(){
 		lanuageConfig = new config("./lang/cur.properties");
-		
+
 		// 挨个更新
 		appName = updateLanguage("appName", appName);
 		appTooltips = updateLanguage("appTooltips", appTooltips);
@@ -792,7 +794,7 @@ public class lang{
 		mPreviewWarning = updateLanguage("mPreviewWarning", mPreviewWarning);
 		mPositionSaved = updateLanguage("mPositionSaved", mPositionSaved);
 		mPreviewNotOpen = updateLanguage("mPreviewNotOpen", mPreviewNotOpen);
-		
+
 		mP1TempNotification = updateLanguage("mP1TempNotification", mP1TempNotification);
 		mP1TempNotificationBlank = updateLanguage("mP1TempNotificationBlank", mP1TempNotificationBlank);
 		mP1drawFontShape = updateLanguage("mP1drawFontShape", mP1drawFontShape);
@@ -812,7 +814,7 @@ public class lang{
 		mP1statusBarBlank = updateLanguage("mP1statusBarBlank", mP1statusBarBlank);
 		
 		
-		
+
 		mP1NumColor = updateLanguage("mP1NumColor", mP1NumColor);
 		mP1NumColorBlank = updateLanguage("mP1NumColorBlank", mP1NumColorBlank);
 		mP1LabelColor = updateLanguage("mP1LabelColor", mP1LabelColor);
@@ -825,14 +827,14 @@ public class lang{
 		mP1ShadeColorBlank = updateLanguage("mP1ShadeColorBlank", mP1ShadeColorBlank);
 
 
-		
+
 		mP2EnginePanel = updateLanguage("mP2EnginePanel", mP2EnginePanel);
 		mP2EnginePanelBlank = updateLanguage("mP2EnginePanelBlank", mP2EnginePanelBlank);
 		mP2EngineGlassEdge = updateLanguage("mP2EngineGlassEdge", mP2EngineGlassEdge);
 		mP2EngineGlassEdgeBlank = updateLanguage("mP2EngineGlassEdgeBlank", mP2EngineGlassEdgeBlank);
 		mP2PanelFont = updateLanguage("mP2PanelFont", mP2PanelFont);
 		mP2FontAdjust = updateLanguage("mP2FontAdjust", mP2FontAdjust);
-		
+
 		mP2EngineBlank = updateLanguage("mP2EngineBlank", mP2EngineBlank);
 		mP2eiHorsePower = updateLanguage("mP2eiHorsePower", mP2eiHorsePower);
 		mP2eiHorsePowerBlank = updateLanguage("mP2eiHorsePowerBlank", mP2eiHorsePowerBlank);
@@ -864,16 +866,18 @@ public class lang{
 		mP2eiOilTempBlank = updateLanguage("mP2eiOilTempBlank", mP2eiOilTempBlank);
 		mP2eiHeatTolerance = updateLanguage("mP2eiHeatTolerance", mP2eiHeatTolerance);
 		mP2eiHeatToleranceBlank = updateLanguage("mP2eiHeatToleranceBlank", mP2eiHeatToleranceBlank);
-		mP2eiEngResponse = updateLanguage("mP2eiEngResponse", mP2eiEngResponse);        
-        mP2eiEngResponseBlank = updateLanguage("mP2eiEngResponseBlank", mP2eiEngResponseBlank);   
+		mP2eiEngResponse = updateLanguage("mP2eiEngResponse", mP2eiEngResponse);
+		mP2eiEngResponseBlank = updateLanguage("mP2eiEngResponseBlank", mP2eiEngResponseBlank);
         
-		
+
 		mP3Crosshair = updateLanguage("mP3Crosshair", mP3Crosshair);
 		mP3CrosshairBlank = updateLanguage("mP3CrosshairBlank", mP3CrosshairBlank);
 		mP3CrosshairDisplay = updateLanguage("mP3CrosshairDisplay", mP3CrosshairDisplay);
 		mP3CrosshairDisplayBlank = updateLanguage("mP3CrosshairDisplayBlank", mP3CrosshairDisplayBlank);
 		mP3Text = updateLanguage("mP3Text", mP3Text);
 		mP3TextBlank = updateLanguage("mP3TextBlank", mP3TextBlank);
+		mP3FlapAngleBar = updateLanguage("mP3FlapAngleBar", mP3FlapAngleBar);
+		mP3FlapAngleBarBlank = updateLanguage("mP3FlapAngleBarBlank", mP3FlapAngleBarBlank);
 		mP3CrosshairTexture = updateLanguage("mP3CrosshairTexture", mP3CrosshairTexture);
 		mP3CrosshairTextureBlank = updateLanguage("mP3CrosshairTextureBlank", mP3CrosshairTextureBlank);
 		mP3ChooseTexture = updateLanguage("mP3ChooseTexture", mP3ChooseTexture);
@@ -882,7 +886,7 @@ public class lang{
 		mP3MonoFont = updateLanguage("mP3MonoFont", mP3MonoFont);
 		mP3MonoFontBlank = updateLanguage("mP3MonoFontBlank", mP3MonoFontBlank);
 		
-		
+
 		mP4FlightInfoPanel = updateLanguage("mP4FlightInfoPanel", mP4FlightInfoPanel);
 		mP4attitudeIndicatorPanel = updateLanguage("mP4attitudeIndicatorPanel", mP4attitudeIndicatorPanel);
 		mP4attitudeIndicatorPanelBlank = updateLanguage("mP4attitudeIndicatorPanelBlank", mP4attitudeIndicatorPanelBlank);
@@ -933,7 +937,7 @@ public class lang{
 		mP5FMChoose = updateLanguage("mP5FMChoose", mP5FMChoose);
 		mP5FMChooseBlank = updateLanguage("mP5FMChooseBlank", mP5FMChooseBlank);
 		
-		
+
 		mP6AxisPanel = updateLanguage("mP6AxisPanel", mP6AxisPanel);
 		mP6AxisPanelBlank = updateLanguage("mP6AxisPanelBlank", mP6AxisPanelBlank);
 		mP6AxisEdge = updateLanguage("mP6AxisEdge", mP6AxisEdge);
@@ -957,7 +961,7 @@ public class lang{
 		mP6ecLFuelBlank = updateLanguage("mP6ecLFuelBlank", mP6ecLFuelBlank);
 
 
-		
+
 		mFlightInfo = updateLanguage("mFlightInfo", mFlightInfo);
 		mEngineInfo = updateLanguage("mEngineInfo", mEngineInfo);
 		mControlInfo = updateLanguage("mControlInfo", mControlInfo);
@@ -1047,7 +1051,7 @@ public class lang{
 		cSavelog = updateLanguage("cSavelog", cSavelog);
 		cPlsopen = updateLanguage("cPlsopen", cPlsopen);
 		cOpenpad = updateLanguage("cOpenpad", cOpenpad);
-		
+
 		l1 = updateLanguage("l1", l1);
 		l2 = updateLanguage("l2", l2);
 		l3 = updateLanguage("l3", l3);
@@ -1092,14 +1096,14 @@ public class lang{
 		fA_turn2 = updateLanguage("fA_turn2", fA_turn2);
 		fA_turn3 = updateLanguage("fA_turn3", fA_turn3);
 		fA_turn4 = updateLanguage("fA_turn4", fA_turn4);
-		
+
 		noblkx = updateLanguage("noblkx", noblkx);
 		bFmParts = updateLanguage("bFmParts", bFmParts);
 		bCdMin = updateLanguage("bCdMin", bCdMin);
 		bCl0 = updateLanguage("bCl0", bCl0);
 		bAoACrit = updateLanguage("bAoACrit", bAoACrit);
 		bAoACritCl = updateLanguage("bAoACritCl", bAoACritCl);
-		
+
 		bFmVersion = updateLanguage("bFmVersion", bFmVersion);
 		bWeight = updateLanguage("bWeight", bWeight);
 		bCritSpeed = updateLanguage("bCritSpeed", bCritSpeed);
@@ -1112,7 +1116,7 @@ public class lang{
 		bMaxLiftLoad350 = updateLanguage("bMaxLiftLoad350", bMaxLiftLoad350);
 		bLift = updateLanguage("bLift", bLift);
 		bDrag = updateLanguage("bDrag", bDrag);
-		
+
 //		public static String bFmVersion = "FM文件: %s - %s";
 //		public static String bWeight = "空重(kg): %.1f\n最大燃油重量(kg): %.1f\n";
 //		public static String bCritSpeed = "临界速度(km/h): [%.0f, %.0f]\n";
@@ -1122,19 +1126,19 @@ public class lang{
 //		public static String bFlapRestrict = "襟翼限速(km/h)%d: %.0f%% / %.0f\n";
 //		public static String bEffSpeedAndPowerLoss = "三舵有效速度(km/h): [ %.0f, %.0f, %.0f ]\n三舵锁舵因数: [ %.1f, %.1f, %.1f ]\n";
 //		public static String bInertia = "三轴转动惯量: [ %.0f, %.0f, %.0f ]\n";
-//		
+		//
 //		public static String bMaxLiftLoad350 = "千米最大升力过载: %.1f / %.1f(襟) @ 350IAS\n";
-//		
+		//
 //		public static String bLift = "主升力面积: %.1f机翼, %.1f机身\n主升力面积因数载荷: %.2f / %.2f(襟)\n翼展效率: %.2f 展弦比: %.1f 后掠角: %.1f\n";
 //		public static String bDrag = "主阻力面积因数与加速度系数: %.2f / %.2f\n诱导阻力因数及加速度系数: %.3f / %.0f\n散热/油冷器阻力系数: %.3f / %.3f\n";
-//		
+		//
 		//		app.debugPrint("语言初始化完成\n");
 	}
-//	
+	//
 //	public static void initEng(){
 ////		appName = "VoidMei";
 ////		appTooltips = "WT tool for displaying,logging and analyzing flightdata by NWPU-ACer";
-////		
+	////
 ////		close="Close";
 ////		about="About";
 ////		aboutcontent="All information is from locahost:8111. No modification to gamecontent";
@@ -1153,20 +1157,20 @@ public class lang{
 ////		mPreviewWarning="Preview has already open";
 ////		mPositionSaved="Position Saved";
 ////		mPreviewNotOpen="Please open the Preview";
-////		
+	////
 ////		mP1TempNotification="Temperature notification";
 ////		mP1TempNotificationBlank="";
 ////		mP1GlobalNumberFont="Global Font for Numbers";
 ////		mP1GlobalNumberFontBlank="                             ";
 ////		mP1Interval="Data collect interval";
-////		
+	////
 ////		mP2EnginePanel="Engine Panel";
 ////		mP2EnginePanelBlank="";
 ////		mP2EngineGlassEdge="Glass edge";
 ////		mP2EngineGlassEdgeBlank="                                                                ";
 ////		mP2PanelFont="Font in the panel                       ";
 ////		mP2FontAdjust="Fontsize adjustment                    ";
-////		
+	////
 ////		mP3Crosshair="Customed crosshair";
 ////		mP3CrosshairBlank="";
 ////		mP3Text="HUD Text";
@@ -1176,37 +1180,37 @@ public class lang{
 ////		mP3ChooseTexture="Choose the crosshair texture";
 ////		mP3ChooseTextureBlank="";
 ////		mP3CrosshairSize="Crosshair size";
-////		
+	////
 ////		mP4FlightInfoPanel="Flight status Panel";
 ////		mP4FlightInfoBlank="";
 ////		mP4FlightInfoGlassEdge="Glass edge";
 ////		mP4FlightInfoGlassEdgeBlank="                                                                  ";
 ////		mP4PanelFont="Font in the panel                       ";
 ////		mP4FontAdjust="Fontsize adjustment                   ";
-////		
+	////
 ////		mP5LoggingAndCharting="Logging and Charting";
 ////		mP5LoggingAndChartingBlank="";
 ////		mP5Information="Logdata notification";
 ////		mP5InformationBlank="";
-////		
+	////
 ////		mP6AxisPanel="Control surface panel";
 ////		mP6AxisPanelBlank="";
 ////		mP6AxisEdge="Control surface glass edge";
 ////		mP6AxisEdgeBlank="                      ";
 ////		mP6GearAndFlaps="Gear and flaps panel ";
 ////		mP6GearAndFlapsEdge="Gear and flaps glass edge  ";
-////		
+	////
 ////		mFlightInfo="FlightStatus";
 ////		mEngineInfo="EngineStatus";
 ////		mControlInfo="FlightControl";
 ////		mLoggingAndAnalysis="LogAndAnalysis";
 ////		mCrosshair="CustomedCrosshair";
 ////		mAdvancedOption="AdvancedOptions";
-////		
+	////
 ////		//otherService
 ////		oSkeyWord1="heat";
 ////		oSkeyWord2="temp";
-////		
+	////
 ////		//drawFrame
 ////		dFprev="Prev";
 ////		dFnext="Next";
@@ -1226,9 +1230,9 @@ public class lang{
 ////		dFTitle5X="SEP*";
 ////		dFTitle5Y="Altitude";
 ////		dFTitleHZ=" Performance Curve Chart";
-////		
+	////
 ////		//engineInfo
-////		
+	////
 ////		eThrottle="Throttle";
 ////		eProppitch="RPM Thr";
 ////		eMixture="Mixture";
@@ -1249,7 +1253,7 @@ public class lang{
 ////		eOil="Oil";
 ////		eOverheat="Heat";
 ////		eTitle="EnginePanel";
-////		
+	////
 ////		//flightInfo
 ////		fIAS="IAS";
 ////		fTAS="TAS";
@@ -1261,25 +1265,25 @@ public class lang{
 ////		fSEP="SEP*";
 ////		fGL="Load";
 ////		fTitle="FlightStatus";
-////		
+	////
 ////		//gearAndFlaps
 ////		gFlaps="Flaps";
 ////		gTitle="GearAndFlaps";
 ////		gGear="Gear";
 ////		gBrake="Brake";
-////		
+	////
 ////		//statusBar
 ////		sTitle="StatusBar";
 ////		sWait="Waitting for connect";
 ////		sEnter="Watting for gamestart";
 ////		sCheck="Waitting for Start";
-////		
+	////
 ////		//stickValue
 ////		vAileron="Aileron";
 ////		vElevator="Elevator";
 ////		vRudder="Rudder";
 ////		vTitle="Control Surface Panel";
-////		
+	////
 ////		//controller
 ////		cStartlog="Start logging flightdata";
 ////		cSavelog="Flightdata save to";
@@ -1322,7 +1326,7 @@ public class lang{
 ////		l31="AoS β/deg,";
 ////		lfailCreate="Fail to create logging file";
 ////		lfailWrite="Fail to write logging file";
-////		
+	////
 ////		//flightAnalyzer
 ////		fA1="Altitude ";
 ////		fA2="m, spends ";
