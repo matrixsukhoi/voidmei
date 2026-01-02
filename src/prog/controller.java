@@ -483,6 +483,7 @@ public class controller {
 
 		if (uT != null) {
 			uT.doit = false;
+			uT1.interrupt();
 			uT1 = null;
 		}
 
