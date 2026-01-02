@@ -1041,8 +1041,9 @@ public class blkx {
 //		app.debugPrint("Wx_max :" + WxMax);
 //		app.debugPrint("Wx_600 :" + Wx600 +", aileronMax:" + ((600 - aileronEff) * aileronPowerLoss));
 //		s += 		
-		s += String.format(lang.bInertia, MomentOfInertia[0], MomentOfInertia[1], MomentOfInertia[2]);
-		
+		// 三轴转动惯量的值的顺序和三舵的要保持一致, 即pitch, roll, yaw
+		s += String.format(lang.bInertia, MomentOfInertia[2], MomentOfInertia[0], MomentOfInertia[1]);
+
 		s += String.format(lang.bLift, AWing, AFuselage, NoFlapWLL, FullFlapWLL, OswaldsEfficiencyNumber, AspectRatio, SweptWingAngle);
 		
 		s += String.format(lang.bDrag, CdS, CdS/(halfweight / 1000.f), indCdF, halfweight * indCdF, RadiatorCd, OilRadiatorCd);
