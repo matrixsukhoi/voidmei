@@ -8,6 +8,9 @@ import java.awt.Graphics2D;
 
 import java.awt.RenderingHints;
 import java.awt.Toolkit;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseMotionAdapter;
 import com.alee.laf.panel.WebPanel;
 import com.alee.laf.rootpane.WebFrame;
 
@@ -34,6 +37,10 @@ public class drawFrameSimpl extends WebFrame implements Runnable {
 	blkx blkx;
 	double fY[];
 	double fX[];
+	public boolean isPreview = false;
+	int isDragging = 0;
+	int xx, yy;
+
 	void paintAction(Graphics g, blkx fmblk) {
 		Graphics2D g2d = (Graphics2D) g;
 		// 开始绘图
@@ -50,18 +57,18 @@ public class drawFrameSimpl extends WebFrame implements Runnable {
 
 		double xmin = findMin(xn);
 		double xmax = findMax(xn);
-		
+
 		// app.debugPrint(xmin+" "+xmax);
 		double ymin = findMin(fmblk.maxThrAft[fmblk.altThrNum - 1]);
 		double ymax = findMax(fmblk.maxThrAft[0]);
-		
-//		xmax对齐10
-		xmin = (double)(((int)(xmin/10))  *10);
-		xmax = (double)((int)(xmax/10)*10);
-		ymin = (double)(((int)(ymin/10)) *10);
-		ymax = (double)((int)(ymax/10)*10);
+
+		// xmax对齐10
+		xmin = (double) (((int) (xmin / 10)) * 10);
+		xmax = (double) ((int) (xmax / 10) * 10);
+		ymin = (double) (((int) (ymin / 10)) * 10);
+		ymax = (double) ((int) (ymax / 10) * 10);
 		int dwidth = 800;
-		int dheight  = 400;
+		int dheight = 400;
 		int xgap = Math.round((((int) xmax + 1 - (int) xmin) / 5) / 5.0f) * 5;
 		int ygap = Math.round((((int) ymax + 1 - (int) ymin) / 5) / 5.0f) * 5;
 		int pxmin = (int) xmin;
@@ -77,14 +84,15 @@ public class drawFrameSimpl extends WebFrame implements Runnable {
 			ggy4 = (double) dheight / (double) (pymax - pymin);
 		}
 		int fontsize = 12;
-		int rgbx = (int)(255.0f/(fmblk.altThrNum+1));	
+		int rgbx = (int) (255.0f / (fmblk.altThrNum + 1));
 		drawXY(g2d, 50, 50, dwidth, dheight, "推力-真空速曲线", "真空速", "推力", "km/h", "kgf", xmin, xmax, ymin, ymax,
 				xgap, ygap, fontsize);
 		for (int i = 0; i < fmblk.altThrNum; i++) {
 			drawPoint(g2d, 50, 50, dwidth, dheight, ggx4, ggy4, xn, fmblk.maxThrAft[i], pxmin, pymin,
-					new Color((i+1) *rgbx , (i+1) *rgbx , (i+1) *rgbx , 250));
-			
-			drawExample(g2d, dwidth - 40 , 60 + i * fontsize - dheight, dheight, new Color((i+1) *rgbx , (i+1) *rgbx , (i+1) *rgbx , 250),
+					new Color((i + 1) * rgbx, (i + 1) * rgbx, (i + 1) * rgbx, 250));
+
+			drawExample(g2d, dwidth - 40, 60 + i * fontsize - dheight, dheight,
+					new Color((i + 1) * rgbx, (i + 1) * rgbx, (i + 1) * rgbx, 250),
 					String.format("高度%.0fm", fmblk.altitudeThr[i]), fontsize);
 		}
 
@@ -92,6 +100,7 @@ public class drawFrameSimpl extends WebFrame implements Runnable {
 
 		// 连接点
 	}
+
 	double findMin(double X[]) {
 		int i;
 		double min = Float.MAX_VALUE;
@@ -154,7 +163,7 @@ public class drawFrameSimpl extends WebFrame implements Runnable {
 
 	void initpanel() {
 		panel.setWebColoredBackground(false);
-		panel.setBackground(new Color(0,0,0,0));
+		panel.setBackground(new Color(0, 0, 0, 0));
 	}
 
 	void setFrameOpaque() {
@@ -193,7 +202,8 @@ public class drawFrameSimpl extends WebFrame implements Runnable {
 	}
 
 	void drawXY(Graphics2D g, int x, int y, int dwidth, int dheight, String title, String xName, String yName,
-			String xD, String yD, double xmin, double xmax, double ymin, double ymax, int xgap, int ygap, int fontsize) {
+			String xD, String yD, double xmin, double xmax, double ymin, double ymax, int xgap, int ygap,
+			int fontsize) {
 		// 确定画笔
 		g.setStroke(new BasicStroke(3));
 		g.setColor(new Color(0, 0, 0, 250));
@@ -217,7 +227,7 @@ public class drawFrameSimpl extends WebFrame implements Runnable {
 		}
 
 		// 标题
-		g.setFont(new Font(app.defaultFontName, Font.PLAIN, fontsize+6));
+		g.setFont(new Font(app.defaultFontName, Font.PLAIN, fontsize + 6));
 		g.drawString(title, x + dwidth / 2, y);
 		y = y + 10;// 往下推10
 		g.setFont(new Font(app.defaultFontName, Font.PLAIN, fontsize));
@@ -233,7 +243,7 @@ public class drawFrameSimpl extends WebFrame implements Runnable {
 			g.drawString(String.valueOf(pxmin + ii * intervalX), (int) (x + ii * intervalX * ggx), y + dheight + 15);
 		}
 		// x轴单位
-		g.setFont(new Font(app.defaultFontName, Font.PLAIN, fontsize+4));
+		g.setFont(new Font(app.defaultFontName, Font.PLAIN, fontsize + 4));
 		g.drawString(xD, x + dwidth + 5, y + dheight);
 		g.setFont(new Font(app.defaultFontName, Font.PLAIN, fontsize));
 
@@ -250,12 +260,13 @@ public class drawFrameSimpl extends WebFrame implements Runnable {
 			g.drawString(String.valueOf(pymin + ii * intervalY), x - 40, (int) (y + dheight - ii * intervalY * ggy));
 		}
 		// y轴单位
-		g.setFont(new Font(app.defaultFontName, Font.PLAIN, fontsize+4));
+		g.setFont(new Font(app.defaultFontName, Font.PLAIN, fontsize + 4));
 		g.drawString(yD, x - 5, y - 10);
 
 	}
 
-	void drawPoint(Graphics2D g, int x, int y, int dwidth, int dheight, double ggx, double ggy, double ix[], double iy[],
+	void drawPoint(Graphics2D g, int x, int y, int dwidth, int dheight, double ggx, double ggy, double ix[],
+			double iy[],
 			int pxmin, int pymin, Color C) {
 		g.setStroke(new BasicStroke(1));
 		g.setColor(C);
@@ -479,25 +490,25 @@ public class drawFrameSimpl extends WebFrame implements Runnable {
 				g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
 				// 绘制坐标系
-				double[] xn = new double[blkx.velThrNum];
-				for (int i = 0; i < blkx.velThrNum; i++) {
-					xn[i] = blkx.velocityThr[i];
+				double[] xn = new double[xc.blkx.velThrNum];
+				for (int i = 0; i < xc.blkx.velThrNum; i++) {
+					xn[i] = xc.blkx.velocityThr[i];
 				}
 
 				double xmin = findMin(xn);
 				double xmax = findMax(xn);
-				
+
 				// app.debugPrint(xmin+" "+xmax);
 				double ymin = findMin(blkx.maxThrAft[blkx.altThrNum - 1]);
 				double ymax = findMax(blkx.maxThrAft[0]);
-				
-//				xmax对齐10
-				xmin = (double)(((int)(xmin/10))  *10);
-				xmax = (double)((int)(xmax/10)*10);
-				ymin = (double)(((int)(ymin/10)) *10);
-				ymax = (double)((int)(ymax/10)*10);
+
+				// xmax对齐10
+				xmin = (double) (((int) (xmin / 10)) * 10);
+				xmax = (double) ((int) (xmax / 10) * 10);
+				ymin = (double) (((int) (ymin / 10)) * 10);
+				ymax = (double) ((int) (ymax / 10) * 10);
 				int dwidth = 800;
-				int dheight  = 400;
+				int dheight = 400;
 				int xgap = Math.round((((int) xmax + 1 - (int) xmin) / 5) / 5.0f) * 5;
 				int ygap = Math.round((((int) ymax + 1 - (int) ymin) / 5) / 5.0f) * 5;
 				int pxmin = (int) xmin;
@@ -513,14 +524,15 @@ public class drawFrameSimpl extends WebFrame implements Runnable {
 					ggy4 = (double) dheight / (double) (pymax - pymin);
 				}
 				int fontsize = 12;
-				int rgbx = (int)(255.0f/(blkx.altThrNum+1));	
+				int rgbx = (int) (255.0f / (blkx.altThrNum + 1));
 				drawXY(g2d, 50, 50, dwidth, dheight, "推力-真空速曲线", "真空速", "推力", "km/h", "kgf", xmin, xmax, ymin, ymax,
 						xgap, ygap, fontsize);
 				for (int i = 0; i < blkx.altThrNum; i++) {
 					drawPoint(g2d, 50, 50, dwidth, dheight, ggx4, ggy4, xn, blkx.maxThrAft[i], pxmin, pymin,
-							new Color((i+1) *rgbx , (i+1) *rgbx , (i+1) *rgbx , 250));
-					
-					drawExample(g2d, dwidth - 40 , 60 + i * fontsize - dheight, dheight, new Color((i+1) *rgbx , (i+1) *rgbx , (i+1) *rgbx , 250),
+							new Color((i + 1) * rgbx, (i + 1) * rgbx, (i + 1) * rgbx, 250));
+
+					drawExample(g2d, dwidth - 40, 60 + i * fontsize - dheight, dheight,
+							new Color((i + 1) * rgbx, (i + 1) * rgbx, (i + 1) * rgbx, 250),
 							String.format("高度%.0fm", blkx.altitudeThr[i]), fontsize);
 				}
 
@@ -541,34 +553,79 @@ public class drawFrameSimpl extends WebFrame implements Runnable {
 		setDefaultCloseOperation(2);
 		setTitle(lang.dFTitleHZ);
 		setAlwaysOnTop(true);
-		
+
 		this.setCursor(app.blankCursor);
 		setFocusable(false);
 		setFocusableWindowState(false);// 取消窗口焦点
 		setVisible(true);
-		
+
+	}
+
+	public void initPreview(controller c) {
+		isPreview = true;
+		init(c);
+		this.getWebRootPaneUI().setMiddleBg(app.previewColor);
+		this.getWebRootPaneUI().setTopBg(app.previewColor);
+
+		// 预览模式下的拖拽支持
+		addMouseListener(new MouseAdapter() {
+			@Override
+			public void mousePressed(MouseEvent e) {
+				isDragging = 1;
+				xx = e.getX();
+				yy = e.getY();
+			}
+
+			@Override
+			public void mouseReleased(MouseEvent e) {
+				isDragging = 0;
+			}
+		});
+
+		addMouseMotionListener(new MouseMotionAdapter() {
+			@Override
+			public void mouseDragged(MouseEvent e) {
+				if (isDragging == 1) {
+					int left = getLocation().x;
+					int top = getLocation().y;
+					setLocation(left + e.getX() - xx, top + e.getY() - yy);
+					saveCurrentPosition();
+					setVisible(true);
+					repaint();
+				}
+			}
+		});
+		this.setCursor(null);
+		setVisible(true);
+	}
+
+	public void reinitConfig() {
+		// 刷新配置逻辑（如果需要）
+	}
+
+	public void saveCurrentPosition() {
+		xc.setconfig("thrustdFSX", Integer.toString(this.getLocation().x));
+		xc.setconfig("thrustdFSY", Integer.toString(this.getLocation().y));
 	}
 
 	@Override
 	public void run() {
 		while (doit) {
-			
-			if (app.displayFm){
+
+			if (isPreview || app.displayFm) {
 				this.setVisible(true);
 				this.getContentPane().repaint();
-			}
-			else{
+			} else {
 				this.setVisible(false);
 			}
-			if (app.displayFmCtrl){
+			if (app.displayFmCtrl) {
 				try {
 					Thread.sleep(1000);
 				} catch (InterruptedException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
-			}
-			else{
+			} else {
 				if (this.xc.S.sState.gear != 100 || (this.xc.S.speedv > 10 && this.xc.S.sState.throttle > 0)) {
 					// 如果收起落架则关闭break
 					try {
@@ -576,7 +633,7 @@ public class drawFrameSimpl extends WebFrame implements Runnable {
 					} catch (InterruptedException e) {
 						// TODO Auto-generated catch block
 						e.printStackTrace();
-					}	
+					}
 					break;
 				}
 			}

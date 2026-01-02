@@ -694,6 +694,7 @@ public class controller {
 				FI.reinitConfig();
 			}
 		} else if (FI != null) {
+			FI.doit = false;
 			FI.dispose();
 			FI = null;
 		}
@@ -707,6 +708,7 @@ public class controller {
 				F.reinitConfig();
 			}
 		} else if (F != null) {
+			F.doit = false;
 			F.dispose();
 			F = null;
 		}
@@ -720,6 +722,7 @@ public class controller {
 				H.reinitConfig();
 			}
 		} else if (H != null) {
+			H.doit = false;
 			H.dispose();
 			H = null;
 		}
@@ -733,6 +736,7 @@ public class controller {
 				FL.reinitConfig();
 			}
 		} else if (FL != null) {
+			FL.doit = false;
 			FL.dispose();
 			FL = null;
 		}
@@ -746,6 +750,7 @@ public class controller {
 				sV.reinitConfig();
 			}
 		} else if (sV != null) {
+			sV.doit = false;
 			sV.dispose();
 			sV = null;
 		}
@@ -759,6 +764,7 @@ public class controller {
 				aI.reinitConfig();
 			}
 		} else if (aI != null) {
+			aI.doit = false;
 			aI.dispose();
 			aI = null;
 		}
@@ -772,6 +778,7 @@ public class controller {
 				fS.reinitConfig();
 			}
 		} else if (fS != null) {
+			fS.doit = false;
 			fS.dispose();
 			fS = null;
 		}
@@ -785,8 +792,55 @@ public class controller {
 				SA.reinitConfig();
 			}
 		} else if (SA != null) {
+			SA.doit = false;
 			SA.dispose();
 			SA = null;
+		}
+
+		// someUsefulData (Unpacked Info)
+		if (Boolean.parseBoolean(getconfig("enableFMPrint"))) {
+			// 确保 blkx 已初始化以便预览
+			if (blkx == null) {
+				String planeName = getconfig("selectedFM0");
+				if (planeName != null && !planeName.isEmpty()) {
+					getfmdata(planeName);
+				}
+			}
+
+			if (pt == null) {
+				pt = new someUsefulData();
+				pt1 = new Thread(pt);
+				pt.initPreview(this, blkx);
+				pt1.start();
+			} else {
+				pt.reinitConfig(blkx);
+			}
+
+			// drawFrameSimpl (Thrust curve)
+			if (blkx != null && blkx.isJet) {
+				if (thrustdFS == null) {
+					thrustdFS = new drawFrameSimpl();
+					thrustdFS1 = new Thread(thrustdFS);
+					thrustdFS.initPreview(this);
+					thrustdFS1.start();
+				} else {
+					thrustdFS.reinitConfig();
+				}
+			} else if (thrustdFS != null) {
+				thrustdFS.dispose();
+				thrustdFS = null;
+			}
+		} else {
+			if (pt != null) {
+				pt.doit = false;
+				pt.dispose();
+				pt = null;
+			}
+			if (thrustdFS != null) {
+				thrustdFS.doit = false;
+				thrustdFS.dispose();
+				thrustdFS = null;
+			}
 		}
 	}
 
@@ -796,45 +850,66 @@ public class controller {
 		// app.debugPrint(F.getLocationOnScreen().y);
 		if (Boolean.parseBoolean(getconfig("engineInfoSwitch"))) {
 			FI.saveCurrentPosition();
+			FI.doit = false;
 			FI.dispose();
 			FI = null;
 		}
 		if (Boolean.parseBoolean(getconfig("enableEngineControl"))) {
 			F.saveCurrentPosition();
+			F.doit = false;
 			F.dispose();
 			F = null;
 		}
 
 		if (Boolean.parseBoolean(getconfig("crosshairSwitch"))) {
 			H.saveCurrentPosition();
+			H.doit = false;
 			H.dispose();
 			H = null;
 		}
 		if (Boolean.parseBoolean(getconfig("flightInfoSwitch"))) {
 			FL.saveCurrentPosition();
+			FL.doit = false;
 			FL.dispose();
 			FL = null;
 		}
 		if (Boolean.parseBoolean(getconfig("enableAxis"))) {
 			sV.saveCurrentPosition();
+			sV.doit = false;
 			sV.dispose();
 			sV = null;
 		}
 		if (Boolean.parseBoolean(getconfig("enableAttitudeIndicator"))) {
 			aI.saveCurrentPosition();
+			aI.doit = false;
 			aI.dispose();
 			aI = null;
 		}
 
 		if (Boolean.parseBoolean(getconfig("enablegearAndFlaps"))) {
 			fS.saveCurrentPosition();
+			fS.doit = false;
 			fS.dispose();
 			fS = null;
 		}
 		if (app.debug) {
 			SA.saveCurrentPosition();
+			SA.doit = false;
 			SA.dispose();
 			SA = null;
+		}
+
+		if (pt != null) {
+			pt.saveCurrentPosition();
+			pt.doit = false;
+			pt.dispose();
+			pt = null;
+		}
+		if (thrustdFS != null) {
+			thrustdFS.saveCurrentPosition();
+			thrustdFS.doit = false;
+			thrustdFS.dispose();
+			thrustdFS = null;
 		}
 		saveconfig();
 

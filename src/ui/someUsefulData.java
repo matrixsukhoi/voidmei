@@ -35,6 +35,9 @@ public class someUsefulData extends WebFrame implements Runnable {
 	String lastFmData = "";
 	int fontSize = 16;
 	float scaleFactor = 1.0f;
+	public boolean isPreview = false;
+	int isDragging = 0;
+	int xx, yy;
 
 	public void init(controller c, blkx p) {
 		xc = c;
@@ -176,6 +179,64 @@ public class someUsefulData extends WebFrame implements Runnable {
 
 	}
 
+	public void initPreview(controller c, blkx p) {
+		isPreview = true;
+		init(c, p);
+		this.getWebRootPaneUI().setMiddleBg(app.previewColor);
+		this.getWebRootPaneUI().setTopBg(app.previewColor);
+
+		// 预览模式下的拖拽支持
+		addMouseListener(new MouseAdapter() {
+			@Override
+			public void mousePressed(MouseEvent e) {
+				isDragging = 1;
+				xx = e.getX();
+				yy = e.getY();
+			}
+
+			@Override
+			public void mouseReleased(MouseEvent e) {
+				isDragging = 0;
+			}
+		});
+
+		addMouseMotionListener(new MouseMotionAdapter() {
+			@Override
+			public void mouseDragged(MouseEvent e) {
+				if (isDragging == 1) {
+					int left = getLocation().x;
+					int top = getLocation().y;
+					setLocation(left + e.getX() - xx, top + e.getY() - yy);
+					saveCurrentPosition();
+					setVisible(true);
+					repaint();
+				}
+			}
+		});
+		this.setCursor(null);
+		setVisible(true);
+	}
+
+	public void reinitConfig(blkx p) {
+		this.xp = p;
+		if (xc.getconfig("MonoNumFont") != "")
+			FontName = xc.getconfig("MonoNumFont");
+		else if (xc.getconfig("flightInfoFontC") != "")
+			FontName = xc.getconfig("flightInfoFontC");
+
+		if (!FontName.isEmpty()) {
+			displayFont = new Font(FontName, Font.PLAIN, fontSize);
+		} else {
+			displayFont = new Font(app.defaultNumfontName, Font.PLAIN, fontSize);
+		}
+		lastFmData = ""; // 强制刷新
+	}
+
+	public void saveCurrentPosition() {
+		xc.setconfig("someUsefulDataX", Integer.toString(this.getLocation().x));
+		xc.setconfig("someUsefulDataY", Integer.toString(this.getLocation().y));
+	}
+
 	public void S() {
 		title.setText(xp.fmdata);
 		repaint();
@@ -191,9 +252,9 @@ public class someUsefulData extends WebFrame implements Runnable {
 	@Override
 	public void run() {
 		while (doit) {
-			String currentText = xp.fmdata;
+			String currentText = xc.blkx != null ? xc.blkx.fmdata : "FM Data Preview\n[No Data Loaded]";
 
-			if (app.displayFm) {
+			if (isPreview || app.displayFm) {
 				// 检查数据是否变化
 				if (!currentText.equals(lastFmData)) {
 					lastFmData = currentText;

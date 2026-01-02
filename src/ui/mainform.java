@@ -1565,10 +1565,8 @@ public class mainform extends WebFrame implements Runnable {
 	}
 
 	public void confirm() {
-		if (moveCheckFlag) {
-			tc.endPreview();
-			moveCheckFlag = false;
-		}
+		tc.endPreview();
+		moveCheckFlag = false;
 		saveconfig();
 		tc.saveconfig();
 		tc.loadFromConfig();
