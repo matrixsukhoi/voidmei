@@ -678,6 +678,7 @@ public class minimalHUD extends WebFrame implements Runnable {
 	private double flapA;
 	private double flapAllowA;
 	private String lineFlapAngle;
+	private boolean enableFlapAngleBar;
 
 	public void init(controller c, service s, otherService os) {
 		int lx;
@@ -746,6 +747,12 @@ public class minimalHUD extends WebFrame implements Runnable {
 			aoaBarWarningRatio = Double.parseDouble(xc.getconfig("miniHUDaoaBarWarningRatio"));
 		} else {
 			aoaBarWarningRatio = 0;
+		}
+
+		if (xc.getconfig("enableFlapAngleBar") != "") {
+			enableFlapAngleBar = Boolean.parseBoolean(xc.getconfig("enableFlapAngleBar"));
+		} else {
+			enableFlapAngleBar = true;
 		}
 
 		HUDFontsize = CrossWidth / 4;
@@ -889,8 +896,10 @@ public class minimalHUD extends WebFrame implements Runnable {
 				if (on) {
 					// 绘制襟翼角度
 					// 显示在顶部, 并向右偏移以避开左侧油门条
-					int flapXOffset = barWidth + 3 * drawFontSSmall.getSize() / 2;
-					drawFlapAngleBar(g2d, HUDFontsize / 2 + flapXOffset, (int) (HUDFontsize * 1.2));
+					if (enableFlapAngleBar) {
+						int flapXOffset = barWidth + 3 * drawFontSSmall.getSize() / 2;
+						drawFlapAngleBar(g2d, HUDFontsize / 2 + flapXOffset, (int) (HUDFontsize * 1.2));
+					}
 
 					drawTextseries(g2d, HUDFontsize / 2, (int) (HUDFontsize * 2.5));
 
@@ -929,7 +938,7 @@ public class minimalHUD extends WebFrame implements Runnable {
 		blinkTicks = (int) ((1000 / xc.freqService) >> 3);
 		if (blinkTicks == 0)
 			blinkTicks = 1;
-		
+
 		setTitle("miniHUD");
 		uiWebLafSetting.setWindowOpaque(this);
 		root = this.getContentPane();

@@ -81,6 +81,7 @@ public class mainform extends WebFrame implements Runnable {
 	WebSwitch bTextureCrosshairSwitch;
 	WebComboBox sCrosshairName;
 	WebSwitch bDrawHudTextSwitch;
+	WebSwitch bFlapBarSwitch; // 襟翼条显示开关
 
 	WebSwitch bEnableLogging;
 	WebSwitch bEnableInformation;
@@ -462,16 +463,16 @@ public class mainform extends WebFrame implements Runnable {
 ////		popOver1.setMargin(5);
 //		popOver1.setLayout(new VerticalFlowLayout());
 //		WebPanel panel = new WebPanel() {
-//
+		//
 //			private static final long serialVersionUID = -9061280572815010060L;
-//
+		//
 //			public void paintComponent(Graphics g) {
-//				
+		//
 //				drawFrameSimpl.paintAction(g, fmblk);
 //			}
-//
+		//
 //		};
-//
+		//
 //		panel.setBounds(0, Toolkit.getDefaultToolkit().getScreenSize().height - 500, 900, 500);
 //		panel.setWebColoredBackground(false);
 //		panel.setBackground(new Color(0,0,0,0));
@@ -486,8 +487,8 @@ public class mainform extends WebFrame implements Runnable {
 //		closeButton1.setFont(app.defaultFont);
 //		closeButton1.setFontSize((int) (app.defaultFontsize * 1.5f));
 //		closeButton1.setFontStyle(Font.BOLD);
-//		
-//		
+		//
+		//
 //		popOver1.add(panel);
 //		popOver1.setFont(app.defaultFont);
 //		popOver1.add(closeButton1);
@@ -556,7 +557,7 @@ public class mainform extends WebFrame implements Runnable {
 //        {
 //            private WebColorChooserDialog colorChooser = null;
 //            private Color lastColor = initialColor;
-//
+		//
 //            @Override
 //            public void actionPerformed ( final ActionEvent e )
 //            {
@@ -566,12 +567,12 @@ public class mainform extends WebFrame implements Runnable {
 //                }
 //                colorChooser.setColor ( lastColor );
 //                colorChooser.setVisible ( true );
-//
+		//
 //                if ( colorChooser.getResult () == DialogOptions.OK_OPTION )
 //                {
 //                    final Color color = colorChooser.getColor ();
 //                    lastColor = color;
-//
+		//
 //                    colorChooserButton.setIcon ( ImageUtils.createColorIcon ( color ) );
 //                    colorChooserButton.setText ( getColorText ( color ) );
 //                }
@@ -897,7 +898,7 @@ public class mainform extends WebFrame implements Runnable {
 
 //		bEngineInfoHp = createLCGroup(topPanel, language.mP4fiIAS);
 //		createvoidWebLabel(topPanel,language.mP4fiIASBlank);
-//		
+		//
 
 		// createLCGroup(topPanel, "面板透明度 ");
 		// createLBGroup(topPanel);
@@ -945,6 +946,8 @@ public class mainform extends WebFrame implements Runnable {
 		createvoidWebLabel(topPanel, lang.mP3CrosshairBlank);
 		bDrawHudTextSwitch = createLCGroup(topPanel, lang.mP3Text);
 		createvoidWebLabel(topPanel, lang.mP3TextBlank);
+		bFlapBarSwitch = createLCGroup(topPanel, lang.mP3FlapAngleBar);
+		createvoidWebLabel(topPanel, lang.mP3FlapAngleBarBlank);
 		bTextureCrosshairSwitch = createLCGroup(topPanel, lang.mP3CrosshairTexture);
 		createvoidWebLabel(topPanel, lang.mP3CrosshairTextureBlank);
 		sCrosshairName = createCrosshairList(topPanel, lang.mP3ChooseTexture);
@@ -1313,6 +1316,7 @@ public class mainform extends WebFrame implements Runnable {
 		bTextureCrosshairSwitch.setSelected(Boolean.parseBoolean(tc.getconfig("usetexturecrosshair")));
 		sCrosshairName.setSelectedItem(tc.getconfig("crosshairName"));
 		bDrawHudTextSwitch.setSelected(Boolean.parseBoolean(tc.getconfig("drawHUDtext")));
+		bFlapBarSwitch.setSelected(Boolean.parseBoolean(tc.getconfig("enableFlapAngleBar")));
 		bcrosshairdisplaySwitch.setSelected(Boolean.parseBoolean(tc.getconfig("displayCrosshair")));
 		sMonoFont.setSelectedItem(tc.getconfig("MonoNumFont"));
 
@@ -1381,6 +1385,7 @@ public class mainform extends WebFrame implements Runnable {
 		tc.setconfig("usetexturecrosshair", Boolean.toString(Boolean.FALSE));
 		tc.setconfig("crosshairName", sCrosshairName.getSelectedItem().toString());
 		tc.setconfig("drawHUDtext", Boolean.toString(Boolean.FALSE));
+		tc.setconfig("enableFlapAngleBar", Boolean.toString(Boolean.TRUE));
 		tc.setconfig("displayCrossharir", Boolean.toString(Boolean.FALSE));
 
 		if (app.debug)
@@ -1464,6 +1469,7 @@ public class mainform extends WebFrame implements Runnable {
 		tc.setconfig("usetexturecrosshair", Boolean.toString(bTextureCrosshairSwitch.isSelected()));
 		tc.setconfig("crosshairName", sCrosshairName.getSelectedItem().toString());
 		tc.setconfig("drawHUDtext", Boolean.toString(bDrawHudTextSwitch.isSelected()));
+		tc.setconfig("enableFlapAngleBar", Boolean.toString(bFlapBarSwitch.isSelected()));
 		tc.setconfig("displayCrosshair", Boolean.toString(bcrosshairdisplaySwitch.isSelected()));
 		tc.setconfig("MonoNumFont", sMonoFont.getSelectedItem().toString());
 
