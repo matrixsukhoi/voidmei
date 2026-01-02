@@ -155,6 +155,8 @@ public class attitudeIndicator extends WebFrame implements Runnable {
 					int left = getLocation().x;
 					int top = getLocation().y;
 					setLocation(left + e.getX() - xx, top + e.getY() - yy);
+					xc.setconfig("attitudeIndicatorX", Integer.toString(getLocation().x));
+					xc.setconfig("attitudeIndicatorY", Integer.toString(getLocation().y));
 					setVisible(true);
 					repaint();
 				}
@@ -360,13 +362,10 @@ public class attitudeIndicator extends WebFrame implements Runnable {
 		toppanel.add(panel);
 	}
 
-	public void init(controller c, service s) {
-		int lx = 0;
-		int ly = 0;
+	int lx;
+	int ly;
 
-		xc = c;
-		xs = s;
-		// app.debugPrint("stickValue初始化了");
+	public void reinitConfig() {
 		if (xc.getconfig("GlobalNumFont") != "")
 			NumFont = xc.getconfig("GlobalNumFont");
 		else
@@ -406,9 +405,30 @@ public class attitudeIndicator extends WebFrame implements Runnable {
 
 		showAoALimits = true;
 		if (xc.getconfig("attitudeIndicatorDisplayAoALimits") != "")
-			showAoALimits = Boolean.parseBoolean(xc.getconfig("attitudeIndicatorDisplayDirection"));
+			showAoALimits = Boolean.parseBoolean(xc.getconfig("attitudeIndicatorDisplayAoALimits"));
 
 		setFrameOpaque();
+
+		// 旋转中心需要更新
+		pC = new Point(xWidth / 2, xHeight / 2);
+
+		if (xc.getconfig("enableAttituteIndicatorEdge").equals("true"))
+			setShadeWidth(10);
+		else
+			setShadeWidth(0);
+
+		this.setBounds(lx, ly, xWidth + 4, xHeight + 4);
+		repaint();
+	}
+
+	public void init(controller c, service s) {
+		xc = c;
+		xs = s;
+
+		reinitConfig();
+
+		pX = new int[4];
+		pY = new int[4];
 
 		pX = new int[4];
 		pY = new int[4];

@@ -117,6 +117,8 @@ public class engineInfo extends WebFrame implements Runnable {
 					int left = getLocation().x;
 					int top = getLocation().y;
 					setLocation(left + e.getX() - xx, top + e.getY() - yy);
+					xc.setconfig("engineInfoX", Integer.toString(getLocation().x));
+					xc.setconfig("engineInfoY", Integer.toString(getLocation().y));
 					setVisible(true);
 					repaint();
 				}
@@ -499,14 +501,7 @@ public class engineInfo extends WebFrame implements Runnable {
 
 	}
 
-	public void init(controller xc, service ts, blkx tp) {
-		this.xc = xc;
-		this.s = ts;
-		this.p = tp;
-
-		overheattime = 0;
-		freq = xc.freqEngineInfo;
-
+	public void reinitConfig() {
 		if (xc.getconfig("GlobalNumFont") != "")
 			NumFont = xc.getconfig("GlobalNumFont");
 		else
@@ -530,10 +525,6 @@ public class engineInfo extends WebFrame implements Runnable {
 		else
 			ly = 860;
 
-		// setIconImage(Toolkit.getDefaultToolkit().createImage("image/form1.jpg"));
-
-		// 初始化Panel
-		// initPanel();
 		fontsize = 24 + fontadd;
 		// 设置字体
 		fontNum = new Font(NumFont, Font.BOLD, fontsize);
@@ -541,25 +532,41 @@ public class engineInfo extends WebFrame implements Runnable {
 		fontUnit = new Font(NumFont, Font.PLAIN, Math.round(fontsize / 2.0f));
 
 		numHeight = getFontMetrics(fontNum).getHeight();
-		getFontMetrics(fontLabel).getHeight();
 
-		// numWidth = getFontMetrics(fontNum).getWidths();
 		// 列
 		if (xc.getconfig("engineInfoColumn") != "")
 			columnNum = Integer.parseInt(xc.getconfig("engineInfoColumn"));
 		else
 			columnNum = 3;
 
+		useNum = 0; // 重置计数
 		initTextString();
 
 		int addnum = (useNum % columnNum == 0) ? 0 : 1;
 
 		WIDTH = (fontsize >> 1) + (int) ((columnNum + 0.5) * 5f * fontsize);
 		HEIGHT = (int) (numHeight + (useNum / columnNum + addnum + 1) * 1.0f * numHeight);
-		// OP = 100;
+
+		if (xc.getconfig("engineInfoEdge").equals("true"))
+			setShadeWidth(10);// 玻璃效果边框
+		else
+			setShadeWidth(0);
+
+		this.setBounds(lx, ly, WIDTH, HEIGHT);
+		repaint();
+	}
+
+	public void init(controller xc, service ts, blkx tp) {
+		this.xc = xc;
+		this.s = ts;
+		this.p = tp;
+
+		overheattime = 0;
+		freq = xc.freqEngineInfo;
+
+		reinitConfig();
 
 		doffset = new int[2];
-		this.setBounds(lx, ly, WIDTH, HEIGHT);
 
 		panel = new WebPanel() {
 

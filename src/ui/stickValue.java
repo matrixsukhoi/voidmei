@@ -112,6 +112,8 @@ public class stickValue extends WebFrame implements Runnable {
 					int left = getLocation().x;
 					int top = getLocation().y;
 					setLocation(left + e.getX() - xx, top + e.getY() - yy);
+					xc.setconfig("stickValueX", Integer.toString(getLocation().x));
+					xc.setconfig("stickValueY", Integer.toString(getLocation().y));
 					setVisible(true);
 					repaint();
 				}
@@ -400,7 +402,42 @@ public class stickValue extends WebFrame implements Runnable {
 			fontadd = Integer.parseInt(xc.getconfig("flightInfoFontaddC"));
 		else
 			fontadd = 0;
-		
+
+		fontSize = 24 + fontadd;
+		fontNum = new Font(NumFont, Font.BOLD, fontSize);
+		fontLabel = new Font(FontName, Font.BOLD, Math.round(fontSize / 2.0f));
+		fontUnit = new Font(NumFont, Font.PLAIN, Math.round(fontSize / 2.0f));
+
+		width = fontSize * 6;
+
+		rudderValPix = (50 + 100) * width / 200;
+		height = width;
+
+		int twidth = (int) (width + 4 * fontSize);
+		int theight = (int) (height + 1.5 * fontSize);
+
+		this.setBounds(lx, ly, twidth, theight);
+
+		px = width / 2;
+		py = width / 2;
+
+		locateSize = width / 30;
+		strokeSize = width / 60;
+
+		if (xc.getconfig("enableAxisEdge").equals("true"))
+			setShadeWidth(10);
+		else
+			setShadeWidth(0);
+
+		repaint();
+	}
+
+	public void init(controller c, service s) {
+		xc = c;
+		xs = s;
+
+		reinitConfig();
+
 		sElevator = "50";
 		sElevatorLabel = lang.vElevator;
 		sElevatorUnit = "%";
@@ -416,20 +453,7 @@ public class stickValue extends WebFrame implements Runnable {
 		sWingSweep = "50";
 		sWingSweepLabel = lang.vVarioW;
 		sWingSweepUnit = "%";
-		
-		
-		fontSize = 24 + fontadd;
-		fontNum = new Font(NumFont, Font.BOLD, fontSize);
-		fontLabel = new Font(FontName, Font.BOLD, Math.round(fontSize / 2.0f));
-		fontUnit = new Font(NumFont, Font.PLAIN, Math.round(fontSize / 2.0f));
-		
-		
-		width = fontSize * 6;
 
-
-		rudderValPix = (50 + 100) * width / 200;
-		height = width;
-		
 		setFrameOpaque();
 		
 		int twidth = (int)(width + 4 * fontSize);

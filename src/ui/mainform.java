@@ -92,6 +92,7 @@ public class mainform extends WebFrame implements Runnable {
 	WebSwitch bEnablegearAndFlapsEdge;
 
 	Boolean moveCheckFlag;
+	public boolean isInitializing = false;
 
 	WebSwitch bTempInfoSwitch;
 	WebSlider iInterval;
@@ -266,6 +267,13 @@ public class mainform extends WebFrame implements Runnable {
 		// comboBox.getWebUI().setExpandedBgColor(new Color(0, 0, 0, 0));
 		comboBox.setBackground(new Color(0, 0, 0, 0));
 
+		comboBox.addActionListener(e -> {
+			if (isInitializing)
+				return;
+			saveconfig();
+			tc.refreshPreviews();
+		});
+
 		topPanel.add(lb);
 		topPanel.add(comboBox);
 		return comboBox;
@@ -315,6 +323,13 @@ public class mainform extends WebFrame implements Runnable {
 		comboBox.setExpandedBgColor(new Color(0, 0, 0, 0));
 		// comboBox.getWebUI().setExpandedBgColor(new Color(0, 0, 0, 0));
 		comboBox.setBackground(new Color(0, 0, 0, 0));
+
+		comboBox.addActionListener(e -> {
+			if (isInitializing)
+				return;
+			saveconfig();
+			tc.refreshPreviews();
+		});
 
 		topPanel.add(lb);
 		topPanel.add(comboBox);
@@ -542,6 +557,10 @@ public class mainform extends WebFrame implements Runnable {
 			public void actionPerformed(ActionEvent e) {
 
 				Color c = updateColorGroupColor(trailing);
+				if (isInitializing)
+					return;
+				saveconfig();
+				tc.refreshPreviews();
 			}
 		});
 
@@ -715,6 +734,15 @@ public class mainform extends WebFrame implements Runnable {
 		ws.setProgressTrackBgBottom(whiteBg);
 		ws.setProgressTrackBgTop(whiteBg);
 
+		ws.addChangeListener(e -> {
+			if (isInitializing)
+				return;
+			if (!ws.getValueIsAdjusting()) {
+				saveconfig();
+				tc.refreshPreviews();
+			}
+		});
+
 		topPanel.add(lb);
 		topPanel.add(ws);
 		return ws;
@@ -748,6 +776,13 @@ public class mainform extends WebFrame implements Runnable {
 		/*
 		 * layout.setConstraints(lb, s); s.gridx++; layout.setConstraints(ws, s);
 		 */
+
+		ws.addActionListener(e -> {
+			if (isInitializing)
+				return;
+			saveconfig();
+			tc.refreshPreviews();
+		});
 
 		topPanel.add(lb);
 		topPanel.add(ws);
@@ -1570,8 +1605,10 @@ public class mainform extends WebFrame implements Runnable {
 
 		// this.getTitleComponent().setForeground(new Color(0,0,0,255));
 		// this.getWebRootPaneUI().getWindowButtons().getWebButton(2).setBorderPainted(false);
+		isInitializing = true;
 		initPanel();
 		initConfig();// 读入Config
+		isInitializing = false;
 
 		setShowResizeCorner(false);
 		setDefaultCloseOperation(3);

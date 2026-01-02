@@ -93,6 +93,8 @@ public class situationAware extends WebFrame implements Runnable {
 					int left = getLocation().x;
 					int top = getLocation().y;
 					setLocation(left + e.getX() - xx, top + e.getY() - yy);
+					xc.setconfig("situationAwareX", Integer.toString(getLocation().x));
+					xc.setconfig("situationAwareY", Integer.toString(getLocation().y));
 					setVisible(true);
 					repaint();
 				}
@@ -147,13 +149,11 @@ public class situationAware extends WebFrame implements Runnable {
 		panel.add(b4);
 
 	}
-	public void init(controller c,otherService s){
-		xc = c;
-		xs=s;
-		WIDTH = 250;
-		HEIGHT =150;
-		int lx;
-		int ly;
+
+	int lx;
+	int ly;
+
+	public void reinitConfig() {
 		if (xc.getconfig("situationAwareX") != "")
 			lx = Integer.parseInt(xc.getconfig("situationAwareX"));
 		else
@@ -162,8 +162,20 @@ public class situationAware extends WebFrame implements Runnable {
 			ly = Integer.parseInt(xc.getconfig("situationAwareY"));
 		else
 			ly = 50;
-		
-		this.setBounds(lx, ly,WIDTH, HEIGHT);
+
+		this.setBounds(lx, ly, WIDTH, HEIGHT);
+		repaint();
+	}
+
+	public void init(controller c, otherService s) {
+		xc = c;
+		xs = s;
+		WIDTH = 250;
+		HEIGHT = 150;
+
+		reinitConfig();
+
+		this.setBounds(lx, ly, WIDTH, HEIGHT);
 		panel = new WebPanel();
 		// panel.setSize(WIDTH, HEIGHT);
 		this.getWebRootPaneUI().setMiddleBg(new Color(0, 0, 0, 0));// 中部透明

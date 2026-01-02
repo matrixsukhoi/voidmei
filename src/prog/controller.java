@@ -715,6 +715,26 @@ public class controller {
 		}
 	}
 
+	public void refreshPreviews() {
+		loadFromConfig();
+		if (FI != null)
+			FI.reinitConfig();
+		if (F != null)
+			F.reinitConfig();
+		if (H != null)
+			H.reinitConfig();
+		if (FL != null)
+			FL.reinitConfig();
+		if (sV != null)
+			sV.reinitConfig();
+		if (aI != null)
+			aI.reinitConfig();
+		if (fS != null)
+			fS.reinitConfig();
+		if (SA != null)
+			SA.reinitConfig();
+	}
+
 	public void endPreview() {
 
 		// app.debugPrint(F.getLocationOnScreen().x);

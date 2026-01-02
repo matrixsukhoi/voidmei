@@ -259,6 +259,8 @@ public class flightInfo extends WebFrame implements Runnable {
 					int left = getLocation().x;
 					int top = getLocation().y;
 					setLocation(left + e.getX() - xx, top + e.getY() - yy);
+					xc.setconfig("flightInfoX", Integer.toString(getLocation().x));
+					xc.setconfig("flightInfoY", Integer.toString(getLocation().y));
 					setVisible(true);
 					repaint();
 				}
@@ -529,12 +531,10 @@ public class flightInfo extends WebFrame implements Runnable {
 
 	}
 
-	public void init(controller c, service s) {
-		xc = c;
-		xs = s;
-		int lx;
-		int ly;
+	int lx;
+	int ly;
 
+	public void reinitConfig() {
 		if (xc.getconfig("GlobalNumFont") != "")
 			NumFont = xc.getconfig("GlobalNumFont");
 		else
@@ -559,21 +559,6 @@ public class flightInfo extends WebFrame implements Runnable {
 		else
 			ly = 0;
 
-		this.getWebRootPaneUI().setMiddleBg(new Color(0, 0, 0, 0));// 中部透明
-		this.getWebRootPaneUI().setTopBg(new Color(0, 0, 0, 0));// 顶部透明
-		this.getWebRootPaneUI().setBorderColor(new Color(0, 0, 0, 0));// 内描边透明
-		this.getWebRootPaneUI().setInnerBorderColor(new Color(0, 0, 0, 0));// 外描边透明
-
-		// 旧的
-		// this.setBounds(lx, ly, 580, 250);
-
-		// 新的3x3
-
-		// setAutoRequestFocus(false);
-		// setDefaultCloseOperation(WebFrame.EXIT_ON_CLOSE);
-		// setFont(new Font(FontName, Font.PLAIN, 10 + fontadd));
-		// // getContentPane().setBackground(lblNumColor);
-		// setLayout(null);
 		fontsize = 24 + fontadd;
 		// 设置字体
 		fontNum = new Font(NumFont, Font.BOLD, fontsize);
@@ -583,19 +568,38 @@ public class flightInfo extends WebFrame implements Runnable {
 		numHeight = getFontMetrics(fontNum).getHeight();
 		labelHeight = getFontMetrics(fontLabel).getHeight();
 
-		// numWidth = getFontMetrics(fontNum).getWidths();
 		// 列
 		if (xc.getconfig("flightInfoColumn") != "")
 			columnNum = Integer.parseInt(xc.getconfig("flightInfoColumn"));
 		else
 			columnNum = 3;
 
+		useNum = 0; // 重置计数
 		initTextString();
 
 		int addnum = (useNum % columnNum == 0) ? 0 : 1;
 		// app.debugPrint(useNum / columnNum + addnum + 1);
 		this.setBounds(lx, ly, (fontsize >> 1) + (int) ((columnNum + 0.5) * 5f * fontsize),
 				(int) (numHeight + (useNum / columnNum + addnum + 1) * 1.0f * numHeight));
+
+		if (xc.getconfig("flightInfoEdge").equals("true"))
+			setShadeWidth(10);
+		else
+			setShadeWidth(0);
+
+		repaint();
+	}
+
+	public void init(controller c, service s) {
+		xc = c;
+		xs = s;
+
+		reinitConfig();
+
+		this.getWebRootPaneUI().setMiddleBg(new Color(0, 0, 0, 0));// 中部透明
+		this.getWebRootPaneUI().setTopBg(new Color(0, 0, 0, 0));// 顶部透明
+		this.getWebRootPaneUI().setBorderColor(new Color(0, 0, 0, 0));// 内描边透明
+		this.getWebRootPaneUI().setInnerBorderColor(new Color(0, 0, 0, 0));// 外描边透明
 
 		doffset = new int[2];
 

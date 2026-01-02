@@ -108,6 +108,8 @@ public class gearAndFlaps extends WebFrame implements Runnable {
 					int left = getLocation().x;
 					int top = getLocation().y;
 					setLocation(left + e.getX() - xx, top + e.getY() - yy);
+					xc.setconfig("gearAndFlapsX", Integer.toString(getLocation().x));
+					xc.setconfig("gearAndFlapsY", Integer.toString(getLocation().y));
 					setVisible(true);
 					repaint();
 				}
@@ -256,14 +258,10 @@ public class gearAndFlaps extends WebFrame implements Runnable {
 		panel.add(lblNewLabel);
 	}
 
-	public void init(controller c, service s) {
-		xc = c;
-		xs = s;
-		if (s != null)
-			state = s.sState;
-		int lx = 0;
-		int ly = 0;
+	int lx;
+	int ly;
 
+	public void reinitConfig() {
 		if (xc.getconfig("gearAndFlapsX") != "")
 			lx = Integer.parseInt(xc.getconfig("gearAndFlapsX"));
 		else
@@ -290,22 +288,34 @@ public class gearAndFlaps extends WebFrame implements Runnable {
 		barWidth = fontSize >> 1;
 		barHeight = 4 * fontSize;
 
-		warnText = String.format("%s", lang.gGear);
-		warnColor = app.colorNum;
-
 		flapPix = barHeight * 50 / 100;
 		flapText = String.format("%3d", 50);
 
 		width = 2 * fontSize;
 		height = 5 * fontSize;
 
+		if (xc.getconfig("enablegearAndFlapsEdge").equals("true"))
+			setShadeWidth(10);
+		else
+			setShadeWidth(0);
+
+		setBounds(lx, ly, width, height);
+		repaint();
+	}
+
+	public void init(controller c, service s) {
+		xc = c;
+		xs = s;
+		if (s != null)
+			state = s.sState;
+
+		reinitConfig();
+
 		this.setCursor(app.blankCursor);
 		this.getWebRootPaneUI().setMiddleBg(new Color(0, 0, 0, 0));// 中部透明
 		this.getWebRootPaneUI().setTopBg(new Color(0, 0, 0, 0));// 顶部透明
 		this.getWebRootPaneUI().setBorderColor(new Color(0, 0, 0, 0));// 内描边透明
 		this.getWebRootPaneUI().setInnerBorderColor(new Color(0, 0, 0, 0));// 外描边透明
-		setShadeWidth(0);
-		setBounds(lx, ly, width, height);
 
 		gap = (int) (0.2 * fontSize);
 		// initpanel();

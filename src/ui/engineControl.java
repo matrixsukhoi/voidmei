@@ -116,6 +116,8 @@ public class engineControl extends WebFrame implements Runnable {
 					int left = getLocation().x;
 					int top = getLocation().y;
 					setLocation(left + e.getX() - xx, top + e.getY() - yy);
+					xc.setconfig("engineControlX", Integer.toString(getLocation().x));
+					xc.setconfig("engineControlY", Integer.toString(getLocation().y));
 					setVisible(true);
 					repaint();
 				}
@@ -255,14 +257,7 @@ public class engineControl extends WebFrame implements Runnable {
 
 	}
 
-	public void init(controller xc, service ts, blkx tp) {
-		this.xc = xc;
-		this.s = ts;
-		this.p = tp;
-
-		overheattime = 0;
-		freq = xc.freqEngineInfo;
-
+	public void reinitConfig() {
 		if (xc.getconfig("GlobalNumFont") != "")
 			NumFont = xc.getconfig("GlobalNumFont");
 		else
@@ -286,21 +281,38 @@ public class engineControl extends WebFrame implements Runnable {
 		else
 			ly = 860;
 
-		// setIconImage(Toolkit.getDefaultToolkit().createImage("image/form1.jpg"));
-
-		// 初始化Panel
-		// initPanel();
 		fontsize = 24 + fontadd;
 		// 设置字体
 		fontNum = new Font(NumFont, Font.BOLD, fontsize);
 		fontLabel = new Font(FontName, Font.BOLD, Math.round(fontsize / 2.0f));
 		fontUnit = new Font(NumFont, Font.PLAIN, Math.round(fontsize / 2.0f));
 
+		rowNum = 0;
+		columnNum = 0;
 		initLeftString();
 
 		WIDTH = fontsize * 8;
 		HEIGHT = (int) ((fontsize * 4 + (fontsize * 9) >> 1) + (rowNum + 1) * (1 * fontsize + (fontsize >> 2)));
-		// OP = 100;
+
+		if (xc.getconfig("engineInfoEdge").equals("true"))
+			setShadeWidth(10);// 玻璃效果边框
+		else
+			setShadeWidth(0);
+
+		setSize(WIDTH, HEIGHT);
+		setLocation(lx, ly);
+		repaint();
+	}
+
+	public void init(controller xc, service ts, blkx tp) {
+		this.xc = xc;
+		this.s = ts;
+		this.p = tp;
+
+		overheattime = 0;
+		freq = xc.freqEngineInfo;
+
+		reinitConfig();
 
 		panel = new WebPanel() {
 
