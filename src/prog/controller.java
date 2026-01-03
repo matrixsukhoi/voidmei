@@ -4,7 +4,6 @@ import java.awt.Color;
 import java.awt.Font;
 import java.awt.Image;
 import java.awt.RenderingHints;
-import java.awt.Robot;
 import java.awt.Toolkit;
 
 import javax.swing.ImageIcon;
@@ -41,7 +40,7 @@ public class controller {
 	public boolean logon = false;
 
 	public blkx blkx;
-	
+
 	// Robot robot;
 
 	engineControl F;
@@ -119,7 +118,7 @@ public class controller {
 
 	engineInfo FI;
 
-//	private Thread FI1;
+	// private Thread FI1;
 
 	private voiceWarning vW;
 
@@ -132,18 +131,18 @@ public class controller {
 	private boolean showStatus;
 
 	// public void hideTaskbarSw() {
-	// 	if (app.debug) {
-	// 		robot.keyPress(17);
-	// 		robot.keyPress(192);
-	// 		try {
-	// 			Thread.sleep(50);
-	// 		} catch (InterruptedException e) {
-	// 			// TODO Auto-generated catch block
-	// 			e.printStackTrace();
-	// 		}
-	// 		robot.keyRelease(17);
-	// 		robot.keyRelease(192);
-	// 	}
+	// if (app.debug) {
+	// robot.keyPress(17);
+	// robot.keyPress(192);
+	// try {
+	// Thread.sleep(50);
+	// } catch (InterruptedException e) {
+	// // TODO Auto-generated catch block
+	// e.printStackTrace();
+	// }
+	// robot.keyRelease(17);
+	// robot.keyRelease(192);
+	// }
 	// }
 
 	public void initStatusBar() {
@@ -180,11 +179,13 @@ public class controller {
 			flag = 3;
 		}
 	}
+
 	public String cur_fmtype;
 
 	private autoMeasure aM;
 
 	private Thread aM1;
+
 	public void changeS3() {
 		// 状态3，连接成功，释放状态条，打开面板
 		// SB.repaint();
@@ -216,7 +217,7 @@ public class controller {
 			}
 			flag = 4;
 			openpad();
-			
+
 		}
 	}
 
@@ -249,7 +250,7 @@ public class controller {
 
 	public void openpad() {
 		// hideTaskbarSw();
-		if (app.fmTesting){
+		if (app.fmTesting) {
 			aM = new autoMeasure(S);
 			aM1 = new Thread(aM);
 			aM1.start();
@@ -359,7 +360,7 @@ public class controller {
 			SA1.start();
 
 		}
-		
+
 		uT = new uiThread(this);
 		uT1 = new Thread(uT);
 		/* 设置高优先级 */
@@ -369,7 +370,7 @@ public class controller {
 	}
 
 	public void closepad() {
-		if (app.fmTesting){
+		if (app.fmTesting) {
 			aM.doit = false;
 			aM1 = null;
 			aM = null;
@@ -383,7 +384,7 @@ public class controller {
 		if (getconfig("engineInfoSwitch").equals("true") && (FI != null)) {
 			// F.doit = false;
 			FI.doit = false;
-//			FI1 = null;
+			// FI1 = null;
 			// F1 = null;
 			FI.dispose();
 			// F.dispose();
@@ -480,11 +481,12 @@ public class controller {
 			}
 		}
 
-		if (uT != null){
+		if (uT != null) {
 			uT.doit = false;
+			uT1.interrupt();
 			uT1 = null;
 		}
-		
+
 		System.gc();
 	}
 
@@ -554,8 +556,7 @@ public class controller {
 
 		// 描边颜色
 		app.colorShadeShape = getColorConfig("fontShade");
-		
-		
+
 		// 声音
 		app.voiceVolumn = Integer.parseInt(getconfig("voiceVolume"));
 		// fontLabelR=32
@@ -582,15 +583,14 @@ public class controller {
 			showStatus = Boolean.parseBoolean(getconfig("enableStatusBar"));
 		// 读取字体绘制方式
 		app.drawFontShape = !Boolean.parseBoolean(getconfig("simpleFont"));
-		
+
 		// 读取抗锯齿
 		app.aaEnable = Boolean.parseBoolean(getconfig("AAEnable"));
-		if (app.aaEnable){
-//			app.textAASetting = RenderingHints.VALUE_TEXT_ANTIALIAS_GASP;
+		if (app.aaEnable) {
+			// app.textAASetting = RenderingHints.VALUE_TEXT_ANTIALIAS_GASP;
 			app.textAASetting = RenderingHints.VALUE_TEXT_ANTIALIAS_ON;
 			app.graphAASetting = RenderingHints.VALUE_ANTIALIAS_ON;
-		}
-		else{
+		} else {
 			app.textAASetting = RenderingHints.VALUE_TEXT_ANTIALIAS_OFF;
 			app.graphAASetting = RenderingHints.VALUE_ANTIALIAS_OFF;
 		}
@@ -666,13 +666,12 @@ public class controller {
 		}
 
 		// if (S1 == null) {
-		// 	return;
+		// return;
 		// }
 		if (flag == 4) {
 			closepad();
 		}
 
-		
 		S = null;
 		S1.interrupt();
 		S1 = null;
@@ -680,40 +679,114 @@ public class controller {
 	}
 
 	public void Preview() {
+		refreshPreviews();
+	}
 
+	public void refreshPreviews() {
 		loadFromConfig();
+
+		// Engine Info
 		if (Boolean.parseBoolean(getconfig("engineInfoSwitch"))) {
-			FI = new engineInfo();
-			FI.initPreview(this);
-		}
-		if (Boolean.parseBoolean(getconfig("enableEngineControl"))) {
-			F = new engineControl();
-			F.initPreview(this);
-		}
-		if (Boolean.parseBoolean(getconfig("crosshairSwitch"))) {
-			H = new minimalHUD();
-			H.initPreview(this);
-		}
-		if (Boolean.parseBoolean(getconfig("flightInfoSwitch"))) {
-			FL = new flightInfo();
-			FL.initPreview(this);
-		}
-		if (Boolean.parseBoolean(getconfig("enableAxis"))) {
-			sV = new stickValue();
-			sV.initpreview(this);
-		}
-		if (Boolean.parseBoolean(getconfig("enableAttitudeIndicator"))) {
-			aI = new attitudeIndicator();
-			aI.initpreview(this);
+			if (FI == null) {
+				FI = new engineInfo();
+				FI.initPreview(this);
+			} else {
+				FI.reinitConfig();
+			}
+		} else if (FI != null) {
+			FI.dispose();
+			FI = null;
 		}
 
-		if (Boolean.parseBoolean(getconfig("enablegearAndFlaps"))) {
-			fS = new gearAndFlaps();
-			fS.initPreview(this);
+		// Engine Control
+		if (Boolean.parseBoolean(getconfig("enableEngineControl"))) {
+			if (F == null) {
+				F = new engineControl();
+				F.initPreview(this);
+			} else {
+				F.reinitConfig();
+			}
+		} else if (F != null) {
+			F.dispose();
+			F = null;
 		}
+
+		// Minimal HUD (Crosshair)
+		if (Boolean.parseBoolean(getconfig("crosshairSwitch"))) {
+			if (H == null) {
+				H = new minimalHUD();
+				H.initPreview(this);
+			} else {
+				H.reinitConfig();
+			}
+		} else if (H != null) {
+			H.dispose();
+			H = null;
+		}
+
+		// Flight Info
+		if (Boolean.parseBoolean(getconfig("flightInfoSwitch"))) {
+			if (FL == null) {
+				FL = new flightInfo();
+				FL.initPreview(this);
+			} else {
+				FL.reinitConfig();
+			}
+		} else if (FL != null) {
+			FL.dispose();
+			FL = null;
+		}
+
+		// Stick Value (Axis)
+		if (Boolean.parseBoolean(getconfig("enableAxis"))) {
+			if (sV == null) {
+				sV = new stickValue();
+				sV.initpreview(this);
+			} else {
+				sV.reinitConfig();
+			}
+		} else if (sV != null) {
+			sV.dispose();
+			sV = null;
+		}
+
+		// Attitude Indicator
+		if (Boolean.parseBoolean(getconfig("enableAttitudeIndicator"))) {
+			if (aI == null) {
+				aI = new attitudeIndicator();
+				aI.initpreview(this);
+			} else {
+				aI.reinitConfig();
+			}
+		} else if (aI != null) {
+			aI.dispose();
+			aI = null;
+		}
+
+		// Gear and Flaps
+		if (Boolean.parseBoolean(getconfig("enablegearAndFlaps"))) {
+			if (fS == null) {
+				fS = new gearAndFlaps();
+				fS.initPreview(this);
+			} else {
+				fS.reinitConfig();
+			}
+		} else if (fS != null) {
+			fS.dispose();
+			fS = null;
+		}
+
+		// Situation Aware
 		if (app.debug) {
-			SA = new situationAware();
-			SA.initPreview(this);
+			if (SA == null) {
+				SA = new situationAware();
+				SA.initPreview(this);
+			} else {
+				SA.reinitConfig();
+			}
+		} else if (SA != null) {
+			SA.dispose();
+			SA = null;
 		}
 	}
 
@@ -722,87 +795,46 @@ public class controller {
 		// app.debugPrint(F.getLocationOnScreen().x);
 		// app.debugPrint(F.getLocationOnScreen().y);
 		if (Boolean.parseBoolean(getconfig("engineInfoSwitch"))) {
-			// shade问题需要加补偿
-			// app.debugPrint(F.getLocationOnScreen().x);
-			// app.debugPrint(F.getLocationOnScreen().y);
-			int offst = 0;
-			if (getconfig("engineInfoEdge").equals("true")){
-				offst = 10;
-			}
-			setconfig("engineInfoX", Integer.toString(FI.getLocationOnScreen().x - 25 + offst));
-			setconfig("engineInfoY", Integer.toString(FI.getLocationOnScreen().y - 25 + offst));
-
+			FI.saveCurrentPosition();
 			FI.dispose();
 			FI = null;
-
 		}
 		if (Boolean.parseBoolean(getconfig("enableEngineControl"))) {
-			setconfig("engineControlX", Integer.toString(F.getLocationOnScreen().x - 25));
-			setconfig("engineControlY", Integer.toString(F.getLocationOnScreen().y - 25));
+			F.saveCurrentPosition();
 			F.dispose();
 			F = null;
 		}
 
 		if (Boolean.parseBoolean(getconfig("crosshairSwitch"))) {
-			// shade问题需要加补偿
-			setconfig("crosshairX", Integer.toString(H.getLocationOnScreen().x));
-			setconfig("crosshairY", Integer.toString(H.getLocationOnScreen().y));
+			H.saveCurrentPosition();
 			H.dispose();
 			H = null;
 		}
 		if (Boolean.parseBoolean(getconfig("flightInfoSwitch"))) {
-			int offst = 0;
-			if (getconfig("flightInfoEdge").equals("true")){
-				offst = 10;
-			}
-			setconfig("flightInfoX", Integer.toString(FL.getLocationOnScreen().x - 25 + offst));
-			setconfig("flightInfoY", Integer.toString(FL.getLocationOnScreen().y - 25 + offst));
+			FL.saveCurrentPosition();
 			FL.dispose();
 			FL = null;
 		}
 		if (Boolean.parseBoolean(getconfig("enableAxis"))) {
-			// app.debugPrint(sV.getLocationOnScreen().x );
-			// app.debugPrint(sV.getLocationOnScreen().y);
-			int offst = 0;
-			if (getconfig("enableAxisEdge").equals("true")){
-				offst = 10;
-			}
-			setconfig("stickValueX", Integer.toString(sV.getLocationOnScreen().x + offst));
-			setconfig("stickValueY", Integer.toString(sV.getLocationOnScreen().y + offst));
+			sV.saveCurrentPosition();
 			sV.dispose();
 			sV = null;
 		}
 		if (Boolean.parseBoolean(getconfig("enableAttitudeIndicator"))) {
-			setconfig("attitudeIndicatorX", Integer.toString(aI.getLocationOnScreen().x));
-			setconfig("attitudeIndicatorY", Integer.toString(aI.getLocationOnScreen().y));
-			setconfig("attitudeIndicatorWidth", Integer.toString(aI.getWidth() - 4));
-			setconfig("attitudeIndicatorHeight", Integer.toString(aI.getHeight() - 4));
+			aI.saveCurrentPosition();
 			aI.dispose();
 			aI = null;
 		}
 
 		if (Boolean.parseBoolean(getconfig("enablegearAndFlaps"))) {
-			// app.debugPrint(fS.getLocationOnScreen().x );
-			// app.debugPrint(fS.getLocationOnScreen().y);
-			int offst = 0;
-			if (getconfig("enablegearAndFlapsEdge").equals("true")){
-				offst = 10;
-			}
-			setconfig("gearAndFlapsX", Integer.toString(fS.getLocationOnScreen().x + offst));
-			setconfig("gearAndFlapsY", Integer.toString(fS.getLocationOnScreen().y + offst));
-
+			fS.saveCurrentPosition();
 			fS.dispose();
 			fS = null;
 		}
 		if (app.debug) {
-			// app.debugPrint(SA.getLocationOnScreen().x );
-			// app.debugPrint(SA.getLocationOnScreen().y);
-			setconfig("situationAwareX", Integer.toString(SA.getLocationOnScreen().x - 15));
-			setconfig("situationAwareY", Integer.toString(SA.getLocationOnScreen().y - 15));
-
+			SA.saveCurrentPosition();
 			SA.dispose();
 			SA = null;
-
 		}
 		saveconfig();
 
@@ -999,7 +1031,7 @@ public class controller {
 
 		if (blkx.valid == true) {// app.debugPrint(blkx.data);
 			blkx.getAllplotdata();
-//			blkx.getload();
+			// blkx.getload();
 			blkx.data = null;
 		}
 

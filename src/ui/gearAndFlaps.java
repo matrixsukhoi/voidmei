@@ -67,7 +67,7 @@ public class gearAndFlaps extends WebFrame implements Runnable {
 		init(xc, null);
 		// app.debugPrint("初始化");
 		// setShadeWidth(10);
-		this.setVisible(false);
+		// this.setVisible(false);
 		// this.getWebRootPaneUI().setTopBg(new Color(0, 0, 0, 50));
 		this.getWebRootPaneUI().setMiddleBg(app.previewColor);// 中部透明
 		this.getWebRootPaneUI().setTopBg(app.previewColor);// 顶部透明
@@ -108,54 +108,60 @@ public class gearAndFlaps extends WebFrame implements Runnable {
 					int left = getLocation().x;
 					int top = getLocation().y;
 					setLocation(left + e.getX() - xx, top + e.getY() - yy);
+					saveCurrentPosition();
 					setVisible(true);
 					repaint();
 				}
 			}
 		});
-		//
-		// slider.addMouseListener(new MouseAdapter() {
-		// public void mouseEntered(MouseEvent e) {
-		// /*
-		// * if(A.tag==0){ if(f.mode==1){ A.setVisible(false);
-		// * A.visibletag=0; } }
-		// */
-		// }
-		//
-		// public void mousePressed(MouseEvent e) {
-		// isDragging = 1;
-		// xx = e.getX();
-		// yy = e.getY();
-		//
-		// }
-		//
-		// public void mouseReleased(MouseEvent e) {
-		// if (isDragging == 1) {
-		// isDragging = 0;
-		// }
-		// /*
-		// * if(A.tag==0){ A.setVisible(false); }
-		// */
-		// }
-		// /*
-		// * public void mouseReleased(MouseEvent e){ if(A.tag==0){
-		// * A.setVisible(true); } }
-		// */
-		// });
-		// slider.addMouseMotionListener(new MouseMotionAdapter() {
-		// public void mouseDragged(MouseEvent e) {
-		// if (isDragging == 1) {
-		// int left = getLocation().x;
-		// int top = getLocation().y;
-		// setLocation(left + e.getX() - xx, top + e.getY() - yy);
-		// setVisible(true);
-		// repaint();
-		// }
-		// }
-		// });
-		this.setCursor(null);
 		setVisible(true);
 	}
+
+	public void saveCurrentPosition() {
+		xc.setconfig("gearAndFlapsX", Integer.toString(getLocation().x));
+		xc.setconfig("gearAndFlapsY", Integer.toString(getLocation().y));
+	}
+
+	//
+	// slider.addMouseListener(new MouseAdapter() {
+	// public void mouseEntered(MouseEvent e) {
+	// /*
+	// * if(A.tag==0){ if(f.mode==1){ A.setVisible(false);
+	// * A.visibletag=0; } }
+	// */
+	// }
+	//
+	// public void mousePressed(MouseEvent e) {
+	// isDragging = 1;
+	// xx = e.getX();
+	// yy = e.getY();
+	//
+	// }
+	//
+	// public void mouseReleased(MouseEvent e) {
+	// if (isDragging == 1) {
+	// isDragging = 0;
+	// }
+	// /*
+	// * if(A.tag==0){ A.setVisible(false); }
+	// */
+	// }
+	// /*
+	// * public void mouseReleased(MouseEvent e){ if(A.tag==0){
+	// * A.setVisible(true); } }
+	// */
+	// });
+	// slider.addMouseMotionListener(new MouseMotionAdapter() {
+	// public void mouseDragged(MouseEvent e) {
+	// if (isDragging == 1) {
+	// int left = getLocation().x;
+	// int top = getLocation().y;
+	// setLocation(left + e.getX() - xx, top + e.getY() - yy);
+	// setVisible(true);
+	// repaint();
+	// }
+	// }
+	// });
 
 	public void initslider(WebSlider slider1) {
 		slider1.setMinimum(0);
@@ -256,14 +262,10 @@ public class gearAndFlaps extends WebFrame implements Runnable {
 		panel.add(lblNewLabel);
 	}
 
-	public void init(controller c, service s) {
-		xc = c;
-		xs = s;
-		if (s != null)
-			state = s.sState;
-		int lx = 0;
-		int ly = 0;
+	int lx;
+	int ly;
 
+	public void reinitConfig() {
 		if (xc.getconfig("gearAndFlapsX") != "")
 			lx = Integer.parseInt(xc.getconfig("gearAndFlapsX"));
 		else
@@ -290,22 +292,36 @@ public class gearAndFlaps extends WebFrame implements Runnable {
 		barWidth = fontSize >> 1;
 		barHeight = 4 * fontSize;
 
-		warnText = String.format("%s", lang.gGear);
-		warnColor = app.colorNum;
-
 		flapPix = barHeight * 50 / 100;
 		flapText = String.format("%3d", 50);
 
 		width = 2 * fontSize;
 		height = 5 * fontSize;
 
+		warnText = "";
+		warnColor = app.colorNum;
+		if (xc.getconfig("enablegearAndFlapsEdge").equals("true"))
+			setShadeWidth(10);
+		else
+			setShadeWidth(0);
+
+		setBounds(lx, ly, width, height);
+		repaint();
+	}
+
+	public void init(controller c, service s) {
+		xc = c;
+		xs = s;
+		if (s != null)
+			state = s.sState;
+
+		reinitConfig();
+
 		this.setCursor(app.blankCursor);
 		this.getWebRootPaneUI().setMiddleBg(new Color(0, 0, 0, 0));// 中部透明
 		this.getWebRootPaneUI().setTopBg(new Color(0, 0, 0, 0));// 顶部透明
 		this.getWebRootPaneUI().setBorderColor(new Color(0, 0, 0, 0));// 内描边透明
 		this.getWebRootPaneUI().setInnerBorderColor(new Color(0, 0, 0, 0));// 外描边透明
-		setShadeWidth(0);
-		setBounds(lx, ly, width, height);
 
 		gap = (int) (0.2 * fontSize);
 		// initpanel();
@@ -338,7 +354,7 @@ public class gearAndFlaps extends WebFrame implements Runnable {
 				// g2d.drawLine(0, 0, 100, 100);
 				// dy+=1.5 * fontSize;
 
-				g.dispose();
+				// g.dispose();
 			}
 		};
 		panel.setWebColoredBackground(false);
@@ -346,22 +362,25 @@ public class gearAndFlaps extends WebFrame implements Runnable {
 		// panel.setBounds(lx, ly, 100, 160);
 
 		this.add(panel);
-//		setShowWindowButtons(false);
-//		setShowTitleComponent(false);
-//		setShowResizeCorner(false);
-//		setDefaultCloseOperation(3);
-//		setTitle(lang.gTitle);
-//		setAlwaysOnTop(true);
-//		root = this.getContentPane();
-//		setFocusable(false);
-//		setFocusableWindowState(false);// 取消窗口焦点
-//		setVisible(true);
-//		this.setCursor(app.blankCursor)
+		// setShowWindowButtons(false);
+		// setShowTitleComponent(false);
+		// setShowResizeCorner(false);
+		// setDefaultCloseOperation(3);
+		// setTitle(lang.gTitle);
+		// setAlwaysOnTop(true);
+		// root = this.getContentPane();
+		// setFocusable(false);
+		// setFocusableWindowState(false);// 取消窗口焦点
+		// setVisible(true);
+		// this.setCursor(app.blankCursor)
 		setTitle("gearAndFlaps");
 		uiWebLafSetting.setWindowOpaque(this);
 		root = this.getContentPane();
 		if (xc.getconfig("enablegearAndFlapsEdge").equals("true"))
 			setShadeWidth(10);
+
+		if (xs != null)
+			setVisible(true);
 
 	}
 
@@ -410,7 +429,7 @@ public class gearAndFlaps extends WebFrame implements Runnable {
 			flapPix = 0;
 			flps = 0;
 		}
-		
+
 		flapText = String.format("%3d", flps);
 
 		// // app.debugPrint("gearandFlaps执行了");

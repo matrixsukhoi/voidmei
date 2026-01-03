@@ -220,7 +220,7 @@ public class flightInfo extends WebFrame implements Runnable {
 		init(c, null);
 		// app.debugPrint("初始化");
 		// setShadeWidth(10);
-		this.setVisible(false);
+		// this.setVisible(false);
 		// this.getWebRootPaneUI().setTopBg(new Color(0, 0, 0, 50));
 		this.getWebRootPaneUI().setMiddleBg(app.previewColor);// 中部透明
 		this.getWebRootPaneUI().setTopBg(app.previewColor);// 顶部透明
@@ -259,6 +259,7 @@ public class flightInfo extends WebFrame implements Runnable {
 					int left = getLocation().x;
 					int top = getLocation().y;
 					setLocation(left + e.getX() - xx, top + e.getY() - yy);
+					saveCurrentPosition();
 					setVisible(true);
 					repaint();
 				}
@@ -266,9 +267,15 @@ public class flightInfo extends WebFrame implements Runnable {
 		});
 		this.setCursor(null);
 		setVisible(true);
-		// setFocusableWindowState(true);
-		// setFocusable(true);
 	}
+
+	public void saveCurrentPosition() {
+		xc.setconfig("flightInfoX", Integer.toString(getLocation().x));
+		xc.setconfig("flightInfoY", Integer.toString(getLocation().y));
+	}
+	// setFocusableWindowState(true);
+	// setFocusable(true);
+	// } // This closing brace was for initPreview, now it's moved up.
 
 	String[][] totalString;
 	int useNum = 0;
@@ -293,7 +300,7 @@ public class flightInfo extends WebFrame implements Runnable {
 	int idx_ws = Integer.MAX_VALUE;
 
 	int idx_rda = Integer.MAX_VALUE;
-	
+
 	public Boolean[] totalSwitch;
 	private int numHeight;
 	private int labelHeight;
@@ -444,7 +451,7 @@ public class flightInfo extends WebFrame implements Runnable {
 	public void __update_num(int idx, String s) {
 		if (idx < useNum) {
 			totalString[idx][0] = String.format("%5s", s);
-//			totalString[idx][0] = s;
+			// totalString[idx][0] = s;
 		}
 	}
 
@@ -492,14 +499,14 @@ public class flightInfo extends WebFrame implements Runnable {
 		// wx
 		__update_num(idx_wx, xs.Wx);
 		// ny
-//		__update_num(idx_ny, xs.Ny);
+		// __update_num(idx_ny, xs.Ny);
 		// 使用修正过的过载
 		__update_num(idx_ny, xs.sN);
 		// turn
 		__update_num(idx_turn, xs.sTurnRate);
 		// rds
 		__update_num(idx_rds, xs.sTurnRds);
-//		totalString[idx_rds][2] = "m"+xs.sN;
+		// totalString[idx_rds][2] = "m"+xs.sN;
 		// aoa
 		__update_num(idx_aoa, xs.AoA);
 		// aos
@@ -529,12 +536,10 @@ public class flightInfo extends WebFrame implements Runnable {
 
 	}
 
-	public void init(controller c, service s) {
-		xc = c;
-		xs = s;
-		int lx;
-		int ly;
+	int lx;
+	int ly;
 
+	public void reinitConfig() {
 		if (xc.getconfig("GlobalNumFont") != "")
 			NumFont = xc.getconfig("GlobalNumFont");
 		else
@@ -559,21 +564,6 @@ public class flightInfo extends WebFrame implements Runnable {
 		else
 			ly = 0;
 
-		this.getWebRootPaneUI().setMiddleBg(new Color(0, 0, 0, 0));// 中部透明
-		this.getWebRootPaneUI().setTopBg(new Color(0, 0, 0, 0));// 顶部透明
-		this.getWebRootPaneUI().setBorderColor(new Color(0, 0, 0, 0));// 内描边透明
-		this.getWebRootPaneUI().setInnerBorderColor(new Color(0, 0, 0, 0));// 外描边透明
-
-		// 旧的
-		// this.setBounds(lx, ly, 580, 250);
-
-		// 新的3x3
-
-		// setAutoRequestFocus(false);
-		// setDefaultCloseOperation(WebFrame.EXIT_ON_CLOSE);
-		// setFont(new Font(FontName, Font.PLAIN, 10 + fontadd));
-		// // getContentPane().setBackground(lblNumColor);
-		// setLayout(null);
 		fontsize = 24 + fontadd;
 		// 设置字体
 		fontNum = new Font(NumFont, Font.BOLD, fontsize);
@@ -583,19 +573,38 @@ public class flightInfo extends WebFrame implements Runnable {
 		numHeight = getFontMetrics(fontNum).getHeight();
 		labelHeight = getFontMetrics(fontLabel).getHeight();
 
-		// numWidth = getFontMetrics(fontNum).getWidths();
 		// 列
 		if (xc.getconfig("flightInfoColumn") != "")
 			columnNum = Integer.parseInt(xc.getconfig("flightInfoColumn"));
 		else
 			columnNum = 3;
 
+		useNum = 0; // 重置计数
 		initTextString();
 
 		int addnum = (useNum % columnNum == 0) ? 0 : 1;
 		// app.debugPrint(useNum / columnNum + addnum + 1);
+		if (xc.getconfig("flightInfoEdge").equals("true"))
+			setShadeWidth(10);
+		else
+			setShadeWidth(0);
+
 		this.setBounds(lx, ly, (fontsize >> 1) + (int) ((columnNum + 0.5) * 5f * fontsize),
 				(int) (numHeight + (useNum / columnNum + addnum + 1) * 1.0f * numHeight));
+
+		repaint();
+	}
+
+	public void init(controller c, service s) {
+		xc = c;
+		xs = s;
+
+		reinitConfig();
+
+		this.getWebRootPaneUI().setMiddleBg(new Color(0, 0, 0, 0));// 中部透明
+		this.getWebRootPaneUI().setTopBg(new Color(0, 0, 0, 0));// 顶部透明
+		this.getWebRootPaneUI().setBorderColor(new Color(0, 0, 0, 0));// 内描边透明
+		this.getWebRootPaneUI().setInnerBorderColor(new Color(0, 0, 0, 0));// 外描边透明
 
 		doffset = new int[2];
 
@@ -615,7 +624,7 @@ public class flightInfo extends WebFrame implements Runnable {
 				g2d.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION,
 						RenderingHints.VALUE_ALPHA_INTERPOLATION_SPEED);
 				g2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_SPEED);
-				
+
 				doffset[0] = fontsize >> 1;
 				doffset[1] = fontsize >> 1;
 				int d = 0;
@@ -645,33 +654,35 @@ public class flightInfo extends WebFrame implements Runnable {
 		};
 		initpanel();
 		this.add(panel);
-//		root = this.getContentPane();
-//		setTitle(lang.fTitle);
-//		setAlwaysOnTop(true);
-//		setFocusableWindowState(false);
-//		setFocusable(false);
-//
-//		// app.debugPrint(this.isAlwaysOnTopSupported());
-//		// setAlwaysOnTop(true);
-//		setShowWindowButtons(false);
-//		setShowTitleComponent(false);
-//		setShowResizeCorner(false);
-//		this.setCursor(app.blankCursor);
-//		setVisible(true);
-//		
+		// root = this.getContentPane();
+		// setTitle(lang.fTitle);
+		// setAlwaysOnTop(true);
+		// setFocusableWindowState(false);
+		// setFocusable(false);
+		//
+		// // app.debugPrint(this.isAlwaysOnTopSupported());
+		// // setAlwaysOnTop(true);
+		// setShowWindowButtons(false);
+		// setShowTitleComponent(false);
+		// setShowResizeCorner(false);
+		// this.setCursor(app.blankCursor);
+		// setVisible(true);
+		//
 		setTitle("flightInfo");
 		uiWebLafSetting.setWindowOpaque(this);
 		root = this.getContentPane();
 
-		if (xc.getconfig("flightInfoEdge").equals("true")){
+		if (xc.getconfig("flightInfoEdge").equals("true")) {
 			setShadeWidth(10);
-		}
-		else {
+		} else {
 			setShadeWidth(0);
 			// this.getRootPane().add(separator1);
 			// this.getRootPane().add(separator2);
 		}
 		// setAlwaysOnTop(true);
+
+		if (s != null)
+			setVisible(true);
 
 	}
 
@@ -680,7 +691,7 @@ public class flightInfo extends WebFrame implements Runnable {
 	public void drawTick() {
 
 		// 更新字符串
-//		updateString();
+		// updateString();
 
 		root.repaint();
 

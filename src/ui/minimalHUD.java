@@ -18,7 +18,6 @@ import java.awt.image.BufferedImage;
 import com.alee.laf.panel.WebPanel;
 import com.alee.laf.rootpane.WebFrame;
 
-import parser.mapInfo;
 import prog.app;
 import prog.controller;
 import prog.otherService;
@@ -596,7 +595,7 @@ public class minimalHUD extends WebFrame implements Runnable {
 	public void initPreview(controller c) {
 		init(c, null, null);
 		// setShadeWidth(10);
-		this.setVisible(false);
+		// this.setVisible(false);
 		this.getWebRootPaneUI().setTopBg(app.previewColor);
 		this.getWebRootPaneUI().setMiddleBg(app.previewColor);
 		// setFocusableWindowState(true);
@@ -636,14 +635,19 @@ public class minimalHUD extends WebFrame implements Runnable {
 					int left = getLocation().x;
 					int top = getLocation().y;
 					setLocation(left + e.getX() - xx, top + e.getY() - yy);
+					saveCurrentPosition();
 					setVisible(true);
 					repaint();
 				}
 			}
 		});
-
 		this.setCursor(null);
 		setVisible(true);
+	}
+
+	public void saveCurrentPosition() {
+		xc.setconfig("crosshairX", Integer.toString(getLocation().x));
+		xc.setconfig("crosshairY", Integer.toString(getLocation().y));
 	}
 
 	public String ILbl = "I";
@@ -679,16 +683,10 @@ public class minimalHUD extends WebFrame implements Runnable {
 	private double flapAllowA;
 	private String lineFlapAngle;
 	private boolean enableFlapAngleBar;
+	int lx;
+	int ly;
 
-	public void init(controller c, service s, otherService os) {
-		int lx;
-		int ly;
-
-		xs = s;
-		xc = c;
-		Vx = 0;
-		cs = os;
-		setFrameOpaque();
+	public void reinitConfig() {
 
 		if (xc.getconfig("MonoNumFont") != "")
 			NumFont = xc.getconfig("MonoNumFont");
@@ -775,22 +773,82 @@ public class minimalHUD extends WebFrame implements Runnable {
 		rnd = (int) Math.round(2 * HUDFontsize * 0.618);
 		hrnd = (int) Math.round(rnd / 2.0);
 		urnd = (int) Math.round(0.618 * rnd);
+		hrnd = (int) Math.round(rnd / 2.0);
 
 		if (xc.getconfig("hudMach") != "")
-			drawHudMach = Boolean.parseBoolean(c.getconfig("hudMach"));
+			drawHudMach = Boolean.parseBoolean(xc.getconfig("hudMach"));
 
-		if (xc.getconfig("disableHUDSpeedLabel") != "")
-			if (Boolean.parseBoolean(c.getconfig("disableHUDSpeedLabel"))) {
+		if (xc.getconfig("disableHUDSpeedLabel") != "") {
+			if (Boolean.parseBoolean(xc.getconfig("disableHUDSpeedLabel"))) {
 				ILbl = "";
+			} else {
+				ILbl = "SPD";
 			}
-		if (xc.getconfig("disableHUDHeightLabel") != "")
-			if (Boolean.parseBoolean(c.getconfig("disableHUDHeightLabel"))) {
+		}
+		if (xc.getconfig("disableHUDHeightLabel") != "") {
+			if (Boolean.parseBoolean(xc.getconfig("disableHUDHeightLabel"))) {
 				HLbl = "";
+			} else {
+				HLbl = "ALT";
 			}
-		if (xc.getconfig("disableHUDSEPLabel") != "")
-			if (Boolean.parseBoolean(c.getconfig("disableHUDSEPLabel"))) {
+		}
+		if (xc.getconfig("disableHUDSEPLabel") != "") {
+			if (Boolean.parseBoolean(xc.getconfig("disableHUDSEPLabel"))) {
 				SLbl = "";
+			} else {
+				SLbl = "SEP";
 			}
+		}
+		if (xc.getconfig("disableHUDAoA") != "") {
+			if (Boolean.parseBoolean(xc.getconfig("disableHUDAoA"))) {
+				lineAoA = "";
+				disableAoA = true;
+				relEnergy = "";
+			} else {
+				disableAoA = false;
+			}
+		}
+
+		aoaLength = rightDraw - HUDFontsize / 2;
+		if (aoaY > rightDraw)
+			aoaY = rightDraw;
+
+		throttlew = (110 * HUDFontsize * 5) / 110;
+		throttlem = (100 * HUDFontsize * 5) / 110;
+		throttlec = (80 * HUDFontsize * 5) / 110;
+		throttleh = (50 * HUDFontsize * 5) / 110;
+
+		outBs = new BasicStroke(lineWidth + 2, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
+		inBs = new BasicStroke(lineWidth, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
+		halfLine = (lineWidth / 2 == 0) ? 1 : (int) Math.round(lineWidth / 2.0f);
+		Bs3 = new BasicStroke(halfLine + 2, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
+		Bs1 = new BasicStroke(halfLine, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
+
+		A = Toolkit.getDefaultToolkit().createImage("image/gunsight/" + crosshairName + ".png");
+		C = A.getScaledInstance(CrossWidth * 2, CrossWidth * 2, Image.SCALE_SMOOTH);
+
+		if (crossOn)
+			this.setBounds(lx, ly, Width * 2, Height);
+		else
+			this.setBounds(lx, ly, Width, Height);
+
+		drawFont = new Font(NumFont, Font.BOLD, HUDFontsize);
+		HUDFontSizeSmall = (int) (HUDFontsize * 0.75f);
+		drawFontSmall = new Font(NumFont, Font.BOLD, HUDFontSizeSmall);
+		drawFontSSmall = new Font(NumFont, Font.BOLD, HUDFontsize / 2);
+
+		repaint();
+	}
+
+	public void init(controller c, service s, otherService os) {
+		xs = s;
+		xc = c;
+		Vx = 0;
+		cs = os;
+		setFrameOpaque();
+
+		reinitConfig();
+
 		lines = new String[6];
 		// for (int i = 0; i < 6; i++) {
 		// lines[i] = new String();
@@ -943,6 +1001,9 @@ public class minimalHUD extends WebFrame implements Runnable {
 		uiWebLafSetting.setWindowOpaque(this);
 		root = this.getContentPane();
 		// this.createBufferStrategy(2);
+
+		if (s != null)
+			setVisible(true);
 
 	}
 

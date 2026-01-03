@@ -78,7 +78,7 @@ public class engineInfo extends WebFrame implements Runnable {
 
 		init(c, null, null);
 		// setShadeWidth(10);
-		this.setVisible(false);
+		// this.setVisible(false);
 		// this.getWebRootPaneUI().setTopBg(new Color(0, 0, 0, 50));
 		this.getWebRootPaneUI().setMiddleBg(app.previewColor);// 中部透明
 		this.getWebRootPaneUI().setTopBg(app.previewColor);// 顶部透明
@@ -117,6 +117,7 @@ public class engineInfo extends WebFrame implements Runnable {
 					int left = getLocation().x;
 					int top = getLocation().y;
 					setLocation(left + e.getX() - xx, top + e.getY() - yy);
+					saveCurrentPosition();
 					setVisible(true);
 					repaint();
 				}
@@ -128,6 +129,11 @@ public class engineInfo extends WebFrame implements Runnable {
 		// setFocusable(true);
 		// setFocusableWindowState(true);
 
+	}
+
+	public void saveCurrentPosition() {
+		xc.setconfig("engineInfoX", Integer.toString(getLocation().x));
+		xc.setconfig("engineInfoY", Integer.toString(getLocation().y));
 	}
 
 	String[][] totalString;
@@ -358,7 +364,7 @@ public class engineInfo extends WebFrame implements Runnable {
 	public void updateString() {
 
 		__update_num(idx_hp, s.sTotalHp);
-		
+
 		// 推力
 		__update_num(idx_thrust, s.sTotalThr);
 		// 转速
@@ -369,7 +375,7 @@ public class engineInfo extends WebFrame implements Runnable {
 		__update_num(idx_eff, s.sAvgEff);
 		// 有效功率
 		__update_num(idx_ehp, s.sTotalHpEff);
-		
+
 		if (idx_ehp < useNum) {
 			if (s.bUnitMHp) {
 				totalString[idx_ehp][2] = mhp;
@@ -395,7 +401,7 @@ public class engineInfo extends WebFrame implements Runnable {
 			if (idx_map < useNum) {
 				totalString[idx_map][2] = s.pressureInchHg;
 			}
-			
+
 		} else {
 			__update_num(idx_map, s.manifoldpressure);
 			if (idx_map < useNum) {
@@ -421,7 +427,7 @@ public class engineInfo extends WebFrame implements Runnable {
 		if (idx_weptime < useNum) {
 			if (s.sWepTime == null || s.sWepTime.equals(service.nastring)) {
 				totalSwitch[idx_weptime] = false;
-			}else {
+			} else {
 				totalSwitch[idx_weptime] = true;
 			}
 		}
@@ -499,14 +505,7 @@ public class engineInfo extends WebFrame implements Runnable {
 
 	}
 
-	public void init(controller xc, service ts, blkx tp) {
-		this.xc = xc;
-		this.s = ts;
-		this.p = tp;
-
-		overheattime = 0;
-		freq = xc.freqEngineInfo;
-
+	public void reinitConfig() {
 		if (xc.getconfig("GlobalNumFont") != "")
 			NumFont = xc.getconfig("GlobalNumFont");
 		else
@@ -530,10 +529,6 @@ public class engineInfo extends WebFrame implements Runnable {
 		else
 			ly = 860;
 
-		// setIconImage(Toolkit.getDefaultToolkit().createImage("image/form1.jpg"));
-
-		// 初始化Panel
-		// initPanel();
 		fontsize = 24 + fontadd;
 		// 设置字体
 		fontNum = new Font(NumFont, Font.BOLD, fontsize);
@@ -541,25 +536,41 @@ public class engineInfo extends WebFrame implements Runnable {
 		fontUnit = new Font(NumFont, Font.PLAIN, Math.round(fontsize / 2.0f));
 
 		numHeight = getFontMetrics(fontNum).getHeight();
-		getFontMetrics(fontLabel).getHeight();
 
-		// numWidth = getFontMetrics(fontNum).getWidths();
 		// 列
 		if (xc.getconfig("engineInfoColumn") != "")
 			columnNum = Integer.parseInt(xc.getconfig("engineInfoColumn"));
 		else
 			columnNum = 3;
 
+		useNum = 0; // 重置计数
 		initTextString();
 
 		int addnum = (useNum % columnNum == 0) ? 0 : 1;
 
 		WIDTH = (fontsize >> 1) + (int) ((columnNum + 0.5) * 5f * fontsize);
 		HEIGHT = (int) (numHeight + (useNum / columnNum + addnum + 1) * 1.0f * numHeight);
-		// OP = 100;
+
+		if (xc.getconfig("engineInfoEdge").equals("true"))
+			setShadeWidth(10);// 玻璃效果边框
+		else
+			setShadeWidth(0);
+
+		this.setBounds(lx, ly, WIDTH, HEIGHT);
+		repaint();
+	}
+
+	public void init(controller xc, service ts, blkx tp) {
+		this.xc = xc;
+		this.s = ts;
+		this.p = tp;
+
+		overheattime = 0;
+		freq = xc.freqEngineInfo;
+
+		reinitConfig();
 
 		doffset = new int[2];
-		this.setBounds(lx, ly, WIDTH, HEIGHT);
 
 		panel = new WebPanel() {
 
@@ -586,7 +597,8 @@ public class engineInfo extends WebFrame implements Runnable {
 						// app.debugPrint("跳过"+i);
 						continue;
 					}
-					uiBaseElem._drawLabelBOSType(g2d, doffset[0], doffset[1], 1, 3*fontsize, fontNum, fontLabel, fontUnit,
+					uiBaseElem._drawLabelBOSType(g2d, doffset[0], doffset[1], 1, 3 * fontsize, fontNum, fontLabel,
+							fontUnit,
 							totalString[i][0], totalString[i][1], totalString[i][2]);
 					updateDxDy(++k, doffset);
 
@@ -615,9 +627,9 @@ public class engineInfo extends WebFrame implements Runnable {
 			setShadeWidth(10);// 玻璃效果边框
 		else {
 			setShadeWidth(0);
-			// this.getRootPane().add(separator1);
-			// this.getRootPane().add(separator2);
 		}
+		if (ts != null)
+			setVisible(true);
 	}
 
 	long engineCheckMili;
@@ -628,7 +640,7 @@ public class engineInfo extends WebFrame implements Runnable {
 
 		// 更新字符串
 
-//		updateString();
+		// updateString();
 
 		root.repaint();
 	}

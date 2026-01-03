@@ -23,7 +23,6 @@ import com.alee.laf.slider.WebSlider;
 import java.awt.geom.AffineTransform;
 import prog.app;
 import prog.controller;
-import prog.lang;
 import prog.service;
 
 public class attitudeIndicator extends WebFrame implements Runnable {
@@ -119,7 +118,7 @@ public class attitudeIndicator extends WebFrame implements Runnable {
 		init(c, null);
 
 		// setShadeWidth(10);
-		this.setVisible(false);
+		// this.setVisible(false);
 		this.getWebRootPaneUI().setTopBg(app.previewColor);
 		this.getWebRootPaneUI().setMiddleBg(app.previewColor);
 		// setFocusableWindowState(true);
@@ -155,16 +154,20 @@ public class attitudeIndicator extends WebFrame implements Runnable {
 					int left = getLocation().x;
 					int top = getLocation().y;
 					setLocation(left + e.getX() - xx, top + e.getY() - yy);
+					saveCurrentPosition();
 					setVisible(true);
 					repaint();
 				}
 			}
 		});
-
-		this.setShowResizeCorner(true);
-		this.setCursor(null);
 		setVisible(true);
+	}
 
+	public void saveCurrentPosition() {
+		xc.setconfig("attitudeIndicatorX", Integer.toString(getLocation().x));
+		xc.setconfig("attitudeIndicatorY", Integer.toString(getLocation().y));
+		xc.setconfig("attitudeIndicatorWidth", Integer.toString(getWidth() - 4));
+		xc.setconfig("attitudeIndicatorHeight", Integer.toString(getHeight() - 4));
 	}
 
 	public void locater(Graphics2D g2d, int width, int height, int x, int y, int pitch, int center_round,
@@ -197,7 +200,7 @@ public class attitudeIndicator extends WebFrame implements Runnable {
 		g2d.setColor(app.colorUnit);
 		g2d.fillPolygon(pX, pY, 4);
 		if (showDirection)
-			g2d.drawLine(width / 2, height / 2, (int)(width / 2 + compassX), (int)(height / 2 + compassY));
+			g2d.drawLine(width / 2, height / 2, (int) (width / 2 + compassX), (int) (height / 2 + compassY));
 		// g2d.drawRect(x, y, width, height);
 		// g2d.setColor(Color.white);
 		// g2d.drawLine(0, height/2 - 1, width/2 - center_round/2 - 1 , height/2
@@ -266,19 +269,19 @@ public class attitudeIndicator extends WebFrame implements Runnable {
 		g2d.drawLine(x - 1, y - locator_size / 2 - 1, x - 1, y + locator_size / 2 - 1);
 
 		g2d.setColor(app.colorWarning);
-		g2d.drawLine(0, (int)AoAFLimitU, width - 1, (int)AoAFLimitU);
-		g2d.drawLine(0, (int)AoAFLimitD, width - 1, (int)AoAFLimitD);
+		g2d.drawLine(0, (int) AoAFLimitU, width - 1, (int) AoAFLimitU);
+		g2d.drawLine(0, (int) AoAFLimitD, width - 1, (int) AoAFLimitD);
 
 		g2d.setColor(app.colorLabel);
 		// 两条线
-		g2d.drawLine(0, (int)AoALimitU, width - 1, (int)AoALimitU);
-		g2d.drawLine(0, (int)AoALimitD, width - 1, (int)AoALimitD);
+		g2d.drawLine(0, (int) AoALimitU, width - 1, (int) AoALimitU);
+		g2d.drawLine(0, (int) AoALimitD, width - 1, (int) AoALimitD);
 
 		if (showDirection) {
-			g2d.drawLine(width / 2, height / 2, (int)(width / 2 + compassX), (int)(height / 2 + compassY));
+			g2d.drawLine(width / 2, height / 2, (int) (width / 2 + compassX), (int) (height / 2 + compassY));
 
 			g2d.setColor(app.colorUnit);
-			g2d.drawLine(width / 2, height / 2, (int)(width / 2 - compassX), (int)(height / 2 - compassY));
+			g2d.drawLine(width / 2, height / 2, (int) (width / 2 - compassX), (int) (height / 2 - compassY));
 		}
 
 		// g2d.drawOval(width/2 - 2, bomb_dy - 2, 2, 2);
@@ -347,12 +350,12 @@ public class attitudeIndicator extends WebFrame implements Runnable {
 				g2d.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION,
 						RenderingHints.VALUE_ALPHA_INTERPOLATION_SPEED);
 				g2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_SPEED);
-				
+
 				// g2d.setColor(Color.white);
 				// g2d.fillRect(0, 0, 200, 200);
 				// 绘制十字星
-				locater(g2d, xWidth, xHeight, (int)AoS, (int)AoA, (int)Pitch, 12, 6);
-				g.dispose();
+				locater(g2d, xWidth, xHeight, (int) AoS, (int) AoA, (int) Pitch, 12, 6);
+				// g.dispose();
 			}
 		};
 
@@ -360,13 +363,10 @@ public class attitudeIndicator extends WebFrame implements Runnable {
 		toppanel.add(panel);
 	}
 
-	public void init(controller c, service s) {
-		int lx = 0;
-		int ly = 0;
+	int lx;
+	int ly;
 
-		xc = c;
-		xs = s;
-		// app.debugPrint("stickValue初始化了");
+	public void reinitConfig() {
 		if (xc.getconfig("GlobalNumFont") != "")
 			NumFont = xc.getconfig("GlobalNumFont");
 		else
@@ -406,9 +406,30 @@ public class attitudeIndicator extends WebFrame implements Runnable {
 
 		showAoALimits = true;
 		if (xc.getconfig("attitudeIndicatorDisplayAoALimits") != "")
-			showAoALimits = Boolean.parseBoolean(xc.getconfig("attitudeIndicatorDisplayDirection"));
+			showAoALimits = Boolean.parseBoolean(xc.getconfig("attitudeIndicatorDisplayAoALimits"));
 
 		setFrameOpaque();
+
+		// 旋转中心需要更新
+		pC = new Point(xWidth / 2, xHeight / 2);
+
+		if (xc.getconfig("enableAttituteIndicatorEdge").equals("true"))
+			setShadeWidth(10);
+		else
+			setShadeWidth(0);
+
+		this.setBounds(lx, ly, xWidth + 4, xHeight + 4);
+		repaint();
+	}
+
+	public void init(controller c, service s) {
+		xc = c;
+		xs = s;
+
+		reinitConfig();
+
+		pX = new int[4];
+		pY = new int[4];
 
 		pX = new int[4];
 		pY = new int[4];
@@ -434,10 +455,9 @@ public class attitudeIndicator extends WebFrame implements Runnable {
 			pT[i] = new Point(0, 0);
 		}
 
-		this.setBounds(lx, ly, xWidth+4, xHeight+4);
+		this.setBounds(lx, ly, xWidth + 4, xHeight + 4);
 
-
-		topPanel =new WebPanel() {
+		topPanel = new WebPanel() {
 			private static final long serialVersionUID = -9061280572815010060L;
 
 			public void paintComponent(Graphics g) {
@@ -454,26 +474,26 @@ public class attitudeIndicator extends WebFrame implements Runnable {
 				// g2d.setColor(Color.white);
 				// g2d.fillRect(0, 0, 200, 200);
 				// 绘制十字星
-				locater(g2d, xWidth, xHeight, (int)AoS, (int)AoA, (int)Pitch, 12, 6);
-				g.dispose();
+				locater(g2d, xWidth, xHeight, (int) AoS, (int) AoA, (int) Pitch, 12, 6);
+				// g.dispose();
 			}
 		};
 
-//		topPanel.setWebColoredBackground(false);
-//		topPanel.setBackground(new Color(0, 0, 0, 0));
+		// topPanel.setWebColoredBackground(false);
+		// topPanel.setBackground(new Color(0, 0, 0, 0));
 
 		initpanel(topPanel);
 		add(topPanel);
 		root = this.getContentPane();
-//		setShowWindowButtons(false);
-//		setShowTitleComponent(false);
-//		setShowResizeCorner(false);
-//		setDefaultCloseOperation(3);
-//		setTitle(lang.vTitle);
-//		setAlwaysOnTop(true);
-//
-//		setFocusable(false);
-//		setFocusableWindowState(false);// 取消窗口焦点
+		// setShowWindowButtons(false);
+		// setShowTitleComponent(false);
+		// setShowResizeCorner(false);
+		// setDefaultCloseOperation(3);
+		// setTitle(lang.vTitle);
+		// setAlwaysOnTop(true);
+		//
+		// setFocusable(false);
+		// setFocusableWindowState(false);// 取消窗口焦点
 		setTitle("attitude");
 		uiWebLafSetting.setWindowOpaque(this);
 		if (xc.getconfig("enableAttituteIndicatorEdge").equals("true"))
@@ -484,6 +504,9 @@ public class attitudeIndicator extends WebFrame implements Runnable {
 		// MaxAoA));
 		// AoALimitD = Math.round((-xc.blkx.aoaLow + MaxAoA) * xHeight / (2 *
 		// MaxAoA));
+
+		if (s != null)
+			setVisible(true);
 
 	}
 
