@@ -1281,6 +1281,9 @@ public class mainform extends WebFrame implements Runnable {
 		tabbedPane.addTab(lang.mLoggingAndAnalysis, jp5);
 		tabbedPane.addTab(lang.mCrosshair, jp3);
 		tabbedPane.addTab(lang.mAdvancedOption, jp1);
+
+		// Add the Example Page for the new Layout Manager Framework
+		tabbedPane.addTab("NewUI", new ui.layout.ExamplePage(this));
 		// tabbedPane.setTabBorderColor(new Color(0, 0, 0, 0));
 		// tabbedPane.setContentBorderColor(new Color(0, 0, 0, 0));
 		// tabbedPane.setShadeWidth(1);
@@ -1662,6 +1665,22 @@ public class mainform extends WebFrame implements Runnable {
 			}
 
 		}
-		// tc.loadFromConfig();
+
+	}
+
+	public void startPreview() {
+		if (moveCheckFlag == null || moveCheckFlag == false) {
+			controller.notification(prog.lang.mMovePanel);
+			saveconfig();
+			tc.Preview();
+			moveCheckFlag = true;
+		}
+	}
+
+	public void stopPreview() {
+		if (moveCheckFlag != null && moveCheckFlag) {
+			tc.endPreview();
+			moveCheckFlag = false;
+		}
 	}
 }
