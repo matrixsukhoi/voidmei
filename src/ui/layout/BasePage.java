@@ -58,16 +58,28 @@ public abstract class BasePage extends WebPanel {
         initContent(content);
 
         // --- Scroll Pane ---
+        // --- Center Component ---
+        // --- Center Component ---
+        this.add(createCenterComponent(content), BorderLayout.CENTER);
+
+        // --- Bottom Control Panel ---
+        createBottomPanel();
+    }
+
+    /**
+     * Creates the component to be added to the center of the page.
+     * Default implementation wraps the content in a WebScrollPane.
+     * Subclasses can override this to provide custom behavior (e.g. scaling without
+     * scrolling).
+     */
+    protected java.awt.Component createCenterComponent(WebPanel content) {
         WebScrollPane scroll = new WebScrollPane(content);
         scroll.setOpaque(false);
         scroll.getViewport().setOpaque(false);
         scroll.setBorder(null);
         scroll.setViewportBorder(null);
         scroll.setDrawBorder(false);
-        this.add(scroll, BorderLayout.CENTER);
-
-        // --- Bottom Control Panel ---
-        createBottomPanel();
+        return scroll;
     }
 
     /**
@@ -82,7 +94,8 @@ public abstract class BasePage extends WebPanel {
         WebPanel bottomPanel = new WebPanel(new BorderLayout());
         bottomPanel.setOpaque(false);
         // Increase padding to prevent "squeezed" look
-        // bottomPanel.setBorder(javax.swing.BorderFactory.createEmptyBorder(10, 15, 15, 15));
+        // bottomPanel.setBorder(javax.swing.BorderFactory.createEmptyBorder(10, 15, 15,
+        // 15));
 
         // Use UIBuilder.createFooterButton for standardizing ALL bottom buttons
 
@@ -115,7 +128,7 @@ public abstract class BasePage extends WebPanel {
         WebButton btnExit = UIBuilder.createFooterButton(lang.mCancel);
         WebButton btnStart = UIBuilder.createFooterButton(lang.mStart);
         WebButtonGroup rightGroup = new WebButtonGroup(true, btnExit, btnStart);
-        
+
         btnStart.setRound(10); // Start button specific styling from legacy
 
         rightGroup.setButtonsDrawSides(false, false, false, true);

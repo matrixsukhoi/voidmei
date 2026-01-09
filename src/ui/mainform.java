@@ -57,6 +57,8 @@ public class mainform extends WebFrame implements Runnable {
 	public int width;
 	public int height;
 	public controller tc;
+	// Store dynamic pages for updates
+	private java.util.List<ui.layout.DynamicDataPage> dynamicPages;
 	int gcCount = 0;
 	Container root;
 	WebPanel jp1;
@@ -1282,10 +1284,21 @@ public class mainform extends WebFrame implements Runnable {
 		tabbedPane.addTab(lang.mCrosshair, jp3);
 		tabbedPane.addTab(lang.mAdvancedOption, jp1);
 
-		// Add the Example Page for the new Layout Manager Framework
-		// Use helper to ensure consistent right-alignment and clean code
-		ui.layout.UIBuilder.addRightAlignedTab(tabbedPane, "NewUI", new ui.layout.ExamplePage(this),
-				app.defaultFontBig);
+		// Dynamic Tabs from Config
+		dynamicPages = new java.util.ArrayList<>();
+		java.util.List<ui.util.ConfigLoader.GroupConfig> groups = ui.util.ConfigLoader.loadConfig("ui_layout.cfg");
+
+		if (groups.isEmpty()) {
+			// Fallback if no config or empty
+			ui.layout.UIBuilder.addRightAlignedTab(tabbedPane, "Data (Empty)", new ui.layout.DynamicDataPage(this),
+					app.defaultFontBig);
+		} else {
+			for (ui.util.ConfigLoader.GroupConfig group : groups) {
+				ui.layout.DynamicDataPage page = new ui.layout.DynamicDataPage(this, group);
+				dynamicPages.add(page);
+				ui.layout.UIBuilder.addRightAlignedTab(tabbedPane, group.title, page, app.defaultFontBig);
+			}
+		}
 		// tabbedPane.setTabBorderColor(new Color(0, 0, 0, 0));
 		// tabbedPane.setContentBorderColor(new Color(0, 0, 0, 0));
 		// tabbedPane.setShadeWidth(1);
@@ -1578,6 +1591,12 @@ public class mainform extends WebFrame implements Runnable {
 		this.setVisible(false);
 		tc.flag = 1;
 		tc.start();
+		// Show dynamic overlays for game mode
+		if (dynamicPages != null) {
+			for (ui.layout.DynamicDataPage page : dynamicPages) {
+				page.setOverlayVisible(true);
+			}
+		}
 		// this.dispose();
 	}
 
@@ -1645,6 +1664,16 @@ public class mainform extends WebFrame implements Runnable {
 		this.setShadeWidth(10);
 		tc.Preview();
 		moveCheckFlag = true;
+		// Ensure overlays are visible if we started in preview mode (lines above set
+		// it?)
+		// Actually line 1646 calls tc.Preview() but doesn't set dynamic pages?
+		// The constructor finishes here.
+		// If tc.Preview() is called, we should also show overlays.
+		if (dynamicPages != null) {
+			for (ui.layout.DynamicDataPage page : dynamicPages) {
+				page.setOverlayVisible(true);
+			}
+		}
 	}
 
 	@Override
@@ -1660,6 +1689,12 @@ public class mainform extends WebFrame implements Runnable {
 			// gcCount++;
 			// app.debugPrint("As");
 			// app.debugPrint("MainFrame执行了");
+			// Update dynamic data pages
+			if (dynamicPages != null) {
+				for (ui.layout.DynamicDataPage page : dynamicPages) {
+					page.update();
+				}
+			}
 			root.repaint();
 			if (gcCount++ % 256 == 0) {
 				// app.debugPrint("MainFrameGC");
@@ -1676,6 +1711,13 @@ public class mainform extends WebFrame implements Runnable {
 			saveconfig();
 			tc.Preview();
 			moveCheckFlag = true;
+
+			// Show dynamic overlays for preview
+			if (dynamicPages != null) {
+				for (ui.layout.DynamicDataPage page : dynamicPages) {
+					page.setOverlayVisible(true);
+				}
+			}
 		}
 	}
 
@@ -1683,6 +1725,13 @@ public class mainform extends WebFrame implements Runnable {
 		if (moveCheckFlag != null && moveCheckFlag) {
 			tc.endPreview();
 			moveCheckFlag = false;
+
+			// Hide dynamic overlays
+			if (dynamicPages != null) {
+				for (ui.layout.DynamicDataPage page : dynamicPages) {
+					page.setOverlayVisible(false);
+				}
+			}
 		}
 	}
 }
