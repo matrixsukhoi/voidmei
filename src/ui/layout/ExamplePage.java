@@ -1,40 +1,16 @@
 package ui.layout;
 
-import java.awt.BorderLayout;
-import java.awt.Color;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-
-import com.alee.extended.layout.VerticalFlowLayout;
-import com.alee.extended.panel.WebButtonGroup;
-import com.alee.laf.button.WebButton;
 import com.alee.laf.panel.WebPanel;
-import com.alee.laf.scroll.WebScrollPane;
-
 import ui.mainform;
-import prog.lang;
 
-/**
- * An example usage of the new Layout Manager framework.
- */
-public class ExamplePage extends WebPanel {
-
-    private mainform parent;
+public class ExamplePage extends BasePage {
 
     public ExamplePage(mainform parent) {
-        super();
-        this.parent = parent;
-        this.setLayout(new BorderLayout());
-        this.setOpaque(false);
-        this.setBackground(new Color(0, 0, 0, 0));
+        super(parent);
+    }
 
-        // --- Content Area ---
-        WebPanel content = new WebPanel();
-        content.setOpaque(false);
-        content.setLayout(new VerticalFlowLayout(0, 0));
-        // Add padding to satisfy "neat padding" requirement
-        content.setBorder(javax.swing.BorderFactory.createEmptyBorder(10, 20, 10, 20));
-
+    @Override
+    protected void initContent(WebPanel content) {
         WebPanel titleGrid = UIBuilder.createGridContainer(2);
         UIBuilder.addSwitch(titleGrid, "飞行信息面板", true);
         UIBuilder.addSwitch(titleGrid, "玻璃边框", false);
@@ -80,83 +56,5 @@ public class ExamplePage extends WebPanel {
         UIBuilder.addSlider(controlsGrid, "Column Adjust", 1, 16, 4);
 
         content.add(controlsGrid);
-
-        WebScrollPane scroll = new WebScrollPane(content);
-        scroll.setOpaque(false);
-        scroll.getViewport().setOpaque(false);
-        scroll.setBorder(null);
-        scroll.setViewportBorder(null);
-        scroll.setDrawBorder(false); // Force removal of WebLaF specific border
-        this.add(scroll, BorderLayout.CENTER);
-
-        // --- Bottom Control Panel ---
-        createBottomPanel();
-    }
-
-    private void createBottomPanel() {
-        WebPanel bottomPanel = new WebPanel(new BorderLayout());
-        bottomPanel.setOpaque(false);
-        // Add some padding for the footer too
-        bottomPanel.setBorder(javax.swing.BorderFactory.createEmptyBorder(5, 5, 5, 5));
-
-        // Left Group (Preview Controls)
-        WebButton btnPreview = parent.createButton(lang.mDisplayPreview);
-        WebButton btnClosePreview = parent.createButton(lang.mClosePreview);
-        WebButtonGroup leftGroup = new WebButtonGroup(true, btnPreview, btnClosePreview);
-        btnPreview.setPreferredWidth(120);
-        btnClosePreview.setPreferredWidth(120);
-        // parent.createButton sets defaultFontBig, so these should match Start/Exit
-        // height now
-        // Removed manual font set to ensure consistency
-
-        leftGroup.setButtonsShadeWidth(3);
-        leftGroup.setButtonsDrawSides(false, false, false, true);
-
-        btnPreview.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                parent.startPreview();
-            }
-        });
-
-        btnClosePreview.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                parent.stopPreview();
-            }
-        });
-
-        bottomPanel.add(leftGroup, BorderLayout.LINE_START);
-
-        // Right Group (Exit/Start)
-        WebButton btnExit = parent.createButton(lang.mCancel);
-        WebButton btnStart = parent.createButton(lang.mStart);
-        WebButtonGroup rightGroup = new WebButtonGroup(true, btnExit, btnStart);
-        btnExit.setPreferredWidth(120);
-        btnStart.setPreferredWidth(120);
-        btnStart.setRound(10);
-        rightGroup.setButtonsDrawSides(false, false, false, true);
-        rightGroup.setButtonsForeground(new Color(0, 0, 0, 200));
-        rightGroup.setButtonsShadeWidth(3);
-
-        btnExit.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                parent.saveconfig();
-                parent.tc.saveconfig();
-                System.exit(0);
-            }
-        });
-
-        btnStart.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                parent.confirm();
-            }
-        });
-
-        bottomPanel.add(rightGroup, BorderLayout.LINE_END);
-
-        this.add(bottomPanel, BorderLayout.SOUTH);
     }
 }

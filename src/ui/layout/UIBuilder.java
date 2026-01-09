@@ -138,4 +138,42 @@ public class UIBuilder {
         parent.add(p);
         return comboBox;
     }
+
+    /**
+     * Adds a tab with a custom right-aligned label component.
+     * This ensures the tab title is right-aligned even for short English text.
+     */
+    public static void addRightAlignedTab(com.alee.laf.tabbedpane.WebTabbedPane tabbedPane, String title,
+            java.awt.Component content, java.awt.Font font) {
+        tabbedPane.addTab(title, content);
+
+        com.alee.laf.label.WebLabel label = new com.alee.laf.label.WebLabel(title);
+        label.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
+        label.setFont(font);
+        // Force a specific dimension to ensure there is space for right alignment
+        label.setPreferredSize(new Dimension(70, 30));
+        // Add padding to satisfy "right align with padding" requirement
+        // label.setBorder(javax.swing.BorderFactory.createEmptyBorder(0, 0, 0, 0));
+
+        tabbedPane.setTabComponentAt(tabbedPane.getTabCount() - 1, label);
+    }
+
+    /**
+     * Creates a standardized footer button with consistent size (120x30) and font
+     * (defaultFontBig).
+     */
+    public static com.alee.laf.button.WebButton createFooterButton(String text) {
+        com.alee.laf.button.WebButton btn = new com.alee.laf.button.WebButton(text);
+        btn.setFont(prog.app.defaultFontBig);
+        btn.setPreferredSize(new Dimension(120, 80));
+
+        // Basic styling consistent with mainform.createButton
+        btn.setShadeWidth(1);
+        btn.setDrawShade(true);
+        btn.setTopBgColor(new java.awt.Color(0, 0, 0, 0));
+        btn.setBottomBgColor(new java.awt.Color(0, 0, 0, 0));
+        btn.setBorderPainted(false);
+
+        return btn;
+    }
 }

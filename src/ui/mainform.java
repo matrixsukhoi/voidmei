@@ -616,8 +616,8 @@ public class mainform extends WebFrame implements Runnable {
 		displayPreview.setPreferredWidth(120);
 
 		C.setPreferredWidth(120);
-		displayPreview.setFont(app.defaultFont);
-		C.setFont(app.defaultFont);
+		displayPreview.setFont(app.defaultFontBig);
+		C.setFont(app.defaultFontBig);
 		G.setButtonsShadeWidth(3);
 
 		// WebLabel lb=createWebLabel("调整位置");
@@ -1283,7 +1283,9 @@ public class mainform extends WebFrame implements Runnable {
 		tabbedPane.addTab(lang.mAdvancedOption, jp1);
 
 		// Add the Example Page for the new Layout Manager Framework
-		tabbedPane.addTab("NewUI", new ui.layout.ExamplePage(this));
+		// Use helper to ensure consistent right-alignment and clean code
+		ui.layout.UIBuilder.addRightAlignedTab(tabbedPane, "NewUI", new ui.layout.ExamplePage(this),
+				app.defaultFontBig);
 		// tabbedPane.setTabBorderColor(new Color(0, 0, 0, 0));
 		// tabbedPane.setContentBorderColor(new Color(0, 0, 0, 0));
 		// tabbedPane.setShadeWidth(1);
