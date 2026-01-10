@@ -13,7 +13,6 @@ import javax.swing.SwingUtilities;
 
 import ui.util.ConfigLoader;
 import prog.util.FormulaEvaluator;
-import parser.blkx;
 import ui.mainform;
 
 public class DynamicOverlay extends JWindow {
@@ -51,14 +50,24 @@ public class DynamicOverlay extends JWindow {
         setAlwaysOnTop(true);
         setBackground(new Color(0, 0, 0, 0)); // Transparent
         setSize(320, 400);
-        setLocation(config.x, config.y);
 
-        // Mouse Listeners for Dragging
+        java.awt.Dimension screen = java.awt.Toolkit.getDefaultToolkit().getScreenSize();
+        // 根据相对比例计算实际屏幕像素位置
+        setLocation((int) (config.x * screen.width), (int) (config.y * screen.height));
+
+        // 鼠标拖动监听器，用于更新位置并保存配置
         addMouseListener(new MouseAdapter() {
             public void mousePressed(MouseEvent e) {
                 if (parent != null && !parent.moveCheckFlag)
                     return;
                 initialClick = e.getPoint();
+            }
+
+            public void mouseReleased(MouseEvent e) {
+                if (parent != null && parent.moveCheckFlag) {
+                    // 拖动结束后立即保存最新位置到 ui_layout.cfg
+                    parent.saveDynamicConfigs();
+                }
             }
         });
         addMouseMotionListener(new MouseAdapter() {
@@ -68,9 +77,11 @@ public class DynamicOverlay extends JWindow {
                 int xMoved = e.getX() - initialClick.x;
                 int yMoved = e.getY() - initialClick.y;
                 setLocation(thisX + xMoved, thisY + yMoved);
-                // Update config for potential save (not implemented yet)
-                config.x = getX();
-                config.y = getY();
+                
+                // 将当前像素位置转换回相对比例（0.0 - 1.0），实现跨分辨率兼容
+                java.awt.Dimension screen = java.awt.Toolkit.getDefaultToolkit().getScreenSize();
+                config.x = (double) getX() / screen.width;
+                config.y = (double) getY() / screen.height;
             }
         });
     }
@@ -132,10 +143,13 @@ public class DynamicOverlay extends JWindow {
     private float cachedScaleFactor = 1.0f;
 
     private void checkCache() {
+        // 缓存屏幕高度和缩放因子，避免在 paint 循环中频繁调用 Toolkit
         if (cachedScreenHeight == -1) {
             cachedScreenHeight = java.awt.Toolkit.getDefaultToolkit().getScreenSize().height;
+            // 以 1440p (2K) 为基准进行字体缩放
             cachedScaleFactor = (float) cachedScreenHeight / 1440.0f;
         }
+        // 缓存 Font 对象，仅在字体名改变时重筑
         if (cachedFont == null || !cachedFont.getFamily().equals(config.fontName)) {
             int fontSize = Math.round(16 * cachedScaleFactor);
             cachedFont = new Font(config.fontName, Font.PLAIN, fontSize);
@@ -153,9 +167,7 @@ public class DynamicOverlay extends JWindow {
         int w = getWidth();
         int h = getHeight();
 
-        // Clear with transparency (only if configured, or relying on system composite)
-        // Note: On JWindow without AWTUtilities, CLEAR might show black.
-        // If user says it works, we keep it, but it is expensive if not accelerated.
+        // 使用清除合成模式来实现真正的背景透明（清除像素）
         g2.setComposite(java.awt.AlphaComposite.getInstance(java.awt.AlphaComposite.CLEAR));
         g2.fillRect(0, 0, w, h);
         g2.setComposite(java.awt.AlphaComposite.getInstance(java.awt.AlphaComposite.SRC_OVER));

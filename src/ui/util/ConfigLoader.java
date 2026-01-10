@@ -28,8 +28,8 @@ public class ConfigLoader {
 
     public static class GroupConfig {
         public String title;
-        public int x = 100;
-        public int y = 100;
+        public double x = 0.1;
+        public double y = 0.1;
         public int alpha = 150;
         public boolean visible = false; // Default to false (hidden)
         public String fontName = "Sarasa Mono SC";
@@ -64,16 +64,28 @@ public class ConfigLoader {
                 } else if (line.startsWith("X=")) {
                     if (currentGroup != null)
                         try {
-                            currentGroup.x = Integer.parseInt(line.substring(2).trim());
+                            double val = Double.parseDouble(line.substring(2).trim());
+                            // 自动兼容旧版配置：如果数值大于 2.0，说明是旧的绝对像素坐标，自动转换为相对比例
+                            if (val > 2.0) {
+                                int screenW = java.awt.Toolkit.getDefaultToolkit().getScreenSize().width;
+                                val = val / screenW;
+                            }
+                            currentGroup.x = val;
                         } catch (Exception e) {
                         }
                 } else if (line.startsWith("Y=")) {
                     if (currentGroup != null)
                         try {
-                            currentGroup.y = Integer.parseInt(line.substring(2).trim());
+                            double val = Double.parseDouble(line.substring(2).trim());
+                            if (val > 2.0) {
+                                int screenH = java.awt.Toolkit.getDefaultToolkit().getScreenSize().height;
+                                val = val / screenH;
+                            }
+                            currentGroup.y = val;
                         } catch (Exception e) {
                         }
-                } else if (line.startsWith("Alpha=")) {
+                }
+ else if (line.startsWith("Alpha=")) {
                     if (currentGroup != null)
                         try {
                             currentGroup.alpha = Integer.parseInt(line.substring(6).trim());
@@ -116,8 +128,8 @@ public class ConfigLoader {
                 new OutputStreamWriter(new FileOutputStream(path), StandardCharsets.UTF_8))) {
             for (GroupConfig group : groups) {
                 pw.println("[" + group.title + "]");
-                pw.println("X=" + group.x);
-                pw.println("Y=" + group.y);
+                pw.println("X=" + String.format("%.4f", group.x));
+                pw.println("Y=" + String.format("%.4f", group.y));
                 pw.println("Alpha=" + group.alpha);
                 pw.println("Visible=" + group.visible);
                 pw.println("Font=" + group.fontName);

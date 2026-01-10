@@ -27,6 +27,7 @@ public class FormulaEvaluator {
      * @param variables A map of variable names to values
      * @return The result as an Object (usually Double or Integer)
      */
+    // 使用静态缓存来存储已编译的脚本，避免每一帧都重新解析字符串，极大降低 CPU 占用
     private static java.util.Map<String, javax.script.CompiledScript> cache = new java.util.HashMap<>();
 
     public static Object evaluate(String formula, Map<String, Object> variables) throws Exception {
@@ -38,7 +39,7 @@ public class FormulaEvaluator {
         try {
             Bindings bindings = new SimpleBindings(variables);
 
-            // Try cache first
+            // 优先从缓存获取已编译好的脚本
             if (engine instanceof javax.script.Compilable) {
                 javax.script.CompiledScript script = cache.get(formula);
                 if (script == null) {
@@ -47,7 +48,7 @@ public class FormulaEvaluator {
                 }
                 return script.eval(bindings);
             } else {
-                // Fallback for non-compilable engines
+                // 如果引擎不支持编译，则使用普通 eval 方式（性能较低）
                 engine.setBindings(bindings, ScriptContext.ENGINE_SCOPE);
                 return engine.eval(formula);
             }

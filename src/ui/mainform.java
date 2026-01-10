@@ -358,7 +358,8 @@ public class mainform extends WebFrame implements Runnable {
 
 	public WebButton displayPreview;
 	public WebSwitch battitudeIndicatorSwitch;
-	public WebSwitch bFMPrintSwitch;
+	public WebSwitch bFMPrintSwitch; // “飞行信息”选项卡中的 FM 详细数据显示开关
+	public WebSwitch bFMPrintLogSwitch; // “记录分析”选项卡中的 FM 详细数据显示开关（两者同步）
 	private WebSwitch bcrosshairdisplaySwitch;
 	private WebSwitch bFlightInfoIAS;
 	private WebSwitch bFlightInfoTAS;
@@ -1005,6 +1006,11 @@ public class mainform extends WebFrame implements Runnable {
 		createvoidWebLabel(topPanel, lang.mP4attitudeIndicatorPanelBlank);
 
 		bFMPrintSwitch = createLCGroup(topPanel, lang.mP4FMPanel);
+		bFMPrintSwitch.addActionListener(e -> {
+			// 同步“记录分析”页面的开关状态；检查 isSelected() 防止死循环触发递归
+			if (bFMPrintLogSwitch != null && bFMPrintLogSwitch.isSelected() != bFMPrintSwitch.isSelected())
+				bFMPrintLogSwitch.setSelected(bFMPrintSwitch.isSelected());
+		});
 		createvoidWebLabel(topPanel, lang.mP4FMPanelBlank);
 
 		bFlightInfoIAS = createLCGroup(topPanel, lang.mP4fiIAS);
@@ -1117,6 +1123,14 @@ public class mainform extends WebFrame implements Runnable {
 					displayFM(bFMList1, 1);
 			}
 		});
+
+		bFMPrintLogSwitch = createLCGroup(topPanel, lang.mP5FMPrintEnable);
+		bFMPrintLogSwitch.addActionListener(e -> {
+			// 同步“飞行信息”页面的开关状态；检查 isSelected() 防止死循环触发递归
+			if (bFMPrintSwitch != null && bFMPrintSwitch.isSelected() != bFMPrintLogSwitch.isSelected())
+				bFMPrintSwitch.setSelected(bFMPrintLogSwitch.isSelected());
+		});
+		createvoidWebLabel(topPanel, lang.mP5FMPrintEnableBlank);
 
 		WebLabel keyLb = createWebLabel(lang.mP5FMDisplayKey);
 		bDisplayFmKey = new WebButton(NativeKeyEvent.getKeyText(app.displayFmKey));
@@ -1373,7 +1387,9 @@ public class mainform extends WebFrame implements Runnable {
 		sFlightInfoFont.setSelectedItem(tc.getconfig("flightInfoFontC"));
 		iFlightInfoFontSizeIncr.setValue(Integer.parseInt(tc.getconfig("flightInfoFontaddC")));
 		battitudeIndicatorSwitch.setSelected(Boolean.parseBoolean(tc.getconfig("enableAttitudeIndicator")));
-		bFMPrintSwitch.setSelected(Boolean.parseBoolean(tc.getconfig("enableFMPrint")));
+		boolean fmPrint = Boolean.parseBoolean(tc.getconfig("enableFMPrint"));
+		bFMPrintSwitch.setSelected(fmPrint);
+		bFMPrintLogSwitch.setSelected(fmPrint);
 
 		bFlightInfoIAS.setSelected(!Boolean.parseBoolean(tc.getconfig("disableFlightInfoIAS")));
 		bFlightInfoTAS.setSelected(!Boolean.parseBoolean(tc.getconfig("disableFlightInfoTAS")));
@@ -1518,6 +1534,7 @@ public class mainform extends WebFrame implements Runnable {
 		tc.setconfig("flightInfoEdge", Boolean.toString(bFlightInfoEdge.isSelected()));
 		tc.setconfig("enableAttitudeIndicator", Boolean.toString(battitudeIndicatorSwitch.isSelected()));
 
+		tc.setconfig("enableAttitudeIndicator", Boolean.toString(battitudeIndicatorSwitch.isSelected()));
 		tc.setconfig("enableFMPrint", Boolean.toString(bFMPrintSwitch.isSelected()));
 
 		tc.setconfig("disableFlightInfoIAS", Boolean.toString(!bFlightInfoIAS.isSelected()));

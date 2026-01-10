@@ -797,25 +797,25 @@ public class controller {
 			SA = null;
 		}
 
-		// someUsefulData (Unpacked Info)
+		// someUsefulData (Unpacked Info) - 将数据加载与 UI 显示解耦
+		// 无论开关是否打开，都尝试获取 blkx 信息（自定义 Overlay 需要这些数据）
+		httpHelper httpDataFetcher = new httpHelper();
+		String livePlaneName = httpDataFetcher.getLiveAircraftType();
+
+		if (livePlaneName != null) {
+			getfmdata(livePlaneName);
+		}
+
+		// 确保 blkx 已初始化（如果未检测到实时飞机，则回退到配置中的默认机型）
+		if (blkx == null) {
+			String planeName = getconfig("selectedFM0");
+			if (planeName != null && !planeName.isEmpty()) {
+				getfmdata(planeName);
+			}
+		}
+
+		// 只有当 enableFMPrint 开关打开时，才显示“详细数据窗口”和“推力曲线图”
 		if (Boolean.parseBoolean(getconfig("enableFMPrint"))) {
-			// 尝试从 8111 端口获取当前飞机型号
-			httpHelper httpDataFetcher = new httpHelper();
-			String livePlaneName = httpDataFetcher.getLiveAircraftType();
-
-			if (livePlaneName != null) {
-				// app.debugPrint("Preview live plane: " + livePlaneName);
-				getfmdata(livePlaneName);
-			}
-
-			// 确保 blkx 已初始化以便预览 (Fallback to config)
-			if (blkx == null) {
-				String planeName = getconfig("selectedFM0");
-				if (planeName != null && !planeName.isEmpty()) {
-					getfmdata(planeName);
-				}
-			}
-
 			// pt: Unpacked FM Data Window (拆包数据/FM信息窗口)
 			if (pt == null) {
 				pt = new someUsefulData();
@@ -842,6 +842,7 @@ public class controller {
 				thrustdFS = null;
 			}
 		} else {
+			// 关闭窗口，但保留 blkx 数据供 Overlay 使用
 			if (pt != null) {
 				pt.doit = false;
 				pt.dispose();
