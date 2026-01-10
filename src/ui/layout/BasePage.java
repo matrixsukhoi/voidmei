@@ -25,6 +25,7 @@ import prog.lang;
 public abstract class BasePage extends WebPanel {
 
     protected mainform parent;
+    protected boolean isDetailedMode = false;
 
     public BasePage(mainform parent) {
         super();
@@ -62,8 +63,46 @@ public abstract class BasePage extends WebPanel {
         // --- Center Component ---
         this.add(createCenterComponent(content), BorderLayout.CENTER);
 
+        // --- Top Toolbar (optional, subclasses can override) ---
+        WebPanel topToolbar = createTopToolbar();
+        if (topToolbar != null) {
+            this.add(topToolbar, BorderLayout.NORTH);
+        }
+
         // --- Bottom Control Panel ---
         createBottomPanel();
+    }
+
+    /**
+     * Creates an optional top toolbar for the page.
+     * Default implementation returns a styled panel with "控制面板" title.
+     * Subclasses can override and call super to get the styled container,
+     * then add their specific controls to it.
+     */
+    protected WebPanel createTopToolbar() {
+        WebPanel toolbar = new WebPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 10, 5));
+
+        // Keep transparent background
+        toolbar.setOpaque(false);
+
+        // Create rounded line border with title
+        javax.swing.border.Border lineBorder = javax.swing.BorderFactory.createLineBorder(
+                new java.awt.Color(0, 0, 0, 200), 2, true); // Black rounded border
+
+        javax.swing.border.TitledBorder titledBorder = javax.swing.BorderFactory.createTitledBorder(
+                lineBorder,
+                "控制面板",
+                javax.swing.border.TitledBorder.LEFT,
+                javax.swing.border.TitledBorder.TOP,
+                prog.app.defaultFont,
+                new java.awt.Color(0, 0, 0, 220));
+
+        // Add padding inside the border
+        toolbar.setBorder(javax.swing.BorderFactory.createCompoundBorder(
+                titledBorder,
+                javax.swing.BorderFactory.createEmptyBorder(8, 12, 8, 12)));
+
+        return toolbar;
     }
 
     /**
@@ -102,6 +141,7 @@ public abstract class BasePage extends WebPanel {
         // Left Group (Preview Controls)
         WebButton btnPreview = UIBuilder.createFooterButton(lang.mDisplayPreview);
         WebButton btnClosePreview = UIBuilder.createFooterButton(lang.mClosePreview);
+
         WebButtonGroup leftGroup = new WebButtonGroup(true, btnPreview, btnClosePreview);
 
         leftGroup.setButtonsShadeWidth(3);
@@ -155,4 +195,5 @@ public abstract class BasePage extends WebPanel {
 
         this.add(bottomPanel, BorderLayout.SOUTH);
     }
+
 }

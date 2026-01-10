@@ -23,6 +23,7 @@ public class DynamicDataPage extends BasePage {
     private ZoomPanel scaler;
     private ui.util.ConfigLoader.GroupConfig groupConfig;
     private ui.overlay.DynamicOverlay overlay;
+    private boolean overlayVisible = false;
 
     public DynamicDataPage(mainform parent, ui.util.ConfigLoader.GroupConfig groupConfig) {
         super(parent);
@@ -68,6 +69,156 @@ public class DynamicDataPage extends BasePage {
 
     private void rebuild() {
         scaler.removeAll();
+        scaler.setFocusable(true);
+
+        if (groupConfig == null)
+            return;
+
+        if (isDetailedMode) {
+            rebuildDetailed();
+        } else {
+            rebuildSimple();
+        }
+
+        scaler.revalidate();
+        scaler.repaint();
+        if (parent != null) {
+            parent.updateDynamicSize();
+        }
+    }
+
+    private void rebuildSimple() {
+        // Use vertical layout to stack groups with minimal spacing
+        scaler.setLayout(new com.alee.extended.layout.VerticalFlowLayout(
+                com.alee.extended.layout.VerticalFlowLayout.TOP, 0, 3, true, false));
+
+        WebPanel currentGroup = null;
+        WebLabel currentHeader = null;
+
+        for (ui.util.ConfigLoader.RowConfig row : groupConfig.rows) {
+            boolean isHeader = row.formula != null && row.formula.equalsIgnoreCase("HEADER");
+
+            if (isHeader) {
+                // Finalize previous group if exists
+                if (currentGroup != null && currentHeader != null) {
+                    addGroupToScaler(currentHeader, currentGroup);
+                }
+
+                // Create new header
+                currentHeader = new WebLabel(row.label);
+                currentHeader.setFont(prog.app.defaultFontBig);
+                currentHeader.setForeground(new java.awt.Color(180, 30, 0));
+                currentHeader.setBorder(
+                        javax.swing.BorderFactory.createEmptyBorder(3, 5, 2, 5));
+
+                // Create new group container with 4-column responsive grid
+                currentGroup = new WebPanel();
+                currentGroup.setLayout(new ResponsiveGridLayout(2, 15, 3));
+                currentGroup.setOpaque(false);
+                currentGroup.setBorder(javax.swing.BorderFactory.createEmptyBorder(2, 10, 5, 10));
+            } else {
+                // Add switch to current group
+                if (currentGroup == null) {
+                    // If no header yet, create a default group
+                    currentHeader = new WebLabel("配置项");
+                    currentHeader.setFont(prog.app.defaultFontBig);
+                    currentHeader.setForeground(new java.awt.Color(180, 30, 0));
+                    currentHeader.setBorder(
+                            javax.swing.BorderFactory.createEmptyBorder(3, 5, 2, 5));
+
+                    currentGroup = new WebPanel();
+                    currentGroup.setLayout(new ResponsiveGridLayout(2, 15, 3));
+                    currentGroup.setOpaque(false);
+                    currentGroup.setBorder(javax.swing.BorderFactory.createEmptyBorder(2, 10, 5, 10));
+                }
+
+                WebSwitch sw = UIBuilder.addSwitch(currentGroup, row.label, row.visible);
+                sw.addActionListener(e -> {
+                    row.visible = sw.isSelected();
+                    save();
+                });
+            }
+        }
+
+        // Add the last group
+        if (currentGroup != null && currentHeader != null) {
+            addGroupToScaler(currentHeader, currentGroup);
+        }
+    }
+
+    private void addGroupToScaler(WebLabel header, WebPanel group) {
+        // Create a container for the header + group
+        WebPanel section = new WebPanel();
+        section.setLayout(new java.awt.BorderLayout(0, 2));
+        section.setOpaque(false);
+
+        // Minimal padding since red header provides clear visual separation
+        section.setBorder(javax.swing.BorderFactory.createEmptyBorder(3, 5, 3, 5));
+
+        section.add(header, java.awt.BorderLayout.NORTH);
+        section.add(group, java.awt.BorderLayout.CENTER);
+
+        scaler.add(section);
+    }
+
+    @Override
+    protected WebPanel createTopToolbar() {
+        // Get the styled toolbar container from BasePage
+        WebPanel toolbar = super.createTopToolbar();
+        // 1. Overlay Visibility Toggle
+        com.alee.laf.label.WebLabel lblOverlay = new com.alee.laf.label.WebLabel("显示Overlay: ");
+        lblOverlay.setFont(prog.app.defaultFont);
+        toolbar.add(lblOverlay);
+
+        com.alee.extended.button.WebSwitch swOverlay = new com.alee.extended.button.WebSwitch();
+        swOverlay.setSelected(overlayVisible);
+        UIBuilder.getStyle().decorateSwitch(swOverlay);
+        swOverlay.addActionListener(e -> {
+            overlayVisible = swOverlay.isSelected();
+            setOverlayVisible(overlayVisible);
+        });
+        toolbar.add(swOverlay);
+
+        // Spacer
+        toolbar.add(new com.alee.laf.label.WebLabel("   "));
+
+        // 2. Overlay Style Selector
+        com.alee.laf.label.WebLabel lblStyle = new com.alee.laf.label.WebLabel("显示风格: ");
+        lblStyle.setFont(prog.app.defaultFont);
+        toolbar.add(lblStyle);
+
+        String[] styles = { "斑马线", "纯色" };
+        com.alee.laf.combobox.WebComboBox cbStyle = new com.alee.laf.combobox.WebComboBox(styles);
+        cbStyle.setFont(prog.app.defaultFont);
+        cbStyle.setWebColoredBackground(false);
+        cbStyle.setShadeWidth(1);
+        cbStyle.setDrawFocus(false);
+        // Future: wire up to overlay style change
+        toolbar.add(cbStyle);
+
+        // Spacer
+        toolbar.add(new com.alee.laf.label.WebLabel("   "));
+
+        // 3. Mode Toggle
+        com.alee.laf.label.WebLabel lblMode = new com.alee.laf.label.WebLabel("详细模式: ");
+        lblMode.setFont(prog.app.defaultFont);
+        toolbar.add(lblMode);
+
+        com.alee.extended.button.WebSwitch swMode = new com.alee.extended.button.WebSwitch();
+        swMode.setSelected(isDetailedMode);
+        UIBuilder.getStyle().decorateSwitch(swMode);
+        swMode.addActionListener(e -> {
+            isDetailedMode = swMode.isSelected();
+            rebuild();
+        });
+        toolbar.add(swMode);
+
+        return toolbar;
+    }
+
+    private void rebuildDetailed() {
+        // Reset layout to GridBagLayout for detailed mode
+        scaler.setLayout(new GridBagLayout());
         scaler.setFocusable(true);
         scaler.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
@@ -138,12 +289,6 @@ public class DynamicDataPage extends BasePage {
         WebPanel filler = new WebPanel();
         filler.setOpaque(false);
         scaler.add(filler, gbc);
-
-        scaler.revalidate();
-        scaler.repaint();
-        if (parent != null) {
-            parent.updateDynamicSize();
-        }
     }
 
     private class RowComponents {
