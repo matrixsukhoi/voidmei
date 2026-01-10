@@ -22,6 +22,7 @@ public class lang {
 	public static String mMovePanel;
 	public static String mSimpleMode;
 	public static String mDetailedMode;
+	public static String mBasicSettings;
 
 	public static String mP1NumColor;
 	public static String mP1NumColorBlank;
@@ -792,6 +793,7 @@ public class lang {
 		mMovePanel = updateLanguage("mMovePanel", mMovePanel);
 		mSimpleMode = updateLanguage("mSimpleMode", mSimpleMode);
 		mDetailedMode = updateLanguage("mDetailedMode", mDetailedMode);
+		mBasicSettings = updateLanguage("mBasicSettings", mBasicSettings);
 
 		mP1TempNotification = updateLanguage("mP1TempNotification", mP1TempNotification);
 		mP1TempNotificationBlank = updateLanguage("mP1TempNotificationBlank", mP1TempNotificationBlank);

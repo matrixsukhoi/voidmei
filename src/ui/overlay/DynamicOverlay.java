@@ -56,6 +56,8 @@ public class DynamicOverlay extends JWindow {
         // Mouse Listeners for Dragging
         addMouseListener(new MouseAdapter() {
             public void mousePressed(MouseEvent e) {
+                if (parent != null && !parent.moveCheckFlag)
+                    return;
                 initialClick = e.getPoint();
             }
         });
@@ -97,6 +99,23 @@ public class DynamicOverlay extends JWindow {
                 Object result = FormulaEvaluator.evaluate(b.formula, vars);
                 if (result instanceof Number) {
                     b.currentValue = String.format(b.format, ((Number) result).doubleValue());
+                } else if (result instanceof java.util.Map) {
+                    // Handle Nashorn ScriptObjectMirror (JS Arrays implement Map)
+                    java.util.Map<?, ?> map = (java.util.Map<?, ?>) result;
+                    // For arrays, values() returns the elements in order
+                    b.currentValue = String.format(b.format, map.values().toArray());
+                } else if (result instanceof List) {
+                    // Handle List results (e.g. from [a, b, c] syntax in FormulaEvaluator)
+                    List<?> list = (List<?>) result;
+                    b.currentValue = String.format(b.format, list.toArray());
+                } else if (result != null && result.getClass().isArray()) {
+                    // Handle raw arrays
+                    if (result instanceof Object[]) {
+                        b.currentValue = String.format(b.format, (Object[]) result);
+                    } else {
+                        // Primitive arrays not handled here efficiently, simplistic fallback
+                        b.currentValue = String.valueOf(result);
+                    }
                 } else {
                     b.currentValue = String.valueOf(result);
                 }

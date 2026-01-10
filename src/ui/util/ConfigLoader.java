@@ -31,6 +31,7 @@ public class ConfigLoader {
         public int x = 100;
         public int y = 100;
         public int alpha = 150;
+        public boolean visible = false; // Default to false (hidden)
         public String fontName = "Sarasa Mono SC";
         public List<RowConfig> rows = new ArrayList<>();
 
@@ -78,6 +79,9 @@ public class ConfigLoader {
                             currentGroup.alpha = Integer.parseInt(line.substring(6).trim());
                         } catch (Exception e) {
                         }
+                } else if (line.startsWith("Visible=")) {
+                    if (currentGroup != null)
+                        currentGroup.visible = line.substring(8).trim().equalsIgnoreCase("true");
                 } else if (line.startsWith("Font=")) {
                     if (currentGroup != null)
                         currentGroup.fontName = line.substring(5).trim();
@@ -115,6 +119,7 @@ public class ConfigLoader {
                 pw.println("X=" + group.x);
                 pw.println("Y=" + group.y);
                 pw.println("Alpha=" + group.alpha);
+                pw.println("Visible=" + group.visible);
                 pw.println("Font=" + group.fontName);
                 pw.println();
 

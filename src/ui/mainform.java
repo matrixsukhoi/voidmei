@@ -97,7 +97,7 @@ public class mainform extends WebFrame implements Runnable {
 	WebSwitch bEnablegearAndFlaps;
 	WebSwitch bEnablegearAndFlapsEdge;
 
-	Boolean moveCheckFlag;
+	public Boolean moveCheckFlag;
 	public boolean isInitializing = false;
 
 	WebSwitch bTempInfoSwitch;
@@ -625,22 +625,12 @@ public class mainform extends WebFrame implements Runnable {
 		// WebLabel lb=createWebLabel("调整位置");
 		displayPreview.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				if (moveCheckFlag == false) {
-
-					controller.notification(lang.mMovePanel);
-					saveconfig();
-					tc.Preview();
-
-					moveCheckFlag = true;
-				}
+				startPreview();
 			}
 		});
 		C.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				if (moveCheckFlag) {
-					tc.endPreview();
-					moveCheckFlag = false;
-				}
+				stopPreview();
 			}
 		});
 		G.setButtonsDrawSides(false, false, false, true);
@@ -667,22 +657,12 @@ public class mainform extends WebFrame implements Runnable {
 		// WebLabel lb=createWebLabel("调整位置");
 		displayPreview.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				if (moveCheckFlag == false) {
-
-					controller.notification(lang.mMovePanel);
-					saveconfig();
-					tc.Preview();
-
-					moveCheckFlag = true;
-				}
+				startPreview();
 			}
 		});
 		C.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				if (moveCheckFlag) {
-					tc.endPreview();
-					moveCheckFlag = false;
-				}
+				stopPreview();
 			}
 		});
 
@@ -1362,17 +1342,18 @@ public class mainform extends WebFrame implements Runnable {
 		if (isInitializing || tabbedPane == null)
 			return;
 		java.awt.Component selected = tabbedPane.getSelectedComponent();
+		int targetWidth = width - 30; // weblaf好像会加15px+15px==30px的边框, 所以要减去30px.
 		if (selected instanceof ui.layout.DynamicDataPage) {
 			ui.layout.DynamicDataPage page = (ui.layout.DynamicDataPage) selected;
 			int reqH = page.getRequiredHeight();
 			if (reqH > 480) {
-				setSize(width - 31, reqH);
+				setSize(targetWidth, reqH);
 			} else {
-				setSize(width - 31, 480);
+				setSize(targetWidth, 480);
 			}
 		} else {
 			if (getHeight() != 480) {
-				setSize(width - 31, 480);
+				setSize(targetWidth, 480);
 			}
 		}
 
@@ -1697,9 +1678,10 @@ public class mainform extends WebFrame implements Runnable {
 
 		root = this.getContentPane();
 		if (root instanceof javax.swing.JComponent) {
-			((javax.swing.JComponent) root).setOpaque(true);
+			((javax.swing.JComponent) root).setOpaque(false);
 		}
 		root.setBackground(Color.WHITE);
+		setFrameOpaque();
 
 		setDrawWatermark(true);
 		setWatermark(new ImageIcon("image/watermark.png"));
@@ -1731,11 +1713,7 @@ public class mainform extends WebFrame implements Runnable {
 		// Actually line 1646 calls tc.Preview() but doesn't set dynamic pages?
 		// The constructor finishes here.
 		// If tc.Preview() is called, we should also show overlays.
-		if (dynamicPages != null) {
-			for (ui.layout.DynamicDataPage page : dynamicPages) {
-				page.setOverlayVisible(true);
-			}
-		}
+
 	}
 
 	@Override

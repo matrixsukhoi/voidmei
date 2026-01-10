@@ -28,7 +28,16 @@ public class DynamicDataPage extends BasePage {
     public DynamicDataPage(mainform parent, ui.util.ConfigLoader.GroupConfig groupConfig) {
         super(parent);
         this.groupConfig = groupConfig;
+
+        if (groupConfig != null) {
+            this.overlayVisible = groupConfig.visible;
+        }
+
         rebuild();
+
+        // Restore overlay state
+        // Always call this to ensure state is synchronized
+        setOverlayVisible(overlayVisible);
     }
 
     public DynamicDataPage(mainform parent) {
@@ -176,6 +185,10 @@ public class DynamicDataPage extends BasePage {
         swOverlay.addActionListener(e -> {
             overlayVisible = swOverlay.isSelected();
             setOverlayVisible(overlayVisible);
+            if (groupConfig != null) {
+                groupConfig.visible = overlayVisible;
+                parent.saveDynamicConfigs();
+            }
         });
         toolbar.add(swOverlay);
 

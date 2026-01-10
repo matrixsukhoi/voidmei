@@ -75,7 +75,7 @@ public abstract class BasePage extends WebPanel {
 
     /**
      * Creates an optional top toolbar for the page.
-     * Default implementation returns a styled panel with "控制面板" title.
+     * Default implementation returns a styled panel with a title.
      * Subclasses can override and call super to get the styled container,
      * then add their specific controls to it.
      */
@@ -87,15 +87,15 @@ public abstract class BasePage extends WebPanel {
 
         // Create rounded line border with title
         javax.swing.border.Border lineBorder = javax.swing.BorderFactory.createLineBorder(
-                new java.awt.Color(0, 0, 0, 200), 2, true); // Black rounded border
+                new java.awt.Color(0, 0, 0, 120), 2, true); // Black rounded border (lighter)
 
         javax.swing.border.TitledBorder titledBorder = javax.swing.BorderFactory.createTitledBorder(
                 lineBorder,
-                "控制面板",
+                prog.lang.mBasicSettings, // Localized title
                 javax.swing.border.TitledBorder.LEFT,
                 javax.swing.border.TitledBorder.TOP,
                 prog.app.defaultFont,
-                new java.awt.Color(0, 0, 0, 220));
+                new java.awt.Color(0, 0, 0, 150));
 
         // Add padding inside the border
         toolbar.setBorder(javax.swing.BorderFactory.createCompoundBorder(

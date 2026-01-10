@@ -176,7 +176,7 @@ public class blkx {
 	public double avgEngRecoveryRate;
 	public int FlapsDestructionNum;
 	public double[][] FlapsDestructionIndSpeed;
-	private double halfweight;
+	public double halfweight;
 
 	// public
 
