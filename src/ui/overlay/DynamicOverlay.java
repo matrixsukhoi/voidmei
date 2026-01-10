@@ -126,8 +126,26 @@ public class DynamicOverlay extends JWindow {
         repaint();
     }
 
+    // Cache
+    private Font cachedFont;
+    private int cachedScreenHeight = -1;
+    private float cachedScaleFactor = 1.0f;
+
+    private void checkCache() {
+        if (cachedScreenHeight == -1) {
+            cachedScreenHeight = java.awt.Toolkit.getDefaultToolkit().getScreenSize().height;
+            cachedScaleFactor = (float) cachedScreenHeight / 1440.0f;
+        }
+        if (cachedFont == null || !cachedFont.getFamily().equals(config.fontName)) {
+            int fontSize = Math.round(16 * cachedScaleFactor);
+            cachedFont = new Font(config.fontName, Font.PLAIN, fontSize);
+        }
+    }
+
     @Override
     public void paint(java.awt.Graphics g) {
+        checkCache();
+
         java.awt.Graphics2D g2 = (java.awt.Graphics2D) g;
         g2.setRenderingHint(java.awt.RenderingHints.KEY_TEXT_ANTIALIASING,
                 java.awt.RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
@@ -135,19 +153,17 @@ public class DynamicOverlay extends JWindow {
         int w = getWidth();
         int h = getHeight();
 
-        // Clear with transparency
+        // Clear with transparency (only if configured, or relying on system composite)
+        // Note: On JWindow without AWTUtilities, CLEAR might show black.
+        // If user says it works, we keep it, but it is expensive if not accelerated.
         g2.setComposite(java.awt.AlphaComposite.getInstance(java.awt.AlphaComposite.CLEAR));
         g2.fillRect(0, 0, w, h);
         g2.setComposite(java.awt.AlphaComposite.getInstance(java.awt.AlphaComposite.SRC_OVER));
 
-        // Use the configured font
-        int screenHeight = java.awt.Toolkit.getDefaultToolkit().getScreenSize().height;
-        float scaleFactor = (float) screenHeight / 1440.0f;
-        int fontSize = Math.round(16 * scaleFactor);
-        Font font = new Font(config.fontName, Font.PLAIN, fontSize);
-        g2.setFont(font);
+        g2.setFont(cachedFont);
 
         int y = 0;
+        int fontSize = cachedFont.getSize();
         int rowH = fontSize + 8; // Margin top/bottom
         int textYOffset = fontSize + 4;
 

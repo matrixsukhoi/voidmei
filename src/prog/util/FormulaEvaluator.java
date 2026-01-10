@@ -27,6 +27,8 @@ public class FormulaEvaluator {
      * @param variables A map of variable names to values
      * @return The result as an Object (usually Double or Integer)
      */
+    private static java.util.Map<String, javax.script.CompiledScript> cache = new java.util.HashMap<>();
+
     public static Object evaluate(String formula, Map<String, Object> variables) throws Exception {
         if (engine == null)
             return "No Engine";
@@ -35,8 +37,20 @@ public class FormulaEvaluator {
 
         try {
             Bindings bindings = new SimpleBindings(variables);
-            engine.setBindings(bindings, ScriptContext.ENGINE_SCOPE);
-            return engine.eval(formula);
+
+            // Try cache first
+            if (engine instanceof javax.script.Compilable) {
+                javax.script.CompiledScript script = cache.get(formula);
+                if (script == null) {
+                    script = ((javax.script.Compilable) engine).compile(formula);
+                    cache.put(formula, script);
+                }
+                return script.eval(bindings);
+            } else {
+                // Fallback for non-compilable engines
+                engine.setBindings(bindings, ScriptContext.ENGINE_SCOPE);
+                return engine.eval(formula);
+            }
         } catch (Exception e) {
             return "Err";
         }
