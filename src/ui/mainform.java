@@ -11,8 +11,6 @@ import java.awt.Image;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.KeyAdapter;
-import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionAdapter;
@@ -59,6 +57,8 @@ public class mainform extends WebFrame implements Runnable {
 	public controller tc;
 	// Store dynamic pages for updates
 	private java.util.List<ui.layout.DynamicDataPage> dynamicPages;
+	private long lastConfigModTime = 0;
+	private boolean ignoreNextWatch = false; // To avoid reloading after we save ourselves
 	int gcCount = 0;
 	Container root;
 	WebPanel jp1;
@@ -67,6 +67,8 @@ public class mainform extends WebFrame implements Runnable {
 	WebPanel jp4;
 	WebPanel jp5;
 	WebPanel jp6;
+	WebSplitPane splitPane;
+	WebTabbedPane tabbedPane;
 	// test
 
 	WebSwitch bFlightInfoSwitch;
@@ -125,8 +127,8 @@ public class mainform extends WebFrame implements Runnable {
 	}
 
 	public void setFrameOpaque() {
-		this.getWebRootPaneUI().setMiddleBg(new Color(255, 255, 255, 255));// 中部透明
-		this.getWebRootPaneUI().setTopBg(new Color(255, 255, 255, 255));// 顶部透明
+		this.getWebRootPaneUI().setMiddleBg(new Color(255, 255, 255));// 纯白背景以匹配水印
+		this.getWebRootPaneUI().setTopBg(new Color(255, 255, 255));
 		this.getWebRootPaneUI().setBorderColor(new Color(255, 255, 255, 255));// 内描边透明
 		this.getWebRootPaneUI().setInnerBorderColor(new Color(255, 255, 255, 255));// 外描边透明
 	}
@@ -415,7 +417,6 @@ public class mainform extends WebFrame implements Runnable {
 	private WebComboBox bFMList0;
 	private WebComboBox bFMList1;
 	private WebComboBox sMonoFont;
-	private drawFrameSimpl drawFrameSimpl;
 
 	private void displayFM(WebComboBox bFMList, int idx) {
 		String planeName = bFMList.getSelectedItem().toString();
@@ -548,7 +549,6 @@ public class mainform extends WebFrame implements Runnable {
 		final Color initialColor = Color.WHITE;
 
 		WebLabel lb = createWebLabel(text);
-		String S = getColorText(initialColor);
 
 		// textToColor(S);
 
@@ -561,7 +561,7 @@ public class mainform extends WebFrame implements Runnable {
 
 			public void actionPerformed(ActionEvent e) {
 
-				Color c = updateColorGroupColor(trailing);
+				updateColorGroupColor(trailing);
 				if (isInitializing)
 					return;
 				saveconfig();
@@ -1259,7 +1259,7 @@ public class mainform extends WebFrame implements Runnable {
 	}
 
 	public void initPanel() {
-		WebTabbedPane tabbedPane = new WebTabbedPane();
+		tabbedPane = new WebTabbedPane();
 		// tabbedPane3.setPreferredSize ( new Dimension ( 150, 120 ) );
 		tabbedPane.setTabPlacement(WebTabbedPane.LEFT);
 		// tabbedPane.setTabLayoutPolicy(JTabbedPane.SCROLL_TAB_LAYOUT);
@@ -1312,16 +1312,74 @@ public class mainform extends WebFrame implements Runnable {
 		tabbedPane.setBackground(new Color(0, 0, 0, 0));
 		// tabbedPane.getWebUI().setBackgroundColor(new Color(0,0,0,0));
 		tabbedPane.setFont(app.defaultFontBig);
-		// tabbedPane.setShadeWidth(5);
-		// tabbedPane.setForeground(new Color(255,255,255,255));
-		// tabbedPane.setComponentOrientation(
-		// ComponentOrientation.RIGHT_TO_LEFT);
-		// tabbedPane.setBottomBg(new Color(255, 255, 255, 255));
-		// tabbedPane.setTopBg(new Color(255, 255, 255, 255));
 		tabbedPane.setPaintOnlyTopBorder(true);
 		tabbedPane.setPaintBorderOnlyOnSelectedTab(true);
 		tabbedPane.setTabbedPaneStyle(TabbedPaneStyle.attached);
 		this.add(tabbedPane);
+
+		tabbedPane.addChangeListener(e -> {
+			updateDynamicSize();
+		});
+
+		startFileWatcher();
+	}
+
+	private void startFileWatcher() {
+		java.io.File file = new java.io.File("ui_layout.cfg");
+		lastConfigModTime = file.lastModified();
+
+		new javax.swing.Timer(2000, e -> {
+			if (ignoreNextWatch) {
+				ignoreNextWatch = false;
+				lastConfigModTime = file.lastModified();
+				return;
+			}
+			if (file.lastModified() > lastConfigModTime) {
+				lastConfigModTime = file.lastModified();
+				reloadDynamicConfigs();
+			}
+		}).start();
+	}
+
+	private void reloadDynamicConfigs() {
+		java.util.List<ui.util.ConfigLoader.GroupConfig> groups = ui.util.ConfigLoader.loadConfig("ui_layout.cfg");
+		if (groups.isEmpty() || dynamicPages == null)
+			return;
+
+		// Sync existing pages if titles match, or rebuild?
+		// Simpler: just update the GroupConfig object inside each page
+		for (ui.util.ConfigLoader.GroupConfig group : groups) {
+			for (ui.layout.DynamicDataPage page : dynamicPages) {
+				if (page.getGroupConfig().title.equals(group.title)) {
+					page.setGroupConfig(group);
+					break;
+				}
+			}
+		}
+	}
+
+	public void updateDynamicSize() {
+		if (isInitializing || tabbedPane == null)
+			return;
+		java.awt.Component selected = tabbedPane.getSelectedComponent();
+		if (selected instanceof ui.layout.DynamicDataPage) {
+			ui.layout.DynamicDataPage page = (ui.layout.DynamicDataPage) selected;
+			int reqH = page.getRequiredHeight();
+			if (reqH > 480) {
+				setSize(width - 31, reqH);
+			} else {
+				setSize(width - 31, 480);
+			}
+		} else {
+			if (getHeight() != 480) {
+				setSize(width - 31, 480);
+			}
+		}
+
+		this.getRootPane().revalidate();
+		this.getRootPane().repaint();
+		validate();
+		repaint();
 	}
 
 	public void initConfig() {
@@ -1638,6 +1696,10 @@ public class mainform extends WebFrame implements Runnable {
 		this.getWebRootPaneUI().getWindowButtons().getWebButton(1).setBottomBgColor(new Color(0, 0, 0, 0));
 
 		root = this.getContentPane();
+		if (root instanceof javax.swing.JComponent) {
+			((javax.swing.JComponent) root).setOpaque(true);
+		}
+		root.setBackground(Color.WHITE);
 
 		setDrawWatermark(true);
 		setWatermark(new ImageIcon("image/watermark.png"));
@@ -1733,5 +1795,18 @@ public class mainform extends WebFrame implements Runnable {
 				}
 			}
 		}
+	}
+
+	public void saveDynamicConfigs() {
+		if (dynamicPages == null)
+			return;
+		ignoreNextWatch = true; // Prevents reloading the file we just wrote
+		java.util.List<ui.util.ConfigLoader.GroupConfig> configs = new java.util.ArrayList<>();
+		for (ui.layout.DynamicDataPage page : dynamicPages) {
+			if (page.getGroupConfig() != null) {
+				configs.add(page.getGroupConfig());
+			}
+		}
+		ui.util.ConfigLoader.saveConfig("ui_layout.cfg", configs);
 	}
 }

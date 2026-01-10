@@ -31,30 +31,27 @@ public class DynamicOverlay extends JWindow {
         String format;
         String currentValue = ""; // Cache for repaint
         boolean isHeader = false;
+        boolean visible = true;
 
-        OverlayBinding(String label, String formula, String format, boolean isHeader) {
+        OverlayBinding(String label, String formula, String format, boolean isHeader, boolean visible) {
             this.label = label;
             this.formula = formula;
             this.format = format;
             this.isHeader = isHeader;
+            this.visible = visible;
         }
     }
 
     public DynamicOverlay(mainform parent, ConfigLoader.GroupConfig config) {
         this.parent = parent;
         this.config = config;
+        rebuildBindings();
 
         // Setup Window
         setAlwaysOnTop(true);
         setBackground(new Color(0, 0, 0, 0)); // Transparent
         setSize(320, 400);
         setLocation(config.x, config.y);
-
-        // Build Bindings
-        for (ConfigLoader.RowConfig row : config.rows) {
-            boolean isHeader = row.formula != null && row.formula.trim().equalsIgnoreCase("HEADER");
-            bindings.add(new OverlayBinding(row.label, row.formula, row.format, isHeader));
-        }
 
         // Mouse Listeners for Dragging
         addMouseListener(new MouseAdapter() {
@@ -76,6 +73,15 @@ public class DynamicOverlay extends JWindow {
         });
     }
 
+    public void rebuildBindings() {
+        bindings.clear();
+        for (ConfigLoader.RowConfig row : config.rows) {
+            boolean isHeader = row.formula != null && row.formula.trim().equalsIgnoreCase("HEADER");
+            bindings.add(new OverlayBinding(row.label, row.formula, row.format, isHeader, row.visible));
+        }
+        repaint();
+    }
+
     public void updateAndRepaint() {
         if (!isVisible())
             return;
@@ -85,7 +91,7 @@ public class DynamicOverlay extends JWindow {
         java.util.Map<String, Object> vars = parent.tc.blkx.getVariableMap();
 
         for (OverlayBinding b : bindings) {
-            if (b.isHeader)
+            if (!b.visible || b.isHeader)
                 continue;
             try {
                 Object result = FormulaEvaluator.evaluate(b.formula, vars);
@@ -136,6 +142,8 @@ public class DynamicOverlay extends JWindow {
 
         int rowIndex = 0;
         for (OverlayBinding b : bindings) {
+            if (!b.visible)
+                continue;
             if (b.isHeader) {
                 g2.setColor(new Color(80, 60, 0, config.alpha));
                 g2.fillRect(0, y, w, rowH);

@@ -27,7 +27,36 @@ public class FormulaEvaluator {
      * @param variables A map of variable names to values
      * @return The result as an Object (usually Double or Integer)
      */
-    public static Object evaluate(String formula, Map<String, Object> variables) {
+    public static Object evaluate(String formula, Map<String, Object> variables) throws Exception {
+        if (engine == null)
+            return "No Engine";
+        if (formula == null || formula.isEmpty())
+            return "";
+
+        try {
+            Bindings bindings = new SimpleBindings(variables);
+            engine.setBindings(bindings, ScriptContext.ENGINE_SCOPE);
+            return engine.eval(formula);
+        } catch (Exception e) {
+            return "Err";
+        }
+    }
+
+    /**
+     * Checks if the formula is syntactically valid.
+     */
+    public static boolean check(String formula) {
+        if (formula == null || formula.trim().isEmpty() || formula.equalsIgnoreCase("HEADER"))
+            return true;
+        try {
+            engine.eval(formula);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private Object eval(String formula, Map<String, Object> variables) throws Exception {
         if (engine == null)
             return "No Engine";
         if (formula == null || formula.isEmpty())

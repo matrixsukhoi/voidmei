@@ -3,7 +3,11 @@ package ui.util;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -13,6 +17,7 @@ public class ConfigLoader {
         public String label;
         public String formula;
         public String format;
+        public boolean visible = true;
 
         public RowConfig(String label, String formula, String format) {
             this.label = label;
@@ -34,14 +39,15 @@ public class ConfigLoader {
         }
     }
 
-    public static List<GroupConfig> loadConfig(String filePath) {
+    public static List<GroupConfig> loadConfig(String path) {
         List<GroupConfig> groups = new ArrayList<>();
-        File file = new File(filePath);
+        File file = new File(path);
 
         if (!file.exists())
             return groups;
 
-        try (BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(file), "UTF-8"))) {
+        try (BufferedReader br = new BufferedReader(
+                new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8))) {
             String line;
             GroupConfig currentGroup = null;
 
@@ -82,13 +88,16 @@ public class ConfigLoader {
                         String label = parts[0].trim();
                         String formula = parts[1].trim();
                         String fmt = parts.length > 2 ? parts[2].trim() : "%s";
+                        boolean visible = parts.length > 3 ? parts[3].trim().equalsIgnoreCase("true") : true;
 
                         // If config starts without a group, create a default one
                         if (currentGroup == null) {
                             currentGroup = new GroupConfig("General");
                             groups.add(currentGroup);
                         }
-                        currentGroup.rows.add(new RowConfig(label, formula, fmt));
+                        RowConfig rc = new RowConfig(label, formula, fmt);
+                        rc.visible = visible;
+                        currentGroup.rows.add(rc);
                     }
                 }
             }
@@ -96,5 +105,30 @@ public class ConfigLoader {
             e.printStackTrace();
         }
         return groups;
+    }
+
+    public static void saveConfig(String path, List<GroupConfig> groups) {
+        try (PrintWriter pw = new PrintWriter(
+                new OutputStreamWriter(new FileOutputStream(path), StandardCharsets.UTF_8))) {
+            for (GroupConfig group : groups) {
+                pw.println("[" + group.title + "]");
+                pw.println("X=" + group.x);
+                pw.println("Y=" + group.y);
+                pw.println("Alpha=" + group.alpha);
+                pw.println("Font=" + group.fontName);
+                pw.println();
+
+                for (RowConfig row : group.rows) {
+                    if (row.formula != null && row.formula.trim().equalsIgnoreCase("HEADER")) {
+                        pw.println(row.label + " || HEADER || %s || " + row.visible);
+                    } else {
+                        pw.println(row.label + " || " + row.formula + " || " + row.format + " || " + row.visible);
+                    }
+                }
+                pw.println();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }
