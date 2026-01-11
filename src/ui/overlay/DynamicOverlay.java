@@ -13,12 +13,12 @@ import javax.swing.SwingUtilities;
 
 import ui.util.ConfigLoader;
 import prog.util.FormulaEvaluator;
-import ui.mainform;
+import prog.controller;
 
 public class DynamicOverlay extends JWindow {
 
     private ConfigLoader.GroupConfig config;
-    private mainform parent;
+    private controller tc;
     private List<OverlayBinding> bindings = new ArrayList<>();
 
     // Drag support
@@ -41,8 +41,8 @@ public class DynamicOverlay extends JWindow {
         }
     }
 
-    public DynamicOverlay(mainform parent, ConfigLoader.GroupConfig config) {
-        this.parent = parent;
+    public DynamicOverlay(controller tc, ConfigLoader.GroupConfig config) {
+        this.tc = tc;
         this.config = config;
         rebuildBindings();
 
@@ -58,32 +58,45 @@ public class DynamicOverlay extends JWindow {
         // 鼠标拖动监听器，用于更新位置并保存配置
         addMouseListener(new MouseAdapter() {
             public void mousePressed(MouseEvent e) {
-                if (parent != null && !parent.moveCheckFlag)
+                if (tc.M == null || !tc.M.moveCheckFlag)
                     return;
                 initialClick = e.getPoint();
             }
 
             public void mouseReleased(MouseEvent e) {
-                if (parent != null && parent.moveCheckFlag) {
+                if (tc.M != null && tc.M.moveCheckFlag) {
                     // 拖动结束后立即保存最新位置到 ui_layout.cfg
-                    parent.saveDynamicConfigs();
+                    tc.M.saveDynamicConfigs();
                 }
             }
         });
         addMouseMotionListener(new MouseAdapter() {
             public void mouseDragged(MouseEvent e) {
+                if (tc.M == null || !tc.M.moveCheckFlag)
+                    return;
                 int thisX = getLocation().x;
                 int thisY = getLocation().y;
                 int xMoved = e.getX() - initialClick.x;
                 int yMoved = e.getY() - initialClick.y;
                 setLocation(thisX + xMoved, thisY + yMoved);
-                
+
                 // 将当前像素位置转换回相对比例（0.0 - 1.0），实现跨分辨率兼容
                 java.awt.Dimension screen = java.awt.Toolkit.getDefaultToolkit().getScreenSize();
                 config.x = (double) getX() / screen.width;
                 config.y = (double) getY() / screen.height;
             }
         });
+
+        // Initialize visibility: respect user preference from configuration
+        setVisible(config.visible);
+    }
+
+    public void toggleVisibility() {
+        setVisible(!isVisible());
+    }
+
+    public ConfigLoader.GroupConfig getGroupConfig() {
+        return config;
     }
 
     public void rebuildBindings() {
@@ -98,10 +111,10 @@ public class DynamicOverlay extends JWindow {
     public void updateAndRepaint() {
         if (!isVisible())
             return;
-        if (parent.tc.blkx == null)
+        if (tc.blkx == null)
             return;
 
-        java.util.Map<String, Object> vars = parent.tc.blkx.getVariableMap();
+        java.util.Map<String, Object> vars = tc.blkx.getVariableMap();
 
         for (OverlayBinding b : bindings) {
             if (!b.visible || b.isHeader)

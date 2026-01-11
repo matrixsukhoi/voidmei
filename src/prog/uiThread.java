@@ -113,6 +113,15 @@ public class uiThread implements Runnable {
 					c.sV.drawTick();
 				}
 			}
+
+			// Update Dynamic Overlays
+			if (c.dynamicOverlays != null) {
+				for (ui.overlay.DynamicOverlay overlay : c.dynamicOverlays) {
+					if (overlay.isVisible()) {
+						overlay.updateAndRepaint();
+					}
+				}
+			}
 			// 10秒回收一次内存
 			// if (stime - GCCheckMili > app.gcSeconds * 1000) {
 			//// app.debugPrint("内存回收");

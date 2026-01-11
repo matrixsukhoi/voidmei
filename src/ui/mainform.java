@@ -1278,16 +1278,14 @@ public class mainform extends WebFrame implements Runnable {
 		tabbedPane.addTab(lang.mCrosshair, jp3);
 		tabbedPane.addTab(lang.mAdvancedOption, jp1);
 
-		// Dynamic Tabs from Config
+		// Dynamic Tabs from Config - use already initialized configs from controller
 		dynamicPages = new java.util.ArrayList<>();
-		java.util.List<ui.util.ConfigLoader.GroupConfig> groups = ui.util.ConfigLoader.loadConfig("ui_layout.cfg");
-
-		if (groups.isEmpty()) {
+		if (tc.dynamicConfigs.isEmpty()) {
 			// Fallback if no config or empty
 			ui.layout.UIBuilder.addRightAlignedTab(tabbedPane, "Data (Empty)", new ui.layout.DynamicDataPage(this),
 					app.defaultFontBig);
 		} else {
-			for (ui.util.ConfigLoader.GroupConfig group : groups) {
+			for (ui.util.ConfigLoader.GroupConfig group : tc.dynamicConfigs) {
 				ui.layout.DynamicDataPage page = new ui.layout.DynamicDataPage(this, group);
 				dynamicPages.add(page);
 				ui.layout.UIBuilder.addRightAlignedTab(tabbedPane, group.title, page, app.defaultFontBig);
@@ -1336,13 +1334,14 @@ public class mainform extends WebFrame implements Runnable {
 	}
 
 	private void reloadDynamicConfigs() {
-		java.util.List<ui.util.ConfigLoader.GroupConfig> groups = ui.util.ConfigLoader.loadConfig("ui_layout.cfg");
-		if (groups.isEmpty() || dynamicPages == null)
+		// Re-initialize controller's overlays and configs from disk
+		tc.initDynamicOverlays();
+
+		if (dynamicPages == null || tc.dynamicConfigs.isEmpty())
 			return;
 
-		// Sync existing pages if titles match, or rebuild?
-		// Simpler: just update the GroupConfig object inside each page
-		for (ui.util.ConfigLoader.GroupConfig group : groups) {
+		// Sync existing pages with the new GroupConfig objects from controller
+		for (ui.util.ConfigLoader.GroupConfig group : tc.dynamicConfigs) {
 			for (ui.layout.DynamicDataPage page : dynamicPages) {
 				if (page.getGroupConfig().title.equals(group.title)) {
 					page.setGroupConfig(group);
@@ -1647,13 +1646,19 @@ public class mainform extends WebFrame implements Runnable {
 		this.setVisible(false);
 		tc.flag = 1;
 		tc.start();
-		// Show dynamic overlays for game mode
+		// Show dynamic overlays for game mode, respecting hotkey hidden-at-start rule
+		tc.setDynamicOverlaysVisible(true, true);
+		// this.dispose();
+	}
+
+	@Override
+	public void dispose() {
 		if (dynamicPages != null) {
 			for (ui.layout.DynamicDataPage page : dynamicPages) {
-				page.setOverlayVisible(true);
+				page.dispose();
 			}
 		}
-		// this.dispose();
+		super.dispose();
 	}
 
 	public mainform(controller c) {
@@ -1725,11 +1730,8 @@ public class mainform extends WebFrame implements Runnable {
 		this.setShadeWidth(10);
 		tc.Preview();
 		moveCheckFlag = true;
-		// Ensure overlays are visible if we started in preview mode (lines above set
-		// it?)
-		// Actually line 1646 calls tc.Preview() but doesn't set dynamic pages?
-		// The constructor finishes here.
-		// If tc.Preview() is called, we should also show overlays.
+		// Ensure overlays are visible if we started in preview mode
+		tc.setDynamicOverlaysVisible(true, false);
 
 	}
 
@@ -1746,12 +1748,11 @@ public class mainform extends WebFrame implements Runnable {
 			// gcCount++;
 			// app.debugPrint("As");
 			// app.debugPrint("MainFrame执行了");
-			// Update dynamic data pages
-			if (dynamicPages != null) {
-				for (ui.layout.DynamicDataPage page : dynamicPages) {
-					page.update();
-				}
-			}
+			// Update dynamic data pages - now handled by uiThread or controller?
+			// But for preview mode, we might still want to update them if they are visible.
+			// Since controller.dynamicOverlays are always Updated by uiThread now (if
+			// isVisible),
+			// we don't need to manually update pages here.
 			root.repaint();
 			if (gcCount++ % 256 == 0) {
 				// app.debugPrint("MainFrameGC");
@@ -1770,11 +1771,7 @@ public class mainform extends WebFrame implements Runnable {
 			moveCheckFlag = true;
 
 			// Show dynamic overlays for preview
-			if (dynamicPages != null) {
-				for (ui.layout.DynamicDataPage page : dynamicPages) {
-					page.setOverlayVisible(true);
-				}
-			}
+			tc.setDynamicOverlaysVisible(true, false); // In preview, show all regardless of hotkey
 		}
 	}
 
@@ -1784,11 +1781,7 @@ public class mainform extends WebFrame implements Runnable {
 			moveCheckFlag = false;
 
 			// Hide dynamic overlays
-			if (dynamicPages != null) {
-				for (ui.layout.DynamicDataPage page : dynamicPages) {
-					page.setOverlayVisible(false);
-				}
-			}
+			tc.setDynamicOverlaysVisible(false, false);
 		}
 	}
 

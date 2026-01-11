@@ -10,8 +10,11 @@ import java.awt.Graphics2D;
 
 import com.alee.laf.label.WebLabel;
 import com.alee.laf.panel.WebPanel;
+import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent;
 
+import prog.app;
 import ui.mainform;
+import prog.lang;
 import com.alee.laf.button.WebButton;
 import com.alee.extended.button.WebSwitch;
 import java.awt.GridBagLayout;
@@ -22,7 +25,6 @@ public class DynamicDataPage extends BasePage {
 
     private ZoomPanel scaler;
     private ui.util.ConfigLoader.GroupConfig groupConfig;
-    private ui.overlay.DynamicOverlay overlay;
     private boolean overlayVisible = false;
 
     public DynamicDataPage(mainform parent, ui.util.ConfigLoader.GroupConfig groupConfig) {
@@ -31,6 +33,10 @@ public class DynamicDataPage extends BasePage {
 
         if (groupConfig != null) {
             this.overlayVisible = groupConfig.visible;
+            // Since BasePage constructor calls createTopToolbar() BEFORE we set
+            // overlayVisible,
+            // we must refresh the toolbar to sync the switch state.
+            refreshToolbar();
         }
 
         rebuild();
@@ -46,6 +52,10 @@ public class DynamicDataPage extends BasePage {
 
     public void setGroupConfig(ui.util.ConfigLoader.GroupConfig groupConfig) {
         this.groupConfig = groupConfig;
+        if (groupConfig != null) {
+            this.overlayVisible = groupConfig.visible;
+            refreshToolbar();
+        }
         rebuild();
     }
 
@@ -174,12 +184,17 @@ public class DynamicDataPage extends BasePage {
     protected WebPanel createTopToolbar() {
         // Get the styled toolbar container from BasePage
         WebPanel toolbar = super.createTopToolbar();
-        // 1. Overlay Visibility Toggle
-        com.alee.laf.label.WebLabel lblOverlay = new com.alee.laf.label.WebLabel("显示Overlay: ");
-        lblOverlay.setFont(prog.app.defaultFont);
-        toolbar.add(lblOverlay);
+        // Use our custom ResponsiveGridLayout for elegant multi-column layout
+        // 3 columns, 10px horizontal gap, 10px vertical gap
+        toolbar.setLayout(new ResponsiveGridLayout(3, 10, 10));
 
-        com.alee.extended.button.WebSwitch swOverlay = new com.alee.extended.button.WebSwitch();
+        // --- Item 1: Overlay Visibility ---
+        WebPanel visibilityPanel = new WebPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 5, 0));
+        visibilityPanel.setOpaque(false);
+        WebLabel lblOverlay = new WebLabel(lang.mDisplayOverlay);
+        lblOverlay.setFont(prog.app.defaultFont);
+        visibilityPanel.add(lblOverlay);
+        WebSwitch swOverlay = new WebSwitch();
         swOverlay.setSelected(overlayVisible);
         UIBuilder.getStyle().decorateSwitch(swOverlay);
         swOverlay.addActionListener(e -> {
@@ -190,41 +205,91 @@ public class DynamicDataPage extends BasePage {
                 parent.saveDynamicConfigs();
             }
         });
-        toolbar.add(swOverlay);
+        visibilityPanel.add(swOverlay);
+        toolbar.add(visibilityPanel);
 
-        // Spacer
-        toolbar.add(new com.alee.laf.label.WebLabel("   "));
-
-        // 2. Overlay Style Selector
-        com.alee.laf.label.WebLabel lblStyle = new com.alee.laf.label.WebLabel("显示风格: ");
+        // --- Item 2: Overlay Style ---
+        WebPanel stylePanel = new WebPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 5, 0));
+        stylePanel.setOpaque(false);
+        WebLabel lblStyle = new WebLabel(lang.mDisplayStyle);
         lblStyle.setFont(prog.app.defaultFont);
-        toolbar.add(lblStyle);
-
-        String[] styles = { "斑马线", "纯色" };
+        stylePanel.add(lblStyle);
+        String[] styles = { lang.mStyleZebra, lang.mStyleSolid };
         com.alee.laf.combobox.WebComboBox cbStyle = new com.alee.laf.combobox.WebComboBox(styles);
         cbStyle.setFont(prog.app.defaultFont);
         cbStyle.setWebColoredBackground(false);
         cbStyle.setShadeWidth(1);
         cbStyle.setDrawFocus(false);
-        // Future: wire up to overlay style change
-        toolbar.add(cbStyle);
+        stylePanel.add(cbStyle);
+        toolbar.add(stylePanel);
 
-        // Spacer
-        toolbar.add(new com.alee.laf.label.WebLabel("   "));
-
-        // 3. Mode Toggle
-        com.alee.laf.label.WebLabel lblMode = new com.alee.laf.label.WebLabel("详细模式: ");
+        // --- Item 3: Detailed Mode ---
+        WebPanel modePanel = new WebPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 5, 0));
+        modePanel.setOpaque(false);
+        WebLabel lblMode = new WebLabel(lang.mDetailedMode);
         lblMode.setFont(prog.app.defaultFont);
-        toolbar.add(lblMode);
-
-        com.alee.extended.button.WebSwitch swMode = new com.alee.extended.button.WebSwitch();
+        modePanel.add(lblMode);
+        WebSwitch swMode = new WebSwitch();
         swMode.setSelected(isDetailedMode);
         UIBuilder.getStyle().decorateSwitch(swMode);
         swMode.addActionListener(e -> {
             isDetailedMode = swMode.isSelected();
             rebuild();
         });
-        toolbar.add(swMode);
+        modePanel.add(swMode);
+        toolbar.add(modePanel);
+
+        // --- Item 4: Hotkey Configuration ---
+        WebPanel hotkeyPanel = new WebPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 5, 0));
+        hotkeyPanel.setOpaque(false);
+        if (groupConfig != null && groupConfig.hotkey != 0) {
+            WebLabel lblHotkey = new WebLabel(lang.mHotkeyToggle);
+            lblHotkey.setFont(prog.app.defaultFont);
+            hotkeyPanel.add(lblHotkey);
+
+            String keyText = com.github.kwhat.jnativehook.keyboard.NativeKeyEvent.getKeyText(groupConfig.hotkey);
+            WebButton btnHotkey = new WebButton(keyText);
+            btnHotkey.setFont(prog.app.defaultFont);
+            btnHotkey.setFocusable(false);
+            btnHotkey.addActionListener(e -> {
+                try {
+                    app.silenceNativeHookLogger();
+                    if (!com.github.kwhat.jnativehook.GlobalScreen.isNativeHookRegistered()) {
+                        com.github.kwhat.jnativehook.GlobalScreen.registerNativeHook();
+                    }
+                } catch (com.github.kwhat.jnativehook.NativeHookException ex) {
+                    ex.printStackTrace();
+                }
+
+                btnHotkey.setText(lang.mWaitHotkey);
+                com.github.kwhat.jnativehook.GlobalScreen.addNativeKeyListener(
+                        new com.github.kwhat.jnativehook.keyboard.NativeKeyListener() {
+                            @Override
+                            public void nativeKeyPressed(com.github.kwhat.jnativehook.keyboard.NativeKeyEvent e2) {
+                                int code = e2.getKeyCode();
+                                if (code == NativeKeyEvent.VC_NUM_LOCK || code == NativeKeyEvent.VC_CAPS_LOCK
+                                        || code == NativeKeyEvent.VC_SCROLL_LOCK) {
+                                    return;
+                                }
+                                app.debugPrint("[DynamicDataPage] configure key: key pressed: " + code);
+                                javax.swing.SwingUtilities.invokeLater(() -> {
+                                    if (code == com.github.kwhat.jnativehook.keyboard.NativeKeyEvent.VC_ESCAPE) {
+                                        btnHotkey.setText(com.github.kwhat.jnativehook.keyboard.NativeKeyEvent
+                                                .getKeyText(groupConfig.hotkey));
+                                    } else {
+                                        groupConfig.hotkey = code;
+                                        btnHotkey.setText(com.github.kwhat.jnativehook.keyboard.NativeKeyEvent
+                                                .getKeyText(code));
+                                        save();
+                                    }
+                                });
+                                com.github.kwhat.jnativehook.GlobalScreen.removeNativeKeyListener(this);
+                            }
+                        });
+            });
+            hotkeyPanel.add(btnHotkey);
+            toolbar.add(hotkeyPanel);
+        }
 
         return toolbar;
     }
@@ -364,8 +429,6 @@ public class DynamicDataPage extends BasePage {
             btnVis.addActionListener(e -> {
                 row.visible = btnVis.isSelected();
                 save();
-                if (overlay != null)
-                    overlay.rebuildBindings();
             });
 
             WebButton btnDel = new WebButton("X");
@@ -533,16 +596,19 @@ public class DynamicDataPage extends BasePage {
         // Trigger global save of ui_layout.cfg
         parent.saveDynamicConfigs();
 
-        // Also notify our overlay to rebuild its bindings
-        if (overlay != null) {
-            overlay.rebuildBindings();
+        // Also notify our overlay in controller to rebuild its bindings
+        if (parent.tc.dynamicOverlays != null) {
+            for (ui.overlay.DynamicOverlay overlay : parent.tc.dynamicOverlays) {
+                if (overlay.getGroupConfig().title.equals(groupConfig.title)) {
+                    overlay.rebuildBindings();
+                    break;
+                }
+            }
         }
     }
 
     public void update() {
-        if (overlay != null && overlay.isVisible()) {
-            overlay.updateAndRepaint();
-        }
+        // Now handled by controller/uiThread loop
     }
 
     /**
@@ -558,11 +624,24 @@ public class DynamicDataPage extends BasePage {
     }
 
     public void setOverlayVisible(boolean visible) {
-        if (overlay == null && groupConfig != null) {
-            overlay = new ui.overlay.DynamicOverlay(parent, groupConfig);
+        if (parent.tc.dynamicOverlays != null) {
+            for (ui.overlay.DynamicOverlay overlay : parent.tc.dynamicOverlays) {
+                if (overlay.getGroupConfig().title.equals(groupConfig.title)) {
+                    overlay.setVisible(visible);
+                    break;
+                }
+            }
         }
-        if (overlay != null)
-            overlay.setVisible(visible);
+        overlayVisible = visible;
+    }
+
+    public void toggleOverlay() {
+        setOverlayVisible(!overlayVisible);
+    }
+
+    public void dispose() {
+        // No longer owns the overlay, nothing to dispose here.
+        // Overlays are managed by controller.
     }
 
     @Override

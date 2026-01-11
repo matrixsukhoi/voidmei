@@ -11,6 +11,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent;
+
 public class ConfigLoader {
 
     public static class RowConfig {
@@ -31,6 +33,7 @@ public class ConfigLoader {
         public double x = 0.1;
         public double y = 0.1;
         public int alpha = 150;
+        public int hotkey = 0; // 0 means no hotkey
         public boolean visible = false; // Default to false (hidden)
         public String fontName = "Sarasa Mono SC";
         public List<RowConfig> rows = new ArrayList<>();
@@ -38,6 +41,28 @@ public class ConfigLoader {
         public GroupConfig(String title) {
             this.title = title;
         }
+    }
+
+    /**
+     * Attempts to resolve key code from string (either "P" or "25")
+     */
+    private static int getKeyCodeFromText(String text) {
+        if (text == null || text.trim().isEmpty())
+            return 0;
+
+        String t = text.trim();
+        // 1. Try numeric
+        try {
+            return Integer.parseInt(t);
+        } catch (NumberFormatException e) {
+            // 2. Brute force lookup in common JNativeHook VC codes (typically < 256)
+            for (int i = 1; i < 256; i++) {
+                if (NativeKeyEvent.getKeyText(i).equalsIgnoreCase(t)) {
+                    return i;
+                }
+            }
+        }
+        return 0;
     }
 
     public static List<GroupConfig> loadConfig(String path) {
@@ -84,13 +109,16 @@ public class ConfigLoader {
                             currentGroup.y = val;
                         } catch (Exception e) {
                         }
-                }
- else if (line.startsWith("Alpha=")) {
+                } else if (line.startsWith("Alpha=")) {
                     if (currentGroup != null)
                         try {
                             currentGroup.alpha = Integer.parseInt(line.substring(6).trim());
                         } catch (Exception e) {
                         }
+                } else if (line.startsWith("Hotkey=")) {
+                    if (currentGroup != null) {
+                        currentGroup.hotkey = getKeyCodeFromText(line.substring(7));
+                    }
                 } else if (line.startsWith("Visible=")) {
                     if (currentGroup != null)
                         currentGroup.visible = line.substring(8).trim().equalsIgnoreCase("true");
@@ -131,6 +159,9 @@ public class ConfigLoader {
                 pw.println("X=" + String.format("%.4f", group.x));
                 pw.println("Y=" + String.format("%.4f", group.y));
                 pw.println("Alpha=" + group.alpha);
+                if (group.hotkey != 0) {
+                    pw.println("Hotkey=" + NativeKeyEvent.getKeyText(group.hotkey));
+                }
                 pw.println("Visible=" + group.visible);
                 pw.println("Font=" + group.fontName);
                 pw.println();

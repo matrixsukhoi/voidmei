@@ -45,7 +45,7 @@ public class controller {
 
 	engineControl F;
 	statusBar SB;
-	mainform M;
+	public mainform M;
 	minimalHUD H;
 	public otherService O;
 	situationAware SA;
@@ -57,6 +57,8 @@ public class controller {
 	flapsControl flc;
 
 	attitudeIndicator aI;
+	public java.util.List<ui.overlay.DynamicOverlay> dynamicOverlays = new java.util.ArrayList<>();
+	public java.util.List<ui.util.ConfigLoader.GroupConfig> dynamicConfigs = new java.util.ArrayList<>();
 
 	Thread S1;
 	Thread F1;
@@ -601,6 +603,8 @@ public class controller {
 		// 接收频率
 		// app.debugPrint("controller执行了");
 		loadFromConfig();
+		initDynamicOverlays();
+		registerHotkeyListener();
 		usetempratureInformation = false;
 
 		// 刷新频率
@@ -655,7 +659,76 @@ public class controller {
 
 	}
 
+	public void initDynamicOverlays() {
+		// Clean up existing
+		for (ui.overlay.DynamicOverlay overlay : dynamicOverlays) {
+			overlay.dispose();
+		}
+		dynamicOverlays.clear();
+
+		dynamicConfigs = ui.util.ConfigLoader.loadConfig("ui_layout.cfg");
+		for (ui.util.ConfigLoader.GroupConfig config : dynamicConfigs) {
+			ui.overlay.DynamicOverlay overlay = new ui.overlay.DynamicOverlay(this, config);
+			dynamicOverlays.add(overlay);
+		}
+	}
+
+	public void setDynamicOverlaysVisible(boolean visible, boolean respectHotkey) {
+		for (ui.overlay.DynamicOverlay overlay : dynamicOverlays) {
+			if (visible) {
+				// Entering Game Mode (respectHotkey=true)
+				if (respectHotkey) {
+					// Step 4: If Visible=true, start HIDDEN. Otherwise, start HIDDEN.
+					overlay.setVisible(false);
+				} else {
+					// Step 2 & 4 (Preview Mode): show if config says Visible=true
+					overlay.setVisible(overlay.getGroupConfig().visible);
+				}
+			} else {
+				// Global hide
+				overlay.setVisible(false);
+			}
+		}
+	}
+
+	public void registerHotkeyListener() {
+		try {
+			app.silenceNativeHookLogger();
+			if (!com.github.kwhat.jnativehook.GlobalScreen.isNativeHookRegistered()) {
+				com.github.kwhat.jnativehook.GlobalScreen.registerNativeHook();
+			}
+		} catch (com.github.kwhat.jnativehook.NativeHookException ex) {
+			ex.printStackTrace();
+		}
+
+		com.github.kwhat.jnativehook.GlobalScreen
+				.addNativeKeyListener(new com.github.kwhat.jnativehook.keyboard.NativeKeyListener() {
+					@Override
+					public void nativeKeyPressed(com.github.kwhat.jnativehook.keyboard.NativeKeyEvent e) {
+						int code = e.getKeyCode();
+						// 动态 Overlay 切换
+						if (dynamicOverlays != null) {
+							for (ui.overlay.DynamicOverlay overlay : dynamicOverlays) {
+								// Step 2 & 4: Only listen if Visible=true in config
+								if (overlay.getGroupConfig().visible && overlay.getGroupConfig().hotkey != 0
+										&& overlay.getGroupConfig().hotkey == code) {
+									overlay.toggleVisibility();
+								}
+							}
+						}
+					}
+				});
+	}
+
 	public void stop() {
+		// Clean up dynamic overlays
+		if (dynamicOverlays != null) {
+			for (ui.overlay.DynamicOverlay overlay : dynamicOverlays) {
+				overlay.dispose();
+			}
+			dynamicOverlays.clear();
+		}
+
 		if (M != null) {
 			M.doit = false;
 			M1 = null;

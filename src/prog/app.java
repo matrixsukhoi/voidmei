@@ -33,8 +33,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import javax.swing.SwingUtilities;
 
@@ -112,7 +110,7 @@ public class app {
 	public static controller ctr;
 
 	public static Boolean displayFm = true;
-	public static Boolean displayFmCtrl = true;
+	public static Boolean displayFmCtrl = false;
 	// 空鼠标指针
 	public static BufferedImage cursorImg = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
 	public static Cursor blankCursor = Toolkit.getDefaultToolkit().createCustomCursor(cursorImg, new Point(0, 0),
@@ -430,11 +428,15 @@ public class app {
 
 	}
 
-	public static void addDisplayFmListener() {
-		// 禁用 JNativeHook 的日志输出
-		Logger logger = Logger.getLogger(GlobalScreen.class.getPackage().getName());
-		logger.setLevel(Level.OFF);
+	public static void silenceNativeHookLogger() {
+		// 禁用 JNativeHook 的日志输出 (Disable JNativeHook logging)
+		java.util.logging.Logger logger = java.util.logging.Logger.getLogger(GlobalScreen.class.getPackage().getName());
+		logger.setLevel(java.util.logging.Level.OFF);
 		logger.setUseParentHandlers(false);
+	}
+
+	public static void addDisplayFmListener() {
+		silenceNativeHookLogger();
 
 		try {
 			GlobalScreen.registerNativeHook();
@@ -497,6 +499,7 @@ public class app {
 		}
 
 		lang.initLang();
+		silenceNativeHookLogger();
 
 		// 初始化端口
 		appPort = Integer.parseInt(lang.httpPort);

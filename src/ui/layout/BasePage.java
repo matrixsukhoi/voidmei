@@ -25,6 +25,7 @@ import prog.lang;
 public abstract class BasePage extends WebPanel {
 
     protected mainform parent;
+    protected WebPanel toolbar;
     protected boolean isDetailedMode = false;
 
     public BasePage(mainform parent) {
@@ -64,9 +65,9 @@ public abstract class BasePage extends WebPanel {
         this.add(createCenterComponent(content), BorderLayout.CENTER);
 
         // --- Top Toolbar (optional, subclasses can override) ---
-        WebPanel topToolbar = createTopToolbar();
-        if (topToolbar != null) {
-            this.add(topToolbar, BorderLayout.NORTH);
+        toolbar = createTopToolbar();
+        if (toolbar != null) {
+            this.add(toolbar, BorderLayout.NORTH);
         }
 
         // --- Bottom Control Panel ---
@@ -194,6 +195,21 @@ public abstract class BasePage extends WebPanel {
         bottomPanel.add(rightGroup, BorderLayout.LINE_END);
 
         this.add(bottomPanel, BorderLayout.SOUTH);
+    }
+
+    /**
+     * Replaces the current toolbar with a new one.
+     */
+    public void refreshToolbar() {
+        if (toolbar != null) {
+            this.remove(toolbar);
+        }
+        toolbar = createTopToolbar();
+        if (toolbar != null) {
+            this.add(toolbar, BorderLayout.NORTH);
+        }
+        revalidate();
+        repaint();
     }
 
 }
