@@ -1,329 +1,87 @@
 package ui;
 
-import java.awt.BorderLayout;
-import java.awt.Color;
-import java.awt.Font;
-import java.awt.Toolkit;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseMotionAdapter;
-
-import com.alee.laf.label.WebLabel;
-import com.alee.laf.panel.WebPanel;
-import com.alee.laf.rootpane.WebFrame;
-import com.alee.extended.layout.VerticalFlowLayout;
+import java.util.Arrays;
 
 import parser.blkx;
 import prog.app;
 import prog.controller;
+import ui.overlay.BaseOverlay;
 
-public class someUsefulData extends WebFrame implements Runnable {
+public class someUsefulData extends BaseOverlay implements BaseOverlay.ConfigBridge {
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = 285137206980711202L;
-	public volatile boolean doit = true;
 	controller xc;
 	blkx xp;
-	WebLabel title;
-	WebPanel panel;
-	int WIDTH;
-	int HEIGHT;
-	WebPanel dataPanel;
-	String FontName;
-	Font displayFont;
-	String lastFmData = "";
-	int fontSize = 16;
-	float scaleFactor = 1.0f;
-	public boolean isPreview = false;
-	int isDragging = 0;
-	int xx, yy;
 
 	public void init(controller c, blkx p) {
-		xc = c;
-		xp = p;
-
-		int screenHeight = Toolkit.getDefaultToolkit().getScreenSize().height;
-		scaleFactor = (float) screenHeight / 1440.0f;
-
-		fontSize = Math.round(16 * scaleFactor);
-		WIDTH = Math.round(app.defaultFontsize * 36 * scaleFactor);
-		HEIGHT = app.defaultFontsize * 72;
-
-		// app.debugPrint("statusBar初始化了");
-		// setSize(WIDTH, HEIGHT);
-		// setLocation(Toolkit.getDefaultToolkit().getScreenSize().width -
-		// WIDTH, 50);
-		this.setBounds(Toolkit.getDefaultToolkit().getScreenSize().width - WIDTH,
-				Toolkit.getDefaultToolkit().getScreenSize().height - 10 - HEIGHT, WIDTH, HEIGHT);
-		WebPanel panel = new WebPanel();
-		panel.setSize(WIDTH, HEIGHT);
-
-		// WebImage webimage1=new WebImage(I);
-		// java.awt.Image
-		// L=Toolkit.getDefaultToolkit().createImage("image/loader.gif");
-		// app.debugPrint(I);
-		// WebDecoratedImage Image1=new WebDecoratedImage(I);
-		// TooltipManager.setTooltip ( Image1, "Simple preferred-size image",
-		// TooltipWay.up );
-		// WebImage webimage1=new WebImage(I);
-		this.getWebRootPaneUI().setMiddleBg(new Color(0, 0, 0, 0));// 中部透明
-		this.getWebRootPaneUI().setTopBg(new Color(0, 0, 0, 0));// 顶部透明
-		this.getWebRootPaneUI().setBorderColor(new Color(0, 0, 0, 0));// 内描边透明
-		this.getWebRootPaneUI().setInnerBorderColor(new Color(0, 0, 0, 0));// 外描边透明
-
-		this.setUndecorated(true);
-
-		if (xc.getconfig("MonoNumFont") != "")
-			FontName = xc.getconfig("MonoNumFont");
-		else if (xc.getconfig("flightInfoFontC") != "")
-			FontName = xc.getconfig("flightInfoFontC");
-
-		Font f;
-		if (!FontName.isEmpty()) {
-			f = new Font(FontName, Font.PLAIN, fontSize);
-		} else {
-			f = new Font(app.defaultNumfontName, Font.PLAIN, fontSize);
-		}
-
-		dataPanel = new WebPanel();
-		dataPanel.setLayout(new VerticalFlowLayout(0, 0));
-		dataPanel.setBackground(new Color(20, 20, 20, 180));
-
-		displayFont = f;
-
-		// title = new WebLabel(""/*,I*/);
-		//// title.setHorizontalAlignment(SwingConstants.TOP);
-		// title.setDrawShade(true);
-		//// title.setForeground(new Color(245, 248, 250, 240));
-		// title.setShadeColor(Color.BLACK);
-		// title.setText("----------FM读取--------");
-		// title.setFont(f);
-		// title.setIconTextGap(3);
-
-		this.setShadeWidth(0);
-		// MouseListener[] mls = textArea.getMouseListeners();
-		// MouseMotionListener[] mmls = textArea.getMouseMotionListeners();
-		// for (int t = 0; t < mls.length; t++) {
-		// textArea.removeMouseListener(mls[t]);
-		//
-		// }
-		// for (int t = 0; t < mmls.length; t++) {
-		// textArea.removeMouseMotionListener(mmls[t]);
-		// }
-
-		this.getRootPane().setCursor(app.blankCursor);
-		this.getContentPane().setCursor(app.blankCursor);
-		// this.getFocusableChilds();
-		this.getGlassPane().setCursor(app.blankCursor);
-
-		addMouseListener(new MouseAdapter() {
-			@Override
-			public void mouseEntered(MouseEvent e) {
-				// app.debugPrint(e);
-			}
-
-			@Override
-			public void mousePressed(MouseEvent e) {
-				// app.debugPrint(e);
-
-			}
-
-			@Override
-			public void mouseReleased(MouseEvent e) {
-				// app.debugPrint(e);
-			}
-
+		this.xc = c;
+		this.xp = p;
+		super.init(this, "someUsefulDataX", "someUsefulDataY", () -> {
+			String currentText = xc.blkx != null ? xc.blkx.fmdata : "FM Data Preview\n[No Data Loaded]";
+			return Arrays.asList(currentText.split("\n"));
 		});
-
-		addMouseMotionListener(new MouseMotionAdapter() {
-			@Override
-			public void mouseDragged(MouseEvent e) {
-				// app.debugPrint(e);
-			}
-
-			@Override
-			public void mouseMoved(MouseEvent e) {
-				// app.debugPrint(e);
-			}
-		});
-
-		this.getLayeredPane().setCursor(app.blankCursor);
-		dataPanel.setCursor(app.blankCursor);
-		panel.setCursor(app.blankCursor);
-
-		panel.setLayout(new BorderLayout());
-
-		panel.setWebColoredBackground(false);
-		panel.setBackground(new Color(0, 0, 0, 0));
-
-		this.add(panel);
-
-		// panel.add(webimage1,BorderLayout.LINE_START);
-		// mls = panel.getMouseListeners();
-		// mmls = panel.getMouseMotionListeners();
-		// for (int t = 0; t < mls.length; t++) {
-		// panel.removeMouseListener(mls[t]);
-		//
-		// }
-		// for (int t = 0; t < mmls.length; t++) {
-		// panel.removeMouseMotionListener(mmls[t]);
-		// }
-
-		// panel.add(title);
-		panel.add(dataPanel);
-		// panel.add(title);
-		uiWebLafSetting.setWindowFocus(this);
-
-		// this.getWindows()[0].toBack();
-
+		// Set custom header matcher for FM data
+		setHeaderMatcher(line -> line.contains("fm器件") || line.contains("FM文件"));
 	}
 
 	public void initPreview(controller c, blkx p) {
-		isPreview = true;
-		init(c, p);
-		this.getWebRootPaneUI().setMiddleBg(app.previewColor);
-		this.getWebRootPaneUI().setTopBg(app.previewColor);
-
-		// 预览模式下的拖拽支持
-		addMouseListener(new MouseAdapter() {
-			@Override
-			public void mousePressed(MouseEvent e) {
-				isDragging = 1;
-				xx = e.getX();
-				yy = e.getY();
-			}
-
-			@Override
-			public void mouseReleased(MouseEvent e) {
-				isDragging = 0;
-			}
+		this.xc = c;
+		this.xp = p;
+		super.initPreview(this, "someUsefulDataX", "someUsefulDataY", () -> {
+			String currentText = xc.blkx != null ? xc.blkx.fmdata : "FM Data Preview\n[No Data Loaded]";
+			return Arrays.asList(currentText.split("\n"));
 		});
-
-		addMouseMotionListener(new MouseMotionAdapter() {
-			@Override
-			public void mouseDragged(MouseEvent e) {
-				if (isDragging == 1) {
-					int left = getLocation().x;
-					int top = getLocation().y;
-					setLocation(left + e.getX() - xx, top + e.getY() - yy);
-					saveCurrentPosition();
-					setVisible(true);
-					repaint();
-				}
-			}
-		});
-		this.setCursor(null);
-		setVisible(true);
+		setHeaderMatcher(line -> line.contains("fm器件") || line.contains("FM文件"));
 	}
 
 	public void reinitConfig(blkx p) {
 		this.xp = p;
-		if (xc.getconfig("MonoNumFont") != "")
-			FontName = xc.getconfig("MonoNumFont");
-		else if (xc.getconfig("flightInfoFontC") != "")
-			FontName = xc.getconfig("flightInfoFontC");
-
-		if (!FontName.isEmpty()) {
-			displayFont = new Font(FontName, Font.PLAIN, fontSize);
-		} else {
-			displayFont = new Font(app.defaultNumfontName, Font.PLAIN, fontSize);
-		}
-		lastFmData = ""; // 强制刷新
+		setupFont();
+		lastData = null; // 强制刷新
 	}
 
-	public void saveCurrentPosition() {
-		xc.setconfig("someUsefulDataX", Integer.toString(this.getLocation().x));
-		xc.setconfig("someUsefulDataY", Integer.toString(this.getLocation().y));
-	}
+	// --- BaseOverlay.ConfigBridge Implementation ---
 
-	public void S() {
-		title.setText(xp.fmdata);
-		repaint();
-		try {
-			Thread.sleep(10000);
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		this.dispose();
+	@Override
+	public String getConfig(String key) {
+		return xc.getconfig(key);
 	}
 
 	@Override
-	public void run() {
-		while (doit) {
-			String currentText = xc.blkx != null ? xc.blkx.fmdata : "FM Data Preview\n[No Data Loaded]";
+	public void setConfig(String key, String value) {
+		xc.setconfig(key, value);
+	}
 
-			if (isPreview || app.displayFm) {
-				// 检查数据是否变化
-				if (!currentText.equals(lastFmData)) {
-					lastFmData = currentText;
-					dataPanel.removeAll();
-					String[] lines = currentText.split("\n");
-					for (int i = 0; i < lines.length; i++) {
-						WebLabel label = new WebLabel(lines[i]);
-						label.setFont(displayFont);
-						label.setForeground(Color.WHITE);
-						label.setOpaque(true);
-						label.setMargin(2, 6, 2, 6);
-						// 颜色逻辑：标题高亮 > 斑马纹
-						if (lines[i].contains("fm器件") || lines[i].contains("FM文件")) {
-							// 标题高亮色：深琥珀色
-							label.setBackground(new Color(80, 60, 0, 180));
-						} else if (i % 2 == 0) {
-							// 斑马纹深灰
-							label.setBackground(new Color(25, 25, 25, 180));
-						} else {
-							// 斑马纹浅灰
-							label.setBackground(new Color(40, 40, 40, 180));
-						}
-						dataPanel.add(label);
-					}
-					dataPanel.revalidate();
-				}
+	// --- BaseOverlay Overrides ---
 
-				// 动态调整高度
-				int preferredHeight = dataPanel.getPreferredSize().height;
-				// 限制最大高度，避免超出屏幕
-				int maxHeight = Toolkit.getDefaultToolkit().getScreenSize().height - 40;
-				if (preferredHeight > maxHeight)
-					preferredHeight = maxHeight;
-
-				// 如果高度变化，更新窗口位置和大小，保持底部对齐
-				if (Math.abs(this.getHeight() - preferredHeight) > 2) {
-					int screenHeight = Toolkit.getDefaultToolkit().getScreenSize().height;
-					int screenWidth = Toolkit.getDefaultToolkit().getScreenSize().width;
-					this.setBounds(screenWidth - WIDTH, screenHeight - 10 - preferredHeight, WIDTH, preferredHeight);
-				}
-
-				this.setVisible(true);
-				this.getContentPane().repaint();
-			} else {
-				this.setVisible(false);
-			}
-			if (app.displayFmCtrl) {
-				try {
-					Thread.sleep(1000);
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-				}
-			} else {
-				if (this.xc.S.sState.gear != 100 || (this.xc.S.speedv > 10 && this.xc.S.sState.throttle > 0)) {
-					try {
-						Thread.sleep(10000);
-					} catch (InterruptedException e) {
-						e.printStackTrace();
-					}
-					break;
-				}
-				// 正常刷新间隔
-				try {
-					Thread.sleep(200);
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-				}
-			}
+	@Override
+	protected boolean shouldExit() {
+		if (app.displayFmCtrl) {
+			return false;
 		}
-		this.dispose();
+		// Null safety: xc.S or sState may not be initialized yet
+		if (xc == null || xc.S == null || xc.S.sState == null) {
+			return false;
+		}
+		// logic from original run() loop
+		if (this.xc.S.sState.gear != 100 || (this.xc.S.speedv > 10 && this.xc.S.sState.throttle > 0)) {
+			return true;
+		}
+		return false;
+	}
+
+	@Override
+	protected int getRefreshInterval() {
+		if (app.displayFmCtrl) {
+			return 1000;
+		}
+		return 200;
+	}
+
+	@Override
+	protected boolean isVisibleNow() {
+		return app.displayFm;
 	}
 }

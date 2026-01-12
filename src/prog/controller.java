@@ -662,6 +662,7 @@ public class controller {
 	public void initDynamicOverlays() {
 		// Clean up existing
 		for (ui.overlay.DynamicOverlay overlay : dynamicOverlays) {
+			overlay.doit = false;
 			overlay.dispose();
 		}
 		dynamicOverlays.clear();
@@ -670,6 +671,8 @@ public class controller {
 		for (ui.util.ConfigLoader.GroupConfig config : dynamicConfigs) {
 			ui.overlay.DynamicOverlay overlay = new ui.overlay.DynamicOverlay(this, config);
 			dynamicOverlays.add(overlay);
+			// Start the self-refresh thread
+			new Thread(overlay).start();
 		}
 	}
 
@@ -724,6 +727,7 @@ public class controller {
 		// Clean up dynamic overlays
 		if (dynamicOverlays != null) {
 			for (ui.overlay.DynamicOverlay overlay : dynamicOverlays) {
+				overlay.doit = false;
 				overlay.dispose();
 			}
 			dynamicOverlays.clear();

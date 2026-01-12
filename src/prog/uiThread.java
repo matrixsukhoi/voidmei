@@ -114,14 +114,8 @@ public class uiThread implements Runnable {
 				}
 			}
 
-			// Update Dynamic Overlays
-			if (c.dynamicOverlays != null) {
-				for (ui.overlay.DynamicOverlay overlay : c.dynamicOverlays) {
-					if (overlay.isVisible()) {
-						overlay.updateAndRepaint();
-					}
-				}
-			}
+			// Dynamic Overlays now self-refresh via ListOverlay.run()
+			// No external polling needed
 			// 10秒回收一次内存
 			// if (stime - GCCheckMili > app.gcSeconds * 1000) {
 			//// app.debugPrint("内存回收");

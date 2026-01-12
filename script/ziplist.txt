@@ -12,3 +12,4 @@ VoidMei.jar
 使用说明.txt
 更新日志.txt
 快速使用说明.txt
+ui_layout.cfg
