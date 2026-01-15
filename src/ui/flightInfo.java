@@ -16,6 +16,10 @@ import java.awt.event.MouseMotionListener;
 import java.awt.font.FontRenderContext;
 import java.awt.font.GlyphVector;
 import java.awt.geom.AffineTransform;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import com.alee.laf.label.WebLabel;
 import com.alee.laf.panel.WebPanel;
@@ -24,6 +28,7 @@ import prog.app;
 import prog.controller;
 import prog.lang;
 import prog.service;
+import ui.model.FlightField;
 
 public class flightInfo extends WebFrame implements Runnable {
 	/**
@@ -277,246 +282,88 @@ public class flightInfo extends WebFrame implements Runnable {
 	// setFocusable(true);
 	// } // This closing brace was for initPreview, now it's moved up.
 
-	String[][] totalString;
-	int useNum = 0;
+	// Data model: List of flight fields (replaces String[][] totalString)
+	List<FlightField> fields = new ArrayList<>();
+	Map<String, FlightField> fieldMap = new HashMap<>();
 
-	//
-	int idx_ias = Integer.MAX_VALUE;
-	int idx_tas = Integer.MAX_VALUE;
-	int idx_mach = Integer.MAX_VALUE;
-	int idx_height = Integer.MAX_VALUE;
-	int idx_vario = Integer.MAX_VALUE;
-	int idx_sep = Integer.MAX_VALUE;
-
-	int idx_acc = Integer.MAX_VALUE;
-	int idx_wx = Integer.MAX_VALUE;
-	int idx_ny = Integer.MAX_VALUE;
-	int idx_turn = Integer.MAX_VALUE;
-	int idx_rds = Integer.MAX_VALUE;
-	int idx_dir = Integer.MAX_VALUE;
-
-	int idx_aoa = Integer.MAX_VALUE;
-	int idx_aos = Integer.MAX_VALUE;
-	int idx_ws = Integer.MAX_VALUE;
-
-	int idx_rda = Integer.MAX_VALUE;
-
-	public Boolean[] totalSwitch;
 	private int numHeight;
 	private int labelHeight;
 	private Container root;
 
-	public void initTextString() {
-		totalString = new String[20][];
-		String tmp;
-		totalSwitch = new Boolean[20];
-		for (int i = 0; i < 20; i++) {
-			totalString[i] = new String[3];
-			totalSwitch[i] = true;
+	/**
+	 * Helper to add a field and register it in the map.
+	 */
+	private void addField(String key, String label, String unit, String configKey, boolean hideWhenNA) {
+		String tmp = xc.getconfig(configKey);
+		// If the field is disabled in config, don't add it
+		if (tmp != null && !tmp.isEmpty() && Boolean.parseBoolean(tmp)) {
+			return;
 		}
-
-		// IAS
-		// 判断是否添加
-		tmp = xc.getconfig("disableFlightInfoIAS");
-		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
-			totalString[useNum][0] = String.format("%5s", "1200");
-			totalString[useNum][1] = String.format("%s", lang.fIAS);
-			totalString[useNum][2] = String.format("%s", "Km/h");
-			idx_ias = useNum++;
-		}
-		// TAS
-		tmp = xc.getconfig("disableFlightInfoTAS");
-		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
-			totalString[useNum][0] = String.format("%5s", "1300");
-			totalString[useNum][1] = String.format("%s", lang.fTAS);
-			totalString[useNum][2] = String.format("%s", "Km/h");
-			idx_tas = useNum++;
-		}
-		// MACH
-		tmp = xc.getconfig("disableFlightInfoMach");
-		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
-			totalString[useNum][0] = String.format("%5s", "1.0");
-			totalString[useNum][1] = String.format("%s", lang.fMach);
-			totalString[useNum][2] = String.format("%s", "Mach");
-			idx_mach = useNum++;
-		}
-		// dir
-		tmp = xc.getconfig("disableFlightInfoCompass");
-		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
-			totalString[useNum][0] = String.format("%5s", "360");
-			totalString[useNum][1] = String.format("%s", lang.fCompass);
-			totalString[useNum][2] = String.format("%s", "Deg");
-			idx_dir = useNum++;
-		}
-		// 高度
-		tmp = xc.getconfig("disableFlightInfoHeight");
-		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
-			totalString[useNum][0] = String.format("%5s", "11451");
-			totalString[useNum][1] = String.format("%s", lang.fAlt);
-			totalString[useNum][2] = String.format("%s", "M");
-			idx_height = useNum++;
-		}
-		// 雷达高度
-		tmp = xc.getconfig("disableFlightInfoRadioAlt");
-		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
-			totalString[useNum][0] = String.format("%5s", "1000");
-			totalString[useNum][1] = String.format("%s", lang.fRa);
-			totalString[useNum][2] = String.format("%s", "M");
-			idx_rda = useNum++;
-		}
-
-		// 爬升率
-		tmp = xc.getconfig("disableFlightInfoVario");
-		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
-			totalString[useNum][0] = String.format("%5s", "14");
-			totalString[useNum][1] = String.format("%s", lang.fVario);
-			totalString[useNum][2] = String.format("%s", "M/s");
-			idx_vario = useNum++;
-		}
-		// SEP
-		tmp = xc.getconfig("disableFlightInfoSEP");
-		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
-			totalString[useNum][0] = String.format("%5s", "-191");
-			totalString[useNum][1] = String.format("%s", lang.fSEP);
-			totalString[useNum][2] = String.format("%s", "M/s");
-			idx_sep = useNum++;
-		}
-		// acc
-		tmp = xc.getconfig("disableFlightInfoAcc");
-		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
-			totalString[useNum][0] = String.format("%5s", "98");
-			totalString[useNum][1] = String.format("%s", lang.fAcc);
-			totalString[useNum][2] = String.format("%s", "M/s^2");
-			idx_acc = useNum++;
-		}
-		// wx
-		tmp = xc.getconfig("disableFlightInfoWx");
-		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
-			totalString[useNum][0] = String.format("%5s", "10");
-			totalString[useNum][1] = String.format("%s", lang.fWx);
-			totalString[useNum][2] = String.format("%s", "Deg/s");
-			idx_wx = useNum++;
-		}
-		// ny
-		tmp = xc.getconfig("disableFlightInfoNy");
-		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
-			totalString[useNum][0] = String.format("%5s", "8.1");
-			totalString[useNum][1] = String.format("%s", lang.fGL);
-			totalString[useNum][2] = String.format("%s", "G");
-			idx_ny = useNum++;
-		}
-		// turn
-		tmp = xc.getconfig("disableFlightInfoTurn");
-		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
-			totalString[useNum][0] = String.format("%5s", "155");
-			totalString[useNum][1] = String.format("%s", lang.fTRr);
-			totalString[useNum][2] = String.format("%s", "Deg/s");
-			idx_turn = useNum++;
-		}
-		// rds
-		tmp = xc.getconfig("disableFlightInfoTurnRadius");
-		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
-			totalString[useNum][0] = String.format("%5s", "2003");
-			totalString[useNum][1] = String.format("%s", lang.fTR);
-			totalString[useNum][2] = String.format("%s", "M");
-			idx_rds = useNum++;
-		}
-		// aoa
-		tmp = xc.getconfig("disableFlightInfoAoA");
-		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
-			totalString[useNum][0] = String.format("%5s", "1.5");
-			totalString[useNum][1] = String.format("%s", lang.fAoA);
-			totalString[useNum][2] = String.format("%s", "Deg");
-			idx_aoa = useNum++;
-		}
-		// aos
-		tmp = xc.getconfig("disableFlightInfoAoS");
-		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
-			totalString[useNum][0] = String.format("%5s", "-0.1");
-			totalString[useNum][1] = String.format("%s", lang.fAoS);
-			totalString[useNum][2] = String.format("%s", "Deg");
-			idx_aos = useNum++;
-		}
-		// 可变翼
-		tmp = xc.getconfig("disableFlightInfoWingSweep");
-		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
-			totalString[useNum][0] = String.format("%5s", "100");
-			totalString[useNum][1] = String.format("%s", lang.fWs);
-			totalString[useNum][2] = String.format("%s", "%");
-			idx_ws = useNum++;
-		}
-
+		FlightField field = new FlightField(key, label, unit, configKey, hideWhenNA);
+		field.setValue("---"); // Default placeholder
+		fields.add(field);
+		fieldMap.put(key, field);
 	}
 
-	public void __update_num(int idx, String s) {
-		if (idx < useNum) {
-			totalString[idx][0] = String.format("%5s", s);
-			// totalString[idx][0] = s;
+	public void initTextString() {
+		fields.clear();
+		fieldMap.clear();
+
+		// Add all flight info fields using the helper method
+		// Args: key, label, unit, configKey, hideWhenNA
+		addField("ias", lang.fIAS, "Km/h", "disableFlightInfoIAS", false);
+		addField("tas", lang.fTAS, "Km/h", "disableFlightInfoTAS", false);
+		addField("mach", lang.fMach, "Mach", "disableFlightInfoMach", false);
+		addField("dir", lang.fCompass, "Deg", "disableFlightInfoCompass", false);
+		addField("height", lang.fAlt, "M", "disableFlightInfoHeight", false);
+		addField("rda", lang.fRa, "M", "disableFlightInfoRadioAlt", true); // hideWhenNA
+		addField("vario", lang.fVario, "M/s", "disableFlightInfoVario", false);
+		addField("sep", lang.fSEP, "M/s", "disableFlightInfoSEP", false);
+		addField("acc", lang.fAcc, "M/s^2", "disableFlightInfoAcc", false);
+		addField("wx", lang.fWx, "Deg/s", "disableFlightInfoWx", false);
+		addField("ny", lang.fGL, "G", "disableFlightInfoNy", false);
+		addField("turn", lang.fTRr, "Deg/s", "disableFlightInfoTurn", false);
+		addField("rds", lang.fTR, "M", "disableFlightInfoTurnRadius", false);
+		addField("aoa", lang.fAoA, "Deg", "disableFlightInfoAoA", false);
+		addField("aos", lang.fAoS, "Deg", "disableFlightInfoAoS", false);
+		addField("ws", lang.fWs, "%", "disableFlightInfoWingSweep", true); // hideWhenNA
+	}
+
+	/**
+	 * Helper to update a field value by key.
+	 */
+	private void updateField(String key, String value) {
+		FlightField field = fieldMap.get(key);
+		if (field != null) {
+			field.setValue(value);
+			// Handle hideWhenNA logic
+			if (field.hideWhenNA) {
+				field.visible = !value.equals(service.nastring);
+			}
 		}
 	}
 
 	public void updateString() {
+		if (xs == null)
+			return;
 
-		// 跳过雷达高
-
-		if (idx_ws < useNum) {
-			if (xs.sWingSweep.equals(service.nastring)) {
-				totalSwitch[idx_ws] = false;
-			} else {
-				totalSwitch[idx_ws] = true;
-			}
-		}
-		if (idx_rda < useNum) {
-			if (xs.sRadioAlt.equals(service.nastring)) {
-				totalSwitch[idx_rda] = false;
-			} else {
-				totalSwitch[idx_rda] = true;
-			}
-		}
-
-		// ias
-		__update_num(idx_ias, xs.IAS);
-
-		// TAS
-		__update_num(idx_tas, xs.TAS);
-
-		// MACH
-		__update_num(idx_mach, xs.M);
-
-		// Height
-		__update_num(idx_height, xs.salt);
-
-		// Vario
-		__update_num(idx_vario, xs.Vy);
-
-		// SEP
-		__update_num(idx_sep, xs.sSEP);
-
-		// dir
-		__update_num(idx_dir, xs.compass);
-		// acc
-		__update_num(idx_acc, xs.sAcc);
-		// wx
-		__update_num(idx_wx, xs.Wx);
-		// ny
-		// __update_num(idx_ny, xs.Ny);
-		// 使用修正过的过载
-		__update_num(idx_ny, xs.sN);
-		// turn
-		__update_num(idx_turn, xs.sTurnRate);
-		// rds
-		__update_num(idx_rds, xs.sTurnRds);
-		// totalString[idx_rds][2] = "m"+xs.sN;
-		// aoa
-		__update_num(idx_aoa, xs.AoA);
-		// aos
-		__update_num(idx_aos, xs.AoS);
-		// ws
-		__update_num(idx_ws, xs.sWingSweep);
-
-		// 无线电测距高
-		__update_num(idx_rda, xs.sRadioAlt);
-
+		// Update all field values from the service
+		updateField("ias", xs.IAS);
+		updateField("tas", xs.TAS);
+		updateField("mach", xs.M);
+		updateField("dir", xs.compass);
+		updateField("height", xs.salt);
+		updateField("rda", xs.sRadioAlt);
+		updateField("vario", xs.Vy);
+		updateField("sep", xs.sSEP);
+		updateField("acc", xs.sAcc);
+		updateField("wx", xs.Wx);
+		updateField("ny", xs.sN); // 使用修正过的过载
+		updateField("turn", xs.sTurnRate);
+		updateField("rds", xs.sTurnRds);
+		updateField("aoa", xs.AoA);
+		updateField("aos", xs.AoS);
+		updateField("ws", xs.sWingSweep);
 	}
 
 	public void initpanel() {
@@ -579,18 +426,18 @@ public class flightInfo extends WebFrame implements Runnable {
 		else
 			columnNum = 3;
 
-		useNum = 0; // 重置计数
 		initTextString();
 
-		int addnum = (useNum % columnNum == 0) ? 0 : 1;
-		// app.debugPrint(useNum / columnNum + addnum + 1);
+		int fieldCount = fields.size();
+		int addnum = (fieldCount % columnNum == 0) ? 0 : 1;
+		// app.debugPrint(fieldCount / columnNum + addnum + 1);
 		if (xc.getconfig("flightInfoEdge").equals("true"))
 			setShadeWidth(10);
 		else
 			setShadeWidth(0);
 
 		this.setBounds(lx, ly, (fontsize >> 1) + (int) ((columnNum + 0.5) * 5f * fontsize),
-				(int) (numHeight + (useNum / columnNum + addnum + 1) * 1.0f * numHeight));
+				(int) (numHeight + (fieldCount / columnNum + addnum + 1) * 1.0f * numHeight));
 
 		repaint();
 	}
@@ -628,15 +475,17 @@ public class flightInfo extends WebFrame implements Runnable {
 				doffset[0] = fontsize >> 1;
 				doffset[1] = fontsize >> 1;
 				int d = 0;
-				for (int i = 0; i < useNum; i++) {
-					if (!totalSwitch[i]) {
+				int visibleIndex = 0;
+				for (FlightField field : fields) {
+					if (!field.visible) {
 						d++;
 						continue;
 					}
 					int fwitdh = 3 * fontsize;
 					uiBaseElem._drawLabelBOSType(g2d, doffset[0], doffset[1], 1, fwitdh, fontNum, fontLabel, fontUnit,
-							totalString[i][0], totalString[i][1], totalString[i][2]);
-					updateDxDy(i + 1 - d, doffset);
+							field.currentValue, field.label, field.unit);
+					visibleIndex++;
+					updateDxDy(visibleIndex, doffset);
 				}
 
 				// drawLabelBOSType(g2d, doffset[0], doffset[1], 1, fontNum,

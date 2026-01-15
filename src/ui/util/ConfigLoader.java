@@ -76,17 +76,40 @@ public class ConfigLoader {
                 new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8))) {
             String line;
             GroupConfig currentGroup = null;
+            boolean inCommentedSection = false;
 
             while ((line = br.readLine()) != null) {
                 line = line.trim();
-                if (line.isEmpty() || line.startsWith("#"))
+                if (line.isEmpty())
                     continue;
 
+                // Skip single-line comments
+                if (line.startsWith("#") && !line.startsWith("#[")) {
+                    continue;
+                }
+
+                // Check for commented section header: #[SectionName]
+                if (line.startsWith("#[") && line.endsWith("]")) {
+                    inCommentedSection = true;
+                    currentGroup = null;
+                    continue;
+                }
+
+                // Check for regular section header: [SectionName]
                 if (line.startsWith("[") && line.endsWith("]")) {
+                    inCommentedSection = false;
                     String title = line.substring(1, line.length() - 1).trim();
                     currentGroup = new GroupConfig(title);
                     groups.add(currentGroup);
-                } else if (line.startsWith("X=")) {
+                    continue;
+                }
+
+                // Skip all lines inside a commented section
+                if (inCommentedSection) {
+                    continue;
+                }
+
+                if (line.startsWith("X=")) {
                     if (currentGroup != null)
                         try {
                             double val = Double.parseDouble(line.substring(2).trim());
