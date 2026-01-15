@@ -32,8 +32,10 @@ import ui.gearAndFlaps;
 import ui.mainform;
 import ui.situationAware;
 import ui.someUsefulData;
+import ui.model.ConfigProvider;
+import ui.model.ServiceDataAdapter;
 
-public class controller {
+public class controller implements ConfigProvider {
 
 	public int flag;
 
@@ -317,7 +319,7 @@ public class controller {
 		if (Boolean.parseBoolean(getconfig("flightInfoSwitch"))) {
 			FL = new flightInfo();
 			// FL1 = new Thread(FL);
-			FL.init(this, S);
+			FL.init(this, new ServiceDataAdapter(S), ui.model.FlightInfoConfig.createDefault(this));
 			// FL1.start();
 		}
 		if (Boolean.parseBoolean(getconfig("enableLogging"))) {
@@ -502,6 +504,17 @@ public class controller {
 
 	public String getconfig(String key) {
 		return cfg.getValue(key);
+	}
+
+	// ConfigProvider interface implementation
+	@Override
+	public String getConfig(String key) {
+		return getconfig(key);
+	}
+
+	@Override
+	public void setConfig(String key, String value) {
+		setconfig(key, value);
 	}
 
 	public Color getColorConfig(String key) {
