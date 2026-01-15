@@ -11,8 +11,8 @@ import java.util.Map;
  */
 public class DefaultFieldManager implements FieldManager {
 
-    private final List<FlightField> fields = new ArrayList<>();
-    private final Map<String, FlightField> fieldMap = new HashMap<>();
+    private final List<DataField> fields = new ArrayList<>();
+    private final Map<String, DataField> fieldMap = new HashMap<>();
     private final ConfigProvider config;
 
     public DefaultFieldManager(ConfigProvider config) {
@@ -21,34 +21,33 @@ public class DefaultFieldManager implements FieldManager {
 
     @Override
     public void addField(String key, String label, String unit, String configKey, boolean hideWhenNA) {
-        // Check if field is disabled in config
         if (config != null) {
             String tmp = config.getConfig(configKey);
             if (tmp != null && !tmp.isEmpty() && Boolean.parseBoolean(tmp)) {
-                return; // Field is disabled, don't add
+                return;
             }
         }
 
-        FlightField field = new FlightField(key, label, unit, configKey, hideWhenNA);
+        DataField field = new DataField(key, label, unit, configKey, hideWhenNA);
         fields.add(field);
         fieldMap.put(key, field);
     }
 
     @Override
     public void updateField(String key, String value, String naString) {
-        FlightField field = fieldMap.get(key);
+        DataField field = fieldMap.get(key);
         if (field != null) {
             field.setValueWithVisibility(value, naString);
         }
     }
 
     @Override
-    public List<FlightField> getFields() {
+    public List<DataField> getFields() {
         return fields;
     }
 
     @Override
-    public FlightField getField(String key) {
+    public DataField getField(String key) {
         return fieldMap.get(key);
     }
 
@@ -66,7 +65,7 @@ public class DefaultFieldManager implements FieldManager {
     @Override
     public int visibleCount() {
         int count = 0;
-        for (FlightField field : fields) {
+        for (DataField field : fields) {
             if (field.visible)
                 count++;
         }

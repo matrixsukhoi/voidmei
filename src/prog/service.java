@@ -445,6 +445,9 @@ public class service implements Runnable {
 		if (c == null || c.globalPool == null)
 			return;
 
+		// Use batch mode to accumulate all changes and notify once
+		c.globalPool.beginBatch();
+
 		// Push Standard Flight Data (Strings formatted in trans2String)
 		c.globalPool.put("TAS", TAS);
 		c.globalPool.put("IAS", IAS);
@@ -508,6 +511,9 @@ public class service implements Runnable {
 		// Push Raw Objects for advanced access
 		c.globalPool.put("state", sState);
 		c.globalPool.put("indicators", sIndic);
+
+		// Commit batch and notify listeners ONCE
+		c.globalPool.commitBatch();
 	}
 
 	public void checkEngineJet() {

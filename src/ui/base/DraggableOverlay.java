@@ -12,6 +12,10 @@ import ui.model.ConfigProvider;
  * Base class for draggable overlay windows.
  * Provides common functionality for window dragging, position saving, and
  * preview mode.
+ * 
+ * Subclasses can be either:
+ * - Polling-based: Override run(), updateData(), drawTick()
+ * - Event-driven: Implement PoolListener and subscribe to AttributePool
  */
 public abstract class DraggableOverlay extends WebFrame implements Runnable {
     private static final long serialVersionUID = 1L;
@@ -28,8 +32,8 @@ public abstract class DraggableOverlay extends WebFrame implements Runnable {
     private int isDragging;
     private int dragStartX, dragStartY;
 
-    // Refresh timing
-    protected long refreshInterval = 100; // Default 100ms
+    // Refresh timing (for polling mode)
+    protected long refreshInterval = 100;
 
     /**
      * Initialize position keys for saving/loading window position.
@@ -41,8 +45,6 @@ public abstract class DraggableOverlay extends WebFrame implements Runnable {
 
     /**
      * Load saved position from config.
-     * 
-     * @return int[2] with {x, y} coordinates, or default values if not saved
      */
     protected int[] loadPosition(int defaultX, int defaultY) {
         int x = defaultX;
@@ -94,7 +96,6 @@ public abstract class DraggableOverlay extends WebFrame implements Runnable {
             @Override
             public void mouseReleased(MouseEvent e) {
                 isDragging = 0;
-                // Save position only when drag ends
                 saveCurrentPosition();
             }
         });
@@ -103,11 +104,7 @@ public abstract class DraggableOverlay extends WebFrame implements Runnable {
             @Override
             public void mouseDragged(MouseEvent e) {
                 if (isDragging == 1) {
-                    // Use screen coordinates for robust dragging calculation
-                    // Window Pos = Mouse Screen Pos - Initial Mouse Offset relative to Window
                     setLocation(e.getXOnScreen() - dragStartX, e.getYOnScreen() - dragStartY);
-
-                    // Only save on release to avoid IO spam, but setVisible/repaint is fine
                     setVisible(true);
                     repaint();
                 }
@@ -126,7 +123,6 @@ public abstract class DraggableOverlay extends WebFrame implements Runnable {
 
     /**
      * Setup transparent window styling.
-     * Makes the window background fully transparent for overlay display.
      */
     protected void setupTransparentWindow() {
         this.getWebRootPaneUI().setMiddleBg(new java.awt.Color(0, 0, 0, 0));
@@ -137,7 +133,7 @@ public abstract class DraggableOverlay extends WebFrame implements Runnable {
     }
 
     /**
-     * Set the refresh interval in milliseconds.
+     * Set the refresh interval for polling mode.
      */
     public void setRefreshInterval(long interval) {
         this.refreshInterval = interval;
@@ -164,17 +160,28 @@ public abstract class DraggableOverlay extends WebFrame implements Runnable {
         }
     }
 
-    /**
-     * Template method for update logic. Override in subclasses.
-     */
-    protected abstract void updateData();
+    // --- Polling Mode Hooks (Override for polling, no-op for event-driven) ---
 
     /**
-     * Template method for repaint. Override in subclasses.
-     * Public so it can be called from external threads like uiThread.
+     * Update data from source. Override for polling-based updates.
+     * Event-driven subclasses can leave this as no-op.
      */
-    public abstract void drawTick();
+    protected void updateData() {
+        // No-op by default
+    }
 
+    /**
+     * Repaint the overlay. Override for custom repaint logic.
+     * Called by uiThread for compatibility.
+     */
+    public void drawTick() {
+        // No-op by default
+    }
+
+    /**
+     * Polling loop. Override if custom polling behavior is needed.
+     * Event-driven subclasses can leave doit=false to skip polling.
+     */
     @Override
     public void run() {
         long lastUpdate = 0;

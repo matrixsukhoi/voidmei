@@ -4,13 +4,13 @@ import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.util.List;
 
-import ui.model.FlightField;
+import ui.model.DataField;
 
 /**
- * Interface for rendering flight info fields.
+ * Interface for rendering overlay fields.
  * Implementations can provide different visual styles.
  */
-public interface FlightInfoRenderer {
+public interface OverlayRenderer {
 
     /**
      * Render all visible fields.
@@ -20,10 +20,10 @@ public interface FlightInfoRenderer {
      * @param ctx    Render context with fonts and sizing
      * @param offset Starting offset [x, y], will be modified during rendering
      */
-    void render(Graphics2D g2d, List<FlightField> fields, RenderContext ctx, int[] offset);
+    void render(Graphics2D g2d, List<DataField> fields, RenderContext ctx, int[] offset);
 
     /**
      * Calculate the preferred size for rendering the given fields.
      */
-    Dimension calculatePreferredSize(List<FlightField> fields, RenderContext ctx);
+    Dimension calculatePreferredSize(List<DataField> fields, RenderContext ctx);
 }

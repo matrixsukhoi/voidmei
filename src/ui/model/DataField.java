@@ -1,10 +1,10 @@
 package ui.model;
 
 /**
- * Represents a single flight data field displayed in the FlightInfo overlay.
- * Separates data definition from view logic.
+ * Represents a single data field displayed in an overlay.
+ * Generic version - can be used for any type of data display.
  */
-public class FlightField {
+public class DataField {
     /** Unique identifier for this field (e.g., "ias", "tas", "mach") */
     public final String key;
 
@@ -14,28 +14,19 @@ public class FlightField {
     /** Unit string (e.g., "Km/h", "M/s", "Deg") */
     public final String unit;
 
-    /**
-     * Configuration key to check if this field is disabled (e.g.,
-     * "disableFlightInfoIAS")
-     */
+    /** Configuration key to check if this field is disabled */
     public final String configKey;
 
-    /**
-     * Whether this field should be hidden when its value is N/A (like WingSweep,
-     * RadioAlt)
-     */
+    /** Whether this field should be hidden when its value is N/A */
     public final boolean hideWhenNA;
 
-    /**
-     * Whether this field is currently visible (respects config and runtime
-     * conditions)
-     */
+    /** Whether this field is currently visible */
     public boolean visible = true;
 
     /** Current formatted value to display */
     public String currentValue = "---";
 
-    public FlightField(String key, String label, String unit, String configKey, boolean hideWhenNA) {
+    public DataField(String key, String label, String unit, String configKey, boolean hideWhenNA) {
         this.key = key;
         this.label = label;
         this.unit = unit;

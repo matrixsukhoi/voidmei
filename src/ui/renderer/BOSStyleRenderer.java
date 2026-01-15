@@ -6,18 +6,17 @@ import java.awt.RenderingHints;
 import java.util.List;
 
 import prog.app;
-import ui.model.FlightField;
+import ui.model.DataField;
 import ui.uiBaseElem;
 
 /**
- * BOS-style renderer for flight info fields.
+ * BOS-style renderer for overlay fields.
  * Displays fields in a multi-column grid layout with number, label, and unit.
  */
-public class BOSStyleRenderer implements FlightInfoRenderer {
+public class BOSStyleRenderer implements OverlayRenderer {
 
     @Override
-    public void render(Graphics2D g2d, List<FlightField> fields, RenderContext ctx, int[] offset) {
-        // Set rendering hints
+    public void render(Graphics2D g2d, List<DataField> fields, RenderContext ctx, int[] offset) {
         g2d.setPaintMode();
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, app.graphAASetting);
         g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, app.textAASetting);
@@ -26,19 +25,17 @@ public class BOSStyleRenderer implements FlightInfoRenderer {
         g2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING,
                 RenderingHints.VALUE_COLOR_RENDER_SPEED);
 
-        // Initialize offset
         offset[0] = ctx.fontSize >> 1;
         offset[1] = ctx.fontSize >> 1;
 
         int visibleIndex = 0;
         int fieldWidth = ctx.getFieldWidth();
 
-        for (FlightField field : fields) {
+        for (DataField field : fields) {
             if (!field.visible) {
                 continue;
             }
 
-            // Draw using BOS-style label
             uiBaseElem._drawLabelBOSType(g2d, offset[0], offset[1], 1, fieldWidth,
                     ctx.numFont, ctx.labelFont, ctx.unitFont,
                     field.currentValue, field.label, field.unit);
@@ -48,24 +45,19 @@ public class BOSStyleRenderer implements FlightInfoRenderer {
         }
     }
 
-    /**
-     * Update offset for next field based on column layout.
-     */
     private void updateOffset(int visibleIndex, int[] offset, RenderContext ctx) {
         if (visibleIndex % ctx.columnNum == 0) {
-            // Move to next row
             offset[1] += Math.round(1 * ctx.numHeight);
             offset[0] = ctx.fontSize >> 1;
         } else {
-            // Move to next column
             offset[0] += Math.round(5 * ctx.fontSize);
         }
     }
 
     @Override
-    public Dimension calculatePreferredSize(List<FlightField> fields, RenderContext ctx) {
+    public Dimension calculatePreferredSize(List<DataField> fields, RenderContext ctx) {
         int visibleCount = 0;
-        for (FlightField field : fields) {
+        for (DataField field : fields) {
             if (field.visible)
                 visibleCount++;
         }
