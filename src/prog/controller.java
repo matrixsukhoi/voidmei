@@ -17,6 +17,7 @@ import com.alee.managers.notification.NotificationManager;
 import com.alee.managers.notification.WebNotification;
 
 import parser.blkx;
+import parser.AttributePool;
 import parser.flightAnalyzer;
 import parser.flightLog;
 import ui.statusBar;
@@ -33,7 +34,6 @@ import ui.mainform;
 import ui.situationAware;
 import ui.someUsefulData;
 import ui.model.ConfigProvider;
-import ui.model.ServiceDataAdapter;
 
 public class controller implements ConfigProvider {
 
@@ -42,6 +42,7 @@ public class controller implements ConfigProvider {
 	public boolean logon = false;
 
 	public blkx blkx;
+	public AttributePool globalPool = new AttributePool();
 
 	// Robot robot;
 
@@ -319,7 +320,7 @@ public class controller implements ConfigProvider {
 		if (Boolean.parseBoolean(getconfig("flightInfoSwitch"))) {
 			FL = new flightInfo();
 			// FL1 = new Thread(FL);
-			FL.init(this, new ServiceDataAdapter(S), ui.model.FlightInfoConfig.createDefault(this));
+			FL.init(this, globalPool, ui.model.FlightInfoConfig.createDefault(this));
 			// FL1.start();
 		}
 		if (Boolean.parseBoolean(getconfig("enableLogging"))) {
@@ -817,11 +818,11 @@ public class controller implements ConfigProvider {
 			H = null;
 		}
 
-		// Flight Info
+		// Flight Info Overlay (Updated to use blkx source)
 		if (Boolean.parseBoolean(getconfig("flightInfoSwitch"))) {
 			if (FL == null) {
 				FL = new flightInfo();
-				FL.initPreview(this);
+				FL.initPreview(this, globalPool, ui.model.FlightInfoConfig.createDefault(this));
 			} else {
 				FL.reinitConfig();
 			}
@@ -1210,6 +1211,9 @@ public class controller implements ConfigProvider {
 			blkx.getAllplotdata();
 			// blkx.getload();
 			blkx.data = null;
+
+			// Dump FM data to Global Pool
+			globalPool.putAll(blkx.getVariableMap());
 		}
 
 	}

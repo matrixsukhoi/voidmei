@@ -14,6 +14,9 @@ public class FlightInfoConfig {
     // Field definitions
     private List<FieldDefinition> fieldDefinitions = new ArrayList<>();
 
+    // Overlay title
+    public String title = "flightInfo";
+
     // Style configuration
     public boolean showEdge = false;
     public int columnNum = 3;

@@ -94,6 +94,8 @@ public abstract class DraggableOverlay extends WebFrame implements Runnable {
             @Override
             public void mouseReleased(MouseEvent e) {
                 isDragging = 0;
+                // Save position only when drag ends
+                saveCurrentPosition();
             }
         });
 
@@ -101,10 +103,11 @@ public abstract class DraggableOverlay extends WebFrame implements Runnable {
             @Override
             public void mouseDragged(MouseEvent e) {
                 if (isDragging == 1) {
-                    int left = getLocation().x;
-                    int top = getLocation().y;
-                    setLocation(left + e.getX() - dragStartX, top + e.getY() - dragStartY);
-                    saveCurrentPosition();
+                    // Use screen coordinates for robust dragging calculation
+                    // Window Pos = Mouse Screen Pos - Initial Mouse Offset relative to Window
+                    setLocation(e.getXOnScreen() - dragStartX, e.getYOnScreen() - dragStartY);
+
+                    // Only save on release to avoid IO spam, but setVisible/repaint is fine
                     setVisible(true);
                     repaint();
                 }

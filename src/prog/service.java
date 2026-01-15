@@ -362,11 +362,10 @@ public class service implements Runnable {
 		aclrt = String.format("%.3f", acceleration);
 		// Ao=String.format("%.1f",
 		// Math.sqrt(sState.AoA*sState.AoA+sState.AoS*sState.AoS));
-		if (sState.AoA != -65535){
+		if (sState.AoA != -65535) {
 			AoA = String.format("%.1f", sState.AoA);
 			AoS = String.format("%.1f", sState.AoS);
-		}
-		else {
+		} else {
 			AoA = nastring;
 			AoS = nastring;
 		}
@@ -439,6 +438,76 @@ public class service implements Runnable {
 		// System.out.println("current location is:" + sLoc + "[stepx, stepy]" + stepx +
 		// ", " + stepy);
 
+		updateGlobalPool();
+	}
+
+	private void updateGlobalPool() {
+		if (c == null || c.globalPool == null)
+			return;
+
+		// Push Standard Flight Data (Strings formatted in trans2String)
+		c.globalPool.put("TAS", TAS);
+		c.globalPool.put("IAS", IAS);
+		c.globalPool.put("Mach", M);
+		c.globalPool.put("AoA", AoA);
+		c.globalPool.put("AoS", AoS);
+		c.globalPool.put("Ny", Ny); // G-Load raw
+		c.globalPool.put("G", sN); // G-Load formatted
+		c.globalPool.put("Wx", Wx);
+
+		c.globalPool.put("Altitude", salt);
+		c.globalPool.put("RadioAltitude", sRadioAlt);
+		c.globalPool.put("Vario", Vy);
+
+		c.globalPool.put("Compass", compass);
+
+		c.globalPool.put("throttle", throttle);
+		c.globalPool.put("RPM", rpm);
+		c.globalPool.put("manifold_pressure", manifoldpressure);
+		c.globalPool.put("water_temp", watertemp);
+		c.globalPool.put("oil_temp", oiltemp);
+		c.globalPool.put("pitch", pitch != null && pitch.length > 0 ? pitch[0] : "N/A");
+
+		c.globalPool.put("fuel", sTotalFuel);
+		c.globalPool.put("fuel_time", sfueltime);
+
+		c.globalPool.put("SEP", sSEP);
+		c.globalPool.put("SEP_abs", sSEPAbs);
+		c.globalPool.put("acceleration", sAcc);
+
+		c.globalPool.put("turn_rate", sTurnRate);
+		c.globalPool.put("turn_radius", sTurnRds);
+
+		c.globalPool.put("wing_sweep", sWingSweep);
+		c.globalPool.put("flaps", flaps);
+		c.globalPool.put("gear", gear);
+		c.globalPool.put("aileron", aileron);
+		c.globalPool.put("elevator", elevator);
+		c.globalPool.put("rudder", rudder);
+
+		c.globalPool.put("valid", svalid);
+
+		// Push FlightInfoConfig Compatible Keys
+		c.globalPool.put("ias", IAS);
+		c.globalPool.put("tas", TAS);
+		c.globalPool.put("mach", M);
+		c.globalPool.put("dir", compass);
+		c.globalPool.put("height", salt);
+		c.globalPool.put("rda", sRadioAlt);
+		c.globalPool.put("vario", Vy);
+		c.globalPool.put("sep", sSEP);
+		c.globalPool.put("acc", sAcc);
+		c.globalPool.put("wx", Wx);
+		c.globalPool.put("ny", sN);
+		c.globalPool.put("turn", sTurnRate);
+		c.globalPool.put("rds", sTurnRds);
+		c.globalPool.put("aoa", AoA);
+		c.globalPool.put("aos", AoS);
+		c.globalPool.put("ws", sWingSweep);
+
+		// Push Raw Objects for advanced access
+		c.globalPool.put("state", sState);
+		c.globalPool.put("indicators", sIndic);
 	}
 
 	public void checkEngineJet() {
@@ -1157,7 +1226,8 @@ public class service implements Runnable {
 				// y1 = c.blkx.FlapsDestructionIndSpeed[1][1];
 				// k = this.calcK(x0, y0, x1, y1);
 
-				// // app.debugPrint(x0 + "-" + x1 + ", " + y0 + "-" + y1 + " k " + k + " : F" + flapPercent + "D " 
+				// // app.debugPrint(x0 + "-" + x1 + ", " + y0 + "-" + y1 + " k " + k + " : F" +
+				// flapPercent + "D "
 				// // + (flapPercent - x0) * k + " L" + (y0 + (flapPercent - x0) * k));
 				// app.debugPrint("limit " + ( y0 + (flapPercent - x0) * k));
 				// return y0 + (flapPercent - x0) * k;
@@ -1194,12 +1264,13 @@ public class service implements Runnable {
 		}
 
 	}
+
 	double normFlapAngle(double t) {
 		if (t < 0)
 			return 0;
 		if (t < 125)
 			return t;
-		else 
+		else
 			return 125;
 	}
 
@@ -1332,7 +1403,7 @@ public class service implements Runnable {
 		nitrokg = 0;
 		nitroConsump = 0;
 		nitroEngNr = 0;
-		
+
 		calcSpeedSMA = cH.new simpleMovingAverage((int) (1000 / freq));
 		diffSpeedSMA = cH.new simpleMovingAverage((int) (1000 / freq));
 		sepSMA = cH.new simpleMovingAverage((int) (1000 / freq));
@@ -1492,7 +1563,6 @@ public class service implements Runnable {
 	public void run() {
 		// app.debugPrint("" + waitMili);
 		while (true) {
-
 
 			SystemTime = System.currentTimeMillis();
 			long diffTime = SystemTime - MainCheckMili;

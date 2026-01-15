@@ -5,6 +5,7 @@ src/parser/blkx.java
 src/parser/indicators.java
 src/parser/stringHelper.java
 src/parser/flightLog.java
+src/parser/AttributePool.java
 src/parser/mapObj.java
 src/parser/flightAnalyzer.java
 src/prog/controller.java

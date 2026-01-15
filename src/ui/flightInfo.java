@@ -1,7 +1,6 @@
 package ui;
 
 import java.awt.Color;
-import java.awt.Container;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 
@@ -10,7 +9,6 @@ import ui.base.DraggableOverlay;
 import ui.model.ConfigProvider;
 import ui.model.DefaultFieldManager;
 import ui.model.FieldManager;
-import ui.model.FlightDataProvider;
 import ui.model.FlightInfoConfig;
 import ui.renderer.BOSStyleRenderer;
 import ui.renderer.FlightInfoRenderer;
@@ -26,11 +24,13 @@ public class flightInfo extends DraggableOverlay {
 	private static final long serialVersionUID = 6759127498151892589L;
 
 	// Data provider
-	private FlightDataProvider dataProvider;
+	// private FlightDataProvider dataProvider;
+	private parser.AttributePool poolSource;
+	private String naString = "-";
 
 	// UI components
 	private WebPanel panel;
-	private Container root;
+	// private Container root;
 
 	// Pluggable components
 	private FieldManager fieldManager;
@@ -44,18 +44,20 @@ public class flightInfo extends DraggableOverlay {
 	public flightInfo() {
 		super();
 		this.renderer = new BOSStyleRenderer();
-		setPositionKeys("flightInfoX", "flightInfoY");
+		// Position keys are initialized in reinitConfig from config object
 	}
 
 	/**
 	 * Initialize for preview mode (with drag support).
 	 */
-	public void initPreview(ConfigProvider config) {
+	public void initPreview(ConfigProvider config, parser.AttributePool pool, FlightInfoConfig flightInfoConfig) {
 		// Use default configuration for preview
-		init(config, null, FlightInfoConfig.createDefault(config));
+		init(config, pool, flightInfoConfig);
 		applyPreviewStyle();
 		setupDragListeners();
 		setVisible(true);
+		// Force re-layout after made visible to ensure correct Metrics/Insets
+		reinitConfig();
 	}
 
 	/**
@@ -81,27 +83,21 @@ public class flightInfo extends DraggableOverlay {
 
 	@Override
 	protected void updateData() {
-		if (dataProvider == null)
-			return;
-
-		String naString = dataProvider.getNAString();
+		// if (dataProvider == null) return;
 
 		// Iterate over fields in manager instead of hardcoded keys
-		// Note: FieldManager needs to support iteration, which we added via getFields()
 		for (ui.model.FlightField field : fieldManager.getFields()) {
-			String val = "---";
-			java.util.function.Function<FlightDataProvider, String> binding = ui.model.FlightDataBindings
-					.get(field.key);
-			if (binding != null) {
-				val = binding.apply(dataProvider);
+			String val = naString;
+			if (poolSource != null) {
+				Object obj = poolSource.getValue(field.key);
+				if (obj != null && !"N/A".equals(obj)) {
+					val = obj.toString();
+				}
 			}
 			fieldManager.updateField(field.key, val, naString);
 		}
 	}
 
-	/**
-	 * Reload configuration and reinitialize.
-	 */
 	public void reinitConfig() {
 		if (flightInfoConfig == null)
 			return;
@@ -113,18 +109,11 @@ public class flightInfo extends DraggableOverlay {
 				flightInfoConfig.fontAddKey,
 				flightInfoConfig.columnKey);
 
-		// Load position
-		// Use keys from FlightInfoConfig
+		// Initialize Keys
 		setPositionKeys(flightInfoConfig.posXKey, flightInfoConfig.posYKey);
-		int[] pos = loadPosition(0, 0);
 
 		// Reinitialize fields
 		initFields();
-
-		// Set window bounds
-		int width = renderContext.getTotalWidth();
-		int height = renderContext.getTotalHeight(fieldManager.size());
-		this.setBounds(pos[0], pos[1], width, height);
 
 		// Set edge style
 		boolean showEdge = false;
@@ -144,22 +133,28 @@ public class flightInfo extends DraggableOverlay {
 			setShadeWidth(0);
 		}
 
+		// Update Size and Position using legacy setBounds to preserve dynamic
+		// properties
+		// But executed in correct lifecycle (after realization)
+		int width = renderContext.getTotalWidth();
+		int height = renderContext.getTotalHeight(fieldManager.size());
+
+		int[] pos = loadPosition(0, 0);
+		this.setBounds(pos[0], pos[1], width, height);
+
 		repaint();
 	}
 
 	/**
 	 * Main initialization with interfaces.
 	 */
-	public void init(ConfigProvider config, FlightDataProvider dataProvider, FlightInfoConfig fiConfig) {
+	public void init(ConfigProvider config, parser.AttributePool pool, FlightInfoConfig flightInfoConfig) {
 		this.config = config;
-		this.dataProvider = dataProvider;
-		this.flightInfoConfig = fiConfig;
+		this.flightInfoConfig = flightInfoConfig;
+		this.poolSource = pool;
 
 		// Create field manager with config
 		fieldManager = new DefaultFieldManager(config);
-
-		// Initialize configuration
-		reinitConfig();
 
 		// Setup transparent window
 		setupTransparentWindow();
@@ -176,23 +171,26 @@ public class flightInfo extends DraggableOverlay {
 				renderer.render(g2d, fieldManager.getFields(), renderContext, renderOffset);
 			}
 		};
-
+		panel.setOpaque(false);
 		panel.setWebColoredBackground(false);
 		panel.setBackground(new Color(0, 0, 0, 0));
 		this.add(panel);
 
-		setTitle("flightInfo");
-		root = this.getContentPane();
+		setTitle(flightInfoConfig.title);
 
-		if (dataProvider != null) {
-			setVisible(true);
-		}
+		// Initialize configuration (After panel is created)
+		reinitConfig();
+
+		setVisible(true);
+
+		// Ensure layout is refreshed after visible
+		reinitConfig();
 	}
 
 	@Override
 	public void drawTick() {
-		if (root != null) {
-			root.repaint();
+		if (panel != null) { // Changed from root to panel
+			panel.repaint();
 		}
 	}
 }
