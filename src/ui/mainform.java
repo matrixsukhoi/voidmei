@@ -30,6 +30,7 @@ import ui.layout.UIBuilder;
 import ui.panels.AdvancedPanel;
 import ui.panels.FlightInfoPanel;
 import ui.panels.EngineInfoPanel;
+import ui.panels.EngineControlPanel;
 import com.alee.laf.label.WebLabel;
 import com.alee.laf.panel.WebPanel;
 import com.alee.laf.rootpane.WebFrame;
@@ -74,6 +75,7 @@ public class mainform extends WebFrame implements Runnable {
 	AdvancedPanel advancedPanel;
 	FlightInfoPanel flightInfoPanel;
 	EngineInfoPanel engineInfoPanel;
+	EngineControlPanel engineControlPanel;
 
 	WebSwitch bCrosshairSwitch;
 	WebSlider iCrosshairScale;
@@ -85,11 +87,6 @@ public class mainform extends WebFrame implements Runnable {
 	WebSwitch bEnableLogging;
 	WebSwitch bEnableInformation;
 	WebButton bDisplayFmKey;
-
-	WebSwitch bEnableAxis;
-	WebSwitch bEnableAxisEdge;
-	WebSwitch bEnablegearAndFlaps;
-	WebSwitch bEnablegearAndFlapsEdge;
 
 	public Boolean moveCheckFlag;
 	public boolean isInitializing = false;
@@ -306,13 +303,6 @@ public class mainform extends WebFrame implements Runnable {
 	public WebButton displayPreview;
 	public WebSwitch bFMPrintLogSwitch; // “记录分析”选项卡中的 FM 详细数据显示开关（两者同步）
 	private WebSwitch bcrosshairdisplaySwitch;
-	private WebSwitch benableEngineControl;
-	private WebSwitch bEngineControlRadiator;
-	private WebSwitch bEngineControlMixture;
-	private WebSwitch bEngineControlPitch;
-	private WebSwitch bEngineControlCompressor;
-	private WebSwitch bEngineControlLFuel;
-	private WebSwitch bEngineControlThrottle;
 	private int isDragging;
 	private int xx;
 	private int yy;
@@ -578,6 +568,7 @@ public class mainform extends WebFrame implements Runnable {
 		splitPane.setOneTouchExpandable(false);
 		splitPane.setEnabled(false);
 
+		topPanel.setLayout(new BorderLayout());
 		engineInfoPanel = new EngineInfoPanel();
 		engineInfoPanel.setOnChange(() -> {
 			saveconfig();
@@ -585,7 +576,7 @@ public class mainform extends WebFrame implements Runnable {
 				tc.refreshPreviews();
 			}
 		});
-		topPanel.add(engineInfoPanel);
+		topPanel.add(engineInfoPanel, BorderLayout.CENTER);
 
 		// bottomPanel
 
@@ -806,7 +797,6 @@ public class mainform extends WebFrame implements Runnable {
 		initJPinside(bottomPanel);
 		WebSplitPane splitPane = new WebSplitPane(VERTICAL_SPLIT, topPanel, bottomPanel);
 		splitPane.setOneTouchExpandable(true);
-		// splitPane.setPreferredSize ( new Dimension ( 250, 200 ) );
 		splitPane.setDividerLocation(320);
 		splitPane.setDividerSize(0);
 		splitPane.setContinuousLayout(false);
@@ -814,50 +804,15 @@ public class mainform extends WebFrame implements Runnable {
 		splitPane.setOneTouchExpandable(false);
 		splitPane.setEnabled(false);
 
-		// topPanel
-		bEnableAxis = createLCGroup(topPanel, lang.mP6AxisPanel);
-		createvoidWebLabel(topPanel, lang.mP6AxisPanelBlank);
-		bEnableAxisEdge = createLCGroup(topPanel, lang.mP6AxisEdge);
-		createvoidWebLabel(topPanel, lang.mP6AxisEdgeBlank);
-		bEnablegearAndFlaps = createLCGroup(topPanel, lang.mP6GearAndFlaps);
-		bEnablegearAndFlapsEdge = createLCGroup(topPanel, lang.mP6GearAndFlapsEdge);
-		createvoidWebLabel(topPanel, lang.mP6GearAndFlapsEdgeBlank);
-		benableEngineControl = createLCGroup(topPanel, lang.mP6engineControl);
-		createvoidWebLabel(topPanel, lang.mP6engineControlBlank);
-
-		// 引擎控制
-
-		// 油门
-		bEngineControlThrottle = createLCGroup(topPanel, lang.mP6ecThrottle);
-		createvoidWebLabel(topPanel, lang.mP6ecThrottleBlank);
-		// 桨距
-		bEngineControlPitch = createLCGroup(topPanel, lang.mP6ecPitch);
-		createvoidWebLabel(topPanel, lang.mP6ecPitchBlank);
-		// 混合比
-		bEngineControlMixture = createLCGroup(topPanel, lang.mP6ecMixture);
-		createvoidWebLabel(topPanel, lang.mP6ecMixtureBlank);
-		// 散热器
-		bEngineControlRadiator = createLCGroup(topPanel, lang.mP6ecRadiator);
-		createvoidWebLabel(topPanel, lang.mP6ecRadiatorBlank);
-		// 增压器
-		bEngineControlCompressor = createLCGroup(topPanel, lang.mP6ecCompressor);
-		createvoidWebLabel(topPanel, lang.mP6ecCompressorBlank);
-		// 燃油量
-		bEngineControlLFuel = createLCGroup(topPanel, lang.mP6ecLFuel);
-		createvoidWebLabel(topPanel, lang.mP6ecLFuelBlank);
-
-		/*
-		 * GridBagLayout layout1 = new GridBagLayout(); GridBagConstraints s1 = new
-		 * GridBagConstraints(); s1.fill = GridBagConstraints.BOTH; s1.gridwidth = 1;
-		 * s1.weightx = 0; s1.weighty = 0; s1.gridx = 0; s1.gridy = 0;
-		 */
-		// createLCGroup(topPanel, "显示发动机面板 ");
-
-		// topPanel.setLayout(layout1);
-		topPanel.setLayout(new FlowLayout());
-		FlowLayout layout = new FlowLayout();
-		layout.setAlignment(FlowLayout.LEFT);
-		topPanel.setLayout(layout);
+		topPanel.setLayout(new BorderLayout());
+		engineControlPanel = new EngineControlPanel();
+		engineControlPanel.setOnChange(() -> {
+			saveconfig();
+			if (!isInitializing) {
+				tc.refreshPreviews();
+			}
+		});
+		topPanel.add(engineControlPanel, BorderLayout.CENTER);
 
 		// bottomPanel
 		WebButtonGroup G1 = createLBGroup(bottomPanel);
@@ -1020,18 +975,7 @@ public class mainform extends WebFrame implements Runnable {
 		bFMList0.setSelectedItem(tc.getconfig("selectedFM0"));
 		bFMList1.setSelectedItem(tc.getconfig("selectedFM1"));
 
-		bEnableAxis.setSelected(Boolean.parseBoolean(tc.getconfig("enableAxis")));
-		bEnableAxisEdge.setSelected(Boolean.parseBoolean(tc.getconfig("enableAxisEdge")));
-		bEnablegearAndFlaps.setSelected(Boolean.parseBoolean(tc.getconfig("enablegearAndFlaps")));
-		bEnablegearAndFlapsEdge.setSelected(Boolean.parseBoolean(tc.getconfig("enablegearAndFlapsEdge")));
-		benableEngineControl.setSelected(Boolean.parseBoolean(tc.getconfig("enableEngineControl")));
-
-		bEngineControlThrottle.setSelected(!Boolean.parseBoolean(tc.getconfig("disableEngineInfoThrottle")));
-		bEngineControlPitch.setSelected(!Boolean.parseBoolean(tc.getconfig("disableEngineInfoPitch")));
-		bEngineControlMixture.setSelected(!Boolean.parseBoolean(tc.getconfig("disableEngineInfoMixture")));
-		bEngineControlRadiator.setSelected(!Boolean.parseBoolean(tc.getconfig("disableEngineInfoRadiator")));
-		bEngineControlCompressor.setSelected(!Boolean.parseBoolean(tc.getconfig("disableEngineInfoCompressor")));
-		bEngineControlLFuel.setSelected(!Boolean.parseBoolean(tc.getconfig("disableEngineInfoLFuel")));
+		bCrosshairSwitch.setSelected(Boolean.parseBoolean(tc.getconfig("crosshairSwitch")));
 	}
 
 	public void config_init() {
@@ -1061,11 +1005,6 @@ public class mainform extends WebFrame implements Runnable {
 		tc.setconfig("enableLogging", Boolean.toString(Boolean.FALSE));
 		tc.setconfig("enableAltInformation", Boolean.toString(Boolean.FALSE));
 
-		tc.setconfig("enableAxis", Boolean.toString(Boolean.FALSE));
-		tc.setconfig("enableAxisEdge", Boolean.toString(Boolean.FALSE));
-		tc.setconfig("enablegearAndFlaps", Boolean.toString(Boolean.FALSE));
-		tc.setconfig("enablegearAndFlapsEdge", Boolean.toString(Boolean.FALSE));
-
 	}
 
 	private void initConfigFlightInfo() {
@@ -1079,6 +1018,7 @@ public class mainform extends WebFrame implements Runnable {
 		saveconfigFlightInfo();
 		advancedPanel.saveConfig(tc.configService);
 		engineInfoPanel.saveConfig(tc.configService);
+		engineControlPanel.saveConfig(tc.configService);
 
 		tc.setconfig("crosshairSwitch", Boolean.toString(bCrosshairSwitch.isSelected()));
 		tc.setconfig("crosshairScale", Integer.toString(iCrosshairScale.getValue()));
