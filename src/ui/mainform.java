@@ -223,7 +223,7 @@ public class mainform extends WebFrame {
 			}
 		});
 		loggingPanel.setOnSave(() -> saveConfig());
-		// Sync now handled by UIEventBus in panels
+		// Sync now handled by UIStateBus in prog.event
 		setupTab(jp5, loggingPanel);
 	}
 

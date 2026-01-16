@@ -9,7 +9,7 @@ import parser.state;
 import parser.stringHelper;
 import java.util.HashMap;
 import java.util.Map;
-import prog.event.EventBus;
+import prog.event.FlightDataBus;
 import prog.event.FlightDataEvent;
 
 public class service implements Runnable {
@@ -510,7 +510,7 @@ public class service implements Runnable {
 		data.put("ws", sWingSweep);
 
 		// 2. Publish Event (Data Plane)
-		EventBus.getInstance().publish(new FlightDataEvent(data));
+		FlightDataBus.getInstance().publish(new FlightDataEvent(data));
 
 		// 3. Legacy Support (Sync to GlobalPool)
 		if (c != null && c.globalPool != null) {

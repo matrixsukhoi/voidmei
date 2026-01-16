@@ -9,8 +9,10 @@ src/parser/AttributePool.java
 src/parser/mapObj.java
 src/parser/flightAnalyzer.java
 src/prog/event/FlightDataListener.java
-src/prog/event/EventBus.java
+src/prog/event/UIStateEvents.java
 src/prog/event/FlightDataEvent.java
+src/prog/event/UIStateBus.java
+src/prog/event/FlightDataBus.java
 src/prog/controller.java
 src/prog/ConfigurationService.java
 src/prog/service.java
@@ -72,10 +74,8 @@ src/ui/layout/DynamicDataPage.java
 src/ui/layout/UIBuilder.java
 src/ui/layout/ClassicStyle.java
 src/ui/util/ConfigWatcherService.java
-src/ui/util/UIEventBus.java
 src/ui/util/FileUtils.java
 src/ui/util/NotificationService.java
-src/ui/util/UIEvents.java
 src/ui/util/NotificationFactory.java
 src/ui/util/ConfigLoader.java
 src/ui/overlay/ZebraListRenderer.java

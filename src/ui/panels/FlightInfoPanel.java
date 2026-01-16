@@ -11,9 +11,9 @@ import com.alee.laf.slider.WebSlider;
 import prog.ConfigurationService;
 import prog.app;
 import prog.lang;
+import prog.event.UIStateBus;
+import prog.event.UIStateEvents;
 import ui.layout.UIBuilder;
-import ui.util.UIEventBus;
-import ui.util.UIEvents;
 
 public class FlightInfoPanel extends WebPanel {
 
@@ -145,8 +145,8 @@ public class FlightInfoPanel extends WebPanel {
         battitudeIndicatorSwitch.addActionListener(e -> fireChange());
         bFMPrintSwitch.addActionListener(e -> {
             fireChange();
-            UIEventBus.getInstance().publish(
-                    UIEvents.FM_PRINT_SWITCH_CHANGED,
+            UIStateBus.getInstance().publish(
+                    UIStateEvents.FM_PRINT_SWITCH_CHANGED,
                     bFMPrintSwitch.isSelected());
         });
         bFlightInfoIAS.addActionListener(e -> fireChange());
@@ -177,7 +177,7 @@ public class FlightInfoPanel extends WebPanel {
         });
 
         // Subscribe to FM Print switch changes from LoggingPanel
-        UIEventBus.getInstance().subscribe(UIEvents.FM_PRINT_SWITCH_CHANGED, data -> {
+        UIStateBus.getInstance().subscribe(UIStateEvents.FM_PRINT_SWITCH_CHANGED, data -> {
             Boolean newState = (Boolean) data;
             if (bFMPrintSwitch.isSelected() != newState) {
                 bFMPrintSwitch.setSelected(newState);

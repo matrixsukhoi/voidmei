@@ -14,7 +14,7 @@ import ui.model.FieldDefinition;
 import ui.model.FieldManager;
 import ui.renderer.OverlayRenderer;
 import ui.renderer.RenderContext;
-import prog.event.EventBus;
+import prog.event.FlightDataBus;
 import prog.event.FlightDataEvent;
 import prog.event.FlightDataListener;
 import java.util.Map;
@@ -147,7 +147,7 @@ public abstract class FieldOverlay extends DraggableOverlay implements FlightDat
     }
 
     protected void subscribeToEvents() {
-        EventBus.getInstance().register(this);
+        FlightDataBus.getInstance().register(this);
     }
 
     @Override
@@ -180,7 +180,7 @@ public abstract class FieldOverlay extends DraggableOverlay implements FlightDat
 
     @Override
     public void dispose() {
-        EventBus.getInstance().unregister(this);
+        FlightDataBus.getInstance().unregister(this);
         super.dispose();
     }
 }

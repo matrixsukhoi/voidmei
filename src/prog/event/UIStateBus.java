@@ -1,26 +1,26 @@
-package ui.util;
+package prog.event;
 
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 
 /**
- * A simple Event Bus for decoupled UI component communication.
- * Components can publish events and subscribe to events without direct
- * references.
+ * Event Bus for UI State synchronization.
+ * Used for decoupled communication between UI panels (e.g., switch state sync).
+ * Thread-safe using ConcurrentHashMap + CopyOnWriteArrayList.
  */
-public class UIEventBus {
+public class UIStateBus {
 
-    private static final UIEventBus INSTANCE = new UIEventBus();
+    private static final UIStateBus INSTANCE = new UIStateBus();
 
-    private final Map<String, List<Consumer<Object>>> subscribers = new HashMap<>();
+    private final Map<String, List<Consumer<Object>>> subscribers = new ConcurrentHashMap<>();
 
-    private UIEventBus() {
+    private UIStateBus() {
     }
 
-    public static UIEventBus getInstance() {
+    public static UIStateBus getInstance() {
         return INSTANCE;
     }
 
@@ -31,7 +31,7 @@ public class UIEventBus {
      * @param handler   The handler to invoke when the event is published
      */
     public void subscribe(String eventType, Consumer<Object> handler) {
-        subscribers.computeIfAbsent(eventType, k -> new ArrayList<>()).add(handler);
+        subscribers.computeIfAbsent(eventType, k -> new CopyOnWriteArrayList<>()).add(handler);
     }
 
     /**
@@ -57,7 +57,7 @@ public class UIEventBus {
                 try {
                     handler.accept(data);
                 } catch (Exception e) {
-                    prog.app.debugPrint("[UIEventBus] Error in handler for " + eventType + ": " + e.getMessage());
+                    prog.app.debugPrint("[UIStateBus] Error in handler for " + eventType + ": " + e.getMessage());
                 }
             }
         }

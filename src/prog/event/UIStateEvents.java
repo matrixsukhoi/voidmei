@@ -1,12 +1,13 @@
-package ui.util;
+package prog.event;
 
 /**
- * Event type constants for UIEventBus.
- * Centralizes all event identifiers for easy discovery and refactoring.
+ * Event type constants for UIStateBus.
+ * Centralizes all UI state event identifiers for easy discovery and
+ * refactoring.
  */
-public final class UIEvents {
+public final class UIStateEvents {
 
-    private UIEvents() {
+    private UIStateEvents() {
     }
 
     /**

@@ -4,17 +4,19 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * Event Bus for the Data Plane to communicate with the View Plane.
- * Decouples the Service (Producer) from Overlays (Consumers).
+ * Event Bus for Flight Data communication.
+ * Used by Service (producer) to push flight physics updates to Overlays
+ * (consumers).
+ * Thread-safe using CopyOnWriteArrayList.
  */
-public class EventBus {
-    private static final EventBus INSTANCE = new EventBus();
+public class FlightDataBus {
+    private static final FlightDataBus INSTANCE = new FlightDataBus();
     private final List<FlightDataListener> listeners = new CopyOnWriteArrayList<>();
 
-    private EventBus() {
+    private FlightDataBus() {
     }
 
-    public static EventBus getInstance() {
+    public static FlightDataBus getInstance() {
         return INSTANCE;
     }
 
@@ -33,8 +35,7 @@ public class EventBus {
             try {
                 listener.onFlightData(event);
             } catch (Exception e) {
-                // Log but don't crash
-                System.err.println("Error in event listener: " + e.getMessage());
+                System.err.println("[FlightDataBus] Error in listener: " + e.getMessage());
                 e.printStackTrace();
             }
         }

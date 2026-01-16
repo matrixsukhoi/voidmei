@@ -25,7 +25,7 @@ import prog.app;
 import prog.controller;
 import prog.lang;
 import prog.service;
-import prog.event.EventBus;
+import prog.event.FlightDataBus;
 import prog.event.FlightDataEvent;
 import prog.event.FlightDataListener;
 import java.util.Map;
@@ -531,13 +531,13 @@ public class stickValue extends WebFrame implements FlightDataListener {
 
 		if (s != null) {
 			setVisible(true);
-			EventBus.getInstance().register(this);
+			FlightDataBus.getInstance().register(this);
 		}
 	}
 
 	@Override
 	public void dispose() {
-		EventBus.getInstance().unregister(this);
+		FlightDataBus.getInstance().unregister(this);
 		super.dispose();
 	}
 
