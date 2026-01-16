@@ -33,19 +33,18 @@ import prog.app;
 import prog.controller;
 import prog.lang;
 
-public class mainform extends WebFrame implements Runnable {
+public class mainform extends WebFrame {
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = 5917570099029563038L;
-	public volatile Boolean doit = true;
 	public int width;
 	public int height;
 	public controller tc;
 	// Store dynamic pages for updates
 	private java.util.List<ui.layout.DynamicDataPage> dynamicPages;
 	private ui.util.ConfigWatcherService configWatcher;
-	int gcCount = 0;
+	private javax.swing.Timer repaintTimer;
 	Container root;
 	WebTabbedPane tabbedPane;
 
@@ -415,7 +414,6 @@ public class mainform extends WebFrame implements Runnable {
 		// app.debugPrint("mainForm初始化了");
 		width = 800;
 		height = 480;
-		doit = true;
 		Image I = Toolkit.getDefaultToolkit().getImage("image/form1.png");
 		I = I.getScaledInstance(32, 32, Image.SCALE_SMOOTH);
 		this.setIconImage(I);
@@ -484,32 +482,28 @@ public class mainform extends WebFrame implements Runnable {
 
 	}
 
-	@Override
-	public void run() {
-		// TODO Auto-generated method stub
-		while (doit) {
-			try {
-				Thread.sleep(33);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-			// gcCount++;
-			// app.debugPrint("As");
-			// app.debugPrint("MainFrame执行了");
-			// Update dynamic data pages - now handled by uiThread or controller?
-			// But for preview mode, we might still want to update them if they are visible.
-			// Since controller.dynamicOverlays are always Updated by uiThread now (if
-			// isVisible),
-			// we don't need to manually update pages here.
-			root.repaint();
-			if (gcCount++ % 256 == 0) {
-				// app.debugPrint("MainFrameGC");
-				System.gc();
-			}
-
+	/**
+	 * Starts the EDT-safe repaint timer.
+	 */
+	public void startRepaintTimer() {
+		if (repaintTimer != null) {
+			repaintTimer.stop();
 		}
+		repaintTimer = new javax.swing.Timer(33, e -> {
+			if (root != null) {
+				root.repaint();
+			}
+		});
+		repaintTimer.start();
+	}
 
+	/**
+	 * Stops the repaint timer.
+	 */
+	public void stopRepaintTimer() {
+		if (repaintTimer != null) {
+			repaintTimer.stop();
+		}
 	}
 
 	public void startPreview() {

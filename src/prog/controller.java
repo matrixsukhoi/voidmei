@@ -343,8 +343,7 @@ public class controller implements ConfigProvider {
 		// app.debugPrint("状态0，初始化主界面");
 
 		M = new mainform(this);
-		M1 = new Thread(M);
-		M1.start();
+		M.startRepaintTimer();
 
 		// G = new gcThread();
 		// G.init(this);
@@ -368,11 +367,12 @@ public class controller implements ConfigProvider {
 			// app.debugPrint(freqService);
 			// 状态1，释放设置窗口传参初始化后台
 			// app.debugPrint("状态1，传参初始化Service");
-			M.doit = false;
-			M1 = null;
+			M.stopRepaintTimer();
 			M.dispose();
 			M = null;
 
+			// Suggest GC after disposing the main settings window (significant memory
+			// release)
 			System.gc();
 			// NotificationManager.showNotification(createWebNotification("程序最小化至托盘，注意右上角状态条提示"));
 
@@ -561,8 +561,7 @@ public class controller implements ConfigProvider {
 		}
 
 		if (M != null) {
-			M.doit = false;
-			M1 = null;
+			M.stopRepaintTimer();
 			M.dispose();
 			M = null;
 			System.gc();
@@ -625,6 +624,8 @@ public class controller implements ConfigProvider {
 		}
 		dynamicOverlays.clear();
 
+		// Suggest GC after closing all overlays (significant graphics resources
+		// released)
 		System.gc();
 	}
 

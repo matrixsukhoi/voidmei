@@ -133,10 +133,9 @@ public class uiThread implements Runnable {
 			// System.gc();
 			// 8 * 4096次回收一次内存
 
+			// Memory is now managed by the JVM; no manual GC needed
 			if (drawTickNr >= 0x400) {
-				// GCCheckMili = stime;
 				drawTickNr = 0;
-				System.gc();
 			}
 
 		}
