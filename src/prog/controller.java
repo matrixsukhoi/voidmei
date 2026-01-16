@@ -2,19 +2,6 @@ package prog;
 
 import java.awt.Color;
 import java.awt.Font;
-import java.awt.Image;
-import java.awt.RenderingHints;
-import java.awt.Toolkit;
-
-import javax.swing.ImageIcon;
-
-import com.alee.extended.panel.GroupPanel;
-import com.alee.extended.time.ClockType;
-import com.alee.extended.time.WebClock;
-import com.alee.laf.label.WebLabel;
-import com.alee.managers.notification.NotificationIcon;
-import com.alee.managers.notification.NotificationManager;
-import com.alee.managers.notification.WebNotification;
 
 import parser.blkx;
 import parser.AttributePool;
@@ -65,7 +52,9 @@ public class controller implements ConfigProvider {
 	Thread O1; // OtherService
 
 	public service S;
-	public config cfg;
+	// Legacy support via ConfigurationService
+	public ConfigurationService configService;
+	// public config cfg; // Removed
 	// 存储参数
 	// 主参数
 
@@ -242,7 +231,7 @@ public class controller implements ConfigProvider {
 				dF.doit = false;
 				dF = null;
 			}
-			notification(lang.cStartlog);
+			ui.util.NotificationService.show(lang.cStartlog);
 			Log = new flightLog();
 			Log.init(this, S);
 			logon = true;
@@ -269,7 +258,7 @@ public class controller implements ConfigProvider {
 
 		// Special case: flightLog (has notification and drawFrame logic)
 		if (Boolean.parseBoolean(getconfig("enableLogging")) && (Log != null)) {
-			notification(lang.cSavelog + Log.fileName + lang.cPlsopen);
+			ui.util.NotificationService.show(lang.cSavelog + Log.fileName + lang.cPlsopen);
 			if (Log.fA.curaltStage - Log.fA.initaltStage >= 1) {
 				dF = new drawFrame();
 				showdrawFrame(Log.fA);
@@ -288,125 +277,52 @@ public class controller implements ConfigProvider {
 		System.gc();
 	}
 
-	public void initconfig() {
-		cfg = new config("./config/config.properties");
-		if (cfg.getValue("firstTime").equals("True")) {
-			// config_init()?
-		}
-		// NotificationManager.showNotification(createWebNotification("配置信息读入完毕"));
-	}
+	// Removed initconfig() - moved to ConfigurationService
 
-	public String getconfig(String key) {
-		return cfg.getValue(key);
-	}
+	// --- Config Delegation ---
 
-	// ConfigProvider interface implementation
 	@Override
 	public String getConfig(String key) {
-		return getconfig(key);
+		return configService.getConfig(key);
 	}
 
 	@Override
 	public void setConfig(String key, String value) {
-		setconfig(key, value);
+		configService.setConfig(key, value);
+	}
+
+	// Legacy lowercase methods
+	public String getconfig(String key) {
+		return getConfig(key);
+	}
+
+	public void setconfig(String key, String value) {
+		setConfig(key, value);
+	}
+
+	public void saveconfig() {
+		configService.saveConfig();
 	}
 
 	public Color getColorConfig(String key) {
-		int R, G, B, A;
-		R = Integer.parseInt(getconfig(key + "R"));
-		G = Integer.parseInt(getconfig(key + "G"));
-		B = Integer.parseInt(getconfig(key + "B"));
-		A = Integer.parseInt(getconfig(key + "A"));
-		return new Color(R, G, B, A);
+		return configService.getColorConfig(key);
 	}
 
 	public void setColorConfig(String key, Color c) {
-		int R = c.getRed();
-		int G = c.getGreen();
-		int B = c.getBlue();
-		int A = c.getAlpha();
-
-		setconfig(key + "R", Integer.toString(R));
-		setconfig(key + "G", Integer.toString(G));
-		setconfig(key + "B", Integer.toString(B));
-		setconfig(key + "A", Integer.toString(A));
+		configService.setColorConfig(key, c);
 	}
 
 	public void loadFromConfig() {
-		// 修改完设置在读取
-		freqService = Long.parseLong(getconfig("Interval"));
-		// 刷新频率比例
-		freqEngineInfo = (long) (freqService * 2f);
-
-		freqFlightInfo = (long) (freqService * 1.5f);
-		freqAltitude = (long) (freqService * 1.5f);
-
-		freqGearAndFlap = (long) (freqService * 2f);
-		freqStickValue = (long) (freqService * 1f);
-		// 取频率的3分之一作为休眠时间
-		app.threadSleepTime = (long) (freqService / 3);
-
-		// app.debugPrint(freqService);
-
-		// 颜色
-
-		// 修改颜色
-		// app.debugPrint(R +", " + G + ", " + B + "," +A);
-		app.colorNum = getColorConfig("fontNum");
-
-		// 标签颜色
-		app.colorLabel = getColorConfig("fontLabel");
-
-		// 单位颜色
-		app.colorUnit = getColorConfig("fontUnit");
-
-		// 警告颜色
-		app.colorWarning = getColorConfig("fontWarn");
-
-		// 描边颜色
-		app.colorShadeShape = getColorConfig("fontShade");
-
-		// 声音
-		app.voiceVolumn = Integer.parseInt(getconfig("voiceVolume"));
-		// fontLabelR=32
-		// fontLabelG=222
-		// fontLabelB=64
-		// fontLabelA=140
-		//
-		// fontUnitR=166
-		// fontUnitG=166
-		// fontUnitB=166
-		// fontUnitA=220
-		//
-		// fontWarnR=216
-		// fontWarnG=33
-		// fontWarnB=13
-		// fontWarnA=100
-		//
-		// fontShadeR=0
-		// fontShadeG=0
-		// fontShadeB=0
-		// fontShadeA=42
+		configService.loadAppCheck(this);
+		// Sync local flags
 		showStatus = true;
 		if (getconfig("enableStatusBar") != "")
 			showStatus = Boolean.parseBoolean(getconfig("enableStatusBar"));
-		// 读取字体绘制方式
-		app.drawFontShape = !Boolean.parseBoolean(getconfig("simpleFont"));
-
-		// 读取抗锯齿
-		app.aaEnable = Boolean.parseBoolean(getconfig("AAEnable"));
-		if (app.aaEnable) {
-			// app.textAASetting = RenderingHints.VALUE_TEXT_ANTIALIAS_GASP;
-			app.textAASetting = RenderingHints.VALUE_TEXT_ANTIALIAS_ON;
-			app.graphAASetting = RenderingHints.VALUE_ANTIALIAS_ON;
-		} else {
-			app.textAASetting = RenderingHints.VALUE_TEXT_ANTIALIAS_OFF;
-			app.graphAASetting = RenderingHints.VALUE_ANTIALIAS_OFF;
-		}
 	}
 
 	public controller() {
-		initconfig();// 装载设置文件
+		configService = new ConfigurationService();
+		configService.initConfig();// 装载设置文件
 		// 接收频率
 		// app.debugPrint("controller执行了");
 		loadFromConfig();
@@ -712,103 +628,7 @@ public class controller implements ConfigProvider {
 		System.gc();
 	}
 
-	public void setconfig(String key, String value) {
-		cfg.setValue(key, value);
-	}
-
-	public void saveconfig() {
-		cfg.saveFile("./config/config.properties", "8111");
-		// NotificationManager.showNotification(createWebNotification("配置信息写入完毕"));
-	}
-
-	public static void notificationtime(String text, int time) {
-		ui.util.NotificationService.showTimed(text, time);
-	}
-
-	public static void notificationtimeAbout(String text, int time) {
-		ui.util.NotificationService.showAbout(text, time);
-	}
-
-	public static void notification(String text) {
-		ui.util.NotificationService.show(text);
-	}
-
-	// Legacy methods - now delegate to NotificationService
-	static WebNotification createWebNotificationTime(long time) {
-		// Used internally, keeping for backwards compatibility
-		return createTimerNotification(time, lang.cOpenpad);
-	}
-
-	static WebNotification createWebNotificationEngineTime(long time) {
-		return createTimerNotification(time, lang.cEnginedmg);
-	}
-
-	private static WebNotification createTimerNotification(long time, String pattern) {
-		WebNotification a = new WebNotification();
-		a.setFont(app.defaultFont);
-		a.setIcon(NotificationIcon.clock.getIcon());
-		a.setWindowOpacity((float) (0.5));
-		WebClock clock = new WebClock();
-		clock.setClockType(ClockType.timer);
-		clock.setTimeLeft(time);
-		clock.setFont(app.defaultFont);
-		clock.setTimePattern(pattern);
-		a.setContent(new GroupPanel(clock));
-		clock.start();
-		a.setDisplayTime(time);
-		a.setFocusable(false);
-		return a;
-	}
-
-	static WebNotification createWebNotifications(String text, int time) {
-		WebNotification a = new WebNotification();
-		WebLabel text1 = new WebLabel(text);
-		text1.setFont(app.defaultFont);
-		a.setFont(app.defaultFont);
-		a.setIcon(NotificationIcon.information.getIcon());
-		a.add(text1);
-		a.setDisplayTime(time);
-		a.setFocusable(false);
-		return a;
-	}
-
-	static WebNotification createWebNotificationsAbout(String text, int time) {
-		WebNotification a = new WebNotification();
-		WebLabel text1 = new WebLabel(text);
-		text1.setFont(new Font(app.defaultFontName, Font.PLAIN, 14));
-		Image I = Toolkit.getDefaultToolkit().createImage("image/fubuki.jpg");
-		ImageIcon A = new ImageIcon(I);
-		a.setFont(app.defaultFont);
-		a.setIcon(A);
-		a.add(text1);
-		a.setDisplayTime(time);
-		a.setFocusable(false);
-		return a;
-	}
-
-	static WebNotification createWebNotification(String text) {
-		WebNotification a = new WebNotification();
-		WebLabel text1 = new WebLabel(text);
-		text1.setFont(app.defaultFont);
-		a.setFont(app.defaultFont);
-		a.setIcon(NotificationIcon.information.getIcon());
-		a.add(text1);
-		a.setDisplayTime(5000);
-		a.setFocusable(false);
-		return a;
-	}
-
-	static WebNotification createWebNotificationEngineBomb(String text) {
-		WebNotification a = new WebNotification();
-		WebLabel text1 = new WebLabel(text);
-		text1.setFont(app.defaultFont);
-		a.setFont(app.defaultFont);
-		a.setIcon(NotificationIcon.error);
-		a.add(text1);
-		a.setDisplayTime(3000);
-		a.setFocusable(false);
-		return a;
-	}
+	// saveconfig() already replaced in delegation block
 
 	public void showdrawFrame(flightAnalyzer fA) {
 		dF.init(this, fA);

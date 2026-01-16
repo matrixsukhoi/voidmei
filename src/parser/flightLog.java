@@ -96,7 +96,7 @@ public class flightLog implements Runnable {
 
 		bw.write("\n");
 		bw.flush();
-//		bw.close();
+		// bw.close();
 	}
 
 	void writeData(BufferedWriter bw) throws IOException {
@@ -104,7 +104,7 @@ public class flightLog implements Runnable {
 
 		bw.write(xs.elapsedTime / 60000.0f + ",");// 1
 
-		tmp=xs.throttle;
+		tmp = xs.throttle;
 		bw.write(tmp + ",");// 2
 
 		bw.write(xs.IAS + ",");// 3
@@ -166,14 +166,14 @@ public class flightLog implements Runnable {
 		bw.write(xs.AoS + ",");// 30
 
 		bw.write("\n");
-//		bw.flush();
-//		bw.close();
+		// bw.flush();
+		// bw.close();
 	}
 
 	// 进行数据分析
 	void analyzeData() {
 		int stage = (int) xs.alt / 100;
-		if (Math.abs(xs.iCheckAlt)>10) {
+		if (Math.abs(xs.iCheckAlt) > 10) {
 			if (firstAnalyze) {
 				// 第一次分析，先取当前高度
 				fA = new flightAnalyzer();
@@ -182,66 +182,68 @@ public class flightLog implements Runnable {
 			} else {
 				// 开始分析
 				fA.analyze(stage);
-				fA.updateEMChart(xs.IASv, xs.sState.Ny, (int)Math.abs(xs.sState.Wx), xs.SEP/9.78f, Math.abs(xs.sState.elevator), Math.abs(xs.sState.aileron));
+				fA.updateEMChart(xs.IASv, xs.sState.Ny, (int) Math.abs(xs.sState.Wx), xs.SEP / 9.78f,
+						Math.abs(xs.sState.elevator), Math.abs(xs.sState.aileron));
 			}
 		}
-		
+
 		// 分析速度
 
 	}
-	
+
 	void writeClimbLabel(FileWriter txt) throws IOException {
 		BufferedWriter bw = new BufferedWriter(txt);
 		// 高度
-		bw.write(lang.fAlt +"/m, ");
-		
+		bw.write(lang.fAlt + "/m, ");
+
 		// 时间
 		bw.write("t/s" + ", ");
-		
+
 		// 动力
 		bw.write(lang.ePower + "/hp, ");
-		
+
 		// 推力
 		bw.write(lang.eThurst + "/kgf, ");
-		
+
 		// SEP
-		bw.write(lang.fSEP+"/m/s");
-		
+		bw.write(lang.fSEP + "/m/s");
+
 		bw.write("\n");
 		bw.flush();
-//		bw.close();
+		// bw.close();
 	}
+
 	void writeClimbData(FileWriter txt) throws IOException {
 		BufferedWriter bw = new BufferedWriter(txt);
-		 
-		for (int i = 0; i < fA.curaltStage; i++){
-			
+
+		for (int i = 0; i < fA.curaltStage; i++) {
+
 			bw.write(i * 100 + ", ");
 			bw.write(fA.time[i] + ", ");
 			bw.write(fA.power[i] + ", ");
 			bw.write(fA.thrust[i] + ", ");
-			bw.write(fA.sep[i]+"\n");
-			
-//			bw.write("\n");
-			
+			bw.write(fA.sep[i] + "\n");
+
+			// bw.write("\n");
+
 		}
-//		app.debugPrint(String.format("total %d climb data logged", fA.curaltStage));
+		// app.debugPrint(String.format("total %d climb data logged", fA.curaltStage));
 		bw.flush();
 	}
-	
-	public void saveClimbData(){
+
+	public void saveClimbData() {
 		FileWriter tcsv = null;
-//		app.debugPrint("climbdata save to "+ climbName);
+		// app.debugPrint("climbdata save to "+ climbName);
 		try {
 			tcsv = new FileWriter(climbName, true);
 			// app.debugPrint("打开文件成功");
 		} catch (IOException e) {
-			controller.notification(lang.lfailCreate);
+			ui.util.NotificationService.show(lang.lfailCreate);
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 			return;
 		}
-		
+
 		try {
 			writeClimbLabel(tcsv);
 			writeClimbData(tcsv);
@@ -252,55 +254,54 @@ public class flightLog implements Runnable {
 			e.printStackTrace();
 		}
 	}
-	
+
 	void writeRollLabel(FileWriter txt) throws IOException {
 		BufferedWriter bw = new BufferedWriter(txt);
 		// 速度
-		bw.write(lang.fIAS +"/km/h, ");
+		bw.write(lang.fIAS + "/km/h, ");
 
 		// 副翼
 		bw.write(lang.vAileron + "/%, ");
-		
-		
+
 		// 滚转率
 		bw.write(lang.fWx + "/Deg/s");
-		
-		
+
 		bw.write("\n");
 		bw.flush();
-//		bw.close();
+		// bw.close();
 	}
+
 	void writeRollData(FileWriter txt) throws IOException {
 		BufferedWriter bw = new BufferedWriter(txt);
 		int k = 0;
-		for (int i = 0; i < flightAnalyzer.maxIASStage; i++){
+		for (int i = 0; i < flightAnalyzer.maxIASStage; i++) {
 			// 速度区间
-			if (fA.roll_rate[i] > 0){
+			if (fA.roll_rate[i] > 0) {
 				k++;
-				bw.write(i * 10 +", ");
-				bw.write(fA.roll_alr[i]+", ");
-				bw.write(fA.roll_rate[i]+"\n");
+				bw.write(i * 10 + ", ");
+				bw.write(fA.roll_alr[i] + ", ");
+				bw.write(fA.roll_rate[i] + "\n");
 			}
-//			bw.write("\n");
-			
+			// bw.write("\n");
+
 		}
-//		app.debugPrint(String.format("total %d roll data logged", k));
+		// app.debugPrint(String.format("total %d roll data logged", k));
 		bw.flush();
 	}
-	
-	public void saveRollData(){
+
+	public void saveRollData() {
 		FileWriter tcsv = null;
-//		app.debugPrint("rolldata save to "+ climbName);
+		// app.debugPrint("rolldata save to "+ climbName);
 		try {
 			tcsv = new FileWriter(rollName, true);
 			// app.debugPrint("打开文件成功");
 		} catch (IOException e) {
-			controller.notification(lang.lfailCreate);
+			ui.util.NotificationService.show(lang.lfailCreate);
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 			return;
 		}
-		
+
 		try {
 			writeRollLabel(tcsv);
 			writeRollData(tcsv);
@@ -311,58 +312,58 @@ public class flightLog implements Runnable {
 			e.printStackTrace();
 		}
 	}
-	
+
 	void writeNyLabel(FileWriter txt) throws IOException {
 		BufferedWriter bw = new BufferedWriter(txt);
 		// 速度
-		bw.write(lang.fIAS +"/km/h, ");
-		
+		bw.write(lang.fIAS + "/km/h, ");
+
 		// 升降舵
 		bw.write(lang.vElevator + "/%, ");
-		
+
 		// 过载
 		bw.write(lang.fGL + "/G, ");
-		
+
 		// SEP
 		bw.write(lang.fSEP + "/m/s");
-		
-		
+
 		bw.write("\n");
 		bw.flush();
-//		bw.close();
+		// bw.close();
 	}
+
 	void writeNyData(FileWriter txt) throws IOException {
 		BufferedWriter bw = new BufferedWriter(txt);
 		int k = 0;
-		for (int i = 0; i < flightAnalyzer.maxIASStage; i++){
+		for (int i = 0; i < flightAnalyzer.maxIASStage; i++) {
 			// 速度区间
-			if (fA.turn_load[i] > 0){
+			if (fA.turn_load[i] > 0) {
 				k++;
-				bw.write(i * 10 +", ");
-				bw.write(fA.turn_elev[i]+", ");
-				bw.write(fA.turn_load[i]+", ");
+				bw.write(i * 10 + ", ");
+				bw.write(fA.turn_elev[i] + ", ");
+				bw.write(fA.turn_load[i] + ", ");
 				bw.write(fA.sep_loss[i] + "\n");
 			}
-//			bw.write("\n");
-			
+			// bw.write("\n");
+
 		}
-//		app.debugPrint(String.format("total %d roll data logged", k));
+		// app.debugPrint(String.format("total %d roll data logged", k));
 		bw.flush();
 	}
-	
-	public void saveNyData(){
+
+	public void saveNyData() {
 		FileWriter tcsv = null;
-//		app.debugPrint("rolldata save to "+ climbName);
+		// app.debugPrint("rolldata save to "+ climbName);
 		try {
 			tcsv = new FileWriter(loadName, true);
 			// app.debugPrint("打开文件成功");
 		} catch (IOException e) {
-			controller.notification(lang.lfailCreate);
+			ui.util.NotificationService.show(lang.lfailCreate);
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 			return;
 		}
-		
+
 		try {
 			writeNyLabel(tcsv);
 			writeNyData(tcsv);
@@ -373,33 +374,36 @@ public class flightLog implements Runnable {
 			e.printStackTrace();
 		}
 	}
-	
 
-	
 	public void init(controller tc, service s) {
 		xc = tc;
 		xs = s;
 		doit = false;
-		//app.debugPrint("flightlog初始化了");
+		// app.debugPrint("flightlog初始化了");
 		c = Calendar.getInstance();
 		c.setTimeInMillis(System.currentTimeMillis());
-		String name=s.sIndic.type.toUpperCase();
-		if(name=="NO COCKPIT")name="Unknown";
-		fileName = "records/"+name+"_" +(c.get(Calendar.MONTH) + 1) + "_" + c.get(Calendar.DATE) + "_" + c.get(Calendar.HOUR)
+		String name = s.sIndic.type.toUpperCase();
+		if (name == "NO COCKPIT")
+			name = "Unknown";
+		fileName = "records/" + name + "_" + (c.get(Calendar.MONTH) + 1) + "_" + c.get(Calendar.DATE) + "_"
+				+ c.get(Calendar.HOUR)
 				+ "." + c.get(Calendar.MINUTE) + "." + c.get(Calendar.SECOND) + ".csv";
-		climbName = "records/"+name+"_" +(c.get(Calendar.MONTH) + 1) + "_" + c.get(Calendar.DATE) + "_" + c.get(Calendar.HOUR)
-		+ "." + c.get(Calendar.MINUTE) + "." + c.get(Calendar.SECOND) + "_climb.csv";
-		rollName = "records/"+name+"_" +(c.get(Calendar.MONTH) + 1) + "_" + c.get(Calendar.DATE) + "_" + c.get(Calendar.HOUR)
-		+ "." + c.get(Calendar.MINUTE) + "." + c.get(Calendar.SECOND) + "_roll.csv";
-		loadName = "records/"+name+"_" +(c.get(Calendar.MONTH) + 1) + "_" + c.get(Calendar.DATE) + "_" + c.get(Calendar.HOUR)
-		+ "." + c.get(Calendar.MINUTE) + "." + c.get(Calendar.SECOND) + "_ny.csv";
-		
+		climbName = "records/" + name + "_" + (c.get(Calendar.MONTH) + 1) + "_" + c.get(Calendar.DATE) + "_"
+				+ c.get(Calendar.HOUR)
+				+ "." + c.get(Calendar.MINUTE) + "." + c.get(Calendar.SECOND) + "_climb.csv";
+		rollName = "records/" + name + "_" + (c.get(Calendar.MONTH) + 1) + "_" + c.get(Calendar.DATE) + "_"
+				+ c.get(Calendar.HOUR)
+				+ "." + c.get(Calendar.MINUTE) + "." + c.get(Calendar.SECOND) + "_roll.csv";
+		loadName = "records/" + name + "_" + (c.get(Calendar.MONTH) + 1) + "_" + c.get(Calendar.DATE) + "_"
+				+ c.get(Calendar.HOUR)
+				+ "." + c.get(Calendar.MINUTE) + "." + c.get(Calendar.SECOND) + "_ny.csv";
+
 		try {
 
 			resultsFile = new FileOutputStream(fileName);
 			// app.debugPrint("文件创建成功");
 		} catch (FileNotFoundException e) {
-			controller.notification(lang.lfailCreate);
+			ui.util.NotificationService.show(lang.lfailCreate);
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 			xc.logon = false;
@@ -408,11 +412,11 @@ public class flightLog implements Runnable {
 			csv = new FileWriter(fileName, true);
 			// app.debugPrint("打开文件成功");
 		} catch (IOException e) {
-			controller.notification(lang.lfailCreate);
+			ui.util.NotificationService.show(lang.lfailCreate);
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-//		csvWritter = 
+		// csvWritter =
 		try {
 			writeLabel(csv);
 		} catch (IOException e) {
@@ -420,7 +424,7 @@ public class flightLog implements Runnable {
 			e.printStackTrace();
 		}
 		csvWritter = new BufferedWriter(csv);
-		
+
 		logon = true;
 	}
 
@@ -439,10 +443,11 @@ public class flightLog implements Runnable {
 		saveNyData();
 		logon = false;
 	}
-	public void logTick(){
-		
+
+	public void logTick() {
+
 		try {
-//			csv = new FileWriter(fileName, true);
+			// csv = new FileWriter(fileName, true);
 			// app.debugPrint("开始写入");
 			analyzeData();
 			writeData(csvWritter);
@@ -450,10 +455,10 @@ public class flightLog implements Runnable {
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			//
-			controller.notification(lang.lfailWrite);
+			ui.util.NotificationService.show(lang.lfailWrite);
 			e.printStackTrace();
 		}
-		if (writeTime++ % 1024 == 0){
+		if (writeTime++ % 1024 == 0) {
 			try {
 				csvWritter.flush();
 			} catch (IOException e) {
@@ -462,6 +467,7 @@ public class flightLog implements Runnable {
 			}
 		}
 	}
+
 	@Override
 	public void run() {
 		// TODO Auto-generated method stub
@@ -473,7 +479,7 @@ public class flightLog implements Runnable {
 				// e.printStackTrace();
 
 			}
-			//app.debugPrint("flightlog内存溢出测试");
+			// app.debugPrint("flightlog内存溢出测试");
 			// app.debugPrint("执行");
 			while (doit) {
 				logTick();

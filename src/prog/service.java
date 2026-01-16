@@ -7,6 +7,10 @@ import parser.mapInfo;
 import parser.mapObj;
 import parser.state;
 import parser.stringHelper;
+import java.util.HashMap;
+import java.util.Map;
+import prog.event.EventBus;
+import prog.event.FlightDataEvent;
 
 public class service implements Runnable {
 	public static calcHelper cH = new calcHelper();
@@ -442,78 +446,83 @@ public class service implements Runnable {
 	}
 
 	private void updateGlobalPool() {
-		if (c == null || c.globalPool == null)
-			return;
-
-		// Use batch mode to accumulate all changes and notify once
-		c.globalPool.beginBatch();
+		// 1. Build Data Snapshot
+		Map<String, String> data = new HashMap<>();
 
 		// Push Standard Flight Data (Strings formatted in trans2String)
-		c.globalPool.put("TAS", TAS);
-		c.globalPool.put("IAS", IAS);
-		c.globalPool.put("Mach", M);
-		c.globalPool.put("AoA", AoA);
-		c.globalPool.put("AoS", AoS);
-		c.globalPool.put("Ny", Ny); // G-Load raw
-		c.globalPool.put("G", sN); // G-Load formatted
-		c.globalPool.put("Wx", Wx);
+		data.put("TAS", TAS);
+		data.put("IAS", IAS);
+		data.put("Mach", M);
+		data.put("AoA", AoA);
+		data.put("AoS", AoS);
+		data.put("Ny", Ny); // G-Load raw
+		data.put("G", sN); // G-Load formatted
+		data.put("Wx", Wx);
 
-		c.globalPool.put("Altitude", salt);
-		c.globalPool.put("RadioAltitude", sRadioAlt);
-		c.globalPool.put("Vario", Vy);
+		data.put("Altitude", salt);
+		data.put("RadioAltitude", sRadioAlt);
+		data.put("Vario", Vy);
 
-		c.globalPool.put("Compass", compass);
+		data.put("Compass", compass);
 
-		c.globalPool.put("throttle", throttle);
-		c.globalPool.put("RPM", rpm);
-		c.globalPool.put("manifold_pressure", manifoldpressure);
-		c.globalPool.put("water_temp", watertemp);
-		c.globalPool.put("oil_temp", oiltemp);
-		c.globalPool.put("pitch", pitch != null && pitch.length > 0 ? pitch[0] : "N/A");
+		data.put("throttle", throttle);
+		data.put("RPM", rpm);
+		data.put("manifold_pressure", manifoldpressure);
+		data.put("water_temp", watertemp);
+		data.put("oil_temp", oiltemp);
+		data.put("pitch", pitch != null && pitch.length > 0 ? pitch[0] : "N/A");
 
-		c.globalPool.put("fuel", sTotalFuel);
-		c.globalPool.put("fuel_time", sfueltime);
+		data.put("fuel", sTotalFuel);
+		data.put("fuel_time", sfueltime);
 
-		c.globalPool.put("SEP", sSEP);
-		c.globalPool.put("SEP_abs", sSEPAbs);
-		c.globalPool.put("acceleration", sAcc);
+		data.put("SEP", sSEP);
+		data.put("SEP_abs", sSEPAbs);
+		data.put("acceleration", sAcc);
 
-		c.globalPool.put("turn_rate", sTurnRate);
-		c.globalPool.put("turn_radius", sTurnRds);
+		data.put("turn_rate", sTurnRate);
+		data.put("turn_radius", sTurnRds);
 
-		c.globalPool.put("wing_sweep", sWingSweep);
-		c.globalPool.put("flaps", flaps);
-		c.globalPool.put("gear", gear);
-		c.globalPool.put("aileron", aileron);
-		c.globalPool.put("elevator", elevator);
-		c.globalPool.put("rudder", rudder);
+		data.put("wing_sweep", sWingSweep);
+		data.put("flaps", flaps);
+		data.put("gear", gear);
+		data.put("aileron", aileron);
+		data.put("elevator", elevator);
+		data.put("rudder", rudder);
 
-		c.globalPool.put("valid", svalid);
+		data.put("valid", svalid);
 
 		// Push FlightInfoConfig Compatible Keys
-		c.globalPool.put("ias", IAS);
-		c.globalPool.put("tas", TAS);
-		c.globalPool.put("mach", M);
-		c.globalPool.put("dir", compass);
-		c.globalPool.put("height", salt);
-		c.globalPool.put("rda", sRadioAlt);
-		c.globalPool.put("vario", Vy);
-		c.globalPool.put("sep", sSEP);
-		c.globalPool.put("acc", sAcc);
-		c.globalPool.put("wx", Wx);
-		c.globalPool.put("ny", sN);
-		c.globalPool.put("turn", sTurnRate);
-		c.globalPool.put("rds", sTurnRds);
-		c.globalPool.put("aoa", AoA);
-		c.globalPool.put("aos", AoS);
-		c.globalPool.put("ws", sWingSweep);
+		data.put("ias", IAS);
+		data.put("tas", TAS);
+		data.put("mach", M);
+		data.put("dir", compass);
+		data.put("height", salt);
+		data.put("rda", sRadioAlt);
+		data.put("vario", Vy);
+		data.put("sep", sSEP);
+		data.put("acc", sAcc);
+		data.put("wx", Wx);
+		data.put("ny", sN);
+		data.put("turn", sTurnRate);
+		data.put("rds", sTurnRds);
+		data.put("aoa", AoA);
+		data.put("aos", AoS);
+		data.put("ws", sWingSweep);
 
-		// Push Raw Objects for advanced access
-		c.globalPool.put("state", sState);
-		c.globalPool.put("indicators", sIndic);
+		// 2. Publish Event (Data Plane)
+		EventBus.getInstance().publish(new FlightDataEvent(data));
 
-		// Commit batch and notify listeners ONCE
-		c.globalPool.commitBatch();
+		// 3. Legacy Support (Sync to GlobalPool)
+		if (c != null && c.globalPool != null) {
+			c.globalPool.beginBatch();
+			for (Map.Entry<String, String> entry : data.entrySet()) {
+				c.globalPool.put(entry.getKey(), entry.getValue());
+			}
+			// Push Raw Objects for advanced access (not in Map)
+			c.globalPool.put("state", sState);
+			c.globalPool.put("indicators", sIndic);
+			c.globalPool.commitBatch();
+		}
 	}
 
 	public void checkEngineJet() {

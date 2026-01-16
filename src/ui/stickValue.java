@@ -25,8 +25,12 @@ import prog.app;
 import prog.controller;
 import prog.lang;
 import prog.service;
+import prog.event.EventBus;
+import prog.event.FlightDataEvent;
+import prog.event.FlightDataListener;
+import java.util.Map;
 
-public class stickValue extends WebFrame implements Runnable {
+public class stickValue extends WebFrame implements FlightDataListener {
 
 	/**
 	 * 
@@ -525,50 +529,43 @@ public class stickValue extends WebFrame implements Runnable {
 		if (xc.getconfig("enableAxisEdge").equals("true"))
 			setShadeWidth(10);
 
-		if (s != null)
+		if (s != null) {
 			setVisible(true);
-
-	}
-
-	public void drawTick() {
-		if (xs.sState != null) {
-			px = (100 + xs.sState.aileron) * width / 200;
-			py = (100 + xs.sState.elevator) * width / 200;
-
-			sElevator = xs.elevator;
-			sAileron = xs.aileron;
-			sRudder = xs.rudder;
-			sWingSweep = xs.sWingSweep;
-
-			rudderValPix = (xs.sState.rudder + 100) * width / 200;
-
-			// label_1.setText(xs.aileron);
-
-			// label_6.setText(xs.rudder);
-
-			// label_8.setText(xs.sWingSweep);
-
-			// label_3.setText(xs.elevator);
-			// slider.setValue(xs.sState.rudder);
-
-			// app.debugPrint("stickValue执行了");
-
-			this.getContentPane().repaint();
+			EventBus.getInstance().register(this);
 		}
 	}
 
 	@Override
-	public void run() {
-		// TODO Auto-generated method stub
-		while (doit) {
+	public void dispose() {
+		EventBus.getInstance().unregister(this);
+		super.dispose();
+	}
+
+	@Override
+	public void onFlightData(FlightDataEvent event) {
+		javax.swing.SwingUtilities.invokeLater(() -> {
+			Map<String, String> data = event.getData();
+			// Parse values from event data
 			try {
-				Thread.sleep(80);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				int aileronVal = data.containsKey("aileron") ? Integer.parseInt(data.get("aileron")) : 0;
+				int elevatorVal = data.containsKey("elevator") ? Integer.parseInt(data.get("elevator")) : 0;
+				int rudderVal = data.containsKey("rudder") ? Integer.parseInt(data.get("rudder")) : 0;
+
+				px = (100 + aileronVal) * width / 200;
+				py = (100 + elevatorVal) * width / 200;
+
+				sElevator = data.getOrDefault("elevator", "0");
+				sAileron = data.getOrDefault("aileron", "0");
+				sRudder = data.getOrDefault("rudder", "0");
+				sWingSweep = data.getOrDefault("ws", "0");
+
+				rudderValPix = (rudderVal + 100) * width / 200;
+
+				this.getContentPane().repaint();
+			} catch (NumberFormatException e) {
+				// Ignore parsing errors
 			}
-			drawTick();
-		}
+		});
 	}
 
 }

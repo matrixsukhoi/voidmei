@@ -1,7 +1,7 @@
 package parser;
 
 import prog.app;
-import prog.controller;
+
 import prog.lang;
 import prog.service;
 
@@ -53,9 +53,8 @@ public class flightAnalyzer {
 			sep[curaltStage] = xs.SEP;
 			count = 1;
 			if (isInformation)
-				controller
-						.notification(lang.fA1 + stage * 100 + lang.fA2 + (int) time[curaltStage] + lang.fA3
-								+ (int) ((stage - initaltStage) * 1000 / time[curaltStage]) / 10.0f + lang.fA4);
+				ui.util.NotificationService.show(lang.fA1 + stage * 100 + lang.fA2 + (int) time[curaltStage] + lang.fA3
+						+ (int) ((stage - initaltStage) * 1000 / time[curaltStage]) / 10.0f + lang.fA4);
 		} else {
 			eff[curaltStage] = (eff[curaltStage] + xs.iTotalHpEff);
 			sep[curaltStage] = (sep[curaltStage] + xs.SEP);
@@ -77,7 +76,7 @@ public class flightAnalyzer {
 
 	// 获得速度阶段
 	public int getSpeedStage(double ias) {
-		return (int)Math.round(ias / 10.0f);
+		return (int) Math.round(ias / 10.0f);
 	}
 
 	// 使用舵面辅助判断
@@ -92,7 +91,7 @@ public class flightAnalyzer {
 					roll_alr[stage] = abs_alr;
 
 					if (isInformation && (wx - roll_rate[stage] > 40))
-						controller.notification(
+						ui.util.NotificationService.show(
 								lang.fA_roll1 + stage * 10 + lang.fA_roll2 + wx + lang.fA_roll3);
 
 					roll_rate[stage] = wx;
@@ -101,14 +100,15 @@ public class flightAnalyzer {
 
 			if (g_load > 1.0f && sep < 5 && abs_elev >= turn_elev[stage]) {
 
-//				if (g_load > turn_load[stage] ) {
-					turn_elev[stage] = abs_elev;
-					if (isInformation && (g_load -  turn_load[stage] > 3.0f))
-						controller
-								.notification(lang.fA_turn1 + stage * 10 + lang.fA_turn2 + String.format("%.1f", (turn_load[stage] + g_load) / 2) + lang.fA_turn3 + String.format("%.1f", (sep_loss[stage] + sep) / 2) + lang.fA_turn4);
-					turn_load[stage] = (turn_load[stage] + g_load) / 2;
-					sep_loss[stage] =  (sep_loss[stage] + sep) / 2;
-//				}
+				// if (g_load > turn_load[stage] ) {
+				turn_elev[stage] = abs_elev;
+				if (isInformation && (g_load - turn_load[stage] > 3.0f))
+					ui.util.NotificationService.show(lang.fA_turn1 + stage * 10 + lang.fA_turn2
+							+ String.format("%.1f", (turn_load[stage] + g_load) / 2) + lang.fA_turn3
+							+ String.format("%.1f", (sep_loss[stage] + sep) / 2) + lang.fA_turn4);
+				turn_load[stage] = (turn_load[stage] + g_load) / 2;
+				sep_loss[stage] = (sep_loss[stage] + sep) / 2;
+				// }
 				// showAllEMChart();
 			}
 
@@ -124,7 +124,7 @@ public class flightAnalyzer {
 		}
 		return ret;
 	}
-	
+
 	public int getNoZerosNum(double[] arr) {
 		int ret = 0;
 		for (int i = 0; i < arr.length; i++) {
@@ -139,38 +139,38 @@ public class flightAnalyzer {
 		for (int i = 0; i < oy.length; i++) {
 			if (oy[i] != 0) {
 				x[j] = i * 10.0;
-				y[j] = (double) (oy[i-1] + oy[i] + oy[i+1])/3;
+				y[j] = (double) (oy[i - 1] + oy[i] + oy[i + 1]) / 3;
 				j++;
 			}
 		}
 	}
-	
+
 	public void removeZeroes(double[] x, double[] y, double[] oy) {
 		int j = 0;
-		for (int i = 1; i < oy.length-1; i++) {
+		for (int i = 1; i < oy.length - 1; i++) {
 			if (oy[i] != 0) {
 				x[j] = i * 10.0;
-				y[j] = (double) (oy[i-1] + oy[i] + oy[i+1])/3;
+				y[j] = (double) (oy[i - 1] + oy[i] + oy[i + 1]) / 3;
 				j++;
 			}
 		}
 	}
-	
+
 	public void removeRollRatesZeroes(double[] ias, double[] wx) {
-//		int j = 0;
+		// int j = 0;
 		removeZeroes(ias, wx, roll_rate);
 	}
-	
+
 	public void removeLoadZeroes(double[] ias, double[] g, double[] seploss) {
 		int j = 0;
 		for (int i = 1; i < turn_load.length - 1; i++) {
 			if (turn_load[i] != 0) {
 				ias[j] = i * 10.0;
-//				g[j] = (double) turn_load[i];
-//				seploss[j] = (double) sep_loss[i];
-				g[j] = (double)  (turn_load[i-1] + turn_load[i] + turn_load[i+1]) / 3;
-				seploss[j] =  (double)  (sep_loss[i-1] + sep_loss[i] + sep_loss[i+1]) / 3;
-				j++; 
+				// g[j] = (double) turn_load[i];
+				// seploss[j] = (double) sep_loss[i];
+				g[j] = (double) (turn_load[i - 1] + turn_load[i] + turn_load[i + 1]) / 3;
+				seploss[j] = (double) (sep_loss[i - 1] + sep_loss[i] + sep_loss[i + 1]) / 3;
+				j++;
 			}
 		}
 	}

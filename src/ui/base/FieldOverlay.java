@@ -4,7 +4,6 @@ import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.util.List;
-import java.util.Set;
 
 import com.alee.laf.panel.WebPanel;
 import parser.AttributePool;
@@ -15,6 +14,10 @@ import ui.model.FieldDefinition;
 import ui.model.FieldManager;
 import ui.renderer.OverlayRenderer;
 import ui.renderer.RenderContext;
+import prog.event.EventBus;
+import prog.event.FlightDataEvent;
+import prog.event.FlightDataListener;
+import java.util.Map;
 
 /**
  * Abstract base class for event-driven data overlay windows.
@@ -28,7 +31,7 @@ import ui.renderer.RenderContext;
  * - createRenderer(): Return the renderer to use
  * - getFieldDefinitions(): Return the fields to display
  */
-public abstract class FieldOverlay extends DraggableOverlay implements AttributePool.PoolListener {
+public abstract class FieldOverlay extends DraggableOverlay implements FlightDataListener {
     private static final long serialVersionUID = 1L;
 
     protected AttributePool poolSource;
@@ -113,7 +116,7 @@ public abstract class FieldOverlay extends DraggableOverlay implements Attribute
                 numFontKey, labelFontKey, fontAddKey, columnKey);
 
         initFields();
-        subscribeToPool();
+        subscribeToEvents();
 
         boolean showEdge = defaultShowEdge;
         if (config != null && edgeKey != null) {
@@ -143,36 +146,20 @@ public abstract class FieldOverlay extends DraggableOverlay implements Attribute
         }
     }
 
-    protected void subscribeToPool() {
-        if (poolSource == null || fieldManager == null)
-            return;
-
-        java.util.ArrayList<String> keys = new java.util.ArrayList<>();
-        for (DataField field : fieldManager.getFields()) {
-            if (field.visible) {
-                keys.add(field.key);
-            }
-        }
-
-        if (!keys.isEmpty()) {
-            poolSource.subscribe(this, keys.toArray(new String[0]));
-        }
+    protected void subscribeToEvents() {
+        EventBus.getInstance().register(this);
     }
 
-    // --- PoolListener Implementation ---
-
     @Override
-    public void onPoolUpdated(Set<String> changedKeys) {
+    public void onFlightData(FlightDataEvent event) {
         javax.swing.SwingUtilities.invokeLater(() -> {
-            for (String key : changedKeys) {
-                DataField field = fieldManager.getField(key);
-                if (field != null) {
+            Map<String, String> data = event.getData();
+            for (DataField field : fieldManager.getFields()) {
+                if (field.visible) {
+                    String key = field.key;
                     String val = naString;
-                    if (poolSource != null) {
-                        Object obj = poolSource.getValue(key);
-                        if (obj != null && !"N/A".equals(obj)) {
-                            val = obj.toString();
-                        }
+                    if (data.containsKey(key)) {
+                        val = data.get(key);
                     }
                     fieldManager.updateField(key, val, naString);
                 }
@@ -183,6 +170,8 @@ public abstract class FieldOverlay extends DraggableOverlay implements Attribute
         });
     }
 
+    // --- PoolListener Implementation ---
+
     // --- Legacy Compatibility ---
 
     public void updateString() {
@@ -191,9 +180,7 @@ public abstract class FieldOverlay extends DraggableOverlay implements Attribute
 
     @Override
     public void dispose() {
-        if (poolSource != null) {
-            poolSource.unsubscribe(this);
-        }
+        EventBus.getInstance().unregister(this);
         super.dispose();
     }
 }

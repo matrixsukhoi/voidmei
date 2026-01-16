@@ -1,24 +1,16 @@
 package prog;
 
 import ui.minimalHUD;
-import ui.flightInfo;
-import ui.engineControl;
-import ui.engineInfo;
 import ui.attitudeIndicator;
 import ui.gearAndFlaps;
-import ui.stickValue;
 
 public class uiThread implements Runnable {
 	long CheckMili;
 	controller c;
 	Boolean doit;
 	private long HCheckMili;
-	private long FCheckMili;
-	private long ECheckMili;
 	private long ACheckMili;
 	private long GCheckMili;
-	private long SCheckMili;
-	// private long GCCheckMili;
 	private int drawTickNr;
 
 	public uiThread(controller xc) {
@@ -30,9 +22,6 @@ public class uiThread implements Runnable {
 	@Override
 	public void run() {
 		Boolean repaintH;
-		Boolean repaintFL;
-		Boolean repaintF;
-		Boolean repaintFI;
 		long stime;
 		while (doit) {
 			// 每多少秒更新一次ui
@@ -43,9 +32,6 @@ public class uiThread implements Runnable {
 				e.printStackTrace();
 			}
 			repaintH = false;
-			repaintFL = false;
-			repaintF = false;
-			repaintFI = false;
 			if (c.S == null)
 				continue;
 			stime = c.S.SystemTime;
@@ -62,33 +48,40 @@ public class uiThread implements Runnable {
 					drawTickNr++;
 				}
 			}
-			if (stime - FCheckMili >= c.freqFlightInfo) {
-				// 飞行信息
-				FCheckMili = stime;
-				flightInfo FL = (flightInfo) c.overlayManager.get("flightInfoSwitch");
-				if (FL != null) {
-					FL.updateString();
-					repaintFL = true;
-					drawTickNr++;
-				}
-			}
+			/*
+			 * Refactored to Event-Driven
+			 * if (stime - FCheckMili >= c.freqFlightInfo) {
+			 * // 飞行信息
+			 * FCheckMili = stime;
+			 * flightInfo FL = (flightInfo) c.overlayManager.get("flightInfoSwitch");
+			 * if (FL != null) {
+			 * FL.updateString();
+			 * repaintFL = true;
+			 * drawTickNr++;
+			 * }
+			 * }
+			 */
 
-			if (stime - ECheckMili >= c.freqEngineInfo) {
-				ECheckMili = stime;
-				engineControl F = (engineControl) c.overlayManager.get("enableEngineControl");
-				if (F != null) {
-					F.updateString();
-					repaintF = true;
-					drawTickNr++;
-				}
-
-				engineInfo FI = (engineInfo) c.overlayManager.get("engineInfoSwitch");
-				if (FI != null) {
-					FI.updateString();
-					repaintFI = true;
-					drawTickNr++;
-				}
-			}
+			/*
+			 * Refactored to Event-Driven
+			 * if (stime - ECheckMili >= c.freqEngineInfo) {
+			 * ECheckMili = stime;
+			 * engineControl F = (engineControl)
+			 * c.overlayManager.get("enableEngineControl");
+			 * if (F != null) {
+			 * F.updateString();
+			 * repaintF = true;
+			 * drawTickNr++;
+			 * }
+			 * 
+			 * engineInfo FI = (engineInfo) c.overlayManager.get("engineInfoSwitch");
+			 * if (FI != null) {
+			 * FI.updateString();
+			 * repaintFI = true;
+			 * drawTickNr++;
+			 * }
+			 * }
+			 */
 
 			// 立即刷新，提升实时性
 			// Toolkit.getDefaultToolkit().sync();
@@ -96,21 +89,6 @@ public class uiThread implements Runnable {
 				minimalHUD H = (minimalHUD) c.overlayManager.get("crosshairSwitch");
 				if (H != null)
 					H.drawTick();
-			}
-			if (repaintFL) {
-				flightInfo FL = (flightInfo) c.overlayManager.get("flightInfoSwitch");
-				if (FL != null)
-					FL.drawTick();
-			}
-			if (repaintF) {
-				engineControl F = (engineControl) c.overlayManager.get("enableEngineControl");
-				if (F != null)
-					F.drawTick();
-			}
-			if (repaintFI) {
-				engineInfo FI = (engineInfo) c.overlayManager.get("engineInfoSwitch");
-				if (FI != null)
-					FI.drawTick();
 			}
 
 			if (stime - ACheckMili >= c.freqAltitude) {
@@ -132,14 +110,17 @@ public class uiThread implements Runnable {
 					fS.drawTick();
 				}
 			}
-			if (stime - SCheckMili >= c.freqStickValue) {
-				SCheckMili = stime;
-				stickValue sV = (stickValue) c.overlayManager.get("enableAxis");
-				if (sV != null) {
-					drawTickNr++;
-					sV.drawTick();
-				}
-			}
+			/*
+			 * Refactored to Event-Driven
+			 * if (stime - SCheckMili >= c.freqStickValue) {
+			 * SCheckMili = stime;
+			 * stickValue sV = (stickValue) c.overlayManager.get("enableAxis");
+			 * if (sV != null) {
+			 * drawTickNr++;
+			 * sV.drawTick();
+			 * }
+			 * }
+			 */
 
 			// Dynamic Overlays now self-refresh via ListOverlay.run()
 			// No external polling needed

@@ -215,9 +215,9 @@ public class app {
 
 				public void actionPerformed(ActionEvent e) {
 					// controller.s
-					controller.notificationtimeAbout(lang.aboutcontentsub2, 24000);
-					controller.notificationtimeAbout(lang.aboutcontentsub1, 16000);
-					controller.notificationtimeAbout(lang.aboutcontent, 8000);
+					ui.util.NotificationService.showAbout(lang.aboutcontentsub2, 24000);
+					ui.util.NotificationService.showAbout(lang.aboutcontentsub1, 16000);
+					ui.util.NotificationService.showAbout(lang.aboutcontent, 8000);
 
 				}
 			});
@@ -248,7 +248,7 @@ public class app {
 
 	public static void checkOS() {
 		if (Float.parseFloat(System.getProperty("os.version")) < 6.0) {
-			controller.notificationtime(lang.Systemerror, 10000);
+			ui.util.NotificationService.showTimed(lang.Systemerror, 10000);
 			try {
 				Thread.sleep(10000);
 			} catch (InterruptedException e) {
@@ -381,7 +381,7 @@ public class app {
 					debugPrint("latest version is:" + latestVersion);
 					if (Double.parseDouble(version) < Double.parseDouble(latestVersion)) {
 						String notice = "A newer version is released on github, version: " + latestVersion;
-						controller.notificationtimeAbout(String.format(notice), 5000);
+						ui.util.NotificationService.showAbout(String.format(notice), 5000);
 					}
 				}
 				return null;
@@ -415,7 +415,7 @@ public class app {
 					debugPrint("latest version is:" + latestVersion);
 					if (Double.parseDouble(version) < Double.parseDouble(latestVersion)) {
 						String notice = "A newer version is released on github, version: " + latestVersion;
-						controller.notificationtimeAbout(String.format(notice), 5000);
+						ui.util.NotificationService.showAbout(String.format(notice), 5000);
 					}
 				}
 				return null;
@@ -537,7 +537,7 @@ public class app {
 				ctr = new controller();
 
 				if (System.getProperty("java.version").indexOf("1.8") == -1) {
-					controller.notificationtimeAbout(
+					ui.util.NotificationService.showAbout(
 							String.format("Detected current Java version %s. Java 1.8 is needed.",
 									System.getProperty("java.version")),
 							3000);

@@ -1765,7 +1765,7 @@ public class mainform extends WebFrame implements Runnable {
 
 	public void startPreview() {
 		if (moveCheckFlag == null || moveCheckFlag == false) {
-			controller.notification(prog.lang.mMovePanel);
+			ui.util.NotificationService.show(prog.lang.mMovePanel);
 			saveconfig();
 			tc.Preview();
 			moveCheckFlag = true;
