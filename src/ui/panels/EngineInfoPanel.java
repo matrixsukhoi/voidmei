@@ -3,11 +3,8 @@ package ui.panels;
 import java.awt.Color;
 import java.awt.FlowLayout;
 
-import javax.swing.SwingConstants;
-
 import com.alee.extended.button.WebSwitch;
 import com.alee.laf.combobox.WebComboBox;
-import com.alee.laf.label.WebLabel;
 import com.alee.laf.panel.WebPanel;
 import com.alee.laf.slider.WebSlider;
 
@@ -55,75 +52,66 @@ public class EngineInfoPanel extends WebPanel {
         this.setLayout(new FlowLayout(FlowLayout.LEFT));
 
         bEngineInfoSwitch = UIBuilder.addSwitch(this, lang.mP2EnginePanel, false);
-        createvoidWebLabel(this, lang.mP2EnginePanelBlank);
+        UIBuilder.addVoidWebLabel(this, lang.mP2EnginePanelBlank);
 
         bEngineInfoEdge = UIBuilder.addSwitch(this, lang.mP2EngineGlassEdge, false);
-        createvoidWebLabel(this, lang.mP2EngineGlassEdgeBlank);
+        UIBuilder.addVoidWebLabel(this, lang.mP2EngineGlassEdgeBlank);
 
         bEngineInfoHorsePower = UIBuilder.addSwitch(this, lang.mP2eiHorsePower, false);
-        createvoidWebLabel(this, lang.mP2eiHorsePowerBlank);
+        UIBuilder.addVoidWebLabel(this, lang.mP2eiHorsePowerBlank);
 
         bEngineInfoThrust = UIBuilder.addSwitch(this, lang.mP2eiThrust, false);
-        createvoidWebLabel(this, lang.mP2eiThrustBlank);
+        UIBuilder.addVoidWebLabel(this, lang.mP2eiThrustBlank);
 
         bEngineInfoRPM = UIBuilder.addSwitch(this, lang.mP2eiRPM, false);
-        createvoidWebLabel(this, lang.mP2eiRPMBlank);
+        UIBuilder.addVoidWebLabel(this, lang.mP2eiRPMBlank);
 
         bEngineInfoPropPitch = UIBuilder.addSwitch(this, lang.mP2eiPropPitch, false);
-        createvoidWebLabel(this, lang.mP2eiPropPitchBlank);
+        UIBuilder.addVoidWebLabel(this, lang.mP2eiPropPitchBlank);
 
         bEngineInfoEffEta = UIBuilder.addSwitch(this, lang.mP2eiEffEta, false);
-        createvoidWebLabel(this, lang.mP2eiEffEtaBlank);
+        UIBuilder.addVoidWebLabel(this, lang.mP2eiEffEtaBlank);
 
         bEngineInfoEffHp = UIBuilder.addSwitch(this, lang.mP2eiEffHp, false);
-        createvoidWebLabel(this, lang.mP2eiEffHpBlank);
+        UIBuilder.addVoidWebLabel(this, lang.mP2eiEffHpBlank);
 
         bEngineInfoPressure = UIBuilder.addSwitch(this, lang.mP2eiPressure, false);
-        createvoidWebLabel(this, lang.mP2eiPressureBlank);
+        UIBuilder.addVoidWebLabel(this, lang.mP2eiPressureBlank);
 
         bEngineInfoPowerPercent = UIBuilder.addSwitch(this, lang.mP2eiPowerPercent, false);
-        createvoidWebLabel(this, lang.mP2eiPowerPercentBlank);
+        UIBuilder.addVoidWebLabel(this, lang.mP2eiPowerPercentBlank);
 
         bEngineInfoFuelKg = UIBuilder.addSwitch(this, lang.mP2eiFuelKg, false);
-        createvoidWebLabel(this, lang.mP2eiFuelKgBlank);
+        UIBuilder.addVoidWebLabel(this, lang.mP2eiFuelKgBlank);
 
         bEngineInfoFuelTime = UIBuilder.addSwitch(this, lang.mP2eiFuelTime, false);
-        createvoidWebLabel(this, lang.mP2eiFuelTimeBlank);
+        UIBuilder.addVoidWebLabel(this, lang.mP2eiFuelTimeBlank);
 
         bEngineInfoWepKg = UIBuilder.addSwitch(this, lang.mP2eiWepKg, false);
-        createvoidWebLabel(this, lang.mP2eiWepKgBlank);
+        UIBuilder.addVoidWebLabel(this, lang.mP2eiWepKgBlank);
 
         bEngineInfoWepTime = UIBuilder.addSwitch(this, lang.mP2eiWepTime, false);
-        createvoidWebLabel(this, lang.mP2eiWepTimeBlank);
+        UIBuilder.addVoidWebLabel(this, lang.mP2eiWepTimeBlank);
 
         bEngineInfoTemp = UIBuilder.addSwitch(this, lang.mP2eiTemp, false);
-        createvoidWebLabel(this, lang.mP2eiTempBlank);
+        UIBuilder.addVoidWebLabel(this, lang.mP2eiTempBlank);
 
         bEngineInfoOilTemp = UIBuilder.addSwitch(this, lang.mP2eiOilTemp, false);
-        createvoidWebLabel(this, lang.mP2eiOilTempBlank);
+        UIBuilder.addVoidWebLabel(this, lang.mP2eiOilTempBlank);
 
         bEngineInfoHeatTolerance = UIBuilder.addSwitch(this, lang.mP2eiHeatTolerance, false);
-        createvoidWebLabel(this, lang.mP2eiHeatToleranceBlank);
+        UIBuilder.addVoidWebLabel(this, lang.mP2eiHeatToleranceBlank);
 
         bEngineInfoEngResponse = UIBuilder.addSwitch(this, lang.mP2eiEngResponse, false);
-        createvoidWebLabel(this, lang.mP2eiEngResponseBlank);
+        UIBuilder.addVoidWebLabel(this, lang.mP2eiEngResponseBlank);
 
         fEngineInfoFont = UIBuilder.addFontComboBox(this, lang.mP2PanelFont, app.fonts);
         iEngineInfoFontSizeIncr = UIBuilder.addSlider(this, lang.mP2FontAdjust, -6, 20, 0, 200, 1, 4);
         iengineInfoColumnNum = UIBuilder.addSlider(this, lang.mP4ColumnAdjust, 1, 16, 2, 200, 1, 2);
 
-        createvoidWebLabel(this, lang.mP2EngineBlank);
+        UIBuilder.addVoidWebLabel(this, lang.mP2EngineBlank);
 
         setupListeners();
-    }
-
-    private void createvoidWebLabel(WebPanel panel, String text) {
-        WebLabel lb = new WebLabel(text);
-        lb.setHorizontalAlignment(SwingConstants.CENTER);
-        lb.setForeground(new Color(0, 0, 0, 230));
-        lb.setShadeColor(Color.WHITE);
-        lb.setFont(app.defaultFont);
-        panel.add(lb);
     }
 
     public void setOnChange(Runnable callback) {

@@ -3,14 +3,10 @@ package ui.panels;
 import java.awt.Color;
 import java.awt.FlowLayout;
 
-import javax.swing.SwingConstants;
-
 import com.alee.extended.button.WebSwitch;
-import com.alee.laf.label.WebLabel;
 import com.alee.laf.panel.WebPanel;
 
 import prog.ConfigurationService;
-import prog.app;
 import prog.lang;
 import ui.layout.UIBuilder;
 
@@ -42,46 +38,37 @@ public class EngineControlPanel extends WebPanel {
         this.setLayout(new FlowLayout(FlowLayout.LEFT));
 
         bEnableAxis = UIBuilder.addSwitch(this, lang.mP6AxisPanel, false);
-        createvoidWebLabel(this, lang.mP6AxisPanelBlank);
+        UIBuilder.addVoidWebLabel(this, lang.mP6ecLFuelBlank);
 
         bEnableAxisEdge = UIBuilder.addSwitch(this, lang.mP6AxisEdge, false);
-        createvoidWebLabel(this, lang.mP6AxisEdgeBlank);
+        UIBuilder.addVoidWebLabel(this, lang.mP6AxisEdgeBlank);
 
         bEnablegearAndFlaps = UIBuilder.addSwitch(this, lang.mP6GearAndFlaps, false);
         bEnablegearAndFlapsEdge = UIBuilder.addSwitch(this, lang.mP6GearAndFlapsEdge, false);
-        createvoidWebLabel(this, lang.mP6GearAndFlapsEdgeBlank);
+        UIBuilder.addVoidWebLabel(this, lang.mP6GearAndFlapsEdgeBlank);
 
         benableEngineControl = UIBuilder.addSwitch(this, lang.mP6engineControl, false);
-        createvoidWebLabel(this, lang.mP6engineControlBlank);
+        UIBuilder.addVoidWebLabel(this, lang.mP6engineControlBlank);
 
         bEngineControlThrottle = UIBuilder.addSwitch(this, lang.mP6ecThrottle, false);
-        createvoidWebLabel(this, lang.mP6ecThrottleBlank);
+        UIBuilder.addVoidWebLabel(this, lang.mP6ecThrottleBlank);
 
         bEngineControlPitch = UIBuilder.addSwitch(this, lang.mP6ecPitch, false);
-        createvoidWebLabel(this, lang.mP6ecPitchBlank);
+        UIBuilder.addVoidWebLabel(this, lang.mP6ecPitchBlank);
 
         bEngineControlMixture = UIBuilder.addSwitch(this, lang.mP6ecMixture, false);
-        createvoidWebLabel(this, lang.mP6ecMixtureBlank);
+        UIBuilder.addVoidWebLabel(this, lang.mP6ecMixtureBlank);
 
         bEngineControlRadiator = UIBuilder.addSwitch(this, lang.mP6ecRadiator, false);
-        createvoidWebLabel(this, lang.mP6ecRadiatorBlank);
+        UIBuilder.addVoidWebLabel(this, lang.mP6ecRadiatorBlank);
 
         bEngineControlCompressor = UIBuilder.addSwitch(this, lang.mP6ecCompressor, false);
-        createvoidWebLabel(this, lang.mP6ecCompressorBlank);
+        UIBuilder.addVoidWebLabel(this, lang.mP6ecCompressorBlank);
 
         bEngineControlLFuel = UIBuilder.addSwitch(this, lang.mP6ecLFuel, false);
-        createvoidWebLabel(this, lang.mP6ecLFuelBlank);
+        UIBuilder.addVoidWebLabel(this, lang.mP6ecLFuelBlank);
 
         setupListeners();
-    }
-
-    private void createvoidWebLabel(WebPanel panel, String text) {
-        WebLabel lb = new WebLabel(text);
-        lb.setHorizontalAlignment(SwingConstants.CENTER);
-        lb.setForeground(new Color(0, 0, 0, 230));
-        lb.setShadeColor(Color.WHITE);
-        lb.setFont(app.defaultFont);
-        panel.add(lb);
     }
 
     public void setOnChange(Runnable callback) {

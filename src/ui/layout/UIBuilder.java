@@ -12,6 +12,93 @@ public class UIBuilder {
 
     private static UIStyle activeStyle = new ClassicStyle();
 
+    public static WebSwitch addLCGroup(Container parent, String text) {
+        WebLabel lb = new WebLabel(text);
+        activeStyle.decorateLabel(lb);
+
+        WebSwitch ws = new WebSwitch();
+        activeStyle.decorateSwitch(ws);
+
+        parent.add(lb);
+        parent.add(ws);
+        return ws;
+    }
+
+    public static WebLabel addVoidWebLabel(Container parent, String text) {
+        WebLabel lb = new WebLabel(text);
+        lb.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+        lb.setForeground(new java.awt.Color(0, 0, 0, 230));
+        lb.setShadeColor(java.awt.Color.WHITE);
+        lb.setFont(prog.app.defaultFont);
+        parent.add(lb);
+        return lb;
+    }
+
+    public static void decorateStandardPanel(WebPanel JP) {
+        JP.setWebColoredBackground(false);
+        JP.setBackground(new java.awt.Color(0, 0, 0, 0));
+        JP.setOpaque(false);
+        JP.setUndecorated(false);
+        JP.setShadeWidth(2);
+        JP.setRound(com.alee.global.StyleConstants.largeRound);
+        JP.setBorderColor(new java.awt.Color(0, 0, 0, 100));
+        JP.setPaintBottom(false);
+        JP.setPaintTop(false);
+        JP.setPaintRight(false);
+    }
+
+    public static void decorateInsidePanel(WebPanel JP) {
+        JP.setWebColoredBackground(false);
+        JP.setBackground(new java.awt.Color(0, 0, 0, 0));
+        JP.setOpaque(false);
+        JP.setShadeTransparency(0.1f);
+        JP.setShadeWidth(2);
+        JP.setRound(com.alee.global.StyleConstants.largeRound);
+        JP.setBorderColor(new java.awt.Color(0, 0, 0, 100));
+    }
+
+    public static com.alee.laf.combobox.WebComboBox addCrosshairList(Container parent, String text,
+            boolean isInitializing, Runnable onSave) {
+        WebLabel lb = new WebLabel(text);
+        activeStyle.decorateLabel(lb);
+
+        java.io.File file = new java.io.File("image/gunsight");
+        String[] filelist = file.list();
+        if (filelist == null)
+            filelist = new String[0];
+        filelist = getFilelistNameNoEx(filelist);
+
+        com.alee.laf.combobox.WebComboBox comboBox = new com.alee.laf.combobox.WebComboBox(filelist);
+        comboBox.setWebColoredBackground(false);
+        comboBox.setShadeWidth(1);
+        comboBox.setDrawFocus(false);
+        comboBox.setFont(prog.app.defaultFont);
+        comboBox.setExpandedBgColor(new java.awt.Color(0, 0, 0, 0));
+        comboBox.addActionListener(e -> {
+            if (isInitializing)
+                return;
+            if (onSave != null)
+                onSave.run();
+        });
+
+        parent.add(lb);
+        parent.add(comboBox);
+        return comboBox;
+    }
+
+    private static String[] getFilelistNameNoEx(String[] filelist) {
+        if (filelist == null)
+            return new String[0];
+        String[] res = new String[filelist.length];
+        for (int i = 0; i < filelist.length; i++) {
+            int dot = filelist[i].lastIndexOf('.');
+            if ((dot > -1) && (dot < (filelist[i].length()))) {
+                res[i] = filelist[i].substring(0, dot);
+            }
+        }
+        return res;
+    }
+
     public static void setStyle(UIStyle style) {
         activeStyle = style;
     }

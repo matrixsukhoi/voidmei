@@ -5,36 +5,29 @@ import static javax.swing.JSplitPane.VERTICAL_SPLIT;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Container;
-import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.Image;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.io.File;
 
 import javax.swing.ImageIcon;
-import javax.swing.SwingConstants;
-
-import com.alee.extended.button.WebSwitch;
 import com.alee.extended.panel.WebButtonGroup;
-import com.alee.global.StyleConstants;
 import com.alee.laf.button.WebButton;
-import com.alee.laf.combobox.WebComboBox;
+import com.alee.laf.panel.WebPanel;
+import com.alee.laf.rootpane.WebFrame;
+import com.alee.laf.splitpane.WebSplitPane;
+import com.alee.laf.tabbedpane.TabbedPaneStyle;
+import com.alee.laf.tabbedpane.WebTabbedPane;
+import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent;
+
 import ui.layout.UIBuilder;
 import ui.panels.AdvancedPanel;
 import ui.panels.FlightInfoPanel;
 import ui.panels.EngineInfoPanel;
 import ui.panels.EngineControlPanel;
 import ui.panels.LoggingPanel;
-import com.alee.laf.label.WebLabel;
-import com.alee.laf.panel.WebPanel;
-import com.alee.laf.rootpane.WebFrame;
-import com.alee.laf.slider.WebSlider;
-import com.alee.laf.splitpane.WebSplitPane;
-import com.alee.laf.tabbedpane.TabbedPaneStyle;
-import com.alee.laf.tabbedpane.WebTabbedPane;
-import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent;
+import ui.panels.MiniHUDPanel;
 
 import prog.app;
 import prog.controller;
@@ -55,13 +48,6 @@ public class mainform extends WebFrame implements Runnable {
 	private boolean ignoreNextWatch = false; // To avoid reloading after we save ourselves
 	int gcCount = 0;
 	Container root;
-	WebPanel jp1;
-	WebPanel jp2;
-	WebPanel jp3;
-	WebPanel jp4;
-	WebPanel jp5;
-	WebPanel jp6;
-	WebSplitPane splitPane;
 	WebTabbedPane tabbedPane;
 
 	AdvancedPanel advancedPanel;
@@ -69,13 +55,7 @@ public class mainform extends WebFrame implements Runnable {
 	EngineInfoPanel engineInfoPanel;
 	EngineControlPanel engineControlPanel;
 	LoggingPanel loggingPanel;
-
-	WebSwitch bCrosshairSwitch;
-	WebSlider iCrosshairScale;
-	WebSwitch bTextureCrosshairSwitch;
-	WebComboBox sCrosshairName;
-	WebSwitch bDrawHudTextSwitch;
-	WebSwitch bFlapBarSwitch; // 襟翼条显示开关
+	MiniHUDPanel miniHUDPanel;
 
 	WebButton bDisplayFmKey;
 
@@ -110,38 +90,6 @@ public class mainform extends WebFrame implements Runnable {
 		this.getWebRootPaneUI().setTopBg(new Color(255, 255, 255));
 		this.getWebRootPaneUI().setBorderColor(new Color(255, 255, 255, 255));// 内描边透明
 		this.getWebRootPaneUI().setInnerBorderColor(new Color(255, 255, 255, 255));// 外描边透明
-	}
-
-	public void initJP(WebPanel JP) {
-		JP.setWebColoredBackground(false);
-		JP.setBackground(new Color(0, 0, 0, 0));
-		JP.setOpaque(false);
-		JP.setUndecorated(false);
-		// JP.setMargin ( 20 );
-		// JP.setShadeTransparency((double) 0.1);
-
-		JP.setShadeWidth(2);
-		JP.setRound(StyleConstants.largeRound);
-		JP.setBorderColor(new Color(0, 0, 0, 100));
-
-		JP.setPaintBottom(false);
-		JP.setPaintTop(false);
-		// JP.setPaintLeft(false);
-		JP.setPaintRight(false);
-		// JP.setBorderColor(new Color(0,0, 0, 255));
-	}
-
-	public void initJPinside(WebPanel JP) {
-		JP.setWebColoredBackground(false);
-		JP.setBackground(new Color(0, 0, 0, 0));
-		JP.setOpaque(false);
-		// JP.setUndecorated ( false);
-		// JP.setMargin ( 20 );
-		JP.setShadeTransparency((float) 0.1);
-		JP.setShadeWidth(2);
-		JP.setRound(StyleConstants.largeRound);
-		JP.setBorderColor(new Color(0, 0, 0, 100));
-
 	}
 
 	// JP1布局
@@ -197,67 +145,7 @@ public class mainform extends WebFrame implements Runnable {
 		return G;
 	}
 
-	public WebComboBox createCrosshairList(WebPanel topPanel, String text) {
-
-		WebLabel lb = createWebLabel(text);
-		File file = new File("image/gunsight");
-		String[] filelist = file.list();
-		// app.debugPrint(file.list());
-		filelist = getFilelistNameNoEx(filelist);
-		// app.debugPrint(filelist[0]);
-		WebComboBox comboBox = new WebComboBox(filelist);
-		comboBox.setWebColoredBackground(false);
-		// comboBox.getWebUI().setDrawBorder(false);
-		comboBox.setShadeWidth(1);
-		comboBox.setDrawFocus(false);
-		// comboBox.getWebUI().setWebColoredBackground(false);
-		// comboBox.getComponent(0).setBackground(new Color(0, 0, 0, 0));
-		comboBox.setFont(app.defaultFont);
-
-		// comboBox.getComponentPopupMenu().setBackground(new Color(0, 0, 0,
-		// 0));
-		// comboBox.getWebUI().setDrawBorder(false);
-		comboBox.setExpandedBgColor(new Color(0, 0, 0, 0));
-		// comboBox.getWebUI().setExpandedBgColor(new Color(0, 0, 0, 0));
-		comboBox.addActionListener(e -> {
-			if (isInitializing)
-				return;
-			saveconfig();
-			tc.refreshPreviews();
-		});
-
-		topPanel.add(lb);
-		topPanel.add(comboBox);
-		return comboBox;
-	}
-
-	public WebComboBox createFontList(WebPanel topPanel, String text) {
-		WebComboBox comboBox = UIBuilder.addFontComboBox(topPanel, text, app.fonts);
-		comboBox.addActionListener(e -> {
-			if (isInitializing)
-				return;
-			saveconfig();
-			tc.refreshPreviews();
-		});
-		return comboBox;
-	}
-
-	public WebLabel createWebLabel(String text) {
-		WebLabel lb = new WebLabel();
-		lb = new WebLabel(text);
-		lb.setHorizontalAlignment(SwingConstants.CENTER);
-
-		// lb.setDrawShade(true);
-
-		lb.setForeground(new Color(0, 0, 0, 230));
-		lb.setShadeColor(Color.WHITE);
-		lb.setFont(app.defaultFont);
-		return lb;
-	}
-
 	public WebButton displayPreview;
-	private WebSwitch bcrosshairdisplaySwitch;
-	private WebComboBox sMonoFont;
 
 	public WebButtonGroup createLBGroup(WebPanel topPanel) {
 		displayPreview = createButton(lang.mDisplayPreview);
@@ -287,41 +175,12 @@ public class mainform extends WebFrame implements Runnable {
 		return G;
 	}
 
-	public WebSlider createLSGroup(WebPanel topPanel, String text, int min, int max, int size, int tick1, int tick2) {
-		WebSlider ws = UIBuilder.addSlider(topPanel, text, min, max, min, size, tick1, tick2);
-		ws.addChangeListener(e -> {
-			if (isInitializing)
-				return;
-			if (!ws.getValueIsAdjusting()) {
-				saveconfig();
-				tc.refreshPreviews();
-			}
-		});
-		return ws;
-	}
-
-	public WebSwitch createLCGroup(WebPanel topPanel, String text) {
-		WebSwitch ws = UIBuilder.addSwitch(topPanel, text, false);
-		ws.addActionListener(e -> {
-			if (isInitializing)
-				return;
-			saveconfig();
-			tc.refreshPreviews();
-		});
-		return ws;
-	}
-
-	public void createvoidWebLabel(WebPanel topPanel, String text) {
-		WebLabel A = createWebLabel(text);
-		topPanel.add(A);
-	}
-
-	public void initJP1() {
-		initJP(jp1);
+	public void initJP1(WebPanel jp1) {
+		UIBuilder.decorateStandardPanel(jp1);
 		WebPanel topPanel = new WebPanel();
 		WebPanel bottomPanel = new WebPanel();
-		initJPinside(topPanel);
-		initJPinside(bottomPanel);
+		UIBuilder.decorateInsidePanel(topPanel);
+		UIBuilder.decorateInsidePanel(bottomPanel);
 		topPanel.setLayout(new BorderLayout());
 		bottomPanel.setLayout(new BorderLayout());
 		WebSplitPane splitPane = new WebSplitPane(VERTICAL_SPLIT, topPanel, bottomPanel);
@@ -360,14 +219,14 @@ public class mainform extends WebFrame implements Runnable {
 	}
 
 	// JP2布局
-	public void initJP2() {
+	public void initJP2(WebPanel jp2) {
 
-		initJP(jp2);
+		UIBuilder.decorateStandardPanel(jp2);
 
 		WebPanel topPanel = new WebPanel();
 		WebPanel bottomPanel = new WebPanel();
-		initJPinside(topPanel);
-		initJPinside(bottomPanel);
+		UIBuilder.decorateInsidePanel(topPanel);
+		UIBuilder.decorateInsidePanel(bottomPanel);
 		WebSplitPane splitPane = new WebSplitPane(VERTICAL_SPLIT, topPanel, bottomPanel);
 		splitPane.setOneTouchExpandable(true);
 		splitPane.setDividerLocation(320);
@@ -398,13 +257,13 @@ public class mainform extends WebFrame implements Runnable {
 	}
 
 	// JP3布局
-	public void initJP3() {
-		initJP(jp3);
+	public void initJP3(WebPanel jp3) {
+		UIBuilder.decorateStandardPanel(jp3);
 
 		WebPanel topPanel = new WebPanel();
 		WebPanel bottomPanel = new WebPanel();
-		initJPinside(topPanel);
-		initJPinside(bottomPanel);
+		UIBuilder.decorateInsidePanel(topPanel);
+		UIBuilder.decorateInsidePanel(bottomPanel);
 		WebSplitPane splitPane = new WebSplitPane(VERTICAL_SPLIT, topPanel, bottomPanel);
 		splitPane.setOneTouchExpandable(true);
 		splitPane.setDividerLocation(320);
@@ -414,34 +273,18 @@ public class mainform extends WebFrame implements Runnable {
 		splitPane.setOneTouchExpandable(false);
 		splitPane.setEnabled(false);
 
-		bCrosshairSwitch = createLCGroup(topPanel, lang.mP3Crosshair);
-		createvoidWebLabel(topPanel, lang.mP3CrosshairBlank);
-		bcrosshairdisplaySwitch = createLCGroup(topPanel, lang.mP3CrosshairDisplay);
-		createvoidWebLabel(topPanel, lang.mP3CrosshairDisplayBlank);
-		createvoidWebLabel(topPanel, lang.mP3CrosshairBlank);
-		bDrawHudTextSwitch = createLCGroup(topPanel, lang.mP3Text);
-		createvoidWebLabel(topPanel, lang.mP3TextBlank);
-		bFlapBarSwitch = createLCGroup(topPanel, lang.mP3FlapAngleBar);
-		createvoidWebLabel(topPanel, lang.mP3FlapAngleBarBlank);
-		bTextureCrosshairSwitch = createLCGroup(topPanel, lang.mP3CrosshairTexture);
-		createvoidWebLabel(topPanel, lang.mP3CrosshairTextureBlank);
-		sCrosshairName = createCrosshairList(topPanel, lang.mP3ChooseTexture);
-		createvoidWebLabel(topPanel, lang.mP3ChooseTextureBlank);
-		iCrosshairScale = createLSGroup(topPanel, lang.mP3CrosshairSize, 0, 200, 500, 5, 20);
-
-		sMonoFont = createFontList(topPanel, lang.mP3MonoFont);
-		createvoidWebLabel(topPanel, lang.mP3MonoFontBlank);
-
-		// createLCGroup(topPanel, "面板透明度 ");
-		// createLBGroup(topPanel);
-		// sengineInfoFont = createFontList(topPanel);
-
-		FlowLayout layout = new FlowLayout();
-		layout.setAlignment(FlowLayout.LEFT);
-		topPanel.setLayout(layout);
+		topPanel.setLayout(new BorderLayout());
+		miniHUDPanel = new MiniHUDPanel(this);
+		miniHUDPanel.setOnChange(() -> {
+			saveconfig();
+			if (!isInitializing) {
+				tc.refreshPreviews();
+			}
+		});
+		miniHUDPanel.setOnSave(() -> saveconfig());
+		topPanel.add(miniHUDPanel, BorderLayout.CENTER);
 
 		// bottomPanel
-
 		WebButtonGroup G = createbuttonGroup();
 		bottomPanel.add(G, BorderLayout.LINE_END);
 		WebButtonGroup G1 = createLBGroup(bottomPanel);
@@ -449,13 +292,13 @@ public class mainform extends WebFrame implements Runnable {
 		jp3.add(splitPane);
 	}
 
-	public void initJP4() {
-		initJP(jp4);
+	public void initJP4(WebPanel jp4) {
+		UIBuilder.decorateStandardPanel(jp4);
 
 		WebPanel topPanel = new WebPanel();
 		WebPanel bottomPanel = new WebPanel();
-		initJPinside(topPanel);
-		initJPinside(bottomPanel);
+		UIBuilder.decorateInsidePanel(topPanel);
+		UIBuilder.decorateInsidePanel(bottomPanel);
 		topPanel.setLayout(new BorderLayout());
 		bottomPanel.setLayout(new BorderLayout());
 
@@ -496,12 +339,12 @@ public class mainform extends WebFrame implements Runnable {
 		jp4.add(splitPane);
 	}
 
-	public void initJP5() {
-		initJP(jp5);
+	public void initJP5(WebPanel jp5) {
+		UIBuilder.decorateStandardPanel(jp5);
 		WebPanel topPanel = new WebPanel();
 		WebPanel bottomPanel = new WebPanel();
-		initJPinside(topPanel);
-		initJPinside(bottomPanel);
+		UIBuilder.decorateInsidePanel(topPanel);
+		UIBuilder.decorateInsidePanel(bottomPanel);
 		WebSplitPane splitPane = new WebSplitPane(VERTICAL_SPLIT, topPanel, bottomPanel);
 		splitPane.setOneTouchExpandable(true);
 		splitPane.setDividerLocation(320);
@@ -539,12 +382,12 @@ public class mainform extends WebFrame implements Runnable {
 
 	}
 
-	public void initJP6() {
-		initJP(jp6);
+	public void initJP6(WebPanel jp6) {
+		UIBuilder.decorateStandardPanel(jp6);
 		WebPanel topPanel = new WebPanel();
 		WebPanel bottomPanel = new WebPanel();
-		initJPinside(topPanel);
-		initJPinside(bottomPanel);
+		UIBuilder.decorateInsidePanel(topPanel);
+		UIBuilder.decorateInsidePanel(bottomPanel);
 		WebSplitPane splitPane = new WebSplitPane(VERTICAL_SPLIT, topPanel, bottomPanel);
 		splitPane.setOneTouchExpandable(true);
 		splitPane.setDividerLocation(320);
@@ -576,22 +419,21 @@ public class mainform extends WebFrame implements Runnable {
 
 	public void initPanel() {
 		tabbedPane = new WebTabbedPane();
-		// tabbedPane3.setPreferredSize ( new Dimension ( 150, 120 ) );
 		tabbedPane.setTabPlacement(WebTabbedPane.LEFT);
 		// tabbedPane.setTabLayoutPolicy(JTabbedPane.SCROLL_TAB_LAYOUT);
 
-		jp1 = new WebPanel();
-		jp2 = new WebPanel();
-		jp3 = new WebPanel();
-		jp4 = new WebPanel();
-		jp5 = new WebPanel();
-		jp6 = new WebPanel();
-		initJP1();
-		initJP2();
-		initJP3();
-		initJP4();
-		initJP5();
-		initJP6();
+		WebPanel jp1 = new WebPanel();
+		WebPanel jp2 = new WebPanel();
+		WebPanel jp3 = new WebPanel();
+		WebPanel jp4 = new WebPanel();
+		WebPanel jp5 = new WebPanel();
+		WebPanel jp6 = new WebPanel();
+		initJP1(jp1);
+		initJP2(jp2);
+		initJP3(jp3);
+		initJP4(jp4);
+		initJP5(jp5);
+		initJP6(jp6);
 
 		tabbedPane.addTab(lang.mFlightInfo, jp4);
 		tabbedPane.addTab(lang.mEngineInfo, jp2);
@@ -709,20 +551,11 @@ public class mainform extends WebFrame implements Runnable {
 		// Engine Info
 		engineInfoPanel.loadConfig(tc.configService);
 
-		bCrosshairSwitch.setSelected(Boolean.parseBoolean(tc.getconfig("crosshairSwitch")));
-		iCrosshairScale.setValue(Integer.parseInt(tc.getconfig("crosshairScale")));
-		bTextureCrosshairSwitch.setSelected(Boolean.parseBoolean(tc.getconfig("usetexturecrosshair")));
-		sCrosshairName.setSelectedItem(tc.getconfig("crosshairName"));
-		bDrawHudTextSwitch.setSelected(Boolean.parseBoolean(tc.getconfig("drawHUDtext")));
-		bFlapBarSwitch.setSelected(Boolean.parseBoolean(tc.getconfig("enableFlapAngleBar")));
-		bcrosshairdisplaySwitch.setSelected(Boolean.parseBoolean(tc.getconfig("displayCrosshair")));
-		sMonoFont.setSelectedItem(tc.getconfig("MonoNumFont"));
+		miniHUDPanel.loadConfig(tc.configService);
 
 		advancedPanel.loadConfig(tc.configService);
 
 		loggingPanel.loadConfig(tc.configService);
-
-		bCrosshairSwitch.setSelected(Boolean.parseBoolean(tc.getconfig("crosshairSwitch")));
 	}
 
 	public void config_init() {
@@ -738,10 +571,10 @@ public class mainform extends WebFrame implements Runnable {
 		tc.setconfig("crosshairSwitch", Boolean.toString(Boolean.FALSE));
 		tc.setconfig("crosshairScale", Integer.toString(10));
 		tc.setconfig("usetexturecrosshair", Boolean.toString(Boolean.FALSE));
-		tc.setconfig("crosshairName", sCrosshairName.getSelectedItem().toString());
+		tc.setconfig("crosshairName", miniHUDPanel.sCrosshairName.getSelectedItem().toString());
 		tc.setconfig("drawHUDtext", Boolean.toString(Boolean.FALSE));
 		tc.setconfig("enableFlapAngleBar", Boolean.toString(Boolean.TRUE));
-		tc.setconfig("displayCrossharir", Boolean.toString(Boolean.FALSE));
+		tc.setconfig("displayCrosshair", Boolean.toString(Boolean.FALSE));
 
 		if (app.debug)
 			tc.setconfig("usetempInfoSwitch", Boolean.toString(Boolean.FALSE));
@@ -767,15 +600,7 @@ public class mainform extends WebFrame implements Runnable {
 		engineInfoPanel.saveConfig(tc.configService);
 		engineControlPanel.saveConfig(tc.configService);
 		loggingPanel.saveConfig(tc.configService);
-
-		tc.setconfig("crosshairSwitch", Boolean.toString(bCrosshairSwitch.isSelected()));
-		tc.setconfig("crosshairScale", Integer.toString(iCrosshairScale.getValue()));
-		tc.setconfig("usetexturecrosshair", Boolean.toString(bTextureCrosshairSwitch.isSelected()));
-		tc.setconfig("crosshairName", sCrosshairName.getSelectedItem().toString());
-		tc.setconfig("drawHUDtext", Boolean.toString(bDrawHudTextSwitch.isSelected()));
-		tc.setconfig("enableFlapAngleBar", Boolean.toString(bFlapBarSwitch.isSelected()));
-		tc.setconfig("displayCrosshair", Boolean.toString(bcrosshairdisplaySwitch.isSelected()));
-		tc.setconfig("MonoNumFont", sMonoFont.getSelectedItem().toString());
+		miniHUDPanel.saveConfig(tc.configService);
 
 		tc.setconfig("displayFmKey", Integer.toString(app.displayFmKey));
 

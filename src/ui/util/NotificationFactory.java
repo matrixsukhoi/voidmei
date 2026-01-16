@@ -13,7 +13,6 @@ import com.alee.managers.notification.NotificationIcon;
 import com.alee.managers.notification.WebNotification;
 
 import prog.app;
-import prog.lang;
 
 /**
  * Factory for creating WebNotification objects.

@@ -37,6 +37,7 @@ src/ui/panels/FlightInfoPanel.java
 src/ui/panels/EngineControlPanel.java
 src/ui/panels/EngineInfoPanel.java
 src/ui/panels/AdvancedPanel.java
+src/ui/panels/MiniHUDPanel.java
 src/ui/gearAndFlaps.java
 src/ui/infolist.java
 src/ui/stickValue.java

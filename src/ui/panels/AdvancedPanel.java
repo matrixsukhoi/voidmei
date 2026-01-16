@@ -3,12 +3,9 @@ package ui.panels;
 import java.awt.Color;
 import java.awt.FlowLayout;
 
-import javax.swing.SwingConstants;
-
 import com.alee.extended.button.WebSwitch;
 import com.alee.extended.image.WebImage;
 import com.alee.laf.combobox.WebComboBox;
-import com.alee.laf.label.WebLabel;
 import com.alee.laf.panel.WebPanel;
 import com.alee.laf.slider.WebSlider;
 import com.alee.laf.text.WebTextField;
@@ -50,43 +47,43 @@ public class AdvancedPanel extends WebPanel {
 
         if (app.debug) {
             bTempInfoSwitch = UIBuilder.addSwitch(this, lang.mP1statusBar, false);
-            createvoidWebLabel(this, lang.mP1statusBarBlank);
+            UIBuilder.addVoidWebLabel(this, lang.mP1statusBarBlank);
         }
 
         bstatusSwitch = UIBuilder.addSwitch(this, lang.mP1statusBar, false);
-        createvoidWebLabel(this, lang.mP1statusBarBlank);
+        UIBuilder.addVoidWebLabel(this, lang.mP1statusBarBlank);
 
         bdrawShadeSwitch = UIBuilder.addSwitch(this, lang.mP1drawFontShape, false);
-        createvoidWebLabel(this, lang.mP1drawFontShapeBlank);
+        UIBuilder.addVoidWebLabel(this, lang.mP1drawFontShapeBlank);
 
         bAAEnable = UIBuilder.addSwitch(this, lang.mP1AAEnable, false);
-        createvoidWebLabel(this, lang.mP1AAEnableBlank);
+        UIBuilder.addVoidWebLabel(this, lang.mP1AAEnableBlank);
 
         sGlobalNumFont = UIBuilder.addFontComboBox(this, lang.mP1GlobalNumberFont, app.fonts);
-        createvoidWebLabel(this, lang.mP1GlobalNumberFontBlank);
+        UIBuilder.addVoidWebLabel(this, lang.mP1GlobalNumberFontBlank);
 
         cNumColor = createColorGroup(this, lang.mP1NumColor);
-        createvoidWebLabel(this, lang.mP1NumColorBlank);
+        UIBuilder.addVoidWebLabel(this, lang.mP1NumColorBlank);
 
         cLabelColor = createColorGroup(this, lang.mP1LabelColor);
-        createvoidWebLabel(this, lang.mP1LabelColorBlank);
+        UIBuilder.addVoidWebLabel(this, lang.mP1LabelColorBlank);
 
         cUnitColor = createColorGroup(this, lang.mP1UnitColor);
-        createvoidWebLabel(this, lang.mP1UnitColorBlank);
+        UIBuilder.addVoidWebLabel(this, lang.mP1UnitColorBlank);
 
         cWarnColor = createColorGroup(this, lang.mP1WarnColor);
-        createvoidWebLabel(this, lang.mP1WarnColorBlank);
+        UIBuilder.addVoidWebLabel(this, lang.mP1WarnColorBlank);
 
         cShadeColor = createColorGroup(this, lang.mP1ShadeColor);
-        createvoidWebLabel(this, lang.mP1ShadeColorBlank);
+        UIBuilder.addVoidWebLabel(this, lang.mP1ShadeColorBlank);
 
         iInterval = UIBuilder.addSlider(this, lang.mP1Interval, 10, 300, 70, 500, 5, 40);
 
         bvoiceWarningSwitch = UIBuilder.addSwitch(this, lang.mP1VoiceWarning, false);
-        createvoidWebLabel(this, lang.mP1VoiceWarningBlank);
+        UIBuilder.addVoidWebLabel(this, lang.mP1VoiceWarningBlank);
 
         ivoiceVolume = UIBuilder.addSlider(this, lang.mP1voiceVolume, 0, 200, 100, 300, 10, 50);
-        createvoidWebLabel(this, lang.mP1voiceVolumeBlank);
+        UIBuilder.addVoidWebLabel(this, lang.mP1voiceVolumeBlank);
 
         setupListeners();
     }
@@ -98,15 +95,6 @@ public class AdvancedPanel extends WebPanel {
             fireChange();
         });
         return field;
-    }
-
-    private void createvoidWebLabel(WebPanel panel, String text) {
-        WebLabel lb = new WebLabel(text);
-        lb.setHorizontalAlignment(SwingConstants.CENTER);
-        lb.setForeground(new Color(0, 0, 0, 230));
-        lb.setShadeColor(Color.WHITE);
-        lb.setFont(app.defaultFont);
-        panel.add(lb);
     }
 
     private Color textToColor(String t) {
