@@ -11,18 +11,13 @@ import java.awt.Image;
 import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseMotionAdapter;
 import java.io.File;
 
 import javax.swing.ImageIcon;
 import javax.swing.SwingConstants;
 
 import com.alee.extended.button.WebSwitch;
-import com.alee.extended.layout.VerticalFlowLayout;
 import com.alee.extended.panel.WebButtonGroup;
-import com.alee.extended.window.WebPopOver;
 import com.alee.global.StyleConstants;
 import com.alee.laf.button.WebButton;
 import com.alee.laf.combobox.WebComboBox;
@@ -31,6 +26,7 @@ import ui.panels.AdvancedPanel;
 import ui.panels.FlightInfoPanel;
 import ui.panels.EngineInfoPanel;
 import ui.panels.EngineControlPanel;
+import ui.panels.LoggingPanel;
 import com.alee.laf.label.WebLabel;
 import com.alee.laf.panel.WebPanel;
 import com.alee.laf.rootpane.WebFrame;
@@ -38,12 +34,8 @@ import com.alee.laf.slider.WebSlider;
 import com.alee.laf.splitpane.WebSplitPane;
 import com.alee.laf.tabbedpane.TabbedPaneStyle;
 import com.alee.laf.tabbedpane.WebTabbedPane;
-import com.alee.laf.text.WebTextArea;
-import com.github.kwhat.jnativehook.GlobalScreen;
-import com.github.kwhat.jnativehook.keyboard.NativeKeyListener;
 import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent;
 
-import parser.blkx;
 import prog.app;
 import prog.controller;
 import prog.lang;
@@ -76,6 +68,7 @@ public class mainform extends WebFrame implements Runnable {
 	FlightInfoPanel flightInfoPanel;
 	EngineInfoPanel engineInfoPanel;
 	EngineControlPanel engineControlPanel;
+	LoggingPanel loggingPanel;
 
 	WebSwitch bCrosshairSwitch;
 	WebSlider iCrosshairScale;
@@ -84,8 +77,6 @@ public class mainform extends WebFrame implements Runnable {
 	WebSwitch bDrawHudTextSwitch;
 	WebSwitch bFlapBarSwitch; // 襟翼条显示开关
 
-	WebSwitch bEnableLogging;
-	WebSwitch bEnableInformation;
 	WebButton bDisplayFmKey;
 
 	public Boolean moveCheckFlag;
@@ -240,42 +231,6 @@ public class mainform extends WebFrame implements Runnable {
 		return comboBox;
 	}
 
-	public WebComboBox createFMList(WebPanel topPanel, String text) {
-
-		WebLabel lb = createWebLabel(text);
-		File file = new File("data/aces/gamedata/flightmodels/fm");
-		String[] filelist = file.list();
-		// app.debugPrint(file.list());
-		filelist = getFilelistNameNoEx(filelist);
-		// app.debugPrint(filelist[0]);
-		WebComboBox comboBox = new WebComboBox(filelist);
-		comboBox.setWebColoredBackground(false);
-		// comboBox.getWebUI().setDrawBorder(false);
-		comboBox.setShadeWidth(1);
-		comboBox.setDrawFocus(false);
-		// comboBox.getWebUI().setWebColoredBackground(false);
-		// comboBox.getComponent(0).setBackground(new Color(0, 0, 0, 0));
-		comboBox.setFont(app.defaultFont);
-
-		// comboBox.getComponentPopupMenu().setBackground(new Color(0, 0, 0,
-		// 0));
-		// comboBox.getWebUI().setDrawBorder(false);
-		comboBox.setExpandedBgColor(new Color(0, 0, 0, 0));
-		// comboBox.getWebUI().setExpandedBgColor(new Color(0, 0, 0, 0));
-		comboBox.setBackground(new Color(0, 0, 0, 0));
-
-		comboBox.addActionListener(e -> {
-			if (isInitializing)
-				return;
-			saveconfig();
-			tc.refreshPreviews();
-		});
-
-		topPanel.add(lb);
-		topPanel.add(comboBox);
-		return comboBox;
-	}
-
 	public WebComboBox createFontList(WebPanel topPanel, String text) {
 		WebComboBox comboBox = UIBuilder.addFontComboBox(topPanel, text, app.fonts);
 		comboBox.addActionListener(e -> {
@@ -301,114 +256,8 @@ public class mainform extends WebFrame implements Runnable {
 	}
 
 	public WebButton displayPreview;
-	public WebSwitch bFMPrintLogSwitch; // “记录分析”选项卡中的 FM 详细数据显示开关（两者同步）
 	private WebSwitch bcrosshairdisplaySwitch;
-	private int isDragging;
-	private int xx;
-	private int yy;
-	private WebComboBox bFMList0;
-	private WebComboBox bFMList1;
 	private WebComboBox sMonoFont;
-
-	private void displayFM(WebComboBox bFMList, int idx) {
-		String planeName = bFMList.getSelectedItem().toString();
-		String path = "data/aces/gamedata/flightmodels/fm/" + planeName + ".blkx";
-		// System.out.println(path);
-		blkx fmblk = new blkx(path, planeName);
-		// fmblk.getload();
-		// System.out.println(fmblk.fmdata);
-		WebPopOver popOver = new WebPopOver(this);
-		// popOver.setCloseOnFocusLoss ( true );
-		popOver.setMargin(5);
-		popOver.setLayout(new VerticalFlowLayout());
-		WebButton closeButton = new WebButton(lang.mCancel, new ActionListener() {
-			@Override
-			public void actionPerformed(final ActionEvent e) {
-				popOver.dispose();
-			}
-		});
-		closeButton.setUndecorated(true);
-		closeButton.setFont(app.defaultFont);
-		closeButton.setFontSize((int) (app.defaultFontsize * 1.5f));
-		closeButton.setFontStyle(Font.BOLD);
-		WebTextArea textArea = new WebTextArea(fmblk.fmdata);
-		popOver.add(textArea);
-		popOver.setFont(app.defaultFont);
-		textArea.setFont(app.defaultFont);
-		textArea.setFontSize((int) (app.defaultFontsize * 1.2f));
-		popOver.add(closeButton);
-		popOver.show(this);
-
-		/* 增加拖动功能 */
-		textArea.addMouseListener(new MouseAdapter() {
-			public void mouseEntered(MouseEvent e) {
-				/*
-				 * if(A.tag==0){ if(f.mode==1){ A.setVisible(false); A.visibletag=0; } }
-				 */
-			}
-
-			public void mousePressed(MouseEvent e) {
-				isDragging = 1;
-				xx = e.getX();
-				yy = e.getY();
-
-			}
-
-			public void mouseReleased(MouseEvent e) {
-				if (isDragging == 1) {
-					isDragging = 0;
-				}
-			}
-		});
-		textArea.addMouseMotionListener(new MouseMotionAdapter() {
-			public void mouseDragged(MouseEvent e) {
-				int left = popOver.getLocation().x;
-				int top = popOver.getLocation().y;
-				popOver.setLocation(left + e.getX() - xx, top + e.getY() - yy);
-			}
-		});
-
-		// 移动位置
-		popOver.setLocation(popOver.getLocation().x + idx * popOver.getSize().width, popOver.getLocation().y);
-
-		// drawFrameSimpl = new drawFrameSimpl();
-		// WebPopOver popOver1 = new WebPopOver(this);
-		//// popOver1.setMargin(5);
-		// popOver1.setLayout(new VerticalFlowLayout());
-		// WebPanel panel = new WebPanel() {
-		//
-		// private static final long serialVersionUID = -9061280572815010060L;
-		//
-		// public void paintComponent(Graphics g) {
-		//
-		// drawFrameSimpl.paintAction(g, fmblk);
-		// }
-		//
-		// };
-		//
-		// panel.setBounds(0, Toolkit.getDefaultToolkit().getScreenSize().height - 500,
-		// 900, 500);
-		// panel.setWebColoredBackground(false);
-		// panel.setBackground(new Color(0,0,0,0));
-		// panel.setLayout(null);
-		// WebButton closeButton1 = new WebButton(lang.mCancel, new ActionListener() {
-		// @Override
-		// public void actionPerformed(final ActionEvent e) {
-		// popOver1.dispose();
-		// }
-		// });
-		// closeButton1.setUndecorated(true);
-		// closeButton1.setFont(app.defaultFont);
-		// closeButton1.setFontSize((int) (app.defaultFontsize * 1.5f));
-		// closeButton1.setFontStyle(Font.BOLD);
-		//
-		//
-		// popOver1.add(panel);
-		// popOver1.setFont(app.defaultFont);
-		// popOver1.add(closeButton1);
-		// popOver1.show(this);
-		// popOver1.repaint();
-	}
 
 	public WebButtonGroup createLBGroup(WebPanel topPanel) {
 		displayPreview = createButton(lang.mDisplayPreview);
@@ -430,46 +279,6 @@ public class mainform extends WebFrame implements Runnable {
 		C.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				stopPreview();
-			}
-		});
-		G.setButtonsDrawSides(false, false, false, true);
-
-		topPanel.add(G);
-		return G;
-	}
-
-	public WebButtonGroup createLBGroupFM(WebPanel topPanel, WebComboBox fmSelectd0, WebComboBox fmSelectd1) {
-		displayPreview = createButton(lang.mDisplayPreview);
-		WebButton C = createButton(lang.mClosePreview);
-		/* 显示FM */
-		WebButton D = createButton(lang.mDisplayPreview);
-		WebButtonGroup G = new WebButtonGroup(true, displayPreview, C, D);
-		displayPreview.setPreferredWidth(120);
-
-		C.setPreferredWidth(120);
-		D.setPreferredWidth(120);
-		displayPreview.setFont(app.defaultFont);
-		C.setFont(app.defaultFont);
-		G.setButtonsShadeWidth(3);
-		D.setFont(app.defaultFont);
-
-		// WebLabel lb=createWebLabel("调整位置");
-		displayPreview.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				startPreview();
-			}
-		});
-		C.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				stopPreview();
-			}
-		});
-
-		D.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				// app.debugPrint("打开FM");
-				displayFM(fmSelectd0, 0);
-				displayFM(fmSelectd1, 1);
 			}
 		});
 		G.setButtonsDrawSides(false, false, false, true);
@@ -670,9 +479,9 @@ public class mainform extends WebFrame implements Runnable {
 		});
 		// 同步“飞行信息”页面的开关状态到“记录分析”页面
 		flightInfoPanel.bFMPrintSwitch.addActionListener(e -> {
-			if (bFMPrintLogSwitch != null
-					&& bFMPrintLogSwitch.isSelected() != flightInfoPanel.bFMPrintSwitch.isSelected())
-				bFMPrintLogSwitch.setSelected(flightInfoPanel.bFMPrintSwitch.isSelected());
+			if (loggingPanel != null && loggingPanel.bFMPrintLogSwitch != null
+					&& loggingPanel.bFMPrintLogSwitch.isSelected() != flightInfoPanel.bFMPrintSwitch.isSelected())
+				loggingPanel.bFMPrintLogSwitch.setSelected(flightInfoPanel.bFMPrintSwitch.isSelected());
 		});
 
 		topPanel.add(flightInfoPanel, BorderLayout.CENTER);
@@ -695,7 +504,6 @@ public class mainform extends WebFrame implements Runnable {
 		initJPinside(bottomPanel);
 		WebSplitPane splitPane = new WebSplitPane(VERTICAL_SPLIT, topPanel, bottomPanel);
 		splitPane.setOneTouchExpandable(true);
-		// splitPane.setPreferredSize ( new Dimension ( 250, 200 ) );
 		splitPane.setDividerLocation(320);
 		splitPane.setDividerSize(0);
 		splitPane.setContinuousLayout(false);
@@ -703,83 +511,25 @@ public class mainform extends WebFrame implements Runnable {
 		splitPane.setOneTouchExpandable(false);
 		splitPane.setEnabled(false);
 
-		// topPanel
-		bEnableLogging = createLCGroup(topPanel, lang.mP5LoggingAndCharting);
-		createvoidWebLabel(topPanel, lang.mP5LoggingAndChartingBlank);
-		bEnableInformation = createLCGroup(topPanel, lang.mP5Information);
-		createvoidWebLabel(topPanel, lang.mP5InformationBlank);
-		/* FM文件列表 */
-		bFMList0 = createFMList(topPanel, lang.mP5FMChoose + "0");
-		createvoidWebLabel(topPanel, lang.mP5FMChooseBlank);
-		bFMList0.addActionListener(new ActionListener() {
-			private int t = 0;
-
-			public void actionPerformed(ActionEvent e) {
-				if (t++ != 0)
-					displayFM(bFMList0, 0);
+		topPanel.setLayout(new BorderLayout());
+		loggingPanel = new LoggingPanel(this);
+		loggingPanel.setOnChange(() -> {
+			saveconfig();
+			if (!isInitializing) {
+				tc.refreshPreviews();
 			}
 		});
+		loggingPanel.setOnSave(() -> saveconfig());
+		topPanel.add(loggingPanel, BorderLayout.CENTER);
 
-		bFMList1 = createFMList(topPanel, lang.mP5FMChoose + "1");
-		createvoidWebLabel(topPanel, lang.mP5FMChooseBlank);
-		bFMList1.addActionListener(new ActionListener() {
-			private int t = 0;
-
-			public void actionPerformed(ActionEvent e) {
-				if (t++ != 0)
-					displayFM(bFMList1, 1);
-			}
-		});
-
-		bFMPrintLogSwitch = createLCGroup(topPanel, lang.mP5FMPrintEnable);
-		bFMPrintLogSwitch.addActionListener(e -> {
-			// 同步“飞行信息”页面的开关状态；检查 isSelected() 防止死循环触发递归
+		// Synchronization with FlightInfoPanel
+		loggingPanel.bFMPrintLogSwitch.addActionListener(e -> {
 			if (flightInfoPanel != null && flightInfoPanel.bFMPrintSwitch != null
-					&& flightInfoPanel.bFMPrintSwitch.isSelected() != bFMPrintLogSwitch.isSelected())
-				flightInfoPanel.bFMPrintSwitch.setSelected(bFMPrintLogSwitch.isSelected());
+					&& flightInfoPanel.bFMPrintSwitch.isSelected() != loggingPanel.bFMPrintLogSwitch.isSelected())
+				flightInfoPanel.bFMPrintSwitch.setSelected(loggingPanel.bFMPrintLogSwitch.isSelected());
 		});
-		createvoidWebLabel(topPanel, lang.mP5FMPrintEnableBlank);
-
-		WebLabel keyLb = createWebLabel(lang.mP5FMDisplayKey);
-		bDisplayFmKey = new WebButton(NativeKeyEvent.getKeyText(app.displayFmKey));
-		bDisplayFmKey.setFocusable(false);
-		bDisplayFmKey.addActionListener(e -> {
-			bDisplayFmKey.setText(lang.mP5FMDisplayKeyTip);
-			// 使用一个一次性的全局监听器来捕获下一个按键
-			GlobalScreen.addNativeKeyListener(new NativeKeyListener() {
-				@Override
-				public void nativeKeyPressed(NativeKeyEvent e) {
-					int code = e.getKeyCode();
-					// 过滤掉虚假的锁定键事件 (Num Lock 等在 Linux 下可能频繁触发)
-					if (code == NativeKeyEvent.VC_NUM_LOCK || code == NativeKeyEvent.VC_CAPS_LOCK
-							|| code == NativeKeyEvent.VC_SCROLL_LOCK) {
-						return;
-					}
-					app.displayFmKey = code;
-					bDisplayFmKey.setText(NativeKeyEvent.getKeyText(app.displayFmKey));
-					saveconfig();
-					GlobalScreen.removeNativeKeyListener(this);
-				}
-			});
-		});
-		topPanel.add(keyLb);
-		topPanel.add(bDisplayFmKey);
-
-		/*
-		 * GridBagLayout layout1 = new GridBagLayout(); GridBagConstraints s1 = new
-		 * GridBagConstraints(); s1.fill = GridBagConstraints.BOTH; s1.gridwidth = 1;
-		 * s1.weightx = 0; s1.weighty = 0; s1.gridx = 0; s1.gridy = 0;
-		 */
-		// createLCGroup(topPanel, "显示发动机面板 ");
-
-		// topPanel.setLayout(layout1);
-		topPanel.setLayout(new FlowLayout());
-		FlowLayout layout = new FlowLayout();
-		layout.setAlignment(FlowLayout.LEFT);
-		topPanel.setLayout(layout);
 
 		// bottomPanel
-		// WebButtonGroup G1 = createLBGroupFM(bottomPanel, bFMList0, bFMList1);
 		WebButtonGroup G1 = createLBGroup(bottomPanel);
 		bottomPanel.add(G1, BorderLayout.LINE_START);
 		WebButtonGroup G = createbuttonGroup();
@@ -970,10 +720,7 @@ public class mainform extends WebFrame implements Runnable {
 
 		advancedPanel.loadConfig(tc.configService);
 
-		bEnableLogging.setSelected(Boolean.parseBoolean(tc.getconfig("enableLogging")));
-		bEnableInformation.setSelected(Boolean.parseBoolean(tc.getconfig("enableAltInformation")));
-		bFMList0.setSelectedItem(tc.getconfig("selectedFM0"));
-		bFMList1.setSelectedItem(tc.getconfig("selectedFM1"));
+		loggingPanel.loadConfig(tc.configService);
 
 		bCrosshairSwitch.setSelected(Boolean.parseBoolean(tc.getconfig("crosshairSwitch")));
 	}
@@ -1019,6 +766,7 @@ public class mainform extends WebFrame implements Runnable {
 		advancedPanel.saveConfig(tc.configService);
 		engineInfoPanel.saveConfig(tc.configService);
 		engineControlPanel.saveConfig(tc.configService);
+		loggingPanel.saveConfig(tc.configService);
 
 		tc.setconfig("crosshairSwitch", Boolean.toString(bCrosshairSwitch.isSelected()));
 		tc.setconfig("crosshairScale", Integer.toString(iCrosshairScale.getValue()));
@@ -1114,7 +862,7 @@ public class mainform extends WebFrame implements Runnable {
 			String keyStr = tc.getconfig("displayFmKey");
 			if (keyStr != null && !keyStr.isEmpty() && !keyStr.equals("null")) {
 				app.displayFmKey = Integer.parseInt(keyStr);
-				bDisplayFmKey.setText(NativeKeyEvent.getKeyText(app.displayFmKey));
+				loggingPanel.bDisplayFmKey.setText(NativeKeyEvent.getKeyText(app.displayFmKey));
 			}
 		} catch (Exception e) {
 		}

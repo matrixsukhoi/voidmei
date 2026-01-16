@@ -32,6 +32,7 @@ src/prog/OverlayContext.java
 src/prog/flapsControl.java
 src/ui/statusBar.java
 src/ui/engineInfo.java
+src/ui/panels/LoggingPanel.java
 src/ui/panels/FlightInfoPanel.java
 src/ui/panels/EngineControlPanel.java
 src/ui/panels/EngineInfoPanel.java
