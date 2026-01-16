@@ -640,7 +640,7 @@ public class engineInfo extends WebFrame implements Runnable {
 
 		// 更新字符串
 
-		// updateString();
+		updateString();
 
 		root.repaint();
 	}

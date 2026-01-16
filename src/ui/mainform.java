@@ -28,6 +28,7 @@ import com.alee.laf.button.WebButton;
 import com.alee.laf.combobox.WebComboBox;
 import ui.layout.UIBuilder;
 import ui.panels.AdvancedPanel;
+import ui.panels.FlightInfoPanel;
 import com.alee.laf.label.WebLabel;
 import com.alee.laf.panel.WebPanel;
 import com.alee.laf.rootpane.WebFrame;
@@ -68,12 +69,9 @@ public class mainform extends WebFrame implements Runnable {
 	WebPanel jp6;
 	WebSplitPane splitPane;
 	WebTabbedPane tabbedPane;
-	// test
 
-	WebSwitch bFlightInfoSwitch;
-	WebSwitch bFlightInfoEdge;
-	WebComboBox sFlightInfoFont;
-	WebSlider iFlightInfoFontSizeIncr;
+	AdvancedPanel advancedPanel;
+	FlightInfoPanel flightInfoPanel;
 
 	WebSwitch bEngineInfoSwitch;
 	WebSwitch bEngineInfoEdge;
@@ -309,28 +307,9 @@ public class mainform extends WebFrame implements Runnable {
 	}
 
 	public WebButton displayPreview;
-	public WebSwitch battitudeIndicatorSwitch;
-	public WebSwitch bFMPrintSwitch; // “飞行信息”选项卡中的 FM 详细数据显示开关
 	public WebSwitch bFMPrintLogSwitch; // “记录分析”选项卡中的 FM 详细数据显示开关（两者同步）
 	private WebSwitch bcrosshairdisplaySwitch;
-	private WebSwitch bFlightInfoIAS;
-	private WebSwitch bFlightInfoTAS;
-	private WebSwitch bFlightInfoMach;
-	private WebSwitch bFlightInfoHeight;
-	private WebSwitch bFlightInfoCompass;
-	private WebSwitch bFlightInfoVario;
-	private WebSwitch bFlightInfoSEP;
-	private WebSwitch bFlightInfoAcc;
-	private WebSwitch bFlightInfoWx;
-	private WebSwitch bFlightInfoNy;
-	private WebSwitch bFlightInfoTurn;
-	private WebSwitch bFlightInfoTurnRadius;
-	private WebSwitch bFlightInfoAoA;
-	private WebSwitch bFlightInfoAoS;
-	private WebSwitch bFlightInfoWingSweep;
-	private WebSlider iflightInfoColumnNum;
 	private WebSlider iengineInfoColumnNum;
-	private WebSwitch bFlightInfoRadioAlt;
 	private WebSwitch benableEngineControl;
 	private WebSwitch bEngineControlRadiator;
 	private WebSwitch bEngineControlMixture;
@@ -360,7 +339,6 @@ public class mainform extends WebFrame implements Runnable {
 	private WebComboBox bFMList0;
 	private WebComboBox bFMList1;
 	private WebComboBox sMonoFont;
-	private AdvancedPanel advancedPanel;
 
 	private void displayFM(WebComboBox bFMList, int idx) {
 		String planeName = bFMList.getSelectedItem().toString();
@@ -583,6 +561,8 @@ public class mainform extends WebFrame implements Runnable {
 
 		advancedPanel = new AdvancedPanel();
 		advancedPanel.setOnChange(() -> {
+			if (isInitializing)
+				return;
 			saveconfig();
 			tc.refreshPreviews();
 		});
@@ -741,7 +721,12 @@ public class mainform extends WebFrame implements Runnable {
 		WebPanel bottomPanel = new WebPanel();
 		initJPinside(topPanel);
 		initJPinside(bottomPanel);
+		topPanel.setLayout(new BorderLayout());
+		bottomPanel.setLayout(new BorderLayout());
+
 		WebSplitPane splitPane = new WebSplitPane(VERTICAL_SPLIT, topPanel, bottomPanel);
+		splitPane.setOpaque(false);
+		splitPane.setBackground(new Color(0, 0, 0, 0));
 		splitPane.setOneTouchExpandable(true);
 		splitPane.setDividerLocation(320);
 		splitPane.setDividerSize(0);
@@ -750,78 +735,21 @@ public class mainform extends WebFrame implements Runnable {
 		splitPane.setOneTouchExpandable(false);
 		splitPane.setEnabled(false);
 
-		bFlightInfoSwitch = createLCGroup(topPanel, lang.mP4FlightInfoPanel);
-		createvoidWebLabel(topPanel, lang.mP4FlightInfoBlank);
-		bFlightInfoEdge = createLCGroup(topPanel, lang.mP4FlightInfoGlassEdge);
-		createvoidWebLabel(topPanel, lang.mP4FlightInfoGlassEdgeBlank);
-
-		battitudeIndicatorSwitch = createLCGroup(topPanel, lang.mP4attitudeIndicatorPanel);
-		createvoidWebLabel(topPanel, lang.mP4attitudeIndicatorPanelBlank);
-
-		bFMPrintSwitch = createLCGroup(topPanel, lang.mP4FMPanel);
-		bFMPrintSwitch.addActionListener(e -> {
-			// 同步“记录分析”页面的开关状态；检查 isSelected() 防止死循环触发递归
-			if (bFMPrintLogSwitch != null && bFMPrintLogSwitch.isSelected() != bFMPrintSwitch.isSelected())
-				bFMPrintLogSwitch.setSelected(bFMPrintSwitch.isSelected());
+		flightInfoPanel = new FlightInfoPanel();
+		flightInfoPanel.setOnChange(() -> {
+			if (isInitializing)
+				return;
+			saveconfig();
+			tc.refreshPreviews();
 		});
-		createvoidWebLabel(topPanel, lang.mP4FMPanelBlank);
+		// 同步“飞行信息”页面的开关状态到“记录分析”页面
+		flightInfoPanel.bFMPrintSwitch.addActionListener(e -> {
+			if (bFMPrintLogSwitch != null
+					&& bFMPrintLogSwitch.isSelected() != flightInfoPanel.bFMPrintSwitch.isSelected())
+				bFMPrintLogSwitch.setSelected(flightInfoPanel.bFMPrintSwitch.isSelected());
+		});
 
-		bFlightInfoIAS = createLCGroup(topPanel, lang.mP4fiIAS);
-		createvoidWebLabel(topPanel, lang.mP4fiIASBlank);
-
-		bFlightInfoTAS = createLCGroup(topPanel, lang.mP4fiTAS);
-		createvoidWebLabel(topPanel, lang.mP4fiIASBlank);
-
-		bFlightInfoMach = createLCGroup(topPanel, lang.mP4fiMach);
-		createvoidWebLabel(topPanel, lang.mP4fiMachBlank);
-
-		bFlightInfoCompass = createLCGroup(topPanel, lang.mP4fiCompass);
-		createvoidWebLabel(topPanel, lang.mP4fiCompassBlank);
-
-		bFlightInfoHeight = createLCGroup(topPanel, lang.mP4fiHeight);
-		createvoidWebLabel(topPanel, lang.mP4fiHeightBlank);
-
-		bFlightInfoVario = createLCGroup(topPanel, lang.mP4fiVario);
-		createvoidWebLabel(topPanel, lang.mP4fiVarioBlank);
-
-		bFlightInfoSEP = createLCGroup(topPanel, lang.mP4fiSEP);
-		createvoidWebLabel(topPanel, lang.mP4fiSEPBlank);
-
-		bFlightInfoAcc = createLCGroup(topPanel, lang.mP4fiAcc);
-		createvoidWebLabel(topPanel, lang.mP4fiAccBlank);
-
-		bFlightInfoWx = createLCGroup(topPanel, lang.mP4fiWx);
-		createvoidWebLabel(topPanel, lang.mP4fiWxBlank);
-
-		bFlightInfoNy = createLCGroup(topPanel, lang.mP4fiNy);
-		createvoidWebLabel(topPanel, lang.mP4fiNyBlank);
-
-		bFlightInfoTurn = createLCGroup(topPanel, lang.mP4fiTurn);
-		createvoidWebLabel(topPanel, lang.mP4fiTurnBlank);
-
-		bFlightInfoTurnRadius = createLCGroup(topPanel, lang.mP4fiTurnRadius);
-		createvoidWebLabel(topPanel, lang.mP4fiTurnRadiusBlank);
-
-		bFlightInfoAoA = createLCGroup(topPanel, lang.mP4fiAoA);
-		createvoidWebLabel(topPanel, lang.mP4fiAoABlank);
-
-		bFlightInfoAoS = createLCGroup(topPanel, lang.mP4fiAoS);
-		createvoidWebLabel(topPanel, lang.mP4fiAoSBlank);
-
-		bFlightInfoWingSweep = createLCGroup(topPanel, lang.mP4fiWingSweep);
-		createvoidWebLabel(topPanel, lang.mP4fiWingSweepBlank);
-
-		bFlightInfoRadioAlt = createLCGroup(topPanel, lang.mP4fiRadioAlt);
-		createvoidWebLabel(topPanel, lang.mP4fiRadioAltBlank);
-
-		// createLCGroup(topPanel, "面板透明度 ");
-		// createLBGroup(topPanel);
-		sFlightInfoFont = createFontList(topPanel, lang.mP4PanelFont);
-		iFlightInfoFontSizeIncr = createLSGroup(topPanel, lang.mP4FontAdjust, -6, 20, 200, 1, 4);
-		iflightInfoColumnNum = createLSGroup(topPanel, lang.mP4ColumnAdjust, 1, 16, 200, 1, 2);
-		FlowLayout layout = new FlowLayout();
-		layout.setAlignment(FlowLayout.LEFT);
-		topPanel.setLayout(layout);
+		topPanel.add(flightInfoPanel, BorderLayout.CENTER);
 
 		// bottomPanel
 
@@ -880,8 +808,9 @@ public class mainform extends WebFrame implements Runnable {
 		bFMPrintLogSwitch = createLCGroup(topPanel, lang.mP5FMPrintEnable);
 		bFMPrintLogSwitch.addActionListener(e -> {
 			// 同步“飞行信息”页面的开关状态；检查 isSelected() 防止死循环触发递归
-			if (bFMPrintSwitch != null && bFMPrintSwitch.isSelected() != bFMPrintLogSwitch.isSelected())
-				bFMPrintSwitch.setSelected(bFMPrintLogSwitch.isSelected());
+			if (flightInfoPanel != null && flightInfoPanel.bFMPrintSwitch != null
+					&& flightInfoPanel.bFMPrintSwitch.isSelected() != bFMPrintLogSwitch.isSelected())
+				flightInfoPanel.bFMPrintSwitch.setSelected(bFMPrintLogSwitch.isSelected());
 		});
 		createvoidWebLabel(topPanel, lang.mP5FMPrintEnableBlank);
 
@@ -1135,34 +1064,9 @@ public class mainform extends WebFrame implements Runnable {
 		// 从TC中取参数即可
 		// app.debugPrint(Boolean.parseBoolean(tc.getconfig("engineInfoSwitch")));
 
-		bFlightInfoSwitch.setSelected(Boolean.parseBoolean(tc.getconfig("flightInfoSwitch")));
-		bFlightInfoEdge.setSelected(Boolean.parseBoolean(tc.getconfig("flightInfoEdge")));
-		sFlightInfoFont.setSelectedItem(tc.getconfig("flightInfoFontC"));
-		iFlightInfoFontSizeIncr.setValue(Integer.parseInt(tc.getconfig("flightInfoFontaddC")));
-		battitudeIndicatorSwitch.setSelected(Boolean.parseBoolean(tc.getconfig("enableAttitudeIndicator")));
-		boolean fmPrint = Boolean.parseBoolean(tc.getconfig("enableFMPrint"));
-		bFMPrintSwitch.setSelected(fmPrint);
-		bFMPrintLogSwitch.setSelected(fmPrint);
+		initConfigFlightInfo();
 
-		bFlightInfoIAS.setSelected(!Boolean.parseBoolean(tc.getconfig("disableFlightInfoIAS")));
-		bFlightInfoTAS.setSelected(!Boolean.parseBoolean(tc.getconfig("disableFlightInfoTAS")));
-		bFlightInfoMach.setSelected(!Boolean.parseBoolean(tc.getconfig("disableFlightInfoMach")));
-		bFlightInfoCompass.setSelected(!Boolean.parseBoolean(tc.getconfig("disableFlightInfoCompass")));
-		bFlightInfoHeight.setSelected(!Boolean.parseBoolean(tc.getconfig("disableFlightInfoHeight")));
-		bFlightInfoVario.setSelected(!Boolean.parseBoolean(tc.getconfig("disableFlightInfoVario")));
-		bFlightInfoSEP.setSelected(!Boolean.parseBoolean(tc.getconfig("disableFlightInfoSEP")));
-		bFlightInfoAcc.setSelected(!Boolean.parseBoolean(tc.getconfig("disableFlightInfoAcc")));
-		bFlightInfoWx.setSelected(!Boolean.parseBoolean(tc.getconfig("disableFlightInfoWx")));
-		bFlightInfoNy.setSelected(!Boolean.parseBoolean(tc.getconfig("disableFlightInfoNy")));
-		bFlightInfoTurn.setSelected(!Boolean.parseBoolean(tc.getconfig("disableFlightInfoTurn")));
-		bFlightInfoTurnRadius.setSelected(!Boolean.parseBoolean(tc.getconfig("disableFlightInfoTurnRadius")));
-		bFlightInfoAoA.setSelected(!Boolean.parseBoolean(tc.getconfig("disableFlightInfoAoA")));
-		bFlightInfoAoS.setSelected(!Boolean.parseBoolean(tc.getconfig("disableFlightInfoAoS")));
-		bFlightInfoWingSweep.setSelected(!Boolean.parseBoolean(tc.getconfig("disableFlightInfoWingSweep")));
-		bFlightInfoRadioAlt.setSelected(!Boolean.parseBoolean(tc.getconfig("disableFlightInfoRadioAlt")));
-
-		iflightInfoColumnNum.setValue(Integer.parseInt(tc.getconfig("flightInfoColumn")));
-
+		// Engine Info
 		bEngineInfoSwitch.setSelected(Boolean.parseBoolean(tc.getconfig("engineInfoSwitch")));
 		bEngineInfoEdge.setSelected(Boolean.parseBoolean(tc.getconfig("engineInfoEdge")));
 		fEngineInfoFont.setSelectedItem(tc.getconfig("engineInfoFont"));
@@ -1196,8 +1100,6 @@ public class mainform extends WebFrame implements Runnable {
 		sMonoFont.setSelectedItem(tc.getconfig("MonoNumFont"));
 
 		advancedPanel.loadConfig(tc.configService);
-
-		sFlightInfoFont.setSelectedItem(tc.getconfig("flightInfoFontC"));
 
 		bEnableLogging.setSelected(Boolean.parseBoolean(tc.getconfig("enableLogging")));
 		bEnableInformation.setSelected(Boolean.parseBoolean(tc.getconfig("enableAltInformation")));
@@ -1253,45 +1155,15 @@ public class mainform extends WebFrame implements Runnable {
 
 	}
 
+	private void initConfigFlightInfo() {
+		flightInfoPanel.loadConfig(tc.configService);
+	}
+
 	public void saveconfig() {
 		if (isInitializing)
 			return;
-		// app.debugPrint(Boolean.toString(bengineInfoSwitch.isSelected()));
 
-		tc.setconfig("flightInfoSwitch", Boolean.toString(bFlightInfoSwitch.isSelected()));
-		tc.setconfig("flightInfoEdge", Boolean.toString(bFlightInfoEdge.isSelected()));
-		tc.setconfig("enableAttitudeIndicator", Boolean.toString(battitudeIndicatorSwitch.isSelected()));
-
-		tc.setconfig("enableAttitudeIndicator", Boolean.toString(battitudeIndicatorSwitch.isSelected()));
-		tc.setconfig("enableFMPrint", Boolean.toString(bFMPrintSwitch.isSelected()));
-
-		tc.setconfig("disableFlightInfoIAS", Boolean.toString(!bFlightInfoIAS.isSelected()));
-		tc.setconfig("disableFlightInfoTAS", Boolean.toString(!bFlightInfoTAS.isSelected()));
-		tc.setconfig("disableFlightInfoMach", Boolean.toString(!bFlightInfoMach.isSelected()));
-		tc.setconfig("disableFlightInfoCompass", Boolean.toString(!bFlightInfoCompass.isSelected()));
-		tc.setconfig("disableFlightInfoHeight", Boolean.toString(!bFlightInfoHeight.isSelected()));
-		tc.setconfig("disableFlightInfoVario", Boolean.toString(!bFlightInfoVario.isSelected()));
-
-		tc.setconfig("disableFlightInfoSEP", Boolean.toString(!bFlightInfoSEP.isSelected()));
-
-		tc.setconfig("disableFlightInfoAcc", Boolean.toString(!bFlightInfoAcc.isSelected()));
-
-		tc.setconfig("disableFlightInfoVario", Boolean.toString(!bFlightInfoVario.isSelected()));
-		tc.setconfig("disableFlightInfoWx", Boolean.toString(!bFlightInfoWx.isSelected()));
-		tc.setconfig("disableFlightInfoNy", Boolean.toString(!bFlightInfoNy.isSelected()));
-		tc.setconfig("disableFlightInfoTurn", Boolean.toString(!bFlightInfoTurn.isSelected()));
-		tc.setconfig("disableFlightInfoTurnRadius", Boolean.toString(!bFlightInfoTurnRadius.isSelected()));
-
-		tc.setconfig("disableFlightInfoAoA", Boolean.toString(!bFlightInfoAoA.isSelected()));
-		tc.setconfig("disableFlightInfoAoS", Boolean.toString(!bFlightInfoAoS.isSelected()));
-		tc.setconfig("disableFlightInfoWingSweep", Boolean.toString(!bFlightInfoWingSweep.isSelected()));
-		tc.setconfig("disableFlightInfoRadioAlt", Boolean.toString(!bFlightInfoRadioAlt.isSelected()));
-
-		tc.setconfig("flightInfoColumn", Integer.toString(iflightInfoColumnNum.getValue()));
-		// app.debugPrint(sengineInfoFont.getSelectedItem().toString());
-		tc.setconfig("flightInfoFontC", sFlightInfoFont.getSelectedItem().toString());
-		tc.setconfig("flightInfoFontaddC", Integer.toString(iFlightInfoFontSizeIncr.getValue()));
-
+		saveconfigFlightInfo();
 		advancedPanel.saveConfig(tc.configService);
 
 		tc.setconfig("engineInfoSwitch", Boolean.toString(bEngineInfoSwitch.isSelected()));
@@ -1491,5 +1363,9 @@ public class mainform extends WebFrame implements Runnable {
 			}
 		}
 		ui.util.ConfigLoader.saveConfig("ui_layout.cfg", configs);
+	}
+
+	private void saveconfigFlightInfo() {
+		flightInfoPanel.saveConfig(tc.configService);
 	}
 }

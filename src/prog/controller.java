@@ -397,7 +397,7 @@ public class controller implements ConfigProvider {
 				overlay -> ((engineInfo) overlay).init(this, S, blkx),
 				overlay -> ((engineInfo) overlay).initPreview(this),
 				overlay -> ((engineInfo) overlay).reinitConfig(),
-				false);
+				true);
 
 		// engineControl - supports preview
 		overlayManager.registerWithPreview("enableEngineControl",
@@ -405,7 +405,7 @@ public class controller implements ConfigProvider {
 				overlay -> ((engineControl) overlay).init(this, S, blkx),
 				overlay -> ((engineControl) overlay).initPreview(this),
 				overlay -> ((engineControl) overlay).reinitConfig(),
-				false);
+				true);
 
 		// minimalHUD (crosshair) - supports preview
 		overlayManager.registerWithPreview("crosshairSwitch",
