@@ -21,6 +21,15 @@ import ui.layout.UIBuilder;
 public class MiniHUDPanel extends WebPanel {
     private static final long serialVersionUID = 1L;
 
+    public static void initDefaults(ConfigurationService cs) {
+        cs.setConfig("crosshairSwitch", Boolean.toString(Boolean.FALSE));
+        cs.setConfig("crosshairScale", Integer.toString(10));
+        cs.setConfig("usetexturecrosshair", Boolean.toString(Boolean.FALSE));
+        cs.setConfig("drawHUDtext", Boolean.toString(Boolean.FALSE));
+        cs.setConfig("enableFlapAngleBar", Boolean.toString(Boolean.TRUE));
+        cs.setConfig("displayCrosshair", Boolean.toString(Boolean.FALSE));
+    }
+
     private final mainform parent;
 
     public WebSwitch bCrosshairSwitch;

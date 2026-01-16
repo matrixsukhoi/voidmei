@@ -18,6 +18,13 @@ import ui.layout.UIBuilder;
 
 public class AdvancedPanel extends WebPanel {
 
+    public static void initDefaults(ConfigurationService cs) {
+        if (app.debug)
+            cs.setConfig("usetempInfoSwitch", Boolean.toString(Boolean.FALSE));
+        cs.setConfig("GlobalNumFont", app.defaultNumfontName);
+        cs.setConfig("Interval", Integer.toString(80));
+    }
+
     // Migrated Fields
     private WebSwitch bstatusSwitch;
     private WebSwitch bdrawShadeSwitch;

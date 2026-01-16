@@ -10,7 +10,7 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionAdapter;
 import java.io.File;
 
-import javax.swing.SwingConstants;
+import ui.mainform;
 
 import com.alee.extended.button.WebSwitch;
 import com.alee.extended.layout.VerticalFlowLayout;
@@ -32,6 +32,11 @@ import prog.lang;
 import ui.layout.UIBuilder;
 
 public class LoggingPanel extends WebPanel {
+
+    public static void initDefaults(ConfigurationService cs) {
+        cs.setConfig("enableLogging", Boolean.toString(Boolean.FALSE));
+        cs.setConfig("enableAltInformation", Boolean.toString(Boolean.FALSE));
+    }
 
     public WebSwitch bEnableLogging;
     public WebSwitch bEnableInformation;
@@ -60,13 +65,13 @@ public class LoggingPanel extends WebPanel {
         this.setLayout(new FlowLayout(FlowLayout.LEFT));
 
         bEnableLogging = UIBuilder.addSwitch(this, lang.mP5LoggingAndCharting, false);
-        createvoidWebLabel(this, lang.mP5LoggingAndChartingBlank);
+        UIBuilder.addVoidWebLabel(this, lang.mP5LoggingAndChartingBlank);
 
         bEnableInformation = UIBuilder.addSwitch(this, lang.mP5Information, false);
-        createvoidWebLabel(this, lang.mP5InformationBlank);
+        UIBuilder.addVoidWebLabel(this, lang.mP5InformationBlank);
 
         bFMList0 = createFMList(this, lang.mP5FMChoose + " 0");
-        createvoidWebLabel(this, lang.mP5FMChooseBlank);
+        UIBuilder.addVoidWebLabel(this, lang.mP5FMChooseBlank);
         bFMList0.addActionListener(new ActionListener() {
             private int t = 0;
 
@@ -77,7 +82,7 @@ public class LoggingPanel extends WebPanel {
         });
 
         bFMList1 = createFMList(this, lang.mP5FMChoose + " 1");
-        createvoidWebLabel(this, lang.mP5FMChooseBlank);
+        UIBuilder.addVoidWebLabel(this, lang.mP5FMChooseBlank);
         bFMList1.addActionListener(new ActionListener() {
             private int t = 0;
 
@@ -88,9 +93,9 @@ public class LoggingPanel extends WebPanel {
         });
 
         bFMPrintLogSwitch = UIBuilder.addSwitch(this, lang.mP5FMPrintEnable, false);
-        createvoidWebLabel(this, lang.mP5FMPrintEnableBlank);
+        UIBuilder.addVoidWebLabel(this, lang.mP5FMPrintEnableBlank);
 
-        WebLabel keyLb = createWebLabel(lang.mP5FMDisplayKey);
+        UIBuilder.addVoidWebLabel(this, lang.mP5FMDisplayKey);
         bDisplayFmKey = new WebButton(NativeKeyEvent.getKeyText(app.displayFmKey));
         bDisplayFmKey.setFocusable(false);
         bDisplayFmKey.addActionListener(e -> {
@@ -111,7 +116,6 @@ public class LoggingPanel extends WebPanel {
                 }
             });
         });
-        this.add(keyLb);
         this.add(bDisplayFmKey);
 
         setupListeners();
@@ -139,19 +143,18 @@ public class LoggingPanel extends WebPanel {
     }
 
     private WebComboBox createFMList(WebPanel panel, String text) {
-        WebLabel lb = createWebLabel(text);
+        UIBuilder.addVoidWebLabel(panel, text);
         File file = new File("data/aces/gamedata/flightmodels/fm");
         String[] filelist = file.list();
         if (filelist == null)
             filelist = new String[0];
-        filelist = getFilelistNameNoEx(filelist);
+        filelist = mainform.getFilelistNameNoEx(filelist);
         WebComboBox comboBox = new WebComboBox(filelist);
         comboBox.setWebColoredBackground(false);
         comboBox.setShadeWidth(1);
         comboBox.setDrawFocus(false);
         comboBox.setFont(app.defaultFont);
         comboBox.setExpandedBgColor(new Color(0, 0, 0, 0));
-        panel.add(lb);
         panel.add(comboBox);
         return comboBox;
     }
@@ -196,38 +199,6 @@ public class LoggingPanel extends WebPanel {
             }
         });
         popOver.setLocation(popOver.getLocation().x + idx * popOver.getSize().width, popOver.getLocation().y);
-    }
-
-    private void createvoidWebLabel(WebPanel panel, String text) {
-        WebLabel lb = createWebLabel(text);
-        panel.add(lb);
-    }
-
-    private WebLabel createWebLabel(String text) {
-        WebLabel lb = new WebLabel(text);
-        lb.setHorizontalAlignment(SwingConstants.CENTER);
-        lb.setForeground(new Color(0, 0, 0, 230));
-        lb.setShadeColor(Color.WHITE);
-        lb.setFont(app.defaultFont);
-        return lb;
-    }
-
-    private String[] getFilelistNameNoEx(String[] list) {
-        String[] a = new String[list.length];
-        for (int i = 0; i < list.length; i++) {
-            a[i] = getFileNameNoEx(list[i]);
-        }
-        return a;
-    }
-
-    private String getFileNameNoEx(String filename) {
-        if ((filename != null) && (filename.length() > 0)) {
-            int dot = filename.lastIndexOf('.');
-            if ((dot > -1) && (dot < (filename.length()))) {
-                return filename.substring(0, dot);
-            }
-        }
-        return filename;
     }
 
     public void loadConfig(ConfigurationService cs) {

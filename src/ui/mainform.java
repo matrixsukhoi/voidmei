@@ -115,20 +115,13 @@ public class mainform extends WebFrame implements Runnable {
 		WebButton B = createButton(lang.mStart);
 
 		WebButtonGroup G = new WebButtonGroup(true, A, B);
-		// G.setBorderColor(new Color(0, 0, 0, 0));
-		// G.setButtonsDrawSides(true, true, false,false);
-		// A.setPreferredHeight(30);
 		A.setPreferredWidth(120);
-		// B.setPreferredHeight(30);
-
 		B.setPreferredWidth(120);
 		B.setRound(10);
 		G.setButtonsDrawSides(false, false, false, true);
 		G.setButtonsForeground(new Color(0, 0, 0, 200));
-		// G.setButtonsInnerShadeColor(new Color(0,0,0));
-		// G.setButtonsInnerShadeWidth(5);
 		G.setButtonsShadeWidth(3);
-		// G.setButtonsDrawFocus(false);
+
 		A.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				saveconfig();
@@ -141,13 +134,12 @@ public class mainform extends WebFrame implements Runnable {
 				confirm();
 			}
 		});
-		// G.setPaintSides(false, false, false, false);
 		return G;
 	}
 
 	public WebButton displayPreview;
 
-	public WebButtonGroup createLBGroup(WebPanel topPanel) {
+	public WebButtonGroup createLBGroup(WebPanel bottomPanel) {
 		displayPreview = createButton(lang.mDisplayPreview);
 		WebButton C = createButton(lang.mClosePreview);
 		WebButtonGroup G = new WebButtonGroup(true, displayPreview, C);
@@ -171,32 +163,36 @@ public class mainform extends WebFrame implements Runnable {
 		});
 		G.setButtonsDrawSides(false, false, false, true);
 
-		topPanel.add(G);
+		bottomPanel.add(G, BorderLayout.LINE_START);
 		return G;
 	}
 
-	public void initJP1(WebPanel jp1) {
-		UIBuilder.decorateStandardPanel(jp1);
-		WebPanel topPanel = new WebPanel();
-		WebPanel bottomPanel = new WebPanel();
+	private void setupTab(WebPanel tab, WebPanel content) {
+		UIBuilder.decorateStandardPanel(tab);
+		WebPanel topPanel = new WebPanel(new BorderLayout());
+		WebPanel bottomPanel = new WebPanel(new BorderLayout());
 		UIBuilder.decorateInsidePanel(topPanel);
 		UIBuilder.decorateInsidePanel(bottomPanel);
-		topPanel.setLayout(new BorderLayout());
-		bottomPanel.setLayout(new BorderLayout());
+
 		WebSplitPane splitPane = new WebSplitPane(VERTICAL_SPLIT, topPanel, bottomPanel);
 		splitPane.setOpaque(false);
 		splitPane.setBackground(new Color(0, 0, 0, 0));
-		splitPane.setOneTouchExpandable(true);
-		// splitPane.setPreferredSize ( new Dimension ( 250, 200 ) );
 		splitPane.setDividerLocation(320);
-		splitPane.setContinuousLayout(false);
 		splitPane.setDividerSize(0);
+		splitPane.setContinuousLayout(false);
 		splitPane.setDrawDividerBorder(false);
 		splitPane.setOneTouchExpandable(false);
 		splitPane.setEnabled(false);
 
-		// topPanel
+		topPanel.add(content, BorderLayout.CENTER);
 
+		bottomPanel.add(createbuttonGroup(), BorderLayout.LINE_END);
+		bottomPanel.add(createLBGroup(bottomPanel), BorderLayout.LINE_START);
+
+		tab.add(splitPane);
+	}
+
+	public void initJP1(WebPanel jp1) {
 		advancedPanel = new AdvancedPanel();
 		advancedPanel.setOnChange(() -> {
 			if (isInitializing)
@@ -204,39 +200,10 @@ public class mainform extends WebFrame implements Runnable {
 			saveconfig();
 			tc.refreshPreviews();
 		});
-
-		topPanel.add(advancedPanel, BorderLayout.CENTER);
-
-		// bottomPanel
-
-		WebButtonGroup G = createbuttonGroup();
-		bottomPanel.add(G, BorderLayout.LINE_END);
-		WebButtonGroup G1 = createLBGroup(bottomPanel);
-		bottomPanel.add(G1, BorderLayout.LINE_START);
-
-		jp1.add(splitPane);
-
+		setupTab(jp1, advancedPanel);
 	}
 
-	// JP2布局
 	public void initJP2(WebPanel jp2) {
-
-		UIBuilder.decorateStandardPanel(jp2);
-
-		WebPanel topPanel = new WebPanel();
-		WebPanel bottomPanel = new WebPanel();
-		UIBuilder.decorateInsidePanel(topPanel);
-		UIBuilder.decorateInsidePanel(bottomPanel);
-		WebSplitPane splitPane = new WebSplitPane(VERTICAL_SPLIT, topPanel, bottomPanel);
-		splitPane.setOneTouchExpandable(true);
-		splitPane.setDividerLocation(320);
-		splitPane.setContinuousLayout(false);
-		splitPane.setDividerSize(0);
-		splitPane.setDrawDividerBorder(false);
-		splitPane.setOneTouchExpandable(false);
-		splitPane.setEnabled(false);
-
-		topPanel.setLayout(new BorderLayout());
 		engineInfoPanel = new EngineInfoPanel();
 		engineInfoPanel.setOnChange(() -> {
 			saveconfig();
@@ -244,36 +211,10 @@ public class mainform extends WebFrame implements Runnable {
 				tc.refreshPreviews();
 			}
 		});
-		topPanel.add(engineInfoPanel, BorderLayout.CENTER);
-
-		// bottomPanel
-
-		WebButtonGroup G = createbuttonGroup();
-		bottomPanel.add(G, BorderLayout.LINE_END);
-		WebButtonGroup G1 = createLBGroup(bottomPanel);
-		bottomPanel.add(G1, BorderLayout.LINE_START);
-		jp2.add(splitPane);
-
+		setupTab(jp2, engineInfoPanel);
 	}
 
-	// JP3布局
 	public void initJP3(WebPanel jp3) {
-		UIBuilder.decorateStandardPanel(jp3);
-
-		WebPanel topPanel = new WebPanel();
-		WebPanel bottomPanel = new WebPanel();
-		UIBuilder.decorateInsidePanel(topPanel);
-		UIBuilder.decorateInsidePanel(bottomPanel);
-		WebSplitPane splitPane = new WebSplitPane(VERTICAL_SPLIT, topPanel, bottomPanel);
-		splitPane.setOneTouchExpandable(true);
-		splitPane.setDividerLocation(320);
-		splitPane.setDividerSize(0);
-		splitPane.setContinuousLayout(false);
-		splitPane.setDrawDividerBorder(false);
-		splitPane.setOneTouchExpandable(false);
-		splitPane.setEnabled(false);
-
-		topPanel.setLayout(new BorderLayout());
 		miniHUDPanel = new MiniHUDPanel(this);
 		miniHUDPanel.setOnChange(() -> {
 			saveconfig();
@@ -282,37 +223,10 @@ public class mainform extends WebFrame implements Runnable {
 			}
 		});
 		miniHUDPanel.setOnSave(() -> saveconfig());
-		topPanel.add(miniHUDPanel, BorderLayout.CENTER);
-
-		// bottomPanel
-		WebButtonGroup G = createbuttonGroup();
-		bottomPanel.add(G, BorderLayout.LINE_END);
-		WebButtonGroup G1 = createLBGroup(bottomPanel);
-		bottomPanel.add(G1, BorderLayout.LINE_START);
-		jp3.add(splitPane);
+		setupTab(jp3, miniHUDPanel);
 	}
 
 	public void initJP4(WebPanel jp4) {
-		UIBuilder.decorateStandardPanel(jp4);
-
-		WebPanel topPanel = new WebPanel();
-		WebPanel bottomPanel = new WebPanel();
-		UIBuilder.decorateInsidePanel(topPanel);
-		UIBuilder.decorateInsidePanel(bottomPanel);
-		topPanel.setLayout(new BorderLayout());
-		bottomPanel.setLayout(new BorderLayout());
-
-		WebSplitPane splitPane = new WebSplitPane(VERTICAL_SPLIT, topPanel, bottomPanel);
-		splitPane.setOpaque(false);
-		splitPane.setBackground(new Color(0, 0, 0, 0));
-		splitPane.setOneTouchExpandable(true);
-		splitPane.setDividerLocation(320);
-		splitPane.setDividerSize(0);
-		splitPane.setContinuousLayout(false);
-		splitPane.setDrawDividerBorder(false);
-		splitPane.setOneTouchExpandable(false);
-		splitPane.setEnabled(false);
-
 		flightInfoPanel = new FlightInfoPanel();
 		flightInfoPanel.setOnChange(() -> {
 			if (isInitializing)
@@ -326,35 +240,10 @@ public class mainform extends WebFrame implements Runnable {
 					&& loggingPanel.bFMPrintLogSwitch.isSelected() != flightInfoPanel.bFMPrintSwitch.isSelected())
 				loggingPanel.bFMPrintLogSwitch.setSelected(flightInfoPanel.bFMPrintSwitch.isSelected());
 		});
-
-		topPanel.add(flightInfoPanel, BorderLayout.CENTER);
-
-		// bottomPanel
-
-		WebButtonGroup G = createbuttonGroup();
-		bottomPanel.add(G, BorderLayout.LINE_END);
-		WebButtonGroup G1 = createLBGroup(bottomPanel);
-		bottomPanel.add(G1, BorderLayout.LINE_START);
-
-		jp4.add(splitPane);
+		setupTab(jp4, flightInfoPanel);
 	}
 
 	public void initJP5(WebPanel jp5) {
-		UIBuilder.decorateStandardPanel(jp5);
-		WebPanel topPanel = new WebPanel();
-		WebPanel bottomPanel = new WebPanel();
-		UIBuilder.decorateInsidePanel(topPanel);
-		UIBuilder.decorateInsidePanel(bottomPanel);
-		WebSplitPane splitPane = new WebSplitPane(VERTICAL_SPLIT, topPanel, bottomPanel);
-		splitPane.setOneTouchExpandable(true);
-		splitPane.setDividerLocation(320);
-		splitPane.setDividerSize(0);
-		splitPane.setContinuousLayout(false);
-		splitPane.setDrawDividerBorder(false);
-		splitPane.setOneTouchExpandable(false);
-		splitPane.setEnabled(false);
-
-		topPanel.setLayout(new BorderLayout());
 		loggingPanel = new LoggingPanel(this);
 		loggingPanel.setOnChange(() -> {
 			saveconfig();
@@ -363,41 +252,16 @@ public class mainform extends WebFrame implements Runnable {
 			}
 		});
 		loggingPanel.setOnSave(() -> saveconfig());
-		topPanel.add(loggingPanel, BorderLayout.CENTER);
-
 		// Synchronization with FlightInfoPanel
 		loggingPanel.bFMPrintLogSwitch.addActionListener(e -> {
 			if (flightInfoPanel != null && flightInfoPanel.bFMPrintSwitch != null
 					&& flightInfoPanel.bFMPrintSwitch.isSelected() != loggingPanel.bFMPrintLogSwitch.isSelected())
 				flightInfoPanel.bFMPrintSwitch.setSelected(loggingPanel.bFMPrintLogSwitch.isSelected());
 		});
-
-		// bottomPanel
-		WebButtonGroup G1 = createLBGroup(bottomPanel);
-		bottomPanel.add(G1, BorderLayout.LINE_START);
-		WebButtonGroup G = createbuttonGroup();
-		bottomPanel.add(G, BorderLayout.LINE_END);
-
-		jp5.add(splitPane);
-
+		setupTab(jp5, loggingPanel);
 	}
 
 	public void initJP6(WebPanel jp6) {
-		UIBuilder.decorateStandardPanel(jp6);
-		WebPanel topPanel = new WebPanel();
-		WebPanel bottomPanel = new WebPanel();
-		UIBuilder.decorateInsidePanel(topPanel);
-		UIBuilder.decorateInsidePanel(bottomPanel);
-		WebSplitPane splitPane = new WebSplitPane(VERTICAL_SPLIT, topPanel, bottomPanel);
-		splitPane.setOneTouchExpandable(true);
-		splitPane.setDividerLocation(320);
-		splitPane.setDividerSize(0);
-		splitPane.setContinuousLayout(false);
-		splitPane.setDrawDividerBorder(false);
-		splitPane.setOneTouchExpandable(false);
-		splitPane.setEnabled(false);
-
-		topPanel.setLayout(new BorderLayout());
 		engineControlPanel = new EngineControlPanel();
 		engineControlPanel.setOnChange(() -> {
 			saveconfig();
@@ -405,16 +269,7 @@ public class mainform extends WebFrame implements Runnable {
 				tc.refreshPreviews();
 			}
 		});
-		topPanel.add(engineControlPanel, BorderLayout.CENTER);
-
-		// bottomPanel
-		WebButtonGroup G1 = createLBGroup(bottomPanel);
-		bottomPanel.add(G1, BorderLayout.LINE_START);
-		WebButtonGroup G = createbuttonGroup();
-		bottomPanel.add(G, BorderLayout.LINE_END);
-
-		jp6.add(splitPane);
-
+		setupTab(jp6, engineControlPanel);
 	}
 
 	public void initPanel() {
@@ -542,60 +397,29 @@ public class mainform extends WebFrame implements Runnable {
 	}
 
 	public void initConfig() {
-		// tc.initconfig();
-		// 从TC中取参数即可
-		// app.debugPrint(Boolean.parseBoolean(tc.getconfig("engineInfoSwitch")));
-
-		initConfigFlightInfo();
-
-		// Engine Info
+		flightInfoPanel.loadConfig(tc.configService);
 		engineInfoPanel.loadConfig(tc.configService);
-
 		miniHUDPanel.loadConfig(tc.configService);
-
 		advancedPanel.loadConfig(tc.configService);
-
 		loggingPanel.loadConfig(tc.configService);
+		engineControlPanel.loadConfig(tc.configService);
 	}
 
 	public void config_init() {
-		tc.setconfig("flightInfoSwitch", Boolean.toString(Boolean.TRUE));
-		tc.setconfig("flightInfoEdge", Boolean.toString(Boolean.FALSE));
-		tc.setconfig("flightInfoFontC", app.defaultFontName);
-		tc.setconfig("flightInfoFontaddC", Integer.toString(0));
+		FlightInfoPanel.initDefaults(tc.configService);
+		MiniHUDPanel.initDefaults(tc.configService);
+		LoggingPanel.initDefaults(tc.configService);
+		AdvancedPanel.initDefaults(tc.configService);
 
-		// Engine Info - handled by EngineInfoPanel default/init logic if needed,
-		// but typically we just set initial values in config if they don't exist.
-		// For now keeping it simple as they are likely already in config.
-
-		tc.setconfig("crosshairSwitch", Boolean.toString(Boolean.FALSE));
-		tc.setconfig("crosshairScale", Integer.toString(10));
-		tc.setconfig("usetexturecrosshair", Boolean.toString(Boolean.FALSE));
+		// Special case that needs instance
 		tc.setconfig("crosshairName", miniHUDPanel.sCrosshairName.getSelectedItem().toString());
-		tc.setconfig("drawHUDtext", Boolean.toString(Boolean.FALSE));
-		tc.setconfig("enableFlapAngleBar", Boolean.toString(Boolean.TRUE));
-		tc.setconfig("displayCrosshair", Boolean.toString(Boolean.FALSE));
-
-		if (app.debug)
-			tc.setconfig("usetempInfoSwitch", Boolean.toString(Boolean.FALSE));
-		// tc.setconfig(", value);
-		tc.setconfig("GlobalNumFont", app.defaultNumfontName);
-		tc.setconfig("Interval", Integer.toString(80));
-
-		tc.setconfig("enableLogging", Boolean.toString(Boolean.FALSE));
-		tc.setconfig("enableAltInformation", Boolean.toString(Boolean.FALSE));
-
-	}
-
-	private void initConfigFlightInfo() {
-		flightInfoPanel.loadConfig(tc.configService);
 	}
 
 	public void saveconfig() {
 		if (isInitializing)
 			return;
 
-		saveconfigFlightInfo();
+		flightInfoPanel.saveConfig(tc.configService);
 		advancedPanel.saveConfig(tc.configService);
 		engineInfoPanel.saveConfig(tc.configService);
 		engineControlPanel.saveConfig(tc.configService);
@@ -766,9 +590,5 @@ public class mainform extends WebFrame implements Runnable {
 			}
 		}
 		ui.util.ConfigLoader.saveConfig("ui_layout.cfg", configs);
-	}
-
-	private void saveconfigFlightInfo() {
-		flightInfoPanel.saveConfig(tc.configService);
 	}
 }
