@@ -33,6 +33,7 @@ src/prog/flapsControl.java
 src/ui/statusBar.java
 src/ui/engineInfo.java
 src/ui/panels/FlightInfoPanel.java
+src/ui/panels/EngineInfoPanel.java
 src/ui/panels/AdvancedPanel.java
 src/ui/gearAndFlaps.java
 src/ui/infolist.java

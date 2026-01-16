@@ -29,6 +29,7 @@ import com.alee.laf.combobox.WebComboBox;
 import ui.layout.UIBuilder;
 import ui.panels.AdvancedPanel;
 import ui.panels.FlightInfoPanel;
+import ui.panels.EngineInfoPanel;
 import com.alee.laf.label.WebLabel;
 import com.alee.laf.panel.WebPanel;
 import com.alee.laf.rootpane.WebFrame;
@@ -72,11 +73,7 @@ public class mainform extends WebFrame implements Runnable {
 
 	AdvancedPanel advancedPanel;
 	FlightInfoPanel flightInfoPanel;
-
-	WebSwitch bEngineInfoSwitch;
-	WebSwitch bEngineInfoEdge;
-	WebComboBox fEngineInfoFont;
-	WebSlider iEngineInfoFontSizeIncr;
+	EngineInfoPanel engineInfoPanel;
 
 	WebSwitch bCrosshairSwitch;
 	WebSlider iCrosshairScale;
@@ -309,7 +306,6 @@ public class mainform extends WebFrame implements Runnable {
 	public WebButton displayPreview;
 	public WebSwitch bFMPrintLogSwitch; // “记录分析”选项卡中的 FM 详细数据显示开关（两者同步）
 	private WebSwitch bcrosshairdisplaySwitch;
-	private WebSlider iengineInfoColumnNum;
 	private WebSwitch benableEngineControl;
 	private WebSwitch bEngineControlRadiator;
 	private WebSwitch bEngineControlMixture;
@@ -317,22 +313,6 @@ public class mainform extends WebFrame implements Runnable {
 	private WebSwitch bEngineControlCompressor;
 	private WebSwitch bEngineControlLFuel;
 	private WebSwitch bEngineControlThrottle;
-	private WebSwitch bEngineInfoHorsePower;
-	private WebSwitch bEngineInfoThrust;
-	private WebSwitch bEngineInfoRPM;
-	private WebSwitch bEngineInfoPropPitch;
-	private WebSwitch bEngineInfoEffEta;
-	private WebSwitch bEngineInfoEffHp;
-	private WebSwitch bEngineInfoPressure;
-	private WebSwitch bEngineInfoPowerPercent;
-	private WebSwitch bEngineInfoFuelKg;
-	private WebSwitch bEngineInfoFuelTime;
-	private WebSwitch bEngineInfoWepKg;
-	private WebSwitch bEngineInfoWepTime;
-	private WebSwitch bEngineInfoTemp;
-	private WebSwitch bEngineInfoOilTemp;
-	private WebSwitch bEngineInfoHeatTolerance;
-	private WebSwitch bEngineInfoEngResponse;
 	private int isDragging;
 	private int xx;
 	private int yy;
@@ -598,59 +578,14 @@ public class mainform extends WebFrame implements Runnable {
 		splitPane.setOneTouchExpandable(false);
 		splitPane.setEnabled(false);
 
-		bEngineInfoSwitch = createLCGroup(topPanel, lang.mP2EnginePanel);
-		createvoidWebLabel(topPanel, lang.mP2EnginePanelBlank);
-		bEngineInfoEdge = createLCGroup(topPanel, lang.mP2EngineGlassEdge);
-		createvoidWebLabel(topPanel, lang.mP2EngineGlassEdgeBlank);
-
-		bEngineInfoHorsePower = createLCGroup(topPanel, lang.mP2eiHorsePower);
-		createvoidWebLabel(topPanel, lang.mP2eiHorsePowerBlank);
-		bEngineInfoThrust = createLCGroup(topPanel, lang.mP2eiThrust);
-		createvoidWebLabel(topPanel, lang.mP2eiThrustBlank);
-		bEngineInfoRPM = createLCGroup(topPanel, lang.mP2eiRPM);
-		createvoidWebLabel(topPanel, lang.mP2eiRPMBlank);
-		bEngineInfoPropPitch = createLCGroup(topPanel, lang.mP2eiPropPitch);
-		createvoidWebLabel(topPanel, lang.mP2eiPropPitchBlank);
-		bEngineInfoEffEta = createLCGroup(topPanel, lang.mP2eiEffEta);
-		createvoidWebLabel(topPanel, lang.mP2eiEffEtaBlank);
-		bEngineInfoEffHp = createLCGroup(topPanel, lang.mP2eiEffHp);
-		createvoidWebLabel(topPanel, lang.mP2eiEffHpBlank);
-		bEngineInfoPressure = createLCGroup(topPanel, lang.mP2eiPressure);
-		createvoidWebLabel(topPanel, lang.mP2eiPressureBlank);
-		bEngineInfoPowerPercent = createLCGroup(topPanel, lang.mP2eiPowerPercent);
-		createvoidWebLabel(topPanel, lang.mP2eiPowerPercentBlank);
-		bEngineInfoFuelKg = createLCGroup(topPanel, lang.mP2eiFuelKg);
-		createvoidWebLabel(topPanel, lang.mP2eiFuelKgBlank);
-		bEngineInfoFuelTime = createLCGroup(topPanel, lang.mP2eiFuelTime);
-		createvoidWebLabel(topPanel, lang.mP2eiFuelTimeBlank);
-		bEngineInfoWepKg = createLCGroup(topPanel, lang.mP2eiWepKg);
-		createvoidWebLabel(topPanel, lang.mP2eiWepKgBlank);
-		bEngineInfoWepTime = createLCGroup(topPanel, lang.mP2eiWepTime);
-		createvoidWebLabel(topPanel, lang.mP2eiWepTimeBlank);
-		bEngineInfoTemp = createLCGroup(topPanel, lang.mP2eiTemp);
-		createvoidWebLabel(topPanel, lang.mP2eiTempBlank);
-		bEngineInfoOilTemp = createLCGroup(topPanel, lang.mP2eiOilTemp);
-		createvoidWebLabel(topPanel, lang.mP2eiOilTempBlank);
-		bEngineInfoHeatTolerance = createLCGroup(topPanel, lang.mP2eiHeatTolerance);
-		createvoidWebLabel(topPanel, lang.mP2eiHeatToleranceBlank);
-		bEngineInfoEngResponse = createLCGroup(topPanel, lang.mP2eiEngResponse);
-		createvoidWebLabel(topPanel, lang.mP2eiEngResponseBlank);
-
-		// bEngineInfoHp = createLCGroup(topPanel, language.mP4fiIAS);
-		// createvoidWebLabel(topPanel,language.mP4fiIASBlank);
-		//
-
-		// createLCGroup(topPanel, "面板透明度 ");
-		// createLBGroup(topPanel);
-		fEngineInfoFont = createFontList(topPanel, lang.mP2PanelFont);
-		iEngineInfoFontSizeIncr = createLSGroup(topPanel, lang.mP2FontAdjust, -6, 20, 200, 1, 4);
-		iengineInfoColumnNum = createLSGroup(topPanel, lang.mP4ColumnAdjust, 1, 16, 200, 1, 2);
-
-		createvoidWebLabel(topPanel, lang.mP2EngineBlank);
-
-		FlowLayout layout = new FlowLayout();
-		layout.setAlignment(FlowLayout.LEFT);
-		topPanel.setLayout(layout);
+		engineInfoPanel = new EngineInfoPanel();
+		engineInfoPanel.setOnChange(() -> {
+			saveconfig();
+			if (!isInitializing) {
+				tc.refreshPreviews();
+			}
+		});
+		topPanel.add(engineInfoPanel);
 
 		// bottomPanel
 
@@ -1067,28 +1002,7 @@ public class mainform extends WebFrame implements Runnable {
 		initConfigFlightInfo();
 
 		// Engine Info
-		bEngineInfoSwitch.setSelected(Boolean.parseBoolean(tc.getconfig("engineInfoSwitch")));
-		bEngineInfoEdge.setSelected(Boolean.parseBoolean(tc.getconfig("engineInfoEdge")));
-		fEngineInfoFont.setSelectedItem(tc.getconfig("engineInfoFont"));
-		iEngineInfoFontSizeIncr.setValue(Integer.parseInt(tc.getconfig("engineInfoFontadd")));
-		iengineInfoColumnNum.setValue(Integer.parseInt(tc.getconfig("engineInfoColumn")));
-
-		bEngineInfoHorsePower.setSelected(!Boolean.parseBoolean(tc.getconfig("disableEngineInfoHorsePower")));
-		bEngineInfoThrust.setSelected(!Boolean.parseBoolean(tc.getconfig("disableEngineInfoThrust")));
-		bEngineInfoRPM.setSelected(!Boolean.parseBoolean(tc.getconfig("disableEngineInfoRPM")));
-		bEngineInfoPropPitch.setSelected(!Boolean.parseBoolean(tc.getconfig("disableEngineInfoPropPitch")));
-		bEngineInfoEffEta.setSelected(!Boolean.parseBoolean(tc.getconfig("disableEngineInfoEffEta")));
-		bEngineInfoEffHp.setSelected(!Boolean.parseBoolean(tc.getconfig("disableEngineInfoEffHp")));
-		bEngineInfoPressure.setSelected(!Boolean.parseBoolean(tc.getconfig("disableEngineInfoPressure")));
-		bEngineInfoPowerPercent.setSelected(!Boolean.parseBoolean(tc.getconfig("disableEngineInfoPowerPercent")));
-		bEngineInfoFuelKg.setSelected(!Boolean.parseBoolean(tc.getconfig("disableEngineInfoFuelKg")));
-		bEngineInfoFuelTime.setSelected(!Boolean.parseBoolean(tc.getconfig("disableEngineInfoFuelTime")));
-		bEngineInfoWepKg.setSelected(!Boolean.parseBoolean(tc.getconfig("disableEngineInfoWepKg")));
-		bEngineInfoWepTime.setSelected(!Boolean.parseBoolean(tc.getconfig("disableEngineInfoWepTime")));
-		bEngineInfoTemp.setSelected(!Boolean.parseBoolean(tc.getconfig("disableEngineInfoTemp")));
-		bEngineInfoOilTemp.setSelected(!Boolean.parseBoolean(tc.getconfig("disableEngineInfoOilTemp")));
-		bEngineInfoHeatTolerance.setSelected(!Boolean.parseBoolean(tc.getconfig("disableEngineInfoHeatTolerance")));
-		bEngineInfoEngResponse.setSelected(!Boolean.parseBoolean(tc.getconfig("disableEngineInfoEngResponse")));
+		engineInfoPanel.loadConfig(tc.configService);
 
 		bCrosshairSwitch.setSelected(Boolean.parseBoolean(tc.getconfig("crosshairSwitch")));
 		iCrosshairScale.setValue(Integer.parseInt(tc.getconfig("crosshairScale")));
@@ -1126,10 +1040,9 @@ public class mainform extends WebFrame implements Runnable {
 		tc.setconfig("flightInfoFontC", app.defaultFontName);
 		tc.setconfig("flightInfoFontaddC", Integer.toString(0));
 
-		tc.setconfig("engineInfoSwitch", Boolean.toString(bEngineInfoSwitch.isSelected()));
-		tc.setconfig("engineInfoEdge", Boolean.toString(Boolean.FALSE));
-		tc.setconfig("engineInfoFont", fEngineInfoFont.getSelectedItem().toString());
-		tc.setconfig("engineInfoFontadd", Integer.toString(iEngineInfoFontSizeIncr.getValue()));
+		// Engine Info - handled by EngineInfoPanel default/init logic if needed,
+		// but typically we just set initial values in config if they don't exist.
+		// For now keeping it simple as they are likely already in config.
 
 		tc.setconfig("crosshairSwitch", Boolean.toString(Boolean.FALSE));
 		tc.setconfig("crosshairScale", Integer.toString(10));
@@ -1165,30 +1078,7 @@ public class mainform extends WebFrame implements Runnable {
 
 		saveconfigFlightInfo();
 		advancedPanel.saveConfig(tc.configService);
-
-		tc.setconfig("engineInfoSwitch", Boolean.toString(bEngineInfoSwitch.isSelected()));
-		tc.setconfig("engineInfoEdge", Boolean.toString(bEngineInfoEdge.isSelected()));
-		// app.debugPrint(sengineInfoFont.getSelectedValue());
-		tc.setconfig("engineInfoFont", fEngineInfoFont.getSelectedItem().toString());
-		tc.setconfig("engineInfoFontadd", Integer.toString(iEngineInfoFontSizeIncr.getValue()));
-		tc.setconfig("engineInfoColumn", Integer.toString(iengineInfoColumnNum.getValue()));
-
-		tc.setconfig("disableEngineInfoHorsePower", Boolean.toString(!bEngineInfoHorsePower.isSelected()));
-		tc.setconfig("disableEngineInfoThrust", Boolean.toString(!bEngineInfoThrust.isSelected()));
-		tc.setconfig("disableEngineInfoRPM", Boolean.toString(!bEngineInfoRPM.isSelected()));
-		tc.setconfig("disableEngineInfoPropPitch", Boolean.toString(!bEngineInfoPropPitch.isSelected()));
-		tc.setconfig("disableEngineInfoEffEta", Boolean.toString(!bEngineInfoEffEta.isSelected()));
-		tc.setconfig("disableEngineInfoEffHp", Boolean.toString(!bEngineInfoEffHp.isSelected()));
-		tc.setconfig("disableEngineInfoPressure", Boolean.toString(!bEngineInfoPressure.isSelected()));
-		tc.setconfig("disableEngineInfoPowerPercent", Boolean.toString(!bEngineInfoPowerPercent.isSelected()));
-		tc.setconfig("disableEngineInfoFuelKg", Boolean.toString(!bEngineInfoFuelKg.isSelected()));
-		tc.setconfig("disableEngineInfoFuelTime", Boolean.toString(!bEngineInfoFuelTime.isSelected()));
-		tc.setconfig("disableEngineInfoWepKg", Boolean.toString(!bEngineInfoWepKg.isSelected()));
-		tc.setconfig("disableEngineInfoWepTime", Boolean.toString(!bEngineInfoWepTime.isSelected()));
-		tc.setconfig("disableEngineInfoTemp", Boolean.toString(!bEngineInfoTemp.isSelected()));
-		tc.setconfig("disableEngineInfoOilTemp", Boolean.toString(!bEngineInfoOilTemp.isSelected()));
-		tc.setconfig("disableEngineInfoHeatTolerance", Boolean.toString(!bEngineInfoHeatTolerance.isSelected()));
-		tc.setconfig("disableEngineInfoEngResponse", Boolean.toString(!bEngineInfoEngResponse.isSelected()));
+		engineInfoPanel.saveConfig(tc.configService);
 
 		tc.setconfig("crosshairSwitch", Boolean.toString(bCrosshairSwitch.isSelected()));
 		tc.setconfig("crosshairScale", Integer.toString(iCrosshairScale.getValue()));
