@@ -14,37 +14,54 @@ public class ConfigurationService implements ConfigProvider {
 
     public void initConfig() {
         cfg = new config("./config/config.properties");
-        if (cfg.getValue("Interval") == "") {
-            // Defaults
-            cfg.setValue("Interval", "300");
-            cfg.setValue("voiceVolume", "100");
-            cfg.setValue("enableVoiceWarn", "true");
-            cfg.setValue("enableFMPrint", "false");
-            cfg.setValue("enableEngineControl", "false");
-            cfg.setValue("engineInfoSwitch", "false");
-            cfg.setValue("flightInfoSwitch", "false");
-            cfg.setValue("crosshairSwitch", "false");
-            cfg.setValue("enableAttitudeIndicator", "false");
-            cfg.setValue("enablegearAndFlaps", "false");
-            cfg.setValue("enableAxis", "false");
-            cfg.setValue("thrustdFS", "false");
-            cfg.setValue("lock", "false"); // lock overlay
-            cfg.setValue("simpleFont", "false");
-            cfg.setValue("AAEnable", "true");
-            cfg.setValue("enableStatusBar", "true");
-            cfg.setValue("AlwaysOnTop", "true");
-            cfg.setValue("enableLogging", "false");
-            cfg.setValue("GlobalNumFont", "");
+        boolean changed = false;
 
-            // Colors defaults
-            setColorConfig("fontNum", new Color(32, 222, 64, 140));
-            setColorConfig("fontLabel", new Color(166, 166, 166, 220));
-            setColorConfig("fontUnit", new Color(166, 166, 166, 220));
-            setColorConfig("fontWarn", new Color(216, 33, 13, 100));
-            setColorConfig("fontShade", new Color(0, 0, 0, 42));
+        changed |= checkDefault("Interval", "300");
+        changed |= checkDefault("voiceVolume", "100");
+        changed |= checkDefault("enableVoiceWarn", "true");
+        changed |= checkDefault("enableFMPrint", "false");
+        changed |= checkDefault("enableEngineControl", "false");
+        changed |= checkDefault("engineInfoSwitch", "false");
+        changed |= checkDefault("flightInfoSwitch", "false");
+        changed |= checkDefault("crosshairSwitch", "false");
+        changed |= checkDefault("enableAttitudeIndicator", "false");
+        changed |= checkDefault("enablegearAndFlaps", "false");
+        changed |= checkDefault("enableAxis", "false");
+        changed |= checkDefault("thrustdFS", "false");
+        changed |= checkDefault("lock", "false");
+        changed |= checkDefault("simpleFont", "false");
+        changed |= checkDefault("AAEnable", "true");
+        changed |= checkDefault("enableStatusBar", "true");
+        changed |= checkDefault("AlwaysOnTop", "true");
+        changed |= checkDefault("enableLogging", "false");
+        changed |= checkDefault("GlobalNumFont", "");
 
+        // Colors defaults
+        changed |= checkColorDefault("fontNum", new Color(32, 222, 64, 140));
+        changed |= checkColorDefault("fontLabel", new Color(166, 166, 166, 220));
+        changed |= checkColorDefault("fontUnit", new Color(166, 166, 166, 220));
+        changed |= checkColorDefault("fontWarn", new Color(216, 33, 13, 100));
+        changed |= checkColorDefault("fontShade", new Color(0, 0, 0, 42));
+
+        if (changed) {
             saveConfig();
         }
+    }
+
+    private boolean checkDefault(String key, String defaultValue) {
+        if (cfg.getValue(key).equals("")) {
+            cfg.setValue(key, defaultValue);
+            return true;
+        }
+        return false;
+    }
+
+    private boolean checkColorDefault(String key, Color defaultColor) {
+        if (cfg.getValue(key + "R").equals("")) {
+            setColorConfig(key, defaultColor);
+            return true;
+        }
+        return false;
     }
 
     public void loadAppCheck(controller c) {

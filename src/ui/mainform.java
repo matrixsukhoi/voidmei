@@ -20,13 +20,14 @@ import javax.swing.ImageIcon;
 import javax.swing.SwingConstants;
 
 import com.alee.extended.button.WebSwitch;
-import com.alee.extended.image.WebImage;
 import com.alee.extended.layout.VerticalFlowLayout;
 import com.alee.extended.panel.WebButtonGroup;
 import com.alee.extended.window.WebPopOver;
 import com.alee.global.StyleConstants;
 import com.alee.laf.button.WebButton;
 import com.alee.laf.combobox.WebComboBox;
+import ui.layout.UIBuilder;
+import ui.panels.AdvancedPanel;
 import com.alee.laf.label.WebLabel;
 import com.alee.laf.panel.WebPanel;
 import com.alee.laf.rootpane.WebFrame;
@@ -35,8 +36,6 @@ import com.alee.laf.splitpane.WebSplitPane;
 import com.alee.laf.tabbedpane.TabbedPaneStyle;
 import com.alee.laf.tabbedpane.WebTabbedPane;
 import com.alee.laf.text.WebTextArea;
-import com.alee.laf.text.WebTextField;
-import com.alee.utils.ImageUtils;
 import com.github.kwhat.jnativehook.GlobalScreen;
 import com.github.kwhat.jnativehook.keyboard.NativeKeyListener;
 import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent;
@@ -100,9 +99,6 @@ public class mainform extends WebFrame implements Runnable {
 	public Boolean moveCheckFlag;
 	public boolean isInitializing = false;
 
-	WebSwitch bTempInfoSwitch;
-	WebSlider iInterval;
-	WebComboBox sGlobalNumFont;
 	Color whiteBg = new Color(255, 255, 255, 255);
 
 	public static String[] getFilelistNameNoEx(String[] list) {
@@ -136,6 +132,7 @@ public class mainform extends WebFrame implements Runnable {
 	public void initJP(WebPanel JP) {
 		JP.setWebColoredBackground(false);
 		JP.setBackground(new Color(0, 0, 0, 0));
+		JP.setOpaque(false);
 		JP.setUndecorated(false);
 		// JP.setMargin ( 20 );
 		// JP.setShadeTransparency((double) 0.1);
@@ -154,6 +151,7 @@ public class mainform extends WebFrame implements Runnable {
 	public void initJPinside(WebPanel JP) {
 		JP.setWebColoredBackground(false);
 		JP.setBackground(new Color(0, 0, 0, 0));
+		JP.setOpaque(false);
 		// JP.setUndecorated ( false);
 		// JP.setMargin ( 20 );
 		JP.setShadeTransparency((float) 0.1);
@@ -287,59 +285,13 @@ public class mainform extends WebFrame implements Runnable {
 	}
 
 	public WebComboBox createFontList(WebPanel topPanel, String text) {
-
-		WebLabel lb = createWebLabel(text);
-		/*
-		 * WebList editableList = new WebList(app.fonts); //
-		 * app.debugPrint(app.fonts.length); editableList.setFont(app.DefaultFont);
-		 * editableList.setSelectionShadeWidth(0);
-		 * editableList.setSelectionBorderColor(new Color(0, 0, 0, 0));
-		 * editableList.setVisibleRowCount(5); editableList.setBackground(new Color(0,
-		 * 0, 0, 0)); //editableList.setSelectionBackgroundColor(new Color(0, 0, 0, 0));
-		 * editableList.getWebUI().setWebColoredSelection(false);
-		 * editableList.getWebUI().setSelectionShadeWidth(1);
-		 * editableList.getWebUI().setSelectionBorderColor(new Color(0, 0, 0, 100));
-		 * editableList.getWebUI().setSelectionRound(5);
-		 * editableList.getWebUI().setSelectionBackgroundColor(new Color(0, 0, 0, 0));
-		 * editableList.getWebUI().setHighlightRolloverCell(true); //
-		 * editableList.setSelectedIndex ( 0 ); // editableList.setSelectedValue("",
-		 * true); // editableList.getSelectedValue(); editableList.setEditable(false);
-		 * editableList.setSelectionBackground(new Color(0, 0, 0, 0));
-		 * //editableList.setSelectionForeground(new Color(0, 0, 0, 0)); //
-		 * app.debugPrint(editableList.getScrollableTracksViewportWidth()); //
-		 * editableList.setPreferredSize(400, 200); WebScrollPane WSP = new
-		 * WebScrollPane(editableList); WSP.setWheelScrollingEnabled(true);
-		 * WSP.getWebVerticalScrollBar().setPaintButtons(false); //
-		 * WSP.getWebUI().setDrawBackground(false); WSP.setBackground(new Color(0, 0, 0,
-		 * 0)); WSP.getWebVerticalScrollBar().setPaintTrack(false);
-		 * WSP.setShadeWidth(0);
-		 */
-
-		WebComboBox comboBox = new WebComboBox(app.fonts);
-		comboBox.setWebColoredBackground(false);
-		// comboBox.getWebUI().setDrawBorder(false);
-		comboBox.setShadeWidth(1);
-		comboBox.setDrawFocus(false);
-		// comboBox.getWebUI().setWebColoredBackground(false);
-		// comboBox.getComponent(0).setBackground(new Color(0, 0, 0, 0));
-		comboBox.setFont(app.defaultFont);
-
-		// comboBox.getComponentPopupMenu().setBackground(new Color(0, 0, 0,
-		// 0));
-		// comboBox.getWebUI().setDrawBorder(false);
-		comboBox.setExpandedBgColor(new Color(0, 0, 0, 0));
-		// comboBox.getWebUI().setExpandedBgColor(new Color(0, 0, 0, 0));
-		comboBox.setBackground(new Color(0, 0, 0, 0));
-
+		WebComboBox comboBox = UIBuilder.addFontComboBox(topPanel, text, app.fonts);
 		comboBox.addActionListener(e -> {
 			if (isInitializing)
 				return;
 			saveconfig();
 			tc.refreshPreviews();
 		});
-
-		topPanel.add(lb);
-		topPanel.add(comboBox);
 		return comboBox;
 	}
 
@@ -378,15 +330,8 @@ public class mainform extends WebFrame implements Runnable {
 	private WebSwitch bFlightInfoWingSweep;
 	private WebSlider iflightInfoColumnNum;
 	private WebSlider iengineInfoColumnNum;
-	private WebSwitch bvoiceWarningSwitch;
 	private WebSwitch bFlightInfoRadioAlt;
 	private WebSwitch benableEngineControl;
-	private WebSwitch bdrawShadeSwitch;
-	private WebTextField cNumColor;
-	private WebTextField cLabelColor;
-	private WebTextField cUnitColor;
-	private WebTextField cWarnColor;
-	private WebTextField cShadeColor;
 	private WebSwitch bEngineControlRadiator;
 	private WebSwitch bEngineControlMixture;
 	private WebSwitch bEngineControlPitch;
@@ -409,15 +354,13 @@ public class mainform extends WebFrame implements Runnable {
 	private WebSwitch bEngineInfoOilTemp;
 	private WebSwitch bEngineInfoHeatTolerance;
 	private WebSwitch bEngineInfoEngResponse;
-	private WebSwitch bstatusSwitch;
-	private WebSlider ivoiceVolume;
-	private WebSwitch bAAEnable;
 	private int isDragging;
 	private int xx;
 	private int yy;
 	private WebComboBox bFMList0;
 	private WebComboBox bFMList1;
 	private WebComboBox sMonoFont;
+	private AdvancedPanel advancedPanel;
 
 	private void displayFM(WebComboBox bFMList, int idx) {
 		String planeName = bFMList.getSelectedItem().toString();
@@ -519,99 +462,6 @@ public class mainform extends WebFrame implements Runnable {
 		// popOver1.repaint();
 	}
 
-	private String getColorText(final Color color) {
-		return color.getRed() + ", " + color.getGreen() + ", " + color.getBlue() + ", " + color.getAlpha();
-	}
-
-	private Color textToColor(String t) {
-		int R, G, B, A;
-		t = t.replaceAll(" ", "");
-		String[] ts = t.split(",");
-		if (ts.length < 4)
-			return Color.BLACK;
-		R = Integer.parseInt(ts[0]);
-		G = Integer.parseInt(ts[1]);
-		B = Integer.parseInt(ts[2]);
-		A = Integer.parseInt(ts[3]);
-		Color c = new Color(R, G, B, A);
-		// app.debugPrint(getColorText(c));
-		return c;
-	}
-
-	public Color updateColorGroupColor(WebTextField trailing) {
-		Color c = textToColor(trailing.getText());
-		// app.debugPrint(getColorText(c));
-		trailing.setLeadingComponent(new WebImage(ImageUtils.createColorIcon(c)));
-		return c;
-	}
-
-	public WebTextField createColorGroup(WebPanel topPanel, String text) {
-		// Initial color
-		final Color initialColor = Color.WHITE;
-
-		WebLabel lb = createWebLabel(text);
-
-		// textToColor(S);
-
-		WebTextField trailing = new WebTextField(getColorText(initialColor), 15);
-		trailing.setMargin(0, 0, 0, 2);
-		trailing.setLeadingComponent(new WebImage(ImageUtils.createColorIcon(initialColor)));
-		trailing.setShadeWidth(2);
-
-		trailing.addActionListener(new ActionListener() {
-
-			public void actionPerformed(ActionEvent e) {
-
-				updateColorGroupColor(trailing);
-				if (isInitializing)
-					return;
-				saveconfig();
-				tc.refreshPreviews();
-			}
-		});
-
-		topPanel.add(lb);
-		topPanel.add(trailing);
-
-		return trailing;
-
-		// Simple color chooser
-		// final WebButton colorChooserButton = new WebButton ( getColorText (
-		// initialColor ), ImageUtils.createColorIcon ( initialColor ) );
-		// colorChooserButton.setLeftRightSpacing ( 0 );
-		// colorChooserButton.setMargin ( 0, 0, 0, 3 );
-		// colorChooserButton.addActionListener ( new ActionListener ()
-		// {
-		// private WebColorChooserDialog colorChooser = null;
-		// private Color lastColor = initialColor;
-		//
-		// @Override
-		// public void actionPerformed ( final ActionEvent e )
-		// {
-		// if ( colorChooser == null )
-		// {
-		// colorChooser = new WebColorChooserDialog ( topPanel );
-		// }
-		// colorChooser.setColor ( lastColor );
-		// colorChooser.setVisible ( true );
-		//
-		// if ( colorChooser.getResult () == DialogOptions.OK_OPTION )
-		// {
-		// final Color color = colorChooser.getColor ();
-		// lastColor = color;
-		//
-		// colorChooserButton.setIcon ( ImageUtils.createColorIcon ( color ) );
-		// colorChooserButton.setText ( getColorText ( color ) );
-		// }
-		// }
-		// } );
-		// GroupPanel t = new GroupPanel ( colorChooserButton );
-		// topPanel.add(lb);
-		// topPanel.add(t);
-		// return t;
-
-	}
-
 	public WebButtonGroup createLBGroup(WebPanel topPanel) {
 		displayPreview = createButton(lang.mDisplayPreview);
 		WebButton C = createButton(lang.mClosePreview);
@@ -681,29 +531,7 @@ public class mainform extends WebFrame implements Runnable {
 	}
 
 	public WebSlider createLSGroup(WebPanel topPanel, String text, int min, int max, int size, int tick1, int tick2) {
-		WebLabel lb = createWebLabel(text);
-		WebSlider ws = new WebSlider(WebSlider.HORIZONTAL);
-
-		ws.setMinimum(min);
-		ws.setMaximum(max);
-		ws.setDrawProgress(true);
-		ws.setPaintTicks(true);
-		ws.setPaintLabels(true);
-		ws.setMinorTickSpacing(tick1);
-		ws.setMajorTickSpacing(tick2);
-		ws.setPreferredWidth(size);
-		ws.setProgressShadeWidth(0);
-		ws.setTrackShadeWidth(1);
-		// slider1.setDrawThumb(false);
-		ws.setThumbShadeWidth(1);
-		ws.setThumbBgBottom(whiteBg);
-		ws.setThumbBgTop(whiteBg);
-		ws.setTrackBgBottom(whiteBg);
-		ws.setTrackBgTop(whiteBg);
-		ws.setProgressBorderColor(whiteBg);
-		ws.setProgressTrackBgBottom(whiteBg);
-		ws.setProgressTrackBgTop(whiteBg);
-
+		WebSlider ws = UIBuilder.addSlider(topPanel, text, min, max, min, size, tick1, tick2);
 		ws.addChangeListener(e -> {
 			if (isInitializing)
 				return;
@@ -712,52 +540,18 @@ public class mainform extends WebFrame implements Runnable {
 				tc.refreshPreviews();
 			}
 		});
-
-		topPanel.add(lb);
-		topPanel.add(ws);
 		return ws;
 	}
 
-	public WebSwitch createLCGroup(WebPanel topPanel, String text/* , GridBagConstraints s, GridBagLayout layout */) {
-
-		WebLabel lb = createWebLabel(text);
-		WebSwitch ws;
-		ws = new WebSwitch();
-		// ws.setShadeWidth(0);
-		ws.getWebUI().setShadeWidth(0);
-		ws.setWebColoredBackground(false);
-		// app.debugPrint(ws.getComponent(0).getIgnoreRepaint());
-		// ws.getComponent(0).getIgnoreRepaint();
-		ws.setBackground(whiteBg);
-		ws.getWebUI().setPaintSides(true, false, true, false);
-		// ws.getWebUI().setPaintSides(false, true, false, true);
-		ws.setRound(5);
-		// ws.setAnimate(false);
-		ws.setShadeWidth(1);
-		ws.getLeftComponent().setFont(new Font(app.defaultNumfontName, Font.PLAIN, 14));
-		ws.getRightComponent().setFont(new Font(app.defaultNumfontName, Font.PLAIN, 14));
-		ws.getLeftComponent().setDrawShade(false);
-		ws.getRightComponent().setDrawShade(false);
-		ws.getLeftComponent().setText("On");
-		ws.getRightComponent().setText("Off");
-		// ws.getFirstComponent().setEnabled(false);
-		// ws.getWebUI().setPaintSideLines(false, false, false, false);
-		// ws.getComponent(0).setBackground(new Color(0,0,0));
-		/*
-		 * layout.setConstraints(lb, s); s.gridx++; layout.setConstraints(ws, s);
-		 */
-
+	public WebSwitch createLCGroup(WebPanel topPanel, String text) {
+		WebSwitch ws = UIBuilder.addSwitch(topPanel, text, false);
 		ws.addActionListener(e -> {
 			if (isInitializing)
 				return;
 			saveconfig();
 			tc.refreshPreviews();
 		});
-
-		topPanel.add(lb);
-		topPanel.add(ws);
 		return ws;
-
 	}
 
 	public void createvoidWebLabel(WebPanel topPanel, String text) {
@@ -771,7 +565,11 @@ public class mainform extends WebFrame implements Runnable {
 		WebPanel bottomPanel = new WebPanel();
 		initJPinside(topPanel);
 		initJPinside(bottomPanel);
+		topPanel.setLayout(new BorderLayout());
+		bottomPanel.setLayout(new BorderLayout());
 		WebSplitPane splitPane = new WebSplitPane(VERTICAL_SPLIT, topPanel, bottomPanel);
+		splitPane.setOpaque(false);
+		splitPane.setBackground(new Color(0, 0, 0, 0));
 		splitPane.setOneTouchExpandable(true);
 		// splitPane.setPreferredSize ( new Dimension ( 250, 200 ) );
 		splitPane.setDividerLocation(320);
@@ -783,61 +581,16 @@ public class mainform extends WebFrame implements Runnable {
 
 		// topPanel
 
-		if (app.debug)
-			bTempInfoSwitch = createLCGroup(topPanel, lang.mP1statusBar);
-		if (app.debug)
-			createvoidWebLabel(topPanel, lang.mP1statusBarBlank);
+		advancedPanel = new AdvancedPanel();
+		advancedPanel.setOnChange(() -> {
+			saveconfig();
+			tc.refreshPreviews();
+		});
 
-		bstatusSwitch = createLCGroup(topPanel, lang.mP1statusBar);
-		createvoidWebLabel(topPanel, lang.mP1statusBarBlank);
-
-		bdrawShadeSwitch = createLCGroup(topPanel, lang.mP1drawFontShape);
-		createvoidWebLabel(topPanel, lang.mP1drawFontShapeBlank);
-
-		bAAEnable = createLCGroup(topPanel, lang.mP1AAEnable);
-		createvoidWebLabel(topPanel, lang.mP1AAEnableBlank);
-
-		sGlobalNumFont = createFontList(topPanel, lang.mP1GlobalNumberFont);
-		createvoidWebLabel(topPanel, lang.mP1GlobalNumberFontBlank);
-
-		cNumColor = createColorGroup(topPanel, lang.mP1NumColor);
-		createvoidWebLabel(topPanel, lang.mP1NumColorBlank);
-		cLabelColor = createColorGroup(topPanel, lang.mP1LabelColor);
-		createvoidWebLabel(topPanel, lang.mP1LabelColorBlank);
-
-		cUnitColor = createColorGroup(topPanel, lang.mP1UnitColor);
-		createvoidWebLabel(topPanel, lang.mP1UnitColorBlank);
-
-		cWarnColor = createColorGroup(topPanel, lang.mP1WarnColor);
-		createvoidWebLabel(topPanel, lang.mP1WarnColorBlank);
-
-		cShadeColor = createColorGroup(topPanel, lang.mP1ShadeColor);
-		createvoidWebLabel(topPanel, lang.mP1ShadeColorBlank);
-
-		iInterval = createLSGroup(topPanel, lang.mP1Interval, 10, 300, 500, 5, 40);
-		bvoiceWarningSwitch = createLCGroup(topPanel, lang.mP1VoiceWarning);
-		createvoidWebLabel(topPanel, lang.mP1VoiceWarningBlank);
-
-		ivoiceVolume = createLSGroup(topPanel, lang.mP1voiceVolume, 0, 200, 300, 10, 50);
-		createvoidWebLabel(topPanel, lang.mP1voiceVolumeBlank);
-
-		/*
-		 * GridBagLayout layout1 = new GridBagLayout(); GridBagConstraints s1 = new
-		 * GridBagConstraints(); s1.fill = GridBagConstraints.BOTH; s1.gridwidth = 1;
-		 * s1.weightx = 0; s1.weighty = 0; s1.gridx = 0; s1.gridy = 0;
-		 */
-		// createLCGroup(topPanel, "显示发动机面板 ");
-
-		// topPanel.setLayout(layout1);
-		topPanel.setLayout(new FlowLayout());
-		FlowLayout layout = new FlowLayout();
-		layout.setAlignment(FlowLayout.LEFT);
-		topPanel.setLayout(layout);
+		topPanel.add(advancedPanel, BorderLayout.CENTER);
 
 		// bottomPanel
 
-		// WebButtonGroup G = createbuttonGroup();
-		// bottomPanel.add(G, BorderLayout.LINE_END);
 		WebButtonGroup G = createbuttonGroup();
 		bottomPanel.add(G, BorderLayout.LINE_END);
 		WebButtonGroup G1 = createLBGroup(bottomPanel);
@@ -1301,6 +1054,7 @@ public class mainform extends WebFrame implements Runnable {
 		// tabbedPane.setSelectedForegroundAt(0,(new Color(0, 0, 0, 0));
 		tabbedPane.setSelectedIndex(0);
 
+		tabbedPane.setOpaque(false);
 		tabbedPane.setBackground(new Color(0, 0, 0, 0));
 		// tabbedPane.getWebUI().setBackgroundColor(new Color(0,0,0,0));
 		tabbedPane.setFont(app.defaultFontBig);
@@ -1441,36 +1195,9 @@ public class mainform extends WebFrame implements Runnable {
 		bcrosshairdisplaySwitch.setSelected(Boolean.parseBoolean(tc.getconfig("displayCrosshair")));
 		sMonoFont.setSelectedItem(tc.getconfig("MonoNumFont"));
 
-		bdrawShadeSwitch.setSelected(Boolean.parseBoolean(tc.getconfig("simpleFont")));
-		bAAEnable.setSelected(Boolean.parseBoolean(tc.getconfig("AAEnable")));
-		bvoiceWarningSwitch.setSelected(Boolean.parseBoolean(tc.getconfig("enableVoiceWarn")));
-		if (app.debug)
-			bTempInfoSwitch.setSelected(Boolean.parseBoolean(tc.getconfig("usetempInfoSwitch")));
-		sGlobalNumFont.setSelectedItem(tc.getconfig("GlobalNumFont"));
+		advancedPanel.loadConfig(tc.configService);
 
-		iInterval.setValue(Integer.parseInt(tc.getconfig("Interval")));
-
-		bstatusSwitch.setSelected(Boolean.parseBoolean(tc.getconfig("enableStatusBar")));
-		ivoiceVolume.setValue(Integer.parseInt(tc.getconfig("voiceVolume")));
-		// tc.setconfig("enableStatusBar",
-		// Boolean.toString(bstatusSwitch.isSelected()));
-		// tc.setconfig("voiceVolumn", Integer.toString(ivoiceVolume.getValue()));
-
-		// 颜色
-		cNumColor.setText(getColorText(tc.getColorConfig("fontNum")));
-		updateColorGroupColor(cNumColor);
-
-		cLabelColor.setText(getColorText(tc.getColorConfig("fontLabel")));
-		updateColorGroupColor(cLabelColor);
-
-		cUnitColor.setText(getColorText(tc.getColorConfig("fontUnit")));
-		updateColorGroupColor(cUnitColor);
-
-		cWarnColor.setText(getColorText(tc.getColorConfig("fontWarn")));
-		updateColorGroupColor(cWarnColor);
-
-		cShadeColor.setText(getColorText(tc.getColorConfig("fontShade")));
-		updateColorGroupColor(cShadeColor);
+		sFlightInfoFont.setSelectedItem(tc.getconfig("flightInfoFontC"));
 
 		bEnableLogging.setSelected(Boolean.parseBoolean(tc.getconfig("enableLogging")));
 		bEnableInformation.setSelected(Boolean.parseBoolean(tc.getconfig("enableAltInformation")));
@@ -1527,6 +1254,8 @@ public class mainform extends WebFrame implements Runnable {
 	}
 
 	public void saveconfig() {
+		if (isInitializing)
+			return;
 		// app.debugPrint(Boolean.toString(bengineInfoSwitch.isSelected()));
 
 		tc.setconfig("flightInfoSwitch", Boolean.toString(bFlightInfoSwitch.isSelected()));
@@ -1563,6 +1292,8 @@ public class mainform extends WebFrame implements Runnable {
 		tc.setconfig("flightInfoFontC", sFlightInfoFont.getSelectedItem().toString());
 		tc.setconfig("flightInfoFontaddC", Integer.toString(iFlightInfoFontSizeIncr.getValue()));
 
+		advancedPanel.saveConfig(tc.configService);
+
 		tc.setconfig("engineInfoSwitch", Boolean.toString(bEngineInfoSwitch.isSelected()));
 		tc.setconfig("engineInfoEdge", Boolean.toString(bEngineInfoEdge.isSelected()));
 		// app.debugPrint(sengineInfoFont.getSelectedValue());
@@ -1596,42 +1327,6 @@ public class mainform extends WebFrame implements Runnable {
 		tc.setconfig("displayCrosshair", Boolean.toString(bcrosshairdisplaySwitch.isSelected()));
 		tc.setconfig("MonoNumFont", sMonoFont.getSelectedItem().toString());
 
-		tc.setconfig("simpleFont", Boolean.toString(bdrawShadeSwitch.isSelected()));
-		tc.setconfig("AAEnable", Boolean.toString(bAAEnable.isSelected()));
-
-		tc.setconfig("enableVoiceWarn", Boolean.toString(bvoiceWarningSwitch.isSelected()));
-		if (app.debug)
-			tc.setconfig("usetempInfoSwitch", Boolean.toString(bTempInfoSwitch.isSelected()));
-		tc.setconfig("GlobalNumFont", sGlobalNumFont.getSelectedItem().toString());
-		tc.setconfig("Interval", Integer.toString(iInterval.getValue()));
-
-		tc.setconfig("enableStatusBar", Boolean.toString(bstatusSwitch.isSelected()));
-		tc.setconfig("voiceVolume", Integer.toString(ivoiceVolume.getValue()));
-
-		// 颜色
-		tc.setColorConfig("fontNum", textToColor(cNumColor.getText()));
-		tc.setColorConfig("fontLabel", textToColor(cLabelColor.getText()));
-		tc.setColorConfig("fontUnit", textToColor(cUnitColor.getText()));
-		tc.setColorConfig("fontWarn", textToColor(cWarnColor.getText()));
-		tc.setColorConfig("fontShade", textToColor(cShadeColor.getText()));
-
-		tc.setconfig("enableLogging", Boolean.toString(bEnableLogging.isSelected()));
-		tc.setconfig("enableAltInformation", Boolean.toString(bEnableInformation.isSelected()));
-		tc.setconfig("selectedFM0", bFMList0.getSelectedItem().toString());
-		tc.setconfig("selectedFM1", bFMList1.getSelectedItem().toString());
-
-		tc.setconfig("enableAxis", Boolean.toString(bEnableAxis.isSelected()));
-		tc.setconfig("enableAxisEdge", Boolean.toString(bEnableAxisEdge.isSelected()));
-		tc.setconfig("enablegearAndFlaps", Boolean.toString(bEnablegearAndFlaps.isSelected()));
-		tc.setconfig("enablegearAndFlapsEdge", Boolean.toString(bEnablegearAndFlapsEdge.isSelected()));
-		tc.setconfig("enableEngineControl", Boolean.toString(benableEngineControl.isSelected()));
-
-		tc.setconfig("disableEngineInfoThrottle", Boolean.toString(!bEngineControlThrottle.isSelected()));
-		tc.setconfig("disableEngineInfoPitch", Boolean.toString(!bEngineControlPitch.isSelected()));
-		tc.setconfig("disableEngineInfoMixture", Boolean.toString(!bEngineControlMixture.isSelected()));
-		tc.setconfig("disableEngineInfoRadiator", Boolean.toString(!bEngineControlRadiator.isSelected()));
-		tc.setconfig("disableEngineInfoCompressor", Boolean.toString(!bEngineControlCompressor.isSelected()));
-		tc.setconfig("disableEngineInfoLFuel", Boolean.toString(!bEngineControlLFuel.isSelected()));
 		tc.setconfig("displayFmKey", Integer.toString(app.displayFmKey));
 
 	}

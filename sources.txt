@@ -32,6 +32,7 @@ src/prog/OverlayContext.java
 src/prog/flapsControl.java
 src/ui/statusBar.java
 src/ui/engineInfo.java
+src/ui/panels/AdvancedPanel.java
 src/ui/gearAndFlaps.java
 src/ui/infolist.java
 src/ui/stickValue.java

@@ -64,60 +64,79 @@ public class UIBuilder {
 
     // Quick helper to add a standardized switch to a container
     public static WebSwitch addSwitch(Container parent, String labelText, boolean initialValue) {
-        // Use FlowLayout to prevent vertical stretching of the switch
-        WebPanel p = new WebPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 5, 0));
-        p.setOpaque(false);
-
+        // Flat Strategy: Add directly to parent to respect FlowLayout
         WebLabel label = new WebLabel(labelText);
         activeStyle.decorateLabel(label);
 
-        WebSwitch ws = new WebSwitch();
-        ws.setSelected(initialValue);
-        activeStyle.decorateSwitch(ws);
+        WebSwitch webSwitch = new WebSwitch();
+        webSwitch.setSelected(initialValue);
+        activeStyle.decorateSwitch(webSwitch);
 
-        p.add(label);
-        p.add(ws);
-
-        // Store label reference for ResponsiveGridLayout to enable dynamic column
-        // alignment
-        p.putClientProperty("alignLabel", label);
-
-        parent.add(p);
-        return ws;
+        parent.add(label);
+        parent.add(webSwitch);
+        return webSwitch;
     }
 
-    public static WebSlider addSlider(Container parent, String labelText, int min, int max, int val) {
-        WebPanel p = new WebPanel(new java.awt.BorderLayout(5, 0));
-
+    public static WebSlider addSlider(Container parent, String labelText, int min, int max, int val, int width,
+            int minorTick,
+            int majorTick) {
+        // Flat Strategy
         WebLabel label = new WebLabel(labelText);
         activeStyle.decorateLabel(label);
 
-        // --- Alignment Logic ---
+        // --- Alignment Logic (Legacy) ---
+        // Preserving the check
         Dimension d2 = label.getPreferredSize();
         if (d2.width < 110) {
             label.setPreferredSize(new Dimension(110, d2.height));
         }
 
         WebSlider slider = new WebSlider(WebSlider.HORIZONTAL, min, max, val);
+        slider.setMinorTickSpacing(minorTick);
+        slider.setMajorTickSpacing(majorTick);
+        slider.setPaintTicks(true);
+        slider.setPaintLabels(true);
+
         activeStyle.decorateSlider(slider);
+        slider.setPreferredSize(new Dimension(width, 50));
 
-        p.setPreferredSize(new Dimension(300, 30));
-        p.add(label, java.awt.BorderLayout.WEST);
-        p.add(slider, java.awt.BorderLayout.CENTER);
-
-        activeStyle.decorateControlPanel(p);
-
-        // Store label reference for ResponsiveGridLayout
-        p.putClientProperty("alignLabel", label);
-
-        parent.add(p);
+        parent.add(label);
+        parent.add(slider);
         return slider;
     }
 
-    public static com.alee.laf.combobox.WebComboBox addComboBox(Container parent, String labelText, String[] items) {
-        WebPanel p = new WebPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 5, 0));
-        p.setOpaque(false);
+    public static WebSlider addSlider(Container parent, String labelText, int min, int max, int val, int width) {
+        return addSlider(parent, labelText, min, max, val, width, 0, 0);
+    }
 
+    public static WebSlider addSlider(Container parent, String labelText, int min, int max, int val) {
+        return addSlider(parent, labelText, min, max, val, 300, 0, 0);
+    }
+
+    public static com.alee.laf.combobox.WebComboBox addFontComboBox(Container parent, String labelText,
+            String[] fonts) {
+        return addComboBox(parent, labelText, fonts);
+    }
+
+    public static com.alee.laf.text.WebTextField addColorField(Container parent, String labelText, String colorText,
+            java.awt.Color initialColor) {
+        // Flat Strategy
+        WebLabel label = new WebLabel(labelText);
+        activeStyle.decorateLabel(label);
+
+        com.alee.laf.text.WebTextField trailing = new com.alee.laf.text.WebTextField(colorText, 15);
+        trailing.setMargin(0, 0, 0, 2);
+        trailing.setLeadingComponent(
+                new com.alee.extended.image.WebImage(com.alee.utils.ImageUtils.createColorIcon(initialColor)));
+        trailing.setShadeWidth(2);
+
+        parent.add(label);
+        parent.add(trailing);
+        return trailing;
+    }
+
+    public static com.alee.laf.combobox.WebComboBox addComboBox(Container parent, String labelText, String[] items) {
+        // Flat Strategy
         WebLabel label = new WebLabel(labelText);
         activeStyle.decorateLabel(label);
 
@@ -129,13 +148,8 @@ public class UIBuilder {
         comboBox.setExpandedBgColor(new java.awt.Color(0, 0, 0, 0));
         comboBox.setBackground(new java.awt.Color(0, 0, 0, 0));
 
-        p.add(label);
-        p.add(comboBox);
-
-        // Store label reference for ResponsiveGridLayout
-        p.putClientProperty("alignLabel", label);
-
-        parent.add(p);
+        parent.add(label);
+        parent.add(comboBox);
         return comboBox;
     }
 
