@@ -71,6 +71,8 @@ src/ui/layout/ResponsiveGridLayout.java
 src/ui/layout/DynamicDataPage.java
 src/ui/layout/UIBuilder.java
 src/ui/layout/ClassicStyle.java
+src/ui/util/ConfigWatcherService.java
+src/ui/util/FileUtils.java
 src/ui/util/NotificationService.java
 src/ui/util/NotificationFactory.java
 src/ui/util/ConfigLoader.java

@@ -8,6 +8,8 @@ import com.alee.laf.label.WebLabel;
 import com.alee.laf.panel.WebPanel;
 import com.alee.laf.slider.WebSlider;
 
+import ui.util.FileUtils;
+
 public class UIBuilder {
 
     private static UIStyle activeStyle = new ClassicStyle();
@@ -66,7 +68,7 @@ public class UIBuilder {
         String[] filelist = file.list();
         if (filelist == null)
             filelist = new String[0];
-        filelist = getFilelistNameNoEx(filelist);
+        filelist = FileUtils.getFilelistNameNoEx(filelist);
 
         com.alee.laf.combobox.WebComboBox comboBox = new com.alee.laf.combobox.WebComboBox(filelist);
         comboBox.setWebColoredBackground(false);
@@ -84,19 +86,6 @@ public class UIBuilder {
         parent.add(lb);
         parent.add(comboBox);
         return comboBox;
-    }
-
-    private static String[] getFilelistNameNoEx(String[] filelist) {
-        if (filelist == null)
-            return new String[0];
-        String[] res = new String[filelist.length];
-        for (int i = 0; i < filelist.length; i++) {
-            int dot = filelist[i].lastIndexOf('.');
-            if ((dot > -1) && (dot < (filelist[i].length()))) {
-                res[i] = filelist[i].substring(0, dot);
-            }
-        }
-        return res;
     }
 
     public static void setStyle(UIStyle style) {

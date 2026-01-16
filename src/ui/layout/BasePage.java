@@ -179,8 +179,8 @@ public abstract class BasePage extends WebPanel {
         btnExit.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                parent.saveconfig();
-                parent.tc.saveconfig();
+                parent.saveConfig();
+                parent.tc.saveConfig();
                 System.exit(0);
             }
         });

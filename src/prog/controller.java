@@ -300,7 +300,7 @@ public class controller implements ConfigProvider {
 		setConfig(key, value);
 	}
 
-	public void saveconfig() {
+	public void saveConfig() {
 		configService.saveConfig();
 	}
 

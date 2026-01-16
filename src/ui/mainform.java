@@ -44,8 +44,7 @@ public class mainform extends WebFrame implements Runnable {
 	public controller tc;
 	// Store dynamic pages for updates
 	private java.util.List<ui.layout.DynamicDataPage> dynamicPages;
-	private long lastConfigModTime = 0;
-	private boolean ignoreNextWatch = false; // To avoid reloading after we save ourselves
+	private ui.util.ConfigWatcherService configWatcher;
 	int gcCount = 0;
 	Container root;
 	WebTabbedPane tabbedPane;
@@ -63,27 +62,6 @@ public class mainform extends WebFrame implements Runnable {
 	public boolean isInitializing = false;
 
 	Color whiteBg = new Color(255, 255, 255, 255);
-
-	public static String[] getFilelistNameNoEx(String[] list) {
-		int i;
-		String[] a = new String[list.length];
-		for (i = 0; i < list.length; i++) {
-			// app.debugPrint(list[i]);
-			a[i] = getFileNameNoEx(list[i]);
-			// app.debugPrint(list[i]);
-		}
-		return a;
-	}
-
-	public static String getFileNameNoEx(String filename) {
-		if ((filename != null) && (filename.length() > 0)) {
-			int dot = filename.lastIndexOf('.');
-			if ((dot > -1) && (dot < (filename.length()))) {
-				return filename.substring(0, dot);
-			}
-		}
-		return filename;
-	}
 
 	public void setFrameOpaque() {
 		this.getWebRootPaneUI().setMiddleBg(new Color(255, 255, 255));// 纯白背景以匹配水印
@@ -124,8 +102,8 @@ public class mainform extends WebFrame implements Runnable {
 
 		A.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				saveconfig();
-				tc.saveconfig();
+				saveConfig();
+				tc.saveConfig();
 				System.exit(0);
 			}
 		});
@@ -197,7 +175,7 @@ public class mainform extends WebFrame implements Runnable {
 		advancedPanel.setOnChange(() -> {
 			if (isInitializing)
 				return;
-			saveconfig();
+			saveConfig();
 			tc.refreshPreviews();
 		});
 		setupTab(jp1, advancedPanel);
@@ -206,7 +184,7 @@ public class mainform extends WebFrame implements Runnable {
 	public void initJP2(WebPanel jp2) {
 		engineInfoPanel = new EngineInfoPanel();
 		engineInfoPanel.setOnChange(() -> {
-			saveconfig();
+			saveConfig();
 			if (!isInitializing) {
 				tc.refreshPreviews();
 			}
@@ -217,12 +195,12 @@ public class mainform extends WebFrame implements Runnable {
 	public void initJP3(WebPanel jp3) {
 		miniHUDPanel = new MiniHUDPanel(this);
 		miniHUDPanel.setOnChange(() -> {
-			saveconfig();
+			saveConfig();
 			if (!isInitializing) {
 				tc.refreshPreviews();
 			}
 		});
-		miniHUDPanel.setOnSave(() -> saveconfig());
+		miniHUDPanel.setOnSave(() -> saveConfig());
 		setupTab(jp3, miniHUDPanel);
 	}
 
@@ -231,7 +209,7 @@ public class mainform extends WebFrame implements Runnable {
 		flightInfoPanel.setOnChange(() -> {
 			if (isInitializing)
 				return;
-			saveconfig();
+			saveConfig();
 			tc.refreshPreviews();
 		});
 		// 同步“飞行信息”页面的开关状态到“记录分析”页面
@@ -246,12 +224,12 @@ public class mainform extends WebFrame implements Runnable {
 	public void initJP5(WebPanel jp5) {
 		loggingPanel = new LoggingPanel(this);
 		loggingPanel.setOnChange(() -> {
-			saveconfig();
+			saveConfig();
 			if (!isInitializing) {
 				tc.refreshPreviews();
 			}
 		});
-		loggingPanel.setOnSave(() -> saveconfig());
+		loggingPanel.setOnSave(() -> saveConfig());
 		// Synchronization with FlightInfoPanel
 		loggingPanel.bFMPrintLogSwitch.addActionListener(e -> {
 			if (flightInfoPanel != null && flightInfoPanel.bFMPrintSwitch != null
@@ -264,7 +242,7 @@ public class mainform extends WebFrame implements Runnable {
 	public void initJP6(WebPanel jp6) {
 		engineControlPanel = new EngineControlPanel();
 		engineControlPanel.setOnChange(() -> {
-			saveconfig();
+			saveConfig();
 			if (!isInitializing) {
 				tc.refreshPreviews();
 			}
@@ -337,23 +315,11 @@ public class mainform extends WebFrame implements Runnable {
 	}
 
 	private void startFileWatcher() {
-		java.io.File file = new java.io.File("ui_layout.cfg");
-		lastConfigModTime = file.lastModified();
-
-		new javax.swing.Timer(2000, e -> {
-			if (ignoreNextWatch) {
-				ignoreNextWatch = false;
-				lastConfigModTime = file.lastModified();
-				return;
-			}
-			if (file.lastModified() > lastConfigModTime) {
-				lastConfigModTime = file.lastModified();
-				reloadDynamicConfigs();
-			}
-		}).start();
+		configWatcher = new ui.util.ConfigWatcherService("ui_layout.cfg", this::reloadDynamicConfig);
+		configWatcher.start(2000);
 	}
 
-	private void reloadDynamicConfigs() {
+	private void reloadDynamicConfig() {
 		// Re-initialize controller's overlays and configs from disk
 		tc.initDynamicOverlays();
 
@@ -396,7 +362,7 @@ public class mainform extends WebFrame implements Runnable {
 		repaint();
 	}
 
-	public void initConfig() {
+	public void loadConfig() {
 		flightInfoPanel.loadConfig(tc.configService);
 		engineInfoPanel.loadConfig(tc.configService);
 		miniHUDPanel.loadConfig(tc.configService);
@@ -405,7 +371,7 @@ public class mainform extends WebFrame implements Runnable {
 		engineControlPanel.loadConfig(tc.configService);
 	}
 
-	public void config_init() {
+	public void initDefaults() {
 		FlightInfoPanel.initDefaults(tc.configService);
 		MiniHUDPanel.initDefaults(tc.configService);
 		LoggingPanel.initDefaults(tc.configService);
@@ -415,7 +381,7 @@ public class mainform extends WebFrame implements Runnable {
 		tc.setconfig("crosshairName", miniHUDPanel.sCrosshairName.getSelectedItem().toString());
 	}
 
-	public void saveconfig() {
+	public void saveConfig() {
 		if (isInitializing)
 			return;
 
@@ -433,8 +399,8 @@ public class mainform extends WebFrame implements Runnable {
 	public void confirm() {
 		tc.endPreview();
 		moveCheckFlag = false;
-		saveconfig();
-		tc.saveconfig();
+		saveConfig();
+		tc.saveConfig();
 		tc.loadFromConfig();
 
 		this.setVisible(false);
@@ -506,7 +472,7 @@ public class mainform extends WebFrame implements Runnable {
 		// this.getWebRootPaneUI().getWindowButtons().getWebButton(2).setBorderPainted(false);
 		isInitializing = true;
 		initPanel();
-		initConfig();// 读入Config
+		loadConfig();// 读入Config
 		try {
 			String keyStr = tc.getconfig("displayFmKey");
 			if (keyStr != null && !keyStr.isEmpty() && !keyStr.equals("null")) {
@@ -560,7 +526,7 @@ public class mainform extends WebFrame implements Runnable {
 	public void startPreview() {
 		if (moveCheckFlag == null || moveCheckFlag == false) {
 			ui.util.NotificationService.show(prog.lang.mMovePanel);
-			saveconfig();
+			saveConfig();
 			tc.Preview();
 			moveCheckFlag = true;
 
@@ -579,10 +545,11 @@ public class mainform extends WebFrame implements Runnable {
 		}
 	}
 
-	public void saveDynamicConfigs() {
+	public void saveDynamicConfig() {
 		if (dynamicPages == null)
 			return;
-		ignoreNextWatch = true; // Prevents reloading the file we just wrote
+		if (configWatcher != null)
+			configWatcher.ignoreNext(); // Prevents reloading the file we just wrote
 		java.util.List<ui.util.ConfigLoader.GroupConfig> configs = new java.util.ArrayList<>();
 		for (ui.layout.DynamicDataPage page : dynamicPages) {
 			if (page.getGroupConfig() != null) {

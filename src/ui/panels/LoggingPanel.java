@@ -10,14 +10,13 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionAdapter;
 import java.io.File;
 
-import ui.mainform;
+import ui.util.FileUtils;
 
 import com.alee.extended.button.WebSwitch;
 import com.alee.extended.layout.VerticalFlowLayout;
 import com.alee.extended.window.WebPopOver;
 import com.alee.laf.button.WebButton;
 import com.alee.laf.combobox.WebComboBox;
-import com.alee.laf.label.WebLabel;
 import com.alee.laf.panel.WebPanel;
 import com.alee.laf.rootpane.WebFrame;
 import com.alee.laf.text.WebTextArea;
@@ -148,7 +147,7 @@ public class LoggingPanel extends WebPanel {
         String[] filelist = file.list();
         if (filelist == null)
             filelist = new String[0];
-        filelist = mainform.getFilelistNameNoEx(filelist);
+        filelist = FileUtils.getFilelistNameNoEx(filelist);
         WebComboBox comboBox = new WebComboBox(filelist);
         comboBox.setWebColoredBackground(false);
         comboBox.setShadeWidth(1);

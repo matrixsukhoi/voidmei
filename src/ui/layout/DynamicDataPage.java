@@ -202,7 +202,7 @@ public class DynamicDataPage extends BasePage {
             setOverlayVisible(overlayVisible);
             if (groupConfig != null) {
                 groupConfig.visible = overlayVisible;
-                parent.saveDynamicConfigs();
+                parent.saveDynamicConfig();
             }
         });
         visibilityPanel.add(swOverlay);
@@ -594,7 +594,7 @@ public class DynamicDataPage extends BasePage {
 
     private void save() {
         // Trigger global save of ui_layout.cfg
-        parent.saveDynamicConfigs();
+        parent.saveDynamicConfig();
 
         // Also notify our overlay in controller to rebuild its bindings
         if (parent.tc.dynamicOverlays != null) {
