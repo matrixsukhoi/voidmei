@@ -1,5 +1,13 @@
 package prog;
 
+import ui.minimalHUD;
+import ui.flightInfo;
+import ui.engineControl;
+import ui.engineInfo;
+import ui.attitudeIndicator;
+import ui.gearAndFlaps;
+import ui.stickValue;
+
 public class uiThread implements Runnable {
 	long CheckMili;
 	controller c;
@@ -47,8 +55,9 @@ public class uiThread implements Runnable {
 				HCheckMili = stime;
 
 				/* 刷新字符串 */
-				if (c.H != null) {
-					c.H.updateString();
+				minimalHUD H = (minimalHUD) c.overlayManager.get("crosshairSwitch");
+				if (H != null) {
+					H.updateString();
 					repaintH = true;
 					drawTickNr++;
 				}
@@ -56,8 +65,9 @@ public class uiThread implements Runnable {
 			if (stime - FCheckMili >= c.freqFlightInfo) {
 				// 飞行信息
 				FCheckMili = stime;
-				if (c.FL != null) {
-					c.FL.updateString();
+				flightInfo FL = (flightInfo) c.overlayManager.get("flightInfoSwitch");
+				if (FL != null) {
+					FL.updateString();
 					repaintFL = true;
 					drawTickNr++;
 				}
@@ -65,14 +75,16 @@ public class uiThread implements Runnable {
 
 			if (stime - ECheckMili >= c.freqEngineInfo) {
 				ECheckMili = stime;
-				if (c.F != null) {
-					c.F.updateString();
+				engineControl F = (engineControl) c.overlayManager.get("enableEngineControl");
+				if (F != null) {
+					F.updateString();
 					repaintF = true;
 					drawTickNr++;
 				}
 
-				if (c.FI != null) {
-					c.FI.updateString();
+				engineInfo FI = (engineInfo) c.overlayManager.get("engineInfoSwitch");
+				if (FI != null) {
+					FI.updateString();
 					repaintFI = true;
 					drawTickNr++;
 				}
@@ -80,20 +92,33 @@ public class uiThread implements Runnable {
 
 			// 立即刷新，提升实时性
 			// Toolkit.getDefaultToolkit().sync();
-			if (repaintH)
-				c.H.drawTick();
-			if (repaintFL)
-				c.FL.drawTick();
-			if (repaintF)
-				c.F.drawTick();
-			if (repaintFI)
-				c.FI.drawTick();
+			if (repaintH) {
+				minimalHUD H = (minimalHUD) c.overlayManager.get("crosshairSwitch");
+				if (H != null)
+					H.drawTick();
+			}
+			if (repaintFL) {
+				flightInfo FL = (flightInfo) c.overlayManager.get("flightInfoSwitch");
+				if (FL != null)
+					FL.drawTick();
+			}
+			if (repaintF) {
+				engineControl F = (engineControl) c.overlayManager.get("enableEngineControl");
+				if (F != null)
+					F.drawTick();
+			}
+			if (repaintFI) {
+				engineInfo FI = (engineInfo) c.overlayManager.get("engineInfoSwitch");
+				if (FI != null)
+					FI.drawTick();
+			}
 
 			if (stime - ACheckMili >= c.freqAltitude) {
 				ACheckMili = stime;
-				if (c.aI != null) {
+				attitudeIndicator aI = (attitudeIndicator) c.overlayManager.get("enableAttitudeIndicator");
+				if (aI != null) {
 					if (c.S.sState != null && c.S.sIndic != null) {
-						c.aI.drawTick();
+						aI.drawTick();
 						drawTickNr++;
 					}
 				}
@@ -101,16 +126,18 @@ public class uiThread implements Runnable {
 
 			if (stime - GCheckMili >= c.freqGearAndFlap) {
 				GCheckMili = stime;
-				if (c.fS != null) {
+				gearAndFlaps fS = (gearAndFlaps) c.overlayManager.get("enablegearAndFlaps");
+				if (fS != null) {
 					drawTickNr++;
-					c.fS.drawTick();
+					fS.drawTick();
 				}
 			}
 			if (stime - SCheckMili >= c.freqStickValue) {
 				SCheckMili = stime;
-				if (c.sV != null) {
+				stickValue sV = (stickValue) c.overlayManager.get("enableAxis");
+				if (sV != null) {
 					drawTickNr++;
-					c.sV.drawTick();
+					sV.drawTick();
 				}
 			}
 
@@ -130,53 +157,6 @@ public class uiThread implements Runnable {
 				drawTickNr = 0;
 				System.gc();
 			}
-
-			// if (Boolean.parseBoolean(getconfig("crosshairSwitch"))) {
-			// H = new minimalHUD();
-			// H1 = new Thread(H);
-			// H.init(this, S, O);
-			// H1.start();
-			// }
-			// if (Boolean.parseBoolean(getconfig("flightInfoSwitch"))) {
-			// FL = new flightInfo();
-			// FL1 = new Thread(FL);
-			// FL.init(this, S);
-			// FL1.start();
-			// }
-			// if (Boolean.parseBoolean(getconfig("enableLogging"))) {
-			// if (dF != null) {
-			// dF.doit = false;
-			// dF = null;
-			// }
-			// notification(language.cStartlog);
-			// Log = new flightLog();
-			// Log.init(this, S);
-			// Log1 = new Thread(Log);
-			// Log1.start();
-			// logon = true;
-			// }
-			//
-			// if (Boolean.parseBoolean(getconfig("enableAxis"))) {
-			// sV = new stickValue();
-			// sV.init(this, S);
-			// sV1 = new Thread(sV);
-			// sV1.start();
-			// }
-			//
-			// if (Boolean.parseBoolean(getconfig("enableAttitudeIndicator"))) {
-			// aI = new attitudeIndicator();
-			// aI.init(this, S);
-			// aI1 = new Thread(aI);
-			// aI1.start();
-			// }
-			//
-			// if (Boolean.parseBoolean(getconfig("enablegearAndFlaps"))) {
-			// fS = new gearAndFlaps();
-			// fS.init(this, S);
-			// fS1 = new Thread(fS);
-			// fS1.start();
-			//
-			// }
 
 		}
 	}

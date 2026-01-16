@@ -37,7 +37,7 @@ import ui.model.ConfigProvider;
 
 public class controller implements ConfigProvider {
 
-	public int flag;
+	public ControllerState state = ControllerState.INIT;
 
 	public boolean logon = false;
 
@@ -46,40 +46,24 @@ public class controller implements ConfigProvider {
 
 	// Robot robot;
 
-	engineControl F;
 	statusBar SB;
 	public mainform M;
-	minimalHUD H;
 	public otherService O;
-	situationAware SA;
-	flightInfo FL;
 	flightLog Log;
 	drawFrame dF;
-	stickValue sV;
-	gearAndFlaps fS;
 	flapsControl flc;
 
-	attitudeIndicator aI;
+	public OverlayManager overlayManager;
+
 	public java.util.List<ui.overlay.DynamicOverlay> dynamicOverlays = new java.util.ArrayList<>();
 	public java.util.List<ui.util.ConfigLoader.GroupConfig> dynamicConfigs = new java.util.ArrayList<>();
 
-	Thread S1;
-	Thread F1;
-	Thread SB1;
-	Thread M1;
-	Thread H1;
-	Thread O1;
-	Thread SA1;
-	Thread FL1;
-	Thread Log1;
-	Thread sV1;
-	Thread fS1;
-	Thread flc1;
-	Thread pt1;
+	// Core Threads
+	Thread S1; // Service
+	Thread SB1; // StatusBar
+	Thread M1; // Mainform
+	Thread O1; // OtherService
 
-	Thread aI1;
-
-	someUsefulData pt;
 	public service S;
 	public config cfg;
 	// 存储参数
@@ -117,18 +101,6 @@ public class controller implements ConfigProvider {
 
 	Thread gc;
 
-	public drawFrameSimpl thrustdFS;
-
-	private Thread thrustdFS1;
-
-	engineInfo FI;
-
-	// private Thread FI1;
-
-	private voiceWarning vW;
-
-	private Thread vW1;
-
 	private uiThread uT;
 
 	private Thread uT1;
@@ -155,7 +127,7 @@ public class controller implements ConfigProvider {
 		// 测试全局
 
 		// 状态1，初始化状态条
-		if (flag == 1) {
+		if (state == ControllerState.INIT) {
 			// app.debugPrint("状态1，初始化状态条");
 
 			if (showStatus) {
@@ -166,7 +138,7 @@ public class controller implements ConfigProvider {
 				SB1.start();
 			}
 
-			flag = 2;
+			state = ControllerState.CONNECTED;
 
 		}
 		// SB.repaint();
@@ -176,12 +148,12 @@ public class controller implements ConfigProvider {
 		// 状态2，状态条连接成功，等待进入游戏
 		// app.debugPrint(flag);
 		// SB.repaint();
-		if (flag == 2) {
+		if (state == ControllerState.CONNECTED) {
 			// app.debugPrint("状态2，状态条连接成功，等待进入游戏");
 			// NotificationManager.showNotification(createWebNotification("您已连接成功，请加入游戏"));
 			if (showStatus)
 				SB.S2();
-			flag = 3;
+			state = ControllerState.IN_GAME;
 		}
 	}
 
@@ -194,7 +166,7 @@ public class controller implements ConfigProvider {
 	public void changeS3() {
 		// 状态3，连接成功，释放状态条，打开面板
 		// SB.repaint();
-		if (flag == 3) {
+		if (state == ControllerState.IN_GAME) {
 
 			// 自动隐藏任务栏
 
@@ -220,7 +192,7 @@ public class controller implements ConfigProvider {
 				O1 = new Thread(O);
 				O1.start();
 			}
-			flag = 4;
+			state = ControllerState.PREVIEW;
 			openpad();
 
 		}
@@ -228,7 +200,7 @@ public class controller implements ConfigProvider {
 
 	public void S4toS1() {
 		// 状态4，游戏返回，返回至状态1
-		if (flag == 4) {
+		if (state == ControllerState.PREVIEW) {
 			// app.debugPrint("状态4，游戏退出，释放Service资源，返回至状态1");
 			// 不触发燃油低告警
 			// S.fuelPercent = 100;
@@ -245,7 +217,7 @@ public class controller implements ConfigProvider {
 			}
 
 			S.clear();
-			flag = 1;
+			state = ControllerState.INIT;
 
 			// 自动显示任务栏
 			// hideTaskbarSw();
@@ -254,75 +226,17 @@ public class controller implements ConfigProvider {
 	}
 
 	public void openpad() {
-		// hideTaskbarSw();
+		// Special case: autoMeasure (debug only)
 		if (app.fmTesting) {
 			aM = new autoMeasure(S);
 			aM1 = new Thread(aM);
 			aM1.start();
 		}
 
-		if (getconfig("enableFMPrint").equals("true")) {
-			pt = new someUsefulData();
-			pt1 = new Thread(pt);
-			pt.init(this, blkx);
-			pt1.start();
+		// Open all registered overlays via OverlayManager
+		overlayManager.openAll();
 
-			if (blkx.isJet) {
-				thrustdFS = new drawFrameSimpl();
-
-				thrustdFS1 = new Thread(thrustdFS);
-				thrustdFS.init(this);
-				thrustdFS1.start();
-
-			}
-		}
-		if (getconfig("enableVoiceWarn").equals("true")) {
-			vW = new voiceWarning();
-			vW1 = new Thread(vW);
-			vW.init(this, this.S);
-			vW1.start();
-		}
-
-		if (getconfig("engineInfoSwitch").equals("true")) {
-			// F1 = new Thread(F);
-			// FI1 = new Thread(FI);
-			FI = new engineInfo();
-			FI.init(this, S, blkx);
-
-			// F1.start();
-			// FI1.start();
-			//
-		}
-
-		if (getconfig("enableEngineControl").equals("true")) {
-			F = new engineControl();
-			F.init(this, S, blkx);
-		}
-
-		// if (getconfig("flapsControlSwitch").equals("true")) {
-		// flc = new flapsControl();
-		// try {
-		// flc.init(this);
-		// } catch (AWTException e) {
-		// // TODO Auto-generated catch block
-		// e.printStackTrace();
-		// }
-		// flc1 = new Thread(flc);
-		// flc1.start();
-		// }
-
-		if (Boolean.parseBoolean(getconfig("crosshairSwitch"))) {
-			H = new minimalHUD();
-			// H1 = new Thread(H);
-			H.init(this, S, O);
-			// H1.start();
-		}
-		if (Boolean.parseBoolean(getconfig("flightInfoSwitch"))) {
-			FL = new flightInfo();
-			// FL1 = new Thread(FL);
-			FL.init(this, globalPool, ui.model.FlightInfoConfig.createDefault(this));
-			// FL1.start();
-		}
+		// Special case: flightLog (has notification and special init)
 		if (Boolean.parseBoolean(getconfig("enableLogging"))) {
 			if (dF != null) {
 				dF.doit = false;
@@ -331,161 +245,40 @@ public class controller implements ConfigProvider {
 			notification(lang.cStartlog);
 			Log = new flightLog();
 			Log.init(this, S);
-			// Log1 = new Thread(Log);
-			// Log1.start();
 			logon = true;
 		}
 
-		if (Boolean.parseBoolean(getconfig("enableAxis"))) {
-			sV = new stickValue();
-			sV.init(this, S);
-			// sV1 = new Thread(sV);
-			// sV1.start();
-		}
-
-		if (Boolean.parseBoolean(getconfig("enableAttitudeIndicator"))) {
-			aI = new attitudeIndicator();
-			aI.init(this, S);
-			// aI1 = new Thread(aI);
-			// aI1.start();
-		}
-
-		if (Boolean.parseBoolean(getconfig("enablegearAndFlaps"))) {
-			fS = new gearAndFlaps();
-			fS.init(this, S);
-			// fS1 = new Thread(fS);
-			// fS1.start();
-
-		}
-		if (app.debug) {
-			// SA
-			SA = new situationAware();
-			SA.init(this, O);
-			SA1 = new Thread(SA);
-			SA1.start();
-
-		}
-
+		// UI Thread (always runs)
 		uT = new uiThread(this);
 		uT1 = new Thread(uT);
-		/* 设置高优先级 */
 		uT1.setPriority(Thread.MAX_PRIORITY);
 		uT1.start();
 		S.startTime = System.currentTimeMillis();
 	}
 
 	public void closepad() {
-		if (app.fmTesting) {
+		// Special case: autoMeasure
+		if (app.fmTesting && aM != null) {
 			aM.doit = false;
 			aM1 = null;
 			aM = null;
 		}
-		if (getconfig("enableVoiceWarn").equals("true")) {
-			vW.doit = false;
-			vW1 = null;
-			vW = null;
-		}
 
-		if (getconfig("engineInfoSwitch").equals("true") && (FI != null)) {
-			// F.doit = false;
-			FI.doit = false;
-			// FI1 = null;
-			// F1 = null;
-			FI.dispose();
-			// F.dispose();
-			FI = null;
-			// F = null;
+		// Close all managed overlays via OverlayManager
+		overlayManager.closeAll();
 
-		}
-
-		if ((getconfig("enableEngineControl").equals("true")) && (F != null)) {
-			F.doit = false;
-			F1 = null;
-			F.dispose();
-			F = null;
-		}
-		// if (getconfig("flapsControlSwitch").equals("true")) {
-		// flc.close();
-		// flc = null;
-		// flc1 = null;
-		// }
-
-		if (getconfig("crosshairSwitch").equals("true") && (H != null)) {
-			H.doit = false;
-			H1 = null;
-			H.dispose();
-			H = null;
-		}
-
-		if (getconfig("flightInfoSwitch").equals("true") && (FL != null)) {
-			FL.doit = false;
-			FL1 = null;
-			FL.dispose();
-			FL = null;
-		}
-
-		if (getconfig("enableLogging").equals("true") && (Log != null)) {
+		// Special case: flightLog (has notification and drawFrame logic)
+		if (Boolean.parseBoolean(getconfig("enableLogging")) && (Log != null)) {
 			notification(lang.cSavelog + Log.fileName + lang.cPlsopen);
-			// app.debugPrint("阶段差:"+(Log.fA.curaltStage -
-			// Log.fA.initaltStage));
 			if (Log.fA.curaltStage - Log.fA.initaltStage >= 1) {
 				dF = new drawFrame();
 				showdrawFrame(Log.fA);
 			}
-
-			// logon = false;
 			Log.close();
-			// Log1 = null;
 			Log = null;
-
-		}
-		if (getconfig("enableAxis").equals("true") && (sV != null)) {
-			sV.doit = false;
-			sV1 = null;
-			sV.dispose();
-			sV = null;
-
-		}
-		if (getconfig("enableAttitudeIndicator").equals("true") && (aI != null)) {
-			aI.doit = false;
-			aI1 = null;
-			aI.dispose();
-			aI = null;
 		}
 
-		if (getconfig("enablegearAndFlaps").equals("true") && (fS != null)) {
-			fS.doit = false;
-			fS1 = null;
-			fS.dispose();
-			fS = null;
-
-		}
-
-		if (app.debug && (SA != null)) {
-			SA.doit = false;
-			SA1 = null;
-			SA.dispose();
-			SA = null;
-
-			// 释放
-
-		}
-		if (getconfig("enableFMPrint").equals("true")) {
-			if (pt != null) {
-				pt.doit = false;
-				pt1 = null;
-				pt.dispose();
-				pt = null;
-			}
-
-			if (thrustdFS != null) {
-				thrustdFS.doit = false;
-				thrustdFS1 = null;
-				thrustdFS.dispose();
-				thrustdFS = null;
-			}
-		}
-
+		// UI Thread
 		if (uT != null) {
 			uT.doit = false;
 			uT1.interrupt();
@@ -621,8 +414,12 @@ public class controller implements ConfigProvider {
 		registerHotkeyListener();
 		usetempratureInformation = false;
 
+		// Initialize OverlayManager and register overlays
+		overlayManager = new OverlayManager(this);
+		registerGameModeOverlays();
+
 		// 刷新频率
-		flag = 0;
+		state = ControllerState.INIT;
 		lastEvt = 0;
 		lastDmg = 0;
 
@@ -650,7 +447,7 @@ public class controller implements ConfigProvider {
 	}
 
 	public void start() {
-		if (flag == 1) {
+		if (state == ControllerState.INIT) {
 
 			// app.debugPrint(freqService);
 			// 状态1，释放设置窗口传参初始化后台
@@ -671,6 +468,106 @@ public class controller implements ConfigProvider {
 
 		}
 
+	}
+
+	/**
+	 * Register all game mode overlays with OverlayManager.
+	 * Uses registerWithPreview for overlays that support preview mode.
+	 */
+	private void registerGameModeOverlays() {
+		// engineInfo - supports preview
+		overlayManager.registerWithPreview("engineInfoSwitch",
+				() -> new engineInfo(),
+				overlay -> ((engineInfo) overlay).init(this, S, blkx),
+				overlay -> ((engineInfo) overlay).initPreview(this),
+				overlay -> ((engineInfo) overlay).reinitConfig(),
+				false);
+
+		// engineControl - supports preview
+		overlayManager.registerWithPreview("enableEngineControl",
+				() -> new engineControl(),
+				overlay -> ((engineControl) overlay).init(this, S, blkx),
+				overlay -> ((engineControl) overlay).initPreview(this),
+				overlay -> ((engineControl) overlay).reinitConfig(),
+				false);
+
+		// minimalHUD (crosshair) - supports preview
+		overlayManager.registerWithPreview("crosshairSwitch",
+				() -> new minimalHUD(),
+				overlay -> ((minimalHUD) overlay).init(this, S, O),
+				overlay -> ((minimalHUD) overlay).initPreview(this),
+				overlay -> ((minimalHUD) overlay).reinitConfig(),
+				false);
+
+		// flightInfo - supports preview
+		overlayManager.registerWithPreview("flightInfoSwitch",
+				() -> new flightInfo(),
+				overlay -> ((flightInfo) overlay).init(this, globalPool, ui.model.FlightInfoConfig.createDefault(this)),
+				overlay -> ((flightInfo) overlay).initPreview(this, globalPool,
+						ui.model.FlightInfoConfig.createDefault(this)),
+				overlay -> ((flightInfo) overlay).reinitConfig(),
+				false);
+
+		// stickValue - supports preview (uses initpreview lowercase)
+		overlayManager.registerWithPreview("enableAxis",
+				() -> new stickValue(),
+				overlay -> ((stickValue) overlay).init(this, S),
+				overlay -> ((stickValue) overlay).initpreview(this),
+				overlay -> ((stickValue) overlay).reinitConfig(),
+				false);
+
+		// attitudeIndicator - supports preview (uses initpreview lowercase)
+		overlayManager.registerWithPreview("enableAttitudeIndicator",
+				() -> new attitudeIndicator(),
+				overlay -> ((attitudeIndicator) overlay).init(this, S),
+				overlay -> ((attitudeIndicator) overlay).initpreview(this),
+				overlay -> ((attitudeIndicator) overlay).reinitConfig(),
+				false);
+
+		// gearAndFlaps - supports preview
+		overlayManager.registerWithPreview("enablegearAndFlaps",
+				() -> new gearAndFlaps(),
+				overlay -> ((gearAndFlaps) overlay).init(this, S),
+				overlay -> ((gearAndFlaps) overlay).initPreview(this),
+				overlay -> ((gearAndFlaps) overlay).reinitConfig(),
+				false);
+
+		// voiceWarning - game mode only, no preview
+		overlayManager.registerWithStrategy("enableVoiceWarn",
+				() -> new voiceWarning(),
+				overlay -> ((voiceWarning) overlay).init(this, S),
+				null, // No preview initializer
+				null, // No re-initializer
+				true,
+				ActivationStrategy.config("enableVoiceWarn").and(ActivationStrategy.gameModeOnly()));
+
+		// someUsefulData (FMPrint) - supports preview
+		overlayManager.registerWithPreview("enableFMPrint",
+				() -> new someUsefulData(),
+				overlay -> ((someUsefulData) overlay).init(this, blkx),
+				overlay -> ((someUsefulData) overlay).initPreview(this, blkx),
+				overlay -> ((someUsefulData) overlay).reinitConfig(blkx),
+				true);
+
+		// thrustdFS - requires enableFMPrint AND isJet
+		overlayManager.registerWithStrategy("thrustdFS",
+				() -> new drawFrameSimpl(),
+				overlay -> ((drawFrameSimpl) overlay).init(this),
+				overlay -> ((drawFrameSimpl) overlay).initPreview(this),
+				overlay -> ((drawFrameSimpl) overlay).reinitConfig(),
+				true,
+				ActivationStrategy.config("enableFMPrint").and(ActivationStrategy.jetOnly()));
+
+		// situationAware - debug only
+		overlayManager.registerWithStrategy("situationAware",
+				() -> new situationAware(),
+				overlay -> {
+					((situationAware) overlay).init(this, O);
+				},
+				overlay -> ((situationAware) overlay).initPreview(this),
+				overlay -> ((situationAware) overlay).reinitConfig(),
+				true,
+				ActivationStrategy.debugOnly());
 	}
 
 	public void initDynamicOverlays() {
@@ -759,7 +656,7 @@ public class controller implements ConfigProvider {
 		// if (S1 == null) {
 		// return;
 		// }
-		if (flag == 4) {
+		if (state == ControllerState.PREVIEW) {
 			closepad();
 		}
 
@@ -773,123 +670,10 @@ public class controller implements ConfigProvider {
 		refreshPreviews();
 	}
 
-	public void refreshPreviews() {
-		loadFromConfig();
-
-		// Engine Info
-		if (Boolean.parseBoolean(getconfig("engineInfoSwitch"))) {
-			if (FI == null) {
-				FI = new engineInfo();
-				FI.initPreview(this);
-			} else {
-				FI.reinitConfig();
-			}
-		} else if (FI != null) {
-			FI.doit = false;
-			FI.dispose();
-			FI = null;
-		}
-
-		// Engine Control
-		if (Boolean.parseBoolean(getconfig("enableEngineControl"))) {
-			if (F == null) {
-				F = new engineControl();
-				F.initPreview(this);
-			} else {
-				F.reinitConfig();
-			}
-		} else if (F != null) {
-			F.doit = false;
-			F.dispose();
-			F = null;
-		}
-
-		// Minimal HUD (Crosshair)
-		if (Boolean.parseBoolean(getconfig("crosshairSwitch"))) {
-			if (H == null) {
-				H = new minimalHUD();
-				H.initPreview(this);
-			} else {
-				H.reinitConfig();
-			}
-		} else if (H != null) {
-			H.doit = false;
-			H.dispose();
-			H = null;
-		}
-
-		// Flight Info Overlay (Updated to use blkx source)
-		if (Boolean.parseBoolean(getconfig("flightInfoSwitch"))) {
-			if (FL == null) {
-				FL = new flightInfo();
-				FL.initPreview(this, globalPool, ui.model.FlightInfoConfig.createDefault(this));
-			} else {
-				FL.reinitConfig();
-			}
-		} else if (FL != null) {
-			FL.doit = false;
-			FL.dispose();
-			FL = null;
-		}
-
-		// Stick Value (Axis)
-		if (Boolean.parseBoolean(getconfig("enableAxis"))) {
-			if (sV == null) {
-				sV = new stickValue();
-				sV.initpreview(this);
-			} else {
-				sV.reinitConfig();
-			}
-		} else if (sV != null) {
-			sV.doit = false;
-			sV.dispose();
-			sV = null;
-		}
-
-		// Attitude Indicator
-		if (Boolean.parseBoolean(getconfig("enableAttitudeIndicator"))) {
-			if (aI == null) {
-				aI = new attitudeIndicator();
-				aI.initpreview(this);
-			} else {
-				aI.reinitConfig();
-			}
-		} else if (aI != null) {
-			aI.doit = false;
-			aI.dispose();
-			aI = null;
-		}
-
-		// Gear and Flaps
-		if (Boolean.parseBoolean(getconfig("enablegearAndFlaps"))) {
-			if (fS == null) {
-				fS = new gearAndFlaps();
-				fS.initPreview(this);
-			} else {
-				fS.reinitConfig();
-			}
-		} else if (fS != null) {
-			fS.doit = false;
-			fS.dispose();
-			fS = null;
-		}
-
-		// Situation Aware
-		if (app.debug) {
-			if (SA == null) {
-				SA = new situationAware();
-				SA.initPreview(this);
-			} else {
-				SA.reinitConfig();
-			}
-		} else if (SA != null) {
-			SA.doit = false;
-			SA.dispose();
-			SA = null;
-		}
-
-		// someUsefulData (Unpacked Info) - 将数据加载与 UI 显示解耦
-		// 无论开关是否打开，都尝试获取 blkx 信息（自定义 Overlay 需要这些数据）
+	/**
+	 * Ensure blkx data is loaded, either from live source or config.
+	 */
+	private void ensureBlkxLoaded() {
 		httpHelper httpDataFetcher = new httpHelper();
 		String livePlaneName = httpDataFetcher.getLiveAircraftType();
 
@@ -897,130 +681,35 @@ public class controller implements ConfigProvider {
 			getfmdata(livePlaneName);
 		}
 
-		// 确保 blkx 已初始化（如果未检测到实时飞机，则回退到配置中的默认机型）
-		if (blkx == null) {
+		// Ensure blkx is initialized (fallback to default)
+		if (blkx == null || !blkx.valid) {
 			String planeName = getconfig("selectedFM0");
 			if (planeName != null && !planeName.isEmpty()) {
 				getfmdata(planeName);
 			}
 		}
+	}
 
-		// 只有当 enableFMPrint 开关打开时，才显示“详细数据窗口”和“推力曲线图”
-		if (Boolean.parseBoolean(getconfig("enableFMPrint"))) {
-			// pt: Unpacked FM Data Window (拆包数据/FM信息窗口)
-			if (pt == null) {
-				pt = new someUsefulData();
-				pt1 = new Thread(pt);
-				pt.initPreview(this, blkx);
-				pt1.start();
-			} else {
-				pt.reinitConfig(blkx);
-			}
-
-			// drawFrameSimpl (Thrust curve)
-			// thrustdFS: Thrust Curve Draw Frame (推力曲线窗口)
-			if (blkx != null && blkx.isJet) {
-				if (thrustdFS == null) {
-					thrustdFS = new drawFrameSimpl();
-					thrustdFS1 = new Thread(thrustdFS);
-					thrustdFS.initPreview(this);
-					thrustdFS1.start();
-				} else {
-					thrustdFS.reinitConfig();
-				}
-			} else if (thrustdFS != null) {
-				thrustdFS.dispose();
-				thrustdFS = null;
-			}
-		} else {
-			// 关闭窗口，但保留 blkx 数据供 Overlay 使用
-			if (pt != null) {
-				pt.doit = false;
-				pt.dispose();
-				pt = null;
-			}
-			if (thrustdFS != null) {
-				thrustdFS.doit = false;
-				thrustdFS.dispose();
-				thrustdFS = null;
-			}
-		}
+	public void refreshPreviews() {
+		loadFromConfig();
+		ensureBlkxLoaded();
+		overlayManager.refreshAllPreviews();
 	}
 
 	public void endPreview() {
+		overlayManager.closeAll();
 
-		// app.debugPrint(F.getLocationOnScreen().x);
-		// app.debugPrint(F.getLocationOnScreen().y);
-		if (Boolean.parseBoolean(getconfig("engineInfoSwitch"))) {
-			FI.saveCurrentPosition();
-			FI.doit = false;
-			FI.dispose();
-			FI = null;
-		}
-		if (Boolean.parseBoolean(getconfig("enableEngineControl"))) {
-			F.saveCurrentPosition();
-			F.doit = false;
-			F.dispose();
-			F = null;
-		}
+		// Save UI Layout
+		// ui.model.FlightInfoConfig.saveConfig(globalPool, "ui_layout.cfg");
 
-		if (Boolean.parseBoolean(getconfig("crosshairSwitch"))) {
-			H.saveCurrentPosition();
-			H.doit = false;
-			H.dispose();
-			H = null;
+		// Clean up Configurable Overlays
+		for (ui.overlay.DynamicOverlay overlay : dynamicOverlays) {
+			overlay.saveCurrentPosition();
+			overlay.dispose();
 		}
-		if (Boolean.parseBoolean(getconfig("flightInfoSwitch"))) {
-			FL.saveCurrentPosition();
-			FL.doit = false;
-			FL.dispose();
-			FL = null;
-		}
-		if (Boolean.parseBoolean(getconfig("enableAxis"))) {
-			sV.saveCurrentPosition();
-			sV.doit = false;
-			sV.dispose();
-			sV = null;
-		}
-		if (Boolean.parseBoolean(getconfig("enableAttitudeIndicator"))) {
-			aI.saveCurrentPosition();
-			aI.doit = false;
-			aI.dispose();
-			aI = null;
-		}
-
-		if (Boolean.parseBoolean(getconfig("enablegearAndFlaps"))) {
-			fS.saveCurrentPosition();
-			fS.doit = false;
-			fS.dispose();
-			fS = null;
-		}
-		if (app.debug) {
-			SA.saveCurrentPosition();
-			SA.doit = false;
-			SA.dispose();
-			SA = null;
-		}
-
-		if (pt != null) {
-			pt.saveCurrentPosition();
-			pt.doit = false;
-			pt.dispose();
-			pt = null;
-		}
-		if (thrustdFS != null) {
-			thrustdFS.saveCurrentPosition();
-			thrustdFS.doit = false;
-			thrustdFS.dispose();
-			thrustdFS = null;
-		}
-		saveconfig();
-
-		loadFromConfig();
-		// 释放
+		dynamicOverlays.clear();
 
 		System.gc();
-
 	}
 
 	public void setconfig(String key, String value) {
@@ -1033,87 +722,60 @@ public class controller implements ConfigProvider {
 	}
 
 	public static void notificationtime(String text, int time) {
-		NotificationManager.showNotification(createWebNotifications(text, time));
+		ui.util.NotificationService.showTimed(text, time);
 	}
 
 	public static void notificationtimeAbout(String text, int time) {
-		NotificationManager.showNotification(createWebNotificationsAbout(text, time));
+		ui.util.NotificationService.showAbout(text, time);
 	}
 
 	public static void notification(String text) {
-		NotificationManager.showNotification(createWebNotification(text));
+		ui.util.NotificationService.show(text);
 	}
 
+	// Legacy methods - now delegate to NotificationService
 	static WebNotification createWebNotificationTime(long time) {
-		WebNotification a = new WebNotification();
-		// WebLabel text1=new WebLabel(text);
-		// text1.setFont(app.DefaultFont);
-		// text1.setVisible(false);
-		a.setFont(app.defaultFont);
-		a.setIcon(NotificationIcon.clock.getIcon());
-
-		a.setWindowOpacity((float) (0.5));
-		WebClock clock = new WebClock();
-		clock.setClockType(ClockType.timer);
-		clock.setTimeLeft(time);
-		clock.setFont(app.defaultFont);
-		clock.setTimePattern(lang.cOpenpad);
-		a.setContent(new GroupPanel(clock));
-		// a.setOpaque(true);
-		clock.start();
-		a.setDisplayTime(time);
-
-		a.setFocusable(false);
-		return a;
-
+		// Used internally, keeping for backwards compatibility
+		return createTimerNotification(time, lang.cOpenpad);
 	}
 
 	static WebNotification createWebNotificationEngineTime(long time) {
+		return createTimerNotification(time, lang.cEnginedmg);
+	}
+
+	private static WebNotification createTimerNotification(long time, String pattern) {
 		WebNotification a = new WebNotification();
-		// WebLabel text1=new WebLabel(text);
-		// text1.setFont(app.DefaultFont);
-		// text1.setVisible(false);
 		a.setFont(app.defaultFont);
 		a.setIcon(NotificationIcon.clock.getIcon());
-
 		a.setWindowOpacity((float) (0.5));
 		WebClock clock = new WebClock();
 		clock.setClockType(ClockType.timer);
 		clock.setTimeLeft(time);
 		clock.setFont(app.defaultFont);
-		clock.setTimePattern(lang.cEnginedmg);
+		clock.setTimePattern(pattern);
 		a.setContent(new GroupPanel(clock));
-		// a.setOpaque(true);
 		clock.start();
 		a.setDisplayTime(time);
-
 		a.setFocusable(false);
 		return a;
-
 	}
 
 	static WebNotification createWebNotifications(String text, int time) {
 		WebNotification a = new WebNotification();
 		WebLabel text1 = new WebLabel(text);
 		text1.setFont(app.defaultFont);
-		// text1.setVisible(false);
-		// a.setWindowOpacity((double) (0.5));
-
 		a.setFont(app.defaultFont);
 		a.setIcon(NotificationIcon.information.getIcon());
 		a.add(text1);
 		a.setDisplayTime(time);
 		a.setFocusable(false);
 		return a;
-
 	}
 
 	static WebNotification createWebNotificationsAbout(String text, int time) {
 		WebNotification a = new WebNotification();
 		WebLabel text1 = new WebLabel(text);
 		text1.setFont(new Font(app.defaultFontName, Font.PLAIN, 14));
-		// text1.setVisible(false);
-		// a.setWindowOpacity((double) (0.5));
 		Image I = Toolkit.getDefaultToolkit().createImage("image/fubuki.jpg");
 		ImageIcon A = new ImageIcon(I);
 		a.setFont(app.defaultFont);
@@ -1122,39 +784,30 @@ public class controller implements ConfigProvider {
 		a.setDisplayTime(time);
 		a.setFocusable(false);
 		return a;
-
 	}
 
 	static WebNotification createWebNotification(String text) {
 		WebNotification a = new WebNotification();
 		WebLabel text1 = new WebLabel(text);
 		text1.setFont(app.defaultFont);
-		// text1.setVisible(false);
-		// a.setWindowOpacity((double) (0.5));
-
 		a.setFont(app.defaultFont);
 		a.setIcon(NotificationIcon.information.getIcon());
 		a.add(text1);
 		a.setDisplayTime(5000);
 		a.setFocusable(false);
 		return a;
-
 	}
 
 	static WebNotification createWebNotificationEngineBomb(String text) {
 		WebNotification a = new WebNotification();
 		WebLabel text1 = new WebLabel(text);
 		text1.setFont(app.defaultFont);
-		// text1.setVisible(false);
-		// a.setWindowOpacity((double) (0.5));
-
 		a.setFont(app.defaultFont);
 		a.setIcon(NotificationIcon.error);
 		a.add(text1);
 		a.setDisplayTime(3000);
 		a.setFocusable(false);
 		return a;
-
 	}
 
 	public void showdrawFrame(flightAnalyzer fA) {

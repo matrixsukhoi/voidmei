@@ -14,13 +14,17 @@ src/prog/gcThread.java
 src/prog/uiThread.java
 src/prog/app.java
 src/prog/lang.java
+src/prog/OverlayManager.java
 src/prog/httpHelper.java
 src/prog/autoMeasure.java
+src/prog/ActivationStrategy.java
 src/prog/config.java
+src/prog/ControllerState.java
 src/prog/voiceWarning.java
 src/prog/otherService.java
 src/prog/util/FormulaEvaluator.java
 src/prog/calcHelper.java
+src/prog/OverlayContext.java
 src/prog/flapsControl.java
 src/ui/statusBar.java
 src/ui/engineInfo.java
@@ -57,6 +61,7 @@ src/ui/layout/ResponsiveGridLayout.java
 src/ui/layout/DynamicDataPage.java
 src/ui/layout/UIBuilder.java
 src/ui/layout/ClassicStyle.java
+src/ui/util/NotificationService.java
 src/ui/util/ConfigLoader.java
 src/ui/overlay/ZebraListRenderer.java
 src/ui/overlay/OverlayRenderer.java

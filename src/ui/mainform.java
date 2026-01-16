@@ -1644,7 +1644,7 @@ public class mainform extends WebFrame implements Runnable {
 		tc.loadFromConfig();
 
 		this.setVisible(false);
-		tc.flag = 1;
+		tc.state = prog.ControllerState.INIT;
 		tc.start();
 		// Show dynamic overlays for game mode, respecting hotkey hidden-at-start rule
 		tc.setDynamicOverlaysVisible(true, true);
