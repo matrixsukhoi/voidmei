@@ -212,12 +212,6 @@ public class mainform extends WebFrame implements Runnable {
 			saveConfig();
 			tc.refreshPreviews();
 		});
-		// 同步“飞行信息”页面的开关状态到“记录分析”页面
-		flightInfoPanel.bFMPrintSwitch.addActionListener(e -> {
-			if (loggingPanel != null && loggingPanel.bFMPrintLogSwitch != null
-					&& loggingPanel.bFMPrintLogSwitch.isSelected() != flightInfoPanel.bFMPrintSwitch.isSelected())
-				loggingPanel.bFMPrintLogSwitch.setSelected(flightInfoPanel.bFMPrintSwitch.isSelected());
-		});
 		setupTab(jp4, flightInfoPanel);
 	}
 
@@ -230,12 +224,7 @@ public class mainform extends WebFrame implements Runnable {
 			}
 		});
 		loggingPanel.setOnSave(() -> saveConfig());
-		// Synchronization with FlightInfoPanel
-		loggingPanel.bFMPrintLogSwitch.addActionListener(e -> {
-			if (flightInfoPanel != null && flightInfoPanel.bFMPrintSwitch != null
-					&& flightInfoPanel.bFMPrintSwitch.isSelected() != loggingPanel.bFMPrintLogSwitch.isSelected())
-				flightInfoPanel.bFMPrintSwitch.setSelected(loggingPanel.bFMPrintLogSwitch.isSelected());
-		});
+		// Sync now handled by UIEventBus in panels
 		setupTab(jp5, loggingPanel);
 	}
 

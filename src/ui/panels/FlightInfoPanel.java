@@ -12,6 +12,8 @@ import prog.ConfigurationService;
 import prog.app;
 import prog.lang;
 import ui.layout.UIBuilder;
+import ui.util.UIEventBus;
+import ui.util.UIEvents;
 
 public class FlightInfoPanel extends WebPanel {
 
@@ -141,7 +143,12 @@ public class FlightInfoPanel extends WebPanel {
         bFlightInfoSwitch.addActionListener(e -> fireChange());
         bFlightInfoEdge.addActionListener(e -> fireChange());
         battitudeIndicatorSwitch.addActionListener(e -> fireChange());
-        bFMPrintSwitch.addActionListener(e -> fireChange());
+        bFMPrintSwitch.addActionListener(e -> {
+            fireChange();
+            UIEventBus.getInstance().publish(
+                    UIEvents.FM_PRINT_SWITCH_CHANGED,
+                    bFMPrintSwitch.isSelected());
+        });
         bFlightInfoIAS.addActionListener(e -> fireChange());
         bFlightInfoTAS.addActionListener(e -> fireChange());
         bFlightInfoMach.addActionListener(e -> fireChange());
@@ -167,6 +174,14 @@ public class FlightInfoPanel extends WebPanel {
         iflightInfoColumnNum.addChangeListener(e -> {
             if (!iflightInfoColumnNum.getValueIsAdjusting())
                 fireChange();
+        });
+
+        // Subscribe to FM Print switch changes from LoggingPanel
+        UIEventBus.getInstance().subscribe(UIEvents.FM_PRINT_SWITCH_CHANGED, data -> {
+            Boolean newState = (Boolean) data;
+            if (bFMPrintSwitch.isSelected() != newState) {
+                bFMPrintSwitch.setSelected(newState);
+            }
         });
     }
 

@@ -72,8 +72,10 @@ src/ui/layout/DynamicDataPage.java
 src/ui/layout/UIBuilder.java
 src/ui/layout/ClassicStyle.java
 src/ui/util/ConfigWatcherService.java
+src/ui/util/UIEventBus.java
 src/ui/util/FileUtils.java
 src/ui/util/NotificationService.java
+src/ui/util/UIEvents.java
 src/ui/util/NotificationFactory.java
 src/ui/util/ConfigLoader.java
 src/ui/overlay/ZebraListRenderer.java

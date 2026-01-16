@@ -29,6 +29,8 @@ import prog.ConfigurationService;
 import prog.app;
 import prog.lang;
 import ui.layout.UIBuilder;
+import ui.util.UIEventBus;
+import ui.util.UIEvents;
 
 public class LoggingPanel extends WebPanel {
 
@@ -123,9 +125,23 @@ public class LoggingPanel extends WebPanel {
     private void setupListeners() {
         bEnableLogging.addActionListener(e -> fireChange());
         bEnableInformation.addActionListener(e -> fireChange());
-        bFMPrintLogSwitch.addActionListener(e -> fireChange());
+        bFMPrintLogSwitch.addActionListener(e -> {
+            fireChange();
+            // Also publish event so FlightInfoPanel can sync
+            UIEventBus.getInstance().publish(
+                    UIEvents.FM_PRINT_SWITCH_CHANGED,
+                    bFMPrintLogSwitch.isSelected());
+        });
         bFMList0.addActionListener(e -> fireChange());
         bFMList1.addActionListener(e -> fireChange());
+
+        // Subscribe to FM Print switch changes from FlightInfoPanel
+        UIEventBus.getInstance().subscribe(UIEvents.FM_PRINT_SWITCH_CHANGED, data -> {
+            Boolean newState = (Boolean) data;
+            if (bFMPrintLogSwitch.isSelected() != newState) {
+                bFMPrintLogSwitch.setSelected(newState);
+            }
+        });
     }
 
     private void fireChange() {
