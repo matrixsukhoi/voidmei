@@ -379,7 +379,7 @@ public class Service implements Runnable {
 		compass = String.format("%.0f", dCompass);
 		sPitchUp = String.format("%.0f", sIndic.aviahorizon_pitch);
 
-		if (c.Blkx != null && c.Blkx.valid && c.Blkx.nitro != 0) {
+		if (c.getBlkx() != null && c.getBlkx().valid && c.getBlkx().nitro != 0) {
 
 			sNitro = String.format("%.0f", nitrokg);
 			long twepTime = 0;
@@ -387,7 +387,7 @@ public class Service implements Runnable {
 				// nitroEngNr = sState.engineNum;
 				// sWepTime = nastring;
 			} else {
-				twepTime = (int) (((c.Blkx.nitro / c.Blkx.nitroDecr - wepTime / 1000)) / nitroEngNr);
+				twepTime = (int) (((c.getBlkx().nitro / c.getBlkx().nitroDecr - wepTime / 1000)) / nitroEngNr);
 
 				if (twepTime < 0) {
 					twepTime = 0;
@@ -615,8 +615,8 @@ public class Service implements Runnable {
 
 	// public engineLoad[] sPL;
 	public void checkOverheat() {
-		engineLoad[] pL = c.Blkx.engLoad;
-		// curLoad = c.Blkx.findmaxLoad(pL, nwaterTemp, noilTemp);
+		engineLoad[] pL = c.getBlkx().engLoad;
+		// curLoad = c.getBlkx().findmaxLoad(pL, nwaterTemp, noilTemp);
 		// 减去时间
 		double minWorkTime = 99999 * 1000;
 		/* 关发动机后，温度降到最低load后恢复 */
@@ -627,8 +627,8 @@ public class Service implements Runnable {
 			// Application.debugPrint("监测到引擎关闭");
 		}
 		// 水冷
-		curWLoad = c.Blkx.findmaxWaterLoad(pL, nwaterTemp);
-		for (int i = 0; i < c.Blkx.maxEngLoad; i++) {
+		curWLoad = c.getBlkx().findmaxWaterLoad(pL, nwaterTemp);
+		for (int i = 0; i < c.getBlkx().maxEngLoad; i++) {
 			if (i < curWLoad) {
 				if (pL[i].WorkTime != 0) {
 					pL[i].curWaterWorkTimeMili -= TimeIncrMili;
@@ -659,14 +659,14 @@ public class Service implements Runnable {
 
 		// Application.debugPrint("当前水工作负载: " + curLoad + "," + minWorkTime);
 		// Application.debugPrint("水工作负载数组: [");
-		// for (int i = 0; i < c.Blkx.maxEngLoad; i++) {
+		// for (int i = 0; i < c.getBlkx().maxEngLoad; i++) {
 		// System.out.print(pL[i].curWaterWorkTimeMili / 1000 + " ");
 		// }
 		// Application.debugPrint("]");
 
 		// 油冷
-		curOLoad = c.Blkx.findmaxOilLoad(pL, noilTemp);
-		for (int i = 0; i < c.Blkx.maxEngLoad; i++) {
+		curOLoad = c.getBlkx().findmaxOilLoad(pL, noilTemp);
+		for (int i = 0; i < c.getBlkx().maxEngLoad; i++) {
 			if (i < curOLoad) {
 				if (pL[i].WorkTime != 0) {
 					pL[i].curOilWorkTimeMili -= TimeIncrMili;
@@ -695,7 +695,7 @@ public class Service implements Runnable {
 
 		//// Application.debugPrint("当前油工作负载: " + curLoad + "," + minWorkTime);
 		// Application.debugPrint("油工作负载数组: [");
-		// for (int i = 0; i < c.Blkx.maxEngLoad; i++) {
+		// for (int i = 0; i < c.getBlkx().maxEngLoad; i++) {
 		// System.out.print(pL[i].curOilWorkTimeMili / 1000 + " ");
 		// }
 		// Application.debugPrint("]");
@@ -767,7 +767,7 @@ public class Service implements Runnable {
 				nitroEngNr += 1;
 			}
 		}
-		nitrokg = c.Blkx.nitro - (wepTime * nitroConsump) / 1000;
+		nitrokg = c.getBlkx().nitro - (wepTime * nitroConsump) / 1000;
 		if (nitrokg < 0)
 			nitrokg = 0;
 
@@ -1109,11 +1109,11 @@ public class Service implements Runnable {
 
 	public void getMaximumRPM() {
 		if (!getMaximumRPM) {
-			if (c.Blkx != null && c.Blkx.valid) {
+			if (c.getBlkx() != null && c.getBlkx().valid) {
 				// FM合法直接取FM
-				maximumThrRPM = c.Blkx.maxRPM;
+				maximumThrRPM = c.getBlkx().maxRPM;
 				// 使用最大允许RPM
-				// maximumThrRPM = c.Blkx.maxAllowedRPM;
+				// maximumThrRPM = c.getBlkx().maxAllowedRPM;
 				// Application.debugPrint(maximumThrRPM);
 				getMaximumRPM = true;
 			} else {
@@ -1214,15 +1214,15 @@ public class Service implements Runnable {
 
 	public double getFlapAllowSpeed(int flapPercent, Boolean isDowningFlap) {
 		// fm文件无法解析
-		if (flapPercent == 0 || c.Blkx == null || !c.Blkx.valid)
+		if (flapPercent == 0 || c.getBlkx() == null || !c.getBlkx().valid)
 			return Double.MAX_VALUE;
 
-		int FlapsDestructionNum = c.Blkx.FlapsDestructionNum;
+		int FlapsDestructionNum = c.getBlkx().FlapsDestructionNum;
 		// 找到襟翼档位
 		int i = 0;
 		for (; i < FlapsDestructionNum - 1; i++) {
 			// 大于
-			if (flapPercent < c.Blkx.FlapsDestructionIndSpeed[i][0] * 100.0f) {
+			if (flapPercent < c.getBlkx().FlapsDestructionIndSpeed[i][0] * 100.0f) {
 				break;
 			}
 		}
@@ -1239,10 +1239,10 @@ public class Service implements Runnable {
 			// 下襟翼时直接越级使用下一级
 			if (isDowningFlap && FlapsDestructionNum >= 1) {
 
-				// x0 = c.Blkx.FlapsDestructionIndSpeed[0][0] * 100.0f;
-				// y0 = c.Blkx.FlapsDestructionIndSpeed[0][1];
-				// x1 = c.Blkx.FlapsDestructionIndSpeed[1][0] * 100.0f;
-				// y1 = c.Blkx.FlapsDestructionIndSpeed[1][1];
+				// x0 = c.getBlkx().FlapsDestructionIndSpeed[0][0] * 100.0f;
+				// y0 = c.getBlkx().FlapsDestructionIndSpeed[0][1];
+				// x1 = c.getBlkx().FlapsDestructionIndSpeed[1][0] * 100.0f;
+				// y1 = c.getBlkx().FlapsDestructionIndSpeed[1][1];
 				// k = this.calcK(x0, y0, x1, y1);
 
 				// // Application.debugPrint(x0 + "-" + x1 + ", " + y0 + "-" + y1 + " k " + k +
@@ -1251,31 +1251,31 @@ public class Service implements Runnable {
 				// // + (flapPercent - x0) * k + " L" + (y0 + (flapPercent - x0) * k));
 				// Application.debugPrint("limit " + ( y0 + (flapPercent - x0) * k));
 				// return y0 + (flapPercent - x0) * k;
-				return c.Blkx.FlapsDestructionIndSpeed[0][1];
+				return c.getBlkx().FlapsDestructionIndSpeed[0][1];
 			}
 			// 襟翼只有0级
-			// if(c.Blkx.FlapsDestructionNum == 0){
-			// return c.Blkx.FlapsDestructionIndSpeed[0][1];
+			// if(c.getBlkx().FlapsDestructionNum == 0){
+			// return c.getBlkx().FlapsDestructionIndSpeed[0][1];
 			// }
 			return Double.MAX_VALUE;
 		} else {
 			// 下襟翼时直接越级使用
 			// if (isDowningFlap) {
-			// return c.Blkx.FlapsDestructionIndSpeed[i][1];
+			// return c.getBlkx().FlapsDestructionIndSpeed[i][1];
 			// }
 
 			// 相等
-			if (flapPercent == c.Blkx.FlapsDestructionIndSpeed[i][0] * 100.0f) {
+			if (flapPercent == c.getBlkx().FlapsDestructionIndSpeed[i][0] * 100.0f) {
 				// 直接返回速度
-				return c.Blkx.FlapsDestructionIndSpeed[i][1];
+				return c.getBlkx().FlapsDestructionIndSpeed[i][1];
 			}
 
 			// 否则进行线性插值运算
 			// 算斜率
-			x0 = c.Blkx.FlapsDestructionIndSpeed[i][0] * 100.0f;
-			y0 = c.Blkx.FlapsDestructionIndSpeed[i][1];
-			x1 = c.Blkx.FlapsDestructionIndSpeed[i + 1][0] * 100.0f;
-			y1 = c.Blkx.FlapsDestructionIndSpeed[i + 1][1];
+			x0 = c.getBlkx().FlapsDestructionIndSpeed[i][0] * 100.0f;
+			y0 = c.getBlkx().FlapsDestructionIndSpeed[i][1];
+			x1 = c.getBlkx().FlapsDestructionIndSpeed[i + 1][0] * 100.0f;
+			y1 = c.getBlkx().FlapsDestructionIndSpeed[i + 1][1];
 			k = this.calcK(x0, y0, x1, y1);
 
 			// 速度等于
@@ -1296,14 +1296,14 @@ public class Service implements Runnable {
 
 	public double getFlapAllowAngle(double ias, Boolean isDowningFlap) {
 		// fm文件无法解析
-		if (ias == 0 || c.Blkx == null || !c.Blkx.valid)
+		if (ias == 0 || c.getBlkx() == null || !c.getBlkx().valid)
 			return 125;
 
 		// 找到襟翼档位
 		int i = 0;
-		for (; i < c.Blkx.FlapsDestructionNum - 1; i++) {
+		for (; i < c.getBlkx().FlapsDestructionNum - 1; i++) {
 			// 大于
-			if (ias > c.Blkx.FlapsDestructionIndSpeed[i][1]) {
+			if (ias > c.getBlkx().FlapsDestructionIndSpeed[i][1]) {
 				break;
 			}
 		}
@@ -1318,38 +1318,38 @@ public class Service implements Runnable {
 		if (i == 0) {
 			// 下襟翼时直接越级使用下一级
 
-			x0 = c.Blkx.FlapsDestructionIndSpeed[i][1];
-			y0 = c.Blkx.FlapsDestructionIndSpeed[i][0] * 100.0f;
-			x1 = c.Blkx.FlapsDestructionIndSpeed[i + 1][1];
-			y1 = c.Blkx.FlapsDestructionIndSpeed[i + 1][0] * 100.0f;
+			x0 = c.getBlkx().FlapsDestructionIndSpeed[i][1];
+			y0 = c.getBlkx().FlapsDestructionIndSpeed[i][0] * 100.0f;
+			x1 = c.getBlkx().FlapsDestructionIndSpeed[i + 1][1];
+			y1 = c.getBlkx().FlapsDestructionIndSpeed[i + 1][0] * 100.0f;
 			k = this.calcK(x0, y0, x1, y1);
 
 			t = y0 + (ias - x0) * k;
 			return normFlapAngle(t);
 
 			// 襟翼只有0级
-			// if(c.Blkx.FlapsDestructionNum == 0){
-			// return c.Blkx.FlapsDestructionIndSpeed[0][1];
+			// if(c.getBlkx().FlapsDestructionNum == 0){
+			// return c.getBlkx().FlapsDestructionIndSpeed[0][1];
 			// }
 
 		} else {
 			// 下襟翼时直接越级使用
 			// if (isDowningFlap) {
-			// return c.Blkx.FlapsDestructionIndSpeed[i][1];
+			// return c.getBlkx().FlapsDestructionIndSpeed[i][1];
 			// }
 
 			// 相等
-			if (ias == c.Blkx.FlapsDestructionIndSpeed[i - 1][1]) {
+			if (ias == c.getBlkx().FlapsDestructionIndSpeed[i - 1][1]) {
 				// 直接返回速度
-				return c.Blkx.FlapsDestructionIndSpeed[i - 1][0] * 100.0f;
+				return c.getBlkx().FlapsDestructionIndSpeed[i - 1][0] * 100.0f;
 			}
 
 			// 否则进行线性插值运算
 			// 算斜率
-			x0 = c.Blkx.FlapsDestructionIndSpeed[i - 1][1];
-			y0 = c.Blkx.FlapsDestructionIndSpeed[i - 1][0] * 100.0f;
-			x1 = c.Blkx.FlapsDestructionIndSpeed[i][1];
-			y1 = c.Blkx.FlapsDestructionIndSpeed[i][0] * 100.0f;
+			x0 = c.getBlkx().FlapsDestructionIndSpeed[i - 1][1];
+			y0 = c.getBlkx().FlapsDestructionIndSpeed[i - 1][0] * 100.0f;
+			x1 = c.getBlkx().FlapsDestructionIndSpeed[i][1];
+			y1 = c.getBlkx().FlapsDestructionIndSpeed[i][0] * 100.0f;
 			k = this.calcK(x0, y0, x1, y1);
 
 			// 速度等于
@@ -1360,10 +1360,10 @@ public class Service implements Runnable {
 	}
 
 	public void resetEngLoad() {
-		if (c.Blkx != null && c.Blkx.valid) {
-			for (int idx = 0; idx < c.Blkx.maxEngLoad; idx++) {
-				c.Blkx.engLoad[idx].curWaterWorkTimeMili = c.Blkx.engLoad[idx].WorkTime * 1000;
-				c.Blkx.engLoad[idx].curOilWorkTimeMili = c.Blkx.engLoad[idx].WorkTime * 1000;
+		if (c.getBlkx() != null && c.getBlkx().valid) {
+			for (int idx = 0; idx < c.getBlkx().maxEngLoad; idx++) {
+				c.getBlkx().engLoad[idx].curWaterWorkTimeMili = c.getBlkx().engLoad[idx].WorkTime * 1000;
+				c.getBlkx().engLoad[idx].curOilWorkTimeMili = c.getBlkx().engLoad[idx].WorkTime * 1000;
 			}
 		}
 	}
@@ -1407,7 +1407,7 @@ public class Service implements Runnable {
 		curLoadMinWorkTime = 99999 * 1000;
 		/* 刷新引擎工作时间 */
 		resetEngLoad();
-		// if(c.Blkx != null && c.Blkx.maxEngLoad != 0)c.Blkx.resetEngineLoad();
+		// if(c.getBlkx() != null && c.getBlkx().maxEngLoad != 0)c.getBlkx().resetEngineLoad();
 		FuelCheckMili = System.currentTimeMillis();
 		MapCheckMili = FuelCheckMili;
 		MainCheckMili = FuelCheckMili;
@@ -1431,12 +1431,12 @@ public class Service implements Runnable {
 		sumSpeedSMA = cH.new SimpleMovingAverage((int) (1000 / freq));
 		energyDiffSMA = cH.new SimpleMovingAverage((int) (1000 / freq));
 		fuelTimeSMA = cH.new SimpleMovingAverage(4);
-		if (c.Blkx != null) {
-			engineLoad[] pL = c.Blkx.engLoad;
-			nitrokg = c.Blkx.nitro;
-			nitroConsump = c.Blkx.nitroDecr;
+		if (c.getBlkx() != null) {
+			engineLoad[] pL = c.getBlkx().engLoad;
+			nitrokg = c.getBlkx().nitro;
+			nitroConsump = c.getBlkx().nitroDecr;
 			if (pL != null) {
-				for (int i = 0; i < c.Blkx.maxEngLoad; i++) {
+				for (int i = 0; i < c.getBlkx().maxEngLoad; i++) {
 					pL[i].curWaterWorkTimeMili = pL[i].curWaterWorkTimeMili;
 					pL[i].curOilWorkTimeMili = pL[i].curOilWorkTimeMili;
 				}

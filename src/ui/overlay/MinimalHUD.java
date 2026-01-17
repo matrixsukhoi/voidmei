@@ -321,9 +321,11 @@ public class MinimalHUD extends WebFrame implements Runnable {
 
 				// 画文字
 				if (roundHorizon >= 0) {
-					UIBaseElements.__drawStringShade(g, circleX, circleY - 1, 1, sAttitude, drawFontSmall, Application.colorNum);
+					UIBaseElements.__drawStringShade(g, circleX, circleY - 1, 1, sAttitude, drawFontSmall,
+							Application.colorNum);
 				} else {
-					UIBaseElements.__drawStringShade(g, circleX, circleY - 1, 1, sAttitude, drawFontSmall, Application.colorUnit);
+					UIBaseElements.__drawStringShade(g, circleX, circleY - 1, 1, sAttitude, drawFontSmall,
+							Application.colorUnit);
 				}
 				// UIBaseElements.__drawStringShade(g, circleX - HUDFontsize / 2, circleY + 3 *
 				// HUDFontsize / 2, 1, sAttitudeRoll, drawFontSmall, Application.colorNum);
@@ -347,7 +349,8 @@ public class MinimalHUD extends WebFrame implements Runnable {
 			}
 			if (i == 1) {
 				int liney = 1 + y;
-				UIBaseElements.__drawStringShade(g, x + rightDraw, n + liney - 1, 1, relEnergy, drawFontSmall, aoaColor);
+				UIBaseElements.__drawStringShade(g, x + rightDraw, n + liney - 1, 1, relEnergy, drawFontSmall,
+						aoaColor);
 
 			}
 			if ((i == 2 && inAction) || (i == 0 && warnVne) || (i == 1 && warnRH)) {
@@ -478,7 +481,8 @@ public class MinimalHUD extends WebFrame implements Runnable {
 		// else
 		// g.setColor(Application.warning);
 		// if (pitch > 0){
-		// UIBaseElements.drawVRect(g, rightDraw, n, 5, pitch, 1, Application.lblNumColor);
+		// UIBaseElements.drawVRect(g, rightDraw, n, 5, pitch, 1,
+		// Application.lblNumColor);
 		// }
 		// else{
 		// UIBaseElements.drawVRect(g, rightDraw, n, 5, pitch, 1, Application.warning);
@@ -531,8 +535,10 @@ public class MinimalHUD extends WebFrame implements Runnable {
 		//
 		// g.setColor(Application.lblNumColor);
 		// g.drawString(lineCompass, x, n + (r - HUDFontsize / 2) + y);
-		UIBaseElements.drawStringShade(g, kx + lineWidth + 3, n + y - (r - HUDFontsize) / 2, 1, lineCompass, drawFontSmall);
-		UIBaseElements.drawStringShade(g, kx + lineWidth + 3, n + y + r + HUDFontSizeSmall / 2, 1, lineLoc, drawFontSmall);
+		UIBaseElements.drawStringShade(g, kx + lineWidth + 3, n + y - (r - HUDFontsize) / 2, 1, lineCompass,
+				drawFontSmall);
+		UIBaseElements.drawStringShade(g, kx + lineWidth + 3, n + y + r + HUDFontSizeSmall / 2, 1, lineLoc,
+				drawFontSmall);
 
 		// UIBaseElements.drawStringShade(g, kx + x, n + (r - HUDFontsize / 2) + y, 1,
 		// lineCompass, drawFont);
@@ -1164,10 +1170,11 @@ public class MinimalHUD extends WebFrame implements Runnable {
 			inAction = true;
 		}
 
-		if (xc.Blkx != null && xc.Blkx.valid) {
+		parser.Blkx b = xc.getBlkx();
+		if (b != null && b.valid) {
 			// 机动指标(1 - 空油重/(空油重 + 油重))
 			// 指标越低说明机动性越好
-			double nfweight = xc.Blkx.nofuelweight;
+			double nfweight = b.nofuelweight;
 			maneuverIndex = 1 - (nfweight / (nfweight + xs.fTotalFuel));
 			maneuverIndexLen = (int) Math.round(maneuverIndex / 0.5 * rightDraw);
 			maneuverIndexLen10 = (int) Math.round(0.10 / 0.5 * rightDraw);
@@ -1177,17 +1184,17 @@ public class MinimalHUD extends WebFrame implements Runnable {
 			maneuverIndexLen50 = (int) Math.round(0.50 / 0.5 * rightDraw);
 			// 速度
 			double vwing = 0;
-			if (xc.Blkx.isVWing) {
+			if (b.isVWing) {
 				vwing = xs.sIndic.wsweep_indicator;
 			}
 
-			if ((xs.IASv >= xc.Blkx.getVNEVWing(vwing) * 0.95) || (xs.sState.M >= xc.Blkx.getMNEVWing(vwing) * 0.95f)) {
+			if ((xs.IASv >= b.getVNEVWing(vwing) * 0.95) || (xs.sState.M >= b.getMNEVWing(vwing) * 0.95f)) {
 				warnVne = true;
 			}
 
 			int flaps = xs.sState.flaps > 0 ? xs.sState.flaps : 0;
 
-			double maxAvailableAoA = xc.Blkx.getAoAHighVWing(vwing, flaps);
+			double maxAvailableAoA = b.getAoAHighVWing(vwing, flaps);
 
 			availableAoA = maxAvailableAoA - aoa;
 
@@ -1207,8 +1214,8 @@ public class MinimalHUD extends WebFrame implements Runnable {
 			if (aoaY > rightDraw)
 				aoaY = rightDraw;
 
-			AoAFuselagePix = (int) ((xc.Blkx.NoFlapsWing.AoACritHigh - xc.Blkx.Fuselage.AoACritHigh) * aoaLength
-					/ xc.Blkx.NoFlapsWing.AoACritHigh);
+			AoAFuselagePix = (int) ((b.NoFlapsWing.AoACritHigh - b.Fuselage.AoACritHigh) * aoaLength
+					/ b.NoFlapsWing.AoACritHigh);
 		} else {
 			AoAFuselagePix = (int) (aoa * aoaLength / 15);
 			aoaY = (int) (aoa * aoaLength / 30);

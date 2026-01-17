@@ -105,7 +105,7 @@ public class OverlayContext {
         return builder()
                 .Controller(tc)
                 .Service(tc.S)
-                .Blkx(tc.Blkx)
+                .Blkx(tc.getBlkx())
                 .pool(tc.globalPool)
                 .previewMode(false)
                 .build();
@@ -118,7 +118,7 @@ public class OverlayContext {
         return builder()
                 .Controller(tc)
                 .Service(tc.S)
-                .Blkx(tc.Blkx)
+                .Blkx(tc.getBlkx())
                 .pool(tc.globalPool)
                 .previewMode(true)
                 .build();

@@ -22,5 +22,12 @@ public final class UIStateEvents {
      */
     public static final String CONFIG_CHANGED = "configChanged";
 
+    /**
+     * Published when FM data has been successfully parsed and loaded into the
+     * global pool.
+     * Payload: String (aircraft name)
+     */
+    public static final String FM_DATA_LOADED = "fmDataLoaded";
+
     // Add more event types as needed
 }

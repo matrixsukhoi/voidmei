@@ -738,8 +738,9 @@ public class EngineInfo extends WebFrame implements Runnable {
 				engineCheckMili = s.SystemTime;
 				if (s.sState != null) {
 					if (jetChecked == false) {
-						if (xc.Blkx != null && xc.Blkx.valid == true) {
-							if (xc.Blkx.isJet) {
+						parser.Blkx b = xc.getBlkx();
+						if (b != null && b.valid == true) {
+							if (b.isJet) {
 
 								isJet = true;
 								// slider1.setVisible(false);

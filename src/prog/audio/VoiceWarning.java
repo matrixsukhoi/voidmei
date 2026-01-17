@@ -265,17 +265,18 @@ public class VoiceWarning implements Runnable {
 		aoaCrit = new audClip("./voice/aoaCrit.wav", 1);
 		aoaHigh = new audClip("./voice/aoaHigh.wav", 8);
 		aoaWarningLine = 15;
-		if (xc.Blkx != null && xc.Blkx.valid)
-			aoaWarningLine = xc.Blkx.NoFlapsWing.AoACritHigh;
+		parser.Blkx b = xc.getBlkx();
+		if (b != null && b.valid)
+			aoaWarningLine = b.NoFlapsWing.AoACritHigh;
 
 		rudderEffIAS = 65535;
 		elevatorEffIAS = 65535;
 		aileronEffIAS = 65535;
 		int lowEff = 20;
-		if (xc.Blkx != null && xc.Blkx.valid) {
-			rudderEffIAS = (int) (xc.Blkx.rudderEff);
-			elevatorEffIAS = (int) (xc.Blkx.elavEff);
-			aileronEffIAS = (int) (xc.Blkx.aileronEff);
+		if (b != null && b.valid) {
+			rudderEffIAS = (int) (b.rudderEff);
+			elevatorEffIAS = (int) (b.elavEff);
+			aileronEffIAS = (int) (b.aileronEff);
 		}
 
 		rudderEff = new audClip("./voice/rudderEff.wav", 10);
@@ -291,8 +292,8 @@ public class VoiceWarning implements Runnable {
 
 		// 失速
 		speedWarningLine = 0;
-		if (xc.Blkx != null && xc.Blkx.valid)
-			speedWarningLine = xc.Blkx.CriticalSpeed * 3.6f;
+		if (b != null && b.valid)
+			speedWarningLine = b.CriticalSpeed * 3.6f;
 		if (speedWarningLine == 0)
 			speedWarningLine = 100;
 		// Application.debugPrint(speedWarningLine);
@@ -301,9 +302,9 @@ public class VoiceWarning implements Runnable {
 		// 过载
 		nyWarningLine0 = 0;
 		nyWarningLine1 = 0;
-		if (xc.Blkx != null && xc.Blkx.valid) {
-			nyWarningLine0 = xc.Blkx.maxAllowGload[0];
-			nyWarningLine1 = xc.Blkx.maxAllowGload[1];
+		if (b != null && b.valid) {
+			nyWarningLine0 = b.maxAllowGload[0];
+			nyWarningLine1 = b.maxAllowGload[1];
 		}
 		if (nyWarningLine0 == 0)
 			nyWarningLine0 = -4;
@@ -316,16 +317,16 @@ public class VoiceWarning implements Runnable {
 		// ias
 		iasWarn = new audClip("./voice/warn_ias.wav", 10);
 		iasWarningLine = 0;
-		if (xc.Blkx != null && xc.Blkx.valid)
-			iasWarningLine = xc.Blkx.vne * 0.95f;
+		if (b != null && b.valid)
+			iasWarningLine = b.vne * 0.95f;
 		if (iasWarningLine == 0)
 			iasWarningLine = Float.MAX_VALUE;
 
 		// mach
 		machWarn = new audClip("./voice/warn_mach.wav", 10);
 		machWarningLine = 0;
-		if (xc.Blkx != null && xc.Blkx.valid)
-			machWarningLine = xc.Blkx.vneMach * 0.95f;
+		if (b != null && b.valid)
+			machWarningLine = b.vneMach * 0.95f;
 		if (machWarningLine == 0)
 			machWarningLine = Float.MAX_VALUE;
 		// Application.debugPrint(machWarningLine);
@@ -333,8 +334,8 @@ public class VoiceWarning implements Runnable {
 		// gear
 		gearWarningLine = 0;
 		gearWarn = new audClip("./voice/warn_gear.wav", 7);
-		if (xc.Blkx != null && xc.Blkx.valid)
-			gearWarningLine = xc.Blkx.GearDestructionIndSpeed;
+		if (b != null && b.valid)
+			gearWarningLine = b.GearDestructionIndSpeed;
 		if (gearWarningLine == 0)
 			gearWarningLine = 450;
 		// Application.debugPrint(gearWarningLine);
@@ -409,13 +410,14 @@ public class VoiceWarning implements Runnable {
 			/* 可变翼更新攻角限制和速度警告 */
 			double vwing = 0;
 			int flaps = st.flaps > 0 ? st.flaps : 0;
-			if (xc.Blkx != null && xc.Blkx.valid) {
-				if (xc.Blkx.isVWing) {
+			parser.Blkx b = xc.getBlkx();
+			if (b != null && b.valid) {
+				if (b.isVWing) {
 					vwing = indic.wsweep_indicator;
 				}
-				aoaWarningLine = xc.Blkx.getAoAHighVWing(vwing, flaps);
-				iasWarningLine = xc.Blkx.getVNEVWing(vwing) * 0.95f;
-				machWarningLine = xc.Blkx.getMNEVWing(vwing) * 0.95f;
+				aoaWarningLine = b.getAoAHighVWing(vwing, flaps);
+				iasWarningLine = b.getVNEVWing(vwing) * 0.95f;
+				machWarningLine = b.getMNEVWing(vwing) * 0.95f;
 			}
 
 			// System.out.println("wing: " + vwing);
@@ -469,7 +471,8 @@ public class VoiceWarning implements Runnable {
 			(isFlapAlive && !xS.isDowningFlap && (xS.flapAllowAngle - st.flaps < 2) && (st.flaps != 0)) ||
 			/* 条件2: 正在下襟翼的状态 */
 					(isFlapAlive && xS.isDowningFlap && (xS.flapAllowAngle - st.flaps < 8))) {
-				// Application.debugPrint(xS.IAS + ", limited flap angle " + xS.flapAllowAngle + "is
+				// Application.debugPrint(xS.IAS + ", limited flap angle " + xS.flapAllowAngle +
+				// "is
 				// downing:" + xS.isDowningFlap);
 				fatal = true;
 				flapWarn.playOnce(t);

@@ -33,8 +33,9 @@ public class Controller implements ConfigProvider {
 
 	public boolean logon = false;
 
-	public Blkx Blkx;
-	private String currentFMName = null;
+	private Blkx Blkx;
+	private String loadedFMName = null;
+	private String identifiedFMName = null;
 	private long lastBlkxCheckTime = 0;
 	private static final long BLKX_CHECK_INTERVAL = 5000;
 	public AttributePool globalPool = new AttributePool();
@@ -168,15 +169,15 @@ public class Controller implements ConfigProvider {
 			// 自动隐藏任务栏
 
 			// 初始化MapObj以及Msg、gamechat
-			// Application.debugPrint(S.iIndic.type);
 			cur_fmtype = S.sIndic.type;
-			getfmdata(cur_fmtype);
+			identifiedFMName = cur_fmtype;
+			// Removed getfmdata call - Service will trigger load via calculate or start
 			// Application.debugPrint("状态3，连接成功，释放状态条，打开面板");
 			// usetempratureInformation =
 			// Boolean.parseBoolean(getconfig("usetempInfoSwitch"));
 			// Application.debugPrint(usetempratureInformation);
 			// NotificationManager.showNotification(createWebNotificationTime(3000));
-			if (showStatus) {
+			if (showStatus && SB != null) {
 				SB.S3();
 				SB.doit = false;
 				SB.dispose();
@@ -411,7 +412,7 @@ public class Controller implements ConfigProvider {
 		// EngineInfo - supports preview
 		overlayManager.registerWithPreview("engineInfoSwitch",
 				() -> new EngineInfo(),
-				overlay -> ((EngineInfo) overlay).init(this, S, Blkx),
+				overlay -> ((EngineInfo) overlay).init(this, S, getBlkx()),
 				overlay -> ((EngineInfo) overlay).initPreview(this),
 				overlay -> ((EngineInfo) overlay).reinitConfig(),
 				true);
@@ -419,7 +420,7 @@ public class Controller implements ConfigProvider {
 		// EngineControl - supports preview
 		overlayManager.registerWithPreview("enableEngineControl",
 				() -> new EngineControl(),
-				overlay -> ((EngineControl) overlay).init(this, S, Blkx),
+				overlay -> ((EngineControl) overlay).init(this, S, getBlkx()),
 				overlay -> ((EngineControl) overlay).initPreview(this),
 				overlay -> ((EngineControl) overlay).reinitConfig(),
 				true);
@@ -477,9 +478,9 @@ public class Controller implements ConfigProvider {
 		// UsefulData (FMPrint) - supports preview
 		overlayManager.registerWithPreview("enableFMPrint",
 				() -> new UsefulData(),
-				overlay -> ((UsefulData) overlay).init(this, Blkx),
-				overlay -> ((UsefulData) overlay).initPreview(this, Blkx),
-				overlay -> ((UsefulData) overlay).reinitConfig(Blkx),
+				overlay -> ((UsefulData) overlay).init(this, getBlkx()),
+				overlay -> ((UsefulData) overlay).initPreview(this, getBlkx()),
+				overlay -> ((UsefulData) overlay).reinitConfig(getBlkx()),
 				true);
 
 		// thrustdFS - requires enableFMPrint AND isJet
@@ -599,16 +600,14 @@ public class Controller implements ConfigProvider {
 	}
 
 	/**
-	 * Ensure Blkx data is loaded, either from live source or config.
+	 * IDENTIFY the current aircraft from live source or config.
+	 * Does NOT trigger parsing unless specifically requested via getBlkx().
 	 */
 	private void ensureBlkxLoaded() {
-		// Priority 1: Throttled live polling
+		// Throttled live polling
 		long now = System.currentTimeMillis();
-		// If we already have a valid Blkx, don't re-poll the game more than once every
-		// 5 seconds.
 		if (now - lastBlkxCheckTime < BLKX_CHECK_INTERVAL) {
-			if (Blkx != null && Blkx.valid)
-				return;
+			return;
 		}
 		lastBlkxCheckTime = now;
 
@@ -616,20 +615,38 @@ public class Controller implements ConfigProvider {
 		String livePlaneName = httpDataFetcher.getLiveAircraftType();
 
 		if (livePlaneName != null) {
-			getfmdata(livePlaneName);
+			identifiedFMName = livePlaneName;
 			return;
 		}
 
-		// Priority 2: If we are in PREVIEW mode and still have no data, load the
-		// selected/default FM
-		if (State == ControllerState.PREVIEW && (Blkx == null || !Blkx.valid)) {
-			String planeName = getConfig("selectedFM0");
-			if (planeName != null && !planeName.isEmpty()) {
-				prog.util.Logger.debug("Controller",
-						"No live aircraft found. Loading fallback FM for Preview: " + planeName);
-				getfmdata(planeName);
-			}
+		// Fallback to config
+		String configPlane = getConfig("selectedFM0");
+		if (configPlane != null && !configPlane.isEmpty()) {
+			identifiedFMName = configPlane;
 		}
+	}
+
+	/**
+	 * Just-In-Time getter for Flight Model data.
+	 * Triggers parsing only if target aircraft differs from loaded one.
+	 */
+	public synchronized Blkx getBlkx() {
+		// If we don't even have an identified plane yet, try to find one
+		if (identifiedFMName == null) {
+			ensureBlkxLoaded();
+		}
+
+		if (identifiedFMName == null)
+			return null;
+
+		// Skip if already loaded and valid
+		if (identifiedFMName.equalsIgnoreCase(loadedFMName) && Blkx != null && Blkx.valid) {
+			return Blkx;
+		}
+
+		// Trigger actual parsing
+		loadFMData(identifiedFMName);
+		return Blkx;
 	}
 
 	public void refreshPreviews() {
@@ -667,56 +684,53 @@ public class Controller implements ConfigProvider {
 		}
 	}
 
-	void getfmdata(String planename) {
+	public void loadFMData(String planename) {
 		if (planename == null || planename.isEmpty())
 			return;
 
-		// Skip if already loaded
-		if (planename.equalsIgnoreCase(currentFMName) && Blkx != null && Blkx.valid) {
+		// Skip if truly already loaded (double check for safety)
+		if (planename.equalsIgnoreCase(loadedFMName) && Blkx != null && Blkx.valid) {
 			return;
 		}
 
-		prog.util.Logger.info("Controller", "Loading Flight Model for: " + planename);
+		prog.util.Logger.info("Controller", "Lazily Loading Flight Model for: " + planename);
 
 		String fmfile = null;
-		// String unitSystem;
-		// 读入fm
 		String planeFileName = planename.toLowerCase();
-		Blkx = new Blkx("./data/aces/gamedata/flightmodels/" + planeFileName + ".Blkx", planeFileName + ".blk", false);
-		if (Blkx.valid == true) {
-			fmfile = Blkx.getlastone("fmfile");
-			/* 去除多余的空格 */
+		Blkx lookupBlkx = new Blkx("./data/aces/gamedata/flightmodels/" + planeFileName + ".Blkx",
+				planeFileName + ".blk",
+				false);
+		if (lookupBlkx.valid == true) {
+			fmfile = lookupBlkx.getlastone("fmfile");
 			if (fmfile != null) {
 				fmfile = fmfile.substring(fmfile.indexOf("\"") + 1, fmfile.length() - 1);
-				/* 去除多余的/ */
 				if (fmfile.charAt(0) == '/')
 					fmfile = fmfile.substring(1);
 			}
 		}
 		if (fmfile == null) {
-			/* 直接读取 */
 			fmfile = "fm/" + planeFileName + ".blk";
 		}
 
-		/* F**k Gaijin's shit-mountain code */
 		if (-1 == fmfile.indexOf(".blk")) {
 			fmfile += ".blk";
 		}
 
-		// 读入fmfile
+		// Final parse
 		Blkx = new Blkx("./data/aces/gamedata/flightmodels/" + fmfile + "x", fmfile);
 
 		if (Blkx.valid == true) {
 			Blkx.getAllplotdata();
 			Blkx.data = null;
 
-			// Dump FM data to Global Pool
+			// Populate Global Pool
 			globalPool.putAll(Blkx.getVariableMap());
-			currentFMName = planename;
-			// Sync legacy field
+			loadedFMName = planename;
 			cur_fmtype = planename;
-		}
 
+			// Notify observers that FM data is ready
+			prog.event.UIStateBus.getInstance().publish(prog.event.UIStateEvents.FM_DATA_LOADED, planename);
+		}
 	}
 
 }

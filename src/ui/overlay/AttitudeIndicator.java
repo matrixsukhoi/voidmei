@@ -1,4 +1,5 @@
 package ui.overlay;
+
 import prog.i18n.Lang;
 
 import java.awt.BasicStroke;
@@ -550,34 +551,35 @@ public class AttitudeIndicator extends WebFrame implements Runnable {
 
 		// 使用剩余
 		// Application.debugPrint(1/2 * xc.Blkx.aoaHigh);
-		if (xc.Blkx.valid) {
+		parser.Blkx b = xc.getBlkx();
+		if (b != null && b.valid) {
 			if (showAoALimits) {
 				if (xs.sState.AoA >= 0) {
 					AoALimitU = Math.round(
-							(-(xc.Blkx.NoFlapsWing.AoACritHigh - xs.sState.AoA) + MaxAoA) * xHeight / (2 * MaxAoA));
+							(-(b.NoFlapsWing.AoACritHigh - xs.sState.AoA) + MaxAoA) * xHeight / (2 * MaxAoA));
 
 					AoAFLimitU = Math
-							.round((-(xc.Blkx.aoaFuselageHigh - xs.sState.AoA) + MaxAoA) * xHeight / (2 * MaxAoA));
+							.round((-(b.aoaFuselageHigh - xs.sState.AoA) + MaxAoA) * xHeight / (2 * MaxAoA));
 					AoALimitD = -10;
 					AoAFLimitD = -10;
 				} else {
 
 					AoALimitD = Math.round(
-							(-(xc.Blkx.NoFlapsWing.AoACritLow - xs.sState.AoA) + MaxAoA) * xHeight / (2 * MaxAoA));
+							(-(b.NoFlapsWing.AoACritLow - xs.sState.AoA) + MaxAoA) * xHeight / (2 * MaxAoA));
 
 					AoAFLimitD = Math
-							.round((-(xc.Blkx.aoaFuselageLow - xs.sState.AoA) + MaxAoA) * xHeight / (2 * MaxAoA));
+							.round((-(b.aoaFuselageLow - xs.sState.AoA) + MaxAoA) * xHeight / (2 * MaxAoA));
 					AoALimitU = -10;
 					AoAFLimitU = -10;
 				}
 
 			} else {
-				if (0.3f * xc.Blkx.aoaHigh <= xs.sState.AoA)
-					AoALimitU = Math.round((-(xc.Blkx.aoaHigh - xs.sState.AoA) + MaxAoA) * xHeight / (2 * MaxAoA));
+				if (0.3f * b.aoaHigh <= xs.sState.AoA)
+					AoALimitU = Math.round((-(b.aoaHigh - xs.sState.AoA) + MaxAoA) * xHeight / (2 * MaxAoA));
 				else
 					AoALimitU = -10;
-				if (0.3f * xc.Blkx.aoaLow >= xs.sState.AoA)
-					AoALimitD = Math.round((-(xc.Blkx.aoaLow - xs.sState.AoA) + MaxAoA) * xHeight / (2 * MaxAoA));
+				if (0.3f * b.aoaLow >= xs.sState.AoA)
+					AoALimitD = Math.round((-(b.aoaLow - xs.sState.AoA) + MaxAoA) * xHeight / (2 * MaxAoA));
 				else
 					AoALimitD = -10;
 			}

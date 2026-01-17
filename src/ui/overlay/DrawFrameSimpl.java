@@ -470,7 +470,7 @@ public class DrawFrameSimpl extends WebFrame implements Runnable {
 	public void init(Controller c) {
 		// 特殊处理
 		xc = c;
-		Blkx = xc.Blkx;
+		Blkx = xc.getBlkx();
 		// 获得x和y
 
 		setFrameOpaque();
@@ -490,9 +490,10 @@ public class DrawFrameSimpl extends WebFrame implements Runnable {
 				g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
 				// 绘制坐标系
-				double[] xn = new double[xc.Blkx.velThrNum];
-				for (int i = 0; i < xc.Blkx.velThrNum; i++) {
-					xn[i] = xc.Blkx.velocityThr[i];
+				parser.Blkx b = xc.getBlkx();
+				double[] xn = new double[b.velThrNum];
+				for (int i = 0; i < b.velThrNum; i++) {
+					xn[i] = b.velocityThr[i];
 				}
 
 				double xmin = findMin(xn);

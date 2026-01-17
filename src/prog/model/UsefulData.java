@@ -19,7 +19,8 @@ public class UsefulData extends BaseOverlay implements BaseOverlay.ConfigBridge 
         this.xc = c;
         this.xp = p;
         super.init(this, "UsefulDataX", "UsefulDataY", () -> {
-            String currentText = xc.Blkx != null ? xc.Blkx.fmdata : "FM Data Preview\n[No Data Loaded]";
+            parser.Blkx b = xc.getBlkx();
+            String currentText = b != null ? b.fmdata : "FM Data Preview\n[No Data Loaded]";
             return Arrays.asList(currentText.split("\n"));
         });
         // Set custom header matcher for FM data
@@ -30,7 +31,8 @@ public class UsefulData extends BaseOverlay implements BaseOverlay.ConfigBridge 
         this.xc = c;
         this.xp = p;
         super.initPreview(this, "UsefulDataX", "UsefulDataY", () -> {
-            String currentText = xc.Blkx != null ? xc.Blkx.fmdata : "FM Data Preview\n[No Data Loaded]";
+            parser.Blkx b = xc.getBlkx();
+            String currentText = b != null ? b.fmdata : "FM Data Preview\n[No Data Loaded]";
             return Arrays.asList(currentText.split("\n"));
         });
         setHeaderMatcher(line -> line.contains("fm器件") || line.contains("FM文件"));
