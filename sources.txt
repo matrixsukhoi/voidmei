@@ -25,9 +25,10 @@ src/prog/ActivationStrategy.java
 src/prog/ControllerState.java
 src/prog/voiceWarning.java
 src/prog/otherService.java
+src/prog/util/StringHelper.java
+src/prog/util/CalcHelper.java
 src/prog/util/FileUtils.java
 src/prog/util/FormulaEvaluator.java
-src/prog/calcHelper.java
 src/prog/config/ConfigurationService.java
 src/prog/config/ConfigWatcherService.java
 src/prog/config/ConfigProvider.java

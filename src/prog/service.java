@@ -6,22 +6,23 @@ import parser.indicators;
 import parser.mapInfo;
 import parser.mapObj;
 import parser.state;
-import parser.stringHelper;
+import prog.util.StringHelper;
+import prog.util.CalcHelper;
 import java.util.HashMap;
 import java.util.Map;
 import prog.event.FlightDataBus;
 import prog.event.FlightDataEvent;
 
 public class service implements Runnable {
-	public static calcHelper cH = new calcHelper();
-	public calcHelper.simpleMovingAverage diffSpeedSMA;
-	public calcHelper.simpleMovingAverage sepSMA;
-	public calcHelper.simpleMovingAverage turnrdsSMA;
-	public calcHelper.simpleMovingAverage sumSpeedSMA;
-	public calcHelper.simpleMovingAverage calcSpeedSMA;
-	public calcHelper.simpleMovingAverage fuelTimeSMA;
+	public static CalcHelper cH = new CalcHelper();
+	public CalcHelper.SimpleMovingAverage diffSpeedSMA;
+	public CalcHelper.SimpleMovingAverage sepSMA;
+	public CalcHelper.SimpleMovingAverage turnrdsSMA;
+	public CalcHelper.SimpleMovingAverage sumSpeedSMA;
+	public CalcHelper.SimpleMovingAverage calcSpeedSMA;
+	public CalcHelper.SimpleMovingAverage fuelTimeSMA;
 
-	public calcHelper.simpleMovingAverage energyDiffSMA;
+	public CalcHelper.SimpleMovingAverage energyDiffSMA;
 	// public static URL urlstate;
 	// public static URL urlindicators;
 	public double loc[];
@@ -814,7 +815,7 @@ public class service implements Runnable {
 		pRadioAlt = radioAlt;
 		// radioAlt = iIndic.radio_altitude;
 
-		if (sIndic.radio_altitude == stringHelper.fInvalid) {
+		if (sIndic.radio_altitude == StringHelper.fInvalid) {
 			radioAlt = alt;
 			radioAltValid = false;
 		} else {
@@ -1419,13 +1420,13 @@ public class service implements Runnable {
 		nitroConsump = 0;
 		nitroEngNr = 0;
 
-		calcSpeedSMA = cH.new simpleMovingAverage((int) (1000 / freq));
-		diffSpeedSMA = cH.new simpleMovingAverage((int) (1000 / freq));
-		sepSMA = cH.new simpleMovingAverage((int) (1000 / freq));
-		turnrdsSMA = cH.new simpleMovingAverage((int) (1000 / freq));
-		sumSpeedSMA = cH.new simpleMovingAverage((int) (1000 / freq));
-		energyDiffSMA = cH.new simpleMovingAverage((int) (1000 / freq));
-		fuelTimeSMA = cH.new simpleMovingAverage(4);
+		calcSpeedSMA = cH.new SimpleMovingAverage((int) (1000 / freq));
+		diffSpeedSMA = cH.new SimpleMovingAverage((int) (1000 / freq));
+		sepSMA = cH.new SimpleMovingAverage((int) (1000 / freq));
+		turnrdsSMA = cH.new SimpleMovingAverage((int) (1000 / freq));
+		sumSpeedSMA = cH.new SimpleMovingAverage((int) (1000 / freq));
+		energyDiffSMA = cH.new SimpleMovingAverage((int) (1000 / freq));
+		fuelTimeSMA = cH.new SimpleMovingAverage(4);
 		if (c.blkx != null) {
 			engineLoad[] pL = c.blkx.engLoad;
 			nitrokg = c.blkx.nitro;
