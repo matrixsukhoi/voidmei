@@ -105,6 +105,10 @@ public class Controller implements ConfigProvider {
 
 	private boolean showStatus;
 
+	// Event Handlers
+	private java.util.function.Consumer<Object> configChangedHandler;
+	private java.util.function.Consumer<Object> uiReadyHandler;
+
 	// public void hideTaskbarSw() {
 	// if (Application.debug) {
 	// robot.keyPress(17);
@@ -344,19 +348,33 @@ public class Controller implements ConfigProvider {
 		registerGameModeOverlays();
 
 		// Listen for live config changes for WYSIWYG
-		prog.event.UIStateBus.getInstance().subscribe(prog.event.UIStateEvents.CONFIG_CHANGED, key -> {
+		configChangedHandler = key -> {
 			// Only refresh if we are in PREVIEW state.
 			// In INIT state (startup), we don't want to trigger FM loads yet.
 			if (State == ControllerState.PREVIEW) {
 				// prog.util.Logger.info("Controller", "ACTION: Controller: Refreshing Previews
 				// (" + key + ")");
-				refreshPreviews();
+
+				// Offload to background thread to avoid blocking UI/Animation
+				new Thread(() -> {
+					refreshPreviews();
+				}).start();
 			} else {
 				// Just update local config without full refresh/data load
 				prog.util.Logger.info("Controller", "ACTION: Controller: Reloading config (" + key + ")");
 				loadFromConfig();
 			}
-		});
+		};
+		prog.event.UIStateBus.getInstance().subscribe(prog.event.UIStateEvents.CONFIG_CHANGED, configChangedHandler);
+
+		// Listen for UI Ready event to start preview
+		uiReadyHandler = data -> {
+			prog.util.Logger.info("Controller", "ACTION: Controller: UI Ready. Initializing Preview...");
+			Preview();
+			// Ensure overlays are visible if we started in preview mode
+			setDynamicOverlaysVisible(true, false);
+		};
+		prog.event.UIStateBus.getInstance().subscribe(prog.event.UIStateEvents.UI_READY, uiReadyHandler);
 
 		// 刷新频率
 		State = ControllerState.INIT;
@@ -418,8 +436,9 @@ public class Controller implements ConfigProvider {
 		// EngineInfo - supports preview
 		overlayManager.registerWithPreview("engineInfoSwitch",
 				() -> new EngineInfo(),
-				overlay -> ((EngineInfo) overlay).init(this, S, getBlkx()),
-				overlay -> ((EngineInfo) overlay).initPreview(this),
+				overlay -> ((EngineInfo) overlay).init(this, globalPool, ui.model.EngineInfoConfig.createDefault(this)),
+				overlay -> ((EngineInfo) overlay).initPreview(this, globalPool,
+						ui.model.EngineInfoConfig.createDefault(this)),
 				overlay -> ((EngineInfo) overlay).reinitConfig(),
 				true);
 
@@ -596,6 +615,15 @@ public class Controller implements ConfigProvider {
 			closepad();
 		}
 
+		// Unsubscribe from event bus to prevent duplicate handling on restart
+		if (configChangedHandler != null) {
+			prog.event.UIStateBus.getInstance().unsubscribe(prog.event.UIStateEvents.CONFIG_CHANGED,
+					configChangedHandler);
+		}
+		if (uiReadyHandler != null) {
+			prog.event.UIStateBus.getInstance().unsubscribe(prog.event.UIStateEvents.UI_READY, uiReadyHandler);
+		}
+
 		S = null;
 		S1.interrupt();
 		S1 = null;
@@ -605,7 +633,10 @@ public class Controller implements ConfigProvider {
 	public void Preview() {
 		prog.util.Logger.info("Controller", "Enabling Preview mode...");
 		State = ControllerState.PREVIEW;
-		refreshPreviews();
+		// Offload I/O to background, similar to config change
+		new Thread(() -> {
+			refreshPreviews();
+		}).start();
 	}
 
 	/**
@@ -662,7 +693,10 @@ public class Controller implements ConfigProvider {
 		prog.util.Logger.debug("Controller", "Refreshing overlays for preview/config change...");
 		loadFromConfig();
 		ensureBlkxLoaded();
-		overlayManager.refreshAllPreviews();
+		// Schedule UI update on EDT to prevent race conditions/NPEs
+		javax.swing.SwingUtilities.invokeLater(() -> {
+			overlayManager.refreshAllPreviews();
+		});
 	}
 
 	public void endPreview() {

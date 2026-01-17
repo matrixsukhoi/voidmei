@@ -334,22 +334,25 @@ public class MainForm extends WebFrame {
 		loadConfig();// 读入Config
 		isInitializing = false;
 
+		// Execute resize check structure updates
+		updateDynamicSize();
+
 		setShowResizeCorner(false);
 		setDefaultCloseOperation(3);
-		setVisible(true);
 		this.setShadeWidth(10);
-		tc.Preview();
+		// tc.Preview(); // Removed - driven by UI_READY event
 		moveCheckFlag = true;
-		// Ensure overlays are visible if we started in preview mode
-		tc.setDynamicOverlaysVisible(true, false);
+		// tc.setDynamicOverlaysVisible(true, false); // Removed - driven by UI_READY
+		// event
 
-		// Execute resize check after UI is fully visible/ready
-		// We use multiple invokeLaters to ensure all nested components have finished
-		// their initial layout
+		// Show frame only after all resizing is done to prevent jitter
+		setVisible(true);
+
+		// Secondary layout pass to ensure WebLaF components settle
 		SwingUtilities.invokeLater(() -> {
-			SwingUtilities.invokeLater(() -> {
-				updateDynamicSize();
-			});
+			updateDynamicSize();
+			// Publish UI Ready event to trigger preview and overlay visibility
+			prog.event.UIStateBus.getInstance().publish(prog.event.UIStateEvents.UI_READY, null);
 		});
 	}
 

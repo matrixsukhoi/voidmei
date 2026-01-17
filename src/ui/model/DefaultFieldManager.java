@@ -69,6 +69,14 @@ public class DefaultFieldManager implements FieldManager {
     }
 
     @Override
+    public void setFieldVisible(String key, boolean visible) {
+        DataField field = fieldMap.get(key);
+        if (field != null) {
+            field.visible = visible;
+        }
+    }
+
+    @Override
     public int visibleCount() {
         int count = 0;
         for (DataField field : fields) {

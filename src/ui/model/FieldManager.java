@@ -19,6 +19,11 @@ public interface FieldManager {
     void updateField(String key, String value, String naString);
 
     /**
+     * Set a field's visibility by key.
+     */
+    void setFieldVisible(String key, boolean visible);
+
+    /**
      * Get all fields in order.
      */
     List<DataField> getFields();

@@ -1,782 +1,195 @@
 package ui.overlay;
 
-import java.awt.Color;
-import java.awt.Container;
-import java.awt.Font;
-import java.awt.Graphics;
-import java.awt.Graphics2D;
-import java.awt.RenderingHints;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseMotionAdapter;
-import com.alee.laf.panel.WebPanel;
-import com.alee.laf.rootpane.WebFrame;
-import com.alee.laf.splitpane.WebSplitPane;
+import java.util.List;
 
-import parser.Blkx;
-import prog.Application;
-import prog.Controller;
-import prog.i18n.Lang;
-import prog.Service;
+import parser.AttributePool;
+import ui.base.FieldOverlay;
 import prog.config.ConfigLoader;
-import ui.UIBaseElements;
-import ui.WebLafSettings;
+import prog.config.ConfigProvider;
+import ui.model.EngineInfoConfig;
+import ui.model.FieldDefinition;
+import ui.renderer.BOSStyleRenderer;
+import ui.renderer.OverlayRenderer;
 
-public class EngineInfo extends WebFrame implements Runnable {
-	/**
-	 * 
-	 */
+/**
+ * EngineInfo overlay window displaying real-time engine data.
+ * 
+ * Refactored to extend FieldOverlay for consistent event-driven updates.
+ * Uses EngineInfoConfig for configuration and field definitions.
+ */
+public class EngineInfo extends FieldOverlay {
+	private static final long serialVersionUID = 1L;
 
-	int isDragging = 0;
-	int xx = 0;
-	int yy = 0;
-	public volatile boolean doit = true;
-	WebSplitPane splitPane;
-	public int overheattime;
-	private static final long serialVersionUID = 3063042782594625576L;
-	public Controller xc;
-	public Service s;
-	public Blkx p;
-	public int wtload1;
-	public int oilload1;
-	public String status;
-	String NumFont;
+	private EngineInfoConfig engineInfoConfig;
 
-	long freq;
-	long MainCheckMili;
-	int WIDTH;
-	int HEIGHT;
-	int lx;
-	int ly;
-	int OP;
-	Color transParentWhite = Application.colorNum;
-	Color transParentWhitePlus = Application.colorNum;
-
-	Color transparent = new Color(0, 0, 0, 0);
-	Color lblShadeColor = Application.colorShade;
-
-	WebPanel panel;
-
-	public String FontName;
-	int font1 = 12;
-	int font2 = 14;
-	int font3 = 10;
-	int fontadd = 0;
-	private int fontsize;
-	private Font fontNum;
-	private Font fontLabel;
-	private Font fontUnit;
-	static Color lblColor = Application.colorUnit;
-	static Color lblNameColor = Application.colorLabel;
-	static Color lblNumColor = Application.colorNum;
-
-	public void fclose() {
-		// this.setVisible(false);
-
-		this.dispose();
-		// this.close();
+	public EngineInfo() {
+		super();
 	}
 
-	public void initPreview(Controller c) {
-
-		init(c, null, null);
-		// setShadeWidth(10);
-		// this.setVisible(false);
-		// this.getWebRootPaneUI().setTopBg(new Color(0, 0, 0, 50));
-		this.getWebRootPaneUI().setMiddleBg(Application.previewColor);// 中部透明
-		this.getWebRootPaneUI().setTopBg(Application.previewColor);// 顶部透明
-
-		panel.addMouseListener(new MouseAdapter() {
-			public void mouseEntered(MouseEvent e) {
-				/*
-				 * if(A.tag==0){ if(f.mode==1){ A.setVisible(false);
-				 * A.visibletag=0; } }
-				 */
-			}
-
-			public void mousePressed(MouseEvent e) {
-				isDragging = 1;
-				xx = e.getX();
-				yy = e.getY();
-
-			}
-
-			public void mouseReleased(MouseEvent e) {
-				if (isDragging == 1) {
-					isDragging = 0;
-				}
-				/*
-				 * if(A.tag==0){ A.setVisible(false); }
-				 */
-			}
-			/*
-			 * public void mouseReleased(MouseEvent e){ if(A.tag==0){
-			 * A.setVisible(true); } }
-			 */
-		});
-		panel.addMouseMotionListener(new MouseMotionAdapter() {
-			public void mouseDragged(MouseEvent e) {
-				if (isDragging == 1) {
-					int left = getLocation().x;
-					int top = getLocation().y;
-					setLocation(left + e.getX() - xx, top + e.getY() - yy);
-					saveCurrentPosition();
-					setVisible(true);
-					repaint();
-				}
-			}
-		});
-
-		this.setCursor(null);
-		setVisible(true);
-		// setFocusable(true);
-		// setFocusableWindowState(true);
-
+	@Override
+	protected OverlayRenderer createRenderer() {
+		return new BOSStyleRenderer();
 	}
 
-	public void saveCurrentPosition() {
-		xc.setconfig("engineInfoX", Integer.toString(getLocation().x));
-		xc.setconfig("engineInfoY", Integer.toString(getLocation().y));
-	}
-
-	String[][] totalString;
-	int useNum = 0;
-
-	// 功率,喷气为0的话不显示
-	int idx_hp = Integer.MAX_VALUE;
-	// 推力
-	int idx_thrust = Integer.MAX_VALUE;
-	// 转速
-	int idx_rpm = Integer.MAX_VALUE;
-	// 桨距角, 喷气为0的话不显示
-	int idx_prop = Integer.MAX_VALUE;
-	// 桨效率,喷气为0的话不显示
-	int idx_eff = Integer.MAX_VALUE;
-	// 有效功率
-	int idx_ehp = Integer.MAX_VALUE;
-
-	// 有效功率或推力百分比
-	int idx_eper = Integer.MAX_VALUE;
-
-	// 进气压
-	int idx_map = Integer.MAX_VALUE;
-
-	// 燃油重量
-	int idx_mfuel = Integer.MAX_VALUE;
-	// 燃油时间
-	int idx_fueltime = Integer.MAX_VALUE;
-
-	// 加力重量(如果为0不显示)
-	int idx_mwep = Integer.MAX_VALUE;
-	// 加力时间(如果为0不显示)
-	int idx_weptime = Integer.MAX_VALUE;
-
-	// 温度
-	int idx_temp = Integer.MAX_VALUE;
-	// 油温
-	int idx_oiltemp = Integer.MAX_VALUE;
-	// 耐热时
-	int idx_heattlr = Integer.MAX_VALUE;
-	// 响应速
-	int idx_engres = Integer.MAX_VALUE;
-
-	private int[] doffset;
-	private int numHeight;
-	private int columnNum;
-	Boolean[] totalSwitch;
-	private Container root;
-
-	// Label-to-key mapping for config-driven visibility
-	private static final java.util.Map<String, String> LABEL_TO_KEY = new java.util.HashMap<String, String>() {
-		{
-			put("功率", "HorsePower");
-			put("推力", "Thrust");
-			put("转速", "RPM");
-			put("桨距角", "PropPitch");
-			put("桨效率", "EffEta");
-			put("实功率", "EffHp");
-			put("进气压", "Pressure");
-			put("动力量", "PowerPercent");
-			put("燃油量", "FuelKg");
-			put("燃油时", "FuelTime");
-			put("加力量", "WepKg");
-			put("加力时", "WepTime");
-			put("温度", "Temp");
-			put("油温", "OilTemp");
-			put("耐热时", "HeatTolerance");
-			put("响应速", "EngResponse");
-		}
-	};
-
-	/**
-	 * Get the Engine Info config from dynamicConfigs loaded from ui_layout.cfg.
-	 */
-	private ConfigLoader.GroupConfig getEngineInfoConfig() {
-		if (xc == null || xc.dynamicConfigs == null)
+	@Override
+	protected List<FieldDefinition> getFieldDefinitions() {
+		if (engineInfoConfig == null)
 			return null;
-		for (ConfigLoader.GroupConfig cfg : xc.dynamicConfigs) {
-			if ("Engine Info".equals(cfg.title)) {
-				return cfg;
+		return engineInfoConfig.getFieldDefinitions();
+	}
+
+	/**
+	 * Initialize with EngineInfoConfig.
+	 */
+	public void init(ConfigProvider config, AttributePool pool, EngineInfoConfig engineInfoConfig) {
+		this.engineInfoConfig = engineInfoConfig;
+
+		// Set config keys from EngineInfoConfig
+		this.numFontKey = engineInfoConfig.numFontKey;
+		this.labelFontKey = engineInfoConfig.labelFontKey;
+		this.fontAddKey = engineInfoConfig.fontAddKey;
+		// Map EngineInfo 'columns' key to FieldOverlay expected key
+		this.columnKey = engineInfoConfig.columnKey;
+
+		this.edgeKey = engineInfoConfig.edgeKey;
+		this.defaultShowEdge = engineInfoConfig.showEdge;
+		this.title = engineInfoConfig.title;
+
+		// Set position keys
+		setPositionKeys(engineInfoConfig.posXKey, engineInfoConfig.posYKey);
+
+		// Call parent init
+		super.init(config, pool);
+	}
+
+	/**
+	 * Initialize for preview mode.
+	 */
+	public void initPreview(ConfigProvider config, AttributePool pool, EngineInfoConfig engineInfoConfig) {
+		init(config, pool, engineInfoConfig);
+		applyPreviewStyle();
+		setupDragListeners();
+		setVisible(true);
+		reinitConfig();
+	}
+
+	/**
+	 * Custom reinitConfig to handle specific EngineInfo visibility logic if needed.
+	 * FieldOverlay's default reinitConfig uses DefaultFieldManager which checks
+	 * config.getConfig(key).
+	 * Since EngineInfo data rows in ui_layout.cfg don't have separate switch keys
+	 * (they are DATA rows),
+	 * we need to ensure visibility works.
+	 * 
+	 * However, ConfigProvider (Controller) loads ui_layout.cfg into dynamicConfigs
+	 * (List<GroupConfig>).
+	 * It does NOT flatten row visibility into global config keys!
+	 * 
+	 * Solution: We must implement a custom ConfigProvider wrapper or handle
+	 * visibility here?
+	 * NO, `FieldOverlay` uses `RenderContext` for fonts/layout, but `FieldManager`
+	 * uses `ConfigProvider` for visibility.
+	 * 
+	 * We need to override `initFields` to set visibility based on `GroupConfig`
+	 * rows!
+	 */
+	@Override
+	public void reinitConfig() {
+		if (engineInfoConfig == null)
+			return;
+
+		// 1. Standard FieldOverlay reinit (Fonts, Layout, Window Size)
+		super.reinitConfig();
+
+		// 2. Override visibility based on GroupConfig rows from ui_layout.cfg
+		// We need access to the GroupConfig.
+		ConfigLoader.GroupConfig groupConfig = findGroupConfig();
+		if (groupConfig != null) {
+			for (ConfigLoader.RowConfig row : groupConfig.rows) {
+				// Map row label to our field key?
+				// EngineInfoConfig defines fields with specific Keys (e.g. "hp").
+				// Row has Label (e.g. "功率" or "HorsePower" depending on language).
+				// We need a mapping or verify against known fields.
+
+				// Actually, EngineInfoConfig sets configKey="HorsePower" for "hp" field.
+				// We should match Row Label to Field ConfigKey?
+				// Wait, ConfigKey in FieldDefinition is meant for the switch key.
+				// In EngineInfo legacy, we mapped Row Label -> Field Key.
+
+				// Let's iterate our fields and find matching row.
+				for (ui.model.FieldDefinition def : getFieldDefinitions()) {
+					// How do we match row?
+					// Legacy used LABEL_TO_KEY map.
+					// But new system: EngineInfoConfig.createDefault uses keys like "HorsePower".
+					// Ideally, ui_layout.cfg "Label" column matches? No, Label is "功率".
+					// Formula is "S.sTotalHp".
+
+					// Allow matching by Formula?
+					// "S.sTotalHp" -> "hp".
+					// "S.sTotalThr" -> "thrust".
+
+					// OR, we just implement the old LABEL_TO_KEY logic here solely for visibility
+					// update.
+					String labelKey = LABEL_TO_KEY.get(row.label);
+					if (labelKey != null && labelKey.equals(def.configKey)) {
+						// Found match!
+						fieldManager.setFieldVisible(def.key, row.visible);
+					}
+				}
+			}
+			// Trigger repaint after visibility update
+			repaint();
+		}
+	}
+
+	private ConfigLoader.GroupConfig findGroupConfig() {
+		if (config instanceof prog.Controller) {
+			prog.Controller c = (prog.Controller) config;
+			if (c.dynamicConfigs != null) {
+				for (ConfigLoader.GroupConfig cfg : c.dynamicConfigs) {
+					if ("Engine Info".equals(cfg.title) || "引擎信息".equals(cfg.title)) {
+						return cfg;
+					}
+				}
 			}
 		}
 		return null;
 	}
 
-	/**
-	 * Check if a field is enabled in the config. Falls back to legacy config key if
-	 * not found.
-	 * 
-	 * @param fieldKey The field key (e.g., "HorsePower")
-	 * @return true if field should be visible
-	 */
-	private boolean isFieldEnabledFromConfig(String fieldKey) {
-		// First, try to find in ui_layout.cfg
-		ConfigLoader.GroupConfig engineConfig = getEngineInfoConfig();
-		if (engineConfig != null) {
-			for (ConfigLoader.RowConfig row : engineConfig.rows) {
-				String labelKey = LABEL_TO_KEY.get(row.label);
-				if (fieldKey.equals(labelKey)) {
-					return row.visible;
-				}
-			}
-		}
-		// Fallback to legacy config
-		String tmp = xc.getconfig("disableEngineInfo" + fieldKey);
-		return !(tmp != "" && Boolean.parseBoolean(tmp) == true);
-	}
-
-	public void initTextString() {
-		useNum = 0;
-		idx_hp = Integer.MAX_VALUE;
-		idx_thrust = Integer.MAX_VALUE;
-		idx_rpm = Integer.MAX_VALUE;
-		idx_prop = Integer.MAX_VALUE;
-		idx_eff = Integer.MAX_VALUE;
-		idx_ehp = Integer.MAX_VALUE;
-		idx_eper = Integer.MAX_VALUE;
-		idx_map = Integer.MAX_VALUE;
-		idx_mfuel = Integer.MAX_VALUE;
-		idx_fueltime = Integer.MAX_VALUE;
-
-		totalSwitch = new Boolean[20];
-		totalString = new String[20][];
-		String tmp;
-		for (int i = 0; i < 20; i++)
-			totalString[i] = new String[3];
-
-		// 马力
-		if (isFieldEnabledFromConfig("HorsePower")) {
-			totalString[useNum][0] = String.format("%5s", "1200");
-			totalString[useNum][1] = String.format("%s", Lang.ePower);
-			totalString[useNum][2] = String.format("%s", "Hp");
-			totalSwitch[useNum] = true;
-			idx_hp = useNum++;
-		}
-
-		// 推力
-		if (isFieldEnabledFromConfig("Thrust")) {
-			totalString[useNum][0] = String.format("%5s", "1004");
-			totalString[useNum][1] = String.format("%s", Lang.eThurst);
-			totalString[useNum][2] = String.format("%s", "Kgf");
-			totalSwitch[useNum] = true;
-			idx_thrust = useNum++;
-		}
-
-		// 转速
-		if (isFieldEnabledFromConfig("RPM")) {
-			totalString[useNum][0] = String.format("%5s", "2400");
-			totalString[useNum][1] = String.format("%s", Lang.eRPM);
-			totalString[useNum][2] = String.format("%s", "Rpm");
-			totalSwitch[useNum] = true;
-			idx_rpm = useNum++;
-		}
-
-		// 桨距
-		if (isFieldEnabledFromConfig("PropPitch")) {
-			totalString[useNum][0] = String.format("%5s", "55");
-			totalString[useNum][1] = String.format("%s", Lang.ePitchDeg);
-			totalString[useNum][2] = String.format("%s", "Deg");
-			totalSwitch[useNum] = true;
-			idx_prop = useNum++;
-		}
-
-		// 桨效率
-		if (isFieldEnabledFromConfig("EffEta")) {
-			totalString[useNum][0] = String.format("%5s", "90");
-			totalString[useNum][1] = String.format("%s", Lang.eEff);
-			totalString[useNum][2] = String.format("%s", "%");
-			totalSwitch[useNum] = true;
-			idx_eff = useNum++;
-		}
-
-		// 有效功率
-		if (isFieldEnabledFromConfig("EffHp")) {
-			totalString[useNum][0] = String.format("%5s", "1005");
-			totalString[useNum][1] = String.format("%s", Lang.eEffPower);
-			totalString[useNum][2] = String.format("%s", "Hp");
-			totalSwitch[useNum] = true;
-			idx_ehp = useNum++;
-		}
-
-		// 进气压
-		if (isFieldEnabledFromConfig("Pressure")) {
-			totalString[useNum][0] = String.format("%5s", "1.52");
-			totalString[useNum][1] = String.format("%s", Lang.eATM);
-			totalString[useNum][2] = String.format("%s", "Ata");
-			totalSwitch[useNum] = true;
-			idx_map = useNum++;
-		}
-
-		// 有效功率或推力百分比
-		if (isFieldEnabledFromConfig("PowerPercent")) {
-			totalString[useNum][0] = String.format("%5s", "85");
-			totalString[useNum][1] = String.format("%s", Lang.ePowerPercent);
-			totalString[useNum][2] = String.format("%s", "%");
-			totalSwitch[useNum] = true;
-			idx_eper = useNum++;
-		}
-
-		// 燃油重
-		if (isFieldEnabledFromConfig("FuelKg")) {
-			totalString[useNum][0] = String.format("%5s", "121");
-			totalString[useNum][1] = String.format("%s", Lang.eFuel);
-			totalString[useNum][2] = String.format("%s", "Kg");
-			totalSwitch[useNum] = true;
-			idx_mfuel = useNum++;
-		}
-
-		// 燃油时
-		if (isFieldEnabledFromConfig("FuelTime")) {
-			totalString[useNum][0] = String.format("%5s", "15");
-			totalString[useNum][1] = String.format("%s", Lang.eFueltime);
-			totalString[useNum][2] = String.format("%s", "Min");
-			totalSwitch[useNum] = true;
-			idx_fueltime = useNum++;
-		}
-
-		// 加力重
-		if (isFieldEnabledFromConfig("WepKg")) {
-			totalString[useNum][0] = String.format("%5s", "15");
-			totalString[useNum][1] = String.format("%s", Lang.eWep);
-			totalString[useNum][2] = String.format("%s", "Kg");
-			totalSwitch[useNum] = true;
-			idx_mwep = useNum++;
-		}
-
-		// 加力时
-		if (isFieldEnabledFromConfig("WepTime")) {
-			totalString[useNum][0] = String.format("%5s", "81");
-			totalString[useNum][1] = String.format("%s", Lang.eWeptime);
-			totalString[useNum][2] = String.format("%s", "S");
-			totalSwitch[useNum] = true;
-			idx_weptime = useNum++;
-		}
-
-		// 温度
-		if (isFieldEnabledFromConfig("Temp")) {
-			totalString[useNum][0] = String.format("%5s", "115");
-			totalString[useNum][1] = String.format("%s", Lang.eTemp);
-			totalString[useNum][2] = String.format("%s", "C");
-			totalSwitch[useNum] = true;
-			idx_temp = useNum++;
-		}
-
-		// 油温
-		if (isFieldEnabledFromConfig("OilTemp")) {
-			totalString[useNum][0] = String.format("%5s", "105");
-			totalString[useNum][1] = String.format("%s", Lang.eOil);
-			totalString[useNum][2] = String.format("%s", "C");
-			totalSwitch[useNum] = true;
-			idx_oiltemp = useNum++;
-		}
-
-		// 耐热时
-		if (isFieldEnabledFromConfig("HeatTolerance")) {
-			totalString[useNum][0] = String.format("%5s", "3600");
-			totalString[useNum][1] = String.format("%s", Lang.eOverheat);
-			totalString[useNum][2] = String.format("%s", "S");
-			totalSwitch[useNum] = true;
-			idx_heattlr = useNum++;
-		}
-
-		// 响应速
-		if (isFieldEnabledFromConfig("EngResponse")) {
-			totalString[useNum][0] = String.format("%5s", "10");
-			totalString[useNum][1] = String.format("%s", Lang.eEngRes);
-			totalString[useNum][2] = String.format("%s", "%/s");
-			totalSwitch[useNum] = true;
-			idx_engres = useNum++;
-		}
-
-	}
-
-	public void __update_num(int idx, String s) {
-		if (idx < useNum) {
-			totalString[idx][0] = String.format("%5s", s);
-		}
-	}
-
-	public static final String hp = "Hp";
-	public static final String mhp = "MHp";
-
-	public void updateString() {
-
-		__update_num(idx_hp, s.sTotalHp);
-
-		// 推力
-		__update_num(idx_thrust, s.sTotalThr);
-		// 转速
-		__update_num(idx_rpm, s.rpm);
-		// 桨距角, 喷气为0的话不显示
-		__update_num(idx_prop, s.pitch[0]);
-		// 桨效率,喷气为0的话不显示
-		__update_num(idx_eff, s.sAvgEff);
-		// 有效功率
-		__update_num(idx_ehp, s.sTotalHpEff);
-
-		if (idx_ehp < useNum) {
-			if (s.bUnitMHp) {
-				totalString[idx_ehp][2] = mhp;
-
-			} else {
-				totalString[idx_ehp][2] = hp;
-			}
-		}
-
-		// 进气压
-		// 飞马英制
-		// 等于-不显示
-		if (idx_map < useNum) {
-			if (s.manifoldpressure == null || s.manifoldpressure.equals(Service.nastring)) {
-				totalSwitch[idx_map] = false;
-			} else {
-				totalSwitch[idx_map] = true;
-			}
-		}
-
-		if (s.iCheckAlt > 0) {
-			__update_num(idx_map, s.pressurePounds);
-			if (idx_map < useNum) {
-				totalString[idx_map][2] = s.pressureInchHg;
-			}
-
-		} else {
-			__update_num(idx_map, s.manifoldpressure);
-			if (idx_map < useNum) {
-				totalString[idx_map][2] = Service.pressureUnit;
-			}
-		}
-
-		// 有效功率或推力百分比
-		__update_num(idx_eper, s.sThurstPercent);
-		// 燃油重量
-		__update_num(idx_mfuel, s.sTotalFuel);
-		// 燃油时间
-		__update_num(idx_fueltime, s.sfueltime);
-		// 加力重量(如果为0不显示)
-		// 等于-不显示
-		if (idx_mwep < useNum) {
-			if (s.sNitro == null || s.sNitro.equals(Service.nastring)) {
-				totalSwitch[idx_mwep] = false;
-			}
-		}
-		__update_num(idx_mwep, s.sNitro);
-		// 加力时间(如果为0不显示)
-		if (idx_weptime < useNum) {
-			if (s.sWepTime == null || s.sWepTime.equals(Service.nastring)) {
-				totalSwitch[idx_weptime] = false;
-			} else {
-				totalSwitch[idx_weptime] = true;
-			}
-		}
-		__update_num(idx_weptime, s.sWepTime);
-
-		// 温度
-		__update_num(idx_temp, s.watertemp);
-		// 油温
-		__update_num(idx_oiltemp, s.oiltemp);
-		// 耐热时
-		__update_num(idx_heattlr, s.sEngWorkTime);
-
-		__update_num(idx_engres, s.SdThrustPercent);
-		// 判断
-
-		if (s.checkEngineFlag && s.isEngJet()) {
-			// 关闭桨距
-			if (idx_hp < useNum)
-				totalSwitch[idx_hp] = false;
-			if (idx_prop < useNum)
-				totalSwitch[idx_prop] = false;
-			if (idx_eff < useNum)
-				totalSwitch[idx_eff] = false;
-
-		} else {
-			if (idx_hp < useNum)
-				totalSwitch[idx_hp] = true;
-			if (idx_prop < useNum)
-				totalSwitch[idx_prop] = true;
-			if (idx_eff < useNum)
-				totalSwitch[idx_eff] = true;
-
-		}
-
-		// hp
-		// if (idx_hp < useNum){
-		// if (s.sTotalHp.equals(Service.nastring)){
-		// totalSwitch[idx_hp] = false;
-		//// Application.debugPrint("关闭"+idx_hp);
-		// }
-		// else{
-		// totalSwitch[idx_hp] = true;
-		// }
-		// }
-		//
-		// if (idx_prop < useNum){
-		// if (s.pitch[0].equals(Service.nastring)){
-		// totalSwitch[idx_prop] = false;
-		// }
-		// else{
-		// totalSwitch[idx_prop] = true;
-		// }
-		// }
-		//
-		// if (idx_eff < useNum){
-		// if (s.sAvgEff.equals(Service.nastring)){
-		// totalSwitch[idx_eff] = false;
-		// }
-		// else{
-		// totalSwitch[idx_eff] = true;
-		// }
-		// }
-
-	}
-
-	private void updateDxDy(int num, int[] doffset) {
-		// TODO Auto-generated method stub
-		if (num % columnNum == 0) {
-			doffset[1] += Math.round(1 * numHeight);
-			// doffset[0] = 0;;
-			doffset[0] = fontsize >> 1;
-		} else {
-			doffset[0] += 5 * fontsize;
-		}
-
-	}
-
-	public void reinitConfig() {
-		if (xc.getconfig("GlobalNumFont") != "")
-			NumFont = xc.getconfig("GlobalNumFont");
-		else
-			NumFont = Application.defaultNumfontName;
-
-		if (xc.getconfig("engineInfoFont") != "")
-			FontName = xc.getconfig("engineInfoFont");
-		else
-			FontName = Application.defaultFont.getFontName();
-		if (xc.getconfig("engineInfoFontadd") != "")
-			fontadd = Integer.parseInt(xc.getconfig("engineInfoFontadd"));
-		else
-			fontadd = 0;
-		// Application.debugPrint(fontadd);
-		if (xc.getconfig("engineInfoX") != "")
-			lx = Integer.parseInt(xc.getconfig("engineInfoX"));
-		else
-			lx = 0;
-		if (xc.getconfig("engineInfoY") != "")
-			ly = Integer.parseInt(xc.getconfig("engineInfoY"));
-		else
-			ly = 860;
-
-		fontsize = 24 + fontadd;
-		// 设置字体
-		fontNum = new Font(NumFont, Font.BOLD, fontsize);
-		fontLabel = new Font(FontName, Font.BOLD, Math.round(fontsize / 2.0f));
-		fontUnit = new Font(NumFont, Font.PLAIN, Math.round(fontsize / 2.0f));
-
-		numHeight = getFontMetrics(fontNum).getHeight();
-
-		// 列
-		if (xc.getconfig("engineInfoColumn") != "")
-			columnNum = Integer.parseInt(xc.getconfig("engineInfoColumn"));
-		else
-			columnNum = 3;
-
-		// Override with ui_layout.cfg values if available
-		ConfigLoader.GroupConfig cfg = getEngineInfoConfig();
-		if (cfg != null) {
-			if (cfg.columns > 0) {
-				columnNum = cfg.columns;
-			}
-			if (cfg.fontSize > 0) {
-				fontsize = cfg.fontSize;
-				// Re-create fonts with new size
-				fontNum = new Font(NumFont, Font.BOLD, fontsize);
-				fontLabel = new Font(FontName, Font.BOLD, Math.round(fontsize / 2.0f));
-				fontUnit = new Font(NumFont, Font.PLAIN, Math.round(fontsize / 2.0f));
-				numHeight = getFontMetrics(fontNum).getHeight();
-			}
-			if (cfg.fontName != null && !cfg.fontName.isEmpty()) {
-				FontName = cfg.fontName;
-				fontLabel = new Font(FontName, Font.BOLD, Math.round(fontsize / 2.0f));
-			}
-		}
-
-		useNum = 0; // 重置计数
-		initTextString();
-
-		int addnum = (useNum % columnNum == 0) ? 0 : 1;
-
-		WIDTH = (fontsize >> 1) + (int) ((columnNum + 0.5) * 5f * fontsize);
-		HEIGHT = (int) (numHeight + (useNum / columnNum + addnum + 1) * 1.0f * numHeight);
-
-		if (xc.getconfig("engineInfoEdge").equals("true"))
-			setShadeWidth(10);// 玻璃效果边框
-		else
-			setShadeWidth(0);
-
-		this.setBounds(lx, ly, WIDTH, HEIGHT);
-		repaint();
-	}
-
-	public void init(Controller xc, Service ts, Blkx tp) {
-		this.xc = xc;
-		this.s = ts;
-		this.p = tp;
-
-		overheattime = 0;
-		freq = xc.freqEngineInfo;
-
-		reinitConfig();
-
-		doffset = new int[2];
-
-		panel = new WebPanel() {
-
-			private static final long serialVersionUID = -9061280572815010060L;
-
-			public void paintComponent(Graphics g) {
-				Graphics2D g2d = (Graphics2D) g;
-				// 开始绘图
-				// g2d.draw
-				g2d.setPaintMode();
-				g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, Application.graphAASetting);
-				g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, Application.textAASetting);
-				// g2d.setRenderingHint(RenderingHints.KEY_RENDERING,
-				// RenderingHints.VALUE_RENDER_QUALITY);
-				g2d.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION,
-						RenderingHints.VALUE_ALPHA_INTERPOLATION_SPEED);
-				g2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_SPEED);
-
-				doffset[0] = fontsize >> 1;
-				doffset[1] = fontsize >> 1;
-				int k = 0;
-				for (int i = 0; i < useNum; i++) {
-					if (totalSwitch[i] == false) {
-						// Application.debugPrint("跳过"+i);
-						continue;
-					}
-					UIBaseElements._drawLabelBOSType(g2d, doffset[0], doffset[1], 1, 3 * fontsize, fontNum, fontLabel,
-							fontUnit,
-							totalString[i][0], totalString[i][1], totalString[i][2]);
-					updateDxDy(++k, doffset);
-
-				}
-
-				// g.dispose();
-			}
-		};
-
-		panel.setWebColoredBackground(false);
-		panel.setBackground(new Color(0, 0, 0, 0));
-
-		this.getWebRootPaneUI().setMiddleBg(transparent);// 中部透明
-		this.getWebRootPaneUI().setTopBg(transparent);// 顶部透明
-		this.getWebRootPaneUI().setBorderColor(transparent);// 内描边透明
-		this.getWebRootPaneUI().setInnerBorderColor(transparent);// 外描边透明
-
-		this.add(panel);
-
-		setTitle("EngineInfo");
-		WebLafSettings.setWindowOpaque(this);
-		jetChecked = false;
-		// this.setCloseOnFocusLoss(true);
-		root = this.getContentPane();
-		if (xc.getconfig("engineInfoEdge").equals("true"))
-			setShadeWidth(10);// 玻璃效果边框
-		else {
-			setShadeWidth(0);
-		}
-		if (ts != null)
-			setVisible(true);
-	}
-
-	long engineCheckMili;
-	private boolean isJet;
-	private boolean jetChecked;
-
-	public void drawTick() {
-
-		// 更新字符串
-
-		updateString();
-
-		root.repaint();
-	}
-
-	@Override
-	public void run() {
-		while (doit) {
-
-			try {
-				Thread.sleep(Application.threadSleepTime);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-
-			if (s.SystemTime - engineCheckMili > xc.freqService) {
-				engineCheckMili = s.SystemTime;
-				if (s.sState != null) {
-					if (jetChecked == false) {
-						parser.Blkx b = xc.getBlkx();
-						if (b != null && b.valid == true) {
-							if (b.isJet) {
-
-								isJet = true;
-								// slider1.setVisible(false);
-								// slider2.setVisible(false);
-								// slider4.setVisible(false);
-								// wsp1.setVisible(false);
-								// // label_16.setVisible(false);
-								// lefttitle1.setVisible(false);
-								// lefttitle.setVisible(false);
-								// bottomtitle1.setVisible(false);
-								// bottomtitle.setVisible(false);
-								//
-								// // 油门设置
-								// lefttitle2.setText(language.eThrottle);
-								// slider3.setMaximum(110);
-								// 修改为推力百分比
-							}
-							jetChecked = true;
-						}
-					}
-					if (isJet) {
-						// slider3.setValue(s.sState.throttle);
-					} else {
-						// slider1.setValue(s.sState.throttle);
-						// slider2.setValue(s.sState.RPMthrottle);
-						// slider3.setValue(s.sState.mixture);
-						// slider4.setValue(s.sState.radiator);
-						//
-						// // slider5.setValue(s.sState.mfuel1);
-						// wspsetStep(wsp1, s.sState.compressorstage);
-					}
-
-					drawTick();
-
-				}
-			}
-		}
+	// Legacy Mapping for Visibility Lookup
+	private static final java.util.Map<String, String> LABEL_TO_KEY = new java.util.HashMap<>();
+	static {
+		LABEL_TO_KEY.put("功率", "HorsePower");
+		LABEL_TO_KEY.put("HorsePower", "HorsePower");
+		LABEL_TO_KEY.put("推力", "Thrust");
+		LABEL_TO_KEY.put("Thrust", "Thrust");
+		LABEL_TO_KEY.put("转速", "RPM");
+		LABEL_TO_KEY.put("RPM", "RPM");
+		LABEL_TO_KEY.put("桨距角", "PropPitch");
+		LABEL_TO_KEY.put("PropPitch", "PropPitch");
+		LABEL_TO_KEY.put("桨效率", "EffEta");
+		LABEL_TO_KEY.put("EffEta", "EffEta");
+		LABEL_TO_KEY.put("实功率", "EffHp");
+		LABEL_TO_KEY.put("EffHp", "EffHp");
+		LABEL_TO_KEY.put("进气压", "Pressure");
+		LABEL_TO_KEY.put("Pressure", "Pressure");
+		LABEL_TO_KEY.put("动力量", "PowerPercent");
+		LABEL_TO_KEY.put("PowerPercent", "PowerPercent");
+		LABEL_TO_KEY.put("燃油量", "FuelKg");
+		LABEL_TO_KEY.put("FuelKg", "FuelKg");
+		LABEL_TO_KEY.put("燃油时", "FuelTime");
+		LABEL_TO_KEY.put("FuelTime", "FuelTime");
+		LABEL_TO_KEY.put("加力量", "WepKg");
+		LABEL_TO_KEY.put("WepKg", "WepKg");
+		LABEL_TO_KEY.put("加力时", "WepTime");
+		LABEL_TO_KEY.put("WepTime", "WepTime");
+		LABEL_TO_KEY.put("温度", "Temp");
+		LABEL_TO_KEY.put("Temp", "Temp");
+		LABEL_TO_KEY.put("油温", "OilTemp");
+		LABEL_TO_KEY.put("OilTemp", "OilTemp");
+		LABEL_TO_KEY.put("耐热时", "HeatTolerance");
+		LABEL_TO_KEY.put("HeatTolerance", "HeatTolerance");
+		LABEL_TO_KEY.put("响应速", "EngResponse");
+		LABEL_TO_KEY.put("EngResponse", "EngResponse");
 	}
 }

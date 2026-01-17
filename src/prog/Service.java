@@ -512,6 +512,22 @@ public class Service implements Runnable {
 		data.put("aos", AoS);
 		data.put("ws", sWingSweep);
 
+		// Push EngineInfoConfig Compatible Keys
+		data.put("hp", sTotalHp);
+		data.put("thrust", sTotalThr);
+		data.put("eff_eta", sAvgEff);
+		data.put("eff_hp", sTotalHpEff);
+		data.put("pressure", manifoldpressure);
+		data.put("power_percent", sThurstPercent);
+		data.put("fuel_kg", sTotalFuel);
+		// fuel_time already exists
+		data.put("wep", sNitro);
+		data.put("wep_time", sWepTime);
+		data.put("temp", watertemp);
+		// oil_temp already exists
+		data.put("heat_time", sEngWorkTime);
+		data.put("response", SdThrustPercent);
+
 		// 2. Publish Event (Data Plane)
 		FlightDataBus.getInstance().publish(new FlightDataEvent(data));
 
@@ -1407,7 +1423,8 @@ public class Service implements Runnable {
 		curLoadMinWorkTime = 99999 * 1000;
 		/* 刷新引擎工作时间 */
 		resetEngLoad();
-		// if(c.getBlkx() != null && c.getBlkx().maxEngLoad != 0)c.getBlkx().resetEngineLoad();
+		// if(c.getBlkx() != null && c.getBlkx().maxEngLoad !=
+		// 0)c.getBlkx().resetEngineLoad();
 		FuelCheckMili = System.currentTimeMillis();
 		MapCheckMili = FuelCheckMili;
 		MainCheckMili = FuelCheckMili;

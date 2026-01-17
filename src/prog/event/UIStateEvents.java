@@ -29,5 +29,11 @@ public final class UIStateEvents {
      */
     public static final String FM_DATA_LOADED = "fmDataLoaded";
 
+    /**
+     * Published when the Main Form is fully initialized and visible.
+     * Payload: None
+     */
+    public static final String UI_READY = "uiReady";
+
     // Add more event types as needed
 }

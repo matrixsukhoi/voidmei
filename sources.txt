@@ -42,6 +42,7 @@ src/prog/OverlayContext.java
 src/ui/MainForm.java
 src/ui/StatusBar.java
 src/ui/UIBaseElements.java
+src/ui/model/EngineInfoConfig.java
 src/ui/model/FlightInfoConfig.java
 src/ui/model/DefaultFieldManager.java
 src/ui/model/FlightDataBindings.java
