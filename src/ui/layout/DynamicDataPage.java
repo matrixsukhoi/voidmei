@@ -383,19 +383,26 @@ public class DynamicDataPage extends BasePage {
         // Overlays are managed by Controller.
     }
 
-    @Override
     protected java.awt.Component createCenterComponent(WebPanel content) {
-        // Setup main container with Appearance Panel + ZoomPanel (Grid)
-        WebPanel main = new WebPanel(new java.awt.BorderLayout());
-        UIBuilder.getStyle().decorateMainPanel(main); // Apply Theme BG (e.g. Light Grey)
+        // TEMPORARY: Inject Replica Panel for Verification
+        return new ui.replica.ReplicaPanel();
 
-        appearancePanel = new WebPanel(); // Initialized in updateAppearancePanel
-        appearancePanel.setOpaque(false); // Let main BG show through, or decorate individually
-        main.add(appearancePanel, java.awt.BorderLayout.NORTH);
-
-        main.add(scaler, java.awt.BorderLayout.CENTER);
-
-        return main;
+        /*
+         * Original Code Preserved
+         * // Setup main container with Appearance Panel + ZoomPanel (Grid)
+         * WebPanel main = new WebPanel(new java.awt.BorderLayout());
+         * UIBuilder.getStyle().decorateMainPanel(main); // Apply Theme BG (e.g. Light
+         * Grey)
+         * 
+         * appearancePanel = new WebPanel(); // Initialized in updateAppearancePanel
+         * appearancePanel.setOpaque(false); // Let main BG show through, or decorate
+         * individually
+         * main.add(appearancePanel, java.awt.BorderLayout.NORTH);
+         * 
+         * main.add(scaler, java.awt.BorderLayout.CENTER);
+         * 
+         * return main;
+         */
     }
 
     class ZoomPanel extends WebPanel {

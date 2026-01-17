@@ -59,6 +59,9 @@ src/ui/renderer/BOSStyleRenderer.java
 src/ui/renderer/OverlayRenderer.java
 src/ui/renderer/RenderContext.java
 src/ui/WebLafSettings.java
+src/ui/replica/PinkStyle.java
+src/ui/replica/ReplicaPanel.java
+src/ui/replica/ReplicaBuilder.java
 src/ui/layout/FlexGridLayout.java
 src/ui/layout/UIStyle.java
 src/ui/layout/BasePage.java

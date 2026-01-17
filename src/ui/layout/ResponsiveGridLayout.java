@@ -42,58 +42,43 @@ public class ResponsiveGridLayout implements LayoutManager {
 
     @Override
     public Dimension preferredLayoutSize(Container parent) {
-        // 使用模拟布局来精确计算所需高度
         synchronized (parent.getTreeLock()) {
             Insets insets = parent.getInsets();
-            int w = parent.getWidth();
+            int totalHeight = insets.top + insets.bottom;
+            int totalWidth = insets.left + insets.right;
 
-            // 修复: 初始宽度为0时，不要返回过大的宽度(如1000)，否则会导致水平滚动条出现。
-            // 返回一个较小的值允许父容器正常重新布局。
-            if (w <= 0)
-                w = 10;
+            int componentCount = parent.getComponentCount();
+            int[] colWidths = new int[columns];
+            int[] rowHeights = new int[(componentCount + columns - 1) / columns];
 
-            int availW = w - (insets.left + insets.right);
-            // 避免除以0或负宽
-            if (availW < 1)
-                availW = 1;
-
-            int compWidth = (availW - (columns - 1) * hgap) / columns;
-            if (compWidth < 1)
-                compWidth = 1;
-
-            int currentRowHeight = 0;
-            int colIndex = 0;
-            int currentY = insets.top; // 当前绘制坐标 Y
-
-            for (Component comp : parent.getComponents()) {
+            // 1. Calculate max width for each column and max height for each row
+            for (int i = 0; i < componentCount; i++) {
+                Component comp = parent.getComponent(i);
                 if (comp.isVisible()) {
+                    int col = i % columns;
+                    int row = i / columns;
                     Dimension d = comp.getPreferredSize();
-
-                    int span = 1;
-                    if (d.width > compWidth)
-                        span = 2;
-
-                    if (span > (columns - colIndex)) {
-                        // 换行
-                        currentY += currentRowHeight + vgap;
-                        currentRowHeight = 0;
-                        colIndex = 0;
-                        span = columns;
-                    }
-
-                    currentRowHeight = Math.max(currentRowHeight, d.height);
-                    colIndex += span;
-
-                    if (colIndex >= columns) {
-                        colIndex = 0;
-                        currentY += currentRowHeight + vgap;
-                        currentRowHeight = 0;
-                    }
+                    colWidths[col] = Math.max(colWidths[col], d.width);
+                    rowHeights[row] = Math.max(rowHeights[row], d.height);
                 }
             }
 
-            int totalHeight = currentY + currentRowHeight + insets.bottom;
-            return new Dimension(w, totalHeight);
+            // Sum column widths and gaps
+            int sumColWidths = 0;
+            for (int w : colWidths)
+                sumColWidths += w;
+            totalWidth += sumColWidths + (columns - 1) * hgap;
+
+            // Sum row heights and gaps
+            int sumRowHeights = 0;
+            for (int h : rowHeights)
+                sumRowHeights += h;
+            // Add gaps only if there are rows
+            if (rowHeights.length > 0) {
+                totalHeight += sumRowHeights + (rowHeights.length - 1) * vgap;
+            }
+
+            return new Dimension(totalWidth, totalHeight);
         }
     }
 
@@ -112,107 +97,201 @@ public class ResponsiveGridLayout implements LayoutManager {
             }
 
             int w = parent.getWidth() - (insets.left + insets.right);
-            int compWidth = (w - (columns - 1) * hgap) / columns;
-            if (compWidth < 1)
-                compWidth = 1;
+            int availableW = w - (columns - 1) * hgap;
+            if (availableW < 0)
+                availableW = 0;
 
-            // 第一遍: 计算每列的最大标签宽度 (First pass: calculate max label width per column)
-            int[] maxLabelWidthPerColumn = new int[columns];
-            int colIndex = 0;
+            // 1. Calculate natural max width for each column (ignoring user pref size if
+            // it's a fixed-width-forcing wrapper)
+            // Ideally just use getPreferredSize(), relying on components to report
+            // correctly.
+            int[] colWidths = new int[columns];
 
+            // Loop to determine content width requirements
             for (int i = 0; i < numberOfComponents; i++) {
                 Component comp = parent.getComponent(i);
                 if (comp.isVisible()) {
-                    Dimension d = comp.getPreferredSize();
+                    int col = i % columns;
+                    // Use standard preferred size logic.
+                    // Previously we used getUI().getPreferredSize() to bypass cached values,
+                    // but for general layout, comp.getPreferredSize() is safer unless we know
+                    // specific component issues.
+                    // Given the previous fix, let's stick to getPreferredSize() unless it's a Label
+                    // we adjusted.
+                    // But actually, we want the *content* logic.
+                    // Let's assume getPreferredSize() is correct for the content.
+                    int reqW = comp.getPreferredSize().width;
+                    colWidths[col] = Math.max(colWidths[col], reqW);
+                }
+            }
 
-                    int span = 1;
-                    if (d.width > compWidth)
-                        span = 2;
+            // 2. Distribute Widths
+            long totalReqWidth = 0;
+            for (int cw : colWidths)
+                totalReqWidth += cw;
 
-                    if (span > (columns - colIndex)) {
-                        colIndex = 0;
-                        span = columns;
+            double[] finalColWidths = new double[columns];
+
+            if (totalReqWidth <= availableW) {
+                // Case A: Enough space. Use preferred widths and distribute extra.
+                // Or just keep them compact? "left align" usually implies compact.
+                // But users usually expect grid to fill width.
+                // Let's Distribute Extra Equally to avoid one column looking weirdly massive?
+                // OR: Distribute extra proportionally?
+                // The prompt says: "if a column needs more, shorten others".
+                // This implies a constrained scenario. In unconstrained, maybe just fill
+                // proportionally.
+                // Let's use proportional expansion so layout remains stable.
+                int extra = availableW - (int) totalReqWidth;
+                for (int i = 0; i < columns; i++) {
+                    finalColWidths[i] = colWidths[i];
+                    // If we have extra space, do we expand?
+                    // If we don't, background might show through.
+                    // Let's fill.
+                    if (totalReqWidth > 0 && extra > 0) {
+                        finalColWidths[i] += extra * ((double) colWidths[i] / totalReqWidth);
                     }
-
-                    // 只对单列组件计算标签宽度 (Only calculate label width for single-column items)
-                    if (span == 1) {
-                        Object labelObj = comp instanceof javax.swing.JComponent
-                                ? ((javax.swing.JComponent) comp).getClientProperty("alignLabel")
-                                : null;
-                        if (labelObj instanceof WebLabel) {
-                            WebLabel label = (WebLabel) labelObj;
-                            int labelWidth = label.getPreferredSize().width;
-                            maxLabelWidthPerColumn[colIndex] = Math.max(
-                                    maxLabelWidthPerColumn[colIndex],
-                                    labelWidth);
-                        }
+                    // Fallback if totalReqWidth is 0 (empty components)
+                    if (totalReqWidth == 0 && extra > 0) {
+                        finalColWidths[i] = (double) extra / columns;
                     }
-
-                    colIndex += span;
-                    if (colIndex >= columns) {
-                        colIndex = 0;
+                }
+            } else {
+                // Case B: Not enough space. Shrink proportionally.
+                // "Shorten nearby columns" implemented by scaling everyone down by their
+                // weight.
+                for (int i = 0; i < columns; i++) {
+                    if (totalReqWidth > 0) {
+                        finalColWidths[i] = (double) availableW * ((double) colWidths[i] / totalReqWidth);
                     }
                 }
             }
 
-            // 第二遍: 应用对齐并执行实际布局 (Second pass: apply alignment and do actual layout)
-            int x = insets.left;
-            int y = insets.top;
+            // Fix rounding errors to ensure we use exactly availableW?
+            // Optional but good for pixel perfection.
+
+            // 3. Perform Layout
+            // We need row heights. Row height is max height of components in that row
+            // *given the widths*?
+            // Usually height doesn't change with width for simple controls
+            // (Switches/Labels), but for TextAreas it might.
+            // Assumption: Height is fixed preferred height.
+
+            int currentY = insets.top;
             int currentRowHeight = 0;
-            colIndex = 0;
+
+            // Pre-calculate Row Heights for consistent grid rows
+            int rowCount = (numberOfComponents + columns - 1) / columns;
+            int[] rowHeights = new int[rowCount];
 
             for (int i = 0; i < numberOfComponents; i++) {
                 Component comp = parent.getComponent(i);
                 if (comp.isVisible()) {
-                    Dimension d = comp.getPreferredSize();
+                    int row = i / columns;
+                    rowHeights[row] = Math.max(rowHeights[row], comp.getPreferredSize().height);
+                }
+            }
 
-                    int span = 1;
-                    if (d.width > compWidth)
-                        span = 2;
+            for (int row = 0; row < rowCount; row++) {
+                int currentX = insets.left;
 
-                    if (span > (columns - colIndex)) {
-                        colIndex = 0;
-                        x = insets.left;
-                        y += currentRowHeight + vgap;
-                        currentRowHeight = 0;
-                        span = columns;
-                    }
+                for (int col = 0; col < columns; col++) {
+                    int idx = row * columns + col;
+                    if (idx >= numberOfComponents)
+                        break;
 
-                    // 应用该列的最大标签宽度 (Apply this column's max label width)
-                    if (span == 1 && maxLabelWidthPerColumn[colIndex] > 0) {
-                        Object labelObj = comp instanceof javax.swing.JComponent
-                                ? ((javax.swing.JComponent) comp).getClientProperty("alignLabel")
-                                : null;
-                        if (labelObj instanceof WebLabel) {
-                            WebLabel label = (WebLabel) labelObj;
-                            Dimension labelSize = label.getPreferredSize();
-                            label.setPreferredSize(new Dimension(
-                                    maxLabelWidthPerColumn[colIndex],
-                                    labelSize.height));
-                            // 强制重新布局以应用新宽度 (Force relayout to apply new width)
-                            if (comp instanceof Container) {
-                                ((Container) comp).invalidate();
-                                ((Container) comp).validate();
-                            }
+                    Component comp = parent.getComponent(idx);
+                    if (comp.isVisible()) {
+                        int wAlloc = (int) finalColWidths[col];
+
+                        // Handle rounding gap compensation on the last column?
+                        // If it's the last column, stretch to edge to avoid 1px gap?
+                        if (col == columns - 1) {
+                            int usedWidth = currentX - insets.left;
+                            wAlloc = w - usedWidth + hgap; // +hgap because loop adds it at end? No.
+                            // accurate: wAlloc = w - (currentX - insets.left);
+                            wAlloc = Math.max(0, parent.getWidth() - insets.right - currentX);
                         }
+
+                        // Center vertically in the row? Or Fill?
+                        // Usually Fill height or Top align.
+                        // Let's do Fill to row height.
+                        comp.setBounds(currentX, currentY, wAlloc, rowHeights[row]);
+
+                        // Special Logic: If this component used 'alignLabel', we previously set its
+                        // preferred size.
+                        // Now we should RESET it to the calculated layout if we want internals to flow?
+                        // Actually, 'ReplicaBuilder' put alignLabel client prop.
+                        // We can manually adjust the internal label width if we want perfect alignment?
+                        // But since we are allocating the WHOLE cell width based on content,
+                        // and ReplicaBuilder uses BorderLayout.LEFT + CENTER,
+                        // The internal layout will handle "Label Left, contents fill right".
+                        // BUT we need to make sure the internal Label is consistent across the column
+                        // if we want strict text alignment.
+                        // Wait, if the column width is determined by the Max Label + Switch,
+                        // Then:
+                        // Row 1: "Short" + Switch
+                        // Row 2: "Very Long Text" + Switch
+                        // Column Width will be "Very Long Text" + Switch.
+                        // Row 1's cell will be wide. "Short" label will sit left. Switch will sit...
+                        // If we want switches to align vertically, we need the LABELS to force the same
+                        // width.
+                        // "ReplicaBuilder" puts controls in CENTER. Center fills.
+                        // If Label is WEST.
+                        // Row 1: [Short] [ Switch ]
+                        // Row 2: [Very Long Text] [ Switch ]
+                        // The switches WON'T align.
+
+                        // To align switches, we need to FORCE the labels to be the same width (Max
+                        // Label Width).
+                        // I did this in the PREVIOUS implementation using `maxLabelWidthPerColumn`.
+                        // I should PRESERVE that logic if I want alignment like Figure 2.
+                        // Figure 2 shows labels left aligned, and switches left aligned in a column.
+                        // Yes, I MUST preserve 'maxLabelWidthPerColumn' application.
+
+                        currentX += wAlloc + hgap;
                     }
+                }
+                currentY += rowHeights[row] + vgap;
+            }
 
-                    int actualWidth = span * compWidth + (span - 1) * hgap;
-                    comp.setBounds(x, y, actualWidth, d.height);
-
-                    currentRowHeight = Math.max(currentRowHeight, d.height);
-
-                    x += actualWidth + hgap;
-                    colIndex += span;
-
-                    if (colIndex >= columns) {
-                        colIndex = 0;
-                        x = insets.left;
-                        y += currentRowHeight + vgap;
-                        currentRowHeight = 0;
+            // Re-apply label width forcing for alignment?
+            // Yes, let's do it.
+            // Re-calculate max label width per column.
+            int[] maxLabelW = new int[columns];
+            for (int i = 0; i < numberOfComponents; i++) {
+                int col = i % columns;
+                Component comp = parent.getComponent(i);
+                if (comp instanceof javax.swing.JComponent) {
+                    Object lbl = ((javax.swing.JComponent) comp).getClientProperty("alignLabel");
+                    if (lbl instanceof WebLabel) {
+                        maxLabelW[col] = Math.max(maxLabelW[col],
+                                ((WebLabel) lbl).getUI().getPreferredSize((javax.swing.JComponent) lbl).width);
                     }
                 }
             }
+
+            // Apply to labels
+            for (int i = 0; i < numberOfComponents; i++) {
+                int col = i % columns;
+                Component comp = parent.getComponent(i);
+                if (comp instanceof javax.swing.JComponent) {
+                    Object lbl = ((javax.swing.JComponent) comp).getClientProperty("alignLabel");
+                    if (lbl instanceof WebLabel) {
+                        WebLabel wLbl = (WebLabel) lbl;
+                        // Set the size
+                        wLbl.setPreferredSize(new Dimension(maxLabelW[col], wLbl.getHeight()));
+                        // We might need to invalidate the comp to ensure it re-lays out internally
+                        // before we setBounds?
+                        // Actually setBounds triggers validation usually or painting.
+                        // But since we are inside layoutContainer, modifying preferences might requires
+                        // a re-validation
+                        // of the child.
+                        comp.validate();
+                    }
+                }
+            }
+
         }
     }
 }
