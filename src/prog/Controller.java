@@ -536,12 +536,26 @@ public class Controller implements ConfigProvider {
 		overlayManager.registerWithStrategy("SituationAware",
 				() -> new SituationAware(),
 				overlay -> {
-					((SituationAware) overlay).init(this, O);
-				},
-				overlay -> ((SituationAware) overlay).initPreview(this),
-				overlay -> ((SituationAware) overlay).reinitConfig(),
-				true,
-				ActivationStrategy.debugOnly());
+					prog.config.ConfigLoader.GroupConfig saConfig = null;
+					if (dynamicConfigs != null) {
+						for (prog.config.ConfigLoader.GroupConfig gc : dynamicConfigs) {
+							if ("SA信息板".equals(gc.title)) {
+								saConfig = gc;
+								break;
+							}
+						}
+					}
+					// Fallback if not found (e.g. old config file)
+					if (saConfig == null) {
+						saConfig = new prog.config.ConfigLoader.GroupConfig("SA信息板"); // Fix constructor usage
+						saConfig.x = 0.8;
+						saConfig.y = 0.1;
+						saConfig.visible = true;
+					}
+					((SituationAware) overlay).init(this, O, saConfig);
+				}, overlay -> ((SituationAware) overlay).initPreview(this), null, // No reinitConfig needed yet
+				true, ActivationStrategy.debugOnly());
+
 	}
 
 	public void initDynamicOverlays() {

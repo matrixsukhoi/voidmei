@@ -1,4 +1,8 @@
+// SituationAware这个特性以后一定不会演化了
+// 2026年1月17日
+
 package ui.overlay;
+
 import prog.Application;
 
 import java.awt.Color;
@@ -13,23 +17,31 @@ import javax.swing.SwingConstants;
 
 import com.alee.laf.label.WebLabel;
 import com.alee.laf.panel.WebPanel;
-import com.alee.laf.rootpane.WebFrame;
 
 import prog.Controller;
 import prog.OtherService;
 
-public class SituationAware extends WebFrame implements Runnable {
+import ui.base.DraggableOverlay;
+
+public class SituationAware extends DraggableOverlay {
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = 5529573888335826342L;
-	public volatile boolean doit = true;
+	// doit, WIDTH, HEIGHT, xc, panel are partly redundant or need adjustment
+	// xc is Controller
+
+	// DraggableOverlay has 'config' (ConfigProvider) - we can use it.
+	// But SituationAware heavily uses 'xc' (Controller). We can cast config to
+	// Controller or keep xc.
+	// Let's keep xc but initialize it from init.
+
 	int WIDTH;
 	int HEIGHT;
-	Controller xc;
-	int isDragging;
-	int xx;
-	int yy;
+	Controller xc; // Keep for now
+	// Drag State
+	private int dragStartX, dragStartY;
+
 	int fontadd;
 	WebPanel panel;
 	OtherService xs;
@@ -52,60 +64,21 @@ public class SituationAware extends WebFrame implements Runnable {
 	}
 
 	public void initPreview(Controller c) {
-		init(c, null);
-		setShadeWidth(10);
-		// this.setVisible(false);
-		this.getWebRootPaneUI().setTopBg(new Color(0, 0, 0, 1));
-		this.getWebRootPaneUI().setMiddleBg(new Color(0, 0, 0, 1));
-		setFocusableWindowState(true);
-		setFocusable(true);
+		// Preview mode needs a dummy GroupConfig or handle null?
+		// Let's create a temporary config for preview.
+		prog.config.ConfigLoader.GroupConfig dummy = new prog.config.ConfigLoader.GroupConfig("Preview");
+		dummy.x = 0.5;
+		dummy.y = 0.5;
+		dummy.visible = true;
 
-		addMouseListener(new MouseAdapter() {
-			public void mouseEntered(MouseEvent e) {
-				/*
-				 * if(A.tag==0){ if(f.mode==1){ A.setVisible(false);
-				 * A.visibletag=0; } }
-				 */
-			}
-
-			public void mousePressed(MouseEvent e) {
-				isDragging = 1;
-				xx = e.getX();
-				yy = e.getY();
-
-			}
-
-			public void mouseReleased(MouseEvent e) {
-				if (isDragging == 1) {
-					isDragging = 0;
-				}
-				/*
-				 * if(A.tag==0){ A.setVisible(false); }
-				 */
-			}
-			/*
-			 * public void mouseReleased(MouseEvent e){ if(A.tag==0){
-			 * A.setVisible(true); } }
-			 */
-		});
-		addMouseMotionListener(new MouseMotionAdapter() {
-			public void mouseDragged(MouseEvent e) {
-				if (isDragging == 1) {
-					int left = getLocation().x;
-					int top = getLocation().y;
-					setLocation(left + e.getX() - xx, top + e.getY() - yy);
-					saveCurrentPosition();
-					setVisible(true);
-					repaint();
-				}
-			}
-		});
+		init(c, null, dummy);
+		applyPreviewStyle();
+		// setupDragListeners() is called in init() with the config.
+		// But for preview, we might want standard behavior?
+		// The init() calls setupDragListeners(groupConfig) which updates the dummy
+		// config.
+		// This is fine for preview.
 		setVisible(true);
-	}
-
-	public void saveCurrentPosition() {
-		xc.setconfig("situationAwareX", Integer.toString(getLocation().x));
-		xc.setconfig("situationAwareY", Integer.toString(getLocation().y));
 	}
 
 	public void initpanel() {
@@ -173,23 +146,54 @@ public class SituationAware extends WebFrame implements Runnable {
 		repaint();
 	}
 
-	public void init(Controller c, OtherService s) {
+	public void init(Controller c, OtherService s, prog.config.ConfigLoader.GroupConfig groupConfig) {
 		xc = c;
+		this.config = c; // Set parent config provider
 		xs = s;
 		WIDTH = 250;
 		HEIGHT = 150;
 
-		reinitConfig();
+		// Setup Position Keys (optional, but DraggableOverlay uses them if set)
+		// With GroupConfig, we don't need legacy keys "situationAwareX" unless for
+		// fallback?
+		// But DraggableOverlay loadPosition methods use them.
+		// However, we want to use GroupConfig.x/y!
 
-		this.setBounds(lx, ly, WIDTH, HEIGHT);
-		panel = new WebPanel();
-		// panel.setSize(WIDTH, HEIGHT);
-		this.getWebRootPaneUI().setMiddleBg(new Color(0, 0, 0, 0));// 中部透明
-		this.getWebRootPaneUI().setTopBg(new Color(0, 0, 0, 0));// 顶部透明
-		this.getWebRootPaneUI().setBorderColor(new Color(0, 0, 0, 0));// 内描边透明
-		this.getWebRootPaneUI().setInnerBorderColor(new Color(0, 0, 0, 0));// 外描边透明
+		// If we extend DraggableOverlay, we should use its init mechanism?
+		// No, let's just use what we need.
 
-		// this.setUndecorated(true);
+		setupTransparentWindow();
+
+		// --- Position & Config ---
+		int screenW = Toolkit.getDefaultToolkit().getScreenSize().width;
+		int screenH = Toolkit.getDefaultToolkit().getScreenSize().height;
+
+		int x = (int) (groupConfig.x * screenW);
+		int y = (int) (groupConfig.y * screenH);
+
+		this.setBounds(x, y, WIDTH, HEIGHT);
+
+		// Setup Dragging to update GroupConfig directly
+		addMouseListener(new MouseAdapter() {
+			@Override
+			public void mousePressed(MouseEvent e) {
+				// Delegate to Draggable logic if we want, or custom
+				// But DraggableOverlay has setupDragListeners.
+			}
+		});
+
+		// We override DraggableOverlay's dragging to update GroupConfig!
+		setupDragListeners(groupConfig);
+
+		// --- Panel ---
+		panel = new WebPanel(); // Use parent's panel if possible, but DraggableOverlay initializes it in init()
+		// DraggableOverlay's init() creates panel. We are doing custom init here.
+		// Let's instantiate panel here.
+
+		this.getWebRootPaneUI().setMiddleBg(new Color(0, 0, 0, 0));
+		this.getWebRootPaneUI().setTopBg(new Color(0, 0, 0, 0));
+		this.getWebRootPaneUI().setBorderColor(new Color(0, 0, 0, 0));
+		this.getWebRootPaneUI().setInnerBorderColor(new Color(0, 0, 0, 0));
 
 		initpanel();
 		this.add(panel);
@@ -201,9 +205,46 @@ public class SituationAware extends WebFrame implements Runnable {
 		setTitle("SA信息条");
 		setAlwaysOnTop(true);
 		setFocusable(false);
-		setFocusableWindowState(false);// 取消窗口焦点
-		if (s != null)
+		setFocusableWindowState(false);
+
+		if (s != null && groupConfig.visible)
 			setVisible(true);
+	}
+
+	protected void setupDragListeners(prog.config.ConfigLoader.GroupConfig groupConfig) {
+		// Custom drag listener that updates GroupConfig
+		addMouseListener(new MouseAdapter() {
+			@Override
+			public void mousePressed(MouseEvent e) {
+				dragStartX = e.getX();
+				dragStartY = e.getY();
+			}
+
+			@Override
+			public void mouseReleased(MouseEvent e) {
+				// Update Config Object (Memory)
+				int screenW = Toolkit.getDefaultToolkit().getScreenSize().width;
+				int screenH = Toolkit.getDefaultToolkit().getScreenSize().height;
+				groupConfig.x = (double) getLocation().x / screenW;
+				groupConfig.y = (double) getLocation().y / screenH;
+
+				// Trigger save via Controller
+				xc.configService.saveLayoutConfig();
+			}
+		});
+		addMouseMotionListener(new MouseMotionAdapter() {
+			@Override
+			public void mouseDragged(MouseEvent e) {
+				// Standard drag using captured start point
+				setLocation(e.getXOnScreen() - dragStartX, e.getYOnScreen() - dragStartY);
+			}
+		});
+	}
+
+	@Override
+	public void saveCurrentPosition() {
+		// No-op or update GroupConfig if we hold reference?
+		// Ideally we shouldn't mix methods.
 	}
 
 	public void run() {
