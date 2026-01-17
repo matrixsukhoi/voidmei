@@ -30,6 +30,7 @@ public class ConfigLoader {
         public int minVal = 0; // For SLIDER
         public int maxVal = 100; // For SLIDER
         public String defaultValue = null; // Default/current value from config
+        public int groupColumns = 0; // For HEADER: specify columns for this group
 
         public RowConfig(String label, String formula, String format) {
             this.label = label;
@@ -199,8 +200,14 @@ public class ConfigLoader {
                         rc.defaultValue = valueStr;
 
                         // Parse control type from formula
-                        if (formula.equalsIgnoreCase("HEADER")) {
+                        if (formula.equalsIgnoreCase("HEADER") || formula.toUpperCase().startsWith("HEADER:")) {
                             rc.type = "HEADER";
+                            if (formula.contains(":")) {
+                                try {
+                                    rc.groupColumns = Integer.parseInt(formula.split(":")[1]);
+                                } catch (Exception e) {
+                                }
+                            }
                             rc.visible = valueStr.isEmpty() || valueStr.equalsIgnoreCase("true");
                         } else if (formula.startsWith("SLIDER:")) {
                             // Format: SLIDER:property:min:max
@@ -310,8 +317,12 @@ public class ConfigLoader {
                 pw.println();
 
                 for (RowConfig row : group.rows) {
-                    if (row.formula != null && row.formula.trim().equalsIgnoreCase("HEADER")) {
-                        pw.println(row.label + " || HEADER || %s || " + row.visible);
+                    if (row.formula != null && row.type.equals("HEADER")) {
+                        String headerFormula = "HEADER";
+                        if (row.groupColumns > 0) {
+                            headerFormula = "HEADER:" + row.groupColumns;
+                        }
+                        pw.println(row.label + " || " + headerFormula + " || %s || " + row.visible);
                     } else {
                         pw.println(row.label + " || " + row.formula + " || " + row.format + " || " + row.visible);
                     }

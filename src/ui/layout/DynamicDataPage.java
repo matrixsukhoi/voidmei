@@ -161,7 +161,8 @@ public class DynamicDataPage extends BasePage {
                 currentCard = ReplicaBuilder.getStyle().createContainer(row.label);
                 currentGrid = new WebPanel();
                 currentGrid.setOpaque(false);
-                currentGrid.setLayout(new ResponsiveGridLayout(pCols, 10, 5));
+                int cols = row.groupColumns > 0 ? row.groupColumns : pCols;
+                currentGrid.setLayout(new ResponsiveGridLayout(cols, 10, 5));
                 currentCard.add(currentGrid);
                 scaler.add(currentCard);
             } else {
