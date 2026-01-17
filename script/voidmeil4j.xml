@@ -24,6 +24,8 @@
     <requires64Bit>false</requires64Bit>
     <minVersion>1.8</minVersion>
     <maxVersion></maxVersion>
+    <initialHeapSize>64</initialHeapSize>
+    <maxHeapSize>320</maxHeapSize>
   </jre>
   <versionInfo>
     <fileVersion>1.0.0.0</fileVersion>
