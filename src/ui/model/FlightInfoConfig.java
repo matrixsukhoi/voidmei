@@ -39,8 +39,9 @@ public class FlightInfoConfig {
         return fieldDefinitions;
     }
 
-    public void addFieldDefinition(String key, String label, String unit, String configKey, boolean hideWhenNA) {
-        fieldDefinitions.add(new FieldDefinition(key, label, unit, configKey, hideWhenNA));
+    public void addFieldDefinition(String key, String label, String unit, String configKey, boolean hideWhenNA,
+            String exampleValue) {
+        fieldDefinitions.add(new FieldDefinition(key, label, unit, configKey, hideWhenNA, exampleValue));
     }
 
     /**
@@ -66,22 +67,22 @@ public class FlightInfoConfig {
 
         // Add all standard flight info fields
         // These were previously hardcoded in FlightInfo.initFields()
-        cfg.addFieldDefinition("ias", Lang.fIAS, "Km/h", "disableFlightInfoIAS", false);
-        cfg.addFieldDefinition("tas", Lang.fTAS, "Km/h", "disableFlightInfoTAS", false);
-        cfg.addFieldDefinition("mach", Lang.fMach, "Mach", "disableFlightInfoMach", false);
-        cfg.addFieldDefinition("dir", Lang.fCompass, "Deg", "disableFlightInfoCompass", false);
-        cfg.addFieldDefinition("height", Lang.fAlt, "M", "disableFlightInfoHeight", false);
-        cfg.addFieldDefinition("rda", Lang.fRa, "M", "disableFlightInfoRadioAlt", true);
-        cfg.addFieldDefinition("vario", Lang.fVario, "M/s", "disableFlightInfoVario", false);
-        cfg.addFieldDefinition("sep", Lang.fSEP, "M/s", "disableFlightInfoSEP", false);
-        cfg.addFieldDefinition("acc", Lang.fAcc, "M/s^2", "disableFlightInfoAcc", false);
-        cfg.addFieldDefinition("wx", Lang.fWx, "Deg/s", "disableFlightInfoWx", false);
-        cfg.addFieldDefinition("ny", Lang.fGL, "G", "disableFlightInfoNy", false);
-        cfg.addFieldDefinition("turn", Lang.fTRr, "Deg/s", "disableFlightInfoTurn", false);
-        cfg.addFieldDefinition("rds", Lang.fTR, "M", "disableFlightInfoTurnRadius", false);
-        cfg.addFieldDefinition("aoa", Lang.fAoA, "Deg", "disableFlightInfoAoA", false);
-        cfg.addFieldDefinition("aos", Lang.fAoS, "Deg", "disableFlightInfoAoS", false);
-        cfg.addFieldDefinition("ws", Lang.fWs, "%", "disableFlightInfoWingSweep", true);
+        cfg.addFieldDefinition("ias", Lang.fIAS, "Km/h", "disableFlightInfoIAS", false, "500");
+        cfg.addFieldDefinition("tas", Lang.fTAS, "Km/h", "disableFlightInfoTAS", false, "550");
+        cfg.addFieldDefinition("mach", Lang.fMach, "Mach", "disableFlightInfoMach", false, "0.45");
+        cfg.addFieldDefinition("dir", Lang.fCompass, "Deg", "disableFlightInfoCompass", false, "270");
+        cfg.addFieldDefinition("height", Lang.fAlt, "M", "disableFlightInfoHeight", false, "1500");
+        cfg.addFieldDefinition("rda", Lang.fRa, "M", "disableFlightInfoRadioAlt", true, "325");
+        cfg.addFieldDefinition("vario", Lang.fVario, "M/s", "disableFlightInfoVario", false, "10");
+        cfg.addFieldDefinition("sep", Lang.fSEP, "M/s", "disableFlightInfoSEP", false, "15");
+        cfg.addFieldDefinition("acc", Lang.fAcc, "M/s^2", "disableFlightInfoAcc", false, "1.2");
+        cfg.addFieldDefinition("wx", Lang.fWx, "Deg/s", "disableFlightInfoWx", false, "5.0");
+        cfg.addFieldDefinition("ny", Lang.fGL, "G", "disableFlightInfoNy", false, "1.0");
+        cfg.addFieldDefinition("turn", Lang.fTRr, "Deg/s", "disableFlightInfoTurn", false, "2.5");
+        cfg.addFieldDefinition("rds", Lang.fTR, "M", "disableFlightInfoTurnRadius", false, "800");
+        cfg.addFieldDefinition("aoa", Lang.fAoA, "Deg", "disableFlightInfoAoA", false, "4.2");
+        cfg.addFieldDefinition("aos", Lang.fAoS, "Deg", "disableFlightInfoAoS", false, "0.5");
+        cfg.addFieldDefinition("ws", Lang.fWs, "%", "disableFlightInfoWingSweep", true, "15");
 
         return cfg;
     }

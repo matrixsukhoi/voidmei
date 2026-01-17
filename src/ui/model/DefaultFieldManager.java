@@ -22,7 +22,8 @@ public class DefaultFieldManager implements FieldManager {
     }
 
     @Override
-    public void addField(String key, String label, String unit, String configKey, boolean hideWhenNA) {
+    public void addField(String key, String label, String unit, String configKey, boolean hideWhenNA,
+            String exampleValue) {
         if (config != null) {
             String tmp = config.getConfig(configKey);
             if (tmp != null && !tmp.isEmpty() && Boolean.parseBoolean(tmp)) {
@@ -31,6 +32,9 @@ public class DefaultFieldManager implements FieldManager {
         }
 
         DataField field = new DataField(key, label, unit, configKey, hideWhenNA);
+        if (exampleValue != null) {
+            field.currentValue = exampleValue;
+        }
         fields.add(field);
         fieldMap.put(key, field);
     }

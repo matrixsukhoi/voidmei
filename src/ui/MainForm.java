@@ -344,8 +344,12 @@ public class MainForm extends WebFrame {
 		tc.setDynamicOverlaysVisible(true, false);
 
 		// Execute resize check after UI is fully visible/ready
+		// We use multiple invokeLaters to ensure all nested components have finished
+		// their initial layout
 		SwingUtilities.invokeLater(() -> {
-			updateDynamicSize();
+			SwingUtilities.invokeLater(() -> {
+				updateDynamicSize();
+			});
 		});
 	}
 

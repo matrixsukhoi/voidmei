@@ -142,7 +142,7 @@ public abstract class FieldOverlay extends DraggableOverlay implements FlightDat
             return;
 
         for (FieldDefinition def : defs) {
-            fieldManager.addField(def.key, def.label, def.unit, def.configKey, def.hideWhenNA);
+            fieldManager.addField(def.key, def.label, def.unit, def.configKey, def.hideWhenNA, def.exampleValue);
         }
     }
 

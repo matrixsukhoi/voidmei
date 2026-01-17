@@ -11,7 +11,7 @@ public interface FieldManager {
     /**
      * Add a new field to the manager.
      */
-    void addField(String key, String label, String unit, String configKey, boolean hideWhenNA);
+    void addField(String key, String label, String unit, String configKey, boolean hideWhenNA, String exampleValue);
 
     /**
      * Update a field's value by key.

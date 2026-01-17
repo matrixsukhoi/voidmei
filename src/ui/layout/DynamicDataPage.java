@@ -274,26 +274,24 @@ public class DynamicDataPage extends BasePage {
     private void save() {
         // Trigger global save of ui_layout.cfg
         parent.saveDynamicConfig();
+        // Also save config.properties via tc.configService
+        if (parent.tc.configService instanceof prog.config.ConfigurationService) {
+            ((prog.config.ConfigurationService) parent.tc.configService).saveConfig();
+        }
 
-        // Also notify our overlay in Controller to rebuild its bindings
+        // Trigger a global preview refresh if NOT in initialization
+        if (!parent.isInitializing) {
+            parent.tc.refreshPreviews();
+        }
+
+        // Special handling for legacy EngineInfo which is not a DynamicOverlay
         if ("Engine Info".equals(groupConfig.title)) {
-            // Special handling for legacy EngineInfo which is not a DynamicOverlay
             if (parent.tc.overlayManager != null) {
                 ui.overlay.EngineInfo eI = parent.tc.overlayManager.get("engineInfoSwitch");
                 if (eI != null) {
                     eI.reinitConfig();
                 }
             }
-        } else if ("Engine Control".equals(groupConfig.title)) {
-            // Engine Control switches trigger overlay visibility changes
-            // Need to refresh previews to show/hide Axis, GearAndFlaps, EngineControl
-            // overlays
-            if (!parent.isInitializing) {
-                parent.tc.refreshPreviews();
-            }
-        } else {
-            // Other dynamic configs - refresh previews if needed
-            // if (parent.tc.dynamicOverlays != null) { ... }
         }
     }
 
