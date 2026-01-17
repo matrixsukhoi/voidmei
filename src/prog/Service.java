@@ -528,6 +528,25 @@ public class Service implements Runnable {
 		data.put("heat_time", sEngWorkTime);
 		data.put("response", SdThrustPercent);
 
+		// Push EngineControl Compatible Keys
+		data.put("mixture", mixture);
+		data.put("radiator", radiator);
+		data.put("compressor", compressorstage);
+		data.put("fuel_percent", sfuelPercent);
+		data.put("rpm_throttle", RPMthrottle);
+		data.put("thrust_percent", sThurstPercent);
+		data.put("is_jet", String.valueOf(iEngType == ENGINE_TYPE_JET));
+		data.put("engine_check_done", String.valueOf(checkEngineFlag));
+		if (sState != null) {
+			data.put("throttle_int", String.valueOf(sState.throttle));
+			data.put("mixture_int", String.valueOf(sState.mixture));
+			data.put("radiator_int", String.valueOf(sState.radiator));
+			data.put("rpm_throttle_int", String.valueOf(sState.RPMthrottle));
+			data.put("compressor_int", String.valueOf(sState.compressorstage));
+		}
+		data.put("fuel_percent_int", String.valueOf(fuelPercent));
+		data.put("thrust_percent_int", String.valueOf((int) thurstPercent));
+
 		// 2. Publish Event (Data Plane)
 		FlightDataBus.getInstance().publish(new FlightDataEvent(data));
 

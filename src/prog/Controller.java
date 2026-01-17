@@ -449,7 +449,7 @@ public class Controller implements ConfigProvider {
 	 */
 	private void registerGameModeOverlays() {
 
-		// EngineControl - supports preview
+		// EngineControl - supports preview (fully event-driven)
 		overlayManager.registerWithPreview("enableEngineControl",
 				() -> new EngineControl(),
 				overlay -> {
@@ -469,7 +469,19 @@ public class Controller implements ConfigProvider {
 						ecConfig.y = 0.5;
 						ecConfig.visible = false;
 					}
-					((EngineControl) overlay).init(this, S, getBlkx(), ecConfig);
+					// Create config bridge
+					final prog.config.ConfigProvider configBridge = new prog.config.ConfigProvider() {
+						@Override
+						public String getConfig(String key) {
+							return Controller.this.getconfig(key);
+						}
+
+						@Override
+						public void setConfig(String key, String value) {
+							Controller.this.setconfig(key, value);
+						}
+					};
+					((EngineControl) overlay).init(configBridge, ecConfig, () -> configService.saveLayoutConfig());
 				},
 				overlay -> {
 					prog.config.ConfigLoader.GroupConfig ecConfig = null;
@@ -481,7 +493,20 @@ public class Controller implements ConfigProvider {
 							}
 						}
 					}
-					((EngineControl) overlay).initPreview(this, ecConfig);
+					// Create config bridge
+					final prog.config.ConfigProvider configBridge = new prog.config.ConfigProvider() {
+						@Override
+						public String getConfig(String key) {
+							return Controller.this.getconfig(key);
+						}
+
+						@Override
+						public void setConfig(String key, String value) {
+							Controller.this.setconfig(key, value);
+						}
+					};
+					((EngineControl) overlay).initPreview(configBridge, ecConfig,
+							() -> configService.saveLayoutConfig());
 				},
 				overlay -> ((EngineControl) overlay).reinitConfig(),
 				true);

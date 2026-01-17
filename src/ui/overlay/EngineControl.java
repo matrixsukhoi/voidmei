@@ -7,38 +7,29 @@ import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import com.alee.laf.panel.WebPanel;
 
-import parser.Blkx;
 import prog.Application;
-import prog.Controller;
 import prog.i18n.Lang;
-import prog.Service;
 import prog.config.ConfigProvider;
 import prog.event.FlightDataBus;
 import prog.event.FlightDataEvent;
 import ui.base.FieldOverlay;
-import ui.model.DataField;
 import ui.model.FieldDefinition;
 import ui.model.GaugeField;
 import ui.renderer.LinearGaugeRenderer;
 import ui.renderer.OverlayRenderer;
-import ui.renderer.RenderContext;
 
 /**
  * Engine Control overlay for displaying throttle, pitch, mixture, radiator,
  * etc.
- * Now extends FieldOverlay for the data-driven architecture.
+ * Fully event-driven: all data comes from FlightDataEvent.
  */
 public class EngineControl extends FieldOverlay {
 
 	private static final long serialVersionUID = 3063042782594625576L;
-
-	// Legacy references (for direct Service access)
-	public Controller xc;
-	public Service s;
-	public Blkx p;
 
 	// Config
 	public prog.config.ConfigLoader.GroupConfig groupConfig;
@@ -51,9 +42,9 @@ public class EngineControl extends FieldOverlay {
 	public int rowNum;
 	public int columnNum;
 
-	// Logic State
+	// Logic State (derived from event data)
 	private boolean isJet;
-	private boolean jetChecked;
+	private boolean jetLabelUpdated;
 
 	// Gauge Type Constants
 	public static final int GAUGE_THROTTLE = 0;
@@ -64,6 +55,9 @@ public class EngineControl extends FieldOverlay {
 	public static final int GAUGE_FUEL = 5;
 
 	private java.util.List<GaugeField> gaugeFields;
+
+	// Position save callback
+	private Runnable onPositionSave;
 
 	public EngineControl() {
 		super();
@@ -83,29 +77,18 @@ public class EngineControl extends FieldOverlay {
 
 	@Override
 	protected List<FieldDefinition> getFieldDefinitions() {
-		// Not used directly - we use GaugeField instead
 		return new ArrayList<>();
 	}
 
-	// --- Custom Initialization for Engine Control ---
+	// --- Initialization ---
 
 	/**
-	 * Legacy initialization method for compatibility with OverlayManager.
+	 * Initialize for game mode (event-driven).
 	 */
-	public void init(Controller c, Service ts, Blkx tp, prog.config.ConfigLoader.GroupConfig groupConfig) {
-		this.xc = c;
-		this.s = ts;
-		this.p = tp;
+	public void init(ConfigProvider config, prog.config.ConfigLoader.GroupConfig groupConfig, Runnable onPositionSave) {
+		this.config = config;
 		this.groupConfig = groupConfig;
-
-		// Bridge to FieldOverlay's ConfigProvider-based init
-		ConfigProvider configBridge = new ConfigProvider() {
-			@Override
-			public String getConfig(String key) {
-				return xc != null ? xc.getconfig(key) : "";
-			}
-		};
-		this.config = configBridge;
+		this.onPositionSave = onPositionSave;
 
 		setupTransparentWindow();
 
@@ -114,11 +97,14 @@ public class EngineControl extends FieldOverlay {
 
 			@Override
 			public void paintComponent(Graphics g) {
+				// Clear the background to prevent ghost trails on transparent components
+				super.paintComponent(g);
+
 				Graphics2D g2d = (Graphics2D) g;
 				g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, Application.graphAASetting);
 				g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, Application.textAASetting);
 
-				drawTPMRC(g2d, fontsize >> 1, (fontsize * 4) + ((fontsize * 9) >> 1));
+				drawGauges(g2d, fontsize >> 1, (fontsize * 4) + ((fontsize * 9) >> 1));
 			}
 		};
 		panel.setOpaque(false);
@@ -131,11 +117,14 @@ public class EngineControl extends FieldOverlay {
 		setVisible(true);
 	}
 
-	public void initPreview(Controller c, prog.config.ConfigLoader.GroupConfig groupConfig) {
-		this.groupConfig = groupConfig;
-		init(c, null, null, groupConfig);
+	/**
+	 * Initialize for preview mode.
+	 */
+	public void initPreview(ConfigProvider config, prog.config.ConfigLoader.GroupConfig groupConfig,
+			Runnable onPositionSave) {
+		init(config, groupConfig, onPositionSave);
 		applyPreviewStyle();
-		updateGauges();
+		updateGaugesPreview();
 		setupDragListeners();
 		setVisible(true);
 	}
@@ -143,11 +132,9 @@ public class EngineControl extends FieldOverlay {
 	@Override
 	public void reinitConfig() {
 		// Font configuration
-		String numFontVal = config != null ? config.getConfig(numFontKey) : null;
 		String labelFontVal = config != null ? config.getConfig(labelFontKey) : null;
 		String fontAddVal = config != null ? config.getConfig(fontAddKey) : null;
 
-		String NumFont = (numFontVal != null && !numFontVal.isEmpty()) ? numFontVal : "Consolas";
 		String FontName = (labelFontVal != null && !labelFontVal.isEmpty()) ? labelFontVal : "Microsoft YaHei";
 		int fontadd = 0;
 		if (fontAddVal != null && !fontAddVal.isEmpty()) {
@@ -183,49 +170,46 @@ public class EngineControl extends FieldOverlay {
 		setSize(WIDTH, HEIGHT);
 		setLocation(lx, ly);
 
-		updateGauges();
+		updateGaugesPreview();
 		repaint();
 	}
 
-	/**
-	 * Initialize gauge fields based on configuration.
-	 */
 	private void initGaugeFields() {
 		gaugeFields = new java.util.ArrayList<>();
 		String tmp;
 
 		tmp = config != null ? config.getConfig("disableEngineInfoThrottle") : "";
-		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
+		if (!("true".equals(tmp))) {
 			gaugeFields.add(new GaugeField("throttle", Lang.eThrottle, "%", GAUGE_THROTTLE, 110, false));
 			columnNum++;
 		}
 
 		tmp = config != null ? config.getConfig("disableEngineInfoPitch") : "";
-		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
+		if (!("true".equals(tmp))) {
 			gaugeFields.add(new GaugeField("pitch", Lang.eProppitch, "%", GAUGE_PITCH, 100, false));
 			columnNum++;
 		}
 
 		tmp = config != null ? config.getConfig("disableEngineInfoMixture") : "";
-		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
+		if (!("true".equals(tmp))) {
 			gaugeFields.add(new GaugeField("mixture", Lang.eMixture, "%", GAUGE_MIXTURE, 120, true));
 			rowNum++;
 		}
 
 		tmp = config != null ? config.getConfig("disableEngineInfoRadiator") : "";
-		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
+		if (!("true".equals(tmp))) {
 			gaugeFields.add(new GaugeField("radiator", Lang.eRadiator, "%", GAUGE_RADIATOR, 100, true));
 			rowNum++;
 		}
 
 		tmp = config != null ? config.getConfig("disableEngineInfoCompressor") : "";
-		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
+		if (!("true".equals(tmp))) {
 			gaugeFields.add(new GaugeField("compressor", Lang.eCompressor, "", GAUGE_COMPRESSOR, 1, true));
 			rowNum++;
 		}
 
 		tmp = config != null ? config.getConfig("disableEngineInfoLFuel") : "";
-		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
+		if (!("true".equals(tmp))) {
 			gaugeFields.add(new GaugeField("fuel", Lang.eFuelPer, "%", GAUGE_FUEL, 100, true));
 			rowNum++;
 		}
@@ -233,7 +217,10 @@ public class EngineControl extends FieldOverlay {
 
 	// --- Drawing ---
 
-	public void drawTPMRC(Graphics2D g2d, int x, int y) {
+	private void drawGauges(Graphics2D g2d, int x, int y) {
+		if (gaugeFields == null)
+			return;
+
 		int dx = 0;
 		int dy = fontsize >> 1;
 
@@ -246,12 +233,8 @@ public class EngineControl extends FieldOverlay {
 				continue;
 			}
 
-			// Skip compressor if stage is 0
-			if (gf.gaugeType == GAUGE_COMPRESSOR && s != null && s.sState.compressorstage == 0) {
-				continue;
-			}
-			// Skip mixture if negative
-			if (gf.gaugeType == GAUGE_MIXTURE && s != null && s.sState.mixture < 0) {
+			// Skip compressor if stage is 0 (will be handled in onFlightData visibility)
+			if (!gf.visible) {
 				continue;
 			}
 
@@ -277,78 +260,101 @@ public class EngineControl extends FieldOverlay {
 	@Override
 	public void onFlightData(FlightDataEvent event) {
 		javax.swing.SwingUtilities.invokeLater(() -> {
-			updateGauges();
+			updateGaugesFromEvent(event);
 			if (panel != null)
 				panel.repaint();
 		});
 	}
 
-	public void updateGauges() {
+	private void updateGaugesFromEvent(FlightDataEvent event) {
 		if (gaugeFields == null)
 			return;
 
-		// Preview Mode (s is null)
-		if (s == null) {
-			for (GaugeField gf : gaugeFields) {
-				gf.gauge.update(gf.gauge.maxValue / 2, "PRE");
-			}
-			return;
-		}
+		Map<String, String> data = event.getData();
 
-		if (jetChecked == false) {
-			if (s.checkEngineFlag) {
-				if (s.isEngJet()) {
-					isJet = true;
-					for (GaugeField gf : gaugeFields) {
-						if (gf.gaugeType == GAUGE_PITCH) {
-							gf.gauge.label = Lang.eThurstP;
-						}
+		// Check jet status
+		String engineCheckDone = data.get("engine_check_done");
+		if ("true".equals(engineCheckDone) && !jetLabelUpdated) {
+			String isJetStr = data.get("is_jet");
+			isJet = "true".equals(isJetStr);
+			if (isJet) {
+				for (GaugeField gf : gaugeFields) {
+					if (gf.gaugeType == GAUGE_PITCH) {
+						gf.gauge.label = Lang.eThurstP;
 					}
 				}
-				jetChecked = true;
 			}
+			jetLabelUpdated = true;
 		}
 
 		for (GaugeField gf : gaugeFields) {
 			switch (gf.gaugeType) {
 				case GAUGE_THROTTLE:
-					gf.gauge.update(s.sState.throttle, String.format("%3s", s.throttle));
+					updateGaugeFromData(gf, data, "throttle", "throttle_int");
 					break;
 				case GAUGE_PITCH:
 					if (!isJet) {
-						if (!s.RPMthrottle.equals(Service.nastring)) {
-							gf.gauge.update(s.sState.RPMthrottle, String.format("%3s", s.RPMthrottle));
-						} else {
-							gf.gauge.update(0, String.format("%3s", s.RPMthrottle));
-						}
+						updateGaugeFromData(gf, data, "rpm_throttle", "rpm_throttle_int");
 					} else {
-						gf.gauge.update((int) s.thurstPercent, String.format("%3s", s.sThurstPercent));
+						updateGaugeFromData(gf, data, "thrust_percent", "thrust_percent_int");
 					}
 					break;
 				case GAUGE_MIXTURE:
-					if (!s.mixture.equals(Service.nastring)) {
-						gf.gauge.update(s.sState.mixture, String.format("%3s", s.mixture));
-					} else {
-						gf.gauge.update(0, String.format("%3s", s.mixture));
+					updateGaugeFromData(gf, data, "mixture", "mixture_int");
+					// Hide if negative
+					String mixInt = data.get("mixture_int");
+					if (mixInt != null) {
+						try {
+							gf.visible = Integer.parseInt(mixInt) >= 0;
+						} catch (NumberFormatException e) {
+							gf.visible = true;
+						}
 					}
 					break;
 				case GAUGE_RADIATOR:
-					if (!s.radiator.equals(Service.nastring)) {
-						gf.gauge.update(s.sState.radiator, String.format("%3s", s.radiator));
-					} else {
-						gf.gauge.update(0, String.format("%3s", s.radiator));
-					}
+					updateGaugeFromData(gf, data, "radiator", "radiator_int");
 					break;
 				case GAUGE_COMPRESSOR:
-					if (s.sState.compressorstage - 1 > gf.gauge.maxValue) {
-						gf.gauge.maxValue = s.sState.compressorstage - 1;
+					String compInt = data.get("compressor_int");
+					if (compInt != null) {
+						try {
+							int stage = Integer.parseInt(compInt);
+							gf.visible = stage > 0;
+							if (stage - 1 > gf.gauge.maxValue) {
+								gf.gauge.maxValue = stage - 1;
+							}
+							gf.gauge.update(stage - 1, String.format("%3s", data.get("compressor")));
+						} catch (NumberFormatException e) {
+							gf.visible = false;
+						}
 					}
-					gf.gauge.update(s.sState.compressorstage - 1, String.format("%3s", s.compressorstage));
 					break;
 				case GAUGE_FUEL:
-					gf.gauge.update(s.fuelPercent, String.format("%3s", s.sfuelPercent));
+					updateGaugeFromData(gf, data, "fuel_percent", "fuel_percent_int");
 					break;
 			}
+		}
+	}
+
+	private void updateGaugeFromData(GaugeField gf, Map<String, String> data, String strKey, String intKey) {
+		String strVal = data.get(strKey);
+		String intVal = data.get(intKey);
+		if (strVal != null && intVal != null) {
+			try {
+				int value = Integer.parseInt(intVal);
+				gf.gauge.update(value, String.format("%3s", strVal));
+			} catch (NumberFormatException e) {
+				gf.gauge.update(0, String.format("%3s", strVal));
+			}
+		}
+	}
+
+	private void updateGaugesPreview() {
+		if (gaugeFields == null)
+			return;
+		for (GaugeField gf : gaugeFields) {
+			gf.gauge.update(gf.gauge.maxValue / 2, "PRE");
+			gf.visible = true;
 		}
 	}
 
@@ -361,7 +367,9 @@ public class EngineControl extends FieldOverlay {
 			int screenH = java.awt.Toolkit.getDefaultToolkit().getScreenSize().height;
 			groupConfig.x = (double) getLocation().x / screenW;
 			groupConfig.y = (double) getLocation().y / screenH;
-			xc.configService.saveLayoutConfig();
+			if (onPositionSave != null) {
+				onPositionSave.run();
+			}
 		} else {
 			super.saveCurrentPosition();
 		}
@@ -379,7 +387,6 @@ public class EngineControl extends FieldOverlay {
 		super.dispose();
 	}
 
-	// Unused run() from DraggableOverlay - disabled
 	@Override
 	public void run() {
 		// Event-driven - no polling
