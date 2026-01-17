@@ -39,7 +39,7 @@ public class ConfigurationService implements ConfigProvider {
         changed |= checkDefault("enableStatusBar", "true");
         changed |= checkDefault("AlwaysOnTop", "true");
         changed |= checkDefault("enableLogging", "false");
-        changed |= checkDefault("GlobalNumFont", "");
+        changed |= checkDefault("GlobalNumFont", "Sarasa Mono SC");
 
         // Colors defaults
         changed |= checkColorDefault("fontNum", new Color(32, 222, 64, 140));

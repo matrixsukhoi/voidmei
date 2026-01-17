@@ -14,7 +14,7 @@ public class SliderRowRenderer implements RowRenderer {
 
     @Override
     public WebPanel render(RowConfig row, GroupConfig groupConfig, RenderContext context) {
-        // Get current value from GroupConfig property
+        // Get base default from row definition
         int defaultVal = 0;
         if (row.defaultValue != null) {
             try {
@@ -22,7 +22,24 @@ public class SliderRowRenderer implements RowRenderer {
             } catch (Exception e) {
             }
         }
-        int currentVal = PropertyBinder.getInt(groupConfig, row.property, defaultVal);
+
+        // Priority for initial value:
+        // 1. If property exists in GroupConfig, use PropertyBinder
+        // 2. Otherwise try ConfigurationService
+        // 3. Fallback to defaultVal (from row.defaultValue)
+        int currentVal;
+        if (row.property != null && PropertyBinder.hasField(groupConfig, row.property)) {
+            currentVal = PropertyBinder.getInt(groupConfig, row.property, defaultVal);
+        } else if (row.property != null) {
+            String val = context.getStringFromConfigService(row.property, Integer.toString(defaultVal));
+            try {
+                currentVal = Integer.parseInt(val);
+            } catch (Exception e) {
+                currentVal = defaultVal;
+            }
+        } else {
+            currentVal = defaultVal;
+        }
 
         // Ensure min < max to avoid crash
         int min = row.minVal;
@@ -46,7 +63,16 @@ public class SliderRowRenderer implements RowRenderer {
                 if (context.isUpdating())
                     return;
                 if (!slider.getValueIsAdjusting()) {
-                    PropertyBinder.setInt(groupConfig, prop, slider.getValue());
+                    int newVal = slider.getValue();
+                    // Try property binding first
+                    if (!PropertyBinder.setInt(groupConfig, prop, newVal)) {
+                        // Fallback
+                    }
+                    // Always sync to ConfigurationService
+                    if (prop != null) {
+                        context.syncStringToConfigService(prop, Integer.toString(newVal));
+                    }
+
                     if ("panelColumns".equals(prop)) {
                         context.onRebuild();
                     }
