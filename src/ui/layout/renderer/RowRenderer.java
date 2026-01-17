@@ -39,5 +39,11 @@ public interface RowRenderer {
 
         /** Gets a boolean value from ConfigurationService (for initial state) */
         boolean getFromConfigService(String key, boolean defaultVal);
+
+        /** Syncs a string value to ConfigurationService */
+        void syncStringToConfigService(String key, String value);
+
+        /** Gets a string value from ConfigurationService (for initial state) */
+        String getStringFromConfigService(String key, String defaultVal);
     }
 }

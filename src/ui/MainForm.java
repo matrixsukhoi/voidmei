@@ -25,7 +25,7 @@ import ui.layout.UIBuilder;
 import ui.panels.AdvancedPanel;
 import ui.panels.FlightInfoPanel;
 import ui.panels.LoggingPanel;
-import ui.panels.MiniHUDPanel;
+// MiniHUDPanel migrated to ui_layout.cfg
 
 import prog.Application;
 import prog.Controller;
@@ -49,7 +49,7 @@ public class MainForm extends WebFrame {
 	AdvancedPanel advancedPanel;
 	FlightInfoPanel flightInfoPanel;
 	LoggingPanel loggingPanel;
-	MiniHUDPanel miniHUDPanel;
+	// MiniHUDPanel migrated to ui_layout.cfg
 
 	WebButton bDisplayFmKey;
 
@@ -188,15 +188,7 @@ public class MainForm extends WebFrame {
 	}
 
 	public void initJP3(WebPanel jp3) {
-		miniHUDPanel = new MiniHUDPanel(this);
-		miniHUDPanel.setOnChange(() -> {
-			saveConfig();
-			if (!isInitializing) {
-				tc.refreshPreviews();
-			}
-		});
-		miniHUDPanel.setOnSave(() -> saveConfig());
-		setupTab(jp3, miniHUDPanel);
+		// MiniHUDPanel migrated to ui_layout.cfg - tab now handled by DynamicDataPage
 	}
 
 	public void initJP4(WebPanel jp4) {
@@ -341,7 +333,7 @@ public class MainForm extends WebFrame {
 
 	public void loadConfig() {
 		flightInfoPanel.loadConfig(tc.configService);
-		miniHUDPanel.loadConfig(tc.configService);
+		// miniHUDPanel now loaded from ui_layout.cfg
 		advancedPanel.loadConfig(tc.configService);
 		loggingPanel.loadConfig(tc.configService);
 		// engineControlPanel now loaded from ui_layout.cfg
@@ -349,12 +341,11 @@ public class MainForm extends WebFrame {
 
 	public void initDefaults() {
 		FlightInfoPanel.initDefaults(tc.configService);
-		MiniHUDPanel.initDefaults(tc.configService);
+		// MiniHUDPanel defaults handled by ConfigurationService
 		LoggingPanel.initDefaults(tc.configService);
 		AdvancedPanel.initDefaults(tc.configService);
 
-		// Special case that needs instance
-		tc.setconfig("crosshairName", miniHUDPanel.sCrosshairName.getSelectedItem().toString());
+		// crosshairName now handled by MiniHUD section in ui_layout.cfg
 	}
 
 	public void saveConfig() {
@@ -366,7 +357,7 @@ public class MainForm extends WebFrame {
 		// engineInfoPanel.saveConfig(tc.configService);
 		// engineControlPanel now saved to ui_layout.cfg
 		loggingPanel.saveConfig(tc.configService);
-		miniHUDPanel.saveConfig(tc.configService);
+		// miniHUDPanel now saved to ui_layout.cfg
 
 		tc.setconfig("displayFmKey", Integer.toString(Application.displayFmKey));
 

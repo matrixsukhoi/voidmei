@@ -16,6 +16,7 @@ public class RowRendererRegistry {
         renderers.put("COMBO", new ComboRowRenderer());
         renderers.put("SWITCH", new SwitchRowRenderer());
         renderers.put("SWITCH_INV", new SwitchInvRowRenderer());
+        renderers.put("FILELIST", new FileListRowRenderer());
         renderers.put("DATA", new DataRowRenderer());
         // Note: HEADER is handled specially in the layout loop, not as a renderer
     }

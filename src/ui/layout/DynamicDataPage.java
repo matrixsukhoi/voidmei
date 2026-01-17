@@ -133,6 +133,19 @@ public class DynamicDataPage extends BasePage {
                     return defaultVal;
                 return Boolean.parseBoolean(val);
             }
+
+            @Override
+            public void syncStringToConfigService(String key, String value) {
+                parent.tc.configService.setConfig(key, value);
+            }
+
+            @Override
+            public String getStringFromConfigService(String key, String defaultVal) {
+                String val = parent.tc.configService.getConfig(key);
+                if (val == null || val.isEmpty())
+                    return defaultVal;
+                return val;
+            }
         };
 
         for (prog.config.ConfigLoader.RowConfig row : groupConfig.rows) {
@@ -309,6 +322,12 @@ public class DynamicDataPage extends BasePage {
             // Sync to ConfigurationService so OverlayManager can read it
             parent.tc.configService.setConfig("enableEngineControl", Boolean.toString(visible));
             // Refresh overlays to apply the change
+            if (!parent.isInitializing) {
+                parent.tc.refreshPreviews();
+            }
+        } else if ("MiniHUD".equals(groupConfig.title)) {
+            // MiniHUD GroupConfig.visible controls the MinimalHUD overlay
+            parent.tc.configService.setConfig("crosshairSwitch", Boolean.toString(visible));
             if (!parent.isInitializing) {
                 parent.tc.refreshPreviews();
             }

@@ -241,6 +241,15 @@ public class ConfigLoader {
                             rc.type = "SWITCH_INV";
                             rc.property = formula.substring(11);
                             rc.visible = valueStr.isEmpty() || valueStr.equalsIgnoreCase("true");
+                        } else if (formula.startsWith("FILELIST:")) {
+                            // Format: FILELIST:configKey:directoryPath
+                            rc.type = "FILELIST";
+                            String[] parts2 = formula.substring(9).split(":", 2);
+                            if (parts2.length >= 1)
+                                rc.property = parts2[0];
+                            if (parts2.length >= 2)
+                                rc.format = parts2[1]; // Directory path
+                            rc.visible = true;
                         } else {
                             // Regular DATA row
                             rc.type = "DATA";
