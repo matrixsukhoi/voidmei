@@ -40,6 +40,9 @@ public class EngineInfoConfig {
     // Let's assume standard key or default false.
     public String edgeKey = "engineInfoEdge";
 
+    // Layout Config
+    public prog.config.ConfigLoader.GroupConfig groupConfig;
+
     public List<FieldDefinition> getFieldDefinitions() {
         return fieldDefinitions;
     }
@@ -49,8 +52,10 @@ public class EngineInfoConfig {
         fieldDefinitions.add(new FieldDefinition(key, label, unit, configKey, hideWhenNA, exampleValue));
     }
 
-    public static EngineInfoConfig createDefault(ConfigProvider config) {
+    public static EngineInfoConfig createDefault(ConfigProvider config,
+            prog.config.ConfigLoader.GroupConfig groupConfig) {
         EngineInfoConfig cfg = new EngineInfoConfig();
+        cfg.groupConfig = groupConfig;
 
         // NOTE: EngineInfo in ui_layout.cfg uses "fontName", "fontSize", "columns" as
         // keys

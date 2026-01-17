@@ -32,7 +32,6 @@ public class MainForm extends WebFrame {
 	public Controller tc;
 	// Store dynamic pages for updates
 	private java.util.List<ui.layout.DynamicDataPage> dynamicPages;
-	private prog.config.ConfigWatcherService configWatcher;
 	private javax.swing.Timer repaintTimer;
 	Container root;
 	WebTabbedPane tabbedPane;
@@ -173,31 +172,6 @@ public class MainForm extends WebFrame {
 		tabbedPane.addChangeListener(e -> {
 			updateDynamicSize();
 		});
-
-		startFileWatcher();
-	}
-
-	private void startFileWatcher() {
-		configWatcher = new prog.config.ConfigWatcherService("ui_layout.cfg", this::reloadDynamicConfig);
-		configWatcher.start(2000);
-	}
-
-	private void reloadDynamicConfig() {
-		// Re-initialize Controller's overlays and configs from disk
-		tc.initDynamicOverlays();
-
-		if (dynamicPages == null || tc.dynamicConfigs.isEmpty())
-			return;
-
-		// Sync existing pages with the new GroupConfig objects from Controller
-		for (prog.config.ConfigLoader.GroupConfig group : tc.dynamicConfigs) {
-			for (ui.layout.DynamicDataPage page : dynamicPages) {
-				if (page.getGroupConfig().title.equals(group.title)) {
-					page.setGroupConfig(group);
-					break;
-				}
-			}
-		}
 	}
 
 	public void updateDynamicSize() {
@@ -411,9 +385,6 @@ public class MainForm extends WebFrame {
 
 	public void saveDynamicConfig() {
 		// Delegate to ConfigurationService
-		if (configWatcher != null)
-			configWatcher.ignoreNext(); // Prevents reloading the file we just wrote
-
 		tc.configService.saveLayoutConfig();
 	}
 }

@@ -55,8 +55,8 @@ public class EngineInfo extends FieldOverlay {
 		this.defaultShowEdge = engineInfoConfig.showEdge;
 		this.title = engineInfoConfig.title;
 
-		// Set position keys
-		setPositionKeys(engineInfoConfig.posXKey, engineInfoConfig.posYKey);
+		// Set position keys - Deprecated/Removed in favor of GroupConfig
+		// setPositionKeys(engineInfoConfig.posXKey, engineInfoConfig.posYKey);
 
 		// Call parent init
 		super.init(config, pool);
@@ -102,38 +102,17 @@ public class EngineInfo extends FieldOverlay {
 		super.reinitConfig();
 
 		// 2. Override visibility based on GroupConfig rows from ui_layout.cfg
-		// We need access to the GroupConfig.
-		ConfigLoader.GroupConfig groupConfig = findGroupConfig();
+		// Use the GroupConfig passed in EngineInfoConfig
+		ConfigLoader.GroupConfig groupConfig = engineInfoConfig.groupConfig;
 		if (groupConfig != null) {
 			for (ConfigLoader.RowConfig row : groupConfig.rows) {
-				// Map row label to our field key?
-				// EngineInfoConfig defines fields with specific Keys (e.g. "hp").
-				// Row has Label (e.g. "功率" or "HorsePower" depending on language).
-				// We need a mapping or verify against known fields.
-
-				// Actually, EngineInfoConfig sets configKey="HorsePower" for "hp" field.
-				// We should match Row Label to Field ConfigKey?
-				// Wait, ConfigKey in FieldDefinition is meant for the switch key.
-				// In EngineInfo legacy, we mapped Row Label -> Field Key.
-
-				// Let's iterate our fields and find matching row.
-				for (ui.model.FieldDefinition def : getFieldDefinitions()) {
-					// How do we match row?
-					// Legacy used LABEL_TO_KEY map.
-					// But new system: EngineInfoConfig.createDefault uses keys like "HorsePower".
-					// Ideally, ui_layout.cfg "Label" column matches? No, Label is "功率".
-					// Formula is "S.sTotalHp".
-
-					// Allow matching by Formula?
-					// "S.sTotalHp" -> "hp".
-					// "S.sTotalThr" -> "thrust".
-
-					// OR, we just implement the old LABEL_TO_KEY logic here solely for visibility
-					// update.
-					String labelKey = LABEL_TO_KEY.get(row.label);
-					if (labelKey != null && labelKey.equals(def.configKey)) {
-						// Found match!
-						fieldManager.setFieldVisible(def.key, row.visible);
+				String labelKey = LABEL_TO_KEY.get(row.label);
+				if (labelKey != null) {
+					// Find field def with this configKey and set visibility
+					for (ui.model.FieldDefinition def : getFieldDefinitions()) {
+						if (labelKey.equals(def.configKey)) {
+							fieldManager.setFieldVisible(def.key, row.visible);
+						}
 					}
 				}
 			}
@@ -142,18 +121,33 @@ public class EngineInfo extends FieldOverlay {
 		}
 	}
 
-	private ConfigLoader.GroupConfig findGroupConfig() {
-		if (config instanceof prog.Controller) {
-			prog.Controller c = (prog.Controller) config;
-			if (c.dynamicConfigs != null) {
-				for (ConfigLoader.GroupConfig cfg : c.dynamicConfigs) {
-					if ("Engine Info".equals(cfg.title) || "引擎信息".equals(cfg.title)) {
-						return cfg;
-					}
-				}
-			}
+	@Override
+	protected int[] loadPosition(int defaultX, int defaultY) {
+		if (engineInfoConfig != null && engineInfoConfig.groupConfig != null) {
+			int screenW = java.awt.Toolkit.getDefaultToolkit().getScreenSize().width;
+			int screenH = java.awt.Toolkit.getDefaultToolkit().getScreenSize().height;
+			int x = (int) (engineInfoConfig.groupConfig.x * screenW);
+			int y = (int) (engineInfoConfig.groupConfig.y * screenH);
+			return new int[] { x, y };
 		}
-		return null;
+		return super.loadPosition(defaultX, defaultY);
+	}
+
+	@Override
+	public void saveCurrentPosition() {
+		if (engineInfoConfig != null && engineInfoConfig.groupConfig != null) {
+			int screenW = java.awt.Toolkit.getDefaultToolkit().getScreenSize().width;
+			int screenH = java.awt.Toolkit.getDefaultToolkit().getScreenSize().height;
+
+			engineInfoConfig.groupConfig.x = (double) getLocation().x / screenW;
+			engineInfoConfig.groupConfig.y = (double) getLocation().y / screenH;
+
+			if (config instanceof prog.Controller) {
+				((prog.Controller) config).configService.saveLayoutConfig();
+			}
+		} else {
+			super.saveCurrentPosition();
+		}
 	}
 
 	// Legacy Mapping for Visibility Lookup

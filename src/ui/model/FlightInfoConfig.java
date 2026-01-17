@@ -35,6 +35,9 @@ public class FlightInfoConfig {
     // Edge style key
     public String edgeKey = "flightInfoEdge";
 
+    // Layout Config
+    public prog.config.ConfigLoader.GroupConfig groupConfig;
+
     public List<FieldDefinition> getFieldDefinitions() {
         return fieldDefinitions;
     }
@@ -49,19 +52,38 @@ public class FlightInfoConfig {
      * This factory method contains the field definitions that were previously
      * hardcoded in FlightInfo.
      */
-    public static FlightInfoConfig createDefault(ConfigProvider config) {
+    public static FlightInfoConfig createDefault(ConfigProvider configProvider,
+            prog.config.ConfigLoader.GroupConfig groupConfig) {
         FlightInfoConfig cfg = new FlightInfoConfig();
+        cfg.groupConfig = groupConfig;
 
-        // Load style settings from config
-        if (config != null) {
-            cfg.showEdge = "true".equals(config.getConfig("flightInfoEdge"));
-            String colStr = config.getConfig("flightInfoColumn");
+        // Load style settings from config (Legacy properties or GroupConfig
+        // extensions?)
+        // For now, keep style in properties as requested, only X/Y moved to
+        // ui_layout.cfg
+        if (configProvider != null) {
+            cfg.showEdge = "true".equals(configProvider.getConfig("flightInfoEdge"));
+            String colStr = configProvider.getConfig("flightInfoColumn");
             if (colStr != null && !colStr.isEmpty()) {
                 try {
                     cfg.columnNum = Integer.parseInt(colStr);
                 } catch (NumberFormatException e) {
                     cfg.columnNum = 3;
                 }
+            }
+        }
+
+        // Ensure GroupConfig has default values if empty
+        if (cfg.groupConfig != null) {
+            if (cfg.groupConfig.x == 0 && cfg.groupConfig.y == 0) {
+                // Try legacy keys as fallback or set default
+                String legacyX = configProvider != null ? configProvider.getConfig("flightInfoX") : null;
+                String legacyY = configProvider != null ? configProvider.getConfig("flightInfoY") : null;
+                if (legacyX != null)
+                    cfg.groupConfig.x = Double.parseDouble(legacyX) / prog.Application.screenWidth; // Approximate if
+                                                                                                    // stored as pixels
+                if (legacyY != null)
+                    cfg.groupConfig.y = Double.parseDouble(legacyY) / prog.Application.screenHeight;
             }
         }
 

@@ -52,8 +52,8 @@ public class FlightInfo extends FieldOverlay {
 		this.defaultShowEdge = flightInfoConfig.showEdge;
 		this.title = flightInfoConfig.title;
 
-		// Set position keys
-		setPositionKeys(flightInfoConfig.posXKey, flightInfoConfig.posYKey);
+		// Set position keys - Deprecated/Removed in favor of GroupConfig
+		// setPositionKeys(flightInfoConfig.posXKey, flightInfoConfig.posYKey);
 
 		// Call parent init
 		super.init(config, pool);
@@ -78,5 +78,34 @@ public class FlightInfo extends FieldOverlay {
 		if (flightInfoConfig == null)
 			return;
 		super.reinitConfig();
+	}
+
+	@Override
+	protected int[] loadPosition(int defaultX, int defaultY) {
+		if (flightInfoConfig != null && flightInfoConfig.groupConfig != null) {
+			int screenW = java.awt.Toolkit.getDefaultToolkit().getScreenSize().width;
+			int screenH = java.awt.Toolkit.getDefaultToolkit().getScreenSize().height;
+			int x = (int) (flightInfoConfig.groupConfig.x * screenW);
+			int y = (int) (flightInfoConfig.groupConfig.y * screenH);
+			return new int[] { x, y };
+		}
+		return super.loadPosition(defaultX, defaultY);
+	}
+
+	@Override
+	public void saveCurrentPosition() {
+		if (flightInfoConfig != null && flightInfoConfig.groupConfig != null) {
+			int screenW = java.awt.Toolkit.getDefaultToolkit().getScreenSize().width;
+			int screenH = java.awt.Toolkit.getDefaultToolkit().getScreenSize().height;
+
+			flightInfoConfig.groupConfig.x = (double) getLocation().x / screenW;
+			flightInfoConfig.groupConfig.y = (double) getLocation().y / screenH;
+
+			if (config instanceof prog.Controller) {
+				((prog.Controller) config).configService.saveLayoutConfig();
+			}
+		} else {
+			super.saveCurrentPosition();
+		}
 	}
 }
