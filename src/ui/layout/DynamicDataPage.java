@@ -38,6 +38,9 @@ public class DynamicDataPage extends BasePage {
         super(parent);
         this.groupConfig = groupConfig;
 
+        // Force Modern Style for this page as per design requirement
+        UIBuilder.setStyle(new ModernStyle());
+
         if (groupConfig != null) {
             this.overlayVisible = groupConfig.visible;
             // Since BasePage constructor calls createTopToolbar() BEFORE we set
@@ -100,34 +103,51 @@ public class DynamicDataPage extends BasePage {
 
         scaler.removeAll();
 
-        // Calculate columns: Config PANEL columns * 2 (Label + Switch)
-        // Default to 2 if 0
+        // Main Scale Panel uses Vertical Flow to stack cards
+        scaler.setLayout(new com.alee.extended.layout.VerticalFlowLayout());
+
+        // Calculate columns for inner grids: Config PANEL columns * 2 (Label + Switch)
         int pCols = groupConfig.panelColumns > 0 ? groupConfig.panelColumns : 2;
         int gridCols = pCols * 2;
 
-        // Use ResponsiveGridLayout for precise aligning
-        scaler.setLayout(new ResponsiveGridLayout(gridCols, 3, 3));
+        WebPanel currentCard = null;
+        WebPanel currentGrid = null;
 
         for (prog.config.ConfigLoader.RowConfig row : groupConfig.rows) {
-            // Check for Header
             boolean isHeader = row.formula != null && row.formula.equalsIgnoreCase("HEADER");
 
             if (isHeader) {
-                // For headers, we want a full width label.
-                WebLabel header = new WebLabel(row.label);
-                header.setFont(prog.Application.defaultFontBig);
-                header.setForeground(new java.awt.Color(180, 30, 0));
-                header.setPreferredSize(new Dimension(800, 30));
-                scaler.add(header);
+                // Header row triggers new Card
+                currentCard = UIBuilder.createCard(row.label);
+
+                // Create grid for this card
+                currentGrid = new WebPanel();
+                currentGrid.setOpaque(false);
+                currentGrid.setLayout(new ResponsiveGridLayout(gridCols, 5, 5));
+                currentCard.add(currentGrid);
+
+                scaler.add(currentCard);
             } else {
-                // Use UIBuilder to add Label + Switch
-                WebSwitch sw = UIBuilder.addSwitch(scaler, row.label, row.visible);
+                // Regular data row
+                // If no card exists (e.g. config starts with data), create default
+                if (currentGrid == null) {
+                    currentCard = UIBuilder.createCard("General");
+                    currentGrid = new WebPanel();
+                    currentGrid.setOpaque(false);
+                    currentGrid.setLayout(new ResponsiveGridLayout(gridCols, 5, 5));
+                    currentCard.add(currentGrid);
+                    scaler.add(currentCard);
+                }
+
+                // Add item to current grid
+                WebSwitch sw = UIBuilder.addCardItem(currentGrid, row.label, row.visible);
                 sw.addActionListener(e -> {
                     row.visible = sw.isSelected();
                     save();
                 });
             }
         }
+
         scaler.revalidate();
         scaler.repaint();
     }
@@ -145,6 +165,7 @@ public class DynamicDataPage extends BasePage {
             // Use 2 columns: Label | Control.
             appearancePanel.setLayout(new ResponsiveGridLayout(2, 5, 5));
             appearancePanel.setBorder(javax.swing.BorderFactory.createEmptyBorder(5, 15, 10, 15));
+            UIBuilder.getStyle().decorateMainPanel(appearancePanel); // Apply Theme BG if needed
 
             // --- Font ---
             String[] fonts = java.awt.GraphicsEnvironment.getLocalGraphicsEnvironment().getAvailableFontFamilyNames();
@@ -366,10 +387,10 @@ public class DynamicDataPage extends BasePage {
     protected java.awt.Component createCenterComponent(WebPanel content) {
         // Setup main container with Appearance Panel + ZoomPanel (Grid)
         WebPanel main = new WebPanel(new java.awt.BorderLayout());
-        main.setOpaque(false);
+        UIBuilder.getStyle().decorateMainPanel(main); // Apply Theme BG (e.g. Light Grey)
 
         appearancePanel = new WebPanel(); // Initialized in updateAppearancePanel
-        appearancePanel.setOpaque(false);
+        appearancePanel.setOpaque(false); // Let main BG show through, or decorate individually
         main.add(appearancePanel, java.awt.BorderLayout.NORTH);
 
         main.add(scaler, java.awt.BorderLayout.CENTER);

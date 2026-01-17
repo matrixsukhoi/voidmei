@@ -17,8 +17,8 @@ public class ClassicStyle implements UIStyle {
     @Override
     public WebPanel createContainer(String title) {
         WebPanel container = new WebPanel();
-        // Use FlexGridLayout to keep the "Auto Layout" feature the user likes
-        container.setLayout(new FlexGridLayout(15, 10));
+        // Use BorderLayout to ensure proper filling
+        container.setLayout(new java.awt.BorderLayout());
 
         // Classic style has NO visible border/card background for groups
         // But we might want to show the title if provided?
@@ -75,5 +75,12 @@ public class ClassicStyle implements UIStyle {
     public void decorateSlider(WebSlider slider) {
         // Classic sliders usually look standard, just transparency
         slider.setOpaque(false);
+    }
+
+    @Override
+    public void decorateMainPanel(WebPanel panel) {
+        // Classic style uses default background
+        panel.setOpaque(true);
+        panel.setBackground(null); // Default
     }
 }

@@ -48,4 +48,11 @@ public interface UIStyle {
      * @param slider The slider to decorate.
      */
     void decorateSlider(WebSlider slider);
+
+    /**
+     * Decorates the main content panel (e.g. background color).
+     * 
+     * @param panel The main container panel.
+     */
+    void decorateMainPanel(WebPanel panel);
 }

@@ -26,7 +26,6 @@ import ui.overlay.SituationAware;
 import prog.model.UsefulData;
 import prog.config.ConfigProvider;
 import prog.config.ConfigurationService;
-import prog.config.ConfigLoader;
 
 public class Controller implements ConfigProvider {
 

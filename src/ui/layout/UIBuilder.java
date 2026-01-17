@@ -1,4 +1,5 @@
 package ui.layout;
+
 import prog.Application;
 
 import java.awt.Container;
@@ -266,5 +267,26 @@ public class UIBuilder {
         btn.setBorderPainted(false);
 
         return btn;
+    }
+
+    /**
+     * Adds a standardized item (Label + Switch) to a card/grid container.
+     */
+    public static WebSwitch addCardItem(Container parent, String labelText, boolean isSelected) {
+        // Create a wrapper panel for the item to ensure proper alignment if needed,
+        // or add directly if parent is a grid that handles pairs.
+        // Assuming parent is a ResponsiveGridLayout with 2*Columns.
+
+        WebLabel label = new WebLabel(labelText);
+        activeStyle.decorateLabel(label);
+
+        WebSwitch webSwitch = new WebSwitch();
+        webSwitch.setSelected(isSelected);
+        activeStyle.decorateSwitch(webSwitch);
+
+        parent.add(label);
+        parent.add(webSwitch);
+
+        return webSwitch;
     }
 }
