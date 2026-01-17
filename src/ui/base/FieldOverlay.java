@@ -98,7 +98,6 @@ public abstract class FieldOverlay extends DraggableOverlay implements FlightDat
         setTitle(title);
         reinitConfig();
         setVisible(true);
-        reinitConfig();
     }
 
     public void initPreview(ConfigProvider config, AttributePool pool) {
@@ -106,7 +105,6 @@ public abstract class FieldOverlay extends DraggableOverlay implements FlightDat
         applyPreviewStyle();
         setupDragListeners();
         setVisible(true);
-        reinitConfig();
     }
 
     // --- Configuration ---

@@ -246,6 +246,18 @@ public class EngineInfo extends WebFrame implements Runnable {
 	}
 
 	public void initTextString() {
+		useNum = 0;
+		idx_hp = Integer.MAX_VALUE;
+		idx_thrust = Integer.MAX_VALUE;
+		idx_rpm = Integer.MAX_VALUE;
+		idx_prop = Integer.MAX_VALUE;
+		idx_eff = Integer.MAX_VALUE;
+		idx_ehp = Integer.MAX_VALUE;
+		idx_eper = Integer.MAX_VALUE;
+		idx_map = Integer.MAX_VALUE;
+		idx_mfuel = Integer.MAX_VALUE;
+		idx_fueltime = Integer.MAX_VALUE;
+
 		totalSwitch = new Boolean[20];
 		totalString = new String[20][];
 		String tmp;

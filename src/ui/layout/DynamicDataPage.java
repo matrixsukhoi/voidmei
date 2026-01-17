@@ -275,25 +275,13 @@ public class DynamicDataPage extends BasePage {
     private void save() {
         // Trigger global save of ui_layout.cfg
         parent.saveDynamicConfig();
-        // Also save config.properties via tc.configService
-        if (parent.tc.configService instanceof prog.config.ConfigurationService) {
-            ((prog.config.ConfigurationService) parent.tc.configService).saveConfig();
-        }
 
-        // Trigger a global preview refresh if NOT in initialization
-        if (!parent.isInitializing) {
-            parent.tc.refreshPreviews();
-        }
+        // Trigger global refresh for ui_layout.cfg changes (visibility, fonts, columns)
+        prog.event.UIStateBus.getInstance().publish(prog.event.UIStateEvents.CONFIG_CHANGED, "ui_layout.cfg");
 
-        // Special handling for legacy EngineInfo which is not a DynamicOverlay
-        if ("Engine Info".equals(groupConfig.title)) {
-            if (parent.tc.overlayManager != null) {
-                ui.overlay.EngineInfo eI = parent.tc.overlayManager.get("engineInfoSwitch");
-                if (eI != null) {
-                    eI.reinitConfig();
-                }
-            }
-        }
+        // config.properties is now handled via ConfigurationService memory-buffering
+        // and debounced background saving. UI triggering is handled via CONFIG_CHANGED
+        // event.
     }
 
     public void update() {
@@ -314,40 +302,13 @@ public class DynamicDataPage extends BasePage {
 
     public void setOverlayVisible(boolean visible) {
         if ("Engine Info".equals(groupConfig.title)) {
-            // Special handling for legacy EngineInfo
-            if (parent.tc.overlayManager != null) {
-                ui.overlay.EngineInfo eI = parent.tc.overlayManager.get("engineInfoSwitch");
-                if (eI != null) {
-                    eI.setVisible(visible);
-                }
-            }
+            parent.tc.configService.setConfig("engineInfoSwitch", Boolean.toString(visible));
         } else if ("Engine Control".equals(groupConfig.title)) {
-            // Engine Control GroupConfig.visible controls the EngineControl overlay
-            // Sync to ConfigurationService so OverlayManager can read it
             parent.tc.configService.setConfig("enableEngineControl", Boolean.toString(visible));
-            // Refresh overlays to apply the change
-            if (!parent.isInitializing) {
-                parent.tc.refreshPreviews();
-            }
         } else if ("MiniHUD".equals(groupConfig.title)) {
-            // MiniHUD GroupConfig.visible controls the MinimalHUD overlay
             parent.tc.configService.setConfig("crosshairSwitch", Boolean.toString(visible));
-            if (!parent.isInitializing) {
-                parent.tc.refreshPreviews();
-            }
         } else if ("Flight Info".equals(groupConfig.title)) {
-            // Flight Info GroupConfig.visible controls the FlightInfo overlay
             parent.tc.configService.setConfig("flightInfoSwitch", Boolean.toString(visible));
-            // Also need to handle edge visibility if main switch is off?
-            // Original code: bFlightInfoSwitch controls "FlightInfo", bFlightInfoEdge
-            // controls "FlightInfoEdge"
-            // We just sync the main switch here.
-            if (!parent.isInitializing) {
-                parent.tc.refreshPreviews();
-            }
-        } else {
-            // Temporarily disabled - DynamicOverlay removed
-            // if (parent.tc.dynamicOverlays != null) { ... }
         }
         overlayVisible = visible;
     }

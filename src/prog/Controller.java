@@ -339,6 +339,14 @@ public class Controller implements ConfigProvider {
 		overlayManager = new OverlayManager(this);
 		registerGameModeOverlays();
 
+		// Listen for live config changes for WYSIWYG
+		prog.event.UIStateBus.getInstance().subscribe(prog.event.UIStateEvents.CONFIG_CHANGED, key -> {
+			// Only refresh if we are in PREVIEW or INIT state (visual feedback needed)
+			if (State == ControllerState.INIT) {
+				refreshPreviews();
+			}
+		});
+
 		// 刷新频率
 		State = ControllerState.INIT;
 		lastEvt = 0;

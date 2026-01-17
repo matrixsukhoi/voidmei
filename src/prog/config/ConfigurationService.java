@@ -2,8 +2,13 @@ package prog.config;
 
 import java.awt.Color;
 import java.awt.RenderingHints;
+import java.util.Timer;
+import java.util.TimerTask;
+
 import prog.Application;
 import prog.Controller;
+import prog.event.UIStateBus;
+import prog.event.UIStateEvents;
 
 /**
  * Main configuration Service implementing ConfigProvider.
@@ -11,6 +16,8 @@ import prog.Controller;
  */
 public class ConfigurationService implements ConfigProvider {
     private Config cfg;
+    private Timer saveTimer;
+    private final long SAVE_DELAY = 2000; // 2 seconds debounce
 
     public ConfigurationService() {
         // Initialize config class (property loader)
@@ -122,8 +129,31 @@ public class ConfigurationService implements ConfigProvider {
 
     @Override
     public void setConfig(String key, String value) {
-        if (cfg != null)
-            cfg.setValue(key, value);
+        if (cfg != null) {
+            String oldVal = cfg.getValue(key);
+            if (!value.equals(oldVal)) {
+                cfg.setValue(key, value);
+
+                // Publish event for live updates
+                UIStateBus.getInstance().publish(UIStateEvents.CONFIG_CHANGED, key);
+
+                // Schedule debounced save
+                scheduleBackgroundSave();
+            }
+        }
+    }
+
+    private synchronized void scheduleBackgroundSave() {
+        if (saveTimer != null) {
+            saveTimer.cancel();
+        }
+        saveTimer = new Timer(true);
+        saveTimer.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                saveConfig();
+            }
+        }, SAVE_DELAY);
     }
 
     // --- Helpers ---
