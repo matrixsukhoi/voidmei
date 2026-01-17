@@ -13,8 +13,8 @@ import ui.MainForm;
 import prog.i18n.Lang;
 import com.alee.laf.button.WebButton;
 import com.alee.extended.button.WebSwitch;
-import com.alee.laf.slider.WebSlider;
-import com.alee.laf.combobox.WebComboBox;
+import prog.event.UIStateBus;
+import prog.event.UIStateEvents;
 import ui.replica.ReplicaBuilder;
 import ui.layout.renderer.RowRenderer;
 import ui.layout.renderer.RowRendererRegistry;
@@ -123,6 +123,11 @@ public class DynamicDataPage extends BasePage {
             public void syncToConfigService(String key, boolean value) {
                 // Bridge to ConfigurationService for overlay visibility control
                 parent.tc.configService.setConfig(key, Boolean.toString(value));
+
+                // Special event handling for FM Print
+                if ("enableFMPrint".equals(key)) {
+                    UIStateBus.getInstance().publish(UIStateEvents.FM_PRINT_SWITCH_CHANGED, value);
+                }
             }
 
             @Override
@@ -328,6 +333,16 @@ public class DynamicDataPage extends BasePage {
         } else if ("MiniHUD".equals(groupConfig.title)) {
             // MiniHUD GroupConfig.visible controls the MinimalHUD overlay
             parent.tc.configService.setConfig("crosshairSwitch", Boolean.toString(visible));
+            if (!parent.isInitializing) {
+                parent.tc.refreshPreviews();
+            }
+        } else if ("Flight Info".equals(groupConfig.title)) {
+            // Flight Info GroupConfig.visible controls the FlightInfo overlay
+            parent.tc.configService.setConfig("flightInfoSwitch", Boolean.toString(visible));
+            // Also need to handle edge visibility if main switch is off?
+            // Original code: bFlightInfoSwitch controls "FlightInfo", bFlightInfoEdge
+            // controls "FlightInfoEdge"
+            // We just sync the main switch here.
             if (!parent.isInitializing) {
                 parent.tc.refreshPreviews();
             }

@@ -100,6 +100,15 @@ public class ConfigurationService implements ConfigProvider {
             Application.textAASetting = RenderingHints.VALUE_TEXT_ANTIALIAS_OFF;
             Application.graphAASetting = RenderingHints.VALUE_ANTIALIAS_OFF;
         }
+
+        String fmKey = getConfig("displayFmKey");
+        if (fmKey != null && !fmKey.isEmpty()) {
+            try {
+                Application.displayFmKey = Integer.parseInt(fmKey);
+            } catch (NumberFormatException e) {
+                // Ignore
+            }
+        }
     }
 
     // --- ConfigProvider Implementation ---

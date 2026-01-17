@@ -202,12 +202,50 @@ public class ReplicaBuilder {
     }
 
     /**
+     * Creates a Color field row: [Label] ... [Color Icon] [RGBA Text]
+     */
+    public static WebPanel createColorField(String labelText, String colorText, Color initialColor) {
+        WebPanel panel = new WebPanel(new BorderLayout(5, 0));
+        style.decorateControlPanel(panel);
+        panel.setBorder(BorderFactory.createEmptyBorder(4, 5, 4, 5));
+
+        WebLabel label = new WebLabel(labelText);
+        style.decorateLabel(label);
+        panel.add(label, BorderLayout.WEST);
+
+        WebTextField trailing = new WebTextField(colorText, 15);
+        trailing.setMargin(0, 0, 0, 2);
+        trailing.setLeadingComponent(
+                new com.alee.extended.image.WebImage(com.alee.utils.ImageUtils.createColorIcon(initialColor)));
+        trailing.setShadeWidth(2);
+
+        panel.add(trailing, BorderLayout.CENTER);
+
+        // Critical: Enable ResponsiveGrid alignment
+        panel.putClientProperty("alignLabel", label);
+
+        return panel;
+    }
+
+    /**
      * Extracts the WebComboBox from a panel created by createDropdownItem.
      */
     public static WebComboBox getComboBox(WebPanel itemPanel) {
         for (java.awt.Component c : itemPanel.getComponents()) {
             if (c instanceof WebComboBox) {
                 return (WebComboBox) c;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Extracts the WebTextField from a panel created by createColorField.
+     */
+    public static WebTextField getColorField(WebPanel itemPanel) {
+        for (java.awt.Component c : itemPanel.getComponents()) {
+            if (c instanceof WebTextField) {
+                return (WebTextField) c;
             }
         }
         return null;

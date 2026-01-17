@@ -41,11 +41,6 @@ src/prog/OverlayContext.java
 src/ui/MainForm.java
 src/ui/StatusBar.java
 src/ui/UIBaseElements.java
-src/ui/panels/LoggingPanel.java
-src/ui/panels/FlightInfoPanel.java
-src/ui/panels/EngineControlPanel.java
-src/ui/panels/AdvancedPanel.java
-src/ui/panels/MiniHUDPanel.java
 src/ui/model/FlightInfoConfig.java
 src/ui/model/DefaultFieldManager.java
 src/ui/model/FlightDataBindings.java
@@ -68,6 +63,8 @@ src/ui/layout/UIStyle.java
 src/ui/layout/BasePage.java
 src/ui/layout/ModernStyle.java
 src/ui/layout/renderer/SwitchInvRowRenderer.java
+src/ui/layout/renderer/ColorRowRenderer.java
+src/ui/layout/renderer/HotkeyRowRenderer.java
 src/ui/layout/renderer/RowRendererRegistry.java
 src/ui/layout/renderer/DataRowRenderer.java
 src/ui/layout/renderer/FileListRowRenderer.java
@@ -75,6 +72,7 @@ src/ui/layout/renderer/SliderRowRenderer.java
 src/ui/layout/renderer/SwitchRowRenderer.java
 src/ui/layout/renderer/ComboRowRenderer.java
 src/ui/layout/renderer/RowRenderer.java
+src/ui/layout/renderer/FMListRowRenderer.java
 src/ui/layout/ResponsiveGridLayout.java
 src/ui/layout/DynamicDataPage.java
 src/ui/layout/UIBuilder.java

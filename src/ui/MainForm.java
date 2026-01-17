@@ -1,7 +1,5 @@
 package ui;
 
-import static javax.swing.JSplitPane.VERTICAL_SPLIT;
-
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Container;
@@ -12,20 +10,13 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
 import javax.swing.ImageIcon;
+import javax.swing.SwingUtilities;
 import com.alee.extended.panel.WebButtonGroup;
 import com.alee.laf.button.WebButton;
 import com.alee.laf.panel.WebPanel;
 import com.alee.laf.rootpane.WebFrame;
-import com.alee.laf.splitpane.WebSplitPane;
 import com.alee.laf.tabbedpane.TabbedPaneStyle;
 import com.alee.laf.tabbedpane.WebTabbedPane;
-import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent;
-
-import ui.layout.UIBuilder;
-import ui.panels.AdvancedPanel;
-import ui.panels.FlightInfoPanel;
-import ui.panels.LoggingPanel;
-// MiniHUDPanel migrated to ui_layout.cfg
 
 import prog.Application;
 import prog.Controller;
@@ -46,9 +37,9 @@ public class MainForm extends WebFrame {
 	Container root;
 	WebTabbedPane tabbedPane;
 
-	AdvancedPanel advancedPanel;
-	FlightInfoPanel flightInfoPanel;
-	LoggingPanel loggingPanel;
+	// AdvancedPanel migrated to ui_layout.cfg
+	// FlightInfoPanel migrated to ui_layout.cfg
+	// LoggingPanel migrated to ui_layout.cfg
 	// MiniHUDPanel migrated to ui_layout.cfg
 
 	WebButton bDisplayFmKey;
@@ -140,114 +131,25 @@ public class MainForm extends WebFrame {
 		return G;
 	}
 
-	private void setupTab(WebPanel tab, WebPanel content) {
-		UIBuilder.decorateStandardPanel(tab);
-		WebPanel topPanel = new WebPanel(new BorderLayout());
-		WebPanel bottomPanel = new WebPanel(new BorderLayout());
-		UIBuilder.decorateInsidePanel(topPanel);
-		UIBuilder.decorateInsidePanel(bottomPanel);
-
-		WebSplitPane splitPane = new WebSplitPane(VERTICAL_SPLIT, topPanel, bottomPanel);
-		splitPane.setOpaque(false);
-		splitPane.setBackground(new Color(0, 0, 0, 0));
-		splitPane.setDividerLocation(320);
-		splitPane.setDividerSize(0);
-		splitPane.setContinuousLayout(false);
-		splitPane.setDrawDividerBorder(false);
-		splitPane.setOneTouchExpandable(false);
-		splitPane.setEnabled(false);
-
-		topPanel.add(content, BorderLayout.CENTER);
-
-		bottomPanel.add(createbuttonGroup(), BorderLayout.LINE_END);
-		bottomPanel.add(createLBGroup(bottomPanel), BorderLayout.LINE_START);
-
-		tab.add(splitPane);
-	}
-
-	public void initJP1(WebPanel jp1) {
-		advancedPanel = new AdvancedPanel();
-		advancedPanel.setOnChange(() -> {
-			if (isInitializing)
-				return;
-			saveConfig();
-			tc.refreshPreviews();
-		});
-		setupTab(jp1, advancedPanel);
-	}
-
-	public void initJP2(WebPanel jp2) {
-		// engineInfoPanel = new EngineInfoPanel();
-		// engineInfoPanel.setOnChange(() -> {
-		// saveConfig();
-		// if (!isInitializing) {
-		// tc.refreshPreviews();
-		// }
-		// });
-		// setupTab(jp2, engineInfoPanel);
-	}
-
-	public void initJP3(WebPanel jp3) {
-		// MiniHUDPanel migrated to ui_layout.cfg - tab now handled by DynamicDataPage
-	}
-
-	public void initJP4(WebPanel jp4) {
-		flightInfoPanel = new FlightInfoPanel();
-		flightInfoPanel.setOnChange(() -> {
-			if (isInitializing)
-				return;
-			saveConfig();
-			tc.refreshPreviews();
-		});
-		setupTab(jp4, flightInfoPanel);
-	}
-
-	public void initJP5(WebPanel jp5) {
-		loggingPanel = new LoggingPanel(this);
-		loggingPanel.setOnChange(() -> {
-			saveConfig();
-			if (!isInitializing) {
-				tc.refreshPreviews();
-			}
-		});
-		loggingPanel.setOnSave(() -> saveConfig());
-		// Sync now handled by UIStateBus in prog.event
-		setupTab(jp5, loggingPanel);
-	}
-
-	public void initJP6(WebPanel jp6) {
-		// Engine Control panel now handled by DynamicDataPage via ui_layout.cfg
-		// This method is kept for potential future use
-	}
-
 	public void initPanel() {
+		// Use BorderLayout for frame content
+		this.setLayout(new BorderLayout());
+
 		tabbedPane = new WebTabbedPane();
 		tabbedPane.setTabPlacement(WebTabbedPane.LEFT);
-		// tabbedPane.setTabLayoutPolicy(JTabbedPane.SCROLL_TAB_LAYOUT);
 
-		WebPanel jp1 = new WebPanel();
-		WebPanel jp2 = new WebPanel();
-		WebPanel jp3 = new WebPanel();
-		WebPanel jp4 = new WebPanel();
-		WebPanel jp5 = new WebPanel();
-		WebPanel jp6 = new WebPanel();
-		initJP1(jp1);
-		initJP2(jp2);
-		initJP3(jp3);
-		initJP4(jp4);
-		initJP5(jp5);
-		// JP6 (Engine Control) now handled by dynamic tabs
+		// Add empty tabs (content migrated to config)
+		// We keep them if user expects them, but really they should be gone if config
+		// covers them.
+		// For now, let's keep them as placeholders or remove if fully migrated.
+		// Task says "Remove LoggingPanel", "AdvancedPanel", etc.
+		// If I remove them from UI, the user only sees Dynamic Tabs.
+		// Phase 16 says "Final Cleanup: Delete old panel classes"
+		// So I should remove these tabs too if they are empty.
 
-		tabbedPane.addTab(Lang.mFlightInfo, jp4);
-		// Engine Control tab removed - now in dynamic tabs
-		tabbedPane.addTab(Lang.mLoggingAndAnalysis, jp5);
-		tabbedPane.addTab(Lang.mCrosshair, jp3);
-		tabbedPane.addTab(Lang.mAdvancedOption, jp1);
-
-		// Dynamic Tabs from Config - use already initialized configs from Controller
+		// Add Dynamic Tabs from Config
 		dynamicPages = new java.util.ArrayList<>();
 		if (tc.dynamicConfigs.isEmpty()) {
-			// Fallback if no config or empty
 			ui.layout.UIBuilder.addRightAlignedTab(tabbedPane, "Data (Empty)", new ui.layout.DynamicDataPage(this),
 					Application.defaultFontBig);
 		} else {
@@ -257,24 +159,16 @@ public class MainForm extends WebFrame {
 				ui.layout.UIBuilder.addRightAlignedTab(tabbedPane, group.title, page, Application.defaultFontBig);
 			}
 		}
-		// tabbedPane.setTabBorderColor(new Color(0, 0, 0, 0));
-		// tabbedPane.setContentBorderColor(new Color(0, 0, 0, 0));
-		// tabbedPane.setShadeWidth(1);
-		// tabbedPane.setSelectedBottomBg(new Color(0, 0, 0,20));
-		// tabbedPane.setSelectedTopBg(new Color(0, 0, 0, 20));
-		// tabbedPane.setBackgroundAt(1, new Color(0, 0, 0, 0));
 
-		// tabbedPane.setSelectedForegroundAt(0,(new Color(0, 0, 0, 0));
 		tabbedPane.setSelectedIndex(0);
-
 		tabbedPane.setOpaque(false);
 		tabbedPane.setBackground(new Color(0, 0, 0, 0));
-		// tabbedPane.getWebUI().setBackgroundColor(new Color(0,0,0,0));
 		tabbedPane.setFont(Application.defaultFontBig);
 		tabbedPane.setPaintOnlyTopBorder(true);
 		tabbedPane.setPaintBorderOnlyOnSelectedTab(true);
 		tabbedPane.setTabbedPaneStyle(TabbedPaneStyle.attached);
-		this.add(tabbedPane);
+
+		this.add(tabbedPane, BorderLayout.CENTER);
 
 		tabbedPane.addChangeListener(e -> {
 			updateDynamicSize();
@@ -310,7 +204,8 @@ public class MainForm extends WebFrame {
 		if (isInitializing || tabbedPane == null)
 			return;
 		java.awt.Component selected = tabbedPane.getSelectedComponent();
-		int targetWidth = width - 30; // weblaf好像会加15px+15px==30px的边框, 所以要减去30px.
+		// 这里是特殊适配, 不能修改.
+		int targetWidth = width - 30; // weblaf会加15px+15px==30px的边框, 所以要减去30px.
 		if (selected instanceof ui.layout.DynamicDataPage) {
 			ui.layout.DynamicDataPage page = (ui.layout.DynamicDataPage) selected;
 			int reqH = page.getRequiredHeight();
@@ -332,18 +227,18 @@ public class MainForm extends WebFrame {
 	}
 
 	public void loadConfig() {
-		flightInfoPanel.loadConfig(tc.configService);
+		// flightInfoPanel now loaded from ui_layout.cfg
 		// miniHUDPanel now loaded from ui_layout.cfg
-		advancedPanel.loadConfig(tc.configService);
-		loggingPanel.loadConfig(tc.configService);
+		// advancedPanel now loaded from ui_layout.cfg
+		// loggingPanel now loaded from ui_layout.cfg
 		// engineControlPanel now loaded from ui_layout.cfg
 	}
 
 	public void initDefaults() {
-		FlightInfoPanel.initDefaults(tc.configService);
+		// FlightInfoPanel defaults handled by ConfigurationService
 		// MiniHUDPanel defaults handled by ConfigurationService
-		LoggingPanel.initDefaults(tc.configService);
-		AdvancedPanel.initDefaults(tc.configService);
+		// LoggingPanel defaults handled by ConfigurationService
+		// AdvancedPanel defaults handled by ConfigurationService
 
 		// crosshairName now handled by MiniHUD section in ui_layout.cfg
 	}
@@ -352,14 +247,12 @@ public class MainForm extends WebFrame {
 		if (isInitializing)
 			return;
 
-		flightInfoPanel.saveConfig(tc.configService);
-		advancedPanel.saveConfig(tc.configService);
+		// flightInfoPanel now saved to ui_layout.cfg
+		// advancedPanel now saved to ui_layout.cfg
 		// engineInfoPanel.saveConfig(tc.configService);
 		// engineControlPanel now saved to ui_layout.cfg
-		loggingPanel.saveConfig(tc.configService);
-		// miniHUDPanel now saved to ui_layout.cfg
-
-		tc.setconfig("displayFmKey", Integer.toString(Application.displayFmKey));
+		// loggingPanel now saved to ui_layout.cfg
+		// displayFmKey handled by HotkeyRowRenderer and direct config setting
 
 	}
 
@@ -439,15 +332,6 @@ public class MainForm extends WebFrame {
 		isInitializing = true;
 		initPanel();
 		loadConfig();// 读入Config
-		try {
-			String keyStr = tc.getconfig("displayFmKey");
-			if (keyStr != null && !keyStr.isEmpty() && !keyStr.equals("null")) {
-				Application.displayFmKey = Integer.parseInt(keyStr);
-				loggingPanel.bDisplayFmKey.setText(NativeKeyEvent.getKeyText(Application.displayFmKey));
-			}
-		} catch (Exception e) {
-		}
-
 		isInitializing = false;
 
 		setShowResizeCorner(false);
@@ -459,6 +343,10 @@ public class MainForm extends WebFrame {
 		// Ensure overlays are visible if we started in preview mode
 		tc.setDynamicOverlaysVisible(true, false);
 
+		// Execute resize check after UI is fully visible/ready
+		SwingUtilities.invokeLater(() -> {
+			updateDynamicSize();
+		});
 	}
 
 	/**

@@ -250,6 +250,25 @@ public class ConfigLoader {
                             if (parts2.length >= 2)
                                 rc.format = parts2[1]; // Directory path
                             rc.visible = true;
+                        } else if (formula.startsWith("FMLIST:")) {
+                            // Format: FMLIST:configKey:directoryPath
+                            rc.type = "FMLIST";
+                            String[] parts2 = formula.substring(7).split(":", 2);
+                            if (parts2.length >= 1)
+                                rc.property = parts2[0];
+                            if (parts2.length >= 2)
+                                rc.format = parts2[1]; // Directory path
+                            rc.visible = true;
+                        } else if (formula.startsWith("HOTKEY:")) {
+                            // Format: HOTKEY:configKey
+                            rc.type = "HOTKEY";
+                            rc.property = formula.substring(7);
+                            rc.visible = true;
+                        } else if (formula.startsWith("COLOR:")) {
+                            // Format: COLOR:configKeyPrefix
+                            rc.type = "COLOR";
+                            rc.property = formula.substring(6);
+                            rc.visible = true;
                         } else {
                             // Regular DATA row
                             rc.type = "DATA";

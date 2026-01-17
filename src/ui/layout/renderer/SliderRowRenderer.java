@@ -24,7 +24,20 @@ public class SliderRowRenderer implements RowRenderer {
         }
         int currentVal = PropertyBinder.getInt(groupConfig, row.property, defaultVal);
 
-        WebPanel itemPanel = ReplicaBuilder.createSliderItem(row.label, row.minVal, row.maxVal, currentVal, 150);
+        // Ensure min < max to avoid crash
+        int min = row.minVal;
+        int max = row.maxVal;
+        if (min >= max) {
+            max = min + 100; // Fallback
+        }
+
+        // Clamp value to range
+        if (currentVal < min)
+            currentVal = min;
+        if (currentVal > max)
+            currentVal = max;
+
+        WebPanel itemPanel = ReplicaBuilder.createSliderItem(row.label, min, max, currentVal, 150);
         WebSlider slider = ReplicaBuilder.getSlider(itemPanel);
 
         if (slider != null) {
