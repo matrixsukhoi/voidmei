@@ -10,7 +10,7 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionAdapter;
 import java.io.File;
 
-import ui.util.FileUtils;
+import prog.util.FileUtils;
 
 import com.alee.extended.button.WebSwitch;
 import com.alee.extended.layout.VerticalFlowLayout;

@@ -72,8 +72,6 @@ public class controller implements ConfigProvider {
 	public long freqStickValue;
 	//
 
-	gcThread G;
-
 	public static boolean engineInfoSwitch;// engineInfo面板开启
 	public static boolean engineInfoEdge;// engineInfo面板边缘开启
 

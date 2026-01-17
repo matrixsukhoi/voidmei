@@ -8,7 +8,7 @@ import com.alee.laf.label.WebLabel;
 import com.alee.laf.panel.WebPanel;
 import com.alee.laf.slider.WebSlider;
 
-import ui.util.FileUtils;
+import prog.util.FileUtils;
 
 public class UIBuilder {
 

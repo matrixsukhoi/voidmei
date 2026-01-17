@@ -15,7 +15,6 @@ src/prog/event/UIStateBus.java
 src/prog/event/FlightDataBus.java
 src/prog/controller.java
 src/prog/service.java
-src/prog/gcThread.java
 src/prog/uiThread.java
 src/prog/app.java
 src/prog/lang.java
@@ -26,6 +25,7 @@ src/prog/ActivationStrategy.java
 src/prog/ControllerState.java
 src/prog/voiceWarning.java
 src/prog/otherService.java
+src/prog/util/FileUtils.java
 src/prog/util/FormulaEvaluator.java
 src/prog/calcHelper.java
 src/prog/config/ConfigurationService.java
@@ -75,7 +75,6 @@ src/ui/layout/ResponsiveGridLayout.java
 src/ui/layout/DynamicDataPage.java
 src/ui/layout/UIBuilder.java
 src/ui/layout/ClassicStyle.java
-src/ui/util/FileUtils.java
 src/ui/util/NotificationService.java
 src/ui/util/NotificationFactory.java
 src/ui/overlay/ZebraListRenderer.java
