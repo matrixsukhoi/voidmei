@@ -348,9 +348,12 @@ public class Controller implements ConfigProvider {
 			// Only refresh if we are in PREVIEW state.
 			// In INIT state (startup), we don't want to trigger FM loads yet.
 			if (State == ControllerState.PREVIEW) {
+				// prog.util.Logger.info("Controller", "ACTION: Controller: Refreshing Previews
+				// (" + key + ")");
 				refreshPreviews();
 			} else {
 				// Just update local config without full refresh/data load
+				prog.util.Logger.info("Controller", "ACTION: Controller: Reloading config (" + key + ")");
 				loadFromConfig();
 			}
 		});
@@ -399,6 +402,9 @@ public class Controller implements ConfigProvider {
 			/* 设置高优先级 */
 			S1.setPriority(Thread.MAX_PRIORITY);
 			S1.start();
+
+			// Save config when entering game mode
+			configService.saveConfig();
 
 		}
 
@@ -577,6 +583,9 @@ public class Controller implements ConfigProvider {
 			M.dispose();
 			M = null;
 			System.gc();
+			// Explicit save on Application Exit (MainForm dispose)
+			if (configService != null)
+				configService.saveConfig();
 			return;
 		}
 
@@ -659,6 +668,8 @@ public class Controller implements ConfigProvider {
 	public void endPreview() {
 		prog.util.Logger.info("Controller", "Exiting Preview mode...");
 		overlayManager.closeAll();
+		// Explicit save when exiting preview
+		configService.saveConfig();
 		State = ControllerState.INIT;
 		System.gc();
 	}

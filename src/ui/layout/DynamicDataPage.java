@@ -126,7 +126,8 @@ public class DynamicDataPage extends BasePage {
 
                 // Special event handling for FM Print
                 if ("enableFMPrint".equals(key)) {
-                    UIStateBus.getInstance().publish(UIStateEvents.FM_PRINT_SWITCH_CHANGED, value);
+                    UIStateBus.getInstance().publish(UIStateEvents.FM_PRINT_SWITCH_CHANGED,
+                            "DynamicDataPage(RenderContext)", value);
                 }
             }
 
@@ -277,7 +278,9 @@ public class DynamicDataPage extends BasePage {
         parent.saveDynamicConfig();
 
         // Trigger global refresh for ui_layout.cfg changes (visibility, fonts, columns)
-        prog.event.UIStateBus.getInstance().publish(prog.event.UIStateEvents.CONFIG_CHANGED, "ui_layout.cfg");
+        // Trigger global refresh for ui_layout.cfg changes (visibility, fonts, columns)
+        prog.event.UIStateBus.getInstance().publish(prog.event.UIStateEvents.CONFIG_CHANGED,
+                this.getClass().getSimpleName(), "ui_layout.cfg");
 
         // config.properties is now handled via ConfigurationService memory-buffering
         // and debounced background saving. UI triggering is handled via CONFIG_CHANGED
@@ -301,14 +304,8 @@ public class DynamicDataPage extends BasePage {
     }
 
     public void setOverlayVisible(boolean visible) {
-        if ("Engine Info".equals(groupConfig.title)) {
-            parent.tc.configService.setConfig("engineInfoSwitch", Boolean.toString(visible));
-        } else if ("Engine Control".equals(groupConfig.title)) {
-            parent.tc.configService.setConfig("enableEngineControl", Boolean.toString(visible));
-        } else if ("MiniHUD".equals(groupConfig.title)) {
-            parent.tc.configService.setConfig("crosshairSwitch", Boolean.toString(visible));
-        } else if ("Flight Info".equals(groupConfig.title)) {
-            parent.tc.configService.setConfig("flightInfoSwitch", Boolean.toString(visible));
+        if (groupConfig.switchKey != null && !groupConfig.switchKey.isEmpty()) {
+            parent.tc.configService.setConfig(groupConfig.switchKey, Boolean.toString(visible));
         }
         overlayVisible = visible;
     }

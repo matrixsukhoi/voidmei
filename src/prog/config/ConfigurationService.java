@@ -2,8 +2,6 @@ package prog.config;
 
 import java.awt.Color;
 import java.awt.RenderingHints;
-import java.util.Timer;
-import java.util.TimerTask;
 
 import prog.Application;
 import prog.Controller;
@@ -16,8 +14,8 @@ import prog.event.UIStateEvents;
  */
 public class ConfigurationService implements ConfigProvider {
     private Config cfg;
-    private Timer saveTimer;
-    private final long SAVE_DELAY = 2000; // 2 seconds debounce
+    // private Timer saveTimer; // Removed
+    // private final long SAVE_DELAY = 2000; // Removed
 
     public ConfigurationService() {
         // Initialize config class (property loader)
@@ -135,32 +133,23 @@ public class ConfigurationService implements ConfigProvider {
                 cfg.setValue(key, value);
 
                 // Publish event for live updates
-                UIStateBus.getInstance().publish(UIStateEvents.CONFIG_CHANGED, key);
+                UIStateBus.getInstance().publish(UIStateEvents.CONFIG_CHANGED, "ConfigurationService", key);
 
-                // Schedule debounced save
-                scheduleBackgroundSave();
+                // Schedule debounced save - Removed for manual save strategy
+                // scheduleBackgroundSave();
             }
         }
     }
 
-    private synchronized void scheduleBackgroundSave() {
-        if (saveTimer != null) {
-            saveTimer.cancel();
-        }
-        saveTimer = new Timer(true);
-        saveTimer.schedule(new TimerTask() {
-            @Override
-            public void run() {
-                saveConfig();
-            }
-        }, SAVE_DELAY);
-    }
+    // private synchronized void scheduleBackgroundSave() { ... } // Removed
 
     // --- Helpers ---
 
     public void saveConfig() {
-        if (cfg != null)
+        if (cfg != null) {
+            prog.util.Logger.info("ConfigurationService", "ACTION: ConfigurationService: Saving to config.properties");
             cfg.saveFile("./config/config.properties", "8111");
+        }
     }
 
     public Color getColorConfig(String key) {

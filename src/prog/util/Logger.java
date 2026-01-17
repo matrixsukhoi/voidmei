@@ -19,7 +19,7 @@ public class Logger {
     }
 
     private static Level minLevel = Level.INFO;
-    private static final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+    private static final SimpleDateFormat dateFormat = new SimpleDateFormat("HH:mm:ss.SSS");
 
     public static void setMinLevel(Level level) {
         minLevel = level;
@@ -46,10 +46,11 @@ public class Logger {
      */
     public static void event(String action, String eventName, Object source, Object target) {
         if (minLevel.value <= Level.INFO.value) {
-            String msg = String.format("%s [%s] Source: %s -> Target: %s",
-                    action, eventName,
+            String msg = String.format("%s: %s -> %s: %s",
+                    action,
                     source != null ? source.getClass().getSimpleName() : "Unknown",
-                    target != null ? target.toString() : "Global");
+                    target != null ? target.toString() : "Global",
+                    eventName);
             log(Level.INFO, "EventBus", msg);
         }
     }

@@ -1,7 +1,5 @@
 package ui.overlay;
 
-import prog.i18n.Lang;
-
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Container;

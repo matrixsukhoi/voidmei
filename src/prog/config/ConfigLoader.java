@@ -50,6 +50,7 @@ public class ConfigLoader {
         public int fontSize = 0; // Font size adjustment (-6 to +20)
         public int columns = 2; // Number of columns for layout
         public int panelColumns = 2; // Number of columns for SETTINGS PANEL layout
+        public String switchKey = null; // Config key for visibility switch (e.g. "flightInfoSwitch")
         public List<RowConfig> rows = new ArrayList<>();
 
         public GroupConfig(String title) {
@@ -180,6 +181,9 @@ public class ConfigLoader {
                             currentGroup.panelColumns = Integer.parseInt(line.substring(13).trim());
                         } catch (Exception e) {
                         }
+                } else if (line.startsWith("SwitchKey=")) {
+                    if (currentGroup != null)
+                        currentGroup.switchKey = line.substring(10).trim();
                 } else {
                     // Item line: Label || Formula || Format || Value/Visible
                     // Extended format: Label || TYPE:property:params || format || defaultValue
@@ -313,6 +317,9 @@ public class ConfigLoader {
                 }
                 if (group.panelColumns != 2) {
                     pw.println("PanelColumns=" + group.panelColumns);
+                }
+                if (group.switchKey != null) {
+                    pw.println("SwitchKey=" + group.switchKey);
                 }
                 pw.println();
 

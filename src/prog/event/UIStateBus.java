@@ -49,24 +49,33 @@ public class UIStateBus {
     }
 
     /**
-     * Publish an event to all subscribers.
+     * Publish an event to all subscribers with explicit source.
      * 
      * @param eventType The event type identifier
+     * @param source    The object initiating the event (for logging)
      * @param data      The event payload
      */
-    public void publish(String eventType, Object data) {
-        prog.util.Logger.event("PUBLISH", eventType, null, data);
+    public void publish(String eventType, Object source, Object data) {
+        prog.util.Logger.event("PUBLISH", eventType, source, data);
         List<Consumer<Object>> handlers = subscribers.get(eventType);
         if (handlers != null) {
             for (Consumer<Object> handler : handlers) {
                 try {
-                    prog.util.Logger.debug("UIStateBus", " -> Calling handler: " + handler.getClass().getName());
+                    // prog.util.Logger.debug("UIStateBus", " -> Calling handler: " +
+                    // handler.getClass().getName());
                     handler.accept(data);
                 } catch (Exception e) {
                     prog.util.Logger.error("UIStateBus", "Error in handler for " + eventType + ": " + e.getMessage());
                 }
             }
         }
+    }
+
+    /**
+     * Publish an event to all subscribers (legacy).
+     */
+    public void publish(String eventType, Object data) {
+        publish(eventType, null, data);
     }
 
     /**
