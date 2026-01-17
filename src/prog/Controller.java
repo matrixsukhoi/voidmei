@@ -777,7 +777,9 @@ public class Controller implements ConfigProvider {
 
 		if (Blkx.valid == true) {
 			Blkx.getAllplotdata();
-			Blkx.data = null;
+			Blkx.finalizeLoading();
+			// Explicitly trigger GC after loading the massive FM data structures
+			System.gc();
 
 			// Populate Global Pool
 			globalPool.putAll(Blkx.getVariableMap());

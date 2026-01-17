@@ -1417,6 +1417,14 @@ public class Blkx {
 	}
 
 	/**
+	 * Releases the large raw data string after parsing is complete to save memory.
+	 */
+	public void finalizeLoading() {
+		this.data = null;
+		// We keep fmdata as it is used by FMDataOverlay
+	}
+
+	/**
 	 * Returns a flattened map of all public fields for the Formula Engine.
 	 */
 	public java.util.Map<String, Object> getVariableMap() {
