@@ -23,7 +23,7 @@ import ui.overlay.FlightInfo;
 import ui.overlay.GearAndFlaps;
 import ui.MainForm;
 import ui.overlay.SituationAware;
-import prog.model.UsefulData;
+import ui.overlay.FMDataOverlay;
 import prog.config.ConfigProvider;
 import prog.config.ConfigurationService;
 
@@ -513,10 +513,10 @@ public class Controller implements ConfigProvider {
 
 		// UsefulData (FMPrint) - supports preview
 		overlayManager.registerWithPreview("enableFMPrint",
-				() -> new UsefulData(),
-				overlay -> ((UsefulData) overlay).init(this, getBlkx()),
-				overlay -> ((UsefulData) overlay).initPreview(this, getBlkx()),
-				overlay -> ((UsefulData) overlay).reinitConfig(getBlkx()),
+				() -> new FMDataOverlay(),
+				overlay -> ((FMDataOverlay) overlay).init(this),
+				overlay -> ((FMDataOverlay) overlay).initPreview(this),
+				overlay -> ((FMDataOverlay) overlay).reinitConfig(),
 				true);
 
 		// thrustdFS - requires enableFMPrint AND isJet
@@ -592,7 +592,7 @@ public class Controller implements ConfigProvider {
 				.addNativeKeyListener(new com.github.kwhat.jnativehook.keyboard.NativeKeyListener() {
 					@Override
 					public void nativeKeyPressed(com.github.kwhat.jnativehook.keyboard.NativeKeyEvent e) {
-						int code = e.getKeyCode();
+						// int code = e.getKeyCode();
 						// TODO: Dynamic Overlay hotkey handling disabled
 					}
 				});

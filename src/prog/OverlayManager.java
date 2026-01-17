@@ -197,6 +197,11 @@ public class OverlayManager {
                     } else if (gameModeInitializer != null) {
                         gameModeInitializer.accept(instance);
                     }
+
+                    if (needsThread && instance instanceof Runnable) {
+                        thread = new Thread((Runnable) instance);
+                        thread.start();
+                    }
                 } else if (reinitializer != null) {
                     reinitializer.accept(instance);
                 }

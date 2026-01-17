@@ -14,6 +14,7 @@ import java.util.function.Supplier;
 import com.alee.laf.panel.WebPanel;
 import com.alee.laf.rootpane.WebFrame;
 import com.alee.extended.layout.VerticalFlowLayout;
+import prog.util.Logger;
 
 import prog.Application;
 
@@ -219,6 +220,7 @@ public class BaseOverlay extends WebFrame implements Runnable {
             if (isPreview || isVisibleNow()) {
                 List<String> currentData = dataSupplier.get();
                 if (currentData != null && !currentData.equals(lastData)) {
+                    Logger.info("BaseOverlay", "Data changed (Lines: " + currentData.size() + "). Updating UI.");
                     updateUI(currentData);
                     lastData = currentData;
                 }

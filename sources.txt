@@ -17,7 +17,6 @@ src/prog/Controller.java
 src/prog/FlapsControl.java
 src/prog/Service.java
 src/prog/OverlayManager.java
-src/prog/model/UsefulData.java
 src/prog/model/InfoList.java
 src/prog/i18n/Lang.java
 src/prog/ActivationStrategy.java
@@ -56,6 +55,7 @@ src/ui/base/FieldOverlay.java
 src/ui/renderer/BOSStyleRenderer.java
 src/ui/renderer/OverlayRenderer.java
 src/ui/renderer/RenderContext.java
+src/ui/renderer/TextOnlyRenderer.java
 src/ui/WebLafSettings.java
 src/ui/replica/PinkStyle.java
 src/ui/replica/ReplicaPanel.java
@@ -82,6 +82,7 @@ src/ui/layout/ClassicStyle.java
 src/ui/util/NotificationService.java
 src/ui/util/NotificationFactory.java
 src/ui/overlay/SituationAware.java
+src/ui/overlay/FMDataOverlay.java
 src/ui/overlay/ZebraListRenderer.java
 src/ui/overlay/MinimalHUD.java
 src/ui/overlay/AttitudeIndicator.java
