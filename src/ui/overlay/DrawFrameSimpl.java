@@ -29,6 +29,20 @@ public class DrawFrameSimpl extends WebFrame implements Runnable {
 	Controller xc;
 	FlightAnalyzer fA;
 	WebPanel panel;
+
+	public DrawFrameSimpl() {
+		super();
+		prog.util.Logger.info("Overlay",
+				"Created instance: " + this.getClass().getSimpleName() + "@" + Integer.toHexString(hashCode()));
+	}
+
+	@Override
+	public void dispose() {
+		prog.util.Logger.info("Overlay",
+				"Disposing instance: " + this.getClass().getSimpleName() + "@" + Integer.toHexString(hashCode()));
+		super.dispose();
+	}
+
 	int pixIndex = 0;
 	int Index = 8;
 	boolean useBlkx = true;

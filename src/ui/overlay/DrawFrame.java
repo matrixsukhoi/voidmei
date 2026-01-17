@@ -31,6 +31,20 @@ public class DrawFrame extends WebFrame implements Runnable {
 	private static final long serialVersionUID = 6290400898885722422L;
 	Controller xc;
 	FlightAnalyzer fA;
+
+	public DrawFrame() {
+		super();
+		prog.util.Logger.info("Overlay",
+				"Created instance: " + this.getClass().getSimpleName() + "@" + Integer.toHexString(hashCode()));
+	}
+
+	@Override
+	public void dispose() {
+		prog.util.Logger.info("Overlay",
+				"Disposing instance: " + this.getClass().getSimpleName() + "@" + Integer.toHexString(hashCode()));
+		super.dispose();
+	}
+
 	WebPanel panel;
 	int pixIndex = 0;
 	int Index = 8;

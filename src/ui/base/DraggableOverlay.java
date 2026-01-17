@@ -23,6 +23,19 @@ public abstract class DraggableOverlay extends WebFrame implements Runnable {
     // Thread control
     public volatile boolean doit = true;
 
+    public DraggableOverlay() {
+        super();
+        prog.util.Logger.info("Overlay",
+                "Created instance: " + this.getClass().getSimpleName() + "@" + Integer.toHexString(hashCode()));
+    }
+
+    @Override
+    public void dispose() {
+        prog.util.Logger.info("Overlay",
+                "Disposing instance: " + this.getClass().getSimpleName() + "@" + Integer.toHexString(hashCode()));
+        super.dispose();
+    }
+
     // Config for position saving
     protected ConfigProvider config;
     protected String posXKey;

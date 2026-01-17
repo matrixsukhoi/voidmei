@@ -234,6 +234,9 @@ public class Application {
 				@Override
 				public void mouseClicked(MouseEvent e) {
 					if (e.getButton() == MouseEvent.BUTTON1) {
+						prog.util.Logger.info("Application", "--------------------------------------------------");
+						prog.util.Logger.info("Application", "ACTION: Tray Icon Clicked. Restoring MainForm...");
+						prog.util.Logger.info("Application", "--------------------------------------------------");
 						ctr.stop();
 						ctr = new Controller();
 					}

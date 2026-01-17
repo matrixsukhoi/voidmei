@@ -257,6 +257,7 @@ public class MainForm extends WebFrame {
 	}
 
 	public void confirm() {
+		prog.util.Logger.info("MainForm", "ACTION: User confirmed start. Initializing Game Mode...");
 		tc.endPreview();
 		moveCheckFlag = false;
 		saveConfig();
@@ -382,6 +383,9 @@ public class MainForm extends WebFrame {
 
 	public void startPreview() {
 		if (moveCheckFlag == null || moveCheckFlag == false) {
+			prog.util.Logger.info("MainForm", "--------------------------------------------------");
+			prog.util.Logger.info("MainForm", "ACTION: User clicked Start Preview.");
+			prog.util.Logger.info("MainForm", "--------------------------------------------------");
 			ui.util.NotificationService.show(prog.i18n.Lang.mMovePanel);
 			saveConfig();
 			tc.Preview();
@@ -394,6 +398,9 @@ public class MainForm extends WebFrame {
 
 	public void stopPreview() {
 		if (moveCheckFlag != null && moveCheckFlag) {
+			prog.util.Logger.info("MainForm", "--------------------------------------------------");
+			prog.util.Logger.info("MainForm", "ACTION: User clicked Stop Preview.");
+			prog.util.Logger.info("MainForm", "--------------------------------------------------");
 			tc.endPreview();
 			moveCheckFlag = false;
 

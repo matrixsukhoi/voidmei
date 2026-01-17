@@ -172,9 +172,13 @@ public class OverlayManager {
         }
 
         void open(OverlayContext ctx) {
-            if (instance != null)
+            if (instance != null) {
+                prog.util.Logger.info("OverlayManager",
+                        "Skipping open for " + key + ": already active instance=" + instance);
                 return;
+            }
 
+            prog.util.Logger.info("OverlayManager", "Opening overlay: " + key);
             instance = factory.get();
             if (gameModeInitializer != null) {
                 gameModeInitializer.accept(instance);
@@ -183,6 +187,7 @@ public class OverlayManager {
             if (needsThread && instance instanceof Runnable) {
                 thread = new Thread((Runnable) instance);
                 thread.start();
+                prog.util.Logger.info("OverlayManager", "Started thread for: " + key);
             }
         }
 
@@ -191,6 +196,7 @@ public class OverlayManager {
 
             if (shouldBeOpen) {
                 if (instance == null) {
+                    prog.util.Logger.info("OverlayManager", "Creating preview overlay: " + key);
                     instance = factory.get();
                     if (previewInitializer != null) {
                         previewInitializer.accept(instance);
@@ -201,11 +207,14 @@ public class OverlayManager {
                     if (needsThread && instance instanceof Runnable) {
                         thread = new Thread((Runnable) instance);
                         thread.start();
+                        prog.util.Logger.info("OverlayManager", "Started thread for preview: " + key);
                     }
                 } else if (reinitializer != null) {
+                    prog.util.Logger.info("OverlayManager", "Re-initializing existing preview: " + key);
                     reinitializer.accept(instance);
                 }
             } else if (instance != null) {
+                prog.util.Logger.info("OverlayManager", "Closing preview overlay (inactive strategy): " + key);
                 close();
             }
         }
@@ -213,6 +222,8 @@ public class OverlayManager {
         void close() {
             if (instance == null)
                 return;
+
+            prog.util.Logger.info("OverlayManager", "Closing overlay: " + key);
 
             // Save position if draggable
             if (instance instanceof DraggableOverlay) {
@@ -229,6 +240,7 @@ public class OverlayManager {
             // Dispose if Window
             if (instance instanceof java.awt.Window) {
                 ((java.awt.Window) instance).dispose();
+                prog.util.Logger.info("OverlayManager", "Disposed window: " + key);
             }
 
             instance = null;

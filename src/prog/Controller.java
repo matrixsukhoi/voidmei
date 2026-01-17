@@ -426,6 +426,9 @@ public class Controller implements ConfigProvider {
 			System.gc();
 			// NotificationManager.showNotification(createWebNotification("程序最小化至托盘，注意右上角状态条提示"));
 
+			prog.util.Logger.info("Controller", "--------------------------------------------------");
+			prog.util.Logger.info("Controller", "ACTION: Starting Game Mode Services...");
+			prog.util.Logger.info("Controller", "--------------------------------------------------");
 			S = new Service(this);
 			S1 = new Thread(S);
 			/* 设置高优先级 */

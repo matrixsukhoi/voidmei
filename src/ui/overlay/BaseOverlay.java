@@ -55,8 +55,17 @@ public class BaseOverlay extends WebFrame implements Runnable {
 
     public BaseOverlay() {
         super();
+        prog.util.Logger.info("Overlay",
+                "Created instance: " + this.getClass().getSimpleName() + "@" + Integer.toHexString(hashCode()));
         // Default renderer
         this.renderer = new ZebraListRenderer();
+    }
+
+    @Override
+    public void dispose() {
+        prog.util.Logger.info("Overlay",
+                "Disposing instance: " + this.getClass().getSimpleName() + "@" + Integer.toHexString(hashCode()));
+        super.dispose();
     }
 
     public void setRenderer(OverlayRenderer renderer) {

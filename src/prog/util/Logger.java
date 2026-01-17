@@ -58,7 +58,11 @@ public class Logger {
     private static void log(Level level, String component, String message) {
         if (level.value >= minLevel.value) {
             String timestamp = dateFormat.format(new Date());
-            System.out.printf("[%s] [%-10s] [%-5s] %s%n", timestamp, component, level, message);
+            if (level == Level.INFO) {
+                System.out.printf("[%s] [%-10s] %s%n", timestamp, component, message);
+            } else {
+                System.out.printf("[%s] [%-10s] [%-5s] %s%n", timestamp, component, level, message);
+            }
         }
     }
 }
