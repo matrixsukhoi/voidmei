@@ -88,8 +88,9 @@ public class HttpHelper {
 		con.setRequestMethod("GET");
 
 		int responseCode = con.getResponseCode();
-		Application.debugPrint("Sending 'GET' request to URL : " + url);
-		Application.debugPrint("Response Code : " + responseCode);
+		// prog.util.Logger.debug("HttpHelper", "Sending 'GET' request to URL : " +
+		// url);
+		// prog.util.Logger.debug("HttpHelper", "Response Code : " + responseCode);
 
 		BufferedReader in = new BufferedReader(
 				new InputStreamReader(con.getInputStream()));
@@ -101,7 +102,11 @@ public class HttpHelper {
 		}
 		in.close();
 
-		return response.toString();
+		String result = response.toString();
+		if (url.contains("api.github.com")) {
+			prog.util.Logger.info("Update", "Latest version info fetched successfully (HTTP " + responseCode + ")");
+		}
+		return result;
 	}
 
 	public String sendGet(String host, int port, String path) throws IOException {
@@ -294,7 +299,7 @@ public class HttpHelper {
 		} catch (InterruptedException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-			System.out.println("InterruptedException\n");
+			prog.util.Logger.error("HttpHelper", "InterruptedException during future get");
 			strState = nstring;
 			strIndic = nstring;
 

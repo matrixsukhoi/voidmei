@@ -215,10 +215,9 @@ public class Blkx {
 	}
 
 	public void showEngineLoad(engineLoad[] eL, int loadIndex) {
-		String c = "Load" + loadIndex;
-		c = c.concat("Water/Oil Temp Limit: [" + eL[loadIndex].WaterLimit + "," + eL[loadIndex].OilLimit + "]\n");
-		c = c.concat("WEP/Recover Time: [" + eL[loadIndex].WorkTime + "," + eL[loadIndex].RecoverTime + "]\n");
-		Application.debugPrint(c);
+		prog.util.Logger.debug("Blkx", String.format("Load%d Water/Oil: [%.1f, %.1f] WEP/Rec: [%.1f, %.1f]",
+				loadIndex, eL[loadIndex].WaterLimit, eL[loadIndex].OilLimit, eL[loadIndex].WorkTime,
+				eL[loadIndex].RecoverTime));
 	}
 
 	public String WritePartsFm(String s, fm_parts p) {
@@ -478,6 +477,7 @@ public class Blkx {
 	}
 
 	public void getload() {
+		long startTime = System.currentTimeMillis();
 		// String Load0 = cut(data, "Load0");
 		// Application.debugPrint(getone("Load0.WaterTemperature"));
 		isJet = false;
@@ -487,7 +487,7 @@ public class Blkx {
 		// Application.debugPrint(getone("EngineType0.Main.Type"));
 		String hdrString = "EngineType0.";
 		String res = getone("EngineType0.Main.Type");
-		Application.debugPrint(res);
+		// Application.debugPrint(res);
 		if (res.indexOf("Jet") != -1) {
 			// 判断喷气
 			isJet = true;
@@ -500,21 +500,21 @@ public class Blkx {
 				hdrString = "Engine0.";
 				if (getone("Engine0.Main.Type").indexOf("Jet") != -1) {
 					isJet = true;
-					Application.debugPrint("isJet");
+					// Application.debugPrint("isJet");
 				}
 				while (!getone("Engine" + engineNum).equals("null")) {
 					engineNum++;
 				}
 			}
 		}
-		Application.debugPrint("Engine Count: " + engineNum);
+		// Application.debugPrint("Engine Count: " + engineNum);
 		engineRPMMultWEP = 1.0f;
 		if (isJet) {
 			aftbCoff = getdouble(hdrString + "Main.AfterburnerBoost");
 			thrMax0 = getdouble("ThrustMax.ThrustMax0");
 			// thrMax0 = getdouble(hdrString + "Main.Thrust");
 
-			Application.debugPrint("engineType: jet, afterburner coeff" + aftbCoff);
+			// Application.debugPrint("engineType: jet, afterburner coeff" + aftbCoff);
 			altThrNum = 0;
 			altitudeThr = new double[30];
 			for (int i = 0; i < 30; i++, altThrNum++) {
@@ -580,10 +580,10 @@ public class Blkx {
 					maxThr[i][j] = thrMax0 * maxThrCoff[i][j] * engineNum;
 					maxThrAft[i][j] = thrMax0 * maxThrCoff[i][j] * aftbCoff * maxThrAftCoff[i][j] * engineMultWEP
 							* engineNum;
-					Application.debugPrint(
-							String.format("[%.0f]%.0f:%.0f kgf", altitudeThr[i], velocityThr[j], maxThrAft[i][j]));
 				}
 			}
+			prog.util.Logger.info("Blkx",
+					String.format("Jet Engine Thrust Table loaded (%dx%d)", altThrNum, velThrNum));
 		} else {
 			// radial inline
 			// 获得增压器工作高度
@@ -622,10 +622,10 @@ public class Blkx {
 		if (maxRPM < maxRPMNormal)
 			maxRPM = maxRPMNormal;
 
-		Application.debugPrint("RPM Multiplier: " + engineRPMMultWEP);
+		// Application.debugPrint("RPM Multiplier: " + engineRPMMultWEP);
 		// 针对幻影2000C mode6 rpm乘数1.01的修复
 		maxRPM = maxRPM * engineRPMMultWEP;
-		Application.debugPrint("Max RPM: " + maxRPM);
+		// Application.debugPrint("Max RPM: " + maxRPM);
 		maxAllowedRPM = getdouble("RPMMaxAllowed");
 		// Application.debugPrint("RPM"+maxAllowedRPM);
 
@@ -693,7 +693,8 @@ public class Blkx {
 		nitro = getdouble("MaxNitro");
 		oil = getdouble("OilMass");
 
-		Application.debugPrint("Combat Empty Weight: " + (emptyweight + oil + nitro));
+		// Application.debugPrint("Combat Empty Weight: " + (emptyweight + oil +
+		// nitro));
 		grossweight = emptyweight + maxfuelweight + nitro + oil;
 		halfweight = emptyweight + maxfuelweight / 2 + nitro + oil;
 		nofuelweight = emptyweight + nitro + oil;
@@ -755,8 +756,9 @@ public class Blkx {
 
 		GearDestructionIndSpeed = getdouble("GearDestructionIndSpeed");
 
-		Application.debugPrint("Flaps Destruction Stages: " + FlapsDestructionNum + ", Gear Destruction Speed: "
-				+ GearDestructionIndSpeed);
+		// Application.debugPrint("Flaps Destruction Stages: " + FlapsDestructionNum +
+		// ", Gear Destruction Speed: "
+		// + GearDestructionIndSpeed);
 
 		// 面积
 		AWingLeftIn = getdouble("Areas.WingLeftIn");
@@ -1085,6 +1087,10 @@ public class Blkx {
 		// Application.debugPrint(wtload4+" "+oilload4);
 		// Application.debugPrint(wtload5+" "+oilload5);
 		// Application.debugPrint(subSt(getone("Load0")));
+
+		long duration = System.currentTimeMillis() - startTime;
+		prog.util.Logger.info("Blkx", String.format("Parsed FM file '%s' in %d ms (Engine Count: %d, Jet: %b)",
+				readFileName, duration, engineNum, isJet));
 	}
 
 	public void getperformancedata(String t) {
@@ -1161,6 +1167,10 @@ public class Blkx {
 	}
 
 	public Blkx(String filepath, String name) {
+		this(filepath, name, true);
+	}
+
+	public Blkx(String filepath, String name, boolean doLoad) {
 		File file = new File(filepath);
 		fmdata = Lang.noblkx;
 		if (file.exists()) {
@@ -1182,7 +1192,9 @@ public class Blkx {
 			}
 			readFileName = name;
 			data = sb.toString();
-			this.getload();
+			if (doLoad) {
+				this.getload();
+			}
 
 			valid = true;
 		} else {

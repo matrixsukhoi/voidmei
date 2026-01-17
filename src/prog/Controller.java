@@ -34,6 +34,9 @@ public class Controller implements ConfigProvider {
 	public boolean logon = false;
 
 	public Blkx Blkx;
+	private String currentFMName = null;
+	private long lastBlkxCheckTime = 0;
+	private static final long BLKX_CHECK_INTERVAL = 5000;
 	public AttributePool globalPool = new AttributePool();
 
 	// Robot robot;
@@ -341,9 +344,13 @@ public class Controller implements ConfigProvider {
 
 		// Listen for live config changes for WYSIWYG
 		prog.event.UIStateBus.getInstance().subscribe(prog.event.UIStateEvents.CONFIG_CHANGED, key -> {
-			// Only refresh if we are in PREVIEW or INIT state (visual feedback needed)
-			if (State == ControllerState.INIT) {
+			// Only refresh if we are in PREVIEW state.
+			// In INIT state (startup), we don't want to trigger FM loads yet.
+			if (State == ControllerState.PREVIEW) {
 				refreshPreviews();
+			} else {
+				// Just update local config without full refresh/data load
+				loadFromConfig();
 			}
 		});
 
@@ -358,11 +365,8 @@ public class Controller implements ConfigProvider {
 		M = new MainForm(this);
 		M.startRepaintTimer();
 
-		// G = new gcThread();
-		// G.init(this);
-		// gc = new Thread(G);
-		// gc.start();
-		// start();
+		// Check for live aircraft on startup (lazy fallback - only loads if live)
+		ensureBlkxLoaded();
 
 		// 初始化ROBOT
 		// try {
@@ -589,6 +593,8 @@ public class Controller implements ConfigProvider {
 	}
 
 	public void Preview() {
+		prog.util.Logger.info("Controller", "Enabling Preview mode...");
+		State = ControllerState.PREVIEW;
 		refreshPreviews();
 	}
 
@@ -596,43 +602,47 @@ public class Controller implements ConfigProvider {
 	 * Ensure Blkx data is loaded, either from live source or config.
 	 */
 	private void ensureBlkxLoaded() {
+		// Priority 1: Throttled live polling
+		long now = System.currentTimeMillis();
+		// If we already have a valid Blkx, don't re-poll the game more than once every
+		// 5 seconds.
+		if (now - lastBlkxCheckTime < BLKX_CHECK_INTERVAL) {
+			if (Blkx != null && Blkx.valid)
+				return;
+		}
+		lastBlkxCheckTime = now;
+
 		HttpHelper httpDataFetcher = new HttpHelper();
 		String livePlaneName = httpDataFetcher.getLiveAircraftType();
 
 		if (livePlaneName != null) {
 			getfmdata(livePlaneName);
+			return;
 		}
 
-		// Ensure Blkx is initialized (fallback to default)
-		if (Blkx == null || !Blkx.valid) {
-			String planeName = getconfig("selectedFM0");
+		// Priority 2: If we are in PREVIEW mode and still have no data, load the
+		// selected/default FM
+		if (State == ControllerState.PREVIEW && (Blkx == null || !Blkx.valid)) {
+			String planeName = getConfig("selectedFM0");
 			if (planeName != null && !planeName.isEmpty()) {
+				prog.util.Logger.debug("Controller",
+						"No live aircraft found. Loading fallback FM for Preview: " + planeName);
 				getfmdata(planeName);
 			}
 		}
 	}
 
 	public void refreshPreviews() {
+		prog.util.Logger.debug("Controller", "Refreshing overlays for preview/config change...");
 		loadFromConfig();
 		ensureBlkxLoaded();
 		overlayManager.refreshAllPreviews();
 	}
 
 	public void endPreview() {
+		prog.util.Logger.info("Controller", "Exiting Preview mode...");
 		overlayManager.closeAll();
-
-		// Save UI Layout
-		// ui.model.FlightInfoConfig.saveConfig(globalPool, "ui_layout.cfg");
-
-		// Temporarily disabled - DynamicOverlay removed
-		// for (ui.overlay.DynamicOverlay overlay : dynamicOverlays) {
-		// overlay.saveCurrentPosition();
-		// overlay.dispose();
-		// }
-		// dynamicOverlays.clear();
-
-		// Suggest GC after closing all overlays (significant graphics resources
-		// released)
+		State = ControllerState.INIT;
 		System.gc();
 	}
 
@@ -658,17 +668,26 @@ public class Controller implements ConfigProvider {
 	}
 
 	void getfmdata(String planename) {
+		if (planename == null || planename.isEmpty())
+			return;
+
+		// Skip if already loaded
+		if (planename.equalsIgnoreCase(currentFMName) && Blkx != null && Blkx.valid) {
+			return;
+		}
+
+		prog.util.Logger.info("Controller", "Loading Flight Model for: " + planename);
+
 		String fmfile = null;
 		// String unitSystem;
 		// 读入fm
 		String planeFileName = planename.toLowerCase();
-		Blkx = new Blkx("./data/aces/gamedata/flightmodels/" + planeFileName + ".Blkx", planeFileName + ".blk");
+		Blkx = new Blkx("./data/aces/gamedata/flightmodels/" + planeFileName + ".Blkx", planeFileName + ".blk", false);
 		if (Blkx.valid == true) {
 			fmfile = Blkx.getlastone("fmfile");
 			/* 去除多余的空格 */
 			if (fmfile != null) {
 				fmfile = fmfile.substring(fmfile.indexOf("\"") + 1, fmfile.length() - 1);
-				Application.debugPrint(fmfile);
 				/* 去除多余的/ */
 				if (fmfile.charAt(0) == '/')
 					fmfile = fmfile.substring(1);
@@ -683,18 +702,19 @@ public class Controller implements ConfigProvider {
 		if (-1 == fmfile.indexOf(".blk")) {
 			fmfile += ".blk";
 		}
-		Application.debugPrint("fmfile :" + fmfile);
 
 		// 读入fmfile
 		Blkx = new Blkx("./data/aces/gamedata/flightmodels/" + fmfile + "x", fmfile);
 
-		if (Blkx.valid == true) {// Application.debugPrint(Blkx.data);
+		if (Blkx.valid == true) {
 			Blkx.getAllplotdata();
-			// Blkx.getload();
 			Blkx.data = null;
 
 			// Dump FM data to Global Pool
 			globalPool.putAll(Blkx.getVariableMap());
+			currentFMName = planename;
+			// Sync legacy field
+			cur_fmtype = planename;
 		}
 
 	}

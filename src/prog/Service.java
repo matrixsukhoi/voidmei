@@ -1519,9 +1519,9 @@ public class Service implements Runnable {
 					// 读取map info
 
 					c.changeS3();// 打开面板
-					if (!c.cur_fmtype.equals(sIndic.type)) {
-						// 机型变化
-						Application.debugPrint("Aircraft type changed, restarting program");
+					if (c.cur_fmtype != null && !c.cur_fmtype.equals(sIndic.type)) {
+						prog.util.Logger.info("Service",
+								"Aircraft type changed to: " + sIndic.type + ". Restarting Controller.");
 						c.S4toS1();
 					}
 					// speedvp = sState.IAS;
@@ -1530,8 +1530,10 @@ public class Service implements Runnable {
 
 					// 检测到加油，重置数据
 					if ((Math.abs(speedv) < 10) && (fTotalFuel - fTotalFuelP > 1)) {
-						// Application.debugPrint("检测到油量增加 " + fTotalFuel + "," + fTotalFuelP);
-						Application.debugPrint("Refueling, resetting variables");
+						prog.util.Logger.info("Service",
+								String.format(
+										"Refueling detected (Fuel: %.1f -> %.1f). Resetting simulation variables.",
+										fTotalFuelP, fTotalFuel));
 
 						resetvaria();
 					}
@@ -1548,7 +1550,7 @@ public class Service implements Runnable {
 
 					// 检查死亡
 					if (sState.totalThr == 0 && sState.RPM <= 0 && sState.IAS < 10) {
-						Application.debugPrint("Player crash detected");
+						prog.util.Logger.warn("Service", "Player crash/stop detected. Simulation state invalidated.");
 						playerLive = false;
 					}
 				}
@@ -1570,7 +1572,7 @@ public class Service implements Runnable {
 			// 状态置为等待连接中
 			conState = -1;
 			c.S4toS1();
-			Application.debugPrint("Waiting for connection");
+			prog.util.Logger.debug("Service", "Waiting for game connection (8111/9222)...");
 		}
 		if (conState == -1) {
 			// 端口连接可能有问题，切换端口

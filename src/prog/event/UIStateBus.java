@@ -1,4 +1,5 @@
 package prog.event;
+
 import prog.Application;
 
 import java.util.List;
@@ -33,6 +34,7 @@ public class UIStateBus {
      */
     public void subscribe(String eventType, Consumer<Object> handler) {
         subscribers.computeIfAbsent(eventType, k -> new CopyOnWriteArrayList<>()).add(handler);
+        prog.util.Logger.event("SUBSCRIBE", eventType, handler, null);
     }
 
     /**
@@ -42,6 +44,7 @@ public class UIStateBus {
         List<Consumer<Object>> handlers = subscribers.get(eventType);
         if (handlers != null) {
             handlers.remove(handler);
+            prog.util.Logger.event("UNSUBSCRIBE", eventType, handler, null);
         }
     }
 
@@ -52,13 +55,15 @@ public class UIStateBus {
      * @param data      The event payload
      */
     public void publish(String eventType, Object data) {
+        prog.util.Logger.event("PUBLISH", eventType, null, data);
         List<Consumer<Object>> handlers = subscribers.get(eventType);
         if (handlers != null) {
             for (Consumer<Object> handler : handlers) {
                 try {
+                    prog.util.Logger.debug("UIStateBus", " -> Calling handler: " + handler.getClass().getName());
                     handler.accept(data);
                 } catch (Exception e) {
-                    prog.Application.debugPrint("[UIStateBus] Error in handler for " + eventType + ": " + e.getMessage());
+                    prog.util.Logger.error("UIStateBus", "Error in handler for " + eventType + ": " + e.getMessage());
                 }
             }
         }

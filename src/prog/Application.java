@@ -51,13 +51,13 @@ import com.github.kwhat.jnativehook.keyboard.NativeKeyListener;
 
 public class Application {
 	// 一些全局配置
-	public static final boolean debug = false;
+	public static boolean debug = false;
 	// 测试FM
 	public static boolean fmTesting = false;
 	public static boolean isVR = true;
 
 	// 调试日志
-	public static final boolean debugLog = false;
+	public static boolean debugLog = false;
 	public static final int maxEngLoad = 10;
 
 	// 用于检查最新版本
@@ -193,7 +193,7 @@ public class Application {
 	}
 
 	public static void debugPrint(String t) {
-		System.out.println(t);
+		prog.util.Logger.info("Legacy", t);
 	}
 
 	public static void initSystemTray() {
@@ -338,9 +338,9 @@ public class Application {
 	public static void setUTF8() {
 		if (!System.getProperty("file.encoding").equals("UTF-8")) {
 
-			System.out.println("Default Charset=" + Charset.defaultCharset());
-			System.out.println("file.encoding=" + System.getProperty("file.encoding"));
-			System.out.println("Default Charset=" + Charset.defaultCharset());
+			prog.util.Logger.debug("Charset", "Default Charset=" + Charset.defaultCharset());
+			prog.util.Logger.debug("Charset", "file.encoding=" + System.getProperty("file.encoding"));
+			prog.util.Logger.debug("Charset", "Default Charset=" + Charset.defaultCharset());
 			System.setProperty("file.encoding", "UTF-8");
 			Field charset;
 			try {
@@ -382,7 +382,7 @@ public class Application {
 				Matcher m = pt.matcher(res);
 				if (m.find()) {
 					String latestVersion = m.group(0);
-					debugPrint("latest version is:" + latestVersion);
+					prog.util.Logger.info("Update", "Latest remote version: " + latestVersion);
 					if (Double.parseDouble(version) < Double.parseDouble(latestVersion)) {
 						String notice = "A newer version is released on github, version: " + latestVersion;
 						ui.util.NotificationService.showAbout(String.format(notice), 5000);
@@ -416,7 +416,7 @@ public class Application {
 				Matcher m = pt.matcher(res);
 				if (m.find()) {
 					String latestVersion = m.group(0);
-					debugPrint("latest version is:" + latestVersion);
+					prog.util.Logger.info("Update", "Latest remote version: " + latestVersion);
 					if (Double.parseDouble(version) < Double.parseDouble(latestVersion)) {
 						String notice = "A newer version is released on github, version: " + latestVersion;
 						ui.util.NotificationService.showAbout(String.format(notice), 5000);
@@ -492,9 +492,16 @@ public class Application {
 		// set output stream
 		setUTF8();
 
+		// Initialize new Logger
+		if (Application.debugLog || Application.debug) {
+			prog.util.Logger.setMinLevel(prog.util.Logger.Level.DEBUG);
+		} else {
+			prog.util.Logger.setMinLevel(prog.util.Logger.Level.INFO);
+		}
+
 		Application.debugPrint("Java version: " + System.getProperty("java.version"));
 		if (System.getProperty("java.version").indexOf("1.8.0") == -1) {
-			System.out.println("Non-Java 1.8 version detected, application might not work correctly");
+			prog.util.Logger.warn("App", "Non-Java 1.8 version detected, application might not work correctly");
 		}
 
 		if (Application.debugLog) {
