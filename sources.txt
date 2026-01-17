@@ -56,6 +56,9 @@ src/ui/renderer/BOSStyleRenderer.java
 src/ui/renderer/OverlayRenderer.java
 src/ui/renderer/RenderContext.java
 src/ui/renderer/TextOnlyRenderer.java
+src/ui/component/LinearGauge.java
+src/ui/component/TextGauge.java
+src/ui/component/CompassGauge.java
 src/ui/WebLafSettings.java
 src/ui/replica/PinkStyle.java
 src/ui/replica/ReplicaPanel.java

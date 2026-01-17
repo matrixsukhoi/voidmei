@@ -145,13 +145,7 @@ public class EngineControl extends WebFrame implements Runnable {
 		}
 	}
 
-	public int leftUseNum;
-
-	// 像素个数
-	public int leftValPix[];
-	public int leftValMax[];
-	// 每个分别是标签,数字,单位默认是空
-	public String leftLblNum[][];
+	public java.util.List<ui.component.LinearGauge> gauges;
 
 	int lidx_t = Integer.MAX_VALUE; // 油门
 	int lidx_p = Integer.MAX_VALUE; // 桨距
@@ -168,7 +162,9 @@ public class EngineControl extends WebFrame implements Runnable {
 		int dx = 0;
 		int dy = fontsize >> 1;
 
-		for (int i = 0; i < leftUseNum; i++) {
+		for (int i = 0; i < gauges.size(); i++) {
+			ui.component.LinearGauge gauge = gauges.get(i);
+
 			if (isJet && (i == lidx_r || i == lidx_c || i == lidx_m))
 				continue;
 			if (i == lidx_r || i == lidx_c || i == lidx_m || i == lidx_f) {
@@ -178,14 +174,12 @@ public class EngineControl extends WebFrame implements Runnable {
 					continue;
 				// 横着画
 				// if(isJet) continue;
-				UIBaseElements.drawHBarTextNum(g2d, x, y + dy, 4 * fontsize, fontsize >> 1, leftValPix[i], 1,
-						Application.colorNum,
-						leftLblNum[i][0], leftLblNum[i][0] + leftLblNum[i][1], fontLabel, fontLabel);
+				gauge.vertical = false;
+				gauge.draw(g2d, x, y + dy, 4 * fontsize, fontsize >> 1, fontLabel, fontLabel);
 				dy += 1 * fontsize + (fontsize >> 2);
 			} else {
-				UIBaseElements.drawVBarTextNum(g2d, x + dx, y, fontsize >> 1, 4 * fontsize, leftValPix[i], 1,
-						Application.colorNum,
-						leftLblNum[i][0], leftLblNum[i][0] + leftLblNum[i][1], fontLabel, fontLabel);
+				gauge.vertical = true;
+				gauge.draw(g2d, x + dx, y, 4 * fontsize, fontsize >> 1, fontLabel, fontLabel);
 				dx += (5 * fontsize) >> 1;
 			}
 
@@ -198,21 +192,14 @@ public class EngineControl extends WebFrame implements Runnable {
 	private Container root;
 
 	public void initLeftString() {
-		leftUseNum = 0;
-		leftLblNum = new String[10][];
-		leftValPix = new int[10];
-		leftValMax = new int[10];
+		gauges = new java.util.ArrayList<>();
+		int leftUseNum = 0;
 		String tmp;
-		for (int i = 0; i < 10; i++)
-			leftLblNum[i] = new String[2];
 
 		// 油门
 		tmp = xc.getconfig("disableEngineInfoThrottle");
 		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
-			leftLblNum[leftUseNum][0] = String.format("%s", Lang.eThrottle);
-			leftLblNum[leftUseNum][1] = String.format("%3s", "105");
-			leftValMax[leftUseNum] = 110;
-			leftValPix[leftUseNum] = Math.round(105f * 4 * fontsize / 110);
+			gauges.add(new ui.component.LinearGauge(String.format("%s", Lang.eThrottle), 110, true));
 			lidx_t = leftUseNum++;
 			columnNum++;
 		}
@@ -220,10 +207,7 @@ public class EngineControl extends WebFrame implements Runnable {
 		// 桨距
 		tmp = xc.getconfig("disableEngineInfoPitch");
 		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
-			leftLblNum[leftUseNum][0] = String.format("%s", Lang.eProppitch);
-			leftLblNum[leftUseNum][1] = String.format("%3s", "50");
-			leftValMax[leftUseNum] = 100;
-			leftValPix[leftUseNum] = Math.round(50f * 4 * fontsize / 100);
+			gauges.add(new ui.component.LinearGauge(String.format("%s", Lang.eProppitch), 100, true));
 			lidx_p = leftUseNum++;
 			columnNum++;
 		}
@@ -231,10 +215,7 @@ public class EngineControl extends WebFrame implements Runnable {
 		// 混合比
 		tmp = xc.getconfig("disableEngineInfoMixture");
 		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
-			leftLblNum[leftUseNum][0] = String.format("%s", Lang.eMixture);
-			leftLblNum[leftUseNum][1] = String.format("%3s", "70");
-			leftValMax[leftUseNum] = 120;
-			leftValPix[leftUseNum] = Math.round(70f * 4 * fontsize / 120);
+			gauges.add(new ui.component.LinearGauge(String.format("%s", Lang.eMixture), 120, false));
 			lidx_m = leftUseNum++;
 			rowNum++;
 		}
@@ -242,10 +223,7 @@ public class EngineControl extends WebFrame implements Runnable {
 		// 散热器
 		tmp = xc.getconfig("disableEngineInfoRadiator");
 		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
-			leftLblNum[leftUseNum][0] = String.format("%s", Lang.eRadiator);
-			leftLblNum[leftUseNum][1] = String.format("%3s", "42");
-			leftValMax[leftUseNum] = 100;
-			leftValPix[leftUseNum] = Math.round(42f * 4 * fontsize / 100);
+			gauges.add(new ui.component.LinearGauge(String.format("%s", Lang.eRadiator), 100, false));
 			lidx_r = leftUseNum++;
 			rowNum++;
 		}
@@ -253,20 +231,14 @@ public class EngineControl extends WebFrame implements Runnable {
 		// 增压器
 		tmp = xc.getconfig("disableEngineInfoCompressor");
 		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
-			leftLblNum[leftUseNum][0] = String.format("%s", Lang.eCompressor);
-			leftLblNum[leftUseNum][1] = String.format("%3s", "1");
-			leftValMax[leftUseNum] = 1;
-			leftValPix[leftUseNum] = Math.round(0f * 4 * fontsize / 1);
+			gauges.add(new ui.component.LinearGauge(String.format("%s", Lang.eCompressor), 1, false));
 			lidx_c = leftUseNum++;
 			rowNum++;
 		}
 
 		tmp = xc.getconfig("disableEngineInfoLFuel");
 		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
-			leftLblNum[leftUseNum][0] = String.format("%s", Lang.eFuelPer);
-			leftLblNum[leftUseNum][1] = String.format("%3s", "51");
-			leftValMax[leftUseNum] = 100;
-			leftValPix[leftUseNum] = Math.round(51f * 4 * fontsize / 100);
+			gauges.add(new ui.component.LinearGauge(String.format("%s", Lang.eFuelPer), 100, false));
 			lidx_f = leftUseNum++;
 			rowNum++;
 		}
@@ -391,13 +363,24 @@ public class EngineControl extends WebFrame implements Runnable {
 	private boolean jetChecked;
 
 	public void __update_num(int idx, String s, int val) {
-		if (idx < leftUseNum) {
-			leftLblNum[idx][1] = String.format("%3s", s);
-			leftValPix[idx] = Math.round(val * 4 * fontsize / leftValMax[idx]);
+		if (idx < gauges.size()) {
+			ui.component.LinearGauge gauge = gauges.get(idx);
+			gauge.update(val, String.format("%3s", s));
+			// gauge.maxValue handled internally, or updated if dynamic max needed (like
+			// compressor)
 		}
 	}
 
 	public void updateString() {
+		// Preview Mode
+		if (s == null) {
+			for (ui.component.LinearGauge g : gauges) {
+				g.update(g.maxValue / 2, "PRE");
+			}
+			return;
+		}
+
+		int leftUseNum = gauges.size();
 		if (jetChecked == false) {
 			if (s.checkEngineFlag) {
 				if (s.isEngJet()) {
@@ -405,7 +388,7 @@ public class EngineControl extends WebFrame implements Runnable {
 
 					// 修改为推力百分比
 					if (lidx_p < leftUseNum)
-						leftLblNum[lidx_p][0] = Lang.eThurstP;
+						gauges.get(lidx_p).label = Lang.eThurstP;
 				}
 				jetChecked = true;
 			}
@@ -444,8 +427,9 @@ public class EngineControl extends WebFrame implements Runnable {
 
 		// 增压器
 		if (lidx_c < leftUseNum) {
-			if (s.sState.compressorstage - 1 > leftValMax[lidx_c])
-				leftValMax[lidx_c] = s.sState.compressorstage - 1;
+			ui.component.LinearGauge g = gauges.get(lidx_c);
+			if (s.sState.compressorstage - 1 > g.maxValue)
+				g.maxValue = s.sState.compressorstage - 1;
 		}
 		__update_num(lidx_c, s.compressorstage, s.sState.compressorstage - 1);
 
@@ -472,9 +456,11 @@ public class EngineControl extends WebFrame implements Runnable {
 				e.printStackTrace();
 			}
 
-			if (s.SystemTime - engineCheckMili > xc.freqService) {
-				engineCheckMili = s.SystemTime;
-				if (s.sState != null) {
+			long currentTime = (s != null) ? s.SystemTime : System.currentTimeMillis();
+
+			if (currentTime - engineCheckMili > xc.freqService) {
+				engineCheckMili = currentTime;
+				if (s == null || s.sState != null) {
 
 					drawTick();
 

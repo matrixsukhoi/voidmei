@@ -7,13 +7,15 @@ import java.util.List;
 
 import prog.Application;
 import ui.model.DataField;
-import ui.UIBaseElements;
 
 /**
  * BOS-style renderer for overlay fields.
  * Displays fields in a multi-column grid layout with number, label, and unit.
  */
 public class BOSStyleRenderer implements OverlayRenderer {
+
+    // Cache TextGauges to maintain stroke caching
+    private java.util.Map<String, ui.component.TextGauge> gaugeCache = new java.util.HashMap<>();
 
     @Override
     public void render(Graphics2D g2d, List<DataField> fields, RenderContext ctx, int[] offset) {
@@ -29,16 +31,28 @@ public class BOSStyleRenderer implements OverlayRenderer {
         offset[1] = ctx.fontSize >> 1;
 
         int visibleIndex = 0;
-        int fieldWidth = ctx.getFieldWidth();
+        // int fieldWidth = ctx.getFieldWidth(); // TextGauge handles layout internally
+        // based on font size
 
         for (DataField field : fields) {
             if (!field.visible) {
                 continue;
             }
 
-            UIBaseElements._drawLabelBOSType(g2d, offset[0], offset[1], 1, fieldWidth,
-                    ctx.numFont, ctx.labelFont, ctx.unitFont,
-                    field.currentValue, field.label, field.unit);
+            ui.component.TextGauge gauge = gaugeCache.get(field.label);
+            if (gauge == null) {
+                gauge = new ui.component.TextGauge(field.label, field.unit);
+                gaugeCache.put(field.label, gauge);
+            }
+
+            // Update gauge state
+            gauge.update(field.currentValue);
+            // gauge.label/unit are final in current TextGauge, assuming they don't change
+            // frequently.
+            // If they do (e.g. dynamic unit change), we might need to update them too.
+            // For now, assume static metadata.
+
+            gauge.draw(g2d, offset[0], offset[1], ctx.numFont, ctx.labelFont, ctx.unitFont, 1);
 
             visibleIndex++;
             updateOffset(visibleIndex, offset, ctx);
