@@ -3,9 +3,6 @@ package ui.layout;
 import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
-// import java.awt.Dimension; // Unused
-// import java.awt.Graphics; // Unused
-// import java.awt.Graphics2D; // Unused
 
 import com.alee.laf.label.WebLabel;
 import com.alee.laf.panel.WebPanel;
@@ -18,28 +15,21 @@ import com.alee.laf.button.WebButton;
 import com.alee.extended.button.WebSwitch;
 import com.alee.laf.slider.WebSlider;
 import com.alee.laf.combobox.WebComboBox;
-import ui.layout.ResponsiveGridLayout;
+import ui.replica.ReplicaBuilder;
 
 public class DynamicDataPage extends BasePage {
 
     private ZoomPanel scaler;
-    private WebPanel appearancePanel; // Panel for general settings
     private prog.config.ConfigLoader.GroupConfig groupConfig;
     private boolean overlayVisible = false;
-
-    // Component references for updates
-    private WebComboBox fontCombo;
-    private WebSlider sizeSlider;
-    private WebSlider colSliderHUD;
-    private WebSlider colSliderPanel;
-    private boolean isUpdatingControls = false; // Prevent feedback loop
+    private boolean isUpdatingControls = false; // Prevent feedback loop during rebuild
 
     public DynamicDataPage(MainForm parent, prog.config.ConfigLoader.GroupConfig groupConfig) {
         super(parent);
         this.groupConfig = groupConfig;
 
-        // Force Modern Style for this page as per design requirement
-        UIBuilder.setStyle(new ModernStyle());
+        // Force Pink Style (Modern) for this page as per design requirement
+        UIBuilder.setStyle(ReplicaBuilder.getStyle());
 
         if (groupConfig != null) {
             this.overlayVisible = groupConfig.visible;
@@ -87,8 +77,9 @@ public class DynamicDataPage extends BasePage {
         if (groupConfig == null)
             return;
 
+        isUpdatingControls = true;
         rebuildSimple();
-        updateAppearancePanel();
+        isUpdatingControls = false;
 
         scaler.revalidate();
         scaler.repaint();
@@ -106,45 +97,116 @@ public class DynamicDataPage extends BasePage {
         // Main Scale Panel uses Vertical Flow to stack cards
         scaler.setLayout(new com.alee.extended.layout.VerticalFlowLayout());
 
-        // Calculate columns for inner grids: Config PANEL columns * 2 (Label + Switch)
+        // Calculate columns for inner grids: ReplicaBuilder items are self-contained
         int pCols = groupConfig.panelColumns > 0 ? groupConfig.panelColumns : 2;
-        int gridCols = pCols * 2;
 
         WebPanel currentCard = null;
         WebPanel currentGrid = null;
 
         for (prog.config.ConfigLoader.RowConfig row : groupConfig.rows) {
-            boolean isHeader = row.formula != null && row.formula.equalsIgnoreCase("HEADER");
+            String rowType = row.type != null ? row.type : "DATA";
 
-            if (isHeader) {
+            if (rowType.equals("HEADER")) {
                 // Header row triggers new Card
-                currentCard = UIBuilder.createCard(row.label);
+                currentCard = ReplicaBuilder.getStyle().createContainer(row.label);
 
                 // Create grid for this card
                 currentGrid = new WebPanel();
                 currentGrid.setOpaque(false);
-                currentGrid.setLayout(new ResponsiveGridLayout(gridCols, 5, 5));
+                currentGrid.setLayout(new ResponsiveGridLayout(pCols, 10, 5));
                 currentCard.add(currentGrid);
 
                 scaler.add(currentCard);
             } else {
-                // Regular data row
-                // If no card exists (e.g. config starts with data), create default
+                // Ensure we have a grid to add to
                 if (currentGrid == null) {
-                    currentCard = UIBuilder.createCard("General");
+                    currentCard = ReplicaBuilder.getStyle().createContainer("General");
                     currentGrid = new WebPanel();
                     currentGrid.setOpaque(false);
-                    currentGrid.setLayout(new ResponsiveGridLayout(gridCols, 5, 5));
+                    currentGrid.setLayout(new ResponsiveGridLayout(pCols, 10, 5));
                     currentCard.add(currentGrid);
                     scaler.add(currentCard);
                 }
 
-                // Add item to current grid
-                WebSwitch sw = UIBuilder.addCardItem(currentGrid, row.label, row.visible);
-                sw.addActionListener(e -> {
-                    row.visible = sw.isSelected();
-                    save();
-                });
+                WebPanel itemPanel = null;
+
+                switch (rowType) {
+                    case "SLIDER": {
+                        // Get current value from GroupConfig property
+                        int currentVal = getPropertyAsInt(row.property, row.defaultValue);
+                        itemPanel = ReplicaBuilder.createSliderItem(row.label, row.minVal, row.maxVal, currentVal, 150);
+                        WebSlider slider = ReplicaBuilder.getSlider(itemPanel);
+                        if (slider != null) {
+                            final String prop = row.property;
+                            slider.addChangeListener(e -> {
+                                if (isUpdatingControls)
+                                    return;
+                                if (!slider.getValueIsAdjusting()) {
+                                    setPropertyFromInt(prop, slider.getValue());
+                                    if ("panelColumns".equals(prop)) {
+                                        rebuild(); // Rebuild layout when panel columns change
+                                    }
+                                    save();
+                                }
+                            });
+                        }
+                        break;
+                    }
+                    case "COMBO": {
+                        // Get options based on format field
+                        String[] options = getComboOptions(row.format);
+                        itemPanel = ReplicaBuilder.createDropdownItem(row.label, options);
+                        WebComboBox combo = ReplicaBuilder.getComboBox(itemPanel);
+                        if (combo != null) {
+                            // Set current value
+                            String currentVal = getPropertyAsString(row.property, row.defaultValue);
+                            if (currentVal != null) {
+                                combo.setSelectedItem(currentVal);
+                            }
+                            final String prop = row.property;
+                            combo.addActionListener(e -> {
+                                if (isUpdatingControls)
+                                    return;
+                                setPropertyFromString(prop, (String) combo.getSelectedItem());
+                                save();
+                            });
+                        }
+                        break;
+                    }
+                    case "SWITCH": {
+                        // Get current value from property or visible
+                        boolean currentVal = getPropertyAsBool(row.property, row.visible);
+                        itemPanel = ReplicaBuilder.createSwitchItem(row.label, currentVal, false);
+                        WebSwitch sw = ReplicaBuilder.getSwitch(itemPanel);
+                        if (sw != null) {
+                            final String prop = row.property;
+                            sw.addActionListener(e -> {
+                                if (isUpdatingControls)
+                                    return;
+                                setPropertyFromBool(prop, sw.isSelected());
+                                save();
+                            });
+                        }
+                        break;
+                    }
+                    case "DATA":
+                    default: {
+                        // Standard data toggle
+                        itemPanel = ReplicaBuilder.createSwitchItem(row.label, row.visible, false);
+                        WebSwitch sw = ReplicaBuilder.getSwitch(itemPanel);
+                        if (sw != null) {
+                            sw.addActionListener(e -> {
+                                row.visible = sw.isSelected();
+                                save();
+                            });
+                        }
+                        break;
+                    }
+                }
+
+                if (itemPanel != null) {
+                    currentGrid.add(itemPanel);
+                }
             }
         }
 
@@ -152,77 +214,97 @@ public class DynamicDataPage extends BasePage {
         scaler.repaint();
     }
 
-    private void updateAppearancePanel() {
-        if (groupConfig == null || appearancePanel == null)
-            return;
-
-        isUpdatingControls = true;
-
-        // Initial build if needed
-        if (fontCombo == null) {
-            appearancePanel.removeAll();
-
-            // Use 2 columns: Label | Control.
-            appearancePanel.setLayout(new ResponsiveGridLayout(2, 5, 5));
-            appearancePanel.setBorder(javax.swing.BorderFactory.createEmptyBorder(5, 15, 10, 15));
-            UIBuilder.getStyle().decorateMainPanel(appearancePanel); // Apply Theme BG if needed
-
-            // --- Font ---
-            String[] fonts = java.awt.GraphicsEnvironment.getLocalGraphicsEnvironment().getAvailableFontFamilyNames();
-            fontCombo = UIBuilder.addComboBox(appearancePanel, "字体", fonts);
-            fontCombo.addActionListener(e -> {
-                if (isUpdatingControls)
-                    return;
-                groupConfig.fontName = (String) fontCombo.getSelectedItem();
-                save();
-            });
-
-            // --- Font Size ---
-            sizeSlider = UIBuilder.addSlider(appearancePanel, "大小", -6, 18, 0, 150);
-            sizeSlider.addChangeListener(e -> {
-                if (isUpdatingControls)
-                    return;
-                if (!sizeSlider.getValueIsAdjusting()) {
-                    groupConfig.fontSize = sizeSlider.getValue();
-                    save();
-                }
-            });
-
-            // --- HUD Columns (Previous "Columns") ---
-            colSliderHUD = UIBuilder.addSlider(appearancePanel, "HUD列数", 1, 8, 2, 150);
-            colSliderHUD.addChangeListener(e -> {
-                if (isUpdatingControls)
-                    return;
-                if (!colSliderHUD.getValueIsAdjusting()) {
-                    groupConfig.columns = colSliderHUD.getValue();
-                    save(); // Only save, no rebuild needed for overlay change
-                }
-            });
-
-            // --- Panel Columns (New) ---
-            colSliderPanel = UIBuilder.addSlider(appearancePanel, "面板列数", 1, 8, 2, 150);
-            colSliderPanel.addChangeListener(e -> {
-                if (isUpdatingControls)
-                    return;
-                if (!colSliderPanel.getValueIsAdjusting()) {
-                    groupConfig.panelColumns = colSliderPanel.getValue();
-                    rebuild(); // Rebuild LAYOUT
-                    save();
-                }
-            });
+    // Property getter/setter helpers for config-driven controls
+    private int getPropertyAsInt(String property, String defaultVal) {
+        if (property == null)
+            return 0;
+        try {
+            switch (property) {
+                case "fontSize":
+                    return groupConfig.fontSize;
+                case "columns":
+                    return groupConfig.columns;
+                case "panelColumns":
+                    return groupConfig.panelColumns;
+                case "alpha":
+                    return groupConfig.alpha;
+                default:
+                    return defaultVal != null ? Integer.parseInt(defaultVal) : 0;
+            }
+        } catch (Exception e) {
+            return 0;
         }
+    }
 
-        // Update values
-        if (groupConfig.fontName != null)
-            fontCombo.setSelectedItem(groupConfig.fontName);
-        sizeSlider.setValue(groupConfig.fontSize);
-        colSliderHUD.setValue(groupConfig.columns > 0 ? groupConfig.columns : 2);
-        colSliderPanel.setValue(groupConfig.panelColumns > 0 ? groupConfig.panelColumns : 2);
+    private void setPropertyFromInt(String property, int value) {
+        if (property == null)
+            return;
+        switch (property) {
+            case "fontSize":
+                groupConfig.fontSize = value;
+                break;
+            case "columns":
+                groupConfig.columns = value;
+                break;
+            case "panelColumns":
+                groupConfig.panelColumns = value;
+                break;
+            case "alpha":
+                groupConfig.alpha = value;
+                break;
+        }
+    }
 
-        isUpdatingControls = false;
+    private String getPropertyAsString(String property, String defaultVal) {
+        if (property == null)
+            return defaultVal;
+        switch (property) {
+            case "fontName":
+                return groupConfig.fontName;
+            default:
+                return defaultVal;
+        }
+    }
 
-        appearancePanel.revalidate();
-        appearancePanel.repaint();
+    private void setPropertyFromString(String property, String value) {
+        if (property == null)
+            return;
+        switch (property) {
+            case "fontName":
+                groupConfig.fontName = value;
+                break;
+        }
+    }
+
+    private boolean getPropertyAsBool(String property, boolean defaultVal) {
+        if (property == null)
+            return defaultVal;
+        switch (property) {
+            case "visible":
+                return groupConfig.visible;
+            default:
+                return defaultVal;
+        }
+    }
+
+    private void setPropertyFromBool(String property, boolean value) {
+        if (property == null)
+            return;
+        switch (property) {
+            case "visible":
+                groupConfig.visible = value;
+                break;
+        }
+    }
+
+    private String[] getComboOptions(String optionSource) {
+        if (optionSource == null)
+            return new String[0];
+        if (optionSource.equals("_FONTS_")) {
+            return java.awt.GraphicsEnvironment.getLocalGraphicsEnvironment().getAvailableFontFamilyNames();
+        }
+        // Could support other sources like "_STYLES_" etc.
+        return optionSource.split(",");
     }
 
     @Override
@@ -230,50 +312,34 @@ public class DynamicDataPage extends BasePage {
         // Get the styled toolbar container from BasePage
         WebPanel toolbar = super.createTopToolbar();
         // Use our custom ResponsiveGridLayout for elegant multi-column layout
-        // 3 columns, 10px horizontal gap, 10px vertical gap
         toolbar.setLayout(new ResponsiveGridLayout(3, 10, 10));
 
         // --- Item 1: Overlay Visibility ---
-        WebPanel visibilityPanel = new WebPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 5, 0));
-        visibilityPanel.setOpaque(false);
-        WebLabel lblOverlay = new WebLabel(Lang.mDisplayOverlay);
-        lblOverlay.setFont(prog.Application.defaultFont);
-        visibilityPanel.add(lblOverlay);
-        WebSwitch swOverlay = new WebSwitch();
-        swOverlay.setSelected(overlayVisible);
-        UIBuilder.getStyle().decorateSwitch(swOverlay);
-        swOverlay.addActionListener(e -> {
-            overlayVisible = swOverlay.isSelected();
-            setOverlayVisible(overlayVisible);
-            if (groupConfig != null) {
-                groupConfig.visible = overlayVisible;
-                parent.saveDynamicConfig();
-            }
-        });
-        visibilityPanel.add(swOverlay);
+        WebPanel visibilityPanel = ReplicaBuilder.createSwitchItem(Lang.mDisplayOverlay, overlayVisible, false);
+        WebSwitch swOverlay = ReplicaBuilder.getSwitch(visibilityPanel);
+        if (swOverlay != null) {
+            swOverlay.addActionListener(e -> {
+                overlayVisible = swOverlay.isSelected();
+                setOverlayVisible(overlayVisible);
+                if (groupConfig != null) {
+                    groupConfig.visible = overlayVisible;
+                    parent.saveDynamicConfig();
+                }
+            });
+        }
         toolbar.add(visibilityPanel);
 
         // --- Item 2: Overlay Style ---
-        WebPanel stylePanel = new WebPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 5, 0));
-        stylePanel.setOpaque(false);
-        WebLabel lblStyle = new WebLabel(Lang.mDisplayStyle);
-        lblStyle.setFont(prog.Application.defaultFont);
-        stylePanel.add(lblStyle);
         String[] styles = { Lang.mStyleZebra, Lang.mStyleSolid };
-        com.alee.laf.combobox.WebComboBox cbStyle = new com.alee.laf.combobox.WebComboBox(styles);
-        cbStyle.setFont(prog.Application.defaultFont);
-        cbStyle.setWebColoredBackground(false);
-        cbStyle.setShadeWidth(1);
-        cbStyle.setDrawFocus(false);
-        stylePanel.add(cbStyle);
+        WebPanel stylePanel = ReplicaBuilder.createDropdownItem(Lang.mDisplayStyle, styles);
         toolbar.add(stylePanel);
 
-        // --- Item 4: Hotkey Configuration ---
-        WebPanel hotkeyPanel = new WebPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 5, 0));
-        hotkeyPanel.setOpaque(false);
+        // --- Item 3: Hotkey Configuration ---
         if (groupConfig != null && groupConfig.hotkey != 0) {
+            WebPanel hotkeyPanel = new WebPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 5, 0));
+            hotkeyPanel.setOpaque(false);
             WebLabel lblHotkey = new WebLabel(Lang.mHotkeyToggle);
-            lblHotkey.setFont(prog.Application.defaultFont);
+            ReplicaBuilder.getStyle().decorateLabel(lblHotkey);
             hotkeyPanel.add(lblHotkey);
 
             String keyText = com.github.kwhat.jnativehook.keyboard.NativeKeyEvent.getKeyText(groupConfig.hotkey);
@@ -384,25 +450,11 @@ public class DynamicDataPage extends BasePage {
     }
 
     protected java.awt.Component createCenterComponent(WebPanel content) {
-        // TEMPORARY: Inject Replica Panel for Verification
-        return new ui.replica.ReplicaPanel();
-
-        /*
-         * Original Code Preserved
-         * // Setup main container with Appearance Panel + ZoomPanel (Grid)
-         * WebPanel main = new WebPanel(new java.awt.BorderLayout());
-         * UIBuilder.getStyle().decorateMainPanel(main); // Apply Theme BG (e.g. Light
-         * Grey)
-         * 
-         * appearancePanel = new WebPanel(); // Initialized in updateAppearancePanel
-         * appearancePanel.setOpaque(false); // Let main BG show through, or decorate
-         * individually
-         * main.add(appearancePanel, java.awt.BorderLayout.NORTH);
-         * 
-         * main.add(scaler, java.awt.BorderLayout.CENTER);
-         * 
-         * return main;
-         */
+        // Scaler contains all cards (config-driven)
+        WebPanel main = new WebPanel(new java.awt.BorderLayout());
+        ReplicaBuilder.getStyle().decorateMainPanel(main);
+        main.add(scaler, java.awt.BorderLayout.CENTER);
+        return main;
     }
 
     class ZoomPanel extends WebPanel {

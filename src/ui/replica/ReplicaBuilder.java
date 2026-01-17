@@ -143,6 +143,76 @@ public class ReplicaBuilder {
         return panel;
     }
 
+    /**
+     * Creates a Slider row: [Label] ... [Slider]
+     */
+    public static WebPanel createSliderItem(String labelText, int min, int max, int value, int width) {
+        WebPanel panel = new WebPanel(new BorderLayout(5, 0));
+        style.decorateControlPanel(panel);
+        panel.setBorder(BorderFactory.createEmptyBorder(4, 5, 4, 5));
+
+        WebLabel label = new WebLabel(labelText);
+        style.decorateLabel(label);
+        panel.add(label, BorderLayout.WEST);
+
+        com.alee.laf.slider.WebSlider slider = new com.alee.laf.slider.WebSlider(
+                com.alee.laf.slider.WebSlider.HORIZONTAL, min, max, value);
+        slider.setPreferredSize(new Dimension(width, 30));
+        slider.setOpaque(false);
+        style.decorateSlider(slider);
+
+        panel.add(slider, BorderLayout.CENTER);
+
+        // Critical: Enable ResponsiveGrid alignment
+        panel.putClientProperty("alignLabel", label);
+        // Store slider reference for retrieval
+        panel.putClientProperty("slider", slider);
+
+        return panel;
+    }
+
+    /**
+     * Extracts the WebSwitch from a panel created by createSwitchItem.
+     */
+    public static WebSwitch getSwitch(WebPanel itemPanel) {
+        for (java.awt.Component c : itemPanel.getComponents()) {
+            if (c instanceof WebPanel) {
+                for (java.awt.Component inner : ((WebPanel) c).getComponents()) {
+                    if (inner instanceof WebSwitch) {
+                        return (WebSwitch) inner;
+                    }
+                }
+            }
+            if (c instanceof WebSwitch) {
+                return (WebSwitch) c;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Extracts the WebSlider from a panel created by createSliderItem.
+     */
+    public static com.alee.laf.slider.WebSlider getSlider(WebPanel itemPanel) {
+        Object slider = itemPanel.getClientProperty("slider");
+        if (slider instanceof com.alee.laf.slider.WebSlider) {
+            return (com.alee.laf.slider.WebSlider) slider;
+        }
+        return null;
+    }
+
+    /**
+     * Extracts the WebComboBox from a panel created by createDropdownItem.
+     */
+    public static WebComboBox getComboBox(WebPanel itemPanel) {
+        for (java.awt.Component c : itemPanel.getComponents()) {
+            if (c instanceof WebComboBox) {
+                return (WebComboBox) c;
+            }
+        }
+        return null;
+    }
+
     // Helper to get font quickly
     private static Font layerFont(float size) {
         return Application.defaultFont.deriveFont(size);

@@ -24,6 +24,13 @@ public class ConfigLoader {
         public String format;
         public boolean visible = true;
 
+        // Extended fields for control-type rows
+        public String type = "DATA"; // DATA, HEADER, SLIDER, COMBO, SWITCH
+        public String property = null; // Bound GroupConfig property (e.g., "fontSize")
+        public int minVal = 0; // For SLIDER
+        public int maxVal = 100; // For SLIDER
+        public String defaultValue = null; // Default/current value from config
+
         public RowConfig(String label, String formula, String format) {
             this.label = label;
             this.formula = formula;
@@ -173,21 +180,68 @@ public class ConfigLoader {
                         } catch (Exception e) {
                         }
                 } else {
-                    // Item line: Label || Formula || Format
+                    // Item line: Label || Formula || Format || Value/Visible
+                    // Extended format: Label || TYPE:property:params || format || defaultValue
                     String[] parts = line.split("\\|\\|");
                     if (parts.length >= 2) {
                         String label = parts[0].trim();
                         String formula = parts[1].trim();
                         String fmt = parts.length > 2 ? parts[2].trim() : "%s";
-                        boolean visible = parts.length > 3 ? parts[3].trim().equalsIgnoreCase("true") : true;
+                        String valueStr = parts.length > 3 ? parts[3].trim() : "";
 
                         // If config starts without a group, create a default one
                         if (currentGroup == null) {
                             currentGroup = new GroupConfig("General");
                             groups.add(currentGroup);
                         }
+
                         RowConfig rc = new RowConfig(label, formula, fmt);
-                        rc.visible = visible;
+                        rc.defaultValue = valueStr;
+
+                        // Parse control type from formula
+                        if (formula.equalsIgnoreCase("HEADER")) {
+                            rc.type = "HEADER";
+                            rc.visible = valueStr.isEmpty() || valueStr.equalsIgnoreCase("true");
+                        } else if (formula.startsWith("SLIDER:")) {
+                            // Format: SLIDER:property:min:max
+                            rc.type = "SLIDER";
+                            String[] sliderParts = formula.substring(7).split(":");
+                            if (sliderParts.length >= 1)
+                                rc.property = sliderParts[0];
+                            if (sliderParts.length >= 2) {
+                                try {
+                                    rc.minVal = Integer.parseInt(sliderParts[1]);
+                                } catch (Exception e) {
+                                }
+                            }
+                            if (sliderParts.length >= 3) {
+                                try {
+                                    rc.maxVal = Integer.parseInt(sliderParts[2]);
+                                } catch (Exception e) {
+                                }
+                            }
+                            rc.visible = true;
+                        } else if (formula.startsWith("COMBO:")) {
+                            // Format: COMBO:property:optionSource
+                            rc.type = "COMBO";
+                            String[] comboParts = formula.substring(6).split(":", 2);
+                            if (comboParts.length >= 1)
+                                rc.property = comboParts[0];
+                            // optionSource stored in format field for later processing
+                            if (comboParts.length >= 2)
+                                rc.format = comboParts[1];
+                            rc.visible = true;
+                        } else if (formula.startsWith("SWITCH:")) {
+                            // Format: SWITCH:property
+                            rc.type = "SWITCH";
+                            rc.property = formula.substring(7);
+                            rc.visible = valueStr.isEmpty() || valueStr.equalsIgnoreCase("true");
+                        } else {
+                            // Regular DATA row
+                            rc.type = "DATA";
+                            rc.visible = valueStr.isEmpty() || valueStr.equalsIgnoreCase("true");
+                        }
+
                         currentGroup.rows.add(rc);
                     }
                 }
