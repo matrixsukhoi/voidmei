@@ -437,6 +437,7 @@ public class Controller implements ConfigProvider {
 
 			// Save config when entering game mode
 			configService.saveConfig();
+			configService.saveLayoutConfig();
 
 		}
 
@@ -552,7 +553,12 @@ public class Controller implements ConfigProvider {
 		// }
 		// dynamicOverlays.clear();
 
-		dynamicConfigs = prog.config.ConfigLoader.loadConfig("ui_layout.cfg");
+		// dynamicOverlays.clear();
+
+		// Use shared layout config from ConfigurationService
+		// Always reload to support ConfigWatcher updates
+		configService.loadLayout("ui_layout.cfg");
+		dynamicConfigs = configService.getLayoutConfigs();
 		// for (prog.config.ConfigLoader.GroupConfig config : dynamicConfigs) {
 		// ui.overlay.DynamicOverlay overlay = new ui.overlay.DynamicOverlay(this,
 		// config);

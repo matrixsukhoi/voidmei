@@ -410,16 +410,10 @@ public class MainForm extends WebFrame {
 	}
 
 	public void saveDynamicConfig() {
-		if (dynamicPages == null)
-			return;
+		// Delegate to ConfigurationService
 		if (configWatcher != null)
 			configWatcher.ignoreNext(); // Prevents reloading the file we just wrote
-		java.util.List<prog.config.ConfigLoader.GroupConfig> configs = new java.util.ArrayList<>();
-		for (ui.layout.DynamicDataPage page : dynamicPages) {
-			if (page.getGroupConfig() != null) {
-				configs.add(page.getGroupConfig());
-			}
-		}
-		prog.config.ConfigLoader.saveConfig("ui_layout.cfg", configs);
+
+		tc.configService.saveLayoutConfig();
 	}
 }

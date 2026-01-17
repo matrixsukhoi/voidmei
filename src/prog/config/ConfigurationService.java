@@ -14,6 +14,7 @@ import prog.event.UIStateEvents;
  */
 public class ConfigurationService implements ConfigProvider {
     private Config cfg;
+    private java.util.List<ConfigLoader.GroupConfig> layoutConfigs;
     // private Timer saveTimer; // Removed
     // private final long SAVE_DELAY = 2000; // Removed
 
@@ -24,6 +25,10 @@ public class ConfigurationService implements ConfigProvider {
 
     public void initConfig() {
         cfg = new Config("./config/config.properties");
+
+        // Load layout config
+        loadLayout("./ui_layout.cfg");
+
         boolean changed = false;
 
         changed |= checkDefault("Interval", "300");
@@ -56,6 +61,22 @@ public class ConfigurationService implements ConfigProvider {
         if (changed) {
             saveConfig();
         }
+    }
+
+    public void loadLayout(String path) {
+        layoutConfigs = ConfigLoader.loadConfig(path);
+        prog.util.Logger.info("ConfigurationService", "Loaded layout config with " + layoutConfigs.size() + " groups.");
+    }
+
+    public void saveLayoutConfig() {
+        if (layoutConfigs != null) {
+            prog.util.Logger.info("ConfigurationService", "ACTION: ConfigurationService: Saving to ui_layout.cfg");
+            ConfigLoader.saveConfig("./ui_layout.cfg", layoutConfigs);
+        }
+    }
+
+    public java.util.List<ConfigLoader.GroupConfig> getLayoutConfigs() {
+        return layoutConfigs;
     }
 
     private boolean checkDefault(String key, String defaultValue) {
