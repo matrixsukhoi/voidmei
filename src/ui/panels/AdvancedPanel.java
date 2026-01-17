@@ -11,7 +11,7 @@ import com.alee.laf.slider.WebSlider;
 import com.alee.laf.text.WebTextField;
 import com.alee.utils.ImageUtils;
 
-import prog.ConfigurationService;
+import prog.config.ConfigurationService;
 import prog.app;
 import prog.lang;
 import ui.layout.UIBuilder;

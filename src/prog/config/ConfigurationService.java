@@ -1,11 +1,16 @@
-package prog;
+package prog.config;
 
 import java.awt.Color;
 import java.awt.RenderingHints;
-import ui.model.ConfigProvider;
+import prog.app;
+import prog.controller;
 
+/**
+ * Main configuration service implementing ConfigProvider.
+ * Handles loading, saving, and accessing application configuration.
+ */
 public class ConfigurationService implements ConfigProvider {
-    private config cfg;
+    private Config cfg;
 
     public ConfigurationService() {
         // Initialize config class (property loader)
@@ -13,7 +18,7 @@ public class ConfigurationService implements ConfigProvider {
     }
 
     public void initConfig() {
-        cfg = new config("./config/config.properties");
+        cfg = new Config("./config/config.properties");
         boolean changed = false;
 
         changed |= checkDefault("Interval", "300");

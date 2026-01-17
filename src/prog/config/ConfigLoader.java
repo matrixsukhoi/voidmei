@@ -1,4 +1,4 @@
-package ui.util;
+package prog.config;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -13,6 +13,9 @@ import java.util.List;
 
 import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent;
 
+/**
+ * Loader for dynamic overlay configuration files.
+ */
 public class ConfigLoader {
 
     public static class RowConfig {

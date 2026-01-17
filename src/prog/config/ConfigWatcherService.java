@@ -1,4 +1,4 @@
-package ui.util;
+package prog.config;
 
 import java.io.File;
 import javax.swing.Timer;

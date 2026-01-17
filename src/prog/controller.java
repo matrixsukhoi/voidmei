@@ -20,7 +20,9 @@ import ui.gearAndFlaps;
 import ui.mainform;
 import ui.situationAware;
 import ui.someUsefulData;
-import ui.model.ConfigProvider;
+import prog.config.ConfigProvider;
+import prog.config.ConfigurationService;
+import prog.config.ConfigLoader;
 
 public class controller implements ConfigProvider {
 
@@ -43,7 +45,7 @@ public class controller implements ConfigProvider {
 	public OverlayManager overlayManager;
 
 	public java.util.List<ui.overlay.DynamicOverlay> dynamicOverlays = new java.util.ArrayList<>();
-	public java.util.List<ui.util.ConfigLoader.GroupConfig> dynamicConfigs = new java.util.ArrayList<>();
+	public java.util.List<prog.config.ConfigLoader.GroupConfig> dynamicConfigs = new java.util.ArrayList<>();
 
 	// Core Threads
 	Thread S1; // Service
@@ -494,8 +496,8 @@ public class controller implements ConfigProvider {
 		}
 		dynamicOverlays.clear();
 
-		dynamicConfigs = ui.util.ConfigLoader.loadConfig("ui_layout.cfg");
-		for (ui.util.ConfigLoader.GroupConfig config : dynamicConfigs) {
+		dynamicConfigs = prog.config.ConfigLoader.loadConfig("ui_layout.cfg");
+		for (prog.config.ConfigLoader.GroupConfig config : dynamicConfigs) {
 			ui.overlay.DynamicOverlay overlay = new ui.overlay.DynamicOverlay(this, config);
 			dynamicOverlays.add(overlay);
 			// Start the self-refresh thread

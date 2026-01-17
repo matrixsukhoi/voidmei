@@ -763,7 +763,7 @@ public class lang {
 	// public static String bDrag = "主阻力面积因数与加速度系数: %.2f / %.2f\n诱导阻力因数及加速度系数: %.3f
 	// / %.0f\n散热/油冷器阻力系数: %.3f / %.3f\n";
 	//
-	public static config lanuageConfig;
+	public static prog.config.Config lanuageConfig;
 
 	public static String updateLanguage(String key, String dft) {
 		String v = lanuageConfig.getValue(key);
@@ -778,7 +778,7 @@ public class lang {
 	}
 
 	public static void initLang() {
-		lanuageConfig = new config("./lang/cur.properties");
+		lanuageConfig = new prog.config.Config("./lang/cur.properties");
 
 		// 挨个更新
 		appName = updateLanguage("appName", appName);

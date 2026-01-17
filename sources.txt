@@ -14,7 +14,6 @@ src/prog/event/FlightDataEvent.java
 src/prog/event/UIStateBus.java
 src/prog/event/FlightDataBus.java
 src/prog/controller.java
-src/prog/ConfigurationService.java
 src/prog/service.java
 src/prog/gcThread.java
 src/prog/uiThread.java
@@ -24,12 +23,16 @@ src/prog/OverlayManager.java
 src/prog/httpHelper.java
 src/prog/autoMeasure.java
 src/prog/ActivationStrategy.java
-src/prog/config.java
 src/prog/ControllerState.java
 src/prog/voiceWarning.java
 src/prog/otherService.java
 src/prog/util/FormulaEvaluator.java
 src/prog/calcHelper.java
+src/prog/config/ConfigurationService.java
+src/prog/config/ConfigWatcherService.java
+src/prog/config/ConfigProvider.java
+src/prog/config/ConfigLoader.java
+src/prog/config/Config.java
 src/prog/OverlayContext.java
 src/prog/flapsControl.java
 src/ui/statusBar.java
@@ -51,7 +54,6 @@ src/ui/model/DefaultFieldManager.java
 src/ui/model/FlightDataBindings.java
 src/ui/model/DataField.java
 src/ui/model/FlightDataProvider.java
-src/ui/model/ConfigProvider.java
 src/ui/model/ServiceDataAdapter.java
 src/ui/model/FieldDefinition.java
 src/ui/model/FieldManager.java
@@ -73,11 +75,9 @@ src/ui/layout/ResponsiveGridLayout.java
 src/ui/layout/DynamicDataPage.java
 src/ui/layout/UIBuilder.java
 src/ui/layout/ClassicStyle.java
-src/ui/util/ConfigWatcherService.java
 src/ui/util/FileUtils.java
 src/ui/util/NotificationService.java
 src/ui/util/NotificationFactory.java
-src/ui/util/ConfigLoader.java
 src/ui/overlay/ZebraListRenderer.java
 src/ui/overlay/OverlayRenderer.java
 src/ui/overlay/DynamicOverlay.java

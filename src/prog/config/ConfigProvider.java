@@ -1,4 +1,4 @@
-package ui.model;
+package prog.config;
 
 /**
  * Interface for configuration access.

@@ -25,7 +25,7 @@ import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent;
 import com.github.kwhat.jnativehook.keyboard.NativeKeyListener;
 
 import parser.blkx;
-import prog.ConfigurationService;
+import prog.config.ConfigurationService;
 import prog.app;
 import prog.lang;
 import prog.event.UIStateBus;

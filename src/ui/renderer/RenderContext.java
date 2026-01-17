@@ -5,7 +5,7 @@ import java.awt.FontMetrics;
 import java.awt.Component;
 
 import prog.app;
-import ui.model.ConfigProvider;
+import prog.config.ConfigProvider;
 
 /**
  * Context object containing rendering configuration.

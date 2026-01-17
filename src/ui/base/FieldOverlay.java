@@ -7,7 +7,7 @@ import java.util.List;
 
 import com.alee.laf.panel.WebPanel;
 import parser.AttributePool;
-import ui.model.ConfigProvider;
+import prog.config.ConfigProvider;
 import ui.model.DataField;
 import ui.model.DefaultFieldManager;
 import ui.model.FieldDefinition;

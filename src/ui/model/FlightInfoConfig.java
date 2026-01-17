@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import prog.lang;
+import prog.config.ConfigProvider;
 
 /**
  * Configuration for FlightInfo overlay.

@@ -8,7 +8,7 @@ import com.alee.laf.combobox.WebComboBox;
 import com.alee.laf.panel.WebPanel;
 import com.alee.laf.slider.WebSlider;
 
-import prog.ConfigurationService;
+import prog.config.ConfigurationService;
 import prog.app;
 import prog.lang;
 import ui.layout.UIBuilder;

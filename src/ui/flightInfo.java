@@ -4,7 +4,7 @@ import java.util.List;
 
 import parser.AttributePool;
 import ui.base.FieldOverlay;
-import ui.model.ConfigProvider;
+import prog.config.ConfigProvider;
 import ui.model.FieldDefinition;
 import ui.model.FlightInfoConfig;
 import ui.renderer.BOSStyleRenderer;

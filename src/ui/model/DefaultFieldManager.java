@@ -5,6 +5,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import prog.config.ConfigProvider;
+
 /**
  * Default implementation of FieldManager.
  * Uses ArrayList for ordered storage and HashMap for fast lookup.

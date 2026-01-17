@@ -6,7 +6,7 @@ import java.awt.event.MouseMotionAdapter;
 
 import com.alee.laf.rootpane.WebFrame;
 import prog.app;
-import ui.model.ConfigProvider;
+import prog.config.ConfigProvider;
 
 /**
  * Base class for draggable overlay windows.

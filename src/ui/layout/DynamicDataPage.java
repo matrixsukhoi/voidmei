@@ -24,10 +24,10 @@ import java.awt.Insets;
 public class DynamicDataPage extends BasePage {
 
     private ZoomPanel scaler;
-    private ui.util.ConfigLoader.GroupConfig groupConfig;
+    private prog.config.ConfigLoader.GroupConfig groupConfig;
     private boolean overlayVisible = false;
 
-    public DynamicDataPage(mainform parent, ui.util.ConfigLoader.GroupConfig groupConfig) {
+    public DynamicDataPage(mainform parent, prog.config.ConfigLoader.GroupConfig groupConfig) {
         super(parent);
         this.groupConfig = groupConfig;
 
@@ -50,7 +50,7 @@ public class DynamicDataPage extends BasePage {
         super(parent);
     }
 
-    public void setGroupConfig(ui.util.ConfigLoader.GroupConfig groupConfig) {
+    public void setGroupConfig(prog.config.ConfigLoader.GroupConfig groupConfig) {
         this.groupConfig = groupConfig;
         if (groupConfig != null) {
             this.overlayVisible = groupConfig.visible;
@@ -59,7 +59,7 @@ public class DynamicDataPage extends BasePage {
         rebuild();
     }
 
-    public ui.util.ConfigLoader.GroupConfig getGroupConfig() {
+    public prog.config.ConfigLoader.GroupConfig getGroupConfig() {
         return groupConfig;
     }
 
@@ -114,7 +114,7 @@ public class DynamicDataPage extends BasePage {
         WebPanel currentGroup = null;
         WebLabel currentHeader = null;
 
-        for (ui.util.ConfigLoader.RowConfig row : groupConfig.rows) {
+        for (prog.config.ConfigLoader.RowConfig row : groupConfig.rows) {
             boolean isHeader = row.formula != null && row.formula.equalsIgnoreCase("HEADER");
 
             if (isHeader) {
@@ -318,7 +318,7 @@ public class DynamicDataPage extends BasePage {
         // --- Step 2: Pass 1 - Measurement ---
         java.util.List<RowComponents> rowComps = new java.util.ArrayList<>();
         java.awt.Font font = prog.app.defaultFont;
-        for (ui.util.ConfigLoader.RowConfig row : groupConfig.rows) {
+        for (prog.config.ConfigLoader.RowConfig row : groupConfig.rows) {
             RowComponents rc = new RowComponents(row);
             rowComps.add(rc);
 
@@ -377,7 +377,7 @@ public class DynamicDataPage extends BasePage {
         WebPanel actions;
         boolean isHeader;
 
-        RowComponents(ui.util.ConfigLoader.RowConfig row) {
+        RowComponents(prog.config.ConfigLoader.RowConfig row) {
             this.isHeader = row.formula != null && row.formula.equalsIgnoreCase("HEADER");
 
             fLabel = new EditableField(row.label, (val) -> {
@@ -417,7 +417,7 @@ public class DynamicDataPage extends BasePage {
             btnAdd.addActionListener(e -> {
                 int idx = groupConfig.rows.indexOf(row);
                 if (idx != -1) {
-                    groupConfig.rows.add(idx + 1, new ui.util.ConfigLoader.RowConfig("New Row", "0", "%s"));
+                    groupConfig.rows.add(idx + 1, new prog.config.ConfigLoader.RowConfig("New Row", "0", "%s"));
                     rebuild();
                     save();
                 }

@@ -43,7 +43,7 @@ public class mainform extends WebFrame {
 	public controller tc;
 	// Store dynamic pages for updates
 	private java.util.List<ui.layout.DynamicDataPage> dynamicPages;
-	private ui.util.ConfigWatcherService configWatcher;
+	private prog.config.ConfigWatcherService configWatcher;
 	private javax.swing.Timer repaintTimer;
 	Container root;
 	WebTabbedPane tabbedPane;
@@ -270,7 +270,7 @@ public class mainform extends WebFrame {
 			ui.layout.UIBuilder.addRightAlignedTab(tabbedPane, "Data (Empty)", new ui.layout.DynamicDataPage(this),
 					app.defaultFontBig);
 		} else {
-			for (ui.util.ConfigLoader.GroupConfig group : tc.dynamicConfigs) {
+			for (prog.config.ConfigLoader.GroupConfig group : tc.dynamicConfigs) {
 				ui.layout.DynamicDataPage page = new ui.layout.DynamicDataPage(this, group);
 				dynamicPages.add(page);
 				ui.layout.UIBuilder.addRightAlignedTab(tabbedPane, group.title, page, app.defaultFontBig);
@@ -303,7 +303,7 @@ public class mainform extends WebFrame {
 	}
 
 	private void startFileWatcher() {
-		configWatcher = new ui.util.ConfigWatcherService("ui_layout.cfg", this::reloadDynamicConfig);
+		configWatcher = new prog.config.ConfigWatcherService("ui_layout.cfg", this::reloadDynamicConfig);
 		configWatcher.start(2000);
 	}
 
@@ -315,7 +315,7 @@ public class mainform extends WebFrame {
 			return;
 
 		// Sync existing pages with the new GroupConfig objects from controller
-		for (ui.util.ConfigLoader.GroupConfig group : tc.dynamicConfigs) {
+		for (prog.config.ConfigLoader.GroupConfig group : tc.dynamicConfigs) {
 			for (ui.layout.DynamicDataPage page : dynamicPages) {
 				if (page.getGroupConfig().title.equals(group.title)) {
 					page.setGroupConfig(group);
@@ -533,12 +533,12 @@ public class mainform extends WebFrame {
 			return;
 		if (configWatcher != null)
 			configWatcher.ignoreNext(); // Prevents reloading the file we just wrote
-		java.util.List<ui.util.ConfigLoader.GroupConfig> configs = new java.util.ArrayList<>();
+		java.util.List<prog.config.ConfigLoader.GroupConfig> configs = new java.util.ArrayList<>();
 		for (ui.layout.DynamicDataPage page : dynamicPages) {
 			if (page.getGroupConfig() != null) {
 				configs.add(page.getGroupConfig());
 			}
 		}
-		ui.util.ConfigLoader.saveConfig("ui_layout.cfg", configs);
+		prog.config.ConfigLoader.saveConfig("ui_layout.cfg", configs);
 	}
 }

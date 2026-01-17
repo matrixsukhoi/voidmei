@@ -5,7 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import ui.util.ConfigLoader;
+import prog.config.ConfigLoader;
 import prog.util.FormulaEvaluator;
 import prog.controller;
 

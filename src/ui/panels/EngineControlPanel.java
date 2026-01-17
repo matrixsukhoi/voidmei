@@ -6,7 +6,7 @@ import java.awt.FlowLayout;
 import com.alee.extended.button.WebSwitch;
 import com.alee.laf.panel.WebPanel;
 
-import prog.ConfigurationService;
+import prog.config.ConfigurationService;
 import prog.lang;
 import ui.layout.UIBuilder;
 
