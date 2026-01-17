@@ -27,6 +27,7 @@ src/prog/ControllerState.java
 src/prog/AutoMeasure.java
 src/prog/util/StringHelper.java
 src/prog/util/CalcHelper.java
+src/prog/util/PropertyBinder.java
 src/prog/util/FileUtils.java
 src/prog/util/FormulaEvaluator.java
 src/prog/util/HttpHelper.java
@@ -66,6 +67,12 @@ src/ui/layout/FlexGridLayout.java
 src/ui/layout/UIStyle.java
 src/ui/layout/BasePage.java
 src/ui/layout/ModernStyle.java
+src/ui/layout/renderer/RowRendererRegistry.java
+src/ui/layout/renderer/DataRowRenderer.java
+src/ui/layout/renderer/SliderRowRenderer.java
+src/ui/layout/renderer/SwitchRowRenderer.java
+src/ui/layout/renderer/ComboRowRenderer.java
+src/ui/layout/renderer/RowRenderer.java
 src/ui/layout/ResponsiveGridLayout.java
 src/ui/layout/DynamicDataPage.java
 src/ui/layout/UIBuilder.java

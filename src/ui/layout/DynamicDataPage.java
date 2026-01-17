@@ -16,6 +16,8 @@ import com.alee.extended.button.WebSwitch;
 import com.alee.laf.slider.WebSlider;
 import com.alee.laf.combobox.WebComboBox;
 import ui.replica.ReplicaBuilder;
+import ui.layout.renderer.RowRenderer;
+import ui.layout.renderer.RowRendererRegistry;
 
 public class DynamicDataPage extends BasePage {
 
@@ -93,15 +95,30 @@ public class DynamicDataPage extends BasePage {
             return;
 
         scaler.removeAll();
-
-        // Main Scale Panel uses Vertical Flow to stack cards
         scaler.setLayout(new com.alee.extended.layout.VerticalFlowLayout());
 
-        // Calculate columns for inner grids: ReplicaBuilder items are self-contained
         int pCols = groupConfig.panelColumns > 0 ? groupConfig.panelColumns : 2;
 
         WebPanel currentCard = null;
         WebPanel currentGrid = null;
+
+        // Create render context with callbacks
+        final RowRenderer.RenderContext ctx = new RowRenderer.RenderContext() {
+            @Override
+            public void onSave() {
+                save();
+            }
+
+            @Override
+            public void onRebuild() {
+                rebuild();
+            }
+
+            @Override
+            public boolean isUpdating() {
+                return isUpdatingControls;
+            }
+        };
 
         for (prog.config.ConfigLoader.RowConfig row : groupConfig.rows) {
             String rowType = row.type != null ? row.type : "DATA";
@@ -109,13 +126,10 @@ public class DynamicDataPage extends BasePage {
             if (rowType.equals("HEADER")) {
                 // Header row triggers new Card
                 currentCard = ReplicaBuilder.getStyle().createContainer(row.label);
-
-                // Create grid for this card
                 currentGrid = new WebPanel();
                 currentGrid.setOpaque(false);
                 currentGrid.setLayout(new ResponsiveGridLayout(pCols, 10, 5));
                 currentCard.add(currentGrid);
-
                 scaler.add(currentCard);
             } else {
                 // Ensure we have a grid to add to
@@ -128,81 +142,9 @@ public class DynamicDataPage extends BasePage {
                     scaler.add(currentCard);
                 }
 
-                WebPanel itemPanel = null;
-
-                switch (rowType) {
-                    case "SLIDER": {
-                        // Get current value from GroupConfig property
-                        int currentVal = getPropertyAsInt(row.property, row.defaultValue);
-                        itemPanel = ReplicaBuilder.createSliderItem(row.label, row.minVal, row.maxVal, currentVal, 150);
-                        WebSlider slider = ReplicaBuilder.getSlider(itemPanel);
-                        if (slider != null) {
-                            final String prop = row.property;
-                            slider.addChangeListener(e -> {
-                                if (isUpdatingControls)
-                                    return;
-                                if (!slider.getValueIsAdjusting()) {
-                                    setPropertyFromInt(prop, slider.getValue());
-                                    if ("panelColumns".equals(prop)) {
-                                        rebuild(); // Rebuild layout when panel columns change
-                                    }
-                                    save();
-                                }
-                            });
-                        }
-                        break;
-                    }
-                    case "COMBO": {
-                        // Get options based on format field
-                        String[] options = getComboOptions(row.format);
-                        itemPanel = ReplicaBuilder.createDropdownItem(row.label, options);
-                        WebComboBox combo = ReplicaBuilder.getComboBox(itemPanel);
-                        if (combo != null) {
-                            // Set current value
-                            String currentVal = getPropertyAsString(row.property, row.defaultValue);
-                            if (currentVal != null) {
-                                combo.setSelectedItem(currentVal);
-                            }
-                            final String prop = row.property;
-                            combo.addActionListener(e -> {
-                                if (isUpdatingControls)
-                                    return;
-                                setPropertyFromString(prop, (String) combo.getSelectedItem());
-                                save();
-                            });
-                        }
-                        break;
-                    }
-                    case "SWITCH": {
-                        // Get current value from property or visible
-                        boolean currentVal = getPropertyAsBool(row.property, row.visible);
-                        itemPanel = ReplicaBuilder.createSwitchItem(row.label, currentVal, false);
-                        WebSwitch sw = ReplicaBuilder.getSwitch(itemPanel);
-                        if (sw != null) {
-                            final String prop = row.property;
-                            sw.addActionListener(e -> {
-                                if (isUpdatingControls)
-                                    return;
-                                setPropertyFromBool(prop, sw.isSelected());
-                                save();
-                            });
-                        }
-                        break;
-                    }
-                    case "DATA":
-                    default: {
-                        // Standard data toggle
-                        itemPanel = ReplicaBuilder.createSwitchItem(row.label, row.visible, false);
-                        WebSwitch sw = ReplicaBuilder.getSwitch(itemPanel);
-                        if (sw != null) {
-                            sw.addActionListener(e -> {
-                                row.visible = sw.isSelected();
-                                save();
-                            });
-                        }
-                        break;
-                    }
-                }
+                // Use strategy pattern to render the row
+                RowRenderer renderer = RowRendererRegistry.get(rowType);
+                WebPanel itemPanel = renderer.render(row, groupConfig, ctx);
 
                 if (itemPanel != null) {
                     currentGrid.add(itemPanel);
@@ -212,99 +154,6 @@ public class DynamicDataPage extends BasePage {
 
         scaler.revalidate();
         scaler.repaint();
-    }
-
-    // Property getter/setter helpers for config-driven controls
-    private int getPropertyAsInt(String property, String defaultVal) {
-        if (property == null)
-            return 0;
-        try {
-            switch (property) {
-                case "fontSize":
-                    return groupConfig.fontSize;
-                case "columns":
-                    return groupConfig.columns;
-                case "panelColumns":
-                    return groupConfig.panelColumns;
-                case "alpha":
-                    return groupConfig.alpha;
-                default:
-                    return defaultVal != null ? Integer.parseInt(defaultVal) : 0;
-            }
-        } catch (Exception e) {
-            return 0;
-        }
-    }
-
-    private void setPropertyFromInt(String property, int value) {
-        if (property == null)
-            return;
-        switch (property) {
-            case "fontSize":
-                groupConfig.fontSize = value;
-                break;
-            case "columns":
-                groupConfig.columns = value;
-                break;
-            case "panelColumns":
-                groupConfig.panelColumns = value;
-                break;
-            case "alpha":
-                groupConfig.alpha = value;
-                break;
-        }
-    }
-
-    private String getPropertyAsString(String property, String defaultVal) {
-        if (property == null)
-            return defaultVal;
-        switch (property) {
-            case "fontName":
-                return groupConfig.fontName;
-            default:
-                return defaultVal;
-        }
-    }
-
-    private void setPropertyFromString(String property, String value) {
-        if (property == null)
-            return;
-        switch (property) {
-            case "fontName":
-                groupConfig.fontName = value;
-                break;
-        }
-    }
-
-    private boolean getPropertyAsBool(String property, boolean defaultVal) {
-        if (property == null)
-            return defaultVal;
-        switch (property) {
-            case "visible":
-                return groupConfig.visible;
-            default:
-                return defaultVal;
-        }
-    }
-
-    private void setPropertyFromBool(String property, boolean value) {
-        if (property == null)
-            return;
-        switch (property) {
-            case "visible":
-                groupConfig.visible = value;
-                break;
-        }
-    }
-
-    private String[] getComboOptions(String optionSource) {
-        if (optionSource == null)
-            return new String[0];
-        if (optionSource.equals("_FONTS_")) {
-            return java.awt.GraphicsEnvironment.getLocalGraphicsEnvironment().getAvailableFontFamilyNames();
-        }
-        // Could support other sources like "_STYLES_" etc.
-        return optionSource.split(",");
     }
 
     @Override
