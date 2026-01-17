@@ -1460,6 +1460,59 @@ public class Service implements Runnable {
 			}
 		}
 
+		// Initialize Strings to Defaults
+		sTotalHp = nastring;
+		sTotalThr = nastring;
+		rpm = nastring;
+		sTotalHpEff = nastring;
+		pressureInchHg = nastring;
+		manifoldpressure = nastring;
+		watertemp = nastring;
+		oiltemp = nastring;
+		sTotalFuel = nastring;
+		sfueltime = nastring;
+		sNitro = nastring;
+		sWepTime = nastring;
+		sEngWorkTime = nastring;
+		SdThrustPercent = nastring;
+		sThurstPercent = nastring;
+		sAvgEff = nastring;
+
+		TAS = nastring;
+		IAS = nastring;
+		M = nastring;
+		AoA = nastring;
+		AoS = nastring;
+		Ny = nastring;
+		sN = nastring;
+		Wx = nastring;
+		salt = nastring;
+		sRadioAlt = nastring;
+		Vy = nastring;
+		compass = nastring;
+		throttle = nastring;
+		sSEP = nastring;
+		sSEPAbs = nastring;
+		sAcc = nastring;
+		sTurnRate = nastring;
+		sTurnRds = nastring;
+		sWingSweep = nastring;
+		flaps = nastring;
+		gear = nastring;
+		aileron = nastring;
+		elevator = nastring;
+		rudder = nastring;
+		svalid = "false";
+
+		efficiency = new String[4];
+		for (int i = 0; i < 4; i++)
+			efficiency[i] = nastring;
+		pitch = new String[4];
+		for (int i = 0; i < 4; i++)
+			pitch[i] = nastring;
+
+		// Publish initial state immediately
+		updateGlobalPool();
 	}
 
 	public void clearvaria() {

@@ -195,7 +195,18 @@ public class Controller implements ConfigProvider {
 				O1.start();
 			}
 			State = ControllerState.PREVIEW;
-			openpad();
+
+			// Delay overlay creation to allow data to populate (prevents flash)
+			new Thread(() -> {
+				try {
+					// overlay创建的太快了, 可能有数据闪烁, 小睡一下
+					Thread.sleep(100);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+				// Ensure openpad runs, it handles its own threads/UI
+				openpad();
+			}).start();
 
 		}
 	}
