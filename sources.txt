@@ -49,12 +49,14 @@ src/ui/model/DataField.java
 src/ui/model/FlightDataProvider.java
 src/ui/model/ServiceDataAdapter.java
 src/ui/model/FieldDefinition.java
+src/ui/model/GaugeField.java
 src/ui/model/FieldManager.java
 src/ui/base/DraggableOverlay.java
 src/ui/base/FieldOverlay.java
 src/ui/renderer/BOSStyleRenderer.java
 src/ui/renderer/OverlayRenderer.java
 src/ui/renderer/RenderContext.java
+src/ui/renderer/LinearGaugeRenderer.java
 src/ui/renderer/TextOnlyRenderer.java
 src/ui/component/LinearGauge.java
 src/ui/component/TextGauge.java

@@ -1,11 +1,12 @@
 package ui.overlay;
 
 import java.awt.Color;
-import java.awt.Container;
 import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
+import java.util.ArrayList;
+import java.util.List;
 
 import com.alee.laf.panel.WebPanel;
 
@@ -14,279 +15,247 @@ import prog.Application;
 import prog.Controller;
 import prog.i18n.Lang;
 import prog.Service;
+import prog.config.ConfigProvider;
 import prog.event.FlightDataBus;
 import prog.event.FlightDataEvent;
-import prog.event.FlightDataListener;
-import ui.base.DraggableOverlay;
+import ui.base.FieldOverlay;
+import ui.model.DataField;
+import ui.model.FieldDefinition;
+import ui.model.GaugeField;
+import ui.renderer.LinearGaugeRenderer;
+import ui.renderer.OverlayRenderer;
+import ui.renderer.RenderContext;
 
-public class EngineControl extends DraggableOverlay implements FlightDataListener {
+/**
+ * Engine Control overlay for displaying throttle, pitch, mixture, radiator,
+ * etc.
+ * Now extends FieldOverlay for the data-driven architecture.
+ */
+public class EngineControl extends FieldOverlay {
 
 	private static final long serialVersionUID = 3063042782594625576L;
 
+	// Legacy references (for direct Service access)
 	public Controller xc;
 	public Service s;
 	public Blkx p;
 
 	// Config
 	public prog.config.ConfigLoader.GroupConfig groupConfig;
-	String NumFont;
-	public String FontName;
-	int fontadd = 0;
 	private int fontsize;
 	private Font fontLabel;
 
 	// Layout
 	int WIDTH;
 	int HEIGHT;
-	int lx;
-	int ly;
 	public int rowNum;
 	public int columnNum;
-
-	// Components
-	public java.util.List<ui.component.LinearGauge> gauges;
-	WebPanel panel;
-	private Container root;
-
-	// Gauge Indexes
-	int lidx_t = Integer.MAX_VALUE; // 油门
-	int lidx_p = Integer.MAX_VALUE; // 桨距
-	int lidx_m = Integer.MAX_VALUE; // 混合比
-	int lidx_r = Integer.MAX_VALUE; // 散热器
-	int lidx_c = Integer.MAX_VALUE; // 增压器
-	int lidx_f = Integer.MAX_VALUE; // 燃油百分比
 
 	// Logic State
 	private boolean isJet;
 	private boolean jetChecked;
 
+	// Gauge Type Constants
+	public static final int GAUGE_THROTTLE = 0;
+	public static final int GAUGE_PITCH = 1;
+	public static final int GAUGE_MIXTURE = 2;
+	public static final int GAUGE_RADIATOR = 3;
+	public static final int GAUGE_COMPRESSOR = 4;
+	public static final int GAUGE_FUEL = 5;
+
+	private java.util.List<GaugeField> gaugeFields;
+
 	public EngineControl() {
 		super();
-		this.doit = false; // Disable base class polling
+		this.title = "Engine Control";
+		this.numFontKey = "NumFont";
+		this.labelFontKey = "FontName";
+		this.fontAddKey = "fontadd";
+		this.edgeKey = "engineInfoEdge";
 	}
 
-	public void fclose() {
-		dispose();
+	// --- FieldOverlay Abstract Methods ---
+
+	@Override
+	protected OverlayRenderer createRenderer() {
+		return new LinearGaugeRenderer();
 	}
 
 	@Override
-	public void dispose() {
-		FlightDataBus.getInstance().unregister(this);
-		super.dispose();
+	protected List<FieldDefinition> getFieldDefinitions() {
+		// Not used directly - we use GaugeField instead
+		return new ArrayList<>();
+	}
+
+	// --- Custom Initialization for Engine Control ---
+
+	/**
+	 * Legacy initialization method for compatibility with OverlayManager.
+	 */
+	public void init(Controller c, Service ts, Blkx tp, prog.config.ConfigLoader.GroupConfig groupConfig) {
+		this.xc = c;
+		this.s = ts;
+		this.p = tp;
+		this.groupConfig = groupConfig;
+
+		// Bridge to FieldOverlay's ConfigProvider-based init
+		ConfigProvider configBridge = new ConfigProvider() {
+			@Override
+			public String getConfig(String key) {
+				return xc != null ? xc.getconfig(key) : "";
+			}
+		};
+		this.config = configBridge;
+
+		setupTransparentWindow();
+
+		panel = new WebPanel() {
+			private static final long serialVersionUID = 1L;
+
+			@Override
+			public void paintComponent(Graphics g) {
+				Graphics2D g2d = (Graphics2D) g;
+				g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, Application.graphAASetting);
+				g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, Application.textAASetting);
+
+				drawTPMRC(g2d, fontsize >> 1, (fontsize * 4) + ((fontsize * 9) >> 1));
+			}
+		};
+		panel.setOpaque(false);
+		panel.setWebColoredBackground(false);
+		panel.setBackground(new Color(0, 0, 0, 0));
+		this.add(panel);
+
+		reinitConfig();
+		subscribeToEvents();
+		setVisible(true);
 	}
 
 	public void initPreview(Controller c, prog.config.ConfigLoader.GroupConfig groupConfig) {
 		this.groupConfig = groupConfig;
 		init(c, null, null, groupConfig);
-		// Apply preview style from base class
 		applyPreviewStyle();
-
-		// Force initial update for Preview Mode (populates "PRE" values)
 		updateGauges();
-
-		// Setup drag listeners from base class
 		setupDragListeners();
 		setVisible(true);
 	}
 
 	@Override
-	public void saveCurrentPosition() {
-		if (groupConfig != null) {
-			int screenW = java.awt.Toolkit.getDefaultToolkit().getScreenSize().width;
-			int screenH = java.awt.Toolkit.getDefaultToolkit().getScreenSize().height;
-			groupConfig.x = (double) getLocation().x / screenW;
-			groupConfig.y = (double) getLocation().y / screenH;
-			xc.configService.saveLayoutConfig();
-		} else {
-			// Fallback or legacy (xc is Controller which implements ConfigProvider)
-			xc.setconfig("engineControlX", Integer.toString(getLocation().x));
-			xc.setconfig("engineControlY", Integer.toString(getLocation().y));
-		}
-	}
-
-	public void init(Controller xc, Service ts, Blkx tp, prog.config.ConfigLoader.GroupConfig groupConfig) {
-		this.xc = xc;
-		this.s = ts;
-		this.p = tp;
-		this.groupConfig = groupConfig;
-		this.config = xc; // Set base class config provider
-
-		reinitConfig();
-
-		panel = new WebPanel() {
-			private static final long serialVersionUID = -9061280572815010060L;
-
-			public void paintComponent(Graphics g) {
-				Graphics2D g2d = (Graphics2D) g;
-				g2d.setPaintMode();
-				g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, Application.graphAASetting);
-				g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, Application.textAASetting);
-				g2d.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION,
-						RenderingHints.VALUE_ALPHA_INTERPOLATION_SPEED);
-				g2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_SPEED);
-
-				drawTPMRC(g2d, 0, (fontsize * 9) >> 1);
-			}
-		};
-
-		this.add(panel);
-		// Transparent Setup from base usage or manual
-		// DraggableOverlay has setupTransparentWindow() but EngineControl manual setup
-		// was slightly different (WebLafSettings.setWindowOpaque(this))
-		setupTransparentWindow();
-
-		setSize(WIDTH, HEIGHT);
-		setLocation(lx, ly);
-
-		setTitle("EngineControl");
-
-		jetChecked = false;
-		root = getContentPane();
-
-		if (xc.getconfig("engineInfoEdge").equals("true"))
-			setShadeWidth(10);
-		else {
-			setShadeWidth(0);
-		}
-
-		// Event Registration
-		subscribeToEvents();
-
-		if (ts != null)
-			setVisible(true);
-	}
-
-	protected void subscribeToEvents() {
-		FlightDataBus.getInstance().register(this);
-	}
-
 	public void reinitConfig() {
-		if (xc.getconfig("GlobalNumFont") != "")
-			NumFont = xc.getconfig("GlobalNumFont");
-		else
-			NumFont = Application.defaultNumfontName;
+		// Font configuration
+		String numFontVal = config != null ? config.getConfig(numFontKey) : null;
+		String labelFontVal = config != null ? config.getConfig(labelFontKey) : null;
+		String fontAddVal = config != null ? config.getConfig(fontAddKey) : null;
 
-		if (xc.getconfig("engineInfoFont") != "")
-			FontName = xc.getconfig("engineInfoFont");
-		else
-			FontName = Application.defaultFont.getFontName();
-		if (xc.getconfig("engineInfoFontadd") != "")
-			fontadd = Integer.parseInt(xc.getconfig("engineInfoFontadd"));
-		else
-			fontadd = 0;
-
-		// Use GroupConfig for position if available
-		if (groupConfig != null) {
-			int screenW = java.awt.Toolkit.getDefaultToolkit().getScreenSize().width;
-			int screenH = java.awt.Toolkit.getDefaultToolkit().getScreenSize().height;
-			lx = (int) (groupConfig.x * screenW);
-			ly = (int) (groupConfig.y * screenH);
-		} else {
-			if (xc.getconfig("engineControlX") != "")
-				lx = Integer.parseInt(xc.getconfig("engineControlX"));
-			else
-				lx = 0;
-			if (xc.getconfig("engineControlY") != "")
-				ly = Integer.parseInt(xc.getconfig("engineControlY"));
-			else
-				ly = 860;
+		String NumFont = (numFontVal != null && !numFontVal.isEmpty()) ? numFontVal : "Consolas";
+		String FontName = (labelFontVal != null && !labelFontVal.isEmpty()) ? labelFontVal : "Microsoft YaHei";
+		int fontadd = 0;
+		if (fontAddVal != null && !fontAddVal.isEmpty()) {
+			try {
+				fontadd = Integer.parseInt(fontAddVal);
+			} catch (NumberFormatException e) {
+				fontadd = 0;
+			}
 		}
 
 		fontsize = 24 + fontadd;
-		// 设置字体
 		fontLabel = new Font(FontName, Font.BOLD, Math.round(fontsize / 2.0f));
+
+		// Position configuration
+		int screenW = java.awt.Toolkit.getDefaultToolkit().getScreenSize().width;
+		int screenH = java.awt.Toolkit.getDefaultToolkit().getScreenSize().height;
+		int lx = 0, ly = 0;
+		if (groupConfig != null) {
+			lx = (int) (groupConfig.x * screenW);
+			ly = (int) (groupConfig.y * screenH);
+		}
 
 		rowNum = 0;
 		columnNum = 0;
-		initLeftString();
+		initGaugeFields();
 
 		WIDTH = fontsize * 8;
 		HEIGHT = (int) ((fontsize * 4 + (fontsize * 9) >> 1) + (rowNum + 1) * (1 * fontsize + (fontsize >> 2)));
 
-		if (xc.getconfig("engineInfoEdge").equals("true"))
-			setShadeWidth(10);
-		else
-			setShadeWidth(0);
+		boolean showEdge = edgeKey != null && config != null && "true".equals(config.getConfig(edgeKey));
+		setShadeWidth(showEdge ? 10 : 0);
 
 		setSize(WIDTH, HEIGHT);
 		setLocation(lx, ly);
 
-		// Populate gauges with data (or "PRE" in preview mode) immediately after
-		// rebuilding list
 		updateGauges();
-
 		repaint();
 	}
 
-	public void initLeftString() {
-		gauges = new java.util.ArrayList<>();
-		int leftUseNum = 0;
+	/**
+	 * Initialize gauge fields based on configuration.
+	 */
+	private void initGaugeFields() {
+		gaugeFields = new java.util.ArrayList<>();
 		String tmp;
 
-		// 油门
-		tmp = xc.getconfig("disableEngineInfoThrottle");
+		tmp = config != null ? config.getConfig("disableEngineInfoThrottle") : "";
 		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
-			gauges.add(new ui.component.LinearGauge(String.format("%s", Lang.eThrottle), 110, true));
-			lidx_t = leftUseNum++;
+			gaugeFields.add(new GaugeField("throttle", Lang.eThrottle, "%", GAUGE_THROTTLE, 110, false));
 			columnNum++;
 		}
 
-		// 桨距
-		tmp = xc.getconfig("disableEngineInfoPitch");
+		tmp = config != null ? config.getConfig("disableEngineInfoPitch") : "";
 		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
-			gauges.add(new ui.component.LinearGauge(String.format("%s", Lang.eProppitch), 100, true));
-			lidx_p = leftUseNum++;
+			gaugeFields.add(new GaugeField("pitch", Lang.eProppitch, "%", GAUGE_PITCH, 100, false));
 			columnNum++;
 		}
 
-		// 混合比
-		tmp = xc.getconfig("disableEngineInfoMixture");
+		tmp = config != null ? config.getConfig("disableEngineInfoMixture") : "";
 		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
-			gauges.add(new ui.component.LinearGauge(String.format("%s", Lang.eMixture), 120, false));
-			lidx_m = leftUseNum++;
+			gaugeFields.add(new GaugeField("mixture", Lang.eMixture, "%", GAUGE_MIXTURE, 120, true));
 			rowNum++;
 		}
 
-		// 散热器
-		tmp = xc.getconfig("disableEngineInfoRadiator");
+		tmp = config != null ? config.getConfig("disableEngineInfoRadiator") : "";
 		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
-			gauges.add(new ui.component.LinearGauge(String.format("%s", Lang.eRadiator), 100, false));
-			lidx_r = leftUseNum++;
+			gaugeFields.add(new GaugeField("radiator", Lang.eRadiator, "%", GAUGE_RADIATOR, 100, true));
 			rowNum++;
 		}
 
-		// 增压器
-		tmp = xc.getconfig("disableEngineInfoCompressor");
+		tmp = config != null ? config.getConfig("disableEngineInfoCompressor") : "";
 		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
-			gauges.add(new ui.component.LinearGauge(String.format("%s", Lang.eCompressor), 1, false));
-			lidx_c = leftUseNum++;
+			gaugeFields.add(new GaugeField("compressor", Lang.eCompressor, "", GAUGE_COMPRESSOR, 1, true));
 			rowNum++;
 		}
 
-		tmp = xc.getconfig("disableEngineInfoLFuel");
+		tmp = config != null ? config.getConfig("disableEngineInfoLFuel") : "";
 		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
-			gauges.add(new ui.component.LinearGauge(String.format("%s", Lang.eFuelPer), 100, false));
-			lidx_f = leftUseNum++;
+			gaugeFields.add(new GaugeField("fuel", Lang.eFuelPer, "%", GAUGE_FUEL, 100, true));
 			rowNum++;
 		}
-
 	}
+
+	// --- Drawing ---
 
 	public void drawTPMRC(Graphics2D g2d, int x, int y) {
 		int dx = 0;
 		int dy = fontsize >> 1;
 
-		for (int i = 0; i < gauges.size(); i++) {
-			ui.component.LinearGauge gauge = gauges.get(i);
+		for (GaugeField gf : gaugeFields) {
+			ui.component.LinearGauge gauge = gf.gauge;
 
-			if (isJet && (i == lidx_r || i == lidx_c || i == lidx_m))
+			// Skip specific gauges for jets
+			if (isJet && (gf.gaugeType == GAUGE_RADIATOR || gf.gaugeType == GAUGE_COMPRESSOR
+					|| gf.gaugeType == GAUGE_MIXTURE)) {
 				continue;
-			if (i == lidx_r || i == lidx_c || i == lidx_m || i == lidx_f) {
-				if ((i == lidx_c) && (s != null && s.sState.compressorstage == 0))
-					continue;
-				if ((i == lidx_m) && (s != null && s.sState.mixture < 0))
-					continue;
-				// 横着画
+			}
+
+			// Skip compressor if stage is 0
+			if (gf.gaugeType == GAUGE_COMPRESSOR && s != null && s.sState.compressorstage == 0) {
+				continue;
+			}
+			// Skip mixture if negative
+			if (gf.gaugeType == GAUGE_MIXTURE && s != null && s.sState.mixture < 0) {
+				continue;
+			}
+
+			if (gf.isHorizontal) {
 				gauge.vertical = false;
 				gauge.draw(g2d, x, y + dy, 4 * fontsize, fontsize >> 1, fontLabel, fontLabel);
 				dy += 1 * fontsize + (fontsize >> 2);
@@ -298,81 +267,121 @@ public class EngineControl extends DraggableOverlay implements FlightDataListene
 		}
 	}
 
-	// --- Event Driven Logic ---
+	// --- Event Handling ---
+
+	@Override
+	protected void subscribeToEvents() {
+		FlightDataBus.getInstance().register(this);
+	}
 
 	@Override
 	public void onFlightData(FlightDataEvent event) {
-		// Ensure UI updates on EDT
 		javax.swing.SwingUtilities.invokeLater(() -> {
 			updateGauges();
-			if (root != null)
-				root.repaint();
+			if (panel != null)
+				panel.repaint();
 		});
 	}
 
-	public void __update_num(int idx, String s, int val) {
-		if (idx < gauges.size()) {
-			ui.component.LinearGauge gauge = gauges.get(idx);
-			gauge.update(val, String.format("%3s", s));
-		}
-	}
-
 	public void updateGauges() {
+		if (gaugeFields == null)
+			return;
+
 		// Preview Mode (s is null)
 		if (s == null) {
-			for (ui.component.LinearGauge g : gauges) {
-				g.update(g.maxValue / 2, "PRE");
+			for (GaugeField gf : gaugeFields) {
+				gf.gauge.update(gf.gauge.maxValue / 2, "PRE");
 			}
 			return;
 		}
 
-		int leftUseNum = gauges.size();
 		if (jetChecked == false) {
 			if (s.checkEngineFlag) {
 				if (s.isEngJet()) {
 					isJet = true;
-					// 修改为推力百分比
-					if (lidx_p < leftUseNum)
-						gauges.get(lidx_p).label = Lang.eThurstP;
+					for (GaugeField gf : gaugeFields) {
+						if (gf.gaugeType == GAUGE_PITCH) {
+							gf.gauge.label = Lang.eThurstP;
+						}
+					}
 				}
 				jetChecked = true;
 			}
 		}
 
-		// 油门
-		__update_num(lidx_t, s.throttle, s.sState.throttle);
+		for (GaugeField gf : gaugeFields) {
+			switch (gf.gaugeType) {
+				case GAUGE_THROTTLE:
+					gf.gauge.update(s.sState.throttle, String.format("%3s", s.throttle));
+					break;
+				case GAUGE_PITCH:
+					if (!isJet) {
+						if (!s.RPMthrottle.equals(Service.nastring)) {
+							gf.gauge.update(s.sState.RPMthrottle, String.format("%3s", s.RPMthrottle));
+						} else {
+							gf.gauge.update(0, String.format("%3s", s.RPMthrottle));
+						}
+					} else {
+						gf.gauge.update((int) s.thurstPercent, String.format("%3s", s.sThurstPercent));
+					}
+					break;
+				case GAUGE_MIXTURE:
+					if (!s.mixture.equals(Service.nastring)) {
+						gf.gauge.update(s.sState.mixture, String.format("%3s", s.mixture));
+					} else {
+						gf.gauge.update(0, String.format("%3s", s.mixture));
+					}
+					break;
+				case GAUGE_RADIATOR:
+					if (!s.radiator.equals(Service.nastring)) {
+						gf.gauge.update(s.sState.radiator, String.format("%3s", s.radiator));
+					} else {
+						gf.gauge.update(0, String.format("%3s", s.radiator));
+					}
+					break;
+				case GAUGE_COMPRESSOR:
+					if (s.sState.compressorstage - 1 > gf.gauge.maxValue) {
+						gf.gauge.maxValue = s.sState.compressorstage - 1;
+					}
+					gf.gauge.update(s.sState.compressorstage - 1, String.format("%3s", s.compressorstage));
+					break;
+				case GAUGE_FUEL:
+					gf.gauge.update(s.fuelPercent, String.format("%3s", s.sfuelPercent));
+					break;
+			}
+		}
+	}
 
-		// 桨距
-		if (!isJet) {
-			if (!s.RPMthrottle.equals(Service.nastring)) {
-				__update_num(lidx_p, s.RPMthrottle, s.sState.RPMthrottle);
-			} else
-				__update_num(lidx_p, s.RPMthrottle, 0);
-		} else
-			__update_num(lidx_p, s.sThurstPercent, (int) s.thurstPercent);
+	// --- Position Saving ---
 
-		// 混合比
-		if (!s.mixture.equals(Service.nastring)) {
-			__update_num(lidx_m, s.mixture, s.sState.mixture);
+	@Override
+	public void saveCurrentPosition() {
+		if (groupConfig != null) {
+			int screenW = java.awt.Toolkit.getDefaultToolkit().getScreenSize().width;
+			int screenH = java.awt.Toolkit.getDefaultToolkit().getScreenSize().height;
+			groupConfig.x = (double) getLocation().x / screenW;
+			groupConfig.y = (double) getLocation().y / screenH;
+			xc.configService.saveLayoutConfig();
 		} else {
-			__update_num(lidx_m, s.mixture, 0);
+			super.saveCurrentPosition();
 		}
+	}
 
-		// 散热器
-		if (!s.radiator.equals(Service.nastring))
-			__update_num(lidx_r, s.radiator, s.sState.radiator);
-		else {
-			__update_num(lidx_r, s.radiator, 0);
-		}
+	// --- Cleanup ---
 
-		// 增压器
-		if (lidx_c < leftUseNum) {
-			ui.component.LinearGauge g = gauges.get(lidx_c);
-			if (s.sState.compressorstage - 1 > g.maxValue)
-				g.maxValue = s.sState.compressorstage - 1;
-		}
-		__update_num(lidx_c, s.compressorstage, s.sState.compressorstage - 1);
+	public void fclose() {
+		dispose();
+	}
 
-		__update_num(lidx_f, s.sfuelPercent, s.fuelPercent);
+	@Override
+	public void dispose() {
+		FlightDataBus.getInstance().unregister(this);
+		super.dispose();
+	}
+
+	// Unused run() from DraggableOverlay - disabled
+	@Override
+	public void run() {
+		// Event-driven - no polling
 	}
 }
