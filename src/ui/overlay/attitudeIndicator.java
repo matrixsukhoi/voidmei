@@ -1,4 +1,4 @@
-package ui;
+package ui.overlay;
 
 import java.awt.BasicStroke;
 import java.awt.Color;
@@ -24,6 +24,7 @@ import java.awt.geom.AffineTransform;
 import prog.app;
 import prog.controller;
 import prog.service;
+import ui.uiWebLafSetting;
 
 public class attitudeIndicator extends WebFrame implements Runnable {
 

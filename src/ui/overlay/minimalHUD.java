@@ -1,4 +1,4 @@
-package ui;
+package ui.overlay;
 
 import java.awt.BasicStroke;
 import java.awt.Color;
@@ -22,6 +22,8 @@ import prog.app;
 import prog.controller;
 import prog.otherService;
 import prog.service;
+import ui.uiBaseElem;
+import ui.uiWebLafSetting;
 
 public class minimalHUD extends WebFrame implements Runnable {
 

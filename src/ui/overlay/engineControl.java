@@ -1,4 +1,4 @@
-package ui;
+package ui.overlay;
 
 import java.awt.Color;
 import java.awt.Container;
@@ -18,6 +18,8 @@ import prog.app;
 import prog.controller;
 import prog.lang;
 import prog.service;
+import ui.uiBaseElem;
+import ui.uiWebLafSetting;
 
 public class engineControl extends WebFrame implements Runnable {
 	/**

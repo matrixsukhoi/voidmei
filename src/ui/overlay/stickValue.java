@@ -1,4 +1,4 @@
-package ui;
+package ui.overlay;
 
 import java.awt.BasicStroke;
 import java.awt.Color;
@@ -28,6 +28,8 @@ import prog.service;
 import prog.event.FlightDataBus;
 import prog.event.FlightDataEvent;
 import prog.event.FlightDataListener;
+import ui.uiBaseElem;
+import ui.uiWebLafSetting;
 import java.util.Map;
 
 public class stickValue extends WebFrame implements FlightDataListener {

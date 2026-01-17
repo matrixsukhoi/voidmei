@@ -1,4 +1,4 @@
-package ui;
+package ui.overlay;
 
 import java.util.List;
 

@@ -1,8 +1,8 @@
 package prog;
 
-import ui.minimalHUD;
-import ui.attitudeIndicator;
-import ui.gearAndFlaps;
+import ui.overlay.minimalHUD;
+import ui.overlay.attitudeIndicator;
+import ui.overlay.gearAndFlaps;
 
 public class uiThread implements Runnable {
 	long CheckMili;
