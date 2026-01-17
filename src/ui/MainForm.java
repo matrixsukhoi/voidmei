@@ -24,8 +24,6 @@ import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent;
 import ui.layout.UIBuilder;
 import ui.panels.AdvancedPanel;
 import ui.panels.FlightInfoPanel;
-// import ui.panels.EngineInfoPanel;
-import ui.panels.EngineControlPanel;
 import ui.panels.LoggingPanel;
 import ui.panels.MiniHUDPanel;
 
@@ -50,8 +48,6 @@ public class MainForm extends WebFrame {
 
 	AdvancedPanel advancedPanel;
 	FlightInfoPanel flightInfoPanel;
-	// EngineInfoPanel engineInfoPanel;
-	EngineControlPanel engineControlPanel;
 	LoggingPanel loggingPanel;
 	MiniHUDPanel miniHUDPanel;
 
@@ -228,14 +224,8 @@ public class MainForm extends WebFrame {
 	}
 
 	public void initJP6(WebPanel jp6) {
-		engineControlPanel = new EngineControlPanel();
-		engineControlPanel.setOnChange(() -> {
-			saveConfig();
-			if (!isInitializing) {
-				tc.refreshPreviews();
-			}
-		});
-		setupTab(jp6, engineControlPanel);
+		// Engine Control panel now handled by DynamicDataPage via ui_layout.cfg
+		// This method is kept for potential future use
 	}
 
 	public void initPanel() {
@@ -254,11 +244,10 @@ public class MainForm extends WebFrame {
 		initJP3(jp3);
 		initJP4(jp4);
 		initJP5(jp5);
-		initJP6(jp6);
+		// JP6 (Engine Control) now handled by dynamic tabs
 
 		tabbedPane.addTab(Lang.mFlightInfo, jp4);
-		// tabbedPane.addTab(Lang.mEngineInfo, jp2);
-		tabbedPane.addTab(Lang.mControlInfo, jp6);
+		// Engine Control tab removed - now in dynamic tabs
 		tabbedPane.addTab(Lang.mLoggingAndAnalysis, jp5);
 		tabbedPane.addTab(Lang.mCrosshair, jp3);
 		tabbedPane.addTab(Lang.mAdvancedOption, jp1);
@@ -352,11 +341,10 @@ public class MainForm extends WebFrame {
 
 	public void loadConfig() {
 		flightInfoPanel.loadConfig(tc.configService);
-		// engineInfoPanel.loadConfig(tc.configService);
 		miniHUDPanel.loadConfig(tc.configService);
 		advancedPanel.loadConfig(tc.configService);
 		loggingPanel.loadConfig(tc.configService);
-		engineControlPanel.loadConfig(tc.configService);
+		// engineControlPanel now loaded from ui_layout.cfg
 	}
 
 	public void initDefaults() {
@@ -376,7 +364,7 @@ public class MainForm extends WebFrame {
 		flightInfoPanel.saveConfig(tc.configService);
 		advancedPanel.saveConfig(tc.configService);
 		// engineInfoPanel.saveConfig(tc.configService);
-		engineControlPanel.saveConfig(tc.configService);
+		// engineControlPanel now saved to ui_layout.cfg
 		loggingPanel.saveConfig(tc.configService);
 		miniHUDPanel.saveConfig(tc.configService);
 

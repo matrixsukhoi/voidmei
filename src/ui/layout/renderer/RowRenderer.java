@@ -33,5 +33,11 @@ public interface RowRenderer {
 
         /** Returns true if we're in the middle of programmatic updates */
         boolean isUpdating();
+
+        /** Syncs a boolean value to ConfigurationService (for overlay control) */
+        void syncToConfigService(String key, boolean value);
+
+        /** Gets a boolean value from ConfigurationService (for initial state) */
+        boolean getFromConfigService(String key, boolean defaultVal);
     }
 }

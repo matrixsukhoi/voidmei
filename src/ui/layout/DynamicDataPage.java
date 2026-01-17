@@ -118,6 +118,21 @@ public class DynamicDataPage extends BasePage {
             public boolean isUpdating() {
                 return isUpdatingControls;
             }
+
+            @Override
+            public void syncToConfigService(String key, boolean value) {
+                // Bridge to ConfigurationService for overlay visibility control
+                parent.tc.configService.setConfig(key, Boolean.toString(value));
+            }
+
+            @Override
+            public boolean getFromConfigService(String key, boolean defaultVal) {
+                // Read from ConfigurationService for initial state
+                String val = parent.tc.configService.getConfig(key);
+                if (val == null || val.isEmpty())
+                    return defaultVal;
+                return Boolean.parseBoolean(val);
+            }
         };
 
         for (prog.config.ConfigLoader.RowConfig row : groupConfig.rows) {
@@ -251,8 +266,15 @@ public class DynamicDataPage extends BasePage {
                     eI.reinitConfig();
                 }
             }
+        } else if ("Engine Control".equals(groupConfig.title)) {
+            // Engine Control switches trigger overlay visibility changes
+            // Need to refresh previews to show/hide Axis, GearAndFlaps, EngineControl
+            // overlays
+            if (!parent.isInitializing) {
+                parent.tc.refreshPreviews();
+            }
         } else {
-            // Only loop if list is not null (currently commented out/removed list)
+            // Other dynamic configs - refresh previews if needed
             // if (parent.tc.dynamicOverlays != null) { ... }
         }
     }
@@ -281,6 +303,14 @@ public class DynamicDataPage extends BasePage {
                 if (eI != null) {
                     eI.setVisible(visible);
                 }
+            }
+        } else if ("Engine Control".equals(groupConfig.title)) {
+            // Engine Control GroupConfig.visible controls the EngineControl overlay
+            // Sync to ConfigurationService so OverlayManager can read it
+            parent.tc.configService.setConfig("enableEngineControl", Boolean.toString(visible));
+            // Refresh overlays to apply the change
+            if (!parent.isInitializing) {
+                parent.tc.refreshPreviews();
             }
         } else {
             // Temporarily disabled - DynamicOverlay removed

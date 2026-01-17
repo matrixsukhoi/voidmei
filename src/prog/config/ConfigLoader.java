@@ -236,6 +236,11 @@ public class ConfigLoader {
                             rc.type = "SWITCH";
                             rc.property = formula.substring(7);
                             rc.visible = valueStr.isEmpty() || valueStr.equalsIgnoreCase("true");
+                        } else if (formula.startsWith("SWITCH_INV:")) {
+                            // Format: SWITCH_INV:property (inverted: ON=false, OFF=true)
+                            rc.type = "SWITCH_INV";
+                            rc.property = formula.substring(11);
+                            rc.visible = valueStr.isEmpty() || valueStr.equalsIgnoreCase("true");
                         } else {
                             // Regular DATA row
                             rc.type = "DATA";

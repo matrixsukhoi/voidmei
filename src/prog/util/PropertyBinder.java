@@ -29,6 +29,20 @@ public class PropertyBinder {
     }
 
     /**
+     * Checks if a public field exists on the target object.
+     */
+    public static boolean hasField(Object target, String property) {
+        if (target == null || property == null)
+            return false;
+        try {
+            target.getClass().getField(property);
+            return true;
+        } catch (NoSuchFieldException e) {
+            return false;
+        }
+    }
+
+    /**
      * Gets a field value as int.
      */
     public static int getInt(Object target, String property, int defaultValue) {

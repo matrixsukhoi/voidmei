@@ -67,6 +67,7 @@ src/ui/layout/FlexGridLayout.java
 src/ui/layout/UIStyle.java
 src/ui/layout/BasePage.java
 src/ui/layout/ModernStyle.java
+src/ui/layout/renderer/SwitchInvRowRenderer.java
 src/ui/layout/renderer/RowRendererRegistry.java
 src/ui/layout/renderer/DataRowRenderer.java
 src/ui/layout/renderer/SliderRowRenderer.java
