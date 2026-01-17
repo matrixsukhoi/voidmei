@@ -41,6 +41,7 @@ public class ConfigLoader {
         public String fontName = "Sarasa Mono SC";
         public int fontSize = 0; // Font size adjustment (-6 to +20)
         public int columns = 2; // Number of columns for layout
+        public int panelColumns = 2; // Number of columns for SETTINGS PANEL layout
         public List<RowConfig> rows = new ArrayList<>();
 
         public GroupConfig(String title) {
@@ -165,6 +166,12 @@ public class ConfigLoader {
                             currentGroup.columns = Integer.parseInt(line.substring(8).trim());
                         } catch (Exception e) {
                         }
+                } else if (line.startsWith("PanelColumns=")) {
+                    if (currentGroup != null)
+                        try {
+                            currentGroup.panelColumns = Integer.parseInt(line.substring(13).trim());
+                        } catch (Exception e) {
+                        }
                 } else {
                     // Item line: Label || Formula || Format
                     String[] parts = line.split("\\|\\|");
@@ -209,6 +216,9 @@ public class ConfigLoader {
                 }
                 if (group.columns != 2) {
                     pw.println("Columns=" + group.columns);
+                }
+                if (group.panelColumns != 2) {
+                    pw.println("PanelColumns=" + group.panelColumns);
                 }
                 pw.println();
 

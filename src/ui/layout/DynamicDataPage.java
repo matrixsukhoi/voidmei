@@ -16,12 +16,23 @@ import ui.MainForm;
 import prog.i18n.Lang;
 import com.alee.laf.button.WebButton;
 import com.alee.extended.button.WebSwitch;
+import com.alee.laf.slider.WebSlider;
+import com.alee.laf.combobox.WebComboBox;
+import ui.layout.ResponsiveGridLayout;
 
 public class DynamicDataPage extends BasePage {
 
     private ZoomPanel scaler;
+    private WebPanel appearancePanel; // Panel for general settings
     private prog.config.ConfigLoader.GroupConfig groupConfig;
     private boolean overlayVisible = false;
+
+    // Component references for updates
+    private WebComboBox fontCombo;
+    private WebSlider sizeSlider;
+    private WebSlider colSliderHUD;
+    private WebSlider colSliderPanel;
+    private boolean isUpdatingControls = false; // Prevent feedback loop
 
     public DynamicDataPage(MainForm parent, prog.config.ConfigLoader.GroupConfig groupConfig) {
         super(parent);
@@ -74,6 +85,7 @@ public class DynamicDataPage extends BasePage {
             return;
 
         rebuildSimple();
+        updateAppearancePanel();
 
         scaler.revalidate();
         scaler.repaint();
@@ -83,77 +95,113 @@ public class DynamicDataPage extends BasePage {
     }
 
     private void rebuildSimple() {
-        // Use vertical layout to stack groups with minimal spacing
-        scaler.setLayout(new com.alee.extended.layout.VerticalFlowLayout(
-                com.alee.extended.layout.VerticalFlowLayout.TOP, 0, 3, true, false));
+        if (groupConfig == null)
+            return;
 
-        WebPanel currentGroup = null;
-        WebLabel currentHeader = null;
+        scaler.removeAll();
+
+        // Calculate columns: Config PANEL columns * 2 (Label + Switch)
+        // Default to 2 if 0
+        int pCols = groupConfig.panelColumns > 0 ? groupConfig.panelColumns : 2;
+        int gridCols = pCols * 2;
+
+        // Use ResponsiveGridLayout for precise aligning
+        scaler.setLayout(new ResponsiveGridLayout(gridCols, 3, 3));
 
         for (prog.config.ConfigLoader.RowConfig row : groupConfig.rows) {
+            // Check for Header
             boolean isHeader = row.formula != null && row.formula.equalsIgnoreCase("HEADER");
 
             if (isHeader) {
-                // Finalize previous group if exists
-                if (currentGroup != null && currentHeader != null) {
-                    addGroupToScaler(currentHeader, currentGroup);
-                }
-
-                // Create new header
-                currentHeader = new WebLabel(row.label);
-                currentHeader.setFont(prog.Application.defaultFontBig);
-                currentHeader.setForeground(new java.awt.Color(180, 30, 0));
-                currentHeader.setBorder(
-                        javax.swing.BorderFactory.createEmptyBorder(3, 5, 2, 5));
-
-                // Create new group container with 4-column responsive grid
-                currentGroup = new WebPanel();
-                currentGroup.setLayout(new ResponsiveGridLayout(2, 15, 3));
-                currentGroup.setOpaque(false);
-                currentGroup.setBorder(javax.swing.BorderFactory.createEmptyBorder(2, 10, 5, 10));
+                // For headers, we want a full width label.
+                WebLabel header = new WebLabel(row.label);
+                header.setFont(prog.Application.defaultFontBig);
+                header.setForeground(new java.awt.Color(180, 30, 0));
+                header.setPreferredSize(new Dimension(800, 30));
+                scaler.add(header);
             } else {
-                // Add switch to current group
-                if (currentGroup == null) {
-                    // If no header yet, create a default group
-                    currentHeader = new WebLabel("配置项");
-                    currentHeader.setFont(prog.Application.defaultFontBig);
-                    currentHeader.setForeground(new java.awt.Color(180, 30, 0));
-                    currentHeader.setBorder(
-                            javax.swing.BorderFactory.createEmptyBorder(3, 5, 2, 5));
-
-                    currentGroup = new WebPanel();
-                    currentGroup.setLayout(new ResponsiveGridLayout(2, 15, 3));
-                    currentGroup.setOpaque(false);
-                    currentGroup.setBorder(javax.swing.BorderFactory.createEmptyBorder(2, 10, 5, 10));
-                }
-
-                WebSwitch sw = UIBuilder.addSwitch(currentGroup, row.label, row.visible);
+                // Use UIBuilder to add Label + Switch
+                WebSwitch sw = UIBuilder.addSwitch(scaler, row.label, row.visible);
                 sw.addActionListener(e -> {
                     row.visible = sw.isSelected();
                     save();
                 });
             }
         }
-
-        // Add the last group
-        if (currentGroup != null && currentHeader != null) {
-            addGroupToScaler(currentHeader, currentGroup);
-        }
+        scaler.revalidate();
+        scaler.repaint();
     }
 
-    private void addGroupToScaler(WebLabel header, WebPanel group) {
-        // Create a container for the header + group
-        WebPanel section = new WebPanel();
-        section.setLayout(new java.awt.BorderLayout(0, 2));
-        section.setOpaque(false);
+    private void updateAppearancePanel() {
+        if (groupConfig == null || appearancePanel == null)
+            return;
 
-        // Minimal padding since red header provides clear visual separation
-        section.setBorder(javax.swing.BorderFactory.createEmptyBorder(3, 5, 3, 5));
+        isUpdatingControls = true;
 
-        section.add(header, java.awt.BorderLayout.NORTH);
-        section.add(group, java.awt.BorderLayout.CENTER);
+        // Initial build if needed
+        if (fontCombo == null) {
+            appearancePanel.removeAll();
 
-        scaler.add(section);
+            // Use 2 columns: Label | Control.
+            appearancePanel.setLayout(new ResponsiveGridLayout(2, 5, 5));
+            appearancePanel.setBorder(javax.swing.BorderFactory.createEmptyBorder(5, 15, 10, 15));
+
+            // --- Font ---
+            String[] fonts = java.awt.GraphicsEnvironment.getLocalGraphicsEnvironment().getAvailableFontFamilyNames();
+            fontCombo = UIBuilder.addComboBox(appearancePanel, "字体", fonts);
+            fontCombo.addActionListener(e -> {
+                if (isUpdatingControls)
+                    return;
+                groupConfig.fontName = (String) fontCombo.getSelectedItem();
+                save();
+            });
+
+            // --- Font Size ---
+            sizeSlider = UIBuilder.addSlider(appearancePanel, "大小", -6, 18, 0, 150);
+            sizeSlider.addChangeListener(e -> {
+                if (isUpdatingControls)
+                    return;
+                if (!sizeSlider.getValueIsAdjusting()) {
+                    groupConfig.fontSize = sizeSlider.getValue();
+                    save();
+                }
+            });
+
+            // --- HUD Columns (Previous "Columns") ---
+            colSliderHUD = UIBuilder.addSlider(appearancePanel, "HUD列数", 1, 8, 2, 150);
+            colSliderHUD.addChangeListener(e -> {
+                if (isUpdatingControls)
+                    return;
+                if (!colSliderHUD.getValueIsAdjusting()) {
+                    groupConfig.columns = colSliderHUD.getValue();
+                    save(); // Only save, no rebuild needed for overlay change
+                }
+            });
+
+            // --- Panel Columns (New) ---
+            colSliderPanel = UIBuilder.addSlider(appearancePanel, "面板列数", 1, 8, 2, 150);
+            colSliderPanel.addChangeListener(e -> {
+                if (isUpdatingControls)
+                    return;
+                if (!colSliderPanel.getValueIsAdjusting()) {
+                    groupConfig.panelColumns = colSliderPanel.getValue();
+                    rebuild(); // Rebuild LAYOUT
+                    save();
+                }
+            });
+        }
+
+        // Update values
+        if (groupConfig.fontName != null)
+            fontCombo.setSelectedItem(groupConfig.fontName);
+        sizeSlider.setValue(groupConfig.fontSize);
+        colSliderHUD.setValue(groupConfig.columns > 0 ? groupConfig.columns : 2);
+        colSliderPanel.setValue(groupConfig.panelColumns > 0 ? groupConfig.panelColumns : 2);
+
+        isUpdatingControls = false;
+
+        appearancePanel.revalidate();
+        appearancePanel.repaint();
     }
 
     @Override
@@ -316,7 +364,17 @@ public class DynamicDataPage extends BasePage {
 
     @Override
     protected java.awt.Component createCenterComponent(WebPanel content) {
-        return scaler;
+        // Setup main container with Appearance Panel + ZoomPanel (Grid)
+        WebPanel main = new WebPanel(new java.awt.BorderLayout());
+        main.setOpaque(false);
+
+        appearancePanel = new WebPanel(); // Initialized in updateAppearancePanel
+        appearancePanel.setOpaque(false);
+        main.add(appearancePanel, java.awt.BorderLayout.NORTH);
+
+        main.add(scaler, java.awt.BorderLayout.CENTER);
+
+        return main;
     }
 
     class ZoomPanel extends WebPanel {
