@@ -75,9 +75,11 @@ public class EngineControl extends WebFrame implements Runnable {
 		// this.close();
 	}
 
-	public void initPreview(Controller c) {
+	public prog.config.ConfigLoader.GroupConfig groupConfig;
 
-		init(c, null, null);
+	public void initPreview(Controller c, prog.config.ConfigLoader.GroupConfig groupConfig) {
+		this.groupConfig = groupConfig;
+		init(c, null, null, groupConfig);
 		// setShadeWidth(10);
 		// this.setVisible(false);
 		// this.getWebRootPaneUI().setTopBg(new Color(0, 0, 0, 50));
@@ -102,6 +104,7 @@ public class EngineControl extends WebFrame implements Runnable {
 			public void mouseReleased(MouseEvent e) {
 				if (isDragging == 1) {
 					isDragging = 0;
+					saveCurrentPosition(); // Save only on release
 				}
 				/*
 				 * if(A.tag==0){ A.setVisible(false); }
@@ -118,7 +121,7 @@ public class EngineControl extends WebFrame implements Runnable {
 					int left = getLocation().x;
 					int top = getLocation().y;
 					setLocation(left + e.getX() - xx, top + e.getY() - yy);
-					saveCurrentPosition();
+					// saveCurrentPosition(); // Moved to mouseReleased
 					setVisible(true);
 					repaint();
 				}
@@ -130,8 +133,16 @@ public class EngineControl extends WebFrame implements Runnable {
 	}
 
 	public void saveCurrentPosition() {
-		xc.setconfig("engineControlX", Integer.toString(getLocation().x));
-		xc.setconfig("engineControlY", Integer.toString(getLocation().y));
+		if (groupConfig != null) {
+			int screenW = java.awt.Toolkit.getDefaultToolkit().getScreenSize().width;
+			int screenH = java.awt.Toolkit.getDefaultToolkit().getScreenSize().height;
+			groupConfig.x = (double) getLocation().x / screenW;
+			groupConfig.y = (double) getLocation().y / screenH;
+			xc.configService.saveLayoutConfig();
+		} else {
+			xc.setconfig("engineControlX", Integer.toString(getLocation().x));
+			xc.setconfig("engineControlY", Integer.toString(getLocation().y));
+		}
 	}
 
 	public int leftUseNum;
@@ -167,11 +178,13 @@ public class EngineControl extends WebFrame implements Runnable {
 					continue;
 				// 横着画
 				// if(isJet) continue;
-				UIBaseElements.drawHBarTextNum(g2d, x, y + dy, 4 * fontsize, fontsize >> 1, leftValPix[i], 1, Application.colorNum,
+				UIBaseElements.drawHBarTextNum(g2d, x, y + dy, 4 * fontsize, fontsize >> 1, leftValPix[i], 1,
+						Application.colorNum,
 						leftLblNum[i][0], leftLblNum[i][0] + leftLblNum[i][1], fontLabel, fontLabel);
 				dy += 1 * fontsize + (fontsize >> 2);
 			} else {
-				UIBaseElements.drawVBarTextNum(g2d, x + dx, y, fontsize >> 1, 4 * fontsize, leftValPix[i], 1, Application.colorNum,
+				UIBaseElements.drawVBarTextNum(g2d, x + dx, y, fontsize >> 1, 4 * fontsize, leftValPix[i], 1,
+						Application.colorNum,
 						leftLblNum[i][0], leftLblNum[i][0] + leftLblNum[i][1], fontLabel, fontLabel);
 				dx += (5 * fontsize) >> 1;
 			}
@@ -275,14 +288,23 @@ public class EngineControl extends WebFrame implements Runnable {
 		else
 			fontadd = 0;
 		// Application.debugPrint(fontadd);
-		if (xc.getconfig("engineControlX") != "")
-			lx = Integer.parseInt(xc.getconfig("engineControlX"));
-		else
-			lx = 0;
-		if (xc.getconfig("engineControlY") != "")
-			ly = Integer.parseInt(xc.getconfig("engineControlY"));
-		else
-			ly = 860;
+
+		// Use GroupConfig for position if available
+		if (groupConfig != null) {
+			int screenW = java.awt.Toolkit.getDefaultToolkit().getScreenSize().width;
+			int screenH = java.awt.Toolkit.getDefaultToolkit().getScreenSize().height;
+			lx = (int) (groupConfig.x * screenW);
+			ly = (int) (groupConfig.y * screenH);
+		} else {
+			if (xc.getconfig("engineControlX") != "")
+				lx = Integer.parseInt(xc.getconfig("engineControlX"));
+			else
+				lx = 0;
+			if (xc.getconfig("engineControlY") != "")
+				ly = Integer.parseInt(xc.getconfig("engineControlY"));
+			else
+				ly = 860;
+		}
 
 		fontsize = 24 + fontadd;
 		// 设置字体
@@ -307,10 +329,11 @@ public class EngineControl extends WebFrame implements Runnable {
 		repaint();
 	}
 
-	public void init(Controller xc, Service ts, Blkx tp) {
+	public void init(Controller xc, Service ts, Blkx tp, prog.config.ConfigLoader.GroupConfig groupConfig) {
 		this.xc = xc;
 		this.s = ts;
 		this.p = tp;
+		this.groupConfig = groupConfig;
 
 		overheattime = 0;
 		freq = xc.freqEngineInfo;

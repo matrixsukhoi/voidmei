@@ -452,8 +452,37 @@ public class Controller implements ConfigProvider {
 		// EngineControl - supports preview
 		overlayManager.registerWithPreview("enableEngineControl",
 				() -> new EngineControl(),
-				overlay -> ((EngineControl) overlay).init(this, S, getBlkx()),
-				overlay -> ((EngineControl) overlay).initPreview(this),
+				overlay -> {
+					prog.config.ConfigLoader.GroupConfig ecConfig = null;
+					if (dynamicConfigs != null) {
+						for (prog.config.ConfigLoader.GroupConfig gc : dynamicConfigs) {
+							if ("引擎控制".equals(gc.title) || "Engine Control".equals(gc.title)) {
+								ecConfig = gc;
+								break;
+							}
+						}
+					}
+					// Fallback
+					if (ecConfig == null) {
+						ecConfig = new prog.config.ConfigLoader.GroupConfig("引擎控制");
+						ecConfig.x = 0;
+						ecConfig.y = 0.5;
+						ecConfig.visible = false;
+					}
+					((EngineControl) overlay).init(this, S, getBlkx(), ecConfig);
+				},
+				overlay -> {
+					prog.config.ConfigLoader.GroupConfig ecConfig = null;
+					if (dynamicConfigs != null) {
+						for (prog.config.ConfigLoader.GroupConfig gc : dynamicConfigs) {
+							if ("引擎控制".equals(gc.title) || "Engine Control".equals(gc.title)) {
+								ecConfig = gc;
+								break;
+							}
+						}
+					}
+					((EngineControl) overlay).initPreview(this, ecConfig);
+				},
 				overlay -> ((EngineControl) overlay).reinitConfig(),
 				true);
 
