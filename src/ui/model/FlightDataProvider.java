@@ -2,7 +2,7 @@ package ui.model;
 
 /**
  * Interface for accessing flight data.
- * Abstracts away the specific data source (service, simulation, etc.).
+ * Abstracts away the specific data source (Service, simulation, etc.).
  */
 public interface FlightDataProvider {
 

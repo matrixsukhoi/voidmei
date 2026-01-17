@@ -11,7 +11,7 @@ import java.lang.reflect.Field;
  * Supports efficient storage, dot-notation access, and observer pattern for
  * event-driven updates.
  * 
- * Replaces ad-hoc storage in blkx or service adapters.
+ * Replaces ad-hoc storage in Blkx or Service adapters.
  */
 public class AttributePool {
 
@@ -160,7 +160,7 @@ public class AttributePool {
 
     /**
      * Get a value supporting dot-notation path.
-     * e.g. "TAS", "state.TAS", "NoFlapsWing.CdMin"
+     * e.g. "TAS", "State.TAS", "NoFlapsWing.CdMin"
      */
     public Object getValue(String path) {
         if (path == null)

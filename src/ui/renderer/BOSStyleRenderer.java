@@ -5,9 +5,9 @@ import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.util.List;
 
-import prog.app;
+import prog.Application;
 import ui.model.DataField;
-import ui.uiBaseElem;
+import ui.UIBaseElements;
 
 /**
  * BOS-style renderer for overlay fields.
@@ -18,8 +18,8 @@ public class BOSStyleRenderer implements OverlayRenderer {
     @Override
     public void render(Graphics2D g2d, List<DataField> fields, RenderContext ctx, int[] offset) {
         g2d.setPaintMode();
-        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, app.graphAASetting);
-        g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, app.textAASetting);
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, Application.graphAASetting);
+        g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, Application.textAASetting);
         g2d.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION,
                 RenderingHints.VALUE_ALPHA_INTERPOLATION_SPEED);
         g2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING,
@@ -36,7 +36,7 @@ public class BOSStyleRenderer implements OverlayRenderer {
                 continue;
             }
 
-            uiBaseElem._drawLabelBOSType(g2d, offset[0], offset[1], 1, fieldWidth,
+            UIBaseElements._drawLabelBOSType(g2d, offset[0], offset[1], 1, fieldWidth,
                     ctx.numFont, ctx.labelFont, ctx.unitFont,
                     field.currentValue, field.label, field.unit);
 

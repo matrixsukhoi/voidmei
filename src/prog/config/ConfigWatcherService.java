@@ -40,7 +40,7 @@ public class ConfigWatcherService {
     }
 
     /**
-     * Signals the service to ignore the very next file modification event.
+     * Signals the Service to ignore the very next file modification event.
      * Useful when the application itself writes to the file.
      */
     public void ignoreNext() {

@@ -7,7 +7,7 @@ import com.alee.extended.button.WebSwitch;
 import com.alee.laf.panel.WebPanel;
 
 import prog.config.ConfigurationService;
-import prog.lang;
+import prog.i18n.Lang;
 import ui.layout.UIBuilder;
 
 public class EngineControlPanel extends WebPanel {
@@ -37,36 +37,36 @@ public class EngineControlPanel extends WebPanel {
     private void initUI() {
         this.setLayout(new FlowLayout(FlowLayout.LEFT));
 
-        bEnableAxis = UIBuilder.addSwitch(this, lang.mP6AxisPanel, false);
-        UIBuilder.addVoidWebLabel(this, lang.mP6ecLFuelBlank);
+        bEnableAxis = UIBuilder.addSwitch(this, Lang.mP6AxisPanel, false);
+        UIBuilder.addVoidWebLabel(this, Lang.mP6ecLFuelBlank);
 
-        bEnableAxisEdge = UIBuilder.addSwitch(this, lang.mP6AxisEdge, false);
-        UIBuilder.addVoidWebLabel(this, lang.mP6AxisEdgeBlank);
+        bEnableAxisEdge = UIBuilder.addSwitch(this, Lang.mP6AxisEdge, false);
+        UIBuilder.addVoidWebLabel(this, Lang.mP6AxisEdgeBlank);
 
-        bEnablegearAndFlaps = UIBuilder.addSwitch(this, lang.mP6GearAndFlaps, false);
-        bEnablegearAndFlapsEdge = UIBuilder.addSwitch(this, lang.mP6GearAndFlapsEdge, false);
-        UIBuilder.addVoidWebLabel(this, lang.mP6GearAndFlapsEdgeBlank);
+        bEnablegearAndFlaps = UIBuilder.addSwitch(this, Lang.mP6GearAndFlaps, false);
+        bEnablegearAndFlapsEdge = UIBuilder.addSwitch(this, Lang.mP6GearAndFlapsEdge, false);
+        UIBuilder.addVoidWebLabel(this, Lang.mP6GearAndFlapsEdgeBlank);
 
-        benableEngineControl = UIBuilder.addSwitch(this, lang.mP6engineControl, false);
-        UIBuilder.addVoidWebLabel(this, lang.mP6engineControlBlank);
+        benableEngineControl = UIBuilder.addSwitch(this, Lang.mP6engineControl, false);
+        UIBuilder.addVoidWebLabel(this, Lang.mP6engineControlBlank);
 
-        bEngineControlThrottle = UIBuilder.addSwitch(this, lang.mP6ecThrottle, false);
-        UIBuilder.addVoidWebLabel(this, lang.mP6ecThrottleBlank);
+        bEngineControlThrottle = UIBuilder.addSwitch(this, Lang.mP6ecThrottle, false);
+        UIBuilder.addVoidWebLabel(this, Lang.mP6ecThrottleBlank);
 
-        bEngineControlPitch = UIBuilder.addSwitch(this, lang.mP6ecPitch, false);
-        UIBuilder.addVoidWebLabel(this, lang.mP6ecPitchBlank);
+        bEngineControlPitch = UIBuilder.addSwitch(this, Lang.mP6ecPitch, false);
+        UIBuilder.addVoidWebLabel(this, Lang.mP6ecPitchBlank);
 
-        bEngineControlMixture = UIBuilder.addSwitch(this, lang.mP6ecMixture, false);
-        UIBuilder.addVoidWebLabel(this, lang.mP6ecMixtureBlank);
+        bEngineControlMixture = UIBuilder.addSwitch(this, Lang.mP6ecMixture, false);
+        UIBuilder.addVoidWebLabel(this, Lang.mP6ecMixtureBlank);
 
-        bEngineControlRadiator = UIBuilder.addSwitch(this, lang.mP6ecRadiator, false);
-        UIBuilder.addVoidWebLabel(this, lang.mP6ecRadiatorBlank);
+        bEngineControlRadiator = UIBuilder.addSwitch(this, Lang.mP6ecRadiator, false);
+        UIBuilder.addVoidWebLabel(this, Lang.mP6ecRadiatorBlank);
 
-        bEngineControlCompressor = UIBuilder.addSwitch(this, lang.mP6ecCompressor, false);
-        UIBuilder.addVoidWebLabel(this, lang.mP6ecCompressorBlank);
+        bEngineControlCompressor = UIBuilder.addSwitch(this, Lang.mP6ecCompressor, false);
+        UIBuilder.addVoidWebLabel(this, Lang.mP6ecCompressorBlank);
 
-        bEngineControlLFuel = UIBuilder.addSwitch(this, lang.mP6ecLFuel, false);
-        UIBuilder.addVoidWebLabel(this, lang.mP6ecLFuelBlank);
+        bEngineControlLFuel = UIBuilder.addSwitch(this, Lang.mP6ecLFuel, false);
+        UIBuilder.addVoidWebLabel(this, Lang.mP6ecLFuelBlank);
 
         setupListeners();
     }

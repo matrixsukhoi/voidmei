@@ -1,11 +1,11 @@
 package prog;
 
 /**
- * Represents the state of the controller lifecycle.
+ * Represents the State of the Controller lifecycle.
  */
 public enum ControllerState {
     /**
-     * Initial state - waiting for status bar initialization
+     * Initial State - waiting for status bar initialization
      */
     INIT(1),
 
@@ -41,9 +41,9 @@ public enum ControllerState {
      * Convert legacy integer flag to ControllerState.
      */
     public static ControllerState fromLegacyValue(int value) {
-        for (ControllerState state : values()) {
-            if (state.legacyValue == value) {
-                return state;
+        for (ControllerState State : values()) {
+            if (State.legacyValue == value) {
+                return State;
             }
         }
         return INIT;

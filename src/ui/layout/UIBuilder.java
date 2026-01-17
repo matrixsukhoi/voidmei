@@ -1,4 +1,5 @@
 package ui.layout;
+import prog.Application;
 
 import java.awt.Container;
 import java.awt.Dimension;
@@ -31,7 +32,7 @@ public class UIBuilder {
         lb.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
         lb.setForeground(new java.awt.Color(0, 0, 0, 230));
         lb.setShadeColor(java.awt.Color.WHITE);
-        lb.setFont(prog.app.defaultFont);
+        lb.setFont(prog.Application.defaultFont);
         parent.add(lb);
         return lb;
     }
@@ -74,7 +75,7 @@ public class UIBuilder {
         comboBox.setWebColoredBackground(false);
         comboBox.setShadeWidth(1);
         comboBox.setDrawFocus(false);
-        comboBox.setFont(prog.app.defaultFont);
+        comboBox.setFont(prog.Application.defaultFont);
         comboBox.setExpandedBgColor(new java.awt.Color(0, 0, 0, 0));
         comboBox.addActionListener(e -> {
             if (isInitializing)
@@ -220,7 +221,7 @@ public class UIBuilder {
         comboBox.setWebColoredBackground(false);
         comboBox.setShadeWidth(1);
         comboBox.setDrawFocus(false);
-        comboBox.setFont(prog.app.defaultFont);
+        comboBox.setFont(prog.Application.defaultFont);
         comboBox.setExpandedBgColor(new java.awt.Color(0, 0, 0, 0));
         comboBox.setBackground(new java.awt.Color(0, 0, 0, 0));
 
@@ -254,10 +255,10 @@ public class UIBuilder {
      */
     public static com.alee.laf.button.WebButton createFooterButton(String text) {
         com.alee.laf.button.WebButton btn = new com.alee.laf.button.WebButton(text);
-        btn.setFont(prog.app.defaultFontBig);
+        btn.setFont(prog.Application.defaultFontBig);
         btn.setPreferredSize(new Dimension(120, 80));
 
-        // Basic styling consistent with mainform.createButton
+        // Basic styling consistent with MainForm.createButton
         btn.setShadeWidth(1);
         btn.setDrawShade(true);
         btn.setTopBgColor(new java.awt.Color(0, 0, 0, 0));

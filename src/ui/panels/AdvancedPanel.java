@@ -12,16 +12,16 @@ import com.alee.laf.text.WebTextField;
 import com.alee.utils.ImageUtils;
 
 import prog.config.ConfigurationService;
-import prog.app;
-import prog.lang;
+import prog.Application;
+import prog.i18n.Lang;
 import ui.layout.UIBuilder;
 
 public class AdvancedPanel extends WebPanel {
 
     public static void initDefaults(ConfigurationService cs) {
-        if (app.debug)
+        if (Application.debug)
             cs.setConfig("usetempInfoSwitch", Boolean.toString(Boolean.FALSE));
-        cs.setConfig("GlobalNumFont", app.defaultNumfontName);
+        cs.setConfig("GlobalNumFont", Application.defaultNumfontName);
         cs.setConfig("Interval", Integer.toString(80));
     }
 
@@ -36,7 +36,7 @@ public class AdvancedPanel extends WebPanel {
     private WebTextField cWarnColor;
     private WebTextField cShadeColor;
     private WebSlider iInterval;
-    private WebSwitch bvoiceWarningSwitch;
+    private WebSwitch bVoiceWarningSwitch;
     private WebSlider ivoiceVolume;
     private WebSwitch bTempInfoSwitch; // Conditional debug
 
@@ -52,45 +52,45 @@ public class AdvancedPanel extends WebPanel {
     private void initUI() {
         this.setLayout(new FlowLayout(FlowLayout.LEFT));
 
-        if (app.debug) {
-            bTempInfoSwitch = UIBuilder.addSwitch(this, lang.mP1statusBar, false);
-            UIBuilder.addVoidWebLabel(this, lang.mP1statusBarBlank);
+        if (Application.debug) {
+            bTempInfoSwitch = UIBuilder.addSwitch(this, Lang.mP1StatusBar, false);
+            UIBuilder.addVoidWebLabel(this, Lang.mP1StatusBarBlank);
         }
 
-        bstatusSwitch = UIBuilder.addSwitch(this, lang.mP1statusBar, false);
-        UIBuilder.addVoidWebLabel(this, lang.mP1statusBarBlank);
+        bstatusSwitch = UIBuilder.addSwitch(this, Lang.mP1StatusBar, false);
+        UIBuilder.addVoidWebLabel(this, Lang.mP1StatusBarBlank);
 
-        bdrawShadeSwitch = UIBuilder.addSwitch(this, lang.mP1drawFontShape, false);
-        UIBuilder.addVoidWebLabel(this, lang.mP1drawFontShapeBlank);
+        bdrawShadeSwitch = UIBuilder.addSwitch(this, Lang.mP1drawFontShape, false);
+        UIBuilder.addVoidWebLabel(this, Lang.mP1drawFontShapeBlank);
 
-        bAAEnable = UIBuilder.addSwitch(this, lang.mP1AAEnable, false);
-        UIBuilder.addVoidWebLabel(this, lang.mP1AAEnableBlank);
+        bAAEnable = UIBuilder.addSwitch(this, Lang.mP1AAEnable, false);
+        UIBuilder.addVoidWebLabel(this, Lang.mP1AAEnableBlank);
 
-        sGlobalNumFont = UIBuilder.addFontComboBox(this, lang.mP1GlobalNumberFont, app.fonts);
-        UIBuilder.addVoidWebLabel(this, lang.mP1GlobalNumberFontBlank);
+        sGlobalNumFont = UIBuilder.addFontComboBox(this, Lang.mP1GlobalNumberFont, Application.fonts);
+        UIBuilder.addVoidWebLabel(this, Lang.mP1GlobalNumberFontBlank);
 
-        cNumColor = createColorGroup(this, lang.mP1NumColor);
-        UIBuilder.addVoidWebLabel(this, lang.mP1NumColorBlank);
+        cNumColor = createColorGroup(this, Lang.mP1NumColor);
+        UIBuilder.addVoidWebLabel(this, Lang.mP1NumColorBlank);
 
-        cLabelColor = createColorGroup(this, lang.mP1LabelColor);
-        UIBuilder.addVoidWebLabel(this, lang.mP1LabelColorBlank);
+        cLabelColor = createColorGroup(this, Lang.mP1LabelColor);
+        UIBuilder.addVoidWebLabel(this, Lang.mP1LabelColorBlank);
 
-        cUnitColor = createColorGroup(this, lang.mP1UnitColor);
-        UIBuilder.addVoidWebLabel(this, lang.mP1UnitColorBlank);
+        cUnitColor = createColorGroup(this, Lang.mP1UnitColor);
+        UIBuilder.addVoidWebLabel(this, Lang.mP1UnitColorBlank);
 
-        cWarnColor = createColorGroup(this, lang.mP1WarnColor);
-        UIBuilder.addVoidWebLabel(this, lang.mP1WarnColorBlank);
+        cWarnColor = createColorGroup(this, Lang.mP1WarnColor);
+        UIBuilder.addVoidWebLabel(this, Lang.mP1WarnColorBlank);
 
-        cShadeColor = createColorGroup(this, lang.mP1ShadeColor);
-        UIBuilder.addVoidWebLabel(this, lang.mP1ShadeColorBlank);
+        cShadeColor = createColorGroup(this, Lang.mP1ShadeColor);
+        UIBuilder.addVoidWebLabel(this, Lang.mP1ShadeColorBlank);
 
-        iInterval = UIBuilder.addSlider(this, lang.mP1Interval, 10, 300, 70, 500, 5, 40);
+        iInterval = UIBuilder.addSlider(this, Lang.mP1Interval, 10, 300, 70, 500, 5, 40);
 
-        bvoiceWarningSwitch = UIBuilder.addSwitch(this, lang.mP1VoiceWarning, false);
-        UIBuilder.addVoidWebLabel(this, lang.mP1VoiceWarningBlank);
+        bVoiceWarningSwitch = UIBuilder.addSwitch(this, Lang.mP1VoiceWarning, false);
+        UIBuilder.addVoidWebLabel(this, Lang.mP1VoiceWarningBlank);
 
-        ivoiceVolume = UIBuilder.addSlider(this, lang.mP1voiceVolume, 0, 200, 100, 300, 10, 50);
-        UIBuilder.addVoidWebLabel(this, lang.mP1voiceVolumeBlank);
+        ivoiceVolume = UIBuilder.addSlider(this, Lang.mP1voiceVolume, 0, 200, 100, 300, 10, 50);
+        UIBuilder.addVoidWebLabel(this, Lang.mP1voiceVolumeBlank);
 
         setupListeners();
     }
@@ -146,7 +146,7 @@ public class AdvancedPanel extends WebPanel {
             if (!iInterval.getValueIsAdjusting())
                 fireChange();
         });
-        bvoiceWarningSwitch.addActionListener(e -> fireChange());
+        bVoiceWarningSwitch.addActionListener(e -> fireChange());
         ivoiceVolume.addChangeListener(e -> {
             if (!ivoiceVolume.getValueIsAdjusting())
                 fireChange();
@@ -156,7 +156,7 @@ public class AdvancedPanel extends WebPanel {
     }
 
     public void loadConfig(ConfigurationService cs) {
-        if (app.debug && bTempInfoSwitch != null)
+        if (Application.debug && bTempInfoSwitch != null)
             bTempInfoSwitch.setSelected(Boolean.parseBoolean(cs.getConfig("usetempInfoSwitch")));
 
         bstatusSwitch.setSelected(Boolean.parseBoolean(cs.getConfig("enableStatusBar")));
@@ -172,7 +172,7 @@ public class AdvancedPanel extends WebPanel {
         if (interval != null && !interval.isEmpty())
             iInterval.setValue(Integer.parseInt(interval));
 
-        bvoiceWarningSwitch.setSelected(Boolean.parseBoolean(cs.getConfig("enableVoiceWarn")));
+        bVoiceWarningSwitch.setSelected(Boolean.parseBoolean(cs.getConfig("enableVoiceWarn")));
         String volume = cs.getConfig("voiceVolume");
         if (volume != null && !volume.isEmpty())
             ivoiceVolume.setValue(Integer.parseInt(volume));
@@ -194,7 +194,7 @@ public class AdvancedPanel extends WebPanel {
     }
 
     public void saveConfig(ConfigurationService cs) {
-        if (app.debug && bTempInfoSwitch != null)
+        if (Application.debug && bTempInfoSwitch != null)
             cs.setConfig("usetempInfoSwitch", Boolean.toString(bTempInfoSwitch.isSelected()));
 
         cs.setConfig("enableStatusBar", Boolean.toString(bstatusSwitch.isSelected()));
@@ -202,7 +202,7 @@ public class AdvancedPanel extends WebPanel {
         cs.setConfig("AAEnable", Boolean.toString(bAAEnable.isSelected()));
         cs.setConfig("GlobalNumFont", sGlobalNumFont.getSelectedItem().toString());
         cs.setConfig("Interval", Integer.toString(iInterval.getValue()));
-        cs.setConfig("enableVoiceWarn", Boolean.toString(bvoiceWarningSwitch.isSelected()));
+        cs.setConfig("enableVoiceWarn", Boolean.toString(bVoiceWarningSwitch.isSelected()));
         cs.setConfig("voiceVolume", Integer.toString(ivoiceVolume.getValue()));
 
         cs.setColorConfig("fontNum", textToColor(cNumColor.getText()));

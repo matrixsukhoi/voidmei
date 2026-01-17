@@ -5,7 +5,7 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionAdapter;
 
 import com.alee.laf.rootpane.WebFrame;
-import prog.app;
+import prog.Application;
 import prog.config.ConfigProvider;
 
 /**
@@ -28,7 +28,7 @@ public abstract class DraggableOverlay extends WebFrame implements Runnable {
     protected String posXKey;
     protected String posYKey;
 
-    // Dragging state
+    // Dragging State
     private int isDragging;
     private int dragStartX, dragStartY;
 
@@ -116,8 +116,8 @@ public abstract class DraggableOverlay extends WebFrame implements Runnable {
      * Apply preview mode styling.
      */
     protected void applyPreviewStyle() {
-        this.getWebRootPaneUI().setMiddleBg(app.previewColor);
-        this.getWebRootPaneUI().setTopBg(app.previewColor);
+        this.getWebRootPaneUI().setMiddleBg(Application.previewColor);
+        this.getWebRootPaneUI().setTopBg(Application.previewColor);
         this.setCursor(null);
     }
 
@@ -129,7 +129,7 @@ public abstract class DraggableOverlay extends WebFrame implements Runnable {
         this.getWebRootPaneUI().setTopBg(new java.awt.Color(0, 0, 0, 0));
         this.getWebRootPaneUI().setBorderColor(new java.awt.Color(0, 0, 0, 0));
         this.getWebRootPaneUI().setInnerBorderColor(new java.awt.Color(0, 0, 0, 0));
-        ui.uiWebLafSetting.setWindowOpaque(this);
+        ui.WebLafSettings.setWindowOpaque(this);
     }
 
     /**
@@ -172,7 +172,7 @@ public abstract class DraggableOverlay extends WebFrame implements Runnable {
 
     /**
      * Repaint the overlay. Override for custom repaint logic.
-     * Called by uiThread for compatibility.
+     * Called by UIThread for compatibility.
      */
     public void drawTick() {
         // No-op by default
@@ -188,7 +188,7 @@ public abstract class DraggableOverlay extends WebFrame implements Runnable {
 
         while (doit) {
             try {
-                Thread.sleep(app.threadSleepTime);
+                Thread.sleep(Application.threadSleepTime);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }

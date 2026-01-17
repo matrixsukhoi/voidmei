@@ -12,7 +12,7 @@ import com.alee.laf.label.WebLabel;
 import com.alee.managers.notification.NotificationIcon;
 import com.alee.managers.notification.WebNotification;
 
-import prog.app;
+import prog.Application;
 
 /**
  * Factory for creating WebNotification objects.
@@ -23,8 +23,8 @@ public class NotificationFactory {
     public static WebNotification createSimple(String text) {
         WebNotification a = new WebNotification();
         WebLabel text1 = new WebLabel(text);
-        text1.setFont(app.defaultFont);
-        a.setFont(app.defaultFont);
+        text1.setFont(Application.defaultFont);
+        a.setFont(Application.defaultFont);
         a.setIcon(NotificationIcon.information.getIcon());
         a.add(text1);
         a.setDisplayTime(5000);
@@ -35,8 +35,8 @@ public class NotificationFactory {
     public static WebNotification createWithDuration(String text, int time) {
         WebNotification a = new WebNotification();
         WebLabel text1 = new WebLabel(text);
-        text1.setFont(app.defaultFont);
-        a.setFont(app.defaultFont);
+        text1.setFont(Application.defaultFont);
+        a.setFont(Application.defaultFont);
         a.setIcon(NotificationIcon.information.getIcon());
         a.add(text1);
         a.setDisplayTime(time);
@@ -47,8 +47,8 @@ public class NotificationFactory {
     public static WebNotification createError(String text) {
         WebNotification a = new WebNotification();
         WebLabel text1 = new WebLabel(text);
-        text1.setFont(app.defaultFont);
-        a.setFont(app.defaultFont);
+        text1.setFont(Application.defaultFont);
+        a.setFont(Application.defaultFont);
         a.setIcon(NotificationIcon.error);
         a.add(text1);
         a.setDisplayTime(3000);
@@ -58,13 +58,13 @@ public class NotificationFactory {
 
     public static WebNotification createTimer(long time, String pattern) {
         WebNotification a = new WebNotification();
-        a.setFont(app.defaultFont);
+        a.setFont(Application.defaultFont);
         a.setIcon(NotificationIcon.clock.getIcon());
         a.setWindowOpacity((float) (0.5));
         WebClock clock = new WebClock();
         clock.setClockType(ClockType.timer);
         clock.setTimeLeft(time);
-        clock.setFont(app.defaultFont);
+        clock.setFont(Application.defaultFont);
         clock.setTimePattern(pattern);
         a.setContent(new GroupPanel(clock));
         clock.start();
@@ -76,10 +76,10 @@ public class NotificationFactory {
     public static WebNotification createAbout(String text, int time) {
         WebNotification a = new WebNotification();
         WebLabel text1 = new WebLabel(text);
-        text1.setFont(new Font(app.defaultFontName, Font.PLAIN, 14));
+        text1.setFont(new Font(Application.defaultFontName, Font.PLAIN, 14));
         Image I = Toolkit.getDefaultToolkit().createImage("image/fubuki.jpg");
         ImageIcon A = new ImageIcon(I);
-        a.setFont(app.defaultFont);
+        a.setFont(Application.defaultFont);
         a.setIcon(A);
         a.add(text1);
         a.setDisplayTime(time);

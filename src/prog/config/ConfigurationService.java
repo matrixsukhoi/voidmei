@@ -2,11 +2,11 @@ package prog.config;
 
 import java.awt.Color;
 import java.awt.RenderingHints;
-import prog.app;
-import prog.controller;
+import prog.Application;
+import prog.Controller;
 
 /**
- * Main configuration service implementing ConfigProvider.
+ * Main configuration Service implementing ConfigProvider.
  * Handles loading, saving, and accessing application configuration.
  */
 public class ConfigurationService implements ConfigProvider {
@@ -69,9 +69,9 @@ public class ConfigurationService implements ConfigProvider {
         return false;
     }
 
-    public void loadAppCheck(controller c) {
-        // Parse and apply config to app and controller state
-        // This replaces loadFromConfig() in controller
+    public void loadAppCheck(Controller c) {
+        // Parse and apply config to app and Controller State
+        // This replaces loadFromConfig() in Controller
 
         long freqService = Long.parseLong(getConfig("Interval"));
         c.freqService = freqService;
@@ -80,25 +80,25 @@ public class ConfigurationService implements ConfigProvider {
         c.freqAltitude = (long) (freqService * 1.5f);
         c.freqGearAndFlap = (long) (freqService * 2f);
         c.freqStickValue = (long) (freqService * 1f);
-        app.threadSleepTime = (long) (freqService / 3);
+        Application.threadSleepTime = (long) (freqService / 3);
 
-        app.colorNum = getColorConfig("fontNum");
-        app.colorLabel = getColorConfig("fontLabel");
-        app.colorUnit = getColorConfig("fontUnit");
-        app.colorWarning = getColorConfig("fontWarn");
-        app.colorShadeShape = getColorConfig("fontShade");
+        Application.colorNum = getColorConfig("fontNum");
+        Application.colorLabel = getColorConfig("fontLabel");
+        Application.colorUnit = getColorConfig("fontUnit");
+        Application.colorWarning = getColorConfig("fontWarn");
+        Application.colorShadeShape = getColorConfig("fontShade");
 
-        app.voiceVolumn = Integer.parseInt(getConfig("voiceVolume"));
+        Application.voiceVolumn = Integer.parseInt(getConfig("voiceVolume"));
 
-        // app.drawFontShape = !Boolean.parseBoolean(getConfig("simpleFont"));
-        app.aaEnable = Boolean.parseBoolean(getConfig("AAEnable"));
+        // Application.drawFontShape = !Boolean.parseBoolean(getConfig("simpleFont"));
+        Application.aaEnable = Boolean.parseBoolean(getConfig("AAEnable"));
 
-        if (app.aaEnable) {
-            app.textAASetting = RenderingHints.VALUE_TEXT_ANTIALIAS_ON;
-            app.graphAASetting = RenderingHints.VALUE_ANTIALIAS_ON;
+        if (Application.aaEnable) {
+            Application.textAASetting = RenderingHints.VALUE_TEXT_ANTIALIAS_ON;
+            Application.graphAASetting = RenderingHints.VALUE_ANTIALIAS_ON;
         } else {
-            app.textAASetting = RenderingHints.VALUE_TEXT_ANTIALIAS_OFF;
-            app.graphAASetting = RenderingHints.VALUE_ANTIALIAS_OFF;
+            Application.textAASetting = RenderingHints.VALUE_TEXT_ANTIALIAS_OFF;
+            Application.graphAASetting = RenderingHints.VALUE_ANTIALIAS_OFF;
         }
     }
 

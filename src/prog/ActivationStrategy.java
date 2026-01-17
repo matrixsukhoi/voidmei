@@ -2,7 +2,7 @@ package prog;
 
 /**
  * Strategy interface for determining if an overlay should be activated.
- * Replaces hardcoded conditions scattered throughout controller.
+ * Replaces hardcoded conditions scattered throughout Controller.
  */
 @FunctionalInterface
 public interface ActivationStrategy {
@@ -85,9 +85,9 @@ public interface ActivationStrategy {
     }
 
     /**
-     * Activate when blkx data is available.
+     * Activate when Blkx data is available.
      */
     static ActivationStrategy blkxAvailable() {
-        return ctx -> ctx.blkx != null;
+        return ctx -> ctx.Blkx != null;
     }
 }

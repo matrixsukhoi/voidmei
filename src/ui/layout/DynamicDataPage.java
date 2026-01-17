@@ -12,9 +12,9 @@ import com.alee.laf.label.WebLabel;
 import com.alee.laf.panel.WebPanel;
 import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent;
 
-import prog.app;
-import ui.mainform;
-import prog.lang;
+import prog.Application;
+import ui.MainForm;
+import prog.i18n.Lang;
 import com.alee.laf.button.WebButton;
 import com.alee.extended.button.WebSwitch;
 import java.awt.GridBagLayout;
@@ -27,7 +27,7 @@ public class DynamicDataPage extends BasePage {
     private prog.config.ConfigLoader.GroupConfig groupConfig;
     private boolean overlayVisible = false;
 
-    public DynamicDataPage(mainform parent, prog.config.ConfigLoader.GroupConfig groupConfig) {
+    public DynamicDataPage(MainForm parent, prog.config.ConfigLoader.GroupConfig groupConfig) {
         super(parent);
         this.groupConfig = groupConfig;
 
@@ -35,18 +35,18 @@ public class DynamicDataPage extends BasePage {
             this.overlayVisible = groupConfig.visible;
             // Since BasePage constructor calls createTopToolbar() BEFORE we set
             // overlayVisible,
-            // we must refresh the toolbar to sync the switch state.
+            // we must refresh the toolbar to sync the switch State.
             refreshToolbar();
         }
 
         rebuild();
 
-        // Restore overlay state
-        // Always call this to ensure state is synchronized
+        // Restore overlay State
+        // Always call this to ensure State is synchronized
         setOverlayVisible(overlayVisible);
     }
 
-    public DynamicDataPage(mainform parent) {
+    public DynamicDataPage(MainForm parent) {
         super(parent);
     }
 
@@ -125,7 +125,7 @@ public class DynamicDataPage extends BasePage {
 
                 // Create new header
                 currentHeader = new WebLabel(row.label);
-                currentHeader.setFont(prog.app.defaultFontBig);
+                currentHeader.setFont(prog.Application.defaultFontBig);
                 currentHeader.setForeground(new java.awt.Color(180, 30, 0));
                 currentHeader.setBorder(
                         javax.swing.BorderFactory.createEmptyBorder(3, 5, 2, 5));
@@ -140,7 +140,7 @@ public class DynamicDataPage extends BasePage {
                 if (currentGroup == null) {
                     // If no header yet, create a default group
                     currentHeader = new WebLabel("配置项");
-                    currentHeader.setFont(prog.app.defaultFontBig);
+                    currentHeader.setFont(prog.Application.defaultFontBig);
                     currentHeader.setForeground(new java.awt.Color(180, 30, 0));
                     currentHeader.setBorder(
                             javax.swing.BorderFactory.createEmptyBorder(3, 5, 2, 5));
@@ -191,8 +191,8 @@ public class DynamicDataPage extends BasePage {
         // --- Item 1: Overlay Visibility ---
         WebPanel visibilityPanel = new WebPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 5, 0));
         visibilityPanel.setOpaque(false);
-        WebLabel lblOverlay = new WebLabel(lang.mDisplayOverlay);
-        lblOverlay.setFont(prog.app.defaultFont);
+        WebLabel lblOverlay = new WebLabel(Lang.mDisplayOverlay);
+        lblOverlay.setFont(prog.Application.defaultFont);
         visibilityPanel.add(lblOverlay);
         WebSwitch swOverlay = new WebSwitch();
         swOverlay.setSelected(overlayVisible);
@@ -211,12 +211,12 @@ public class DynamicDataPage extends BasePage {
         // --- Item 2: Overlay Style ---
         WebPanel stylePanel = new WebPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 5, 0));
         stylePanel.setOpaque(false);
-        WebLabel lblStyle = new WebLabel(lang.mDisplayStyle);
-        lblStyle.setFont(prog.app.defaultFont);
+        WebLabel lblStyle = new WebLabel(Lang.mDisplayStyle);
+        lblStyle.setFont(prog.Application.defaultFont);
         stylePanel.add(lblStyle);
-        String[] styles = { lang.mStyleZebra, lang.mStyleSolid };
+        String[] styles = { Lang.mStyleZebra, Lang.mStyleSolid };
         com.alee.laf.combobox.WebComboBox cbStyle = new com.alee.laf.combobox.WebComboBox(styles);
-        cbStyle.setFont(prog.app.defaultFont);
+        cbStyle.setFont(prog.Application.defaultFont);
         cbStyle.setWebColoredBackground(false);
         cbStyle.setShadeWidth(1);
         cbStyle.setDrawFocus(false);
@@ -226,8 +226,8 @@ public class DynamicDataPage extends BasePage {
         // --- Item 3: Detailed Mode ---
         WebPanel modePanel = new WebPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 5, 0));
         modePanel.setOpaque(false);
-        WebLabel lblMode = new WebLabel(lang.mDetailedMode);
-        lblMode.setFont(prog.app.defaultFont);
+        WebLabel lblMode = new WebLabel(Lang.mDetailedMode);
+        lblMode.setFont(prog.Application.defaultFont);
         modePanel.add(lblMode);
         WebSwitch swMode = new WebSwitch();
         swMode.setSelected(isDetailedMode);
@@ -243,17 +243,17 @@ public class DynamicDataPage extends BasePage {
         WebPanel hotkeyPanel = new WebPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 5, 0));
         hotkeyPanel.setOpaque(false);
         if (groupConfig != null && groupConfig.hotkey != 0) {
-            WebLabel lblHotkey = new WebLabel(lang.mHotkeyToggle);
-            lblHotkey.setFont(prog.app.defaultFont);
+            WebLabel lblHotkey = new WebLabel(Lang.mHotkeyToggle);
+            lblHotkey.setFont(prog.Application.defaultFont);
             hotkeyPanel.add(lblHotkey);
 
             String keyText = com.github.kwhat.jnativehook.keyboard.NativeKeyEvent.getKeyText(groupConfig.hotkey);
             WebButton btnHotkey = new WebButton(keyText);
-            btnHotkey.setFont(prog.app.defaultFont);
+            btnHotkey.setFont(prog.Application.defaultFont);
             btnHotkey.setFocusable(false);
             btnHotkey.addActionListener(e -> {
                 try {
-                    app.silenceNativeHookLogger();
+                    Application.silenceNativeHookLogger();
                     if (!com.github.kwhat.jnativehook.GlobalScreen.isNativeHookRegistered()) {
                         com.github.kwhat.jnativehook.GlobalScreen.registerNativeHook();
                     }
@@ -261,7 +261,7 @@ public class DynamicDataPage extends BasePage {
                     ex.printStackTrace();
                 }
 
-                btnHotkey.setText(lang.mWaitHotkey);
+                btnHotkey.setText(Lang.mWaitHotkey);
                 com.github.kwhat.jnativehook.GlobalScreen.addNativeKeyListener(
                         new com.github.kwhat.jnativehook.keyboard.NativeKeyListener() {
                             @Override
@@ -271,7 +271,7 @@ public class DynamicDataPage extends BasePage {
                                         || code == NativeKeyEvent.VC_SCROLL_LOCK) {
                                     return;
                                 }
-                                app.debugPrint("[DynamicDataPage] configure key: key pressed: " + code);
+                                Application.debugPrint("[DynamicDataPage] configure key: key pressed: " + code);
                                 javax.swing.SwingUtilities.invokeLater(() -> {
                                     if (code == com.github.kwhat.jnativehook.keyboard.NativeKeyEvent.VC_ESCAPE) {
                                         btnHotkey.setText(com.github.kwhat.jnativehook.keyboard.NativeKeyEvent
@@ -317,7 +317,7 @@ public class DynamicDataPage extends BasePage {
 
         // --- Step 2: Pass 1 - Measurement ---
         java.util.List<RowComponents> rowComps = new java.util.ArrayList<>();
-        java.awt.Font font = prog.app.defaultFont;
+        java.awt.Font font = prog.Application.defaultFont;
         for (prog.config.ConfigLoader.RowConfig row : groupConfig.rows) {
             RowComponents rc = new RowComponents(row);
             rowComps.add(rc);
@@ -386,7 +386,7 @@ public class DynamicDataPage extends BasePage {
             });
             fLabel.setTextColor(isHeader ? new java.awt.Color(180, 30, 0) : new java.awt.Color(20, 20, 20));
             if (isHeader)
-                fLabel.label.setFont(prog.app.defaultFontBig);
+                fLabel.label.setFont(prog.Application.defaultFontBig);
 
             if (!isHeader) {
                 fFormula = new EditableField(row.formula, (val) -> {
@@ -406,7 +406,7 @@ public class DynamicDataPage extends BasePage {
                 fFormat.setTextColor(new java.awt.Color(0, 100, 215));
             } else {
                 headerIndicator = new WebLabel("HEADER");
-                headerIndicator.setFont(prog.app.defaultFont);
+                headerIndicator.setFont(prog.Application.defaultFont);
                 headerIndicator.setForeground(new java.awt.Color(0, 0, 0, 60));
             }
 
@@ -525,11 +525,11 @@ public class DynamicDataPage extends BasePage {
             setLayout(new BorderLayout());
 
             label = new WebLabel(val == null || val.isEmpty() ? "---" : val);
-            label.setFont(prog.app.defaultFont);
+            label.setFont(prog.Application.defaultFont);
             add(label, BorderLayout.CENTER);
 
             editor = new com.alee.laf.text.WebTextField(val);
-            editor.setFont(prog.app.defaultFont);
+            editor.setFont(prog.Application.defaultFont);
 
             label.addMouseListener(new java.awt.event.MouseAdapter() {
                 public void mousePressed(java.awt.event.MouseEvent e) {
@@ -596,7 +596,7 @@ public class DynamicDataPage extends BasePage {
         // Trigger global save of ui_layout.cfg
         parent.saveDynamicConfig();
 
-        // Also notify our overlay in controller to rebuild its bindings
+        // Also notify our overlay in Controller to rebuild its bindings
         if (parent.tc.dynamicOverlays != null) {
             for (ui.overlay.DynamicOverlay overlay : parent.tc.dynamicOverlays) {
                 if (overlay.getGroupConfig().title.equals(groupConfig.title)) {
@@ -608,7 +608,7 @@ public class DynamicDataPage extends BasePage {
     }
 
     public void update() {
-        // Now handled by controller/uiThread loop
+        // Now handled by Controller/UIThread loop
     }
 
     /**
@@ -641,7 +641,7 @@ public class DynamicDataPage extends BasePage {
 
     public void dispose() {
         // No longer owns the overlay, nothing to dispose here.
-        // Overlays are managed by controller.
+        // Overlays are managed by Controller.
     }
 
     @Override

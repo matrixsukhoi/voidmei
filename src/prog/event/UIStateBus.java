@@ -1,4 +1,5 @@
 package prog.event;
+import prog.Application;
 
 import java.util.List;
 import java.util.Map;
@@ -8,7 +9,7 @@ import java.util.function.Consumer;
 
 /**
  * Event Bus for UI State synchronization.
- * Used for decoupled communication between UI panels (e.g., switch state sync).
+ * Used for decoupled communication between UI panels (e.g., switch State sync).
  * Thread-safe using ConcurrentHashMap + CopyOnWriteArrayList.
  */
 public class UIStateBus {
@@ -57,7 +58,7 @@ public class UIStateBus {
                 try {
                     handler.accept(data);
                 } catch (Exception e) {
-                    prog.app.debugPrint("[UIStateBus] Error in handler for " + eventType + ": " + e.getMessage());
+                    prog.Application.debugPrint("[UIStateBus] Error in handler for " + eventType + ": " + e.getMessage());
                 }
             }
         }

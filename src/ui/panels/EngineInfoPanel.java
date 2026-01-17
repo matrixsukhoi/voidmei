@@ -9,8 +9,8 @@ import com.alee.laf.panel.WebPanel;
 import com.alee.laf.slider.WebSlider;
 
 import prog.config.ConfigurationService;
-import prog.app;
-import prog.lang;
+import prog.Application;
+import prog.i18n.Lang;
 import ui.layout.UIBuilder;
 
 public class EngineInfoPanel extends WebPanel {
@@ -51,65 +51,65 @@ public class EngineInfoPanel extends WebPanel {
     private void initUI() {
         this.setLayout(new FlowLayout(FlowLayout.LEFT));
 
-        bEngineInfoSwitch = UIBuilder.addSwitch(this, lang.mP2EnginePanel, false);
-        UIBuilder.addVoidWebLabel(this, lang.mP2EnginePanelBlank);
+        bEngineInfoSwitch = UIBuilder.addSwitch(this, Lang.mP2EnginePanel, false);
+        UIBuilder.addVoidWebLabel(this, Lang.mP2EnginePanelBlank);
 
-        bEngineInfoEdge = UIBuilder.addSwitch(this, lang.mP2EngineGlassEdge, false);
-        UIBuilder.addVoidWebLabel(this, lang.mP2EngineGlassEdgeBlank);
+        bEngineInfoEdge = UIBuilder.addSwitch(this, Lang.mP2EngineGlassEdge, false);
+        UIBuilder.addVoidWebLabel(this, Lang.mP2EngineGlassEdgeBlank);
 
-        bEngineInfoHorsePower = UIBuilder.addSwitch(this, lang.mP2eiHorsePower, false);
-        UIBuilder.addVoidWebLabel(this, lang.mP2eiHorsePowerBlank);
+        bEngineInfoHorsePower = UIBuilder.addSwitch(this, Lang.mP2eiHorsePower, false);
+        UIBuilder.addVoidWebLabel(this, Lang.mP2eiHorsePowerBlank);
 
-        bEngineInfoThrust = UIBuilder.addSwitch(this, lang.mP2eiThrust, false);
-        UIBuilder.addVoidWebLabel(this, lang.mP2eiThrustBlank);
+        bEngineInfoThrust = UIBuilder.addSwitch(this, Lang.mP2eiThrust, false);
+        UIBuilder.addVoidWebLabel(this, Lang.mP2eiThrustBlank);
 
-        bEngineInfoRPM = UIBuilder.addSwitch(this, lang.mP2eiRPM, false);
-        UIBuilder.addVoidWebLabel(this, lang.mP2eiRPMBlank);
+        bEngineInfoRPM = UIBuilder.addSwitch(this, Lang.mP2eiRPM, false);
+        UIBuilder.addVoidWebLabel(this, Lang.mP2eiRPMBlank);
 
-        bEngineInfoPropPitch = UIBuilder.addSwitch(this, lang.mP2eiPropPitch, false);
-        UIBuilder.addVoidWebLabel(this, lang.mP2eiPropPitchBlank);
+        bEngineInfoPropPitch = UIBuilder.addSwitch(this, Lang.mP2eiPropPitch, false);
+        UIBuilder.addVoidWebLabel(this, Lang.mP2eiPropPitchBlank);
 
-        bEngineInfoEffEta = UIBuilder.addSwitch(this, lang.mP2eiEffEta, false);
-        UIBuilder.addVoidWebLabel(this, lang.mP2eiEffEtaBlank);
+        bEngineInfoEffEta = UIBuilder.addSwitch(this, Lang.mP2eiEffEta, false);
+        UIBuilder.addVoidWebLabel(this, Lang.mP2eiEffEtaBlank);
 
-        bEngineInfoEffHp = UIBuilder.addSwitch(this, lang.mP2eiEffHp, false);
-        UIBuilder.addVoidWebLabel(this, lang.mP2eiEffHpBlank);
+        bEngineInfoEffHp = UIBuilder.addSwitch(this, Lang.mP2eiEffHp, false);
+        UIBuilder.addVoidWebLabel(this, Lang.mP2eiEffHpBlank);
 
-        bEngineInfoPressure = UIBuilder.addSwitch(this, lang.mP2eiPressure, false);
-        UIBuilder.addVoidWebLabel(this, lang.mP2eiPressureBlank);
+        bEngineInfoPressure = UIBuilder.addSwitch(this, Lang.mP2eiPressure, false);
+        UIBuilder.addVoidWebLabel(this, Lang.mP2eiPressureBlank);
 
-        bEngineInfoPowerPercent = UIBuilder.addSwitch(this, lang.mP2eiPowerPercent, false);
-        UIBuilder.addVoidWebLabel(this, lang.mP2eiPowerPercentBlank);
+        bEngineInfoPowerPercent = UIBuilder.addSwitch(this, Lang.mP2eiPowerPercent, false);
+        UIBuilder.addVoidWebLabel(this, Lang.mP2eiPowerPercentBlank);
 
-        bEngineInfoFuelKg = UIBuilder.addSwitch(this, lang.mP2eiFuelKg, false);
-        UIBuilder.addVoidWebLabel(this, lang.mP2eiFuelKgBlank);
+        bEngineInfoFuelKg = UIBuilder.addSwitch(this, Lang.mP2eiFuelKg, false);
+        UIBuilder.addVoidWebLabel(this, Lang.mP2eiFuelKgBlank);
 
-        bEngineInfoFuelTime = UIBuilder.addSwitch(this, lang.mP2eiFuelTime, false);
-        UIBuilder.addVoidWebLabel(this, lang.mP2eiFuelTimeBlank);
+        bEngineInfoFuelTime = UIBuilder.addSwitch(this, Lang.mP2eiFuelTime, false);
+        UIBuilder.addVoidWebLabel(this, Lang.mP2eiFuelTimeBlank);
 
-        bEngineInfoWepKg = UIBuilder.addSwitch(this, lang.mP2eiWepKg, false);
-        UIBuilder.addVoidWebLabel(this, lang.mP2eiWepKgBlank);
+        bEngineInfoWepKg = UIBuilder.addSwitch(this, Lang.mP2eiWepKg, false);
+        UIBuilder.addVoidWebLabel(this, Lang.mP2eiWepKgBlank);
 
-        bEngineInfoWepTime = UIBuilder.addSwitch(this, lang.mP2eiWepTime, false);
-        UIBuilder.addVoidWebLabel(this, lang.mP2eiWepTimeBlank);
+        bEngineInfoWepTime = UIBuilder.addSwitch(this, Lang.mP2eiWepTime, false);
+        UIBuilder.addVoidWebLabel(this, Lang.mP2eiWepTimeBlank);
 
-        bEngineInfoTemp = UIBuilder.addSwitch(this, lang.mP2eiTemp, false);
-        UIBuilder.addVoidWebLabel(this, lang.mP2eiTempBlank);
+        bEngineInfoTemp = UIBuilder.addSwitch(this, Lang.mP2eiTemp, false);
+        UIBuilder.addVoidWebLabel(this, Lang.mP2eiTempBlank);
 
-        bEngineInfoOilTemp = UIBuilder.addSwitch(this, lang.mP2eiOilTemp, false);
-        UIBuilder.addVoidWebLabel(this, lang.mP2eiOilTempBlank);
+        bEngineInfoOilTemp = UIBuilder.addSwitch(this, Lang.mP2eiOilTemp, false);
+        UIBuilder.addVoidWebLabel(this, Lang.mP2eiOilTempBlank);
 
-        bEngineInfoHeatTolerance = UIBuilder.addSwitch(this, lang.mP2eiHeatTolerance, false);
-        UIBuilder.addVoidWebLabel(this, lang.mP2eiHeatToleranceBlank);
+        bEngineInfoHeatTolerance = UIBuilder.addSwitch(this, Lang.mP2eiHeatTolerance, false);
+        UIBuilder.addVoidWebLabel(this, Lang.mP2eiHeatToleranceBlank);
 
-        bEngineInfoEngResponse = UIBuilder.addSwitch(this, lang.mP2eiEngResponse, false);
-        UIBuilder.addVoidWebLabel(this, lang.mP2eiEngResponseBlank);
+        bEngineInfoEngResponse = UIBuilder.addSwitch(this, Lang.mP2eiEngResponse, false);
+        UIBuilder.addVoidWebLabel(this, Lang.mP2eiEngResponseBlank);
 
-        fEngineInfoFont = UIBuilder.addFontComboBox(this, lang.mP2PanelFont, app.fonts);
-        iEngineInfoFontSizeIncr = UIBuilder.addSlider(this, lang.mP2FontAdjust, -6, 20, 0, 200, 1, 4);
-        iengineInfoColumnNum = UIBuilder.addSlider(this, lang.mP4ColumnAdjust, 1, 16, 2, 200, 1, 2);
+        fEngineInfoFont = UIBuilder.addFontComboBox(this, Lang.mP2PanelFont, Application.fonts);
+        iEngineInfoFontSizeIncr = UIBuilder.addSlider(this, Lang.mP2FontAdjust, -6, 20, 0, 200, 1, 4);
+        iengineInfoColumnNum = UIBuilder.addSlider(this, Lang.mP4ColumnAdjust, 1, 16, 2, 200, 1, 2);
 
-        UIBuilder.addVoidWebLabel(this, lang.mP2EngineBlank);
+        UIBuilder.addVoidWebLabel(this, Lang.mP2EngineBlank);
 
         setupListeners();
     }

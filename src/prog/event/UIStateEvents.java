@@ -2,7 +2,7 @@ package prog.event;
 
 /**
  * Event type constants for UIStateBus.
- * Centralizes all UI state event identifiers for easy discovery and
+ * Centralizes all UI State event identifiers for easy discovery and
  * refactoring.
  */
 public final class UIStateEvents {
@@ -11,8 +11,8 @@ public final class UIStateEvents {
     }
 
     /**
-     * Published when the FM Print switch state changes.
-     * Payload: Boolean (new state)
+     * Published when the FM Print switch State changes.
+     * Payload: Boolean (new State)
      */
     public static final String FM_PRINT_SWITCH_CHANGED = "fmPrintSwitchChanged";
 

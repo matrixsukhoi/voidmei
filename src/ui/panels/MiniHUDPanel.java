@@ -8,9 +8,9 @@ import com.alee.laf.panel.WebPanel;
 import com.alee.laf.slider.WebSlider;
 
 import prog.config.ConfigurationService;
-import prog.app;
-import prog.lang;
-import ui.mainform;
+import prog.Application;
+import prog.i18n.Lang;
+import ui.MainForm;
 import ui.layout.UIBuilder;
 
 /**
@@ -30,7 +30,7 @@ public class MiniHUDPanel extends WebPanel {
         cs.setConfig("displayCrosshair", Boolean.toString(Boolean.FALSE));
     }
 
-    private final mainform parent;
+    private final MainForm parent;
 
     public WebSwitch bCrosshairSwitch;
     public WebSwitch bcrosshairdisplaySwitch;
@@ -44,7 +44,7 @@ public class MiniHUDPanel extends WebPanel {
     private Runnable onChange;
     private Runnable onSave;
 
-    public MiniHUDPanel(mainform parent) {
+    public MiniHUDPanel(MainForm parent) {
         this.parent = parent;
         setLayout(new FlowLayout(FlowLayout.LEFT));
         setOpaque(false);
@@ -72,32 +72,32 @@ public class MiniHUDPanel extends WebPanel {
     }
 
     private void initUI() {
-        bCrosshairSwitch = UIBuilder.addLCGroup(this, lang.mP3Crosshair);
-        UIBuilder.addVoidWebLabel(this, lang.mP3CrosshairBlank);
+        bCrosshairSwitch = UIBuilder.addLCGroup(this, Lang.mP3Crosshair);
+        UIBuilder.addVoidWebLabel(this, Lang.mP3CrosshairBlank);
 
-        bcrosshairdisplaySwitch = UIBuilder.addLCGroup(this, lang.mP3CrosshairDisplay);
-        UIBuilder.addVoidWebLabel(this, lang.mP3CrosshairDisplayBlank);
-        UIBuilder.addVoidWebLabel(this, lang.mP3CrosshairBlank);
+        bcrosshairdisplaySwitch = UIBuilder.addLCGroup(this, Lang.mP3CrosshairDisplay);
+        UIBuilder.addVoidWebLabel(this, Lang.mP3CrosshairDisplayBlank);
+        UIBuilder.addVoidWebLabel(this, Lang.mP3CrosshairBlank);
 
-        bDrawHudTextSwitch = UIBuilder.addLCGroup(this, lang.mP3Text);
-        UIBuilder.addVoidWebLabel(this, lang.mP3TextBlank);
+        bDrawHudTextSwitch = UIBuilder.addLCGroup(this, Lang.mP3Text);
+        UIBuilder.addVoidWebLabel(this, Lang.mP3TextBlank);
 
-        bFlapBarSwitch = UIBuilder.addLCGroup(this, lang.mP3FlapAngleBar);
-        UIBuilder.addVoidWebLabel(this, lang.mP3FlapAngleBarBlank);
+        bFlapBarSwitch = UIBuilder.addLCGroup(this, Lang.mP3FlapAngleBar);
+        UIBuilder.addVoidWebLabel(this, Lang.mP3FlapAngleBarBlank);
 
-        bTextureCrosshairSwitch = UIBuilder.addLCGroup(this, lang.mP3CrosshairTexture);
-        UIBuilder.addVoidWebLabel(this, lang.mP3CrosshairTextureBlank);
+        bTextureCrosshairSwitch = UIBuilder.addLCGroup(this, Lang.mP3CrosshairTexture);
+        UIBuilder.addVoidWebLabel(this, Lang.mP3CrosshairTextureBlank);
 
-        sCrosshairName = UIBuilder.addCrosshairList(this, lang.mP3ChooseTexture, parent.isInitializing, () -> {
+        sCrosshairName = UIBuilder.addCrosshairList(this, Lang.mP3ChooseTexture, parent.isInitializing, () -> {
             fireSave();
             parent.tc.refreshPreviews();
         });
-        UIBuilder.addVoidWebLabel(this, lang.mP3ChooseTextureBlank);
+        UIBuilder.addVoidWebLabel(this, Lang.mP3ChooseTextureBlank);
 
-        iCrosshairScale = UIBuilder.addSlider(this, lang.mP3CrosshairSize, 0, 200, 10, 500, 5, 20);
+        iCrosshairScale = UIBuilder.addSlider(this, Lang.mP3CrosshairSize, 0, 200, 10, 500, 5, 20);
 
-        sMonoFont = UIBuilder.addFontComboBox(this, lang.mP3MonoFont, app.fonts);
-        UIBuilder.addVoidWebLabel(this, lang.mP3MonoFontBlank);
+        sMonoFont = UIBuilder.addFontComboBox(this, Lang.mP3MonoFont, Application.fonts);
+        UIBuilder.addVoidWebLabel(this, Lang.mP3MonoFontBlank);
 
         setupListeners();
     }

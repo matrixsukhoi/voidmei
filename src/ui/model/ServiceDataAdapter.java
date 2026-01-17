@@ -1,18 +1,18 @@
 package ui.model;
 
-import prog.service;
+import prog.Service;
 
 /**
- * Adapter that wraps a service instance to provide FlightDataProvider
+ * Adapter that wraps a Service instance to provide FlightDataProvider
  * interface.
- * This allows flightInfo to depend on the interface rather than the concrete
- * service class.
+ * This allows FlightInfo to depend on the interface rather than the concrete
+ * Service class.
  */
 public class ServiceDataAdapter implements FlightDataProvider {
 
-    private final service data;
+    private final Service data;
 
-    public ServiceDataAdapter(service data) {
+    public ServiceDataAdapter(Service data) {
         this.data = data;
     }
 
@@ -98,6 +98,6 @@ public class ServiceDataAdapter implements FlightDataProvider {
 
     @Override
     public String getNAString() {
-        return service.nastring;
+        return Service.nastring;
     }
 }

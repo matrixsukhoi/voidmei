@@ -15,10 +15,10 @@ import ui.base.DraggableOverlay;
  */
 public class OverlayManager {
 
-    private final controller tc;
+    private final Controller tc;
     private final Map<String, OverlayEntry<?>> entries = new LinkedHashMap<>();
 
-    public OverlayManager(controller tc) {
+    public OverlayManager(Controller tc) {
         this.tc = tc;
     }
 
@@ -140,7 +140,7 @@ public class OverlayManager {
     }
 
     /**
-     * Internal class to hold overlay registration info and state.
+     * Internal class to hold overlay registration info and State.
      */
     private static class OverlayEntry<T> {
         final String key;

@@ -1,6 +1,6 @@
 package prog;
 
-import parser.blkx;
+import parser.Blkx;
 import parser.AttributePool;
 
 /**
@@ -9,16 +9,16 @@ import parser.AttributePool;
  */
 public class OverlayContext {
 
-    public final controller tc;
-    public final service S;
-    public final blkx blkx;
+    public final Controller tc;
+    public final Service S;
+    public final Blkx Blkx;
     public final AttributePool pool;
     public final boolean isPreviewMode;
 
     private OverlayContext(Builder builder) {
         this.tc = builder.tc;
         this.S = builder.S;
-        this.blkx = builder.blkx;
+        this.Blkx = builder.Blkx;
         this.pool = builder.pool;
         this.isPreviewMode = builder.isPreviewMode;
     }
@@ -41,38 +41,38 @@ public class OverlayContext {
      * Check if this is a jet aircraft.
      */
     public boolean isJet() {
-        return blkx != null && blkx.isJet;
+        return Blkx != null && Blkx.isJet;
     }
 
     /**
      * Check if debug mode is enabled.
      */
     public boolean isDebug() {
-        return app.debug;
+        return Application.debug;
     }
 
     /**
      * Builder for OverlayContext.
      */
     public static class Builder {
-        private controller tc;
-        private service S;
-        private blkx blkx;
+        private Controller tc;
+        private Service S;
+        private Blkx Blkx;
         private AttributePool pool;
         private boolean isPreviewMode = false;
 
-        public Builder controller(controller tc) {
+        public Builder Controller(Controller tc) {
             this.tc = tc;
             return this;
         }
 
-        public Builder service(service S) {
+        public Builder Service(Service S) {
             this.S = S;
             return this;
         }
 
-        public Builder blkx(blkx blkx) {
-            this.blkx = blkx;
+        public Builder Blkx(Blkx Blkx) {
+            this.Blkx = Blkx;
             return this;
         }
 
@@ -101,11 +101,11 @@ public class OverlayContext {
     /**
      * Quick factory for game mode context.
      */
-    public static OverlayContext forGameMode(controller tc) {
+    public static OverlayContext forGameMode(Controller tc) {
         return builder()
-                .controller(tc)
-                .service(tc.S)
-                .blkx(tc.blkx)
+                .Controller(tc)
+                .Service(tc.S)
+                .Blkx(tc.Blkx)
                 .pool(tc.globalPool)
                 .previewMode(false)
                 .build();
@@ -114,11 +114,11 @@ public class OverlayContext {
     /**
      * Quick factory for preview mode context.
      */
-    public static OverlayContext forPreviewMode(controller tc) {
+    public static OverlayContext forPreviewMode(Controller tc) {
         return builder()
-                .controller(tc)
-                .service(tc.S)
-                .blkx(tc.blkx)
+                .Controller(tc)
+                .Service(tc.S)
+                .Blkx(tc.Blkx)
                 .pool(tc.globalPool)
                 .previewMode(true)
                 .build();

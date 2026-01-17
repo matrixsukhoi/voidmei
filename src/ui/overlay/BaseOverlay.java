@@ -15,7 +15,7 @@ import com.alee.laf.panel.WebPanel;
 import com.alee.laf.rootpane.WebFrame;
 import com.alee.extended.layout.VerticalFlowLayout;
 
-import prog.app;
+import prog.Application;
 
 /**
  * Base overlay class using composition for pluggable rendering strategies.
@@ -90,8 +90,8 @@ public class BaseOverlay extends WebFrame implements Runnable {
         int screenHeight = Toolkit.getDefaultToolkit().getScreenSize().height;
         scaleFactor = (float) screenHeight / 1440.0f;
         fontSize = Math.round(16 * scaleFactor);
-        width = Math.round(app.defaultFontsize * 36 * scaleFactor);
-        height = app.defaultFontsize * 72;
+        width = Math.round(Application.defaultFontsize * 36 * scaleFactor);
+        height = Application.defaultFontsize * 72;
 
         int initialX = Toolkit.getDefaultToolkit().getScreenSize().width - width;
         int initialY = Toolkit.getDefaultToolkit().getScreenSize().height - 10 - height;
@@ -129,18 +129,18 @@ public class BaseOverlay extends WebFrame implements Runnable {
         mainPanel.add(dataPanel, BorderLayout.CENTER);
         this.add(mainPanel);
 
-        this.getRootPane().setCursor(app.blankCursor);
-        this.getContentPane().setCursor(app.blankCursor);
-        this.getGlassPane().setCursor(app.blankCursor);
+        this.getRootPane().setCursor(Application.blankCursor);
+        this.getContentPane().setCursor(Application.blankCursor);
+        this.getGlassPane().setCursor(Application.blankCursor);
 
-        ui.uiWebLafSetting.setWindowFocus(this);
+        ui.WebLafSettings.setWindowFocus(this);
     }
 
     public void initPreview(ConfigBridge bridge, String xKey, String yKey, Supplier<List<String>> supplier) {
         isPreview = true;
         init(bridge, xKey, yKey, supplier);
-        this.getWebRootPaneUI().setMiddleBg(app.previewColor);
-        this.getWebRootPaneUI().setTopBg(app.previewColor);
+        this.getWebRootPaneUI().setMiddleBg(Application.previewColor);
+        this.getWebRootPaneUI().setTopBg(Application.previewColor);
 
         addMouseListener(new MouseAdapter() {
             @Override
@@ -187,7 +187,7 @@ public class BaseOverlay extends WebFrame implements Runnable {
         if (!fontName.isEmpty()) {
             displayFont = new Font(fontName, Font.PLAIN, fontSize);
         } else {
-            displayFont = new Font(app.defaultNumfontName, Font.PLAIN, fontSize);
+            displayFont = new Font(Application.defaultNumfontName, Font.PLAIN, fontSize);
         }
     }
 

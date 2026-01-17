@@ -2,7 +2,7 @@ package ui.model;
 
 /**
  * Definition of a flight info field.
- * Used to externalize field configuration from the flightInfo class.
+ * Used to externalize field configuration from the FlightInfo class.
  */
 public class FieldDefinition {
     public final String key;

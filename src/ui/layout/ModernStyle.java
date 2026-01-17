@@ -10,7 +10,7 @@ import com.alee.laf.label.WebLabel;
 import com.alee.laf.panel.WebPanel;
 import com.alee.laf.slider.WebSlider;
 
-import prog.app;
+import prog.Application;
 
 public class ModernStyle implements UIStyle {
 
@@ -22,7 +22,7 @@ public class ModernStyle implements UIStyle {
         TitledBorder border = BorderFactory.createTitledBorder(
                 BorderFactory.createLineBorder(new Color(200, 200, 200, 50)), title);
         border.setTitleColor(Color.WHITE);
-        border.setTitleFont(app.defaultFont);
+        border.setTitleFont(Application.defaultFont);
         card.setBorder(border);
 
         card.setOpaque(false);
@@ -38,7 +38,7 @@ public class ModernStyle implements UIStyle {
 
     @Override
     public void decorateLabel(WebLabel label) {
-        label.setFont(app.defaultFont);
+        label.setFont(Application.defaultFont);
         label.setForeground(Color.WHITE);
     }
 

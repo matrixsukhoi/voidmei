@@ -7,7 +7,7 @@ import java.util.Map;
 
 import prog.config.ConfigLoader;
 import prog.util.FormulaEvaluator;
-import prog.controller;
+import prog.Controller;
 
 /**
  * Dynamic overlay that displays formula-evaluated data using BaseOverlay's
@@ -16,7 +16,7 @@ import prog.controller;
 public class DynamicOverlay extends BaseOverlay implements BaseOverlay.ConfigBridge {
 
     private ConfigLoader.GroupConfig config;
-    private controller tc;
+    private Controller tc;
     private List<OverlayBinding> bindings = new ArrayList<>();
 
     private static class OverlayBinding {
@@ -36,7 +36,7 @@ public class DynamicOverlay extends BaseOverlay implements BaseOverlay.ConfigBri
         }
     }
 
-    public DynamicOverlay(controller tc, ConfigLoader.GroupConfig config) {
+    public DynamicOverlay(Controller tc, ConfigLoader.GroupConfig config) {
         super();
         this.tc = tc;
         this.config = config;
@@ -128,10 +128,10 @@ public class DynamicOverlay extends BaseOverlay implements BaseOverlay.ConfigBri
      * Update binding values from formula evaluation.
      */
     private void updateBindingValues() {
-        if (tc.blkx == null)
+        if (tc.Blkx == null)
             return;
 
-        Map<String, Object> vars = tc.blkx.getVariableMap();
+        Map<String, Object> vars = tc.Blkx.getVariableMap();
 
         for (OverlayBinding b : bindings) {
             if (!b.visible || b.isHeader)

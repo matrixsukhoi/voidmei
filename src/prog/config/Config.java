@@ -7,7 +7,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.Properties;
-import prog.app;
+import prog.Application;
 
 /**
  * Properties file reader/writer utility.
@@ -31,10 +31,10 @@ public class Config {
             propertie.load(inputFile);
             inputFile.close();
         } catch (FileNotFoundException ex) {
-            app.debugPrint("读取属性文件--->失败！- 原因：文件路径错误或者文件不存在");
+            Application.debugPrint("读取属性文件--->失败！- 原因：文件路径错误或者文件不存在");
             ex.printStackTrace();
         } catch (IOException ex) {
-            app.debugPrint("装载文件--->失败!");
+            Application.debugPrint("装载文件--->失败!");
             ex.printStackTrace();
         }
     }

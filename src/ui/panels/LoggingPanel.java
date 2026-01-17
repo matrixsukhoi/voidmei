@@ -24,10 +24,10 @@ import com.github.kwhat.jnativehook.GlobalScreen;
 import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent;
 import com.github.kwhat.jnativehook.keyboard.NativeKeyListener;
 
-import parser.blkx;
+import parser.Blkx;
 import prog.config.ConfigurationService;
-import prog.app;
-import prog.lang;
+import prog.Application;
+import prog.i18n.Lang;
 import prog.event.UIStateBus;
 import prog.event.UIStateEvents;
 import ui.layout.UIBuilder;
@@ -65,14 +65,14 @@ public class LoggingPanel extends WebPanel {
     private void initUI() {
         this.setLayout(new FlowLayout(FlowLayout.LEFT));
 
-        bEnableLogging = UIBuilder.addSwitch(this, lang.mP5LoggingAndCharting, false);
-        UIBuilder.addVoidWebLabel(this, lang.mP5LoggingAndChartingBlank);
+        bEnableLogging = UIBuilder.addSwitch(this, Lang.mP5LoggingAndCharting, false);
+        UIBuilder.addVoidWebLabel(this, Lang.mP5LoggingAndChartingBlank);
 
-        bEnableInformation = UIBuilder.addSwitch(this, lang.mP5Information, false);
-        UIBuilder.addVoidWebLabel(this, lang.mP5InformationBlank);
+        bEnableInformation = UIBuilder.addSwitch(this, Lang.mP5Information, false);
+        UIBuilder.addVoidWebLabel(this, Lang.mP5InformationBlank);
 
-        bFMList0 = createFMList(this, lang.mP5FMChoose + " 0");
-        UIBuilder.addVoidWebLabel(this, lang.mP5FMChooseBlank);
+        bFMList0 = createFMList(this, Lang.mP5FMChoose + " 0");
+        UIBuilder.addVoidWebLabel(this, Lang.mP5FMChooseBlank);
         bFMList0.addActionListener(new ActionListener() {
             private int t = 0;
 
@@ -82,8 +82,8 @@ public class LoggingPanel extends WebPanel {
             }
         });
 
-        bFMList1 = createFMList(this, lang.mP5FMChoose + " 1");
-        UIBuilder.addVoidWebLabel(this, lang.mP5FMChooseBlank);
+        bFMList1 = createFMList(this, Lang.mP5FMChoose + " 1");
+        UIBuilder.addVoidWebLabel(this, Lang.mP5FMChooseBlank);
         bFMList1.addActionListener(new ActionListener() {
             private int t = 0;
 
@@ -93,14 +93,14 @@ public class LoggingPanel extends WebPanel {
             }
         });
 
-        bFMPrintLogSwitch = UIBuilder.addSwitch(this, lang.mP5FMPrintEnable, false);
-        UIBuilder.addVoidWebLabel(this, lang.mP5FMPrintEnableBlank);
+        bFMPrintLogSwitch = UIBuilder.addSwitch(this, Lang.mP5FMPrintEnable, false);
+        UIBuilder.addVoidWebLabel(this, Lang.mP5FMPrintEnableBlank);
 
-        UIBuilder.addVoidWebLabel(this, lang.mP5FMDisplayKey);
-        bDisplayFmKey = new WebButton(NativeKeyEvent.getKeyText(app.displayFmKey));
+        UIBuilder.addVoidWebLabel(this, Lang.mP5FMDisplayKey);
+        bDisplayFmKey = new WebButton(NativeKeyEvent.getKeyText(Application.displayFmKey));
         bDisplayFmKey.setFocusable(false);
         bDisplayFmKey.addActionListener(e -> {
-            bDisplayFmKey.setText(lang.mP5FMDisplayKeyTip);
+            bDisplayFmKey.setText(Lang.mP5FMDisplayKeyTip);
             GlobalScreen.addNativeKeyListener(new NativeKeyListener() {
                 @Override
                 public void nativeKeyPressed(NativeKeyEvent e) {
@@ -109,8 +109,8 @@ public class LoggingPanel extends WebPanel {
                             || code == NativeKeyEvent.VC_SCROLL_LOCK) {
                         return;
                     }
-                    app.displayFmKey = code;
-                    bDisplayFmKey.setText(NativeKeyEvent.getKeyText(app.displayFmKey));
+                    Application.displayFmKey = code;
+                    bDisplayFmKey.setText(NativeKeyEvent.getKeyText(Application.displayFmKey));
                     if (onSaveCallback != null)
                         onSaveCallback.run();
                     GlobalScreen.removeNativeKeyListener(this);
@@ -168,7 +168,7 @@ public class LoggingPanel extends WebPanel {
         comboBox.setWebColoredBackground(false);
         comboBox.setShadeWidth(1);
         comboBox.setDrawFocus(false);
-        comboBox.setFont(app.defaultFont);
+        comboBox.setFont(Application.defaultFont);
         comboBox.setExpandedBgColor(new Color(0, 0, 0, 0));
         panel.add(comboBox);
         return comboBox;
@@ -176,21 +176,21 @@ public class LoggingPanel extends WebPanel {
 
     private void displayFM(WebComboBox bFMList, int idx) {
         String planeName = bFMList.getSelectedItem().toString();
-        String path = "data/aces/gamedata/flightmodels/fm/" + planeName + ".blkx";
-        blkx fmblk = new blkx(path, planeName);
+        String path = "data/aces/gamedata/flightmodels/fm/" + planeName + ".Blkx";
+        Blkx fmblk = new Blkx(path, planeName);
         WebPopOver popOver = new WebPopOver(parent);
         popOver.setMargin(5);
         popOver.setLayout(new VerticalFlowLayout());
-        WebButton closeButton = new WebButton(lang.mCancel, e -> popOver.dispose());
+        WebButton closeButton = new WebButton(Lang.mCancel, e -> popOver.dispose());
         closeButton.setUndecorated(true);
-        closeButton.setFont(app.defaultFont);
-        closeButton.setFontSize((int) (app.defaultFontsize * 1.5f));
+        closeButton.setFont(Application.defaultFont);
+        closeButton.setFontSize((int) (Application.defaultFontsize * 1.5f));
         closeButton.setFontStyle(Font.BOLD);
         WebTextArea textArea = new WebTextArea(fmblk.fmdata);
         popOver.add(textArea);
-        popOver.setFont(app.defaultFont);
-        textArea.setFont(app.defaultFont);
-        textArea.setFontSize((int) (app.defaultFontsize * 1.2f));
+        popOver.setFont(Application.defaultFont);
+        textArea.setFont(Application.defaultFont);
+        textArea.setFontSize((int) (Application.defaultFontsize * 1.2f));
         popOver.add(closeButton);
         popOver.show(parent);
 

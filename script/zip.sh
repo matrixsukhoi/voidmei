@@ -1,6 +1,6 @@
 #!/bin/bash
 # 获得当前版本号
-version=`cat ./src/prog/app.java | grep "String version" | grep "[0-9]\+.[0-9]\+" -o`
+version=`cat ./src/prog/Application.java | grep "String version" | grep "[0-9]\+.[0-9]\+" -o`
 # 把version字符串中的小数点替换成下划线
 version=${version//./_}
 echo "current version is ${version}"

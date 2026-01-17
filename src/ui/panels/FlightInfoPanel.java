@@ -9,8 +9,8 @@ import com.alee.laf.panel.WebPanel;
 import com.alee.laf.slider.WebSlider;
 
 import prog.config.ConfigurationService;
-import prog.app;
-import prog.lang;
+import prog.Application;
+import prog.i18n.Lang;
 import prog.event.UIStateBus;
 import prog.event.UIStateEvents;
 import ui.layout.UIBuilder;
@@ -20,7 +20,7 @@ public class FlightInfoPanel extends WebPanel {
     public static void initDefaults(ConfigurationService cs) {
         cs.setConfig("flightInfoSwitch", Boolean.toString(Boolean.TRUE));
         cs.setConfig("flightInfoEdge", Boolean.toString(Boolean.FALSE));
-        cs.setConfig("flightInfoFontC", app.defaultFontName);
+        cs.setConfig("flightInfoFontC", Application.defaultFontName);
         cs.setConfig("flightInfoFontaddC", Integer.toString(0));
     }
 
@@ -62,69 +62,69 @@ public class FlightInfoPanel extends WebPanel {
     private void initUI() {
         this.setLayout(new FlowLayout(FlowLayout.LEFT));
 
-        bFlightInfoSwitch = UIBuilder.addSwitch(this, lang.mP4FlightInfoPanel, false);
-        UIBuilder.addVoidWebLabel(this, lang.mP4FlightInfoBlank);
+        bFlightInfoSwitch = UIBuilder.addSwitch(this, Lang.mP4FlightInfoPanel, false);
+        UIBuilder.addVoidWebLabel(this, Lang.mP4FlightInfoBlank);
 
-        bFlightInfoEdge = UIBuilder.addSwitch(this, lang.mP4FlightInfoGlassEdge, false);
-        UIBuilder.addVoidWebLabel(this, lang.mP4FlightInfoGlassEdgeBlank);
+        bFlightInfoEdge = UIBuilder.addSwitch(this, Lang.mP4FlightInfoGlassEdge, false);
+        UIBuilder.addVoidWebLabel(this, Lang.mP4FlightInfoGlassEdgeBlank);
 
-        battitudeIndicatorSwitch = UIBuilder.addSwitch(this, lang.mP4attitudeIndicatorPanel, false);
-        UIBuilder.addVoidWebLabel(this, lang.mP4attitudeIndicatorPanelBlank);
+        battitudeIndicatorSwitch = UIBuilder.addSwitch(this, Lang.mP4attitudeIndicatorPanel, false);
+        UIBuilder.addVoidWebLabel(this, Lang.mP4attitudeIndicatorPanelBlank);
 
-        bFMPrintSwitch = UIBuilder.addSwitch(this, lang.mP4FMPanel, false);
-        UIBuilder.addVoidWebLabel(this, lang.mP4FMPanelBlank);
+        bFMPrintSwitch = UIBuilder.addSwitch(this, Lang.mP4FMPanel, false);
+        UIBuilder.addVoidWebLabel(this, Lang.mP4FMPanelBlank);
 
-        bFlightInfoIAS = UIBuilder.addSwitch(this, lang.mP4fiIAS, false);
-        UIBuilder.addVoidWebLabel(this, lang.mP4fiIASBlank);
+        bFlightInfoIAS = UIBuilder.addSwitch(this, Lang.mP4fiIAS, false);
+        UIBuilder.addVoidWebLabel(this, Lang.mP4fiIASBlank);
 
-        bFlightInfoTAS = UIBuilder.addSwitch(this, lang.mP4fiTAS, false);
-        UIBuilder.addVoidWebLabel(this, lang.mP4fiIASBlank);
+        bFlightInfoTAS = UIBuilder.addSwitch(this, Lang.mP4fiTAS, false);
+        UIBuilder.addVoidWebLabel(this, Lang.mP4fiIASBlank);
 
-        bFlightInfoMach = UIBuilder.addSwitch(this, lang.mP4fiMach, false);
-        UIBuilder.addVoidWebLabel(this, lang.mP4fiMachBlank);
+        bFlightInfoMach = UIBuilder.addSwitch(this, Lang.mP4fiMach, false);
+        UIBuilder.addVoidWebLabel(this, Lang.mP4fiMachBlank);
 
-        bFlightInfoCompass = UIBuilder.addSwitch(this, lang.mP4fiCompass, false);
-        UIBuilder.addVoidWebLabel(this, lang.mP4fiCompassBlank);
+        bFlightInfoCompass = UIBuilder.addSwitch(this, Lang.mP4fiCompass, false);
+        UIBuilder.addVoidWebLabel(this, Lang.mP4fiCompassBlank);
 
-        bFlightInfoHeight = UIBuilder.addSwitch(this, lang.mP4fiHeight, false);
-        UIBuilder.addVoidWebLabel(this, lang.mP4fiHeightBlank);
+        bFlightInfoHeight = UIBuilder.addSwitch(this, Lang.mP4fiHeight, false);
+        UIBuilder.addVoidWebLabel(this, Lang.mP4fiHeightBlank);
 
-        bFlightInfoVario = UIBuilder.addSwitch(this, lang.mP4fiVario, false);
-        UIBuilder.addVoidWebLabel(this, lang.mP4fiVarioBlank);
+        bFlightInfoVario = UIBuilder.addSwitch(this, Lang.mP4fiVario, false);
+        UIBuilder.addVoidWebLabel(this, Lang.mP4fiVarioBlank);
 
-        bFlightInfoSEP = UIBuilder.addSwitch(this, lang.mP4fiSEP, false);
-        UIBuilder.addVoidWebLabel(this, lang.mP4fiSEPBlank);
+        bFlightInfoSEP = UIBuilder.addSwitch(this, Lang.mP4fiSEP, false);
+        UIBuilder.addVoidWebLabel(this, Lang.mP4fiSEPBlank);
 
-        bFlightInfoAcc = UIBuilder.addSwitch(this, lang.mP4fiAcc, false);
-        UIBuilder.addVoidWebLabel(this, lang.mP4fiAccBlank);
+        bFlightInfoAcc = UIBuilder.addSwitch(this, Lang.mP4fiAcc, false);
+        UIBuilder.addVoidWebLabel(this, Lang.mP4fiAccBlank);
 
-        bFlightInfoWx = UIBuilder.addSwitch(this, lang.mP4fiWx, false);
-        UIBuilder.addVoidWebLabel(this, lang.mP4fiWxBlank);
+        bFlightInfoWx = UIBuilder.addSwitch(this, Lang.mP4fiWx, false);
+        UIBuilder.addVoidWebLabel(this, Lang.mP4fiWxBlank);
 
-        bFlightInfoNy = UIBuilder.addSwitch(this, lang.mP4fiNy, false);
-        UIBuilder.addVoidWebLabel(this, lang.mP4fiNyBlank);
+        bFlightInfoNy = UIBuilder.addSwitch(this, Lang.mP4fiNy, false);
+        UIBuilder.addVoidWebLabel(this, Lang.mP4fiNyBlank);
 
-        bFlightInfoTurn = UIBuilder.addSwitch(this, lang.mP4fiTurn, false);
-        UIBuilder.addVoidWebLabel(this, lang.mP4fiTurnBlank);
+        bFlightInfoTurn = UIBuilder.addSwitch(this, Lang.mP4fiTurn, false);
+        UIBuilder.addVoidWebLabel(this, Lang.mP4fiTurnBlank);
 
-        bFlightInfoTurnRadius = UIBuilder.addSwitch(this, lang.mP4fiTurnRadius, false);
-        UIBuilder.addVoidWebLabel(this, lang.mP4fiTurnRadiusBlank);
+        bFlightInfoTurnRadius = UIBuilder.addSwitch(this, Lang.mP4fiTurnRadius, false);
+        UIBuilder.addVoidWebLabel(this, Lang.mP4fiTurnRadiusBlank);
 
-        bFlightInfoAoA = UIBuilder.addSwitch(this, lang.mP4fiAoA, false);
-        UIBuilder.addVoidWebLabel(this, lang.mP4fiAoABlank);
+        bFlightInfoAoA = UIBuilder.addSwitch(this, Lang.mP4fiAoA, false);
+        UIBuilder.addVoidWebLabel(this, Lang.mP4fiAoABlank);
 
-        bFlightInfoAoS = UIBuilder.addSwitch(this, lang.mP4fiAoS, false);
-        UIBuilder.addVoidWebLabel(this, lang.mP4fiAoSBlank);
+        bFlightInfoAoS = UIBuilder.addSwitch(this, Lang.mP4fiAoS, false);
+        UIBuilder.addVoidWebLabel(this, Lang.mP4fiAoSBlank);
 
-        bFlightInfoWingSweep = UIBuilder.addSwitch(this, lang.mP4fiWingSweep, false);
-        UIBuilder.addVoidWebLabel(this, lang.mP4fiWingSweepBlank);
+        bFlightInfoWingSweep = UIBuilder.addSwitch(this, Lang.mP4fiWingSweep, false);
+        UIBuilder.addVoidWebLabel(this, Lang.mP4fiWingSweepBlank);
 
-        bFlightInfoRadioAlt = UIBuilder.addSwitch(this, lang.mP4fiRadioAlt, false);
-        UIBuilder.addVoidWebLabel(this, lang.mP4fiRadioAltBlank);
+        bFlightInfoRadioAlt = UIBuilder.addSwitch(this, Lang.mP4fiRadioAlt, false);
+        UIBuilder.addVoidWebLabel(this, Lang.mP4fiRadioAltBlank);
 
-        sFlightInfoFont = UIBuilder.addFontComboBox(this, lang.mP4PanelFont, app.fonts);
-        iFlightInfoFontSizeIncr = UIBuilder.addSlider(this, lang.mP4FontAdjust, -6, 20, 0, 200, 1, 4);
-        iflightInfoColumnNum = UIBuilder.addSlider(this, lang.mP4ColumnAdjust, 1, 16, 2, 200, 1, 2);
+        sFlightInfoFont = UIBuilder.addFontComboBox(this, Lang.mP4PanelFont, Application.fonts);
+        iFlightInfoFontSizeIncr = UIBuilder.addSlider(this, Lang.mP4FontAdjust, -6, 20, 0, 200, 1, 4);
+        iflightInfoColumnNum = UIBuilder.addSlider(this, Lang.mP4ColumnAdjust, 1, 16, 2, 200, 1, 2);
 
         setupListeners();
     }

@@ -1,4 +1,5 @@
 package ui.layout;
+import prog.Application;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
@@ -11,8 +12,8 @@ import com.alee.laf.button.WebButton;
 import com.alee.laf.panel.WebPanel;
 import com.alee.laf.scroll.WebScrollPane;
 
-import ui.mainform;
-import prog.lang;
+import ui.MainForm;
+import prog.i18n.Lang;
 
 /**
  * Base abstract class for ALL UI content pages.
@@ -24,11 +25,11 @@ import prog.lang;
  */
 public abstract class BasePage extends WebPanel {
 
-    protected mainform parent;
+    protected MainForm parent;
     protected WebPanel toolbar;
     protected boolean isDetailedMode = false;
 
-    public BasePage(mainform parent) {
+    public BasePage(MainForm parent) {
         super();
         this.parent = parent;
         this.setLayout(new BorderLayout());
@@ -92,10 +93,10 @@ public abstract class BasePage extends WebPanel {
 
         javax.swing.border.TitledBorder titledBorder = javax.swing.BorderFactory.createTitledBorder(
                 lineBorder,
-                prog.lang.mBasicSettings, // Localized title
+                prog.i18n.Lang.mBasicSettings, // Localized title
                 javax.swing.border.TitledBorder.LEFT,
                 javax.swing.border.TitledBorder.TOP,
-                prog.app.defaultFont,
+                prog.Application.defaultFont,
                 new java.awt.Color(0, 0, 0, 150));
 
         // Add padding inside the border
@@ -140,8 +141,8 @@ public abstract class BasePage extends WebPanel {
         // Use UIBuilder.createFooterButton for standardizing ALL bottom buttons
 
         // Left Group (Preview Controls)
-        WebButton btnPreview = UIBuilder.createFooterButton(lang.mDisplayPreview);
-        WebButton btnClosePreview = UIBuilder.createFooterButton(lang.mClosePreview);
+        WebButton btnPreview = UIBuilder.createFooterButton(Lang.mDisplayPreview);
+        WebButton btnClosePreview = UIBuilder.createFooterButton(Lang.mClosePreview);
 
         WebButtonGroup leftGroup = new WebButtonGroup(true, btnPreview, btnClosePreview);
 
@@ -166,8 +167,8 @@ public abstract class BasePage extends WebPanel {
         bottomPanel.add(leftGroup, BorderLayout.LINE_START);
 
         // Right Group (Exit/Start)
-        WebButton btnExit = UIBuilder.createFooterButton(lang.mCancel);
-        WebButton btnStart = UIBuilder.createFooterButton(lang.mStart);
+        WebButton btnExit = UIBuilder.createFooterButton(Lang.mCancel);
+        WebButton btnStart = UIBuilder.createFooterButton(Lang.mStart);
         WebButtonGroup rightGroup = new WebButtonGroup(true, btnExit, btnStart);
 
         btnStart.setRound(10); // Start button specific styling from legacy

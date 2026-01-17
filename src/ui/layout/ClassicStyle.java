@@ -10,7 +10,7 @@ import com.alee.laf.label.WebLabel;
 import com.alee.laf.panel.WebPanel;
 import com.alee.laf.slider.WebSlider;
 
-import prog.app;
+import prog.Application;
 
 public class ClassicStyle implements UIStyle {
 
@@ -47,12 +47,12 @@ public class ClassicStyle implements UIStyle {
         label.setHorizontalAlignment(SwingConstants.LEFT); // Left align as requested
         label.setForeground(new Color(0, 0, 0, 230));
         label.setShadeColor(Color.WHITE);
-        label.setFont(app.defaultFont);
+        label.setFont(Application.defaultFont);
     }
 
     @Override
     public void decorateSwitch(WebSwitch ws) {
-        // Replicating logic from mainform.createLCGroup
+        // Replicating logic from MainForm.createLCGroup
         ws.getWebUI().setShadeWidth(0);
         ws.setWebColoredBackground(false);
         ws.setBackground(new Color(255, 255, 255, 255));
@@ -60,7 +60,7 @@ public class ClassicStyle implements UIStyle {
         ws.setRound(5);
         ws.setShadeWidth(1);
 
-        Font numFont = new Font(app.defaultNumfontName, Font.PLAIN, 14);
+        Font numFont = new Font(Application.defaultNumfontName, Font.PLAIN, 14);
         ws.getLeftComponent().setFont(numFont);
         ws.getRightComponent().setFont(numFont);
 

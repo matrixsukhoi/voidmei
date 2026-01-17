@@ -3,12 +3,12 @@ package ui.model;
 import java.util.ArrayList;
 import java.util.List;
 
-import prog.lang;
+import prog.i18n.Lang;
 import prog.config.ConfigProvider;
 
 /**
  * Configuration for FlightInfo overlay.
- * Externalizes all configuration from the flightInfo class.
+ * Externalizes all configuration from the FlightInfo class.
  */
 public class FlightInfoConfig {
 
@@ -16,7 +16,7 @@ public class FlightInfoConfig {
     private List<FieldDefinition> fieldDefinitions = new ArrayList<>();
 
     // Overlay title
-    public String title = "flightInfo";
+    public String title = "FlightInfo";
 
     // Style configuration
     public boolean showEdge = false;
@@ -46,7 +46,7 @@ public class FlightInfoConfig {
     /**
      * Create default configuration with standard flight info fields.
      * This factory method contains the field definitions that were previously
-     * hardcoded in flightInfo.
+     * hardcoded in FlightInfo.
      */
     public static FlightInfoConfig createDefault(ConfigProvider config) {
         FlightInfoConfig cfg = new FlightInfoConfig();
@@ -65,23 +65,23 @@ public class FlightInfoConfig {
         }
 
         // Add all standard flight info fields
-        // These were previously hardcoded in flightInfo.initFields()
-        cfg.addFieldDefinition("ias", lang.fIAS, "Km/h", "disableFlightInfoIAS", false);
-        cfg.addFieldDefinition("tas", lang.fTAS, "Km/h", "disableFlightInfoTAS", false);
-        cfg.addFieldDefinition("mach", lang.fMach, "Mach", "disableFlightInfoMach", false);
-        cfg.addFieldDefinition("dir", lang.fCompass, "Deg", "disableFlightInfoCompass", false);
-        cfg.addFieldDefinition("height", lang.fAlt, "M", "disableFlightInfoHeight", false);
-        cfg.addFieldDefinition("rda", lang.fRa, "M", "disableFlightInfoRadioAlt", true);
-        cfg.addFieldDefinition("vario", lang.fVario, "M/s", "disableFlightInfoVario", false);
-        cfg.addFieldDefinition("sep", lang.fSEP, "M/s", "disableFlightInfoSEP", false);
-        cfg.addFieldDefinition("acc", lang.fAcc, "M/s^2", "disableFlightInfoAcc", false);
-        cfg.addFieldDefinition("wx", lang.fWx, "Deg/s", "disableFlightInfoWx", false);
-        cfg.addFieldDefinition("ny", lang.fGL, "G", "disableFlightInfoNy", false);
-        cfg.addFieldDefinition("turn", lang.fTRr, "Deg/s", "disableFlightInfoTurn", false);
-        cfg.addFieldDefinition("rds", lang.fTR, "M", "disableFlightInfoTurnRadius", false);
-        cfg.addFieldDefinition("aoa", lang.fAoA, "Deg", "disableFlightInfoAoA", false);
-        cfg.addFieldDefinition("aos", lang.fAoS, "Deg", "disableFlightInfoAoS", false);
-        cfg.addFieldDefinition("ws", lang.fWs, "%", "disableFlightInfoWingSweep", true);
+        // These were previously hardcoded in FlightInfo.initFields()
+        cfg.addFieldDefinition("ias", Lang.fIAS, "Km/h", "disableFlightInfoIAS", false);
+        cfg.addFieldDefinition("tas", Lang.fTAS, "Km/h", "disableFlightInfoTAS", false);
+        cfg.addFieldDefinition("mach", Lang.fMach, "Mach", "disableFlightInfoMach", false);
+        cfg.addFieldDefinition("dir", Lang.fCompass, "Deg", "disableFlightInfoCompass", false);
+        cfg.addFieldDefinition("height", Lang.fAlt, "M", "disableFlightInfoHeight", false);
+        cfg.addFieldDefinition("rda", Lang.fRa, "M", "disableFlightInfoRadioAlt", true);
+        cfg.addFieldDefinition("vario", Lang.fVario, "M/s", "disableFlightInfoVario", false);
+        cfg.addFieldDefinition("sep", Lang.fSEP, "M/s", "disableFlightInfoSEP", false);
+        cfg.addFieldDefinition("acc", Lang.fAcc, "M/s^2", "disableFlightInfoAcc", false);
+        cfg.addFieldDefinition("wx", Lang.fWx, "Deg/s", "disableFlightInfoWx", false);
+        cfg.addFieldDefinition("ny", Lang.fGL, "G", "disableFlightInfoNy", false);
+        cfg.addFieldDefinition("turn", Lang.fTRr, "Deg/s", "disableFlightInfoTurn", false);
+        cfg.addFieldDefinition("rds", Lang.fTR, "M", "disableFlightInfoTurnRadius", false);
+        cfg.addFieldDefinition("aoa", Lang.fAoA, "Deg", "disableFlightInfoAoA", false);
+        cfg.addFieldDefinition("aos", Lang.fAoS, "Deg", "disableFlightInfoAoS", false);
+        cfg.addFieldDefinition("ws", Lang.fWs, "%", "disableFlightInfoWingSweep", true);
 
         return cfg;
     }

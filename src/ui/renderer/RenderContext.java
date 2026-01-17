@@ -4,7 +4,7 @@ import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Component;
 
-import prog.app;
+import prog.Application;
 import prog.config.ConfigProvider;
 
 /**
@@ -43,8 +43,8 @@ public class RenderContext {
             String numFontKey, String labelFontKey, String fontAddKey, String columnKey) {
 
         // Load font names
-        String numFontName = getConfigOrDefault(config, numFontKey, app.defaultNumfontName);
-        String labelFontName = getConfigOrDefault(config, labelFontKey, app.defaultFont.getFontName());
+        String numFontName = getConfigOrDefault(config, numFontKey, Application.defaultNumfontName);
+        String labelFontName = getConfigOrDefault(config, labelFontKey, Application.defaultFont.getFontName());
         int fontAdd = getConfigIntOrDefault(config, fontAddKey, 0);
         int columnNum = getConfigIntOrDefault(config, columnKey, 3);
 
