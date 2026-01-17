@@ -1,4 +1,5 @@
 package prog;
+
 import prog.i18n.Lang;
 import prog.audio.VoiceWarning;
 import prog.util.HttpHelper;
@@ -47,7 +48,9 @@ public class Controller implements ConfigProvider {
 
 	public OverlayManager overlayManager;
 
-	public java.util.List<ui.overlay.DynamicOverlay> dynamicOverlays = new java.util.ArrayList<>();
+	// Temporarily disabled - DynamicOverlay removed
+	// public java.util.List<ui.overlay.DynamicOverlay> dynamicOverlays = new
+	// java.util.ArrayList<>();
 	public java.util.List<prog.config.ConfigLoader.GroupConfig> dynamicConfigs = new java.util.ArrayList<>();
 
 	// Core Threads
@@ -490,38 +493,41 @@ public class Controller implements ConfigProvider {
 	}
 
 	public void initDynamicOverlays() {
+		// Temporarily disabled - DynamicOverlay removed
 		// Clean up existing
-		for (ui.overlay.DynamicOverlay overlay : dynamicOverlays) {
-			overlay.doit = false;
-			overlay.dispose();
-		}
-		dynamicOverlays.clear();
+		// for (ui.overlay.DynamicOverlay overlay : dynamicOverlays) {
+		// overlay.doit = false;
+		// overlay.dispose();
+		// }
+		// dynamicOverlays.clear();
 
 		dynamicConfigs = prog.config.ConfigLoader.loadConfig("ui_layout.cfg");
-		for (prog.config.ConfigLoader.GroupConfig config : dynamicConfigs) {
-			ui.overlay.DynamicOverlay overlay = new ui.overlay.DynamicOverlay(this, config);
-			dynamicOverlays.add(overlay);
-			// Start the self-refresh thread
-			new Thread(overlay).start();
-		}
+		// for (prog.config.ConfigLoader.GroupConfig config : dynamicConfigs) {
+		// ui.overlay.DynamicOverlay overlay = new ui.overlay.DynamicOverlay(this,
+		// config);
+		// dynamicOverlays.add(overlay);
+		// // Start the self-refresh thread
+		// new Thread(overlay).start();
+		// }
 	}
 
 	public void setDynamicOverlaysVisible(boolean visible, boolean respectHotkey) {
-		for (ui.overlay.DynamicOverlay overlay : dynamicOverlays) {
-			if (visible) {
-				// Entering Game Mode (respectHotkey=true)
-				if (respectHotkey) {
-					// Step 4: If Visible=true, start HIDDEN. Otherwise, start HIDDEN.
-					overlay.setVisible(false);
-				} else {
-					// Step 2 & 4 (Preview Mode): show if config says Visible=true
-					overlay.setVisible(overlay.getGroupConfig().visible);
-				}
-			} else {
-				// Global hide
-				overlay.setVisible(false);
-			}
-		}
+		// Temporarily disabled - DynamicOverlay removed
+		// for (ui.overlay.DynamicOverlay overlay : dynamicOverlays) {
+		// if (visible) {
+		// // Entering Game Mode (respectHotkey=true)
+		// if (respectHotkey) {
+		// // Step 4: If Visible=true, start HIDDEN. Otherwise, start HIDDEN.
+		// overlay.setVisible(false);
+		// } else {
+		// // Step 2 & 4 (Preview Mode): show if config says Visible=true
+		// overlay.setVisible(overlay.getGroupConfig().visible);
+		// }
+		// } else {
+		// // Global hide
+		// overlay.setVisible(false);
+		// }
+		// }
 	}
 
 	public void registerHotkeyListener() {
@@ -539,29 +545,20 @@ public class Controller implements ConfigProvider {
 					@Override
 					public void nativeKeyPressed(com.github.kwhat.jnativehook.keyboard.NativeKeyEvent e) {
 						int code = e.getKeyCode();
-						// 动态 Overlay 切换
-						if (dynamicOverlays != null) {
-							for (ui.overlay.DynamicOverlay overlay : dynamicOverlays) {
-								// Step 2 & 4: Only listen if Visible=true in config
-								if (overlay.getGroupConfig().visible && overlay.getGroupConfig().hotkey != 0
-										&& overlay.getGroupConfig().hotkey == code) {
-									overlay.toggleVisibility();
-								}
-							}
-						}
+						// TODO: Dynamic Overlay hotkey handling disabled
 					}
 				});
 	}
 
 	public void stop() {
-		// Clean up dynamic overlays
-		if (dynamicOverlays != null) {
-			for (ui.overlay.DynamicOverlay overlay : dynamicOverlays) {
-				overlay.doit = false;
-				overlay.dispose();
-			}
-			dynamicOverlays.clear();
-		}
+		// Temporarily disabled - DynamicOverlay removed
+		// if (dynamicOverlays != null) {
+		// for (ui.overlay.DynamicOverlay overlay : dynamicOverlays) {
+		// overlay.doit = false;
+		// overlay.dispose();
+		// }
+		// dynamicOverlays.clear();
+		// }
 
 		if (M != null) {
 			M.stopRepaintTimer();
@@ -620,12 +617,12 @@ public class Controller implements ConfigProvider {
 		// Save UI Layout
 		// ui.model.FlightInfoConfig.saveConfig(globalPool, "ui_layout.cfg");
 
-		// Clean up Configurable Overlays
-		for (ui.overlay.DynamicOverlay overlay : dynamicOverlays) {
-			overlay.saveCurrentPosition();
-			overlay.dispose();
-		}
-		dynamicOverlays.clear();
+		// Temporarily disabled - DynamicOverlay removed
+		// for (ui.overlay.DynamicOverlay overlay : dynamicOverlays) {
+		// overlay.saveCurrentPosition();
+		// overlay.dispose();
+		// }
+		// dynamicOverlays.clear();
 
 		// Suggest GC after closing all overlays (significant graphics resources
 		// released)

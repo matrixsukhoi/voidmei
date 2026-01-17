@@ -43,7 +43,6 @@ src/ui/UIBaseElements.java
 src/ui/panels/LoggingPanel.java
 src/ui/panels/FlightInfoPanel.java
 src/ui/panels/EngineControlPanel.java
-src/ui/panels/EngineInfoPanel.java
 src/ui/panels/AdvancedPanel.java
 src/ui/panels/MiniHUDPanel.java
 src/ui/model/FlightInfoConfig.java
@@ -75,7 +74,6 @@ src/ui/overlay/ZebraListRenderer.java
 src/ui/overlay/MinimalHUD.java
 src/ui/overlay/AttitudeIndicator.java
 src/ui/overlay/OverlayRenderer.java
-src/ui/overlay/DynamicOverlay.java
 src/ui/overlay/GearAndFlaps.java
 src/ui/overlay/EngineControl.java
 src/ui/overlay/EngineInfo.java

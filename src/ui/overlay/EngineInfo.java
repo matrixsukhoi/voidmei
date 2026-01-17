@@ -18,6 +18,7 @@ import prog.Application;
 import prog.Controller;
 import prog.i18n.Lang;
 import prog.Service;
+import prog.config.ConfigLoader;
 import ui.UIBaseElements;
 import ui.WebLafSettings;
 
@@ -185,6 +186,65 @@ public class EngineInfo extends WebFrame implements Runnable {
 	Boolean[] totalSwitch;
 	private Container root;
 
+	// Label-to-key mapping for config-driven visibility
+	private static final java.util.Map<String, String> LABEL_TO_KEY = new java.util.HashMap<String, String>() {
+		{
+			put("功率", "HorsePower");
+			put("推力", "Thrust");
+			put("转速", "RPM");
+			put("桨距角", "PropPitch");
+			put("桨效率", "EffEta");
+			put("实功率", "EffHp");
+			put("进气压", "Pressure");
+			put("动力量", "PowerPercent");
+			put("燃油量", "FuelKg");
+			put("燃油时", "FuelTime");
+			put("加力量", "WepKg");
+			put("加力时", "WepTime");
+			put("温度", "Temp");
+			put("油温", "OilTemp");
+			put("耐热时", "HeatTolerance");
+			put("响应速", "EngResponse");
+		}
+	};
+
+	/**
+	 * Get the Engine Info config from dynamicConfigs loaded from ui_layout.cfg.
+	 */
+	private ConfigLoader.GroupConfig getEngineInfoConfig() {
+		if (xc == null || xc.dynamicConfigs == null)
+			return null;
+		for (ConfigLoader.GroupConfig cfg : xc.dynamicConfigs) {
+			if ("Engine Info".equals(cfg.title)) {
+				return cfg;
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Check if a field is enabled in the config. Falls back to legacy config key if
+	 * not found.
+	 * 
+	 * @param fieldKey The field key (e.g., "HorsePower")
+	 * @return true if field should be visible
+	 */
+	private boolean isFieldEnabledFromConfig(String fieldKey) {
+		// First, try to find in ui_layout.cfg
+		ConfigLoader.GroupConfig engineConfig = getEngineInfoConfig();
+		if (engineConfig != null) {
+			for (ConfigLoader.RowConfig row : engineConfig.rows) {
+				String labelKey = LABEL_TO_KEY.get(row.label);
+				if (fieldKey.equals(labelKey)) {
+					return row.visible;
+				}
+			}
+		}
+		// Fallback to legacy config
+		String tmp = xc.getconfig("disableEngineInfo" + fieldKey);
+		return !(tmp != "" && Boolean.parseBoolean(tmp) == true);
+	}
+
 	public void initTextString() {
 		totalSwitch = new Boolean[20];
 		totalString = new String[20][];
@@ -193,8 +253,7 @@ public class EngineInfo extends WebFrame implements Runnable {
 			totalString[i] = new String[3];
 
 		// 马力
-		tmp = xc.getconfig("disableEngineInfoHorsePower");
-		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
+		if (isFieldEnabledFromConfig("HorsePower")) {
 			totalString[useNum][0] = String.format("%5s", "1200");
 			totalString[useNum][1] = String.format("%s", Lang.ePower);
 			totalString[useNum][2] = String.format("%s", "Hp");
@@ -203,8 +262,7 @@ public class EngineInfo extends WebFrame implements Runnable {
 		}
 
 		// 推力
-		tmp = xc.getconfig("disableEngineInfoThrust");
-		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
+		if (isFieldEnabledFromConfig("Thrust")) {
 			totalString[useNum][0] = String.format("%5s", "1004");
 			totalString[useNum][1] = String.format("%s", Lang.eThurst);
 			totalString[useNum][2] = String.format("%s", "Kgf");
@@ -213,8 +271,7 @@ public class EngineInfo extends WebFrame implements Runnable {
 		}
 
 		// 转速
-		tmp = xc.getconfig("disableEngineInfoRPM");
-		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
+		if (isFieldEnabledFromConfig("RPM")) {
 			totalString[useNum][0] = String.format("%5s", "2400");
 			totalString[useNum][1] = String.format("%s", Lang.eRPM);
 			totalString[useNum][2] = String.format("%s", "Rpm");
@@ -223,8 +280,7 @@ public class EngineInfo extends WebFrame implements Runnable {
 		}
 
 		// 桨距
-		tmp = xc.getconfig("disableEngineInfoPropPitch");
-		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
+		if (isFieldEnabledFromConfig("PropPitch")) {
 			totalString[useNum][0] = String.format("%5s", "55");
 			totalString[useNum][1] = String.format("%s", Lang.ePitchDeg);
 			totalString[useNum][2] = String.format("%s", "Deg");
@@ -233,8 +289,7 @@ public class EngineInfo extends WebFrame implements Runnable {
 		}
 
 		// 桨效率
-		tmp = xc.getconfig("disableEngineInfoEffEta");
-		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
+		if (isFieldEnabledFromConfig("EffEta")) {
 			totalString[useNum][0] = String.format("%5s", "90");
 			totalString[useNum][1] = String.format("%s", Lang.eEff);
 			totalString[useNum][2] = String.format("%s", "%");
@@ -243,8 +298,7 @@ public class EngineInfo extends WebFrame implements Runnable {
 		}
 
 		// 有效功率
-		tmp = xc.getconfig("disableEngineInfoEffHp");
-		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
+		if (isFieldEnabledFromConfig("EffHp")) {
 			totalString[useNum][0] = String.format("%5s", "1005");
 			totalString[useNum][1] = String.format("%s", Lang.eEffPower);
 			totalString[useNum][2] = String.format("%s", "Hp");
@@ -253,9 +307,7 @@ public class EngineInfo extends WebFrame implements Runnable {
 		}
 
 		// 进气压
-		// 有效功率或推力百分比
-		tmp = xc.getconfig("disableEngineInfoPressure");
-		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
+		if (isFieldEnabledFromConfig("Pressure")) {
 			totalString[useNum][0] = String.format("%5s", "1.52");
 			totalString[useNum][1] = String.format("%s", Lang.eATM);
 			totalString[useNum][2] = String.format("%s", "Ata");
@@ -264,8 +316,7 @@ public class EngineInfo extends WebFrame implements Runnable {
 		}
 
 		// 有效功率或推力百分比
-		tmp = xc.getconfig("disableEngineInfoPowerPercent");
-		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
+		if (isFieldEnabledFromConfig("PowerPercent")) {
 			totalString[useNum][0] = String.format("%5s", "85");
 			totalString[useNum][1] = String.format("%s", Lang.ePowerPercent);
 			totalString[useNum][2] = String.format("%s", "%");
@@ -274,8 +325,7 @@ public class EngineInfo extends WebFrame implements Runnable {
 		}
 
 		// 燃油重
-		tmp = xc.getconfig("disableEngineInfoFuelKg");
-		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
+		if (isFieldEnabledFromConfig("FuelKg")) {
 			totalString[useNum][0] = String.format("%5s", "121");
 			totalString[useNum][1] = String.format("%s", Lang.eFuel);
 			totalString[useNum][2] = String.format("%s", "Kg");
@@ -284,8 +334,7 @@ public class EngineInfo extends WebFrame implements Runnable {
 		}
 
 		// 燃油时
-		tmp = xc.getconfig("disableEngineInfoFuelTime");
-		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
+		if (isFieldEnabledFromConfig("FuelTime")) {
 			totalString[useNum][0] = String.format("%5s", "15");
 			totalString[useNum][1] = String.format("%s", Lang.eFueltime);
 			totalString[useNum][2] = String.format("%s", "Min");
@@ -294,8 +343,7 @@ public class EngineInfo extends WebFrame implements Runnable {
 		}
 
 		// 加力重
-		tmp = xc.getconfig("disableEngineInfoWepKg");
-		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
+		if (isFieldEnabledFromConfig("WepKg")) {
 			totalString[useNum][0] = String.format("%5s", "15");
 			totalString[useNum][1] = String.format("%s", Lang.eWep);
 			totalString[useNum][2] = String.format("%s", "Kg");
@@ -304,8 +352,7 @@ public class EngineInfo extends WebFrame implements Runnable {
 		}
 
 		// 加力时
-		tmp = xc.getconfig("disableEngineInfoWepTime");
-		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
+		if (isFieldEnabledFromConfig("WepTime")) {
 			totalString[useNum][0] = String.format("%5s", "81");
 			totalString[useNum][1] = String.format("%s", Lang.eWeptime);
 			totalString[useNum][2] = String.format("%s", "S");
@@ -314,8 +361,7 @@ public class EngineInfo extends WebFrame implements Runnable {
 		}
 
 		// 温度
-		tmp = xc.getconfig("disableEngineInfoTemp");
-		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
+		if (isFieldEnabledFromConfig("Temp")) {
 			totalString[useNum][0] = String.format("%5s", "115");
 			totalString[useNum][1] = String.format("%s", Lang.eTemp);
 			totalString[useNum][2] = String.format("%s", "C");
@@ -324,8 +370,7 @@ public class EngineInfo extends WebFrame implements Runnable {
 		}
 
 		// 油温
-		tmp = xc.getconfig("disableEngineInfoOilTemp");
-		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
+		if (isFieldEnabledFromConfig("OilTemp")) {
 			totalString[useNum][0] = String.format("%5s", "105");
 			totalString[useNum][1] = String.format("%s", Lang.eOil);
 			totalString[useNum][2] = String.format("%s", "C");
@@ -334,8 +379,7 @@ public class EngineInfo extends WebFrame implements Runnable {
 		}
 
 		// 耐热时
-		tmp = xc.getconfig("disableEngineInfoHeatTolerance");
-		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
+		if (isFieldEnabledFromConfig("HeatTolerance")) {
 			totalString[useNum][0] = String.format("%5s", "3600");
 			totalString[useNum][1] = String.format("%s", Lang.eOverheat);
 			totalString[useNum][2] = String.format("%s", "S");
@@ -343,8 +387,8 @@ public class EngineInfo extends WebFrame implements Runnable {
 			idx_heattlr = useNum++;
 		}
 
-		tmp = xc.getconfig("disableEngineInfoEngResponse");
-		if (!(tmp != "" && Boolean.parseBoolean(tmp) == true)) {
+		// 响应速
+		if (isFieldEnabledFromConfig("EngResponse")) {
 			totalString[useNum][0] = String.format("%5s", "10");
 			totalString[useNum][1] = String.format("%s", Lang.eEngRes);
 			totalString[useNum][2] = String.format("%s", "%/s");
@@ -544,6 +588,26 @@ public class EngineInfo extends WebFrame implements Runnable {
 			columnNum = Integer.parseInt(xc.getconfig("engineInfoColumn"));
 		else
 			columnNum = 3;
+
+		// Override with ui_layout.cfg values if available
+		ConfigLoader.GroupConfig cfg = getEngineInfoConfig();
+		if (cfg != null) {
+			if (cfg.columns > 0) {
+				columnNum = cfg.columns;
+			}
+			if (cfg.fontSize > 0) {
+				fontsize = cfg.fontSize;
+				// Re-create fonts with new size
+				fontNum = new Font(NumFont, Font.BOLD, fontsize);
+				fontLabel = new Font(FontName, Font.BOLD, Math.round(fontsize / 2.0f));
+				fontUnit = new Font(NumFont, Font.PLAIN, Math.round(fontsize / 2.0f));
+				numHeight = getFontMetrics(fontNum).getHeight();
+			}
+			if (cfg.fontName != null && !cfg.fontName.isEmpty()) {
+				FontName = cfg.fontName;
+				fontLabel = new Font(FontName, Font.BOLD, Math.round(fontsize / 2.0f));
+			}
+		}
 
 		useNum = 0; // 重置计数
 		initTextString();

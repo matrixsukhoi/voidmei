@@ -39,6 +39,8 @@ public class ConfigLoader {
         public int hotkey = 0; // 0 means no hotkey
         public boolean visible = false; // Default to false (hidden)
         public String fontName = "Sarasa Mono SC";
+        public int fontSize = 0; // Font size adjustment (-6 to +20)
+        public int columns = 2; // Number of columns for layout
         public List<RowConfig> rows = new ArrayList<>();
 
         public GroupConfig(String title) {
@@ -151,6 +153,18 @@ public class ConfigLoader {
                 } else if (line.startsWith("Font=")) {
                     if (currentGroup != null)
                         currentGroup.fontName = line.substring(5).trim();
+                } else if (line.startsWith("FontSize=")) {
+                    if (currentGroup != null)
+                        try {
+                            currentGroup.fontSize = Integer.parseInt(line.substring(9).trim());
+                        } catch (Exception e) {
+                        }
+                } else if (line.startsWith("Columns=")) {
+                    if (currentGroup != null)
+                        try {
+                            currentGroup.columns = Integer.parseInt(line.substring(8).trim());
+                        } catch (Exception e) {
+                        }
                 } else {
                     // Item line: Label || Formula || Format
                     String[] parts = line.split("\\|\\|");
@@ -190,6 +204,12 @@ public class ConfigLoader {
                 }
                 pw.println("Visible=" + group.visible);
                 pw.println("Font=" + group.fontName);
+                if (group.fontSize != 0) {
+                    pw.println("FontSize=" + group.fontSize);
+                }
+                if (group.columns != 2) {
+                    pw.println("Columns=" + group.columns);
+                }
                 pw.println();
 
                 for (RowConfig row : group.rows) {

@@ -24,7 +24,7 @@ import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent;
 import ui.layout.UIBuilder;
 import ui.panels.AdvancedPanel;
 import ui.panels.FlightInfoPanel;
-import ui.panels.EngineInfoPanel;
+// import ui.panels.EngineInfoPanel;
 import ui.panels.EngineControlPanel;
 import ui.panels.LoggingPanel;
 import ui.panels.MiniHUDPanel;
@@ -50,7 +50,7 @@ public class MainForm extends WebFrame {
 
 	AdvancedPanel advancedPanel;
 	FlightInfoPanel flightInfoPanel;
-	EngineInfoPanel engineInfoPanel;
+	// EngineInfoPanel engineInfoPanel;
 	EngineControlPanel engineControlPanel;
 	LoggingPanel loggingPanel;
 	MiniHUDPanel miniHUDPanel;
@@ -181,14 +181,14 @@ public class MainForm extends WebFrame {
 	}
 
 	public void initJP2(WebPanel jp2) {
-		engineInfoPanel = new EngineInfoPanel();
-		engineInfoPanel.setOnChange(() -> {
-			saveConfig();
-			if (!isInitializing) {
-				tc.refreshPreviews();
-			}
-		});
-		setupTab(jp2, engineInfoPanel);
+		// engineInfoPanel = new EngineInfoPanel();
+		// engineInfoPanel.setOnChange(() -> {
+		// saveConfig();
+		// if (!isInitializing) {
+		// tc.refreshPreviews();
+		// }
+		// });
+		// setupTab(jp2, engineInfoPanel);
 	}
 
 	public void initJP3(WebPanel jp3) {
@@ -257,7 +257,7 @@ public class MainForm extends WebFrame {
 		initJP6(jp6);
 
 		tabbedPane.addTab(Lang.mFlightInfo, jp4);
-		tabbedPane.addTab(Lang.mEngineInfo, jp2);
+		// tabbedPane.addTab(Lang.mEngineInfo, jp2);
 		tabbedPane.addTab(Lang.mControlInfo, jp6);
 		tabbedPane.addTab(Lang.mLoggingAndAnalysis, jp5);
 		tabbedPane.addTab(Lang.mCrosshair, jp3);
@@ -352,7 +352,7 @@ public class MainForm extends WebFrame {
 
 	public void loadConfig() {
 		flightInfoPanel.loadConfig(tc.configService);
-		engineInfoPanel.loadConfig(tc.configService);
+		// engineInfoPanel.loadConfig(tc.configService);
 		miniHUDPanel.loadConfig(tc.configService);
 		advancedPanel.loadConfig(tc.configService);
 		loggingPanel.loadConfig(tc.configService);
@@ -375,7 +375,7 @@ public class MainForm extends WebFrame {
 
 		flightInfoPanel.saveConfig(tc.configService);
 		advancedPanel.saveConfig(tc.configService);
-		engineInfoPanel.saveConfig(tc.configService);
+		// engineInfoPanel.saveConfig(tc.configService);
 		engineControlPanel.saveConfig(tc.configService);
 		loggingPanel.saveConfig(tc.configService);
 		miniHUDPanel.saveConfig(tc.configService);
