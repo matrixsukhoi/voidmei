@@ -21,7 +21,7 @@ public class GaugeField extends DataField {
         this.maxValue = maxValue;
         this.currentIntValue = 0;
         this.isHorizontal = isHorizontal;
-        this.gauge = new ui.component.LinearGauge(label, maxValue, !isHorizontal);
+        this.gauge = new ui.component.LabeledLinearGauge(label, maxValue, !isHorizontal);
     }
 
     public void updateGauge(int value, String displayText) {

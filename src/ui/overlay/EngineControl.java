@@ -111,7 +111,7 @@ public class EngineControl extends FieldOverlay {
 				Graphics2D g2d = (Graphics2D) g;
 				g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, Application.graphAASetting);
 				g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, Application.textAASetting);
-				drawGauges(g2d, fontsize >> 1, (fontsize * 4) + ((fontsize * 9) >> 1));
+				drawGauges(g2d, fontsize >> 1, (fontsize * 4) + ((fontsize * 6) >> 1)); // 这里如果偏移多了会看不到
 			}
 		};
 		panel.setOpaque(false);
@@ -378,7 +378,8 @@ public class EngineControl extends FieldOverlay {
 		if (gaugeFields == null)
 			return;
 		for (GaugeField gf : gaugeFields) {
-			gf.gauge.update(gf.gauge.maxValue / 2, "PRE");
+			int val = gf.maxValue / 2;
+			gf.gauge.update(val, String.valueOf(val));
 			gf.visible = true;
 		}
 	}
