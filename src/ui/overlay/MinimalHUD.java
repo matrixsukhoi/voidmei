@@ -78,6 +78,7 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 	private ui.component.WarningOverlay warningOverlay;
 	private ui.component.CompassGauge compassGauge;
 	private ui.component.AttitudeIndicatorGauge attitudeIndicatorGauge;
+	private java.util.List<ui.component.row.HUDRow> hudRows;
 
 	public void setFrameOpaque() {
 		this.getWebRootPaneUI().setMiddleBg(new Color(0, 0, 0, 0));// 中部透明
@@ -149,7 +150,7 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 	}
 
 	public void drawTextseries(Graphics2D g, int x, int y) {
-		int n = 0;
+		int verticalTextOffset = 0;
 		g.setFont(drawFont);
 		int kx = 0;
 		int yOffset = y - HUDFontsize;
@@ -178,102 +179,47 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 			}
 		}
 
-		for (int i = 0; i < 5; i++) {
-			// i = 0画直线提示
-			if (i == 0) {
+		// Update Row Data
+		if (hudRows != null && hudRows.size() >= 5) {
+			// Row 0: AoA
+			((ui.component.row.HUDAkbRow) hudRows.get(0)).update(
+					lines[0],
+					warnVne,
+					lineAoA, aoaY, aoaColor, aoaBarColor);
 
-				int liney = 1 + y;
+			// Row 1: Energy
+			((ui.component.row.HUDEnergyRow) hudRows.get(1)).update(
+					lines[1],
+					warnRH,
+					relEnergy, aoaColor);
 
-				// availableAoA
-				UIBaseElements.drawHRect(g, x + (rightDraw - aoaY), liney, aoaY, lineWidth + 3, 1, aoaBarColor);
-				UIBaseElements.__drawStringShade(g, x + rightDraw, liney - 1, 1, lineAoA, drawFontSmall, aoaColor);
+			// Row 2: Standard
+			((ui.component.row.HUDTextRow) hudRows.get(2)).update(
+					lines[2],
+					inAction);
 
-			}
-			if (i == 1) {
-				int liney = 1 + y;
-				UIBaseElements.__drawStringShade(g, x + rightDraw, n + liney - 1, 1, relEnergy, drawFontSmall,
-						aoaColor);
+			// Row 3: Standard
+			((ui.component.row.HUDTextRow) hudRows.get(3)).update(
+					lines[3],
+					false);
 
-			}
-			Application.debugPrint("Component: TextLine[" + i + "], x=" + x + ", y=" + (n + y));
-			if ((i == 2 && inAction) || (i == 0 && warnVne) || (i == 1 && warnRH)) {
-				UIBaseElements.__drawStringShade(g, x, n + y, 1, lines[i], drawFont, Application.colorWarning);
-			} else
-				UIBaseElements.__drawStringShade(g, x, n + y, 1, lines[i], drawFont, Application.colorNum);
-
-			if (i == 4) {
-				// 机动性指标线
-				Application.debugPrint("Component: ManeuverIndex (Line 4), x=" + x + ", y=" + (n + y));
-
-				g.setColor(Application.colorShadeShape);
-				g.setStroke(strokeThick);
-				g.drawLine(x + rightDraw - maneuverIndexLen10, n + y + halfLine + lineWidth + lineWidth,
-						x + rightDraw - maneuverIndexLen10, n + y + halfLine - lineWidth + lineWidth);
-				g.setColor(Application.colorNum);
-				g.setStroke(strokeThin);
-				g.drawLine(x + rightDraw - maneuverIndexLen10, n + y + halfLine + lineWidth + lineWidth,
-						x + rightDraw - maneuverIndexLen10, n + y + halfLine - lineWidth + lineWidth);
-
-				if (maneuverIndex >= 0.1) {
-					Application.debugPrint("Component: ManeuverIndex (>=0.1), x=" + (x + rightDraw - maneuverIndexLen20)
-							+ ", y=" + (n + y + halfLine));
-					g.setColor(Application.colorShadeShape);
-					g.setStroke(strokeThick);
-					g.drawLine(x + rightDraw - maneuverIndexLen20, n + y + halfLine + lineWidth + lineWidth,
-							x + rightDraw - maneuverIndexLen20, n + y + halfLine - lineWidth + lineWidth);
-					g.setColor(Application.colorNum);
-					g.setStroke(strokeThin);
-					g.drawLine(x + rightDraw - maneuverIndexLen20, n + y + halfLine + lineWidth + lineWidth,
-							x + rightDraw - maneuverIndexLen20, n + y + halfLine - lineWidth + lineWidth);
-				}
-				if (maneuverIndex >= 0.2) {
-					Application.debugPrint("Component: ManeuverIndex (>=0.2), x=" + (x + rightDraw - maneuverIndexLen30)
-							+ ", y=" + (n + y + halfLine));
-					g.setColor(Application.colorShadeShape);
-					g.setStroke(strokeThick);
-					g.drawLine(x + rightDraw - maneuverIndexLen30, n + y + halfLine + lineWidth + lineWidth,
-							x + rightDraw - maneuverIndexLen30, n + y + halfLine - lineWidth + lineWidth);
-					g.setColor(Application.colorNum);
-					g.setStroke(strokeThin);
-					g.drawLine(x + rightDraw - maneuverIndexLen30, n + y + halfLine + lineWidth + lineWidth,
-							x + rightDraw - maneuverIndexLen30, n + y + halfLine - lineWidth + lineWidth);
-				}
-				if (maneuverIndex >= 0.3) {
-					g.setColor(Application.colorShadeShape);
-					g.setStroke(strokeThick);
-					g.drawLine(x + rightDraw - maneuverIndexLen40, n + y + halfLine + lineWidth + lineWidth,
-							x + rightDraw - maneuverIndexLen40, n + y + halfLine - lineWidth + lineWidth);
-					g.setColor(Application.colorNum);
-					g.setStroke(strokeThin);
-					g.drawLine(x + rightDraw - maneuverIndexLen40, n + y + halfLine + lineWidth + lineWidth,
-							x + rightDraw - maneuverIndexLen40, n + y + halfLine - lineWidth + lineWidth);
-				}
-				if (maneuverIndex >= 0.4) {
-					g.setColor(Application.colorShadeShape);
-					g.setStroke(strokeThick);
-					g.drawLine(x + rightDraw - maneuverIndexLen50, n + y + halfLine + lineWidth + lineWidth,
-							x + rightDraw - maneuverIndexLen50, n + y + halfLine - lineWidth + lineWidth);
-					g.setColor(Application.colorNum);
-					g.setStroke(strokeThin);
-					g.drawLine(x + rightDraw - maneuverIndexLen50, n + y + halfLine + lineWidth + lineWidth,
-							x + rightDraw - maneuverIndexLen50, n + y + halfLine - lineWidth + lineWidth);
-				}
-				g.setStroke(strokeThick);
-				g.setColor(Application.colorShadeShape);
-				g.drawLine(x + rightDraw, n + y + halfLine + lineWidth, x + rightDraw - maneuverIndexLen,
-						n + y + halfLine + lineWidth);
-
-				g.setStroke(strokeThin);
-				g.setColor(Application.colorNum);
-				g.drawLine(x + rightDraw, n + y + halfLine + lineWidth, x + rightDraw - maneuverIndexLen,
-						n + y + halfLine + lineWidth);
-
-			}
-
-			n = n + HUDFontsize;
-
+			// Row 4: Maneuver
+			((ui.component.row.HUDManeuverRow) hudRows.get(4)).update(
+					lines[4],
+					false,
+					maneuverIndex,
+					maneuverIndexLen, maneuverIndexLen10, maneuverIndexLen20, maneuverIndexLen30, maneuverIndexLen40,
+					maneuverIndexLen50);
 		}
-		n += 2;
+
+		// Draw Rows
+		if (hudRows != null) {
+			for (ui.component.row.HUDRow row : hudRows) {
+				row.draw(g, x, verticalTextOffset + y);
+				verticalTextOffset += row.getHeight();
+			}
+		}
+		verticalTextOffset += 2;
 
 		// 画一个半圆
 
@@ -282,31 +228,33 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 		// n += 2;
 		// 2倍半径
 		int r = roundCompass;
-		n -= 2 * HUDFontsize - 2;
+		verticalTextOffset -= 2 * HUDFontsize - 2;
 		kx += rightDraw + r;
 
-		Application.debugPrint("Component: Compass, x=" + kx + ", y=" + (n + yOffset));
+		Application.debugPrint("Component: Compass, x=" + kx + ", y=" + (verticalTextOffset + yOffset));
 		g.setStroke(strokeOutline);
 		g.setColor(Application.colorShadeShape);
 
 		g.drawLine(kx + r + (int) (0.618 * r * Math.sin(compassRads)),
-				n + yOffset + r - (int) (0.618 * r * Math.cos(compassRads)), kx + r + compassDx,
-				n + yOffset + r - compassDy);
-		g.drawOval(kx, n + yOffset, r + r, r + r);
+				verticalTextOffset + yOffset + r - (int) (0.618 * r * Math.cos(compassRads)), kx + r + compassDx,
+				verticalTextOffset + yOffset + r - compassDy);
+		g.drawOval(kx, verticalTextOffset + yOffset, r + r, r + r);
 
 		g.setStroke(strokeInline);
 		g.setColor(Application.colorNum);
 
 		g.drawLine(kx + r + (int) (0.618 * r * Math.sin(compassRads)),
-				n + yOffset + r - (int) (0.618 * r * Math.cos(compassRads)), kx + r + compassDx,
-				n + yOffset + r - compassDy);
-		g.drawOval(kx, n + yOffset, r + r, r + r);
-		UIBaseElements.drawStringShade(g, kx + lineWidth + 3, n + y - (r - HUDFontsize) / 2, 1, lineCompass,
+				verticalTextOffset + yOffset + r - (int) (0.618 * r * Math.cos(compassRads)), kx + r + compassDx,
+				verticalTextOffset + yOffset + r - compassDy);
+		g.drawOval(kx, verticalTextOffset + yOffset, r + r, r + r);
+		UIBaseElements.drawStringShade(g, kx + lineWidth + 3, verticalTextOffset + y - (r - HUDFontsize) / 2, 1,
+				lineCompass,
 				drawFontSmall);
-		UIBaseElements.drawStringShade(g, kx + lineWidth + 3, n + y + r + HUDFontSizeSmall / 2, 1, lineLoc,
+		UIBaseElements.drawStringShade(g, kx + lineWidth + 3, verticalTextOffset + y + r + HUDFontSizeSmall / 2, 1,
+				lineLoc,
 				drawFontSmall);
 
-		n = n + 3 * roundCompass;
+		verticalTextOffset = verticalTextOffset + 3 * roundCompass;
 
 		drawBlinkX(g);
 	}
@@ -631,6 +579,20 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 		warningOverlay = new ui.component.WarningOverlay();
 		compassGauge = new ui.component.CompassGauge(roundCompass);
 		attitudeIndicatorGauge = new ui.component.AttitudeIndicatorGauge();
+
+		// Initialize Rows
+		hudRows = new java.util.ArrayList<>();
+		// Row 0: AoA
+		hudRows.add(new ui.component.row.HUDAkbRow(0, drawFont, HUDFontsize, drawFontSmall, rightDraw, lineWidth));
+		// Row 1: Energy
+		hudRows.add(new ui.component.row.HUDEnergyRow(1, drawFont, HUDFontsize, drawFontSmall, rightDraw));
+		// Row 2: Standard (Fuel/Gear)
+		hudRows.add(new ui.component.row.HUDTextRow(2, drawFont, HUDFontsize));
+		// Row 3: Standard (SEP)
+		hudRows.add(new ui.component.row.HUDTextRow(3, drawFont, HUDFontsize));
+		// Row 4: Maneuver
+		hudRows.add(new ui.component.row.HUDManeuverRow(4, drawFont, HUDFontsize, rightDraw, halfLine, lineWidth,
+				strokeThick, strokeThin));
 
 		Application.debugPrint("MinimalHUD: UI components initialized.");
 		panel = new WebPanel() {

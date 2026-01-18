@@ -63,6 +63,11 @@ src/ui/component/LinearGauge.java
 src/ui/component/TextGauge.java
 src/ui/component/CrosshairGauge.java
 src/ui/component/FlapAngleBar.java
+src/ui/component/row/HUDManeuverRow.java
+src/ui/component/row/HUDEnergyRow.java
+src/ui/component/row/HUDRow.java
+src/ui/component/row/HUDAkbRow.java
+src/ui/component/row/HUDTextRow.java
 src/ui/component/WarningOverlay.java
 src/ui/component/CompassGauge.java
 src/ui/WebLafSettings.java
