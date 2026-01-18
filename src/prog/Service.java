@@ -510,7 +510,15 @@ public class Service implements Runnable {
 		data.put("rds", sTurnRds);
 		data.put("aoa", AoA);
 		data.put("aos", AoS);
+		data.put("aoa", AoA);
+		data.put("aos", AoS);
 		data.put("ws", sWingSweep);
+
+		// Event-Driven Raw Data Support (Double values as Strings)
+		data.put("alt_val", String.valueOf(alt));
+		data.put("sep_val", String.valueOf(SEP));
+		data.put("compass_val", String.valueOf(dCompass));
+		data.put("ias_val", String.valueOf(IASv));
 
 		// Push EngineInfoConfig Compatible Keys
 		data.put("hp", sTotalHp);
@@ -566,9 +574,21 @@ public class Service implements Runnable {
 		data.put("fatalWarn", String.valueOf(fatalWarn));
 		data.put("radioAlt_f", String.valueOf(radioAlt));
 		data.put("radioAltValid", String.valueOf(radioAltValid));
+		data.put("isDowningFlap", String.valueOf(isDowningFlap));
+		data.put("timeStr", sfueltime);
+
+		// Map Grid Calculation
+		if (loc != null && mapinfo != null) {
+			char map_x = (char) ('A' + (loc[1] * mapinfo.mapStage) + mapinfo.inGameOffset);
+			int map_y = (int) (loc[0] * mapinfo.mapStage + mapinfo.inGameOffset + 1);
+			data.put("mapGrid", String.format("%c%d", map_x, map_y));
+		} else {
+			data.put("mapGrid", "--");
+		}
 
 		// 2. Publish Event (Data Plane)
-		FlightDataBus.getInstance().publish(new FlightDataEvent(data));
+		// 2. Publish Event (Data Plane)
+		FlightDataBus.getInstance().publish(new FlightDataEvent(data, sState, sIndic));
 
 		// 3. Legacy Support (Sync to GlobalPool)
 		if (c != null && c.globalPool != null) {

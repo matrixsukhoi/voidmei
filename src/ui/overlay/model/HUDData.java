@@ -46,6 +46,7 @@ public class HUDData {
     public final Color aoaColor; // Color for AoA indicator
     public final Color aoaBarColor; // Color for AoA Bar
     public final Color throttleColor; // Color for Throttle
+    public final boolean warnConfiguration; // Flaps/Gear/Airbrake transition or speed warning
 
     // Context Info
     public final String mapGrid; // e.g. "C4"
@@ -57,6 +58,9 @@ public class HUDData {
     public final String altStr;
     public final String aoaStr;
     public final String energyStr;
+    public final String flapsStr;
+    public final String sepStr;
+    public final String maneuverRowStr;
     public final double aoaRatio; // Normalized AoA for bar (0.0 - 1.0+)
 
     public HUDData(Builder builder) {
@@ -96,7 +100,11 @@ public class HUDData {
         this.altStr = builder.altStr;
         this.aoaStr = builder.aoaStr;
         this.energyStr = builder.energyStr;
+        this.flapsStr = builder.flapsStr;
+        this.sepStr = builder.sepStr;
+        this.maneuverRowStr = builder.maneuverRowStr;
         this.aoaRatio = builder.aoaRatio;
+        this.warnConfiguration = builder.warnConfiguration;
     }
 
     public static class Builder {
@@ -137,6 +145,10 @@ public class HUDData {
         public String altStr = "";
         public String aoaStr = "";
         public String energyStr = "";
+        public String flapsStr = "";
+        public String sepStr = "";
+        public String maneuverRowStr = "";
+        public boolean warnConfiguration;
         public double aoaRatio;
 
         public HUDData build() {

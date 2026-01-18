@@ -68,6 +68,7 @@ src/ui/component/FlapAngleBar.java
 src/ui/component/row/HUDManeuverRow.java
 src/ui/component/row/HUDEnergyRow.java
 src/ui/component/row/HUDRow.java
+src/ui/component/row/HUDFlapsRow.java
 src/ui/component/row/HUDAkbRow.java
 src/ui/component/row/HUDTextRow.java
 src/ui/component/WarningOverlay.java

@@ -1,54 +1,56 @@
 package ui.overlay.logic;
 
-import java.awt.Color;
+import java.util.Map;
 
 import parser.Blkx;
 import prog.Application;
-import prog.Service;
 import prog.config.HUDSettings;
 import ui.overlay.model.HUDData;
 import ui.overlay.MinimalHUDContext;
 
 /**
  * Pure logic calculator for HUD Data.
- * Extracts raw data from Service/Blkx and performs business logic calculations.
+ * Extracts raw data from FlightDataEvent (Data/State) and performs business
+ * logic calculations.
  */
 public class HUDCalculator {
 
-    public static HUDData calculate(Service service, parser.Blkx blkx, HUDSettings settings, MinimalHUDContext ctx) {
+    public static HUDData calculate(prog.event.FlightDataEvent event, parser.Blkx blkx, HUDSettings settings,
+            MinimalHUDContext ctx) {
         HUDData.Builder b = new HUDData.Builder();
 
-        if (service == null)
+        if (event == null)
             return b.build();
 
+        Map<String, String> data = event.getData();
+        parser.State sState = (parser.State) event.getState();
+        parser.Indicators sIndic = (parser.Indicators) event.getIndicators();
+
         // --- Raw Flight Data ---
-        b.ias = service.IASv;
-        b.mach = service.sState.M;
-        b.altitude = service.alt;
-        b.radioAltitude = service.radioAlt;
-        b.verticalSpeed = service.SEP; // m/s
-        b.heading = service.dCompass; // double
-        b.turnRate = 0; // Not readily available in Service?
+        b.ias = safeParseDouble(data.get("ias_val"), 0);
+        b.mach = (sState != null) ? sState.M : 0;
+        b.altitude = safeParseDouble(data.get("alt_val"), 0);
+        b.radioAltitude = safeParseDouble(data.get("radioAlt_f"), 0);
+        b.verticalSpeed = safeParseDouble(data.get("sep_val"), 0);
+        b.heading = safeParseDouble(data.get("compass_val"), 0);
+        b.turnRate = 0;
+
+        b.mapGrid = data.get("mapGrid");
+        if (b.mapGrid == null)
+            b.mapGrid = "--";
 
         // --- Attitude ---
-        // Conversion from Service units (often raw values) to Degrees/Pixels done here?
-        // Service.sIndic.aviahorizon_pitch is raw int, requires conversion.
-        // Existing MinimalHUD Logic:
-        // pitch = (int) ((-aviahp * pitchLimit / 90.0f));
-        double aviahp = service.sIndic.aviahorizon_pitch;
-        double aviar = service.sIndic.aviahorizon_roll;
+        double aviahp = 0;
+        double aviar = 0;
+        if (sIndic != null) {
+            aviahp = sIndic.aviahorizon_pitch;
+            aviar = sIndic.aviahorizon_roll;
+        } else {
+            aviahp = safeParseDouble(data.get("aviahorizon_pitch"), -65535);
+            aviar = safeParseDouble(data.get("aviahorizon_roll"), -65535);
+        }
 
         if (aviahp != -65535) {
-            // In pixels for now, or degrees? Let's store Degrees in Data, Component
-            // converts to Pixels?
-            // Or store Pixels if it's display logic?
-            // Ideally Data is Generic (Degrees). But AttitudeIndicator expects Pixels.
-            // Let's store Degrees here and let Component/Helper convert.
-            // Wait, Service usually provides raw telemetry.
-            // Let's stick to what MinimalHUD did for now to ensure consistency,
-            // but cleaner if we put logic here.
-
-            // MinimalHUD: roundHorizon = (int) Math.round(-aviahp);
             b.pitch = -aviahp;
         } else {
             b.pitch = 0;
@@ -60,55 +62,60 @@ public class HUDCalculator {
             b.roll = 0;
         }
 
-        // --- AoS (Slip) ---
-        // MinimalHUD: aosX = (int) (-service.sState.AoS * slideLimit / 30.0f);
-        // We store RAW Angle of Slip in Degrees.
-        if (service.sState.AoS != -65535) {
-            b.slip = service.sState.AoS;
+        // --- AoS / System State ---
+        if (sState != null) {
+            if (sState.AoS != -65535)
+                b.slip = sState.AoS;
+
+            b.throttle = sState.throttle;
+            b.flaps = sState.flaps;
+            b.gear = sState.gear;
+            b.airbrake = sState.airbrake;
+
+            b.airbrake = sState.airbrake;
+
+            if (b.throttle > 100) {
+                b.throttleColor = java.awt.Color.RED;
+            } else {
+                b.throttleColor = java.awt.Color.WHITE; // Or default? HUDData defaults to GREEN, but white is standard
+                                                        // text.
+            }
+
+            boolean isDowningFlap = Boolean.parseBoolean(data.get("isDowningFlap"));
+            b.flapAllowAngle = getFlapAllowAngle(b.ias, isDowningFlap, blkx);
+
+            b.aoa = sState.AoA;
+            b.gLoad = sState.Ny;
         }
 
-        // --- System State ---
-        b.throttle = service.sState.throttle;
-        b.flaps = service.sState.flaps;
-        b.gear = service.sState.gear;
-        b.airbrake = service.sState.airbrake;
-        b.flapAllowAngle = service.getFlapAllowAngle(service.sState.IAS, service.isDowningFlap);
-
-        // --- Derived Metrics ---
-        b.aoa = service.sState.AoA;
-        b.gLoad = service.sState.Ny;
-        b.energyM = service.energyM;
+        b.energyM = safeParseDouble(data.get("energyM"), 0);
 
         b.isMachMode = settings.drawHudMach();
-        b.isGearDown = b.gear > 0; // Check logic from MinimalHUD (gear > 0)
+        b.isGearDown = b.gear > 0;
         b.isFlapsDown = b.flaps > 0;
         b.isAirbrakeActive = b.airbrake > 0;
 
-        // --- Complex Logic: Vne Warning ---
-        // Ported from MinimalHUD.updateString
+        // --- Warning Logic ---
         boolean warnVne = false;
         if (b.isAirbrakeActive && b.airbrake == 100) {
             warnVne = true;
         }
 
         if (blkx != null && blkx.valid) {
-            // Calculate Maneuver Index
-            double nfweight = blkx.nofuelweight;
-            double maneuverIndex = 1 - (nfweight / (nfweight + service.fTotalFuel));
-            b.maneuverIndex = maneuverIndex;
+            b.maneuverIndex = 0; // Simplified for now
 
             double vwing = 0;
-            if (blkx.isVWing) {
-                vwing = service.sIndic.wsweep_indicator;
+            if (blkx.isVWing && sIndic != null) {
+                vwing = sIndic.wsweep_indicator;
             }
 
             // Dynamic Vne calculation
-            if ((service.IASv >= blkx.getVNEVWing(vwing) * 0.95)
-                    || (service.sState.M >= blkx.getMNEVWing(vwing) * 0.95f)) {
+            if ((b.ias >= blkx.getVNEVWing(vwing) * 0.95)
+                    || (b.mach >= blkx.getMNEVWing(vwing) * 0.95f)) {
                 warnVne = true;
             }
 
-            // AoA Warnings & Metrics
+            // AoA Warnings
             double maxAvailableAoA = blkx.getAoAHighVWing(vwing, b.flaps > 0 ? (int) b.flaps : 0);
             double availableAoA = maxAvailableAoA - b.aoa;
 
@@ -123,59 +130,46 @@ public class HUDCalculator {
                 b.aoaBarColor = Application.colorNum;
             }
 
-            // Calculate Ratio for Bar
-            // MinimalHUD: aoaY = (int) ((availableAoA * ctx.aoaLength) / maxAvailableAoA);
-            // So Ratio = availableAoA / maxAvailableAoA
             if (maxAvailableAoA > 0.001) {
                 b.aoaRatio = availableAoA / maxAvailableAoA;
-                // Clamp? MinimalHUD: if (aoaY > ctx.rightDraw) aoaY = rightDraw; (rightDraw is
-                // max length?)
-                // Actually aoaLength is max length. rightDraw is X offset?
-                // Ah, ctx.rightDraw is X offset or length? MinimalHUDContext logic needed.
-                // Assuming Ratio should be 0-1 range approx.
             } else {
                 b.aoaRatio = 0;
             }
 
-            // Stall Warning (Contextual)
             if (availableAoA <= 0) {
                 b.warnStall = true;
             }
 
         } else {
-            // Default logic if no Blkx
             b.maneuverIndex = 0;
             b.aoaColor = Application.colorNum;
             b.aoaBarColor = Application.colorNum;
-            // MinimalHUD: aoaY = (int) (aoa * ctx.aoaLength / 30);
-            // Default logic ratio
             b.aoaRatio = b.aoa / 30.0;
         }
         b.warnVne = warnVne;
 
-        // --- Warnings ---
-        // Altitude Warning
-        if (service.radioAltValid && service.radioAlt <= 500) {
-            b.warnAltitude = true; // Use Radio Alt logic
+        // Warnings
+        double radioAlt = b.radioAltitude;
+        boolean radioAltValid = Boolean.parseBoolean(data.get("radioAltValid"));
+        if (radioAltValid && radioAlt <= 500) {
+            b.warnAltitude = true;
         }
 
-        // --- Strings Formatting ---
-        // Pre-calculate strings for performance and consistency
+        // --- Strings Formatting (using Data) ---
         if (b.isMachMode) {
-            b.speedStr = String.format("M%5s", service.M);
+            b.speedStr = String.format("M%5.2f", b.mach);
         } else {
             String spdPre = settings.isSpeedLabelDisabled() ? "" : "SPD";
-            b.speedStr = String.format("%s%6s", spdPre, service.IAS);
+            b.speedStr = String.format("%s%6d", spdPre, (int) b.ias);
         }
 
         String altPre = settings.isAltitudeLabelDisabled() ? "" : "ALT";
         if (b.warnAltitude) {
-            b.altStr = altPre + String.format("R%5s", service.sRadioAlt);
+            b.altStr = altPre + String.format("R%5.0f", b.radioAltitude);
         } else {
-            b.altStr = altPre + String.format("%6s", service.salt);
+            b.altStr = altPre + String.format("%6.0f", b.altitude);
         }
 
-        // AoA & Energy Strings
         if (settings.isAoADisabled()) {
             b.aoaStr = "";
             b.energyStr = "";
@@ -184,42 +178,108 @@ public class HUDCalculator {
             b.energyStr = String.format("E%5.0f", b.energyM);
         }
 
-        // Map Grid
-        char map_x = (char) ('A' + (service.loc[1] * service.mapinfo.mapStage) + service.mapinfo.inGameOffset);
-        int map_y = (int) (service.loc[0] * service.mapinfo.mapStage + service.mapinfo.inGameOffset + 1);
-        b.mapGrid = String.format("%c%d", map_x, map_y);
-
-        // Time (Fuel or Mission)
-        if (b.gLoad > 1.5f || b.gLoad < -0.5f) {
-            // Show G-Load instead of Time logic handled by Component?
-            // Or Calculator decides what "Main Text" is?
-            // Let's populate specific fields and let HUDTextRow decide or create meaningful
-            // field.
-            // Current MinimalHUD logic puts G in lines[4] if high G.
-            // Let's stick to providing raw data and formatting helpers.
-        }
-        // Calculate Time String (Fuel or Empty)
-        String s = service.sfueltime;
-        String compressor = "";
-        switch (service.sState.compressorstage) {
-            case 1:
-                compressor = "C";
-                break;
-            case 2:
-                compressor = "CC";
-                break;
-            case 3:
-                compressor = "CCC";
-                break;
-            default:
-                compressor = "";
-        }
-        if (b.gear <= 0) {
-            b.timeStr = String.format("L%5s%s", s, compressor);
+        String sepPre = settings.isSEPLabelDisabled() ? "" : "SEP";
+        if (b.verticalSpeed > 0) {
+            b.sepStr = String.format("%s↑%4.0f", sepPre, b.verticalSpeed);
         } else {
-            b.timeStr = String.format("E%5s", service.sTime);
+            b.sepStr = String.format("%s↓%4.0f", sepPre, b.verticalSpeed);
         }
+
+        // Maneuver / Time
+        if (b.gLoad > 1.5f || b.gLoad < -0.5f) {
+            b.maneuverRowStr = String.format("G%5.1f", b.gLoad);
+        } else {
+            String time = data.get("timeStr");
+            b.maneuverRowStr = (time != null && !time.isEmpty()) ? "L" + time : "";
+        }
+
+        // Configuration
+        String brk = "";
+        String gear = "";
+        boolean inAction = false;
+        if (b.airbrake > 0) {
+            brk = "BRK";
+            if (b.airbrake != 100)
+                inAction = true;
+        }
+        if (b.gear > 0) {
+            gear = "GEA";
+            if (b.gear != 100)
+                inAction = true;
+        }
+
+        if (b.flaps > 0) {
+            b.flapsStr = String.format("F%3.0f%s%s", b.flaps, brk, gear);
+        } else {
+            if (blkx != null && blkx.isVWing && sIndic != null) {
+                b.flapsStr = String.format("W%3.0f%s%s", sIndic.wsweep_indicator * 100, brk, gear); // approx logic
+            } else {
+                b.flapsStr = String.format("%4s%s%s", "", brk, gear);
+            }
+        }
+
+        b.warnConfiguration = inAction;
 
         return b.build();
+    }
+
+    private static double safeParseDouble(String val, double def) {
+        if (val == null)
+            return def;
+        try {
+            return Double.parseDouble(val);
+        } catch (NumberFormatException e) {
+            return def;
+        }
+    }
+
+    private static double getFlapAllowAngle(double ias, boolean isDowningFlap, Blkx blkx) {
+        if (ias == 0 || blkx == null || !blkx.valid)
+            return 125;
+
+        int i = 0;
+        for (; i < blkx.FlapsDestructionNum - 1; i++) {
+            if (ias > blkx.FlapsDestructionIndSpeed[i][1]) {
+                break;
+            }
+        }
+
+        double x0, x1, y0, y1, t;
+        double k;
+
+        if (i == 0) {
+            x0 = blkx.FlapsDestructionIndSpeed[i][1];
+            y0 = blkx.FlapsDestructionIndSpeed[i][0] * 100.0f;
+            x1 = blkx.FlapsDestructionIndSpeed[i + 1][1];
+            y1 = blkx.FlapsDestructionIndSpeed[i + 1][0] * 100.0f;
+            k = calcK(x0, y0, x1, y1);
+            t = y0 + (ias - x0) * k;
+            return normFlapAngle(t);
+        } else {
+            if (ias == blkx.FlapsDestructionIndSpeed[i - 1][1]) {
+                return blkx.FlapsDestructionIndSpeed[i - 1][0] * 100.0f;
+            }
+            x0 = blkx.FlapsDestructionIndSpeed[i - 1][1];
+            y0 = blkx.FlapsDestructionIndSpeed[i - 1][0] * 100.0f;
+            x1 = blkx.FlapsDestructionIndSpeed[i][1];
+            y1 = blkx.FlapsDestructionIndSpeed[i][0] * 100.0f;
+            k = calcK(x0, y0, x1, y1);
+            t = y0 + (ias - x0) * k;
+            return normFlapAngle(t);
+        }
+    }
+
+    private static double calcK(double x0, double y0, double x1, double y1) {
+        if (Math.abs(x1 - x0) < 0.0001)
+            return 0;
+        return (y1 - y0) / (x1 - x0);
+    }
+
+    private static double normFlapAngle(double t) {
+        if (t < 0)
+            return 0;
+        if (t < 125)
+            return t;
+        return 125;
     }
 }

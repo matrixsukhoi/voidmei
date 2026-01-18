@@ -107,7 +107,6 @@ public class LinearGauge implements HUDComponent {
 
         Color c = valueColor != null ? valueColor : Application.colorNum;
         Color shade = Application.colorShadeShape;
-        Color lblColor = Application.colorLabel;
 
         g2d.setStroke(borderStroke);
 
@@ -118,34 +117,39 @@ public class LinearGauge implements HUDComponent {
             int barX = x + textWidth + labelSpacing;
 
             // Draw the background and fixed bar border/fill
-            drawBar(g2d, barX, y, thickness, length, pixVal, shade, c, true);
+            // Bar should act as 'structure', maybe keep it white? User said "vbar should
+            // keep white".
+            drawBar(g2d, barX, y, thickness, length, pixVal, shade, Application.colorNum, true);
 
             int sepY = y - pixVal;
 
             // Separator Line (moving with value)
             g2d.setStroke(separatorStroke);
             int totalWidth = textWidth + labelSpacing + thickness;
-            drawRect(g2d, x, sepY, totalWidth, 3, shade, lblColor, false);
+            drawRect(g2d, x, sepY, totalWidth, 3, shade, c, false);
 
             // Text Number (moving with separator)
-            drawTextShaded(g2d, x, sepY - 1, displayValue, fontNum, lblColor);
+            drawTextShaded(g2d, x, sepY - 1, displayValue, fontNum, c);
         } else {
             // Horizontal Bar: width=length, height=thickness
-            drawBar(g2d, x, y, length, thickness, pixVal, shade, c, false);
+            // Bar should act as 'structure', maybe keep it white? User said "vbar should
+            // keep white".
+            // So we use Application.colorNum (default white) for the bar fill.
+            drawBar(g2d, x, y, length, thickness, pixVal, shade, Application.colorNum, false);
 
             // Separator Line
             g2d.setStroke(separatorStroke);
             // drawVRect behavior for horizontal separator
-            drawRect(g2d, x + pixVal - 2, y, 3, -thickness - 1 * fontNum.getSize(), shade, lblColor, true); // true for
-                                                                                                            // "vertical"
-                                                                                                            // rect
-                                                                                                            // (width <
-                                                                                                            // height
-                                                                                                            // logic)
+            drawRect(g2d, x + pixVal - 2, y, 3, -thickness - 1 * fontNum.getSize(), shade, c, true); // true for
+                                                                                                     // "vertical"
+                                                                                                     // rect
+                                                                                                     // (width <
+                                                                                                     // height
+                                                                                                     // logic)
 
             // Text Number
             drawTextShaded(g2d, x + pixVal, y + thickness + 1 * numFontHeight(fontNum), displayValue, fontNum,
-                    lblColor);
+                    c);
         }
     }
 

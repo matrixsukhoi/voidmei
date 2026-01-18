@@ -36,18 +36,21 @@ public class UIThread implements Runnable {
 				continue;
 			stime = c.S.SystemTime;
 
-			// 刷新时间
-			if (stime - HCheckMili >= c.freqService) {
-				HCheckMili = stime;
-
-				/* 刷新字符串 */
-				MinimalHUD H = (MinimalHUD) c.overlayManager.get("crosshairSwitch");
-				if (H != null) {
-					H.updateString();
-					repaintH = true;
-					drawTickNr++;
-				}
-			}
+			/*
+			 * Refactored to Event-Driven
+			 * // 刷新时间
+			 * if (stime - HCheckMili >= c.freqService) {
+			 * HCheckMili = stime;
+			 * 
+			 * // 刷新字符串
+			 * MinimalHUD H = (MinimalHUD) c.overlayManager.get("crosshairSwitch");
+			 * if (H != null) {
+			 * // H.updateString(); // Deprecated
+			 * // repaintH = true; // Handled by Event Bus
+			 * drawTickNr++;
+			 * }
+			 * }
+			 */
 			/*
 			 * Refactored to Event-Driven
 			 * if (stime - FCheckMili >= c.freqFlightInfo) {

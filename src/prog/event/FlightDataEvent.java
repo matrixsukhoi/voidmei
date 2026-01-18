@@ -9,10 +9,18 @@ import java.util.Map;
  */
 public class FlightDataEvent {
     private final Map<String, String> data;
+    private final Object state; // parser.State
+    private final Object indicators; // parser.Indicators
     private final long timestamp;
 
     public FlightDataEvent(Map<String, String> data) {
+        this(data, null, null);
+    }
+
+    public FlightDataEvent(Map<String, String> data, Object state, Object indicators) {
         this.data = data != null ? Collections.unmodifiableMap(new java.util.HashMap<>(data)) : Collections.emptyMap();
+        this.state = state;
+        this.indicators = indicators;
         this.timestamp = System.currentTimeMillis();
     }
 
@@ -22,6 +30,14 @@ public class FlightDataEvent {
 
     public Map<String, String> getData() {
         return data;
+    }
+
+    public Object getState() {
+        return state;
+    }
+
+    public Object getIndicators() {
+        return indicators;
     }
 
     public long getTimestamp() {

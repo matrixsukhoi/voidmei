@@ -26,25 +26,33 @@ public class HUDAkbRow extends HUDTextRow {
         this.aoaBarColor = Color.YELLOW;
     }
 
-    public void setStyle(Font font, int height, Font smallFont, int rightDraw, int lineWidth) {
+    private int aoaLength = 100; // Default
+
+    public void setStyle(Font font, int height, Font smallFont, int rightDraw, int lineWidth, int aoaLength) {
         super.setStyle(font, height);
         this.smallFont = smallFont;
         this.rightDraw = rightDraw;
         this.lineWidth = lineWidth;
+        this.aoaLength = aoaLength;
     }
 
     @Override
-    public void update(Object data) {
-        if (data instanceof Object[]) {
-            Object[] params = (Object[]) data;
-            if (params.length >= 6) {
-                // Call super.update(text, isWarning)
-                super.update((String) params[0], (Boolean) params[1]);
-                this.aoaText = (String) params[2];
-                this.aoaY = (Integer) params[3];
-                this.aoaColor = (Color) params[4];
-                this.aoaBarColor = (Color) params[5];
-            }
+    public void onDataUpdate(ui.overlay.model.HUDData data) {
+        if (data == null)
+            return;
+
+        // Speed Text (uses default text field from HUDTextRow)
+        super.update(data.speedStr, data.warnVne);
+
+        // AoA Text and Bar
+        this.aoaText = data.aoaStr;
+        this.aoaColor = data.aoaColor;
+        this.aoaBarColor = data.aoaBarColor;
+
+        // Bar Calculation
+        this.aoaY = (int) (data.aoaRatio * this.aoaLength);
+        if (this.aoaY > this.rightDraw) {
+            this.aoaY = this.rightDraw;
         }
     }
 
