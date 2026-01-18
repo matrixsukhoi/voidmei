@@ -102,7 +102,16 @@ public class HUDCalculator {
         }
 
         if (blkx != null && blkx.valid) {
-            b.maneuverIndex = 0; // Simplified for now
+            // User requested formula: 1 - (nfweight / (nfweight + fuel))
+            double nfweight = blkx.nofuelweight;
+            double currentFuel = (sState != null) ? sState.mfuel : 0;
+
+            // Check for valid weights to avoid division by zero
+            if (nfweight > 0 && (nfweight + currentFuel) > 0) {
+                b.maneuverIndex = 1.0 - (nfweight / (nfweight + currentFuel));
+            } else {
+                b.maneuverIndex = 0;
+            }
 
             double vwing = 0;
             if (blkx.isVWing && sIndic != null) {

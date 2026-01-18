@@ -82,6 +82,7 @@ public class HUDManeuverRow extends HUDTextRow {
         // Common draw logic
         drawLineMark(g, x, y, maneuverIndexLen10);
 
+        // 根据当前值绘制一个或多个刻度线
         if (maneuverIndex >= 0.1) {
             drawLineMark(g, x, y, maneuverIndexLen20);
         }
@@ -96,15 +97,16 @@ public class HUDManeuverRow extends HUDTextRow {
         }
 
         // Final line
+        int newX = x + rightDraw;
+        int newY = y + halfLine;
+
         g.setStroke(strokeThick);
         g.setColor(Application.colorShadeShape);
-        g.drawLine(x + rightDraw, y + halfLine + lineWidth, x + rightDraw - maneuverIndexLen,
-                y + halfLine + lineWidth);
+        g.drawLine(newX, newY + lineWidth, newX - maneuverIndexLen, newY + lineWidth);
 
         g.setStroke(strokeThin);
         g.setColor(Application.colorNum);
-        g.drawLine(x + rightDraw, y + halfLine + lineWidth, x + rightDraw - maneuverIndexLen,
-                y + halfLine + lineWidth);
+        g.drawLine(newX, newY + lineWidth, newX - maneuverIndexLen, newY + lineWidth);
     }
 
     private void drawLineMark(Graphics2D g, int x, int y, int len) {

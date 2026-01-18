@@ -501,7 +501,11 @@ public class MinimalHUD extends DraggableOverlay implements UIStyle, FlightDataL
 		if (ctx != null) {
 			int rightDraw = ctx.rightDraw;
 			maneuverIndexLen = (int) Math.round(data.maneuverIndex / 0.5 * rightDraw);
-			// ... Constants needed?
+			maneuverIndexLen10 = (int) Math.round(0.1 / 0.5 * rightDraw);
+			maneuverIndexLen20 = (int) Math.round(0.2 / 0.5 * rightDraw);
+			maneuverIndexLen30 = (int) Math.round(0.3 / 0.5 * rightDraw);
+			maneuverIndexLen40 = (int) Math.round(0.4 / 0.5 * rightDraw);
+			maneuverIndexLen50 = (int) Math.round(0.5 / 0.5 * rightDraw);
 		}
 	}
 
