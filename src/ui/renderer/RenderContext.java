@@ -48,6 +48,25 @@ public class RenderContext {
         int fontAdd = getConfigIntOrDefault(config, fontAddKey, 0);
         int columnNum = getConfigIntOrDefault(config, columnKey, 3);
 
+        return create(component, numFontName, labelFontName, fontAdd, columnNum);
+    }
+
+    /**
+     * Create RenderContext from OverlaySettings.
+     */
+    public static RenderContext fromSettings(prog.config.OverlaySettings settings, Component component,
+            String numFontKey, String columnKey, ConfigProvider legacyConfig) {
+
+        String numFontName = getConfigOrDefault(legacyConfig, numFontKey, Application.defaultNumfontName);
+        String labelFontName = (settings != null) ? settings.getFontName() : Application.defaultFont.getFontName();
+        int fontAdd = (settings != null) ? settings.getFontSizeAdd() : 0;
+        int columnNum = getConfigIntOrDefault(legacyConfig, columnKey, 3);
+
+        return create(component, numFontName, labelFontName, fontAdd, columnNum);
+    }
+
+    private static RenderContext create(Component component, String numFontName, String labelFontName, int fontAdd,
+            int columnNum) {
         // Calculate font sizes
         int fontSize = 24 + fontAdd;
         Font numFont = new Font(numFontName, Font.BOLD, fontSize);

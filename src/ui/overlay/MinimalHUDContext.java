@@ -88,7 +88,12 @@ public class MinimalHUDContext {
 
         // 1. Basic Metrics
         b.crossScale = settings.getCrosshairScale();
-        b.hudFontSize = b.crossScale / 4;
+        int fAdd = settings.getFontSizeAdd();
+        b.hudFontSize = (b.crossScale / 4) + fAdd;
+        // Ensure minimum size to prevent crash
+        if (b.hudFontSize < 8)
+            b.hudFontSize = 8;
+
         b.barWidth = b.hudFontSize / 4;
         b.lineWidth = (b.hudFontSize / 10 == 0) ? 1 : b.hudFontSize / 10;
 

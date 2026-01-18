@@ -147,11 +147,22 @@ public class EngineControl extends FieldOverlay {
 	}
 
 	private void loadFontConfig() {
-		String labelFontVal = getConfigSafe(labelFontKey);
-		String fontAddVal = getConfigSafe(fontAddKey);
+		String fontName = "Microsoft YaHei";
+		int fontadd = 0;
 
-		String fontName = !labelFontVal.isEmpty() ? labelFontVal : "Microsoft YaHei";
-		int fontadd = parseIntSafe(fontAddVal, 0);
+		if (groupConfig != null) {
+			if (groupConfig.fontName != null && !groupConfig.fontName.isEmpty()) {
+				fontName = groupConfig.fontName;
+			}
+			fontadd = groupConfig.fontSize;
+		} else {
+			// Fallback to old behavior if no groupConfig
+			String labelFontVal = getConfigSafe(labelFontKey);
+			String fontAddVal = getConfigSafe(fontAddKey);
+			if (!labelFontVal.isEmpty())
+				fontName = labelFontVal;
+			fontadd = parseIntSafe(fontAddVal, 0);
+		}
 
 		fontsize = BASE_FONT_SIZE + fontadd;
 		fontLabel = new Font(fontName, Font.BOLD, Math.round(fontsize / 2.0f));

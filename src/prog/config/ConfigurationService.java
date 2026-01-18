@@ -249,6 +249,18 @@ public class ConfigurationService implements ConfigProvider {
                 saveLayoutConfig();
             }
         }
+
+        @Override
+        public String getFontName() {
+            ConfigLoader.GroupConfig gc = getGroupConfig();
+            return (gc != null) ? gc.fontName : Application.defaultFont.getFontName();
+        }
+
+        @Override
+        public int getFontSizeAdd() {
+            ConfigLoader.GroupConfig gc = getGroupConfig();
+            return (gc != null) ? gc.fontSize : 0;
+        }
     }
 
     // --- HUDSettings Implementation ---

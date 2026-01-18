@@ -57,6 +57,12 @@ public class FlightInfo extends FieldOverlay {
 
 		// Call parent init
 		super.init(config, pool);
+
+		// Initialize overlaySettings for FieldOverlay support
+		if (flightInfoConfig.groupConfig != null && config instanceof prog.Controller) {
+			setOverlaySettings(
+					((prog.Controller) config).configService.getOverlaySettings(flightInfoConfig.groupConfig.title));
+		}
 	}
 
 	/**

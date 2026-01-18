@@ -7,13 +7,8 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
-import java.awt.event.MouseMotionAdapter;
 import java.awt.event.MouseMotionListener;
-
-import javax.swing.SwingConstants;
 
 import com.alee.laf.label.WebLabel;
 import com.alee.laf.panel.WebPanel;
@@ -103,9 +98,7 @@ public class StickValue extends DraggableOverlay implements FlightDataListener {
 
 		setFrameOpaque();
 
-		int twidth = (int) (width + 4 * fontSize);
-		int theight = (int) (height + 1.5 * fontSize);
-
+		setFrameOpaque();
 		px = width / 2;
 		py = width / 2;
 
@@ -451,14 +444,13 @@ public class StickValue extends DraggableOverlay implements FlightDataListener {
 		else
 			NumFont = Application.defaultNumfontName;
 
-		if (xc.getconfig("flightInfoFontC") != "")
-			FontName = xc.getconfig("flightInfoFontC");
-		else
+		if (settings != null) {
+			FontName = settings.getFontName();
+			fontadd = settings.getFontSizeAdd();
+		} else {
 			FontName = Application.defaultFont.getFontName();
-		if (xc.getconfig("flightInfoFontaddC") != "")
-			fontadd = Integer.parseInt(xc.getconfig("flightInfoFontaddC"));
-		else
 			fontadd = 0;
+		}
 
 		fontSize = 24 + fontadd;
 		fontNum = new Font(NumFont, Font.BOLD, fontSize);

@@ -43,9 +43,7 @@ public class GearAndFlaps extends DraggableOverlay {
     private String FontName;
     private int fontadd;
     private int fontSize;
-    private Font fontNum;
     private Font fontLabel;
-    private Font fontUnit;
     private String warnText;
     private Color warnColor;
     private int barWidth;
@@ -211,19 +209,16 @@ public class GearAndFlaps extends DraggableOverlay {
     }
 
     public void reinitConfig() {
-        if (xc.getconfig("flightInfoFontC") != "")
-            FontName = xc.getconfig("flightInfoFontC");
-        else
+        if (settings != null) {
+            FontName = settings.getFontName();
+            fontadd = settings.getFontSizeAdd();
+        } else {
             FontName = Application.defaultFont.getFontName();
-        if (xc.getconfig("flightInfoFontaddC") != "")
-            fontadd = Integer.parseInt(xc.getconfig("flightInfoFontaddC"));
-        else
             fontadd = 0;
+        }
 
         fontSize = 24 + fontadd;
-        fontNum = new Font(FontName, Font.BOLD, fontSize);
         fontLabel = new Font(FontName, Font.BOLD, Math.round(fontSize / 2.0f));
-        fontUnit = new Font(FontName, Font.PLAIN, Math.round(fontSize / 2.0f));
 
         barWidth = fontSize >> 1;
         barHeight = 4 * fontSize;

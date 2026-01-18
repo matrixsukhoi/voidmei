@@ -235,8 +235,8 @@ public class AttitudeIndicator extends DraggableOverlay {
 	}
 
 	public void reinitConfig() {
-		if (xc.getconfig("GlobalNumFont") != "")
-			NumFont = xc.getconfig("GlobalNumFont");
+		if (settings != null)
+			NumFont = settings.getFontName();
 		else
 			NumFont = Application.defaultNumfontName;
 

@@ -110,8 +110,8 @@ public abstract class FieldOverlay extends DraggableOverlay implements FlightDat
     // --- Configuration ---
 
     public void reinitConfig() {
-        renderContext = RenderContext.fromConfig(config, this,
-                numFontKey, labelFontKey, fontAddKey, columnKey);
+        renderContext = RenderContext.fromSettings(overlaySettings, this,
+                numFontKey, columnKey, config);
 
         initFields();
         subscribeToEvents();

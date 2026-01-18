@@ -24,4 +24,14 @@ public interface OverlaySettings {
      * Save absolute pixel coordinates back to the relative coordinate system.
      */
     void saveWindowPosition(double x, double y);
+
+    /**
+     * Get the font name for this overlay.
+     */
+    String getFontName();
+
+    /**
+     * Get the font size adjustment for this overlay.
+     */
+    int getFontSizeAdd();
 }

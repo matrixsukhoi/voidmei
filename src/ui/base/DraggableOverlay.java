@@ -41,6 +41,13 @@ public abstract class DraggableOverlay extends WebFrame implements Runnable {
     protected String posXKey;
     protected String posYKey;
 
+    // Direct section settings
+    protected prog.config.OverlaySettings overlaySettings;
+
+    public void setOverlaySettings(prog.config.OverlaySettings settings) {
+        this.overlaySettings = settings;
+    }
+
     // Dragging State
     private int isDragging;
     private int dragStartX, dragStartY;
