@@ -61,9 +61,11 @@ public class FlapAngleBar {
         int strWidth = g2d.getFontMetrics(font).stringWidth(displayText);
         int strX = x + (totalWidth - strWidth) / 2;
         UIBaseElements.__drawStringShade(g2d, strX, y, 1, displayText, font, Application.colorNum);
+        Application.debugPrint("Component: FlapAngleBar Text, x=" + strX + ", y=" + y);
 
         // Bar position below text
         int barY = y + font.getSize() / 4;
+        Application.debugPrint("Component: FlapAngleBar Bar, x=" + x + ", y=" + barY);
 
         // Calculate section widths
         int blueWidth = (int) (currentAngle * totalWidth / MAX_SCALE);
@@ -89,6 +91,7 @@ public class FlapAngleBar {
             int tx = x + (int) (tick * totalWidth / MAX_SCALE);
             int ext = (tick == 100) ? barHeight : barHeight / 4;
             g2d.drawLine(tx, barY - ext - 4, tx, barY);
+            Application.debugPrint("Component: FlapAngleBar Tick[" + tick + "], x=" + tx + ", y=" + barY);
         }
 
         // Draw blue section (0 → currentAngle)

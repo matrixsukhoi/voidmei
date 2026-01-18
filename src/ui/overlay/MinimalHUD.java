@@ -134,59 +134,17 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 	public int throttleLineWidth = 1;
 
 	public void drawFlapAngleBar(Graphics2D g, int x, int y) {
-		// 绘制襟翼角度文本
-		int strWidth = g.getFontMetrics(drawFontSmall).stringWidth(lineFlapAngle);
-		int strX = x + (Width - x - HUDFontsize / 2 - strWidth) / 2;
-		UIBaseElements.__drawStringShade(g, strX, y, 1, lineFlapAngle, drawFontSmall, Application.colorNum);
-		Application.debugPrint("Component: FlapAngleBar Text, x=" + strX + ", y=" + y);
-		Application.debugPrint("Component: FlapAngleBar Bar, x=" + x + ", y=" + (y + HUDFontSizeSmall / 4));
+		if (flapAngleBar != null) {
+			// Update state
+			flapAngleBar.update(flapA, flapAllowA);
 
-		// 横条参数
-		int barY = y + HUDFontSizeSmall / 4;
-		int barHeight = lineWidth + 2;
-		// 让横条填满右侧空间 (Width 是总宽, x 是起始x坐标, 预留一点右边距)
-		int barTotalWidth = Width - x - HUDFontsize / 2;
+			// Calculate specific dimensions for component, mirroring previous logic
+			int barTotalWidth = Width - x - HUDFontsize / 2;
+			int barHeight = lineWidth + 2;
 
-		// 计算三色区域宽度 (0-125范围映射到barTotalWidth)
-		int blueWidth = (int) (flapA * barTotalWidth / 125.0);
-		int greenWidth = (int) ((flapAllowA - flapA) * barTotalWidth / 125.0);
-		int redWidth = barTotalWidth - blueWidth - greenWidth;
-
-		// 画刻度线
-		g.setColor(Application.colorLabel);
-		g.setStroke(new BasicStroke(2));
-
-		int[] ticks = { 20, 33, 60, 100 };
-		for (int t : ticks) {
-			int tx = x + (int) (t * barTotalWidth / 125.0);
-			// 100处刻度更长 (延伸 barHeight), 其他较短 (延伸 1/4)
-			int ext = (t == 100) ? barHeight : barHeight / 4;
-
-			// 绘制白色本体
-			g.setColor(Application.colorLabel);
-			g.setStroke(new BasicStroke(2));
-			g.drawLine(tx, barY - ext - 4, tx, barY);
-			Application.debugPrint("Component: FlapAngleBar Tick[" + t + "], x=" + tx + ", y=" + barY);
+			// Delegate drawing
+			flapAngleBar.draw(g, x, y, barTotalWidth, barHeight, drawFontSmall);
 		}
-
-		// 绘制蓝色区域 (0 → flapA)
-		if (blueWidth > 0) {
-			g.setColor(Application.colorShadeShape);
-			g.fillRect(x, barY, blueWidth, barHeight);
-		}
-
-		// 绘制绿色区域 (flapA → flapAllowA)
-		if (greenWidth > 0) {
-			g.setColor(Application.colorNum);
-			g.fillRect(x + blueWidth, barY, greenWidth, barHeight);
-		}
-
-		// 绘制红色区域 (flapAllowA → 125)
-		if (redWidth > 0) {
-			g.setColor(Application.colorWarning);
-			g.fillRect(x + blueWidth + greenWidth, barY, redWidth, barHeight);
-		}
-
 	}
 
 	public void drawTextseries(Graphics2D g, int x, int y) {
