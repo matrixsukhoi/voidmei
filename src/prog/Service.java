@@ -543,9 +543,29 @@ public class Service implements Runnable {
 			data.put("radiator_int", String.valueOf(sState.radiator));
 			data.put("rpm_throttle_int", String.valueOf(sState.RPMthrottle));
 			data.put("compressor_int", String.valueOf(sState.compressorstage));
+			// MinimalHUD state keys
+			data.put("airbrake_int", String.valueOf(sState.airbrake));
+			data.put("gear_int", String.valueOf(sState.gear));
+			data.put("flaps_int", String.valueOf(sState.flaps));
+			data.put("AoA_f", String.valueOf(sState.AoA));
+			data.put("AoS_f", String.valueOf(sState.AoS));
+			data.put("Ny_f", String.valueOf(sState.Ny));
+			data.put("IAS_f", String.valueOf(sState.IAS));
+			data.put("M_f", String.valueOf(sState.M));
 		}
 		data.put("fuel_percent_int", String.valueOf(fuelPercent));
 		data.put("thrust_percent_int", String.valueOf((int) thurstPercent));
+
+		// MinimalHUD attitude & warning keys (from sIndic)
+		if (sIndic != null) {
+			data.put("aviahorizon_pitch", String.valueOf(sIndic.aviahorizon_pitch));
+			data.put("aviahorizon_roll", String.valueOf(sIndic.aviahorizon_roll));
+			data.put("compass_f", String.valueOf(sIndic.compass));
+		}
+		data.put("energyM", String.valueOf(energyM));
+		data.put("fatalWarn", String.valueOf(fatalWarn));
+		data.put("radioAlt_f", String.valueOf(radioAlt));
+		data.put("radioAltValid", String.valueOf(radioAltValid));
 
 		// 2. Publish Event (Data Plane)
 		FlightDataBus.getInstance().publish(new FlightDataEvent(data));

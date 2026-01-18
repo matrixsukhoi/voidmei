@@ -14,18 +14,26 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionAdapter;
 import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
+import java.util.Map;
 
 import com.alee.laf.panel.WebPanel;
-import com.alee.laf.rootpane.WebFrame;
 
 import prog.Application;
 import prog.Controller;
 import prog.OtherService;
 import prog.Service;
+import prog.event.FlightDataBus;
+import prog.event.FlightDataEvent;
+import prog.event.FlightDataListener;
 import ui.UIBaseElements;
 import ui.WebLafSettings;
+import ui.base.DraggableOverlay;
 
-public class MinimalHUD extends WebFrame implements Runnable {
+/**
+ * MinimalHUD overlay for displaying compact flight information.
+ * Being migrated to event-driven architecture.
+ */
+public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 
 	/**
 	 * 
@@ -71,6 +79,12 @@ public class MinimalHUD extends WebFrame implements Runnable {
 	int blinkCheckTicks = 0;
 	public boolean warnRH;
 
+	// Reusable UI Components (high-performance, cached strokes)
+	private ui.component.CrosshairGauge crosshairGauge;
+	private ui.component.FlapAngleBar flapAngleBar;
+	private ui.component.WarningOverlay warningOverlay;
+	private ui.component.CompassGauge compassGauge;
+
 	public void setFrameOpaque() {
 		this.getWebRootPaneUI().setMiddleBg(new Color(0, 0, 0, 0));// 中部透明
 		this.getWebRootPaneUI().setTopBg(new Color(0, 0, 0, 0));// 顶部透明
@@ -88,24 +102,13 @@ public class MinimalHUD extends WebFrame implements Runnable {
 	public Boolean blinkActing = false;
 
 	public void drawBlinkX(Graphics2D g) {
-		// 高度警告标记
+		// 高度警告标记 - now using reusable component
 		if (blinkX) {
-			if (!blinkActing) {
-				//
-				g.setStroke(new BasicStroke(5));
-				g.setColor(Application.colorShadeShape);
-
-				g.drawLine(2, 2, Width - 2, Height - 2);
-				g.drawLine(Width - 2, 2, 2, Height - 2);
-				g.setStroke(new BasicStroke(3));
-				g.setColor(Application.colorNum);
-				g.drawLine(1, 1, Width - 1, Height - 1);
-				g.drawLine(Width - 1, 1, 1, Height - 1);
-
+			if (warningOverlay != null) {
+				warningOverlay.draw(g, 0, 0, Width, Height, blinkActing);
 			}
 			blinkCheckTicks += 1;
 			if (blinkCheckTicks % blinkTicks == 0) {
-				// Application.debugPrint(blinkTicks +"?" + blinkCheckTicks);
 				blinkActing = !blinkActing;
 			}
 		}
@@ -120,34 +123,10 @@ public class MinimalHUD extends WebFrame implements Runnable {
 	}
 
 	public void drawCrossair(Graphics2D g, int dx, int dy, int CrossX, int CrossY, int CrossWidth) {
-		int l = 4;
-
-		g.setStroke(new BasicStroke(3));
-		g.setColor(new Color(0, 0, 0, 75));
-
-		// 圆圈
-		g.drawOval((dx - CrossWidth) / 2, (dy - CrossWidth) / 2, CrossWidth, CrossWidth);
-		// 横线1
-		g.drawLine(CrossX - CrossWidth * l / 4, CrossY, CrossX - CrossWidth / 4, CrossY);
-		// 横线2
-		g.drawLine(CrossX + CrossWidth / 4, CrossY, CrossX + CrossWidth * l / 4, CrossY);
-		// 竖线1
-		g.drawLine(CrossX, CrossY - CrossWidth * l / 4, CrossX, CrossY - CrossWidth / 4);
-		// 竖线2
-		g.drawLine(CrossX, CrossY + CrossWidth / 4, CrossX, CrossY + CrossWidth * l / 4);
-
-		g.setStroke(new BasicStroke(2));
-		g.setColor(new Color(255, 215, 8, 255));
-		// 圆圈
-		g.drawOval((dx - CrossWidth) / 2, (dy - CrossWidth) / 2, CrossWidth, CrossWidth);
-		// 横线1
-		g.drawLine(CrossX - CrossWidth * l / 4, CrossY, CrossX - CrossWidth / 4, CrossY);
-		// 横线2
-		g.drawLine(CrossX + CrossWidth / 4, CrossY, CrossX + CrossWidth * l / 4, CrossY);
-		// 竖线1
-		g.drawLine(CrossX, CrossY - CrossWidth * l / 4, CrossX, CrossY - CrossWidth / 4);
-		// 竖线2
-		g.drawLine(CrossX, CrossY + CrossWidth / 4, CrossX, CrossY + CrossWidth * l / 4);
+		// Now using reusable CrosshairGauge component with cached strokes
+		if (crosshairGauge != null) {
+			crosshairGauge.draw(g, CrossX, CrossY, CrossWidth);
+		}
 	}
 
 	public int throttley = 0;
@@ -932,6 +911,12 @@ public class MinimalHUD extends WebFrame implements Runnable {
 		flapAllowA = 100.0;
 		lineFlapAngle = String.format("%3.0f/%3.0f", flapA, flapAllowA);
 
+		// Initialize reusable UI components (high-performance)
+		crosshairGauge = new ui.component.CrosshairGauge();
+		flapAngleBar = new ui.component.FlapAngleBar();
+		warningOverlay = new ui.component.WarningOverlay();
+		compassGauge = new ui.component.CompassGauge(roundCompass);
+
 		panel = new WebPanel() {
 
 			private static final long serialVersionUID = -9061280572815010060L;
@@ -1005,13 +990,19 @@ public class MinimalHUD extends WebFrame implements Runnable {
 		if (blinkTicks == 0)
 			blinkTicks = 1;
 
+		// Load refresh interval from config
+		refreshInterval = (long) (xc.freqService * 1.0); // Match freqService
+
 		setTitle("miniHUD");
 		WebLafSettings.setWindowOpaque(this);
 		root = this.getContentPane();
 		// this.createBufferStrategy(2);
 
-		if (s != null)
+		// Subscribe to events for game mode
+		if (s != null) {
+			subscribeToEvents();
 			setVisible(true);
+		}
 
 	}
 
@@ -1270,24 +1261,83 @@ public class MinimalHUD extends WebFrame implements Runnable {
 		root.repaint();
 	}
 
+	// --- Event-Driven Update ---
+
+	// Throttling for refresh rate
+	private static final long DEFAULT_REFRESH_INTERVAL = 100; // ms
+	private long refreshInterval = DEFAULT_REFRESH_INTERVAL;
+	private long lastRefreshTime = 0;
+
+	@Override
+	public void onFlightData(FlightDataEvent event) {
+		// Throttle updates based on configured refresh interval
+		long now = System.currentTimeMillis();
+		if (now - lastRefreshTime < refreshInterval) {
+			return; // Skip this update, too soon
+		}
+		lastRefreshTime = now;
+
+		javax.swing.SwingUtilities.invokeLater(() -> {
+			updateFromEvent(event);
+			if (root != null)
+				root.repaint();
+		});
+	}
+
+	/**
+	 * Update HUD state from FlightDataEvent.
+	 * 
+	 * NOTE: Phase 2 Partial Migration
+	 * The event-driven architecture is in place (updates triggered by
+	 * FlightDataEvent),
+	 * but data is still read from Service (xs) fields for now because:
+	 * 1. updateString() has complex dependencies on Blkx flight model data
+	 * 2. Map coordinate calculations require Service.mapinfo
+	 * 3. Many calculated warning thresholds depend on Blkx.getVNE/getAoA methods
+	 * 
+	 * Future work: Move calculations to Service and expose via FlightDataEvent
+	 * keys.
+	 */
+	private void updateFromEvent(FlightDataEvent event) {
+		Map<String, String> data = event.getData();
+
+		// Read simple values from event where available
+		String fatalWarnStr = data.get("fatalWarn");
+		if (fatalWarnStr != null) {
+			blinkX = Boolean.parseBoolean(fatalWarnStr);
+		}
+
+		// Delegate complex calculations to legacy method
+		// which still reads from xs (Service) for Blkx-dependent logic
+		if (xs != null) {
+			updateString();
+		}
+	}
+
+	/**
+	 * Subscribe to flight data events.
+	 */
+	public void subscribeToEvents() {
+		FlightDataBus.getInstance().register(this);
+	}
+
+	/**
+	 * Unsubscribe from flight data events.
+	 */
+	public void unsubscribeFromEvents() {
+		FlightDataBus.getInstance().unregister(this);
+	}
+
 	@Override
 	public void run() {
+		// Event-driven - no polling needed
+		// Kept for compatibility with DraggableOverlay interface
+	}
 
-		while (doit) {
-			try {
-				Thread.sleep(Application.threadSleepTime);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-
-			long time = xs.SystemTime;
-			if (time - hudCheckMili > xc.freqService) {
-
-				hudCheckMili = xs.SystemTime;
-				drawTick();
-			}
-		}
+	@Override
+	public void dispose() {
+		unsubscribeFromEvents();
+		super.dispose();
 	}
 
 }
