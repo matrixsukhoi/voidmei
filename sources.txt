@@ -36,6 +36,7 @@ src/prog/config/ConfigurationService.java
 src/prog/config/ConfigWatcherService.java
 src/prog/config/ConfigProvider.java
 src/prog/config/ConfigLoader.java
+src/prog/config/HUDSettings.java
 src/prog/config/Config.java
 src/prog/OverlayContext.java
 src/ui/MainForm.java

@@ -197,4 +197,122 @@ public class ConfigurationService implements ConfigProvider {
         setConfig(key + "B", Integer.toString(B));
         setConfig(key + "A", Integer.toString(A));
     }
+
+    // --- HUDSettings Implementation (Option 2 Refactoring) ---
+
+    public HUDSettings getHUDSettings() {
+        return new HUDSettingsImpl();
+    }
+
+    private class HUDSettingsImpl implements HUDSettings {
+        private boolean getBool(String key, boolean def) {
+            String val = getConfig(key);
+            return val.isEmpty() ? def : Boolean.parseBoolean(val);
+        }
+
+        private int getInt(String key, int def) {
+            String val = getConfig(key);
+            try {
+                return val.isEmpty() ? def : Integer.parseInt(val);
+            } catch (NumberFormatException e) {
+                return def;
+            }
+        }
+
+        private double getDouble(String key, double def) {
+            String val = getConfig(key);
+            try {
+                return val.isEmpty() ? def : Double.parseDouble(val);
+            } catch (NumberFormatException e) {
+                return def;
+            }
+        }
+
+        @Override
+        public String getNumFont() {
+            String font = getConfig("MonoNumFont");
+            return font.isEmpty() ? Application.defaultNumfontName : font;
+        }
+
+        @Override
+        public int getWindowX(int canvasWidth) {
+            return getInt("crosshairX", (Application.screenWidth - canvasWidth) / 2);
+        }
+
+        @Override
+        public int getWindowY(int canvasHeight) {
+            return getInt("crosshairY", (Application.screenHeight - canvasHeight) / 2);
+        }
+
+        @Override
+        public int getCrosshairScale() {
+            int scale = getInt("crosshairScale", 70);
+            return scale == 0 ? 1 : scale;
+        }
+
+        @Override
+        public String getCrosshairName() {
+            return getConfig("crosshairName").trim();
+        }
+
+        @Override
+        public boolean isDisplayCrosshair() {
+            return getBool("displayCrosshair", false);
+        }
+
+        @Override
+        public boolean useTextureCrosshair() {
+            return getBool("usetexturecrosshair", false);
+        }
+
+        @Override
+        public boolean drawHUDText() {
+            return getBool("drawHUDtext", true);
+        }
+
+        @Override
+        public boolean drawHUDAttitude() {
+            return getBool("drawHUDAttitude", true);
+        }
+
+        @Override
+        public double getAoAWarningRatio() {
+            return getDouble("miniHUDaoaWarningRatio", 0.25);
+        }
+
+        @Override
+        public double getAoABarWarningRatio() {
+            return getDouble("miniHUDaoaBarWarningRatio", 0);
+        }
+
+        @Override
+        public boolean enableFlapAngleBar() {
+            return getBool("enableFlapAngleBar", true);
+        }
+
+        @Override
+        public boolean drawHudMach() {
+            return getBool("hudMach", false);
+        }
+
+        @Override
+        public boolean isSpeedLabelDisabled() {
+            return getBool("disableHUDSpeedLabel", false);
+        }
+
+        @Override
+        public boolean isAltitudeLabelDisabled() {
+            return getBool("disableHUDHeightLabel", false);
+        }
+
+        @Override
+        public boolean isSEPLabelDisabled() {
+            return getBool("disableHUDSEPLabel", false);
+        }
+
+        @Override
+        public boolean isAoADisabled() {
+            return getBool("disableHUDAoA", false);
+        }
+    }
 }
