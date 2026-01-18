@@ -87,36 +87,39 @@ public class AttitudeIndicatorGauge implements HUDComponent {
         updateStrokes(lineWidth);
         double rollDegRad = Math.toRadians(rollDeg);
 
+        int targetX = centerX - aosX;
+        int targetY = centerY + (int) pitch;
+
         // 绘制地面和牵引线 (Draw ground/traction line)
         g2d.setStroke(strokeThick);
         g2d.setColor(Application.colorShadeShape);
-        g2d.drawLine(centerX + aosX, centerY + (int) pitch, centerX, centerY);
+        g2d.drawLine(centerX, centerY, targetX, targetY);
 
         g2d.setStroke(strokeThin);
         g2d.setColor(Application.colorLabel);
-        g2d.drawLine(centerX + aosX, centerY + (int) pitch, centerX, centerY);
+        g2d.drawLine(centerX, centerY, targetX, targetY);
 
-        // 旋转整个组合图形表示横滚角 (Rotate for roll)
+        // 旋转整个组合图形表示横滚角 (Rotate for roll around target)
         AffineTransform oldTransform = g2d.getTransform();
-        AffineTransform transform = AffineTransform.getRotateInstance(-rollDegRad, centerX, centerY);
+        AffineTransform transform = AffineTransform.getRotateInstance(-rollDegRad, targetX, targetY);
         g2d.setTransform(transform);
 
         // Draw Shade (Thick)
         g2d.setStroke(new BasicStroke(lineWidth + 2, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
         g2d.setColor(Application.colorShadeShape);
-        drawMarks(g2d, centerX, centerY, compassDiameter, compassRadius, compassInnerMarkRadius, halfLine);
+        drawMarks(g2d, targetX, targetY, compassDiameter, compassRadius, compassInnerMarkRadius, halfLine);
 
         // Draw Main (Thin)
         g2d.setStroke(new BasicStroke(lineWidth, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
         g2d.setColor(Application.colorNum);
-        drawMarks(g2d, centerX, centerY, compassDiameter, compassRadius, compassInnerMarkRadius, halfLine);
+        drawMarks(g2d, targetX, targetY, compassDiameter, compassRadius, compassInnerMarkRadius, halfLine);
 
         g2d.setTransform(oldTransform);
 
-        // 画文字 (Draw Text)
+        // 画文字 (Draw Text at target position)
         if (font != null) {
             Color textColor = (roundHorizon >= 0) ? Application.colorNum : Application.colorUnit;
-            UIBaseElements.__drawStringShade(g2d, centerX, centerY - 1, 1, sAttitude, font, textColor);
+            UIBaseElements.__drawStringShade(g2d, targetX, targetY - 1, 1, sAttitude, font, textColor);
         }
     }
 
