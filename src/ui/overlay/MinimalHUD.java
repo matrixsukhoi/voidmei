@@ -138,6 +138,8 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 		int strWidth = g.getFontMetrics(drawFontSmall).stringWidth(lineFlapAngle);
 		int strX = x + (Width - x - HUDFontsize / 2 - strWidth) / 2;
 		UIBaseElements.__drawStringShade(g, strX, y, 1, lineFlapAngle, drawFontSmall, Application.colorNum);
+		Application.debugPrint("Component: FlapAngleBar Text, x=" + strX + ", y=" + y);
+		Application.debugPrint("Component: FlapAngleBar Bar, x=" + x + ", y=" + (y + HUDFontSizeSmall / 4));
 
 		// 横条参数
 		int barY = y + HUDFontSizeSmall / 4;
@@ -164,6 +166,7 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 			g.setColor(Application.colorLabel);
 			g.setStroke(new BasicStroke(2));
 			g.drawLine(tx, barY - ext - 4, tx, barY);
+			Application.debugPrint("Component: FlapAngleBar Tick[" + t + "], x=" + tx + ", y=" + barY);
 		}
 
 		// 绘制蓝色区域 (0 → flapA)
@@ -196,6 +199,7 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 				throttley, 1,
 				Application.colorNum, throttleColor, "",
 				lineThrottle, drawFontSSmall, drawFontSSmall);
+		Application.debugPrint("Component: ThrottleBar, x=" + (kx + barWidth) + ", y=" + (baseYOffset + yOffset));
 
 		x += barWidth + 3 * drawFontSSmall.getSize() / 2;
 		kx += barWidth + 3 * drawFontSSmall.getSize() / 2;
@@ -204,9 +208,9 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 		if (drawAttitude && !disableAttitude) {
 			if (!blinkX || (blinkX && !blinkActing)) {
 				// 计算小圆形的位置
-
 				int circleX = lineWidth - aosX + attitudeCenterOffset;
 				int circleY = (int) (baseYOffset + yOffset - 2.5 * HUDFontsize + compassDiameter / 2 - pitch);
+				Application.debugPrint("Component: AttitudeIndicator, x=" + circleX + ", y=" + circleY);
 				double rollDegRad = Math.toRadians(rollDeg);
 				// 绘制地面和牵引线
 				g.setStroke(strokeThick);
@@ -264,7 +268,6 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 		}
 
 		for (int i = 0; i < 5; i++) {
-
 			// i = 0画直线提示
 			if (i == 0) {
 
@@ -281,6 +284,7 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 						aoaColor);
 
 			}
+			Application.debugPrint("Component: TextLine[" + i + "], x=" + x + ", y=" + (n + y));
 			if ((i == 2 && inAction) || (i == 0 && warnVne) || (i == 1 && warnRH)) {
 				UIBaseElements.__drawStringShade(g, x, n + y, 1, lines[i], drawFont, Application.colorWarning);
 			} else
@@ -288,6 +292,7 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 
 			if (i == 4) {
 				// 机动性指标线
+				Application.debugPrint("Component: ManeuverIndex (Line 4), x=" + x + ", y=" + (n + y));
 
 				g.setColor(Application.colorShadeShape);
 				g.setStroke(strokeThick);
@@ -299,6 +304,8 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 						x + rightDraw - maneuverIndexLen10, n + y + halfLine - lineWidth + lineWidth);
 
 				if (maneuverIndex >= 0.1) {
+					Application.debugPrint("Component: ManeuverIndex (>=0.1), x=" + (x + rightDraw - maneuverIndexLen20)
+							+ ", y=" + (n + y + halfLine));
 					g.setColor(Application.colorShadeShape);
 					g.setStroke(strokeThick);
 					g.drawLine(x + rightDraw - maneuverIndexLen20, n + y + halfLine + lineWidth + lineWidth,
@@ -309,6 +316,8 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 							x + rightDraw - maneuverIndexLen20, n + y + halfLine - lineWidth + lineWidth);
 				}
 				if (maneuverIndex >= 0.2) {
+					Application.debugPrint("Component: ManeuverIndex (>=0.2), x=" + (x + rightDraw - maneuverIndexLen30)
+							+ ", y=" + (n + y + halfLine));
 					g.setColor(Application.colorShadeShape);
 					g.setStroke(strokeThick);
 					g.drawLine(x + rightDraw - maneuverIndexLen30, n + y + halfLine + lineWidth + lineWidth,
@@ -358,12 +367,14 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 		// 画一个半圆
 
 		// 绘制方向
+		// System.out.println(" [Draw] TextSeries: Drawing compass...");
 		// n += 2;
 		// 2倍半径
 		int r = roundCompass;
 		n -= 2 * HUDFontsize - 2;
 		kx += rightDraw + r;
 
+		Application.debugPrint("Component: Compass, x=" + kx + ", y=" + (n + yOffset));
 		g.setStroke(strokeOutline);
 		g.setColor(Application.colorShadeShape);
 
@@ -390,6 +401,7 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 	}
 
 	public void initPreview(Controller c) {
+		Application.debugPrint("MinimalHUD: initPreview called");
 		init(c, null, null);
 
 		this.getWebRootPaneUI().setTopBg(Application.previewColor);
@@ -471,6 +483,7 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 	int windowY;
 
 	public void reinitConfig() {
+		Application.debugPrint("MinimalHUD: reinitConfig called");
 
 		if (controller.getconfig("MonoNumFont") != "")
 			NumFont = controller.getconfig("MonoNumFont");
@@ -546,6 +559,8 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 			Width = (int) (CrossWidth * 2.25);
 		}
 		Height = (int) (CrossWidth * 1.5) + (int) (HUDFontsize * 3.5);
+		Application
+				.debugPrint("MinimalHUD Config: Width=" + Width + ", Height=" + Height + ", CrossWidth=" + CrossWidth);
 		CrossWidthVario = CrossWidth;
 		if (lineWidth == 0)
 			lineWidth = 1;
@@ -625,6 +640,7 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 	}
 
 	public void init(Controller c, Service s, OtherService os) {
+		Application.debugPrint("MinimalHUD: init called");
 		service = s;
 		controller = c;
 		velocityX = 0;
@@ -709,7 +725,7 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 			private static final long serialVersionUID = -9061280572815010060L;
 
 			public void paintComponent(Graphics g) {
-
+				Application.debugPrint("MinimalHUD: paintComponent start");
 				Graphics2D g2d = (Graphics2D) g;
 				g2d.setPaintMode();
 				g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, Application.graphAASetting);
@@ -731,9 +747,13 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 				}
 				if (crossOn) {
 					if (busetexturecrosshair) {
+						Application.debugPrint("Component: Crosshair (Texture), x=" + (Width + CrossX - CrossWidthVario)
+								+ ", y=" + (CrossY - CrossWidthVario));
 						g2d.drawImage(crosshairImageScaled, Width + CrossX - CrossWidthVario, CrossY - CrossWidthVario,
 								CrossWidthVario * 2, CrossWidthVario * 2, this);
 					} else {
+						Application.debugPrint(
+								"Component: Crosshair (Vector), x=" + (Width + CrossX) + ", y=" + CrossY);
 						drawCrossair(g2d, 2 * Width, 1 * Height, Width + CrossX, CrossY, CrossWidth);
 					}
 				}
