@@ -12,8 +12,7 @@ import java.awt.Toolkit;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionAdapter;
-import java.awt.geom.AffineTransform;
-import java.awt.image.BufferedImage;
+
 import java.util.Map;
 
 import com.alee.laf.panel.WebPanel;
@@ -179,7 +178,7 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 			}
 		}
 
-		// Update Row Data
+		// TextRow
 		if (hudRows != null && hudRows.size() >= 5) {
 			// Row 0: AoA
 			((ui.component.row.HUDAkbRow) hudRows.get(0)).update(
@@ -221,40 +220,19 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 		}
 		verticalTextOffset += 2;
 
-		// 画一个半圆
+		// Compass
+		if (compassGauge != null) {
+			compassGauge.update((float) compassRads, compassDx, compassDy, lineCompass, lineLoc);
 
-		// 绘制方向
-		// System.out.println(" [Draw] TextSeries: Drawing compass...");
-		// n += 2;
-		// 2倍半径
-		int r = roundCompass;
-		verticalTextOffset -= 2 * HUDFontsize - 2;
-		kx += rightDraw + r;
+			int r = roundCompass;
+			verticalTextOffset -= 2 * HUDFontsize - 2;
+			kx += rightDraw + r;
 
-		Application.debugPrint("Component: Compass, x=" + kx + ", y=" + (verticalTextOffset + yOffset));
-		g.setStroke(strokeOutline);
-		g.setColor(Application.colorShadeShape);
+			compassGauge.draw(g, kx, verticalTextOffset + yOffset, lineWidth, HUDFontsize, HUDFontSizeSmall,
+					drawFontSmall);
 
-		g.drawLine(kx + r + (int) (0.618 * r * Math.sin(compassRads)),
-				verticalTextOffset + yOffset + r - (int) (0.618 * r * Math.cos(compassRads)), kx + r + compassDx,
-				verticalTextOffset + yOffset + r - compassDy);
-		g.drawOval(kx, verticalTextOffset + yOffset, r + r, r + r);
-
-		g.setStroke(strokeInline);
-		g.setColor(Application.colorNum);
-
-		g.drawLine(kx + r + (int) (0.618 * r * Math.sin(compassRads)),
-				verticalTextOffset + yOffset + r - (int) (0.618 * r * Math.cos(compassRads)), kx + r + compassDx,
-				verticalTextOffset + yOffset + r - compassDy);
-		g.drawOval(kx, verticalTextOffset + yOffset, r + r, r + r);
-		UIBaseElements.drawStringShade(g, kx + lineWidth + 3, verticalTextOffset + y - (r - HUDFontsize) / 2, 1,
-				lineCompass,
-				drawFontSmall);
-		UIBaseElements.drawStringShade(g, kx + lineWidth + 3, verticalTextOffset + y + r + HUDFontSizeSmall / 2, 1,
-				lineLoc,
-				drawFontSmall);
-
-		verticalTextOffset = verticalTextOffset + 3 * roundCompass;
+			verticalTextOffset += 3 * roundCompass;
+		}
 
 		drawBlinkX(g);
 	}
@@ -320,8 +298,6 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 	private double aoaBarWarningRatio;
 	private int HUDFontSizeSmall;
 	private String relEnergy;
-	private BasicStroke strokeOutline;
-	private BasicStroke strokeInline;
 	private BasicStroke strokeThick;
 	private BasicStroke strokeThin;
 	private int halfLine;
@@ -336,7 +312,7 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 	// 襟翼角度
 	private double flapA;
 	private double flapAllowA;
-	private String lineFlapAngle;
+
 	private boolean enableFlapAngleBar;
 	int windowX;
 	int windowY;
@@ -471,13 +447,6 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 		if (aoaY > rightDraw)
 			aoaY = rightDraw;
 
-		throttlew = (110 * HUDFontsize * 5) / 110;
-		throttlem = (100 * HUDFontsize * 5) / 110;
-		throttlec = (80 * HUDFontsize * 5) / 110;
-		throttleh = (50 * HUDFontsize * 5) / 110;
-
-		strokeOutline = new BasicStroke(lineWidth + 2, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
-		strokeInline = new BasicStroke(lineWidth, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
 		halfLine = (lineWidth / 2 == 0) ? 1 : (int) Math.round(lineWidth / 2.0f);
 		strokeThick = new BasicStroke(halfLine + 2, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
 		strokeThin = new BasicStroke(halfLine, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
@@ -528,7 +497,7 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 		lineAoA = String.format("α%3.0f", 20.0);
 		relEnergy = "E114514";
 		sAttitude = "";
-		sAttitudeRoll = "";
+
 		if (controller.getconfig("disableHUDAoA") != "") {
 			if (Boolean.parseBoolean(c.getconfig("disableHUDAoA"))) {
 				lineAoA = "";
@@ -544,13 +513,6 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 		aoaColor = Application.colorNum;
 		aoaBarColor = Application.colorNum;
 
-		throttlew = (110 * HUDFontsize * 5) / 110;
-		throttlem = (100 * HUDFontsize * 5) / 110;
-		throttlec = (80 * HUDFontsize * 5) / 110;
-		throttleh = (50 * HUDFontsize * 5) / 110;
-
-		strokeOutline = new BasicStroke(lineWidth + 2, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
-		strokeInline = new BasicStroke(lineWidth, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
 		halfLine = (lineWidth / 2 == 0) ? 1 : (int) Math.round(lineWidth / 2.0f);
 		strokeThick = new BasicStroke(halfLine + 2, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
 		strokeThin = new BasicStroke(halfLine, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
@@ -571,7 +533,6 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 
 		flapA = 20.0;
 		flapAllowA = 100.0;
-		lineFlapAngle = String.format("%3.0f/%3.0f", flapA, flapAllowA);
 
 		// Initialize reusable UI components (high-performance)
 		crosshairGauge = new ui.component.CrosshairGauge();
@@ -666,17 +627,15 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 	private int aosX;
 
 	double realSpdPitch;
-	private int throttlem;
-	private int throttlec;
-	private int throttleh;
+
 	private String sAttitude;
-	private String sAttitudeRoll;
+
 	private double compassRads;
 	private int roundHorizon;
-	private int throttlew;
+
 	private double maneuverIndex;
 	private int maneuverIndexLen;
-	private int maneuverIndexLen15;
+
 	private int maneuverIndexLen30;
 	private int maneuverIndexLen10;
 	private int maneuverIndexLen20;
@@ -870,7 +829,7 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 		}
 		// 姿态
 		sAttitude = "";
-		sAttitudeRoll = "";
+
 		disableAttitude = false;
 		roundHorizon = (int) Math.round(-aviahp);
 		if (aviahp != -65535) {
@@ -882,13 +841,7 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 			disableAttitude = true;
 		}
 
-		if (aviar != -65535) {
-			int roundRoll = (int) Math.round(-aviar);
-			if (roundRoll > 0)
-				sAttitudeRoll = String.format("\\%3d", roundRoll);
-			if (roundRoll < 0)
-				sAttitudeRoll = String.format("/%3d", -roundRoll);
-		} else {
+		if (aviar == -65535) {
 			disableAttitude = true;
 		}
 
@@ -900,7 +853,7 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 		// 襟翼角度显示
 		flapA = service.sState.flaps;
 		flapAllowA = service.getFlapAllowAngle(service.sState.IAS, service.isDowningFlap);
-		lineFlapAngle = String.format("%3.0f/%3.0f", flapA, flapAllowA);
+
 	}
 
 	public void drawTick() {
