@@ -198,7 +198,7 @@ public class ConfigurationService implements ConfigProvider {
         setConfig(key + "A", Integer.toString(A));
     }
 
-    // --- HUDSettings Implementation (Option 2 Refactoring) ---
+    // --- HUDSettings Implementation ---
 
     public HUDSettings getHUDSettings() {
         return new HUDSettingsImpl();
@@ -236,12 +236,44 @@ public class ConfigurationService implements ConfigProvider {
 
         @Override
         public int getWindowX(int canvasWidth) {
+            ConfigLoader.GroupConfig gc = getGroupConfig();
+            if (gc != null) {
+                return (int) (gc.x * Application.screenWidth);
+            }
             return getInt("crosshairX", (Application.screenWidth - canvasWidth) / 2);
         }
 
         @Override
         public int getWindowY(int canvasHeight) {
+            ConfigLoader.GroupConfig gc = getGroupConfig();
+            if (gc != null) {
+                return (int) (gc.y * Application.screenHeight);
+            }
             return getInt("crosshairY", (Application.screenHeight - canvasHeight) / 2);
+        }
+
+        @Override
+        public void saveWindowPosition(double x, double y) {
+            ConfigLoader.GroupConfig gc = getGroupConfig();
+            if (gc != null) {
+                gc.x = x / Application.screenWidth;
+                gc.y = y / Application.screenHeight;
+                saveLayoutConfig();
+            } else {
+                setConfig("crosshairX", Integer.toString((int) x));
+                setConfig("crosshairY", Integer.toString((int) y));
+            }
+        }
+
+        private ConfigLoader.GroupConfig getGroupConfig() {
+            if (layoutConfigs != null) {
+                for (ConfigLoader.GroupConfig gc : layoutConfigs) {
+                    if ("MiniHUD".equalsIgnoreCase(gc.title)) {
+                        return gc;
+                    }
+                }
+            }
+            return null;
         }
 
         @Override

@@ -11,6 +11,8 @@ public interface HUDSettings {
 
     int getWindowY(int canvasHeight);
 
+    void saveWindowPosition(double x, double y);
+
     int getCrosshairScale();
 
     String getCrosshairName();
