@@ -615,11 +615,11 @@ public class Controller implements ConfigProvider {
 				overlay -> ((StickValue) overlay).reinitConfig(),
 				false);
 
-		// AttitudeIndicator - supports preview (uses initpreview lowercase)
+		// AttitudeIndicator - supports preview
 		overlayManager.registerWithPreview("enableAttitudeIndicator",
 				() -> new AttitudeIndicator(),
-				overlay -> ((AttitudeIndicator) overlay).init(this, S),
-				overlay -> ((AttitudeIndicator) overlay).initpreview(this),
+				overlay -> ((AttitudeIndicator) overlay).init(this, S, configService.getOverlaySettings("地平仪")),
+				overlay -> ((AttitudeIndicator) overlay).initPreview(this, configService.getOverlaySettings("地平仪")),
 				overlay -> ((AttitudeIndicator) overlay).reinitConfig(),
 				false);
 

@@ -8,36 +8,32 @@ import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.Polygon;
 import java.awt.RenderingHints;
-
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
-import java.awt.event.MouseMotionAdapter;
 import java.awt.event.MouseMotionListener;
+import java.awt.geom.AffineTransform;
 
 import com.alee.laf.label.WebLabel;
 import com.alee.laf.panel.WebPanel;
-import com.alee.laf.rootpane.WebFrame;
 import com.alee.laf.slider.WebSlider;
 
-import java.awt.geom.AffineTransform;
 import prog.Application;
 import prog.Controller;
 import prog.Service;
 import ui.WebLafSettings;
+import ui.base.DraggableOverlay;
+import prog.config.OverlaySettings;
 
-public class AttitudeIndicator extends WebFrame implements Runnable {
+public class AttitudeIndicator extends DraggableOverlay {
 
-	/**
-	 * 
-	 */
-	private static final long serialVersionUID = 4231053498040646357L;
-	int isDragging;
-	int xx;
-	int yy;
+	public volatile boolean doit = true;
+	private OverlaySettings settings;
+	private Controller xc;
+	private Service xs;
+	private int lx;
+	private int ly;
+	private Container root;
+
 	WebPanel topPanel;
-	Controller xc;
-	Service xs;
 	WebSlider slider;
 	WebLabel label_1;
 	WebLabel label_3;
@@ -78,8 +74,13 @@ public class AttitudeIndicator extends WebFrame implements Runnable {
 	Color transParentWhite = Application.colorUnit;
 	Color warning = Application.colorWarning;
 
-	// Color trans
-	//
+	public static final int tickLine = 2;
+	public static final int MaxAoA = 30;
+	public static final int MaxAoS = 15;
+	public int xWidth = 100;
+	public int xHeight = 200;
+	public static long freqMili = 40;
+
 	public void rotateXY(int x[], int y[], int numPoints, double deg) {
 		double rads = deg * Math.PI / 180.0;
 
@@ -96,17 +97,6 @@ public class AttitudeIndicator extends WebFrame implements Runnable {
 		}
 	}
 
-	public static final int tickLine = 2;
-
-	public static final int MaxAoA = 30;
-	public static final int MaxAoS = 15;
-	public int xWidth = 100;
-	public int xHeight = 200;
-	public boolean doit = true;
-	private Container root;
-
-	public static long freqMili = 40;
-
 	public void setFrameOpaque() {
 		this.getWebRootPaneUI().setMiddleBg(new Color(0, 0, 0, 0));// 中部透明
 		this.getWebRootPaneUI().setTopBg(new Color(0, 0, 0, 0));// 顶部透明
@@ -115,60 +105,18 @@ public class AttitudeIndicator extends WebFrame implements Runnable {
 		setShadeWidth(0);
 	}
 
-	public void initpreview(Controller c) {
-		init(c, null);
-
-		// setShadeWidth(10);
-		// this.setVisible(false);
-		this.getWebRootPaneUI().setTopBg(Application.previewColor);
-		this.getWebRootPaneUI().setMiddleBg(Application.previewColor);
-		// setFocusableWindowState(true);
-		// setFocusable(true);
-		AttitudeIndicator t = this;
-		addMouseListener(new MouseAdapter() {
-			public void mouseEntered(MouseEvent e) {
-				t.xWidth = t.getWidth() - 4;
-				t.xHeight = t.getHeight() - 4;
-				t.repaint();
-			}
-
-			public void mousePressed(MouseEvent e) {
-				isDragging = 1;
-				xx = e.getX();
-				yy = e.getY();
-				t.xWidth = t.getWidth() - 4;
-				t.xHeight = t.getHeight() - 4;
-				t.repaint();
-
-			}
-
-			public void mouseReleased(MouseEvent e) {
-				if (isDragging == 1) {
-					isDragging = 0;
-				}
-
-			}
-		});
-		addMouseMotionListener(new MouseMotionAdapter() {
-			public void mouseDragged(MouseEvent e) {
-				if (isDragging == 1) {
-					int left = getLocation().x;
-					int top = getLocation().y;
-					setLocation(left + e.getX() - xx, top + e.getY() - yy);
-					saveCurrentPosition();
-					setVisible(true);
-					repaint();
-				}
-			}
-		});
+	public void initPreview(Controller c, OverlaySettings settings) {
+		init(c, null, settings);
+		applyPreviewStyle();
+		setupDragListeners();
 		setVisible(true);
 	}
 
+	@Override
 	public void saveCurrentPosition() {
-		xc.setconfig("attitudeIndicatorX", Integer.toString(getLocation().x));
-		xc.setconfig("attitudeIndicatorY", Integer.toString(getLocation().y));
-		xc.setconfig("attitudeIndicatorWidth", Integer.toString(getWidth() - 4));
-		xc.setconfig("attitudeIndicatorHeight", Integer.toString(getHeight() - 4));
+		if (settings != null) {
+			settings.saveWindowPosition(getLocation().x, getLocation().y);
+		}
 	}
 
 	public void locater(Graphics2D g2d, int width, int height, int x, int y, int pitch, int center_round,
@@ -184,54 +132,15 @@ public class AttitudeIndicator extends WebFrame implements Runnable {
 
 		for (int i = 0; i < 2 * tickLine; i++) {
 			g2d.drawLine(pT[4 + 2 * i].x, pT[4 + 2 * i].y, pT[4 + 2 * i + 1].x, pT[4 + 2 * i + 1].y);
-			// Application.debugPrint("draw" + (4 + 2 * i));
 		}
-		// g2d.drawLine(pT[6].x, pT[6].y, pT[7].x, pT[7].y);
 
-		// 画地面
-		// g2d.fillRect(0, height/2 - 1, 2 *width, 2*height);
-		// g2d.fillRect(0, pitch - 1, 2 *width, 2*height);
-
-		// Polygon tgroundLevel = new Polygon();
-		//
-		// tgroundLevel.addPoint(-xWidth, pitch - 1);
-		// tgroundLevel.addPoint(2 * xWidth, pitch - 1);
-		// tgroundLevel.addPoint(2 * xWidth, 2 * xHeight);
-		// tgroundLevel.addPoint(-xWidth, 2* xHeight);
 		g2d.setColor(Application.colorUnit);
 		g2d.fillPolygon(pX, pY, 4);
 		if (showDirection)
 			g2d.drawLine(width / 2, height / 2, (int) (width / 2 + compassX), (int) (height / 2 + compassY));
-		// g2d.drawRect(x, y, width, height);
-		// g2d.setColor(Color.white);
-		// g2d.drawLine(0, height/2 - 1, width/2 - center_round/2 - 1 , height/2
-		// - 1);
-		// g2d.drawLine(width/2 + center_round/2 , height/2 - 1, width ,
-		// height/2 - 1);
 
-		// Rectangle2D.Double all = new Rectangle2D.Double(0, 0, s, s);
-		// Area a1 = new Area(all);
-		// Area a2 = new Area(all);
-		// GeneralPath aPart = new GeneralPath();
-		// aPart.moveTo(0, 0);
-		// aPart.lineTo(0, s);
-		// aPart.lineTo(xSAxis.getX(), xSAxis.getY());
-		// aPart.lineTo(xAxis.getX(), xAxis.getY());
-		// aPart.closePath();
-		// a1.subtract(new Area(aPart));
-		// a2.subtract(a1);
-		//
-		//
-		// 方向
-
-		// g2d.drawLine(x, y, x + compassX, y + compassY);
 		g2d.setStroke(new BasicStroke(3));
-
 		g2d.setColor(Application.colorNum);
-		// g2d.drawLine(0, height / 2 - 1, width / 2 - center_round / 2 - 1,
-		// height / 2 - 1);
-		// g2d.drawLine(width / 2 + center_round / 2, height / 2 - 1, width,
-		// height / 2 - 1);
 
 		g2d.drawLine(width / 2 - center_round / 2 - width / 8 - 1, height / 2 - 1, width / 2 - center_round / 2 - 1,
 				height / 2 - 1);
@@ -240,29 +149,9 @@ public class AttitudeIndicator extends WebFrame implements Runnable {
 
 		g2d.drawLine(0, height / 2 - 1, width / 8 - 1, height / 2 - 1);
 		g2d.drawLine(width - width / 8 + 1, height / 2 - 1, width, height / 2 - 1);
-		//
 
-		// g2d.drawLine(0, pitch - 1, width/2 - center_round/2 - 1 , pitch - 1);
-		// g2d.drawLine(width/2 + center_round/2 , pitch - 1, width , pitch -
-		// 1);
-		//
-		//
 		g2d.drawArc(width / 2 - center_round / 2 - 1, height / 2 - center_round / 2 - 1, center_round, center_round,
 				-180, 180);
-		// g2d.drawOval(width/2 - center_round/2 - 1 , height/2 - center_round/2
-		// - 1, center_round , center_round);
-		// 横线
-		// g2d.drawLine(x - locator_size / 2 - 1, y - 1, x + locator_size / 2 -
-		// 1, y - 1);
-		// // 竖线
-		// g2d.drawLine(x - 1, y - locator_size / 2 - 1, x - 1, y + locator_size
-		// / 2 - 1);
-
-		// g2d.setStroke(new BasicStroke(1));
-		// g2d.drawLine(x - locator_size / 2 - 1, y - 1 , x + locator_size / 2 -
-		// 1, y - 1);
-		// g2d.drawLine(x - 1, y - locator_size / 2 - 1, x - 1, y + locator_size
-		// / 2 - 1);
 
 		g2d.setStroke(new BasicStroke(2));
 
@@ -284,8 +173,6 @@ public class AttitudeIndicator extends WebFrame implements Runnable {
 			g2d.setColor(Application.colorUnit);
 			g2d.drawLine(width / 2, height / 2, (int) (width / 2 - compassX), (int) (height / 2 - compassY));
 		}
-
-		// g2d.drawOval(width/2 - 2, bomb_dy - 2, 2, 2);
 	}
 
 	public void initslider(WebSlider slider1) {
@@ -297,11 +184,8 @@ public class AttitudeIndicator extends WebFrame implements Runnable {
 		slider1.setMajorTickSpacing(50);
 		slider1.setPaintTicks(true);
 		slider1.setPaintLabels(true);
-		// slider1.setPreferredHeight(120);
-		// slider1.setSnapToTicks(true);
 		slider1.setProgressShadeWidth(0);
 		slider1.setTrackShadeWidth(1);
-		// slider1.setDrawThumb(false);
 		slider1.setThumbShadeWidth(2);
 		slider1.setThumbBgBottom(Color.white);
 		slider1.setThumbBgTop(Color.white);
@@ -316,7 +200,6 @@ public class AttitudeIndicator extends WebFrame implements Runnable {
 		MouseMotionListener[] mmls = slider1.getMouseMotionListeners();
 		for (int t = 0; t < mls.length; t++) {
 			slider1.removeMouseListener(mls[t]);
-
 		}
 		for (int t = 0; t < mmls.length; t++) {
 			slider1.removeMouseMotionListener(mmls[t]);
@@ -325,7 +208,6 @@ public class AttitudeIndicator extends WebFrame implements Runnable {
 
 	public WebLabel createWebLabel(String text) {
 		WebLabel l1 = new WebLabel(text);
-
 		l1.setShadeColor(new Color(0, 0, 0));
 		l1.setDrawShade(true);
 		return l1;
@@ -333,30 +215,18 @@ public class AttitudeIndicator extends WebFrame implements Runnable {
 
 	public void initpanel(WebPanel toppanel) {
 		toppanel.setLayout(null);
-		// px=100;
-		// py=100;
 		WebPanel panel = new WebPanel() {
 			private static final long serialVersionUID = -9061280572815010060L;
 
 			public void paintComponent(Graphics g) {
 				Graphics2D g2d = (Graphics2D) g;
-				// 开始绘图
-				// g2d.draw
 				g2d.setPaintMode();
-				// g2d.set
 				g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, Application.graphAASetting);
 				g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, Application.textAASetting);
-				// g2d.setRenderingHint(RenderingHints.KEY_RENDERING,
-				// RenderingHints.VALUE_RENDER_QUALITY);
 				g2d.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION,
 						RenderingHints.VALUE_ALPHA_INTERPOLATION_SPEED);
 				g2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_SPEED);
-
-				// g2d.setColor(Color.white);
-				// g2d.fillRect(0, 0, 200, 200);
-				// 绘制十字星
 				locater(g2d, xWidth, xHeight, (int) AoS, (int) AoA, (int) Pitch, 12, 6);
-				// g.dispose();
 			}
 		};
 
@@ -364,23 +234,11 @@ public class AttitudeIndicator extends WebFrame implements Runnable {
 		toppanel.add(panel);
 	}
 
-	int lx;
-	int ly;
-
 	public void reinitConfig() {
 		if (xc.getconfig("GlobalNumFont") != "")
 			NumFont = xc.getconfig("GlobalNumFont");
 		else
 			NumFont = Application.defaultNumfontName;
-
-		if (xc.getconfig("attitudeIndicatorX") != "")
-			lx = Integer.parseInt(xc.getconfig("attitudeIndicatorX"));
-		else
-			lx = 0;
-		if (xc.getconfig("attitudeIndicatorY") != "")
-			ly = Integer.parseInt(xc.getconfig("attitudeIndicatorY"));
-		else
-			ly = 0;
 
 		if (xc.getconfig("attitudeIndicatorWidth") != "")
 			xWidth = Integer.parseInt(xc.getconfig("attitudeIndicatorWidth"));
@@ -390,6 +248,19 @@ public class AttitudeIndicator extends WebFrame implements Runnable {
 			xHeight = Integer.parseInt(xc.getconfig("attitudeIndicatorHeight"));
 		else
 			xHeight = 300;
+
+		int sw = 0;
+		if (xc.getconfig("enableAttitudeIndicatorEdge").equals("true")) {
+			sw = 10;
+		}
+
+		int totalWidth = xWidth + 4 + (sw * 2);
+		int totalHeight = xHeight + 4 + (sw * 2);
+
+		if (settings != null) {
+			lx = settings.getWindowX(totalWidth);
+			ly = settings.getWindowY(totalHeight);
+		}
 
 		if (xc.getconfig("attitudeIndicatorFreqMs") != "")
 			freqMili = Integer.parseInt(xc.getconfig("attitudeIndicatorFreqMs"));
@@ -414,23 +285,18 @@ public class AttitudeIndicator extends WebFrame implements Runnable {
 		// 旋转中心需要更新
 		pC = new Point(xWidth / 2, xHeight / 2);
 
-		if (xc.getconfig("enableAttituteIndicatorEdge").equals("true"))
-			setShadeWidth(10);
-		else
-			setShadeWidth(0);
+		setShadeWidth(sw);
 
-		this.setBounds(lx, ly, xWidth + 4, xHeight + 4);
+		this.setBounds(lx, ly, totalWidth, totalHeight);
 		repaint();
 	}
 
-	public void init(Controller c, Service s) {
-		xc = c;
-		xs = s;
+	public void init(Controller c, Service s, OverlaySettings settings) {
+		this.xc = c;
+		this.xs = s;
+		this.settings = settings;
 
 		reinitConfig();
-
-		pX = new int[4];
-		pY = new int[4];
 
 		pX = new int[4];
 		pY = new int[4];
@@ -456,55 +322,24 @@ public class AttitudeIndicator extends WebFrame implements Runnable {
 			pT[i] = new Point(0, 0);
 		}
 
-		this.setBounds(lx, ly, xWidth + 4, xHeight + 4);
-
 		topPanel = new WebPanel() {
 			private static final long serialVersionUID = -9061280572815010060L;
 
 			public void paintComponent(Graphics g) {
 				Graphics2D g2d = (Graphics2D) g;
-				// 开始绘图
-				// g2d.draw
 				g2d.setPaintMode();
-				// g2d.set
 				g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-				// g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING,
-				// RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 				g2d.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION,
 						RenderingHints.VALUE_ALPHA_INTERPOLATION_SPEED);
-				// g2d.setColor(Color.white);
-				// g2d.fillRect(0, 0, 200, 200);
-				// 绘制十字星
 				locater(g2d, xWidth, xHeight, (int) AoS, (int) AoA, (int) Pitch, 12, 6);
-				// g.dispose();
 			}
 		};
-
-		// topPanel.setWebColoredBackground(false);
-		// topPanel.setBackground(new Color(0, 0, 0, 0));
 
 		initpanel(topPanel);
 		add(topPanel);
 		root = this.getContentPane();
-		// setShowWindowButtons(false);
-		// setShowTitleComponent(false);
-		// setShowResizeCorner(false);
-		// setDefaultCloseOperation(3);
-		// setTitle(Lang.vTitle);
-		// setAlwaysOnTop(true);
-		//
-		// setFocusable(false);
-		// setFocusableWindowState(false);// 取消窗口焦点
 		setTitle("attitude");
 		WebLafSettings.setWindowOpaque(this);
-		if (xc.getconfig("enableAttituteIndicatorEdge").equals("true"))
-			setShadeWidth(10);
-
-		// if (xc.Blkx.)
-		// AoALimitU = Math.round((-xc.Blkx.aoaHigh + MaxAoA) * xHeight / (2 *
-		// MaxAoA));
-		// AoALimitD = Math.round((-xc.Blkx.aoaLow + MaxAoA) * xHeight / (2 *
-		// MaxAoA));
 
 		if (s != null)
 			setVisible(true);
@@ -512,43 +347,23 @@ public class AttitudeIndicator extends WebFrame implements Runnable {
 	}
 
 	public void rotatePointMatrix(Point[] origPoints, double angle, Point center, Point[] storeTo, int numPoints) {
-
-		/*
-		 * We ge the original points of the polygon we wish to rotate and rotate
-		 * them with affine transform to the given angle. After the opeariont is
-		 * complete the points are stored to the array given to the method.
-		 */
 		AffineTransform.getRotateInstance(Math.toRadians(angle), center.x, center.y).transform(origPoints, 0, storeTo,
 				0, numPoints);
-
 	}
 
 	long freqCheckMili;
 
 	public void drawTick() {
 		AoA = Math.round((-xs.sState.AoA + MaxAoA) * xHeight / (2 * MaxAoA));
-		// }
-		// else AoS = 0;
-
-		// if(xs.sState.AoS + MaxAoS >= 0){
 		AoS = Math.round((xs.sState.AoS + MaxAoS) * xWidth / (2 * MaxAoS));
-		// }
-		// else AoS = 0;
-
-		// if(xs.iIndic.aviahorizon_pitch + MaxAoA >= 0){
 		Pitch = Math.round((-xs.sIndic.aviahorizon_pitch + MaxAoA) * xHeight / (2 * MaxAoA));
 
-		// Roll = Math.round((-xs.iIndic.aviahorizon_roll + MaxAoA)
-		// }
-		// else AoS = 0;
 		if (showDirection) {
 			double compassRads = (double) Math.toRadians(xs.sIndic.compass);
 			compassX = (int) (xWidth / 4 * Math.sin(compassRads));
 			compassY = (int) (xWidth / 4 * Math.cos(compassRads));
 		}
 
-		// 使用剩余
-		// Application.debugPrint(1/2 * xc.Blkx.aoaHigh);
 		parser.Blkx b = xc.getBlkx();
 		if (b != null && b.valid) {
 			if (showAoALimits) {
@@ -582,7 +397,6 @@ public class AttitudeIndicator extends WebFrame implements Runnable {
 					AoALimitD = -10;
 			}
 		}
-		// Point center = new Point(0,0);
 
 		pS[0].x = -2 * xWidth;
 		pS[0].y = 0;
@@ -611,29 +425,7 @@ public class AttitudeIndicator extends WebFrame implements Runnable {
 
 			pS[4 + 4 * i + 3].x = xWidth;
 			pS[4 + 4 * i + 3].y = (int) Math.round((-start - (dTick * (i + 1))) / (2 * MaxAoA) * xHeight);
-			// Application.debugPrint("pS" + (4 + 4 * i) + "角度" + (start
-			// +
-			// (dTick * (i + 1))) + ","
-			// + (-start - (dTick * (i + 1))));
-			// Application.debugPrint((int) Math.round((start + (dTick *
-			// (i
-			// + 1))) / MaxAoA * xHeight) + ","
-			// + (int) Math.round((-start - (dTick * (i + 1))) /
-			// MaxAoA
-			// * xHeight));
 		}
-		// pS[4].x = -xWidth;
-		// pS[4].y = -45/MaxAoA * xHeight;
-		//
-		// pS[5].x = xWidth;
-		// pS[5].y = -45/MaxAoA * xHeight;
-		//
-		// pS[6].x = -xWidth;
-		// pS[6].y = 45/MaxAoA * xHeight;
-		//
-		// pS[7].x = xWidth;
-		// pS[7].y = 45/MaxAoA * xHeight;
-		//
 		// 平移
 		for (int i = 0; i < pS.length; i++) {
 			pS[i].x += xWidth / 2;
@@ -647,44 +439,18 @@ public class AttitudeIndicator extends WebFrame implements Runnable {
 			pY[i] = pT[i].y;
 		}
 
-		// rotateXY(pX,pY, 4, xs.iIndic.aviahorizon_roll);
-
-		// moveXY(pX,pY, 4, xWidth/2, Pitch - 1);
-		// 平移
-		//
-		// pY[0] = Pitch - 1;
-		//
-		// pY[1] = Pitch - 1;
-
-		// Application.debugPrint(AoA + "," + AoS +":["+xs.AoA
-		// +","+xs.AoS+"]");
-
-		// 屏幕空间映射,乘以像素/角度
-		// bomb_dy = (int)(xs.bangleR * 17.2);
-
 		root.repaint();
 	}
 
 	@Override
 	public void run() {
-		// TODO Auto-generated method stub
 		while (doit) {
 			try {
 				Thread.sleep(Application.threadSleepTime);
 			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-			// px=100+xs.sState.aileron;
-			// label_1.setText(xs.aileron);
-			// py=100+xs.sState.elevator;
-			// label_3.setText(xs.elevator);
-			// slider.setValue(xs.sState.rudder);
-			// label_6.setText(xs.rudder);
-			// Application.debugPrint("stickValue执行了");
-			// 计算AoA偏移
-			// if(xs.sState.AoA + MaxAoA >= 0){
-			if (xs.SystemTime - freqCheckMili > freqMili) {
+			if (xs != null && xs.SystemTime - freqCheckMili > freqMili) {
 				freqCheckMili = xs.SystemTime;
 				if (xs.sState != null && xs.sIndic != null) {
 					drawTick();
@@ -692,5 +458,4 @@ public class AttitudeIndicator extends WebFrame implements Runnable {
 			}
 		}
 	}
-
 }

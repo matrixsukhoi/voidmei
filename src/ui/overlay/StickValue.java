@@ -106,8 +106,6 @@ public class StickValue extends DraggableOverlay implements FlightDataListener {
 		int twidth = (int) (width + 4 * fontSize);
 		int theight = (int) (height + 1.5 * fontSize);
 
-		this.setBounds(lx, ly, twidth, theight);
-
 		px = width / 2;
 		py = width / 2;
 
@@ -468,29 +466,31 @@ public class StickValue extends DraggableOverlay implements FlightDataListener {
 		fontUnit = new Font(NumFont, Font.PLAIN, Math.round(fontSize / 2.0f));
 
 		width = fontSize * 6;
-
-		if (settings != null) {
-			lx = settings.getWindowX(width);
-			ly = settings.getWindowY(height);
-		}
-
-		rudderValPix = (50 + 100) * width / 200;
 		height = width;
+		rudderValPix = (50 + 100) * width / 200;
 
 		int twidth = (int) (width + 4 * fontSize);
 		int theight = (int) (height + 1.5 * fontSize);
 
-		this.setBounds(lx, ly, twidth, theight);
+		int sw = 0;
+		if (xc.getconfig("enableAxisEdge").equals("true")) {
+			sw = 10;
+		}
+
+		int totalWidth = twidth + (sw * 2);
+		int totalHeight = theight + (sw * 2);
+
+		if (settings != null) {
+			lx = settings.getWindowX(totalWidth);
+			ly = settings.getWindowY(totalHeight);
+		}
 		px = width / 2;
 		py = width / 2;
 
 		locateSize = width / 30;
-		if (xc.getconfig("enableAxisEdge").equals("true"))
-			setShadeWidth(10);
-		else
-			setShadeWidth(0);
+		setShadeWidth(sw);
 
-		this.setBounds(lx, ly, twidth, theight);
+		this.setBounds(lx, ly, totalWidth, totalHeight);
 
 		repaint();
 	}

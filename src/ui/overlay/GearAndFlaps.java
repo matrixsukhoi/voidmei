@@ -231,25 +231,30 @@ public class GearAndFlaps extends DraggableOverlay {
         width = 2 * fontSize;
         height = 5 * fontSize;
 
-        if (settings != null) {
-            lx = settings.getWindowX(width);
-            ly = settings.getWindowY(height);
-        } else {
-            lx = 0;
-            ly = 0;
-        }
-
         flapPix = barHeight * 50 / 100;
         flapText = String.format("%3d", 50);
 
         warnText = "";
         warnColor = Application.colorNum;
-        if (xc.getconfig("enablegearAndFlapsEdge").equals("true"))
-            setShadeWidth(10);
-        else
-            setShadeWidth(0);
 
-        setBounds(lx, ly, width, height);
+        int sw = 0;
+        if (xc.getconfig("enablegearAndFlapsEdge").equals("true")) {
+            sw = 10;
+        }
+
+        int totalWidth = width + (sw * 2);
+        int totalHeight = height + (sw * 2);
+
+        if (settings != null) {
+            lx = settings.getWindowX(totalWidth);
+            ly = settings.getWindowY(totalHeight);
+        } else {
+            lx = 0;
+            ly = 0;
+        }
+
+        setShadeWidth(sw);
+        setBounds(lx, ly, totalWidth, totalHeight);
         repaint();
     }
 
