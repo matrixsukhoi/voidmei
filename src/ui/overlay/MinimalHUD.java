@@ -116,10 +116,18 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 		/* 旋转 */
 	}
 
-	public void drawCrossair(Graphics2D g, int dx, int dy, int CrossX, int CrossY, int CrossWidth) {
-		// Now using reusable CrosshairGauge component with cached strokes
-		if (crosshairGauge != null) {
-			crosshairGauge.draw(g, CrossX, CrossY, CrossWidth);
+	public void drawCrossair(Graphics2D g, int centerX, int centerY, int vectorWidth) {
+		if (busetexturecrosshair) {
+			Application.debugPrint("Component: Crosshair (Texture), x=" + (centerX - CrossWidthVario) + ", y="
+					+ (centerY - CrossWidthVario));
+			g.drawImage(crosshairImageScaled, centerX - CrossWidthVario, centerY - CrossWidthVario, CrossWidthVario * 2,
+					CrossWidthVario * 2, this);
+		} else {
+			// Now using reusable CrosshairGauge component with cached strokes
+			if (crosshairGauge != null) {
+				Application.debugPrint("Component: Crosshair (Vector), x=" + centerX + ", y=" + centerY);
+				crosshairGauge.draw(g, centerX, centerY, vectorWidth);
+			}
 		}
 	}
 
@@ -582,16 +590,7 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 
 				}
 				if (crossOn) {
-					if (busetexturecrosshair) {
-						Application.debugPrint("Component: Crosshair (Texture), x=" + (Width + CrossX - CrossWidthVario)
-								+ ", y=" + (CrossY - CrossWidthVario));
-						g2d.drawImage(crosshairImageScaled, Width + CrossX - CrossWidthVario, CrossY - CrossWidthVario,
-								CrossWidthVario * 2, CrossWidthVario * 2, this);
-					} else {
-						Application.debugPrint(
-								"Component: Crosshair (Vector), x=" + (Width + CrossX) + ", y=" + CrossY);
-						drawCrossair(g2d, 2 * Width, 1 * Height, Width + CrossX, CrossY, CrossWidth);
-					}
+					drawCrossair(g2d, Width + CrossX, CrossY, CrossWidth);
 				}
 			}
 		};
