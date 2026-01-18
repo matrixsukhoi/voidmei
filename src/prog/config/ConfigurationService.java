@@ -198,13 +198,70 @@ public class ConfigurationService implements ConfigProvider {
         setConfig(key + "A", Integer.toString(A));
     }
 
+    // --- OverlaySettings Implementation ---
+
+    public OverlaySettings getOverlaySettings(String sectionName) {
+        return new GenericOverlaySettingsImpl(sectionName);
+    }
+
+    private class GenericOverlaySettingsImpl implements OverlaySettings {
+        protected final String sectionName;
+
+        public GenericOverlaySettingsImpl(String sectionName) {
+            this.sectionName = sectionName;
+        }
+
+        protected ConfigLoader.GroupConfig getGroupConfig() {
+            if (layoutConfigs == null)
+                return null;
+            for (ConfigLoader.GroupConfig gc : layoutConfigs) {
+                if (sectionName.equalsIgnoreCase(gc.title)) {
+                    return gc;
+                }
+            }
+            return null;
+        }
+
+        @Override
+        public int getWindowX(int width) {
+            ConfigLoader.GroupConfig gc = getGroupConfig();
+            if (gc != null) {
+                return (int) (gc.x * Application.screenWidth);
+            }
+            return (Application.screenWidth - width) / 2;
+        }
+
+        @Override
+        public int getWindowY(int height) {
+            ConfigLoader.GroupConfig gc = getGroupConfig();
+            if (gc != null) {
+                return (int) (gc.y * Application.screenHeight);
+            }
+            return (Application.screenHeight - height) / 2;
+        }
+
+        @Override
+        public void saveWindowPosition(double x, double y) {
+            ConfigLoader.GroupConfig gc = getGroupConfig();
+            if (gc != null) {
+                gc.x = x / Application.screenWidth;
+                gc.y = y / Application.screenHeight;
+                saveLayoutConfig();
+            }
+        }
+    }
+
     // --- HUDSettings Implementation ---
 
     public HUDSettings getHUDSettings() {
         return new HUDSettingsImpl();
     }
 
-    private class HUDSettingsImpl implements HUDSettings {
+    private class HUDSettingsImpl extends GenericOverlaySettingsImpl implements HUDSettings {
+        public HUDSettingsImpl() {
+            super("MiniHUD");
+        }
+
         private boolean getBool(String key, boolean def) {
             String val = getConfig(key);
             return val.isEmpty() ? def : Boolean.parseBoolean(val);
@@ -263,17 +320,6 @@ public class ConfigurationService implements ConfigProvider {
                 setConfig("crosshairX", Integer.toString((int) x));
                 setConfig("crosshairY", Integer.toString((int) y));
             }
-        }
-
-        private ConfigLoader.GroupConfig getGroupConfig() {
-            if (layoutConfigs != null) {
-                for (ConfigLoader.GroupConfig gc : layoutConfigs) {
-                    if ("MiniHUD".equalsIgnoreCase(gc.title)) {
-                        return gc;
-                    }
-                }
-            }
-            return null;
         }
 
         @Override

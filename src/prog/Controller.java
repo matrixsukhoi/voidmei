@@ -610,8 +610,8 @@ public class Controller implements ConfigProvider {
 		// StickValue - supports preview (uses initpreview lowercase)
 		overlayManager.registerWithPreview("enableAxis",
 				() -> new StickValue(),
-				overlay -> ((StickValue) overlay).init(this, S),
-				overlay -> ((StickValue) overlay).initpreview(this),
+				overlay -> ((StickValue) overlay).init(this, S, configService.getOverlaySettings("舵面值")),
+				overlay -> ((StickValue) overlay).initpreview(this, configService.getOverlaySettings("舵面值")),
 				overlay -> ((StickValue) overlay).reinitConfig(),
 				false);
 
@@ -626,8 +626,8 @@ public class Controller implements ConfigProvider {
 		// GearAndFlaps - supports preview
 		overlayManager.registerWithPreview("enablegearAndFlaps",
 				() -> new GearAndFlaps(),
-				overlay -> ((GearAndFlaps) overlay).init(this, S),
-				overlay -> ((GearAndFlaps) overlay).initPreview(this),
+				overlay -> ((GearAndFlaps) overlay).init(this, S, configService.getOverlaySettings("起落架")),
+				overlay -> ((GearAndFlaps) overlay).initPreview(this, configService.getOverlaySettings("起落架")),
 				overlay -> ((GearAndFlaps) overlay).reinitConfig(),
 				false);
 

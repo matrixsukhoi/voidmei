@@ -14,11 +14,9 @@ import java.awt.event.MouseMotionAdapter;
 import java.awt.event.MouseMotionListener;
 
 import javax.swing.SwingConstants;
-import javax.swing.text.StyledEditorKit.FontSizeAction;
 
 import com.alee.laf.label.WebLabel;
 import com.alee.laf.panel.WebPanel;
-import com.alee.laf.rootpane.WebFrame;
 import com.alee.laf.slider.WebSlider;
 
 import prog.Application;
@@ -30,34 +28,27 @@ import prog.event.FlightDataEvent;
 import prog.event.FlightDataListener;
 import ui.UIBaseElements;
 import ui.WebLafSettings;
+import ui.base.DraggableOverlay;
+import prog.config.OverlaySettings;
 import java.util.Map;
 
-public class StickValue extends WebFrame implements FlightDataListener {
+public class StickValue extends DraggableOverlay implements FlightDataListener {
 
 	/**
 	 * 
 	 */
-	private static final long serialVersionUID = 4231053498040646357L;
-	int isDragging;
-	int xx;
-	int yy;
-	WebPanel topPanel;
-	Controller xc;
-	Service xs;
-	WebSlider slider;
-	WebLabel label_1;
 	WebLabel label_3;
 	WebLabel label_6;
+	private OverlaySettings settings;
+	Controller xc;
+	Service xs;
+	WebPanel topPanel;
+	int lx;
+	int ly;
 	String NumFont;
 	int px;
 	int py;
-	static Color lblColor = Application.colorUnit;
-	static Color lblNameColor = Application.colorLabel;
-	static Color lblNumColor = Application.colorNum;
-
-	public volatile boolean doit = true;
-	private WebLabel label_8;
-	private int fontadd;
+	static private int fontadd;
 	private int fontSize;
 	private String sElevator;
 	private String sElevatorLabel;
@@ -84,54 +75,122 @@ public class StickValue extends WebFrame implements FlightDataListener {
 		setShadeWidth(0);
 	}
 
-	public void initpreview(Controller c) {
-		init(c, null);
+	public void init(Controller c, Service s, OverlaySettings settings) {
+		this.xc = c;
+		this.xs = s;
+		this.settings = settings;
+		reinitConfig();
 
-		// setShadeWidth(10);
-		// this.setVisible(false);
-		this.getWebRootPaneUI().setTopBg(Application.previewColor);
-		this.getWebRootPaneUI().setMiddleBg(Application.previewColor);
-		// setFocusableWindowState(true);
-		// setFocusable(true);
+		this.setCursor(Application.blankCursor);
+		setupTransparentWindow();
+		setShadeWidth(0);
 
-		addMouseListener(new MouseAdapter() {
-			public void mouseEntered(MouseEvent e) {
+		sElevator = "50";
+		sElevatorLabel = Lang.vElevator;
+		sElevatorUnit = "%";
+
+		sAileron = "50";
+		sAileronLabel = Lang.vAileron;
+		sAileronUnit = "%";
+
+		sRudder = "50";
+		sRudderLabel = Lang.vRudder;
+		sRudderUnit = "%";
+
+		sWingSweep = "50";
+		sWingSweepLabel = Lang.vVarioW;
+		sWingSweepUnit = "%";
+
+		setFrameOpaque();
+
+		int twidth = (int) (width + 4 * fontSize);
+		int theight = (int) (height + 1.5 * fontSize);
+
+		this.setBounds(lx, ly, twidth, theight);
+
+		px = width / 2;
+		py = width / 2;
+
+		locateSize = width / 30;
+		strokeSize = width / 60;
+
+		topPanel = new WebPanel() {
+			private static final long serialVersionUID = -9061280572815010060L;
+
+			public void paintComponent(Graphics g) {
+				Graphics2D g2d = (Graphics2D) g;
+				// 开始绘图
+				// g2d.draw
+				g2d.setPaintMode();
+
+				g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, Application.graphAASetting);
+				g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, Application.textAASetting);
+				// g2d.setRenderingHint(RenderingHints.KEY_RENDERING,
+				// RenderingHints.VALUE_RENDER_QUALITY);
+				g2d.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION,
+						RenderingHints.VALUE_ALPHA_INTERPOLATION_SPEED);
+				g2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_SPEED);
+
+				// g2d.setColor(Color.white);
+				// g2d.fillRect(0, 0, 200, 200);
+				// 绘制十字星
+				locater(g2d, px, py, width, locateSize, strokeSize);
+
+				int dy = fontSize >> 1;
+				UIBaseElements.__drawLabelBOSType(g2d, width, dy, 1, fontNum, fontLabel, fontUnit, sElevator,
+						sElevatorLabel, sElevatorUnit, 9);
+				dy += 1.5 * fontSize;
+				UIBaseElements.__drawLabelBOSType(g2d, width, dy, 1, fontNum, fontLabel, fontUnit, sAileron,
+						sAileronLabel,
+						sAileronUnit, 9);
+				dy += 1.5 * fontSize;
+				UIBaseElements.__drawLabelBOSType(g2d, width, dy, 1, fontNum, fontLabel, fontUnit, sRudder,
+						sRudderLabel,
+						sRudderUnit, 9);
+				dy += 1.5 * fontSize;
+				UIBaseElements.__drawLabelBOSType(g2d, width, dy, 1, fontNum, fontLabel, fontUnit, sWingSweep,
+						sWingSweepLabel, sWingSweepUnit, 9);
+
+				// 绘制横条
+				// UIBaseElements.drawHBarTextNum(g2d, x, y, width, height, val_width,
+				// borderwidth,
+				// c, lbl, num, lblFont, numFont);
+				UIBaseElements.drawHBarTextNum(g2d, 0, height, width, fontSize >> 1, rudderValPix, 1,
+						Application.colorNum,
+						sRudderLabel, sRudder, fontLabel, fontLabel);
+
 			}
+		};
+		// topPanel.setWebColoredBackground(false);
+		// topPanel.setBackground(new Color(0, 0, 0, 0));
 
-			public void mousePressed(MouseEvent e) {
-				isDragging = 1;
-				xx = e.getX();
-				yy = e.getY();
+		// initpanel(topPanel);
+		add(topPanel);
+		setTitle("StickValue");
+		WebLafSettings.setWindowOpaque(this);
 
-			}
+		if (xc.getconfig("enableAxisEdge").equals("true"))
+			setShadeWidth(10);
 
-			public void mouseReleased(MouseEvent e) {
-				if (isDragging == 1) {
-					isDragging = 0;
-				}
+		if (s != null) {
+			setVisible(true);
+			FlightDataBus.getInstance().register(this);
+		}
+	}
 
-			}
-		});
-		addMouseMotionListener(new MouseMotionAdapter() {
-			public void mouseDragged(MouseEvent e) {
-				if (isDragging == 1) {
-					int left = getLocation().x;
-					int top = getLocation().y;
-					setLocation(left + e.getX() - xx, top + e.getY() - yy);
-					saveCurrentPosition();
-					setVisible(true);
-					repaint();
-				}
-			}
-		});
-
+	public void initpreview(Controller c, OverlaySettings settings) {
+		init(c, null, settings);
+		applyPreviewStyle();
+		setupDragListeners();
 		this.setCursor(null);
 		setVisible(true);
 	}
 
+	@Override
 	public void saveCurrentPosition() {
-		xc.setconfig("stickValueX", Integer.toString(getLocation().x));
-		xc.setconfig("stickValueY", Integer.toString(getLocation().y));
+		if (settings != null) {
+			settings.saveWindowPosition(getLocation().x, getLocation().y);
+		}
 	}
 
 	public void locater(Graphics2D g2d, int x, int y, int r, int width, int stroke) {
@@ -388,23 +447,12 @@ public class StickValue extends WebFrame implements FlightDataListener {
 	// panel_3.add(label_7);
 	// }
 
-	int lx;
-	int ly;
-
 	public void reinitConfig() {
 		if (xc.getconfig("GlobalNumFont") != "")
 			NumFont = xc.getconfig("GlobalNumFont");
 		else
 			NumFont = Application.defaultNumfontName;
 
-		if (xc.getconfig("stickValueX") != "")
-			lx = Integer.parseInt(xc.getconfig("stickValueX"));
-		else
-			lx = 0;
-		if (xc.getconfig("stickValueY") != "")
-			ly = Integer.parseInt(xc.getconfig("stickValueY"));
-		else
-			ly = 0;
 		if (xc.getconfig("flightInfoFontC") != "")
 			FontName = xc.getconfig("flightInfoFontC");
 		else
@@ -420,6 +468,11 @@ public class StickValue extends WebFrame implements FlightDataListener {
 		fontUnit = new Font(NumFont, Font.PLAIN, Math.round(fontSize / 2.0f));
 
 		width = fontSize * 6;
+
+		if (settings != null) {
+			lx = settings.getWindowX(width);
+			ly = settings.getWindowY(height);
+		}
 
 		rudderValPix = (50 + 100) * width / 200;
 		height = width;
@@ -440,101 +493,6 @@ public class StickValue extends WebFrame implements FlightDataListener {
 		this.setBounds(lx, ly, twidth, theight);
 
 		repaint();
-	}
-
-	public void init(Controller c, Service s) {
-		xc = c;
-		xs = s;
-
-		reinitConfig();
-
-		sElevator = "50";
-		sElevatorLabel = Lang.vElevator;
-		sElevatorUnit = "%";
-
-		sAileron = "50";
-		sAileronLabel = Lang.vAileron;
-		sAileronUnit = "%";
-
-		sRudder = "50";
-		sRudderLabel = Lang.vRudder;
-		sRudderUnit = "%";
-
-		sWingSweep = "50";
-		sWingSweepLabel = Lang.vVarioW;
-		sWingSweepUnit = "%";
-
-		setFrameOpaque();
-
-		int twidth = (int) (width + 4 * fontSize);
-		int theight = (int) (height + 1.5 * fontSize);
-
-		this.setBounds(lx, ly, twidth, theight);
-
-		px = width / 2;
-		py = width / 2;
-
-		locateSize = width / 30;
-		strokeSize = width / 60;
-
-		topPanel = new WebPanel() {
-			private static final long serialVersionUID = -9061280572815010060L;
-
-			public void paintComponent(Graphics g) {
-				Graphics2D g2d = (Graphics2D) g;
-				// 开始绘图
-				// g2d.draw
-				g2d.setPaintMode();
-
-				g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, Application.graphAASetting);
-				g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, Application.textAASetting);
-				// g2d.setRenderingHint(RenderingHints.KEY_RENDERING,
-				// RenderingHints.VALUE_RENDER_QUALITY);
-				g2d.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION,
-						RenderingHints.VALUE_ALPHA_INTERPOLATION_SPEED);
-				g2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_SPEED);
-
-				// g2d.setColor(Color.white);
-				// g2d.fillRect(0, 0, 200, 200);
-				// 绘制十字星
-				locater(g2d, px, py, width, locateSize, strokeSize);
-
-				int dy = fontSize >> 1;
-				UIBaseElements.__drawLabelBOSType(g2d, width, dy, 1, fontNum, fontLabel, fontUnit, sElevator,
-						sElevatorLabel, sElevatorUnit, 9);
-				dy += 1.5 * fontSize;
-				UIBaseElements.__drawLabelBOSType(g2d, width, dy, 1, fontNum, fontLabel, fontUnit, sAileron, sAileronLabel,
-						sAileronUnit, 9);
-				dy += 1.5 * fontSize;
-				UIBaseElements.__drawLabelBOSType(g2d, width, dy, 1, fontNum, fontLabel, fontUnit, sRudder, sRudderLabel,
-						sRudderUnit, 9);
-				dy += 1.5 * fontSize;
-				UIBaseElements.__drawLabelBOSType(g2d, width, dy, 1, fontNum, fontLabel, fontUnit, sWingSweep,
-						sWingSweepLabel, sWingSweepUnit, 9);
-
-				// 绘制横条
-				// UIBaseElements.drawHBarTextNum(g2d, x, y, width, height, val_width, borderwidth,
-				// c, lbl, num, lblFont, numFont);
-				UIBaseElements.drawHBarTextNum(g2d, 0, height, width, fontSize >> 1, rudderValPix, 1, Application.colorNum,
-						sRudderLabel, sRudder, fontLabel, fontLabel);
-
-			}
-		};
-		// topPanel.setWebColoredBackground(false);
-		// topPanel.setBackground(new Color(0, 0, 0, 0));
-
-		// initpanel(topPanel);
-		add(topPanel);
-		setTitle("StickValue");
-		WebLafSettings.setWindowOpaque(this);
-
-		if (xc.getconfig("enableAxisEdge").equals("true"))
-			setShadeWidth(10);
-
-		if (s != null) {
-			setVisible(true);
-			FlightDataBus.getInstance().register(this);
-		}
 	}
 
 	@Override
