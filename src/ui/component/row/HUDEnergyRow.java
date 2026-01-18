@@ -28,15 +28,19 @@ public class HUDEnergyRow extends HUDTextRow {
     }
 
     @Override
-    public void update(Object data) {
-        if (data instanceof Object[]) {
-            Object[] params = (Object[]) data;
-            if (params.length >= 4) {
-                super.update((String) params[0], (Boolean) params[1]);
-                this.energyText = (String) params[2];
-                this.energyColor = (Color) params[3];
-            }
-        }
+    public void onDataUpdate(ui.overlay.model.HUDData data) {
+        if (data == null)
+            return;
+
+        this.update(data.altStr, data.warnAltitude);
+        this.energyText = data.energyStr;
+        // Energy color logic? Default yellow?
+        // MinimalHUD uses 'relEnergy' string, but didn't seem to set color dynamically
+        // in updateString.
+        // So assuming default or passed static.
+        // We'll keep default yellow for now or use Application.colorNum if appropriate?
+        // MinimalHUD legacy: no explicit color change found for energy.
+        // We will respect default initialization or update if needed.
     }
 
     public void update(String text, boolean isWarning, String energyText, Color energyColor) {

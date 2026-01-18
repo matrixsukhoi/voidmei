@@ -26,6 +26,7 @@ public class HUDData {
     public final double flaps; // 0-100%
     public final double gear; // 0-100%
     public final double airbrake; // 0-100%
+    public final double flapAllowAngle; // Max safe angle based on speed
 
     // Calculated/Derived Metrics
     public final double energyM; // Energy/Mass
@@ -43,6 +44,7 @@ public class HUDData {
     public final boolean warnGear; // Gear speed warning
     public final boolean warnAltitude; // Ground proximity
     public final Color aoaColor; // Color for AoA indicator
+    public final Color aoaBarColor; // Color for AoA Bar
     public final Color throttleColor; // Color for Throttle
 
     // Context Info
@@ -53,6 +55,9 @@ public class HUDData {
     // sufficient)
     public final String speedStr;
     public final String altStr;
+    public final String aoaStr;
+    public final String energyStr;
+    public final double aoaRatio; // Normalized AoA for bar (0.0 - 1.0+)
 
     public HUDData(Builder builder) {
         this.ias = builder.ias;
@@ -69,6 +74,7 @@ public class HUDData {
         this.flaps = builder.flaps;
         this.gear = builder.gear;
         this.airbrake = builder.airbrake;
+        this.flapAllowAngle = builder.flapAllowAngle;
         this.energyM = builder.energyM;
         this.gLoad = builder.gLoad;
         this.turnRate = builder.turnRate;
@@ -82,11 +88,15 @@ public class HUDData {
         this.warnGear = builder.warnGear;
         this.warnAltitude = builder.warnAltitude;
         this.aoaColor = builder.aoaColor;
+        this.aoaBarColor = builder.aoaBarColor;
         this.throttleColor = builder.throttleColor;
         this.mapGrid = builder.mapGrid;
         this.timeStr = builder.timeStr;
         this.speedStr = builder.speedStr;
         this.altStr = builder.altStr;
+        this.aoaStr = builder.aoaStr;
+        this.energyStr = builder.energyStr;
+        this.aoaRatio = builder.aoaRatio;
     }
 
     public static class Builder {
@@ -105,6 +115,7 @@ public class HUDData {
         public double flaps;
         public double gear;
         public double airbrake;
+        public double flapAllowAngle;
         public double energyM;
         public double gLoad;
         public double turnRate;
@@ -118,11 +129,15 @@ public class HUDData {
         public boolean warnGear;
         public boolean warnAltitude;
         public Color aoaColor = Color.GREEN;
+        public Color aoaBarColor = Color.GREEN;
         public Color throttleColor = Color.GREEN;
         public String mapGrid = "";
         public String timeStr = "";
         public String speedStr = "";
         public String altStr = "";
+        public String aoaStr = "";
+        public String energyStr = "";
+        public double aoaRatio;
 
         public HUDData build() {
             return new HUDData(this);

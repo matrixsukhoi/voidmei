@@ -58,13 +58,28 @@ public class LinearGauge implements HUDComponent {
         this.fontNumCache = fontNum;
     }
 
+    public Color valueColor = null;
+
     @Override
     public void update(Object data) {
+        // Legacy
         if (data instanceof Object[]) {
             Object[] params = (Object[]) data;
             if (params.length >= 2) {
                 update((Integer) params[0], (String) params[1]);
             }
+        }
+    }
+
+    @Override
+    public void onDataUpdate(ui.overlay.model.HUDData data) {
+        if (data == null)
+            return;
+
+        if ("ThrottleBar".equals(this.label)) {
+            this.curValue = data.throttle;
+            this.displayValue = String.format("%d", data.throttle);
+            this.valueColor = data.throttleColor;
         }
     }
 
@@ -90,7 +105,7 @@ public class LinearGauge implements HUDComponent {
             pixVal = Math.round((float) curValue * length / maxValue);
         }
 
-        Color c = Application.colorNum; // Can be parameterized if needed
+        Color c = valueColor != null ? valueColor : Application.colorNum;
         Color shade = Application.colorShadeShape;
         Color lblColor = Application.colorLabel;
 

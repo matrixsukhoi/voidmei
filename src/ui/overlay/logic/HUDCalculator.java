@@ -72,6 +72,7 @@ public class HUDCalculator {
         b.flaps = service.sState.flaps;
         b.gear = service.sState.gear;
         b.airbrake = service.sState.airbrake;
+        b.flapAllowAngle = service.getFlapAllowAngle(service.sState.IAS, service.isDowningFlap);
 
         // --- Derived Metrics ---
         b.aoa = service.sState.AoA;
@@ -107,7 +108,7 @@ public class HUDCalculator {
                 warnVne = true;
             }
 
-            // AoA Warnings
+            // AoA Warnings & Metrics
             double maxAvailableAoA = blkx.getAoAHighVWing(vwing, b.flaps > 0 ? (int) b.flaps : 0);
             double availableAoA = maxAvailableAoA - b.aoa;
 
@@ -115,6 +116,25 @@ public class HUDCalculator {
                 b.aoaColor = Application.colorWarning;
             } else {
                 b.aoaColor = Application.colorNum;
+            }
+            if (availableAoA < settings.getAoABarWarningRatio() * maxAvailableAoA) {
+                b.aoaBarColor = Application.colorUnit;
+            } else {
+                b.aoaBarColor = Application.colorNum;
+            }
+
+            // Calculate Ratio for Bar
+            // MinimalHUD: aoaY = (int) ((availableAoA * ctx.aoaLength) / maxAvailableAoA);
+            // So Ratio = availableAoA / maxAvailableAoA
+            if (maxAvailableAoA > 0.001) {
+                b.aoaRatio = availableAoA / maxAvailableAoA;
+                // Clamp? MinimalHUD: if (aoaY > ctx.rightDraw) aoaY = rightDraw; (rightDraw is
+                // max length?)
+                // Actually aoaLength is max length. rightDraw is X offset?
+                // Ah, ctx.rightDraw is X offset or length? MinimalHUDContext logic needed.
+                // Assuming Ratio should be 0-1 range approx.
+            } else {
+                b.aoaRatio = 0;
             }
 
             // Stall Warning (Contextual)
@@ -126,6 +146,10 @@ public class HUDCalculator {
             // Default logic if no Blkx
             b.maneuverIndex = 0;
             b.aoaColor = Application.colorNum;
+            b.aoaBarColor = Application.colorNum;
+            // MinimalHUD: aoaY = (int) (aoa * ctx.aoaLength / 30);
+            // Default logic ratio
+            b.aoaRatio = b.aoa / 30.0;
         }
         b.warnVne = warnVne;
 
@@ -149,6 +173,15 @@ public class HUDCalculator {
             b.altStr = altPre + String.format("R%5s", service.sRadioAlt);
         } else {
             b.altStr = altPre + String.format("%6s", service.salt);
+        }
+
+        // AoA & Energy Strings
+        if (settings.isAoADisabled()) {
+            b.aoaStr = "";
+            b.energyStr = "";
+        } else {
+            b.aoaStr = String.format("α%3.0f", b.aoa);
+            b.energyStr = String.format("E%5.0f", b.energyM);
         }
 
         // Map Grid

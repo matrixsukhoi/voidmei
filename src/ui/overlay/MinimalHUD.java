@@ -578,7 +578,7 @@ public class MinimalHUD extends DraggableOverlay implements UIStyle, FlightDataL
 		boolean textVisible = hudSettings.drawHUDText();
 
 		if (flapAngleBar != null) {
-			flapAngleBar.update(flapA, flapAllowA);
+			// flapAngleBar.update(flapA, flapAllowA);
 			componentStateMap.get(flapAngleBar.getId()).setVisible(textVisible && hudSettings.enableFlapAngleBar());
 		}
 		if (compassGauge != null) {

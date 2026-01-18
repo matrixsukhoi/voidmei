@@ -68,9 +68,13 @@ public class FlapAngleBar implements HUDComponent {
         }
     }
 
-    public void update(double currentAngle, double maxSafeAngle) {
-        this.currentAngle = currentAngle;
-        this.maxSafeAngle = maxSafeAngle;
+    @Override
+    public void onDataUpdate(ui.overlay.model.HUDData data) {
+        if (data == null)
+            return;
+
+        this.currentAngle = data.flaps;
+        this.maxSafeAngle = data.flapAllowAngle;
         this.displayText = String.format("%3.0f/%3.0f", currentAngle, maxSafeAngle);
     }
 
