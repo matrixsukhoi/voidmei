@@ -71,12 +71,23 @@ public class CompassGauge implements HUDComponent {
         }
     }
 
-    public void update(float compassRads, int compassDx, int compassDy, String compassStr, String locStr) {
-        this.compassRads = compassRads;
-        this.compassDx = compassDx;
-        this.compassDy = compassDy;
-        this.lineCompass = compassStr;
-        this.lineLoc = locStr;
+    @Override
+    public void onDataUpdate(ui.overlay.model.HUDData data) {
+        if (data == null)
+            return;
+
+        // 1. Heading Logic
+        this.compassRads = (float) Math.toRadians(data.heading);
+        // Render Logic moved from MinimalHUD:
+        // compassDx = (int) ((ctx.roundCompass * 1.3f) * Math.sin(compassRads));
+        // Use 'radius' here which is same as 'roundCompass'
+        this.compassDx = (int) ((this.radius * 1.3f) * Math.sin(compassRads));
+        this.compassDy = (int) ((this.radius * 1.3f) * Math.cos(compassRads));
+
+        this.lineCompass = String.format("%3.0f", data.heading);
+
+        // 2. Location
+        this.lineLoc = data.mapGrid;
     }
 
     @Override

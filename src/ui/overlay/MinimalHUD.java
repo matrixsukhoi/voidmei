@@ -33,12 +33,27 @@ import ui.base.DraggableOverlay;
  * MinimalHUD overlay for displaying compact flight information.
  * Being migrated to event-driven architecture.
  */
-public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
-	public volatile boolean doit = true;
-	public boolean warnVne;
+import ui.overlay.model.HUDData;
+import ui.overlay.logic.HUDCalculator;
+import ui.component.HUDComponent;
+import java.util.List;
+import java.util.ArrayList;
+import ui.layout.UIStyle;
+
+public class MinimalHUD extends DraggableOverlay implements UIStyle, FlightDataListener {
+	private static final long serialVersionUID = 1L;
+
+	private MinimalHUDContext ctx;
+
+	// Reactive Components List
+	private List<HUDComponent> components = new ArrayList<>();
+
+	private parser.State sState;
+	private parser.Indicators sIndic;
 	int blinkTicks = 1;
 	int blinkCheckTicks = 0;
 	public boolean warnRH;
+	public boolean warnVne;
 
 	// Reusable UI Components (high-performance, cached strokes)
 	private ui.component.CrosshairGauge crosshairGauge;
@@ -54,7 +69,7 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 	// Refactored Configuration Management
 	private ConfigurationService configService;
 	private HUDSettings hudSettings;
-	private MinimalHUDContext ctx;
+	// private MinimalHUDContext ctx; // Duplicate removed
 
 	public void setFrameOpaque() {
 		this.getWebRootPaneUI().setMiddleBg(new Color(0, 0, 0, 0));// 中部透明
@@ -349,6 +364,14 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 		if (ctx == null)
 			return;
 
+		// 1. Calculate Data Snapshot
+		HUDData data = HUDCalculator.calculate(service, controller.getBlkx(), hudSettings, ctx);
+
+		// 2. Dispatch to Reactive Components
+		for (HUDComponent comp : components) {
+			comp.onDataUpdate(data);
+		}
+
 		warnVne = false;
 		warnRH = false;
 		blinkX = service.fatalWarn;
@@ -559,11 +582,13 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 			componentStateMap.get(flapAngleBar.getId()).setVisible(textVisible && hudSettings.enableFlapAngleBar());
 		}
 		if (compassGauge != null) {
-			compassGauge.update((float) compassRads, compassDx, compassDy, lineCompass, lineLoc);
+			// compassGauge.update((float) compassRads, compassDx, compassDy, lineCompass,
+			// lineLoc);
 			componentStateMap.get(compassGauge.getId()).setVisible(textVisible);
 		}
 		if (attitudeIndicatorGauge != null) {
-			attitudeIndicatorGauge.update(pitch, rollDeg, aosX, sAttitude, roundHorizon);
+			// Legacy update skipped for Refactored Component
+			// attitudeIndicatorGauge.update(pitch, rollDeg, aosX, sAttitude, roundHorizon);
 			componentStateMap.get(attitudeIndicatorGauge.getId())
 					.setVisible(textVisible && hudSettings.drawHUDAttitude() && !disableAttitude);
 		}
@@ -692,34 +717,49 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 		super.dispose();
 	}
 
-	private void initComponentsLayout() {
-		if (ctx == null)
-			return;
+	protected void initComponentsLayout() {
+		components.clear(); // Ensure list is clean on re-init
 
-		// Initialize reusable UI components (high-performance)
-		crosshairGauge = new ui.component.CrosshairGauge();
-		flapAngleBar = new ui.component.FlapAngleBar();
+		// 0. Aux Overlays
 		warningOverlay = new ui.component.WarningOverlay();
-		compassGauge = new ui.component.CompassGauge(ctx.roundCompass);
-		attitudeIndicatorGauge = new ui.component.AttitudeIndicatorGauge();
+		flapAngleBar = new ui.component.FlapAngleBar();
+		components.add(flapAngleBar); // warningOverlay is not a HUDComponent? Check later. It draws directly.
 
-		// Initialize Rows
+		// 1. Compass
+		compassGauge = new ui.component.CompassGauge(ctx.roundCompass);
+		components.add(compassGauge);
+
+		// 2. Attitude
+		attitudeIndicatorGauge = new ui.component.AttitudeIndicatorGauge();
+		components.add(attitudeIndicatorGauge);
+
+		// 3. Crosshair
+		crosshairGauge = new ui.component.CrosshairGauge();
+		components.add(crosshairGauge);
+
+		// 4. Rows
 		hudRows = new java.util.ArrayList<>();
-		// Row 0: AoA
 		hudRows.add(new ui.component.row.HUDAkbRow(0, ctx.drawFont, ctx.hudFontSize, ctx.drawFontSmall, ctx.rightDraw,
 				ctx.lineWidth));
-		// Row 1: Energy
 		hudRows.add(
 				new ui.component.row.HUDEnergyRow(1, ctx.drawFont, ctx.hudFontSize, ctx.drawFontSmall, ctx.rightDraw));
-		// Row 2: Standard (Fuel/Gear)
 		hudRows.add(new ui.component.row.HUDTextRow(2, ctx.drawFont, ctx.hudFontSize));
-		// Row 3: Standard (SEP)
 		hudRows.add(new ui.component.row.HUDTextRow(3, ctx.drawFont, ctx.hudFontSize));
-		// Row 4: Maneuver
 		hudRows.add(new ui.component.row.HUDManeuverRow(4, ctx.drawFont, ctx.hudFontSize, ctx.rightDraw, ctx.halfLine,
 				ctx.lineWidth,
 				ctx.strokeThick, ctx.strokeThin));
 
+		for (ui.component.row.HUDRow row : hudRows) {
+			components.add(row);
+		}
+
+		// 5. Bars
+		// throttleBar = new LinearGauge(...);
+		// throttleBar is initialized in init()? No, it was init'd in init() separately?
+		// Let's check where throttleBar is init'd.
+		// It was in init().
+		// If I want to manage it here, I need to find where it is created.
+		// I will check init method again.
 		throttleBar = new ui.component.LinearGauge("ThrottleBar", 110, true);
 
 		// Initialize Layout Engine with actual panel dimensions (Width*2 if crosshair

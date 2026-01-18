@@ -1,32 +1,44 @@
 package ui.component;
 
-import java.awt.Dimension;
 import java.awt.Graphics2D;
+import java.awt.Dimension;
+import ui.overlay.model.HUDData;
 
 /**
- * Common interface for all HUD components that can be managed by the Layout
- * Engine.
+ * Interface for all HUD Components using the new Reactive Architecture.
  */
 public interface HUDComponent {
 
     /**
-     * Unique identifier for the component (used for layout mapping).
+     * Unique ID for the component (used for layout/config).
      */
     String getId();
 
     /**
-     * Returns the preferred size of the component.
+     * Preferred size of the component.
      */
     Dimension getPreferredSize();
 
     /**
-     * Draws the component at the specified absolute coordinates.
+     * Draw the component.
      */
-    void draw(Graphics2D g, int x, int y);
+    void draw(Graphics2D g2d, int x, int y);
 
     /**
-     * Updates the component with fresh data.
-     * The type of data depends on the implementation.
+     * Legacy generic update method.
+     * 
+     * @deprecated Use onDataUpdate(HUDData) instead.
      */
-    void update(Object data);
+    @Deprecated
+    default void update(Object data) {
+    }
+
+    /**
+     * Update component state from the centralized HUD Data snapshot.
+     * Components should extract only the fields they care about.
+     * 
+     * @param data The current frame's full data snapshot.
+     */
+    default void onDataUpdate(HUDData data) {
+    }
 }

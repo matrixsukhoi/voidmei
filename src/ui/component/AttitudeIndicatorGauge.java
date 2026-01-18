@@ -88,7 +88,7 @@ public class AttitudeIndicatorGauge implements HUDComponent {
         double rollDegRad = Math.toRadians(rollDeg);
 
         int targetX = centerX - aosX;
-        int targetY = centerY + (int) pitch;
+        int targetY = centerY - (int) pitch;
 
         // 绘制地面和牵引线 (Draw ground/traction line)
         g2d.setStroke(strokeThick);
@@ -141,6 +141,33 @@ public class AttitudeIndicatorGauge implements HUDComponent {
             strokeThick = new BasicStroke(lineWidth + 2, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
             strokeThin = new BasicStroke(lineWidth, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
             cachedLineWidth = lineWidth;
+        }
+    }
+
+    @Override
+    public void onDataUpdate(ui.overlay.model.HUDData data) {
+        if (data == null)
+            return;
+
+        // Pitch & Roll
+        this.pitch = data.pitch;
+        this.rollDeg = data.roll;
+
+        // AoS (Slip) Calculation
+        // Logic: aosX = (int) (-AoS * slideLimit / 30.0f);
+        // slideLimit = 4 * hudFontSize.
+        if (font != null) {
+            int slideLimit = 4 * font.getSize();
+            this.aosX = (int) (-data.slip * slideLimit / 30.0f);
+        } else {
+            this.aosX = 0;
+        }
+
+        // Attitude Text
+        this.roundHorizon = (int) Math.round(data.pitch);
+        this.sAttitude = "";
+        if (this.roundHorizon != 0) { // Check specific logic? MinimalHUD showed >0 and <0
+            this.sAttitude = String.format("%3d", Math.abs(this.roundHorizon));
         }
     }
 }

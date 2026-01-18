@@ -106,6 +106,8 @@ src/ui/overlay/ZebraListRenderer.java
 src/ui/overlay/MinimalHUD.java
 src/ui/overlay/AttitudeIndicator.java
 src/ui/overlay/OverlayRenderer.java
+src/ui/overlay/logic/HUDCalculator.java
+src/ui/overlay/model/HUDData.java
 src/ui/overlay/GearAndFlaps.java
 src/ui/overlay/EngineControl.java
 src/ui/overlay/MinimalHUDContext.java
