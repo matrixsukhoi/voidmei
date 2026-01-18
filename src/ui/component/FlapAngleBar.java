@@ -1,6 +1,7 @@
 package ui.component;
 
 import java.awt.BasicStroke;
+import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Graphics2D;
 
@@ -10,17 +11,17 @@ import ui.UIBaseElements;
 /**
  * High-performance Flap Angle Bar component.
  * Displays a tri-color bar showing current flap angle vs allowable.
- * 
- * Colors:
- * - Blue: 0 to current angle
- * - Green: current angle to max safe angle
- * - Red: max safe to danger zone (125)
  */
-public class FlapAngleBar {
+public class FlapAngleBar implements HUDComponent {
 
     // Cached stroke
     private BasicStroke tickStroke;
     private int cachedStrokeWidth = -1;
+
+    // Styling Context
+    private int totalWidth;
+    private int barHeight;
+    private Font font;
 
     // State
     private double currentAngle;
@@ -37,26 +38,47 @@ public class FlapAngleBar {
         this.displayText = "  0/100";
     }
 
-    /**
-     * Update state.
-     */
+    @Override
+    public String getId() {
+        return "bar.flaps";
+    }
+
+    @Override
+    public Dimension getPreferredSize() {
+        int w = totalWidth > 0 ? totalWidth : 200;
+        int h = (font != null ? font.getSize() : 12) + barHeight + 5;
+        return new Dimension(w, h);
+    }
+
+    public void setStyleContext(int totalWidth, int barHeight, Font font) {
+        this.totalWidth = totalWidth;
+        this.barHeight = barHeight;
+        this.font = font;
+    }
+
+    @Override
+    public void update(Object data) {
+        if (data instanceof Object[]) {
+            Object[] params = (Object[]) data;
+            if (params.length >= 2) {
+                this.currentAngle = (Double) params[0];
+                this.maxSafeAngle = (Double) params[1];
+                this.displayText = String.format("%3.0f/%3.0f", currentAngle, maxSafeAngle);
+            }
+        }
+    }
+
     public void update(double currentAngle, double maxSafeAngle) {
         this.currentAngle = currentAngle;
         this.maxSafeAngle = maxSafeAngle;
         this.displayText = String.format("%3.0f/%3.0f", currentAngle, maxSafeAngle);
     }
 
-    /**
-     * Draw the flap angle bar.
-     * 
-     * @param g2d        Graphics context
-     * @param x          Left position
-     * @param y          Top position
-     * @param totalWidth Total bar width
-     * @param barHeight  Bar height
-     * @param font       Font for text
-     */
-    public void draw(Graphics2D g2d, int x, int y, int totalWidth, int barHeight, Font font) {
+    @Override
+    public void draw(Graphics2D g2d, int x, int y) {
+        if (font == null)
+            return;
+
         // Draw text
         int strWidth = g2d.getFontMetrics(font).stringWidth(displayText);
         int strX = x + (totalWidth - strWidth) / 2;

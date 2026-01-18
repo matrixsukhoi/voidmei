@@ -36,6 +36,33 @@ public class HUDManeuverRow extends HUDTextRow {
         this.strokeThin = strokeThin;
     }
 
+    public void setStyle(Font font, int height, int rightDraw, int halfLine, int lineWidth,
+            BasicStroke strokeThick, BasicStroke strokeThin) {
+        super.setStyle(font, height);
+        this.rightDraw = rightDraw;
+        this.halfLine = halfLine;
+        this.lineWidth = lineWidth;
+        this.strokeThick = strokeThick;
+        this.strokeThin = strokeThin;
+    }
+
+    @Override
+    public void update(Object data) {
+        if (data instanceof Object[]) {
+            Object[] params = (Object[]) data;
+            if (params.length >= 9) {
+                super.update((String) params[0], (Boolean) params[1]);
+                this.maneuverIndex = (Double) params[2];
+                this.maneuverIndexLen = (Integer) params[3];
+                this.maneuverIndexLen10 = (Integer) params[4];
+                this.maneuverIndexLen20 = (Integer) params[5];
+                this.maneuverIndexLen30 = (Integer) params[6];
+                this.maneuverIndexLen40 = (Integer) params[7];
+                this.maneuverIndexLen50 = (Integer) params[8];
+            }
+        }
+    }
+
     public void update(String text, boolean isWarning, double maneuverIndex,
             int len, int len10, int len20, int len30, int len40, int len50) {
         super.update(text, isWarning);

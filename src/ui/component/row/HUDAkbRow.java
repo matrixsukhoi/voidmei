@@ -21,6 +21,31 @@ public class HUDAkbRow extends HUDTextRow {
         this.smallFont = smallFont;
         this.rightDraw = rightDraw;
         this.lineWidth = lineWidth;
+        this.aoaText = "";
+        this.aoaColor = Color.YELLOW;
+        this.aoaBarColor = Color.YELLOW;
+    }
+
+    public void setStyle(Font font, int height, Font smallFont, int rightDraw, int lineWidth) {
+        super.setStyle(font, height);
+        this.smallFont = smallFont;
+        this.rightDraw = rightDraw;
+        this.lineWidth = lineWidth;
+    }
+
+    @Override
+    public void update(Object data) {
+        if (data instanceof Object[]) {
+            Object[] params = (Object[]) data;
+            if (params.length >= 6) {
+                // Call super.update(text, isWarning)
+                super.update((String) params[0], (Boolean) params[1]);
+                this.aoaText = (String) params[2];
+                this.aoaY = (Integer) params[3];
+                this.aoaColor = (Color) params[4];
+                this.aoaBarColor = (Color) params[5];
+            }
+        }
     }
 
     public void update(String text, boolean isWarning, String aoaText, int aoaY, Color aoaColor, Color aoaBarColor) {

@@ -24,7 +24,6 @@ import prog.Service;
 import prog.event.FlightDataBus;
 import prog.event.FlightDataEvent;
 import prog.event.FlightDataListener;
-import ui.UIBaseElements;
 import ui.WebLafSettings;
 import ui.base.DraggableOverlay;
 
@@ -78,6 +77,8 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 	private ui.component.CompassGauge compassGauge;
 	private ui.component.AttitudeIndicatorGauge attitudeIndicatorGauge;
 	private java.util.List<ui.component.row.HUDRow> hudRows;
+	private ui.layout.HUDVirtualLayoutEngine layoutEngine;
+	private java.util.Map<String, ui.layout.HUDComponentState> componentStateMap = new java.util.HashMap<>();
 
 	public void setFrameOpaque() {
 		this.getWebRootPaneUI().setMiddleBg(new Color(0, 0, 0, 0));// 中部透明
@@ -108,30 +109,8 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 		}
 	}
 
-	public void drawAttitude(Graphics2D g, int dx, int dy, int CrossWidth, double realSpdPitch, double rad) {
-		/* 圆圈 */
-		/* 2直线 */
-		/* 1直线 */
-
-		/* 旋转 */
-	}
-
-	public void drawCrossair(Graphics2D g, int centerX, int centerY, int vectorWidth) {
-		if (busetexturecrosshair) {
-			Application.debugPrint("Component: Crosshair (Texture), x=" + (centerX - CrossWidthVario) + ", y="
-					+ (centerY - CrossWidthVario));
-			g.drawImage(crosshairImageScaled, centerX - CrossWidthVario, centerY - CrossWidthVario, CrossWidthVario * 2,
-					CrossWidthVario * 2, this);
-		} else {
-			// Now using reusable CrosshairGauge component with cached strokes
-			if (crosshairGauge != null) {
-				Application.debugPrint("Component: Crosshair (Vector), x=" + centerX + ", y=" + centerY);
-				crosshairGauge.draw(g, centerX, centerY, vectorWidth);
-			}
-		}
-	}
-
 	public int throttley = 0;
+	private ui.component.LinearGauge throttleBar;
 	public int OilX = 0;
 	public int aoaY = 0;
 	public boolean inAction = false;
@@ -141,109 +120,6 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 
 	public Color aoaBarColor;
 	public int throttleLineWidth = 1;
-
-	public void drawFlapAngleBar(Graphics2D g, int x, int y) {
-		if (flapAngleBar != null) {
-			// Update state
-			flapAngleBar.update(flapA, flapAllowA);
-
-			// Calculate specific dimensions for component, mirroring previous logic
-			int barTotalWidth = Width - x - HUDFontsize / 2;
-			int barHeight = lineWidth + 2;
-
-			// Delegate drawing
-			flapAngleBar.draw(g, x, y, barTotalWidth, barHeight, drawFontSmall);
-		}
-	}
-
-	public void drawTextseries(Graphics2D g, int x, int y) {
-		int verticalTextOffset = 0;
-		g.setFont(drawFont);
-		int kx = 0;
-		int yOffset = y - HUDFontsize;
-		UIBaseElements.drawVBarTextNumLeft(g, kx + barWidth, baseYOffset + yOffset + lineWidth + 2, barWidth,
-				throttley_max,
-				throttley, 1,
-				Application.colorNum, throttleColor, "",
-				lineThrottle, drawFontSSmall, drawFontSSmall);
-		Application.debugPrint("Component: ThrottleBar, x=" + (kx + barWidth) + ", y=" + (baseYOffset + yOffset));
-
-		x += barWidth + 3 * drawFontSSmall.getSize() / 2;
-		kx += barWidth + 3 * drawFontSSmall.getSize() / 2;
-
-		// 姿态
-		if (drawAttitude && !disableAttitude) {
-			if (!blinkX || (blinkX && !blinkActing)) {
-				// Calculate position
-				int circleX = lineWidth - aosX + attitudeCenterOffset;
-				int circleY = (int) (baseYOffset + yOffset - 2.5 * HUDFontsize + compassDiameter / 2 - pitch);
-
-				if (attitudeIndicatorGauge != null) {
-					attitudeIndicatorGauge.update(pitch, rollDeg, aosX, sAttitude, roundHorizon);
-					attitudeIndicatorGauge.draw(g, circleX, circleY, compassDiameter, compassRadius,
-							compassInnerMarkRadius, lineWidth, halfLine, drawFontSmall);
-				}
-			}
-		}
-
-		// TextRow
-		if (hudRows != null && hudRows.size() >= 5) {
-			// Row 0: AoA
-			((ui.component.row.HUDAkbRow) hudRows.get(0)).update(
-					lines[0],
-					warnVne,
-					lineAoA, aoaY, aoaColor, aoaBarColor);
-
-			// Row 1: Energy
-			((ui.component.row.HUDEnergyRow) hudRows.get(1)).update(
-					lines[1],
-					warnRH,
-					relEnergy, aoaColor);
-
-			// Row 2: Standard
-			((ui.component.row.HUDTextRow) hudRows.get(2)).update(
-					lines[2],
-					inAction);
-
-			// Row 3: Standard
-			((ui.component.row.HUDTextRow) hudRows.get(3)).update(
-					lines[3],
-					false);
-
-			// Row 4: Maneuver
-			((ui.component.row.HUDManeuverRow) hudRows.get(4)).update(
-					lines[4],
-					false,
-					maneuverIndex,
-					maneuverIndexLen, maneuverIndexLen10, maneuverIndexLen20, maneuverIndexLen30, maneuverIndexLen40,
-					maneuverIndexLen50);
-		}
-
-		// Draw Rows
-		if (hudRows != null) {
-			for (ui.component.row.HUDRow row : hudRows) {
-				row.draw(g, x, verticalTextOffset + y);
-				verticalTextOffset += row.getHeight();
-			}
-		}
-		verticalTextOffset += 2;
-
-		// Compass
-		if (compassGauge != null) {
-			compassGauge.update((float) compassRads, compassDx, compassDy, lineCompass, lineLoc);
-
-			int r = roundCompass;
-			verticalTextOffset -= 2 * HUDFontsize - 2;
-			kx += rightDraw + r;
-
-			compassGauge.draw(g, kx, verticalTextOffset + yOffset, lineWidth, HUDFontsize, HUDFontSizeSmall,
-					drawFontSmall);
-
-			verticalTextOffset += 3 * roundCompass;
-		}
-
-		drawBlinkX(g);
-	}
 
 	public void initPreview(Controller c) {
 		Application.debugPrint("MinimalHUD: initPreview called");
@@ -309,8 +185,6 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 	private BasicStroke strokeThick;
 	private BasicStroke strokeThin;
 	private int halfLine;
-	private int baseYOffset;
-	private int attitudeCenterOffset;
 	private int compassDiameter;
 	private int compassRadius;
 	private String lineLoc;
@@ -410,8 +284,6 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 		roundCompass = (int) (Math.round(HUDFontsize * 0.8f));
 		rightDraw = (int) (HUDFontsize * 3.5f);
 
-		baseYOffset = 5 * HUDFontsize;
-		attitudeCenterOffset = (int) (5 * roundCompass);
 		compassDiameter = (int) Math.round(2 * HUDFontsize * 0.618);
 		compassRadius = (int) Math.round(compassDiameter / 2.0);
 		compassInnerMarkRadius = (int) Math.round(0.618 * compassDiameter);
@@ -472,6 +344,7 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 		drawFontSmall = new Font(NumFont, Font.BOLD, HUDFontSizeSmall);
 		drawFontSSmall = new Font(NumFont, Font.BOLD, HUDFontsize / 2);
 
+		applyStyleToComponents();
 		repaint();
 	}
 
@@ -498,7 +371,6 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 		lineHorizon = String.format("%3s", "45");
 		throttley = 100;
 		throttley_max = (int) (HUDFontsize * 4.75);
-		lineThrottle = "100";
 		aoaY = 10;
 		disableAoA = false;
 		throttleColor = Application.colorShadeShape;
@@ -542,28 +414,8 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 		flapA = 20.0;
 		flapAllowA = 100.0;
 
-		// Initialize reusable UI components (high-performance)
-		crosshairGauge = new ui.component.CrosshairGauge();
-		flapAngleBar = new ui.component.FlapAngleBar();
-		warningOverlay = new ui.component.WarningOverlay();
-		compassGauge = new ui.component.CompassGauge(roundCompass);
-		attitudeIndicatorGauge = new ui.component.AttitudeIndicatorGauge();
+		initComponentsLayout();
 
-		// Initialize Rows
-		hudRows = new java.util.ArrayList<>();
-		// Row 0: AoA
-		hudRows.add(new ui.component.row.HUDAkbRow(0, drawFont, HUDFontsize, drawFontSmall, rightDraw, lineWidth));
-		// Row 1: Energy
-		hudRows.add(new ui.component.row.HUDEnergyRow(1, drawFont, HUDFontsize, drawFontSmall, rightDraw));
-		// Row 2: Standard (Fuel/Gear)
-		hudRows.add(new ui.component.row.HUDTextRow(2, drawFont, HUDFontsize));
-		// Row 3: Standard (SEP)
-		hudRows.add(new ui.component.row.HUDTextRow(3, drawFont, HUDFontsize));
-		// Row 4: Maneuver
-		hudRows.add(new ui.component.row.HUDManeuverRow(4, drawFont, HUDFontsize, rightDraw, halfLine, lineWidth,
-				strokeThick, strokeThin));
-
-		Application.debugPrint("MinimalHUD: UI components initialized.");
 		panel = new WebPanel() {
 
 			private static final long serialVersionUID = -9061280572815010060L;
@@ -578,20 +430,12 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 						RenderingHints.VALUE_ALPHA_INTERPOLATION_SPEED);
 				g2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_SPEED);
 
-				if (isHudTextVisible) {
-					// 绘制襟翼角度
-					// 显示在顶部, 并向右偏移以避开左侧油门条
-					if (enableFlapAngleBar) {
-						int flapXOffset = barWidth + 3 * drawFontSSmall.getSize() / 2;
-						drawFlapAngleBar(g2d, HUDFontsize / 2 + flapXOffset, (int) (HUDFontsize * 1.2));
-					}
-
-					drawTextseries(g2d, HUDFontsize / 2, (int) (HUDFontsize * 2.5));
-
+				if (layoutEngine != null) {
+					layoutEngine.doLayout();
+					layoutEngine.render(g2d);
 				}
-				if (crossOn) {
-					drawCrossair(g2d, Width + CrossX, CrossY, CrossWidth);
-				}
+
+				drawBlinkX(g2d);
 			}
 		};
 
@@ -616,6 +460,7 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 			setVisible(true);
 		}
 
+		updateComponents();
 	}
 
 	public long hudCheckMili;
@@ -641,7 +486,6 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 	private int maneuverIndexLen40;
 	private int maneuverIndexLen50;
 	private int throttley_max;
-	private String lineThrottle;
 	private boolean disableAttitude;
 
 	public void updateString() {
@@ -689,7 +533,6 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 			aosX = 0;
 		rollDeg = (int) (-aviar);
 		lineCompass = String.format("%3s", service.compass);
-		lineThrottle = String.format("%3s", throttle);
 		char map_x = (char) ('A' + (service.loc[1] * service.mapinfo.mapStage) + service.mapinfo.inGameOffset);
 		int map_y = (int) (service.loc[0] * service.mapinfo.mapStage + service.mapinfo.inGameOffset + 1);
 
@@ -844,15 +687,61 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 			disableAttitude = true;
 		}
 
-		/* 雷达高度 */
-		if (service.radioAlt >= 0 && service.radioAlt < 50) {
-			warnRH = true;
-		}
-
 		// 襟翼角度显示
 		flapA = service.sState.flaps;
 		flapAllowA = service.getFlapAllowAngle(service.sState.IAS, service.isDowningFlap);
 
+		updateComponents();
+	}
+
+	private void updateComponents() {
+		boolean textVisible = isHudTextVisible;
+
+		if (flapAngleBar != null) {
+			flapAngleBar.update(flapA, flapAllowA);
+			componentStateMap.get(flapAngleBar.getId()).setVisible(textVisible && enableFlapAngleBar);
+		}
+		if (compassGauge != null) {
+			compassGauge.update((float) compassRads, compassDx, compassDy, lineCompass, lineLoc);
+			componentStateMap.get(compassGauge.getId()).setVisible(textVisible);
+		}
+		if (attitudeIndicatorGauge != null) {
+			attitudeIndicatorGauge.update(pitch, rollDeg, aosX, sAttitude, roundHorizon);
+			componentStateMap.get(attitudeIndicatorGauge.getId()).setVisible(drawAttitude && !disableAttitude);
+		}
+		if (crosshairGauge != null) {
+			// Crosshair state update if needed
+			componentStateMap.get(crosshairGauge.getId()).setVisible(crossOn);
+		}
+
+		if (hudRows != null && hudRows.size() >= 5) {
+			// Row 0: AoA/Speed
+			((ui.component.row.HUDAkbRow) hudRows.get(0)).update(lines[0], warnVne, lineAoA, aoaY, aoaColor,
+					aoaBarColor);
+			// Row 1: Energy/Altitude
+			((ui.component.row.HUDEnergyRow) hudRows.get(1)).update(lines[1], warnRH, relEnergy, aoaColor);
+			// Row 2: Standard (Flaps/Gear)
+			((ui.component.row.HUDTextRow) hudRows.get(2)).update(lines[2], inAction);
+			// Row 3: Standard (SEP)
+			((ui.component.row.HUDTextRow) hudRows.get(3)).update(lines[3], false);
+			// Row 4: Maneuver (G)
+			((ui.component.row.HUDManeuverRow) hudRows.get(4)).update(lines[4], false, maneuverIndex,
+					maneuverIndexLen, maneuverIndexLen10, maneuverIndexLen20, maneuverIndexLen30,
+					maneuverIndexLen40, maneuverIndexLen50);
+
+			for (ui.component.row.HUDRow row : hudRows) {
+				componentStateMap.get(row.getId()).setVisible(textVisible);
+			}
+		}
+
+		if (throttleBar != null) {
+			int throttleValue = 0;
+			if (service != null && service.sState != null) {
+				throttleValue = service.sState.throttle;
+			}
+			throttleBar.update(throttleValue, String.format("%3d", throttleValue));
+			componentStateMap.get(throttleBar.getId()).setVisible(textVisible);
+		}
 	}
 
 	public void drawTick() {
@@ -940,4 +829,127 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 		super.dispose();
 	}
 
+	private void initComponentsLayout() {
+		// Initialize reusable UI components (high-performance)
+		crosshairGauge = new ui.component.CrosshairGauge();
+		flapAngleBar = new ui.component.FlapAngleBar();
+		warningOverlay = new ui.component.WarningOverlay();
+		compassGauge = new ui.component.CompassGauge(roundCompass);
+		attitudeIndicatorGauge = new ui.component.AttitudeIndicatorGauge();
+
+		// Initialize Rows
+		hudRows = new java.util.ArrayList<>();
+		// Row 0: AoA
+		hudRows.add(new ui.component.row.HUDAkbRow(0, drawFont, HUDFontsize, drawFontSmall, rightDraw, lineWidth));
+		// Row 1: Energy
+		hudRows.add(new ui.component.row.HUDEnergyRow(1, drawFont, HUDFontsize, drawFontSmall, rightDraw));
+		// Row 2: Standard (Fuel/Gear)
+		hudRows.add(new ui.component.row.HUDTextRow(2, drawFont, HUDFontsize));
+		// Row 3: Standard (SEP)
+		hudRows.add(new ui.component.row.HUDTextRow(3, drawFont, HUDFontsize));
+		// Row 4: Maneuver
+		hudRows.add(new ui.component.row.HUDManeuverRow(4, drawFont, HUDFontsize, rightDraw, halfLine, lineWidth,
+				strokeThick, strokeThin));
+
+		throttleBar = new ui.component.LinearGauge("ThrottleBar", 110, true);
+
+		// Initialize Layout Engine with actual panel dimensions (Width*2 if crosshair
+		// is on)
+		layoutEngine = new ui.layout.HUDVirtualLayoutEngine(crossOn ? Width * 2 : Width, Height);
+
+		// Component registration using ABSOLUTE slot logic for 1:1 legacy parity
+		// Coordinates taken exactly from reference image logs
+
+		// Flap Bar (strX=104, BarX=42)
+		registerComponent(flapAngleBar, ui.layout.HUDLayoutSlot.ABSOLUTE);
+		ui.layout.HUDComponentState flapState = componentStateMap.get(flapAngleBar.getId());
+		flapState.setXOffset(42);
+		flapState.setYOffset(33);
+
+		// Attitude Indicator (x=112, y=129)
+		registerComponent(attitudeIndicatorGauge, ui.layout.HUDLayoutSlot.ABSOLUTE);
+		ui.layout.HUDComponentState attitudeState = componentStateMap.get(attitudeIndicatorGauge.getId());
+		attitudeState.setXOffset(112);
+		attitudeState.setYOffset(129);
+
+		// Crosshair (x=272, y=20)
+		registerComponent(crosshairGauge, ui.layout.HUDLayoutSlot.ABSOLUTE);
+		ui.layout.HUDComponentState crosshairState = componentStateMap.get(crosshairGauge.getId());
+		crosshairState.setXOffset(272);
+		crosshairState.setYOffset(20);
+
+		// Compass (x=148, y=130)
+		registerComponent(compassGauge, ui.layout.HUDLayoutSlot.ABSOLUTE);
+		ui.layout.HUDComponentState compassState = componentStateMap.get(compassGauge.getId());
+		compassState.setXOffset(148);
+		compassState.setYOffset(130);
+
+		// ThrottleBar (x=7, y=182)
+		registerComponent(throttleBar, ui.layout.HUDLayoutSlot.ABSOLUTE);
+		ui.layout.HUDComponentState throttleState = componentStateMap.get(throttleBar.getId());
+		throttleState.setXOffset(7);
+		throttleState.setYOffset(182);
+
+		// HUD Rows (x=42, y starts at 70 with 28px spacing)
+		for (int i = 0; i < hudRows.size(); i++) {
+			ui.component.row.HUDRow row = hudRows.get(i);
+			registerComponent(row, ui.layout.HUDLayoutSlot.ABSOLUTE);
+			ui.layout.HUDComponentState rowState = componentStateMap.get(row.getId());
+			rowState.setXOffset(42);
+			rowState.setYOffset(70 + i * 28);
+		}
+
+		Application.debugPrint("MinimalHUD: UI components initialized.");
+
+		// Ensure everything is styled and updated before first paint
+		applyStyleToComponents();
+		updateComponents();
+	}
+
+	private void registerComponent(ui.component.HUDComponent comp, ui.layout.HUDLayoutSlot slot) {
+		if (comp == null)
+			return;
+		ui.layout.HUDComponentState state = new ui.layout.HUDComponentState(comp);
+		state.setSlot(slot);
+		layoutEngine.addComponent(state);
+		componentStateMap.put(comp.getId(), state);
+	}
+
+	private void applyStyleToComponents() {
+		if (layoutEngine != null) {
+			layoutEngine.setCanvasSize(Width, Height);
+		}
+		if (crosshairGauge != null) {
+			if (busetexturecrosshair) {
+				crosshairGauge.setTextureStyle(true, crosshairImageScaled, CrossWidthVario);
+			} else {
+				crosshairGauge.setStyleContext(CrossWidth);
+			}
+		}
+		if (flapAngleBar != null) {
+			flapAngleBar.setStyleContext(202, lineWidth + 2, drawFontSmall);
+		}
+		if (compassGauge != null) {
+			compassGauge.setStyleContext(roundCompass, lineWidth, HUDFontsize, HUDFontSizeSmall, drawFontSmall);
+		}
+		if (attitudeIndicatorGauge != null) {
+			attitudeIndicatorGauge.setStyleContext(compassDiameter, compassRadius, compassInnerMarkRadius,
+					lineWidth, halfLine, drawFontSmall);
+		}
+		// Synchronize styles for Rows
+		if (hudRows != null && hudRows.size() >= 5) {
+			((ui.component.row.HUDAkbRow) hudRows.get(0)).setStyle(drawFont, HUDFontsize, drawFontSmall, rightDraw,
+					lineWidth);
+			((ui.component.row.HUDEnergyRow) hudRows.get(1)).setStyle(drawFont, HUDFontsize, drawFontSmall,
+					rightDraw);
+			((ui.component.row.HUDTextRow) hudRows.get(2)).setStyle(drawFont, HUDFontsize);
+			((ui.component.row.HUDTextRow) hudRows.get(3)).setStyle(drawFont, HUDFontsize);
+			((ui.component.row.HUDManeuverRow) hudRows.get(4)).setStyle(drawFont, HUDFontsize, rightDraw,
+					halfLine, lineWidth, strokeThick, strokeThin);
+		}
+
+		if (throttleBar != null) {
+			throttleBar.setStyleContext(throttley_max, barWidth, drawFontSSmall, drawFontSSmall);
+		}
+	}
 }

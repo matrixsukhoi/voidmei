@@ -2,28 +2,58 @@ package ui.component;
 
 import java.awt.BasicStroke;
 import java.awt.Color;
+import java.awt.Dimension;
 import java.awt.Graphics2D;
+import java.awt.Image;
+
+import prog.Application;
 
 /**
  * High-performance Crosshair/Gunsight component.
  * Extracted from MinimalHUD for reusability.
- * 
- * Performance notes:
- * - Strokes are cached to avoid object creation per frame
- * - Colors are configurable but default to optimized values
  */
-public class CrosshairGauge {
+public class CrosshairGauge implements HUDComponent {
 
     // Cached strokes for performance
     private BasicStroke outerStroke;
     private BasicStroke innerStroke;
     private int cachedStrokeWidth = -1;
 
+    // Styling Context
+    private int width;
+    private boolean useTexture;
+    private Image texture;
+    private int crossWidthVario;
+
     // Colors
     private Color shadowColor = new Color(0, 0, 0, 75);
     private Color foregroundColor = new Color(255, 215, 8, 255);
 
     public CrosshairGauge() {
+    }
+
+    @Override
+    public String getId() {
+        return "gauge.crosshair";
+    }
+
+    @Override
+    public Dimension getPreferredSize() {
+        if (useTexture) {
+            return new Dimension(crossWidthVario * 2, crossWidthVario * 2);
+        }
+        return new Dimension(width, width);
+    }
+
+    public void setStyleContext(int width) {
+        this.width = width;
+        this.useTexture = false;
+    }
+
+    public void setTextureStyle(boolean useTexture, Image texture, int crossWidthVario) {
+        this.useTexture = useTexture;
+        this.texture = texture;
+        this.crossWidthVario = crossWidthVario;
     }
 
     /**
@@ -34,15 +64,22 @@ public class CrosshairGauge {
         this.foregroundColor = foreground;
     }
 
-    /**
-     * Draw the crosshair at specified location.
-     * 
-     * @param g2d     Graphics context
-     * @param centerX Center X coordinate
-     * @param centerY Center Y coordinate
-     * @param width   Width/size of crosshair
-     */
-    public void draw(Graphics2D g2d, int centerX, int centerY, int width) {
+    @Override
+    public void update(Object data) {
+    }
+
+    @Override
+    public void draw(Graphics2D g2d, int centerX, int centerY) {
+        if (useTexture && texture != null) {
+            Application.debugPrint("Component: Crosshair (Texture), x=" + centerX + ", y=" + centerY);
+            int x = centerX - crossWidthVario;
+            int y = centerY - crossWidthVario;
+            g2d.drawImage(texture, x, y, crossWidthVario * 2, crossWidthVario * 2, null);
+            return;
+        }
+
+        Application.debugPrint("Component: Crosshair (Vector), x=" + centerX + ", y=" + centerY);
+
         // Length multiplier for lines
         int l = 4;
 

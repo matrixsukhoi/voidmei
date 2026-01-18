@@ -1,7 +1,7 @@
 package ui.component;
 
 import java.awt.BasicStroke;
-import java.awt.Color;
+import java.awt.Dimension;
 import java.awt.Graphics2D;
 
 import prog.Application;
@@ -11,12 +11,18 @@ import ui.UIBaseElements;
  * High-performance Compass Gauge component.
  * Extracted from MinimalHUD.
  */
-public class CompassGauge {
+public class CompassGauge implements HUDComponent {
 
     private int radius;
     private BasicStroke outBs;
     private BasicStroke inBs;
     private int cachedStrokeWidth = -1;
+
+    // Static/Style context
+    private int lineWidth;
+    private int HUDFontSize;
+    private int HUDFontSizeSmall;
+    private java.awt.Font fontSmall;
 
     // State
     private float compassRads;
@@ -31,6 +37,40 @@ public class CompassGauge {
         this.lineLoc = "";
     }
 
+    @Override
+    public String getId() {
+        return "gauge.compass";
+    }
+
+    @Override
+    public Dimension getPreferredSize() {
+        // Radius * 2 for circle, plus some extra for text and padding
+        return new Dimension(radius * 2 + 50, radius * 2 + 20);
+    }
+
+    public void setStyleContext(int radius, int lineWidth, int HUDFontSize, int HUDFontSizeSmall,
+            java.awt.Font fontSmall) {
+        this.radius = radius;
+        this.lineWidth = lineWidth;
+        this.HUDFontSize = HUDFontSize;
+        this.HUDFontSizeSmall = HUDFontSizeSmall;
+        this.fontSmall = fontSmall;
+    }
+
+    @Override
+    public void update(Object data) {
+        if (data instanceof Object[]) {
+            Object[] params = (Object[]) data;
+            if (params.length >= 5) {
+                this.compassRads = (Float) params[0];
+                this.compassDx = (Integer) params[1];
+                this.compassDy = (Integer) params[2];
+                this.lineCompass = (String) params[3];
+                this.lineLoc = (String) params[4];
+            }
+        }
+    }
+
     public void update(float compassRads, int compassDx, int compassDy, String compassStr, String locStr) {
         this.compassRads = compassRads;
         this.compassDx = compassDx;
@@ -39,8 +79,8 @@ public class CompassGauge {
         this.lineLoc = locStr;
     }
 
-    public void draw(Graphics2D g2d, int x, int y, int lineWidth, int HUDFontSize, int HUDFontSizeSmall,
-            java.awt.Font fontSmall) {
+    @Override
+    public void draw(Graphics2D g2d, int x, int y) {
         Application.debugPrint("Component: Compass, x=" + x + ", y=" + y);
 
         // Cache strokes based on lineWidth
@@ -71,35 +111,12 @@ public class CompassGauge {
         g2d.drawLine(tipX, tipY, endX, endY);
         g2d.drawOval(x, y, r + r, r + r);
 
-        // Draw Text
-        // UIBaseElements.drawStringShade(g, kx + lineWidth + 3, verticalTextOffset + y
-        // - (r - HUDFontsize) / 2, 1, lineCompass, drawFontSmall);
-        // Note: 'y' passed here corresponds to 'verticalTextOffset + yOffset' in
-        // MinimalHUD.
-        // But MinimalHUD text Y logic was: 'verticalTextOffset + y - ...'
-        // Wait. In MinimalHUD:
-        // draw(..., kx, verticalTextOffset + yOffset)
-        // passed 'y' is 'verticalTextOffset + yOffset'.
-        // text Y logic: 'verticalTextOffset + y - (r - HUDFontsize)/2'.
-        // There is a discrepancy between yOffset and y.
-        // MinimalHUD.drawTextseries(x, y): y is 'y'. yOffset = y - HUDFontSize.
-        // So 'verticalTextOffset + yOffset' is 'verticalTextOffset + y - HUDFontSize'.
-        // And text Y is 'verticalTextOffset + y - (r - HUDFontSize)/2'.
-        // So Text Y = (Compass Y + HUDFontSize) - (r - HUDFontSize)/2.
-        // Let's assume passed 'y' is the top of the compass circle.
-        // We will just try to replicate relative positioning.
-
-        // Let's rely on Relative Positioning used in component if simpler.
-        // Or passed explicit font sizes.
-
-        // Replicating exact MinimalHUD text placement:
-        // Text 1 Y: y + HUDFontSize - (r - HUDFontSize)/2 (Assuming y passed is loop
-        // VerticalOffset + yOffset)
-        // Let's verify layout.
-
-        UIBaseElements.drawStringShade(g2d, x + lineWidth + 3, y + HUDFontSize - (r - HUDFontSize) / 2, 1, lineCompass,
-                fontSmall);
-        UIBaseElements.drawStringShade(g2d, x + lineWidth + 3, y + r + HUDFontSizeSmall / 2 + HUDFontSize, 1, lineLoc,
-                fontSmall);
+        if (fontSmall != null) {
+            UIBaseElements.drawStringShade(g2d, x + lineWidth + 3, y + HUDFontSize - (r - HUDFontSize) / 2, 1,
+                    lineCompass, fontSmall);
+            UIBaseElements.drawStringShade(g2d, x + lineWidth + 3, y + r + HUDFontSizeSmall / 2 + HUDFontSize, 1,
+                    lineLoc,
+                    fontSmall);
+        }
     }
 }

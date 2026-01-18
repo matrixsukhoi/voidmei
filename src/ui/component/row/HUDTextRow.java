@@ -21,6 +21,27 @@ public class HUDTextRow implements HUDRow {
         this.text = "";
     }
 
+    public void setStyle(Font font, int height) {
+        this.font = font;
+        this.height = height;
+    }
+
+    @Override
+    public String getId() {
+        return "row." + index;
+    }
+
+    @Override
+    public void update(Object data) {
+        if (data instanceof Object[]) {
+            Object[] params = (Object[]) data;
+            if (params.length >= 2) {
+                this.text = (String) params[0];
+                this.isWarning = (Boolean) params[1];
+            }
+        }
+    }
+
     public void update(String text, boolean isWarning) {
         this.text = text;
         this.isWarning = isWarning;

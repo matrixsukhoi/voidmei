@@ -1,24 +1,21 @@
 package ui.component.row;
 
-import java.awt.Graphics2D;
+import java.awt.Dimension;
+import ui.component.HUDComponent;
 
 /**
- * Interface for a single row in the HUD text series.
+ * Interface for a single row in the HUD text series, now as a HUDComponent.
  */
-public interface HUDRow {
+public interface HUDRow extends HUDComponent {
     /**
-     * Draw the row at the specified coordinates.
-     * 
-     * @param g2d Graphics context
-     * @param x   Left X coordinate
-     * @param y   Top Y coordinate (or baseline, depending on impl)
-     */
-    void draw(Graphics2D g2d, int x, int y);
-
-    /**
-     * Get the height of this row to calculate offset for the next row.
-     * 
-     * @return Height in pixels
+     * Get the height of this row.
      */
     int getHeight();
+
+    @Override
+    default Dimension getPreferredSize() {
+        // Most rows have a fixed height and variable width (managed by LayoutEngine)
+        // We'll use a placeholder width or the actual text width if needed.
+        return new Dimension(200, getHeight());
+    }
 }

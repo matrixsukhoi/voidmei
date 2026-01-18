@@ -2,6 +2,7 @@ package ui.component;
 
 import java.awt.BasicStroke;
 import java.awt.Color;
+import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Graphics2D;
 import java.awt.geom.AffineTransform;
@@ -12,12 +13,20 @@ import ui.UIBaseElements;
 /**
  * Reusable Attitude Indicator component.
  */
-public class AttitudeIndicatorGauge {
+public class AttitudeIndicatorGauge implements HUDComponent {
 
     // Cached strokes
     private BasicStroke strokeThick;
     private BasicStroke strokeThin;
     private int cachedLineWidth = -1;
+
+    // Styling Context
+    private int compassDiameter;
+    private int compassRadius;
+    private int compassInnerMarkRadius;
+    private int lineWidth;
+    private int halfLine;
+    private Font font;
 
     // State
     private double pitch; // In pixels (already scaled)
@@ -26,15 +35,44 @@ public class AttitudeIndicatorGauge {
     private String sAttitude;
     private int roundHorizon;
 
-    /**
-     * Update component state.
-     * 
-     * @param pitch        Pitch value (in pixels, scaled)
-     * @param rollDeg      Roll in degrees
-     * @param aosX         Angle of Sideslip X offset
-     * @param sAttitude    Text to display
-     * @param roundHorizon Horizon value for color logic
-     */
+    public AttitudeIndicatorGauge() {
+        this.sAttitude = "";
+    }
+
+    @Override
+    public String getId() {
+        return "gauge.attitude";
+    }
+
+    @Override
+    public Dimension getPreferredSize() {
+        return new Dimension(compassDiameter, compassDiameter);
+    }
+
+    public void setStyleContext(int compassDiameter, int compassRadius, int compassInnerMarkRadius, int lineWidth,
+            int halfLine, Font font) {
+        this.compassDiameter = compassDiameter;
+        this.compassRadius = compassRadius;
+        this.compassInnerMarkRadius = compassInnerMarkRadius;
+        this.lineWidth = lineWidth;
+        this.halfLine = halfLine;
+        this.font = font;
+    }
+
+    @Override
+    public void update(Object data) {
+        if (data instanceof Object[]) {
+            Object[] params = (Object[]) data;
+            if (params.length >= 5) {
+                this.pitch = (Double) params[0];
+                this.rollDeg = (Double) params[1];
+                this.aosX = (Integer) params[2];
+                this.sAttitude = (String) params[3];
+                this.roundHorizon = (Integer) params[4];
+            }
+        }
+    }
+
     public void update(double pitch, double rollDeg, int aosX, String sAttitude, int roundHorizon) {
         this.pitch = pitch;
         this.rollDeg = rollDeg;
@@ -43,22 +81,8 @@ public class AttitudeIndicatorGauge {
         this.roundHorizon = roundHorizon;
     }
 
-    /**
-     * Draw the attitude indicator.
-     * 
-     * @param g2d                    Graphics context
-     * @param centerX                Center X coordinate
-     * @param centerY                Center Y coordinate
-     * @param compassDiameter        Diameter of the arc
-     * @param compassRadius          Radius of the arc
-     * @param compassInnerMarkRadius Inner radius for marks
-     * @param lineWidth              Line width for strokes
-     * @param halfLine               Half line width offset
-     * @param font                   Font for text
-     */
-    public void draw(Graphics2D g2d, int centerX, int centerY, int compassDiameter, int compassRadius,
-            int compassInnerMarkRadius, int lineWidth, int halfLine, Font font) {
-
+    @Override
+    public void draw(Graphics2D g2d, int centerX, int centerY) {
         Application.debugPrint("Component: AttitudeIndicator, x=" + centerX + ", y=" + centerY);
 
         updateStrokes(lineWidth);
@@ -91,8 +115,10 @@ public class AttitudeIndicatorGauge {
         g2d.setTransform(oldTransform);
 
         // 画文字 (Draw Text)
-        Color textColor = (roundHorizon >= 0) ? Application.colorNum : Application.colorUnit;
-        UIBaseElements.__drawStringShade(g2d, centerX, centerY - 1, 1, sAttitude, font, textColor);
+        if (font != null) {
+            Color textColor = (roundHorizon >= 0) ? Application.colorNum : Application.colorUnit;
+            UIBaseElements.__drawStringShade(g2d, centerX, centerY - 1, 1, sAttitude, font, textColor);
+        }
     }
 
     private void drawMarks(Graphics2D g2d, int centerX, int centerY, int compassDiameter, int compassRadius,
@@ -110,8 +136,6 @@ public class AttitudeIndicatorGauge {
 
     private void updateStrokes(int lineWidth) {
         if (cachedLineWidth != lineWidth) {
-            // Using similar logic to what was likely in MinimalHUD or creating reasonable
-            // defaults
             strokeThick = new BasicStroke(lineWidth + 2, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
             strokeThin = new BasicStroke(lineWidth, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
             cachedLineWidth = lineWidth;

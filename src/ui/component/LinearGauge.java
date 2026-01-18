@@ -7,7 +7,7 @@ import java.awt.Graphics2D;
 
 import prog.Application;
 
-public class LinearGauge {
+public class LinearGauge implements HUDComponent {
     public String label;
     public String unit;
     public int maxValue;
@@ -30,6 +30,48 @@ public class LinearGauge {
     public void update(int value, String displayValue) {
         this.curValue = value;
         this.displayValue = displayValue;
+    }
+
+    @Override
+    public String getId() {
+        return "gauge.linear." + label;
+    }
+
+    @Override
+    public java.awt.Dimension getPreferredSize() {
+        if (vertical) {
+            return new java.awt.Dimension(thicknessCache * 2, lengthCache);
+        } else {
+            return new java.awt.Dimension(lengthCache, thicknessCache * 2);
+        }
+    }
+
+    private int lengthCache = 100;
+    private int thicknessCache = 10;
+    private Font fontLabelCache;
+    private Font fontNumCache;
+
+    public void setStyleContext(int length, int thickness, Font fontLabel, Font fontNum) {
+        this.lengthCache = length;
+        this.thicknessCache = thickness;
+        this.fontLabelCache = fontLabel;
+        this.fontNumCache = fontNum;
+    }
+
+    @Override
+    public void update(Object data) {
+        if (data instanceof Object[]) {
+            Object[] params = (Object[]) data;
+            if (params.length >= 2) {
+                update((Integer) params[0], (String) params[1]);
+            }
+        }
+    }
+
+    @Override
+    public void draw(Graphics2D g2d, int x, int y) {
+        Application.debugPrint("Component: " + label + ", x=" + x + ", y=" + y);
+        draw(g2d, x, y, lengthCache, thicknessCache, fontLabelCache, fontNumCache);
     }
 
     /**
@@ -56,15 +98,23 @@ public class LinearGauge {
         g2d.setStroke(borderStroke);
 
         if (vertical) {
-            // Vertical Bar: width=thickness, height=length
-            drawBar(g2d, x, y, thickness, length, pixVal, shade, c, true);
+            // (x, y) is the Top-Left of the combined gauge area
+            int textWidth = g2d.getFontMetrics(fontNum).stringWidth(displayValue);
+            int labelSpacing = 2; // Spacing between label and bar
+            int barX = x + textWidth + labelSpacing;
 
-            // Separator Line
+            // Draw the background and fixed bar border/fill
+            drawBar(g2d, barX, y, thickness, length, pixVal, shade, c, true);
+
+            int sepY = y - pixVal;
+
+            // Separator Line (moving with value)
             g2d.setStroke(separatorStroke);
-            drawRect(g2d, x, y - pixVal - 1, thickness + 3 * fontNum.getSize(), 3, shade, lblColor, false);
+            int totalWidth = textWidth + labelSpacing + thickness;
+            drawRect(g2d, x, sepY, totalWidth, 3, shade, lblColor, false);
 
-            // Text Number
-            drawTextShaded(g2d, x + thickness, y - pixVal - 2, displayValue, fontNum, lblColor);
+            // Text Number (moving with separator)
+            drawTextShaded(g2d, x, sepY - 1, displayValue, fontNum, lblColor);
         } else {
             // Horizontal Bar: width=length, height=thickness
             drawBar(g2d, x, y, length, thickness, pixVal, shade, c, false);

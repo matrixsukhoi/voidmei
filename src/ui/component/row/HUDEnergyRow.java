@@ -17,6 +17,26 @@ public class HUDEnergyRow extends HUDTextRow {
         super(index, font, height);
         this.smallFont = smallFont;
         this.rightDraw = rightDraw;
+        this.energyText = "";
+        this.energyColor = Color.YELLOW;
+    }
+
+    public void setStyle(Font font, int height, Font smallFont, int rightDraw) {
+        super.setStyle(font, height);
+        this.smallFont = smallFont;
+        this.rightDraw = rightDraw;
+    }
+
+    @Override
+    public void update(Object data) {
+        if (data instanceof Object[]) {
+            Object[] params = (Object[]) data;
+            if (params.length >= 4) {
+                super.update((String) params[0], (Boolean) params[1]);
+                this.energyText = (String) params[2];
+                this.energyColor = (Color) params[3];
+            }
+        }
     }
 
     public void update(String text, boolean isWarning, String energyText, Color energyColor) {
