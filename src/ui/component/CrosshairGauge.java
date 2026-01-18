@@ -71,9 +71,9 @@ public class CrosshairGauge implements HUDComponent {
     @Override
     public void draw(Graphics2D g2d, int centerX, int centerY) {
         if (useTexture && texture != null) {
-            Application.debugPrint("Component: Crosshair (Texture), x=" + centerX + ", y=" + centerY);
             int x = centerX - crossWidthVario;
             int y = centerY - crossWidthVario;
+            Application.debugPrint("Component: Crosshair (Texture), x=" + centerX + ", y=" + centerY);
             g2d.drawImage(texture, x, y, crossWidthVario * 2, crossWidthVario * 2, null);
             return;
         }
@@ -98,11 +98,13 @@ public class CrosshairGauge implements HUDComponent {
         // Draw shadow layer
         g2d.setStroke(outerStroke);
         g2d.setColor(shadowColor);
+
         drawCrosshairShape(g2d, centerX, centerY, halfWidth, quarterWidth, lineLength);
 
         // Draw foreground layer
         g2d.setStroke(innerStroke);
         g2d.setColor(foregroundColor);
+
         drawCrosshairShape(g2d, centerX, centerY, halfWidth, quarterWidth, lineLength);
     }
 

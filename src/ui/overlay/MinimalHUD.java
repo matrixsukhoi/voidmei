@@ -8,7 +8,6 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Image;
 import java.awt.RenderingHints;
-import java.awt.Toolkit;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionAdapter;
@@ -221,7 +220,7 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 		if (CrossWidth == 0)
 			CrossWidth = 1;
 		if (controller.getconfig("crosshairName") != "")
-			crosshairName = controller.getconfig("crosshairName");
+			crosshairName = controller.getconfig("crosshairName").trim();
 		else
 			crosshairName = "";
 		// Application.debugPrint(controller.getconfig("usetexturecrosshair"));
@@ -331,8 +330,34 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 		strokeThick = new BasicStroke(halfLine + 2, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
 		strokeThin = new BasicStroke(halfLine, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
 
-		crosshairImageRaw = Toolkit.getDefaultToolkit().createImage("image/gunsight/" + crosshairName + ".png");
-		crosshairImageScaled = crosshairImageRaw.getScaledInstance(CrossWidth * 2, CrossWidth * 2, Image.SCALE_SMOOTH);
+		String path = "image/gunsight/" + crosshairName + ".png";
+		java.io.File imgFile = new java.io.File(path);
+		if (imgFile.exists()) {
+			try {
+				crosshairImageRaw = javax.imageio.ImageIO.read(imgFile);
+				if (crosshairImageRaw != null) {
+					int targetSize = CrossWidth * 2;
+					java.awt.image.BufferedImage scaled = new java.awt.image.BufferedImage(targetSize, targetSize,
+							java.awt.image.BufferedImage.TYPE_INT_ARGB);
+					java.awt.Graphics2D g2 = scaled.createGraphics();
+					g2.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION,
+							java.awt.RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+					g2.drawImage(crosshairImageRaw, 0, 0, targetSize, targetSize, null);
+					g2.dispose();
+					crosshairImageScaled = scaled;
+
+					Application
+							.debugPrint("MinimalHUD: Loaded and scaled crosshair: " + path + " to " + targetSize + "x"
+									+ targetSize);
+				}
+			} catch (java.io.IOException e) {
+				Application.debugPrint("MinimalHUD: Failed to read crosshair: " + path);
+				crosshairImageRaw = null;
+			}
+		} else {
+			Application.debugPrint("MinimalHUD: Crosshair file not found: " + imgFile.getAbsolutePath());
+			crosshairImageRaw = null;
+		}
 
 		if (crossOn)
 			this.setBounds(windowX, windowY, Width * 2, Height);
@@ -343,8 +368,15 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 		HUDFontSizeSmall = (int) (HUDFontsize * 0.75f);
 		drawFontSmall = new Font(NumFont, Font.BOLD, HUDFontSizeSmall);
 		drawFontSSmall = new Font(NumFont, Font.BOLD, HUDFontsize / 2);
+		CrossX = Width / 2;
+		CrossY = Height / 2;
+
+		if (layoutEngine != null) {
+			layoutEngine.setCanvasSize(crossOn ? Width * 2 : Width, Height);
+		}
 
 		applyStyleToComponents();
+		updateComponents();
 		repaint();
 	}
 
@@ -354,6 +386,7 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 		controller = c;
 		velocityX = 0;
 		otherService = os;
+		this.setLayout(new java.awt.BorderLayout());
 		setFrameOpaque();
 
 		reinitConfig();
@@ -396,8 +429,7 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 		halfLine = (lineWidth / 2 == 0) ? 1 : (int) Math.round(lineWidth / 2.0f);
 		strokeThick = new BasicStroke(halfLine + 2, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
 		strokeThin = new BasicStroke(halfLine, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
-		crosshairImageRaw = Toolkit.getDefaultToolkit().createImage("image/gunsight/" + crosshairName + ".png");
-		crosshairImageScaled = crosshairImageRaw.getScaledInstance(CrossWidth * 2, CrossWidth * 2, Image.SCALE_SMOOTH);
+		// Image loading is handled by reinitConfig() which is called above
 
 		if (crossOn)
 			this.setBounds(windowX, windowY, Width * 2, Height);
@@ -417,7 +449,6 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 		initComponentsLayout();
 
 		panel = new WebPanel() {
-
 			private static final long serialVersionUID = -9061280572815010060L;
 
 			public void paintComponent(Graphics g) {
@@ -438,8 +469,10 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 				drawBlinkX(g2d);
 			}
 		};
+		panel.setOpaque(false);
+		panel.setWebColoredBackground(false);
 
-		this.add(panel);
+		this.setContentPane(panel);
 
 		// 1miao 8 ci
 		blinkTicks = (int) ((1000 / controller.freqService) >> 3);
@@ -710,8 +743,11 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 			componentStateMap.get(attitudeIndicatorGauge.getId()).setVisible(drawAttitude && !disableAttitude);
 		}
 		if (crosshairGauge != null) {
-			// Crosshair state update if needed
-			componentStateMap.get(crosshairGauge.getId()).setVisible(crossOn);
+			ui.layout.HUDComponentState crosshairState = componentStateMap.get(crosshairGauge.getId());
+			crosshairState.setVisible(crossOn);
+			// Dynamic position based on current Width/CrossX
+			crosshairState.setXOffset(Width + CrossX);
+			crosshairState.setYOffset(CrossY);
 		}
 
 		if (hudRows != null && hudRows.size() >= 5) {
@@ -917,7 +953,7 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 
 	private void applyStyleToComponents() {
 		if (layoutEngine != null) {
-			layoutEngine.setCanvasSize(Width, Height);
+			layoutEngine.setCanvasSize(crossOn ? Width * 2 : Width, Height);
 		}
 		if (crosshairGauge != null) {
 			if (busetexturecrosshair) {
