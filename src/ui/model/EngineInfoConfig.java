@@ -216,13 +216,13 @@ public class EngineInfoConfig {
 
         // Let's check `DefaultFieldManager`.
 
-        cfg.addFieldDefinition("hp", Lang.ePower, "Hp", "HorsePower", false, "1200");
+        cfg.addFieldDefinition("hp", Lang.ePower, "Hp", "HorsePower", true, "1200");
         cfg.addFieldDefinition("thrust", Lang.eThurst, "Kgf", "Thrust", false, "1000");
         cfg.addFieldDefinition("rpm", Lang.eRPM, "Rpm", "RPM", false, "2400");
-        cfg.addFieldDefinition("pitch", Lang.ePitchDeg, "Deg", "PropPitch", false, "55");
-        cfg.addFieldDefinition("eff_eta", Lang.eEff, "%", "EffEta", false, "85");
-        cfg.addFieldDefinition("eff_hp", Lang.eEffPower, "Hp", "EffHp", false, "1100");
-        cfg.addFieldDefinition("pressure", Lang.eATM, "Ata", "Pressure", false, "1.2");
+        cfg.addFieldDefinition("pitch", Lang.ePitchDeg, "Deg", "PropPitch", true, "55");
+        cfg.addFieldDefinition("eff_eta", Lang.eEff, "%", "EffEta", true, "85");
+        cfg.addFieldDefinition("eff_hp", Lang.eEffPower, "Hp", "EffHp", true, "1100");
+        cfg.addFieldDefinition("pressure", Lang.eATM, "Ata", "Pressure", true, "1.2");
         cfg.addFieldDefinition("power_percent", Lang.ePowerPercent, "%", "PowerPercent", false, "95");
         cfg.addFieldDefinition("fuel_kg", Lang.eFuel, "Kg", "FuelKg", false, "500");
         cfg.addFieldDefinition("fuel_time", Lang.eFueltime, "Min", "FuelTime", false, "45");

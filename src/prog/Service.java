@@ -283,42 +283,18 @@ public class Service implements Runnable {
 			watertemp = nastring;
 		oiltemp = String.format("%.0f", noilTemp);
 		if (sState.manifoldpressure != 1) {
-			String pUnit = "Ata";
-			double pVal = sState.manifoldpressure;
-
-			// Dynamic Unit Detection
-			if (c.getBlkx() != null && c.getBlkx().readFileName != null) {
-				String fn = c.getBlkx().readFileName.toLowerCase();
-				// US / UK check
-				if (fn.contains("p-") || fn.contains("f-") || fn.contains("b-") || fn.contains("a-")
-						|| fn.contains("f6f") || fn.contains("f4u") || fn.contains("spitfire")
-						|| fn.contains("hurricane") || fn.contains("tempest") || fn.contains("typhoon")
-						|| fn.contains("mustang") || fn.contains("corsair") || fn.contains("thunderbolt")
-						|| fn.contains("wyvern") || fn.contains("seafire") || fn.contains("sea_fury")) {
-					pUnit = "inHg";
-					pVal = pVal * 29.9213; // Convert Ata to inHg
-				}
-			}
-
-			if ("inHg".equals(pUnit)) {
-				manifoldpressure = String.format("%.1f", pVal);
-			} else {
-				manifoldpressure = String.format("%.2f", pVal);
-			}
-
-			// Store unit for data map
-			// We can't put it in map here, need to wait until updateGlobalPool.
-			// Currently strict pressurePounds etc are for legacy.
-
-			// Hack: use pressureInchHg var to store unit? No, creating a new field is
-			// cleaner but I can't add fields easily without refactoring.
-			// I will use `pressurePounds` to store the Unit string temporarily? No that's
-			// dirty.
-			// I'll add `public String pressureUnit = "Ata";` to Service class.
-			this.pressureUnitStr = pUnit;
-
 			pressurePounds = String.format("%+.1f", (sState.manifoldpressure - 1) * 14.696);
 			pressureInchHg = String.format("P/%.1f''", (sState.manifoldpressure * 760 / 25.4));
+
+			if (this.iCheckAlt > 0) {
+				// Imperial Mode: Value is Boost (psi), Unit is Manifold (inHg)
+				this.manifoldpressure = pressurePounds;
+				this.pressureUnitStr = pressureInchHg;
+			} else {
+				// Metric Mode: Value is Ata, Unit is Ata
+				this.manifoldpressure = String.format("%.2f", sState.manifoldpressure);
+				this.pressureUnitStr = "Ata";
+			}
 		} else {
 			manifoldpressure = nastring;
 			pressurePounds = nastring;
