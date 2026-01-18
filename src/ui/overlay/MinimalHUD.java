@@ -34,13 +34,9 @@ import ui.base.DraggableOverlay;
  * Being migrated to event-driven architecture.
  */
 public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
-
-	/**
-	 * 
-	 */
 	public volatile boolean doit = true;
-	Boolean on;
-	Controller xc;
+	Boolean isHudTextVisible;
+	Controller controller;
 	WebPanel panel;
 	int HUDFontsize;
 	int Width;
@@ -48,23 +44,20 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 	int CrossX;
 	int CrossY;
 	int AoAFuselagePix;
-	int Vx;
+	int velocityX;
 	int compass;
-	Service xs;
-	OtherService cs;
-	Image A;
-	Image C;
-	BufferedImage B;
+	Service service;
+	OtherService otherService;
+	Image crosshairImageRaw;
+	Image crosshairImageScaled;
 	String crosshairName;
 	boolean busetexturecrosshair;
 	int isDragging;
-	int xx;
-	int yy;
+	int dragStartX;
+	int dragStartY;
 	private static final long serialVersionUID = -3898679368097973617L;
 	String lineCompass;
 	String lineHorizon;
-	// String line2;
-	// String line3;
 	String lines[];
 	String NumFont;
 	Font drawFont;
@@ -197,56 +190,9 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 		int n = 0;
 		g.setFont(drawFont);
 		int kx = 0;
-		// drawStringShade(g, x, n+y, lines[0], drawFont);
-		// BasicStroke outBs = new BasicStroke(lineWidth + 2, BasicStroke.CAP_ROUND,
-		// BasicStroke.JOIN_ROUND);
-		// BasicStroke inBs = new BasicStroke(lineWidth, BasicStroke.CAP_ROUND,
-		// BasicStroke.JOIN_ROUND);
-		// 油门
-		// if(throttley >= throttleh) {
-		// g.setColor(Application.colorShadeShape);
-		// g.setStroke(Bs3);
-		// g.drawLine(kx + barWidth, n5 - throttleh + lineWidth + 2 , kx + barWidth, n5
-		// - throttleh + lineWidth + 2);
-		// g.setColor(Application.colorNum);
-		// g.setStroke(Bs1);
-		// g.drawLine(kx + barWidth, n5 - throttleh + lineWidth + 2 , kx + barWidth, n5
-		// - throttleh + lineWidth + 2);
-		// }
-		// if(throttley >= throttlec) {
-		// g.setColor(Application.colorShadeShape);
-		// g.setStroke(Bs3);
-		// g.drawLine(kx + barWidth, n5 - throttlec + lineWidth + 2 , (int)(kx + 1.25 *
-		// barWidth), n5 - throttlec + lineWidth + 2);
-		// g.setColor(Application.colorNum);
-		// g.setStroke(Bs1);
-		// g.drawLine(kx + barWidth, n5 - throttlec + lineWidth + 2 , (int)(kx + 1.25 *
-		// barWidth), n5 - throttlec + lineWidth + 2);
-		// }
-		// if(throttley >= throttlem) {
-		// g.setColor(Application.colorShadeShape);
-		// g.setStroke(Bs3);
-		// g.drawLine(kx + barWidth, n5 - throttlem + lineWidth + 2 , (int)(kx + 1.5 *
-		// barWidth), n5 - throttlem + lineWidth + 2);
-		// g.setColor(Application.colorNum);
-		// g.setStroke(Bs1);
-		// g.drawLine(kx + barWidth, n5 - throttlem + lineWidth + 2 , (int)(kx + 1.5 *
-		// barWidth), n5 - throttlem + lineWidth + 2);
-		// }
-		// if(throttley >= throttlew) {
-		// g.setColor(Application.colorShadeShape);
-		// g.setStroke(Bs3);
-		// g.drawLine(kx + barWidth, n5 - throttlew + lineWidth + 2 , kx + barWidth +
-		// barWidth, n5 - throttlew + lineWidth + 2);
-		// g.setColor(Application.colorNum);
-		// g.setStroke(Bs1);
-		// g.drawLine(kx + barWidth, n5 - throttlew + lineWidth + 2 , kx + barWidth +
-		// barWidth, n5 - throttlew + lineWidth + 2);
-		// }
-		// UIBaseElements.drawVRect(g, kx, n5 + lineWidth + 2 , barWidth, throttley, 1,
-		// throttleColor);
 		int yOffset = y - HUDFontsize;
-		UIBaseElements.drawVBarTextNumLeft(g, kx + barWidth, n5 + yOffset + lineWidth + 2, barWidth, throttley_max,
+		UIBaseElements.drawVBarTextNumLeft(g, kx + barWidth, baseYOffset + yOffset + lineWidth + 2, barWidth,
+				throttley_max,
 				throttley, 1,
 				Application.colorNum, throttleColor, "",
 				lineThrottle, drawFontSSmall, drawFontSSmall);
@@ -259,14 +205,14 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 			if (!blinkX || (blinkX && !blinkActing)) {
 				// 计算小圆形的位置
 
-				int circleX = lineWidth - aosX + round;
-				int circleY = (int) (n5 + yOffset - 2.5 * HUDFontsize + rnd / 2 - pitch);
+				int circleX = lineWidth - aosX + attitudeCenterOffset;
+				int circleY = (int) (baseYOffset + yOffset - 2.5 * HUDFontsize + compassDiameter / 2 - pitch);
 				double rollDegRad = Math.toRadians(rollDeg);
 				// 绘制地面和牵引线
-				g.setStroke(Bs3);
+				g.setStroke(strokeThick);
 				g.setColor(Application.colorShadeShape);
 				g.drawLine(circleX + aosX, circleY + pitch, circleX, circleY);
-				g.setStroke(Bs1);
+				g.setStroke(strokeThin);
 				g.setColor(Application.colorLabel);
 				g.drawLine(circleX + aosX, circleY + pitch, circleX, circleY);
 
@@ -282,19 +228,27 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 				int hbs = halfLine;
 				// 画三条支线表示水平和垂直方向
 
-				g.drawArc(circleX - hrnd + hbs, circleY - hrnd + hbs, rnd, rnd, -180, 180);
-				g.drawLine(circleX + hbs, circleY - hrnd / 2 + hbs, circleX + hbs, circleY - urnd + hbs);
-				g.drawLine(circleX + hrnd + hbs, circleY + hbs, circleX + urnd + hbs, circleY + hbs);
-				g.drawLine(circleX - hrnd + hbs, circleY + hbs, circleX - urnd + hbs, circleY + hbs);
+				g.drawArc(circleX - compassRadius + hbs, circleY - compassRadius + hbs, compassDiameter,
+						compassDiameter, -180, 180);
+				g.drawLine(circleX + hbs, circleY - compassRadius / 2 + hbs, circleX + hbs,
+						circleY - compassInnerMarkRadius + hbs);
+				g.drawLine(circleX + compassRadius + hbs, circleY + hbs, circleX + compassInnerMarkRadius + hbs,
+						circleY + hbs);
+				g.drawLine(circleX - compassRadius + hbs, circleY + hbs, circleX - compassInnerMarkRadius + hbs,
+						circleY + hbs);
 
 				g.setStroke(new BasicStroke(lineWidth, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
 				g.setColor(Application.colorNum);
 
 				// 画三条支线表示水平和垂直方向
-				g.drawArc(circleX - hrnd + hbs, circleY - hrnd + hbs, rnd, rnd, -180, 180);
-				g.drawLine(circleX + hbs, circleY - hrnd / 2 + hbs, circleX + hbs, circleY - urnd + hbs);
-				g.drawLine(circleX + hrnd + hbs, circleY + hbs, circleX + urnd + hbs, circleY + hbs);
-				g.drawLine(circleX - hrnd + hbs, circleY + hbs, circleX - urnd + hbs, circleY + hbs);
+				g.drawArc(circleX - compassRadius + hbs, circleY - compassRadius + hbs, compassDiameter,
+						compassDiameter, -180, 180);
+				g.drawLine(circleX + hbs, circleY - compassRadius / 2 + hbs, circleX + hbs,
+						circleY - compassInnerMarkRadius + hbs);
+				g.drawLine(circleX + compassRadius + hbs, circleY + hbs, circleX + compassInnerMarkRadius + hbs,
+						circleY + hbs);
+				g.drawLine(circleX - compassRadius + hbs, circleY + hbs, circleX - compassInnerMarkRadius + hbs,
+						circleY + hbs);
 
 				g.setTransform(oldTransform);
 
@@ -306,11 +260,6 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 					UIBaseElements.__drawStringShade(g, circleX, circleY - 1, 1, sAttitude, drawFontSmall,
 							Application.colorUnit);
 				}
-				// UIBaseElements.__drawStringShade(g, circleX - HUDFontsize / 2, circleY + 3 *
-				// HUDFontsize / 2, 1, sAttitudeRoll, drawFontSmall, Application.colorNum);
-
-				// 恢复原始的图形变换
-				// g.setTransform(oldTransform);
 			}
 		}
 
@@ -341,60 +290,60 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 				// 机动性指标线
 
 				g.setColor(Application.colorShadeShape);
-				g.setStroke(Bs3);
+				g.setStroke(strokeThick);
 				g.drawLine(x + rightDraw - maneuverIndexLen10, n + y + halfLine + lineWidth + lineWidth,
 						x + rightDraw - maneuverIndexLen10, n + y + halfLine - lineWidth + lineWidth);
 				g.setColor(Application.colorNum);
-				g.setStroke(Bs1);
+				g.setStroke(strokeThin);
 				g.drawLine(x + rightDraw - maneuverIndexLen10, n + y + halfLine + lineWidth + lineWidth,
 						x + rightDraw - maneuverIndexLen10, n + y + halfLine - lineWidth + lineWidth);
 
 				if (maneuverIndex >= 0.1) {
 					g.setColor(Application.colorShadeShape);
-					g.setStroke(Bs3);
+					g.setStroke(strokeThick);
 					g.drawLine(x + rightDraw - maneuverIndexLen20, n + y + halfLine + lineWidth + lineWidth,
 							x + rightDraw - maneuverIndexLen20, n + y + halfLine - lineWidth + lineWidth);
 					g.setColor(Application.colorNum);
-					g.setStroke(Bs1);
+					g.setStroke(strokeThin);
 					g.drawLine(x + rightDraw - maneuverIndexLen20, n + y + halfLine + lineWidth + lineWidth,
 							x + rightDraw - maneuverIndexLen20, n + y + halfLine - lineWidth + lineWidth);
 				}
 				if (maneuverIndex >= 0.2) {
 					g.setColor(Application.colorShadeShape);
-					g.setStroke(Bs3);
+					g.setStroke(strokeThick);
 					g.drawLine(x + rightDraw - maneuverIndexLen30, n + y + halfLine + lineWidth + lineWidth,
 							x + rightDraw - maneuverIndexLen30, n + y + halfLine - lineWidth + lineWidth);
 					g.setColor(Application.colorNum);
-					g.setStroke(Bs1);
+					g.setStroke(strokeThin);
 					g.drawLine(x + rightDraw - maneuverIndexLen30, n + y + halfLine + lineWidth + lineWidth,
 							x + rightDraw - maneuverIndexLen30, n + y + halfLine - lineWidth + lineWidth);
 				}
 				if (maneuverIndex >= 0.3) {
 					g.setColor(Application.colorShadeShape);
-					g.setStroke(Bs3);
+					g.setStroke(strokeThick);
 					g.drawLine(x + rightDraw - maneuverIndexLen40, n + y + halfLine + lineWidth + lineWidth,
 							x + rightDraw - maneuverIndexLen40, n + y + halfLine - lineWidth + lineWidth);
 					g.setColor(Application.colorNum);
-					g.setStroke(Bs1);
+					g.setStroke(strokeThin);
 					g.drawLine(x + rightDraw - maneuverIndexLen40, n + y + halfLine + lineWidth + lineWidth,
 							x + rightDraw - maneuverIndexLen40, n + y + halfLine - lineWidth + lineWidth);
 				}
 				if (maneuverIndex >= 0.4) {
 					g.setColor(Application.colorShadeShape);
-					g.setStroke(Bs3);
+					g.setStroke(strokeThick);
 					g.drawLine(x + rightDraw - maneuverIndexLen50, n + y + halfLine + lineWidth + lineWidth,
 							x + rightDraw - maneuverIndexLen50, n + y + halfLine - lineWidth + lineWidth);
 					g.setColor(Application.colorNum);
-					g.setStroke(Bs1);
+					g.setStroke(strokeThin);
 					g.drawLine(x + rightDraw - maneuverIndexLen50, n + y + halfLine + lineWidth + lineWidth,
 							x + rightDraw - maneuverIndexLen50, n + y + halfLine - lineWidth + lineWidth);
 				}
-				g.setStroke(Bs3);
+				g.setStroke(strokeThick);
 				g.setColor(Application.colorShadeShape);
 				g.drawLine(x + rightDraw, n + y + halfLine + lineWidth, x + rightDraw - maneuverIndexLen,
 						n + y + halfLine + lineWidth);
 
-				g.setStroke(Bs1);
+				g.setStroke(strokeThin);
 				g.setColor(Application.colorNum);
 				g.drawLine(x + rightDraw, n + y + halfLine + lineWidth, x + rightDraw - maneuverIndexLen,
 						n + y + halfLine + lineWidth);
@@ -406,69 +355,6 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 		}
 		n += 2;
 
-		// g.setColor(Application.lblShadeColorMinor);
-		// g.drawLine(3, n, 3, n - throttley);
-		// g.setColor(Application.lblNumColor);
-		// g.drawLine(2, n - 1, 2, n - 1 - throttley);
-
-		// UIBaseElements.drawVRect(g, kx, n, barWidth, aoaY, 1, Application.warning);
-		// UIBaseElements.drawVBar(g, kx, n, barWidth, AoAFuselagePix, aoaY, 1,
-		// Application.warning);
-		// kx += barWidth;
-		//
-
-		// UIBaseElements.drawVBarTextNum(g, kx, n, barWidth, HUDFontsize * 5,
-		// throttley, 1, Application.lblNumColor, "", "T"+throttley, drawFont,
-		// drawFont);
-		// UIBaseElements.drawVBar(g, kx, n, barWidth, HUDFontsize * 5, throttley,
-		// 1, Application.lblNumColor);
-		if (!drawAttitude) {
-			/*
-			 * // if (pitch > 0) { // UIBaseElements.drawVRect(g, kx, n, barWidth,
-			 * pitch, 1, // Application.colorWarning); // } else { //
-			 * UIBaseElements.drawVRect(g, kx, n, barWidth, pitch, 1, Application.colorNum);
-			 * // } // kx += barWidth;
-			 */ }
-
-		// UIBaseElements.drawVBar(g, x + rightDraw, n, barWidth, AoAFuselagePix,
-		// aoaY, 1, Application.warning);
-		// AoA
-		// g.setColor(Application.lblShadeColorMinor);
-		// g.drawLine(1, n, 1, n - aoaY);
-		// g.setColor(Application.warning);
-		// g.drawLine(0, n - 1, 0, n - 1 - aoaY);
-
-		// g.setColor(Application.lblShadeColorMinor);
-		// g.drawLine(0, n-1,0, n-1 - aoaY );
-		// g.setColor(Application.warning);
-		// g.drawLine(1, n, 1, n-aoaY);
-		//
-		// 燃油量
-		// int rightDraw = (int)(HUDFontsize * 4.5f + 1);
-		// 引擎健康度
-		// g.setColor(Application.lblShadeColorMinor);
-		// g.drawLine(rightDraw, n, -2 + (rightDraw - OilX), n);
-		// g.setColor(Application.lblNumColor);
-		// g.drawLine(rightDraw - 1, n-1, -2 + (rightDraw - OilX) - 1, n-1);
-		//
-		// 方位
-
-		// g.setColor(Application.lblShadeColorMinor);
-		// g.drawLine(rightDraw, n, rightDraw, n - pitch);
-		// if (pitch > 0)
-		// g.setColor(Application.lblNumColor);
-		// else
-		// g.setColor(Application.warning);
-		// if (pitch > 0){
-		// UIBaseElements.drawVRect(g, rightDraw, n, 5, pitch, 1,
-		// Application.lblNumColor);
-		// }
-		// else{
-		// UIBaseElements.drawVRect(g, rightDraw, n, 5, pitch, 1, Application.warning);
-		// }
-
-		// g.drawLine(rightDraw - 1, n - 1, rightDraw - 1, n - 1 - pitch);
-
 		// 画一个半圆
 
 		// 绘制方向
@@ -478,128 +364,45 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 		n -= 2 * HUDFontsize - 2;
 		kx += rightDraw + r;
 
-		g.setStroke(outBs);
+		g.setStroke(strokeOutline);
 		g.setColor(Application.colorShadeShape);
 
 		g.drawLine(kx + r + (int) (0.618 * r * Math.sin(compassRads)),
 				n + yOffset + r - (int) (0.618 * r * Math.cos(compassRads)), kx + r + compassDx,
 				n + yOffset + r - compassDy);
 		g.drawOval(kx, n + yOffset, r + r, r + r);
-		// g.drawArc(kx, n, r + r, r + r, compass - 5, compass + 365 );
 
-		// 引擎健康度
-		// g.drawArc(2 + 3, n + 3, r + r - 4, r + r - 4, -180, OilX);
-
-		g.setStroke(inBs);
+		g.setStroke(strokeInline);
 		g.setColor(Application.colorNum);
-		// g.drawLine(kx + r + r * compassRads, n + r, kx + r + compassDx, n + r -
-		// compassDy);
+
 		g.drawLine(kx + r + (int) (0.618 * r * Math.sin(compassRads)),
 				n + yOffset + r - (int) (0.618 * r * Math.cos(compassRads)), kx + r + compassDx,
 				n + yOffset + r - compassDy);
 		g.drawOval(kx, n + yOffset, r + r, r + r);
-		// g.drawArc(kx, n, r + r, r + r, compass - 5, compass + 365);
-
-		// g.setColor(Application.warning);
-		// g.drawArc(2 + 2, n + 2, r + r - 4, r + r - 4, -180, OilX);
-
-		// g.setColor(Application.lblShadeColorMinor);
-		// g.drawString(lineHorizon, x + 1, n + y + 1);
-		//
-		// g.setColor(Application.lblNumColor);
-		// g.drawString(lineHorizon, x, n + y);
-
-		// g.setColor(Application.lblShadeColorMinor);
-		// g.drawString(lineCompass, x + 1, n + (r - HUDFontsize / 2) + y + 1);
-		//
-		// g.setColor(Application.lblNumColor);
-		// g.drawString(lineCompass, x, n + (r - HUDFontsize / 2) + y);
 		UIBaseElements.drawStringShade(g, kx + lineWidth + 3, n + y - (r - HUDFontsize) / 2, 1, lineCompass,
 				drawFontSmall);
 		UIBaseElements.drawStringShade(g, kx + lineWidth + 3, n + y + r + HUDFontSizeSmall / 2, 1, lineLoc,
 				drawFontSmall);
 
-		// UIBaseElements.drawStringShade(g, kx + x, n + (r - HUDFontsize / 2) + y, 1,
-		// lineCompass, drawFont);
 		n = n + 3 * roundCompass;
 
 		drawBlinkX(g);
-		// drawLabelBOSType(g, 0, n, 1, drawFont, drawFont, drawFont, "500",
-		// "IAS", "km/h");
-		// drawLabelBOSType(g, 0, n, 1,)
-		// g.drawLine(0, Height-1, 0, throttley );
-		// g.drawLine(0, 0, 0, Height - 1 - throttley);
 	}
-
-	// public void drawTextseries2(Graphics2D g, int x, int y) {
-	// int n = 0;
-	// g.setFont(drawFont);
-	//
-	// g.setColor(Color.gray);
-	// g.drawString(line3, x + 1, n + y + 1);
-	// g.setColor(new Color(255, 215, 8, 100));
-	// g.drawString(line3, x, n + y);
-	//
-	// }
-
-	/*
-	 * private static BufferedImage setAlpha(String srcImageFile,int alpha) {
-	 * 
-	 * try { //读取图片 FileInputStream stream = new FileInputStream(new
-	 * File(srcImageFile));// 指定要读取的图片
-	 * 
-	 * // 定义一个字节数组输出流，用于转换数组 ByteArrayOutputStream os = new
-	 * ByteArrayOutputStream();
-	 * 
-	 * byte[] data =new byte[1024];// 定义一个1K大小的数组 while (stream.read(data) !=
-	 * -1) { os.write(data); }
-	 * 
-	 * ImageIcon imageIcon = new ImageIcon(os.toByteArray()); BufferedImage
-	 * bufferedImage = new BufferedImage(imageIcon.getIconWidth(),
-	 * imageIcon.getIconHeight(), BufferedImage.TYPE_4BYTE_ABGR); Graphics2D g2D
-	 * = (Graphics2D) bufferedImage.getGraphics();
-	 * g2D.drawImage(imageIcon.getImage(), 0, 0, imageIcon.getImageObserver());
-	 * 
-	 * //判读透明度是否越界 if (alpha < 0) { alpha = 0; } else if (alpha > 10) { alpha =
-	 * 10; }
-	 * 
-	 * // 循环每一个像素点，改变像素点的Alpha值 for (int j1 = bufferedImage.getMinY(); j1 <
-	 * bufferedImage.getHeight(); j1++) { for (int j2 = bufferedImage.getMinX();
-	 * j2 < bufferedImage.getWidth(); j2++) { int rgb = bufferedImage.getRGB(j2,
-	 * j1); rgb = ((alpha * 255 / 10) << 24) | (rgb & 0x00ffffff);
-	 * bufferedImage.setRGB(j2, j1, rgb); } } g2D.drawImage(bufferedImage, 0, 0,
-	 * imageIcon.getImageObserver());
-	 * 
-	 * // 生成图片为PNG
-	 * 
-	 * return bufferedImage;
-	 * 
-	 * } catch (Exception e) { e.printStackTrace(); } return null;
-	 * 
-	 * }
-	 */
 
 	public void initPreview(Controller c) {
 		init(c, null, null);
-		// setShadeWidth(10);
-		// this.setVisible(false);
+
 		this.getWebRootPaneUI().setTopBg(Application.previewColor);
 		this.getWebRootPaneUI().setMiddleBg(Application.previewColor);
-		// setFocusableWindowState(true);
-		// setFocusable(true);
-
 		addMouseListener(new MouseAdapter() {
 			public void mouseEntered(MouseEvent e) {
-				/*
-				 * if(A.tag==0){ if(f.mode==1){ A.setVisible(false);
-				 * A.visibletag=0; } }
-				 */
+
 			}
 
 			public void mousePressed(MouseEvent e) {
 				isDragging = 1;
-				xx = e.getX();
-				yy = e.getY();
+				dragStartX = e.getX();
+				dragStartY = e.getY();
 
 			}
 
@@ -607,21 +410,15 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 				if (isDragging == 1) {
 					isDragging = 0;
 				}
-				/*
-				 * if(A.tag==0){ A.setVisible(false); }
-				 */
 			}
-			/*
-			 * public void mouseReleased(MouseEvent e){ if(A.tag==0){
-			 * A.setVisible(true); } }
-			 */
+
 		});
 		addMouseMotionListener(new MouseMotionAdapter() {
 			public void mouseDragged(MouseEvent e) {
 				if (isDragging == 1) {
 					int left = getLocation().x;
 					int top = getLocation().y;
-					setLocation(left + e.getX() - xx, top + e.getY() - yy);
+					setLocation(left + e.getX() - dragStartX, top + e.getY() - dragStartY);
 					saveCurrentPosition();
 					setVisible(true);
 					repaint();
@@ -633,13 +430,13 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 	}
 
 	public void saveCurrentPosition() {
-		xc.setconfig("crosshairX", Integer.toString(getLocation().x));
-		xc.setconfig("crosshairY", Integer.toString(getLocation().y));
+		controller.setconfig("crosshairX", Integer.toString(getLocation().x));
+		controller.setconfig("crosshairY", Integer.toString(getLocation().y));
 	}
 
-	public String ILbl = "I";
-	public String HLbl = "H";
-	public String SLbl = "S";
+	public String speedLabelPrefix = "I";
+	public String altitudeLabelPrefix = "H";
+	public String sepLabelPrefix = "S";
 	private boolean crossOn;
 	private int barWidth;
 	private int lineWidth;
@@ -652,17 +449,17 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 	private double aoaBarWarningRatio;
 	private int HUDFontSizeSmall;
 	private String relEnergy;
-	private BasicStroke outBs;
-	private BasicStroke inBs;
-	private BasicStroke Bs3;
-	private BasicStroke Bs1;
+	private BasicStroke strokeOutline;
+	private BasicStroke strokeInline;
+	private BasicStroke strokeThick;
+	private BasicStroke strokeThin;
 	private int halfLine;
-	private int n5;
-	private int round;
-	private int rnd;
-	private int hrnd;
+	private int baseYOffset;
+	private int attitudeCenterOffset;
+	private int compassDiameter;
+	private int compassRadius;
 	private String lineLoc;
-	private int urnd;
+	private int compassInnerMarkRadius;
 	private Font drawFontSSmall;
 
 	// 襟翼角度
@@ -670,72 +467,72 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 	private double flapAllowA;
 	private String lineFlapAngle;
 	private boolean enableFlapAngleBar;
-	int lx;
-	int ly;
+	int windowX;
+	int windowY;
 
 	public void reinitConfig() {
 
-		if (xc.getconfig("MonoNumFont") != "")
-			NumFont = xc.getconfig("MonoNumFont");
+		if (controller.getconfig("MonoNumFont") != "")
+			NumFont = controller.getconfig("MonoNumFont");
 		else
 			NumFont = Application.defaultNumfontName;
-		if (xc.getconfig("crosshairX") != "")
-			lx = Integer.parseInt(xc.getconfig("crosshairX"));
+		if (controller.getconfig("crosshairX") != "")
+			windowX = Integer.parseInt(controller.getconfig("crosshairX"));
 		else
-			lx = (Application.screenWidth - Width) / 2;
-		if (xc.getconfig("crosshairY") != "")
-			ly = Integer.parseInt(xc.getconfig("crosshairY"));
+			windowX = (Application.screenWidth - Width) / 2;
+		if (controller.getconfig("crosshairY") != "")
+			windowY = Integer.parseInt(controller.getconfig("crosshairY"));
 		else
-			ly = (Application.screenHeight - Height) / 2;
-		if (xc.getconfig("crosshairScale") != "")
-			CrossWidth = Integer.parseInt(xc.getconfig("crosshairScale"));
+			windowY = (Application.screenHeight - Height) / 2;
+		if (controller.getconfig("crosshairScale") != "")
+			CrossWidth = Integer.parseInt(controller.getconfig("crosshairScale"));
 		else
 			CrossWidth = 70;
 		if (CrossWidth == 0)
 			CrossWidth = 1;
-		if (xc.getconfig("crosshairName") != "")
-			crosshairName = xc.getconfig("crosshairName");
+		if (controller.getconfig("crosshairName") != "")
+			crosshairName = controller.getconfig("crosshairName");
 		else
 			crosshairName = "";
-		// Application.debugPrint(xc.getconfig("usetexturecrosshair"));
-		if (xc.getconfig("displayCrosshair") != "") {
-			crossOn = Boolean.parseBoolean(xc.getconfig("displayCrosshair"));
+		// Application.debugPrint(controller.getconfig("usetexturecrosshair"));
+		if (controller.getconfig("displayCrosshair") != "") {
+			crossOn = Boolean.parseBoolean(controller.getconfig("displayCrosshair"));
 
 		} else {
 			crossOn = false;
 		}
 
-		if (xc.getconfig("usetexturecrosshair") != "")
-			busetexturecrosshair = Boolean.parseBoolean(xc.getconfig("usetexturecrosshair"));
+		if (controller.getconfig("usetexturecrosshair") != "")
+			busetexturecrosshair = Boolean.parseBoolean(controller.getconfig("usetexturecrosshair"));
 		else
 			busetexturecrosshair = false;
 
-		if (xc.getconfig("drawHUDtext") != "") {
-			on = Boolean.parseBoolean(xc.getconfig("drawHUDtext"));
+		if (controller.getconfig("drawHUDtext") != "") {
+			isHudTextVisible = Boolean.parseBoolean(controller.getconfig("drawHUDtext"));
 
 		} else {
-			on = true;
+			isHudTextVisible = true;
 		}
-		if (xc.getconfig("drawHUDAttitude") != "") {
-			drawAttitude = Boolean.parseBoolean(xc.getconfig("drawHUDAttitude"));
+		if (controller.getconfig("drawHUDAttitude") != "") {
+			drawAttitude = Boolean.parseBoolean(controller.getconfig("drawHUDAttitude"));
 		} else {
 			drawAttitude = true;
 		}
 
-		if (xc.getconfig("miniHUDaoaWarningRatio") != "") {
-			aoaWarningRatio = Double.parseDouble(xc.getconfig("miniHUDaoaWarningRatio"));
+		if (controller.getconfig("miniHUDaoaWarningRatio") != "") {
+			aoaWarningRatio = Double.parseDouble(controller.getconfig("miniHUDaoaWarningRatio"));
 		} else {
 			aoaWarningRatio = 0.25;
 		}
 
-		if (xc.getconfig("miniHUDaoaBarWarningRatio") != "") {
-			aoaBarWarningRatio = Double.parseDouble(xc.getconfig("miniHUDaoaBarWarningRatio"));
+		if (controller.getconfig("miniHUDaoaBarWarningRatio") != "") {
+			aoaBarWarningRatio = Double.parseDouble(controller.getconfig("miniHUDaoaBarWarningRatio"));
 		} else {
 			aoaBarWarningRatio = 0;
 		}
 
-		if (xc.getconfig("enableFlapAngleBar") != "") {
-			enableFlapAngleBar = Boolean.parseBoolean(xc.getconfig("enableFlapAngleBar"));
+		if (controller.getconfig("enableFlapAngleBar") != "") {
+			enableFlapAngleBar = Boolean.parseBoolean(controller.getconfig("enableFlapAngleBar"));
 		} else {
 			enableFlapAngleBar = true;
 		}
@@ -755,39 +552,39 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 		roundCompass = (int) (Math.round(HUDFontsize * 0.8f));
 		rightDraw = (int) (HUDFontsize * 3.5f);
 
-		n5 = 5 * HUDFontsize;
-		round = (int) (5 * roundCompass);
-		rnd = (int) Math.round(2 * HUDFontsize * 0.618);
-		hrnd = (int) Math.round(rnd / 2.0);
-		urnd = (int) Math.round(0.618 * rnd);
-		hrnd = (int) Math.round(rnd / 2.0);
+		baseYOffset = 5 * HUDFontsize;
+		attitudeCenterOffset = (int) (5 * roundCompass);
+		compassDiameter = (int) Math.round(2 * HUDFontsize * 0.618);
+		compassRadius = (int) Math.round(compassDiameter / 2.0);
+		compassInnerMarkRadius = (int) Math.round(0.618 * compassDiameter);
+		compassRadius = (int) Math.round(compassDiameter / 2.0);
 
-		if (xc.getconfig("hudMach") != "")
-			drawHudMach = Boolean.parseBoolean(xc.getconfig("hudMach"));
+		if (controller.getconfig("hudMach") != "")
+			drawHudMach = Boolean.parseBoolean(controller.getconfig("hudMach"));
 
-		if (xc.getconfig("disableHUDSpeedLabel") != "") {
-			if (Boolean.parseBoolean(xc.getconfig("disableHUDSpeedLabel"))) {
-				ILbl = "";
+		if (controller.getconfig("disableHUDSpeedLabel") != "") {
+			if (Boolean.parseBoolean(controller.getconfig("disableHUDSpeedLabel"))) {
+				speedLabelPrefix = "";
 			} else {
-				ILbl = "SPD";
+				speedLabelPrefix = "SPD";
 			}
 		}
-		if (xc.getconfig("disableHUDHeightLabel") != "") {
-			if (Boolean.parseBoolean(xc.getconfig("disableHUDHeightLabel"))) {
-				HLbl = "";
+		if (controller.getconfig("disableHUDHeightLabel") != "") {
+			if (Boolean.parseBoolean(controller.getconfig("disableHUDHeightLabel"))) {
+				altitudeLabelPrefix = "";
 			} else {
-				HLbl = "ALT";
+				altitudeLabelPrefix = "ALT";
 			}
 		}
-		if (xc.getconfig("disableHUDSEPLabel") != "") {
-			if (Boolean.parseBoolean(xc.getconfig("disableHUDSEPLabel"))) {
-				SLbl = "";
+		if (controller.getconfig("disableHUDSEPLabel") != "") {
+			if (Boolean.parseBoolean(controller.getconfig("disableHUDSEPLabel"))) {
+				sepLabelPrefix = "";
 			} else {
-				SLbl = "SEP";
+				sepLabelPrefix = "SEP";
 			}
 		}
-		if (xc.getconfig("disableHUDAoA") != "") {
-			if (Boolean.parseBoolean(xc.getconfig("disableHUDAoA"))) {
+		if (controller.getconfig("disableHUDAoA") != "") {
+			if (Boolean.parseBoolean(controller.getconfig("disableHUDAoA"))) {
 				lineAoA = "";
 				disableAoA = true;
 				relEnergy = "";
@@ -805,19 +602,19 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 		throttlec = (80 * HUDFontsize * 5) / 110;
 		throttleh = (50 * HUDFontsize * 5) / 110;
 
-		outBs = new BasicStroke(lineWidth + 2, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
-		inBs = new BasicStroke(lineWidth, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
+		strokeOutline = new BasicStroke(lineWidth + 2, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
+		strokeInline = new BasicStroke(lineWidth, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
 		halfLine = (lineWidth / 2 == 0) ? 1 : (int) Math.round(lineWidth / 2.0f);
-		Bs3 = new BasicStroke(halfLine + 2, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
-		Bs1 = new BasicStroke(halfLine, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
+		strokeThick = new BasicStroke(halfLine + 2, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
+		strokeThin = new BasicStroke(halfLine, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
 
-		A = Toolkit.getDefaultToolkit().createImage("image/gunsight/" + crosshairName + ".png");
-		C = A.getScaledInstance(CrossWidth * 2, CrossWidth * 2, Image.SCALE_SMOOTH);
+		crosshairImageRaw = Toolkit.getDefaultToolkit().createImage("image/gunsight/" + crosshairName + ".png");
+		crosshairImageScaled = crosshairImageRaw.getScaledInstance(CrossWidth * 2, CrossWidth * 2, Image.SCALE_SMOOTH);
 
 		if (crossOn)
-			this.setBounds(lx, ly, Width * 2, Height);
+			this.setBounds(windowX, windowY, Width * 2, Height);
 		else
-			this.setBounds(lx, ly, Width, Height);
+			this.setBounds(windowX, windowY, Width, Height);
 
 		drawFont = new Font(NumFont, Font.BOLD, HUDFontsize);
 		HUDFontSizeSmall = (int) (HUDFontsize * 0.75f);
@@ -828,27 +625,22 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 	}
 
 	public void init(Controller c, Service s, OtherService os) {
-		xs = s;
-		xc = c;
-		Vx = 0;
-		cs = os;
+		service = s;
+		controller = c;
+		velocityX = 0;
+		otherService = os;
 		setFrameOpaque();
 
 		reinitConfig();
 
 		lines = new String[6];
-		// for (int i = 0; i < 6; i++) {
-		// lines[i] = new String();
-		// }
-		// lines[0] = ""
-		lines[0] = ILbl + String.format("%5s", "360");
-		lines[1] = HLbl + String.format("%5s", "1024");
-		lines[3] = SLbl + String.format("%5s", "30");
+		lines[0] = speedLabelPrefix + String.format("%5s", "360");
+		lines[1] = altitudeLabelPrefix + String.format("%5s", "1024");
+		lines[3] = sepLabelPrefix + String.format("%5s", "30");
 		lines[4] = "G" + String.format("%5s", "2.0");
 		lines[2] = "F" + String.format("%3s", "100");
 		lines[2] += "BRK";
 		lines[2] += "GEAR";
-		// lines[4] = "A" + String.format("%5s", "1.0");
 		lineCompass = String.format("%3s", "102");
 		lineLoc = "A1";
 		lineHorizon = String.format("%3s", "45");
@@ -862,7 +654,7 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 		relEnergy = "E114514";
 		sAttitude = "";
 		sAttitudeRoll = "";
-		if (xc.getconfig("disableHUDAoA") != "") {
+		if (controller.getconfig("disableHUDAoA") != "") {
 			if (Boolean.parseBoolean(c.getconfig("disableHUDAoA"))) {
 				lineAoA = "";
 				disableAoA = true;
@@ -882,23 +674,18 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 		throttlec = (80 * HUDFontsize * 5) / 110;
 		throttleh = (50 * HUDFontsize * 5) / 110;
 
-		outBs = new BasicStroke(lineWidth + 2, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
-		inBs = new BasicStroke(lineWidth, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
+		strokeOutline = new BasicStroke(lineWidth + 2, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
+		strokeInline = new BasicStroke(lineWidth, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
 		halfLine = (lineWidth / 2 == 0) ? 1 : (int) Math.round(lineWidth / 2.0f);
-		Bs3 = new BasicStroke(halfLine + 2, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
-		Bs1 = new BasicStroke(halfLine, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
-		// Application.debugPrint(lx);
-		// Application.debugPrint(ly);
-		A = Toolkit.getDefaultToolkit().createImage("image/gunsight/" + crosshairName + ".png");
-		C = A.getScaledInstance(CrossWidth * 2, CrossWidth * 2, Image.SCALE_SMOOTH);
-		// B=setAlpha("image/gunsight/" + crosshairName + ".png",200);
-		// B.getScaledInstance(CrossWidth * 2, CrossWidth * 2,
-		// Image.SCALE_SMOOTH);
-		// A=makeColorTransparent(A,new Color(0,0,0));
+		strokeThick = new BasicStroke(halfLine + 2, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
+		strokeThin = new BasicStroke(halfLine, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
+		crosshairImageRaw = Toolkit.getDefaultToolkit().createImage("image/gunsight/" + crosshairName + ".png");
+		crosshairImageScaled = crosshairImageRaw.getScaledInstance(CrossWidth * 2, CrossWidth * 2, Image.SCALE_SMOOTH);
+
 		if (crossOn)
-			this.setBounds(lx, ly, Width * 2, Height);
+			this.setBounds(windowX, windowY, Width * 2, Height);
 		else
-			this.setBounds(lx, ly, Width, Height);
+			this.setBounds(windowX, windowY, Width, Height);
 		drawFont = new Font(NumFont, Font.BOLD, HUDFontsize);
 		HUDFontSizeSmall = (int) (HUDFontsize * 0.75f);
 		drawFontSmall = new Font(NumFont, Font.BOLD, HUDFontSizeSmall);
@@ -924,27 +711,14 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 			public void paintComponent(Graphics g) {
 
 				Graphics2D g2d = (Graphics2D) g;
-				// 开始绘图
-				// g2d.draw
 				g2d.setPaintMode();
 				g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, Application.graphAASetting);
 				g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, Application.textAASetting);
-				// g2d.setRenderingHint(RenderingHints.KEY_RENDERING,
-				// RenderingHints.VALUE_RENDER_QUALITY);
 				g2d.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION,
 						RenderingHints.VALUE_ALPHA_INTERPOLATION_SPEED);
 				g2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_SPEED);
 
-				// if (busetexturecrosshair) {
-				// g2d.drawImage(C, CrossX - CrossWidthVario, CrossY -
-				// CrossWidthVario, CrossWidthVario * 2, CrossWidthVario * 2,
-				// this);
-				//
-				// } else {
-				// drawCrossair(g2d, CrossX, CrossY, CrossWidth);
-				// }
-				// 显示攻角和水平
-				if (on) {
+				if (isHudTextVisible) {
 					// 绘制襟翼角度
 					// 显示在顶部, 并向右偏移以避开左侧油门条
 					if (enableFlapAngleBar) {
@@ -957,41 +731,24 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 				}
 				if (crossOn) {
 					if (busetexturecrosshair) {
-						g2d.drawImage(C, Width + CrossX - CrossWidthVario, CrossY - CrossWidthVario,
+						g2d.drawImage(crosshairImageScaled, Width + CrossX - CrossWidthVario, CrossY - CrossWidthVario,
 								CrossWidthVario * 2, CrossWidthVario * 2, this);
 					} else {
 						drawCrossair(g2d, 2 * Width, 1 * Height, Width + CrossX, CrossY, CrossWidth);
 					}
 				}
-				// g.dispose();
 			}
 		};
-		// initpanel();
 
-		// RepaintManager rm = RepaintManager.currentManager(this);
-		// boolean b = rm.isDoubleBufferingEnabled();
-		// rm.setDoubleBufferingEnabled(false);
-		//
 		this.add(panel);
-		// if (Application.debug)setShadeWidth(8);
-		// setShowWindowButtons(false);
-		// setShowTitleComponent(false);
-		// setShowResizeCorner(false);
-		// setDefaultCloseOperation(3);
-		// setTitle("hud");
-		// setAlwaysOnTop(true);
-		// root = this.getContentPane();
-		// setFocusable(false);
-		// setFocusableWindowState(false);// 取消窗口焦点
-		// this.setCursor(Application.blankCursor);
-		// setVisible(true);
+
 		// 1miao 8 ci
-		blinkTicks = (int) ((1000 / xc.freqService) >> 3);
+		blinkTicks = (int) ((1000 / controller.freqService) >> 3);
 		if (blinkTicks == 0)
 			blinkTicks = 1;
 
 		// Load refresh interval from config
-		refreshInterval = (long) (xc.freqService * 1.0); // Match freqService
+		refreshInterval = (long) (controller.freqService * 1.0); // Match freqService
 
 		setTitle("miniHUD");
 		WebLafSettings.setWindowOpaque(this);
@@ -1038,8 +795,8 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 
 		warnVne = false;
 		warnRH = false;
-		blinkX = xs.fatalWarn;
-		int throttle = xs.sState.throttle;
+		blinkX = service.fatalWarn;
+		int throttle = service.sState.throttle;
 		if (throttle > 101) {
 			throttleColor = Application.colorWarning;
 		} else {
@@ -1047,23 +804,23 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 		}
 		throttley = throttle * throttley_max / 110;
 
-		compass = (int) xs.dCompass;
-		compassRads = (double) Math.toRadians(xs.dCompass);
+		compass = (int) service.dCompass;
+		compassRads = (double) Math.toRadians(service.dCompass);
 
-		// double compassRads = (double) Math.toRadians(xs.sIndic.compass);
+		// double compassRads = (double) Math.toRadians(service.sIndic.compass);
 
 		compassDx = (int) ((roundCompass * 1.3f) * Math.sin(compassRads));
 		compassDy = (int) ((roundCompass * 1.3f) * Math.cos(compassRads));
-		double aoa = xs.sState.AoA;
-		// lineHorizon = " " + String.format("%5s", xs.sPitchUp);
-		double p = xs.curLoadMinWorkTime < xs.fueltime ? xs.curLoadMinWorkTime : xs.fueltime;
+		double aoa = service.sState.AoA;
+		// lineHorizon = " " + String.format("%5s", service.sPitchUp);
+		double p = service.curLoadMinWorkTime < service.fueltime ? service.curLoadMinWorkTime : service.fueltime;
 		OilX = (int) (p * 360 / 600000);
 		if (OilX > 360)
 			OilX = 360;
 		OilX = OilX - 360;
 		// OilX = OilX - 180;
-		double aviahp = xs.sIndic.aviahorizon_pitch;
-		double aviar = xs.sIndic.aviahorizon_roll;
+		double aviahp = service.sIndic.aviahorizon_pitch;
+		double aviar = service.sIndic.aviahorizon_roll;
 		// int pitchLimit = HUDFontsize * 5;
 		int pitchLimit = HUDFontsize;
 		realSpdPitch = -(aviahp + aoa);
@@ -1073,40 +830,40 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 			pitch = 0;
 		// Application.debugPrint(-(aviahp+aoa));
 		int slideLimit = 4 * HUDFontsize;
-		if (xs.sState.AoS != -65535) {
-			aosX = (int) (-xs.sState.AoS * slideLimit / 30.0f);
+		if (service.sState.AoS != -65535) {
+			aosX = (int) (-service.sState.AoS * slideLimit / 30.0f);
 		} else
 			aosX = 0;
 		rollDeg = (int) (-aviar);
-		lineCompass = String.format("%3s", xs.compass);
+		lineCompass = String.format("%3s", service.compass);
 		lineThrottle = String.format("%3s", throttle);
-		char map_x = (char) ('A' + (xs.loc[1] * xs.mapinfo.mapStage) + xs.mapinfo.inGameOffset);
-		int map_y = (int) (xs.loc[0] * xs.mapinfo.mapStage + xs.mapinfo.inGameOffset + 1);
+		char map_x = (char) ('A' + (service.loc[1] * service.mapinfo.mapStage) + service.mapinfo.inGameOffset);
+		int map_y = (int) (service.loc[0] * service.mapinfo.mapStage + service.mapinfo.inGameOffset + 1);
 
 		lineLoc = String.format("%c%d", map_x, map_y);
 		if (drawHudMach)
-			lines[0] = String.format("M%5s", xs.M);
+			lines[0] = String.format("M%5s", service.M);
 		else
-			lines[0] = String.format("%s%6s", ILbl, xs.IAS);
+			lines[0] = String.format("%s%6s", speedLabelPrefix, service.IAS);
 
 		/* 近地告警 */
-		if (xs.radioAltValid && xs.radioAlt <= 500)
-			lines[1] = HLbl + String.format("R%5s", xs.sRadioAlt);
+		if (service.radioAltValid && service.radioAlt <= 500)
+			lines[1] = altitudeLabelPrefix + String.format("R%5s", service.sRadioAlt);
 		else
-			lines[1] = HLbl + String.format("%6s", xs.salt);
+			lines[1] = altitudeLabelPrefix + String.format("%6s", service.salt);
 
-		if (xs.SEP > 0) {
-			lines[3] = String.format("%s↑%4s", SLbl, xs.sSEP);
+		if (service.SEP > 0) {
+			lines[3] = String.format("%s↑%4s", sepLabelPrefix, service.sSEP);
 		} else {
-			lines[3] = String.format("%s↓%4s", SLbl, xs.sSEP);
+			lines[3] = String.format("%s↓%4s", sepLabelPrefix, service.sSEP);
 		}
-		if (xs.sState.Ny > 1.5f || xs.sState.Ny < -0.5f)
-			lines[4] = String.format("G%5s", xs.Ny);
+		if (service.sState.Ny > 1.5f || service.sState.Ny < -0.5f)
+			lines[4] = String.format("G%5s", service.Ny);
 		else {
 			// 燃油量和增压器
-			String s = xs.sfueltime;
+			String s = service.sfueltime;
 			String compressor;
-			switch (xs.sState.compressorstage) {
+			switch (service.sState.compressorstage) {
 				case 1:
 					compressor = "C";
 				case 2:
@@ -1116,57 +873,57 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 				default:
 					compressor = "";
 			}
-			if (xs.sState.gear <= 0) {
+			if (service.sState.gear <= 0) {
 				lines[4] = String.format("L%5s%s", s, compressor);
 			} else {
-				lines[4] = String.format("E%5s", xs.sTime);
+				lines[4] = String.format("E%5s", service.sTime);
 			}
-			// if(xs.sState.compressorstage != 0){
+			// if(service.sState.compressorstage != 0){
 			// lines[3] += "S"
-			// +String.format("%d",xs.sState.compressorstage);
+			// +String.format("%d",service.sState.compressorstage);
 			// }
 			s = null;
 		}
 		String brk = "";
 		String gear = "";
 		inAction = false;
-		if (xs.sState.airbrake > 0) {
+		if (service.sState.airbrake > 0) {
 			brk = "BRK";
-			if (xs.sState.airbrake != 100) {
+			if (service.sState.airbrake != 100) {
 				inAction |= true;
 			}
-			if (xs.sState.airbrake == 100)
+			if (service.sState.airbrake == 100)
 				warnVne = true;
 		}
 
-		if (xs.sState.gear > 0) {
+		if (service.sState.gear > 0) {
 			gear = "GEA";
-			if (xs.sState.gear != 100)
+			if (service.sState.gear != 100)
 				inAction |= true;
 		}
 
-		if (xs.sState.flaps > 0) {
-			lines[2] = String.format("F%3s%s%s", xs.flaps, brk, gear);
+		if (service.sState.flaps > 0) {
+			lines[2] = String.format("F%3s%s%s", service.flaps, brk, gear);
 		} else {
-			if (xs.hasWingSweepVario) {
-				lines[2] = String.format("W%3s%s%s", xs.sWingSweep, brk, gear);
+			if (service.hasWingSweepVario) {
+				lines[2] = String.format("W%3s%s%s", service.sWingSweep, brk, gear);
 			} else {
 				lines[2] = String.format("%4s%s%s", "", brk, gear);
 			}
 		}
 
 		// 襟翼告警
-		if (xs.sState.IAS > xs.flapAllowSpeed * 0.95) {
+		if (service.sState.IAS > service.flapAllowSpeed * 0.95) {
 			//
 			inAction = true;
 		}
 
-		parser.Blkx b = xc.getBlkx();
+		parser.Blkx b = controller.getBlkx();
 		if (b != null && b.valid) {
 			// 机动指标(1 - 空油重/(空油重 + 油重))
 			// 指标越低说明机动性越好
 			double nfweight = b.nofuelweight;
-			maneuverIndex = 1 - (nfweight / (nfweight + xs.fTotalFuel));
+			maneuverIndex = 1 - (nfweight / (nfweight + service.fTotalFuel));
 			maneuverIndexLen = (int) Math.round(maneuverIndex / 0.5 * rightDraw);
 			maneuverIndexLen10 = (int) Math.round(0.10 / 0.5 * rightDraw);
 			maneuverIndexLen20 = (int) Math.round(0.20 / 0.5 * rightDraw);
@@ -1176,14 +933,14 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 			// 速度
 			double vwing = 0;
 			if (b.isVWing) {
-				vwing = xs.sIndic.wsweep_indicator;
+				vwing = service.sIndic.wsweep_indicator;
 			}
 
-			if ((xs.IASv >= b.getVNEVWing(vwing) * 0.95) || (xs.sState.M >= b.getMNEVWing(vwing) * 0.95f)) {
+			if ((service.IASv >= b.getVNEVWing(vwing) * 0.95) || (service.sState.M >= b.getMNEVWing(vwing) * 0.95f)) {
 				warnVne = true;
 			}
 
-			int flaps = xs.sState.flaps > 0 ? xs.sState.flaps : 0;
+			int flaps = service.sState.flaps > 0 ? service.sState.flaps : 0;
 
 			double maxAvailableAoA = b.getAoAHighVWing(vwing, flaps);
 
@@ -1213,12 +970,8 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 		}
 		if (!disableAoA) {
 			lineAoA = String.format("α%3.0f", aoa);
-			// if(xs.energyJKg > 1000000)
-			// relEnergy = String.format("E%6.0f", xs.energyJKg/1000);
-			// else
-			// relEnergy = String.format("E%5.1f", xs.energyJKg/1000);
 
-			relEnergy = String.format("E%5.0f", xs.energyM);
+			relEnergy = String.format("E%5.0f", service.energyM);
 		}
 		// 姿态
 		sAttitude = "";
@@ -1245,13 +998,13 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 		}
 
 		/* 雷达高度 */
-		if (xs.radioAlt >= 0 && xs.radioAlt < 50) {
+		if (service.radioAlt >= 0 && service.radioAlt < 50) {
 			warnRH = true;
 		}
 
 		// 襟翼角度显示
-		flapA = xs.sState.flaps;
-		flapAllowA = xs.getFlapAllowAngle(xs.sState.IAS, xs.isDowningFlap);
+		flapA = service.sState.flaps;
+		flapAllowA = service.getFlapAllowAngle(service.sState.IAS, service.isDowningFlap);
 		lineFlapAngle = String.format("%3.0f/%3.0f", flapA, flapAllowA);
 	}
 
@@ -1290,7 +1043,7 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 	 * NOTE: Phase 2 Partial Migration
 	 * The event-driven architecture is in place (updates triggered by
 	 * FlightDataEvent),
-	 * but data is still read from Service (xs) fields for now because:
+	 * but data is still read from Service (service) fields for now because:
 	 * 1. updateString() has complex dependencies on Blkx flight model data
 	 * 2. Map coordinate calculations require Service.mapinfo
 	 * 3. Many calculated warning thresholds depend on Blkx.getVNE/getAoA methods
@@ -1308,8 +1061,8 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 		}
 
 		// Delegate complex calculations to legacy method
-		// which still reads from xs (Service) for Blkx-dependent logic
-		if (xs != null) {
+		// which still reads from service (Service) for Blkx-dependent logic
+		if (service != null) {
 			updateString();
 		}
 	}
