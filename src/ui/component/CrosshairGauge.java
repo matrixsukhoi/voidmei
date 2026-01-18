@@ -6,8 +6,6 @@ import java.awt.Dimension;
 import java.awt.Graphics2D;
 import java.awt.Image;
 
-import prog.Application;
-
 /**
  * High-performance Crosshair/Gunsight component.
  * Extracted from MinimalHUD for reusability.
@@ -73,12 +71,9 @@ public class CrosshairGauge implements HUDComponent {
         if (useTexture && texture != null) {
             int x = centerX - crossWidthVario;
             int y = centerY - crossWidthVario;
-            Application.debugPrint("Component: Crosshair (Texture), x=" + centerX + ", y=" + centerY);
             g2d.drawImage(texture, x, y, crossWidthVario * 2, crossWidthVario * 2, null);
             return;
         }
-
-        Application.debugPrint("Component: Crosshair (Vector), x=" + centerX + ", y=" + centerY);
 
         // Length multiplier for lines
         int l = 4;

@@ -17,6 +17,7 @@ import java.util.Map;
 import com.alee.laf.panel.WebPanel;
 
 import prog.Application;
+import prog.util.Logger;
 import prog.Controller;
 import prog.OtherService;
 import prog.Service;
@@ -78,6 +79,7 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 	private java.util.List<ui.component.row.HUDRow> hudRows;
 	private ui.layout.HUDVirtualLayoutEngine layoutEngine;
 	private java.util.Map<String, ui.layout.HUDComponentState> componentStateMap = new java.util.HashMap<>();
+	private boolean firstDraw = true;
 
 	public void setFrameOpaque() {
 		this.getWebRootPaneUI().setMiddleBg(new Color(0, 0, 0, 0));// 中部透明
@@ -121,7 +123,7 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 	public int throttleLineWidth = 1;
 
 	public void initPreview(Controller c) {
-		Application.debugPrint("MinimalHUD: initPreview called");
+		Logger.info("MinimalHUD", "initPreview called");
 		init(c, null, null);
 
 		this.getWebRootPaneUI().setTopBg(Application.previewColor);
@@ -199,7 +201,7 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 	int windowY;
 
 	public void reinitConfig() {
-		Application.debugPrint("MinimalHUD: reinitConfig called");
+		Logger.info("MinimalHUD", "reinitConfig called");
 
 		if (controller.getconfig("MonoNumFont") != "")
 			NumFont = controller.getconfig("MonoNumFont");
@@ -275,8 +277,8 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 			Width = (int) (CrossWidth * 2.25);
 		}
 		Height = (int) (CrossWidth * 1.5) + (int) (HUDFontsize * 3.5);
-		Application
-				.debugPrint("MinimalHUD Config: Width=" + Width + ", Height=" + Height + ", CrossWidth=" + CrossWidth);
+		Logger.info("MinimalHUD",
+				"MinimalHUD Config: Width=" + Width + ", Height=" + Height + ", CrossWidth=" + CrossWidth);
 		CrossWidthVario = CrossWidth;
 		if (lineWidth == 0)
 			lineWidth = 1;
@@ -346,16 +348,15 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 					g2.dispose();
 					crosshairImageScaled = scaled;
 
-					Application
-							.debugPrint("MinimalHUD: Loaded and scaled crosshair: " + path + " to " + targetSize + "x"
-									+ targetSize);
+					Logger.info("MinimalHUD", "Loaded and scaled crosshair: " + path + " to " + targetSize + "x"
+							+ targetSize);
 				}
 			} catch (java.io.IOException e) {
-				Application.debugPrint("MinimalHUD: Failed to read crosshair: " + path);
+				Logger.info("MinimalHUD", "Failed to read crosshair: " + path);
 				crosshairImageRaw = null;
 			}
 		} else {
-			Application.debugPrint("MinimalHUD: Crosshair file not found: " + imgFile.getAbsolutePath());
+			Logger.info("MinimalHUD", "Crosshair file not found: " + imgFile.getAbsolutePath());
 			crosshairImageRaw = null;
 		}
 
@@ -377,11 +378,12 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 
 		applyStyleToComponents();
 		updateComponents();
+		firstDraw = true;
 		repaint();
 	}
 
 	public void init(Controller c, Service s, OtherService os) {
-		Application.debugPrint("MinimalHUD: init called");
+		Logger.info("MinimalHUD", "init called");
 		service = s;
 		controller = c;
 		velocityX = 0;
@@ -452,7 +454,6 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 			private static final long serialVersionUID = -9061280572815010060L;
 
 			public void paintComponent(Graphics g) {
-				Application.debugPrint("MinimalHUD: paintComponent start");
 				Graphics2D g2d = (Graphics2D) g;
 				g2d.setPaintMode();
 				g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, Application.graphAASetting);
@@ -463,6 +464,10 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 
 				if (layoutEngine != null) {
 					layoutEngine.doLayout();
+					if (firstDraw) {
+						layoutEngine.logPositions();
+						firstDraw = false;
+					}
 					layoutEngine.render(g2d);
 				}
 
@@ -935,7 +940,7 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 			rowState.setYOffset(70 + i * 28);
 		}
 
-		Application.debugPrint("MinimalHUD: UI components initialized.");
+		Logger.info("MinimalHUD", "UI components initialized.");
 
 		// Ensure everything is styled and updated before first paint
 		applyStyleToComponents();

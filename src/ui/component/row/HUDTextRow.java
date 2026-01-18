@@ -49,7 +49,6 @@ public class HUDTextRow implements HUDRow {
 
     @Override
     public void draw(Graphics2D g2d, int x, int y) {
-        Application.debugPrint("Component: TextLine[" + index + "], x=" + x + ", y=" + y);
         if (isWarning) {
             UIBaseElements.__drawStringShade(g2d, x, y, 1, text, font, Application.colorWarning);
         } else {

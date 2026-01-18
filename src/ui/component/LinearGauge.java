@@ -70,7 +70,6 @@ public class LinearGauge implements HUDComponent {
 
     @Override
     public void draw(Graphics2D g2d, int x, int y) {
-        Application.debugPrint("Component: " + label + ", x=" + x + ", y=" + y);
         draw(g2d, x, y, lengthCache, thicknessCache, fontLabelCache, fontNumCache);
     }
 

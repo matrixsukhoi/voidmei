@@ -81,7 +81,6 @@ public class CompassGauge implements HUDComponent {
 
     @Override
     public void draw(Graphics2D g2d, int x, int y) {
-        Application.debugPrint("Component: Compass, x=" + x + ", y=" + y);
 
         // Cache strokes based on lineWidth
         if (lineWidth != cachedStrokeWidth) {

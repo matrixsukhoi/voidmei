@@ -2,6 +2,7 @@ package ui.layout;
 
 import java.awt.Dimension;
 import java.awt.Graphics2D;
+import prog.util.Logger;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
@@ -165,6 +166,17 @@ public class HUDVirtualLayoutEngine {
             if (state.isVisible()) {
                 state.getComponent().draw(g, state.getCalculatedX(), state.getCalculatedY());
             }
+        }
+    }
+
+    /**
+     * Prints the calculated absolute coordinates of all components.
+     * Use this for initialization-only debug logging.
+     */
+    public void logPositions() {
+        for (HUDComponentState state : componentStates) {
+            Logger.info("LayoutEngine", "Component: " + state.getComponent().getId() + ", x=" + state.getCalculatedX()
+                    + ", y=" + state.getCalculatedY());
         }
     }
 }

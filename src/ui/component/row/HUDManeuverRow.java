@@ -79,19 +79,13 @@ public class HUDManeuverRow extends HUDTextRow {
     public void draw(Graphics2D g, int x, int y) {
         super.draw(g, x, y);
 
-        Application.debugPrint("Component: ManeuverIndex (Line 4), x=" + x + ", y=" + y);
-
         // Common draw logic
         drawLineMark(g, x, y, maneuverIndexLen10);
 
         if (maneuverIndex >= 0.1) {
-            Application.debugPrint("Component: ManeuverIndex (>=0.1), x=" + (x + rightDraw - maneuverIndexLen20)
-                    + ", y=" + (y + halfLine));
             drawLineMark(g, x, y, maneuverIndexLen20);
         }
         if (maneuverIndex >= 0.2) {
-            Application.debugPrint("Component: ManeuverIndex (>=0.2), x=" + (x + rightDraw - maneuverIndexLen30)
-                    + ", y=" + (y + halfLine));
             drawLineMark(g, x, y, maneuverIndexLen30);
         }
         if (maneuverIndex >= 0.3) {

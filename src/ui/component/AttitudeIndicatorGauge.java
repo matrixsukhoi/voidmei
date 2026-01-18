@@ -83,7 +83,6 @@ public class AttitudeIndicatorGauge implements HUDComponent {
 
     @Override
     public void draw(Graphics2D g2d, int centerX, int centerY) {
-        Application.debugPrint("Component: AttitudeIndicator, x=" + centerX + ", y=" + centerY);
 
         updateStrokes(lineWidth);
         double rollDegRad = Math.toRadians(rollDeg);
