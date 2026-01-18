@@ -48,6 +48,14 @@ public class DefaultFieldManager implements FieldManager {
     }
 
     @Override
+    public void updateFieldUnit(String key, String unit) {
+        DataField field = fieldMap.get(key);
+        if (field != null) {
+            field.setUnit(unit);
+        }
+    }
+
+    @Override
     public List<DataField> getFields() {
         return fields;
     }

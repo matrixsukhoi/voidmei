@@ -141,6 +141,7 @@ public class Service implements Runnable {
 	public String magenato;
 	public String power[];
 	public String manifoldpressure;
+	public String pressureUnitStr = "Ata";
 	public String pressurePounds;
 	public String pressureInchHg;
 	public String pressureMmHg;
@@ -282,24 +283,48 @@ public class Service implements Runnable {
 			watertemp = nastring;
 		oiltemp = String.format("%.0f", noilTemp);
 		if (sState.manifoldpressure != 1) {
-			manifoldpressure = String.format("%.2f", sState.manifoldpressure);
-			// pressurePounds = String.format("%+d", Math.round((sState.manifoldpressure -
-			// 1) * 14.696));
+			String pUnit = "Ata";
+			double pVal = sState.manifoldpressure;
+
+			// Dynamic Unit Detection
+			if (c.getBlkx() != null && c.getBlkx().readFileName != null) {
+				String fn = c.getBlkx().readFileName.toLowerCase();
+				// US / UK check
+				if (fn.contains("p-") || fn.contains("f-") || fn.contains("b-") || fn.contains("a-")
+						|| fn.contains("f6f") || fn.contains("f4u") || fn.contains("spitfire")
+						|| fn.contains("hurricane") || fn.contains("tempest") || fn.contains("typhoon")
+						|| fn.contains("mustang") || fn.contains("corsair") || fn.contains("thunderbolt")
+						|| fn.contains("wyvern") || fn.contains("seafire") || fn.contains("sea_fury")) {
+					pUnit = "inHg";
+					pVal = pVal * 29.9213; // Convert Ata to inHg
+				}
+			}
+
+			if ("inHg".equals(pUnit)) {
+				manifoldpressure = String.format("%.1f", pVal);
+			} else {
+				manifoldpressure = String.format("%.2f", pVal);
+			}
+
+			// Store unit for data map
+			// We can't put it in map here, need to wait until updateGlobalPool.
+			// Currently strict pressurePounds etc are for legacy.
+
+			// Hack: use pressureInchHg var to store unit? No, creating a new field is
+			// cleaner but I can't add fields easily without refactoring.
+			// I will use `pressurePounds` to store the Unit string temporarily? No that's
+			// dirty.
+			// I'll add `public String pressureUnit = "Ata";` to Service class.
+			this.pressureUnitStr = pUnit;
+
 			pressurePounds = String.format("%+.1f", (sState.manifoldpressure - 1) * 14.696);
-			// pressurePounds = String.format("%+d",
-			// Math.round((sState.manifoldpressure - 1f) * 14.696f),
-			// Math.round(sState.manifoldpressure * 760f / 25.4f));
-			// Math.round(sState.manifoldpressure * 760f / 25.4f)
-			// pressureMmHg = String.format("%d",
-			// Math.round(sState.manifoldpressure));
-			// pressureInchHg = String.format("P/%d''", Math.round(sState.manifoldpressure *
-			// 760 / 25.4));
 			pressureInchHg = String.format("P/%.1f''", (sState.manifoldpressure * 760 / 25.4));
 		} else {
 			manifoldpressure = nastring;
 			pressurePounds = nastring;
 			pressureMmHg = nastring;
 			pressureInchHg = nastring;
+			this.pressureUnitStr = "Ata";
 		}
 		sTotalFuel = String.format("%.0f", fTotalFuel);
 		if (sState.pitch[0] != -65535)
@@ -525,7 +550,9 @@ public class Service implements Runnable {
 		data.put("thrust", sTotalThr);
 		data.put("eff_eta", sAvgEff);
 		data.put("eff_hp", sTotalHpEff);
+		data.put("eff_hp", sTotalHpEff);
 		data.put("pressure", manifoldpressure);
+		data.put("pressure_unit", pressureUnitStr);
 		data.put("power_percent", sThurstPercent);
 		data.put("fuel_kg", sTotalFuel);
 		// fuel_time already exists

@@ -24,6 +24,11 @@ public interface FieldManager {
     void setFieldVisible(String key, boolean visible);
 
     /**
+     * Update a field's unit by key.
+     */
+    void updateFieldUnit(String key, String unit);
+
+    /**
      * Get all fields in order.
      */
     List<DataField> getFields();

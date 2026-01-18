@@ -12,7 +12,7 @@ public class DataField {
     public final String label;
 
     /** Unit string (e.g., "Km/h", "M/s", "Deg") */
-    public final String unit;
+    public String unit;
 
     /** Configuration key to check if this field is disabled */
     public final String configKey;
@@ -39,6 +39,10 @@ public class DataField {
      */
     public void setValue(String value) {
         this.currentValue = String.format("%5s", value);
+    }
+
+    public void setUnit(String unit) {
+        this.unit = unit;
     }
 
     /**

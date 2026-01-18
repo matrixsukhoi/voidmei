@@ -160,6 +160,11 @@ public abstract class FieldOverlay extends DraggableOverlay implements FlightDat
                         val = data.get(key);
                     }
                     fieldManager.updateField(key, val, naString);
+
+                    // Dynamic Unit Support
+                    if (data.containsKey(key + "_unit")) {
+                        fieldManager.updateFieldUnit(key, data.get(key + "_unit"));
+                    }
                 }
             }
             if (panel != null) {

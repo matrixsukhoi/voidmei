@@ -47,6 +47,11 @@ public class BOSStyleRenderer implements OverlayRenderer {
 
             // Update gauge state
             gauge.update(field.currentValue);
+
+            // Sync dynamic unit
+            if (field.unit != null && !field.unit.equals(gauge.unit)) {
+                gauge.setUnit(field.unit);
+            }
             // gauge.label/unit are final in current TextGauge, assuming they don't change
             // frequently.
             // If they do (e.g. dynamic unit change), we might need to update them too.

@@ -31,6 +31,10 @@ public class TextGauge {
         this.value = value;
     }
 
+    public void setUnit(String unit) {
+        this.unit = unit;
+    }
+
     public void draw(Graphics2D g2d, int x, int y, Font fontNum, Font fontLabel, Font fontUnit, int shadeWidth) {
         if (shadeWidth != cachedShadeWidth) {
             stroke = new BasicStroke(shadeWidth, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
