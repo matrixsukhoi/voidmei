@@ -77,6 +77,7 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 	private ui.component.FlapAngleBar flapAngleBar;
 	private ui.component.WarningOverlay warningOverlay;
 	private ui.component.CompassGauge compassGauge;
+	private ui.component.AttitudeIndicatorGauge attitudeIndicatorGauge;
 
 	public void setFrameOpaque() {
 		this.getWebRootPaneUI().setMiddleBg(new Color(0, 0, 0, 0));// 中部透明
@@ -161,66 +162,18 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 
 		x += barWidth + 3 * drawFontSSmall.getSize() / 2;
 		kx += barWidth + 3 * drawFontSSmall.getSize() / 2;
-		// 姿态
 
+		// 姿态
 		if (drawAttitude && !disableAttitude) {
 			if (!blinkX || (blinkX && !blinkActing)) {
-				// 计算小圆形的位置
+				// Calculate position
 				int circleX = lineWidth - aosX + attitudeCenterOffset;
 				int circleY = (int) (baseYOffset + yOffset - 2.5 * HUDFontsize + compassDiameter / 2 - pitch);
-				Application.debugPrint("Component: AttitudeIndicator, x=" + circleX + ", y=" + circleY);
-				double rollDegRad = Math.toRadians(rollDeg);
-				// 绘制地面和牵引线
-				g.setStroke(strokeThick);
-				g.setColor(Application.colorShadeShape);
-				g.drawLine(circleX + aosX, circleY + pitch, circleX, circleY);
-				g.setStroke(strokeThin);
-				g.setColor(Application.colorLabel);
-				g.drawLine(circleX + aosX, circleY + pitch, circleX, circleY);
 
-				// 旋转整个组合图形表示横滚角
-				AffineTransform oldTransform = g.getTransform();
-				AffineTransform transform = AffineTransform.getRotateInstance(-rollDegRad, circleX, circleY);
-
-				g.setTransform(transform);
-
-				g.setStroke(new BasicStroke(lineWidth + 2, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-				g.setColor(Application.colorShadeShape);
-
-				int hbs = halfLine;
-				// 画三条支线表示水平和垂直方向
-
-				g.drawArc(circleX - compassRadius + hbs, circleY - compassRadius + hbs, compassDiameter,
-						compassDiameter, -180, 180);
-				g.drawLine(circleX + hbs, circleY - compassRadius / 2 + hbs, circleX + hbs,
-						circleY - compassInnerMarkRadius + hbs);
-				g.drawLine(circleX + compassRadius + hbs, circleY + hbs, circleX + compassInnerMarkRadius + hbs,
-						circleY + hbs);
-				g.drawLine(circleX - compassRadius + hbs, circleY + hbs, circleX - compassInnerMarkRadius + hbs,
-						circleY + hbs);
-
-				g.setStroke(new BasicStroke(lineWidth, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-				g.setColor(Application.colorNum);
-
-				// 画三条支线表示水平和垂直方向
-				g.drawArc(circleX - compassRadius + hbs, circleY - compassRadius + hbs, compassDiameter,
-						compassDiameter, -180, 180);
-				g.drawLine(circleX + hbs, circleY - compassRadius / 2 + hbs, circleX + hbs,
-						circleY - compassInnerMarkRadius + hbs);
-				g.drawLine(circleX + compassRadius + hbs, circleY + hbs, circleX + compassInnerMarkRadius + hbs,
-						circleY + hbs);
-				g.drawLine(circleX - compassRadius + hbs, circleY + hbs, circleX - compassInnerMarkRadius + hbs,
-						circleY + hbs);
-
-				g.setTransform(oldTransform);
-
-				// 画文字
-				if (roundHorizon >= 0) {
-					UIBaseElements.__drawStringShade(g, circleX, circleY - 1, 1, sAttitude, drawFontSmall,
-							Application.colorNum);
-				} else {
-					UIBaseElements.__drawStringShade(g, circleX, circleY - 1, 1, sAttitude, drawFontSmall,
-							Application.colorUnit);
+				if (attitudeIndicatorGauge != null) {
+					attitudeIndicatorGauge.update(pitch, rollDeg, aosX, sAttitude, roundHorizon);
+					attitudeIndicatorGauge.draw(g, circleX, circleY, compassDiameter, compassRadius,
+							compassInnerMarkRadius, lineWidth, halfLine, drawFontSmall);
 				}
 			}
 		}
@@ -677,7 +630,9 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 		flapAngleBar = new ui.component.FlapAngleBar();
 		warningOverlay = new ui.component.WarningOverlay();
 		compassGauge = new ui.component.CompassGauge(roundCompass);
+		attitudeIndicatorGauge = new ui.component.AttitudeIndicatorGauge();
 
+		Application.debugPrint("MinimalHUD: UI components initialized.");
 		panel = new WebPanel() {
 
 			private static final long serialVersionUID = -9061280572815010060L;

@@ -58,6 +58,7 @@ src/ui/renderer/OverlayRenderer.java
 src/ui/renderer/RenderContext.java
 src/ui/renderer/LinearGaugeRenderer.java
 src/ui/renderer/TextOnlyRenderer.java
+src/ui/component/AttitudeIndicatorGauge.java
 src/ui/component/LinearGauge.java
 src/ui/component/TextGauge.java
 src/ui/component/CrosshairGauge.java
