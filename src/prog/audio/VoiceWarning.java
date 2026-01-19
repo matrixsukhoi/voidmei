@@ -257,6 +257,10 @@ public class VoiceWarning implements Runnable {
 	private audClip brakeWarn;
 
 	public void init(Controller c, Service S) {
+		if (S == null) {
+			doit = false;
+			return; // Prevent NPE if Service is not yet initialized (e.g. in Preview Mode)
+		}
 		xS = S;
 		xc = c;
 		st = xS.sState;

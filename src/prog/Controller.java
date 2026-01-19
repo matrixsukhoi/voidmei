@@ -266,7 +266,9 @@ public class Controller implements ConfigProvider {
 		uT1 = new Thread(uT);
 		uT1.setPriority(Thread.MAX_PRIORITY);
 		uT1.start();
-		S.startTime = System.currentTimeMillis();
+		if (S != null) {
+			S.startTime = System.currentTimeMillis();
+		}
 	}
 
 	public void closepad() {

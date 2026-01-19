@@ -153,6 +153,11 @@ public class ConfigurationService implements ConfigProvider {
                         return row.getStr();
                     }
                 }
+
+                // Check Group SwitchKey (e.g. flightInfoSwitch maps to Group visibility)
+                if (key.equals(gc.switchKey)) {
+                    return String.valueOf(gc.visible);
+                }
             }
         }
         // Priority 2: Fallback to properties file
@@ -167,6 +172,7 @@ public class ConfigurationService implements ConfigProvider {
         boolean layoutHandler = false;
         if (layoutConfigs != null) {
             for (ConfigLoader.GroupConfig gc : layoutConfigs) {
+                // Check Rows
                 for (ConfigLoader.RowConfig row : gc.rows) {
                     if (key.equals(row.property)) {
                         // Update typed value based on existing type to maintain consistency
@@ -189,6 +195,12 @@ public class ConfigurationService implements ConfigProvider {
                         }
                         layoutHandler = true;
                     }
+                }
+
+                // Check Group SwitchKey
+                if (key.equals(gc.switchKey)) {
+                    gc.visible = Boolean.parseBoolean(value);
+                    layoutHandler = true;
                 }
             }
         }

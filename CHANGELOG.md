@@ -14,6 +14,10 @@ All notable changes to this project will be documented in this file.
     - **Batch Removal**: Safely deleted duplicate boolean keys (`disableEngineInfoThrottle`, `enableStatusBar`, etc.) from `config.properties` as they are now reliably served from Layout.
     - **Fix**: Implemented correct `SWITCH_INV` inversion logic in `ConfigurationService` to ensure keys like `disableFlightInfoIAS` are interpreted correctly (Store=True vs App=False).
     - **Defaults**: Updated `ui_layout.cfg` defaults to enable MiniHUD elements (`displayCrosshair`, `drawHUDtext`) by default, preventing "empty overlay" issues on fresh Layout-First load.
+    - **Stability**: Fixed NullPointerExceptions in `VoiceWarning.init` and `Controller.openpad` caused by Preview Mode execution where Service is not fully initialized.
+    - **Cleanup**: Completed Batch 4 removal of legacy duplicate keys (including `crosshairScale`, `enableVoiceWarn`, etc.) from `config.properties`, ensuring `ui_layout.cfg` is the definitive configuration source.
+    - **Fix**: Updated `ConfigurationService` to support reading/writing Master Switches (`flightInfoSwitch`, etc.) directly from `GroupConfig` visibility. This resolves the "No Overlay in Game Mode" issue caused by missing keys in `config.properties`.
+    - **Correction Completed**: Restored incorrectly deleted system-level configurations (`enableLogging`, `AAEnable`, `attitudeIndicatorFreqMs`) and resource keys (`crosshairName`) to `config.properties` to ensure system stability.
   - Implemented **Typed Value Model**: Configuration items in `ui_layout.cfg` are now parsed into strict Java types (Integer, Boolean) at load time, eliminating manual string parsing in renderers.
   - Removed legacy `visible` and `defaultValue` fields in favor of a unified, typed `value` field.
   - Exposed hidden logic settings (AoA Warning Ratios) as sliders in the Layout UI.
