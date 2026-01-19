@@ -40,6 +40,9 @@ public class ColorRowRenderer implements RowRenderer {
                 context.syncStringToConfigService(key + "B", Integer.toString(c.getBlue()));
                 context.syncStringToConfigService(key + "A", Integer.toString(c.getAlpha()));
 
+                // Update memory model
+                row.value = c.getRed() + ", " + c.getGreen() + ", " + c.getBlue() + ", " + c.getAlpha();
+
                 context.onSave();
             });
         }

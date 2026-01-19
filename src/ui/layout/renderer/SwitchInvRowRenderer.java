@@ -19,10 +19,10 @@ public class SwitchInvRowRenderer implements RowRenderer {
         // For inverted switch, we read the value and negate it for display
         // ConfigurationService has "disableX=true" means switch should show OFF
         // ConfigurationService has "disableX=false" means switch should show ON
-        boolean configVal = context.getFromConfigService(row.property, false);
-        boolean displayVal = !configVal; // Invert for display
+        // unused variable removed
 
-        WebPanel itemPanel = ReplicaBuilder.createSwitchItem(row.label, displayVal, false);
+        WebPanel itemPanel = ReplicaBuilder.createSwitchItem(row.label,
+                !context.getFromConfigService(row.property, !row.getBool()), true);
         WebSwitch sw = ReplicaBuilder.getSwitch(itemPanel);
 
         if (sw != null) {
@@ -34,7 +34,7 @@ public class SwitchInvRowRenderer implements RowRenderer {
                 // Invert for storage: display ON -> store false, display OFF -> store true
                 boolean newConfigVal = !newDisplayVal;
                 context.syncToConfigService(prop, newConfigVal);
-                row.visible = newDisplayVal; // Keep display value in row.visible for persistence
+                row.value = newDisplayVal; // Keep display value in row.value for persistence
                 context.onSave();
             });
         }

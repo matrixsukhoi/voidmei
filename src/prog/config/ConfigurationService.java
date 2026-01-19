@@ -365,15 +365,39 @@ public class ConfigurationService implements ConfigProvider {
             return getBool("drawHUDAttitude", true);
         }
 
+        private double getDoubleFromLayoutFirst(String section, String property, double defaultVal) {
+            // Priority 1: Check in-memory LayoutConfigs
+            if (layoutConfigs != null) {
+                for (ConfigLoader.GroupConfig gc : layoutConfigs) {
+                    if (section.equalsIgnoreCase(gc.title)) {
+                        for (ConfigLoader.RowConfig row : gc.rows) {
+                            if (property.equals(row.property) && row.value != null) {
+                                if (row.value instanceof Number) {
+                                    return ((Number) row.value).doubleValue();
+                                }
+                                try {
+                                    return Double.parseDouble(row.value.toString());
+                                } catch (NumberFormatException e) {
+                                    // ignore
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            // Priority 2: Check global config.properties
+            return getDouble(property, defaultVal);
+        }
+
         @Override
         public double getAoAWarningRatio() {
-            double val = getDouble("miniHUDaoaWarningRatio", 25);
+            double val = getDoubleFromLayoutFirst(sectionName, "miniHUDaoaWarningRatio", 25);
             return (val > 1.0) ? val / 100.0 : val;
         }
 
         @Override
         public double getAoABarWarningRatio() {
-            double val = getDouble("miniHUDaoaBarWarningRatio", 0);
+            double val = getDoubleFromLayoutFirst(sectionName, "miniHUDaoaBarWarningRatio", 0);
             return (val > 1.0) ? val / 100.0 : val;
         }
 

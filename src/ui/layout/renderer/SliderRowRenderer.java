@@ -16,9 +16,9 @@ public class SliderRowRenderer implements RowRenderer {
     public WebPanel render(RowConfig row, GroupConfig groupConfig, RenderContext context) {
         // Get base default from row definition
         int defaultVal = 0;
-        if (row.defaultValue != null) {
+        if (row.value != null) {
             try {
-                defaultVal = Integer.parseInt(row.defaultValue);
+                defaultVal = row.getInt();
             } catch (Exception e) {
             }
         }
@@ -26,7 +26,7 @@ public class SliderRowRenderer implements RowRenderer {
         // Priority for initial value:
         // 1. If property exists in GroupConfig, use PropertyBinder
         // 2. Otherwise try ConfigurationService
-        // 3. Fallback to defaultVal (from row.defaultValue)
+        // 3. Fallback to defaultVal (from row.value)
         int currentVal;
         if (row.property != null && PropertyBinder.hasField(groupConfig, row.property)) {
             currentVal = PropertyBinder.getInt(groupConfig, row.property, defaultVal);
@@ -64,6 +64,9 @@ public class SliderRowRenderer implements RowRenderer {
                     return;
                 if (!slider.getValueIsAdjusting()) {
                     int newVal = slider.getValue();
+                    // Update memory model so it saves to ui_layout.cfg
+                    row.value = newVal;
+
                     // Try property binding first
                     if (!PropertyBinder.setInt(groupConfig, prop, newVal)) {
                         // Fallback

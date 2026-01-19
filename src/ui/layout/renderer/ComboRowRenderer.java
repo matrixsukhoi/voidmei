@@ -22,14 +22,14 @@ public class ComboRowRenderer implements RowRenderer {
             // Priority for initial value:
             // 1. If property exists in GroupConfig, use PropertyBinder
             // 2. Otherwise try ConfigurationService
-            // 3. Fallback to row.defaultValue (from config file)
+            // 3. Fallback to row.value (from config file)
             String currentVal;
             if (row.property != null && PropertyBinder.hasField(groupConfig, row.property)) {
-                currentVal = PropertyBinder.getString(groupConfig, row.property, row.defaultValue);
+                currentVal = PropertyBinder.getString(groupConfig, row.property, row.getStr());
             } else if (row.property != null) {
-                currentVal = context.getStringFromConfigService(row.property, row.defaultValue);
+                currentVal = context.getStringFromConfigService(row.property, row.getStr());
             } else {
-                currentVal = row.defaultValue;
+                currentVal = row.getStr();
             }
 
             if (currentVal != null && !currentVal.isEmpty()) {
@@ -41,6 +41,9 @@ public class ComboRowRenderer implements RowRenderer {
                 if (context.isUpdating())
                     return;
                 String newVal = (String) combo.getSelectedItem();
+                // Update memory model so it saves to ui_layout.cfg
+                row.value = newVal;
+
                 // Try property binding first
                 if (!PropertyBinder.setString(groupConfig, prop, newVal)) {
                     // Fallback or ignore

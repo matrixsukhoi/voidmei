@@ -66,6 +66,7 @@ public class HotkeyRowRenderer implements RowRenderer {
                     javax.swing.SwingUtilities.invokeLater(() -> {
                         btn.setText(newText);
                         context.syncStringToConfigService(row.property, Integer.toString(code));
+                        row.value = Integer.toString(code);
                         context.onSave();
                     });
 

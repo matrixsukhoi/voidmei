@@ -13,12 +13,19 @@ public class DataRowRenderer implements RowRenderer {
 
     @Override
     public WebPanel render(RowConfig row, GroupConfig groupConfig, RenderContext context) {
-        WebPanel itemPanel = ReplicaBuilder.createSwitchItem(row.label, row.visible, false);
+        // Fallback checks
+        boolean isVisible = row.getBool();
+        if (!isVisible)
+            return null; // Don't render if value="false"
+
+        String displayVal = context.getStringFromConfigService(row.property != null ? row.property : row.label, "");
+        WebPanel itemPanel = ReplicaBuilder.createSwitchItem(row.label, Boolean.parseBoolean(displayVal), false);
         WebSwitch sw = ReplicaBuilder.getSwitch(itemPanel);
 
         if (sw != null) {
             sw.addActionListener(e -> {
-                row.visible = sw.isSelected();
+                context.syncStringToConfigService(row.property != null ? row.property : row.label,
+                        String.valueOf(sw.isSelected()));
                 context.onSave();
             });
         }

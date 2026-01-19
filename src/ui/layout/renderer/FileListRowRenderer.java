@@ -6,6 +6,7 @@ import com.alee.laf.combobox.WebComboBox;
 import prog.config.ConfigLoader.RowConfig;
 import prog.config.ConfigLoader.GroupConfig;
 import prog.util.FileUtils;
+import prog.util.PropertyBinder;
 import ui.replica.ReplicaBuilder;
 
 /**
@@ -31,7 +32,7 @@ public class FileListRowRenderer implements RowRenderer {
         files = FileUtils.getFilelistNameNoEx(files);
 
         // Get current value from ConfigurationService
-        String currentVal = context.getStringFromConfigService(row.property, row.defaultValue);
+        String currentVal = PropertyBinder.getString(groupConfig, row.property, row.getStr());
 
         // Create combo box with file list
         WebPanel itemPanel = ReplicaBuilder.createDropdownItem(row.label, files);

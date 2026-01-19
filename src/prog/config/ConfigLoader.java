@@ -22,20 +22,39 @@ public class ConfigLoader {
         public String label;
         public String formula;
         public String format;
-        public boolean visible = true;
+        public Object value = true; // Typed value (Boolean, Integer, String)
 
         // Extended fields for control-type rows
         public String type = "DATA"; // DATA, HEADER, SLIDER, COMBO, SWITCH
         public String property = null; // Bound GroupConfig property (e.g., "fontSize")
         public int minVal = 0; // For SLIDER
         public int maxVal = 100; // For SLIDER
-        public String defaultValue = null; // Default/current value from config
         public int groupColumns = 0; // For HEADER: specify columns for this group
 
         public RowConfig(String label, String formula, String format) {
             this.label = label;
             this.formula = formula;
             this.format = format;
+        }
+
+        public int getInt() {
+            if (value instanceof Number)
+                return ((Number) value).intValue();
+            try {
+                return Integer.parseInt(value.toString());
+            } catch (Exception e) {
+                return 0;
+            }
+        }
+
+        public boolean getBool() {
+            if (value instanceof Boolean)
+                return (Boolean) value;
+            return Boolean.parseBoolean(value.toString());
+        }
+
+        public String getStr() {
+            return String.valueOf(value);
         }
     }
 
@@ -185,14 +204,13 @@ public class ConfigLoader {
                     if (currentGroup != null)
                         currentGroup.switchKey = line.substring(10).trim();
                 } else {
-                    // Item line: Label || Formula || Format || Value/Visible
-                    // Extended format: Label || TYPE:property:params || format || defaultValue
+                    // Item line: Label || Formula || Format || Value
                     String[] parts = line.split("\\|\\|");
                     if (parts.length >= 2) {
                         String label = parts[0].trim();
                         String formula = parts[1].trim();
                         String fmt = parts.length > 2 ? parts[2].trim() : "%s";
-                        String valueStr = parts.length > 3 ? parts[3].trim() : "";
+                        String valueStr = parts.length > 3 ? parts[3].trim() : "true";
 
                         // If config starts without a group, create a default one
                         if (currentGroup == null) {
@@ -201,7 +219,7 @@ public class ConfigLoader {
                         }
 
                         RowConfig rc = new RowConfig(label, formula, fmt);
-                        rc.defaultValue = valueStr;
+                        rc.value = valueStr;
 
                         // Parse control type from formula
                         if (formula.equalsIgnoreCase("HEADER") || formula.toUpperCase().startsWith("HEADER:")) {
@@ -212,7 +230,6 @@ public class ConfigLoader {
                                 } catch (Exception e) {
                                 }
                             }
-                            rc.visible = valueStr.isEmpty() || valueStr.equalsIgnoreCase("true");
                         } else if (formula.startsWith("SLIDER:")) {
                             // Format: SLIDER:property:min:max
                             rc.type = "SLIDER";
@@ -231,7 +248,6 @@ public class ConfigLoader {
                                 } catch (Exception e) {
                                 }
                             }
-                            rc.visible = true;
                         } else if (formula.startsWith("COMBO:")) {
                             // Format: COMBO:property:optionSource
                             rc.type = "COMBO";
@@ -241,17 +257,14 @@ public class ConfigLoader {
                             // optionSource stored in format field for later processing
                             if (comboParts.length >= 2)
                                 rc.format = comboParts[1];
-                            rc.visible = true;
                         } else if (formula.startsWith("SWITCH:")) {
                             // Format: SWITCH:property
                             rc.type = "SWITCH";
                             rc.property = formula.substring(7);
-                            rc.visible = valueStr.isEmpty() || valueStr.equalsIgnoreCase("true");
                         } else if (formula.startsWith("SWITCH_INV:")) {
                             // Format: SWITCH_INV:property (inverted: ON=false, OFF=true)
                             rc.type = "SWITCH_INV";
                             rc.property = formula.substring(11);
-                            rc.visible = valueStr.isEmpty() || valueStr.equalsIgnoreCase("true");
                         } else if (formula.startsWith("FILELIST:")) {
                             // Format: FILELIST:configKey:directoryPath
                             rc.type = "FILELIST";
@@ -260,7 +273,6 @@ public class ConfigLoader {
                                 rc.property = parts2[0];
                             if (parts2.length >= 2)
                                 rc.format = parts2[1]; // Directory path
-                            rc.visible = true;
                         } else if (formula.startsWith("FMLIST:")) {
                             // Format: FMLIST:configKey:directoryPath
                             rc.type = "FMLIST";
@@ -269,21 +281,38 @@ public class ConfigLoader {
                                 rc.property = parts2[0];
                             if (parts2.length >= 2)
                                 rc.format = parts2[1]; // Directory path
-                            rc.visible = true;
                         } else if (formula.startsWith("HOTKEY:")) {
                             // Format: HOTKEY:configKey
                             rc.type = "HOTKEY";
                             rc.property = formula.substring(7);
-                            rc.visible = true;
                         } else if (formula.startsWith("COLOR:")) {
                             // Format: COLOR:configKeyPrefix
                             rc.type = "COLOR";
                             rc.property = formula.substring(6);
-                            rc.visible = true;
                         } else {
                             // Regular DATA row
                             rc.type = "DATA";
-                            rc.visible = valueStr.isEmpty() || valueStr.equalsIgnoreCase("true");
+                        }
+
+                        // Eager Parsing: Convert string value to appropriate type
+                        try {
+                            if (rc.type.equals("SLIDER") || rc.type.equals("HOTKEY")) {
+                                rc.value = valueStr.isEmpty() ? 0 : Integer.parseInt(valueStr);
+                            } else if (rc.type.equals("SWITCH") || rc.type.equals("SWITCH_INV")
+                                    || rc.type.equals("HEADER") || rc.type.equals("DATA")) {
+                                rc.value = valueStr.isEmpty() || valueStr.equalsIgnoreCase("true");
+                            } else {
+                                // Strings (COMBO, COLOR, FILELIST, FMLIST)
+                                rc.value = valueStr;
+                            }
+                        } catch (Exception e) {
+                            // Sane defaults on parse error
+                            if (rc.type.equals("SLIDER"))
+                                rc.value = 0;
+                            else if (rc.type.equals("SWITCH"))
+                                rc.value = true;
+                            else
+                                rc.value = valueStr;
                         }
 
                         currentGroup.rows.add(rc);
@@ -329,9 +358,11 @@ public class ConfigLoader {
                         if (row.groupColumns > 0) {
                             headerFormula = "HEADER:" + row.groupColumns;
                         }
-                        pw.println(row.label + " || " + headerFormula + " || %s || " + row.visible);
+                        // Always save the 'value' field (which acts as visibility/state etc.)
+                        pw.println(row.label + " || " + headerFormula + " || %s || " + row.value);
                     } else {
-                        pw.println(row.label + " || " + row.formula + " || " + row.format + " || " + row.visible);
+                        // Universal save logic
+                        pw.println(row.label + " || " + row.formula + " || " + row.format + " || " + row.value);
                     }
                 }
                 pw.println();

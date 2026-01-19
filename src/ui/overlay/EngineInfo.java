@@ -117,7 +117,7 @@ public class EngineInfo extends FieldOverlay {
 					// Find field def with this configKey and set visibility
 					for (ui.model.FieldDefinition def : getFieldDefinitions()) {
 						if (labelKey.equals(def.configKey)) {
-							fieldManager.setFieldVisible(def.key, row.visible);
+							fieldManager.setFieldVisible(def.key, row.getBool());
 						}
 					}
 				}
