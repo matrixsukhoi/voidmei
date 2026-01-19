@@ -141,6 +141,21 @@ public class ConfigurationService implements ConfigProvider {
 
     @Override
     public String getConfig(String key) {
+        // Priority 1: Check in-memory LayoutConfigs (Source of Truth)
+        if (layoutConfigs != null) {
+            for (ConfigLoader.GroupConfig gc : layoutConfigs) {
+                for (ConfigLoader.RowConfig row : gc.rows) {
+                    if (key.equals(row.property)) {
+                        // Handle inversion for SWITCH_INV
+                        if ("SWITCH_INV".equals(row.type)) {
+                            return String.valueOf(!row.getBool());
+                        }
+                        return row.getStr();
+                    }
+                }
+            }
+        }
+        // Priority 2: Fallback to properties file
         if (cfg == null)
             return "";
         return cfg.getValue(key);
@@ -148,18 +163,51 @@ public class ConfigurationService implements ConfigProvider {
 
     @Override
     public void setConfig(String key, String value) {
-        if (cfg != null) {
-            String oldVal = cfg.getValue(key);
-            if (!value.equals(oldVal)) {
-                cfg.setValue(key, value);
+        // 1. Update LayoutConfigs (if exists)
+        boolean layoutHandler = false;
+        if (layoutConfigs != null) {
+            for (ConfigLoader.GroupConfig gc : layoutConfigs) {
+                for (ConfigLoader.RowConfig row : gc.rows) {
+                    if (key.equals(row.property)) {
+                        // Update typed value based on existing type to maintain consistency
+                        // Handle inversion for SWITCH_INV
+                        String valToStore = value;
+                        if ("SWITCH_INV".equals(row.type)) {
+                            valToStore = String.valueOf(!Boolean.parseBoolean(value));
+                        }
 
-                // Publish event for live updates
-                UIStateBus.getInstance().publish(UIStateEvents.CONFIG_CHANGED, "ConfigurationService", key);
-
-                // Schedule debounced save - Removed for manual save strategy
-                // scheduleBackgroundSave();
+                        if (row.value instanceof Boolean) {
+                            row.value = Boolean.parseBoolean(valToStore);
+                        } else if (row.value instanceof Integer) {
+                            try {
+                                row.value = Integer.parseInt(valToStore);
+                            } catch (Exception e) {
+                                row.value = valToStore;
+                            }
+                        } else {
+                            row.value = valToStore;
+                        }
+                        layoutHandler = true;
+                    }
+                }
             }
         }
+
+        // 2. Update Properties (Legacy/Backup) & Publish Events
+        if (cfg != null) {
+            String oldVal = cfg.getValue(key);
+            if (!value.equals(oldVal) || layoutHandler) {
+                cfg.setValue(key, value);
+                // Publish event for live updates
+                UIStateBus.getInstance().publish(UIStateEvents.CONFIG_CHANGED, "ConfigurationService", key);
+            }
+        }
+
+        // If we updated layout, we should eventually save layout?
+        // Current architecture relies on explicit saveLayoutConfig() calls from UI,
+        // or we can leave it dirty in memory until app exit/save.
+        // For now, we align with legacy behavior: setConfig writes to memory/properties
+        // immediately.
     }
 
     // private synchronized void scheduleBackgroundSave() { ... } // Removed
