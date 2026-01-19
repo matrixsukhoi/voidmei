@@ -367,12 +367,14 @@ public class ConfigurationService implements ConfigProvider {
 
         @Override
         public double getAoAWarningRatio() {
-            return getDouble("miniHUDaoaWarningRatio", 0.25);
+            double val = getDouble("miniHUDaoaWarningRatio", 25);
+            return (val > 1.0) ? val / 100.0 : val;
         }
 
         @Override
         public double getAoABarWarningRatio() {
-            return getDouble("miniHUDaoaBarWarningRatio", 0);
+            double val = getDouble("miniHUDaoaBarWarningRatio", 0);
+            return (val > 1.0) ? val / 100.0 : val;
         }
 
         @Override
