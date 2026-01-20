@@ -25,7 +25,7 @@ public class FlightInfoConfig {
     // Font configuration keys
     public String numFontKey = "GlobalNumFont";
     public String labelFontKey = "flightInfoFontC";
-    public String fontAddKey = "flightInfoFontaddC";
+    // public String fontAddKey = "flightInfoFontaddC"; // Legacy, removed
     public String columnKey = "flightInfoColumn";
 
     // Position keys (inherited by DraggableOverlay)

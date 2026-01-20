@@ -240,14 +240,27 @@ public class AttitudeIndicator extends DraggableOverlay {
 		else
 			NumFont = Application.defaultNumfontName;
 
-		if (xc.getconfig("attitudeIndicatorWidth") != "")
-			xWidth = Integer.parseInt(xc.getconfig("attitudeIndicatorWidth"));
-		else
+		String wStr = xc.getconfig("attitudeIndicatorWidth");
+		if (wStr != null && !wStr.isEmpty()) {
+			try {
+				xWidth = Integer.parseInt(wStr);
+			} catch (NumberFormatException e) {
+				xWidth = 150;
+			}
+		} else {
 			xWidth = 150;
-		if (xc.getconfig("attitudeIndicatorHeight") != "")
-			xHeight = Integer.parseInt(xc.getconfig("attitudeIndicatorHeight"));
-		else
+		}
+
+		String hStr = xc.getconfig("attitudeIndicatorHeight");
+		if (hStr != null && !hStr.isEmpty()) {
+			try {
+				xHeight = Integer.parseInt(hStr);
+			} catch (NumberFormatException e) {
+				xHeight = 300;
+			}
+		} else {
 			xHeight = 300;
+		}
 
 		int sw = 0;
 		if (xc.getconfig("enableAttitudeIndicatorEdge").equals("true")) {

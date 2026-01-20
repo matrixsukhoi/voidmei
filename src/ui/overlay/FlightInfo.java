@@ -46,7 +46,7 @@ public class FlightInfo extends FieldOverlay {
 		// Set config keys from FlightInfoConfig
 		this.numFontKey = flightInfoConfig.numFontKey;
 		this.labelFontKey = flightInfoConfig.labelFontKey;
-		this.fontAddKey = flightInfoConfig.fontAddKey;
+		// this.fontAddKey = flightInfoConfig.fontAddKey;
 		this.columnKey = flightInfoConfig.columnKey;
 		this.edgeKey = flightInfoConfig.edgeKey;
 		this.defaultShowEdge = flightInfoConfig.showEdge;
