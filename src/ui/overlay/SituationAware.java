@@ -128,18 +128,28 @@ public class SituationAware extends DraggableOverlay {
 
 	}
 
+	// GroupConfig reference
+	prog.config.ConfigLoader.GroupConfig groupConfig;
+
 	int lx;
 	int ly;
 
 	public void reinitConfig() {
-		if (xc.getconfig("situationAwareX") != "")
-			lx = Integer.parseInt(xc.getconfig("situationAwareX"));
-		else
-			lx = Toolkit.getDefaultToolkit().getScreenSize().width - WIDTH;
-		if (xc.getconfig("situationAwareY") != "")
-			ly = Integer.parseInt(xc.getconfig("situationAwareY"));
-		else
-			ly = 50;
+		// Use GroupConfig if available, otherwise fallback or defaults
+		if (groupConfig != null) {
+			lx = (int) (groupConfig.x * Toolkit.getDefaultToolkit().getScreenSize().width);
+			ly = (int) (groupConfig.y * Toolkit.getDefaultToolkit().getScreenSize().height);
+		} else {
+			// Legacy fallback (shouldn't happen with correct Controller init)
+			if (xc.getconfig("situationAwareX") != "")
+				lx = Integer.parseInt(xc.getconfig("situationAwareX"));
+			else
+				lx = Toolkit.getDefaultToolkit().getScreenSize().width - WIDTH;
+			if (xc.getconfig("situationAwareY") != "")
+				ly = Integer.parseInt(xc.getconfig("situationAwareY"));
+			else
+				ly = 50;
+		}
 
 		setShadeWidth(0);
 		this.setBounds(lx, ly, WIDTH, HEIGHT);
@@ -149,6 +159,7 @@ public class SituationAware extends DraggableOverlay {
 	public void init(Controller c, OtherService s, prog.config.ConfigLoader.GroupConfig groupConfig) {
 		xc = c;
 		this.config = c; // Set parent config provider
+		this.groupConfig = groupConfig;
 		xs = s;
 		WIDTH = 250;
 		HEIGHT = 150;

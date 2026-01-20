@@ -360,6 +360,13 @@ public class ConfigLoader {
                         }
                         // Always save the 'value' field (which acts as visibility/state etc.)
                         pw.println(row.label + " || " + headerFormula + " || %s || " + row.value);
+                    } else if (row.type.equals("FILELIST") || row.type.equals("FMLIST") || row.type.equals("COMBO")) {
+                        // For list types, the format field is overloaded with metadata (paths/options)
+                        // in memory.
+                        // We must NOT write this metadata to the file's format column.
+                        // Instead, we write the standard display format (usually %s) and rely on the
+                        // Formula to restore metadata on load.
+                        pw.println(row.label + " || " + row.formula + " || %s || " + row.value);
                     } else {
                         // Universal save logic
                         pw.println(row.label + " || " + row.formula + " || " + row.format + " || " + row.value);
