@@ -234,6 +234,24 @@ public class ConfigurationService implements ConfigProvider {
     }
 
     public Color getColorConfig(String key) {
+        // Priority 1: Try to get unified string from Layout or Config
+        String unifiedVal = getConfig(key);
+        if (unifiedVal != null && !unifiedVal.isEmpty()) {
+            try {
+                String[] parts = unifiedVal.split(",");
+                if (parts.length >= 3) {
+                    int r = Integer.parseInt(parts[0].trim());
+                    int g = Integer.parseInt(parts[1].trim());
+                    int b = Integer.parseInt(parts[2].trim());
+                    int a = (parts.length > 3) ? Integer.parseInt(parts[3].trim()) : 255;
+                    return new Color(r, g, b, a);
+                }
+            } catch (Exception e) {
+                // Formatting error, fall through to legacy
+            }
+        }
+
+        // Priority 2: Legacy Split Keys (e.g. key + "R")
         int R, G, B, A;
         try {
             R = Integer.parseInt(getConfig(key + "R"));
@@ -251,7 +269,18 @@ public class ConfigurationService implements ConfigProvider {
         int G = c.getGreen();
         int B = c.getBlue();
         int A = c.getAlpha();
+        String unified = R + ", " + G + ", " + B + ", " + A;
 
+        // 1. Try to set unified config (Layout takes precedence in setConfig)
+        setConfig(key, unified);
+
+        // 2. Also set legacy keys for backward compatibility / safety in
+        // config.properties
+        // Only if we suspect this might be a legacy-only key, but it doesn't hurt to
+        // sync them for now.
+        // However, to keep config clean, we might want to avoid re-creating them if
+        // they don't exist?
+        // Let's stick to safe sync:
         setConfig(key + "R", Integer.toString(R));
         setConfig(key + "G", Integer.toString(G));
         setConfig(key + "B", Integer.toString(B));

@@ -18,6 +18,7 @@ All notable changes to this project will be documented in this file.
     - **Cleanup**: Completed Batch 4 removal of legacy duplicate keys (including `crosshairScale`, `enableVoiceWarn`, etc.) from `config.properties`, ensuring `ui_layout.cfg` is the definitive configuration source.
     - **Fix**: Updated `ConfigurationService` to support reading/writing Master Switches (`flightInfoSwitch`, etc.) directly from `GroupConfig` visibility. This resolves the "No Overlay in Game Mode" issue caused by missing keys in `config.properties`.
     - **Correction Completed**: Restored incorrectly deleted system-level configurations (`enableLogging`, `AAEnable`, `attitudeIndicatorFreqMs`) and resource keys (`crosshairName`) to `config.properties` to ensure system stability.
+    - **Fix**: Updated `ConfigurationService` to support unified color strings (e.g., "255, 255, 255, 255") from `ui_layout.cfg`. This ensures Layout color settings take precedence over legacy split keys (`fontNumR` etc.) in `config.properties`.
   - Implemented **Typed Value Model**: Configuration items in `ui_layout.cfg` are now parsed into strict Java types (Integer, Boolean) at load time, eliminating manual string parsing in renderers.
   - Removed legacy `visible` and `defaultValue` fields in favor of a unified, typed `value` field.
   - Exposed hidden logic settings (AoA Warning Ratios) as sliders in the Layout UI.

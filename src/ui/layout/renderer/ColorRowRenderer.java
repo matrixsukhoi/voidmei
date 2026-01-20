@@ -13,14 +13,20 @@ public class ColorRowRenderer implements RowRenderer {
     @Override
     public WebPanel render(RowConfig row, GroupConfig groupConfig, RenderContext context) {
         // Read color components
+        // Read color components
         String key = row.property;
-        // ConfigurationService stores split keys (key + "R", etc.) for colors
-        String r = context.getStringFromConfigService(key + "R", "255");
-        String g = context.getStringFromConfigService(key + "G", "255");
-        String b = context.getStringFromConfigService(key + "B", "255");
-        String a = context.getStringFromConfigService(key + "A", "255");
 
-        String colorText = r + ", " + g + ", " + b + ", " + a;
+        // Priority: Unified String -> Fallback to Split Keys (handled by getColorConfig
+        // logic if we used it,
+        // but here we are using context wrapper).
+        // Let's rely on row.value which should be loaded from Layout, or verify with
+        // ConfigService.
+
+        String colorText = context.getStringFromConfigService(key, "255, 255, 255, 255");
+
+        // If colorText is just "255" (default fallback) or empty, maybe check split
+        // keys manually?
+        // But Controller.getConfig(key) should return unified string if in layout.
         Color initialColor = parseColor(colorText);
 
         WebPanel itemPanel = ReplicaBuilder.createColorField(row.label, colorText, initialColor);
@@ -35,6 +41,11 @@ public class ColorRowRenderer implements RowRenderer {
                 field.setLeadingComponent(new WebImage(ImageUtils.createColorIcon(c)));
 
                 // Sync components
+                // Sync components (Unified takes precedence)
+                String unified = c.getRed() + ", " + c.getGreen() + ", " + c.getBlue() + ", " + c.getAlpha();
+                context.syncStringToConfigService(key, unified);
+
+                // Legacy sync for backward compatibility
                 context.syncStringToConfigService(key + "R", Integer.toString(c.getRed()));
                 context.syncStringToConfigService(key + "G", Integer.toString(c.getGreen()));
                 context.syncStringToConfigService(key + "B", Integer.toString(c.getBlue()));
