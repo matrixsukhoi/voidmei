@@ -376,6 +376,8 @@ public class Controller implements ConfigProvider {
 				// Just update local config without full refresh/data load
 				prog.util.Logger.info("Controller", "ACTION: Controller: Reloading config (" + key + ")");
 				loadFromConfig();
+				// Also re-init active overlays to reflect config changes (e.g. EngineInfo)
+				overlayManager.reinitActiveOverlays();
 			}
 		};
 		prog.event.UIStateBus.getInstance().subscribe(prog.event.UIStateEvents.CONFIG_CHANGED, configChangedHandler);

@@ -145,7 +145,7 @@ public class ConfigurationService implements ConfigProvider {
         if (layoutConfigs != null) {
             for (ConfigLoader.GroupConfig gc : layoutConfigs) {
                 for (ConfigLoader.RowConfig row : gc.rows) {
-                    if (key.equals(row.property)) {
+                    if (key.equals(row.property) || (row.property == null && key.equals(row.label))) {
                         // Handle inversion for SWITCH_INV
                         if ("SWITCH_INV".equals(row.type)) {
                             return String.valueOf(!row.getBool());
@@ -174,7 +174,7 @@ public class ConfigurationService implements ConfigProvider {
             for (ConfigLoader.GroupConfig gc : layoutConfigs) {
                 // Check Rows
                 for (ConfigLoader.RowConfig row : gc.rows) {
-                    if (key.equals(row.property)) {
+                    if (key.equals(row.property) || (row.property == null && key.equals(row.label))) {
                         // Update typed value based on existing type to maintain consistency
                         // Handle inversion for SWITCH_INV
                         String valToStore = value;

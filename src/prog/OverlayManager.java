@@ -102,10 +102,30 @@ public class OverlayManager {
     /**
      * Refresh all overlays for preview mode.
      */
+    /**
+     * Refresh all overlays for preview mode.
+     */
     public void refreshAllPreviews() {
         OverlayContext ctx = OverlayContext.forPreviewMode(tc);
         for (OverlayEntry<?> entry : entries.values()) {
             entry.refreshPreview(ctx);
+        }
+    }
+
+    /**
+     * Re-initialize all active overlays (Game Mode).
+     */
+    public void reinitActiveOverlays() {
+        for (OverlayEntry<?> entry : entries.values()) {
+            reinitEntry(entry);
+        }
+    }
+
+    private <T> void reinitEntry(OverlayEntry<T> entry) {
+        if (entry.instance != null && entry.reinitializer != null) {
+            // prog.util.Logger.info("OverlayManager", "Re-initializing active overlay: " +
+            // entry.key);
+            entry.reinitializer.accept(entry.instance);
         }
     }
 

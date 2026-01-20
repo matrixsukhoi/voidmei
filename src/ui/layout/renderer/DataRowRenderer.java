@@ -14,9 +14,8 @@ public class DataRowRenderer implements RowRenderer {
     @Override
     public WebPanel render(RowConfig row, GroupConfig groupConfig, RenderContext context) {
         // Fallback checks
-        boolean isVisible = row.getBool();
-        if (!isVisible)
-            return null; // Don't render if value="false"
+        // Always render DATA rows (as they are toggles)
+        // boolean isVisible = row.getBool(); // Removed unused check
 
         String displayVal = context.getStringFromConfigService(row.property != null ? row.property : row.label, "");
         WebPanel itemPanel = ReplicaBuilder.createSwitchItem(row.label, Boolean.parseBoolean(displayVal), false);
