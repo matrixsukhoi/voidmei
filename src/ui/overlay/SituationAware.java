@@ -37,8 +37,6 @@ public class SituationAware extends DraggableOverlay {
 	int HEIGHT;
 	Controller xc;
 	private OverlaySettings settings;
-	// Drag State
-	private int dragStartX, dragStartY;
 
 	int fontadd;
 	WebPanel panel;

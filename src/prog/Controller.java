@@ -615,7 +615,7 @@ public class Controller implements ConfigProvider {
 		overlayManager.registerWithPreview("enableAxis",
 				() -> new StickValue(),
 				overlay -> ((StickValue) overlay).init(this, S, configService.getOverlaySettings("舵面值")),
-				overlay -> ((StickValue) overlay).initpreview(this, configService.getOverlaySettings("舵面值")),
+				overlay -> ((StickValue) overlay).initPreview(this, configService.getOverlaySettings("舵面值")),
 				overlay -> ((StickValue) overlay).reinitConfig(),
 				false);
 

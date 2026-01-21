@@ -151,7 +151,7 @@ public class StickValue extends DraggableOverlay implements FlightDataListener {
 		}
 	}
 
-	public void initpreview(Controller c, OverlaySettings settings) {
+	public void initPreview(Controller c, OverlaySettings settings) {
 		init(c, null, settings);
 		applyPreviewStyle();
 		setupDragListeners();

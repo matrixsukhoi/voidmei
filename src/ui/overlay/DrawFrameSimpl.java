@@ -8,11 +8,8 @@ import java.awt.Graphics2D;
 
 import java.awt.RenderingHints;
 import java.awt.Toolkit;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseMotionAdapter;
 import com.alee.laf.panel.WebPanel;
-import com.alee.laf.rootpane.WebFrame;
+import ui.base.DraggableOverlay;
 
 import parser.Blkx;
 import parser.FlightAnalyzer;
@@ -20,7 +17,7 @@ import prog.Application;
 import prog.Controller;
 import prog.i18n.Lang;
 
-public class DrawFrameSimpl extends WebFrame implements Runnable {
+public class DrawFrameSimpl extends DraggableOverlay {
 	/**
 	 * 
 	 */
@@ -52,8 +49,6 @@ public class DrawFrameSimpl extends WebFrame implements Runnable {
 	double fY[];
 	double fX[];
 	public boolean isPreview = false;
-	int isDragging = 0;
-	int xx, yy;
 
 	void paintAction(Graphics g, Blkx fmblk) {
 		Graphics2D g2d = (Graphics2D) g;
@@ -579,37 +574,8 @@ public class DrawFrameSimpl extends WebFrame implements Runnable {
 	public void initPreview(Controller c) {
 		isPreview = true;
 		init(c);
-		this.getWebRootPaneUI().setMiddleBg(Application.previewColor);
-		this.getWebRootPaneUI().setTopBg(Application.previewColor);
-
-		// 预览模式下的拖拽支持
-		addMouseListener(new MouseAdapter() {
-			@Override
-			public void mousePressed(MouseEvent e) {
-				isDragging = 1;
-				xx = e.getX();
-				yy = e.getY();
-			}
-
-			@Override
-			public void mouseReleased(MouseEvent e) {
-				isDragging = 0;
-			}
-		});
-
-		addMouseMotionListener(new MouseMotionAdapter() {
-			@Override
-			public void mouseDragged(MouseEvent e) {
-				if (isDragging == 1) {
-					int left = getLocation().x;
-					int top = getLocation().y;
-					setLocation(left + e.getX() - xx, top + e.getY() - yy);
-					saveCurrentPosition();
-					setVisible(true);
-					repaint();
-				}
-			}
-		});
+		setupDragListeners();
+		applyPreviewStyle();
 		this.setCursor(null);
 		setVisible(true);
 	}
@@ -618,9 +584,12 @@ public class DrawFrameSimpl extends WebFrame implements Runnable {
 		// 刷新配置逻辑（如果需要）
 	}
 
+	@Override
 	public void saveCurrentPosition() {
-		xc.setconfig("thrustdFSX", Integer.toString(this.getLocation().x));
-		xc.setconfig("thrustdFSY", Integer.toString(this.getLocation().y));
+		if (xc != null) {
+			xc.setconfig("thrustdFSX", Integer.toString(this.getLocation().x));
+			xc.setconfig("thrustdFSY", Integer.toString(this.getLocation().y));
+		}
 	}
 
 	@Override

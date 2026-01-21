@@ -5,10 +5,6 @@ import java.awt.Container;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseMotionAdapter;
-
 import java.util.List;
 import java.util.ArrayList;
 
@@ -109,13 +105,7 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
     private WebPanel panel;
 
     private Service service;
-
-    private int isDragging;
-    private int dragStartX;
-    private int dragStartY;
-
     private String lines[];
-
     private Container root;
 
     private String relEnergy;
@@ -129,37 +119,8 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 
         this.getWebRootPaneUI().setTopBg(Application.previewColor);
         this.getWebRootPaneUI().setMiddleBg(Application.previewColor);
-        addMouseListener(new MouseAdapter() {
-            public void mouseEntered(MouseEvent e) {
-
-            }
-
-            public void mousePressed(MouseEvent e) {
-                isDragging = 1;
-                dragStartX = e.getX();
-                dragStartY = e.getY();
-
-            }
-
-            public void mouseReleased(MouseEvent e) {
-                if (isDragging == 1) {
-                    isDragging = 0;
-                }
-            }
-
-        });
-        addMouseMotionListener(new MouseMotionAdapter() {
-            public void mouseDragged(MouseEvent e) {
-                if (isDragging == 1) {
-                    int left = getLocation().x;
-                    int top = getLocation().y;
-                    setLocation(left + e.getX() - dragStartX, top + e.getY() - dragStartY);
-                    saveCurrentPosition();
-                    setVisible(true);
-                    repaint();
-                }
-            }
-        });
+        setupDragListeners();
+        applyPreviewStyle();
         this.setCursor(null);
         setVisible(true);
     }

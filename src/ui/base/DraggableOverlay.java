@@ -94,10 +94,24 @@ public abstract class DraggableOverlay extends WebFrame implements Runnable {
     /**
      * Save current window position to config.
      */
+
+    /**
+     * Save current window position to config.
+     */
     public void saveCurrentPosition() {
+        int x = getLocation().x;
+        int y = getLocation().y;
+
+        // Priority 1: OverlaySettings (New modular config)
+        if (overlaySettings != null) {
+            overlaySettings.saveWindowPosition(x, y);
+            return;
+        }
+
+        // Priority 2: ConfigProvider (Legacy fallback)
         if (config != null && posXKey != null && posYKey != null) {
-            config.setConfig(posXKey, Integer.toString(getLocation().x));
-            config.setConfig(posYKey, Integer.toString(getLocation().y));
+            config.setConfig(posXKey, Integer.toString(x));
+            config.setConfig(posYKey, Integer.toString(y));
         }
     }
 
@@ -115,8 +129,10 @@ public abstract class DraggableOverlay extends WebFrame implements Runnable {
 
             @Override
             public void mouseReleased(MouseEvent e) {
-                isDragging = 0;
-                saveCurrentPosition();
+                if (isDragging == 1) {
+                    isDragging = 0;
+                    saveCurrentPosition();
+                }
             }
         });
 

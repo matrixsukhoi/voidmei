@@ -4,15 +4,12 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.Toolkit;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseMotionAdapter;
 import java.util.List;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 import com.alee.laf.panel.WebPanel;
-import com.alee.laf.rootpane.WebFrame;
+import ui.base.DraggableOverlay;
 import com.alee.extended.layout.VerticalFlowLayout;
 import prog.util.Logger;
 
@@ -21,7 +18,7 @@ import prog.Application;
 /**
  * Base overlay class using composition for pluggable rendering strategies.
  */
-public class BaseOverlay extends WebFrame implements Runnable {
+public class BaseOverlay extends DraggableOverlay {
     private static final long serialVersionUID = 1L;
 
     public volatile boolean doit = true;
@@ -35,9 +32,6 @@ public class BaseOverlay extends WebFrame implements Runnable {
     protected int alpha = 180;
 
     protected boolean isPreview = false;
-    protected int isDragging = 0;
-    protected int mouseX, mouseY;
-
     protected Supplier<List<String>> dataSupplier;
     protected List<String> lastData = null;
     protected String configXKey;
@@ -169,33 +163,8 @@ public class BaseOverlay extends WebFrame implements Runnable {
         mainPanel.add(dataPanel, BorderLayout.CENTER);
         this.add(mainPanel);
 
-        addMouseListener(new MouseAdapter() {
-            @Override
-            public void mousePressed(MouseEvent e) {
-                isDragging = 1;
-                mouseX = e.getX();
-                mouseY = e.getY();
-            }
-
-            @Override
-            public void mouseReleased(MouseEvent e) {
-                isDragging = 0;
-            }
-        });
-
-        addMouseMotionListener(new MouseMotionAdapter() {
-            @Override
-            public void mouseDragged(MouseEvent e) {
-                if (isDragging == 1) {
-                    int left = getLocation().x;
-                    int top = getLocation().y;
-                    setLocation(left + e.getX() - mouseX, top + e.getY() - mouseY);
-                    saveCurrentPosition();
-                    setVisible(true);
-                    repaint();
-                }
-            }
-        });
+        setupDragListeners();
+        applyPreviewStyle();
         this.setCursor(null);
         setVisible(true);
     }
@@ -239,9 +208,12 @@ public class BaseOverlay extends WebFrame implements Runnable {
         }
     }
 
+    @Override
     public void saveCurrentPosition() {
         if (settings != null) {
             settings.saveWindowPosition(getLocation().x, getLocation().y);
+        } else {
+            super.saveCurrentPosition();
         }
     }
 
