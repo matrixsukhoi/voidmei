@@ -159,7 +159,14 @@ public class MainForm extends WebFrame {
 			}
 		}
 
-		tabbedPane.setSelectedIndex(0);
+		// Restore last active tab
+		int lastTab = prog.util.UIStateStorage.loadLastTab();
+		if (lastTab >= 0 && lastTab < tabbedPane.getTabCount()) {
+			tabbedPane.setSelectedIndex(lastTab);
+		} else {
+			tabbedPane.setSelectedIndex(0);
+		}
+
 		tabbedPane.setOpaque(false);
 		tabbedPane.setBackground(new Color(0, 0, 0, 0));
 		tabbedPane.setFont(Application.defaultFontBig);
@@ -228,6 +235,10 @@ public class MainForm extends WebFrame {
 		// loggingPanel now saved to ui_layout.cfg
 		// displayFmKey handled by HotkeyRowRenderer and direct config setting
 
+		// save last active tab
+		if (tabbedPane != null) {
+			prog.util.UIStateStorage.saveLastTab(tabbedPane.getSelectedIndex());
+		}
 	}
 
 	public void confirm() {

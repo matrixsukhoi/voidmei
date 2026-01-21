@@ -1,18 +1,16 @@
 package ui.overlay;
 
-import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Container;
-import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
-import java.awt.Image;
 import java.awt.RenderingHints;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionAdapter;
 
-import java.util.Map;
+import java.util.List;
+import java.util.ArrayList;
 
 import com.alee.laf.panel.WebPanel;
 
@@ -36,11 +34,8 @@ import ui.base.DraggableOverlay;
 import ui.overlay.model.HUDData;
 import ui.overlay.logic.HUDCalculator;
 import ui.component.HUDComponent;
-import java.util.List;
-import java.util.ArrayList;
-import ui.layout.UIStyle;
 
-public class MinimalHUD extends DraggableOverlay implements UIStyle, FlightDataListener {
+public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
     private static final long serialVersionUID = 1L;
 
     private MinimalHUDContext ctx;
