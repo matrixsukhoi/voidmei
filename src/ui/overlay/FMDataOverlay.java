@@ -21,7 +21,6 @@ public class FMDataOverlay extends BaseOverlay {
     private static final long serialVersionUID = 1L;
     private Controller controller;
     private List<String> cachedData = Collections.singletonList("FM Data Preview\n[No Data Loaded]");
-    private OverlaySettings settings;
 
     public void init(Controller c, OverlaySettings settings) {
         this.controller = c;

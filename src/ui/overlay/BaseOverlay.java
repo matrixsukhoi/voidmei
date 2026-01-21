@@ -105,6 +105,7 @@ public class BaseOverlay extends WebFrame implements Runnable {
         width = Math.round(Application.defaultFontsize * 36 * scaleFactor);
         height = Application.defaultFontsize * 72;
 
+        this.getWebRootPaneUI().setMiddleBg(new Color(0, 0, 0, 0));
         this.getWebRootPaneUI().setTopBg(new Color(0, 0, 0, 0));
         this.getWebRootPaneUI().setBorderColor(new Color(0, 0, 0, 0));
         this.getWebRootPaneUI().setInnerBorderColor(new Color(0, 0, 0, 0));
@@ -112,6 +113,8 @@ public class BaseOverlay extends WebFrame implements Runnable {
 
         setupFont();
         loadPosition();
+
+        ui.WebLafSettings.setWindowFocus(this);
 
         dataPanel = new WebPanel();
         dataPanel.setLayout(new VerticalFlowLayout(0, 0));
@@ -147,10 +150,14 @@ public class BaseOverlay extends WebFrame implements Runnable {
 
         this.getWebRootPaneUI().setMiddleBg(Application.previewColor);
         this.getWebRootPaneUI().setTopBg(Application.previewColor);
+        this.getWebRootPaneUI().setBorderColor(new Color(0, 0, 0, 0));
+        this.getWebRootPaneUI().setInnerBorderColor(new Color(0, 0, 0, 0));
         this.setShadeWidth(0);
 
         setupFont();
         loadPosition();
+
+        ui.WebLafSettings.setWindowFocus(this);
 
         dataPanel = new WebPanel();
         dataPanel.setLayout(new VerticalFlowLayout(0, 0));

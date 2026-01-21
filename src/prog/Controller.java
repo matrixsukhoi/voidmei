@@ -648,10 +648,10 @@ public class Controller implements ConfigProvider {
 		overlayManager.registerWithPreview("enableFMPrint",
 				() -> new FMDataOverlay(),
 				overlay -> {
-					prog.config.OverlaySettings fmSettings = configService.getOverlaySettings("UsefulData");
+					prog.config.OverlaySettings fmSettings = configService.getOverlaySettings("飞机数据");
 					((FMDataOverlay) overlay).init(this, fmSettings);
 				}, overlay -> {
-					prog.config.OverlaySettings fmSettings = configService.getOverlaySettings("UsefulData");
+					prog.config.OverlaySettings fmSettings = configService.getOverlaySettings("飞机数据");
 					((FMDataOverlay) overlay).initPreview(this, fmSettings);
 				}, null, // No reConfig needed
 				true);
