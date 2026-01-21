@@ -74,11 +74,12 @@ public class StickValue extends DraggableOverlay implements FlightDataListener {
 		this.xc = c;
 		this.xs = s;
 		this.settings = settings;
+
+		this.setUndecorated(true);
 		reinitConfig();
 
 		this.setCursor(Application.blankCursor);
 		setupTransparentWindow();
-		setShadeWidth(0);
 
 		sElevator = "50";
 		sElevatorLabel = Lang.vElevator;
@@ -98,7 +99,6 @@ public class StickValue extends DraggableOverlay implements FlightDataListener {
 
 		setFrameOpaque();
 
-		setFrameOpaque();
 		px = width / 2;
 		py = width / 2;
 
@@ -110,21 +110,14 @@ public class StickValue extends DraggableOverlay implements FlightDataListener {
 
 			public void paintComponent(Graphics g) {
 				Graphics2D g2d = (Graphics2D) g;
-				// 开始绘图
-				// g2d.draw
 				g2d.setPaintMode();
 
 				g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, Application.graphAASetting);
 				g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, Application.textAASetting);
-				// g2d.setRenderingHint(RenderingHints.KEY_RENDERING,
-				// RenderingHints.VALUE_RENDER_QUALITY);
 				g2d.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION,
 						RenderingHints.VALUE_ALPHA_INTERPOLATION_SPEED);
 				g2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_SPEED);
 
-				// g2d.setColor(Color.white);
-				// g2d.fillRect(0, 0, 200, 200);
-				// 绘制十字星
 				locater(g2d, px, py, width, locateSize, strokeSize);
 
 				int dy = fontSize >> 1;
@@ -142,26 +135,15 @@ public class StickValue extends DraggableOverlay implements FlightDataListener {
 				UIBaseElements.__drawLabelBOSType(g2d, width, dy, 1, fontNum, fontLabel, fontUnit, sWingSweep,
 						sWingSweepLabel, sWingSweepUnit, 9);
 
-				// 绘制横条
-				// UIBaseElements.drawHBarTextNum(g2d, x, y, width, height, val_width,
-				// borderwidth,
-				// c, lbl, num, lblFont, numFont);
 				UIBaseElements.drawHBarTextNum(g2d, 0, height, width, fontSize >> 1, rudderValPix, 1,
 						Application.colorNum,
 						sRudderLabel, sRudder, fontLabel, fontLabel);
-
 			}
 		};
-		// topPanel.setWebColoredBackground(false);
-		// topPanel.setBackground(new Color(0, 0, 0, 0));
 
-		// initpanel(topPanel);
 		add(topPanel);
 		setTitle("StickValue");
 		WebLafSettings.setWindowOpaque(this);
-
-		if (xc.getconfig("enableAxisEdge").equals("true"))
-			setShadeWidth(10);
 
 		if (s != null) {
 			setVisible(true);
@@ -439,15 +421,12 @@ public class StickValue extends DraggableOverlay implements FlightDataListener {
 	// }
 
 	public void reinitConfig() {
-		if (xc.getconfig("GlobalNumFont") != "")
-			NumFont = xc.getconfig("GlobalNumFont");
-		else
-			NumFont = Application.defaultNumfontName;
-
 		if (settings != null) {
+			NumFont = settings.getString("GlobalNumFont", Application.defaultNumfontName);
 			FontName = settings.getFontName();
 			fontadd = settings.getFontSizeAdd();
 		} else {
+			NumFont = Application.defaultNumfontName;
 			FontName = Application.defaultFont.getFontName();
 			fontadd = 0;
 		}
@@ -465,7 +444,7 @@ public class StickValue extends DraggableOverlay implements FlightDataListener {
 		int theight = (int) (height + 1.5 * fontSize);
 
 		int sw = 0;
-		if (xc.getconfig("enableAxisEdge").equals("true")) {
+		if (settings != null && settings.getBool("enableAxisEdge", false)) {
 			sw = 10;
 		}
 

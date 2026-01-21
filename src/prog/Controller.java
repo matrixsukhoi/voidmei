@@ -134,7 +134,7 @@ public class Controller implements ConfigProvider {
 
 			if (showStatus) {
 				SB = new StatusBar();
-				SB.init(this);
+				SB.init(this, configService.getOverlaySettings("StatusBar"));
 				SB.S1();
 				SB1 = new Thread(SB);
 				SB1.start();
@@ -257,7 +257,7 @@ public class Controller implements ConfigProvider {
 			}
 			ui.util.NotificationService.show(Lang.cStartlog);
 			Log = new FlightLog();
-			Log.init(this, S);
+			Log.init(this, S, this);
 			logon = true;
 		}
 
@@ -647,9 +647,13 @@ public class Controller implements ConfigProvider {
 		// UsefulData (FMPrint) - supports preview
 		overlayManager.registerWithPreview("enableFMPrint",
 				() -> new FMDataOverlay(),
-				overlay -> ((FMDataOverlay) overlay).init(this),
-				overlay -> ((FMDataOverlay) overlay).initPreview(this),
-				overlay -> ((FMDataOverlay) overlay).reinitConfig(),
+				overlay -> {
+					prog.config.OverlaySettings fmSettings = configService.getOverlaySettings("UsefulData");
+					((FMDataOverlay) overlay).init(this, fmSettings);
+				}, overlay -> {
+					prog.config.OverlaySettings fmSettings = configService.getOverlaySettings("UsefulData");
+					((FMDataOverlay) overlay).initPreview(this, fmSettings);
+				}, null, // No reConfig needed
 				true);
 
 		// thrustdFS - requires enableFMPrint AND isJet
@@ -681,8 +685,12 @@ public class Controller implements ConfigProvider {
 						saConfig.y = 0.1;
 						saConfig.visible = true;
 					}
-					((SituationAware) overlay).init(this, O, saConfig);
-				}, overlay -> ((SituationAware) overlay).initPreview(this), null, // No reinitConfig needed yet
+					prog.config.OverlaySettings saSettings = configService.getOverlaySettings(saConfig.title);
+					((SituationAware) overlay).init(this, O, saSettings);
+				}, overlay -> {
+					prog.config.OverlaySettings saSettings = configService.getOverlaySettings("SA信息条");
+					((SituationAware) overlay).initPreview(this, saSettings);
+				}, null, // No reinitConfig needed yet
 				true, ActivationStrategy.debugOnly());
 
 	}

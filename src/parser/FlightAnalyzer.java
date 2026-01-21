@@ -20,12 +20,17 @@ public class FlightAnalyzer {
 
 	Service xs;
 	int count;
+	private prog.config.ConfigProvider config;
 
-	void init(int stage, Service st) {
+	void init(int stage, Service st, prog.config.ConfigProvider config) {
 		// Application.debugPrint("analyzer初始化了");
 		xs = st;
+		this.config = config;
 		count = 1;
-		isInformation = Boolean.parseBoolean(st.c.getconfig("enableAltInformation"));
+
+		String enableAltInfo = config != null ? config.getConfig("enableAltInformation") : "false";
+		isInformation = Boolean.parseBoolean(enableAltInfo);
+
 		type = xs.sIndic.type;
 		engineType = xs.iEngType;
 		initaltStage = stage;

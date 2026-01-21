@@ -10,31 +10,25 @@ import prog.event.UIStateBus;
 import prog.event.UIStateEvents;
 import parser.Blkx;
 
+import prog.config.OverlaySettings;
+
 /**
  * Overlay for displaying FM Data description (formerly UsefulData).
  * Extends BaseOverlay as required by user.
  */
-public class FMDataOverlay extends BaseOverlay implements BaseOverlay.ConfigBridge {
+public class FMDataOverlay extends BaseOverlay {
 
     private static final long serialVersionUID = 1L;
     private Controller controller;
     private List<String> cachedData = Collections.singletonList("FM Data Preview\n[No Data Loaded]");
+    private OverlaySettings settings;
 
-    public FMDataOverlay() {
-        super();
-        // BaseOverlay uses ZebraListRenderer by default
-    }
-
-    public void init(Controller c) {
+    public void init(Controller c, OverlaySettings settings) {
         this.controller = c;
+        this.settings = settings;
 
-        // Initialize BaseOverlay with a supplier that returns our cached data
-        super.init(this, "UsefulDataX", "UsefulDataY", () -> {
-            // If we want purely event driven, we return cachedData.
-            // If we want to ensure freshness (polling), we can fetch here too.
-            // But let's stick to event-driven update of cache + polling for display.
-            return cachedData;
-        });
+        // Initialize BaseOverlay with settings and data supplier
+        super.init(settings, () -> cachedData);
 
         // Set header matcher for FM data styling
         setHeaderMatcher(line -> line.contains("fm器件") || line.contains("FM文件"));
@@ -46,13 +40,12 @@ public class FMDataOverlay extends BaseOverlay implements BaseOverlay.ConfigBrid
         reloadFMData();
     }
 
-    // Preview init signature to match expected usage?
-    // Controller calls: ((FMDataOverlay) overlay).initPreview(this);
-    public void initPreview(Controller c) {
+    public void initPreview(Controller c, OverlaySettings settings) {
         this.controller = c;
-        this.isPreview = true; // BaseOverlay field
+        this.settings = settings;
+        this.isPreview = true;
 
-        super.initPreview(this, "UsefulDataX", "UsefulDataY", () -> cachedData);
+        super.initPreview(settings, () -> cachedData);
         setHeaderMatcher(line -> line.contains("fm器件") || line.contains("FM文件"));
 
         reloadFMData();
@@ -74,23 +67,6 @@ public class FMDataOverlay extends BaseOverlay implements BaseOverlay.ConfigBrid
     public void dispose() {
         UIStateBus.getInstance().unsubscribe(UIStateEvents.FM_DATA_LOADED, this::onFMDataLoaded);
         super.dispose();
-    }
-
-    // --- ConfigBridge Implementation ---
-
-    @Override
-    public String getConfig(String key) {
-        if (controller != null) {
-            return controller.getconfig(key);
-        }
-        return null;
-    }
-
-    @Override
-    public void setConfig(String key, String value) {
-        if (controller != null) {
-            controller.setconfig(key, value);
-        }
     }
 
     // --- BaseOverlay Overrides ---

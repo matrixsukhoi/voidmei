@@ -1,4 +1,5 @@
 package parser;
+
 import prog.Application;
 
 import java.io.BufferedWriter;
@@ -30,6 +31,7 @@ public class FlightLog implements Runnable {
 	private String loadName;
 	private BufferedWriter csvWritter;
 	private long writeTime;
+	private prog.config.ConfigProvider config;
 
 	void writeLabel(FileWriter txt) throws IOException {
 		BufferedWriter bw = new BufferedWriter(txt);
@@ -178,7 +180,7 @@ public class FlightLog implements Runnable {
 			if (firstAnalyze) {
 				// 第一次分析，先取当前高度
 				fA = new FlightAnalyzer();
-				fA.init(stage, xs);
+				fA.init(stage, xs, config);
 				firstAnalyze = false;
 			} else {
 				// 开始分析
@@ -228,7 +230,8 @@ public class FlightLog implements Runnable {
 			// bw.write("\n");
 
 		}
-		// Application.debugPrint(String.format("total %d climb data logged", fA.curaltStage));
+		// Application.debugPrint(String.format("total %d climb data logged",
+		// fA.curaltStage));
 		bw.flush();
 	}
 
@@ -376,9 +379,10 @@ public class FlightLog implements Runnable {
 		}
 	}
 
-	public void init(Controller tc, Service s) {
+	public void init(Controller tc, Service s, prog.config.ConfigProvider config) {
 		xc = tc;
 		xs = s;
+		this.config = config;
 		doit = false;
 		// Application.debugPrint("flightlog初始化了");
 		c = Calendar.getInstance();

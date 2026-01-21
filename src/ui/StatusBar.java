@@ -1,4 +1,5 @@
 package ui;
+
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Font;
@@ -22,55 +23,66 @@ public class StatusBar extends WebFrame implements Runnable {
 	 * 
 	 */
 	private static final long serialVersionUID = 285137206980711202L;
-	public volatile boolean doit=true;
+	public volatile boolean doit = true;
+	private prog.config.OverlaySettings settings;
 	Controller xc;
 	Service xs;
-	WebLabel title;
+	WebLabel statusLabel;
 	WebPanel panel;
 	int WIDTH;
 	int HEIGHT;
 
-	public void init(Controller c) {
+	public void init(Controller c, prog.config.OverlaySettings settings) {
 		xc = c;
+		this.settings = settings;
 		WIDTH = 250;
 		HEIGHT = 80;
 
-		//Application.debugPrint("StatusBar初始化了");
-		//setSize(WIDTH, HEIGHT);
-		//setLocation(Toolkit.getDefaultToolkit().getScreenSize().width - WIDTH, 50);
-		this.setBounds(Toolkit.getDefaultToolkit().getScreenSize().width - WIDTH, 50,WIDTH, HEIGHT);
+		this.setUndecorated(true);
+
+		int initialX = Toolkit.getDefaultToolkit().getScreenSize().width - WIDTH;
+		int initialY = 50;
+
+		if (settings != null) {
+			initialX = settings.getWindowX(WIDTH);
+			initialY = settings.getWindowY(HEIGHT);
+		}
+
+		this.setBounds(initialX, initialY, WIDTH, HEIGHT);
 		WebPanel panel = new WebPanel();
 		panel.setSize(WIDTH, HEIGHT);
-		
-		
-		//ImageIcon I = new ImageIcon(Toolkit.getDefaultToolkit().createImage("image/loader.gif"));
-		GifIcon gif=null;
+
+		// ImageIcon I = new
+		// ImageIcon(Toolkit.getDefaultToolkit().createImage("image/loader.gif"));
+		GifIcon gif = null;
 		try {
-			
+
 			gif = new GifIcon("image/facebook.gif");
 		} catch (FileNotFoundException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		
-		String FontName = null;
-		if (xc.getconfig("flightInfoFontC") != "")
-			FontName = xc.getconfig("flightInfoFontC");
+
+		String FontName = "";
+		if (settings != null) {
+			FontName = settings.getString("flightInfoFontC", "");
+		}
+
 		Font f;
-		if (!FontName.isEmpty()) {
-//			Application.debugPrint(FontName);
+		if (FontName != null && !FontName.isEmpty()) {
+			// Application.debugPrint(FontName);
 			f = new Font(FontName, Font.PLAIN, 14);
 		} else {
 			f = Application.defaultFont;
 		}
-		
-		//WebImage webimage1=new WebImage(I);
-		//java.awt.Image L=Toolkit.getDefaultToolkit().createImage("image/loader.gif");
+
+		// WebImage webimage1=new WebImage(I);
+		// java.awt.Image L=Toolkit.getDefaultToolkit().createImage("image/loader.gif");
 		// Application.debugPrint(I);
 		// WebDecoratedImage Image1=new WebDecoratedImage(I);
 		// TooltipManager.setTooltip ( Image1, "Simple preferred-size image",
 		// TooltipWay.up );
-		//WebImage webimage1=new WebImage(I);
+		// WebImage webimage1=new WebImage(I);
 		this.getWebRootPaneUI().setMiddleBg(new Color(0, 0, 0, 0));// 中部透明
 		this.getWebRootPaneUI().setTopBg(new Color(0, 0, 0, 0));// 顶部透明
 		this.getWebRootPaneUI().setBorderColor(new Color(0, 0, 0, 0));// 内描边透明
@@ -78,13 +90,13 @@ public class StatusBar extends WebFrame implements Runnable {
 
 		this.setUndecorated(true);
 
-		title = new WebLabel("" ,gif/*,I*/);
-		title.setHorizontalAlignment(SwingConstants.CENTER);
-		title.setDrawShade(true);
-		title.setForeground(new Color(245, 248, 250, 240));
-		title.setShadeColor(Application.colorShadeShape);
-		title.setFont(f);
-		title.setIconTextGap(3);
+		statusLabel = new WebLabel("", gif/* ,I */);
+		statusLabel.setHorizontalAlignment(SwingConstants.CENTER);
+		statusLabel.setDrawShade(true);
+		statusLabel.setForeground(new Color(245, 248, 250, 240));
+		statusLabel.setShadeColor(Application.colorShadeShape);
+		statusLabel.setFont(f);
+		statusLabel.setIconTextGap(3);
 
 		panel.setLayout(new BorderLayout());
 
@@ -93,8 +105,8 @@ public class StatusBar extends WebFrame implements Runnable {
 
 		this.add(panel);
 
-		//panel.add(webimage1,BorderLayout.LINE_START);
-		panel.add(title, BorderLayout.CENTER);
+		// panel.add(webimage1,BorderLayout.LINE_START);
+		panel.add(statusLabel, BorderLayout.CENTER);
 		setTitle("StatusBar");
 		setShowWindowButtons(false);
 		setShowTitleComponent(false);
@@ -102,25 +114,25 @@ public class StatusBar extends WebFrame implements Runnable {
 		setDefaultCloseOperation(3);
 		setTitle(Lang.sTitle);
 		setAlwaysOnTop(true);
-		
+
 		setFocusable(false);
 		setFocusableWindowState(false);// 取消窗口焦点
 		setVisible(true);
-		
+
 	}
 
 	public void S1() {
-		title.setText(Lang.sWait);
+		statusLabel.setText(Lang.sWait);
 		repaint();
 	}
 
 	public void S2() {
-		title.setText(Lang.sEnter);
+		statusLabel.setText(Lang.sEnter);
 		repaint();
 	}
 
 	public void S3() {
-		title.setText(Lang.sCheck);
+		statusLabel.setText(Lang.sCheck);
 		repaint();
 		try {
 			Thread.sleep(3000);
@@ -130,6 +142,7 @@ public class StatusBar extends WebFrame implements Runnable {
 		}
 		this.dispose();
 	}
+
 	@Override
 	public void run() {
 		while (doit) {
@@ -139,8 +152,8 @@ public class StatusBar extends WebFrame implements Runnable {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
-			//Application.debugPrint("StatusBar执行了");
-			//Application.debugPrint("刷新了");
+			// Application.debugPrint("StatusBar执行了");
+			// Application.debugPrint("刷新了");
 			this.repaint();
 		}
 	}

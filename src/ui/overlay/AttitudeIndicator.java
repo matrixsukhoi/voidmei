@@ -235,72 +235,52 @@ public class AttitudeIndicator extends DraggableOverlay {
 	}
 
 	public void reinitConfig() {
-		if (settings != null)
+		if (settings != null) {
 			NumFont = settings.getFontName();
-		else
+		} else {
 			NumFont = Application.defaultNumfontName;
-
-		String wStr = xc.getconfig("attitudeIndicatorWidth");
-		if (wStr != null && !wStr.isEmpty()) {
-			try {
-				xWidth = Integer.parseInt(wStr);
-			} catch (NumberFormatException e) {
-				xWidth = 150;
-			}
-		} else {
-			xWidth = 150;
 		}
-
-		String hStr = xc.getconfig("attitudeIndicatorHeight");
-		if (hStr != null && !hStr.isEmpty()) {
-			try {
-				xHeight = Integer.parseInt(hStr);
-			} catch (NumberFormatException e) {
-				xHeight = 300;
-			}
-		} else {
-			xHeight = 300;
-		}
-
-		int sw = 0;
-		if (xc.getconfig("enableAttitudeIndicatorEdge").equals("true")) {
-			sw = 10;
-		}
-
-		int totalWidth = xWidth + 4 + (sw * 2);
-		int totalHeight = xHeight + 4 + (sw * 2);
 
 		if (settings != null) {
+			xWidth = settings.getInt("attitudeIndicatorWidth", 150);
+			xHeight = settings.getInt("attitudeIndicatorHeight", 300);
+
+			int sw = 0;
+			if (settings.getBool("enableAttitudeIndicatorEdge", false)) {
+				sw = 10;
+			}
+
+			int totalWidth = xWidth + 4 + (sw * 2);
+			int totalHeight = xHeight + 4 + (sw * 2);
+
 			lx = settings.getWindowX(totalWidth);
 			ly = settings.getWindowY(totalHeight);
-		}
 
-		if (xc.getconfig("attitudeIndicatorFreqMs") != "")
-			freqMili = Integer.parseInt(xc.getconfig("attitudeIndicatorFreqMs"));
-		else
-			freqMili = 40;
+			freqMili = settings.getInt("attitudeIndicatorFreqMs", 40);
 
-		if (xc.getconfig("attitudeIndicatorUseNumColor") != "")
-			if (Boolean.parseBoolean(xc.getconfig("attitudeIndicatorUseNumColor")))
+			if (settings.getBool("attitudeIndicatorUseNumColor", false)) {
 				transParentWhite = Application.colorNum;
+			}
 
-		showDirection = false;
-		if (xc.getconfig("attitudeIndicatorDisplayDirection") != "")
-			if (Boolean.parseBoolean(xc.getconfig("attitudeIndicatorDisplayDirection")))
-				showDirection = true;
+			showDirection = settings.getBool("attitudeIndicatorDisplayDirection", false);
+			showAoALimits = settings.getBool("attitudeIndicatorDisplayAoALimits", true);
 
-		showAoALimits = true;
-		if (xc.getconfig("attitudeIndicatorDisplayAoALimits") != "")
-			showAoALimits = Boolean.parseBoolean(xc.getconfig("attitudeIndicatorDisplayAoALimits"));
+			setShadeWidth(sw);
+			this.setBounds(lx, ly, totalWidth, totalHeight);
+		} else {
+			xWidth = 150;
+			xHeight = 300;
+			freqMili = 40;
+			showDirection = false;
+			showAoALimits = true;
+			setShadeWidth(0);
+		}
 
 		setFrameOpaque();
 
 		// 旋转中心需要更新
 		pC = new Point(xWidth / 2, xHeight / 2);
 
-		setShadeWidth(sw);
-
-		this.setBounds(lx, ly, totalWidth, totalHeight);
 		repaint();
 	}
 

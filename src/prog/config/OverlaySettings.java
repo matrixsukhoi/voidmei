@@ -34,4 +34,13 @@ public interface OverlaySettings {
      * Get the font size adjustment for this overlay.
      */
     int getFontSizeAdd();
+
+    /**
+     * Generic property getters
+     */
+    boolean getBool(String key, boolean def);
+
+    int getInt(String key, int def);
+
+    String getString(String key, String def);
 }

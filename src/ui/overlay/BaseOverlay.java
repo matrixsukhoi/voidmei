@@ -44,6 +44,8 @@ public class BaseOverlay extends WebFrame implements Runnable {
     protected String configYKey;
     protected ConfigBridge configBridge;
 
+    protected Font monoFont;
+
     // Composition: pluggable renderer
     protected OverlayRenderer renderer;
 
@@ -74,6 +76,8 @@ public class BaseOverlay extends WebFrame implements Runnable {
         }
     }
 
+    protected prog.config.OverlaySettings settings;
+
     public OverlayRenderer getRenderer() {
         return this.renderer;
     }
@@ -88,10 +92,8 @@ public class BaseOverlay extends WebFrame implements Runnable {
         this.alpha = alpha;
     }
 
-    public void init(ConfigBridge bridge, String xKey, String yKey, Supplier<List<String>> supplier) {
-        this.configBridge = bridge;
-        this.configXKey = xKey;
-        this.configYKey = yKey;
+    public void init(prog.config.OverlaySettings settings, Supplier<List<String>> supplier) {
+        this.settings = settings;
         this.dataSupplier = supplier;
 
         // MUST be called before window becomes displayable
@@ -103,31 +105,13 @@ public class BaseOverlay extends WebFrame implements Runnable {
         width = Math.round(Application.defaultFontsize * 36 * scaleFactor);
         height = Application.defaultFontsize * 72;
 
-        int initialX = Toolkit.getDefaultToolkit().getScreenSize().width - width;
-        int initialY = Toolkit.getDefaultToolkit().getScreenSize().height - 10 - height;
-
-        if (bridge != null) {
-            String savedX = bridge.getConfig(xKey);
-            String savedY = bridge.getConfig(yKey);
-            if (savedX != null && !savedX.isEmpty() && savedY != null && !savedY.isEmpty()) {
-                try {
-                    initialX = Integer.parseInt(savedX);
-                    initialY = Integer.parseInt(savedY);
-                } catch (NumberFormatException e) {
-                    // Use defaults
-                }
-            }
-        }
-
-        this.setBounds(initialX, initialY, width, height);
-
-        this.getWebRootPaneUI().setMiddleBg(new Color(0, 0, 0, 0));
         this.getWebRootPaneUI().setTopBg(new Color(0, 0, 0, 0));
         this.getWebRootPaneUI().setBorderColor(new Color(0, 0, 0, 0));
         this.getWebRootPaneUI().setInnerBorderColor(new Color(0, 0, 0, 0));
         this.setShadeWidth(0);
 
         setupFont();
+        loadPosition();
 
         dataPanel = new WebPanel();
         dataPanel.setLayout(new VerticalFlowLayout(0, 0));
@@ -144,13 +128,39 @@ public class BaseOverlay extends WebFrame implements Runnable {
         this.getGlassPane().setCursor(Application.blankCursor);
 
         ui.WebLafSettings.setWindowFocus(this);
+
+        new Thread(this).start();
     }
 
-    public void initPreview(ConfigBridge bridge, String xKey, String yKey, Supplier<List<String>> supplier) {
-        isPreview = true;
-        init(bridge, xKey, yKey, supplier);
+    public void initPreview(prog.config.OverlaySettings settings, Supplier<List<String>> supplier) {
+        this.settings = settings;
+        this.dataSupplier = supplier;
+        this.isPreview = true;
+
+        this.setUndecorated(true);
+
+        int screenHeight = Toolkit.getDefaultToolkit().getScreenSize().height;
+        scaleFactor = (float) screenHeight / 1440.0f;
+        fontSize = Math.round(16 * scaleFactor);
+        width = Math.round(Application.defaultFontsize * 36 * scaleFactor);
+        height = Application.defaultFontsize * 72;
+
         this.getWebRootPaneUI().setMiddleBg(Application.previewColor);
         this.getWebRootPaneUI().setTopBg(Application.previewColor);
+        this.setShadeWidth(0);
+
+        setupFont();
+        loadPosition();
+
+        dataPanel = new WebPanel();
+        dataPanel.setLayout(new VerticalFlowLayout(0, 0));
+        dataPanel.setBackground(new Color(20, 20, 20, alpha));
+
+        WebPanel mainPanel = new WebPanel(new BorderLayout());
+        mainPanel.setWebColoredBackground(false);
+        mainPanel.setBackground(new Color(0, 0, 0, 0));
+        mainPanel.add(dataPanel, BorderLayout.CENTER);
+        this.add(mainPanel);
 
         addMouseListener(new MouseAdapter() {
             @Override
@@ -184,27 +194,47 @@ public class BaseOverlay extends WebFrame implements Runnable {
     }
 
     protected void setupFont() {
-        if (configBridge != null) {
-            String mono = configBridge.getConfig("MonoNumFont");
-            String flight = configBridge.getConfig("flightInfoFontC");
-            if (mono != null && !mono.isEmpty()) {
-                fontName = mono;
-            } else if (flight != null && !flight.isEmpty()) {
-                fontName = flight;
-            }
+        String fontName = "";
+        int fontSizeAdd = 0;
+
+        if (settings != null) {
+            fontName = settings.getFontName();
+            fontSizeAdd = settings.getFontSizeAdd();
         }
 
-        if (!fontName.isEmpty()) {
-            displayFont = new Font(fontName, Font.PLAIN, fontSize);
+        if (fontName == null || fontName.isEmpty()) {
+            fontName = Application.defaultFontName;
+        }
+
+        this.displayFont = new Font(fontName, Font.PLAIN, 14 + fontSizeAdd);
+        this.monoFont = new Font(Application.defaultNumfontName, Font.PLAIN, 14 + fontSizeAdd);
+    }
+
+    protected void loadPosition() {
+        int w = getWidth();
+        int h = getHeight();
+        if (w == 0)
+            w = 200; // default
+        if (h == 0)
+            h = 100;
+
+        int sx = -1, sy = -1;
+
+        if (settings != null) {
+            sx = settings.getWindowX(w);
+            sy = settings.getWindowY(h);
+        }
+
+        if (sx == -1 || sy == -1) {
+            this.setLocation(0, 0);
         } else {
-            displayFont = new Font(Application.defaultNumfontName, Font.PLAIN, fontSize);
+            this.setLocation(sx, sy);
         }
     }
 
     public void saveCurrentPosition() {
-        if (configBridge != null) {
-            configBridge.setConfig(configXKey, Integer.toString(this.getLocation().x));
-            configBridge.setConfig(configYKey, Integer.toString(this.getLocation().y));
+        if (settings != null) {
+            settings.saveWindowPosition(getLocation().x, getLocation().y);
         }
     }
 

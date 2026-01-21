@@ -233,7 +233,7 @@ public class GearAndFlaps extends DraggableOverlay {
         warnColor = Application.colorNum;
 
         int sw = 0;
-        if (xc.getconfig("enablegearAndFlapsEdge").equals("true")) {
+        if (settings != null && settings.getBool("enablegearAndFlapsEdge", false)) {
             sw = 10;
         }
 
@@ -260,6 +260,7 @@ public class GearAndFlaps extends DraggableOverlay {
         if (s != null)
             State = s.sState;
 
+        this.setUndecorated(true);
         reinitConfig();
 
         this.setCursor(Application.blankCursor);
@@ -268,10 +269,6 @@ public class GearAndFlaps extends DraggableOverlay {
         gap = (int) (0.2 * fontSize);
         // initpanel();
         panel = new WebPanel() {
-
-            /**
-             * 
-             */
             private static final long serialVersionUID = 21520599493310317L;
 
             public void paintComponent(Graphics g) {
@@ -280,8 +277,6 @@ public class GearAndFlaps extends DraggableOverlay {
                 g2d.setPaintMode();
                 g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, Application.graphAASetting);
                 g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, Application.textAASetting);
-                // g2d.setRenderingHint(RenderingHints.KEY_RENDERING,
-                // RenderingHints.VALUE_RENDER_QUALITY);
                 g2d.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION,
                         RenderingHints.VALUE_ALPHA_INTERPOLATION_SPEED);
                 g2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_SPEED);
@@ -289,25 +284,17 @@ public class GearAndFlaps extends DraggableOverlay {
                 // 绘制襟翼百分比,起落架百分比
                 int dy = fontSize >> 1;
                 UIBaseElements.__drawStringShade(g2d, 0, dy, 1, warnText, fontLabel, warnColor);
-                // dy+=1.5 * fontSize;
                 dy += barHeight + gap;
                 UIBaseElements.drawVBarTextNum(g2d, 0, dy, barWidth, barHeight, flapPix, 1, Application.colorNum, "",
                         "F" + flapText, fontLabel, fontLabel);
-                // g2d.drawLine(0, 0, 100, 100);
-                // dy+=1.5 * fontSize;
-
-                // g.dispose();
             }
         };
         panel.setWebColoredBackground(false);
         panel.setBackground(new Color(0, 0, 0, 0));
-        // panel.setBounds(lx, ly, 100, 160);
 
         this.add(panel);
         setTitle("GearAndFlaps");
         root = this.getContentPane();
-        if (xc.getconfig("enablegearAndFlapsEdge").equals("true"))
-            setShadeWidth(10);
 
         if (xs != null)
             setVisible(true);

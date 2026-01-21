@@ -250,6 +250,34 @@ public class ConfigurationService implements ConfigProvider {
             ConfigLoader.GroupConfig gc = getGroupConfig();
             return (gc != null) ? gc.fontSize : 0;
         }
+
+        @Override
+        public boolean getBool(String key, boolean def) {
+            String val = getConfig(key);
+            if (val == null || val.isEmpty())
+                return def;
+            return Boolean.parseBoolean(val);
+        }
+
+        @Override
+        public int getInt(String key, int def) {
+            String val = getConfig(key);
+            if (val == null || val.isEmpty())
+                return def;
+            try {
+                return Integer.parseInt(val);
+            } catch (NumberFormatException e) {
+                return def;
+            }
+        }
+
+        @Override
+        public String getString(String key, String def) {
+            String val = getConfig(key);
+            if (val == null || val.isEmpty())
+                return def;
+            return val;
+        }
     }
 
     // --- HUDSettings Implementation ---
@@ -261,20 +289,6 @@ public class ConfigurationService implements ConfigProvider {
     private class HUDSettingsImpl extends GenericOverlaySettingsImpl implements HUDSettings {
         public HUDSettingsImpl() {
             super("MiniHUD");
-        }
-
-        private boolean getBool(String key, boolean def) {
-            String val = getConfig(key);
-            return val.isEmpty() ? def : Boolean.parseBoolean(val);
-        }
-
-        private int getInt(String key, int def) {
-            String val = getConfig(key);
-            try {
-                return val.isEmpty() ? def : Integer.parseInt(val);
-            } catch (NumberFormatException e) {
-                return def;
-            }
         }
 
         private double getDouble(String key, double def) {
