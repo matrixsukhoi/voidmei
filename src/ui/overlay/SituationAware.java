@@ -3,8 +3,6 @@
 
 package ui.overlay;
 
-import prog.Application;
-
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.GridLayout;

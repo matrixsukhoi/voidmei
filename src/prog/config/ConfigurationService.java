@@ -13,7 +13,6 @@ import prog.event.UIStateEvents;
  * Handles loading, saving, and accessing application configuration.
  */
 public class ConfigurationService implements ConfigProvider {
-    private Config cfg;
     private java.util.List<ConfigLoader.GroupConfig> layoutConfigs;
     // private Timer saveTimer; // Removed
     // private final long SAVE_DELAY = 2000; // Removed
@@ -24,43 +23,8 @@ public class ConfigurationService implements ConfigProvider {
     }
 
     public void initConfig() {
-        cfg = new Config("./config/config.properties");
-
         // Load layout config
         loadLayout("./ui_layout.cfg");
-
-        boolean changed = false;
-
-        changed |= checkDefault("Interval", "300");
-        changed |= checkDefault("voiceVolume", "100");
-        changed |= checkDefault("enableVoiceWarn", "true");
-        changed |= checkDefault("enableFMPrint", "false");
-        changed |= checkDefault("enableEngineControl", "false");
-        changed |= checkDefault("engineInfoSwitch", "false");
-        changed |= checkDefault("flightInfoSwitch", "false");
-        changed |= checkDefault("crosshairSwitch", "false");
-        changed |= checkDefault("enableAttitudeIndicator", "false");
-        changed |= checkDefault("enablegearAndFlaps", "false");
-        changed |= checkDefault("enableAxis", "false");
-        changed |= checkDefault("thrustdFS", "false");
-        changed |= checkDefault("lock", "false");
-        changed |= checkDefault("simpleFont", "false");
-        changed |= checkDefault("AAEnable", "true");
-        changed |= checkDefault("enableStatusBar", "true");
-        changed |= checkDefault("AlwaysOnTop", "true");
-        changed |= checkDefault("enableLogging", "false");
-        changed |= checkDefault("GlobalNumFont", "Sarasa Mono SC");
-
-        // Colors defaults
-        changed |= checkColorDefault("fontNum", new Color(32, 222, 64, 140));
-        changed |= checkColorDefault("fontLabel", new Color(166, 166, 166, 220));
-        changed |= checkColorDefault("fontUnit", new Color(166, 166, 166, 220));
-        changed |= checkColorDefault("fontWarn", new Color(216, 33, 13, 100));
-        changed |= checkColorDefault("fontShade", new Color(0, 0, 0, 42));
-
-        if (changed) {
-            saveConfig();
-        }
     }
 
     public void loadLayout(String path) {
@@ -77,22 +41,6 @@ public class ConfigurationService implements ConfigProvider {
 
     public java.util.List<ConfigLoader.GroupConfig> getLayoutConfigs() {
         return layoutConfigs;
-    }
-
-    private boolean checkDefault(String key, String defaultValue) {
-        if (cfg.getValue(key).equals("")) {
-            cfg.setValue(key, defaultValue);
-            return true;
-        }
-        return false;
-    }
-
-    private boolean checkColorDefault(String key, Color defaultColor) {
-        if (cfg.getValue(key + "R").equals("")) {
-            setColorConfig(key, defaultColor);
-            return true;
-        }
-        return false;
     }
 
     public void loadAppCheck(Controller c) {
@@ -160,16 +108,12 @@ public class ConfigurationService implements ConfigProvider {
                 }
             }
         }
-        // Priority 2: Fallback to properties file
-        if (cfg == null)
-            return "";
-        return cfg.getValue(key);
+        return "";
     }
 
     @Override
     public void setConfig(String key, String value) {
         // 1. Update LayoutConfigs (if exists)
-        boolean layoutHandler = false;
         if (layoutConfigs != null) {
             for (ConfigLoader.GroupConfig gc : layoutConfigs) {
                 // Check Rows
@@ -193,33 +137,17 @@ public class ConfigurationService implements ConfigProvider {
                         } else {
                             row.value = valToStore;
                         }
-                        layoutHandler = true;
+                        UIStateBus.getInstance().publish(UIStateEvents.CONFIG_CHANGED, "ConfigurationService", key);
                     }
                 }
 
                 // Check Group SwitchKey
                 if (key.equals(gc.switchKey)) {
                     gc.visible = Boolean.parseBoolean(value);
-                    layoutHandler = true;
+                    UIStateBus.getInstance().publish(UIStateEvents.CONFIG_CHANGED, "ConfigurationService", key);
                 }
             }
         }
-
-        // 2. Update Properties (Legacy/Backup) & Publish Events
-        if (cfg != null) {
-            String oldVal = cfg.getValue(key);
-            if (!value.equals(oldVal) || layoutHandler) {
-                cfg.setValue(key, value);
-                // Publish event for live updates
-                UIStateBus.getInstance().publish(UIStateEvents.CONFIG_CHANGED, "ConfigurationService", key);
-            }
-        }
-
-        // If we updated layout, we should eventually save layout?
-        // Current architecture relies on explicit saveLayoutConfig() calls from UI,
-        // or we can leave it dirty in memory until app exit/save.
-        // For now, we align with legacy behavior: setConfig writes to memory/properties
-        // immediately.
     }
 
     // private synchronized void scheduleBackgroundSave() { ... } // Removed
@@ -227,14 +155,10 @@ public class ConfigurationService implements ConfigProvider {
     // --- Helpers ---
 
     public void saveConfig() {
-        if (cfg != null) {
-            prog.util.Logger.info("ConfigurationService", "ACTION: ConfigurationService: Saving to config.properties");
-            cfg.saveFile("./config/config.properties", "8111");
-        }
+        // No longer using config.properties, all settings in ui_layout.cfg
     }
 
     public Color getColorConfig(String key) {
-        // Priority 1: Try to get unified string from Layout or Config
         String unifiedVal = getConfig(key);
         if (unifiedVal != null && !unifiedVal.isEmpty()) {
             try {
@@ -247,21 +171,10 @@ public class ConfigurationService implements ConfigProvider {
                     return new Color(r, g, b, a);
                 }
             } catch (Exception e) {
-                // Formatting error, fall through to legacy
+                // Formatting error
             }
         }
-
-        // Priority 2: Legacy Split Keys (e.g. key + "R")
-        int R, G, B, A;
-        try {
-            R = Integer.parseInt(getConfig(key + "R"));
-            G = Integer.parseInt(getConfig(key + "G"));
-            B = Integer.parseInt(getConfig(key + "B"));
-            A = Integer.parseInt(getConfig(key + "A"));
-            return new Color(R, G, B, A);
-        } catch (Exception e) {
-            return Color.WHITE;
-        }
+        return Color.WHITE;
     }
 
     public void setColorConfig(String key, Color c) {
@@ -271,20 +184,7 @@ public class ConfigurationService implements ConfigProvider {
         int A = c.getAlpha();
         String unified = R + ", " + G + ", " + B + ", " + A;
 
-        // 1. Try to set unified config (Layout takes precedence in setConfig)
         setConfig(key, unified);
-
-        // 2. Also set legacy keys for backward compatibility / safety in
-        // config.properties
-        // Only if we suspect this might be a legacy-only key, but it doesn't hurt to
-        // sync them for now.
-        // However, to keep config clean, we might want to avoid re-creating them if
-        // they don't exist?
-        // Let's stick to safe sync:
-        setConfig(key + "R", Integer.toString(R));
-        setConfig(key + "G", Integer.toString(G));
-        setConfig(key + "B", Integer.toString(B));
-        setConfig(key + "A", Integer.toString(A));
     }
 
     // --- OverlaySettings Implementation ---

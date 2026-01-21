@@ -282,9 +282,6 @@ public class DynamicDataPage extends BasePage {
         prog.event.UIStateBus.getInstance().publish(prog.event.UIStateEvents.CONFIG_CHANGED,
                 this.getClass().getSimpleName(), "ui_layout.cfg");
 
-        // config.properties is now handled via ConfigurationService memory-buffering
-        // and debounced background saving. UI triggering is handled via CONFIG_CHANGED
-        // event.
     }
 
     public void update() {
