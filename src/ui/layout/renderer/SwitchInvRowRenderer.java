@@ -22,7 +22,7 @@ public class SwitchInvRowRenderer implements RowRenderer {
         // unused variable removed
 
         WebPanel itemPanel = ReplicaBuilder.createSwitchItem(row.label,
-                !context.getFromConfigService(row.property, !row.getBool()), true);
+                !context.getFromConfigService(row.property, !row.getBool()), false, row.desc);
         WebSwitch sw = ReplicaBuilder.getSwitch(itemPanel);
 
         if (sw != null) {

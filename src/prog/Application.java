@@ -488,6 +488,7 @@ public class Application {
 		WebLookAndFeel.globalAcceleratorFont = defaultFont;
 		WebLookAndFeel.globalTitleFont = defaultFont;
 		WebLookAndFeel.globalTextFont = defaultFont;
+
 	}
 
 	public static void initWebLaf() {

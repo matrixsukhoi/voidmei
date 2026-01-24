@@ -2,10 +2,6 @@ package ui.replica;
 
 import java.awt.BorderLayout;
 import java.awt.Dimension;
-import java.awt.event.ActionListener;
-import java.util.function.Consumer;
-
-import javax.swing.JButton;
 import javax.swing.BorderFactory;
 import javax.swing.JLabel;
 
@@ -15,9 +11,12 @@ import com.alee.laf.panel.WebPanel;
 import com.alee.laf.text.WebTextField;
 import com.alee.laf.spinner.WebSpinner;
 import com.alee.laf.combobox.WebComboBox;
+import com.alee.extended.window.WebPopOver;
 
 import java.awt.Color;
 import java.awt.Font;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 
 import prog.Application;
 
@@ -29,16 +28,23 @@ public class ReplicaBuilder {
 
     private static final PinkStyle style = new PinkStyle();
 
+    public static WebPanel createSwitchItem(String labelText, boolean isSelected, boolean showGear) {
+        return createSwitchItem(labelText, isSelected, showGear, null);
+    }
+
     /**
      * Creates a standard row item: Label on Left, Switch + Optional Gear on Right.
      */
-    public static WebPanel createSwitchItem(String labelText, boolean isSelected, boolean showGear) {
+    public static WebPanel createSwitchItem(String labelText, boolean isSelected, boolean showGear, String tooltip) {
         WebPanel panel = new WebPanel(new BorderLayout(5, 0));
         style.decorateControlPanel(panel);
         panel.setBorder(BorderFactory.createEmptyBorder(2, 5, 2, 5));
 
         // Label
         WebLabel label = new WebLabel(labelText);
+        if (tooltip != null && !tooltip.isEmpty()) {
+            applyStylizedTooltip(label, tooltip);
+        }
         style.decorateLabel(label);
         panel.add(label, BorderLayout.CENTER); // Center takes available space? No, West/East split usually better for
                                                // justified.
@@ -82,15 +88,23 @@ public class ReplicaBuilder {
         return panel;
     }
 
+    public static WebPanel createSpinnerItem(String labelText, double value, double min, double max, double step) {
+        return createSpinnerItem(labelText, value, min, max, step, null);
+    }
+
     /**
      * Creates a spinner row: [Label] ... [Spinner]
      */
-    public static WebPanel createSpinnerItem(String labelText, double value, double min, double max, double step) {
+    public static WebPanel createSpinnerItem(String labelText, double value, double min, double max, double step,
+            String tooltip) {
         WebPanel panel = new WebPanel(new BorderLayout(5, 0));
         style.decorateControlPanel(panel);
         panel.setBorder(BorderFactory.createEmptyBorder(4, 5, 4, 5));
 
         WebLabel label = new WebLabel(labelText);
+        if (tooltip != null && !tooltip.isEmpty()) {
+            label.setToolTipText(tooltip);
+        }
         style.decorateLabel(label);
         panel.add(label, BorderLayout.WEST);
 
@@ -109,15 +123,22 @@ public class ReplicaBuilder {
         return panel;
     }
 
+    public static WebPanel createDropdownItem(String labelText, String[] items) {
+        return createDropdownItem(labelText, items, null);
+    }
+
     /**
      * Creates a ComboBox Row: [Label] ... [ComboBox]
      */
-    public static WebPanel createDropdownItem(String labelText, String[] items) {
+    public static WebPanel createDropdownItem(String labelText, String[] items, String tooltip) {
         WebPanel panel = new WebPanel(new BorderLayout(5, 0));
         style.decorateControlPanel(panel);
         panel.setBorder(BorderFactory.createEmptyBorder(4, 5, 4, 5));
 
         WebLabel label = new WebLabel(labelText);
+        if (tooltip != null && !tooltip.isEmpty()) {
+            applyStylizedTooltip(label, tooltip);
+        }
         style.decorateLabel(label);
 
         // Vertical stacked label? Screenshot shows "Select Voice" (Label) ...
@@ -143,15 +164,22 @@ public class ReplicaBuilder {
         return panel;
     }
 
+    public static WebPanel createSliderItem(String labelText, int min, int max, int value, int width) {
+        return createSliderItem(labelText, min, max, value, width, null);
+    }
+
     /**
      * Creates a Slider row: [Label] ... [Slider]
      */
-    public static WebPanel createSliderItem(String labelText, int min, int max, int value, int width) {
+    public static WebPanel createSliderItem(String labelText, int min, int max, int value, int width, String tooltip) {
         WebPanel panel = new WebPanel(new BorderLayout(5, 0));
         style.decorateControlPanel(panel);
         panel.setBorder(BorderFactory.createEmptyBorder(4, 5, 4, 5));
 
         WebLabel label = new WebLabel(labelText);
+        if (tooltip != null && !tooltip.isEmpty()) {
+            applyStylizedTooltip(label, tooltip);
+        }
         style.decorateLabel(label);
         panel.add(label, BorderLayout.WEST);
 
@@ -201,15 +229,22 @@ public class ReplicaBuilder {
         return null;
     }
 
+    public static WebPanel createColorField(String labelText, String colorText, Color initialColor) {
+        return createColorField(labelText, colorText, initialColor, null);
+    }
+
     /**
      * Creates a Color field row: [Label] ... [Color Icon] [RGBA Text]
      */
-    public static WebPanel createColorField(String labelText, String colorText, Color initialColor) {
+    public static WebPanel createColorField(String labelText, String colorText, Color initialColor, String tooltip) {
         WebPanel panel = new WebPanel(new BorderLayout(5, 0));
         style.decorateControlPanel(panel);
         panel.setBorder(BorderFactory.createEmptyBorder(4, 5, 4, 5));
 
         WebLabel label = new WebLabel(labelText);
+        if (tooltip != null && !tooltip.isEmpty()) {
+            applyStylizedTooltip(label, tooltip);
+        }
         style.decorateLabel(label);
         panel.add(label, BorderLayout.WEST);
 
@@ -258,5 +293,66 @@ public class ReplicaBuilder {
 
     public static PinkStyle getStyle() {
         return style;
+    }
+
+    private static void applyStylizedTooltip(WebLabel label, String text) {
+        // Remove standard tooltip if any
+        label.setToolTipText(null);
+
+        label.addMouseListener(new MouseAdapter() {
+            private WebPopOver popover;
+
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                if (popover == null || !popover.isVisible()) {
+                    popover = new WebPopOver(label);
+                    // Use a safe, stable margin
+                    popover.setMargin(0);
+                    popover.setMovable(false);
+                    popover.setFocusableWindowState(false);
+                    popover.setFocusable(false);
+                    popover.setCloseOnFocusLoss(true);
+
+                    // Kill shadow and artifacts
+                    popover.setShadeWidth(0);
+                    popover.setWindowOpaque(false);
+                    popover.setBackground(new Color(0, 0, 0, 0));
+
+                    // Create our own "Bubble" with perfect control
+                    WebPanel bubble = new WebPanel(new BorderLayout());
+                    bubble.setOpaque(true);
+                    bubble.setBackground(Color.WHITE);
+                    bubble.setBorder(javax.swing.BorderFactory.createLineBorder(PinkStyle.COLOR_PRIMARY, 1));
+
+                    WebLabel content = new WebLabel(text);
+                    content.setFont(PinkStyle.FONT_NORMAL);
+                    content.setForeground(PinkStyle.COLOR_TEXT);
+                    content.setBorder(javax.swing.BorderFactory.createEmptyBorder(2, 8, 2, 8));
+
+                    bubble.add(content, BorderLayout.CENTER);
+                    popover.add(bubble);
+
+                    // Position: Place it tightly below the label
+                    popover.show(label, label.getWidth() / 2 - 20, label.getHeight() - 10);
+
+                    // Reduce arrow size to ~1/3 of default (10 -> 4)
+                    popover.setCornerWidth(4);
+
+                    // Force the window to the very front to prevent label-clipping
+                    java.awt.Window win = javax.swing.SwingUtilities.getWindowAncestor(popover);
+                    if (win != null) {
+                        win.toFront();
+                    }
+                }
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                if (popover != null) {
+                    popover.dispose();
+                    popover = null;
+                }
+            }
+        });
     }
 }

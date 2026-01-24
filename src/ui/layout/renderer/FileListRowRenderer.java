@@ -35,7 +35,7 @@ public class FileListRowRenderer implements RowRenderer {
         String currentVal = PropertyBinder.getString(groupConfig, row.property, row.getStr());
 
         // Create combo box with file list
-        WebPanel itemPanel = ReplicaBuilder.createDropdownItem(row.label, files);
+        WebPanel itemPanel = ReplicaBuilder.createDropdownItem(row.label, files, row.desc);
         WebComboBox combo = ReplicaBuilder.getComboBox(itemPanel);
 
         if (combo != null) {

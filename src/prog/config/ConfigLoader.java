@@ -31,6 +31,7 @@ public class ConfigLoader {
         public Object value = true; // Typed value (Boolean, Integer, String)
         public Object defaultValue = null; // Default value for reset
         public String fgColor = null; // Foreground color (e.g. for buttons)
+        public String desc = null; // Help description tooltip
 
         // Extended fields for control-type rows
         public String type = "DATA"; // DATA, HEADER, SLIDER, COMBO, SWITCH, BUTTON
@@ -282,6 +283,7 @@ public class ConfigLoader {
                 row.value = extractValue(list, ":value");
                 row.defaultValue = extractValue(list, ":default");
                 row.fgColor = getKeywordString(list, ":fgcolor", null);
+                row.desc = getKeywordString(list, ":desc", null);
 
                 if (row.value == null) {
                     if (row.type.contains("SWITCH"))
@@ -414,8 +416,8 @@ public class ConfigLoader {
                         if (row.defaultValue != null && !"button".equals(lispType)) {
                             pw.print(" :default " + serializeAtom(row.defaultValue));
                         }
-                        if (row.fgColor != null) {
-                            pw.print(" :fgcolor " + quote(row.fgColor));
+                        if (row.desc != null) {
+                            pw.print(" :desc " + quote(row.desc));
                         }
 
                         pw.println(")");
