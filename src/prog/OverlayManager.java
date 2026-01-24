@@ -25,7 +25,10 @@ public class OverlayManager {
     /**
      * Register an overlay with a config-based activation strategy.
      */
-    public <T> void register(String configKey,
+    /**
+     * Register an overlay with a config-based activation strategy.
+     */
+    public <T> OverlayManager register(String configKey,
             Supplier<T> factory,
             Consumer<T> initializer,
             boolean needsThread) {
@@ -37,12 +40,13 @@ public class OverlayManager {
                 null,
                 needsThread,
                 ActivationStrategy.config(configKey)));
+        return this;
     }
 
     /**
      * Register an overlay with preview support using config-based activation.
      */
-    public <T> void registerWithPreview(String configKey,
+    public <T> OverlayManager registerWithPreview(String configKey,
             Supplier<T> factory,
             Consumer<T> gameModeInitializer,
             Consumer<T> previewInitializer,
@@ -56,12 +60,13 @@ public class OverlayManager {
                 reinitializer,
                 needsThread,
                 ActivationStrategy.config(configKey)));
+        return this;
     }
 
     /**
      * Register an overlay with a custom activation strategy.
      */
-    public <T> void registerWithStrategy(String key,
+    public <T> OverlayManager registerWithStrategy(String key,
             Supplier<T> factory,
             Consumer<T> gameModeInitializer,
             Consumer<T> previewInitializer,
@@ -76,6 +81,7 @@ public class OverlayManager {
                 reinitializer,
                 needsThread,
                 strategy));
+        return this;
     }
 
     /**
@@ -160,6 +166,27 @@ public class OverlayManager {
     }
 
     /**
+     * Refresh overlays that are interested in the changed config key.
+     */
+    public void refreshPreviews(String changedKey) {
+        OverlayContext ctx = OverlayContext.forPreviewMode(tc);
+        boolean isGlobal = isGlobalConfig(changedKey);
+
+        for (OverlayEntry<?> entry : entries.values()) {
+            if (isGlobal || entry.isInterestedIn(changedKey)) {
+                entry.refreshPreview(ctx);
+            }
+        }
+    }
+
+    private boolean isGlobalConfig(String key) {
+        if (key == null)
+            return true;
+        return key.startsWith("Global") || key.equals("AAEnable") || key.equals("simpleFont")
+                || key.startsWith("font") || key.equals("Interval") || key.equals("voiceVolume");
+    }
+
+    /**
      * Internal class to hold overlay registration info and State.
      */
     private static class OverlayEntry<T> {
@@ -170,6 +197,7 @@ public class OverlayManager {
         final Consumer<T> reinitializer;
         final boolean needsThread;
         final ActivationStrategy strategy;
+        final List<String> interestedPrefixes = new ArrayList<>();
 
         T instance;
         Thread thread;
@@ -185,6 +213,23 @@ public class OverlayManager {
             this.reinitializer = reinitializer;
             this.needsThread = needsThread;
             this.strategy = strategy;
+
+            // Default interest: own key
+            this.interestedPrefixes.add(key);
+        }
+
+        void addInterest(String prefix) {
+            this.interestedPrefixes.add(prefix);
+        }
+
+        boolean isInterestedIn(String changedKey) {
+            if (changedKey == null || changedKey.equals(key))
+                return true;
+            for (String prefix : interestedPrefixes) {
+                if (changedKey.startsWith(prefix))
+                    return true;
+            }
+            return false;
         }
 
         boolean shouldActivate(OverlayContext ctx) {
@@ -230,7 +275,8 @@ public class OverlayManager {
                         prog.util.Logger.info("OverlayManager", "Started thread for preview: " + key);
                     }
                 } else if (reinitializer != null) {
-                    prog.util.Logger.info("OverlayManager", "Re-initializing existing preview: " + key);
+                    // prog.util.Logger.info("OverlayManager", "Re-initializing existing preview: "
+                    // + key);
                     reinitializer.accept(instance);
                 }
             } else if (instance != null) {
@@ -266,5 +312,25 @@ public class OverlayManager {
             instance = null;
             thread = null;
         }
+    }
+
+    /**
+     * Fluent API to add interest to the last registered entry.
+     */
+    public OverlayManager withInterest(String... prefixes) {
+        // Get the last added entry (insertion order preserved by LinkedHashMap)
+        if (!entries.isEmpty()) {
+            String lastKey = null;
+            for (String k : entries.keySet())
+                lastKey = k;
+
+            OverlayEntry<?> entry = entries.get(lastKey);
+            if (entry != null) {
+                for (String p : prefixes) {
+                    entry.addInterest(p);
+                }
+            }
+        }
+        return this;
     }
 }

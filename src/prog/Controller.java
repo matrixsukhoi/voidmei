@@ -370,7 +370,11 @@ public class Controller implements ConfigProvider {
 
 				// Offload to background thread to avoid blocking UI/Animation
 				new Thread(() -> {
-					refreshPreviews();
+					if (key instanceof String) {
+						overlayManager.refreshPreviews((String) key);
+					} else {
+						overlayManager.refreshAllPreviews();
+					}
 				}).start();
 			} else {
 				// Just update local config without full refresh/data load
@@ -459,7 +463,7 @@ public class Controller implements ConfigProvider {
 				overlay -> ((EngineControl) overlay).init(this, S, configService.getOverlaySettings("引擎控制")),
 				overlay -> ((EngineControl) overlay).initPreview(this, configService.getOverlaySettings("引擎控制")),
 				overlay -> ((EngineControl) overlay).reinitConfig(),
-				true);
+				true).withInterest("disableEngineInfo", "fontSize");
 
 		// EngineInfo (moved from hardcoded to layout config)
 		overlayManager.registerWithPreview("engineInfoSwitch",
@@ -467,7 +471,7 @@ public class Controller implements ConfigProvider {
 				overlay -> ((EngineInfo) overlay).init(this, S, configService.getOverlaySettings("引擎信息")),
 				overlay -> ((EngineInfo) overlay).initPreview(this, configService.getOverlaySettings("引擎信息")),
 				overlay -> ((EngineInfo) overlay).reinitConfig(),
-				true);
+				true).withInterest("fontName", "fontSize", "columns", "S.");
 
 		// MinimalHUD (crosshair) - supports preview
 		overlayManager.registerWithPreview("crosshairSwitch",
@@ -475,7 +479,7 @@ public class Controller implements ConfigProvider {
 				overlay -> ((MinimalHUD) overlay).init(this, S, O),
 				overlay -> ((MinimalHUD) overlay).initPreview(this),
 				overlay -> ((MinimalHUD) overlay).reinitConfig(),
-				false);
+				false).withInterest("displayCrosshair", "drawHUD", "disableHUD", "crosshair", "miniHUD");
 
 		// FlightInfo - supports preview
 		overlayManager.registerWithPreview("flightInfoSwitch",
@@ -483,7 +487,7 @@ public class Controller implements ConfigProvider {
 				overlay -> ((FlightInfo) overlay).init(this, S, configService.getOverlaySettings("飞行信息")),
 				overlay -> ((FlightInfo) overlay).initPreview(this, configService.getOverlaySettings("飞行信息")),
 				overlay -> ((FlightInfo) overlay).reinitConfig(),
-				true);
+				true).withInterest("flightInfo", "fontSize", "disableFlightInfo");
 
 		// StickValue - supports preview (uses initpreview lowercase)
 		overlayManager.registerWithPreview("enableAxis",
@@ -491,7 +495,7 @@ public class Controller implements ConfigProvider {
 				overlay -> ((StickValue) overlay).init(this, S, configService.getOverlaySettings("舵面值")),
 				overlay -> ((StickValue) overlay).initPreview(this, configService.getOverlaySettings("舵面值")),
 				overlay -> ((StickValue) overlay).reinitConfig(),
-				false);
+				false).withInterest("enableAxisEdge", "fontSize");
 
 		// AttitudeIndicator - supports preview
 		overlayManager.registerWithPreview("enableAttitudeIndicator",
@@ -499,7 +503,7 @@ public class Controller implements ConfigProvider {
 				overlay -> ((AttitudeIndicator) overlay).init(this, S, configService.getOverlaySettings("地平仪")),
 				overlay -> ((AttitudeIndicator) overlay).initPreview(this, configService.getOverlaySettings("地平仪")),
 				overlay -> ((AttitudeIndicator) overlay).reinitConfig(),
-				false);
+				false).withInterest("attitudeIndicator", "enableAttitudeIndicator");
 
 		// GearAndFlaps - supports preview
 		overlayManager.registerWithPreview("enablegearAndFlaps",
@@ -507,7 +511,7 @@ public class Controller implements ConfigProvider {
 				overlay -> ((GearAndFlaps) overlay).init(this, S, configService.getOverlaySettings("起落架")),
 				overlay -> ((GearAndFlaps) overlay).initPreview(this, configService.getOverlaySettings("起落架")),
 				overlay -> ((GearAndFlaps) overlay).reinitConfig(),
-				false);
+				false).withInterest("enablegearAndFlapsEdge", "fontSize");
 
 		// VoiceWarning - game mode only, no preview
 		overlayManager.registerWithStrategy("enableVoiceWarn",
@@ -528,7 +532,7 @@ public class Controller implements ConfigProvider {
 					prog.config.OverlaySettings fmSettings = configService.getOverlaySettings("飞机数据");
 					((FMDataOverlay) overlay).initPreview(this, fmSettings);
 				}, null, // No reConfig needed
-				true);
+				true).withInterest("displayFmKey", "selectedFM");
 
 		// thrustdFS - requires enableFMPrint AND isJet
 		overlayManager.registerWithStrategy("thrustdFS",
@@ -565,7 +569,7 @@ public class Controller implements ConfigProvider {
 					prog.config.OverlaySettings saSettings = configService.getOverlaySettings("SA信息条");
 					((SituationAware) overlay).initPreview(this, saSettings);
 				}, null, // No reinitConfig needed yet
-				true, ActivationStrategy.debugOnly());
+				true, ActivationStrategy.debugOnly()).withInterest("SituationAware");
 
 	}
 

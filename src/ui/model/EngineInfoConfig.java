@@ -218,7 +218,7 @@ public class EngineInfoConfig {
 
         cfg.addFieldDefinition("hp", Lang.ePower, "Hp", "HorsePower", true, "1200");
         cfg.addFieldDefinition("thrust", Lang.eThurst, "Kgf", "Thrust", false, "1000");
-        cfg.addFieldDefinition("rpm", Lang.eRPM, "Rpm", "RPM", false, "2400");
+        cfg.addFieldDefinition("RPM", Lang.eRPM, "Rpm", "RPM", false, "2400");
         cfg.addFieldDefinition("pitch", Lang.ePitchDeg, "Deg", "PropPitch", true, "55");
         cfg.addFieldDefinition("eff_eta", Lang.eEff, "%", "EffEta", true, "85");
         cfg.addFieldDefinition("eff_hp", Lang.eEffPower, "Hp", "EffHp", true, "1100");
