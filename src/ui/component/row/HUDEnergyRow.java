@@ -52,13 +52,11 @@ public class HUDEnergyRow extends HUDTextRow {
     @Override
     public void draw(Graphics2D g2d, int x, int y) {
         // Draw Energy Text
-        // Original: if(i==1) ... UIBaseElements.__drawStringShade(g, x + rightDraw, n +
-        // liney - 1, 1, relEnergy...)
-        // where liney = 1 + y (original y). And text is at n+y.
-        // So energy text is at: n + (1+y) - 1 = n + y.
-        // It's at the same Y level as the main text.
+        // Needs to align with main text baseline.
+        int ascent = g2d.getFontMetrics(font).getAscent();
+        int baseY = y + ascent;
 
-        UIBaseElements.__drawStringShade(g2d, x + rightDraw, y, 1, energyText, smallFont, energyColor);
+        UIBaseElements.__drawStringShade(g2d, x + rightDraw, baseY, 1, energyText, smallFont, energyColor);
 
         super.draw(g2d, x, y);
     }

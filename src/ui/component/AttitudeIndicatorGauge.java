@@ -82,9 +82,17 @@ public class AttitudeIndicatorGauge implements HUDComponent {
     }
 
     @Override
-    public void draw(Graphics2D g2d, int centerX, int centerY) {
+    public void draw(Graphics2D g2d, int x, int y) {
 
         updateStrokes(lineWidth);
+
+        // Convert Top-Left input (x, y) to Center (centerX, centerY)
+        // PreferredSize is compassDiameter x compassDiameter
+        // So radius = compassDiameter / 2
+        int radius = compassDiameter / 2;
+        int centerX = x + radius;
+        int centerY = y + radius;
+
         double rollDegRad = Math.toRadians(rollDeg);
 
         int targetX = centerX - aosX;

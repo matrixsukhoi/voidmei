@@ -67,13 +67,16 @@ public class HUDAkbRow extends HUDTextRow {
     @Override
     public void draw(Graphics2D g2d, int x, int y) {
         // Draw AoA Bar stuff
-        // Original logic: "liney = 1 + y" where y was original draw y.
-        // And text drawn at "verticalTextOffset + y".
-        // Here 'y' passed in IS 'verticalTextOffset + y'.
-        // So for row 0 (verticalTextOffset=0), y passed is y_base.
-        // liney should be y + 1.
+        // y is Top-Left. Convert to Baseline-relative logic if needed,
+        // or just relative to Top.
+        // Original logic seemed to rely on y being baseline.
+        // Let's establish baseline y.
+        int ascent = g2d.getFontMetrics(font).getAscent(); // Main font ascent
+        int baseY = y + ascent;
 
-        int liney = y + 1;
+        // Original: liney = y + 1. (Baseline + 1)
+        // New: liney = baseY + 1. (Bottom of text + 1)
+        int liney = baseY + 1;
 
         UIBaseElements.drawHRect(g2d, x + (rightDraw - aoaY), liney, aoaY, lineWidth + 3, 1, aoaBarColor);
         UIBaseElements.__drawStringShade(g2d, x + rightDraw, liney - 1, 1, aoaText, smallFont, aoaColor);

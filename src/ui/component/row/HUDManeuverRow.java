@@ -79,26 +79,31 @@ public class HUDManeuverRow extends HUDTextRow {
     public void draw(Graphics2D g, int x, int y) {
         super.draw(g, x, y);
 
+        // Calculate Baseline Y for line positioning consistency
+        // Lines were relative to Baseline in legacy code (y + halfLine).
+        int ascent = g.getFontMetrics(font).getAscent();
+        int baseY = y + ascent;
+
         // Common draw logic
-        drawLineMark(g, x, y, maneuverIndexLen10);
+        drawLineMark(g, x, baseY, maneuverIndexLen10);
 
         // 根据当前值绘制一个或多个刻度线
         if (maneuverIndex >= 0.1) {
-            drawLineMark(g, x, y, maneuverIndexLen20);
+            drawLineMark(g, x, baseY, maneuverIndexLen20);
         }
         if (maneuverIndex >= 0.2) {
-            drawLineMark(g, x, y, maneuverIndexLen30);
+            drawLineMark(g, x, baseY, maneuverIndexLen30);
         }
         if (maneuverIndex >= 0.3) {
-            drawLineMark(g, x, y, maneuverIndexLen40);
+            drawLineMark(g, x, baseY, maneuverIndexLen40);
         }
         if (maneuverIndex >= 0.4) {
-            drawLineMark(g, x, y, maneuverIndexLen50);
+            drawLineMark(g, x, baseY, maneuverIndexLen50);
         }
 
-        // Final line
+        // Final line relative to Baseline
         int newX = x + rightDraw;
-        int newY = y + halfLine;
+        int newY = baseY + halfLine;
 
         g.setStroke(strokeThick);
         g.setColor(Application.colorShadeShape);
@@ -110,12 +115,6 @@ public class HUDManeuverRow extends HUDTextRow {
     }
 
     private void drawLineMark(Graphics2D g, int x, int y, int len) {
-        g.setColor(Application.colorShadeShape);
-        g.setStroke(strokeThick);
-        g.drawLine(x + rightDraw - len, y + halfLine + lineWidth + lineWidth,
-                x + rightDraw - len, y + halfLine - lineWidth + lineWidth);
-        g.setColor(Application.colorNum);
-        g.setStroke(strokeThin);
         g.drawLine(x + rightDraw - len, y + halfLine + lineWidth + lineWidth,
                 x + rightDraw - len, y + halfLine - lineWidth + lineWidth);
     }

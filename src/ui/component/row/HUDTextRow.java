@@ -49,10 +49,14 @@ public class HUDTextRow implements HUDRow {
 
     @Override
     public void draw(Graphics2D g2d, int x, int y) {
+        // Convert Top-Left y to Baseline y
+        int ascent = g2d.getFontMetrics(font).getAscent();
+        int baseY = y + ascent;
+
         if (isWarning) {
-            UIBaseElements.__drawStringShade(g2d, x, y, 1, text, font, Application.colorWarning);
+            UIBaseElements.__drawStringShade(g2d, x, baseY, 1, text, font, Application.colorWarning);
         } else {
-            UIBaseElements.__drawStringShade(g2d, x, y, 1, text, font, Application.colorNum);
+            UIBaseElements.__drawStringShade(g2d, x, baseY, 1, text, font, Application.colorNum);
         }
     }
 

@@ -147,8 +147,19 @@ public class ModernHUDLayoutEngine {
             node.component.draw(g, r.x, r.y);
 
             // Debug draw
-            // g.setColor(java.awt.Color.RED);
-            // g.drawRect(r.x, r.y, r.width, r.height);
+            // Generate color from ID hash for consistency
+            int hash = node.id.hashCode();
+            int rCol = (hash & 0xFF0000) >> 16;
+            int gCol = (hash & 0x00FF00) >> 8;
+            int bCol = (hash & 0x0000FF);
+            // Ensure high brightness for visibility on dark background
+            if (rCol + gCol + bCol < 380) {
+                rCol = Math.min(255, rCol + 100);
+                gCol = Math.min(255, gCol + 100);
+                bCol = Math.min(255, bCol + 100);
+            }
+            g.setColor(new java.awt.Color(rCol, gCol, bCol));
+            g.drawRect(r.x, r.y, r.width, r.height);
         }
     }
 

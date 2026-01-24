@@ -67,14 +67,27 @@ public class CrosshairGauge implements HUDComponent {
     }
 
     @Override
-    public void draw(Graphics2D g2d, int centerX, int centerY) {
+    public void draw(Graphics2D g2d, int x, int y) {
+        // Convert Top-Left (x, y) to Center (centerX, centerY)
+        int drawW = (useTexture && texture != null) ? crossWidthVario * 2 : width;
+        int centerX = x + drawW / 2;
+        int centerY = y + drawW / 2;
+
         if (useTexture && texture != null) {
-            int x = centerX - crossWidthVario;
-            int y = centerY - crossWidthVario;
-            g2d.drawImage(texture, x, y, crossWidthVario * 2, crossWidthVario * 2, null);
+            // Draw image centered at centerX, centerY
+            // drawImage draws at Top-Left of image.
+            // Center - halfSize = Top-Left.
+            // But here we already calculated Center from the Box Top-Left.
+            // So if we have Box Top-Left (x, y), and Image Size is same as Box Size:
+            // Then Image Top-Left IS Box Top-Left.
+            // So drawImage(texture, x, y, ...) is correct if Box Size == Image Size.
+            // Let's verify 'getPreferredSize' returns 'crossWidthVario * 2'.
+            // Yes. So x, y is the correct Top-Left for the image.
+            g2d.drawImage(texture, x, y, drawW, drawW, null);
             return;
         }
 
+        // Vector Crosshair
         // Length multiplier for lines
         int l = 4;
 

@@ -549,51 +549,74 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
         if (components.isEmpty())
             return;
 
-        double crossXUnit = (ctx.width + ctx.crossX) / ctx.hudFontSize;
-        double crossYUnit = ctx.crossY / ctx.hudFontSize;
-
-        ui.layout.HUDLayoutNode crosshairNode = new ui.layout.HUDLayoutNode("crosshair", crosshairGauge);
-        crosshairNode.setRelativePosition(crossXUnit, crossYUnit)
-                .setAnchors(ui.layout.Anchor.TOP_LEFT, ui.layout.Anchor.TOP_LEFT);
-        modernLayout.addNode(crosshairNode);
-
-        ui.layout.HUDLayoutNode compassNode = new ui.layout.HUDLayoutNode("compass", compassGauge);
-        compassNode.setRelativePosition(148.0 / ctx.hudFontSize, 130.0 / ctx.hudFontSize)
-                .setAnchors(ui.layout.Anchor.TOP_LEFT, ui.layout.Anchor.TOP_LEFT);
-        modernLayout.addNode(compassNode);
-
-        // 3. Attitude
-        ui.layout.HUDLayoutNode attitudeNode = new ui.layout.HUDLayoutNode("attitude", attitudeIndicatorGauge);
-        attitudeNode.setRelativePosition(112.0 / ctx.hudFontSize, 140.0 / ctx.hudFontSize)
-                .setAnchors(ui.layout.Anchor.TOP_LEFT, ui.layout.Anchor.TOP_LEFT);
-        modernLayout.addNode(attitudeNode);
-
-        // 4. Flap Bar (x=42, y=33)
-        ui.layout.HUDLayoutNode flapNode = new ui.layout.HUDLayoutNode("flap", flapAngleBar);
-        flapNode.setRelativePosition(42.0 / ctx.hudFontSize, 33.0 / ctx.hudFontSize)
-                .setAnchors(ui.layout.Anchor.TOP_LEFT, ui.layout.Anchor.TOP_LEFT);
-        modernLayout.addNode(flapNode);
-
-        // 5. Throttle Bar
-        ui.layout.HUDLayoutNode throttleNode = new ui.layout.HUDLayoutNode("throttle", throttleBar);
-        throttleNode.setRelativePosition(10.0 / ctx.hudFontSize, 182.0 / ctx.hudFontSize)
-                .setAnchors(ui.layout.Anchor.TOP_LEFT, ui.layout.Anchor.TOP_LEFT);
-        modernLayout.addNode(throttleNode);
-
+        // 3. Row 0 (New Anchor for Left Block)
+        // Position: 2.1, 3.5 units
         ui.layout.HUDLayoutNode row0 = new ui.layout.HUDLayoutNode("row0", hudRows.get(0));
-        row0.setRelativePosition(42.0 / ctx.hudFontSize, 70.0 / ctx.hudFontSize)
+        row0.setRelativePosition(2.1, 3.5)
                 .setAnchors(ui.layout.Anchor.TOP_LEFT, ui.layout.Anchor.TOP_LEFT);
         modernLayout.addNode(row0);
 
+        // 4. Flap Bar (Child of Row 0)
+        // Pos: 0, -1.85 (Above Row 0)
+        ui.layout.HUDLayoutNode flapNode = new ui.layout.HUDLayoutNode("flap", flapAngleBar);
+        flapNode.setParent(row0)
+                .setRelativePosition(0, -0.1)
+                .setAnchors(ui.layout.Anchor.TOP_LEFT, ui.layout.Anchor.BOTTOM_LEFT);
+        modernLayout.addNode(flapNode);
+
+        // 5. Rows Chain & Right-Side Attachments
         ui.layout.HUDLayoutNode prevRow = row0;
+        ui.layout.HUDLayoutNode row2 = null;
+        ui.layout.HUDLayoutNode row4 = null;
+
         for (int i = 1; i < hudRows.size(); i++) {
             ui.layout.HUDLayoutNode rowNode = new ui.layout.HUDLayoutNode("row" + i, hudRows.get(i));
+            // Standard Line Spacing: 1.4 units (down from previous row top)
             rowNode.setParent(prevRow)
                     .setRelativePosition(0, 0.1)
                     .setAnchors(ui.layout.Anchor.BOTTOM_LEFT, ui.layout.Anchor.TOP_LEFT);
             modernLayout.addNode(rowNode);
             prevRow = rowNode;
+
+            if (i == 2) {
+                row2 = rowNode;
+            } else if (i == 4) {
+                row4 = rowNode;
+            }
         }
+
+        // 6. Right Side Instruments (Attached to Row 2)
+        if (row2 != null) {
+            // Attitude (Child of Row 2)
+            // Pos: 3.5, 0.15 (Right of Row 2)
+            ui.layout.HUDLayoutNode attitudeNode = new ui.layout.HUDLayoutNode("attitude", attitudeIndicatorGauge);
+            attitudeNode.setParent(row2)
+                    .setRelativePosition(-1.1, 0.1)
+                    .setAnchors(ui.layout.Anchor.BOTTOM_CENTER, ui.layout.Anchor.CENTER);
+            modernLayout.addNode(attitudeNode);
+
+            // Compass (Child of Attitude)
+            // Pos: 1.8, 0.05 (Right of Attitude)
+            ui.layout.HUDLayoutNode compassNode = new ui.layout.HUDLayoutNode("compass", compassGauge);
+            compassNode.setParent(row2)
+                    .setRelativePosition(-1.5, 0.1)
+                    .setAnchors(ui.layout.Anchor.BOTTOM_RIGHT, ui.layout.Anchor.TOP_RIGHT);
+            modernLayout.addNode(compassNode);
+        }
+
+        // Throttle Bar (Independent Root)
+        // Position: 0.5, 9.1 units
+        ui.layout.HUDLayoutNode throttleNode = new ui.layout.HUDLayoutNode("throttle", throttleBar);
+        throttleNode.setParent(row4)
+                .setRelativePosition(-0.1, 0)
+                .setAnchors(ui.layout.Anchor.BOTTOM_LEFT, ui.layout.Anchor.BOTTOM_RIGHT);
+        modernLayout.addNode(throttleNode);
+
+        // Crosshair (Independent, Center of Attention)
+        ui.layout.HUDLayoutNode crosshairNode = new ui.layout.HUDLayoutNode("crosshair", crosshairGauge);
+        crosshairNode.setRelativePosition(0, 0)
+                .setAnchors(ui.layout.Anchor.MIDDLE_RIGHT, ui.layout.Anchor.MIDDLE_RIGHT);
+        modernLayout.addNode(crosshairNode);
 
         modernLayout.logTopology();
     }

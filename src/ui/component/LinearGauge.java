@@ -39,10 +39,20 @@ public class LinearGauge implements HUDComponent {
 
     @Override
     public java.awt.Dimension getPreferredSize() {
+        // Estimate dimensions including text
+        int textMetric = 30; // Default fallback
+        if (fontNumCache != null) {
+            textMetric = (int) (fontNumCache.getSize() * 2.0); // Tighter estimate for 3 digits
+        }
+
         if (vertical) {
-            return new java.awt.Dimension(thicknessCache * 2, lengthCache);
+            // Width = Text + Spacing + Bar
+            int estimatedWidth = textMetric + 5 - 5 + thicknessCache;
+            return new java.awt.Dimension(estimatedWidth, lengthCache);
         } else {
-            return new java.awt.Dimension(lengthCache, thicknessCache * 2);
+            // Height = Bar + Text
+            int estimatedHeight = thicknessCache + textMetric;
+            return new java.awt.Dimension(lengthCache, estimatedHeight);
         }
     }
 
@@ -121,7 +131,12 @@ public class LinearGauge implements HUDComponent {
             // keep white".
             drawBar(g2d, barX, y, thickness, length, pixVal, shade, Application.colorNum, true);
 
-            int sepY = y - pixVal;
+            // Fix separator position for Top-Left Y
+            // Bar goes from y to y+length.
+            // Low values are at bottom (y+length).
+            // Value height is pixVal.
+            // So separator is at (y + length) - pixVal.
+            int sepY = y + length - pixVal;
 
             // Separator Line (moving with value)
             g2d.setStroke(separatorStroke);
@@ -163,13 +178,33 @@ public class LinearGauge implements HUDComponent {
         // Outer Border
         g2d.setColor(shade);
         if (isVert) {
-            // Draw growing upwards from y
-            g2d.drawRect(x, y - h, w - 1, h - 1);
+            // Fix: Draw downwards from y (Top-Left)
+            // Original was: g2d.drawRect(x, y - h, w - 1, h - 1); (Growing UP)
+            // New: g2d.drawRect(x, y, w - 1, h - 1); (Growing DOWN)
+            g2d.drawRect(x, y, w - 1, h - 1);
             g2d.setColor(fill);
-            // Fill based on val
+            // Fill based on val (from Bottom up? or Top down?)
+            // Usually throttle is Bottom=0.
+            // So if Rect is y to y+h. Bottom is y+h.
+            // Fill should be from y+h-val upwards.
             int valH = (val > h) ? h : val;
-            if (valH >= 0)
-                g2d.fillRect(x + 1, y + 1 - valH, w - 2, valH - 2);
+            if (valH >= 0) {
+                // Fill Rect: x+1, (y+h-1) - valH, ...
+                // Let's calculate bottom Y: y + h.
+                // Fill top Y: (y + h) - valH.
+                // Wait, border height is h-1.
+                // Inner height is h-2.
+                // Bottom Inner Y is y + 1 + (h-2) = y + h - 1.
+                // Fill Rect Y = (y + h - 1) - valH.
+                // height = valH.
+                // Let's verify existing logic: y + 1 - valH. (This assumed y was bottom).
+
+                // Correct for Top-Left Y:
+                // Bottom of bar is y + h.
+                // We want to fill from bottom up.
+                g2d.fillRect(x + 1, y + h - 1 - valH, w - 2, valH);
+                // Using w-2, valH (approx).
+            }
         } else {
             // Horizontal
             g2d.drawRect(x, y, w - 1, h - 1);
