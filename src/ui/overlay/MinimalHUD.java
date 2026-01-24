@@ -543,6 +543,19 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
                 hudSettings.isDisplayCrosshair() ? ctx.width * 2 : ctx.width,
                 ctx.height);
 
+        // Apply Global Debug Setting
+        // [架构说明]
+        // 这里手动传递配置而不是让 LayoutEngine 直接订阅 EventBus 是为了防止内存泄漏。
+        // LayoutEngine 随 MinimalHUD 配置刷新而频繁销毁重建 (Transient Lifecycle)。
+        // 如果它直接订阅全局单例 EventBus，旧实例会因无法自动注销而被长期持有，导致 "Zombie Listener" 泄漏。
+        // 因此采用了由持有者 (MinimalHUD) 被动传递状态的设计。
+        if (controller != null) {
+            String debugVal = controller.getconfig("enableLayoutDebug");
+            if (debugVal != null && !debugVal.isEmpty()) {
+                modernLayout.setDebug(Boolean.parseBoolean(debugVal));
+            }
+        }
+
         // Use lineHeight from font size for responsive scaling
         modernLayout.setLineHeight(ctx.hudFontSize);
 

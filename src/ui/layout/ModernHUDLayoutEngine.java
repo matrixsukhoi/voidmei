@@ -134,33 +134,44 @@ public class ModernHUDLayoutEngine {
         }
     }
 
+    private boolean debug = false;
+
+    public void setDebug(boolean debug) {
+        this.debug = debug;
+        this.dirty = true;
+    }
+
     public void render(Graphics2D g) {
-        // Render in order? Or z-index?
-        // Usually dependency order is fine for painting (parents then children).
+        // ... (existing render logic)
         for (HUDLayoutNode node : sortedNodes) {
             if (!node.component.isVisible())
-                continue; // Assuming component has visible flag or we add it to Node
-            // HUDComponent usually has internal draw logic, assuming it's visible.
-            // We can check `node.getPixelRect()` for visibility culling if needed.
+                continue;
 
             Rectangle r = node.getPixelRect();
             node.component.draw(g, r.x, r.y);
 
-            // Debug draw
-            // Generate color from ID hash for consistency
-            int hash = node.id.hashCode();
-            int rCol = (hash & 0xFF0000) >> 16;
-            int gCol = (hash & 0x00FF00) >> 8;
-            int bCol = (hash & 0x0000FF);
-            // Ensure high brightness for visibility on dark background
-            if (rCol + gCol + bCol < 380) {
-                rCol = Math.min(255, rCol + 100);
-                gCol = Math.min(255, gCol + 100);
-                bCol = Math.min(255, bCol + 100);
+            if (debug) {
+                drawDebug(g, node);
             }
-            g.setColor(new java.awt.Color(rCol, gCol, bCol));
-            g.drawRect(r.x, r.y, r.width, r.height);
         }
+    }
+
+    private void drawDebug(Graphics2D g, HUDLayoutNode node) {
+        // Debug draw
+        // Generate color from ID hash for consistency
+        int hash = node.id.hashCode();
+        int rCol = (hash & 0xFF0000) >> 16;
+        int gCol = (hash & 0x00FF00) >> 8;
+        int bCol = (hash & 0x0000FF);
+        // Ensure high brightness for visibility on dark background
+        if (rCol + gCol + bCol < 380) {
+            rCol = Math.min(255, rCol + 100);
+            gCol = Math.min(255, gCol + 100);
+            bCol = Math.min(255, bCol + 100);
+        }
+        g.setColor(new java.awt.Color(rCol, gCol, bCol));
+        Rectangle r = node.getPixelRect();
+        g.drawRect(r.x, r.y, r.width, r.height);
     }
 
     public void logTopology() {
