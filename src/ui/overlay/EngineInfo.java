@@ -132,8 +132,8 @@ public class EngineInfo extends FieldOverlay {
 		if (engineInfoConfig != null && engineInfoConfig.groupConfig != null) {
 			int screenW = java.awt.Toolkit.getDefaultToolkit().getScreenSize().width;
 			int screenH = java.awt.Toolkit.getDefaultToolkit().getScreenSize().height;
-			int x = (int) (engineInfoConfig.groupConfig.x * screenW);
-			int y = (int) (engineInfoConfig.groupConfig.y * screenH);
+			int x = (int) Math.round(engineInfoConfig.groupConfig.x * screenW);
+			int y = (int) Math.round(engineInfoConfig.groupConfig.y * screenH);
 			return new int[] { x, y };
 		}
 		return super.loadPosition(defaultX, defaultY);

@@ -91,8 +91,8 @@ public class FlightInfo extends FieldOverlay {
 		if (flightInfoConfig != null && flightInfoConfig.groupConfig != null) {
 			int screenW = java.awt.Toolkit.getDefaultToolkit().getScreenSize().width;
 			int screenH = java.awt.Toolkit.getDefaultToolkit().getScreenSize().height;
-			int x = (int) (flightInfoConfig.groupConfig.x * screenW);
-			int y = (int) (flightInfoConfig.groupConfig.y * screenH);
+			int x = (int) Math.round(flightInfoConfig.groupConfig.x * screenW);
+			int y = (int) Math.round(flightInfoConfig.groupConfig.y * screenH);
 			return new int[] { x, y };
 		}
 		return super.loadPosition(defaultX, defaultY);

@@ -361,7 +361,7 @@ public class ConfigLoader {
                     writeAttrLine(pw, indent, ":font-size", group.fontSize);
                 if (group.columns != 2)
                     writeAttrLine(pw, indent, ":columns", group.columns);
-                if (group.panelColumns != 2)
+                if (group.panelColumns != 0)
                     writeAttrLine(pw, indent, ":panel-columns", group.panelColumns);
 
                 pw.println();
@@ -408,9 +408,11 @@ public class ConfigLoader {
                         }
 
                         // Value is last
-                        pw.print(" :value " + row.value);
-                        if (row.defaultValue != null) {
-                            pw.print(" :default " + row.defaultValue);
+                        if (!"button".equals(lispType)) {
+                            pw.print(" :value " + serializeAtom(row.value));
+                        }
+                        if (row.defaultValue != null && !"button".equals(lispType)) {
+                            pw.print(" :default " + serializeAtom(row.defaultValue));
                         }
                         if (row.fgColor != null) {
                             pw.print(" :fgcolor " + quote(row.fgColor));
@@ -438,20 +440,39 @@ public class ConfigLoader {
         return "\"" + s.replace("\"", "\\\"") + "\"";
     }
 
-    private static void writeAttr(PrintWriter pw, String key, Object val) {
-        pw.print(key + " ");
-        if (val instanceof String)
-            pw.print(quote((String) val));
-        else
-            pw.print(val);
+    private static String serializeAtom(Object val) {
+        if (val == null)
+            return "\"\"";
+        if (val instanceof String) {
+            String s = (String) val;
+            if (isNumeric(s))
+                return s;
+            return quote(s);
+        }
+        return String.valueOf(val);
+    }
+
+    private static boolean isNumeric(String s) {
+        if (s == null || s.isEmpty())
+            return false;
+        int dotCount = 0;
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (c == '-') {
+                if (i != 0)
+                    return false;
+            } else if (c == '.') {
+                if (++dotCount > 1)
+                    return false;
+            } else if (!Character.isDigit(c)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static void writeAttrLine(PrintWriter pw, String indent, String key, Object val) {
         pw.print(indent + key + " ");
-        if (val instanceof String)
-            pw.print(quote((String) val));
-        else
-            pw.print(val);
-        pw.println();
+        pw.println(serializeAtom(val));
     }
 }

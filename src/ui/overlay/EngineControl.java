@@ -181,8 +181,8 @@ public class EngineControl extends FieldOverlay {
 		int screenH = java.awt.Toolkit.getDefaultToolkit().getScreenSize().height;
 		int lx = 0, ly = 0;
 		if (groupConfig != null) {
-			lx = (int) (groupConfig.x * screenW);
-			ly = (int) (groupConfig.y * screenH);
+			lx = (int) Math.round(groupConfig.x * screenW);
+			ly = (int) Math.round(groupConfig.y * screenH);
 		}
 		setLocation(lx, ly);
 	}

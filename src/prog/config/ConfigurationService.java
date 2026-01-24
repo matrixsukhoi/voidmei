@@ -263,7 +263,7 @@ public class ConfigurationService implements ConfigProvider {
         public int getWindowX(int width) {
             ConfigLoader.GroupConfig gc = getGroupConfig();
             if (gc != null) {
-                return (int) (gc.x * Application.screenWidth);
+                return (int) Math.round(gc.x * Application.screenWidth);
             }
             return (Application.screenWidth - width) / 2;
         }
@@ -272,7 +272,7 @@ public class ConfigurationService implements ConfigProvider {
         public int getWindowY(int height) {
             ConfigLoader.GroupConfig gc = getGroupConfig();
             if (gc != null) {
-                return (int) (gc.y * Application.screenHeight);
+                return (int) Math.round(gc.y * Application.screenHeight);
             }
             return (Application.screenHeight - height) / 2;
         }
@@ -358,7 +358,7 @@ public class ConfigurationService implements ConfigProvider {
         public int getWindowX(int canvasWidth) {
             ConfigLoader.GroupConfig gc = getGroupConfig();
             if (gc != null) {
-                return (int) (gc.x * Application.screenWidth);
+                return (int) Math.round(gc.x * Application.screenWidth);
             }
             return getInt("crosshairX", (Application.screenWidth - canvasWidth) / 2);
         }
@@ -367,7 +367,7 @@ public class ConfigurationService implements ConfigProvider {
         public int getWindowY(int canvasHeight) {
             ConfigLoader.GroupConfig gc = getGroupConfig();
             if (gc != null) {
-                return (int) (gc.y * Application.screenHeight);
+                return (int) Math.round(gc.y * Application.screenHeight);
             }
             return getInt("crosshairY", (Application.screenHeight - canvasHeight) / 2);
         }
