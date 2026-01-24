@@ -82,11 +82,10 @@ src/ui/replica/PinkStyle.java
 src/ui/replica/ReplicaPanel.java
 src/ui/replica/ReplicaBuilder.java
 src/ui/layout/FlexGridLayout.java
+src/ui/layout/HUDLayoutNode.java
 src/ui/layout/UIStyle.java
 src/ui/layout/BasePage.java
 src/ui/layout/ModernStyle.java
-src/ui/layout/HUDComponentState.java
-src/ui/layout/HUDLayoutSlot.java
 src/ui/layout/renderer/SwitchInvRowRenderer.java
 src/ui/layout/renderer/ColorRowRenderer.java
 src/ui/layout/renderer/HotkeyRowRenderer.java
@@ -99,8 +98,9 @@ src/ui/layout/renderer/SwitchRowRenderer.java
 src/ui/layout/renderer/ComboRowRenderer.java
 src/ui/layout/renderer/RowRenderer.java
 src/ui/layout/renderer/FMListRowRenderer.java
-src/ui/layout/HUDVirtualLayoutEngine.java
+src/ui/layout/ModernHUDLayoutEngine.java
 src/ui/layout/ResponsiveGridLayout.java
+src/ui/layout/Anchor.java
 src/ui/layout/DynamicDataPage.java
 src/ui/layout/UIBuilder.java
 src/ui/layout/ClassicStyle.java

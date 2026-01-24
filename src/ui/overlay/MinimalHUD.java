@@ -44,21 +44,16 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
     public boolean warnRH;
     public boolean warnVne;
 
-    // Reusable UI Components (high-performance, cached strokes)
     private ui.component.CrosshairGauge crosshairGauge;
     private ui.component.FlapAngleBar flapAngleBar;
     private ui.component.WarningOverlay warningOverlay;
     private ui.component.CompassGauge compassGauge;
     private ui.component.AttitudeIndicatorGauge attitudeIndicatorGauge;
     private java.util.List<ui.component.row.HUDRow> hudRows;
-    private ui.layout.HUDVirtualLayoutEngine layoutEngine;
-    private java.util.Map<String, ui.layout.HUDComponentState> componentStateMap = new java.util.HashMap<>();
     private boolean firstDraw = true;
 
-    // Refactored Configuration Management
     private ConfigurationService configService;
     private HUDSettings hudSettings;
-    // private MinimalHUDContext ctx; // Duplicate removed
 
     public void setFrameOpaque() {
         this.getWebRootPaneUI().setMiddleBg(new Color(0, 0, 0, 0));// 中部透明
@@ -100,7 +95,6 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
     public int throttleLineWidth = 1;
 
     // Core state and geometry
-    // Core state and geometry
     private Controller controller;
     private WebPanel panel;
 
@@ -109,9 +103,6 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
     private Container root;
 
     private String relEnergy;
-
-    // Restored State Fields
-    // 襟翼角度
 
     public void initPreview(Controller c) {
         Logger.info("MinimalHUD", "initPreview called");
@@ -154,9 +145,7 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
             this.setBounds(ctx.windowX, ctx.windowY, ctx.width, ctx.height);
 
         // Setup Layout Engine
-        if (layoutEngine != null) {
-            layoutEngine.setCanvasSize(hudSettings.isDisplayCrosshair() ? ctx.width * 2 : ctx.width, ctx.height);
-        }
+        initModernLayout();
 
         applyStyleToComponents();
         updateComponents();
@@ -204,9 +193,6 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
         aoaColor = Application.colorNum;
         aoaBarColor = Application.colorNum;
 
-        // Removed redundant Stroke and Font creation (handled by Context)
-        // Removed redundant bounds setting (handled by reinitConfig)
-
         initComponentsLayout();
 
         panel = new WebPanel() {
@@ -221,13 +207,11 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
                         RenderingHints.VALUE_ALPHA_INTERPOLATION_SPEED);
                 g2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_SPEED);
 
-                if (layoutEngine != null) {
-                    layoutEngine.doLayout();
-                    if (firstDraw) {
-                        layoutEngine.logPositions();
-                        firstDraw = false;
-                    }
-                    layoutEngine.render(g2d);
+                if (modernLayout != null) {
+                    modernLayout.doLayout();
+                    // Always log for debug now
+                    modernLayout.logTopology();
+                    modernLayout.render(g2d);
                 }
 
                 drawBlinkX(g2d);
@@ -238,12 +222,10 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 
         this.setContentPane(panel);
 
-        // 1miao 8 ci
         blinkTicks = (int) ((1000 / controller.freqService) >> 3);
         if (blinkTicks == 0)
             blinkTicks = 1;
 
-        // Load refresh interval from config
         refreshInterval = (long) (controller.freqService * 1.0); // Match freqService
 
         setTitle("miniHUD");
@@ -252,7 +234,7 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
         // this.createBufferStrategy(2);
 
         // Subscribe to events for game mode
-        if (s != null) {
+        if (service != null) {
             subscribeToEvents();
             setVisible(true);
         }
@@ -291,27 +273,27 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
         boolean textVisible = hudSettings.drawHUDText();
 
         if (flapAngleBar != null) {
-            // flapAngleBar.update(flapA, flapAllowA);
-            componentStateMap.get(flapAngleBar.getId()).setVisible(textVisible && hudSettings.enableFlapAngleBar());
+            flapAngleBar.setVisible(textVisible && hudSettings.enableFlapAngleBar());
         }
         if (compassGauge != null) {
-            // compassGauge.update((float) compassRads, compassDx, compassDy, lineCompass,
-            // lineLoc);
-            componentStateMap.get(compassGauge.getId()).setVisible(textVisible);
+            compassGauge.setVisible(textVisible);
         }
         if (attitudeIndicatorGauge != null) {
-            // Legacy update skipped for Refactored Component
-            // attitudeIndicatorGauge.update(pitch, rollDeg, aosX, sAttitude, roundHorizon);
-            componentStateMap.get(attitudeIndicatorGauge.getId())
-                    .setVisible(textVisible && hudSettings.drawHUDAttitude() && !disableAttitude);
+            attitudeIndicatorGauge.setVisible(textVisible && hudSettings.drawHUDAttitude() && !disableAttitude);
         }
         if (crosshairGauge != null) {
-            ui.layout.HUDComponentState crosshairState = componentStateMap.get(crosshairGauge.getId());
-            crosshairState.setVisible(hudSettings.isDisplayCrosshair());
+            crosshairGauge.setVisible(hudSettings.isDisplayCrosshair());
             // Dynamic position based on current Width/CrossX
             if (ctx != null) {
-                crosshairState.setXOffset(ctx.width + ctx.crossX);
-                crosshairState.setYOffset(ctx.crossY);
+                // Position handled by ModernHUDLayoutEngine
+            }
+        }
+        if (throttleBar != null) {
+            throttleBar.setVisible(textVisible);
+        }
+        if (hudRows != null) {
+            for (ui.component.HUDComponent row : hudRows) {
+                row.setVisible(textVisible);
             }
         }
 
@@ -332,7 +314,7 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
                     maneuverIndexLen40, maneuverIndexLen50);
 
             for (ui.component.row.HUDRow row : hudRows) {
-                componentStateMap.get(row.getId()).setVisible(textVisible);
+                row.setVisible(textVisible);
             }
         }
 
@@ -342,7 +324,7 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
                 throttleValue = service.sState.throttle;
             }
             throttleBar.update(throttleValue, String.format("%3d", throttleValue));
-            componentStateMap.get(throttleBar.getId()).setVisible(textVisible);
+            throttleBar.setVisible(textVisible);
         }
     }
 
@@ -375,20 +357,6 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
         });
     }
 
-    /**
-     * Update HUD state from FlightDataEvent.
-     * 
-     * NOTE: Phase 2 Partial Migration
-     * The event-driven architecture is in place (updates triggered by
-     * FlightDataEvent),
-     * but data is still read from Service (service) fields for now because:
-     * 1. updateString() has complex dependencies on Blkx flight model data
-     * 2. Map coordinate calculations require Service.mapinfo
-     * 3. Many calculated warning thresholds depend on Blkx.getVNE/getAoA methods
-     * 
-     * Future work: Move calculations to Service and expose via FlightDataEvent
-     * keys.
-     */
     private void updateFromEvent(FlightDataEvent event) {
         if (ctx == null)
             return;
@@ -403,19 +371,8 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 
         // 3. Update Legacy Components (Bridge) & Global State
         warnVne = data.warnVne;
-        warnRH = data.warnAltitude; // Assuming warnRH maps to warnAltitude or similar
-        blinkX = Boolean.parseBoolean(event.getData().get("fatalWarn")); // Keep raw event access for simple flags? Or
-                                                                         // use Data? HUDData doesn't have fatalWarn
-                                                                         // explicit yet? Add if needed.
-        // HUDData has warnStall, etc. fatalWarn is usually engine death?
-
-        // Feed unrefactored rows if they haven't implemented onDataUpdate yet
-        // However, we are calling onDataUpdate on ALL components above.
-        // If they don't override it (default no-op), nothing happens.
-        // We need to check if we need legacy updates for components that are NOT fully
-        // refactored.
-        // HUDTextRow, HUDManeuverRow need refactoring to pure onDataUpdate.
-        // For now, let's keep the legacy update logic but fed from HUDData strings.
+        warnRH = data.warnAltitude;
+        blinkX = Boolean.parseBoolean(event.getData().get("fatalWarn"));
 
         if (hudRows != null && hudRows.size() >= 5) {
             // Row 2: Standard (Flaps/Gear)
@@ -527,86 +484,20 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
         }
 
         // 5. Bars
-        // throttleBar = new LinearGauge(...);
-        // throttleBar is initialized in init()? No, it was init'd in init() separately?
-        // Let's check where throttleBar is init'd.
-        // It was in init().
-        // If I want to manage it here, I need to find where it is created.
-        // I will check init method again.
         throttleBar = new ui.component.LinearGauge("ThrottleBar", 110, true);
         components.add(throttleBar);
 
-        // Initialize Layout Engine with actual panel dimensions (Width*2 if crosshair
-        // is on)
-        layoutEngine = new ui.layout.HUDVirtualLayoutEngine(
-                hudSettings.isDisplayCrosshair() ? ctx.width * 2 : ctx.width,
-                ctx.height);
-
-        // Component registration using ABSOLUTE slot logic for 1:1 legacy parity
-        // Coordinates taken exactly from reference image logs
-
-        // Flap Bar (strX=104, BarX=42)
-        registerComponent(flapAngleBar, ui.layout.HUDLayoutSlot.ABSOLUTE);
-        ui.layout.HUDComponentState flapState = componentStateMap.get(flapAngleBar.getId());
-        flapState.setXOffset(42);
-        flapState.setYOffset(33);
-
-        // Attitude Indicator (x=112, y=129)
-        registerComponent(attitudeIndicatorGauge, ui.layout.HUDLayoutSlot.ABSOLUTE);
-        ui.layout.HUDComponentState attitudeState = componentStateMap.get(attitudeIndicatorGauge.getId());
-        attitudeState.setXOffset(112);
-        attitudeState.setYOffset(129);
-
-        // Crosshair (x=272, y=20)
-        registerComponent(crosshairGauge, ui.layout.HUDLayoutSlot.ABSOLUTE);
-        ui.layout.HUDComponentState crosshairState = componentStateMap.get(crosshairGauge.getId());
-        crosshairState.setXOffset(272);
-        crosshairState.setYOffset(20);
-
-        // Compass (x=148, y=130)
-        registerComponent(compassGauge, ui.layout.HUDLayoutSlot.ABSOLUTE);
-        ui.layout.HUDComponentState compassState = componentStateMap.get(compassGauge.getId());
-        compassState.setXOffset(148);
-        compassState.setYOffset(130);
-
-        // ThrottleBar (x=7, y=182)
-        registerComponent(throttleBar, ui.layout.HUDLayoutSlot.ABSOLUTE);
-        ui.layout.HUDComponentState throttleState = componentStateMap.get(throttleBar.getId());
-        throttleState.setXOffset(7);
-        throttleState.setYOffset(182);
-
-        // HUD Rows (x=42, y starts at 70 with 28px spacing)
-        for (int i = 0; i < hudRows.size(); i++) {
-            ui.component.row.HUDRow row = hudRows.get(i);
-            registerComponent(row, ui.layout.HUDLayoutSlot.ABSOLUTE);
-            ui.layout.HUDComponentState rowState = componentStateMap.get(row.getId());
-            rowState.setXOffset(42);
-            rowState.setYOffset(70 + i * 28);
-        }
-
-        Logger.info("MinimalHUD", "UI components initialized.");
+        initModernLayout();
 
         // Ensure everything is styled and updated before first paint
         applyStyleToComponents();
         updateComponents();
     }
 
-    private void registerComponent(ui.component.HUDComponent comp, ui.layout.HUDLayoutSlot slot) {
-        if (comp == null)
-            return;
-        ui.layout.HUDComponentState state = new ui.layout.HUDComponentState(comp);
-        state.setSlot(slot);
-        layoutEngine.addComponent(state);
-        componentStateMap.put(comp.getId(), state);
-    }
-
     private void applyStyleToComponents() {
         if (ctx == null)
             return;
 
-        if (layoutEngine != null) {
-            layoutEngine.setCanvasSize(hudSettings.isDisplayCrosshair() ? ctx.width * 2 : ctx.width, ctx.height);
-        }
         if (crosshairGauge != null) {
             if (hudSettings.useTextureCrosshair()) {
                 // Use loaded image from Context if available
@@ -642,5 +533,68 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
         if (throttleBar != null) {
             throttleBar.setStyleContext(throttley_max, ctx.barWidth, ctx.drawFontSSmall, ctx.drawFontSSmall);
         }
+    }
+
+    // --- Modern Layout Engine Integration ---
+    private ui.layout.ModernHUDLayoutEngine modernLayout;
+
+    private void initModernLayout() {
+        modernLayout = new ui.layout.ModernHUDLayoutEngine(
+                hudSettings.isDisplayCrosshair() ? ctx.width * 2 : ctx.width,
+                ctx.height);
+
+        // Use lineHeight from font size for responsive scaling
+        modernLayout.setLineHeight(ctx.hudFontSize);
+
+        if (components.isEmpty())
+            return;
+
+        double crossXUnit = (ctx.width + ctx.crossX) / ctx.hudFontSize;
+        double crossYUnit = ctx.crossY / ctx.hudFontSize;
+
+        ui.layout.HUDLayoutNode crosshairNode = new ui.layout.HUDLayoutNode("crosshair", crosshairGauge);
+        crosshairNode.setRelativePosition(crossXUnit, crossYUnit)
+                .setAnchors(ui.layout.Anchor.TOP_LEFT, ui.layout.Anchor.TOP_LEFT);
+        modernLayout.addNode(crosshairNode);
+
+        ui.layout.HUDLayoutNode compassNode = new ui.layout.HUDLayoutNode("compass", compassGauge);
+        compassNode.setRelativePosition(148.0 / ctx.hudFontSize, 130.0 / ctx.hudFontSize)
+                .setAnchors(ui.layout.Anchor.TOP_LEFT, ui.layout.Anchor.TOP_LEFT);
+        modernLayout.addNode(compassNode);
+
+        // 3. Attitude
+        ui.layout.HUDLayoutNode attitudeNode = new ui.layout.HUDLayoutNode("attitude", attitudeIndicatorGauge);
+        attitudeNode.setRelativePosition(112.0 / ctx.hudFontSize, 140.0 / ctx.hudFontSize)
+                .setAnchors(ui.layout.Anchor.TOP_LEFT, ui.layout.Anchor.TOP_LEFT);
+        modernLayout.addNode(attitudeNode);
+
+        // 4. Flap Bar (x=42, y=33)
+        ui.layout.HUDLayoutNode flapNode = new ui.layout.HUDLayoutNode("flap", flapAngleBar);
+        flapNode.setRelativePosition(42.0 / ctx.hudFontSize, 33.0 / ctx.hudFontSize)
+                .setAnchors(ui.layout.Anchor.TOP_LEFT, ui.layout.Anchor.TOP_LEFT);
+        modernLayout.addNode(flapNode);
+
+        // 5. Throttle Bar
+        ui.layout.HUDLayoutNode throttleNode = new ui.layout.HUDLayoutNode("throttle", throttleBar);
+        throttleNode.setRelativePosition(10.0 / ctx.hudFontSize, 182.0 / ctx.hudFontSize)
+                .setAnchors(ui.layout.Anchor.TOP_LEFT, ui.layout.Anchor.TOP_LEFT);
+        modernLayout.addNode(throttleNode);
+
+        ui.layout.HUDLayoutNode row0 = new ui.layout.HUDLayoutNode("row0", hudRows.get(0));
+        row0.setRelativePosition(42.0 / ctx.hudFontSize, 70.0 / ctx.hudFontSize)
+                .setAnchors(ui.layout.Anchor.TOP_LEFT, ui.layout.Anchor.TOP_LEFT);
+        modernLayout.addNode(row0);
+
+        ui.layout.HUDLayoutNode prevRow = row0;
+        for (int i = 1; i < hudRows.size(); i++) {
+            ui.layout.HUDLayoutNode rowNode = new ui.layout.HUDLayoutNode("row" + i, hudRows.get(i));
+            rowNode.setParent(prevRow)
+                    .setRelativePosition(0, 0.1)
+                    .setAnchors(ui.layout.Anchor.BOTTOM_LEFT, ui.layout.Anchor.TOP_LEFT);
+            modernLayout.addNode(rowNode);
+            prevRow = rowNode;
+        }
+
+        modernLayout.logTopology();
     }
 }

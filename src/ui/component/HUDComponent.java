@@ -39,6 +39,25 @@ public interface HUDComponent {
      * 
      * @param data The current frame's full data snapshot.
      */
+    /**
+     * Check if component is visible.
+     */
+    default boolean isVisible() {
+        return true;
+    }
+
+    /**
+     * Set visibility.
+     */
+    default void setVisible(boolean visible) {
+    }
+
+    /**
+     * Update component state from the centralized HUD Data snapshot.
+     * Components should extract only the fields they care about.
+     * 
+     * @param data The current frame's full data snapshot.
+     */
     default void onDataUpdate(HUDData data) {
     }
 }
