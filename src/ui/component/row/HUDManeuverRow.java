@@ -118,4 +118,15 @@ public class HUDManeuverRow extends HUDTextRow {
         g.drawLine(x + rightDraw - len, y + halfLine + lineWidth + lineWidth,
                 x + rightDraw - len, y + halfLine - lineWidth + lineWidth);
     }
+
+    @Override
+    public java.awt.Dimension getPreferredSize() {
+        java.awt.Dimension base = super.getPreferredSize();
+        // The lines are drawn from (x + rightDraw) to the left.
+        // So the rightmost point is x + rightDraw.
+        // We add a small margin for stroke caps.
+        int extraW = rightDraw + 5;
+        int w = Math.max(base.width, extraW);
+        return new java.awt.Dimension(w, height);
+    }
 }

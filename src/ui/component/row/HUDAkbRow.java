@@ -28,6 +28,13 @@ public class HUDAkbRow extends HUDTextRow {
 
     private int aoaLength = 100; // Default
 
+    private String aoaTemplate;
+
+    public void setTemplate(String mainTemplate, String aoaTemplate) {
+        setTemplate(mainTemplate);
+        this.aoaTemplate = aoaTemplate;
+    }
+
     public void setStyle(Font font, int height, Font smallFont, int rightDraw, int lineWidth, int aoaLength) {
         super.setStyle(font, height);
         this.smallFont = smallFont;
@@ -82,5 +89,21 @@ public class HUDAkbRow extends HUDTextRow {
         UIBaseElements.__drawStringShade(g2d, x + rightDraw, liney - 1, 1, aoaText, smallFont, aoaColor);
 
         super.draw(g2d, x, y);
+    }
+
+    @Override
+    public java.awt.Dimension getPreferredSize() {
+        java.awt.Dimension base = super.getPreferredSize();
+        int extraW = 0;
+        String measureAoa = (aoaTemplate != null) ? aoaTemplate : aoaText;
+        if (measureAoa != null && smallFont != null) {
+            extraW = rightDraw + ui.overlay.logic.HUDCalculator.getStringWidth(measureAoa, smallFont);
+        }
+        // Add a small margin for bar if needed, or just text.
+        // The bar is drawn at x + (rightDraw - aoaY), so it stays within [x ..
+        // x+rightDraw].
+        // So max width is determined by the text at rightDraw.
+        int w = Math.max(base.width, extraW);
+        return new java.awt.Dimension(w, height);
     }
 }

@@ -21,6 +21,13 @@ public class HUDEnergyRow extends HUDTextRow {
         this.energyColor = Color.YELLOW;
     }
 
+    private String energyTemplate;
+
+    public void setTemplate(String mainTemplate, String energyTemplate) {
+        setTemplate(mainTemplate);
+        this.energyTemplate = energyTemplate;
+    }
+
     public void setStyle(Font font, int height, Font smallFont, int rightDraw) {
         super.setStyle(font, height);
         this.smallFont = smallFont;
@@ -59,5 +66,17 @@ public class HUDEnergyRow extends HUDTextRow {
         UIBaseElements.__drawStringShade(g2d, x + rightDraw, baseY, 1, energyText, smallFont, energyColor);
 
         super.draw(g2d, x, y);
+    }
+
+    @Override
+    public java.awt.Dimension getPreferredSize() {
+        java.awt.Dimension base = super.getPreferredSize();
+        int extraW = 0;
+        String measureEn = (energyTemplate != null) ? energyTemplate : energyText;
+        if (measureEn != null && smallFont != null) {
+            extraW = rightDraw + ui.overlay.logic.HUDCalculator.getStringWidth(measureEn, smallFont);
+        }
+        int w = Math.max(base.width, extraW);
+        return new java.awt.Dimension(w, height);
     }
 }

@@ -176,8 +176,6 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
         lines[2] += "BRK";
         lines[2] += "GEAR";
         throttley = 100;
-        if (ctx != null)
-            throttley_max = (int) (ctx.hudFontSize * 4.75);
         aoaY = 10;
         throttleColor = Application.colorShadeShape;
         lineAoA = String.format("α%3.0f", 20.0);
@@ -255,7 +253,6 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
     private int maneuverIndexLen20;
     private int maneuverIndexLen40;
     private int maneuverIndexLen50;
-    private int throttley_max;
     private boolean disableAttitude;
 
     /**
@@ -469,15 +466,31 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 
         // 4. Rows
         hudRows = new java.util.ArrayList<>();
-        hudRows.add(new ui.component.row.HUDAkbRow(0, ctx.drawFont, ctx.hudFontSize, ctx.drawFontSmall, ctx.rightDraw,
-                ctx.lineWidth));
-        hudRows.add(
-                new ui.component.row.HUDEnergyRow(1, ctx.drawFont, ctx.hudFontSize, ctx.drawFontSmall, ctx.rightDraw));
-        hudRows.add(new ui.component.row.HUDTextRow(2, ctx.drawFont, ctx.hudFontSize));
-        hudRows.add(new ui.component.row.HUDTextRow(3, ctx.drawFont, ctx.hudFontSize));
-        hudRows.add(new ui.component.row.HUDManeuverRow(4, ctx.drawFont, ctx.hudFontSize, ctx.rightDraw, ctx.halfLine,
+
+        ui.component.row.HUDAkbRow row0 = new ui.component.row.HUDAkbRow(0, ctx.drawFont, ctx.hudFontSize,
+                ctx.drawFontSmall, ctx.rightDraw, ctx.lineWidth);
+        row0.setTemplate(lines[0], lineAoA);
+        hudRows.add(row0);
+
+        ui.component.row.HUDEnergyRow row1 = new ui.component.row.HUDEnergyRow(1, ctx.drawFont, ctx.hudFontSize,
+                ctx.drawFontSmall, ctx.rightDraw);
+        row1.setTemplate(lines[1], relEnergy);
+        hudRows.add(row1);
+
+        ui.component.row.HUDTextRow row2 = new ui.component.row.HUDTextRow(2, ctx.drawFont, ctx.hudFontSize);
+        row2.setTemplate(lines[2]);
+        hudRows.add(row2);
+
+        ui.component.row.HUDTextRow row3 = new ui.component.row.HUDTextRow(3, ctx.drawFont, ctx.hudFontSize);
+        row3.setTemplate(lines[3]);
+        hudRows.add(row3);
+
+        ui.component.row.HUDManeuverRow row4 = new ui.component.row.HUDManeuverRow(4, ctx.drawFont, ctx.hudFontSize,
+                ctx.rightDraw, ctx.halfLine,
                 ctx.lineWidth,
-                ctx.strokeThick, ctx.strokeThin));
+                ctx.strokeThick, ctx.strokeThin);
+        row4.setTemplate(lines[4]);
+        hudRows.add(row4);
 
         for (ui.component.row.HUDRow row : hudRows) {
             components.add(row);
@@ -507,7 +520,9 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
             }
         }
         if (flapAngleBar != null) {
-            flapAngleBar.setStyleContext(202, ctx.lineWidth + 2, ctx.drawFontSmall);
+            // Dynamic width
+            int responsiveWidth = (int) (ctx.hudFontSize * 6);
+            flapAngleBar.setStyleContext(responsiveWidth, ctx.lineWidth + 2, ctx.drawFontSmall);
         }
         if (compassGauge != null) {
             compassGauge.setStyleContext(ctx.roundCompass, ctx.lineWidth, ctx.hudFontSize, ctx.hudFontSizeSmall,
@@ -531,7 +546,11 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
         }
 
         if (throttleBar != null) {
-            throttleBar.setStyleContext(throttley_max, ctx.barWidth, ctx.drawFontSSmall, ctx.drawFontSSmall);
+            // Re-calc explicit height for ThrottleBar if needed or use existing
+            // throttley_max
+            // Standardizing to relative size: 4.8 lines high (closer to legacy 4.75)
+            int responsiveHeight = (int) (ctx.hudFontSize * 4.8);
+            throttleBar.setStyleContext(responsiveHeight, ctx.barWidth, ctx.drawFontSSmall, ctx.drawFontSSmall);
         }
     }
 
@@ -604,7 +623,7 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
             // Pos: 3.5, 0.15 (Right of Row 2)
             ui.layout.HUDLayoutNode attitudeNode = new ui.layout.HUDLayoutNode("attitude", attitudeIndicatorGauge);
             attitudeNode.setParent(row2)
-                    .setRelativePosition(-1.1, 0.1)
+                    .setRelativePosition(0, 0.1)
                     .setAnchors(ui.layout.Anchor.BOTTOM_CENTER, ui.layout.Anchor.CENTER);
             modernLayout.addNode(attitudeNode);
 
@@ -612,7 +631,7 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
             // Pos: 1.8, 0.05 (Right of Attitude)
             ui.layout.HUDLayoutNode compassNode = new ui.layout.HUDLayoutNode("compass", compassGauge);
             compassNode.setParent(row2)
-                    .setRelativePosition(-1.5, 0.1)
+                    .setRelativePosition(0, 0.1)
                     .setAnchors(ui.layout.Anchor.BOTTOM_RIGHT, ui.layout.Anchor.TOP_RIGHT);
             modernLayout.addNode(compassNode);
         }

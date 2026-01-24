@@ -291,4 +291,19 @@ public class HUDCalculator {
             return t;
         return 125;
     }
+
+    // --- Helper for Text Measurement ---
+    private static final java.awt.image.BufferedImage MEASURE_IMG = new java.awt.image.BufferedImage(1, 1,
+            java.awt.image.BufferedImage.TYPE_INT_ARGB);
+    private static final java.awt.Graphics2D MEASURE_G = MEASURE_IMG.createGraphics();
+
+    public static int getStringWidth(String text, java.awt.Font font) {
+        if (text == null || text.isEmpty() || font == null) {
+            return 0;
+        }
+        synchronized (MEASURE_G) {
+            MEASURE_G.setFont(font);
+            return MEASURE_G.getFontMetrics().stringWidth(text);
+        }
+    }
 }

@@ -64,4 +64,31 @@ public class HUDTextRow implements HUDRow {
     public int getHeight() {
         return height;
     }
+
+    // Layout Stability Template
+    protected String templateText;
+
+    public void setTemplate(String template) {
+        this.templateText = template;
+    }
+
+    @Override
+    public java.awt.Dimension getPreferredSize() {
+        int w = 200;
+        // Use template text for stable width if available
+        String textToMeasure = (templateText != null && !templateText.isEmpty()) ? templateText : text;
+
+        if (textToMeasure != null && font != null) {
+            // Precise measurement using shared/dummy context is ideal,
+            // but for performance and valid estimation we can use a heuristic or Toolkit.
+            // Since this runs every frame, we want to be fast.
+            // But layout is only recalculated if dirty.
+            // Let's use a robust estimation for Monospace font (Sarasa Mono SC):
+            // Width ~= fontSize * 0.6 * ascii_len + fontSize * 1.0 * cjk_len.
+            // Or just Measure it properly.
+            // Let's rely on standard AWT measurement helper.
+            w = ui.overlay.logic.HUDCalculator.getStringWidth(textToMeasure, font);
+        }
+        return new java.awt.Dimension(w, height);
+    }
 }
