@@ -1,4 +1,5 @@
 package prog.i18n;
+
 import prog.Application;
 
 public class Lang {
@@ -230,7 +231,11 @@ public class Lang {
 	public static String dFTitle5Y;
 	public static String dFTitleHZ;
 
+	public static String mResetConfirmTitle;
+	public static String mResetConfirmContent;
+
 	// EngineInfo
+
 	public static String eThrottle;
 	public static String eProppitch;
 	public static String eMixture;
@@ -798,6 +803,9 @@ public class Lang {
 		mCancel = updateLanguage("mCancel", mCancel);
 		mStart = updateLanguage("mStart", mStart);
 		mDisplayPreview = updateLanguage("mDisplayPreview", mDisplayPreview);
+
+		mResetConfirmTitle = updateLanguage("mResetConfirmTitle", "确认重置");
+		mResetConfirmContent = updateLanguage("mResetConfirmContent", "确定要重置所有配置项吗？\n此操作不可撤销。");
 		mClosePreview = updateLanguage("mClosePreview", mClosePreview);
 		mMovePanel = updateLanguage("mMovePanel", mMovePanel);
 		mSimpleMode = updateLanguage("mSimpleMode", mSimpleMode);

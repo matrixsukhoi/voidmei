@@ -45,5 +45,9 @@ public interface RowRenderer {
 
         /** Gets a string value from ConfigurationService (for initial state) */
         String getStringFromConfigService(String key, String defaultVal);
+
+        /** Resets all configuration items to their default values */
+        default void resetToDefaults() {
+        }
     }
 }

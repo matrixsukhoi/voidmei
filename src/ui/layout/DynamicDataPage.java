@@ -26,6 +26,8 @@ public class DynamicDataPage extends BasePage {
     private boolean overlayVisible = false;
     private boolean isUpdatingControls = false; // Prevent feedback loop during rebuild
 
+    private java.util.function.Consumer<Object> configHandler;
+
     public DynamicDataPage(MainForm parent, prog.config.ConfigLoader.GroupConfig groupConfig) {
         super(parent);
         this.groupConfig = groupConfig;
@@ -41,6 +43,16 @@ public class DynamicDataPage extends BasePage {
             refreshToolbar();
         }
 
+        // Subscribe to global config changes (specifically for RESET_ALL)
+        configHandler = key -> {
+            if (UIStateEvents.ACTION_RESET_COMPLETED.equals(key)) {
+                // Ensure we are on EDT, though event bus usually dispatches there or logic
+                // handles it
+                javax.swing.SwingUtilities.invokeLater(() -> rebuild());
+            }
+        };
+        UIStateBus.getInstance().subscribe(UIStateEvents.CONFIG_CHANGED, configHandler);
+
         rebuild();
 
         // Restore overlay State
@@ -50,6 +62,13 @@ public class DynamicDataPage extends BasePage {
 
     public DynamicDataPage(MainForm parent) {
         super(parent);
+        // Also subscribe here in case this constructor is used
+        configHandler = key -> {
+            if (UIStateEvents.ACTION_RESET_COMPLETED.equals(key)) {
+                javax.swing.SwingUtilities.invokeLater(() -> rebuild());
+            }
+        };
+        UIStateBus.getInstance().subscribe(UIStateEvents.CONFIG_CHANGED, configHandler);
     }
 
     public void setGroupConfig(prog.config.ConfigLoader.GroupConfig groupConfig) {
@@ -312,6 +331,9 @@ public class DynamicDataPage extends BasePage {
     }
 
     public void dispose() {
+        if (configHandler != null) {
+            UIStateBus.getInstance().unsubscribe(UIStateEvents.CONFIG_CHANGED, configHandler);
+        }
         // No longer owns the overlay, nothing to dispose here.
         // Overlays are managed by Controller.
     }

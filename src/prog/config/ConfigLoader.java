@@ -29,9 +29,11 @@ public class ConfigLoader {
         public String formula; // Kept for reflection paths (e.g. S.rpm)
         public String format;
         public Object value = true; // Typed value (Boolean, Integer, String)
+        public Object defaultValue = null; // Default value for reset
+        public String fgColor = null; // Foreground color (e.g. for buttons)
 
         // Extended fields for control-type rows
-        public String type = "DATA"; // DATA, HEADER, SLIDER, COMBO, SWITCH
+        public String type = "DATA"; // DATA, HEADER, SLIDER, COMBO, SWITCH, BUTTON
         public String property = null; // Bound GroupConfig property (e.g., "fontSize")
         public int minVal = 0; // For SLIDER
         public int maxVal = 100; // For SLIDER
@@ -278,11 +280,19 @@ public class ConfigLoader {
                 // value defaults to true for switches, 0 for slider, null/string for others
                 // But we need to check the SExp type
                 row.value = extractValue(list, ":value");
+                row.defaultValue = extractValue(list, ":default");
+                row.fgColor = getKeywordString(list, ":fgcolor", null);
+
                 if (row.value == null) {
                     if (row.type.contains("SWITCH"))
                         row.value = true;
                     if (row.type.equals("SLIDER"))
                         row.value = 0;
+                }
+
+                // If default is missing, fallback to initial value
+                if (row.defaultValue == null && !"BUTTON".equals(row.type)) {
+                    row.defaultValue = row.value;
                 }
 
                 row.minVal = getKeywordInt(list, ":min", 0);
@@ -399,6 +409,12 @@ public class ConfigLoader {
 
                         // Value is last
                         pw.print(" :value " + row.value);
+                        if (row.defaultValue != null) {
+                            pw.print(" :default " + row.defaultValue);
+                        }
+                        if (row.fgColor != null) {
+                            pw.print(" :fgcolor " + quote(row.fgColor));
+                        }
 
                         pw.println(")");
                     }

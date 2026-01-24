@@ -35,5 +35,16 @@ public final class UIStateEvents {
      */
     public static final String UI_READY = "uiReady";
 
+    /**
+     * Payload for CONFIG_CHANGED event when a UI request to reset all configs is
+     * made.
+     */
+    public static final String ACTION_RESET_REQUEST = "RESET_REQUEST";
+
+    /**
+     * Payload for CONFIG_CHANGED event when a global reset operation has finished.
+     */
+    public static final String ACTION_RESET_COMPLETED = "RESET_COMPLETED";
+
     // Add more event types as needed
 }

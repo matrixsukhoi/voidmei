@@ -94,6 +94,7 @@ src/ui/layout/renderer/RowRendererRegistry.java
 src/ui/layout/renderer/DataRowRenderer.java
 src/ui/layout/renderer/FileListRowRenderer.java
 src/ui/layout/renderer/SliderRowRenderer.java
+src/ui/layout/renderer/ButtonRowRenderer.java
 src/ui/layout/renderer/SwitchRowRenderer.java
 src/ui/layout/renderer/ComboRowRenderer.java
 src/ui/layout/renderer/RowRenderer.java

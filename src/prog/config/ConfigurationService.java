@@ -25,6 +25,13 @@ public class ConfigurationService implements ConfigProvider {
     public void initConfig() {
         // Load layout config
         loadLayout("./ui_layout.cfg");
+
+        // Subscribe to global reset requests (EDA implementation)
+        UIStateBus.getInstance().subscribe(UIStateEvents.CONFIG_CHANGED, key -> {
+            if (UIStateEvents.ACTION_RESET_REQUEST.equals(key)) {
+                resetAllLayoutDefaults();
+            }
+        });
     }
 
     public void loadLayout(String path) {
@@ -148,6 +155,47 @@ public class ConfigurationService implements ConfigProvider {
                 }
             }
         }
+    }
+
+    /**
+     * Resets all configuration items in the layout to their default values.
+     * 
+     * @return true if any configuration was changed
+     */
+    public boolean resetAllLayoutDefaults() {
+        boolean changed = false;
+        java.util.List<ConfigLoader.RowConfig> pendingChanges = new java.util.ArrayList<>();
+
+        // Phase 1: Collect changes (Prepare)
+        if (layoutConfigs != null) {
+            for (ConfigLoader.GroupConfig g : layoutConfigs) {
+                for (ConfigLoader.RowConfig r : g.rows) {
+                    if (r.defaultValue != null && !r.defaultValue.equals(r.value)) {
+                        pendingChanges.add(r);
+                    }
+                }
+            }
+        }
+
+        // Phase 2: Apply changes (Commit)
+        if (!pendingChanges.isEmpty()) {
+            for (ConfigLoader.RowConfig r : pendingChanges) {
+                prog.util.Logger.info("ConfigReset", "Resetting " + r.label + " ("
+                        + (r.property != null ? r.property : "no-key") + ") to default: "
+                        + r.defaultValue);
+                r.value = r.defaultValue;
+            }
+            changed = true;
+        }
+
+        // Phase 3: Persist and Notify
+        if (changed) {
+            saveLayoutConfig();
+            // Broadcast global reset event so all components refresh
+            UIStateBus.getInstance().publish(UIStateEvents.CONFIG_CHANGED,
+                    "ConfigurationService", UIStateEvents.ACTION_RESET_COMPLETED);
+        }
+        return changed;
     }
 
     // private synchronized void scheduleBackgroundSave() { ... } // Removed

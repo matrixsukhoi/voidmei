@@ -20,6 +20,7 @@ public class RowRendererRegistry {
         renderers.put("FMLIST", new FMListRowRenderer());
         renderers.put("HOTKEY", new HotkeyRowRenderer());
         renderers.put("COLOR", new ColorRowRenderer());
+        renderers.put("BUTTON", new ButtonRowRenderer());
         renderers.put("DATA", new DataRowRenderer());
         // Note: HEADER is handled specially in the layout loop, not as a renderer
     }
