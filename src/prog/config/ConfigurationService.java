@@ -90,6 +90,22 @@ public class ConfigurationService implements ConfigProvider {
                 // Ignore
             }
         }
+
+        // --- Sync Global Fonts ---
+        String globalNumFont = getConfig("GlobalNumFont");
+        if (globalNumFont != null && !globalNumFont.isEmpty()) {
+            Application.defaultNumfontName = globalNumFont;
+            prog.util.Logger.info("ConfigurationService", "Global Num font synchronized: " + globalNumFont);
+        }
+
+        String globalTextFont = getConfig("GlobalTextFont");
+        if (globalTextFont != null && !globalTextFont.isEmpty()) {
+            Application.defaultFontName = globalTextFont;
+            prog.util.Logger.info("ConfigurationService", "Global Text font synchronized: " + globalTextFont);
+        }
+
+        Application.initFont();
+        Application.updateWebLafFonts();
     }
 
     // --- ConfigProvider Implementation ---
@@ -308,7 +324,23 @@ public class ConfigurationService implements ConfigProvider {
         @Override
         public String getFontName() {
             ConfigLoader.GroupConfig gc = getGroupConfig();
-            return (gc != null) ? gc.fontName : Application.defaultFont.getFontName();
+            if (gc != null && gc.fontName != null && !gc.fontName.isEmpty()) {
+                return gc.fontName;
+            }
+            String globalFont = getConfig("GlobalTextFont");
+            if (globalFont != null && !globalFont.isEmpty()) {
+                return globalFont;
+            }
+            return Application.defaultFont.getFontName();
+        }
+
+        @Override
+        public String getNumFontName() {
+            String globalFont = getConfig("GlobalNumFont");
+            if (globalFont != null && !globalFont.isEmpty()) {
+                return globalFont;
+            }
+            return Application.defaultNumfontName;
         }
 
         @Override
@@ -369,7 +401,15 @@ public class ConfigurationService implements ConfigProvider {
         @Override
         public String getNumFont() {
             String font = getConfig("MonoNumFont");
-            return font.isEmpty() ? Application.defaultNumfontName : font;
+            if (font == null || font.isEmpty()) {
+                font = getConfig("GlobalNumFont");
+            }
+            return (font == null || font.isEmpty()) ? Application.defaultNumfontName : font;
+        }
+
+        @Override
+        public String getNumFontName() {
+            return getNumFont();
         }
 
         @Override

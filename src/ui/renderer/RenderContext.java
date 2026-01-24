@@ -57,7 +57,7 @@ public class RenderContext {
     public static RenderContext fromSettings(prog.config.OverlaySettings settings, Component component,
             String numFontKey, String columnKey, ConfigProvider legacyConfig) {
 
-        String numFontName = getConfigOrDefault(legacyConfig, numFontKey, Application.defaultNumfontName);
+        String numFontName = (settings != null) ? settings.getNumFontName() : Application.defaultNumfontName;
         String labelFontName = (settings != null) ? settings.getFontName() : Application.defaultFont.getFontName();
         int fontAdd = (settings != null) ? settings.getFontSizeAdd() : 0;
         int columnNum = getConfigIntOrDefault(legacyConfig, columnKey, 3);

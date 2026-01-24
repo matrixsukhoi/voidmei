@@ -259,7 +259,7 @@ public class DrawFrame extends WebFrame implements Runnable {
 		g.setFont(new Font(Application.defaultFontName, Font.PLAIN, 16));
 		g.drawString(title, x + dwidth / 2, y);
 		y = y + 10;// 往下推10
-		g.setFont(new Font(Application.defaultFontName, Font.PLAIN, 10));
+		g.setFont(new Font(Application.defaultNumfontName, Font.PLAIN, 10));
 
 		// x轴与箭头
 		g.drawLine(x, y + dheight, x + dwidth, y + dheight);
@@ -274,7 +274,7 @@ public class DrawFrame extends WebFrame implements Runnable {
 		// x轴单位
 		g.setFont(new Font(Application.defaultFontName, Font.PLAIN, 14));
 		g.drawString(xD, x + dwidth + 5, y + dheight);
-		g.setFont(new Font(Application.defaultFontName, Font.PLAIN, 10));
+		g.setFont(new Font(Application.defaultNumfontName, Font.PLAIN, 10));
 
 		g.setStroke(new BasicStroke(3));
 		// y轴与箭头
@@ -322,7 +322,7 @@ public class DrawFrame extends WebFrame implements Runnable {
 		g.setColor(C);
 		g.drawLine(x, y + dheight + 40, x + 20, y + dheight + 40);
 		g.setColor(new Color(0, 0, 0, 250));
-		g.setFont(new Font(Application.defaultFontName, Font.PLAIN, 10));
+		g.setFont(new Font(Application.defaultNumfontName, Font.PLAIN, 10));
 		g.drawString(name, x + 25, y + dheight + 45);
 	}
 
@@ -346,7 +346,7 @@ public class DrawFrame extends WebFrame implements Runnable {
 		g.setFont(new Font(Application.defaultFontName, Font.PLAIN, 16));
 		g.drawString(title, x + dwidth / 2, y);
 		y = y + 10;// 往下推10
-		g.setFont(new Font(Application.defaultFontName, Font.PLAIN, 10));
+		g.setFont(new Font(Application.defaultNumfontName, Font.PLAIN, 10));
 		// x轴与箭头
 		g.drawLine(x, y + dheight, x + dwidth, y + dheight);
 
@@ -367,7 +367,7 @@ public class DrawFrame extends WebFrame implements Runnable {
 		// x轴单位
 		g.setFont(new Font(Application.defaultFontName, Font.PLAIN, 14));
 		g.drawString(xD, x + dwidth + 5, y + dheight);
-		g.setFont(new Font(Application.defaultFontName, Font.PLAIN, 10));
+		g.setFont(new Font(Application.defaultNumfontName, Font.PLAIN, 10));
 
 		g.setStroke(new BasicStroke(3));
 
@@ -428,7 +428,7 @@ public class DrawFrame extends WebFrame implements Runnable {
 		g.drawString(title, x + dwidth / 2, y);
 		y = y + 10;// 往下推10
 
-		g.setFont(new Font(Application.defaultFontName, Font.PLAIN, 10));
+		g.setFont(new Font(Application.defaultNumfontName, Font.PLAIN, 10));
 		// x轴与箭头
 		g.drawLine(x, y + dheight, x + dwidth, y + dheight);
 		// g.drawLine(x + dwidth, y + dheight, x + dwidth - 5, y + dheight -
@@ -453,7 +453,7 @@ public class DrawFrame extends WebFrame implements Runnable {
 		// x轴单位
 		g.setFont(new Font(Application.defaultFontName, Font.PLAIN, 14));
 		g.drawString(xD, x + dwidth + 5, y + dheight);
-		g.setFont(new Font(Application.defaultFontName, Font.PLAIN, 10));
+		g.setFont(new Font(Application.defaultNumfontName, Font.PLAIN, 10));
 
 		g.setStroke(new BasicStroke(3));
 

@@ -38,6 +38,8 @@ public class AttitudeIndicator extends DraggableOverlay {
 	WebLabel label_3;
 	WebLabel label_6;
 	String NumFont;
+	String FontName;
+	int fontadd;
 	long AoA;
 	long AoS;
 	Boolean showDirection;
@@ -236,9 +238,13 @@ public class AttitudeIndicator extends DraggableOverlay {
 
 	public void reinitConfig() {
 		if (overlaySettings != null) {
-			NumFont = overlaySettings.getFontName();
+			FontName = overlaySettings.getFontName();
+			NumFont = overlaySettings.getNumFontName();
+			fontadd = overlaySettings.getFontSizeAdd();
 		} else {
+			FontName = Application.defaultFontName;
 			NumFont = Application.defaultNumfontName;
+			fontadd = 0;
 		}
 
 		if (overlaySettings != null) {

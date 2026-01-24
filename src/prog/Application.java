@@ -78,7 +78,11 @@ public class Application {
 	public static Font defaultFontBig;
 	public static Font defaultFontBigBold;
 	public static Font defaultFontSmall;
-	public static int defaultFontsize;
+	public static Font defaultNumFont;
+	public static Font defaultNumFontBig;
+	public static Font defaultNumFontBigBold;
+	public static Font defaultNumFontSmall;
+	public static int defaultFontsize = 12;
 	public static int displayFmKey = NativeKeyEvent.VC_P;
 
 	public static Process plugin = null;
@@ -308,6 +312,11 @@ public class Application {
 		defaultFontBig = new Font(defaultFontName, Font.PLAIN, defaultFontsize + 2);
 		defaultFontBigBold = new Font(defaultFontName, Font.BOLD, defaultFontsize + 4);
 		defaultFontSmall = new Font(defaultFontName, Font.PLAIN, defaultFontsize - 2);
+
+		defaultNumFont = new Font(defaultNumfontName, Font.PLAIN, defaultFontsize);
+		defaultNumFontBig = new Font(defaultNumfontName, Font.PLAIN, defaultFontsize + 2);
+		defaultNumFontBigBold = new Font(defaultNumfontName, Font.BOLD, defaultFontsize + 4);
+		defaultNumFontSmall = new Font(defaultNumfontName, Font.PLAIN, defaultFontsize - 2);
 		environment = null;
 	}
 
@@ -470,12 +479,7 @@ public class Application {
 				"Native hook registered and listener added. Global status: " + GlobalScreen.isNativeHookRegistered());
 	}
 
-	public static void initWebLaf() {
-		WebLookAndFeel.install();
-
-		StyleConstants.textRenderingHints = new RenderingHints(RenderingHints.KEY_TEXT_ANTIALIASING,
-				RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-
+	public static void updateWebLafFonts() {
 		// WebLookAndFeel.set
 		WebLookAndFeel.globalControlFont = defaultFont;
 		WebLookAndFeel.globalTooltipFont = defaultFont;
@@ -484,6 +488,16 @@ public class Application {
 		WebLookAndFeel.globalAcceleratorFont = defaultFont;
 		WebLookAndFeel.globalTitleFont = defaultFont;
 		WebLookAndFeel.globalTextFont = defaultFont;
+	}
+
+	public static void initWebLaf() {
+		WebLookAndFeel.install();
+
+		StyleConstants.textRenderingHints = new RenderingHints(RenderingHints.KEY_TEXT_ANTIALIASING,
+				RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+
+		updateWebLafFonts();
+
 		WebLookAndFeel.setDecorateFrames(true);
 		WebLookAndFeel.setDecorateAllWindows(true);
 

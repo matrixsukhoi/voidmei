@@ -421,12 +421,12 @@ public class StickValue extends DraggableOverlay implements FlightDataListener {
 
 	public void reinitConfig() {
 		if (overlaySettings != null) {
-			NumFont = overlaySettings.getString("GlobalNumFont", Application.defaultNumfontName);
 			FontName = overlaySettings.getFontName();
+			NumFont = overlaySettings.getNumFontName();
 			fontadd = overlaySettings.getFontSizeAdd();
 		} else {
+			FontName = Application.defaultFontName;
 			NumFont = Application.defaultNumfontName;
-			FontName = Application.defaultFont.getFontName();
 			fontadd = 0;
 		}
 

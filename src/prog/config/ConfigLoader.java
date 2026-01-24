@@ -73,7 +73,7 @@ public class ConfigLoader {
         public int alpha = 150;
         public int hotkey = 0; // 0 means no hotkey
         public boolean visible = false; // Default to false (hidden)
-        public String fontName = "Sarasa Mono SC";
+        public String fontName = null;
         public int fontSize = 0; // Font size adjustment (-6 to +20)
         public int columns = 2; // Number of columns for layout
         public int panelColumns = 2; // Number of columns for SETTINGS PANEL layout
@@ -203,7 +203,7 @@ public class ConfigLoader {
 
                 group.alpha = getKeywordInt(panelExp, ":alpha", 150);
                 group.visible = getKeywordBool(panelExp, ":visible", false);
-                group.fontName = getKeywordString(panelExp, ":font", "Sarasa Mono SC");
+                group.fontName = getKeywordString(panelExp, ":font", null);
                 group.fontSize = getKeywordInt(panelExp, ":font-size", 0);
                 group.columns = getKeywordInt(panelExp, ":columns", 2);
                 group.panelColumns = getKeywordInt(panelExp, ":panel-columns", 2);

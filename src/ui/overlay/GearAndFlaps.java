@@ -40,9 +40,11 @@ public class GearAndFlaps extends DraggableOverlay {
     int lx;
     int ly;
     private String FontName;
+    private String NumFont;
     private int fontadd;
     private int fontSize;
     private Font fontLabel;
+    private Font fontNum;
     private String warnText;
     private Color warnColor;
     private int barWidth;
@@ -210,14 +212,17 @@ public class GearAndFlaps extends DraggableOverlay {
     public void reinitConfig() {
         if (overlaySettings != null) {
             FontName = overlaySettings.getFontName();
+            NumFont = overlaySettings.getNumFontName();
             fontadd = overlaySettings.getFontSizeAdd();
         } else {
-            FontName = Application.defaultFont.getFontName();
+            FontName = Application.defaultFontName;
+            NumFont = Application.defaultNumfontName;
             fontadd = 0;
         }
 
         fontSize = 24 + fontadd;
         fontLabel = new Font(FontName, Font.BOLD, Math.round(fontSize / 2.0f));
+        fontNum = new Font(NumFont, Font.BOLD, fontSize);
 
         barWidth = fontSize >> 1;
         barHeight = 4 * fontSize;
@@ -282,7 +287,7 @@ public class GearAndFlaps extends DraggableOverlay {
 
                 dy += barHeight + gap;
                 UIBaseElements.drawVBarTextNum(g2d, 0, dy, barWidth, barHeight, flapPix, 1, Application.colorNum, "",
-                        "F" + flapText, fontLabel, fontLabel);
+                        "F" + flapText, fontNum, fontLabel);
 
                 if (warnText != null) {
                     g2d.setColor(warnColor);

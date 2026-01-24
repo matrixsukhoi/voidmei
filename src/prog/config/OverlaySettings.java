@@ -31,6 +31,11 @@ public interface OverlaySettings {
     String getFontName();
 
     /**
+     * Get the numeric font name for this overlay.
+     */
+    String getNumFontName();
+
+    /**
      * Get the font size adjustment for this overlay.
      */
     int getFontSizeAdd();

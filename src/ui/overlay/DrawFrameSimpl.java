@@ -239,7 +239,7 @@ public class DrawFrameSimpl extends DraggableOverlay {
 		g.setFont(new Font(Application.defaultFontName, Font.PLAIN, fontsize + 6));
 		g.drawString(title, x + dwidth / 2, y);
 		y = y + 10;// 往下推10
-		g.setFont(new Font(Application.defaultFontName, Font.PLAIN, fontsize));
+		g.setFont(new Font(Application.defaultNumfontName, Font.PLAIN, fontsize));
 
 		// x轴与箭头
 		g.drawLine(x, y + dheight, x + dwidth, y + dheight);
@@ -254,7 +254,7 @@ public class DrawFrameSimpl extends DraggableOverlay {
 		// x轴单位
 		g.setFont(new Font(Application.defaultFontName, Font.PLAIN, fontsize + 4));
 		g.drawString(xD, x + dwidth + 5, y + dheight);
-		g.setFont(new Font(Application.defaultFontName, Font.PLAIN, fontsize));
+		g.setFont(new Font(Application.defaultNumfontName, Font.PLAIN, fontsize));
 
 		g.setStroke(new BasicStroke(3));
 		// y轴与箭头
