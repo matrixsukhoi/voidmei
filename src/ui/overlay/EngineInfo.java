@@ -2,12 +2,9 @@ package ui.overlay;
 
 import java.util.List;
 
-import parser.AttributePool;
 import ui.base.FieldOverlay;
-import prog.config.ConfigLoader;
-import prog.config.ConfigProvider;
-import ui.model.EngineInfoConfig;
 import ui.model.FieldDefinition;
+import ui.model.EngineInfoConfig;
 import ui.renderer.BOSStyleRenderer;
 import ui.renderer.OverlayRenderer;
 
@@ -39,40 +36,34 @@ public class EngineInfo extends FieldOverlay {
 	}
 
 	/**
-	 * Initialize with EngineInfoConfig.
+	 * Standardized initialization.
 	 */
-	public void init(ConfigProvider config, AttributePool pool, EngineInfoConfig engineInfoConfig) {
-		this.engineInfoConfig = engineInfoConfig;
+	public void init(prog.Controller c, prog.Service s, prog.config.OverlaySettings settings) {
+		this.config = c;
+		this.engineInfoConfig = ui.model.EngineInfoConfig.createDefault(c, settings.getGroupConfig());
 
-		// Set config keys from EngineInfoConfig
+		// Standardize style/font keys from Config object
 		this.numFontKey = engineInfoConfig.numFontKey;
 		this.labelFontKey = engineInfoConfig.labelFontKey;
 		this.fontAddKey = engineInfoConfig.fontAddKey;
-		// Map EngineInfo 'columns' key to FieldOverlay expected key
 		this.columnKey = engineInfoConfig.columnKey;
-
 		this.edgeKey = engineInfoConfig.edgeKey;
 		this.defaultShowEdge = engineInfoConfig.showEdge;
 		this.title = engineInfoConfig.title;
 
-		// Set position keys - Deprecated/Removed in favor of GroupConfig
-		// setPositionKeys(engineInfoConfig.posXKey, engineInfoConfig.posYKey);
+		setOverlaySettings(settings);
+		super.init(c, c.globalPool);
 
-		// Call parent init
-		super.init(config, pool);
-
-		// Initialize overlaySettings for FieldOverlay font support
-		if (engineInfoConfig.groupConfig != null && config instanceof prog.Controller) {
-			setOverlaySettings(
-					((prog.Controller) config).configService.getOverlaySettings(engineInfoConfig.groupConfig.title));
+		if (s != null) {
+			setVisible(true);
 		}
 	}
 
 	/**
-	 * Initialize for preview mode.
+	 * Initialize for preview mode using standardized signature.
 	 */
-	public void initPreview(ConfigProvider config, AttributePool pool, EngineInfoConfig engineInfoConfig) {
-		init(config, pool, engineInfoConfig);
+	public void initPreview(prog.Controller c, prog.config.OverlaySettings settings) {
+		init(c, null, settings);
 		applyPreviewStyle();
 		setupDragListeners();
 		setVisible(true);
@@ -80,24 +71,7 @@ public class EngineInfo extends FieldOverlay {
 	}
 
 	/**
-	 * Custom reinitConfig to handle specific EngineInfo visibility logic if needed.
-	 * FieldOverlay's default reinitConfig uses DefaultFieldManager which checks
-	 * config.getConfig(key).
-	 * Since EngineInfo data rows in ui_layout.cfg don't have separate switch keys
-	 * (they are DATA rows),
-	 * we need to ensure visibility works.
-	 * 
-	 * However, ConfigProvider (Controller) loads ui_layout.cfg into dynamicConfigs
-	 * (List<GroupConfig>).
-	 * It does NOT flatten row visibility into global config keys!
-	 * 
-	 * Solution: We must implement a custom ConfigProvider wrapper or handle
-	 * visibility here?
-	 * NO, `FieldOverlay` uses `RenderContext` for fonts/layout, but `FieldManager`
-	 * uses `ConfigProvider` for visibility.
-	 * 
-	 * We need to override `initFields` to set visibility based on `GroupConfig`
-	 * rows!
+	 * Custom reinitConfig to handle specific EngineInfo visibility logic.
 	 */
 	@Override
 	public void reinitConfig() {
@@ -108,13 +82,11 @@ public class EngineInfo extends FieldOverlay {
 		super.reinitConfig();
 
 		// 2. Override visibility based on GroupConfig rows from ui_layout.cfg
-		// Use the GroupConfig passed in EngineInfoConfig
-		ConfigLoader.GroupConfig groupConfig = engineInfoConfig.groupConfig;
+		prog.config.ConfigLoader.GroupConfig groupConfig = engineInfoConfig.groupConfig;
 		if (groupConfig != null) {
-			for (ConfigLoader.RowConfig row : groupConfig.rows) {
+			for (prog.config.ConfigLoader.RowConfig row : groupConfig.rows) {
 				String labelKey = LABEL_TO_KEY.get(row.label);
 				if (labelKey != null) {
-					// Find field def with this configKey and set visibility
 					for (ui.model.FieldDefinition def : getFieldDefinitions()) {
 						if (labelKey.equals(def.configKey)) {
 							fieldManager.setFieldVisible(def.key, row.getBool());
@@ -122,39 +94,11 @@ public class EngineInfo extends FieldOverlay {
 					}
 				}
 			}
-			// Trigger repaint after visibility update
 			repaint();
 		}
 	}
 
-	@Override
-	protected int[] loadPosition(int defaultX, int defaultY) {
-		if (engineInfoConfig != null && engineInfoConfig.groupConfig != null) {
-			int screenW = java.awt.Toolkit.getDefaultToolkit().getScreenSize().width;
-			int screenH = java.awt.Toolkit.getDefaultToolkit().getScreenSize().height;
-			int x = (int) Math.round(engineInfoConfig.groupConfig.x * screenW);
-			int y = (int) Math.round(engineInfoConfig.groupConfig.y * screenH);
-			return new int[] { x, y };
-		}
-		return super.loadPosition(defaultX, defaultY);
-	}
-
-	@Override
-	public void saveCurrentPosition() {
-		if (engineInfoConfig != null && engineInfoConfig.groupConfig != null) {
-			int screenW = java.awt.Toolkit.getDefaultToolkit().getScreenSize().width;
-			int screenH = java.awt.Toolkit.getDefaultToolkit().getScreenSize().height;
-
-			engineInfoConfig.groupConfig.x = (double) getLocation().x / screenW;
-			engineInfoConfig.groupConfig.y = (double) getLocation().y / screenH;
-
-			if (config instanceof prog.Controller) {
-				((prog.Controller) config).configService.saveLayoutConfig();
-			}
-		} else {
-			super.saveCurrentPosition();
-		}
-	}
+	// Manual loadPosition and saveCurrentPosition overrides removed.
 
 	// Legacy Mapping for Visibility Lookup
 	private static final java.util.Map<String, String> LABEL_TO_KEY = new java.util.HashMap<>();

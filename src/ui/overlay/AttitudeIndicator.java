@@ -26,7 +26,6 @@ import prog.config.OverlaySettings;
 public class AttitudeIndicator extends DraggableOverlay {
 
 	public volatile boolean doit = true;
-	private OverlaySettings settings;
 	private Controller xc;
 	private Service xs;
 	private int lx;
@@ -110,12 +109,13 @@ public class AttitudeIndicator extends DraggableOverlay {
 		applyPreviewStyle();
 		setupDragListeners();
 		setVisible(true);
+		reinitConfig();
 	}
 
 	@Override
 	public void saveCurrentPosition() {
-		if (settings != null) {
-			settings.saveWindowPosition(getLocation().x, getLocation().y);
+		if (overlaySettings != null) {
+			overlaySettings.saveWindowPosition(getLocation().x, getLocation().y);
 		}
 	}
 
@@ -235,35 +235,35 @@ public class AttitudeIndicator extends DraggableOverlay {
 	}
 
 	public void reinitConfig() {
-		if (settings != null) {
-			NumFont = settings.getFontName();
+		if (overlaySettings != null) {
+			NumFont = overlaySettings.getFontName();
 		} else {
 			NumFont = Application.defaultNumfontName;
 		}
 
-		if (settings != null) {
-			xWidth = settings.getInt("attitudeIndicatorWidth", 150);
-			xHeight = settings.getInt("attitudeIndicatorHeight", 300);
+		if (overlaySettings != null) {
+			xWidth = overlaySettings.getInt("attitudeIndicatorWidth", 150);
+			xHeight = overlaySettings.getInt("attitudeIndicatorHeight", 300);
 
 			int sw = 0;
-			if (settings.getBool("enableAttitudeIndicatorEdge", false)) {
+			if (overlaySettings.getBool("enableAttitudeIndicatorEdge", false)) {
 				sw = 10;
 			}
 
 			int totalWidth = xWidth + 4 + (sw * 2);
 			int totalHeight = xHeight + 4 + (sw * 2);
 
-			lx = settings.getWindowX(totalWidth);
-			ly = settings.getWindowY(totalHeight);
+			lx = overlaySettings.getWindowX(totalWidth);
+			ly = overlaySettings.getWindowY(totalHeight);
 
-			freqMili = settings.getInt("attitudeIndicatorFreqMs", 40);
+			freqMili = overlaySettings.getInt("attitudeIndicatorFreqMs", 40);
 
-			if (settings.getBool("attitudeIndicatorUseNumColor", false)) {
+			if (overlaySettings.getBool("attitudeIndicatorUseNumColor", false)) {
 				transParentWhite = Application.colorNum;
 			}
 
-			showDirection = settings.getBool("attitudeIndicatorDisplayDirection", false);
-			showAoALimits = settings.getBool("attitudeIndicatorDisplayAoALimits", true);
+			showDirection = overlaySettings.getBool("attitudeIndicatorDisplayDirection", false);
+			showAoALimits = overlaySettings.getBool("attitudeIndicatorDisplayAoALimits", true);
 
 			setShadeWidth(sw);
 			this.setBounds(lx, ly, totalWidth, totalHeight);
@@ -287,32 +287,23 @@ public class AttitudeIndicator extends DraggableOverlay {
 	public void init(Controller c, Service s, OverlaySettings settings) {
 		this.xc = c;
 		this.xs = s;
-		this.settings = settings;
+		setOverlaySettings(settings);
 
 		reinitConfig();
 
+		this.setCursor(Application.blankCursor);
+		setupTransparentWindow();
+
+		groundLevel = new Polygon();
 		pX = new int[4];
 		pY = new int[4];
 
-		// 原始地面图形
 		pS = new Point[4 + tickLine * 4];
-		pS[0] = new Point(-10, 10);
-		pS[1] = new Point(10, 10);
-		pS[2] = new Point(10, -10);
-		pS[3] = new Point(-10, -10);
-
-		// 刻度线
-		for (int i = 4; i < 4 + tickLine * 4; i++) {
-			pS[i] = new Point(0, 0);
-		}
-
-		// 旋转中心
-		pC = new Point(xWidth / 2, xHeight / 2);
-
-		// pT
 		pT = new Point[4 + tickLine * 4];
+
 		for (int i = 0; i < 4 + tickLine * 4; i++) {
-			pT[i] = new Point(0, 0);
+			pS[i] = new Point();
+			pT[i] = new Point();
 		}
 
 		topPanel = new WebPanel() {

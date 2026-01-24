@@ -12,10 +12,9 @@ import java.util.Map;
 import com.alee.laf.panel.WebPanel;
 
 import prog.Application;
-import prog.i18n.Lang;
-import prog.config.ConfigProvider;
 import prog.event.FlightDataBus;
 import prog.event.FlightDataEvent;
+import prog.i18n.Lang;
 import ui.base.FieldOverlay;
 import ui.model.FieldDefinition;
 import ui.model.GaugeField;
@@ -95,11 +94,14 @@ public class EngineControl extends FieldOverlay {
 
 	// --- Initialization ---
 
-	public void init(ConfigProvider config, prog.config.ConfigLoader.GroupConfig groupConfig, Runnable onPositionSave) {
-		this.config = config;
-		this.groupConfig = groupConfig;
-		this.onPositionSave = onPositionSave;
+	/**
+	 * Standardized initialization.
+	 */
+	public void init(prog.Controller c, prog.Service s, prog.config.OverlaySettings settings) {
+		this.config = c;
+		this.onPositionSave = () -> c.configService.saveLayoutConfig();
 
+		setOverlaySettings(settings);
 		setupTransparentWindow();
 
 		panel = new WebPanel() {
@@ -111,7 +113,7 @@ public class EngineControl extends FieldOverlay {
 				Graphics2D g2d = (Graphics2D) g;
 				g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, Application.graphAASetting);
 				g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, Application.textAASetting);
-				drawGauges(g2d, fontsize >> 1, (fontsize * 4) + ((fontsize * 6) >> 1)); // 这里如果偏移多了会看不到
+				drawGauges(g2d, fontsize >> 1, (fontsize * 4) + ((fontsize * 6) >> 1));
 			}
 		};
 		panel.setOpaque(false);
@@ -121,12 +123,17 @@ public class EngineControl extends FieldOverlay {
 
 		reinitConfig();
 		subscribeToEvents();
-		setVisible(true);
+
+		if (s != null) {
+			setVisible(true);
+		}
 	}
 
-	public void initPreview(ConfigProvider config, prog.config.ConfigLoader.GroupConfig groupConfig,
-			Runnable onPositionSave) {
-		init(config, groupConfig, onPositionSave);
+	/**
+	 * Initialize for preview mode using standardized signature.
+	 */
+	public void initPreview(prog.Controller c, prog.config.OverlaySettings settings) {
+		init(c, null, settings);
 		applyPreviewStyle();
 		updateGaugesPreview();
 		setupDragListeners();
@@ -141,28 +148,19 @@ public class EngineControl extends FieldOverlay {
 		loadRefreshInterval();
 		initGaugeFields();
 		calculateLayout();
-		loadPosition(); // After layout to avoid drift from shade width
+
+		// Load and apply position from OverlaySettings
+		int[] pos = loadPosition(width, height);
+		setLocation(pos[0], pos[1]);
+
 		updateGaugesPreview();
 		repaint();
 	}
 
 	private void loadFontConfig() {
-		String fontName = "Microsoft YaHei";
-		int fontadd = 0;
-
-		if (groupConfig != null) {
-			if (groupConfig.fontName != null && !groupConfig.fontName.isEmpty()) {
-				fontName = groupConfig.fontName;
-			}
-			fontadd = groupConfig.fontSize;
-		} else {
-			// Fallback to old behavior if no groupConfig
-			String labelFontVal = getConfigSafe(labelFontKey);
-			String fontAddVal = getConfigSafe(fontAddKey);
-			if (!labelFontVal.isEmpty())
-				fontName = labelFontVal;
-			fontadd = parseIntSafe(fontAddVal, 0);
-		}
+		prog.config.OverlaySettings s = getOverlaySettings();
+		String fontName = s.getFontName();
+		int fontadd = s.getFontSizeAdd();
 
 		fontsize = BASE_FONT_SIZE + fontadd;
 		fontLabel = new Font(fontName, Font.BOLD, Math.round(fontsize / 2.0f));
@@ -174,17 +172,6 @@ public class EngineControl extends FieldOverlay {
 			long freqService = parseLongSafe(intervalVal, DEFAULT_REFRESH_INTERVAL);
 			refreshInterval = (long) (freqService * ENGINE_REFRESH_MULTIPLIER);
 		}
-	}
-
-	private void loadPosition() {
-		int screenW = java.awt.Toolkit.getDefaultToolkit().getScreenSize().width;
-		int screenH = java.awt.Toolkit.getDefaultToolkit().getScreenSize().height;
-		int lx = 0, ly = 0;
-		if (groupConfig != null) {
-			lx = (int) Math.round(groupConfig.x * screenW);
-			ly = (int) Math.round(groupConfig.y * screenH);
-		}
-		setLocation(lx, ly);
 	}
 
 	private void calculateLayout() {

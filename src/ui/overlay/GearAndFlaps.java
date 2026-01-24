@@ -35,9 +35,8 @@ public class GearAndFlaps extends DraggableOverlay {
 
     Color transparent = new Color(0, 0, 0, 0);
     private Container root;
-    private parser.State State;
+    // Removed redundant State field
     private WebPanel panel;
-    private OverlaySettings settings;
     int lx;
     int ly;
     private String FontName;
@@ -63,8 +62,8 @@ public class GearAndFlaps extends DraggableOverlay {
 
     @Override
     public void saveCurrentPosition() {
-        if (settings != null) {
-            settings.saveWindowPosition(getLocation().x, getLocation().y);
+        if (overlaySettings != null) {
+            overlaySettings.saveWindowPosition(getLocation().x, getLocation().y);
         }
     }
 
@@ -209,9 +208,9 @@ public class GearAndFlaps extends DraggableOverlay {
     }
 
     public void reinitConfig() {
-        if (settings != null) {
-            FontName = settings.getFontName();
-            fontadd = settings.getFontSizeAdd();
+        if (overlaySettings != null) {
+            FontName = overlaySettings.getFontName();
+            fontadd = overlaySettings.getFontSizeAdd();
         } else {
             FontName = Application.defaultFont.getFontName();
             fontadd = 0;
@@ -233,16 +232,16 @@ public class GearAndFlaps extends DraggableOverlay {
         warnColor = Application.colorNum;
 
         int sw = 0;
-        if (settings != null && settings.getBool("enablegearAndFlapsEdge", false)) {
+        if (overlaySettings != null && overlaySettings.getBool("enablegearAndFlapsEdge", false)) {
             sw = 10;
         }
 
         int totalWidth = width + (sw * 2);
         int totalHeight = height + (sw * 2);
 
-        if (settings != null) {
-            lx = settings.getWindowX(totalWidth);
-            ly = settings.getWindowY(totalHeight);
+        if (overlaySettings != null) {
+            lx = overlaySettings.getWindowX(totalWidth);
+            ly = overlaySettings.getWindowY(totalHeight);
         } else {
             lx = 0;
             ly = 0;
@@ -250,30 +249,26 @@ public class GearAndFlaps extends DraggableOverlay {
 
         setShadeWidth(sw);
         setBounds(lx, ly, totalWidth, totalHeight);
-        repaint();
     }
 
-    public void init(Controller c, Service s, OverlaySettings settings) {
-        this.xc = c;
-        this.xs = s;
-        this.settings = settings;
-        if (s != null)
-            State = s.sState;
+    public void init(Controller xc, Service xs, OverlaySettings settings) {
+        this.xc = xc;
+        this.xs = xs;
+        setOverlaySettings(settings);
 
-        this.setUndecorated(true);
         reinitConfig();
 
         this.setCursor(Application.blankCursor);
         setupTransparentWindow();
+        this.setUndecorated(true);
+        this.root = this.getContentPane();
 
-        gap = (int) (0.2 * fontSize);
-        // initpanel();
         panel = new WebPanel() {
-            private static final long serialVersionUID = 21520599493310317L;
+            private static final long serialVersionUID = 1L;
 
+            @Override
             public void paintComponent(Graphics g) {
                 Graphics2D g2d = (Graphics2D) g;
-                // 开始绘图
                 g2d.setPaintMode();
                 g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, Application.graphAASetting);
                 g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, Application.textAASetting);
@@ -281,24 +276,27 @@ public class GearAndFlaps extends DraggableOverlay {
                         RenderingHints.VALUE_ALPHA_INTERPOLATION_SPEED);
                 g2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_SPEED);
 
-                // 绘制襟翼百分比,起落架百分比
                 int dy = fontSize >> 1;
-                UIBaseElements.__drawStringShade(g2d, 0, dy, 1, warnText, fontLabel, warnColor);
+                UIBaseElements.__drawLabelBOSType(g2d, width, dy, 1, Application.defaultFont, Application.defaultFont,
+                        Application.defaultFont, flapText, Lang.gFlaps, "%", 9);
+
                 dy += barHeight + gap;
                 UIBaseElements.drawVBarTextNum(g2d, 0, dy, barWidth, barHeight, flapPix, 1, Application.colorNum, "",
                         "F" + flapText, fontLabel, fontLabel);
+
+                if (warnText != null) {
+                    g2d.setColor(warnColor);
+                    g2d.setFont(fontLabel);
+                    g2d.drawString(warnText, width + gap, fontSize);
+                }
             }
         };
-        panel.setWebColoredBackground(false);
-        panel.setBackground(new Color(0, 0, 0, 0));
 
+        panel.setOpaque(false);
         this.add(panel);
-        setTitle("GearAndFlaps");
-        root = this.getContentPane();
 
         if (xs != null)
             setVisible(true);
-
     }
 
     long gearCheckMili;
@@ -339,7 +337,7 @@ public class GearAndFlaps extends DraggableOverlay {
                 warnColor = Application.colorWarning;
             }
         }
-        int flps = State.flaps;
+        int flps = xs.sState.flaps;
         if (flps >= 0)
             flapPix = flps * barHeight / 100;
         else {

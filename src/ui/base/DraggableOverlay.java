@@ -48,6 +48,10 @@ public abstract class DraggableOverlay extends WebFrame implements Runnable {
         this.overlaySettings = settings;
     }
 
+    public prog.config.OverlaySettings getOverlaySettings() {
+        return overlaySettings;
+    }
+
     // Dragging State
     private int isDragging;
     private int dragStartX, dragStartY;
@@ -66,9 +70,17 @@ public abstract class DraggableOverlay extends WebFrame implements Runnable {
     /**
      * Load saved position from config.
      */
-    protected int[] loadPosition(int defaultX, int defaultY) {
-        int x = defaultX;
-        int y = defaultY;
+    protected int[] loadPosition(int width, int height) {
+        // Priority 1: OverlaySettings (New modular config)
+        if (overlaySettings != null) {
+            int x = overlaySettings.getWindowX(width);
+            int y = overlaySettings.getWindowY(height);
+            return new int[] { x, y };
+        }
+
+        // Priority 2: ConfigProvider (Legacy fallback)
+        int x = 0;
+        int y = 0;
 
         if (config != null && posXKey != null && posYKey != null) {
             String savedX = config.getConfig(posXKey);

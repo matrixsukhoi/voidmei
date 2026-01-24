@@ -34,7 +34,6 @@ public class StickValue extends DraggableOverlay implements FlightDataListener {
 	 */
 	WebLabel label_3;
 	WebLabel label_6;
-	private OverlaySettings settings;
 	Controller xc;
 	Service xs;
 	WebPanel topPanel;
@@ -73,7 +72,7 @@ public class StickValue extends DraggableOverlay implements FlightDataListener {
 	public void init(Controller c, Service s, OverlaySettings settings) {
 		this.xc = c;
 		this.xs = s;
-		this.settings = settings;
+		setOverlaySettings(settings);
 
 		this.setUndecorated(true);
 		reinitConfig();
@@ -161,8 +160,8 @@ public class StickValue extends DraggableOverlay implements FlightDataListener {
 
 	@Override
 	public void saveCurrentPosition() {
-		if (settings != null) {
-			settings.saveWindowPosition(getLocation().x, getLocation().y);
+		if (overlaySettings != null) {
+			overlaySettings.saveWindowPosition(getLocation().x, getLocation().y);
 		}
 	}
 
@@ -421,10 +420,10 @@ public class StickValue extends DraggableOverlay implements FlightDataListener {
 	// }
 
 	public void reinitConfig() {
-		if (settings != null) {
-			NumFont = settings.getString("GlobalNumFont", Application.defaultNumfontName);
-			FontName = settings.getFontName();
-			fontadd = settings.getFontSizeAdd();
+		if (overlaySettings != null) {
+			NumFont = overlaySettings.getString("GlobalNumFont", Application.defaultNumfontName);
+			FontName = overlaySettings.getFontName();
+			fontadd = overlaySettings.getFontSizeAdd();
 		} else {
 			NumFont = Application.defaultNumfontName;
 			FontName = Application.defaultFont.getFontName();
@@ -444,16 +443,16 @@ public class StickValue extends DraggableOverlay implements FlightDataListener {
 		int theight = (int) (height + 1.5 * fontSize);
 
 		int sw = 0;
-		if (settings != null && settings.getBool("enableAxisEdge", false)) {
+		if (overlaySettings != null && overlaySettings.getBool("enableAxisEdge", false)) {
 			sw = 10;
 		}
 
 		int totalWidth = twidth + (sw * 2);
 		int totalHeight = theight + (sw * 2);
 
-		if (settings != null) {
-			lx = settings.getWindowX(totalWidth);
-			ly = settings.getWindowY(totalHeight);
+		if (overlaySettings != null) {
+			lx = overlaySettings.getWindowX(totalWidth);
+			ly = overlaySettings.getWindowY(totalHeight);
 		}
 		px = width / 2;
 		py = width / 2;

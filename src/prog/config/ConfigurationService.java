@@ -248,7 +248,8 @@ public class ConfigurationService implements ConfigProvider {
             this.sectionName = sectionName;
         }
 
-        protected ConfigLoader.GroupConfig getGroupConfig() {
+        @Override
+        public ConfigLoader.GroupConfig getGroupConfig() {
             if (layoutConfigs == null)
                 return null;
             for (ConfigLoader.GroupConfig gc : layoutConfigs) {
@@ -263,27 +264,44 @@ public class ConfigurationService implements ConfigProvider {
         public int getWindowX(int width) {
             ConfigLoader.GroupConfig gc = getGroupConfig();
             if (gc != null) {
-                return (int) Math.round(gc.x * Application.screenWidth);
+                int px = (int) Math.round(gc.x * Application.screenWidth);
+                prog.util.Logger.debug("OverlaySettings", String.format("[%s] getWindowX: gc.x=%.4f, screen=%d => %d",
+                        sectionName, gc.x, Application.screenWidth, px));
+                return px;
             }
-            return (Application.screenWidth - width) / 2;
+            int cx = (Application.screenWidth - width) / 2;
+            prog.util.Logger.debug("OverlaySettings",
+                    String.format("[%s] getWindowX: gc=null => center %d", sectionName, cx));
+            return cx;
         }
 
         @Override
         public int getWindowY(int height) {
             ConfigLoader.GroupConfig gc = getGroupConfig();
             if (gc != null) {
-                return (int) Math.round(gc.y * Application.screenHeight);
+                int py = (int) Math.round(gc.y * Application.screenHeight);
+                prog.util.Logger.debug("OverlaySettings", String.format("[%s] getWindowY: gc.y=%.4f, screen=%d => %d",
+                        sectionName, gc.y, Application.screenHeight, py));
+                return py;
             }
-            return (Application.screenHeight - height) / 2;
+            int cy = (Application.screenHeight - height) / 2;
+            prog.util.Logger.debug("OverlaySettings",
+                    String.format("[%s] getWindowY: gc=null => center %d", sectionName, cy));
+            return cy;
         }
 
         @Override
         public void saveWindowPosition(double x, double y) {
             ConfigLoader.GroupConfig gc = getGroupConfig();
-            if (gc != null) {
+            if (gc != null && Application.screenWidth > 0 && Application.screenHeight > 0) {
                 gc.x = x / Application.screenWidth;
                 gc.y = y / Application.screenHeight;
+                prog.util.Logger.debug("OverlaySettings", String
+                        .format("[%s] saveWindowPosition: %f,%f => rel %.4f,%.4f", sectionName, x, y, gc.x, gc.y));
                 saveLayoutConfig();
+            } else {
+                prog.util.Logger.warn("OverlaySettings", String.format("[%s] CANNOT save position: gc=%s, screen=%dx%d",
+                        sectionName, (gc != null ? "OK" : "null"), Application.screenWidth, Application.screenHeight));
             }
         }
 

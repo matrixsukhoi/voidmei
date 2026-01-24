@@ -43,4 +43,9 @@ public interface OverlaySettings {
     int getInt(String key, int def);
 
     String getString(String key, String def);
+
+    /**
+     * Get the underlying GroupConfig for advanced configuration access.
+     */
+    ConfigLoader.GroupConfig getGroupConfig();
 }

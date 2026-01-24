@@ -2,9 +2,7 @@ package ui.overlay;
 
 import java.util.List;
 
-import parser.AttributePool;
 import ui.base.FieldOverlay;
-import prog.config.ConfigProvider;
 import ui.model.FieldDefinition;
 import ui.model.FlightInfoConfig;
 import ui.renderer.BOSStyleRenderer;
@@ -38,38 +36,33 @@ public class FlightInfo extends FieldOverlay {
 	}
 
 	/**
-	 * Initialize with FlightInfoConfig.
+	 * Standardized initialization.
 	 */
-	public void init(ConfigProvider config, AttributePool pool, FlightInfoConfig flightInfoConfig) {
-		this.flightInfoConfig = flightInfoConfig;
+	public void init(prog.Controller c, prog.Service s, prog.config.OverlaySettings settings) {
+		this.config = c;
+		this.flightInfoConfig = ui.model.FlightInfoConfig.createDefault(c, settings.getGroupConfig());
 
-		// Set config keys from FlightInfoConfig
+		// Standardize style/font keys from Config object
 		this.numFontKey = flightInfoConfig.numFontKey;
 		this.labelFontKey = flightInfoConfig.labelFontKey;
-		// this.fontAddKey = flightInfoConfig.fontAddKey;
 		this.columnKey = flightInfoConfig.columnKey;
 		this.edgeKey = flightInfoConfig.edgeKey;
 		this.defaultShowEdge = flightInfoConfig.showEdge;
 		this.title = flightInfoConfig.title;
 
-		// Set position keys - Deprecated/Removed in favor of GroupConfig
-		// setPositionKeys(flightInfoConfig.posXKey, flightInfoConfig.posYKey);
+		setOverlaySettings(settings);
+		super.init(c, c.globalPool);
 
-		// Call parent init
-		super.init(config, pool);
-
-		// Initialize overlaySettings for FieldOverlay support
-		if (flightInfoConfig.groupConfig != null && config instanceof prog.Controller) {
-			setOverlaySettings(
-					((prog.Controller) config).configService.getOverlaySettings(flightInfoConfig.groupConfig.title));
+		if (s != null) {
+			setVisible(true);
 		}
 	}
 
 	/**
-	 * Initialize for preview mode.
+	 * Initialize for preview mode using standardized signature.
 	 */
-	public void initPreview(ConfigProvider config, AttributePool pool, FlightInfoConfig flightInfoConfig) {
-		init(config, pool, flightInfoConfig);
+	public void initPreview(prog.Controller c, prog.config.OverlaySettings settings) {
+		init(c, null, settings);
 		applyPreviewStyle();
 		setupDragListeners();
 		setVisible(true);
@@ -86,32 +79,6 @@ public class FlightInfo extends FieldOverlay {
 		super.reinitConfig();
 	}
 
-	@Override
-	protected int[] loadPosition(int defaultX, int defaultY) {
-		if (flightInfoConfig != null && flightInfoConfig.groupConfig != null) {
-			int screenW = java.awt.Toolkit.getDefaultToolkit().getScreenSize().width;
-			int screenH = java.awt.Toolkit.getDefaultToolkit().getScreenSize().height;
-			int x = (int) Math.round(flightInfoConfig.groupConfig.x * screenW);
-			int y = (int) Math.round(flightInfoConfig.groupConfig.y * screenH);
-			return new int[] { x, y };
-		}
-		return super.loadPosition(defaultX, defaultY);
-	}
-
-	@Override
-	public void saveCurrentPosition() {
-		if (flightInfoConfig != null && flightInfoConfig.groupConfig != null) {
-			int screenW = java.awt.Toolkit.getDefaultToolkit().getScreenSize().width;
-			int screenH = java.awt.Toolkit.getDefaultToolkit().getScreenSize().height;
-
-			flightInfoConfig.groupConfig.x = (double) getLocation().x / screenW;
-			flightInfoConfig.groupConfig.y = (double) getLocation().y / screenH;
-
-			if (config instanceof prog.Controller) {
-				((prog.Controller) config).configService.saveLayoutConfig();
-			}
-		} else {
-			super.saveCurrentPosition();
-		}
-	}
+	// Manual loadPosition and saveCurrentPosition overrides removed.
+	// DraggableOverlay handles this via OverlaySettings automatically.
 }

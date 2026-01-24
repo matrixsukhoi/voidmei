@@ -127,7 +127,7 @@ public abstract class FieldOverlay extends DraggableOverlay implements FlightDat
 
         int width = renderContext.getTotalWidth();
         int height = renderContext.getTotalHeight(fieldManager.size());
-        int[] pos = loadPosition(0, 0);
+        int[] pos = loadPosition(width, height);
         this.setBounds(pos[0], pos[1], width, height);
 
         repaint();

@@ -456,101 +456,16 @@ public class Controller implements ConfigProvider {
 		// EngineControl - supports preview (fully event-driven)
 		overlayManager.registerWithPreview("enableEngineControl",
 				() -> new EngineControl(),
-				overlay -> {
-					prog.config.ConfigLoader.GroupConfig ecConfig = null;
-					if (dynamicConfigs != null) {
-						for (prog.config.ConfigLoader.GroupConfig gc : dynamicConfigs) {
-							if ("引擎控制".equals(gc.title) || "Engine Control".equals(gc.title)) {
-								ecConfig = gc;
-								break;
-							}
-						}
-					}
-					// Fallback
-					if (ecConfig == null) {
-						ecConfig = new prog.config.ConfigLoader.GroupConfig("引擎控制");
-						ecConfig.x = 0;
-						ecConfig.y = 0.5;
-						ecConfig.visible = false;
-					}
-					// Create config bridge
-					final prog.config.ConfigProvider configBridge = new prog.config.ConfigProvider() {
-						@Override
-						public String getConfig(String key) {
-							return Controller.this.getconfig(key);
-						}
-
-						@Override
-						public void setConfig(String key, String value) {
-							Controller.this.setconfig(key, value);
-						}
-					};
-					((EngineControl) overlay).init(configBridge, ecConfig, () -> configService.saveLayoutConfig());
-				},
-				overlay -> {
-					prog.config.ConfigLoader.GroupConfig ecConfig = null;
-					if (dynamicConfigs != null) {
-						for (prog.config.ConfigLoader.GroupConfig gc : dynamicConfigs) {
-							if ("引擎控制".equals(gc.title) || "Engine Control".equals(gc.title)) {
-								ecConfig = gc;
-								break;
-							}
-						}
-					}
-					// Create config bridge
-					final prog.config.ConfigProvider configBridge = new prog.config.ConfigProvider() {
-						@Override
-						public String getConfig(String key) {
-							return Controller.this.getconfig(key);
-						}
-
-						@Override
-						public void setConfig(String key, String value) {
-							Controller.this.setconfig(key, value);
-						}
-					};
-					((EngineControl) overlay).initPreview(configBridge, ecConfig,
-							() -> configService.saveLayoutConfig());
-				},
+				overlay -> ((EngineControl) overlay).init(this, S, configService.getOverlaySettings("引擎控制")),
+				overlay -> ((EngineControl) overlay).initPreview(this, configService.getOverlaySettings("引擎控制")),
 				overlay -> ((EngineControl) overlay).reinitConfig(),
 				true);
 
 		// EngineInfo (moved from hardcoded to layout config)
 		overlayManager.registerWithPreview("engineInfoSwitch",
 				() -> new EngineInfo(),
-				overlay -> {
-					prog.config.ConfigLoader.GroupConfig eiConfig = null;
-					if (dynamicConfigs != null) {
-						for (prog.config.ConfigLoader.GroupConfig gc : dynamicConfigs) {
-							if ("引擎信息".equals(gc.title) || "Engine Info".equals(gc.title)) {
-								eiConfig = gc;
-								break;
-							}
-						}
-					}
-					// Fallback
-					if (eiConfig == null) {
-						eiConfig = new prog.config.ConfigLoader.GroupConfig("引擎信息");
-						eiConfig.x = 0.01;
-						eiConfig.y = 0.3;
-						eiConfig.visible = true;
-					}
-					((EngineInfo) overlay).init(this, globalPool,
-							ui.model.EngineInfoConfig.createDefault(this, eiConfig));
-				},
-				overlay -> {
-					prog.config.ConfigLoader.GroupConfig eiConfig = null;
-					if (dynamicConfigs != null) {
-						for (prog.config.ConfigLoader.GroupConfig gc : dynamicConfigs) {
-							if ("引擎信息".equals(gc.title) || "Engine Info".equals(gc.title)) {
-								eiConfig = gc;
-								break;
-							}
-						}
-					}
-					((EngineInfo) overlay).initPreview(this, globalPool,
-							ui.model.EngineInfoConfig.createDefault(this, eiConfig));
-				},
+				overlay -> ((EngineInfo) overlay).init(this, S, configService.getOverlaySettings("引擎信息")),
+				overlay -> ((EngineInfo) overlay).initPreview(this, configService.getOverlaySettings("引擎信息")),
 				overlay -> ((EngineInfo) overlay).reinitConfig(),
 				true);
 
@@ -565,51 +480,10 @@ public class Controller implements ConfigProvider {
 		// FlightInfo - supports preview
 		overlayManager.registerWithPreview("flightInfoSwitch",
 				() -> new FlightInfo(),
-				overlay -> {
-					prog.config.ConfigLoader.GroupConfig fiConfig = null;
-					if (dynamicConfigs != null) {
-						for (prog.config.ConfigLoader.GroupConfig gc : dynamicConfigs) {
-							if ("飞行信息".equals(gc.title)) {
-								fiConfig = gc;
-								break;
-							}
-						}
-					}
-					// Fallback
-					if (fiConfig == null) {
-						fiConfig = new prog.config.ConfigLoader.GroupConfig("飞行信息");
-						fiConfig.x = 0; // Will benefit from legacy fallback in Config
-						fiConfig.y = 0;
-						fiConfig.visible = true;
-					}
-					((FlightInfo) overlay).init(this, globalPool,
-							ui.model.FlightInfoConfig.createDefault(this, fiConfig));
-				},
-				overlay -> {
-					// We need to re-find or pass config again?
-					// Ideally reinitConfig just re-applies existing config, but creates new
-					// default?
-					// createDefault needs GroupConfig.
-					// Let's store reference or just re-find.
-					// Since overlay already has config, maybe we don't need to rebuild it entirely
-					// if just reinitializing?
-					// Usage in Controller seems to create new default config on init.
-					// For Preview re-init, we also need GroupConfig.
-					// Simplified: Find it again.
-					prog.config.ConfigLoader.GroupConfig fiConfig = null;
-					if (dynamicConfigs != null) {
-						for (prog.config.ConfigLoader.GroupConfig gc : dynamicConfigs) {
-							if ("飞行信息".equals(gc.title)) {
-								fiConfig = gc;
-								break;
-							}
-						}
-					}
-					((FlightInfo) overlay).initPreview(this, globalPool,
-							ui.model.FlightInfoConfig.createDefault(this, fiConfig));
-				},
+				overlay -> ((FlightInfo) overlay).init(this, S, configService.getOverlaySettings("飞行信息")),
+				overlay -> ((FlightInfo) overlay).initPreview(this, configService.getOverlaySettings("飞行信息")),
 				overlay -> ((FlightInfo) overlay).reinitConfig(),
-				false);
+				true);
 
 		// StickValue - supports preview (uses initpreview lowercase)
 		overlayManager.registerWithPreview("enableAxis",
