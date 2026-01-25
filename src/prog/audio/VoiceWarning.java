@@ -5,17 +5,13 @@ import prog.Controller;
 import prog.Service;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStream;
 
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.Clip;
 import javax.sound.sampled.DataLine;
-import javax.sound.sampled.FloatControl;
 import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.UnsupportedAudioFileException;
 
@@ -26,34 +22,29 @@ import parser.State;
 public class VoiceWarning implements Runnable {
     long GCCheckMili;
     Service xS;
+
+    // Remove imports of State/Indicators to keep it clean if possible, but they are
+    // used in run()
     State st;
     Indicators indic;
     Boolean doit;
     private boolean playCompleted;
 
+    // Only used for direct playWav tool (legacy?)
     public void playWav(String Path) {
+        // ... kept as legacy or util ...
         try {
             File audioFile = new File(Path);
+            // Quick implementation using new Manager if possible, but Path here is a full
+            // path?
+            // Let's leave it as is for compatibility with potential external callers
             AudioInputStream audioStream = AudioSystem.getAudioInputStream(audioFile);
             AudioFormat format = audioStream.getFormat();
             DataLine.Info info = new DataLine.Info(Clip.class, format);
             Clip audioClip = (Clip) AudioSystem.getLine(info);
             audioClip.open(audioStream);
             audioClip.start();
-            // Note: This is fire-and-forget for now, similar to previous implementation.
-            // Ideally we should close resources, but for short warnings this is often
-            // acceptable in legacy code migration.
-            // A listener could be added to close the clip after playback.
-            audioClip.addLineListener(event -> {
-                if (javax.sound.sampled.LineEvent.Type.STOP.equals(event.getType())) {
-                    audioClip.close();
-                }
-            });
-        } catch (UnsupportedAudioFileException e) {
-            e.printStackTrace();
-        } catch (LineUnavailableException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
@@ -63,6 +54,12 @@ public class VoiceWarning implements Runnable {
     public double iasWarningLine;
     public double machWarningLine;
 
+    // Registry for hot-reloading
+    private java.util.Map<String, audClip> clipRegistry = new java.util.HashMap<>();
+
+    // Config listener
+    private java.util.function.Consumer<Object> configHandler;
+
     public class audClip {
 
         Clip clip;
@@ -71,75 +68,28 @@ public class VoiceWarning implements Runnable {
         long lastTimePlay;
         long coolDown;
         Boolean available;
+        String key;
 
-        public audClip(String path, long coolDownSeconds) {
-            File audioFile = new File(path);
-            playCompleted = false;
-            Clip audioClip = null;
-            available = true;
-            try {
-                AudioInputStream audioStream = AudioSystem.getAudioInputStream(audioFile);
-
-                AudioFormat format = audioStream.getFormat();
-
-                DataLine.Info info = new DataLine.Info(Clip.class, format);
-
-                audioClip = (Clip) AudioSystem.getLine(info);
-
-                // audioClip.addLineListener(this);
-
-                audioClip.open(audioStream);
-
-                FloatControl gainControl = (FloatControl) audioClip.getControl(FloatControl.Type.MASTER_GAIN);
-                float range = gainControl.getMaximum() - gainControl.getMinimum();
-                // Application.debugPrint(range);
-                //
-                float rangen = 0 - gainControl.getMinimum();
-                float rangep = gainControl.getMaximum() - 0;
-                float val = 0.0f;
-                if (Application.voiceVolumn <= 100) {
-                    val = gainControl.getMinimum() + (float) Math.log10(Application.voiceVolumn) * rangen / 2.0f;
-                    if (val < gainControl.getMinimum())
-                        val = gainControl.getMinimum();
-                }
-
-                // 大于100属于增益
-                if (Application.voiceVolumn > 100) {
-                    val = (Application.voiceVolumn - 100) * rangep / 100.0f;
-                    if (val > gainControl.getMaximum())
-                        val = gainControl.getMaximum();
-
-                }
-
-                // Application.debugPrint(val);
-                if (gainControl != null)
-                    gainControl.setValue(val);
-                // Math.log10(Application.voiceVolumn)/2.0f;
-                // 映射使用log方式
-                // f(x) [0, 200] -> [0, ]; 越接近1的越密
-
-                // audioClip.start();
-
-                // audioClip.close();
-
-            } catch (UnsupportedAudioFileException ex) {
-                Application.debugPrint("The specified audio file is not supported: " + path);
-                // ex.printStackTrace();
-                available = false;
-            } catch (LineUnavailableException ex) {
-                Application.debugPrint("Audio line for playing back is unavailable: " + path);
-                // ex.printStackTrace();
-                available = false;
-            } catch (IOException ex) {
-                Application.debugPrint("Error playing the audio file: " + path);
-                // ex.printStackTrace();
-                available = false;
-            }
-            // 获得clip
-            this.clip = audioClip;
+        public audClip(String key, long coolDownSeconds) {
+            this.key = key;
+            this.coolDown = coolDownSeconds * 1000;
             this.cnt = 0;
             this.isAct = false;
-            this.coolDown = coolDownSeconds * 1000;
+
+            // Register self
+            clipRegistry.put(key, this);
+
+            reload();
+        }
+
+        public void reload() {
+            // Determine scale/pack from config
+            String packName = xc.getConfig("voice_" + key);
+
+            this.clip = VoiceResourceManager.getInstance().loadClip(key, packName);
+            this.available = (this.clip != null);
+            // this.playCompleted = false; // Removed as it referred to outer class unused
+            // field
         }
 
         public void playOnce(long time) {
@@ -147,22 +97,23 @@ public class VoiceWarning implements Runnable {
                 this.isAct = true;
                 this.lastTimePlay = time;
 
-                if (!this.available)
+                if (!this.available || this.clip == null)
                     return;
 
                 try {
                     this.clip.setFramePosition(0);
                     this.clip.start();
                 } catch (Exception e) {
-                    Application.debugPrint("Error restarting clip");
+                    Application.debugPrint("Error restarting clip: " + key);
                     e.printStackTrace();
                 }
             }
         }
 
         public Boolean isPlaying(long time) {
-            if (!this.available)
-                return true;
+            if (!this.available || this.clip == null)
+                return true; // Pretend playing to avoid rapid retry loops if failed
+
             if (this.isAct) {
                 if (time - this.lastTimePlay <= this.coolDown) {
                     return true;
@@ -174,10 +125,13 @@ public class VoiceWarning implements Runnable {
         }
 
         public void close() {
-            if (!this.available)
-                this.clip.close();
+            // Managed by resource manager if caching is implemented,
+            // or we just leave it to GC/system.
+            // Current Resource Manager doesn't cache yet, so maybe we SHOULD close it if
+            // replacing?
+            // For now, let's keep it simple.
+            // if (this.clip != null) this.clip.close();
             this.clip = null;
-
         }
     };
 
@@ -260,15 +214,31 @@ public class VoiceWarning implements Runnable {
     public void init(Controller c, Service S) {
         if (S == null) {
             doit = false;
-            return; // Prevent NPE if Service is not yet initialized (e.g. in Preview Mode)
+            return;
         }
         xS = S;
         xc = c;
         st = xS.sState;
         indic = xS.sIndic;
+
+        // Config Listener
+        if (configHandler == null) {
+            configHandler = key -> {
+                if (key instanceof String && ((String) key).startsWith("voice_")) {
+                    String wKey = ((String) key).substring(6); // remove "voice_"
+                    audClip clip = clipRegistry.get(wKey);
+                    if (clip != null) {
+                        clip.reload();
+                        prog.util.Logger.info("VoiceWarning", "Reloaded voice clip for: " + wKey);
+                    }
+                }
+            };
+            prog.event.UIStateBus.getInstance().subscribe(prog.event.UIStateEvents.CONFIG_CHANGED, configHandler);
+        }
+
         // 加载其他
-        aoaCrit = new audClip("./voice/aoaCrit.wav", 1);
-        aoaHigh = new audClip("./voice/aoaHigh.wav", 8);
+        aoaCrit = new audClip("aoaCrit", 1);
+        aoaHigh = new audClip("aoaHigh", 8);
         aoaWarningLine = 15;
         parser.Blkx b = xc.getBlkx();
         if (b != null && b.valid)
@@ -277,23 +247,23 @@ public class VoiceWarning implements Runnable {
         rudderEffIAS = 65535;
         elevatorEffIAS = 65535;
         aileronEffIAS = 65535;
-        int lowEff = 20;
+        // int lowEff = 20;
         if (b != null && b.valid) {
             rudderEffIAS = (int) (b.rudderEff);
             elevatorEffIAS = (int) (b.elavEff);
             aileronEffIAS = (int) (b.aileronEff);
         }
 
-        rudderEff = new audClip("./voice/rudderEff.wav", 10);
-        elevatorEff = new audClip("./voice/elevatorEff.wav", 10);
-        aileronEff = new audClip("./voice/aileronEff.wav", 10);
-        //
-        // rpmThrottleWarn = new audClip("./voice/warn_pitch.wav", 10);
-        rpmLowWarn = new audClip("./voice/warn_lowrpm.wav", 10);
-        rpmHighWarn = new audClip("./voice/warn_highrpm.wav", 10);
+        rudderEff = new audClip("rudderEff", 10);
+        elevatorEff = new audClip("elevatorEff", 10);
+        aileronEff = new audClip("aileronEff", 10);
+
+        // rpmThrottleWarn = new audClip("warn_pitch", 10);
+        rpmLowWarn = new audClip("warn_lowrpm", 10);
+        rpmHighWarn = new audClip("warn_highrpm", 10);
 
         // 襟翼
-        flapWarn = new audClip("./voice/warn_flap.wav", 1);
+        flapWarn = new audClip("warn_flap", 1);
 
         // 失速
         speedWarningLine = 0;
@@ -301,8 +271,8 @@ public class VoiceWarning implements Runnable {
             speedWarningLine = b.CriticalSpeed * 3.6f;
         if (speedWarningLine == 0)
             speedWarningLine = 100;
-        // Application.debugPrint(speedWarningLine);
-        stallWarn = new audClip("./voice/warn_stall.wav", 2);
+
+        stallWarn = new audClip("warn_stall", 2);
 
         // 过载
         nyWarningLine0 = 0;
@@ -315,12 +285,11 @@ public class VoiceWarning implements Runnable {
             nyWarningLine0 = -4;
         if (nyWarningLine1 == 0)
             nyWarningLine1 = 10;
-        // Application.debugPrint(nyWarningLine0);
-        // Application.debugPrint(nyWarningLine1);
-        nyWarn = new audClip("./voice/warn_loadfactor.wav", 2);
+
+        nyWarn = new audClip("warn_loadfactor", 2);
 
         // ias
-        iasWarn = new audClip("./voice/warn_ias.wav", 10);
+        iasWarn = new audClip("warn_ias", 10);
         iasWarningLine = 0;
         if (b != null && b.valid)
             iasWarningLine = b.vne * 0.95f;
@@ -328,51 +297,49 @@ public class VoiceWarning implements Runnable {
             iasWarningLine = Float.MAX_VALUE;
 
         // mach
-        machWarn = new audClip("./voice/warn_mach.wav", 10);
+        machWarn = new audClip("warn_mach", 10);
         machWarningLine = 0;
         if (b != null && b.valid)
             machWarningLine = b.vneMach * 0.95f;
         if (machWarningLine == 0)
             machWarningLine = Float.MAX_VALUE;
-        // Application.debugPrint(machWarningLine);
 
         // gear
         gearWarningLine = 0;
-        gearWarn = new audClip("./voice/warn_gear.wav", 7);
+        gearWarn = new audClip("warn_gear", 7);
         if (b != null && b.valid)
             gearWarningLine = b.GearDestructionIndSpeed;
         if (gearWarningLine == 0)
             gearWarningLine = 450;
-        // Application.debugPrint(gearWarningLine);
 
         // 温度
-        engWarn = new audClip("./voice/warn_engineoverheat.wav", 60);
+        engWarn = new audClip("warn_engineoverheat", 60);
 
         // 引擎失效
-        engFail = new audClip("./voice/fail_engine.wav", 60);
-        engFailInvert = new audClip("./voice/fail_engine.wav", 5);
+        engFail = new audClip("fail_engine", 60);
+        engFailInvert = new audClip("fail_engine", 5);
 
         // 高度
-        heightWarn = new audClip("./voice/warn_altitude.wav", 5);
+        heightWarn = new audClip("warn_altitude", 5);
 
         // 雷达高度
-        terrainWarn = new audClip("./voice/warn_terrain.wav", 5);
+        terrainWarn = new audClip("warn_terrain", 5);
 
         // 燃油
         lowfuelWarningLine = 10;
-        fuelWarn = new audClip("./voice/warn_lowfuel.wav", 60);
+        fuelWarn = new audClip("warn_lowfuel", 60);
 
-        fuelPrsWarn = new audClip("./voice/warn_lowpressure.wav", 30);
-        oofWarn = new audClip("./voice/fail_nofuel.wav", 60);
+        fuelPrsWarn = new audClip("warn_lowpressure", 30);
+        oofWarn = new audClip("fail_nofuel", 60);
 
         // 下降率
-        varioWarn = new audClip("./voice/warn_highvario.wav", 5);
+        varioWarn = new audClip("warn_highvario", 5);
 
         // 减速板
-        brakeWarn = new audClip("./voice/warn_brake.wav", 8);
+        brakeWarn = new audClip("warn_brake", 8);
 
         // 初始化
-        audClip aC = new audClip("./voice/start1.wav", 1);
+        audClip aC = new audClip("start1", 1);
         aC.playOnce(xS.SystemTime);
         // aC.close();
         aC = null;

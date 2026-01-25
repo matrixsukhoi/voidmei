@@ -32,6 +32,7 @@ src/prog/util/UIStateStorage.java
 src/prog/util/Logger.java
 src/prog/util/FormulaEvaluator.java
 src/prog/util/HttpHelper.java
+src/prog/audio/VoiceResourceManager.java
 src/prog/audio/VoiceWarning.java
 src/prog/config/ConfigurationService.java
 src/prog/config/ConfigWatcherService.java
@@ -94,6 +95,7 @@ src/ui/layout/renderer/HotkeyRowRenderer.java
 src/ui/layout/renderer/RowRendererRegistry.java
 src/ui/layout/renderer/TextRowRenderer.java
 src/ui/layout/renderer/DataRowRenderer.java
+src/ui/layout/renderer/VoiceRowRenderer.java
 src/ui/layout/renderer/FileListRowRenderer.java
 src/ui/layout/renderer/SliderRowRenderer.java
 src/ui/layout/renderer/ButtonRowRenderer.java
