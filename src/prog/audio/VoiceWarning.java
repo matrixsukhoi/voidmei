@@ -144,20 +144,19 @@ public class VoiceWarning implements Runnable {
 
         public void playOnce(long time) {
             if (!this.isPlaying(time)) {
-
                 this.isAct = true;
                 this.lastTimePlay = time;
-                // this.clip.stop();
 
                 if (!this.available)
                     return;
-                if (cnt++ == 0)
+
+                try {
+                    this.clip.setFramePosition(0);
                     this.clip.start();
-                else
-                    this.clip.loop(1);
-                // this.clip.start();
-                // cnt++;
-                // Application.debugPrint(cnt);
+                } catch (Exception e) {
+                    Application.debugPrint("Error restarting clip");
+                    e.printStackTrace();
+                }
             }
         }
 
@@ -406,8 +405,8 @@ public class VoiceWarning implements Runnable {
             try {
                 Thread.sleep(sleepTime);
             } catch (InterruptedException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
+                doit = false;
+                break;
             }
             Boolean fatal = false;
             Boolean noRPM = false;

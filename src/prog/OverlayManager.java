@@ -309,6 +309,9 @@ public class OverlayManager {
                 prog.util.Logger.info("OverlayManager", "Disposed window: " + key);
             }
 
+            if (thread != null) {
+                thread.interrupt();
+            }
             instance = null;
             thread = null;
         }
