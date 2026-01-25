@@ -21,4 +21,12 @@ public interface ConfigProvider {
      * @param value Value to set
      */
     void setConfig(String key, String value);
+
+    /**
+     * Check if a field is disabled by configuration.
+     * 
+     * @param key Configuration key
+     * @return true if disabled, false if enabled
+     */
+    boolean isFieldDisabled(String key);
 }

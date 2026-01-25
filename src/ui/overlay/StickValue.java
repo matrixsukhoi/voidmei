@@ -25,7 +25,6 @@ import ui.UIBaseElements;
 import ui.WebLafSettings;
 import ui.base.DraggableOverlay;
 import prog.config.OverlaySettings;
-import java.util.Map;
 
 public class StickValue extends DraggableOverlay implements FlightDataListener {
 
@@ -67,8 +66,6 @@ public class StickValue extends DraggableOverlay implements FlightDataListener {
 	private String sRudderUnit;
 	private String sWingSweepLabel;
 	private String sWingSweepUnit;
-
-	private int rudderVal; // Stored numeric value
 
 	public void setFrameOpaque() {
 		this.getWebRootPaneUI().setMiddleBg(new Color(0, 0, 0, 0));// 中部透明

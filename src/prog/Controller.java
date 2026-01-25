@@ -316,6 +316,11 @@ public class Controller implements ConfigProvider {
 		configService.setConfig(key, value);
 	}
 
+	@Override
+	public boolean isFieldDisabled(String key) {
+		return configService.isFieldDisabled(key);
+	}
+
 	// Legacy lowercase methods
 	public String getconfig(String key) {
 		return getConfig(key);
@@ -646,8 +651,10 @@ public class Controller implements ConfigProvider {
 		}
 
 		S = null;
-		S1.interrupt();
-		S1 = null;
+		if (S1 != null) {
+			S1.interrupt();
+			S1 = null;
+		}
 		System.gc();
 	}
 

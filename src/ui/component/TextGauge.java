@@ -49,11 +49,15 @@ public class TextGauge {
 
         int lwidth = (13 * fontNum.getSize()) >> 2;
         int centerY = (y + y + fontLabel.getSize() + fontUnit.getSize()) >> 1;
+        int numPadding = Math.max(4, fontNum.getSize() / 4);
 
         if (valBuffer != null && valLen > 0) {
-            drawTextShaded(g2d, x, centerY, valBuffer, valLen, fontNum, Application.colorNum);
+            int valWidth = g2d.getFontMetrics(fontNum).charsWidth(valBuffer, 0, valLen);
+            drawTextShaded(g2d, x + lwidth - valWidth - numPadding, centerY, valBuffer, valLen, fontNum,
+                    Application.colorNum);
         } else {
-            drawTextShaded(g2d, x, centerY, value, fontNum, Application.colorNum);
+            int valWidth = g2d.getFontMetrics(fontNum).stringWidth(value);
+            drawTextShaded(g2d, x + lwidth - valWidth - numPadding, centerY, value, fontNum, Application.colorNum);
         }
 
         drawTextShaded(g2d, x + lwidth, y, label, fontLabel, Application.colorLabel);

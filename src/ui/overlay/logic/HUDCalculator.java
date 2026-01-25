@@ -15,11 +15,12 @@ import ui.overlay.MinimalHUDContext;
  */
 public class HUDCalculator {
 
-    public static HUDData calculate(prog.event.FlightDataEvent event, parser.Blkx blkx, HUDSettings settings,
+    public static HUDData calculate(prog.event.FlightDataEvent event, ui.model.TelemetrySource source, parser.Blkx blkx,
+            HUDSettings settings,
             MinimalHUDContext ctx) {
         HUDData.Builder b = new HUDData.Builder();
 
-        if (event == null)
+        if (event == null || source == null)
             return b.build();
 
         Map<String, String> data = event.getData();
@@ -27,13 +28,12 @@ public class HUDCalculator {
         parser.Indicators sIndic = (parser.Indicators) event.getIndicators();
 
         // --- Raw Flight Data ---
-        b.ias = safeParseDouble(data.get("ias_val"), 0);
-        b.mach = (sState != null) ? sState.M : 0;
-        b.altitude = safeParseDouble(data.get("alt_val"), 0);
-        b.radioAltitude = safeParseDouble(data.get("radioAlt_f"), 0);
-        b.verticalSpeed = safeParseDouble(data.get("sep_val"), 0);
-        b.heading = safeParseDouble(data.get("compass_val"), 0);
-        b.turnRate = 0;
+        b.ias = source.getIAS();
+        b.mach = source.getMach();
+        b.altitude = source.getAltitude();
+        b.radioAltitude = source.getRadioAltitude();
+        b.verticalSpeed = source.getSEP();
+        b.heading = source.getCompass();
 
         b.mapGrid = data.get("mapGrid");
         if (b.mapGrid == null)
@@ -88,7 +88,7 @@ public class HUDCalculator {
             b.gLoad = sState.Ny;
         }
 
-        b.energyM = safeParseDouble(data.get("energyM"), 0);
+        b.energyM = source.getEnergyJKg();
 
         b.isMachMode = settings.drawHudMach();
         b.isGearDown = b.gear > 0;
@@ -159,7 +159,10 @@ public class HUDCalculator {
 
         // Warnings
         double radioAlt = b.radioAltitude;
-        boolean radioAltValid = Boolean.parseBoolean(data.get("radioAltValid"));
+        if (sState != null && sState.heightm < 500) { // Should use RadioAlt logic from Service
+            // But we need the 'radioAltValid' flag.
+        }
+        boolean radioAltValid = source.isRadioAltitudeValid();
         if (radioAltValid && radioAlt <= 500) {
             b.warnAltitude = true;
         }

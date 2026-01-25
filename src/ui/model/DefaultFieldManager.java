@@ -25,8 +25,7 @@ public class DefaultFieldManager implements FieldManager {
     public void addField(String key, String label, String unit, String configKey, boolean hideWhenNA,
             String exampleValue) {
         if (config != null && configKey != null) {
-            String tmp = config.getConfig(configKey);
-            if (tmp != null && !tmp.isEmpty() && Boolean.parseBoolean(tmp)) {
+            if (config.isFieldDisabled(configKey)) {
                 return;
             }
         }
@@ -57,9 +56,16 @@ public class DefaultFieldManager implements FieldManager {
 
     @Override
     public void bind(String key, java.util.function.DoubleSupplier supplier, int precision) {
+        bind(key, supplier, null, precision);
+    }
+
+    @Override
+    public void bind(String key, java.util.function.DoubleSupplier valueSupplier,
+            java.util.function.BooleanSupplier visibilitySupplier, int precision) {
         DataField field = fieldMap.get(key);
         if (field != null) {
-            field.valueSupplier = supplier;
+            field.valueSupplier = valueSupplier;
+            field.visibilitySupplier = visibilitySupplier;
             field.precision = precision;
         }
     }

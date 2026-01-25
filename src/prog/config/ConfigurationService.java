@@ -153,6 +153,32 @@ public class ConfigurationService implements ConfigProvider {
     // --- ConfigProvider Implementation ---
 
     @Override
+    public boolean isFieldDisabled(String key) {
+        if (key == null || key.isEmpty())
+            return false;
+
+        if (layoutConfigs != null) {
+            for (ConfigLoader.GroupConfig gc : layoutConfigs) {
+                ConfigLoader.RowConfig row = findRowRecursive(gc.rows, key);
+                if (row != null) {
+                    if ("SWITCH_INV".equals(row.type)) {
+                        // For SWITCH_INV, the key is usually "disableXXX".
+                        // Logic must match getConfig() which returns !row.getBool().
+                        // If getConfig() returns "true", it is DISABLED.
+                        // Thus isFieldDisabled should return !row.getBool().
+                        return !row.getBool();
+                    }
+                    if (row.value instanceof Boolean) {
+                        // For 'data' or 'switch', if value is false, it means it is HIDDEN/DISABLED.
+                        return !((Boolean) row.value);
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    @Override
     public String getConfig(String key) {
         // Priority 1: Check in-memory LayoutConfigs (Source of Truth)
         if (layoutConfigs != null) {
@@ -177,9 +203,15 @@ public class ConfigurationService implements ConfigProvider {
 
     private ConfigLoader.RowConfig findRowRecursive(java.util.List<ConfigLoader.RowConfig> rows, String key) {
         for (ConfigLoader.RowConfig row : rows) {
-            if (key.equals(row.property) || (row.property == null && key.equals(row.label))) {
+            // Priority 1: Match property target exactly
+            if (key.equals(row.property)) {
                 return row;
             }
+            // Priority 2: Match label if property is missing
+            if (row.property == null && key.equals(row.label)) {
+                return row;
+            }
+            // Recurse
             if (row.children != null && !row.children.isEmpty()) {
                 ConfigLoader.RowConfig found = findRowRecursive(row.children, key);
                 if (found != null)

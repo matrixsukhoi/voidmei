@@ -182,6 +182,7 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 	public double nitrokg;
 	public double nitroConsump;
 	public int nitroEngNr;
+	public long sWepTimeVal; // Remaining WEP time in seconds
 
 	Boolean portOcupied = false;
 	private int checkEngineType;
@@ -390,9 +391,7 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 			} else {
 				twepTime = (int) (((c.getBlkx().nitro / c.getBlkx().nitroDecr - wepTime / 1000)) / nitroEngNr);
 
-				if (twepTime < 0) {
-					twepTime = 0;
-				}
+				sWepTimeVal = twepTime;
 				if (twepTime / 60 >= 100) {
 					sWepTime = String.format("%3d", twepTime / 60);
 				} else {
@@ -453,134 +452,32 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 		// 1. Build Data Snapshot
 		Map<String, String> data = new HashMap<>();
 
-		// Push Standard Flight Data (Strings formatted in trans2String)
-		data.put("TAS", TAS);
-		data.put("IAS", IAS);
-		data.put("Mach", M);
-		data.put("AoA", AoA);
-		data.put("AoS", AoS);
-		data.put("Ny", Ny); // G-Load raw
-		data.put("G", sN); // G-Load formatted
-		data.put("Wx", Wx);
+		// --- ZERO-GC MIGRATION ---
+		// The following high-frequency fields are now accessed directly via
+		// TelemetrySource (Service implements it).
+		// We no longer populate them in the Map to avoid Double->String allocation (GC
+		// pressure).
 
-		data.put("Altitude", salt);
-		data.put("RadioAltitude", sRadioAlt);
-		data.put("Vario", Vy);
-
-		data.put("Compass", compass);
-
-		data.put("throttle", throttle);
-		data.put("RPM", rpm);
-		data.put("manifold_pressure", manifoldpressure);
-		data.put("water_temp", watertemp);
-		data.put("oil_temp", oiltemp);
-		data.put("pitch", pitch != null && pitch.length > 0 ? pitch[0] : "N/A");
-
-		data.put("fuel", sTotalFuel);
-		data.put("fuel_time", sfueltime);
-
-		data.put("SEP", sSEP);
-		data.put("SEP_abs", sSEPAbs);
-		data.put("acceleration", sAcc);
-
-		data.put("turn_rate", sTurnRate);
-		data.put("turn_radius", sTurnRds);
-
-		data.put("wing_sweep", sWingSweep);
-		data.put("flaps", flaps);
-		data.put("gear", gear);
-		data.put("aileron", aileron);
-		data.put("elevator", elevator);
-		data.put("rudder", rudder);
+		// --- ZERO-GC MIGRATION (STRATEGIC RESTORATION) ---
+		// We only put fields that are TRULY needed by un-migrated logic or external
+		// tools.
+		// High-frequency UI digits (IAS, Alt, etc.) are handled via TelemetrySource +
+		// FastNumberFormatter.
 
 		data.put("valid", svalid);
 
-		// Push FlightInfoConfig Compatible Keys
-		data.put("ias", IAS);
-		data.put("tas", TAS);
-		data.put("mach", M);
-		data.put("dir", compass);
-		data.put("height", salt);
-		data.put("rda", sRadioAlt);
-		data.put("vario", Vy);
-		data.put("sep", sSEP);
-		data.put("acc", sAcc);
-		data.put("wx", Wx);
-		data.put("ny", sN);
-		data.put("turn", sTurnRate);
-		data.put("rds", sTurnRds);
-		data.put("aoa", AoA);
-		data.put("aos", AoS);
-		data.put("aoa", AoA);
-		data.put("aos", AoS);
-		data.put("ws", sWingSweep);
-
-		// Event-Driven Raw Data Support (Double values as Strings)
-		data.put("alt_val", String.valueOf(alt));
-		data.put("sep_val", String.valueOf(SEP));
-		data.put("compass_val", String.valueOf(dCompass));
-		data.put("ias_val", String.valueOf(IASv));
-
-		// Push EngineInfoConfig Compatible Keys
-		data.put("hp", sTotalHp);
-		data.put("thrust", sTotalThr);
-		data.put("eff_eta", sAvgEff);
-		data.put("eff_hp", sTotalHpEff);
-		data.put("eff_hp", sTotalHpEff);
-		data.put("pressure", manifoldpressure);
-		data.put("pressure_unit", pressureUnitStr);
-		data.put("power_percent", sThurstPercent);
-		data.put("fuel_kg", sTotalFuel);
-		// fuel_time already exists
-		data.put("wep", sNitro);
-		data.put("wep_time", sWepTime);
-		data.put("temp", watertemp);
-		// oil_temp already exists
-		data.put("heat_time", sEngWorkTime);
-		data.put("response", SdThrustPercent);
-
-		// Push EngineControl Compatible Keys
-		data.put("mixture", mixture);
-		data.put("radiator", radiator);
-		data.put("compressor", compressorstage);
-		data.put("fuel_percent", sfuelPercent);
-		data.put("rpm_throttle", RPMthrottle);
-		data.put("thrust_percent", sThurstPercent);
+		// Metadata for state checks (Low frequency or logic-only)
 		data.put("is_jet", String.valueOf(iEngType == ENGINE_TYPE_JET));
 		data.put("engine_check_done", String.valueOf(checkEngineFlag));
-		if (sState != null) {
-			data.put("throttle_int", String.valueOf(sState.throttle));
-			data.put("mixture_int", String.valueOf(sState.mixture));
-			data.put("radiator_int", String.valueOf(sState.radiator));
-			data.put("rpm_throttle_int", String.valueOf(sState.RPMthrottle));
-			data.put("compressor_int", String.valueOf(sState.compressorstage));
-			// MinimalHUD state keys
-			data.put("airbrake_int", String.valueOf(sState.airbrake));
-			data.put("gear_int", String.valueOf(sState.gear));
-			data.put("flaps_int", String.valueOf(sState.flaps));
-			data.put("AoA_f", String.valueOf(sState.AoA));
-			data.put("AoS_f", String.valueOf(sState.AoS));
-			data.put("Ny_f", String.valueOf(sState.Ny));
-			data.put("IAS_f", String.valueOf(sState.IAS));
-			data.put("M_f", String.valueOf(sState.M));
-		}
-		data.put("fuel_percent_int", String.valueOf(fuelPercent));
-		data.put("thrust_percent_int", String.valueOf((int) thurstPercent));
 
-		// MinimalHUD attitude & warning keys (from sIndic)
-		if (sIndic != null) {
-			data.put("aviahorizon_pitch", String.valueOf(sIndic.aviahorizon_pitch));
-			data.put("aviahorizon_roll", String.valueOf(sIndic.aviahorizon_roll));
-			data.put("compass_f", String.valueOf(sIndic.compass));
-		}
-		data.put("energyM", String.valueOf(energyM));
+		// MinimalHUD / VoiceWarn special keys (These are logic flags, not display
+		// strings)
 		data.put("fatalWarn", String.valueOf(fatalWarn));
-		data.put("radioAlt_f", String.valueOf(radioAlt));
 		data.put("radioAltValid", String.valueOf(radioAltValid));
 		data.put("isDowningFlap", String.valueOf(isDowningFlap));
 		data.put("timeStr", sfueltime);
 
-		// Map Grid Calculation
+		// Map Grid Calculation (Logic-heavy, keep for now)
 		if (loc != null && mapinfo != null) {
 			char map_x = (char) ('A' + (loc[1] * mapinfo.mapStage) + mapinfo.inGameOffset);
 			int map_y = (int) (loc[0] * mapinfo.mapStage + mapinfo.inGameOffset + 1);
@@ -590,8 +487,9 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 		}
 
 		// 2. Publish Event (Data Plane)
-		// 2. Publish Event (Data Plane)
-		FlightDataBus.getInstance().publish(new FlightDataEvent(data, sState, sIndic));
+		// We pass sState and sIndic directly - components SHOULD use these!
+		FlightDataEvent event = new FlightDataEvent(data, sState, sIndic);
+		FlightDataBus.getInstance().publish(event);
 
 		// 3. Legacy Support (Sync to GlobalPool)
 		if (c != null && c.globalPool != null) {
@@ -599,7 +497,7 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 			for (Map.Entry<String, String> entry : data.entrySet()) {
 				c.globalPool.put(entry.getKey(), entry.getValue());
 			}
-			// Push Raw Objects for advanced access (not in Map)
+			// Important: Put raw objects into global pool for direct access by FieldManager
 			c.globalPool.put("State", sState);
 			c.globalPool.put("Indicators", sIndic);
 			c.globalPool.commitBatch();
@@ -1801,7 +1699,7 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 
 	@Override
 	public double getNy() {
-		return sState != null ? sState.Ny : 0;
+		return An / g;
 	}
 
 	@Override
@@ -1935,6 +1833,11 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 	}
 
 	@Override
+	public boolean isManifoldPressureValid() {
+		return sState != null && sState.manifoldpressure != -65535 && sState.manifoldpressure > 0.01;
+	}
+
+	@Override
 	public double getWaterTemp() {
 		return nwaterTemp;
 	}
@@ -1989,4 +1892,43 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 		return sIndic != null ? sIndic.wsweep_indicator : 0;
 	}
 
+	@Override
+	public double getEnergyJKg() {
+		return energyJKg;
+	}
+
+	@Override
+	public double getEffHp() {
+		return iTotalHpEff;
+	}
+
+	@Override
+	public double getWepKg() {
+		return nitrokg;
+	}
+
+	@Override
+	public double getWepTime() {
+		return sWepTimeVal;
+	}
+
+	@Override
+	public double getHeatTolerance() {
+		return curLoadMinWorkTime / 1000.0;
+	}
+
+	@Override
+	public double getPowerPercent() {
+		return thurstPercent;
+	}
+
+	@Override
+	public boolean isImperial() {
+		return iCheckAlt > 0;
+	}
+
+	@Override
+	public boolean isWingSweepValid() {
+		return sIndic != null && sIndic.wsweep_indicator != -65535;
+	}
 }

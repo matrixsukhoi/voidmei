@@ -40,6 +40,8 @@ public interface TelemetrySource {
 
     double getRollRate(); // Wx
 
+    double getEnergyJKg(); // Specific Energy
+
     // Aircraft State
     double getMassFuel();
 
@@ -51,11 +53,15 @@ public interface TelemetrySource {
 
     double getManifoldPressure();
 
+    boolean isManifoldPressureValid();
+
     double getWaterTemp();
 
     double getOilTemp();
 
     double getPitch();
+
+    double getEffHp();
 
     double getThrust();
 
@@ -64,6 +70,14 @@ public interface TelemetrySource {
     double getEngineResponse();
 
     double getPropEfficiency();
+
+    double getWepKg();
+
+    double getWepTime();
+
+    double getHeatTolerance();
+
+    double getPowerPercent();
 
     double getManifoldPressurePounds(); // Imperial
 
@@ -96,4 +110,8 @@ public interface TelemetrySource {
     double getRudder();
 
     double getWingSweep();
+
+    boolean isWingSweepValid();
+
+    boolean isImperial();
 }

@@ -18,6 +18,7 @@ public class EngineInfo extends FieldOverlay {
 	private static final long serialVersionUID = 1L;
 
 	private EngineInfoConfig engineInfoConfig;
+	private ui.model.TelemetrySource service;
 
 	public EngineInfo() {
 		super();
@@ -54,6 +55,7 @@ public class EngineInfo extends FieldOverlay {
 		setOverlaySettings(settings);
 		super.init(c, c.globalPool);
 
+		this.service = s;
 		if (s != null) {
 			bindEngineFields(s);
 			setVisible(true);
@@ -63,25 +65,47 @@ public class EngineInfo extends FieldOverlay {
 	private void bindEngineFields(ui.model.TelemetrySource s) {
 		ui.model.FieldManager fm = this.fieldManager;
 
-		// Simple Fields
-		fm.bind("HorsePower", s::getHorsePower, 0);
-		fm.bind("Thrust", s::getThrust, 0);
+		// Raw bind to internal keys defined in EngineInfoConfig
+		fm.bind("hp", s::getHorsePower, 0);
+		fm.bind("thrust", s::getThrust, 0);
 		fm.bind("RPM", s::getRPM, 0);
-		fm.bind("PropPitch", s::getPitch, 1);
-		fm.bind("EffEta", s::getPropEfficiency, 0);
+		fm.bind("pitch", s::getPitch, 1);
+		fm.bind("eff_eta", s::getPropEfficiency, () -> s.getPropEfficiency() > 0, 0);
+		fm.bind("eff_hp", s::getEffHp, 0);
+		fm.bind("power_percent", s::getPowerPercent, 0);
 
-		fm.bind("FuelKg", s::getMassFuel, 0);
-		// FuelTime is complex formatted (mins/secs), keep legacy
+		// Fuel & WEP
+		fm.bind("fuel_kg", s::getMassFuel, 0);
+		fm.bind("fuel_time", () -> s.getFuelTimeMili() / 60000.0, 1); // Display as Minutes
+		fm.bind("wep", s::getWepKg, () -> s.getWepKg() > 0, 0);
+		fm.bind("wep_time", () -> s.getWepTime() / 60.0, () -> s.getWepTime() > 0, 1); // Display as Minutes
 
-		// Temperatures
-		fm.bind("Temp", s::getWaterTemp, 0);
-		fm.bind("OilTemp", s::getOilTemp, 0);
+		// Temperatures & Limits
+		fm.bind("temp", s::getWaterTemp, 0);
+		fm.bind("oil_temp", s::getOilTemp, 0);
+		fm.bind("heat_time", s::getHeatTolerance, 0);
 
-		// Response
-		fm.bind("EngResponse", s::getEngineResponse, 0);
+		// Response & Pressure
+		fm.bind("response", s::getEngineResponse, 0);
+		fm.bind("pressure", () -> s.isImperial() ? s.getManifoldPressurePounds() : s.getManifoldPressure(),
+				s::isManifoldPressureValid, 2);
+	}
 
-		// Complex fields (Pressure, EffHp) kept legacy for now due to dynamic
-		// units/logic
+	private boolean lastImperial = false;
+	private boolean firstData = true;
+
+	@Override
+	public void onFlightData(prog.event.FlightDataEvent event) {
+		if (service != null) {
+			boolean currentImperial = service.isImperial();
+			if (firstData || currentImperial != lastImperial) {
+				String unit = currentImperial ? "psi" : "Ata";
+				fieldManager.updateFieldUnit("pressure", unit);
+				lastImperial = currentImperial;
+				firstData = false;
+			}
+		}
+		super.onFlightData(event);
 	}
 
 	/**
@@ -102,6 +126,7 @@ public class EngineInfo extends FieldOverlay {
 	public void reinitConfig() {
 		if (engineInfoConfig == null)
 			return;
+		firstData = true;
 
 		// 1. Standard FieldOverlay reinit (Fonts, Layout, Window Size)
 		super.reinitConfig();

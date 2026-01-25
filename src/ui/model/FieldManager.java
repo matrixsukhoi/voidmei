@@ -34,6 +34,13 @@ public interface FieldManager {
     void bind(String key, java.util.function.DoubleSupplier supplier, int precision);
 
     /**
+     * Bind a field to a zero-GC double supplier with an optional visibility
+     * supplier.
+     */
+    void bind(String key, java.util.function.DoubleSupplier valueSupplier,
+            java.util.function.BooleanSupplier visibilitySupplier, int precision);
+
+    /**
      * Get all fields in order.
      */
     List<DataField> getFields();

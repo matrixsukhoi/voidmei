@@ -68,7 +68,7 @@ public class FlightInfo extends FieldOverlay {
 		fm.bind("mach", s::getMach, 2);
 		fm.bind("dir", s::getCompass, 0);
 		fm.bind("height", s::getAltitude, 0);
-		fm.bind("rda", s::getRadioAltitude, 0);
+		fm.bind("rda", s::getRadioAltitude, s::isRadioAltitudeValid, 0);
 		fm.bind("vario", s::getVario, 1);
 		fm.bind("sep", s::getSEP, 0);
 		fm.bind("acc", s::getAcceleration, 1);
@@ -80,7 +80,7 @@ public class FlightInfo extends FieldOverlay {
 
 		fm.bind("aoa", s::getAoA, 1);
 		fm.bind("aos", s::getAoS, 1);
-		fm.bind("ws", s::getWingSweep, 0);
+		fm.bind("ws", () -> s.getWingSweep() * 100.0, s::isWingSweepValid, 0);
 	}
 
 	/**

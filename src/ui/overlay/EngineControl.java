@@ -325,9 +325,6 @@ public class EngineControl extends FieldOverlay {
 	}
 
 	// Split legacy update
-	private void updateGaugesFromEvent(FlightDataEvent event) {
-		updateResult(event);
-	}
 
 	private void updateGaugesFromData(Map<String, String> data) {
 		if (gaugeFields == null)

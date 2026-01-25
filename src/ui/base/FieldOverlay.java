@@ -153,25 +153,30 @@ public abstract class FieldOverlay extends DraggableOverlay implements FlightDat
         javax.swing.SwingUtilities.invokeLater(() -> {
             Map<String, String> data = event.getData();
             for (DataField field : fieldManager.getFields()) {
-                if (field.visible) {
+                // Determine if we should process this field (Legacy vs Zero-GC)
+                if (field.valueSupplier != null) {
                     // ZERO-GC PATH
-                    if (field.valueSupplier != null) {
+                    if (field.visibilitySupplier != null) {
+                        field.visible = field.visibilitySupplier.getAsBoolean();
+                    }
+                    if (field.visible) {
                         double val = field.valueSupplier.getAsDouble();
                         field.length = ui.util.FastNumberFormatter.format(val, field.buffer, field.precision);
                     }
+                } else {
                     // LEGACY PATH
-                    else {
-                        String key = field.key;
-                        String val = naString;
-                        if (data.containsKey(key)) {
-                            val = data.get(key);
-                        }
-                        fieldManager.updateField(key, val, naString);
+                    // Legacy path visibility is handled inside updateField ->
+                    // setValueWithVisibility
+                    String key = field.key;
+                    String val = naString;
+                    if (data.containsKey(key)) {
+                        val = data.get(key);
+                    }
+                    fieldManager.updateField(key, val, naString);
 
-                        // Dynamic Unit Support
-                        if (data.containsKey(key + "_unit")) {
-                            fieldManager.updateFieldUnit(key, data.get(key + "_unit"));
-                        }
+                    // Dynamic Unit Support
+                    if (data.containsKey(key + "_unit")) {
+                        fieldManager.updateFieldUnit(key, data.get(key + "_unit"));
                     }
                 }
             }
@@ -179,6 +184,7 @@ public abstract class FieldOverlay extends DraggableOverlay implements FlightDat
                 panel.repaint();
             }
         });
+
     }
 
     // --- PoolListener Implementation ---

@@ -1,4 +1,5 @@
 package parser;
+
 import prog.util.StringHelper;
 
 import prog.Application;
@@ -6,11 +7,10 @@ import prog.Application;
 public class State {
 	public String valid;
 	public boolean flag;
-//	public boolean engineAlive = false;
 
 	public static final int maxEngNum = 8;
 	public int engineNum;
-//	public int isEngineJet;
+
 	public int aileron;
 	public int elevator;
 	public int rudder;
@@ -57,48 +57,30 @@ public class State {
 		thrust = new int[maxEngNum];
 		efficiency = new double[maxEngNum];
 		engineNum = 0;
-//		isEngineJet = -1;
-//		engineAlive = false;
+
 		airbrake = 0;
 	}
 
 	public void getEngNum(String buf) {
 		for (int i = 0; i < maxEngNum; i++) {
-			thrust[i] = StringHelper.getDataInt(StringHelper.getString(buf, "thrust "+i));
+			thrust[i] = StringHelper.getDataInt(StringHelper.getString(buf, "thrust " + i));
 			if (thrust[i] != -65535)
 				engineNum++;
 		}
-//		thrust[0] = StringHelper.getDataInt(StringHelper.getString(buf, "thrust 1"));
-//		if (thrust[0] != -65535)
-//			engineNum++;
-//		thrust[1] = StringHelper.getDataInt(StringHelper.getString(buf, "thrust 2"));
-//		if (thrust[1] != -65535)
-//			engineNum++;
-//		thrust[2] = StringHelper.getDataInt(StringHelper.getString(buf, "thrust 3"));
-//		if (thrust[2] != -65535)
-//			engineNum++;
-//		thrust[3] = StringHelper.getDataInt(StringHelper.getString(buf, "thrust 4"));
-//		if (thrust[3] != -65535)
-//			engineNum++;
-//		thrust[4] = StringHelper.getDataInt(StringHelper.getString(buf, "thrust 5"));
-//		if (thrust[4] != -65535)
-//			engineNum++;
+
 	}
 
 	public int update(String buf) {
 		int i;
 		valid = StringHelper.getString(buf, "valid");
 		// System.out.println(valid);
-		if (valid == null){
+		if (valid == null) {
 			return -1;
 		}
 		if (valid.equals("true")) {
 			// 无异常的
 			flag = true;
-//			if (engineNum == 0) {
-//				getEngNum(buf);
-//			}
-//			 System.out.println(engineNum);
+
 			aileron = StringHelper.getDataInt(StringHelper.getString(buf, "aileron"));
 			elevator = StringHelper.getDataInt(StringHelper.getString(buf, "elevator"));
 			rudder = StringHelper.getDataInt(StringHelper.getString(buf, "rudder"));
@@ -116,25 +98,19 @@ public class State {
 			Wx = StringHelper.getDataFloat(StringHelper.getString(buf, "Wx"));
 			throttle = StringHelper.getDataInt(StringHelper.getString(buf, "throttle"));
 			RPMthrottle = StringHelper.getDataInt(StringHelper.getString(buf, "RPM throttle"));
-//			if (RPMthrottle == -65535)
-//				RPMthrottle = 0;
+
 			radiator = StringHelper.getDataInt(StringHelper.getString(buf, "radiator"));
-//			if (radiator == -65535)
-//				radiator = 0;
-			// oilradiator = StringHelper.getDataInt(StringHelper.getString(buf, "oilraditor"));
-//			power[0] = StringHelper.getDataFloat(StringHelper.getString(buf, "power 1"));
+
 			RPM = StringHelper.getDataInt(StringHelper.getString(buf, "RPM 1"));
 
-			manifoldpressure = StringHelper.getDataFloat(StringHelper.getString(buf, "manifold"));
+			manifoldpressure = StringHelper.getDataFloat(StringHelper.getString(buf, "manifold pressure 1"));
 
 			mfuel = StringHelper.getDataFloat(StringHelper.getString(buf, "Mfuel"));
 			mfuel_1 = StringHelper.getDataFloat(StringHelper.getString(buf, "Mfuel 1"));
 			mfuel0 = StringHelper.getDataFloat(StringHelper.getString(buf, "Mfuel0"));
 
 			oiltemp = StringHelper.getDataFloat(StringHelper.getString(buf, "oil temp"));
-//			thrust[0] = StringHelper.getDataInt(StringHelper.getString(buf, "thrust 1"));
-//
-//			efficiency[0] = StringHelper.getDataFloat(StringHelper.getString(buf, "efficiency 1"));
+
 			// engineNum = 1;
 			mixture = StringHelper.getDataInt(StringHelper.getString(buf, "mixture"));
 			if (mixture == -65535)
@@ -146,62 +122,28 @@ public class State {
 			magenato = StringHelper.getDataInt(StringHelper.getString(buf, "magneto"));
 
 			watertemp = StringHelper.getDataFloat(StringHelper.getString(buf, "water temp"));
-			
+
 			double tmpThrust = 0;
 
 			int totalEngineNum = 0;
 			for (i = 0; i < maxEngNum; i++) {
 				// System.out.println(engineType);
-				throttles[i] = StringHelper.getDataInt(StringHelper.getString(buf, "throttle " + (i+1)));
-				power[i] = StringHelper.getDataFloat(StringHelper.getString(buf, "power " + (i+1)));
-//				if(power[i] == -65535)break;
-				thrust[i] = StringHelper.getDataInt(StringHelper.getString(buf, "thrust " + (i+1)));
-				pitch[i] = StringHelper.getDataFloat(StringHelper.getString(buf, "pitch " + (i+1)));
-//				if(pitch[i] == -65535)break;
-				efficiency[i] = StringHelper.getDataInt(StringHelper.getString(buf, "efficiency " + (i+1)));
-//				if(efficiency[i] == -65535)break;
-				// System.out.println(pitch[0]);
-//				System.out.println("thrust "+i+" "+thrust[i]);
-				if(thrust[i] == -65535) break;
-				
+				throttles[i] = StringHelper.getDataInt(StringHelper.getString(buf, "throttle " + (i + 1)));
+				power[i] = StringHelper.getDataFloat(StringHelper.getString(buf, "power " + (i + 1)));
+
+				thrust[i] = StringHelper.getDataInt(StringHelper.getString(buf, "thrust " + (i + 1)));
+				pitch[i] = StringHelper.getDataFloat(StringHelper.getString(buf, "pitch " + (i + 1)));
+
+				efficiency[i] = StringHelper.getDataInt(StringHelper.getString(buf, "efficiency " + (i + 1)));
+
+				if (thrust[i] == -65535)
+					break;
+
 				tmpThrust += thrust[i];
 				totalEngineNum += 1;
-				
 			}
 			engineNum = totalEngineNum;
 			totalThr = tmpThrust;
-//			Application.debugPrint(String.format("引擎数量%d, 功率%.0f", engineNum, power[0]));
-//			if (thrust[0] != 0){
-//				engineAlive = true;
-//			}
-//			else{
-//				engineAlive = false;
-//			}
-//			
-//			else{
-//				// 推力为空且
-//			}
-//			if (thrust[0] != 0 || Vy != 0)
-//				engineAlive = true;
-//			else{
-//				// dead逻辑
-//				if (gear >= 0 && IAS < 10 && Vy < 1)
-//					engineAlive = false;				
-//			}
-
-
-//			if (pitch[0] <= 0 && efficiency[0] <= 0 && power[0] == 0 && thrust[0] != 0) {
-//				isEngineJet = 1;
-//			} else
-//				isEngineJet = 0;
-			 
-//			if(magenato >= 0){
-//				isEngineJet = 0;
-//			}
-//			else{
-//				isEngineJet = 1;
-//			}
-			
 		} else {
 			flag = false;
 		}

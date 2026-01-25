@@ -27,7 +27,12 @@ public class FastNumberFormatter {
 
         int pos = 0;
         if (value < 0) {
-            buffer[pos++] = '-';
+            double threshold = 0.5;
+            for (int i = 0; i < precision; i++)
+                threshold /= 10.0;
+            if (value <= -threshold) {
+                buffer[pos++] = '-';
+            }
             value = -value;
         }
 

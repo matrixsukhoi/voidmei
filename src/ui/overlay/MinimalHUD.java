@@ -386,7 +386,7 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
             return;
 
         // 1. Calculate Data Snapshot using Pure Event Data
-        HUDData data = HUDCalculator.calculate(event, controller.getBlkx(), hudSettings, ctx);
+        HUDData data = HUDCalculator.calculate(event, service, controller.getBlkx(), hudSettings, ctx);
 
         // 2. Dispatch to Reactive Components
         for (HUDComponent comp : components) {

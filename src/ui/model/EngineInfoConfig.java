@@ -216,22 +216,22 @@ public class EngineInfoConfig {
 
         // Let's check `DefaultFieldManager`.
 
-        cfg.addFieldDefinition("hp", Lang.ePower, "Hp", "HorsePower", true, "1200");
-        cfg.addFieldDefinition("thrust", Lang.eThurst, "Kgf", "Thrust", false, "1000");
-        cfg.addFieldDefinition("RPM", Lang.eRPM, "Rpm", "RPM", false, "2400");
-        cfg.addFieldDefinition("pitch", Lang.ePitchDeg, "Deg", "PropPitch", true, "55");
-        cfg.addFieldDefinition("eff_eta", Lang.eEff, "%", "EffEta", true, "85");
-        cfg.addFieldDefinition("eff_hp", Lang.eEffPower, "Hp", "EffHp", true, "1100");
-        cfg.addFieldDefinition("pressure", Lang.eATM, "Ata", "Pressure", true, "1.2");
-        cfg.addFieldDefinition("power_percent", Lang.ePowerPercent, "%", "PowerPercent", false, "95");
-        cfg.addFieldDefinition("fuel_kg", Lang.eFuel, "Kg", "FuelKg", false, "500");
-        cfg.addFieldDefinition("fuel_time", Lang.eFueltime, "Min", "FuelTime", false, "45");
-        cfg.addFieldDefinition("wep", Lang.eWep, "Kg", "WepKg", true, "50"); // Hide if 0/NA
-        cfg.addFieldDefinition("wep_time", Lang.eWeptime, "S", "WepTime", true, "300"); // Hide if NA
-        cfg.addFieldDefinition("temp", Lang.eTemp, "C", "Temp", false, "90");
-        cfg.addFieldDefinition("oil_temp", Lang.eOil, "C", "OilTemp", false, "80");
-        cfg.addFieldDefinition("heat_time", Lang.eOverheat, "S", "HeatTolerance", false, "60");
-        cfg.addFieldDefinition("response", Lang.eEngRes, "%/s", "EngResponse", false, "10");
+        cfg.addFieldDefinition("hp", Lang.ePower, "Hp", "S.sTotalHp", true, "1200");
+        cfg.addFieldDefinition("thrust", Lang.eThurst, "Kgf", "S.sTotalThr", false, "1000");
+        cfg.addFieldDefinition("RPM", Lang.eRPM, "Rpm", "S.rpm", false, "2400");
+        cfg.addFieldDefinition("pitch", Lang.ePitchDeg, "Deg", "S.pitch[0]", true, "55");
+        cfg.addFieldDefinition("eff_eta", Lang.eEff, "%", "S.sAvgEff", true, "85");
+        cfg.addFieldDefinition("eff_hp", Lang.eEffPower, "Hp", "S.sTotalHpEff", true, "1100");
+        cfg.addFieldDefinition("pressure", Lang.eATM, "Ata", "S.manifoldpressure", true, "1.2");
+        cfg.addFieldDefinition("power_percent", Lang.ePowerPercent, "%", "S.sThurstPercent", false, "95");
+        cfg.addFieldDefinition("fuel_kg", Lang.eFuel, "Kg", "S.sTotalFuel", false, "500");
+        cfg.addFieldDefinition("fuel_time", Lang.eFueltime, "Min", "S.sfueltime", false, "45");
+        cfg.addFieldDefinition("wep", Lang.eWep, "Kg", "S.sNitro", true, "50"); // Hide if 0/NA
+        cfg.addFieldDefinition("wep_time", Lang.eWeptime, "S", "S.sWepTime", true, "300"); // Hide if NA
+        cfg.addFieldDefinition("temp", Lang.eTemp, "C", "S.watertemp", false, "90");
+        cfg.addFieldDefinition("oil_temp", Lang.eOil, "C", "S.oiltemp", false, "80");
+        cfg.addFieldDefinition("heat_time", Lang.eOverheat, "S", "S.sEngWorkTime", false, "60");
+        cfg.addFieldDefinition("response", Lang.eEngRes, "%/s", "S.SdThrustPercent", false, "10");
 
         return cfg;
     }

@@ -59,5 +59,6 @@ public class DataField {
     public final char[] buffer = new char[32];
     public int length = 0;
     public java.util.function.DoubleSupplier valueSupplier;
+    public java.util.function.BooleanSupplier visibilitySupplier;
     public int precision = 0; // Default to integer
 }
