@@ -88,7 +88,7 @@ public class HUDCalculator {
             b.gLoad = sState.Ny;
         }
 
-        b.energyM = source.getEnergyJKg();
+        b.energyM = source.getEnergyJKg() / prog.Service.g;
 
         b.isMachMode = settings.drawHudMach();
         b.isGearDown = b.gear > 0;
