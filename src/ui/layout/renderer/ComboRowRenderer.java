@@ -17,7 +17,7 @@ public class ComboRowRenderer implements RowRenderer {
     @Override
     public WebPanel render(RowConfig row, GroupConfig groupConfig, RenderContext context) {
         String[] options = getComboOptions(row.format);
-        WebPanel itemPanel = ReplicaBuilder.createDropdownItem(row.label, options, row.desc);
+        WebPanel itemPanel = ReplicaBuilder.createDropdownItem(row.label, options, row.desc, row.descImg);
         WebComboBox combo = ReplicaBuilder.getComboBox(itemPanel);
 
         if (combo != null) {

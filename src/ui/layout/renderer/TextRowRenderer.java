@@ -30,7 +30,7 @@ public class TextRowRenderer implements RowRenderer {
         }
 
         // Create the UI component
-        WebPanel itemPanel = ReplicaBuilder.createTextItem(row.label, currentVal, 10, row.desc);
+        WebPanel itemPanel = ReplicaBuilder.createTextItem(row.label, currentVal, 15, row.desc, row.descImg);
         WebTextField textField = ReplicaBuilder.getTextField(itemPanel);
 
         if (textField != null) {

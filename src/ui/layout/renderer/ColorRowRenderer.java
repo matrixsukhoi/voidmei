@@ -29,7 +29,8 @@ public class ColorRowRenderer implements RowRenderer {
         // But Controller.getConfig(key) should return unified string if in layout.
         Color initialColor = parseColor(colorText);
 
-        WebPanel itemPanel = ReplicaBuilder.createColorField(row.label, colorText, initialColor);
+        WebPanel itemPanel = ReplicaBuilder.createColorField(row.label, row.getStr(), initialColor, row.desc,
+                row.descImg);
         WebTextField field = ReplicaBuilder.getColorField(itemPanel);
 
         if (field != null) {

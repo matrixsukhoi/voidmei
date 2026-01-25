@@ -54,7 +54,9 @@ public class SliderRowRenderer implements RowRenderer {
         if (currentVal > max)
             currentVal = max;
 
-        WebPanel itemPanel = ReplicaBuilder.createSliderItem(row.label, min, max, currentVal, 150, row.desc);
+        WebPanel itemPanel = ReplicaBuilder.createSliderItem(row.label, row.minVal, row.maxVal, currentVal, 150,
+                row.desc,
+                row.descImg);
         WebSlider slider = ReplicaBuilder.getSlider(itemPanel);
 
         if (slider != null) {

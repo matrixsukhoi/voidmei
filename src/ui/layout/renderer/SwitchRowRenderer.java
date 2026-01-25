@@ -33,7 +33,7 @@ public class SwitchRowRenderer implements RowRenderer {
             currentVal = defaultVal;
         }
 
-        WebPanel itemPanel = ReplicaBuilder.createSwitchItem(row.label, currentVal, false, row.desc);
+        WebPanel itemPanel = ReplicaBuilder.createSwitchItem(row.label, currentVal, false, row.desc, row.descImg);
         WebSwitch sw = ReplicaBuilder.getSwitch(itemPanel);
 
         if (sw != null) {

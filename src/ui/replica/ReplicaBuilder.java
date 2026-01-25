@@ -29,38 +29,31 @@ public class ReplicaBuilder {
     private static final PinkStyle style = new PinkStyle();
 
     public static WebPanel createSwitchItem(String labelText, boolean isSelected, boolean showGear) {
-        return createSwitchItem(labelText, isSelected, showGear, null);
+        return createSwitchItem(labelText, isSelected, showGear, null, null);
+    }
+
+    public static WebPanel createSwitchItem(String labelText, boolean isSelected, boolean showGear, String tooltip) {
+        return createSwitchItem(labelText, isSelected, showGear, tooltip, null);
     }
 
     /**
      * Creates a standard row item: Label on Left, Switch + Optional Gear on Right.
      */
-    public static WebPanel createSwitchItem(String labelText, boolean isSelected, boolean showGear, String tooltip) {
+    public static WebPanel createSwitchItem(String labelText, boolean isSelected, boolean showGear, String tooltip,
+            String tooltipImg) {
         WebPanel panel = new WebPanel(new BorderLayout(5, 0));
         style.decorateControlPanel(panel);
         panel.setBorder(BorderFactory.createEmptyBorder(2, 5, 2, 5));
 
         // Label
         WebLabel label = new WebLabel(labelText);
-        if (tooltip != null && !tooltip.isEmpty()) {
-            applyStylizedTooltip(label, tooltip);
+        if ((tooltip != null && !tooltip.isEmpty()) || (tooltipImg != null && !tooltipImg.isEmpty())) {
+            applyStylizedTooltip(label, tooltip, tooltipImg);
         }
         style.decorateLabel(label);
-        panel.add(label, BorderLayout.CENTER); // Center takes available space? No, West/East split usually better for
-                                               // justified.
-        // Actually, Borderlayout CENTER takes space. If we want label left and controls
-        // right:
-        // formatting: [Label (Center or West)] [Controls (East)]
-
-        // Lets align Label to West if we want it to stick to left.
-        // But if grids are consistent, standard flow is fine.
-        // The screenshot shows columns. In a column, label is left, switch is right.
-
         panel.add(label, BorderLayout.WEST);
 
         // Controls container (Switch + Gear)
-        // Use LEFT alignment so controls sit immediately next to the label (which is
-        // forced to max width)
         WebPanel controls = new WebPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 5, 0));
         controls.setOpaque(false);
 
@@ -72,14 +65,12 @@ public class ReplicaBuilder {
 
         // Gear Icon (Simulator)
         if (showGear) {
-            JLabel gear = new JLabel("⚙"); // Unicode gear as placeholder, or load icon
+            JLabel gear = new JLabel("⚙");
             gear.setForeground(PinkStyle.COLOR_PRIMARY);
             gear.setFont(layerFont(14));
             controls.add(gear);
         }
 
-        // Use CENTER so it takes up remaining space, but FlowLayout.LEFT ensures it
-        // starts near the label
         panel.add(controls, BorderLayout.CENTER);
 
         // Critical: Enable ResponsiveGrid alignment
@@ -89,27 +80,31 @@ public class ReplicaBuilder {
     }
 
     public static WebPanel createSpinnerItem(String labelText, double value, double min, double max, double step) {
-        return createSpinnerItem(labelText, value, min, max, step, null);
+        return createSpinnerItem(labelText, value, min, max, step, null, null);
+    }
+
+    public static WebPanel createSpinnerItem(String labelText, double value, double min, double max, double step,
+            String tooltip) {
+        return createSpinnerItem(labelText, value, min, max, step, tooltip, null);
     }
 
     /**
      * Creates a spinner row: [Label] ... [Spinner]
      */
     public static WebPanel createSpinnerItem(String labelText, double value, double min, double max, double step,
-            String tooltip) {
+            String tooltip, String tooltipImg) {
         WebPanel panel = new WebPanel(new BorderLayout(5, 0));
         style.decorateControlPanel(panel);
         panel.setBorder(BorderFactory.createEmptyBorder(4, 5, 4, 5));
 
         WebLabel label = new WebLabel(labelText);
-        if (tooltip != null && !tooltip.isEmpty()) {
-            label.setToolTipText(tooltip);
+        if ((tooltip != null && !tooltip.isEmpty()) || (tooltipImg != null && !tooltipImg.isEmpty())) {
+            applyStylizedTooltip(label, tooltip, tooltipImg);
         }
         style.decorateLabel(label);
         panel.add(label, BorderLayout.WEST);
 
         // Spinner
-        // Note: javax.swing.SpinnerNumberModel required for doubles
         javax.swing.SpinnerNumberModel model = new javax.swing.SpinnerNumberModel(value, min, max, step);
         WebSpinner spinner = new WebSpinner(model);
         spinner.setPreferredSize(new Dimension(80, 26));
@@ -124,38 +119,31 @@ public class ReplicaBuilder {
     }
 
     public static WebPanel createDropdownItem(String labelText, String[] items) {
-        return createDropdownItem(labelText, items, null);
+        return createDropdownItem(labelText, items, null, null);
+    }
+
+    public static WebPanel createDropdownItem(String labelText, String[] items, String tooltip) {
+        return createDropdownItem(labelText, items, tooltip, null);
     }
 
     /**
      * Creates a ComboBox Row: [Label] ... [ComboBox]
      */
-    public static WebPanel createDropdownItem(String labelText, String[] items, String tooltip) {
+    public static WebPanel createDropdownItem(String labelText, String[] items, String tooltip, String tooltipImg) {
         WebPanel panel = new WebPanel(new BorderLayout(5, 0));
         style.decorateControlPanel(panel);
         panel.setBorder(BorderFactory.createEmptyBorder(4, 5, 4, 5));
 
         WebLabel label = new WebLabel(labelText);
-        if (tooltip != null && !tooltip.isEmpty()) {
-            applyStylizedTooltip(label, tooltip);
+        if ((tooltip != null && !tooltip.isEmpty()) || (tooltipImg != null && !tooltipImg.isEmpty())) {
+            applyStylizedTooltip(label, tooltip, tooltipImg);
         }
         style.decorateLabel(label);
-
-        // Vertical stacked label? Screenshot shows "Select Voice" (Label) ...
-        // [Dropdown]
-
-        // Actually screenshot shows "Select Voice" title above the dropdown or inline?
-        // "选择声音" (Label) ... [jp 日语女声 V]
-        // It looks like a standard row.
-
         panel.add(label, BorderLayout.WEST);
 
         WebComboBox combo = new WebComboBox(items);
         combo.setEditable(false);
-        // combo.setPreferredSize(new Dimension(200, 26)); // Let it fill or fixed?
 
-        // If we want it to fill the remaining space?
-        // In BorderLayout, CENTER fills.
         panel.add(combo, BorderLayout.CENTER);
 
         // Critical: Enable ResponsiveGrid alignment
@@ -167,14 +155,15 @@ public class ReplicaBuilder {
     /**
      * Creates a text input row: [Label] ... [TextField]
      */
-    public static WebPanel createTextItem(String labelText, String initialValue, int columns, String tooltip) {
+    public static WebPanel createTextItem(String labelText, String initialValue, int columns, String tooltip,
+            String tooltipImg) {
         WebPanel panel = new WebPanel(new BorderLayout(5, 0));
         style.decorateControlPanel(panel);
         panel.setBorder(BorderFactory.createEmptyBorder(4, 5, 4, 5));
 
         WebLabel label = new WebLabel(labelText);
-        if (tooltip != null && !tooltip.isEmpty()) {
-            applyStylizedTooltip(label, tooltip);
+        if ((tooltip != null && !tooltip.isEmpty()) || (tooltipImg != null && !tooltipImg.isEmpty())) {
+            applyStylizedTooltip(label, tooltip, tooltipImg);
         }
         style.decorateLabel(label);
         panel.add(label, BorderLayout.WEST);
@@ -182,7 +171,6 @@ public class ReplicaBuilder {
         WebTextField textField = new WebTextField(initialValue, columns);
         textField.setPreferredSize(new Dimension(80, 26));
         textField.setDrawFocus(false);
-        // style.decorateTextField(textField);
 
         panel.add(textField, BorderLayout.EAST);
 
@@ -193,20 +181,25 @@ public class ReplicaBuilder {
     }
 
     public static WebPanel createSliderItem(String labelText, int min, int max, int value, int width) {
-        return createSliderItem(labelText, min, max, value, width, null);
+        return createSliderItem(labelText, min, max, value, width, null, null);
+    }
+
+    public static WebPanel createSliderItem(String labelText, int min, int max, int value, int width, String tooltip) {
+        return createSliderItem(labelText, min, max, value, width, tooltip, null);
     }
 
     /**
      * Creates a Slider row: [Label] ... [Slider]
      */
-    public static WebPanel createSliderItem(String labelText, int min, int max, int value, int width, String tooltip) {
+    public static WebPanel createSliderItem(String labelText, int min, int max, int value, int width, String tooltip,
+            String tooltipImg) {
         WebPanel panel = new WebPanel(new BorderLayout(5, 0));
         style.decorateControlPanel(panel);
         panel.setBorder(BorderFactory.createEmptyBorder(4, 5, 4, 5));
 
         WebLabel label = new WebLabel(labelText);
-        if (tooltip != null && !tooltip.isEmpty()) {
-            applyStylizedTooltip(label, tooltip);
+        if ((tooltip != null && !tooltip.isEmpty()) || (tooltipImg != null && !tooltipImg.isEmpty())) {
+            applyStylizedTooltip(label, tooltip, tooltipImg);
         }
         style.decorateLabel(label);
         panel.add(label, BorderLayout.WEST);
@@ -258,20 +251,25 @@ public class ReplicaBuilder {
     }
 
     public static WebPanel createColorField(String labelText, String colorText, Color initialColor) {
-        return createColorField(labelText, colorText, initialColor, null);
+        return createColorField(labelText, colorText, initialColor, null, null);
+    }
+
+    public static WebPanel createColorField(String labelText, String colorText, Color initialColor, String tooltip) {
+        return createColorField(labelText, colorText, initialColor, tooltip, null);
     }
 
     /**
      * Creates a Color field row: [Label] ... [Color Icon] [RGBA Text]
      */
-    public static WebPanel createColorField(String labelText, String colorText, Color initialColor, String tooltip) {
+    public static WebPanel createColorField(String labelText, String colorText, Color initialColor, String tooltip,
+            String tooltipImg) {
         WebPanel panel = new WebPanel(new BorderLayout(5, 0));
         style.decorateControlPanel(panel);
         panel.setBorder(BorderFactory.createEmptyBorder(4, 5, 4, 5));
 
         WebLabel label = new WebLabel(labelText);
-        if (tooltip != null && !tooltip.isEmpty()) {
-            applyStylizedTooltip(label, tooltip);
+        if ((tooltip != null && !tooltip.isEmpty()) || (tooltipImg != null && !tooltipImg.isEmpty())) {
+            applyStylizedTooltip(label, tooltip, tooltipImg);
         }
         style.decorateLabel(label);
         panel.add(label, BorderLayout.WEST);
@@ -335,17 +333,17 @@ public class ReplicaBuilder {
         return style;
     }
 
-    private static void applyStylizedTooltip(WebLabel label, String text) {
+    public static void applyStylizedTooltip(javax.swing.JComponent component, String text, String img) {
         // Remove standard tooltip if any
-        label.setToolTipText(null);
+        component.setToolTipText(null);
 
-        label.addMouseListener(new MouseAdapter() {
+        component.addMouseListener(new MouseAdapter() {
             private WebPopOver popover;
 
             @Override
             public void mouseEntered(MouseEvent e) {
                 if (popover == null || !popover.isVisible()) {
-                    popover = new WebPopOver(label);
+                    popover = new WebPopOver(component);
                     // Use a safe, stable margin
                     popover.setMargin(0);
                     popover.setMovable(false);
@@ -364,16 +362,42 @@ public class ReplicaBuilder {
                     bubble.setBackground(Color.WHITE);
                     bubble.setBorder(javax.swing.BorderFactory.createLineBorder(PinkStyle.COLOR_PRIMARY, 1));
 
-                    WebLabel content = new WebLabel(text);
+                    // --- Construct HTML Content ---
+                    StringBuilder html = new StringBuilder("<html><div style='padding:2px 8px;'>");
+                    if (text != null && !text.isEmpty()) {
+                        html.append("<span>").append(text).append("</span>");
+                    }
+                    if (img != null && !img.isEmpty()) {
+                        if (text != null && !text.isEmpty()) {
+                            html.append("<br>");
+                        }
+                        // Handle both "image.png" and "image/image.png"
+                        String cleanImg = img;
+                        if (cleanImg.startsWith("image/") || cleanImg.startsWith("image\\")) {
+                            cleanImg = cleanImg.substring(6);
+                        }
+                        java.io.File imageFile = new java.io.File("image", cleanImg);
+                        if (imageFile.exists()) {
+                            String path = "file:///" + imageFile.getAbsolutePath();
+                            html.append("<img src='").append(path).append("' width='200' height='150'>");
+                        } else {
+                            System.err.println(
+                                    "[ReplicaBuilder] Tooltip image not found: " + imageFile.getAbsolutePath());
+                            html.append("<div style='color:red; border:1px solid red; padding:5px;'>[Image Not Found: ")
+                                    .append(cleanImg).append("]</div>");
+                        }
+                    }
+                    html.append("</div></html>");
+
+                    WebLabel content = new WebLabel(html.toString());
                     content.setFont(PinkStyle.FONT_NORMAL);
                     content.setForeground(PinkStyle.COLOR_TEXT);
-                    content.setBorder(javax.swing.BorderFactory.createEmptyBorder(2, 8, 2, 8));
 
                     bubble.add(content, BorderLayout.CENTER);
                     popover.add(bubble);
 
                     // Position: Place it tightly below the label
-                    popover.show(label, label.getWidth() / 2 - 20, label.getHeight() - 10);
+                    popover.show(component, component.getWidth() / 2 - 20, component.getHeight() - 10);
 
                     // Reduce arrow size to ~1/3 of default (10 -> 4)
                     popover.setCornerWidth(4);

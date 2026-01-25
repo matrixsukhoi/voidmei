@@ -21,8 +21,8 @@ public class SwitchInvRowRenderer implements RowRenderer {
         // ConfigurationService has "disableX=false" means switch should show ON
         // unused variable removed
 
-        WebPanel itemPanel = ReplicaBuilder.createSwitchItem(row.label,
-                !context.getFromConfigService(row.property, !row.getBool()), false, row.desc);
+        boolean currentVal = !context.getFromConfigService(row.property, !row.getBool());
+        WebPanel itemPanel = ReplicaBuilder.createSwitchItem(row.label, currentVal, false, row.desc, row.descImg);
         WebSwitch sw = ReplicaBuilder.getSwitch(itemPanel);
 
         if (sw != null) {

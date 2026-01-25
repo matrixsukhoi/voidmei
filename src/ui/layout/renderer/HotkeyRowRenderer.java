@@ -23,6 +23,9 @@ public class HotkeyRowRenderer implements RowRenderer {
         panel.setBorder(javax.swing.BorderFactory.createEmptyBorder(4, 5, 4, 5));
 
         WebLabel label = new WebLabel(row.label);
+        if ((row.desc != null && !row.desc.isEmpty()) || (row.descImg != null && !row.descImg.isEmpty())) {
+            ReplicaBuilder.applyStylizedTooltip(label, row.desc, row.descImg);
+        }
         ReplicaBuilder.getStyle().decorateLabel(label);
         panel.add(label, BorderLayout.WEST);
 

@@ -22,6 +22,14 @@ public class ButtonRowRenderer implements RowRenderer {
         WebButton btn = new WebButton(row.label);
         btn.setFont(Application.defaultFont);
         btn.setFocusable(false);
+        if ((row.desc != null && !row.desc.isEmpty()) || (row.descImg != null && !row.descImg.isEmpty())) {
+            // Re-using applyStylizedTooltip, casting button to WebLabel as it likely works
+            // but WebButton might need its own if it doesn't extend properly.
+            // Actually WebButton inherits from WebLabel in some LAF versions, but let's
+            // check.
+            // If it doesn't, we might need a custom one. For now let's try standard.
+            ReplicaBuilder.applyStylizedTooltip(btn, row.desc, row.descImg);
+        }
 
         // Handle Action
         if ("resetConfig".equals(row.property)) {
