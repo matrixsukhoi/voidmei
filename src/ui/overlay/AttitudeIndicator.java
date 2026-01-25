@@ -172,7 +172,7 @@ public class AttitudeIndicator extends DraggableOverlay {
 		if (showDirection) {
 			g2d.drawLine(width / 2, height / 2, (int) (width / 2 + compassX), (int) (height / 2 + compassY));
 
-			g2d.setColor(Application.colorUnit);
+			g2d.setColor(Application.colorWarning);
 			g2d.drawLine(width / 2, height / 2, (int) (width / 2 - compassX), (int) (height / 2 - compassY));
 		}
 	}
