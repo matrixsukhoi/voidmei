@@ -43,6 +43,17 @@ public class UIBaseElements {
 		g2d.drawString(s, x, y);
 	}
 
+	public static void __drawStringShade(Graphics2D g2d, int x, int y, int shadeWidth, char[] buf, int len, Font f,
+			Color c) {
+		g2d.setFont(f);
+		g2d.setStroke(new BasicStroke(shadeWidth, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+		// drawshade (No Shape support for char[] yet, fallback to simple shade)
+		g2d.setColor(Application.colorShadeShape);
+		g2d.drawChars(buf, 0, len, x + 1, y + 1);
+		g2d.setColor(c);
+		g2d.drawChars(buf, 0, len, x, y);
+	}
+
 	public static void drawStringShade(Graphics2D g2d, int x, int y, int shadeWidth, String s, Font f) {
 		__drawStringShade(g2d, x, y, shadeWidth, s, f, Application.colorNum);
 	}
@@ -190,7 +201,20 @@ public class UIBaseElements {
 		// 直线
 		drawVRect(g2d, x + val_width - 2, y, 3, -height - 1 * numFont.getSize(), 1, Application.colorLabel);
 		// 数字
-		__drawStringShade(g2d, x + val_width, y + height + 1 * numFont.getSize(), 1, num, numFont, Application.colorLabel);
+		__drawStringShade(g2d, x + val_width, y + height + 1 * numFont.getSize(), 1, num, numFont,
+				Application.colorLabel);
+	}
+
+	public static void drawHBarTextNum(Graphics2D g2d, int x, int y, int width, int height, int val_width,
+			int borderwidth, Color c, String lbl, char[] num, int len, Font lblFont, Font numFont) {
+		if (val_width > width)
+			val_width = width;
+		drawHBarText(g2d, x, y, width, height, val_width, borderwidth, c, lbl, lblFont);
+		// 直线
+		drawVRect(g2d, x + val_width - 2, y, 3, -height - 1 * numFont.getSize(), 1, Application.colorLabel);
+		// 数字
+		__drawStringShade(g2d, x + val_width, y + height + 1 * numFont.getSize(), 1, num, len, numFont,
+				Application.colorLabel);
 	}
 
 	public static void _drawLabelBOSType(Graphics2D g2d, int x_offset, int y_offset, int shadeWidth, int lwidth,
@@ -204,7 +228,8 @@ public class UIBaseElements {
 		// 标签名
 		__drawStringShade(g2d, x_offset + lwidth, y_offset, shadeWidth, sLabel, label, Application.colorLabel);
 		// 单位名
-		__drawStringShade(g2d, x_offset + lwidth, y_offset + label.getSize(), shadeWidth, sUnit, unit, Application.colorUnit);
+		__drawStringShade(g2d, x_offset + lwidth, y_offset + label.getSize(), shadeWidth, sUnit, unit,
+				Application.colorUnit);
 	}
 
 	// BOS 类型的标签
@@ -228,7 +253,23 @@ public class UIBaseElements {
 		// 标签名
 		__drawStringShade(g2d, x_offset + lwidth, y_offset, shadeWidth, sLabel, label, Application.colorLabel);
 		// 单位名
-		__drawStringShade(g2d, x_offset + lwidth, y_offset + label.getSize(), shadeWidth, sUnit, unit, Application.colorUnit);
+		__drawStringShade(g2d, x_offset + lwidth, y_offset + label.getSize(), shadeWidth, sUnit, unit,
+				Application.colorUnit);
+	}
+
+	public static void __drawLabelBOSType(Graphics2D g2d, int x_offset, int y_offset, int shadeWidth, Font num,
+			Font label, Font unit, char[] sNum, int len, String sLabel, String sUnit, int lwwidth) {
+		// 数字
+		int lwidth = (lwwidth * num.getSize()) >> 2;
+		// y偏移式加下底边再减去自己字体大小的一半
+		__drawStringShade(g2d, x_offset, (y_offset + y_offset + label.getSize() + unit.getSize()) >> 1, shadeWidth,
+				sNum, len, num, Application.colorNum);
+
+		// 标签名
+		__drawStringShade(g2d, x_offset + lwidth, y_offset, shadeWidth, sLabel, label, Application.colorLabel);
+		// 单位名
+		__drawStringShade(g2d, x_offset + lwidth, y_offset + label.getSize(), shadeWidth, sUnit, unit,
+				Application.colorUnit);
 	}
 
 }

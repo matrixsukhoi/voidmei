@@ -15,6 +15,10 @@ public class LinearGauge extends AbstractHUDComponent {
     public String displayValue;
     public boolean vertical;
 
+    // Zero-GC
+    public final char[] valueBuffer = new char[32];
+    public int valueLen = 0;
+
     // Cached graphics objects for performance
     private BasicStroke borderStroke;
     private BasicStroke separatorStroke;
@@ -30,6 +34,16 @@ public class LinearGauge extends AbstractHUDComponent {
     public void update(int value, String displayValue) {
         this.curValue = value;
         this.displayValue = displayValue;
+        this.valueLen = 0; // Invalidate buffer use
+    }
+
+    public void update(int value, char[] buf, int len) {
+        this.curValue = value;
+        if (len > 32)
+            len = 32; // Safety
+        System.arraycopy(buf, 0, this.valueBuffer, 0, len);
+        this.valueLen = len;
+        // displayValue left stale or unused if valueLen > 0
     }
 
     @Override
@@ -122,21 +136,15 @@ public class LinearGauge extends AbstractHUDComponent {
 
         if (vertical) {
             // (x, y) is the Top-Left of the combined gauge area
-            int textWidth = g2d.getFontMetrics(fontNum).stringWidth(displayValue);
+            int textWidth = getValueWidth(g2d, fontNum);
             int labelSpacing = 2; // Spacing between label and bar
             int barX = x + textWidth + labelSpacing;
 
             // Draw the background and fixed bar border/fill
-            // Bar should act as 'structure', maybe keep it white? User said "vbar should
-            // keep white".
             drawBar(g2d, barX, y, thickness, length, pixVal, shade, Application.colorNum, true);
 
             // Fix separator position for Top-Left Y
             // Bar goes from y to y+length.
-            // Low values are at bottom (y+length).
-            // Value height is pixVal.
-            // So separator is at (y + length) - pixVal.
-            // Fix: Align with fillRect top (y + h - 1 - valH)
             int sepY = y + length - 1 - pixVal;
 
             // Separator Line (moving with value)
@@ -145,27 +153,17 @@ public class LinearGauge extends AbstractHUDComponent {
             drawRect(g2d, x, sepY, totalWidth, 3, shade, c, false);
 
             // Text Number (moving with separator)
-            drawTextShaded(g2d, x, sepY - 1, displayValue, fontNum, c);
+            drawValueText(g2d, x, sepY - 1, fontNum, c);
         } else {
-            // Horizontal Bar: width=length, height=thickness
-            // Bar should act as 'structure', maybe keep it white? User said "vbar should
-            // keep white".
-            // So we use Application.colorNum (default white) for the bar fill.
+            // Horizontal Bar
             drawBar(g2d, x, y, length, thickness, pixVal, shade, Application.colorNum, false);
 
             // Separator Line
             g2d.setStroke(separatorStroke);
-            // drawVRect behavior for horizontal separator
-            drawRect(g2d, x + pixVal - 2, y, 3, -thickness - 1 * fontNum.getSize(), shade, c, true); // true for
-                                                                                                     // "vertical"
-                                                                                                     // rect
-                                                                                                     // (width <
-                                                                                                     // height
-                                                                                                     // logic)
+            drawRect(g2d, x + pixVal - 2, y, 3, -thickness - 1 * fontNum.getSize(), shade, c, true);
 
             // Text Number
-            drawTextShaded(g2d, x + pixVal, y + thickness + 1 * numFontHeight(fontNum), displayValue, fontNum,
-                    c);
+            drawValueText(g2d, x + pixVal, y + thickness + 1 * numFontHeight(fontNum), fontNum, c);
         }
     }
 
@@ -235,11 +233,35 @@ public class LinearGauge extends AbstractHUDComponent {
     // Custom shaded text drawing to avoid UIBaseElements.__drawStringShade overhead
     // (if any)
     // For now, simple shadow
-    private void drawTextShaded(Graphics2D g2d, int x, int y, String s, Font f, Color c) {
+    protected void drawTextShaded(Graphics2D g2d, int x, int y, String s, Font f, Color c) {
         g2d.setFont(f);
         g2d.setColor(Application.colorShadeShape);
         g2d.drawString(s, x + 1, y + 1);
         g2d.setColor(c);
         g2d.drawString(s, x, y);
+    }
+
+    protected void drawTextShaded(Graphics2D g2d, int x, int y, char[] buf, int len, Font f, Color c) {
+        g2d.setFont(f);
+        g2d.setColor(Application.colorShadeShape);
+        g2d.drawChars(buf, 0, len, x + 1, y + 1);
+        g2d.setColor(c);
+        g2d.drawChars(buf, 0, len, x, y);
+    }
+
+    protected int getValueWidth(Graphics2D g2d, Font f) {
+        if (valueLen > 0) {
+            return g2d.getFontMetrics(f).charsWidth(valueBuffer, 0, valueLen);
+        } else {
+            return g2d.getFontMetrics(f).stringWidth(displayValue);
+        }
+    }
+
+    protected void drawValueText(Graphics2D g2d, int x, int y, Font f, Color c) {
+        if (valueLen > 0) {
+            drawTextShaded(g2d, x, y, valueBuffer, valueLen, f, c);
+        } else {
+            drawTextShaded(g2d, x, y, displayValue, f, c);
+        }
     }
 }

@@ -1810,6 +1810,61 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 	}
 
 	@Override
+	public double getHorsePower() {
+		return iTotalHp;
+	}
+
+	@Override
+	public double getEngineResponse() {
+		return tEngResponse;
+	}
+
+	@Override
+	public double getPropEfficiency() {
+		return avgeff;
+	}
+
+	@Override
+	public double getManifoldPressurePounds() {
+		return sState != null ? (sState.manifoldpressure - 1) * 14.696 : 0;
+	}
+
+	@Override
+	public double getManifoldPressureInchHg() {
+		return sState != null ? (sState.manifoldpressure * 760 / 25.4) : 0;
+	}
+
+	@Override
+	public double getUnknownMixture() {
+		return sState != null ? sState.mixture : 0;
+	}
+
+	@Override
+	public double getRadiator() {
+		return sState != null ? sState.radiator : 0;
+	}
+
+	@Override
+	public double getCompressorStage() {
+		return sState != null ? sState.compressorstage : 0;
+	}
+
+	@Override
+	public double getFuelPercent() {
+		return fuelPercent;
+	}
+
+	@Override
+	public double getRPMThrottle() {
+		return sState != null ? sState.RPMthrottle : 0;
+	}
+
+	@Override
+	public double getThrustPercent() {
+		return thurstPercent;
+	}
+
+	@Override
 	public double getAltitude() {
 		return alt;
 	}

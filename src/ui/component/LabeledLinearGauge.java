@@ -19,9 +19,29 @@ public class LabeledLinearGauge extends LinearGauge {
 
     @Override
     public void update(int value, String displayValue) {
-        // Prepend label to displayValue so it moves with the separator line
-        String combinedValue = (label != null ? label : "") + displayValue;
-        super.update(value, combinedValue);
+        // No longer concat here, handled in drawValueText
+        super.update(value, displayValue);
+    }
+
+    @Override
+    public void update(int value, char[] buf, int len) {
+        super.update(value, buf, len);
+    }
+
+    @Override
+    protected int getValueWidth(Graphics2D g2d, Font f) {
+        int labelW = (label != null) ? g2d.getFontMetrics(f).stringWidth(label) : 0;
+        return labelW + super.getValueWidth(g2d, f);
+    }
+
+    @Override
+    protected void drawValueText(Graphics2D g2d, int x, int y, Font f, Color c) {
+        int labelW = 0;
+        if (label != null) {
+            drawTextShaded(g2d, x, y, label, f, c);
+            labelW = g2d.getFontMetrics(f).stringWidth(label);
+        }
+        super.drawValueText(g2d, x + labelW, y, f, c);
     }
 
     @Override
@@ -31,6 +51,7 @@ public class LabeledLinearGauge extends LinearGauge {
 
         if (vertical) {
             // For vertical gauges, the base class logic works well with our prepended label
+            // via getValueWidth/drawValueText overrides
             super.draw(g2d, x, y, length, thickness, fontLabel, monoFont);
         } else {
             // For horizontal gauges, override to fix the missing separator and refine
@@ -59,12 +80,12 @@ public class LabeledLinearGauge extends LinearGauge {
             g2d.drawLine(x + pixVal, y, x + pixVal, y + sepHeight);
 
             // 3. Draw the combined Label + Value (using monospaced font)
-            drawTextShadedFixed(g2d, x + pixVal, y + thickness + monoFont.getSize(), displayValue, monoFont, c);
+            // Use drawValueText to support Buffer + Label
+            drawValueText(g2d, x + pixVal, y + thickness + monoFont.getSize(), monoFont, c);
         }
     }
 
-    // --- Private Helper Methods (Re-implemented to fix bugs and remain
-    // independent) ---
+    // --- Private Helper Methods ---
 
     private void drawBarFixed(Graphics2D g2d, int x, int y, int w, int h, int val, Color shade, Color fill,
             boolean isVert) {
@@ -82,13 +103,5 @@ public class LabeledLinearGauge extends LinearGauge {
             if (valW >= 0)
                 g2d.fillRect(x + 1, y + 1, valW - 2, h - 2);
         }
-    }
-
-    private void drawTextShadedFixed(Graphics2D g2d, int x, int y, String s, Font f, Color c) {
-        g2d.setFont(f);
-        g2d.setColor(Application.colorShadeShape);
-        g2d.drawString(s, x + 1, y + 1);
-        g2d.setColor(c);
-        g2d.drawString(s, x, y);
     }
 }

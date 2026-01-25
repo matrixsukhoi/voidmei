@@ -55,8 +55,33 @@ public class EngineInfo extends FieldOverlay {
 		super.init(c, c.globalPool);
 
 		if (s != null) {
+			bindEngineFields(s);
 			setVisible(true);
 		}
+	}
+
+	private void bindEngineFields(ui.model.TelemetrySource s) {
+		ui.model.FieldManager fm = this.fieldManager;
+
+		// Simple Fields
+		fm.bind("HorsePower", s::getHorsePower, 0);
+		fm.bind("Thrust", s::getThrust, 0);
+		fm.bind("RPM", s::getRPM, 0);
+		fm.bind("PropPitch", s::getPitch, 1);
+		fm.bind("EffEta", s::getPropEfficiency, 0);
+
+		fm.bind("FuelKg", s::getMassFuel, 0);
+		// FuelTime is complex formatted (mins/secs), keep legacy
+
+		// Temperatures
+		fm.bind("Temp", s::getWaterTemp, 0);
+		fm.bind("OilTemp", s::getOilTemp, 0);
+
+		// Response
+		fm.bind("EngResponse", s::getEngineResponse, 0);
+
+		// Complex fields (Pressure, EffHp) kept legacy for now due to dynamic
+		// units/logic
 	}
 
 	/**

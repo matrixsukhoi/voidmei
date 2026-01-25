@@ -59,6 +59,29 @@ public interface TelemetrySource {
 
     double getThrust();
 
+    double getHorsePower();
+
+    double getEngineResponse();
+
+    double getPropEfficiency();
+
+    double getManifoldPressurePounds(); // Imperial
+
+    double getManifoldPressureInchHg(); // Imperial
+
+    // Engine Control
+    double getUnknownMixture(); // For mixture state
+
+    double getRadiator();
+
+    double getCompressorStage();
+
+    double getFuelPercent();
+
+    double getRPMThrottle();
+
+    double getThrustPercent();
+
     // Component State (0.0 - 1.0 or percent)
     double getGear();
 

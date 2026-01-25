@@ -44,22 +44,31 @@ public class StickValue extends DraggableOverlay implements FlightDataListener {
 	int py;
 	static private int fontadd;
 	private int fontSize;
-	private String sElevator;
 	private String sElevatorLabel;
 	private String sElevatorUnit;
 	private Font fontNum;
 	private String FontName;
 	private Font fontLabel;
 	private Font fontUnit;
-	private String sAileron;
+	// Zero-GC Buffers
+	private final char[] bufElevator = new char[8];
+	private final char[] bufAileron = new char[8];
+	private final char[] bufRudder = new char[8];
+	private final char[] bufWingSweep = new char[8];
+
+	private int lenElevator = 0;
+	private int lenAileron = 0;
+	private int lenRudder = 0;
+	private int lenWingSweep = 0;
+
 	private String sAileronLabel;
 	private String sAileronUnit;
-	private String sRudder;
 	private String sRudderLabel;
 	private String sRudderUnit;
-	private String sWingSweep;
 	private String sWingSweepLabel;
 	private String sWingSweepUnit;
+
+	private int rudderVal; // Stored numeric value
 
 	public void setFrameOpaque() {
 		this.getWebRootPaneUI().setMiddleBg(new Color(0, 0, 0, 0));// 中部透明
@@ -80,19 +89,18 @@ public class StickValue extends DraggableOverlay implements FlightDataListener {
 		this.setCursor(Application.blankCursor);
 		setupTransparentWindow();
 
-		sElevator = "50";
+		// Initial Values (50)
+		lenElevator = ui.util.FastNumberFormatter.format(50, bufElevator, 0);
+		lenAileron = ui.util.FastNumberFormatter.format(50, bufAileron, 0);
+		lenRudder = ui.util.FastNumberFormatter.format(50, bufRudder, 0);
+		lenWingSweep = ui.util.FastNumberFormatter.format(50, bufWingSweep, 0);
+
 		sElevatorLabel = Lang.vElevator;
 		sElevatorUnit = "%";
-
-		sAileron = "50";
 		sAileronLabel = Lang.vAileron;
 		sAileronUnit = "%";
-
-		sRudder = "50";
 		sRudderLabel = Lang.vRudder;
 		sRudderUnit = "%";
-
-		sWingSweep = "50";
 		sWingSweepLabel = Lang.vVarioW;
 		sWingSweepUnit = "%";
 
@@ -120,23 +128,26 @@ public class StickValue extends DraggableOverlay implements FlightDataListener {
 				locater(g2d, px, py, width, locateSize, strokeSize);
 
 				int dy = fontSize >> 1;
-				UIBaseElements.__drawLabelBOSType(g2d, width, dy, 1, fontNum, fontLabel, fontUnit, sElevator,
+				UIBaseElements.__drawLabelBOSType(g2d, width, dy, 1, fontNum, fontLabel, fontUnit, bufElevator,
+						lenElevator,
 						sElevatorLabel, sElevatorUnit, 9);
 				dy += 1.5 * fontSize;
-				UIBaseElements.__drawLabelBOSType(g2d, width, dy, 1, fontNum, fontLabel, fontUnit, sAileron,
+				UIBaseElements.__drawLabelBOSType(g2d, width, dy, 1, fontNum, fontLabel, fontUnit, bufAileron,
+						lenAileron,
 						sAileronLabel,
 						sAileronUnit, 9);
 				dy += 1.5 * fontSize;
-				UIBaseElements.__drawLabelBOSType(g2d, width, dy, 1, fontNum, fontLabel, fontUnit, sRudder,
+				UIBaseElements.__drawLabelBOSType(g2d, width, dy, 1, fontNum, fontLabel, fontUnit, bufRudder, lenRudder,
 						sRudderLabel,
 						sRudderUnit, 9);
 				dy += 1.5 * fontSize;
-				UIBaseElements.__drawLabelBOSType(g2d, width, dy, 1, fontNum, fontLabel, fontUnit, sWingSweep,
+				UIBaseElements.__drawLabelBOSType(g2d, width, dy, 1, fontNum, fontLabel, fontUnit, bufWingSweep,
+						lenWingSweep,
 						sWingSweepLabel, sWingSweepUnit, 9);
 
 				UIBaseElements.drawHBarTextNum(g2d, 0, height, width, fontSize >> 1, rudderValPix, 1,
 						Application.colorNum,
-						sRudderLabel, sRudder, fontLabel, fontLabel);
+						sRudderLabel, bufRudder, lenRudder, fontLabel, fontLabel);
 			}
 		};
 
@@ -239,48 +250,9 @@ public class StickValue extends DraggableOverlay implements FlightDataListener {
 	}
 
 	int rudderValPix;
-	int rudder;
+	// int rudder; // Removed, using buffers
 	private int width;
 	private int height;
-	// public void initpanel(WebPanel toppanel) {
-	// toppanel.setLayout(null);
-	// px = 100;
-	// py = 100;
-	//
-	// WebPanel panel = new WebPanel() {
-	// private static final long serialVersionUID = -9061280572815010060L;
-	//
-	// public void paintComponent(Graphics g) {
-	// Graphics2D g2d = (Graphics2D) g;
-	// // 开始绘图
-	// // g2d.draw
-	// g2d.setPaintMode();
-	// g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
-	// RenderingHints.VALUE_ANTIALIAS_ON);
-	// g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING,
-	// RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-	// g2d.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION,
-	// RenderingHints.VALUE_ALPHA_INTERPOLATION_SPEED);
-	// // g2d.setColor(Color.white);
-	// // g2d.fillRect(0, 0, 200, 200);
-	// // 绘制十字星
-	// locater(g2d, px, py, 6);
-	//
-	// int dy = fontSize >> 1;
-	// UIBaseElements.__drawLabelBOSType(g2d, width, dy, 1, fontNum, fontLabel,
-	// fontUnit, sElevator, sElevatorLabel, sElevatorUnit,9);
-	// dy+=1.5 * fontSize;
-	// UIBaseElements.__drawLabelBOSType(g2d, width, dy, 1, fontNum, fontLabel,
-	// fontUnit, sAileron, sAileronLabel, sAileronUnit,9);
-	// dy+=1.5 * fontSize;
-	// UIBaseElements.__drawLabelBOSType(g2d, width, dy, 1, fontNum, fontLabel,
-	// fontUnit, sRudder, sRudderLabel, sRudderUnit,9);
-	// dy+=1.5 * fontSize;
-	// UIBaseElements.__drawLabelBOSType(g2d, width, dy, 1, fontNum, fontLabel,
-	// fontUnit, sWingSweep, sWingSweepLabel, sWingSweepUnit,9);
-	//
-	// // 绘制横条
-	//// UIBaseElements.drawHBarTextNum(g2d, x, y, width, height, val_width,
 	// borderwidth, c, lbl, num, lblFont, numFont);
 	// UIBaseElements.drawHBarTextNum(g2d, 0, height, width, fontSize >> 1,
 	// rudderValPix, 1, Application.lblNumColor, sRudderLabel, sRudder, fontLabel,
@@ -474,27 +446,28 @@ public class StickValue extends DraggableOverlay implements FlightDataListener {
 	@Override
 	public void onFlightData(FlightDataEvent event) {
 		javax.swing.SwingUtilities.invokeLater(() -> {
-			Map<String, String> data = event.getData();
-			// Parse values from event data
-			try {
-				int aileronVal = data.containsKey("aileron") ? Integer.parseInt(data.get("aileron")) : 0;
-				int elevatorVal = data.containsKey("elevator") ? Integer.parseInt(data.get("elevator")) : 0;
-				int rudderVal = data.containsKey("rudder") ? Integer.parseInt(data.get("rudder")) : 0;
+			if (xs != null) {
+				// Zero-GC Update
+				double aileron = xs.getAileron();
+				double elevator = xs.getElevator();
+				double rudder = xs.getRudder();
+				double wingSweep = xs.getWingSweep();
+
+				int aileronVal = (int) aileron;
+				int elevatorVal = (int) elevator;
+				int rudderVal = (int) rudder;
+				int wsVal = (int) (wingSweep * 100);
 
 				px = (100 + aileronVal) * width / 200;
 				py = (100 + elevatorVal) * width / 200;
-
-				sElevator = data.getOrDefault("elevator", "0");
-				sAileron = data.getOrDefault("aileron", "0");
-				sRudder = data.getOrDefault("rudder", "0");
-				sWingSweep = data.getOrDefault("ws", "0");
-
 				rudderValPix = (rudderVal + 100) * width / 200;
 
-				this.getContentPane().repaint();
-			} catch (NumberFormatException e) {
-				// Ignore parsing errors
+				lenAileron = ui.util.FastNumberFormatter.format(aileronVal, bufAileron, 0);
+				lenElevator = ui.util.FastNumberFormatter.format(elevatorVal, bufElevator, 0);
+				lenRudder = ui.util.FastNumberFormatter.format(rudderVal, bufRudder, 0);
+				lenWingSweep = ui.util.FastNumberFormatter.format(wsVal, bufWingSweep, 0);
 			}
+			this.getContentPane().repaint();
 		});
 	}
 

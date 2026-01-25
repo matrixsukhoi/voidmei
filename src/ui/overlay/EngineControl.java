@@ -92,6 +92,9 @@ public class EngineControl extends FieldOverlay {
 		return new ArrayList<>(); // Not used - we use GaugeField
 	}
 
+	// Zero-GC reference
+	private ui.model.TelemetrySource telemetrySource;
+
 	// --- Initialization ---
 
 	/**
@@ -125,6 +128,10 @@ public class EngineControl extends FieldOverlay {
 		subscribeToEvents();
 
 		if (s != null) {
+			// Bind TelemetrySource
+			if (s instanceof ui.model.TelemetrySource) {
+				this.telemetrySource = (ui.model.TelemetrySource) s;
+			}
 			setVisible(true);
 		}
 	}
@@ -300,34 +307,118 @@ public class EngineControl extends FieldOverlay {
 		lastRefreshTime = now;
 
 		javax.swing.SwingUtilities.invokeLater(() -> {
-			updateGaugesFromEvent(event);
+			updateResult(event);
 			if (panel != null)
 				panel.repaint();
 		});
 	}
 
+	private void updateResult(FlightDataEvent event) {
+		Map<String, String> data = event.getData();
+		updateStateFromData(data);
+
+		if (telemetrySource != null) {
+			updateGaugesZeroGC();
+		} else {
+			updateGaugesFromData(data);
+		}
+	}
+
+	// Split legacy update
 	private void updateGaugesFromEvent(FlightDataEvent event) {
+		updateResult(event);
+	}
+
+	private void updateGaugesFromData(Map<String, String> data) {
 		if (gaugeFields == null)
 			return;
+		for (GaugeField gf : gaugeFields) {
+			updateGaugeByType(gf, data);
+		}
+	}
 
-		Map<String, String> data = event.getData();
-
+	private void updateStateFromData(Map<String, String> data) {
 		// Check jet status once
 		if (!jetLabelUpdated && "true".equals(data.get("engine_check_done"))) {
 			isJet = "true".equals(data.get("is_jet"));
-			if (isJet) {
+			if (isJet && gaugeFields != null) {
 				for (GaugeField gf : gaugeFields) {
 					if (gf.gaugeType == GaugeType.PITCH.ordinal()) {
-						gf.gauge.label = Lang.eThurstP;
+						gf.gauge.label = Lang.eThurstP; // Update label for Jet
 					}
 				}
 			}
 			jetLabelUpdated = true;
 		}
+	}
 
-		// Update each gauge
+	private void updateGaugesZeroGC() {
+		if (gaugeFields == null)
+			return;
+
 		for (GaugeField gf : gaugeFields) {
-			updateGaugeByType(gf, data);
+			if (!gf.visible && gf.gaugeType != GaugeType.COMPRESSOR.ordinal()
+					&& gf.gaugeType != GaugeType.MIXTURE.ordinal())
+				continue;
+
+			// Skip logic for jets
+			if (isJet && isJetHiddenGauge(gf.gaugeType))
+				continue;
+
+			GaugeType type = GaugeType.values()[gf.gaugeType];
+			double val = 0;
+			boolean hasVal = true;
+
+			switch (type) {
+				case THROTTLE:
+					val = telemetrySource.getThrottle();
+					// sState.throttle is 0-110
+					break;
+				case PITCH:
+					if (!isJet)
+						val = telemetrySource.getRPMThrottle();
+					else
+						val = telemetrySource.getThrustPercent();
+					break;
+				case MIXTURE:
+					val = telemetrySource.getUnknownMixture(); // Returns sState.mixture
+					gf.visible = val >= 0;
+					if (!gf.visible)
+						hasVal = false;
+					break;
+				case RADIATOR:
+					val = telemetrySource.getRadiator();
+					break;
+				case COMPRESSOR:
+					val = telemetrySource.getCompressorStage();
+					int stage = (int) val;
+					gf.visible = stage > 0;
+					if (stage > 0) {
+						if (stage - 1 > gf.gauge.maxValue)
+							gf.gauge.maxValue = stage - 1;
+						val = stage - 1; // Display value
+					} else {
+						hasVal = false;
+					}
+					break;
+				case FUEL:
+					val = telemetrySource.getFuelPercent();
+					break;
+			}
+
+			if (hasVal) {
+				int intVal = (int) val;
+				// Format directly to buffer
+				// Original used String.format("%3s") which pads with spaces
+				// FastNumberFormatter formats number. We need to handle padding?
+				// LinearGauge draws buffer.
+				// For now, raw number is fine, layout handles centering/position.
+				// Or I can add padding support to FastNumberFormatter later.
+				// Actually String.format("%3s") for "100" is "100". For "0" is " 0".
+				// FastNumberFormatter produces "0".
+				gf.length = ui.util.FastNumberFormatter.format(val, gf.buffer, 0);
+				gf.gauge.update(intVal, gf.buffer, gf.length);
+			}
 		}
 	}
 
