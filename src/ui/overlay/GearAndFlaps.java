@@ -53,7 +53,6 @@ public class GearAndFlaps extends DraggableOverlay {
     private String flapText;
     private int width;
     private int height;
-    private int gap;
 
     public void initPreview(Controller xc, OverlaySettings settings) {
         init(xc, null, settings);
@@ -164,51 +163,6 @@ public class GearAndFlaps extends DraggableOverlay {
         return l1;
     }
 
-    public void initpanel() {
-        /*
-         * WebRadioButton rdbtnNewRadioButton = new
-         * WebRadioButton("\u8D77\u843D\u67B6"); rdbtnNewRadioButton.setFont(new
-         * Font(Application.DefaultFontName,Font.PLAIN,12));
-         * rdbtnNewRadioButton.setForeground(Color.WHITE);
-         * rdbtnNewRadioButton.getWebUI().setShadeWidth(5);
-         * rdbtnNewRadioButton.setHorizontalAlignment(SwingConstants.CENTER);
-         * rdbtnNewRadioButton.setBounds(0, 0, 90, 30);
-         */
-
-        s1 = new WebStepLabel("Gear");
-        // s1.setFont(new Font(Application.DefaultNumfontName,Font.PLAIN,10));
-
-        s1.setBounds(0, 0, 90, 30);
-        s1.setFontSize(10);
-        s1.setForeground(Application.colorLabel);
-        s1.setDrawShade(true);
-        s1.setShadeColor(Application.colorShade);
-        s1.setBottomBgColor(new Color(0, 0, 0, 0));
-        s1.setTopBgColor(new Color(0, 0, 0, 0));
-        s1.setFont(Application.defaultFont);
-        // s1.setSelected(true);
-        s1.setSelectedBgColor(warning);
-
-        getContentPane().add(s1);
-
-        WebPanel panel = new WebPanel();
-        panel.setBounds(0, 30, 90, 120);
-        getContentPane().add(panel);
-        panel.setLayout(null);
-        panel.setWebColoredBackground(false);
-        panel.setBackground(new Color(0, 0, 0, 0));
-
-        slider = new WebSlider();
-        initslider(slider);
-        slider.setBounds(0, 30, 90, 90);
-        panel.add(slider);
-
-        WebLabel lblNewLabel = createWebLabel(Lang.gFlaps);
-        lblNewLabel.setHorizontalAlignment(SwingConstants.CENTER);
-        lblNewLabel.setBounds(0, 0, 90, 30);
-        panel.add(lblNewLabel);
-    }
-
     public void reinitConfig() {
         if (overlaySettings != null) {
             FontName = overlaySettings.getFontName();
@@ -241,7 +195,7 @@ public class GearAndFlaps extends DraggableOverlay {
             sw = 10;
         }
 
-        int totalWidth = width + (sw * 2);
+        int totalWidth = width + (int) (4 * fontSize) + (sw * 2);
         int totalHeight = height + (sw * 2);
 
         if (overlaySettings != null) {
@@ -285,14 +239,14 @@ public class GearAndFlaps extends DraggableOverlay {
                 UIBaseElements.__drawLabelBOSType(g2d, width, dy, 1, Application.defaultFont, Application.defaultFont,
                         Application.defaultFont, flapText, Lang.gFlaps, "%", 9);
 
-                dy += barHeight + gap;
+                dy += barHeight;
                 UIBaseElements.drawVBarTextNum(g2d, 0, dy, barWidth, barHeight, flapPix, 1, Application.colorNum, "",
                         "F" + flapText, fontNum, fontLabel);
 
                 if (warnText != null) {
                     g2d.setColor(warnColor);
                     g2d.setFont(fontLabel);
-                    g2d.drawString(warnText, width + gap, fontSize);
+                    g2d.drawString(warnText, width, fontSize);
                 }
             }
         };
