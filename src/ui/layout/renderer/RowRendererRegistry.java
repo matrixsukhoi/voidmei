@@ -25,6 +25,7 @@ public class RowRendererRegistry {
         renderers.put("INPUT", new TextRowRenderer());
         renderers.put("TEXT", new TextRowRenderer());
         renderers.put("VOICE", new VoiceRowRenderer());
+        renderers.put("VOICE_GLOBAL", new VoiceGlobalRenderer());
         // Note: HEADER is handled specially in the layout loop, not as a renderer
     }
 

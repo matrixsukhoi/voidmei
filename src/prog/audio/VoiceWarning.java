@@ -84,12 +84,30 @@ public class VoiceWarning implements Runnable {
 
         public void reload() {
             // Determine scale/pack from config
-            String packName = xc.getConfig("voice_" + key);
+            String val = xc.getConfig("voice_" + key);
+            String packName = "default";
+            boolean enabled = true;
+
+            if (val != null && !val.isEmpty()) {
+                if (val.contains("|")) {
+                    String[] parts = val.split("\\|");
+                    packName = parts[0];
+                    if (parts.length > 1)
+                        enabled = Boolean.parseBoolean(parts[1]);
+                } else {
+                    packName = val;
+                }
+            }
+
+            if (!enabled) {
+                this.available = false;
+                this.clip = null;
+                return;
+            }
 
             this.clip = VoiceResourceManager.getInstance().loadClip(key, packName);
             this.available = (this.clip != null);
-            // this.playCompleted = false; // Removed as it referred to outer class unused
-            // field
+            // this.playCompleted = false;
         }
 
         public void playOnce(long time) {

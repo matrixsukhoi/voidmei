@@ -1,5 +1,6 @@
 package ui.layout.renderer;
 
+import com.alee.extended.button.WebSwitch;
 import com.alee.laf.button.WebButton;
 import com.alee.laf.combobox.WebComboBox;
 import com.alee.laf.label.WebLabel;
@@ -16,7 +17,7 @@ import javax.swing.BorderFactory;
 
 /**
  * Renders VOICE type rows.
- * [Label] ... [ComboBox (Pack)] [Play Button]
+ * [Label] ... [ComboBox (Pack)] [Play Button] [Switch]
  */
 public class VoiceRowRenderer implements RowRenderer {
 
@@ -42,30 +43,55 @@ public class VoiceRowRenderer implements RowRenderer {
         java.util.List<String> packs = VoiceResourceManager.getInstance().getAvailablePacks();
         WebComboBox combo = new WebComboBox(packs.toArray(new String[0]));
         combo.setEditable(false);
-        combo.setPreferredSize(new Dimension(100, 26)); // Slightly wider for pack names
+        combo.setPreferredSize(new Dimension(100, 26));
 
-        // Determine current value
-        String currentVal = null;
-        if (row.property != null) { // property maps to "voice_xxx"
-            currentVal = context.getStringFromConfigService(row.property, row.getStr());
-        }
-        if (currentVal == null || currentVal.isEmpty()) {
-            currentVal = "default";
-        }
-        combo.setSelectedItem(currentVal);
+        // Switch
+        WebSwitch enableSwitch = new WebSwitch();
+        enableSwitch.setRound(4);
+        ReplicaBuilder.getStyle().decorateSwitch(enableSwitch);
 
-        // Listener
-        combo.addActionListener(e -> {
+        // Determine current value parsing
+        // Format: "packName|enabled" or just "packName" (default enabled)
+        String rawVal = null;
+        if (row.property != null) {
+            rawVal = context.getStringFromConfigService(row.property, row.getStr());
+        }
+
+        String currentPack = "default";
+        boolean isEnabled = true;
+
+        if (rawVal != null && !rawVal.isEmpty()) {
+            if (rawVal.contains("|")) {
+                String[] parts = rawVal.split("\\|");
+                currentPack = parts[0];
+                if (parts.length > 1)
+                    isEnabled = Boolean.parseBoolean(parts[1]);
+            } else {
+                currentPack = rawVal;
+            }
+        }
+
+        combo.setSelectedItem(currentPack);
+        enableSwitch.setSelected(isEnabled);
+
+        // Listeners
+        java.awt.event.ActionListener stateSaver = e -> {
             if (context.isUpdating())
                 return;
-            String newVal = (String) combo.getSelectedItem();
+            String newPack = (String) combo.getSelectedItem();
+            boolean newEnabled = enableSwitch.isSelected();
+            String newVal = newPack + "|" + newEnabled;
 
             // Sync to config
             if (row.property != null) {
                 context.syncStringToConfigService(row.property, newVal);
             }
             context.onSave();
-        });
+        };
+
+        combo.addActionListener(stateSaver);
+        enableSwitch.addActionListener(stateSaver);
+
         controls.add(combo);
 
         // Play Button
@@ -79,7 +105,7 @@ public class VoiceRowRenderer implements RowRenderer {
             if (key != null && key.startsWith("voice_")) {
                 key = key.substring(6);
             }
-            // Load and play
+            // Load and play (ignoring enable state for preview)
             Clip clip = VoiceResourceManager.getInstance().loadClip(key, pack);
             if (clip != null) {
                 clip.setFramePosition(0);
@@ -88,9 +114,9 @@ public class VoiceRowRenderer implements RowRenderer {
         });
         controls.add(btnPlay);
 
-        panel.add(controls, BorderLayout.CENTER);
+        controls.add(enableSwitch);
 
-        // Critical: Enable ResponsiveGrid alignment
+        panel.add(controls, BorderLayout.CENTER);
         panel.putClientProperty("alignLabel", label);
 
         return panel;
