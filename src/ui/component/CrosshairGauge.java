@@ -10,7 +10,7 @@ import java.awt.Image;
  * High-performance Crosshair/Gunsight component.
  * Extracted from MinimalHUD for reusability.
  */
-public class CrosshairGauge implements HUDComponent {
+public class CrosshairGauge extends AbstractHUDComponent {
 
     // Cached strokes for performance
     private BasicStroke outerStroke;

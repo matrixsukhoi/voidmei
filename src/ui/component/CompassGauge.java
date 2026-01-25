@@ -11,7 +11,7 @@ import ui.UIBaseElements;
  * High-performance Compass Gauge component.
  * Extracted from MinimalHUD.
  */
-public class CompassGauge implements HUDComponent {
+public class CompassGauge extends AbstractHUDComponent {
 
     private int radius;
     private BasicStroke outBs;

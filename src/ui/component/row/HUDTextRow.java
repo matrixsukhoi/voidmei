@@ -4,9 +4,10 @@ import java.awt.Font;
 import java.awt.Graphics2D;
 
 import prog.Application;
+import ui.component.AbstractHUDComponent;
 import ui.UIBaseElements;
 
-public class HUDTextRow implements HUDRow {
+public class HUDTextRow extends AbstractHUDComponent implements HUDRow {
 
     protected String text;
     protected Font font;

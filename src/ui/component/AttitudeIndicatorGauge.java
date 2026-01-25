@@ -13,7 +13,7 @@ import ui.UIBaseElements;
 /**
  * Reusable Attitude Indicator component.
  */
-public class AttitudeIndicatorGauge implements HUDComponent {
+public class AttitudeIndicatorGauge extends AbstractHUDComponent {
 
     // Cached strokes
     private BasicStroke strokeThick;

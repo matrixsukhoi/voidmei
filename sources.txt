@@ -74,6 +74,7 @@ src/ui/component/row/HUDRow.java
 src/ui/component/row/HUDFlapsRow.java
 src/ui/component/row/HUDAkbRow.java
 src/ui/component/row/HUDTextRow.java
+src/ui/component/AbstractHUDComponent.java
 src/ui/component/LabeledLinearGauge.java
 src/ui/component/WarningOverlay.java
 src/ui/component/CompassGauge.java

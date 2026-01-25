@@ -12,7 +12,7 @@ import ui.UIBaseElements;
  * High-performance Flap Angle Bar component.
  * Displays a tri-color bar showing current flap angle vs allowable.
  */
-public class FlapAngleBar implements HUDComponent {
+public class FlapAngleBar extends AbstractHUDComponent {
 
     // Cached stroke
     private BasicStroke tickStroke;

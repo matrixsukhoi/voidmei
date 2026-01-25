@@ -7,7 +7,7 @@ import java.awt.Graphics2D;
 
 import prog.Application;
 
-public class LinearGauge implements HUDComponent {
+public class LinearGauge extends AbstractHUDComponent {
     public String label;
     public String unit;
     public int maxValue;
@@ -136,7 +136,8 @@ public class LinearGauge implements HUDComponent {
             // Low values are at bottom (y+length).
             // Value height is pixVal.
             // So separator is at (y + length) - pixVal.
-            int sepY = y + length - pixVal;
+            // Fix: Align with fillRect top (y + h - 1 - valH)
+            int sepY = y + length - 1 - pixVal;
 
             // Separator Line (moving with value)
             g2d.setStroke(separatorStroke);

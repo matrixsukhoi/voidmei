@@ -269,7 +269,9 @@ public class EngineControl extends FieldOverlay {
 				dy += fontsize + (fontsize >> 2);
 			} else {
 				gauge.vertical = true;
-				gauge.draw(g2d, x + dx, y, 4 * fontsize, fontsize >> 1, fontLabel, fontLabel);
+				// LinearGauge logic changed from Bottom-Up to Top-Down.
+				// We must shift Y up by length (4 * fontsize) to maintain visual position.
+				gauge.draw(g2d, x + dx, y - (4 * fontsize), 4 * fontsize, fontsize >> 1, fontLabel, fontLabel);
 				dx += (5 * fontsize) >> 1;
 			}
 		}

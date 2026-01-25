@@ -207,8 +207,6 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 
                 if (modernLayout != null) {
                     modernLayout.doLayout();
-                    // Always log for debug now
-                    modernLayout.logTopology();
                     modernLayout.render(g2d);
                 }
 
@@ -558,9 +556,12 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
     private ui.layout.ModernHUDLayoutEngine modernLayout;
 
     private void initModernLayout() {
-        modernLayout = new ui.layout.ModernHUDLayoutEngine(
-                hudSettings.isDisplayCrosshair() ? ctx.width * 2 : ctx.width,
-                ctx.height);
+        // Apply Global Debug Setting
+        boolean showCrosshair = hudSettings.isDisplayCrosshair();
+        int layoutWidth = showCrosshair ? ctx.width * 2 : ctx.width;
+        Logger.info("MinimalHUD", "initModernLayout: showCrosshair=" + showCrosshair + ", layoutWidth=" + layoutWidth);
+
+        modernLayout = new ui.layout.ModernHUDLayoutEngine(layoutWidth, ctx.height);
 
         // Apply Global Debug Setting
         // [架构说明]
@@ -580,6 +581,8 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 
         if (components.isEmpty())
             return;
+
+        Logger.info("MinimalHUD", "initModernLayout: Adding nodes. Components: " + components.size());
 
         // 3. Row 0 (New Anchor for Left Block)
         // Position: 2.1, 3.5 units
@@ -645,11 +648,15 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
         modernLayout.addNode(throttleNode);
 
         // Crosshair (Independent, Center of Attention)
-        ui.layout.HUDLayoutNode crosshairNode = new ui.layout.HUDLayoutNode("crosshair", crosshairGauge);
-        crosshairNode.setRelativePosition(0, 0)
-                .setAnchors(ui.layout.Anchor.MIDDLE_RIGHT, ui.layout.Anchor.MIDDLE_RIGHT);
-        modernLayout.addNode(crosshairNode);
+        if (hudSettings.isDisplayCrosshair()) {
+            ui.layout.HUDLayoutNode crosshairNode = new ui.layout.HUDLayoutNode("crosshair", crosshairGauge);
+            crosshairNode.setRelativePosition(0, 0)
+                    .setAnchors(ui.layout.Anchor.MIDDLE_RIGHT, ui.layout.Anchor.MIDDLE_RIGHT);
+            modernLayout.addNode(crosshairNode);
+        }
 
+        // Force layout calculation to populate sortedNodes for logging
+        modernLayout.doLayout();
         modernLayout.logTopology();
     }
 }
