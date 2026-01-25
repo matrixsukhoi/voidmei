@@ -171,7 +171,11 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
         String altPre = hudSettings.isAltitudeLabelDisabled() ? "" : "ALT";
         String sepPre = hudSettings.isSEPLabelDisabled() ? "" : "SEP";
 
-        lines[0] = spdPre + String.format("%5s", "360");
+        if (hudSettings.drawHudMach()) {
+            lines[0] = String.format("M%5.2f", 0.85);
+        } else {
+            lines[0] = spdPre + String.format("%5s", "360");
+        }
         lines[1] = altPre + String.format("%5s", "1024");
         lines[3] = sepPre + String.format("%5s", "30");
         lines[4] = "G" + String.format("%5s", "2.0");
