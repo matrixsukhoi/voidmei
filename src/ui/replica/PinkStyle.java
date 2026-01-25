@@ -80,7 +80,7 @@ public class PinkStyle implements UIStyle {
         // Define colors
         Color colorOnBg = COLOR_PRIMARY;
         Color colorOnKnob = Color.WHITE;
-        
+
         Color colorOffBg = Color.WHITE;
         Color colorOffKnob = new Color(80, 80, 80); // Dark Grey
         Color borderColor = new Color(200, 200, 200); // Light Grey Border
@@ -99,7 +99,7 @@ public class PinkStyle implements UIStyle {
                 webSwitch.setForeground(colorOffKnob);
                 // Enable border (shade) for OFF state
                 webSwitch.setShadeWidth(1);
-                webSwitch.setBorderColor(borderColor); 
+                webSwitch.setBorderColor(borderColor);
             }
             webSwitch.repaint();
         };
@@ -113,7 +113,7 @@ public class PinkStyle implements UIStyle {
         webSwitch.addActionListener(e -> {
             updateColors.accept(webSwitch.isSelected());
         });
-        
+
         // Add PropertyChangeListener to catch programmatic changes (Data Binding)
         // WebSwitch likely uses "selected" property
         webSwitch.addPropertyChangeListener("selected", new PropertyChangeListener() {
@@ -130,8 +130,14 @@ public class PinkStyle implements UIStyle {
 
     @Override
     public void decorateSlider(WebSlider slider) {
-        // Basic decoration
         slider.setOpaque(false);
+        slider.setPaintTicks(true);
+        slider.setPaintLabels(true);
+        slider.setFont(FONT_NORMAL.deriveFont(9f)); // Even smaller font for ticks
+        slider.setForeground(COLOR_TEXT);
+
+        // Customizing the appearance if possible through WebLaF properties
+        // We'll stick to standard JSlider/WebSlider properties for compatibility
     }
 
     @Override

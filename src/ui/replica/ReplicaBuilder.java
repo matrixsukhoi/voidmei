@@ -206,8 +206,30 @@ public class ReplicaBuilder {
 
         com.alee.laf.slider.WebSlider slider = new com.alee.laf.slider.WebSlider(
                 com.alee.laf.slider.WebSlider.HORIZONTAL, min, max, value);
-        slider.setPreferredSize(new Dimension(width, 30));
+        slider.setPreferredSize(new Dimension(width, 38)); // More compact height for labels
         slider.setOpaque(false);
+
+        // --- Tick Setup ---
+        int range = Math.abs(max - min);
+        if (range > 0) {
+            int major;
+            if (range <= 10)
+                major = 2;
+            else if (range <= 20)
+                major = 5;
+            else if (range <= 50)
+                major = 10;
+            else if (range <= 100)
+                major = 20;
+            else if (range <= 500)
+                major = 100;
+            else
+                major = range / 5;
+
+            slider.setMajorTickSpacing(major);
+            slider.setMinorTickSpacing(major / 5 > 0 ? major / 5 : 1);
+        }
+
         style.decorateSlider(slider);
 
         panel.add(slider, BorderLayout.CENTER);

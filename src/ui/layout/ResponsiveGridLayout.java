@@ -216,7 +216,12 @@ public class ResponsiveGridLayout implements LayoutManager {
                         // Center vertically in the row? Or Fill?
                         // Usually Fill height or Top align.
                         // Let's do Fill to row height.
-                        comp.setBounds(currentX, currentY, wAlloc, rowHeights[row]);
+                        int hAlloc = rowHeights[row];
+                        Dimension dPref = comp.getPreferredSize();
+                        int hActual = Math.min(hAlloc, dPref.height);
+                        int yOffset = (hAlloc - hActual) / 2;
+
+                        comp.setBounds(currentX, currentY + yOffset, wAlloc, hActual);
 
                         // Special Logic: If this component used 'alignLabel', we previously set its
                         // preferred size.
