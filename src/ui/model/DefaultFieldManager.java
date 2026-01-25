@@ -56,6 +56,15 @@ public class DefaultFieldManager implements FieldManager {
     }
 
     @Override
+    public void bind(String key, java.util.function.DoubleSupplier supplier, int precision) {
+        DataField field = fieldMap.get(key);
+        if (field != null) {
+            field.valueSupplier = supplier;
+            field.precision = precision;
+        }
+    }
+
+    @Override
     public List<DataField> getFields() {
         return fields;
     }

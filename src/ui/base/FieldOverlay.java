@@ -154,16 +154,24 @@ public abstract class FieldOverlay extends DraggableOverlay implements FlightDat
             Map<String, String> data = event.getData();
             for (DataField field : fieldManager.getFields()) {
                 if (field.visible) {
-                    String key = field.key;
-                    String val = naString;
-                    if (data.containsKey(key)) {
-                        val = data.get(key);
+                    // ZERO-GC PATH
+                    if (field.valueSupplier != null) {
+                        double val = field.valueSupplier.getAsDouble();
+                        field.length = ui.util.FastNumberFormatter.format(val, field.buffer, field.precision);
                     }
-                    fieldManager.updateField(key, val, naString);
+                    // LEGACY PATH
+                    else {
+                        String key = field.key;
+                        String val = naString;
+                        if (data.containsKey(key)) {
+                            val = data.get(key);
+                        }
+                        fieldManager.updateField(key, val, naString);
 
-                    // Dynamic Unit Support
-                    if (data.containsKey(key + "_unit")) {
-                        fieldManager.updateFieldUnit(key, data.get(key + "_unit"));
+                        // Dynamic Unit Support
+                        if (data.containsKey(key + "_unit")) {
+                            fieldManager.updateFieldUnit(key, data.get(key + "_unit"));
+                        }
                     }
                 }
             }

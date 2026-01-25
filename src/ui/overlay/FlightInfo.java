@@ -54,8 +54,33 @@ public class FlightInfo extends FieldOverlay {
 		super.init(c, c.globalPool);
 
 		if (s != null) {
+			bindHighFrequencyFields(s);
 			setVisible(true);
 		}
+	}
+
+	// --- Zero-GC Binding ---
+	private void bindHighFrequencyFields(ui.model.TelemetrySource s) {
+		ui.model.FieldManager fm = this.fieldManager;
+		// Bind fields to service methods
+		fm.bind("ias", s::getIAS, 0);
+		fm.bind("tas", s::getTAS, 0);
+		fm.bind("mach", s::getMach, 2);
+		fm.bind("dir", s::getCompass, 0);
+		fm.bind("height", s::getAltitude, 0);
+		fm.bind("rda", s::getRadioAltitude, 0);
+		fm.bind("vario", s::getVario, 1);
+		fm.bind("sep", s::getSEP, 0);
+		fm.bind("acc", s::getAcceleration, 1);
+		fm.bind("wx", s::getRollRate, 0);
+		fm.bind("ny", s::getNy, 1);
+
+		fm.bind("turn", s::getTurnRate, 1);
+		fm.bind("rds", s::getTurnRadius, 0);
+
+		fm.bind("aoa", s::getAoA, 1);
+		fm.bind("aos", s::getAoS, 1);
+		fm.bind("ws", s::getWingSweep, 0);
 	}
 
 	/**

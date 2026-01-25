@@ -15,7 +15,7 @@ import java.util.Map;
 import prog.event.FlightDataBus;
 import prog.event.FlightDataEvent;
 
-public class Service implements Runnable {
+public class Service implements Runnable, ui.model.TelemetrySource {
 	public static CalcHelper cH = new CalcHelper();
 	public CalcHelper.SimpleMovingAverage diffSpeedSMA;
 	public CalcHelper.SimpleMovingAverage sepSMA;
@@ -1772,4 +1772,166 @@ public class Service implements Runnable {
 			}
 		}
 	}
+	// --- TelemetrySource Implementation ---
+
+	@Override
+	public double getIAS() {
+		return sState != null ? sState.IAS : 0;
+	}
+
+	@Override
+	public double getTAS() {
+		return sState != null ? sState.TAS : 0;
+	}
+
+	@Override
+	public double getMach() {
+		return sState != null ? sState.M : 0;
+	}
+
+	@Override
+	public double getAoA() {
+		return sState != null ? sState.AoA : 0;
+	}
+
+	@Override
+	public double getAoS() {
+		return sState != null ? sState.AoS : 0;
+	}
+
+	@Override
+	public double getNy() {
+		return sState != null ? sState.Ny : 0;
+	}
+
+	@Override
+	public double getVario() {
+		return nVy;
+	}
+
+	@Override
+	public double getAltitude() {
+		return alt;
+	}
+
+	@Override
+	public double getRadioAltitude() {
+		return radioAlt;
+	}
+
+	@Override
+	public boolean isRadioAltitudeValid() {
+		return radioAltValid != null && radioAltValid;
+	}
+
+	@Override
+	public double getCompass() {
+		return dCompass;
+	}
+
+	@Override
+	public double getSEP() {
+		return SEP;
+	}
+
+	@Override
+	public double getAcceleration() {
+		return acceleration;
+	}
+
+	@Override
+	public double getTurnRate() {
+		return turnRate;
+	}
+
+	@Override
+	public double getTurnRadius() {
+		return turnRds;
+	}
+
+	@Override
+	public double getRollRate() {
+		return sState != null ? sState.Wx : 0;
+	}
+
+	@Override
+	public double getMassFuel() {
+		return fTotalFuel;
+	}
+
+	@Override
+	public long getFuelTimeMili() {
+		return fueltime;
+	}
+
+	@Override
+	public double getThrottle() {
+		return sState != null ? sState.throttle : 0;
+	}
+
+	@Override
+	public double getRPM() {
+		return sState != null ? sState.RPM : 0;
+	}
+
+	@Override
+	public double getManifoldPressure() {
+		return sState != null ? sState.manifoldpressure : 0;
+	}
+
+	@Override
+	public double getWaterTemp() {
+		return nwaterTemp;
+	}
+
+	@Override
+	public double getOilTemp() {
+		return noilTemp;
+	}
+
+	@Override
+	public double getPitch() {
+		return sState != null ? sState.pitch[0] : 0;
+	}
+
+	@Override
+	public double getThrust() {
+		return sState != null ? sState.thrust[0] : 0;
+	}
+
+	@Override
+	public double getGear() {
+		return sState != null ? sState.gear : 0;
+	}
+
+	@Override
+	public double getFlaps() {
+		return sState != null ? sState.flaps : 0;
+	}
+
+	@Override
+	public double getAirbrake() {
+		return sState != null ? sState.airbrake : 0;
+	}
+
+	@Override
+	public double getAileron() {
+		return sState != null ? sState.aileron : 0;
+	}
+
+	@Override
+	public double getElevator() {
+		return sState != null ? sState.elevator : 0;
+	}
+
+	@Override
+	public double getRudder() {
+		return sState != null ? sState.rudder : 0;
+	}
+
+	@Override
+	public double getWingSweep() {
+		return sIndic != null ? sIndic.wsweep_indicator : 0;
+	}
+
 }

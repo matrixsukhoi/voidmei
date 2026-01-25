@@ -54,4 +54,10 @@ public class DataField {
             this.visible = !value.equals(naString);
         }
     }
+
+    // --- Zero-GC Pipeline Support ---
+    public final char[] buffer = new char[32];
+    public int length = 0;
+    public java.util.function.DoubleSupplier valueSupplier;
+    public int precision = 0; // Default to integer
 }

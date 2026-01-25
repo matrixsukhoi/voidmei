@@ -57,7 +57,9 @@ public class BOSStyleRenderer implements OverlayRenderer {
             // If they do (e.g. dynamic unit change), we might need to update them too.
             // For now, assume static metadata.
 
-            gauge.draw(g2d, offset[0], offset[1], ctx.numFont, ctx.labelFont, ctx.unitFont, 1);
+            // Draw using zero-GC char buffer if available
+            gauge.draw(g2d, offset[0], offset[1], ctx.numFont, ctx.labelFont, ctx.unitFont, 1, field.buffer,
+                    field.length);
 
             visibleIndex++;
             updateOffset(visibleIndex, offset, ctx);

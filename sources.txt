@@ -51,6 +51,7 @@ src/ui/model/DefaultFieldManager.java
 src/ui/model/FlightDataBindings.java
 src/ui/model/DataField.java
 src/ui/model/FlightDataProvider.java
+src/ui/model/TelemetrySource.java
 src/ui/model/ServiceDataAdapter.java
 src/ui/model/FieldDefinition.java
 src/ui/model/GaugeField.java
@@ -108,6 +109,7 @@ src/ui/layout/UIBuilder.java
 src/ui/layout/ClassicStyle.java
 src/ui/util/NotificationService.java
 src/ui/util/NotificationFactory.java
+src/ui/util/FastNumberFormatter.java
 src/ui/overlay/SituationAware.java
 src/ui/overlay/FMDataOverlay.java
 src/ui/overlay/ZebraListRenderer.java
