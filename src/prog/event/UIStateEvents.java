@@ -46,5 +46,11 @@ public final class UIStateEvents {
      */
     public static final String ACTION_RESET_COMPLETED = "RESET_COMPLETED";
 
+    /**
+     * Published when the list of available voice packs has changed.
+     * Payload: None
+     */
+    public static final String VOICE_PACKS_REFRESH = "voicePacksRefresh";
+
     // Add more event types as needed
 }

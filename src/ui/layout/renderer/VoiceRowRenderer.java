@@ -114,6 +114,100 @@ public class VoiceRowRenderer implements RowRenderer {
         });
         controls.add(btnPlay);
 
+        // Status Label (for warning)
+        WebLabel statusLabel = new WebLabel();
+        statusLabel.setMargin(0, 5, 0, 0); // Spacing
+        controls.add(statusLabel);
+
+        // Validation logic
+        Runnable validate = () -> {
+            String validationPack = (String) combo.getSelectedItem();
+            if (validationPack == null)
+                validationPack = "default";
+
+            String key = row.property;
+            if (key != null && key.startsWith("voice_")) {
+                key = key.substring(6);
+            }
+
+            // Should prompt warning if:
+            // 1. Pack is default, and default missing file.
+            // 2. Pack is NOT default, and pack missing file (even if default exists? user
+            // might want to know pack is incomplete)
+            // But wait, if pack missing, system plays default.
+            // User requirement: "If a voice has no corresponding file... hint special way".
+            // Since VoiceResourceManager.hasResourceStrict checks specific pack.
+
+            boolean missing = !VoiceResourceManager.getInstance().hasResourceStrict(key, validationPack);
+
+            // If checking strict on custom pack, and it's missing, it will fallback to
+            // default.
+            // So technically it's not "broken" if default exists.
+            // But user might want to know "Jarvis doesn't have this file".
+            // Let's check effective playability:
+            // If custom pack missing, check default.
+
+            boolean effectivelyMissing = false;
+            String tooltip = null;
+
+            if (missing) {
+                if ("default".equals(validationPack)) {
+                    effectivelyMissing = true;
+                    tooltip = "Missing audio file in default pack!";
+                } else {
+                    // Check fallback
+                    boolean fallbackExists = VoiceResourceManager.getInstance().hasResourceStrict(key, "default");
+                    if (!fallbackExists) {
+                        effectivelyMissing = true;
+                        tooltip = "Missing audio file in '" + validationPack + "' and default pack!";
+                    } else {
+                        // It's missing in pack but exists in default.
+                        // Should we warn? "Using default fallback".
+                        // User screenshot suggests "default" was shown in combo.
+                        // If user selects "Jarvis", and it's missing, GlobalRenderer logic sets value
+                        // to "default".
+                        // So validationPack IS "default".
+                        // So logic branch 1 is taken.
+                    }
+                }
+            }
+
+            if (effectivelyMissing) {
+                statusLabel.setText("⚠️"); // Or use icon
+                statusLabel.setForeground(java.awt.Color.RED);
+
+                // Enhanced WebPopup tooltip
+                String fileName = key + ".wav";
+                String html = "<html><div style='width:200px;'>" +
+                        "<b>Missing File Warning</b><br>" +
+                        "Expected File: <span style='color:blue;'>" + fileName + "</span><br><br>" +
+                        tooltip +
+                        "</div></html>";
+
+                // Remove existing listeners
+                for (java.awt.event.MouseListener ml : statusLabel.getMouseListeners()) {
+                    statusLabel.removeMouseListener(ml);
+                }
+
+                ReplicaBuilder.applyHtmlTooltip(statusLabel, html);
+
+            } else {
+                statusLabel.setText("");
+                statusLabel.setToolTipText(null);
+                // Remove listeners
+                for (java.awt.event.MouseListener ml : statusLabel.getMouseListeners()) {
+                    statusLabel.removeMouseListener(ml);
+                }
+            }
+        };
+
+        // Initial check
+        validate.run();
+
+        // Add validation to listeners
+        java.awt.event.ActionListener validatingListener = e -> validate.run();
+        combo.addActionListener(validatingListener);
+
         controls.add(enableSwitch);
 
         panel.add(controls, BorderLayout.CENTER);
@@ -144,13 +238,18 @@ public class VoiceRowRenderer implements RowRenderer {
                     javax.swing.SwingUtilities.invokeLater(() -> {
                         // Temporary disable listener to avoid loop
                         combo.removeActionListener(stateSaver);
+                        combo.removeActionListener(validatingListener);
                         enableSwitch.removeActionListener(stateSaver);
 
                         combo.setSelectedItem(finalPack);
                         enableSwitch.setSelected(finalEn);
 
                         combo.addActionListener(stateSaver);
+                        combo.addActionListener(validatingListener);
                         enableSwitch.addActionListener(stateSaver);
+
+                        // Re-run validation
+                        validate.run();
                     });
                 }
             };
@@ -169,6 +268,53 @@ public class VoiceRowRenderer implements RowRenderer {
                 }
             });
         }
+
+        // Subscribe to Pack Refresh events to update combo box items
+        java.util.function.Consumer<Object> refreshHandler = ignore -> {
+            java.util.List<String> freshPacks = VoiceResourceManager.getInstance().getAvailablePacks();
+            javax.swing.SwingUtilities.invokeLater(() -> {
+                // Mute listeners to prevent infinite loop
+                combo.removeActionListener(stateSaver);
+                combo.removeActionListener(validatingListener);
+
+                // Preserve selection if possible
+                String current = (String) combo.getSelectedItem();
+                combo.removeAllItems();
+                for (String p : freshPacks)
+                    combo.addItem(p);
+
+                // Restore selection
+                boolean found = false;
+                for (String p : freshPacks) {
+                    if (p.equals(current)) {
+                        combo.setSelectedItem(p);
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found)
+                    combo.setSelectedItem("default");
+
+                // Restore listeners
+                combo.addActionListener(stateSaver);
+                combo.addActionListener(validatingListener);
+
+                // Re-validate
+                validate.run();
+            });
+        };
+        prog.event.UIStateBus.getInstance().subscribe(prog.event.UIStateEvents.VOICE_PACKS_REFRESH, refreshHandler);
+
+        // Determine cleanup for refresh handler (reusing hierarchy listener if
+        // possible)
+        panel.addHierarchyListener(e -> {
+            if ((e.getChangeFlags() & java.awt.event.HierarchyEvent.DISPLAYABILITY_CHANGED) != 0) {
+                if (!panel.isDisplayable()) {
+                    prog.event.UIStateBus.getInstance().unsubscribe(prog.event.UIStateEvents.VOICE_PACKS_REFRESH,
+                            refreshHandler);
+                }
+            }
+        });
 
         return panel;
     }

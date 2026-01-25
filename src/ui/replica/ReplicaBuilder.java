@@ -366,24 +366,6 @@ public class ReplicaBuilder {
             public void mouseEntered(MouseEvent e) {
                 if (popover == null || !popover.isVisible()) {
                     popover = new WebPopOver(component);
-                    // Use a safe, stable margin
-                    popover.setMargin(0);
-                    popover.setMovable(false);
-                    popover.setFocusableWindowState(false);
-                    popover.setFocusable(false);
-                    popover.setCloseOnFocusLoss(true);
-
-                    // Kill shadow and artifacts
-                    popover.setShadeWidth(0);
-                    popover.setWindowOpaque(false);
-                    popover.setBackground(new Color(0, 0, 0, 0));
-
-                    // Create our own "Bubble" with perfect control
-                    WebPanel bubble = new WebPanel(new BorderLayout());
-                    bubble.setOpaque(true);
-                    bubble.setBackground(Color.WHITE);
-                    bubble.setBorder(javax.swing.BorderFactory.createLineBorder(PinkStyle.COLOR_PRIMARY, 1));
-
                     // --- Construct HTML Content ---
                     StringBuilder html = new StringBuilder("<html><div style='padding:2px 8px;'>");
                     if (text != null && !text.isEmpty()) {
@@ -411,24 +393,12 @@ public class ReplicaBuilder {
                     }
                     html.append("</div></html>");
 
+                    // Construct content component
                     WebLabel content = new WebLabel(html.toString());
                     content.setFont(PinkStyle.FONT_NORMAL);
                     content.setForeground(PinkStyle.COLOR_TEXT);
 
-                    bubble.add(content, BorderLayout.CENTER);
-                    popover.add(bubble);
-
-                    // Position: Place it tightly below the label
-                    popover.show(component, component.getWidth() / 2 - 20, component.getHeight() - 10);
-
-                    // Reduce arrow size to ~1/3 of default (10 -> 4)
-                    popover.setCornerWidth(4);
-
-                    // Force the window to the very front to prevent label-clipping
-                    java.awt.Window win = javax.swing.SwingUtilities.getWindowAncestor(popover);
-                    if (win != null) {
-                        win.toFront();
-                    }
+                    popover = showStyledPopover(component, content);
                 }
             }
 
@@ -440,5 +410,76 @@ public class ReplicaBuilder {
                 }
             }
         });
+    }
+
+    /**
+     * Applies a custom HTML tooltip using WebPopOver.
+     */
+    public static void applyHtmlTooltip(javax.swing.JComponent component, String htmlContent) {
+        component.addMouseListener(new MouseAdapter() {
+            private WebPopOver popover;
+
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                if (popover == null || !popover.isVisible()) {
+                    WebLabel msg = new WebLabel(htmlContent);
+                    // For HTML tooltip, we trust the HTML to style itself, but enforce standard
+                    // text color if plain
+                    msg.setForeground(PinkStyle.COLOR_TEXT);
+                    msg.setFont(PinkStyle.FONT_NORMAL);
+
+                    popover = showStyledPopover(component, msg);
+                }
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                if (popover != null) {
+                    popover.dispose();
+                    popover = null;
+                }
+            }
+        });
+    }
+
+    /**
+     * Shared helper to create and show a consistently styled WebPopOver.
+     */
+    private static WebPopOver showStyledPopover(javax.swing.JComponent owner, javax.swing.JComponent content) {
+        WebPopOver popover = new WebPopOver(owner);
+
+        // Popup configuration
+        popover.setMargin(0);
+        popover.setMovable(false);
+        popover.setFocusableWindowState(false);
+        popover.setFocusable(false);
+        popover.setCloseOnFocusLoss(true);
+
+        // Styling: Transparent window, custom "Bubble" panel
+        popover.setShadeWidth(0);
+        popover.setWindowOpaque(false);
+        popover.setBackground(new Color(0, 0, 0, 0));
+
+        WebPanel bubble = new WebPanel(new BorderLayout());
+        bubble.setOpaque(true);
+        bubble.setBackground(Color.WHITE);
+        bubble.setBorder(javax.swing.BorderFactory.createLineBorder(PinkStyle.COLOR_PRIMARY, 1));
+
+        bubble.add(content, BorderLayout.CENTER);
+        popover.add(bubble);
+
+        // Show
+        popover.show(owner, owner.getWidth() / 2 - 20, owner.getHeight() - 10);
+
+        // Post-show styling
+        popover.setCornerWidth(4);
+
+        // Z-Index fix
+        java.awt.Window win = javax.swing.SwingUtilities.getWindowAncestor(popover);
+        if (win != null) {
+            win.toFront();
+        }
+
+        return popover;
     }
 }

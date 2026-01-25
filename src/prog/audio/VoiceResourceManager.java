@@ -87,21 +87,23 @@ public class VoiceResourceManager {
     }
 
     public void installPack(File zipFile) {
+        String packName = zipFile.getName();
+        if (packName.toLowerCase().endsWith(".zip")) {
+            packName = packName.substring(0, packName.length() - 4);
+        }
+
+        File packDir = new File(VOICE_DIR, packName);
+        if (!packDir.exists())
+            packDir.mkdirs();
+
         byte[] buffer = new byte[1024];
         try (ZipInputStream zis = new ZipInputStream(new FileInputStream(zipFile))) {
             ZipEntry zipEntry = zis.getNextEntry();
             while (zipEntry != null) {
-                File newFile = newFile(new File(VOICE_DIR), zipEntry);
-                if (zipEntry.isDirectory()) {
-                    if (!newFile.isDirectory() && !newFile.mkdirs()) {
-                        throw new IOException("Failed to create directory " + newFile);
-                    }
-                } else {
-                    // fix for Windows-created archives
-                    File parent = newFile.getParentFile();
-                    if (!parent.isDirectory() && !parent.mkdirs()) {
-                        throw new IOException("Failed to create directory " + parent);
-                    }
+                if (!zipEntry.isDirectory() && zipEntry.getName().toLowerCase().endsWith(".wav")) {
+                    // Flatten: Ignore parent path in zip, use only filename
+                    String fileName = new File(zipEntry.getName()).getName();
+                    File newFile = new File(packDir, fileName);
 
                     try (FileOutputStream fos = new FileOutputStream(newFile)) {
                         int len;
@@ -117,19 +119,6 @@ public class VoiceResourceManager {
             prog.util.Logger.error("VoiceResourceManager", "Failed to install pack: " + e.getMessage());
             e.printStackTrace();
         }
-    }
-
-    private File newFile(File destinationDir, ZipEntry zipEntry) throws IOException {
-        File destFile = new File(destinationDir, zipEntry.getName());
-
-        String destDirPath = destinationDir.getCanonicalPath();
-        String destFilePath = destFile.getCanonicalPath();
-
-        if (!destFilePath.startsWith(destDirPath + File.separator)) {
-            throw new IOException("Entry is outside of the target dir: " + zipEntry.getName());
-        }
-
-        return destFile;
     }
 
     /**

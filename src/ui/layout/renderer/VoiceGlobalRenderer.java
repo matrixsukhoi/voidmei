@@ -95,22 +95,25 @@ public class VoiceGlobalRenderer implements RowRenderer {
                     for (String p : newPacks)
                         combo.addItem(p);
 
-                    // Auto-select the new pack if found
+                    // Publish Refresh Event for other renderers FIRST
+                    prog.event.UIStateBus.getInstance().publish(prog.event.UIStateEvents.VOICE_PACKS_REFRESH, null);
+
+                    // Auto-select the new pack if found (Running later to ensure others have
+                    // refreshed)
                     String newName = file.getName();
                     if (newName.endsWith(".zip"))
                         newName = newName.substring(0, newName.length() - 4);
-                    // If directory inside zip matched zip name, nice. Otherwise we might miss it.
-                    // But list should contain it if unzip worked.
-                    // Try to finding match
-                    for (String p : newPacks) {
-                        if (p.equalsIgnoreCase(newName)) {
-                            combo.setSelectedItem(p);
-                            // Auto apply?
-                            applyGlobalPack(p, context);
-                            context.onSave();
-                            break;
+
+                    String finalNewName = newName;
+                    javax.swing.SwingUtilities.invokeLater(() -> {
+                        for (String p : newPacks) {
+                            if (p.equalsIgnoreCase(finalNewName)) {
+                                combo.setSelectedItem(p);
+                                // The listener on combo handles the apply and save
+                                break;
+                            }
                         }
-                    }
+                    });
                 }
             }
         });
