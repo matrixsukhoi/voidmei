@@ -22,7 +22,6 @@ import ui.overlay.EngineControl;
 import ui.overlay.FlightInfo;
 import ui.overlay.GearAndFlaps;
 import ui.MainForm;
-import ui.overlay.SituationAware;
 import ui.overlay.FMDataOverlay;
 import prog.config.ConfigProvider;
 import prog.config.ConfigurationService;
@@ -544,35 +543,6 @@ public class Controller implements ConfigProvider {
 				overlay -> ((DrawFrameSimpl) overlay).reinitConfig(),
 				true,
 				ActivationStrategy.config("enableFMPrint").and(ActivationStrategy.jetOnly()));
-
-		// SituationAware - debug only
-		overlayManager.registerWithStrategy("SituationAware",
-				() -> new SituationAware(),
-				overlay -> {
-					prog.config.ConfigLoader.GroupConfig saConfig = null;
-					if (dynamicConfigs != null) {
-						for (prog.config.ConfigLoader.GroupConfig gc : dynamicConfigs) {
-							if ("SA信息板".equals(gc.title)) {
-								saConfig = gc;
-								break;
-							}
-						}
-					}
-					// Fallback if not found (e.g. old config file)
-					if (saConfig == null) {
-						saConfig = new prog.config.ConfigLoader.GroupConfig("SA信息板"); // Fix constructor usage
-						saConfig.x = 0.8;
-						saConfig.y = 0.1;
-						saConfig.visible = true;
-					}
-					prog.config.OverlaySettings saSettings = configService.getOverlaySettings(saConfig.title);
-					((SituationAware) overlay).init(this, O, saSettings);
-				}, overlay -> {
-					prog.config.OverlaySettings saSettings = configService.getOverlaySettings("SA信息条");
-					((SituationAware) overlay).initPreview(this, saSettings);
-				}, null, // No reinitConfig needed yet
-				true, ActivationStrategy.debugOnly()).withInterest("SituationAware");
-
 	}
 
 	public void initDynamicOverlays() {

@@ -1,0 +1,531 @@
+{
+    "/state": {
+        "valid": true,
+        "aileron, %": -48,
+        "elevator, %": 20,
+        "rudder, %": -47,
+        "flaps, %": 0,
+        "gear, %": 0,
+        "H, m": 46,
+        "TAS, km/h": 454,
+        "IAS, km/h": 474,
+        "M": 0.39,
+        "AoA, deg": -1.6,
+        "AoS, deg": -5.9,
+        "Ny": 0.35,
+        "Vy, m/s": -7.3,
+        "Wx, deg/s": -34,
+        "Mfuel, kg": 197,
+        "Mfuel0, kg": 734,
+        "throttle 1, %": 110,
+        "RPM throttle 1, %": 100,
+        "mixture 1, %": 100,
+        "radiator 1, %": 42,
+        "magneto 1": 3,
+        "power 1, hp": 1597.8,
+        "RPM 1": 3001,
+        "manifold pressure 1, atm": 2.24,
+        "water temp 1, C": 121,
+        "oil temp 1, C": 90,
+        "pitch 1, deg": 35.5,
+        "thrust 1, kgs": 840,
+        "efficiency 1, %": 87
+    },
+    "/indicators": {
+        "valid": true,
+        "army": "air",
+        "type": "p-51d-20_china",
+        "speed": 131.007797,
+        "pedals1": -0.465775,
+        "pedals2": -0.465775,
+        "pedals3": -0.465775,
+        "pedals4": -0.465775,
+        "stick_elevator": 0.187344,
+        "stick_elevator1": 0.187344,
+        "stick_ailerons": -0.477257,
+        "vario": -7.342558,
+        "altitude_hour": 151.084213,
+        "altitude_min": 151.084213,
+        "altitude_10k": 151.084213,
+        "aviahorizon_roll": -40.553505,
+        "aviahorizon_pitch": 0.632352,
+        "bank": 8.0,
+        "turn": 0.131359,
+        "compass": 164.09729,
+        "compass1": 164.09729,
+        "clock_hour": 2.7,
+        "clock_min": 42.0,
+        "clock_sec": 6.0,
+        "manifold_pressure": 2.243279,
+        "rpm": 3001.457031,
+        "oil_pressure": 1.0,
+        "oil_temperature": 90.373169,
+        "water_temperature": 121.324493,
+        "mixture": 0.833333,
+        "carb_temperature": 0.0,
+        "fuel1": 196.846497,
+        "fuel2": 0.0,
+        "fuel_pressure": 11.0,
+        "gears": 0.0,
+        "gear_lamp_down": 0.0,
+        "gear_lamp_up": 0.0,
+        "gear_lamp_off": 0.0,
+        "flaps": 0.0,
+        "throttle": 1.1,
+        "weapon1": 0.0,
+        "prop_pitch": 1.0
+    },
+    "/map_obj.json": [
+        {
+            "type": "airfield",
+            "color": "#174DFF",
+            "color[]": [
+                23,
+                77,
+                255
+            ],
+            "blink": 0,
+            "icon": "none",
+            "icon_bg": "none",
+            "sx": 0.359126,
+            "sy": 0.560636,
+            "ex": 0.359155,
+            "ey": 0.511808
+        },
+        {
+            "type": "aircraft",
+            "color": "#faC81E",
+            "color[]": [
+                250,
+                200,
+                30
+            ],
+            "blink": 0,
+            "icon": "Player",
+            "icon_bg": "none",
+            "x": 0.350927,
+            "y": 0.358864,
+            "dx": 0.274005,
+            "dy": 0.961728
+        },
+        {
+            "type": "aircraft",
+            "color": "#f00C00",
+            "color[]": [
+                240,
+                12,
+                0
+            ],
+            "blink": 2,
+            "icon": "Fighter",
+            "icon_bg": "none",
+            "x": 0.27497,
+            "y": 0.554151,
+            "dx": 0.539311,
+            "dy": 0.842107
+        },
+        {
+            "type": "ground_model",
+            "color": "#fa0C00",
+            "color[]": [
+                250,
+                12,
+                0
+            ],
+            "blink": 0,
+            "icon": "LightTank",
+            "icon_bg": "none",
+            "x": 0.354096,
+            "y": 0.488192
+        },
+        {
+            "type": "ground_model",
+            "color": "#fa0C00",
+            "color[]": [
+                250,
+                12,
+                0
+            ],
+            "blink": 0,
+            "icon": "LightTank",
+            "icon_bg": "none",
+            "x": 0.354857,
+            "y": 0.488239
+        },
+        {
+            "type": "ground_model",
+            "color": "#fa0C00",
+            "color[]": [
+                250,
+                12,
+                0
+            ],
+            "blink": 0,
+            "icon": "LightTank",
+            "icon_bg": "none",
+            "x": 0.354048,
+            "y": 0.488953
+        },
+        {
+            "type": "ground_model",
+            "color": "#fa0C00",
+            "color[]": [
+                250,
+                12,
+                0
+            ],
+            "blink": 0,
+            "icon": "LightTank",
+            "icon_bg": "none",
+            "x": 0.354809,
+            "y": 0.489001
+        },
+        {
+            "type": "ground_model",
+            "color": "#fa0C00",
+            "color[]": [
+                250,
+                12,
+                0
+            ],
+            "blink": 0,
+            "icon": "MediumTank",
+            "icon_bg": "none",
+            "x": 0.357141,
+            "y": 0.488383
+        },
+        {
+            "type": "ground_model",
+            "color": "#fa0C00",
+            "color[]": [
+                250,
+                12,
+                0
+            ],
+            "blink": 0,
+            "icon": "MediumTank",
+            "icon_bg": "none",
+            "x": 0.357903,
+            "y": 0.48843
+        },
+        {
+            "type": "ground_model",
+            "color": "#fa0C00",
+            "color[]": [
+                250,
+                12,
+                0
+            ],
+            "blink": 0,
+            "icon": "LightTank",
+            "icon_bg": "none",
+            "x": 0.357094,
+            "y": 0.489144
+        },
+        {
+            "type": "ground_model",
+            "color": "#fa0C00",
+            "color[]": [
+                250,
+                12,
+                0
+            ],
+            "blink": 0,
+            "icon": "LightTank",
+            "icon_bg": "none",
+            "x": 0.357855,
+            "y": 0.489192
+        },
+        {
+            "type": "ground_model",
+            "color": "#fa0C00",
+            "color[]": [
+                250,
+                12,
+                0
+            ],
+            "blink": 0,
+            "icon": "LightTank",
+            "icon_bg": "none",
+            "x": 0.360187,
+            "y": 0.488573
+        },
+        {
+            "type": "ground_model",
+            "color": "#fa0C00",
+            "color[]": [
+                250,
+                12,
+                0
+            ],
+            "blink": 0,
+            "icon": "LightTank",
+            "icon_bg": "none",
+            "x": 0.360949,
+            "y": 0.488621
+        },
+        {
+            "type": "ground_model",
+            "color": "#fa0C00",
+            "color[]": [
+                250,
+                12,
+                0
+            ],
+            "blink": 0,
+            "icon": "SPAA",
+            "icon_bg": "none",
+            "x": 0.360139,
+            "y": 0.489335
+        },
+        {
+            "type": "ground_model",
+            "color": "#fa0C00",
+            "color[]": [
+                250,
+                12,
+                0
+            ],
+            "blink": 0,
+            "icon": "HeavyTank",
+            "icon_bg": "none",
+            "x": 0.354317,
+            "y": 0.48466
+        },
+        {
+            "type": "ground_model",
+            "color": "#fa0C00",
+            "color[]": [
+                250,
+                12,
+                0
+            ],
+            "blink": 0,
+            "icon": "HeavyTank",
+            "icon_bg": "none",
+            "x": 0.355078,
+            "y": 0.484708
+        },
+        {
+            "type": "ground_model",
+            "color": "#fa0C00",
+            "color[]": [
+                250,
+                12,
+                0
+            ],
+            "blink": 0,
+            "icon": "MediumTank",
+            "icon_bg": "none",
+            "x": 0.354269,
+            "y": 0.485422
+        },
+        {
+            "type": "ground_model",
+            "color": "#fa0C00",
+            "color[]": [
+                250,
+                12,
+                0
+            ],
+            "blink": 0,
+            "icon": "MediumTank",
+            "icon_bg": "none",
+            "x": 0.355031,
+            "y": 0.485469
+        },
+        {
+            "type": "ground_model",
+            "color": "#fa0C00",
+            "color[]": [
+                250,
+                12,
+                0
+            ],
+            "blink": 0,
+            "icon": "HeavyTank",
+            "icon_bg": "none",
+            "x": 0.357363,
+            "y": 0.484851
+        },
+        {
+            "type": "ground_model",
+            "color": "#fa0C00",
+            "color[]": [
+                250,
+                12,
+                0
+            ],
+            "blink": 0,
+            "icon": "SPAA",
+            "icon_bg": "none",
+            "x": 0.730264,
+            "y": 0.532772
+        },
+        {
+            "type": "ground_model",
+            "color": "#fa0C00",
+            "color[]": [
+                250,
+                12,
+                0
+            ],
+            "blink": 0,
+            "icon": "LightTank",
+            "icon_bg": "none",
+            "x": 0.288484,
+            "y": 0.465527
+        },
+        {
+            "type": "ground_model",
+            "color": "#fa0C00",
+            "color[]": [
+                250,
+                12,
+                0
+            ],
+            "blink": 0,
+            "icon": "LightTank",
+            "icon_bg": "none",
+            "x": 0.288555,
+            "y": 0.465706
+        },
+        {
+            "type": "ground_model",
+            "color": "#fa0C00",
+            "color[]": [
+                250,
+                12,
+                0
+            ],
+            "blink": 0,
+            "icon": "LightTank",
+            "icon_bg": "none",
+            "x": 0.328677,
+            "y": 0.603077
+        },
+        {
+            "type": "ground_model",
+            "color": "#fa0C00",
+            "color[]": [
+                250,
+                12,
+                0
+            ],
+            "blink": 0,
+            "icon": "HeavyTank",
+            "icon_bg": "none",
+            "x": 0.358124,
+            "y": 0.484899
+        },
+        {
+            "type": "ground_model",
+            "color": "#fa0C00",
+            "color[]": [
+                250,
+                12,
+                0
+            ],
+            "blink": 0,
+            "icon": "SPAA",
+            "icon_bg": "none",
+            "x": 0.750153,
+            "y": 0.558495
+        },
+        {
+            "type": "ground_model",
+            "color": "#fa0C00",
+            "color[]": [
+                250,
+                12,
+                0
+            ],
+            "blink": 0,
+            "icon": "LightTank",
+            "icon_bg": "none",
+            "x": 0.328914,
+            "y": 0.602124
+        },
+        {
+            "type": "bombing_point",
+            "color": "#fa0C00",
+            "color[]": [
+                250,
+                12,
+                0
+            ],
+            "blink": 0,
+            "icon": "bombing_point",
+            "icon_bg": "none",
+            "x": 0.427345,
+            "y": 0.50683
+        },
+        {
+            "type": "bombing_point",
+            "color": "#fa0C00",
+            "color[]": [
+                250,
+                12,
+                0
+            ],
+            "blink": 0,
+            "icon": "bombing_point",
+            "icon_bg": "none",
+            "x": 0.324332,
+            "y": 0.524698
+        },
+        {
+            "type": "bombing_point",
+            "color": "#fa0C00",
+            "color[]": [
+                250,
+                12,
+                0
+            ],
+            "blink": 0,
+            "icon": "bombing_point",
+            "icon_bg": "none",
+            "x": 0.387898,
+            "y": 0.674336
+        },
+        {
+            "type": "bombing_point",
+            "color": "#fa0C00",
+            "color[]": [
+                250,
+                12,
+                0
+            ],
+            "blink": 0,
+            "icon": "bombing_point",
+            "icon_bg": "none",
+            "x": 0.298854,
+            "y": 0.585138
+        }
+    ],
+    "/map_info.json": {
+        "grid_size": [
+            57584.11328125,
+            64194.1953125
+        ],
+        "grid_steps": [
+            6400.0,
+            6400.0
+        ],
+        "grid_zero": [
+            -24816.11328125,
+            31426.1953125
+        ],
+        "hud_type": 0,
+        "map_generation": 9,
+        "map_max": [
+            32768.0,
+            32768.0
+        ],
+        "map_min": [
+            -32768.0,
+            -32768.0
+        ],
+        "valid": true
+    }
+}
