@@ -38,7 +38,13 @@ public class ModernHUDLayoutEngine {
     public void setCanvasSize(int width, int height) {
         this.canvasWidth = width;
         this.canvasHeight = height;
-        this.canvasRect.setBounds(0, 0, width, height);
+        // Keep current Origin
+        this.canvasRect.setSize(width, height);
+        this.dirty = true;
+    }
+
+    public void setCanvasOrigin(int x, int y) {
+        this.canvasRect.setLocation(x, y);
         this.dirty = true;
     }
 
@@ -135,10 +141,17 @@ public class ModernHUDLayoutEngine {
     }
 
     private boolean debug = false;
+    private int renderOffsetX = 0;
+    private int renderOffsetY = 0;
 
     public void setDebug(boolean debug) {
         this.debug = debug;
         this.dirty = true;
+    }
+
+    public void setRenderOffset(int x, int y) {
+        this.renderOffsetX = x;
+        this.renderOffsetY = y;
     }
 
     public void render(Graphics2D g) {
@@ -148,7 +161,8 @@ public class ModernHUDLayoutEngine {
                 continue;
 
             Rectangle r = node.getPixelRect();
-            node.component.draw(g, r.x, r.y);
+            // Apply Render Offset to shift logical layout into physical window space
+            node.component.draw(g, r.x + renderOffsetX, r.y + renderOffsetY);
 
             if (debug) {
                 drawDebug(g, node);
@@ -171,7 +185,7 @@ public class ModernHUDLayoutEngine {
         }
         g.setColor(new java.awt.Color(rCol, gCol, bCol));
         Rectangle r = node.getPixelRect();
-        g.drawRect(r.x, r.y, r.width, r.height);
+        g.drawRect(r.x + renderOffsetX, r.y + renderOffsetY, r.width, r.height);
     }
 
     public void logTopology() {
@@ -180,5 +194,80 @@ public class ModernHUDLayoutEngine {
             Logger.info("ModernLayout",
                     " -> " + node.id + " (Parent: " + (node.getParent() == null ? "ROOT" : node.getParent().id) + ")");
         }
+    }
+
+    /**
+     * Calculate the bounding rectangle of all VISIBLE components.
+     * Used for dynamic window resizing.
+     */
+    /**
+     * Calculate the bounding rectangle of all VISIBLE components.
+     * Used for dynamic window resizing.
+     */
+    public Rectangle getContentBounds() {
+        int minX = Integer.MAX_VALUE;
+        int minY = Integer.MAX_VALUE;
+        int maxX = Integer.MIN_VALUE;
+        int maxY = Integer.MIN_VALUE;
+        boolean hasContent = false;
+
+        for (HUDLayoutNode node : sortedNodes) {
+            if (node.component != null && node.component.isVisible()) {
+                hasContent = true;
+                Rectangle r = node.getPixelRect();
+                int right = r.x + r.width;
+                int bottom = r.y + r.height;
+
+                if (r.x < minX)
+                    minX = r.x;
+                if (r.y < minY)
+                    minY = r.y;
+                if (right > maxX)
+                    maxX = right;
+                if (bottom > maxY)
+                    maxY = bottom;
+            }
+        }
+
+        // Return at least 1x1 to avoid invisible windows if empty
+        if (!hasContent)
+            return new Rectangle(0, 0, 1, 1);
+
+        // Return full bounding box relative to current (0,0)
+        // Width/Height must be positive dimensions
+        return new Rectangle(minX, minY, maxX - minX, maxY - minY);
+    }
+
+    /**
+     * Automatically resize the given window to fit the content, adding padding.
+     * Also applies render offset to center the content within the padding.
+     * 
+     * @param window  The AWT Window or Component to resize (must support setSize)
+     * @param padding The padding in pixels to apply around the content
+     */
+    public void applyAutoSizing(java.awt.Component window, int padding) {
+        // 1. Ensure topology is resolved
+        this.doLayout();
+
+        // 2. Get actual content bounds
+        Rectangle contentBounds = getContentBounds();
+
+        // 3. Calculate Render Offset
+        // Goal: Shift minX/minY to the padding position
+        int offsetX = padding - contentBounds.x;
+        int offsetY = padding - contentBounds.y;
+
+        // 4. Calculate New Window Size
+        // Width = Content Width + Left Padding + Right Padding
+        int newWidth = contentBounds.width + (padding * 2);
+        int newHeight = contentBounds.height + (padding * 2);
+
+        // 5. Apply changes
+        window.setSize(newWidth, newHeight);
+        this.setRenderOffset(offsetX, offsetY);
+
+        Logger.info("ModernLayout", "Auto-sized window: Content[" + contentBounds.x + "," + contentBounds.y +
+                " " + contentBounds.width + "x" + contentBounds.height + "] -> Window[" +
+                newWidth + "x" + newHeight + "] Offset[" + offsetX + "," + offsetY + "]");
     }
 }

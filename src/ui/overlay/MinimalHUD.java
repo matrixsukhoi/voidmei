@@ -138,17 +138,20 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
         // Create Immutable Context
         ctx = MinimalHUDContext.create(hudSettings);
 
-        // Apply dimensions
+        // Apply dimensions (Initial guess, will be refined by dynamic layout)
         if (hudSettings.isDisplayCrosshair())
             this.setBounds(ctx.windowX, ctx.windowY, ctx.width * 2, ctx.height);
         else
             this.setBounds(ctx.windowX, ctx.windowY, ctx.width, ctx.height);
 
-        // Setup Layout Engine
-        initModernLayout();
-
+        // 1. Sync Component State (Style & Visibility) BEFORE Layout
+        // This ensures getContentBounds() sees the correct visible components
         applyStyleToComponents();
         updateComponents();
+
+        // 2. Setup Layout Engine & Dynamic Sizing
+        initModernLayout();
+
         firstDraw = true;
 
         repaint();
@@ -498,11 +501,11 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
         throttleBar = new ui.component.LinearGauge("ThrottleBar", 110, true);
         components.add(throttleBar);
 
-        initModernLayout();
-
-        // Ensure everything is styled and updated before first paint
+        // Ensure everything is styled and updated before layout & sizing
         applyStyleToComponents();
         updateComponents();
+
+        initModernLayout();
     }
 
     private void applyStyleToComponents() {
@@ -656,7 +659,18 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
         }
 
         // Force layout calculation to populate sortedNodes for logging
+        // Force layout calculation to populate sortedNodes for logging
         modernLayout.doLayout();
+
+        // Dynamic Sizing Implementation (Scheme 1 Revised for Negative Coords)
+        // Force layout calculation to populate sortedNodes for logging
+        // modernLayout.doLayout(); // applyAutoSizing calls doLayout internally
+
+        // Dynamic Sizing Implementation (Generic)
+        modernLayout.applyAutoSizing(this, LAYOUT_PADDING);
+
         modernLayout.logTopology();
     }
+
+    private static final int LAYOUT_PADDING = 25;
 }
