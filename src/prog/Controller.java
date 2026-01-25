@@ -480,7 +480,8 @@ public class Controller implements ConfigProvider {
 				overlay -> ((MinimalHUD) overlay).initPreview(this),
 				overlay -> ((MinimalHUD) overlay).reinitConfig(),
 				false)
-				.withInterest("displayCrosshair", "drawHUD", "disableHUD", "crosshair", "miniHUD", "enableLayoutDebug");
+				.withInterest("displayCrosshair", "drawHUD", "disableHUD", "crosshair", "miniHUD", "enableLayoutDebug",
+						"enableFlapAngleBar");
 
 		// FlightInfo - supports preview
 		overlayManager.registerWithPreview("flightInfoSwitch",

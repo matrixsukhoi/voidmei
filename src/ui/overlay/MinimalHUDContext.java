@@ -116,13 +116,21 @@ public class MinimalHUDContext {
             b.lineWidth = 1;
 
         b.roundCompass = (int) (Math.round(b.hudFontSize * 0.8f));
-        b.rightDraw = (int) (b.hudFontSize * 3.5f);
+
+        // Dynamic rightDraw calculation (WYSWYG Overlap Fix)
+        // Standard value (~5 chars): 3.5f * fontSize
+        // Labeled value (~9 chars): 5.5f * fontSize
+        float multiplier = 3.5f;
+        if (!settings.isSpeedLabelDisabled() || !settings.isAltitudeLabelDisabled() || !settings.isSEPLabelDisabled()) {
+            multiplier = 5.5f;
+        }
+        b.rightDraw = (int) (b.hudFontSize * multiplier);
 
         b.compassDiameter = (int) Math.round(2 * b.hudFontSize * 0.618);
         b.compassRadius = (int) Math.round(b.compassDiameter / 2.0);
         b.compassInnerMarkRadius = (int) Math.round(0.618 * b.compassDiameter);
 
-        b.aoaLength = b.rightDraw - b.hudFontSize / 2; // Approximate, adjusted logic below
+        b.aoaLength = b.rightDraw - b.hudFontSize / 1.5; // Adjusted for dynamic rightDraw
 
         // 4. Strokes & Fonts
         b.halfLine = (b.lineWidth / 2 == 0) ? 1 : (int) Math.round(b.lineWidth / 2.0f);

@@ -138,18 +138,21 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
         // Create Immutable Context
         ctx = MinimalHUDContext.create(hudSettings);
 
+        // 1. Refresh mock data and templates (WYSIWYG support)
+        refreshTemplates();
+
         // Apply dimensions (Initial guess, will be refined by dynamic layout)
         if (hudSettings.isDisplayCrosshair())
             this.setBounds(ctx.windowX, ctx.windowY, ctx.width * 2, ctx.height);
         else
             this.setBounds(ctx.windowX, ctx.windowY, ctx.width, ctx.height);
 
-        // 1. Sync Component State (Style & Visibility) BEFORE Layout
+        // 2. Sync Component State (Style & Visibility) BEFORE Layout
         // This ensures getContentBounds() sees the correct visible components
         applyStyleToComponents();
         updateComponents();
 
-        // 2. Setup Layout Engine & Dynamic Sizing
+        // 3. Setup Layout Engine & Dynamic Sizing
         initModernLayout();
 
         firstDraw = true;
@@ -157,16 +160,13 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
         repaint();
     }
 
-    public void init(Controller c, Service s, OtherService os) {
-        Logger.info("MinimalHUD", "init called");
-        service = s;
-        controller = c;
-        this.setLayout(new java.awt.BorderLayout());
-        setFrameOpaque();
+    private void refreshTemplates() {
+        if (hudSettings == null)
+            return;
 
-        reinitConfig();
+        if (lines == null)
+            lines = new String[6];
 
-        lines = new String[6];
         String spdPre = hudSettings.isSpeedLabelDisabled() ? "" : "SPD";
         String altPre = hudSettings.isAltitudeLabelDisabled() ? "" : "ALT";
         String sepPre = hudSettings.isSEPLabelDisabled() ? "" : "SEP";
@@ -188,7 +188,29 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
             lineAoA = "";
             relEnergy = "";
         }
-        // aoaLength = ... (Removed, using ctx.aoaLength)
+
+        // Push new templates to existing components immediately
+        if (hudRows != null && hudRows.size() >= 5) {
+            ((ui.component.row.HUDAkbRow) hudRows.get(0)).setTemplate(lines[0], lineAoA);
+            ((ui.component.row.HUDEnergyRow) hudRows.get(1)).setTemplate(lines[1], relEnergy);
+            ((ui.component.row.HUDTextRow) hudRows.get(2)).setTemplate(lines[2]);
+            ((ui.component.row.HUDTextRow) hudRows.get(3)).setTemplate(lines[3]);
+            ((ui.component.row.HUDManeuverRow) hudRows.get(4)).setTemplate(lines[4]);
+        }
+    }
+
+    public void init(Controller c, Service s, OtherService os) {
+        Logger.info("MinimalHUD", "init called");
+        service = s;
+        controller = c;
+        this.setLayout(new java.awt.BorderLayout());
+        setFrameOpaque();
+
+        reinitConfig();
+
+        // refreshTemplates() is now called inside reinitConfig()
+        // No need to repeat the lines[] initialization here.
+
         if (ctx != null && aoaY > ctx.rightDraw)
             aoaY = ctx.rightDraw;
         aoaColor = Application.colorNum;
