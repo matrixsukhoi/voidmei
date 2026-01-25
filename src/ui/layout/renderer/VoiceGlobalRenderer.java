@@ -49,18 +49,26 @@ public class VoiceGlobalRenderer implements RowRenderer {
         combo.setEditable(false);
         combo.setPreferredSize(new Dimension(100, 26));
 
-        // Initial selection? Maybe "default" or whatever was last used?
-        // Actually this is a "bulk apply" combo, so maybe it should just show
-        // "Select..." or "Custom"?
-        // Or we can try to guess if all are same?
-        // For simplicity, default to "default".
-        combo.setSelectedItem("default");
+        // Initial selection: Load from config
+        String globalPack = "default";
+        if (row.property != null) {
+            globalPack = context.getStringFromConfigService(row.property, row.getStr());
+            if (globalPack == null || globalPack.isEmpty())
+                globalPack = "default";
+        }
+        combo.setSelectedItem(globalPack);
 
         // Logic: When changed, iterate all config items and update them
         combo.addActionListener(e -> {
             if (context.isUpdating())
                 return;
             String selectedPack = (String) combo.getSelectedItem();
+
+            // Save logic: Sync globalPack property first
+            if (row.property != null) {
+                context.syncStringToConfigService(row.property, selectedPack);
+            }
+
             applyGlobalPack(selectedPack, context);
             context.onSave(); // Trigger save and event bus
         });

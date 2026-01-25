@@ -119,6 +119,57 @@ public class VoiceRowRenderer implements RowRenderer {
         panel.add(controls, BorderLayout.CENTER);
         panel.putClientProperty("alignLabel", label);
 
+        // Subscribe to update events
+        if (row.property != null) {
+            java.util.function.Consumer<Object> updateHandler = key -> {
+                if (key instanceof String && ((String) key).equals(row.property)) {
+                    // Update UI from config
+                    String val = context.getStringFromConfigService(row.property, row.getStr());
+                    String pack = "default";
+                    boolean en = true;
+                    if (val != null && !val.isEmpty()) {
+                        if (val.contains("|")) {
+                            String[] parts = val.split("\\|");
+                            pack = parts[0];
+                            if (parts.length > 1)
+                                en = Boolean.parseBoolean(parts[1]);
+                        } else {
+                            pack = val;
+                        }
+                    }
+
+                    // Update UI components on EDT
+                    String finalPack = pack;
+                    boolean finalEn = en;
+                    javax.swing.SwingUtilities.invokeLater(() -> {
+                        // Temporary disable listener to avoid loop
+                        combo.removeActionListener(stateSaver);
+                        enableSwitch.removeActionListener(stateSaver);
+
+                        combo.setSelectedItem(finalPack);
+                        enableSwitch.setSelected(finalEn);
+
+                        combo.addActionListener(stateSaver);
+                        enableSwitch.addActionListener(stateSaver);
+                    });
+                }
+            };
+
+            prog.event.UIStateBus.getInstance().subscribe(prog.event.UIStateEvents.CONFIG_CHANGED, updateHandler);
+
+            // Clean up listener when panel is removed?
+            // Swing doesn't have a great destroy hook for lightweight components.
+            // But we can use HierarchyListener.
+            panel.addHierarchyListener(e -> {
+                if ((e.getChangeFlags() & java.awt.event.HierarchyEvent.DISPLAYABILITY_CHANGED) != 0) {
+                    if (!panel.isDisplayable()) {
+                        prog.event.UIStateBus.getInstance().unsubscribe(prog.event.UIStateEvents.CONFIG_CHANGED,
+                                updateHandler);
+                    }
+                }
+            });
+        }
+
         return panel;
     }
 }
