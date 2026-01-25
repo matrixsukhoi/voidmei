@@ -91,6 +91,7 @@ src/ui/layout/renderer/SwitchInvRowRenderer.java
 src/ui/layout/renderer/ColorRowRenderer.java
 src/ui/layout/renderer/HotkeyRowRenderer.java
 src/ui/layout/renderer/RowRendererRegistry.java
+src/ui/layout/renderer/TextRowRenderer.java
 src/ui/layout/renderer/DataRowRenderer.java
 src/ui/layout/renderer/FileListRowRenderer.java
 src/ui/layout/renderer/SliderRowRenderer.java

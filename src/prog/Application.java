@@ -531,7 +531,11 @@ public class Application {
 		silenceNativeHookLogger();
 
 		// 初始化端口
-		appPort = Integer.parseInt(Lang.httpPort);
+		try {
+			appPort = Integer.parseInt(Lang.httpPort);
+		} catch (Exception e) {
+			appPort = 8111; // Default
+		}
 		appPortBkp = appPort + 1111;
 		requestDest = new InetSocketAddress(Lang.httpIp, appPort);
 		requestDestBkp = new InetSocketAddress(Lang.httpIp, appPortBkp);

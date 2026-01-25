@@ -164,6 +164,34 @@ public class ReplicaBuilder {
         return panel;
     }
 
+    /**
+     * Creates a text input row: [Label] ... [TextField]
+     */
+    public static WebPanel createTextItem(String labelText, String initialValue, int columns, String tooltip) {
+        WebPanel panel = new WebPanel(new BorderLayout(5, 0));
+        style.decorateControlPanel(panel);
+        panel.setBorder(BorderFactory.createEmptyBorder(4, 5, 4, 5));
+
+        WebLabel label = new WebLabel(labelText);
+        if (tooltip != null && !tooltip.isEmpty()) {
+            applyStylizedTooltip(label, tooltip);
+        }
+        style.decorateLabel(label);
+        panel.add(label, BorderLayout.WEST);
+
+        WebTextField textField = new WebTextField(initialValue, columns);
+        textField.setPreferredSize(new Dimension(80, 26));
+        textField.setDrawFocus(false);
+        // style.decorateTextField(textField);
+
+        panel.add(textField, BorderLayout.EAST);
+
+        // Critical: Enable ResponsiveGrid alignment
+        panel.putClientProperty("alignLabel", label);
+
+        return panel;
+    }
+
     public static WebPanel createSliderItem(String labelText, int min, int max, int value, int width) {
         return createSliderItem(labelText, min, max, value, width, null);
     }
@@ -278,6 +306,18 @@ public class ReplicaBuilder {
      * Extracts the WebTextField from a panel created by createColorField.
      */
     public static WebTextField getColorField(WebPanel itemPanel) {
+        for (java.awt.Component c : itemPanel.getComponents()) {
+            if (c instanceof WebTextField) {
+                return (WebTextField) c;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Extracts the WebTextField from a panel created by createTextItem.
+     */
+    public static WebTextField getTextField(WebPanel itemPanel) {
         for (java.awt.Component c : itemPanel.getComponents()) {
             if (c instanceof WebTextField) {
                 return (WebTextField) c;

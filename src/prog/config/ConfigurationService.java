@@ -5,6 +5,8 @@ import java.awt.RenderingHints;
 
 import prog.Application;
 import prog.Controller;
+import prog.i18n.Lang;
+import java.net.InetSocketAddress;
 import prog.event.UIStateBus;
 import prog.event.UIStateEvents;
 
@@ -109,6 +111,26 @@ public class ConfigurationService implements ConfigProvider {
             } catch (NumberFormatException e) {
                 // Ignore
             }
+        }
+
+        // --- HTTP Port Sync ---
+        try {
+            String portStr = getConfig("httpPort");
+            if (portStr != null && !portStr.isEmpty()) {
+                int port = Integer.parseInt(portStr);
+                Application.appPort = port;
+                Application.appPortBkp = port + 1111;
+                // Assuming httpIp is still from Lang or static 127.0.0.1
+                String ip = "127.0.0.1";
+                if (Lang.httpIp != null && !Lang.httpIp.isEmpty()) {
+                    ip = Lang.httpIp;
+                }
+                Application.requestDest = new InetSocketAddress(ip, Application.appPort);
+                Application.requestDestBkp = new InetSocketAddress(ip, Application.appPortBkp);
+                prog.util.Logger.info("ConfigurationService", "HTTP Port synchronized: " + port);
+            }
+        } catch (NumberFormatException e) {
+            // Ignore
         }
 
         // --- Sync Global Fonts ---

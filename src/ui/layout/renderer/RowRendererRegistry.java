@@ -22,6 +22,8 @@ public class RowRendererRegistry {
         renderers.put("COLOR", new ColorRowRenderer());
         renderers.put("BUTTON", new ButtonRowRenderer());
         renderers.put("DATA", new DataRowRenderer());
+        renderers.put("INPUT", new TextRowRenderer());
+        renderers.put("TEXT", new TextRowRenderer());
         // Note: HEADER is handled specially in the layout loop, not as a renderer
     }
 
