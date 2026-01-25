@@ -10,7 +10,6 @@ import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent;
 
@@ -39,6 +38,7 @@ public class ConfigLoader {
         public int minVal = 0; // For SLIDER
         public int maxVal = 100; // For SLIDER
         public int groupColumns = 0; // For HEADER: specify columns for this group
+        public List<RowConfig> children = new ArrayList<>();
 
         public RowConfig(String label, String formula, String format) {
             this.label = label;
@@ -216,7 +216,7 @@ public class ConfigLoader {
                 }
 
                 // Process children (items and groups)
-                processPanelChildren(group, panelExp);
+                processPanelChildren(group.rows, panelExp);
 
                 groups.add(group);
             }
@@ -227,7 +227,7 @@ public class ConfigLoader {
         return groups;
     }
 
-    private static void processPanelChildren(GroupConfig group, SList parentList) {
+    private static void processPanelChildren(List<RowConfig> targetList, SList parentList) {
         for (SExp child : parentList.children) {
             if (!child.isList())
                 continue;
@@ -251,10 +251,11 @@ public class ConfigLoader {
                 headerRow.type = "HEADER";
                 headerRow.groupColumns = getKeywordInt(list, ":column", 0);
                 headerRow.value = true;
-                group.rows.add(headerRow);
 
                 // Recurse for group children
-                processPanelChildren(group, list);
+                processPanelChildren(headerRow.children, list);
+
+                targetList.add(headerRow);
 
             } else if ("item".equalsIgnoreCase(type)) {
                 // (item "Label" :k v ...)
@@ -310,7 +311,7 @@ public class ConfigLoader {
                     row.formula = row.property;
                 }
 
-                group.rows.add(row);
+                targetList.add(row);
             }
         }
     }
@@ -367,72 +368,70 @@ public class ConfigLoader {
                     writeAttrLine(pw, indent, ":panel-columns", group.panelColumns);
 
                 pw.println();
+                pw.println();
 
-                boolean inGroup = false;
-
-                for (RowConfig row : group.rows) {
-                    if ("HEADER".equals(row.type)) {
-                        if (inGroup) {
-                            pw.println("  )"); // Close previous group
-                            pw.println();
-                        }
-                        inGroup = true;
-                        pw.print("  (group ");
-                        pw.print(quote(row.label));
-                        if (row.groupColumns > 0) {
-                            pw.print(" :column " + row.groupColumns);
-                        }
-                        pw.println();
-                    } else {
-                        // Item
-                        String listIndent = inGroup ? "    " : "  ";
-                        pw.print(listIndent + "(item ");
-                        pw.print(quote(row.label));
-
-                        String lispType = row.type.toLowerCase().replace("_", "-");
-                        pw.print(" :type " + lispType);
-
-                        if (row.property != null)
-                            pw.print(" :target " + quote(row.property));
-                        else if (row.formula != null && "DATA".equals(row.type))
-                            pw.print(" :target " + quote(row.formula));
-
-                        // Type specific fields
-                        if ("slider".equals(lispType)) {
-                            pw.print(" :min " + row.minVal + " :max " + row.maxVal);
-                        }
-
-                        if ("combo".equals(lispType) || "filelist".equals(lispType) || "fmlist".equals(lispType)) {
-                            pw.print(" :source " + quote(row.format));
-                        } else {
-                            if (!"%s".equals(row.format))
-                                pw.print(" :format " + quote(row.format));
-                        }
-
-                        // Value is last
-                        if (!"button".equals(lispType)) {
-                            pw.print(" :value " + serializeAtom(row.value));
-                        }
-                        if (row.defaultValue != null && !"button".equals(lispType)) {
-                            pw.print(" :default " + serializeAtom(row.defaultValue));
-                        }
-                        if (row.desc != null) {
-                            pw.print(" :desc " + quote(row.desc));
-                        }
-
-                        pw.println(")");
-                    }
-                }
-
-                if (inGroup) {
-                    pw.println("  )"); // Close last group
-                }
+                writeChildren(pw, group.rows, "  ");
 
                 pw.println(")"); // Close panel
                 pw.println();
             }
         } catch (Exception e) {
             e.printStackTrace();
+        }
+    }
+
+    private static void writeChildren(PrintWriter pw, List<RowConfig> rows, String indent) {
+        for (RowConfig row : rows) {
+            if ("HEADER".equals(row.type)) {
+                pw.print(indent + "(group ");
+                pw.print(quote(row.label));
+                if (row.groupColumns > 0) {
+                    pw.print(" :column " + row.groupColumns);
+                }
+                pw.println();
+
+                // Recurse for children
+                writeChildren(pw, row.children, indent + "  ");
+
+                pw.println(indent + ")"); // Close group
+            } else {
+                // Item
+                pw.print(indent + "(item ");
+                pw.print(quote(row.label));
+
+                String lispType = row.type.toLowerCase().replace("_", "-");
+                pw.print(" :type " + lispType);
+
+                if (row.property != null)
+                    pw.print(" :target " + quote(row.property));
+                else if (row.formula != null && "DATA".equals(row.type))
+                    pw.print(" :target " + quote(row.formula));
+
+                // Type specific fields
+                if ("slider".equals(lispType)) {
+                    pw.print(" :min " + row.minVal + " :max " + row.maxVal);
+                }
+
+                if ("combo".equals(lispType) || "filelist".equals(lispType) || "fmlist".equals(lispType)) {
+                    pw.print(" :source " + quote(row.format));
+                } else {
+                    if (!"%s".equals(row.format))
+                        pw.print(" :format " + quote(row.format));
+                }
+
+                // Value is last
+                if (!"button".equals(lispType)) {
+                    pw.print(" :value " + serializeAtom(row.value));
+                }
+                if (row.defaultValue != null && !"button".equals(lispType)) {
+                    pw.print(" :default " + serializeAtom(row.defaultValue));
+                }
+                if (row.desc != null) {
+                    pw.print(" :desc " + quote(row.desc));
+                }
+
+                pw.println(")");
+            }
         }
     }
 

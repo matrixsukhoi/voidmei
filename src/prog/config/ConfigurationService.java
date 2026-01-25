@@ -54,7 +54,15 @@ public class ConfigurationService implements ConfigProvider {
         // Parse and apply config to app and Controller State
         // This replaces loadFromConfig() in Controller
 
-        long freqService = Long.parseLong(getConfig("Interval"));
+        long freqService = 50;
+        try {
+            String intervalStr = getConfig("Interval");
+            if (intervalStr != null && !intervalStr.isEmpty()) {
+                freqService = Long.parseLong(intervalStr);
+            }
+        } catch (NumberFormatException e) {
+            freqService = 50;
+        }
         c.freqService = freqService;
         c.freqEngineInfo = (long) (freqService * 2f);
         c.freqFlightInfo = (long) (freqService * 1.5f);
@@ -69,10 +77,22 @@ public class ConfigurationService implements ConfigProvider {
         Application.colorWarning = getColorConfig("fontWarn");
         Application.colorShadeShape = getColorConfig("fontShade");
 
-        Application.voiceVolumn = Integer.parseInt(getConfig("voiceVolume"));
+        try {
+            String vol = getConfig("voiceVolume");
+            if (vol != null && !vol.isEmpty()) {
+                Application.voiceVolumn = Integer.parseInt(vol);
+            }
+        } catch (NumberFormatException e) {
+            Application.voiceVolumn = 0; // Default
+        }
 
         // Application.drawFontShape = !Boolean.parseBoolean(getConfig("simpleFont"));
-        Application.aaEnable = Boolean.parseBoolean(getConfig("AAEnable"));
+        String aa = getConfig("AAEnable");
+        if (aa != null && !aa.isEmpty()) {
+            Application.aaEnable = Boolean.parseBoolean(aa);
+        } else {
+            Application.aaEnable = false; // Default
+        }
 
         if (Application.aaEnable) {
             Application.textAASetting = RenderingHints.VALUE_TEXT_ANTIALIAS_ON;
@@ -115,14 +135,13 @@ public class ConfigurationService implements ConfigProvider {
         // Priority 1: Check in-memory LayoutConfigs (Source of Truth)
         if (layoutConfigs != null) {
             for (ConfigLoader.GroupConfig gc : layoutConfigs) {
-                for (ConfigLoader.RowConfig row : gc.rows) {
-                    if (key.equals(row.property) || (row.property == null && key.equals(row.label))) {
-                        // Handle inversion for SWITCH_INV
-                        if ("SWITCH_INV".equals(row.type)) {
-                            return String.valueOf(!row.getBool());
-                        }
-                        return row.getStr();
+                ConfigLoader.RowConfig row = findRowRecursive(gc.rows, key);
+                if (row != null) {
+                    // Handle inversion for SWITCH_INV
+                    if ("SWITCH_INV".equals(row.type)) {
+                        return String.valueOf(!row.getBool());
                     }
+                    return row.getStr();
                 }
 
                 // Check Group SwitchKey (e.g. flightInfoSwitch maps to Group visibility)
@@ -134,41 +153,62 @@ public class ConfigurationService implements ConfigProvider {
         return "";
     }
 
+    private ConfigLoader.RowConfig findRowRecursive(java.util.List<ConfigLoader.RowConfig> rows, String key) {
+        for (ConfigLoader.RowConfig row : rows) {
+            if (key.equals(row.property) || (row.property == null && key.equals(row.label))) {
+                return row;
+            }
+            if (row.children != null && !row.children.isEmpty()) {
+                ConfigLoader.RowConfig found = findRowRecursive(row.children, key);
+                if (found != null)
+                    return found;
+            }
+        }
+        return null;
+    }
+
     @Override
     public void setConfig(String key, String value) {
         // 1. Update LayoutConfigs (if exists)
         if (layoutConfigs != null) {
             for (ConfigLoader.GroupConfig gc : layoutConfigs) {
-                // Check Rows
-                for (ConfigLoader.RowConfig row : gc.rows) {
-                    if (key.equals(row.property) || (row.property == null && key.equals(row.label))) {
-                        // Update typed value based on existing type to maintain consistency
-                        // Handle inversion for SWITCH_INV
-                        String valToStore = value;
-                        if ("SWITCH_INV".equals(row.type)) {
-                            valToStore = String.valueOf(!Boolean.parseBoolean(value));
-                        }
-
-                        if (row.value instanceof Boolean) {
-                            row.value = Boolean.parseBoolean(valToStore);
-                        } else if (row.value instanceof Integer) {
-                            try {
-                                row.value = Integer.parseInt(valToStore);
-                            } catch (Exception e) {
-                                row.value = valToStore;
-                            }
-                        } else {
-                            row.value = valToStore;
-                        }
-                        UIStateBus.getInstance().publish(UIStateEvents.CONFIG_CHANGED, "ConfigurationService", key);
-                    }
-                }
+                // Check Rows - recursive update ALL matching instances
+                updateRowsRecursive(gc.rows, key, value);
 
                 // Check Group SwitchKey
                 if (key.equals(gc.switchKey)) {
                     gc.visible = Boolean.parseBoolean(value);
                     UIStateBus.getInstance().publish(UIStateEvents.CONFIG_CHANGED, "ConfigurationService", key);
                 }
+            }
+        }
+    }
+
+    private void updateRowsRecursive(java.util.List<ConfigLoader.RowConfig> rows, String key, String value) {
+        for (ConfigLoader.RowConfig row : rows) {
+            if (key.equals(row.property) || (row.property == null && key.equals(row.label))) {
+                // Update typed value based on existing type to maintain consistency
+                // Handle inversion for SWITCH_INV
+                String valToStore = value;
+                if ("SWITCH_INV".equals(row.type)) {
+                    valToStore = String.valueOf(!Boolean.parseBoolean(value));
+                }
+
+                if (row.value instanceof Boolean) {
+                    row.value = Boolean.parseBoolean(valToStore);
+                } else if (row.value instanceof Integer) {
+                    try {
+                        row.value = Integer.parseInt(valToStore);
+                    } catch (Exception e) {
+                        row.value = valToStore;
+                    }
+                } else {
+                    row.value = valToStore;
+                }
+                UIStateBus.getInstance().publish(UIStateEvents.CONFIG_CHANGED, "ConfigurationService", key);
+            }
+            if (row.children != null && !row.children.isEmpty()) {
+                updateRowsRecursive(row.children, key, value);
             }
         }
     }
@@ -185,11 +225,7 @@ public class ConfigurationService implements ConfigProvider {
         // Phase 1: Collect changes (Prepare)
         if (layoutConfigs != null) {
             for (ConfigLoader.GroupConfig g : layoutConfigs) {
-                for (ConfigLoader.RowConfig r : g.rows) {
-                    if (r.defaultValue != null && !r.defaultValue.equals(r.value)) {
-                        pendingChanges.add(r);
-                    }
-                }
+                collectResetCandidatesRecursive(g.rows, pendingChanges);
             }
         }
 
@@ -212,6 +248,20 @@ public class ConfigurationService implements ConfigProvider {
                     "ConfigurationService", UIStateEvents.ACTION_RESET_COMPLETED);
         }
         return changed;
+    }
+
+    private void collectResetCandidatesRecursive(java.util.List<ConfigLoader.RowConfig> rows,
+            java.util.List<ConfigLoader.RowConfig> pendingChanges) {
+        for (ConfigLoader.RowConfig r : rows) {
+            // Check self
+            if (r.defaultValue != null && !r.defaultValue.equals(r.value)) {
+                pendingChanges.add(r);
+            }
+            // Recurse
+            if (r.children != null && !r.children.isEmpty()) {
+                collectResetCandidatesRecursive(r.children, pendingChanges);
+            }
+        }
     }
 
     // private synchronized void scheduleBackgroundSave() { ... } // Removed
@@ -351,6 +401,17 @@ public class ConfigurationService implements ConfigProvider {
 
         @Override
         public boolean getBool(String key, boolean def) {
+            ConfigLoader.GroupConfig gc = getGroupConfig();
+            if (gc != null) {
+                ConfigLoader.RowConfig row = findRowRecursive(gc.rows, key);
+                if (row != null) {
+                    // Handle inversion for SWITCH_INV
+                    if ("SWITCH_INV".equals(row.type)) {
+                        return !row.getBool();
+                    }
+                    return row.getBool();
+                }
+            }
             String val = getConfig(key);
             if (val == null || val.isEmpty())
                 return def;
@@ -359,6 +420,13 @@ public class ConfigurationService implements ConfigProvider {
 
         @Override
         public int getInt(String key, int def) {
+            ConfigLoader.GroupConfig gc = getGroupConfig();
+            if (gc != null) {
+                ConfigLoader.RowConfig row = findRowRecursive(gc.rows, key);
+                if (row != null) {
+                    return row.getInt();
+                }
+            }
             String val = getConfig(key);
             if (val == null || val.isEmpty())
                 return def;
@@ -371,6 +439,13 @@ public class ConfigurationService implements ConfigProvider {
 
         @Override
         public String getString(String key, String def) {
+            ConfigLoader.GroupConfig gc = getGroupConfig();
+            if (gc != null) {
+                ConfigLoader.RowConfig row = findRowRecursive(gc.rows, key);
+                if (row != null) {
+                    return row.getStr();
+                }
+            }
             String val = getConfig(key);
             if (val == null || val.isEmpty())
                 return def;
@@ -480,16 +555,15 @@ public class ConfigurationService implements ConfigProvider {
             if (layoutConfigs != null) {
                 for (ConfigLoader.GroupConfig gc : layoutConfigs) {
                     if (section.equalsIgnoreCase(gc.title)) {
-                        for (ConfigLoader.RowConfig row : gc.rows) {
-                            if (property.equals(row.property) && row.value != null) {
-                                if (row.value instanceof Number) {
-                                    return ((Number) row.value).doubleValue();
-                                }
-                                try {
-                                    return Double.parseDouble(row.value.toString());
-                                } catch (NumberFormatException e) {
-                                    // ignore
-                                }
+                        ConfigLoader.RowConfig row = findRowRecursive(gc.rows, property);
+                        if (row != null && row.value != null) {
+                            if (row.value instanceof Number) {
+                                return ((Number) row.value).doubleValue();
+                            }
+                            try {
+                                return Double.parseDouble(row.value.toString());
+                            } catch (NumberFormatException e) {
+                                // ignore
                             }
                         }
                     }

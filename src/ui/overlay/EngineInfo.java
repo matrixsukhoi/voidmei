@@ -84,17 +84,24 @@ public class EngineInfo extends FieldOverlay {
 		// 2. Override visibility based on GroupConfig rows from ui_layout.cfg
 		prog.config.ConfigLoader.GroupConfig groupConfig = engineInfoConfig.groupConfig;
 		if (groupConfig != null) {
-			for (prog.config.ConfigLoader.RowConfig row : groupConfig.rows) {
-				String labelKey = LABEL_TO_KEY.get(row.label);
-				if (labelKey != null) {
-					for (ui.model.FieldDefinition def : getFieldDefinitions()) {
-						if (labelKey.equals(def.configKey)) {
-							fieldManager.setFieldVisible(def.key, row.getBool());
-						}
+			updateFieldVisibilityRecursive(groupConfig.rows);
+			repaint();
+		}
+	}
+
+	private void updateFieldVisibilityRecursive(List<prog.config.ConfigLoader.RowConfig> rows) {
+		for (prog.config.ConfigLoader.RowConfig row : rows) {
+			String labelKey = LABEL_TO_KEY.get(row.label);
+			if (labelKey != null) {
+				for (ui.model.FieldDefinition def : getFieldDefinitions()) {
+					if (labelKey.equals(def.configKey)) {
+						fieldManager.setFieldVisible(def.key, row.getBool());
 					}
 				}
 			}
-			repaint();
+			if (row.children != null && !row.children.isEmpty()) {
+				updateFieldVisibilityRecursive(row.children);
+			}
 		}
 	}
 

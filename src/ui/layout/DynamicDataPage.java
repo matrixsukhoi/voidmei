@@ -118,9 +118,6 @@ public class DynamicDataPage extends BasePage {
 
         int pCols = groupConfig.panelColumns > 0 ? groupConfig.panelColumns : 2;
 
-        WebPanel currentCard = null;
-        WebPanel currentGrid = null;
-
         // Create render context with callbacks
         final RowRenderer.RenderContext ctx = new RowRenderer.RenderContext() {
             @Override
@@ -173,27 +170,61 @@ public class DynamicDataPage extends BasePage {
             }
         };
 
-        for (prog.config.ConfigLoader.RowConfig row : groupConfig.rows) {
+        // Start recursive build
+        buildContainer(groupConfig.rows, scaler, pCols, ctx);
+
+        scaler.revalidate();
+        scaler.repaint();
+    }
+
+    private void buildContainer(java.util.List<prog.config.ConfigLoader.RowConfig> rows, WebPanel parentContainer,
+            int defaultCols, RowRenderer.RenderContext ctx) {
+        WebPanel currentCard = null;
+        WebPanel currentGrid = null;
+
+        for (prog.config.ConfigLoader.RowConfig row : rows) {
             String rowType = row.type != null ? row.type : "DATA";
 
             if (rowType.equals("HEADER")) {
-                // Header row triggers new Card
+                // Header row triggers new Card (Group)
                 currentCard = ReplicaBuilder.getStyle().createContainer(row.label);
-                currentGrid = new WebPanel();
-                currentGrid.setOpaque(false);
-                int cols = row.groupColumns > 0 ? row.groupColumns : pCols;
-                currentGrid.setLayout(new ResponsiveGridLayout(cols, 10, 5));
-                currentCard.add(currentGrid);
-                scaler.add(currentCard);
+
+                // Nested container usually has a vertical layout to stack its own grid + nested
+                // groups
+                WebPanel nestedContent = new WebPanel();
+                nestedContent.setOpaque(false);
+                nestedContent.setLayout(new com.alee.extended.layout.VerticalFlowLayout());
+
+                // Add a Grid for the IMMEDIATE children items of this group
+                // But wait, the children hierarchy is now separate.
+                // In recursive model, 'row' has 'children'.
+                // So we recursively build the children into 'nestedContent'.
+
+                int cols = row.groupColumns > 0 ? row.groupColumns : defaultCols;
+
+                // Recursive call
+                // Note: The Grid creation logic needs to happen INSIDE buildContainer
+                // if we want to mix items and groups.
+                // But our loop here iterates linearly if flattened, or hierarchical if not.
+                // With the new structure, 'row' has a list of 'children'.
+
+                buildContainer(row.children, nestedContent, cols, ctx);
+
+                currentCard.add(nestedContent);
+                parentContainer.add(currentCard);
+
+                // Reset currentGrid so next items at THIS level get a new grid if needed
+                // (Though with strict hierarchy, items should be inside the group/HEADER logic)
+                currentGrid = null;
             } else {
-                // Ensure we have a grid to add to
+                // Regular Item
+                // Ensure we have a grid to add to in the current container
                 if (currentGrid == null) {
-                    currentCard = ReplicaBuilder.getStyle().createContainer("General");
+                    // If we are at root or inside a group, we might need a grid for loose items
                     currentGrid = new WebPanel();
                     currentGrid.setOpaque(false);
-                    currentGrid.setLayout(new ResponsiveGridLayout(pCols, 10, 5));
-                    currentCard.add(currentGrid);
-                    scaler.add(currentCard);
+                    currentGrid.setLayout(new ResponsiveGridLayout(defaultCols, 10, 5));
+                    parentContainer.add(currentGrid);
                 }
 
                 // Use strategy pattern to render the row
@@ -205,9 +236,6 @@ public class DynamicDataPage extends BasePage {
                 }
             }
         }
-
-        scaler.revalidate();
-        scaler.repaint();
     }
 
     @Override
