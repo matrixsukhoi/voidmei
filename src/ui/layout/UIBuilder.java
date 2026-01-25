@@ -8,86 +8,36 @@ import java.awt.Dimension;
 import com.alee.extended.button.WebSwitch;
 import com.alee.laf.label.WebLabel;
 import com.alee.laf.panel.WebPanel;
-import com.alee.laf.slider.WebSlider;
-
-import prog.util.FileUtils;
 
 public class UIBuilder {
 
     private static UIStyle activeStyle = new ClassicStyle();
 
-    public static WebSwitch addLCGroup(Container parent, String text) {
-        WebLabel lb = new WebLabel(text);
-        activeStyle.decorateLabel(lb);
+    private static final java.awt.Color COL_TRANSPARENT = new java.awt.Color(0, 0, 0, 0);
+    private static final java.awt.Color COL_BORDER = new java.awt.Color(0, 0, 0, 100);
+    private static final int GRID_GAP_H = 15;
+    private static final int GRID_GAP_V = 5;
 
-        WebSwitch ws = new WebSwitch();
-        activeStyle.decorateSwitch(ws);
-
-        parent.add(lb);
-        parent.add(ws);
-        return ws;
+    private static void decoratePanelBase(WebPanel panel, int shadeWidth) {
+        panel.setWebColoredBackground(false);
+        panel.setBackground(COL_TRANSPARENT);
+        panel.setOpaque(false);
+        panel.setShadeWidth(shadeWidth);
+        panel.setRound(com.alee.global.StyleConstants.largeRound);
+        panel.setBorderColor(COL_BORDER);
     }
 
-    public static WebLabel addVoidWebLabel(Container parent, String text) {
-        WebLabel lb = new WebLabel(text);
-        lb.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
-        lb.setForeground(new java.awt.Color(0, 0, 0, 230));
-        lb.setShadeColor(java.awt.Color.WHITE);
-        lb.setFont(prog.Application.defaultFont);
-        parent.add(lb);
-        return lb;
+    public static void decorateStandardPanel(WebPanel panel) {
+        decoratePanelBase(panel, 2);
+        panel.setUndecorated(false);
+        panel.setPaintBottom(false);
+        panel.setPaintTop(false);
+        panel.setPaintRight(false);
     }
 
-    public static void decorateStandardPanel(WebPanel JP) {
-        JP.setWebColoredBackground(false);
-        JP.setBackground(new java.awt.Color(0, 0, 0, 0));
-        JP.setOpaque(false);
-        JP.setUndecorated(false);
-        JP.setShadeWidth(2);
-        JP.setRound(com.alee.global.StyleConstants.largeRound);
-        JP.setBorderColor(new java.awt.Color(0, 0, 0, 100));
-        JP.setPaintBottom(false);
-        JP.setPaintTop(false);
-        JP.setPaintRight(false);
-    }
-
-    public static void decorateInsidePanel(WebPanel JP) {
-        JP.setWebColoredBackground(false);
-        JP.setBackground(new java.awt.Color(0, 0, 0, 0));
-        JP.setOpaque(false);
-        JP.setShadeTransparency(0.1f);
-        JP.setShadeWidth(2);
-        JP.setRound(com.alee.global.StyleConstants.largeRound);
-        JP.setBorderColor(new java.awt.Color(0, 0, 0, 100));
-    }
-
-    public static com.alee.laf.combobox.WebComboBox addCrosshairList(Container parent, String text,
-            boolean isInitializing, Runnable onSave) {
-        WebLabel lb = new WebLabel(text);
-        activeStyle.decorateLabel(lb);
-
-        java.io.File file = new java.io.File("image/gunsight");
-        String[] filelist = file.list();
-        if (filelist == null)
-            filelist = new String[0];
-        filelist = FileUtils.getFilelistNameNoEx(filelist);
-
-        com.alee.laf.combobox.WebComboBox comboBox = new com.alee.laf.combobox.WebComboBox(filelist);
-        comboBox.setWebColoredBackground(false);
-        comboBox.setShadeWidth(1);
-        comboBox.setDrawFocus(false);
-        comboBox.setFont(prog.Application.defaultFont);
-        comboBox.setExpandedBgColor(new java.awt.Color(0, 0, 0, 0));
-        comboBox.addActionListener(e -> {
-            if (isInitializing)
-                return;
-            if (onSave != null)
-                onSave.run();
-        });
-
-        parent.add(lb);
-        parent.add(comboBox);
-        return comboBox;
+    public static void decorateInsidePanel(WebPanel panel) {
+        decoratePanelBase(panel, 2);
+        panel.setShadeTransparency(0.1f);
     }
 
     public static void setStyle(UIStyle style) {
@@ -100,22 +50,22 @@ public class UIBuilder {
 
     public static WebPanel createGridContainer(int columns) {
         WebPanel container = new WebPanel();
-        container.setLayout(new ResponsiveGridLayout(columns, 15, 5)); // Tighter gaps matching screenshot
+        container.setLayout(new ResponsiveGridLayout(columns, GRID_GAP_H, GRID_GAP_V));
         // activeStyle.decorateContainer(container); // If we add this method to
         // interface later
         container.setOpaque(false);
-        container.setBackground(new java.awt.Color(0, 0, 0, 0));
+        container.setBackground(COL_TRANSPARENT);
         container.setBorder(null); // Ensure no default border
         return container;
     }
 
     public static void addPlaceholder(Container parent) {
-        WebPanel p = new WebPanel();
-        p.setOpaque(false);
+        WebPanel placeholder = new WebPanel();
+        placeholder.setOpaque(false);
         // Ensure it has the same height as a standard switch panel to maintain grid
         // alignment
-        p.setPreferredSize(new Dimension(200, 30));
-        parent.add(p);
+        placeholder.setPreferredSize(new Dimension(200, 30));
+        parent.add(placeholder);
     }
 
     public static WebPanel createCard(String title) {
@@ -141,95 +91,6 @@ public class UIBuilder {
     }
 
     // Quick helper to add a standardized switch to a container
-    public static WebSwitch addSwitch(Container parent, String labelText, boolean initialValue) {
-        // Flat Strategy: Add directly to parent to respect FlowLayout
-        WebLabel label = new WebLabel(labelText);
-        activeStyle.decorateLabel(label);
-
-        WebSwitch webSwitch = new WebSwitch();
-        webSwitch.setSelected(initialValue);
-        activeStyle.decorateSwitch(webSwitch);
-
-        parent.add(label);
-        parent.add(webSwitch);
-        return webSwitch;
-    }
-
-    public static WebSlider addSlider(Container parent, String labelText, int min, int max, int val, int width,
-            int minorTick,
-            int majorTick) {
-        // Flat Strategy
-        WebLabel label = new WebLabel(labelText);
-        activeStyle.decorateLabel(label);
-
-        // --- Alignment Logic (Legacy) ---
-        // Preserving the check
-        Dimension d2 = label.getPreferredSize();
-        if (d2.width < 110) {
-            label.setPreferredSize(new Dimension(110, d2.height));
-        }
-
-        WebSlider slider = new WebSlider(WebSlider.HORIZONTAL, min, max, val);
-        slider.setMinorTickSpacing(minorTick);
-        slider.setMajorTickSpacing(majorTick);
-        slider.setPaintTicks(true);
-        slider.setPaintLabels(true);
-
-        activeStyle.decorateSlider(slider);
-        slider.setPreferredSize(new Dimension(width, 50));
-
-        parent.add(label);
-        parent.add(slider);
-        return slider;
-    }
-
-    public static WebSlider addSlider(Container parent, String labelText, int min, int max, int val, int width) {
-        return addSlider(parent, labelText, min, max, val, width, 0, 0);
-    }
-
-    public static WebSlider addSlider(Container parent, String labelText, int min, int max, int val) {
-        return addSlider(parent, labelText, min, max, val, 300, 0, 0);
-    }
-
-    public static com.alee.laf.combobox.WebComboBox addFontComboBox(Container parent, String labelText,
-            String[] fonts) {
-        return addComboBox(parent, labelText, fonts);
-    }
-
-    public static com.alee.laf.text.WebTextField addColorField(Container parent, String labelText, String colorText,
-            java.awt.Color initialColor) {
-        // Flat Strategy
-        WebLabel label = new WebLabel(labelText);
-        activeStyle.decorateLabel(label);
-
-        com.alee.laf.text.WebTextField trailing = new com.alee.laf.text.WebTextField(colorText, 15);
-        trailing.setMargin(0, 0, 0, 2);
-        trailing.setLeadingComponent(
-                new com.alee.extended.image.WebImage(com.alee.utils.ImageUtils.createColorIcon(initialColor)));
-        trailing.setShadeWidth(2);
-
-        parent.add(label);
-        parent.add(trailing);
-        return trailing;
-    }
-
-    public static com.alee.laf.combobox.WebComboBox addComboBox(Container parent, String labelText, String[] items) {
-        // Flat Strategy
-        WebLabel label = new WebLabel(labelText);
-        activeStyle.decorateLabel(label);
-
-        com.alee.laf.combobox.WebComboBox comboBox = new com.alee.laf.combobox.WebComboBox(items);
-        comboBox.setWebColoredBackground(false);
-        comboBox.setShadeWidth(1);
-        comboBox.setDrawFocus(false);
-        comboBox.setFont(prog.Application.defaultFont);
-        comboBox.setExpandedBgColor(new java.awt.Color(0, 0, 0, 0));
-        comboBox.setBackground(new java.awt.Color(0, 0, 0, 0));
-
-        parent.add(label);
-        parent.add(comboBox);
-        return comboBox;
-    }
 
     /**
      * Adds a tab with a custom right-aligned label component.

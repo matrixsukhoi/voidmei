@@ -461,7 +461,8 @@ public class ConfigurationService implements ConfigProvider {
 
         @Override
         public boolean useTextureCrosshair() {
-            return getBool("usetexturecrosshair", false);
+            String name = getCrosshairName();
+            return name != null && !name.isEmpty() && !"软件渲染准星".equalsIgnoreCase(name);
         }
 
         @Override

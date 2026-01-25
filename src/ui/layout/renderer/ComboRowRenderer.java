@@ -5,7 +5,9 @@ import com.alee.laf.combobox.WebComboBox;
 import prog.config.ConfigLoader.RowConfig;
 import prog.config.ConfigLoader.GroupConfig;
 import prog.util.PropertyBinder;
+import prog.util.FileUtils;
 import ui.replica.ReplicaBuilder;
+import java.io.File;
 
 /**
  * Renders COMBO (dropdown) type rows.
@@ -64,6 +66,18 @@ public class ComboRowRenderer implements RowRenderer {
             return new String[0];
         if (optionSource.equals("_FONTS_")) {
             return java.awt.GraphicsEnvironment.getLocalGraphicsEnvironment().getAvailableFontFamilyNames();
+        }
+        if (optionSource.equals("_CROSSHAIRS_")) {
+            File dir = new File("image/gunsight");
+            String[] files = dir.list();
+            if (files == null)
+                files = new String[0];
+            files = FileUtils.getFilelistNameNoEx(files);
+
+            String[] combined = new String[files.length + 1];
+            combined[0] = "软件渲染准星";
+            System.arraycopy(files, 0, combined, 1, files.length);
+            return combined;
         }
         return optionSource.split(",");
     }
