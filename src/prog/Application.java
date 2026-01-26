@@ -479,6 +479,17 @@ public class Application {
 				"Native hook registered and listener added. Global status: " + GlobalScreen.isNativeHookRegistered());
 	}
 
+	public static void initGlobalFont(Font font) {
+		javax.swing.plaf.FontUIResource fontResource = new javax.swing.plaf.FontUIResource(font);
+		for (java.util.Enumeration<Object> keys = javax.swing.UIManager.getDefaults().keys(); keys.hasMoreElements();) {
+			Object key = keys.nextElement();
+			Object value = javax.swing.UIManager.get(key);
+			if (value instanceof javax.swing.plaf.FontUIResource) {
+				javax.swing.UIManager.put(key, fontResource);
+			}
+		}
+	}
+
 	public static void updateWebLafFonts() {
 		// WebLookAndFeel.set
 		WebLookAndFeel.globalControlFont = defaultFont;
@@ -492,6 +503,7 @@ public class Application {
 	}
 
 	public static void initWebLaf() {
+		initGlobalFont(defaultFont);
 		WebLookAndFeel.install();
 
 		StyleConstants.textRenderingHints = new RenderingHints(RenderingHints.KEY_TEXT_ANTIALIASING,
