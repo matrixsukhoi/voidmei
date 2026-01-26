@@ -18,6 +18,7 @@ public class FlightInfo extends FieldOverlay {
 	private static final long serialVersionUID = 6759127498151892589L;
 
 	private FlightInfoConfig flightInfoConfig;
+	private ui.model.TelemetrySource service;
 
 	public FlightInfo() {
 		super();
@@ -39,6 +40,7 @@ public class FlightInfo extends FieldOverlay {
 	 * Standardized initialization.
 	 */
 	public void init(prog.Controller c, prog.Service s, prog.config.OverlaySettings settings) {
+		this.service = s;
 		this.config = c;
 		this.flightInfoConfig = ui.model.FlightInfoConfig.createDefault(c, settings.getGroupConfig());
 
@@ -54,33 +56,12 @@ public class FlightInfo extends FieldOverlay {
 		super.init(c, c.globalPool);
 
 		if (s != null) {
-			bindHighFrequencyFields(s);
 			setVisible(true);
 		}
 	}
 
-	// --- Zero-GC Binding ---
-	private void bindHighFrequencyFields(ui.model.TelemetrySource s) {
-		ui.model.FieldManager fm = this.fieldManager;
-		// Bind fields to service methods
-		fm.bind("ias", s::getIAS, 0);
-		fm.bind("tas", s::getTAS, 0);
-		fm.bind("mach", s::getMach, 2);
-		fm.bind("dir", s::getCompass, 0);
-		fm.bind("height", s::getAltitude, 0);
-		fm.bind("rda", s::getRadioAltitude, s::isRadioAltitudeValid, 0);
-		fm.bind("vario", s::getVario, 1);
-		fm.bind("sep", s::getSEP, 0);
-		fm.bind("acc", s::getAcceleration, 1);
-		fm.bind("wx", s::getRollRate, 0);
-		fm.bind("ny", s::getNy, 1);
-
-		fm.bind("turn", s::getTurnRate, 1);
-		fm.bind("rds", s::getTurnRadius, 0);
-
-		fm.bind("aoa", s::getAoA, 1);
-		fm.bind("aos", s::getAoS, 1);
-		fm.bind("ws", () -> s.getWingSweep() * 100.0, s::isWingSweepValid, 0);
+	public void onFlightData(prog.event.FlightDataEvent event) {
+		super.onFlightData(event);
 	}
 
 	/**
@@ -101,7 +82,44 @@ public class FlightInfo extends FieldOverlay {
 	public void reinitConfig() {
 		if (flightInfoConfig == null)
 			return;
+
 		super.reinitConfig();
+
+		// Bind fields based on current telemetry source
+		prog.config.ConfigLoader.GroupConfig groupConfig = flightInfoConfig.groupConfig;
+		if (groupConfig != null && this.service != null) {
+			bindDynamicFields(this.service, groupConfig.rows);
+			repaint();
+		}
+	}
+
+	private void bindDynamicFields(ui.model.TelemetrySource s,
+			java.util.List<prog.config.ConfigLoader.RowConfig> rows) {
+		ui.model.FieldManager fm = this.fieldManager;
+		for (prog.config.ConfigLoader.RowConfig row : rows) {
+			if ("DATA".equals(row.type) && row.property != null && !row.property.isEmpty()) {
+				java.util.function.DoubleSupplier supplier = ui.util.ReflectBinder.resolveDouble(s, row.property);
+
+				// Resolve validity method (e.g., getRPM -> isRPMValid)
+				String baseMethod = row.property.trim();
+				if (baseMethod.contains("*")) {
+					baseMethod = baseMethod.split("\\*")[0].trim();
+				}
+				if (baseMethod.startsWith("get")) {
+					String validityMethod = "is" + baseMethod.substring(3) + "Valid";
+					java.util.function.BooleanSupplier visibilitySupplier = ui.util.ReflectBinder.resolveBoolean(s,
+							validityMethod);
+					fm.bind(row.property, supplier, visibilitySupplier, row.precision);
+				} else {
+					fm.bind(row.property, supplier, row.precision);
+				}
+
+				fm.setFieldVisible(row.property, row.getBool());
+			}
+			if (row.children != null && !row.children.isEmpty()) {
+				bindDynamicFields(s, row.children);
+			}
+		}
 	}
 
 	// Manual loadPosition and saveCurrentPosition overrides removed.

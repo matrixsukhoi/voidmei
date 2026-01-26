@@ -1799,12 +1799,12 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 
 	@Override
 	public double getTurnRadius() {
-		return turnRds;
+		return Math.abs(turnRds);
 	}
 
 	@Override
 	public double getRollRate() {
-		return sState != null ? sState.Wx : 0;
+		return sState != null ? Math.abs(sState.Wx) : 0;
 	}
 
 	@Override

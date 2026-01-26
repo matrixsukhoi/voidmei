@@ -126,8 +126,19 @@ public class EngineInfo extends FieldOverlay {
 				// Use ReflectBinder to create a zero-GC supplier
 				java.util.function.DoubleSupplier supplier = ui.util.ReflectBinder.resolveDouble(s, row.property);
 
-				// Bind to the existing field (already added by initFields via EngineInfoConfig)
-				fm.bind(row.property, supplier, row.precision);
+				// Resolve validity method (e.g., getRPM -> isRPMValid)
+				String baseMethod = row.property.trim();
+				if (baseMethod.contains("*")) {
+					baseMethod = baseMethod.split("\\*")[0].trim();
+				}
+				if (baseMethod.startsWith("get")) {
+					String validityMethod = "is" + baseMethod.substring(3) + "Valid";
+					java.util.function.BooleanSupplier visibilitySupplier = ui.util.ReflectBinder.resolveBoolean(s,
+							validityMethod);
+					fm.bind(row.property, supplier, visibilitySupplier, row.precision);
+				} else {
+					fm.bind(row.property, supplier, row.precision);
+				}
 
 				// Apply visibility immediately based on config value
 				fm.setFieldVisible(row.property, row.getBool());

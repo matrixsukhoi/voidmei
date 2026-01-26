@@ -132,4 +132,34 @@ public class ReflectBinder {
             return () -> "";
         }
     }
+
+    /**
+     * Resolves a target string to a BooleanSupplier.
+     */
+    public static java.util.function.BooleanSupplier resolveBoolean(Object service, String target) {
+        if (target == null || target.isEmpty() || service == null) {
+            return () -> true;
+        }
+
+        try {
+            MethodHandles.Lookup lookup = MethodHandles.publicLookup();
+            MethodType mt = MethodType.methodType(boolean.class);
+            MethodHandle handle = lookup.findVirtual(service.getClass(), target.trim(), mt);
+            MethodHandle boundHandle = handle.bindTo(service);
+
+            return () -> {
+                try {
+                    return (boolean) boundHandle.invoke();
+                } catch (Throwable e) {
+                    return true;
+                }
+            };
+        } catch (NoSuchMethodException e) {
+            // Silence warning for validity checks as they are optional
+            return null;
+        } catch (Exception e) {
+            prog.util.Logger.warn("ReflectBinder", "Error binding boolean '" + target + "': " + e.getMessage());
+            return () -> true;
+        }
+    }
 }

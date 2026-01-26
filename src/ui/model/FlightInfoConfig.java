@@ -3,7 +3,6 @@ package ui.model;
 import java.util.ArrayList;
 import java.util.List;
 
-import prog.i18n.Lang;
 import prog.config.ConfigProvider;
 
 /**
@@ -57,12 +56,12 @@ public class FlightInfoConfig {
         FlightInfoConfig cfg = new FlightInfoConfig();
         cfg.groupConfig = groupConfig;
 
-        // Load style settings from config (Legacy properties or GroupConfig
-        // extensions?)
-        // For now, keep style in properties as requested, only X/Y moved to
-        // ui_layout.cfg
         if (configProvider != null) {
-            cfg.showEdge = "true".equals(configProvider.getConfig("flightInfoEdge"));
+            String edgeVal = configProvider.getConfig("flightInfoEdge");
+            if (edgeVal != null) {
+                cfg.showEdge = "true".equals(edgeVal);
+            }
+
             String colStr = configProvider.getConfig("flightInfoColumn");
             if (colStr != null && !colStr.isEmpty()) {
                 try {
@@ -73,39 +72,31 @@ public class FlightInfoConfig {
             }
         }
 
-        // Ensure GroupConfig has default values if empty
-        if (cfg.groupConfig != null) {
-            if (cfg.groupConfig.x == 0 && cfg.groupConfig.y == 0) {
-                // Try legacy keys as fallback or set default
-                String legacyX = configProvider != null ? configProvider.getConfig("flightInfoX") : null;
-                String legacyY = configProvider != null ? configProvider.getConfig("flightInfoY") : null;
-                if (legacyX != null)
-                    cfg.groupConfig.x = Double.parseDouble(legacyX) / prog.Application.screenWidth; // Approximate if
-                                                                                                    // stored as pixels
-                if (legacyY != null)
-                    cfg.groupConfig.y = Double.parseDouble(legacyY) / prog.Application.screenHeight;
-            }
+        // Dynamically populate fields from the loaded configuration groups
+        if (groupConfig != null) {
+            cfg.populateFromGroup(groupConfig.rows);
         }
 
-        // Add all standard flight info fields
-        // These were previously hardcoded in FlightInfo.initFields()
-        cfg.addFieldDefinition("ias", Lang.fIAS, "Km/h", "disableFlightInfoIAS", false, "500");
-        cfg.addFieldDefinition("tas", Lang.fTAS, "Km/h", "disableFlightInfoTAS", false, "550");
-        cfg.addFieldDefinition("mach", Lang.fMach, "Mach", "disableFlightInfoMach", false, "0.45");
-        cfg.addFieldDefinition("dir", Lang.fCompass, "Deg", "disableFlightInfoCompass", false, "270");
-        cfg.addFieldDefinition("height", Lang.fAlt, "M", "disableFlightInfoHeight", false, "1500");
-        cfg.addFieldDefinition("rda", Lang.fRa, "M", "disableFlightInfoRadioAlt", true, "325");
-        cfg.addFieldDefinition("vario", Lang.fVario, "M/s", "disableFlightInfoVario", false, "10");
-        cfg.addFieldDefinition("sep", Lang.fSEP, "M/s", "disableFlightInfoSEP", false, "15");
-        cfg.addFieldDefinition("acc", Lang.fAcc, "M/s^2", "disableFlightInfoAcc", false, "1.2");
-        cfg.addFieldDefinition("wx", Lang.fWx, "Deg/s", "disableFlightInfoWx", false, "5.0");
-        cfg.addFieldDefinition("ny", Lang.fGL, "G", "disableFlightInfoNy", false, "1.0");
-        cfg.addFieldDefinition("turn", Lang.fTRr, "Deg/s", "disableFlightInfoTurn", false, "2.5");
-        cfg.addFieldDefinition("rds", Lang.fTR, "M", "disableFlightInfoTurnRadius", false, "800");
-        cfg.addFieldDefinition("aoa", Lang.fAoA, "Deg", "disableFlightInfoAoA", false, "4.2");
-        cfg.addFieldDefinition("aos", Lang.fAoS, "Deg", "disableFlightInfoAoS", false, "0.5");
-        cfg.addFieldDefinition("ws", Lang.fWs, "%", "disableFlightInfoWingSweep", true, "15");
-
         return cfg;
+    }
+
+    private void populateFromGroup(List<prog.config.ConfigLoader.RowConfig> rows) {
+        if (rows == null)
+            return;
+        for (prog.config.ConfigLoader.RowConfig row : rows) {
+            if ("DATA".equals(row.type) && row.property != null && !row.property.isEmpty()) {
+                // Use the property as key, label from config
+                String defVal = row.previewValue != null ? row.previewValue : "-";
+                addFieldDefinition(row.property, row.label, row.unit, row.property, true, row.hideWhenZero, defVal);
+            }
+            if (row.children != null) {
+                populateFromGroup(row.children);
+            }
+        }
+    }
+
+    public void addFieldDefinition(String key, String label, String unit, String configKey, boolean hideWhenNA,
+            boolean hideWhenZero, String previewValue) {
+        fieldDefinitions.add(new FieldDefinition(key, label, unit, configKey, hideWhenNA, hideWhenZero, previewValue));
     }
 }

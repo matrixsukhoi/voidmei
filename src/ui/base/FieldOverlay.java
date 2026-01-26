@@ -163,10 +163,10 @@ public abstract class FieldOverlay extends DraggableOverlay implements FlightDat
                     // 2. Fetch value
                     double val = field.valueSupplier.getAsDouble();
 
-                    // 3. Apply Zero-Hiding logic
+                    // 3. Apply Zero-Hiding/Validity logic
                     // If hideWhenZero is enabled and value is exactly 0 (or very close), hide it.
-                    // Otherwise, follow base visibility.
-                    if (field.hideWhenZero && Math.abs(val) < 0.000001) {
+                    // Also hide if the value matches common "invalid" constants like -65535.
+                    if (field.hideWhenZero && (Math.abs(val) < 0.000001 || Math.abs(val + 65535.0) < 0.000001)) {
                         field.visible = false;
                     } else {
                         field.visible = baseVisible;
