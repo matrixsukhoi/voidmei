@@ -23,7 +23,7 @@ import ui.WebLafSettings;
 import ui.base.DraggableOverlay;
 import prog.config.OverlaySettings;
 
-public class AttitudeIndicator extends DraggableOverlay {
+public class AttitudeIndicator extends DraggableOverlay implements prog.event.FlightDataListener {
 
 	public volatile boolean doit = true;
 	private Controller xc;
@@ -331,9 +331,26 @@ public class AttitudeIndicator extends DraggableOverlay {
 		setTitle("attitude");
 		WebLafSettings.setWindowOpaque(this);
 
-		if (s != null)
+		if (s != null) {
 			setVisible(true);
+			prog.event.FlightDataBus.getInstance().register(this);
+		}
+	}
 
+	@Override
+	public void onFlightData(prog.event.FlightDataEvent event) {
+		if (xs != null && xs.SystemTime - freqCheckMili > freqMili) {
+			freqCheckMili = xs.SystemTime;
+			javax.swing.SwingUtilities.invokeLater(() -> {
+				drawTick();
+			});
+		}
+	}
+
+	@Override
+	public void dispose() {
+		prog.event.FlightDataBus.getInstance().unregister(this);
+		super.dispose();
 	}
 
 	public void rotatePointMatrix(Point[] origPoints, double angle, Point center, Point[] storeTo, int numPoints) {
@@ -432,20 +449,4 @@ public class AttitudeIndicator extends DraggableOverlay {
 		root.repaint();
 	}
 
-	@Override
-	public void run() {
-		while (doit) {
-			try {
-				Thread.sleep(Application.threadSleepTime);
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
-			if (xs != null && xs.SystemTime - freqCheckMili > freqMili) {
-				freqCheckMili = xs.SystemTime;
-				if (xs.sState != null && xs.sIndic != null) {
-					drawTick();
-				}
-			}
-		}
-	}
 }

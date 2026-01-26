@@ -24,7 +24,7 @@ import ui.UIBaseElements;
 import ui.base.DraggableOverlay;
 import prog.config.OverlaySettings;
 
-public class GearAndFlaps extends DraggableOverlay {
+public class GearAndFlaps extends DraggableOverlay implements prog.event.FlightDataListener {
     Service xs;
     Controller xc;
     WebStepLabel s1;
@@ -254,8 +254,23 @@ public class GearAndFlaps extends DraggableOverlay {
         panel.setOpaque(false);
         this.add(panel);
 
-        if (xs != null)
+        if (xs != null) {
             setVisible(true);
+            prog.event.FlightDataBus.getInstance().register(this);
+        }
+    }
+
+    @Override
+    public void onFlightData(prog.event.FlightDataEvent event) {
+        javax.swing.SwingUtilities.invokeLater(() -> {
+            drawTick();
+        });
+    }
+
+    @Override
+    public void dispose() {
+        prog.event.FlightDataBus.getInstance().unregister(this);
+        super.dispose();
     }
 
     long gearCheckMili;
@@ -311,24 +326,6 @@ public class GearAndFlaps extends DraggableOverlay {
 
         root.repaint();
         // }
-    }
-
-    @Override
-    public void run() {
-        // TODO Auto-generated method stub
-        while (doit) {
-            try {
-                Thread.sleep(Application.threadSleepTime);
-            } catch (InterruptedException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
-            }
-            long t = xs.SystemTime;
-            if (t - gearCheckMili > 2 * xc.freqService) {
-                gearCheckMili = t;
-                drawTick();
-            }
-        }
     }
 
 }
