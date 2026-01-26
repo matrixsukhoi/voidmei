@@ -26,11 +26,8 @@ public class Lang {
 	public static String mDetailedMode;
 	public static String mBasicSettings;
 	public static String mDisplayOverlay;
-	public static String mDisplayStyle;
 	public static String mHotkeyToggle;
 	public static String mWaitHotkey;
-	public static String mStyleZebra;
-	public static String mStyleSolid;
 
 	public static String mP1NumColor;
 	public static String mP1NumColorBlank;
@@ -812,11 +809,8 @@ public class Lang {
 		mDetailedMode = updateLanguage("mDetailedMode", mDetailedMode);
 		mBasicSettings = updateLanguage("mBasicSettings", mBasicSettings);
 		mDisplayOverlay = updateLanguage("mDisplayOverlay", mDisplayOverlay);
-		mDisplayStyle = updateLanguage("mDisplayStyle", mDisplayStyle);
 		mHotkeyToggle = updateLanguage("mHotkeyToggle", mHotkeyToggle);
 		mWaitHotkey = updateLanguage("mWaitHotkey", mWaitHotkey);
-		mStyleZebra = updateLanguage("mStyleZebra", mStyleZebra);
-		mStyleSolid = updateLanguage("mStyleSolid", mStyleSolid);
 
 		mP1TempNotification = updateLanguage("mP1TempNotification", mP1TempNotification);
 		mP1TempNotificationBlank = updateLanguage("mP1TempNotificationBlank", mP1TempNotificationBlank);

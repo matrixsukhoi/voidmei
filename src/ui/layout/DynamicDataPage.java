@@ -260,12 +260,7 @@ public class DynamicDataPage extends BasePage {
         }
         toolbar.add(visibilityPanel);
 
-        // --- Item 2: Overlay Style ---
-        String[] styles = { Lang.mStyleZebra, Lang.mStyleSolid };
-        WebPanel stylePanel = ReplicaBuilder.createDropdownItem(Lang.mDisplayStyle, styles);
-        toolbar.add(stylePanel);
-
-        // --- Item 3: Hotkey Configuration ---
+        // --- Item 2: Hotkey Configuration ---
         if (groupConfig != null && groupConfig.hotkey != 0) {
             WebPanel hotkeyPanel = new WebPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 5, 0));
             hotkeyPanel.setOpaque(false);
