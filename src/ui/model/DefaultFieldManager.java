@@ -23,16 +23,17 @@ public class DefaultFieldManager implements FieldManager {
 
     @Override
     public void addField(String key, String label, String unit, String configKey, boolean hideWhenNA,
-            String exampleValue) {
+            boolean hideWhenZero,
+            String previewValue) {
         if (config != null && configKey != null) {
             if (config.isFieldDisabled(configKey)) {
                 return;
             }
         }
 
-        DataField field = new DataField(key, label, unit, configKey, hideWhenNA);
-        if (exampleValue != null) {
-            field.currentValue = exampleValue;
+        DataField field = new DataField(key, label, unit, configKey, hideWhenNA, hideWhenZero);
+        if (previewValue != null) {
+            field.currentValue = previewValue;
         }
         fields.add(field);
         fieldMap.put(key, field);

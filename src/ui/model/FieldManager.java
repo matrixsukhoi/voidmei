@@ -8,60 +8,61 @@ import java.util.List;
  */
 public interface FieldManager {
 
-    /**
-     * Add a new field to the manager.
-     */
-    void addField(String key, String label, String unit, String configKey, boolean hideWhenNA, String exampleValue);
+        /**
+         * Add a new field to the manager.
+         */
+        void addField(String key, String label, String unit, String configKey, boolean hideWhenNA, boolean hideWhenZero,
+                        String previewValue);
 
-    /**
-     * Update a field's value by key.
-     */
-    void updateField(String key, String value, String naString);
+        /**
+         * Update a field's value by key.
+         */
+        void updateField(String key, String value, String naString);
 
-    /**
-     * Set a field's visibility by key.
-     */
-    void setFieldVisible(String key, boolean visible);
+        /**
+         * Set a field's visibility by key.
+         */
+        void setFieldVisible(String key, boolean visible);
 
-    /**
-     * Update a field's unit by key.
-     */
-    void updateFieldUnit(String key, String unit);
+        /**
+         * Update a field's unit by key.
+         */
+        void updateFieldUnit(String key, String unit);
 
-    /**
-     * Bind a field to a zero-GC double supplier.
-     */
-    void bind(String key, java.util.function.DoubleSupplier supplier, int precision);
+        /**
+         * Bind a field to a zero-GC double supplier.
+         */
+        void bind(String key, java.util.function.DoubleSupplier supplier, int precision);
 
-    /**
-     * Bind a field to a zero-GC double supplier with an optional visibility
-     * supplier.
-     */
-    void bind(String key, java.util.function.DoubleSupplier valueSupplier,
-            java.util.function.BooleanSupplier visibilitySupplier, int precision);
+        /**
+         * Bind a field to a zero-GC double supplier with an optional visibility
+         * supplier.
+         */
+        void bind(String key, java.util.function.DoubleSupplier valueSupplier,
+                        java.util.function.BooleanSupplier visibilitySupplier, int precision);
 
-    /**
-     * Get all fields in order.
-     */
-    List<DataField> getFields();
+        /**
+         * Get all fields in order.
+         */
+        List<DataField> getFields();
 
-    /**
-     * Get a specific field by key.
-     */
-    DataField getField(String key);
+        /**
+         * Get a specific field by key.
+         */
+        DataField getField(String key);
 
-    /**
-     * Clear all fields.
-     */
-    void clearAll();
+        /**
+         * Clear all fields.
+         */
+        void clearAll();
 
-    /**
-     * Get the number of fields.
-     */
-    int size();
+        /**
+         * Get the number of fields.
+         */
+        int size();
 
-    /**
-     * Get the number of currently visible fields.
-     */
-    int visibleCount();
+        /**
+         * Get the number of currently visible fields.
+         */
+        int visibleCount();
 }

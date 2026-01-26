@@ -3,7 +3,6 @@ package ui.model;
 import java.util.ArrayList;
 import java.util.List;
 
-import prog.i18n.Lang;
 import prog.config.ConfigProvider;
 
 /**
@@ -48,8 +47,13 @@ public class EngineInfoConfig {
     }
 
     public void addFieldDefinition(String key, String label, String unit, String configKey, boolean hideWhenNA,
+            boolean hideWhenZero, String exampleValue) {
+        fieldDefinitions.add(new FieldDefinition(key, label, unit, configKey, hideWhenNA, hideWhenZero, exampleValue));
+    }
+
+    public void addFieldDefinition(String key, String label, String unit, String configKey, boolean hideWhenNA,
             String exampleValue) {
-        fieldDefinitions.add(new FieldDefinition(key, label, unit, configKey, hideWhenNA, exampleValue));
+        addFieldDefinition(key, label, unit, configKey, hideWhenNA, false, exampleValue);
     }
 
     public static EngineInfoConfig createDefault(ConfigProvider config,
@@ -194,7 +198,9 @@ public class EngineInfoConfig {
         // But `GroupConfig` is dynamic (loaded from file).
 
         // Let's pass the `GroupConfig` to `EngineInfoConfig.createDefault`?
-        // `Controller` has `dynamicConfigs`.
+        if (groupConfig != null) {
+            cfg.populateFromGroup(groupConfig.rows);
+        }
 
         // Actually, `FlightInfo` setup:
         // `overlayManager.registerWithPreview(..., () -> new FlightInfo(), ...)`
@@ -216,23 +222,21 @@ public class EngineInfoConfig {
 
         // Let's check `DefaultFieldManager`.
 
-        cfg.addFieldDefinition("hp", Lang.ePower, "Hp", "S.sTotalHp", true, "1200");
-        cfg.addFieldDefinition("thrust", Lang.eThurst, "Kgf", "S.sTotalThr", false, "1000");
-        cfg.addFieldDefinition("RPM", Lang.eRPM, "Rpm", "S.rpm", false, "2400");
-        cfg.addFieldDefinition("pitch", Lang.ePitchDeg, "Deg", "S.pitch[0]", true, "55");
-        cfg.addFieldDefinition("eff_eta", Lang.eEff, "%", "S.sAvgEff", true, "85");
-        cfg.addFieldDefinition("eff_hp", Lang.eEffPower, "Hp", "S.sTotalHpEff", true, "1100");
-        cfg.addFieldDefinition("pressure", Lang.eATM, "Ata", "S.manifoldpressure", true, "1.2");
-        cfg.addFieldDefinition("power_percent", Lang.ePowerPercent, "%", "S.sThurstPercent", false, "95");
-        cfg.addFieldDefinition("fuel_kg", Lang.eFuel, "Kg", "S.sTotalFuel", false, "500");
-        cfg.addFieldDefinition("fuel_time", Lang.eFueltime, "Min", "S.sfueltime", false, "45");
-        cfg.addFieldDefinition("wep", Lang.eWep, "Kg", "S.sNitro", true, "50"); // Hide if 0/NA
-        cfg.addFieldDefinition("wep_time", Lang.eWeptime, "S", "S.sWepTime", true, "300"); // Hide if NA
-        cfg.addFieldDefinition("temp", Lang.eTemp, "C", "S.watertemp", false, "90");
-        cfg.addFieldDefinition("oil_temp", Lang.eOil, "C", "S.oiltemp", false, "80");
-        cfg.addFieldDefinition("heat_time", Lang.eOverheat, "S", "S.sEngWorkTime", false, "60");
-        cfg.addFieldDefinition("response", Lang.eEngRes, "%/s", "S.SdThrustPercent", false, "10");
-
         return cfg;
+    }
+
+    private void populateFromGroup(List<prog.config.ConfigLoader.RowConfig> rows) {
+        if (rows == null)
+            return;
+        for (prog.config.ConfigLoader.RowConfig row : rows) {
+            if ("DATA".equals(row.type) && row.property != null && !row.property.isEmpty()) {
+                // Key is the method name (property), Label is from config
+                String defVal = row.previewValue != null ? row.previewValue : "0";
+                addFieldDefinition(row.property, row.label, row.unit, row.property, true, row.hideWhenZero, defVal);
+            }
+            if (row.children != null) {
+                populateFromGroup(row.children);
+            }
+        }
     }
 }

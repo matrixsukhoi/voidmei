@@ -27,11 +27,15 @@ public class ConfigLoader {
         public String label;
         public String formula; // Kept for reflection paths (e.g. S.rpm)
         public String format;
+        public String unit = ""; // Unit string (e.g. "Hp")
         public Object value = true; // Typed value (Boolean, Integer, String)
         public Object defaultValue = null; // Default value for reset
         public String fgColor = null; // Foreground color (e.g. for buttons)
         public String desc = null; // Help description tooltip
         public String descImg = null; // Help image path (relative to project root)
+        public String previewValue = null; // Default value for UI preview/placeholder
+        public boolean hideWhenZero = false; // Hide if value is zero
+        public int precision = 0; // Number of decimal places
 
         // Extended fields for control-type rows
         public String type = "DATA"; // DATA, HEADER, SLIDER, COMBO, SWITCH, BUTTON
@@ -271,6 +275,7 @@ public class ConfigLoader {
                 row.type = rawType.toUpperCase().replace("-", "_"); // switch-inv -> SWITCH_INV
 
                 row.property = getKeywordString(list, ":target", null);
+                row.unit = getKeywordString(list, ":unit", "");
                 row.format = getKeywordString(list, ":format", "%s");
 
                 // Special handling for COMBO source and List paths which use format field
@@ -287,6 +292,9 @@ public class ConfigLoader {
                 row.fgColor = getKeywordString(list, ":fgcolor", null);
                 row.desc = getKeywordString(list, ":desc", null);
                 row.descImg = getKeywordString(list, ":desc-img", null);
+                row.previewValue = getKeywordString(list, ":preview-value", null);
+                row.hideWhenZero = getKeywordBool(list, ":hide-when-zero", false);
+                row.precision = getKeywordInt(list, ":precision", 0);
 
                 if (row.value == null) {
                     if (row.type.contains("SWITCH"))
@@ -406,7 +414,11 @@ public class ConfigLoader {
 
                 if (row.property != null)
                     pw.print(" :target " + quote(row.property));
-                else if (row.formula != null && "DATA".equals(row.type))
+
+                if (row.unit != null && !row.unit.isEmpty())
+                    pw.print(" :unit " + quote(row.unit));
+
+                if (row.formula != null && "DATA".equals(row.type))
                     pw.print(" :target " + quote(row.formula));
 
                 // Type specific fields
@@ -433,6 +445,15 @@ public class ConfigLoader {
                 }
                 if (row.descImg != null) {
                     pw.print(" :desc-img " + quote(row.descImg));
+                }
+                if (row.previewValue != null) {
+                    pw.print(" :preview-value " + quote(row.previewValue));
+                }
+                if (row.hideWhenZero) {
+                    pw.print(" :hide-when-zero true");
+                }
+                if (row.precision != 0) {
+                    pw.print(" :precision " + row.precision);
                 }
 
                 pw.println(")");

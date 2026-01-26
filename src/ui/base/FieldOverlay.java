@@ -140,7 +140,8 @@ public abstract class FieldOverlay extends DraggableOverlay implements FlightDat
             return;
 
         for (FieldDefinition def : defs) {
-            fieldManager.addField(def.key, def.label, def.unit, def.configKey, def.hideWhenNA, def.exampleValue);
+            fieldManager.addField(def.key, def.label, def.unit, def.configKey, def.hideWhenNA, def.hideWhenZero,
+                    def.previewValue);
         }
     }
 
@@ -156,11 +157,23 @@ public abstract class FieldOverlay extends DraggableOverlay implements FlightDat
                 // Determine if we should process this field (Legacy vs Zero-GC)
                 if (field.valueSupplier != null) {
                     // ZERO-GC PATH
-                    if (field.visibilitySupplier != null) {
-                        field.visible = field.visibilitySupplier.getAsBoolean();
+                    // 1. Determine base visibility from supplier (if any)
+                    boolean baseVisible = (field.visibilitySupplier == null) || field.visibilitySupplier.getAsBoolean();
+
+                    // 2. Fetch value
+                    double val = field.valueSupplier.getAsDouble();
+
+                    // 3. Apply Zero-Hiding logic
+                    // If hideWhenZero is enabled and value is exactly 0 (or very close), hide it.
+                    // Otherwise, follow base visibility.
+                    if (field.hideWhenZero && Math.abs(val) < 0.000001) {
+                        field.visible = false;
+                    } else {
+                        field.visible = baseVisible;
                     }
+
+                    // 4. Format if visible
                     if (field.visible) {
-                        double val = field.valueSupplier.getAsDouble();
                         field.length = ui.util.FastNumberFormatter.format(val, field.buffer, field.precision);
                     }
                 } else {

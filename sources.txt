@@ -111,6 +111,7 @@ src/ui/layout/DynamicDataPage.java
 src/ui/layout/UIBuilder.java
 src/ui/layout/ClassicStyle.java
 src/ui/util/NotificationService.java
+src/ui/util/ReflectBinder.java
 src/ui/util/NotificationFactory.java
 src/ui/util/FastNumberFormatter.java
 src/ui/overlay/SituationAware.java

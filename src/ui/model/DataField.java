@@ -19,6 +19,7 @@ public class DataField {
 
     /** Whether this field should be hidden when its value is N/A */
     public final boolean hideWhenNA;
+    public final boolean hideWhenZero;
 
     /** Whether this field is currently visible */
     public boolean visible = true;
@@ -26,12 +27,14 @@ public class DataField {
     /** Current formatted value to display */
     public String currentValue = "---";
 
-    public DataField(String key, String label, String unit, String configKey, boolean hideWhenNA) {
+    public DataField(String key, String label, String unit, String configKey, boolean hideWhenNA,
+            boolean hideWhenZero) {
         this.key = key;
         this.label = label;
         this.unit = unit;
         this.configKey = configKey;
         this.hideWhenNA = hideWhenNA;
+        this.hideWhenZero = hideWhenZero;
     }
 
     /**

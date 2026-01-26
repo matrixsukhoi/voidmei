@@ -40,6 +40,7 @@ public class EngineInfo extends FieldOverlay {
 	 * Standardized initialization.
 	 */
 	public void init(prog.Controller c, prog.Service s, prog.config.OverlaySettings settings) {
+		this.service = s; // Assign service FIRST so reinitConfig can use it
 		this.config = c;
 		this.engineInfoConfig = ui.model.EngineInfoConfig.createDefault(c, settings.getGroupConfig());
 
@@ -55,40 +56,9 @@ public class EngineInfo extends FieldOverlay {
 		setOverlaySettings(settings);
 		super.init(c, c.globalPool);
 
-		this.service = s;
 		if (s != null) {
-			bindEngineFields(s);
 			setVisible(true);
 		}
-	}
-
-	private void bindEngineFields(ui.model.TelemetrySource s) {
-		ui.model.FieldManager fm = this.fieldManager;
-
-		// Raw bind to internal keys defined in EngineInfoConfig
-		fm.bind("hp", s::getHorsePower, 0);
-		fm.bind("thrust", s::getThrust, 0);
-		fm.bind("RPM", s::getRPM, 0);
-		fm.bind("pitch", s::getPitch, 1);
-		fm.bind("eff_eta", s::getPropEfficiency, () -> s.getPropEfficiency() > 0, 0);
-		fm.bind("eff_hp", s::getEffHp, 0);
-		fm.bind("power_percent", s::getPowerPercent, 0);
-
-		// Fuel & WEP
-		fm.bind("fuel_kg", s::getMassFuel, 0);
-		fm.bind("fuel_time", () -> s.getFuelTimeMili() / 60000.0, 1); // Display as Minutes
-		fm.bind("wep", s::getWepKg, () -> s.getWepKg() > 0, 0);
-		fm.bind("wep_time", () -> s.getWepTime() / 60.0, () -> s.getWepTime() > 0, 1); // Display as Minutes
-
-		// Temperatures & Limits
-		fm.bind("temp", s::getWaterTemp, 0);
-		fm.bind("oil_temp", s::getOilTemp, 0);
-		fm.bind("heat_time", s::getHeatTolerance, 0);
-
-		// Response & Pressure
-		fm.bind("response", s::getEngineResponse, 0);
-		fm.bind("pressure", () -> s.isImperial() ? s.getManifoldPressurePounds() : s.getManifoldPressure(),
-				s::isManifoldPressureValid, 2);
 	}
 
 	private boolean lastImperial = false;
@@ -129,68 +99,44 @@ public class EngineInfo extends FieldOverlay {
 		firstData = true;
 
 		// 1. Standard FieldOverlay reinit (Fonts, Layout, Window Size)
+		// This calls initFields() which adds fields from
+		// engineInfoConfig.getFieldDefinitions()
 		super.reinitConfig();
 
-		// 2. Override visibility based on GroupConfig rows from ui_layout.cfg
+		// 2. Bind the fields to data sources
 		prog.config.ConfigLoader.GroupConfig groupConfig = engineInfoConfig.groupConfig;
-		if (groupConfig != null) {
-			updateFieldVisibilityRecursive(groupConfig.rows);
+		if (groupConfig != null && service != null) {
+			bindDynamicFields(service, groupConfig.rows);
 			repaint();
-		}
-	}
-
-	private void updateFieldVisibilityRecursive(List<prog.config.ConfigLoader.RowConfig> rows) {
-		for (prog.config.ConfigLoader.RowConfig row : rows) {
-			String labelKey = LABEL_TO_KEY.get(row.label);
-			if (labelKey != null) {
-				for (ui.model.FieldDefinition def : getFieldDefinitions()) {
-					if (labelKey.equals(def.configKey)) {
-						fieldManager.setFieldVisible(def.key, row.getBool());
-					}
-				}
-			}
-			if (row.children != null && !row.children.isEmpty()) {
-				updateFieldVisibilityRecursive(row.children);
-			}
 		}
 	}
 
 	// Manual loadPosition and saveCurrentPosition overrides removed.
 
-	// Legacy Mapping for Visibility Lookup
-	private static final java.util.Map<String, String> LABEL_TO_KEY = new java.util.HashMap<>();
-	static {
-		LABEL_TO_KEY.put("功率", "HorsePower");
-		LABEL_TO_KEY.put("HorsePower", "HorsePower");
-		LABEL_TO_KEY.put("推力", "Thrust");
-		LABEL_TO_KEY.put("Thrust", "Thrust");
-		LABEL_TO_KEY.put("转速", "RPM");
-		LABEL_TO_KEY.put("RPM", "RPM");
-		LABEL_TO_KEY.put("桨距角", "PropPitch");
-		LABEL_TO_KEY.put("PropPitch", "PropPitch");
-		LABEL_TO_KEY.put("桨效率", "EffEta");
-		LABEL_TO_KEY.put("EffEta", "EffEta");
-		LABEL_TO_KEY.put("实功率", "EffHp");
-		LABEL_TO_KEY.put("EffHp", "EffHp");
-		LABEL_TO_KEY.put("进气压", "Pressure");
-		LABEL_TO_KEY.put("Pressure", "Pressure");
-		LABEL_TO_KEY.put("动力量", "PowerPercent");
-		LABEL_TO_KEY.put("PowerPercent", "PowerPercent");
-		LABEL_TO_KEY.put("燃油量", "FuelKg");
-		LABEL_TO_KEY.put("FuelKg", "FuelKg");
-		LABEL_TO_KEY.put("燃油时", "FuelTime");
-		LABEL_TO_KEY.put("FuelTime", "FuelTime");
-		LABEL_TO_KEY.put("加力量", "WepKg");
-		LABEL_TO_KEY.put("WepKg", "WepKg");
-		LABEL_TO_KEY.put("加力时", "WepTime");
-		LABEL_TO_KEY.put("WepTime", "WepTime");
-		LABEL_TO_KEY.put("温度", "Temp");
-		LABEL_TO_KEY.put("Temp", "Temp");
-		LABEL_TO_KEY.put("油温", "OilTemp");
-		LABEL_TO_KEY.put("OilTemp", "OilTemp");
-		LABEL_TO_KEY.put("耐热时", "HeatTolerance");
-		LABEL_TO_KEY.put("HeatTolerance", "HeatTolerance");
-		LABEL_TO_KEY.put("响应速", "EngResponse");
-		LABEL_TO_KEY.put("EngResponse", "EngResponse");
+	/**
+	 * Dynamically binds fields based on ConfigLoader.RowConfig items.
+	 */
+	private void bindDynamicFields(ui.model.TelemetrySource s,
+			java.util.List<prog.config.ConfigLoader.RowConfig> rows) {
+		ui.model.FieldManager fm = this.fieldManager;
+
+		for (prog.config.ConfigLoader.RowConfig row : rows) {
+			// Bind if it's a DATA Item (and has a target)
+			if ("DATA".equals(row.type) && row.property != null && !row.property.isEmpty()) {
+				// Use ReflectBinder to create a zero-GC supplier
+				java.util.function.DoubleSupplier supplier = ui.util.ReflectBinder.resolveDouble(s, row.property);
+
+				// Bind to the existing field (already added by initFields via EngineInfoConfig)
+				fm.bind(row.property, supplier, row.precision);
+
+				// Apply visibility immediately based on config value
+				fm.setFieldVisible(row.property, row.getBool());
+			}
+
+			// Recurse for groups
+			if (row.children != null && !row.children.isEmpty()) {
+				bindDynamicFields(s, row.children);
+			}
+		}
 	}
 }

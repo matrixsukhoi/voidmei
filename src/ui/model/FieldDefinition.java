@@ -10,16 +10,23 @@ public class FieldDefinition {
     public final String unit;
     public final String configKey;
     public final boolean hideWhenNA;
-    public final String exampleValue;
+    public final boolean hideWhenZero;
+    public final String previewValue;
 
     public FieldDefinition(String key, String label, String unit, String configKey, boolean hideWhenNA,
-            String exampleValue) {
+            boolean hideWhenZero, String previewValue) {
         this.key = key;
         this.label = label;
         this.unit = unit;
         this.configKey = configKey;
         this.hideWhenNA = hideWhenNA;
-        this.exampleValue = exampleValue;
+        this.hideWhenZero = hideWhenZero;
+        this.previewValue = previewValue;
+    }
+
+    public FieldDefinition(String key, String label, String unit, String configKey, boolean hideWhenNA,
+            String previewValue) {
+        this(key, label, unit, configKey, hideWhenNA, false, previewValue);
     }
 
     public FieldDefinition(String key, String label, String unit, String configKey, boolean hideWhenNA) {

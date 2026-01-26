@@ -16,7 +16,8 @@ public class GaugeField extends DataField {
     public ui.component.LinearGauge gauge;
 
     public GaugeField(String key, String label, String unit, int gaugeType, int maxValue, boolean isHorizontal) {
-        super(key, label, unit, "disable" + key, false); // Use key-based configKey
+        super(key, label, unit, "disable" + key, false, false); // Use key-based configKey, hideWhenNA=false,
+                                                                // hideWhenZero=false
         this.gaugeType = gaugeType;
         this.maxValue = maxValue;
         this.currentIntValue = 0;
