@@ -75,11 +75,22 @@ public class FlightInfo extends FieldOverlay {
 		reinitConfig();
 	}
 
-	/**
-	 * Reinitialize with current config.
-	 */
 	@Override
 	public void reinitConfig() {
+		if (overlaySettings != null) {
+			// Refresh Config object from latest data
+			this.flightInfoConfig = ui.model.FlightInfoConfig.createDefault(this.config,
+					overlaySettings.getGroupConfig());
+
+			// Sync style configuration
+			this.numFontKey = flightInfoConfig.numFontKey;
+			this.labelFontKey = flightInfoConfig.labelFontKey;
+			this.columnKey = flightInfoConfig.columnKey;
+			this.edgeKey = flightInfoConfig.edgeKey;
+			this.defaultShowEdge = flightInfoConfig.showEdge;
+			this.title = flightInfoConfig.title;
+		}
+
 		if (flightInfoConfig == null)
 			return;
 

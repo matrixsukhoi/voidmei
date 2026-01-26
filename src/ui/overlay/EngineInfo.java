@@ -94,13 +94,27 @@ public class EngineInfo extends FieldOverlay {
 	 */
 	@Override
 	public void reinitConfig() {
+		if (overlaySettings != null) {
+			// Refresh Config object from latest data
+			this.engineInfoConfig = ui.model.EngineInfoConfig.createDefault(this.config,
+					overlaySettings.getGroupConfig());
+
+			// Sync style configuration
+			this.numFontKey = engineInfoConfig.numFontKey;
+			this.labelFontKey = engineInfoConfig.labelFontKey;
+			this.fontAddKey = engineInfoConfig.fontAddKey;
+			this.columnKey = engineInfoConfig.columnKey;
+			this.edgeKey = engineInfoConfig.edgeKey;
+			this.defaultShowEdge = engineInfoConfig.showEdge;
+			this.title = engineInfoConfig.title;
+		}
+
 		if (engineInfoConfig == null)
 			return;
+
 		firstData = true;
 
 		// 1. Standard FieldOverlay reinit (Fonts, Layout, Window Size)
-		// This calls initFields() which adds fields from
-		// engineInfoConfig.getFieldDefinitions()
 		super.reinitConfig();
 
 		// 2. Bind the fields to data sources

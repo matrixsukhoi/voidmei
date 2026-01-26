@@ -183,7 +183,8 @@ public class OverlayManager {
         if (key == null)
             return true;
         return key.startsWith("Global") || key.equals("AAEnable") || key.equals("simpleFont")
-                || key.startsWith("font") || key.equals("Interval") || key.equals("voiceVolume");
+                || key.startsWith("font") || key.equals("Interval") || key.equals("voiceVolume")
+                || key.equals("ui_layout.cfg");
     }
 
     /**
