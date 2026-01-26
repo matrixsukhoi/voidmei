@@ -25,6 +25,7 @@ public class ConfigLoader {
 
     public static class RowConfig {
         public String label;
+        public String targetName = null; // Display name for overlay if different from label
         public String formula; // Kept for reflection paths (e.g. S.rpm)
         public String format;
         public String unit = ""; // Unit string (e.g. "Hp")
@@ -295,6 +296,7 @@ public class ConfigLoader {
                 row.previewValue = getKeywordString(list, ":preview-value", null);
                 row.hideWhenZero = getKeywordBool(list, ":hide-when-zero", false);
                 row.precision = getKeywordInt(list, ":precision", 0);
+                row.targetName = getKeywordString(list, ":target-name", null);
 
                 if (row.value == null) {
                     if (row.type.contains("SWITCH"))
@@ -454,6 +456,9 @@ public class ConfigLoader {
                 }
                 if (row.precision != 0) {
                     pw.print(" :precision " + row.precision);
+                }
+                if (row.targetName != null) {
+                    pw.print(" :target-name " + quote(row.targetName));
                 }
 
                 pw.println(")");

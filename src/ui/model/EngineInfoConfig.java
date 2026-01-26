@@ -230,9 +230,11 @@ public class EngineInfoConfig {
             return;
         for (prog.config.ConfigLoader.RowConfig row : rows) {
             if ("DATA".equals(row.type) && row.property != null && !row.property.isEmpty()) {
-                // Key is the method name (property), Label is from config
+                // Use targetName if provided, otherwise fallback to label
+                String displayLabel = (row.targetName != null && !row.targetName.isEmpty()) ? row.targetName
+                        : row.label;
                 String defVal = row.previewValue != null ? row.previewValue : "0";
-                addFieldDefinition(row.property, row.label, row.unit, row.property, true, row.hideWhenZero, defVal);
+                addFieldDefinition(row.property, displayLabel, row.unit, row.property, true, row.hideWhenZero, defVal);
             }
             if (row.children != null) {
                 populateFromGroup(row.children);
