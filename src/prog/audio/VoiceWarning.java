@@ -625,14 +625,15 @@ public class VoiceWarning implements Runnable {
             // 负G是否直接可以判断油压?
 
             // 舵面效率
-            if (st.IAS >= elevatorEffIAS) {
-                if (!elevatorEffCheck) {
-                    elevatorEff.playOnce(t);
-                }
-                elevatorEffCheck = true;
-            } else {
-                elevatorEffCheck = false;
-            }
+            // 算法错误, 暂时屏蔽
+            // if (st.IAS >= elevatorEffIAS) {
+            // if (!elevatorEffCheck) {
+            // elevatorEff.playOnce(t);
+            // }
+            // elevatorEffCheck = true;
+            // } else {
+            // elevatorEffCheck = false;
+            // }
 
             if (st.IAS >= aileronEffIAS) {
                 if (!aileronEffCheck) {
