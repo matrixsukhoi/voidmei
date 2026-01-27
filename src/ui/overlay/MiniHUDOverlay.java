@@ -31,8 +31,14 @@ import ui.overlay.model.HUDData;
 import ui.overlay.logic.HUDCalculator;
 import ui.component.HUDComponent;
 
-public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
+public class MiniHUDOverlay extends BaseOverlay implements FlightDataListener {
+
     private static final long serialVersionUID = 1L;
+
+    public MiniHUDOverlay() {
+        super();
+        setTitle("MiniHUD");
+    }
 
     private MinimalHUDContext ctx;
 
@@ -367,12 +373,12 @@ public class MinimalHUD extends DraggableOverlay implements FlightDataListener {
 
     @Override
     public void onFlightData(FlightDataEvent event) {
-        // Throttle updates based on configured refresh interval
-        long now = System.currentTimeMillis();
-        if (now - lastRefreshTime < refreshInterval) {
-            return; // Skip this update, too soon
-        }
-        lastRefreshTime = now;
+        // Throttle removed by user request
+        // long now = System.currentTimeMillis();
+        // if (now - lastRefreshTime < refreshInterval) {
+        // return; // Skip this update, too soon
+        // }
+        // lastRefreshTime = now;
 
         javax.swing.SwingUtilities.invokeLater(() -> {
             updateFromEvent(event);

@@ -26,7 +26,15 @@ import ui.renderer.OverlayRenderer;
  * etc.
  * Fully event-driven: all data comes from FlightDataEvent.
  */
-public class EngineControl extends FieldOverlay {
+import com.alee.laf.slider.WebSlider;
+
+/**
+ * Engine Control overlay for displaying throttle, pitch, mixture, radiator,
+ * etc.
+ * Fully event-driven: all data comes from FlightDataEvent.
+ */
+public class EngineControlOverlay extends FieldOverlay { // Revert to FieldOverlay
+	WebSlider slider;
 
 	private static final long serialVersionUID = 3063042782594625576L;
 
@@ -71,16 +79,17 @@ public class EngineControl extends FieldOverlay {
 
 	// --- Constructor ---
 
-	public EngineControl() {
+	public EngineControlOverlay() {
 		super();
-		this.title = "Engine Control";
+		setTitle("引擎控制");
+		// FieldOverlay fields are now accessible
 		this.numFontKey = "NumFont";
 		this.labelFontKey = "FontName";
 		this.fontAddKey = "fontadd";
 		this.edgeKey = "engineInfoEdge";
 	}
 
-	// --- FieldOverlay Abstract Methods ---
+	// --- Methods ---
 
 	@Override
 	protected OverlayRenderer createRenderer() {

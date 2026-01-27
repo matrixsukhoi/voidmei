@@ -23,7 +23,12 @@ import ui.WebLafSettings;
 import ui.base.DraggableOverlay;
 import prog.config.OverlaySettings;
 
-public class AttitudeIndicator extends DraggableOverlay implements prog.event.FlightDataListener {
+public class AttitudeOverlay extends DraggableOverlay implements prog.event.FlightDataListener {
+
+	public AttitudeOverlay() {
+		super();
+		setTitle("地平仪");
+	}
 
 	public volatile boolean doit = true;
 	private Controller xc;

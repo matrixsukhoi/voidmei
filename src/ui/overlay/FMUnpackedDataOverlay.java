@@ -4,6 +4,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+import ui.layout.renderer.FMListRowRenderer;
+
 import prog.Application;
 import prog.Controller;
 import prog.event.UIStateBus;
@@ -16,9 +18,10 @@ import prog.config.OverlaySettings;
  * Overlay for displaying FM Data description (formerly UsefulData).
  * Extends BaseOverlay as required by user.
  */
-public class FMDataOverlay extends BaseOverlay {
+public class FMUnpackedDataOverlay extends BaseOverlay {
 
     private static final long serialVersionUID = 1L;
+    private FMListRowRenderer fmSelector0;
     private Controller controller;
     private List<String> cachedData = Collections.singletonList("FM Data Preview\n[No Data Loaded]");
 

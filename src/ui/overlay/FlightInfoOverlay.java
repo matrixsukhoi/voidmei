@@ -14,14 +14,15 @@ import ui.renderer.OverlayRenderer;
  * Extends FieldOverlay for event-driven updates.
  * Uses FlightInfoConfig for field definitions and BOSStyleRenderer for display.
  */
-public class FlightInfo extends FieldOverlay {
+public class FlightInfoOverlay extends FieldOverlay {
 	private static final long serialVersionUID = 6759127498151892589L;
 
 	private FlightInfoConfig flightInfoConfig;
 	private ui.model.TelemetrySource service;
 
-	public FlightInfo() {
+	public FlightInfoOverlay() {
 		super();
+		setTitle("飞行信息");
 	}
 
 	@Override

@@ -3,6 +3,7 @@ package ui.overlay;
 import java.util.List;
 
 import ui.base.FieldOverlay;
+import ui.layout.renderer.RowRendererRegistry;
 import ui.model.FieldDefinition;
 import ui.model.EngineInfoConfig;
 import ui.renderer.BOSStyleRenderer;
@@ -14,14 +15,17 @@ import ui.renderer.OverlayRenderer;
  * Refactored to extend FieldOverlay for consistent event-driven updates.
  * Uses EngineInfoConfig for configuration and field definitions.
  */
-public class EngineInfo extends FieldOverlay {
+public class PowerInfoOverlay extends FieldOverlay {
+	private RowRendererRegistry registry;
 	private static final long serialVersionUID = 1L;
 
 	private EngineInfoConfig engineInfoConfig;
 	private ui.model.TelemetrySource service;
 
-	public EngineInfo() {
+	public PowerInfoOverlay() {
 		super();
+		this.registry = new RowRendererRegistry();
+		setTitle("动力信息");
 	}
 
 	@Override

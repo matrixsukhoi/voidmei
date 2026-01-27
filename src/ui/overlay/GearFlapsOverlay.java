@@ -24,7 +24,16 @@ import ui.UIBaseElements;
 import ui.base.DraggableOverlay;
 import prog.config.OverlaySettings;
 
-public class GearAndFlaps extends DraggableOverlay implements prog.event.FlightDataListener {
+import prog.event.FlightDataListener;
+import prog.event.FlightDataEvent;
+
+public class GearFlapsOverlay extends DraggableOverlay implements FlightDataListener {
+
+    public GearFlapsOverlay() {
+        super();
+        setTitle("起落襟翼");
+    }
+
     Service xs;
     Controller xc;
     WebStepLabel s1;

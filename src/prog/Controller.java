@@ -12,17 +12,17 @@ import parser.AttributePool;
 import parser.FlightAnalyzer;
 import parser.FlightLog;
 import ui.StatusBar;
-import ui.overlay.StickValue;
-import ui.overlay.AttitudeIndicator;
-import ui.overlay.MinimalHUD;
+import ui.overlay.ControlSurfacesOverlay;
+import ui.overlay.AttitudeOverlay;
+import ui.overlay.MiniHUDOverlay;
 import ui.overlay.DrawFrame;
 import ui.overlay.DrawFrameSimpl;
-import ui.overlay.EngineInfo;
-import ui.overlay.EngineControl;
-import ui.overlay.FlightInfo;
-import ui.overlay.GearAndFlaps;
+import ui.overlay.EngineControlOverlay;
+import ui.overlay.PowerInfoOverlay;
+import ui.overlay.GearFlapsOverlay;
+import ui.overlay.FMUnpackedDataOverlay;
+import ui.overlay.FlightInfoOverlay;
 import ui.MainForm;
-import ui.overlay.FMDataOverlay;
 import prog.config.ConfigProvider;
 import prog.config.ConfigurationService;
 
@@ -461,62 +461,63 @@ public class Controller implements ConfigProvider {
 	 */
 	private void registerGameModeOverlays() {
 
-		// EngineControl - supports preview (fully event-driven)
+		// EngineControlOverlay - supports preview (fully event-driven)
 		overlayManager.registerWithPreview("enableEngineControl",
-				() -> new EngineControl(),
-				overlay -> ((EngineControl) overlay).init(this, S, configService.getOverlaySettings("引擎控制")),
-				overlay -> ((EngineControl) overlay).initPreview(this, configService.getOverlaySettings("引擎控制")),
-				overlay -> ((EngineControl) overlay).reinitConfig(),
+				() -> new EngineControlOverlay(),
+				overlay -> ((EngineControlOverlay) overlay).init(this, S, configService.getOverlaySettings("引擎控制")),
+				overlay -> ((EngineControlOverlay) overlay).initPreview(this, configService.getOverlaySettings("引擎控制")),
+				overlay -> ((EngineControlOverlay) overlay).reinitConfig(),
 				true).withInterest("disableEngineInfo", "fontSize");
 
-		// EngineInfo (moved from hardcoded to layout config)
+		// PowerInfoOverlay (moved from hardcoded to layout config)
 		overlayManager.registerWithPreview("engineInfoSwitch",
-				() -> new EngineInfo(),
-				overlay -> ((EngineInfo) overlay).init(this, S, configService.getOverlaySettings("引擎信息")),
-				overlay -> ((EngineInfo) overlay).initPreview(this, configService.getOverlaySettings("引擎信息")),
-				overlay -> ((EngineInfo) overlay).reinitConfig(),
+				() -> new PowerInfoOverlay(),
+				overlay -> ((PowerInfoOverlay) overlay).init(this, S, configService.getOverlaySettings("动力信息")),
+				overlay -> ((PowerInfoOverlay) overlay).initPreview(this, configService.getOverlaySettings("动力信息")),
+				overlay -> ((PowerInfoOverlay) overlay).reinitConfig(),
 				true).withInterest("fontName", "fontSize", "columns", "S.");
 
-		// MinimalHUD (crosshair) - supports preview
+		// MiniHUDOverlay (crosshair) - supports preview
 		overlayManager.registerWithPreview("crosshairSwitch",
-				() -> new MinimalHUD(),
-				overlay -> ((MinimalHUD) overlay).init(this, S, O),
-				overlay -> ((MinimalHUD) overlay).initPreview(this),
-				overlay -> ((MinimalHUD) overlay).reinitConfig(),
+				() -> new MiniHUDOverlay(),
+				overlay -> ((MiniHUDOverlay) overlay).init(this, S, O),
+				overlay -> ((MiniHUDOverlay) overlay).initPreview(this),
+				overlay -> ((MiniHUDOverlay) overlay).reinitConfig(),
 				false)
 				.withInterest("displayCrosshair", "drawHUD", "disableHUD", "crosshair", "miniHUD", "enableLayoutDebug",
 						"enableFlapAngleBar", "hudMach");
 
-		// FlightInfo - supports preview
+		// FlightInfoOverlay - supports preview
 		overlayManager.registerWithPreview("flightInfoSwitch",
-				() -> new FlightInfo(),
-				overlay -> ((FlightInfo) overlay).init(this, S, configService.getOverlaySettings("飞行信息")),
-				overlay -> ((FlightInfo) overlay).initPreview(this, configService.getOverlaySettings("飞行信息")),
-				overlay -> ((FlightInfo) overlay).reinitConfig(),
+				() -> new FlightInfoOverlay(),
+				overlay -> ((FlightInfoOverlay) overlay).init(this, S, configService.getOverlaySettings("飞行信息")),
+				overlay -> ((FlightInfoOverlay) overlay).initPreview(this, configService.getOverlaySettings("飞行信息")),
+				overlay -> ((FlightInfoOverlay) overlay).reinitConfig(),
 				true).withInterest("flightInfo", "fontSize", "disableFlightInfo");
 
-		// StickValue - supports preview (uses initpreview lowercase)
+		// ControlSurfacesOverlay - supports preview (uses initpreview lowercase)
 		overlayManager.registerWithPreview("enableAxis",
-				() -> new StickValue(),
-				overlay -> ((StickValue) overlay).init(this, S, configService.getOverlaySettings("舵面值")),
-				overlay -> ((StickValue) overlay).initPreview(this, configService.getOverlaySettings("舵面值")),
-				overlay -> ((StickValue) overlay).reinitConfig(),
+				() -> new ControlSurfacesOverlay(),
+				overlay -> ((ControlSurfacesOverlay) overlay).init(this, S, configService.getOverlaySettings("舵面值")),
+				overlay -> ((ControlSurfacesOverlay) overlay).initPreview(this,
+						configService.getOverlaySettings("舵面值")),
+				overlay -> ((ControlSurfacesOverlay) overlay).reinitConfig(),
 				false).withInterest("enableAxisEdge", "fontSize");
 
-		// AttitudeIndicator - supports preview
+		// AttitudeOverlay - supports preview
 		overlayManager.registerWithPreview("enableAttitudeIndicator",
-				() -> new AttitudeIndicator(),
-				overlay -> ((AttitudeIndicator) overlay).init(this, S, configService.getOverlaySettings("地平仪")),
-				overlay -> ((AttitudeIndicator) overlay).initPreview(this, configService.getOverlaySettings("地平仪")),
-				overlay -> ((AttitudeIndicator) overlay).reinitConfig(),
+				() -> new AttitudeOverlay(),
+				overlay -> ((AttitudeOverlay) overlay).init(this, S, configService.getOverlaySettings("地平仪")),
+				overlay -> ((AttitudeOverlay) overlay).initPreview(this, configService.getOverlaySettings("地平仪")),
+				overlay -> ((AttitudeOverlay) overlay).reinitConfig(),
 				false).withInterest("attitudeIndicator", "enableAttitudeIndicator");
 
-		// GearAndFlaps - supports preview
+		// GearFlapsOverlay - supports preview
 		overlayManager.registerWithPreview("enablegearAndFlaps",
-				() -> new GearAndFlaps(),
-				overlay -> ((GearAndFlaps) overlay).init(this, S, configService.getOverlaySettings("起落架")),
-				overlay -> ((GearAndFlaps) overlay).initPreview(this, configService.getOverlaySettings("起落架")),
-				overlay -> ((GearAndFlaps) overlay).reinitConfig(),
+				() -> new GearFlapsOverlay(),
+				overlay -> ((GearFlapsOverlay) overlay).init(this, S, configService.getOverlaySettings("起落襟翼")),
+				overlay -> ((GearFlapsOverlay) overlay).initPreview(this, configService.getOverlaySettings("起落襟翼")),
+				overlay -> ((GearFlapsOverlay) overlay).reinitConfig(),
 				false).withInterest("enablegearAndFlapsEdge", "fontSize");
 
 		// VoiceWarning - game mode only, no preview
@@ -528,15 +529,15 @@ public class Controller implements ConfigProvider {
 				true,
 				ActivationStrategy.config("enableVoiceWarn").and(ActivationStrategy.gameModeOnly()));
 
-		// UsefulData (FMPrint) - supports preview
+		// UsefulData (FMUnpackedDataOverlay) - supports preview
 		overlayManager.registerWithPreview("enableFMPrint",
-				() -> new FMDataOverlay(),
+				() -> new FMUnpackedDataOverlay(),
 				overlay -> {
-					prog.config.OverlaySettings fmSettings = configService.getOverlaySettings("飞机数据");
-					((FMDataOverlay) overlay).init(this, fmSettings);
+					prog.config.OverlaySettings fmSettings = configService.getOverlaySettings("FM拆包数据");
+					((FMUnpackedDataOverlay) overlay).init(this, fmSettings);
 				}, overlay -> {
-					prog.config.OverlaySettings fmSettings = configService.getOverlaySettings("飞机数据");
-					((FMDataOverlay) overlay).initPreview(this, fmSettings);
+					prog.config.OverlaySettings fmSettings = configService.getOverlaySettings("FM拆包数据");
+					((FMUnpackedDataOverlay) overlay).initPreview(this, fmSettings);
 				}, null, // No reConfig needed
 				true).withInterest("displayFmKey", "selectedFM");
 

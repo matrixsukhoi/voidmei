@@ -26,7 +26,12 @@ import ui.WebLafSettings;
 import ui.base.DraggableOverlay;
 import prog.config.OverlaySettings;
 
-public class StickValue extends DraggableOverlay implements FlightDataListener {
+public class ControlSurfacesOverlay extends DraggableOverlay implements FlightDataListener {
+
+	public ControlSurfacesOverlay() {
+		super();
+		setTitle("舵面值");
+	}
 
 	/**
 	 * 
