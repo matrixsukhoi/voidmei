@@ -221,7 +221,8 @@ public class HUDCalculator {
         }
 
         if (b.flaps > 0) {
-            b.flapsStr = String.format("F%3.0f%s%s", b.flaps, brk, gear);
+            // b.flapsStr = String.format("F%3.0f%s%s", b.flaps, brk, gear);
+            b.flapsStr = String.format("%4s%s%s", "", brk, gear); // Removed Flaps reading
         } else {
             if (blkx != null && blkx.isVWing && sIndic != null) {
                 b.flapsStr = String.format("W%3.0f%s%s", sIndic.wsweep_indicator * 100, brk, gear); // approx logic
