@@ -40,8 +40,30 @@ public class VoiceRowRenderer implements RowRenderer {
         controls.setOpaque(false);
 
         // ComboBox (Packs)
-        java.util.List<String> packs = VoiceResourceManager.getInstance().getAvailablePacks();
-        WebComboBox combo = new WebComboBox(packs.toArray(new String[0]));
+        // ComboBox (Packs)
+        // Filter logic: Only show packs that have this specific voice key
+        String voiceKey = row.property;
+        if (voiceKey != null && voiceKey.startsWith("voice_")) {
+            voiceKey = voiceKey.substring(6);
+        }
+
+        java.util.List<String> allPacks = VoiceResourceManager.getInstance().getAvailablePacks();
+        java.util.List<String> validPacks = new java.util.ArrayList<>();
+
+        // Always include default (or check if default has it? Usually default should
+        // have it, or at least be an option)
+        // Let's always add default first.
+        validPacks.add("default"); // Assuming 'default' is always valid fallback/base
+
+        for (String p : allPacks) {
+            if ("default".equals(p))
+                continue;
+            if (VoiceResourceManager.getInstance().hasResourceStrict(voiceKey, p)) {
+                validPacks.add(p);
+            }
+        }
+
+        WebComboBox combo = new WebComboBox(validPacks.toArray(new String[0]));
         combo.setEditable(false);
         combo.setPreferredSize(new Dimension(100, 26));
 
@@ -101,12 +123,12 @@ public class VoiceRowRenderer implements RowRenderer {
         btnPlay.setFocusable(false);
         btnPlay.addActionListener(e -> {
             String pack = (String) combo.getSelectedItem();
-            String key = row.property;
-            if (key != null && key.startsWith("voice_")) {
-                key = key.substring(6);
+            String pKey = row.property;
+            if (pKey != null && pKey.startsWith("voice_")) {
+                pKey = pKey.substring(6);
             }
             // Load and play (ignoring enable state for preview)
-            Clip clip = VoiceResourceManager.getInstance().loadClip(key, pack);
+            Clip clip = VoiceResourceManager.getInstance().loadClip(pKey, pack);
             if (clip != null) {
                 clip.setFramePosition(0);
                 clip.start();
@@ -125,9 +147,9 @@ public class VoiceRowRenderer implements RowRenderer {
             if (validationPack == null)
                 validationPack = "default";
 
-            String key = row.property;
-            if (key != null && key.startsWith("voice_")) {
-                key = key.substring(6);
+            String vKey = row.property;
+            if (vKey != null && vKey.startsWith("voice_")) {
+                vKey = vKey.substring(6);
             }
 
             // Should prompt warning if:
@@ -138,7 +160,7 @@ public class VoiceRowRenderer implements RowRenderer {
             // User requirement: "If a voice has no corresponding file... hint special way".
             // Since VoiceResourceManager.hasResourceStrict checks specific pack.
 
-            boolean missing = !VoiceResourceManager.getInstance().hasResourceStrict(key, validationPack);
+            boolean missing = !VoiceResourceManager.getInstance().hasResourceStrict(vKey, validationPack);
 
             // If checking strict on custom pack, and it's missing, it will fallback to
             // default.
@@ -156,7 +178,7 @@ public class VoiceRowRenderer implements RowRenderer {
                     tooltip = "Missing audio file in default pack!";
                 } else {
                     // Check fallback
-                    boolean fallbackExists = VoiceResourceManager.getInstance().hasResourceStrict(key, "default");
+                    boolean fallbackExists = VoiceResourceManager.getInstance().hasResourceStrict(vKey, "default");
                     if (!fallbackExists) {
                         effectivelyMissing = true;
                         tooltip = "Missing audio file in '" + validationPack + "' and default pack!";
@@ -177,7 +199,7 @@ public class VoiceRowRenderer implements RowRenderer {
                 statusLabel.setForeground(java.awt.Color.RED);
 
                 // Enhanced WebPopup tooltip
-                String fileName = key + ".wav";
+                String fileName = vKey + ".wav";
                 String html = "<html><div style='width:200px;'>" +
                         "<b>Missing File Warning</b><br>" +
                         "Expected File: <span style='color:blue;'>" + fileName + "</span><br><br>" +
@@ -272,6 +294,23 @@ public class VoiceRowRenderer implements RowRenderer {
         // Subscribe to Pack Refresh events to update combo box items
         java.util.function.Consumer<Object> refreshHandler = ignore -> {
             java.util.List<String> freshPacks = VoiceResourceManager.getInstance().getAvailablePacks();
+            // Filter again
+            java.util.List<String> refreshedValidPacks = new java.util.ArrayList<>();
+            refreshedValidPacks.add("default");
+
+            String rKey = row.property;
+            if (rKey != null && rKey.startsWith("voice_")) {
+                rKey = rKey.substring(6);
+            }
+
+            for (String p : freshPacks) {
+                if ("default".equals(p))
+                    continue;
+                if (VoiceResourceManager.getInstance().hasResourceStrict(rKey, p)) {
+                    refreshedValidPacks.add(p);
+                }
+            }
+
             javax.swing.SwingUtilities.invokeLater(() -> {
                 // Mute listeners to prevent infinite loop
                 combo.removeActionListener(stateSaver);
@@ -280,7 +319,7 @@ public class VoiceRowRenderer implements RowRenderer {
                 // Preserve selection if possible
                 String current = (String) combo.getSelectedItem();
                 combo.removeAllItems();
-                for (String p : freshPacks)
+                for (String p : refreshedValidPacks)
                     combo.addItem(p);
 
                 // Restore selection

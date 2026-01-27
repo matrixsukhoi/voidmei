@@ -126,69 +126,11 @@ public class VoiceGlobalRenderer implements RowRenderer {
     }
 
     private void applyGlobalPack(String packName, RenderContext context) {
-        // We need to iterate over all config rows.
-        // We assume we can access Controller's dynamicConfigs via some hack or context
-        // doesn't expose it directly.
-        // Wait, RenderContext interface:
-        // void syncStringToConfigService(String key, String value);
-        // It doesn't allow iterating structure.
-
-        // Access strategy:
-        // We know the keys are standard: "voice_aoaCrit", "voice_warn_stall", etc.
-        // But hardcoding list is bad.
-        // Access Controller via the Page?
-        // DynamicDataPage is the caller of render(). The 'context' is an anonymous
-        // class in DynamicDataPage.
-        // DynamicDataPage has access to 'groupConfig'. But not other groups.
-
-        // However, 'context' implementation in DynamicDataPage:
-        /*
-         * public void syncStringToConfigService(String key, String value) {
-         * parent.tc.configService.setConfig(key, value);
-         * }
-         */
-        // We can access 'parent.tc' if we really want, but 'context' hides it.
-        // BUT, we can access 'parent.tc' via reflection or by just knowing the list of
-        // keys from ui_layout.cfg.
-
-        // Alternate strategy:
-        // Ask VoiceResourceManager for "what valid voice files exist in this pack?"
-        // Then map those filenames to keys?
-        // E.g. "aoaCrit.wav" -> "voice_aoaCrit".
-        // Then update those keys.
-        // For files NOT in the pack, set them to "default".
-
-        // This assumes 1:1 mapping between filename and config key suffix.
-        // Let's check VoiceWarning keys:
-        // "aoaCrit" -> "voice_aoaCrit"
-        // "warn_stall" -> "voice_warn_stall"
-        // Yes, mapping holds.
-
-        // So:
-        // 1. List files in voice/packName/
-        // 2. Identify keys.
-        // 3. Update them.
-        // 4. What about keys that are MISSING in the pack?
-        // We should revert them to "default" or keep them as is?
-        // User requirement: "configured to corresponding... missing use default".
-        // So YES, we must set missing ones to "default".
-
-        // But to do Step 4, we need to know the UNIVERSE of all possible voice keys.
-        // Where is that defined? Only in ui_layout.cfg items.
-
-        // Since I cannot easily access the full config tree from here without
-        // significant refactor,
-        // AND the user explicitly added the items to ui_layout.cfg,
-        // AND I know the list of items I just added.
-
-        // I will Hardcode the list of keys here. It's safe enough for this specific
-        // feature request.
-        // Or I can add a static method in VoiceWarning that returns the list of keys it
-        // registered?
-        // VoiceWarning.clipRegistry has all the keys!
-        // But VoiceWarning might not be instantiated in Preview.
-
-        // Safest Path: Hardcode list of 10-12 keys.
+        // We iterate over known voice keys and update them ONLY if the target pack has
+        // the file.
+        // If target pack doesn't have the file, we leave it as is
+        // (or ideally we'd want to ensure it's valid, but User Request says "if have,
+        // switch, else don't").
 
         String[] keys = {
                 "aoaCrit", "aoaHigh", "warn_stall", "warn_gear",
@@ -203,21 +145,24 @@ public class VoiceGlobalRenderer implements RowRenderer {
         for (String key : keys) {
             String configKey = "voice_" + key;
 
-            // Check existence
-            boolean exists = VoiceResourceManager.getInstance().hasResourceStrict(key, packName);
-            String targetPack = exists ? packName : "default";
+            // Smart Logic: Only switch if the pack actually contains this voice file.
+            boolean existsInTarget = VoiceResourceManager.getInstance().hasResourceStrict(key, packName);
 
-            // Preserve enabled state?
-            // We need to read current value.
-            // context.getStringFromConfigService(configKey, "default")
-            String currentVal = context.getStringFromConfigService(configKey, "default");
-            boolean enabled = true;
-            if (currentVal != null && currentVal.contains("|")) {
-                enabled = Boolean.parseBoolean(currentVal.split("\\|")[1]);
+            if (existsInTarget) {
+                // Preserve enabled state
+                String currentVal = context.getStringFromConfigService(configKey, "default");
+                boolean enabled = true;
+                if (currentVal != null && currentVal.contains("|")) {
+                    enabled = Boolean.parseBoolean(currentVal.split("\\|")[1]);
+                }
+
+                String newVal = packName + "|" + enabled;
+                context.syncStringToConfigService(configKey, newVal);
+            } else {
+                // Do NOT switch. Keep existing setting.
+                // This fulfills: "If no voice... dropdown shouldn't have... so don't select
+                // it".
             }
-
-            String newVal = targetPack + "|" + enabled;
-            context.syncStringToConfigService(configKey, newVal);
         }
     }
 }
