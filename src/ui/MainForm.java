@@ -239,6 +239,8 @@ public class MainForm extends WebFrame {
 		if (tabbedPane != null) {
 			prog.util.UIStateStorage.saveLastTab(tabbedPane.getSelectedIndex());
 		}
+		// save window position
+		prog.util.UIStateStorage.saveWindowPosition(getX(), getY());
 	}
 
 	public void confirm() {
@@ -280,7 +282,33 @@ public class MainForm extends WebFrame {
 		moveCheckFlag = false;
 
 		this.setUndecorated(true);
-		this.setLocation(Application.screenWidth / 2 - width / 2, Application.screenHeight / 2 - height / 2);
+		this.setUndecorated(true);
+
+		// Position Restoration Logic
+		java.awt.Point savedPos = prog.util.UIStateStorage.loadWindowPosition();
+		if (savedPos != null) {
+			// Ensure within screen bounds
+			int screenW = Application.screenWidth;
+			int screenH = Application.screenHeight;
+
+			int x = savedPos.x;
+			int y = savedPos.y;
+
+			// Basic "pull back" logic
+			if (x + width > screenW)
+				x = screenW - width;
+			if (y + height > screenH)
+				y = screenH - height;
+			if (x < 0)
+				x = 0;
+			if (y < 0)
+				y = 0;
+
+			this.setLocation(x, y);
+		} else {
+			// Default Center
+			this.setLocation(Application.screenWidth / 2 - width / 2, Application.screenHeight / 2 - height / 2);
+		}
 		this.setFont(Application.defaultFont);
 		this.setSize(width, height);
 

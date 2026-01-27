@@ -84,4 +84,50 @@ public class UIStateStorage {
             Logger.info("UIStateStorage", "Failed to save UI state: " + e.getMessage());
         }
     }
+
+    private static final String KEY_WINDOW_X = "mainFormX";
+    private static final String KEY_WINDOW_Y = "mainFormY";
+
+    // ... existing code ...
+
+    public static java.awt.Point loadWindowPosition() {
+        Properties props = new Properties();
+        File file = getConfigFile();
+        if (file.exists()) {
+            try (FileInputStream in = new FileInputStream(file)) {
+                props.load(in);
+                String xVal = props.getProperty(KEY_WINDOW_X);
+                String yVal = props.getProperty(KEY_WINDOW_Y);
+                if (xVal != null && yVal != null) {
+                    return new java.awt.Point(Integer.parseInt(xVal), Integer.parseInt(yVal));
+                }
+            } catch (Exception e) {
+                Logger.info("UIStateStorage", "Failed to load window position: " + e.getMessage());
+            }
+        }
+        return null;
+    }
+
+    public static void saveWindowPosition(int x, int y) {
+        Properties props = new Properties();
+        File file = getConfigFile();
+
+        // Load existing to preserve other keys
+        if (file.exists()) {
+            try (FileInputStream in = new FileInputStream(file)) {
+                props.load(in);
+            } catch (IOException e) {
+                // Ignore
+            }
+        }
+
+        props.setProperty(KEY_WINDOW_X, String.valueOf(x));
+        props.setProperty(KEY_WINDOW_Y, String.valueOf(y));
+
+        try (FileOutputStream out = new FileOutputStream(file)) {
+            props.store(out, "UI State for VoidMei");
+        } catch (IOException e) {
+            Logger.info("UIStateStorage", "Failed to save window position: " + e.getMessage());
+        }
+    }
 }
