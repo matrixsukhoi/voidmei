@@ -1724,11 +1724,15 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 
 	@Override
 	public double getManifoldPressurePounds() {
+		if (iEngType == ENGINE_TYPE_JET)
+			return 0;
 		return sState != null ? (sState.manifoldpressure - 1) * 14.696 : 0;
 	}
 
 	@Override
 	public double getManifoldPressureInchHg() {
+		if (iEngType == ENGINE_TYPE_JET)
+			return 0;
 		return sState != null ? (sState.manifoldpressure * 760 / 25.4) : 0;
 	}
 
@@ -1829,21 +1833,29 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 
 	@Override
 	public double getManifoldPressure() {
+		if (iEngType == ENGINE_TYPE_JET)
+			return 0;
 		return sState != null ? sState.manifoldpressure : 0;
 	}
 
 	@Override
 	public boolean isManifoldPressureValid() {
+		if (iEngType == ENGINE_TYPE_JET)
+			return false;
 		return sState != null && sState.manifoldpressure != -65535 && sState.manifoldpressure > 0.01;
 	}
 
 	@Override
 	public double getWaterTemp() {
+		if (iEngType == ENGINE_TYPE_JET)
+			return 0;
 		return nwaterTemp;
 	}
 
 	@Override
 	public double getOilTemp() {
+		if (iEngType == ENGINE_TYPE_JET)
+			return 0;
 		return noilTemp;
 	}
 
@@ -1914,7 +1926,10 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 
 	@Override
 	public double getHeatTolerance() {
-		return curLoadMinWorkTime / 1000.0;
+		double val = curLoadMinWorkTime / 1000.0;
+		if (val > 90000)
+			return 0;
+		return val;
 	}
 
 	@Override

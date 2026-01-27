@@ -46,6 +46,12 @@ A performance-critical overlay for flight data.
 *   **Optimization**: Uses **Dirty Checking** in UI rows (`HUDEnergyRow`, `HUDAkbRow`) to minimize string formatting cost.
 *   **Rendering**: Decoupled from logic thread. `HUDCalculator` prepares raw data; Components handle formatting locally in `onDataUpdate`.
 
+### 3.3 Engine Info Display (Smart Filtering)
+*   **Logic**: `Service.java` forces specific metrics to `0.0` based on `iEngType` (Jet vs Prop) to support `hide-when-zero` logic.
+    *   **Jets**: `ManifoldPressure`, `WaterTemp` -> forced to 0.
+    *   **Props**: `Thrust` -> 0 (naturally).
+*   **Config**: `ui_layout.cfg` uses `:hide-when-zero true` to hide these irrelevant fields dynamically.
+
 ### 3.3 Dynamic UI Layout
 *   **Source**: `ui_layout.cfg` (Custom Lisp-like syntax).
 *   **Renderers**: `ui/layout/renderer/` contains classes mapped to config types (e.g., `Switch -> SwitchRowRenderer`).
