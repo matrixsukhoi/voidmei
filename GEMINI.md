@@ -13,11 +13,14 @@ VoidMei is a Java-based overlay and telemetry utility for flight simulation (War
     -   `Controller.java`: Central coordinator.
     -   `OverlayManager.java`: Manages overlay windows.
     -   `event/`: Event Bus implementation (`UIStateBus`).
+    -   `util/`: Utilities, including `UIStateStorage` for persistence.
 -   **`ui`**: User Interface.
+    -   `MainForm.java`: Entry point and configuration window.
     -   `overlay/`: Real-time HUD implementations (e.g., `MiniHUDOverlay`).
     -   `component/`: Reusable widgets.
     -   `layout/`: Logic for parsing `ui_layout.cfg` and generating settings pages.
     -   `layout/renderer/`: Renderers for specific config types.
+    -   `replica/`: UI Component factories (`ReplicaBuilder`).
 -   **`parser`**: Data Ingestion.
     -   Handles parsing of JSON/Telemetry from the game.
 
@@ -40,21 +43,29 @@ A highly configurable voice alert system.
 *   **Smart Logic**:
     *   **Global Switch**: Switching the global pack *only* updates individual items if the target pack contains the specific file.
     *   **Dropdowns**: Individual specific voice dropdowns *only* list packs that contain that specific file (plus "default").
+    *   **Customization**: Specific warnings (e.g., "Elevator Efficiency") can be disabled directly in `VoiceWarning.java` via comments if the algorithm is deemed incorrect.
 
 ### 3.2 MiniHUD
 A performance-critical overlay for flight data.
 *   **Optimization**: Uses **Dirty Checking** in UI rows (`HUDEnergyRow`, `HUDAkbRow`) to minimize string formatting cost.
 *   **Rendering**: Decoupled from logic thread. `HUDCalculator` prepares raw data; Components handle formatting locally in `onDataUpdate`.
+*   **Visuals**: Use visual bars (Flaps, Throttle) for primary data. Redundant numeric text (like "Fxxx" for flaps) is hidden to reduce clutter.
 
 ### 3.3 Engine Info Display (Smart Filtering)
 *   **Logic**: `Service.java` forces specific metrics to `0.0` based on `iEngType` (Jet vs Prop) to support `hide-when-zero` logic.
-    *   **Jets**: `ManifoldPressure`, `WaterTemp` -> forced to 0.
+    *   **Jets**: `ManifoldPressure`, `WaterTemp` -> forced to 0. (Oil Temp is *not* forced to 0).
     *   **Props**: `Thrust` -> 0 (naturally).
 *   **Config**: `ui_layout.cfg` uses `:hide-when-zero true` to hide these irrelevant fields dynamically.
 
-### 3.3 Dynamic UI Layout
+### 3.4 Dynamic UI Layout
 *   **Source**: `ui_layout.cfg` (Custom Lisp-like syntax).
-*   **Renderers**: `ui/layout/renderer/` contains classes mapped to config types (e.g., `Switch -> SwitchRowRenderer`).
+*   **Renderers**: `ui/layout/renderer/` contains classes mapped to config types.
+*   **Rich Descriptions**: `:desc-image` supports high-definition images. `ReplicaBuilder` renders these at native resolution (no hardcoded scaling).
+
+### 3.5 Persistence
+*   **Window Position**: `MainForm` saves its X/Y coordinates to `ui_state.properties` on close.
+*   **Restoration**: On startup, position is loaded. If the window is off-screen (e.g., monitor config change), it is automatically pulled back to visible coordinates.
+*   **State**: Active tabs and other transient UI states are also persisted via `UIStateStorage`.
 
 ## 4. Development Guidelines
 
