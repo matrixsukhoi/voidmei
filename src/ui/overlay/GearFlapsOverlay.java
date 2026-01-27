@@ -245,8 +245,10 @@ public class GearFlapsOverlay extends DraggableOverlay implements FlightDataList
                 g2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_SPEED);
 
                 int dy = fontSize >> 1;
-                UIBaseElements.__drawLabelBOSType(g2d, width, dy, 1, Application.defaultFont, Application.defaultFont,
-                        Application.defaultFont, flapText, Lang.gFlaps, "%", 9);
+                // 已经有指示条, 不需要文字了. 暂时注释掉, 不删除.
+                // UIBaseElements.__drawLabelBOSType(g2d, width, dy, 1, Application.defaultFont,
+                // Application.defaultFont,
+                // Application.defaultFont, flapText, Lang.gFlaps, "%", 9);
 
                 dy += barHeight;
                 UIBaseElements.drawVBarTextNum(g2d, 0, dy, barWidth, barHeight, flapPix, 1, Application.colorNum, "",
