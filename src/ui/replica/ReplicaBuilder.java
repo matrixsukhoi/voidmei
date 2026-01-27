@@ -383,7 +383,7 @@ public class ReplicaBuilder {
                         java.io.File imageFile = new java.io.File("image", cleanImg);
                         if (imageFile.exists()) {
                             String path = "file:///" + imageFile.getAbsolutePath();
-                            html.append("<img src='").append(path).append("' width='200' height='150'>");
+                            html.append("<img src='").append(path).append("'>");
                         } else {
                             System.err.println(
                                     "[ReplicaBuilder] Tooltip image not found: " + imageFile.getAbsolutePath());
