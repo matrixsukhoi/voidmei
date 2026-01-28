@@ -57,7 +57,16 @@ A highly configurable voice alert system.
 A performance-critical overlay for flight data.
 *   **Optimization**: Uses **Dirty Checking** in UI rows (`HUDEnergyRow`, `HUDAkbRow`) to minimize string formatting cost.
 *   **Rendering**: Decoupled from logic thread. `HUDCalculator` prepares raw data; Components handle formatting locally in `onDataUpdate`.
-*   **Visuals**: Use visual bars (Flaps, Throttle) for primary data. Redundant numeric text (like "Fxxx" for flaps) is hidden to reduce clutter.
+*   **Visuals**:
+    *   **Intelligent Flap Indicator**: Toggleable via config (`enableFlapAngleBar`).
+        *   **ON (Default)**: Shows visual Flap Bar. Text row hides flap percentage, showing only Gear/Brake status.
+        *   **OFF**: Hides Flap Bar. Text row displays flap reading (e.g., "F 20").
+    *   **Sentinel Handling**: Logic correctly interprets `65535` (or `-65535`) flap values from the game as `0` to prevent "F65535" display.
+    *   **Dynamic Sizing**: `ModernHUDLayoutEngine` uses `LAYOUT_PADDING = 45` (increased from 25) to provide adequate breathing room around the HUD.
+*   **Data Model**:
+    *   Refactored `HUDData` nomenclature for clarity:
+        *   `mechanizationStr` (was `flapsStr`): Represents Flaps + Gear + Airbrake configuration.
+        *   `maneuverStateStr` (was `maneuverRowStr`): Represents dynamic state (G-Load vs Mission Time).
 
 ### 3.3 Engine Info Display (Smart Filtering)
 *   **Logic**: `Service.java` forces specific metrics to `0.0` based on `iEngType` (Jet vs Prop) to support `hide-when-zero` logic.
