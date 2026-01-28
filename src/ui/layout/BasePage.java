@@ -1,4 +1,5 @@
 package ui.layout;
+
 import prog.Application;
 
 import java.awt.BorderLayout;
@@ -26,7 +27,6 @@ import prog.i18n.Lang;
 public abstract class BasePage extends WebPanel {
 
     protected MainForm parent;
-    protected WebPanel toolbar;
     protected boolean isDetailedMode = false;
 
     public BasePage(MainForm parent) {
@@ -60,51 +60,10 @@ public abstract class BasePage extends WebPanel {
         // Let subclass populate the content
         initContent(content);
 
-        // --- Scroll Pane ---
-        // --- Center Component ---
-        // --- Center Component ---
         this.add(createCenterComponent(content), BorderLayout.CENTER);
-
-        // --- Top Toolbar (optional, subclasses can override) ---
-        toolbar = createTopToolbar();
-        if (toolbar != null) {
-            this.add(toolbar, BorderLayout.NORTH);
-        }
 
         // --- Bottom Control Panel ---
         createBottomPanel();
-    }
-
-    /**
-     * Creates an optional top toolbar for the page.
-     * Default implementation returns a styled panel with a title.
-     * Subclasses can override and call super to get the styled container,
-     * then add their specific controls to it.
-     */
-    protected WebPanel createTopToolbar() {
-        WebPanel toolbar = new WebPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 10, 5));
-
-        // Keep transparent background
-        toolbar.setOpaque(false);
-
-        // Create rounded line border with title
-        javax.swing.border.Border lineBorder = javax.swing.BorderFactory.createLineBorder(
-                new java.awt.Color(0, 0, 0, 120), 2, true); // Black rounded border (lighter)
-
-        javax.swing.border.TitledBorder titledBorder = javax.swing.BorderFactory.createTitledBorder(
-                lineBorder,
-                prog.i18n.Lang.mBasicSettings, // Localized title
-                javax.swing.border.TitledBorder.LEFT,
-                javax.swing.border.TitledBorder.TOP,
-                prog.Application.defaultFont,
-                new java.awt.Color(0, 0, 0, 150));
-
-        // Add padding inside the border
-        toolbar.setBorder(javax.swing.BorderFactory.createCompoundBorder(
-                titledBorder,
-                javax.swing.BorderFactory.createEmptyBorder(8, 12, 8, 12)));
-
-        return toolbar;
     }
 
     /**
@@ -196,21 +155,6 @@ public abstract class BasePage extends WebPanel {
         bottomPanel.add(rightGroup, BorderLayout.LINE_END);
 
         this.add(bottomPanel, BorderLayout.SOUTH);
-    }
-
-    /**
-     * Replaces the current toolbar with a new one.
-     */
-    public void refreshToolbar() {
-        if (toolbar != null) {
-            this.remove(toolbar);
-        }
-        toolbar = createTopToolbar();
-        if (toolbar != null) {
-            this.add(toolbar, BorderLayout.NORTH);
-        }
-        revalidate();
-        repaint();
     }
 
 }

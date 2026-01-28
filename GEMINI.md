@@ -10,24 +10,32 @@ VoidMei is a Java-based overlay and telemetry utility for flight simulation (War
 ### Core Packages (`src/`)
 -   **`prog`**: Application kernel.
     -   `Service.java`: Singleton managing background threads and global state.
-    -   `Controller.java`: Central coordinator.
-    -   `OverlayManager.java`: Manages overlay windows.
-    -   `event/`: Event Bus implementation (`UIStateBus`).
+    -   `Controller.java`: Central coordinator and lifecycle manager.
+    -   `OverlayManager.java`: Manages overlay windows and visibility.
+    -   `event/`: Event Bus implementation (`UIStateBus`, `FlightDataBus`).
+    -   `config/`: Configuration subsystems (`ConfigurationService`, `HUDSettings`).
+    -   `audio/`: Voice warning logic (`VoiceResourceManager`, `VoiceWarning`).
     -   `util/`: Utilities, including `UIStateStorage` for persistence.
+    -   `i18n/`: Localization (`Lang`).
 -   **`ui`**: User Interface.
     -   `MainForm.java`: Entry point and configuration window.
-    -   `overlay/`: Real-time HUD implementations (e.g., `MiniHUDOverlay`).
-    -   `component/`: Reusable widgets.
+    -   `overlay/`: Real-time HUD implementations (e.g., `MiniHUDOverlay`, `EngineControlOverlay`).
+        -   `logic/`: Pure logic calculators (e.g., `HUDCalculator`).
+        -   `model/`: Data models for overlays (`HUDData`).
+    -   `component/`: Reusable widgets (`LinearGauge`, `CompassGauge`).
     -   `layout/`: Logic for parsing `ui_layout.cfg` and generating settings pages.
     -   `layout/renderer/`: Renderers for specific config types.
     -   `replica/`: UI Component factories (`ReplicaBuilder`).
+    -   `model/`: Data binding and telemetry abstraction (`TelemetrySource`, `FlightDataProvider`).
+    -   `base/`: Base classes (`DraggableOverlay`, `FieldOverlay`).
 -   **`parser`**: Data Ingestion.
-    -   Handles parsing of JSON/Telemetry from the game.
+    -   Handles parsing of JSON/Telemetry from the game (`State`, `Indicators`, `Blkx`).
 
 ### Data Flow
 1.  **Ingestion**: `parser` reads local host telemetry (JSON).
-2.  **Logic**: `prog.Service` updates state (`State`, `Indicators`) and emits events.
-3.  **Rendering**: Overlays (`ui.overlay`) consume events and repaint. Settings (`ui.layout`) modify config which alters logic.
+2.  **Processing**: `prog.Service` updates state and `prog.event.FlightDataBus` emits events.
+3.  **Binding**: `ui.model.FlightDataProvider` adapts raw events into usable data bindings.
+4.  **Rendering**: Overlays (`ui.overlay`) consume events/models and repaint. Settings (`ui.layout`) modify config which alters logic.
 
 ## 3. Key Features
 
@@ -61,6 +69,7 @@ A performance-critical overlay for flight data.
 *   **Source**: `ui_layout.cfg` (Custom Lisp-like syntax).
 *   **Renderers**: `ui/layout/renderer/` contains classes mapped to config types.
 *   **Rich Descriptions**: `:desc-image` supports high-definition images. `ReplicaBuilder` renders these at native resolution (no hardcoded scaling).
+*   **Overlay Visibility**: Controlled by standard `(item ... :type switch :target "overlayConfigKey" ...)` items. The legacy `:switch-key` attribute on panels has been removed.
 
 ### 3.5 Persistence
 *   **Window Position**: `MainForm` saves its X/Y coordinates to `ui_state.properties` on close.
@@ -73,6 +82,11 @@ A performance-critical overlay for flight data.
 *   **UI Thread**: Swing components must be updated on the EDT (`SwingUtilities.invokeLater`).
 *   **Event Bus**: Use `UIStateBus` for cross-component communication (e.g., config changes, refresh events).
 *   **Performance**: Avoid object allocation in `paintComponent` or high-frequency loops (like `VoiceWarning.run`).
+
+### Concurrency & Thread Safety
+*   **Overlay Management**: `OverlayManager` methods (`open`, `close`, `refreshPreview`) must be `synchronized`.
+    *   **Reason**: Configuration change events (`configChanged`) can fire rapidly and concurrently (e.g., during text input or bulk updates). Without synchronization, race conditions can spawn duplicate overlay instances ("Ghost Overlays").
+*   **Event Handling**: Event subscribers might receive events on background threads. Ensure UI updates are dispatched to EDT.
 
 ### Common Patterns
 *   **Renderer Pattern**: Implements `RowRenderer`. Must strictly adhere to constructing a `WebPanel` and binding to `ConfigService`.

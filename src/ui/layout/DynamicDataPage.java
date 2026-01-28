@@ -4,15 +4,9 @@ import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 
-import com.alee.laf.label.WebLabel;
 import com.alee.laf.panel.WebPanel;
-import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent;
 
-import prog.Application;
 import ui.MainForm;
-import prog.i18n.Lang;
-import com.alee.laf.button.WebButton;
-import com.alee.extended.button.WebSwitch;
 import prog.event.UIStateBus;
 import prog.event.UIStateEvents;
 import ui.replica.ReplicaBuilder;
@@ -23,7 +17,6 @@ public class DynamicDataPage extends BasePage {
 
     private ZoomPanel scaler;
     private prog.config.ConfigLoader.GroupConfig groupConfig;
-    private boolean overlayVisible = false;
     private boolean isUpdatingControls = false; // Prevent feedback loop during rebuild
 
     private java.util.function.Consumer<Object> configHandler;
@@ -34,14 +27,6 @@ public class DynamicDataPage extends BasePage {
 
         // Force Pink Style (Modern) for this page as per design requirement
         UIBuilder.setStyle(ReplicaBuilder.getStyle());
-
-        if (groupConfig != null) {
-            this.overlayVisible = groupConfig.visible;
-            // Since BasePage constructor calls createTopToolbar() BEFORE we set
-            // overlayVisible,
-            // we must refresh the toolbar to sync the switch State.
-            refreshToolbar();
-        }
 
         // Subscribe to global config changes (specifically for RESET_ALL)
         configHandler = key -> {
@@ -54,10 +39,6 @@ public class DynamicDataPage extends BasePage {
         UIStateBus.getInstance().subscribe(UIStateEvents.CONFIG_CHANGED, configHandler);
 
         rebuild();
-
-        // Restore overlay State
-        // Always call this to ensure State is synchronized
-        setOverlayVisible(overlayVisible);
     }
 
     public DynamicDataPage(MainForm parent) {
@@ -73,10 +54,6 @@ public class DynamicDataPage extends BasePage {
 
     public void setGroupConfig(prog.config.ConfigLoader.GroupConfig groupConfig) {
         this.groupConfig = groupConfig;
-        if (groupConfig != null) {
-            this.overlayVisible = groupConfig.visible;
-            refreshToolbar();
-        }
         rebuild();
     }
 
@@ -238,83 +215,6 @@ public class DynamicDataPage extends BasePage {
         }
     }
 
-    @Override
-    protected WebPanel createTopToolbar() {
-        // Get the styled toolbar container from BasePage
-        WebPanel toolbar = super.createTopToolbar();
-        // Use our custom ResponsiveGridLayout for elegant multi-column layout
-        toolbar.setLayout(new ResponsiveGridLayout(3, 10, 10));
-
-        // --- Item 1: Overlay Visibility ---
-        WebPanel visibilityPanel = ReplicaBuilder.createSwitchItem(Lang.mDisplayOverlay, overlayVisible, false);
-        WebSwitch swOverlay = ReplicaBuilder.getSwitch(visibilityPanel);
-        if (swOverlay != null) {
-            swOverlay.addActionListener(e -> {
-                overlayVisible = swOverlay.isSelected();
-                setOverlayVisible(overlayVisible);
-                if (groupConfig != null) {
-                    groupConfig.visible = overlayVisible;
-                    parent.saveDynamicConfig();
-                }
-            });
-        }
-        toolbar.add(visibilityPanel);
-
-        // --- Item 2: Hotkey Configuration ---
-        if (groupConfig != null && groupConfig.hotkey != 0) {
-            WebPanel hotkeyPanel = new WebPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 5, 0));
-            hotkeyPanel.setOpaque(false);
-            WebLabel lblHotkey = new WebLabel(Lang.mHotkeyToggle);
-            ReplicaBuilder.getStyle().decorateLabel(lblHotkey);
-            hotkeyPanel.add(lblHotkey);
-
-            String keyText = com.github.kwhat.jnativehook.keyboard.NativeKeyEvent.getKeyText(groupConfig.hotkey);
-            WebButton btnHotkey = new WebButton(keyText);
-            btnHotkey.setFont(prog.Application.defaultFont);
-            btnHotkey.setFocusable(false);
-            btnHotkey.addActionListener(e -> {
-                try {
-                    Application.silenceNativeHookLogger();
-                    if (!com.github.kwhat.jnativehook.GlobalScreen.isNativeHookRegistered()) {
-                        com.github.kwhat.jnativehook.GlobalScreen.registerNativeHook();
-                    }
-                } catch (com.github.kwhat.jnativehook.NativeHookException ex) {
-                    ex.printStackTrace();
-                }
-
-                btnHotkey.setText(Lang.mWaitHotkey);
-                com.github.kwhat.jnativehook.GlobalScreen.addNativeKeyListener(
-                        new com.github.kwhat.jnativehook.keyboard.NativeKeyListener() {
-                            @Override
-                            public void nativeKeyPressed(com.github.kwhat.jnativehook.keyboard.NativeKeyEvent e2) {
-                                int code = e2.getKeyCode();
-                                if (code == NativeKeyEvent.VC_NUM_LOCK || code == NativeKeyEvent.VC_CAPS_LOCK
-                                        || code == NativeKeyEvent.VC_SCROLL_LOCK) {
-                                    return;
-                                }
-                                Application.debugPrint("[DynamicDataPage] configure key: key pressed: " + code);
-                                javax.swing.SwingUtilities.invokeLater(() -> {
-                                    if (code == com.github.kwhat.jnativehook.keyboard.NativeKeyEvent.VC_ESCAPE) {
-                                        btnHotkey.setText(com.github.kwhat.jnativehook.keyboard.NativeKeyEvent
-                                                .getKeyText(groupConfig.hotkey));
-                                    } else {
-                                        groupConfig.hotkey = code;
-                                        btnHotkey.setText(com.github.kwhat.jnativehook.keyboard.NativeKeyEvent
-                                                .getKeyText(code));
-                                        save();
-                                    }
-                                });
-                                com.github.kwhat.jnativehook.GlobalScreen.removeNativeKeyListener(this);
-                            }
-                        });
-            });
-            hotkeyPanel.add(btnHotkey);
-            toolbar.add(hotkeyPanel);
-        }
-
-        return toolbar;
-    }
-
     private void save() {
         // Trigger global save of ui_layout.cfg
         parent.saveDynamicConfig();
@@ -340,17 +240,6 @@ public class DynamicDataPage extends BasePage {
         Dimension d = getPreferredSize();
         // Add some buffer for WebFrame's title bar and borders (approx 40-60px)
         return d.height + 60;
-    }
-
-    public void setOverlayVisible(boolean visible) {
-        if (groupConfig.switchKey != null && !groupConfig.switchKey.isEmpty()) {
-            parent.tc.configService.setConfig(groupConfig.switchKey, Boolean.toString(visible));
-        }
-        overlayVisible = visible;
-    }
-
-    public void toggleOverlay() {
-        setOverlayVisible(!overlayVisible);
     }
 
     public void dispose() {

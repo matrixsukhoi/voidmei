@@ -237,7 +237,7 @@ public class OverlayManager {
             return strategy.shouldActivate(ctx);
         }
 
-        void open(OverlayContext ctx) {
+        synchronized void open(OverlayContext ctx) {
             if (instance != null) {
                 prog.util.Logger.info("OverlayManager",
                         "Skipping open for " + key + ": already active instance=" + instance);
@@ -257,7 +257,7 @@ public class OverlayManager {
             }
         }
 
-        void refreshPreview(OverlayContext ctx) {
+        synchronized void refreshPreview(OverlayContext ctx) {
             boolean shouldBeOpen = shouldActivate(ctx);
 
             if (shouldBeOpen) {
@@ -286,7 +286,7 @@ public class OverlayManager {
             }
         }
 
-        void close() {
+        synchronized void close() {
             if (instance == null)
                 return;
 
