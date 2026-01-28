@@ -199,10 +199,10 @@ public class HUDCalculator {
 
         // Maneuver / Time
         if (b.gLoad > 1.5f || b.gLoad < -0.5f) {
-            b.maneuverRowStr = String.format("G%5.1f", b.gLoad);
+            b.maneuverStateStr = String.format("G%5.1f", b.gLoad);
         } else {
             String time = data.get("timeStr");
-            b.maneuverRowStr = (time != null && !time.isEmpty()) ? "L" + time : "";
+            b.maneuverStateStr = (time != null && !time.isEmpty()) ? "L" + time : "";
         }
 
         // Configuration
@@ -221,13 +221,19 @@ public class HUDCalculator {
         }
 
         if (b.flaps > 0) {
-            // b.flapsStr = String.format("F%3.0f%s%s", b.flaps, brk, gear);
-            b.flapsStr = String.format("%4s%s%s", "", brk, gear); // Removed Flaps reading
+            // Restore readable text if Bar is disabled
+            if (!settings.enableFlapAngleBar()) {
+                b.mechanizationStr = String.format("F%3.0f%s%s", b.flaps, brk, gear);
+            } else {
+                // Bar enabled -> Hide text (keep Brk/Gear)
+                b.mechanizationStr = String.format("%4s%s%s", "", brk, gear);
+            }
         } else {
             if (blkx != null && blkx.isVWing && sIndic != null) {
-                b.flapsStr = String.format("W%3.0f%s%s", sIndic.wsweep_indicator * 100, brk, gear); // approx logic
+                b.mechanizationStr = String.format("W%3.0f%s%s", sIndic.wsweep_indicator * 100, brk, gear); // approx
+                                                                                                            // logic
             } else {
-                b.flapsStr = String.format("%4s%s%s", "", brk, gear);
+                b.mechanizationStr = String.format("%4s%s%s", "", brk, gear);
             }
         }
 

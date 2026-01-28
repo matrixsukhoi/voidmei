@@ -58,9 +58,9 @@ public class HUDData {
     public final String altStr;
     public final String aoaStr;
     public final String energyStr;
-    public final String flapsStr;
+    public final String mechanizationStr;
     public final String sepStr;
-    public final String maneuverRowStr;
+    public final String maneuverStateStr;
     public final double aoaRatio; // Normalized AoA for bar (0.0 - 1.0+)
 
     public HUDData(Builder builder) {
@@ -100,9 +100,9 @@ public class HUDData {
         this.altStr = builder.altStr;
         this.aoaStr = builder.aoaStr;
         this.energyStr = builder.energyStr;
-        this.flapsStr = builder.flapsStr;
+        this.mechanizationStr = builder.mechanizationStr;
         this.sepStr = builder.sepStr;
-        this.maneuverRowStr = builder.maneuverRowStr;
+        this.maneuverStateStr = builder.maneuverStateStr;
         this.aoaRatio = builder.aoaRatio;
         this.warnConfiguration = builder.warnConfiguration;
     }
@@ -145,9 +145,9 @@ public class HUDData {
         public String altStr = "";
         public String aoaStr = "";
         public String energyStr = "";
-        public String flapsStr = "";
+        public String mechanizationStr = "";
         public String sepStr = "";
-        public String maneuverRowStr = "";
+        public String maneuverStateStr = "";
         public boolean warnConfiguration;
         public double aoaRatio;
 

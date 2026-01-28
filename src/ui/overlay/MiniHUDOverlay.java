@@ -185,7 +185,11 @@ public class MiniHUDOverlay extends BaseOverlay implements FlightDataListener {
         lines[1] = altPre + String.format("%5s", "1024");
         lines[3] = sepPre + String.format("%5s", "30");
         lines[4] = "G" + String.format("%5s", "2.0");
-        lines[2] = "F" + String.format("%3s", "100");
+        if (hudSettings.enableFlapAngleBar()) {
+            lines[2] = String.format("%4s", "");
+        } else {
+            lines[2] = "F" + String.format("%3s", "100");
+        }
         lines[2] += "BRK";
         lines[2] += "GEAR";
         throttley = 100;
@@ -302,8 +306,9 @@ public class MiniHUDOverlay extends BaseOverlay implements FlightDataListener {
     private void updateComponents() {
         boolean textVisible = hudSettings.drawHUDText();
 
+        boolean enableFlapBar = hudSettings.enableFlapAngleBar();
         if (flapAngleBar != null) {
-            flapAngleBar.setVisible(textVisible && hudSettings.enableFlapAngleBar());
+            flapAngleBar.setVisible(textVisible && enableFlapBar);
         }
         if (compassGauge != null) {
             compassGauge.setVisible(textVisible);
@@ -427,12 +432,12 @@ public class MiniHUDOverlay extends BaseOverlay implements FlightDataListener {
 
         // Row 0, 1 are refactored (Akb, Energy). They use onDataUpdate.
         // Row 2: Flaps/Gear
-        ((ui.component.row.HUDTextRow) hudRows.get(2)).update(data.flapsStr, data.warnConfiguration);
+        ((ui.component.row.HUDTextRow) hudRows.get(2)).update(data.mechanizationStr, data.warnConfiguration);
         // Row 3: SEP
         ((ui.component.row.HUDTextRow) hudRows.get(3)).update(data.sepStr, false);
         // Row 4: Maneuver
         // ManeuverRow update signature is complex.
-        ((ui.component.row.HUDManeuverRow) hudRows.get(4)).update(data.maneuverRowStr, false, data.maneuverIndex,
+        ((ui.component.row.HUDManeuverRow) hudRows.get(4)).update(data.maneuverStateStr, false, data.maneuverIndex,
                 maneuverIndexLen, maneuverIndexLen10, maneuverIndexLen20, maneuverIndexLen30,
                 maneuverIndexLen40, maneuverIndexLen50);
         // Note: maneuverIndexLen variables are member fields of MinimalHUD calculated
@@ -704,5 +709,5 @@ public class MiniHUDOverlay extends BaseOverlay implements FlightDataListener {
         modernLayout.logTopology();
     }
 
-    private static final int LAYOUT_PADDING = 25;
+    private static final int LAYOUT_PADDING = 45;
 }
