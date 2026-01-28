@@ -68,7 +68,11 @@ public class HUDCalculator {
                 b.slip = sState.AoS;
 
             b.throttle = sState.throttle;
-            b.flaps = sState.flaps;
+            if (sState.flaps == 65535 || sState.flaps == -65535) {
+                b.flaps = 0;
+            } else {
+                b.flaps = sState.flaps;
+            }
             b.gear = sState.gear;
             b.airbrake = sState.airbrake;
 
