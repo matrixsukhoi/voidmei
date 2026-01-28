@@ -2,6 +2,7 @@ src/parser/FlightLog.java
 src/parser/Indicators.java
 src/parser/MapObj.java
 src/parser/MapInfo.java
+src/parser/FlightModelParser.java
 src/parser/AttributePool.java
 src/parser/State.java
 src/parser/Blkx.java
@@ -131,3 +132,9 @@ src/ui/overlay/FMUnpackedDataOverlay.java
 src/ui/overlay/DrawFrameSimpl.java
 src/ui/overlay/BaseOverlay.java
 src/ui/overlay/DrawFrame.java
+src/ui/window/comparison/GridSelectorDialog.java
+src/ui/window/comparison/ComparisonFrame.java
+src/ui/window/comparison/logic/ComparisonCalculator.java
+src/ui/window/comparison/ComparisonTable.java
+src/ui/window/comparison/model/ComparisonData.java
+src/ui/window/comparison/CompactComparisonWindow.java

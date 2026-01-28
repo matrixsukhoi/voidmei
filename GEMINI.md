@@ -85,6 +85,18 @@ A performance-critical overlay for flight data.
 *   **Restoration**: On startup, position is loaded. If the window is off-screen (e.g., monitor config change), it is automatically pulled back to visible coordinates.
 *   **State**: Active tabs and other transient UI states are also persisted via `UIStateStorage`.
 
+### 3.6 Aircraft Data Comparison
+A powerful tool for comparing aircraft flight models (blk files) side-by-side.
+*   **Window**: `CompactComparisonWindow` (Replaced legacy `ComparisonFrame`).
+*   **Intelligent Parsing**:
+    *   **Regex Engine**: Robustly parses complex strings like `"0.75 (Aspect Ratio: 5.4)"` to extract the primary numeric value (`0.75`).
+    *   **Structure Merging**: Dynamically merges keys from two different FM files, preserving the order of the primary aircraft while appending unique keys from the secondary.
+*   **Smart Visualization**:
+    *   **Point-to-Loser Logic**: The comparison arrow points to the **inferior** (loser) value, visually indicating that the winner "dominates" or "pushes back" the loser.
+        *   **Left Win**: Arrow Points Right `▶` (Left dominates Right).
+        *   **Right Win**: Arrow Points Left `◀` (Right dominates Left).
+    *   **Context Awareness**: Knows that for "Weight", "Drag", and "Turn Time", **Lower is Better**. For "Speed", "Thrust", and "Climb", **Higher is Better**.
+
 ## 4. Development Guidelines
 
 ### Coding Standards

@@ -97,10 +97,22 @@ public class FMListRowRenderer implements RowRenderer {
         // LoggingPanel used native interaction, here we add a button
         viewBtn.setMargin(0, 5, 0, 5);
         viewBtn.addActionListener(e -> {
+            // Launch new Comparison UI
+            Window parentWindow = SwingUtilities.getWindowAncestor(panel);
             Object selected = combo.getSelectedItem();
-            if (selected != null) {
-                displayFM(panel, selected.toString());
-            }
+            String fmName = (selected != null) ? selected.toString() : "a_4h";
+
+            // Use Application.ctr if available, or just null if CompactComparisonWindow
+            // doesn't strictly need it for basic view
+            // CompactComparisonWindow constructor matches: (Window, Controller, String,
+            // String)
+            ui.window.comparison.CompactComparisonWindow cf = new ui.window.comparison.CompactComparisonWindow(
+                    parentWindow,
+                    Application.ctr,
+                    fmName,
+                    null // Single view mode
+            );
+            cf.setVisible(true);
         });
         panel.add(viewBtn, BorderLayout.EAST);
 

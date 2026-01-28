@@ -55,6 +55,18 @@ public class ButtonRowRenderer implements RowRenderer {
             });
         }
 
+        if ("openComparison".equals(row.property)) {
+            btn.addActionListener(e -> {
+                String fm0 = ctx.getStringFromConfigService("selectedFM0", "a_4h");
+                String fm1 = ctx.getStringFromConfigService("selectedFM1", "a6m5_zero");
+
+                java.awt.Window parent = javax.swing.SwingUtilities.getWindowAncestor(p);
+                ui.window.comparison.CompactComparisonWindow win = new ui.window.comparison.CompactComparisonWindow(
+                        parent, Application.ctr, fm0, fm1);
+                win.setVisible(true);
+            });
+        }
+
         if (row.fgColor != null) {
             java.awt.Color color = parseColor(row.fgColor);
             if (color != null) {
