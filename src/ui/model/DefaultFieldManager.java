@@ -24,7 +24,7 @@ public class DefaultFieldManager implements FieldManager {
     @Override
     public void addField(String key, String label, String unit, String configKey, boolean hideWhenNA,
             boolean hideWhenZero,
-            String previewValue) {
+            String previewValue, String format) {
         if (config != null && configKey != null) {
             if (config.isFieldDisabled(configKey)) {
                 return;
@@ -32,6 +32,7 @@ public class DefaultFieldManager implements FieldManager {
         }
 
         DataField field = new DataField(key, label, unit, configKey, hideWhenNA, hideWhenZero);
+        field.format = format;
         if (previewValue != null) {
             field.currentValue = previewValue;
         }
@@ -57,17 +58,18 @@ public class DefaultFieldManager implements FieldManager {
 
     @Override
     public void bind(String key, java.util.function.DoubleSupplier supplier, int precision) {
-        bind(key, supplier, null, precision);
+        bind(key, supplier, null, precision, null);
     }
 
     @Override
     public void bind(String key, java.util.function.DoubleSupplier valueSupplier,
-            java.util.function.BooleanSupplier visibilitySupplier, int precision) {
+            java.util.function.BooleanSupplier visibilitySupplier, int precision, String format) {
         DataField field = fieldMap.get(key);
         if (field != null) {
             field.valueSupplier = valueSupplier;
             field.visibilitySupplier = visibilitySupplier;
             field.precision = precision;
+            field.format = format;
         }
     }
 

@@ -111,4 +111,58 @@ public class FastNumberFormatter {
         }
         return pos;
     }
+
+    /**
+     * Formats a time in seconds into MM'SS format.
+     * 
+     * @param value  Time in seconds
+     * @param buffer Destination buffer
+     * @return Number of characters written
+     */
+    public static int formatTime(double value, char[] buffer) {
+        if (Double.isNaN(value) || value < 0) {
+            buffer[0] = '-';
+            buffer[1] = '-';
+            buffer[2] = '\'';
+            buffer[3] = '-';
+            buffer[4] = '-';
+            return 5;
+        }
+
+        int totalSeconds = (int) value;
+        int minutes = totalSeconds / 60;
+        int seconds = totalSeconds % 60;
+
+        int pos = 0;
+        // Minutes (at least 2 digits)
+        if (minutes < 10) {
+            buffer[pos++] = '0';
+            buffer[pos++] = DIGITS[minutes];
+        } else {
+            // Support up to 999 minutes for long fuel times
+            if (minutes >= 100) {
+                if (minutes >= 1000) {
+                    // Overflow
+                    buffer[pos++] = '9';
+                    buffer[pos++] = '9';
+                    buffer[pos++] = '9';
+                } else {
+                    buffer[pos++] = DIGITS[minutes / 100];
+                    buffer[pos++] = DIGITS[(minutes / 10) % 10];
+                    buffer[pos++] = DIGITS[minutes % 10];
+                }
+            } else {
+                buffer[pos++] = DIGITS[minutes / 10];
+                buffer[pos++] = DIGITS[minutes % 10];
+            }
+        }
+
+        buffer[pos++] = '\'';
+
+        // Seconds (always 2 digits)
+        buffer[pos++] = DIGITS[seconds / 10];
+        buffer[pos++] = DIGITS[seconds % 10];
+
+        return pos;
+    }
 }

@@ -153,9 +153,9 @@ public class PowerInfoOverlay extends FieldOverlay {
 					String validityMethod = "is" + baseMethod.substring(3) + "Valid";
 					java.util.function.BooleanSupplier visibilitySupplier = ui.util.ReflectBinder.resolveBoolean(s,
 							validityMethod);
-					fm.bind(row.property, supplier, visibilitySupplier, row.precision);
+					fm.bind(row.property, supplier, visibilitySupplier, row.precision, row.format);
 				} else {
-					fm.bind(row.property, supplier, row.precision);
+					fm.bind(row.property, supplier, null, row.precision, row.format);
 				}
 
 				// Apply visibility immediately based on config value

@@ -12,6 +12,7 @@ public class FieldDefinition {
     public final boolean hideWhenNA;
     public final boolean hideWhenZero;
     public final String previewValue;
+    public String format = null;
 
     public FieldDefinition(String key, String label, String unit, String configKey, boolean hideWhenNA,
             boolean hideWhenZero, String previewValue) {
@@ -22,6 +23,12 @@ public class FieldDefinition {
         this.hideWhenNA = hideWhenNA;
         this.hideWhenZero = hideWhenZero;
         this.previewValue = previewValue;
+    }
+
+    public FieldDefinition(String key, String label, String unit, String configKey, boolean hideWhenNA,
+            boolean hideWhenZero, String previewValue, String format) {
+        this(key, label, unit, configKey, hideWhenNA, hideWhenZero, previewValue);
+        this.format = format;
     }
 
     public FieldDefinition(String key, String label, String unit, String configKey, boolean hideWhenNA,
