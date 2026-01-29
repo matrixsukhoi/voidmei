@@ -1638,7 +1638,7 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 					httpClient.getReqResult(Application.requestDestBkp);
 
 				intv = (diffTime / freq) * freq;
-				TimeIncrMili = diffTime;
+				TimeIncrMili = intv;
 				MainCheckMili += intv;
 				// MainCheckMili = SystemTime;
 
