@@ -96,12 +96,6 @@ public class Controller implements ConfigProvider {
 	public int lastDmg;
 	public int step;
 
-	Thread gc;
-
-	private UIThread uT;
-
-	private Thread uT1;
-
 	private boolean showStatus;
 
 	// Event Handlers
@@ -261,10 +255,6 @@ public class Controller implements ConfigProvider {
 		}
 
 		// UI Thread (always runs)
-		uT = new UIThread(this);
-		uT1 = new Thread(uT);
-		uT1.setPriority(Thread.MAX_PRIORITY);
-		uT1.start();
 		if (S != null) {
 			S.startTime = System.currentTimeMillis();
 		}
@@ -290,13 +280,6 @@ public class Controller implements ConfigProvider {
 			}
 			Log.close();
 			Log = null;
-		}
-
-		// UI Thread
-		if (uT != null) {
-			uT.doit = false;
-			uT1.interrupt();
-			uT1 = null;
 		}
 
 		System.gc();
