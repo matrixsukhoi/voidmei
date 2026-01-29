@@ -1,5 +1,5 @@
 ./config/
-./data/
+./data/aces/gamedata/flightmodels/
 ./dep/weblaf-complete-1.29.jar
 ./dep/jnativehook-2.2.2.jar
 ./fonts/
