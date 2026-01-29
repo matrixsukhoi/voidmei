@@ -1539,10 +1539,9 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 			conState = sState.update(httpClient.strState);
 
 			sIndic.update(httpClient.strIndic);
-			if (!isPlayerLive()) {
-				publishGameStatus(prog.event.GameStatusEvent.Status.CONNECTED);
-			}
+
 			if (sState.flag && sIndic.flag) {
+				// We have valid data, now check if player is actually in a flight
 
 				/* 修复录像中没法使用的问题 */
 				if ((!sIndic.type.equals("DUMMY_PLANE")) && ((sState.totalThr != 0) || (sState.RPM != 0))) {
@@ -1596,6 +1595,10 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 						prog.util.Logger.warn("Service", "Player crash/stop detected. Simulation state invalidated.");
 						playerLive = false;
 					}
+				} else {
+					// Telemetry valid, but player not in flight (e.g. Map/Hangar)
+					playerLive = false;
+					publishGameStatus(prog.event.GameStatusEvent.Status.CONNECTED);
 				}
 			} else {
 				// 状态置为等待游戏开始（状态1）

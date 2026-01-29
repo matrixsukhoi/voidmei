@@ -20,9 +20,14 @@ public enum ControllerState {
     IN_GAME(3),
 
     /**
-     * Preview mode
+     * Preview mode (Config UI)
      */
-    PREVIEW(4);
+    PREVIEW(4),
+
+    /**
+     * Actively flying in a match
+     */
+    FLYING(5);
 
     private final int legacyValue;
 

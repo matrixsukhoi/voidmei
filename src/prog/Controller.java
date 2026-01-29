@@ -26,7 +26,7 @@ import prog.config.ConfigurationService;
 
 public class Controller implements ConfigProvider {
 
-	public ControllerState State = ControllerState.INIT;
+	public volatile ControllerState State = ControllerState.INIT;
 
 	public boolean logon = false;
 
@@ -128,8 +128,8 @@ public class Controller implements ConfigProvider {
 		prog.event.GameStatusEvent.Status status = event.getStatus();
 		if (status == prog.event.GameStatusEvent.Status.CONNECTED) {
 			// 状态2，状态条连接成功，等待进入游戏
-			if (State == ControllerState.PREVIEW) {
-				// 退出战局回到菜单
+			if (State == ControllerState.FLYING || State == ControllerState.PREVIEW) {
+				// 退出战局或结束预览
 				closepad();
 				State = ControllerState.CONNECTED;
 			} else if (State == ControllerState.CONNECTED || State == ControllerState.INIT) {
@@ -157,27 +157,15 @@ public class Controller implements ConfigProvider {
 				O1 = new Thread(O);
 				O1.start();
 			}
-			State = ControllerState.PREVIEW; // Why PREVIEW? Original code set PREVIEW here?
-			// Yes: State = ControllerState.PREVIEW;
-			// See line 170 in original.
+			State = ControllerState.FLYING;
 
-			// Delay overlay creation
-			new Thread(() -> {
-				try {
-					Thread.sleep(100);
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-				}
-				// Double check state after sleep to prevent race condition
-				if (State == ControllerState.PREVIEW) {
-					openpad();
-				}
-			}).start();
+			// Open panels directly
+			openpad();
 		} else if (status == prog.event.GameStatusEvent.Status.INIT) {
 			// S4toS1 Logic: Game returned / Disconnected
-			// if (State == ControllerState.PREVIEW) { // Original check
-
-			closepad();
+			if (State == ControllerState.FLYING || State == ControllerState.PREVIEW) {
+				closepad();
+			}
 			if (Application.debug && O != null) {
 				lastEvt = O.lastEvt;
 				lastDmg = O.lastDmg;
@@ -601,7 +589,7 @@ public class Controller implements ConfigProvider {
 		// if (S1 == null) {
 		// return;
 		// }
-		if (State == ControllerState.PREVIEW) {
+		if (State == ControllerState.FLYING || State == ControllerState.PREVIEW) {
 			closepad();
 		}
 
