@@ -1599,6 +1599,7 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 				}
 			} else {
 				// 状态置为等待游戏开始（状态1）
+				playerLive = false;
 				publishGameStatus(prog.event.GameStatusEvent.Status.CONNECTED);
 				// Application.debugPrint("等待游戏开始");
 				try {

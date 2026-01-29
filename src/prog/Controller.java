@@ -128,18 +128,13 @@ public class Controller implements ConfigProvider {
 		prog.event.GameStatusEvent.Status status = event.getStatus();
 		if (status == prog.event.GameStatusEvent.Status.CONNECTED) {
 			// 状态2，状态条连接成功，等待进入游戏
-			if (State == ControllerState.CONNECTED || State == ControllerState.INIT) {
-				if (showStatus)
-					SB.S2();
-				State = ControllerState.IN_GAME; // Wait, original changeS2 set IN_GAME? No, "Wait for Game Start"?
-				// Original changeS2: if (State == CONNECTED) { SB.S2(); State = IN_GAME; }
-				// Wait, "Wait for Game Start" usually means we are connected to 8111 but not
-				// flying.
-
-				// Let's mimic original logic:
+			if (State == ControllerState.PREVIEW) {
+				// 退出战局回到菜单
+				closepad();
+				State = ControllerState.CONNECTED;
+			} else if (State == ControllerState.CONNECTED || State == ControllerState.INIT) {
 				if (showStatus && SB != null)
 					SB.S2();
-				// Original changeS2 sets State = IN_GAME.
 				State = ControllerState.CONNECTED; // Let's correct this semantic. "CONNECTED" means 8111 ok.
 			}
 		} else if (status == prog.event.GameStatusEvent.Status.IN_GAME) {
@@ -173,7 +168,10 @@ public class Controller implements ConfigProvider {
 				} catch (InterruptedException e) {
 					e.printStackTrace();
 				}
-				openpad();
+				// Double check state after sleep to prevent race condition
+				if (State == ControllerState.PREVIEW) {
+					openpad();
+				}
 			}).start();
 		} else if (status == prog.event.GameStatusEvent.Status.INIT) {
 			// S4toS1 Logic: Game returned / Disconnected
