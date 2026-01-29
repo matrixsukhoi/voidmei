@@ -12,7 +12,7 @@ public interface FieldManager {
          * Add a new field to the manager.
          */
         void addField(String key, String label, String unit, String configKey, boolean hideWhenNA, boolean hideWhenZero,
-                        String previewValue);
+                        String previewValue, String format);
 
         /**
          * Update a field's value by key.
@@ -39,7 +39,7 @@ public interface FieldManager {
          * supplier.
          */
         void bind(String key, java.util.function.DoubleSupplier valueSupplier,
-                        java.util.function.BooleanSupplier visibilitySupplier, int precision);
+                        java.util.function.BooleanSupplier visibilitySupplier, int precision, String format);
 
         /**
          * Get all fields in order.

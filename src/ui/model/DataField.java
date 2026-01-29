@@ -64,4 +64,5 @@ public class DataField {
     public java.util.function.DoubleSupplier valueSupplier;
     public java.util.function.BooleanSupplier visibilitySupplier;
     public int precision = 0; // Default to integer
+    public String format = null; // Custom format (e.g., "TIME_MM_SS")
 }

@@ -141,7 +141,7 @@ public abstract class FieldOverlay extends DraggableOverlay implements FlightDat
 
         for (FieldDefinition def : defs) {
             fieldManager.addField(def.key, def.label, def.unit, def.configKey, def.hideWhenNA, def.hideWhenZero,
-                    def.previewValue);
+                    def.previewValue, def.format);
         }
     }
 
@@ -174,7 +174,11 @@ public abstract class FieldOverlay extends DraggableOverlay implements FlightDat
 
                     // 4. Format if visible
                     if (field.visible) {
-                        field.length = ui.util.FastNumberFormatter.format(val, field.buffer, field.precision);
+                        if ("TIME_MM_SS".equals(field.format)) {
+                            field.length = ui.util.FastNumberFormatter.formatTime(val, field.buffer);
+                        } else {
+                            field.length = ui.util.FastNumberFormatter.format(val, field.buffer, field.precision);
+                        }
                     }
                 } else {
                     // LEGACY PATH
