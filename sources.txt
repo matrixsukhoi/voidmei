@@ -16,6 +16,7 @@ src/prog/event/FlightDataBus.java
 src/prog/Controller.java
 src/prog/FlapsControl.java
 src/prog/Service.java
+src/prog/service/FlightModelService.java
 src/prog/OverlayManager.java
 src/prog/model/InfoList.java
 src/prog/i18n/Lang.java

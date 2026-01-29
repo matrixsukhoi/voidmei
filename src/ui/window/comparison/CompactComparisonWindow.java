@@ -85,6 +85,24 @@ public class CompactComparisonWindow extends JDialog {
         }
     }
 
+    private void addSectionHeader(JPanel p, String text, int row) {
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.gridy = row;
+        gbc.gridwidth = 4; // Spanning all columns
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.insets = new Insets(15, 0, 5, 0);
+
+        WebLabel l = new WebLabel(text);
+        l.setFont(Application.defaultFont.deriveFont(java.awt.Font.BOLD, 13f));
+        l.setForeground(TEXT_SECONDARY);
+        l.setHorizontalAlignment(SwingConstants.CENTER);
+
+        // Add a separator line visual if possible, or just the text
+        // For simple robust UI, just text for now
+        p.add(l, gbc);
+    }
+
     // ... (addSectionHeader remains)
 
     private void addComparisonRow(JPanel p, String prop, String v0, String v1, int row) {
@@ -318,115 +336,6 @@ public class CompactComparisonWindow extends JDialog {
         // ESC to Close
         javax.swing.KeyStroke esc = javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_ESCAPE, 0);
         this.getRootPane().registerKeyboardAction(e -> dispose(), esc, javax.swing.JComponent.WHEN_IN_FOCUSED_WINDOW);
-    }
-
-    private void addHeader(JPanel p, String n0, String n1) {
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.gridy = 0;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(0, 0, 15, 0); // Bottom margin for header
-
-        // 1. Empty (Matches Attribute Column)
-        gbc.gridx = 0;
-        gbc.weightx = 0.35;
-        p.add(createLabel("", TEXT_SECONDARY, SwingConstants.LEFT, true), gbc);
-
-        // 2. Name 0 (Matches Value A Column)
-        gbc.gridx = 1;
-        gbc.weightx = 0.25;
-        p.add(createLabel(n0, HEADER_A, SwingConstants.CENTER, true), gbc);
-
-        // 3. VS (Matches Symbol Column)
-        gbc.gridx = 2;
-        gbc.weightx = 0.15;
-        p.add(createLabel("VS", TEXT_SECONDARY, SwingConstants.CENTER, true), gbc);
-
-        // 4. Name 1 (Matches Value B Column)
-        gbc.gridx = 3;
-        gbc.weightx = 0.25;
-        p.add(createLabel(n1, HEADER_B, SwingConstants.CENTER, true), gbc);
-    }
-
-    private void addSectionHeader(JPanel p, String text, int row) {
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.gridx = 0;
-        gbc.gridy = row;
-        gbc.gridwidth = 4; // Spanning all columns
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(15, 0, 5, 0);
-
-        WebLabel l = new WebLabel(text);
-        l.setFont(Application.defaultFont.deriveFont(java.awt.Font.BOLD, 13f));
-        l.setForeground(TEXT_SECONDARY);
-        l.setHorizontalAlignment(SwingConstants.CENTER);
-
-        // Add a separator line visual if possible, or just the text
-        // For simple robust UI, just text for now
-        p.add(l, gbc);
-    }
-
-    private void addComparisonRow(JPanel p, String prop, String v0, String v1, int row) {
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.gridy = row;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(2, 0, 2, 0);
-
-        // Try numeric parse
-        Double d0 = parseDouble(v0);
-        Double d1 = parseDouble(v1);
-
-        // Determine Winner
-        int win = 0; // 0=draw, -1=left(v0), 1=right(v1)
-        if (d0 != null && d1 != null) {
-            boolean lowerIsBetter = isLowerBetter(prop);
-            if (Math.abs(d0 - d1) > 0.001) {
-                if (d0 > d1)
-                    win = lowerIsBetter ? 1 : -1;
-                else
-                    win = lowerIsBetter ? -1 : 1;
-            }
-        }
-
-        // Left (Prop + Val0) - Combined? User said "Three columns: Prop(Left)
-        // Symbol(Center) Val(Right)"
-        // No, user said: "[Attr] : [A] (Diff) [B]" -> "Attr : A [Sym] B".
-        // Let's do: Col0=Attr, Col1=A, Col2=Sym, Col3=B. Or User said "Three Column
-        // Alignment: Prop Left, Symbol Center, Value Right".
-        // This suggests Prop is Column 1, The rest is... where?
-        // "Attr : A (Diff) B" is one logic. "Prop Left, Symbol Center, Value Right" is
-        // another.
-        // Let's go with "Attr (Left) | A (Center-Left) | Sym (Center) | B
-        // (Center-Right)".
-
-        // 1. Attribute
-        gbc.gridx = 0;
-        gbc.weightx = 0.35;
-        WebLabel lProp = createLabel(prop, TEXT_PRIMARY, SwingConstants.LEFT, false);
-        p.add(lProp, gbc);
-
-        // 2. Value A
-        gbc.gridx = 1;
-        gbc.weightx = 0.25;
-        Color c0 = (win == -1) ? ACCENT_BETTER : (win == 1 ? ACCENT_WORSE : TEXT_SECONDARY);
-        p.add(createLabel(v0, c0, SwingConstants.LEFT, false), gbc);
-
-        // 3. Symbol
-        gbc.gridx = 2;
-        gbc.weightx = 0.15;
-        gbc.insets = new Insets(2, 15, 2, 15); // Add horizontal padding
-        String sym = "-";
-        if (win == -1)
-            sym = "▶"; // A is better
-        if (win == 1)
-            sym = "◀"; // B is better
-        p.add(createLabel(sym, SYMBOL_COLOR, SwingConstants.CENTER, false), gbc);
-
-        // 4. Value B
-        gbc.gridx = 3;
-        gbc.weightx = 0.25;
-        gbc.insets = new Insets(2, 0, 2, 0); // Reset padding
-        Color c1 = (win == 1) ? ACCENT_BETTER : (win == -1 ? ACCENT_WORSE : TEXT_SECONDARY);
-        p.add(createLabel(v1, c1, SwingConstants.LEFT, false), gbc);
     }
 
     private WebLabel createLabel(String txt, Color c, int align, boolean bold) {

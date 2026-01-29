@@ -2,7 +2,6 @@ package prog;
 
 import prog.i18n.Lang;
 import prog.audio.VoiceWarning;
-import prog.util.HttpHelper;
 
 import java.awt.Color;
 import java.awt.Font;
@@ -32,11 +31,6 @@ public class Controller implements ConfigProvider {
 
 	public boolean logon = false;
 
-	private Blkx Blkx;
-	private String loadedFMName = null;
-	private String identifiedFMName = null;
-	private long lastBlkxCheckTime = 0;
-	private static final long BLKX_CHECK_INTERVAL = 5000;
 	public AttributePool globalPool = new AttributePool();
 
 	// Robot robot;
@@ -167,7 +161,6 @@ public class Controller implements ConfigProvider {
 
 			// 初始化MapObj以及Msg、gamechat
 			cur_fmtype = S.sIndic.type;
-			identifiedFMName = cur_fmtype;
 			// Removed getfmdata call - Service will trigger load via calculate or start
 			// Application.debugPrint("状态3，连接成功，释放状态条，打开面板");
 			// usetempratureInformation =
@@ -335,6 +328,7 @@ public class Controller implements ConfigProvider {
 
 	public Controller() {
 		configService = new ConfigurationService();
+		fmService = new prog.service.FlightModelService(this);
 		configService.initConfig();// 装载设置文件
 		// 接收频率
 		// Application.debugPrint("controller执行了");
@@ -651,54 +645,23 @@ public class Controller implements ConfigProvider {
 		}).start();
 	}
 
-	/**
-	 * IDENTIFY the current aircraft from live source or config.
-	 * Does NOT trigger parsing unless specifically requested via getBlkx().
-	 */
-	private void ensureBlkxLoaded() {
-		// Throttled live polling
-		long now = System.currentTimeMillis();
-		if (now - lastBlkxCheckTime < BLKX_CHECK_INTERVAL) {
-			return;
-		}
-		lastBlkxCheckTime = now;
+	// --- Flight Model Service Delegation ---
+	private final prog.service.FlightModelService fmService;
 
-		HttpHelper httpDataFetcher = new HttpHelper();
-		String livePlaneName = httpDataFetcher.getLiveAircraftType();
-
-		if (livePlaneName != null) {
-			identifiedFMName = livePlaneName;
-			return;
-		}
-
-		// Fallback to config
-		String configPlane = getConfig("selectedFM0");
-		if (configPlane != null && !configPlane.isEmpty()) {
-			identifiedFMName = configPlane;
-		}
+	public Blkx getBlkx() {
+		return fmService.getBlkx();
 	}
 
-	/**
-	 * Just-In-Time getter for Flight Model data.
-	 * Triggers parsing only if target aircraft differs from loaded one.
-	 */
-	public synchronized Blkx getBlkx() {
-		// If we don't even have an identified plane yet, try to find one
-		if (identifiedFMName == null) {
-			ensureBlkxLoaded();
-		}
+	public void ensureBlkxLoaded() {
+		fmService.ensureBlkxLoaded();
+	}
 
-		if (identifiedFMName == null)
-			return null;
+	public void loadFMData(String planename) {
+		fmService.loadFMData(planename);
+	}
 
-		// Skip if already loaded and valid
-		if (identifiedFMName.equalsIgnoreCase(loadedFMName) && Blkx != null && Blkx.valid) {
-			return Blkx;
-		}
-
-		// Trigger actual parsing
-		loadFMData(identifiedFMName);
-		return Blkx;
+	public AttributePool globalPool() {
+		return fmService.getGlobalPool();
 	}
 
 	public void refreshPreviews() {
@@ -738,57 +701,6 @@ public class Controller implements ConfigProvider {
 				Application.debugPrint("线程同步错误");
 			}
 			// Application.debugPrint(Log.doit);
-		}
-	}
-
-	public void loadFMData(String planename) {
-		if (planename == null || planename.isEmpty())
-			return;
-
-		// Skip if truly already loaded (double check for safety)
-		if (planename.equalsIgnoreCase(loadedFMName) && Blkx != null && Blkx.valid) {
-			return;
-		}
-
-		prog.util.Logger.info("Controller", "Lazily Loading Flight Model for: " + planename);
-
-		String fmfile = null;
-		String planeFileName = planename.toLowerCase();
-		Blkx lookupBlkx = new Blkx("./data/aces/gamedata/flightmodels/" + planeFileName + ".Blkx",
-				planeFileName + ".blk",
-				false);
-		if (lookupBlkx.valid == true) {
-			fmfile = lookupBlkx.getlastone("fmfile");
-			if (fmfile != null) {
-				fmfile = fmfile.substring(fmfile.indexOf("\"") + 1, fmfile.length() - 1);
-				if (fmfile.charAt(0) == '/')
-					fmfile = fmfile.substring(1);
-			}
-		}
-		if (fmfile == null) {
-			fmfile = "fm/" + planeFileName + ".blk";
-		}
-
-		if (-1 == fmfile.indexOf(".blk")) {
-			fmfile += ".blk";
-		}
-
-		// Final parse
-		Blkx = new Blkx("./data/aces/gamedata/flightmodels/" + fmfile + "x", fmfile);
-
-		if (Blkx.valid == true) {
-			Blkx.getAllplotdata();
-			Blkx.finalizeLoading();
-			// Explicitly trigger GC after loading the massive FM data structures
-			System.gc();
-
-			// Populate Global Pool
-			globalPool.putAll(Blkx.getVariableMap());
-			loadedFMName = planename;
-			cur_fmtype = planename;
-
-			// Notify observers that FM data is ready
-			prog.event.UIStateBus.getInstance().publish(prog.event.UIStateEvents.FM_DATA_LOADED, planename);
 		}
 	}
 
