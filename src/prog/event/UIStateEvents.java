@@ -50,6 +50,12 @@ public final class UIStateEvents {
      * Published when the list of available voice packs has changed.
      * Payload: None
      */
+    /**
+     * Published when the game connection status changes (e.g. CONNECTED, IN_GAME).
+     * Payload: GameStatusEvent
+     */
+    public static final String GAME_STATUS = "gameStatus";
+
     public static final String VOICE_PACKS_REFRESH = "voicePacksRefresh";
 
     // Add more event types as needed

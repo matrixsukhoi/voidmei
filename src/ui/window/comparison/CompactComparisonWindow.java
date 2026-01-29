@@ -13,9 +13,9 @@ import java.util.regex.Pattern;
 
 import javax.swing.BorderFactory;
 import javax.swing.JDialog;
-import javax.swing.JLabel;
+
 import javax.swing.JPanel;
-import javax.swing.JScrollPane;
+
 import javax.swing.SwingConstants;
 
 import com.alee.laf.label.WebLabel;

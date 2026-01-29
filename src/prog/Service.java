@@ -144,6 +144,17 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 	public String pressureUnitStr = "Ata";
 	public String pressurePounds;
 	public String pressureInchHg;
+
+	private prog.event.GameStatusEvent.Status lastPublishedStatus = null;
+
+	private void publishGameStatus(prog.event.GameStatusEvent.Status status) {
+		if (lastPublishedStatus != status) {
+			lastPublishedStatus = status;
+			prog.event.UIStateBus.getInstance().publish(prog.event.UIStateEvents.GAME_STATUS,
+					new prog.event.GameStatusEvent(status));
+		}
+	}
+
 	public String pressureMmHg;
 	public String watertemp;
 	public String oiltemp;
@@ -1528,7 +1539,9 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 			conState = sState.update(httpClient.strState);
 
 			sIndic.update(httpClient.strIndic);
-			c.changeS2();
+			if (!isPlayerLive()) {
+				publishGameStatus(prog.event.GameStatusEvent.Status.CONNECTED);
+			}
 			if (sState.flag && sIndic.flag) {
 
 				/* 修复录像中没法使用的问题 */
@@ -1548,11 +1561,11 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 				if (isPlayerLive()) {
 					// 读取map info
 
-					c.changeS3();// 打开面板
+					publishGameStatus(prog.event.GameStatusEvent.Status.IN_GAME);// 打开面板
 					if (c.cur_fmtype != null && !c.cur_fmtype.equals(sIndic.type)) {
 						prog.util.Logger.info("Service",
 								"Aircraft type changed to: " + sIndic.type + ". Restarting Controller.");
-						c.S4toS1();
+						publishGameStatus(prog.event.GameStatusEvent.Status.INIT);
 					}
 					// speedvp = sState.IAS;
 					// 开始计算数据
@@ -1586,9 +1599,7 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 				}
 			} else {
 				// 状态置为等待游戏开始（状态1）
-				// c.changeS2();//连接成功等待游戏开始
-
-				c.S4toS1();
+				publishGameStatus(prog.event.GameStatusEvent.Status.CONNECTED);
 				// Application.debugPrint("等待游戏开始");
 				try {
 					Thread.sleep(500);
@@ -1601,7 +1612,7 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 		} else {
 			// 状态置为等待连接中
 			conState = -1;
-			c.S4toS1();
+			publishGameStatus(prog.event.GameStatusEvent.Status.INIT);
 			prog.util.Logger.debug("Service", "Waiting for game connection (8111/9222)...");
 		}
 		if (conState == -1) {

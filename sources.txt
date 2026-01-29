@@ -9,6 +9,7 @@ src/parser/Blkx.java
 src/parser/FlightAnalyzer.java
 src/parser/HudMsg.java
 src/prog/event/FlightDataListener.java
+src/prog/event/GameStatusEvent.java
 src/prog/event/UIStateEvents.java
 src/prog/event/FlightDataEvent.java
 src/prog/event/UIStateBus.java

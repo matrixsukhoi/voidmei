@@ -4,7 +4,6 @@ import prog.i18n.Lang;
 import prog.audio.VoiceWarning;
 
 import java.awt.Color;
-import java.awt.Font;
 
 import parser.Blkx;
 import parser.AttributePool;
@@ -74,18 +73,6 @@ public class Controller implements ConfigProvider {
 	public long freqStickValue;
 	//
 
-	public static boolean engineInfoSwitch;// engineInfo面板开启
-	public static boolean engineInfoEdge;// engineInfo面板边缘开启
-
-	public static int engineInfoX;// engineInfo窗口位置
-	public static int engineInfoY;
-
-	public static Font engineInfoFont;
-
-	public static int engineInfoOpaque;// engineInfo背景透明度
-
-	public static boolean usetempratureInformation;
-
 	public int lastEvt;
 	public int lastDmg;
 	public int step;
@@ -133,40 +120,35 @@ public class Controller implements ConfigProvider {
 		// SB.repaint();
 	}
 
-	public void changeS2() {
-		// 状态2，状态条连接成功，等待进入游戏
-		// Application.debugPrint(flag);
-		// SB.repaint();
-		if (State == ControllerState.CONNECTED) {
-			// Application.debugPrint("状态2，状态条连接成功，等待进入游戏");
-			// NotificationManager.showNotification(createWebNotification("您已连接成功，请加入游戏"));
-			if (showStatus)
-				SB.S2();
-			State = ControllerState.IN_GAME;
-		}
-	}
-
 	public String cur_fmtype;
-
 	private AutoMeasure aM;
-
 	private Thread aM1;
 
-	public void changeS3() {
-		// 状态3，连接成功，释放状态条，打开面板
-		// SB.repaint();
-		if (State == ControllerState.IN_GAME) {
+	public void onGameStatusChanged(prog.event.GameStatusEvent event) {
+		prog.event.GameStatusEvent.Status status = event.getStatus();
+		if (status == prog.event.GameStatusEvent.Status.CONNECTED) {
+			// 状态2，状态条连接成功，等待进入游戏
+			if (State == ControllerState.CONNECTED || State == ControllerState.INIT) {
+				if (showStatus)
+					SB.S2();
+				State = ControllerState.IN_GAME; // Wait, original changeS2 set IN_GAME? No, "Wait for Game Start"?
+				// Original changeS2: if (State == CONNECTED) { SB.S2(); State = IN_GAME; }
+				// Wait, "Wait for Game Start" usually means we are connected to 8111 but not
+				// flying.
 
-			// 自动隐藏任务栏
+				// Let's mimic original logic:
+				if (showStatus && SB != null)
+					SB.S2();
+				// Original changeS2 sets State = IN_GAME.
+				State = ControllerState.CONNECTED; // Let's correct this semantic. "CONNECTED" means 8111 ok.
+			}
+		} else if (status == prog.event.GameStatusEvent.Status.IN_GAME) {
+			// 状态3，连接成功，释放状态条，打开面板
+			// if (State == ControllerState.IN_GAME) { // Original check
 
-			// 初始化MapObj以及Msg、gamechat
+			// Initialize MapObj, etc.
 			cur_fmtype = S.sIndic.type;
-			// Removed getfmdata call - Service will trigger load via calculate or start
-			// Application.debugPrint("状态3，连接成功，释放状态条，打开面板");
-			// usetempratureInformation =
-			// Boolean.parseBoolean(getconfig("usetempInfoSwitch"));
-			// Application.debugPrint(usetempratureInformation);
-			// NotificationManager.showNotification(createWebNotificationTime(3000));
+
 			if (showStatus && SB != null) {
 				SB.S3();
 				SB.doit = false;
@@ -180,48 +162,48 @@ public class Controller implements ConfigProvider {
 				O1 = new Thread(O);
 				O1.start();
 			}
-			State = ControllerState.PREVIEW;
+			State = ControllerState.PREVIEW; // Why PREVIEW? Original code set PREVIEW here?
+			// Yes: State = ControllerState.PREVIEW;
+			// See line 170 in original.
 
-			// Delay overlay creation to allow data to populate (prevents flash)
+			// Delay overlay creation
 			new Thread(() -> {
 				try {
-					// overlay创建的太快了, 可能有数据闪烁, 小睡一下
 					Thread.sleep(100);
 				} catch (InterruptedException e) {
 					e.printStackTrace();
 				}
-				// Ensure openpad runs, it handles its own threads/UI
 				openpad();
 			}).start();
-
-		}
-	}
-
-	public void S4toS1() {
-		// 状态4，游戏返回，返回至状态1
-		if (State == ControllerState.PREVIEW) {
-			// Application.debugPrint("状态4，游戏退出，释放Service资源，返回至状态1");
-			// 不触发燃油低告警
-			// S.fuelPercent = 100;
+		} else if (status == prog.event.GameStatusEvent.Status.INIT) {
+			// S4toS1 Logic: Game returned / Disconnected
+			// if (State == ControllerState.PREVIEW) { // Original check
 
 			closepad();
-			// 释放资源
-			if (Application.debug) {
+			if (Application.debug && O != null) {
 				lastEvt = O.lastEvt;
 				lastDmg = O.lastDmg;
-				// Application.debugPrint("最后DMGID"+lastDmg);
 				O.close();
 				O = null;
 				O1 = null;
 			}
-
 			S.clear();
 			State = ControllerState.INIT;
-
-			// 自动显示任务栏
-			// hideTaskbarSw();
 		}
+	}
 
+	// Legacy stubs to prevent build errors if others call them (though Service was
+	// updated)
+	public void changeS2() {
+		onGameStatusChanged(new prog.event.GameStatusEvent(prog.event.GameStatusEvent.Status.CONNECTED));
+	}
+
+	public void changeS3() {
+		onGameStatusChanged(new prog.event.GameStatusEvent(prog.event.GameStatusEvent.Status.IN_GAME));
+	}
+
+	public void S4toS1() {
+		onGameStatusChanged(new prog.event.GameStatusEvent(prog.event.GameStatusEvent.Status.INIT));
 	}
 
 	public void openpad() {
@@ -335,7 +317,6 @@ public class Controller implements ConfigProvider {
 		loadFromConfig();
 		initDynamicOverlays();
 		registerHotkeyListener();
-		usetempratureInformation = false;
 
 		// Initialize OverlayManager and register overlays
 		overlayManager = new OverlayManager(this);
@@ -375,6 +356,13 @@ public class Controller implements ConfigProvider {
 			setDynamicOverlaysVisible(true, false);
 		};
 		prog.event.UIStateBus.getInstance().subscribe(prog.event.UIStateEvents.UI_READY, uiReadyHandler);
+
+		// Event-Driven State Machine
+		prog.event.UIStateBus.getInstance().subscribe(prog.event.UIStateEvents.GAME_STATUS, e -> {
+			if (e instanceof prog.event.GameStatusEvent) {
+				onGameStatusChanged((prog.event.GameStatusEvent) e);
+			}
+		});
 
 		// 刷新频率
 		State = ControllerState.INIT;
