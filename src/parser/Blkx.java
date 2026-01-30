@@ -398,6 +398,7 @@ public class Blkx {
 	private double engineRPMMultWEP;
 	private fm_parts FullFlapsWingS;
 	private fm_parts NoFlapsWingS;
+	public double fuseClHigh;
 
 	/* 计算可变翼 */
 	public double getAoAHighVWing(double vwing, int flaps_percent) {
@@ -928,7 +929,7 @@ public class Blkx {
 
 		// 最大升力面积因子载荷计算(气动升力系数x部件面积除以满油重量）
 		// 最大攻角转弯时机身是失速的
-		double fuseClHigh = Fuselage.ClCritHigh * Fuselage.lineClCoeff;
+		fuseClHigh = Fuselage.ClCritHigh * Fuselage.lineClCoeff;
 		if (Fuselage.AoACritHigh < NoFlapsWing.AoACritHigh)
 			fuseClHigh = Fuselage.ClAfterCrit * Fuselage.lineClCoeff;
 
@@ -939,16 +940,18 @@ public class Blkx {
 		FullFlapsWing.Sq = AWing;
 		Fuselage.Sq = AFuselage;
 
-		NoFlapWLL = AWing * NoFlapsWing.ClCritHigh + AFuselage * fuseClHigh;
-		NoFlapWLL = NoFlapWLL / (halfweight / 1000.f);
+		// NoFlapsWing.AoACritHigh 可能不等于 Fuselage.AoACritHigh
+		NoFlapWLL = AWing * NoFlapsWing.ClCritHigh + AFuselage * fuseClHigh * (NoFlapsWing.AoACritHigh / Fuselage.AoACritHigh);
+		// 这里用空重
+		NoFlapWLL = NoFlapWLL / (emptyweight / 1000.f);
 
 		// Application.debugPrint(AWing * NoFlapsWing.ClCritHigh/)
 		fuseClHigh = Fuselage.ClCritHigh * Fuselage.lineClCoeff;
 		if (Fuselage.AoACritHigh < FullFlapsWing.AoACritHigh)
 			fuseClHigh = Fuselage.ClAfterCrit * Fuselage.lineClCoeff;
 
-		FullFlapWLL = AWing * FullFlapsWing.ClCritHigh + AFuselage * fuseClHigh;
-		FullFlapWLL = FullFlapWLL / (halfweight / 1000.f);
+		FullFlapWLL = AWing * FullFlapsWing.ClCritHigh + AFuselage * fuseClHigh * (NoFlapsWing.AoACritHigh / Fuselage.AoACritHigh);
+		FullFlapWLL = FullFlapWLL / (emptyweight / 1000.f);
 		// 阻力面积因子计算
 		CdS = AWing * NoFlapsWing.CdMin + AFuselage * Fuselage.CdMin;
 		// 计算阻力抵消的攻角

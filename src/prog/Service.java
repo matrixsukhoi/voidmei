@@ -1173,11 +1173,68 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 		// 获得最大转速
 		getMaximumRPM();
 
-		// TODO:升力阻力实时计算
-		// TODO:临界速度和马赫数动态计算(考虑可变翼)
+		// 计算速度与临界速度比值
+		updateSpeedRatio();
 
+		// TODO:升力阻力实时计算
 		// TODO:可用过载动态计算(油、重量)
 
+	}
+
+	public double speedLimitRatio;
+	public double aileronLockRatio;
+	public double rudderLockRatio;
+
+	public void updateSpeedRatio() {
+		if (c.getBlkx() == null || !c.getBlkx().valid) {
+			speedLimitRatio = 0.0;
+			aileronLockRatio = 0.0;
+			rudderLockRatio = 0.0;
+			return;
+		}
+
+		double wingSweep = 0;
+		if (isWingSweepValid()) {
+			wingSweep = sIndic.wsweep_indicator;
+		}
+
+		double ias = getIAS();
+		double mach = getMach();
+		double iasLimit = c.getBlkx().getVNEVWing(wingSweep);
+		double machLimit = c.getBlkx().getMNEVWing(wingSweep);
+		double aileronLockSpeed = c.getBlkx().aileronEff;
+		double rudderLockSpeed = c.getBlkx().rudderEff;
+
+		// 1. 计算速度比值
+		double iasRatio = ias / iasLimit;
+		double machRatio = mach / machLimit;
+		// 2. 计算更大的速度. mach为0时一定能够会走if分支.
+		if (iasRatio >= machRatio) {
+			speedLimitRatio = iasRatio;
+			aileronLockRatio = aileronLockSpeed / iasLimit;
+			rudderLockRatio = rudderLockSpeed / iasLimit;
+		} else {
+			speedLimitRatio = machRatio;
+			double c = ias / mach;
+			aileronLockRatio = aileronLockSpeed / (machLimit * c);
+			rudderLockRatio = rudderLockSpeed / (machLimit * c);
+		}
+	}
+
+	public double stallSpeed;
+	public void updateStallSpeed() {
+		if (c.getBlkx() == null || !c.getBlkx().valid) {
+			return;
+		}
+		
+		// 主升力面积因数载荷
+		double wingBodyLiftAreaLoad_NoFlap = c.getBlkx().AWing * c.getBlkx().NoFlapsWing.ClCritHigh + c.getBlkx().AFuselage * c.getBlkx().fuseClHigh * (c.getBlkx().NoFlapsWing.AoACritHigh / c.getBlkx().Fuselage.AoACritHigh);
+		double wingBodyLiftAreaLoad_FullFlap = c.getBlkx().AWing * c.getBlkx().FullFlapsWing.ClCritHigh + c.getBlkx().AFuselage * c.getBlkx().fuseClHigh * (c.getBlkx().FullFlapsWing.AoACritHigh / c.getBlkx().Fuselage.AoACritHigh);
+		double currentWeight = c.getBlkx().nofuelweight + sState.mfuel;
+
+		// 假设战雷的襟翼是线性的
+		// 单位换算: 3.6
+		stallSpeed = 3.6 * Math.sqrt((2 * currentWeight) / ((1 - flap / 100) * wingBodyLiftAreaLoad_NoFlap + (flap / 100) * wingBodyLiftAreaLoad_FullFlap));
 	}
 
 	double calcK(double x0, double y0, double x1, double y1) {
