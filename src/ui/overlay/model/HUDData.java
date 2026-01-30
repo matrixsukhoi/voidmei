@@ -63,6 +63,13 @@ public class HUDData {
     public final String maneuverStateStr;
     public final double aoaRatio; // Normalized AoA for bar (0.0 - 1.0+)
 
+    // Speed Bar Metrics
+    public final double speedBar_speedRatio;
+    public final double speedBar_stallRatio;
+    public final double speedBar_unitMachLimitRatio;
+    public final double speedBar_aileronLockRatio;
+    public final double speedBar_rudderLockRatio;
+
     public HUDData(Builder builder) {
         this.ias = builder.ias;
         this.mach = builder.mach;
@@ -105,6 +112,12 @@ public class HUDData {
         this.maneuverStateStr = builder.maneuverStateStr;
         this.aoaRatio = builder.aoaRatio;
         this.warnConfiguration = builder.warnConfiguration;
+
+        this.speedBar_speedRatio = builder.speedBar_speedRatio;
+        this.speedBar_stallRatio = builder.speedBar_stallRatio;
+        this.speedBar_unitMachLimitRatio = builder.speedBar_unitMachLimitRatio;
+        this.speedBar_aileronLockRatio = builder.speedBar_aileronLockRatio;
+        this.speedBar_rudderLockRatio = builder.speedBar_rudderLockRatio;
     }
 
     public static class Builder {
@@ -150,6 +163,13 @@ public class HUDData {
         public String maneuverStateStr = "";
         public boolean warnConfiguration;
         public double aoaRatio;
+
+        // Speed Ratio Bar metrics
+        public double speedBar_speedRatio;
+        public double speedBar_stallRatio;
+        public double speedBar_unitMachLimitRatio;
+        public double speedBar_aileronLockRatio;
+        public double speedBar_rudderLockRatio;
 
         public HUDData build() {
             return new HUDData(this);

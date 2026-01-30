@@ -113,5 +113,16 @@ public interface TelemetrySource {
 
     boolean isWingSweepValid();
 
+    // Speed Indicator & Limits
+    double getSpeedLimitRatio();
+
+    double getAileronLockRatio();
+
+    double getRudderLockRatio();
+
+    double getUnitMachLimitRatio();
+
+    double getStallSpeed();
+
     boolean isImperial();
 }

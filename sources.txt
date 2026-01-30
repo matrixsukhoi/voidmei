@@ -69,6 +69,7 @@ src/ui/component/AttitudeIndicatorGauge.java
 src/ui/component/LinearGauge.java
 src/ui/component/TextGauge.java
 src/ui/component/CrosshairGauge.java
+src/ui/component/SpeedRatioBar.java
 src/ui/component/HUDComponent.java
 src/ui/component/FlapAngleBar.java
 src/ui/component/row/HUDManeuverRow.java

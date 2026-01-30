@@ -102,6 +102,7 @@ public class MiniHUDOverlay extends BaseOverlay implements FlightDataListener {
 
     // Core state and geometry
     private Controller controller;
+    private ui.component.SpeedRatioBar speedRatioBar;
     private WebPanel panel;
 
     private Service service;
@@ -488,7 +489,11 @@ public class MiniHUDOverlay extends BaseOverlay implements FlightDataListener {
         // 0. Aux Overlays
         warningOverlay = new ui.component.WarningOverlay();
         flapAngleBar = new ui.component.FlapAngleBar();
-        components.add(flapAngleBar); // warningOverlay is not a HUDComponent? Check later. It draws directly.
+        components.add(flapAngleBar);
+
+        // New SpeedRatioBar
+        speedRatioBar = new ui.component.SpeedRatioBar();
+        components.add(speedRatioBar);
 
         // 1. Compass
         compassGauge = new ui.component.CompassGauge(ctx.roundCompass);
@@ -548,6 +553,15 @@ public class MiniHUDOverlay extends BaseOverlay implements FlightDataListener {
     private void applyStyleToComponents() {
         if (ctx == null)
             return;
+
+        if (speedRatioBar != null) {
+            // Width: similar to throttle bar or slightly thinner?
+            int w = (int) (ctx.hudFontSize * 0.25);
+            int h = (int) (ctx.hudFontSize * 5.5);
+            if (w < 6)
+                w = 6;
+            speedRatioBar.setSize(w, h);
+        }
 
         if (crosshairGauge != null) {
             if (hudSettings.useTextureCrosshair()) {
@@ -687,6 +701,13 @@ public class MiniHUDOverlay extends BaseOverlay implements FlightDataListener {
                 .setAnchors(ui.layout.Anchor.BOTTOM_LEFT, ui.layout.Anchor.BOTTOM_RIGHT);
         modernLayout.addNode(throttleNode);
 
+        // Rate Bar (SpeedRatioBar)
+        ui.layout.HUDLayoutNode speedBarNode = new ui.layout.HUDLayoutNode("speedBar", speedRatioBar);
+        speedBarNode.setParent(row4)
+                .setRelativePosition(2.6, 0.0)
+                .setAnchors(ui.layout.Anchor.BOTTOM_RIGHT, ui.layout.Anchor.BOTTOM_LEFT);
+        modernLayout.addNode(speedBarNode);
+
         // Crosshair (Independent, Center of Attention)
         if (hudSettings.isDisplayCrosshair()) {
             ui.layout.HUDLayoutNode crosshairNode = new ui.layout.HUDLayoutNode("crosshair", crosshairGauge);
@@ -696,12 +717,7 @@ public class MiniHUDOverlay extends BaseOverlay implements FlightDataListener {
         }
 
         // Force layout calculation to populate sortedNodes for logging
-        // Force layout calculation to populate sortedNodes for logging
         modernLayout.doLayout();
-
-        // Dynamic Sizing Implementation (Scheme 1 Revised for Negative Coords)
-        // Force layout calculation to populate sortedNodes for logging
-        // modernLayout.doLayout(); // applyAutoSizing calls doLayout internally
 
         // Dynamic Sizing Implementation (Generic)
         modernLayout.applyAutoSizing(this, LAYOUT_PADDING);

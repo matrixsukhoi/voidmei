@@ -243,6 +243,33 @@ public class HUDCalculator {
 
         b.warnConfiguration = inAction;
 
+        // --- Speed Ratio Bar Logic ---
+        b.speedBar_speedRatio = source.getSpeedLimitRatio();
+        b.speedBar_aileronLockRatio = source.getAileronLockRatio();
+        b.speedBar_rudderLockRatio = source.getRudderLockRatio();
+        b.speedBar_unitMachLimitRatio = source.getUnitMachLimitRatio();
+
+        // Calculate Stall Ratio
+        double currentLimit = 1.0;
+        // If we have valid speed ratio, derive the current limit (VNE or MachLimit_IAS)
+        if (b.speedBar_speedRatio > 0.0001 && b.ias > 1.0) {
+            currentLimit = b.ias / b.speedBar_speedRatio;
+        } else if (blkx != null && blkx.valid) {
+            // Fallback to static VNE
+            double vwing = 0;
+            if (source.isWingSweepValid()) {
+                vwing = source.getWingSweep();
+            }
+            currentLimit = blkx.getVNEVWing(vwing);
+        }
+
+        double stallSpeed = source.getStallSpeed();
+        if (currentLimit > 0.1) {
+            b.speedBar_stallRatio = stallSpeed / currentLimit;
+        } else {
+            b.speedBar_stallRatio = 0.0;
+        }
+
         return b.build();
     }
 

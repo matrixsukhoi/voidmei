@@ -1228,19 +1228,25 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 	}
 
 	public double stallSpeed;
+
 	public void updateStallSpeed() {
 		if (c.getBlkx() == null || !c.getBlkx().valid) {
 			return;
 		}
-		
+
 		// 主升力面积因数载荷
-		double wingBodyLiftAreaLoad_NoFlap = c.getBlkx().AWing * c.getBlkx().NoFlapsWing.ClCritHigh + c.getBlkx().AFuselage * c.getBlkx().fuseClHigh * (c.getBlkx().NoFlapsWing.AoACritHigh / c.getBlkx().Fuselage.AoACritHigh);
-		double wingBodyLiftAreaLoad_FullFlap = c.getBlkx().AWing * c.getBlkx().FullFlapsWing.ClCritHigh + c.getBlkx().AFuselage * c.getBlkx().fuseClHigh * (c.getBlkx().FullFlapsWing.AoACritHigh / c.getBlkx().Fuselage.AoACritHigh);
+		double wingBodyLiftAreaLoad_NoFlap = c.getBlkx().AWing * c.getBlkx().NoFlapsWing.ClCritHigh
+				+ c.getBlkx().AFuselage * c.getBlkx().fuseClHigh
+						* (c.getBlkx().NoFlapsWing.AoACritHigh / c.getBlkx().Fuselage.AoACritHigh);
+		double wingBodyLiftAreaLoad_FullFlap = c.getBlkx().AWing * c.getBlkx().FullFlapsWing.ClCritHigh
+				+ c.getBlkx().AFuselage * c.getBlkx().fuseClHigh
+						* (c.getBlkx().FullFlapsWing.AoACritHigh / c.getBlkx().Fuselage.AoACritHigh);
 		double currentWeight = c.getBlkx().nofuelweight + sState.mfuel;
 
 		// 假设战雷的襟翼是线性的
 		// 单位换算: 3.6
-		stallSpeed = 3.6 * Math.sqrt((2 * currentWeight) / ((1 - flap / 100) * wingBodyLiftAreaLoad_NoFlap + (flap / 100) * wingBodyLiftAreaLoad_FullFlap));
+		stallSpeed = 3.6 * Math.sqrt((2 * currentWeight)
+				/ ((1 - flap / 100) * wingBodyLiftAreaLoad_NoFlap + (flap / 100) * wingBodyLiftAreaLoad_FullFlap));
 	}
 
 	double calcK(double x0, double y0, double x1, double y1) {
@@ -2008,5 +2014,30 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 	@Override
 	public boolean isWingSweepValid() {
 		return sIndic != null && sIndic.wsweep_indicator != -65535;
+	}
+
+	@Override
+	public double getSpeedLimitRatio() {
+		return speedLimitRatio;
+	}
+
+	@Override
+	public double getAileronLockRatio() {
+		return aileronLockRatio;
+	}
+
+	@Override
+	public double getRudderLockRatio() {
+		return rudderLockRatio;
+	}
+
+	@Override
+	public double getUnitMachLimitRatio() {
+		return unitMachLimitRatio;
+	}
+
+	@Override
+	public double getStallSpeed() {
+		return stallSpeed;
 	}
 }
