@@ -1184,6 +1184,7 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 	public double speedLimitRatio;
 	public double aileronLockRatio;
 	public double rudderLockRatio;
+	public double unitMachLimitRatio; // 单位马赫数限制比值
 
 	public void updateSpeedRatio() {
 		if (c.getBlkx() == null || !c.getBlkx().valid) {
@@ -1208,16 +1209,21 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 		// 1. 计算速度比值
 		double iasRatio = ias / iasLimit;
 		double machRatio = mach / machLimit;
-		// 2. 计算更大的速度. mach为0时一定能够会走if分支.
+		// 2. 计算更大的速度
+		double iasPerMach = 0;
+		if (mach != 0) {
+			iasPerMach = ias / mach;
+		}
 		if (iasRatio >= machRatio) {
 			speedLimitRatio = iasRatio;
 			aileronLockRatio = aileronLockSpeed / iasLimit;
 			rudderLockRatio = rudderLockSpeed / iasLimit;
+			unitMachLimitRatio = iasPerMach / iasLimit;
 		} else {
 			speedLimitRatio = machRatio;
-			double c = ias / mach;
-			aileronLockRatio = aileronLockSpeed / (machLimit * c);
-			rudderLockRatio = rudderLockSpeed / (machLimit * c);
+			aileronLockRatio = aileronLockSpeed / (machLimit * iasPerMach);
+			rudderLockRatio = rudderLockSpeed / (machLimit * iasPerMach);
+			unitMachLimitRatio = 1 / machLimit;
 		}
 	}
 
