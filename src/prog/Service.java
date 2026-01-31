@@ -1174,6 +1174,7 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 		getMaximumRPM();
 
 		// 计算速度与临界速度比值
+		updateStallSpeed();
 		updateSpeedRatio();
 
 		// TODO:升力阻力实时计算
@@ -1753,6 +1754,9 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 
 	@Override
 	public double getMach() {
+		if (sIndic != null && sIndic.mach != -65535) {
+			return sIndic.mach;
+		}
 		return sState != null ? sState.M : 0;
 	}
 

@@ -46,7 +46,6 @@ public class State {
 	public int airbrake;
 	public double totalThr;
 	public int throttles[];
-	// 临时变量
 
 	public void init() {
 		// System.out.println("state初始化了");
@@ -57,7 +56,6 @@ public class State {
 		thrust = new int[maxEngNum];
 		efficiency = new double[maxEngNum];
 		engineNum = 0;
-
 		airbrake = 0;
 	}
 

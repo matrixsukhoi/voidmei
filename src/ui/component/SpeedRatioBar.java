@@ -1,7 +1,6 @@
 package ui.component;
 
 import java.awt.BasicStroke;
-import java.awt.Color;
 import java.awt.Graphics2D;
 
 import prog.Application;
@@ -30,14 +29,6 @@ public class SpeedRatioBar extends AbstractHUDComponent {
     private double unitMachRatio = 0;
     private double aileronLockRatio = 0;
     private double rudderLockRatio = 0;
-
-    // Strokes
-    private BasicStroke tickStroke = new BasicStroke(4);
-
-    private Color colorSafe = new Color(0, 255, 0); // Green
-    private Color colorRemaining = new Color(0, 100, 255); // Blue
-    private Color colorDanger = new Color(255, 0, 0); // Red
-    private Color colorLock = new Color(0, 200, 255); // Light Blue for locks
 
     public SpeedRatioBar() {
     }
@@ -75,81 +66,76 @@ public class SpeedRatioBar extends AbstractHUDComponent {
         // Value 0 is at Bottom (y + height).
         // Value 1 is at Top (y).
 
-        // 0. Ticks (Draw FIRST so they are behind the bar fills)
-        // No stroke needed for rects, but reset default
         g2d.setStroke(new BasicStroke(1));
 
-        // Unit Mach (Red Line)
-        if (unitMachRatio > 0 && unitMachRatio <= 1.0) {
-            int machY = y + height - (int) (height * unitMachRatio);
-            g2d.setColor(colorDanger);
-            // Height 4px centered
-            g2d.fillRect(x, machY - 2, width, 4);
-            // Border
-            g2d.setColor(Application.colorShadeShape);
-            g2d.drawRect(x, machY - 2, width, 4);
-        }
-
-        // Lock Ratios (Blue Ticks)
-        // Aileron (Left Tick)
-        if (aileronLockRatio > 0 && aileronLockRatio <= 1.0) {
-            int lockY = y + height - (int) (height * aileronLockRatio);
-            // Draw tick on Left Edge: x-6 to x+2 -> Width = 8
+        // 1. Aileron Lock Tick (Left) - drawn BEFORE bar so it gets partially covered
+        if (aileronLockRatio > 0 && aileronLockRatio < 1.0) {
+            int lockY = y + height - Math.round((float) (height * aileronLockRatio));
             int tX = x - 6;
             int tY = lockY - 2;
             int tW = 8;
             int tH = 4;
 
-            g2d.setColor(colorLock);
+            g2d.setColor(Application.colorNum);
             g2d.fillRect(tX, tY, tW, tH);
             g2d.setColor(Application.colorShadeShape);
             g2d.drawRect(tX, tY, tW, tH);
         }
 
-        // Rudder (Right Tick)
-        if (rudderLockRatio > 0 && rudderLockRatio <= 1.0) {
-            int lockY = y + height - (int) (height * rudderLockRatio);
-            // Draw tick on Right Edge: x + width - 2 to x + width + 6
-            // Start x + width - 2. Width = 8.
+        // 2. Rudder Lock Tick (Right) - drawn BEFORE bar so it gets partially covered
+        if (rudderLockRatio > 0 && rudderLockRatio < 1.0) {
+            int lockY = y + height - Math.round((float) (height * rudderLockRatio));
             int tX = x + width - 2;
             int tY = lockY - 2;
             int tW = 8;
             int tH = 4;
 
-            g2d.setColor(colorLock);
+            g2d.setColor(Application.colorNum);
             g2d.fillRect(tX, tY, tW, tH);
             g2d.setColor(Application.colorShadeShape);
             g2d.drawRect(tX, tY, tW, tH);
         }
 
-        // 1. Background (Blue - Remaining part)
-        // Cleanest: Fill Full Blue first (Background)
-        g2d.setColor(colorRemaining);
+        // 3. Background (Blue - Remaining part from speedRatio to top)
+        g2d.setColor(Application.colorNum);
         g2d.fillRect(x, y, width, height);
 
-        // 2. Green Bar (Current Speed)
-        // From Bottom (y+height) up to Ratio.
-        int greenH = (int) (height * clamp(speedRatio));
+        // 4. Green Bar (Current Speed) - from bottom to speedRatio
+        int greenH = Math.round((float) (height * clamp(speedRatio)));
         if (greenH > 0) {
-            g2d.setColor(colorSafe);
-            // x, y_top, w, h
-            // y_top = (y+height) - greenH
+            g2d.setColor(Application.colorShadeShape);
             g2d.fillRect(x, y + height - greenH, width, greenH);
         }
 
-        // 3. Red Zone (Stall) -> 1/3 Width, Bottom Left?
-        int stallH = (int) (height * clamp(stallRatio));
+        // 5. Red Zone (Stall) - right side 1/2 width, overlays bar
+        int stallH = Math.round((float) (height * clamp(stallRatio)));
         if (stallH > 0) {
-            g2d.setColor(colorDanger);
-            int stallW = width / 3;
+            g2d.setColor(Application.colorWarning);
+            int stallW = width / 2;
             if (stallW < 2)
-                stallW = 2; // Min width
-            // Draw at Bottom-Left (or Center?)
-            // Usually stall strip is on the side. Let's place it Left.
-            g2d.fillRect(x, y + height - stallH, stallW, stallH);
+                stallW = 2;
+            // Draw at Bottom-Right (right side 1/2)
+            g2d.fillRect(x + width - stallW, y + height - stallH, stallW, stallH);
         }
 
-        // 4. Frame/Border (Optional, but looks better)
+        // 6. Unit Mach Red Line - overlays bar, extends beyond bar edges
+        if (unitMachRatio > 0 && unitMachRatio < 1.0) {
+            int machY = y + height - Math.round((float) (height * unitMachRatio));
+            g2d.setColor(Application.colorWarning);
+            // Extends 4px beyond bar on each side
+            // g2d.fillRect(x - 4, machY - 2, width + 8, 4);
+            g2d.fillRect(x, machY - 2, width, 2);
+        }
+
+        // 6. Unit Mach Red Line - overlays bar, extends beyond bar edges
+        if (unitMachRatio > 0 && unitMachRatio < 1.0) {
+            int machY = y + height - Math.round((float) (height * unitMachRatio));
+            g2d.setColor(Application.colorWarning);
+            // Extends 4px beyond bar on each side
+            g2d.fillRect(x - 4, machY - 2, width + 8, 4);
+        }
+
+        // 7. Frame/Border
         g2d.setStroke(new BasicStroke(1));
         g2d.setColor(Application.colorShadeShape);
         g2d.drawRect(x, y, width, height);

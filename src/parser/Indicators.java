@@ -54,6 +54,7 @@ public class Indicators{
 	public double wsweep_indicator;
 	public double radio_altitude;
 	private String army;
+	public double mach; // 只有仪表盘上有mach仪表的飞机才有这个mach
 
 
 	public void init() {
@@ -63,6 +64,7 @@ public class Indicators{
 		fuel = new double[5];
 		flag = false;
 //		fuelpressure=false;
+		mach = 0.0;
 	}
 	
 	public void update(String buf) {
@@ -157,9 +159,7 @@ public class Indicators{
 			ammo_counter1=StringHelper.getDataFloat(StringHelper.getString(buf, "ammo_counter1"));
 			ammo_counter2=StringHelper.getDataFloat(StringHelper.getString(buf, "ammo_counter2"));
 			ammo_counter3=StringHelper.getDataFloat(StringHelper.getString(buf, "ammo_counter3"));
-			
-
-		
+			mach = StringHelper.getDataFloat(StringHelper.getString(buf, "mach"));
 		}
 		else{
 			type="No Cockpit";
