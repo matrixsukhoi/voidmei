@@ -1182,6 +1182,7 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 
 	}
 
+	public double mach; // 精准mach, 精度高于state.mach, 小于indicators.mach, 不过只有部分飞机有indicators.mach
 	public double speedLimitRatio;
 	public double aileronLockRatio;
 	public double rudderLockRatio;
@@ -1201,21 +1202,21 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 		}
 
 		double ias = getIAS();
-		double mach = getMach();
+		// double mach = getMach(); 战雷的mach是小数点后两位的, 有很大的误差, 我们根据地球大气模型手动计算
 		double iasLimit = c.getBlkx().getVNEVWing(wingSweep);
 		double machLimit = c.getBlkx().getMNEVWing(wingSweep);
 		double aileronLockSpeed = c.getBlkx().aileronEff;
 		double rudderLockSpeed = c.getBlkx().rudderEff;
+		
+		// 1. 根据地球大气模型计算mach
+		double iasPerMach = 3.6 * Math.sqrt(1.4 / 1.225 * 101325 * Math.pow((1 - 0.0000225577 * sState.heightm), 5.25588));
+		mach = ias / iasPerMach;
 
-		// 1. 计算速度比值
+		// 2. 计算速度比值
 		double iasRatio = ias / iasLimit;
 		double machRatio = mach / machLimit;
-		// 2. 计算更大的速度
-		double iasPerMach = 0;
-		if (mach != 0) {
-			iasPerMach = ias / mach;
-		}
-		if (iasRatio >= machRatio) {
+		// 3. 计算更大的速度
+		if (iasPerMach == 0 || iasRatio >= machRatio) {
 			speedLimitRatio = iasRatio;
 			aileronLockRatio = aileronLockSpeed / iasLimit;
 			rudderLockRatio = rudderLockSpeed / iasLimit;
@@ -1755,10 +1756,7 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 
 	@Override
 	public double getMach() {
-		if (sIndic != null && sIndic.mach != -65535) {
-			return sIndic.mach;
-		}
-		return sState != null ? sState.M : 0;
+		return mach;
 	}
 
 	@Override
