@@ -234,8 +234,10 @@ public class Lang {
 	// Config Manager i18n
 	public static String mConfigErrorTitle;
 	public static String mConfigErrorContent;
-	public static String mConfigUpgradedTitle;
-	public static String mConfigUpgraded;
+	public static String mConfigMergedTitle;
+	public static String mMergeAddedPanels;
+	public static String mMergeAddedItems;
+	public static String mMergeUpdatedItems;
 	public static String mImportConfigTitle;
 	public static String mImportConfirmTitle;
 	public static String mImportConfirmContent;
@@ -826,8 +828,10 @@ public class Lang {
 		// Config Manager i18n
 		mConfigErrorTitle = updateLanguage("mConfigErrorTitle", "配置错误");
 		mConfigErrorContent = updateLanguage("mConfigErrorContent", "用户配置文件解析失败，将临时使用默认配置。\n请检查 ui_layout.user.cfg 文件是否损坏。");
-		mConfigUpgradedTitle = updateLanguage("mConfigUpgradedTitle", "配置已升级");
-		mConfigUpgraded = updateLanguage("mConfigUpgraded", "配置已从 %s 升级到 %s");
+		mConfigMergedTitle = updateLanguage("mConfigMergedTitle", "配置已更新");
+		mMergeAddedPanels = updateLanguage("mMergeAddedPanels", "新增面板:");
+		mMergeAddedItems = updateLanguage("mMergeAddedItems", "新增配置项:");
+		mMergeUpdatedItems = updateLanguage("mMergeUpdatedItems", "更新配置项:");
 		mImportConfigTitle = updateLanguage("mImportConfigTitle", "选择配置文件");
 		mImportConfirmTitle = updateLanguage("mImportConfirmTitle", "确认导入");
 		mImportConfirmContent = updateLanguage("mImportConfirmContent", "确定要导入此配置文件吗？\n当前配置将被备份到 ui_layout.user.cfg.bak");

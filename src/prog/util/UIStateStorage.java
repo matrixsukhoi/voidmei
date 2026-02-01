@@ -87,6 +87,7 @@ public class UIStateStorage {
 
     private static final String KEY_WINDOW_X = "mainFormX";
     private static final String KEY_WINDOW_Y = "mainFormY";
+    private static final String KEY_TEMPLATE_HASH = "templateConfigHash";
 
     // ... existing code ...
 
@@ -128,6 +129,42 @@ public class UIStateStorage {
             props.store(out, "UI State for VoidMei");
         } catch (IOException e) {
             Logger.info("UIStateStorage", "Failed to save window position: " + e.getMessage());
+        }
+    }
+
+    public static String loadTemplateHash() {
+        Properties props = new Properties();
+        File file = getConfigFile();
+        if (file.exists()) {
+            try (FileInputStream in = new FileInputStream(file)) {
+                props.load(in);
+                return props.getProperty(KEY_TEMPLATE_HASH);
+            } catch (Exception e) {
+                Logger.info("UIStateStorage", "Failed to load template hash: " + e.getMessage());
+            }
+        }
+        return null;
+    }
+
+    public static void saveTemplateHash(String hash) {
+        Properties props = new Properties();
+        File file = getConfigFile();
+
+        // Load existing to preserve other keys
+        if (file.exists()) {
+            try (FileInputStream in = new FileInputStream(file)) {
+                props.load(in);
+            } catch (IOException e) {
+                // Ignore
+            }
+        }
+
+        props.setProperty(KEY_TEMPLATE_HASH, hash);
+
+        try (FileOutputStream out = new FileOutputStream(file)) {
+            props.store(out, "UI State for VoidMei");
+        } catch (IOException e) {
+            Logger.info("UIStateStorage", "Failed to save template hash: " + e.getMessage());
         }
     }
 }

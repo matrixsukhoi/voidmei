@@ -3,7 +3,9 @@ package prog.config;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -13,9 +15,10 @@ import prog.config.ConfigLoader.GroupConfig;
 import prog.config.ConfigLoader.RowConfig;
 import prog.i18n.Lang;
 import prog.util.Logger;
+import prog.util.UIStateStorage;
 
 /**
- * Manages dual-file configuration strategy with version detection and automatic merging.
+ * Manages dual-file configuration strategy with template hash detection and automatic merging.
  *
  * File responsibilities:
  * - ui_layout.cfg: Read-only template distributed with the program
@@ -29,7 +32,20 @@ public class ConfigManager {
     private static final String BACKUP_PATH = "./ui_layout.user.cfg.bak";
 
     /**
-     * Initializes configuration by handling first-run, version upgrade, or parse errors.
+     * Records details about what was merged during a config merge operation.
+     */
+    public static class MergeReport {
+        public List<String> addedPanels = new ArrayList<>();
+        public List<String> addedItems = new ArrayList<>();
+        public List<String> updatedItems = new ArrayList<>();
+
+        public boolean hasChanges() {
+            return !addedPanels.isEmpty() || !addedItems.isEmpty() || !updatedItems.isEmpty();
+        }
+    }
+
+    /**
+     * Initializes configuration by handling first-run, template change detection, or parse errors.
      *
      * @return List of GroupConfig to use for the application
      */
@@ -43,15 +59,16 @@ public class ConfigManager {
             return new ArrayList<>();
         }
 
+        // Calculate template file hash
+        String currentTemplateHash = calculateFileHash(TEMPLATE_PATH);
+
         // Scenario: First run - user config doesn't exist
         if (!userFile.exists()) {
             Logger.info("ConfigManager", "First run detected, copying template to user config");
-            try {
-                Files.copy(templateFile.toPath(), userFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-            } catch (IOException e) {
-                Logger.error("ConfigManager", "Failed to copy template: " + e.getMessage());
-            }
-            return ConfigLoader.loadConfig(USER_PATH);
+            List<GroupConfig> configs = ConfigLoader.loadConfig(TEMPLATE_PATH);
+            ConfigLoader.saveConfig(USER_PATH, configs);
+            UIStateStorage.saveTemplateHash(currentTemplateHash);
+            return configs;
         }
 
         // Try to load user config
@@ -65,96 +82,70 @@ public class ConfigManager {
             return ConfigLoader.loadConfig(TEMPLATE_PATH);
         }
 
-        // Load template for version comparison
+        // Read stored hash from UIStateStorage
+        String storedHash = UIStateStorage.loadTemplateHash();
+
+        // Hash matches - no merge needed
+        if (currentTemplateHash != null && currentTemplateHash.equals(storedHash)) {
+            Logger.info("ConfigManager", String.format("Template unchanged, skipping merge, %s == %s", currentTemplateHash, storedHash));
+            return userConfigs;
+        }
+
+        // Hash differs or missing - perform merge
+        Logger.info("ConfigManager", "Template changed, merging configs");
+        createBackup();
+
         List<GroupConfig> templateConfigs = ConfigLoader.loadConfig(TEMPLATE_PATH);
 
-        // Check if upgrade is needed
-        if (needsUpgrade(userConfigs, templateConfigs)) {
-            Logger.info("ConfigManager", "Version upgrade detected, merging configs");
-            createBackup();
+        MergeReport report = new MergeReport();
+        List<GroupConfig> merged = mergeConfigs(templateConfigs, userConfigs, report);
 
-            String oldVersion = getMaxVersion(userConfigs);
-            String newVersion = getMaxVersion(templateConfigs);
+        ConfigLoader.saveConfig(USER_PATH, merged);
+        UIStateStorage.saveTemplateHash(currentTemplateHash);
 
-            List<GroupConfig> merged = mergeConfigs(templateConfigs, userConfigs);
-            ConfigLoader.saveConfig(USER_PATH, merged);
-
-            showUpgradeNotification(oldVersion, newVersion);
-            return merged;
+        if (report.hasChanges()) {
+            showMergeReport(report);
         }
 
-        return userConfigs;
+        return merged;
     }
 
     /**
-     * Checks if user config needs upgrade by comparing versions.
-     */
-    private static boolean needsUpgrade(List<GroupConfig> userConfigs, List<GroupConfig> templateConfigs) {
-        String userMaxVersion = getMaxVersion(userConfigs);
-        String templateMaxVersion = getMaxVersion(templateConfigs);
-
-        return compareVersions(userMaxVersion, templateMaxVersion) < 0;
-    }
-
-    /**
-     * Gets the maximum version string from all panels.
-     */
-    private static String getMaxVersion(List<GroupConfig> configs) {
-        String maxVersion = "0.0.0";
-        for (GroupConfig gc : configs) {
-            if (gc.cfgVersion != null && !gc.cfgVersion.isEmpty()) {
-                if (compareVersions(gc.cfgVersion, maxVersion) > 0) {
-                    maxVersion = gc.cfgVersion;
-                }
-            }
-        }
-        return maxVersion;
-    }
-
-    /**
-     * Compares two version strings (semantic versioning: x.y.z).
+     * Calculates the MD5 hash of a file.
      *
-     * @return negative if v1 < v2, 0 if equal, positive if v1 > v2
+     * @param filePath Path to the file
+     * @return Hex string of the MD5 hash, or null on error
      */
-    private static int compareVersions(String v1, String v2) {
-        if (v1 == null || v1.isEmpty()) v1 = "0.0.0";
-        if (v2 == null || v2.isEmpty()) v2 = "0.0.0";
-
-        String[] parts1 = v1.split("\\.");
-        String[] parts2 = v2.split("\\.");
-
-        int maxLen = Math.max(parts1.length, parts2.length);
-        for (int i = 0; i < maxLen; i++) {
-            int num1 = (i < parts1.length) ? parseIntSafe(parts1[i]) : 0;
-            int num2 = (i < parts2.length) ? parseIntSafe(parts2[i]) : 0;
-            if (num1 != num2) {
-                return num1 - num2;
-            }
-        }
-        return 0;
-    }
-
-    private static int parseIntSafe(String s) {
+    private static String calculateFileHash(String filePath) {
         try {
-            return Integer.parseInt(s.trim());
-        } catch (NumberFormatException e) {
-            return 0;
+            MessageDigest md = MessageDigest.getInstance("MD5");
+            byte[] content = Files.readAllBytes(Paths.get(filePath));
+            byte[] hash = md.digest(content);
+            StringBuilder sb = new StringBuilder();
+            for (byte b : hash) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
+        } catch (Exception e) {
+            Logger.error("ConfigManager", "Failed to calculate file hash: " + e.getMessage());
+            return null;
         }
     }
 
     /**
-     * Merges template and user configs.
+     * Merges template and user configs, recording changes in the report.
      *
      * Merge rules by field type:
-     * - x, y, alpha, visible, value: Preserve user settings
-     * - cfgVersion, columns, desc, format: Use template (latest definition)
+     * - x, y, alpha, visible, value, hotkey: Preserve user settings
+     * - columns, desc, format: Use template (latest definition)
      * - New config items: Insert with default values from template
      *
      * @param template The template configuration (source of truth for structure)
      * @param user The user configuration (source of truth for user values)
+     * @param report Records what was merged (can be null for silent merge)
      * @return Merged configuration
      */
-    public static List<GroupConfig> mergeConfigs(List<GroupConfig> template, List<GroupConfig> user) {
+    public static List<GroupConfig> mergeConfigs(List<GroupConfig> template, List<GroupConfig> user, MergeReport report) {
         // Build map of user panels by title
         Map<String, GroupConfig> userPanelMap = new HashMap<>();
         for (GroupConfig gc : user) {
@@ -170,9 +161,12 @@ public class ConfigManager {
                 // New panel in template - use template as-is
                 merged.add(templatePanel);
                 Logger.info("ConfigManager", "Added new panel: " + templatePanel.title);
+                if (report != null) {
+                    report.addedPanels.add(templatePanel.title);
+                }
             } else {
                 // Merge existing panel
-                GroupConfig mergedPanel = mergePanel(templatePanel, userPanel);
+                GroupConfig mergedPanel = mergePanel(templatePanel, userPanel, report);
                 merged.add(mergedPanel);
             }
         }
@@ -181,9 +175,16 @@ public class ConfigManager {
     }
 
     /**
+     * Overload for backward compatibility (import, etc.) where no report is needed.
+     */
+    public static List<GroupConfig> mergeConfigs(List<GroupConfig> template, List<GroupConfig> user) {
+        return mergeConfigs(template, user, null);
+    }
+
+    /**
      * Merges a single panel from template and user.
      */
-    private static GroupConfig mergePanel(GroupConfig template, GroupConfig user) {
+    private static GroupConfig mergePanel(GroupConfig template, GroupConfig user, MergeReport report) {
         GroupConfig merged = new GroupConfig(template.title);
 
         // User-preserved fields
@@ -193,7 +194,6 @@ public class ConfigManager {
         merged.visible = user.visible;
 
         // Template fields (structure)
-        merged.cfgVersion = template.cfgVersion;
         merged.columns = template.columns;
         merged.panelColumns = template.panelColumns;
         merged.fontName = template.fontName;
@@ -201,16 +201,20 @@ public class ConfigManager {
         merged.hotkey = user.hotkey; // Preserve user hotkey
         merged.switchKey = template.switchKey;
 
-        // Merge rows
-        merged.rows = mergeRows(template.rows, user.rows);
+        // Merge rows (pass panel title for report context)
+        merged.rows = mergeRows(template.rows, user.rows, template.title, template.title, report);
 
         return merged;
     }
 
     /**
      * Merges row configurations recursively.
+     *
+     * @param panelTitle The panel title (for report display context)
+     * @param groupPath Current path in hierarchy (e.g. "MiniHUD" or "MiniHUD/hud面板设置")
      */
-    private static List<RowConfig> mergeRows(List<RowConfig> templateRows, List<RowConfig> userRows) {
+    private static List<RowConfig> mergeRows(List<RowConfig> templateRows, List<RowConfig> userRows,
+                                              String panelTitle, String groupPath, MergeReport report) {
         // Build map of user rows by property/target
         Map<String, RowConfig> userRowMap = new HashMap<>();
         buildRowMap(userRows, userRowMap);
@@ -225,9 +229,13 @@ public class ConfigManager {
                 // New row in template - use template as-is
                 merged.add(templateRow);
                 Logger.info("ConfigManager", "Added new config item: " + key);
+                if (report != null) {
+                    String displayName = templateRow.label;
+                    report.addedItems.add(panelTitle + ": " + displayName);
+                }
             } else {
                 // Merge existing row
-                RowConfig mergedRow = mergeRow(templateRow, userRow);
+                RowConfig mergedRow = mergeRow(templateRow, userRow, panelTitle, report);
                 merged.add(mergedRow);
             }
         }
@@ -264,7 +272,7 @@ public class ConfigManager {
     /**
      * Merges a single row from template and user.
      */
-    private static RowConfig mergeRow(RowConfig template, RowConfig user) {
+    private static RowConfig mergeRow(RowConfig template, RowConfig user, String panelTitle, MergeReport report) {
         RowConfig merged = new RowConfig(template.label, template.formula, template.format);
 
         // Template fields (structure/definition)
@@ -287,10 +295,11 @@ public class ConfigManager {
         // User-preserved fields
         merged.value = user.value;
 
-        // Merge children recursively
+        // Merge children recursively (pass report through for nested items)
         if (template.children != null && !template.children.isEmpty()) {
             merged.children = mergeRows(template.children,
-                user.children != null ? user.children : new ArrayList<>());
+                user.children != null ? user.children : new ArrayList<>(),
+                panelTitle, panelTitle + "/" + template.label, report);
         }
 
         return merged;
@@ -411,17 +420,41 @@ public class ConfigManager {
     }
 
     /**
-     * Shows a notification when config is upgraded.
+     * Shows a detailed merge report dialog listing what was added/updated.
      */
-    private static void showUpgradeNotification(String oldVersion, String newVersion) {
-        String message = String.format(Lang.mConfigUpgraded, oldVersion, newVersion);
-        Logger.info("ConfigManager", message);
-        // Optionally show UI notification
+    private static void showMergeReport(MergeReport report) {
+        StringBuilder sb = new StringBuilder();
+
+        if (!report.addedPanels.isEmpty()) {
+            sb.append(Lang.mMergeAddedPanels).append("\n");
+            for (String panel : report.addedPanels) {
+                sb.append("  \u2022 ").append(panel).append("\n");
+            }
+            sb.append("\n");
+        }
+
+        if (!report.addedItems.isEmpty()) {
+            sb.append(Lang.mMergeAddedItems).append("\n");
+            for (String item : report.addedItems) {
+                sb.append("  \u2022 ").append(item).append("\n");
+            }
+            sb.append("\n");
+        }
+
+        if (!report.updatedItems.isEmpty()) {
+            sb.append(Lang.mMergeUpdatedItems).append("\n");
+            for (String item : report.updatedItems) {
+                sb.append("  \u2022 ").append(item).append("\n");
+            }
+        }
+
+        String message = sb.toString().trim();
+        Logger.info("ConfigManager", "Merge report:\n" + message);
+
         javax.swing.SwingUtilities.invokeLater(() -> {
             com.alee.laf.optionpane.WebOptionPane.showMessageDialog(
-                null,
-                message,
-                Lang.mConfigUpgradedTitle,
+                null, message,
+                Lang.mConfigMergedTitle,
                 com.alee.laf.optionpane.WebOptionPane.INFORMATION_MESSAGE
             );
         });
