@@ -1248,8 +1248,12 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 		// 假设战雷的襟翼是线性的
 		// 单位换算: 3.6
 		// 单位制混用: 1 / 1.225
-		stallSpeed = 3.6 * Math.sqrt(1 / 1.225 * g * (2 * currentWeight)
-				/ ((1 - flap / 100) * wingBodyLiftAreaLoad_NoFlap + (flap / 100) * wingBodyLiftAreaLoad_FullFlap));
+		// stallSpeed = 3.6 * Math.sqrt(1 / 1.225 * g * (2 * currentWeight)
+		// 		/ ((1 - flap / 100) * wingBodyLiftAreaLoad_NoFlap + (flap / 100) * wingBodyLiftAreaLoad_FullFlap));
+		
+		double flapFactor = flap / 100.0; 
+		double totalLiftArea = (1.0 - flapFactor) * wingBodyLiftAreaLoad_NoFlap + flapFactor * wingBodyLiftAreaLoad_FullFlap;
+		stallSpeed = 3.6 * Math.sqrt((2.0 * currentWeight * g) / (1.225 * totalLiftArea));
 	}
 
 	double calcK(double x0, double y0, double x1, double y1) {
