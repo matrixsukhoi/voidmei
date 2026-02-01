@@ -196,9 +196,9 @@ public class HUDCalculator {
 
         String sepPre = settings.isSEPLabelDisabled() ? "" : "SEP";
         if (b.verticalSpeed > 0) {
-            b.sepStr = String.format("%s↑%4.0f", sepPre, b.verticalSpeed);
+            b.sepStr = String.format("%s↑%-4.0f", sepPre, b.verticalSpeed);
         } else {
-            b.sepStr = String.format("%s↓%4.0f", sepPre, b.verticalSpeed);
+            b.sepStr = String.format("%s↓%-4.0f", sepPre, b.verticalSpeed);
         }
 
         // Maneuver / Time

@@ -184,7 +184,7 @@ public class MiniHUDOverlay extends BaseOverlay implements FlightDataListener {
             lines[0] = spdPre + String.format("%5s", "360");
         }
         lines[1] = altPre + String.format("%5s", "1024");
-        lines[3] = sepPre + String.format("%5s", "30");
+        lines[3] = sepPre + String.format("↑%-4s", "30");
         lines[4] = "G" + String.format("%5s", "2.0");
         if (hudSettings.enableFlapAngleBar()) {
             lines[2] = String.format("%4s", "");

@@ -458,7 +458,7 @@ public class ControlSurfacesOverlay extends DraggableOverlay implements FlightDa
 				int aileronVal = (int) aileron;
 				int elevatorVal = (int) elevator;
 				int rudderVal = (int) rudder;
-				int wsVal = (int) (wingSweep * 100);
+				int wsVal = xs.isWingSweepValid() ? (int) (wingSweep * 100) : 0;
 
 				px = (100 + aileronVal) * width / 200;
 				py = (100 + elevatorVal) * width / 200;
