@@ -15,6 +15,6 @@ public class HUDFlapsRow extends HUDTextRow {
     public void onDataUpdate(ui.overlay.model.HUDData data) {
         if (data == null)
             return;
-        this.update(data.flapsStr, data.warnConfiguration);
+        this.update(data.mechanizationStr, data.warnConfiguration);
     }
 }
