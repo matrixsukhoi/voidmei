@@ -8,6 +8,7 @@ import java.awt.Graphics2D;
 
 import java.awt.RenderingHints;
 import java.awt.Toolkit;
+import java.util.function.Consumer;
 import com.alee.laf.panel.WebPanel;
 import ui.base.DraggableOverlay;
 
@@ -15,7 +16,10 @@ import parser.Blkx;
 import parser.FlightAnalyzer;
 import prog.Application;
 import prog.Controller;
+import prog.event.UIStateBus;
+import prog.event.UIStateEvents;
 import prog.i18n.Lang;
+import prog.util.Logger;
 
 public class DrawFrameSimpl extends DraggableOverlay {
 	/**
@@ -37,6 +41,10 @@ public class DrawFrameSimpl extends DraggableOverlay {
 	public void dispose() {
 		prog.util.Logger.info("Overlay",
 				"Disposing instance: " + this.getClass().getSimpleName() + "@" + Integer.toHexString(hashCode()));
+		if (toggleHandler != null) {
+			UIStateBus.getInstance().unsubscribe(UIStateEvents.FM_OVERLAY_TOGGLE, toggleHandler);
+			toggleHandler = null;
+		}
 		super.dispose();
 	}
 
@@ -49,6 +57,10 @@ public class DrawFrameSimpl extends DraggableOverlay {
 	double fY[];
 	double fX[];
 	public boolean isPreview = false;
+
+	// Self-managed visibility state
+	private boolean visible = true;
+	private Consumer<Object> toggleHandler;
 
 	void paintAction(Graphics g, Blkx fmblk) {
 		Graphics2D g2d = (Graphics2D) g;
@@ -477,9 +489,23 @@ public class DrawFrameSimpl extends DraggableOverlay {
 	}
 
 	public void init(Controller c) {
-		// 特殊处理
+		Logger.info("DrawFrameSimpl", "Initializing for game mode");
 		xc = c;
 		Blkx = xc.getBlkx();
+		isPreview = false;
+
+		// Game mode: initially hidden
+		this.visible = false;
+
+		// Subscribe to toggle event
+		toggleHandler = data -> {
+			this.visible = !this.visible;
+			Logger.debug("DrawFrameSimpl", "Toggled visible: " + visible);
+		};
+		UIStateBus.getInstance().subscribe(UIStateEvents.FM_OVERLAY_TOGGLE, toggleHandler);
+
+		Logger.info("DrawFrameSimpl", "Game mode visibility initialized (visible=" + visible + ")");
+
 		// 获得x和y
 
 		setFrameOpaque();
@@ -572,8 +598,88 @@ public class DrawFrameSimpl extends DraggableOverlay {
 	}
 
 	public void initPreview(Controller c) {
+		Logger.info("DrawFrameSimpl", "Initializing for preview mode");
 		isPreview = true;
-		init(c);
+
+		// Preview mode: always visible, no toggle subscription
+		this.visible = true;
+
+		xc = c;
+		Blkx = xc.getBlkx();
+
+		setFrameOpaque();
+
+		this.setBounds(0, Toolkit.getDefaultToolkit().getScreenSize().height - 500, 900, 500);
+
+		panel = new WebPanel() {
+
+			private static final long serialVersionUID = -9061280572815010060L;
+
+			public void paintComponent(Graphics g) {
+				Graphics2D g2d = (Graphics2D) g;
+				g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+				g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+
+				parser.Blkx b = xc.getBlkx();
+				if (b == null || b.velThrNum == 0) return;
+
+				double[] xn = new double[b.velThrNum];
+				for (int i = 0; i < b.velThrNum; i++) {
+					xn[i] = b.velocityThr[i];
+				}
+
+				double xmin = findMin(xn);
+				double xmax = findMax(xn);
+				double ymin = findMin(Blkx.maxThrAft[Blkx.altThrNum - 1]);
+				double ymax = findMax(Blkx.maxThrAft[0]);
+
+				xmin = (double) (((int) (xmin / 10)) * 10);
+				xmax = (double) ((int) (xmax / 10) * 10);
+				ymin = (double) (((int) (ymin / 10)) * 10);
+				ymax = (double) ((int) (ymax / 10) * 10);
+				int dwidth = 800;
+				int dheight = 400;
+				int xgap = Math.round((((int) xmax + 1 - (int) xmin) / 5) / 5.0f) * 5;
+				int ygap = Math.round((((int) ymax + 1 - (int) ymin) / 5) / 5.0f) * 5;
+				int pxmin = (int) xmin;
+				int pxmax = (int) xmax + xgap;
+				int pymin = (int) (ymin / 10) * 10;
+				int pymax = (int) (ymax / 10) * 10 + (int) (ygap / 10) * 10;
+				double ggx4 = 0;
+				double ggy4 = 0;
+				if (pxmax - pxmin != 0) {
+					ggx4 = (double) dwidth / (double) (pxmax - pxmin);
+				}
+				if (pymax - pymin != 0) {
+					ggy4 = (double) dheight / (double) (pymax - pymin);
+				}
+				int fontsize = 12;
+				int rgbx = (int) (255.0f / (Blkx.altThrNum + 1));
+				drawXY(g2d, 50, 50, dwidth, dheight, "推力-真空速曲线", "真空速", "推力", "km/h", "kgf", xmin, xmax, ymin, ymax,
+						xgap, ygap, fontsize);
+				for (int i = 0; i < Blkx.altThrNum; i++) {
+					drawPoint(g2d, 50, 50, dwidth, dheight, ggx4, ggy4, xn, Blkx.maxThrAft[i], pxmin, pymin,
+							new Color((i + 1) * rgbx, (i + 1) * rgbx, (i + 1) * rgbx, 250));
+
+					drawExample(g2d, dwidth - 40, 60 + i * fontsize - dheight, dheight,
+							new Color((i + 1) * rgbx, (i + 1) * rgbx, (i + 1) * rgbx, 250),
+							String.format("高度%.0fm", Blkx.altitudeThr[i]), fontsize);
+				}
+			}
+
+		};
+		initpanel();
+		panel.setLayout(null);
+		this.add(panel);
+		this.setShowMaximizeButton(false);
+		setShowWindowButtons(false);
+
+		setShowTitleComponent(false);
+		setShowResizeCorner(false);
+		setDefaultCloseOperation(2);
+		setTitle(Lang.dFTitleHZ);
+		setAlwaysOnTop(true);
+
 		setupDragListeners();
 		applyPreviewStyle();
 		this.setCursor(null);
@@ -595,14 +701,16 @@ public class DrawFrameSimpl extends DraggableOverlay {
 	@Override
 	public void run() {
 		while (doit) {
-
-			if (isPreview || Application.displayFm) {
+			// Self-managed visibility: preview always visible, game mode uses toggle state
+			boolean shouldShow = isPreview || visible;
+			if (shouldShow) {
 				this.setVisible(true);
 				this.getContentPane().repaint();
 			} else {
 				this.setVisible(false);
 			}
-			if (Application.displayFmCtrl) {
+			// 如果配置了热键，由用户手动控制显示/隐藏，不自动退出
+			if (Application.displayFmKey != 0) {
 				try {
 					Thread.sleep(1000);
 				} catch (InterruptedException e) {
@@ -622,6 +730,7 @@ public class DrawFrameSimpl extends DraggableOverlay {
 				}
 			}
 		}
+		Logger.info("DrawFrameSimpl", "Exiting run loop, disposing");
 		this.dispose();
 
 		System.gc();

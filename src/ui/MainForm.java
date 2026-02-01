@@ -254,8 +254,6 @@ public class MainForm extends WebFrame {
 		this.setVisible(false);
 		tc.State = prog.ControllerState.INIT;
 		tc.start();
-		// Show dynamic overlays for game mode, respecting hotkey hidden-at-start rule
-		tc.setDynamicOverlaysVisible(true, true);
 		// this.dispose();
 	}
 
@@ -356,7 +354,6 @@ public class MainForm extends WebFrame {
 		this.setShadeWidth(10);
 		// tc.Preview(); // Removed - driven by UI_READY event
 		moveCheckFlag = true;
-		// tc.setDynamicOverlaysVisible(true, false); // Removed - driven by UI_READY
 		// event
 
 		// Show frame only after all resizing is done to prevent jitter
@@ -403,9 +400,6 @@ public class MainForm extends WebFrame {
 			saveConfig();
 			tc.Preview();
 			moveCheckFlag = true;
-
-			// Show dynamic overlays for preview
-			tc.setDynamicOverlaysVisible(true, false); // In preview, show all regardless of hotkey
 		}
 	}
 
@@ -416,9 +410,6 @@ public class MainForm extends WebFrame {
 			prog.util.Logger.info("MainForm", "--------------------------------------------------");
 			tc.endPreview();
 			moveCheckFlag = false;
-
-			// Hide dynamic overlays
-			tc.setDynamicOverlaysVisible(false, false);
 		}
 	}
 

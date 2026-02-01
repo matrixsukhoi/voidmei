@@ -43,9 +43,7 @@ import javax.swing.SwingUtilities;
 import com.alee.global.StyleConstants;
 import com.alee.laf.WebLookAndFeel;
 import com.github.kwhat.jnativehook.GlobalScreen;
-import com.github.kwhat.jnativehook.NativeHookException;
 import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent;
-import com.github.kwhat.jnativehook.keyboard.NativeKeyListener;
 
 // import parser.StringHelper;
 
@@ -118,7 +116,6 @@ public class Application {
 	public static Controller ctr;
 
 	public static Boolean displayFm = true;
-	public static Boolean displayFmCtrl = false;
 	// 空鼠标指针
 	public static BufferedImage cursorImg = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
 	public static Cursor blankCursor = Toolkit.getDefaultToolkit().createCustomCursor(cursorImg, new Point(0, 0),
@@ -451,34 +448,6 @@ public class Application {
 		logger.setUseParentHandlers(false);
 	}
 
-	public static void addDisplayFmListener() {
-		silenceNativeHookLogger();
-
-		try {
-			GlobalScreen.registerNativeHook();
-		} catch (NativeHookException ex) {
-			debugPrint("There was a problem registering the native hook.");
-			debugPrint(ex.getMessage());
-		}
-
-		GlobalScreen.addNativeKeyListener(new NativeKeyListener() {
-			public void nativeKeyPressed(NativeKeyEvent e) {
-				int code = e.getKeyCode();
-				// 过滤虚假的 NumLock 事件
-				if (code == NativeKeyEvent.VC_NUM_LOCK) {
-					return;
-				}
-				debugPrint("key pressed: " + code);
-				if (code == displayFmKey) {
-					debugPrint("switch fmDisplay: " + displayFm + " -> " + !displayFm);
-					displayFm = !displayFm;
-				}
-			}
-		});
-		debugPrint(
-				"Native hook registered and listener added. Global status: " + GlobalScreen.isNativeHookRegistered());
-	}
-
 	public static void initGlobalFont(Font font) {
 		javax.swing.plaf.FontUIResource fontResource = new javax.swing.plaf.FontUIResource(font);
 		for (java.util.Enumeration<Object> keys = javax.swing.UIManager.getDefaults().keys(); keys.hasMoreElements();) {
@@ -571,9 +540,6 @@ public class Application {
 		initSystemTray();
 
 		checkUpdate();
-
-		if (displayFmCtrl)
-			addDisplayFmListener();
 
 		SwingUtilities.invokeLater(new Runnable() {
 			public void run() {

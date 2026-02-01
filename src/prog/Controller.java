@@ -25,6 +25,9 @@ import ui.overlay.FlightInfoOverlay;
 import ui.MainForm;
 import prog.config.ConfigProvider;
 import prog.config.ConfigurationService;
+import prog.hotkey.HotkeyManager;
+import prog.event.UIStateEvents;
+import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent;
 
 public class Controller implements ConfigProvider {
 
@@ -50,9 +53,6 @@ public class Controller implements ConfigProvider {
 
 	public OverlayManager overlayManager;
 
-	// Temporarily disabled - DynamicOverlay removed
-	// public java.util.List<ui.overlay.DynamicOverlay> dynamicOverlays = new
-	// java.util.ArrayList<>();
 	public java.util.List<prog.config.ConfigLoader.GroupConfig> dynamicConfigs = new java.util.ArrayList<>();
 
 	// Core Threads
@@ -114,6 +114,9 @@ public class Controller implements ConfigProvider {
 	// Event Handlers
 	private java.util.function.Consumer<Object> configChangedHandler;
 	private java.util.function.Consumer<Object> uiReadyHandler;
+
+	// Track current FM hotkey binding for rebind on config change
+	private int currentFmHotkeyCode = 0;
 
 	// public void hideTaskbarSw() {
 	// if (Application.debug) {
@@ -364,7 +367,21 @@ public class Controller implements ConfigProvider {
 		// Application.debugPrint("controller执行了");
 		loadFromConfig();
 		initDynamicOverlays();
-		registerHotkeyListener();
+
+		// Initialize HotkeyManager and bind FM overlay hotkey
+		HotkeyManager.getInstance().init();
+		boolean enableFMPrint = Boolean.parseBoolean(getconfig("enableFMPrint"));
+		try {
+			currentFmHotkeyCode = Integer.parseInt(getconfig("displayFmKey"));
+		} catch (NumberFormatException e) {
+			currentFmHotkeyCode = NativeKeyEvent.VC_P;
+		}
+		if (enableFMPrint && currentFmHotkeyCode != 0) {
+			HotkeyManager.getInstance().bind(currentFmHotkeyCode, UIStateEvents.FM_OVERLAY_TOGGLE);
+		}
+		// Keep Application.displayFmKey in sync for backward compatibility
+		Application.displayFmKey = currentFmHotkeyCode;
+
 		usetempratureInformation = false;
 
 		// Initialize OverlayManager and register overlays
@@ -375,6 +392,13 @@ public class Controller implements ConfigProvider {
 		configChangedHandler = key -> {
 			// Check if this is a global reset completed event
 			boolean isResetCompleted = prog.event.UIStateEvents.ACTION_RESET_COMPLETED.equals(key);
+			// Handle FM hotkey config changes
+			if (key instanceof String) {
+				String keyStr = (String) key;
+				if ("displayFmKey".equals(keyStr) || "enableFMPrint".equals(keyStr)) {
+					handleFmHotkeyConfigChange();
+				}
+			}
 
 			// Only refresh if we are in PREVIEW state.
 			// In INIT state (startup), we don't want to trigger FM loads yet.
@@ -408,8 +432,6 @@ public class Controller implements ConfigProvider {
 		uiReadyHandler = data -> {
 			prog.util.Logger.info("Controller", "ACTION: Controller: UI Ready. Initializing Preview...");
 			Preview();
-			// Ensure overlays are visible if we started in preview mode
-			setDynamicOverlaysVisible(true, false);
 		};
 		prog.event.UIStateBus.getInstance().subscribe(prog.event.UIStateEvents.UI_READY, uiReadyHandler);
 
@@ -566,78 +588,14 @@ public class Controller implements ConfigProvider {
 	}
 
 	public void initDynamicOverlays() {
-		// Temporarily disabled - DynamicOverlay removed
-		// Clean up existing
-		// for (ui.overlay.DynamicOverlay overlay : dynamicOverlays) {
-		// overlay.doit = false;
-		// overlay.dispose();
-		// }
-		// dynamicOverlays.clear();
-
-		// dynamicOverlays.clear();
-
 		// Use shared layout config from ConfigurationService
 		// Always reload to support ConfigWatcher updates
 		configService.loadLayout(prog.config.ConfigManager.getUserConfigPath());
 		dynamicConfigs = configService.getLayoutConfigs();
-		// for (prog.config.ConfigLoader.GroupConfig config : dynamicConfigs) {
-		// ui.overlay.DynamicOverlay overlay = new ui.overlay.DynamicOverlay(this,
-		// config);
-		// dynamicOverlays.add(overlay);
-		// // Start the self-refresh thread
-		// new Thread(overlay).start();
-		// }
 	}
 
-	public void setDynamicOverlaysVisible(boolean visible, boolean respectHotkey) {
-		// Temporarily disabled - DynamicOverlay removed
-		// for (ui.overlay.DynamicOverlay overlay : dynamicOverlays) {
-		// if (visible) {
-		// // Entering Game Mode (respectHotkey=true)
-		// if (respectHotkey) {
-		// // Step 4: If Visible=true, start HIDDEN. Otherwise, start HIDDEN.
-		// overlay.setVisible(false);
-		// } else {
-		// // Step 2 & 4 (Preview Mode): show if config says Visible=true
-		// overlay.setVisible(overlay.getGroupConfig().visible);
-		// }
-		// } else {
-		// // Global hide
-		// overlay.setVisible(false);
-		// }
-		// }
-	}
-
-	public void registerHotkeyListener() {
-		try {
-			Application.silenceNativeHookLogger();
-			if (!com.github.kwhat.jnativehook.GlobalScreen.isNativeHookRegistered()) {
-				com.github.kwhat.jnativehook.GlobalScreen.registerNativeHook();
-			}
-		} catch (com.github.kwhat.jnativehook.NativeHookException ex) {
-			ex.printStackTrace();
-		}
-
-		com.github.kwhat.jnativehook.GlobalScreen
-				.addNativeKeyListener(new com.github.kwhat.jnativehook.keyboard.NativeKeyListener() {
-					@Override
-					public void nativeKeyPressed(com.github.kwhat.jnativehook.keyboard.NativeKeyEvent e) {
-						// int code = e.getKeyCode();
-						// TODO: Dynamic Overlay hotkey handling disabled
-					}
-				});
-	}
 
 	public void stop() {
-		// Temporarily disabled - DynamicOverlay removed
-		// if (dynamicOverlays != null) {
-		// for (ui.overlay.DynamicOverlay overlay : dynamicOverlays) {
-		// overlay.doit = false;
-		// overlay.dispose();
-		// }
-		// dynamicOverlays.clear();
-		// }
-
 		if (M != null) {
 			M.stopRepaintTimer();
 			M.dispose();
@@ -671,6 +629,36 @@ public class Controller implements ConfigProvider {
 			S1 = null;
 		}
 		System.gc();
+	}
+
+	/**
+	 * Handle changes to FM hotkey configuration (displayFmKey or enableFMPrint).
+	 * Unbinds the old hotkey and binds the new one if enabled.
+	 */
+	private void handleFmHotkeyConfigChange() {
+		boolean enableFMPrint = Boolean.parseBoolean(getconfig("enableFMPrint"));
+		int newHotkeyCode = 0;
+		try {
+			newHotkeyCode = Integer.parseInt(getconfig("displayFmKey"));
+		} catch (NumberFormatException e) {
+			newHotkeyCode = NativeKeyEvent.VC_P;
+		}
+
+		// Unbind old hotkey if it was bound
+		if (currentFmHotkeyCode != 0) {
+			HotkeyManager.getInstance().unbind(currentFmHotkeyCode);
+			prog.util.Logger.info("Controller", "Unbound old FM hotkey: " + currentFmHotkeyCode);
+		}
+
+		// Bind new hotkey if enabled and valid
+		if (enableFMPrint && newHotkeyCode != 0) {
+			HotkeyManager.getInstance().bind(newHotkeyCode, UIStateEvents.FM_OVERLAY_TOGGLE);
+			prog.util.Logger.info("Controller", "Bound new FM hotkey: " + newHotkeyCode);
+		}
+
+		// Update tracked value and Application for backward compatibility
+		currentFmHotkeyCode = newHotkeyCode;
+		Application.displayFmKey = newHotkeyCode;
 	}
 
 	public void Preview() {

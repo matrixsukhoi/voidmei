@@ -13,6 +13,7 @@ src/prog/event/UIStateEvents.java
 src/prog/event/FlightDataEvent.java
 src/prog/event/UIStateBus.java
 src/prog/event/FlightDataBus.java
+src/prog/hotkey/HotkeyManager.java
 src/prog/UIThread.java
 src/prog/Controller.java
 src/prog/FlapsControl.java

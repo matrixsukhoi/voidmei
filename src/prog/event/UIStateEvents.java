@@ -52,5 +52,11 @@ public final class UIStateEvents {
      */
     public static final String VOICE_PACKS_REFRESH = "voicePacksRefresh";
 
+    /**
+     * Published when the FM overlay toggle hotkey is pressed.
+     * Payload: Integer (key code)
+     */
+    public static final String FM_OVERLAY_TOGGLE = "fmOverlayToggle";
+
     // Add more event types as needed
 }
