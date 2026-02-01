@@ -5,6 +5,8 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 import prog.Application;
 import prog.i18n.Lang;
@@ -138,6 +140,21 @@ public class Blkx {
 		// public double oswaldEff;
 
 	}
+
+	/**
+	 * Represents a single sweep level with its associated aerodynamic data.
+	 * Used for variable-sweep wing aircraft (e.g., F-14 with 4 sweep levels).
+	 */
+	public class SweepLevel {
+		public double sweep;        // 0.0 ~ 1.0 sweep ratio (from Sweep:r field)
+		public double vne;          // VNE limit speed for this sweep level
+		public double vneMach;      // MNE limit (Mach) for this sweep level
+		public fm_parts noFlaps;    // No-flaps aerodynamic data
+		public fm_parts fullFlaps;  // Full-flaps aerodynamic data
+	}
+
+	/** Dynamic list of sweep levels, ordered by sweep ratio (0.0 to 1.0) */
+	public java.util.List<SweepLevel> sweepLevels;
 
 	public fm_parts NoFlapsWing;
 	public fm_parts NoFlapsWing_V50;
@@ -400,59 +417,88 @@ public class Blkx {
 	private fm_parts NoFlapsWingS;
 	public double fuseClHigh;
 
+	/* 通用 sweep 插值 */
+	private double interpolateSweepDouble(double vwing, double[] values, double[] sweeps, int count) {
+		if (count <= 1) {
+			return values[0];
+		}
+		// 低于最小 sweep，返回第一个值
+		if (vwing <= sweeps[0]) {
+			return values[0];
+		}
+		// 找到包围 vwing 的两个 sweep 级别
+		for (int i = 0; i < count - 1; i++) {
+			if (vwing >= sweeps[i] && vwing <= sweeps[i + 1]) {
+				double range = sweeps[i + 1] - sweeps[i];
+				if (range == 0) return values[i];
+				double t = (vwing - sweeps[i]) / range;
+				return values[i] + t * (values[i + 1] - values[i]);
+			}
+		}
+		// 超出范围，返回最后一个值
+		return values[count - 1];
+	}
+
 	/* 计算可变翼 */
 	public double getAoAHighVWing(double vwing, int flaps_percent) {
 		if (vwing == 0) {
 			/* 计算flaps */
 			return NoFlapsWing.AoACritHigh
 					+ (FullFlapsWing.AoACritHigh - NoFlapsWing.AoACritHigh) * flaps_percent / 100.0f;
-
 		}
-		/* 针对只有2级的 */
-		if (NoFlapsWing_V100.AoACritHigh == 0) {
-			return NoFlapsWing.AoACritHigh + (NoFlapsWing_V50.AoACritHigh - NoFlapsWing.AoACritHigh) * (vwing);
-		} else {
-			if (vwing < 0.5)
-				return NoFlapsWing.AoACritHigh
-						+ (NoFlapsWing_V50.AoACritHigh - NoFlapsWing.AoACritHigh) * (vwing / 0.5);
-			else
-				return NoFlapsWing_V50.AoACritHigh
-						+ (NoFlapsWing_V100.AoACritHigh - NoFlapsWing_V50.AoACritHigh) * ((vwing - 0.5) / 0.5);
+		if (sweepLevels == null || sweepLevels.size() <= 1) {
+			return NoFlapsWing.AoACritHigh;
 		}
+		int n = sweepLevels.size();
+		double[] values = new double[n];
+		double[] sweeps = new double[n];
+		for (int i = 0; i < n; i++) {
+			values[i] = sweepLevels.get(i).noFlaps.AoACritHigh;
+			sweeps[i] = sweepLevels.get(i).sweep;
+		}
+		return interpolateSweepDouble(vwing, values, sweeps, n);
 	}
 
 	public double getAoALowVWing(double vwing, int flaps_percent) {
-		if (NoFlapsWing_V100.AoACritLow == 0) {
-			return NoFlapsWing.AoACritLow + (NoFlapsWing_V50.AoACritLow - NoFlapsWing.AoACritLow) * (vwing);
-		} else {
-			if (vwing < 0.5)
-				return NoFlapsWing.AoACritLow + (NoFlapsWing_V50.AoACritLow - NoFlapsWing.AoACritLow) * (vwing / 0.5);
-			else
-				return NoFlapsWing_V50.AoACritLow
-						+ (NoFlapsWing_V100.AoACritLow - NoFlapsWing_V50.AoACritLow) * ((vwing - 0.5) / 0.5);
+		if (sweepLevels == null || sweepLevels.size() <= 1) {
+			return NoFlapsWing.AoACritLow;
 		}
+		int n = sweepLevels.size();
+		double[] values = new double[n];
+		double[] sweeps = new double[n];
+		for (int i = 0; i < n; i++) {
+			values[i] = sweepLevels.get(i).noFlaps.AoACritLow;
+			sweeps[i] = sweepLevels.get(i).sweep;
+		}
+		return interpolateSweepDouble(vwing, values, sweeps, n);
 	}
 
 	public double getVNEVWing(double vwing) {
-		if (vne_V100 == 0) {
-			return (vne + (vne_V50 - vne) * vwing);
-		} else {
-			if (vwing < 0.5)
-				return (vne + (vne_V50 - vne) * (vwing / 0.5));
-			else
-				return (vne_V50 + (vne_V100 - vne_V50) * ((vwing - 0.5) / 0.5));
+		if (sweepLevels == null || sweepLevels.size() <= 1) {
+			return vne;
 		}
+		int n = sweepLevels.size();
+		double[] values = new double[n];
+		double[] sweeps = new double[n];
+		for (int i = 0; i < n; i++) {
+			values[i] = sweepLevels.get(i).vne;
+			sweeps[i] = sweepLevels.get(i).sweep;
+		}
+		return interpolateSweepDouble(vwing, values, sweeps, n);
 	}
 
 	public double getMNEVWing(double vwing) {
-		if (vneMach_V100 == 0) {
-			return (vneMach + (vneMach_V50 - vneMach) * vwing);
-		} else {
-			if (vwing < 0.5)
-				return (vneMach + (vneMach_V50 - vneMach) * (vwing / 0.5));
-			else
-				return (vneMach_V50 + (vneMach_V100 - vneMach_V50) * ((vwing - 0.5) / 0.5));
+		if (sweepLevels == null || sweepLevels.size() <= 1) {
+			return vneMach;
 		}
+		int n = sweepLevels.size();
+		double[] values = new double[n];
+		double[] sweeps = new double[n];
+		for (int i = 0; i < n; i++) {
+			values[i] = sweepLevels.get(i).vneMach;
+			sweeps[i] = sweepLevels.get(i).sweep;
+		}
+		return interpolateSweepDouble(vwing, values, sweeps, n);
 	}
 
 	public void initEngineLoad() {
@@ -659,9 +705,6 @@ public class Blkx {
 			}
 		}
 
-		vne_V50 = getdouble("WingPlaneSweep1.Strength.VNE");
-		vne_V100 = getdouble("WingPlaneSweep2.Strength.VNE");
-
 		vneMach = getdouble("VneMach");
 		if (vneMach == 0) {
 			vneMach = getdouble("WingPlane.Strength.MNE");
@@ -669,9 +712,6 @@ public class Blkx {
 				vneMach = getdouble("WingPlaneSweep0.Strength.MNE");
 			}
 		}
-
-		vneMach_V50 = getdouble("WingPlaneSweep1.Strength.MNE");
-		vneMach_V100 = getdouble("WingPlaneSweep2.Strength.MNE");
 
 		aileronEff = getdouble("AileronEffectiveSpeed");
 		aileronPowerLoss = getdouble("AileronPowerLoss");
@@ -834,42 +874,56 @@ public class Blkx {
 			getPartsFm("FlapsPolar0", NoFlapsWing);
 		}
 
-		/* 可变翼 */
-		NoFlapsWing_V50 = new fm_parts();
-		getPartsFm("WingPlaneSweep1.NoFlaps", NoFlapsWing_V50);
-		if (NoFlapsWing_V50.AoACritHigh == 0) {
-			getPartsFm("WingPlaneSweep1.FlapsPolar0", NoFlapsWing_V50);
-		}
-
-		NoFlapsWing_V100 = new fm_parts();
-		getPartsFm("WingPlaneSweep2.NoFlaps", NoFlapsWing_V100);
-		if (NoFlapsWing_V100.AoACritHigh == 0) {
-			getPartsFm("WingPlaneSweep2.FlapsPolar0", NoFlapsWing_V100);
-		}
-
 		FullFlapsWing = new fm_parts();
 		getPartsFm("FullFlaps", FullFlapsWing);
 		if (FullFlapsWing.AoACritHigh == 0) {
 			getPartsFm("FlapsPolar1", FullFlapsWing);
 		}
 
+		/* 可变翼: 动态检测 WingPlaneSweep 数量 */
+		sweepLevels = new ArrayList<>();
+		for (int i = 0; i < 10; i++) {
+			String prefix = "WingPlaneSweep" + i;
+			String block = cut(data, prefix);
+			if (block.equals("null")) break;
+
+			SweepLevel level = new SweepLevel();
+			level.sweep = getdouble(prefix + ".Sweep:r");
+			level.vne = getdouble(prefix + ".Strength.VNE");
+			level.vneMach = getdouble(prefix + ".Strength.MNE");
+
+			level.noFlaps = new fm_parts();
+			getPartsFm(prefix + ".NoFlaps", level.noFlaps);
+			if (level.noFlaps.AoACritHigh == 0) {
+				getPartsFm(prefix + ".FlapsPolar0", level.noFlaps);
+			}
+
+			level.fullFlaps = new fm_parts();
+			getPartsFm(prefix + ".FullFlaps", level.fullFlaps);
+			if (level.fullFlaps.AoACritHigh == 0) {
+				getPartsFm(prefix + ".FlapsPolar1", level.fullFlaps);
+			}
+
+			sweepLevels.add(level);
+		}
+		isVWing = sweepLevels.size() > 1;
+
+		/* 向后兼容: 填充旧字段 */
+		NoFlapsWing_V50 = new fm_parts();
+		NoFlapsWing_V100 = new fm_parts();
 		FullFlapsWing_V50 = new fm_parts();
-		getPartsFm("WingPlaneSweep1.FullFlaps", FullFlapsWing_V50);
-		if (FullFlapsWing_V50.AoACritHigh == 0) {
-			getPartsFm("WingPlaneSweep1.FlapsPolar1", FullFlapsWing_V50);
-		}
-
-		/* 可变翼 */
 		FullFlapsWing_V100 = new fm_parts();
-		getPartsFm("WingPlaneSweep2.FullFlaps", FullFlapsWing_V100);
-		if (FullFlapsWing_V100.AoACritHigh == 0) {
-			getPartsFm("WingPlaneSweep2.FlapsPolar1", FullFlapsWing_V100);
+		if (sweepLevels.size() >= 2) {
+			NoFlapsWing_V50 = sweepLevels.get(1).noFlaps;
+			FullFlapsWing_V50 = sweepLevels.get(1).fullFlaps;
+			vne_V50 = sweepLevels.get(1).vne;
+			vneMach_V50 = sweepLevels.get(1).vneMach;
 		}
-
-		/* 可变翼判断 */
-		isVWing = false;
-		if ((NoFlapsWing_V100.AoACritHigh != 0) || (NoFlapsWing_V50.AoACritHigh != 0)) {
-			isVWing = true;
+		if (sweepLevels.size() >= 3) {
+			NoFlapsWing_V100 = sweepLevels.get(sweepLevels.size() - 1).noFlaps;
+			FullFlapsWing_V100 = sweepLevels.get(sweepLevels.size() - 1).fullFlaps;
+			vne_V100 = sweepLevels.get(sweepLevels.size() - 1).vne;
+			vneMach_V100 = sweepLevels.get(sweepLevels.size() - 1).vneMach;
 		}
 
 		Fuselage = new fm_parts();
