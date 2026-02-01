@@ -69,6 +69,10 @@ public class DynamicDataPage extends BasePage {
     }
 
     private void rebuild() {
+        // Dispose all active popovers before removing components to prevent
+        // IllegalComponentStateException when window moves
+        ReplicaBuilder.disposeAllPopovers();
+
         scaler.removeAll();
         scaler.setFocusable(true);
 
@@ -89,6 +93,9 @@ public class DynamicDataPage extends BasePage {
     private void rebuildSimple() {
         if (groupConfig == null)
             return;
+
+        // Dispose popovers before removing (also called from rebuild, but safe to call twice)
+        ReplicaBuilder.disposeAllPopovers();
 
         scaler.removeAll();
         scaler.setLayout(new com.alee.extended.layout.VerticalFlowLayout());

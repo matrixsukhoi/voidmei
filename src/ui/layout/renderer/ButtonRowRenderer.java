@@ -42,6 +42,9 @@ public class ButtonRowRenderer implements RowRenderer {
             btn.addActionListener(new ActionListener() {
                 @Override
                 public void actionPerformed(ActionEvent e) {
+                    // Dismiss any open tooltips before showing dialog
+                    ReplicaBuilder.disposeAllPopovers();
+
                     // Show confirmation dialog
                     int result = com.alee.laf.optionpane.WebOptionPane.showConfirmDialog(
                             p,
@@ -63,6 +66,9 @@ public class ButtonRowRenderer implements RowRenderer {
 
         if ("openComparison".equals(row.property)) {
             btn.addActionListener(e -> {
+                // Dismiss any open tooltips before showing window
+                ReplicaBuilder.disposeAllPopovers();
+
                 String fm0 = ctx.getStringFromConfigService("selectedFM0", "a_4h");
                 String fm1 = ctx.getStringFromConfigService("selectedFM1", "a6m5_zero");
 
@@ -76,6 +82,9 @@ public class ButtonRowRenderer implements RowRenderer {
         // Handle import config button
         if ("importConfig".equals(row.property)) {
             btn.addActionListener(e -> {
+                // Dismiss any open tooltips before showing file chooser
+                ReplicaBuilder.disposeAllPopovers();
+
                 // Show file chooser
                 WebFileChooser fileChooser = new WebFileChooser();
                 fileChooser.setDialogTitle(Lang.mImportConfigTitle);
@@ -95,15 +104,9 @@ public class ButtonRowRenderer implements RowRenderer {
                             com.alee.laf.optionpane.WebOptionPane.WARNING_MESSAGE);
 
                     if (confirmResult == com.alee.laf.optionpane.WebOptionPane.YES_OPTION) {
-                        // Perform import
+                        // Perform import - hot reload happens via CONFIG_CHANGED event
                         boolean success = Application.ctr.getConfigService().importConfig(selectedFile.getAbsolutePath());
-                        if (success) {
-                            com.alee.laf.optionpane.WebOptionPane.showMessageDialog(
-                                    p,
-                                    Lang.mImportSuccessContent,
-                                    Lang.mImportSuccessTitle,
-                                    com.alee.laf.optionpane.WebOptionPane.INFORMATION_MESSAGE);
-                        } else {
+                        if (!success) {
                             com.alee.laf.optionpane.WebOptionPane.showMessageDialog(
                                     p,
                                     Lang.mImportFailContent,
@@ -118,6 +121,9 @@ public class ButtonRowRenderer implements RowRenderer {
         // Handle factory reset button
         if ("factoryReset".equals(row.property)) {
             btn.addActionListener(e -> {
+                // Dismiss any open tooltips before showing dialog
+                ReplicaBuilder.disposeAllPopovers();
+
                 // Show confirmation dialog
                 int result = com.alee.laf.optionpane.WebOptionPane.showConfirmDialog(
                         p,
@@ -127,15 +133,9 @@ public class ButtonRowRenderer implements RowRenderer {
                         com.alee.laf.optionpane.WebOptionPane.WARNING_MESSAGE);
 
                 if (result == com.alee.laf.optionpane.WebOptionPane.YES_OPTION) {
-                    // Perform factory reset
+                    // Perform factory reset - hot reload happens via CONFIG_CHANGED event
                     boolean success = Application.ctr.getConfigService().resetToFactory();
-                    if (success) {
-                        com.alee.laf.optionpane.WebOptionPane.showMessageDialog(
-                                p,
-                                Lang.mFactoryResetSuccessContent,
-                                Lang.mFactoryResetSuccessTitle,
-                                com.alee.laf.optionpane.WebOptionPane.INFORMATION_MESSAGE);
-                    } else {
+                    if (!success) {
                         com.alee.laf.optionpane.WebOptionPane.showMessageDialog(
                                 p,
                                 Lang.mFactoryResetFailContent,

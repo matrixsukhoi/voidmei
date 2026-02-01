@@ -373,6 +373,9 @@ public class Controller implements ConfigProvider {
 
 		// Listen for live config changes for WYSIWYG
 		configChangedHandler = key -> {
+			// Check if this is a global reset completed event
+			boolean isResetCompleted = prog.event.UIStateEvents.ACTION_RESET_COMPLETED.equals(key);
+
 			// Only refresh if we are in PREVIEW state.
 			// In INIT state (startup), we don't want to trigger FM loads yet.
 			if (State == ControllerState.PREVIEW) {
@@ -381,7 +384,11 @@ public class Controller implements ConfigProvider {
 
 				// Offload to background thread to avoid blocking UI/Animation
 				new Thread(() -> {
-					if (key instanceof String) {
+					if (isResetCompleted) {
+						// Global reset: refresh all overlays and reload global config
+						loadFromConfig();
+						overlayManager.refreshAllPreviews();
+					} else if (key instanceof String) {
 						overlayManager.refreshPreviews((String) key);
 					} else {
 						overlayManager.refreshAllPreviews();

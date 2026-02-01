@@ -28,6 +28,9 @@ public class ReplicaBuilder {
 
     private static final PinkStyle style = new PinkStyle();
 
+    // Track all active popovers to dispose before UI rebuild
+    private static final java.util.List<WebPopOver> activePopovers = new java.util.ArrayList<>();
+
     public static WebPanel createSwitchItem(String labelText, boolean isSelected, boolean showGear) {
         return createSwitchItem(labelText, isSelected, showGear, null, null);
     }
@@ -355,6 +358,25 @@ public class ReplicaBuilder {
         return style;
     }
 
+    /**
+     * Disposes all active popovers. Call this before rebuilding UI to prevent
+     * IllegalComponentStateException when window moves after components are removed.
+     */
+    public static void disposeAllPopovers() {
+        synchronized (activePopovers) {
+            for (WebPopOver popover : activePopovers) {
+                try {
+                    if (popover != null && popover.isDisplayable()) {
+                        popover.dispose();
+                    }
+                } catch (Exception e) {
+                    // Ignore disposal errors
+                }
+            }
+            activePopovers.clear();
+        }
+    }
+
     public static void applyStylizedTooltip(javax.swing.JComponent component, String text, String img) {
         // Remove standard tooltip if any
         component.setToolTipText(null);
@@ -399,12 +421,19 @@ public class ReplicaBuilder {
                     content.setForeground(PinkStyle.COLOR_TEXT);
 
                     popover = showStyledPopover(component, content);
+                    // Track active popover for cleanup
+                    synchronized (activePopovers) {
+                        activePopovers.add(popover);
+                    }
                 }
             }
 
             @Override
             public void mouseExited(MouseEvent e) {
                 if (popover != null) {
+                    synchronized (activePopovers) {
+                        activePopovers.remove(popover);
+                    }
                     popover.dispose();
                     popover = null;
                 }
@@ -429,12 +458,19 @@ public class ReplicaBuilder {
                     msg.setFont(PinkStyle.FONT_NORMAL);
 
                     popover = showStyledPopover(component, msg);
+                    // Track active popover for cleanup
+                    synchronized (activePopovers) {
+                        activePopovers.add(popover);
+                    }
                 }
             }
 
             @Override
             public void mouseExited(MouseEvent e) {
                 if (popover != null) {
+                    synchronized (activePopovers) {
+                        activePopovers.remove(popover);
+                    }
                     popover.dispose();
                     popover = null;
                 }
