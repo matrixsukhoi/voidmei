@@ -85,6 +85,7 @@ public class ConfigLoader {
         public int columns = 2; // Number of columns for layout
         public int panelColumns = 2; // Number of columns for SETTINGS PANEL layout
         public String switchKey = null; // Config key for visibility switch (e.g. "flightInfoSwitch")
+        public String cfgVersion = null; // Configuration version for upgrade detection
         public List<RowConfig> rows = new ArrayList<>();
 
         public GroupConfig(String title) {
@@ -215,6 +216,7 @@ public class ConfigLoader {
                 group.columns = getKeywordInt(panelExp, ":columns", 2);
                 group.panelColumns = getKeywordInt(panelExp, ":panel-columns", 2);
                 group.switchKey = getKeywordString(panelExp, ":switch-key", null);
+                group.cfgVersion = getKeywordString(panelExp, ":cfg-version", null);
 
                 String hotkeyStr = getKeywordString(panelExp, ":hotkey", null);
                 if (hotkeyStr != null) {
@@ -369,6 +371,8 @@ public class ConfigLoader {
                 writeAttrLine(pw, indent, ":visible", group.visible);
                 if (group.switchKey != null)
                     writeAttrLine(pw, indent, ":switch-key", group.switchKey);
+                if (group.cfgVersion != null)
+                    writeAttrLine(pw, indent, ":cfg-version", group.cfgVersion);
                 writeAttrLine(pw, indent, ":font", group.fontName);
                 if (group.hotkey != 0)
                     writeAttrLine(pw, indent, ":hotkey", NativeKeyEvent.getKeyText(group.hotkey));

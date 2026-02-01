@@ -25,8 +25,9 @@ public class ConfigurationService implements ConfigProvider {
     }
 
     public void initConfig() {
-        // Load layout config
-        loadLayout("./ui_layout.cfg");
+        // Load layout config using ConfigManager (handles first-run, upgrade, errors)
+        layoutConfigs = ConfigManager.initialize();
+        prog.util.Logger.info("ConfigurationService", "Loaded layout config with " + layoutConfigs.size() + " groups.");
 
         // Subscribe to global reset requests (EDA implementation)
         UIStateBus.getInstance().subscribe(UIStateEvents.CONFIG_CHANGED, key -> {
@@ -43,9 +44,44 @@ public class ConfigurationService implements ConfigProvider {
 
     public void saveLayoutConfig() {
         if (layoutConfigs != null) {
-            prog.util.Logger.info("ConfigurationService", "ACTION: ConfigurationService: Saving to ui_layout.cfg");
-            ConfigLoader.saveConfig("./ui_layout.cfg", layoutConfigs);
+            prog.util.Logger.info("ConfigurationService", "ACTION: ConfigurationService: Saving to " + ConfigManager.getUserConfigPath());
+            ConfigLoader.saveConfig(ConfigManager.getUserConfigPath(), layoutConfigs);
         }
+    }
+
+    /**
+     * Imports configuration from an external file.
+     *
+     * @param sourcePath Path to the config file to import
+     * @return true if import was successful
+     */
+    public boolean importConfig(String sourcePath) {
+        boolean success = ConfigManager.importConfig(sourcePath);
+        if (success) {
+            // Reload configuration
+            layoutConfigs = ConfigLoader.loadConfig(ConfigManager.getUserConfigPath());
+            // Notify all subscribers about the change
+            UIStateBus.getInstance().publish(UIStateEvents.CONFIG_CHANGED,
+                    "ConfigurationService", UIStateEvents.ACTION_RESET_COMPLETED);
+        }
+        return success;
+    }
+
+    /**
+     * Resets configuration to factory defaults.
+     *
+     * @return true if reset was successful
+     */
+    public boolean resetToFactory() {
+        boolean success = ConfigManager.resetToFactory();
+        if (success) {
+            // Reload configuration
+            layoutConfigs = ConfigLoader.loadConfig(ConfigManager.getUserConfigPath());
+            // Notify all subscribers about the change
+            UIStateBus.getInstance().publish(UIStateEvents.CONFIG_CHANGED,
+                    "ConfigurationService", UIStateEvents.ACTION_RESET_COMPLETED);
+        }
+        return success;
     }
 
     public java.util.List<ConfigLoader.GroupConfig> getLayoutConfigs() {

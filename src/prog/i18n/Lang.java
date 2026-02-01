@@ -231,6 +231,25 @@ public class Lang {
 	public static String mResetConfirmTitle;
 	public static String mResetConfirmContent;
 
+	// Config Manager i18n
+	public static String mConfigErrorTitle;
+	public static String mConfigErrorContent;
+	public static String mConfigUpgradedTitle;
+	public static String mConfigUpgraded;
+	public static String mImportConfigTitle;
+	public static String mImportConfirmTitle;
+	public static String mImportConfirmContent;
+	public static String mImportSuccessTitle;
+	public static String mImportSuccessContent;
+	public static String mImportFailTitle;
+	public static String mImportFailContent;
+	public static String mFactoryResetConfirmTitle;
+	public static String mFactoryResetConfirmContent;
+	public static String mFactoryResetSuccessTitle;
+	public static String mFactoryResetSuccessContent;
+	public static String mFactoryResetFailTitle;
+	public static String mFactoryResetFailContent;
+
 	// EngineInfo
 
 	public static String eThrottle;
@@ -803,6 +822,25 @@ public class Lang {
 
 		mResetConfirmTitle = updateLanguage("mResetConfirmTitle", "确认重置");
 		mResetConfirmContent = updateLanguage("mResetConfirmContent", "确定要重置所有配置项吗？\n此操作不可撤销。");
+
+		// Config Manager i18n
+		mConfigErrorTitle = updateLanguage("mConfigErrorTitle", "配置错误");
+		mConfigErrorContent = updateLanguage("mConfigErrorContent", "用户配置文件解析失败，将临时使用默认配置。\n请检查 ui_layout.user.cfg 文件是否损坏。");
+		mConfigUpgradedTitle = updateLanguage("mConfigUpgradedTitle", "配置已升级");
+		mConfigUpgraded = updateLanguage("mConfigUpgraded", "配置已从 %s 升级到 %s");
+		mImportConfigTitle = updateLanguage("mImportConfigTitle", "选择配置文件");
+		mImportConfirmTitle = updateLanguage("mImportConfirmTitle", "确认导入");
+		mImportConfirmContent = updateLanguage("mImportConfirmContent", "确定要导入此配置文件吗？\n当前配置将被备份到 ui_layout.user.cfg.bak");
+		mImportSuccessTitle = updateLanguage("mImportSuccessTitle", "导入成功");
+		mImportSuccessContent = updateLanguage("mImportSuccessContent", "配置文件已成功导入，请重启程序以应用所有更改。");
+		mImportFailTitle = updateLanguage("mImportFailTitle", "导入失败");
+		mImportFailContent = updateLanguage("mImportFailContent", "配置文件导入失败，请检查文件格式是否正确。");
+		mFactoryResetConfirmTitle = updateLanguage("mFactoryResetConfirmTitle", "确认恢复出厂设置");
+		mFactoryResetConfirmContent = updateLanguage("mFactoryResetConfirmContent", "确定要恢复出厂设置吗？\n所有自定义配置将被清除，当前配置将被备份。");
+		mFactoryResetSuccessTitle = updateLanguage("mFactoryResetSuccessTitle", "恢复成功");
+		mFactoryResetSuccessContent = updateLanguage("mFactoryResetSuccessContent", "配置已恢复为出厂设置，请重启程序以应用所有更改。");
+		mFactoryResetFailTitle = updateLanguage("mFactoryResetFailTitle", "恢复失败");
+		mFactoryResetFailContent = updateLanguage("mFactoryResetFailContent", "恢复出厂设置失败，请检查模板文件是否存在。");
 		mClosePreview = updateLanguage("mClosePreview", mClosePreview);
 		mMovePanel = updateLanguage("mMovePanel", mMovePanel);
 		mSimpleMode = updateLanguage("mSimpleMode", mSimpleMode);

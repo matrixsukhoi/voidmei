@@ -65,6 +65,13 @@ public class Controller implements ConfigProvider {
 	// Legacy support via ConfigurationService
 	public ConfigurationService configService;
 	// public config cfg; // Removed
+
+	/**
+	 * Gets the ConfigurationService instance.
+	 */
+	public ConfigurationService getConfigService() {
+		return configService;
+	}
 	// 存储参数
 	// 主参数
 
@@ -564,7 +571,7 @@ public class Controller implements ConfigProvider {
 
 		// Use shared layout config from ConfigurationService
 		// Always reload to support ConfigWatcher updates
-		configService.loadLayout("ui_layout.cfg");
+		configService.loadLayout(prog.config.ConfigManager.getUserConfigPath());
 		dynamicConfigs = configService.getLayoutConfigs();
 		// for (prog.config.ConfigLoader.GroupConfig config : dynamicConfigs) {
 		// ui.overlay.DynamicOverlay overlay = new ui.overlay.DynamicOverlay(this,

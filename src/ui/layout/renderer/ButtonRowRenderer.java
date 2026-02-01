@@ -2,14 +2,20 @@ package ui.layout.renderer;
 
 import com.alee.laf.button.WebButton;
 import com.alee.laf.panel.WebPanel;
+import com.alee.laf.filechooser.WebFileChooser;
 import com.alee.extended.layout.VerticalFlowLayout;
 
 import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
+import java.io.File;
+
+import javax.swing.JFileChooser;
+import javax.swing.filechooser.FileNameExtensionFilter;
 
 import prog.Application;
 import prog.config.ConfigLoader;
 import prog.config.ConfigLoader.RowConfig;
+import prog.i18n.Lang;
 import ui.replica.ReplicaBuilder;
 
 public class ButtonRowRenderer implements RowRenderer {
@@ -64,6 +70,79 @@ public class ButtonRowRenderer implements RowRenderer {
                 ui.window.comparison.CompactComparisonWindow win = new ui.window.comparison.CompactComparisonWindow(
                         parent, Application.ctr, fm0, fm1);
                 win.setVisible(true);
+            });
+        }
+
+        // Handle import config button
+        if ("importConfig".equals(row.property)) {
+            btn.addActionListener(e -> {
+                // Show file chooser
+                WebFileChooser fileChooser = new WebFileChooser();
+                fileChooser.setDialogTitle(Lang.mImportConfigTitle);
+                fileChooser.setFileFilter(new FileNameExtensionFilter("Config files (*.cfg)", "cfg"));
+                fileChooser.setMultiSelectionEnabled(false);
+
+                int result = fileChooser.showOpenDialog(javax.swing.SwingUtilities.getWindowAncestor(p));
+                if (result == JFileChooser.APPROVE_OPTION) {
+                    File selectedFile = fileChooser.getSelectedFile();
+
+                    // Show confirmation dialog
+                    int confirmResult = com.alee.laf.optionpane.WebOptionPane.showConfirmDialog(
+                            p,
+                            Lang.mImportConfirmContent,
+                            Lang.mImportConfirmTitle,
+                            com.alee.laf.optionpane.WebOptionPane.YES_NO_OPTION,
+                            com.alee.laf.optionpane.WebOptionPane.WARNING_MESSAGE);
+
+                    if (confirmResult == com.alee.laf.optionpane.WebOptionPane.YES_OPTION) {
+                        // Perform import
+                        boolean success = Application.ctr.getConfigService().importConfig(selectedFile.getAbsolutePath());
+                        if (success) {
+                            com.alee.laf.optionpane.WebOptionPane.showMessageDialog(
+                                    p,
+                                    Lang.mImportSuccessContent,
+                                    Lang.mImportSuccessTitle,
+                                    com.alee.laf.optionpane.WebOptionPane.INFORMATION_MESSAGE);
+                        } else {
+                            com.alee.laf.optionpane.WebOptionPane.showMessageDialog(
+                                    p,
+                                    Lang.mImportFailContent,
+                                    Lang.mImportFailTitle,
+                                    com.alee.laf.optionpane.WebOptionPane.ERROR_MESSAGE);
+                        }
+                    }
+                }
+            });
+        }
+
+        // Handle factory reset button
+        if ("factoryReset".equals(row.property)) {
+            btn.addActionListener(e -> {
+                // Show confirmation dialog
+                int result = com.alee.laf.optionpane.WebOptionPane.showConfirmDialog(
+                        p,
+                        Lang.mFactoryResetConfirmContent,
+                        Lang.mFactoryResetConfirmTitle,
+                        com.alee.laf.optionpane.WebOptionPane.YES_NO_OPTION,
+                        com.alee.laf.optionpane.WebOptionPane.WARNING_MESSAGE);
+
+                if (result == com.alee.laf.optionpane.WebOptionPane.YES_OPTION) {
+                    // Perform factory reset
+                    boolean success = Application.ctr.getConfigService().resetToFactory();
+                    if (success) {
+                        com.alee.laf.optionpane.WebOptionPane.showMessageDialog(
+                                p,
+                                Lang.mFactoryResetSuccessContent,
+                                Lang.mFactoryResetSuccessTitle,
+                                com.alee.laf.optionpane.WebOptionPane.INFORMATION_MESSAGE);
+                    } else {
+                        com.alee.laf.optionpane.WebOptionPane.showMessageDialog(
+                                p,
+                                Lang.mFactoryResetFailContent,
+                                Lang.mFactoryResetFailTitle,
+                                com.alee.laf.optionpane.WebOptionPane.ERROR_MESSAGE);
+                    }
+                }
             });
         }
 

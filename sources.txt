@@ -39,6 +39,7 @@ src/prog/config/ConfigurationService.java
 src/prog/config/ConfigWatcherService.java
 src/prog/config/SExpParser.java
 src/prog/config/OverlaySettings.java
+src/prog/config/ConfigManager.java
 src/prog/config/ConfigProvider.java
 src/prog/config/ConfigLoader.java
 src/prog/config/HUDSettings.java
