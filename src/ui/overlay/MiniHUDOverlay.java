@@ -359,7 +359,7 @@ public class MiniHUDOverlay extends BaseOverlay implements FlightDataListener {
             if (service != null && service.sState != null) {
                 throttleValue = service.sState.throttle;
             }
-            throttleBar.update(throttleValue, String.format("%3d", throttleValue));
+            throttleBar.update(throttleValue, String.format("%-3d", throttleValue));
             throttleBar.setVisible(textVisible);
         }
     }
@@ -423,7 +423,7 @@ public class MiniHUDOverlay extends BaseOverlay implements FlightDataListener {
         }
 
         if (throttleBar != null) {
-            throttleBar.update(data.throttle, String.format("%3d", data.throttle));
+            throttleBar.update(data.throttle, String.format("%-3d", data.throttle));
         }
     }
 
@@ -540,7 +540,7 @@ public class MiniHUDOverlay extends BaseOverlay implements FlightDataListener {
         }
 
         // 5. Bars
-        throttleBar = new ui.component.LinearGauge("ThrottleBar", 110, true);
+        throttleBar = new ui.component.LinearGauge("ThrottleBar", 110, true, true);
         components.add(throttleBar);
 
         // Ensure everything is styled and updated before layout & sizing
@@ -693,20 +693,19 @@ public class MiniHUDOverlay extends BaseOverlay implements FlightDataListener {
             modernLayout.addNode(compassNode);
         }
 
-        // Throttle Bar (Independent Root)
-        // Position: 0.5, 9.1 units
-        ui.layout.HUDLayoutNode throttleNode = new ui.layout.HUDLayoutNode("throttle", throttleBar);
-        throttleNode.setParent(row4)
-                .setRelativePosition(-0.1, 0)
-                .setAnchors(ui.layout.Anchor.BOTTOM_LEFT, ui.layout.Anchor.BOTTOM_RIGHT);
-        modernLayout.addNode(throttleNode);
-
         // Rate Bar (SpeedRatioBar)
         ui.layout.HUDLayoutNode speedBarNode = new ui.layout.HUDLayoutNode("speedBar", speedRatioBar);
         speedBarNode.setParent(row4)
+                .setRelativePosition(-0.1, 0)
+                .setAnchors(ui.layout.Anchor.BOTTOM_LEFT, ui.layout.Anchor.BOTTOM_RIGHT);
+        modernLayout.addNode(speedBarNode);
+
+        // Throttle Bar
+        ui.layout.HUDLayoutNode throttleNode = new ui.layout.HUDLayoutNode("throttle", throttleBar);
+        throttleNode.setParent(row4)
                 .setRelativePosition(2.6, 0.0)
                 .setAnchors(ui.layout.Anchor.BOTTOM_RIGHT, ui.layout.Anchor.BOTTOM_LEFT);
-        modernLayout.addNode(speedBarNode);
+        modernLayout.addNode(throttleNode);
 
         // Crosshair (Independent, Center of Attention)
         if (hudSettings.isDisplayCrosshair()) {

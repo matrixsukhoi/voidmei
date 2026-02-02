@@ -14,6 +14,7 @@ public class LinearGauge extends AbstractHUDComponent {
     public int curValue;
     public String displayValue;
     public boolean vertical;
+    public boolean tickOnRight; // true = tick on right side of vbar, false = tick on left (default)
 
     // Zero-GC
     public final char[] valueBuffer = new char[32];
@@ -25,9 +26,14 @@ public class LinearGauge extends AbstractHUDComponent {
     private int cachedThickness = -1;
 
     public LinearGauge(String label, int maxValue, boolean vertical) {
+        this(label, maxValue, vertical, false);
+    }
+
+    public LinearGauge(String label, int maxValue, boolean vertical, boolean tickOnRight) {
         this.label = label;
         this.maxValue = maxValue;
         this.vertical = vertical;
+        this.tickOnRight = tickOnRight;
         this.displayValue = "";
     }
 
@@ -102,7 +108,7 @@ public class LinearGauge extends AbstractHUDComponent {
 
         if ("ThrottleBar".equals(this.label)) {
             this.curValue = data.throttle;
-            this.displayValue = String.format("%d", data.throttle);
+            this.displayValue = String.format("%-3d", data.throttle);
             this.valueColor = data.throttleColor;
         }
     }
@@ -138,22 +144,40 @@ public class LinearGauge extends AbstractHUDComponent {
             // (x, y) is the Top-Left of the combined gauge area
             int textWidth = getValueWidth(g2d, fontNum);
             int labelSpacing = 2; // Spacing between label and bar
-            int barX = x + textWidth + labelSpacing;
-
-            // Draw the background and fixed bar border/fill
-            drawBar(g2d, barX, y, thickness, length, pixVal, shade, Application.colorNum, true);
 
             // Fix separator position for Top-Left Y
             // Bar goes from y to y+length.
             int sepY = y + length - 1 - pixVal;
 
-            // Separator Line (moving with value)
-            g2d.setStroke(separatorStroke);
-            int totalWidth = textWidth + labelSpacing + thickness;
-            drawRect(g2d, x, sepY, totalWidth, 3, shade, c, false);
+            if (tickOnRight) {
+                // Bar on left, tick (separator + text) on right
+                int barX = x;
 
-            // Text Number (moving with separator)
-            drawValueText(g2d, x, sepY - 1, fontNum, c);
+                // Draw the background and fixed bar border/fill
+                drawBar(g2d, barX, y, thickness, length, pixVal, shade, Application.colorNum, true);
+
+                // Separator Line (moving with value)
+                g2d.setStroke(separatorStroke);
+                int totalWidth = thickness + labelSpacing + textWidth;
+                drawRect(g2d, x, sepY, totalWidth, 3, shade, c, false);
+
+                // Text Number (moving with separator, on the right of bar)
+                drawValueText(g2d, x + thickness + labelSpacing, sepY - 1, fontNum, c);
+            } else {
+                // Tick (text + separator) on left, bar on right (default)
+                int barX = x + textWidth + labelSpacing;
+
+                // Draw the background and fixed bar border/fill
+                drawBar(g2d, barX, y, thickness, length, pixVal, shade, Application.colorNum, true);
+
+                // Separator Line (moving with value)
+                g2d.setStroke(separatorStroke);
+                int totalWidth = textWidth + labelSpacing + thickness;
+                drawRect(g2d, x, sepY, totalWidth, 3, shade, c, false);
+
+                // Text Number (moving with separator)
+                drawValueText(g2d, x, sepY - 1, fontNum, c);
+            }
         } else {
             // Horizontal Bar
             drawBar(g2d, x, y, length, thickness, pixVal, shade, Application.colorNum, false);
