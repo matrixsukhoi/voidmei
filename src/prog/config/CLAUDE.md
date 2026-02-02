@@ -12,16 +12,109 @@ GroupConfig / RowConfig (In-Memory Model)
 Settings Interfaces (HUDSettings, OverlaySettings)
 ```
 
+## File Overview
+
+| File | Lines | Responsibility |
+|------|-------|----------------|
+| `ConfigurationService.java` | ~400 | Unified config entry point, persistence, implements Settings interfaces |
+| `ConfigLoader.java` | ~350 | Parses `ui_layout.cfg` S-expression syntax into GroupConfig/RowConfig tree |
+| `ConfigManager.java` | ~200 | Handles first-run setup, user config path, factory reset, import/export |
+| `SExpParser.java` | ~150 | Low-level S-expression tokenizer and parser |
+| `HUDSettings.java` | ~50 | MiniHUD-specific config interface |
+| `OverlaySettings.java` | ~60 | Generic overlay config interface |
+| `ConfigProvider.java` | ~20 | Base interface for `getConfig(key)` / `setConfig(key, value)` |
+| `Config.java` | ~50 | Legacy property-based config (deprecated) |
+| `ConfigWatcherService.java` | ~80 | File watcher for hot-reload (optional) |
+
 ## Core Class Responsibilities
 
-| Class | Responsibility |
-|-------|----------------|
-| `ConfigurationService` | Unified config entry point, persistence, implements Settings interfaces |
-| `ConfigLoader` | Parses `ui_layout.cfg` S-expression syntax into GroupConfig/RowConfig tree |
-| `ConfigManager` | Handles first-run setup, user config path, factory reset |
-| `HUDSettings` | MiniHUD-specific config interface (crosshair, fonts, toggles) |
-| `OverlaySettings` | Generic overlay config interface (position, font, size) |
-| `ConfigProvider` | Base interface for `getConfig(key)` / `setConfig(key, value)` |
+### ConfigurationService
+
+Main entry point implementing both `ConfigProvider` and generating `OverlaySettings` instances:
+
+```java
+public class ConfigurationService implements ConfigProvider {
+    private List<GroupConfig> layoutConfigs;
+
+    public void initConfig();                    // Load from ConfigManager
+    public void saveLayoutConfig();              // Persist to user config
+    public boolean importConfig(String path);   // Import external config
+    public boolean resetToFactory();            // Reset to defaults
+
+    // Settings factory methods
+    public HUDSettings getHudSettings();
+    public OverlaySettings getOverlaySettings(String groupTitle);
+}
+```
+
+### ConfigLoader Data Model
+
+```java
+public class GroupConfig {
+    public String title;           // Group display name
+    public double x, y;            // Window position (0.0-1.0 ratio)
+    public int alpha;              // Transparency (0-255)
+    public int hotkey;             // Toggle hotkey (NativeKeyEvent code)
+    public boolean visible;        // Initial visibility
+    public String fontName;        // Font family
+    public int fontSize;           // Font size adjustment (-6 to +20)
+    public int columns;            // Data display columns
+    public int panelColumns;       // Settings panel columns
+    public String switchKey;       // Config key for visibility toggle
+    public List<RowConfig> rows;   // Child items
+}
+
+public class RowConfig {
+    public String label;           // Display label
+    public String type;            // DATA, HEADER, SLIDER, COMBO, SWITCH, SWITCH_INV, BUTTON, COLOR, HOTKEY
+    public String formula;         // Reflection path (e.g., "S.rpm")
+    public Object value;           // Current value (Boolean, Integer, String)
+    public Object defaultValue;    // Factory default for reset
+    public String desc;            // Tooltip description
+    public String descImg;         // Help image path
+    public int minVal, maxVal;     // For SLIDER type
+    public boolean hideWhenZero;   // Hide if value is zero
+    public int precision;          // Decimal places
+    public String fgColor;         // Foreground color
+    public List<RowConfig> children; // Nested items
+}
+```
+
+### Settings Interfaces
+
+```java
+public interface OverlaySettings {
+    int getWindowX(int width);
+    int getWindowY(int height);
+    void saveWindowPosition(double x, double y);
+    String getFontName();
+    String getNumFontName();
+    int getFontSizeAdd();
+    boolean getBool(String key, boolean def);
+    int getInt(String key, int def);
+    String getString(String key, String def);
+    GroupConfig getGroupConfig();
+}
+
+public interface HUDSettings extends OverlaySettings {
+    String getNumFont();
+    int getCrosshairScale();
+    String getCrosshairName();
+    boolean isDisplayCrosshair();
+    boolean useTextureCrosshair();
+    boolean drawHUDText();
+    boolean drawHUDAttitude();
+    double getAoAWarningRatio();
+    double getAoABarWarningRatio();
+    boolean enableFlapAngleBar();
+    boolean showSpeedBar();
+    boolean drawHudMach();
+    boolean isSpeedLabelDisabled();
+    boolean isAltitudeLabelDisabled();
+    boolean isSEPLabelDisabled();
+    boolean isAoADisabled();
+}
+```
 
 ## Adding a New Configuration Item
 
@@ -38,12 +131,18 @@ Settings Interfaces (HUDSettings, OverlaySettings)
 ```
 
 **Item Types:**
-- `switch` - Boolean toggle (true/false)
-- `switch_inv` - Inverted boolean (UI shows ON when value is false)
-- `slider` - Numeric range with min/max
-- `combo` - Dropdown selection
-- `color` - RGBA color picker
-- `font` - Font family selector
+
+| Type | Value Type | UI Widget | Extra Properties |
+|------|------------|-----------|------------------|
+| `switch` | Boolean | Toggle switch | - |
+| `switch_inv` | Boolean | Toggle (inverted) | UI ON = value false |
+| `slider` | Integer | Slider | `:min`, `:max` |
+| `combo` | String | Dropdown | `:options ("A" "B" "C")` |
+| `color` | String | Color picker | Format: "R,G,B,A" |
+| `font` | String | Font selector | - |
+| `hotkey` | Integer | Key binding | NativeKeyEvent code |
+| `button` | - | Action button | `:fgColor`, callback |
+| `data` | - | Read-only display | `:formula`, `:format` |
 
 ### Step 2: Add Interface Method
 
@@ -108,28 +207,41 @@ Overlay re-reads settings and updates UI
 ## S-Expression Syntax Reference
 
 ```lisp
-;; Group definition
-(group "GroupTitle"
-  :switch "groupSwitchKey"    ; Optional: visibility toggle key
-  :x 0.5 :y 0.3               ; Optional: window position (0.0-1.0 ratio)
-  :fontSize 2                 ; Optional: font size offset
+;; Panel definition (top-level container for settings UI)
+(panel "PanelTitle"
+  :cols 2                         ; Settings panel columns
 
-  ;; Items inside group
-  (item "Label Text"
-        :type switch|slider|combo|color|font
-        :target "configKey"
-        :value <default-value>
-        :default <factory-default>
-        :desc "Tooltip description"
+  ;; Group definition (collapsible section)
+  (group "GroupTitle"
+    :switch "groupSwitchKey"      ; Optional: visibility toggle key
+    :x 0.5 :y 0.3                 ; Optional: window position (0.0-1.0 ratio)
+    :fontSize 2                   ; Optional: font size offset
+    :alpha 180                    ; Optional: transparency (0-255)
+    :hotkey "P"                   ; Optional: toggle hotkey
 
-        ;; Type-specific options
-        :min 0 :max 100       ; For slider
-        :options ("A" "B")    ; For combo
+    ;; Items inside group
+    (item "Label Text"
+          :type switch|slider|combo|color|font|hotkey|button|data
+          :target "configKey"
+          :value <default-value>
+          :default <factory-default>
+          :desc "Tooltip description"
+          :descImg "path/to/help.png"
+
+          ;; Type-specific options
+          :min 0 :max 100         ; For slider
+          :options ("A" "B")      ; For combo
+          :fgColor "255,100,100"  ; For button
+          :formula "S.TAS"        ; For data
+          :format "%.1f"          ; For data
+          :unit "km/h"            ; For data
+          :hideWhenZero true      ; For data
+    )
+
+    ;; Nested group (subsection)
+    (group "Subsection"
+      (item ...))
   )
-
-  ;; Nested group (collapsible section)
-  (group "Subsection"
-    (item ...))
 )
 ```
 
@@ -150,6 +262,34 @@ Color c = configService.getColorConfig("fontNum");
 
 // Check if field is disabled (for hide-when-zero logic)
 boolean hidden = configService.isFieldDisabled("thrust");
+
+// Access raw GroupConfig for advanced operations
+GroupConfig group = settings.getGroupConfig();
+RowConfig row = findRow(group.rows, "targetKey");
+```
+
+## Event-Driven Architecture
+
+Config changes propagate via `UIStateBus`:
+
+```java
+// Publishing a config change
+UIStateBus.getInstance().publish(
+    UIStateEvents.CONFIG_CHANGED,
+    "sourceId",
+    "configKey"
+);
+
+// Subscribing to config changes
+UIStateBus.getInstance().subscribe(UIStateEvents.CONFIG_CHANGED, key -> {
+    if ("myKey".equals(key)) {
+        // React to change
+    }
+});
+
+// Special event keys
+UIStateEvents.ACTION_RESET_REQUEST   // Request factory reset
+UIStateEvents.ACTION_RESET_COMPLETED // Reset completed notification
 ```
 
 ## Important Notes
@@ -157,4 +297,6 @@ boolean hidden = configService.isFieldDisabled("thrust");
 - Config changes are **automatically persisted** when the user exits MainForm or game mode
 - Use `configService.saveLayoutConfig()` to force immediate save
 - The `SWITCH_INV` type inverts boolean logic (useful for "disable" toggles)
-- Config keys are case-sensitive and must match exactly
+- Config keys are **case-sensitive** and must match exactly between ui_layout.cfg and code
+- `ConfigManager.getUserConfigPath()` returns platform-specific user config location
+- First-run copies factory config to user location automatically
