@@ -3,7 +3,7 @@
 > **文档级别**: L3 (Core Contributor)
 > **适用版本**: v1.5+
 > **维护者**: Antigravity Agent
-> **最后更新**: 2026-01-25
+> **最后更新**: 2026-02-03
 
 ---
 
@@ -273,6 +273,34 @@ MiniHUD 的布局配置存储在 `ui_layout.cfg` 中。
 目前支持的配置项：
 *   `hudFontSize`: 全局缩放基准
 *   `enableLayoutDebug`: 开启调试线框
+*   `showSpeedBar`: 速度条/油门条切换开关
+
+### 9.1 速度条/油门条切换 (SpeedBar/ThrottleBar Toggle)
+
+MiniHUD 左侧支持两种条形仪表，用户可通过 `showSpeedBar` 配置项切换：
+
+| 配置值 | 显示组件 | 说明 |
+|--------|----------|------|
+| `true` (默认) | `SpeedRatioBar` | 显示当前速度与极限速度的比值 |
+| `false` | `ThrottleBar` | 显示油门杆位置 (0-110%) |
+
+**实现要点**:
+1.  两个 Bar 共享相同的布局位置 (`row4` 左侧，锚点 `BOTTOM_LEFT -> BOTTOM_RIGHT`)
+2.  `ThrottleBar` 使用 `tickOnRight=false` 使刻度显示在左侧
+3.  可见性控制在 `updateComponents()` 中基于 `hudSettings.showSpeedBar()` 互斥设置
+
+```java
+// MiniHUDOverlay.java - updateComponents()
+boolean showSpeed = hudSettings.showSpeedBar();
+if (throttleBar != null) {
+    throttleBar.setVisible(textVisible && !showSpeed);
+}
+if (speedRatioBar != null) {
+    speedRatioBar.setVisible(textVisible && showSpeed);
+}
+```
+
+**WYSIWYG 支持**: `showSpeedBar` 已添加到 `Controller.java` 的 MiniHUD interest 列表，配置变更会触发 `reinitConfig()` 实现实时预览。
 
 ---
 

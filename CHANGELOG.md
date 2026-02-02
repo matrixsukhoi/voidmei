@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased] - 2026-02-03
+
+### Added
+- **MiniHUD 速度条/油门条切换**: 在 MiniHUD 面板的"hud数据设置"分组中新增"油门条/速度条"开关 (`showSpeedBar`)。
+  - 开启时 (默认): 显示速度条 (SpeedRatioBar)
+  - 关闭时: 显示油门条 (ThrottleBar)
+  - 油门条刻度改为左侧显示，与速度条位置一致
+  - 支持 WYSIWYG 实时预览切换
+
 ## [Unreleased] - 2026-01-19
 
 ###- **Refactored Configuration System (Category 2)**:

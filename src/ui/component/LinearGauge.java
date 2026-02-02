@@ -108,7 +108,7 @@ public class LinearGauge extends AbstractHUDComponent {
 
         if ("ThrottleBar".equals(this.label)) {
             this.curValue = data.throttle;
-            this.displayValue = String.format("%-3d", data.throttle);
+            this.displayValue = String.format("%3d", data.throttle);
             this.valueColor = data.throttleColor;
         }
     }

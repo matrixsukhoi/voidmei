@@ -34,6 +34,8 @@ public interface HUDSettings extends OverlaySettings {
 
     boolean enableFlapAngleBar();
 
+    boolean showSpeedBar();
+
     boolean drawHudMach();
 
     boolean isSpeedLabelDisabled();

@@ -681,6 +681,11 @@ public class ConfigurationService implements ConfigProvider {
         }
 
         @Override
+        public boolean showSpeedBar() {
+            return getBool("showSpeedBar", true);
+        }
+
+        @Override
         public boolean drawHudMach() {
             return getBool("hudMach", false);
         }
