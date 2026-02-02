@@ -223,7 +223,50 @@ g.fillRect(x, y, width, height);
 
 ---
 
-## 8. 配置与持久化 (Configuration)
+## 8. 绘图工具库 (Graphics Utilities)
+
+**源码**: `src/ui/util/GraphicsUtil.java`
+
+MiniHUD 提供了一套绘图工具库，用于解决 Java2D 绘制中的常见陷阱。
+
+### 8.1 精确端点绘制 (Precise Endpoint Rendering)
+
+**问题背景**:
+Java2D 的 `BasicStroke` 默认使用 `CAP_SQUARE` 线帽，这会导致线条在端点处**自动延伸** stroke 宽度的一半。
+
+```
+        期望的渲染范围
+        |<---- width ---->|
+        x                 x+width
+
+实际渲染: █████████████████████
+        |                     |
+       x-1                  x+width+1  (假设 stroke = 2px)
+```
+
+**典型事故**: 在 `SpeedRatioBar` 中绘制 Unit Mach 红线时，使用 `g2d.drawLine(x, y, x + width, y)` 本意是让线条精确对齐 vbar 边界，但由于 `CAP_SQUARE` 导致红线右边缘超出 vbar 1-2 像素。
+
+**解决方案**: 使用 `GraphicsUtil.createPreciseStroke()` 创建精确端点的 Stroke。
+
+```java
+// 错误: 默认 CAP_SQUARE 会导致端点延伸
+Stroke bad = new BasicStroke(2);
+
+// 正确: 使用 CAP_BUTT 确保精确端点
+Stroke good = GraphicsUtil.createPreciseStroke(2);
+```
+
+### 8.2 可用方法
+
+| 方法 | 用途 |
+|------|------|
+| `createPreciseStroke(width)` | 精确端点，适合边界对齐线条 |
+| `createPreciseStroke(width, join)` | 精确端点 + 自定义拐角样式 |
+| `createRoundedStroke(width)` | 圆角端点，适合装饰性线条 |
+
+---
+
+## 9. 配置与持久化 (Configuration)
 
 MiniHUD 的布局配置存储在 `ui_layout.cfg` 中。
 虽然目前主要通过代码硬编码拓扑结构，但 `MinimalHUD` 的设计为将来支持 XML/JSON 定义布局留出了接口。
@@ -233,9 +276,9 @@ MiniHUD 的布局配置存储在 `ui_layout.cfg` 中。
 
 ---
 
-## 9. 调试与排错 (Debugging)
+## 10. 调试与排错 (Debugging)
 
-### 9.1 可视化调试系统
+### 10.1 可视化调试系统
 在 `ui_layout.cfg` 中设置 `enableLayoutDebug = true`。
 
 *   **边框**:
@@ -245,7 +288,7 @@ MiniHUD 的布局配置存储在 `ui_layout.cfg` 中。
 
 ---
 
-## 10. 贡献者准则 (Contributor Guidelines)
+## 11. 贡献者准则 (Contributor Guidelines)
 
 1.  **单一职责**: `HUDComponent` 只负责画，`HUDLayoutNode` 只负责算。不要在 Component 里写位置计算代码。
 2.  **无状态绘制**: `draw()` 方法必须是无副作用的 (Stateless)。不要在 draw 里面修改成员变量。

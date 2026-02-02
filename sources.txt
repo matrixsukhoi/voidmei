@@ -117,6 +117,7 @@ src/ui/layout/ClassicStyle.java
 src/ui/util/NotificationService.java
 src/ui/util/ReflectBinder.java
 src/ui/util/NotificationFactory.java
+src/ui/util/GraphicsUtil.java
 src/ui/util/FastNumberFormatter.java
 src/ui/overlay/SituationAware.java
 src/ui/overlay/ControlSurfacesOverlay.java

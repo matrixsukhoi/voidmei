@@ -560,7 +560,7 @@ public class MiniHUDOverlay extends BaseOverlay implements FlightDataListener {
             int h = (int) (ctx.hudFontSize * 5.5);
             if (w < 6)
                 w = 6;
-            speedRatioBar.setSize(w, h);
+            speedRatioBar.setStyleContext(w, h, ctx.drawFontSSmall);
         }
 
         if (crosshairGauge != null) {
@@ -696,7 +696,7 @@ public class MiniHUDOverlay extends BaseOverlay implements FlightDataListener {
         // Rate Bar (SpeedRatioBar)
         ui.layout.HUDLayoutNode speedBarNode = new ui.layout.HUDLayoutNode("speedBar", speedRatioBar);
         speedBarNode.setParent(row4)
-                .setRelativePosition(-0.1, 0)
+                .setRelativePosition(-0.3, 0)
                 .setAnchors(ui.layout.Anchor.BOTTOM_LEFT, ui.layout.Anchor.BOTTOM_RIGHT);
         modernLayout.addNode(speedBarNode);
 
