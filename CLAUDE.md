@@ -100,3 +100,47 @@ Overlay renderers → Swing/WebLaF UI
 ### Config Renderers
 
 Implement `RowRenderer` pattern: construct a `WebPanel` and bind to `ConfigService`.
+
+### Module Dependency Graph
+
+```
+Application (Entry Point)
+    ↓
+Controller (Lifecycle Coordinator)
+    ├→ Service (HTTP Data Polling) → FlightDataBus (Event Publisher)
+    ├→ OverlayManager → [各种Overlay] → HUDComponent
+    ├→ ConfigurationService → HUDSettings / OverlaySettings
+    └→ MainForm (Settings UI)
+```
+
+### Common Feature Addition Paths
+
+When adding a new configuration toggle, follow this typical modification path:
+
+1. **`ui_layout.cfg`** - Add `(item ...)` definition with type, target, default value
+2. **`HUDSettings.java`** or `OverlaySettings.java` - Add getter interface method
+3. **`ConfigurationService.java`** - Implement the getter method
+4. **Target Overlay** (e.g., `MiniHUDOverlay.java`) - Use config to control visibility/behavior
+5. **`Controller.java`** - Add config key to `.withInterest()` for WYSIWYG preview refresh
+
+Example from `showSpeedBar` toggle:
+```java
+// Controller.java - Register interest for live preview
+.withInterest("displayCrosshair", "drawHUD", ..., "showSpeedBar");
+
+// MiniHUDOverlay.java - Use in updateComponents()
+boolean showSpeed = hudSettings.showSpeedBar();
+speedRatioBar.setVisible(textVisible && showSpeed);
+throttleBar.setVisible(textVisible && !showSpeed);
+```
+
+### Sub-Module Documentation
+
+Detailed development guides for complex subsystems:
+
+| Module | Documentation |
+|--------|---------------|
+| Config System | [`src/prog/config/CLAUDE.md`](src/prog/config/CLAUDE.md) |
+| Overlay Development | [`src/ui/overlay/CLAUDE.md`](src/ui/overlay/CLAUDE.md) |
+| HUD Components | [`src/ui/component/CLAUDE.md`](src/ui/component/CLAUDE.md) |
+| MiniHUD Architecture | [`doc/minihud贡献者开发手册.md`](doc/minihud贡献者开发手册.md) |

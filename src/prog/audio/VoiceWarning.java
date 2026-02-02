@@ -205,7 +205,6 @@ public class VoiceWarning implements Runnable {
     private audClip heightWarn;
     private audClip fuelPrsWarn;
     private int fuelPCheck;
-    public double speedWarningLine;
     public double nyWarningLine0;
     public double nyWarningLine1;
     private audClip varioWarn;
@@ -284,12 +283,6 @@ public class VoiceWarning implements Runnable {
         flapWarn = new audClip("warn_flap", 1);
 
         // 失速
-        speedWarningLine = 0;
-        if (b != null && b.valid)
-            speedWarningLine = b.CriticalSpeed * 3.6f;
-        if (speedWarningLine == 0)
-            speedWarningLine = 100;
-
         stallWarn = new audClip("warn_stall", 2);
 
         // 过载
@@ -597,17 +590,10 @@ public class VoiceWarning implements Runnable {
             }
 
             // 失速逻辑
-            // 有起落架
-            if (xS.playerLive && st.gear == 0 && st.Vy != 0 && st.IAS <= speedWarningLine) {
-                // 失速
+            // 没放下起落架
+            if (xS.playerLive && st.gear == 0 && st.Vy != 0 && xS.getStallSpeed() != 0 && st.IAS <= xS.getStallSpeed()) {
                 stallWarn.playOnce(t);
             }
-            // // 无起落架不告失速
-            // if(st.engineAlive && st.gear < 0 && st.Vy != 0 && st.IAS <=
-            // speedWarningLine && st.IAS > 70){
-            // // 失速
-            // stallWarn.playOnce(t);
-            // }
 
             // 过载
             if (xS.playerLive && st.Ny > nyWarningLine1 || st.Ny < nyWarningLine0) {
