@@ -10,6 +10,7 @@ import parser.MapObj;
 import parser.State;
 import prog.util.StringHelper;
 import prog.util.CalcHelper;
+import prog.util.PistonPowerModel;
 import static prog.util.PhysicsConstants.g;
 import prog.event.EventPayload;
 import prog.event.FlightDataBus;
@@ -183,6 +184,15 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 	public double nitroConsump;
 	public int nitroEngNr;
 	public long sWepTimeVal; // Remaining WEP time in seconds
+
+	/** Optimal compressor stage index for current conditions. -1 = invalid/jet/single-stage */
+	private int optimalCompressorStage = -1;
+	/** True when actual compressor stage doesn't match optimal (at full throttle) */
+	private boolean compressorStageMismatch = false;
+	/** Previous actual compressor stage for change detection (0-based, -1 = invalid) */
+	private int prevActualCompressorStage = -1;
+	/** Previous optimal compressor stage for change detection */
+	private int prevOptimalCompressorStage = -1;
 
 	Boolean portOcupied = false;
 	private int checkEngineType;
@@ -472,6 +482,8 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 			.timeStr(sfueltime)
 			.isJet(iEngType == ENGINE_TYPE_JET)
 			.engineCheckDone(checkEngineFlag)
+			.optimalCompressorStage(optimalCompressorStage)
+			.compressorStageMismatch(compressorStageMismatch)
 			.build();
 
 		FlightDataEvent event = new FlightDataEvent(payload, sState, sIndic);
@@ -1151,6 +1163,9 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 		updateSpeedRatio();
 		updateStallSpeed();
 
+		// 计算最佳增压器档位
+		updateOptimalCompressorStage();
+
 		// TODO:升力阻力实时计算
 		// TODO:可用过载动态计算(油、重量)
 
@@ -1225,9 +1240,70 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 		// stallSpeed = 3.6 * Math.sqrt(1 / 1.225 * g * (2 * currentWeight)
 		// 		/ ((1 - flap / 100) * wingBodyLiftAreaLoad_NoFlap + (flap / 100) * wingBodyLiftAreaLoad_FullFlap));
 		
-		double flapFactor = flap / 100.0; 
+		double flapFactor = flap / 100.0;
 		double totalLiftArea = (1.0 - flapFactor) * wingBodyLiftAreaLoad_NoFlap + flapFactor * wingBodyLiftAreaLoad_FullFlap;
 		stallSpeed = 3.6 * Math.sqrt((2.0 * currentWeight * g) / (1.225 * totalLiftArea));
+	}
+
+	/**
+	 * Calculates the optimal supercharger stage for current altitude and throttle.
+	 * Also detects mismatch between actual and optimal stage (at full throttle).
+	 * Uses state-change detection to only update mismatch status when actual or optimal changes.
+	 * Results are published via FlightDataBus for voice warning.
+	 */
+	public void updateOptimalCompressorStage() {
+		PistonPowerModel.CompressorStageParams[] stages = c.getCompressorStages();
+
+		// Invalid cases: jet, single-stage, or no FM loaded
+		if (stages == null || stages.length <= 1) {
+			optimalCompressorStage = -1;
+			compressorStageMismatch = false;
+			prevActualCompressorStage = -1;
+			prevOptimalCompressorStage = -1;
+			return;
+		}
+
+		// Detect WEP mode and full throttle state (any engine throttle >= 100)
+		boolean isWep = false;
+		boolean isFullThrottle = false;
+		for (int i = 0; i < engineNum; i++) {
+			if (sState.throttles[i] > 100) {
+				isWep = true;
+				isFullThrottle = true;
+			} else if (sState.throttles[i] >= 100) {
+				isFullThrottle = true;
+			}
+		}
+
+		// Calculate optimal stage
+		int newOptimal = PistonPowerModel.findOptimalStageIndex(
+			stages, alt, isWep, getIAS(), true, 15.0);
+		optimalCompressorStage = newOptimal;
+
+		// Get current actual stage (convert from 1-based to 0-based)
+		int actualStage = sState.compressorstage - 1;
+
+		// If throttle < 100%, don't judge mismatch, force consistent
+		if (!isFullThrottle) {
+			compressorStageMismatch = false;
+			prevActualCompressorStage = -1;
+			prevOptimalCompressorStage = -1;
+			return;
+		}
+
+		// State-change driven: only re-evaluate mismatch when actual or optimal changes
+		boolean hasChange = (actualStage != prevActualCompressorStage)
+						 || (newOptimal != prevOptimalCompressorStage);
+
+		if (hasChange) {
+			// Re-evaluate mismatch on state change
+			compressorStageMismatch = (actualStage != newOptimal);
+		}
+		// If no change, preserve previous compressorStageMismatch value
+
+		// Update tracking variables
+		prevActualCompressorStage = actualStage;
+		prevOptimalCompressorStage = newOptimal;
 	}
 
 	double calcK(double x0, double y0, double x1, double y1) {

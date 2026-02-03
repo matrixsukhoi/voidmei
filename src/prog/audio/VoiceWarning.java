@@ -17,6 +17,10 @@ import javax.sound.sampled.UnsupportedAudioFileException;
 
 import parser.Indicators;
 import parser.State;
+import prog.event.FlightDataBus;
+import prog.event.FlightDataEvent;
+import prog.event.FlightDataListener;
+import prog.event.EventPayload;
 
 // 语音告警
 public class VoiceWarning implements Runnable {
@@ -230,6 +234,14 @@ public class VoiceWarning implements Runnable {
     private audClip aileronEff;
     private audClip brakeWarn;
 
+    // Compressor stage switching warning
+    private audClip compressorStageWarn;
+    private volatile boolean currentMismatch = false;  // volatile for thread safety (from FlightDataBus)
+    private boolean lastMismatch = false;              // For detecting state change (false→true, true→false)
+    private long pendingCompressorWarnTime = 0;        // 0 = no pending warning, >0 = scheduled warning time
+    private static final long COMPRESSOR_WARN_DELAY = 3000;  // 3-second delay before warning
+    private FlightDataListener flightDataListener;
+
     public void init(Controller c, Service S) {
         if (S == null) {
             doit = false;
@@ -355,6 +367,19 @@ public class VoiceWarning implements Runnable {
         // 减速板
         brakeWarn = new audClip("warn_brake", 8);
 
+        // 增压器档位 (cooldown controlled by state-change logic, not audClip)
+        compressorStageWarn = new audClip("warn_compressor", 0);
+
+        // Subscribe to FlightDataBus for compressor stage mismatch events
+        flightDataListener = new FlightDataListener() {
+            @Override
+            public void onFlightData(FlightDataEvent event) {
+                EventPayload payload = event.getPayload();
+                currentMismatch = payload.compressorStageMismatch;
+            }
+        };
+        FlightDataBus.getInstance().register(flightDataListener);
+
         // 初始化
         audClip aC = new audClip("start1", 1);
         aC.playOnce(xS.SystemTime);
@@ -363,7 +388,20 @@ public class VoiceWarning implements Runnable {
         engDamage = false;
         isGearAlive = true;
         isFlapAlive = true;
+        lastMismatch = false;
+        pendingCompressorWarnTime = 0;
         doit = Boolean.TRUE;
+    }
+
+    /**
+     * Cleans up resources when VoiceWarning is disposed.
+     */
+    public void dispose() {
+        doit = false;
+        if (flightDataListener != null) {
+            FlightDataBus.getInstance().unregister(flightDataListener);
+            flightDataListener = null;
+        }
     }
 
     public boolean engDamage;
@@ -653,6 +691,27 @@ public class VoiceWarning implements Runnable {
                 rudderEffCheck = true;
             } else {
                 rudderEffCheck = false;
+            }
+
+            // 增压器档位不匹配检测 (状态变化驱动, Service已检查满油门条件)
+            boolean isMismatch = currentMismatch;  // Read volatile once
+
+            // Detect state change (false→true or true→false)
+            if (isMismatch != lastMismatch) {
+                if (isMismatch) {
+                    // false → true: 不一致了，启动3秒定时器
+                    pendingCompressorWarnTime = t + COMPRESSOR_WARN_DELAY;
+                } else {
+                    // true → false: 一致了，取消定时器
+                    pendingCompressorWarnTime = 0;
+                }
+                lastMismatch = isMismatch;
+            }
+
+            // Check if it's time to play the warning
+            if (pendingCompressorWarnTime > 0 && t >= pendingCompressorWarnTime) {
+                compressorStageWarn.playOnce(t);
+                pendingCompressorWarnTime = 0;  // Clear after playing (single warning per state change)
             }
 
             xS.fatalWarn = fatal;

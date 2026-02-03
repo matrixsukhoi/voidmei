@@ -3,6 +3,7 @@ package prog;
 import prog.i18n.Lang;
 import prog.audio.VoiceWarning;
 import prog.util.HttpHelper;
+import prog.util.FMPowerExtractor;
 
 import java.awt.Color;
 import java.awt.Font;
@@ -39,6 +40,9 @@ public class Controller implements ConfigProvider {
 	private String identifiedFMName = null;
 	private long lastBlkxCheckTime = 0;
 	private static final long BLKX_CHECK_INTERVAL = 5000;
+
+	/** Cached compressor stage parameters for multi-stage supercharger aircraft */
+	private prog.util.PistonPowerModel.CompressorStageParams[] compressorStages;
 
 	// Robot robot;
 
@@ -796,6 +800,14 @@ public class Controller implements ConfigProvider {
 		if (Blkx.valid == true) {
 			Blkx.getAllplotdata();
 			Blkx.finalizeLoading();
+
+			// Extract compressor stages for multi-stage supercharger aircraft
+			if (FMPowerExtractor.isPistonEngine(Blkx)) {
+				compressorStages = FMPowerExtractor.extractStages(Blkx);
+			} else {
+				compressorStages = null;
+			}
+
 			// Explicitly trigger GC after loading the massive FM data structures
 			System.gc();
 
@@ -805,6 +817,15 @@ public class Controller implements ConfigProvider {
 			// Notify observers that FM data is ready
 			prog.event.UIStateBus.getInstance().publish(prog.event.UIStateEvents.FM_DATA_LOADED, planename);
 		}
+	}
+
+	/**
+	 * Gets the cached compressor stage parameters for the current aircraft.
+	 *
+	 * @return array of CompressorStageParams, or null if jet/single-stage/no FM loaded
+	 */
+	public synchronized prog.util.PistonPowerModel.CompressorStageParams[] getCompressorStages() {
+		return compressorStages;
 	}
 
 }

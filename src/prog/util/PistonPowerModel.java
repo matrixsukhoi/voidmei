@@ -451,6 +451,40 @@ public final class PistonPowerModel {
     }
 
     /**
+     * Finds the supercharger stage index that provides maximum power at the given altitude.
+     *
+     * <p>This is used for supercharger gear switching notifications. Multi-stage
+     * superchargers have different gear ratios optimized for different altitude bands.
+     * This method identifies which stage should be active for best performance.
+     *
+     * @param stages        array of supercharger stage parameters
+     * @param altitudeM     target altitude (m)
+     * @param isWep         true for WEP mode
+     * @param speedKmh      aircraft speed for RAM effect (km/h)
+     * @param isIAS         true if speed is IAS
+     * @param seaLevelTempC sea level temperature (°C)
+     * @return optimal stage index (0-based), or 0 if single stage or invalid data
+     */
+    public static int findOptimalStageIndex(CompressorStageParams[] stages, double altitudeM,
+                                            boolean isWep, double speedKmh, boolean isIAS,
+                                            double seaLevelTempC) {
+        if (stages == null || stages.length <= 1) {
+            return 0;
+        }
+
+        double maxPower = 0;
+        int optimalIndex = 0;
+        for (int i = 0; i < stages.length; i++) {
+            double power = powerAtAltitudeAdvanced(stages[i], altitudeM, isWep, speedKmh, isIAS, seaLevelTempC);
+            if (power > maxPower) {
+                maxPower = power;
+                optimalIndex = i;
+            }
+        }
+        return optimalIndex;
+    }
+
+    /**
      * Generates a power curve using the advanced algorithm (0m to 10000m).
      *
      * @param stages        supercharger stage parameters

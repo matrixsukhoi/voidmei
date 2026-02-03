@@ -15,10 +15,15 @@ public final class EventPayload {
     public final String timeStr;
     public final boolean isJet;
     public final boolean engineCheckDone;
+    /** Optimal compressor stage index (0-based). -1 indicates invalid/jet/single-stage. */
+    public final int optimalCompressorStage;
+    /** True when actual compressor stage doesn't match optimal (at full throttle). */
+    public final boolean compressorStageMismatch;
 
     public EventPayload(String mapGrid, boolean fatalWarn, boolean radioAltValid,
                         boolean isDowningFlap, String timeStr, boolean isJet,
-                        boolean engineCheckDone) {
+                        boolean engineCheckDone, int optimalCompressorStage,
+                        boolean compressorStageMismatch) {
         this.mapGrid = mapGrid;
         this.fatalWarn = fatalWarn;
         this.radioAltValid = radioAltValid;
@@ -26,6 +31,8 @@ public final class EventPayload {
         this.timeStr = timeStr;
         this.isJet = isJet;
         this.engineCheckDone = engineCheckDone;
+        this.optimalCompressorStage = optimalCompressorStage;
+        this.compressorStageMismatch = compressorStageMismatch;
     }
 
     public static class Builder {
@@ -36,6 +43,8 @@ public final class EventPayload {
         private String timeStr = "--:--";
         private boolean isJet = false;
         private boolean engineCheckDone = false;
+        private int optimalCompressorStage = -1;
+        private boolean compressorStageMismatch = false;
 
         public Builder mapGrid(String v) { this.mapGrid = v; return this; }
         public Builder fatalWarn(boolean v) { this.fatalWarn = v; return this; }
@@ -44,10 +53,13 @@ public final class EventPayload {
         public Builder timeStr(String v) { this.timeStr = v; return this; }
         public Builder isJet(boolean v) { this.isJet = v; return this; }
         public Builder engineCheckDone(boolean v) { this.engineCheckDone = v; return this; }
+        public Builder optimalCompressorStage(int v) { this.optimalCompressorStage = v; return this; }
+        public Builder compressorStageMismatch(boolean v) { this.compressorStageMismatch = v; return this; }
 
         public EventPayload build() {
             return new EventPayload(mapGrid, fatalWarn, radioAltValid,
-                                    isDowningFlap, timeStr, isJet, engineCheckDone);
+                                    isDowningFlap, timeStr, isJet, engineCheckDone,
+                                    optimalCompressorStage, compressorStageMismatch);
         }
     }
 

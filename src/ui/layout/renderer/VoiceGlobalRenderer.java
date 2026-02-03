@@ -139,7 +139,7 @@ public class VoiceGlobalRenderer implements RowRenderer {
                 "rudderEff", "elevatorEff", "aileronEff", "warn_lowrpm",
                 "warn_highrpm", "warn_ias", "warn_mach", "fail_engine",
                 "warn_lowpressure", "fail_nofuel", "warn_highvario",
-                "warn_brake", "start1"
+                "warn_brake", "warn_compressor", "start1"
         };
 
         for (String key : keys) {
