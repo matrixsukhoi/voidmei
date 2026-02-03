@@ -30,9 +30,14 @@ launch4j ./script/voidmeil4j.xml
 
 # Mock server for testing (simulates War Thunder API)
 python3 script/mock_8111.py
+
+# Run unit tests
+./script/test.sh              # Run all tests
+./script/test.sh atmosphere   # Run AtmosphereModel tests only
+./script/test.sh piston       # Run PistonPowerModel tests only
 ```
 
-**No automated tests** - testing is manual via the running application or mock server.
+**Unit tests** available for utility classes in `test/`. Integration testing is manual via the running application or mock server.
 
 ## Architecture
 
@@ -49,7 +54,7 @@ python3 script/mock_8111.py
   - `event/` - Event buses (`UIStateBus`, `FlightDataBus`, `FlightDataEvent`, `EventPayload`, `FlightDataListener`)
   - `config/` - Configuration system (`ConfigurationService`, `ConfigLoader`, `SExpParser`, `HUDSettings`, `OverlaySettings`)
   - `audio/` - Voice warning system (`VoiceWarning`, `VoiceResourceManager`)
-  - `util/` - Utilities (`HttpHelper`, `Logger`, `CalcHelper`, `StringHelper`, `FileUtils`, `FormulaEvaluator`, `PhysicsConstants`, `Interpolation`)
+  - `util/` - Utilities (`HttpHelper`, `Logger`, `CalcHelper`, `StringHelper`, `FileUtils`, `FormulaEvaluator`, `PhysicsConstants`, `Interpolation`, `AtmosphereModel`, `PistonPowerModel`)
   - `hotkey/` - Global keyboard hooks (`HotkeyManager`)
   - `i18n/` - Internationalization (`Lang`)
   - `model/` - Data models (`InfoList`)
@@ -141,9 +146,10 @@ voidmei/
 │   ├── prog/               # Application kernel
 │   ├── parser/             # Data parsing layer
 │   └── ui/                 # User interface
+├── test/                   # Unit tests (TestAtmosphereModel, TestPistonPowerModel)
 ├── dep/                    # JAR dependencies
 ├── doc/                    # Chinese development guides
-├── script/                 # Build scripts & mock server
+├── script/                 # Build scripts, mock server & test runner
 ├── lang/                   # Localization resources
 ├── image/                  # Image assets
 ├── fonts/                  # Custom fonts
@@ -224,6 +230,49 @@ Available methods:
 - `interpSweepLevel(vwing, levels, valueExtractor, sweepExtractor, default)` - Zero-allocation sweep interpolation
 
 **Never duplicate** interpolation logic - use these utilities instead.
+
+### Atmosphere Model
+
+Use `prog.util.AtmosphereModel` for ISA standard atmosphere calculations:
+
+```java
+import static prog.util.AtmosphereModel.*;
+
+// Pressure at altitude (relative, sea level = 1.0)
+double p = pressure(5000);  // → 0.533
+
+// Air density
+double rho = density(p, 15.0, 5000);  // sea level temp 15°C
+
+// Airspeed conversions
+double tas = iasToTas(400, rho);  // IAS → TAS
+double ias = tasToIas(500, rho);  // TAS → IAS
+
+// RAM effect equivalent altitude (for supercharger calculations)
+double effectiveAlt = ramEffectAltitude(5000, 15.0, 500, true, 0.9);
+```
+
+### Piston Power Model
+
+Use `prog.util.PistonPowerModel` for piston engine power curve calculations:
+
+```java
+import static prog.util.PistonPowerModel.*;
+
+// Create compressor stage parameters (from FM data)
+CompressorStageParams stage = new CompressorStageParams(7000, 2000, 1800);
+stage.wepCritAlt = 6000;
+stage.wepPowerMult = 1.15;
+
+// Calculate power at altitude/speed
+double power = powerAtAltitude(stage, 5000, true, 400, true, 15.0);
+
+// For multi-stage superchargers
+CompressorStageParams[] stages = {stage1, stage2};
+double optPower = optimalPowerAtAltitude(stages, 5000, false, 0, false, 15.0);
+```
+
+> **Note:** `PistonPowerModel` is a calculation engine only. `CompressorStageParams` must be populated from FM file data externally. See [`src/prog/util/CLAUDE.md`](src/prog/util/CLAUDE.md) for details.
 
 ### Config Renderers
 
@@ -347,6 +396,7 @@ Detailed development guides for complex subsystems:
 | Module | Documentation |
 |--------|---------------|
 | Config System | [`src/prog/config/CLAUDE.md`](src/prog/config/CLAUDE.md) |
+| Utility Classes | [`src/prog/util/CLAUDE.md`](src/prog/util/CLAUDE.md) |
 | Overlay Development | [`src/ui/overlay/CLAUDE.md`](src/ui/overlay/CLAUDE.md) |
 | HUD Components | [`src/ui/component/CLAUDE.md`](src/ui/component/CLAUDE.md) |
 | MiniHUD Architecture | [`doc/minihud贡献者开发手册.md`](doc/minihud贡献者开发手册.md) |
