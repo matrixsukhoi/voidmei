@@ -1,9 +1,8 @@
 package ui.overlay.logic;
 
-import java.util.Map;
-
 import parser.Blkx;
 import prog.Application;
+import prog.event.EventPayload;
 import prog.config.HUDSettings;
 import ui.overlay.model.HUDData;
 import ui.overlay.MinimalHUDContext;
@@ -23,7 +22,7 @@ public class HUDCalculator {
         if (event == null || source == null)
             return b.build();
 
-        Map<String, String> data = event.getData();
+        EventPayload payload = event.getPayload();
         parser.State sState = (parser.State) event.getState();
         parser.Indicators sIndic = (parser.Indicators) event.getIndicators();
 
@@ -35,9 +34,7 @@ public class HUDCalculator {
         b.verticalSpeed = source.getSEP();
         b.heading = source.getCompass();
 
-        b.mapGrid = data.get("mapGrid");
-        if (b.mapGrid == null)
-            b.mapGrid = "--";
+        b.mapGrid = payload.mapGrid;
 
         // --- Attitude ---
         double aviahp = 0;
@@ -45,9 +42,6 @@ public class HUDCalculator {
         if (sIndic != null) {
             aviahp = sIndic.aviahorizon_pitch;
             aviar = sIndic.aviahorizon_roll;
-        } else {
-            aviahp = safeParseDouble(data.get("aviahorizon_pitch"), -65535);
-            aviar = safeParseDouble(data.get("aviahorizon_roll"), -65535);
         }
 
         if (aviahp != -65535) {
@@ -85,7 +79,7 @@ public class HUDCalculator {
                                                         // text.
             }
 
-            boolean isDowningFlap = Boolean.parseBoolean(data.get("isDowningFlap"));
+            boolean isDowningFlap = payload.isDowningFlap;
             b.flapAllowAngle = getFlapAllowAngle(b.ias, isDowningFlap, blkx);
 
             b.aoa = sState.AoA;
@@ -205,7 +199,7 @@ public class HUDCalculator {
         if (b.gLoad > 1.5f || b.gLoad < -0.5f) {
             b.maneuverStateStr = String.format("G%5.1f", b.gLoad);
         } else {
-            String time = data.get("timeStr");
+            String time = payload.timeStr;
             b.maneuverStateStr = (time != null && !time.isEmpty()) ? "L" + time : "";
         }
 
@@ -271,16 +265,6 @@ public class HUDCalculator {
         }
 
         return b.build();
-    }
-
-    private static double safeParseDouble(String val, double def) {
-        if (val == null)
-            return def;
-        try {
-            return Double.parseDouble(val);
-        } catch (NumberFormatException e) {
-            return def;
-        }
     }
 
     private static double getFlapAllowAngle(double ias, boolean isDowningFlap, Blkx blkx) {

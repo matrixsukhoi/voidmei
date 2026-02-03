@@ -323,12 +323,14 @@ public class EngineControlOverlay extends FieldOverlay { // Revert to FieldOverl
 	}
 
 	private void updateResult(FlightDataEvent event) {
-		Map<String, String> data = event.getData();
-		updateStateFromData(data);
+		prog.event.EventPayload payload = event.getPayload();
+		updateStateFromPayload(payload);
 
 		if (telemetrySource != null) {
 			updateGaugesZeroGC();
 		} else {
+			@SuppressWarnings("deprecation")
+			Map<String, String> data = event.getData();
 			updateGaugesFromData(data);
 		}
 	}
@@ -343,10 +345,10 @@ public class EngineControlOverlay extends FieldOverlay { // Revert to FieldOverl
 		}
 	}
 
-	private void updateStateFromData(Map<String, String> data) {
+	private void updateStateFromPayload(prog.event.EventPayload payload) {
 		// Check jet status once
-		if (!jetLabelUpdated && "true".equals(data.get("engine_check_done"))) {
-			isJet = "true".equals(data.get("is_jet"));
+		if (!jetLabelUpdated && payload.engineCheckDone) {
+			isJet = payload.isJet;
 			if (isJet && gaugeFields != null) {
 				for (GaugeField gf : gaugeFields) {
 					if (gf.gaugeType == GaugeType.PITCH.ordinal()) {

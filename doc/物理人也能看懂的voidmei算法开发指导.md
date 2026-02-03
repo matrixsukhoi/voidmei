@@ -125,7 +125,7 @@ public void checkDanger() {
 
 **答案是：把它放进快递盒里，不用管快递员是谁。**
 
-在我们的架构中，`updateGlobalPool()` 方法就是那个快递集散中心。数据会被打包成 `FlightDataEvent` 事件，通过 `FlightDataBus` 广播给所有订阅的 UI 组件。我们使用一个简单的 **Key-Value Map** 作为快递盒。
+在我们的架构中，`updateGlobalPool()` 方法就是那个快递集散中心。数据会被打包成 `FlightDataEvent` 事件，通过 `FlightDataBus` 广播给所有订阅的 UI 组件。我们使用一个类型安全的 **EventPayload** 对象作为快递盒（它替代了旧版的 Key-Value Map，提供编译时类型检查）。
 
 ### 5.1 数据翻译官：trans2String (The Formatter)
 在数据发出前，通常需要从 `double` (人类难读) 转换为 `String` (人类可读)。
@@ -134,33 +134,44 @@ public void checkDanger() {
 *   **目的**: 确保 UI 显示整洁，且减少传输带宽。
 
 ### 5.2 事件总线投递口：updateGlobalPool (The Gateway)
-在这个方法里，你会看到一个名为 `data` 的 Map 对象。
-**它是唯一的输出通道。** 任何你想发送给 UI 的数据，只需 `put` 进去即可。
+在这个方法里，框架使用 `EventPayload.Builder` 构建类型安全的数据载荷。
+
+**对于新增逻辑标志**，需要在 `EventPayload` 中添加字段：
 
 ```java
-// 你的算法输出代码
-private void updateGlobalPool() {
-    // ... 框架已有的代码 ...
+// 1. 在 EventPayload.java 中添加你的字段
+public final boolean algoDanger;
+public final String algoEnergy;
 
-    // [插入点]
-    // 你的计算结果 (Double) -> 格式化 (String) -> 放入 Map
+// 2. 在 Builder 中添加对应 setter
+public Builder algoDanger(boolean v) { this.algoDanger = v; return this; }
+public Builder algoEnergy(String v) { this.algoEnergy = v; return this; }
 
-    // 发送能量高度
-    data.put("algo_energy", String.format("%.1f", this.myEnergyHeight));
-
-    // 发送危险告警
-    data.put("algo_warn", this.isDanger ? "DANGER" : "SAFE");
-
-    // ... 框架会自动将这个 Map 通过 FlightDataBus 推送给所有 UI 订阅者 ...
-}
+// 3. 在 Service.updateGlobalPool() 中设置值
+EventPayload payload = EventPayload.builder()
+    .algoDanger(this.isDanger)
+    .algoEnergy(String.format("%.1f", this.myEnergyHeight))
+    // ... 其他字段 ...
+    .build();
 ```
 
-### 5.3 为什么只用 Map? (Why Map?)
-你可能会问：*“为什么不直接调用 `overlay.setEnergy(val)`？”*
+**对于高频数值数据**（推荐），添加到 `TelemetrySource` 接口更高效：
+
+```java
+// TelemetrySource.java 中添加 getter
+double getMyEnergyHeight();
+
+// Service.java 中实现
+@Override
+public double getMyEnergyHeight() { return myEnergyHeight; }
+```
+
+### 5.3 为什么用 EventPayload? (Why EventPayload?)
+你可能会问：*"为什么不直接调用 `overlay.setEnergy(val)`？"*
 这是一个高明的架构决策：
 1.  **解耦**: 算法不需要引用 Overlay 对象（空指针安全）。
-2.  **灵活**: 你可以随意增加新的 Key（例如 "algo_test_1"），无需修改任何接口定义。
-3.  **广播**: 一个 Key 可以被 10 个不同的 Overlay 同时读取（例如仪表盘显示指针，HUD 显示数字）。
+2.  **类型安全**: `boolean` 字段不会因为拼写错误 "fatalwarn" vs "fatalWarn" 而静默失败，编译器会帮你检查。
+3.  **广播**: 一个字段可以被多个不同的 Overlay 同时读取（例如仪表盘显示指针，HUD 显示数字）。
 
 ---
 
@@ -192,24 +203,21 @@ private void calculateSEP() {
 ```
 
 ### Step 3: 发布数据
+推荐通过 `TelemetrySource` 发布高频数值数据：
 ```java
-// 在 updateGlobalPool() 中
-private void updateGlobalPool() {
-    // ...
-    data.put("my_sep_calc", String.format("%.1f", this.mySEP));
-    // ...
-}
+// 在 TelemetrySource 接口添加
+double getMySEP();
+
+// 在 Service.java 实现
+@Override
+public double getMySEP() { return mySEP; }
 ```
 
 ### Step 4: 通知 UI 同事
 发给他们一句话：
-> *"我的 SEP 数据已经发布了，Key 是 `my_sep_calc`。"*
+> *"我的 SEP 数据通过 TelemetrySource.getMySEP() 发布了。"*
 
-UI 同事只需在其配置文件中写：
-```lisp
-(item "实时 SEP" :target "my_sep_calc")
-```
-数据就会立即出现在屏幕上。
+UI 同事可以在 FieldOverlay 中使用 Zero-GC 路径绑定数据，数据就会自动出现在屏幕上。
 
 ---
 

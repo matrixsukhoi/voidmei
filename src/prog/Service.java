@@ -10,8 +10,7 @@ import parser.MapObj;
 import parser.State;
 import prog.util.StringHelper;
 import prog.util.CalcHelper;
-import java.util.HashMap;
-import java.util.Map;
+import prog.event.EventPayload;
 import prog.event.FlightDataBus;
 import prog.event.FlightDataEvent;
 
@@ -454,46 +453,27 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 	 * Data is now published exclusively via FlightDataBus.
 	 */
 	private void updateGlobalPool() {
-		// 1. Build Data Snapshot
-		Map<String, String> data = new HashMap<>();
-
-		// --- ZERO-GC MIGRATION ---
-		// The following high-frequency fields are now accessed directly via
-		// TelemetrySource (Service implements it).
-		// We no longer populate them in the Map to avoid Double->String allocation (GC
-		// pressure).
-
-		// --- ZERO-GC MIGRATION (STRATEGIC RESTORATION) ---
-		// We only put fields that are TRULY needed by un-migrated logic or external
-		// tools.
-		// High-frequency UI digits (IAS, Alt, etc.) are handled via TelemetrySource +
-		// FastNumberFormatter.
-
-		data.put("valid", svalid);
-
-		// Metadata for state checks (Low frequency or logic-only)
-		data.put("is_jet", String.valueOf(iEngType == ENGINE_TYPE_JET));
-		data.put("engine_check_done", String.valueOf(checkEngineFlag));
-
-		// MinimalHUD / VoiceWarn special keys (These are logic flags, not display
-		// strings)
-		data.put("fatalWarn", String.valueOf(fatalWarn));
-		data.put("radioAltValid", String.valueOf(radioAltValid));
-		data.put("isDowningFlap", String.valueOf(isDowningFlap));
-		data.put("timeStr", sfueltime);
-
-		// Map Grid Calculation (Logic-heavy, keep for now)
+		// Build type-safe payload (replaces legacy Map<String, String>)
+		String mapGrid;
 		if (loc != null && mapinfo != null) {
 			char map_x = (char) ('A' + (loc[1] * mapinfo.mapStage) + mapinfo.inGameOffset);
 			int map_y = (int) (loc[0] * mapinfo.mapStage + mapinfo.inGameOffset + 1);
-			data.put("mapGrid", String.format("%c%d", map_x, map_y));
+			mapGrid = String.format("%c%d", map_x, map_y);
 		} else {
-			data.put("mapGrid", "--");
+			mapGrid = "--";
 		}
 
-		// 2. Publish Event (Data Plane)
-		// We pass sState and sIndic directly - components SHOULD use these!
-		FlightDataEvent event = new FlightDataEvent(data, sState, sIndic);
+		EventPayload payload = EventPayload.builder()
+			.mapGrid(mapGrid)
+			.fatalWarn(fatalWarn)
+			.radioAltValid(radioAltValid)
+			.isDowningFlap(isDowningFlap)
+			.timeStr(sfueltime)
+			.isJet(iEngType == ENGINE_TYPE_JET)
+			.engineCheckDone(checkEngineFlag)
+			.build();
+
+		FlightDataEvent event = new FlightDataEvent(payload, sState, sIndic);
 		FlightDataBus.getInstance().publish(event);
 	}
 

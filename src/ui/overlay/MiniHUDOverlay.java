@@ -411,7 +411,7 @@ public class MiniHUDOverlay extends BaseOverlay implements FlightDataListener {
         // 3. Update Legacy Components (Bridge) & Global State
         warnVne = data.warnVne;
         warnRH = data.warnAltitude;
-        blinkX = Boolean.parseBoolean(event.getData().get("fatalWarn"));
+        blinkX = event.getPayload().fatalWarn;
 
         if (hudRows != null && hudRows.size() >= 5) {
             // Row 2: Standard (Flaps/Gear)

@@ -190,13 +190,24 @@ public <T> void register(String key, Supplier<T> factory)
 假设产品需求：新增一个 **“过载警告 (G-Force Warning)”** 功能，当过载超过 5G 时，在屏幕上显示红色警告。
 
 ### Step 1: 数据感知 (Service Layer)
-在 `src/prog/Service.java` 中找到数据发布方法。
+在 `src/prog/Service.java` 中，有两种方式发布数据：
+
+**方式 A (推荐)**: 对于新增的逻辑标志字段，添加到 `EventPayload`：
 ```java
-// 在 updateGlobalPool() 方法中，数据会被发布到 FlightDataBus
-double currentG = sState.Ny;
-// 放入 Map，数据将通过 FlightDataBus 发布给所有订阅者
-data.put("current_g_load", String.format("%.1f", currentG));
-data.put("warn_g_limit", currentG > 5.0 ? "true" : "false");
+// 1. 在 EventPayload.java 中添加字段
+public final boolean warnGLimit;
+
+// 2. 在 Service.updateGlobalPool() 中通过 Builder 设置
+EventPayload payload = EventPayload.builder()
+    .warnGLimit(sState.Ny > 5.0)
+    // ... 其他字段 ...
+    .build();
+```
+
+**方式 B**: 对于高频数值，添加到 `TelemetrySource` 接口：
+```java
+// 在 TelemetrySource 接口添加 getter
+double getNy();  // 已存在，直接使用 source.getNy()
 ```
 
 ### Step 2: 声明配置 (Config Layer)
@@ -219,11 +230,11 @@ data.put("warn_g_limit", currentG > 5.0 ? "true" : "false");
 ```java
 public class GForceWarning extends HUDComponent {
     private boolean isWarn = false;
-    
+
     @Override
     public void onDataUpdate(HUDData data) {
-        // 从 Map 中读取我们在 Step 1 放入的 boolean 字符串
-        this.isWarn = "true".equals(data.rawMap.get("warn_g_limit"));
+        // 从 HUDData 中读取预计算的过载值
+        this.isWarn = data.gLoad > 5.0;
     }
 
     @Override
@@ -298,11 +309,12 @@ sequenceDiagram
 ```mermaid
 classDiagram
     class FlightDataEvent {
-      +getData() Map~String,String~
+      +getPayload() EventPayload
       +getState() Object
+      +getIndicators() Object
     }
 ```
-*   **Map (推荐)**: 线程安全。
+*   **EventPayload (推荐)**: 不可变、类型安全。通过 `event.getPayload()` 获取，直接访问 `payload.isJet`、`payload.fatalWarn` 等 `final` 字段，无需字符串解析。
 *   **State (慎用)**: 如果你必须进行极高性能的物理计算（如能量机动理论验证），你可以访问 `getState()` 获取原始对象。**警告**：该对象非线程安全，严禁修改。
 
 ### 7.5 配置持久化陷阱 (Persistence Trap)

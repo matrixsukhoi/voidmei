@@ -10,6 +10,7 @@ src/parser/HudMsg.java
 src/prog/event/FlightDataListener.java
 src/prog/event/UIStateEvents.java
 src/prog/event/FlightDataEvent.java
+src/prog/event/EventPayload.java
 src/prog/event/UIStateBus.java
 src/prog/event/FlightDataBus.java
 src/prog/hotkey/HotkeyManager.java

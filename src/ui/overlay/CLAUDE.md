@@ -98,7 +98,10 @@ public class MyOverlay extends BaseOverlay implements FlightDataListener {
     public void onFlightData(FlightDataEvent event) {
         // IMPORTANT: Dispatch UI updates to EDT
         SwingUtilities.invokeLater(() -> {
-            this.cachedData = event.getData();
+            // Access type-safe payload for low-frequency fields
+            EventPayload payload = event.getPayload();
+            this.mapGrid = payload.mapGrid;
+            this.fatalWarn = payload.fatalWarn;
             updateDisplay();
         });
     }
@@ -319,7 +322,9 @@ public class MyGaugeOverlay extends DraggableOverlay {
 
     @Override
     public void onFlightData(FlightDataEvent event) {
-        double newValue = event.getData().throttle;
+        // Use TelemetrySource for high-frequency numerics (preferred)
+        // or event.getPayload() for low-frequency logic flags
+        double newValue = telemetrySource.getThrottle();
         if (Math.abs(newValue - currentValue) > 0.01) {
             currentValue = newValue;
             SwingUtilities.invokeLater(this::repaint);
@@ -342,7 +347,7 @@ private double lastValue = Double.NaN;
 
 @Override
 public void onFlightData(FlightDataEvent event) {
-    double newValue = event.getData().speed;
+    double newValue = telemetrySource.getIAS();  // Use TelemetrySource for numerics
     if (Math.abs(newValue - lastValue) < 0.001) {
         return;  // Skip redundant update
     }

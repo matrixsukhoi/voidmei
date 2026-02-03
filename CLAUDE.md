@@ -46,7 +46,7 @@ python3 script/mock_8111.py
   - `OverlayContext.java` - Context object for overlay rendering
   - `ControllerState.java` - State machine for controller lifecycle
   - `ActivationStrategy.java` - Conditional overlay activation logic
-  - `event/` - Event buses (`UIStateBus`, `FlightDataBus`, `FlightDataEvent`, `FlightDataListener`)
+  - `event/` - Event buses (`UIStateBus`, `FlightDataBus`, `FlightDataEvent`, `EventPayload`, `FlightDataListener`)
   - `config/` - Configuration system (`ConfigurationService`, `ConfigLoader`, `SExpParser`, `HUDSettings`, `OverlaySettings`)
   - `audio/` - Voice warning system (`VoiceWarning`, `VoiceResourceManager`)
   - `util/` - Utilities (`HttpHelper`, `Logger`, `CalcHelper`, `StringHelper`, `FileUtils`, `FormulaEvaluator`)
