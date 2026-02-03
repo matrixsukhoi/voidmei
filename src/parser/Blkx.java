@@ -406,6 +406,25 @@ public class Blkx {
 	public double GearDestructionIndSpeed;
 	public double maxRPM;
 	public double maxAllowedRPM;
+
+	// === Piston Engine Extended Parameters (for WAPC-compatible power calculations) ===
+	// RPM parameters
+	public double militaryRPM;              // Military power RPM (from Propeller.ThrottleRPMAuto)
+	public double wepRPM;                   // WEP power RPM (from Propeller.ThrottleRPMAuto)
+
+	// Supercharger pressure parameters
+	public double compPressureAtRPM0;       // Compressor.CompressorPressureAtRPM0
+	public double compOmegaFactorSq;        // Compressor.CompressorOmegaFactorSq
+	public double[] compATA;                // Compressor.ATA0/1/2 (manifold pressure, ata)
+	public double[] compAfterburnerPressureBoost;  // Compressor.AfterburnerPressureBoost0/1/2
+
+	// WEP parameters
+	public double throttleBoost;            // Main.ThrottleBoost (typically 1.0)
+	public double octaneAfterburnerMult;    // Main.OctaneAfterburnerMult (typically 1.0)
+	public double wepManifoldPressure;      // AfterburnerManifoldPressure (WEP manifold pressure, ata)
+
+	// Sea level power
+	public double deckPower;                // Main.Power (sea level rated power)
 	private double Cl_a;
 	private double[] AileronDefl;
 	private double Wx100;
@@ -679,6 +698,37 @@ public class Blkx {
 				// compAlt[i], compPower[i] * compRpmRatio[i] * aftbCoff, compCeil[i],
 				// compCeilPwr[i] * compRpmRatio[i] * aftbCoff));
 			}
+
+			// === Extended WAPC-compatible parameters ===
+			// Supercharger pressure parameters
+			compPressureAtRPM0 = getdouble("Compressor.CompressorPressureAtRPM0");
+			compOmegaFactorSq = getdouble("Compressor.CompressorOmegaFactorSq");
+
+			// Per-stage manifold pressure and afterburner pressure boost
+			compATA = new double[compNumSteps];
+			compAfterburnerPressureBoost = new double[compNumSteps];
+			for (int i = 0; i < compNumSteps; i++) {
+				compATA[i] = getdouble("Compressor.ATA" + i);
+				compAfterburnerPressureBoost[i] = getdouble("Compressor.AfterburnerPressureBoost" + i);
+			}
+
+			// WEP parameters from Main section
+			throttleBoost = getdouble(hdrString + "Main.ThrottleBoost");
+			if (throttleBoost <= 0) throttleBoost = 1.0;
+
+			octaneAfterburnerMult = getdouble(hdrString + "Main.OctaneAfterburnerMult");
+			if (octaneAfterburnerMult <= 0) octaneAfterburnerMult = 1.0;
+
+			// WEP manifold pressure (ata)
+			wepManifoldPressure = getdouble("AfterburnerManifoldPressure");
+
+			// Sea level power from Main.Power
+			deckPower = getdouble(hdrString + "Main.Power");
+
+			// RPM values - use maxRPM as approximation
+			// (Real implementation would parse Propeller.ThrottleRPMAuto entries)
+			wepRPM = maxRPM;
+			militaryRPM = maxRPM * 0.96;  // Approximate: military RPM is typically 96% of WEP RPM
 
 			//
 		}
