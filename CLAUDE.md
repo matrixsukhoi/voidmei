@@ -54,13 +54,13 @@ python3 script/mock_8111.py
   - `i18n/` - Internationalization (`Lang`)
   - `model/` - Data models (`InfoList`)
 
-- **`parser/`** - Data ingestion (10 files)
+- **`parser/`** - Data ingestion (9 files)
   - `State.java`, `Indicators.java` - Game telemetry JSON parsers
   - `Blkx.java` - Flight model file (.blk) parser
   - `FlightAnalyzer.java` - Derived metrics calculation
   - `FlightModelParser.java` - War Thunder flight model parsing
   - `FlightLog.java` - Flight data logging
-  - `AttributePool.java`, `HudMsg.java`, `MapInfo.java`, `MapObj.java` - Additional data structures
+  - `HudMsg.java`, `MapInfo.java`, `MapObj.java` - Additional data structures
 
 - **`ui/`** - User interface (4 root files + 9 subpackages)
   - `MainForm.java` - Settings/configuration window

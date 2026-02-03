@@ -1,8 +1,9 @@
 # 工程接入与数据总线规约 (Algorithm Integration & Data Bus Protocol)
 
-> **版本**: 2026.01
+> **版本**: 2026.01 已过期
 > **适用对象**: 算法工程师 / 飞行力学开发者
 > **核心目标**: 让算法专注于数学计算，完全屏蔽底层工程细节。
+> **已过期**
 
 ---
 
@@ -64,8 +65,8 @@ sequenceDiagram
         end
 
         
-        Scheduler->>Output: "3. updateGlobalPool()"
-        Note right of Output: 数据被推送到 UI
+        Scheduler->>Output: "3. updateGlobalPool() → FlightDataBus"
+        Note right of Output: 数据通过事件总线推送到 UI
         
         Scheduler->>Scheduler: "4. 休眠 (Sleep) 直到下一个 20ms"
     end
@@ -124,7 +125,7 @@ public void checkDanger() {
 
 **答案是：把它放进快递盒里，不用管快递员是谁。**
 
-在我们的架构中，`updateGlobalPool()` 方法就是那个快递集散中心。我们使用一个简单的 **Key-Value Map** 作为快递盒。
+在我们的架构中，`updateGlobalPool()` 方法就是那个快递集散中心。数据会被打包成 `FlightDataEvent` 事件，通过 `FlightDataBus` 广播给所有订阅的 UI 组件。我们使用一个简单的 **Key-Value Map** 作为快递盒。
 
 ### 5.1 数据翻译官：trans2String (The Formatter)
 在数据发出前，通常需要从 `double` (人类难读) 转换为 `String` (人类可读)。
@@ -132,7 +133,7 @@ public void checkDanger() {
 *   **格式化**: `String.format("%.1f", val)` -> `"3500.1"`
 *   **目的**: 确保 UI 显示整洁，且减少传输带宽。
 
-### 5.2 总线投递口：updateGlobalPool (The Gateway)
+### 5.2 事件总线投递口：updateGlobalPool (The Gateway)
 在这个方法里，你会看到一个名为 `data` 的 Map 对象。
 **它是唯一的输出通道。** 任何你想发送给 UI 的数据，只需 `put` 进去即可。
 
@@ -140,17 +141,17 @@ public void checkDanger() {
 // 你的算法输出代码
 private void updateGlobalPool() {
     // ... 框架已有的代码 ...
-    
+
     // [插入点]
-    // 你的计算结果 (Double) -> 格式化 (String) -> 放入信封 (Map)
-    
+    // 你的计算结果 (Double) -> 格式化 (String) -> 放入 Map
+
     // 发送能量高度
     data.put("algo_energy", String.format("%.1f", this.myEnergyHeight));
-    
+
     // 发送危险告警
     data.put("algo_warn", this.isDanger ? "DANGER" : "SAFE");
-    
-    // ... 框架会自动将这个 Map 推送到 EventBus ...
+
+    // ... 框架会自动将这个 Map 通过 FlightDataBus 推送给所有 UI 订阅者 ...
 }
 ```
 

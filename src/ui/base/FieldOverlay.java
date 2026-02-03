@@ -6,7 +6,6 @@ import java.awt.Graphics2D;
 import java.util.List;
 
 import com.alee.laf.panel.WebPanel;
-import parser.AttributePool;
 import prog.config.ConfigProvider;
 import ui.model.DataField;
 import ui.model.DefaultFieldManager;
@@ -21,11 +20,12 @@ import java.util.Map;
 
 /**
  * Abstract base class for event-driven data overlay windows.
- * 
- * Provides: - Event-driven updates via AttributePool.PoolListener
+ *
+ * Provides:
+ * - Event-driven updates via FlightDataBus
  * - Automatic subscription to relevant data keys
  * - Pluggable rendering and configuration
- * 
+ *
  * Subclasses must implement:
  * - getConfig(): Return overlay-specific configuration
  * - createRenderer(): Return the renderer to use
@@ -34,7 +34,6 @@ import java.util.Map;
 public abstract class FieldOverlay extends DraggableOverlay implements FlightDataListener {
     private static final long serialVersionUID = 1L;
 
-    protected AttributePool poolSource;
     protected FieldManager fieldManager;
     protected OverlayRenderer renderer;
     protected RenderContext renderContext;
@@ -71,9 +70,8 @@ public abstract class FieldOverlay extends DraggableOverlay implements FlightDat
 
     // --- Initialization ---
 
-    public void init(ConfigProvider config, AttributePool pool) {
+    public void init(ConfigProvider config) {
         this.config = config;
-        this.poolSource = pool;
 
         fieldManager = new DefaultFieldManager(config);
         setupTransparentWindow();
@@ -100,8 +98,8 @@ public abstract class FieldOverlay extends DraggableOverlay implements FlightDat
         setVisible(true);
     }
 
-    public void initPreview(ConfigProvider config, AttributePool pool) {
-        init(config, pool);
+    public void initPreview(ConfigProvider config) {
+        init(config);
         applyPreviewStyle();
         setupDragListeners();
         setVisible(true);
@@ -203,8 +201,6 @@ public abstract class FieldOverlay extends DraggableOverlay implements FlightDat
         });
 
     }
-
-    // --- PoolListener Implementation ---
 
     // --- Legacy Compatibility ---
 

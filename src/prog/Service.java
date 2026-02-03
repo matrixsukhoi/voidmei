@@ -448,6 +448,11 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 		updateGlobalPool();
 	}
 
+	/**
+	 * Publishes flight data to FlightDataBus.
+	 * Note: Method name is legacy - GlobalPool has been removed.
+	 * Data is now published exclusively via FlightDataBus.
+	 */
 	private void updateGlobalPool() {
 		// 1. Build Data Snapshot
 		Map<String, String> data = new HashMap<>();
@@ -490,18 +495,6 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 		// We pass sState and sIndic directly - components SHOULD use these!
 		FlightDataEvent event = new FlightDataEvent(data, sState, sIndic);
 		FlightDataBus.getInstance().publish(event);
-
-		// 3. Legacy Support (Sync to GlobalPool)
-		if (c != null && c.globalPool != null) {
-			c.globalPool.beginBatch();
-			for (Map.Entry<String, String> entry : data.entrySet()) {
-				c.globalPool.put(entry.getKey(), entry.getValue());
-			}
-			// Important: Put raw objects into global pool for direct access by FieldManager
-			c.globalPool.put("State", sState);
-			c.globalPool.put("Indicators", sIndic);
-			c.globalPool.commitBatch();
-		}
 	}
 
 	public void checkEngineJet() {

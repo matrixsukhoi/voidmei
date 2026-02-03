@@ -1,7 +1,6 @@
 package prog;
 
 import parser.Blkx;
-import parser.AttributePool;
 
 /**
  * Context object containing all data overlays might need.
@@ -12,14 +11,12 @@ public class OverlayContext {
     public final Controller tc;
     public final Service S;
     public final Blkx Blkx;
-    public final AttributePool pool;
     public final boolean isPreviewMode;
 
     private OverlayContext(Builder builder) {
         this.tc = builder.tc;
         this.S = builder.S;
         this.Blkx = builder.Blkx;
-        this.pool = builder.pool;
         this.isPreviewMode = builder.isPreviewMode;
     }
 
@@ -58,7 +55,6 @@ public class OverlayContext {
         private Controller tc;
         private Service S;
         private Blkx Blkx;
-        private AttributePool pool;
         private boolean isPreviewMode = false;
 
         public Builder Controller(Controller tc) {
@@ -73,11 +69,6 @@ public class OverlayContext {
 
         public Builder Blkx(Blkx Blkx) {
             this.Blkx = Blkx;
-            return this;
-        }
-
-        public Builder pool(AttributePool pool) {
-            this.pool = pool;
             return this;
         }
 
@@ -106,7 +97,6 @@ public class OverlayContext {
                 .Controller(tc)
                 .Service(tc.S)
                 .Blkx(tc.getBlkx())
-                .pool(tc.globalPool)
                 .previewMode(false)
                 .build();
     }
@@ -119,7 +109,6 @@ public class OverlayContext {
                 .Controller(tc)
                 .Service(tc.S)
                 .Blkx(tc.getBlkx())
-                .pool(tc.globalPool)
                 .previewMode(true)
                 .build();
     }

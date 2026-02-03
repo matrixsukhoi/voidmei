@@ -12,10 +12,10 @@ import prog.config.ConfigProvider;
  * Base class for draggable overlay windows.
  * Provides common functionality for window dragging, position saving, and
  * preview mode.
- * 
+ *
  * Subclasses can be either:
  * - Polling-based: Override run(), updateData(), drawTick()
- * - Event-driven: Implement PoolListener and subscribe to AttributePool
+ * - Event-driven: Implement FlightDataListener and subscribe to FlightDataBus
  */
 public abstract class DraggableOverlay extends WebFrame implements Runnable {
     private static final long serialVersionUID = 1L;

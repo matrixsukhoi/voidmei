@@ -3,7 +3,6 @@ src/parser/Indicators.java
 src/parser/MapObj.java
 src/parser/MapInfo.java
 src/parser/FlightModelParser.java
-src/parser/AttributePool.java
 src/parser/State.java
 src/parser/Blkx.java
 src/parser/FlightAnalyzer.java

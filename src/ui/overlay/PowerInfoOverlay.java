@@ -58,7 +58,7 @@ public class PowerInfoOverlay extends FieldOverlay {
 		this.title = engineInfoConfig.title;
 
 		setOverlaySettings(settings);
-		super.init(c, c.globalPool);
+		super.init(c);
 
 		if (s != null) {
 			setVisible(true);

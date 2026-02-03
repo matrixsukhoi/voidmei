@@ -190,11 +190,11 @@ public <T> void register(String key, Supplier<T> factory)
 假设产品需求：新增一个 **“过载警告 (G-Force Warning)”** 功能，当过载超过 5G 时，在屏幕上显示红色警告。
 
 ### Step 1: 数据感知 (Service Layer)
-在 `src/prog/Service.java` 中找到计算逻辑处。
+在 `src/prog/Service.java` 中找到数据发布方法。
 ```java
-// updateGlobalPool()
+// 在 updateGlobalPool() 方法中，数据会被发布到 FlightDataBus
 double currentG = sState.Ny;
-// 放入 Map
+// 放入 Map，数据将通过 FlightDataBus 发布给所有订阅者
 data.put("current_g_load", String.format("%.1f", currentG));
 data.put("warn_g_limit", currentG > 5.0 ? "true" : "false");
 ```

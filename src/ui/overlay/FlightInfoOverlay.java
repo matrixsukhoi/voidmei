@@ -54,7 +54,7 @@ public class FlightInfoOverlay extends FieldOverlay {
 		this.title = flightInfoConfig.title;
 
 		setOverlaySettings(settings);
-		super.init(c, c.globalPool);
+		super.init(c);
 
 		if (s != null) {
 			setVisible(true);

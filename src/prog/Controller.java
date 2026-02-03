@@ -8,7 +8,6 @@ import java.awt.Color;
 import java.awt.Font;
 
 import parser.Blkx;
-import parser.AttributePool;
 import parser.FlightAnalyzer;
 import parser.FlightLog;
 import ui.StatusBar;
@@ -40,7 +39,6 @@ public class Controller implements ConfigProvider {
 	private String identifiedFMName = null;
 	private long lastBlkxCheckTime = 0;
 	private static final long BLKX_CHECK_INTERVAL = 5000;
-	public AttributePool globalPool = new AttributePool();
 
 	// Robot robot;
 
@@ -801,8 +799,6 @@ public class Controller implements ConfigProvider {
 			// Explicitly trigger GC after loading the massive FM data structures
 			System.gc();
 
-			// Populate Global Pool
-			globalPool.putAll(Blkx.getVariableMap());
 			loadedFMName = planename;
 			cur_fmtype = planename;
 
