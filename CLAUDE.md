@@ -49,7 +49,7 @@ python3 script/mock_8111.py
   - `event/` - Event buses (`UIStateBus`, `FlightDataBus`, `FlightDataEvent`, `EventPayload`, `FlightDataListener`)
   - `config/` - Configuration system (`ConfigurationService`, `ConfigLoader`, `SExpParser`, `HUDSettings`, `OverlaySettings`)
   - `audio/` - Voice warning system (`VoiceWarning`, `VoiceResourceManager`)
-  - `util/` - Utilities (`HttpHelper`, `Logger`, `CalcHelper`, `StringHelper`, `FileUtils`, `FormulaEvaluator`, `PhysicsConstants`)
+  - `util/` - Utilities (`HttpHelper`, `Logger`, `CalcHelper`, `StringHelper`, `FileUtils`, `FormulaEvaluator`, `PhysicsConstants`, `Interpolation`)
   - `hotkey/` - Global keyboard hooks (`HotkeyManager`)
   - `i18n/` - Internationalization (`Lang`)
   - `model/` - Data models (`InfoList`)
@@ -190,6 +190,40 @@ Available constants:
 - `G` / `g` - Gravitational acceleration (9.80 m/s²)
 
 **Never hardcode** values like `9.78f` or `9.80` directly in code.
+
+### Interpolation Utilities
+
+Use `prog.util.Interpolation` for all interpolation operations to ensure consistency and avoid code duplication:
+
+```java
+import static prog.util.Interpolation.lerp;
+import static prog.util.Interpolation.interpSweepLevel;
+
+// Linear interpolation between two points
+double y = lerp(x, x0, y0, x1, y1);
+
+// 1D table lookup with boundary clamping
+double result = Interpolation.interp1d(x, xArray, yArray);
+
+// 2D bilinear interpolation (e.g., thrust tables)
+double thrust = Interpolation.interp2d(altitude, velocity, altitudes, velocities, thrustTable);
+
+// Zero-allocation sweep interpolation for variable-geometry wings
+double vne = interpSweepLevel(vwing, sweepLevels,
+    level -> level.vne,           // value extractor
+    level -> level.sweep,         // sweep extractor
+    defaultVne);
+```
+
+Available methods:
+- `lerp(x, x0, y0, x1, y1)` - Linear interpolation between two points
+- `slope(x0, y0, x1, y1)` - Calculate slope (dy/dx) between two points
+- `interp1d(x, xs, ys)` - 1D table interpolation with boundary clamping
+- `interp1d(x, xs, ys, extrapolate)` - 1D interpolation with optional extrapolation
+- `interp2d(x, y, xs, ys, zz)` - 2D bilinear interpolation for table lookup
+- `interpSweepLevel(vwing, levels, valueExtractor, sweepExtractor, default)` - Zero-allocation sweep interpolation
+
+**Never duplicate** interpolation logic - use these utilities instead.
 
 ### Config Renderers
 

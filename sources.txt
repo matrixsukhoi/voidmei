@@ -31,6 +31,7 @@ src/prog/util/StringHelper.java
 src/prog/util/CalcHelper.java
 src/prog/util/PropertyBinder.java
 src/prog/util/FileUtils.java
+src/prog/util/Interpolation.java
 src/prog/util/UIStateStorage.java
 src/prog/util/Logger.java
 src/prog/util/FormulaEvaluator.java
