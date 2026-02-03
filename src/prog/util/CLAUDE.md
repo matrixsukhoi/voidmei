@@ -123,8 +123,8 @@ double power = optimalPowerAtAltitude(
 );
 
 // Generate full power curve
-double[] curve = generatePowerCurve(stages, true, 0, false, 15, 100);
-// Returns power from -4000m to 20000m in 100m steps
+double[] curve = generatePowerCurve(stages, true, 0, false, 15, 50);
+// Returns power from 0m to 10000m in 50m steps (201 points)
 ```
 
 #### Multi-Stage Superchargers

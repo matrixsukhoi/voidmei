@@ -35,6 +35,8 @@ public class PowerCurveWindow extends JDialog {
     private static final int CHART_WIDTH = 600;
     private static final int CHART_HEIGHT = 400;
     private static final int MARGIN = 60;
+    private static final int MAX_DISPLAY_ALT = 10000;  // Maximum altitude for chart display (m)
+    private static final int ALT_STEP = 50;  // Altitude step for curve generation (m)
 
     // Color palette (Material Dark theme)
     private static final Color BG_COLOR = new Color(30, 30, 35);
@@ -111,22 +113,21 @@ public class PowerCurveWindow extends JDialog {
 
         isPiston = true;
 
-        // Generate power curve (0m to 15000m, 100m steps)
-        // generatePowerCurveAdvanced returns data from -4000m, so we need to offset
+        // Generate power curve (0m to 10000m, 50m steps)
         powerCurve = PistonPowerModel.generatePowerCurveAdvanced(
-            stages, wepMode, speedKmh, true, 15.0, 100);
+            stages, wepMode, speedKmh, true, 15.0, ALT_STEP);
 
         // Find maximum power and peak altitude
-        // Array index 40 = 0m altitude (-4000 + 40*100 = 0)
-        int seaLevelIdx = 40;
-        int maxAltIdx = seaLevelIdx + 150;  // Up to 15000m
+        // Array index 0 = 0m altitude (range starts at 0m now)
+        int seaLevelIdx = 0;
+        int maxAltIdx = MAX_DISPLAY_ALT / ALT_STEP;  // Up to 10000m
 
         maxPower = 0;
         peakAltitude = 0;
-        for (int i = seaLevelIdx; i < maxAltIdx && i < powerCurve.length; i++) {
+        for (int i = seaLevelIdx; i <= maxAltIdx && i < powerCurve.length; i++) {
             if (powerCurve[i] > maxPower) {
                 maxPower = powerCurve[i];
-                peakAltitude = (i - seaLevelIdx) * 100;
+                peakAltitude = i * ALT_STEP;
             }
         }
     }
@@ -184,9 +185,8 @@ public class PowerCurveWindow extends JDialog {
             peakLabel.setFont(Application.defaultFont.deriveFont(12f));
             statsPanel.add(peakLabel);
 
-            // Sea level power
-            int seaLevelIdx = 40;
-            double seaLevelPower = powerCurve[seaLevelIdx];
+            // Sea level power (index 0 = 0m altitude)
+            double seaLevelPower = powerCurve[0];
             WebLabel slLabel = new WebLabel(String.format(
                 "<html>海平面功率: <b>%.0f hp</b></html>", seaLevelPower));
             slLabel.setForeground(Color.WHITE);
@@ -309,7 +309,7 @@ public class PowerCurveWindow extends JDialog {
             // X-axis labels (altitude)
             for (int i = 0; i <= 5; i++) {
                 int x = MARGIN + (i * chartW / 5);
-                int alt = i * 3000;  // 0-15000m range
+                int alt = i * (MAX_DISPLAY_ALT / 5);  // 0-8000m range
                 String label = alt + "m";
                 int labelWidth = fm.stringWidth(label);
                 g2d.drawString(label, x - labelWidth / 2, MARGIN + chartH + 18);
@@ -320,15 +320,15 @@ public class PowerCurveWindow extends JDialog {
             g2d.setColor(CURVE_COLOR);
             g2d.setStroke(new BasicStroke(2.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
 
-            int seaLevelIdx = 40;  // -4000 + 40*100 = 0m
-            int maxAltIdx = seaLevelIdx + 150;  // 15000m
+            int seaLevelIdx = 0;  // index 0 = 0m altitude
+            int maxAltIdx = MAX_DISPLAY_ALT / ALT_STEP;  // 10000m
 
             int prevX = -1, prevY = -1;
-            for (int i = seaLevelIdx; i < maxAltIdx && i < powerCurve.length; i++) {
-                int alt = (i - seaLevelIdx) * 100;  // Altitude in meters
+            for (int i = seaLevelIdx; i <= maxAltIdx && i < powerCurve.length; i++) {
+                int alt = i * ALT_STEP;  // Altitude in meters
                 double power = powerCurve[i];
 
-                int x = MARGIN + (int) ((double) alt / 15000 * chartW);
+                int x = MARGIN + (int) ((double) alt / MAX_DISPLAY_ALT * chartW);
                 int y = MARGIN + chartH - (int) (power / maxPower * chartH);
 
                 if (prevX >= 0) {
@@ -341,7 +341,7 @@ public class PowerCurveWindow extends JDialog {
 
         private void drawPeakMarker(Graphics2D g2d, int chartW, int chartH) {
             // Draw peak point marker
-            int peakX = MARGIN + (int) ((double) peakAltitude / 15000 * chartW);
+            int peakX = MARGIN + (int) ((double) peakAltitude / MAX_DISPLAY_ALT * chartW);
             int peakY = MARGIN + chartH - chartH;  // maxPower/maxPower = 1.0
 
             // Glow effect

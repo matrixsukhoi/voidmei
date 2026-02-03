@@ -331,24 +331,23 @@ public final class PistonPowerModel {
     }
 
     /**
-     * Generates a complete power curve from -4000m to 20000m.
+     * Generates a complete power curve from 0m to 10000m.
      *
-     * <p>This produces an array suitable for display or export, matching
-     * the format used by wt-aircraft-performance-calculator.
+     * <p>This produces an array suitable for display or export.
      *
      * @param stages        supercharger stage parameters
      * @param isWep         true for WEP mode
      * @param speedKmh      aircraft speed for RAM effect (0 for static)
      * @param isIAS         true if speed is IAS
      * @param seaLevelTempC sea level temperature (°C)
-     * @param altStep       altitude step in meters (recommend 100)
-     * @return power array where index i corresponds to altitude (-4000 + i × altStep)
+     * @param altStep       altitude step in meters (recommend 50)
+     * @return power array where index i corresponds to altitude (i × altStep)
      */
     public static double[] generatePowerCurve(CompressorStageParams[] stages, boolean isWep,
                                               double speedKmh, boolean isIAS, double seaLevelTempC,
                                               int altStep) {
-        int minAlt = -4000;
-        int maxAlt = 20000;
+        int minAlt = 0;
+        int maxAlt = 10000;
         int count = (maxAlt - minAlt) / altStep + 1;
         double[] curve = new double[count];
 
@@ -376,8 +375,8 @@ public final class PistonPowerModel {
         double maxPower = 0;
         double peakAlt = 0;
 
-        // Search from sea level to 15000m in 100m increments
-        for (int alt = 0; alt <= 15000; alt += 100) {
+        // Search from sea level to 10000m in 50m increments
+        for (int alt = 0; alt <= 10000; alt += 50) {
             double power = optimalPowerAtAltitude(stages, alt, isWep, 0, false, seaLevelTempC);
             if (power > maxPower) {
                 maxPower = power;
@@ -452,21 +451,21 @@ public final class PistonPowerModel {
     }
 
     /**
-     * Generates a power curve using the advanced algorithm.
+     * Generates a power curve using the advanced algorithm (0m to 10000m).
      *
      * @param stages        supercharger stage parameters
      * @param isWep         true for WEP mode
      * @param speedKmh      aircraft speed for RAM effect (0 for static)
      * @param isIAS         true if speed is IAS
      * @param seaLevelTempC sea level temperature (°C)
-     * @param altStep       altitude step in meters
-     * @return power array where index i corresponds to altitude (-4000 + i × altStep)
+     * @param altStep       altitude step in meters (recommend 50)
+     * @return power array where index i corresponds to altitude (i × altStep)
      */
     public static double[] generatePowerCurveAdvanced(CompressorStageParams[] stages, boolean isWep,
                                                        double speedKmh, boolean isIAS,
                                                        double seaLevelTempC, int altStep) {
-        int minAlt = -4000;
-        int maxAlt = 20000;
+        int minAlt = 0;
+        int maxAlt = 10000;
         int count = (maxAlt - minAlt) / altStep + 1;
         double[] curve = new double[count];
         for (int i = 0; i < count; i++) {

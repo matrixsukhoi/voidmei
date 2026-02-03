@@ -243,23 +243,22 @@ public class TestPistonPowerModel {
         stage.wepPowerMult = 1.1;
         CompressorStageParams[] stages = {stage};
 
-        double[] curve = generatePowerCurve(stages, false, 0, false, 15, 100);
+        double[] curve = generatePowerCurve(stages, false, 0, false, 15, 50);
 
-        // Check array size
-        int expectedSize = (20000 - (-4000)) / 100 + 1;
+        // Check array size (range: 0m to 10000m, step 50m)
+        int expectedSize = (10000 - 0) / 50 + 1;  // 201 points
         assertTrue("curve size correct", curve.length == expectedSize);
 
-        // Check values at known altitudes
-        // Index 40 = -4000 + 40*100 = 0m
-        int seaLevelIdx = (0 - (-4000)) / 100;
+        // Check values at known altitudes (index = altitude / step)
+        int seaLevelIdx = 0;
         assertClose("curve at sea level", curve[seaLevelIdx], 1400, 10);
 
-        // Index at 5000m
-        int critAltIdx = (5000 - (-4000)) / 100;
+        // Index at 5000m = 5000 / 50 = 100
+        int critAltIdx = 5000 / 50;
         assertClose("curve at crit alt", curve[critAltIdx], 1500, 10);
 
-        // Power decreases after critical altitude
-        int highAltIdx = (8000 - (-4000)) / 100;
+        // Power decreases after critical altitude (8000m = index 160)
+        int highAltIdx = 8000 / 50;
         assertTrue("power decreases at high alt", curve[highAltIdx] < curve[critAltIdx]);
     }
 
