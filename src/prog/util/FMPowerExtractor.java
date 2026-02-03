@@ -156,8 +156,10 @@ public final class FMPowerExtractor {
                 stages[i].wepConstRpmAlt = calculateWepConstRpmAltitude(blkx, stages[i], i);
             }
 
-            // Handle AfterburnerBoostMul == 0 (no WEP for this stage)
-            if (blkx.compBoost[i] == 0) {
+            // Handle AfterburnerBoostMul explicitly set to 0 (no WEP for this stage)
+            // Only disable WEP if the field EXISTS and is explicitly 0
+            // If field is missing, WEP uses global AfterburnerBoost (handled by calculateWepMultiplier)
+            if (blkx.hasCompBoost != null && blkx.hasCompBoost[i] && blkx.compBoost[i] == 0) {
                 stages[i].wepDeckAlt = 0;
                 stages[i].wepCritAlt = stages[i].critAlt;
                 stages[i].wepPowerMult = 1.0;

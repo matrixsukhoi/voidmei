@@ -450,6 +450,7 @@ public class Blkx {
 	public double compConstRpmPower[];
 
 	public double compBoost[];
+	public boolean[] hasCompBoost;  // Whether AfterburnerBoostMul exists in FM file (vs defaulting to 0)
 	public double compRpmRatio[];
 
 	public double modeEngineMult[];
@@ -746,6 +747,7 @@ public class Blkx {
 
 			compAlt = new double[compNumSteps];
 			compBoost = new double[compNumSteps];
+			hasCompBoost = new boolean[compNumSteps];
 			compPower = new double[compNumSteps];
 			compRpmRatio = new double[compNumSteps];
 			compCeil = new double[compNumSteps];
@@ -757,6 +759,7 @@ public class Blkx {
 				compAlt[i] = getdouble("Compressor.Altitude" + i);
 				compPower[i] = getdouble("Compressor.Power" + i);
 				compBoost[i] = getdouble("Compressor.AfterburnerBoostMul" + i);
+				hasCompBoost[i] = !getone("Compressor.AfterburnerBoostMul" + i).equals("null");
 				compRpmRatio[i] = getdouble("Compressor.PowerConstRPMCurvature" + i);
 				compCeil[i] = getdouble("Compressor.Ceiling" + i);
 				compCeilPwr[i] = getdouble("Compressor.PowerAtCeiling" + i);
