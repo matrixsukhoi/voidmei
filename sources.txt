@@ -32,10 +32,13 @@ src/prog/util/CalcHelper.java
 src/prog/util/PropertyBinder.java
 src/prog/util/FileUtils.java
 src/prog/util/Interpolation.java
+src/prog/util/FMPowerExtractor.java
+src/prog/util/AtmosphereModel.java
 src/prog/util/UIStateStorage.java
 src/prog/util/Logger.java
 src/prog/util/FormulaEvaluator.java
 src/prog/util/HttpHelper.java
+src/prog/util/PistonPowerModel.java
 src/prog/audio/VoiceResourceManager.java
 src/prog/audio/VoiceWarning.java
 src/prog/config/ConfigurationService.java
@@ -143,4 +146,5 @@ src/ui/window/comparison/ComparisonFrame.java
 src/ui/window/comparison/logic/ComparisonCalculator.java
 src/ui/window/comparison/ComparisonTable.java
 src/ui/window/comparison/model/ComparisonData.java
+src/ui/window/comparison/PowerCurveWindow.java
 src/ui/window/comparison/CompactComparisonWindow.java

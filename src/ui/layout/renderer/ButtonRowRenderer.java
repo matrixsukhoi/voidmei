@@ -79,6 +79,34 @@ public class ButtonRowRenderer implements RowRenderer {
             });
         }
 
+        if ("openPowerCurve".equals(row.property)) {
+            btn.addActionListener(e -> {
+                // Dismiss any open tooltips before showing window
+                ReplicaBuilder.disposeAllPopovers();
+
+                // Read configuration
+                String fmName = ctx.getStringFromConfigService("selectedFM0", "bf-109f-4");
+
+                // Parse speed from string config
+                int speed = 0;
+                try {
+                    String speedStr = ctx.getStringFromConfigService("powerCurveSpeed", "0");
+                    speed = Integer.parseInt(speedStr);
+                } catch (Exception ex) {
+                    speed = 0;
+                }
+
+                // Parse WEP mode from boolean config
+                boolean wep = ctx.getFromConfigService("powerCurveWep", false);
+
+                // Open power curve window
+                java.awt.Window parent = javax.swing.SwingUtilities.getWindowAncestor(p);
+                ui.window.comparison.PowerCurveWindow win =
+                    new ui.window.comparison.PowerCurveWindow(parent, fmName, speed, wep);
+                win.setVisible(true);
+            });
+        }
+
         // Handle import config button
         if ("importConfig".equals(row.property)) {
             btn.addActionListener(e -> {
