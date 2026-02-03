@@ -207,6 +207,8 @@ public class VoiceWarning implements Runnable {
     private int fuelPCheck;
     public double nyWarningLine0;
     public double nyWarningLine1;
+    private parser.Blkx blkx;
+    private double nofuelweight;
     private audClip varioWarn;
     private audClip stallWarn;
     private audClip nyWarn;
@@ -285,7 +287,11 @@ public class VoiceWarning implements Runnable {
         // 失速
         stallWarn = new audClip("warn_stall", 2);
 
-        // 过载
+        // 过载 - 保存引用用于动态计算
+        this.blkx = b;
+        this.nofuelweight = (b != null && b.valid) ? b.nofuelweight : 0;
+
+        // 静态阈值作为后备
         nyWarningLine0 = 0;
         nyWarningLine1 = 0;
         if (b != null && b.valid) {
@@ -595,8 +601,18 @@ public class VoiceWarning implements Runnable {
                 stallWarn.playOnce(t);
             }
 
-            // 过载
-            if (xS.playerLive && st.Ny > nyWarningLine1 || st.Ny < nyWarningLine0) {
+            // 过载 - 使用动态阈值
+            double currentNyMin = nyWarningLine0;
+            double currentNyMax = nyWarningLine1;
+
+            if (blkx != null && blkx.rawWingCritOverload != null && nofuelweight > 0) {
+                double currentWeight = nofuelweight + st.mfuel;
+                double[] dynamicLimits = blkx.getMaxAllowGloadForWeight(currentWeight);
+                currentNyMin = dynamicLimits[0];
+                currentNyMax = dynamicLimits[1];
+            }
+
+            if (xS.playerLive && (st.Ny > currentNyMax || st.Ny < currentNyMin)) {
                 // 高过载
                 fatal = true;
                 nyWarn.playOnce(t);

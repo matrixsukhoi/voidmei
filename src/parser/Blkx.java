@@ -90,6 +90,9 @@ public class Blkx {
 
 	public double[] maxAllowGload;
 
+	/** Raw wing critical overload values (Newtons) for dynamic G-load calculation */
+	public double[] rawWingCritOverload;
+
 	public int emptyweightToLoad;
 	public double aileronEff;
 	public double aileronPowerLoss;
@@ -500,6 +503,22 @@ public class Blkx {
 			sweeps[i] = sweepLevels.get(i).sweep;
 		}
 		return interpolateSweepDouble(vwing, values, sweeps, n);
+	}
+
+	/**
+	 * Calculates the maximum allowable G-load range based on current aircraft weight.
+	 * As fuel burns off, the aircraft can sustain higher G-loads within structural limits.
+	 *
+	 * @param currentWeight Current total weight in kg (typically nofuelweight + mfuel)
+	 * @return double[2]: [0]=negative G limit (e.g., -4.5), [1]=positive G limit (e.g., +11.2)
+	 */
+	public double[] getMaxAllowGloadForWeight(double currentWeight) {
+		if (rawWingCritOverload == null || currentWeight <= 0) {
+			return maxAllowGload; // Fallback to static values
+		}
+		double negativeG = 1.2 * (2 * rawWingCritOverload[0] / (g * currentWeight) + 1);
+		double positiveG = 1.2 * (2 * rawWingCritOverload[1] / (g * currentWeight) - 1);
+		return new double[] { negativeG, positiveG };
 	}
 
 	public void initEngineLoad() {
@@ -1038,6 +1057,9 @@ public class Blkx {
 		if (maxAllowGload[0] == 0) {
 			getdoubles("Strength.CritOverload", maxAllowGload, 2);
 		}
+
+		// Save raw values for dynamic G-load calculation before conversion
+		rawWingCritOverload = new double[] { maxAllowGload[0], maxAllowGload[1] };
 		// 减去机身升力承载的重量
 		// WingLoad =
 		// halfWingLoad =
@@ -1045,10 +1067,10 @@ public class Blkx {
 		String s = String.format(Lang.bFmVersion, readFileName, version);
 		s += (String.format(Lang.bWeight, emptyweight, maxfuelweight));
 		s += (String.format(Lang.bCritSpeed, CriticalSpeed * 3.6, vne));
-		s += (String.format(Lang.bAllowLoadFactor, 2 * maxAllowGload[0] / (g * grossweight) + 1,
-				2 * maxAllowGload[1] / (g * grossweight) - 1,
-				2 * maxAllowGload[0] / (g * halfweight) + 1,
-				2 * maxAllowGload[1] / (g * halfweight) - 1));
+		s += (String.format(Lang.bAllowLoadFactor, 1.2 * (2 * maxAllowGload[0] / (g * grossweight) + 1),
+				1.2 * (2 * maxAllowGload[1] / (g * grossweight) - 1),
+				1.2 * (2 * maxAllowGload[0] / (g * halfweight) + 1),
+				1.2 * (2 * maxAllowGload[1] / (g * halfweight) - 1)));
 
 		for (int i = 0; i < FlapsDestructionNum; i++) {
 			// s += "襟翼限速" + i + ": [" + String.format("%.0f",
@@ -1067,8 +1089,9 @@ public class Blkx {
 
 		s += String.format(Lang.bMaxLiftLoad350, (NoFlapWLL + 1) / 2, (FullFlapWLL + 1) / 2);
 
-		maxAllowGload[0] = (2 * maxAllowGload[0] / (g * grossweight) + 1);
-		maxAllowGload[1] = (2 * maxAllowGload[1] / (g * grossweight) - 1);
+		// 战雷在过载超限到真正断留了20%的余量
+		maxAllowGload[0] = 1.2 * (2 * maxAllowGload[0] / (g * grossweight) + 1);
+		maxAllowGload[1] = 1.2 * (2 * maxAllowGload[1] / (g * grossweight) - 1);
 
 		// 计算滚转率
 
