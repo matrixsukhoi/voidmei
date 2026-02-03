@@ -49,7 +49,7 @@ python3 script/mock_8111.py
   - `event/` - Event buses (`UIStateBus`, `FlightDataBus`, `FlightDataEvent`, `EventPayload`, `FlightDataListener`)
   - `config/` - Configuration system (`ConfigurationService`, `ConfigLoader`, `SExpParser`, `HUDSettings`, `OverlaySettings`)
   - `audio/` - Voice warning system (`VoiceWarning`, `VoiceResourceManager`)
-  - `util/` - Utilities (`HttpHelper`, `Logger`, `CalcHelper`, `StringHelper`, `FileUtils`, `FormulaEvaluator`)
+  - `util/` - Utilities (`HttpHelper`, `Logger`, `CalcHelper`, `StringHelper`, `FileUtils`, `FormulaEvaluator`, `PhysicsConstants`)
   - `hotkey/` - Global keyboard hooks (`HotkeyManager`)
   - `i18n/` - Internationalization (`Lang`)
   - `model/` - Data models (`InfoList`)
@@ -173,6 +173,23 @@ voidmei/
 `Service.java` forces metrics to `0.0` based on engine type for `hide-when-zero` logic:
 - Jets: `ManifoldPressure`, `WaterTemp` → 0
 - Props: `Thrust` → 0
+
+### Physics Constants
+
+Use `prog.util.PhysicsConstants` for physical constants to ensure consistency across the codebase:
+
+```java
+import static prog.util.PhysicsConstants.g;
+
+// Use in physics calculations
+double energy = velocity * velocity / (2 * g);
+double turnRadius = speedv * speedv / (g * loadFactor);
+```
+
+Available constants:
+- `G` / `g` - Gravitational acceleration (9.80 m/s²)
+
+**Never hardcode** values like `9.78f` or `9.80` directly in code.
 
 ### Config Renderers
 

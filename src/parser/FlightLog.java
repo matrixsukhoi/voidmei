@@ -12,6 +12,7 @@ import java.util.Calendar;
 import prog.Controller;
 import prog.i18n.Lang;
 import prog.Service;
+import static prog.util.PhysicsConstants.g;
 
 public class FlightLog implements Runnable {
 	public volatile boolean doit;
@@ -185,7 +186,7 @@ public class FlightLog implements Runnable {
 			} else {
 				// 开始分析
 				fA.analyze(stage);
-				fA.updateEMChart(xs.IASv, xs.sState.Ny, (int) Math.abs(xs.sState.Wx), xs.SEP / 9.78f,
+				fA.updateEMChart(xs.IASv, xs.sState.Ny, (int) Math.abs(xs.sState.Wx), xs.SEP / g,
 						Math.abs(xs.sState.elevator), Math.abs(xs.sState.aileron));
 			}
 		}

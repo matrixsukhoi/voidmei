@@ -10,6 +10,7 @@ import java.util.List;
 
 import prog.Application;
 import prog.i18n.Lang;
+import static prog.util.PhysicsConstants.g;
 
 public class Blkx {
 	public boolean valid;
@@ -1044,10 +1045,10 @@ public class Blkx {
 		String s = String.format(Lang.bFmVersion, readFileName, version);
 		s += (String.format(Lang.bWeight, emptyweight, maxfuelweight));
 		s += (String.format(Lang.bCritSpeed, CriticalSpeed * 3.6, vne));
-		s += (String.format(Lang.bAllowLoadFactor, 2 * maxAllowGload[0] / (9.78f * grossweight) + 1,
-				2 * maxAllowGload[1] / (9.78f * grossweight) - 1,
-				2 * maxAllowGload[0] / (9.78f * halfweight) + 1,
-				2 * maxAllowGload[1] / (9.78f * halfweight) - 1));
+		s += (String.format(Lang.bAllowLoadFactor, 2 * maxAllowGload[0] / (g * grossweight) + 1,
+				2 * maxAllowGload[1] / (g * grossweight) - 1,
+				2 * maxAllowGload[0] / (g * halfweight) + 1,
+				2 * maxAllowGload[1] / (g * halfweight) - 1));
 
 		for (int i = 0; i < FlapsDestructionNum; i++) {
 			// s += "襟翼限速" + i + ": [" + String.format("%.0f",
@@ -1066,8 +1067,8 @@ public class Blkx {
 
 		s += String.format(Lang.bMaxLiftLoad350, (NoFlapWLL + 1) / 2, (FullFlapWLL + 1) / 2);
 
-		maxAllowGload[0] = (2 * maxAllowGload[0] / (9.78f * grossweight) + 1);
-		maxAllowGload[1] = (2 * maxAllowGload[1] / (9.78f * grossweight) - 1);
+		maxAllowGload[0] = (2 * maxAllowGload[0] / (g * grossweight) + 1);
+		maxAllowGload[1] = (2 * maxAllowGload[1] / (g * grossweight) - 1);
 
 		// 计算滚转率
 

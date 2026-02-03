@@ -10,6 +10,7 @@ import parser.MapObj;
 import parser.State;
 import prog.util.StringHelper;
 import prog.util.CalcHelper;
+import static prog.util.PhysicsConstants.g;
 import prog.event.EventPayload;
 import prog.event.FlightDataBus;
 import prog.event.FlightDataEvent;
@@ -32,7 +33,7 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 	public double pEnergyJKg;
 	public long calcPeriod;
 	public static String buf;
-	public static final double g = 9.80;
+	// Gravitational constant imported from PhysicsConstants.g
 	public long timeStamp;
 	public long freq;
 	public State sState;

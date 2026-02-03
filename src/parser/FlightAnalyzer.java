@@ -4,6 +4,7 @@ import prog.Application;
 
 import prog.i18n.Lang;
 import prog.Service;
+import static prog.util.PhysicsConstants.g;
 
 public class FlightAnalyzer {
 	public int engineType;
@@ -47,7 +48,7 @@ public class FlightAnalyzer {
 		engineType = xs.iEngType;
 		if (stage == curaltStage + 1) {
 			eff[curaltStage] = eff[curaltStage] / count;
-			sep[curaltStage] = sep[curaltStage] / (count * 9.78f);
+			sep[curaltStage] = sep[curaltStage] / (count * g);
 			// Application.debugPrint("已经记录stage"+curaltStage+"时间戳"+time[curaltStage]+"功率"+power[curaltStage]+"推力"+thrust[curaltStage]+"实功率"+eff[curaltStage]+"SEP"+sep[curaltStage]);
 			curaltStage++;
 

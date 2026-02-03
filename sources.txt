@@ -26,6 +26,7 @@ src/prog/Application.java
 src/prog/OtherService.java
 src/prog/ControllerState.java
 src/prog/AutoMeasure.java
+src/prog/util/PhysicsConstants.java
 src/prog/util/StringHelper.java
 src/prog/util/CalcHelper.java
 src/prog/util/PropertyBinder.java

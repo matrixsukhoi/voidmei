@@ -6,6 +6,7 @@ import prog.event.EventPayload;
 import prog.config.HUDSettings;
 import ui.overlay.model.HUDData;
 import ui.overlay.MinimalHUDContext;
+import static prog.util.PhysicsConstants.g;
 
 /**
  * Pure logic calculator for HUD Data.
@@ -86,7 +87,7 @@ public class HUDCalculator {
             b.gLoad = sState.Ny;
         }
 
-        b.energyM = source.getEnergyJKg() / prog.Service.g;
+        b.energyM = source.getEnergyJKg() / g;
 
         b.isMachMode = settings.drawHudMach();
         b.isGearDown = b.gear > 0;
