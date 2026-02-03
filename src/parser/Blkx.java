@@ -216,6 +216,60 @@ public class Blkx {
 
 	}
 
+	/**
+	 * Extracts military and WEP RPM from Propeller.ThrottleRPMAuto entries.
+	 *
+	 * FM files contain entries like:
+	 *   ThrottleRPMAuto0 =1.0, 2400
+	 *   ThrottleRPMAuto1 =1.1, 2600
+	 * where throttle=1.0 is military and throttle=1.1 is WEP.
+	 */
+	private void extractRpmFromThrottleAuto(String hdrString) {
+		militaryRPM = 0;
+		wepRPM = 0;
+
+		// Try to find Propellor section within the engine type
+		String propSection = cut(data, "Propellor");
+		if (propSection.equals("null")) {
+			propSection = cut(data, "Propeller");
+		}
+
+		if (!propSection.equals("null")) {
+			for (int k = 0; k < 20; k++) {
+				String key = "ThrottleRPMAuto" + k;
+				String val = getoneinData(propSection, key);
+				if (val == null || val.equals("null")) continue;
+
+				// Parse comma-separated throttle/RPM pairs
+				// May be a single pair "1.0, 2400" or the parser returns the first line
+				String trimmed = val.trim();
+				String[] parts = trimmed.split(",");
+				if (parts.length >= 2) {
+					try {
+						double throttle = Double.parseDouble(parts[0].trim());
+						double rpm = Double.parseDouble(parts[1].trim());
+						if (Math.abs(throttle - 1.0) < 0.01) {
+							militaryRPM = rpm;
+							if (wepRPM <= 0) wepRPM = rpm;  // Default WEP = military if no 1.1 entry
+						} else if (Math.abs(throttle - 1.1) < 0.01) {
+							wepRPM = rpm;
+						}
+					} catch (NumberFormatException ignored) {}
+				}
+			}
+		}
+
+		// Fallback to maxRPM approximation if parsing failed
+		if (militaryRPM <= 0 && wepRPM <= 0) {
+			wepRPM = maxRPM;
+			militaryRPM = maxRPM;
+		} else if (militaryRPM <= 0) {
+			militaryRPM = wepRPM;
+		} else if (wepRPM <= 0) {
+			wepRPM = militaryRPM;
+		}
+	}
+
 	public boolean getEngineLoad(engineLoad[] eL, int loadIndex) {
 		String c = "Load" + loadIndex;
 		// Application.debugPrint(c);
@@ -391,6 +445,9 @@ public class Blkx {
 
 	public double compCeil[];
 	public double compCeilPwr[];
+
+	public double compConstRpmAlt[];
+	public double compConstRpmPower[];
 
 	public double compBoost[];
 	public double compRpmRatio[];
@@ -685,7 +742,8 @@ public class Blkx {
 			compRpmRatio = new double[compNumSteps];
 			compCeil = new double[compNumSteps];
 			compCeilPwr = new double[compNumSteps];
-			;
+			compConstRpmAlt = new double[compNumSteps];
+			compConstRpmPower = new double[compNumSteps];
 
 			for (int i = 0; i < compNumSteps; i++) {
 				compAlt[i] = getdouble("Compressor.Altitude" + i);
@@ -694,9 +752,8 @@ public class Blkx {
 				compRpmRatio[i] = getdouble("Compressor.PowerConstRPMCurvature" + i);
 				compCeil[i] = getdouble("Compressor.Ceiling" + i);
 				compCeilPwr[i] = getdouble("Compressor.PowerAtCeiling" + i);
-				// Application.debugPrint(String.format("*s%d*:[%.0f]%.0fhp - [%.0f]%.0fhp", i,
-				// compAlt[i], compPower[i] * compRpmRatio[i] * aftbCoff, compCeil[i],
-				// compCeilPwr[i] * compRpmRatio[i] * aftbCoff));
+				compConstRpmAlt[i] = getdouble("Compressor.AltitudeConstRPM" + i);
+				compConstRpmPower[i] = getdouble("Compressor.PowerConstRPM" + i);
 			}
 
 			// === Extended WAPC-compatible parameters ===
@@ -725,15 +782,10 @@ public class Blkx {
 			// Sea level power from Main.Power
 			deckPower = getdouble(hdrString + "Main.Power");
 
-			// RPM values - use maxRPM as approximation
-			// (Real implementation would parse Propeller.ThrottleRPMAuto entries)
-			wepRPM = maxRPM;
-			militaryRPM = maxRPM * 0.96;  // Approximate: military RPM is typically 96% of WEP RPM
-
 			//
 		}
 
-		// 读取最大转速和最大允许转速
+		// 读取最大转速和最大允许转速 (must be before extractRpmFromThrottleAuto)
 		maxRPM = getdouble("RPMAfterburner");
 		double maxRPMNormal = getdouble(" RPMMax");
 		if (maxRPM < maxRPMNormal)
@@ -742,6 +794,11 @@ public class Blkx {
 		// Application.debugPrint("RPM Multiplier: " + engineRPMMultWEP);
 		// 针对幻影2000C mode6 rpm乘数1.01的修复
 		maxRPM = maxRPM * engineRPMMultWEP;
+
+		// Extract military/WEP RPM after maxRPM is available as fallback
+		if (!isJet && compNumSteps > 0) {
+			extractRpmFromThrottleAuto(hdrString);
+		}
 		// Application.debugPrint("Max RPM: " + maxRPM);
 		maxAllowedRPM = getdouble("RPMMaxAllowed");
 		// Application.debugPrint("RPM"+maxAllowedRPM);

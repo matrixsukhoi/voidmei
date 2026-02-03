@@ -35,6 +35,7 @@ src/prog/util/Interpolation.java
 src/prog/util/FMPowerExtractor.java
 src/prog/util/AtmosphereModel.java
 src/prog/util/UIStateStorage.java
+src/prog/util/PowerCurveHelper.java
 src/prog/util/Logger.java
 src/prog/util/FormulaEvaluator.java
 src/prog/util/HttpHelper.java

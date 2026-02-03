@@ -112,8 +112,8 @@ public class PowerCurveWindow extends JDialog {
         isPiston = true;
 
         // Generate power curve (0m to 15000m, 100m steps)
-        // generatePowerCurve returns data from -4000m, so we need to offset
-        powerCurve = PistonPowerModel.generatePowerCurve(
+        // generatePowerCurveAdvanced returns data from -4000m, so we need to offset
+        powerCurve = PistonPowerModel.generatePowerCurveAdvanced(
             stages, wepMode, speedKmh, true, 15.0, 100);
 
         // Find maximum power and peak altitude

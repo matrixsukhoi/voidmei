@@ -1,6 +1,7 @@
 package prog.util;
 
 import static prog.util.AtmosphereModel.*;
+import static prog.util.PowerCurveHelper.*;
 
 /**
  * Piston engine power curve calculation model.
@@ -386,6 +387,472 @@ public final class PistonPowerModel {
         return peakAlt;
     }
 
+    // ==================== Advanced Power Calculation (WAPC variabler port) ====================
+
+    /**
+     * Calculates engine power at altitude using the advanced WAPC variabler algorithm.
+     *
+     * <p>This is the high-fidelity version that handles:
+     * <ul>
+     *   <li>ConstRPM regions (variable-speed supercharger bends)</li>
+     *   <li>Ceiling parameters for above-critical-altitude decay</li>
+     *   <li>ExactAltitudes flag for old-format FM files</li>
+     *   <li>Recursive power calculation for WEP critical altitude</li>
+     * </ul>
+     *
+     * @param params        supercharger stage parameters (with advanced fields populated)
+     * @param altitudeM     target altitude (m)
+     * @param isWep         true for WEP mode
+     * @param speedKmh      aircraft speed for RAM effect (km/h), 0 to ignore
+     * @param isIAS         true if speed is IAS
+     * @param seaLevelTempC sea level temperature (°C)
+     * @return engine power at altitude (hp)
+     */
+    public static double powerAtAltitudeAdvanced(CompressorStageParams params, double altitudeM,
+                                                  boolean isWep, double speedKmh, boolean isIAS,
+                                                  double seaLevelTempC) {
+        double effectiveAlt = altitudeM;
+        if (speedKmh > 0 && params.speedManifoldMult > 0) {
+            effectiveAlt = ramEffectAltitude(altitudeM, seaLevelTempC, speedKmh, isIAS, params.speedManifoldMult);
+        }
+
+        double wepMult = isWep ? params.wepPowerMult : 1.0;
+        double[] bounds = variabler(params, effectiveAlt, isWep, wepMult);
+
+        double higherPower = bounds[0];
+        double higherAlt   = bounds[1];
+        double lowerPower  = bounds[2];
+        double lowerAlt    = bounds[3];
+        double curvature   = bounds[4];
+
+        return interpolatePower(higherPower, higherAlt, lowerPower, lowerAlt, effectiveAlt, curvature);
+    }
+
+    /**
+     * Calculates optimal power from multiple stages using the advanced algorithm.
+     *
+     * @param stages        array of supercharger stage parameters
+     * @param altitudeM     target altitude (m)
+     * @param isWep         true for WEP mode
+     * @param speedKmh      aircraft speed for RAM effect (km/h)
+     * @param isIAS         true if speed is IAS
+     * @param seaLevelTempC sea level temperature (°C)
+     * @return maximum available power from any stage (hp)
+     */
+    public static double optimalPowerAdvanced(CompressorStageParams[] stages, double altitudeM,
+                                               boolean isWep, double speedKmh, boolean isIAS,
+                                               double seaLevelTempC) {
+        if (stages == null || stages.length == 0) return 0;
+        double maxPower = 0;
+        for (CompressorStageParams stage : stages) {
+            double power = powerAtAltitudeAdvanced(stage, altitudeM, isWep, speedKmh, isIAS, seaLevelTempC);
+            if (power > maxPower) maxPower = power;
+        }
+        return maxPower;
+    }
+
+    /**
+     * Generates a power curve using the advanced algorithm.
+     *
+     * @param stages        supercharger stage parameters
+     * @param isWep         true for WEP mode
+     * @param speedKmh      aircraft speed for RAM effect (0 for static)
+     * @param isIAS         true if speed is IAS
+     * @param seaLevelTempC sea level temperature (°C)
+     * @param altStep       altitude step in meters
+     * @return power array where index i corresponds to altitude (-4000 + i × altStep)
+     */
+    public static double[] generatePowerCurveAdvanced(CompressorStageParams[] stages, boolean isWep,
+                                                       double speedKmh, boolean isIAS,
+                                                       double seaLevelTempC, int altStep) {
+        int minAlt = -4000;
+        int maxAlt = 20000;
+        int count = (maxAlt - minAlt) / altStep + 1;
+        double[] curve = new double[count];
+        for (int i = 0; i < count; i++) {
+            double alt = minAlt + i * altStep;
+            curve[i] = optimalPowerAdvanced(stages, alt, isWep, speedKmh, isIAS, seaLevelTempC);
+        }
+        return curve;
+    }
+
+    /**
+     * WAPC variabler() port — determines interpolation bounds for a given altitude.
+     *
+     * <p>This is the core logic that determines the shape of the power curve by
+     * selecting the correct pair of (altitude, power) reference points for
+     * interpolation, based on the relationship between the target altitude and
+     * the various FM-defined altitudes (critical, constRPM, ceiling, old/adjusted).
+     *
+     * @param p       stage parameters
+     * @param altRam  effective altitude after RAM effect (m)
+     * @param isWep   true for WEP mode
+     * @param wepMult WEP power multiplier (1.0 for military)
+     * @return double[5]: {higherPower, higherAlt, lowerPower, lowerAlt, curvature}
+     */
+    private static double[] variabler(CompressorStageParams p, double altRam,
+                                       boolean isWep, double wepMult) {
+        double higherPower, higherAlt, lowerPower, lowerAlt;
+        double curvature = 1.0;
+
+        if (!isWep) {
+            // ======================== MILITARY MODE ========================
+            if (altRam <= p.critAlt) {
+                // --- Below or at critical altitude ---
+                if (hasConstRpm(p) && constRpmBelowDeck(p) && altRam < p.constRpmAlt) {
+                    // ConstRPM is below deck — zero power zone
+                    higherAlt = p.constRpmAlt;
+                    higherPower = 0;
+                    lowerAlt = p.constRpmAlt - 10;
+                    lowerPower = 0;
+                } else if (!constRpmBelowCritAlt(p) && !powerIsDeckPower(p)) {
+                    // Normal case: interpolate between deck and crit alt
+                    higherAlt = p.critAlt;
+                    higherPower = p.critPower;
+                    lowerAlt = p.deckAlt;
+                    lowerPower = p.deckPower;
+                } else if (constRpmBelowCritAlt(p) && altRam < p.constRpmAlt) {
+                    // Below constRPM bend: deck → constRPM
+                    higherAlt = p.constRpmAlt;
+                    higherPower = p.constRpmPower;
+                    lowerAlt = p.deckAlt;
+                    lowerPower = p.deckPower;
+                } else if (constRpmBelowCritAlt(p) && altRam >= p.constRpmAlt) {
+                    // Above constRPM bend: constRPM → crit (with curvature)
+                    curvature = p.curvature;
+                    higherAlt = p.critAlt;
+                    higherPower = p.critPower;
+                    lowerAlt = p.constRpmAlt;
+                    lowerPower = p.constRpmPower;
+                } else {
+                    // powerIsDeckPower: crit alt == deck alt, use ceiling
+                    higherAlt = p.ceilingAlt;
+                    higherPower = p.ceilingPower;
+                    lowerAlt = p.critAlt;
+                    lowerPower = p.critPower;
+                }
+            } else if (altRam <= p.oldAltitude) {
+                // --- Between adjusted crit alt and original crit alt ---
+                lowerAlt = p.critAlt;
+                lowerPower = p.critPower;
+
+                if (!ceilingIsUseful(p)) {
+                    // No useful ceiling: pressure decay from crit
+                    higherAlt = p.oldAltitude;
+                    higherPower = interpolatePower(p.oldPowerNewRpm, p.critAlt,
+                            p.deckPower, p.deckAlt, p.critAlt, curvature)
+                            * (pressure(p.oldAltitude) / pressure(p.critAlt));
+                } else if (!constRpmAboveCritAlt(p)) {
+                    // Ceiling useful, no constRPM above crit
+                    if (p.exactAltitudes) {
+                        higherAlt = p.oldAltitude;
+                        double ceilScaledAlt = altitudeAtPressure(
+                                pressure(p.ceilingAlt) * (pressure(p.critAlt) / pressure(p.critAlt)));
+                        higherPower = interpolatePower(p.ceilingPower, ceilScaledAlt,
+                                p.oldPowerNewRpm, p.critAlt, p.oldAltitude, curvature);
+                    } else {
+                        higherAlt = p.ceilingAlt;
+                        higherPower = p.ceilingPower;
+                    }
+                } else {
+                    // Ceiling useful + constRPM above crit (P-63 style)
+                    curvature = p.curvature;
+                    if (p.exactAltitudes) {
+                        higherAlt = p.oldAltitude;
+                        double ceilScaledAlt = altitudeAtPressure(
+                                pressure(p.ceilingAlt) * (pressure(p.critAlt) / pressure(p.critAlt)));
+                        higherPower = interpolatePower(p.ceilingPower, ceilScaledAlt,
+                                p.oldPowerNewRpm, p.critAlt, p.oldAltitude, curvature);
+                    } else {
+                        higherAlt = p.ceilingAlt;
+                        higherPower = p.ceilingPower;
+                    }
+                }
+            } else {
+                // --- Above original critical altitude ---
+                if (!ceilingIsUseful(p)) {
+                    // Pressure decay above old altitude
+                    lowerAlt = p.oldAltitude;
+                    lowerPower = interpolatePower(p.oldPowerNewRpm, p.critAlt,
+                            p.deckPower, p.deckAlt, p.critAlt, curvature)
+                            * (pressure(p.oldAltitude) / pressure(p.critAlt));
+                    higherAlt = altRam;
+                    higherPower = lowerPower * (pressure(altRam) / pressure(lowerAlt));
+                } else if (!constRpmAboveCritAlt(p)) {
+                    if (p.exactAltitudes) {
+                        lowerAlt = p.oldAltitude;
+                        double ceilScaledAlt = altitudeAtPressure(
+                                pressure(p.ceilingAlt) * (pressure(p.critAlt) / pressure(p.critAlt)));
+                        lowerPower = interpolatePower(p.ceilingPower, ceilScaledAlt,
+                                p.oldPowerNewRpm, p.critAlt, p.oldAltitude, curvature);
+                        higherAlt = p.ceilingAlt;
+                        higherPower = p.ceilingPower;
+                    } else {
+                        lowerAlt = p.critAlt;
+                        lowerPower = p.critPower;
+                        higherAlt = p.ceilingAlt;
+                        higherPower = p.ceilingPower;
+                    }
+                } else {
+                    // constRPM above crit with ceiling
+                    curvature = p.curvature;
+                    if (p.exactAltitudes) {
+                        double ceilScaledAlt = altitudeAtPressure(
+                                pressure(p.ceilingAlt) * (pressure(p.critAlt) / pressure(p.critAlt)));
+                        higherAlt = p.ceilingAlt;
+                        higherPower = p.ceilingPower;
+                        lowerAlt = p.oldAltitude;
+                        lowerPower = interpolatePower(p.ceilingPower, ceilScaledAlt,
+                                p.oldPowerNewRpm, p.critAlt, p.oldAltitude, curvature);
+                    } else {
+                        higherAlt = p.ceilingAlt;
+                        higherPower = p.ceilingPower;
+                        lowerAlt = p.oldAltitude;
+                        lowerPower = p.critPower;
+                    }
+                }
+            }
+        } else {
+            // ======================== WEP MODE ========================
+            double wepCritAlt = p.wepCritAlt;
+
+            if (altRam <= wepCritAlt && altRam <= p.oldAltitude) {
+                // --- Below both WEP crit alt and old altitude ---
+                if (hasConstRpm(p) && constRpmBelowDeck(p) && altRam < p.constRpmAlt) {
+                    // ConstRPM below deck — zero power
+                    higherAlt = p.constRpmAlt;
+                    higherPower = 0;
+                    lowerAlt = p.constRpmAlt - 10;
+                    lowerPower = 0;
+                } else if (!constRpmBelowCritAlt(p) && !powerIsDeckPower(p)) {
+                    // Normal WEP below crit alt
+                    if (p.exactAltitudes) {
+                        // Recursive: compute WEP power at wepCritAlt from military curve × wepMult
+                        higherAlt = wepCritAlt;
+                        higherPower = interpolatePower(
+                                p.critPower * wepMult, p.critAlt,
+                                p.deckPower * wepMult, p.deckAlt,
+                                higherAlt, curvature);
+                        lowerAlt = p.wepDeckAlt;
+                        lowerPower = interpolatePower(
+                                p.critPower * wepMult, p.critAlt,
+                                p.deckPower * wepMult, p.deckAlt,
+                                lowerAlt, curvature);
+                    } else {
+                        higherAlt = wepCritAlt;
+                        higherPower = p.critPower * wepMult;
+                        lowerAlt = p.deckAlt;
+                        lowerPower = p.deckPower * wepMult;
+                    }
+                } else if (p.exactAltitudes && hasConstRpm(p) && altRam < p.constRpmAlt) {
+                    // ExactAltitudes + constRPM below crit: deck → constRPM
+                    higherPower = p.constRpmPower * wepMult;
+                    lowerAlt = p.deckAlt;
+                    lowerPower = p.deckPower * wepMult;
+                    higherAlt = p.constRpmAlt;  // Doesn't change with WEP
+                } else if (!p.exactAltitudes && hasConstRpm(p) && altRam < p.wepConstRpmAlt) {
+                    // Non-ExactAltitudes + constRPM: deck → WEP constRPM alt
+                    higherPower = p.constRpmPower * wepMult;
+                    lowerAlt = p.deckAlt;
+                    lowerPower = p.deckPower * wepMult;
+                    higherAlt = p.wepConstRpmAlt;
+                } else if (p.exactAltitudes && hasConstRpm(p) && altRam >= p.constRpmAlt) {
+                    // ExactAltitudes + above constRPM: constRPM → wep crit (with curvature + recursion)
+                    curvature = p.curvature;
+                    higherAlt = wepCritAlt;
+                    lowerPower = p.constRpmPower * wepMult;
+                    lowerAlt = p.constRpmAlt;
+                    higherPower = interpolatePower(
+                            p.critPower * wepMult, p.critAlt,
+                            p.constRpmPower * wepMult, p.constRpmAlt,
+                            higherAlt, curvature);
+                } else if (!p.exactAltitudes && hasConstRpm(p) && altRam >= p.wepConstRpmAlt) {
+                    // Non-ExactAltitudes + above WEP constRPM
+                    curvature = p.curvature;
+                    higherAlt = wepCritAlt;
+                    lowerPower = p.constRpmPower * wepMult;
+                    lowerAlt = p.wepConstRpmAlt;
+                    higherPower = p.critPower * wepMult;
+                } else if (powerIsDeckPower(p)) {
+                    // Power == deck power case
+                    if (p.exactAltitudes) {
+                        higherAlt = p.ceilingAlt;
+                        double ceilScaledAlt = altitudeAtPressure(
+                                pressure(p.ceilingAlt) * (pressure(wepCritAlt) / pressure(p.critAlt)));
+                        higherPower = interpolatePower(
+                                p.ceilingPower * wepMult, ceilScaledAlt,
+                                p.critPower * wepMult, wepCritAlt,
+                                p.ceilingAlt, curvature);
+                        lowerAlt = wepCritAlt;
+                        lowerPower = p.critPower * wepMult;
+                    } else {
+                        higherAlt = p.ceilingAlt;
+                        higherPower = p.ceilingPower;
+                        lowerAlt = wepCritAlt;
+                        lowerPower = p.critPower * wepMult;
+                    }
+                } else {
+                    // Fallback: simple WEP curve
+                    higherAlt = wepCritAlt;
+                    higherPower = p.critPower * wepMult;
+                    lowerAlt = p.deckAlt;
+                    lowerPower = p.deckPower * wepMult;
+                }
+            } else if (p.oldAltitude < altRam && altRam <= wepCritAlt) {
+                // --- WEP crit alt higher than old mil altitude (rare: Fw-190A-1) ---
+                // Power constant between old altitude and WEP crit alt
+                higherAlt = wepCritAlt;
+                higherPower = interpolatePower(
+                        p.critPower * wepMult, p.critAlt,
+                        p.deckPower * wepMult, p.deckAlt,
+                        p.oldAltitude, curvature);
+                lowerAlt = p.oldAltitude;
+                lowerPower = higherPower;
+            } else if (Math.round(wepCritAlt) < altRam && altRam <= Math.round(p.oldAltitude)) {
+                // --- Above WEP crit alt but below old mil altitude ---
+                // Determine lower bound power at WEP crit alt
+                if (!constRpmBelowWepCritAlt(p)) {
+                    lowerAlt = wepCritAlt;
+                    if (p.exactAltitudes) {
+                        lowerPower = interpolatePower(
+                                p.critPower * wepMult, p.critAlt,
+                                p.deckPower * wepMult, p.deckAlt,
+                                lowerAlt, curvature);
+                    } else {
+                        lowerPower = p.critPower * wepMult;
+                    }
+                } else {
+                    lowerAlt = wepCritAlt;
+                    if (p.exactAltitudes) {
+                        lowerPower = interpolatePower(
+                                p.critPower * wepMult, p.critAlt,
+                                p.constRpmPower * wepMult, p.constRpmAlt,
+                                lowerAlt, p.curvature);
+                    } else {
+                        lowerPower = p.critPower * wepMult;
+                    }
+                }
+
+                // Determine upper bound
+                if (!ceilingIsUseful(p)) {
+                    higherAlt = p.oldAltitude;
+                    higherPower = interpolatePower(
+                            p.critPower * wepMult, p.critAlt,
+                            p.deckPower * wepMult, p.deckAlt,
+                            higherAlt, curvature)
+                            * (pressure(p.oldAltitude) / pressure(lowerAlt));
+                } else if (!constRpmAboveCritAlt(p)) {
+                    if (p.exactAltitudes) {
+                        higherAlt = p.oldAltitude;
+                        double ceilScaledAlt = altitudeAtPressure(
+                                pressure(p.ceilingAlt) * (pressure(wepCritAlt) / pressure(p.critAlt)));
+                        higherPower = interpolatePower(
+                                p.ceilingPower * wepMult, ceilScaledAlt,
+                                p.oldPowerNewRpm * wepMult, wepCritAlt,
+                                p.oldAltitude, curvature);
+                    } else {
+                        higherAlt = p.ceilingAlt;
+                        higherPower = p.ceilingPower;
+                    }
+                } else {
+                    // constRPM above crit + ceiling
+                    curvature = p.curvature;
+                    if (p.exactAltitudes) {
+                        higherAlt = p.oldAltitude;
+                        double ceilScaledAlt = altitudeAtPressure(
+                                pressure(p.ceilingAlt) * (pressure(wepCritAlt) / pressure(p.critAlt)));
+                        higherPower = interpolatePower(
+                                p.ceilingPower * wepMult, ceilScaledAlt,
+                                p.oldPowerNewRpm * wepMult, wepCritAlt,
+                                p.oldAltitude, curvature);
+                    } else {
+                        higherAlt = p.ceilingAlt;
+                        higherPower = p.ceilingPower;
+                    }
+                }
+            } else {
+                // --- Above both WEP crit alt and old altitude ---
+                if (wepCritAlt < p.critAlt) {
+                    // WEP crit alt below military crit alt
+                    lowerAlt = p.oldAltitude;
+                    if (!ceilingIsUseful(p)) {
+                        lowerPower = interpolatePower(
+                                p.critPower * wepMult, p.critAlt,
+                                p.deckPower * wepMult, p.deckAlt,
+                                lowerAlt, curvature)
+                                * (pressure(p.oldAltitude) / pressure(wepCritAlt));
+                    } else {
+                        if (p.exactAltitudes) {
+                            double ceilScaledAlt = altitudeAtPressure(
+                                    pressure(p.ceilingAlt) * (pressure(wepCritAlt) / pressure(p.critAlt)));
+                            lowerPower = interpolatePower(
+                                    p.ceilingPower * wepMult, ceilScaledAlt,
+                                    p.oldPowerNewRpm * wepMult, wepCritAlt,
+                                    lowerAlt, curvature);
+                        } else {
+                            lowerAlt = wepCritAlt;
+                            lowerPower = p.critPower * wepMult;
+                        }
+                    }
+                } else if (!constRpmBelowCritAlt(p)) {
+                    lowerAlt = wepCritAlt;
+                    if (p.exactAltitudes) {
+                        lowerPower = interpolatePower(
+                                p.critPower * wepMult, p.critAlt,
+                                p.deckPower * wepMult, p.deckAlt,
+                                p.oldAltitude, curvature);
+                    } else {
+                        lowerPower = p.critPower * wepMult;
+                    }
+                } else {
+                    // constRPM below crit alt
+                    lowerAlt = wepCritAlt;
+                    lowerPower = interpolatePower(
+                            p.critPower * wepMult, p.critAlt,
+                            p.constRpmPower * wepMult, p.constRpmAlt,
+                            lowerAlt, curvature);
+                }
+
+                // Upper bound for above-everything case
+                if (!ceilingIsUseful(p)) {
+                    higherAlt = altRam;
+                    higherPower = lowerPower * (pressure(altRam) / pressure(lowerAlt));
+                } else if (!constRpmAboveCritAlt(p)) {
+                    if (p.exactAltitudes) {
+                        higherAlt = altitudeAtPressure(
+                                pressure(p.ceilingAlt) * (pressure(wepCritAlt) / pressure(p.critAlt)));
+                        higherPower = p.ceilingPower * wepMult;
+                    } else {
+                        higherAlt = p.ceilingAlt;
+                        higherPower = p.ceilingPower;
+                    }
+                } else {
+                    curvature = p.curvature;
+                    if (p.exactAltitudes) {
+                        higherAlt = altitudeAtPressure(
+                                pressure(p.ceilingAlt) * (pressure(wepCritAlt) / pressure(p.critAlt)));
+                        higherPower = p.ceilingPower;
+                    } else {
+                        higherAlt = p.ceilingAlt;
+                        higherPower = p.ceilingPower;
+                    }
+                }
+
+                // Safety: swap if higher < lower and powers are inverted
+                if (higherAlt < lowerAlt && higherPower > lowerPower) {
+                    double tmpAlt = lowerAlt;
+                    double tmpPwr = lowerPower;
+                    lowerAlt = higherAlt;
+                    lowerPower = higherPower;
+                    higherAlt = tmpAlt;
+                    higherPower = tmpPwr;
+                }
+            }
+        }
+
+        return new double[] { higherPower, higherAlt, lowerPower, lowerAlt, curvature };
+    }
+
     // ==================== Parameter Data Class ====================
 
     /**
@@ -437,6 +904,38 @@ public final class PistonPowerModel {
 
         /** Stage index (0 = first stage, 1 = second stage, etc.) */
         public int stageIndex;
+
+        // === Advanced fields for WAPC-compatible variabler() ===
+
+        /** ConstRPM altitude - altitude where variable-speed supercharger bends the curve (m) */
+        public double constRpmAlt;
+
+        /** ConstRPM power - power at the ConstRPM bend point (hp) */
+        public double constRpmPower;
+
+        /** Ceiling altitude - service ceiling for this stage (m) */
+        public double ceilingAlt;
+
+        /** Power at ceiling altitude (hp) */
+        public double ceilingPower;
+
+        /** Original (pre-adjustment) critical altitude, before definition_alt_power_adjuster (m) */
+        public double oldAltitude;
+
+        /** Original (pre-adjustment) critical power (hp) */
+        public double oldPower;
+
+        /** Pre-adjustment power scaled to military RPM (hp) */
+        public double oldPowerNewRpm;
+
+        /** WEP deck altitude (m) */
+        public double wepDeckAlt;
+
+        /** WEP ConstRPM altitude (m), for non-ExactAltitudes FMs */
+        public double wepConstRpmAlt;
+
+        /** True if this is an old-format FM (no CompressorOmegaFactorSq) */
+        public boolean exactAltitudes;
 
         /**
          * Creates an empty parameter set.
