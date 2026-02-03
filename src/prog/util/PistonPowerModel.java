@@ -641,7 +641,7 @@ public final class PistonPowerModel {
                     } else {
                         higherAlt = wepCritAlt;
                         higherPower = p.critPower * wepMult;
-                        lowerAlt = p.deckAlt;
+                        lowerAlt = p.stage0DeckAlt;  // WAPC: Deck_Altitude{0}
                         lowerPower = p.deckPower * wepMult;
                     }
                 } else if (p.exactAltitudes && hasConstRpm(p) && altRam < p.constRpmAlt) {
@@ -933,6 +933,9 @@ public final class PistonPowerModel {
 
         /** WEP ConstRPM altitude (m), for non-ExactAltitudes FMs */
         public double wepConstRpmAlt;
+
+        /** Stage 0 deck altitude (m), used for WEP non-ExactAltitudes mode */
+        public double stage0DeckAlt;
 
         /** True if this is an old-format FM (no CompressorOmegaFactorSq) */
         public boolean exactAltitudes;

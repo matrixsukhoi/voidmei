@@ -48,8 +48,15 @@ public final class FMPowerExtractor {
             return null;
         }
 
-        // Detect ExactAltitudes (old FM format: no CompressorOmegaFactorSq)
-        boolean exactAltitudes = (blkx.compOmegaFactorSq <= 0);
+        // Detect ExactAltitudes:
+        // 1. If explicitly defined in FM file, use that
+        // 2. Otherwise, if CompressorOmegaFactorSq is missing, set true (old format)
+        boolean exactAltitudes;
+        if (blkx.explicitExactAltitudes != null) {
+            exactAltitudes = blkx.explicitExactAltitudes;
+        } else {
+            exactAltitudes = !blkx.hasCompOmegaFactorSq;
+        }
 
         // Determine "default RPM" — the RPM at which FM power values are defined
         double defaultRpm = determineDefaultRpm(blkx);
@@ -113,9 +120,15 @@ public final class FMPowerExtractor {
         for (int i = 0; i < blkx.compNumSteps; i++) {
             if (needsRpmAdjustment) {
                 adjustPowerAndAltitude(stages[i], blkx, i, defaultRpm, stageDeckPower);
-                // After adjustment, recalculate deck power for later stages
-                if (i == 0) {
-                    stageDeckPower[0] = stages[0].deckPower;
+                // After adjustment, update stageDeckPower and cascade to subsequent stages
+                stageDeckPower[i] = stages[i].deckPower;
+                // Recalculate deck power for subsequent stages based on adjusted values
+                for (int j = i + 1; j < blkx.compNumSteps; j++) {
+                    double newDeck = 0.8 * stageDeckPower[j - 1];
+                    double minDeck = 0.8 * blkx.compPower[j];
+                    if (newDeck < minDeck) newDeck = minDeck;
+                    stageDeckPower[j] = newDeck;
+                    stages[j].deckPower = newDeck;
                 }
             }
 
@@ -124,6 +137,12 @@ public final class FMPowerExtractor {
                 stages[i].oldPowerNewRpm = stages[i].oldPower
                         / torqueRpmBoost(blkx.militaryRPM, defaultRpm);
             }
+        }
+
+        // Set stage0DeckAlt for all stages (used in WEP non-ExactAltitudes mode)
+        double stage0DeckAlt = stages[0].deckAlt;
+        for (int i = 0; i < blkx.compNumSteps; i++) {
+            stages[i].stage0DeckAlt = stage0DeckAlt;
         }
 
         // --- Pass 3: WEP parameters ---
@@ -161,15 +180,28 @@ public final class FMPowerExtractor {
     /**
      * Determines the "default RPM" — the RPM at which FM file power values are defined.
      *
-     * <p>WAPC checks ShaftRPMMax, RPMNom, and GovernorMaxParam in order.
-     * Since Blkx doesn't have all of these, we approximate using available data.
+     * <p>Port of WAPC wep_rpm_ratioer priority logic:
+     * <ol>
+     *   <li>ShaftRPMMax: if far from military AND close to WEP RPM</li>
+     *   <li>RPMNom: if far from military RPM</li>
+     *   <li>GovernorMaxParam: if far from military RPM</li>
+     *   <li>Fallback: military RPM (no adjustment needed)</li>
+     * </ol>
      */
     private static double determineDefaultRpm(Blkx blkx) {
-        // If WEP RPM is close to maxRPM and significantly higher than military RPM,
-        // the FM likely defines power at WEP RPM
-        if (blkx.wepRPM > 0 && blkx.militaryRPM > 0
-                && (blkx.wepRPM - blkx.militaryRPM) > 5) {
-            return blkx.wepRPM;
+        // Priority 1: ShaftRPMMax close to WEP but far from military
+        if (blkx.shaftRPMMax > 0
+                && (blkx.shaftRPMMax - blkx.militaryRPM) > 5
+                && (blkx.shaftRPMMax - blkx.wepRPM) < 5) {
+            return blkx.shaftRPMMax;
+        }
+        // Priority 2: RPMNom far from military
+        if (blkx.rpmNom > 0 && (blkx.rpmNom - blkx.militaryRPM) > 5) {
+            return blkx.rpmNom;
+        }
+        // Priority 3: GovernorMaxParam far from military
+        if (blkx.governorMaxParam > 0 && (blkx.governorMaxParam - blkx.militaryRPM) > 5) {
+            return blkx.governorMaxParam;
         }
         return blkx.militaryRPM;
     }
@@ -180,8 +212,7 @@ public final class FMPowerExtractor {
      */
     private static void adjustPowerAndAltitude(CompressorStageParams stage, Blkx blkx,
                                                 int i, double defaultRpm, double[] stageDeckPower) {
-        double militaryMP = (blkx.compATA != null && i < blkx.compATA.length && blkx.compATA[i] > 0)
-            ? blkx.compATA[i] : 0;
+        double militaryMP = blkx.militaryMP;
         if (militaryMP <= 0) return;
 
         double rpmBoost = torqueRpmBoost(blkx.militaryRPM, defaultRpm);
@@ -189,7 +220,8 @@ public final class FMPowerExtractor {
 
         // Calculate supercharger effect to find adjusted critical altitude
         double pressureAtRPM0 = blkx.compPressureAtRPM0 > 0 ? blkx.compPressureAtRPM0 : 0.3;
-        double omegaFactorSq = blkx.compOmegaFactorSq > 0 ? blkx.compOmegaFactorSq : 1.0;
+        // WAPC: missing → 1.0; explicit 0 → 0
+        double omegaFactorSq = blkx.hasCompOmegaFactorSq ? blkx.compOmegaFactorSq : 1.0;
         double defaultMilRpmEffect = superchargerRpmEffect(blkx.militaryRPM, defaultRpm,
                 pressureAtRPM0, omegaFactorSq);
 
@@ -273,8 +305,7 @@ public final class FMPowerExtractor {
      * Calculates the WEP critical altitude using supercharger pressure model.
      */
     private static double calculateWepCriticalAltitude(Blkx blkx, CompressorStageParams stage, int stageIndex) {
-        double militaryMP = (blkx.compATA != null && stageIndex < blkx.compATA.length)
-            ? blkx.compATA[stageIndex] : 0;
+        double militaryMP = blkx.militaryMP;
         double wepMP = blkx.wepManifoldPressure;
 
         if (militaryMP <= 0 || wepMP <= 0) {
@@ -285,10 +316,12 @@ public final class FMPowerExtractor {
         double critPressure = pressure(stage.critAlt);
         double superchargerStrength = militaryMP / critPressure;
 
+        // WAPC: missing → 1.0; explicit 0 → 0
+        double omegaFactorSq = blkx.hasCompOmegaFactorSq ? blkx.compOmegaFactorSq : 1.0;
         double rpmEffect = superchargerRpmEffect(
             blkx.militaryRPM, blkx.wepRPM,
             blkx.compPressureAtRPM0 > 0 ? blkx.compPressureAtRPM0 : 0.3,
-            blkx.compOmegaFactorSq > 0 ? blkx.compOmegaFactorSq : 0.0
+            omegaFactorSq
         );
 
         double pressureBoost = (blkx.compAfterburnerPressureBoost != null &&
@@ -305,8 +338,7 @@ public final class FMPowerExtractor {
      * Calculates the WEP deck altitude.
      */
     private static double calculateWepDeckAltitude(Blkx blkx, CompressorStageParams stage, int stageIndex) {
-        double militaryMP = (blkx.compATA != null && stageIndex < blkx.compATA.length)
-            ? blkx.compATA[stageIndex] : 0;
+        double militaryMP = blkx.militaryMP;
         double wepMP = blkx.wepManifoldPressure;
 
         if (militaryMP <= 0 || wepMP <= 0) {
@@ -314,10 +346,11 @@ public final class FMPowerExtractor {
         }
 
         double deckStrength = militaryMP / pressure(stage.deckAlt);
+        double omegaFactorSq = blkx.hasCompOmegaFactorSq ? blkx.compOmegaFactorSq : 1.0;
         double rpmEffect = superchargerRpmEffect(
             blkx.militaryRPM, blkx.wepRPM,
             blkx.compPressureAtRPM0 > 0 ? blkx.compPressureAtRPM0 : 0.3,
-            blkx.compOmegaFactorSq > 0 ? blkx.compOmegaFactorSq : 0.0
+            omegaFactorSq
         );
         double pressureBoost = (blkx.compAfterburnerPressureBoost != null &&
                                stageIndex < blkx.compAfterburnerPressureBoost.length &&
@@ -332,8 +365,7 @@ public final class FMPowerExtractor {
      * Calculates the WEP ConstRPM altitude for non-ExactAltitudes FMs.
      */
     private static double calculateWepConstRpmAltitude(Blkx blkx, CompressorStageParams stage, int stageIndex) {
-        double militaryMP = (blkx.compATA != null && stageIndex < blkx.compATA.length)
-            ? blkx.compATA[stageIndex] : 0;
+        double militaryMP = blkx.militaryMP;
         double wepMP = blkx.wepManifoldPressure;
 
         if (militaryMP <= 0 || wepMP <= 0 || stage.constRpmAlt == 0) {
@@ -341,10 +373,11 @@ public final class FMPowerExtractor {
         }
 
         double constRpmStrength = militaryMP / pressure(stage.constRpmAlt);
+        double omegaFactorSq = blkx.hasCompOmegaFactorSq ? blkx.compOmegaFactorSq : 1.0;
         double rpmEffect = superchargerRpmEffect(
             blkx.militaryRPM, blkx.wepRPM,
             blkx.compPressureAtRPM0 > 0 ? blkx.compPressureAtRPM0 : 0.3,
-            blkx.compOmegaFactorSq > 0 ? blkx.compOmegaFactorSq : 0.0
+            omegaFactorSq
         );
         double pressureBoost = (blkx.compAfterburnerPressureBoost != null &&
                                stageIndex < blkx.compAfterburnerPressureBoost.length &&

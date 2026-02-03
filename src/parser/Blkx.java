@@ -468,12 +468,20 @@ public class Blkx {
 	// RPM parameters
 	public double militaryRPM;              // Military power RPM (from Propeller.ThrottleRPMAuto)
 	public double wepRPM;                   // WEP power RPM (from Propeller.ThrottleRPMAuto)
+	public double shaftRPMMax;              // Main.ShaftRPMMax (may not exist)
+	public double rpmNom;                   // Main.RPMNom
+	public double governorMaxParam;         // Propeller.GovernorMaxParam
 
 	// Supercharger pressure parameters
 	public double compPressureAtRPM0;       // Compressor.CompressorPressureAtRPM0
 	public double compOmegaFactorSq;        // Compressor.CompressorOmegaFactorSq
+	public boolean hasCompOmegaFactorSq;    // Whether CompressorOmegaFactorSq exists in FM file
 	public double[] compATA;                // Compressor.ATA0/1/2 (manifold pressure, ata)
+	public double militaryMP;               // Max of all ATA values (true military manifold pressure)
 	public double[] compAfterburnerPressureBoost;  // Compressor.AfterburnerPressureBoost0/1/2
+
+	// ExactAltitudes flag (may be explicitly set in FM file)
+	public Boolean explicitExactAltitudes;  // null = not defined in FM
 
 	// WEP parameters
 	public double throttleBoost;            // Main.ThrottleBoost (typically 1.0)
@@ -760,13 +768,29 @@ public class Blkx {
 			// Supercharger pressure parameters
 			compPressureAtRPM0 = getdouble("Compressor.CompressorPressureAtRPM0");
 			compOmegaFactorSq = getdouble("Compressor.CompressorOmegaFactorSq");
+			hasCompOmegaFactorSq = !getone("Compressor.CompressorOmegaFactorSq").equals("null");
+
+			// ExactAltitudes: explicitly defined in FM file
+			String eaStr = getone("Compressor.ExactAltitudes");
+			if (!eaStr.equals("null")) {
+				explicitExactAltitudes = eaStr.trim().equals("true");
+			}
 
 			// Per-stage manifold pressure and afterburner pressure boost
+			// ATA values are RPM-boost curve points, NOT per-stage values
+			// Military MP = max of all ATA values
 			compATA = new double[compNumSteps];
 			compAfterburnerPressureBoost = new double[compNumSteps];
 			for (int i = 0; i < compNumSteps; i++) {
 				compATA[i] = getdouble("Compressor.ATA" + i);
 				compAfterburnerPressureBoost[i] = getdouble("Compressor.AfterburnerPressureBoost" + i);
+			}
+
+			// Iterate all ATA entries (ATA0..ATA9) and take the maximum
+			militaryMP = 0;
+			for (int i = 0; i < 10; i++) {
+				double ata = getdouble("Compressor.ATA" + i);
+				if (ata > militaryMP) militaryMP = ata;
 			}
 
 			// WEP parameters from Main section
@@ -781,6 +805,25 @@ public class Blkx {
 
 			// Sea level power from Main.Power
 			deckPower = getdouble(hdrString + "Main.Power");
+
+			// RPM parameters for determineDefaultRpm (BUG 2 fix)
+			shaftRPMMax = getdouble(hdrString + "Main.ShaftRPMMax");
+			rpmNom = getdouble(hdrString + "Main.RPMNom");
+
+			// GovernorMaxParam is in the Propeller/Propellor section
+			governorMaxParam = 0;
+			String propSectionForGov = cut(data, "Propellor");
+			if (propSectionForGov.equals("null")) {
+				propSectionForGov = cut(data, "Propeller");
+			}
+			if (!propSectionForGov.equals("null")) {
+				String govStr = getoneinData(propSectionForGov, "GovernorMaxParam");
+				if (govStr != null && !govStr.equals("null")) {
+					try {
+						governorMaxParam = Double.parseDouble(govStr.trim().split(",")[0].trim());
+					} catch (NumberFormatException ignored) {}
+				}
+			}
 
 			//
 		}
