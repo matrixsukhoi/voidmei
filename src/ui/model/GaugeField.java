@@ -15,6 +15,9 @@ public class GaugeField extends DataField {
     // Reference to the visual component for direct updates
     public ui.component.LinearGauge gauge;
 
+    // Optional MarkedGauge for gauges that need markers (e.g., compressor with optimal stage indicator)
+    public ui.component.gauge.MarkedGauge markedGauge;
+
     public GaugeField(String key, String label, String unit, int gaugeType, int maxValue, boolean isHorizontal) {
         super(key, label, unit, "disable" + key, false, false); // Use key-based configKey, hideWhenNA=false,
                                                                 // hideWhenZero=false

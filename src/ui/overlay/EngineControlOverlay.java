@@ -16,6 +16,10 @@ import prog.event.FlightDataBus;
 import prog.event.FlightDataEvent;
 import prog.i18n.Lang;
 import ui.base.FieldOverlay;
+import ui.component.gauge.GaugeBarStyle;
+import ui.component.gauge.GaugeMarker;
+import ui.component.gauge.MarkedGauge;
+import ui.component.gauge.MarkerType;
 import ui.model.FieldDefinition;
 import ui.model.GaugeField;
 import ui.renderer.LinearGaugeRenderer;
@@ -224,7 +228,34 @@ public class EngineControlOverlay extends FieldOverlay { // Revert to FieldOverl
 	private void addGaugeIfEnabled(String disableKey, String key, String label, String unit,
 			int gaugeType, int maxValue, boolean isHorizontal) {
 		if (!"true".equals(getConfigSafe(disableKey))) {
-			gaugeFields.add(new GaugeField(key, label, unit, gaugeType, maxValue, isHorizontal));
+			GaugeField gf = new GaugeField(key, label, unit, gaugeType, maxValue, isHorizontal);
+
+			// Use MarkedGauge for COMPRESSOR to show optimal stage indicator
+			if (gaugeType == GaugeType.COMPRESSOR.ordinal()) {
+				GaugeBarStyle style = GaugeBarStyle.builder()
+					.fillColor(Application.colorNum)
+					.backgroundColor(new Color(0, 0, 0, 0))  // Transparent background
+					.borderColor(Application.colorShadeShape)
+					.showBorder(true)
+					.vertical(!isHorizontal)  // COMPRESSOR is horizontal, so vertical=false
+					.strokeWidth(2)
+					.build();
+
+				gf.markedGauge = new MarkedGauge();
+				gf.markedGauge.label = label;
+				gf.markedGauge.setMaxValue(maxValue);
+				gf.markedGauge.setBarStyle(style);  // Apply the style!
+
+				// Add optimal stage marker (initially hidden with ratio -1)
+				gf.markedGauge.addMarker(GaugeMarker.builder()
+					.id("optimal")
+					.type(MarkerType.LINE_FULL)
+					.ratio(-1)  // Hidden until we know the optimal stage
+					.color(Application.colorWarning)
+					.build());
+			}
+
+			gaugeFields.add(gf);
 			if (isHorizontal) {
 				rowNum++;
 			} else {
@@ -269,8 +300,6 @@ public class EngineControlOverlay extends FieldOverlay { // Revert to FieldOverl
 		int dy = fontsize >> 1;
 
 		for (GaugeField gf : gaugeFields) {
-			ui.component.LinearGauge gauge = gf.gauge;
-
 			// Skip for jets
 			if (isJet && isJetHiddenGauge(gf.gaugeType)) {
 				continue;
@@ -280,16 +309,28 @@ public class EngineControlOverlay extends FieldOverlay { // Revert to FieldOverl
 				continue;
 			}
 
-			if (gf.isHorizontal) {
-				gauge.vertical = false;
-				gauge.draw(g2d, x, y + dy, 4 * fontsize, fontsize >> 1, fontLabel, fontLabel);
-				dy += fontsize + (fontsize >> 2);
+			// Use MarkedGauge if available (for COMPRESSOR), otherwise use LinearGauge
+			if (gf.markedGauge != null) {
+				if (gf.isHorizontal) {
+					gf.markedGauge.draw(g2d, x, y + dy, 4 * fontsize, fontsize >> 1, fontLabel, fontLabel);
+					dy += fontsize + (fontsize >> 2);
+				} else {
+					gf.markedGauge.draw(g2d, x + dx, y - (4 * fontsize), 4 * fontsize, fontsize >> 1, fontLabel, fontLabel);
+					dx += (5 * fontsize) >> 1;
+				}
 			} else {
-				gauge.vertical = true;
-				// LinearGauge logic changed from Bottom-Up to Top-Down.
-				// We must shift Y up by length (4 * fontsize) to maintain visual position.
-				gauge.draw(g2d, x + dx, y - (4 * fontsize), 4 * fontsize, fontsize >> 1, fontLabel, fontLabel);
-				dx += (5 * fontsize) >> 1;
+				ui.component.LinearGauge gauge = gf.gauge;
+				if (gf.isHorizontal) {
+					gauge.vertical = false;
+					gauge.draw(g2d, x, y + dy, 4 * fontsize, fontsize >> 1, fontLabel, fontLabel);
+					dy += fontsize + (fontsize >> 2);
+				} else {
+					gauge.vertical = true;
+					// LinearGauge logic changed from Bottom-Up to Top-Down.
+					// We must shift Y up by length (4 * fontsize) to maintain visual position.
+					gauge.draw(g2d, x + dx, y - (4 * fontsize), 4 * fontsize, fontsize >> 1, fontLabel, fontLabel);
+					dx += (5 * fontsize) >> 1;
+				}
 			}
 		}
 	}
@@ -367,11 +408,45 @@ public class EngineControlOverlay extends FieldOverlay { // Revert to FieldOverl
 					for (GaugeField gf : gaugeFields) {
 						if (gf.gaugeType == GaugeType.COMPRESSOR.ordinal()) {
 							gf.gauge.maxValue = stages.length - 1;
+							// Also update MarkedGauge maxValue if present
+							if (gf.markedGauge != null) {
+								gf.markedGauge.setMaxValue(stages.length - 1);
+							}
 							break;
 						}
 					}
 				}
 				compressorMaxValueSet = true;
+			}
+		}
+
+		// Update optimal compressor stage marker
+		updateOptimalCompressorMarker(payload);
+	}
+
+	/**
+	 * Updates the optimal compressor stage marker position.
+	 * The marker shows where the optimal supercharger stage is for current altitude.
+	 */
+	private void updateOptimalCompressorMarker(prog.event.EventPayload payload) {
+		if (gaugeFields == null) return;
+
+		int optimalStage = payload.optimalCompressorStage;
+		prog.util.PistonPowerModel.CompressorStageParams[] stages =
+			((prog.Controller) config).getCompressorStages();
+
+		for (GaugeField gf : gaugeFields) {
+			if (gf.gaugeType == GaugeType.COMPRESSOR.ordinal() && gf.markedGauge != null) {
+				if (optimalStage >= 0 && stages != null && stages.length > 1) {
+					// Calculate ratio: optimal stage position on the gauge
+					// Stage 0 = ratio 0, Stage (n-1) = ratio 1
+					double ratio = (double) optimalStage / (stages.length - 1);
+					gf.markedGauge.updateMarkerRatio("optimal", ratio);
+				} else {
+					// Hide marker when no valid data
+					gf.markedGauge.updateMarkerRatio("optimal", -1);
+				}
+				break;
 			}
 		}
 	}
@@ -418,9 +493,7 @@ public class EngineControlOverlay extends FieldOverlay { // Revert to FieldOverl
 					int stage = (int) val;
 					gf.visible = stage > 0;
 					if (stage > 0) {
-						if (stage - 1 > gf.gauge.maxValue)
-							gf.gauge.maxValue = stage - 1;
-						val = stage - 1; // Display value
+						val = stage - 1;
 					} else {
 						hasVal = false;
 					}
@@ -442,6 +515,11 @@ public class EngineControlOverlay extends FieldOverlay { // Revert to FieldOverl
 				// FastNumberFormatter produces "0".
 				gf.length = ui.util.FastNumberFormatter.format(val, gf.buffer, 0);
 				gf.gauge.update(intVal, gf.buffer, gf.length);
+
+				// Also update MarkedGauge if present
+				if (gf.markedGauge != null) {
+					gf.markedGauge.update(intVal, gf.buffer, gf.length);
+				}
 			}
 		}
 	}
@@ -469,9 +547,6 @@ public class EngineControlOverlay extends FieldOverlay { // Revert to FieldOverl
 			case COMPRESSOR:
 				int stage = parseIntSafe(data.get("compressor_int"), 0);
 				gf.visible = stage > 0;
-				if (stage - 1 > gf.gauge.maxValue) {
-					gf.gauge.maxValue = stage - 1;
-				}
 				gf.gauge.update(stage - 1, String.format("%3s", data.get("compressor")));
 				break;
 			case FUEL:
@@ -496,6 +571,13 @@ public class EngineControlOverlay extends FieldOverlay { // Revert to FieldOverl
 			int val = gf.maxValue / 2;
 			gf.gauge.update(val, String.valueOf(val));
 			gf.visible = true;
+
+			// Also update MarkedGauge if present
+			if (gf.markedGauge != null) {
+				gf.markedGauge.update(val, String.valueOf(val));
+				// Show a sample optimal marker at 2/3 position for preview
+				gf.markedGauge.updateMarkerRatio("optimal", 0.67);
+			}
 		}
 	}
 

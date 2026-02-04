@@ -90,6 +90,10 @@ src/ui/component/AbstractHUDComponent.java
 src/ui/component/LabeledLinearGauge.java
 src/ui/component/WarningOverlay.java
 src/ui/component/CompassGauge.java
+src/ui/component/gauge/MarkerType.java
+src/ui/component/gauge/GaugeBarStyle.java
+src/ui/component/gauge/GaugeMarker.java
+src/ui/component/gauge/MarkedGauge.java
 src/ui/WebLafSettings.java
 src/ui/replica/PinkStyle.java
 src/ui/replica/ReplicaPanel.java
