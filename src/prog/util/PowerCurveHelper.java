@@ -66,11 +66,17 @@ public final class PowerCurveHelper {
     /**
      * Ceiling parameters are meaningful — altitude gap and power gap are both
      * significant enough to affect the curve shape.
+     *
+     * <p>Uses the original FM altitude/power (before definition_alt_power_adjuster)
+     * to match WAPC's Ceiling_is_useful() which compares against Altitude[i] / Power[i],
+     * not the adjusted critAlt / critPower.
      */
     public static boolean ceilingIsUseful(CompressorStageParams p) {
+        double referenceAlt = p.oldAltitude > 0 ? p.oldAltitude : p.critAlt;
+        double referencePower = p.oldPower > 0 ? p.oldPower : p.critPower;
         return hasCeiling(p)
-            && (p.ceilingAlt - p.critAlt) >= 2
-            && (p.critPower - p.ceilingPower) >= 2;
+            && (p.ceilingAlt - referenceAlt) >= 2
+            && (referencePower - p.ceilingPower) >= 2;
     }
 
     /**

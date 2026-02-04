@@ -27,6 +27,7 @@ public class TestPistonPowerModel {
         testMultiStageSupercharger();
         testGeneratePowerCurve();
         testRamEffectIntegration();
+        testNoWepAircraftIdenticalCurves();
 
         System.out.println("\n=== Results ===");
         System.out.printf("Passed: %d, Failed: %d%n", passed, failed);
@@ -297,6 +298,83 @@ public class TestPistonPowerModel {
         System.out.printf("  At 5000m (below crit): static=%.0fhp, 500km/h=%.0fhp%n",
                 pStaticLow, pMovingLow);
         System.out.println("  (Below crit alt, RAM lowers effective alt, which may reduce power)");
+    }
+
+    private static void testNoWepAircraftIdenticalCurves() {
+        System.out.println("Testing no-WEP aircraft (Yak-3 style)...");
+
+        // Yak-3 Stage 0: critAlt=300m, Power=1310hp, Ceiling=5000m/670hp
+        // AfterburnerBoost=1 → wepPowerMult=1.0, so WEP == military
+        CompressorStageParams stage0 = new CompressorStageParams();
+        stage0.critAlt = 300;
+        stage0.critPower = 1310;
+        stage0.deckPower = 1290;
+        stage0.deckAlt = 0;
+        stage0.curvature = 1.0;
+        stage0.ceilingAlt = 5000;
+        stage0.ceilingPower = 670;
+        stage0.oldAltitude = 300;
+        stage0.oldPower = 1310;
+        stage0.oldPowerNewRpm = 1310;
+        stage0.exactAltitudes = true;
+        stage0.stageIndex = 0;
+        // No WEP: wepPowerMult=1.0, wepCritAlt == critAlt
+        stage0.wepPowerMult = 1.0;
+        stage0.wepCritAlt = 300;  // Must equal critAlt when no WEP
+        stage0.wepDeckAlt = 0;
+        stage0.speedManifoldMult = 1.0;
+
+        // Yak-3 Stage 1: critAlt=2600m, Power=1240hp, Ceiling=9000m/510hp
+        CompressorStageParams stage1 = new CompressorStageParams();
+        stage1.critAlt = 2600;
+        stage1.critPower = 1240;
+        stage1.deckPower = 1290 * 0.8;
+        stage1.deckAlt = 0;
+        stage1.curvature = 1.0;
+        stage1.ceilingAlt = 9000;
+        stage1.ceilingPower = 510;
+        stage1.oldAltitude = 2600;
+        stage1.oldPower = 1240;
+        stage1.oldPowerNewRpm = 1240;
+        stage1.exactAltitudes = true;
+        stage1.stageIndex = 1;
+        stage1.wepPowerMult = 1.0;
+        stage1.wepCritAlt = 2600;
+        stage1.wepDeckAlt = 0;
+        stage1.speedManifoldMult = 1.0;
+
+        CompressorStageParams[] stages = {stage0, stage1};
+
+        // WEP and military curves must be identical at every altitude
+        boolean allMatch = true;
+        System.out.println("  Yak-3 power curve (WEP should equal Military):");
+        for (int alt = 0; alt <= 10000; alt += 500) {
+            double milPower = optimalPowerAdvanced(stages, alt, false, 0, false, 15);
+            double wepPower = optimalPowerAdvanced(stages, alt, true, 0, false, 15);
+            if (alt % 2000 == 0) {
+                System.out.printf("    %5dm: mil=%.1fhp, wep=%.1fhp, diff=%.1fhp%n",
+                        alt, milPower, wepPower, wepPower - milPower);
+            }
+            if (Math.abs(milPower - wepPower) > 0.1) {
+                allMatch = false;
+            }
+        }
+        assertTrue("no-WEP: WEP curve equals military curve", allMatch);
+
+        // Also verify with RAM effect (301 km/h IAS)
+        boolean allMatchRam = true;
+        System.out.println("  Yak-3 power curve at 301km/h IAS:");
+        for (int alt = 0; alt <= 10000; alt += 500) {
+            double milPower = optimalPowerAdvanced(stages, alt, false, 301, true, 15);
+            double wepPower = optimalPowerAdvanced(stages, alt, true, 301, true, 15);
+            if (alt % 2000 == 0) {
+                System.out.printf("    %5dm: mil=%.1fhp, wep=%.1fhp%n", alt, milPower, wepPower);
+            }
+            if (Math.abs(milPower - wepPower) > 0.1) {
+                allMatchRam = false;
+            }
+        }
+        assertTrue("no-WEP with RAM: WEP curve equals military curve", allMatchRam);
     }
 
     // === Assertion Helpers ===

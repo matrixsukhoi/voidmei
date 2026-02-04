@@ -307,6 +307,12 @@ public final class FMPowerExtractor {
      * Calculates the WEP critical altitude using supercharger pressure model.
      */
     private static double calculateWepCriticalAltitude(Blkx blkx, CompressorStageParams stage, int stageIndex) {
+        // If WEP power multiplier ≈ 1.0, WEP is effectively military — no altitude shift
+        double wepMult = calculateWepMultiplier(blkx, stageIndex);
+        if (Math.abs(wepMult - 1.0) < 0.001) {
+            return stage.critAlt;
+        }
+
         double militaryMP = blkx.militaryMP;
         double wepMP = blkx.wepManifoldPressure;
 
@@ -340,6 +346,12 @@ public final class FMPowerExtractor {
      * Calculates the WEP deck altitude.
      */
     private static double calculateWepDeckAltitude(Blkx blkx, CompressorStageParams stage, int stageIndex) {
+        // If WEP power multiplier ≈ 1.0, WEP is effectively military — no deck shift
+        double wepMult = calculateWepMultiplier(blkx, stageIndex);
+        if (Math.abs(wepMult - 1.0) < 0.001) {
+            return stage.deckAlt;
+        }
+
         double militaryMP = blkx.militaryMP;
         double wepMP = blkx.wepManifoldPressure;
 
