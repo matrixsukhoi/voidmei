@@ -505,15 +505,13 @@ public class EngineControlOverlay extends FieldOverlay { // Revert to FieldOverl
 
 			if (hasVal) {
 				int intVal = (int) val;
-				// Format directly to buffer
-				// Original used String.format("%3s") which pads with spaces
-				// FastNumberFormatter formats number. We need to handle padding?
-				// LinearGauge draws buffer.
-				// For now, raw number is fine, layout handles centering/position.
-				// Or I can add padding support to FastNumberFormatter later.
-				// Actually String.format("%3s") for "100" is "100". For "0" is " 0".
-				// FastNumberFormatter produces "0".
-				gf.length = ui.util.FastNumberFormatter.format(val, gf.buffer, 0);
+				// Format display text
+				// For COMPRESSOR, display 1-based stage number while bar uses 0-based value
+				if (GaugeType.values()[gf.gaugeType] == GaugeType.COMPRESSOR) {
+					gf.length = ui.util.FastNumberFormatter.format(intVal + 1, gf.buffer, 0);
+				} else {
+					gf.length = ui.util.FastNumberFormatter.format(val, gf.buffer, 0);
+				}
 				gf.gauge.update(intVal, gf.buffer, gf.length);
 
 				// Also update MarkedGauge if present
@@ -547,7 +545,7 @@ public class EngineControlOverlay extends FieldOverlay { // Revert to FieldOverl
 			case COMPRESSOR:
 				int stage = parseIntSafe(data.get("compressor_int"), 0);
 				gf.visible = stage > 0;
-				gf.gauge.update(stage - 1, String.format("%3s", data.get("compressor")));
+				gf.gauge.update(stage - 1, String.format("%3s", String.valueOf(stage)));
 				break;
 			case FUEL:
 				updateGaugeFromData(gf, data, "fuel_percent", "fuel_percent_int");
@@ -569,14 +567,17 @@ public class EngineControlOverlay extends FieldOverlay { // Revert to FieldOverl
 			return;
 		for (GaugeField gf : gaugeFields) {
 			int val = gf.maxValue / 2;
-			gf.gauge.update(val, String.valueOf(val));
+			// For COMPRESSOR, display 1-based stage number
+			boolean isCompressor = gf.gaugeType == GaugeType.COMPRESSOR.ordinal();
+			String displayText = String.valueOf(isCompressor ? val + 1 : val);
+			gf.gauge.update(val, displayText);
 			gf.visible = true;
 
 			// Also update MarkedGauge if present
 			if (gf.markedGauge != null) {
-				gf.markedGauge.update(val, String.valueOf(val));
-				// Show a sample optimal marker at 2/3 position for preview
-				gf.markedGauge.updateMarkerRatio("optimal", 0.67);
+				gf.markedGauge.update(val, displayText);
+				// Show a sample optimal marker
+				gf.markedGauge.updateMarkerRatio("optimal", 0.5);
 			}
 		}
 	}

@@ -4,20 +4,20 @@
 
 | File | Lines | Purpose |
 |------|-------|---------|
-| `MiniHUDOverlay.java` | ~800 | Primary HUD with component-based architecture |
-| `DrawFrame.java` | ~700 | Legacy rendering interface (deprecated) |
-| `DrawFrameSimpl.java` | ~650 | Simplified DrawFrame variant |
-| `BaseOverlay.java` | ~250 | Standard list-based overlay base class |
-| `AttitudeOverlay.java` | ~400 | Artificial horizon display |
-| `EngineControlOverlay.java` | ~400 | Engine gauges and throttle |
-| `ControlSurfacesOverlay.java` | ~450 | Control surface indicators |
-| `GearFlapsOverlay.java` | ~300 | Landing gear and flaps status |
-| `FlightInfoOverlay.java` | ~120 | Flight data display |
-| `PowerInfoOverlay.java` | ~150 | Engine power metrics |
-| `FMUnpackedDataOverlay.java` | ~110 | Flight model debug display |
+| `MiniHUDOverlay.java` | ~730 | Primary HUD with component-based architecture |
+| `DrawFrame.java` | ~770 | Legacy rendering interface (deprecated) |
+| `DrawFrameSimpl.java` | ~740 | Simplified DrawFrame variant |
+| `BaseOverlay.java` | ~290 | Standard list-based overlay base class |
+| `AttitudeOverlay.java` | ~460 | Artificial horizon display |
+| `EngineControlOverlay.java` | ~610 | Engine gauges and throttle |
+| `ControlSurfacesOverlay.java` | ~480 | Control surface indicators |
+| `GearFlapsOverlay.java` | ~340 | Landing gear and flaps status |
+| `FlightInfoOverlay.java` | ~140 | Flight data display |
+| `PowerInfoOverlay.java` | ~170 | Engine power metrics |
+| `FMUnpackedDataOverlay.java` | ~120 | Flight model debug display |
 | `MinimalHUDContext.java` | ~190 | Immutable config snapshot for MiniHUD |
-| `SituationAware.java` | ~140 | Situation awareness logic |
-| `ZebraListRenderer.java` | ~50 | Alternating row renderer |
+| `SituationAware.java` | ~190 | Situation awareness logic |
+| `ZebraListRenderer.java` | ~60 | Alternating row renderer |
 | `OverlayRenderer.java` | ~30 | Renderer interface |
 
 ## Inheritance Hierarchy

@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 VoidMei is a Java Swing telemetry overlay for War Thunder. It reads real-time flight data from the game's local HTTP API (port 8111) and displays HUD overlays with flight metrics, warnings, and aircraft performance data.
 
-**Project Statistics:** ~144 Java files, ~30,000 lines of code
+**Project Statistics:** ~155 Java files, ~34,000 lines of code
 
 ## Build Commands
 
