@@ -70,6 +70,7 @@ public class EngineControlOverlay extends FieldOverlay { // Revert to FieldOverl
 	// Logic State
 	private boolean isJet;
 	private boolean jetLabelUpdated;
+	private boolean compressorMaxValueSet;
 
 	// Gauge data
 	private List<GaugeField> gaugeFields;
@@ -357,6 +358,21 @@ public class EngineControlOverlay extends FieldOverlay { // Revert to FieldOverl
 				}
 			}
 			jetLabelUpdated = true;
+
+			// Set compressor gauge maxValue from FM data
+			if (!compressorMaxValueSet) {
+				prog.util.PistonPowerModel.CompressorStageParams[] stages =
+					((prog.Controller) config).getCompressorStages();
+				if (stages != null && stages.length > 1 && gaugeFields != null) {
+					for (GaugeField gf : gaugeFields) {
+						if (gf.gaugeType == GaugeType.COMPRESSOR.ordinal()) {
+							gf.gauge.maxValue = stages.length - 1;
+							break;
+						}
+					}
+				}
+				compressorMaxValueSet = true;
+			}
 		}
 	}
 
