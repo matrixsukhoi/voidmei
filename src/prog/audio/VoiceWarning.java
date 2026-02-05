@@ -711,7 +711,7 @@ public class VoiceWarning implements Runnable {
             // Check if it's time to play the warning
             if (pendingCompressorWarnTime > 0 && t >= pendingCompressorWarnTime) {
                 compressorStageWarn.playOnce(t);
-                pendingCompressorWarnTime = 0;  // Clear after playing (single warning per state change)
+                pendingCompressorWarnTime = t + COMPRESSOR_WARN_DELAY;  // Repeat every 3s until mismatch resolves
             }
 
             xS.fatalWarn = fatal;
