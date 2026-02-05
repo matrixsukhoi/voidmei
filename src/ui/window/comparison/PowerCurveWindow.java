@@ -104,8 +104,12 @@ public class PowerCurveWindow extends JDialog {
             return;
         }
 
-        // Extract compressor parameters
-        CompressorStageParams[] stages = FMPowerExtractor.extractStages(blkx);
+        // Try to load Central file for fuel modifications
+        // Central file is at flightmodels/<name>.blkx (parent of fm/ directory)
+        Blkx.FuelModification fuelMod = loadFuelModification(fmName);
+
+        // Extract compressor parameters (with fuel modification if available)
+        CompressorStageParams[] stages = FMPowerExtractor.extractStages(blkx, fuelMod);
         if (stages == null || stages.length == 0) {
             errorMessage = "无法提取发动机参数";
             return;
@@ -130,6 +134,43 @@ public class PowerCurveWindow extends JDialog {
                 peakAltitude = i * ALT_STEP;
             }
         }
+    }
+
+    /**
+     * Attempts to load fuel modification data from the Central file.
+     *
+     * <p>The Central file is located in the parent directory of the FM file:
+     * {@code data/aces/gamedata/flightmodels/<name>.blkx} (or .blk)
+     * while the FM file is at:
+     * {@code data/aces/gamedata/flightmodels/fm/<name>.blkx}
+     *
+     * @param fmName aircraft FM name
+     * @return FuelModification data, or null if Central file not found
+     */
+    private Blkx.FuelModification loadFuelModification(String fmName) {
+        // Try common extensions for Central file
+        String[] extensions = {".blkx", ".Blkx", ".blk"};
+        for (String ext : extensions) {
+            String centralPath = "data/aces/gamedata/flightmodels/" + fmName + ext;
+            java.io.File cf = new java.io.File(centralPath);
+            if (cf.exists()) {
+                try {
+                    String data = new String(
+                        java.nio.file.Files.readAllBytes(cf.toPath()), "UTF-8");
+                    Blkx.FuelModification mod = Blkx.extractFuelModifications(data);
+                    if (mod.type != Blkx.FuelModification.FuelType.NONE) {
+                        prog.util.Logger.info("PowerCurveWindow",
+                            "Fuel modification: " + mod.type);
+                    }
+                    return mod;
+                } catch (Exception e) {
+                    // Central file exists but failed to parse — continue without fuel mod
+                    prog.util.Logger.debug("PowerCurveWindow",
+                        "Failed to parse Central file: " + e.getMessage());
+                }
+            }
+        }
+        return null;
     }
 
     /**

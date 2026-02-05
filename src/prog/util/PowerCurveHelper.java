@@ -15,9 +15,15 @@ public final class PowerCurveHelper {
 
     private PowerCurveHelper() {}
 
-    /** Checks if the stage has ConstRPM parameters defined. */
+    /**
+     * Checks if the stage has ConstRPM parameters defined.
+     *
+     * <p>Note: constRpmAlt=0 is a valid value (ConstRPM at sea level), so we only
+     * check constRpmPower. WAPC's ConstRPM_is() checks key existence, not altitude value.
+     * When FM doesn't define ConstRPM, both constRpmAlt and constRpmPower default to 0.
+     */
     public static boolean hasConstRpm(CompressorStageParams p) {
-        return p.constRpmAlt != 0 && p.constRpmPower > 0;
+        return p.constRpmPower > 0;
     }
 
     /**

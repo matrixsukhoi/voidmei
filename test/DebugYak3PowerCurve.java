@@ -86,8 +86,8 @@ public class DebugYak3PowerCurve {
         System.out.println("\n=== COMPARISON: Blkx vs Hardcoded Values ===\n");
         compareWithHardcoded(blkx);
 
-        // === EXTRACT STAGES USING FMPowerExtractor ===
-        System.out.println("\n=== EXTRACTING STAGES (FMPowerExtractor) ===\n");
+        // === EXTRACT STAGES USING FMPowerExtractor (without fuel modification) ===
+        System.out.println("\n=== EXTRACTING STAGES (FMPowerExtractor, no fuel mod) ===\n");
 
         CompressorStageParams[] stages = FMPowerExtractor.extractStages(blkx);
         if (stages == null || stages.length == 0) {
@@ -100,7 +100,7 @@ public class DebugYak3PowerCurve {
         System.out.println("Extracted " + stages.length + " compressor stages");
 
         // === PARAMETER EXTRACTION (from parsed stages) ===
-        System.out.println("\n=== PARAMETER EXTRACTION (parsed) ===\n");
+        System.out.println("\n=== PARAMETER EXTRACTION (parsed, no fuel mod) ===\n");
 
         for (int i = 0; i < stages.length; i++) {
             printStageParams(stages[i], i);
@@ -121,8 +121,90 @@ public class DebugYak3PowerCurve {
         }
         System.out.println();
 
-        // === RUN POWER CALCULATIONS ===
+        // === RUN POWER CALCULATIONS (without fuel mod) ===
         runPowerCalculations(stages);
+
+        // ======================================================================
+        // === WITH FUEL MODIFICATION (Soviet Octane B-100) ===
+        // ======================================================================
+        System.out.println("\n======================================================================");
+        System.out.println("=== WITH FUEL MODIFICATION (Soviet B-100, addHorsePowers=50) ===");
+        System.out.println("======================================================================\n");
+
+        // Determine Central file path from args or auto-detect
+        String centralPath = null;
+        for (int a = 0; a < args.length; a++) {
+            if ("--central".equals(args[a]) && a + 1 < args.length) {
+                centralPath = args[a + 1];
+            }
+        }
+
+        Blkx.FuelModification fuelMod = null;
+        if (centralPath != null) {
+            // Load Central file and extract fuel modifications
+            System.out.println("Loading Central file: " + centralPath);
+            try {
+                String centralData = new String(
+                    java.nio.file.Files.readAllBytes(java.nio.file.Paths.get(centralPath)),
+                    "UTF-8");
+                fuelMod = Blkx.extractFuelModifications(centralData);
+                System.out.println("  Fuel type: " + fuelMod.type);
+                System.out.println("  Soviet HP bonus: " + fuelMod.sovietOctaneHpBonus);
+            } catch (Exception e) {
+                System.err.println("  Failed to load Central file: " + e.getMessage());
+            }
+        }
+
+        if (fuelMod == null || fuelMod.type == Blkx.FuelModification.FuelType.NONE) {
+            // Fallback: create Soviet B-100 manually (Yak-3 always has this)
+            System.out.println("Using hardcoded Soviet B-100 fuel modification");
+            fuelMod = new Blkx.FuelModification();
+            fuelMod.type = Blkx.FuelModification.FuelType.SOVIET_B100;
+            fuelMod.sovietOctaneHpBonus = 50;
+        }
+
+        System.out.println();
+
+        // Extract stages with fuel modification
+        CompressorStageParams[] fuelStages = FMPowerExtractor.extractStages(blkx, fuelMod);
+        if (fuelStages == null || fuelStages.length == 0) {
+            System.err.println("ERROR: FMPowerExtractor with fuel mod returned null/empty!");
+        } else {
+            System.out.println("Extracted " + fuelStages.length + " stages WITH fuel modification\n");
+
+            for (int i = 0; i < fuelStages.length; i++) {
+                printStageParams(fuelStages[i], i);
+            }
+
+            // === OPTIMAL POWER WITH FUEL (for WAPC comparison) ===
+            System.out.println("=== OPTIMAL POWER WITH FUEL (military, static, both stages) ===");
+            System.out.println("=== Compare with WAPC single_aircraft_calculator.py output ===\n");
+
+            Logger.setMinLevel(Logger.Level.INFO);
+
+            int[] sampleAltitudes = {0, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000};
+            double peakPower = 0;
+            int peakAlt = 0;
+
+            System.out.printf("%-16s%-16s%n", "Altitude (m)", "Power (hp)");
+            System.out.println("------------------------------");
+
+            // Scan fine-grained for peak power (every 10m, matching WAPC alt_tick=10)
+            for (int alt = 0; alt <= 10000; alt += 10) {
+                double power = optimalPowerAdvanced(fuelStages, alt, false, 0, false, 15);
+                if (power > peakPower) {
+                    peakPower = power;
+                    peakAlt = alt;
+                }
+            }
+
+            System.out.printf("Peak power: %.1f hp at %dm%n%n", peakPower, peakAlt);
+
+            for (int alt : sampleAltitudes) {
+                double power = optimalPowerAdvanced(fuelStages, alt, false, 0, false, 15);
+                System.out.printf("%-16d%-16s%n", alt, String.format("%.1f", power));
+            }
+        }
 
         System.out.println("\n======================================================================");
         System.out.println("Debug output complete (using parsed blkx)");
