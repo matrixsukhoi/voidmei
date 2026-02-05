@@ -778,7 +778,17 @@ public class Controller implements ConfigProvider {
 		Blkx lookupBlkx = new Blkx("./data/aces/gamedata/flightmodels/" + planeFileName + ".Blkx",
 				planeFileName + ".blk",
 				false);
-		if (lookupBlkx.valid == true) {
+
+		// Extract fuel modifications from Central file before discarding it
+		// Note: use parser.Blkx to avoid shadowing by the 'Blkx' field
+		parser.Blkx.FuelModification fuelMod = null;
+		if (lookupBlkx.valid && lookupBlkx.data != null) {
+			fuelMod = parser.Blkx.extractFuelModifications(lookupBlkx.data);
+			if (fuelMod.type != parser.Blkx.FuelModification.FuelType.NONE) {
+				prog.util.Logger.info("Controller", "Fuel modification detected: " + fuelMod.type
+						+ " (HP bonus=" + fuelMod.sovietOctaneHpBonus + ")");
+			}
+
 			fmfile = lookupBlkx.getlastone("fmfile");
 			if (fmfile != null) {
 				fmfile = fmfile.substring(fmfile.indexOf("\"") + 1, fmfile.length() - 1);
@@ -803,7 +813,7 @@ public class Controller implements ConfigProvider {
 
 			// Extract compressor stages for multi-stage supercharger aircraft
 			if (FMPowerExtractor.isPistonEngine(Blkx)) {
-				compressorStages = FMPowerExtractor.extractStages(Blkx);
+				compressorStages = FMPowerExtractor.extractStages(Blkx, fuelMod);
 			} else {
 				compressorStages = null;
 			}

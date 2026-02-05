@@ -15,6 +15,179 @@ import static prog.util.PhysicsConstants.g;
 public class Blkx {
 	public boolean valid;
 
+	// ==================== Fuel Modification Support ====================
+
+	/**
+	 * Represents fuel quality modifications extracted from Central file's
+	 * "modifications" section. These upgrades affect engine power output.
+	 *
+	 * <p>War Thunder Central files (e.g., flightmodels/yak-3.blkx) contain:
+	 * <pre>
+	 * modifications {
+	 *   ussr_fuel_b-100 {
+	 *     effects {
+	 *       addHorsePowers:r = 50
+	 *     }
+	 *   }
+	 * }
+	 * </pre>
+	 */
+	public static class FuelModification {
+		/** Soviet fuel addHorsePowers value (typically 50) */
+		public double sovietOctaneHpBonus = 0;
+		/** British afterburnerMult from fuel modification */
+		public double britishAfterburnerMult = 1.0;
+		/** British afterburnerCompressorMult from fuel modification */
+		public double britishAfterburnerCompressorMult = 1.0;
+		/** Whether British fuel has invertEnableLogic (means high octane is default) */
+		public boolean britishInvertLogic = false;
+		/** Fuel modification type */
+		public FuelType type = FuelType.NONE;
+
+		public enum FuelType {
+			NONE, SOVIET_B95, SOVIET_B100, BRITISH_150_OCTANE, BRITISH_100_SPITFIRE
+		}
+	}
+
+	/**
+	 * Extracts fuel quality modifications from a Central file's raw text data.
+	 *
+	 * <p>Searches for known fuel upgrade keys in the "modifications" section:
+	 * <ul>
+	 *   <li>Soviet: ussr_fuel_b-95, ussr_fuel_b-100 → addHorsePowers</li>
+	 *   <li>British: 150_octan_fuel, 100_octan_spitfire → afterburnerMult</li>
+	 * </ul>
+	 *
+	 * @param centralData raw text content of the Central file
+	 * @return FuelModification with extracted values, or default (no-op) if none found
+	 */
+	public static FuelModification extractFuelModifications(String centralData) {
+		FuelModification mod = new FuelModification();
+		if (centralData == null || centralData.isEmpty()) {
+			return mod;
+		}
+
+		// Find the "modifications" block
+		String modsBlock = cutStatic(centralData, "modifications");
+		if (modsBlock.equals("null")) {
+			return mod;
+		}
+
+		// Check for Soviet fuels (ussr_fuel_b-95 or ussr_fuel_b-100)
+		String sovietB100 = cutStatic(modsBlock, "ussr_fuel_b-100");
+		if (!sovietB100.equals("null")) {
+			mod.type = FuelModification.FuelType.SOVIET_B100;
+			String effects = cutStatic(sovietB100, "effects");
+			if (!effects.equals("null")) {
+				mod.sovietOctaneHpBonus = getDoubleFromBlock(effects, "addHorsePowers");
+			}
+			return mod;
+		}
+
+		String sovietB95 = cutStatic(modsBlock, "ussr_fuel_b-95");
+		if (!sovietB95.equals("null")) {
+			mod.type = FuelModification.FuelType.SOVIET_B95;
+			String effects = cutStatic(sovietB95, "effects");
+			if (!effects.equals("null")) {
+				mod.sovietOctaneHpBonus = getDoubleFromBlock(effects, "addHorsePowers");
+			}
+			return mod;
+		}
+
+		// Check for British fuels (150_octan_fuel or 100_octan_spitfire)
+		String british150 = cutStatic(modsBlock, "150_octan_fuel");
+		if (!british150.equals("null")) {
+			mod.type = FuelModification.FuelType.BRITISH_150_OCTANE;
+			String effects = cutStatic(british150, "effects");
+			if (!effects.equals("null")) {
+				mod.britishAfterburnerMult = getDoubleFromBlock(effects, "afterburnerMult");
+				if (mod.britishAfterburnerMult == 0) mod.britishAfterburnerMult = 1.0;
+				mod.britishAfterburnerCompressorMult = getDoubleFromBlock(effects, "afterburnerCompressorMult");
+				if (mod.britishAfterburnerCompressorMult == 0) mod.britishAfterburnerCompressorMult = 1.0;
+			}
+			// Check for invertEnableLogic
+			mod.britishInvertLogic = british150.toUpperCase().contains("INVERTENABLELOGIC");
+			return mod;
+		}
+
+		String british100 = cutStatic(modsBlock, "100_octan_spitfire");
+		if (!british100.equals("null")) {
+			mod.type = FuelModification.FuelType.BRITISH_100_SPITFIRE;
+			String effects = cutStatic(british100, "effects");
+			if (!effects.equals("null")) {
+				mod.britishAfterburnerMult = getDoubleFromBlock(effects, "afterburnerMult");
+				if (mod.britishAfterburnerMult == 0) mod.britishAfterburnerMult = 1.0;
+				mod.britishAfterburnerCompressorMult = getDoubleFromBlock(effects, "afterburnerCompressorMult");
+				if (mod.britishAfterburnerCompressorMult == 0) mod.britishAfterburnerCompressorMult = 1.0;
+			}
+			mod.britishInvertLogic = british100.toUpperCase().contains("INVERTENABLELOGIC");
+			return mod;
+		}
+
+		return mod;
+	}
+
+	/**
+	 * Static version of cut() for use in extractFuelModifications().
+	 * Extracts content between braces of a named block.
+	 */
+	private static String cutStatic(String text, String blockLabel) {
+		int bix = text.toUpperCase().indexOf(blockLabel.toUpperCase() + " {");
+		// Also try without space: "blockLabel{"
+		if (bix == -1) {
+			bix = text.toUpperCase().indexOf(blockLabel.toUpperCase() + "{");
+		}
+		if (bix == -1) return "null";
+
+		int cutleft = bix;
+		while (cutleft < text.length() && text.charAt(cutleft) != '{') cutleft++;
+		if (cutleft >= text.length()) return "null";
+		cutleft++;
+
+		int left = 1, right = 0;
+		int i = cutleft;
+		for (; i < text.length(); i++) {
+			if (text.charAt(i) == '{') left++;
+			if (text.charAt(i) == '}') right++;
+			if (left == right) break;
+		}
+		if (i >= text.length()) return "null";
+		return text.substring(cutleft, i);
+	}
+
+	/**
+	 * Extracts a double value from a text block by key name.
+	 * Handles both "key = value" and "key:r = value" formats.
+	 */
+	private static double getDoubleFromBlock(String block, String key) {
+		// Try key:r = value first (typed format)
+		int idx = block.indexOf(key + ":r");
+		if (idx == -1) {
+			idx = block.indexOf(key);
+		}
+		if (idx == -1) return 0;
+
+		// Find the '=' sign
+		int eqIdx = block.indexOf('=', idx);
+		if (eqIdx == -1) return 0;
+		eqIdx++; // skip '='
+
+		// Find end of value (newline or end of string)
+		int endIdx = block.indexOf('\n', eqIdx);
+		if (endIdx == -1) endIdx = block.length();
+
+		String valStr = block.substring(eqIdx, endIdx).trim();
+		// Take first part if comma-separated
+		String[] parts = valStr.split(",");
+		try {
+			return Double.parseDouble(parts[0].trim());
+		} catch (NumberFormatException e) {
+			return 0;
+		}
+	}
+
+	// ==================== End Fuel Modification Support ====================
+
 	public class XY {
 		public double x[];
 		public double y[];

@@ -883,6 +883,9 @@ public final class PistonPowerModel {
             }
         }
 
+        Logger.debug("variabler", String.format("altRam=%.1f, isWep=%s | lower=(%.1f, %.1f), higher=(%.1f, %.1f), curv=%.1f",
+                altRam, isWep, lowerAlt, lowerPower, higherAlt, higherPower, curvature));
+
         return new double[] { higherPower, higherAlt, lowerPower, lowerAlt, curvature };
     }
 

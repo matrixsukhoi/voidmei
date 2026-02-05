@@ -403,6 +403,7 @@ Detailed development guides for complex subsystems:
 | VoidMei Contributor Guide | [`doc/voidmei贡献者开发手册.md`](doc/voidmei贡献者开发手册.md) |
 | Algorithm Development | [`doc/物理人也能看懂的voidmei算法开发指导.md`](doc/物理人也能看懂的voidmei算法开发指导.md) |
 | Debug Logging | [`doc/打桩调试手册.md`](doc/打桩调试手册.md) |
+| Power Curve Debugging | [`doc/功率曲线调试手册.md`](doc/功率曲线调试手册.md) |
 
 ## Quick Reference
 

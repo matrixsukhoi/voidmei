@@ -29,6 +29,30 @@ public final class FMPowerExtractor {
     private FMPowerExtractor() {}
 
     /**
+     * Extracts compressor stage parameters from a parsed Blkx FM file,
+     * applying fuel quality modifications from the Central file.
+     *
+     * <p>This overload supports fuel upgrades (e.g., Soviet B-100, British 150 octane)
+     * that modify engine power output. If fuelMod is null, no fuel bonus is applied.
+     *
+     * @param blkx    parsed FM file data
+     * @param fuelMod fuel modification data from Central file, or null
+     * @return array of CompressorStageParams, or null if not a piston engine
+     * @see #extractStages(Blkx)
+     */
+    public static CompressorStageParams[] extractStages(Blkx blkx, Blkx.FuelModification fuelMod) {
+        CompressorStageParams[] stages = extractStages(blkx);
+        if (stages == null) return null;
+
+        // Apply fuel modifications if present
+        if (fuelMod != null && fuelMod.type != Blkx.FuelModification.FuelType.NONE) {
+            applyFuelModifications(stages, fuelMod, blkx);
+        }
+
+        return stages;
+    }
+
+    /**
      * Extracts compressor stage parameters from a parsed Blkx FM file.
      *
      * <p>Performs a multi-pass extraction:
@@ -400,6 +424,141 @@ public final class FMPowerExtractor {
 
         double wepConstRpmStrength = constRpmStrength * rpmEffect * pressureBoost;
         return altitudeAtPressure(wepMP / wepConstRpmStrength);
+    }
+
+    // ==================== Fuel Modification Application ====================
+
+    /**
+     * Soviet octane power multiplier: 1.8% power increase.
+     * Applied when addHorsePowers == 50 (WAPC soviet_octane_adder convention).
+     */
+    private static final double SOVIET_OCTANE_POWER_MULT = 1.018;
+
+    /**
+     * Applies fuel quality modifications to extracted compressor stages.
+     *
+     * <p>Dispatches to the appropriate handler based on fuel type:
+     * <ul>
+     *   <li>Soviet B-95/B-100: Multiplicative power gain across all stages</li>
+     *   <li>British 150 octane / 100 spitfire: WEP multiplier and critical altitude changes</li>
+     * </ul>
+     */
+    private static void applyFuelModifications(CompressorStageParams[] stages,
+                                                Blkx.FuelModification fuelMod, Blkx blkx) {
+        switch (fuelMod.type) {
+            case SOVIET_B95:
+            case SOVIET_B100:
+                applySovietOctaneBonus(stages, fuelMod);
+                break;
+            case BRITISH_150_OCTANE:
+            case BRITISH_100_SPITFIRE:
+                applyBritishOctaneBonus(stages, fuelMod, blkx);
+                break;
+            default:
+                break;
+        }
+    }
+
+    /**
+     * Applies Soviet fuel octane bonus to all compressor stages.
+     *
+     * <p>Port of WAPC soviet_octane_adder():
+     * <ul>
+     *   <li>Condition: addHorsePowers == 50 (the standard Soviet fuel bonus value)</li>
+     *   <li>Effect: 1.8% multiplicative power gain on deckPower (stage 0 only),
+     *       critPower, constRpmPower, and ceilingPower for all stages</li>
+     * </ul>
+     *
+     * <p>The 1.8% figure comes from WAPC's empirical fit: the +50 HP is not added
+     * directly (as it would be altitude-independent), but rather modeled as a
+     * percentage boost that scales with the power curve.
+     *
+     * @param stages  compressor stages to modify in-place
+     * @param fuelMod fuel modification containing sovietOctaneHpBonus
+     */
+    private static void applySovietOctaneBonus(CompressorStageParams[] stages,
+                                                Blkx.FuelModification fuelMod) {
+        // Only apply when addHorsePowers is exactly 50 (WAPC convention)
+        if (Math.abs(fuelMod.sovietOctaneHpBonus - 50) > 0.01) {
+            return;
+        }
+
+        Logger.info("FMPowerExtractor", String.format(
+                "Applying Soviet octane bonus: %.1f%% power increase (addHorsePowers=%.0f)",
+                (SOVIET_OCTANE_POWER_MULT - 1) * 100, fuelMod.sovietOctaneHpBonus));
+
+        for (int i = 0; i < stages.length; i++) {
+            // Deck power: only apply to stage 0
+            // (later stages derive from stage 0 via 0.8× cascade)
+            if (i == 0) {
+                stages[i].deckPower *= SOVIET_OCTANE_POWER_MULT;
+            }
+            stages[i].critPower *= SOVIET_OCTANE_POWER_MULT;
+            if (stages[i].constRpmPower > 0) {
+                stages[i].constRpmPower *= SOVIET_OCTANE_POWER_MULT;
+            }
+            if (stages[i].ceilingPower > 0) {
+                stages[i].ceilingPower *= SOVIET_OCTANE_POWER_MULT;
+            }
+        }
+    }
+
+    /**
+     * Applies British fuel octane bonus to all compressor stages.
+     *
+     * <p>Port of WAPC brrritish_octane_adder():
+     * <ul>
+     *   <li>If invertEnableLogic is true: high octane is the default, so
+     *       the modification represents REMOVING it — no bonus applied</li>
+     *   <li>Otherwise: modifies the WEP power multiplier using the fuel's
+     *       afterburnerMult and afterburnerCompressorMult values, and
+     *       recalculates WEP critical altitude</li>
+     * </ul>
+     *
+     * @param stages  compressor stages to modify in-place
+     * @param fuelMod fuel modification containing British fuel parameters
+     * @param blkx    parsed FM data for recalculating WEP altitudes
+     */
+    private static void applyBritishOctaneBonus(CompressorStageParams[] stages,
+                                                 Blkx.FuelModification fuelMod, Blkx blkx) {
+        // invertEnableLogic means the high-octane fuel is the DEFAULT state
+        // The "modification" represents removing it, so we don't apply any bonus
+        if (fuelMod.britishInvertLogic) {
+            return;
+        }
+
+        Logger.info("FMPowerExtractor", String.format(
+                "Applying British octane bonus: afterburnerMult=%.3f, compressorMult=%.3f",
+                fuelMod.britishAfterburnerMult, fuelMod.britishAfterburnerCompressorMult));
+
+        for (int i = 0; i < stages.length; i++) {
+            // Modify WEP power multiplier with fuel's afterburnerMult
+            stages[i].wepPowerMult *= fuelMod.britishAfterburnerMult;
+
+            // Recalculate WEP critical altitude with fuel's compressor boost
+            if (blkx.militaryMP > 0 && blkx.wepManifoldPressure > 0
+                    && Math.abs(stages[i].wepPowerMult - 1.0) > 0.001) {
+                double critPressure = pressure(stages[i].critAlt);
+                double superchargerStrength = blkx.militaryMP / critPressure;
+
+                double omegaFactorSq = blkx.hasCompOmegaFactorSq ? blkx.compOmegaFactorSq : 1.0;
+                double rpmEffect = superchargerRpmEffect(
+                        blkx.militaryRPM, blkx.wepRPM,
+                        blkx.compPressureAtRPM0 > 0 ? blkx.compPressureAtRPM0 : 0.3,
+                        omegaFactorSq);
+
+                double basePressureBoost = (blkx.compAfterburnerPressureBoost != null
+                        && i < blkx.compAfterburnerPressureBoost.length
+                        && blkx.compAfterburnerPressureBoost[i] > 0)
+                        ? blkx.compAfterburnerPressureBoost[i] : 1.0;
+
+                // Apply fuel's compressor multiplier on top of base pressure boost
+                double totalPressureBoost = basePressureBoost * fuelMod.britishAfterburnerCompressorMult;
+                double wepSuperchargerStrength = superchargerStrength * rpmEffect * totalPressureBoost;
+                double wepCritPressure = blkx.wepManifoldPressure / wepSuperchargerStrength;
+                stages[i].wepCritAlt = Math.round(altitudeAtPressure(wepCritPressure));
+            }
+        }
     }
 
     // ==================== Public Utility Methods ====================
