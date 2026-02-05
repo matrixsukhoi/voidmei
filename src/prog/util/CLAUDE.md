@@ -12,6 +12,8 @@ The `prog.util` package provides **pure function utilities** for physics calcula
 | `Interpolation.java` | 1D/2D interpolation, linear interpolation utilities |
 | `AtmosphereModel.java` | ISA standard atmosphere: pressure, density, IAS↔TAS, RAM effect |
 | `PistonPowerModel.java` | Piston engine power curves: altitude/speed → power calculation |
+| `PowerCurveHelper.java` | Power curve shape determination (hasConstRpm, ceilingIsUseful, etc.) |
+| `FMPowerExtractor.java` | FM file → CompressorStageParams extraction (with fuel modifications) |
 | `CalcHelper.java` | General math utilities |
 | `HttpHelper.java` | HTTP request utilities for game API |
 | `Logger.java` | Application logging |
@@ -113,7 +115,7 @@ stage.speedManifoldMult = 0.9;  // RAM effect coefficient
 CompressorStageParams[] stages = {stage};
 
 // Calculate power at specific altitude/speed
-double power = optimalPowerAtAltitude(
+double power = optimalPowerAdvanced(
     stages,
     5000,    // altitude (m)
     true,    // WEP mode
@@ -123,7 +125,7 @@ double power = optimalPowerAtAltitude(
 );
 
 // Generate full power curve
-double[] curve = generatePowerCurve(stages, true, 0, false, 15, 50);
+double[] curve = generatePowerCurveAdvanced(stages, true, 0, false, 15, 50);
 // Returns power from 0m to 10000m in 50m steps (201 points)
 ```
 
@@ -139,8 +141,8 @@ stage2.stageIndex = 1;
 
 CompressorStageParams[] stages = {stage1, stage2};
 
-// optimalPowerAtAltitude automatically selects the best stage
-double power = optimalPowerAtAltitude(stages, 5000, false, 0, false, 15);
+// optimalPowerAdvanced automatically selects the best stage
+double power = optimalPowerAdvanced(stages, 5000, false, 0, false, 15);
 ```
 
 #### WEP Calculations
@@ -214,22 +216,41 @@ double vne = interpSweepLevel(vwing, sweepLevels,
 
 ## Integration Architecture
 
-### Current State
+### Full Pipeline
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    MISSING: FM Parameter Layer              │
-│  FM File (.blk) ──→ FMParameterExtractor ──→ CompressorStageParams │
+│               FM Parameter Extraction Layer                  │
+│                                                              │
+│  FM File (.blk) ──→ Blkx.java (parser)                     │
+│  Central File ──→ Blkx.extractFuelModifications()           │
+│                         ↓                                    │
+│  FMPowerExtractor.extractStages(blkx, fuelMod)              │
+│    • soviet_octane_adder (1.8% boost if B-95/B-100)         │
+│    • definition_alt_power_adjuster (RPM corrections)        │
+│    • deck_power_maker (sea level power per stage)           │
+│    • wep_mulitiplierer + british_octane (WEP parameters)    │
+│                         ↓                                    │
+│  CompressorStageParams[] ──→ PowerCurveHelper (shape logic) │
 └─────────────────────────────────────────────────────────────┘
                               ↓
 ┌─────────────────────────────────────────────────────────────┐
-│                    IMPLEMENTED: Calculation Layer            │
+│                    Calculation Layer                          │
 │  AtmosphereModel ←──── PistonPowerModel                     │
-│    • pressure()         • powerAtAltitude()                 │
-│    • density()          • optimalPowerAtAltitude()          │
-│    • ramEffectAltitude()• generatePowerCurve()              │
+│    • pressure()         • powerAtAltitudeAdvanced()         │
+│    • density()          • optimalPowerAdvanced()            │
+│    • ramEffectAltitude()• generatePowerCurveAdvanced()      │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+### Key API Methods
+
+| Method | Description |
+|--------|-------------|
+| `powerAtAltitudeAdvanced()` | Single-stage power at altitude (WAPC variabler) |
+| `optimalPowerAdvanced()` | Multi-stage optimal power selection |
+| `generatePowerCurveAdvanced()` | Full power curve generation (0–10000m) |
+| `findOptimalStageIndex()` | Optimal supercharger stage index for given altitude |
 
 ### Required FM Parameters
 
@@ -240,6 +261,10 @@ To use `PistonPowerModel` for any aircraft, these parameters must be extracted f
 | `Power` | `deckPower` | Sea level power (hp) |
 | `Altitude0/1/2` | `critAlt` | Critical altitude per stage (m) |
 | `Power0/1/2` | `critPower` | Power at critical altitude (hp) |
+| `Ceiling0/1/2` | `ceilingAlt` | Ceiling altitude per stage (m) |
+| `PowerAtCeiling0/1/2` | `ceilingPower` | Power at ceiling altitude (hp) |
+| `AltitudeConstRPM0/1/2` | `constRpmAlt` | ConstRPM bend altitude (0 is valid!) |
+| `PowerConstRPM0/1/2` | `constRpmPower` | Power at ConstRPM bend |
 | `AfterburnerBoost` | WEP calculation | WEP boost factor |
 | `AfterburnerManifoldPressure` | WEP calculation | WEP manifold pressure (ata) |
 | `SpeedManifoldMultiplier` | `speedManifoldMult` | RAM effect coefficient |

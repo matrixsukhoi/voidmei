@@ -83,17 +83,6 @@ public class BenchmarkPistonPower {
             generatePowerCurveAdvanced(threeStage, true, 400, true, 15, 50);
         }, benchmarkIterations);
 
-        // Also benchmark the simpler generatePowerCurve for comparison
-        System.out.println("\n--- Comparison with simpler generatePowerCurve ---\n");
-
-        benchmarkMethod("generatePowerCurve (simple)", () -> {
-            generatePowerCurve(singleStage, false, 0, false, 15, 50);
-        }, benchmarkIterations);
-
-        benchmarkMethod("generatePowerCurveAdvanced", () -> {
-            generatePowerCurveAdvanced(singleStage, false, 0, false, 15, 50);
-        }, benchmarkIterations);
-
         // Memory allocation check
         System.out.println("\n--- Memory Analysis ---");
         System.gc();

@@ -26,58 +26,77 @@
 - `./data/aces/gamedata/flightmodels/fm/[飞机名称].blkx`
 - 用户指定的路径
 
-### 3. 提取 FM 参数
+### 3. 查找 Central 文件（燃料修改）
+
+在以下位置查找 Central 文件：
+- `./data/aces/gamedata/flightmodels/[飞机名称].blkx`
+- 自动检测燃料修改类型（苏联 B-95/B-100、英国 150 辛烷）
+
+### 4. 提取 FM 参数
 
 从 FM 文件中提取以下关键参数：
 - `Compressor.Altitude0/1/2` → 临界高度
 - `Compressor.Power0/1/2` → 临界功率
 - `Compressor.Ceiling0/1/2` → 升限高度
 - `Compressor.PowerAtCeiling0/1/2` → 升限功率
+- `Compressor.AltitudeConstRPM0/1/2` → ConstRPM 高度
+- `Compressor.PowerConstRPM0/1/2` → ConstRPM 功率
 - `Main.Power` → 海平面功率
 - `Compressor.SpeedManifoldMultiplier` → RAM 系数
 - `Compressor.ExactAltitudes` → 旧格式标记
-- `Compressor.CompressorOmegaFactorSq` → 增压器参数
 
-### 4. 创建或更新调试脚本
+### 5. 创建验证脚本
 
-基于提取的参数，更新 `test/DebugYak3PowerCurve.java` 中的硬编码值。
+基于 `doc/功率曲线调试手册.md` 中的模板创建临时验证脚本。
+使用 `optimalPowerAdvanced`（完整 WAPC 模型）进行计算。
 
-### 5. 运行调试
+### 6. 运行调试
 
-编译并运行调试脚本：
+编译并运行验证脚本：
 ```bash
-javac -encoding UTF-8 -d bin -classpath bin test/DebugYak3PowerCurve.java
-java -classpath bin DebugYak3PowerCurve
+javac -encoding UTF-8 -d bin -classpath bin test/VerifyXXX.java
+java -classpath bin VerifyXXX
 ```
 
-### 6. 分析结果
+### 7. 分析结果
 
 输出功率曲线数据，包括：
-- 静态功率 (speed=0) 在各高度
-- RAM 效果功率 (301km/h IAS) 在各高度
+- Military 功率在各高度（含 WAPC 对比值）
+- WEP 功率在各高度（如有 WEP）
 - 最优增压器级选择
+- 燃料修改影响
 
-### 7. 与 WAPC 对比（如果可用）
+### 8. 与 WAPC 对比（如果可用）
 
-如果 WAPC 项目路径可用，运行 Python 脚本进行对比：
+如果用户有 WAPC 项目和对应飞机的 datamine JSON 文件：
 ```bash
-python3 script/debug_wapc_yak3.py
+cd /path/to/wtapc/performance_calculators
+python3 single_aircraft_calculator.py \
+    --fm /path/to/fm/xxx.json \
+    --central /path/to/xxx.json \
+    --octane true \
+    --speed 300 \
+    --modes military WEP
 ```
 
 ## 相关文档
 
-- `doc/功率曲线调试手册.md` - 详细调试指南
+- `doc/功率曲线调试手册.md` - 详细调试指南（含燃料修改、已验证飞机）
 - `src/prog/util/PistonPowerModel.java` - 功率计算核心
-- `src/prog/util/FMPowerExtractor.java` - FM 参数提取
+- `src/prog/util/FMPowerExtractor.java` - FM 参数提取（含燃料加成）
+- `src/prog/util/PowerCurveHelper.java` - 功率曲线形状判断
 
 ## 示例输出
 
 ```
-=== POWER CURVE (military, static, stage 0) ===
-
-[alt=0] power=1290.0hp
-[alt=300] power=1310.0hp (critical altitude)
-[alt=675] power=1247.1hp
-[alt=1000] power=1194.5hp
+Alt(m)   WAPC(hp)     VoidMei(hp)  Diff(hp)
+-------------------------------------------
+0        2300.0       2300.0       0.0
+1000     2160.8       2160.2       -0.6
+2000     2000.0       2000.0       0.0
 ...
+Military max diff: 0.7 hp
+WEP max diff: 0.7 hp
+
+>>> ALL VALUES MATCH WAPC (< 1 hp tolerance) <<<
 ```

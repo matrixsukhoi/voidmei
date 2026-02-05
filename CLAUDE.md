@@ -265,11 +265,11 @@ stage.wepCritAlt = 6000;
 stage.wepPowerMult = 1.15;
 
 // Calculate power at altitude/speed
-double power = powerAtAltitude(stage, 5000, true, 400, true, 15.0);
+double power = powerAtAltitudeAdvanced(stage, 5000, true, 400, true, 15.0);
 
 // For multi-stage superchargers
 CompressorStageParams[] stages = {stage1, stage2};
-double optPower = optimalPowerAtAltitude(stages, 5000, false, 0, false, 15.0);
+double optPower = optimalPowerAdvanced(stages, 5000, false, 0, false, 15.0);
 ```
 
 > **Note:** `PistonPowerModel` is a calculation engine only. `CompressorStageParams` must be populated from FM file data externally. See [`src/prog/util/CLAUDE.md`](src/prog/util/CLAUDE.md) for details.

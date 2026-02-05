@@ -154,7 +154,7 @@ public class TestPistonPowerModel {
     }
 
     private static void testPowerAtAltitude() {
-        System.out.println("Testing powerAtAltitude()...");
+        System.out.println("Testing powerAtAltitudeAdvanced()...");
 
         // Create test engine (simplified P-47D-like)
         CompressorStageParams stage = new CompressorStageParams();
@@ -166,28 +166,31 @@ public class TestPistonPowerModel {
         stage.wepCritAlt = 6000;
         stage.wepPowerMult = 1.15;
         stage.speedManifoldMult = 0.9;
+        stage.oldAltitude = 7000;
+        stage.oldPower = 2000;
+        stage.oldPowerNewRpm = 2000;
 
         // At sea level
-        double p0 = powerAtAltitude(stage, 0, false, 0, false, 15);
+        double p0 = powerAtAltitudeAdvanced(stage, 0, false, 0, false, 15);
         assertClose("power at sea level", p0, 1850, 10);
 
         // At critical altitude
-        double pCrit = powerAtAltitude(stage, 7000, false, 0, false, 15);
+        double pCrit = powerAtAltitudeAdvanced(stage, 7000, false, 0, false, 15);
         assertClose("power at crit alt", pCrit, 2000, 10);
 
         // Above critical altitude (power drops)
-        double pHigh = powerAtAltitude(stage, 9000, false, 0, false, 15);
+        double pHigh = powerAtAltitudeAdvanced(stage, 9000, false, 0, false, 15);
         assertTrue("power drops above crit alt", pHigh < pCrit);
 
         // WEP gives more power
-        double pWep = powerAtAltitude(stage, 5000, true, 0, false, 15);
-        double pMil = powerAtAltitude(stage, 5000, false, 0, false, 15);
+        double pWep = powerAtAltitudeAdvanced(stage, 5000, true, 0, false, 15);
+        double pMil = powerAtAltitudeAdvanced(stage, 5000, false, 0, false, 15);
         assertTrue("WEP > military", pWep > pMil);
 
         // Print power curve
         System.out.println("  Power curve (military):");
         for (int alt = 0; alt <= 10000; alt += 2000) {
-            double power = powerAtAltitude(stage, alt, false, 0, false, 15);
+            double power = powerAtAltitudeAdvanced(stage, alt, false, 0, false, 15);
             System.out.printf("    %5dm: %.0f hp%n", alt, power);
         }
     }
@@ -203,6 +206,9 @@ public class TestPistonPowerModel {
         stage1.wepCritAlt = 2500;
         stage1.wepPowerMult = 1.1;
         stage1.stageIndex = 0;
+        stage1.oldAltitude = 3000;
+        stage1.oldPower = 1400;
+        stage1.oldPowerNewRpm = 1400;
 
         CompressorStageParams stage2 = new CompressorStageParams();
         stage2.critAlt = 6500;
@@ -211,40 +217,46 @@ public class TestPistonPowerModel {
         stage2.wepCritAlt = 6000;
         stage2.wepPowerMult = 1.1;
         stage2.stageIndex = 1;
+        stage2.oldAltitude = 6500;
+        stage2.oldPower = 1300;
+        stage2.oldPowerNewRpm = 1300;
 
         CompressorStageParams[] stages = {stage1, stage2};
 
         // At low altitude, stage 1 is better
-        double pLow = optimalPowerAtAltitude(stages, 1000, false, 0, false, 15);
-        double p1Low = powerAtAltitude(stage1, 1000, false, 0, false, 15);
-        double p2Low = powerAtAltitude(stage2, 1000, false, 0, false, 15);
+        double pLow = optimalPowerAdvanced(stages, 1000, false, 0, false, 15);
+        double p1Low = powerAtAltitudeAdvanced(stage1, 1000, false, 0, false, 15);
+        double p2Low = powerAtAltitudeAdvanced(stage2, 1000, false, 0, false, 15);
         assertTrue("stage 1 better at low alt", p1Low > p2Low);
         assertClose("optimal selects stage 1", pLow, p1Low, 1);
 
         // At high altitude, stage 2 is better
-        double pHigh = optimalPowerAtAltitude(stages, 6000, false, 0, false, 15);
-        double p1High = powerAtAltitude(stage1, 6000, false, 0, false, 15);
-        double p2High = powerAtAltitude(stage2, 6000, false, 0, false, 15);
+        double pHigh = optimalPowerAdvanced(stages, 6000, false, 0, false, 15);
+        double p1High = powerAtAltitudeAdvanced(stage1, 6000, false, 0, false, 15);
+        double p2High = powerAtAltitudeAdvanced(stage2, 6000, false, 0, false, 15);
         assertTrue("stage 2 better at high alt", p2High > p1High);
         assertClose("optimal selects stage 2", pHigh, p2High, 1);
 
         // Print combined curve
         System.out.println("  Two-stage power curve:");
         for (int alt = 0; alt <= 8000; alt += 1000) {
-            double power = optimalPowerAtAltitude(stages, alt, false, 0, false, 15);
+            double power = optimalPowerAdvanced(stages, alt, false, 0, false, 15);
             System.out.printf("    %5dm: %.0f hp%n", alt, power);
         }
     }
 
     private static void testGeneratePowerCurve() {
-        System.out.println("Testing generatePowerCurve()...");
+        System.out.println("Testing generatePowerCurveAdvanced()...");
 
         CompressorStageParams stage = new CompressorStageParams(5000, 1500, 1400);
         stage.wepCritAlt = 4500;
         stage.wepPowerMult = 1.1;
+        stage.oldAltitude = 5000;
+        stage.oldPower = 1500;
+        stage.oldPowerNewRpm = 1500;
         CompressorStageParams[] stages = {stage};
 
-        double[] curve = generatePowerCurve(stages, false, 0, false, 15, 50);
+        double[] curve = generatePowerCurveAdvanced(stages, false, 0, false, 15, 50);
 
         // Check array size (range: 0m to 10000m, step 50m)
         int expectedSize = (10000 - 0) / 50 + 1;  // 201 points
@@ -273,11 +285,14 @@ public class TestPistonPowerModel {
         stage.wepCritAlt = 6500;
         stage.wepPowerMult = 1.1;
         stage.speedManifoldMult = 0.9;
+        stage.oldAltitude = 7000;
+        stage.oldPower = 2000;
+        stage.oldPowerNewRpm = 2000;
 
         // Test RAM effect well ABOVE critical altitude where power drops with altitude
         // Use higher altitude to avoid effective altitude crossing critical altitude
-        double pStatic12k = powerAtAltitude(stage, 12000, false, 0, false, 15);
-        double pMoving12k = powerAtAltitude(stage, 12000, false, 400, true, 15);
+        double pStatic12k = powerAtAltitudeAdvanced(stage, 12000, false, 0, false, 15);
+        double pMoving12k = powerAtAltitudeAdvanced(stage, 12000, false, 400, true, 15);
 
         // RAM effect should increase power above critical altitude
         assertTrue("RAM increases power above crit alt", pMoving12k > pStatic12k);
@@ -285,7 +300,7 @@ public class TestPistonPowerModel {
                 pStatic12k, pMoving12k, pMoving12k - pStatic12k);
 
         // Higher speed = more RAM effect (use moderate speeds to stay above crit alt)
-        double pFaster12k = powerAtAltitude(stage, 12000, false, 500, true, 15);
+        double pFaster12k = powerAtAltitudeAdvanced(stage, 12000, false, 500, true, 15);
         assertTrue("faster = more RAM above crit alt", pFaster12k > pMoving12k);
         System.out.printf("  At 12000m: 400km/h=%.0fhp, 500km/h=%.0fhp%n", pMoving12k, pFaster12k);
 
@@ -293,8 +308,8 @@ public class TestPistonPowerModel {
         // in this model deck power < crit power (power increases toward crit alt).
         // This is physically correct for supercharged engines where the
         // supercharger maintains constant boost up to critical altitude.
-        double pStaticLow = powerAtAltitude(stage, 5000, false, 0, false, 15);
-        double pMovingLow = powerAtAltitude(stage, 5000, false, 500, true, 15);
+        double pStaticLow = powerAtAltitudeAdvanced(stage, 5000, false, 0, false, 15);
+        double pMovingLow = powerAtAltitudeAdvanced(stage, 5000, false, 500, true, 15);
         System.out.printf("  At 5000m (below crit): static=%.0fhp, 500km/h=%.0fhp%n",
                 pStaticLow, pMovingLow);
         System.out.println("  (Below crit alt, RAM lowers effective alt, which may reduce power)");
