@@ -221,65 +221,147 @@ public class PowerCurveWindow extends JDialog {
         if (maxIdx < 6) return;
 
         int minSepM = 300;  // minimum separation between markers
-        double noiseThreshold = maxPower * 0.005;  // 0.5% of max power
+        double noiseThreshold = maxPower * 0.005;  // 1% of max power
+        int hw = 4;  // ±100m window (4 × 25m step)
 
-        // 1. Detect local peaks, valleys, and shoulder points (±100m window)
-        int hw = 4;
+        // ========== Phase 1: Collect peaks and valleys separately ==========
+        // Store as {altitudeM, power} pairs
+        List<double[]> peakCandidates = new ArrayList<>();
+        List<double[]> valleyCandidates = new ArrayList<>();
+
         for (int i = hw; i <= maxIdx - hw; i++) {
             double left = powerCurve[i - hw];
             double center = powerCurve[i];
             double right = powerCurve[i + hw];
 
-            boolean isPeak = center > left && center > right
-                && (center - Math.min(left, right)) > noiseThreshold;
-            boolean isValley = center < left && center < right
-                && (Math.max(left, right) - center) > noiseThreshold;
-            // Shoulder: plateau → descent transition
-            // Catches flat-topped curves that peak detection misses (center ≈ left)
-            boolean isShoulder = !isPeak
-                && Math.abs(center - left) < noiseThreshold * 2
-                && (center - right) > noiseThreshold;
+            double leftSlope = center - left;
+            double rightSlope = right - center;
 
-            if (isPeak && !tooCloseToExisting(i * ALT_STEP, minSepM)) {
+            boolean slopeSignChangePeak = leftSlope > 0 && rightSlope < 0;
+            boolean slopeSignChangeValley = leftSlope < 0 && rightSlope > 0;
+
+            double peakProminence = center - Math.min(left, right);
+            double valleyProminence = Math.max(left, right) - center;
+
+            if (slopeSignChangePeak && peakProminence > noiseThreshold) {
                 // Refine: find the exact maximum within the window
                 int bestIdx = i;
                 for (int j = i - hw; j <= i + hw; j++) {
                     if (powerCurve[j] > powerCurve[bestIdx]) bestIdx = j;
                 }
-                inflectionPoints.add(new InflectionPoint(
-                    "Peak", bestIdx * ALT_STEP, powerCurve[bestIdx], PEAK_COLOR));
-            } else if (isValley && !tooCloseToExisting(i * ALT_STEP, minSepM)) {
+                int altM = bestIdx * ALT_STEP;
+                // Check not too close to existing peaks
+                boolean tooClose = false;
+                for (double[] prev : peakCandidates) {
+                    if (Math.abs((int) prev[0] - altM) < minSepM) { tooClose = true; break; }
+                }
+                if (!tooClose) {
+                    peakCandidates.add(new double[]{altM, powerCurve[bestIdx]});
+                }
+            } else if (slopeSignChangeValley && valleyProminence > noiseThreshold) {
                 int bestIdx = i;
                 for (int j = i - hw; j <= i + hw; j++) {
                     if (powerCurve[j] < powerCurve[bestIdx]) bestIdx = j;
                 }
-                inflectionPoints.add(new InflectionPoint(
-                    "Valley", bestIdx * ALT_STEP, powerCurve[bestIdx],
-                    new Color(100, 200, 255)));
-            } else if (isShoulder && !tooCloseToExisting(i * ALT_STEP, minSepM)) {
-                inflectionPoints.add(new InflectionPoint(
-                    "Peak", i * ALT_STEP, powerCurve[i], PEAK_COLOR));
+                int altM = bestIdx * ALT_STEP;
+                boolean tooClose = false;
+                for (double[] prev : valleyCandidates) {
+                    if (Math.abs((int) prev[0] - altM) < minSepM) { tooClose = true; break; }
+                }
+                if (!tooClose) {
+                    valleyCandidates.add(new double[]{altM, powerCurve[bestIdx]});
+                }
             }
         }
 
-        // 2. Detect inflection points (concavity changes via second derivative)
-        // d2[i] ≈ curve[i+h] - 2*curve[i] + curve[i-h], using h=±200m for smoothing
-        int d2h = 8;
-        double prevD2 = powerCurve[d2h + d2h] - 2 * powerCurve[d2h] + powerCurve[0];
-        // Require meaningful curvature on at least one side of the sign flip
-        // to filter noise-driven flips (e.g., flat sections where d2 ≈ 0)
-        double d2MinMag = noiseThreshold;
-        for (int i = d2h + 1; i <= maxIdx - d2h; i++) {
-            double d2 = powerCurve[i + d2h] - 2 * powerCurve[i] + powerCurve[i - d2h];
+        // Sort by altitude (ascending)
+        peakCandidates.sort((a, b) -> Double.compare(a[0], b[0]));
+        valleyCandidates.sort((a, b) -> Double.compare(a[0], b[0]));
 
-            if (prevD2 * d2 < 0
-                && (Math.abs(prevD2) > d2MinMag || Math.abs(d2) > d2MinMag)
-                && !tooCloseToExisting(i * ALT_STEP, minSepM)) {
-                inflectionPoints.add(new InflectionPoint(
-                    "Inflect", i * ALT_STEP, powerCurve[i],
-                    new Color(180, 130, 255)));
+        // ========== Phase 2: Add valleys FIRST (stage transitions have priority) ==========
+        // Valley = transition point between supercharger stages
+        // Label format: "X→Y档" (stage X to stage Y, 1-indexed)
+        for (double[] valley : valleyCandidates) {
+            int altM = (int) valley[0];
+            double power = valley[1];
+
+            // Count peaks below this valley to determine stage numbers
+            int peaksBelow = 0;
+            for (double[] peak : peakCandidates) {
+                if (peak[0] < altM) peaksBelow++;
             }
-            prevD2 = d2;
+
+            // Stage transition: from (peaksBelow) to (peaksBelow + 1), 1-indexed
+            int fromStage = Math.max(1, peaksBelow);
+            int toStage = fromStage + 1;
+
+            String label = fromStage + "→" + toStage + "档";
+            inflectionPoints.add(new InflectionPoint(
+                label, altM, power, new Color(100, 200, 255)));
+        }
+
+        // ========== Phase 3: Add peaks (critical altitudes of each stage) ==========
+        // Peak = critical altitude where a supercharger stage reaches max power
+        // Label format: "X档" (stage X, 1-indexed)
+        int stageNum = 1;
+        for (double[] peak : peakCandidates) {
+            int altM = (int) peak[0];
+            double power = peak[1];
+
+            // Skip if too close to already-added valleys
+            if (tooCloseToExisting(altM, minSepM)) {
+                stageNum++;
+                continue;
+            }
+
+            String label = stageNum + "档";
+            inflectionPoints.add(new InflectionPoint(
+                label, altM, power, PEAK_COLOR));
+            stageNum++;
+        }
+
+        // ========== Phase 4: Detect slope kinks ==========
+        // Kinks are sudden slope changes (same direction but different magnitude)
+        // These may indicate ConstRPM bends or other supercharger characteristics
+        int kinkHalfWindow = 4;
+        double avgSlope = Math.abs(powerCurve[maxIdx] - powerCurve[0]) / (maxIdx * ALT_STEP);
+        double kinkThreshold = Math.max(avgSlope * 2.5, 0.08);
+
+        for (int i = kinkHalfWindow; i <= maxIdx - kinkHalfWindow; i++) {
+            if (tooCloseToExisting(i * ALT_STEP, minSepM)) {
+                continue;
+            }
+
+            double leftSlope = (powerCurve[i] - powerCurve[i - kinkHalfWindow])
+                               / (kinkHalfWindow * ALT_STEP);
+            double rightSlope = (powerCurve[i + kinkHalfWindow] - powerCurve[i])
+                                / (kinkHalfWindow * ALT_STEP);
+
+            double slopeChange = Math.abs(rightSlope - leftSlope);
+            boolean sameSlopeDirection = (leftSlope * rightSlope >= 0);
+            boolean isPeakOrValley = !sameSlopeDirection;
+
+            if (!isPeakOrValley && slopeChange > kinkThreshold) {
+                int bestIdx = i;
+                double bestChange = slopeChange;
+                for (int j = i - 2; j <= i + 2 && j >= kinkHalfWindow && j <= maxIdx - kinkHalfWindow; j++) {
+                    double lS = (powerCurve[j] - powerCurve[j - kinkHalfWindow])
+                                / (kinkHalfWindow * ALT_STEP);
+                    double rS = (powerCurve[j + kinkHalfWindow] - powerCurve[j])
+                                / (kinkHalfWindow * ALT_STEP);
+                    double sc = Math.abs(rS - lS);
+                    if (sc > bestChange) {
+                        bestChange = sc;
+                        bestIdx = j;
+                    }
+                }
+
+                if (!tooCloseToExisting(bestIdx * ALT_STEP, minSepM)) {
+                    inflectionPoints.add(new InflectionPoint(
+                        "Kink", bestIdx * ALT_STEP, powerCurve[bestIdx],
+                        new Color(180, 130, 255)));
+                }
+            }
         }
     }
 
