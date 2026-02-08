@@ -78,6 +78,58 @@ case "${1:-all}" in
             ((TOTAL_FAILED++)) || true
         fi
         ;;
+    spitfire|f24)
+        # Spitfire F24 150 octane verification test
+        # Requires FM files from War Thunder datamine
+        DATAMINE_ROOT="${DATAMINE_ROOT:-$HOME/projects/War-Thunder-Datamine-260205}"
+        CENTRAL_PATH="$DATAMINE_ROOT/aces.vromfs.bin_u/gamedata/flightmodels/spitfire_f24.blkx"
+        FM_PATH="$DATAMINE_ROOT/aces.vromfs.bin_u/gamedata/flightmodels/fm/spitfire_f24.blkx"
+
+        if [ ! -f "$CENTRAL_PATH" ] || [ ! -f "$FM_PATH" ]; then
+            echo -e "${RED}Error: Spitfire F24 FM files not found${NC}"
+            echo "Set DATAMINE_ROOT to your War Thunder datamine directory"
+            echo "Expected files:"
+            echo "  $CENTRAL_PATH"
+            echo "  $FM_PATH"
+            exit 1
+        fi
+
+        if java -classpath bin TestSpitfireF24Power --central "$CENTRAL_PATH" --fm "$FM_PATH"; then
+            echo ""
+            echo -e "${GREEN}Spitfire F24 Tests: PASSED${NC}"
+            ((TOTAL_PASSED++)) || true
+        else
+            echo ""
+            echo -e "${RED}Spitfire F24 Tests: FAILED${NC}"
+            ((TOTAL_FAILED++)) || true
+        fi
+        ;;
+    tempest|mkv)
+        # Tempest Mk V 150 octane verification test (invertEnableLogic=true case)
+        # Requires FM files from War Thunder datamine
+        DATAMINE_ROOT="${DATAMINE_ROOT:-$HOME/projects/War-Thunder-Datamine-260205}"
+        CENTRAL_PATH="$DATAMINE_ROOT/aces.vromfs.bin_u/gamedata/flightmodels/tempest_mkv.blkx"
+        FM_PATH="$DATAMINE_ROOT/aces.vromfs.bin_u/gamedata/flightmodels/fm/tempest_mkv.blkx"
+
+        if [ ! -f "$CENTRAL_PATH" ] || [ ! -f "$FM_PATH" ]; then
+            echo -e "${RED}Error: Tempest Mk V FM files not found${NC}"
+            echo "Set DATAMINE_ROOT to your War Thunder datamine directory"
+            echo "Expected files:"
+            echo "  $CENTRAL_PATH"
+            echo "  $FM_PATH"
+            exit 1
+        fi
+
+        if java -classpath bin TestTempestMk5Power --central "$CENTRAL_PATH" --fm "$FM_PATH"; then
+            echo ""
+            echo -e "${GREEN}Tempest Mk V Tests: PASSED${NC}"
+            ((TOTAL_PASSED++)) || true
+        else
+            echo ""
+            echo -e "${RED}Tempest Mk V Tests: FAILED${NC}"
+            ((TOTAL_FAILED++)) || true
+        fi
+        ;;
     all|*)
         echo "=========================================="
         if run_test "AtmosphereModel Tests" "TestAtmosphereModel"; then

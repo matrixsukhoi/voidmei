@@ -105,8 +105,8 @@ public class Blkx {
 				mod.britishAfterburnerCompressorMult = getDoubleFromBlock(effects, "afterburnerCompressorMult");
 				if (mod.britishAfterburnerCompressorMult == 0) mod.britishAfterburnerCompressorMult = 1.0;
 			}
-			// Check for invertEnableLogic
-			mod.britishInvertLogic = british150.toUpperCase().contains("INVERTENABLELOGIC");
+			// Check for invertEnableLogic - parse actual boolean value
+			mod.britishInvertLogic = getBoolFromBlock(british150, "invertEnableLogic");
 			return mod;
 		}
 
@@ -120,7 +120,7 @@ public class Blkx {
 				mod.britishAfterburnerCompressorMult = getDoubleFromBlock(effects, "afterburnerCompressorMult");
 				if (mod.britishAfterburnerCompressorMult == 0) mod.britishAfterburnerCompressorMult = 1.0;
 			}
-			mod.britishInvertLogic = british100.toUpperCase().contains("INVERTENABLELOGIC");
+			mod.britishInvertLogic = getBoolFromBlock(british100, "invertEnableLogic");
 			return mod;
 		}
 
@@ -184,6 +184,38 @@ public class Blkx {
 		} catch (NumberFormatException e) {
 			return 0;
 		}
+	}
+
+	/**
+	 * Extracts a boolean value from a text block by key name.
+	 * Handles "key:b = true/false" format (War Thunder .blkx typed boolean).
+	 *
+	 * @param block the text block to search within
+	 * @param key   the key name (e.g., "invertEnableLogic")
+	 * @return true if the key exists and its value is "true", false otherwise
+	 */
+	private static boolean getBoolFromBlock(String block, String key) {
+		// Try key:b = value first (typed boolean format)
+		String upper = block.toUpperCase();
+		String keyTyped = (key + ":B").toUpperCase();
+		String keyPlain = key.toUpperCase();
+
+		int idx = upper.indexOf(keyTyped);
+		if (idx == -1) {
+			idx = upper.indexOf(keyPlain);
+		}
+		if (idx == -1) return false;  // Field absent = false
+
+		// Find the '=' sign after the key
+		int eqIdx = block.indexOf('=', idx);
+		if (eqIdx == -1) return false;
+
+		// Find end of value (newline or end of string)
+		int endIdx = block.indexOf('\n', eqIdx);
+		if (endIdx == -1) endIdx = block.length();
+
+		String value = block.substring(eqIdx + 1, endIdx).trim();
+		return "true".equalsIgnoreCase(value);
 	}
 
 	// ==================== End Fuel Modification Support ====================
