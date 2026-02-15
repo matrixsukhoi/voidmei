@@ -406,6 +406,7 @@ Detailed development guides for complex subsystems:
 | Algorithm Development | [`doc/物理人也能看懂的voidmei算法开发指导.md`](doc/物理人也能看懂的voidmei算法开发指导.md) |
 | Debug Logging | [`doc/打桩调试手册.md`](doc/打桩调试手册.md) |
 | Power Curve Debugging | [`doc/功率曲线调试手册.md`](doc/功率曲线调试手册.md) |
+| Compressor Gauge Delay | [`doc/compressor_gauge_initial_delay.md`](doc/compressor_gauge_initial_delay.md) |
 
 ## Quick Reference
 
