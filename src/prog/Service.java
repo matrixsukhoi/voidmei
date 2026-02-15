@@ -1283,6 +1283,14 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 		// Get current actual stage (convert from 1-based to 0-based)
 		int actualStage = sState.compressorstage - 1;
 
+		// API didn't return compressor stage (e.g., some aircraft don't report it)
+		if (actualStage < 0) {
+			compressorStageMismatch = false;
+			prevActualCompressorStage = -1;
+			prevOptimalCompressorStage = -1;
+			return;
+		}
+
 		// If throttle < 100%, don't judge mismatch, force consistent
 		if (!isFullThrottle) {
 			compressorStageMismatch = false;
