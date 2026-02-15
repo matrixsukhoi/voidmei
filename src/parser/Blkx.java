@@ -642,6 +642,10 @@ public class Blkx {
 	public int altThrNum;
 	public int velThrNum;
 	public boolean isJet;
+
+	// 峰值推力缓存（在 getload() 中预计算）
+	public double peakThrMil;     // 军用峰值推力 (kgf)
+	public double peakThrAft;     // 加力峰值推力 (kgf)
 	public int engineNum;
 
 	public int compNumSteps;
@@ -939,8 +943,13 @@ public class Blkx {
 							* engineNum;
 				}
 			}
+			// 预计算峰值推力
+			peakThrMil = calculatePeakThrust(maxThr);
+			peakThrAft = calculatePeakThrust(maxThrAft);
+
 			prog.util.Logger.info("Blkx",
-					String.format("Jet Engine Thrust Table loaded (%dx%d)", altThrNum, velThrNum));
+					String.format("Jet Engine Thrust Table loaded (%dx%d), peak MIL=%.0f kgf, AFT=%.0f kgf",
+							altThrNum, velThrNum, peakThrMil, peakThrAft));
 		} else {
 			// radial inline
 			// 获得增压器工作高度
@@ -1880,5 +1889,33 @@ public class Blkx {
 			e.printStackTrace();
 		}
 		return map;
+	}
+
+	/**
+	 * 遍历推力表找全局最大值
+	 * @param table 推力表 [altitude][velocity]
+	 * @return 峰值推力(kgf)
+	 */
+	private double calculatePeakThrust(double[][] table) {
+		if (table == null || altThrNum == 0 || velThrNum == 0) return 0;
+
+		double peak = 0;
+		for (int i = 0; i < altThrNum; i++) {
+			for (int j = 0; j < velThrNum; j++) {
+				if (table[i][j] > peak) {
+					peak = table[i][j];
+				}
+			}
+		}
+		return peak;
+	}
+
+	/**
+	 * 获取峰值推力
+	 * @param isAfterburner true=加力推力，false=军用推力
+	 * @return 峰值推力(kgf)
+	 */
+	public double peakThrust(boolean isAfterburner) {
+		return isAfterburner ? peakThrAft : peakThrMil;
 	}
 }

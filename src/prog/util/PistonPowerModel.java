@@ -366,6 +366,43 @@ public final class PistonPowerModel {
         return curve;
     }
 
+    // ==================== Peak Power Calculation ====================
+
+    /**
+     * Calculates peak WEP power by traversing altitude × speed combinations.
+     *
+     * <p>Traverses the power surface from 0m to 10000m altitude and 0-800 km/h IAS
+     * to find the maximum value, accounting for RAM effect at high speeds.
+     *
+     * <p>This is useful for performance calculations (energy, climb rate, etc.)
+     * where a single peak power value is needed regardless of flight conditions.
+     *
+     * <p><b>Search Grid:</b>
+     * <ul>
+     *   <li>Altitude: 0-10000m, step 100m (101 points)</li>
+     *   <li>Speed: 0-800 km/h IAS, step 50 km/h (17 points)</li>
+     *   <li>Total iterations: 1717</li>
+     * </ul>
+     *
+     * @param stages compressor stage parameters array
+     * @return peak WEP power (hp)
+     */
+    public static double peakWepPower(CompressorStageParams[] stages) {
+        if (stages == null || stages.length == 0) return 0;
+
+        // Traverse altitude × speed to find peak
+        double peak = 0;
+        for (int alt = 0; alt <= 10000; alt += 100) {
+            for (int speed = 0; speed <= 800; speed += 50) {
+                double power = optimalPowerAdvanced(stages, alt, true, speed, true, 15.0);
+                if (power > peak) {
+                    peak = power;
+                }
+            }
+        }
+        return peak;
+    }
+
     /**
      * WAPC variabler() port — determines interpolation bounds for a given altitude.
      *

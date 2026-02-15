@@ -168,6 +168,30 @@ double wepCritAlt = wepCriticalAltitude(
 );
 ```
 
+#### Peak WEP Power
+
+Find the maximum WEP power across all altitude × speed combinations (useful for display/comparison):
+
+```java
+// Get peak WEP power (traverses altitude × speed grid)
+double peakPower = peakWepPower(stages);
+// Returns the highest power value accounting for RAM effect
+```
+
+**Algorithm:** Traverses a 2D grid of altitude × speed combinations:
+- Altitude: 0–10000m, step 100m (101 points)
+- Speed: 0–800 km/h IAS, step 50 km/h (17 points)
+- Total: 1717 evaluations of `optimalPowerAdvanced(stages, alt, true, speed, true, 15.0)`
+
+This accounts for RAM effect (`SpeedManifoldMultiplier`), where high-speed flight increases effective manifold pressure.
+
+**Use Cases:**
+- Displaying maximum engine performance in UI
+- Comparing aircraft engine power
+- Validating FM power calculations
+
+**Note:** For aircraft-specific validation, always use real FM data via `FMPowerExtractor.extractStages(blkx)`. Do not use hardcoded benchmark parameters (see `doc/功率曲线调试手册.md` §7 for details).
+
 #### Power Curve Shape
 
 ```
@@ -251,6 +275,7 @@ double vne = interpSweepLevel(vwing, sweepLevels,
 | `optimalPowerAdvanced()` | Multi-stage optimal power selection |
 | `generatePowerCurveAdvanced()` | Full power curve generation (0–10000m) |
 | `findOptimalStageIndex()` | Optimal supercharger stage index for given altitude |
+| `peakWepPower()` | Find maximum WEP power across altitude × speed grid (with RAM effect) |
 
 ### Required FM Parameters
 

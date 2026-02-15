@@ -28,6 +28,7 @@ public class TestPistonPowerModel {
         testGeneratePowerCurve();
         testRamEffectIntegration();
         testNoWepAircraftIdenticalCurves();
+        testPeakWepPower();
 
         System.out.println("\n=== Results ===");
         System.out.printf("Passed: %d, Failed: %d%n", passed, failed);
@@ -390,6 +391,83 @@ public class TestPistonPowerModel {
             }
         }
         assertTrue("no-WEP with RAM: WEP curve equals military curve", allMatchRam);
+    }
+
+    private static void testPeakWepPower() {
+        System.out.println("Testing peakWepPower()...");
+
+        // Test 1: Single-stage supercharger
+        CompressorStageParams stage = new CompressorStageParams();
+        stage.critAlt = 5000;
+        stage.critPower = 1500;
+        stage.deckPower = 1400;
+        stage.wepCritAlt = 4500;
+        stage.wepPowerMult = 1.15;  // 15% WEP boost
+        stage.oldAltitude = 5000;
+        stage.oldPower = 1500;
+        stage.oldPowerNewRpm = 1500;
+        CompressorStageParams[] singleStage = {stage};
+
+        double peakSingle = peakWepPower(singleStage);
+        // Peak should be critPower × wepPowerMult = 1500 × 1.15 = 1725 hp (approximately)
+        double expectedPeak = stage.critPower * stage.wepPowerMult;
+        assertClose("single-stage peak WEP power", peakSingle, expectedPeak, 20);
+        System.out.printf("  Single-stage: peak=%.1fhp (expected ~%.1fhp)%n", peakSingle, expectedPeak);
+
+        // Test 2: Multi-stage supercharger (peak is max across all stages)
+        CompressorStageParams stage1 = new CompressorStageParams();
+        stage1.critAlt = 3000;
+        stage1.critPower = 1400;
+        stage1.deckPower = 1350;
+        stage1.wepCritAlt = 2500;
+        stage1.wepPowerMult = 1.1;
+        stage1.stageIndex = 0;
+        stage1.oldAltitude = 3000;
+        stage1.oldPower = 1400;
+        stage1.oldPowerNewRpm = 1400;
+
+        CompressorStageParams stage2 = new CompressorStageParams();
+        stage2.critAlt = 6500;
+        stage2.critPower = 1300;
+        stage2.deckPower = 1100;
+        stage2.wepCritAlt = 6000;
+        stage2.wepPowerMult = 1.1;
+        stage2.stageIndex = 1;
+        stage2.oldAltitude = 6500;
+        stage2.oldPower = 1300;
+        stage2.oldPowerNewRpm = 1300;
+
+        CompressorStageParams[] multiStage = {stage1, stage2};
+        double peakMulti = peakWepPower(multiStage);
+        // Stage 1 should give higher peak (1400 × 1.1 = 1540hp vs 1300 × 1.1 = 1430hp)
+        double expectedMultiPeak = stage1.critPower * stage1.wepPowerMult;
+        assertClose("multi-stage peak WEP power", peakMulti, expectedMultiPeak, 20);
+        System.out.printf("  Multi-stage: peak=%.1fhp (expected ~%.1fhp from stage 0)%n", peakMulti, expectedMultiPeak);
+
+        // Test 3: Empty array returns 0
+        double peakEmpty = peakWepPower(new CompressorStageParams[0]);
+        assertClose("empty array returns 0", peakEmpty, 0, 0.001);
+
+        // Test 4: Null array returns 0
+        double peakNull = peakWepPower(null);
+        assertClose("null array returns 0", peakNull, 0, 0.001);
+
+        // Test 5: No-WEP aircraft (wepPowerMult = 1.0)
+        CompressorStageParams noWepStage = new CompressorStageParams();
+        noWepStage.critAlt = 3000;
+        noWepStage.critPower = 1200;
+        noWepStage.deckPower = 1150;
+        noWepStage.wepCritAlt = 3000;
+        noWepStage.wepPowerMult = 1.0;  // No WEP
+        noWepStage.oldAltitude = 3000;
+        noWepStage.oldPower = 1200;
+        noWepStage.oldPowerNewRpm = 1200;
+        CompressorStageParams[] noWepArray = {noWepStage};
+
+        double peakNoWep = peakWepPower(noWepArray);
+        // With no WEP, peak should equal critPower
+        assertClose("no-WEP peak equals critPower", peakNoWep, noWepStage.critPower, 10);
+        System.out.printf("  No-WEP: peak=%.1fhp (expected ~%.1fhp)%n", peakNoWep, noWepStage.critPower);
     }
 
     // === Assertion Helpers ===
