@@ -863,9 +863,10 @@ public class Blkx {
 					isJet = true;
 					// Application.debugPrint("isJet");
 				}
-				while (!getone("Engine" + engineNum).equals("null")) {
-					engineNum++;
-				}
+			}
+			// 遍历引擎数量（适用于所有非喷气引擎，包括活塞引擎）
+			while (!getone("Engine" + engineNum).equals("null")) {
+				engineNum++;
 			}
 		}
 		// Application.debugPrint("Engine Count: " + engineNum);

@@ -44,6 +44,12 @@ public class Controller implements ConfigProvider {
 	/** Cached compressor stage parameters for multi-stage supercharger aircraft */
 	private prog.util.PistonPowerModel.CompressorStageParams[] compressorStages;
 
+	/** Cached peak WEP power for piston aircraft (hp) */
+	private double peakWepPower = 0;
+
+	/** Cached peak afterburner thrust for jet aircraft (kgf) */
+	private double peakThrust = 0;
+
 	// Robot robot;
 
 	StatusBar SB;
@@ -814,8 +820,13 @@ public class Controller implements ConfigProvider {
 			// Extract compressor stages for multi-stage supercharger aircraft
 			if (FMPowerExtractor.isPistonEngine(Blkx)) {
 				compressorStages = FMPowerExtractor.extractStages(Blkx, fuelMod);
+				// Multiply by engineNum for multi-engine aircraft (consistent with jet thrust calculation)
+				peakWepPower = prog.util.PistonPowerModel.peakWepPower(compressorStages) * Blkx.engineNum;
+				peakThrust = 0;
 			} else {
 				compressorStages = null;
+				peakWepPower = 0;
+				peakThrust = Blkx.peakThrust(true);  // Always use afterburner thrust
 			}
 
 			// Explicitly trigger GC after loading the massive FM data structures
@@ -836,6 +847,22 @@ public class Controller implements ConfigProvider {
 	 */
 	public synchronized prog.util.PistonPowerModel.CompressorStageParams[] getCompressorStages() {
 		return compressorStages;
+	}
+
+	/**
+	 * Gets the cached peak WEP power for piston aircraft.
+	 * @return peak WEP power in hp, or 0 if jet/no FM loaded
+	 */
+	public synchronized double getPeakWepPower() {
+		return peakWepPower;
+	}
+
+	/**
+	 * Gets the cached peak afterburner thrust for jet aircraft.
+	 * @return peak thrust in kgf, or 0 if piston/no FM loaded
+	 */
+	public synchronized double getPeakThrust() {
+		return peakThrust;
 	}
 
 }

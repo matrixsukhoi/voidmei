@@ -261,6 +261,13 @@ public class PowerCurveWindow extends JDialog {
         double[] powerCurve = PistonPowerModel.generatePowerCurveAdvanced(
             stages, wepMode, speedKmh, true, 15.0, ALT_STEP);
 
+        // Multi-engine aircraft: multiply each point by engine count
+        if (blkx.engineNum > 1) {
+            for (int i = 0; i < powerCurve.length; i++) {
+                powerCurve[i] *= blkx.engineNum;
+            }
+        }
+
         // Find maximum/minimum power and peak altitude
         int maxAltIdx = MAX_DISPLAY_ALT / ALT_STEP;
         double maxPower = 0;

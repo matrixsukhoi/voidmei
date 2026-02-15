@@ -957,14 +957,26 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 		}
 
 		pThurstPercent = thurstPercent;
-		if (isEngJet() && maxTotalThr != 0) {
-			// 喷气机
-			if (maxTotalThr != 0) {
-				thurstPercent = 100.0f * iTotalThr / maxTotalThr;
+
+		// Get cached peak values (both are WEP/afterburner mode)
+		double peakPower = c.getPeakWepPower();
+		double peak = c.getPeakThrust();
+
+		if (isEngJet()) {
+			// Jet: current thrust / peak afterburner thrust
+			if (peak > 0) {
+				thurstPercent = 100.0 * iTotalThr / peak;
+			} else if (maxTotalThr != 0) {
+				// Fallback to old algorithm
+				thurstPercent = 100.0 * iTotalThr / maxTotalThr;
 			}
 		} else {
-			if (maxTotalHp != 0) {
-				thurstPercent = 100.0f * iTotalHpEff / maxTotalHp;
+			// Piston: current power / peak WEP power
+			if (peakPower > 0) {
+				thurstPercent = 100.0 * iTotalHp / peakPower;
+			} else if (maxTotalHp != 0) {
+				// Fallback to old algorithm
+				thurstPercent = 100.0 * iTotalHp / maxTotalHp;
 			}
 		}
 
@@ -2068,7 +2080,7 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 
 	@Override
 	public double getPowerPercent() {
-		return thurstPercent;
+		return Math.min(thurstPercent, 100.0);
 	}
 
 	@Override
