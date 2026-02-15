@@ -10,6 +10,8 @@ VoidMei is a Java Swing telemetry overlay for War Thunder. It reads real-time fl
 
 ## Build Commands
 
+不要运行./script/build.sh, 但是可以用javac确认编译通过
+
 ```bash
 # Compile (requires JDK 1.8+)
 mkdir -p bin

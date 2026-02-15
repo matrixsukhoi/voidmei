@@ -84,8 +84,9 @@ public class ButtonRowRenderer implements RowRenderer {
                 // Dismiss any open tooltips before showing window
                 ReplicaBuilder.disposeAllPopovers();
 
-                // Read configuration
-                String fmName = ctx.getStringFromConfigService("selectedFM0", "bf-109f-4");
+                // Read configuration for both FMs
+                String fm0Name = ctx.getStringFromConfigService("selectedFM0", "bf-109f-4");
+                String fm1Name = ctx.getStringFromConfigService("selectedFM1", "");
 
                 // Parse speed from string config
                 int speed = 0;
@@ -99,10 +100,10 @@ public class ButtonRowRenderer implements RowRenderer {
                 // Parse WEP mode from boolean config
                 boolean wep = ctx.getFromConfigService("powerCurveWep", false);
 
-                // Open power curve window
+                // Open power curve window with both FMs
                 java.awt.Window parent = javax.swing.SwingUtilities.getWindowAncestor(p);
                 ui.window.comparison.PowerCurveWindow win =
-                    new ui.window.comparison.PowerCurveWindow(parent, fmName, speed, wep);
+                    new ui.window.comparison.PowerCurveWindow(parent, fm0Name, fm1Name, speed, wep);
                 win.setVisible(true);
             });
         }
