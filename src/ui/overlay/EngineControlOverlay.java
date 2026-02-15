@@ -51,7 +51,7 @@ public class EngineControlOverlay extends FieldOverlay { // Revert to FieldOverl
 
 	// Gauge Type Enum (replaces magic int constants)
 	public enum GaugeType {
-		THROTTLE, PITCH, MIXTURE, RADIATOR, COMPRESSOR, FUEL
+		THROTTLE, PITCH, POWER, MIXTURE, RADIATOR, COMPRESSOR, FUEL
 	}
 
 	// --- Instance Fields ---
@@ -215,6 +215,8 @@ public class EngineControlOverlay extends FieldOverlay { // Revert to FieldOverl
 				GaugeType.THROTTLE.ordinal(), 110, false);
 		addGaugeIfEnabled("disableEngineInfoPitch", "pitch", Lang.eProppitch, "%",
 				GaugeType.PITCH.ordinal(), 100, false);
+		addGaugeIfEnabled("disableEngineInfoPower", "power", Lang.ePowerPercent, "%",
+				GaugeType.POWER.ordinal(), 100, false);
 		addGaugeIfEnabled("disableEngineInfoMixture", "mixture", Lang.eMixture, "%",
 				GaugeType.MIXTURE.ordinal(), 120, true);
 		addGaugeIfEnabled("disableEngineInfoRadiator", "radiator", Lang.eRadiator, "%",
@@ -336,7 +338,8 @@ public class EngineControlOverlay extends FieldOverlay { // Revert to FieldOverl
 	}
 
 	private boolean isJetHiddenGauge(int gaugeType) {
-		return gaugeType == GaugeType.RADIATOR.ordinal()
+		return gaugeType == GaugeType.PITCH.ordinal()
+				|| gaugeType == GaugeType.RADIATOR.ordinal()
 				|| gaugeType == GaugeType.COMPRESSOR.ordinal()
 				|| gaugeType == GaugeType.MIXTURE.ordinal();
 	}
@@ -391,13 +394,6 @@ public class EngineControlOverlay extends FieldOverlay { // Revert to FieldOverl
 		// Check jet status once
 		if (!jetLabelUpdated && payload.engineCheckDone) {
 			isJet = payload.isJet;
-			if (isJet && gaugeFields != null) {
-				for (GaugeField gf : gaugeFields) {
-					if (gf.gaugeType == GaugeType.PITCH.ordinal()) {
-						gf.gauge.label = Lang.eThurstP; // Update label for Jet
-					}
-				}
-			}
 			jetLabelUpdated = true;
 
 			// Set compressor gauge maxValue from FM data
@@ -474,10 +470,10 @@ public class EngineControlOverlay extends FieldOverlay { // Revert to FieldOverl
 					// sState.throttle is 0-110
 					break;
 				case PITCH:
-					if (!isJet)
-						val = telemetrySource.getRPMThrottle();
-					else
-						val = telemetrySource.getThrustPercent();
+					val = telemetrySource.getRPMThrottle();
+					break;
+				case POWER:
+					val = telemetrySource.getPowerPercent();
 					break;
 				case MIXTURE:
 					val = telemetrySource.getUnknownMixture(); // Returns sState.mixture
@@ -529,11 +525,10 @@ public class EngineControlOverlay extends FieldOverlay { // Revert to FieldOverl
 				updateGaugeFromData(gf, data, "throttle", "throttle_int");
 				break;
 			case PITCH:
-				if (!isJet) {
-					updateGaugeFromData(gf, data, "rpm_throttle", "rpm_throttle_int");
-				} else {
-					updateGaugeFromData(gf, data, "thrust_percent", "thrust_percent_int");
-				}
+				updateGaugeFromData(gf, data, "rpm_throttle", "rpm_throttle_int");
+				break;
+			case POWER:
+				updateGaugeFromData(gf, data, "thrust_percent", "thrust_percent_int");
 				break;
 			case MIXTURE:
 				updateGaugeFromData(gf, data, "mixture", "mixture_int");

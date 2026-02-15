@@ -61,8 +61,8 @@ if (Math.abs(checkEngineType) >= 100) {
 | 引擎类型检测 | `Service.java` | 493-526 |
 | `checkEngineFlag` 发布 | `Service.java` | 484 |
 | `EventPayload.engineCheckDone` | `EventPayload.java` | 17, 33, 45 |
-| Compressor gauge 更新 | `EngineControlOverlay.java` | 491-500 |
-| Compressor maxValue 设置 | `EngineControlOverlay.java` | 404-420 |
+| Compressor gauge 更新 | `EngineControlOverlay.java` | 487-496 |
+| Compressor maxValue 设置 | `EngineControlOverlay.java` | 400-415 |
 
 ## 用户体验说明
 

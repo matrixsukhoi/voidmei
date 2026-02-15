@@ -1908,11 +1908,6 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 	}
 
 	@Override
-	public double getThrustPercent() {
-		return thurstPercent;
-	}
-
-	@Override
 	public double getAltitude() {
 		return alt;
 	}

@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased] - 2026-02-16
+
+### Added
+- **引擎控制面板新增动力量 (POWER) gauge**: 在 `EngineControlOverlay` 中新增独立的动力量显示条。
+  - 新增 `GaugeType.POWER` 枚举值，显示当前推力/功率与发动机极限的比值
+  - 配置项：`disableEngineInfoPower`（默认启用）
+  - 标签：`动`（单字，保持与其他 gauge 视觉一致）
+  - 最大值：100%
+  - **行为变更**：
+    - PITCH gauge 现仅显示螺旋桨桨距，喷气机上自动隐藏
+    - POWER gauge 对所有机型可见（喷气机显示推力%，活塞机显示功率%）
+    - 移除了原有 PITCH gauge 在喷气机上切换标签为"推"的逻辑
+
+### Removed
+- **`TelemetrySource.getThrustPercent()`**: 删除冗余方法，统一使用 `getPowerPercent()`（自动封顶至 100%）
+
 ## [Unreleased] - 2026-02-03
 
 ### Added

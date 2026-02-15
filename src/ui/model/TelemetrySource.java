@@ -94,8 +94,6 @@ public interface TelemetrySource {
 
     double getRPMThrottle();
 
-    double getThrustPercent();
-
     // Component State (0.0 - 1.0 or percent)
     double getGear();
 
