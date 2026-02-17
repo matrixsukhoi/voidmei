@@ -134,6 +134,37 @@ public class ReflectBinder {
     }
 
     /**
+     * Resolves a target string to an IntSupplier.
+     */
+    public static java.util.function.IntSupplier resolveInt(Object service, String target) {
+        if (target == null || target.isEmpty() || service == null) {
+            return () -> 0;
+        }
+
+        try {
+            MethodHandles.Lookup lookup = MethodHandles.publicLookup();
+            MethodType mt = MethodType.methodType(int.class);
+            MethodHandle handle = lookup.findVirtual(service.getClass(), target.trim(), mt);
+            MethodHandle boundHandle = handle.bindTo(service);
+
+            return () -> {
+                try {
+                    return (int) boundHandle.invoke();
+                } catch (Throwable e) {
+                    return 0;
+                }
+            };
+        } catch (NoSuchMethodException e) {
+            prog.util.Logger.warn("ReflectBinder", "Int method '" + target.trim() + "' NOT found in "
+                    + service.getClass().getName());
+            return () -> 0;
+        } catch (Exception e) {
+            prog.util.Logger.warn("ReflectBinder", "Error binding int '" + target + "': " + e.getMessage());
+            return () -> 0;
+        }
+    }
+
+    /**
      * Resolves a target string to a BooleanSupplier.
      */
     public static java.util.function.BooleanSupplier resolveBoolean(Object service, String target) {

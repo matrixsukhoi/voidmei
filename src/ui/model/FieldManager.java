@@ -42,6 +42,13 @@ public interface FieldManager {
                         java.util.function.BooleanSupplier visibilitySupplier, int precision, String format);
 
         /**
+         * Bind a field with dynamic unit and precision suppliers.
+         */
+        void bind(String key, java.util.function.DoubleSupplier valueSupplier,
+                        java.util.function.BooleanSupplier visibilitySupplier, int precision, String format,
+                        java.util.function.Supplier<String> unitSupplier, java.util.function.IntSupplier precisionSupplier);
+
+        /**
          * Get all fields in order.
          */
         List<DataField> getFields();

@@ -1883,6 +1883,28 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 	}
 
 	@Override
+	public double getManifoldPressureDisplay() {
+		if (iEngType == ENGINE_TYPE_JET)
+			return 0;
+		return isImperial() ? getManifoldPressurePounds() : getManifoldPressure();
+	}
+
+	@Override
+	public String getManifoldPressureDisplayUnit() {
+		if (iEngType == ENGINE_TYPE_JET)
+			return "";
+		if (isImperial()) {
+			return String.format("P/%.1f''", getManifoldPressureInchHg());
+		}
+		return "Ata";
+	}
+
+	@Override
+	public int getManifoldPressureDisplayPrecision() {
+		return isImperial() ? 1 : 2;
+	}
+
+	@Override
 	public double getUnknownMixture() {
 		return sState != null ? sState.mixture : 0;
 	}

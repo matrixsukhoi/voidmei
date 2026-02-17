@@ -456,4 +456,14 @@ Detailed development guides for complex subsystems:
 
 ;; Hotkey binding
 (item "Toggle HUD" :type hotkey :target "hudHotkey")
+
+;; Data field with static unit
+(item "Speed" :type data :target "getIAS" :unit "Km/h" :precision 0)
+
+;; Data field with dynamic unit/precision (for metric/imperial switching)
+(item "进气压" :type data
+      :target "getManifoldPressureDisplay"
+      :unit-source "getManifoldPressureDisplayUnit"
+      :precision-source "getManifoldPressureDisplayPrecision"
+      :unit "Ata" :precision 2)  ; defaults for preview mode
 ```

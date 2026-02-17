@@ -107,6 +107,11 @@ public interface TelemetrySource {
     boolean isImperial();      // True if imperial units
     double getManifoldPressurePounds();  // MAP in psi
     double getManifoldPressureInchHg();  // MAP in inHg
+
+    // Dynamic Display Methods (for unit-aware fields)
+    double getManifoldPressureDisplay();      // Returns Ata (metric) or psi (imperial)
+    String getManifoldPressureDisplayUnit();  // Returns "Ata" or "P/XX.X''" (live inHg)
+    int getManifoldPressureDisplayPrecision(); // Returns 2 (metric) or 1 (imperial)
 }
 ```
 
@@ -151,6 +156,75 @@ public class MyOverlay implements FlightDataListener {
     }
 }
 ```
+
+## Dynamic Unit/Precision Support
+
+For fields that need unit conversion based on aircraft type (e.g., manifold pressure showing Ata vs psi), the system supports **dynamic unit and precision suppliers**.
+
+### DataField Dynamic Suppliers
+
+```java
+public class DataField {
+    // ... existing fields ...
+
+    // Dynamic suppliers for unit-aware fields
+    public Supplier<String> unitSupplier;      // Called each frame to get current unit
+    public IntSupplier precisionSupplier;      // Called each frame to get decimal places
+}
+```
+
+### FieldManager Binding
+
+Use the extended `bind()` method to attach dynamic suppliers:
+
+```java
+// Standard bind (static unit/precision)
+fm.bind("getRPM", service::getRPM, null, 0, null);
+
+// Dynamic bind (unit/precision from suppliers)
+fm.bind("getManifoldPressureDisplay",
+        service::getManifoldPressureDisplay,      // Value supplier
+        service::isManifoldPressureValid,          // Visibility supplier
+        2,                                         // Default precision
+        null,                                      // Format
+        service::getManifoldPressureDisplayUnit,   // Unit supplier
+        service::getManifoldPressureDisplayPrecision); // Precision supplier
+```
+
+### How It Works
+
+In `FieldOverlay.onFlightData()`, dynamic suppliers are called each frame:
+
+```java
+// Dynamic Precision
+if (field.precisionSupplier != null) {
+    field.precision = field.precisionSupplier.getAsInt();
+}
+
+// Dynamic Unit
+if (field.unitSupplier != null) {
+    String newUnit = field.unitSupplier.get();
+    if (!newUnit.equals(field.unit)) {
+        field.setUnit(newUnit);
+    }
+}
+```
+
+### Config-Driven Dynamic Binding
+
+Fields can specify dynamic sources in `ui_layout.cfg`:
+
+```lisp
+(item "进气压" :type data
+      :target "getManifoldPressureDisplay"
+      :unit-source "getManifoldPressureDisplayUnit"
+      :precision-source "getManifoldPressureDisplayPrecision"
+      :unit "Ata"        ; Default for preview
+      :precision 2       ; Default for preview
+      :hide-when-zero true)
+```
+
+The `:unit-source` and `:precision-source` keywords specify TelemetrySource method names that return the dynamic unit string and precision integer respectively.
 
 ## GaugeField Model
 

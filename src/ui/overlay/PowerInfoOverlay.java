@@ -65,35 +65,8 @@ public class PowerInfoOverlay extends FieldOverlay {
 		}
 	}
 
-	private boolean lastImperial = false;
-	private boolean firstData = true;
-
-	@Override
-	public void onFlightData(prog.event.FlightDataEvent event) {
-		if (service != null) {
-			boolean currentImperial = service.isImperial();
-
-			// Rebind with correct precision when imperial status changes (1 for imperial, 2 for metric)
-			if (firstData || currentImperial != lastImperial) {
-				int precision = currentImperial ? 1 : 2;
-				java.util.function.DoubleSupplier pressureSupplier =
-					() -> service.isImperial() ? service.getManifoldPressurePounds() : service.getManifoldPressure();
-				fieldManager.bind("getManifoldPressure", pressureSupplier, service::isManifoldPressureValid, precision, null);
-			}
-
-			// Imperial mode: update inHg unit every frame; Metric mode: only update on switch
-			if (currentImperial) {
-				double inHg = service.getManifoldPressureInchHg();
-				String unit = String.format("P/%.1f''", inHg);
-				fieldManager.updateFieldUnit("getManifoldPressure", unit);
-			} else if (firstData || currentImperial != lastImperial) {
-				fieldManager.updateFieldUnit("getManifoldPressure", "Ata");
-			}
-			lastImperial = currentImperial;
-			firstData = false;
-		}
-		super.onFlightData(event);
-	}
+	// Note: Manifold pressure unit/precision switching is now handled by FieldOverlay
+	// via unitSupplier/precisionSupplier bound from :unit-source/:precision-source in config
 
 	/**
 	 * Initialize for preview mode using standardized signature.
@@ -129,8 +102,6 @@ public class PowerInfoOverlay extends FieldOverlay {
 		if (engineInfoConfig == null)
 			return;
 
-		firstData = true;
-
 		// 1. Standard FieldOverlay reinit (Fonts, Layout, Window Size)
 		super.reinitConfig();
 
@@ -154,17 +125,6 @@ public class PowerInfoOverlay extends FieldOverlay {
 		for (prog.config.ConfigLoader.RowConfig row : rows) {
 			// Bind if it's a DATA Item (and has a target)
 			if ("DATA".equals(row.type) && row.property != null && !row.property.isEmpty()) {
-				// Special handling for manifold pressure: select Ata or psi based on isImperial()
-				// Precision: 1 decimal for imperial (psi), 2 decimals for metric (Ata)
-				if ("getManifoldPressure".equals(row.property)) {
-					int precision = s.isImperial() ? 1 : 2;
-					java.util.function.DoubleSupplier pressureSupplier =
-						() -> s.isImperial() ? s.getManifoldPressurePounds() : s.getManifoldPressure();
-					fm.bind(row.property, pressureSupplier, s::isManifoldPressureValid, precision, row.format);
-					fm.setFieldVisible(row.property, row.getBool());
-					continue; // Skip generic binding logic
-				}
-
 				// Use ReflectBinder to create a zero-GC supplier
 				java.util.function.DoubleSupplier supplier = ui.util.ReflectBinder.resolveDouble(s, row.property);
 
@@ -173,13 +133,31 @@ public class PowerInfoOverlay extends FieldOverlay {
 				if (baseMethod.contains("*")) {
 					baseMethod = baseMethod.split("\\*")[0].trim();
 				}
+
+				java.util.function.BooleanSupplier visibilitySupplier = null;
 				if (baseMethod.startsWith("get")) {
 					String validityMethod = "is" + baseMethod.substring(3) + "Valid";
-					java.util.function.BooleanSupplier visibilitySupplier = ui.util.ReflectBinder.resolveBoolean(s,
-							validityMethod);
-					fm.bind(row.property, supplier, visibilitySupplier, row.precision, row.format);
+					visibilitySupplier = ui.util.ReflectBinder.resolveBoolean(s, validityMethod);
+				}
+
+				// Resolve dynamic unit source if specified
+				java.util.function.Supplier<String> unitSupplier = null;
+				if (row.unitSource != null && !row.unitSource.isEmpty()) {
+					unitSupplier = ui.util.ReflectBinder.resolveString(s, row.unitSource);
+				}
+
+				// Resolve dynamic precision source if specified
+				java.util.function.IntSupplier precisionSupplier = null;
+				if (row.precisionSource != null && !row.precisionSource.isEmpty()) {
+					precisionSupplier = ui.util.ReflectBinder.resolveInt(s, row.precisionSource);
+				}
+
+				// Use extended bind if we have dynamic suppliers, otherwise use standard bind
+				if (unitSupplier != null || precisionSupplier != null) {
+					fm.bind(row.property, supplier, visibilitySupplier, row.precision, row.format,
+							unitSupplier, precisionSupplier);
 				} else {
-					fm.bind(row.property, supplier, null, row.precision, row.format);
+					fm.bind(row.property, supplier, visibilitySupplier, row.precision, row.format);
 				}
 
 				// Apply visibility immediately based on config value

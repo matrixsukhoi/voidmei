@@ -65,4 +65,6 @@ public class DataField {
     public java.util.function.BooleanSupplier visibilitySupplier;
     public int precision = 0; // Default to integer
     public String format = null; // Custom format (e.g., "TIME_MM_SS")
+    public java.util.function.Supplier<String> unitSupplier; // Dynamic unit source
+    public java.util.function.IntSupplier precisionSupplier; // Dynamic precision source
 }

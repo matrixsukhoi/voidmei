@@ -37,6 +37,8 @@ public class ConfigLoader {
         public String previewValue = null; // Default value for UI preview/placeholder
         public boolean hideWhenZero = false; // Hide if value is zero
         public int precision = 0; // Number of decimal places
+        public String unitSource = null; // Method name for dynamic unit (e.g., "getManifoldPressureDisplayUnit")
+        public String precisionSource = null; // Method name for dynamic precision (e.g., "getManifoldPressureDisplayPrecision")
 
         // Extended fields for control-type rows
         public String type = "DATA"; // DATA, HEADER, SLIDER, COMBO, SWITCH, BUTTON
@@ -295,6 +297,8 @@ public class ConfigLoader {
                 row.previewValue = getKeywordString(list, ":preview-value", null);
                 row.hideWhenZero = getKeywordBool(list, ":hide-when-zero", false);
                 row.precision = getKeywordInt(list, ":precision", 0);
+                row.unitSource = getKeywordString(list, ":unit-source", null);
+                row.precisionSource = getKeywordString(list, ":precision-source", null);
                 row.targetName = getKeywordString(list, ":target-name", null);
 
                 if (row.value == null) {
@@ -455,6 +459,12 @@ public class ConfigLoader {
                 }
                 if (row.precision != 0) {
                     pw.print(" :precision " + row.precision);
+                }
+                if (row.unitSource != null) {
+                    pw.print(" :unit-source " + quote(row.unitSource));
+                }
+                if (row.precisionSource != null) {
+                    pw.print(" :precision-source " + quote(row.precisionSource));
                 }
                 if (row.targetName != null) {
                     pw.print(" :target-name " + quote(row.targetName));

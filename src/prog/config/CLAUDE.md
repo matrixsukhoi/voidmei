@@ -76,6 +76,8 @@ public class RowConfig {
     public boolean hideWhenZero;   // Hide if value is zero
     public int precision;          // Decimal places
     public String fgColor;         // Foreground color
+    public String unitSource;      // Dynamic unit method (e.g., "getManifoldPressureDisplayUnit")
+    public String precisionSource; // Dynamic precision method (e.g., "getManifoldPressureDisplayPrecision")
     public List<RowConfig> children; // Nested items
 }
 ```
@@ -142,7 +144,7 @@ public interface HUDSettings extends OverlaySettings {
 | `font` | String | Font selector | - |
 | `hotkey` | Integer | Key binding | NativeKeyEvent code |
 | `button` | - | Action button | `:fgColor`, callback |
-| `data` | - | Read-only display | `:formula`, `:format` |
+| `data` | - | Read-only display | `:formula`, `:format`, `:unit-source`, `:precision-source` |
 
 ### Step 2: Add Interface Method
 
@@ -234,7 +236,9 @@ Overlay re-reads settings and updates UI
           :fgColor "255,100,100"  ; For button
           :formula "S.TAS"        ; For data
           :format "%.1f"          ; For data
-          :unit "km/h"            ; For data
+          :unit "km/h"            ; For data (static unit)
+          :unit-source "getDisplayUnit"    ; For data (dynamic unit from TelemetrySource method)
+          :precision-source "getDisplayPrecision" ; For data (dynamic precision)
           :hideWhenZero true      ; For data
     )
 
@@ -291,6 +295,74 @@ UIStateBus.getInstance().subscribe(UIStateEvents.CONFIG_CHANGED, key -> {
 UIStateEvents.ACTION_RESET_REQUEST   // Request factory reset
 UIStateEvents.ACTION_RESET_COMPLETED // Reset completed notification
 ```
+
+## Dynamic Unit/Precision Support
+
+For DATA fields that need to change units or precision based on aircraft type (e.g., metric vs imperial), use the `:unit-source` and `:precision-source` keywords.
+
+### Use Case: Manifold Pressure
+
+German/Soviet aircraft display manifold pressure in Ata (metric), while American/British aircraft use psi with inHg reference (imperial). The unit and precision must change dynamically.
+
+### Implementation Steps
+
+**1. Add TelemetrySource methods** in `Service.java`:
+
+```java
+@Override
+public double getManifoldPressureDisplay() {
+    return isImperial() ? getManifoldPressurePounds() : getManifoldPressure();
+}
+
+@Override
+public String getManifoldPressureDisplayUnit() {
+    if (isImperial()) {
+        return String.format("P/%.1f''", getManifoldPressureInchHg());
+    }
+    return "Ata";
+}
+
+@Override
+public int getManifoldPressureDisplayPrecision() {
+    return isImperial() ? 1 : 2;
+}
+```
+
+**2. Declare interface methods** in `TelemetrySource.java`:
+
+```java
+double getManifoldPressureDisplay();
+String getManifoldPressureDisplayUnit();
+int getManifoldPressureDisplayPrecision();
+```
+
+**3. Configure in ui_layout.cfg**:
+
+```lisp
+(item "进气压" :type data
+      :target "getManifoldPressureDisplay"
+      :unit-source "getManifoldPressureDisplayUnit"
+      :precision-source "getManifoldPressureDisplayPrecision"
+      :unit "Ata"        ; Default for preview mode
+      :precision 2       ; Default for preview mode
+      :hide-when-zero true)
+```
+
+### How It Works
+
+1. `PowerInfoOverlay.bindDynamicFields()` detects `:unit-source`/`:precision-source`
+2. Uses `ReflectBinder.resolveString()` and `ReflectBinder.resolveInt()` to create suppliers
+3. Calls `FieldManager.bind()` with the dynamic suppliers
+4. `FieldOverlay.onFlightData()` invokes suppliers each frame to update unit/precision
+
+### Behavior
+
+| Aircraft | Display Value | Unit String | Precision |
+|----------|---------------|-------------|-----------|
+| Bf 109 (German) | `1.35` | `Ata` | 2 |
+| P-51 (American) | `+5.1` | `P/40.4''` | 1 |
+
+The unit string for imperial mode dynamically includes the current inHg value, updating each frame as throttle changes.
 
 ## Important Notes
 

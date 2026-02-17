@@ -83,6 +83,23 @@ public interface TelemetrySource {
 
     double getManifoldPressureInchHg(); // Imperial
 
+    /**
+     * Get manifold pressure display value (Ata for metric, psi for imperial).
+     */
+    double getManifoldPressureDisplay();
+
+    /**
+     * Get manifold pressure display unit.
+     * Returns "Ata" for metric, "P/XX.X''" (with live inHg) for imperial.
+     */
+    String getManifoldPressureDisplayUnit();
+
+    /**
+     * Get manifold pressure display precision.
+     * Returns 2 for metric (Ata), 1 for imperial (psi).
+     */
+    int getManifoldPressureDisplayPrecision();
+
     // Engine Control
     double getUnknownMixture(); // For mixture state
 

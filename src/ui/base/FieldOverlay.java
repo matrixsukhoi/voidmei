@@ -170,7 +170,23 @@ public abstract class FieldOverlay extends DraggableOverlay implements FlightDat
                         field.visible = baseVisible;
                     }
 
-                    // 4. Format if visible
+                    // 4. Dynamic Precision via Supplier
+                    if (field.precisionSupplier != null) {
+                        int newPrecision = field.precisionSupplier.getAsInt();
+                        if (newPrecision != field.precision) {
+                            field.precision = newPrecision;
+                        }
+                    }
+
+                    // 5. Dynamic Unit via Supplier
+                    if (field.unitSupplier != null) {
+                        String newUnit = field.unitSupplier.get();
+                        if (newUnit != null && !newUnit.equals(field.unit)) {
+                            field.setUnit(newUnit);
+                        }
+                    }
+
+                    // 6. Format if visible
                     if (field.visible) {
                         if ("TIME_MM_SS".equals(field.format)) {
                             field.length = ui.util.FastNumberFormatter.formatTime(val, field.buffer);
