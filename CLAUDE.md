@@ -403,6 +403,7 @@ Detailed development guides for complex subsystems:
 | Overlay Development | [`src/ui/overlay/CLAUDE.md`](src/ui/overlay/CLAUDE.md) |
 | UI Model & TelemetrySource | [`src/ui/model/CLAUDE.md`](src/ui/model/CLAUDE.md) |
 | HUD Components | [`src/ui/component/CLAUDE.md`](src/ui/component/CLAUDE.md) |
+| FM Comparison Rules | [`src/ui/window/comparison/CLAUDE.md`](src/ui/window/comparison/CLAUDE.md) |
 | MiniHUD Architecture | [`doc/minihud贡献者开发手册.md`](doc/minihud贡献者开发手册.md) |
 | VoidMei Contributor Guide | [`doc/voidmei贡献者开发手册.md`](doc/voidmei贡献者开发手册.md) |
 | Algorithm Development | [`doc/物理人也能看懂的voidmei算法开发指导.md`](doc/物理人也能看懂的voidmei算法开发指导.md) |

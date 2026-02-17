@@ -24,6 +24,8 @@ import com.alee.laf.panel.WebPanel;
 import parser.Blkx;
 import prog.Application;
 import prog.Controller;
+import ui.window.comparison.logic.ComparisonRule;
+import ui.window.comparison.logic.ComparisonRules;
 
 public class CompactComparisonWindow extends JDialog {
 
@@ -95,21 +97,18 @@ public class CompactComparisonWindow extends JDialog {
 
         boolean singleMode = (v1 == null);
 
-        // Try numeric parse
-        Double d0 = parseDouble(v0);
-        Double d1 = (singleMode) ? null : parseDouble(v1);
-
-        // Determine Winner
+        // Determine Winner using rule system
         int win = 0; // 0=draw, -1=left(v0), 1=right(v1)
-        if (d0 != null && d1 != null) {
-            boolean lowerIsBetter = isLowerBetter(prop);
-            if (Math.abs(d0 - d1) > 0.001) {
-                if (d0 > d1)
-                    win = lowerIsBetter ? 1 : -1;
-                else
-                    win = lowerIsBetter ? -1 : 1;
+        ComparisonRule rule = ComparisonRules.get(prop);
+        if (rule != null && !singleMode) {
+            Double d0 = rule.extractValue(v0);
+            Double d1 = rule.extractValue(v1);
+            if (d0 != null && d1 != null && Math.abs(d0 - d1) > 0.001) {
+                boolean lowerIsBetter = rule.isLowerBetter();
+                win = (d0 > d1) ? (lowerIsBetter ? 1 : -1) : (lowerIsBetter ? -1 : 1);
             }
         }
+        // No rule → win=0 → draw (grey color)
 
         if (singleMode) {
             // 1. Attribute
@@ -345,46 +344,6 @@ public class CompactComparisonWindow extends JDialog {
                                                                                                              // readable
         l.setHorizontalAlignment(align);
         return l;
-    }
-
-    private Double parseDouble(String s) {
-        if (s == null || s.isEmpty())
-            return null;
-        if (s.startsWith("["))
-            return null; // Array/Range - hard to compare simply
-
-        try {
-            // Find first number pattern: optional minus, digits, optional dot, optional
-            // decimals
-            Pattern p = Pattern.compile("(-?\\d+(\\.\\d+)?)");
-            Matcher m = p.matcher(s);
-            if (m.find()) {
-                return Double.parseDouble(m.group(1));
-            }
-        } catch (Exception e) {
-            // ignore
-        }
-        return null;
-    }
-
-    private boolean isLowerBetter(String prop) {
-        prop = prop.toLowerCase();
-        // Lower is better for:
-        // Weight (Empty/Standard, generally agility)
-        // Loading (Wing loading)
-        // Drag (Coefficients, Areas)
-        // Turn Time (Time is bad)
-        // Takeoff distance
-        if (prop.contains("turn time") || prop.contains("time"))
-            return true; // time usually lower is better (except endurance)
-        if (prop.contains("empty weight") || prop.contains("空重"))
-            return true;
-        if (prop.contains("wing loading") || prop.contains("翼载"))
-            return true;
-        if (prop.contains("drag") || prop.contains("阻力"))
-            return true;
-
-        return false;
     }
 
     private int findInStructure(List<DisplayItem> list, String key) {
