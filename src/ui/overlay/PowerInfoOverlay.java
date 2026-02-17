@@ -72,12 +72,25 @@ public class PowerInfoOverlay extends FieldOverlay {
 	public void onFlightData(prog.event.FlightDataEvent event) {
 		if (service != null) {
 			boolean currentImperial = service.isImperial();
+
+			// Rebind with correct precision when imperial status changes (1 for imperial, 2 for metric)
 			if (firstData || currentImperial != lastImperial) {
-				String unit = currentImperial ? "psi" : "Ata";
-				fieldManager.updateFieldUnit("pressure", unit);
-				lastImperial = currentImperial;
-				firstData = false;
+				int precision = currentImperial ? 1 : 2;
+				java.util.function.DoubleSupplier pressureSupplier =
+					() -> service.isImperial() ? service.getManifoldPressurePounds() : service.getManifoldPressure();
+				fieldManager.bind("getManifoldPressure", pressureSupplier, service::isManifoldPressureValid, precision, null);
 			}
+
+			// Imperial mode: update inHg unit every frame; Metric mode: only update on switch
+			if (currentImperial) {
+				double inHg = service.getManifoldPressureInchHg();
+				String unit = String.format("P/%.1f''", inHg);
+				fieldManager.updateFieldUnit("getManifoldPressure", unit);
+			} else if (firstData || currentImperial != lastImperial) {
+				fieldManager.updateFieldUnit("getManifoldPressure", "Ata");
+			}
+			lastImperial = currentImperial;
+			firstData = false;
 		}
 		super.onFlightData(event);
 	}
@@ -141,6 +154,17 @@ public class PowerInfoOverlay extends FieldOverlay {
 		for (prog.config.ConfigLoader.RowConfig row : rows) {
 			// Bind if it's a DATA Item (and has a target)
 			if ("DATA".equals(row.type) && row.property != null && !row.property.isEmpty()) {
+				// Special handling for manifold pressure: select Ata or psi based on isImperial()
+				// Precision: 1 decimal for imperial (psi), 2 decimals for metric (Ata)
+				if ("getManifoldPressure".equals(row.property)) {
+					int precision = s.isImperial() ? 1 : 2;
+					java.util.function.DoubleSupplier pressureSupplier =
+						() -> s.isImperial() ? s.getManifoldPressurePounds() : s.getManifoldPressure();
+					fm.bind(row.property, pressureSupplier, s::isManifoldPressureValid, precision, row.format);
+					fm.setFieldVisible(row.property, row.getBool());
+					continue; // Skip generic binding logic
+				}
+
 				// Use ReflectBinder to create a zero-GC supplier
 				java.util.function.DoubleSupplier supplier = ui.util.ReflectBinder.resolveDouble(s, row.property);
 
