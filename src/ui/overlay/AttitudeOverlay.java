@@ -55,8 +55,6 @@ public class AttitudeOverlay extends DraggableOverlay implements prog.event.Flig
 
 	long AoALimitU;
 	long AoALimitD;
-	long AoAFLimitU;
-	long AoAFLimitD;
 
 	long compassX;
 	long compassY;
@@ -168,11 +166,7 @@ public class AttitudeOverlay extends DraggableOverlay implements prog.event.Flig
 		g2d.drawLine(x - 1, y - locator_size / 2 - 1, x - 1, y + locator_size / 2 - 1);
 
 		g2d.setColor(Application.colorWarning);
-		g2d.drawLine(0, (int) AoAFLimitU, width - 1, (int) AoAFLimitU);
-		g2d.drawLine(0, (int) AoAFLimitD, width - 1, (int) AoAFLimitD);
-
-		g2d.setColor(Application.colorLabel);
-		// 两条线
+		// 机翼攻角极限线 (原白色，改为红色)
 		g2d.drawLine(0, (int) AoALimitU, width - 1, (int) AoALimitU);
 		g2d.drawLine(0, (int) AoALimitD, width - 1, (int) AoALimitD);
 
@@ -379,20 +373,14 @@ public class AttitudeOverlay extends DraggableOverlay implements prog.event.Flig
 		}
 
 		parser.Blkx b = xc.getBlkx();
-		if (b != null && b.valid) {
-			if (showAoALimits) {
-				// 固定位置：直接使用临界AoA值，不随当前AoA移动
-				AoALimitU = Math.round((b.NoFlapsWing.AoACritHigh + MaxAoA) * xHeight / (2 * MaxAoA));
-				AoALimitD = Math.round((b.NoFlapsWing.AoACritLow + MaxAoA) * xHeight / (2 * MaxAoA));
-				AoAFLimitU = Math.round((b.aoaFuselageHigh + MaxAoA) * xHeight / (2 * MaxAoA));
-				AoAFLimitD = Math.round((b.aoaFuselageLow + MaxAoA) * xHeight / (2 * MaxAoA));
-			} else {
-				// 固定位置：直接使用临界AoA值
-				AoALimitU = Math.round((b.aoaHigh + MaxAoA) * xHeight / (2 * MaxAoA));
-				AoALimitD = Math.round((b.aoaLow + MaxAoA) * xHeight / (2 * MaxAoA));
-				AoAFLimitU = -10;
-				AoAFLimitD = -10;
-			}
+		if (b != null && b.valid && showAoALimits) {
+			// 显示机翼临界攻角极限线
+			AoALimitU = Math.round((b.NoFlapsWing.AoACritHigh + MaxAoA) * xHeight / (2 * MaxAoA));
+			AoALimitD = Math.round((b.NoFlapsWing.AoACritLow + MaxAoA) * xHeight / (2 * MaxAoA));
+		} else {
+			// 关闭时不显示攻角极限线
+			AoALimitU = -10;
+			AoALimitD = -10;
 		}
 
 		pS[0].x = -2 * xWidth;
