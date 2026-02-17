@@ -34,9 +34,12 @@ public class AttitudeIndicatorGauge extends AbstractHUDComponent {
     private int aosX;
     private String sAttitude;
     private int roundHorizon;
+    private String sSideslip;       // Sideslip angle display text
+    private int roundSlip;          // Rounded sideslip angle (for color logic)
 
     public AttitudeIndicatorGauge() {
         this.sAttitude = "";
+        this.sSideslip = "";
     }
 
     @Override
@@ -126,8 +129,18 @@ public class AttitudeIndicatorGauge extends AbstractHUDComponent {
 
         // 画文字 (Draw Text at target position)
         if (font != null) {
-            Color textColor = (roundHorizon >= 0) ? Application.colorNum : Application.colorUnit;
-            UIBaseElements.__drawStringShade(g2d, targetX, targetY - 1, 1, sAttitude, font, textColor);
+            int gap = font.getSize() / 4;  // Center gap proportional to font size
+
+            // Pitch angle - right side
+            Color pitchColor = (roundHorizon >= 0) ? Application.colorNum : Application.colorUnit;
+            UIBaseElements.__drawStringShade(g2d, targetX + gap, targetY - 1, 1, sAttitude, font, pitchColor);
+
+            // Sideslip angle - left side (left-aligned with template width)
+            if (sSideslip != null && !sSideslip.isEmpty()) {
+                int templateWidth = g2d.getFontMetrics(font).stringWidth("888"); // Fixed width for consistent left edge
+                Color slipColor = (roundSlip >= 0) ? Application.colorNum : Application.colorUnit;
+                UIBaseElements.__drawStringShade(g2d, targetX - gap - templateWidth, targetY - 1, 1, sSideslip, font, slipColor);
+            }
         }
     }
 
@@ -176,6 +189,13 @@ public class AttitudeIndicatorGauge extends AbstractHUDComponent {
         this.sAttitude = "";
         if (this.roundHorizon != 0) { // Check specific logic? MinimalHUD showed >0 and <0
             this.sAttitude = String.format("%3d", Math.abs(this.roundHorizon));
+        }
+
+        // Sideslip Text (mirror of attitude text logic)
+        this.roundSlip = (int) Math.round(data.slip);
+        this.sSideslip = "";
+        if (this.roundSlip != 0) {
+            this.sSideslip = String.format("%-3d", Math.abs(this.roundSlip));
         }
     }
 }
