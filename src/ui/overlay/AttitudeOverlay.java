@@ -129,7 +129,13 @@ public class AttitudeOverlay extends DraggableOverlay implements prog.event.Flig
 	public void locater(Graphics2D g2d, int width, int height, int x, int y, int pitch, int center_round,
 			int locator_size) {
 
-		// 绘制边框
+		// 1. 先绘制橘红色多边形（地面层，最底层）
+		g2d.setColor(Application.colorUnit);
+		g2d.fillPolygon(pX, pY, 4);
+		if (showDirection)
+			g2d.drawLine(width / 2, height / 2, (int) (width / 2 + compassX), (int) (height / 2 + compassY));
+
+		// 2. 绘制边框
 		g2d.setStroke(new BasicStroke(1));
 		g2d.setColor(Application.colorShadeShape);
 		g2d.drawLine(0, 0, 0, height);
@@ -137,14 +143,10 @@ public class AttitudeOverlay extends DraggableOverlay implements prog.event.Flig
 		g2d.drawLine(0, height - 1, width - 1, height - 1);
 		g2d.drawLine(width - 1, 0, width - 1, height - 1);
 
+		// 3. 绘制刻度线（在多边形上方）
 		for (int i = 0; i < 2 * tickLine; i++) {
 			g2d.drawLine(pT[4 + 2 * i].x, pT[4 + 2 * i].y, pT[4 + 2 * i + 1].x, pT[4 + 2 * i + 1].y);
 		}
-
-		g2d.setColor(Application.colorUnit);
-		g2d.fillPolygon(pX, pY, 4);
-		if (showDirection)
-			g2d.drawLine(width / 2, height / 2, (int) (width / 2 + compassX), (int) (height / 2 + compassY));
 
 		g2d.setStroke(new BasicStroke(3));
 		g2d.setColor(Application.colorNum);
@@ -366,8 +368,8 @@ public class AttitudeOverlay extends DraggableOverlay implements prog.event.Flig
 	long freqCheckMili;
 
 	public void drawTick() {
-		AoA = Math.round((-xs.sState.AoA + MaxAoA) * xHeight / (2 * MaxAoA));
-		AoS = Math.round((xs.sState.AoS + MaxAoS) * xWidth / (2 * MaxAoS));
+		AoA = Math.round((xs.sState.AoA + MaxAoA) * xHeight / (2 * MaxAoA));
+		AoS = Math.round((-xs.sState.AoS + MaxAoS) * xWidth / (2 * MaxAoS));
 		Pitch = Math.round((-xs.sIndic.aviahorizon_pitch + MaxAoA) * xHeight / (2 * MaxAoA));
 
 		if (showDirection) {
@@ -379,34 +381,17 @@ public class AttitudeOverlay extends DraggableOverlay implements prog.event.Flig
 		parser.Blkx b = xc.getBlkx();
 		if (b != null && b.valid) {
 			if (showAoALimits) {
-				if (xs.sState.AoA >= 0) {
-					AoALimitU = Math.round(
-							(-(b.NoFlapsWing.AoACritHigh - xs.sState.AoA) + MaxAoA) * xHeight / (2 * MaxAoA));
-
-					AoAFLimitU = Math
-							.round((-(b.aoaFuselageHigh - xs.sState.AoA) + MaxAoA) * xHeight / (2 * MaxAoA));
-					AoALimitD = -10;
-					AoAFLimitD = -10;
-				} else {
-
-					AoALimitD = Math.round(
-							(-(b.NoFlapsWing.AoACritLow - xs.sState.AoA) + MaxAoA) * xHeight / (2 * MaxAoA));
-
-					AoAFLimitD = Math
-							.round((-(b.aoaFuselageLow - xs.sState.AoA) + MaxAoA) * xHeight / (2 * MaxAoA));
-					AoALimitU = -10;
-					AoAFLimitU = -10;
-				}
-
+				// 固定位置：直接使用临界AoA值，不随当前AoA移动
+				AoALimitU = Math.round((b.NoFlapsWing.AoACritHigh + MaxAoA) * xHeight / (2 * MaxAoA));
+				AoALimitD = Math.round((b.NoFlapsWing.AoACritLow + MaxAoA) * xHeight / (2 * MaxAoA));
+				AoAFLimitU = Math.round((b.aoaFuselageHigh + MaxAoA) * xHeight / (2 * MaxAoA));
+				AoAFLimitD = Math.round((b.aoaFuselageLow + MaxAoA) * xHeight / (2 * MaxAoA));
 			} else {
-				if (0.3f * b.aoaHigh <= xs.sState.AoA)
-					AoALimitU = Math.round((-(b.aoaHigh - xs.sState.AoA) + MaxAoA) * xHeight / (2 * MaxAoA));
-				else
-					AoALimitU = -10;
-				if (0.3f * b.aoaLow >= xs.sState.AoA)
-					AoALimitD = Math.round((-(b.aoaLow - xs.sState.AoA) + MaxAoA) * xHeight / (2 * MaxAoA));
-				else
-					AoALimitD = -10;
+				// 固定位置：直接使用临界AoA值
+				AoALimitU = Math.round((b.aoaHigh + MaxAoA) * xHeight / (2 * MaxAoA));
+				AoALimitD = Math.round((b.aoaLow + MaxAoA) * xHeight / (2 * MaxAoA));
+				AoAFLimitU = -10;
+				AoAFLimitD = -10;
 			}
 		}
 
