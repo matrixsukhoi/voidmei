@@ -98,8 +98,8 @@ public class AttitudeIndicatorGauge extends AbstractHUDComponent {
 
         double rollDegRad = Math.toRadians(rollDeg);
 
-        int targetX = centerX - aosX;
-        int targetY = centerY - (int) pitch;
+        int targetX = centerX - aosX / 2;
+        int targetY = centerY - (int)(pitch / 2);
 
         // 绘制地面和牵引线 (Draw ground/traction line)
         g2d.setStroke(strokeThick);
@@ -184,20 +184,13 @@ public class AttitudeIndicatorGauge extends AbstractHUDComponent {
             this.aosX = 0;
         }
 
-        // Attitude Text
+        // Attitude Text - 始终显示，使用整数
         this.roundHorizon = (int) Math.round(data.pitch);
-        this.sAttitude = "";
-        if (this.roundHorizon != 0) { // Check specific logic? MinimalHUD showed >0 and <0
-            this.sAttitude = String.format("%3d", Math.abs(this.roundHorizon));
-        }
+        this.sAttitude = String.format("%3d", Math.abs(this.roundHorizon));
 
-        // Sideslip Text (mirror of attitude text logic)
-        // 保留一位小数用于显示
+        // Sideslip Text - 始终显示，保留一位小数
         double slipValue = Math.round(data.slip * 10) / 10.0;
-        this.roundSlip = (int) Math.round(data.slip);  // 整数用于颜色判断
-        this.sSideslip = "";
-        if (slipValue != 0) {
-            this.sSideslip = String.format("%-4.1f", Math.abs(slipValue));
-        }
+        this.roundSlip = (slipValue >= 0) ? 1 : -1;  // 用于颜色判断，保留符号信息
+        this.sSideslip = String.format("%-4.1f", Math.abs(slipValue));
     }
 }
