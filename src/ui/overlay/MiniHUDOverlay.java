@@ -311,11 +311,12 @@ public class MiniHUDOverlay extends BaseOverlay implements FlightDataListener {
         if (flapAngleBar != null) {
             flapAngleBar.setVisible(textVisible && enableFlapBar);
         }
+        boolean showAttitude = hudSettings.showAttitudeGauge();
         if (compassGauge != null) {
-            compassGauge.setVisible(textVisible);
+            compassGauge.setVisible(textVisible && !showAttitude);
         }
         if (attitudeIndicatorGauge != null) {
-            attitudeIndicatorGauge.setVisible(textVisible && hudSettings.drawHUDAttitude() && !disableAttitude);
+            attitudeIndicatorGauge.setVisible(textVisible && showAttitude && !disableAttitude);
         }
         if (crosshairGauge != null) {
             crosshairGauge.setVisible(hudSettings.isDisplayCrosshair());
@@ -683,8 +684,8 @@ public class MiniHUDOverlay extends BaseOverlay implements FlightDataListener {
             // Pos: 3.5, 0.15 (Right of Row 2)
             ui.layout.HUDLayoutNode attitudeNode = new ui.layout.HUDLayoutNode("attitude", attitudeIndicatorGauge);
             attitudeNode.setParent(row2)
-                    .setRelativePosition(0, 0.1)
-                    .setAnchors(ui.layout.Anchor.BOTTOM_CENTER, ui.layout.Anchor.CENTER);
+                    .setRelativePosition(0, 0.5)
+                    .setAnchors(ui.layout.Anchor.BOTTOM_RIGHT, ui.layout.Anchor.TOP_RIGHT);
             modernLayout.addNode(attitudeNode);
 
             // Compass (Child of Attitude)

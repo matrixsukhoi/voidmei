@@ -26,7 +26,7 @@ public interface HUDSettings extends OverlaySettings {
 
     boolean drawHUDText();
 
-    boolean drawHUDAttitude();
+    boolean showAttitudeGauge();
 
     double getAoAWarningRatio();
 

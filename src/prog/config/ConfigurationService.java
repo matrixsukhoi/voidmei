@@ -636,8 +636,8 @@ public class ConfigurationService implements ConfigProvider {
         }
 
         @Override
-        public boolean drawHUDAttitude() {
-            return getBool("drawHUDAttitude", true);
+        public boolean showAttitudeGauge() {
+            return getBool("showAttitudeGauge", true);
         }
 
         private double getDoubleFromLayoutFirst(String section, String property, double defaultVal) {
