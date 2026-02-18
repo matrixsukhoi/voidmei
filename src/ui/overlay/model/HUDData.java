@@ -20,6 +20,7 @@ public class HUDData {
     public final double roll; // Roll (degrees)
     public final double slip; // Side slip (deg or relative)
     public final double aoa; // Angle of Attack
+    public final boolean pitchValid; // True if pitch data available from API
 
     // System State
     public final int throttle; // 0-110%
@@ -81,6 +82,7 @@ public class HUDData {
         this.roll = builder.roll;
         this.slip = builder.slip;
         this.aoa = builder.aoa;
+        this.pitchValid = builder.pitchValid;
         this.throttle = builder.throttle;
         this.flaps = builder.flaps;
         this.gear = builder.gear;
@@ -132,6 +134,7 @@ public class HUDData {
         public double roll;
         public double slip;
         public double aoa;
+        public boolean pitchValid;
         public int throttle;
         public double flaps;
         public double gear;

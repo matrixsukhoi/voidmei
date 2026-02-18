@@ -36,6 +36,7 @@ public class AttitudeIndicatorGauge extends AbstractHUDComponent {
     private int roundHorizon;
     private String sSideslip;       // Sideslip angle display text
     private int roundSlip;          // Rounded sideslip angle (for color logic)
+    private boolean pitchValid;     // Whether pitch data is valid from API
 
     public AttitudeIndicatorGauge() {
         this.sAttitude = "";
@@ -184,9 +185,15 @@ public class AttitudeIndicatorGauge extends AbstractHUDComponent {
             this.aosX = 0;
         }
 
-        // Attitude Text - 始终显示，使用整数
-        this.roundHorizon = (int) Math.round(data.pitch);
-        this.sAttitude = String.format("%3d", Math.abs(this.roundHorizon));
+        // Attitude Text - 仅在数据有效时显示
+        this.pitchValid = data.pitchValid;
+        if (this.pitchValid) {
+            this.roundHorizon = (int) Math.round(data.pitch);
+            this.sAttitude = String.format("%3d", Math.abs(this.roundHorizon));
+        } else {
+            this.roundHorizon = 0;
+            this.sAttitude = "";
+        }
 
         // Sideslip Text - 始终显示，保留一位小数
         double slipValue = Math.round(data.slip * 10) / 10.0;

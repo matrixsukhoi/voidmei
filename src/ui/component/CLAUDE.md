@@ -99,7 +99,7 @@ public abstract class AbstractHUDComponent implements HUDComponent {
 | `FlapAngleBar` | Flap deflection angle | Flap angle deg | Colored zones |
 | `CrosshairGauge` | Aiming reticle | None (static) | Texture or software |
 | `CompassGauge` | Heading indicator | Heading deg | Cardinal marks |
-| `AttitudeIndicatorGauge` | Artificial horizon | Pitch, Roll | Sky/ground colors |
+| `AttitudeIndicatorGauge` | Artificial horizon + sideslip | Pitch, Roll, Slip, pitchValid | Dual-value display (slip left, pitch right) |
 | `TextGauge` | Numeric readout | Arbitrary text | Template width |
 | `WarningOverlay` | Warning messages | Warning state | Blink, colors |
 
@@ -416,7 +416,9 @@ public class HUDData {
     public double pitch;         // Degrees
     public double roll;          // Degrees
     public double heading;       // Degrees (0-360)
+    public double slip;          // Sideslip angle (degrees)
     public double AoA;           // Angle of attack
+    public boolean pitchValid;   // True if pitch data available from API
 
     // Engine
     public double throttle;      // 0-100 (or 110 for WEP)

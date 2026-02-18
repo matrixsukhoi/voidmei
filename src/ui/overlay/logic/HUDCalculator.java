@@ -45,7 +45,8 @@ public class HUDCalculator {
             aviar = sIndic.aviahorizon_roll;
         }
 
-        if (aviahp != -65535) {
+        b.pitchValid = (aviahp != -65535);
+        if (b.pitchValid) {
             b.pitch = -aviahp;
         } else {
             b.pitch = 0;
