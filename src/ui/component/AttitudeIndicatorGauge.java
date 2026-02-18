@@ -192,10 +192,12 @@ public class AttitudeIndicatorGauge extends AbstractHUDComponent {
         }
 
         // Sideslip Text (mirror of attitude text logic)
-        this.roundSlip = (int) Math.round(data.slip);
+        // 保留一位小数用于显示
+        double slipValue = Math.round(data.slip * 10) / 10.0;
+        this.roundSlip = (int) Math.round(data.slip);  // 整数用于颜色判断
         this.sSideslip = "";
-        if (this.roundSlip != 0) {
-            this.sSideslip = String.format("%-3d", Math.abs(this.roundSlip));
+        if (slipValue != 0) {
+            this.sSideslip = String.format("%-4.1f", Math.abs(slipValue));
         }
     }
 }
