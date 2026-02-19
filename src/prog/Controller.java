@@ -61,6 +61,13 @@ public class Controller implements ConfigProvider {
 
 	public OverlayManager overlayManager;
 
+	/**
+	 * Gets the OverlayManager instance for overlay z-order coordination.
+	 */
+	public OverlayManager getOverlayManager() {
+		return overlayManager;
+	}
+
 	public java.util.List<prog.config.ConfigLoader.GroupConfig> dynamicConfigs = new java.util.ArrayList<>();
 
 	// Core Threads

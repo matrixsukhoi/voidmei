@@ -16,6 +16,7 @@ import prog.config.ConfigLoader.RowConfig;
 import prog.i18n.Lang;
 import prog.util.Logger;
 import prog.util.UIStateStorage;
+import ui.util.DialogService;
 
 /**
  * Manages dual-file configuration strategy with template hash detection and automatic merging.
@@ -408,9 +409,9 @@ public class ConfigManager {
      * Shows a dialog when config parsing fails.
      */
     private static void showParseErrorDialog() {
-        // Run on EDT for thread safety
+        // Run on EDT for thread safety (using DialogService to avoid overlay blocking)
         javax.swing.SwingUtilities.invokeLater(() -> {
-            com.alee.laf.optionpane.WebOptionPane.showMessageDialog(
+            DialogService.showMessageDialog(
                 null,
                 Lang.mConfigErrorContent,
                 Lang.mConfigErrorTitle,
@@ -451,8 +452,9 @@ public class ConfigManager {
         String message = sb.toString().trim();
         Logger.info("ConfigManager", "Merge report:\n" + message);
 
+        // Using DialogService to avoid overlay blocking
         javax.swing.SwingUtilities.invokeLater(() -> {
-            com.alee.laf.optionpane.WebOptionPane.showMessageDialog(
+            DialogService.showMessageDialog(
                 null, message,
                 Lang.mConfigMergedTitle,
                 com.alee.laf.optionpane.WebOptionPane.INFORMATION_MESSAGE

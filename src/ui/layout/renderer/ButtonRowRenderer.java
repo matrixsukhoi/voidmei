@@ -17,6 +17,7 @@ import prog.config.ConfigLoader;
 import prog.config.ConfigLoader.RowConfig;
 import prog.i18n.Lang;
 import ui.replica.ReplicaBuilder;
+import ui.util.DialogService;
 
 public class ButtonRowRenderer implements RowRenderer {
 
@@ -45,8 +46,8 @@ public class ButtonRowRenderer implements RowRenderer {
                     // Dismiss any open tooltips before showing dialog
                     ReplicaBuilder.disposeAllPopovers();
 
-                    // Show confirmation dialog
-                    int result = com.alee.laf.optionpane.WebOptionPane.showConfirmDialog(
+                    // Show confirmation dialog (using DialogService to avoid overlay blocking)
+                    int result = DialogService.showConfirmDialog(
                             p,
                             prog.i18n.Lang.mResetConfirmContent,
                             prog.i18n.Lang.mResetConfirmTitle,
@@ -124,8 +125,8 @@ public class ButtonRowRenderer implements RowRenderer {
                 if (result == JFileChooser.APPROVE_OPTION) {
                     File selectedFile = fileChooser.getSelectedFile();
 
-                    // Show confirmation dialog
-                    int confirmResult = com.alee.laf.optionpane.WebOptionPane.showConfirmDialog(
+                    // Show confirmation dialog (using DialogService to avoid overlay blocking)
+                    int confirmResult = DialogService.showConfirmDialog(
                             p,
                             Lang.mImportConfirmContent,
                             Lang.mImportConfirmTitle,
@@ -136,7 +137,7 @@ public class ButtonRowRenderer implements RowRenderer {
                         // Perform import - hot reload happens via CONFIG_CHANGED event
                         boolean success = Application.ctr.getConfigService().importConfig(selectedFile.getAbsolutePath());
                         if (!success) {
-                            com.alee.laf.optionpane.WebOptionPane.showMessageDialog(
+                            DialogService.showMessageDialog(
                                     p,
                                     Lang.mImportFailContent,
                                     Lang.mImportFailTitle,
@@ -153,8 +154,8 @@ public class ButtonRowRenderer implements RowRenderer {
                 // Dismiss any open tooltips before showing dialog
                 ReplicaBuilder.disposeAllPopovers();
 
-                // Show confirmation dialog
-                int result = com.alee.laf.optionpane.WebOptionPane.showConfirmDialog(
+                // Show confirmation dialog (using DialogService to avoid overlay blocking)
+                int result = DialogService.showConfirmDialog(
                         p,
                         Lang.mFactoryResetConfirmContent,
                         Lang.mFactoryResetConfirmTitle,
@@ -165,7 +166,7 @@ public class ButtonRowRenderer implements RowRenderer {
                     // Perform factory reset - hot reload happens via CONFIG_CHANGED event
                     boolean success = Application.ctr.getConfigService().resetToFactory();
                     if (!success) {
-                        com.alee.laf.optionpane.WebOptionPane.showMessageDialog(
+                        DialogService.showMessageDialog(
                                 p,
                                 Lang.mFactoryResetFailContent,
                                 Lang.mFactoryResetFailTitle,

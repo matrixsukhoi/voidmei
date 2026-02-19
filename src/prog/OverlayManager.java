@@ -166,6 +166,30 @@ public class OverlayManager {
     }
 
     /**
+     * Temporarily suspend alwaysOnTop for all active overlays.
+     * Call before showing modal dialogs to ensure dialogs are interactive.
+     */
+    public synchronized void suspendAlwaysOnTop() {
+        for (OverlayEntry<?> entry : entries.values()) {
+            if (entry.instance instanceof java.awt.Window) {
+                ((java.awt.Window) entry.instance).setAlwaysOnTop(false);
+            }
+        }
+    }
+
+    /**
+     * Restore alwaysOnTop for all active overlays.
+     * Call after modal dialogs are dismissed.
+     */
+    public synchronized void restoreAlwaysOnTop() {
+        for (OverlayEntry<?> entry : entries.values()) {
+            if (entry.instance instanceof java.awt.Window) {
+                ((java.awt.Window) entry.instance).setAlwaysOnTop(true);
+            }
+        }
+    }
+
+    /**
      * Refresh overlays that are interested in the changed config key.
      */
     public void refreshPreviews(String changedKey) {
