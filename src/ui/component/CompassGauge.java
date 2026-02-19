@@ -31,6 +31,18 @@ public class CompassGauge extends AbstractHUDComponent {
     private String lineCompass;
     private String lineLoc;
 
+    // Coordinate system mode (logic inverted to match AttitudeIndicatorGauge):
+    //   false (config OFF, default) = 离体/Inertial: pointer rotates, North fixed at top
+    //   true  (config ON)           = 随体/Body-fixed: aircraft fixed at top, North rotates
+    private boolean inertialMode = false;
+
+    // Pre-allocated arrays for triangle drawing (zero-GC)
+    private int[] triangleXPoints = new int[3];
+    private int[] triangleYPoints = new int[3];
+
+    // Thin stroke for triangle border (1 pixel)
+    private static final BasicStroke THIN_STROKE = new BasicStroke(1);
+
     public CompassGauge(int radius) {
         this.radius = radius;
         this.lineCompass = "";
@@ -55,6 +67,16 @@ public class CompassGauge extends AbstractHUDComponent {
         this.HUDFontSize = HUDFontSize;
         this.HUDFontSizeSmall = HUDFontSizeSmall;
         this.fontSmall = fontSmall;
+    }
+
+    /**
+     * Sets the coordinate system mode for the compass.
+     * Note: Logic is inverted to match AttitudeIndicatorGauge behavior.
+     * @param inertial false (default) = 离体/Inertial mode: pointer rotates to show heading, North fixed at top;
+     *                 true = 随体/Body-fixed mode: aircraft symbol fixed at top, North triangle rotates
+     */
+    public void setInertialMode(boolean inertial) {
+        this.inertialMode = inertial;
     }
 
     @Override
@@ -101,83 +123,60 @@ public class CompassGauge extends AbstractHUDComponent {
         }
 
         int r = radius;
+        int centerX = x + r;
+        int centerY = y + r;
 
-        // Convert Top-Left (x, y) to Center implied by drawing logic
-        // The original logic seemed to treat (x,y) as Top-Left of the circle's bounding
-        // box for drawOval?
-        // Original: g2d.drawOval(x, y, r + r, r + r); -> This draws circle at (x,y)
-        // width 2r.
-        // So (x,y) IS Top-Left of the circle.
-        // But the Lines were drawn relative to center?
-        // Original: int tipX = x + r + ...
-        // x+r IS the center X.
-        // So actually CompassGauge WAS respecting Top-Left!
-        // Wait, why did the user say "CompassGauge box is too big, lots of empty
-        // space"?
-        // Maybe PreferredSize is too big?
-        // PreferredSize: radius*2 + 50
-        // Draw: Oval at (x,y) size 2r.
-        // Text is drawn at x + lineWidth + 3.
+        // Layer 1 (bottom): Draw North triangle first
+        // Logic inverted to match AttitudeIndicatorGauge behavior
+        if (inertialMode) {
+            // Config ON: Body-fixed mode - rotating North triangle
+            drawNorthTriangle(g2d, centerX, centerY, r, -compassRads);
+        } else {
+            // Config OFF: Inertial mode - fixed North triangle at 12 o'clock
+            drawNorthTriangle(g2d, centerX, centerY, r, 0);
+        }
 
-        // Let's re-read the user complaint: "compassGauge的框特别大, 有很多留空" (Compass box is
-        // huge, lots of empty space).
-        // This implies getPreferredSize() returns much larger w/h than the actual drawn
-        // circle.
-        // getPreferredSize returns (2r + 50, 2r + 20).
-        // Bounding box (red line) is drawn based on PreferredSize.
-        // Circle is drawn at (x,y).
-        // So Circle is at Top-Left of the Red Box.
-        // The Red Box extends 50px right and 20px down beyond the circle.
-
-        // Fix: Center the circle within the PreferredSize box, or reduce PreferredSize.
-        // If we reduce PreferredSize, text might be cut off?
-        // Text is drawn INSIDE the circle?
-        // y + HUDFontSize - (r - HUDFontSize) / 2 -> This is vertically centered?
-        // No, let's look at text drawing.
-
-        // Let's just center the content within the (x,y) box provided by layout.
-        // Actually Layout provides (x,y) based on PreferredSize.
-        // If we want to fix "Left-Top alignment" visual glitch, we should align content
-        // to center of the box if the box is bigger.
-        // BUT, better to make the box match the content tightly.
-        // Why +50?
-        // Let's assume the user just wants standard Top-Left alignment to mean
-        // "Top-Left of Content".
-
-        // If I change nothing, x,y is Top-Left of circle. Red box is bigger.
-        // User sees Red Box bigger than circle.
-        // If I want Red Box to hug circle, I should change getPreferredSize.
-
-        // BUT, looking at MinimalHUD logic, Compass is child of Attitude.
-        // If Compass draws at (x,y), and box is big, maybe it pushes neighbors away?
-        // No, neighbors are relative.
-
-        // Let's Recalculate PreferredSize in a separate edit if needed.
-        // For now, ensure consistency.
-        // Since (x,y) is passed, and circle is drawn at (x,y), it IS Top-Left aligned.
-        // Problem: Padding.
-
-        // Let's focus on LinearGauge first which has severe offset (throttle).
-        // I will assume Compass is "Correctly Top-Left" but "Has Padding".
-        // I will address LinearGauge first in this turn.
-
-        int tipX = x + r + (int) (0.618 * r * Math.sin(compassRads));
-        int tipY = y + r - (int) (0.618 * r * Math.cos(compassRads));
-        int endX = x + r + compassDx;
-        int endY = y + r - compassDy;
-
+        // Layer 2: Draw the compass circle
         g2d.setStroke(outBs);
         g2d.setColor(Application.colorShadeShape);
-        g2d.drawLine(tipX, tipY, endX, endY);
         g2d.drawOval(x, y, r + r, r + r);
 
-        // Draw Foreground
         g2d.setStroke(inBs);
         g2d.setColor(Application.colorNum);
-
-        g2d.drawLine(tipX, tipY, endX, endY);
         g2d.drawOval(x, y, r + r, r + r);
 
+        // Layer 3 (top): Draw heading pointer or aircraft line
+        // Logic inverted to match AttitudeIndicatorGauge behavior
+        if (inertialMode) {
+            // Config ON: Body-fixed mode - aircraft symbol fixed at 12 o'clock
+            int fixedTipY = centerY - (int) (0.618 * r);
+            int fixedEndY = centerY - (int) (1.3 * r);
+
+            g2d.setStroke(outBs);
+            g2d.setColor(Application.colorShadeShape);
+            g2d.drawLine(centerX, fixedTipY, centerX, fixedEndY);
+
+            g2d.setStroke(inBs);
+            g2d.setColor(Application.colorNum);
+            g2d.drawLine(centerX, fixedTipY, centerX, fixedEndY);
+
+        } else {
+            // Config OFF: Inertial mode - pointer rotates to show heading
+            int tipX = centerX + (int) (0.618 * r * Math.sin(compassRads));
+            int tipY = centerY - (int) (0.618 * r * Math.cos(compassRads));
+            int endX = centerX + compassDx;
+            int endY = centerY - compassDy;
+
+            g2d.setStroke(outBs);
+            g2d.setColor(Application.colorShadeShape);
+            g2d.drawLine(tipX, tipY, endX, endY);
+
+            g2d.setStroke(inBs);
+            g2d.setColor(Application.colorNum);
+            g2d.drawLine(tipX, tipY, endX, endY);
+        }
+
+        // Draw text labels (same for both modes)
         if (fontSmall != null) {
             UIBaseElements.drawStringShade(g2d, x + lineWidth + 3, y + HUDFontSize - (r - HUDFontSize) / 2, 1,
                     lineCompass, fontSmall);
@@ -185,5 +184,55 @@ public class CompassGauge extends AbstractHUDComponent {
                     lineLoc,
                     fontSmall);
         }
+    }
+
+    /**
+     * Draws a north indicator triangle at the specified angle from center.
+     * The triangle points outward away from the center.
+     *
+     * @param g2d     Graphics context
+     * @param centerX Center X of the compass
+     * @param centerY Center Y of the compass
+     * @param radius  Radius of the compass
+     * @param angleRads Angle in radians (0 = 12 o'clock / North)
+     */
+    private void drawNorthTriangle(Graphics2D g2d, int centerX, int centerY, int radius, double angleRads) {
+        // Triangle size: height is about half the aircraft line length
+        int triangleHeight = (int) (radius * 0.35);
+        int triangleHalfBase = (int) (radius * 0.30);
+
+        // Triangle tip points outward, base sits on the circle edge
+        // Tip is outside the circle
+        double tipDist = radius + triangleHeight;
+        int tipX = centerX + (int) (tipDist * Math.sin(angleRads));
+        int tipY = centerY - (int) (tipDist * Math.cos(angleRads));
+
+        // Base center sits on the circle edge
+        int baseX = centerX + (int) (radius * Math.sin(angleRads));
+        int baseY = centerY - (int) (radius * Math.cos(angleRads));
+
+        // Perpendicular direction (tangent to circle): use (cos(θ), sin(θ))
+        int corner1X = baseX + (int) (triangleHalfBase * Math.cos(angleRads));
+        int corner1Y = baseY + (int) (triangleHalfBase * Math.sin(angleRads));
+        int corner2X = baseX - (int) (triangleHalfBase * Math.cos(angleRads));
+        int corner2Y = baseY - (int) (triangleHalfBase * Math.sin(angleRads));
+
+        // Fill triangle arrays (reuse pre-allocated arrays for zero-GC)
+        triangleXPoints[0] = tipX;
+        triangleXPoints[1] = corner1X;
+        triangleXPoints[2] = corner2X;
+
+        triangleYPoints[0] = tipY;
+        triangleYPoints[1] = corner1Y;
+        triangleYPoints[2] = corner2Y;
+
+        // Draw filled triangle using unit color
+        g2d.setColor(Application.colorUnit);
+        g2d.fillPolygon(triangleXPoints, triangleYPoints, 3);
+
+        // Draw thin border on top using shade color
+        g2d.setColor(Application.colorShadeShape);
+        g2d.setStroke(THIN_STROKE);
+        g2d.drawPolygon(triangleXPoints, triangleYPoints, 3);
     }
 }

@@ -10,9 +10,9 @@
 | `LabeledLinearGauge.java` | ~80 | LinearGauge with attached label |
 | `SpeedRatioBar.java` | ~150 | Speed vs. limit ratio with warning zones |
 | `FlapAngleBar.java` | ~100 | Flap deflection angle display |
-| `CompassGauge.java` | ~180 | Heading indicator with cardinal marks |
+| `CompassGauge.java` | ~240 | Heading indicator with inertial/body-fixed modes and North triangle |
 | `CrosshairGauge.java` | ~120 | Aiming reticle (texture or software) |
-| `AttitudeIndicatorGauge.java` | ~200 | Artificial horizon |
+| `AttitudeIndicatorGauge.java` | ~240 | Artificial horizon with inertial/body-fixed modes |
 | `TextGauge.java` | ~100 | Numeric readout with label |
 | `WarningOverlay.java` | ~80 | Warning message display |
 | `row/` | 6 files | HUD row components for data display |
@@ -98,8 +98,8 @@ public abstract class AbstractHUDComponent implements HUDComponent {
 | `SpeedRatioBar` | Speed vs. limit ratio | TAS / VNE | Warning zones |
 | `FlapAngleBar` | Flap deflection angle | Flap angle deg | Colored zones |
 | `CrosshairGauge` | Aiming reticle | None (static) | Texture or software |
-| `CompassGauge` | Heading indicator | Heading deg | Cardinal marks |
-| `AttitudeIndicatorGauge` | Artificial horizon + sideslip | Pitch, Roll, Slip, pitchValid | Dual-value display (slip left, pitch right) |
+| `CompassGauge` | Heading indicator | Heading deg | `inertialMode` (离体/随体), North triangle |
+| `AttitudeIndicatorGauge` | Artificial horizon + sideslip | Pitch, Roll, Slip, pitchValid | `inertialMode`, Dual-value display |
 | `TextGauge` | Numeric readout | Arbitrary text | Template width |
 | `WarningOverlay` | Warning messages | Warning state | Blink, colors |
 
