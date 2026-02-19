@@ -38,9 +38,21 @@ public class AttitudeIndicatorGauge extends AbstractHUDComponent {
     private int roundSlip;          // Rounded sideslip angle (for color logic)
     private boolean pitchValid;     // Whether pitch data is valid from API
 
+    // Coordinate system mode: false = body-fixed (pilot view), true = earth-fixed (external view)
+    private boolean inertialMode;
+
     public AttitudeIndicatorGauge() {
         this.sAttitude = "";
         this.sSideslip = "";
+        this.inertialMode = false;
+    }
+
+    /**
+     * Sets the coordinate system mode for the attitude indicator.
+     * @param inertial true for earth-fixed (inertial) mode, false for body-fixed mode
+     */
+    public void setInertialMode(boolean inertial) {
+        this.inertialMode = inertial;
     }
 
     @Override
@@ -99,8 +111,32 @@ public class AttitudeIndicatorGauge extends AbstractHUDComponent {
 
         double rollDegRad = Math.toRadians(rollDeg);
 
-        int targetX = centerX - aosX / 2;
-        int targetY = centerY - (int)(pitch / 2);
+        // Coordinate system mode determines sign conventions:
+        // Body-Fixed (inertialMode=false): Pilot's view from cockpit
+        //   - Pitch up → horizon moves DOWN (signPitch = -1)
+        //   - Roll right → horizon rotates CCW (rollSign = +1)
+        //   - Slip right → horizon moves LEFT (signSlip = +1)
+        // Earth-Fixed (inertialMode=true): External observer view
+        //   - Pitch up → horizon moves UP (signPitch = +1)
+        //   - Roll right → horizon rotates CW (rollSign = -1)
+        //   - Slip right → horizon moves RIGHT (signSlip = -1)
+        int signPitch, signSlip;
+        double rollSign;
+
+        if (inertialMode) {
+            // Earth-fixed (inertial) coordinate system
+            signPitch = +1;   // Pitch up → horizon UP
+            signSlip = +1;    // Slip right → horizon LEFT
+            rollSign = -1.0;  // Roll right → CW rotation
+        } else {
+            // Body-fixed coordinate system (default)
+            signPitch = -1;   // Pitch up → horizon DOWN
+            signSlip = -1;    // Slip right → horizon RIGHT
+            rollSign = +1.0;  // Roll right → CCW rotation
+        }
+
+        int targetX = centerX + signSlip * aosX * 3 / 2;
+        int targetY = centerY + signPitch * (int)(pitch / 2);
 
         // 绘制地面和牵引线 (Draw ground/traction line)
         g2d.setStroke(strokeThick);
@@ -113,7 +149,7 @@ public class AttitudeIndicatorGauge extends AbstractHUDComponent {
 
         // 旋转整个组合图形表示横滚角 (Rotate for roll around target)
         AffineTransform oldTransform = g2d.getTransform();
-        AffineTransform transform = AffineTransform.getRotateInstance(-rollDegRad, targetX, targetY);
+        AffineTransform transform = AffineTransform.getRotateInstance(rollSign * rollDegRad, targetX, targetY);
         g2d.setTransform(transform);
 
         // Draw Shade (Thick)

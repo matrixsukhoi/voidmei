@@ -587,6 +587,7 @@ public class MiniHUDOverlay extends BaseOverlay implements FlightDataListener {
         if (attitudeIndicatorGauge != null) {
             attitudeIndicatorGauge.setStyleContext(ctx.compassDiameter, ctx.compassRadius, ctx.compassInnerMarkRadius,
                     ctx.lineWidth, ctx.halfLine, ctx.drawFontSmall);
+            attitudeIndicatorGauge.setInertialMode(hudSettings.isAttitudeIndicatorInertialMode());
         }
         // Synchronize styles for Rows
         if (hudRows != null && hudRows.size() >= 5) {

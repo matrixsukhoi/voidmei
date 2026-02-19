@@ -45,4 +45,6 @@ public interface HUDSettings extends OverlaySettings {
     boolean isSEPLabelDisabled();
 
     boolean isAoADisabled();
+
+    boolean isAttitudeIndicatorInertialMode();
 }

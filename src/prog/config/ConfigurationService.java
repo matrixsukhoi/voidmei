@@ -709,5 +709,10 @@ public class ConfigurationService implements ConfigProvider {
         public boolean isAoADisabled() {
             return getBool("disableHUDAoA", false);
         }
+
+        @Override
+        public boolean isAttitudeIndicatorInertialMode() {
+            return getBool("attitudeIndicatorInertialMode", false);
+        }
     }
 }
