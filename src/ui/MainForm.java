@@ -48,6 +48,10 @@ public class MainForm extends WebFrame {
 
 	Color whiteBg = new Color(255, 255, 255, 255);
 
+	// Constants for dynamic height calculation
+	private static final int TAB_HEIGHT = 30;      // Height per tab (matches UIBuilder)
+	private static final int TAB_TOP_PADDING = 180; // Title bar + WebLaF margins + bottom padding
+
 	public void setFrameOpaque() {
 		this.getWebRootPaneUI().setMiddleBg(new Color(255, 255, 255));// 纯白背景以匹配水印
 		this.getWebRootPaneUI().setTopBg(new Color(255, 255, 255));
@@ -187,17 +191,18 @@ public class MainForm extends WebFrame {
 		java.awt.Component selected = tabbedPane.getSelectedComponent();
 		// 这里是特殊适配, 不能修改.
 		int targetWidth = width - 30; // weblaf会加15px+15px==30px的边框, 所以要减去30px.
+		int minHeight = calculateMinHeightForTabs();
 		if (selected instanceof ui.layout.DynamicDataPage) {
 			ui.layout.DynamicDataPage page = (ui.layout.DynamicDataPage) selected;
 			int reqH = page.getRequiredHeight();
-			if (reqH > 480) {
+			if (reqH > minHeight) {
 				setSize(targetWidth, reqH);
 			} else {
-				setSize(targetWidth, 480);
+				setSize(targetWidth, minHeight);
 			}
 		} else {
-			if (getHeight() != 480) {
-				setSize(targetWidth, 480);
+			if (getHeight() != minHeight) {
+				setSize(targetWidth, minHeight);
 			}
 		}
 
@@ -205,6 +210,17 @@ public class MainForm extends WebFrame {
 		this.getRootPane().repaint();
 		validate();
 		repaint();
+	}
+
+	/**
+	 * Calculates the minimum window height required to display all tabs in a single column.
+	 * Prevents WebTabbedPane from wrapping tabs into multiple columns when vertical space is insufficient.
+	 */
+	private int calculateMinHeightForTabs() {
+		int tabCount = tc.dynamicConfigs.isEmpty() ? 1 : tc.dynamicConfigs.size();
+		int minTabHeight = tabCount * TAB_HEIGHT + TAB_TOP_PADDING;
+		int maxAllowedHeight = Application.screenHeight - 80;
+		return Math.min(Math.max(480, minTabHeight), maxAllowedHeight);
 	}
 
 	public void loadConfig() {
@@ -271,12 +287,11 @@ public class MainForm extends WebFrame {
 		// System.setProperty("awt.useSystemAAFontSettings", "on");
 		// Application.debugPrint("mainForm初始化了");
 		width = 800;
-		height = 480;
+		tc = c;
+		height = calculateMinHeightForTabs();
 		Image I = Toolkit.getDefaultToolkit().getImage("image/form1.png");
 		I = I.getScaledInstance(32, 32, Image.SCALE_SMOOTH);
 		this.setIconImage(I);
-
-		tc = c;
 		moveCheckFlag = false;
 
 		this.setUndecorated(true);
@@ -355,6 +370,9 @@ public class MainForm extends WebFrame {
 		// tc.Preview(); // Removed - driven by UI_READY event
 		moveCheckFlag = true;
 		// event
+
+		// Force layout calculation before showing to prevent tab column flicker
+		validate();
 
 		// Show frame only after all resizing is done to prevent jitter
 		setVisible(true);
