@@ -35,6 +35,9 @@ public class Controller implements ConfigProvider {
 
 	public boolean logon = false;
 
+	/** Flag to ensure update check only runs once at startup */
+	private boolean updateCheckDone = false;
+
 	private Blkx Blkx;
 	private String loadedFMName = null;
 	private String identifiedFMName = null;
@@ -743,6 +746,12 @@ public class Controller implements ConfigProvider {
 		// Schedule UI update on EDT to prevent race conditions/NPEs
 		javax.swing.SwingUtilities.invokeLater(() -> {
 			overlayManager.refreshAllPreviews();
+			// Check for updates only once at startup, after overlays are created
+			// This ensures DialogService.suspendAlwaysOnTop() can find all overlays
+			if (!updateCheckDone) {
+				updateCheckDone = true;
+				Application.checkUpdate();
+			}
 		});
 	}
 

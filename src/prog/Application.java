@@ -577,8 +577,6 @@ public class Application {
 
 		initSystemTray();
 
-		checkUpdate();
-
 		SwingUtilities.invokeLater(new Runnable() {
 			public void run() {
 				// Install WebLaF as application L&F
