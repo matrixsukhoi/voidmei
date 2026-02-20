@@ -305,8 +305,15 @@ public class OverlayManager {
                     reinitializer.accept(instance);
                 }
             } else if (instance != null) {
-                prog.util.Logger.info("OverlayManager", "Closing preview overlay (inactive strategy): " + key);
-                close();
+                // In preview mode, don't close already-open overlays based on activation strategy.
+                // User manually opened it, so just reinitialize config without closing.
+                // This allows config import to update position/font without closing the overlay.
+                if (ctx.isPreviewMode && reinitializer != null) {
+                    reinitializer.accept(instance);
+                } else {
+                    prog.util.Logger.info("OverlayManager", "Closing preview overlay (inactive strategy): " + key);
+                    close();
+                }
             }
         }
 

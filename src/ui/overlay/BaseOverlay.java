@@ -34,20 +34,11 @@ public class BaseOverlay extends DraggableOverlay {
     protected boolean isPreview = false;
     protected Supplier<List<String>> dataSupplier;
     protected List<String> lastData = null;
-    protected String configXKey;
-    protected String configYKey;
-    protected ConfigBridge configBridge;
 
     protected Font monoFont;
 
     // Composition: pluggable renderer
     protected OverlayRenderer renderer;
-
-    public interface ConfigBridge {
-        String getConfig(String key);
-
-        void setConfig(String key, String value);
-    }
 
     public BaseOverlay() {
         super();
@@ -253,7 +244,9 @@ public class BaseOverlay extends DraggableOverlay {
                 break;
             }
         }
-        this.dispose();
+        // Removed: this.dispose()
+        // OverlayManager.close() is responsible for disposal.
+        // Calling dispose() here causes double-dispose race condition.
     }
 
     private void updateUI(List<String> currentData) {
@@ -272,15 +265,9 @@ public class BaseOverlay extends DraggableOverlay {
             preferredHeight = maxHeight;
 
         if (Math.abs(this.getHeight() - preferredHeight) > 2) {
-            int currentX = this.getLocation().x;
-            int screenHeight = Toolkit.getDefaultToolkit().getScreenSize().height;
-            // Maintain bottom anchor if not dragged
-            if (!isPreview || configBridge == null || configBridge.getConfig(configYKey) == null
-                    || configBridge.getConfig(configYKey).isEmpty()) {
-                this.setBounds(currentX, screenHeight - 10 - preferredHeight, width, preferredHeight);
-            } else {
-                this.setSize(width, preferredHeight);
-            }
+            // Only adjust size, preserve current position.
+            // Position is managed by loadPosition() and saveCurrentPosition() via OverlaySettings.
+            this.setSize(width, preferredHeight);
         }
     }
 

@@ -117,6 +117,14 @@ public class FMUnpackedDataOverlay extends BaseOverlay {
     public void reinitConfig() {
         // BaseOverlay setup
         setupFont();
+        loadPosition();  // Reload position from config (fixes import not updating position)
+
+        // Preview mode: ensure visibility follows config
+        // (Game mode visibility is controlled by FM_OVERLAY_TOGGLE hotkey)
+        if (isPreview) {
+            this.visible = true;  // Preview should always be visible when config is reloaded
+        }
+
         // Maybe reload data
         reloadFMData();
     }

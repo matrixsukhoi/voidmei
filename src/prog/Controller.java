@@ -589,7 +589,8 @@ public class Controller implements ConfigProvider {
 				}, overlay -> {
 					prog.config.OverlaySettings fmSettings = configService.getOverlaySettings("FM拆包数据");
 					((FMUnpackedDataOverlay) overlay).initPreview(this, fmSettings);
-				}, null, // No reConfig needed
+				},
+				overlay -> ((FMUnpackedDataOverlay) overlay).reinitConfig(),
 				true).withInterest("displayFmKey", "selectedFM");
 
 		// thrustdFS - requires enableFMPrint AND isJet
