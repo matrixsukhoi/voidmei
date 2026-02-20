@@ -252,6 +252,11 @@ public class Lang {
 	public static String mFactoryResetFailTitle;
 	public static String mFactoryResetFailContent;
 
+	// Version Update Dialog
+	public static String mUpdateAvailableTitle;
+	public static String mUpdateAvailableContent;
+	public static String mUpdateAvailableLinkText;
+
 	// EngineInfo
 
 	public static String eThrottle;
@@ -845,6 +850,9 @@ public class Lang {
 		mFactoryResetSuccessContent = updateLanguage("mFactoryResetSuccessContent", "配置已恢复为出厂设置，请重启程序以应用所有更改。");
 		mFactoryResetFailTitle = updateLanguage("mFactoryResetFailTitle", "恢复失败");
 		mFactoryResetFailContent = updateLanguage("mFactoryResetFailContent", "恢复出厂设置失败，请检查模板文件是否存在。");
+		mUpdateAvailableTitle = updateLanguage("mUpdateAvailableTitle", "发现新版本");
+		mUpdateAvailableContent = updateLanguage("mUpdateAvailableContent", "GitHub上已发布新版本: %s<br>当前版本: %s<br>请点击下方链接下载更新。");
+		mUpdateAvailableLinkText = updateLanguage("mUpdateAvailableLinkText", "前往下载页面");
 		mClosePreview = updateLanguage("mClosePreview", mClosePreview);
 		mMovePanel = updateLanguage("mMovePanel", mMovePanel);
 		mSimpleMode = updateLanguage("mSimpleMode", mSimpleMode);

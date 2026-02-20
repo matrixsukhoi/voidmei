@@ -23,6 +23,7 @@ import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
+import java.awt.Desktop;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -32,14 +33,19 @@ import java.io.PrintStream;
 import java.lang.reflect.Field;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.net.URI;
 import java.nio.charset.Charset;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import javax.swing.JEditorPane;
 import javax.swing.SwingUtilities;
+import javax.swing.event.HyperlinkEvent;
 
+import ui.util.DialogService;
+import com.alee.laf.optionpane.WebOptionPane;
 import com.alee.global.StyleConstants;
 import com.alee.laf.WebLookAndFeel;
 import com.github.kwhat.jnativehook.GlobalScreen;
@@ -373,6 +379,40 @@ public class Application {
 		}
 	}
 
+	private static final String RELEASE_URL = "https://github.com/matrixsukhoi/voidmei/releases";
+
+	/**
+	 * Shows the version update dialog with a clickable hyperlink.
+	 * Must be called on the EDT.
+	 */
+	private static void showUpdateDialog(String latestVersion) {
+		String messageText = String.format(Lang.mUpdateAvailableContent, latestVersion, version);
+		String html = "<html><body style='font-family: " + defaultFontName + "; font-size: " + defaultFontsize + "pt;'>"
+				+ messageText
+				+ "<br><a href=\"" + RELEASE_URL + "\">" + Lang.mUpdateAvailableLinkText + "</a>"
+				+ "</body></html>";
+
+		JEditorPane editorPane = new JEditorPane("text/html", html);
+		editorPane.setEditable(false);
+		editorPane.setOpaque(false);
+		editorPane.addHyperlinkListener(e -> {
+			if (e.getEventType() == HyperlinkEvent.EventType.ACTIVATED) {
+				try {
+					Desktop.getDesktop().browse(new URI(RELEASE_URL));
+				} catch (Exception ex) {
+					prog.util.Logger.warn("Update", "Failed to open browser: " + ex.getMessage());
+				}
+			}
+		});
+
+		DialogService.showMessageDialog(
+			null,
+			editorPane,
+			Lang.mUpdateAvailableTitle,
+			WebOptionPane.INFORMATION_MESSAGE
+		);
+	}
+
 	public static void checkUpdate() {
 		HttpHelper httpClient = new HttpHelper();
 		try {
@@ -393,8 +433,7 @@ public class Application {
 					String latestVersion = m.group(0);
 					prog.util.Logger.info("Update", "Latest remote version: " + latestVersion);
 					if (Double.parseDouble(version) < Double.parseDouble(latestVersion)) {
-						String notice = "A newer version is released on github, version: " + latestVersion;
-						ui.util.NotificationService.showAbout(String.format(notice), 5000);
+						SwingUtilities.invokeLater(() -> showUpdateDialog(latestVersion));
 					}
 				}
 				return null;
@@ -427,8 +466,7 @@ public class Application {
 					String latestVersion = m.group(0);
 					prog.util.Logger.info("Update", "Latest remote version: " + latestVersion);
 					if (Double.parseDouble(version) < Double.parseDouble(latestVersion)) {
-						String notice = "A newer version is released on github, version: " + latestVersion;
-						ui.util.NotificationService.showAbout(String.format(notice), 5000);
+						SwingUtilities.invokeLater(() -> showUpdateDialog(latestVersion));
 					}
 				}
 				return null;
