@@ -581,7 +581,7 @@ public class Application {
 			public void run() {
 				// Install WebLaF as application L&F
 				initWebLaf();
-				ctr = new Controller();
+				ctr = new Controller(true);  // Initial launch - respect autoStartGameMode
 
 				if (System.getProperty("java.version").indexOf("1.8") == -1) {
 					ui.util.NotificationService.showAbout(

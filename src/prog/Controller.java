@@ -378,7 +378,20 @@ public class Controller implements ConfigProvider {
 			showStatus = Boolean.parseBoolean(getconfig("enableStatusBar"));
 	}
 
+	/**
+	 * Default constructor - used when restoring MainForm from tray icon.
+	 * Does NOT check autoStartGameMode, always shows MainForm.
+	 */
 	public Controller() {
+		this(false);
+	}
+
+	/**
+	 * Constructor with initial launch flag.
+	 * @param isInitialLaunch true if this is the application's initial startup (from main()),
+	 *                        false if restoring from tray icon click
+	 */
+	public Controller(boolean isInitialLaunch) {
 		configService = new ConfigurationService();
 		configService.initConfig();// 装载设置文件
 		// 接收频率
@@ -461,11 +474,30 @@ public class Controller implements ConfigProvider {
 		// 状态0，初始化主界面和设置文件
 		// Application.debugPrint("状态0，初始化主界面");
 
-		M = new MainForm(this);
-		M.startRepaintTimer();
+		// Check for auto-start game mode (only on initial launch, not tray restore)
+		boolean autoStart = false;
+		if (isInitialLaunch) {
+			String autoStartStr = getconfig("autoStartGameMode");
+			if (autoStartStr != null && !autoStartStr.isEmpty()) {
+				autoStart = Boolean.parseBoolean(autoStartStr);
+			}
+		}
 
-		// Check for live aircraft on startup (lazy fallback - only loads if live)
-		ensureBlkxLoaded();
+		if (autoStart) {
+			prog.util.Logger.info("Controller", "Auto-start enabled, entering game mode directly...");
+			ensureBlkxLoaded();
+			start();
+			// Check for updates (normally happens in Preview mode via UI_READY event)
+			if (!updateCheckDone) {
+				updateCheckDone = true;
+				Application.checkUpdate();
+			}
+		} else {
+			M = new MainForm(this);
+			M.startRepaintTimer();
+			// Check for live aircraft on startup (lazy fallback - only loads if live)
+			ensureBlkxLoaded();
+		}
 
 		// 初始化ROBOT
 		// try {
@@ -483,9 +515,12 @@ public class Controller implements ConfigProvider {
 			// Application.debugPrint(freqService);
 			// 状态1，释放设置窗口传参初始化后台
 			// Application.debugPrint("状态1，传参初始化Service");
-			M.stopRepaintTimer();
-			M.dispose();
-			M = null;
+			// Dispose MainForm if exists (may not exist in auto-start mode)
+			if (M != null) {
+				M.stopRepaintTimer();
+				M.dispose();
+				M = null;
+			}
 
 			// Suggest GC after disposing the main settings window (significant memory
 			// release)
