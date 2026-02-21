@@ -439,9 +439,10 @@ public class Controller implements ConfigProvider {
 
 				// Offload to background thread to avoid blocking UI/Animation
 				new Thread(() -> {
+					// Always reload global config first to update Application.colorXXX fields
+					loadFromConfig();
 					if (isResetCompleted) {
-						// Global reset: refresh all overlays and reload global config
-						loadFromConfig();
+						// Global reset: refresh all overlays
 						overlayManager.refreshAllPreviews();
 					} else if (key instanceof String) {
 						overlayManager.refreshPreviews((String) key);

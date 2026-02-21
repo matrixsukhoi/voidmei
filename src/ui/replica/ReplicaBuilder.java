@@ -300,16 +300,39 @@ public class ReplicaBuilder {
         style.decorateLabel(label);
         panel.add(label, BorderLayout.WEST);
 
-        WebTextField trailing = new WebTextField(colorText, 15);
-        trailing.setMargin(0, 0, 0, 2);
-        trailing.setLeadingComponent(
-                new com.alee.extended.image.WebImage(com.alee.utils.ImageUtils.createColorIcon(initialColor)));
-        trailing.setShadeWidth(2);
+        // Controls container: [Swatch][TextField][▼]
+        WebPanel controls = new WebPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 2, 0));
+        controls.setOpaque(false);
 
-        panel.add(trailing, BorderLayout.CENTER);
+        // Clickable color swatch (24x24)
+        WebPanel swatch = new WebPanel();
+        swatch.setPreferredSize(new Dimension(24, 24));
+        swatch.setBackground(initialColor);
+        swatch.setBorder(BorderFactory.createLineBorder(Color.GRAY, 1));
+        swatch.setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR));
+        controls.add(swatch);
+
+        // Text field (shows hex format)
+        WebTextField trailing = new WebTextField(colorText, 12);
+        trailing.setMargin(0, 2, 0, 2);
+        trailing.setShadeWidth(2);
+        controls.add(trailing);
+
+        // Dropdown button (▼)
+        WebLabel dropdown = new WebLabel("▼");
+        dropdown.setForeground(PinkStyle.COLOR_PRIMARY);
+        dropdown.setFont(layerFont(10));
+        dropdown.setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR));
+        controls.add(dropdown);
+
+        panel.add(controls, BorderLayout.CENTER);
 
         // Critical: Enable ResponsiveGrid alignment
         panel.putClientProperty("alignLabel", label);
+        // Store references for retrieval
+        panel.putClientProperty("colorSwatch", swatch);
+        panel.putClientProperty("colorDropdown", dropdown);
+        panel.putClientProperty("colorField", trailing);
 
         return panel;
     }
@@ -330,10 +353,37 @@ public class ReplicaBuilder {
      * Extracts the WebTextField from a panel created by createColorField.
      */
     public static WebTextField getColorField(WebPanel itemPanel) {
+        Object field = itemPanel.getClientProperty("colorField");
+        if (field instanceof WebTextField) {
+            return (WebTextField) field;
+        }
+        // Fallback: search components (for backward compatibility)
         for (java.awt.Component c : itemPanel.getComponents()) {
             if (c instanceof WebTextField) {
                 return (WebTextField) c;
             }
+        }
+        return null;
+    }
+
+    /**
+     * Extracts the color swatch panel from a panel created by createColorField.
+     */
+    public static WebPanel getColorSwatch(WebPanel itemPanel) {
+        Object swatch = itemPanel.getClientProperty("colorSwatch");
+        if (swatch instanceof WebPanel) {
+            return (WebPanel) swatch;
+        }
+        return null;
+    }
+
+    /**
+     * Extracts the dropdown button from a panel created by createColorField.
+     */
+    public static WebLabel getColorDropdown(WebPanel itemPanel) {
+        Object dropdown = itemPanel.getClientProperty("colorDropdown");
+        if (dropdown instanceof WebLabel) {
+            return (WebLabel) dropdown;
         }
         return null;
     }
