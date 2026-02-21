@@ -16,7 +16,6 @@ import prog.event.UIStateEvents;
  */
 public class ConfigurationService implements ConfigProvider {
     private java.util.List<ConfigLoader.GroupConfig> layoutConfigs;
-    private String originalContent = null;  // For format-preserving saves
     // private Timer saveTimer; // Removed
     // private final long SAVE_DELAY = 2000; // Removed
 
@@ -39,21 +38,14 @@ public class ConfigurationService implements ConfigProvider {
     }
 
     public void loadLayout(String path) {
-        String[] contentHolder = new String[1];
-        layoutConfigs = ConfigLoader.loadConfigWithContent(path, contentHolder);
-        originalContent = contentHolder[0];
+        layoutConfigs = ConfigLoader.loadConfig(path);
         prog.util.Logger.info("ConfigurationService", "Loaded layout config with " + layoutConfigs.size() + " groups.");
     }
 
     public void saveLayoutConfig() {
         if (layoutConfigs != null) {
             prog.util.Logger.info("ConfigurationService", "ACTION: ConfigurationService: Saving to " + ConfigManager.getUserConfigPath());
-            // Use format-preserving save if we have original content
-            if (originalContent != null) {
-                ConfigLoader.saveConfigPreserving(ConfigManager.getUserConfigPath(), layoutConfigs, originalContent);
-            } else {
-                ConfigLoader.saveConfig(ConfigManager.getUserConfigPath(), layoutConfigs);
-            }
+            ConfigLoader.saveConfig(ConfigManager.getUserConfigPath(), layoutConfigs);
         }
     }
 
@@ -66,10 +58,8 @@ public class ConfigurationService implements ConfigProvider {
     public boolean importConfig(String sourcePath) {
         boolean success = ConfigManager.importConfig(sourcePath);
         if (success) {
-            // Reload configuration with content for format-preserving saves
-            String[] contentHolder = new String[1];
-            layoutConfigs = ConfigLoader.loadConfigWithContent(ConfigManager.getUserConfigPath(), contentHolder);
-            originalContent = contentHolder[0];
+            // Reload configuration
+            layoutConfigs = ConfigLoader.loadConfig(ConfigManager.getUserConfigPath());
             // Notify all subscribers about the change
             UIStateBus.getInstance().publish(UIStateEvents.CONFIG_CHANGED,
                     "ConfigurationService", UIStateEvents.ACTION_RESET_COMPLETED);
@@ -85,10 +75,8 @@ public class ConfigurationService implements ConfigProvider {
     public boolean resetToFactory() {
         boolean success = ConfigManager.resetToFactory();
         if (success) {
-            // Reload configuration with content for format-preserving saves
-            String[] contentHolder = new String[1];
-            layoutConfigs = ConfigLoader.loadConfigWithContent(ConfigManager.getUserConfigPath(), contentHolder);
-            originalContent = contentHolder[0];
+            // Reload configuration
+            layoutConfigs = ConfigLoader.loadConfig(ConfigManager.getUserConfigPath());
             // Notify all subscribers about the change
             UIStateBus.getInstance().publish(UIStateEvents.CONFIG_CHANGED,
                     "ConfigurationService", UIStateEvents.ACTION_RESET_COMPLETED);
@@ -296,7 +284,6 @@ public class ConfigurationService implements ConfigProvider {
                     valToStore = String.valueOf(!Boolean.parseBoolean(value));
                 }
 
-                Object oldValue = row.value;
                 if (row.value instanceof Boolean) {
                     row.value = Boolean.parseBoolean(valToStore);
                 } else if (row.value instanceof Integer) {
@@ -308,12 +295,6 @@ public class ConfigurationService implements ConfigProvider {
                 } else {
                     row.value = valToStore;
                 }
-
-                // Mark as modified if value actually changed
-                if (!java.util.Objects.equals(oldValue, row.value)) {
-                    row.modified = true;
-                }
-
                 UIStateBus.getInstance().publish(UIStateEvents.CONFIG_CHANGED, "ConfigurationService", key);
             }
             if (row.children != null && !row.children.isEmpty()) {

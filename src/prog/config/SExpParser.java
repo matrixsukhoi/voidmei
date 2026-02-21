@@ -2,6 +2,8 @@ package prog.config;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * A zero-dependency S-Expression parser.
@@ -29,8 +31,6 @@ public class SExpParser {
 
     public static class SList implements SExp {
         public List<SExp> children = new ArrayList<>();
-        public int sourceStart = -1;  // Position of '(' in source
-        public int sourceEnd = -1;    // Position after ')' in source
 
         public void add(SExp exp) {
             children.add(exp);
@@ -72,8 +72,6 @@ public class SExpParser {
     public static class SAtom implements SExp {
         public String value;
         public AtomType type;
-        public int sourceStart = -1;  // Position of first char in source
-        public int sourceEnd = -1;    // Position after last char in source
 
         public enum AtomType {
             STRING, NUMBER, BOOLEAN, KEYWORD, SYMBOL
@@ -82,13 +80,6 @@ public class SExpParser {
         public SAtom(String value, AtomType type) {
             this.value = value;
             this.type = type;
-        }
-
-        public SAtom(String value, AtomType type, int sourceStart, int sourceEnd) {
-            this.value = value;
-            this.type = type;
-            this.sourceStart = sourceStart;
-            this.sourceEnd = sourceEnd;
         }
 
         public String getString() {
@@ -152,14 +143,10 @@ public class SExpParser {
     private static class Token {
         TokenType type;
         String value;
-        int startPos;  // Position in source text
-        int endPos;    // Position after token in source text
 
-        Token(TokenType type, String value, int startPos, int endPos) {
+        Token(TokenType type, String value) {
             this.type = type;
             this.value = value;
-            this.startPos = startPos;
-            this.endPos = endPos;
         }
     }
 
@@ -190,20 +177,19 @@ public class SExpParser {
             }
 
             if (c == '(') {
-                tokens.add(new Token(TokenType.LPAREN, "(", i, i + 1));
+                tokens.add(new Token(TokenType.LPAREN, "("));
                 i++;
                 continue;
             }
 
             if (c == ')') {
-                tokens.add(new Token(TokenType.RPAREN, ")", i, i + 1));
+                tokens.add(new Token(TokenType.RPAREN, ")"));
                 i++;
                 continue;
             }
 
             if (c == '"') {
                 // String literal
-                int startPos = i;
                 StringBuilder sb = new StringBuilder();
                 i++; // skip open quote
                 while (i < len) {
@@ -221,12 +207,11 @@ public class SExpParser {
                     }
                     i++;
                 }
-                tokens.add(new Token(TokenType.STRING, sb.toString(), startPos, i));
+                tokens.add(new Token(TokenType.STRING, sb.toString()));
                 continue;
             }
 
             // Atom (Keyword, Number, Boolean, Symbol)
-            int startPos = i;
             StringBuilder sb = new StringBuilder();
             while (i < len) {
                 char ac = input.charAt(i);
@@ -240,16 +225,16 @@ public class SExpParser {
                 continue;
 
             if (atomStr.startsWith(":")) {
-                tokens.add(new Token(TokenType.KEYWORD, atomStr, startPos, i));
+                tokens.add(new Token(TokenType.KEYWORD, atomStr));
             } else if (atomStr.equals("true") || atomStr.equals("false")) {
-                tokens.add(new Token(TokenType.BOOLEAN, atomStr, startPos, i));
+                tokens.add(new Token(TokenType.BOOLEAN, atomStr));
             } else if (isNumber(atomStr)) {
-                tokens.add(new Token(TokenType.NUMBER, atomStr, startPos, i));
+                tokens.add(new Token(TokenType.NUMBER, atomStr));
             } else {
-                tokens.add(new Token(TokenType.SYMBOL, atomStr, startPos, i));
+                tokens.add(new Token(TokenType.SYMBOL, atomStr));
             }
         }
-        tokens.add(new Token(TokenType.EOF, "", len, len));
+        tokens.add(new Token(TokenType.EOF, ""));
         return tokens;
     }
 
@@ -280,7 +265,7 @@ public class SExpParser {
 
     private Token peek() {
         if (pos >= tokens.size())
-            return new Token(TokenType.EOF, "", -1, -1);
+            return new Token(TokenType.EOF, "");
         return tokens.get(pos);
     }
 
@@ -300,14 +285,12 @@ public class SExpParser {
     }
 
     private SList parseList() {
-        Token lparen = consume(); // (
+        consume(); // (
         SList list = new SList();
-        list.sourceStart = lparen.startPos;
         while (peek().type != TokenType.RPAREN && peek().type != TokenType.EOF) {
             list.add(parseExpression());
         }
-        Token rparen = consume(); // )
-        list.sourceEnd = rparen.endPos;
+        consume(); // )
         return list;
     }
 
@@ -331,6 +314,6 @@ public class SExpParser {
                 type = SAtom.AtomType.SYMBOL;
                 break;
         }
-        return new SAtom(t.value, type, t.startPos, t.endPos);
+        return new SAtom(t.value, type);
     }
 }
