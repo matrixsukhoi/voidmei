@@ -31,6 +31,7 @@ public class AttitudeOverlay extends DraggableOverlay implements prog.event.Flig
 	}
 
 	public volatile boolean doit = true;
+	private boolean isPreview = false;
 	private Controller xc;
 	private Service xs;
 	private int lx;
@@ -110,6 +111,7 @@ public class AttitudeOverlay extends DraggableOverlay implements prog.event.Flig
 	}
 
 	public void initPreview(Controller c, OverlaySettings settings) {
+		isPreview = true;
 		init(c, null, settings);
 		applyPreviewStyle();
 		setupDragListeners();
@@ -283,7 +285,11 @@ public class AttitudeOverlay extends DraggableOverlay implements prog.event.Flig
 			setShadeWidth(0);
 		}
 
-		setFrameOpaque();
+		if (isPreview) {
+			applyPreviewStyle();
+		} else {
+			setFrameOpaque();
+		}
 
 		// 旋转中心需要更新
 		pC = new Point(xWidth / 2, xHeight / 2);
