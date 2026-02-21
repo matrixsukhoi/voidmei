@@ -66,10 +66,14 @@ public class ConfigManager {
         // Scenario: First run - user config doesn't exist
         if (!userFile.exists()) {
             Logger.info("ConfigManager", "First run detected, copying template to user config");
-            List<GroupConfig> configs = ConfigLoader.loadConfig(TEMPLATE_PATH);
-            ConfigLoader.saveConfig(USER_PATH, configs);
+            // Direct file copy to preserve original formatting exactly
+            try {
+                Files.copy(templateFile.toPath(), userFile.toPath());
+            } catch (IOException e) {
+                Logger.error("ConfigManager", "Failed to copy template: " + e.getMessage());
+            }
             UIStateStorage.saveTemplateHash(currentTemplateHash);
-            return configs;
+            return ConfigLoader.loadConfig(USER_PATH);
         }
 
         // Try to load user config
@@ -96,12 +100,15 @@ public class ConfigManager {
         Logger.info("ConfigManager", "Template changed, merging configs");
         createBackup();
 
-        List<GroupConfig> templateConfigs = ConfigLoader.loadConfig(TEMPLATE_PATH);
+        // Load template with content for source text preservation
+        String[] templateContentHolder = new String[1];
+        List<GroupConfig> templateConfigs = ConfigLoader.loadConfigWithContent(TEMPLATE_PATH, templateContentHolder);
 
         MergeReport report = new MergeReport();
         List<GroupConfig> merged = mergeConfigs(templateConfigs, userConfigs, report);
 
-        ConfigLoader.saveConfig(USER_PATH, merged);
+        // Use format-preserving save with template content (since merged structure comes from template)
+        ConfigLoader.saveConfigPreserving(USER_PATH, merged, templateContentHolder[0]);
         UIStateStorage.saveTemplateHash(currentTemplateHash);
 
         if (report.hasChanges()) {
@@ -292,9 +299,31 @@ public class ConfigManager {
         merged.groupColumns = template.groupColumns;
         merged.fgColor = template.fgColor;
         merged.defaultValue = template.defaultValue;
+        merged.unitSource = template.unitSource;
+        merged.precisionSource = template.precisionSource;
+
+        // Preserve hasExplicitDefault from template
+        merged.hasExplicitDefault = template.hasExplicitDefault;
 
         // User-preserved fields
         merged.value = user.value;
+
+        // Determine if user value differs from template default
+        // If same as template default, we can use template's source text
+        boolean valueMatchesDefault = java.util.Objects.equals(user.value, template.defaultValue)
+            || java.util.Objects.equals(user.value, template.value);
+
+        if (valueMatchesDefault && template.sourceText != null) {
+            // Value unchanged from template - preserve template's source text
+            merged.sourceText = template.sourceText;
+            merged.sourceStart = template.sourceStart;
+            merged.sourceEnd = template.sourceEnd;
+            merged.modified = false;
+        } else {
+            // User has customized this value - needs regeneration
+            merged.sourceText = null;
+            merged.modified = true;
+        }
 
         // Merge children recursively (pass report through for nested items)
         if (template.children != null && !template.children.isEmpty()) {
@@ -347,14 +376,15 @@ public class ConfigManager {
                 return false;
             }
 
-            // Load template for merging
-            List<GroupConfig> templateConfigs = ConfigLoader.loadConfig(TEMPLATE_PATH);
+            // Load template for merging (with content for format preservation)
+            String[] templateContentHolder = new String[1];
+            List<GroupConfig> templateConfigs = ConfigLoader.loadConfigWithContent(TEMPLATE_PATH, templateContentHolder);
 
             // Merge imported config with template (to ensure structure compatibility)
             List<GroupConfig> merged = mergeConfigs(templateConfigs, importedConfigs);
 
-            // Save merged config
-            ConfigLoader.saveConfig(USER_PATH, merged);
+            // Save merged config with format preservation
+            ConfigLoader.saveConfigPreserving(USER_PATH, merged, templateContentHolder[0]);
             Logger.info("ConfigManager", "Config imported successfully from: " + sourcePath);
             return true;
         } catch (Exception e) {
