@@ -36,7 +36,7 @@ public class Controller implements ConfigProvider {
 	public boolean logon = false;
 
 	/** Flag to ensure update check only runs once at startup */
-	private boolean updateCheckDone = false;
+	private static boolean updateCheckDone = false;
 
 	private Blkx Blkx;
 	private String loadedFMName = null;
