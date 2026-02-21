@@ -14,6 +14,7 @@ The `prog.util` package provides **pure function utilities** for physics calcula
 | `PistonPowerModel.java` | Piston engine power curves: altitude/speed → power calculation |
 | `PowerCurveHelper.java` | Power curve shape determination (hasConstRpm, ceilingIsUseful, etc.) |
 | `FMPowerExtractor.java` | FM file → CompressorStageParams extraction (with fuel modifications) |
+| `ColorHelper.java` | Color parsing/formatting: hex (#RRGGBB) ↔ decimal (R,G,B,A) conversion |
 | `CalcHelper.java` | General math utilities |
 | `HttpHelper.java` | HTTP request utilities for game API |
 | `Logger.java` | Application logging |
@@ -235,6 +236,39 @@ double vne = interpSweepLevel(vwing, sweepLevels,
     level -> level.sweep,
     defaultVne);
 ```
+
+---
+
+### ColorHelper
+
+Color parsing and formatting utility supporting both hex and decimal formats.
+
+```java
+import static prog.util.ColorHelper.*;
+
+// Parse any format (auto-detects hex vs decimal)
+Color c1 = parseColor("#FF5500AA", Color.WHITE);       // Hex RGBA
+Color c2 = parseColor("#FF5500", Color.WHITE);          // Hex RGB (alpha=255)
+Color c3 = parseColor("255, 85, 0, 170", Color.WHITE);  // Decimal RGBA
+Color c4 = parseColor("255, 85, 0", Color.WHITE);       // Decimal RGB (alpha=255)
+
+// Format for display (hex - user-friendly)
+String hex = toHexString(color, true);   // "#FF5500AA" (with alpha)
+String hex = toHexString(color, false);  // "#FF5500" (no alpha)
+
+// Format for storage (decimal - backward compatible with ui_layout.cfg)
+String dec = toDecimalString(color);     // "255, 85, 0, 170"
+
+// Detect format type
+boolean isHex = isHexFormat("#FF5500");  // true
+boolean isHex = isHexFormat("255,0,0");  // false
+```
+
+**Design Notes:**
+- Config storage uses decimal format for backward compatibility
+- UI display uses hex format for easier manual editing
+- `parseColor()` accepts both formats, enabling copy-paste from any source
+- Invalid inputs return the provided default color (never throws)
 
 ---
 

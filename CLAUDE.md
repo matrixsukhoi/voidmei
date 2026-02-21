@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 VoidMei is a Java Swing telemetry overlay for War Thunder. It reads real-time flight data from the game's local HTTP API (port 8111) and displays HUD overlays with flight metrics, warnings, and aircraft performance data.
 
-**Project Statistics:** ~155 Java files, ~34,000 lines of code
+**Project Statistics:** ~162 Java files, ~34,000 lines of code
 
 ## Build Commands
 
@@ -45,7 +45,7 @@ python3 script/mock_8111.py
 
 ### Core Packages (`src/`)
 
-- **`prog/`** - Application kernel (11 files + 7 subpackages)
+- **`prog/`** - Application kernel (12 files + 7 subpackages)
   - `Application.java` - Entry point, global config, fonts, logging
   - `Service.java` - Background HTTP polling thread (~10Hz), data calculation (~55KB, largest file)
   - `Controller.java` - Lifecycle manager, overlay coordination (~24KB)
@@ -53,10 +53,11 @@ python3 script/mock_8111.py
   - `OverlayContext.java` - Context object for overlay rendering
   - `ControllerState.java` - State machine for controller lifecycle
   - `ActivationStrategy.java` - Conditional overlay activation logic
+  - `AlwaysOnTopCoordinator.java` - Singleton z-order manager for overlay/dialog coordination
   - `event/` - Event buses (`UIStateBus`, `FlightDataBus`, `FlightDataEvent`, `EventPayload`, `FlightDataListener`)
   - `config/` - Configuration system (`ConfigurationService`, `ConfigLoader`, `SExpParser`, `HUDSettings`, `OverlaySettings`)
   - `audio/` - Voice warning system (`VoiceWarning`, `VoiceResourceManager`)
-  - `util/` - Utilities (`HttpHelper`, `Logger`, `CalcHelper`, `StringHelper`, `FileUtils`, `FormulaEvaluator`, `PhysicsConstants`, `Interpolation`, `AtmosphereModel`, `PistonPowerModel`)
+  - `util/` - Utilities (`HttpHelper`, `Logger`, `CalcHelper`, `StringHelper`, `FileUtils`, `FormulaEvaluator`, `PhysicsConstants`, `Interpolation`, `AtmosphereModel`, `PistonPowerModel`, `ColorHelper`)
   - `hotkey/` - Global keyboard hooks (`HotkeyManager`)
   - `i18n/` - Internationalization (`Lang`)
   - `model/` - Data models (`InfoList`)
@@ -88,11 +89,12 @@ python3 script/mock_8111.py
   - `overlay/logic/` - Pure calculation logic (`HUDCalculator`)
   - `overlay/model/` - HUD data models (`HUDData`)
   - `layout/` - Dynamic UI generation from `ui_layout.cfg` (`UIBuilder`, `ModernHUDLayoutEngine`, `HUDLayoutNode`)
-  - `layout/renderer/` - Config panel type renderers (15 types):
+  - `layout/renderer/` - Config panel type renderers (16 types):
     - `SwitchRowRenderer`, `SwitchInvRowRenderer` - Boolean toggles
     - `SliderRowRenderer` - Numeric sliders
     - `ComboRowRenderer` - Dropdown selectors
-    - `ColorRowRenderer` - Color pickers
+    - `ColorRowRenderer` - Color pickers (hex/decimal input with graphical picker)
+    - `ColorPickerPopup` - HSB palette popup with alpha slider and hex input
     - `TextRowRenderer` - Text inputs
     - `ButtonRowRenderer` - Action buttons
     - `HotkeyRowRenderer` - Keyboard shortcut binding
@@ -169,6 +171,35 @@ voidmei/
 - **EDT Rule**: Swing components must be updated via `SwingUtilities.invokeLater`
 - **OverlayManager**: Methods (`open`, `close`, `refreshPreview`) must be `synchronized` to prevent race conditions from rapid config change events
 - Event subscribers may receive events on background threads - dispatch UI updates to EDT
+
+### Overlay Z-Order (AlwaysOnTopCoordinator)
+
+Use `AlwaysOnTopCoordinator` to manage `alwaysOnTop` state for all overlay windows. This coordinator solves the timing problem where dialogs triggered before overlays exist would be covered by later-created overlays.
+
+```java
+import prog.AlwaysOnTopCoordinator;
+
+// In overlay window initialization (DrawFrame, DrawFrameSimpl, etc.)
+AlwaysOnTopCoordinator.getInstance().registerOverlay(this);
+
+// In overlay dispose()
+AlwaysOnTopCoordinator.getInstance().unregisterOverlay(this);
+
+// Before showing any dialog (DialogService, JColorChooser, etc.)
+AlwaysOnTopCoordinator.getInstance().dialogWillShow();
+try {
+    dialog.setVisible(true);  // Blocks until dialog closes
+} finally {
+    AlwaysOnTopCoordinator.getInstance().dialogDidDismiss();
+}
+```
+
+**Key behaviors:**
+- `registerOverlay()` - Adds window to tracking; only sets `alwaysOnTop(true)` if no pending dialogs
+- `dialogWillShow()` - Suspends all overlays' `alwaysOnTop` to let dialog appear on top
+- `dialogDidDismiss()` - Restores `alwaysOnTop` when dialog count reaches zero
+- Uses `WeakReference` to avoid memory leaks from disposed windows
+- Thread-safe via `AtomicInteger` (dialog count) and `CopyOnWriteArrayList` (overlay list)
 
 ### Performance
 
@@ -276,6 +307,33 @@ double optPower = optimalPowerAdvanced(stages, 5000, false, 0, false, 15.0);
 
 > **Note:** `PistonPowerModel` is a calculation engine only. `CompressorStageParams` must be populated from FM file data externally. See [`src/prog/util/CLAUDE.md`](src/prog/util/CLAUDE.md) for details.
 
+### Color Utilities
+
+Use `prog.util.ColorHelper` for parsing and formatting colors in both hex and decimal formats:
+
+```java
+import static prog.util.ColorHelper.*;
+
+// Parse any format (hex or decimal)
+Color c1 = parseColor("#FF5500AA", Color.WHITE);      // Hex with alpha
+Color c2 = parseColor("255, 85, 0, 170", Color.WHITE); // Decimal RGBA
+Color c3 = parseColor("#FF5500", Color.WHITE);         // Hex without alpha (defaults to 255)
+
+// Format for display (hex)
+String hex = toHexString(c1, true);   // "#FF5500AA"
+String hexNoAlpha = toHexString(c1, false);  // "#FF5500"
+
+// Format for config storage (decimal, backward compatible)
+String dec = toDecimalString(c1);     // "255, 85, 0, 170"
+
+// Detect format
+boolean isHex = isHexFormat("#FF5500");  // true
+```
+
+**Usage pattern in `ColorRowRenderer`:**
+- Display: hex format in text field for user-friendly editing
+- Storage: decimal format in config for backward compatibility with existing `ui_layout.cfg` values
+
 ### Config Renderers
 
 Implement `RowRenderer` pattern: construct a `WebPanel` and bind to `ConfigService`.
@@ -308,13 +366,17 @@ Controller (Lifecycle Coordinator)
     │       ├→ AttitudeOverlay, FlightInfoOverlay, ...
     │       └→ BaseOverlay → ZebraListRenderer
     │
+    ├→ AlwaysOnTopCoordinator (Singleton z-order manager)
+    │       ├← DrawFrame, DrawFrameSimpl (overlay windows)
+    │       └← DialogService (dialog lifecycle hooks)
+    │
     ├→ ConfigurationService
     │       ├→ HUDSettings (interface)
     │       ├→ OverlaySettings (interface)
     │       └→ ConfigLoader → SExpParser → ui_layout.cfg
     │
     ├→ MainForm (Settings UI)
-    │       └→ UIBuilder → RowRenderer[]
+    │       └→ UIBuilder → RowRenderer[] → ColorPickerPopup
     │
     └→ VoiceWarning (Audio alerts)
 ```
