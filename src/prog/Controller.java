@@ -35,9 +35,6 @@ public class Controller implements ConfigProvider {
 
 	public boolean logon = false;
 
-	/** Flag to ensure update check only runs once at startup */
-	private static boolean updateCheckDone = false;
-
 	private Blkx Blkx;
 	private String loadedFMName = null;
 	private String identifiedFMName = null;
@@ -488,11 +485,6 @@ public class Controller implements ConfigProvider {
 			prog.util.Logger.info("Controller", "Auto-start enabled, entering game mode directly...");
 			ensureBlkxLoaded();
 			start();
-			// Check for updates (normally happens in Preview mode via UI_READY event)
-			if (!updateCheckDone) {
-				updateCheckDone = true;
-				Application.checkUpdate();
-			}
 		} else {
 			M = new MainForm(this);
 			M.startRepaintTimer();
@@ -782,12 +774,6 @@ public class Controller implements ConfigProvider {
 		// Schedule UI update on EDT to prevent race conditions/NPEs
 		javax.swing.SwingUtilities.invokeLater(() -> {
 			overlayManager.refreshAllPreviews();
-			// Check for updates only once at startup, after overlays are created
-			// This ensures DialogService.suspendAlwaysOnTop() can find all overlays
-			if (!updateCheckDone) {
-				updateCheckDone = true;
-				Application.checkUpdate();
-			}
 		});
 	}
 

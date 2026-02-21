@@ -13,6 +13,7 @@ import com.alee.laf.label.WebLabel;
 import com.alee.laf.panel.WebPanel;
 import com.alee.laf.rootpane.WebFrame;
 
+import prog.AlwaysOnTopCoordinator;
 import prog.Application;
 import prog.Controller;
 import prog.i18n.Lang;
@@ -113,7 +114,7 @@ public class StatusBar extends WebFrame implements Runnable {
 		setShowResizeCorner(false);
 		setDefaultCloseOperation(3);
 		setTitle(Lang.sTitle);
-		setAlwaysOnTop(true);
+		AlwaysOnTopCoordinator.getInstance().registerOverlay(this);
 
 		setFocusable(false);
 		setFocusableWindowState(false);// 取消窗口焦点

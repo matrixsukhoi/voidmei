@@ -583,6 +583,11 @@ public class Application {
 				initWebLaf();
 				ctr = new Controller(true);  // Initial launch - respect autoStartGameMode
 
+				// Check for updates after Controller creation.
+				// AlwaysOnTopCoordinator handles dialog/overlay z-order coordination,
+				// so update dialogs will properly suspend any overlays that exist.
+				checkUpdate();
+
 				if (System.getProperty("java.version").indexOf("1.8") == -1) {
 					ui.util.NotificationService.showAbout(
 							String.format("Detected current Java version %s. Java 1.8 is needed.",

@@ -1,5 +1,4 @@
 package prog.model;
-import prog.Application;
 
 import java.awt.Color;
 import java.awt.Font;
@@ -14,6 +13,8 @@ import com.alee.extended.panel.WebComponentPanel;
 import com.alee.laf.panel.WebPanel;
 import com.alee.laf.rootpane.WebFrame;
 
+import prog.AlwaysOnTopCoordinator;
+import prog.Application;
 import prog.Controller;
 import prog.Service;
 
@@ -115,7 +116,7 @@ public class InfoList extends WebFrame implements Runnable {
         setShowWindowButtons(false);
         setShowTitleComponent(false);
         setShowResizeCorner(true);
-        setAlwaysOnTop(true);
+        AlwaysOnTopCoordinator.getInstance().registerOverlay(this);
         setVisible(true);
         setDefaultCloseOperation(3);
 

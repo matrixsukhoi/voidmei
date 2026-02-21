@@ -1,12 +1,15 @@
 package ui.util;
 
-import prog.Application;
+import prog.AlwaysOnTopCoordinator;
 import com.alee.laf.optionpane.WebOptionPane;
 import java.awt.Component;
 
 /**
- * Centralized dialog service that coordinates with OverlayManager
+ * Centralized dialog service that coordinates with AlwaysOnTopCoordinator
  * to ensure dialogs are not blocked by always-on-top overlays.
+ *
+ * <p>This service works even when dialogs are triggered before overlays exist,
+ * because AlwaysOnTopCoordinator tracks pending dialog state independently.
  *
  * Usage: Replace direct WebOptionPane calls with DialogService calls.
  * Example:
@@ -27,11 +30,11 @@ public class DialogService {
      */
     public static int showConfirmDialog(Component parent, Object message,
             String title, int optionType, int messageType) {
-        suspendOverlays();
+        AlwaysOnTopCoordinator.getInstance().dialogWillShow();
         try {
             return WebOptionPane.showConfirmDialog(parent, message, title, optionType, messageType);
         } finally {
-            restoreOverlays();
+            AlwaysOnTopCoordinator.getInstance().dialogDidDismiss();
         }
     }
 
@@ -45,29 +48,11 @@ public class DialogService {
      */
     public static void showMessageDialog(Component parent, Object message,
             String title, int messageType) {
-        suspendOverlays();
+        AlwaysOnTopCoordinator.getInstance().dialogWillShow();
         try {
             WebOptionPane.showMessageDialog(parent, message, title, messageType);
         } finally {
-            restoreOverlays();
-        }
-    }
-
-    /**
-     * Suspends alwaysOnTop for all overlays before showing a dialog.
-     */
-    private static void suspendOverlays() {
-        if (Application.ctr != null && Application.ctr.getOverlayManager() != null) {
-            Application.ctr.getOverlayManager().suspendAlwaysOnTop();
-        }
-    }
-
-    /**
-     * Restores alwaysOnTop for all overlays after dialog is dismissed.
-     */
-    private static void restoreOverlays() {
-        if (Application.ctr != null && Application.ctr.getOverlayManager() != null) {
-            Application.ctr.getOverlayManager().restoreAlwaysOnTop();
+            AlwaysOnTopCoordinator.getInstance().dialogDidDismiss();
         }
     }
 }

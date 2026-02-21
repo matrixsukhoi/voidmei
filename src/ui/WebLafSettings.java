@@ -4,6 +4,7 @@ import java.awt.Color;
 
 import com.alee.laf.rootpane.WebFrame;
 
+import prog.AlwaysOnTopCoordinator;
 import prog.Application;
 
 public class WebLafSettings {
@@ -21,7 +22,9 @@ public class WebLafSettings {
 		// t.setUndecorated(false);
 		// t.setDefaultLookAndFeelDecorated(false);
 
-		t.setAlwaysOnTop(true);
+		// Register with coordinator instead of direct setAlwaysOnTop
+		// This ensures overlays respect pending dialogs
+		AlwaysOnTopCoordinator.getInstance().registerOverlay(t);
 		t.setFocusableWindowState(false);// 取消窗口焦点
 		t.setFocusable(false);
 		t.setCursor(Application.blankCursor);

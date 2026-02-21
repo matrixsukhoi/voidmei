@@ -14,6 +14,7 @@ import ui.base.DraggableOverlay;
 
 import parser.Blkx;
 import parser.FlightAnalyzer;
+import prog.AlwaysOnTopCoordinator;
 import prog.Application;
 import prog.Controller;
 import prog.event.UIStateBus;
@@ -588,7 +589,7 @@ public class DrawFrameSimpl extends DraggableOverlay {
 		setShowResizeCorner(false);
 		setDefaultCloseOperation(2);
 		setTitle(Lang.dFTitleHZ);
-		setAlwaysOnTop(true);
+		AlwaysOnTopCoordinator.getInstance().registerOverlay(this);
 
 		this.setCursor(Application.blankCursor);
 		setFocusable(false);
@@ -678,7 +679,7 @@ public class DrawFrameSimpl extends DraggableOverlay {
 		setShowResizeCorner(false);
 		setDefaultCloseOperation(2);
 		setTitle(Lang.dFTitleHZ);
-		setAlwaysOnTop(true);
+		AlwaysOnTopCoordinator.getInstance().registerOverlay(this);
 
 		setupDragListeners();
 		applyPreviewStyle();

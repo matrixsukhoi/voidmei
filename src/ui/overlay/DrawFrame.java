@@ -18,6 +18,7 @@ import com.alee.laf.rootpane.WebFrame;
 
 import parser.Blkx;
 import parser.FlightAnalyzer;
+import prog.AlwaysOnTopCoordinator;
 import prog.Application;
 import prog.Controller;
 import prog.i18n.Lang;
@@ -742,7 +743,7 @@ public class DrawFrame extends WebFrame implements Runnable {
 		setShowResizeCorner(false);
 		setDefaultCloseOperation(2);
 		setTitle(fA.type + Lang.dFTitleHZ);
-		setAlwaysOnTop(true);
+		AlwaysOnTopCoordinator.getInstance().registerOverlay(this);
 
 		// setFocusable(false);
 		// setFocusableWindowState(false);// 取消窗口焦点
