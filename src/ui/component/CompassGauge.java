@@ -80,20 +80,6 @@ public class CompassGauge extends AbstractHUDComponent {
     }
 
     @Override
-    public void update(Object data) {
-        if (data instanceof Object[]) {
-            Object[] params = (Object[]) data;
-            if (params.length >= 5) {
-                this.compassRads = (Float) params[0];
-                this.compassDx = (Integer) params[1];
-                this.compassDy = (Integer) params[2];
-                this.lineCompass = (String) params[3];
-                this.lineLoc = (String) params[4];
-            }
-        }
-    }
-
-    @Override
     public void onDataUpdate(ui.overlay.model.HUDData data) {
         if (data == null)
             return;

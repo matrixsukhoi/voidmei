@@ -57,18 +57,6 @@ public class FlapAngleBar extends AbstractHUDComponent {
     }
 
     @Override
-    public void update(Object data) {
-        if (data instanceof Object[]) {
-            Object[] params = (Object[]) data;
-            if (params.length >= 2) {
-                this.currentAngle = (Double) params[0];
-                this.maxSafeAngle = (Double) params[1];
-                this.displayText = String.format("%3.0f/%3.0f", currentAngle, maxSafeAngle);
-            }
-        }
-    }
-
-    @Override
     public void onDataUpdate(ui.overlay.model.HUDData data) {
         if (data == null)
             return;

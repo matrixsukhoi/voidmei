@@ -25,21 +25,6 @@ public interface HUDComponent {
     void draw(Graphics2D g2d, int x, int y);
 
     /**
-     * Legacy generic update method.
-     * 
-     * @deprecated Use onDataUpdate(HUDData) instead.
-     */
-    @Deprecated
-    default void update(Object data) {
-    }
-
-    /**
-     * Update component state from the centralized HUD Data snapshot.
-     * Components should extract only the fields they care about.
-     * 
-     * @param data The current frame's full data snapshot.
-     */
-    /**
      * Check if component is visible.
      */
     default boolean isVisible() {

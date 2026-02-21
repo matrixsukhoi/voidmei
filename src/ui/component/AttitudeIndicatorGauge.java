@@ -75,20 +75,6 @@ public class AttitudeIndicatorGauge extends AbstractHUDComponent {
         this.font = font;
     }
 
-    @Override
-    public void update(Object data) {
-        if (data instanceof Object[]) {
-            Object[] params = (Object[]) data;
-            if (params.length >= 5) {
-                this.pitch = (Double) params[0];
-                this.rollDeg = (Double) params[1];
-                this.aosX = (Integer) params[2];
-                this.sAttitude = (String) params[3];
-                this.roundHorizon = (Integer) params[4];
-            }
-        }
-    }
-
     public void update(double pitch, double rollDeg, int aosX, String sAttitude, int roundHorizon) {
         this.pitch = pitch;
         this.rollDeg = rollDeg;

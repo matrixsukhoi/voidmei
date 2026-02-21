@@ -63,10 +63,6 @@ public class CrosshairGauge extends AbstractHUDComponent {
     }
 
     @Override
-    public void update(Object data) {
-    }
-
-    @Override
     public void draw(Graphics2D g2d, int x, int y) {
         // Convert Top-Left (x, y) to Center (centerX, centerY)
         int drawW = (useTexture && texture != null) ? crossWidthVario * 2 : width;
