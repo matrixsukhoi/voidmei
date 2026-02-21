@@ -19,6 +19,7 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 
 import prog.Application;
+import prog.util.Logger;
 
 /**
  * Factory class to create specific UI components for the Replica layout.
@@ -364,6 +365,9 @@ public class ReplicaBuilder {
      */
     public static void disposeAllPopovers() {
         synchronized (activePopovers) {
+            if (!activePopovers.isEmpty()) {
+                Logger.info("ComboDebug", "disposeAllPopovers: " + activePopovers.size() + " popovers");
+            }
             for (WebPopOver popover : activePopovers) {
                 try {
                     if (popover != null && popover.isDisplayable()) {

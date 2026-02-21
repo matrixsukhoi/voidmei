@@ -6,8 +6,11 @@ import prog.config.ConfigLoader.RowConfig;
 import prog.config.ConfigLoader.GroupConfig;
 import prog.util.PropertyBinder;
 import prog.util.FileUtils;
+import prog.util.Logger;
 import ui.replica.ReplicaBuilder;
 import java.io.File;
+import javax.swing.event.PopupMenuListener;
+import javax.swing.event.PopupMenuEvent;
 
 /**
  * Renders COMBO (dropdown) type rows.
@@ -37,6 +40,25 @@ public class ComboRowRenderer implements RowRenderer {
             if (currentVal != null && !currentVal.isEmpty()) {
                 combo.setSelectedItem(currentVal);
             }
+
+            // Debug: Track popup open/close events to diagnose auto-close issue on Windows
+            final String comboLabel = row.label;
+            combo.addPopupMenuListener(new PopupMenuListener() {
+                @Override
+                public void popupMenuWillBecomeVisible(PopupMenuEvent e) {
+                    Logger.info("ComboDebug", "OPEN: " + comboLabel);
+                }
+                @Override
+                public void popupMenuWillBecomeInvisible(PopupMenuEvent e) {
+                    Logger.info("ComboDebug", "CLOSE: " + comboLabel);
+                    // Print stack trace to find what triggered the close
+                    Thread.dumpStack();
+                }
+                @Override
+                public void popupMenuCanceled(PopupMenuEvent e) {
+                    Logger.info("ComboDebug", "CANCEL: " + comboLabel);
+                }
+            });
 
             final String prop = row.property;
             combo.addActionListener(e -> {

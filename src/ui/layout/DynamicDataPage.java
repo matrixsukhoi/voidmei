@@ -9,6 +9,7 @@ import com.alee.laf.panel.WebPanel;
 import ui.MainForm;
 import prog.event.UIStateBus;
 import prog.event.UIStateEvents;
+import prog.util.Logger;
 import ui.replica.ReplicaBuilder;
 import ui.layout.renderer.RowRenderer;
 import ui.layout.renderer.RowRendererRegistry;
@@ -69,6 +70,7 @@ public class DynamicDataPage extends BasePage {
     }
 
     private void rebuild() {
+        Logger.info("ComboDebug", "rebuild() called");
         // Dispose all active popovers before removing components to prevent
         // IllegalComponentStateException when window moves
         ReplicaBuilder.disposeAllPopovers();
@@ -223,6 +225,7 @@ public class DynamicDataPage extends BasePage {
     }
 
     private void save() {
+        Logger.info("ComboDebug", "save() called");
         // Trigger global save of ui_layout.cfg
         parent.saveDynamicConfig();
 
