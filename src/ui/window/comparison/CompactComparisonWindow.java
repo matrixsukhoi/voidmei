@@ -33,6 +33,11 @@ public class CompactComparisonWindow extends JDialog {
     private final String fm1Name;
     private final Controller controller;
 
+    // Data for copy functionality
+    private List<DisplayItem> displayStructure;
+    private Map<String, String> dataMap0;
+    private Map<String, String> dataMap1;
+
     public CompactComparisonWindow(java.awt.Window owner, Controller c, String fm0, String fm1) {
         super(owner, (fm1 == null || fm1.isEmpty()) ? "Aircraft Data: " + fm0 : "Comparison: " + fm0 + " vs " + fm1,
                 ModalityType.MODELESS);
@@ -189,9 +194,9 @@ public class CompactComparisonWindow extends JDialog {
 
         // Body
         // Parse Data into Maps and Structure
-        List<DisplayItem> structure = new ArrayList<>();
-        Map<String, String> map0 = new HashMap<>();
-        Map<String, String> map1 = new HashMap<>();
+        this.displayStructure = new ArrayList<>();
+        this.dataMap0 = new HashMap<>();
+        this.dataMap1 = new HashMap<>();
         List<String> lines1Safe = (lines1 != null) ? lines1 : new ArrayList<>();
 
         // 1. Build initial structure from lines0
@@ -202,7 +207,7 @@ public class CompactComparisonWindow extends JDialog {
 
             if (l.contains("------")) {
                 String h = l.replaceAll("-", "").trim();
-                structure.add(new DisplayItem(true, h));
+                displayStructure.add(new DisplayItem(true, h));
                 continue;
             }
 
@@ -210,8 +215,8 @@ public class CompactComparisonWindow extends JDialog {
             if (m.matches()) {
                 String k = m.group(1).trim();
                 String v = m.group(2).trim();
-                structure.add(new DisplayItem(false, k));
-                map0.put(k, v);
+                displayStructure.add(new DisplayItem(false, k));
+                dataMap0.put(k, v);
             }
         }
 
@@ -230,18 +235,18 @@ public class CompactComparisonWindow extends JDialog {
             if (m.matches()) {
                 String k = m.group(1).trim();
                 String v = m.group(2).trim();
-                map1.put(k, v);
+                dataMap1.put(k, v);
 
                 // Check struct
-                int idx = findInStructure(structure, k);
+                int idx = findInStructure(displayStructure, k);
                 if (idx != -1) {
                     lastMatchIndex = idx;
                 } else {
                     // Insert after last match
-                    if (lastMatchIndex < structure.size() - 1) {
-                        structure.add(lastMatchIndex + 1, new DisplayItem(false, k));
+                    if (lastMatchIndex < displayStructure.size() - 1) {
+                        displayStructure.add(lastMatchIndex + 1, new DisplayItem(false, k));
                     } else {
-                        structure.add(new DisplayItem(false, k));
+                        displayStructure.add(new DisplayItem(false, k));
                     }
                     lastMatchIndex++;
                 }
@@ -250,13 +255,13 @@ public class CompactComparisonWindow extends JDialog {
 
         // Render
         int row = 1;
-        for (DisplayItem item : structure) {
+        for (DisplayItem item : displayStructure) {
             if (item.isHeader) {
                 addSectionHeader(content, item.text, row++);
             } else {
                 String k = item.text;
-                String v0 = map0.get(k);
-                String v1 = map1.get(k);
+                String v0 = dataMap0.get(k);
+                String v1 = dataMap1.get(k);
 
                 // If v0 is null, it means it's a key only in FM1.
                 // If v1 is null, it means it's a key only in FM0 (or Single Mode).
@@ -289,7 +294,32 @@ public class CompactComparisonWindow extends JDialog {
             }
         });
 
-        // Add Close Button at bottom
+        // COPY Button
+        WebLabel copy = new WebLabel("COPY", WebLabel.CENTER);
+        copy.setOpaque(true);
+        copy.setBackground(new Color(33, 150, 243)); // Blue 500
+        copy.setForeground(Color.WHITE);
+        copy.setFont(Application.defaultFont.deriveFont(java.awt.Font.BOLD, 14f));
+        copy.setBorder(BorderFactory.createEmptyBorder(8, 0, 8, 0));
+        copy.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseClicked(java.awt.event.MouseEvent e) {
+                copyToClipboard();
+                copy.setText("COPIED!");
+                javax.swing.Timer timer = new javax.swing.Timer(1000, evt -> copy.setText("COPY"));
+                timer.setRepeats(false);
+                timer.start();
+            }
+
+            public void mouseEntered(java.awt.event.MouseEvent e) {
+                copy.setBackground(new Color(66, 165, 245)); // Blue 400 hover
+            }
+
+            public void mouseExited(java.awt.event.MouseEvent e) {
+                copy.setBackground(new Color(33, 150, 243));
+            }
+        });
+
+        // CLOSE Button
         WebLabel close = new WebLabel("CLOSE", WebLabel.CENTER);
         close.setOpaque(true);
         close.setBackground(new Color(183, 28, 28)); // Red 900
@@ -309,7 +339,12 @@ public class CompactComparisonWindow extends JDialog {
                 close.setBackground(new Color(183, 28, 28));
             }
         });
-        this.getContentPane().add(close, java.awt.BorderLayout.SOUTH);
+
+        // Footer panel with COPY + CLOSE buttons
+        WebPanel footer = new WebPanel(new java.awt.GridLayout(1, 2, 0, 0));
+        footer.add(copy);
+        footer.add(close);
+        this.getContentPane().add(footer, java.awt.BorderLayout.SOUTH);
 
         this.pack();
         this.setLocationRelativeTo(getOwner());
@@ -317,6 +352,12 @@ public class CompactComparisonWindow extends JDialog {
         // ESC to Close
         javax.swing.KeyStroke esc = javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_ESCAPE, 0);
         this.getRootPane().registerKeyboardAction(e -> dispose(), esc, javax.swing.JComponent.WHEN_IN_FOCUSED_WINDOW);
+
+        // Ctrl+C to Copy
+        javax.swing.KeyStroke ctrlC = javax.swing.KeyStroke.getKeyStroke(
+            java.awt.event.KeyEvent.VK_C, java.awt.event.InputEvent.CTRL_DOWN_MASK);
+        this.getRootPane().registerKeyboardAction(e -> copyToClipboard(), ctrlC,
+            javax.swing.JComponent.WHEN_IN_FOCUSED_WINDOW);
     }
 
     private void addSectionHeader(JPanel p, String text, int row) {
@@ -352,6 +393,60 @@ public class CompactComparisonWindow extends JDialog {
                 return i;
         }
         return -1;
+    }
+
+    private String buildCopyText() {
+        StringBuilder sb = new StringBuilder();
+        boolean singleMode = (fm1Name == null || fm1Name.isEmpty());
+
+        // Header
+        if (singleMode) {
+            sb.append("========== Aircraft Data: ").append(fm0Name).append(" ==========\n\n");
+        } else {
+            sb.append("========== Comparison: ").append(fm0Name)
+              .append(" vs ").append(fm1Name).append(" ==========\n\n");
+        }
+
+        // Body
+        for (DisplayItem item : displayStructure) {
+            if (item.isHeader) {
+                sb.append("---------- ").append(item.text).append(" ----------\n");
+            } else {
+                String k = item.text;
+                String v0 = dataMap0.get(k);
+                String v1 = dataMap1.get(k);
+
+                if (singleMode) {
+                    sb.append(k).append(": ").append(v0 == null ? "-" : v0).append("\n");
+                } else {
+                    String val0 = (v0 == null ? "-" : v0);
+                    String val1 = (v1 == null ? "-" : v1);
+                    sb.append(k).append(": ").append(val0).append(" vs ").append(val1);
+                    String winner = determineWinner(k, v0, v1);
+                    if (winner != null) {
+                        sb.append("  [").append(winner).append(" +]");
+                    }
+                    sb.append("\n");
+                }
+            }
+        }
+        return sb.toString();
+    }
+
+    private String determineWinner(String prop, String v0, String v1) {
+        ComparisonRule rule = ComparisonRules.get(prop);
+        if (rule == null || v0 == null || v1 == null) return null;
+        Double d0 = rule.extractValue(v0);
+        Double d1 = rule.extractValue(v1);
+        if (d0 == null || d1 == null || Math.abs(d0 - d1) < 0.001) return null;
+        boolean lowerIsBetter = rule.isLowerBetter();
+        return (d0 > d1) ? (lowerIsBetter ? fm1Name : fm0Name) : (lowerIsBetter ? fm0Name : fm1Name);
+    }
+
+    private void copyToClipboard() {
+        String text = buildCopyText();
+        java.awt.datatransfer.StringSelection sel = new java.awt.datatransfer.StringSelection(text);
+        java.awt.Toolkit.getDefaultToolkit().getSystemClipboard().setContents(sel, null);
     }
 
     private static class DisplayItem {
