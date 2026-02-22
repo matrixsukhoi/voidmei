@@ -705,5 +705,10 @@ public class ConfigurationService implements ConfigProvider {
         public boolean isAttitudeIndicatorInertialMode() {
             return getBool("attitudeIndicatorInertialMode", false);
         }
+
+        @Override
+        public boolean isGPUCompatibilityMode() {
+            return getBool("gpuCompatibilityMode", false);
+        }
     }
 }

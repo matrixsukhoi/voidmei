@@ -15,6 +15,7 @@ The `prog.util` package provides **pure function utilities** for physics calcula
 | `PowerCurveHelper.java` | Power curve shape determination (hasConstRpm, ceilingIsUseful, etc.) |
 | `FMPowerExtractor.java` | FM file → CompressorStageParams extraction (with fuel modifications) |
 | `ColorHelper.java` | Color parsing/formatting: hex (#RRGGBB) ↔ decimal (R,G,B,A) conversion |
+| `GPUCompatibilityHelper.java` | GPU compatibility mode: save/load settings, check rendering mode |
 | `CalcHelper.java` | General math utilities |
 | `HttpHelper.java` | HTTP request utilities for game API |
 | `Logger.java` | Application logging |
@@ -269,6 +270,49 @@ boolean isHex = isHexFormat("255,0,0");  // false
 - UI display uses hex format for easier manual editing
 - `parseColor()` accepts both formats, enabling copy-paste from any source
 - Invalid inputs return the provided default color (never throws)
+
+---
+
+### GPUCompatibilityHelper
+
+Runtime helper for GPU compatibility mode (software rendering).
+
+```java
+import prog.util.GPUCompatibilityHelper;
+
+// Save setting to gpu_compat.properties (user toggled in UI)
+GPUCompatibilityHelper.saveSettings(true);
+
+// Read current saved setting (what will apply on next startup)
+boolean enabled = GPUCompatibilityHelper.isEnabled();
+
+// Check if software rendering is currently active in this JVM
+boolean active = GPUCompatibilityHelper.isSoftwareRenderingActive();
+
+// Get human-readable description of current rendering mode
+String mode = GPUCompatibilityHelper.getRenderingModeDescription();
+// → "Direct3D Hardware Acceleration" or "Software Rendering (GPU acceleration disabled)"
+```
+
+**Architecture Notes:**
+
+This helper works in conjunction with `prog.Launcher`:
+
+1. **Launcher.java** (bootstrap) - Reads `gpu_compat.properties` and sets JVM system properties (`sun.java2d.d3d=false`, etc.) **before** any AWT class loads
+2. **GPUCompatibilityHelper** (runtime) - Provides save/load methods for the UI toggle, and status queries
+
+**Why separate from ui_layout.cfg?**
+
+The GPU compat setting must be read before AWT initialization. Since `ConfigLoader` uses AWT classes, we need a simpler properties file that can be read with pure `java.io` classes.
+
+**Methods:**
+
+| Method | Description |
+|--------|-------------|
+| `saveSettings(boolean)` | Save to `gpu_compat.properties` |
+| `isEnabled()` | Read saved setting from file |
+| `isSoftwareRenderingActive()` | Check current JVM rendering mode |
+| `getRenderingModeDescription()` | Human-readable mode description |
 
 ---
 

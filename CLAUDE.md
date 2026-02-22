@@ -45,8 +45,9 @@ python3 script/mock_8111.py
 
 ### Core Packages (`src/`)
 
-- **`prog/`** - Application kernel (12 files + 7 subpackages)
-  - `Application.java` - Entry point, global config, fonts, logging
+- **`prog/`** - Application kernel (13 files + 7 subpackages)
+  - `Launcher.java` - Bootstrap entry point, sets GPU compat JVM properties before AWT loads
+  - `Application.java` - Main application initialization, global config, fonts, logging
   - `Service.java` - Background HTTP polling thread (~10Hz), data calculation (~55KB, largest file)
   - `Controller.java` - Lifecycle manager, overlay coordination (~24KB)
   - `OverlayManager.java` - Manages overlay window visibility (synchronized for thread safety)
@@ -57,7 +58,7 @@ python3 script/mock_8111.py
   - `event/` - Event buses (`UIStateBus`, `FlightDataBus`, `FlightDataEvent`, `EventPayload`, `FlightDataListener`)
   - `config/` - Configuration system (`ConfigurationService`, `ConfigLoader`, `SExpParser`, `HUDSettings`, `OverlaySettings`)
   - `audio/` - Voice warning system (`VoiceWarning`, `VoiceResourceManager`)
-  - `util/` - Utilities (`HttpHelper`, `Logger`, `CalcHelper`, `StringHelper`, `FileUtils`, `FormulaEvaluator`, `PhysicsConstants`, `Interpolation`, `AtmosphereModel`, `PistonPowerModel`, `ColorHelper`)
+  - `util/` - Utilities (`HttpHelper`, `Logger`, `CalcHelper`, `StringHelper`, `FileUtils`, `FormulaEvaluator`, `PhysicsConstants`, `Interpolation`, `AtmosphereModel`, `PistonPowerModel`, `ColorHelper`, `GPUCompatibilityHelper`)
   - `hotkey/` - Global keyboard hooks (`HotkeyManager`)
   - `i18n/` - Internationalization (`Lang`)
   - `model/` - Data models (`InfoList`)
@@ -243,6 +244,75 @@ try {
 - `dialogDidDismiss()` - Restores `alwaysOnTop` when dialog count reaches zero
 - Uses `WeakReference` to avoid memory leaks from disposed windows
 - Thread-safe via `AtomicInteger` (dialog count) and `CopyOnWriteArrayList` (overlay list)
+
+### GPU Compatibility Mode
+
+VoidMei can conflict with War Thunder's GPU on some systems due to Java2D hardware acceleration. The GPU compatibility mode disables hardware acceleration, forcing software rendering.
+
+**Architecture:**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  MANIFEST.MF → Main-Class: prog.Launcher                    │
+└─────────────────────────────────────────────────────────────┘
+          ↓
+┌─────────────────────────────────────────────────────────────┐
+│                    Launcher.java                             │
+│  • NO java.awt.* imports (critical!)                        │
+│  • Reads gpu_compat.properties                              │
+│  • Sets sun.java2d.* system properties                      │
+│  • Calls Application.main(args)                             │
+└─────────────────────────────────────────────────────────────┘
+          ↓
+┌─────────────────────────────────────────────────────────────┐
+│                   Application.java                           │
+│  • AWT classes load with properties already set             │
+│  • Java2D uses software rendering (if enabled)              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Why a separate Launcher class?**
+
+JVM system properties like `sun.java2d.d3d` must be set **before** any AWT class is loaded. Once `java.awt.Toolkit` is instantiated, the Java2D rendering pipeline is locked. Since `Application.java` imports AWT at the top of the file, we need `Launcher.java` (with zero AWT imports) to set properties first.
+
+**Key files:**
+
+| File | Purpose |
+|------|---------|
+| `prog/Launcher.java` | Bootstrap class, reads `gpu_compat.properties`, sets JVM properties |
+| `prog/util/GPUCompatibilityHelper.java` | Runtime helper: save/load settings, check active mode |
+| `gpu_compat.properties` | External config file (created when user enables the feature) |
+
+**JVM properties set (when enabled):**
+
+| OS | Properties |
+|----|------------|
+| Windows | `sun.java2d.d3d=false`, `sun.java2d.noddraw=true` |
+| Linux | `sun.java2d.opengl=false`, `sun.java2d.xrender=false` |
+| macOS | `apple.awt.graphics.UseQuartz=false` |
+| All | `sun.java2d.pmoffscreen=false` |
+
+**Usage in code:**
+
+```java
+import prog.util.GPUCompatibilityHelper;
+
+// Save setting (called when user toggles in UI)
+GPUCompatibilityHelper.saveSettings(true);
+
+// Read saved setting
+boolean enabled = GPUCompatibilityHelper.isEnabled();
+
+// Check if software rendering is currently active
+boolean active = GPUCompatibilityHelper.isSoftwareRenderingActive();
+```
+
+**Special handling in SwitchRowRenderer:**
+
+The `gpuCompatibilityMode` config key has special handling:
+1. Initial value reads from `GPUCompatibilityHelper.isEnabled()` (not ui_layout.cfg)
+2. On toggle, saves to `gpu_compat.properties` via `GPUCompatibilityHelper.saveSettings()`
+3. Shows a dialog prompting user to restart VoidMei
 
 ### Performance
 

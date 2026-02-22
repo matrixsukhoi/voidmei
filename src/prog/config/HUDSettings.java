@@ -47,4 +47,6 @@ public interface HUDSettings extends OverlaySettings {
     boolean isAoADisabled();
 
     boolean isAttitudeIndicatorInertialMode();
+
+    boolean isGPUCompatibilityMode();
 }
