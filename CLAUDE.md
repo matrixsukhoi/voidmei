@@ -483,6 +483,7 @@ Detailed development guides for complex subsystems:
 | Parser (FM/Telemetry) | [`src/parser/CLAUDE.md`](src/parser/CLAUDE.md) |
 | Config System | [`src/prog/config/CLAUDE.md`](src/prog/config/CLAUDE.md) |
 | Utility Classes | [`src/prog/util/CLAUDE.md`](src/prog/util/CLAUDE.md) |
+| UI Utilities | [`src/ui/util/CLAUDE.md`](src/ui/util/CLAUDE.md) |
 | Overlay Development | [`src/ui/overlay/CLAUDE.md`](src/ui/overlay/CLAUDE.md) |
 | UI Model & TelemetrySource | [`src/ui/model/CLAUDE.md`](src/ui/model/CLAUDE.md) |
 | HUD Components | [`src/ui/component/CLAUDE.md`](src/ui/component/CLAUDE.md) |

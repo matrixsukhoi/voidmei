@@ -7,9 +7,6 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 
-import java.awt.event.MouseListener;
-import java.awt.event.MouseMotionListener;
-
 import com.alee.laf.label.WebLabel;
 import com.alee.laf.panel.WebPanel;
 import com.alee.laf.slider.WebSlider;
@@ -24,6 +21,8 @@ import prog.event.FlightDataListener;
 import ui.UIBaseElements;
 import ui.WebLafSettings;
 import ui.base.DraggableOverlay;
+import ui.util.OverlayStyleHelper;
+import ui.util.SliderHelper;
 import prog.config.OverlaySettings;
 
 public class ControlSurfacesOverlay extends DraggableOverlay implements FlightDataListener {
@@ -73,11 +72,7 @@ public class ControlSurfacesOverlay extends DraggableOverlay implements FlightDa
 	private String sWingSweepUnit;
 
 	public void setFrameOpaque() {
-		this.getWebRootPaneUI().setMiddleBg(new Color(0, 0, 0, 0));// 中部透明
-		this.getWebRootPaneUI().setTopBg(new Color(0, 0, 0, 0));// 顶部透明
-		this.getWebRootPaneUI().setBorderColor(new Color(0, 0, 0, 0));// 内描边透明
-		this.getWebRootPaneUI().setInnerBorderColor(new Color(0, 0, 0, 0));// 外描边透明
-		setShadeWidth(0);
+		OverlayStyleHelper.applyTransparentStyle(this);
 	}
 
 	public void init(Controller c, Service s, OverlaySettings settings) {
@@ -209,38 +204,7 @@ public class ControlSurfacesOverlay extends DraggableOverlay implements FlightDa
 	}
 
 	public void initslider(WebSlider slider1) {
-		slider1.setMinimum(-100);
-		slider1.setMaximum(100);
-		slider1.setValue(0);
-		slider1.setDrawProgress(true);
-		slider1.setMinorTickSpacing(25);
-		slider1.setMajorTickSpacing(50);
-		slider1.setPaintTicks(true);
-		slider1.setPaintLabels(true);
-		// slider1.setPreferredHeight(120);
-		// slider1.setSnapToTicks(true);
-		slider1.setProgressShadeWidth(0);
-		slider1.setTrackShadeWidth(1);
-		// slider1.setDrawThumb(false);
-		slider1.setThumbShadeWidth(2);
-		slider1.setThumbBgBottom(Application.colorNum);
-		slider1.setThumbBgTop(Application.colorNum);
-		slider1.setTrackBgBottom(new Color(0, 0, 0, 0));
-		slider1.setTrackBgTop(new Color(0, 0, 0, 0));
-		slider1.setProgressBorderColor(new Color(0, 0, 0, 0));
-		slider1.setProgressTrackBgBottom(new Color(0, 0, 0, 0));
-		slider1.setProgressTrackBgTop(new Color(0, 0, 0, 0));
-		slider1.setFocusable(false);
-		// 取消slider1响应
-		MouseListener[] mls = slider1.getMouseListeners();
-		MouseMotionListener[] mmls = slider1.getMouseMotionListeners();
-		for (int t = 0; t < mls.length; t++) {
-			slider1.removeMouseListener(mls[t]);
-
-		}
-		for (int t = 0; t < mmls.length; t++) {
-			slider1.removeMouseMotionListener(mmls[t]);
-		}
+		SliderHelper.configureAttitudeSlider(slider1, -100, 100, Application.colorNum);
 	}
 
 	public WebLabel createWebLabel(String text) {
@@ -252,146 +216,10 @@ public class ControlSurfacesOverlay extends DraggableOverlay implements FlightDa
 	}
 
 	int rudderValPix;
-	// int rudder; // Removed, using buffers
 	private int width;
 	private int height;
-	// borderwidth, c, lbl, num, lblFont, numFont);
-	// UIBaseElements.drawHBarTextNum(g2d, 0, height, width, fontSize >> 1,
-	// rudderValPix, 1, Application.lblNumColor, sRudderLabel, sRudder, fontLabel,
-	// fontLabel);
-	//
-	// }
-	// };
 	private int locateSize;
 	private int strokeSize;
-
-	// panel.setBackground(new Color(0,0,0,0));
-	// panel.setBounds(0, 0, 350, 264);
-	// toppanel.add(panel);
-
-	// slider = new WebSlider();
-	// initslider(slider);
-	//
-	// slider.setBounds(0, 200, 200, 64);
-	// toppanel.add(slider);
-	//
-	// WebPanel panel_1 = new WebPanel();
-	// panel_1.setLayout(null);
-	// panel_1.setBackground(new Color(0, 0, 0, 0));
-	// panel_1.setBounds(200, 0, 128, 64);
-	// toppanel.add(panel_1);
-	//
-	// WebLabel lblX = createWebLabel(language.vAileron);
-	// lblX.setVerticalAlignment(SwingConstants.BOTTOM);
-	// lblX.setHorizontalAlignment(SwingConstants.LEFT);
-	// lblX.setForeground(lblNameColor);
-	// lblX.setFont(new Font(Application.DefaultFontName, Font.BOLD, 12));
-	// lblX.setBounds(92, 0, 36, 31);
-	// panel_1.add(lblX);
-	//
-	// label_1 = createWebLabel("-50");
-	// label_1.setHorizontalAlignment(SwingConstants.RIGHT);
-	// label_1.setForeground(lblNumColor);
-	// label_1.setFont(new Font(NumFont, Font.BOLD, 28));
-	// label_1.setBounds(0, 0, 64, 64);
-	// panel_1.add(label_1);
-	//
-	// WebLabel label_2 = createWebLabel("%");
-	// label_2.setVerticalAlignment(SwingConstants.TOP);
-	// label_2.setHorizontalAlignment(SwingConstants.LEFT);
-	// label_2.setForeground(lblColor);
-	// label_2.setFont(new Font(NumFont, Font.PLAIN, 14));
-	// label_2.setBounds(92, 33, 36, 31);
-	// panel_1.add(label_2);
-	//
-	// WebPanel panel_2 = new WebPanel();
-	// panel_2.setLayout(null);
-	// panel_2.setBackground(new Color(0, 0, 0, 0));
-	// panel_2.setBounds(200, 64, 128, 64);
-	// toppanel.add(panel_2);
-	//
-	// WebLabel lblY = createWebLabel(language.vElevator);
-	// lblY.setVerticalAlignment(SwingConstants.BOTTOM);
-	// lblY.setHorizontalAlignment(SwingConstants.LEFT);
-	// lblY.setForeground(lblNameColor);
-	// lblY.setFont(new Font(Application.DefaultFontName, Font.BOLD, 12));
-	// lblY.setBounds(92, 0, 36, 31);
-	// panel_2.add(lblY);
-	//
-	// label_3 = createWebLabel("16");
-	// label_3.setHorizontalAlignment(SwingConstants.RIGHT);
-	// label_3.setForeground(lblNumColor);
-	// label_3.setFont(new Font(NumFont, Font.BOLD, 28));
-	// label_3.setBounds(0, 0, 64, 64);
-	// panel_2.add(label_3);
-	//
-	// WebLabel label_4 = createWebLabel("%");
-	// label_4.setVerticalAlignment(SwingConstants.TOP);
-	// label_4.setHorizontalAlignment(SwingConstants.LEFT);
-	// label_4.setForeground(lblColor);
-	// label_4.setFont(new Font(NumFont, Font.PLAIN, 14));
-	// label_4.setBounds(92, 33, 36, 31);
-	// panel_2.add(label_4);
-	//
-	// // 后掠角
-	// WebPanel panel_4 = new WebPanel();
-	// panel_4.setLayout(null);
-	// panel_4.setBackground(new Color(0, 0, 0, 0));
-	// panel_4.setBounds(200, 128, 128, 64);
-	// toppanel.add(panel_4);
-	//
-	// WebLabel lblW = createWebLabel(language.vVarioW);
-	// lblW.setVerticalAlignment(SwingConstants.BOTTOM);
-	// lblW.setHorizontalAlignment(SwingConstants.LEFT);
-	// lblW.setForeground(lblNameColor);
-	// lblW.setFont(new Font(Application.DefaultFontName, Font.BOLD, 12));
-	// lblW.setBounds(92, 0, 36, 31);
-	// panel_4.add(lblW);
-	//
-	// label_8 = createWebLabel("0");
-	// label_8.setHorizontalAlignment(SwingConstants.RIGHT);
-	// label_8.setForeground(lblNumColor);
-	// label_8.setFont(new Font(NumFont, Font.BOLD, 28));
-	// label_8.setBounds(0, 0, 64, 64);
-	// panel_4.add(label_8);
-	//
-	// WebLabel label_9 = createWebLabel("%");
-	// label_9.setVerticalAlignment(SwingConstants.TOP);
-	// label_9.setHorizontalAlignment(SwingConstants.LEFT);
-	// label_9.setForeground(lblColor);
-	// label_9.setFont(new Font(NumFont, Font.PLAIN, 14));
-	// label_9.setBounds(92, 33, 36, 31);
-	// panel_4.add(label_9);
-	//
-	// WebPanel panel_3 = new WebPanel();
-	// panel_3.setLayout(null);
-	// panel_3.setBackground(new Color(0, 0, 0, 0));
-	// panel_3.setBounds(200, 192, 128, 64);
-	// toppanel.add(panel_3);
-	//
-	// WebLabel lblZ = createWebLabel(language.vRudder);
-	// lblZ.setVerticalAlignment(SwingConstants.BOTTOM);
-	// lblZ.setHorizontalAlignment(SwingConstants.LEFT);
-	// lblZ.setForeground(lblNameColor);
-	// lblZ.setFont(new Font(Application.DefaultFontName, Font.BOLD, 12));
-	// lblZ.setBounds(92, 0, 36, 31);
-	// panel_3.add(lblZ);
-	//
-	// label_6 = createWebLabel("0");
-	// label_6.setHorizontalAlignment(SwingConstants.RIGHT);
-	// label_6.setForeground(lblNumColor);
-	// label_6.setFont(new Font(NumFont, Font.BOLD, 28));
-	// label_6.setBounds(0, 0, 64, 64);
-	// panel_3.add(label_6);
-	//
-	// WebLabel label_7 = createWebLabel("%");
-	// label_7.setVerticalAlignment(SwingConstants.TOP);
-	// label_7.setHorizontalAlignment(SwingConstants.LEFT);
-	// label_7.setForeground(lblColor);
-	// label_7.setFont(new Font(NumFont, Font.PLAIN, 14));
-	// label_7.setBounds(92, 33, 36, 31);
-	// panel_3.add(label_7);
-	// }
 
 	public void reinitConfig() {
 		if (overlaySettings != null) {

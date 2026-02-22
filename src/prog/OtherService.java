@@ -46,8 +46,6 @@ public class OtherService implements Runnable {
 	boolean isgetMsg;
 	boolean isgetmapObj;
 	boolean isOverheat;
-	boolean hisOverheat;
-	int check;
 
 	public double angleToclock(double angle) {
 		double temp;
@@ -126,7 +124,6 @@ public class OtherService implements Runnable {
 		isgetMsg = true;
 		isgetmapObj = true;
 		isOverheat = false;
-		hisOverheat = false;
 		//
 		dislmt = 1200;
 		SpeedCheckMili = System.currentTimeMillis();
@@ -146,8 +143,7 @@ public class OtherService implements Runnable {
 			sMapInfo = sendGet("127.0.0.1", 8111, "/map_info.json");
 			mapi.update(sMapInfo);
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			prog.util.Logger.debug("OtherService", "Failed to get map info: " + e.getMessage());
 		}
 
 	}
@@ -209,51 +205,18 @@ public class OtherService implements Runnable {
 	}
 
 	public void judgeOverheat() {
-//		xc.judgeEngineload();
-		
-		/*
-		// 初次
-		if (!hisOverheat && isOverheat) {
-			hisOverheat = true;
-			// Application.debugPrint("打开过热计时器");
-			check = 3;// 六次检测
-			xc.startOverheatTime();
-		}
-		// 更新过热时间
-		if (hisOverheat && isOverheat) {
-			// Application.debugPrint("更新过热时间");
-			check = 3;
-			xc.updateOverheatTime();
-
-		}
-		// 如果不再接受过热消息
-		if (!isOverheat) {
-			if (hisOverheat) {
-				if (check == 0) {
-					// Application.debugPrint("终结过热计时器");
-					xc.endOverheatTime();
-					hisOverheat = false;
-					check--;
-
-				} else {
-					// Application.debugPrint("不过热检查次数-1");
-					check--;
-				}
-			}
-		}
-		*/
+		// Overheat detection logic removed - functionality not implemented
 	}
 
 	@Override
 	public void run() {
-		// TODO Auto-generated method stub
 		while (isRun) {
 			// 500毫秒执行一次
 			try {
 				Thread.sleep(500);
 			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				Thread.currentThread().interrupt();
+				break;
 			}
 			// 取得地图数据
 			// Application.debugPrint("正在处理地图数据");
@@ -265,8 +228,7 @@ public class OtherService implements Runnable {
 				if (isgetMsg)
 					shudMsg = sendGet("127.0.0.1", 8111, "/hudmsg?lastEvt=" + lastEvt + "&lastDmg=" + lastDmg);
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				// e.printStackTrace();
+				// Network error - game not running or API unavailable
 			}
 			// Application.debugPrint(sMapObj);
 			if (isgetmapObj)

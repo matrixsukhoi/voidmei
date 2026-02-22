@@ -70,23 +70,4 @@ public class FormulaEvaluator {
             return false;
         }
     }
-
-    private Object eval(String formula, Map<String, Object> variables) throws Exception {
-        if (engine == null)
-            return "No Engine";
-        if (formula == null || formula.isEmpty())
-            return "";
-
-        try {
-            // Apply variables to a new Bindings scope to avoid concurrency issues if
-            // multi-threaded,
-            // or just to keep scope clean.
-            Bindings bindings = new SimpleBindings(variables);
-            engine.setBindings(bindings, ScriptContext.ENGINE_SCOPE);
-
-            return engine.eval(formula);
-        } catch (Exception e) {
-            return "Err"; // Simplistic error indication
-        }
-    }
 }

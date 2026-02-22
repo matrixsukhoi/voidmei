@@ -6,10 +6,6 @@ import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
-import java.awt.event.MouseListener;
-import java.awt.event.MouseMotionListener;
-
-import javax.swing.SwingConstants;
 
 import com.alee.extended.label.WebStepLabel;
 import com.alee.laf.label.WebLabel;
@@ -22,6 +18,7 @@ import prog.i18n.Lang;
 import prog.Service;
 import ui.UIBaseElements;
 import ui.base.DraggableOverlay;
+import ui.util.SliderHelper;
 import prog.config.OverlaySettings;
 
 import prog.event.FlightDataListener;
@@ -78,90 +75,8 @@ public class GearFlapsOverlay extends DraggableOverlay implements FlightDataList
         }
     }
 
-    //
-    // slider.addMouseListener(new MouseAdapter() {
-    // public void mouseEntered(MouseEvent e) {
-    // /*
-    // * if(A.tag==0){ if(f.mode==1){ A.setVisible(false);
-    // * A.visibletag=0; } }
-    // */
-    // }
-    //
-    // public void mousePressed(MouseEvent e) {
-    // isDragging = 1;
-    // xx = e.getX();
-    // yy = e.getY();
-    //
-    // }
-    //
-    // public void mouseReleased(MouseEvent e) {
-    // if (isDragging == 1) {
-    // isDragging = 0;
-    // }
-    // /*
-    // * if(A.tag==0){ A.setVisible(false); }
-    // */
-    // }
-    // /*
-    // * public void mouseReleased(MouseEvent e){ if(A.tag==0){
-    // * A.setVisible(true); } }
-    // */
-    // });
-    // slider.addMouseMotionListener(new MouseMotionAdapter() {
-    // public void mouseDragged(MouseEvent e) {
-    // if (isDragging == 1) {
-    // int left = getLocation().x;
-    // int top = getLocation().y;
-    // setLocation(left + e.getX() - xx, top + e.getY() - yy);
-    // setVisible(true);
-    // repaint();
-    // }
-    // }
-    // });
-
     public void initslider(WebSlider slider1) {
-        slider1.setMinimum(0);
-        slider1.setMaximum(100);
-        slider1.setValue(0);
-        slider1.setDrawProgress(true);
-        slider1.setMinorTickSpacing(25);
-        slider1.setMajorTickSpacing(50);
-        slider1.setOrientation(SwingConstants.VERTICAL);
-        // slider1.t(ComponentOrientation.RIGHT_TO_LEFT);
-        slider1.setPaintTicks(true);
-        slider1.setPaintLabels(false);
-        slider1.setDrawThumb(false);
-
-        slider1.setProgressRound(0);
-        slider1.setTrackRound(1);
-        // slider1.setSharpThumbAngle(true);
-        // slider1.setAngledThumb(true);
-        // slider1.setThumbAngleLength(5);
-        // slider1.setPreferredHeight(120);
-        // slider1.setSnapToTicks(true);
-        slider1.setProgressShadeWidth(0);
-        slider1.setTrackShadeWidth(0);
-        // slider1.setDrawThumb(false);
-        slider1.setThumbShadeWidth(0);
-        slider1.setThumbBgBottom(transparent);
-        slider1.setThumbBgTop(transparent);
-        slider1.setTrackBgBottom(transparent);
-        slider1.setTrackBgTop(transparent);
-        slider1.setProgressBorderColor(transparent);
-        slider1.setProgressTrackBgBottom(transParentWhitePlus);
-        slider1.setProgressTrackBgTop(transParentWhite);
-        slider1.setFocusable(false);
-        // 取消slider1响应
-        MouseListener[] mls = slider1.getMouseListeners();
-        MouseMotionListener[] mmls = slider1.getMouseMotionListeners();
-        for (int t = 0; t < mls.length; t++) {
-            slider1.removeMouseListener(mls[t]);
-
-        }
-        for (int t = 0; t < mmls.length; t++) {
-            slider1.removeMouseMotionListener(mmls[t]);
-        }
-
+        SliderHelper.configureVerticalProgress(slider1, 0, 100, transParentWhite, transParentWhitePlus);
     }
 
     public WebLabel createWebLabel(String text) {

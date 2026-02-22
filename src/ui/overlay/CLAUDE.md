@@ -4,14 +4,14 @@
 
 | File | Lines | Purpose |
 |------|-------|---------|
-| `MiniHUDOverlay.java` | ~730 | Primary HUD with component-based architecture |
+| `MiniHUDOverlay.java` | ~700 | Primary HUD with component-based architecture |
 | `DrawFrame.java` | ~770 | **@Deprecated** Legacy FM curve visualization |
 | `DrawFrameSimpl.java` | ~740 | **@Deprecated** Simplified DrawFrame variant |
 | `BaseOverlay.java` | ~290 | Standard list-based overlay base class |
-| `AttitudeOverlay.java` | ~460 | Artificial horizon display |
+| `AttitudeOverlay.java` | ~430 | Artificial horizon display |
 | `EngineControlOverlay.java` | ~610 | Engine gauges and throttle |
-| `ControlSurfacesOverlay.java` | ~480 | Control surface indicators |
-| `GearFlapsOverlay.java` | ~340 | Landing gear and flaps status |
+| `ControlSurfacesOverlay.java` | ~340 | Control surface indicators |
+| `GearFlapsOverlay.java` | ~290 | Landing gear and flaps status |
 | `FlightInfoOverlay.java` | ~140 | Flight data display |
 | `PowerInfoOverlay.java` | ~170 | Engine power metrics |
 | `FMUnpackedDataOverlay.java` | ~120 | Flight model debug display |
@@ -453,25 +453,59 @@ public class MyOverlay extends DraggableOverlay implements FlightDataListener {
 | FM configuration | Direct `Blkx` access | `xc.getBlkx().NoFlapsWing.AoACritHigh` |
 | Event flags | `FlightDataEvent.getPayload()` | `payload.isJet`, `payload.fatalWarn` |
 
-## OverlayStyleHelper Utility
+## UI Utility Classes
+
+### OverlayStyleHelper
 
 Use `ui.util.OverlayStyleHelper` for common window styling operations:
 
 ```java
-import static ui.util.OverlayStyleHelper.*;
+import ui.util.OverlayStyleHelper;
 
-// Apply transparent style (game mode)
-applyTransparentStyle(this);
+// Apply transparent style (game mode) - replaces setFrameOpaque()
+OverlayStyleHelper.applyTransparentStyle(this);
 
 // Apply preview style (settings UI)
-applyPreviewStyle(this);
+OverlayStyleHelper.applyPreviewStyle(this);
 
 // Load font configuration with defaults
-FontConfig fonts = loadFontConfig(overlaySettings);
+OverlayStyleHelper.FontConfig fonts = OverlayStyleHelper.loadFontConfig(overlaySettings);
 Font labelFont = new Font(fonts.fontName, Font.BOLD, 12 + fonts.fontSizeAdd);
 ```
 
 This helper consolidates duplicate styling code previously scattered across 6+ overlay files.
+
+### SliderHelper
+
+Use `ui.util.SliderHelper` for read-only display sliders:
+
+```java
+import ui.util.SliderHelper;
+
+// Vertical progress bar (flaps/gear display)
+SliderHelper.configureVerticalProgress(slider, 0, 100, topColor, bottomColor);
+
+// Horizontal attitude slider (control surfaces)
+SliderHelper.configureAttitudeSlider(slider, -100, 100, Application.colorNum);
+```
+
+This helper consolidates the ~25-line `initslider()` pattern in GearFlapsOverlay, AttitudeOverlay, and ControlSurfacesOverlay.
+
+### GraphicsUtil
+
+Use `ui.util.GraphicsUtil` for standard rendering configuration:
+
+```java
+import ui.util.GraphicsUtil;
+
+public void paintComponent(Graphics g) {
+    Graphics2D g2d = (Graphics2D) g;
+    GraphicsUtil.configureOverlayRendering(g2d);  // Replaces 4-line hint pattern
+    // ... drawing code
+}
+```
+
+For full documentation, see: [`../util/CLAUDE.md`](../util/CLAUDE.md)
 
 ## Deprecated Classes
 

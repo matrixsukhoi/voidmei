@@ -1,13 +1,35 @@
 package ui.util;
 
 import java.awt.BasicStroke;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 import java.awt.Stroke;
+
+import prog.Application;
 
 /**
  * Utility for Graphics2D rendering operations.
  * Provides optimized stroke factories and drawing helpers.
  */
 public class GraphicsUtil {
+
+    /**
+     * Configure standard rendering hints for overlay painting.
+     *
+     * Applies consistent anti-aliasing and performance settings used across
+     * all overlay paintComponent methods. This consolidates the 4-line pattern
+     * repeated 30+ times in the codebase.
+     *
+     * @param g2d The Graphics2D context to configure
+     */
+    public static void configureOverlayRendering(Graphics2D g2d) {
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, Application.graphAASetting);
+        g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, Application.textAASetting);
+        g2d.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION,
+                RenderingHints.VALUE_ALPHA_INTERPOLATION_SPEED);
+        g2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING,
+                RenderingHints.VALUE_COLOR_RENDER_SPEED);
+    }
 
     /**
      * Creates a stroke with precise endpoints (no cap extension).

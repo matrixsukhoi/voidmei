@@ -8,8 +8,6 @@ import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.Polygon;
 import java.awt.RenderingHints;
-import java.awt.event.MouseListener;
-import java.awt.event.MouseMotionListener;
 import java.awt.geom.AffineTransform;
 
 import com.alee.laf.label.WebLabel;
@@ -21,6 +19,8 @@ import prog.Controller;
 import prog.Service;
 import ui.WebLafSettings;
 import ui.base.DraggableOverlay;
+import ui.util.OverlayStyleHelper;
+import ui.util.SliderHelper;
 import prog.config.OverlaySettings;
 
 public class AttitudeOverlay extends DraggableOverlay implements prog.event.FlightDataListener {
@@ -104,11 +104,7 @@ public class AttitudeOverlay extends DraggableOverlay implements prog.event.Flig
 	}
 
 	public void setFrameOpaque() {
-		this.getWebRootPaneUI().setMiddleBg(new Color(0, 0, 0, 0));// 中部透明
-		this.getWebRootPaneUI().setTopBg(new Color(0, 0, 0, 0));// 顶部透明
-		this.getWebRootPaneUI().setBorderColor(new Color(0, 0, 0, 0));// 内描边透明
-		this.getWebRootPaneUI().setInnerBorderColor(new Color(0, 0, 0, 0));// 外描边透明
-		setShadeWidth(0);
+		OverlayStyleHelper.applyTransparentStyle(this);
 	}
 
 	public void initPreview(Controller c, OverlaySettings settings) {
@@ -182,34 +178,7 @@ public class AttitudeOverlay extends DraggableOverlay implements prog.event.Flig
 	}
 
 	public void initslider(WebSlider slider1) {
-		slider1.setMinimum(-100);
-		slider1.setMaximum(100);
-		slider1.setValue(0);
-		slider1.setDrawProgress(true);
-		slider1.setMinorTickSpacing(25);
-		slider1.setMajorTickSpacing(50);
-		slider1.setPaintTicks(true);
-		slider1.setPaintLabels(true);
-		slider1.setProgressShadeWidth(0);
-		slider1.setTrackShadeWidth(1);
-		slider1.setThumbShadeWidth(2);
-		slider1.setThumbBgBottom(Color.white);
-		slider1.setThumbBgTop(Color.white);
-		slider1.setTrackBgBottom(new Color(0, 0, 0, 0));
-		slider1.setTrackBgTop(new Color(0, 0, 0, 0));
-		slider1.setProgressBorderColor(new Color(0, 0, 0, 0));
-		slider1.setProgressTrackBgBottom(new Color(0, 0, 0, 0));
-		slider1.setProgressTrackBgTop(new Color(0, 0, 0, 0));
-		slider1.setFocusable(false);
-		// 取消slider1响应
-		MouseListener[] mls = slider1.getMouseListeners();
-		MouseMotionListener[] mmls = slider1.getMouseMotionListeners();
-		for (int t = 0; t < mls.length; t++) {
-			slider1.removeMouseListener(mls[t]);
-		}
-		for (int t = 0; t < mmls.length; t++) {
-			slider1.removeMouseMotionListener(mmls[t]);
-		}
+		SliderHelper.configureAttitudeSlider(slider1, -100, 100, Color.white);
 	}
 
 	public WebLabel createWebLabel(String text) {

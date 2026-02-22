@@ -22,6 +22,7 @@ import prog.config.ConfigurationService;
 import prog.config.HUDSettings;
 import ui.WebLafSettings;
 import ui.base.DraggableOverlay;
+import ui.util.OverlayStyleHelper;
 
 /**
  * MinimalHUD overlay for displaying compact flight information.
@@ -62,11 +63,7 @@ public class MiniHUDOverlay extends DraggableOverlay implements FlightDataListen
     private HUDSettings hudSettings;
 
     public void setFrameOpaque() {
-        this.getWebRootPaneUI().setMiddleBg(new Color(0, 0, 0, 0));// 中部透明
-        this.getWebRootPaneUI().setTopBg(new Color(0, 0, 0, 0));// 顶部透明
-        this.getWebRootPaneUI().setBorderColor(new Color(0, 0, 0, 0));// 内描边透明
-        this.getWebRootPaneUI().setInnerBorderColor(new Color(0, 0, 0, 0));// 外描边透明
-        setShadeWidth(0);
+        OverlayStyleHelper.applyTransparentStyle(this);
     }
 
     public void initpanel() {

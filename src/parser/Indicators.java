@@ -7,7 +7,6 @@ import prog.Service;
 public class Indicators{
 	public String valid;
 	public String type;
-	public boolean isdummyplane=false;
 	public String stype;
 	public boolean flag;
 //	public boolean fuelpressure;
@@ -76,12 +75,8 @@ public class Indicators{
 		
 			if(type.length()>0){
 				type=type.substring(1, type.length()-1);
-				//判定是否dummyplane
-				//if(type.equals("DUMMY_PLANE"))isdummyplane=true;
-				//else isdummyplane=false;
 				if(type.length()>9)stype=type.substring(0, 8);
 				else stype=type;
-				
 			}
 			
 			speed=StringHelper.getDataFloat(StringHelper.getString(buf, "speed"));
