@@ -129,8 +129,6 @@ public class AttitudeOverlay extends DraggableOverlay implements prog.event.Flig
 		// 1. 先绘制橘红色多边形（地面层，最底层）
 		g2d.setColor(Application.colorUnit);
 		g2d.fillPolygon(pX, pY, 4);
-		if (showDirection)
-			g2d.drawLine(width / 2, height / 2, (int) (width / 2 + compassX), (int) (height / 2 + compassY));
 
 		// 2. 绘制边框
 		g2d.setStroke(new BasicStroke(1));
@@ -170,9 +168,10 @@ public class AttitudeOverlay extends DraggableOverlay implements prog.event.Flig
 		g2d.drawLine(0, (int) AoALimitD, width - 1, (int) AoALimitD);
 
 		if (showDirection) {
+			g2d.setColor(Application.colorWarning);  // 单位色 - 指北
 			g2d.drawLine(width / 2, height / 2, (int) (width / 2 + compassX), (int) (height / 2 + compassY));
 
-			g2d.setColor(Application.colorWarning);
+			g2d.setColor(Application.colorNum);   // 数字色 - 指南
 			g2d.drawLine(width / 2, height / 2, (int) (width / 2 - compassX), (int) (height / 2 - compassY));
 		}
 	}
