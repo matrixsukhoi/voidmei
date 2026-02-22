@@ -382,7 +382,7 @@ public class VoiceWarning implements Runnable {
 
         // 初始化
         audClip aC = new audClip("start1", 1);
-        aC.playOnce(xS.SystemTime);
+        aC.playOnce(xS.currentTimeMs);
         // aC.close();
         aC = null;
         engDamage = false;
@@ -432,7 +432,7 @@ public class VoiceWarning implements Runnable {
             }
             Boolean fatal = false;
             Boolean noRPM = false;
-            long t = xS.SystemTime;
+            long t = xS.currentTimeMs;
 
             /* 可变翼更新攻角限制和速度警告 */
             double vwing = 0;

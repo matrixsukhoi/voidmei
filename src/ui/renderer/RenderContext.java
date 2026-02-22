@@ -73,7 +73,9 @@ public class RenderContext {
         Font labelFont = new Font(labelFontName, Font.BOLD, Math.round(fontSize / 2.0f));
         Font unitFont = new Font(numFontName, Font.PLAIN, Math.round(fontSize / 2.0f));
 
-        int numHeight = component.getFontMetrics(numFont).getHeight();
+        // Use Toolkit for font metrics to avoid issues with unrealized components.
+        // Component.getFontMetrics() can return inaccurate values before setVisible(true).
+        int numHeight = java.awt.Toolkit.getDefaultToolkit().getFontMetrics(numFont).getHeight();
 
         return new RenderContext(numFont, labelFont, unitFont, fontSize, columnNum, numHeight);
     }

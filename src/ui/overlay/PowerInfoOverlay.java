@@ -72,11 +72,12 @@ public class PowerInfoOverlay extends FieldOverlay {
 	 * Initialize for preview mode using standardized signature.
 	 */
 	public void initPreview(prog.Controller c, prog.config.OverlaySettings settings) {
+		this.isPreview = true;  // Set BEFORE init() to prevent FlightDataBus subscription
 		init(c, null, settings);
 		applyPreviewStyle();
 		setupDragListeners();
 		setVisible(true);
-		reinitConfig();
+		reinitConfig();  // Required: refreshes preview layout/styling
 	}
 
 	/**

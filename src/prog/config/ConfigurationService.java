@@ -92,22 +92,26 @@ public class ConfigurationService implements ConfigProvider {
         // Parse and apply config to app and Controller State
         // This replaces loadFromConfig() in Controller
 
-        long freqService = 50;
+        long serviceLoopIntervalMs = 50;
         try {
-            String intervalStr = getConfig("Interval");
+            // Try new config key first, fallback to legacy key for backward compatibility
+            String intervalStr = getConfig("dataPollIntervalMs");
+            if (intervalStr == null || intervalStr.isEmpty()) {
+                intervalStr = getConfig("Interval");  // Legacy key fallback
+            }
             if (intervalStr != null && !intervalStr.isEmpty()) {
-                freqService = Long.parseLong(intervalStr);
+                serviceLoopIntervalMs = Long.parseLong(intervalStr);
             }
         } catch (NumberFormatException e) {
-            freqService = 50;
+            serviceLoopIntervalMs = 50;
         }
-        c.freqService = freqService;
-        c.freqEngineInfo = (long) (freqService * 2f);
-        c.freqFlightInfo = (long) (freqService * 1.5f);
-        c.freqAltitude = (long) (freqService * 1.5f);
-        c.freqGearAndFlap = (long) (freqService * 2f);
-        c.freqStickValue = (long) (freqService * 1f);
-        Application.threadSleepTime = (long) (freqService / 3);
+        c.serviceLoopIntervalMs = serviceLoopIntervalMs;
+        c.engineInfoIntervalMs = (long) (serviceLoopIntervalMs * 2f);
+        c.flightInfoIntervalMs = (long) (serviceLoopIntervalMs * 1.5f);
+        c.altitudeIntervalMs = (long) (serviceLoopIntervalMs * 1.5f);
+        c.gearFlapsIntervalMs = (long) (serviceLoopIntervalMs * 2f);
+        c.controlInputIntervalMs = (long) (serviceLoopIntervalMs * 1f);
+        Application.threadSleepTime = (long) (serviceLoopIntervalMs / 3);
 
         Application.colorNum = getColorConfig("fontNum");
         Application.colorLabel = getColorConfig("fontLabel");

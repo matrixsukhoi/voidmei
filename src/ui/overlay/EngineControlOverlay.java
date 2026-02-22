@@ -47,7 +47,7 @@ public class EngineControlOverlay extends FieldOverlay { // Revert to FieldOverl
 	private static final int WIDTH_MULTIPLIER = 8;
 	private static final int SHADE_WIDTH = 10;
 	private static final long DEFAULT_REFRESH_INTERVAL = 100; // ms
-	private static final double ENGINE_REFRESH_MULTIPLIER = 2.0; // freqService * 2
+	private static final double ENGINE_REFRESH_MULTIPLIER = 2.0; // serviceLoopIntervalMs * 2
 
 	// Gauge Type Enum (replaces magic int constants)
 	public enum GaugeType {
@@ -188,10 +188,14 @@ public class EngineControlOverlay extends FieldOverlay { // Revert to FieldOverl
 	}
 
 	private void loadRefreshInterval() {
-		String intervalVal = getConfigSafe("Interval");
+		// Try new config key first, fallback to legacy key for backward compatibility
+		String intervalVal = getConfigSafe("dataPollIntervalMs");
+		if (intervalVal.isEmpty()) {
+			intervalVal = getConfigSafe("Interval");  // Legacy key fallback
+		}
 		if (!intervalVal.isEmpty()) {
-			long freqService = parseLongSafe(intervalVal, DEFAULT_REFRESH_INTERVAL);
-			refreshInterval = (long) (freqService * ENGINE_REFRESH_MULTIPLIER);
+			long serviceLoopIntervalMs = parseLongSafe(intervalVal, DEFAULT_REFRESH_INTERVAL);
+			refreshInterval = (long) (serviceLoopIntervalMs * ENGINE_REFRESH_MULTIPLIER);
 		}
 	}
 

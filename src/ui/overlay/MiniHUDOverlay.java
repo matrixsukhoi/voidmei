@@ -255,11 +255,11 @@ public class MiniHUDOverlay extends DraggableOverlay implements FlightDataListen
 
         this.setContentPane(panel);
 
-        blinkTicks = (int) ((1000 / controller.freqService) >> 3);
+        blinkTicks = (int) ((1000 / controller.serviceLoopIntervalMs) >> 3);
         if (blinkTicks == 0)
             blinkTicks = 1;
 
-        refreshInterval = (long) (controller.freqService * 1.0); // Match freqService
+        refreshInterval = controller.serviceLoopIntervalMs; // Sync with service loop interval
 
         setTitle("miniHUD");
         WebLafSettings.setWindowOpaque(this);
@@ -380,12 +380,12 @@ public class MiniHUDOverlay extends DraggableOverlay implements FlightDataListen
 
     @Override
     public void onFlightData(FlightDataEvent event) {
-        // Throttle removed by user request
-        // long now = System.currentTimeMillis();
-        // if (now - lastRefreshTime < refreshInterval) {
-        // return; // Skip this update, too soon
-        // }
-        // lastRefreshTime = now;
+        // Throttling prevents EDT task accumulation when events arrive faster than processing
+        long now = System.currentTimeMillis();
+        if (now - lastRefreshTime < refreshInterval) {
+            return; // Skip this update, too soon
+        }
+        lastRefreshTime = now;
 
         javax.swing.SwingUtilities.invokeLater(() -> {
             updateFromEvent(event);
@@ -398,8 +398,14 @@ public class MiniHUDOverlay extends DraggableOverlay implements FlightDataListen
         if (ctx == null)
             return;
 
-        // 1. Calculate Data Snapshot using Pure Event Data
-        HUDData data = HUDCalculator.calculate(event, service, controller.getBlkx(), hudSettings, ctx);
+        // 1. Get pre-computed HUDData from Service thread (reduces EDT latency)
+        HUDData data = event.getHudData();
+
+        // Fallback: calculate on EDT if pre-computed data is not available
+        // This handles preview mode and edge cases where Service hasn't computed yet
+        if (data == null) {
+            data = HUDCalculator.calculate(event, service, controller.getBlkx(), hudSettings, ctx);
+        }
 
         // 2. Dispatch to Reactive Components
         for (HUDComponent comp : components) {
@@ -412,13 +418,6 @@ public class MiniHUDOverlay extends DraggableOverlay implements FlightDataListen
         blinkX = event.getPayload().fatalWarn;
 
         if (hudRows != null && hudRows.size() >= 5) {
-            // Row 2: Standard (Flaps/Gear)
-            // Row 3: Standard (SEP)
-            // Row 4: Maneuver (G)
-            // These still use legacy update() in my previous view of updateComponents()?
-            // Wait, I should refactor them to uses onDataUpdate directly.
-            // If I don't, I must manually call update() here.
-
             // Let's call a legacy bridge method explicitly
             updateLegacyComponents(data);
         }

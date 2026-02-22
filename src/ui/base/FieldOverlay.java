@@ -34,6 +34,16 @@ import java.util.Map;
 public abstract class FieldOverlay extends DraggableOverlay implements FlightDataListener {
     private static final long serialVersionUID = 1L;
 
+    // Throttling to prevent EDT task accumulation
+    private static final long REFRESH_INTERVAL_MS = 50;
+    private long lastRefreshTime = 0;
+
+    // Prevent duplicate event subscriptions
+    private boolean subscribed = false;
+
+    // Preview mode flag - when true, skip FlightDataBus subscription
+    protected boolean isPreview = false;
+
     protected FieldManager fieldManager;
     protected OverlayRenderer renderer;
     protected RenderContext renderContext;
@@ -99,6 +109,7 @@ public abstract class FieldOverlay extends DraggableOverlay implements FlightDat
     }
 
     public void initPreview(ConfigProvider config) {
+        this.isPreview = true;  // Set BEFORE init() to prevent event subscription
         init(config);
         applyPreviewStyle();
         setupDragListeners();
@@ -144,11 +155,22 @@ public abstract class FieldOverlay extends DraggableOverlay implements FlightDat
     }
 
     protected void subscribeToEvents() {
-        FlightDataBus.getInstance().register(this);
+        if (isPreview) return;  // Preview mode: skip subscription to preserve static preview values
+        if (!subscribed) {
+            FlightDataBus.getInstance().register(this);
+            subscribed = true;
+        }
     }
 
     @Override
     public void onFlightData(FlightDataEvent event) {
+        // Throttling prevents EDT task accumulation
+        long now = System.currentTimeMillis();
+        if (now - lastRefreshTime < REFRESH_INTERVAL_MS) {
+            return; // Skip this update, too soon
+        }
+        lastRefreshTime = now;
+
         javax.swing.SwingUtilities.invokeLater(() -> {
             Map<String, String> data = event.getData();
             for (DataField field : fieldManager.getFields()) {
@@ -226,7 +248,10 @@ public abstract class FieldOverlay extends DraggableOverlay implements FlightDat
 
     @Override
     public void dispose() {
-        FlightDataBus.getInstance().unregister(this);
+        if (subscribed) {
+            FlightDataBus.getInstance().unregister(this);
+            subscribed = false;
+        }
         super.dispose();
     }
 }

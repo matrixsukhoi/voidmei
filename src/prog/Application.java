@@ -273,11 +273,18 @@ public class Application {
 	}
 
 	public static void initFont() {
-		environment = GraphicsEnvironment.getLocalGraphicsEnvironment();
+		// Use local variable to avoid race condition when multiple threads call initFont()
+		// Previously, setting environment = null at the end could cause NPE in concurrent calls
+		GraphicsEnvironment localEnv = GraphicsEnvironment.getLocalGraphicsEnvironment();
+		environment = localEnv;  // Keep assignment for any code that might still read it
 
 		// 遍历所有font
 		File file = new File("fonts/");
 		String[] filelist = file.list();
+		if (filelist == null) {
+			// Directory doesn't exist or is not accessible
+			filelist = new String[0];
+		}
 		for (int i = 0; i < filelist.length; i++) {
 			try {
 
@@ -285,7 +292,7 @@ public class Application {
 				Font customFont = Font.createFont(Font.TRUETYPE_FONT, new File("fonts/" + filelist[i]));
 				// register the font
 
-				environment.registerFont(customFont);
+				localEnv.registerFont(customFont);  // Use local variable
 
 			} catch (IOException e) {
 				e.printStackTrace();
@@ -295,7 +302,7 @@ public class Application {
 			}
 		}
 
-		fonts = environment.getAvailableFontFamilyNames();// 获得系统字体
+		fonts = localEnv.getAvailableFontFamilyNames();  // Use local variable
 
 		Boolean findFont = false;
 		for (int i = 0; i < fonts.length; i++) {
@@ -320,7 +327,7 @@ public class Application {
 		defaultNumFontBig = new Font(defaultNumfontName, Font.PLAIN, defaultFontsize + 2);
 		defaultNumFontBigBold = new Font(defaultNumfontName, Font.BOLD, defaultFontsize + 4);
 		defaultNumFontSmall = new Font(defaultNumfontName, Font.PLAIN, defaultFontsize - 2);
-		environment = null;
+		// Note: No longer setting environment = null to avoid race conditions
 	}
 
 	public static void getScreenSize() {

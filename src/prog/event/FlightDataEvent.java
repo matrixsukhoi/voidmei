@@ -18,6 +18,9 @@ public class FlightDataEvent {
     private final Object indicators;  // parser.Indicators
     private final long timestamp;
 
+    /** Pre-computed HUD data (calculated on Service thread, consumed on EDT). May be null. */
+    private ui.overlay.model.HUDData hudData;
+
     public FlightDataEvent(EventPayload payload, Object state, Object indicators) {
         this.payload = payload;
         this.state = state;
@@ -41,6 +44,18 @@ public class FlightDataEvent {
     public Object getState() { return state; }
     public Object getIndicators() { return indicators; }
     public long getTimestamp() { return timestamp; }
+
+    /**
+     * Gets pre-computed HUD data (calculated on Service thread).
+     * @return HUDData if computed, null otherwise
+     */
+    public ui.overlay.model.HUDData getHudData() { return hudData; }
+
+    /**
+     * Sets pre-computed HUD data (called on Service thread before publishing).
+     * @param data The pre-computed HUD data
+     */
+    public void setHudData(ui.overlay.model.HUDData data) { this.hudData = data; }
 
     /**
      * @deprecated Use {@link #getPayload()} for type-safe access.

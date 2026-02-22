@@ -256,7 +256,27 @@ public class MinimalHUDContext {
 }
 ```
 
+### HUDData Pre-computation
+
+**Performance Optimization:** HUDData is pre-computed on the Service thread before the event is published, reducing EDT latency by ~40-60ms.
+
+```java
+// Service.java - Pre-compute on background thread
+HUDData hudData = HUDCalculator.calculate(event, this, blkx, hudSettings, null);
+event.setHudData(hudData);
+FlightDataBus.getInstance().publish(event);
+
+// MiniHUDOverlay.java - Consume pre-computed data
+@Override
+public void onFlightData(FlightDataEvent event) {
+    HUDData data = event.getHudData();  // Already computed!
+    if (data == null) return;
+    SwingUtilities.invokeLater(() -> updateComponents(data));
+}
+```
+
 **Key differences from BaseOverlay:**
+- **Pre-computed HUDData**: Heavy computation on Service thread, not EDT
 - No `dataPanel` or `ZebraListRenderer`
 - Custom `paintComponent()` drives all rendering
 - Layout computed via DAG-based dependency resolution

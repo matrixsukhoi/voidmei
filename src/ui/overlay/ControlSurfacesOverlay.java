@@ -27,13 +27,17 @@ import prog.config.OverlaySettings;
 
 public class ControlSurfacesOverlay extends DraggableOverlay implements FlightDataListener {
 
+	// Throttling to prevent EDT task accumulation
+	private static final long REFRESH_INTERVAL_MS = 50;
+	private long lastRefreshTime = 0;
+
 	public ControlSurfacesOverlay() {
 		super();
 		setTitle("舵面值");
 	}
 
 	/**
-	 * 
+	 *
 	 */
 	WebLabel label_3;
 	WebLabel label_6;
@@ -275,6 +279,13 @@ public class ControlSurfacesOverlay extends DraggableOverlay implements FlightDa
 
 	@Override
 	public void onFlightData(FlightDataEvent event) {
+		// Throttling prevents EDT task accumulation
+		long now = System.currentTimeMillis();
+		if (now - lastRefreshTime < REFRESH_INTERVAL_MS) {
+			return; // Skip this update, too soon
+		}
+		lastRefreshTime = now;
+
 		javax.swing.SwingUtilities.invokeLater(() -> {
 			if (xs != null) {
 				// Zero-GC Update

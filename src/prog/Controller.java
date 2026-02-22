@@ -90,16 +90,22 @@ public class Controller implements ConfigProvider {
 	// 存储参数
 	// 主参数
 
-	public long freqService;// Service取数据与计算周期
+	/** Service data polling and calculation interval (ms). Previously named freqService. */
+	public long serviceLoopIntervalMs;
 	// 发动机面板
-	public long freqEngineInfo;// engineInfo刷新周期
-	public long freqFlightInfo;
+	/** Engine info overlay refresh interval (ms). Previously named freqEngineInfo. */
+	public long engineInfoIntervalMs;
+	/** Flight info overlay refresh interval (ms). Previously named freqFlightInfo. */
+	public long flightInfoIntervalMs;
 	// 人工地平仪
-	public long freqAltitude;
+	/** Altitude/attitude display refresh interval (ms). Previously named freqAltitude. */
+	public long altitudeIntervalMs;
 
-	public long freqGearAndFlap;
+	/** Gear and flaps overlay refresh interval (ms). Previously named freqGearAndFlap. */
+	public long gearFlapsIntervalMs;
 
-	public long freqStickValue;
+	/** Control surface (stick values) overlay refresh interval (ms). Previously named freqStickValue. */
+	public long controlInputIntervalMs;
 	//
 
 	public static boolean engineInfoSwitch;// engineInfo面板开启

@@ -26,6 +26,10 @@ import prog.event.FlightDataEvent;
 
 public class GearFlapsOverlay extends DraggableOverlay implements FlightDataListener {
 
+    // Throttling to prevent EDT task accumulation (gear/flaps are low-frequency data)
+    private static final long REFRESH_INTERVAL_MS = 100;
+    private long lastRefreshTime = 0;
+
     public GearFlapsOverlay() {
         super();
         setTitle("起落襟翼");
@@ -192,6 +196,13 @@ public class GearFlapsOverlay extends DraggableOverlay implements FlightDataList
 
     @Override
     public void onFlightData(prog.event.FlightDataEvent event) {
+        // Throttling prevents EDT task accumulation
+        long now = System.currentTimeMillis();
+        if (now - lastRefreshTime < REFRESH_INTERVAL_MS) {
+            return; // Skip this update, too soon
+        }
+        lastRefreshTime = now;
+
         javax.swing.SwingUtilities.invokeLater(() -> {
             drawTick();
         });

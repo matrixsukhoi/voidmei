@@ -319,8 +319,8 @@ public class AttitudeOverlay extends DraggableOverlay implements prog.event.Flig
 
 	@Override
 	public void onFlightData(prog.event.FlightDataEvent event) {
-		if (xs != null && xs.SystemTime - freqCheckMili > freqMili) {
-			freqCheckMili = xs.SystemTime;
+		if (xs != null && xs.currentTimeMs - freqCheckMili > freqMili) {
+			freqCheckMili = xs.currentTimeMs;
 			javax.swing.SwingUtilities.invokeLater(() -> {
 				drawTick();
 			});

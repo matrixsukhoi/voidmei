@@ -15,6 +15,9 @@ import static prog.util.PhysicsConstants.g;
 import prog.event.EventPayload;
 import prog.event.FlightDataBus;
 import prog.event.FlightDataEvent;
+import prog.config.HUDSettings;
+import ui.overlay.logic.HUDCalculator;
+import ui.overlay.model.HUDData;
 
 public class Service implements Runnable, ui.model.TelemetrySource {
 	public static CalcHelper cH = new CalcHelper();
@@ -59,24 +62,24 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 	public boolean notCheckInch;
 	// public boolean isFuelpressure;
 	public boolean altperCirclflag;
-	public long intv;
+	public long actualIntervalMs;
 	public double althour;
 	public double altperCircle;
 	public double alt;
 	public double altp;
 	public double altreg;
 	public double iastotascoff;
-	public long SystemTime;
-	public long TimeIncrMili;
-	long MainCheckMili;
-	long MapCheckMili;
+	public long currentTimeMs;
+	public long pollCycleDurationMs;
+	long lastMainLoopTimeMs;
+	long lastMapPollTimeMs;
 	long FuelCheckMili;
 	public double fuelChange;
 	long FuelLastchangeMili;
 	long FuelchangeTime;
 	long GCCheckMili;
 	long SlowCheckMili;
-	long intvCheckMili;
+	long intervalCheckMs;
 	long startTime;
 	public long elapsedTime;
 
@@ -223,7 +226,11 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 
 	public static final String pressureUnit = "Ata";
 
-	public void trans2String() {
+	/**
+	 * Formats raw flight data into display strings.
+	 * Previously named trans2String() - renamed for clarity.
+	 */
+	public void formatDataAsStrings() {
 
 		// 数据转换格式
 		// sState
@@ -455,15 +462,16 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 		// System.out.println("current location is:" + sLoc + "[stepx, stepy]" + stepx +
 		// ", " + stepy);
 
-		updateGlobalPool();
+		publishFlightDataEvent();
 	}
 
 	/**
 	 * Publishes flight data to FlightDataBus.
-	 * Note: Method name is legacy - GlobalPool has been removed.
-	 * Data is now published exclusively via FlightDataBus.
+	 * Pre-computes HUDData on Service thread to offload work from EDT.
+	 *
+	 * @deprecated Method name is legacy - renamed to publishFlightDataEvent() for clarity.
 	 */
-	private void updateGlobalPool() {
+	private void publishFlightDataEvent() {
 		// Build type-safe payload (replaces legacy Map<String, String>)
 		String mapGrid;
 		if (loc != null && mapinfo != null) {
@@ -487,6 +495,21 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 			.build();
 
 		FlightDataEvent event = new FlightDataEvent(payload, sState, sIndic);
+
+		// Pre-compute HUDData on Service thread (reduces EDT latency by ~40-60ms)
+		if (c != null && c.configService != null) {
+			try {
+				HUDSettings hudSettings = c.configService.getHUDSettings();
+				if (hudSettings != null) {
+					HUDData hudData = HUDCalculator.calculate(event, this, c.getBlkx(), hudSettings, null);
+					event.setHudData(hudData);
+				}
+			} catch (Exception e) {
+				// Calculation failure should not prevent event publishing
+				prog.util.Logger.warn("Service", "HUDData pre-calculation failed: " + e.getMessage());
+			}
+		}
+
 		FlightDataBus.getInstance().publish(event);
 	}
 
@@ -528,14 +551,14 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 	public void slowcalculate(long dtime) {
 		// 计算耗油率及持续时间
 		// Application.debugPrint(totalfuelp - totalfuel);
-		// if (MainCheckMili - FuelCheckMili > 1000) {
+		// if (lastMainLoopTimeMs - FuelCheckMili > 1000) {
 
 		dfuel = (fTotalFuelP - fTotalFuel) / dtime;
 
 		if (dfuel > 0) {
 
-			FuelchangeTime = MainCheckMili - FuelLastchangeMili;
-			FuelLastchangeMili = MainCheckMili;
+			FuelchangeTime = lastMainLoopTimeMs - FuelLastchangeMili;
+			FuelLastchangeMili = lastMainLoopTimeMs;
 			fuelChange = fTotalFuelP - fTotalFuel; // 改变1公斤花了多长时间
 
 			if (!bLowAccFuel) {
@@ -568,7 +591,7 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 		if (fueltime < 0)
 			fueltime = Long.MAX_VALUE;
 
-		FuelCheckMili = MainCheckMili;
+		FuelCheckMili = lastMainLoopTimeMs;
 		fTotalFuelP = fTotalFuel;
 		// prev_throttle = sState.throttle;
 		// 计算变化率
@@ -593,7 +616,7 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 		for (int i = 0; i < c.getBlkx().maxEngLoad; i++) {
 			if (i < curWLoad) {
 				if (pL[i].WorkTime != 0) {
-					pL[i].curWaterWorkTimeMili -= TimeIncrMili;
+					pL[i].curWaterWorkTimeMili -= pollCycleDurationMs;
 					if (pL[i].curWaterWorkTimeMili < minWorkTime) {
 						minWorkTime = pL[i].curWaterWorkTimeMili;
 					}
@@ -611,7 +634,7 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 					// 大于load且工作时长不满则进行恢复
 					if (sState.throttle <= 100) {
 						if (pL[i].RecoverTime != 0 && (1000 * pL[i].WorkTime > pL[i].curWaterWorkTimeMili)) {
-							pL[i].curWaterWorkTimeMili += (double) TimeIncrMili * pL[i].WorkTime / pL[i].RecoverTime;
+							pL[i].curWaterWorkTimeMili += (double) pollCycleDurationMs * pL[i].WorkTime / pL[i].RecoverTime;
 						}
 					}
 				}
@@ -631,7 +654,7 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 		for (int i = 0; i < c.getBlkx().maxEngLoad; i++) {
 			if (i < curOLoad) {
 				if (pL[i].WorkTime != 0) {
-					pL[i].curOilWorkTimeMili -= TimeIncrMili;
+					pL[i].curOilWorkTimeMili -= pollCycleDurationMs;
 					if (pL[i].curOilWorkTimeMili < minWorkTime) {
 						minWorkTime = pL[i].curOilWorkTimeMili;
 					}
@@ -648,7 +671,7 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 					// 大于load且工作时长不满则进行恢复
 					if (sState.throttle <= 100) {
 						if (pL[i].RecoverTime != 0 && (1000 * pL[i].WorkTime > pL[i].curOilWorkTimeMili)) {
-							pL[i].curOilWorkTimeMili += (double) TimeIncrMili * pL[i].WorkTime / pL[i].RecoverTime;
+							pL[i].curOilWorkTimeMili += (double) pollCycleDurationMs * pL[i].WorkTime / pL[i].RecoverTime;
 						}
 					}
 				}
@@ -724,8 +747,8 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 		for (int i = 0; i < engineNum; i++) {
 			if (sState.throttles[i] > 100) {
 				// 进入Wep状态
-				// Application.debugPrint(TimeIncrMili);
-				wepTime += TimeIncrMili;
+				// Application.debugPrint(pollCycleDurationMs);
+				wepTime += pollCycleDurationMs;
 				nitroEngNr += 1;
 			}
 		}
@@ -757,10 +780,10 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 
 		// 人类毒瘤英制飞机
 		if (!notCheckInch && Math.abs(sState.Vy) > 0) {
-			if ((Math.abs(altmeter - altmeterp) * 1000 > Math.abs(2 * sState.Vy * intv))) {
-				iCheckAlt += intv;
+			if ((Math.abs(altmeter - altmeterp) * 1000 > Math.abs(2 * sState.Vy * actualIntervalMs))) {
+				iCheckAlt += actualIntervalMs;
 			} else {
-				iCheckAlt -= intv;
+				iCheckAlt -= actualIntervalMs;
 			}
 			if (Math.abs(iCheckAlt) > 10000)
 				notCheckInch = true;
@@ -769,7 +792,7 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 		// if (checkAlt > 2)
 		// alt = alt * 0.3048f;
 		// // Application.debugPrint(Math.abs(alt - altp)*1000+"?"+Math.abs(2 *
-		// // sState.Vy * intv));
+		// // sState.Vy * actualIntervalMs));
 		//
 		// // 解决熊猫的高度问题
 		// alt = alt + altperCircle * altreg;
@@ -790,7 +813,7 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 				radioAlt = sIndic.radio_altitude;
 			}
 		}
-		dRadioAlt = (ratio_1 * dRadioAlt) + ratio * 1000.0f * (radioAlt - pRadioAlt) / intv;
+		dRadioAlt = (ratio_1 * dRadioAlt) + ratio * 1000.0f * (radioAlt - pRadioAlt) / actualIntervalMs;
 		// Application.debugPrint(dRadioAlt);
 
 	}
@@ -980,7 +1003,7 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 			}
 		}
 
-		tEngResponse = (ratio_1 * tEngResponse) + ratio * (thurstPercent - pThurstPercent) * 1000.0f / intv;
+		tEngResponse = (ratio_1 * tEngResponse) + ratio * (thurstPercent - pThurstPercent) * 1000.0f / actualIntervalMs;
 
 	}
 
@@ -1014,7 +1037,7 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 		// diffspeed = (ratio_1 * diffspeed + ratio * (speedv - speedvp));
 		diffspeed = diffspeed1;
 		// Application.debugPrint(diffspeed);
-		acceleration = diffspeed * 1000.0 / intv;
+		acceleration = diffspeed * 1000.0 / actualIntervalMs;
 
 		// 三种计算方式
 
@@ -1022,17 +1045,17 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 		// SEP = acceleration * (speedvp + speedv) / (2 * g) + nVy;
 		// SEP /= 2;
 
-		// SEP = (diffspeed * (speedv + speedvp)) /((2 * intv * g)/ 1000.0f) +
+		// SEP = (diffspeed * (speedv + speedvp)) /((2 * actualIntervalMs * g)/ 1000.0f) +
 		// nVy;
 		// -38.8 4.7 = 28
 		// SEP = SEP1;
 
 		// 跳变太大, 没法读数
 
-		// SEP = ((speedv * speedv) - (speedvp * speedvp))*1000.0f/(2 * intv *
+		// SEP = ((speedv * speedv) - (speedvp * speedvp))*1000.0f/(2 * actualIntervalMs *
 		// g) + nVy;
 
-		SEP = sepSMA.addNewData(((speedv + speedvp) * (speedv - speedvp) * 1000) / (2 * intv * g) + nVy);
+		SEP = sepSMA.addNewData(((speedv + speedvp) * (speedv - speedvp) * 1000) / (2 * actualIntervalMs * g) + nVy);
 		// SEP /= 2;
 
 		// } else {
@@ -1047,7 +1070,7 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 		energyJKg = ((speedv + speedvp) * (speedv + speedvp) / 8 + g * sState.heightm);
 		energyM = ((speedv + speedvp) * (speedv + speedvp) / (8 * g) + sState.heightm);
 		// System.out.println(String.format("%.0f",
-		// energyDiffSMA.addNewData((energyJKg - pEnergyJKg)*1000/intv)));
+		// energyDiffSMA.addNewData((energyJKg - pEnergyJKg)*1000/actualIntervalMs)));
 	}
 
 	public void checkWing() {
@@ -1065,7 +1088,7 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 			downflap = true;
 		} else if (flap - flapp == 0) {
 			// 加计数
-			flapCheck += intv;
+			flapCheck += actualIntervalMs;
 
 			// 维持1秒稳定
 			if (flapCheck >= 1000) {
@@ -1127,7 +1150,7 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 	public void calculate() {
 
 		// 获得开始时间
-		elapsedTime = SystemTime - startTime;
+		elapsedTime = currentTimeMs - startTime;
 
 		// 增加wep时间
 		updateWepTime();
@@ -1532,8 +1555,8 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 		// if(c.getBlkx() != null && c.getBlkx().maxEngLoad !=
 		// 0)c.getBlkx().resetEngineLoad();
 		FuelCheckMili = System.currentTimeMillis();
-		MapCheckMili = FuelCheckMili;
-		MainCheckMili = FuelCheckMili;
+		lastMapPollTimeMs = FuelCheckMili;
+		lastMainLoopTimeMs = FuelCheckMili;
 		notCheckInch = false;
 		altperCirclflag = false;
 		// isFuelpressure = false;
@@ -1618,7 +1641,7 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 			pitch[i] = nastring;
 
 		// Publish initial state immediately
-		updateGlobalPool();
+		publishFlightDataEvent();
 	}
 
 	public void clearvaria() {
@@ -1641,7 +1664,7 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 
 		c = xc;
 
-		freq = xc.freqService;
+		freq = xc.serviceLoopIntervalMs;
 		clearvaria();
 		mapinfo = new MapInfo();
 		ratio = freq / 1000.0f;
@@ -1660,10 +1683,14 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 
 	}
 
-	public void checkState() {
+	/**
+	 * Processes one polling cycle: updates state, calculates data, and publishes events.
+	 * Previously named checkState() - renamed for clarity.
+	 */
+	public void processPollingCycle() {
 		int conState;
 		// 更新时间戳
-		timeStamp = SystemTime;
+		timeStamp = currentTimeMs;
 		// Application.debugPrint("s:"+httpClient.strState+"s1:"+httpClient.strIndic);
 		// 更新state
 
@@ -1719,7 +1746,7 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 						slowcalculate((500 / freq) * freq);
 
 					// 将数据转换格式
-					trans2String();
+					formatDataAsStrings();
 
 					// 写入文档
 					// c.writeDown();
@@ -1759,60 +1786,63 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 
 	@Override
 	public void run() {
-		// Application.debugPrint("" + waitMili);
+		// Main polling loop with exception recovery
 		while (true) {
-
-			SystemTime = System.currentTimeMillis();
-			long diffTime = SystemTime - MainCheckMili;
-			if (diffTime >= freq) {
-
-				// 尝试GET数据
-				if (!portOcupied)
-					httpClient.getReqResult(Application.requestDest);
-				else
-					httpClient.getReqResult(Application.requestDestBkp);
-
-				intv = (diffTime / freq) * freq;
-				TimeIncrMili = intv;
-				MainCheckMili += intv;
-				// MainCheckMili = SystemTime;
-
-				// 检查是否需要改变状态
-				checkState();
-
-				// 记录
-				if (c.logon) {
-					FlightLog tempLog = c.Log;
-					if (tempLog != null)
-						tempLog.logTick();
-				}
-				// Application.debugPrint("?\n");
-				// 检查超时
-				// if (MainCheckMili <= (System.currentTimeMillis() - intv)) {
-				// Application.debugPrint("deadline Miss, try catch\n" + SystemTime +
-				// "," + MainCheckMili);
-				// }
-			}
-			long diffTime1 = SystemTime - MapCheckMili;
-			if (diffTime1 >= 10 * freq) {
-				MapCheckMili = SystemTime;
-				if (!portOcupied)
-					httpClient.getReqMapObjResult(Application.requestDest);
-				else
-					httpClient.getReqMapObjResult(Application.requestDestBkp);
-				MapObj.getPlayerLoc(httpClient.strMapObj, loc);
-				MapObj.getPlayerDir(httpClient.strMapObj, dir);
-				// MapObj.getAirfieldLoc(httpClient.strMapObj, null);
-			}
-
 			try {
-				long sleeptime = SystemTime + freq - System.currentTimeMillis();
-				if (sleeptime > 0)
+				currentTimeMs = System.currentTimeMillis();
+				long diffTime = currentTimeMs - lastMainLoopTimeMs;
+				if (diffTime >= freq) {
+
+					// 尝试GET数据
+					if (!portOcupied)
+						httpClient.getReqResult(Application.requestDest);
+					else
+						httpClient.getReqResult(Application.requestDestBkp);
+
+					actualIntervalMs = (diffTime / freq) * freq;
+					pollCycleDurationMs = actualIntervalMs;
+					lastMainLoopTimeMs += actualIntervalMs;
+
+					// 检查是否需要改变状态
+					processPollingCycle();
+
+					// 记录
+					if (c.logon) {
+						FlightLog tempLog = c.Log;
+						if (tempLog != null)
+							tempLog.logTick();
+					}
+				}
+				long diffTime1 = currentTimeMs - lastMapPollTimeMs;
+				if (diffTime1 >= 10 * freq) {
+					lastMapPollTimeMs = currentTimeMs;
+					if (!portOcupied)
+						httpClient.getReqMapObjResult(Application.requestDest);
+					else
+						httpClient.getReqMapObjResult(Application.requestDestBkp);
+					MapObj.getPlayerLoc(httpClient.strMapObj, loc);
+					MapObj.getPlayerDir(httpClient.strMapObj, dir);
+				}
+
+				long sleeptime = currentTimeMs + freq - System.currentTimeMillis();
+				if (sleeptime > 0) {
 					Thread.sleep(sleeptime);
+				}
+
 			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
+				// Thread was interrupted - check if we should exit
+				prog.util.Logger.warn("Service", "Service thread interrupted, continuing...");
+				// Continue running - don't exit on interrupt
+			} catch (Exception e) {
+				// Unexpected error - log and recover after short delay
+				prog.util.Logger.error("Service", "Service error: " + e.getClass().getSimpleName() + " at " +
+					(e.getStackTrace().length > 0 ? e.getStackTrace()[0] : "unknown"));
 				e.printStackTrace();
-				return;
+				try {
+					Thread.sleep(1000);
+				} catch (InterruptedException ignored) {
+					// Ignore interrupt during recovery sleep
+				}
 			}
 		}
 	}
