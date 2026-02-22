@@ -4,12 +4,20 @@
   <headerType>gui</headerType>
   <jar>../VoidMei.jar</jar>
   <outfile>../VoidMei.exe</outfile>
-  <errTitle></errTitle>
+  <errTitle>VoidMei</errTitle>
   <cmdLine></cmdLine>
   <chdir>.</chdir>
   <priority>high</priority>
-  <downloadUrl>http://java.com/download</downloadUrl>
+  <downloadUrl>https://www.java.com/zh-CN/download/</downloadUrl>
   <supportUrl></supportUrl>
+  <messages>
+    <jreNotFoundErr>打开后若提示JVM NOT FOUND，请下载安装最新的JAVA运行环境JRE
+
+https://www.java.com/zh-CN/download/</jreNotFoundErr>
+    <jreVersionErr>当前Java版本不兼容，请下载安装最新的JAVA运行环境JRE
+
+https://www.java.com/zh-CN/download/</jreVersionErr>
+  </messages>
   <stayAlive>false</stayAlive>
   <restartOnCrash>false</restartOnCrash>
   <manifest></manifest>
