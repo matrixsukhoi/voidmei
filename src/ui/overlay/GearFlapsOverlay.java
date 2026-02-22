@@ -36,6 +36,7 @@ public class GearFlapsOverlay extends DraggableOverlay implements FlightDataList
 
     Service xs;
     Controller xc;
+    private ui.model.TelemetrySource telemetrySource;
     WebStepLabel s1;
     WebSlider slider;
     Color transParentWhite = Application.colorNum;
@@ -222,6 +223,9 @@ public class GearFlapsOverlay extends DraggableOverlay implements FlightDataList
     public void init(Controller xc, Service xs, OverlaySettings settings) {
         this.xc = xc;
         this.xs = xs;
+        if (xs instanceof ui.model.TelemetrySource) {
+            this.telemetrySource = (ui.model.TelemetrySource) xs;
+        }
         setOverlaySettings(settings);
 
         reinitConfig();
@@ -287,56 +291,41 @@ public class GearFlapsOverlay extends DraggableOverlay implements FlightDataList
     long gearCheckMili;
 
     public void drawTick() {
-        // if (xs.sState != null) {
-        if (xs.sState.gear >= 0) {
-            if (xs.sState.gear == 0) {
-                // s1.setSelected(false);
-                // if (xs.sState.airbrake > 0) {
-                // warnText= warnText + " " + Lang.gBrake;
-                // warnColor = Application.colorWarning;
-                // // Application.debugPrint(xs.sState.airbrake);
-                // } else {
+        if (telemetrySource == null) return;
+
+        // Use TelemetrySource interface for flight data (eliminates Feature Envy)
+        int gear = (int) telemetrySource.getGear();
+        int flaps = (int) telemetrySource.getFlaps();
+        int airbrake = (int) telemetrySource.getAirbrake();
+
+        if (gear >= 0) {
+            if (gear == 0) {
                 warnText = "";
                 warnColor = Application.colorNum;
-                // Application.debugPrint(xs.sState.airbrake);
-                // s1.setText(language.gBrake);
-                // }
-
+            } else if (gear == 100) {
+                warnText = Lang.gGear;
+                warnColor = Application.colorNum;
             } else {
-                if (xs.sState.gear == 100) {
-                    // s1.setSelected(true);
-                    // s1.setText(Lang.gGear);
-                    warnText = Lang.gGear;
-                    warnColor = Application.colorNum;
-                } else {
-                    // s1.setSelected(true);
-                    warnText = Lang.gGearDown;
-                    // s1.setText(Lang.gGearDown);
-                    warnColor = Application.colorWarning;
-                }
+                warnText = Lang.gGearDown;
+                warnColor = Application.colorWarning;
             }
-            if (xs.sState.airbrake > 0) {
-                // s1.setSelected(true);
-                // s1.setText(Lang.gBrake);
+
+            if (airbrake > 0) {
                 warnText = warnText + " " + Lang.gBrake;
                 warnColor = Application.colorWarning;
             }
         }
-        int flps = xs.sState.flaps;
-        if (flps >= 0)
-            flapPix = flps * barHeight / 100;
-        else {
+
+        if (flaps >= 0) {
+            flapPix = flaps * barHeight / 100;
+        } else {
             flapPix = 0;
-            flps = 0;
+            flaps = 0;
         }
 
-        flapText = String.format("%3d", flps);
-
-        // // Application.debugPrint("gearandFlaps执行了");
-        // slider.setValue(xs.sState.flaps);
+        flapText = String.format("%3d", flaps);
 
         root.repaint();
-        // }
     }
 
 }

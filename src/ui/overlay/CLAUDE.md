@@ -5,8 +5,8 @@
 | File | Lines | Purpose |
 |------|-------|---------|
 | `MiniHUDOverlay.java` | ~730 | Primary HUD with component-based architecture |
-| `DrawFrame.java` | ~770 | Legacy rendering interface (deprecated) |
-| `DrawFrameSimpl.java` | ~740 | Simplified DrawFrame variant |
+| `DrawFrame.java` | ~770 | **@Deprecated** Legacy FM curve visualization |
+| `DrawFrameSimpl.java` | ~740 | **@Deprecated** Simplified DrawFrame variant |
 | `BaseOverlay.java` | ~290 | Standard list-based overlay base class |
 | `AttitudeOverlay.java` | ~460 | Artificial horizon display |
 | `EngineControlOverlay.java` | ~610 | Engine gauges and throttle |
@@ -410,3 +410,77 @@ label.setText("ALT " + currentAlt);
 label.setTemplate("ALT 88888");  // Maximum expected width
 label.setText("ALT " + currentAlt);
 ```
+
+## Using TelemetrySource in Overlays
+
+Overlays should access flight data through the `TelemetrySource` interface rather than directly accessing `Service` internal fields. This eliminates Feature Envy and provides a clean abstraction.
+
+### Pattern
+
+```java
+public class MyOverlay extends DraggableOverlay implements FlightDataListener {
+    private Service xs;
+    private ui.model.TelemetrySource telemetrySource;
+
+    public void init(Controller c, Service s, OverlaySettings settings) {
+        this.xs = s;
+        // Cast Service to TelemetrySource interface
+        if (s instanceof ui.model.TelemetrySource) {
+            this.telemetrySource = (ui.model.TelemetrySource) s;
+        }
+        // ... rest of init
+    }
+
+    public void drawTick() {
+        if (telemetrySource == null) return;
+
+        // GOOD: Use TelemetrySource interface
+        double aoa = telemetrySource.getAoA();
+        double pitch = telemetrySource.getAviahorizonPitch();
+
+        // BAD: Direct field access (Feature Envy)
+        // double aoa = xs.sState.AoA;
+        // double pitch = xs.sIndic.aviahorizon_pitch;
+    }
+}
+```
+
+### When to Use TelemetrySource vs Direct Access
+
+| Data Type | Access Method | Example |
+|-----------|---------------|---------|
+| Flight telemetry | `TelemetrySource` | `getAoA()`, `getIAS()`, `getAviahorizonPitch()` |
+| FM configuration | Direct `Blkx` access | `xc.getBlkx().NoFlapsWing.AoACritHigh` |
+| Event flags | `FlightDataEvent.getPayload()` | `payload.isJet`, `payload.fatalWarn` |
+
+## OverlayStyleHelper Utility
+
+Use `ui.util.OverlayStyleHelper` for common window styling operations:
+
+```java
+import static ui.util.OverlayStyleHelper.*;
+
+// Apply transparent style (game mode)
+applyTransparentStyle(this);
+
+// Apply preview style (settings UI)
+applyPreviewStyle(this);
+
+// Load font configuration with defaults
+FontConfig fonts = loadFontConfig(overlaySettings);
+Font labelFont = new Font(fonts.fontName, Font.BOLD, 12 + fonts.fontSizeAdd);
+```
+
+This helper consolidates duplicate styling code previously scattered across 6+ overlay files.
+
+## Deprecated Classes
+
+### DrawFrame / DrawFrameSimpl
+
+These legacy FM curve visualization classes are marked `@Deprecated`:
+
+- Do not extend or use as templates for new overlays
+- They use non-standard initialization patterns
+- New overlays should extend `DraggableOverlay` and follow the standard lifecycle
+
+See `MiniHUDOverlay` for a modern event-driven implementation pattern.

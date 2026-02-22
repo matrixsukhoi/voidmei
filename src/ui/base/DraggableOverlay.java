@@ -227,8 +227,29 @@ public abstract class DraggableOverlay extends WebFrame implements Runnable {
     }
 
     /**
-     * Polling loop. Override if custom polling behavior is needed.
-     * Event-driven subclasses can leave doit=false to skip polling.
+     * Overlay polling loop.
+     *
+     * <h3>Usage Patterns:</h3>
+     * <ul>
+     *   <li><b>Polling-based overlays</b>: Override this method or use the default
+     *       implementation. Set {@code doit = true} and the loop will periodically
+     *       call {@link #updateData()} and {@link #drawTick()}.</li>
+     *   <li><b>Event-driven overlays</b>: Set {@code doit = false} (automatically
+     *       done when implementing {@link prog.event.FlightDataListener}).
+     *       Override this method with an empty implementation.</li>
+     * </ul>
+     *
+     * <h3>Event-Driven Example:</h3>
+     * <pre>
+     * // For FlightDataListener implementations, override with empty method:
+     * {@literal @}Override
+     * public void run() {
+     *     // Event-driven - no polling needed
+     * }
+     * </pre>
+     *
+     * @see prog.event.FlightDataListener Event-driven update pattern
+     * @see prog.event.FlightDataBus Event subscription mechanism
      */
     @Override
     public void run() {

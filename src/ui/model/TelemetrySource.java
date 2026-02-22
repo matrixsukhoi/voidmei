@@ -140,4 +140,17 @@ public interface TelemetrySource {
     double getStallSpeed();
 
     boolean isImperial();
+
+    // Attitude Indicator Data
+    /**
+     * Get aviahorizon pitch (degrees).
+     * Used by AttitudeOverlay for artificial horizon display.
+     */
+    double getAviahorizonPitch();
+
+    /**
+     * Get aviahorizon roll (degrees).
+     * Used by AttitudeOverlay for artificial horizon rotation.
+     */
+    double getAviahorizonRoll();
 }

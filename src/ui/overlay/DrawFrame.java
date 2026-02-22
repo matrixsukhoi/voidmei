@@ -24,6 +24,20 @@ import prog.Controller;
 import prog.i18n.Lang;
 import prog.Service;
 
+/**
+ * Legacy FM curve visualization overlay.
+ *
+ * <p>This class uses a non-standard initialization pattern that does not
+ * conform to the modern overlay lifecycle (init/initPreview/reinitConfig/dispose).
+ *
+ * @deprecated New overlays should extend {@link ui.base.DraggableOverlay} and follow
+ *             the standard lifecycle pattern. See {@link MiniHUDOverlay} for a
+ *             modern event-driven implementation example.
+ *
+ * @see ui.base.DraggableOverlay Standard overlay base class
+ * @see MiniHUDOverlay Modern event-driven pattern example
+ */
+@Deprecated
 public class DrawFrame extends WebFrame implements Runnable {
 	/**
 	 * 

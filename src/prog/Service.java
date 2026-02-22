@@ -2134,4 +2134,14 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 	public double getStallSpeed() {
 		return stallSpeed;
 	}
+
+	@Override
+	public double getAviahorizonPitch() {
+		return sIndic != null ? sIndic.aviahorizon_pitch : 0;
+	}
+
+	@Override
+	public double getAviahorizonRoll() {
+		return sIndic != null ? sIndic.aviahorizon_roll : 0;
+	}
 }

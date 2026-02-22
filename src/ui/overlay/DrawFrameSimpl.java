@@ -22,6 +22,20 @@ import prog.event.UIStateEvents;
 import prog.i18n.Lang;
 import prog.util.Logger;
 
+/**
+ * Simplified legacy FM curve visualization overlay.
+ *
+ * <p>This class uses a non-standard initialization pattern. While it extends
+ * {@link ui.base.DraggableOverlay}, it does not fully conform to the modern
+ * overlay lifecycle (init/initPreview/reinitConfig/dispose).
+ *
+ * @deprecated New overlays should follow the standard DraggableOverlay lifecycle.
+ *             See {@link MiniHUDOverlay} for a modern event-driven implementation.
+ *
+ * @see ui.base.DraggableOverlay Standard overlay base class
+ * @see MiniHUDOverlay Modern event-driven pattern example
+ */
+@Deprecated
 public class DrawFrameSimpl extends DraggableOverlay {
 	/**
 	 * 

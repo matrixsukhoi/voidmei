@@ -112,6 +112,10 @@ public interface TelemetrySource {
     double getManifoldPressureDisplay();      // Returns Ata (metric) or psi (imperial)
     String getManifoldPressureDisplayUnit();  // Returns "Ata" or "P/XX.X''" (live inHg)
     int getManifoldPressureDisplayPrecision(); // Returns 2 (metric) or 1 (imperial)
+
+    // Attitude Indicator Data
+    double getAviahorizonPitch();  // Pitch angle for artificial horizon (degrees)
+    double getAviahorizonRoll();   // Roll angle for artificial horizon (degrees)
 }
 ```
 

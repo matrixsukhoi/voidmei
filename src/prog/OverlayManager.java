@@ -1,9 +1,12 @@
 package prog;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -203,12 +206,35 @@ public class OverlayManager {
         }
     }
 
+    /**
+     * Config keys that affect all overlays and trigger global refresh.
+     */
+    private static final Set<String> GLOBAL_CONFIG_KEYS = new HashSet<>(Arrays.asList(
+        "AAEnable",
+        "simpleFont",
+        "Interval",
+        "voiceVolume",
+        "ui_layout.cfg"
+    ));
+
+    /**
+     * Config key prefixes that affect all overlays.
+     */
+    private static final String[] GLOBAL_CONFIG_PREFIXES = {
+        "Global",
+        "font"
+    };
+
     private boolean isGlobalConfig(String key) {
-        if (key == null)
-            return true;
-        return key.startsWith("Global") || key.equals("AAEnable") || key.equals("simpleFont")
-                || key.startsWith("font") || key.equals("Interval") || key.equals("voiceVolume")
-                || key.equals("ui_layout.cfg");
+        if (key == null) return true;
+
+        if (GLOBAL_CONFIG_KEYS.contains(key)) return true;
+
+        for (String prefix : GLOBAL_CONFIG_PREFIXES) {
+            if (key.startsWith(prefix)) return true;
+        }
+
+        return false;
     }
 
     /**

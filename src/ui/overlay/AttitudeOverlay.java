@@ -34,6 +34,7 @@ public class AttitudeOverlay extends DraggableOverlay implements prog.event.Flig
 	private boolean isPreview = false;
 	private Controller xc;
 	private Service xs;
+	private ui.model.TelemetrySource telemetrySource;
 	private int lx;
 	private int ly;
 	private Container root;
@@ -300,6 +301,9 @@ public class AttitudeOverlay extends DraggableOverlay implements prog.event.Flig
 	public void init(Controller c, Service s, OverlaySettings settings) {
 		this.xc = c;
 		this.xs = s;
+		if (s instanceof ui.model.TelemetrySource) {
+			this.telemetrySource = (ui.model.TelemetrySource) s;
+		}
 		setOverlaySettings(settings);
 
 		reinitConfig();
@@ -368,16 +372,26 @@ public class AttitudeOverlay extends DraggableOverlay implements prog.event.Flig
 	long freqCheckMili;
 
 	public void drawTick() {
-		AoA = Math.round((xs.sState.AoA + MaxAoA) * xHeight / (2 * MaxAoA));
-		AoS = Math.round((-xs.sState.AoS + MaxAoS) * xWidth / (2 * MaxAoS));
-		Pitch = Math.round((-xs.sIndic.aviahorizon_pitch + MaxAoA) * xHeight / (2 * MaxAoA));
+		if (telemetrySource == null) return;
+
+		// Use TelemetrySource interface for flight data (eliminates Feature Envy)
+		double aoa = telemetrySource.getAoA();
+		double aos = telemetrySource.getAoS();
+		double pitch = telemetrySource.getAviahorizonPitch();
+		double roll = telemetrySource.getAviahorizonRoll();
+		double compass = telemetrySource.getCompass();
+
+		AoA = Math.round((aoa + MaxAoA) * xHeight / (2 * MaxAoA));
+		AoS = Math.round((-aos + MaxAoS) * xWidth / (2 * MaxAoS));
+		Pitch = Math.round((-pitch + MaxAoA) * xHeight / (2 * MaxAoA));
 
 		if (showDirection) {
-			double compassRads = (double) Math.toRadians(xs.sIndic.compass);
+			double compassRads = Math.toRadians(compass);
 			compassX = (int) (xWidth / 4 * Math.sin(compassRads));
 			compassY = (int) (xWidth / 4 * Math.cos(compassRads));
 		}
 
+		// FM data access is acceptable - it's aircraft configuration, not telemetry
 		parser.Blkx b = xc.getBlkx();
 		if (b != null && b.valid && showAoALimits) {
 			// 显示机翼临界攻角极限线
@@ -423,7 +437,7 @@ public class AttitudeOverlay extends DraggableOverlay implements prog.event.Flig
 			pS[i].y += Pitch;
 		}
 
-		rotatePointMatrix(pS, xs.sIndic.aviahorizon_roll, pC, pT, pS.length);
+		rotatePointMatrix(pS, roll, pC, pT, pS.length);
 
 		for (int i = 0; i < 4; i++) {
 			pX[i] = pT[i].x;

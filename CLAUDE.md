@@ -334,6 +334,27 @@ boolean isHex = isHexFormat("#FF5500");  // true
 - Display: hex format in text field for user-friendly editing
 - Storage: decimal format in config for backward compatibility with existing `ui_layout.cfg` values
 
+### Overlay Style Helper
+
+Use `ui.util.OverlayStyleHelper` for common overlay window styling operations:
+
+```java
+import static ui.util.OverlayStyleHelper.*;
+
+// Apply transparent window style (game mode)
+applyTransparentStyle(this);
+
+// Apply preview mode styling (settings UI)
+applyPreviewStyle(this);
+
+// Load font configuration with defaults fallback
+FontConfig fonts = loadFontConfig(overlaySettings);
+Font labelFont = new Font(fonts.fontName, Font.BOLD, 12 + fonts.fontSizeAdd);
+Font numFont = new Font(fonts.numFontName, Font.BOLD, 24 + fonts.fontSizeAdd);
+```
+
+This helper consolidates repeated styling patterns from 6+ overlay files, reducing ~400 lines of duplicate code.
+
 ### Config Renderers
 
 Implement `RowRenderer` pattern: construct a `WebPanel` and bind to `ConfigService`.
@@ -367,7 +388,7 @@ Controller (Lifecycle Coordinator)
     │       └→ BaseOverlay → ZebraListRenderer
     │
     ├→ AlwaysOnTopCoordinator (Singleton z-order manager)
-    │       ├← DrawFrame, DrawFrameSimpl (overlay windows)
+    │       ├← DrawFrame, DrawFrameSimpl (@Deprecated overlay windows)
     │       └← DialogService (dialog lifecycle hooks)
     │
     ├→ ConfigurationService
