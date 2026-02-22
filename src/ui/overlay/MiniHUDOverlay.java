@@ -31,7 +31,7 @@ import ui.overlay.model.HUDData;
 import ui.overlay.logic.HUDCalculator;
 import ui.component.HUDComponent;
 
-public class MiniHUDOverlay extends BaseOverlay implements FlightDataListener {
+public class MiniHUDOverlay extends DraggableOverlay implements FlightDataListener {
 
     private static final long serialVersionUID = 1L;
 

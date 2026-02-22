@@ -33,6 +33,313 @@ graph TD
     Comp -->|7. Rendering| G2D[Graphics2D Pipeline]
 ```
 
+### 1.2 数据流架构深度分析 (Data Flow Architecture Deep Dive)
+
+本节从系统设计的角度，剖析 MiniHUD 完整的数据流路径，评估各层抽象的必要性，帮助开发者理解每个设计决策背后的权衡。
+
+#### 1.2.1 完整数据流路径
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         WAR THUNDER DATA PIPELINE                           │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│   ┌──────────────────┐                                                      │
+│   │ War Thunder API  │  HTTP GET http://127.0.0.1:8111/                     │
+│   │  (Port 8111)     │  ├── /state     → 飞行状态 (位置、速度、姿态)         │
+│   │                  │  └── /indicators → 仪表数据 (引擎、燃油、武器)        │
+│   └────────┬─────────┘                                                      │
+│            │ ~10Hz polling                                                  │
+│            ▼                                                                │
+│   ┌──────────────────┐                                                      │
+│   │   Service.java   │  Background Thread (非 EDT)                          │
+│   │                  │  ├── HTTP 轮询 + JSON 解析                            │
+│   │                  │  ├── State.java / Indicators.java 映射               │
+│   │                  │  └── 派生指标计算 (FlightAnalyzer)                    │
+│   └────────┬─────────┘                                                      │
+│            │ publish()                                                      │
+│            ▼                                                                │
+│   ┌──────────────────┐                                                      │
+│   │  FlightDataBus   │  Event Publisher (观察者模式)                        │
+│   │                  │  └── 广播 FlightDataEvent 给所有订阅者                │
+│   └────────┬─────────┘                                                      │
+│            │ FlightDataEvent (包含 EventPayload)                            │
+│            ▼                                                                │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                         MINIHUD PROCESSING PIPELINE                         │
+├─────────────────────────────────────────────────────────────────────────────┤
+│            │                                                                │
+│            ▼                                                                │
+│   ┌──────────────────┐                                                      │
+│   │ MiniHUDOverlay   │  FlightDataListener.onFlightDataUpdate()             │
+│   │  (Controller)    │  ├── 接收事件（可能在 Service 线程）                  │
+│   │                  │  └── SwingUtilities.invokeLater() → EDT              │
+│   └────────┬─────────┘                                                      │
+│            │ EventPayload (不可变快照)                                       │
+│            ▼                                                                │
+│   ┌──────────────────┐                                                      │
+│   │  HUDCalculator   │  Pure Function Layer (无状态)                        │
+│   │                  │  ├── 输入: EventPayload + HUDSettings                │
+│   │                  │  ├── 计算: 单位转换、阈值判断、颜色映射               │
+│   │                  │  └── 输出: HUDData (不可变)                           │
+│   └────────┬─────────┘                                                      │
+│            │                                                                │
+│            ▼                                                                │
+│   ┌──────────────────┐                                                      │
+│   │     HUDData      │  Immutable Frame Snapshot                            │
+│   │                  │  └── 包含本帧所有显示所需的计算结果                   │
+│   └────────┬─────────┘                                                      │
+│            │ component.onDataUpdate(hudData)                                │
+│            ▼                                                                │
+│   ┌──────────────────┐                                                      │
+│   │  HUDComponent[]  │  Visual Components (Stateless Draw)                  │
+│   │                  │  ├── HUDTextRow, AttitudeIndicatorGauge, ...         │
+│   │                  │  ├── 缓存 lastValue 做 Dirty Check                   │
+│   │                  │  └── draw(Graphics2D, Rectangle) → 渲染              │
+│   └────────┬─────────┘                                                      │
+│            │                                                                │
+│            ▼                                                                │
+│   ┌──────────────────┐                                                      │
+│   │   Graphics2D     │  Java2D Rendering Pipeline                           │
+│   │                  │  └── 最终像素输出到屏幕                               │
+│   └──────────────────┘                                                      │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### 1.2.2 各层必要性评估
+
+| 层级 | 职责 | 必要性 | 理由 |
+|------|------|--------|------|
+| **FlightDataBus** | 发布-订阅解耦 | ✅ 必要 | 将数据生产者 (Service) 与消费者 (Overlays) 解耦；支持多个 Overlay 独立订阅；允许动态注册/注销监听器 |
+| **FlightDataEvent** | 事件封装 | ✅ 必要 | 携带 EventPayload；提供类型安全的事件传递；未来可扩展事件元数据 (时间戳、序列号) |
+| **EventPayload** | 原始数据快照 | ✅ 必要 | 不可变对象保证线程安全；避免 Service 线程和 EDT 之间的数据竞争 |
+| **HUDCalculator** | 纯计算层 | ✅ 合理 | 分离计算逻辑与渲染逻辑；便于单元测试；避免 Component 膨胀 |
+| **HUDData** | 帧数据快照 | ✅ 必要 | 不可变对象确保一帧内数据一致性；组件间共享计算结果避免重复计算 |
+| **TelemetrySource** | 零 GC 数值访问 | ✅ 必要 | 高频数值访问避免 Double 装箱；保持 EventPayload 的 Boolean 类型简洁 |
+| **HUDComponent** | 组件化渲染 | ✅ 合理 | 单一职责；可复用；独立测试；支持动态组合 |
+
+#### 1.2.3 双数据访问模式
+
+MiniHUD 采用**双通道数据访问模式**，针对不同数据类型优化：
+
+```java
+// 模式 1: EventPayload — 低频布尔/枚举数据
+// 用于状态标志、模式切换等不频繁变化的数据
+public class EventPayload {
+    public final boolean isAirborne;      // 是否在空中
+    public final boolean gearUp;          // 起落架收起
+    public final boolean isJet;           // 引擎类型
+    public final boolean enginesWorking;  // 引擎工作状态
+    // ...
+}
+
+// 模式 2: TelemetrySource — 高频数值数据
+// 用于每帧都在变化的浮点数，通过接口访问避免装箱
+public interface TelemetrySource {
+    double getIAS();           // 指示空速 (km/h)
+    double getAltitude();      // 海拔高度 (m)
+    double getVerticalSpeed(); // 垂直速度 (m/s)
+    double getThrottle();      // 油门 (0-1)
+    // ... ~30 个方法
+}
+
+// 使用示例 (MiniHUDOverlay.java)
+@Override
+public void onFlightDataUpdate(FlightDataEvent event) {
+    EventPayload payload = event.getPayload();
+    TelemetrySource telem = payload.getTelemetrySource();
+
+    // 低频数据: 直接从 payload 读取
+    boolean showGearWarning = !payload.gearUp && payload.isAirborne;
+
+    // 高频数据: 通过 TelemetrySource 零装箱访问
+    double ias = telem.getIAS();           // 返回 primitive double
+    double alt = telem.getAltitude();      // 无 Double 对象创建
+}
+```
+
+**为什么需要两种模式？**
+
+| 数据类型 | 访问频率 | 装箱开销 | 推荐模式 |
+|----------|----------|----------|----------|
+| 布尔标志 (gear, airborne) | 每帧 1 次 | 无 (primitive) | EventPayload 字段 |
+| 数值数据 (IAS, altitude) | 每帧 10+ 次 | 高 (如用 Map<String, Double>) | TelemetrySource 接口 |
+
+如果所有数据都放在 `Map<String, Object>` 中，每次 `get("IAS")` 都会产生一次 Double 装箱和 Object 类型转换。在 60Hz 渲染循环中，这会造成显著的 GC 压力。
+
+#### 1.2.4 线程模型
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        THREAD MODEL                             │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ┌─────────────────┐         ┌─────────────────┐               │
+│  │  Service Thread │         │   EDT (Swing)   │               │
+│  │  (Background)   │         │  Event Dispatch │               │
+│  ├─────────────────┤         ├─────────────────┤               │
+│  │ • HTTP polling  │         │ • UI rendering  │               │
+│  │ • JSON parsing  │         │ • Event handling│               │
+│  │ • Data calc     │         │ • Component     │               │
+│  │                 │         │   updates       │               │
+│  └────────┬────────┘         └────────▲────────┘               │
+│           │                           │                         │
+│           │  FlightDataEvent          │                         │
+│           │  (immutable)              │                         │
+│           ▼                           │                         │
+│  ┌─────────────────────────────────────────────┐               │
+│  │              FlightDataBus                   │               │
+│  │                                              │               │
+│  │  listener.onFlightDataUpdate(event) {       │               │
+│  │      // 可能在 Service 线程执行！            │               │
+│  │      SwingUtilities.invokeLater(() -> {     │◄─── 关键！     │
+│  │          // 确保在 EDT 执行                  │               │
+│  │          processData(event);                 │               │
+│  │      });                                     │               │
+│  │  }                                           │               │
+│  └─────────────────────────────────────────────┘               │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**为什么必须用 `SwingUtilities.invokeLater()`？**
+
+1. **Swing 线程安全规则**: 所有 Swing 组件的访问必须在 EDT 上进行
+2. **竞态条件**: Service 线程和 EDT 同时访问组件状态会导致数据撕裂
+3. **重绘合并**: `invokeLater` 允许多个更新请求合并，减少重绘次数
+
+```java
+// ❌ 错误: 直接在 Service 线程更新 UI
+@Override
+public void onFlightDataUpdate(FlightDataEvent event) {
+    altitudeLabel.setText(event.getAltitude()); // 线程不安全！
+}
+
+// ✅ 正确: 调度到 EDT
+@Override
+public void onFlightDataUpdate(FlightDataEvent event) {
+    EventPayload payload = event.getPayload(); // 不可变，可安全跨线程
+    SwingUtilities.invokeLater(() -> {
+        processDataOnEDT(payload);
+    });
+}
+```
+
+#### 1.2.5 内存与 GC 开销分析
+
+以 30Hz 数据更新频率计算：
+
+| 对象 | 每秒创建次数 | 单个大小 (估算) | 总开销 |
+|------|--------------|-----------------|--------|
+| FlightDataEvent | 30 | ~48 bytes | 1.4 KB/s |
+| EventPayload | 30 | ~200 bytes | 6.0 KB/s |
+| HUDData | 30 | ~160 bytes | 4.8 KB/s |
+| Runnable (invokeLater) | 30 | ~32 bytes | 1.0 KB/s |
+| **总计** | | | **~13 KB/s** |
+
+**结论**: 每秒约 13KB 的临时对象分配，对于现代 JVM (G1GC/ZGC) 完全是 Young Generation 的小菜一碟，不会触发 Full GC。
+
+**优化措施已到位**:
+- `HUDComponent.draw()` 内部禁止 `new` 对象
+- 颜色、字体等使用静态常量或成员变量缓存
+- `TelemetrySource` 返回 primitive `double` 避免装箱
+
+#### 1.2.6 技术债务说明
+
+当前实现中存在部分 Legacy 代码：
+
+```java
+// MiniHUDOverlay.java - updateLegacyComponents()
+// 这是一个桥接方法，用于兼容尚未迁移到 HUDData 模式的旧组件
+
+private void updateLegacyComponents(EventPayload payload, TelemetrySource telem) {
+    // Row 2-4 仍使用旧的 update(Map<String, Object>) 方法
+    // 未来应迁移到 component.onDataUpdate(HUDData) 模式
+
+    Map<String, Object> legacyData = new HashMap<>();
+    legacyData.put("IAS", telem.getIAS());
+    legacyData.put("altitude", telem.getAltitude());
+    // ...
+
+    for (HUDRow row : legacyRows) {
+        row.update(legacyData);  // 旧接口
+    }
+}
+```
+
+**迁移路径**:
+1. 为 `HUDRow` 添加 `onDataUpdate(HUDData)` 方法
+2. 逐个组件迁移，移除对 `Map<String, Object>` 的依赖
+3. 最终删除 `updateLegacyComponents()` 桥接代码
+
+#### 1.2.7 "为什么不简化？" — 反例分析
+
+开发者可能会问：能不能减少几层抽象？让我们分析几种简化方案的后果：
+
+##### 方案 A: 去掉 FlightDataBus，让 Service 直接调用 Overlay
+
+```java
+// 假设的简化代码
+class Service {
+    private MiniHUDOverlay overlay;
+
+    void pollData() {
+        Data data = fetchFromGame();
+        overlay.update(data);  // 直接调用
+    }
+}
+```
+
+**问题**:
+- ❌ Service 与 Overlay 强耦合
+- ❌ 无法支持多个 Overlay (FlightInfoOverlay, EngineControlOverlay, ...)
+- ❌ Overlay 销毁/重建时需要修改 Service
+- ❌ 测试困难，必须 mock 整个 Service
+
+##### 方案 B: 去掉 HUDCalculator，在 Component 中直接计算
+
+```java
+// 假设的简化代码
+class SpeedTextRow extends HUDComponent {
+    void onDataUpdate(EventPayload payload) {
+        double ias = payload.getIAS();
+        double vne = getVneFromConfig();
+        double ratio = ias / vne;  // 在组件内计算
+        Color color = ratio > 0.9 ? Color.RED : Color.WHITE;
+        // ...
+    }
+}
+```
+
+**问题**:
+- ❌ 相同计算在多个组件中重复 (SpeedRatioBar 也需要 ratio)
+- ❌ 难以单元测试计算逻辑（需要创建 Graphics2D mock）
+- ❌ 组件职责膨胀，违反单一职责原则
+
+##### 方案 C: 去掉 HUDData，直接传 EventPayload 给组件
+
+```java
+// 假设的简化代码
+class MiniHUDOverlay {
+    void onFlightDataUpdate(FlightDataEvent event) {
+        EventPayload payload = event.getPayload();
+        for (HUDComponent comp : components) {
+            comp.onDataUpdate(payload);  // 直接传原始数据
+        }
+    }
+}
+```
+
+**问题**:
+- ❌ 组件需要自行计算派生值（重复代码）
+- ❌ 一帧内相同计算被执行多次（性能浪费）
+- ❌ 组件需要了解 EventPayload 的内部结构（紧耦合）
+
+---
+
+**总结**: MiniHUD 的分层架构是经过权衡的设计选择，每一层都有其存在的理由。在没有充分理由的情况下，不建议简化层级。
+
 ---
 
 ## 2. 布局引擎内核 (Layout Engine Internals)
