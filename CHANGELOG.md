@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased] - 2026-02-22
+
+### Changed
+- **颜色配置格式优化**: 文本框显示十六进制格式，失去焦点自动保存，存储仍用十进制保持兼容
+- **滑块控件增强**: 新增 Spinner 数字输入框，布局 `[标签]...[滑块][输入框][单位]`，`:unit` 替代 `:format`
+- **ui_layout.cfg**: 颜色默认值改用十六进制，WEP 默认值改为 true
+- **姿态仪方向指示**: 北向用橙色，南向用白色
+
+### Fixed
+- **ConfigManager**: 修复空键配置项导致每次启动都显示变更通知的问题
+
 ## [Unreleased] - 2026-02-16
 
 ### Added

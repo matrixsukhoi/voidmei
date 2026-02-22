@@ -588,14 +588,14 @@ Detailed development guides for complex subsystems:
 ;; Inverted toggle (UI ON = value false)
 (item "Disable X" :type switch_inv :target "disableX" :value false)
 
-;; Numeric slider
-(item "Size" :type slider :target "size" :min 1 :max 100 :value 50)
+;; Numeric slider with unit
+(item "Size" :type slider :target "size" :min 1 :max 100 :unit "px" :value 50)
 
 ;; Dropdown
 (item "Style" :type combo :target "style" :options ("A" "B" "C") :value "A")
 
-;; Color picker
-(item "Color" :type color :target "colorKey" :value "255,200,100,255")
+;; Color picker (hex preferred, decimal also supported)
+(item "Color" :type color :target "colorKey" :value "#FFC864FF")
 
 ;; Hotkey binding
 (item "Toggle HUD" :type hotkey :target "hudHotkey")

@@ -138,13 +138,34 @@ public interface HUDSettings extends OverlaySettings {
 |------|------------|-----------|------------------|
 | `switch` | Boolean | Toggle switch | - |
 | `switch_inv` | Boolean | Toggle (inverted) | UI ON = value false |
-| `slider` | Integer | Slider | `:min`, `:max` |
+| `slider` | Integer | Slider + Spinner | `:min`, `:max`, `:unit` |
 | `combo` | String | Dropdown | `:options ("A" "B" "C")` |
-| `color` | String | Color picker | Format: "R,G,B,A" |
+| `color` | String | Color picker | Hex: `#RRGGBBAA` or Decimal: `R,G,B,A` |
 | `font` | String | Font selector | - |
 | `hotkey` | Integer | Key binding | NativeKeyEvent code |
 | `button` | - | Action button | `:fgColor`, callback |
 | `data` | - | Read-only display | `:formula`, `:format`, `:unit-source`, `:precision-source` |
+
+### Slider Unit Display
+
+`:unit` attribute displays a unit label after the Spinner:
+
+```lisp
+(item "刷新间隔" :type slider :target "refreshMs" :min 10 :max 300 :unit "ms" :value 80)
+```
+
+Layout: `[Label] ... [Slider] [Spinner] [Unit]`
+
+**Note:** `:format` is deprecated for slider types; use `:unit` instead.
+
+### Color Format
+
+| Format | Example | Notes |
+|--------|---------|-------|
+| Hex | `"#FF5500AA"` | Preferred for ui_layout.cfg defaults |
+| Decimal | `"255, 85, 0, 170"` | Legacy format, backward compatible |
+
+**Behavior:** Display in hex (text field), store in decimal (config file), auto-save on focus lost.
 
 ### Step 2: Add Interface Method
 
@@ -232,6 +253,7 @@ Overlay re-reads settings and updates UI
 
           ;; Type-specific options
           :min 0 :max 100         ; For slider
+          :unit "ms"              ; For slider (unit label)
           :options ("A" "B")      ; For combo
           :fgColor "255,100,100"  ; For button
           :formula "S.TAS"        ; For data
