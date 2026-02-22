@@ -140,6 +140,15 @@ public class PinkStyle implements UIStyle {
         // We'll stick to standard JSlider/WebSlider properties for compatibility
     }
 
+    /**
+     * Applies consistent styling to WebSpinner components.
+     */
+    public void decorateSpinner(com.alee.laf.spinner.WebSpinner spinner) {
+        spinner.setFont(FONT_NORMAL);
+        spinner.setForeground(COLOR_TEXT);
+        spinner.setDrawFocus(false);
+    }
+
     @Override
     public void decorateMainPanel(WebPanel panel) {
         panel.setOpaque(true);

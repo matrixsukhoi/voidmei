@@ -67,6 +67,15 @@ public class DynamicDataPage extends BasePage {
         scaler = new ZoomPanel();
         scaler.setOpaque(false);
         scaler.setLayout(new com.alee.extended.layout.VerticalFlowLayout());
+        scaler.setFocusable(true);
+
+        // 点击空白处时请求焦点，触发文本框的 focusLost
+        scaler.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mousePressed(java.awt.event.MouseEvent e) {
+                scaler.requestFocusInWindow();
+            }
+        });
     }
 
     private void rebuild() {
@@ -76,7 +85,6 @@ public class DynamicDataPage extends BasePage {
         ReplicaBuilder.disposeAllPopovers();
 
         scaler.removeAll();
-        scaler.setFocusable(true);
 
         if (groupConfig == null)
             return;

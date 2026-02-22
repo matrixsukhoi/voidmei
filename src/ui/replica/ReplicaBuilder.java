@@ -185,18 +185,32 @@ public class ReplicaBuilder {
     }
 
     public static WebPanel createSliderItem(String labelText, int min, int max, int value, int width) {
-        return createSliderItem(labelText, min, max, value, width, null, null);
+        return createSliderItem(labelText, min, max, value, width, null, null, null);
     }
 
     public static WebPanel createSliderItem(String labelText, int min, int max, int value, int width, String tooltip) {
-        return createSliderItem(labelText, min, max, value, width, tooltip, null);
+        return createSliderItem(labelText, min, max, value, width, tooltip, null, null);
+    }
+
+    public static WebPanel createSliderItem(String labelText, int min, int max, int value, int width, String tooltip,
+            String tooltipImg) {
+        return createSliderItem(labelText, min, max, value, width, tooltip, tooltipImg, null);
     }
 
     /**
-     * Creates a Slider row: [Label] ... [Slider]
+     * Creates a Slider row: [Label] ... [Slider] [Spinner] [Unit]
+     *
+     * @param labelText  Label text displayed on the left
+     * @param min        Minimum slider value
+     * @param max        Maximum slider value
+     * @param value      Initial value
+     * @param width      Preferred width of the slider
+     * @param tooltip    Optional tooltip text
+     * @param tooltipImg Optional tooltip image path
+     * @param unit       Optional unit string (e.g., "%", "ms", "km/h")
      */
     public static WebPanel createSliderItem(String labelText, int min, int max, int value, int width, String tooltip,
-            String tooltipImg) {
+            String tooltipImg, String unit) {
         WebPanel panel = new WebPanel(new BorderLayout(5, 0));
         style.decorateControlPanel(panel);
         panel.setBorder(BorderFactory.createEmptyBorder(4, 5, 4, 5));
@@ -208,9 +222,16 @@ public class ReplicaBuilder {
         style.decorateLabel(label);
         panel.add(label, BorderLayout.WEST);
 
+        // Controls container: [Slider] [Spinner] [Unit]
+        // Use BorderLayout for responsive slider width (fixes overflow in column=2 layouts)
+        WebPanel controls = new WebPanel(new BorderLayout(5, 0));
+        controls.setOpaque(false);
+
         com.alee.laf.slider.WebSlider slider = new com.alee.laf.slider.WebSlider(
                 com.alee.laf.slider.WebSlider.HORIZONTAL, min, max, value);
-        slider.setPreferredSize(new Dimension(width, 38)); // More compact height for labels
+        // Use minimum size instead of preferred - allows slider to shrink in narrow columns
+        slider.setMinimumSize(new Dimension(60, 38));
+        slider.setPreferredSize(new Dimension(width, 38));
         slider.setOpaque(false);
 
         // --- Tick Setup ---
@@ -235,15 +256,70 @@ public class ReplicaBuilder {
         }
 
         style.decorateSlider(slider);
+        controls.add(slider, BorderLayout.CENTER);  // Slider stretches to fill available space
 
-        panel.add(slider, BorderLayout.CENTER);
+        // Right panel: [Spinner][Unit] - fixed width, always visible
+        WebPanel rightPanel = new WebPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 3, 0));
+        rightPanel.setOpaque(false);
+
+        // Spinner for numeric input
+        javax.swing.SpinnerNumberModel spinnerModel = new javax.swing.SpinnerNumberModel(value, min, max, 1);
+        WebSpinner spinner = new WebSpinner(spinnerModel);
+        spinner.setPreferredSize(new Dimension(60, 26));
+        spinner.setDrawFocus(false);
+        style.decorateSpinner(spinner);
+        rightPanel.add(spinner);
+
+        // Unit label (only if unit is provided)
+        if (unit != null && !unit.isEmpty()) {
+            WebLabel unitLabel = new WebLabel(unit);
+            style.decorateLabel(unitLabel);
+            rightPanel.add(unitLabel);
+        }
+
+        controls.add(rightPanel, BorderLayout.EAST);
+
+        // Bidirectional sync between slider and spinner (with feedback loop prevention)
+        final boolean[] updatingUI = {false};
+        slider.addChangeListener(e -> {
+            if (updatingUI[0]) return;
+            updatingUI[0] = true;
+            try {
+                spinner.setValue(slider.getValue());
+            } finally {
+                updatingUI[0] = false;
+            }
+        });
+        spinner.addChangeListener(e -> {
+            if (updatingUI[0]) return;
+            updatingUI[0] = true;
+            try {
+                slider.setValue(((Number) spinner.getValue()).intValue());
+            } finally {
+                updatingUI[0] = false;
+            }
+        });
+
+        panel.add(controls, BorderLayout.CENTER);
 
         // Critical: Enable ResponsiveGrid alignment
         panel.putClientProperty("alignLabel", label);
-        // Store slider reference for retrieval
+        // Store component references for retrieval
         panel.putClientProperty("slider", slider);
+        panel.putClientProperty("spinner", spinner);
 
         return panel;
+    }
+
+    /**
+     * Extracts the WebSpinner from a panel created by createSliderItem.
+     */
+    public static WebSpinner getSpinner(WebPanel itemPanel) {
+        Object spinner = itemPanel.getClientProperty("spinner");
+        if (spinner instanceof WebSpinner) {
+            return (WebSpinner) spinner;
+        }
+        return null;
     }
 
     /**
