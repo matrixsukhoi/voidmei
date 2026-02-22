@@ -29,9 +29,14 @@ import prog.hotkey.HotkeyManager;
 import prog.event.UIStateEvents;
 import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent;
 
+import java.util.concurrent.atomic.AtomicLong;
+
 public class Controller implements ConfigProvider {
 
 	public ControllerState State = ControllerState.INIT;
+
+	/** Generation counter for detecting stale preview callbacks */
+	private final AtomicLong previewGeneration = new AtomicLong(0);
 
 	public boolean logon = false;
 
@@ -717,9 +722,10 @@ public class Controller implements ConfigProvider {
 	public void Preview() {
 		prog.util.Logger.info("Controller", "Enabling Preview mode...");
 		State = ControllerState.PREVIEW;
+		final long generation = previewGeneration.get();  // Capture current generation
 		// Offload I/O to background, similar to config change
 		new Thread(() -> {
-			refreshPreviews();
+			refreshPreviews(generation);  // Pass generation for staleness check
 		}).start();
 	}
 
@@ -773,18 +779,38 @@ public class Controller implements ConfigProvider {
 		return Blkx;
 	}
 
-	public void refreshPreviews() {
+	/**
+	 * Refresh previews with generation check to detect stale callbacks.
+	 * @param generation the generation captured when the refresh was initiated
+	 */
+	public void refreshPreviews(long generation) {
 		prog.util.Logger.debug("Controller", "Refreshing overlays for preview/config change...");
 		loadFromConfig();
 		ensureBlkxLoaded();
 		// Schedule UI update on EDT to prevent race conditions/NPEs
 		javax.swing.SwingUtilities.invokeLater(() -> {
+			// Check if callback is stale (state changed or generation incremented)
+			if (State != ControllerState.PREVIEW || previewGeneration.get() != generation) {
+				prog.util.Logger.info("Controller",
+					"Skipping stale preview refresh (gen=" + generation +
+					", current=" + previewGeneration.get() + ", state=" + State + ")");
+				return;
+			}
 			overlayManager.refreshAllPreviews();
 		});
 	}
 
+	/**
+	 * Refresh previews using current generation.
+	 * Used by configChangedHandler for live config updates.
+	 */
+	public void refreshPreviews() {
+		refreshPreviews(previewGeneration.get());
+	}
+
 	public void endPreview() {
 		prog.util.Logger.info("Controller", "Exiting Preview mode...");
+		previewGeneration.incrementAndGet();  // Invalidate any pending preview callbacks
 		overlayManager.closeAll();
 		// Explicit save when exiting preview
 		configService.saveConfig();

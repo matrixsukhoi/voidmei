@@ -110,11 +110,15 @@ public class OverlayManager {
 
     /**
      * Refresh all overlays for preview mode.
-     */
-    /**
-     * Refresh all overlays for preview mode.
+     * Includes defense-in-depth check to prevent stale callbacks from creating overlays.
      */
     public void refreshAllPreviews() {
+        // Defense-in-depth: verify still in preview mode
+        if (tc.State != ControllerState.PREVIEW) {
+            prog.util.Logger.info("OverlayManager",
+                "Skipping refreshAllPreviews: not in PREVIEW state (state=" + tc.State + ")");
+            return;
+        }
         OverlayContext ctx = OverlayContext.forPreviewMode(tc);
         for (OverlayEntry<?> entry : entries.values()) {
             entry.refreshPreview(ctx);

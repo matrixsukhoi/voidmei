@@ -175,6 +175,46 @@ voidmei/
 - **OverlayManager**: Methods (`open`, `close`, `refreshPreview`) must be `synchronized` to prevent race conditions from rapid config change events
 - Event subscribers may receive events on background threads - dispatch UI updates to EDT
 
+### Preview Generation Counter (Stale Callback Detection)
+
+The `Controller` uses a generation counter pattern to prevent race conditions when users quickly switch from Preview to Game mode before async preview creation completes.
+
+**Problem solved:** On slow machines, `Preview()` spawns a background thread that schedules overlay creation on EDT. If users click "Start" before this completes, the stale EDT callback would create preview overlays *after* game mode has started.
+
+```java
+// In Controller.java
+private final AtomicLong previewGeneration = new AtomicLong(0);
+
+public void Preview() {
+    State = ControllerState.PREVIEW;
+    final long generation = previewGeneration.get();  // Capture
+    new Thread(() -> refreshPreviews(generation)).start();
+}
+
+public void endPreview() {
+    previewGeneration.incrementAndGet();  // Invalidate pending callbacks
+    overlayManager.closeAll();
+    State = ControllerState.INIT;
+}
+
+public void refreshPreviews(long generation) {
+    // ... background work ...
+    SwingUtilities.invokeLater(() -> {
+        // Check for stale callback
+        if (State != ControllerState.PREVIEW || previewGeneration.get() != generation) {
+            Logger.info("Controller", "Skipping stale preview refresh");
+            return;
+        }
+        overlayManager.refreshAllPreviews();
+    });
+}
+```
+
+**Key behaviors:**
+- `previewGeneration.get()` - Captures current generation when starting async operation
+- `previewGeneration.incrementAndGet()` - Called in `endPreview()` to invalidate all pending callbacks
+- Defense-in-depth: `OverlayManager.refreshAllPreviews()` also checks `State != PREVIEW`
+
 ### Overlay Z-Order (AlwaysOnTopCoordinator)
 
 Use `AlwaysOnTopCoordinator` to manage `alwaysOnTop` state for all overlay windows. This coordinator solves the timing problem where dialogs triggered before overlays exist would be covered by later-created overlays.
