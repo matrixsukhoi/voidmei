@@ -53,6 +53,14 @@ public class ColorRowRenderer implements RowRenderer {
         // Text field input handler (supports both hex and decimal input)
         if (field != null) {
             field.addActionListener(e -> updateFromColor.run());
+
+            // Auto-apply on focus lost (no need to press Enter)
+            field.addFocusListener(new java.awt.event.FocusAdapter() {
+                @Override
+                public void focusLost(java.awt.event.FocusEvent e) {
+                    updateFromColor.run();
+                }
+            });
         }
 
         // Track active picker to prevent duplicate popups

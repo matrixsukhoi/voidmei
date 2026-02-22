@@ -4,6 +4,7 @@ import java.awt.Color;
 import java.awt.RenderingHints;
 
 import prog.Application;
+import prog.util.ColorHelper;
 import prog.Controller;
 import prog.i18n.Lang;
 import java.net.InetSocketAddress;
@@ -367,22 +368,8 @@ public class ConfigurationService implements ConfigProvider {
     }
 
     public Color getColorConfig(String key) {
-        String unifiedVal = getConfig(key);
-        if (unifiedVal != null && !unifiedVal.isEmpty()) {
-            try {
-                String[] parts = unifiedVal.split(",");
-                if (parts.length >= 3) {
-                    int r = Integer.parseInt(parts[0].trim());
-                    int g = Integer.parseInt(parts[1].trim());
-                    int b = Integer.parseInt(parts[2].trim());
-                    int a = (parts.length > 3) ? Integer.parseInt(parts[3].trim()) : 255;
-                    return new Color(r, g, b, a);
-                }
-            } catch (Exception e) {
-                // Formatting error
-            }
-        }
-        return Color.WHITE;
+        String val = getConfig(key);
+        return ColorHelper.parseColor(val, Color.WHITE);
     }
 
     public void setColorConfig(String key, Color c) {
