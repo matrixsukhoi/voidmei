@@ -1,10 +1,12 @@
 package ui.layout;
 
 import java.awt.Dimension;
-import java.awt.Graphics;
-import java.awt.Graphics2D;
+import java.awt.Rectangle;
+
+import javax.swing.Scrollable;
 
 import com.alee.laf.panel.WebPanel;
+import com.alee.laf.scroll.WebScrollPane;
 
 import ui.MainForm;
 import prog.event.UIStateBus;
@@ -16,7 +18,7 @@ import ui.layout.renderer.RowRendererRegistry;
 
 public class DynamicDataPage extends BasePage {
 
-    private ZoomPanel scaler;
+    private ScrollablePanel scaler;
     private prog.config.ConfigLoader.GroupConfig groupConfig;
     private boolean isUpdatingControls = false; // Prevent feedback loop during rebuild
 
@@ -64,7 +66,7 @@ public class DynamicDataPage extends BasePage {
 
     @Override
     protected void initContent(WebPanel content) {
-        scaler = new ZoomPanel();
+        scaler = new ScrollablePanel();
         scaler.setOpaque(false);
         scaler.setLayout(new com.alee.extended.layout.VerticalFlowLayout());
         scaler.setFocusable(true);
@@ -272,25 +274,54 @@ public class DynamicDataPage extends BasePage {
         // Scaler contains all cards (config-driven)
         WebPanel main = new WebPanel(new java.awt.BorderLayout());
         ReplicaBuilder.getStyle().decorateMainPanel(main);
-        main.add(scaler, java.awt.BorderLayout.CENTER);
+
+        // Use scroll pane instead of scaling for content that exceeds available height
+        WebScrollPane scrollPane = new WebScrollPane(scaler);
+        scrollPane.setOpaque(false);
+        scrollPane.getViewport().setOpaque(false);
+        scrollPane.setBorder(null);
+        scrollPane.setViewportBorder(null);
+        scrollPane.setDrawBorder(false);
+        // Disable horizontal scrolling - content should fit width
+        scrollPane.setHorizontalScrollBarPolicy(WebScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        // Optimize scroll speed for smooth mouse wheel navigation
+        scrollPane.getVerticalScrollBar().setUnitIncrement(16);
+
+        main.add(scrollPane, java.awt.BorderLayout.CENTER);
         return main;
     }
 
-    class ZoomPanel extends WebPanel {
+    /**
+     * A WebPanel that implements Scrollable to track viewport width.
+     * This ensures content width matches the scroll pane's viewport,
+     * preventing horizontal overflow.
+     */
+    private static class ScrollablePanel extends WebPanel implements Scrollable {
         @Override
-        public void paint(Graphics g) {
-            Graphics2D g2 = (Graphics2D) g;
-            Dimension pref = this.getLayout().preferredLayoutSize(this);
-            int h = getHeight();
-            double scale = 1.0;
-            if (pref.height > h && pref.height > 0) {
-                scale = (double) h / (double) pref.height;
-            }
-            if (scale < 0.1)
-                scale = 0.1;
-            if (scale < 1.0)
-                g2.scale(scale, scale);
-            super.paint(g2);
+        public Dimension getPreferredScrollableViewportSize() {
+            return getPreferredSize();
+        }
+
+        @Override
+        public int getScrollableUnitIncrement(Rectangle visibleRect, int orientation, int direction) {
+            return 16;
+        }
+
+        @Override
+        public int getScrollableBlockIncrement(Rectangle visibleRect, int orientation, int direction) {
+            return visibleRect.height;
+        }
+
+        @Override
+        public boolean getScrollableTracksViewportWidth() {
+            // Force width to match viewport - prevents horizontal scrolling
+            return true;
+        }
+
+        @Override
+        public boolean getScrollableTracksViewportHeight() {
+            // Allow vertical scrolling - don't track viewport height
+            return false;
         }
     }
 }

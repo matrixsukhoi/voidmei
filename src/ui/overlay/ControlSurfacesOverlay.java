@@ -236,7 +236,9 @@ public class ControlSurfacesOverlay extends DraggableOverlay implements FlightDa
 			fontadd = 0;
 		}
 
-		fontSize = 24 + fontadd;
+		// Apply DPI scaling to font size for crisp rendering on high-DPI displays
+		double dpiScale = Application.dpiScale;
+		fontSize = (int) Math.round((24 + fontadd) * dpiScale);
 		fontNum = new Font(NumFont, Font.BOLD, fontSize);
 		fontLabel = new Font(FontName, Font.BOLD, Math.round(fontSize / 2.0f));
 		fontUnit = new Font(NumFont, Font.PLAIN, Math.round(fontSize / 2.0f));

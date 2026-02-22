@@ -88,7 +88,9 @@ public class GearFlapsOverlay extends DraggableOverlay implements FlightDataList
         l1.setShadeColor(Application.colorShade);
         l1.setDrawShade(true);
         l1.setForeground(Application.colorLabel);
-        l1.setFont(new Font(Application.defaultFontName, Font.PLAIN, 12));
+        // Apply DPI scaling to font size
+        int scaledFontSize = (int) Math.round(12 * Application.dpiScale);
+        l1.setFont(new Font(Application.defaultFontName, Font.PLAIN, scaledFontSize));
         return l1;
     }
 
@@ -103,7 +105,9 @@ public class GearFlapsOverlay extends DraggableOverlay implements FlightDataList
             fontadd = 0;
         }
 
-        fontSize = 24 + fontadd;
+        // Apply DPI scaling to font size for crisp rendering on high-DPI displays
+        double dpiScale = Application.dpiScale;
+        fontSize = (int) Math.round((24 + fontadd) * dpiScale);
         fontLabel = new Font(FontName, Font.BOLD, Math.round(fontSize / 2.0f));
         fontNum = new Font(NumFont, Font.BOLD, fontSize);
 

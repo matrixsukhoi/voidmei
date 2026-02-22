@@ -16,6 +16,7 @@ The `prog.util` package provides **pure function utilities** for physics calcula
 | `FMPowerExtractor.java` | FM file → CompressorStageParams extraction (with fuel modifications) |
 | `ColorHelper.java` | Color parsing/formatting: hex (#RRGGBB) ↔ decimal (R,G,B,A) conversion |
 | `GPUCompatibilityHelper.java` | GPU compatibility mode: save/load settings, check rendering mode |
+| `DPIHelper.java` | High-DPI display support: scale detection, logical screen dimensions |
 | `CalcHelper.java` | General math utilities |
 | `HttpHelper.java` | HTTP request utilities for game API |
 | `Logger.java` | Application logging |
@@ -313,6 +314,81 @@ The GPU compat setting must be read before AWT initialization. Since `ConfigLoad
 | `isEnabled()` | Read saved setting from file |
 | `isSoftwareRenderingActive()` | Check current JVM rendering mode |
 | `getRenderingModeDescription()` | Human-readable mode description |
+
+---
+
+### DPIHelper
+
+High-DPI display support for proper scaling on monitors with > 100% scaling (e.g., Windows 200% scaling).
+
+```java
+import prog.util.DPIHelper;
+import prog.Application;
+
+// Initialization (called once in Application.getScreenSize())
+DPIHelper.init();
+
+// Access global values (preferred - faster, no method call)
+double scale = Application.dpiScale;        // 1.0 at 100%, 2.0 at 200%
+int screenW = Application.logicalWidth;     // Logical screen width
+int screenH = Application.logicalHeight;    // Logical screen height
+
+// Direct API methods
+double scaleX = DPIHelper.getScaleX();                    // Horizontal scale factor
+double scaleY = DPIHelper.getScaleY();                    // Vertical scale factor
+int logicalW = DPIHelper.getLogicalScreenWidth();         // Logical width
+int logicalH = DPIHelper.getLogicalScreenHeight();        // Logical height
+int physicalW = DPIHelper.getPhysicalScreenWidth();       // Physical (monitor) width
+int physicalH = DPIHelper.getPhysicalScreenHeight();      // Physical (monitor) height
+
+// Scaling utilities
+int scaled = DPIHelper.scale(24);                         // 24 → 48 at 200% DPI
+double scaledD = DPIHelper.scale(24.0);                   // Double version
+int unscaled = DPIHelper.unscale(48);                     // 48 → 24 at 200% DPI
+boolean hiDpi = DPIHelper.isHighDPI();                    // True if scale > 1.0
+```
+
+**Physical vs Logical Pixels:**
+
+| 200% Scaling | Physical Pixels | Logical Pixels |
+|--------------|-----------------|----------------|
+| Screen Size  | 3840 × 2160     | 1920 × 1080    |
+| Font 24pt    | 48 actual pixels| 24 logical     |
+
+On high-DPI displays:
+- `Toolkit.getScreenSize()` returns physical pixels (3840 × 2160)
+- Swing operates in logical pixels (1920 × 1080)
+- `DPIHelper` bridges this gap by detecting the actual scale factor
+
+**Usage Patterns:**
+
+```java
+// In overlay reinitConfig() - scale font sizes
+double dpiScale = Application.dpiScale;
+fontSize = (int) Math.round((24 + fontadd) * dpiScale);
+
+// In MainForm - use logical dimensions for positioning
+int maxWidth = Math.min(800, Application.logicalWidth - 40);
+setLocation(Application.logicalWidth / 2 - width / 2,
+            Application.logicalHeight / 2 - height / 2);
+
+// In MinimalHUDContext - scale HUD metrics
+b.crossScale = (int) Math.round(baseCrossScale * dpiScale);
+b.hudFontSize = (b.crossScale / 4) + (int) Math.round(fAdd * dpiScale);
+```
+
+**JVM Integration:**
+
+The `-Dsun.java2d.uiScale=1` flag in `script/voidmeil4j.xml` disables Java's automatic bitmap scaling, ensuring:
+- Crisp font rendering at native resolution
+- Our code has full control over DPI handling
+- Consistent behavior across JVM versions
+
+**Design Notes:**
+- Thread-safe via `synchronized` init
+- Idempotent - safe to call `init()` multiple times
+- Falls back to 1.0 scale if detection fails
+- Uses `GraphicsConfiguration.getDefaultTransform()` for reliable DPI detection
 
 ---
 

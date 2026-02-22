@@ -6,6 +6,7 @@ import java.awt.Image;
 import java.io.File;
 import javax.imageio.ImageIO;
 
+import prog.Application;
 import prog.config.HUDSettings;
 import prog.util.Logger;
 
@@ -82,14 +83,23 @@ public class MinimalHUDContext {
      * Factory method to create a context from settings.
      * Contains all the detailed calculation logic previously in
      * MinimalHUD.reinitConfig.
+     *
+     * DPI Scaling: All pixel dimensions are multiplied by Application.dpiScale
+     * to ensure the HUD renders crisply on high-DPI displays.
      */
     public static MinimalHUDContext create(HUDSettings settings) {
         Builder b = new Builder();
 
-        // 1. Basic Metrics
-        b.crossScale = settings.getCrosshairScale();
+        // Get DPI scale factor (1.0 = 100%, 2.0 = 200%)
+        double dpiScale = Application.dpiScale;
+
+        // 1. Basic Metrics - apply DPI scaling
+        int baseCrossScale = settings.getCrosshairScale();
+        b.crossScale = (int) Math.round(baseCrossScale * dpiScale);
+
         int fAdd = settings.getFontSizeAdd();
-        b.hudFontSize = (b.crossScale / 4) + fAdd;
+        // Font size is derived from crossScale (already scaled)
+        b.hudFontSize = (b.crossScale / 4) + (int) Math.round(fAdd * dpiScale);
         // Ensure minimum size to prevent crash
         if (b.hudFontSize < 8)
             b.hudFontSize = 8;
@@ -97,7 +107,7 @@ public class MinimalHUDContext {
         b.barWidth = b.hudFontSize / 4;
         b.lineWidth = (b.hudFontSize / 10 == 0) ? 1 : b.hudFontSize / 10;
 
-        // 2. Window Dimensions
+        // 2. Window Dimensions - derived from scaled crossScale
         if (!settings.isDisplayCrosshair()) {
             b.width = (int) (b.crossScale * 2.25) - b.hudFontSize;
         } else {
@@ -111,7 +121,7 @@ public class MinimalHUDContext {
         b.crossX = b.width / 2;
         b.crossY = b.height / 2;
 
-        // 3. Component Details
+        // 3. Component Details - derived from scaled hudFontSize
         if (b.lineWidth == 0)
             b.lineWidth = 1;
 
@@ -132,7 +142,7 @@ public class MinimalHUDContext {
 
         b.aoaLength = b.rightDraw - b.hudFontSize / 1.5; // Adjusted for dynamic rightDraw
 
-        // 4. Strokes & Fonts
+        // 4. Strokes & Fonts - scaled stroke widths for crisp lines
         b.halfLine = (b.lineWidth / 2 == 0) ? 1 : (int) Math.round(b.lineWidth / 2.0f);
         b.strokeThick = new BasicStroke(b.halfLine + 2, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
         b.strokeThin = new BasicStroke(b.halfLine, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);

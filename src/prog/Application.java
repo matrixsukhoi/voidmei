@@ -1,6 +1,7 @@
 package prog;
 
 import prog.i18n.Lang;
+import prog.util.DPIHelper;
 import prog.util.HttpHelper;
 import prog.util.StringHelper;
 
@@ -117,6 +118,11 @@ public class Application {
 	public static GraphicsEnvironment environment;
 	public static int screenWidth;
 	public static int screenHeight;
+	// DPI-aware logical screen dimensions (what Swing sees)
+	public static int logicalWidth;
+	public static int logicalHeight;
+	// DPI scale factor (1.0 = 100%, 2.0 = 200%)
+	public static double dpiScale = 1.0;
 	public static String[] fonts;
 
 	public static Controller ctr;
@@ -333,6 +339,12 @@ public class Application {
 	public static void getScreenSize() {
 		screenWidth = Toolkit.getDefaultToolkit().getScreenSize().width;
 		screenHeight = Toolkit.getDefaultToolkit().getScreenSize().height;
+
+		// Initialize DPI detection and set logical dimensions
+		DPIHelper.init();
+		dpiScale = DPIHelper.getScale();
+		logicalWidth = DPIHelper.getLogicalScreenWidth();
+		logicalHeight = DPIHelper.getLogicalScreenHeight();
 	}
 
 	public static void setDebugLog(String path) {

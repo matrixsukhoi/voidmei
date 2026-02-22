@@ -83,8 +83,11 @@ public class AttitudeOverlay extends DraggableOverlay implements prog.event.Flig
 	public static final int tickLine = 2;
 	public static final int MaxAoA = 30;
 	public static final int MaxAoS = 15;
-	public int xWidth = 100;
-	public int xHeight = 200;
+	// Base dimensions at 100% DPI - will be scaled in reinitConfig()
+	public static final int BASE_WIDTH = 100;
+	public static final int BASE_HEIGHT = 200;
+	public int xWidth = BASE_WIDTH;
+	public int xHeight = BASE_HEIGHT;
 	public static long freqMili = 40;
 
 	public void rotateXY(int x[], int y[], int numPoints, double deg) {
@@ -219,9 +222,15 @@ public class AttitudeOverlay extends DraggableOverlay implements prog.event.Flig
 			fontadd = 0;
 		}
 
+		// Get DPI scale factor for dimension scaling
+		double dpiScale = Application.dpiScale;
+
 		if (overlaySettings != null) {
-			xWidth = overlaySettings.getInt("attitudeIndicatorWidth", 150);
-			xHeight = overlaySettings.getInt("attitudeIndicatorHeight", 300);
+			// Apply DPI scaling to configured dimensions
+			int baseWidth = overlaySettings.getInt("attitudeIndicatorWidth", 150);
+			int baseHeight = overlaySettings.getInt("attitudeIndicatorHeight", 300);
+			xWidth = (int) Math.round(baseWidth * dpiScale);
+			xHeight = (int) Math.round(baseHeight * dpiScale);
 
 			int sw = 0;
 			if (overlaySettings.getBool("enableAttitudeIndicatorEdge", false)) {
@@ -246,8 +255,9 @@ public class AttitudeOverlay extends DraggableOverlay implements prog.event.Flig
 			setShadeWidth(sw);
 			this.setBounds(lx, ly, totalWidth, totalHeight);
 		} else {
-			xWidth = 150;
-			xHeight = 300;
+			// Apply DPI scaling to default dimensions
+			xWidth = (int) Math.round(150 * dpiScale);
+			xHeight = (int) Math.round(300 * dpiScale);
 			freqMili = 40;
 			showDirection = false;
 			showAoALimits = true;

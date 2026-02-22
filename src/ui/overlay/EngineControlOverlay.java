@@ -43,6 +43,7 @@ public class EngineControlOverlay extends FieldOverlay { // Revert to FieldOverl
 	private static final long serialVersionUID = 3063042782594625576L;
 
 	// --- Constants ---
+	// Base font size at 100% DPI - will be scaled by dpiScale
 	private static final int BASE_FONT_SIZE = 24;
 	private static final int WIDTH_MULTIPLIER = 8;
 	private static final int SHADE_WIDTH = 10;
@@ -183,7 +184,9 @@ public class EngineControlOverlay extends FieldOverlay { // Revert to FieldOverl
 		String fontName = s.getFontName();
 		int fontadd = s.getFontSizeAdd();
 
-		fontsize = BASE_FONT_SIZE + fontadd;
+		// Apply DPI scaling to font size for crisp rendering on high-DPI displays
+		double dpiScale = Application.dpiScale;
+		fontsize = (int) Math.round((BASE_FONT_SIZE + fontadd) * dpiScale);
 		fontLabel = new Font(fontName, Font.BOLD, Math.round(fontsize / 2.0f));
 	}
 
@@ -586,8 +589,9 @@ public class EngineControlOverlay extends FieldOverlay { // Revert to FieldOverl
 	@Override
 	public void saveCurrentPosition() {
 		if (groupConfig != null) {
-			int screenW = java.awt.Toolkit.getDefaultToolkit().getScreenSize().width;
-			int screenH = java.awt.Toolkit.getDefaultToolkit().getScreenSize().height;
+			// Use logical screen dimensions for proper DPI scaling
+			int screenW = Application.logicalWidth;
+			int screenH = Application.logicalHeight;
 			groupConfig.x = (double) getLocation().x / screenW;
 			groupConfig.y = (double) getLocation().y / screenH;
 			if (onPositionSave != null) {

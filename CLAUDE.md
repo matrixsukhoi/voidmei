@@ -58,7 +58,7 @@ python3 script/mock_8111.py
   - `event/` - Event buses (`UIStateBus`, `FlightDataBus`, `FlightDataEvent`, `EventPayload`, `FlightDataListener`)
   - `config/` - Configuration system (`ConfigurationService`, `ConfigLoader`, `SExpParser`, `HUDSettings`, `OverlaySettings`)
   - `audio/` - Voice warning system (`VoiceWarning`, `VoiceResourceManager`)
-  - `util/` - Utilities (`HttpHelper`, `Logger`, `CalcHelper`, `StringHelper`, `FileUtils`, `FormulaEvaluator`, `PhysicsConstants`, `Interpolation`, `AtmosphereModel`, `PistonPowerModel`, `ColorHelper`, `GPUCompatibilityHelper`)
+  - `util/` - Utilities (`HttpHelper`, `Logger`, `CalcHelper`, `StringHelper`, `FileUtils`, `FormulaEvaluator`, `PhysicsConstants`, `Interpolation`, `AtmosphereModel`, `PistonPowerModel`, `ColorHelper`, `GPUCompatibilityHelper`, `DPIHelper`)
   - `hotkey/` - Global keyboard hooks (`HotkeyManager`)
   - `i18n/` - Internationalization (`Lang`)
   - `model/` - Data models (`InfoList`)
@@ -313,6 +313,84 @@ The `gpuCompatibilityMode` config key has special handling:
 1. Initial value reads from `GPUCompatibilityHelper.isEnabled()` (not ui_layout.cfg)
 2. On toggle, saves to `gpu_compat.properties` via `GPUCompatibilityHelper.saveSettings()`
 3. Shows a dialog prompting user to restart VoidMei
+
+### DPI Scaling (High-DPI Display Support)
+
+VoidMei supports high-DPI displays (e.g., Windows 200% scaling) using `DPIHelper` to detect and apply proper scaling.
+
+**Problem solved:** On high-DPI displays, `Toolkit.getScreenSize()` returns physical pixels, but Swing operates in logical pixels. Without DPI awareness:
+- MainForm extends beyond the visible screen area
+- Overlay fonts appear blurry (due to Windows bitmap scaling)
+- UI elements are improperly sized
+
+**Architecture:**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                   Application Startup                        │
+│  Application.getScreenSize()                                │
+│      ↓                                                       │
+│  DPIHelper.init()                                           │
+│      • GraphicsConfiguration.getDefaultTransform()          │
+│      • Calculate scaleX/scaleY (1.0=100%, 2.0=200%)        │
+│      • Calculate logical screen dimensions                  │
+│      ↓                                                       │
+│  Application.dpiScale, logicalWidth, logicalHeight          │
+└─────────────────────────────────────────────────────────────┘
+          ↓
+┌─────────────────────────────────────────────────────────────┐
+│                    UI Components                              │
+│  MainForm         → Uses logicalWidth/Height for positioning │
+│  BaseOverlay      → scaleFactor includes dpiScale           │
+│  MinimalHUDContext→ crossScale, fonts scaled by dpiScale    │
+│  Other Overlays   → fontSize scaled by dpiScale             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Key files:**
+
+| File | Purpose |
+|------|---------|
+| `prog/util/DPIHelper.java` | DPI detection and scaling utilities |
+| `prog/Application.java` | Global `dpiScale`, `logicalWidth`, `logicalHeight` fields |
+| `script/voidmeil4j.xml` | JVM flag `-Dsun.java2d.uiScale=1` |
+
+**Usage in code:**
+
+```java
+import prog.util.DPIHelper;
+import prog.Application;
+
+// Access pre-computed values (recommended)
+double scale = Application.dpiScale;           // 1.0 at 100%, 2.0 at 200%
+int screenW = Application.logicalWidth;        // Logical screen width
+int screenH = Application.logicalHeight;       // Logical screen height
+
+// Direct API access
+DPIHelper.init();                              // Called once in Application.getScreenSize()
+int scaled = DPIHelper.scale(24);              // Scale a base value: 24→48 at 200%
+boolean hiDpi = DPIHelper.isHighDPI();         // True if scale > 1.0
+```
+
+**Scaling pattern for overlays:**
+
+```java
+// In overlay reinitConfig() or font setup
+double dpiScale = Application.dpiScale;
+int fontSize = (int) Math.round((24 + fontadd) * dpiScale);
+Font font = new Font(fontName, Font.BOLD, fontSize);
+```
+
+**JVM flag `-Dsun.java2d.uiScale=1`:**
+
+This flag (set in `voidmeil4j.xml` for Windows EXE) disables Java's automatic UI scaling, giving our code full control over DPI handling. This ensures:
+- Fonts render at native resolution (crisp, not blurry)
+- Consistent behavior across different JVM versions
+- Predictable scaling calculations
+
+**Backward compatibility:**
+
+At 100% scaling, `dpiScale = 1.0` and `logicalWidth = physicalWidth`, so all calculations produce identical results to the pre-DPI-aware code.
 
 ### Performance
 

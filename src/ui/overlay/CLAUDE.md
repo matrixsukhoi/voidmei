@@ -386,6 +386,74 @@ public void onFlightData(FlightDataEvent event) {
 | Preview Without Data | NullPointerException in preview | Check `isPreview` flag, use mock data |
 | GC Pressure | Frame drops, stuttering | Cache Color/Font objects, avoid allocations in paint |
 | Blocking EDT | UI freezes during data fetch | Move HTTP/IO to background threads |
+| DPI Scaling Ignored | Tiny/huge overlays on high-DPI displays | Multiply font sizes by `Application.dpiScale` |
+
+## DPI Scaling
+
+VoidMei supports high-DPI displays (e.g., Windows 200% scaling). All overlays must properly scale their dimensions and fonts.
+
+### Scaling Font Sizes
+
+```java
+public void reinitConfig() {
+    // Always multiply font sizes by dpiScale
+    double dpiScale = Application.dpiScale;
+    fontSize = (int) Math.round((24 + fontadd) * dpiScale);
+    fontLabel = new Font(fontName, Font.BOLD, Math.round(fontSize / 2.0f));
+}
+```
+
+### Scaling Overlay Dimensions
+
+```java
+// For fixed-dimension overlays (e.g., AttitudeOverlay)
+double dpiScale = Application.dpiScale;
+int baseWidth = overlaySettings.getInt("attitudeIndicatorWidth", 150);
+int baseHeight = overlaySettings.getInt("attitudeIndicatorHeight", 300);
+xWidth = (int) Math.round(baseWidth * dpiScale);
+xHeight = (int) Math.round(baseHeight * dpiScale);
+```
+
+### Screen Positioning
+
+```java
+// WRONG: Uses physical pixels on high-DPI
+int screenW = Toolkit.getDefaultToolkit().getScreenSize().width;
+
+// CORRECT: Uses logical pixels
+int screenW = Application.logicalWidth;
+int screenH = Application.logicalHeight;
+
+// Position calculations use logical dimensions
+int x = (screenW - width) / 2;
+```
+
+### MinimalHUDContext
+
+MiniHUD scales automatically via `MinimalHUDContext.create()`:
+
+```java
+// crossScale is multiplied by dpiScale
+b.crossScale = (int) Math.round(baseCrossScale * dpiScale);
+// All derived metrics (hudFontSize, compassDiameter, etc.) cascade from crossScale
+```
+
+### BaseOverlay
+
+`BaseOverlay.init()` includes DPI in its scaleFactor calculation:
+
+```java
+int logicalScreenHeight = Application.logicalHeight;
+double dpiScale = Application.dpiScale;
+scaleFactor = (float) ((logicalScreenHeight / 1440.0) * dpiScale);
+```
+
+### Key Points
+
+1. **Always use `Application.dpiScale`** - never hardcode 1.0 or skip scaling
+2. **Use logical screen dimensions** - `Application.logicalWidth/Height`, not `Toolkit.getScreenSize()`
+3. **Scale fonts in `reinitConfig()`** - ensures WYSIWYG preview reflects scaling
+4. **Test at 100% and 200%** - verify overlays look correct at both extremes
 
 ## Performance Optimization
 

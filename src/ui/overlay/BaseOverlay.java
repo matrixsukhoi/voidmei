@@ -84,8 +84,11 @@ public class BaseOverlay extends DraggableOverlay {
         // MUST be called before window becomes displayable
         this.setUndecorated(true);
 
-        int screenHeight = Toolkit.getDefaultToolkit().getScreenSize().height;
-        scaleFactor = (float) screenHeight / 1440.0f;
+        // Use logical screen height for base scaling, then apply DPI scale
+        // This ensures overlays scale correctly on high-DPI displays
+        int logicalScreenHeight = Application.logicalHeight;
+        double dpiScale = Application.dpiScale;
+        scaleFactor = (float) ((logicalScreenHeight / 1440.0) * dpiScale);
         fontSize = Math.round(16 * scaleFactor);
         width = Math.round(Application.defaultFontsize * 36 * scaleFactor);
         height = Application.defaultFontsize * 72;
@@ -127,8 +130,10 @@ public class BaseOverlay extends DraggableOverlay {
 
         this.setUndecorated(true);
 
-        int screenHeight = Toolkit.getDefaultToolkit().getScreenSize().height;
-        scaleFactor = (float) screenHeight / 1440.0f;
+        // Use logical screen height for base scaling, then apply DPI scale
+        int logicalScreenHeight = Application.logicalHeight;
+        double dpiScale = Application.dpiScale;
+        scaleFactor = (float) ((logicalScreenHeight / 1440.0) * dpiScale);
         fontSize = Math.round(16 * scaleFactor);
         width = Math.round(Application.defaultFontsize * 36 * scaleFactor);
         height = Application.defaultFontsize * 72;
@@ -260,7 +265,8 @@ public class BaseOverlay extends DraggableOverlay {
 
     private void adjustPosition() {
         int preferredHeight = dataPanel.getPreferredSize().height;
-        int maxHeight = Toolkit.getDefaultToolkit().getScreenSize().height - 40;
+        // Use logical screen height for proper DPI scaling
+        int maxHeight = Application.logicalHeight - 40;
         if (preferredHeight > maxHeight)
             preferredHeight = maxHeight;
 

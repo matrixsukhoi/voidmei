@@ -192,14 +192,15 @@ public class MainForm extends WebFrame {
 		// 这里是特殊适配, 不能修改.
 		int targetWidth = width - 30; // weblaf会加15px+15px==30px的边框, 所以要减去30px.
 		int minHeight = calculateMinHeightForTabs();
+		// 计算最大允许高度（与calculateMinHeightForTabs保持一致）
+		int maxAllowedHeight = Application.logicalHeight - 80;
+
 		if (selected instanceof ui.layout.DynamicDataPage) {
 			ui.layout.DynamicDataPage page = (ui.layout.DynamicDataPage) selected;
 			int reqH = page.getRequiredHeight();
-			if (reqH > minHeight) {
-				setSize(targetWidth, reqH);
-			} else {
-				setSize(targetWidth, minHeight);
-			}
+			// 限制reqH不超过屏幕边界
+			int targetHeight = Math.min(Math.max(reqH, minHeight), maxAllowedHeight);
+			setSize(targetWidth, targetHeight);
 		} else {
 			if (getHeight() != minHeight) {
 				setSize(targetWidth, minHeight);
@@ -215,11 +216,13 @@ public class MainForm extends WebFrame {
 	/**
 	 * Calculates the minimum window height required to display all tabs in a single column.
 	 * Prevents WebTabbedPane from wrapping tabs into multiple columns when vertical space is insufficient.
+	 * Uses logical screen height for proper DPI scaling support.
 	 */
 	private int calculateMinHeightForTabs() {
 		int tabCount = tc.dynamicConfigs.isEmpty() ? 1 : tc.dynamicConfigs.size();
 		int minTabHeight = tabCount * TAB_HEIGHT + TAB_TOP_PADDING;
-		int maxAllowedHeight = Application.screenHeight - 80;
+		// Use logical height for DPI-aware calculation
+		int maxAllowedHeight = Application.logicalHeight - 80;
 		return Math.min(Math.max(480, minTabHeight), maxAllowedHeight);
 	}
 
@@ -286,7 +289,8 @@ public class MainForm extends WebFrame {
 	public MainForm(Controller c) {
 		// System.setProperty("awt.useSystemAAFontSettings", "on");
 		// Application.debugPrint("mainForm初始化了");
-		width = 800;
+		// Cap width to logical screen width for high-DPI support
+		width = Math.min(800, Application.logicalWidth - 40);
 		tc = c;
 		height = calculateMinHeightForTabs();
 		Image I = Toolkit.getDefaultToolkit().getImage("image/form1.png");
@@ -298,11 +302,12 @@ public class MainForm extends WebFrame {
 		this.setUndecorated(true);
 
 		// Position Restoration Logic
+		// Use logical screen dimensions for proper DPI scaling
 		java.awt.Point savedPos = prog.util.UIStateStorage.loadWindowPosition();
 		if (savedPos != null) {
-			// Ensure within screen bounds
-			int screenW = Application.screenWidth;
-			int screenH = Application.screenHeight;
+			// Ensure within screen bounds using logical dimensions
+			int screenW = Application.logicalWidth;
+			int screenH = Application.logicalHeight;
 
 			int x = savedPos.x;
 			int y = savedPos.y;
@@ -319,8 +324,8 @@ public class MainForm extends WebFrame {
 
 			this.setLocation(x, y);
 		} else {
-			// Default Center
-			this.setLocation(Application.screenWidth / 2 - width / 2, Application.screenHeight / 2 - height / 2);
+			// Default Center - use logical dimensions
+			this.setLocation(Application.logicalWidth / 2 - width / 2, Application.logicalHeight / 2 - height / 2);
 		}
 		this.setFont(Application.defaultFont);
 		this.setSize(width, height);
