@@ -224,6 +224,14 @@ public class ConfigManager {
 
         for (RowConfig templateRow : templateRows) {
             String key = getRowKey(templateRow);
+
+            // Skip merge tracking for items without valid keys (e.g., info-only items with empty labels)
+            // These items have no user-modifiable values and don't need precise matching
+            if (key == null || key.isEmpty()) {
+                merged.add(templateRow);
+                continue;
+            }
+
             RowConfig userRow = userRowMap.get(key);
 
             if (userRow == null) {
