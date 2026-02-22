@@ -169,7 +169,7 @@ public class AttitudeIndicatorGauge extends AbstractHUDComponent {
 
     private void drawMarks(Graphics2D g2d, int centerX, int centerY, int compassDiameter, int compassRadius,
             int compassInnerMarkRadius, int halfLine) {
-        int hbs = halfLine;
+        int hbs = halfLine + 1; // 有莫名其妙的原因导致算了半个linewidth后, 仍然相差1px
         g2d.drawArc(centerX - compassRadius + hbs, centerY - compassRadius + hbs, compassDiameter, compassDiameter,
                 -180, 180);
         g2d.drawLine(centerX + hbs, centerY - compassRadius / 2 + hbs, centerX + hbs,
