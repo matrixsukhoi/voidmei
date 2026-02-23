@@ -14,8 +14,10 @@ VoidMei is a Java Swing telemetry overlay for War Thunder. It reads real-time fl
 
 不要运行./script/build.sh, 但是可以用javac确认编译通过
 
+**Java 8 Required:** VoidMei strictly requires Java 8 (1.8.x). The Windows EXE enforces `maxVersion: 1.8.999` to prevent running on Java 9+, which has incompatible module changes.
+
 ```bash
-# Compile (requires JDK 1.8+)
+# Compile (requires JDK 1.8)
 mkdir -p bin
 find src -name "*.java" > sources.txt
 javac -encoding UTF-8 -d bin -classpath 'dep/*' @sources.txt
@@ -42,6 +44,33 @@ python3 script/mock_8111.py
 ```
 
 **Unit tests** available for utility classes in `test/`. Integration testing is manual via the running application or mock server.
+
+### Windows Launch Scripts
+
+VoidMei provides multiple ways to launch on Windows:
+
+| File | Purpose |
+|------|---------|
+| `VoidMei.exe` | Launch4j-wrapped executable with Java 8 enforcement |
+| `VoidMei.bat` | Intelligent batch script that finds Java 8 from registry |
+| `script/build.cmd` | Simple Windows build script |
+
+**VoidMei.bat** searches the Windows Registry for Java 8 installations in this order:
+
+1. Oracle JRE 1.8 (`HKLM\SOFTWARE\JavaSoft\Java Runtime Environment\1.8`)
+2. Oracle JDK 1.8 (`HKLM\SOFTWARE\JavaSoft\JDK\1.8`)
+3. Eclipse Temurin JRE 8 (`HKLM\SOFTWARE\Eclipse Adoptium\JRE\8`)
+4. Eclipse Temurin JDK 8 (`HKLM\SOFTWARE\Eclipse Adoptium\JDK\8`)
+5. Azul Zulu 8 (`HKLM\SOFTWARE\Azul Systems\Zulu\zulu-8`)
+6. Amazon Corretto 8 (`HKLM\SOFTWARE\Amazon.com\Corretto\8`)
+7. Microsoft OpenJDK 8 (`HKLM\SOFTWARE\Microsoft\JDK\8`)
+8. Fallback to `%JAVA_HOME%` (with warning)
+9. Fallback to `PATH` (with warning)
+
+**voidmeil4j.xml** (Launch4j configuration):
+- `minVersion: 1.8.0`, `maxVersion: 1.8.999` - Strictly enforces Java 8
+- `jreVersionErr` message guides users to download Eclipse Temurin 8
+- JVM flags: `-Dsun.java2d.uiScale=1 -Xms64m -Xmx320m`
 
 ## Architecture
 
@@ -179,6 +208,78 @@ voidmei/
 - **OverlayManager**: Methods (`open`, `close`, `refreshPreview`) must be `synchronized` to prevent race conditions from rapid config change events
 - Event subscribers may receive events on background threads - dispatch UI updates to EDT
 
+### Tray Icon Click Race Prevention
+
+When users rapidly click the system tray icon, each click creates a new `Controller` instance with associated overlays. Without protection, overlays can stack up, leading to multiple duplicate windows.
+
+**Problem solved:** Fast double-click on tray icon → two `Controller` instances created simultaneously → duplicate overlay windows.
+
+**Solution:** Use `AtomicBoolean` with compare-and-set (CAS) operation to ensure only one click is processed at a time:
+
+```java
+// In Application.java
+// 防止快速重复点击任务栏图标导致多次创建Controller
+private static final AtomicBoolean trayClickProcessing = new AtomicBoolean(false);
+
+// In tray icon mouse listener
+icon.addMouseListener(new MouseAdapter() {
+    @Override
+    public void mouseClicked(MouseEvent e) {
+        if (e.getButton() == MouseEvent.BUTTON1) {
+            // 使用CAS操作防止快速重复点击导致多次创建Controller
+            // compareAndSet: 如果当前值为false则设为true并返回true，否则返回false
+            if (!trayClickProcessing.compareAndSet(false, true)) {
+                prog.util.Logger.info("Application", "Ignoring duplicate tray click");
+                return;
+            }
+            try {
+                ctr.stop();
+                ctr = new Controller();
+            } finally {
+                // 无论成功或异常都重置标志，允许下一次点击
+                trayClickProcessing.set(false);
+            }
+        }
+    }
+});
+```
+
+**Controller.stop() 5-phase cleanup order:**
+
+```java
+public void stop() {
+    // 1. 先关闭所有overlay（必须在dispose MainForm之前）
+    if (State == ControllerState.PREVIEW) {
+        previewGeneration.incrementAndGet();  // 使所有pending回调失效
+        if (S != null) {
+            closepad();  // 游戏模式：完整清理
+        } else {
+            overlayManager.closeAll();  // 预览模式：只需关闭overlay
+        }
+    }
+
+    // 2. 取消事件订阅（防止重启时重复处理）
+    UIStateBus.getInstance().unsubscribe(UIStateEvents.CONFIG_CHANGED, configChangedHandler);
+    UIStateBus.getInstance().unsubscribe(UIStateEvents.UI_READY, uiReadyHandler);
+
+    // 3. 清理MainForm
+    if (M != null) { M.dispose(); M = null; }
+
+    // 4. 清理Service线程
+    S = null;
+    if (S1 != null) { S1.interrupt(); S1 = null; }
+
+    // 5. 保存配置
+    configService.saveConfig();
+}
+```
+
+**Key behaviors:**
+- `compareAndSet(false, true)` - Atomic check-and-set prevents race conditions
+- `finally` block ensures flag reset even if exception occurs
+- `stop()` cleans up overlays BEFORE creating new Controller
+- Generation counter invalidates stale async callbacks
+
 ### Preview Generation Counter (Stale Callback Detection)
 
 The `Controller` uses a generation counter pattern to prevent race conditions when users quickly switch from Preview to Game mode before async preview creation completes.
@@ -219,6 +320,42 @@ public void refreshPreviews(long generation) {
 - `previewGeneration.incrementAndGet()` - Called in `endPreview()` to invalidate all pending callbacks
 - Defense-in-depth: `OverlayManager.refreshAllPreviews()` also checks `State != PREVIEW`
 
+### Preview Mode FM Fallback
+
+当用户在预览模式下打开设置界面时，VoidMei会尝试从游戏API获取当前飞机型号。如果解析失败（例如用户不在游戏中），会回退到配置中保存的`selectedFM0`飞机。
+
+**Problem solved:** 用户打开设置界面时，如果无法连接游戏或FM文件解析失败，预览窗口将显示空白或错误。
+
+**Solution:** 在`Controller.getBlkx()`中添加预览模式专用的回退逻辑：
+
+```java
+// In Controller.java
+public synchronized Blkx getBlkx() {
+    // ... 正常的FM加载逻辑 ...
+    loadFMData(identifiedFMName);
+
+    // 预览模式回退：解析失败时加载 selectedFM0 配置的默认飞机
+    // 仅在预览模式下执行，避免影响游戏模式的正常行为
+    if ((Blkx == null || !Blkx.valid) && State == ControllerState.PREVIEW) {
+        String fallbackPlane = getConfig("selectedFM0");
+        if (fallbackPlane != null && !fallbackPlane.isEmpty()
+                && !fallbackPlane.equalsIgnoreCase(identifiedFMName)) {
+            prog.util.Logger.info("Controller",
+                "FM解析失败，回退到selectedFM0: " + fallbackPlane);
+            loadFMData(fallbackPlane);
+        }
+    }
+
+    return Blkx;
+}
+```
+
+**Key behaviors:**
+- Only triggers in `PREVIEW` state (settings UI), not during game mode
+- Checks if `selectedFM0` differs from the failed aircraft to avoid infinite loop
+- Logs the fallback for debugging purposes
+- User can set their preferred default aircraft via the FM selection dropdown
+
 ### Overlay Z-Order (AlwaysOnTopCoordinator)
 
 Use `AlwaysOnTopCoordinator` to manage `alwaysOnTop` state for all overlay windows. This coordinator solves the timing problem where dialogs triggered before overlays exist would be covered by later-created overlays.
@@ -247,6 +384,51 @@ try {
 - `dialogDidDismiss()` - Restores `alwaysOnTop` when dialog count reaches zero
 - Uses `WeakReference` to avoid memory leaks from disposed windows
 - Thread-safe via `AtomicInteger` (dialog count) and `CopyOnWriteArrayList` (overlay list)
+
+#### Preventing Overlay Focus Theft (焦点抢占问题修复)
+
+某些窗口管理器下，alwaysOnTop窗口在显示或刷新时可能抢夺焦点，导致用户操作被中断。`DrawFrameSimpl`中实现了两个关键的防护模式：
+
+**问题1：焦点属性设置顺序错误**
+
+如果在`registerOverlay()`之后才设置`setFocusable(false)`，注册时的`setAlwaysOnTop(true)`可能已经触发了焦点事件。
+
+```java
+// 必须在 registerOverlay 之前设置焦点属性，否则 setAlwaysOnTop(true) 可能触发焦点事件
+setFocusable(false);
+setFocusableWindowState(false);  // 取消窗口焦点
+
+AlwaysOnTopCoordinator.getInstance().registerOverlay(this);
+```
+
+**问题2：周期性`setVisible(true)`触发焦点抢占**
+
+在`run()`循环中，重复调用`setVisible(true)`可能导致窗口管理器激活窗口。
+
+```java
+// In DrawFrameSimpl.run()
+while (doit) {
+    boolean shouldShow = isPreview || visible;
+    if (shouldShow) {
+        // 只在窗口不可见时才调用 setVisible(true)，避免周期性触发焦点抢占
+        // 某些窗口管理器下，对 alwaysOnTop 窗口重复调用 setVisible(true) 会触发窗口激活事件
+        if (!this.isVisible()) {
+            this.setVisible(true);
+        }
+        this.getContentPane().repaint();
+    } else {
+        this.setVisible(false);
+    }
+    // ...
+}
+```
+
+**关键模式总结：**
+
+| 问题 | 解决方案 |
+|------|----------|
+| 焦点抢占 (注册时) | `setFocusable(false)` 必须在 `registerOverlay()` 之前 |
+| 焦点抢占 (刷新时) | 检查 `!isVisible()` 后才调用 `setVisible(true)` |
 
 ### Focus Monitor (游戏失焦自动隐藏)
 

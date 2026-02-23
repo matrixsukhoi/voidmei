@@ -3,7 +3,7 @@
 > **文档级别**: L3 (Core Contributor)
 > **适用版本**: v1.5+
 > **维护者**: Antigravity Agent
-> **最后更新**: 2026-02-19
+> **最后更新**: 2026-02
 
 ---
 
@@ -17,19 +17,19 @@ MiniHUD 是 VoidMei 项目中一个高追求的飞行数据平视显示器 (HUD)
 
 ```mermaid
 graph TD
-    Bus[FlightDataBus] -->|Async Event| Ctrl[MinimalHUD Controller]
-    
+    Bus[FlightDataBus] -->|Async Event| Ctrl[MiniHUDOverlay Controller]
+
     subgraph Core Loop [Core Update Loop]
         direction TB
         Ctrl -->|1. Raw Data| Calc[HUDCalculator]
         Calc -->|2. Normalized HUDData| Ctrl
         Ctrl -->|3. Data Dispatch| Comp[Components List]
-        
+
         Ctrl -->|4. Dirty Check| Layout[ModernHUDLayoutEngine]
         Layout -->|5. Topological Sort| Nodes[Layout Nodes]
         Nodes -->|6. Solve Coordinates| Rects[Pixel Rectangles]
     end
-    
+
     Comp -->|7. Rendering| G2D[Graphics2D Pipeline]
 ```
 
@@ -49,12 +49,13 @@ graph TD
 │   │  (Port 8111)     │  ├── /state     → 飞行状态 (位置、速度、姿态)         │
 │   │                  │  └── /indicators → 仪表数据 (引擎、燃油、武器)        │
 │   └────────┬─────────┘                                                      │
-│            │ ~10Hz polling                                                  │
+│            │ ~20Hz polling (默认50ms，可配置)                               │
 │            ▼                                                                │
 │   ┌──────────────────┐                                                      │
 │   │   Service.java   │  Background Thread (非 EDT)                          │
 │   │                  │  ├── HTTP 轮询 + JSON 解析                            │
 │   │                  │  ├── State.java / Indicators.java 映射               │
+│   │                  │  ├── HUDData 预计算 (在 Service 线程)                 │
 │   │                  │  └── 派生指标计算 (FlightAnalyzer)                    │
 │   └────────┬─────────┘                                                      │
 │            │ publish()                                                      │
@@ -62,8 +63,9 @@ graph TD
 │   ┌──────────────────┐                                                      │
 │   │  FlightDataBus   │  Event Publisher (观察者模式)                        │
 │   │                  │  └── 广播 FlightDataEvent 给所有订阅者                │
+│   │                  │      (event 携带预计算的 HUDData)                     │
 │   └────────┬─────────┘                                                      │
-│            │ FlightDataEvent (包含 EventPayload)                            │
+│            │ FlightDataEvent (包含 EventPayload + HUDData)                  │
 │            ▼                                                                │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                         MINIHUD PROCESSING PIPELINE                         │
@@ -71,19 +73,11 @@ graph TD
 │            │                                                                │
 │            ▼                                                                │
 │   ┌──────────────────┐                                                      │
-│   │ MiniHUDOverlay   │  FlightDataListener.onFlightDataUpdate()             │
-│   │  (Controller)    │  ├── 接收事件（可能在 Service 线程）                  │
+│   │ MiniHUDOverlay   │  FlightDataListener.onFlightData()                   │
+│   │  (Controller)    │  ├── 接收事件（在 Service 线程）                      │
 │   │                  │  └── SwingUtilities.invokeLater() → EDT              │
 │   └────────┬─────────┘                                                      │
-│            │ EventPayload (不可变快照)                                       │
-│            ▼                                                                │
-│   ┌──────────────────┐                                                      │
-│   │  HUDCalculator   │  Pure Function Layer (无状态)                        │
-│   │                  │  ├── 输入: EventPayload + HUDSettings                │
-│   │                  │  ├── 计算: 单位转换、阈值判断、颜色映射               │
-│   │                  │  └── 输出: HUDData (不可变)                           │
-│   └────────┬─────────┘                                                      │
-│            │                                                                │
+│            │ HUDData (已预计算，不可变)                                      │
 │            ▼                                                                │
 │   ┌──────────────────┐                                                      │
 │   │     HUDData      │  Immutable Frame Snapshot                            │
@@ -112,50 +106,62 @@ graph TD
 | 层级 | 职责 | 必要性 | 理由 |
 |------|------|--------|------|
 | **FlightDataBus** | 发布-订阅解耦 | ✅ 必要 | 将数据生产者 (Service) 与消费者 (Overlays) 解耦；支持多个 Overlay 独立订阅；允许动态注册/注销监听器 |
-| **FlightDataEvent** | 事件封装 | ✅ 必要 | 携带 EventPayload；提供类型安全的事件传递；未来可扩展事件元数据 (时间戳、序列号) |
-| **EventPayload** | 原始数据快照 | ✅ 必要 | 不可变对象保证线程安全；避免 Service 线程和 EDT 之间的数据竞争 |
-| **HUDCalculator** | 纯计算层 | ✅ 合理 | 分离计算逻辑与渲染逻辑；便于单元测试；避免 Component 膨胀 |
-| **HUDData** | 帧数据快照 | ✅ 必要 | 不可变对象确保一帧内数据一致性；组件间共享计算结果避免重复计算 |
+| **FlightDataEvent** | 事件封装 | ✅ 必要 | 携带 EventPayload 和预计算的 HUDData；提供类型安全的事件传递；未来可扩展事件元数据 (时间戳、序列号) |
+| **EventPayload** | 低频逻辑标志 | ✅ 必要 | 不可变对象保证线程安全；类型安全的布尔/枚举字段；避免 Service 线程和 EDT 之间的数据竞争 |
+| **HUDData** | 帧数据快照 | ✅ 必要 | 预计算避免 EDT 阻塞；不可变对象确保一帧内数据一致性；组件间共享计算结果避免重复计算 |
 | **TelemetrySource** | 零 GC 数值访问 | ✅ 必要 | 高频数值访问避免 Double 装箱；保持 EventPayload 的 Boolean 类型简洁 |
 | **HUDComponent** | 组件化渲染 | ✅ 合理 | 单一职责；可复用；独立测试；支持动态组合 |
+| **ModernHUDLayoutEngine** | DAG 布局 | ✅ 合理 | 支持相对锚点定位；惰性计算减少开销；DPI 无关的单位系统 |
 
-#### 1.2.3 双数据访问模式
+#### 1.2.3 数据访问模式
 
 MiniHUD 采用**双通道数据访问模式**，针对不同数据类型优化：
 
 ```java
-// 模式 1: EventPayload — 低频布尔/枚举数据
-// 用于状态标志、模式切换等不频繁变化的数据
-public class EventPayload {
-    public final boolean isAirborne;      // 是否在空中
-    public final boolean gearUp;          // 起落架收起
-    public final boolean isJet;           // 引擎类型
-    public final boolean enginesWorking;  // 引擎工作状态
-    // ...
+// 模式 1: HUDData — 预计算的显示数据
+// 由 HUDCalculator 在 Service 线程计算，避免 EDT 阻塞
+@Override
+public void onFlightData(FlightDataEvent event) {
+    HUDData data = event.getHudData();  // 预计算结果
+    if (data == null) return;
+    SwingUtilities.invokeLater(() -> updateComponents(data));
 }
 
 // 模式 2: TelemetrySource — 高频数值数据
-// 用于每帧都在变化的浮点数，通过接口访问避免装箱
-public interface TelemetrySource {
-    double getIAS();           // 指示空速 (km/h)
-    double getAltitude();      // 海拔高度 (m)
-    double getVerticalSpeed(); // 垂直速度 (m/s)
-    double getThrottle();      // 油门 (0-1)
-    // ... ~30 个方法
+// 用于需要实时访问原始数据的场景
+private ui.model.TelemetrySource telemetrySource;
+
+public void init(Service s, OverlaySettings settings) {
+    // 正确方式：从 Service 转型获取
+    if (s instanceof ui.model.TelemetrySource) {
+        this.telemetrySource = (ui.model.TelemetrySource) s;
+    }
 }
 
-// 使用示例 (MiniHUDOverlay.java)
+// 使用示例
 @Override
-public void onFlightDataUpdate(FlightDataEvent event) {
+public void onFlightData(FlightDataEvent event) {
+    // 低频数据: 从 EventPayload 读取
     EventPayload payload = event.getPayload();
-    TelemetrySource telem = payload.getTelemetrySource();
-
-    // 低频数据: 直接从 payload 读取
-    boolean showGearWarning = !payload.gearUp && payload.isAirborne;
+    boolean isJet = payload.isJet;
 
     // 高频数据: 通过 TelemetrySource 零装箱访问
-    double ias = telem.getIAS();           // 返回 primitive double
-    double alt = telem.getAltitude();      // 无 Double 对象创建
+    if (telemetrySource != null) {
+        double ias = telemetrySource.getIAS();
+        double alt = telemetrySource.getAltitude();
+    }
+}
+```
+
+**⚠️ 重要**：`TelemetrySource` **不是**通过 `EventPayload` 获取的！正确的获取方式是从 `Service` 转型：
+
+```java
+// ❌ 错误：TelemetrySource 不在 EventPayload 中
+TelemetrySource telem = payload.getTelemetrySource();  // 编译错误！
+
+// ✅ 正确：从 Service 转型获取
+if (service instanceof ui.model.TelemetrySource) {
+    this.telemetrySource = (ui.model.TelemetrySource) service;
 }
 ```
 
@@ -164,11 +170,37 @@ public void onFlightDataUpdate(FlightDataEvent event) {
 | 数据类型 | 访问频率 | 装箱开销 | 推荐模式 |
 |----------|----------|----------|----------|
 | 布尔标志 (gear, airborne) | 每帧 1 次 | 无 (primitive) | EventPayload 字段 |
+| 预计算显示数据 | 每帧 1 次 | 无 (在 Service 线程计算) | HUDData |
 | 数值数据 (IAS, altitude) | 每帧 10+ 次 | 高 (如用 Map<String, Double>) | TelemetrySource 接口 |
 
-如果所有数据都放在 `Map<String, Object>` 中，每次 `get("IAS")` 都会产生一次 Double 装箱和 Object 类型转换。在 60Hz 渲染循环中，这会造成显著的 GC 压力。
+#### 1.2.4 HUDData 预计算模式
 
-#### 1.2.4 线程模型
+MiniHUD 的核心性能优化是 **HUDData 预计算**。`HUDCalculator` 在 Service 线程计算所有显示数据，避免在 EDT 上执行耗时计算。
+
+```java
+// Service.java - 在后台线程预计算
+HUDData hudData = HUDCalculator.calculate(event, this, blkx, hudSettings, null);
+event.setHudData(hudData);
+FlightDataBus.getInstance().publish(event);
+
+// MiniHUDOverlay.java - 直接消费预计算数据
+@Override
+public void onFlightData(FlightDataEvent event) {
+    HUDData data = event.getHudData();  // 已在 Service 线程计算完成！
+    if (data == null) return;
+    SwingUtilities.invokeLater(() -> updateComponents(data));
+}
+```
+
+**性能收益**:
+
+| 指标 | 无预计算 | 有预计算 |
+|------|----------|----------|
+| EDT 阻塞时间 | 40-60ms | <5ms |
+| 帧率稳定性 | 可能卡顿 | 稳定 |
+| GC 压力 | 每帧计算分配 | 一次性分配 |
+
+#### 1.2.5 线程模型
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -181,21 +213,21 @@ public void onFlightDataUpdate(FlightDataEvent event) {
 │  ├─────────────────┤         ├─────────────────┤               │
 │  │ • HTTP polling  │         │ • UI rendering  │               │
 │  │ • JSON parsing  │         │ • Event handling│               │
-│  │ • Data calc     │         │ • Component     │               │
+│  │ • HUDData calc  │◄─────── │ • Component     │               │
 │  │                 │         │   updates       │               │
 │  └────────┬────────┘         └────────▲────────┘               │
 │           │                           │                         │
 │           │  FlightDataEvent          │                         │
-│           │  (immutable)              │                         │
+│           │  (immutable, 含 HUDData)  │                         │
 │           ▼                           │                         │
 │  ┌─────────────────────────────────────────────┐               │
 │  │              FlightDataBus                   │               │
 │  │                                              │               │
-│  │  listener.onFlightDataUpdate(event) {       │               │
-│  │      // 可能在 Service 线程执行！            │               │
+│  │  listener.onFlightData(event) {             │               │
+│  │      // 在 Service 线程执行！                 │               │
 │  │      SwingUtilities.invokeLater(() -> {     │◄─── 关键！     │
 │  │          // 确保在 EDT 执行                  │               │
-│  │          processData(event);                 │               │
+│  │          processData(event.getHudData());   │               │
 │  │      });                                     │               │
 │  │  }                                           │               │
 │  └─────────────────────────────────────────────┘               │
@@ -212,133 +244,20 @@ public void onFlightDataUpdate(FlightDataEvent event) {
 ```java
 // ❌ 错误: 直接在 Service 线程更新 UI
 @Override
-public void onFlightDataUpdate(FlightDataEvent event) {
-    altitudeLabel.setText(event.getAltitude()); // 线程不安全！
+public void onFlightData(FlightDataEvent event) {
+    altitudeLabel.setText(String.valueOf(data.altitude)); // 线程不安全！
 }
 
 // ✅ 正确: 调度到 EDT
 @Override
-public void onFlightDataUpdate(FlightDataEvent event) {
-    EventPayload payload = event.getPayload(); // 不可变，可安全跨线程
+public void onFlightData(FlightDataEvent event) {
+    HUDData data = event.getHudData();
+    if (data == null) return;
     SwingUtilities.invokeLater(() -> {
-        processDataOnEDT(payload);
+        processDataOnEDT(data);
     });
 }
 ```
-
-#### 1.2.5 内存与 GC 开销分析
-
-以 30Hz 数据更新频率计算：
-
-| 对象 | 每秒创建次数 | 单个大小 (估算) | 总开销 |
-|------|--------------|-----------------|--------|
-| FlightDataEvent | 30 | ~48 bytes | 1.4 KB/s |
-| EventPayload | 30 | ~200 bytes | 6.0 KB/s |
-| HUDData | 30 | ~160 bytes | 4.8 KB/s |
-| Runnable (invokeLater) | 30 | ~32 bytes | 1.0 KB/s |
-| **总计** | | | **~13 KB/s** |
-
-**结论**: 每秒约 13KB 的临时对象分配，对于现代 JVM (G1GC/ZGC) 完全是 Young Generation 的小菜一碟，不会触发 Full GC。
-
-**优化措施已到位**:
-- `HUDComponent.draw()` 内部禁止 `new` 对象
-- 颜色、字体等使用静态常量或成员变量缓存
-- `TelemetrySource` 返回 primitive `double` 避免装箱
-
-#### 1.2.6 技术债务说明
-
-当前实现中存在部分 Legacy 代码：
-
-```java
-// MiniHUDOverlay.java - updateLegacyComponents()
-// 这是一个桥接方法，用于兼容尚未迁移到 HUDData 模式的旧组件
-
-private void updateLegacyComponents(EventPayload payload, TelemetrySource telem) {
-    // Row 2-4 仍使用旧的 update(Map<String, Object>) 方法
-    // 未来应迁移到 component.onDataUpdate(HUDData) 模式
-
-    Map<String, Object> legacyData = new HashMap<>();
-    legacyData.put("IAS", telem.getIAS());
-    legacyData.put("altitude", telem.getAltitude());
-    // ...
-
-    for (HUDRow row : legacyRows) {
-        row.update(legacyData);  // 旧接口
-    }
-}
-```
-
-**迁移路径**:
-1. 为 `HUDRow` 添加 `onDataUpdate(HUDData)` 方法
-2. 逐个组件迁移，移除对 `Map<String, Object>` 的依赖
-3. 最终删除 `updateLegacyComponents()` 桥接代码
-
-#### 1.2.7 "为什么不简化？" — 反例分析
-
-开发者可能会问：能不能减少几层抽象？让我们分析几种简化方案的后果：
-
-##### 方案 A: 去掉 FlightDataBus，让 Service 直接调用 Overlay
-
-```java
-// 假设的简化代码
-class Service {
-    private MiniHUDOverlay overlay;
-
-    void pollData() {
-        Data data = fetchFromGame();
-        overlay.update(data);  // 直接调用
-    }
-}
-```
-
-**问题**:
-- ❌ Service 与 Overlay 强耦合
-- ❌ 无法支持多个 Overlay (FlightInfoOverlay, EngineControlOverlay, ...)
-- ❌ Overlay 销毁/重建时需要修改 Service
-- ❌ 测试困难，必须 mock 整个 Service
-
-##### 方案 B: 去掉 HUDCalculator，在 Component 中直接计算
-
-```java
-// 假设的简化代码
-class SpeedTextRow extends HUDComponent {
-    void onDataUpdate(EventPayload payload) {
-        double ias = payload.getIAS();
-        double vne = getVneFromConfig();
-        double ratio = ias / vne;  // 在组件内计算
-        Color color = ratio > 0.9 ? Color.RED : Color.WHITE;
-        // ...
-    }
-}
-```
-
-**问题**:
-- ❌ 相同计算在多个组件中重复 (SpeedRatioBar 也需要 ratio)
-- ❌ 难以单元测试计算逻辑（需要创建 Graphics2D mock）
-- ❌ 组件职责膨胀，违反单一职责原则
-
-##### 方案 C: 去掉 HUDData，直接传 EventPayload 给组件
-
-```java
-// 假设的简化代码
-class MiniHUDOverlay {
-    void onFlightDataUpdate(FlightDataEvent event) {
-        EventPayload payload = event.getPayload();
-        for (HUDComponent comp : components) {
-            comp.onDataUpdate(payload);  // 直接传原始数据
-        }
-    }
-}
-```
-
-**问题**:
-- ❌ 组件需要自行计算派生值（重复代码）
-- ❌ 一帧内相同计算被执行多次（性能浪费）
-- ❌ 组件需要了解 EventPayload 的内部结构（紧耦合）
-
----
-
-**总结**: MiniHUD 的分层架构是经过权衡的设计选择，每一层都有其存在的理由。在没有充分理由的情况下，不建议简化层级。
 
 ---
 
@@ -372,7 +291,7 @@ void visit(node):
 
 ### 2.2 脏标记机制 (Dirty Flag Mechanism)
 
-为了极致性能，布局计算是 **惰性 (Lazy)** 的。只有当以下情况发生时，`dirty` 标志才会被置位：:
+为了极致性能，布局计算是 **惰性 (Lazy)** 的。只有当以下情况发生时，`dirty` 标志才会被置位：
 1.  Canvas 尺寸改变 (`setCanvasSize`)
 2.  行高/字体大小改变 (`setLineHeight`)
 3.  添加/移除节点
@@ -402,14 +321,14 @@ MiniHUD 不使用像素 (px) 作为定位单位，而是使用 **"行高单位 (
 这意味着我们在定义位置时，实际上是在定义 **"我的哪个点"** 对齐到 **"父亲的哪个点"**。
 
 #### 代码实例解析
-让我们回顾 `MinimalHUD.java` (L624-L636) 中的经典案例：
+让我们回顾 `MiniHUDOverlay.java` 中的经典案例：
 
 ```java
 // 姿态仪 (Attitude) 挂载
 ui.layout.HUDLayoutNode attitudeNode = new ui.layout.HUDLayoutNode("attitude", attitudeIndicatorGauge);
 attitudeNode.setParent(row2)
         // 1. 偏移: X无偏移, Y向下偏移 0.1行高 (微调间距)
-        .setRelativePosition(0, 0.1) 
+        .setRelativePosition(0, 0.1)
         // 2. 锚点: 我的中心 (CENTER) 对齐到 父节点的底部中心 (BOTTOM_CENTER)
         .setAnchors(ui.layout.Anchor.BOTTOM_CENTER, ui.layout.Anchor.CENTER);
 modernLayout.addNode(attitudeNode);
@@ -421,11 +340,11 @@ graph TD
     subgraph Row2 [Row 2 Component]
          BC[Anchor: BOTTOM_CENTER]
     end
-    
+
     subgraph Attitude [Attitude Gauge]
         C[Anchor: CENTER]
     end
-    
+
     BC -.->|Aligns With| C
     style BC fill:#f9f,stroke:#333
     style C fill:#bbf,stroke:#333
@@ -472,19 +391,19 @@ compassNode.setParent(row2)
 **典型事故**: "Zombie Listener" (僵尸监听器)。
 
 ### 5.1 问题背景
-`MinimalHUD` 是一个瞬态对象 (Transient Object)，当用户开关 HUD 或切换模式时会被销毁重建。
+`MiniHUDOverlay` 是一个瞬态对象 (Transient Object)，当用户开关 HUD 或切换模式时会被销毁重建。
 但是 `FlightDataBus` 和 `EventBus` 是全局单例 (Singleton)。
 
 ### 5.2 黄金法则
 1.  **禁止在 Component 中注册全局监听**: `HUDComponent` 不应直接 `EventBus.register(this)`。
-2.  **统一分发**: 所有事件应由 `MinimalHUD` (Controller) 接收，并通过 `component.onDataUpdate(data)` 或者 `layoutEngine.setDebug(bool)` 手动传递下去。
+2.  **统一分发**: 所有事件应由 `MiniHUDOverlay` (Controller) 接收，并通过 `component.onDataUpdate(data)` 或者 `layoutEngine.setDebug(bool)` 手动传递下去。
 3.  **销毁清理**: 必须在 `dispose()` 方法中显式注销所有订阅。
 
 ```java
-// 正确做法 (MinimalHUD.java)
+// 正确做法 (MiniHUDOverlay.java)
 @Override
 public void dispose() {
-    unsubscribeFromEvents(); // 必须调用!
+    FlightDataBus.getInstance().unregister(this); // 必须调用!
     super.dispose();
 }
 ```
@@ -505,10 +424,10 @@ MiniHUD 最引以为傲的特性是**"零抖动" (Zero-Jitter)**。
 
 ```java
 // 错误: 宽度随内容变化
-row.setText("ALT " + currentAlt); 
+row.setText("ALT " + currentAlt);
 
 // 正确: 宽度被锁定为 "ALT 88888" 的物理宽度
-row.setTemplate("ALT 88888"); 
+row.setTemplate("ALT 88888");
 row.setText("ALT " + currentAlt);
 ```
 
@@ -576,13 +495,14 @@ Stroke good = GraphicsUtil.createPreciseStroke(2);
 | `createPreciseStroke(width)` | 精确端点，适合边界对齐线条 |
 | `createPreciseStroke(width, join)` | 精确端点 + 自定义拐角样式 |
 | `createRoundedStroke(width)` | 圆角端点，适合装饰性线条 |
+| `configureOverlayRendering(g2d)` | 配置标准渲染提示 (抗锯齿等) |
 
 ---
 
 ## 9. 配置与持久化 (Configuration)
 
 MiniHUD 的布局配置存储在 `ui_layout.cfg` 中。
-虽然目前主要通过代码硬编码拓扑结构，但 `MinimalHUD` 的设计为将来支持 XML/JSON 定义布局留出了接口。
+虽然目前主要通过代码硬编码拓扑结构，但 `MiniHUDOverlay` 的设计为将来支持 XML/JSON 定义布局留出了接口。
 目前支持的配置项：
 *   `hudFontSize`: 全局缩放基准
 *   `enableLayoutDebug`: 开启调试线框
@@ -638,4 +558,36 @@ if (speedRatioBar != null) {
 5.  **文档注释**: 修改核心算法 (`ModernHUDLayoutEngine`) 必须更新本文档。
 
 ---
+
+## 12. 常见错误参考 (Common Mistakes)
+
+### 12.1 错误的 TelemetrySource 访问
+
+```java
+// ❌ 错误：payload.getTelemetrySource() 不存在！
+@Override
+public void onFlightData(FlightDataEvent event) {
+    EventPayload payload = event.getPayload();
+    TelemetrySource telem = payload.getTelemetrySource();  // 编译错误
+}
+
+// ✅ 正确：从 Service 转型获取
+public void init(Controller c, Service s, OverlaySettings settings) {
+    if (s instanceof ui.model.TelemetrySource) {
+        this.telemetrySource = (ui.model.TelemetrySource) s;
+    }
+}
+```
+
+### 12.2 错误的类名引用
+
+| ❌ 错误 | ✅ 正确 |
+|--------|--------|
+| `HUDVirtualLayoutEngine` | `ModernHUDLayoutEngine` |
+| `MinimalHUD` | `MiniHUDOverlay` |
+| `MinimalHUD.java` | `MiniHUDOverlay.java` |
+
+---
+
 *MiniHUD Development Team*
+*最后更新: 2026-02*
