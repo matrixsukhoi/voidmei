@@ -133,15 +133,15 @@ public class FlightLog implements Runnable {
 
 		bw.write(xs.Wx + ",");// 12
 
-		bw.write(xs.sTotalHp + ",");// 13
+		bw.write(xs.totalHpStr + ",");// 13
 
 		bw.write(xs.efficiency[0] + ",");// 16
 
-		bw.write(xs.sTotalHpEff + ",");// 14
+		bw.write(xs.totalHpEffStr + ",");// 14
 
 		bw.write(xs.rpm + ",");// 15
 
-		bw.write(xs.iTotalThr + ",");// 16
+		bw.write(xs.totalThrust + ",");// 16
 
 		bw.write(xs.acceleration + ",");// 17
 
@@ -179,7 +179,7 @@ public class FlightLog implements Runnable {
 	// 进行数据分析
 	void analyzeData() {
 		int stage = (int) xs.alt / 100;
-		if (Math.abs(xs.iCheckAlt) > 10) {
+		if (Math.abs(xs.checkAlt) > 10) {
 			if (firstAnalyze) {
 				// 第一次分析，先取当前高度
 				fA = new FlightAnalyzer();

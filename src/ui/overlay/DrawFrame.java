@@ -722,12 +722,8 @@ public class DrawFrame extends WebFrame implements Runnable {
 		while (doit) {
 			// textArea.setText(xp.fmdata);
 			this.getContentPane().repaint();
-			try {
-				Thread.sleep(1000);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
+			// 使用统一异常处理替代冗余try-catch
+			prog.util.ExceptionHelper.sleepQuietly(1000);
 
 		}
 		this.dispose();

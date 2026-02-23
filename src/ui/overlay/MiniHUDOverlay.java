@@ -129,7 +129,8 @@ public class MiniHUDOverlay extends DraggableOverlay implements FlightDataListen
         Logger.info("MinimalHUD", "reinitConfig called");
 
         if (configService == null && controller != null) {
-            configService = controller.configService;
+            // 使用 getConfigService() 方法而非直接访问字段
+            configService = controller.getConfigService();
         }
 
         if (configService != null) {

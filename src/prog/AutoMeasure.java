@@ -32,13 +32,8 @@ public class AutoMeasure implements Runnable {
 	public void run() {
 		/* 线程 */
 		while (doit) {
-			
-			try {
-				Thread.sleep(100);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}	
+			// 使用统一异常处理替代冗余try-catch
+			prog.util.ExceptionHelper.sleepQuietly(100);
 			if (xS.sState.gear != 100 || (xS.speedv > 10 && xS.sState.throttle > 0)) {
 				// 如果收起落架则关闭break
 				/* 测试，开始传送 */
@@ -46,26 +41,22 @@ public class AutoMeasure implements Runnable {
 				try {
 					if (start == 0){
 						xS.httpClient.fmCmdSetAlt(3000, Application.requestDest);
-						
+
 						// spd = 100;
 						xS.httpClient.fmCmdSetSpd(spd, Application.requestDest);
-						start = 1;	
+						start = 1;
 					}else{
 						// Thread.sleep(5000);
 						// spd = findMaxSpd(spd);
 					}
-					
-					
+
+
 				} catch (IOException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
+					// HTTP命令发送失败，使用统一异常处理
+					prog.util.ExceptionHelper.logAndContinue(e, "自动测量命令");
 				}
-				// } catch (InterruptedException e) {
-				// 	// TODO Auto-generated catch block
-				// 	e.printStackTrace();
-				// }
 			}
-			
+
 		}
 	}
 }

@@ -124,7 +124,8 @@ public class EngineControlOverlay extends FieldOverlay { // Revert to FieldOverl
 		this.controller = c;
 		// 使用 getConfigProvider() 获取配置接口，而不是直接使用 Controller
 		this.config = c.getConfigProvider();
-		this.onPositionSave = () -> c.configService.saveLayoutConfig();
+		// 使用 getConfigService() 而非直接访问字段
+		this.onPositionSave = () -> c.getConfigService().saveLayoutConfig();
 
 		setOverlaySettings(settings);
 		setupTransparentWindow();

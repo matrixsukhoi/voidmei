@@ -617,11 +617,11 @@ public class Blkx {
 				}
 				br.close();
 			} catch (FileNotFoundException e1) {
-				// TODO Auto-generated catch block
-				e1.printStackTrace();
+				// 版本文件不存在，使用统一异常处理
+				prog.util.ExceptionHelper.logAndContinue(e1, "版本文件读取");
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				// IO读取失败
+				prog.util.ExceptionHelper.logAndContinue(e, "版本文件读取");
 			}
 			tmp_data = sb.toString();
 			// valid = true;
@@ -1633,11 +1633,11 @@ public class Blkx {
 				}
 				br.close();
 			} catch (FileNotFoundException e1) {
-				// TODO Auto-generated catch block
-				e1.printStackTrace();
+				// FM文件不存在，使用统一异常处理
+				prog.util.ExceptionHelper.logAndContinue(e1, "FM文件读取");
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				// IO读取失败
+				prog.util.ExceptionHelper.logAndContinue(e, "FM文件读取");
 			}
 			readFileName = name;
 			data = sb.toString();

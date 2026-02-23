@@ -728,21 +728,12 @@ public class DrawFrameSimpl extends DraggableOverlay {
 			}
 			// 如果配置了热键，由用户手动控制显示/隐藏，不自动退出
 			if (Application.displayFmKey != 0) {
-				try {
-					Thread.sleep(1000);
-				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
+				// 使用统一异常处理替代冗余try-catch
+				prog.util.ExceptionHelper.sleepQuietly(1000);
 			} else {
 				if (this.xc.S.sState.gear != 100 || (this.xc.S.speedv > 10 && this.xc.S.sState.throttle > 0)) {
 					// 如果收起落架则关闭break
-					try {
-						Thread.sleep(10000);
-					} catch (InterruptedException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
+					prog.util.ExceptionHelper.sleepQuietly(10000);
 					break;
 				}
 			}

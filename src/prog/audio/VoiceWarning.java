@@ -423,12 +423,8 @@ public class VoiceWarning implements Runnable {
 
     @Override
     public void run() {
-        try {
-            Thread.sleep(1000);
-        } catch (InterruptedException e1) {
-            // TODO Auto-generated catch block
-            e1.printStackTrace();
-        }
+        // 启动延迟，使用统一异常处理
+        prog.util.ExceptionHelper.sleepQuietly(1000);
         while (doit) {
             try {
                 Thread.sleep(sleepTime);
@@ -552,7 +548,7 @@ public class VoiceWarning implements Runnable {
                 engWarn.playOnce(t);
             }
 
-            if (xS.fTotalFuel == 0) {
+            if (xS.totalFuel == 0) {
                 if (oofCheck++ > 16) {
                     oofCheck = 0;
                     oofWarn.playOnce(t);

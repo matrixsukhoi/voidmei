@@ -142,8 +142,8 @@ public class InfoList extends WebFrame implements Runnable {
                 // Application.debugPrint(this.status);
 
             } catch (Exception e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
+                // 信息列表更新异常，使用统一异常处理
+                prog.util.ExceptionHelper.logAndContinue(e, "信息列表");
             }
         }
     }

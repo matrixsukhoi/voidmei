@@ -193,8 +193,7 @@ public class Application {
 			try {
 				plugin = r.exec(System.getProperty("user.dir") + "\\TaskBarHider.exe");
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				prog.util.ExceptionHelper.logAndContinue(e, "启动TaskBarHider");
 			}
 		} else {
 			if (debug)
@@ -274,8 +273,8 @@ public class Application {
 			try {
 				tray.add(icon);
 			} catch (AWTException e1) {
-				// TODO Auto-generated catch block
-				// e1.printStackTrace();
+				// 添加到系统托盘失败，记录警告
+				prog.util.ExceptionHelper.logAndContinue(e1, "系统托盘");
 				debugPrint(Lang.failaddtoTray);
 			}
 		}
@@ -284,12 +283,8 @@ public class Application {
 	public static void checkOS() {
 		if (Float.parseFloat(System.getProperty("os.version")) < 6.0) {
 			ui.util.NotificationService.showTimed(Lang.Systemerror, 10000);
-			try {
-				Thread.sleep(10000);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
+			// 使用 ExceptionHelper 替代冗余的 try-catch
+			prog.util.ExceptionHelper.sleepQuietly(10000);
 		}
 	}
 
@@ -367,8 +362,8 @@ public class Application {
 		try {
 			out = new PrintStream(path);
 		} catch (FileNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			// 日志文件创建失败，使用统一异常处理
+			prog.util.ExceptionHelper.logAndContinue(e, "日志文件");
 		}
 		System.setOut(out);
 	}
@@ -378,8 +373,8 @@ public class Application {
 		try {
 			out = new PrintStream(path);
 		} catch (FileNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			// 错误日志文件创建失败，使用统一异常处理
+			prog.util.ExceptionHelper.logAndContinue(e, "错误日志文件");
 		}
 		System.setErr(out);
 	}
@@ -397,18 +392,9 @@ public class Application {
 
 				charset.setAccessible(true);
 				charset.set(null, null);
-			} catch (NoSuchFieldException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			} catch (SecurityException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			} catch (IllegalArgumentException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			} catch (IllegalAccessException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+			} catch (NoSuchFieldException | SecurityException | IllegalArgumentException | IllegalAccessException e) {
+				// 反射设置字符集失败，使用统一异常处理
+				prog.util.ExceptionHelper.logAndContinue(e, "字符集设置");
 			}
 		}
 	}
@@ -474,8 +460,8 @@ public class Application {
 			});
 
 		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			// 检查更新失败，使用统一异常处理
+			prog.util.ExceptionHelper.logAndContinue(e, "检查更新");
 		}
 
 	}
@@ -507,8 +493,8 @@ public class Application {
 			});
 
 		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			// 检查更新失败，使用统一异常处理
+			prog.util.ExceptionHelper.logAndContinue(e, "检查更新");
 		}
 
 	}

@@ -35,31 +35,34 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 	public double loc[];
 	public double dir[];
 	public double energyJKg;
-	public double pEnergyJKg;
+	public double prevEnergyJKg;
 	public long calcPeriod;
 	public static String buf;
 	// Gravitational constant imported from PhysicsConstants.g
 	public long timeStamp;
 	public long freq;
-	public State sState;
-	public Indicators sIndic;
-	public String sStatus;
-	public String sTime;
-	public int iTotalHp;
-	public String sTotalHp;
-	public int iTotalHpEff;
-	public String sTotalHpEff;
-	public boolean bUnitMHp;
-	public int iTotalThr;
-	public String sTotalThr;
-	public double fTotalFuel;
-	public double fTotalFuelP;
-	public boolean bLowAccFuel;
-	public String sTotalFuel;
-	public int iCheckAlt;
-	public double dfuel;
+	// === API 对象（对应 War Thunder HTTP 端点）===
+	public State sState;           // /state 端点数据
+	public Indicators sIndic;      // /indicators 端点数据
+	public String statusText;      // 状态文本
+	public String timeText;        // 时间文本
+
+	// === 数值类字段（移除匈牙利前缀）===
+	public int totalHp;            // 总马力
+	public String totalHpStr;      // 总马力字符串
+	public int totalHpEff;         // 有效马力
+	public String totalHpEffStr;   // 有效马力字符串
+	public boolean useMegaHp;      // 是否使用MHp单位
+	public int totalThrust;        // 总推力
+	public String totalThrustStr;  // 总推力字符串
+	public double totalFuel;       // 总油量
+	public double totalFuelPrev;   // 上次油量（用于计算变化）
+	public boolean lowAccFuel;     // 低精度燃油警告
+	public String totalFuelStr;    // 总油量字符串
+	public int checkAlt;           // 检查高度
+	public double fuelDelta;       // 油量变化
 	public long fueltime;
-	public String sfueltime;
+	public String fueltimeStr;     // 油耗时间字符串
 	public boolean notCheckInch;
 	// public boolean isFuelpressure;
 	public boolean altperCirclflag;
@@ -117,7 +120,7 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 	// sState转换后
 	public boolean hasWingSweepVario;
 	public boolean isStateJet;
-	public double dCompass;
+	public double compassDelta;
 	public String svalid;
 	public int engineNum;
 	public String engineType;
@@ -244,29 +247,29 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 		elevator = String.format("%d", sState.elevator);
 		rudder = String.format("%d", sState.rudder);
 
-		sTime = String.format("%02d'%02d", elapsedTime / 60000, (elapsedTime / 1000) % 60);
+		timeText = String.format("%02d'%02d", elapsedTime / 60000, (elapsedTime / 1000) % 60);
 		if (fueltime <= 0 || fueltime > 24 * 3600 * 1000)
-			sfueltime = nastring;
+			fueltimeStr = nastring;
 		else {
 			if (fueltime / 60000 < 100) {
-				sfueltime = String.format("%02d'%02d", fueltime / 60000, (long) ((fueltime / 1000) % 60 / 10) * 10);
+				fueltimeStr = String.format("%02d'%02d", fueltime / 60000, (long) ((fueltime / 1000) % 60 / 10) * 10);
 			} else
-				sfueltime = String.format("%.0f", (float) fueltime / 60000);
+				fueltimeStr = String.format("%.0f", (float) fueltime / 60000);
 
 		}
-		sTotalThr = String.format("%d", iTotalThr);
-		if (iTotalHp == 0)
-			sTotalHp = nastring;
+		totalThrustStr = String.format("%d", totalThrust);
+		if (totalHp == 0)
+			totalHpStr = nastring;
 		else
-			sTotalHp = String.format("%d", iTotalHp);
+			totalHpStr = String.format("%d", totalHp);
 
 		rpm = String.format("%d", (int) sState.RPM);
-		if (iTotalHpEff >= 100000) {
-			bUnitMHp = true;
-			sTotalHpEff = String.format("%.2f", iTotalHpEff / 1000000.0f);
+		if (totalHpEff >= 100000) {
+			useMegaHp = true;
+			totalHpEffStr = String.format("%.2f", totalHpEff / 1000000.0f);
 		} else {
-			bUnitMHp = false;
-			sTotalHpEff = String.format("%d", iTotalHpEff);
+			useMegaHp = false;
+			totalHpEffStr = String.format("%d", totalHpEff);
 		}
 		if (sState.efficiency[0] == 0)
 			efficiency[0] = nastring;
@@ -281,7 +284,7 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 			pressurePounds = String.format("%+.1f", (sState.manifoldpressure - 1) * 14.696);
 			pressureInchHg = String.format("P/%.1f''", (sState.manifoldpressure * 760 / 25.4));
 
-			if (this.iCheckAlt > 0) {
+			if (this.checkAlt > 0) {
 				// Imperial Mode: Value is Boost (psi), Unit is Manifold (inHg)
 				this.manifoldpressure = pressurePounds;
 				this.pressureUnitStr = pressureInchHg;
@@ -297,7 +300,7 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 			pressureInchHg = nastring;
 			this.pressureUnitStr = "Ata";
 		}
-		sTotalFuel = String.format("%.0f", fTotalFuel);
+		totalFuelStr = String.format("%.0f", totalFuel);
 		if (sState.pitch[0] != -65535)
 			pitch[0] = String.format("%.1f", sState.pitch[0]);
 		else
@@ -372,7 +375,7 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 			AoA = nastring;
 			AoS = nastring;
 		}
-		compass = String.format("%.0f", dCompass);
+		compass = String.format("%.0f", compassDelta);
 		sPitchUp = String.format("%.0f", sIndic.aviahorizon_pitch);
 
 		if (c.getBlkx() != null && c.getBlkx().valid && c.getBlkx().nitro != 0) {
@@ -443,7 +446,7 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 			.fatalWarn(fatalWarn)
 			.radioAltValid(radioAltValid)
 			.isDowningFlap(isDowningFlap)
-			.timeStr(sfueltime)
+			.timeStr(fueltimeStr)
 			.isJet(iEngType == ENGINE_TYPE_JET)
 			.engineCheckDone(checkEngineFlag)
 			.optimalCompressorStage(optimalCompressorStage)
@@ -504,21 +507,21 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 	}
 
 	public void slowcalculate(long dtime) {
-		dfuel = (fTotalFuelP - fTotalFuel) / dtime;
+		fuelDelta = (totalFuelPrev - totalFuel) / dtime;
 
-		if (dfuel > 0) {
+		if (fuelDelta > 0) {
 
 			FuelchangeTime = lastMainLoopTimeMs - FuelLastchangeMili;
 			FuelLastchangeMili = lastMainLoopTimeMs;
-			fuelChange = fTotalFuelP - fTotalFuel; // 改变1公斤花了多长时间
+			fuelChange = totalFuelPrev - totalFuel; // 改变1公斤花了多长时间
 
-			if (!bLowAccFuel) {
+			if (!lowAccFuel) {
 				// 改用滑动平均
-				fueltime = (long) fuelTimeSMA.addNewData(fTotalFuel / dfuel);
+				fueltime = (long) fuelTimeSMA.addNewData(totalFuel / fuelDelta);
 
 			} else {
 				// /* 已知油量不可能递增，考虑计算精度问题导致油量增多，因此取两者间最小值 */
-				long tmpft = (long) fuelTimeSMA.addNewData(fTotalFuel * FuelchangeTime / fuelChange);
+				long tmpft = (long) fuelTimeSMA.addNewData(totalFuel * FuelchangeTime / fuelChange);
 				if (fueltime > 0)
 					fueltime = fueltime < tmpft ? fueltime : tmpft;
 				else
@@ -533,7 +536,7 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 				fueltime = 0;
 			else {
 				/* 已知油量不可能递增，考虑计算精度问题导致油量增多，因此取两者间最小值 */
-				long tmpft = (long) fuelTimeSMA.addNewData(fTotalFuel * FuelchangeTime / fuelChange);
+				long tmpft = (long) fuelTimeSMA.addNewData(totalFuel * FuelchangeTime / fuelChange);
 				fueltime = tmpft;
 			}
 
@@ -543,7 +546,7 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 			fueltime = Long.MAX_VALUE;
 
 		FuelCheckMili = lastMainLoopTimeMs;
-		fTotalFuelP = fTotalFuel;
+		totalFuelPrev = totalFuel;
 		// prev_throttle = sState.throttle;
 		// 计算变化率
 		// Application.debugPrint("" + fueltime);
@@ -718,11 +721,11 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 		// 人类毒瘤英制飞机
 		if (!notCheckInch && Math.abs(sState.Vy) > 0) {
 			if ((Math.abs(altmeter - altmeterp) * 1000 > Math.abs(2 * sState.Vy * actualIntervalMs))) {
-				iCheckAlt += actualIntervalMs;
+				checkAlt += actualIntervalMs;
 			} else {
-				iCheckAlt -= actualIntervalMs;
+				checkAlt -= actualIntervalMs;
 			}
-			if (Math.abs(iCheckAlt) > 10000)
+			if (Math.abs(checkAlt) > 10000)
 				notCheckInch = true;
 		}
 
@@ -735,7 +738,7 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 			radioAltValid = false;
 		} else {
 			radioAltValid = true;
-			if (iCheckAlt > 0) {
+			if (checkAlt > 0) {
 				radioAlt = sIndic.radio_altitude * 0.3048f;
 			} else {
 				radioAlt = sIndic.radio_altitude;
@@ -867,12 +870,12 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 			// Application.debugPrint(totalhpeff);
 			// Application.debugPrint(String.format("sevice 引擎数量%d, 功率%.0f", engineNum,
 			// ttotalhp));
-			iTotalHp = (int) (ttotalhp);
-			iTotalHpEff = (int) (ttotalhpeff);
-			iTotalThr = (int) (ttotalthr);
+			totalHp = (int) (ttotalhp);
+			totalHpEff = (int) (ttotalhpeff);
+			totalThrust = (int) (ttotalthr);
 
-			if (iTotalHp != 0)
-				avgeff = (double) 100 * iTotalHpEff / iTotalHp;
+			if (totalHp != 0)
+				avgeff = (double) 100 * totalHpEff / totalHp;
 			else
 				avgeff = 0;
 		} else {
@@ -885,17 +888,17 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 			// Application.debugPrint(totalthr+" "+totalhpeff);
 			double ttotalhpeff = ((ttotalthr * g * speedv) / 735);
 
-			iTotalThr = (int) ttotalthr;
-			iTotalHpEff = (int) ttotalhpeff;
+			totalThrust = (int) ttotalthr;
+			totalHpEff = (int) ttotalhpeff;
 
 			avgeff = 0;
 		}
 
-		if (maxTotalThr < iTotalThr && sState.throttle >= 100) {
-			maxTotalThr = (int) (ratio_1 * maxTotalThr + ratio * iTotalThr);
+		if (maxTotalThr < totalThrust && sState.throttle >= 100) {
+			maxTotalThr = (int) (ratio_1 * maxTotalThr + ratio * totalThrust);
 		}
-		if (maxTotalHp < iTotalHpEff && sState.throttle >= 100) {
-			maxTotalHp = (int) (ratio_1 * maxTotalHp + ratio * iTotalHpEff);
+		if (maxTotalHp < totalHpEff && sState.throttle >= 100) {
+			maxTotalHp = (int) (ratio_1 * maxTotalHp + ratio * totalHpEff);
 		}
 
 		pThurstPercent = thurstPercent;
@@ -907,18 +910,18 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 		if (isEngJet()) {
 			// Jet: current thrust / peak afterburner thrust
 			if (peak > 0) {
-				thurstPercent = 100.0 * iTotalThr / peak;
+				thurstPercent = 100.0 * totalThrust / peak;
 			} else if (maxTotalThr != 0) {
 				// Fallback to old algorithm
-				thurstPercent = 100.0 * iTotalThr / maxTotalThr;
+				thurstPercent = 100.0 * totalThrust / maxTotalThr;
 			}
 		} else {
 			// Piston: current power / peak WEP power
 			if (peakPower > 0) {
-				thurstPercent = 100.0 * iTotalHp / peakPower;
+				thurstPercent = 100.0 * totalHp / peakPower;
 			} else if (maxTotalHp != 0) {
 				// Fallback to old algorithm
-				thurstPercent = 100.0 * iTotalHp / maxTotalHp;
+				thurstPercent = 100.0 * totalHp / maxTotalHp;
 			}
 		}
 
@@ -930,21 +933,21 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 		int i;
 		if (sIndic.fuelnum != 0) {
 			double ttotalfuel = 0;
-			bLowAccFuel = Boolean.FALSE;
+			lowAccFuel = Boolean.FALSE;
 			/* 修复su-27油箱显示不正确的问题 */
 			// for (i = 0; i < sIndic.fuelnum; i++) {
 			for (i = 0; i < 1; i++) {
 				ttotalfuel = ttotalfuel + sIndic.fuel[i];
 			}
-			fTotalFuel = ttotalfuel;
+			totalFuel = ttotalfuel;
 
 		}
 		// Application.debugPrint("I"+totalfuel);
-		if (fTotalFuel == 0) {
-			bLowAccFuel = Boolean.TRUE;
-			fTotalFuel = sState.mfuel;
+		if (totalFuel == 0) {
+			lowAccFuel = Boolean.TRUE;
+			totalFuel = sState.mfuel;
 		}
-		fuelPercent = (int) (100 * fTotalFuel / sState.mfuel0);
+		fuelPercent = (int) (100 * totalFuel / sState.mfuel0);
 
 	}
 
@@ -983,13 +986,13 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 		// }
 
 		// 总能量
-		// pEnergyJKg = energyJKg;
+		// prevEnergyJKg = energyJKg;
 		// energyJKg = ((speedv + speedvp) * (speedv + speedvp) / (8 * g) +
 		// sState.heightm);
 		energyJKg = ((speedv + speedvp) * (speedv + speedvp) / 8 + g * sState.heightm);
 		energyM = ((speedv + speedvp) * (speedv + speedvp) / (8 * g) + sState.heightm);
 		// System.out.println(String.format("%.0f",
-		// energyDiffSMA.addNewData((energyJKg - pEnergyJKg)*1000/actualIntervalMs)));
+		// energyDiffSMA.addNewData((energyJKg - prevEnergyJKg)*1000/actualIntervalMs)));
 	}
 
 	public void checkWing() {
@@ -1055,13 +1058,13 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 	public void updateCompass() {
 		if (sIndic.compass != -65535) {
 			// 如果有仪表罗盘，读取仪表罗表盘数据
-			dCompass = sIndic.compass;
+			compassDelta = sIndic.compass;
 		} else {
 			// 否则读取地图中的方向数据
 			if (dir[1] < 0) {
-				dCompass = (360 - Math.toDegrees(Math.atan(dir[0] / dir[1]))) % 360;
+				compassDelta = (360 - Math.toDegrees(Math.atan(dir[0] / dir[1]))) % 360;
 			} else {
-				dCompass = (180 - Math.toDegrees(Math.atan(dir[0] / dir[1])));
+				compassDelta = (180 - Math.toDegrees(Math.atan(dir[0] / dir[1])));
 			}
 		}
 	}
@@ -1440,7 +1443,7 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 		playerLive = false;
 		iEngType = ENGINE_TYPE_UNKNOWN;
 		checkMaxiumRPM = 0;
-		dCompass = 0;
+		compassDelta = 0;
 		flapCheck = 0;
 		isDowningFlap = false;
 		getMaximumRPM = false;
@@ -1448,10 +1451,10 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 		curLoad = 0;
 		wepTime = 0;
 		energyJKg = 0;
-		pEnergyJKg = 0;
+		prevEnergyJKg = 0;
 		elapsedTime = 0;
 		altperCircle = 0;
-		iCheckAlt = 0;
+		checkAlt = 0;
 		altreg = 0;
 		altp = 0;
 		alt = 0;
@@ -1483,7 +1486,7 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 		hasWingSweepVario = false;
 		flapAllowSpeed = Float.MAX_VALUE;
 		flapAllowAngle = Float.MAX_VALUE;
-		fTotalFuelP = 0;
+		totalFuelPrev = 0;
 		isStateJet = false;
 		nitrokg = 0;
 		nitroConsump = 0;
@@ -1509,16 +1512,16 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 		}
 
 		// Initialize Strings to Defaults
-		sTotalHp = nastring;
-		sTotalThr = nastring;
+		totalHpStr = nastring;
+		totalThrustStr = nastring;
 		rpm = nastring;
-		sTotalHpEff = nastring;
+		totalHpEffStr = nastring;
 		pressureInchHg = nastring;
 		manifoldpressure = nastring;
 		watertemp = nastring;
 		oiltemp = nastring;
-		sTotalFuel = nastring;
-		sfueltime = nastring;
+		totalFuelStr = nastring;
+		fueltimeStr = nastring;
 		sNitro = nastring;
 		sWepTime = nastring;
 		sEngWorkTime = nastring;
@@ -1651,11 +1654,11 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 					calculate();
 
 					// 检测到加油，重置数据
-					if ((Math.abs(speedv) < 10) && (fTotalFuel - fTotalFuelP > 1)) {
+					if ((Math.abs(speedv) < 10) && (totalFuel - totalFuelPrev > 1)) {
 						prog.util.Logger.info("Service",
 								String.format(
 										"Refueling detected (Fuel: %.1f -> %.1f). Resetting simulation variables.",
-										fTotalFuelP, fTotalFuel));
+										totalFuelPrev, totalFuel));
 
 						resetvaria();
 					}
@@ -1812,7 +1815,7 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 
 	@Override
 	public double getHorsePower() {
-		return iTotalHp;
+		return totalHp;
 	}
 
 	@Override
@@ -1903,7 +1906,7 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 
 	@Override
 	public double getCompass() {
-		return dCompass;
+		return compassDelta;
 	}
 
 	@Override
@@ -1933,7 +1936,7 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 
 	@Override
 	public double getMassFuel() {
-		return fTotalFuel;
+		return totalFuel;
 	}
 
 	@Override
@@ -2039,7 +2042,7 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 
 	@Override
 	public double getEffHp() {
-		return iTotalHpEff;
+		return totalHpEff;
 	}
 
 	@Override
@@ -2067,7 +2070,7 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 
 	@Override
 	public boolean isImperial() {
-		return iCheckAlt > 0;
+		return checkAlt > 0;
 	}
 
 	@Override

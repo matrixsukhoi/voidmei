@@ -294,22 +294,17 @@ public class HttpHelper {
 			completableFuture0.get();
 
 		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-			prog.util.Logger.error("HttpHelper", "InterruptedException during future get");
+			// 中断异常，恢复中断状态
+			ExceptionHelper.ignore(e);
 			strState = nstring;
 			strIndic = nstring;
 
 		} catch (ExecutionException e) {
-			// TODO Auto-generated catch block
-			// System.out.println("ExecutionException\n");
-			// e.printStackTrace();
+			// 异步任务执行失败，静默处理（常见于连接断开）
 			strState = nstring;
 			strIndic = nstring;
 		} catch (IOException e1) {
-			// TODO Auto-generated catch block
-			// System.out.println("IOException\n");
-			// e1.printStackTrace();
+			// IO异常，静默处理（常见于网络问题）
 			strState = nstring;
 			strIndic = nstring;
 

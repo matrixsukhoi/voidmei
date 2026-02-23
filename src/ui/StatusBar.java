@@ -60,8 +60,8 @@ public class StatusBar extends WebFrame implements Runnable {
 
 			gif = new GifIcon("image/facebook.gif");
 		} catch (FileNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			// GIF图标文件不存在，使用统一异常处理
+			prog.util.ExceptionHelper.logAndContinue(e, "状态栏图标");
 		}
 
 		String FontName = "";
@@ -135,24 +135,16 @@ public class StatusBar extends WebFrame implements Runnable {
 	public void S3() {
 		statusLabel.setText(Lang.sCheck);
 		repaint();
-		try {
-			Thread.sleep(3000);
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+		// 使用统一异常处理替代冗余try-catch
+		prog.util.ExceptionHelper.sleepQuietly(3000);
 		this.dispose();
 	}
 
 	@Override
 	public void run() {
 		while (doit) {
-			try {
-				Thread.sleep(100);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
+			// 使用统一异常处理替代冗余try-catch
+			prog.util.ExceptionHelper.sleepQuietly(100);
 			// Application.debugPrint("StatusBar执行了");
 			// Application.debugPrint("刷新了");
 			this.repaint();

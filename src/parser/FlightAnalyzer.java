@@ -37,9 +37,9 @@ public class FlightAnalyzer {
 		initaltStage = stage;
 		curaltStage = initaltStage;
 		time[curaltStage] = (xs.elapsedTime / 1000f);
-		power[curaltStage] = xs.iTotalHp;
-		thrust[curaltStage] = xs.iTotalThr;
-		eff[curaltStage] = xs.iTotalHpEff;
+		power[curaltStage] = xs.totalHp;
+		thrust[curaltStage] = xs.totalThrust;
+		eff[curaltStage] = xs.totalHpEff;
 		sep[curaltStage] = xs.SEP;
 		// Application.debugPrint("已经记录stage"+curaltStage+"时间戳"+time[curaltStage]+"功率"+power[curaltStage]+"实功率"+eff[curaltStage]+"SEP"+sep[curaltStage]);
 	}
@@ -53,16 +53,16 @@ public class FlightAnalyzer {
 			curaltStage++;
 
 			time[curaltStage] = (xs.elapsedTime / 1000f);
-			power[curaltStage] = xs.iTotalHp;
-			thrust[curaltStage] = xs.iTotalThr;
-			eff[curaltStage] = xs.iTotalHpEff;
+			power[curaltStage] = xs.totalHp;
+			thrust[curaltStage] = xs.totalThrust;
+			eff[curaltStage] = xs.totalHpEff;
 			sep[curaltStage] = xs.SEP;
 			count = 1;
 			if (isInformation)
 				ui.util.NotificationService.show(Lang.fA1 + stage * 100 + Lang.fA2 + (int) time[curaltStage] + Lang.fA3
 						+ (int) ((stage - initaltStage) * 1000 / time[curaltStage]) / 10.0f + Lang.fA4);
 		} else {
-			eff[curaltStage] = (eff[curaltStage] + xs.iTotalHpEff);
+			eff[curaltStage] = (eff[curaltStage] + xs.totalHpEff);
 			sep[curaltStage] = (sep[curaltStage] + xs.SEP);
 			count++;
 		}
