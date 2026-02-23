@@ -421,6 +421,11 @@ public class Controller {
 					handleFmHotkeyConfigChange();
 				}
 			}
+			// 导入/重置配置后也需要更新热键绑定，因为此时 key 是 ACTION_RESET_COMPLETED
+			// 而不是具体的配置项名称，所以上面的 if 不会触发
+			if (isResetCompleted) {
+				handleFmHotkeyConfigChange();
+			}
 
 			// Only refresh if we are in PREVIEW state.
 			// In INIT state (startup), we don't want to trigger FM loads yet.

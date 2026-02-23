@@ -89,6 +89,25 @@ public class ConfigurationService implements ConfigProvider {
         return layoutConfigs;
     }
 
+    /**
+     * 根据 groupTitle 查找最新的 GroupConfig
+     * 用于 UI 组件在 rebuild 时获取最新配置，解决导入配置后引用陈旧的问题
+     *
+     * @param groupTitle 要查找的 GroupConfig 的标题
+     * @return 找到的 GroupConfig，如果未找到则返回 null
+     */
+    public ConfigLoader.GroupConfig findGroupByTitle(String groupTitle) {
+        if (layoutConfigs == null || groupTitle == null) {
+            return null;
+        }
+        for (ConfigLoader.GroupConfig gc : layoutConfigs) {
+            if (groupTitle.equals(gc.title)) {
+                return gc;
+            }
+        }
+        return null;
+    }
+
     public void loadAppCheck(Controller c) {
         // Parse and apply config to app and Controller State
         // This replaces loadFromConfig() in Controller

@@ -91,6 +91,14 @@ public class DynamicDataPage extends BasePage {
         if (groupConfig == null)
             return;
 
+        // 从 ConfigurationService 获取最新的 GroupConfig
+        // 导入配置后 layoutConfigs 会重新加载为全新的对象树，但 this.groupConfig 仍指向旧引用
+        // 这会导致 UI 显示旧的配置值（如热键），因此需要根据 title 获取最新的 GroupConfig
+        prog.config.ConfigLoader.GroupConfig freshConfig = parent.tc.configService.findGroupByTitle(groupConfig.title);
+        if (freshConfig != null) {
+            this.groupConfig = freshConfig;
+        }
+
         isUpdatingControls = true;
         rebuildSimple();
         isUpdatingControls = false;
