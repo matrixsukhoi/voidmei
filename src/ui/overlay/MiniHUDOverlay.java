@@ -351,8 +351,8 @@ public class MiniHUDOverlay extends DraggableOverlay implements FlightDataListen
             if (service == null) {
                 // HUDAkbRow.update(text, isWarning, aoaText, aoaY, aoaColor, aoaBarColor)
                 ((ui.component.row.HUDAkbRow) hudRows.get(0)).update(lines[0], false, lineAoA, aoaY, aoaColor, aoaBarColor);
-                // HUDEnergyRow.update(text, isWarning, energyText, energyColor)
-                ((ui.component.row.HUDEnergyRow) hudRows.get(1)).update(lines[1], false, relEnergy, Application.colorNum);
+                // 能量颜色已统一使用 Application.colorNum，不再需要传入颜色参数
+                ((ui.component.row.HUDEnergyRow) hudRows.get(1)).update(lines[1], false, relEnergy);
             }
 
             // Row 2: Standard (Flaps/Gear)

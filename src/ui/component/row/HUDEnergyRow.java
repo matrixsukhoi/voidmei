@@ -1,6 +1,5 @@
 package ui.component.row;
 
-import java.awt.Color;
 import java.awt.Font;
 import java.awt.Graphics2D;
 
@@ -11,14 +10,12 @@ public class HUDEnergyRow extends HUDTextRow {
     private String energyText;
     private int rightDraw;
     private Font smallFont;
-    private Color energyColor;
 
     public HUDEnergyRow(int index, Font font, int height, Font smallFont, int rightDraw) {
         super(index, font, height);
         this.smallFont = smallFont;
         this.rightDraw = rightDraw;
         this.energyText = "";
-        this.energyColor = Color.YELLOW;
     }
 
     private String energyTemplate;
@@ -41,19 +38,15 @@ public class HUDEnergyRow extends HUDTextRow {
 
         this.update(data.altStr, data.warnAltitude);
         this.energyText = data.energyStr;
-        // Energy color logic? Default yellow?
-        // MinimalHUD uses 'relEnergy' string, but didn't seem to set color dynamically
-        // in updateString.
-        // So assuming default or passed static.
-        // We'll keep default yellow for now or use Application.colorNum if appropriate?
-        // MinimalHUD legacy: no explicit color change found for energy.
-        // We will respect default initialization or update if needed.
     }
 
-    public void update(String text, boolean isWarning, String energyText, Color energyColor) {
+    /**
+     * 预览模式更新方法（简化版）
+     * 能量颜色已统一使用 Application.colorNum，不再需要传入颜色参数
+     */
+    public void update(String text, boolean isWarning, String energyText) {
         super.update(text, isWarning);
         this.energyText = energyText;
-        this.energyColor = energyColor;
     }
 
     @Override
@@ -63,7 +56,8 @@ public class HUDEnergyRow extends HUDTextRow {
         int ascent = g2d.getFontMetrics(font).getAscent();
         int baseY = y + ascent;
 
-        UIBaseElements.__drawStringShade(g2d, x + rightDraw, baseY, 1, energyText, smallFont, energyColor);
+        // 能量颜色应该使用状态字体颜色，与其他HUD组件保持一致
+        UIBaseElements.__drawStringShade(g2d, x + rightDraw, baseY, 1, energyText, smallFont, prog.Application.colorNum);
 
         super.draw(g2d, x, y);
     }
