@@ -107,6 +107,9 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 
 	public Controller c;
 
+	/** 游戏窗口焦点监控器，用于实现失焦时隐藏overlay */
+	private final FocusMonitor focusMonitor = new FocusMonitor();
+
 	// 对飞机结构有重大影响的警告
 	public Boolean fatalWarn = false;
 
@@ -1806,6 +1809,9 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 					// 检查是否需要改变状态
 					processPollingCycle();
 
+					// 焦点监控（内部有200ms节流）
+					focusMonitor.tick();
+
 					// 记录
 					if (c.logon) {
 						FlightLog tempLog = c.Log;
@@ -1846,6 +1852,16 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 			}
 		}
 	}
+
+	/**
+	 * 获取焦点监控器实例，供Controller在openpad/closepad时启用/禁用。
+	 *
+	 * @return FocusMonitor实例
+	 */
+	public FocusMonitor getFocusMonitor() {
+		return focusMonitor;
+	}
+
 	// --- TelemetrySource Implementation ---
 
 	@Override

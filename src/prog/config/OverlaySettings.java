@@ -53,4 +53,11 @@ public interface OverlaySettings {
      * Get the underlying GroupConfig for advanced configuration access.
      */
     ConfigLoader.GroupConfig getGroupConfig();
+
+    /**
+     * 获取是否启用游戏失焦时自动隐藏overlay功能。
+     *
+     * @return true如果启用自动隐藏
+     */
+    boolean autoHideOnFocusLoss();
 }

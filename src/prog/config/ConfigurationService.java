@@ -532,6 +532,12 @@ public class ConfigurationService implements ConfigProvider {
                 return def;
             return val;
         }
+
+        @Override
+        public boolean autoHideOnFocusLoss() {
+            // 从全局设置读取配置，默认关闭
+            return getBool("autoHideOnFocusLoss", false);
+        }
     }
 
     // --- HUDSettings Implementation ---

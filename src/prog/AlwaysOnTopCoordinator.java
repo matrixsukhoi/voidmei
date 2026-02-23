@@ -34,6 +34,9 @@ public class AlwaysOnTopCoordinator {
     private final AtomicInteger pendingDialogs = new AtomicInteger(0);
     private final CopyOnWriteArrayList<WeakReference<Window>> overlays = new CopyOnWriteArrayList<>();
 
+    /** 标记overlay是否因游戏失焦而被隐藏 */
+    private volatile boolean overlaysHidden = false;
+
     private AlwaysOnTopCoordinator() {
         // Singleton
     }
@@ -179,5 +182,65 @@ public class AlwaysOnTopCoordinator {
     public int getRegisteredOverlayCount() {
         cleanupDeadReferences();
         return overlays.size();
+    }
+
+    // ========== 游戏失焦时隐藏/显示overlay ==========
+
+    /**
+     * 隐藏所有已注册的overlay窗口（不销毁实例）。
+     * 用于游戏失焦时自动隐藏HUD。
+     */
+    public void hideAllOverlays() {
+        if (overlaysHidden) {
+            return;
+        }
+        overlaysHidden = true;
+        cleanupDeadReferences();
+        for (WeakReference<Window> ref : overlays) {
+            Window w = ref.get();
+            if (w != null && w.isVisible()) {
+                setVisibleOnEDT(w, false);
+            }
+        }
+        prog.util.Logger.info("AlwaysOnTopCoordinator", "所有overlay已隐藏 (游戏失焦)");
+    }
+
+    /**
+     * 显示所有被隐藏的overlay窗口。
+     * 用于游戏重新获得焦点时恢复显示。
+     */
+    public void showAllOverlays() {
+        if (!overlaysHidden) {
+            return;
+        }
+        overlaysHidden = false;
+        cleanupDeadReferences();
+        for (WeakReference<Window> ref : overlays) {
+            Window w = ref.get();
+            if (w != null) {
+                setVisibleOnEDT(w, true);
+            }
+        }
+        prog.util.Logger.info("AlwaysOnTopCoordinator", "所有overlay已恢复 (游戏获焦)");
+    }
+
+    /**
+     * 检查overlay是否因游戏失焦而被隐藏。
+     *
+     * @return true如果overlay当前被隐藏
+     */
+    public boolean isOverlaysHidden() {
+        return overlaysHidden;
+    }
+
+    /**
+     * 在EDT线程上设置窗口可见性，确保线程安全。
+     */
+    private void setVisibleOnEDT(Window window, boolean visible) {
+        if (SwingUtilities.isEventDispatchThread()) {
+            window.setVisible(visible);
+        } else {
+            SwingUtilities.invokeLater(() -> window.setVisible(visible));
+        }
     }
 }

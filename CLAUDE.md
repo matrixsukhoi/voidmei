@@ -8,6 +8,8 @@ VoidMei is a Java Swing telemetry overlay for War Thunder. It reads real-time fl
 
 **Project Statistics:** ~162 Java files, ~34,000 lines of code
 
+## 写代码时, 关键的地方和问题修复一定要添加和补充中文注释
+
 ## Build Commands
 
 不要运行./script/build.sh, 但是可以用javac确认编译通过
@@ -45,7 +47,7 @@ python3 script/mock_8111.py
 
 ### Core Packages (`src/`)
 
-- **`prog/`** - Application kernel (13 files + 7 subpackages)
+- **`prog/`** - Application kernel (14 files + 7 subpackages)
   - `Launcher.java` - Bootstrap entry point, sets GPU compat JVM properties before AWT loads
   - `Application.java` - Main application initialization, global config, fonts, logging
   - `Service.java` - Background HTTP polling thread (~10Hz), data calculation (~55KB, largest file)
@@ -55,10 +57,11 @@ python3 script/mock_8111.py
   - `ControllerState.java` - State machine for controller lifecycle
   - `ActivationStrategy.java` - Conditional overlay activation logic
   - `AlwaysOnTopCoordinator.java` - Singleton z-order manager for overlay/dialog coordination
+  - `FocusMonitor.java` - Game window focus tracking for auto-hide overlay feature
   - `event/` - Event buses (`UIStateBus`, `FlightDataBus`, `FlightDataEvent`, `EventPayload`, `FlightDataListener`)
   - `config/` - Configuration system (`ConfigurationService`, `ConfigLoader`, `SExpParser`, `HUDSettings`, `OverlaySettings`)
   - `audio/` - Voice warning system (`VoiceWarning`, `VoiceResourceManager`)
-  - `util/` - Utilities (`HttpHelper`, `Logger`, `CalcHelper`, `StringHelper`, `FileUtils`, `FormulaEvaluator`, `PhysicsConstants`, `Interpolation`, `AtmosphereModel`, `PistonPowerModel`, `ColorHelper`, `GPUCompatibilityHelper`, `DPIHelper`)
+  - `util/` - Utilities (`HttpHelper`, `Logger`, `CalcHelper`, `StringHelper`, `FileUtils`, `FormulaEvaluator`, `PhysicsConstants`, `Interpolation`, `AtmosphereModel`, `PistonPowerModel`, `ColorHelper`, `GPUCompatibilityHelper`, `DPIHelper`, `FocusDetector`)
   - `hotkey/` - Global keyboard hooks (`HotkeyManager`)
   - `i18n/` - Internationalization (`Lang`)
   - `model/` - Data models (`InfoList`)
@@ -244,6 +247,59 @@ try {
 - `dialogDidDismiss()` - Restores `alwaysOnTop` when dialog count reaches zero
 - Uses `WeakReference` to avoid memory leaks from disposed windows
 - Thread-safe via `AtomicInteger` (dialog count) and `CopyOnWriteArrayList` (overlay list)
+
+### Focus Monitor (游戏失焦自动隐藏)
+
+当用户Alt+Tab切换到其他应用时，VoidMei可以自动隐藏所有overlay窗口，避免遮挡其他应用；当War Thunder重新获得焦点时立即恢复显示。
+
+**架构：**
+
+```
+Service.run() (后台线程, ~10Hz轮询)
+    ↓ 每次轮询调用
+focusMonitor.tick()
+    ↓ FocusMonitor内部节流 (200ms一次)
+FocusDetector.isWarThunderFocused()
+    ↓ 状态变化时
+AlwaysOnTopCoordinator.hideAllOverlays() / showAllOverlays()
+    ↓
+SwingUtilities.invokeLater(() -> setVisible())
+```
+
+**关键文件：**
+
+| 文件 | 作用 |
+|------|------|
+| `prog/util/FocusDetector.java` | 跨平台前台窗口检测（Windows/Linux/macOS） |
+| `prog/FocusMonitor.java` | 焦点监控辅助类，封装节流和状态追踪 |
+| `prog/AlwaysOnTopCoordinator.java` | 提供`hideAllOverlays()`/`showAllOverlays()`方法 |
+
+**平台检测机制：**
+
+| 平台 | 检测方法 | 进程名匹配 |
+|------|----------|------------|
+| Windows | PowerShell + user32.dll GetForegroundWindow | `aces` |
+| Linux | xdotool getactivewindow | `war thunder` |
+| macOS | AppleScript System Events | `war thunder` / `aces` |
+
+**使用方式：**
+
+```java
+// Controller.openpad() - 启用焦点监控
+String autoHideStr = getconfig("autoHideOnFocusLoss");
+if (autoHideStr != null && Boolean.parseBoolean(autoHideStr)) {
+    S.getFocusMonitor().setEnabled(true);
+}
+
+// Controller.closepad() - 禁用焦点监控（会自动恢复被隐藏的overlay）
+S.getFocusMonitor().setEnabled(false);
+```
+
+**设计要点：**
+- **无新线程**：复用Service已有的~10Hz轮询循环
+- **200ms节流**：FocusMonitor内部控制检测频率，避免进程检测开销
+- **安全降级**：检测失败时返回`true`（假设有焦点），不会误隐藏overlay
+- **最小侵入**：Service.java仅增加5行代码，Controller仅增加9行
 
 ### GPU Compatibility Mode
 
@@ -623,7 +679,8 @@ Controller (Lifecycle Coordinator)
     ├→ Service (HTTP Data Polling)
     │       ├→ State/Indicators (JSON Parsers)
     │       ├→ HUDCalculator (pre-computes HUDData)
-    │       └→ FlightDataBus (publishes event with HUDData)
+    │       ├→ FlightDataBus (publishes event with HUDData)
+    │       └→ FocusMonitor → FocusDetector (game focus detection)
     │
     ├→ OverlayManager (synchronized)
     │       ├→ MiniHUDOverlay → HUDComponent[] (consumes pre-computed HUDData)
@@ -632,7 +689,8 @@ Controller (Lifecycle Coordinator)
     │
     ├→ AlwaysOnTopCoordinator (Singleton z-order manager)
     │       ├← DrawFrame, DrawFrameSimpl (@Deprecated overlay windows)
-    │       └← DialogService (dialog lifecycle hooks)
+    │       ├← DialogService (dialog lifecycle hooks)
+    │       └← FocusMonitor (hide/show on focus change)
     │
     ├→ ConfigurationService
     │       ├→ HUDSettings (interface)

@@ -284,6 +284,12 @@ public class Controller implements ConfigProvider {
 			aM1.start();
 		}
 
+		// 启用游戏失焦时自动隐藏overlay功能（如果配置开启）
+		String autoHideStr = getconfig("autoHideOnFocusLoss");
+		if (autoHideStr != null && Boolean.parseBoolean(autoHideStr)) {
+			S.getFocusMonitor().setEnabled(true);
+		}
+
 		// Open all registered overlays via OverlayManager
 		overlayManager.openAll();
 
@@ -310,6 +316,9 @@ public class Controller implements ConfigProvider {
 	}
 
 	public void closepad() {
+		// 禁用焦点监控（会自动恢复被隐藏的overlay）
+		S.getFocusMonitor().setEnabled(false);
+
 		// Special case: AutoMeasure
 		if (Application.fmTesting && aM != null) {
 			aM.doit = false;
