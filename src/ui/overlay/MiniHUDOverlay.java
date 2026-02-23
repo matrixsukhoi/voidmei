@@ -17,7 +17,6 @@ import prog.Service;
 import prog.event.FlightDataBus;
 import prog.event.FlightDataEvent;
 import prog.event.FlightDataListener;
-import prog.config.ConfigurationService;
 import prog.config.HUDSettings;
 import ui.WebLafSettings;
 import ui.base.DraggableOverlay;
@@ -58,7 +57,7 @@ public class MiniHUDOverlay extends DraggableOverlay implements FlightDataListen
     private java.util.List<ui.component.row.HUDRow> hudRows;
     private boolean firstDraw = true;
 
-    private ConfigurationService configService;
+    // HUDSettings 通过 init() 参数传入，不应从 Controller 获取 configService
     private HUDSettings hudSettings;
 
     public void setFrameOpaque() {
@@ -107,9 +106,9 @@ public class MiniHUDOverlay extends DraggableOverlay implements FlightDataListen
 
     private String relEnergy;
 
-    public void initPreview(Controller c) {
+    public void initPreview(Controller c, HUDSettings settings) {
         Logger.info("MinimalHUD", "initPreview called");
-        init(c, null);
+        init(c, null, settings);
 
         this.getWebRootPaneUI().setTopBg(Application.previewColor);
         this.getWebRootPaneUI().setMiddleBg(Application.previewColor);
@@ -128,14 +127,9 @@ public class MiniHUDOverlay extends DraggableOverlay implements FlightDataListen
     public void reinitConfig() {
         Logger.info("MinimalHUD", "reinitConfig called");
 
-        if (configService == null && controller != null) {
-            // 使用 getConfigService() 方法而非直接访问字段
-            configService = controller.getConfigService();
-        }
-
-        if (configService != null) {
-            hudSettings = configService.getHUDSettings();
-        } else {
+        // hudSettings 已在 init() 时传入，不再从 Controller 获取
+        // HUDSettings 是接口，ConfigurationService 实现它，内部状态自动更新
+        if (hudSettings == null) {
             return;
         }
 
@@ -218,10 +212,19 @@ public class MiniHUDOverlay extends DraggableOverlay implements FlightDataListen
         }
     }
 
-    public void init(Controller c, Service s) {
+    /**
+     * 初始化 MiniHUD overlay。
+     *
+     * @param c Controller 引用，用于 FM 数据访问 (getBlkx())
+     * @param s Service 引用，用于遥测数据
+     * @param settings HUDSettings 配置接口，直接传入而不是从 Controller 获取
+     */
+    public void init(Controller c, Service s, HUDSettings settings) {
         Logger.info("MinimalHUD", "init called");
         service = s;
         controller = c;
+        // HUDSettings 通过参数直接传入，遵循解耦原则
+        this.hudSettings = settings;
         this.setLayout(new java.awt.BorderLayout());
         setFrameOpaque();
 
@@ -635,12 +638,9 @@ public class MiniHUDOverlay extends DraggableOverlay implements FlightDataListen
         // LayoutEngine 随 MinimalHUD 配置刷新而频繁销毁重建 (Transient Lifecycle)。
         // 如果它直接订阅全局单例 EventBus，旧实例会因无法自动注销而被长期持有，导致 "Zombie Listener" 泄漏。
         // 因此采用了由持有者 (MinimalHUD) 被动传递状态的设计。
-        // 使用 configService 而不是 controller.getConfig() 访问配置
-        if (configService != null) {
-            String debugVal = configService.getConfig("enableLayoutDebug");
-            if (debugVal != null && !debugVal.isEmpty()) {
-                modernLayout.setDebug(Boolean.parseBoolean(debugVal));
-            }
+        // 使用 hudSettings（HUDSettings 继承 OverlaySettings，提供 getBool() 方法）
+        if (hudSettings != null) {
+            modernLayout.setDebug(hudSettings.getBool("enableLayoutDebug", false));
         }
 
         // Use lineHeight from font size for responsive scaling

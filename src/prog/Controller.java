@@ -545,10 +545,11 @@ public class Controller {
 				true).withInterest("fontName", "fontSize", "columns", "S.");
 
 		// MiniHUDOverlay (crosshair) - supports preview
+		// HUDSettings 直接传入 init()，不通过 Controller 获取 configService（遵循解耦原则）
 		overlayManager.registerWithPreview("crosshairSwitch",
 				() -> new MiniHUDOverlay(),
-				overlay -> ((MiniHUDOverlay) overlay).init(this, S),
-				overlay -> ((MiniHUDOverlay) overlay).initPreview(this),
+				overlay -> ((MiniHUDOverlay) overlay).init(this, S, configService.getHUDSettings()),
+				overlay -> ((MiniHUDOverlay) overlay).initPreview(this, configService.getHUDSettings()),
 				overlay -> ((MiniHUDOverlay) overlay).reinitConfig(),
 				false)
 				.withInterest("displayCrosshair", "drawHUD", "disableHUD", "crosshair", "miniHUD", "enableLayoutDebug",

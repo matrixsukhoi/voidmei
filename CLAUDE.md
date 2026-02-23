@@ -292,6 +292,52 @@ public void onFlightData(FlightDataEvent event) {
 - Jets: `ManifoldPressure`, `WaterTemp` → 0
 - Props: `Thrust` → 0
 
+### Service.java Field Naming Conventions
+
+`Service.java` uses clean camelCase naming for public fields. **Do not use Hungarian notation** (e.g., `iCount`, `sName`, `bFlag`).
+
+#### API Objects (kept as-is for clarity)
+| Field | Description |
+|-------|-------------|
+| `sState` | State object from `/state` API endpoint |
+| `sIndic` | Indicators object from `/indicators` API endpoint |
+
+#### Numeric Fields (use plain camelCase)
+| Field | Type | Description |
+|-------|------|-------------|
+| `totalHp` | `int` | Total horsepower |
+| `totalHpEff` | `int` | Effective horsepower |
+| `totalThrust` | `int` | Total thrust (kgf) |
+| `totalFuel` | `double` | Total fuel (kg) |
+| `totalFuelPrev` | `double` | Previous fuel reading (for delta calculation) |
+| `fuelDelta` | `double` | Fuel consumption rate |
+| `checkAlt` | `int` | Altitude check counter |
+| `prevEnergyJKg` | `double` | Previous specific energy |
+| `compassDelta` | `double` | Compass heading delta |
+
+#### String Display Fields (use `Str` suffix)
+| Field | Type | Description |
+|-------|------|-------------|
+| `totalHpStr` | `String` | Formatted total HP for display |
+| `totalHpEffStr` | `String` | Formatted effective HP for display |
+| `totalThrustStr` | `String` | Formatted thrust for display |
+| `totalFuelStr` | `String` | Formatted fuel for display |
+| `fueltimeStr` | `String` | Formatted fuel time for display |
+| `statusText` | `String` | Status text |
+| `timeText` | `String` | Elapsed time text |
+
+#### Boolean Fields (use verb prefixes like `is`, `has`, `use`)
+| Field | Type | Description |
+|-------|------|-------------|
+| `useMegaHp` | `boolean` | Whether to display HP in MHp units |
+| `lowAccFuel` | `boolean` | Low fuel accuracy warning flag |
+
+**Naming Rules:**
+1. **Numeric values**: Use plain camelCase (`totalHp`, not `iTotalHp`)
+2. **String representations**: Add `Str` suffix (`totalHpStr`, not `sTotalHp`)
+3. **Booleans**: Use verb prefixes (`useMegaHp`, not `bUnitMHp`)
+4. **Previous/Delta values**: Use `Prev` or `Delta` suffix (`totalFuelPrev`, `fuelDelta`)
+
 ### Physics Constants
 
 Use `prog.util.PhysicsConstants` for physical constants to ensure consistency across the codebase:
@@ -421,17 +467,31 @@ Controller (Lifecycle Coordinator)
 
 ### ConfigProvider 架构
 
-**重要**: Controller 不再实现 ConfigProvider 接口。需要访问配置的组件应该：
+**重要**: Controller 不再实现 ConfigProvider 接口。Overlay 组件应遵循以下解耦模式：
 
-1. **通过 `Controller.getConfigProvider()`** 获取 `ConfigProvider` 接口
-2. **通过 `Controller.getConfigService()`** 获取 `ConfigurationService` 实例
+1. **位置保存** - 使用 `OverlaySettings.saveWindowPosition()`，不通过 Controller
+2. **配置读取** - 使用 `ConfigProvider` 接口（通过 `c.getConfigProvider()` 获取）
+3. **特殊配置** - 如 `HUDSettings`，应通过 init() 参数直接传入
 
 ```java
-// ✅ 正确：使用 ConfigProvider 接口
+// ✅ 正确：位置保存使用 OverlaySettings（DraggableOverlay 父类已正确实现）
 public void init(Controller c, Service s, OverlaySettings settings) {
     this.config = c.getConfigProvider();  // 配置访问
     this.controller = c;                   // FM 数据访问 (如 getBlkx())
+    setOverlaySettings(settings);          // 位置保存通过 OverlaySettings
+
+    // 使用父类方法，不通过 Controller 访问 configService
+    this.onPositionSave = this::saveCurrentPosition;
 }
+
+// ✅ 正确：HUDSettings 通过 init() 参数传入
+public void init(Controller c, Service s, HUDSettings hudSettings) {
+    this.hudSettings = hudSettings;  // 直接传入，不从 Controller 获取
+}
+
+// ❌ 错误：通过 Controller 访问 configService（违反解耦原则）
+this.onPositionSave = () -> c.getConfigService().saveLayoutConfig();
+configService = controller.getConfigService();  // 不应在运行时从 Controller 获取
 
 // ❌ 错误：将 config 强转为 Controller
 prog.Controller ctrl = (prog.Controller) config;  // ClassCastException!
@@ -443,7 +503,10 @@ prog.Controller ctrl = (prog.Controller) config;  // ClassCastException!
 |------|------|------|
 | `config` | `ConfigProvider` | 配置读写 (`getConfig`, `setConfig`) |
 | `controller` | `Controller` | FM 数据访问 (`getBlkx`, `getCompressorStages`) |
-| `overlaySettings` | `OverlaySettings` | 分组配置 (位置、字体等) |
+| `overlaySettings` | `OverlaySettings` | 分组配置 (位置、字体等)，通过 init() 传入 |
+| `hudSettings` | `HUDSettings` | HUD 专用配置，通过 init() 参数传入 |
+
+**核心原则**: 配置通过 init() 参数传入，不应在运行时从 Controller 获取服务。
 
 ### Common Feature Addition Paths
 
