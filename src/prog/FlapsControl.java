@@ -4,6 +4,8 @@ import java.awt.AWTException;
 import java.awt.Robot;
 import java.awt.event.KeyEvent;
 
+import prog.util.ExceptionHelper;
+
 public class FlapsControl implements Runnable {
 	public int flaps;
 	public int objflaps;
@@ -51,12 +53,7 @@ public class FlapsControl implements Runnable {
 	void flapsup() {
 		if (isDown) {
 			A.keyPress(KeyEvent.VK_F);
-			try {
-				Thread.sleep(20);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
+			ExceptionHelper.sleepQuietly(20);
 			A.keyRelease(KeyEvent.VK_F);
 			isDown = false;
 		}
@@ -65,12 +62,7 @@ public class FlapsControl implements Runnable {
 	void flapsdown() {
 		if (flaps == 0&&isDown==false) {
 			A.keyPress(KeyEvent.VK_F);
-			try {
-				Thread.sleep(20);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
+			ExceptionHelper.sleepQuietly(20);
 			A.keyRelease(KeyEvent.VK_F);
 			isDown = true;
 		}
@@ -90,34 +82,11 @@ public class FlapsControl implements Runnable {
 
 	@Override
 	public void run() {
-		// TODO Auto-generated method stub
-		// Application.debugPrint(flaps+" "+isRun);
 		while (isRun) {
-
-			try {
-				Thread.sleep(100);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
+			ExceptionHelper.sleepQuietly(100);
 			updateflaps();
-			// Application.debugPrint(flaps);
-			// 自动襟翼
-			/*
-			 * if (flaps > 0) { //Application.debugPrint(spd+" "+objflaps); if
-			 * (flaps > objflaps&&isDown) { //Application.debugPrint("襟翼收回");
-			 * A.keyPress(KeyEvent.VK_CAPS_LOCK); try { Thread.sleep(20); }
-			 * catch (InterruptedException e) { // TODO Auto-generated catch
-			 * block e.printStackTrace(); } A.keyRelease(KeyEvent.VK_CAPS_LOCK);
-			 * isDown = false; } if (flaps < objflaps&&! isDown ) {
-			 * //Application.debugPrint("襟翼放下"); A.keyPress(KeyEvent.VK_TAB); try {
-			 * Thread.sleep(20); } catch (InterruptedException e) { // TODO
-			 * Auto-generated catch block e.printStackTrace(); }
-			 * A.keyRelease(KeyEvent.VK_TAB); isDown = true; } }
-			 */
 			// 襟翼保护
 			protectFlaps();
 		}
-
 	}
 }

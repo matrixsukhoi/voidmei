@@ -233,9 +233,6 @@ public class HttpHelper {
 		// InputStreamReader(streamReader, "utf-8"));
 
 		String line = null;
-
-		// if (bufferedReader.ready()) {
-
 		StringBuilder contentBuf = new StringBuilder();
 		// bufferedReader.read()
 

@@ -5,7 +5,6 @@ import com.alee.laf.slider.WebSlider;
 import com.alee.laf.spinner.WebSpinner;
 import prog.config.ConfigLoader.RowConfig;
 import prog.config.ConfigLoader.GroupConfig;
-import prog.util.PropertyBinder;
 import ui.replica.ReplicaBuilder;
 
 /**
@@ -22,26 +21,13 @@ public class SliderRowRenderer implements RowRenderer {
             try {
                 defaultVal = row.getInt();
             } catch (Exception e) {
+                // 使用默认值 0
             }
         }
 
-        // Priority for initial value:
-        // 1. If property exists in GroupConfig, use PropertyBinder
-        // 2. Otherwise try ConfigurationService
-        // 3. Fallback to defaultVal (from row.value)
-        int currentVal;
-        if (row.property != null && PropertyBinder.hasField(groupConfig, row.property)) {
-            currentVal = PropertyBinder.getInt(groupConfig, row.property, defaultVal);
-        } else if (row.property != null) {
-            String val = context.getStringFromConfigService(row.property, Integer.toString(defaultVal));
-            try {
-                currentVal = Integer.parseInt(val);
-            } catch (Exception e) {
-                currentVal = defaultVal;
-            }
-        } else {
-            currentVal = defaultVal;
-        }
+        // 使用统一的配置读取助手
+        // 优先级: PropertyBinder → ConfigurationService → 默认值
+        int currentVal = RendererConfigHelper.readInt(context, groupConfig, row, defaultVal);
 
         // Ensure min < max to avoid crash
         int min = row.minVal;
@@ -62,7 +48,7 @@ public class SliderRowRenderer implements RowRenderer {
         WebSlider slider = ReplicaBuilder.getSlider(itemPanel);
         WebSpinner spinner = ReplicaBuilder.getSpinner(itemPanel);
 
-        // Common persistence logic
+        // 统一的持久化逻辑
         final String prop = row.property;
         Runnable persistValue = () -> {
             if (context.isUpdating()) return;
@@ -70,14 +56,8 @@ public class SliderRowRenderer implements RowRenderer {
             // Update memory model so it saves to ui_layout.cfg
             row.value = newVal;
 
-            // Try property binding first
-            if (!PropertyBinder.setInt(groupConfig, prop, newVal)) {
-                // Fallback
-            }
-            // Always sync to ConfigurationService
-            if (prop != null) {
-                context.syncStringToConfigService(prop, Integer.toString(newVal));
-            }
+            // 使用统一的配置写入助手
+            RendererConfigHelper.writeInt(context, groupConfig, prop, newVal);
 
             if ("panelColumns".equals(prop)) {
                 context.onRebuild();

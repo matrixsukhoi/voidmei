@@ -605,48 +605,6 @@ public class DrawFrame extends WebFrame implements Runnable {
 					drawPoint(g2d, 50, 50, dwidth, dheight, ggx4, ggy4, iasx, gy, pxmin, pymin,
 							new Color(0, 0, 0, 250));
 					drawExample(g2d, 50, 60, dheight, new Color(0, 0, 0, 250), "法向过载");
-
-					// int xk = fA.initaltStage;
-					// fX = new double[fA.curaltStage - fA.initaltStage];
-					// for (int i = 0; i < fX.length; i++) {
-					// fX[i] = fA.time[xk];
-					// // Application.debugPrint(fX[i]);
-					// xk++;
-					// }
-					// double xmin = 0;
-					// double xmax = findMax(Blkx.loc.x) > findMax(fA.time) ?
-					// findMax(Blkx.loc.x) : findMax(fA.time);
-					// double ymin = 0;
-					// double ymax = findMax(Blkx.loc.y) > findMax(fY) ?
-					// findMax(Blkx.loc.y) : findMax(fY);
-					// int dwidth = 1024;
-					// int dheight = 576;
-					// int xgap = Math.round((((int) xmax + 1 - (int) xmin) /
-					// 10) / 10.0f) * 10;
-					// int ygap = 1000;
-					// int pxmin = (int) xmin;
-					// int pxmax = (int) xmax + xgap;
-					// int pymin = (int) ymin;
-					// int pymax = (int) ymax + ygap;
-					// double ggx4 = 0;
-					// double ggy4 = 0;
-					// if (pxmax - pxmin != 0) {
-					// ggx4 = (double) dwidth / (double) (pxmax - pxmin);
-					// }
-					// if (pymax - pymin != 0) {
-					// ggy4 = (double) dheight / (double) (pymax - pymin);
-					// }
-					//
-					// drawXY(g2d, 50, 50, dwidth, dheight, "爬升对比", "时间", "高度",
-					// "s", "m", xmin, xmax, ymin, ymax, xgap,
-					// ygap);
-					// drawPoint(g2d, 50, 50, dwidth, dheight, ggx4, ggy4,
-					// Blkx.loc.x, Blkx.loc.y, pxmin, pymin,
-					// Color.blue);
-					// drawExample(g2d, 50, 50, dheight, Color.blue, "FM提取数据");
-					// drawPoint(g2d, 50, 50, dwidth, dheight, ggx4, ggy4, fX,
-					// fY, pxmin, pymin, Color.red);
-					// drawExample(g2d, 50, 60, dheight, Color.red, "试飞数据");
 				}
 				if (pixIndex == 6) {
 					double xmin = findMin(Blkx.loc2.x) < findMin(Blkx.loc1.x) ? findMin(Blkx.loc2.x)

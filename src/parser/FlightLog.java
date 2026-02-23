@@ -12,6 +12,8 @@ import java.util.Calendar;
 import prog.Controller;
 import prog.i18n.Lang;
 import prog.Service;
+import prog.util.ExceptionHelper;
+import prog.util.Logger;
 import static prog.util.PhysicsConstants.g;
 
 public class FlightLog implements Runnable {
@@ -244,19 +246,16 @@ public class FlightLog implements Runnable {
 			// Application.debugPrint("打开文件成功");
 		} catch (IOException e) {
 			ui.util.NotificationService.show(Lang.lfailCreate);
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			Logger.warn("文件创建失败: " + e.getMessage());
 			return;
 		}
 
 		try {
 			writeClimbLabel(tcsv);
 			writeClimbData(tcsv);
-
 			tcsv.close();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			Logger.warn("写入爬升数据失败: " + e.getMessage());
 		}
 	}
 
@@ -302,19 +301,16 @@ public class FlightLog implements Runnable {
 			// Application.debugPrint("打开文件成功");
 		} catch (IOException e) {
 			ui.util.NotificationService.show(Lang.lfailCreate);
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			Logger.warn("文件创建失败: " + e.getMessage());
 			return;
 		}
 
 		try {
 			writeRollLabel(tcsv);
 			writeRollData(tcsv);
-
 			tcsv.close();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			Logger.warn("写入滚转数据失败: " + e.getMessage());
 		}
 	}
 
@@ -364,19 +360,16 @@ public class FlightLog implements Runnable {
 			// Application.debugPrint("打开文件成功");
 		} catch (IOException e) {
 			ui.util.NotificationService.show(Lang.lfailCreate);
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			Logger.warn("文件创建失败: " + e.getMessage());
 			return;
 		}
 
 		try {
 			writeNyLabel(tcsv);
 			writeNyData(tcsv);
-
 			tcsv.close();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			Logger.warn("写入过载数据失败: " + e.getMessage());
 		}
 	}
 
@@ -410,24 +403,19 @@ public class FlightLog implements Runnable {
 			// Application.debugPrint("文件创建成功");
 		} catch (FileNotFoundException e) {
 			ui.util.NotificationService.show(Lang.lfailCreate);
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			Logger.warn("日志文件创建失败: " + e.getMessage());
 			xc.logon = false;
 		}
 		try {
 			csv = new FileWriter(fileName, true);
-			// Application.debugPrint("打开文件成功");
 		} catch (IOException e) {
 			ui.util.NotificationService.show(Lang.lfailCreate);
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			Logger.warn("日志文件打开失败: " + e.getMessage());
 		}
-		// csvWritter =
 		try {
 			writeLabel(csv);
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			Logger.warn("写入标签失败: " + e.getMessage());
 		}
 		csvWritter = new BufferedWriter(csv);
 
@@ -435,14 +423,12 @@ public class FlightLog implements Runnable {
 	}
 
 	public void close() {
-
 		// 保存
 		try {
 			csvWritter.close();
 			csv.close();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			Logger.warn("关闭日志文件失败: " + e.getMessage());
 		}
 		saveClimbData();
 		saveRollData();
@@ -451,45 +437,29 @@ public class FlightLog implements Runnable {
 	}
 
 	public void logTick() {
-
 		try {
-			// csv = new FileWriter(fileName, true);
-			// Application.debugPrint("开始写入");
 			analyzeData();
 			writeData(csvWritter);
-
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			//
 			ui.util.NotificationService.show(Lang.lfailWrite);
-			e.printStackTrace();
+			Logger.warn("写入日志数据失败: " + e.getMessage());
 		}
 		if (writeTime++ % 1024 == 0) {
 			try {
 				csvWritter.flush();
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				Logger.warn("刷新日志缓冲区失败: " + e.getMessage());
 			}
 		}
 	}
 
 	@Override
 	public void run() {
-		// TODO Auto-generated method stub
 		while (logon) {
-			try {
-				Thread.sleep(5);
-			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
-				// e.printStackTrace();
-
-			}
-			// Application.debugPrint("flightlog内存溢出测试");
-			// Application.debugPrint("执行");
+			ExceptionHelper.sleepQuietly(5);
 			while (doit) {
 				logTick();
-				doit = false;// 写完后关闭
+				doit = false; // 写完后关闭
 			}
 		}
 	}

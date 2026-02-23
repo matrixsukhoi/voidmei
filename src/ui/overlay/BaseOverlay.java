@@ -14,6 +14,7 @@ import com.alee.extended.layout.VerticalFlowLayout;
 import prog.util.Logger;
 
 import prog.Application;
+import static ui.util.UIConstants.*;
 
 /**
  * Base overlay class using composition for pluggable rendering strategies.
@@ -88,10 +89,10 @@ public class BaseOverlay extends DraggableOverlay {
         // This ensures overlays scale correctly on high-DPI displays
         int logicalScreenHeight = Application.logicalHeight;
         double dpiScale = Application.dpiScale;
-        scaleFactor = (float) ((logicalScreenHeight / 1440.0) * dpiScale);
-        fontSize = Math.round(16 * scaleFactor);
-        width = Math.round(Application.defaultFontsize * 36 * scaleFactor);
-        height = Application.defaultFontsize * 72;
+        scaleFactor = (float) ((logicalScreenHeight / (double) BASE_SCREEN_HEIGHT) * dpiScale);
+        fontSize = Math.round(BASE_FONT_SIZE * scaleFactor);
+        width = Math.round(Application.defaultFontsize * WIDTH_MULTIPLIER * scaleFactor);
+        height = Application.defaultFontsize * HEIGHT_MULTIPLIER;
 
         this.getWebRootPaneUI().setMiddleBg(new Color(0, 0, 0, 0));
         this.getWebRootPaneUI().setTopBg(new Color(0, 0, 0, 0));
@@ -133,10 +134,10 @@ public class BaseOverlay extends DraggableOverlay {
         // Use logical screen height for base scaling, then apply DPI scale
         int logicalScreenHeight = Application.logicalHeight;
         double dpiScale = Application.dpiScale;
-        scaleFactor = (float) ((logicalScreenHeight / 1440.0) * dpiScale);
-        fontSize = Math.round(16 * scaleFactor);
-        width = Math.round(Application.defaultFontsize * 36 * scaleFactor);
-        height = Application.defaultFontsize * 72;
+        scaleFactor = (float) ((logicalScreenHeight / (double) BASE_SCREEN_HEIGHT) * dpiScale);
+        fontSize = Math.round(BASE_FONT_SIZE * scaleFactor);
+        width = Math.round(Application.defaultFontsize * WIDTH_MULTIPLIER * scaleFactor);
+        height = Application.defaultFontsize * HEIGHT_MULTIPLIER;
 
         this.getWebRootPaneUI().setMiddleBg(Application.previewColor);
         this.getWebRootPaneUI().setTopBg(Application.previewColor);

@@ -496,9 +496,6 @@ public class VoiceWarning implements Runnable {
             }
 
             // 襟翼判断逻辑
-            // 先得判断襟翼在哪个段内
-            // 使用线性方式获得襟翼的限速
-            // if (isFlapAlive && st.IAS > xS.flapAllowSpeed * 0.95) {
             if (
             /* 条件1: 不是正在下襟翼的状态 */
             (isFlapAlive && !xS.isDowningFlap && (xS.flapAllowAngle - st.flaps < 2) && (st.flaps != 0)) ||
@@ -610,14 +607,9 @@ public class VoiceWarning implements Runnable {
 
             if (st.Ny < 0 && st.throttle > 50) {
                 if (st.thrust[0] < 50) {
-                    // Application.debugPrint(xS.totalthr);
                     noRPM = true;
                     engFailInvert.playOnce(t);
                 }
-                // if (st.engineType == 0 && xS.totalhp == 0){
-                // Application.debugPrint("??");
-                // engFailInvert.playOnce(t);
-                // }
             }
             // 超过30
             // 桨距
@@ -661,25 +653,6 @@ public class VoiceWarning implements Runnable {
                 fatal = true;
                 nyWarn.playOnce(t);
             }
-
-            // 桨距提示
-            // if (xc.Blkx != null && xc.Blkx.valid && !xc.Blkx.isJet &&
-            // st.throttle - st.RPMthrottle > 50){
-            // rpmThrottleWarn.playOnce(t);
-            // }
-
-            // 负G是否直接可以判断油压?
-
-            // 舵面效率
-            // 算法错误, 暂时屏蔽
-            // if (st.IAS >= elevatorEffIAS) {
-            // if (!elevatorEffCheck) {
-            // elevatorEff.playOnce(t);
-            // }
-            // elevatorEffCheck = true;
-            // } else {
-            // elevatorEffCheck = false;
-            // }
 
             if (st.IAS >= aileronEffIAS) {
                 if (!aileronEffCheck) {

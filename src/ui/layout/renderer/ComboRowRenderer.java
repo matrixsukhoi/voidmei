@@ -4,7 +4,6 @@ import com.alee.laf.panel.WebPanel;
 import com.alee.laf.combobox.WebComboBox;
 import prog.config.ConfigLoader.RowConfig;
 import prog.config.ConfigLoader.GroupConfig;
-import prog.util.PropertyBinder;
 import prog.util.FileUtils;
 import prog.util.Logger;
 import ui.replica.ReplicaBuilder;
@@ -24,18 +23,9 @@ public class ComboRowRenderer implements RowRenderer {
         WebComboBox combo = ReplicaBuilder.getComboBox(itemPanel);
 
         if (combo != null) {
-            // Priority for initial value:
-            // 1. If property exists in GroupConfig, use PropertyBinder
-            // 2. Otherwise try ConfigurationService
-            // 3. Fallback to row.value (from config file)
-            String currentVal;
-            if (row.property != null && PropertyBinder.hasField(groupConfig, row.property)) {
-                currentVal = PropertyBinder.getString(groupConfig, row.property, row.getStr());
-            } else if (row.property != null) {
-                currentVal = context.getStringFromConfigService(row.property, row.getStr());
-            } else {
-                currentVal = row.getStr();
-            }
+            // 使用统一的配置读取助手
+            // 优先级: PropertyBinder → ConfigurationService → 默认值
+            String currentVal = RendererConfigHelper.readString(context, groupConfig, row, row.getStr());
 
             if (currentVal != null && !currentVal.isEmpty()) {
                 combo.setSelectedItem(currentVal);
@@ -68,14 +58,8 @@ public class ComboRowRenderer implements RowRenderer {
                 // Update memory model so it saves to ui_layout.cfg
                 row.value = newVal;
 
-                // Try property binding first
-                if (!PropertyBinder.setString(groupConfig, prop, newVal)) {
-                    // Fallback or ignore
-                }
-                // Always sync to ConfigurationService
-                if (prop != null) {
-                    context.syncStringToConfigService(prop, newVal);
-                }
+                // 使用统一的配置写入助手
+                RendererConfigHelper.writeString(context, groupConfig, prop, newVal);
                 context.onSave();
             });
         }

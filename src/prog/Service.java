@@ -1,6 +1,7 @@
 package prog;
 
 import prog.util.HttpHelper;
+import prog.util.ExceptionHelper;
 
 import parser.Blkx.engineLoad;
 import parser.FlightLog;
@@ -238,14 +239,7 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 		// 数据转换格式
 		// sState
 
-		//
-		// if (iIndic.fuelpressure == true)
-		// isFuelpressure = true;
-
-		// if(sState.throttle <= 100)
 		throttle = String.format("%d", sState.throttle);
-		// else
-		// throttle = "WEP";
 		aileron = String.format("%d", sState.aileron);
 		elevator = String.format("%d", sState.elevator);
 		rudder = String.format("%d", sState.rudder);
@@ -254,17 +248,8 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 		if (fueltime <= 0 || fueltime > 24 * 3600 * 1000)
 			sfueltime = nastring;
 		else {
-			// if (fueltime < 60 * 1000)
-			// sfueltime = String.format(".%d", fueltime / 1000);
-			// else
-
-			// sfueltime = String.format("%d:%02d", fueltime / 60000, (int)
-			// ((fueltime / 1000) % 60 ));
-			if (fueltime / 60000 < 100
-			/* && !bLowAccFuel */) {
+			if (fueltime / 60000 < 100) {
 				sfueltime = String.format("%02d'%02d", fueltime / 60000, (long) ((fueltime / 1000) % 60 / 10) * 10);
-				// sfueltime = String.format("%d.%d", fueltime / 60000,
-				// (fueltime % 60000) / 6000);
 			} else
 				sfueltime = String.format("%.0f", (float) fueltime / 60000);
 
@@ -287,17 +272,6 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 			efficiency[0] = nastring;
 		else
 			efficiency[0] = String.format("%.0f", sState.efficiency[0]);
-		// if (sState.watertemp == -65535) {
-		// // Application.debugPrint(iIndic.engine_temperature);
-		// watertemp = String.format("%.0f", 0.0);
-		// if (iIndic.water_temperature != -65535)
-		// watertemp = String.format("%.0f", iIndic.water_temperature);
-		// if (iIndic.engine_temperature != -65535)
-		// watertemp = String.format("%.0f", iIndic.engine_temperature);
-		//
-		// } else {
-		// watertemp = String.format("%.0f", sState.watertemp);
-		// }
 		if (nwaterTemp != -65535)
 			watertemp = String.format("%.0f", nwaterTemp);
 		else
@@ -443,27 +417,6 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 		else
 			sTurnRate = nastring;
 		sHorizontalLoad = String.format("%.1f", horizontalLoad);
-		// Application.debugPrint("已加力时间(秒)"+wepTime/1000);
-		// Application.debugPrint("剩余加力时间(分钟)"+rwepTime);
-
-		// loc
-		// char[] tmp = new char[8];
-		// int stepx = (int)(loc[0] / 0.1);
-		// int stepy = (int)(loc[1] / 0.1);
-
-		// tmp[0] = (char) ('A' + stepy);
-		// if (stepx < 9){
-		// tmp[1] = (char) ('1' + stepx);
-		// tmp[2] = '\0';
-		// }
-		// else{
-		// tmp[1] = '1';
-		// tmp[2] = (char)('0' + (stepx - 9));
-		// tmp[3] = '\0';
-		// }
-		// sLoc = new String(tmp);
-		// System.out.println("current location is:" + sLoc + "[stepx, stepy]" + stepx +
-		// ", " + stepy);
 
 		publishFlightDataEvent();
 	}
@@ -546,16 +499,11 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 						iEngType = ENGINE_TYPE_JET;
 				}
 
-				// Application.debugPrint(String.format("自适应判断引擎类型 %d\n", iEngType));
 			}
 		}
 	}
 
 	public void slowcalculate(long dtime) {
-		// 计算耗油率及持续时间
-		// Application.debugPrint(totalfuelp - totalfuel);
-		// if (lastMainLoopTimeMs - FuelCheckMili > 1000) {
-
 		dfuel = (fTotalFuelP - fTotalFuel) / dtime;
 
 		if (dfuel > 0) {
@@ -645,13 +593,6 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 			}
 		}
 
-		// Application.debugPrint("当前水工作负载: " + curLoad + "," + minWorkTime);
-		// Application.debugPrint("水工作负载数组: [");
-		// for (int i = 0; i < c.getBlkx().maxEngLoad; i++) {
-		// System.out.print(pL[i].curWaterWorkTimeMili / 1000 + " ");
-		// }
-		// Application.debugPrint("]");
-
 		// 油冷
 		curOLoad = c.getBlkx().findmaxOilLoad(pL, noilTemp);
 		for (int i = 0; i < c.getBlkx().maxEngLoad; i++) {
@@ -680,13 +621,6 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 				}
 			}
 		}
-
-		//// Application.debugPrint("当前油工作负载: " + curLoad + "," + minWorkTime);
-		// Application.debugPrint("油工作负载数组: [");
-		// for (int i = 0; i < c.getBlkx().maxEngLoad; i++) {
-		// System.out.print(pL[i].curOilWorkTimeMili / 1000 + " ");
-		// }
-		// Application.debugPrint("]");
 
 		curLoadMinWorkTime = minWorkTime;
 	}
@@ -792,15 +726,6 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 				notCheckInch = true;
 		}
 
-		// if (checkAlt > 2)
-		// alt = alt * 0.3048f;
-		// // Application.debugPrint(Math.abs(alt - altp)*1000+"?"+Math.abs(2 *
-		// // sState.Vy * actualIntervalMs));
-		//
-		// // 解决熊猫的高度问题
-		// alt = alt + altperCircle * altreg;
-		// Application.debugPrint("checkalt"+checkAlt);
-
 		// 无线电高度
 		pRadioAlt = radioAlt;
 		// radioAlt = iIndic.radio_altitude;
@@ -836,15 +761,6 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 		// 转弯半径等于speedv*speedv/9.78*G
 
 		// 转弯加速度约等于法向过载与重力过载之和
-		double alpha = 0;
-		double beta = 0;
-		// if (sIndic.aviahorizon_roll != -65535) {
-		// alpha = sIndic.aviahorizon_roll;
-		// }
-		// if (sIndic.aviahorizon_pitch != -65535) {
-		// beta = sIndic.aviahorizon_pitch + sState.AoA;
-		// }
-
 		if (sIndic.aviahorizon_roll != -65535 && sIndic.aviahorizon_pitch != -65535) {
 			// 获得横滚角
 
@@ -1765,13 +1681,8 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 				// c.changeS2();//连接成功等待游戏开始
 
 				c.S4toS1();
-				// Application.debugPrint("等待游戏开始");
-				try {
-					Thread.sleep(500);
-				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
+				// 等待游戏开始
+				ExceptionHelper.sleepQuietly(500);
 			}
 
 		} else {

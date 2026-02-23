@@ -16,6 +16,7 @@ The `ui.util` package provides **reusable utility classes** for UI components, o
 | `NotificationService.java` | Toast notification system |
 | `NotificationFactory.java` | Notification creation helpers |
 | `ReflectBinder.java` | Reflection-based UI binding utilities |
+| `UIConstants.java` | Centralized UI magic numbers (DPI scaling, time delays, dimensions) |
 
 ---
 
@@ -166,6 +167,50 @@ Color selected = DialogService.showColorChooser(parentFrame, initialColor);
 ```
 
 **Integration:** Works with `AlwaysOnTopCoordinator` to ensure dialogs appear above game overlays.
+
+---
+
+## UIConstants
+
+Centralized magic number definitions to improve maintainability and consistency.
+
+```java
+import static ui.util.UIConstants.*;
+
+// DPI scaling base values
+scaleFactor = (float) ((screenHeight / (double) BASE_SCREEN_HEIGHT) * dpiScale);
+fontSize = Math.round(BASE_FONT_SIZE * scaleFactor);
+
+// Overlay dimensions
+width = Math.round(fontsize * WIDTH_MULTIPLIER * scaleFactor);
+height = fontsize * HEIGHT_MULTIPLIER;
+
+// Time delays
+ExceptionHelper.sleepQuietly(DELAY_SHORT_MS);   // 100ms
+ExceptionHelper.sleepQuietly(DELAY_MEDIUM_MS);  // 500ms
+ExceptionHelper.sleepQuietly(DELAY_LONG_MS);    // 1000ms
+```
+
+**Available Constants:**
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `BASE_SCREEN_HEIGHT` | 1440 | Reference screen height for scaling (1440p) |
+| `BASE_FONT_SIZE` | 16 | Base font size in pixels |
+| `WIDTH_MULTIPLIER` | 36 | Width multiplier relative to font size |
+| `HEIGHT_MULTIPLIER` | 72 | Height multiplier relative to font size |
+| `DELAY_SHORT_MS` | 100 | Short delay for UI responses |
+| `DELAY_MEDIUM_MS` | 500 | Medium delay for network retry |
+| `DELAY_LONG_MS` | 1000 | Long delay for initialization |
+| `MAX_AOA` | 30 | Maximum AoA display range (degrees) |
+| `MAX_AOS` | 15 | Maximum AoS display range (degrees) |
+
+**Used by:** `BaseOverlay.java`, overlay initialization code.
+
+**Design Notes:**
+- Constants match exact values from original hardcoded code
+- Static import recommended for cleaner usage
+- Final class with private constructor (non-instantiable)
 
 ---
 

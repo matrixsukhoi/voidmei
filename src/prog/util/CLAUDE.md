@@ -19,7 +19,8 @@ The `prog.util` package provides **pure function utilities** for physics calcula
 | `DPIHelper.java` | High-DPI display support: scale detection, logical screen dimensions |
 | `CalcHelper.java` | General math utilities |
 | `HttpHelper.java` | HTTP request utilities for game API |
-| `Logger.java` | Application logging |
+| `Logger.java` | Application logging (TRACE/DEBUG/INFO/WARN/ERROR levels) |
+| `ExceptionHelper.java` | Unified exception handling: sleepQuietly, logAndContinue, closeQuietly |
 | `StringHelper.java` | String formatting utilities |
 | `FileUtils.java` | File I/O utilities |
 | `FormulaEvaluator.java` | Runtime formula evaluation via reflection |
@@ -389,6 +390,87 @@ The `-Dsun.java2d.uiScale=1` flag in `script/voidmeil4j.xml` disables Java's aut
 - Idempotent - safe to call `init()` multiple times
 - Falls back to 1.0 scale if detection fails
 - Uses `GraphicsConfiguration.getDefaultTransform()` for reliable DPI detection
+
+---
+
+### ExceptionHelper
+
+Unified exception handling utility to replace scattered empty catch blocks and `printStackTrace()` calls.
+
+```java
+import prog.util.ExceptionHelper;
+
+// Replace verbose try-catch Thread.sleep with single call
+ExceptionHelper.sleepQuietly(100);  // Handles InterruptedException, restores interrupt status
+
+// Log exceptions without disrupting control flow
+try {
+    // file operation
+} catch (IOException e) {
+    ExceptionHelper.logAndContinue(e, "文件操作");  // Logs at WARN, prints stack trace if DEBUG
+}
+
+// Safely close resources in finally blocks
+finally {
+    ExceptionHelper.closeQuietly(inputStream);
+}
+```
+
+**Available Methods:**
+
+| Method | Description |
+|--------|-------------|
+| `sleepQuietly(millis)` | Thread.sleep with silent InterruptedException handling |
+| `sleepQuietlyStrict(millis)` | Same but doesn't restore interrupt status (legacy compat) |
+| `logAndContinue(e, context)` | Log exception at WARN level, continue execution |
+| `ignore(InterruptedException)` | Explicitly ignore interrupt, restore status |
+| `closeQuietly(AutoCloseable)` | Close resource, ignore exceptions |
+
+**Design Principles:**
+- No behavior change: Control flow matches original empty catch blocks
+- Improved observability: Adds logging without changing program flow
+- Thread safety: Properly restores interrupt status in `sleepQuietly()`
+
+---
+
+### Logger
+
+Structured logging with multiple levels and flexible API.
+
+```java
+import prog.util.Logger;
+
+// Two-argument form (with component identifier)
+Logger.info("Service", "启动成功");
+Logger.debug("Overlay", "Data updated: " + count);
+Logger.warn("Config", "Key not found: " + key);
+Logger.error("Network", "Connection failed", exception);
+
+// Single-argument form (uses default "App" component)
+Logger.info("Application started");
+Logger.warn("配置缺失");
+Logger.error("Fatal error", exception);
+
+// Set minimum log level
+Logger.setMinLevel(Logger.Level.DEBUG);  // Show DEBUG and above
+Logger.Level current = Logger.getLevel();
+```
+
+**Log Levels:**
+
+| Level | Value | Use Case |
+|-------|-------|----------|
+| TRACE | -1 | Detailed tracing (only for deep debugging) |
+| DEBUG | 0 | Development debugging information |
+| INFO | 1 | Normal operational messages (default) |
+| WARN | 2 | Non-fatal issues that need attention |
+| ERROR | 3 | Fatal errors affecting functionality |
+
+**Output Format:**
+```
+[HH:mm:ss.SSS] [Component ] Message                    // INFO
+[HH:mm:ss.SSS] [Component ] [WARN ] Message            // WARN/ERROR/DEBUG
+```
 
 ---
 

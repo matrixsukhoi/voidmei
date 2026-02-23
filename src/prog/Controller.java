@@ -147,21 +147,6 @@ public class Controller {
 	// Track current FM hotkey binding for rebind on config change
 	private int currentFmHotkeyCode = 0;
 
-	// public void hideTaskbarSw() {
-	// if (Application.debug) {
-	// robot.keyPress(17);
-	// robot.keyPress(192);
-	// try {
-	// Thread.sleep(50);
-	// } catch (InterruptedException e) {
-	// // TODO Auto-generated catch block
-	// e.printStackTrace();
-	// }
-	// robot.keyRelease(17);
-	// robot.keyRelease(192);
-	// }
-	// }
-
 	public void initStatusBar() {
 
 		// 测试全局
@@ -500,15 +485,6 @@ public class Controller {
 			// Check for live aircraft on startup (lazy fallback - only loads if live)
 			ensureBlkxLoaded();
 		}
-
-		// 初始化ROBOT
-		// try {
-		// robot = new Robot();
-		// } catch (AWTException e) {
-		// // TODO Auto-generated catch block
-		// e.printStackTrace();
-		// }
-
 	}
 
 	public void start() {

@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 VoidMei is a Java Swing telemetry overlay for War Thunder. It reads real-time flight data from the game's local HTTP API (port 8111) and displays HUD overlays with flight metrics, warnings, and aircraft performance data.
 
-**Project Statistics:** ~162 Java files, ~34,000 lines of code
+**Project Statistics:** ~159 Java files, ~33,500 lines of code
 
 ## 写代码时, 关键的地方和问题修复一定要添加和补充中文注释
 
@@ -55,17 +55,7 @@ VoidMei provides multiple ways to launch on Windows:
 | `VoidMei.bat` | Intelligent batch script that finds Java 8 from registry |
 | `script/build.cmd` | Simple Windows build script |
 
-**VoidMei.bat** searches the Windows Registry for Java 8 installations in this order:
-
-1. Oracle JRE 1.8 (`HKLM\SOFTWARE\JavaSoft\Java Runtime Environment\1.8`)
-2. Oracle JDK 1.8 (`HKLM\SOFTWARE\JavaSoft\JDK\1.8`)
-3. Eclipse Temurin JRE 8 (`HKLM\SOFTWARE\Eclipse Adoptium\JRE\8`)
-4. Eclipse Temurin JDK 8 (`HKLM\SOFTWARE\Eclipse Adoptium\JDK\8`)
-5. Azul Zulu 8 (`HKLM\SOFTWARE\Azul Systems\Zulu\zulu-8`)
-6. Amazon Corretto 8 (`HKLM\SOFTWARE\Amazon.com\Corretto\8`)
-7. Microsoft OpenJDK 8 (`HKLM\SOFTWARE\Microsoft\JDK\8`)
-8. Fallback to `%JAVA_HOME%` (with warning)
-9. Fallback to `PATH` (with warning)
+**VoidMei.bat** searches Windows Registry for Java 8 (Oracle, Temurin, Zulu, Corretto, Microsoft), then falls back to `%JAVA_HOME%` or `PATH`.
 
 **voidmeil4j.xml** (Launch4j configuration):
 - `minVersion: 1.8.0`, `maxVersion: 1.8.999` - Strictly enforces Java 8
@@ -90,16 +80,15 @@ VoidMei provides multiple ways to launch on Windows:
   - `event/` - Event buses (`UIStateBus`, `FlightDataBus`, `FlightDataEvent`, `EventPayload`, `FlightDataListener`)
   - `config/` - Configuration system (`ConfigurationService`, `ConfigLoader`, `SExpParser`, `HUDSettings`, `OverlaySettings`)
   - `audio/` - Voice warning system (`VoiceWarning`, `VoiceResourceManager`)
-  - `util/` - Utilities (`HttpHelper`, `Logger`, `CalcHelper`, `StringHelper`, `FileUtils`, `FormulaEvaluator`, `PhysicsConstants`, `Interpolation`, `AtmosphereModel`, `PistonPowerModel`, `ColorHelper`, `GPUCompatibilityHelper`, `DPIHelper`, `FocusDetector`)
+  - `util/` - Utilities (`HttpHelper`, `Logger`, `CalcHelper`, `StringHelper`, `FileUtils`, `FormulaEvaluator`, `PhysicsConstants`, `Interpolation`, `AtmosphereModel`, `PistonPowerModel`, `ColorHelper`, `GPUCompatibilityHelper`, `DPIHelper`, `FocusDetector`, `ExceptionHelper`)
   - `hotkey/` - Global keyboard hooks (`HotkeyManager`)
   - `i18n/` - Internationalization (`Lang`)
   - `model/` - Data models (`InfoList`)
 
-- **`parser/`** - Data ingestion (9 files)
+- **`parser/`** - Data ingestion (8 files)
   - `State.java`, `Indicators.java` - Game telemetry JSON parsers
   - `Blkx.java` - Flight model file (.blk) parser
   - `FlightAnalyzer.java` - Derived metrics calculation
-  - `FlightModelParser.java` - War Thunder flight model parsing
   - `FlightLog.java` - Flight data logging
   - `HudMsg.java`, `MapInfo.java`, `MapObj.java` - Additional data structures
 
@@ -122,7 +111,7 @@ VoidMei provides multiple ways to launch on Windows:
   - `overlay/logic/` - Pure calculation logic (`HUDCalculator`)
   - `overlay/model/` - HUD data models (`HUDData`)
   - `layout/` - Dynamic UI generation from `ui_layout.cfg` (`UIBuilder`, `ModernHUDLayoutEngine`, `HUDLayoutNode`)
-  - `layout/renderer/` - Config panel type renderers (16 types):
+  - `layout/renderer/` - Config panel type renderers (17 types):
     - `SwitchRowRenderer`, `SwitchInvRowRenderer` - Boolean toggles
     - `SliderRowRenderer` - Numeric sliders
     - `ComboRowRenderer` - Dropdown selectors
@@ -134,6 +123,7 @@ VoidMei provides multiple ways to launch on Windows:
     - `DataRowRenderer` - Read-only data display
     - `FileListRowRenderer`, `FMListRowRenderer` - File/FM list selectors
     - `VoiceRowRenderer`, `VoiceGlobalRenderer` - Voice warning configuration
+    - `RendererConfigHelper` - Unified config read/write helper for renderers
   - `component/` - Reusable HUD widgets:
     - `LinearGauge`, `LabeledLinearGauge` - Bar gauges
     - `CompassGauge` - Heading indicator
@@ -147,8 +137,8 @@ VoidMei provides multiple ways to launch on Windows:
   - `renderer/` - Rendering implementations (`OverlayRenderer`, `LinearGaugeRenderer`, `BOSStyleRenderer`, `TextOnlyRenderer`)
   - `model/` - UI data models (`FieldManager`, `FlightDataProvider`, `ServiceDataAdapter`, `GaugeField`, `FieldDefinition`)
   - `replica/` - UI template/replica system (`ReplicaBuilder`, `ReplicaPanel`, `PinkStyle`)
-  - `util/` - UI utilities (`FastNumberFormatter`, `GraphicsUtil`, `SliderHelper`, `OverlayStyleHelper`, `NotificationService`, `ReflectBinder`)
-  - `window/comparison/` - Aircraft comparison window (`ComparisonFrame`, `ComparisonTable`, `CompactComparisonWindow`, logic/, model/)
+  - `util/` - UI utilities (`FastNumberFormatter`, `GraphicsUtil`, `SliderHelper`, `OverlayStyleHelper`, `NotificationService`, `ReflectBinder`, `UIConstants`)
+  - `window/comparison/` - Aircraft comparison window (`CompactComparisonWindow`, logic/, model/)
 
 ### Data Flow
 
@@ -210,425 +200,74 @@ voidmei/
 
 ### Tray Icon Click Race Prevention
 
-When users rapidly click the system tray icon, each click creates a new `Controller` instance with associated overlays. Without protection, overlays can stack up, leading to multiple duplicate windows.
-
-**Problem solved:** Fast double-click on tray icon → two `Controller` instances created simultaneously → duplicate overlay windows.
-
-**Solution:** Use `AtomicBoolean` with compare-and-set (CAS) operation to ensure only one click is processed at a time:
+Use `AtomicBoolean` with CAS in `Application.java` to prevent duplicate `Controller` creation from rapid tray icon clicks:
 
 ```java
-// In Application.java
-// 防止快速重复点击任务栏图标导致多次创建Controller
 private static final AtomicBoolean trayClickProcessing = new AtomicBoolean(false);
-
-// In tray icon mouse listener
-icon.addMouseListener(new MouseAdapter() {
-    @Override
-    public void mouseClicked(MouseEvent e) {
-        if (e.getButton() == MouseEvent.BUTTON1) {
-            // 使用CAS操作防止快速重复点击导致多次创建Controller
-            // compareAndSet: 如果当前值为false则设为true并返回true，否则返回false
-            if (!trayClickProcessing.compareAndSet(false, true)) {
-                prog.util.Logger.info("Application", "Ignoring duplicate tray click");
-                return;
-            }
-            try {
-                ctr.stop();
-                ctr = new Controller();
-            } finally {
-                // 无论成功或异常都重置标志，允许下一次点击
-                trayClickProcessing.set(false);
-            }
-        }
-    }
-});
+// In mouseClicked: if (!trayClickProcessing.compareAndSet(false, true)) return;
+// try { ctr.stop(); ctr = new Controller(); } finally { trayClickProcessing.set(false); }
 ```
 
-**Controller.stop() 5-phase cleanup order:**
-
-```java
-public void stop() {
-    // 1. 先关闭所有overlay（必须在dispose MainForm之前）
-    if (State == ControllerState.PREVIEW) {
-        previewGeneration.incrementAndGet();  // 使所有pending回调失效
-        if (S != null) {
-            closepad();  // 游戏模式：完整清理
-        } else {
-            overlayManager.closeAll();  // 预览模式：只需关闭overlay
-        }
-    }
-
-    // 2. 取消事件订阅（防止重启时重复处理）
-    UIStateBus.getInstance().unsubscribe(UIStateEvents.CONFIG_CHANGED, configChangedHandler);
-    UIStateBus.getInstance().unsubscribe(UIStateEvents.UI_READY, uiReadyHandler);
-
-    // 3. 清理MainForm
-    if (M != null) { M.dispose(); M = null; }
-
-    // 4. 清理Service线程
-    S = null;
-    if (S1 != null) { S1.interrupt(); S1 = null; }
-
-    // 5. 保存配置
-    configService.saveConfig();
-}
-```
-
-**Key behaviors:**
-- `compareAndSet(false, true)` - Atomic check-and-set prevents race conditions
-- `finally` block ensures flag reset even if exception occurs
-- `stop()` cleans up overlays BEFORE creating new Controller
-- Generation counter invalidates stale async callbacks
+**Controller.stop() cleanup order:** 1) Close overlays + invalidate generation counter, 2) Unsubscribe events, 3) Dispose MainForm, 4) Stop Service thread, 5) Save config.
 
 ### Preview Generation Counter (Stale Callback Detection)
 
-The `Controller` uses a generation counter pattern to prevent race conditions when users quickly switch from Preview to Game mode before async preview creation completes.
-
-**Problem solved:** On slow machines, `Preview()` spawns a background thread that schedules overlay creation on EDT. If users click "Start" before this completes, the stale EDT callback would create preview overlays *after* game mode has started.
-
-```java
-// In Controller.java
-private final AtomicLong previewGeneration = new AtomicLong(0);
-
-public void Preview() {
-    State = ControllerState.PREVIEW;
-    final long generation = previewGeneration.get();  // Capture
-    new Thread(() -> refreshPreviews(generation)).start();
-}
-
-public void endPreview() {
-    previewGeneration.incrementAndGet();  // Invalidate pending callbacks
-    overlayManager.closeAll();
-    State = ControllerState.INIT;
-}
-
-public void refreshPreviews(long generation) {
-    // ... background work ...
-    SwingUtilities.invokeLater(() -> {
-        // Check for stale callback
-        if (State != ControllerState.PREVIEW || previewGeneration.get() != generation) {
-            Logger.info("Controller", "Skipping stale preview refresh");
-            return;
-        }
-        overlayManager.refreshAllPreviews();
-    });
-}
-```
-
-**Key behaviors:**
-- `previewGeneration.get()` - Captures current generation when starting async operation
-- `previewGeneration.incrementAndGet()` - Called in `endPreview()` to invalidate all pending callbacks
-- Defense-in-depth: `OverlayManager.refreshAllPreviews()` also checks `State != PREVIEW`
+`Controller` uses `AtomicLong previewGeneration` to prevent stale EDT callbacks from creating preview overlays after switching to game mode. Pattern: capture generation at async start, check before execution, increment on `endPreview()` to invalidate pending callbacks.
 
 ### Preview Mode FM Fallback
 
-当用户在预览模式下打开设置界面时，VoidMei会尝试从游戏API获取当前飞机型号。如果解析失败（例如用户不在游戏中），会回退到配置中保存的`selectedFM0`飞机。
-
-**Problem solved:** 用户打开设置界面时，如果无法连接游戏或FM文件解析失败，预览窗口将显示空白或错误。
-
-**Solution:** 在`Controller.getBlkx()`中添加预览模式专用的回退逻辑：
-
-```java
-// In Controller.java
-public synchronized Blkx getBlkx() {
-    // ... 正常的FM加载逻辑 ...
-    loadFMData(identifiedFMName);
-
-    // 预览模式回退：解析失败时加载 selectedFM0 配置的默认飞机
-    // 仅在预览模式下执行，避免影响游戏模式的正常行为
-    if ((Blkx == null || !Blkx.valid) && State == ControllerState.PREVIEW) {
-        String fallbackPlane = getConfig("selectedFM0");
-        if (fallbackPlane != null && !fallbackPlane.isEmpty()
-                && !fallbackPlane.equalsIgnoreCase(identifiedFMName)) {
-            prog.util.Logger.info("Controller",
-                "FM解析失败，回退到selectedFM0: " + fallbackPlane);
-            loadFMData(fallbackPlane);
-        }
-    }
-
-    return Blkx;
-}
-```
-
-**Key behaviors:**
-- Only triggers in `PREVIEW` state (settings UI), not during game mode
-- Checks if `selectedFM0` differs from the failed aircraft to avoid infinite loop
-- Logs the fallback for debugging purposes
-- User can set their preferred default aircraft via the FM selection dropdown
+在`Controller.getBlkx()`中，如果预览模式下FM解析失败，会回退到`selectedFM0`配置的默认飞机。仅在`PREVIEW`状态触发，避免影响游戏模式。
 
 ### Overlay Z-Order (AlwaysOnTopCoordinator)
 
-Use `AlwaysOnTopCoordinator` to manage `alwaysOnTop` state for all overlay windows. This coordinator solves the timing problem where dialogs triggered before overlays exist would be covered by later-created overlays.
+Use `AlwaysOnTopCoordinator` singleton to manage overlay z-order and dialog coordination:
 
 ```java
-import prog.AlwaysOnTopCoordinator;
-
-// In overlay window initialization (DrawFrame, DrawFrameSimpl, etc.)
-AlwaysOnTopCoordinator.getInstance().registerOverlay(this);
-
-// In overlay dispose()
-AlwaysOnTopCoordinator.getInstance().unregisterOverlay(this);
-
-// Before showing any dialog (DialogService, JColorChooser, etc.)
-AlwaysOnTopCoordinator.getInstance().dialogWillShow();
-try {
-    dialog.setVisible(true);  // Blocks until dialog closes
-} finally {
-    AlwaysOnTopCoordinator.getInstance().dialogDidDismiss();
-}
+// Overlay init: AlwaysOnTopCoordinator.getInstance().registerOverlay(this);
+// Overlay dispose: AlwaysOnTopCoordinator.getInstance().unregisterOverlay(this);
+// Before dialog: dialogWillShow(); try { dialog.setVisible(true); } finally { dialogDidDismiss(); }
 ```
 
-**Key behaviors:**
-- `registerOverlay()` - Adds window to tracking; only sets `alwaysOnTop(true)` if no pending dialogs
-- `dialogWillShow()` - Suspends all overlays' `alwaysOnTop` to let dialog appear on top
-- `dialogDidDismiss()` - Restores `alwaysOnTop` when dialog count reaches zero
-- Uses `WeakReference` to avoid memory leaks from disposed windows
-- Thread-safe via `AtomicInteger` (dialog count) and `CopyOnWriteArrayList` (overlay list)
+**Key behaviors:** `registerOverlay()` tracks windows with `WeakReference`; `dialogWillShow()`/`dialogDidDismiss()` suspend/restore `alwaysOnTop` for dialogs. Thread-safe via `AtomicInteger` + `CopyOnWriteArrayList`.
 
-#### Preventing Overlay Focus Theft (焦点抢占问题修复)
-
-某些窗口管理器下，alwaysOnTop窗口在显示或刷新时可能抢夺焦点，导致用户操作被中断。`DrawFrameSimpl`中实现了两个关键的防护模式：
-
-**问题1：焦点属性设置顺序错误**
-
-如果在`registerOverlay()`之后才设置`setFocusable(false)`，注册时的`setAlwaysOnTop(true)`可能已经触发了焦点事件。
-
-```java
-// 必须在 registerOverlay 之前设置焦点属性，否则 setAlwaysOnTop(true) 可能触发焦点事件
-setFocusable(false);
-setFocusableWindowState(false);  // 取消窗口焦点
-
-AlwaysOnTopCoordinator.getInstance().registerOverlay(this);
-```
-
-**问题2：周期性`setVisible(true)`触发焦点抢占**
-
-在`run()`循环中，重复调用`setVisible(true)`可能导致窗口管理器激活窗口。
-
-```java
-// In DrawFrameSimpl.run()
-while (doit) {
-    boolean shouldShow = isPreview || visible;
-    if (shouldShow) {
-        // 只在窗口不可见时才调用 setVisible(true)，避免周期性触发焦点抢占
-        // 某些窗口管理器下，对 alwaysOnTop 窗口重复调用 setVisible(true) 会触发窗口激活事件
-        if (!this.isVisible()) {
-            this.setVisible(true);
-        }
-        this.getContentPane().repaint();
-    } else {
-        this.setVisible(false);
-    }
-    // ...
-}
-```
-
-**关键模式总结：**
-
-| 问题 | 解决方案 |
-|------|----------|
-| 焦点抢占 (注册时) | `setFocusable(false)` 必须在 `registerOverlay()` 之前 |
-| 焦点抢占 (刷新时) | 检查 `!isVisible()` 后才调用 `setVisible(true)` |
+**焦点抢占防护：** 1) `setFocusable(false)` 必须在 `registerOverlay()` 之前; 2) 循环中检查 `!isVisible()` 后才调用 `setVisible(true)`。
 
 ### Focus Monitor (游戏失焦自动隐藏)
 
-当用户Alt+Tab切换到其他应用时，VoidMei可以自动隐藏所有overlay窗口，避免遮挡其他应用；当War Thunder重新获得焦点时立即恢复显示。
+`FocusMonitor` (200ms节流) + `FocusDetector` (跨平台检测) 实现Alt+Tab时自动隐藏overlay。复用Service的~10Hz轮询，无新线程。
 
-**架构：**
+| 平台 | 检测方法 | 进程名 |
+|------|----------|--------|
+| Windows | PowerShell GetForegroundWindow | `aces` |
+| Linux | xdotool | `war thunder` |
+| macOS | AppleScript | `war thunder`/`aces` |
 
-```
-Service.run() (后台线程, ~10Hz轮询)
-    ↓ 每次轮询调用
-focusMonitor.tick()
-    ↓ FocusMonitor内部节流 (200ms一次)
-FocusDetector.isWarThunderFocused()
-    ↓ 状态变化时
-AlwaysOnTopCoordinator.hideAllOverlays() / showAllOverlays()
-    ↓
-SwingUtilities.invokeLater(() -> setVisible())
-```
-
-**关键文件：**
-
-| 文件 | 作用 |
-|------|------|
-| `prog/util/FocusDetector.java` | 跨平台前台窗口检测（Windows/Linux/macOS） |
-| `prog/FocusMonitor.java` | 焦点监控辅助类，封装节流和状态追踪 |
-| `prog/AlwaysOnTopCoordinator.java` | 提供`hideAllOverlays()`/`showAllOverlays()`方法 |
-
-**平台检测机制：**
-
-| 平台 | 检测方法 | 进程名匹配 |
-|------|----------|------------|
-| Windows | PowerShell + user32.dll GetForegroundWindow | `aces` |
-| Linux | xdotool getactivewindow | `war thunder` |
-| macOS | AppleScript System Events | `war thunder` / `aces` |
-
-**使用方式：**
-
-```java
-// Controller.openpad() - 启用焦点监控
-String autoHideStr = getconfig("autoHideOnFocusLoss");
-if (autoHideStr != null && Boolean.parseBoolean(autoHideStr)) {
-    S.getFocusMonitor().setEnabled(true);
-}
-
-// Controller.closepad() - 禁用焦点监控（会自动恢复被隐藏的overlay）
-S.getFocusMonitor().setEnabled(false);
-```
-
-**设计要点：**
-- **无新线程**：复用Service已有的~10Hz轮询循环
-- **200ms节流**：FocusMonitor内部控制检测频率，避免进程检测开销
-- **安全降级**：检测失败时返回`true`（假设有焦点），不会误隐藏overlay
-- **最小侵入**：Service.java仅增加5行代码，Controller仅增加9行
+启用：`S.getFocusMonitor().setEnabled(true)`；禁用时自动恢复overlay。
 
 ### GPU Compatibility Mode
 
-VoidMei can conflict with War Thunder's GPU on some systems due to Java2D hardware acceleration. The GPU compatibility mode disables hardware acceleration, forcing software rendering.
+Disables Java2D hardware acceleration to prevent GPU conflicts. `Launcher.java` (no AWT imports) sets `sun.java2d.*` properties **before** any AWT class loads, then calls `Application.main()`.
 
-**Architecture:**
+| OS | Properties disabled |
+|----|---------------------|
+| Windows | `d3d`, `noddraw` |
+| Linux | `opengl`, `xrender` |
+| macOS | `UseQuartz` |
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│  MANIFEST.MF → Main-Class: prog.Launcher                    │
-└─────────────────────────────────────────────────────────────┘
-          ↓
-┌─────────────────────────────────────────────────────────────┐
-│                    Launcher.java                             │
-│  • NO java.awt.* imports (critical!)                        │
-│  • Reads gpu_compat.properties                              │
-│  • Sets sun.java2d.* system properties                      │
-│  • Calls Application.main(args)                             │
-└─────────────────────────────────────────────────────────────┘
-          ↓
-┌─────────────────────────────────────────────────────────────┐
-│                   Application.java                           │
-│  • AWT classes load with properties already set             │
-│  • Java2D uses software rendering (if enabled)              │
-└─────────────────────────────────────────────────────────────┘
-```
-
-**Why a separate Launcher class?**
-
-JVM system properties like `sun.java2d.d3d` must be set **before** any AWT class is loaded. Once `java.awt.Toolkit` is instantiated, the Java2D rendering pipeline is locked. Since `Application.java` imports AWT at the top of the file, we need `Launcher.java` (with zero AWT imports) to set properties first.
-
-**Key files:**
-
-| File | Purpose |
-|------|---------|
-| `prog/Launcher.java` | Bootstrap class, reads `gpu_compat.properties`, sets JVM properties |
-| `prog/util/GPUCompatibilityHelper.java` | Runtime helper: save/load settings, check active mode |
-| `gpu_compat.properties` | External config file (created when user enables the feature) |
-
-**JVM properties set (when enabled):**
-
-| OS | Properties |
-|----|------------|
-| Windows | `sun.java2d.d3d=false`, `sun.java2d.noddraw=true` |
-| Linux | `sun.java2d.opengl=false`, `sun.java2d.xrender=false` |
-| macOS | `apple.awt.graphics.UseQuartz=false` |
-| All | `sun.java2d.pmoffscreen=false` |
-
-**Usage in code:**
-
-```java
-import prog.util.GPUCompatibilityHelper;
-
-// Save setting (called when user toggles in UI)
-GPUCompatibilityHelper.saveSettings(true);
-
-// Read saved setting
-boolean enabled = GPUCompatibilityHelper.isEnabled();
-
-// Check if software rendering is currently active
-boolean active = GPUCompatibilityHelper.isSoftwareRenderingActive();
-```
-
-**Special handling in SwitchRowRenderer:**
-
-The `gpuCompatibilityMode` config key has special handling:
-1. Initial value reads from `GPUCompatibilityHelper.isEnabled()` (not ui_layout.cfg)
-2. On toggle, saves to `gpu_compat.properties` via `GPUCompatibilityHelper.saveSettings()`
-3. Shows a dialog prompting user to restart VoidMei
+**Usage:** `GPUCompatibilityHelper.saveSettings(true/false)` saves to `gpu_compat.properties`; `isEnabled()` reads setting; `isSoftwareRenderingActive()` checks runtime state. The `gpuCompatibilityMode` config key in `SwitchRowRenderer` has special handling (reads from Helper, not ui_layout.cfg).
 
 ### DPI Scaling (High-DPI Display Support)
 
-VoidMei supports high-DPI displays (e.g., Windows 200% scaling) using `DPIHelper` to detect and apply proper scaling.
+`DPIHelper` detects display scaling via `GraphicsConfiguration.getDefaultTransform()` and exposes `Application.dpiScale` (1.0=100%, 2.0=200%), `logicalWidth`, `logicalHeight`.
 
-**Problem solved:** On high-DPI displays, `Toolkit.getScreenSize()` returns physical pixels, but Swing operates in logical pixels. Without DPI awareness:
-- MainForm extends beyond the visible screen area
-- Overlay fonts appear blurry (due to Windows bitmap scaling)
-- UI elements are improperly sized
-
-**Architecture:**
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                   Application Startup                        │
-│  Application.getScreenSize()                                │
-│      ↓                                                       │
-│  DPIHelper.init()                                           │
-│      • GraphicsConfiguration.getDefaultTransform()          │
-│      • Calculate scaleX/scaleY (1.0=100%, 2.0=200%)        │
-│      • Calculate logical screen dimensions                  │
-│      ↓                                                       │
-│  Application.dpiScale, logicalWidth, logicalHeight          │
-└─────────────────────────────────────────────────────────────┘
-          ↓
-┌─────────────────────────────────────────────────────────────┐
-│                    UI Components                              │
-│  MainForm         → Uses logicalWidth/Height for positioning │
-│  BaseOverlay      → scaleFactor includes dpiScale           │
-│  MinimalHUDContext→ crossScale, fonts scaled by dpiScale    │
-│  Other Overlays   → fontSize scaled by dpiScale             │
-└─────────────────────────────────────────────────────────────┘
-```
-
-**Key files:**
-
-| File | Purpose |
-|------|---------|
-| `prog/util/DPIHelper.java` | DPI detection and scaling utilities |
-| `prog/Application.java` | Global `dpiScale`, `logicalWidth`, `logicalHeight` fields |
-| `script/voidmeil4j.xml` | JVM flag `-Dsun.java2d.uiScale=1` |
-
-**Usage in code:**
-
+**Usage:**
 ```java
-import prog.util.DPIHelper;
-import prog.Application;
-
-// Access pre-computed values (recommended)
-double scale = Application.dpiScale;           // 1.0 at 100%, 2.0 at 200%
-int screenW = Application.logicalWidth;        // Logical screen width
-int screenH = Application.logicalHeight;       // Logical screen height
-
-// Direct API access
-DPIHelper.init();                              // Called once in Application.getScreenSize()
-int scaled = DPIHelper.scale(24);              // Scale a base value: 24→48 at 200%
-boolean hiDpi = DPIHelper.isHighDPI();         // True if scale > 1.0
+double scale = Application.dpiScale;
+int fontSize = (int) Math.round((24 + fontadd) * scale);
+// Or: int scaled = DPIHelper.scale(24);
 ```
 
-**Scaling pattern for overlays:**
-
-```java
-// In overlay reinitConfig() or font setup
-double dpiScale = Application.dpiScale;
-int fontSize = (int) Math.round((24 + fontadd) * dpiScale);
-Font font = new Font(fontName, Font.BOLD, fontSize);
-```
-
-**JVM flag `-Dsun.java2d.uiScale=1`:**
-
-This flag (set in `voidmeil4j.xml` for Windows EXE) disables Java's automatic UI scaling, giving our code full control over DPI handling. This ensures:
-- Fonts render at native resolution (crisp, not blurry)
-- Consistent behavior across different JVM versions
-- Predictable scaling calculations
-
-**Backward compatibility:**
-
-At 100% scaling, `dpiScale = 1.0` and `logicalWidth = physicalWidth`, so all calculations produce identical results to the pre-DPI-aware code.
+**JVM flag** `-Dsun.java2d.uiScale=1` (in voidmeil4j.xml) disables Java's auto-scaling for crisp font rendering. At 100% scaling, all calculations match pre-DPI code.
 
 ### Performance
 
@@ -672,185 +311,79 @@ Available constants:
 
 ### Interpolation Utilities
 
-Use `prog.util.Interpolation` for all interpolation operations to ensure consistency and avoid code duplication:
-
-```java
-import static prog.util.Interpolation.lerp;
-import static prog.util.Interpolation.interpSweepLevel;
-
-// Linear interpolation between two points
-double y = lerp(x, x0, y0, x1, y1);
-
-// 1D table lookup with boundary clamping
-double result = Interpolation.interp1d(x, xArray, yArray);
-
-// 2D bilinear interpolation (e.g., thrust tables)
-double thrust = Interpolation.interp2d(altitude, velocity, altitudes, velocities, thrustTable);
-
-// Zero-allocation sweep interpolation for variable-geometry wings
-double vne = interpSweepLevel(vwing, sweepLevels,
-    level -> level.vne,           // value extractor
-    level -> level.sweep,         // sweep extractor
-    defaultVne);
-```
-
-Available methods:
-- `lerp(x, x0, y0, x1, y1)` - Linear interpolation between two points
-- `slope(x0, y0, x1, y1)` - Calculate slope (dy/dx) between two points
-- `interp1d(x, xs, ys)` - 1D table interpolation with boundary clamping
-- `interp1d(x, xs, ys, extrapolate)` - 1D interpolation with optional extrapolation
-- `interp2d(x, y, xs, ys, zz)` - 2D bilinear interpolation for table lookup
-- `interpSweepLevel(vwing, levels, valueExtractor, sweepExtractor, default)` - Zero-allocation sweep interpolation
-
-**Never duplicate** interpolation logic - use these utilities instead.
+Use `prog.util.Interpolation` for all interpolation: `lerp(x, x0, y0, x1, y1)`, `interp1d(x, xs, ys)`, `interp2d(x, y, xs, ys, zz)`, `interpSweepLevel(...)`. Never duplicate interpolation logic.
 
 ### Atmosphere Model
 
-Use `prog.util.AtmosphereModel` for ISA standard atmosphere calculations:
-
-```java
-import static prog.util.AtmosphereModel.*;
-
-// Pressure at altitude (relative, sea level = 1.0)
-double p = pressure(5000);  // → 0.533
-
-// Air density
-double rho = density(p, 15.0, 5000);  // sea level temp 15°C
-
-// Airspeed conversions
-double tas = iasToTas(400, rho);  // IAS → TAS
-double ias = tasToIas(500, rho);  // TAS → IAS
-
-// RAM effect equivalent altitude (for supercharger calculations)
-double effectiveAlt = ramEffectAltitude(5000, 15.0, 500, true, 0.9);
-```
+Use `prog.util.AtmosphereModel` for ISA calculations: `pressure(alt)`, `density(p, tempSL, alt)`, `iasToTas(ias, rho)`, `tasToIas(tas, rho)`, `ramEffectAltitude(...)`.
 
 ### Piston Power Model
 
-Use `prog.util.PistonPowerModel` for piston engine power curve calculations:
-
-```java
-import static prog.util.PistonPowerModel.*;
-
-// Create compressor stage parameters (from FM data)
-CompressorStageParams stage = new CompressorStageParams(7000, 2000, 1800);
-stage.wepCritAlt = 6000;
-stage.wepPowerMult = 1.15;
-
-// Calculate power at altitude/speed
-double power = powerAtAltitudeAdvanced(stage, 5000, true, 400, true, 15.0);
-
-// For multi-stage superchargers
-CompressorStageParams[] stages = {stage1, stage2};
-double optPower = optimalPowerAdvanced(stages, 5000, false, 0, false, 15.0);
-```
-
-> **Note:** `PistonPowerModel` is a calculation engine only. `CompressorStageParams` must be populated from FM file data externally. See [`src/prog/util/CLAUDE.md`](src/prog/util/CLAUDE.md) for details.
+Use `prog.util.PistonPowerModel` for piston engine power curves: `powerAtAltitudeAdvanced(stage, alt, wep, speed, ramEffect, tempSL)`, `optimalPowerAdvanced(stages[], ...)`. `CompressorStageParams` must be populated from FM data. See [`src/prog/util/CLAUDE.md`](src/prog/util/CLAUDE.md).
 
 ### Color Utilities
 
-Use `prog.util.ColorHelper` for parsing and formatting colors in both hex and decimal formats:
+Use `prog.util.ColorHelper`: `parseColor(str, default)` accepts hex (`#RRGGBBAA`) or decimal (`R, G, B, A`); `toHexString(color, withAlpha)` for display; `toDecimalString(color)` for config storage (backward compatible).
+
+### Exception Handling
+
+Use `prog.util.ExceptionHelper` for consistent exception handling:
 
 ```java
-import static prog.util.ColorHelper.*;
+// Replace verbose try-catch Thread.sleep with:
+ExceptionHelper.sleepQuietly(100);  // Silently handles InterruptedException
 
-// Parse any format (hex or decimal)
-Color c1 = parseColor("#FF5500AA", Color.WHITE);      // Hex with alpha
-Color c2 = parseColor("255, 85, 0, 170", Color.WHITE); // Decimal RGBA
-Color c3 = parseColor("#FF5500", Color.WHITE);         // Hex without alpha (defaults to 255)
+// Log exceptions without disrupting control flow:
+catch (Exception e) {
+    ExceptionHelper.logAndContinue(e, "文件操作");  // Logs at WARN level
+}
 
-// Format for display (hex)
-String hex = toHexString(c1, true);   // "#FF5500AA"
-String hexNoAlpha = toHexString(c1, false);  // "#FF5500"
-
-// Format for config storage (decimal, backward compatible)
-String dec = toDecimalString(c1);     // "255, 85, 0, 170"
-
-// Detect format
-boolean isHex = isHexFormat("#FF5500");  // true
-```
-
-**Usage pattern in `ColorRowRenderer`:**
-- Display: hex format in text field for user-friendly editing
-- Storage: decimal format in config for backward compatibility with existing `ui_layout.cfg` values
-
-### Overlay Style Helper
-
-Use `ui.util.OverlayStyleHelper` for common overlay window styling operations:
-
-```java
-import static ui.util.OverlayStyleHelper.*;
-
-// Apply transparent window style (game mode)
-applyTransparentStyle(this);
-
-// Apply preview mode styling (settings UI)
-applyPreviewStyle(this);
-
-// Load font configuration with defaults fallback
-FontConfig fonts = loadFontConfig(overlaySettings);
-Font labelFont = new Font(fonts.fontName, Font.BOLD, 12 + fonts.fontSizeAdd);
-Font numFont = new Font(fonts.numFontName, Font.BOLD, 24 + fonts.fontSizeAdd);
-```
-
-This helper consolidates repeated styling patterns from 6+ overlay files, reducing ~400 lines of duplicate code.
-
-### Slider Helper
-
-Use `ui.util.SliderHelper` for configuring read-only display sliders:
-
-```java
-import ui.util.SliderHelper;
-
-// Vertical progress bar (gear/flaps display)
-SliderHelper.configureVerticalProgress(slider, 0, 100, topColor, bottomColor);
-
-// Horizontal attitude slider (control surfaces)
-SliderHelper.configureAttitudeSlider(slider, -100, 100, thumbColor);
-
-// Just disable interaction on any slider
-SliderHelper.removeAllListeners(slider);
-```
-
-This helper consolidates the ~25-line `initslider()` pattern in GearFlapsOverlay, AttitudeOverlay, and ControlSurfacesOverlay.
-
-### Graphics Utilities
-
-Use `ui.util.GraphicsUtil` for standard Graphics2D configuration:
-
-```java
-import ui.util.GraphicsUtil;
-
-public void paintComponent(Graphics g) {
-    Graphics2D g2d = (Graphics2D) g;
-    // Apply standard anti-aliasing hints (replaces 4-line pattern)
-    GraphicsUtil.configureOverlayRendering(g2d);
-
-    // Use precise strokes (exact endpoints, no cap extension)
-    g2d.setStroke(GraphicsUtil.createPreciseStroke(2.0f));
-
-    // ... drawing code
+// Safely close resources in finally blocks:
+finally {
+    ExceptionHelper.closeQuietly(stream);
 }
 ```
 
-This helper consolidates the 4-line rendering hint pattern repeated 30+ times across overlay files.
+**Avoid:** Empty catch blocks with `// TODO Auto-generated catch block` comments.
+
+### Logger Levels
+
+Use `prog.util.Logger` with appropriate levels:
+
+```java
+Logger.trace("详细跟踪信息");           // TRACE: Only for deep debugging
+Logger.debug("调试信息");              // DEBUG: Development debugging
+Logger.info("Service", "启动成功");    // INFO: Normal operation (default level)
+Logger.warn("配置缺失: " + key);       // WARN: Non-fatal issues
+Logger.error("操作失败", exception);   // ERROR: Fatal issues with stack trace
+```
+
+### UI Utility Helpers
+
+| Helper | Usage |
+|--------|-------|
+| `OverlayStyleHelper` | `applyTransparentStyle(window)`, `applyPreviewStyle(window)`, `loadFontConfig(settings)` |
+| `SliderHelper` | `configureVerticalProgress(...)`, `configureAttitudeSlider(...)`, `removeAllListeners(slider)` |
+| `GraphicsUtil` | `configureOverlayRendering(g2d)`, `createPreciseStroke(width)` |
+| `UIConstants` | DPI scaling constants (`BASE_SCREEN_HEIGHT`, `BASE_FONT_SIZE`), time delays (`DELAY_SHORT_MS`, etc.) |
 
 ### Config Renderers
 
-Implement `RowRenderer` pattern: construct a `WebPanel` and bind to `ConfigService`.
+Implement `RowRenderer` interface: `render(RowConfig, ConfigProvider) → WebPanel`. Register in `RowRendererRegistry.java` with type key (e.g., `"switch"`, `"slider"`).
+
+**RendererConfigHelper** provides unified config read/write for renderers:
 
 ```java
-public class MyRowRenderer implements RowRenderer {
-    @Override
-    public WebPanel render(RowConfig config, ConfigProvider provider) {
-        WebPanel panel = new WebPanel();
-        // Build UI and bind to provider.getConfig() / provider.setConfig()
-        return panel;
-    }
-}
-```
+// Read with priority: PropertyBinder → ConfigurationService → default
+int val = RendererConfigHelper.readInt(context, groupConfig, row, defaultVal);
+String str = RendererConfigHelper.readString(context, groupConfig, row, defaultStr);
+boolean bool = RendererConfigHelper.readBool(context, groupConfig, row, defaultBool);
 
-Register in `RowRendererRegistry.java` with type key (e.g., `"switch"`, `"slider"`).
+// Write (syncs to both PropertyBinder and ConfigurationService)
+RendererConfigHelper.writeInt(context, groupConfig, property, value);
+RendererConfigHelper.writeString(context, groupConfig, property, value);
+RendererConfigHelper.writeBool(context, groupConfig, property, value);
+```
 
 ### Module Dependency Graph
 

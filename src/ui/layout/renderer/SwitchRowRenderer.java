@@ -5,7 +5,6 @@ import com.alee.extended.button.WebSwitch;
 import prog.config.ConfigLoader.RowConfig;
 import prog.config.ConfigLoader.GroupConfig;
 import prog.util.GPUCompatibilityHelper;
-import prog.util.PropertyBinder;
 import ui.replica.ReplicaBuilder;
 import ui.util.DialogService;
 import com.alee.laf.optionpane.WebOptionPane;
@@ -21,26 +20,17 @@ public class SwitchRowRenderer implements RowRenderer {
 
     @Override
     public WebPanel render(RowConfig row, GroupConfig groupConfig, RenderContext context) {
-        // Priority for initial value:
-        // 1. If property exists in GroupConfig, use PropertyBinder
-        // 2. Otherwise try ConfigurationService (for overlay control keys like
-        // enableAxis)
-        // 3. Fallback to row.value (from config file)
-        boolean currentVal;
         boolean defaultVal = row.getBool();
+        boolean currentVal;
 
         // Special case: GPU compatibility mode reads from external properties file
         // because the setting must be applied before AWT loads (by Launcher.java)
         if (GPU_COMPAT_KEY.equals(row.property)) {
             currentVal = GPUCompatibilityHelper.isEnabled();
-        } else if (row.property != null && PropertyBinder.hasField(groupConfig, row.property)) {
-            // Property exists in GroupConfig (e.g., fontSize, columns)
-            currentVal = PropertyBinder.getBool(groupConfig, row.property, defaultVal);
-        } else if (row.property != null) {
-            // Property not in GroupConfig, try ConfigurationService (overlay control keys)
-            currentVal = context.getFromConfigService(row.property, defaultVal);
         } else {
-            currentVal = defaultVal;
+            // 使用统一的配置读取助手
+            // 优先级: PropertyBinder → ConfigurationService → 默认值
+            currentVal = RendererConfigHelper.readBool(context, groupConfig, row, defaultVal);
         }
 
         WebPanel itemPanel = ReplicaBuilder.createSwitchItem(row.label, currentVal, false, row.desc, row.descImg);
@@ -69,14 +59,10 @@ public class SwitchRowRenderer implements RowRenderer {
                     return;
                 }
 
-                // Try property binding first, if fails, store in row.value
-                if (!PropertyBinder.setBool(groupConfig, prop, newVal)) {
+                // 使用统一的配置写入助手
+                // 如果 PropertyBinder 写入失败，存储到 row.value
+                if (!RendererConfigHelper.writeBool(context, groupConfig, prop, newVal)) {
                     row.value = newVal;
-                }
-                // Always sync to ConfigurationService for overlay control
-                // This bridges ui_layout.cfg to the overlay system
-                if (prop != null) {
-                    context.syncToConfigService(prop, newVal);
                 }
                 context.onSave();
             });
