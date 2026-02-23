@@ -3,6 +3,7 @@ package prog.audio;
 import prog.Application;
 import prog.Controller;
 import prog.Service;
+import prog.config.ConfigProvider;
 
 import java.io.File;
 import java.io.IOException;
@@ -88,7 +89,8 @@ public class VoiceWarning implements Runnable {
 
         public void reload() {
             // Determine scale/pack from config
-            String val = xc.getConfig("voice_" + key);
+            // 使用 configProvider 而不是 xc.getConfig() 访问配置
+            String val = configProvider.getConfig("voice_" + key);
             String packName = "default";
             boolean enabled = true;
 
@@ -197,6 +199,8 @@ public class VoiceWarning implements Runnable {
     // 攻角提示
     audClip aoaCrit;
     private Controller xc;
+    /** 配置提供者，用于访问配置而不依赖 Controller */
+    private ConfigProvider configProvider;
     private audClip iasWarn;
     private double gearWarningLine;
     private audClip gearWarn;
@@ -249,6 +253,8 @@ public class VoiceWarning implements Runnable {
         }
         xS = S;
         xc = c;
+        // 使用 ConfigurationService 作为 ConfigProvider，避免依赖 Controller 的委托方法
+        this.configProvider = c.getConfigService();
         st = xS.sState;
         indic = xS.sIndic;
 

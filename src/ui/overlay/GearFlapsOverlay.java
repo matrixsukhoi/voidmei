@@ -13,7 +13,6 @@ import com.alee.laf.panel.WebPanel;
 import com.alee.laf.slider.WebSlider;
 
 import prog.Application;
-import prog.Controller;
 import prog.i18n.Lang;
 import prog.Service;
 import ui.UIBaseElements;
@@ -36,7 +35,6 @@ public class GearFlapsOverlay extends DraggableOverlay implements FlightDataList
     }
 
     Service xs;
-    Controller xc;
     private ui.model.TelemetrySource telemetrySource;
     WebStepLabel s1;
     WebSlider slider;
@@ -65,8 +63,8 @@ public class GearFlapsOverlay extends DraggableOverlay implements FlightDataList
     private int width;
     private int height;
 
-    public void initPreview(Controller xc, OverlaySettings settings) {
-        init(xc, null, settings);
+    public void initPreview(OverlaySettings settings) {
+        init(null, settings);
         applyPreviewStyle();
         setupDragListeners();
         setVisible(true);
@@ -143,8 +141,7 @@ public class GearFlapsOverlay extends DraggableOverlay implements FlightDataList
         setBounds(lx, ly, totalWidth, totalHeight);
     }
 
-    public void init(Controller xc, Service xs, OverlaySettings settings) {
-        this.xc = xc;
+    public void init(Service xs, OverlaySettings settings) {
         this.xs = xs;
         if (xs instanceof ui.model.TelemetrySource) {
             this.telemetrySource = (ui.model.TelemetrySource) xs;

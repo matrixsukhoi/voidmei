@@ -61,6 +61,10 @@ public class EngineControlOverlay extends FieldOverlay { // Revert to FieldOverl
 	private long refreshInterval = DEFAULT_REFRESH_INTERVAL;
 	private long lastRefreshTime = 0;
 
+	// Controller 引用，用于访问 FM 数据 (getCompressorStages())
+	// 注意：config 字段用于配置访问，controller 字段用于 FM 数据访问
+	private prog.Controller controller;
+
 	// Config (package-private for testing, not public API)
 	prog.config.ConfigLoader.GroupConfig groupConfig;
 	private int fontsize;
@@ -116,7 +120,10 @@ public class EngineControlOverlay extends FieldOverlay { // Revert to FieldOverl
 	 * Standardized initialization.
 	 */
 	public void init(prog.Controller c, prog.Service s, prog.config.OverlaySettings settings) {
-		this.config = c;
+		// 保存 Controller 引用，用于访问 FM 数据 (getCompressorStages())
+		this.controller = c;
+		// 使用 getConfigProvider() 获取配置接口，而不是直接使用 Controller
+		this.config = c.getConfigProvider();
 		this.onPositionSave = () -> c.configService.saveLayoutConfig();
 
 		setOverlaySettings(settings);
@@ -404,9 +411,10 @@ public class EngineControlOverlay extends FieldOverlay { // Revert to FieldOverl
 			jetLabelUpdated = true;
 
 			// Set compressor gauge maxValue from FM data
-			if (!compressorMaxValueSet) {
+			// 使用 controller 而不是 config 访问 FM 数据
+			if (!compressorMaxValueSet && controller != null) {
 				prog.util.PistonPowerModel.CompressorStageParams[] stages =
-					((prog.Controller) config).getCompressorStages();
+					controller.getCompressorStages();
 				if (stages != null && stages.length > 1 && gaugeFields != null) {
 					for (GaugeField gf : gaugeFields) {
 						if (gf.gaugeType == GaugeType.COMPRESSOR.ordinal()) {
@@ -432,11 +440,12 @@ public class EngineControlOverlay extends FieldOverlay { // Revert to FieldOverl
 	 * The marker shows where the optimal supercharger stage is for current altitude.
 	 */
 	private void updateOptimalCompressorMarker(prog.event.EventPayload payload) {
-		if (gaugeFields == null) return;
+		if (gaugeFields == null || controller == null) return;
 
 		int optimalStage = payload.optimalCompressorStage;
+		// 使用 controller 而不是 config 访问 FM 数据
 		prog.util.PistonPowerModel.CompressorStageParams[] stages =
-			((prog.Controller) config).getCompressorStages();
+			controller.getCompressorStages();
 
 		for (GaugeField gf : gaugeFields) {
 			if (gf.gaugeType == GaugeType.COMPRESSOR.ordinal() && gf.markedGauge != null) {

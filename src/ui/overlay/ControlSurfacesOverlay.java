@@ -12,7 +12,6 @@ import com.alee.laf.panel.WebPanel;
 import com.alee.laf.slider.WebSlider;
 
 import prog.Application;
-import prog.Controller;
 import prog.i18n.Lang;
 import prog.Service;
 import prog.event.FlightDataBus;
@@ -41,7 +40,6 @@ public class ControlSurfacesOverlay extends DraggableOverlay implements FlightDa
 	 */
 	WebLabel label_3;
 	WebLabel label_6;
-	Controller xc;
 	Service xs;
 	WebPanel topPanel;
 	int lx;
@@ -79,8 +77,7 @@ public class ControlSurfacesOverlay extends DraggableOverlay implements FlightDa
 		OverlayStyleHelper.applyTransparentStyle(this);
 	}
 
-	public void init(Controller c, Service s, OverlaySettings settings) {
-		this.xc = c;
+	public void init(Service s, OverlaySettings settings) {
 		this.xs = s;
 		setOverlaySettings(settings);
 
@@ -162,8 +159,8 @@ public class ControlSurfacesOverlay extends DraggableOverlay implements FlightDa
 		}
 	}
 
-	public void initPreview(Controller c, OverlaySettings settings) {
-		init(c, null, settings);
+	public void initPreview(OverlaySettings settings) {
+		init(null, settings);
 		applyPreviewStyle();
 		setupDragListeners();
 		this.setCursor(null);

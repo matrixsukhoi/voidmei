@@ -23,19 +23,15 @@ import prog.i18n.Lang;
 import prog.util.Logger;
 
 /**
- * Simplified legacy FM curve visualization overlay.
+ * 简化版 FM 曲线可视化窗口（透明 overlay 形式）。
+ * 以 overlay 形式显示推力-真空速曲线，支持游戏模式和预览模式。
  *
- * <p>This class uses a non-standard initialization pattern. While it extends
- * {@link ui.base.DraggableOverlay}, it does not fully conform to the modern
- * overlay lifecycle (init/initPreview/reinitConfig/dispose).
+ * <p>此类需要 Controller 引用来访问 FM 数据 (getBlkx()) 和 Service。
+ * 配置保存通过 getConfigProvider() 访问，而不是直接使用 Controller 的委托方法。
  *
- * @deprecated New overlays should follow the standard DraggableOverlay lifecycle.
- *             See {@link MiniHUDOverlay} for a modern event-driven implementation.
- *
- * @see ui.base.DraggableOverlay Standard overlay base class
- * @see MiniHUDOverlay Modern event-driven pattern example
+ * @see ui.base.DraggableOverlay 标准 overlay 基类
+ * @see MiniHUDOverlay 现代事件驱动实现示例
  */
-@Deprecated
 public class DrawFrameSimpl extends DraggableOverlay {
 	/**
 	 * 
@@ -708,9 +704,10 @@ public class DrawFrameSimpl extends DraggableOverlay {
 
 	@Override
 	public void saveCurrentPosition() {
+		// 使用 getConfigProvider() 访问配置，而不是 Controller 的委托方法
 		if (xc != null) {
-			xc.setconfig("thrustdFSX", Integer.toString(this.getLocation().x));
-			xc.setconfig("thrustdFSY", Integer.toString(this.getLocation().y));
+			xc.getConfigProvider().setConfig("thrustdFSX", Integer.toString(this.getLocation().x));
+			xc.getConfigProvider().setConfig("thrustdFSY", Integer.toString(this.getLocation().y));
 		}
 	}
 

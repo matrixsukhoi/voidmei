@@ -5,8 +5,8 @@
 | File | Lines | Purpose |
 |------|-------|---------|
 | `MiniHUDOverlay.java` | ~700 | Primary HUD with component-based architecture |
-| `DrawFrame.java` | ~770 | **@Deprecated** Legacy FM curve visualization |
-| `DrawFrameSimpl.java` | ~740 | **@Deprecated** Simplified DrawFrame variant |
+| `DrawFrame.java` | ~770 | FM 曲线可视化窗口 (爬升数据记录后显示) |
+| `DrawFrameSimpl.java` | ~740 | 简化版 FM 曲线 overlay (透明悬浮窗) |
 | `BaseOverlay.java` | ~290 | Standard list-based overlay base class |
 | `AttitudeOverlay.java` | ~430 | Artificial horizon display |
 | `EngineControlOverlay.java` | ~610 | Engine gauges and throttle |
@@ -595,14 +595,45 @@ public void paintComponent(Graphics g) {
 
 For full documentation, see: [`../util/CLAUDE.md`](../util/CLAUDE.md)
 
-## Deprecated Classes
+## FM 曲线可视化类
 
 ### DrawFrame / DrawFrameSimpl
 
-These legacy FM curve visualization classes are marked `@Deprecated`:
+这两个类用于显示 FM 曲线数据，使用特殊的初始化模式：
 
-- Do not extend or use as templates for new overlays
-- They use non-standard initialization patterns
-- New overlays should extend `DraggableOverlay` and follow the standard lifecycle
+| 类 | 用途 | 初始化签名 |
+|----|------|-----------|
+| `DrawFrame` | 爬升数据记录后显示多种曲线 | `init(Controller, FlightAnalyzer)` |
+| `DrawFrameSimpl` | 透明 overlay 显示推力曲线 | `init(Controller)` / `initPreview(Controller)` |
+
+**注意事项：**
+- `DrawFrameSimpl` 需要 `Controller` 引用来访问 `getBlkx()` 和 `Service`
+- 配置保存使用 `xc.getConfigProvider().setConfig()` 而不是直接 `xc.setConfig()`
+- 新的 overlay 应该扩展 `DraggableOverlay` 并遵循标准生命周期
 
 See `MiniHUDOverlay` for a modern event-driven implementation pattern.
+
+## ConfigProvider 使用模式
+
+Overlay 访问配置时应使用 `ConfigProvider` 接口，而不是 `Controller`：
+
+```java
+public class MyOverlay extends FieldOverlay {
+    private Controller controller;  // FM 数据访问
+
+    public void init(Controller c, Service s, OverlaySettings settings) {
+        // config 字段 (继承自 DraggableOverlay) 存储 ConfigProvider
+        this.config = c.getConfigProvider();
+
+        // 如果需要访问 FM 数据，保存 Controller 引用
+        this.controller = c;
+
+        // ❌ 错误：不要将 config 强转为 Controller
+        // Controller ctrl = (Controller) config;  // ClassCastException!
+
+        // ✅ 正确：使用各自的引用
+        String val = config.getConfig("myKey");           // 配置访问
+        Blkx blkx = controller.getBlkx();                 // FM 数据访问
+    }
+}
+```

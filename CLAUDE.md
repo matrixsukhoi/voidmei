@@ -870,11 +870,11 @@ Controller (Lifecycle Coordinator)
     │       └→ BaseOverlay → ZebraListRenderer
     │
     ├→ AlwaysOnTopCoordinator (Singleton z-order manager)
-    │       ├← DrawFrame, DrawFrameSimpl (@Deprecated overlay windows)
+    │       ├← DrawFrame, DrawFrameSimpl (FM 曲线可视化窗口)
     │       ├← DialogService (dialog lifecycle hooks)
     │       └← FocusMonitor (hide/show on focus change)
     │
-    ├→ ConfigurationService
+    ├→ ConfigurationService (implements ConfigProvider)
     │       ├→ HUDSettings (interface)
     │       ├→ OverlaySettings (interface)
     │       └→ ConfigLoader → SExpParser → ui_layout.cfg
@@ -883,7 +883,34 @@ Controller (Lifecycle Coordinator)
     │       └→ UIBuilder → RowRenderer[] → ColorPickerPopup
     │
     └→ VoiceWarning (Audio alerts)
+            └→ ConfigProvider (配置访问接口)
 ```
+
+### ConfigProvider 架构
+
+**重要**: Controller 不再实现 ConfigProvider 接口。需要访问配置的组件应该：
+
+1. **通过 `Controller.getConfigProvider()`** 获取 `ConfigProvider` 接口
+2. **通过 `Controller.getConfigService()`** 获取 `ConfigurationService` 实例
+
+```java
+// ✅ 正确：使用 ConfigProvider 接口
+public void init(Controller c, Service s, OverlaySettings settings) {
+    this.config = c.getConfigProvider();  // 配置访问
+    this.controller = c;                   // FM 数据访问 (如 getBlkx())
+}
+
+// ❌ 错误：将 config 强转为 Controller
+prog.Controller ctrl = (prog.Controller) config;  // ClassCastException!
+```
+
+**职责分离原则:**
+
+| 字段 | 类型 | 用途 |
+|------|------|------|
+| `config` | `ConfigProvider` | 配置读写 (`getConfig`, `setConfig`) |
+| `controller` | `Controller` | FM 数据访问 (`getBlkx`, `getCompressorStages`) |
+| `overlaySettings` | `OverlaySettings` | 分组配置 (位置、字体等) |
 
 ### Common Feature Addition Paths
 

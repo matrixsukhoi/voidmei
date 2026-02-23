@@ -42,8 +42,10 @@ public class FlightInfoOverlay extends FieldOverlay {
 	 */
 	public void init(prog.Controller c, prog.Service s, prog.config.OverlaySettings settings) {
 		this.service = s;
-		this.config = c;
-		this.flightInfoConfig = ui.model.FlightInfoConfig.createDefault(c, settings.getGroupConfig());
+		// 使用 getConfigProvider() 获取配置接口，而不是直接使用 Controller
+		prog.config.ConfigProvider configProvider = c.getConfigProvider();
+		this.config = configProvider;
+		this.flightInfoConfig = ui.model.FlightInfoConfig.createDefault(configProvider, settings.getGroupConfig());
 
 		// Standardize style/font keys from Config object
 		this.numFontKey = flightInfoConfig.numFontKey;
@@ -54,7 +56,7 @@ public class FlightInfoOverlay extends FieldOverlay {
 		this.title = flightInfoConfig.title;
 
 		setOverlaySettings(settings);
-		super.init(c);
+		super.init(configProvider);
 
 		if (s != null) {
 			setVisible(true);

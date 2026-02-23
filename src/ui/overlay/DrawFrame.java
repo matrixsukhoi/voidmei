@@ -25,26 +25,20 @@ import prog.i18n.Lang;
 import prog.Service;
 
 /**
- * Legacy FM curve visualization overlay.
+ * FM 曲线可视化窗口。
+ * 用于记录飞行数据后显示爬升时间、功率/推力、效率、SEP 等曲线。
  *
- * <p>This class uses a non-standard initialization pattern that does not
- * conform to the modern overlay lifecycle (init/initPreview/reinitConfig/dispose).
+ * <p>此类使用特殊的初始化模式（接收 FlightAnalyzer），不同于标准 overlay 生命周期。
  *
- * @deprecated New overlays should extend {@link ui.base.DraggableOverlay} and follow
- *             the standard lifecycle pattern. See {@link MiniHUDOverlay} for a
- *             modern event-driven implementation example.
- *
- * @see ui.base.DraggableOverlay Standard overlay base class
- * @see MiniHUDOverlay Modern event-driven pattern example
+ * @see ui.base.DraggableOverlay 标准 overlay 基类
+ * @see MiniHUDOverlay 现代事件驱动实现示例
  */
-@Deprecated
 public class DrawFrame extends WebFrame implements Runnable {
 	/**
 	 * 
 	 */
 	public volatile boolean doit = true;
 	private static final long serialVersionUID = 6290400898885722422L;
-	Controller xc;
 	FlightAnalyzer fA;
 
 	public DrawFrame() {
@@ -511,8 +505,8 @@ public class DrawFrame extends WebFrame implements Runnable {
 	}
 
 	public void init(Controller c, FlightAnalyzer A) {
-		// 特殊处理
-		xc = c;
+		// 特殊处理：接收 FlightAnalyzer 数据用于绘制曲线
+		// 注意：Controller 参数保留是为了与 Controller.showdrawFrame() 的调用签名兼容
 		fA = A;
 
 		fA.time[fA.initaltStage] = 0;

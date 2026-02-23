@@ -13,7 +13,6 @@ import com.alee.laf.panel.WebPanel;
 import prog.Application;
 import prog.util.Logger;
 import prog.Controller;
-import prog.OtherService;
 import prog.Service;
 import prog.event.FlightDataBus;
 import prog.event.FlightDataEvent;
@@ -110,7 +109,7 @@ public class MiniHUDOverlay extends DraggableOverlay implements FlightDataListen
 
     public void initPreview(Controller c) {
         Logger.info("MinimalHUD", "initPreview called");
-        init(c, null, null);
+        init(c, null);
 
         this.getWebRootPaneUI().setTopBg(Application.previewColor);
         this.getWebRootPaneUI().setMiddleBg(Application.previewColor);
@@ -218,7 +217,7 @@ public class MiniHUDOverlay extends DraggableOverlay implements FlightDataListen
         }
     }
 
-    public void init(Controller c, Service s, OtherService os) {
+    public void init(Controller c, Service s) {
         Logger.info("MinimalHUD", "init called");
         service = s;
         controller = c;
@@ -635,8 +634,9 @@ public class MiniHUDOverlay extends DraggableOverlay implements FlightDataListen
         // LayoutEngine 随 MinimalHUD 配置刷新而频繁销毁重建 (Transient Lifecycle)。
         // 如果它直接订阅全局单例 EventBus，旧实例会因无法自动注销而被长期持有，导致 "Zombie Listener" 泄漏。
         // 因此采用了由持有者 (MinimalHUD) 被动传递状态的设计。
-        if (controller != null) {
-            String debugVal = controller.getconfig("enableLayoutDebug");
+        // 使用 configService 而不是 controller.getConfig() 访问配置
+        if (configService != null) {
+            String debugVal = configService.getConfig("enableLayoutDebug");
             if (debugVal != null && !debugVal.isEmpty()) {
                 modernLayout.setDebug(Boolean.parseBoolean(debugVal));
             }

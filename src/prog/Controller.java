@@ -31,7 +31,7 @@ import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent;
 
 import java.util.concurrent.atomic.AtomicLong;
 
-public class Controller implements ConfigProvider {
+public class Controller {
 
 	public ControllerState State = ControllerState.INIT;
 
@@ -216,7 +216,7 @@ public class Controller implements ConfigProvider {
 			// Removed getfmdata call - Service will trigger load via calculate or start
 			// Application.debugPrint("状态3，连接成功，释放状态条，打开面板");
 			// usetempratureInformation =
-			// Boolean.parseBoolean(getconfig("usetempInfoSwitch"));
+			// Boolean.parseBoolean(getConfig("usetempInfoSwitch"));
 			// Application.debugPrint(usetempratureInformation);
 			// NotificationManager.showNotification(createWebNotificationTime(3000));
 			if (showStatus && SB != null) {
@@ -285,7 +285,7 @@ public class Controller implements ConfigProvider {
 		}
 
 		// 启用游戏失焦时自动隐藏overlay功能（如果配置开启）
-		String autoHideStr = getconfig("autoHideOnFocusLoss");
+		String autoHideStr = configService.getConfig("autoHideOnFocusLoss");
 		if (autoHideStr != null && Boolean.parseBoolean(autoHideStr)) {
 			S.getFocusMonitor().setEnabled(true);
 		}
@@ -294,14 +294,15 @@ public class Controller implements ConfigProvider {
 		overlayManager.openAll();
 
 		// Special case: FlightLog (has notification and special init)
-		if (Boolean.parseBoolean(getconfig("enableLogging"))) {
+		if (Boolean.parseBoolean(configService.getConfig("enableLogging"))) {
 			if (dF != null) {
 				dF.doit = false;
 				dF = null;
 			}
 			ui.util.NotificationService.show(Lang.cStartlog);
 			Log = new FlightLog();
-			Log.init(this, S, this);
+			// 使用 configService 作为 ConfigProvider，而不是 Controller (this)
+			Log.init(this, S, configService);
 			logon = true;
 		}
 
@@ -330,7 +331,7 @@ public class Controller implements ConfigProvider {
 		overlayManager.closeAll();
 
 		// Special case: FlightLog (has notification and DrawFrame logic)
-		if (Boolean.parseBoolean(getconfig("enableLogging")) && (Log != null)) {
+		if (Boolean.parseBoolean(configService.getConfig("enableLogging")) && (Log != null)) {
 			ui.util.NotificationService.show(Lang.cSavelog + Log.fileName + Lang.cPlsopen);
 			if (Log.fA.curaltStage - Log.fA.initaltStage >= 1) {
 				dF = new DrawFrame();
@@ -352,30 +353,14 @@ public class Controller implements ConfigProvider {
 
 	// Removed initconfig() - moved to ConfigurationService
 
-	// --- Config Delegation ---
-
-	@Override
-	public String getConfig(String key) {
-		return configService.getConfig(key);
-	}
-
-	@Override
-	public void setConfig(String key, String value) {
-		configService.setConfig(key, value);
-	}
-
-	@Override
-	public boolean isFieldDisabled(String key) {
-		return configService.isFieldDisabled(key);
-	}
-
-	// Legacy lowercase methods
-	public String getconfig(String key) {
-		return getConfig(key);
-	}
-
-	public void setconfig(String key, String value) {
-		setConfig(key, value);
+	/**
+	 * 获取配置提供者接口，供需要访问配置的组件使用。
+	 * 这允许组件依赖 ConfigProvider 接口而不是 Controller 类。
+	 *
+	 * @return ConfigProvider 接口，实际由 ConfigurationService 实现
+	 */
+	public ConfigProvider getConfigProvider() {
+		return configService;
 	}
 
 	public void saveConfig() {
@@ -394,8 +379,9 @@ public class Controller implements ConfigProvider {
 		configService.loadAppCheck(this);
 		// Sync local flags
 		showStatus = true;
-		if (getconfig("enableStatusBar") != "")
-			showStatus = Boolean.parseBoolean(getconfig("enableStatusBar"));
+		String statusBarConfig = configService.getConfig("enableStatusBar");
+		if (statusBarConfig != null && !statusBarConfig.isEmpty())
+			showStatus = Boolean.parseBoolean(statusBarConfig);
 	}
 
 	/**
@@ -421,9 +407,9 @@ public class Controller implements ConfigProvider {
 
 		// Initialize HotkeyManager and bind FM overlay hotkey
 		HotkeyManager.getInstance().init();
-		boolean enableFMPrint = Boolean.parseBoolean(getconfig("enableFMPrint"));
+		boolean enableFMPrint = Boolean.parseBoolean(configService.getConfig("enableFMPrint"));
 		try {
-			currentFmHotkeyCode = Integer.parseInt(getconfig("displayFmKey"));
+			currentFmHotkeyCode = Integer.parseInt(configService.getConfig("displayFmKey"));
 		} catch (NumberFormatException e) {
 			currentFmHotkeyCode = NativeKeyEvent.VC_P;
 		}
@@ -498,7 +484,7 @@ public class Controller implements ConfigProvider {
 		// Check for auto-start game mode (only on initial launch, not tray restore)
 		boolean autoStart = false;
 		if (isInitialLaunch) {
-			String autoStartStr = getconfig("autoStartGameMode");
+			String autoStartStr = configService.getConfig("autoStartGameMode");
 			if (autoStartStr != null && !autoStartStr.isEmpty()) {
 				autoStart = Boolean.parseBoolean(autoStartStr);
 			}
@@ -585,7 +571,7 @@ public class Controller implements ConfigProvider {
 		// MiniHUDOverlay (crosshair) - supports preview
 		overlayManager.registerWithPreview("crosshairSwitch",
 				() -> new MiniHUDOverlay(),
-				overlay -> ((MiniHUDOverlay) overlay).init(this, S, O),
+				overlay -> ((MiniHUDOverlay) overlay).init(this, S),
 				overlay -> ((MiniHUDOverlay) overlay).initPreview(this),
 				overlay -> ((MiniHUDOverlay) overlay).reinitConfig(),
 				false)
@@ -601,11 +587,12 @@ public class Controller implements ConfigProvider {
 				overlay -> ((FlightInfoOverlay) overlay).reinitConfig(),
 				true).withInterest("flightInfo", "fontSize", "disableFlightInfo");
 
-		// ControlSurfacesOverlay - supports preview (uses initpreview lowercase)
+		// ControlSurfacesOverlay - supports preview
+		// Controller 参数已移除，此 overlay 不需要访问配置
 		overlayManager.registerWithPreview("enableAxis",
 				() -> new ControlSurfacesOverlay(),
-				overlay -> ((ControlSurfacesOverlay) overlay).init(this, S, configService.getOverlaySettings("舵面值")),
-				overlay -> ((ControlSurfacesOverlay) overlay).initPreview(this,
+				overlay -> ((ControlSurfacesOverlay) overlay).init(S, configService.getOverlaySettings("舵面值")),
+				overlay -> ((ControlSurfacesOverlay) overlay).initPreview(
 						configService.getOverlaySettings("舵面值")),
 				overlay -> ((ControlSurfacesOverlay) overlay).reinitConfig(),
 				false).withInterest("enableAxisEdge", "fontSize");
@@ -619,10 +606,11 @@ public class Controller implements ConfigProvider {
 				false).withInterest("attitudeIndicator", "enableAttitudeIndicator");
 
 		// GearFlapsOverlay - supports preview
+		// Controller 参数已移除，此 overlay 不需要访问配置
 		overlayManager.registerWithPreview("enablegearAndFlaps",
 				() -> new GearFlapsOverlay(),
-				overlay -> ((GearFlapsOverlay) overlay).init(this, S, configService.getOverlaySettings("起落襟翼")),
-				overlay -> ((GearFlapsOverlay) overlay).initPreview(this, configService.getOverlaySettings("起落襟翼")),
+				overlay -> ((GearFlapsOverlay) overlay).init(S, configService.getOverlaySettings("起落襟翼")),
+				overlay -> ((GearFlapsOverlay) overlay).initPreview(configService.getOverlaySettings("起落襟翼")),
 				overlay -> ((GearFlapsOverlay) overlay).reinitConfig(),
 				false).withInterest("enablegearAndFlapsEdge", "fontSize");
 
@@ -728,10 +716,10 @@ public class Controller implements ConfigProvider {
 	 * Unbinds the old hotkey and binds the new one if enabled.
 	 */
 	private void handleFmHotkeyConfigChange() {
-		boolean enableFMPrint = Boolean.parseBoolean(getconfig("enableFMPrint"));
+		boolean enableFMPrint = Boolean.parseBoolean(configService.getConfig("enableFMPrint"));
 		int newHotkeyCode = 0;
 		try {
-			newHotkeyCode = Integer.parseInt(getconfig("displayFmKey"));
+			newHotkeyCode = Integer.parseInt(configService.getConfig("displayFmKey"));
 		} catch (NumberFormatException e) {
 			newHotkeyCode = NativeKeyEvent.VC_P;
 		}
@@ -784,7 +772,7 @@ public class Controller implements ConfigProvider {
 		}
 
 		// Fallback to config
-		String configPlane = getConfig("selectedFM0");
+		String configPlane = configService.getConfig("selectedFM0");
 		if (configPlane != null && !configPlane.isEmpty()) {
 			identifiedFMName = configPlane;
 		}
@@ -814,7 +802,7 @@ public class Controller implements ConfigProvider {
 		// 预览模式回退：解析失败时加载 selectedFM0 配置的默认飞机
 		// 仅在预览模式下执行，避免影响游戏模式的正常行为
 		if ((Blkx == null || !Blkx.valid) && State == ControllerState.PREVIEW) {
-			String fallbackPlane = getConfig("selectedFM0");
+			String fallbackPlane = configService.getConfig("selectedFM0");
 			if (fallbackPlane != null && !fallbackPlane.isEmpty()
 					&& !fallbackPlane.equalsIgnoreCase(identifiedFMName)) {
 				prog.util.Logger.info("Controller",

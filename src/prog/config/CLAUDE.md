@@ -47,6 +47,30 @@ public class ConfigurationService implements ConfigProvider {
 }
 ```
 
+### ConfigProvider 获取方式
+
+**重要**: `Controller` 不再实现 `ConfigProvider` 接口。获取 `ConfigProvider` 的正确方式：
+
+```java
+// ✅ 正确：通过 Controller 获取
+ConfigProvider config = controller.getConfigProvider();
+
+// ✅ 正确：通过 Controller 获取 ConfigurationService
+ConfigurationService service = controller.getConfigService();
+
+// ❌ 错误：Controller 不再实现 ConfigProvider
+ConfigProvider config = (ConfigProvider) controller;  // 编译错误！
+```
+
+**组件依赖模式：**
+
+| 组件类型 | 获取配置方式 |
+|----------|-------------|
+| Overlay (需要 FM 数据) | `controller.getConfigProvider()` + 保留 `controller` 引用 |
+| Overlay (仅需配置) | `controller.getConfigProvider()` |
+| VoiceWarning | `controller.getConfigService()` (在 init 时传入) |
+| OverlayContext | 通过 Builder 设置 `configProvider` |
+
 ### ConfigLoader Data Model
 
 ```java

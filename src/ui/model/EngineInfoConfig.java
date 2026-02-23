@@ -77,7 +77,7 @@ public class EngineInfoConfig {
         // In `Controller`, `registerWithPreview` passes `new EngineInfo()`.
         // `EngineInfo.init` receives `Controller` which IS a `ConfigProvider`.
         // BUT `Controller.getConfig` fetches global properties.
-        // `EngineInfo` currently does: `xc.getconfig("engineInfoFont")` which implies
+        // `EngineInfo` currently does: `xc.getConfig("engineInfoFont")` which implies
         // global keys were used in legacy.
         // BUT `ConfigLoader` loads `ui_layout.cfg`.
         // If we use `FieldOverlay`, we need to ensure keys match.
@@ -89,7 +89,7 @@ public class EngineInfoConfig {
         // If we want to use the generic keys defined in `ui_layout.cfg` (like
         // `Font=...`),
         // we might need to update how `RenderContext` works or map them.
-        // `EngineInfo` old code: `xc.getconfig("engineInfoFont")`.
+        // `EngineInfo` old code: `xc.getConfig("engineInfoFont")`.
         // ConfigurationService DOES NOT seem to have flattened keys for dynamic groups
         // unless `bind` is used?
         // Wait, `Controller`'s `dynamicConfigs` list contains `GroupConfig` objects

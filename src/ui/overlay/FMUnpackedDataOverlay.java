@@ -55,7 +55,8 @@ public class FMUnpackedDataOverlay extends BaseOverlay {
     public void init(Controller c, FMDataAdapter adapter, OverlaySettings settings) {
         this.controller = c;
         this.fmDataAdapter = adapter;
-        this.config = c;
+        // 使用 getConfigProvider() 获取配置接口，而不是直接使用 Controller
+        this.config = c.getConfigProvider();
         this.overlaySettings = settings;
         this.isPreview = false;
 
@@ -95,7 +96,8 @@ public class FMUnpackedDataOverlay extends BaseOverlay {
     public void initPreview(Controller c, FMDataAdapter adapter, OverlaySettings settings) {
         this.controller = c;
         this.fmDataAdapter = adapter;
-        this.config = c;
+        // 使用 getConfigProvider() 获取配置接口，而不是直接使用 Controller
+        this.config = c.getConfigProvider();
         this.overlaySettings = settings;
         this.isPreview = true;
 
