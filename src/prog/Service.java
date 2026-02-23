@@ -1830,9 +1830,9 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 				}
 
 			} catch (InterruptedException e) {
-				// Thread was interrupted - check if we should exit
-				prog.util.Logger.warn("Service", "Service thread interrupted, continuing...");
-				// Continue running - don't exit on interrupt
+				// Thread was interrupted - exit the loop gracefully
+				prog.util.Logger.info("Service", "Service thread interrupted, exiting...");
+				break;  // Exit the while(true) loop
 			} catch (Exception e) {
 				// Unexpected error - log and recover after short delay
 				prog.util.Logger.error("Service", "Service error: " + e.getClass().getSimpleName() + " at " +

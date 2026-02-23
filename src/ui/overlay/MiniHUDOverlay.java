@@ -180,7 +180,12 @@ public class MiniHUDOverlay extends DraggableOverlay implements FlightDataListen
         } else {
             lines[0] = spdPre + String.format("%5s", "360");
         }
-        lines[1] = altPre + String.format("%5s", "1024");
+        // Format must match HUDCalculator: radar = "R%5.0f" (R + 5 digits), barometric = "%6.0f" (6 digits)
+        if (hudSettings.alwaysShowRadarAltitude()) {
+            lines[1] = altPre + String.format("R%5s", "1024");
+        } else {
+            lines[1] = altPre + String.format("%6s", "1024");
+        }
         lines[3] = sepPre + String.format("↑%-4s", "30");
         lines[4] = "G" + String.format("%5s", "2.0");
         if (hudSettings.enableFlapAngleBar()) {
@@ -193,6 +198,8 @@ public class MiniHUDOverlay extends DraggableOverlay implements FlightDataListen
         throttley = 100;
         aoaY = 10;
         throttleColor = Application.colorShadeShape;
+        aoaColor = Application.colorNum;
+        aoaBarColor = Application.colorNum;
         lineAoA = String.format("α%3.0f", 20.0);
         relEnergy = "E114514";
 
@@ -336,12 +343,15 @@ public class MiniHUDOverlay extends DraggableOverlay implements FlightDataListen
         }
 
         if (hudRows != null && hudRows.size() >= 5) {
-            // Row 0: AoA/Speed (Legacy restored for Preview compatibility)
-            ((ui.component.row.HUDAkbRow) hudRows.get(0)).update(lines[0], warnVne,
-                    lineAoA, aoaY, aoaColor, aoaBarColor);
-            // Row 1: Energy/Altitude (Legacy restored for Preview compatibility)
-            ((ui.component.row.HUDEnergyRow) hudRows.get(1)).update(lines[1], warnRH,
-                    relEnergy, aoaColor);
+            // Row 0, 1: Only update in preview mode (service == null)
+            // In game mode, they are updated via onDataUpdate() from FlightDataEvent
+            if (service == null) {
+                // HUDAkbRow.update(text, isWarning, aoaText, aoaY, aoaColor, aoaBarColor)
+                ((ui.component.row.HUDAkbRow) hudRows.get(0)).update(lines[0], false, lineAoA, aoaY, aoaColor, aoaBarColor);
+                // HUDEnergyRow.update(text, isWarning, energyText, energyColor)
+                ((ui.component.row.HUDEnergyRow) hudRows.get(1)).update(lines[1], false, relEnergy, Application.colorNum);
+            }
+
             // Row 2: Standard (Flaps/Gear)
             ((ui.component.row.HUDTextRow) hudRows.get(2)).update(lines[2], inAction);
             // Row 3: Standard (SEP)

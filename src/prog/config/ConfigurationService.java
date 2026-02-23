@@ -710,5 +710,10 @@ public class ConfigurationService implements ConfigProvider {
         public boolean isGPUCompatibilityMode() {
             return getBool("gpuCompatibilityMode", false);
         }
+
+        @Override
+        public boolean alwaysShowRadarAltitude() {
+            return getBool("alwaysShowRadarAltitude", false);
+        }
     }
 }

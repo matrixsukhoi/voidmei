@@ -49,4 +49,6 @@ public interface HUDSettings extends OverlaySettings {
     boolean isAttitudeIndicatorInertialMode();
 
     boolean isGPUCompatibilityMode();
+
+    boolean alwaysShowRadarAltitude();
 }

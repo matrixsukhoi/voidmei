@@ -159,10 +159,10 @@ public class HUDCalculator {
 
         // Warnings
         double radioAlt = b.radioAltitude;
-        if (sState != null && sState.heightm < 500) { // Should use RadioAlt logic from Service
-            // But we need the 'radioAltValid' flag.
-        }
         boolean radioAltValid = source.isRadioAltitudeValid();
+        boolean alwaysRadar = settings.alwaysShowRadarAltitude();
+
+        // Low altitude warning flag (for color/audio warnings) - always based on <=500m threshold
         if (radioAltValid && radioAlt <= 500) {
             b.warnAltitude = true;
         }
@@ -176,7 +176,11 @@ public class HUDCalculator {
         }
 
         String altPre = settings.isAltitudeLabelDisabled() ? "" : "ALT";
-        if (b.warnAltitude) {
+        // Display decision: separate from warning flag
+        // When alwaysRadar is enabled, use radar altitude if valid; otherwise use warning-based logic
+        boolean useRadarAlt = alwaysRadar ? radioAltValid : b.warnAltitude;
+
+        if (useRadarAlt) {
             b.altStr = altPre + String.format("R%5.0f", b.radioAltitude);
         } else {
             b.altStr = altPre + String.format("%6.0f", b.altitude);
