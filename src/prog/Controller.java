@@ -795,6 +795,19 @@ public class Controller implements ConfigProvider {
 
 		// Trigger actual parsing
 		loadFMData(identifiedFMName);
+
+		// 预览模式回退：解析失败时加载 selectedFM0 配置的默认飞机
+		// 仅在预览模式下执行，避免影响游戏模式的正常行为
+		if ((Blkx == null || !Blkx.valid) && State == ControllerState.PREVIEW) {
+			String fallbackPlane = getConfig("selectedFM0");
+			if (fallbackPlane != null && !fallbackPlane.isEmpty()
+					&& !fallbackPlane.equalsIgnoreCase(identifiedFMName)) {
+				prog.util.Logger.info("Controller",
+					"FM解析失败，回退到selectedFM0: " + fallbackPlane);
+				loadFMData(fallbackPlane);
+			}
+		}
+
 		return Blkx;
 	}
 
