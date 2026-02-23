@@ -1929,6 +1929,15 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 		return Math.abs(turnRds);
 	}
 
+	/**
+	 * 判断回转半径是否有效（<= 9999m）
+	 * 回转半径过大时（如直飞或缓慢转弯）返回 false，隐藏该数据行
+	 */
+	@Override
+	public boolean isTurnRadiusValid() {
+		return Math.abs(turnRds) <= 9999;
+	}
+
 	@Override
 	public double getRollRate() {
 		return sState != null ? Math.abs(sState.Wx) : 0;
