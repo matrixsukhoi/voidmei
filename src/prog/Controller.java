@@ -673,38 +673,53 @@ public class Controller implements ConfigProvider {
 
 
 	public void stop() {
+		// 1. 先关闭所有overlay（预览模式或游戏模式）
+		//    必须在dispose MainForm之前执行，确保overlay被正确清理
+		//    修复：任务栏图标点击导致Overlay叠加问题
+		if (State == ControllerState.PREVIEW) {
+			// 使所有pending的stale回调失效
+			previewGeneration.incrementAndGet();
+
+			// 根据当前状态选择清理路径
+			if (S != null) {
+				// 游戏模式：使用closepad()完整清理（包含FocusMonitor、FlightLog等）
+				closepad();
+			} else {
+				// 预览模式：只需关闭overlay
+				overlayManager.closeAll();
+			}
+		}
+
+		// 2. 取消事件订阅（防止重启时重复处理）
+		if (configChangedHandler != null) {
+			prog.event.UIStateBus.getInstance().unsubscribe(prog.event.UIStateEvents.CONFIG_CHANGED,
+					configChangedHandler);
+			configChangedHandler = null;
+		}
+		if (uiReadyHandler != null) {
+			prog.event.UIStateBus.getInstance().unsubscribe(prog.event.UIStateEvents.UI_READY, uiReadyHandler);
+			uiReadyHandler = null;
+		}
+
+		// 3. 清理MainForm
 		if (M != null) {
 			M.stopRepaintTimer();
 			M.dispose();
 			M = null;
-			System.gc();
-			// Explicit save on Application Exit (MainForm dispose)
-			if (configService != null)
-				configService.saveConfig();
-			return;
 		}
 
-		// if (S1 == null) {
-		// return;
-		// }
-		if (State == ControllerState.PREVIEW) {
-			closepad();
-		}
-
-		// Unsubscribe from event bus to prevent duplicate handling on restart
-		if (configChangedHandler != null) {
-			prog.event.UIStateBus.getInstance().unsubscribe(prog.event.UIStateEvents.CONFIG_CHANGED,
-					configChangedHandler);
-		}
-		if (uiReadyHandler != null) {
-			prog.event.UIStateBus.getInstance().unsubscribe(prog.event.UIStateEvents.UI_READY, uiReadyHandler);
-		}
-
+		// 4. 清理Service线程
 		S = null;
 		if (S1 != null) {
 			S1.interrupt();
 			S1 = null;
 		}
+
+		// 5. 保存配置
+		if (configService != null) {
+			configService.saveConfig();
+		}
+
 		System.gc();
 	}
 

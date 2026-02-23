@@ -38,6 +38,7 @@ import java.net.URI;
 import java.nio.charset.Charset;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -126,6 +127,9 @@ public class Application {
 	public static String[] fonts;
 
 	public static Controller ctr;
+
+	// 防止快速重复点击任务栏图标导致多次创建Controller/Overlay
+	private static final AtomicBoolean trayClickProcessing = new AtomicBoolean(false);
 
 	public static Boolean displayFm = true;
 	// 空鼠标指针
@@ -247,11 +251,22 @@ public class Application {
 				@Override
 				public void mouseClicked(MouseEvent e) {
 					if (e.getButton() == MouseEvent.BUTTON1) {
-						prog.util.Logger.info("Application", "--------------------------------------------------");
-						prog.util.Logger.info("Application", "ACTION: Tray Icon Clicked. Restoring MainForm...");
-						prog.util.Logger.info("Application", "--------------------------------------------------");
-						ctr.stop();
-						ctr = new Controller();
+						// 使用CAS操作防止快速重复点击导致多次创建Controller
+						// compareAndSet: 如果当前值为false则设为true并返回true，否则返回false
+						if (!trayClickProcessing.compareAndSet(false, true)) {
+							prog.util.Logger.info("Application", "Ignoring duplicate tray click");
+							return;
+						}
+						try {
+							prog.util.Logger.info("Application", "--------------------------------------------------");
+							prog.util.Logger.info("Application", "ACTION: Tray Icon Clicked. Restoring MainForm...");
+							prog.util.Logger.info("Application", "--------------------------------------------------");
+							ctr.stop();
+							ctr = new Controller();
+						} finally {
+							// 无论成功或异常都重置标志，允许下一次点击
+							trayClickProcessing.set(false);
+						}
 					}
 				}
 			});
