@@ -45,6 +45,12 @@ public interface TelemetrySource {
     // Aircraft State
     double getMassFuel();
 
+    /**
+     * Get total aircraft weight (nofuelweight + current fuel).
+     * @return Total weight in kg, or 0 if FM data unavailable
+     */
+    double getTotalWeight();
+
     long getFuelTimeMili();
 
     double getThrottle();

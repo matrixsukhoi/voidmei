@@ -2010,6 +2010,14 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 	}
 
 	@Override
+	public double getTotalWeight() {
+		if (c == null || c.getBlkx() == null || !c.getBlkx().valid || sState == null) {
+			return 0;
+		}
+		return c.getBlkx().nofuelweight + sState.mfuel;
+	}
+
+	@Override
 	public long getFuelTimeMili() {
 		return fueltime;
 	}
