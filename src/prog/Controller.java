@@ -55,6 +55,9 @@ public class Controller implements ConfigProvider {
 	/** Cached peak afterburner thrust for jet aircraft (kgf) */
 	private double peakThrust = 0;
 
+	/** FM data adapter for FMUnpackedDataOverlay */
+	private ui.model.FMDataAdapter fmDataAdapter = new ui.model.FMDataAdapter();
+
 	// Robot robot;
 
 	StatusBar SB;
@@ -622,18 +625,24 @@ public class Controller implements ConfigProvider {
 				true,
 				ActivationStrategy.config("enableVoiceWarn").and(ActivationStrategy.gameModeOnly()));
 
-		// UsefulData (FMUnpackedDataOverlay) - supports preview
+		// FMUnpackedDataOverlay - per-field toggles via switch items in ui_layout.cfg
 		overlayManager.registerWithPreview("enableFMPrint",
 				() -> new FMUnpackedDataOverlay(),
 				overlay -> {
+					fmDataAdapter.setBlkx(getBlkx());
 					prog.config.OverlaySettings fmSettings = configService.getOverlaySettings("FM拆包数据");
-					((FMUnpackedDataOverlay) overlay).init(this, fmSettings);
+					((FMUnpackedDataOverlay) overlay).init(this, fmDataAdapter, fmSettings);
 				}, overlay -> {
+					fmDataAdapter.setBlkx(getBlkx());
 					prog.config.OverlaySettings fmSettings = configService.getOverlaySettings("FM拆包数据");
-					((FMUnpackedDataOverlay) overlay).initPreview(this, fmSettings);
+					((FMUnpackedDataOverlay) overlay).initPreview(this, fmDataAdapter, fmSettings);
 				},
 				overlay -> ((FMUnpackedDataOverlay) overlay).reinitConfig(),
-				true).withInterest("displayFmKey", "selectedFM");
+				true).withInterest("displayFmKey", "selectedFM", "fmInfoColumn", "fontName",
+					"showWeight", "showCritSpeed", "showGLoadLimits",
+					"showFlapLimits", "showControlEffectiveness", "showNitro", "showHeatRecovery",
+					"showMaxLiftLoad", "showInertia", "showLift", "showDrag",
+					"showNoFlapsWing", "showFullFlapsWing", "showFuselage", "showFin", "showStab");
 
 		// thrustdFS - requires enableFMPrint AND isJet
 		overlayManager.registerWithStrategy("thrustdFS",
@@ -905,6 +914,9 @@ public class Controller implements ConfigProvider {
 
 			loadedFMName = planename;
 			cur_fmtype = planename;
+
+			// Update FM data adapter for FMUnpackedDataOverlay
+			fmDataAdapter.setBlkx(Blkx);
 
 			// Notify observers that FM data is ready
 			prog.event.UIStateBus.getInstance().publish(prog.event.UIStateEvents.FM_DATA_LOADED, planename);
