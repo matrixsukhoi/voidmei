@@ -603,11 +603,12 @@ public class DrawFrameSimpl extends DraggableOverlay {
 		setShowResizeCorner(false);
 		setDefaultCloseOperation(2);
 		setTitle(Lang.dFTitleHZ);
-		AlwaysOnTopCoordinator.getInstance().registerOverlay(this);
-
-		this.setCursor(Application.blankCursor);
+		// 必须在 registerOverlay 之前设置焦点属性，否则 setAlwaysOnTop(true) 可能触发焦点事件
 		setFocusable(false);
 		setFocusableWindowState(false);// 取消窗口焦点
+
+		AlwaysOnTopCoordinator.getInstance().registerOverlay(this);
+		this.setCursor(Application.blankCursor);
 		setVisible(true);
 
 	}
@@ -719,7 +720,11 @@ public class DrawFrameSimpl extends DraggableOverlay {
 			// Self-managed visibility: preview always visible, game mode uses toggle state
 			boolean shouldShow = isPreview || visible;
 			if (shouldShow) {
-				this.setVisible(true);
+				// 只在窗口不可见时才调用 setVisible(true)，避免周期性触发焦点抢占
+				// 某些窗口管理器下，对 alwaysOnTop 窗口重复调用 setVisible(true) 会触发窗口激活事件
+				if (!this.isVisible()) {
+					this.setVisible(true);
+				}
 				this.getContentPane().repaint();
 			} else {
 				this.setVisible(false);
