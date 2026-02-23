@@ -271,8 +271,12 @@ public class Controller {
 
 		// 启用游戏失焦时自动隐藏overlay功能（如果配置开启）
 		String autoHideStr = configService.getConfig("autoHideOnFocusLoss");
+		prog.util.Logger.info("Controller", "autoHideOnFocusLoss 配置值: " + autoHideStr);
 		if (autoHideStr != null && Boolean.parseBoolean(autoHideStr)) {
 			S.getFocusMonitor().setEnabled(true);
+			prog.util.Logger.info("Controller", "焦点监控已启用");
+		} else {
+			prog.util.Logger.info("Controller", "焦点监控未启用（配置为 false 或未设置）");
 		}
 
 		// Open all registered overlays via OverlayManager

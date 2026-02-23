@@ -1,7 +1,6 @@
 package prog;
 
 import prog.util.FocusDetector;
-import prog.util.Logger;
 
 /**
  * 游戏窗口焦点监控辅助类。
@@ -41,13 +40,11 @@ public class FocusMonitor {
             lastFocusState = true;
             // 立即检测一次（重置计时器）
             lastCheckTime = 0;
-            Logger.info("FocusMonitor", "焦点监控已启用");
         } else {
             // 禁用时确保overlay可见
             if (AlwaysOnTopCoordinator.getInstance().isOverlaysHidden()) {
                 AlwaysOnTopCoordinator.getInstance().showAllOverlays();
             }
-            Logger.info("FocusMonitor", "焦点监控已禁用");
         }
     }
 
@@ -77,9 +74,9 @@ public class FocusMonitor {
 
         // 检测焦点并响应变化
         boolean hasFocus = FocusDetector.isWarThunderFocused();
+
         if (hasFocus != lastFocusState) {
             lastFocusState = hasFocus;
-            Logger.info("FocusMonitor", "焦点状态变化: " + (hasFocus ? "获得焦点" : "失去焦点"));
             if (hasFocus) {
                 AlwaysOnTopCoordinator.getInstance().showAllOverlays();
             } else {

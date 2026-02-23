@@ -22,11 +22,13 @@ public class WebLafSettings {
 		// t.setUndecorated(false);
 		// t.setDefaultLookAndFeelDecorated(false);
 
+		// 焦点抢占防护：必须在 registerOverlay() 之前设置焦点属性
+		// 否则 setAlwaysOnTop(true) 可能触发焦点事件，导致窗口闪烁
+		t.setFocusableWindowState(false);// 取消窗口焦点
+		t.setFocusable(false);
 		// Register with coordinator instead of direct setAlwaysOnTop
 		// This ensures overlays respect pending dialogs
 		AlwaysOnTopCoordinator.getInstance().registerOverlay(t);
-		t.setFocusableWindowState(false);// 取消窗口焦点
-		t.setFocusable(false);
 		t.setCursor(Application.blankCursor);
 		// t.setVisible(true);
 	}

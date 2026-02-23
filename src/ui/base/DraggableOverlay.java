@@ -33,6 +33,9 @@ public abstract class DraggableOverlay extends WebFrame implements Runnable {
     public void dispose() {
         prog.util.Logger.info("Overlay",
                 "Disposing instance: " + this.getClass().getSimpleName() + "@" + Integer.toHexString(hashCode()));
+        // 必须从 AlwaysOnTopCoordinator 注销，防止 overlay 泄漏
+        // 如果 overlay 注册了 registerOverlay()，dispose 时必须调用 unregisterOverlay()
+        prog.AlwaysOnTopCoordinator.getInstance().unregisterOverlay(this);
         super.dispose();
     }
 

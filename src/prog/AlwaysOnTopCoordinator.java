@@ -191,7 +191,9 @@ public class AlwaysOnTopCoordinator {
      * 用于游戏失焦时自动隐藏HUD。
      */
     public void hideAllOverlays() {
+        prog.util.Logger.info("AlwaysOnTopCoordinator", "hideAllOverlays 调用，已注册 overlay 数: " + overlays.size());
         if (overlaysHidden) {
+            prog.util.Logger.info("AlwaysOnTopCoordinator", "overlay 已处于隐藏状态，跳过");
             return;
         }
         overlaysHidden = true;
@@ -210,7 +212,9 @@ public class AlwaysOnTopCoordinator {
      * 用于游戏重新获得焦点时恢复显示。
      */
     public void showAllOverlays() {
+        prog.util.Logger.info("AlwaysOnTopCoordinator", "showAllOverlays 调用，已注册 overlay 数: " + overlays.size());
         if (!overlaysHidden) {
+            prog.util.Logger.info("AlwaysOnTopCoordinator", "overlay 已处于显示状态，跳过");
             return;
         }
         overlaysHidden = false;

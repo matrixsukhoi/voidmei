@@ -2,6 +2,8 @@
 ./data/
 ./dep/weblaf-complete-1.29.jar
 ./dep/jnativehook-2.2.2.jar
+./dep/jna-5.14.0.jar
+./dep/jna-platform-5.14.0.jar
 ./fonts/
 ./image/
 ./lang/
