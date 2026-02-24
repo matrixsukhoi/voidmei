@@ -23,7 +23,7 @@ public class EngineInfoConfig {
     public String numFontKey = "GlobalNumFont";
     public String labelFontKey = "fontName"; // Was 'engineInfoFont' in old config, mapped to 'fontName' in ui_layout
     public String fontAddKey = "fontSize"; // Was 'engineInfoFontadd', mapped to 'fontSize'
-    public String columnKey = "columns"; // Was 'engineInfoColumn', mapped to 'columns'
+    public String columnKey = "hudColumns"; // 重命名避免与 GroupConfig.columns 字段冲突
 
     // Position keys
     public String posXKey = "engineInfoX";
@@ -114,7 +114,11 @@ public class EngineInfoConfig {
                 cfg.showEdge = true;
             }
 
-            String colStr = config.getConfig("columns"); // Key in ui_layout [EngineInfo] section
+            // 优先读取新 key，回退读取旧 key 以保持向后兼容
+            String colStr = config.getConfig("hudColumns");
+            if (colStr == null || colStr.isEmpty()) {
+                colStr = config.getConfig("columns"); // 旧 key 回退
+            }
             if (colStr != null && !colStr.isEmpty()) {
                 try {
                     cfg.columnNum = Integer.parseInt(colStr);

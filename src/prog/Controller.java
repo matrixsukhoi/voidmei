@@ -551,7 +551,7 @@ public class Controller {
 				overlay -> ((PowerInfoOverlay) overlay).init(this, S, configService.getOverlaySettings("动力信息")),
 				overlay -> ((PowerInfoOverlay) overlay).initPreview(this, configService.getOverlaySettings("动力信息")),
 				overlay -> ((PowerInfoOverlay) overlay).reinitConfig(),
-				true).withInterest("fontName", "fontSize", "columns", "S.");
+				true).withInterest("fontName", "fontSize", "hudColumns", "S.");
 
 		// MiniHUDOverlay (crosshair) - supports preview
 		// HUDSettings 直接传入 init()，不通过 Controller 获取 configService（遵循解耦原则）
