@@ -300,6 +300,9 @@ public class ConfigManager {
         merged.groupColumns = template.groupColumns;
         merged.fgColor = template.fgColor;
         merged.defaultValue = template.defaultValue;
+        // 动态单位/精度源（修复进气压单位显示问题）
+        merged.unitSource = template.unitSource;
+        merged.precisionSource = template.precisionSource;
 
         // User-preserved fields
         merged.value = user.value;
