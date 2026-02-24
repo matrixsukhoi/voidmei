@@ -204,7 +204,12 @@ public abstract class FieldOverlay extends DraggableOverlay implements FlightDat
 
                     // 5. Format if visible
                     if (field.visible) {
-                        if ("TIME_MM_SS".equals(field.format)) {
+                        // 5a. 检查 :na-when 条件（条件满足时显示 "-" 而非数值）
+                        if (field.naWhenEvaluator != null && field.naWhenEvaluator.evaluate(val)) {
+                            // NA 条件满足，显示 "-"
+                            field.buffer[0] = '-';
+                            field.length = 1;
+                        } else if ("TIME_MM_SS".equals(field.format)) {
                             field.length = ui.util.FastNumberFormatter.formatTime(val, field.buffer);
                         } else {
                             field.length = ui.util.FastNumberFormatter.format(val, field.buffer, field.precision);

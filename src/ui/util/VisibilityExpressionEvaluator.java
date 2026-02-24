@@ -12,13 +12,20 @@ import ui.model.TelemetrySource;
  *
  * 支持的表达式语法：
  * - 布尔字面量: true, false
- * - 方法调用: (isJetEngine), (isPropEngine), (isEngineCheckDone), (hasWep)
+ * - 方法调用: (isJetEngine), (isPropEngine), (isPistonEngine), (isTurbopropEngine),
+ *             (isEngineCheckDone), (hasWep)
  * - 值比较: (> value 0), (>= value 100), (!= value -65535), (= value 1)
  * - 逻辑组合: (not expr), (and expr1 expr2 ...), (or expr1 expr2 ...)
  *
+ * 引擎类型方法说明：
+ * - isJetEngine: 喷气机（涡喷、涡扇）
+ * - isPropEngine: 螺旋桨（活塞+涡桨）
+ * - isPistonEngine: 仅活塞机（用于进气压等仅活塞机显示的字段）
+ * - isTurbopropEngine: 仅涡桨
+ *
  * 示例配置:
- * :visible-when (and (not (isJetEngine)) (> value 0))
- * :visible-when (or (isJetEngine) (> value 0))
+ * :visible-when (and (isPistonEngine) (!= value 1))  ; 仅活塞机显示
+ * :visible-when (and (not (isJetEngine)) (> value 0)) ; 螺旋桨机显示
  * :visible-when (!= value -65535)
  */
 public class VisibilityExpressionEvaluator {
@@ -188,6 +195,12 @@ public class VisibilityExpressionEvaluator {
                 return source.isJetEngine();
             case "isPropEngine":
                 return source.isPropEngine();
+            case "isPistonEngine":
+                // 活塞机（不包括涡桨），用于进气压等仅活塞机显示的字段
+                return source.isPistonEngine();
+            case "isTurbopropEngine":
+                // 涡轮螺旋桨发动机
+                return source.isTurbopropEngine();
             case "isEngineCheckDone":
                 return source.isEngineCheckDone();
 

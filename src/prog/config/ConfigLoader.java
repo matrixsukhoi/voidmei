@@ -40,6 +40,7 @@ public class ConfigLoader {
         public String unitSource = null; // Method name for dynamic unit (e.g., "getManifoldPressureDisplayUnit")
         public String precisionSource = null; // Method name for dynamic precision (e.g., "getManifoldPressureDisplayPrecision")
         public SExp visibleWhen = null; // 显示条件表达式（S-expression），用于控制字段可见性
+        public SExp naWhen = null; // NA显示条件表达式（S-expression），满足条件时显示 "-" 而非数值
 
         // Extended fields for control-type rows
         public String type = "DATA"; // DATA, HEADER, SLIDER, COMBO, SWITCH, BUTTON
@@ -318,6 +319,7 @@ public class ConfigLoader {
                 row.precisionSource = getKeywordString(list, ":precision-source", null);
                 row.targetName = getKeywordString(list, ":target-name", null);
                 row.visibleWhen = getKeywordSExp(list, ":visible-when"); // 解析显示条件表达式
+                row.naWhen = getKeywordSExp(list, ":na-when"); // 解析NA显示条件表达式
 
                 if (row.value == null) {
                     if (row.type.contains("SWITCH"))
@@ -489,6 +491,13 @@ public class ConfigLoader {
                 }
                 if (row.fgColor != null) {
                     pw.print(" :fgcolor " + quote(row.fgColor));
+                }
+                // 序列化 :visible-when 和 :na-when 表达式
+                if (row.visibleWhen != null) {
+                    pw.print(" :visible-when " + row.visibleWhen.toString());
+                }
+                if (row.naWhen != null) {
+                    pw.print(" :na-when " + row.naWhen.toString());
                 }
 
                 pw.println(")");

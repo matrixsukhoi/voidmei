@@ -303,6 +303,9 @@ public class ConfigManager {
         // 动态单位/精度源（修复进气压单位显示问题）
         merged.unitSource = template.unitSource;
         merged.precisionSource = template.precisionSource;
+        // 可见性和NA条件表达式（始终使用模板值，确保配置合并时保留显示控制逻辑）
+        merged.visibleWhen = template.visibleWhen;
+        merged.naWhen = template.naWhen;
 
         // User-preserved fields
         merged.value = user.value;

@@ -1830,29 +1830,21 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 
 	@Override
 	public double getManifoldPressurePounds() {
-		if (iEngType == ENGINE_TYPE_JET)
-			return 0;
 		return sState != null ? (sState.manifoldpressure - 1) * 14.696 : 0;
 	}
 
 	@Override
 	public double getManifoldPressureInchHg() {
-		if (iEngType == ENGINE_TYPE_JET)
-			return 0;
 		return sState != null ? (sState.manifoldpressure * 760 / 25.4) : 0;
 	}
 
 	@Override
 	public double getManifoldPressureDisplay() {
-		if (iEngType == ENGINE_TYPE_JET)
-			return 0;
 		return isImperial() ? getManifoldPressurePounds() : getManifoldPressure();
 	}
 
 	@Override
 	public String getManifoldPressureDisplayUnit() {
-		if (iEngType == ENGINE_TYPE_JET)
-			return "";
 		if (isImperial()) {
 			return String.format("P/%.1f''", getManifoldPressureInchHg());
 		}
@@ -1973,29 +1965,18 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 
 	@Override
 	public double getManifoldPressure() {
-		if (iEngType == ENGINE_TYPE_JET)
-			return 0;
 		return sState != null ? sState.manifoldpressure : 0;
 	}
 
 	@Override
-	public boolean isManifoldPressureValid() {
-		if (iEngType == ENGINE_TYPE_JET)
-			return false;
-		return sState != null && sState.manifoldpressure != -65535 && sState.manifoldpressure > 0.01;
-	}
-
-	@Override
 	public double getWaterTemp() {
-		if (iEngType == ENGINE_TYPE_JET)
-			return 0;
+		// 水温对所有机型都显示，包括喷气机
 		return nwaterTemp;
 	}
 
 	@Override
 	public double getOilTemp() {
-		if (iEngType == ENGINE_TYPE_JET)
-			return 0;
+		// 油温对所有机型都显示，包括喷气机
 		return noilTemp;
 	}
 
@@ -2041,7 +2022,12 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 
 	@Override
 	public double getWingSweep() {
-		return sIndic != null ? sIndic.wsweep_indicator : 0;
+		// -65535 是 API 无效标记，表示飞机没有可变翼功能
+		// 返回 0 使 visible-when (!= value 0) 能正确隐藏此字段
+		if (sIndic == null || sIndic.wsweep_indicator == -65535) {
+			return 0;
+		}
+		return sIndic.wsweep_indicator;
 	}
 
 	@Override
@@ -2066,10 +2052,8 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 
 	@Override
 	public double getHeatTolerance() {
-		double val = curLoadMinWorkTime / 1000.0;
-		if (val > 90000)
-			return 0;
-		return val;
+		// 直接返回原始值，UI层通过 :na-when 表达式过滤无效值
+		return curLoadMinWorkTime / 1000.0;
 	}
 
 	@Override
@@ -2140,6 +2124,24 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 	@Override
 	public boolean isPropEngine() {
 		return checkEngineFlag && (iEngType == ENGINE_TYPE_PROP || iEngType == ENGINE_TYPE_TURBOPROP);
+	}
+
+	/**
+	 * 判断是否为活塞发动机（不包括涡桨）
+	 * 检测完成前（约5秒）返回 false
+	 */
+	@Override
+	public boolean isPistonEngine() {
+		return checkEngineFlag && iEngType == ENGINE_TYPE_PROP;
+	}
+
+	/**
+	 * 判断是否为涡轮螺旋桨发动机
+	 * 检测完成前（约5秒）返回 false
+	 */
+	@Override
+	public boolean isTurbopropEngine() {
+		return checkEngineFlag && iEngType == ENGINE_TYPE_TURBOPROP;
 	}
 
 	/**

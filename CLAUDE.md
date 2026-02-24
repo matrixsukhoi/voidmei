@@ -669,5 +669,6 @@ Detailed development guides for complex subsystems:
 
 ;; Visibility expression operators: (not), (and), (or), (> value N), (>= value N),
 ;; (< value N), (<= value N), (= value N), (!= value N)
-;; TelemetrySource methods: (isJetEngine), (isPropEngine), (hasWep), (isEngineCheckDone)
+;; TelemetrySource methods: (isJetEngine), (isPropEngine), (isPistonEngine),
+;; (isTurbopropEngine), (hasWep), (isEngineCheckDone)
 ```

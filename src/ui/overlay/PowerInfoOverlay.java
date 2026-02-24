@@ -11,7 +11,7 @@ import ui.renderer.OverlayRenderer;
 
 /**
  * EngineInfo overlay window displaying real-time engine data.
- * 
+ *
  * Refactored to extend FieldOverlay for consistent event-driven updates.
  * Uses EngineInfoConfig for configuration and field definitions.
  */
@@ -133,6 +133,8 @@ public class PowerInfoOverlay extends FieldOverlay {
 				java.util.function.DoubleSupplier valueSupplier = ui.util.ReflectBinder.resolveDouble(s, row.property);
 
 				// 构建 visibilitySupplier
+				// 仅使用 :visible-when 表达式控制可见性，移除自动推断 isXXXValid 机制
+				// 原因：自动推断会导致意外的字段隐藏（如转半径 > 9999m 时被隐藏）
 				java.util.function.BooleanSupplier visibilitySupplier = null;
 
 				if (row.visibleWhen != null) {
@@ -141,17 +143,8 @@ public class PowerInfoOverlay extends FieldOverlay {
 						new ui.util.VisibilityExpressionEvaluator(row.visibleWhen, s);
 					final java.util.function.DoubleSupplier vs = valueSupplier;
 					visibilitySupplier = () -> evaluator.evaluate(vs.getAsDouble());
-				} else {
-					// 回退到自动推断（向后兼容）：getXXX -> isXXXValid
-					String baseMethod = row.property.trim();
-					if (baseMethod.contains("*")) {
-						baseMethod = baseMethod.split("\\*")[0].trim();
-					}
-					if (baseMethod.startsWith("get")) {
-						String validityMethod = "is" + baseMethod.substring(3) + "Valid";
-						visibilitySupplier = ui.util.ReflectBinder.resolveBoolean(s, validityMethod);
-					}
 				}
+				// 没有 :visible-when 的字段默认始终可见
 
 				// Resolve dynamic unit source if specified
 				java.util.function.Supplier<String> unitSupplier = null;
@@ -171,6 +164,14 @@ public class PowerInfoOverlay extends FieldOverlay {
 							unitSupplier, precisionSupplier);
 				} else {
 					fm.bind(row.property, valueSupplier, visibilitySupplier, row.precision, row.format);
+				}
+
+				// 绑定 :na-when 表达式（条件性显示 "-"）
+				if (row.naWhen != null) {
+					ui.model.DataField df = fm.getField(row.property);
+					if (df != null) {
+						df.naWhenEvaluator = new ui.util.VisibilityExpressionEvaluator(row.naWhen, s);
+					}
 				}
 
 				// Apply visibility immediately based on config value

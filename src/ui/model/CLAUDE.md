@@ -57,7 +57,6 @@ public interface TelemetrySource {
     double getThrottle();      // Throttle position (0-110%)
     double getRPM();           // Engine RPM
     double getManifoldPressure();  // MAP (atm)
-    boolean isManifoldPressureValid();
     double getThrust();        // Current thrust (kgf)
     double getHorsePower();    // Current HP
     double getEffHp();         // Effective HP
@@ -120,6 +119,8 @@ public interface TelemetrySource {
     // Engine Type & Aircraft Features (for :visible-when expressions)
     boolean isJetEngine();         // True if jet (turbojet/turbofan), requires ~5s detection
     boolean isPropEngine();        // True if propeller (piston/turboprop), requires ~5s detection
+    boolean isPistonEngine();      // True if piston only (not turboprop), for manifold pressure etc.
+    boolean isTurbopropEngine();   // True if turboprop only
     boolean isEngineCheckDone();   // True after engine type detection completes
     boolean hasWep();              // True if aircraft has WEP/water injection system
 }
@@ -192,9 +193,10 @@ Use the extended `bind()` method to attach dynamic suppliers:
 fm.bind("getRPM", service::getRPM, null, 0, null);
 
 // Dynamic bind (unit/precision from suppliers)
+// 可见性通过 ui_layout.cfg 的 :visible-when 表达式控制，而非代码中的 visibility supplier
 fm.bind("getManifoldPressureDisplay",
         service::getManifoldPressureDisplay,      // Value supplier
-        service::isManifoldPressureValid,          // Visibility supplier
+        null,                                      // Visibility supplier (由配置控制)
         2,                                         // Default precision
         null,                                      // Format
         service::getManifoldPressureDisplayUnit,   // Unit supplier

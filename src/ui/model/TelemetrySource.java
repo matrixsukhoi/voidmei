@@ -65,8 +65,6 @@ public interface TelemetrySource {
 
     double getManifoldPressure();
 
-    boolean isManifoldPressureValid();
-
     double getWaterTemp();
 
     double getOilTemp();
@@ -181,6 +179,20 @@ public interface TelemetrySource {
      * @return true 如果是活塞机或涡桨机，false 如果是喷气机或未确定
      */
     boolean isPropEngine();
+
+    /**
+     * 判断是否为活塞发动机（不包括涡桨）
+     * 需要等待引擎类型检测完成（约5秒）才能返回准确值
+     * @return true 如果是活塞机，false 如果是涡桨/喷气机或未确定
+     */
+    boolean isPistonEngine();
+
+    /**
+     * 判断是否为涡轮螺旋桨发动机
+     * 需要等待引擎类型检测完成（约5秒）才能返回准确值
+     * @return true 如果是涡桨机，false 如果是活塞/喷气机或未确定
+     */
+    boolean isTurbopropEngine();
 
     /**
      * 判断引擎类型检测是否完成

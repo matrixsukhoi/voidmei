@@ -67,4 +67,5 @@ public class DataField {
     public String format = null; // Custom format (e.g., "TIME_MM_SS")
     public java.util.function.Supplier<String> unitSupplier; // Dynamic unit source
     public java.util.function.IntSupplier precisionSupplier; // Dynamic precision source
+    public ui.util.VisibilityExpressionEvaluator naWhenEvaluator; // NA显示条件求值器，满足条件时显示 "-"
 }

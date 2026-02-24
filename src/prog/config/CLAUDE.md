@@ -169,7 +169,7 @@ public interface HUDSettings extends OverlaySettings {
 | `font` | String | Font selector | - |
 | `hotkey` | Integer | Key binding | NativeKeyEvent code |
 | `button` | - | Action button | `:fgColor`, callback |
-| `data` | - | Read-only display | `:formula`, `:format`, `:unit-source`, `:precision-source`, `:visible-when` |
+| `data` | - | Read-only display | `:formula`, `:format`, `:unit-source`, `:precision-source`, `:visible-when`, `:na-when` |
 
 ### Slider Unit Display
 
@@ -231,6 +231,94 @@ In `Controller.java`, add the config key to the overlay's interest list:
 overlayManager.registerWithPreview("crosshairSwitch", ...)
     .withInterest("displayCrosshair", "showSpeedBar", ...);
 ```
+
+## ⚠️ 新增 RowConfig 字段检查清单（关键！）
+
+当为 `RowConfig` 添加新字段时，**必须**同时适配以下两处，否则功能将出现异常：
+
+### 检查点 1: Config Merge (`ConfigManager.mergeRow()`)
+
+**文件:** `ConfigManager.java` 第 284-321 行
+
+新增字段必须添加到 `mergeRow()` 方法中，并根据字段性质选择来源：
+
+| 字段分类 | 来源 | 示例 |
+|----------|------|------|
+| **结构/定义字段** | `template.xxx` | `type`, `property`, `unit`, `format`, `unitSource`, `visibleWhen`, `naWhen` |
+| **用户自定义字段** | `user.xxx` | `value`, `x`, `y`, `alpha`, `hotkey` |
+
+```java
+// ConfigManager.mergeRow() 中添加：
+// 1. 如果是结构字段（模板定义，用户不应修改）：
+merged.myNewField = template.myNewField;
+
+// 2. 如果是用户字段（用户可自定义）：
+merged.myNewField = user.myNewField;
+```
+
+**⚠️ 遗漏后果：** 用户配置合并时新字段值丢失，导致功能异常。
+（真实案例：commit 2e53f94 修复 `unitSource` 遗漏，导致美系飞机进气压显示 "Ata" 而非 "P/inHg"）
+
+---
+
+### 检查点 2: Config Write (`ConfigLoader.saveConfig()`)
+
+**文件:** `ConfigLoader.java` 第 379-506 行（`saveConfig()` 和 `writeChildren()` 方法）
+
+新增字段必须添加序列化逻辑，否则保存后数据丢失：
+
+```java
+// ConfigLoader.writeChildren() 方法中添加：
+if (row.myNewField != null) {
+    pw.print(" :my-new-field " + quote(row.myNewField));
+}
+// 或对于 SExp 类型：
+if (row.myNewSExp != null) {
+    pw.print(" :my-new-sexp " + row.myNewSExp.toString());
+}
+```
+
+同时，确保在解析逻辑中（第 290-340 行附近）有对应的解析代码：
+
+```java
+row.myNewField = getKeywordString(list, ":my-new-field", null);
+// 或对于 SExp 类型：
+row.myNewSExp = getKeywordSExp(list, ":my-new-sexp");
+```
+
+**⚠️ 遗漏后果：** 字段值无法持久化，重启后配置丢失。
+
+---
+
+### 快速检查命令
+
+新增字段后，运行以下检查确认适配完成：
+
+```bash
+# 检查 merge 适配
+grep -n "myNewField" src/prog/config/ConfigManager.java
+
+# 检查 save 适配
+grep -n "my-new-field" src/prog/config/ConfigLoader.java
+
+# 检查 parse 适配
+grep -n ":my-new-field" src/prog/config/ConfigLoader.java
+```
+
+### 字段分类速查表
+
+| 字段 | Merge 来源 | 原因 |
+|------|-----------|------|
+| `unitSource` | template | 动态单位逻辑由模板定义 |
+| `precisionSource` | template | 动态精度逻辑由模板定义 |
+| `visibleWhen` | template | 显示条件由模板定义 |
+| `naWhen` | template | NA条件由模板定义 |
+| `value` | user | 用户自定义值 |
+| `type`, `property`, `format` | template | 结构定义 |
+| `desc`, `descImg` | template | 帮助文档 |
+| `minVal`, `maxVal` | template | 滑块范围 |
+
+---
 
 ## WYSIWYG Preview Mechanism
 
@@ -476,7 +564,7 @@ false
 1. **Parsing**: `:visible-when` values are stored as `SExp` objects (not strings) in `RowConfig.visibleWhen`
 2. **Evaluation**: `VisibilityExpressionEvaluator` evaluates expressions each frame with the current field value
 3. **Preview Mode**: When `TelemetrySource` is null (preview), all method calls return `true` (show all fields)
-4. **Backwards Compatibility**: If no `:visible-when`, falls back to auto-inferred `isXXXValid()` methods
+4. **No Auto-Inference**: Fields without `:visible-when` are always visible (auto-inference from `isXXXValid()` was removed to prevent unexpected hiding)
 
 ### Migration from `:hide-when-zero`
 
@@ -493,6 +581,45 @@ The `:hide-when-zero` attribute is now deprecated. Replace with `:visible-when`:
 (item "推力" :type data :target "getThrust"
       :visible-when (or (isJetEngine) (> value 0)))
 ```
+
+## Conditional NA Display (`:na-when`)
+
+For DATA fields that need to display "-" instead of a numeric value under certain conditions (e.g., turn radius > 9999m), use the `:na-when` attribute. This is different from `:visible-when` which hides the field entirely.
+
+### Syntax
+
+`:na-when` uses the same S-expression syntax as `:visible-when`:
+
+```lisp
+;; Turn radius: show "-" when value > 9999m (straight flight)
+(item "转半径" :type data :target "getTurnRadius"
+      :na-when (> value 9999)
+      :unit "M")
+
+;; Fuel time: show "-" when fuel time > 24 hours
+(item "燃油时" :type data :target "getFuelTimeMili * 0.001"
+      :na-when (> value 86400)
+      :format "TIME_MM_SS")
+```
+
+### Key Differences from `:visible-when`
+
+| Attribute | Condition True | Condition False |
+|-----------|----------------|-----------------|
+| `:visible-when` | Field visible | Field hidden |
+| `:na-when` | Display "-" | Display numeric value |
+
+### Use Cases
+
+- **Large values**: Turn radius > 9999m in straight flight
+- **Invalid data**: Sensor readings out of range
+- **Overflow prevention**: Values that would overflow display formatting
+
+### Implementation
+
+1. **Parsing**: `:na-when` values are stored as `SExp` objects in `RowConfig.naWhen`
+2. **Binding**: `FlightInfoOverlay` and `PowerInfoOverlay` create `VisibilityExpressionEvaluator` for naWhen
+3. **Evaluation**: `FieldOverlay.onFlightData()` checks naWhen before formatting; if true, writes "-" to buffer
 
 ## Important Notes
 
