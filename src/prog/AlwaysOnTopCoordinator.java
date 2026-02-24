@@ -104,6 +104,10 @@ public class AlwaysOnTopCoordinator {
         int count = pendingDialogs.incrementAndGet();
         prog.util.Logger.debug("AlwaysOnTopCoordinator",
                 "dialogWillShow: pendingDialogs now " + count);
+
+        // 清理所有打开的tooltip/popover，防止被dialog覆盖
+        ui.replica.ReplicaBuilder.disposeAllPopovers();
+
         suspendAll();
     }
 
