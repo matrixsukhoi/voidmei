@@ -165,4 +165,34 @@ public interface TelemetrySource {
      * Used by AttitudeOverlay for artificial horizon rotation.
      */
     double getAviahorizonRoll();
+
+    // === 引擎类型与飞机特性判断（用于 :visible-when 表达式）===
+
+    /**
+     * 判断是否为喷气发动机（包括涡轮喷气、涡轮风扇）
+     * 需要等待引擎类型检测完成（约5秒）才能返回准确值
+     * @return true 如果是喷气机，false 如果是活塞/涡桨或未确定
+     */
+    boolean isJetEngine();
+
+    /**
+     * 判断是否为螺旋桨发动机（活塞或涡桨）
+     * 需要等待引擎类型检测完成（约5秒）才能返回准确值
+     * @return true 如果是活塞机或涡桨机，false 如果是喷气机或未确定
+     */
+    boolean isPropEngine();
+
+    /**
+     * 判断引擎类型检测是否完成
+     * 游戏启动后约5秒完成检测
+     * @return true 如果检测完成，false 如果仍在检测中
+     */
+    boolean isEngineCheckDone();
+
+    /**
+     * 判断飞机是否有加力系统（WEP/水喷射/氧化亚氮）
+     * 依赖于 FM 数据的加载
+     * @return true 如果有加力系统，false 如果没有或 FM 不可用
+     */
+    boolean hasWep();
 }

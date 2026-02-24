@@ -130,6 +130,13 @@ case "${1:-all}" in
             ((TOTAL_FAILED++)) || true
         fi
         ;;
+    visibility|vis)
+        if run_test "VisibilityExpressionEvaluator Tests" "TestVisibilityExpressionEvaluator"; then
+            ((TOTAL_PASSED++)) || true
+        else
+            ((TOTAL_FAILED++)) || true
+        fi
+        ;;
     all|*)
         echo "=========================================="
         if run_test "AtmosphereModel Tests" "TestAtmosphereModel"; then
@@ -141,6 +148,14 @@ case "${1:-all}" in
         echo ""
         echo "=========================================="
         if run_test "PistonPowerModel Tests" "TestPistonPowerModel"; then
+            ((TOTAL_PASSED++)) || true
+        else
+            ((TOTAL_FAILED++)) || true
+        fi
+
+        echo ""
+        echo "=========================================="
+        if run_test "VisibilityExpressionEvaluator Tests" "TestVisibilityExpressionEvaluator"; then
             ((TOTAL_PASSED++)) || true
         else
             ((TOTAL_FAILED++)) || true

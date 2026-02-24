@@ -120,6 +120,7 @@ public class PowerInfoOverlay extends FieldOverlay {
 
 	/**
 	 * Dynamically binds fields based on ConfigLoader.RowConfig items.
+	 * 支持 :visible-when 表达式进行精细的可见性控制
 	 */
 	private void bindDynamicFields(ui.model.TelemetrySource s,
 			java.util.List<prog.config.ConfigLoader.RowConfig> rows) {
@@ -129,18 +130,27 @@ public class PowerInfoOverlay extends FieldOverlay {
 			// Bind if it's a DATA Item (and has a target)
 			if ("DATA".equals(row.type) && row.property != null && !row.property.isEmpty()) {
 				// Use ReflectBinder to create a zero-GC supplier
-				java.util.function.DoubleSupplier supplier = ui.util.ReflectBinder.resolveDouble(s, row.property);
+				java.util.function.DoubleSupplier valueSupplier = ui.util.ReflectBinder.resolveDouble(s, row.property);
 
-				// Resolve validity method (e.g., getRPM -> isRPMValid)
-				String baseMethod = row.property.trim();
-				if (baseMethod.contains("*")) {
-					baseMethod = baseMethod.split("\\*")[0].trim();
-				}
-
+				// 构建 visibilitySupplier
 				java.util.function.BooleanSupplier visibilitySupplier = null;
-				if (baseMethod.startsWith("get")) {
-					String validityMethod = "is" + baseMethod.substring(3) + "Valid";
-					visibilitySupplier = ui.util.ReflectBinder.resolveBoolean(s, validityMethod);
+
+				if (row.visibleWhen != null) {
+					// 使用表达式求值器（visibleWhen 是预解析的 SExp 对象）
+					final ui.util.VisibilityExpressionEvaluator evaluator =
+						new ui.util.VisibilityExpressionEvaluator(row.visibleWhen, s);
+					final java.util.function.DoubleSupplier vs = valueSupplier;
+					visibilitySupplier = () -> evaluator.evaluate(vs.getAsDouble());
+				} else {
+					// 回退到自动推断（向后兼容）：getXXX -> isXXXValid
+					String baseMethod = row.property.trim();
+					if (baseMethod.contains("*")) {
+						baseMethod = baseMethod.split("\\*")[0].trim();
+					}
+					if (baseMethod.startsWith("get")) {
+						String validityMethod = "is" + baseMethod.substring(3) + "Valid";
+						visibilitySupplier = ui.util.ReflectBinder.resolveBoolean(s, validityMethod);
+					}
 				}
 
 				// Resolve dynamic unit source if specified
@@ -157,10 +167,10 @@ public class PowerInfoOverlay extends FieldOverlay {
 
 				// Use extended bind if we have dynamic suppliers, otherwise use standard bind
 				if (unitSupplier != null || precisionSupplier != null) {
-					fm.bind(row.property, supplier, visibilitySupplier, row.precision, row.format,
+					fm.bind(row.property, valueSupplier, visibilitySupplier, row.precision, row.format,
 							unitSupplier, precisionSupplier);
 				} else {
-					fm.bind(row.property, supplier, visibilitySupplier, row.precision, row.format);
+					fm.bind(row.property, valueSupplier, visibilitySupplier, row.precision, row.format);
 				}
 
 				// Apply visibility immediately based on config value

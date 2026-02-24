@@ -116,6 +116,12 @@ public interface TelemetrySource {
     // Attitude Indicator Data
     double getAviahorizonPitch();  // Pitch angle for artificial horizon (degrees)
     double getAviahorizonRoll();   // Roll angle for artificial horizon (degrees)
+
+    // Engine Type & Aircraft Features (for :visible-when expressions)
+    boolean isJetEngine();         // True if jet (turbojet/turbofan), requires ~5s detection
+    boolean isPropEngine();        // True if propeller (piston/turboprop), requires ~5s detection
+    boolean isEngineCheckDone();   // True after engine type detection completes
+    boolean hasWep();              // True if aircraft has WEP/water injection system
 }
 ```
 

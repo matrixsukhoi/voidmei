@@ -39,6 +39,7 @@ public class ConfigLoader {
         public int precision = 0; // Number of decimal places
         public String unitSource = null; // Method name for dynamic unit (e.g., "getManifoldPressureDisplayUnit")
         public String precisionSource = null; // Method name for dynamic precision (e.g., "getManifoldPressureDisplayPrecision")
+        public SExp visibleWhen = null; // 显示条件表达式（S-expression），用于控制字段可见性
 
         // Extended fields for control-type rows
         public String type = "DATA"; // DATA, HEADER, SLIDER, COMBO, SWITCH, BUTTON
@@ -156,6 +157,22 @@ public class ConfigLoader {
             }
         }
         return def;
+    }
+
+    /**
+     * 获取关键字对应的 SExp 值（用于 :visible-when 等需要完整表达式的属性）
+     * @param list 父列表
+     * @param keyword 关键字（如 ":visible-when"）
+     * @return 关键字后的 SExp 对象，如果不存在则返回 null
+     */
+    private static SExp getKeywordSExp(SList list, String keyword) {
+        for (int i = 0; i < list.children.size() - 1; i++) {
+            SExp curr = list.children.get(i);
+            if (curr.isAtom() && curr.asAtom().isKeyword() && curr.asAtom().getString().equalsIgnoreCase(keyword)) {
+                return list.children.get(i + 1); // 直接返回 SExp 对象
+            }
+        }
+        return null;
     }
 
     public static List<GroupConfig> loadConfig(String path) {
@@ -300,6 +317,7 @@ public class ConfigLoader {
                 row.unitSource = getKeywordString(list, ":unit-source", null);
                 row.precisionSource = getKeywordString(list, ":precision-source", null);
                 row.targetName = getKeywordString(list, ":target-name", null);
+                row.visibleWhen = getKeywordSExp(list, ":visible-when"); // 解析显示条件表达式
 
                 if (row.value == null) {
                     if (row.type.contains("SWITCH"))

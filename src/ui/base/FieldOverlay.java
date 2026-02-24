@@ -177,22 +177,16 @@ public abstract class FieldOverlay extends DraggableOverlay implements FlightDat
                 // Determine if we should process this field (Legacy vs Zero-GC)
                 if (field.valueSupplier != null) {
                     // ZERO-GC PATH
-                    // 1. Determine base visibility from supplier (if any)
-                    boolean baseVisible = (field.visibilitySupplier == null) || field.visibilitySupplier.getAsBoolean();
-
-                    // 2. Fetch value
+                    // 1. Fetch value first (needed for visibilitySupplier expression evaluation)
                     double val = field.valueSupplier.getAsDouble();
 
-                    // 3. Apply Zero-Hiding/Validity logic
-                    // If hideWhenZero is enabled and value is exactly 0 (or very close), hide it.
-                    // Also hide if the value matches common "invalid" constants like -65535.
-                    if (field.hideWhenZero && (Math.abs(val) < 0.000001 || Math.abs(val + 65535.0) < 0.000001)) {
-                        field.visible = false;
-                    } else {
-                        field.visible = baseVisible;
-                    }
+                    // 2. Determine visibility from supplier
+                    // visibilitySupplier 现在可能包含 :visible-when 表达式的求值逻辑，
+                    // 会自动处理引擎类型判断、值比较等复杂条件
+                    boolean visible = (field.visibilitySupplier == null) || field.visibilitySupplier.getAsBoolean();
+                    field.visible = visible;
 
-                    // 4. Dynamic Precision via Supplier
+                    // 3. Dynamic Precision via Supplier
                     if (field.precisionSupplier != null) {
                         int newPrecision = field.precisionSupplier.getAsInt();
                         if (newPrecision != field.precision) {
@@ -200,7 +194,7 @@ public abstract class FieldOverlay extends DraggableOverlay implements FlightDat
                         }
                     }
 
-                    // 5. Dynamic Unit via Supplier
+                    // 4. Dynamic Unit via Supplier
                     if (field.unitSupplier != null) {
                         String newUnit = field.unitSupplier.get();
                         if (newUnit != null && !newUnit.equals(field.unit)) {
@@ -208,7 +202,7 @@ public abstract class FieldOverlay extends DraggableOverlay implements FlightDat
                         }
                     }
 
-                    // 6. Format if visible
+                    // 5. Format if visible
                     if (field.visible) {
                         if ("TIME_MM_SS".equals(field.format)) {
                             field.length = ui.util.FastNumberFormatter.formatTime(val, field.buffer);

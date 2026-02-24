@@ -2121,4 +2121,41 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 	public double getAviahorizonRoll() {
 		return sIndic != null ? sIndic.aviahorizon_roll : 0;
 	}
+
+	// === 引擎类型与飞机特性判断（用于 :visible-when 表达式）===
+
+	/**
+	 * 判断是否为喷气发动机
+	 * 检测完成前（约5秒）返回 false
+	 */
+	@Override
+	public boolean isJetEngine() {
+		return checkEngineFlag && iEngType == ENGINE_TYPE_JET;
+	}
+
+	/**
+	 * 判断是否为螺旋桨发动机（活塞或涡桨）
+	 * 检测完成前（约5秒）返回 false
+	 */
+	@Override
+	public boolean isPropEngine() {
+		return checkEngineFlag && (iEngType == ENGINE_TYPE_PROP || iEngType == ENGINE_TYPE_TURBOPROP);
+	}
+
+	/**
+	 * 判断引擎类型检测是否完成
+	 */
+	@Override
+	public boolean isEngineCheckDone() {
+		return checkEngineFlag;
+	}
+
+	/**
+	 * 判断飞机是否有加力系统
+	 * 检查 FM 数据中的 nitro 值
+	 */
+	@Override
+	public boolean hasWep() {
+		return c != null && c.getBlkx() != null && c.getBlkx().valid && c.getBlkx().nitro > 0;
+	}
 }

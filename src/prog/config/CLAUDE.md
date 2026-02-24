@@ -97,11 +97,12 @@ public class RowConfig {
     public String desc;            // Tooltip description
     public String descImg;         // Help image path
     public int minVal, maxVal;     // For SLIDER type
-    public boolean hideWhenZero;   // Hide if value is zero
+    public boolean hideWhenZero;   // Hide if value is zero (DEPRECATED: use visibleWhen)
     public int precision;          // Decimal places
     public String fgColor;         // Foreground color
     public String unitSource;      // Dynamic unit method (e.g., "getManifoldPressureDisplayUnit")
     public String precisionSource; // Dynamic precision method (e.g., "getManifoldPressureDisplayPrecision")
+    public SExp visibleWhen;       // Visibility condition expression (S-expression)
     public List<RowConfig> children; // Nested items
 }
 ```
@@ -168,7 +169,7 @@ public interface HUDSettings extends OverlaySettings {
 | `font` | String | Font selector | - |
 | `hotkey` | Integer | Key binding | NativeKeyEvent code |
 | `button` | - | Action button | `:fgColor`, callback |
-| `data` | - | Read-only display | `:formula`, `:format`, `:unit-source`, `:precision-source` |
+| `data` | - | Read-only display | `:formula`, `:format`, `:unit-source`, `:precision-source`, `:visible-when` |
 
 ### Slider Unit Display
 
@@ -285,7 +286,7 @@ Overlay re-reads settings and updates UI
           :unit "km/h"            ; For data (static unit)
           :unit-source "getDisplayUnit"    ; For data (dynamic unit from TelemetrySource method)
           :precision-source "getDisplayPrecision" ; For data (dynamic precision)
-          :hideWhenZero true      ; For data
+          :visible-when (> value 0)  ; For data (visibility expression, replaces :hideWhenZero)
     )
 
     ;; Nested group (subsection)
@@ -409,6 +410,89 @@ int getManifoldPressureDisplayPrecision();
 | P-51 (American) | `+5.1` | `P/40.4''` | 1 |
 
 The unit string for imperial mode dynamically includes the current inHg value, updating each frame as throttle changes.
+
+## Visibility Expression System (`:visible-when`)
+
+For DATA fields that need complex visibility logic based on engine type, aircraft features, or field values, use the `:visible-when` attribute with S-expression conditions.
+
+### Expression Syntax
+
+```lisp
+;; Boolean literals
+true
+false
+
+;; Method calls (from TelemetrySource)
+(isJetEngine)           ;; Returns true if jet engine (turbojet/turbofan)
+(isPropEngine)          ;; Returns true if propeller engine (piston/turboprop)
+(isEngineCheckDone)     ;; Returns true after ~5s engine type detection
+(hasWep)                ;; Returns true if aircraft has WEP/water injection
+
+;; Value comparisons ('value' = current field value)
+(> value 0)             ;; value > 0
+(>= value 100)          ;; value >= 100
+(< value 50)            ;; value < 50
+(<= value 0)            ;; value <= 0
+(= value 1)             ;; value == 1 (with 0.0001 tolerance)
+(!= value -65535)       ;; value != -65535
+
+;; Logical operators
+(not expr)              ;; Logical NOT
+(and expr1 expr2 ...)   ;; Logical AND (all must be true)
+(or expr1 expr2 ...)    ;; Logical OR (any must be true)
+```
+
+### Configuration Examples
+
+```lisp
+;; Power: Show only for propeller aircraft when value > 0
+(item "功率" :type data :target "getHorsePower"
+      :visible-when (and (not (isJetEngine)) (> value 0))
+      :unit "Hp")
+
+;; Thrust: Always show for jets, show for props only if > 0
+(item "推力" :type data :target "getThrust"
+      :visible-when (or (isJetEngine) (> value 0))
+      :unit "Kgf")
+
+;; Prop pitch: Non-jet with valid data
+(item "桨距角" :type data :target "getPitch"
+      :visible-when (and (not (isJetEngine)) (!= value -65535))
+      :unit "Deg")
+
+;; WEP time: Has WEP system and time remaining
+(item "加力时" :type data :target "getWepTime"
+      :visible-when (and (hasWep) (> value 0))
+      :format "TIME_MM_SS")
+
+;; Variable sweep: Only when non-zero
+(item "可变翼" :type data :target "getWingSweep * 100"
+      :visible-when (!= value 0)
+      :unit "%")
+```
+
+### Implementation Details
+
+1. **Parsing**: `:visible-when` values are stored as `SExp` objects (not strings) in `RowConfig.visibleWhen`
+2. **Evaluation**: `VisibilityExpressionEvaluator` evaluates expressions each frame with the current field value
+3. **Preview Mode**: When `TelemetrySource` is null (preview), all method calls return `true` (show all fields)
+4. **Backwards Compatibility**: If no `:visible-when`, falls back to auto-inferred `isXXXValid()` methods
+
+### Migration from `:hide-when-zero`
+
+The `:hide-when-zero` attribute is now deprecated. Replace with `:visible-when`:
+
+```lisp
+;; Old (deprecated)
+(item "推力" :type data :target "getThrust" :hide-when-zero true)
+
+;; New (recommended)
+(item "推力" :type data :target "getThrust" :visible-when (> value 0))
+
+;; New with engine type awareness
+(item "推力" :type data :target "getThrust"
+      :visible-when (or (isJetEngine) (> value 0)))
+```
 
 ## Important Notes
 

@@ -41,6 +41,7 @@ python3 script/mock_8111.py
 ./script/test.sh              # Run all tests
 ./script/test.sh atmosphere   # Run AtmosphereModel tests only
 ./script/test.sh piston       # Run PistonPowerModel tests only
+./script/test.sh visibility   # Run VisibilityExpressionEvaluator tests only
 ```
 
 **Unit tests** available for utility classes in `test/`. Integration testing is manual via the running application or mock server.
@@ -137,7 +138,7 @@ VoidMei provides multiple ways to launch on Windows:
   - `renderer/` - Rendering implementations (`OverlayRenderer`, `LinearGaugeRenderer`, `BOSStyleRenderer`, `TextOnlyRenderer`)
   - `model/` - UI data models (`FieldManager`, `FlightDataProvider`, `ServiceDataAdapter`, `GaugeField`, `FieldDefinition`)
   - `replica/` - UI template/replica system (`ReplicaBuilder`, `ReplicaPanel`, `PinkStyle`)
-  - `util/` - UI utilities (`FastNumberFormatter`, `GraphicsUtil`, `SliderHelper`, `OverlayStyleHelper`, `NotificationService`, `ReflectBinder`, `UIConstants`)
+  - `util/` - UI utilities (`FastNumberFormatter`, `GraphicsUtil`, `SliderHelper`, `OverlayStyleHelper`, `NotificationService`, `ReflectBinder`, `UIConstants`, `VisibilityExpressionEvaluator`)
   - `window/comparison/` - Aircraft comparison window (`CompactComparisonWindow`, logic/, model/)
 
 ### Data Flow
@@ -660,4 +661,13 @@ Detailed development guides for complex subsystems:
       :unit-source "getManifoldPressureDisplayUnit"
       :precision-source "getManifoldPressureDisplayPrecision"
       :unit "Ata" :precision 2)  ; defaults for preview mode
+
+;; Data field with visibility expression (engine type aware)
+(item "功率" :type data :target "getHorsePower"
+      :visible-when (and (not (isJetEngine)) (> value 0))
+      :unit "Hp")  ; Show for prop aircraft only when value > 0
+
+;; Visibility expression operators: (not), (and), (or), (> value N), (>= value N),
+;; (< value N), (<= value N), (= value N), (!= value N)
+;; TelemetrySource methods: (isJetEngine), (isPropEngine), (hasWep), (isEngineCheckDone)
 ```

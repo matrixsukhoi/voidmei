@@ -113,22 +113,30 @@ public class FlightInfoOverlay extends FieldOverlay {
 		ui.model.FieldManager fm = this.fieldManager;
 		for (prog.config.ConfigLoader.RowConfig row : rows) {
 			if ("DATA".equals(row.type) && row.property != null && !row.property.isEmpty()) {
-				java.util.function.DoubleSupplier supplier = ui.util.ReflectBinder.resolveDouble(s, row.property);
+				java.util.function.DoubleSupplier valueSupplier = ui.util.ReflectBinder.resolveDouble(s, row.property);
 
-				// Resolve validity method (e.g., getRPM -> isRPMValid)
-				String baseMethod = row.property.trim();
-				if (baseMethod.contains("*")) {
-					baseMethod = baseMethod.split("\\*")[0].trim();
-				}
-				if (baseMethod.startsWith("get")) {
-					String validityMethod = "is" + baseMethod.substring(3) + "Valid";
-					java.util.function.BooleanSupplier visibilitySupplier = ui.util.ReflectBinder.resolveBoolean(s,
-							validityMethod);
-					fm.bind(row.property, supplier, visibilitySupplier, row.precision, row.format);
+				// 构建 visibilitySupplier
+				java.util.function.BooleanSupplier visibilitySupplier = null;
+
+				if (row.visibleWhen != null) {
+					// 使用表达式求值器（visibleWhen 是预解析的 SExp 对象）
+					final ui.util.VisibilityExpressionEvaluator evaluator =
+						new ui.util.VisibilityExpressionEvaluator(row.visibleWhen, s);
+					final java.util.function.DoubleSupplier vs = valueSupplier;
+					visibilitySupplier = () -> evaluator.evaluate(vs.getAsDouble());
 				} else {
-					fm.bind(row.property, supplier, null, row.precision, row.format);
+					// 回退到自动推断（向后兼容）：getXXX -> isXXXValid
+					String baseMethod = row.property.trim();
+					if (baseMethod.contains("*")) {
+						baseMethod = baseMethod.split("\\*")[0].trim();
+					}
+					if (baseMethod.startsWith("get")) {
+						String validityMethod = "is" + baseMethod.substring(3) + "Valid";
+						visibilitySupplier = ui.util.ReflectBinder.resolveBoolean(s, validityMethod);
+					}
 				}
 
+				fm.bind(row.property, valueSupplier, visibilitySupplier, row.precision, row.format);
 				fm.setFieldVisible(row.property, row.getBool());
 			}
 			if (row.children != null && !row.children.isEmpty()) {
