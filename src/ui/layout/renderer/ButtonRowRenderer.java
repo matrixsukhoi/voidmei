@@ -2,15 +2,11 @@ package ui.layout.renderer;
 
 import com.alee.laf.button.WebButton;
 import com.alee.laf.panel.WebPanel;
-import com.alee.laf.filechooser.WebFileChooser;
 import com.alee.extended.layout.VerticalFlowLayout;
 
 import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
 import java.io.File;
-
-import javax.swing.JFileChooser;
-import javax.swing.filechooser.FileNameExtensionFilter;
 
 import prog.Application;
 import prog.config.ConfigLoader;
@@ -109,42 +105,16 @@ public class ButtonRowRenderer implements RowRenderer {
             });
         }
 
-        // Handle import config button
+        // Handle import config button - 使用现代化拖放导入对话框
         if ("importConfig".equals(row.property)) {
             btn.addActionListener(e -> {
-                // Dismiss any open tooltips before showing file chooser
+                // 关闭所有打开的 tooltip/popover，防止被对话框覆盖
                 ReplicaBuilder.disposeAllPopovers();
 
-                // Show file chooser
-                WebFileChooser fileChooser = new WebFileChooser();
-                fileChooser.setDialogTitle(Lang.mImportConfigTitle);
-                fileChooser.setFileFilter(new FileNameExtensionFilter("Config files (*.cfg)", "cfg"));
-                fileChooser.setMultiSelectionEnabled(false);
-
-                int result = fileChooser.showOpenDialog(javax.swing.SwingUtilities.getWindowAncestor(p));
-                if (result == JFileChooser.APPROVE_OPTION) {
-                    File selectedFile = fileChooser.getSelectedFile();
-
-                    // Show confirmation dialog (using DialogService to avoid overlay blocking)
-                    int confirmResult = DialogService.showConfirmDialog(
-                            p,
-                            Lang.mImportConfirmContent,
-                            Lang.mImportConfirmTitle,
-                            com.alee.laf.optionpane.WebOptionPane.YES_NO_OPTION,
-                            com.alee.laf.optionpane.WebOptionPane.WARNING_MESSAGE);
-
-                    if (confirmResult == com.alee.laf.optionpane.WebOptionPane.YES_OPTION) {
-                        // Perform import - hot reload happens via CONFIG_CHANGED event
-                        boolean success = Application.ctr.getConfigService().importConfig(selectedFile.getAbsolutePath());
-                        if (!success) {
-                            DialogService.showMessageDialog(
-                                    p,
-                                    Lang.mImportFailContent,
-                                    Lang.mImportFailTitle,
-                                    com.alee.laf.optionpane.WebOptionPane.ERROR_MESSAGE);
-                        }
-                    }
-                }
+                // 使用静态方法入口，内置 CAS 防重复点击保护
+                ConfigImportDialog.showDialog(btn, file -> {
+                    handleConfigImport(p, file);
+                });
             });
         }
 
@@ -185,6 +155,34 @@ public class ButtonRowRenderer implements RowRenderer {
 
         p.add(btn);
         return p;
+    }
+
+    /**
+     * 处理配置文件导入逻辑
+     *
+     * @param parentPanel 父面板，用于显示对话框
+     * @param file        要导入的配置文件
+     */
+    private void handleConfigImport(WebPanel parentPanel, File file) {
+        // 显示确认对话框 (使用 DialogService 避免 overlay 遮挡问题)
+        int confirmResult = DialogService.showConfirmDialog(
+                parentPanel,
+                Lang.mImportConfirmContent,
+                Lang.mImportConfirmTitle,
+                com.alee.laf.optionpane.WebOptionPane.YES_NO_OPTION,
+                com.alee.laf.optionpane.WebOptionPane.WARNING_MESSAGE);
+
+        if (confirmResult == com.alee.laf.optionpane.WebOptionPane.YES_OPTION) {
+            // 执行导入 - 热重载通过 CONFIG_CHANGED 事件触发
+            boolean success = Application.ctr.getConfigService().importConfig(file.getAbsolutePath());
+            if (!success) {
+                DialogService.showMessageDialog(
+                        parentPanel,
+                        Lang.mImportFailContent,
+                        Lang.mImportFailTitle,
+                        com.alee.laf.optionpane.WebOptionPane.ERROR_MESSAGE);
+            }
+        }
     }
 
     private java.awt.Color parseColor(String s) {

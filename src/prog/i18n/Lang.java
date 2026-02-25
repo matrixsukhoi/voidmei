@@ -252,6 +252,16 @@ public class Lang {
 	public static String mFactoryResetFailTitle;
 	public static String mFactoryResetFailContent;
 
+	// Config Import Dialog - 拖放导入
+	public static String mImportDropZoneTitle;
+	public static String mImportDropZoneSubtitle;
+	public static String mImportDropZoneFormat;
+	public static String mImportDropZoneRelease;
+	public static String mImportDropZoneInvalid;
+	public static String mImportFileSelected;
+	public static String mImportFileNone;
+	public static String mImportButtonImport;
+
 	// Version Update Dialog
 	public static String mUpdateAvailableTitle;
 	public static String mUpdateAvailableContent;
@@ -850,6 +860,17 @@ public class Lang {
 		mFactoryResetSuccessContent = updateLanguage("mFactoryResetSuccessContent", "配置已恢复为出厂设置，请重启程序以应用所有更改。");
 		mFactoryResetFailTitle = updateLanguage("mFactoryResetFailTitle", "恢复失败");
 		mFactoryResetFailContent = updateLanguage("mFactoryResetFailContent", "恢复出厂设置失败，请检查模板文件是否存在。");
+
+		// Config Import Dialog - 拖放导入
+		mImportDropZoneTitle = updateLanguage("mImportDropZoneTitle", "拖放配置文件到此处");
+		mImportDropZoneSubtitle = updateLanguage("mImportDropZoneSubtitle", "或点击选择文件");
+		mImportDropZoneFormat = updateLanguage("mImportDropZoneFormat", "支持的格式: *.cfg, *.bak");
+		mImportDropZoneRelease = updateLanguage("mImportDropZoneRelease", "松开以导入");
+		mImportDropZoneInvalid = updateLanguage("mImportDropZoneInvalid", "不支持的文件格式，请选择 .cfg 或 .bak 文件");
+		mImportFileSelected = updateLanguage("mImportFileSelected", "已选择: %s");
+		mImportFileNone = updateLanguage("mImportFileNone", "未选择文件");
+		mImportButtonImport = updateLanguage("mImportButtonImport", "导入配置");
+
 		mUpdateAvailableTitle = updateLanguage("mUpdateAvailableTitle", "发现新版本");
 		mUpdateAvailableContent = updateLanguage("mUpdateAvailableContent", "GitHub上已发布新版本: %s<br>当前版本: %s<br>请点击下方链接下载更新。");
 		mUpdateAvailableLinkText = updateLanguage("mUpdateAvailableLinkText", "前往下载页面");

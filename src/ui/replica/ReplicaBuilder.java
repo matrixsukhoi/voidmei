@@ -507,6 +507,32 @@ public class ReplicaBuilder {
         }
     }
 
+    /**
+     * 注册 popover 到全局追踪列表，以便 disposeAllPopovers 能清理。
+     * 用于需要长期存在的 popover（如 ConfigImportDialog）。
+     *
+     * @param popover 要注册的 WebPopOver 实例
+     */
+    public static void registerPopover(WebPopOver popover) {
+        if (popover == null) return;
+        synchronized (activePopovers) {
+            activePopovers.add(popover);
+        }
+    }
+
+    /**
+     * 从全局追踪列表移除 popover。
+     * 应在 popover 关闭时调用，防止列表持有已关闭的引用。
+     *
+     * @param popover 要移除的 WebPopOver 实例
+     */
+    public static void unregisterPopover(WebPopOver popover) {
+        if (popover == null) return;
+        synchronized (activePopovers) {
+            activePopovers.remove(popover);
+        }
+    }
+
     public static void applyStylizedTooltip(javax.swing.JComponent component, String text, String img) {
         // Remove standard tooltip if any
         component.setToolTipText(null);
