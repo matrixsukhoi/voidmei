@@ -6,6 +6,7 @@
 #   ./script/test.sh              # Run all tests
 #   ./script/test.sh atmosphere   # Run AtmosphereModel tests only
 #   ./script/test.sh piston       # Run PistonPowerModel tests only
+#   ./script/test.sh voicepack    # Run VoicePackConfig tests only
 #
 
 set -e
@@ -137,6 +138,13 @@ case "${1:-all}" in
             ((TOTAL_FAILED++)) || true
         fi
         ;;
+    voicepack|voice)
+        if run_test "VoicePackConfig Tests" "TestVoicePackConfig"; then
+            ((TOTAL_PASSED++)) || true
+        else
+            ((TOTAL_FAILED++)) || true
+        fi
+        ;;
     all|*)
         echo "=========================================="
         if run_test "AtmosphereModel Tests" "TestAtmosphereModel"; then
@@ -156,6 +164,14 @@ case "${1:-all}" in
         echo ""
         echo "=========================================="
         if run_test "VisibilityExpressionEvaluator Tests" "TestVisibilityExpressionEvaluator"; then
+            ((TOTAL_PASSED++)) || true
+        else
+            ((TOTAL_FAILED++)) || true
+        fi
+
+        echo ""
+        echo "=========================================="
+        if run_test "VoicePackConfig Tests" "TestVoicePackConfig"; then
             ((TOTAL_PASSED++)) || true
         else
             ((TOTAL_FAILED++)) || true

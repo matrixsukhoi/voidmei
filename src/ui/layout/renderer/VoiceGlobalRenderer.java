@@ -6,6 +6,8 @@ import com.alee.laf.label.WebLabel;
 import com.alee.laf.panel.WebPanel;
 import com.alee.laf.filechooser.WebFileChooser;
 
+import prog.audio.VoiceAlertType;
+import prog.audio.VoicePackConfig;
 import prog.audio.VoiceResourceManager;
 import prog.config.ConfigLoader.GroupConfig;
 import prog.config.ConfigLoader.RowConfig;
@@ -125,44 +127,29 @@ public class VoiceGlobalRenderer implements RowRenderer {
         return panel;
     }
 
+    /**
+     * 应用全局语音包设置
+     * 使用 VoiceAlertType 枚举获取所有告警 key，避免硬编码列表
+     * 使用 VoicePackConfig 解析和序列化配置值
+     */
     private void applyGlobalPack(String packName, RenderContext context) {
-        // We iterate over known voice keys and update them ONLY if the target pack has
-        // the file.
-        // If target pack doesn't have the file, we leave it as is
-        // (or ideally we'd want to ensure it's valid, but User Request says "if have,
-        // switch, else don't").
-
-        String[] keys = {
-                "aoaCrit", "aoaHigh", "warn_stall", "warn_gear",
-                "warn_engineoverheat", "warn_lowfuel", "warn_altitude",
-                "warn_terrain", "warn_flap", "warn_loadfactor",
-                "rudderEff", "elevatorEff", "aileronEff", "warn_lowrpm",
-                "warn_highrpm", "warn_ias", "warn_mach", "fail_engine",
-                "warn_lowpressure", "fail_nofuel", "warn_highvario",
-                "warn_brake", "warn_compressor", "start1"
-        };
-
-        for (String key : keys) {
-            String configKey = "voice_" + key;
+        // 使用 VoiceAlertType 获取所有告警 key，避免硬编码
+        for (String key : VoiceAlertType.getAllKeys()) {
+            String configKey = VoicePackConfig.withVoicePrefix(key);
 
             // Smart Logic: Only switch if the pack actually contains this voice file.
             boolean existsInTarget = VoiceResourceManager.getInstance().hasResourceStrict(key, packName);
 
             if (existsInTarget) {
-                // Preserve enabled state
-                String currentVal = context.getStringFromConfigService(configKey, "default");
-                boolean enabled = true;
-                if (currentVal != null && currentVal.contains("|")) {
-                    enabled = Boolean.parseBoolean(currentVal.split("\\|")[1]);
-                }
+                // 使用 VoicePackConfig 解析当前配置，保持启用状态
+                String currentVal = context.getStringFromConfigService(configKey, VoicePackConfig.DEFAULT_PACK);
+                VoicePackConfig current = VoicePackConfig.parse(currentVal);
 
-                String newVal = packName + "|" + enabled;
-                context.syncStringToConfigService(configKey, newVal);
-            } else {
-                // Do NOT switch. Keep existing setting.
-                // This fulfills: "If no voice... dropdown shouldn't have... so don't select
-                // it".
+                // 保持启用状态，只改包名
+                VoicePackConfig updated = current.withPackName(packName);
+                context.syncStringToConfigService(configKey, updated.toConfigString());
             }
+            // 如果目标包没有该文件，保持原设置不变
         }
     }
 }

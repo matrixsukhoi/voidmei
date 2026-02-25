@@ -124,31 +124,27 @@ public class VoiceResourceManager {
     /**
      * Loads a clip for a specific warning from a specific pack.
      * Fallbacks to default (root voice dir) if not found in pack.
-     * 
+     *
+     * 资源管理说明：
+     * AudioInputStream 在 Clip.open() 后可以安全关闭，
+     * 因为 Clip 会将音频数据复制到内存中，不再需要流。
+     *
      * @param warningName The filename base (e.g. "aoaCrit")
      * @param packName    The voice pack name (e.g. "jarvis")
      * @return The loaded Clip, or null if failed.
      */
     public Clip loadClip(String warningName, String packName) {
-        // 1. Try Pack Path
-        File file = null;
-        if (packName != null && !packName.isEmpty() && !"default".equals(packName)) {
-            file = new File(VOICE_DIR + packName + "/" + warningName + ".wav");
-        }
-
-        // 2. Fallback to default path
-        if (file == null || !file.exists()) {
-            file = new File(VOICE_DIR + warningName + ".wav");
-        }
-
-        if (!file.exists()) {
+        // 解析音频文件路径
+        File file = resolveAudioFile(warningName, packName);
+        if (file == null) {
             prog.util.Logger.error("VoiceResourceManager",
                     "Audio file not found: " + warningName + " (Pack: " + packName + ")");
             return null;
         }
 
+        AudioInputStream audioStream = null;
         try {
-            AudioInputStream audioStream = AudioSystem.getAudioInputStream(file);
+            audioStream = AudioSystem.getAudioInputStream(file);
             AudioFormat format = audioStream.getFormat();
             DataLine.Info info = new DataLine.Info(Clip.class, format);
             Clip audioClip = (Clip) AudioSystem.getLine(info);
@@ -162,7 +158,40 @@ public class VoiceResourceManager {
                     "Error loading clip: " + file.getPath() + " -> " + e.getMessage());
             e.printStackTrace();
             return null;
+        } finally {
+            // 关键修复：AudioInputStream 在 Clip.open() 后可以关闭
+            // Clip 会复制数据到内存，不再需要 stream
+            if (audioStream != null) {
+                try {
+                    audioStream.close();
+                } catch (IOException e) {
+                    prog.util.Logger.debug("VoiceResourceManager", "关闭 AudioInputStream 失败");
+                }
+            }
         }
+    }
+
+    /**
+     * 解析音频文件路径
+     * 1. 优先尝试指定的 Pack 路径
+     * 2. 回退到 default（根目录）
+     *
+     * @param warningName 告警名称
+     * @param packName 语音包名称
+     * @return 文件对象，如果不存在返回 null
+     */
+    private File resolveAudioFile(String warningName, String packName) {
+        // 1. 尝试 Pack 路径
+        if (packName != null && !packName.isEmpty() && !"default".equals(packName)) {
+            File packFile = new File(VOICE_DIR + packName + "/" + warningName + ".wav");
+            if (packFile.exists()) {
+                return packFile;
+            }
+        }
+
+        // 2. 回退到 default
+        File defaultFile = new File(VOICE_DIR + warningName + ".wav");
+        return defaultFile.exists() ? defaultFile : null;
     }
 
     /**
