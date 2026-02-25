@@ -57,7 +57,8 @@ public class FMUnpackedDataOverlay extends BaseOverlay {
         this.fmDataAdapter = adapter;
         // 使用 getConfigProvider() 获取配置接口，而不是直接使用 Controller
         this.config = c.getConfigProvider();
-        this.overlaySettings = settings;
+        // 使用 setter 方法确保位置保存回调正确初始化
+        setOverlaySettings(settings);
         this.isPreview = false;
 
         // Game mode: initially hidden
@@ -98,7 +99,8 @@ public class FMUnpackedDataOverlay extends BaseOverlay {
         this.fmDataAdapter = adapter;
         // 使用 getConfigProvider() 获取配置接口，而不是直接使用 Controller
         this.config = c.getConfigProvider();
-        this.overlaySettings = settings;
+        // 使用 setter 方法确保位置保存回调正确初始化
+        setOverlaySettings(settings);
         this.isPreview = true;
 
         // Preview mode: always visible
