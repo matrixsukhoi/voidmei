@@ -84,15 +84,27 @@ public class FlapAngleBar extends AbstractHUDComponent {
         // Bar position below text (using font size as line height approximation)
         int barY = y + font.getSize() + 2;
 
-        // Calculate section widths
-        int blueWidth = (int) (currentAngle * totalWidth / MAX_SCALE);
-        int greenWidth = (int) ((maxSafeAngle - currentAngle) * totalWidth / MAX_SCALE);
-        int redWidth = totalWidth - blueWidth - greenWidth;
+        // 计算三个区域的宽度
+        // usedWidth=已使用襟翼, marginWidth=剩余安全裕度, overspeedWidth=超速区
+        int usedWidth, marginWidth, overspeedWidth;
 
-        // Ensure non-negative
-        blueWidth = Math.max(0, blueWidth);
-        greenWidth = Math.max(0, greenWidth);
-        redWidth = Math.max(0, redWidth);
+        // 已使用区域: 0 → currentAngle (黑色始终跟随当前角度)
+        usedWidth = (int) (currentAngle * totalWidth / MAX_SCALE);
+
+        if (currentAngle <= maxSafeAngle) {
+            // 正常: 有安全裕度
+            marginWidth = (int) (maxSafeAngle * totalWidth / MAX_SCALE) - usedWidth;
+            overspeedWidth = totalWidth - usedWidth - marginWidth;
+        } else {
+            // 超限: 无安全裕度，红色是右边剩余部分
+            marginWidth = 0;
+            overspeedWidth = totalWidth - usedWidth;
+        }
+
+        // 边界保护
+        usedWidth = Math.max(0, usedWidth);
+        marginWidth = Math.max(0, marginWidth);
+        overspeedWidth = Math.max(0, overspeedWidth);
 
         // Cache stroke
         if (cachedStrokeWidth != 2) {
@@ -112,22 +124,22 @@ public class FlapAngleBar extends AbstractHUDComponent {
             // Let's keep it attached to the bar top.
         }
 
-        // Draw blue section (0 → currentAngle)
-        if (blueWidth > 0) {
+        // 绘制已使用区域 (0 → currentAngle，黑色)
+        if (usedWidth > 0) {
             g2d.setColor(Application.colorShadeShape);
-            g2d.fillRect(x, barY, blueWidth, barHeight);
+            g2d.fillRect(x, barY, usedWidth, barHeight);
         }
 
-        // Draw green section (currentAngle → maxSafeAngle)
-        if (greenWidth > 0) {
+        // 绘制安全裕度区域 (currentAngle → maxSafeAngle，白色)
+        if (marginWidth > 0) {
             g2d.setColor(Application.colorNum);
-            g2d.fillRect(x + blueWidth, barY, greenWidth, barHeight);
+            g2d.fillRect(x + usedWidth, barY, marginWidth, barHeight);
         }
 
-        // Draw red section (maxSafeAngle → 125)
-        if (redWidth > 0) {
+        // 绘制超速区 (右边剩余部分，红色)
+        if (overspeedWidth > 0) {
             g2d.setColor(Application.colorWarning);
-            g2d.fillRect(x + blueWidth + greenWidth, barY, redWidth, barHeight);
+            g2d.fillRect(x + usedWidth + marginWidth, barY, overspeedWidth, barHeight);
         }
     }
 }
