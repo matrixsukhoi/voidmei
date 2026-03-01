@@ -585,11 +585,9 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 						pL[i].curWaterWorkTimeMili = pL[i].WorkTime * 1000;
 					}
 				} else {
-					// 大于load且工作时长不满则进行恢复
-					if (sState.throttle <= 100) {
-						if (pL[i].RecoverTime != 0 && (1000 * pL[i].WorkTime > pL[i].curWaterWorkTimeMili)) {
-							pL[i].curWaterWorkTimeMili += (double) pollCycleDurationMs * pL[i].WorkTime / pL[i].RecoverTime;
-						}
+					// 大于load且工作时长不满则进行恢复（WEP时也允许恢复）
+					if (pL[i].RecoverTime != 0 && (1000 * pL[i].WorkTime > pL[i].curWaterWorkTimeMili)) {
+						pL[i].curWaterWorkTimeMili += (double) pollCycleDurationMs * pL[i].WorkTime / pL[i].RecoverTime;
 					}
 				}
 
@@ -615,11 +613,9 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 						pL[i].curOilWorkTimeMili = pL[i].WorkTime * 1000;
 					}
 				} else {
-					// 大于load且工作时长不满则进行恢复
-					if (sState.throttle <= 100) {
-						if (pL[i].RecoverTime != 0 && (1000 * pL[i].WorkTime > pL[i].curOilWorkTimeMili)) {
-							pL[i].curOilWorkTimeMili += (double) pollCycleDurationMs * pL[i].WorkTime / pL[i].RecoverTime;
-						}
+					// 大于load且工作时长不满则进行恢复（WEP时也允许恢复）
+					if (pL[i].RecoverTime != 0 && (1000 * pL[i].WorkTime > pL[i].curOilWorkTimeMili)) {
+						pL[i].curOilWorkTimeMili += (double) pollCycleDurationMs * pL[i].WorkTime / pL[i].RecoverTime;
 					}
 				}
 			}
