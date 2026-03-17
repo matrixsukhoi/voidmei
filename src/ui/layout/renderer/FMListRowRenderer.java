@@ -25,6 +25,8 @@ import prog.config.ConfigLoader.RowConfig;
 import prog.i18n.Lang;
 import prog.util.FileUtils;
 import ui.replica.ReplicaBuilder;
+import javax.swing.event.PopupMenuListener;
+import javax.swing.event.PopupMenuEvent;
 
 public class FMListRowRenderer implements RowRenderer {
 
@@ -76,9 +78,26 @@ public class FMListRowRenderer implements RowRenderer {
         combo.setExpandedBgColor(new java.awt.Color(0, 0, 0, 0));
         combo.setBackground(new java.awt.Color(0, 0, 0, 0));
 
+        // 注册到全局追踪，以便弹出窗口互斥
+        ReplicaBuilder.registerComboBox(combo);
+
         if (currentVal != null && !currentVal.isEmpty()) {
             combo.setSelectedItem(currentVal);
         }
+
+        // 下拉菜单打开时，关闭其他弹出窗口
+        combo.addPopupMenuListener(new PopupMenuListener() {
+            @Override
+            public void popupMenuWillBecomeVisible(PopupMenuEvent e) {
+                ReplicaBuilder.dismissActivePopups();
+            }
+            @Override
+            public void popupMenuWillBecomeInvisible(PopupMenuEvent e) {
+            }
+            @Override
+            public void popupMenuCanceled(PopupMenuEvent e) {
+            }
+        });
 
         combo.addActionListener(e -> {
             if (context.isUpdating())

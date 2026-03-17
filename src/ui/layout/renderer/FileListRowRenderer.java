@@ -8,6 +8,8 @@ import prog.config.ConfigLoader.GroupConfig;
 import prog.util.FileUtils;
 import prog.util.PropertyBinder;
 import ui.replica.ReplicaBuilder;
+import javax.swing.event.PopupMenuListener;
+import javax.swing.event.PopupMenuEvent;
 
 /**
  * Renders FILELIST type rows (file selection dropdown).
@@ -39,10 +41,27 @@ public class FileListRowRenderer implements RowRenderer {
         WebComboBox combo = ReplicaBuilder.getComboBox(itemPanel);
 
         if (combo != null) {
+            // 注册到全局追踪，以便弹出窗口互斥
+            ReplicaBuilder.registerComboBox(combo);
+
             // Set initial selection
             if (currentVal != null && !currentVal.isEmpty()) {
                 combo.setSelectedItem(currentVal);
             }
+
+            // 下拉菜单打开时，关闭其他弹出窗口
+            combo.addPopupMenuListener(new PopupMenuListener() {
+                @Override
+                public void popupMenuWillBecomeVisible(PopupMenuEvent e) {
+                    ReplicaBuilder.dismissActivePopups();
+                }
+                @Override
+                public void popupMenuWillBecomeInvisible(PopupMenuEvent e) {
+                }
+                @Override
+                public void popupMenuCanceled(PopupMenuEvent e) {
+                }
+            });
 
             final String prop = row.property;
             combo.addActionListener(e -> {

@@ -68,14 +68,9 @@ public class ColorRowRenderer implements RowRenderer {
         final ColorPickerPopup[] activePicker = { null };
 
         // Color picker popup handler - creates popup anchored to the clicked component
+        // 全局弹出互斥由 ColorPickerPopup.prepareShow() 内部处理
         java.util.function.Consumer<javax.swing.JComponent> showColorPicker = (anchor) -> {
             if (context.isUpdating()) return;
-
-            // If a picker is already open, close it first
-            if (activePicker[0] != null) {
-                activePicker[0].dispose();
-                activePicker[0] = null;
-            }
 
             // Parse current color from field
             Color current = ColorHelper.parseColor(field.getText(), Color.WHITE);

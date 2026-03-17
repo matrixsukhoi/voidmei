@@ -15,6 +15,8 @@ import java.awt.BorderLayout;
 import java.awt.Dimension;
 import javax.sound.sampled.Clip;
 import javax.swing.BorderFactory;
+import javax.swing.event.PopupMenuListener;
+import javax.swing.event.PopupMenuEvent;
 
 /**
  * Renders VOICE type rows.
@@ -64,6 +66,23 @@ public class VoiceRowRenderer implements RowRenderer {
         WebComboBox combo = new WebComboBox(validPacks.toArray(new String[0]));
         combo.setEditable(false);
         combo.setPreferredSize(new Dimension(100, 26));
+
+        // 注册到全局追踪，以便弹出窗口互斥
+        ReplicaBuilder.registerComboBox(combo);
+
+        // 下拉菜单打开时，关闭其他弹出窗口
+        combo.addPopupMenuListener(new PopupMenuListener() {
+            @Override
+            public void popupMenuWillBecomeVisible(PopupMenuEvent e) {
+                ReplicaBuilder.dismissActivePopups();
+            }
+            @Override
+            public void popupMenuWillBecomeInvisible(PopupMenuEvent e) {
+            }
+            @Override
+            public void popupMenuCanceled(PopupMenuEvent e) {
+            }
+        });
 
         // Switch
         WebSwitch enableSwitch = new WebSwitch();

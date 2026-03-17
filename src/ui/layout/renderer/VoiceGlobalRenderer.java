@@ -19,6 +19,8 @@ import java.io.File;
 import java.util.List;
 import javax.swing.BorderFactory;
 import javax.swing.JFileChooser;
+import javax.swing.event.PopupMenuListener;
+import javax.swing.event.PopupMenuEvent;
 
 /**
  * Renders VOICE_GLOBAL type rows.
@@ -50,6 +52,23 @@ public class VoiceGlobalRenderer implements RowRenderer {
         WebComboBox combo = new WebComboBox(packs.toArray(new String[0]));
         combo.setEditable(false);
         combo.setPreferredSize(new Dimension(100, 26));
+
+        // 注册到全局追踪，以便弹出窗口互斥
+        ReplicaBuilder.registerComboBox(combo);
+
+        // 下拉菜单打开时，关闭其他弹出窗口
+        combo.addPopupMenuListener(new PopupMenuListener() {
+            @Override
+            public void popupMenuWillBecomeVisible(PopupMenuEvent e) {
+                ReplicaBuilder.dismissActivePopups();
+            }
+            @Override
+            public void popupMenuWillBecomeInvisible(PopupMenuEvent e) {
+            }
+            @Override
+            public void popupMenuCanceled(PopupMenuEvent e) {
+            }
+        });
 
         // Initial selection: Load from config
         String globalPack = "default";

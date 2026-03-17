@@ -5,7 +5,6 @@ import com.alee.laf.combobox.WebComboBox;
 import prog.config.ConfigLoader.RowConfig;
 import prog.config.ConfigLoader.GroupConfig;
 import prog.util.FileUtils;
-import prog.util.Logger;
 import ui.replica.ReplicaBuilder;
 import java.io.File;
 import javax.swing.event.PopupMenuListener;
@@ -23,6 +22,9 @@ public class ComboRowRenderer implements RowRenderer {
         WebComboBox combo = ReplicaBuilder.getComboBox(itemPanel);
 
         if (combo != null) {
+            // 注册到全局追踪，以便弹出窗口互斥
+            ReplicaBuilder.registerComboBox(combo);
+
             // 使用统一的配置读取助手
             // 优先级: PropertyBinder → ConfigurationService → 默认值
             String currentVal = RendererConfigHelper.readString(context, groupConfig, row, row.getStr());
@@ -31,22 +33,18 @@ public class ComboRowRenderer implements RowRenderer {
                 combo.setSelectedItem(currentVal);
             }
 
-            // Debug: Track popup open/close events to diagnose auto-close issue on Windows
-            final String comboLabel = row.label;
+            // 下拉菜单打开时，关闭其他弹出窗口（颜色选择器、其他下拉等）
             combo.addPopupMenuListener(new PopupMenuListener() {
                 @Override
                 public void popupMenuWillBecomeVisible(PopupMenuEvent e) {
-                    Logger.info("ComboDebug", "OPEN: " + comboLabel);
+                    // 此时 popup 尚未可见，dismissActivePopups 的 hidePopup 对自身是 no-op
+                    ReplicaBuilder.dismissActivePopups();
                 }
                 @Override
                 public void popupMenuWillBecomeInvisible(PopupMenuEvent e) {
-                    Logger.info("ComboDebug", "CLOSE: " + comboLabel);
-                    // Print stack trace to find what triggered the close
-                    Thread.dumpStack();
                 }
                 @Override
                 public void popupMenuCanceled(PopupMenuEvent e) {
-                    Logger.info("ComboDebug", "CANCEL: " + comboLabel);
                 }
             });
 

@@ -19,6 +19,7 @@ import com.alee.laf.text.WebTextField;
 
 import prog.util.ColorHelper;
 import ui.replica.PinkStyle;
+import ui.replica.ReplicaBuilder;
 
 /**
  * Modern color picker popup with HSB palette, alpha slider, and hex input.
@@ -56,6 +57,8 @@ public class ColorPickerPopup {
 
     private Color currentColor;
     private boolean updatingUI = false;
+    // 点击外部自动关闭监听器
+    private java.awt.event.AWTEventListener clickOutsideListener;
 
     /**
      * Creates a color picker popup.
@@ -70,8 +73,18 @@ public class ColorPickerPopup {
         this.popover = new WebPopOver(owner);
 
         // Configure popover
+        // setCloseOnFocusLoss(true) 对可聚焦弹窗无效（内含 TextField/JSpinner 会持有焦点），
+        // 改用 AWTEventListener 检测点击外部来关闭
         popover.setCloseOnFocusLoss(false);
         popover.setMovable(true);
+        // popover 关闭时清理全局注册和点击监听器
+        popover.addWindowListener(new java.awt.event.WindowAdapter() {
+            @Override
+            public void windowClosed(java.awt.event.WindowEvent e) {
+                uninstallClickOutsideListener();
+                ReplicaBuilder.unregisterPopover(popover);
+            }
+        });
         popover.setMargin(5);
 
         // Main container
@@ -203,9 +216,18 @@ public class ColorPickerPopup {
     }
 
     /**
+     * 显示前统一关闭其他弹出窗口并注册到全局追踪。
+     */
+    private void prepareShow() {
+        ReplicaBuilder.dismissActivePopups();
+        ReplicaBuilder.registerPopover(popover);
+    }
+
+    /**
      * Shows the popup below the owner component.
      */
     public void show() {
+        prepareShow();
         // Position below the owner, aligned to left edge
         popover.show(ownerComponent, 0, ownerComponent.getHeight() + 5);
 
@@ -214,12 +236,14 @@ public class ColorPickerPopup {
         if (win != null) {
             win.toFront();
         }
+        installClickOutsideListener();
     }
 
     /**
      * Shows the popup at the specified location relative to owner.
      */
     public void show(int x, int y) {
+        prepareShow();
         popover.show(ownerComponent, x, y);
 
         // Bring to front
@@ -227,6 +251,7 @@ public class ColorPickerPopup {
         if (win != null) {
             win.toFront();
         }
+        installClickOutsideListener();
     }
 
     private void parseHexInput() {
@@ -264,9 +289,42 @@ public class ColorPickerPopup {
     }
 
     /**
+     * 安装全局鼠标监听器，点击 popover 窗口外部时自动关闭（等同取消）。
+     * 必须在 popover.show() 之后调用，确保窗口已可见。
+     */
+    private void installClickOutsideListener() {
+        clickOutsideListener = event -> {
+            if (event.getID() == java.awt.event.MouseEvent.MOUSE_PRESSED) {
+                java.awt.event.MouseEvent me = (java.awt.event.MouseEvent) event;
+                // 获取点击所在的顶层窗口
+                java.awt.Component source = me.getComponent();
+                java.awt.Window clickedWindow = javax.swing.SwingUtilities.windowForComponent(source);
+                // 点击不在 popover 窗口内 → 关闭（不应用颜色变更）
+                if (popover.isShowing() && clickedWindow != popover) {
+                    javax.swing.SwingUtilities.invokeLater(() -> popover.dispose());
+                }
+            }
+        };
+        java.awt.Toolkit.getDefaultToolkit().addAWTEventListener(
+            clickOutsideListener, java.awt.AWTEvent.MOUSE_EVENT_MASK);
+    }
+
+    /**
+     * 卸载全局鼠标监听器，防止泄漏。
+     */
+    private void uninstallClickOutsideListener() {
+        if (clickOutsideListener != null) {
+            java.awt.Toolkit.getDefaultToolkit().removeAWTEventListener(clickOutsideListener);
+            clickOutsideListener = null;
+        }
+    }
+
+    /**
      * Disposes the popup.
      */
     public void dispose() {
+        uninstallClickOutsideListener();
+        ReplicaBuilder.unregisterPopover(popover);
         popover.dispose();
     }
 }

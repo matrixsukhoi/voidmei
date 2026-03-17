@@ -32,6 +32,12 @@ public class ReplicaBuilder {
     // Track all active popovers to dispose before UI rebuild
     private static final java.util.List<WebPopOver> activePopovers = new java.util.ArrayList<>();
 
+    // 追踪活动的 ComboBox，以便统一关闭下拉菜单
+    private static final java.util.List<WebComboBox> activeComboBoxes = new java.util.ArrayList<>();
+
+    // 递归保护：dispose 回调可能触发 dismissActivePopups 再次调用
+    private static boolean dismissingPopups = false;
+
     public static WebPanel createSwitchItem(String labelText, boolean isSelected, boolean showGear) {
         return createSwitchItem(labelText, isSelected, showGear, null, null);
     }
@@ -504,6 +510,69 @@ public class ReplicaBuilder {
                 }
             }
             activePopovers.clear();
+        }
+        // 页面重建时同步清理 ComboBox 追踪列表
+        synchronized (activeComboBoxes) {
+            activeComboBoxes.clear();
+        }
+    }
+
+    /**
+     * 统一关闭所有弹出窗口（popover + ComboBox 下拉菜单）。
+     * 打开任何新弹出时调用此方法，实现弹出窗口互斥。
+     */
+    public static void dismissActivePopups() {
+        if (dismissingPopups) return;
+        dismissingPopups = true;
+        try {
+            // 关闭所有 popover（颜色选择器等）
+            synchronized (activePopovers) {
+                java.util.List<WebPopOver> snapshot = new java.util.ArrayList<>(activePopovers);
+                for (WebPopOver popover : snapshot) {
+                    try {
+                        if (popover != null && popover.isDisplayable()) {
+                            popover.dispose();
+                        }
+                    } catch (Exception e) {
+                        // Ignore disposal errors
+                    }
+                }
+                activePopovers.clear();
+            }
+            // 关闭所有 ComboBox 下拉菜单（不清除列表，combo 组件仍然活跃）
+            synchronized (activeComboBoxes) {
+                for (WebComboBox combo : activeComboBoxes) {
+                    try {
+                        if (combo != null && combo.isPopupVisible()) {
+                            combo.hidePopup();
+                        }
+                    } catch (Exception e) {
+                        // Ignore errors
+                    }
+                }
+            }
+        } finally {
+            dismissingPopups = false;
+        }
+    }
+
+    /**
+     * 注册 ComboBox 到全局追踪列表，以便 dismissActivePopups 能关闭其下拉菜单。
+     */
+    public static void registerComboBox(WebComboBox combo) {
+        if (combo == null) return;
+        synchronized (activeComboBoxes) {
+            activeComboBoxes.add(combo);
+        }
+    }
+
+    /**
+     * 从全局追踪列表移除 ComboBox。
+     */
+    public static void unregisterComboBox(WebComboBox combo) {
+        if (combo == null) return;
+        synchronized (activeComboBoxes) {
+            activeComboBoxes.remove(combo);
         }
     }
 
