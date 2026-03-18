@@ -591,8 +591,7 @@ public class voiceWarning implements Runnable {
 				}
 
 				// 超过30
-				// app.debugPrint(st.RPM * 100.0f/xS.maximumThrRPM -
-				// st.throttle);
+				app.debugPrint(String.format("%.0f", xS.maximumThrRPM));
 				if (xS.getMaximumRPM && xS.maximumThrRPM > 0 && st.RPM * 100.0f / xS.maximumThrRPM >= 105) {
 					// 转速高
 					rpmHighWarn.playOnce(t);

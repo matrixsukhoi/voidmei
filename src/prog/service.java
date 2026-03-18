@@ -1023,10 +1023,10 @@ public class service implements Runnable {
 		if (!getMaximumRPM) {
 			if (c.blkx != null && c.blkx.valid) {
 				// FM合法直接取FM
-				maximumThrRPM = c.blkx.maxRPM;
+				// maximumThrRPM = c.blkx.maxRPM;
 				// 使用最大允许RPM
-				// maximumThrRPM = c.blkx.maxAllowedRPM;
-				// app.debugPrint(maximumThrRPM);
+				maximumThrRPM = c.blkx.maxAllowedRPM;
+				app.debugPrint(String.format("最大转速%.0f", maximumThrRPM));
 				getMaximumRPM = true;
 			} else {
 				// 自适应获得(无FM)
