@@ -1,0 +1,340 @@
+package ui.overlay.logic;
+
+import parser.Blkx;
+import prog.Application;
+import prog.event.EventPayload;
+import prog.config.HUDSettings;
+import ui.overlay.model.HUDData;
+import ui.overlay.MinimalHUDContext;
+import static prog.util.PhysicsConstants.g;
+
+/**
+ * Pure logic calculator for HUD Data.
+ * Extracts raw data from FlightDataEvent (Data/State) and performs business
+ * logic calculations.
+ */
+public class HUDCalculator {
+
+    public static HUDData calculate(prog.event.FlightDataEvent event, ui.model.TelemetrySource source, parser.Blkx blkx,
+            HUDSettings settings,
+            MinimalHUDContext ctx) {
+        HUDData.Builder b = new HUDData.Builder();
+
+        if (event == null || source == null)
+            return b.build();
+
+        EventPayload payload = event.getPayload();
+        parser.State sState = (parser.State) event.getState();
+        parser.Indicators sIndic = (parser.Indicators) event.getIndicators();
+
+        // --- Raw Flight Data ---
+        b.ias = source.getIAS();
+        b.mach = source.getMach();
+        b.altitude = source.getAltitude();
+        b.radioAltitude = source.getRadioAltitude();
+        b.verticalSpeed = source.getSEP();
+        b.heading = source.getCompass();
+
+        b.mapGrid = payload.mapGrid;
+
+        // --- Attitude ---
+        double aviahp = 0;
+        double aviar = 0;
+        if (sIndic != null) {
+            aviahp = sIndic.aviahorizon_pitch;
+            aviar = sIndic.aviahorizon_roll;
+        }
+
+        b.pitchValid = (aviahp != -65535);
+        if (b.pitchValid) {
+            b.pitch = -aviahp;
+        } else {
+            b.pitch = 0;
+        }
+
+        if (aviar != -65535) {
+            b.roll = -aviar;
+        } else {
+            b.roll = 0;
+        }
+
+        // --- AoS / System State ---
+        if (sState != null) {
+            if (sState.AoS != -65535)
+                b.slip = sState.AoS;
+
+            b.throttle = sState.throttle;
+            if (sState.flaps == 65535 || sState.flaps == -65535) {
+                b.flaps = 0;
+            } else {
+                b.flaps = sState.flaps;
+            }
+            b.gear = sState.gear;
+            b.airbrake = sState.airbrake;
+
+            b.airbrake = sState.airbrake;
+
+            if (b.throttle > 100) {
+                b.throttleColor = java.awt.Color.RED;
+            } else {
+                b.throttleColor = java.awt.Color.WHITE; // Or default? HUDData defaults to GREEN, but white is standard
+                                                        // text.
+            }
+
+            boolean isDowningFlap = payload.isDowningFlap;
+            b.flapAllowAngle = getFlapAllowAngle(b.ias, isDowningFlap, blkx);
+
+            b.aoa = sState.AoA;
+            b.gLoad = sState.Ny;
+        }
+
+        b.energyM = source.getEnergyJKg() / g;
+
+        b.isMachMode = settings.drawHudMach();
+        b.isGearDown = b.gear > 0;
+        b.isFlapsDown = b.flaps > 0;
+        b.isAirbrakeActive = b.airbrake > 0;
+
+        // --- Warning Logic ---
+        boolean warnVne = false;
+        if (b.isAirbrakeActive && b.airbrake == 100) {
+            warnVne = true;
+        }
+
+        if (blkx != null && blkx.valid) {
+            // User requested formula: 1 - (nfweight / (nfweight + fuel))
+            double nfweight = blkx.nofuelweight;
+            double currentFuel = (sState != null) ? sState.mfuel : 0;
+
+            // Check for valid weights to avoid division by zero
+            if (nfweight > 0 && (nfweight + currentFuel) > 0) {
+                b.maneuverIndex = 1.0 - (nfweight / (nfweight + currentFuel));
+            } else {
+                b.maneuverIndex = 0;
+            }
+
+            double vwing = 0;
+            if (blkx.isVWing && sIndic != null) {
+                vwing = sIndic.wsweep_indicator;
+            }
+
+            // Dynamic Vne calculation
+            if ((b.ias >= blkx.getVNEVWing(vwing) * 0.95)
+                    || (b.mach >= blkx.getMNEVWing(vwing) * 0.95f)) {
+                warnVne = true;
+            }
+
+            // AoA Warnings
+            double maxAvailableAoA = blkx.getAoAHighVWing(vwing, b.flaps > 0 ? (int) b.flaps : 0);
+            double availableAoA = maxAvailableAoA - b.aoa;
+
+            if (availableAoA < settings.getAoAWarningRatio() * maxAvailableAoA) {
+                b.aoaColor = Application.colorWarning;
+            } else {
+                b.aoaColor = Application.colorNum;
+            }
+            if (availableAoA < settings.getAoABarWarningRatio() * maxAvailableAoA) {
+                b.aoaBarColor = Application.colorUnit;
+            } else {
+                b.aoaBarColor = Application.colorNum;
+            }
+
+            if (maxAvailableAoA > 0.001) {
+                b.aoaRatio = availableAoA / maxAvailableAoA;
+            } else {
+                b.aoaRatio = 0;
+            }
+
+            if (availableAoA <= 0) {
+                b.warnStall = true;
+            }
+
+        } else {
+            b.maneuverIndex = 0;
+            b.aoaColor = Application.colorNum;
+            b.aoaBarColor = Application.colorNum;
+            b.aoaRatio = b.aoa / 30.0;
+        }
+        b.warnVne = warnVne;
+
+        // Warnings
+        double radioAlt = b.radioAltitude;
+        boolean radioAltValid = source.isRadioAltitudeValid();
+        boolean alwaysRadar = settings.alwaysShowRadarAltitude();
+
+        // Low altitude warning flag (for color/audio warnings) - always based on <=500m threshold
+        if (radioAltValid && radioAlt <= 500) {
+            b.warnAltitude = true;
+        }
+
+        // --- Strings Formatting (using Data) ---
+        if (b.isMachMode) {
+            b.speedStr = String.format("M%5.2f", b.mach);
+        } else {
+            String spdPre = settings.isSpeedLabelDisabled() ? "" : "SPD";
+            b.speedStr = String.format("%s%6d", spdPre, (int) b.ias);
+        }
+
+        String altPre = settings.isAltitudeLabelDisabled() ? "" : "ALT";
+        // Display decision: separate from warning flag
+        // When alwaysRadar is enabled, use radar altitude if valid; otherwise use warning-based logic
+        boolean useRadarAlt = alwaysRadar ? radioAltValid : b.warnAltitude;
+
+        if (useRadarAlt) {
+            b.altStr = altPre + String.format("R%5.0f", b.radioAltitude);
+        } else {
+            b.altStr = altPre + String.format("%6.0f", b.altitude);
+        }
+
+        if (settings.isAoADisabled()) {
+            b.aoaStr = "";
+            b.energyStr = "";
+        } else {
+            b.aoaStr = String.format("α%3.0f", b.aoa);
+            b.energyStr = String.format("E%5.0f", b.energyM);
+        }
+
+        String sepPre = settings.isSEPLabelDisabled() ? "" : "SEP";
+        if (b.verticalSpeed > 0) {
+            b.sepStr = String.format("%s↑%-4.0f", sepPre, b.verticalSpeed);
+        } else {
+            b.sepStr = String.format("%s↓%-4.0f", sepPre, b.verticalSpeed);
+        }
+
+        // Maneuver / Time
+        if (b.gLoad > 1.5f || b.gLoad < -0.5f) {
+            b.maneuverStateStr = String.format("G%5.1f", b.gLoad);
+        } else {
+            String time = payload.timeStr;
+            b.maneuverStateStr = (time != null && !time.isEmpty()) ? "L" + time : "";
+        }
+
+        // Configuration
+        String brk = "";
+        String gear = "";
+        boolean inAction = false;
+        if (b.airbrake > 0) {
+            brk = "BRK";
+            if (b.airbrake != 100)
+                inAction = true;
+        }
+        if (b.gear > 0) {
+            gear = "GEA";
+            if (b.gear != 100)
+                inAction = true;
+        }
+
+        if (b.flaps > 0) {
+            // Restore readable text if Bar is disabled
+            if (!settings.enableFlapAngleBar()) {
+                b.mechanizationStr = String.format("F%3.0f%s%s", b.flaps, brk, gear);
+            } else {
+                // Bar enabled -> Hide text (keep Brk/Gear)
+                b.mechanizationStr = String.format("%4s%s%s", "", brk, gear);
+            }
+        } else {
+            if (blkx != null && blkx.isVWing && sIndic != null) {
+                b.mechanizationStr = String.format("W%3.0f%s%s", sIndic.wsweep_indicator * 100, brk, gear); // approx
+                                                                                                            // logic
+            } else {
+                b.mechanizationStr = String.format("%4s%s%s", "", brk, gear);
+            }
+        }
+
+        b.warnConfiguration = inAction;
+
+        // --- Speed Ratio Bar Logic ---
+        b.speedBar_speedRatio = source.getSpeedLimitRatio();
+        b.speedBar_aileronLockRatio = source.getAileronLockRatio();
+        b.speedBar_rudderLockRatio = source.getRudderLockRatio();
+        b.speedBar_unitMachLimitRatio = source.getUnitMachLimitRatio();
+
+        // Calculate Stall Ratio
+        double currentLimit = 1.0;
+        // If we have valid speed ratio, derive the current limit (VNE or MachLimit_IAS)
+        if (b.speedBar_speedRatio > 0.0001 && b.ias > 1.0) {
+            currentLimit = b.ias / b.speedBar_speedRatio;
+        } else if (blkx != null && blkx.valid) {
+            // Fallback to static VNE
+            double vwing = 0;
+            if (source.isWingSweepValid()) {
+                vwing = source.getWingSweep();
+            }
+            currentLimit = blkx.getVNEVWing(vwing);
+        }
+
+        double stallSpeed = source.getStallSpeed();
+        if (currentLimit > 0.1) {
+            b.speedBar_stallRatio = stallSpeed / currentLimit;
+        } else {
+            b.speedBar_stallRatio = 0.0;
+        }
+
+        return b.build();
+    }
+
+    private static double getFlapAllowAngle(double ias, boolean isDowningFlap, Blkx blkx) {
+        if (ias == 0 || blkx == null || !blkx.valid)
+            return 125;
+
+        int i = 0;
+        for (; i < blkx.FlapsDestructionNum - 1; i++) {
+            if (ias > blkx.FlapsDestructionIndSpeed[i][1]) {
+                break;
+            }
+        }
+
+        double x0, x1, y0, y1, t;
+        double k;
+
+        if (i == 0) {
+            x0 = blkx.FlapsDestructionIndSpeed[i][1];
+            y0 = blkx.FlapsDestructionIndSpeed[i][0] * 100.0f;
+            x1 = blkx.FlapsDestructionIndSpeed[i + 1][1];
+            y1 = blkx.FlapsDestructionIndSpeed[i + 1][0] * 100.0f;
+            k = calcK(x0, y0, x1, y1);
+            t = y0 + (ias - x0) * k;
+            return normFlapAngle(t);
+        } else {
+            if (ias == blkx.FlapsDestructionIndSpeed[i - 1][1]) {
+                return blkx.FlapsDestructionIndSpeed[i - 1][0] * 100.0f;
+            }
+            x0 = blkx.FlapsDestructionIndSpeed[i - 1][1];
+            y0 = blkx.FlapsDestructionIndSpeed[i - 1][0] * 100.0f;
+            x1 = blkx.FlapsDestructionIndSpeed[i][1];
+            y1 = blkx.FlapsDestructionIndSpeed[i][0] * 100.0f;
+            k = calcK(x0, y0, x1, y1);
+            t = y0 + (ias - x0) * k;
+            return normFlapAngle(t);
+        }
+    }
+
+    private static double calcK(double x0, double y0, double x1, double y1) {
+        if (Math.abs(x1 - x0) < 0.0001)
+            return 0;
+        return (y1 - y0) / (x1 - x0);
+    }
+
+    private static double normFlapAngle(double t) {
+        if (t < 0)
+            return 0;
+        if (t < 125)
+            return t;
+        return 125;
+    }
+
+    // --- Helper for Text Measurement ---
+    private static final java.awt.image.BufferedImage MEASURE_IMG = new java.awt.image.BufferedImage(1, 1,
+            java.awt.image.BufferedImage.TYPE_INT_ARGB);
+    private static final java.awt.Graphics2D MEASURE_G = MEASURE_IMG.createGraphics();
+
+    public static int getStringWidth(String text, java.awt.Font font) {
+        if (text == null || text.isEmpty() || font == null) {
+            return 0;
+        }
+        synchronized (MEASURE_G) {
+            MEASURE_G.setFont(font);
+            return MEASURE_G.getFontMetrics().stringWidth(text);
+        }
+    }
+}

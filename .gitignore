@@ -3,7 +3,6 @@ target/
 bin/
 data/
 fonts/
-image/
 records/
 voice/
 VoidMei.exe
@@ -12,3 +11,4 @@ VoidMei.jar
 *.exe
 *.dll
 *.csv
+sources.txt

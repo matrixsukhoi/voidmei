@@ -1,0 +1,1922 @@
+package parser;
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+
+import prog.Application;
+import prog.i18n.Lang;
+import static prog.util.PhysicsConstants.g;
+
+public class Blkx {
+	public boolean valid;
+
+	// ==================== Fuel Modification Support ====================
+
+	/**
+	 * Represents fuel quality modifications extracted from Central file's
+	 * "modifications" section. These upgrades affect engine power output.
+	 *
+	 * <p>War Thunder Central files (e.g., flightmodels/yak-3.blkx) contain:
+	 * <pre>
+	 * modifications {
+	 *   ussr_fuel_b-100 {
+	 *     effects {
+	 *       addHorsePowers:r = 50
+	 *     }
+	 *   }
+	 * }
+	 * </pre>
+	 */
+	public static class FuelModification {
+		/** Soviet fuel addHorsePowers value (typically 50) */
+		public double sovietOctaneHpBonus = 0;
+		/** British afterburnerMult from fuel modification */
+		public double britishAfterburnerMult = 1.0;
+		/** British afterburnerCompressorMult from fuel modification */
+		public double britishAfterburnerCompressorMult = 1.0;
+		/** Whether British fuel has invertEnableLogic (means high octane is default) */
+		public boolean britishInvertLogic = false;
+		/** Fuel modification type */
+		public FuelType type = FuelType.NONE;
+
+		public enum FuelType {
+			NONE, SOVIET_B95, SOVIET_B100, BRITISH_150_OCTANE, BRITISH_100_SPITFIRE
+		}
+	}
+
+	/**
+	 * Extracts fuel quality modifications from a Central file's raw text data.
+	 *
+	 * <p>Searches for known fuel upgrade keys in the "modifications" section:
+	 * <ul>
+	 *   <li>Soviet: ussr_fuel_b-95, ussr_fuel_b-100 → addHorsePowers</li>
+	 *   <li>British: 150_octan_fuel, 100_octan_spitfire → afterburnerMult</li>
+	 * </ul>
+	 *
+	 * @param centralData raw text content of the Central file
+	 * @return FuelModification with extracted values, or default (no-op) if none found
+	 */
+	public static FuelModification extractFuelModifications(String centralData) {
+		FuelModification mod = new FuelModification();
+		if (centralData == null || centralData.isEmpty()) {
+			return mod;
+		}
+
+		// Find the "modifications" block
+		String modsBlock = cutStatic(centralData, "modifications");
+		if (modsBlock.equals("null")) {
+			return mod;
+		}
+
+		// Check for Soviet fuels (ussr_fuel_b-95 or ussr_fuel_b-100)
+		String sovietB100 = cutStatic(modsBlock, "ussr_fuel_b-100");
+		if (!sovietB100.equals("null")) {
+			mod.type = FuelModification.FuelType.SOVIET_B100;
+			String effects = cutStatic(sovietB100, "effects");
+			if (!effects.equals("null")) {
+				mod.sovietOctaneHpBonus = getDoubleFromBlock(effects, "addHorsePowers");
+			}
+			return mod;
+		}
+
+		String sovietB95 = cutStatic(modsBlock, "ussr_fuel_b-95");
+		if (!sovietB95.equals("null")) {
+			mod.type = FuelModification.FuelType.SOVIET_B95;
+			String effects = cutStatic(sovietB95, "effects");
+			if (!effects.equals("null")) {
+				mod.sovietOctaneHpBonus = getDoubleFromBlock(effects, "addHorsePowers");
+			}
+			return mod;
+		}
+
+		// Check for British fuels (150_octan_fuel or 100_octan_spitfire)
+		String british150 = cutStatic(modsBlock, "150_octan_fuel");
+		if (!british150.equals("null")) {
+			mod.type = FuelModification.FuelType.BRITISH_150_OCTANE;
+			String effects = cutStatic(british150, "effects");
+			if (!effects.equals("null")) {
+				mod.britishAfterburnerMult = getDoubleFromBlock(effects, "afterburnerMult");
+				if (mod.britishAfterburnerMult == 0) mod.britishAfterburnerMult = 1.0;
+				mod.britishAfterburnerCompressorMult = getDoubleFromBlock(effects, "afterburnerCompressorMult");
+				if (mod.britishAfterburnerCompressorMult == 0) mod.britishAfterburnerCompressorMult = 1.0;
+			}
+			// Check for invertEnableLogic - parse actual boolean value
+			mod.britishInvertLogic = getBoolFromBlock(british150, "invertEnableLogic");
+			return mod;
+		}
+
+		String british100 = cutStatic(modsBlock, "100_octan_spitfire");
+		if (!british100.equals("null")) {
+			mod.type = FuelModification.FuelType.BRITISH_100_SPITFIRE;
+			String effects = cutStatic(british100, "effects");
+			if (!effects.equals("null")) {
+				mod.britishAfterburnerMult = getDoubleFromBlock(effects, "afterburnerMult");
+				if (mod.britishAfterburnerMult == 0) mod.britishAfterburnerMult = 1.0;
+				mod.britishAfterburnerCompressorMult = getDoubleFromBlock(effects, "afterburnerCompressorMult");
+				if (mod.britishAfterburnerCompressorMult == 0) mod.britishAfterburnerCompressorMult = 1.0;
+			}
+			mod.britishInvertLogic = getBoolFromBlock(british100, "invertEnableLogic");
+			return mod;
+		}
+
+		return mod;
+	}
+
+	/**
+	 * Static version of cut() for use in extractFuelModifications().
+	 * Extracts content between braces of a named block.
+	 */
+	private static String cutStatic(String text, String blockLabel) {
+		int bix = text.toUpperCase().indexOf(blockLabel.toUpperCase() + " {");
+		// Also try without space: "blockLabel{"
+		if (bix == -1) {
+			bix = text.toUpperCase().indexOf(blockLabel.toUpperCase() + "{");
+		}
+		if (bix == -1) return "null";
+
+		int cutleft = bix;
+		while (cutleft < text.length() && text.charAt(cutleft) != '{') cutleft++;
+		if (cutleft >= text.length()) return "null";
+		cutleft++;
+
+		int left = 1, right = 0;
+		int i = cutleft;
+		for (; i < text.length(); i++) {
+			if (text.charAt(i) == '{') left++;
+			if (text.charAt(i) == '}') right++;
+			if (left == right) break;
+		}
+		if (i >= text.length()) return "null";
+		return text.substring(cutleft, i);
+	}
+
+	/**
+	 * Extracts a double value from a text block by key name.
+	 * Handles both "key = value" and "key:r = value" formats.
+	 */
+	private static double getDoubleFromBlock(String block, String key) {
+		// Try key:r = value first (typed format)
+		int idx = block.indexOf(key + ":r");
+		if (idx == -1) {
+			idx = block.indexOf(key);
+		}
+		if (idx == -1) return 0;
+
+		// Find the '=' sign
+		int eqIdx = block.indexOf('=', idx);
+		if (eqIdx == -1) return 0;
+		eqIdx++; // skip '='
+
+		// Find end of value (newline or end of string)
+		int endIdx = block.indexOf('\n', eqIdx);
+		if (endIdx == -1) endIdx = block.length();
+
+		String valStr = block.substring(eqIdx, endIdx).trim();
+		// Take first part if comma-separated
+		String[] parts = valStr.split(",");
+		try {
+			return Double.parseDouble(parts[0].trim());
+		} catch (NumberFormatException e) {
+			return 0;
+		}
+	}
+
+	/**
+	 * Extracts a boolean value from a text block by key name.
+	 * Handles "key:b = true/false" format (War Thunder .blkx typed boolean).
+	 *
+	 * @param block the text block to search within
+	 * @param key   the key name (e.g., "invertEnableLogic")
+	 * @return true if the key exists and its value is "true", false otherwise
+	 */
+	private static boolean getBoolFromBlock(String block, String key) {
+		// Try key:b = value first (typed boolean format)
+		String upper = block.toUpperCase();
+		String keyTyped = (key + ":B").toUpperCase();
+		String keyPlain = key.toUpperCase();
+
+		int idx = upper.indexOf(keyTyped);
+		if (idx == -1) {
+			idx = upper.indexOf(keyPlain);
+		}
+		if (idx == -1) return false;  // Field absent = false
+
+		// Find the '=' sign after the key
+		int eqIdx = block.indexOf('=', idx);
+		if (eqIdx == -1) return false;
+
+		// Find end of value (newline or end of string)
+		int endIdx = block.indexOf('\n', eqIdx);
+		if (endIdx == -1) endIdx = block.length();
+
+		String value = block.substring(eqIdx + 1, endIdx).trim();
+		return "true".equalsIgnoreCase(value);
+	}
+
+	// ==================== End Fuel Modification Support ====================
+
+	public class XY {
+		public double x[];
+		public double y[];
+		public int cur;
+
+		XY(int num) {
+			x = new double[num];
+			y = new double[num];
+			cur = 0;
+		}
+	}
+
+	public String data;
+	public String readFileName;
+	public XY loc;// WEP爬升
+	public XY loc0;// NOM爬升
+	public XY loc1;// WEP速度
+	public XY loc2;// NOM速度
+	public XY loc3;// 滚转
+	public XY plotdata[];
+
+	// 发动机负载相关
+	public String fmdata;
+
+	public class engineLoad {
+		public double WaterLimit;
+		public double OilLimit;
+		public double WorkTime;
+		public double RecoverTime;
+		public double curWaterWorkTimeMili;
+		public double curOilWorkTimeMili;
+	}
+
+	public engineLoad[] engLoad;
+	public int maxEngLoad;
+	public Float oilload0;
+	public Float oilload1;
+	public Float oilload2;
+	public Float oilload3;
+	public Float oilload4;
+	public Float oilload5;
+	public Float wtload0;
+	public Float wtload1;
+	public Float wtload2;
+	public Float wtload3;
+	public Float wtload4;
+	public Float wtload5;
+	public int tmload1;
+	public int tmload2;
+	public int tmload3;
+	public int tmload4;
+	public int tmload5;
+
+	public double vne;
+	public double vne_V50;
+	public double vne_V100;
+
+	public double vneMach;
+	public double vneMach_V50;
+	public double vneMach_V100;
+
+	public double clmax;
+	public double aoaHigh;
+	public double aoaLow;
+	public double flapAoaHigh;
+	public double flapAoaLow;
+
+	public double aoaFuselageHigh;
+	public double aoaFuselageLow;
+
+	public double flapClmax;
+	public double emptyweight;
+
+	public double[] maxAllowGload;
+
+	/** Raw wing critical overload values (Newtons) for dynamic G-load calculation */
+	public double[] rawWingCritOverload;
+
+	public int emptyweightToLoad;
+	public double aileronEff;
+	public double aileronPowerLoss;
+	public double rudderEff;
+	public double rudderPowerLoss;
+	public double elavEff;
+	public double elavPowerLoss;
+	public double nitro;
+
+	public double grossweight;
+
+	public double oil;
+
+	public double nofuelweight;
+
+	public double nitroDecr;
+	public double maxfuelweight;
+
+	public double FmCdMin;
+
+	public double WingAngle;
+	public double StabAngle;
+	public double KeelAngle;
+
+	public double RadiatorCd;
+	public double OilRadiatorCd;
+	public double AirbrakeCd;
+	public double OswaldsEfficiencyNumber;
+
+	public class fm_parts {
+		public String name;
+
+		public double Sq;
+		public double CdMin;
+
+		public double Cl0;
+
+		public double ClCritHigh;
+		public double ClCritLow;
+
+		public double ClAfterCrit;
+
+		public double AoACritHigh;
+		public double AoACritLow;
+
+		public double lineClCoeff;
+
+		// 翼展效率因数，影响诱导阻力，因数越大阻力越小
+		// public double oswaldEff;
+
+	}
+
+	/**
+	 * Represents a single sweep level with its associated aerodynamic data.
+	 * Used for variable-sweep wing aircraft (e.g., F-14 with 4 sweep levels).
+	 */
+	public class SweepLevel {
+		public double sweep;        // 0.0 ~ 1.0 sweep ratio (from Sweep:r field)
+		public double vne;          // VNE limit speed for this sweep level
+		public double vneMach;      // MNE limit (Mach) for this sweep level
+		public fm_parts noFlaps;    // No-flaps aerodynamic data
+		public fm_parts fullFlaps;  // Full-flaps aerodynamic data
+	}
+
+	/** Dynamic list of sweep levels, ordered by sweep ratio (0.0 to 1.0) */
+	public java.util.List<SweepLevel> sweepLevels;
+
+	public fm_parts NoFlapsWing;
+	public fm_parts NoFlapsWing_V50;
+	public fm_parts NoFlapsWing_V100;
+
+	public fm_parts FullFlapsWing;
+	public fm_parts FullFlapsWing_V50;
+	public fm_parts FullFlapsWing_V100;
+
+	public Boolean isVWing;
+
+	public fm_parts Fuselage;
+	public fm_parts Fin;
+	public fm_parts Stab;
+	public double SweptWingAngle;
+	public double WingTaperRatio;
+	public double CriticalSpeed;
+	public double AWingLeftIn;
+	public double AWingLeftMid;
+	public double AWingLeftOut;
+	public double AWingRightIn;
+	public double AWingRightMid;
+	public double AWingRightOut;
+	public double AFuselage;
+	public double AWing;
+	public double NoFlapWLL;
+	public double FullFlapWLL;
+	public double CdS;
+
+	public double[] MomentOfInertia;
+	public double AAileron;
+	public double Wingspan;
+	public double AspectRatio;
+	public double indCdF;
+	public String version;
+	public double avgEngRecoveryRate;
+	public int FlapsDestructionNum;
+	public double[][] FlapsDestructionIndSpeed;
+	public double halfweight;
+
+	// public
+
+	public void getPartsFm(String c, fm_parts p) {
+		p.name = c;
+		p.CdMin = getdouble(c + ".CdMin");
+		p.Cl0 = getdouble(c + ".Cl0");
+		p.ClCritHigh = getdouble(c + ".ClCritHigh");
+		p.ClCritLow = getdouble(c + ".ClCritLow");
+
+		p.ClAfterCrit = getdouble(c + ".ClAfterCrit");
+		p.lineClCoeff = getdouble(c + ".lineClCoeff");
+
+		p.AoACritHigh = getdouble(c + ".alphaCritHigh");
+		p.AoACritLow = getdouble(c + ".alphaCritLow");
+
+	}
+
+	/**
+	 * Extracts military and WEP RPM from Propeller.ThrottleRPMAuto entries.
+	 *
+	 * FM files contain entries like:
+	 *   ThrottleRPMAuto0 =1.0, 2400
+	 *   ThrottleRPMAuto1 =1.1, 2600
+	 * where throttle=1.0 is military and throttle=1.1 is WEP.
+	 */
+	private void extractRpmFromThrottleAuto(String hdrString) {
+		militaryRPM = 0;
+		wepRPM = 0;
+
+		// Try to find Propellor section within the engine type
+		String propSection = cut(data, "Propellor");
+		if (propSection.equals("null")) {
+			propSection = cut(data, "Propeller");
+		}
+
+		if (!propSection.equals("null")) {
+			for (int k = 0; k < 20; k++) {
+				String key = "ThrottleRPMAuto" + k;
+				String val = getoneinData(propSection, key);
+				if (val == null || val.equals("null")) continue;
+
+				// Parse comma-separated throttle/RPM pairs
+				// May be a single pair "1.0, 2400" or the parser returns the first line
+				String trimmed = val.trim();
+				String[] parts = trimmed.split(",");
+				if (parts.length >= 2) {
+					try {
+						double throttle = Double.parseDouble(parts[0].trim());
+						double rpm = Double.parseDouble(parts[1].trim());
+						if (Math.abs(throttle - 1.0) < 0.01) {
+							militaryRPM = rpm;
+							if (wepRPM <= 0) wepRPM = rpm;  // Default WEP = military if no 1.1 entry
+						} else if (Math.abs(throttle - 1.1) < 0.01) {
+							wepRPM = rpm;
+						}
+					} catch (NumberFormatException ignored) {}
+				}
+			}
+		}
+
+		// Fallback to maxRPM approximation if parsing failed
+		if (militaryRPM <= 0 && wepRPM <= 0) {
+			wepRPM = maxRPM;
+			militaryRPM = maxRPM;
+		} else if (militaryRPM <= 0) {
+			militaryRPM = wepRPM;
+		} else if (wepRPM <= 0) {
+			wepRPM = militaryRPM;
+		}
+	}
+
+	public boolean getEngineLoad(engineLoad[] eL, int loadIndex) {
+		String c = "Load" + loadIndex;
+		// Application.debugPrint(c);
+		eL[loadIndex].WaterLimit = getdouble(c + ".WaterTemperature");
+		// Application.debugPrint(eL[loadIndex].WaterLimit);
+		if (eL[loadIndex].WaterLimit == 0)
+			return Boolean.FALSE;
+		eL[loadIndex].OilLimit = getdouble(c + ".OilTemperature");
+		if (eL[loadIndex].OilLimit == 0)
+			return Boolean.FALSE;
+		eL[loadIndex].WorkTime = getdouble(c + ".WorkTime");
+		// if(eL[loadIndex].WorkTime == 0)
+		eL[loadIndex].RecoverTime = getdouble(c + ".RecoverTime");
+		// eL[loadIndex].curWorkTimeMili = eL[loadIndex].WorkTime * 1000;
+		eL[loadIndex].curWaterWorkTimeMili = eL[loadIndex].WorkTime * 1000;
+		eL[loadIndex].curOilWorkTimeMili = eL[loadIndex].WorkTime * 1000;
+		return Boolean.TRUE;
+	}
+
+	public void showEngineLoad(engineLoad[] eL, int loadIndex) {
+		prog.util.Logger.debug("Blkx", String.format("Load%d Water/Oil: [%.1f, %.1f] WEP/Rec: [%.1f, %.1f]",
+				loadIndex, eL[loadIndex].WaterLimit, eL[loadIndex].OilLimit, eL[loadIndex].WorkTime,
+				eL[loadIndex].RecoverTime));
+	}
+
+	public String WritePartsFm(String s, fm_parts p) {
+		s = s.concat(String.format(Lang.bFmParts, p.name));
+		s = s.concat(String.format(Lang.bCdMin, p.CdMin));
+		s = s.concat(String.format(Lang.bCl0, p.Cl0));
+		s = s.concat(String.format(Lang.bAoACrit, p.AoACritLow, p.AoACritHigh));
+		s = s.concat(String.format(Lang.bAoACritCl, p.ClCritLow, p.ClCritHigh));
+
+		// s = s.concat("------fm器件 " + p.name + "------\n");
+		// s = s.concat("零升阻力系数:" + p.CdMin + "\n");
+		// s = s.concat("零攻角升力:" + p.Cl0 + "\n");
+		// s = s.concat("临界攻角:[" + p.AoACritLow + ", " + p.AoACritHigh + "]" + "\n");
+		// s = s.concat("临界攻角升力系数:[" + p.ClCritLow + ", " + p.ClCritHigh + "]" + "\n");
+		//
+		// Application.debugPrint("------fm器件 "+p.name+"------");
+		// Application.debugPrint("零升阻力系数:"+p.CdMin);
+		// Application.debugPrint("零攻角升力:"+p.Cl0);
+		// Application.debugPrint("临界攻角:["+p.AoACritLow+","+p.AoACritHigh+"]");
+		// Application.debugPrint("临界攻角升力系数:["+p.ClCritLow+","+p.ClCritHigh+"]");
+		return s;
+	}
+
+	public double[] getdoubles(String c, double[] ret, int num) {
+		if (num <= 0)
+			return null;
+
+		if (!getone(c).equals("null")) {
+			String[] tmp = getone(c).split(",");
+			for (int i = 0; i < num; i++) {
+				try {
+
+					ret[i] = Float.parseFloat(tmp[i]);
+				} catch (Exception e) {
+					Application.debugPrint("getdouble error" + c);
+					return null;
+				}
+			}
+		}
+		return ret;
+
+	}
+
+	public double getdouble(String c) {
+		double ret = 0;
+		if (!getone(c).equals("null")) {
+			String[] tmp = getone(c).split(",");
+			try {
+				ret = Float.parseFloat(tmp[0]);
+			} catch (Exception e) {
+				Application.debugPrint("getdouble error" + c);
+				return 0;
+			}
+		}
+		return ret;
+	}
+
+	public double getdouble_exc(String c) {
+		double ret = Float.MAX_VALUE;
+		if (!getone(c).equals("null")) {
+			String[] tmp = getone(c).split(",");
+			try {
+				ret = Float.parseFloat(tmp[0]);
+			} catch (Exception e) {
+				Application.debugPrint("getdouble error" + c);
+				return 0;
+			}
+		}
+		return ret;
+	}
+
+	// public int findmaxLoad(engineLoad[] eL, double water, double oil) {
+	// for (int i = 0; i < maxEngLoad; i++) {
+	// // 大于还是小于等于呢？
+	// if (water < eL[i].WaterLimit && oil < eL[i].OilLimit)
+	// return i;
+	// }
+	//
+	// return maxEngLoad;
+	// }
+
+	public int findmaxWaterLoad(engineLoad[] eL, double water) {
+		for (int i = 0; i < maxEngLoad; i++) {
+			// 大于还是小于等于呢？
+			if (water < eL[i].WaterLimit)
+				return i;
+			// if (Math.round(water) < eL[i].WaterLimit)
+			// return i;
+		}
+
+		return maxEngLoad;
+	}
+
+	public int findmaxOilLoad(engineLoad[] eL, double oil) {
+		for (int i = 0; i < maxEngLoad; i++) {
+			// 大于还是小于等于呢？
+			if (oil < eL[i].OilLimit)
+				return i;
+			// if (Math.round(oil) < eL[i].OilLimit)
+			// return i;
+		}
+
+		return maxEngLoad;
+	}
+
+	public String getVersion() {
+		File file = new File("./data/aces/version");
+		String tmp_data = null;
+		if (file.exists()) {
+			StringBuilder sb = new StringBuilder();
+			String s = "";
+			BufferedReader br;
+			try {
+				br = new BufferedReader(new FileReader(file));
+				while ((s = br.readLine()) != null) {
+					sb.append(s + "\n");
+				}
+				br.close();
+			} catch (FileNotFoundException e1) {
+				// 版本文件不存在，使用统一异常处理
+				prog.util.ExceptionHelper.logAndContinue(e1, "版本文件读取");
+			} catch (IOException e) {
+				// IO读取失败
+				prog.util.ExceptionHelper.logAndContinue(e, "版本文件读取");
+			}
+			tmp_data = sb.toString();
+			// valid = true;
+		} else {
+			// valid = false;
+		}
+		return tmp_data;
+	}
+
+	public double altitudeThr[];
+	public double velocityThr[];
+	public double maxThrCoff[][];
+	public double maxThrAftCoff[][];
+	public double maxThr[][];
+	public double maxThrAft[][];
+	public double thrMax0; // 静推力
+	public double aftbCoff;
+	public int altThrNum;
+	public int velThrNum;
+	public boolean isJet;
+
+	// 峰值推力缓存（在 getload() 中预计算）
+	public double peakThrMil;     // 军用峰值推力 (kgf)
+	public double peakThrAft;     // 加力峰值推力 (kgf)
+	public int engineNum;
+
+	public int compNumSteps;
+	public double compAlt[];
+	public double compPower[];
+
+	public double compCeil[];
+	public double compCeilPwr[];
+
+	public double compConstRpmAlt[];
+	public double compConstRpmPower[];
+
+	public double compBoost[];
+	public boolean[] hasCompBoost;  // Whether AfterburnerBoostMul exists in FM file (vs defaulting to 0)
+	public double compRpmRatio[];
+
+	public double modeEngineMult[];
+
+	// 冲压系数
+	public double speedToManifoldMultiplier;
+	private int modeEngineNum;
+	private double AWingRightCut;
+	private double AWingLeftCut;
+
+	public double GearDestructionIndSpeed;
+	public double maxRPM;
+	public double maxAllowedRPM;
+
+	// === Piston Engine Extended Parameters (for WAPC-compatible power calculations) ===
+	// RPM parameters
+	public double militaryRPM;              // Military power RPM (from Propeller.ThrottleRPMAuto)
+	public double wepRPM;                   // WEP power RPM (from Propeller.ThrottleRPMAuto)
+	public double shaftRPMMax;              // Main.ShaftRPMMax (may not exist)
+	public double rpmNom;                   // Main.RPMNom
+	public double governorMaxParam;         // Propeller.GovernorMaxParam
+
+	// Supercharger pressure parameters
+	public double compPressureAtRPM0;       // Compressor.CompressorPressureAtRPM0
+	public double compOmegaFactorSq;        // Compressor.CompressorOmegaFactorSq
+	public boolean hasCompOmegaFactorSq;    // Whether CompressorOmegaFactorSq exists in FM file
+	public double[] compATA;                // Compressor.ATA0/1/2 (manifold pressure, ata)
+	public double militaryMP;               // Max of all ATA values (true military manifold pressure)
+	public double[] compAfterburnerPressureBoost;  // Compressor.AfterburnerPressureBoost0/1/2
+
+	// ExactAltitudes flag (may be explicitly set in FM file)
+	public Boolean explicitExactAltitudes;  // null = not defined in FM
+
+	// WEP parameters
+	public double throttleBoost;            // Main.ThrottleBoost (typically 1.0)
+	public double octaneAfterburnerMult;    // Main.OctaneAfterburnerMult (typically 1.0)
+	public double wepManifoldPressure;      // AfterburnerManifoldPressure (WEP manifold pressure, ata)
+
+	// Sea level power
+	public double deckPower;                // Main.Power (sea level rated power)
+	private double Cl_a;
+	private double[] AileronDefl;
+	private double Wx100;
+	private double Wx_vcoff;
+	private double Wx250;
+	private double Wx300;
+	private double Wx350;
+	private double WxMax;
+	private double Wx600;
+	private double[] modeEngineRPMMult;
+	private double engineRPMMultWEP;
+	private fm_parts FullFlapsWingS;
+	private fm_parts NoFlapsWingS;
+	public double fuseClHigh;
+
+	/* 通用 sweep 插值 */
+	private double interpolateSweepDouble(double vwing, double[] values, double[] sweeps, int count) {
+		if (count <= 1) {
+			return values[0];
+		}
+		// 低于最小 sweep，返回第一个值
+		if (vwing <= sweeps[0]) {
+			return values[0];
+		}
+		// 找到包围 vwing 的两个 sweep 级别
+		for (int i = 0; i < count - 1; i++) {
+			if (vwing >= sweeps[i] && vwing <= sweeps[i + 1]) {
+				double range = sweeps[i + 1] - sweeps[i];
+				if (range == 0) return values[i];
+				double t = (vwing - sweeps[i]) / range;
+				return values[i] + t * (values[i + 1] - values[i]);
+			}
+		}
+		// 超出范围，返回最后一个值
+		return values[count - 1];
+	}
+
+	/* 计算可变翼 */
+	public double getAoAHighVWing(double vwing, int flaps_percent) {
+		if (vwing == 0) {
+			/* 计算flaps */
+			return NoFlapsWing.AoACritHigh
+					+ (FullFlapsWing.AoACritHigh - NoFlapsWing.AoACritHigh) * flaps_percent / 100.0f;
+		}
+		if (sweepLevels == null || sweepLevels.size() <= 1) {
+			return NoFlapsWing.AoACritHigh;
+		}
+		int n = sweepLevels.size();
+		double[] values = new double[n];
+		double[] sweeps = new double[n];
+		for (int i = 0; i < n; i++) {
+			values[i] = sweepLevels.get(i).noFlaps.AoACritHigh;
+			sweeps[i] = sweepLevels.get(i).sweep;
+		}
+		return interpolateSweepDouble(vwing, values, sweeps, n);
+	}
+
+	public double getAoALowVWing(double vwing, int flaps_percent) {
+		if (sweepLevels == null || sweepLevels.size() <= 1) {
+			return NoFlapsWing.AoACritLow;
+		}
+		int n = sweepLevels.size();
+		double[] values = new double[n];
+		double[] sweeps = new double[n];
+		for (int i = 0; i < n; i++) {
+			values[i] = sweepLevels.get(i).noFlaps.AoACritLow;
+			sweeps[i] = sweepLevels.get(i).sweep;
+		}
+		return interpolateSweepDouble(vwing, values, sweeps, n);
+	}
+
+	public double getVNEVWing(double vwing) {
+		if (sweepLevels == null || sweepLevels.size() <= 1) {
+			return vne;
+		}
+		int n = sweepLevels.size();
+		double[] values = new double[n];
+		double[] sweeps = new double[n];
+		for (int i = 0; i < n; i++) {
+			values[i] = sweepLevels.get(i).vne;
+			sweeps[i] = sweepLevels.get(i).sweep;
+		}
+		return interpolateSweepDouble(vwing, values, sweeps, n);
+	}
+
+	public double getMNEVWing(double vwing) {
+		if (sweepLevels == null || sweepLevels.size() <= 1) {
+			return vneMach;
+		}
+		int n = sweepLevels.size();
+		double[] values = new double[n];
+		double[] sweeps = new double[n];
+		for (int i = 0; i < n; i++) {
+			values[i] = sweepLevels.get(i).vneMach;
+			sweeps[i] = sweepLevels.get(i).sweep;
+		}
+		return interpolateSweepDouble(vwing, values, sweeps, n);
+	}
+
+	/**
+	 * Calculates the maximum allowable G-load range based on current aircraft weight.
+	 * As fuel burns off, the aircraft can sustain higher G-loads within structural limits.
+	 *
+	 * @param currentWeight Current total weight in kg (typically nofuelweight + mfuel)
+	 * @return double[2]: [0]=negative G limit (e.g., -4.5), [1]=positive G limit (e.g., +11.2)
+	 */
+	public double[] getMaxAllowGloadForWeight(double currentWeight) {
+		if (rawWingCritOverload == null || currentWeight <= 0) {
+			return maxAllowGload; // Fallback to static values
+		}
+		double negativeG = 1.2 * (2 * rawWingCritOverload[0] / (g * currentWeight) + 1);
+		double positiveG = 1.2 * (2 * rawWingCritOverload[1] / (g * currentWeight) - 1);
+		return new double[] { negativeG, positiveG };
+	}
+
+	public void initEngineLoad() {
+		avgEngRecoveryRate = 0.0f;
+		engLoad = new engineLoad[Application.maxEngLoad];
+		for (int i = 0; i < Application.maxEngLoad; i++) {
+			engLoad[i] = new engineLoad();
+		}
+		maxEngLoad = 0;
+		do {
+
+		} while (getEngineLoad(engLoad, maxEngLoad++));
+		maxEngLoad -= 1;
+		engLoad[maxEngLoad].WaterLimit = 999;
+		engLoad[maxEngLoad].OilLimit = 999;
+
+		for (int i = 0; i < maxEngLoad; i++) {
+			if (engLoad[i].RecoverTime != 0)
+				avgEngRecoveryRate = avgEngRecoveryRate + engLoad[i].WorkTime / engLoad[i].RecoverTime;
+			showEngineLoad(engLoad, i);
+		}
+		avgEngRecoveryRate = avgEngRecoveryRate / (maxEngLoad - 1);
+	}
+
+	public void getload() {
+		long startTime = System.currentTimeMillis();
+		// String Load0 = cut(data, "Load0");
+		// Application.debugPrint(getone("Load0.WaterTemperature"));
+		isJet = false;
+
+		// 读取推力高度
+		engineNum = 1;
+		// Application.debugPrint(getone("EngineType0.Main.Type"));
+		String hdrString = "EngineType0.";
+		String res = getone("EngineType0.Main.Type");
+		// Application.debugPrint(res);
+		if (res.indexOf("Jet") != -1) {
+			// 判断喷气
+			isJet = true;
+			// Application.debugPrint(getone("Engine"+engineNum));
+			while (!getone("Engine" + engineNum).equals("null")) {
+				engineNum++;
+			}
+		} else {
+			if (res.equals("null")) {
+				hdrString = "Engine0.";
+				if (getone("Engine0.Main.Type").indexOf("Jet") != -1) {
+					isJet = true;
+					// Application.debugPrint("isJet");
+				}
+			}
+			// 遍历引擎数量（适用于所有非喷气引擎，包括活塞引擎）
+			while (!getone("Engine" + engineNum).equals("null")) {
+				engineNum++;
+			}
+		}
+		// Application.debugPrint("Engine Count: " + engineNum);
+		engineRPMMultWEP = 1.0f;
+		if (isJet) {
+			aftbCoff = getdouble(hdrString + "Main.AfterburnerBoost");
+			thrMax0 = getdouble("ThrustMax.ThrustMax0");
+			// thrMax0 = getdouble(hdrString + "Main.Thrust");
+
+			// Application.debugPrint("engineType: jet, afterburner coeff" + aftbCoff);
+			altThrNum = 0;
+			altitudeThr = new double[30];
+			for (int i = 0; i < 30; i++, altThrNum++) {
+				altitudeThr[i] = getdouble_exc("ThrustMax.Altitude_" + i);
+				if (altitudeThr[i] == Float.MAX_VALUE) {
+					altitudeThr[i] = 0;
+					break;
+				}
+				// Application.debugPrint(altitudeThr[i]);
+			}
+			// 读取推力速度
+			velThrNum = 0;
+			velocityThr = new double[30];
+
+			for (int i = 0; i < 30; i++, velThrNum++) {
+				velocityThr[i] = getdouble_exc("ThrustMax.Velocity_" + i);
+				if (velocityThr[i] == Float.MAX_VALUE) {
+					velocityThr[i] = 0;
+					break;
+				}
+				// Application.debugPrint(altitudeThr[i]);
+			}
+
+			// 读取发动机工作模式
+
+			modeEngineNum = 0;
+			modeEngineMult = new double[10];
+			modeEngineRPMMult = new double[10];
+			for (int i = 0; i < 10; i++, modeEngineNum++) {
+				modeEngineMult[i] = getdouble_exc("Main.Mode" + i + ".ThrustMult");
+				modeEngineRPMMult[i] = getdouble_exc("Main.Mode" + i + ".RPM");
+				if (modeEngineMult[i] == Float.MAX_VALUE) {
+					modeEngineMult[i] = 0;
+					modeEngineRPMMult[i] = 1;
+					break;
+				}
+			}
+
+			double engineMultWEP = 1.0f;
+
+			if (modeEngineNum != 0) {
+				engineMultWEP = modeEngineMult[modeEngineNum - 1];
+				engineRPMMultWEP = modeEngineRPMMult[modeEngineNum - 1];
+			}
+
+			// 读取推力系数包线
+			maxThrCoff = new double[altThrNum][];
+			maxThr = new double[altThrNum][];
+			maxThrAft = new double[altThrNum][];
+			maxThrAftCoff = new double[altThrNum][];
+			for (int i = 0; i < altThrNum; i++) {
+				maxThrCoff[i] = new double[velThrNum];
+				maxThr[i] = new double[velThrNum];
+				maxThrAft[i] = new double[velThrNum];
+				maxThrAftCoff[i] = new double[velThrNum];
+
+				for (int j = 0; j < velThrNum; j++) {
+					maxThrCoff[i][j] = getdouble("ThrustMax.ThrustMaxCoeff_" + i + "_" + j);
+					maxThrAftCoff[i][j] = getdouble("ThrustMax.ThrAftMaxCoeff_" + i + "_" + j);
+					if (maxThrAftCoff[i][j] == 0) {
+						maxThrAftCoff[i][j] = 1.0f;
+					}
+					maxThr[i][j] = thrMax0 * maxThrCoff[i][j] * engineNum;
+					maxThrAft[i][j] = thrMax0 * maxThrCoff[i][j] * aftbCoff * maxThrAftCoff[i][j] * engineMultWEP
+							* engineNum;
+				}
+			}
+			// 预计算峰值推力
+			peakThrMil = calculatePeakThrust(maxThr);
+			peakThrAft = calculatePeakThrust(maxThrAft);
+
+			prog.util.Logger.info("Blkx",
+					String.format("Jet Engine Thrust Table loaded (%dx%d), peak MIL=%.0f kgf, AFT=%.0f kgf",
+							altThrNum, velThrNum, peakThrMil, peakThrAft));
+		} else {
+			// radial inline
+			// 获得增压器工作高度
+			// Application.debugPrint("not a jet");
+			aftbCoff = getdouble(hdrString + "Main.AfterburnerBoost");
+			// Application.debugPrint(hdrString);
+			compNumSteps = (int) getdouble("Compressor.NumSteps");
+			speedToManifoldMultiplier = getdouble("Compressor.SpeedManifoldMultiplier");
+
+			compAlt = new double[compNumSteps];
+			compBoost = new double[compNumSteps];
+			hasCompBoost = new boolean[compNumSteps];
+			compPower = new double[compNumSteps];
+			compRpmRatio = new double[compNumSteps];
+			compCeil = new double[compNumSteps];
+			compCeilPwr = new double[compNumSteps];
+			compConstRpmAlt = new double[compNumSteps];
+			compConstRpmPower = new double[compNumSteps];
+
+			for (int i = 0; i < compNumSteps; i++) {
+				compAlt[i] = getdouble("Compressor.Altitude" + i);
+				compPower[i] = getdouble("Compressor.Power" + i);
+				compBoost[i] = getdouble("Compressor.AfterburnerBoostMul" + i);
+				hasCompBoost[i] = !getone("Compressor.AfterburnerBoostMul" + i).equals("null");
+				compRpmRatio[i] = getdouble("Compressor.PowerConstRPMCurvature" + i);
+				compCeil[i] = getdouble("Compressor.Ceiling" + i);
+				compCeilPwr[i] = getdouble("Compressor.PowerAtCeiling" + i);
+				compConstRpmAlt[i] = getdouble("Compressor.AltitudeConstRPM" + i);
+				compConstRpmPower[i] = getdouble("Compressor.PowerConstRPM" + i);
+			}
+
+			// === Extended WAPC-compatible parameters ===
+			// Supercharger pressure parameters
+			compPressureAtRPM0 = getdouble("Compressor.CompressorPressureAtRPM0");
+			compOmegaFactorSq = getdouble("Compressor.CompressorOmegaFactorSq");
+			hasCompOmegaFactorSq = !getone("Compressor.CompressorOmegaFactorSq").equals("null");
+
+			// ExactAltitudes: explicitly defined in FM file
+			String eaStr = getone("Compressor.ExactAltitudes");
+			if (!eaStr.equals("null")) {
+				explicitExactAltitudes = eaStr.trim().equals("true");
+			}
+
+			// Per-stage manifold pressure and afterburner pressure boost
+			// ATA values are RPM-boost curve points, NOT per-stage values
+			// Military MP = max of all ATA values
+			compATA = new double[compNumSteps];
+			compAfterburnerPressureBoost = new double[compNumSteps];
+			for (int i = 0; i < compNumSteps; i++) {
+				compATA[i] = getdouble("Compressor.ATA" + i);
+				compAfterburnerPressureBoost[i] = getdouble("Compressor.AfterburnerPressureBoost" + i);
+			}
+
+			// Iterate all ATA entries (ATA0..ATA9) and take the maximum
+			militaryMP = 0;
+			for (int i = 0; i < 10; i++) {
+				double ata = getdouble("Compressor.ATA" + i);
+				if (ata > militaryMP) militaryMP = ata;
+			}
+
+			// WEP parameters from Main section
+			throttleBoost = getdouble(hdrString + "Main.ThrottleBoost");
+			if (throttleBoost <= 0) throttleBoost = 1.0;
+
+			octaneAfterburnerMult = getdouble(hdrString + "Main.OctaneAfterburnerMult");
+			if (octaneAfterburnerMult <= 0) octaneAfterburnerMult = 1.0;
+
+			// WEP manifold pressure (ata)
+			wepManifoldPressure = getdouble("AfterburnerManifoldPressure");
+
+			// Sea level power from Main.Power
+			deckPower = getdouble(hdrString + "Main.Power");
+
+			// RPM parameters for determineDefaultRpm (BUG 2 fix)
+			shaftRPMMax = getdouble(hdrString + "Main.ShaftRPMMax");
+			rpmNom = getdouble(hdrString + "Main.RPMNom");
+
+			// GovernorMaxParam is in the Propeller/Propellor section
+			governorMaxParam = 0;
+			String propSectionForGov = cut(data, "Propellor");
+			if (propSectionForGov.equals("null")) {
+				propSectionForGov = cut(data, "Propeller");
+			}
+			if (!propSectionForGov.equals("null")) {
+				String govStr = getoneinData(propSectionForGov, "GovernorMaxParam");
+				if (govStr != null && !govStr.equals("null")) {
+					try {
+						governorMaxParam = Double.parseDouble(govStr.trim().split(",")[0].trim());
+					} catch (NumberFormatException ignored) {}
+				}
+			}
+
+			//
+		}
+
+		// 读取最大转速和最大允许转速 (must be before extractRpmFromThrottleAuto)
+		maxRPM = getdouble("RPMAfterburner");
+		double maxRPMNormal = getdouble(" RPMMax");
+		if (maxRPM < maxRPMNormal)
+			maxRPM = maxRPMNormal;
+
+		// Application.debugPrint("RPM Multiplier: " + engineRPMMultWEP);
+		// 针对幻影2000C mode6 rpm乘数1.01的修复
+		maxRPM = maxRPM * engineRPMMultWEP;
+
+		// Extract military/WEP RPM after maxRPM is available as fallback
+		if (!isJet && compNumSteps > 0) {
+			extractRpmFromThrottleAuto(hdrString);
+		}
+		// Application.debugPrint("Max RPM: " + maxRPM);
+		maxAllowedRPM = getdouble("RPMMaxAllowed");
+		// Application.debugPrint("RPM"+maxAllowedRPM);
+
+		// avgEngRecoveryRate = 0.0f;
+		version = getVersion();
+		initEngineLoad();
+		// engLoad = new engineLoad[10];
+		// for (int i = 0; i < 10; i++) {
+		// engLoad[i] = new engineLoad();
+		// }
+
+		// maxEngLoad -= 1;
+		// engLoad[maxEngLoad].WaterLimit = 999;
+		// engLoad[maxEngLoad].OilLimit = 999;
+
+		// for (int i = 0; i < maxEngLoad; i++) {
+		// if (engLoad[i].RecoverTime != 0)
+		// avgEngRecoveryRate = avgEngRecoveryRate + engLoad[i].WorkTime /
+		// engLoad[i].RecoverTime;
+		// showEngineLoad(engLoad, i);
+		// }
+		// Application.debugPrint(engLoad[0].WorkTime/engLoad[i].RecoverTime);
+		// avgEngRecoveryRate = avgEngRecoveryRate / (maxEngLoad - 1);
+		emptyweight = getdouble("EmptyMass");
+		vne = getdouble("Vne:");
+		if (vne == 0) {
+			vne = getdouble("WingPlane.Strength.VNE");
+			if (vne == 0) {
+				vne = getdouble("WingPlaneSweep0.Strength.VNE");
+			}
+		}
+
+		vneMach = getdouble("VneMach");
+		if (vneMach == 0) {
+			vneMach = getdouble("WingPlane.Strength.MNE");
+			if (vneMach == 0) {
+				vneMach = getdouble("WingPlaneSweep0.Strength.MNE");
+			}
+		}
+
+		aileronEff = getdouble("AileronEffectiveSpeed");
+		aileronPowerLoss = getdouble("AileronPowerLoss");
+		rudderEff = getdouble("RudderEffectiveSpeed");
+		rudderPowerLoss = getdouble("RudderPowerLoss");
+		elavEff = getdouble("ElevatorsEffectiveSpeed");
+		elavPowerLoss = getdouble("ElevatorPowerLoss");
+		maxfuelweight = getdouble("MaxFuelMass0");
+
+		clmax = getdouble("NoFlaps.ClCritHigh");
+		flapClmax = getdouble("FullFlaps.ClCritHigh");
+
+		aoaHigh = getdouble("NoFlaps.alphaCritHigh");
+		aoaLow = getdouble("NoFlaps.alphaCritLow");
+
+		flapAoaHigh = getdouble("FullFlaps.alphaCritHigh");
+		flapAoaLow = getdouble("FullFlaps.alphaCritLow");
+
+		nitroDecr = getdouble("NitroConsumption");
+		nitro = getdouble("MaxNitro");
+		oil = getdouble("OilMass");
+
+		// Application.debugPrint("Combat Empty Weight: " + (emptyweight + oil +
+		// nitro));
+		grossweight = emptyweight + maxfuelweight + nitro + oil;
+		halfweight = emptyweight + maxfuelweight / 2 + nitro + oil;
+		nofuelweight = emptyweight + nitro + oil;
+
+		RadiatorCd = getdouble("RadiatorCd");
+		OilRadiatorCd = getdouble("OilRadiatorCd");
+		OswaldsEfficiencyNumber = getdouble("OswaldsEfficiencyNumber");
+
+		SweptWingAngle = getdouble("SweptWingAngle");
+		if (SweptWingAngle == 0) {
+			SweptWingAngle = getdouble("WingPlane.SweptAngle");
+			if (SweptWingAngle == 0) {
+				SweptWingAngle = getdouble("WingPlaneSweep0.SweptAngle");
+			}
+		}
+
+		WingTaperRatio = getdouble("WingTaperRatio");
+		if (WingTaperRatio == 0) {
+			WingTaperRatio = getdouble("WingPlane.TaperRatio");
+			if (WingTaperRatio == 0) {
+				WingTaperRatio = getdouble("WingPlaneSweep0.TaperRatio");
+			}
+		}
+
+		CriticalSpeed = getdouble("CriticalSpeed");
+
+		FlapsDestructionIndSpeed = new double[5][2];
+		FlapsDestructionNum = 0;
+		{
+			int p = 0;
+			while (p < 5) {
+				getdoubles("FlapsDestructionIndSpeedP" + (p++), FlapsDestructionIndSpeed[FlapsDestructionNum], 2);
+				if (FlapsDestructionIndSpeed[FlapsDestructionNum][1] == 0)
+					continue;
+				// if (p >= 5)
+				// break;
+				FlapsDestructionNum++;
+			}
+		}
+		if (FlapsDestructionNum == 0) {
+			double tmp[] = new double[4];
+			getdoubles("FlapsDestructionIndSpeedP", tmp, 4);
+			FlapsDestructionIndSpeed[0][0] = tmp[0];
+			FlapsDestructionIndSpeed[0][1] = tmp[1];
+			FlapsDestructionIndSpeed[1][0] = tmp[2];
+			FlapsDestructionIndSpeed[1][1] = tmp[3];
+			FlapsDestructionNum = 2;
+		}
+		if (FlapsDestructionNum == 0) {
+			FlapsDestructionIndSpeed[0][0] = 1.0f;
+			FlapsDestructionIndSpeed[0][1] = getdouble("FlapsDestructionIndSpeed");
+		}
+		/* 125襟翼档位插值，辅助运算 */
+		FlapsDestructionIndSpeed[FlapsDestructionNum][0] = 1.25f;
+		FlapsDestructionIndSpeed[FlapsDestructionNum][1] = 0;
+		// if (FlapsDestructionIndSpeed[0][1] != 0){
+		// FlapsDestructionNum++;
+		// }
+
+		GearDestructionIndSpeed = getdouble("GearDestructionIndSpeed");
+
+		// Application.debugPrint("Flaps Destruction Stages: " + FlapsDestructionNum +
+		// ", Gear Destruction Speed: "
+		// + GearDestructionIndSpeed);
+
+		// 面积
+		AWingLeftIn = getdouble("Areas.WingLeftIn");
+		if (AWingLeftIn == 0)
+			AWingLeftIn = getdouble("WingPlane.Areas.LeftIn");
+		if (AWingLeftIn == 0)
+			AWingLeftIn = getdouble("WingPlaneSweep0.Areas.LeftIn");
+
+		AWingLeftMid = getdouble("Areas.WingLeftMid");
+		if (AWingLeftMid == 0)
+			AWingLeftMid = getdouble("WingPlane.Areas.LeftMid");
+		if (AWingLeftMid == 0)
+			AWingLeftMid = getdouble("WingPlaneSweep0.Areas.LeftMid");
+
+		AWingLeftOut = getdouble("Areas.WingLeftOut");
+		if (AWingLeftOut == 0)
+			AWingLeftOut = getdouble("WingPlane.Areas.LeftOut");
+		if (AWingLeftOut == 0)
+			AWingLeftOut = getdouble("WingPlaneSweep0.Areas.LeftOut");
+
+		AWingLeftCut = getdouble("Areas.WingLeftCut");
+		if (AWingLeftCut == 0)
+			AWingLeftCut = getdouble("WingPlane.Areas.LeftCut");
+		if (AWingLeftCut == 0)
+			AWingLeftCut = getdouble("WingPlaneSweep0.Areas.LeftCut");
+
+		AWingRightIn = getdouble("Areas.WingRightIn");
+		if (AWingRightIn == 0)
+			AWingRightIn = getdouble("WingPlane.Areas.RightIn");
+		if (AWingRightIn == 0)
+			AWingRightIn = getdouble("WingPlaneSweep0.Areas.RightIn");
+
+		AWingRightMid = getdouble("Areas.WingRightMid");
+		if (AWingRightMid == 0)
+			AWingRightMid = getdouble("WingPlane.Areas.RightMid");
+		if (AWingRightMid == 0)
+			AWingRightMid = getdouble("WingPlaneSweep0.Areas.RightMid");
+
+		AWingRightOut = getdouble("Areas.WingRightOut");
+		if (AWingRightOut == 0)
+			AWingRightOut = getdouble("WingPlane.Areas.RightOut");
+		if (AWingRightOut == 0)
+			AWingRightOut = getdouble("WingPlaneSweep0.Areas.RightOut");
+
+		AWingRightCut = getdouble("Areas.WingRightCut");
+		if (AWingRightCut == 0)
+			AWingRightCut = getdouble("WingPlane.Areas.RightCut");
+		if (AWingRightCut == 0)
+			AWingRightCut = getdouble("WingPlaneSweep0.Areas.RightCut");
+
+		AAileron = getdouble("Areas.Aileron");
+		if (AAileron == 0)
+			AAileron = getdouble("WingPlane.Areas.Aileron");
+		if (AAileron == 0)
+			AAileron = getdouble("WingPlaneSweep0.Areas.Aileron");
+
+		AFuselage = getdouble("Areas.Fuselage");
+		if (AFuselage == 0)
+			AFuselage = getdouble("FuselagePlane.Areas.Main");
+		if (AFuselage == 0)
+			AFuselage = getdouble("WingPlaneSweep0.Areas.Main");
+
+		AFuselage = getdouble("Areas.Fuselage");
+		if (AFuselage == 0)
+			AFuselage = getdouble("FuselagePlane.Areas.Main");
+		if (AFuselage == 0)
+			AFuselage = getdouble("WingPlaneSweep0.Areas.Main");
+
+		NoFlapsWing = new fm_parts();
+		getPartsFm("NoFlaps", NoFlapsWing);
+		if (NoFlapsWing.AoACritHigh == 0) {
+			getPartsFm("FlapsPolar0", NoFlapsWing);
+		}
+
+		FullFlapsWing = new fm_parts();
+		getPartsFm("FullFlaps", FullFlapsWing);
+		if (FullFlapsWing.AoACritHigh == 0) {
+			getPartsFm("FlapsPolar1", FullFlapsWing);
+		}
+
+		/* 可变翼: 动态检测 WingPlaneSweep 数量 */
+		sweepLevels = new ArrayList<>();
+		for (int i = 0; i < 10; i++) {
+			String prefix = "WingPlaneSweep" + i;
+			String block = cut(data, prefix);
+			if (block.equals("null")) break;
+
+			SweepLevel level = new SweepLevel();
+			level.sweep = getdouble(prefix + ".Sweep:r");
+			level.vne = getdouble(prefix + ".Strength.VNE");
+			level.vneMach = getdouble(prefix + ".Strength.MNE");
+
+			level.noFlaps = new fm_parts();
+			getPartsFm(prefix + ".NoFlaps", level.noFlaps);
+			if (level.noFlaps.AoACritHigh == 0) {
+				getPartsFm(prefix + ".FlapsPolar0", level.noFlaps);
+			}
+
+			level.fullFlaps = new fm_parts();
+			getPartsFm(prefix + ".FullFlaps", level.fullFlaps);
+			if (level.fullFlaps.AoACritHigh == 0) {
+				getPartsFm(prefix + ".FlapsPolar1", level.fullFlaps);
+			}
+
+			sweepLevels.add(level);
+		}
+		isVWing = sweepLevels.size() > 1;
+
+		/* 向后兼容: 填充旧字段 */
+		NoFlapsWing_V50 = new fm_parts();
+		NoFlapsWing_V100 = new fm_parts();
+		FullFlapsWing_V50 = new fm_parts();
+		FullFlapsWing_V100 = new fm_parts();
+		if (sweepLevels.size() >= 2) {
+			NoFlapsWing_V50 = sweepLevels.get(1).noFlaps;
+			FullFlapsWing_V50 = sweepLevels.get(1).fullFlaps;
+			vne_V50 = sweepLevels.get(1).vne;
+			vneMach_V50 = sweepLevels.get(1).vneMach;
+		}
+		if (sweepLevels.size() >= 3) {
+			NoFlapsWing_V100 = sweepLevels.get(sweepLevels.size() - 1).noFlaps;
+			FullFlapsWing_V100 = sweepLevels.get(sweepLevels.size() - 1).fullFlaps;
+			vne_V100 = sweepLevels.get(sweepLevels.size() - 1).vne;
+			vneMach_V100 = sweepLevels.get(sweepLevels.size() - 1).vneMach;
+		}
+
+		Fuselage = new fm_parts();
+		getPartsFm("Fuselage", Fuselage);
+		if (Fuselage.AoACritHigh == 0) {
+			getPartsFm("FuselagePlane.Polar", Fuselage);
+		}
+		aoaFuselageHigh = Fuselage.AoACritHigh;
+		aoaFuselageLow = Fuselage.AoACritLow;
+
+		Fin = new fm_parts();
+		getPartsFm("Fin", Fin);
+		if (Fin.AoACritHigh == 0) {
+			getPartsFm("HorStabPlane.Polar", Fin);
+		}
+
+		Stab = new fm_parts();
+		getPartsFm("Stab", Stab);
+		if (Stab.AoACritHigh == 0) {
+			getPartsFm("VerStabPlane.Polar", Stab);
+		}
+
+		// 获得安装角
+		WingAngle = getdouble("\nWingAngle");
+		if (WingAngle == 0) {
+			WingAngle = getdouble("WingPlane. Angle");
+			if (WingAngle == 0) {
+				WingAngle = getdouble("WingPlaneSweep0. Angle");
+			}
+		}
+		// Application.debugPrint("机翼安装角" + WingAngle);
+
+		StabAngle = getdouble("StabAngle");
+		if (WingAngle == 0) {
+			WingAngle = getdouble("VerStabPlane.Angle");
+		}
+
+		KeelAngle = getdouble("KeelAngle");
+		if (WingAngle == 0) {
+			WingAngle = getdouble("FuselagePlane.Angle");
+		}
+
+		// 计算安装角补偿
+		NoFlapsWing.AoACritHigh -= WingAngle;
+		NoFlapsWing.AoACritLow -= WingAngle;
+		FullFlapsWing.AoACritHigh -= WingAngle;
+		FullFlapsWing.AoACritLow -= WingAngle;
+
+		Fuselage.AoACritHigh -= KeelAngle;
+		Fuselage.AoACritLow -= KeelAngle;
+
+		Stab.AoACritHigh -= StabAngle;
+		Stab.AoACritLow -= StabAngle;
+
+		MomentOfInertia = new double[3];
+		getdoubles("MomentOfInertia", MomentOfInertia, 3);
+
+		// 最大升力面积因子载荷计算(气动升力系数x部件面积除以满油重量）
+		// 最大攻角转弯时机身是失速的
+		fuseClHigh = Fuselage.ClCritHigh * Fuselage.lineClCoeff;
+		if (Fuselage.AoACritHigh < NoFlapsWing.AoACritHigh)
+			fuseClHigh = Fuselage.ClAfterCrit * Fuselage.lineClCoeff;
+
+		AWing = AWingLeftIn + AWingRightIn + AWingLeftMid + AWingRightMid + AWingLeftOut + AWingLeftCut + AWingRightOut
+				+ AWingRightCut + AAileron;
+
+		NoFlapsWing.Sq = AWing;
+		FullFlapsWing.Sq = AWing;
+		Fuselage.Sq = AFuselage;
+
+		// NoFlapsWing.AoACritHigh 可能不等于 Fuselage.AoACritHigh
+		NoFlapWLL = AWing * NoFlapsWing.ClCritHigh + AFuselage * fuseClHigh * (NoFlapsWing.AoACritHigh / Fuselage.AoACritHigh);
+		// 这里用空重
+		NoFlapWLL = NoFlapWLL / (emptyweight / 1000.f);
+
+		// Application.debugPrint(AWing * NoFlapsWing.ClCritHigh/)
+		fuseClHigh = Fuselage.ClCritHigh * Fuselage.lineClCoeff;
+		if (Fuselage.AoACritHigh < FullFlapsWing.AoACritHigh)
+			fuseClHigh = Fuselage.ClAfterCrit * Fuselage.lineClCoeff;
+
+		FullFlapWLL = AWing * FullFlapsWing.ClCritHigh + AFuselage * fuseClHigh * (NoFlapsWing.AoACritHigh / Fuselage.AoACritHigh);
+		FullFlapWLL = FullFlapWLL / (emptyweight / 1000.f);
+		// 阻力面积因子计算
+		CdS = AWing * NoFlapsWing.CdMin + AFuselage * Fuselage.CdMin;
+		// 计算阻力抵消的攻角
+
+		// 翼展
+		Wingspan = getdouble("Wingspan");
+		if (Wingspan == 0) {
+			Wingspan = getdouble("WingPlane.Span");
+			if (Wingspan == 0) {
+				Wingspan = getdouble("WingPlaneSweep0.Span");
+			}
+		}
+
+		AspectRatio = Wingspan * Wingspan / AWing;
+
+		// 诱导阻力还要
+		indCdF = 1 / (Math.PI * AspectRatio * OswaldsEfficiencyNumber);
+
+		// Application.debugPrint(NoFlapWLL+","+FullFlapWLL + ","+CdS);
+
+		// FmCdMin = 0;
+		// FmCdMin += NoFlapsWing.CdMin;
+		// FmCdMin += Fuselage.CdMin;
+		// FmCdMin += Fin.CdMin;
+		// FmCdMin += Stab.CdMin;
+
+		maxAllowGload = new double[2];
+		getdoubles("WingCritOverload", maxAllowGload, 2);
+		if (maxAllowGload[0] == 0) {
+			getdoubles("Strength.CritOverload", maxAllowGload, 2);
+		}
+
+		// Save raw values for dynamic G-load calculation before conversion
+		rawWingCritOverload = new double[] { maxAllowGload[0], maxAllowGload[1] };
+		// 减去机身升力承载的重量
+		// WingLoad =
+		// halfWingLoad =
+		// String s = "----------------FM信息------------------\n"
+		String s = String.format(Lang.bFmVersion, readFileName, version);
+		s += (String.format(Lang.bWeight, emptyweight, maxfuelweight));
+		s += (String.format(Lang.bCritSpeed, CriticalSpeed * 3.6, vne));
+		s += (String.format(Lang.bAllowLoadFactor, 1.2 * (2 * maxAllowGload[0] / (g * grossweight) + 1),
+				1.2 * (2 * maxAllowGload[1] / (g * grossweight) - 1),
+				1.2 * (2 * maxAllowGload[0] / (g * halfweight) + 1),
+				1.2 * (2 * maxAllowGload[1] / (g * halfweight) - 1)));
+
+		for (int i = 0; i < FlapsDestructionNum; i++) {
+			// s += "襟翼限速" + i + ": [" + String.format("%.0f",
+			// FlapsDestructionIndSpeed[i][0] * 100) + "%, "
+			// + String.format("%.0f", FlapsDestructionIndSpeed[i][1]) + "]\n";
+			s += String.format(Lang.bFlapRestrict, i, FlapsDestructionIndSpeed[i][0] * 100,
+					FlapsDestructionIndSpeed[i][1]);
+		}
+		s += String.format(Lang.bEffSpeedAndPowerLoss, elavEff, aileronEff, rudderEff, elavPowerLoss, aileronPowerLoss,
+				rudderPowerLoss);
+
+		if (nitro != 0)
+			s += String.format(Lang.bNitro, nitro, nitro / (nitroDecr * 60));
+
+		s += String.format(Lang.bAverageHeatRecovery, avgEngRecoveryRate);
+
+		s += String.format(Lang.bMaxLiftLoad350, (NoFlapWLL + 1) / 2, (FullFlapWLL + 1) / 2);
+
+		// 战雷在过载超限到真正断留了20%的余量
+		maxAllowGload[0] = 1.2 * (2 * maxAllowGload[0] / (g * grossweight) + 1);
+		maxAllowGload[1] = 1.2 * (2 * maxAllowGload[1] / (g * grossweight) - 1);
+
+		// 计算滚转率
+
+		// 先计算Cla
+		Cl_a = (NoFlapsWing.ClCritHigh - NoFlapsWing.Cl0) / (NoFlapsWing.AoACritHigh);
+
+		// 获得襟翼偏转角度(上偏和下偏)
+		AileronDefl = new double[2];
+
+		if (null == getdoubles("AileronAngles", AileronDefl, 2)) {
+			getdoubles("Ailerons.AnglesRoll", AileronDefl, 2);
+		}
+		// AAileron
+		//
+		// Wx_vcoff = ((Cl_a * (AileronDefl[0]+AileronDefl[1]) + NoFlapsWing.Cl0) *
+		// AAileron / (2 * Wingspan * 5f /*c*/)) * 57.3f;
+		// // 得到滚转率函数(高速要考虑到线性减少)
+		// Wx250= 69.444f * Wx_vcoff;
+		// Wx300= 83.333f * Wx_vcoff;
+		// Wx350= 97.222f * Wx_vcoff;
+		// // 最大滚转率
+		// WxMax = aileronEff/3.6f * Wx_vcoff * 1.0f;
+		// // 如果大于最大速度则需要乘以舵面值
+		//// Wx600 = 600/3.6f * Wx_vcoff * (1.0f - (((600 - aileronEff) *
+		// aileronPowerLoss)/100.0f));
+		//
+		//// Application.debugPrint(String.format("Wx 250, 300, 350: %.0f, %.0f, %.0f",
+		// Wx250,
+		// Wx300, Wx350));
+		//
+		// Application.debugPrint("滚转效率 :" + 83.333f* Wx_vcoff);
+		// Application.debugPrint("Wx_max :" + WxMax);
+		// Application.debugPrint("Wx_600 :" + Wx600 +", aileronMax:" + ((600 -
+		// aileronEff) *
+		// aileronPowerLoss));
+		// s +=
+		// 三轴转动惯量的值的顺序和三舵的要保持一致, 即pitch, roll, yaw
+		s += String.format(Lang.bInertia, MomentOfInertia[2], MomentOfInertia[0], MomentOfInertia[1]);
+
+		s += String.format(Lang.bLift, AWing, AFuselage, NoFlapWLL, FullFlapWLL, OswaldsEfficiencyNumber, AspectRatio,
+				SweptWingAngle);
+
+		s += String.format(Lang.bDrag, CdS, CdS / (halfweight / 1000.f), indCdF, halfweight * indCdF, RadiatorCd,
+				OilRadiatorCd);
+		// s += "------------------\n机翼与机身升力面积: [" + String.format("%.1f, %.1f", AWing,
+		// AFuselage) + "]\n翼展效率: " + OswaldsEfficiencyNumber + " 展弦比:"
+		// + String.format("%.2f", AspectRatio) + " 后掠角: " + SweptWingAngle + "\n诱导阻力因子:
+		// "
+		// + String.format("%.3g", indCdF) + "\n诱导阻力加速度系数: " + String.format("%.0f",
+		// halfweight * indCdF) + "(半油)"
+		// + "\n翼身临界升力面积因数载荷: [" + String.format("%.2f", NoFlapWLL) + ", " +
+		// String.format("%.2f", FullFlapWLL)
+		// + "]" + "\n翼身阻力面积因数及俯冲系数: " + String.format("%.3f, ", CdS) +
+		// String.format("%.3f", CdS/(halfweight / 1000.f))
+		// + "\n散热器/油冷器阻力系数: [" + RadiatorCd + ", " + OilRadiatorCd + "]\n";
+
+		s = WritePartsFm(s, NoFlapsWing);
+		if (NoFlapsWing_V50.ClCritHigh != 0)
+			s = WritePartsFm(s, NoFlapsWing_V50);
+		if (NoFlapsWing_V100.ClCritHigh != 0)
+			s = WritePartsFm(s, NoFlapsWing_V100);
+		s = WritePartsFm(s, FullFlapsWing);
+		s = WritePartsFm(s, Fuselage);
+		s = WritePartsFm(s, Fin);
+		s = WritePartsFm(s, Stab);
+
+		fmdata = s;
+		// Application.debugPrint(s);
+		// Application.debugPrint("" + GearDestructionIndSpeed);
+		// Application.debugPrint(wtload0+" "+oilload0);
+		// Application.debugPrint(wtload1+" "+oilload1);
+		// Application.debugPrint(wtload2+" "+oilload2);
+		// Application.debugPrint(wtload3+" "+oilload3);
+		// Application.debugPrint(wtload4+" "+oilload4);
+		// Application.debugPrint(wtload5+" "+oilload5);
+		// Application.debugPrint(subSt(getone("Load0")));
+
+		long duration = System.currentTimeMillis() - startTime;
+		prog.util.Logger.info("Blkx", String.format("Parsed FM file '%s' in %d ms (Engine Count: %d, Jet: %b)",
+				readFileName, duration, engineNum, isJet));
+	}
+
+	public void getperformancedata(String t) {
+
+	}
+
+	public String subSt(String t) {
+		String a = t.substring(1, t.length() - 1);
+		return a;
+	}
+
+	public void transUnit() {
+		String unitSystem = "";
+		unitSystem = getone("PASSPORT.UNITSYSTEM");
+		unitSystem = subSt(unitSystem);
+		if (unitSystem.indexOf("Imperial") != -1) {
+			// Application.debugPrint("英制");
+			for (int i = 0; i < loc.cur; i++) {
+				loc.y[i] = loc.y[i] * 0.3048f;
+			}
+			for (int i = 0; i < loc0.cur; i++) {
+				loc0.y[i] = loc0.y[i] * 0.3048f;
+			}
+			for (int i = 0; i < loc1.cur; i++) {
+				loc1.y[i] = loc1.y[i] * 0.3048f;
+				loc1.x[i] = loc1.x[i] * 1.609344f;
+			}
+			for (int i = 0; i < loc2.cur; i++) {
+				loc2.y[i] = loc2.y[i] * 0.3048f;
+				loc2.x[i] = loc2.x[i] * 1.609344f;
+			}
+			for (int i = 0; i < loc3.cur; i++) {
+				loc3.y[i] = loc3.y[i] * 1.609344f;
+				// Application.debugPrint(loc3.x[i]+" "+loc3.y[i]);
+			}
+
+		}
+	}
+
+	public void getAllplotdata() {
+		loc = getplotdata("PASSPORT.ALT.minClimbTimeWep");
+		loc0 = getplotdata("PASSPORT.ALT.minClimbTimeNom");
+		loc1 = getplotdata("PASSPORT.ALT.maxSpeedWep");
+		loc2 = getplotdata("PASSPORT.ALT.maxSpeedNom");
+		loc3 = getplotdata("PASSPORT.IAS.maxRollRateLeft");
+		transUnit();
+	}
+
+	public XY getplotdata(String t) {
+		int line = 0;
+		t = getArray(t);
+		for (int i = 0; i < t.length(); i++) {
+			if (t.charAt(i) == '\n')
+				line++;
+		}
+		XY lo = new XY(line);
+		int bix = 0;
+		for (int i = 0; i < t.length(); i++) {
+			if (t.charAt(i) == '\n') {
+				String temp = t.substring(bix, i);
+				String[] tmp = temp.split(", ");
+				lo.y[lo.cur] = Double.parseDouble(tmp[0]);
+				lo.x[lo.cur] = Double.parseDouble(tmp[1]);
+				lo.cur++;
+				bix = i + 1;
+			}
+		}
+		return lo;
+	}
+
+	public void init(String t) {
+		data = t;
+		fmdata = Lang.noblkx;
+	}
+
+	public Blkx(String filepath, String name) {
+		this(filepath, name, true);
+	}
+
+	public Blkx(String filepath, String name, boolean doLoad) {
+		File file = new File(filepath);
+		fmdata = Lang.noblkx;
+		if (file.exists()) {
+			StringBuilder sb = new StringBuilder();
+			String s = "";
+			BufferedReader br;
+			try {
+				br = new BufferedReader(new FileReader(file));
+				while ((s = br.readLine()) != null) {
+					sb.append(s + "\n");
+				}
+				br.close();
+			} catch (FileNotFoundException e1) {
+				// FM文件不存在，使用统一异常处理
+				prog.util.ExceptionHelper.logAndContinue(e1, "FM文件读取");
+			} catch (IOException e) {
+				// IO读取失败
+				prog.util.ExceptionHelper.logAndContinue(e, "FM文件读取");
+			}
+			readFileName = name;
+			data = sb.toString();
+			if (doLoad) {
+				this.getload();
+			}
+
+			valid = true;
+		} else {
+			valid = false;
+		}
+
+	}
+
+	String cut(String t, String clslabel) {
+		String tmp = t;
+		int i = 0;
+		int left = 0;
+		int right = 0;
+		int bix = tmp.toUpperCase().indexOf(clslabel.toUpperCase() + " {");
+		if (bix == -1)
+			return "null";
+		int cutleft = bix;
+		while (tmp.charAt(cutleft) != '{')
+			cutleft++;
+		cutleft++;
+		for (i = bix; i < tmp.length(); i++) {
+			if (tmp.charAt(i) == '{')
+				left++;
+			if (tmp.charAt(i) == '}')
+				right++;
+			if (left != 0 && right != 0 && left == right)
+				break;
+		}
+		int cutright = i;
+		return tmp.substring(cutleft, cutright);
+	}
+
+	public String getArray(String label) {
+		String value = "";
+		String text = data;
+		// 第一步处理
+		int clsbix = 0;
+		for (int i = 0; i < label.length(); i++) {
+			if (label.charAt(i) == '.') {
+				String cls = label.substring(clsbix, i);
+				text = cut(text, cls);
+				clsbix = i + 1;
+			}
+		}
+		label = label.substring(clsbix);
+		// Application.debugPrint(text);
+		// 第二步获得值
+		int bix = 0;
+		int eix = 0;
+		bix = text.toUpperCase().indexOf(label.toUpperCase());
+		while (bix != -1) {
+			while (text.charAt(bix) != '=')
+				bix++;
+			bix++;
+			eix = bix;
+			while (text.charAt(eix) != '\n')
+				eix++;
+			value = value + text.substring(bix, eix + 1);
+			text = text.substring(eix + 1);
+			bix = text.toUpperCase().indexOf(label.toUpperCase());
+		}
+		return value;
+	}
+
+	public String getlastone(String label) {
+		String value = "";
+		String text = data;
+		// 第一步处理
+		int clsbix = 0;
+		for (int i = 0; i < label.length(); i++) {
+			if (label.charAt(i) == '.') {
+				String cls = label.substring(clsbix, i);
+				text = cut(text, cls);
+				clsbix = i + 1;
+			}
+		}
+		label = label.substring(clsbix);
+		// 第二步获得值
+		int bix = 0;
+		int eix = 0;
+		bix = text.toUpperCase().lastIndexOf(label.toUpperCase());
+		if (bix == -1)
+			return null;
+		while (text.charAt(bix) != '=')
+			bix++;
+		bix++;
+		eix = bix;
+		while (text.charAt(eix) != '\n')
+			eix++;
+		value = text.substring(bix, eix);
+		return value;
+	}
+
+	public String getoneinData(String D, String label) {
+		String value = "";
+		String text = D;
+		// 第一步处理
+		int clsbix = 0;
+		for (int i = 0; i < label.length(); i++) {
+			if (label.charAt(i) == '.') {
+				String cls = label.substring(clsbix, i);
+				text = cut(text, cls);
+				clsbix = i + 1;
+			}
+		}
+		label = label.substring(clsbix);
+		// Application.debugPrint(label);
+		// 第二步获得值
+		int bix = 0;
+		int eix = 0;
+		bix = text.toUpperCase().indexOf(label.toUpperCase());
+		if (bix == -1)
+			return "null";
+		while (text.charAt(bix) != '=')
+			bix++;
+		bix++;
+		eix = bix;
+		while (text.charAt(eix) != '\n')
+			eix++;
+		value = text.substring(bix, eix);
+		return value;
+	}
+
+	public String getone(String label) {
+		String value = "";
+		String text = data;
+		// 第一步处理
+		int clsbix = 0;
+		for (int i = 0; i < label.length(); i++) {
+			if (label.charAt(i) == '.') {
+				String cls = label.substring(clsbix, i);
+				text = cut(text, cls);
+				clsbix = i + 1;
+			}
+		}
+		label = label.substring(clsbix);
+		// Application.debugPrint(text);
+		// 第二步获得值
+		int bix = 0;
+		int eix = 0;
+		// bix = text.toUpperCase().indexOf(label.toUpperCase());
+		bix = text.indexOf(label);
+		if (bix == -1)
+			return "null";
+		while (text.charAt(bix) != '=')
+			bix++;
+		bix++;
+		eix = bix;
+		while (text.charAt(eix) != '\n')
+			eix++;
+		value = text.substring(bix, eix);
+		return value;
+	}
+
+	// --- Reflection & Dynamic Config Support ---
+
+	/**
+	 * Recursively gets a value from the object graph using dot-notation path.
+	 * e.g. "NoFlapsWing.CdMin" or "emptyweight"
+	 */
+	public Object getValue(String path) {
+		try {
+			String[] parts = path.split("\\.");
+			Object current = this;
+			for (String part : parts) {
+				if (current == null)
+					return null;
+				java.lang.reflect.Field field = current.getClass().getField(part);
+				current = field.get(current);
+			}
+			return current;
+		} catch (Exception e) {
+			// Application.debugPrint("Error getting value for path: " + path + " - " +
+			// e.getMessage());
+			return "N/A";
+		}
+	}
+
+	/**
+	 * Dumps all public fields to a file for user reference.
+	 */
+	public void dumpVariables(File file) {
+		try {
+			java.io.PrintWriter writer = new java.io.PrintWriter(file, "UTF-8");
+			dumpObject(writer, this, "");
+			writer.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+	private void dumpObject(java.io.PrintWriter writer, Object obj, String prefix) {
+		if (obj == null)
+			return;
+
+		try {
+			java.lang.reflect.Field[] fields = obj.getClass().getFields();
+			for (java.lang.reflect.Field field : fields) {
+				String name = prefix + field.getName();
+				Object value = field.get(obj);
+
+				// Skip internal/system types if necessary, or just dump java.lang.* types and
+				// our own types
+				if (value == null) {
+					writer.println(name + " = null");
+				} else if (value.getClass().isPrimitive() || value instanceof String || value instanceof Number
+						|| value instanceof Boolean) {
+					writer.println(name + " = " + value);
+				} else if (value.getClass().isArray()) {
+					// Handle array dump if needed, for now just toString
+					// writer.println(name + " = [Array]");
+				} else if (value.getClass().getName().startsWith("parser.Blkx")) {
+					// Recurse for our own inner classes
+					dumpObject(writer, value, name + ".");
+				}
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+	/**
+	 * Releases the large raw data string after parsing is complete to save memory.
+	 */
+	public void finalizeLoading() {
+		this.data = null;
+		// We keep fmdata as it is used by FMDataOverlay
+	}
+
+	/**
+	 * Returns a flattened map of all public fields for the Formula Engine.
+	 */
+	public java.util.Map<String, Object> getVariableMap() {
+		java.util.Map<String, Object> map = new java.util.HashMap<>();
+		try {
+			for (java.lang.reflect.Field f : this.getClass().getFields()) {
+				Object val = f.get(this);
+				// Allow everything. Nashorn handles Java objects gracefully.
+				if (val != null) {
+					map.put(f.getName(), val);
+				}
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return map;
+	}
+
+	/**
+	 * 遍历推力表找全局最大值
+	 * @param table 推力表 [altitude][velocity]
+	 * @return 峰值推力(kgf)
+	 */
+	private double calculatePeakThrust(double[][] table) {
+		if (table == null || altThrNum == 0 || velThrNum == 0) return 0;
+
+		double peak = 0;
+		for (int i = 0; i < altThrNum; i++) {
+			for (int j = 0; j < velThrNum; j++) {
+				if (table[i][j] > peak) {
+					peak = table[i][j];
+				}
+			}
+		}
+		return peak;
+	}
+
+	/**
+	 * 获取峰值推力
+	 * @param isAfterburner true=加力推力，false=军用推力
+	 * @return 峰值推力(kgf)
+	 */
+	public double peakThrust(boolean isAfterburner) {
+		return isAfterburner ? peakThrAft : peakThrMil;
+	}
+}

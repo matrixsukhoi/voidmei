@@ -1,0 +1,495 @@
+import prog.util.PistonPowerModel;
+import prog.util.PistonPowerModel.CompressorStageParams;
+import static prog.util.PistonPowerModel.*;
+
+/**
+ * Tests for PistonPowerModel.
+ *
+ * Validates piston engine power curve calculations.
+ *
+ * Run with: ./script/test.sh
+ */
+public class TestPistonPowerModel {
+
+    private static int passed = 0;
+    private static int failed = 0;
+
+    public static void main(String[] args) {
+        System.out.println("=== PistonPowerModel Tests ===\n");
+
+        testTorqueRpmBoost();
+        testTorqueFromHp();
+        testSuperchargerRpmEffect();
+        testInterpolatePower();
+        testWepPowerMultiplier();
+        testWepCriticalAltitude();
+        testPowerAtAltitude();
+        testMultiStageSupercharger();
+        testGeneratePowerCurve();
+        testRamEffectIntegration();
+        testNoWepAircraftIdenticalCurves();
+        testPeakWepPower();
+
+        System.out.println("\n=== Results ===");
+        System.out.printf("Passed: %d, Failed: %d%n", passed, failed);
+
+        if (failed > 0) {
+            System.exit(1);
+        }
+    }
+
+    private static void testTorqueRpmBoost() {
+        System.out.println("Testing torqueRpmBoost()...");
+
+        // Same RPM = no boost
+        assertClose("same RPM", torqueRpmBoost(2400, 2400), 1.0, 0.001);
+
+        // Higher RPM = boost > 1
+        double boost = torqueRpmBoost(2400, 2600);
+        assertTrue("higher RPM gives boost", boost > 1.0);
+        System.out.printf("  torqueRpmBoost(2400, 2600) = %.4f%n", boost);
+
+        // Invalid inputs
+        assertClose("zero lowerRPM", torqueRpmBoost(0, 2600), 1.0, 0.001);
+        assertClose("zero higherRPM", torqueRpmBoost(2400, 0), 1.0, 0.001);
+
+        // Boost is monotonic with RPM difference
+        double boost1 = torqueRpmBoost(2400, 2500);
+        double boost2 = torqueRpmBoost(2400, 2600);
+        double boost3 = torqueRpmBoost(2400, 2700);
+        assertTrue("boost increases with RPM diff", boost1 < boost2 && boost2 < boost3);
+    }
+
+    private static void testTorqueFromHp() {
+        System.out.println("Testing torqueFromHp()...");
+
+        // Known conversion: 726.115 * hp / rpm
+        double torque = torqueFromHp(1000, 2400);
+        assertClose("torque at 1000hp/2400rpm", torque, 302.55, 0.1);
+
+        // Zero RPM handling
+        assertClose("zero RPM", torqueFromHp(1000, 0), 0, 0.001);
+
+        // Torque proportional to power
+        double torque2 = torqueFromHp(2000, 2400);
+        assertClose("double power = double torque", torque2, torque * 2, 0.1);
+
+        // Torque inversely proportional to RPM
+        double torque3 = torqueFromHp(1000, 4800);
+        assertClose("double RPM = half torque", torque3, torque / 2, 0.1);
+    }
+
+    private static void testSuperchargerRpmEffect() {
+        System.out.println("Testing superchargerRpmEffect()...");
+
+        // Typical parameters
+        double effect = superchargerRpmEffect(2400, 2600, 0.2, 0.1);
+        assertTrue("effect > 1 with RPM increase", effect > 1.0);
+        System.out.printf("  superchargerRpmEffect(2400, 2600, 0.2, 0.1) = %.4f%n", effect);
+
+        // No RPM difference = no effect
+        assertClose("same RPM", superchargerRpmEffect(2400, 2400, 0.2, 0.1), 1.0, 0.001);
+
+        // Invalid input
+        assertClose("zero milRPM", superchargerRpmEffect(0, 2600, 0.2, 0.1), 1.0, 0.001);
+
+        // Higher compressor factors = more effect
+        double effect1 = superchargerRpmEffect(2400, 2600, 0.1, 0.1);
+        double effect2 = superchargerRpmEffect(2400, 2600, 0.3, 0.1);
+        assertTrue("lower pressureAtRPM0 = more effect", effect1 > effect2);
+    }
+
+    private static void testInterpolatePower() {
+        System.out.println("Testing interpolatePower()...");
+
+        // At lower altitude point
+        double atLower = interpolatePower(1800, 5000, 2000, 0, 0, 1.0);
+        assertClose("at lower point", atLower, 2000, 1);
+
+        // At higher altitude point
+        double atHigher = interpolatePower(1800, 5000, 2000, 0, 5000, 1.0);
+        assertClose("at higher point", atHigher, 1800, 1);
+
+        // In between (should be between the two values)
+        double atMid = interpolatePower(1800, 5000, 2000, 0, 2500, 1.0);
+        assertTrue("mid point between", atMid > 1800 && atMid < 2000);
+
+        // Curvature effect
+        double linear = interpolatePower(1800, 5000, 2000, 0, 2500, 1.0);
+        double curved = interpolatePower(1800, 5000, 2000, 0, 2500, 2.0);
+        assertTrue("curvature affects interpolation", Math.abs(linear - curved) > 1);
+    }
+
+    private static void testWepPowerMultiplier() {
+        System.out.println("Testing wepPowerMultiplier()...");
+
+        // All factors = 1 and same RPM = multiplier of 1
+        assertClose("baseline", wepPowerMultiplier(1.0, 1.0, 1.0, 1.0, 2400, 2400), 1.0, 0.01);
+
+        // Typical WEP parameters
+        double mult = wepPowerMultiplier(1.15, 1.0, 1.0, 1.0, 2400, 2600);
+        assertTrue("WEP mult > 1", mult > 1.0);
+        System.out.printf("  wepPowerMultiplier(1.15, 1.0, 1.0, 1.0, 2400, 2600) = %.4f%n", mult);
+
+        // AfterburnerBoost effect
+        double mult1 = wepPowerMultiplier(1.10, 1.0, 1.0, 1.0, 2400, 2400);
+        double mult2 = wepPowerMultiplier(1.20, 1.0, 1.0, 1.0, 2400, 2400);
+        assertTrue("higher boost = higher mult", mult2 > mult1);
+    }
+
+    private static void testWepCriticalAltitude() {
+        System.out.println("Testing wepCriticalAltitude()...");
+
+        // WEP requires higher manifold pressure, so critical altitude is lower
+        double wepCritAlt = wepCriticalAltitude(7000, 1.42, 1.65, 1.0, 1.0);
+        assertTrue("WEP crit alt < mil crit alt", wepCritAlt < 7000);
+        System.out.printf("  wepCriticalAltitude(7000, 1.42ata, 1.65ata) = %.0fm%n", wepCritAlt);
+
+        // With supercharger RPM effect boost
+        double wepCritAlt2 = wepCriticalAltitude(7000, 1.42, 1.65, 1.1, 1.0);
+        assertTrue("RPM effect raises WEP crit alt", wepCritAlt2 > wepCritAlt);
+
+        // With pressure boost
+        double wepCritAlt3 = wepCriticalAltitude(7000, 1.42, 1.65, 1.0, 1.1);
+        assertTrue("pressure boost raises WEP crit alt", wepCritAlt3 > wepCritAlt);
+    }
+
+    private static void testPowerAtAltitude() {
+        System.out.println("Testing powerAtAltitudeAdvanced()...");
+
+        // Create test engine (simplified P-47D-like)
+        CompressorStageParams stage = new CompressorStageParams();
+        stage.critAlt = 7000;
+        stage.critPower = 2000;
+        stage.deckPower = 1850;
+        stage.deckAlt = 0;
+        stage.curvature = 1.0;
+        stage.wepCritAlt = 6000;
+        stage.wepPowerMult = 1.15;
+        stage.speedManifoldMult = 0.9;
+        stage.oldAltitude = 7000;
+        stage.oldPower = 2000;
+        stage.oldPowerNewRpm = 2000;
+
+        // At sea level
+        double p0 = powerAtAltitudeAdvanced(stage, 0, false, 0, false, 15);
+        assertClose("power at sea level", p0, 1850, 10);
+
+        // At critical altitude
+        double pCrit = powerAtAltitudeAdvanced(stage, 7000, false, 0, false, 15);
+        assertClose("power at crit alt", pCrit, 2000, 10);
+
+        // Above critical altitude (power drops)
+        double pHigh = powerAtAltitudeAdvanced(stage, 9000, false, 0, false, 15);
+        assertTrue("power drops above crit alt", pHigh < pCrit);
+
+        // WEP gives more power
+        double pWep = powerAtAltitudeAdvanced(stage, 5000, true, 0, false, 15);
+        double pMil = powerAtAltitudeAdvanced(stage, 5000, false, 0, false, 15);
+        assertTrue("WEP > military", pWep > pMil);
+
+        // Print power curve
+        System.out.println("  Power curve (military):");
+        for (int alt = 0; alt <= 10000; alt += 2000) {
+            double power = powerAtAltitudeAdvanced(stage, alt, false, 0, false, 15);
+            System.out.printf("    %5dm: %.0f hp%n", alt, power);
+        }
+    }
+
+    private static void testMultiStageSupercharger() {
+        System.out.println("Testing multi-stage supercharger...");
+
+        // Two-stage supercharger (like Spitfire Merlin)
+        CompressorStageParams stage1 = new CompressorStageParams();
+        stage1.critAlt = 3000;
+        stage1.critPower = 1400;
+        stage1.deckPower = 1350;
+        stage1.wepCritAlt = 2500;
+        stage1.wepPowerMult = 1.1;
+        stage1.stageIndex = 0;
+        stage1.oldAltitude = 3000;
+        stage1.oldPower = 1400;
+        stage1.oldPowerNewRpm = 1400;
+
+        CompressorStageParams stage2 = new CompressorStageParams();
+        stage2.critAlt = 6500;
+        stage2.critPower = 1300;
+        stage2.deckPower = 1100;
+        stage2.wepCritAlt = 6000;
+        stage2.wepPowerMult = 1.1;
+        stage2.stageIndex = 1;
+        stage2.oldAltitude = 6500;
+        stage2.oldPower = 1300;
+        stage2.oldPowerNewRpm = 1300;
+
+        CompressorStageParams[] stages = {stage1, stage2};
+
+        // At low altitude, stage 1 is better
+        double pLow = optimalPowerAdvanced(stages, 1000, false, 0, false, 15);
+        double p1Low = powerAtAltitudeAdvanced(stage1, 1000, false, 0, false, 15);
+        double p2Low = powerAtAltitudeAdvanced(stage2, 1000, false, 0, false, 15);
+        assertTrue("stage 1 better at low alt", p1Low > p2Low);
+        assertClose("optimal selects stage 1", pLow, p1Low, 1);
+
+        // At high altitude, stage 2 is better
+        double pHigh = optimalPowerAdvanced(stages, 6000, false, 0, false, 15);
+        double p1High = powerAtAltitudeAdvanced(stage1, 6000, false, 0, false, 15);
+        double p2High = powerAtAltitudeAdvanced(stage2, 6000, false, 0, false, 15);
+        assertTrue("stage 2 better at high alt", p2High > p1High);
+        assertClose("optimal selects stage 2", pHigh, p2High, 1);
+
+        // Print combined curve
+        System.out.println("  Two-stage power curve:");
+        for (int alt = 0; alt <= 8000; alt += 1000) {
+            double power = optimalPowerAdvanced(stages, alt, false, 0, false, 15);
+            System.out.printf("    %5dm: %.0f hp%n", alt, power);
+        }
+    }
+
+    private static void testGeneratePowerCurve() {
+        System.out.println("Testing generatePowerCurveAdvanced()...");
+
+        CompressorStageParams stage = new CompressorStageParams(5000, 1500, 1400);
+        stage.wepCritAlt = 4500;
+        stage.wepPowerMult = 1.1;
+        stage.oldAltitude = 5000;
+        stage.oldPower = 1500;
+        stage.oldPowerNewRpm = 1500;
+        CompressorStageParams[] stages = {stage};
+
+        double[] curve = generatePowerCurveAdvanced(stages, false, 0, false, 15, 50);
+
+        // Check array size (range: 0m to 10000m, step 50m)
+        int expectedSize = (10000 - 0) / 50 + 1;  // 201 points
+        assertTrue("curve size correct", curve.length == expectedSize);
+
+        // Check values at known altitudes (index = altitude / step)
+        int seaLevelIdx = 0;
+        assertClose("curve at sea level", curve[seaLevelIdx], 1400, 10);
+
+        // Index at 5000m = 5000 / 50 = 100
+        int critAltIdx = 5000 / 50;
+        assertClose("curve at crit alt", curve[critAltIdx], 1500, 10);
+
+        // Power decreases after critical altitude (8000m = index 160)
+        int highAltIdx = 8000 / 50;
+        assertTrue("power decreases at high alt", curve[highAltIdx] < curve[critAltIdx]);
+    }
+
+    private static void testRamEffectIntegration() {
+        System.out.println("Testing RAM effect integration...");
+
+        CompressorStageParams stage = new CompressorStageParams();
+        stage.critAlt = 7000;
+        stage.critPower = 2000;
+        stage.deckPower = 1850;
+        stage.wepCritAlt = 6500;
+        stage.wepPowerMult = 1.1;
+        stage.speedManifoldMult = 0.9;
+        stage.oldAltitude = 7000;
+        stage.oldPower = 2000;
+        stage.oldPowerNewRpm = 2000;
+
+        // Test RAM effect well ABOVE critical altitude where power drops with altitude
+        // Use higher altitude to avoid effective altitude crossing critical altitude
+        double pStatic12k = powerAtAltitudeAdvanced(stage, 12000, false, 0, false, 15);
+        double pMoving12k = powerAtAltitudeAdvanced(stage, 12000, false, 400, true, 15);
+
+        // RAM effect should increase power above critical altitude
+        assertTrue("RAM increases power above crit alt", pMoving12k > pStatic12k);
+        System.out.printf("  At 12000m: static=%.0fhp, 400km/h=%.0fhp (gain: %.0fhp)%n",
+                pStatic12k, pMoving12k, pMoving12k - pStatic12k);
+
+        // Higher speed = more RAM effect (use moderate speeds to stay above crit alt)
+        double pFaster12k = powerAtAltitudeAdvanced(stage, 12000, false, 500, true, 15);
+        assertTrue("faster = more RAM above crit alt", pFaster12k > pMoving12k);
+        System.out.printf("  At 12000m: 400km/h=%.0fhp, 500km/h=%.0fhp%n", pMoving12k, pFaster12k);
+
+        // Note: Below critical altitude, RAM effect may DECREASE power because
+        // in this model deck power < crit power (power increases toward crit alt).
+        // This is physically correct for supercharged engines where the
+        // supercharger maintains constant boost up to critical altitude.
+        double pStaticLow = powerAtAltitudeAdvanced(stage, 5000, false, 0, false, 15);
+        double pMovingLow = powerAtAltitudeAdvanced(stage, 5000, false, 500, true, 15);
+        System.out.printf("  At 5000m (below crit): static=%.0fhp, 500km/h=%.0fhp%n",
+                pStaticLow, pMovingLow);
+        System.out.println("  (Below crit alt, RAM lowers effective alt, which may reduce power)");
+    }
+
+    private static void testNoWepAircraftIdenticalCurves() {
+        System.out.println("Testing no-WEP aircraft (Yak-3 style)...");
+
+        // Yak-3 Stage 0: critAlt=300m, Power=1310hp, Ceiling=5000m/670hp
+        // AfterburnerBoost=1 → wepPowerMult=1.0, so WEP == military
+        CompressorStageParams stage0 = new CompressorStageParams();
+        stage0.critAlt = 300;
+        stage0.critPower = 1310;
+        stage0.deckPower = 1290;
+        stage0.deckAlt = 0;
+        stage0.curvature = 1.0;
+        stage0.ceilingAlt = 5000;
+        stage0.ceilingPower = 670;
+        stage0.oldAltitude = 300;
+        stage0.oldPower = 1310;
+        stage0.oldPowerNewRpm = 1310;
+        stage0.exactAltitudes = true;
+        stage0.stageIndex = 0;
+        // No WEP: wepPowerMult=1.0, wepCritAlt == critAlt
+        stage0.wepPowerMult = 1.0;
+        stage0.wepCritAlt = 300;  // Must equal critAlt when no WEP
+        stage0.wepDeckAlt = 0;
+        stage0.speedManifoldMult = 1.0;
+
+        // Yak-3 Stage 1: critAlt=2600m, Power=1240hp, Ceiling=9000m/510hp
+        CompressorStageParams stage1 = new CompressorStageParams();
+        stage1.critAlt = 2600;
+        stage1.critPower = 1240;
+        stage1.deckPower = 1290 * 0.8;
+        stage1.deckAlt = 0;
+        stage1.curvature = 1.0;
+        stage1.ceilingAlt = 9000;
+        stage1.ceilingPower = 510;
+        stage1.oldAltitude = 2600;
+        stage1.oldPower = 1240;
+        stage1.oldPowerNewRpm = 1240;
+        stage1.exactAltitudes = true;
+        stage1.stageIndex = 1;
+        stage1.wepPowerMult = 1.0;
+        stage1.wepCritAlt = 2600;
+        stage1.wepDeckAlt = 0;
+        stage1.speedManifoldMult = 1.0;
+
+        CompressorStageParams[] stages = {stage0, stage1};
+
+        // WEP and military curves must be identical at every altitude
+        boolean allMatch = true;
+        System.out.println("  Yak-3 power curve (WEP should equal Military):");
+        for (int alt = 0; alt <= 10000; alt += 500) {
+            double milPower = optimalPowerAdvanced(stages, alt, false, 0, false, 15);
+            double wepPower = optimalPowerAdvanced(stages, alt, true, 0, false, 15);
+            if (alt % 2000 == 0) {
+                System.out.printf("    %5dm: mil=%.1fhp, wep=%.1fhp, diff=%.1fhp%n",
+                        alt, milPower, wepPower, wepPower - milPower);
+            }
+            if (Math.abs(milPower - wepPower) > 0.1) {
+                allMatch = false;
+            }
+        }
+        assertTrue("no-WEP: WEP curve equals military curve", allMatch);
+
+        // Also verify with RAM effect (301 km/h IAS)
+        boolean allMatchRam = true;
+        System.out.println("  Yak-3 power curve at 301km/h IAS:");
+        for (int alt = 0; alt <= 10000; alt += 500) {
+            double milPower = optimalPowerAdvanced(stages, alt, false, 301, true, 15);
+            double wepPower = optimalPowerAdvanced(stages, alt, true, 301, true, 15);
+            if (alt % 2000 == 0) {
+                System.out.printf("    %5dm: mil=%.1fhp, wep=%.1fhp%n", alt, milPower, wepPower);
+            }
+            if (Math.abs(milPower - wepPower) > 0.1) {
+                allMatchRam = false;
+            }
+        }
+        assertTrue("no-WEP with RAM: WEP curve equals military curve", allMatchRam);
+    }
+
+    private static void testPeakWepPower() {
+        System.out.println("Testing peakWepPower()...");
+
+        // Test 1: Single-stage supercharger
+        CompressorStageParams stage = new CompressorStageParams();
+        stage.critAlt = 5000;
+        stage.critPower = 1500;
+        stage.deckPower = 1400;
+        stage.wepCritAlt = 4500;
+        stage.wepPowerMult = 1.15;  // 15% WEP boost
+        stage.oldAltitude = 5000;
+        stage.oldPower = 1500;
+        stage.oldPowerNewRpm = 1500;
+        CompressorStageParams[] singleStage = {stage};
+
+        double peakSingle = peakWepPower(singleStage);
+        // Peak should be critPower × wepPowerMult = 1500 × 1.15 = 1725 hp (approximately)
+        double expectedPeak = stage.critPower * stage.wepPowerMult;
+        assertClose("single-stage peak WEP power", peakSingle, expectedPeak, 20);
+        System.out.printf("  Single-stage: peak=%.1fhp (expected ~%.1fhp)%n", peakSingle, expectedPeak);
+
+        // Test 2: Multi-stage supercharger (peak is max across all stages)
+        CompressorStageParams stage1 = new CompressorStageParams();
+        stage1.critAlt = 3000;
+        stage1.critPower = 1400;
+        stage1.deckPower = 1350;
+        stage1.wepCritAlt = 2500;
+        stage1.wepPowerMult = 1.1;
+        stage1.stageIndex = 0;
+        stage1.oldAltitude = 3000;
+        stage1.oldPower = 1400;
+        stage1.oldPowerNewRpm = 1400;
+
+        CompressorStageParams stage2 = new CompressorStageParams();
+        stage2.critAlt = 6500;
+        stage2.critPower = 1300;
+        stage2.deckPower = 1100;
+        stage2.wepCritAlt = 6000;
+        stage2.wepPowerMult = 1.1;
+        stage2.stageIndex = 1;
+        stage2.oldAltitude = 6500;
+        stage2.oldPower = 1300;
+        stage2.oldPowerNewRpm = 1300;
+
+        CompressorStageParams[] multiStage = {stage1, stage2};
+        double peakMulti = peakWepPower(multiStage);
+        // Stage 1 should give higher peak (1400 × 1.1 = 1540hp vs 1300 × 1.1 = 1430hp)
+        double expectedMultiPeak = stage1.critPower * stage1.wepPowerMult;
+        assertClose("multi-stage peak WEP power", peakMulti, expectedMultiPeak, 20);
+        System.out.printf("  Multi-stage: peak=%.1fhp (expected ~%.1fhp from stage 0)%n", peakMulti, expectedMultiPeak);
+
+        // Test 3: Empty array returns 0
+        double peakEmpty = peakWepPower(new CompressorStageParams[0]);
+        assertClose("empty array returns 0", peakEmpty, 0, 0.001);
+
+        // Test 4: Null array returns 0
+        double peakNull = peakWepPower(null);
+        assertClose("null array returns 0", peakNull, 0, 0.001);
+
+        // Test 5: No-WEP aircraft (wepPowerMult = 1.0)
+        CompressorStageParams noWepStage = new CompressorStageParams();
+        noWepStage.critAlt = 3000;
+        noWepStage.critPower = 1200;
+        noWepStage.deckPower = 1150;
+        noWepStage.wepCritAlt = 3000;
+        noWepStage.wepPowerMult = 1.0;  // No WEP
+        noWepStage.oldAltitude = 3000;
+        noWepStage.oldPower = 1200;
+        noWepStage.oldPowerNewRpm = 1200;
+        CompressorStageParams[] noWepArray = {noWepStage};
+
+        double peakNoWep = peakWepPower(noWepArray);
+        // With no WEP, peak should equal critPower
+        assertClose("no-WEP peak equals critPower", peakNoWep, noWepStage.critPower, 10);
+        System.out.printf("  No-WEP: peak=%.1fhp (expected ~%.1fhp)%n", peakNoWep, noWepStage.critPower);
+    }
+
+    // === Assertion Helpers ===
+
+    private static void assertClose(String name, double actual, double expected, double tolerance) {
+        if (Math.abs(actual - expected) <= tolerance) {
+            System.out.printf("  PASS: %s = %.4f (expected %.4f)%n", name, actual, expected);
+            passed++;
+        } else {
+            System.out.printf("  FAIL: %s = %.4f (expected %.4f, tolerance %.4f)%n",
+                    name, actual, expected, tolerance);
+            failed++;
+        }
+    }
+
+    private static void assertTrue(String name, boolean condition) {
+        if (condition) {
+            System.out.printf("  PASS: %s%n", name);
+            passed++;
+        } else {
+            System.out.printf("  FAIL: %s%n", name);
+            failed++;
+        }
+    }
+}

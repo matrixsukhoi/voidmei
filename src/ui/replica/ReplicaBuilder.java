@@ -1,0 +1,746 @@
+package ui.replica;
+
+import java.awt.BorderLayout;
+import java.awt.Dimension;
+import javax.swing.BorderFactory;
+import javax.swing.JLabel;
+
+import com.alee.extended.button.WebSwitch;
+import com.alee.laf.label.WebLabel;
+import com.alee.laf.panel.WebPanel;
+import com.alee.laf.text.WebTextField;
+import com.alee.laf.spinner.WebSpinner;
+import com.alee.laf.combobox.WebComboBox;
+import com.alee.extended.window.WebPopOver;
+
+import java.awt.Color;
+import java.awt.Font;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+
+import prog.Application;
+import prog.util.Logger;
+
+/**
+ * Factory class to create specific UI components for the Replica layout.
+ * Enforces the structure: [Label] ...... [Switch] [Gear]
+ */
+public class ReplicaBuilder {
+
+    private static final PinkStyle style = new PinkStyle();
+
+    // Track all active popovers to dispose before UI rebuild
+    private static final java.util.List<WebPopOver> activePopovers = new java.util.ArrayList<>();
+
+    // 追踪活动的 ComboBox，以便统一关闭下拉菜单
+    private static final java.util.List<WebComboBox> activeComboBoxes = new java.util.ArrayList<>();
+
+    // 递归保护：dispose 回调可能触发 dismissActivePopups 再次调用
+    private static boolean dismissingPopups = false;
+
+    public static WebPanel createSwitchItem(String labelText, boolean isSelected, boolean showGear) {
+        return createSwitchItem(labelText, isSelected, showGear, null, null);
+    }
+
+    public static WebPanel createSwitchItem(String labelText, boolean isSelected, boolean showGear, String tooltip) {
+        return createSwitchItem(labelText, isSelected, showGear, tooltip, null);
+    }
+
+    /**
+     * Creates a standard row item: Label on Left, Switch + Optional Gear on Right.
+     */
+    public static WebPanel createSwitchItem(String labelText, boolean isSelected, boolean showGear, String tooltip,
+            String tooltipImg) {
+        WebPanel panel = new WebPanel(new BorderLayout(5, 0));
+        style.decorateControlPanel(panel);
+        panel.setBorder(BorderFactory.createEmptyBorder(2, 5, 2, 5));
+
+        // Label
+        WebLabel label = new WebLabel(labelText);
+        if ((tooltip != null && !tooltip.isEmpty()) || (tooltipImg != null && !tooltipImg.isEmpty())) {
+            applyStylizedTooltip(label, tooltip, tooltipImg);
+        }
+        style.decorateLabel(label);
+        panel.add(label, BorderLayout.WEST);
+
+        // Controls container (Switch + Gear)
+        WebPanel controls = new WebPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 5, 0));
+        controls.setOpaque(false);
+
+        // Switch
+        WebSwitch sw = new WebSwitch();
+        sw.setSelected(isSelected);
+        style.decorateSwitch(sw);
+        controls.add(sw);
+
+        // Gear Icon (Simulator)
+        if (showGear) {
+            JLabel gear = new JLabel("⚙");
+            gear.setForeground(PinkStyle.COLOR_PRIMARY);
+            gear.setFont(layerFont(14));
+            controls.add(gear);
+        }
+
+        panel.add(controls, BorderLayout.CENTER);
+
+        // Critical: Enable ResponsiveGrid alignment
+        panel.putClientProperty("alignLabel", label);
+
+        return panel;
+    }
+
+    public static WebPanel createSpinnerItem(String labelText, double value, double min, double max, double step) {
+        return createSpinnerItem(labelText, value, min, max, step, null, null);
+    }
+
+    public static WebPanel createSpinnerItem(String labelText, double value, double min, double max, double step,
+            String tooltip) {
+        return createSpinnerItem(labelText, value, min, max, step, tooltip, null);
+    }
+
+    /**
+     * Creates a spinner row: [Label] ... [Spinner]
+     */
+    public static WebPanel createSpinnerItem(String labelText, double value, double min, double max, double step,
+            String tooltip, String tooltipImg) {
+        WebPanel panel = new WebPanel(new BorderLayout(5, 0));
+        style.decorateControlPanel(panel);
+        panel.setBorder(BorderFactory.createEmptyBorder(4, 5, 4, 5));
+
+        WebLabel label = new WebLabel(labelText);
+        if ((tooltip != null && !tooltip.isEmpty()) || (tooltipImg != null && !tooltipImg.isEmpty())) {
+            applyStylizedTooltip(label, tooltip, tooltipImg);
+        }
+        style.decorateLabel(label);
+        panel.add(label, BorderLayout.WEST);
+
+        // Spinner
+        javax.swing.SpinnerNumberModel model = new javax.swing.SpinnerNumberModel(value, min, max, step);
+        WebSpinner spinner = new WebSpinner(model);
+        spinner.setPreferredSize(new Dimension(80, 26));
+        spinner.setDrawFocus(false);
+
+        panel.add(spinner, BorderLayout.EAST);
+
+        // Critical: Enable ResponsiveGrid alignment
+        panel.putClientProperty("alignLabel", label);
+
+        return panel;
+    }
+
+    public static WebPanel createDropdownItem(String labelText, String[] items) {
+        return createDropdownItem(labelText, items, null, null);
+    }
+
+    public static WebPanel createDropdownItem(String labelText, String[] items, String tooltip) {
+        return createDropdownItem(labelText, items, tooltip, null);
+    }
+
+    /**
+     * Creates a ComboBox Row: [Label] ... [ComboBox]
+     */
+    public static WebPanel createDropdownItem(String labelText, String[] items, String tooltip, String tooltipImg) {
+        WebPanel panel = new WebPanel(new BorderLayout(5, 0));
+        style.decorateControlPanel(panel);
+        panel.setBorder(BorderFactory.createEmptyBorder(4, 5, 4, 5));
+
+        WebLabel label = new WebLabel(labelText);
+        if ((tooltip != null && !tooltip.isEmpty()) || (tooltipImg != null && !tooltipImg.isEmpty())) {
+            applyStylizedTooltip(label, tooltip, tooltipImg);
+        }
+        style.decorateLabel(label);
+        panel.add(label, BorderLayout.WEST);
+
+        WebComboBox combo = new WebComboBox(items);
+        combo.setEditable(false);
+
+        panel.add(combo, BorderLayout.CENTER);
+
+        // Critical: Enable ResponsiveGrid alignment
+        panel.putClientProperty("alignLabel", label);
+
+        return panel;
+    }
+
+    /**
+     * Creates a text input row: [Label] ... [TextField]
+     */
+    public static WebPanel createTextItem(String labelText, String initialValue, int columns, String tooltip,
+            String tooltipImg) {
+        WebPanel panel = new WebPanel(new BorderLayout(5, 0));
+        style.decorateControlPanel(panel);
+        panel.setBorder(BorderFactory.createEmptyBorder(4, 5, 4, 5));
+
+        WebLabel label = new WebLabel(labelText);
+        if ((tooltip != null && !tooltip.isEmpty()) || (tooltipImg != null && !tooltipImg.isEmpty())) {
+            applyStylizedTooltip(label, tooltip, tooltipImg);
+        }
+        style.decorateLabel(label);
+        panel.add(label, BorderLayout.WEST);
+
+        WebTextField textField = new WebTextField(initialValue, columns);
+        textField.setPreferredSize(new Dimension(80, 26));
+        textField.setDrawFocus(false);
+
+        panel.add(textField, BorderLayout.EAST);
+
+        // Critical: Enable ResponsiveGrid alignment
+        panel.putClientProperty("alignLabel", label);
+
+        return panel;
+    }
+
+    public static WebPanel createSliderItem(String labelText, int min, int max, int value, int width) {
+        return createSliderItem(labelText, min, max, value, width, null, null, null);
+    }
+
+    public static WebPanel createSliderItem(String labelText, int min, int max, int value, int width, String tooltip) {
+        return createSliderItem(labelText, min, max, value, width, tooltip, null, null);
+    }
+
+    public static WebPanel createSliderItem(String labelText, int min, int max, int value, int width, String tooltip,
+            String tooltipImg) {
+        return createSliderItem(labelText, min, max, value, width, tooltip, tooltipImg, null);
+    }
+
+    /**
+     * Creates a Slider row: [Label] ... [Slider] [Spinner] [Unit]
+     *
+     * @param labelText  Label text displayed on the left
+     * @param min        Minimum slider value
+     * @param max        Maximum slider value
+     * @param value      Initial value
+     * @param width      Preferred width of the slider
+     * @param tooltip    Optional tooltip text
+     * @param tooltipImg Optional tooltip image path
+     * @param unit       Optional unit string (e.g., "%", "ms", "km/h")
+     */
+    public static WebPanel createSliderItem(String labelText, int min, int max, int value, int width, String tooltip,
+            String tooltipImg, String unit) {
+        WebPanel panel = new WebPanel(new BorderLayout(5, 0));
+        style.decorateControlPanel(panel);
+        panel.setBorder(BorderFactory.createEmptyBorder(4, 5, 4, 5));
+
+        WebLabel label = new WebLabel(labelText);
+        if ((tooltip != null && !tooltip.isEmpty()) || (tooltipImg != null && !tooltipImg.isEmpty())) {
+            applyStylizedTooltip(label, tooltip, tooltipImg);
+        }
+        style.decorateLabel(label);
+        panel.add(label, BorderLayout.WEST);
+
+        // Controls container: [Slider] [Spinner] [Unit]
+        // Use BorderLayout for responsive slider width (fixes overflow in column=2 layouts)
+        WebPanel controls = new WebPanel(new BorderLayout(5, 0));
+        controls.setOpaque(false);
+
+        com.alee.laf.slider.WebSlider slider = new com.alee.laf.slider.WebSlider(
+                com.alee.laf.slider.WebSlider.HORIZONTAL, min, max, value);
+        // Use minimum size instead of preferred - allows slider to shrink in narrow columns
+        slider.setMinimumSize(new Dimension(60, 38));
+        slider.setPreferredSize(new Dimension(width, 38));
+        slider.setOpaque(false);
+
+        // --- Tick Setup ---
+        int range = Math.abs(max - min);
+        if (range > 0) {
+            int major;
+            if (range <= 10)
+                major = 2;
+            else if (range <= 20)
+                major = 5;
+            else if (range <= 50)
+                major = 10;
+            else if (range <= 100)
+                major = 20;
+            else if (range <= 500)
+                major = 100;
+            else
+                major = range / 5;
+
+            slider.setMajorTickSpacing(major);
+            slider.setMinorTickSpacing(major / 5 > 0 ? major / 5 : 1);
+        }
+
+        style.decorateSlider(slider);
+        controls.add(slider, BorderLayout.CENTER);  // Slider stretches to fill available space
+
+        // Right panel: [Spinner][Unit] - fixed width, always visible
+        WebPanel rightPanel = new WebPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 3, 0));
+        rightPanel.setOpaque(false);
+
+        // Spinner for numeric input
+        javax.swing.SpinnerNumberModel spinnerModel = new javax.swing.SpinnerNumberModel(value, min, max, 1);
+        WebSpinner spinner = new WebSpinner(spinnerModel);
+        spinner.setPreferredSize(new Dimension(60, 26));
+        spinner.setDrawFocus(false);
+        style.decorateSpinner(spinner);
+        rightPanel.add(spinner);
+
+        // Unit label (only if unit is provided)
+        if (unit != null && !unit.isEmpty()) {
+            WebLabel unitLabel = new WebLabel(unit);
+            style.decorateLabel(unitLabel);
+            rightPanel.add(unitLabel);
+        }
+
+        controls.add(rightPanel, BorderLayout.EAST);
+
+        // Bidirectional sync between slider and spinner (with feedback loop prevention)
+        final boolean[] updatingUI = {false};
+        slider.addChangeListener(e -> {
+            if (updatingUI[0]) return;
+            updatingUI[0] = true;
+            try {
+                spinner.setValue(slider.getValue());
+            } finally {
+                updatingUI[0] = false;
+            }
+        });
+        spinner.addChangeListener(e -> {
+            if (updatingUI[0]) return;
+            updatingUI[0] = true;
+            try {
+                slider.setValue(((Number) spinner.getValue()).intValue());
+            } finally {
+                updatingUI[0] = false;
+            }
+        });
+
+        panel.add(controls, BorderLayout.CENTER);
+
+        // Critical: Enable ResponsiveGrid alignment
+        panel.putClientProperty("alignLabel", label);
+        // Store component references for retrieval
+        panel.putClientProperty("slider", slider);
+        panel.putClientProperty("spinner", spinner);
+
+        return panel;
+    }
+
+    /**
+     * Extracts the WebSpinner from a panel created by createSliderItem.
+     */
+    public static WebSpinner getSpinner(WebPanel itemPanel) {
+        Object spinner = itemPanel.getClientProperty("spinner");
+        if (spinner instanceof WebSpinner) {
+            return (WebSpinner) spinner;
+        }
+        return null;
+    }
+
+    /**
+     * Extracts the WebSwitch from a panel created by createSwitchItem.
+     */
+    public static WebSwitch getSwitch(WebPanel itemPanel) {
+        for (java.awt.Component c : itemPanel.getComponents()) {
+            if (c instanceof WebPanel) {
+                for (java.awt.Component inner : ((WebPanel) c).getComponents()) {
+                    if (inner instanceof WebSwitch) {
+                        return (WebSwitch) inner;
+                    }
+                }
+            }
+            if (c instanceof WebSwitch) {
+                return (WebSwitch) c;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Extracts the WebSlider from a panel created by createSliderItem.
+     */
+    public static com.alee.laf.slider.WebSlider getSlider(WebPanel itemPanel) {
+        Object slider = itemPanel.getClientProperty("slider");
+        if (slider instanceof com.alee.laf.slider.WebSlider) {
+            return (com.alee.laf.slider.WebSlider) slider;
+        }
+        return null;
+    }
+
+    public static WebPanel createColorField(String labelText, String colorText, Color initialColor) {
+        return createColorField(labelText, colorText, initialColor, null, null);
+    }
+
+    public static WebPanel createColorField(String labelText, String colorText, Color initialColor, String tooltip) {
+        return createColorField(labelText, colorText, initialColor, tooltip, null);
+    }
+
+    /**
+     * Creates a Color field row: [Label] ... [Color Icon] [RGBA Text]
+     */
+    public static WebPanel createColorField(String labelText, String colorText, Color initialColor, String tooltip,
+            String tooltipImg) {
+        WebPanel panel = new WebPanel(new BorderLayout(5, 0));
+        style.decorateControlPanel(panel);
+        panel.setBorder(BorderFactory.createEmptyBorder(4, 5, 4, 5));
+
+        WebLabel label = new WebLabel(labelText);
+        if ((tooltip != null && !tooltip.isEmpty()) || (tooltipImg != null && !tooltipImg.isEmpty())) {
+            applyStylizedTooltip(label, tooltip, tooltipImg);
+        }
+        style.decorateLabel(label);
+        panel.add(label, BorderLayout.WEST);
+
+        // Controls container: [Swatch][TextField][▼]
+        WebPanel controls = new WebPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 2, 0));
+        controls.setOpaque(false);
+
+        // Clickable color swatch (24x24)
+        WebPanel swatch = new WebPanel();
+        swatch.setPreferredSize(new Dimension(24, 24));
+        swatch.setBackground(initialColor);
+        swatch.setBorder(BorderFactory.createLineBorder(Color.GRAY, 1));
+        swatch.setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR));
+        controls.add(swatch);
+
+        // Text field (shows hex format)
+        WebTextField trailing = new WebTextField(colorText, 12);
+        trailing.setMargin(0, 2, 0, 2);
+        trailing.setShadeWidth(2);
+        controls.add(trailing);
+
+        // Dropdown button (▼)
+        WebLabel dropdown = new WebLabel("▼");
+        dropdown.setForeground(PinkStyle.COLOR_PRIMARY);
+        dropdown.setFont(layerFont(10));
+        dropdown.setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR));
+        controls.add(dropdown);
+
+        panel.add(controls, BorderLayout.CENTER);
+
+        // Critical: Enable ResponsiveGrid alignment
+        panel.putClientProperty("alignLabel", label);
+        // Store references for retrieval
+        panel.putClientProperty("colorSwatch", swatch);
+        panel.putClientProperty("colorDropdown", dropdown);
+        panel.putClientProperty("colorField", trailing);
+
+        return panel;
+    }
+
+    /**
+     * Extracts the WebComboBox from a panel created by createDropdownItem.
+     */
+    public static WebComboBox getComboBox(WebPanel itemPanel) {
+        for (java.awt.Component c : itemPanel.getComponents()) {
+            if (c instanceof WebComboBox) {
+                return (WebComboBox) c;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Extracts the WebTextField from a panel created by createColorField.
+     */
+    public static WebTextField getColorField(WebPanel itemPanel) {
+        Object field = itemPanel.getClientProperty("colorField");
+        if (field instanceof WebTextField) {
+            return (WebTextField) field;
+        }
+        // Fallback: search components (for backward compatibility)
+        for (java.awt.Component c : itemPanel.getComponents()) {
+            if (c instanceof WebTextField) {
+                return (WebTextField) c;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Extracts the color swatch panel from a panel created by createColorField.
+     */
+    public static WebPanel getColorSwatch(WebPanel itemPanel) {
+        Object swatch = itemPanel.getClientProperty("colorSwatch");
+        if (swatch instanceof WebPanel) {
+            return (WebPanel) swatch;
+        }
+        return null;
+    }
+
+    /**
+     * Extracts the dropdown button from a panel created by createColorField.
+     */
+    public static WebLabel getColorDropdown(WebPanel itemPanel) {
+        Object dropdown = itemPanel.getClientProperty("colorDropdown");
+        if (dropdown instanceof WebLabel) {
+            return (WebLabel) dropdown;
+        }
+        return null;
+    }
+
+    /**
+     * Extracts the WebTextField from a panel created by createTextItem.
+     */
+    public static WebTextField getTextField(WebPanel itemPanel) {
+        for (java.awt.Component c : itemPanel.getComponents()) {
+            if (c instanceof WebTextField) {
+                return (WebTextField) c;
+            }
+        }
+        return null;
+    }
+
+    // Helper to get font quickly
+    private static Font layerFont(float size) {
+        return Application.defaultFont.deriveFont(size);
+    }
+
+    public static PinkStyle getStyle() {
+        return style;
+    }
+
+    /**
+     * Disposes all active popovers. Call this before rebuilding UI to prevent
+     * IllegalComponentStateException when window moves after components are removed.
+     */
+    public static void disposeAllPopovers() {
+        synchronized (activePopovers) {
+            if (!activePopovers.isEmpty()) {
+                Logger.info("ComboDebug", "disposeAllPopovers: " + activePopovers.size() + " popovers");
+            }
+            for (WebPopOver popover : activePopovers) {
+                try {
+                    if (popover != null && popover.isDisplayable()) {
+                        popover.dispose();
+                    }
+                } catch (Exception e) {
+                    // Ignore disposal errors
+                }
+            }
+            activePopovers.clear();
+        }
+        // 页面重建时同步清理 ComboBox 追踪列表
+        synchronized (activeComboBoxes) {
+            activeComboBoxes.clear();
+        }
+    }
+
+    /**
+     * 统一关闭所有弹出窗口（popover + ComboBox 下拉菜单）。
+     * 打开任何新弹出时调用此方法，实现弹出窗口互斥。
+     */
+    public static void dismissActivePopups() {
+        if (dismissingPopups) return;
+        dismissingPopups = true;
+        try {
+            // 关闭所有 popover（颜色选择器等）
+            synchronized (activePopovers) {
+                java.util.List<WebPopOver> snapshot = new java.util.ArrayList<>(activePopovers);
+                for (WebPopOver popover : snapshot) {
+                    try {
+                        if (popover != null && popover.isDisplayable()) {
+                            popover.dispose();
+                        }
+                    } catch (Exception e) {
+                        // Ignore disposal errors
+                    }
+                }
+                activePopovers.clear();
+            }
+            // 关闭所有 ComboBox 下拉菜单（不清除列表，combo 组件仍然活跃）
+            synchronized (activeComboBoxes) {
+                for (WebComboBox combo : activeComboBoxes) {
+                    try {
+                        if (combo != null && combo.isPopupVisible()) {
+                            combo.hidePopup();
+                        }
+                    } catch (Exception e) {
+                        // Ignore errors
+                    }
+                }
+            }
+        } finally {
+            dismissingPopups = false;
+        }
+    }
+
+    /**
+     * 注册 ComboBox 到全局追踪列表，以便 dismissActivePopups 能关闭其下拉菜单。
+     */
+    public static void registerComboBox(WebComboBox combo) {
+        if (combo == null) return;
+        synchronized (activeComboBoxes) {
+            activeComboBoxes.add(combo);
+        }
+    }
+
+    /**
+     * 从全局追踪列表移除 ComboBox。
+     */
+    public static void unregisterComboBox(WebComboBox combo) {
+        if (combo == null) return;
+        synchronized (activeComboBoxes) {
+            activeComboBoxes.remove(combo);
+        }
+    }
+
+    /**
+     * 注册 popover 到全局追踪列表，以便 disposeAllPopovers 能清理。
+     * 用于需要长期存在的 popover（如 ConfigImportDialog）。
+     *
+     * @param popover 要注册的 WebPopOver 实例
+     */
+    public static void registerPopover(WebPopOver popover) {
+        if (popover == null) return;
+        synchronized (activePopovers) {
+            activePopovers.add(popover);
+        }
+    }
+
+    /**
+     * 从全局追踪列表移除 popover。
+     * 应在 popover 关闭时调用，防止列表持有已关闭的引用。
+     *
+     * @param popover 要移除的 WebPopOver 实例
+     */
+    public static void unregisterPopover(WebPopOver popover) {
+        if (popover == null) return;
+        synchronized (activePopovers) {
+            activePopovers.remove(popover);
+        }
+    }
+
+    public static void applyStylizedTooltip(javax.swing.JComponent component, String text, String img) {
+        // Remove standard tooltip if any
+        component.setToolTipText(null);
+
+        component.addMouseListener(new MouseAdapter() {
+            private WebPopOver popover;
+
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                if (popover == null || !popover.isVisible()) {
+                    popover = new WebPopOver(component);
+                    // --- Construct HTML Content ---
+                    StringBuilder html = new StringBuilder("<html><div style='padding:2px 8px;'>");
+                    if (text != null && !text.isEmpty()) {
+                        html.append("<span>").append(text).append("</span>");
+                    }
+                    if (img != null && !img.isEmpty()) {
+                        if (text != null && !text.isEmpty()) {
+                            html.append("<br>");
+                        }
+                        // Handle both "image.png" and "image/image.png"
+                        String cleanImg = img;
+                        if (cleanImg.startsWith("image/") || cleanImg.startsWith("image\\")) {
+                            cleanImg = cleanImg.substring(6);
+                        }
+                        java.io.File imageFile = new java.io.File("image", cleanImg);
+                        if (imageFile.exists()) {
+                            String path = "file:///" + imageFile.getAbsolutePath();
+                            html.append("<img src='").append(path).append("'>");
+                        } else {
+                            System.err.println(
+                                    "[ReplicaBuilder] Tooltip image not found: " + imageFile.getAbsolutePath());
+                            html.append("<div style='color:red; border:1px solid red; padding:5px;'>[Image Not Found: ")
+                                    .append(cleanImg).append("]</div>");
+                        }
+                    }
+                    html.append("</div></html>");
+
+                    // Construct content component
+                    WebLabel content = new WebLabel(html.toString());
+                    content.setFont(PinkStyle.FONT_NORMAL);
+                    content.setForeground(PinkStyle.COLOR_TEXT);
+
+                    popover = showStyledPopover(component, content);
+                    // Track active popover for cleanup
+                    synchronized (activePopovers) {
+                        activePopovers.add(popover);
+                    }
+                }
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                if (popover != null) {
+                    synchronized (activePopovers) {
+                        activePopovers.remove(popover);
+                    }
+                    popover.dispose();
+                    popover = null;
+                }
+            }
+        });
+    }
+
+    /**
+     * Applies a custom HTML tooltip using WebPopOver.
+     */
+    public static void applyHtmlTooltip(javax.swing.JComponent component, String htmlContent) {
+        component.addMouseListener(new MouseAdapter() {
+            private WebPopOver popover;
+
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                if (popover == null || !popover.isVisible()) {
+                    WebLabel msg = new WebLabel(htmlContent);
+                    // For HTML tooltip, we trust the HTML to style itself, but enforce standard
+                    // text color if plain
+                    msg.setForeground(PinkStyle.COLOR_TEXT);
+                    msg.setFont(PinkStyle.FONT_NORMAL);
+
+                    popover = showStyledPopover(component, msg);
+                    // Track active popover for cleanup
+                    synchronized (activePopovers) {
+                        activePopovers.add(popover);
+                    }
+                }
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                if (popover != null) {
+                    synchronized (activePopovers) {
+                        activePopovers.remove(popover);
+                    }
+                    popover.dispose();
+                    popover = null;
+                }
+            }
+        });
+    }
+
+    /**
+     * Shared helper to create and show a consistently styled WebPopOver.
+     */
+    private static WebPopOver showStyledPopover(javax.swing.JComponent owner, javax.swing.JComponent content) {
+        WebPopOver popover = new WebPopOver(owner);
+
+        // Popup configuration
+        popover.setMargin(0);
+        popover.setMovable(false);
+        popover.setFocusableWindowState(false);
+        popover.setFocusable(false);
+        popover.setCloseOnFocusLoss(true);
+
+        // Styling: Transparent window, custom "Bubble" panel
+        popover.setShadeWidth(0);
+        popover.setWindowOpaque(false);
+        popover.setBackground(new Color(0, 0, 0, 0));
+
+        WebPanel bubble = new WebPanel(new BorderLayout());
+        bubble.setOpaque(true);
+        bubble.setBackground(Color.WHITE);
+        bubble.setBorder(javax.swing.BorderFactory.createLineBorder(PinkStyle.COLOR_PRIMARY, 1));
+
+        bubble.add(content, BorderLayout.CENTER);
+        popover.add(bubble);
+
+        // Show
+        popover.show(owner, owner.getWidth() / 2 - 20, owner.getHeight() - 10);
+
+        // Post-show styling
+        popover.setCornerWidth(4);
+
+        // Z-Index fix
+        java.awt.Window win = javax.swing.SwingUtilities.getWindowAncestor(popover);
+        if (win != null) {
+            win.toFront();
+        }
+
+        return popover;
+    }
+}

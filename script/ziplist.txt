@@ -2,13 +2,17 @@
 ./data/
 ./dep/weblaf-complete-1.29.jar
 ./dep/jnativehook-2.2.2.jar
+./dep/jna-5.14.0.jar
+./dep/jna-platform-5.14.0.jar
 ./fonts/
 ./image/
 ./lang/
 ./voice/
 ./records/
 VoidMei.exe
+VoidMei.bat
 VoidMei.jar
 使用说明.txt
 更新日志.txt
 快速使用说明.txt
+ui_layout.cfg

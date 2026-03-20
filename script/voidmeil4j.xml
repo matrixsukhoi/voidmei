@@ -4,12 +4,22 @@
   <headerType>gui</headerType>
   <jar>../VoidMei.jar</jar>
   <outfile>../VoidMei.exe</outfile>
-  <errTitle></errTitle>
+  <errTitle>VoidMei</errTitle>
   <cmdLine></cmdLine>
   <chdir>.</chdir>
   <priority>high</priority>
-  <downloadUrl>http://java.com/download</downloadUrl>
+  <downloadUrl>https://www.java.com/zh-CN/download/</downloadUrl>
   <supportUrl></supportUrl>
+  <messages>
+    <jreNotFoundErr>打开后若提示JVM NOT FOUND，请下载安装 Java 8 运行环境
+
+推荐下载 Eclipse Temurin 8：
+https://adoptium.net/temurin/releases/?version=8</jreNotFoundErr>
+    <jreVersionErr>当前Java版本不兼容，VoidMei 需要 Java 8。
+
+如果您已安装 Java 8，请尝试使用 VoidMei.bat 启动。
+或下载安装 Java 8：https://adoptium.net/temurin/releases/?version=8</jreVersionErr>
+  </messages>
   <stayAlive>false</stayAlive>
   <restartOnCrash>false</restartOnCrash>
   <manifest></manifest>
@@ -19,11 +29,18 @@
     <windowTitle></windowTitle>
   </singleInstance>
   <jre>
-    <path>%JAVA_HOME%;%PATH%</path>
+    <path></path>
+    <bundledJre64Bit>false</bundledJre64Bit>
+    <bundledJreAsFallback>false</bundledJreAsFallback>
     <requiresJdk>false</requiresJdk>
     <requires64Bit>false</requires64Bit>
-    <minVersion>1.8</minVersion>
-    <maxVersion></maxVersion>
+    <minVersion>1.8.0</minVersion>
+    <maxVersion>1.8.999</maxVersion>
+    <jdkPreference>preferJre</jdkPreference>
+    <runtimeBits>64/32</runtimeBits>
+    <initialHeapSize>64</initialHeapSize>
+    <maxHeapSize>320</maxHeapSize>
+    <opt>-Dsun.java2d.uiScale=1</opt>
   </jre>
   <versionInfo>
     <fileVersion>1.0.0.0</fileVersion>
