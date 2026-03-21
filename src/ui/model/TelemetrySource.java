@@ -1,0 +1,210 @@
+package ui.model;
+
+/**
+ * Interface for providing raw telemetry data without object allocation.
+ * This allows UI components to pull data directly as primitives.
+ */
+public interface TelemetrySource {
+    // Flight Data
+    double getIAS();
+
+    double getTAS();
+
+    double getMach();
+
+    double getAoA();
+
+    double getAoS();
+
+    double getNy(); // G-Force
+
+    double getVario(); // Climb Rate
+
+    // Altitude & Position
+    double getAltitude();
+
+    double getRadioAltitude();
+
+    boolean isRadioAltitudeValid();
+
+    double getCompass();
+
+    // Performance
+    double getSEP();
+
+    double getAcceleration();
+
+    double getTurnRate();
+
+    double getTurnRadius();
+
+    /**
+     * 判断回转半径是否有效（<= 9999m）
+     * 回转半径过大时（如直飞或缓慢转弯）返回 false，隐藏该数据行
+     */
+    boolean isTurnRadiusValid();
+
+    double getRollRate(); // Wx
+
+    double getEnergyJKg(); // Specific Energy
+
+    // Aircraft State
+    double getMassFuel();
+
+    /**
+     * Get total aircraft weight (nofuelweight + current fuel).
+     * @return Total weight in kg, or 0 if FM data unavailable
+     */
+    double getTotalWeight();
+
+    long getFuelTimeMili();
+
+    double getThrottle();
+
+    double getRPM();
+
+    double getManifoldPressure();
+
+    double getWaterTemp();
+
+    double getOilTemp();
+
+    double getPitch();
+
+    double getEffHp();
+
+    double getThrust();
+
+    double getHorsePower();
+
+    double getEngineResponse();
+
+    double getPropEfficiency();
+
+    double getWepKg();
+
+    double getWepTime();
+
+    double getHeatTolerance();
+
+    double getPowerPercent();
+
+    double getManifoldPressurePounds(); // Imperial
+
+    double getManifoldPressureInchHg(); // Imperial
+
+    /**
+     * Get manifold pressure display value (Ata for metric, psi for imperial).
+     */
+    double getManifoldPressureDisplay();
+
+    /**
+     * Get manifold pressure display unit.
+     * Returns "Ata" for metric, "P/XX.X''" (with live inHg) for imperial.
+     */
+    String getManifoldPressureDisplayUnit();
+
+    /**
+     * Get manifold pressure display precision.
+     * Returns 2 for metric (Ata), 1 for imperial (psi).
+     */
+    int getManifoldPressureDisplayPrecision();
+
+    // Engine Control
+    double getUnknownMixture(); // For mixture state
+
+    double getRadiator();
+
+    double getCompressorStage();
+
+    double getFuelPercent();
+
+    double getRPMThrottle();
+
+    // Component State (0.0 - 1.0 or percent)
+    double getGear();
+
+    double getFlaps();
+
+    double getAirbrake();
+
+    double getAileron();
+
+    double getElevator();
+
+    double getRudder();
+
+    double getWingSweep();
+
+    boolean isWingSweepValid();
+
+    // Speed Indicator & Limits
+    double getSpeedLimitRatio();
+
+    double getAileronLockRatio();
+
+    double getRudderLockRatio();
+
+    double getUnitMachLimitRatio();
+
+    double getStallSpeed();
+
+    boolean isImperial();
+
+    // Attitude Indicator Data
+    /**
+     * Get aviahorizon pitch (degrees).
+     * Used by AttitudeOverlay for artificial horizon display.
+     */
+    double getAviahorizonPitch();
+
+    /**
+     * Get aviahorizon roll (degrees).
+     * Used by AttitudeOverlay for artificial horizon rotation.
+     */
+    double getAviahorizonRoll();
+
+    // === 引擎类型与飞机特性判断（用于 :visible-when 表达式）===
+
+    /**
+     * 判断是否为喷气发动机（包括涡轮喷气、涡轮风扇）
+     * 需要等待引擎类型检测完成（约5秒）才能返回准确值
+     * @return true 如果是喷气机，false 如果是活塞/涡桨或未确定
+     */
+    boolean isJetEngine();
+
+    /**
+     * 判断是否为螺旋桨发动机（活塞或涡桨）
+     * 需要等待引擎类型检测完成（约5秒）才能返回准确值
+     * @return true 如果是活塞机或涡桨机，false 如果是喷气机或未确定
+     */
+    boolean isPropEngine();
+
+    /**
+     * 判断是否为活塞发动机（不包括涡桨）
+     * 需要等待引擎类型检测完成（约5秒）才能返回准确值
+     * @return true 如果是活塞机，false 如果是涡桨/喷气机或未确定
+     */
+    boolean isPistonEngine();
+
+    /**
+     * 判断是否为涡轮螺旋桨发动机
+     * 需要等待引擎类型检测完成（约5秒）才能返回准确值
+     * @return true 如果是涡桨机，false 如果是活塞/喷气机或未确定
+     */
+    boolean isTurbopropEngine();
+
+    /**
+     * 判断引擎类型检测是否完成
+     * 游戏启动后约5秒完成检测
+     * @return true 如果检测完成，false 如果仍在检测中
+     */
+    boolean isEngineCheckDone();
+
+    /**
+     * 判断飞机是否有加力系统（WEP/水喷射/氧化亚氮）
+     * 依赖于 FM 数据的加载
+     * @return true 如果有加力系统，false 如果没有或 FM 不可用
+     */
+    boolean hasWep();
+}
