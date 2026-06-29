@@ -1,3 +1,5 @@
+# *** 使用中文思考 ***
+
 # CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
@@ -62,6 +64,25 @@ VoidMei provides multiple ways to launch on Windows:
 - `minVersion: 1.8.0`, `maxVersion: 1.8.999` - Strictly enforces Java 8
 - `jreVersionErr` message guides users to download Eclipse Temurin 8
 - JVM flags: `-Dsun.java2d.uiScale=1 -Xms64m -Xmx320m`
+
+### Release Packaging
+
+用于给测试同学打包发布版本。脚本位于 `C:\Users\tu10ng\Downloads\VoidMei_bak\package.sh`。
+
+**工作原理:**
+1. 从主项目获取当前 commit hash (`git rev-parse --short HEAD`)
+2. 以 `VoidMei_{hash}_{YYYYMMDD}.zip` 格式命名
+3. 复制 VoidMei_bak 到临时目录，确保解压后是一个单独文件夹
+4. 压缩为 zip，清理临时目录
+
+**前置条件:** 将构建产物(VoidMei.exe, VoidMei.jar 等)复制到 VoidMei_bak 目录后运行。
+
+```bash
+cd "C:/Users/tu10ng/Downloads/VoidMei_bak"
+bash package.sh
+```
+
+**输出:** `C:\Users\tu10ng\Downloads\VoidMei_{hash}_{date}.zip`
 
 ## Architecture
 
