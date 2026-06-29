@@ -30,6 +30,10 @@ import prog.event.UIStateEvents;
 import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent;
 
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 public class Controller {
 
@@ -43,8 +47,22 @@ public class Controller {
 	private Blkx Blkx;
 	private String loadedFMName = null;
 	private String identifiedFMName = null;
+	/** 记录加载失败的飞机名，避免 FM 文件不存在时无限重试（每 50ms 一次） */
+	private String failedFMName = null;
 	private long lastBlkxCheckTime = 0;
 	private static final long BLKX_CHECK_INTERVAL = 5000;
+
+	/** 配置变更防抖：延迟执行器，避免滑块拖动时频繁触发 FM 加载 */
+	private ScheduledFuture<?> pendingConfigRefresh;
+	/** 单线程定时执行器，daemon 线程随 JVM 退出自动终止 */
+	private static final ScheduledExecutorService configDebouncer =
+		Executors.newSingleThreadScheduledExecutor(r -> {
+			Thread t = new Thread(r, "ConfigDebounce");
+			t.setDaemon(true);
+			return t;
+		});
+	/** 防抖延迟毫秒数：200ms 内无新变更才执行 */
+	private static final long CONFIG_DEBOUNCE_MS = 200;
 
 	/** Cached compressor stage parameters for multi-stage supercharger aircraft */
 	private prog.util.PistonPowerModel.CompressorStageParams[] compressorStages;
@@ -437,8 +455,12 @@ public class Controller {
 				// prog.util.Logger.info("Controller", "ACTION: Controller: Refreshing Previews
 				// (" + key + ")");
 
-				// Offload to background thread to avoid blocking UI/Animation
-				new Thread(() -> {
+				// 防抖处理：取消之前未执行的任务，延迟执行以避免滑块拖动时频繁触发
+				// 只有 200ms 安静期内的最后一次变更会被执行
+				if (pendingConfigRefresh != null && !pendingConfigRefresh.isDone()) {
+					pendingConfigRefresh.cancel(false);
+				}
+				pendingConfigRefresh = configDebouncer.schedule(() -> {
 					// Always reload global config first to update Application.colorXXX fields
 					loadFromConfig();
 					if (isResetCompleted) {
@@ -449,7 +471,7 @@ public class Controller {
 					} else {
 						overlayManager.refreshAllPreviews();
 					}
-				}).start();
+				}, CONFIG_DEBOUNCE_MS, TimeUnit.MILLISECONDS);
 			} else {
 				// Just update local config without full refresh/data load
 				prog.util.Logger.info("Controller", "ACTION: Controller: Reloading config (" + key + ")");
@@ -753,6 +775,10 @@ public class Controller {
 		String livePlaneName = httpDataFetcher.getLiveAircraftType();
 
 		if (livePlaneName != null) {
+			// 飞机切换时清除失败记录，给新飞机加载机会
+			if (!livePlaneName.equalsIgnoreCase(identifiedFMName)) {
+				failedFMName = null;
+			}
 			identifiedFMName = livePlaneName;
 			return;
 		}
@@ -860,9 +886,17 @@ public class Controller {
 		}
 	}
 
-	public void loadFMData(String planename) {
+	// 使用 synchronized 与 getBlkx() 共享同一 monitor，防止并发加载竞态
+	// 注意: getBlkx() 也是 synchronized 且内部调用本方法，Java 内置锁可重入，不会死锁
+	public synchronized void loadFMData(String planename) {
 		if (planename == null || planename.isEmpty())
 			return;
+
+		// 避免 FM 文件不存在时无限重试：如果该飞机已经尝试加载且失败过，直接跳过
+		if (planename.equalsIgnoreCase(failedFMName)) {
+			prog.util.Logger.debug("Controller", "FM文件不存在，跳过重复加载: " + planename);
+			return;
+		}
 
 		// Skip if truly already loaded (double check for safety)
 		if (planename.equalsIgnoreCase(loadedFMName) && Blkx != null && Blkx.valid) {
@@ -903,7 +937,14 @@ public class Controller {
 		}
 
 		// Final parse
-		Blkx = new Blkx("./data/aces/gamedata/flightmodels/" + fmfile + "x", fmfile);
+		// 构造时可能抛异常(如数组越界)，捕获后记录失败避免死循环重复加载
+		try {
+			Blkx = new Blkx("./data/aces/gamedata/flightmodels/" + fmfile + "x", fmfile);
+		} catch (Exception e) {
+			prog.util.Logger.warn("Controller", "FM解析异常，跳过重复加载: " + planename + " - " + e.toString());
+			failedFMName = planename;
+			return;
+		}
 
 		if (Blkx.valid == true) {
 			Blkx.getAllplotdata();
@@ -927,11 +968,18 @@ public class Controller {
 			loadedFMName = planename;
 			cur_fmtype = planename;
 
+			// 加载成功，清除失败记录（文件可能之前不存在后来被放置）
+			failedFMName = null;
+
 			// Update FM data adapter for FMUnpackedDataOverlay
 			fmDataAdapter.setBlkx(Blkx);
 
 			// Notify observers that FM data is ready
 			prog.event.UIStateBus.getInstance().publish(prog.event.UIStateEvents.FM_DATA_LOADED, planename);
+		} else {
+			// FM 文件不存在或解析失败，记录失败飞机名以避免每次 poll 循环（~50ms）都重复尝试
+			failedFMName = planename;
+			prog.util.Logger.warn("Controller", "FM文件不存在或解析失败: " + planename + "，跳过后续重复加载");
 		}
 	}
 
