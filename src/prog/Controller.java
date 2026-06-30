@@ -585,7 +585,7 @@ public class Controller {
 				false)
 				.withInterest("displayCrosshair", "drawHUD", "disableHUD", "crosshair", "miniHUD", "enableLayoutDebug",
 						"enableFlapAngleBar", "hudMach", "showSpeedBar", "showAttitudeGauge", "attitudeIndicatorInertialMode",
-						"alwaysShowRadarAltitude");
+						"alwaysShowRadarAltitude", "showHUD");
 
 		// FlightInfoOverlay - supports preview
 		overlayManager.registerWithPreview("flightInfoSwitch",

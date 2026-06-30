@@ -722,8 +722,58 @@ public class ConfigurationService implements ConfigProvider {
         }
 
         @Override
-        public boolean isAoADisabled() {
-            return getBool("disableHUDAoA", false);
+        public boolean showHUDSpeed() {
+            return getBool("showHUDSpeed", true);
+        }
+
+        @Override
+        public boolean showHUDAoA() {
+            return getBool("showHUDAoA", true);
+        }
+
+        @Override
+        public boolean showHUDAltitude() {
+            return getBool("showHUDAltitude", true);
+        }
+
+        @Override
+        public boolean showHUDEnergy() {
+            return getBool("showHUDEnergy", true);
+        }
+
+        @Override
+        public boolean showHUDMechanization() {
+            return getBool("showHUDMechanization", true);
+        }
+
+        @Override
+        public boolean showHUDFlaps() {
+            return getBool("showHUDFlaps", true);
+        }
+
+        @Override
+        public boolean showHUDAirbrake() {
+            return getBool("showHUDAirbrake", true);
+        }
+
+        @Override
+        public boolean showHUDGear() {
+            return getBool("showHUDGear", true);
+        }
+
+        @Override
+        public boolean showHUDSep() {
+            return getBool("showHUDSep", true);
+        }
+
+        @Override
+        public boolean showHUDGLoad() {
+            return getBool("showHUDGLoad", true);
+        }
+
+        @Override
+        public boolean showHUDManeuverBar() {
+            return getBool("showHUDManeuverBar", true);
         }
 
         @Override

@@ -197,11 +197,6 @@ public class MiniHUDOverlay extends DraggableOverlay implements FlightDataListen
         lineAoA = String.format("α%3.0f", 20.0);
         relEnergy = "E114514";
 
-        if (hudSettings.isAoADisabled()) {
-            lineAoA = "";
-            relEnergy = "";
-        }
-
         // Push new templates to existing components immediately
         if (hudRows != null && hudRows.size() >= 5) {
             ((ui.component.row.HUDAkbRow) hudRows.get(0)).setTemplate(lines[0], lineAoA);
@@ -339,10 +334,42 @@ public class MiniHUDOverlay extends DraggableOverlay implements FlightDataListen
         if (speedRatioBar != null) {
             speedRatioBar.setVisible(textVisible && showSpeed);
         }
-        if (hudRows != null) {
-            for (ui.component.HUDComponent row : hudRows) {
-                row.setVisible(textVisible);
-            }
+        boolean master = hudSettings.drawHUDText();
+
+        // 组件级独立可见性控制
+        if (hudRows != null && hudRows.size() >= 5) {
+            // Row 0: Speed + AoA — 两个独立组件
+            boolean row0Speed = master && hudSettings.showHUDSpeed();
+            boolean row0Aoa = master && hudSettings.showHUDAoA();
+            hudRows.get(0).setVisible(row0Speed || row0Aoa);
+            ((ui.component.row.HUDAkbRow) hudRows.get(0)).setShowSpeed(row0Speed);
+            ((ui.component.row.HUDAkbRow) hudRows.get(0)).setShowAoa(row0Aoa);
+
+            // Row 1: Altitude + Energy — 两个独立组件
+            boolean row1Alt = master && hudSettings.showHUDAltitude();
+            boolean row1Energy = master && hudSettings.showHUDEnergy();
+            hudRows.get(1).setVisible(row1Alt || row1Energy);
+            ((ui.component.row.HUDEnergyRow) hudRows.get(1)).setShowAltitude(row1Alt);
+            ((ui.component.row.HUDEnergyRow) hudRows.get(1)).setShowEnergy(row1Energy);
+
+            // Row 2: 襟翼/可变翼 + 减速板 + 起落架 — 三个独立组件
+            boolean row2Flaps = master && hudSettings.showHUDFlaps();
+            boolean row2Brk = master && hudSettings.showHUDAirbrake();
+            boolean row2Gear = master && hudSettings.showHUDGear();
+            hudRows.get(2).setVisible(row2Flaps || row2Brk || row2Gear);
+            ((ui.component.row.HUDMechanizationRow) hudRows.get(2)).setShowFlaps(row2Flaps);
+            ((ui.component.row.HUDMechanizationRow) hudRows.get(2)).setShowAirbrake(row2Brk);
+            ((ui.component.row.HUDMechanizationRow) hudRows.get(2)).setShowGear(row2Gear);
+
+            // Row 3: 单组件（爬升率）
+            hudRows.get(3).setVisible(master && hudSettings.showHUDSep());
+
+            // Row 4: G-force + ManeuverBar — 两个独立组件
+            boolean row4GLoad = master && hudSettings.showHUDGLoad();
+            boolean row4Bar = master && hudSettings.showHUDManeuverBar();
+            hudRows.get(4).setVisible(row4GLoad || row4Bar);
+            ((ui.component.row.HUDManeuverRow) hudRows.get(4)).setShowGLoad(row4GLoad);
+            ((ui.component.row.HUDManeuverRow) hudRows.get(4)).setShowManeuverBar(row4Bar);
         }
 
         if (hudRows != null && hudRows.size() >= 5) {
@@ -363,10 +390,6 @@ public class MiniHUDOverlay extends DraggableOverlay implements FlightDataListen
             ((ui.component.row.HUDManeuverRow) hudRows.get(4)).update(lines[4], false, maneuverIndex,
                     maneuverIndexLen, maneuverIndexLen10, maneuverIndexLen20, maneuverIndexLen30,
                     maneuverIndexLen40, maneuverIndexLen50);
-
-            for (ui.component.row.HUDRow row : hudRows) {
-                row.setVisible(textVisible);
-            }
         }
 
         if (throttleBar != null) {
@@ -444,9 +467,7 @@ public class MiniHUDOverlay extends DraggableOverlay implements FlightDataListen
         if (hudRows == null || hudRows.size() < 5)
             return;
 
-        // Row 0, 1 are refactored (Akb, Energy). They use onDataUpdate.
-        // Row 2: Flaps/Gear
-        ((ui.component.row.HUDTextRow) hudRows.get(2)).update(data.mechanizationStr, data.warnConfiguration);
+        // Row 0, 1, 2 are refactored (Akb, Energy, Mechanization). They use onDataUpdate.
         // Row 3: SEP
         ((ui.component.row.HUDTextRow) hudRows.get(3)).update(data.sepStr, false);
         // Row 4: Maneuver
@@ -533,8 +554,8 @@ public class MiniHUDOverlay extends DraggableOverlay implements FlightDataListen
         row1.setTemplate(lines[1], relEnergy);
         hudRows.add(row1);
 
-        ui.component.row.HUDTextRow row2 = new ui.component.row.HUDTextRow(2, ctx.drawFont, ctx.hudFontSize);
-        row2.setTemplate(lines[2]);
+        ui.component.row.HUDMechanizationRow row2 = new ui.component.row.HUDMechanizationRow(2, ctx.drawFont, ctx.hudFontSize);
+        row2.setTemplate(lines[2]); // 使用旧格式模板，内部自动解析
         hudRows.add(row2);
 
         ui.component.row.HUDTextRow row3 = new ui.component.row.HUDTextRow(3, ctx.drawFont, ctx.hudFontSize);

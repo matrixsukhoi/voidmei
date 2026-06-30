@@ -60,6 +60,12 @@ public class HUDData {
     public final String aoaStr;
     public final String energyStr;
     public final String mechanizationStr;
+    /** 组件级拆分：襟翼/可变翼文字（如 "F100" / "W 50" / "    "） */
+    public final String flapsWingStr;
+    /** 组件级拆分：减速板文字（"BRK" 或 ""） */
+    public final String airbrakeStr;
+    /** 组件级拆分：起落架文字（"GEA" 或 ""） */
+    public final String gearStr;
     public final String sepStr;
     public final String maneuverStateStr;
     public final double aoaRatio; // Normalized AoA for bar (0.0 - 1.0+)
@@ -110,6 +116,9 @@ public class HUDData {
         this.aoaStr = builder.aoaStr;
         this.energyStr = builder.energyStr;
         this.mechanizationStr = builder.mechanizationStr;
+        this.flapsWingStr = builder.flapsWingStr;
+        this.airbrakeStr = builder.airbrakeStr;
+        this.gearStr = builder.gearStr;
         this.sepStr = builder.sepStr;
         this.maneuverStateStr = builder.maneuverStateStr;
         this.aoaRatio = builder.aoaRatio;
@@ -162,6 +171,9 @@ public class HUDData {
         public String aoaStr = "";
         public String energyStr = "";
         public String mechanizationStr = "";
+        public String flapsWingStr = "";
+        public String airbrakeStr = "";
+        public String gearStr = "";
         public String sepStr = "";
         public String maneuverStateStr = "";
         public boolean warnConfiguration;

@@ -186,13 +186,9 @@ public class HUDCalculator {
             b.altStr = altPre + String.format("%6.0f", b.altitude);
         }
 
-        if (settings.isAoADisabled()) {
-            b.aoaStr = "";
-            b.energyStr = "";
-        } else {
-            b.aoaStr = String.format("α%3.0f", b.aoa);
-            b.energyStr = String.format("E%5.0f", b.energyM);
-        }
+        // AoA 和 Energy 数据始终计算，显示/隐藏由组件级开关控制
+        b.aoaStr = String.format("α%3.0f", b.aoa);
+        b.energyStr = String.format("E%5.0f", b.energyM);
 
         String sepPre = settings.isSEPLabelDisabled() ? "" : "SEP";
         if (b.verticalSpeed > 0) {
@@ -209,7 +205,7 @@ public class HUDCalculator {
             b.maneuverStateStr = (time != null && !time.isEmpty()) ? "L" + time : "";
         }
 
-        // Configuration
+        // Configuration（组件级拆分：襟翼/可变翼、减速板、起落架各自独立字符串）
         String brk = "";
         String gear = "";
         boolean inAction = false;
@@ -223,6 +219,16 @@ public class HUDCalculator {
             if (b.gear != 100)
                 inAction = true;
         }
+
+        if (b.flaps > 0) {
+            b.flapsWingStr = String.format("F%3.0f", b.flaps);
+        } else if (blkx != null && blkx.isVWing && sIndic != null) {
+            b.flapsWingStr = String.format("W%3.0f", sIndic.wsweep_indicator * 100);
+        } else {
+            b.flapsWingStr = "";
+        }
+        b.airbrakeStr = brk;
+        b.gearStr = gear;
 
         if (b.flaps > 0) {
             // Restore readable text if Bar is disabled
