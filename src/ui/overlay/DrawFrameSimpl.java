@@ -210,11 +210,22 @@ public class DrawFrameSimpl extends DraggableOverlay {
 
 	void getdata(String planename) {
 		String fmfile;
-		String unitSystem;
 		int i;
-		// 读入fm
+		// 读入中央配置文件 (如 yak-3.blkx)，用于获取 fmfile 引用
 		Blkx = new Blkx("./data/aces/gamedata/flightmodels/" + planename + ".Blkx", planename + ".blk");
+		// 检查中央配置文件是否有效，防止文件不存在时 getlastone() 返回 null 导致 NPE
+		if (!Blkx.valid) {
+			prog.util.Logger.warn("DrawFrameSimpl",
+				"中央配置文件无效或不存在: " + planename + ".blkx，跳过FM数据加载");
+			return;
+		}
 		fmfile = Blkx.getlastone("fmfile");
+		// 检查 fmfile 字段是否存在且长度足够做 substring 操作，防止空指针
+		if (fmfile == null || fmfile.length() < 2) {
+			prog.util.Logger.warn("DrawFrameSimpl",
+				"中央配置文件中未找到 fmfile 字段: " + planename + ".blkx");
+			return;
+		}
 		fmfile = fmfile.substring(1, fmfile.length() - 1);
 		if (fmfile.indexOf("blk") == -1)
 			fmfile = fmfile + ".blk";
@@ -228,8 +239,14 @@ public class DrawFrameSimpl extends DraggableOverlay {
 			fmfile = fmfile.substring(i + 1);
 		// Application.debugPrint(fmfile);
 
-		// 读入fmfile
+		// 读入 FM 物理文件 (如 fm/yak-3.blkx)，包含实际气动/发动机数据
 		Blkx = new Blkx("./data/aces/gamedata/flightmodels/fm/" + fmfile + "x", planename + ".blk");
+		// 检查 FM 文件是否有效，防止在无效数据上调用 getAllplotdata()
+		if (!Blkx.valid) {
+			prog.util.Logger.warn("DrawFrameSimpl",
+				"FM物理文件无效或不存在: " + fmfile + "x，跳过 getAllplotdata");
+			return;
+		}
 		// Application.debugPrint(Blkx.data);
 		Blkx.getAllplotdata();
 

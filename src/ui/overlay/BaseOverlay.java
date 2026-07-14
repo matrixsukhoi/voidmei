@@ -239,7 +239,12 @@ public class BaseOverlay extends DraggableOverlay {
                     updateUI(currentData);
                     lastData = currentData;
                 }
-                this.setVisible(true);
+                // 仅在窗口不可见时才调用setVisible(true)，避免每200ms触发DWM全量合成
+                // 重复调用setVisible(true)会强制DWM重排Z-order并全量合成，导致DX12游戏卡顿 (Issue #54)
+                // 参考 DrawFrameSimpl.java 第739-742行的相同守护模式
+                if (!this.isVisible()) {
+                    this.setVisible(true);
+                }
             } else {
                 this.setVisible(false);
             }

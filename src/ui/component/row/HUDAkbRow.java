@@ -16,6 +16,11 @@ public class HUDAkbRow extends HUDTextRow {
     private Color aoaColor;
     private Color aoaBarColor;
 
+    /** 组件级可见性开关：速度文字（左侧主文字） */
+    private boolean showSpeed = true;
+    /** 组件级可见性开关：攻角指示器（AoA bar + α文字，右侧） */
+    private boolean showAoa = true;
+
     public HUDAkbRow(int index, Font font, int height, Font smallFont, int rightDraw, int lineWidth) {
         super(index, font, height);
         this.smallFont = smallFont;
@@ -29,6 +34,10 @@ public class HUDAkbRow extends HUDTextRow {
     private int aoaLength = 100; // Default
 
     private String aoaTemplate;
+
+    /** 组件级可见性开关 */
+    public void setShowSpeed(boolean v) { this.showSpeed = v; }
+    public void setShowAoa(boolean v) { this.showAoa = v; }
 
     public void setTemplate(String mainTemplate, String aoaTemplate) {
         setTemplate(mainTemplate);
@@ -73,37 +82,32 @@ public class HUDAkbRow extends HUDTextRow {
 
     @Override
     public void draw(Graphics2D g2d, int x, int y) {
-        // Draw AoA Bar stuff
-        // y is Top-Left. Convert to Baseline-relative logic if needed,
-        // or just relative to Top.
-        // Original logic seemed to rely on y being baseline.
-        // Let's establish baseline y.
         int ascent = g2d.getFontMetrics(font).getAscent(); // Main font ascent
         int baseY = y + ascent;
-
-        // Original: liney = y + 1. (Baseline + 1)
-        // New: liney = baseY + 1. (Bottom of text + 1)
         int liney = baseY + 1;
 
-        UIBaseElements.drawHRect(g2d, x + (rightDraw - aoaY), liney, aoaY, lineWidth + 3, 1, aoaBarColor);
-        UIBaseElements.__drawStringShade(g2d, x + rightDraw, liney - 1, 1, aoaText, smallFont, aoaColor);
+        // AoA bar + text：仅在 showAoa 开关打开时绘制
+        if (showAoa) {
+            UIBaseElements.drawHRect(g2d, x + (rightDraw - aoaY), liney, aoaY, lineWidth + 3, 1, aoaBarColor);
+            UIBaseElements.__drawStringShade(g2d, x + rightDraw, liney - 1, 1, aoaText, smallFont, aoaColor);
+        }
 
-        super.draw(g2d, x, y);
+        // Speed 主文字：仅在 showSpeed 开关打开时绘制
+        if (showSpeed) {
+            super.draw(g2d, x, y);
+        }
     }
 
     @Override
     public java.awt.Dimension getPreferredSize() {
+        // 始终使用模板估算完整宽度，隐藏的组件保留占位符，保持布局稳定
         java.awt.Dimension base = super.getPreferredSize();
-        int extraW = 0;
+        int w = base.width;
         String measureAoa = (aoaTemplate != null) ? aoaTemplate : aoaText;
         if (measureAoa != null && smallFont != null) {
-            extraW = rightDraw + ui.overlay.logic.HUDCalculator.getStringWidth(measureAoa, smallFont);
+            int extraW = rightDraw + ui.overlay.logic.HUDCalculator.getStringWidth(measureAoa, smallFont);
+            w = Math.max(w, extraW);
         }
-        // Add a small margin for bar if needed, or just text.
-        // The bar is drawn at x + (rightDraw - aoaY), so it stays within [x ..
-        // x+rightDraw].
-        // So max width is determined by the text at rightDraw.
-        int w = Math.max(base.width, extraW);
         return new java.awt.Dimension(w, height);
     }
 }

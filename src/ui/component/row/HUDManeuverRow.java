@@ -13,6 +13,11 @@ public class HUDManeuverRow extends HUDTextRow {
     private int lineWidth;
     private double maneuverIndex;
 
+    /** 组件级可见性开关：G-force 文字（左侧主文字） */
+    private boolean showGLoad = true;
+    /** 组件级可见性开关：机动条（右侧 bar + tick marks） */
+    private boolean showManeuverBar = true;
+
     // Lengths
     private int maneuverIndexLen;
     private int maneuverIndexLen10;
@@ -46,6 +51,10 @@ public class HUDManeuverRow extends HUDTextRow {
         this.strokeThin = strokeThin;
     }
 
+    /** 组件级可见性开关 */
+    public void setShowGLoad(boolean v) { this.showGLoad = v; }
+    public void setShowManeuverBar(boolean v) { this.showManeuverBar = v; }
+
     public void update(String text, boolean isWarning, double maneuverIndex,
             int len, int len10, int len20, int len30, int len40, int len50) {
         super.update(text, isWarning);
@@ -60,7 +69,15 @@ public class HUDManeuverRow extends HUDTextRow {
 
     @Override
     public void draw(Graphics2D g, int x, int y) {
-        super.draw(g, x, y);
+        // G-force 主文字：仅在 showGLoad 开关打开时绘制
+        if (showGLoad) {
+            super.draw(g, x, y);
+        }
+
+        // 机动条 + tick marks：仅在 showManeuverBar 开关打开时绘制
+        if (!showManeuverBar) {
+            return;
+        }
 
         // Calculate Baseline Y for line positioning consistency
         // Lines were relative to Baseline in legacy code (y + halfLine).
@@ -104,12 +121,9 @@ public class HUDManeuverRow extends HUDTextRow {
 
     @Override
     public java.awt.Dimension getPreferredSize() {
+        // 始终使用模板估算完整宽度，隐藏的组件保留占位符，保持布局稳定
         java.awt.Dimension base = super.getPreferredSize();
-        // The lines are drawn from (x + rightDraw) to the left.
-        // So the rightmost point is x + rightDraw.
-        // We add a small margin for stroke caps.
-        int extraW = rightDraw + 5;
-        int w = Math.max(base.width, extraW);
+        int w = Math.max(base.width, rightDraw + 5);
         return new java.awt.Dimension(w, height);
     }
 }

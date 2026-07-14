@@ -11,6 +11,11 @@ public class HUDEnergyRow extends HUDTextRow {
     private int rightDraw;
     private Font smallFont;
 
+    /** 组件级可见性开关：高度文字（左侧主文字） */
+    private boolean showAltitude = true;
+    /** 组件级可见性开关：能量读数（右侧） */
+    private boolean showEnergy = true;
+
     public HUDEnergyRow(int index, Font font, int height, Font smallFont, int rightDraw) {
         super(index, font, height);
         this.smallFont = smallFont;
@@ -19,6 +24,10 @@ public class HUDEnergyRow extends HUDTextRow {
     }
 
     private String energyTemplate;
+
+    /** 组件级可见性开关 */
+    public void setShowAltitude(boolean v) { this.showAltitude = v; }
+    public void setShowEnergy(boolean v) { this.showEnergy = v; }
 
     public void setTemplate(String mainTemplate, String energyTemplate) {
         setTemplate(mainTemplate);
@@ -51,26 +60,30 @@ public class HUDEnergyRow extends HUDTextRow {
 
     @Override
     public void draw(Graphics2D g2d, int x, int y) {
-        // Draw Energy Text
-        // Needs to align with main text baseline.
         int ascent = g2d.getFontMetrics(font).getAscent();
         int baseY = y + ascent;
 
-        // 能量颜色应该使用状态字体颜色，与其他HUD组件保持一致
-        UIBaseElements.__drawStringShade(g2d, x + rightDraw, baseY, 1, energyText, smallFont, prog.Application.colorNum);
+        // 能量读数：仅在 showEnergy 开关打开时绘制
+        if (showEnergy) {
+            UIBaseElements.__drawStringShade(g2d, x + rightDraw, baseY, 1, energyText, smallFont, prog.Application.colorNum);
+        }
 
-        super.draw(g2d, x, y);
+        // 高度主文字：仅在 showAltitude 开关打开时绘制
+        if (showAltitude) {
+            super.draw(g2d, x, y);
+        }
     }
 
     @Override
     public java.awt.Dimension getPreferredSize() {
+        // 始终使用模板估算完整宽度，隐藏的组件保留占位符，保持布局稳定
         java.awt.Dimension base = super.getPreferredSize();
-        int extraW = 0;
+        int w = base.width;
         String measureEn = (energyTemplate != null) ? energyTemplate : energyText;
         if (measureEn != null && smallFont != null) {
-            extraW = rightDraw + ui.overlay.logic.HUDCalculator.getStringWidth(measureEn, smallFont);
+            int extraW = rightDraw + ui.overlay.logic.HUDCalculator.getStringWidth(measureEn, smallFont);
+            w = Math.max(w, extraW);
         }
-        int w = Math.max(base.width, extraW);
         return new java.awt.Dimension(w, height);
     }
 }

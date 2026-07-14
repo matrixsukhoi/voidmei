@@ -44,7 +44,18 @@ public interface HUDSettings extends OverlaySettings {
 
     boolean isSEPLabelDisabled();
 
-    boolean isAoADisabled();
+    // 组件级独立显示开关 — 每个视觉元素可独立控制
+    boolean showHUDSpeed();         // Row 0: 速度文字
+    boolean showHUDAoA();           // Row 0: AoA bar + α文字
+    boolean showHUDAltitude();      // Row 1: 高度文字
+    boolean showHUDEnergy();        // Row 1: 能量读数
+    boolean showHUDMechanization(); // Row 2: 襟翼/起落架文字 (旧，保留向后兼容)
+    boolean showHUDFlaps();         // Row 2: 襟翼/可变翼
+    boolean showHUDAirbrake();      // Row 2: 减速板 BRK
+    boolean showHUDGear();          // Row 2: 起落架 GEA
+    boolean showHUDSep();           // Row 3: 爬升率文字
+    boolean showHUDGLoad();         // Row 4: G-force 文字
+    boolean showHUDManeuverBar();   // Row 4: 机动条
 
     boolean isAttitudeIndicatorInertialMode();
 

@@ -1150,7 +1150,8 @@ public class Blkx {
 
 		CriticalSpeed = getdouble("CriticalSpeed");
 
-		FlapsDestructionIndSpeed = new double[5][2];
+		// +1 留给 1.25x 襟翼档位插值哨兵行，避免5档襟翼飞机(如F-82E/P-51B/P-51A-36)数组越界
+		FlapsDestructionIndSpeed = new double[6][2];
 		FlapsDestructionNum = 0;
 		{
 			int p = 0;
