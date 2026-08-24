@@ -1,0 +1,123 @@
+# 自动发版流水线: push v* tag → CI 构建完整分发包 → 创建 draft Release
+#
+# 设计原则 (详见 CLAUDE.md "Release" 节):
+#   - 代码内容由 tag 锁定: tag 事件下 checkout 的是 tag 指向的 commit,
+#     master 上尚未测试的改动在机制上不可能混入发版产物
+#   - data 来自常驻 data prerelease 的附件; data 上传本身不触发任何 workflow
+#   - Release 一律以 draft 创建 (仅协作者可见): 测试同学验证通过后人工
+#     点 "Publish release" 转正 → 进 /releases/latest, checkUpdate() 才可见。
+#     发布即显式拍板动作, 测试与发布共用同一份产物, 无需重新构建
+#   - workflow_dispatch + dry_run=true: 只构建不建 Release, 产物挂 artifact 供核验
+name: release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '版本号 (tag 事件自动从 tag 提取; 手动触发必填, 如 1.590)'
+        required: false
+        default: ''
+      dry_run:
+        description: 'dry-run: 不创建 Release, 仅产出 artifact 核验'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (tag 指向的 commit — 代码内容由此锁定)
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 8 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '8'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: 提取版本号
+        id: ver
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            TAG="${GITHUB_REF_NAME}"   # 如 v1.590
+          else
+            TAG="v${INPUT_VERSION:?手动触发 (workflow_dispatch) 必须填写 version}"
+          fi
+          VERSION="${TAG#v}"
+          echo "tag=$TAG"         >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "发布: $TAG (${{ github.event_name }})"
+
+      - name: 下载 launch4j 3.50 (Linux 发行包)
+        run: |
+          mkdir -p build/launch4j
+          curl -sSL --retry 3 -o build/launch4j.tgz \
+            "https://sourceforge.net/projects/launch4j/files/launch4j-3/3.50/launch4j-3.50-linux-x64.tgz/download"
+          # 包内顶层为 launch4j/ (launch4j.jar + bin/windres 同级), 剥一层;
+          # 自带 launch4jc 是 CRLF shell 脚本 Linux 无法执行 → build.py 走 jar 模式
+          tar -xzf build/launch4j.tgz -C build/launch4j --strip-components=1
+          test -f build/launch4j/launch4j.jar
+
+      - name: 下载 data 存储 (常驻 data prerelease 附件)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p build/fmdata
+          if ! gh release download data --pattern "*.zip" --dir build/fmdata --clobber; then
+            echo "::error::data Release 不存在或无附件, 无法组包。请先在本地执行:"
+            echo "::error::  WT_GAME_DIR=<游戏目录> python script/build.py fmdata"
+            echo "::error::  gh release create data dist/VoidMei_data_*.zip dist/data_manifest.json --prerelease"
+            exit 1
+          fi
+          ls -lh build/fmdata/
+          echo "VOIDMEI_FMDATA_ZIP=$(ls "$(pwd)"/build/fmdata/*.zip | head -1)" >> "$GITHUB_ENV"
+
+      - name: 组装完整分发包
+        env:
+          VOIDMEI_VERSION: ${{ steps.ver.outputs.version }}
+          VOIDMEI_FMDATA_ZIP: ${{ env.VOIDMEI_FMDATA_ZIP }}
+          VOIDMEI_LAUNCH4J: build/launch4j/launch4j.jar
+        run: |
+          python script/build.py dist
+          ls -lh dist/
+
+      - name: 生成 Release notes (更新日志.txt 该版本条目块)
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: python script/release_notes.py extract "$VERSION" > build/release_body.md
+
+      - name: dry-run 核验 (不发布)
+        if: ${{ inputs.dry_run }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: VoidMei-${{ steps.ver.outputs.version }}-dryrun
+          path: |
+            dist/*.zip
+            dist/*.sha256
+            build/release_body.md
+          retention-days: 7
+
+      - name: 创建 Release (draft — 验证通过后人工 Publish 转正)
+        if: ${{ !inputs.dry_run }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.ver.outputs.tag }}
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          # 一律 draft: 公众不可见、不进 /releases/latest, checkUpdate() 不受影响;
+          # 测试同学 (需仓库协作者权限) 下载验证后, 在 GitHub 页面点
+          # "Publish release" (或 gh release edit "$TAG" --draft=false) 转正
+          gh release create "$TAG" dist/*.zip dist/*.sha256 \
+            --draft --title "VoidMei v$VERSION" --notes-file build/release_body.md
