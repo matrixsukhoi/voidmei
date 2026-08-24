@@ -14,36 +14,40 @@ VoidMei is a Java Swing telemetry overlay for War Thunder. It reads real-time fl
 
 ## Build Commands
 
-不要运行./script/build.sh, 但是可以用javac确认编译通过
+**统一构建入口**: `python script/build.py`（Python 3.8+ 标准库实现，Windows cmd/PowerShell 直接执行，Linux/CI 行为一致；CI 复用同一脚本）。**版本号由 `VOIDMEI_VERSION` 环境变量注入**（CI 从 git tag 提取，本地缺省 `dev`），发版无需改代码。
 
 **Java 8 Required:** VoidMei strictly requires Java 8 (1.8.x). The Windows EXE enforces `maxVersion: 1.8.999` to prevent running on Java 9+, which has incompatible module changes.
 
 ```bash
-# Compile (requires JDK 1.8)
-mkdir -p bin
-find src -name "*.java" > sources.txt
-javac -encoding UTF-8 -d bin -classpath 'dep/*' @sources.txt
+# 编译 src/ → bin/
+python script/build.py compile
 
-# Package JAR
-jar -cvfm VoidMei.jar MANIFEST.MF -C ./bin .
+# 本地运行 (bin/ 缺失时自动编译; classpath 直跑免打 jar, 版本号 dev)
+python script/build.py run
 
-# Run
-java -jar VoidMei.jar
+# 运行单元测试 (全部或指定套件)
+python script/build.py test              # all / atmosphere / piston / visibility / voicepack
+python script/build.py test spitfire     # 真机 FM 验证 (项目内 data/ 的 blkx, 无 data 自动跳过)
 
-# Package Windows EXE (requires launch4j)
-launch4j ./script/voidmeil4j.xml
+# 打 jar (MANIFEST 注入版本号) / 打 exe (launch4j, 版本资源注入)
+python script/build.py jar
+python script/build.py exe
 
-# Full build script
-./script/build.sh
+# 组装完整分发包 → dist/VoidMei_v*.zip (含裁剪版 data, 剔除用户数据)
+python script/build.py dist
+
+# 游戏版本更新后: 解包并裁剪 FM 数据 (更新项目内 ./data, 产出 data zip + manifest)
+# 游戏目录自动探测 (注册表 > Steam 库 > 常见路径, 缓存 .wt_game_dir), 也可 WT_GAME_DIR 显式指定
+python script/build.py fmdata
+
+# 清理构建产物
+python script/build.py clean
 
 # Mock server for testing (simulates War Thunder API)
 python3 script/mock_8111.py
 
-# Run unit tests
-./script/test.sh              # Run all tests
-./script/test.sh atmosphere   # Run AtmosphereModel tests only
-./script/test.sh piston       # Run PistonPowerModel tests only
-./script/test.sh visibility   # Run VisibilityExpressionEvaluator tests only
+# 本地运行 (repo 即工作区, data/fonts/voice 都在项目根)
+java -jar VoidMei.jar
 ```
 
 **Unit tests** available for utility classes in `test/`. Integration testing is manual via the running application or mock server.
@@ -56,33 +60,47 @@ VoidMei provides multiple ways to launch on Windows:
 |------|---------|
 | `VoidMei.exe` | Launch4j-wrapped executable with Java 8 enforcement |
 | `VoidMei.bat` | Intelligent batch script that finds Java 8 from registry |
-| `script/build.cmd` | Simple Windows build script |
 
 **VoidMei.bat** searches Windows Registry for Java 8 (Oracle, Temurin, Zulu, Corretto, Microsoft), then falls back to `%JAVA_HOME%` or `PATH`.
 
-**voidmeil4j.xml** (Launch4j configuration):
+**voidmeil4j.xml** (Launch4j 配置模板，版本号为 `@VERSION@`/`@VERSION4@` 占位符，由 `build.py exe` 注入):
 - `minVersion: 1.8.0`, `maxVersion: 1.8.999` - Strictly enforces Java 8
 - `jreVersionErr` message guides users to download Eclipse Temurin 8
 - JVM flags: `-Dsun.java2d.uiScale=1 -Xms64m -Xmx320m`
 
-### Release Packaging
+### 目录职责（单一来源架构）
 
-用于给测试同学打包发布版本。脚本位于 `C:\Users\tu10ng\Downloads\VoidMei_bak\package.sh`。
+| 路径 | 角色 |
+|------|------|
+| 项目根 `~/projects/voidmei/` | **唯一源 + 本地运行工作区**（git 跟踪源码/资源 + gitignore 的本地 `data/` `fonts/` 中未入库字体 + 运行时生成物） |
+| `dist/` | 构建产物（zip/jar/exe，gitignore） |
+| GitHub `v*` Release | 唯一分发渠道（CI 自动构建） |
+| GitHub `data` prerelease | fmdata 云端存储层（CI 组包用，`--prerelease` 保证不进 `/releases/latest`，`checkUpdate()` 永远看不到） |
 
-**工作原理:**
-1. 从主项目获取当前 commit hash (`git rev-parse --short HEAD`)
-2. 以 `VoidMei_{hash}_{YYYYMMDD}.zip` 格式命名
-3. 复制 VoidMei_bak 到临时目录，确保解压后是一个单独文件夹
-4. 压缩为 zip，清理临时目录
+**资源管理（按"丢了怎么恢复"分类）**: 源码+自有资产(image/lang/dep/fonts/voice 中已入库部分) 进 git；`data/` 是派生数据不进 git（wt_ext_cli 从游戏客户端再生成）；运行时数据(records/ config/ ui_layout.user.cfg) gitignore。`fonts/DIN Pro 400.otf` 为商业字体，gitignore 排除、不分发。
 
-**前置条件:** 将构建产物(VoidMei.exe, VoidMei.jar 等)复制到 VoidMei_bak 目录后运行。
+### Release（发版流程）
 
+**版本号单一来源 = git tag**（规范 `v1.590`，v 前缀 + 三位；fmdata 更新版也占正常版本号，如 `v1.591`，changelog 注明 WT 数据版本。**不要用四段号** `v1.590.1`——`checkUpdate()` 的正则会截断成 `1.590`，用户收不到更新提示）。
+
+**日常发版（全自动，代码内容由 tag 锁定）:**
+1. 平时改动记入 `CHANGELOG.md` 的 `[Unreleased]` 段
+2. 发版时把 `[Unreleased]` 改名为 `[x.yyy] + 日期`
+3. `git tag v1.590 && git push origin v1.590` ← 发版指令 = 这一步
+4. CI（release.yml）: checkout tag 的 commit（不是 master HEAD）→ 从 `data` prerelease 拉取最新 FM 数据 → 同步 `更新日志.txt`（`python script/release_notes.py append-txt`，zip 内外一致）→ `build.py dist` → 创建 Release（body 取自 CHANGELOG 对应段落）→ 回写 `更新日志.txt` 到 master（`docs(changelog): vX.YYY`，失败不阻塞发版）
+
+**游戏版本更新后（fmdata 更新，纯运维不触发发版）:**
 ```bash
-cd "C:/Users/tu10ng/Downloads/VoidMei_bak"
-bash package.sh
+python script/build.py fmdata   # 游戏目录自动探测 (或 WT_GAME_DIR=... 显式指定)
+gh release upload data dist/VoidMei_data_*.zip dist/data_manifest.json --clobber
+# 然后在已测试的 commit 上更新 CHANGELOG 并打新 tag (如 v1.591), 由人拍板
 ```
 
-**输出:** `C:\Users\tu10ng\Downloads\VoidMei_{hash}_{date}.zip`
+**灰度测试（不影响用户）**: 打 `v1.590-rc1` 类 tag → CI 创建 prerelease（`/releases/latest` 跳过 prerelease，`checkUpdate()` 不弹）→ 测试同学验证 → 通过后同 commit 打正式 tag。rc 不通过即删 tag，正式版从未存在。
+
+**纯构建核验**: Actions 页手动触发 `release` workflow 并填写 version + 勾选 dry-run → 只构建产出 artifact（不创建 Release、不改任何远端状态）。
+
+**原则**: 发版永远是显式动作（打 tag）；data 上传不触发任何 workflow；旧版本 Release 一经发布不再改动。
 
 ## Architecture
 

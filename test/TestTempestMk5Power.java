@@ -45,6 +45,10 @@ public class TestTempestMk5Power {
     private static String fmPath;
 
     public static void main(String[] args) {
+        // 初始化语言字符串: Blkx.getload() 输出使用 Lang.bFmVersion 等格式串,
+        // 测试直接跑 main 未经 Application 入口, 不初始化会导致 String.format NPE
+        prog.i18n.Lang.initLang();
+
         System.out.println("=== Tempest Mk V Power Curve Verification ===\n");
 
         // Parse command line arguments
@@ -184,8 +188,10 @@ public class TestTempestMk5Power {
 
         // Verify expected FM parameters (specific to Tempest Mk V)
         assertClose("compressor NumSteps", blkx.compNumSteps, 2, 0);
-        // Stage 0 critical altitude should be around 1730m
-        assertClose("Stage 0 altitude", blkx.compAlt[0], 1730, 50);
+        // Stage 0 critical altitude: 期望值须跟随游戏 FM 数据版本更新
+        // (WT 2.57.1.103 中 tempest_mkv 的 Altitude0 已从 1730 调整为 1447;
+        //  fmdata 更新后若此处 FAIL, 先 grep blkx 原始值区分数据变更与程序回归)
+        assertClose("Stage 0 altitude", blkx.compAlt[0], 1447, 50);
         // Stage 1 critical altitude should be around 5000m
         assertClose("Stage 1 altitude", blkx.compAlt[1], 5000, 200);
     }

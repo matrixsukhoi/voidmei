@@ -6,32 +6,35 @@
 - 处理/计算上述信息,以图形界面的形式呈现给用户
 
 
-# 编译方式1: 命令行直接编译
-**需确保JDK 1.8环境目录已配置**
-- 下载release版本,将其他缺失的资源文件复制到本目录
+# 编译方式1: 统一构建脚本 (推荐)
+**需确保 JDK 1.8 与 git-bash (Windows) 环境**
+- clone 本仓库后, 将 FM 数据放入 `data/` (运行 `python script/build.py fmdata` 从游戏客户端解包生成, 或从 release 包中复制)
 ```bash
-# 创建目标文件目录
+python script/build.py compile   # 编译 src/ → bin/
+python script/build.py run       # 本地运行 (classpath 直跑, 免打 jar)
+python script/build.py test      # 运行单元测试
+python script/build.py dist      # 组装完整分发包 → dist/VoidMei_v*.zip
+java -jar VoidMei.jar       # 本地运行 (项目根即运行目录, 需先 jar)
+```
+
+# 编译方式2: 命令行手动编译
+```bash
 mkdir bin
-# 编译
 javac -encoding UTF-8 -d bin -classpath dep/* src/prog/* src/parser/* src/ui/*
-# 打包
 jar -cvfm VoidMei.jar MANIFEST.MF -C ./bin .
-# 执行
 java -jar VoidMei.jar
 # 使用launch4j打包为exe, 确保launch4j环境目录已配置
 launch4jc ./script/voidmeil4j.xml
-# 在linux或者WSL下执行脚本打包发行版本
-bash ./script/zip.sh
 ```
 
-# 编译方式2: Eclipse IDE
+# 编译方式3: Eclipse IDE
 - 使用eclipse导入工程,程序入口设置为app.java中的main函数
 - 设置jdk/jre版本为1.8 (java 8)
 - 导入外部UI库 weblaf-complete-1.29.jar
 - 下载release版本,将其他缺失的资源文件复制到本目录
 - 运行、调试或导出jar文件
 
-# 编译方式3: VSCode IDE
+# 编译方式4: VSCode IDE
 - 安装java插件
 - 下载release版本,将其他缺失的资源文件复制到本目录
 - 打开本目录,选择app.java并点击运行或调试
@@ -130,27 +133,12 @@ sudo pacman -Ss launch4j
 
 ### 本地编译voidmei并运行
 
+项目根目录即运行工作区 (data/fonts/voice 等资源就位后):
+
 ``` bash
 pushd ~/project/voidmei
-
-```
-
-把下面内容添加到script/build.sh文件末尾
-
-``` bash
-
-mv ~/Downloads/voidmei/VoidMei.jar ~/Downloads/voidmei/VoidMei.jar.bak
-cp VoidMei.jar ~/Downloads/voidmei/VoidMei.jar
-
-pushd ~/Downloads/voidmei/
-WINEPREFIX=$(pwd)/.wine_voidmei wine ./zulu8.90.0.19-ca-jre8.0.472-win_x64/bin/java.exe -jar VoidMei.jar
+python script/build.py jar
+WINEPREFIX=~/downloads/.wine_voidmei wine ~/downloads/zulu8.90.0.19-ca-jre8.0.472-win_x64/bin/java.exe -jar VoidMei.jar
 popd
-
-```
-
-然后运行
-
-``` bash
-./script/build.sh
 
 ```

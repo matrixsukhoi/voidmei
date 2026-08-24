@@ -43,6 +43,10 @@ public class TestSpitfireF24Power {
     private static String fmPath;
 
     public static void main(String[] args) {
+        // 初始化语言字符串: Blkx.getload() 输出使用 Lang.bFmVersion 等格式串,
+        // 测试直接跑 main 未经 Application 入口, 不初始化会导致 String.format NPE
+        prog.i18n.Lang.initLang();
+
         System.out.println("=== Spitfire F24 Power Curve Verification ===\n");
 
         // Parse command line arguments

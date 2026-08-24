@@ -76,7 +76,9 @@ public class Application {
 	public static String appName;
 	public static String defaultNumfontName = "Roboto";
 	public static String appTooltips;
-	public static String version = "1.583";
+	// 版本号由构建时注入: build.py jar 将 VOIDMEI_VERSION (CI 从 git tag 提取) 写入
+	// MANIFEST 的 Implementation-Version, 此处运行时读取; 字段签名保持不变, 所有引用无需改动
+	public static String version = readVersion();
 	public static String httpHeader;
 	public static int voiceVolumn = 100;
 	public static String defaultFontName = "Microsoft YaHei UI";
@@ -433,40 +435,24 @@ public class Application {
 		);
 	}
 
-	public static void checkUpdate() {
-		HttpHelper httpClient = new HttpHelper();
+	/**
+	 * 从 jar 的 MANIFEST 读取构建时注入的版本号 (Implementation-Version)。
+	 * 本地未打 jar 直接运行 (java -cp bin) 时返回 "dev"。
+	 */
+	private static String readVersion() {
 		try {
-			/* 异步请求 */
-			threadPool.submit(() -> {
-				String res;
-				res = httpClient
-						.sendGetURL("https://api.github.com/repos/" + owner + "/" + repository + "/releases/latest");
-				// debugPrint(res);
-				/* 截取tag_name */
-				int sidx = res.indexOf("tag_name");
-				int eidx = res.indexOf(",", sidx);
-				res = res.substring(sidx, eidx);
-				/* 正则匹配版本号 */
-				Pattern pt = Pattern.compile("[0-9].([0-9])*");
-				Matcher m = pt.matcher(res);
-				if (m.find()) {
-					String latestVersion = m.group(0);
-					prog.util.Logger.info("Update", "Latest remote version: " + latestVersion);
-					if (Double.parseDouble(version) < Double.parseDouble(latestVersion)) {
-						SwingUtilities.invokeLater(() -> showUpdateDialog(latestVersion));
-					}
-				}
-				return null;
-			});
-
+			String v = Application.class.getPackage().getImplementationVersion();
+			return v != null ? v : "dev";
 		} catch (Exception e) {
-			// 检查更新失败，使用统一异常处理
-			prog.util.ExceptionHelper.logAndContinue(e, "检查更新");
+			return "dev";
 		}
-
 	}
 
-	public static void checkBlkxUpdate() {
+	public static void checkUpdate() {
+		// dev 版 (本地未打 jar) 无版本号可比, 跳过更新检查, 避免 Double.parseDouble 崩溃
+		if ("dev".equals(version)) {
+			return;
+		}
 		HttpHelper httpClient = new HttpHelper();
 		try {
 			/* 异步请求 */

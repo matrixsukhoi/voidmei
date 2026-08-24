@@ -340,7 +340,7 @@ registerComponent(warning, HUDLayoutSlot.MIDDLE_CENTER); // 放在屏幕正中�
 ```
 
 ### Step 6: 验证 (Verification)
-1.  运行 `./script/build.sh`。
+1.  运行 `python script/build.py`。
 2.  进入游戏（或重放），进行大机动。
 3.  观察屏幕中心是否出现红色警告。
 

@@ -1,0 +1,39 @@
+# CI 验证流水线: push / PR 时编译并运行单元测试
+# 复用本地同一构建入口 script/build.py, 保证"本地能跑 = CI 能跑"
+name: build
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 8 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '8'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Compile & Test
+        run: python script/build.py test
+
+      - name: Upload jar (手动冒烟用)
+        uses: actions/upload-artifact@v4
+        with:
+          name: VoidMei-dev-jar
+          path: VoidMei.jar
+          retention-days: 7

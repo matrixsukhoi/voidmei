@@ -25,3 +25,7 @@ VoidMei.jar
 voice/*/
 # 商业字体不进公开仓库（本地保留可用，分发不带，程序容错回退）
 fonts/DIN Pro 400.otf
+script/voidmeil4j.gen.xml
+
+# fmdata 游戏目录探测缓存
+.wt_game_dir
