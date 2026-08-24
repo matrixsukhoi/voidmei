@@ -1,14 +1,27 @@
 target/
 **/*.class
 bin/
+build/
+dist/
+# 派生数据：由 wt_ext_cli 从游戏客户端解包生成，不进 git（云端备份在 data prerelease 附件）
 data/
-fonts/
+# 运行时生成物：用户数据与日志
 records/
-voice/
+config/
+ui_layout.user.cfg*
+output.log
+error.log
+gpu_compat.properties
+build.manifest
+sources.txt
+# 构建产物
 VoidMei.exe
 VoidMei.jar
 *.zip
 *.exe
 *.dll
 *.csv
-sources.txt
+# voice/ 根目录自带 wav 进 git；voice/<pack>/ 子目录是用户安装的自定义语音包（运行时数据）
+voice/*/
+# 商业字体不进公开仓库（本地保留可用，分发不带，程序容错回退）
+fonts/DIN Pro 400.otf
