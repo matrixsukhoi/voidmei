@@ -21,6 +21,8 @@ import parser.FlightAnalyzer;
 import prog.AlwaysOnTopCoordinator;
 import prog.Application;
 import prog.Controller;
+import prog.fm.FMHandle;
+import prog.fm.FMLoader;
 import prog.i18n.Lang;
 import prog.Service;
 
@@ -213,33 +215,12 @@ public class DrawFrame extends WebFrame implements Runnable {
 	}
 
 	void getdata(String planename) {
-		String fmfile;
-		String unitSystem;
-		int i;
-		// 读入fm
-		Blkx = new Blkx("./data/aces/gamedata/flightmodels/" + planename + ".Blkx", planename + ".blk");
-		if (Blkx.valid) {
-			fmfile = Blkx.getlastone("fmfile");
-			fmfile = fmfile.substring(1, fmfile.length() - 1);
-			if (fmfile.indexOf("blk") == -1)
-				fmfile = fmfile + ".blk";
-			for (i = 0; i < fmfile.length(); i++) {
-				if (fmfile.charAt(i) == '/')
-					break;
-			}
-			if (i + 1 >= fmfile.length()) {
-				fmfile = planename + ".blk";
-			} else
-				fmfile = fmfile.substring(i + 1);
-			// Application.debugPrint(fmfile);
-
-			// 读入fmfile
-			Blkx = new Blkx("./data/aces/gamedata/flightmodels/fm/" + fmfile + "x", planename + ".blk");
-			// Application.debugPrint(Blkx.data);
-			if (Blkx.valid)
-				Blkx.getAllplotdata();
-		}
-
+		// P5 收编: 按机型名显式加载（飞行结束曲线窗口，独立于 FMManager 当前机型缓存）。
+		// 中央文件→fmFile 字段→物理文件→全量解析 全部在 FMLoader 内完成，永不抛异常；
+		// 原 getlastone("fmfile") 返回 null 时 substring 的 NPE 随收编自然消失
+		FMHandle handle = FMLoader.load(planename);
+		// 非 READY（MISSING/CORRUPT）句柄 blkx 为 null，置 null 交给绘制侧判空守卫
+		Blkx = handle.hasFM() ? handle.blkx : null;
 	}
 
 	void drawXY(Graphics2D g, int x, int y, int dwidth, int dheight, String title, String xName, String yName,
@@ -609,6 +590,13 @@ public class DrawFrame extends WebFrame implements Runnable {
 					drawExample(g2d, 50, 60, dheight, new Color(0, 0, 0, 250), "法向过载");
 				}
 				if (pixIndex == 6) {
+					// P5: FMLoader 收编后加载失败时 Blkx 为 null（旧代码为 valid=false 的半成品
+					// 对象, loc1/loc2 同样是 null 会 NPE）—— 判空跳过本页绘制
+					if (Blkx == null || Blkx.loc1 == null || Blkx.loc2 == null) {
+						g2d.setFont(new Font(Application.defaultFontName, Font.PLAIN, 16));
+						g2d.drawString("FM数据未加载", 50, 60);
+						return;
+					}
 					double xmin = findMin(Blkx.loc2.x) < findMin(Blkx.loc1.x) ? findMin(Blkx.loc2.x)
 							: findMin(Blkx.loc1.x);
 					double xmax = findMax(Blkx.loc1.x) > findMax(Blkx.loc1.x) ? findMax(Blkx.loc1.x)

@@ -13,9 +13,7 @@ import java.util.regex.Pattern;
 
 import javax.swing.BorderFactory;
 import javax.swing.JDialog;
-import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.JScrollPane;
 import javax.swing.SwingConstants;
 
 import com.alee.laf.label.WebLabel;
@@ -463,32 +461,23 @@ public class CompactComparisonWindow extends JDialog {
         if (name == null || name.trim().isEmpty()) {
             return new ArrayList<>();
         }
-        // Reuse Blkx logic from Controller
-        // We create a temporary Blkx to parse locally since we don't want to disturb
-        // main Controller state
-        String path = "data/aces/gamedata/flightmodels/fm/" + name + ".Blkx";
-        java.io.File f = new java.io.File(path);
-        if (!f.exists())
-            path = "data/aces/gamedata/flightmodels/fm/" + name + ".blk";
+        // P5 收编: 优先 FMLoader 标准链路（机型名 → 中央文件 → 物理文件 → 全量解析）。
+        // 本方法只用 fmdata 文本 —— finalizeLoading 只清原始 data 文本，刻意保留 fmdata
+        // （FMDataOverlay 依赖），故 READY 句柄的 blkx 直接可用，无需自行解析
+        prog.fm.FMHandle handle = prog.fm.FMLoader.load(name);
+        Blkx b;
+        if (handle.hasFM()) {
+            b = handle.blkx;
+        } else {
+            // 名字空间差异回退: name 是 fm/ 物理文件名（连字符, 如 a-10c）, 中央机型名
+            // 是下划线（a_10c）——少数不同名机型 FMLoader 判 MISSING, 按物理文件直读
+            java.io.File f = new java.io.File(prog.fm.FMDataPaths.fmDir(), "fm/" + name + ".blkx");
+            if (!f.exists())
+                f = new java.io.File(prog.fm.FMDataPaths.fmDir(), "fm/" + name + ".blk");
+            b = new Blkx(f.getPath(), name);
+            b.getAllplotdata();
+        }
 
-        Blkx b = new Blkx(path, name); // This constructor parses immediately in original code?
-        // Checking Blkx.java... "public Blkx(String path...)" calls nothing?
-        // Ah, Controller calls "b.getAllplotdata(); b.finalizeLoading();".
-        // fmdata is populated during parsing.
-        // Wait, Blkx(String path, String name) calls load?
-        // Looking at Blkx.java...
-        // It reads file, calls `getload()`.
-        // fmdata seems to be populated in `getload` or via `WritePartsFm`.
-        // We might need to manually trigger the populating logic if the constructor
-        // doesn't.
-        // Let's assume standard instantiation works as Controller uses it.
-        // Actually, Controller calls:
-        // Blkx = new Blkx(..., ...);
-        // Blkx.getAllplotdata();
-        // Blkx.finalizeLoading();
-        // We should replicate that.
-
-        b.getAllplotdata(); // Might be heavy?
         // fmdata is string.
         if (b.fmdata == null)
             return new ArrayList<>();

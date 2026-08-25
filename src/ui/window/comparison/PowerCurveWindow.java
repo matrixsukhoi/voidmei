@@ -214,6 +214,16 @@ public class PowerCurveWindow extends JDialog {
     /**
      * Loads a single FM and generates its power curve.
      *
+     * <p>P5 收编：优先走 {@link prog.fm.FMLoader#load(String)} 标准链路（中央文件 →
+     * fmFile 字段 → 物理文件 → 全量解析）。READY 活塞机句柄的
+     * {@code compressorStages} 即 {@code FMPowerExtractor.extractStages(blkx, 中央文件燃油修正)}
+     * 的产物，本类无需再自行解析中央文件提取 fuelMod。
+     *
+     * <p><b>名字空间差异回退</b>：本窗口收到的 fmName 来自 fm/ 物理文件目录列表
+     * （连字符命名，如 {@code a-10c}），而 FMLoader 按机型名（中央文件名，下划线命名，
+     * 如 {@code a_10c}）查找——数据集中约 84/1210 个机型两者不同名，FMLoader 会判
+     * MISSING。此时回退按物理文件直读（行为与收编前一致）。
+     *
      * @param fmName      FM file name
      * @param curveColor  color for the curve line
      * @param peakColor   color for peak markers
@@ -224,34 +234,46 @@ public class PowerCurveWindow extends JDialog {
     private CurveData loadSingleCurve(String fmName,
             Color curveColor, Color peakColor, Color valleyColor, Color kinkColor) {
 
-        // Try both .Blkx and .blk extensions
-        String path = "data/aces/gamedata/flightmodels/fm/" + fmName + ".Blkx";
-        java.io.File f = new java.io.File(path);
-        if (!f.exists()) {
-            path = "data/aces/gamedata/flightmodels/fm/" + fmName + ".blk";
-            f = new java.io.File(path);
+        Blkx blkx;
+        CompressorStageParams[] stages;
+
+        // ---- 第一优先: FMLoader 标准链路（机型名 → 中央文件 → 物理文件）----
+        prog.fm.FMHandle handle = prog.fm.FMLoader.load(fmName);
+        if (handle.hasFM()) {
+            blkx = handle.blkx;
+            // 活塞机句柄携带 extractStages 产物（已融入中央文件燃油修正）；
+            // 喷气机 compressorStages 为 null
+            stages = handle.compressorStages;
+            if (stages == null) {
+                return new CurveData(fmName, null, 0, 0, 0, new ArrayList<>(),
+                    fmName + " 不是活塞引擎", curveColor, peakColor, valleyColor, kinkColor);
+            }
+        } else {
+            // ---- 回退: 按物理文件名直读 fm/<name>.blkx（连字符机型，见方法 javadoc）----
+            java.io.File f = new java.io.File(prog.fm.FMDataPaths.fmDir(), "fm/" + fmName + ".blkx");
+            if (!f.exists()) {
+                f = new java.io.File(prog.fm.FMDataPaths.fmDir(), "fm/" + fmName + ".blk");
+            }
+            if (!f.exists()) {
+                return new CurveData(fmName, null, 0, 0, 0, new ArrayList<>(),
+                    "找不到FM文件: " + fmName, curveColor, peakColor, valleyColor, kinkColor);
+            }
+
+            blkx = new Blkx(f.getPath(), fmName);
+            blkx.getAllplotdata();
+
+            // Check if piston engine
+            if (!FMPowerExtractor.isPistonEngine(blkx)) {
+                return new CurveData(fmName, null, 0, 0, 0, new ArrayList<>(),
+                    fmName + " 不是活塞引擎", curveColor, peakColor, valleyColor, kinkColor);
+            }
+
+            // Try to load Central file for fuel modifications (回退路径下同名中央文件
+            // 通常不存在，fuelMod 为 null，与收编前行为一致)
+            Blkx.FuelModification fuelMod = loadFuelModification(fmName);
+            stages = FMPowerExtractor.extractStages(blkx, fuelMod);
         }
 
-        if (!f.exists()) {
-            return new CurveData(fmName, null, 0, 0, 0, new ArrayList<>(),
-                "找不到FM文件: " + fmName, curveColor, peakColor, valleyColor, kinkColor);
-        }
-
-        // Parse FM file
-        Blkx blkx = new Blkx(path, fmName);
-        blkx.getAllplotdata();
-
-        // Check if piston engine
-        if (!FMPowerExtractor.isPistonEngine(blkx)) {
-            return new CurveData(fmName, null, 0, 0, 0, new ArrayList<>(),
-                fmName + " 不是活塞引擎", curveColor, peakColor, valleyColor, kinkColor);
-        }
-
-        // Try to load Central file for fuel modifications
-        Blkx.FuelModification fuelMod = loadFuelModification(fmName);
-
-        // Extract compressor parameters (with fuel modification if available)
-        CompressorStageParams[] stages = FMPowerExtractor.extractStages(blkx, fuelMod);
         if (stages == null || stages.length == 0) {
             return new CurveData(fmName, null, 0, 0, 0, new ArrayList<>(),
                 "无法提取 " + fmName + " 的发动机参数", curveColor, peakColor, valleyColor, kinkColor);
@@ -322,10 +344,10 @@ public class PowerCurveWindow extends JDialog {
     /**
      * Attempts to load fuel modification data from the Central file.
      *
-     * <p>The Central file is located in the parent directory of the FM file:
-     * {@code data/aces/gamedata/flightmodels/<name>.blkx} (or .blk)
-     * while the FM file is at:
-     * {@code data/aces/gamedata/flightmodels/fm/<name>.blkx}
+     * <p>P5 后仅回退路径（按物理文件名直读的机型）调用本方法——标准链路的燃油修正
+     * 已由 {@link prog.fm.FMLoader} 融入句柄的 compressorStages。路径统一走
+     * {@link prog.fm.FMDataPaths#fmDir()} 拼装：中央文件在 flightmodels 根目录，
+     * 物理文件在其 fm/ 子目录。
      *
      * @param fmName aircraft FM name
      * @return FuelModification data, or null if Central file not found
@@ -334,8 +356,7 @@ public class PowerCurveWindow extends JDialog {
         // Try common extensions for Central file
         String[] extensions = {".blkx", ".Blkx", ".blk"};
         for (String ext : extensions) {
-            String centralPath = "data/aces/gamedata/flightmodels/" + fmName + ext;
-            java.io.File cf = new java.io.File(centralPath);
+            java.io.File cf = new java.io.File(prog.fm.FMDataPaths.fmDir(), fmName + ext);
             if (cf.exists()) {
                 try {
                     String data = new String(

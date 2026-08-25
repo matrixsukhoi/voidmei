@@ -35,6 +35,11 @@ public class AttitudeOverlay extends DraggableOverlay implements prog.event.Flig
 	private Controller xc;
 	private Service xs;
 	private ui.model.TelemetrySource telemetrySource;
+	// P3/R3 EDT 零 getBlkx: 缓存 FM 句柄, drawTick（EDT 回调）只读缓存不触发任何
+	// Controller 桥接调用; init 时初始化, 订阅 FM_CHANGED 异步刷新
+	private volatile prog.fm.FMHandle fmHandle;
+	// FM_CHANGED 订阅 handler（loader 线程派发 → 刷新必须 invokeLater 切回 EDT）
+	private java.util.function.Consumer<Object> fmChangedHandler;
 	private int lx;
 	private int ly;
 	private Container root;
@@ -284,6 +289,19 @@ public class AttitudeOverlay extends DraggableOverlay implements prog.event.Flig
 		}
 		setOverlaySettings(settings);
 
+		// P3/R3: 初始化 FM 句柄缓存（EDT 纯 volatile 读, 非 READY 句柄 blkx=null）
+		fmHandle = prog.fm.FMManager.getInstance().current();
+		// 订阅 FM_CHANGED: 换机时句柄原子替换, 此处同步缓存。
+		// handler 在 FM-Loader 线程执行 → 必须 invokeLater 切回 EDT 写缓存
+		if (fmChangedHandler == null) {
+			fmChangedHandler = payload -> {
+				if (payload instanceof prog.fm.FMHandle) {
+					javax.swing.SwingUtilities.invokeLater(() -> fmHandle = (prog.fm.FMHandle) payload);
+				}
+			};
+			prog.event.UIStateBus.getInstance().subscribe(prog.event.UIStateEvents.FM_CHANGED, fmChangedHandler);
+		}
+
 		reinitConfig();
 
 		this.setCursor(Application.blankCursor);
@@ -338,6 +356,11 @@ public class AttitudeOverlay extends DraggableOverlay implements prog.event.Flig
 
 	@Override
 	public void dispose() {
+		// P3: 退订 FM_CHANGED, 防止僵尸 handler 在窗口销毁后继续写缓存
+		if (fmChangedHandler != null) {
+			prog.event.UIStateBus.getInstance().unsubscribe(prog.event.UIStateEvents.FM_CHANGED, fmChangedHandler);
+			fmChangedHandler = null;
+		}
 		prog.event.FlightDataBus.getInstance().unregister(this);
 		super.dispose();
 	}
@@ -369,9 +392,10 @@ public class AttitudeOverlay extends DraggableOverlay implements prog.event.Flig
 			compassY = (int) (xWidth / 4 * Math.cos(compassRads));
 		}
 
-		// FM data access is acceptable - it's aircraft configuration, not telemetry
-		parser.Blkx b = xc.getBlkx();
-		if (b != null && b.valid && showAoALimits) {
+		// P3/R3: FM 数据改读缓存句柄（不再调 Controller.getBlkx() 桥接）;
+		// blkx 非 null 即 READY（等价旧版 valid 判断）, 无 FM → 不显示攻角极限线
+		parser.Blkx b = (fmHandle != null) ? fmHandle.blkx : null;
+		if (b != null && showAoALimits) {
 			// 显示机翼临界攻角极限线
 			AoALimitU = Math.round((b.NoFlapsWing.AoACritHigh + MaxAoA) * xHeight / (2 * MaxAoA));
 			AoALimitD = Math.round((b.NoFlapsWing.AoACritLow + MaxAoA) * xHeight / (2 * MaxAoA));

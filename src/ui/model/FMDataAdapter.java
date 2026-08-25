@@ -12,7 +12,11 @@ import static prog.util.PhysicsConstants.g;
  */
 public class FMDataAdapter implements FMDataSource {
 
-    private Blkx blkx;
+    /**
+     * P3: volatile 保证跨线程可见性 —— FM_CHANGED 订阅在 FM-Loader 后台线程写入
+     * (reloadFMData), BaseOverlay.run() 线程周期读取; 实例引用原子替换, 无需锁。
+     */
+    private volatile Blkx blkx;
 
     /**
      * Set the Blkx instance to read data from.

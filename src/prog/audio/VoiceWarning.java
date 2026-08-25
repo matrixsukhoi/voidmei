@@ -4,6 +4,8 @@ import prog.Application;
 import prog.Controller;
 import prog.Service;
 import prog.config.ConfigProvider;
+import prog.fm.FMHandle;
+import prog.fm.FMManager;
 import prog.util.Logger;
 
 import java.io.File;
@@ -361,8 +363,11 @@ public class VoiceWarning implements Runnable {
         aoaHigh = new VoiceAlert("aoaHigh", VoiceAlertType.AOA_HIGH.getCooldownSeconds());
         aoaWarningLine = 15;
 
-        parser.Blkx b = c.getBlkx();
-        if (b != null && b.valid) {
+        // R1 快照（P3 迁移）: 开头取一次 FM 句柄, blkx 非 null 即 READY;
+        // 无 FM（未识别/加载中/MISSING）→ 保持默认告警线 15
+        FMHandle fm = FMManager.getInstance().current();
+        parser.Blkx b = fm.blkx;
+        if (b != null) {
             aoaWarningLine = b.NoFlapsWing.AoACritHigh;
         }
     }
@@ -375,10 +380,13 @@ public class VoiceWarning implements Runnable {
         machWarn = new VoiceAlert("warn_mach", VoiceAlertType.WARN_MACH.getCooldownSeconds());
         stallWarn = new VoiceAlert("warn_stall", VoiceAlertType.WARN_STALL.getCooldownSeconds());
 
-        parser.Blkx b = c.getBlkx();
+        // R1 快照（P3 迁移）: 开头取一次 FM 句柄, blkx 非 null 即 READY;
+        // 无 FM → 告警线保持 MAX_VALUE（速度/马赫告警关闭）
+        FMHandle fm = FMManager.getInstance().current();
+        parser.Blkx b = fm.blkx;
         iasWarningLine = 0;
         machWarningLine = 0;
-        if (b != null && b.valid) {
+        if (b != null) {
             iasWarningLine = b.vne * 0.95f;
             machWarningLine = b.vneMach * 0.95f;
         }
@@ -395,21 +403,24 @@ public class VoiceWarning implements Runnable {
         nyWarn = new VoiceAlert("warn_loadfactor", VoiceAlertType.WARN_LOADFACTOR.getCooldownSeconds());
         brakeWarn = new VoiceAlert("warn_brake", VoiceAlertType.WARN_BRAKE.getCooldownSeconds());
 
-        parser.Blkx b = c.getBlkx();
+        // R1 快照（P3 迁移）: 开头取一次 FM 句柄, blkx 非 null 即 READY;
+        // 无 FM → 起落架限速/过载限制走默认值
+        FMHandle fm = FMManager.getInstance().current();
+        parser.Blkx b = fm.blkx;
 
         // 起落架速度限制
         gearWarningLine = 0;
-        if (b != null && b.valid) {
+        if (b != null) {
             gearWarningLine = b.GearDestructionIndSpeed;
         }
         if (gearWarningLine == 0) gearWarningLine = 450;
 
         // 过载限制
         this.blkx = b;
-        this.nofuelweight = (b != null && b.valid) ? b.nofuelweight : 0;
+        this.nofuelweight = (b != null) ? b.nofuelweight : 0;
         nyWarningLine0 = 0;
         nyWarningLine1 = 0;
-        if (b != null && b.valid) {
+        if (b != null) {
             nyWarningLine0 = b.maxAllowGload[0];
             nyWarningLine1 = b.maxAllowGload[1];
         }
@@ -460,8 +471,11 @@ public class VoiceWarning implements Runnable {
         elevatorEffIAS = 65535;
         aileronEffIAS = 65535;
 
-        parser.Blkx b = c.getBlkx();
-        if (b != null && b.valid) {
+        // R1 快照（P3 迁移）: 开头取一次 FM 句柄, blkx 非 null 即 READY;
+        // 无 FM → 舵效告警线保持 65535（告警关闭）
+        FMHandle fm = FMManager.getInstance().current();
+        parser.Blkx b = fm.blkx;
+        if (b != null) {
             rudderEffIAS = (int) b.rudderEff;
             elevatorEffIAS = (int) b.elavEff;
             aileronEffIAS = (int) b.aileronEff;
@@ -552,8 +566,12 @@ public class VoiceWarning implements Runnable {
     private void updateDynamicParameters() {
         double vwing = 0;
         int flaps = st.flaps > 0 ? st.flaps : 0;
-        parser.Blkx b = xc.getBlkx();
-        if (b != null && b.valid) {
+        // R1 快照（P3 迁移）: 每次调用开头取一次 FM 句柄（本方法在 VoiceWarning 自有
+        // 线程的 run() 循环里周期执行, 纯 volatile 读）; blkx 非 null 即 READY,
+        // 无 FM → 跳过动态告警线更新（沿用 init 时/上次的值）
+        FMHandle fm = FMManager.getInstance().current();
+        parser.Blkx b = fm.blkx;
+        if (b != null) {
             if (b.isVWing) {
                 vwing = indic.wsweep_indicator;
             }

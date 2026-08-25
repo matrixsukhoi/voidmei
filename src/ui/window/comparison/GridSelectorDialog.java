@@ -13,16 +13,13 @@ import java.util.ArrayList;
 import javax.swing.JDialog;
 import javax.swing.JFrame;
 import javax.swing.JScrollPane;
-import javax.swing.SwingUtilities;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.border.EmptyBorder;
-import javax.swing.JLabel;
 
 import com.alee.laf.button.WebButton;
 import com.alee.laf.panel.WebPanel;
 import com.alee.laf.text.WebTextField;
-import com.alee.laf.tabbedpane.WebTabbedPane;
 
 import prog.Application;
 import prog.util.FileUtils;
@@ -152,13 +149,15 @@ public class GridSelectorDialog extends JDialog {
     }
 
     private void loadPlanes() {
-        File dir = new File("data/aces/gamedata/flightmodels/fm");
+        // P5: 路径收编到 FMDataPaths（fm/ 物理文件目录 = flightmodels 根下 "fm" 子目录）
+        File dir = new File(prog.fm.FMDataPaths.fmDir(), "fm");
         String[] files = dir.list();
         if (files == null)
             files = new String[0];
-        // Strip extensions
-        allPlanes = Arrays.stream(files)
-                .map(f -> f.replace(".blk", "").replace(".Blkx", ""))
+        // Strip extensions —— 用 FileUtils 统一按最后一个 '.' 剥后缀。
+        // 原来的 .replace(".blk","") 链会把小写 ".blkx" 剥成残留尾字母 "x"
+        // （如 "a_4h.blkx" → "a_4hx"），而 fmdata 解包产物全为小写 .blkx
+        allPlanes = Arrays.stream(FileUtils.getFilelistNameNoEx(files))
                 .sorted()
                 .collect(Collectors.toList());
     }

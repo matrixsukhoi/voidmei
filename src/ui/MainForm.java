@@ -271,7 +271,8 @@ public class MainForm extends WebFrame {
 		tc.loadFromConfig();
 
 		this.setVisible(false);
-		tc.State = prog.ControllerState.INIT;
+		// P4: 冗余的 tc.State = INIT 已删——上一行 endPreview() 末尾无条件置 INIT
+		//（start() 依赖的正是这个状态，二者之间无代码改写 State）
 		tc.start();
 		// this.dispose();
 	}

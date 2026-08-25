@@ -151,6 +151,9 @@ SUITES = [
     ("piston", "PistonPowerModel Tests", "TestPistonPowerModel"),
     ("visibility", "VisibilityExpressionEvaluator Tests", "TestVisibilityExpressionEvaluator"),
     ("voicepack", "VoicePackConfig Tests", "TestVoicePackConfig"),
+    ("fmstore", "FM Manager Store Tests", "TestFMStore"),
+    ("fmpaths", "FM Data Paths Tests", "TestFMDataPaths"),
+    ("fmhandle", "FM Handle Tests", "TestFMHandle"),
 ]
 SUITE_ALIASES = {"atm": "atmosphere", "power": "piston", "vis": "visibility", "voice": "voicepack"}
 # 真机 FM 端到端验证套件 (用项目内 data/ 的真实 blkx 跑功率曲线核对): 名 -> (label, 测试类, 机型)

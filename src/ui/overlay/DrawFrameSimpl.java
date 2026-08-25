@@ -56,9 +56,37 @@ public class DrawFrameSimpl extends DraggableOverlay {
 			UIStateBus.getInstance().unsubscribe(UIStateEvents.FM_OVERLAY_TOGGLE, toggleHandler);
 			toggleHandler = null;
 		}
+		// P3: 退订 FM_CHANGED, 防止僵尸 handler 在窗口销毁后继续写缓存
+		if (fmChangedHandler != null) {
+			UIStateBus.getInstance().unsubscribe(UIStateEvents.FM_CHANGED, fmChangedHandler);
+			fmChangedHandler = null;
+		}
 		// 在销毁前从 AlwaysOnTopCoordinator 注销，防止僵尸窗口复活
 		AlwaysOnTopCoordinator.getInstance().unregisterOverlay(this);
 		super.dispose();
+	}
+
+	/**
+	 * P3/R3: 初始化 FM 句柄缓存并订阅 FM_CHANGED。
+	 * init/initPreview 共用; 幂等（重复调用先退订旧 handler 再订阅新的）。
+	 */
+	private void initFmHandleCache() {
+		fmHandle = prog.fm.FMManager.getInstance().current();
+		if (fmChangedHandler != null) {
+			UIStateBus.getInstance().unsubscribe(UIStateEvents.FM_CHANGED, fmChangedHandler);
+		}
+		// handler 在 FM-Loader 线程执行 → invokeLater 切回 EDT 写缓存并触发重绘
+		fmChangedHandler = payload -> {
+			if (payload instanceof prog.fm.FMHandle) {
+				javax.swing.SwingUtilities.invokeLater(() -> {
+					fmHandle = (prog.fm.FMHandle) payload;
+					if (panel != null) {
+						panel.repaint();
+					}
+				});
+			}
+		};
+		UIStateBus.getInstance().subscribe(UIStateEvents.FM_CHANGED, fmChangedHandler);
 	}
 
 	int pixIndex = 0;
@@ -70,6 +98,12 @@ public class DrawFrameSimpl extends DraggableOverlay {
 	double fY[];
 	double fX[];
 	public boolean isPreview = false;
+
+	// P3/R3 EDT 零 getBlkx: 缓存 FM 句柄, paintComponent 只读缓存;
+	// init/initPreview 时初始化, 订阅 FM_CHANGED 异步刷新（不再调 Controller.getBlkx() 桥接）
+	private volatile prog.fm.FMHandle fmHandle;
+	// FM_CHANGED 订阅 handler（loader 线程派发 → 刷新必须 invokeLater 切回 EDT）
+	private Consumer<Object> fmChangedHandler;
 
 	// Self-managed visibility state
 	private boolean visible = true;
@@ -208,49 +242,8 @@ public class DrawFrameSimpl extends DraggableOverlay {
 		setShadeWidth(0);
 	}
 
-	void getdata(String planename) {
-		String fmfile;
-		int i;
-		// 读入中央配置文件 (如 yak-3.blkx)，用于获取 fmfile 引用
-		Blkx = new Blkx("./data/aces/gamedata/flightmodels/" + planename + ".Blkx", planename + ".blk");
-		// 检查中央配置文件是否有效，防止文件不存在时 getlastone() 返回 null 导致 NPE
-		if (!Blkx.valid) {
-			prog.util.Logger.warn("DrawFrameSimpl",
-				"中央配置文件无效或不存在: " + planename + ".blkx，跳过FM数据加载");
-			return;
-		}
-		fmfile = Blkx.getlastone("fmfile");
-		// 检查 fmfile 字段是否存在且长度足够做 substring 操作，防止空指针
-		if (fmfile == null || fmfile.length() < 2) {
-			prog.util.Logger.warn("DrawFrameSimpl",
-				"中央配置文件中未找到 fmfile 字段: " + planename + ".blkx");
-			return;
-		}
-		fmfile = fmfile.substring(1, fmfile.length() - 1);
-		if (fmfile.indexOf("blk") == -1)
-			fmfile = fmfile + ".blk";
-		for (i = 0; i < fmfile.length(); i++) {
-			if (fmfile.charAt(i) == '/')
-				break;
-		}
-		if (i + 1 >= fmfile.length()) {
-			fmfile = planename + ".blk";
-		} else
-			fmfile = fmfile.substring(i + 1);
-		// Application.debugPrint(fmfile);
-
-		// 读入 FM 物理文件 (如 fm/yak-3.blkx)，包含实际气动/发动机数据
-		Blkx = new Blkx("./data/aces/gamedata/flightmodels/fm/" + fmfile + "x", planename + ".blk");
-		// 检查 FM 文件是否有效，防止在无效数据上调用 getAllplotdata()
-		if (!Blkx.valid) {
-			prog.util.Logger.warn("DrawFrameSimpl",
-				"FM物理文件无效或不存在: " + fmfile + "x，跳过 getAllplotdata");
-			return;
-		}
-		// Application.debugPrint(Blkx.data);
-		Blkx.getAllplotdata();
-
-	}
+	// P5: getdata(planename) 死代码已删（P3 后全工程无调用者），其中的 FM 目录
+	// 硬编码路径随之消失——路径唯一来源 = prog.fm.FMDataPaths
 
 	void drawXY(Graphics2D g, int x, int y, int dwidth, int dheight, String title, String xName, String yName,
 			String xD, String yD, double xmin, double xmax, double ymin, double ymax, int xgap, int ygap,
@@ -521,7 +514,9 @@ public class DrawFrameSimpl extends DraggableOverlay {
 	public void init(Controller c) {
 		Logger.info("DrawFrameSimpl", "Initializing for game mode");
 		xc = c;
-		Blkx = xc.getBlkx();
+		// P3/R3: 改用句柄缓存（原 Blkx = xc.getBlkx() 在加载未落定时可能拿到 null
+		// 且 paint 中裸用）; 非 READY 句柄 blkx=null, paint 有 null 守卫直接跳过绘制
+		initFmHandleCache();
 		isPreview = false;
 
 		// Game mode: initially hidden
@@ -554,8 +549,12 @@ public class DrawFrameSimpl extends DraggableOverlay {
 				g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 				g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
+				// P3/R3: paint 只读缓存句柄, 绝不调 getBlkx();
+				// 非 READY/无曲线数据时直接跳过（修复原版对 b.velThrNum 的裸调 NPE 风险）
+				parser.Blkx b = (fmHandle != null) ? fmHandle.blkx : null;
+				if (b == null || b.velThrNum == 0) return;
+
 				// 绘制坐标系
-				parser.Blkx b = xc.getBlkx();
 				double[] xn = new double[b.velThrNum];
 				for (int i = 0; i < b.velThrNum; i++) {
 					xn[i] = b.velocityThr[i];
@@ -565,8 +564,8 @@ public class DrawFrameSimpl extends DraggableOverlay {
 				double xmax = findMax(xn);
 
 				// Application.debugPrint(xmin+" "+xmax);
-				double ymin = findMin(Blkx.maxThrAft[Blkx.altThrNum - 1]);
-				double ymax = findMax(Blkx.maxThrAft[0]);
+				double ymin = findMin(b.maxThrAft[b.altThrNum - 1]);
+				double ymax = findMax(b.maxThrAft[0]);
 
 				// xmax对齐10
 				xmin = (double) (((int) (xmin / 10)) * 10);
@@ -590,16 +589,16 @@ public class DrawFrameSimpl extends DraggableOverlay {
 					ggy4 = (double) dheight / (double) (pymax - pymin);
 				}
 				int fontsize = 12;
-				int rgbx = (int) (255.0f / (Blkx.altThrNum + 1));
+				int rgbx = (int) (255.0f / (b.altThrNum + 1));
 				drawXY(g2d, 50, 50, dwidth, dheight, "推力-真空速曲线", "真空速", "推力", "km/h", "kgf", xmin, xmax, ymin, ymax,
 						xgap, ygap, fontsize);
-				for (int i = 0; i < Blkx.altThrNum; i++) {
-					drawPoint(g2d, 50, 50, dwidth, dheight, ggx4, ggy4, xn, Blkx.maxThrAft[i], pxmin, pymin,
+				for (int i = 0; i < b.altThrNum; i++) {
+					drawPoint(g2d, 50, 50, dwidth, dheight, ggx4, ggy4, xn, b.maxThrAft[i], pxmin, pymin,
 							new Color((i + 1) * rgbx, (i + 1) * rgbx, (i + 1) * rgbx, 250));
 
 					drawExample(g2d, dwidth - 40, 60 + i * fontsize - dheight, dheight,
 							new Color((i + 1) * rgbx, (i + 1) * rgbx, (i + 1) * rgbx, 250),
-							String.format("高度%.0fm", Blkx.altitudeThr[i]), fontsize);
+							String.format("高度%.0fm", b.altitudeThr[i]), fontsize);
 				}
 
 				// 绘制点
@@ -636,7 +635,8 @@ public class DrawFrameSimpl extends DraggableOverlay {
 		this.visible = true;
 
 		xc = c;
-		Blkx = xc.getBlkx();
+		// P3/R3: 改用句柄缓存（原 Blkx = xc.getBlkx() 同 init 的时序问题）
+		initFmHandleCache();
 
 		setFrameOpaque();
 
@@ -651,7 +651,10 @@ public class DrawFrameSimpl extends DraggableOverlay {
 				g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 				g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
-				parser.Blkx b = xc.getBlkx();
+				// P3/R3: paint 只读缓存句柄, 不再调 getBlkx();
+				// 同时统一数据源到局部 b（原版 xn 取局部 b、ymin/ymax 取字段 Blkx,
+				// 换机瞬间两处可能来自不同实例造成数据撕裂）
+				parser.Blkx b = (fmHandle != null) ? fmHandle.blkx : null;
 				if (b == null || b.velThrNum == 0) return;
 
 				double[] xn = new double[b.velThrNum];
@@ -661,8 +664,8 @@ public class DrawFrameSimpl extends DraggableOverlay {
 
 				double xmin = findMin(xn);
 				double xmax = findMax(xn);
-				double ymin = findMin(Blkx.maxThrAft[Blkx.altThrNum - 1]);
-				double ymax = findMax(Blkx.maxThrAft[0]);
+				double ymin = findMin(b.maxThrAft[b.altThrNum - 1]);
+				double ymax = findMax(b.maxThrAft[0]);
 
 				xmin = (double) (((int) (xmin / 10)) * 10);
 				xmax = (double) ((int) (xmax / 10) * 10);
@@ -685,16 +688,16 @@ public class DrawFrameSimpl extends DraggableOverlay {
 					ggy4 = (double) dheight / (double) (pymax - pymin);
 				}
 				int fontsize = 12;
-				int rgbx = (int) (255.0f / (Blkx.altThrNum + 1));
+				int rgbx = (int) (255.0f / (b.altThrNum + 1));
 				drawXY(g2d, 50, 50, dwidth, dheight, "推力-真空速曲线", "真空速", "推力", "km/h", "kgf", xmin, xmax, ymin, ymax,
 						xgap, ygap, fontsize);
-				for (int i = 0; i < Blkx.altThrNum; i++) {
-					drawPoint(g2d, 50, 50, dwidth, dheight, ggx4, ggy4, xn, Blkx.maxThrAft[i], pxmin, pymin,
+				for (int i = 0; i < b.altThrNum; i++) {
+					drawPoint(g2d, 50, 50, dwidth, dheight, ggx4, ggy4, xn, b.maxThrAft[i], pxmin, pymin,
 							new Color((i + 1) * rgbx, (i + 1) * rgbx, (i + 1) * rgbx, 250));
 
 					drawExample(g2d, dwidth - 40, 60 + i * fontsize - dheight, dheight,
 							new Color((i + 1) * rgbx, (i + 1) * rgbx, (i + 1) * rgbx, 250),
-							String.format("高度%.0fm", Blkx.altitudeThr[i]), fontsize);
+							String.format("高度%.0fm", b.altitudeThr[i]), fontsize);
 				}
 			}
 

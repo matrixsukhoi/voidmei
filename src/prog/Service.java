@@ -5,6 +5,8 @@ import prog.util.ExceptionHelper;
 
 import parser.Blkx.engineLoad;
 import parser.FlightLog;
+import prog.fm.FMHandle;
+import prog.fm.FMManager;
 import parser.Indicators;
 import parser.MapInfo;
 import parser.MapObj;
@@ -239,6 +241,11 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 	 */
 	public void formatDataAsStrings() {
 
+		// R1 周期快照: 开头取一次句柄, 方法内一律用局部变量, 杜绝同周期混用两个句柄;
+		// R2: blkx 非 null 即 READY, 无 FM 走下方 "-" 降级路径
+		FMHandle fm = FMManager.getInstance().current();
+		parser.Blkx blkx = fm.blkx;
+
 		// 数据转换格式
 		// sState
 
@@ -378,7 +385,7 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 		compass = String.format("%.0f", compassDelta);
 		sPitchUp = String.format("%.0f", sIndic.aviahorizon_pitch);
 
-		if (c.getBlkx() != null && c.getBlkx().valid && c.getBlkx().nitro != 0) {
+		if (blkx != null && blkx.nitro != 0) {
 
 			sNitro = String.format("%.0f", nitrokg);
 			long twepTime = 0;
@@ -386,7 +393,7 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 				// nitroEngNr = sState.engineNum;
 				// sWepTime = nastring;
 			} else {
-				twepTime = (int) (((c.getBlkx().nitro / c.getBlkx().nitroDecr - wepTime / 1000)) / nitroEngNr);
+				twepTime = (int) (((blkx.nitro / blkx.nitroDecr - wepTime / 1000)) / nitroEngNr);
 
 				sWepTimeVal = twepTime;
 				if (twepTime / 60 >= 100) {
@@ -460,7 +467,9 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 			try {
 				HUDSettings hudSettings = c.configService.getHUDSettings();
 				if (hudSettings != null) {
-					HUDData hudData = HUDCalculator.calculate(event, this, c.getBlkx(), hudSettings, null);
+					// R1: 周期句柄快照, 非 READY 时 blkx=null, HUDCalculator 全程 null 容忍自动降级
+					FMHandle fm = FMManager.getInstance().current();
+					HUDData hudData = HUDCalculator.calculate(event, this, fm.blkx, hudSettings, null);
 					event.setHudData(hudData);
 				}
 			} catch (Exception e) {
@@ -553,9 +562,23 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 	}
 
 	// public engineLoad[] sPL;
-	public void checkOverheat() {
-		engineLoad[] pL = c.getBlkx().engLoad;
-		// curLoad = c.getBlkx().findmaxLoad(pL, nwaterTemp, noilTemp);
+	/**
+	 * 引擎过热/耐久度检查。
+	 *
+	 * @param fm 本周期 FM 句柄快照（R1 下传, 单周期内同一 Blkx 实例）
+	 */
+	public void checkOverheat(FMHandle fm) {
+		// R2 hasFM 守卫（P3 修复 NPE 点）: 旧版 Controller.getBlkx() 可能返回
+		// invalid 但非 null 的实例, 此处裸调 engLoad 不会炸; P2 桥接后 MISSING/CORRUPT
+		// 句柄 blkx 恒为 null, 裸调即 NPE —— 必须先守卫, 无 FM 时走既有降级:
+		// curLoadMinWorkTime 置哨兵值 → sEngWorkTime 显示 "-"
+		parser.Blkx blkx = fm.blkx;
+		engineLoad[] pL = (blkx != null) ? blkx.engLoad : null;
+		if (blkx == null || pL == null) {
+			curLoadMinWorkTime = 99999 * 1000;
+			return;
+		}
+		// curLoad = blkx.findmaxLoad(pL, nwaterTemp, noilTemp);
 		// 减去时间
 		double minWorkTime = 99999 * 1000;
 		/* 关发动机后，温度降到最低load后恢复 */
@@ -566,8 +589,8 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 			// Application.debugPrint("监测到引擎关闭");
 		}
 		// 水冷
-		curWLoad = c.getBlkx().findmaxWaterLoad(pL, nwaterTemp);
-		for (int i = 0; i < c.getBlkx().maxEngLoad; i++) {
+		curWLoad = blkx.findmaxWaterLoad(pL, nwaterTemp);
+		for (int i = 0; i < blkx.maxEngLoad; i++) {
 			if (i < curWLoad) {
 				if (pL[i].WorkTime != 0) {
 					pL[i].curWaterWorkTimeMili -= pollCycleDurationMs;
@@ -595,8 +618,8 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 		}
 
 		// 油冷
-		curOLoad = c.getBlkx().findmaxOilLoad(pL, noilTemp);
-		for (int i = 0; i < c.getBlkx().maxEngLoad; i++) {
+		curOLoad = blkx.findmaxOilLoad(pL, noilTemp);
+		for (int i = 0; i < blkx.maxEngLoad; i++) {
 			if (i < curOLoad) {
 				if (pL[i].WorkTime != 0) {
 					pL[i].curOilWorkTimeMili -= pollCycleDurationMs;
@@ -676,7 +699,12 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 		// 求出屏幕空间角度比例FOV,然后像素点映射
 	}
 
-	public void updateWepTime() {
+	/**
+	 * 累计 WEP 时间并计算剩余 WEP 液量。
+	 *
+	 * @param fm 本周期 FM 句柄快照（R1 下传）
+	 */
+	public void updateWepTime(FMHandle fm) {
 		nitroEngNr = 0;
 
 		engineNum = sState.engineNum;
@@ -688,7 +716,8 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 				nitroEngNr += 1;
 			}
 		}
-		nitrokg = c.getBlkx().nitro - (wepTime * nitroConsump) / 1000;
+		// R2 守卫: 无 FM 时 blkx=null, nitrokg 归 0（显示 "-"）
+		nitrokg = (fm.blkx != null) ? fm.blkx.nitro - (wepTime * nitroConsump) / 1000 : 0;
 		if (nitrokg < 0)
 			nitrokg = 0;
 
@@ -846,7 +875,12 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 		return iEngType == ENGINE_TYPE_JET;
 	}
 
-	public void updateEngineState() {
+	/**
+	 * 计算总功率/推力及推力百分比。
+	 *
+	 * @param fm 本周期 FM 句柄快照（R1 下传）
+	 */
+	public void updateEngineState(FMHandle fm) {
 		int i;
 
 		checkEngineJet();
@@ -900,8 +934,10 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 		pThurstPercent = thurstPercent;
 
 		// Get cached peak values (both are WEP/afterburner mode)
-		double peakPower = c.getPeakWepPower();
-		double peak = c.getPeakThrust();
+		// R1: 从本周期句柄快照直接取派生值（不再经 @Deprecated 的 Controller 桥接方法）;
+		// 非 READY 句柄两者为 0 → 自动走下方 maxTotalHp/maxTotalThr 回退算法
+		double peakPower = fm.hasFM() ? fm.peakWepPower : 0;
+		double peak = fm.hasFM() ? fm.peakThrust : 0;
 
 		if (isEngJet()) {
 			// Jet: current thrust / peak afterburner thrust
@@ -998,7 +1034,12 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 			hasWingSweepVario = false;
 	}
 
-	public void checkFlap() {
+	/**
+	 * 襟翼状态判断与允许速度/角度计算。
+	 *
+	 * @param fm 本周期 FM 句柄快照（R1 下传）
+	 */
+	public void checkFlap(FMHandle fm) {
 		boolean downflap = false;
 		flapp = flap;
 		flap = sState.flaps;
@@ -1018,17 +1059,23 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 			downflap = false;
 		}
 		isDowningFlap = downflap;
-		flapAllowSpeed = getFlapAllowSpeed(sState.flaps, downflap);
-		flapAllowAngle = getFlapAllowAngle(sState.IAS, downflap);
+		flapAllowSpeed = getFlapAllowSpeed(sState.flaps, downflap, fm);
+		flapAllowAngle = getFlapAllowAngle(sState.IAS, downflap, fm);
 	}
 
-	public void getMaximumRPM() {
+	/**
+	 * 获取最大转速（优先 FM, 无 FM 时自适应学习）。
+	 *
+	 * @param fm 本周期 FM 句柄快照（R1 下传）
+	 */
+	public void getMaximumRPM(FMHandle fm) {
 		if (!getMaximumRPM) {
-			if (c.getBlkx() != null && c.getBlkx().valid) {
+			// R2 守卫: blkx 非 null 即 READY（等价旧版 null+valid 双判）
+			if (fm.blkx != null) {
 				// FM合法直接取FM
-				maximumThrRPM = c.getBlkx().maxRPM;
+				maximumThrRPM = fm.blkx.maxRPM;
 				// 使用最大允许RPM
-				// maximumThrRPM = c.getBlkx().maxAllowedRPM;
+				// maximumThrRPM = fm.blkx.maxAllowedRPM;
 				// Application.debugPrint(maximumThrRPM);
 				getMaximumRPM = true;
 			} else {
@@ -1067,16 +1114,22 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 
 	public void calculate() {
 
+		// R1 周期快照（P3 迁移核心规则）: 整个 calculate 链路共用开头取到的一次 FM 句柄,
+		// 并以参数下传给所有依赖 FM 的子方法 —— 保证单周期内全部 FM 派生量来自同一
+		// Blkx 实例。FMManager.current() 是纯 volatile 读（无锁无 IO）; 换机时句柄由
+		// loader 线程原子替换, 本周期内可能取到旧句柄（平滑过渡, 下一周期自然切换）
+		FMHandle fm = FMManager.getInstance().current();
+
 		// 获得开始时间
 		elapsedTime = currentTimeMs - startTime;
 
 		// 增加wep时间
-		updateWepTime();
+		updateWepTime(fm);
 
 		// 更新温度，优先使用更精确的
 		updateTemp();
 		// 检查是否过热，如果过热，计算引擎健康度
-		checkOverheat();
+		checkOverheat(fm);
 
 		// 更新方向
 		updateCompass();
@@ -1095,7 +1148,7 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 
 		// Application.debugPrint(horizontalLoad);
 		// 计算总推力、总功率和总实功率
-		updateEngineState();
+		updateEngineState(fm);
 		// 计算总油量
 		updateFuel();
 
@@ -1106,18 +1159,18 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 		checkWing();
 
 		// 襟翼判断
-		checkFlap();
+		checkFlap(fm);
 		// Application.debugPrint(flapAllowSpeed);
 
 		// 获得最大转速
-		getMaximumRPM();
+		getMaximumRPM(fm);
 
 		// 计算速度与临界速度比值
-		updateSpeedRatio();
-		updateStallSpeed();
+		updateSpeedRatio(fm);
+		updateStallSpeed(fm);
 
 		// 计算最佳增压器档位
-		updateOptimalCompressorStage();
+		updateOptimalCompressorStage(fm);
 
 		// TODO:升力阻力实时计算
 		// TODO:可用过载动态计算(油、重量)
@@ -1130,8 +1183,15 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 	public double rudderLockRatio;
 	public double unitMachLimitRatio; // 单位马赫数限制比值
 
-	public void updateSpeedRatio() {
-		if (c.getBlkx() == null || !c.getBlkx().valid) {
+	/**
+	 * 计算速度/马赫与临界值比值及舵面锁定比值。
+	 *
+	 * @param fm 本周期 FM 句柄快照（R1 下传）
+	 */
+	public void updateSpeedRatio(FMHandle fm) {
+		// R2 hasFM 守卫: blkx 非 null 即 READY, 无 FM 时比值归零（UI 端 hide-when-zero 隐藏）
+		parser.Blkx blkx = fm.blkx;
+		if (blkx == null) {
 			speedLimitRatio = 0.0;
 			aileronLockRatio = 0.0;
 			rudderLockRatio = 0.0;
@@ -1145,10 +1205,10 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 
 		double ias = getIAS();
 		// double mach = getMach(); 战雷的mach是小数点后两位的, 有很大的误差, 我们根据地球大气模型手动计算
-		double iasLimit = c.getBlkx().getVNEVWing(wingSweep);
-		double machLimit = c.getBlkx().getMNEVWing(wingSweep);
-		double aileronLockSpeed = c.getBlkx().aileronEff;
-		double rudderLockSpeed = c.getBlkx().rudderEff;
+		double iasLimit = blkx.getVNEVWing(wingSweep);
+		double machLimit = blkx.getMNEVWing(wingSweep);
+		double aileronLockSpeed = blkx.aileronEff;
+		double rudderLockSpeed = blkx.rudderEff;
 		
 		// 1. 根据地球大气模型计算mach
 		double iasPerMach = 3.6 * Math.sqrt(1.4 / 1.225 * 101325 * Math.pow((1 - 0.0000225577 * sState.heightm), 5.25588));
@@ -1173,19 +1233,26 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 
 	public double stallSpeed;
 
-	public void updateStallSpeed() {
-		if (c.getBlkx() == null || !c.getBlkx().valid) {
+	/**
+	 * 计算失速速度。
+	 *
+	 * @param fm 本周期 FM 句柄快照（R1 下传）
+	 */
+	public void updateStallSpeed(FMHandle fm) {
+		// R2 hasFM 守卫: 无 FM 时保持上次值/初始值 0（UI 端按无效值隐藏）
+		parser.Blkx blkx = fm.blkx;
+		if (blkx == null) {
 			return;
 		}
 
 		// 主升力面积因数载荷
-		double wingBodyLiftAreaLoad_NoFlap = c.getBlkx().AWing * c.getBlkx().NoFlapsWing.ClCritHigh
-				+ c.getBlkx().AFuselage * c.getBlkx().fuseClHigh
-						* (c.getBlkx().NoFlapsWing.AoACritHigh / c.getBlkx().Fuselage.AoACritHigh);
-		double wingBodyLiftAreaLoad_FullFlap = c.getBlkx().AWing * c.getBlkx().FullFlapsWing.ClCritHigh
-				+ c.getBlkx().AFuselage * c.getBlkx().fuseClHigh
-						* (c.getBlkx().FullFlapsWing.AoACritHigh / c.getBlkx().Fuselage.AoACritHigh);
-		double currentWeight = c.getBlkx().nofuelweight + sState.mfuel;
+		double wingBodyLiftAreaLoad_NoFlap = blkx.AWing * blkx.NoFlapsWing.ClCritHigh
+				+ blkx.AFuselage * blkx.fuseClHigh
+						* (blkx.NoFlapsWing.AoACritHigh / blkx.Fuselage.AoACritHigh);
+		double wingBodyLiftAreaLoad_FullFlap = blkx.AWing * blkx.FullFlapsWing.ClCritHigh
+				+ blkx.AFuselage * blkx.fuseClHigh
+						* (blkx.FullFlapsWing.AoACritHigh / blkx.Fuselage.AoACritHigh);
+		double currentWeight = blkx.nofuelweight + sState.mfuel;
 
 		// 假设战雷的襟翼是线性的
 		// 单位换算: 3.6
@@ -1203,9 +1270,13 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 	 * Also detects mismatch between actual and optimal stage (at full throttle).
 	 * Uses state-change detection to only update mismatch status when actual or optimal changes.
 	 * Results are published via FlightDataBus for voice warning.
+	 *
+	 * @param fm 本周期 FM 句柄快照（R1 下传）
 	 */
-	public void updateOptimalCompressorStage() {
-		PistonPowerModel.CompressorStageParams[] stages = c.getCompressorStages();
+	public void updateOptimalCompressorStage(FMHandle fm) {
+		// R1: 从周期句柄直接取增压器参数（不再经 @Deprecated 桥接方法）;
+		// 非 READY/喷气机/单级句柄为 null → 走下方无效分支归位
+		PistonPowerModel.CompressorStageParams[] stages = fm.hasFM() ? fm.compressorStages : null;
 
 		// Invalid cases: jet, single-stage, or no FM loaded
 		if (stages == null || stages.length <= 1) {
@@ -1275,17 +1346,24 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 		return k;
 	}
 
-	public double getFlapAllowSpeed(int flapPercent, Boolean isDowningFlap) {
+	/**
+	 * 计算当前襟翼开度下的允许速度。
+	 *
+	 * @param fm 本周期 FM 句柄快照（R1 下传）
+	 */
+	public double getFlapAllowSpeed(int flapPercent, Boolean isDowningFlap, FMHandle fm) {
+		// R2 hasFM 守卫: blkx 非 null 即 READY, 无 FM 时无限制（MAX_VALUE）
+		parser.Blkx blkx = fm.blkx;
 		// fm文件无法解析
-		if (flapPercent == 0 || c.getBlkx() == null || !c.getBlkx().valid)
+		if (flapPercent == 0 || blkx == null)
 			return Double.MAX_VALUE;
 
-		int FlapsDestructionNum = c.getBlkx().FlapsDestructionNum;
+		int FlapsDestructionNum = blkx.FlapsDestructionNum;
 		// 找到襟翼档位
 		int i = 0;
 		for (; i < FlapsDestructionNum - 1; i++) {
 			// 大于
-			if (flapPercent < c.getBlkx().FlapsDestructionIndSpeed[i][0] * 100.0f) {
+			if (flapPercent < blkx.FlapsDestructionIndSpeed[i][0] * 100.0f) {
 				break;
 			}
 		}
@@ -1314,7 +1392,7 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 				// // + (flapPercent - x0) * k + " L" + (y0 + (flapPercent - x0) * k));
 				// Application.debugPrint("limit " + ( y0 + (flapPercent - x0) * k));
 				// return y0 + (flapPercent - x0) * k;
-				return c.getBlkx().FlapsDestructionIndSpeed[0][1];
+				return blkx.FlapsDestructionIndSpeed[0][1];
 			}
 			// 襟翼只有0级
 			// if(c.getBlkx().FlapsDestructionNum == 0){
@@ -1328,17 +1406,17 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 			// }
 
 			// 相等
-			if (flapPercent == c.getBlkx().FlapsDestructionIndSpeed[i][0] * 100.0f) {
+			if (flapPercent == blkx.FlapsDestructionIndSpeed[i][0] * 100.0f) {
 				// 直接返回速度
-				return c.getBlkx().FlapsDestructionIndSpeed[i][1];
+				return blkx.FlapsDestructionIndSpeed[i][1];
 			}
 
 			// 否则进行线性插值运算
 			// 算斜率
-			x0 = c.getBlkx().FlapsDestructionIndSpeed[i][0] * 100.0f;
-			y0 = c.getBlkx().FlapsDestructionIndSpeed[i][1];
-			x1 = c.getBlkx().FlapsDestructionIndSpeed[i + 1][0] * 100.0f;
-			y1 = c.getBlkx().FlapsDestructionIndSpeed[i + 1][1];
+			x0 = blkx.FlapsDestructionIndSpeed[i][0] * 100.0f;
+			y0 = blkx.FlapsDestructionIndSpeed[i][1];
+			x1 = blkx.FlapsDestructionIndSpeed[i + 1][0] * 100.0f;
+			y1 = blkx.FlapsDestructionIndSpeed[i + 1][1];
 			k = this.calcK(x0, y0, x1, y1);
 
 			// 速度等于
@@ -1357,16 +1435,23 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 			return 125;
 	}
 
-	public double getFlapAllowAngle(double ias, Boolean isDowningFlap) {
+	/**
+	 * 计算当前速度下的允许襟翼角度。
+	 *
+	 * @param fm 本周期 FM 句柄快照（R1 下传）
+	 */
+	public double getFlapAllowAngle(double ias, Boolean isDowningFlap, FMHandle fm) {
+		// R2 hasFM 守卫: blkx 非 null 即 READY, 无 FM 时无限制（125 = normFlapAngle 上限）
+		parser.Blkx blkx = fm.blkx;
 		// fm文件无法解析
-		if (ias == 0 || c.getBlkx() == null || !c.getBlkx().valid)
+		if (ias == 0 || blkx == null)
 			return 125;
 
 		// 找到襟翼档位
 		int i = 0;
-		for (; i < c.getBlkx().FlapsDestructionNum - 1; i++) {
+		for (; i < blkx.FlapsDestructionNum - 1; i++) {
 			// 大于
-			if (ias > c.getBlkx().FlapsDestructionIndSpeed[i][1]) {
+			if (ias > blkx.FlapsDestructionIndSpeed[i][1]) {
 				break;
 			}
 		}
@@ -1381,10 +1466,10 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 		if (i == 0) {
 			// 下襟翼时直接越级使用下一级
 
-			x0 = c.getBlkx().FlapsDestructionIndSpeed[i][1];
-			y0 = c.getBlkx().FlapsDestructionIndSpeed[i][0] * 100.0f;
-			x1 = c.getBlkx().FlapsDestructionIndSpeed[i + 1][1];
-			y1 = c.getBlkx().FlapsDestructionIndSpeed[i + 1][0] * 100.0f;
+			x0 = blkx.FlapsDestructionIndSpeed[i][1];
+			y0 = blkx.FlapsDestructionIndSpeed[i][0] * 100.0f;
+			x1 = blkx.FlapsDestructionIndSpeed[i + 1][1];
+			y1 = blkx.FlapsDestructionIndSpeed[i + 1][0] * 100.0f;
 			k = this.calcK(x0, y0, x1, y1);
 
 			t = y0 + (ias - x0) * k;
@@ -1402,17 +1487,17 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 			// }
 
 			// 相等
-			if (ias == c.getBlkx().FlapsDestructionIndSpeed[i - 1][1]) {
+			if (ias == blkx.FlapsDestructionIndSpeed[i - 1][1]) {
 				// 直接返回速度
-				return c.getBlkx().FlapsDestructionIndSpeed[i - 1][0] * 100.0f;
+				return blkx.FlapsDestructionIndSpeed[i - 1][0] * 100.0f;
 			}
 
 			// 否则进行线性插值运算
 			// 算斜率
-			x0 = c.getBlkx().FlapsDestructionIndSpeed[i - 1][1];
-			y0 = c.getBlkx().FlapsDestructionIndSpeed[i - 1][0] * 100.0f;
-			x1 = c.getBlkx().FlapsDestructionIndSpeed[i][1];
-			y1 = c.getBlkx().FlapsDestructionIndSpeed[i][0] * 100.0f;
+			x0 = blkx.FlapsDestructionIndSpeed[i - 1][1];
+			y0 = blkx.FlapsDestructionIndSpeed[i - 1][0] * 100.0f;
+			x1 = blkx.FlapsDestructionIndSpeed[i][1];
+			y1 = blkx.FlapsDestructionIndSpeed[i][0] * 100.0f;
 			k = this.calcK(x0, y0, x1, y1);
 
 			// 速度等于
@@ -1422,17 +1507,28 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 		}
 	}
 
-	public void resetEngLoad() {
-		if (c.getBlkx() != null && c.getBlkx().valid) {
-			for (int idx = 0; idx < c.getBlkx().maxEngLoad; idx++) {
-				c.getBlkx().engLoad[idx].curWaterWorkTimeMili = c.getBlkx().engLoad[idx].WorkTime * 1000;
-				c.getBlkx().engLoad[idx].curOilWorkTimeMili = c.getBlkx().engLoad[idx].WorkTime * 1000;
+	/**
+	 * 重置引擎耐久计时（engLoad 为共享会话状态, 就地改写语义见 FMHandle javadoc 声明,
+	 * "换机 = 新 Blkx 实例" 天然保证会话状态不串机, 此处保持就地改写不变）。
+	 *
+	 * @param fm 本周期 FM 句柄快照（R1 下传）
+	 */
+	public void resetEngLoad(FMHandle fm) {
+		// R2 hasFM 守卫: blkx 非 null 即 READY, 无 FM 时无耐久数据可重置
+		parser.Blkx blkx = fm.blkx;
+		if (blkx != null) {
+			for (int idx = 0; idx < blkx.maxEngLoad; idx++) {
+				blkx.engLoad[idx].curWaterWorkTimeMili = blkx.engLoad[idx].WorkTime * 1000;
+				blkx.engLoad[idx].curOilWorkTimeMili = blkx.engLoad[idx].WorkTime * 1000;
 			}
 		}
 	}
 
 	// 重置变量
 	public void resetvaria() {
+		// R1 周期快照: 本方法（及下传的 resetEngLoad）全程使用这一次取到的句柄,
+		// 可能从 Service 轮询线程或构造器调用, current() 均为纯 volatile 读
+		FMHandle fm = FMManager.getInstance().current();
 		loc = new double[2];
 		dir = new double[2];
 		radioAltValid = false;
@@ -1469,7 +1565,7 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 		diffspeed = 0;
 		curLoadMinWorkTime = 99999 * 1000;
 		/* 刷新引擎工作时间 */
-		resetEngLoad();
+		resetEngLoad(fm);
 		// if(c.getBlkx() != null && c.getBlkx().maxEngLoad !=
 		// 0)c.getBlkx().resetEngineLoad();
 		FuelCheckMili = System.currentTimeMillis();
@@ -1495,12 +1591,13 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 		sumSpeedSMA = cH.new SimpleMovingAverage((int) (1000 / freq));
 		energyDiffSMA = cH.new SimpleMovingAverage((int) (1000 / freq));
 		fuelTimeSMA = cH.new SimpleMovingAverage(4);
-		if (c.getBlkx() != null) {
-			engineLoad[] pL = c.getBlkx().engLoad;
-			nitrokg = c.getBlkx().nitro;
-			nitroConsump = c.getBlkx().nitroDecr;
+		// R2 守卫: 无 FM 时保持 nitrokg/nitroConsump 归零值（与 updateWepTime 的守卫配套）
+		if (fm.blkx != null) {
+			engineLoad[] pL = fm.blkx.engLoad;
+			nitrokg = fm.blkx.nitro;
+			nitroConsump = fm.blkx.nitroDecr;
 			if (pL != null) {
-				for (int i = 0; i < c.getBlkx().maxEngLoad; i++) {
+				for (int i = 0; i < fm.blkx.maxEngLoad; i++) {
 					pL[i].curWaterWorkTimeMili = pL[i].curWaterWorkTimeMili;
 					pL[i].curOilWorkTimeMili = pL[i].curOilWorkTimeMili;
 				}
@@ -1640,11 +1737,12 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 					// 读取map info
 
 					c.changeS3();// 打开面板
-					if (c.cur_fmtype != null && !c.cur_fmtype.equals(sIndic.type)) {
-						prog.util.Logger.info("Service",
-								"Aircraft type changed to: " + sIndic.type + ". Restarting Controller.");
-						c.S4toS1();
-					}
+					// P4 换机轻量 swap: 只换 FM 句柄（FMManager 负责去重/负缓存/异步加载），
+					// 不再重启 Controller——旧版 S4toS1 重启销毁全部 overlay 致 HUD 闪断，且与
+					// 旧 FM 回退逻辑叠加曾构成 issue #55 换机死循环（P2 已断根，P4 删重启路径）。
+					// identify/onAircraftChanged 同目标零成本，10Hz 轮询安全。
+					FMManager.getInstance().identify(sIndic.type);
+					c.onAircraftChanged(sIndic.type);
 					// speedvp = sState.IAS;
 					// 开始计算数据
 					calculate();
@@ -1938,10 +2036,13 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 
 	@Override
 	public double getTotalWeight() {
-		if (c == null || c.getBlkx() == null || !c.getBlkx().valid || sState == null) {
+		// R1 快照读: 单次 volatile 读（可能被 EDT 的 HUDCalculator 回退路径调用, 纯读安全）;
+		// R2 守卫: 非 READY 句柄 blkx=null → 返回 0, 走 UI 端 hide-when-zero 隐藏
+		parser.Blkx blkx = FMManager.getInstance().current().blkx;
+		if (blkx == null || sState == null) {
 			return 0;
 		}
-		return c.getBlkx().nofuelweight + sState.mfuel;
+		return blkx.nofuelweight + sState.mfuel;
 	}
 
 	@Override
@@ -2176,6 +2277,8 @@ public class Service implements Runnable, ui.model.TelemetrySource {
 	 */
 	@Override
 	public boolean hasWep() {
-		return c != null && c.getBlkx() != null && c.getBlkx().valid && c.getBlkx().nitro > 0;
+		// R1/R2: 单次 volatile 读; blkx 非 null 即 READY, 无 FM → false
+		parser.Blkx blkx = FMManager.getInstance().current().blkx;
+		return blkx != null && blkx.nitro > 0;
 	}
 }

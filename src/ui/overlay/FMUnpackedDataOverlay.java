@@ -12,6 +12,8 @@ import prog.config.ConfigProvider;
 import prog.config.OverlaySettings;
 import prog.event.UIStateBus;
 import prog.event.UIStateEvents;
+import prog.fm.FMHandle;
+import prog.fm.FMManager;
 import prog.i18n.Lang;
 import prog.util.Logger;
 
@@ -73,9 +75,13 @@ public class FMUnpackedDataOverlay extends BaseOverlay {
         };
         UIStateBus.getInstance().subscribe(UIStateEvents.FM_OVERLAY_TOGGLE, toggleHandler);
 
-        // Subscribe to FM data reload event
-        fmLoadedHandler = data -> reloadFMData();
-        UIStateBus.getInstance().subscribe(UIStateEvents.FM_DATA_LOADED, fmLoadedHandler);
+        // Subscribe to FM handle change event
+        // P3 迁移: 从旧 FM_DATA_LOADED(payload=机型名) 改订阅 FM_CHANGED(payload=FMHandle),
+        // 直接取 handle.blkx —— 消除旧路径"handler 里再调 controller.getBlkx() 持锁重入"的问题。
+        // 注意: handler 在 FM-Loader 后台线程同步执行, setBlkx 仅做 volatile 赋值不碰 Swing,
+        // 数据刷新由 BaseOverlay.run() 后台周期完成 → 无需 invokeLater
+        fmLoadedHandler = data -> reloadFMData(data);
+        UIStateBus.getInstance().subscribe(UIStateEvents.FM_CHANGED, fmLoadedHandler);
 
         // Set header matcher for styling (FM parts headers start with "------fm器件")
         setHeaderMatcher(line -> line.startsWith("FM文件") || line.startsWith("------fm器件"));
@@ -116,12 +122,15 @@ public class FMUnpackedDataOverlay extends BaseOverlay {
     }
 
     /**
-     * Called when FM data is reloaded (e.g., aircraft change).
+     * Called when the FM handle changes (e.g., aircraft change / load completes).
+     * P3: 订阅 FM_CHANGED, payload 为不可变 FMHandle; handler 在 loader 线程执行,
+     * setBlkx 仅 volatile 赋值（FMDataAdapter.blkx 已声明 volatile）, 线程安全。
+     * @param payload FM_CHANGED 事件载荷（FMHandle 实例）
      */
-    private void reloadFMData() {
-        // Update adapter with latest Blkx if available
-        if (controller != null) {
-            fmDataAdapter.setBlkx(controller.getBlkx());
+    private void reloadFMData(Object payload) {
+        if (fmDataAdapter != null && payload instanceof FMHandle) {
+            // 非 READY 句柄 blkx=null → adapter 显示 "[No Data Loaded]" 占位（null 容忍）
+            fmDataAdapter.setBlkx(((FMHandle) payload).blkx);
         }
         // Data will be refreshed on next run() cycle
     }
@@ -132,8 +141,10 @@ public class FMUnpackedDataOverlay extends BaseOverlay {
      */
     public void reinitConfig() {
         // Refresh adapter data
-        if (controller != null && fmDataAdapter != null) {
-            fmDataAdapter.setBlkx(controller.getBlkx());
+        // P3: 直读 FMManager 句柄（reinitConfig 在 EDT 触发, 纯 volatile 读安全,
+        // 不再经 Controller.getBlkx() 桥接）
+        if (fmDataAdapter != null) {
+            fmDataAdapter.setBlkx(FMManager.getInstance().current().blkx);
         }
         // Font and display settings are handled by BaseOverlay
         setupFont();
@@ -316,7 +327,8 @@ public class FMUnpackedDataOverlay extends BaseOverlay {
             toggleHandler = null;
         }
         if (fmLoadedHandler != null) {
-            UIStateBus.getInstance().unsubscribe(UIStateEvents.FM_DATA_LOADED, fmLoadedHandler);
+            // P3: 订阅已迁移到 FM_CHANGED, 退订同步更换事件名
+            UIStateBus.getInstance().unsubscribe(UIStateEvents.FM_CHANGED, fmLoadedHandler);
             fmLoadedHandler = null;
         }
         super.dispose();

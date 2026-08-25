@@ -413,10 +413,11 @@ public class EngineControlOverlay extends FieldOverlay { // Revert to FieldOverl
 			jetLabelUpdated = true;
 
 			// Set compressor gauge maxValue from FM data
-			// 使用 controller 而不是 config 访问 FM 数据
+			// P3: 直读 FMManager 句柄（不再经 @Deprecated 的 controller.getCompressorStages() 桥接）;
+			// EDT 上纯 volatile 读, 非 READY/喷气机句柄 compressorStages=null, 下方 null 守卫兜底
 			if (!compressorMaxValueSet && controller != null) {
 				prog.util.PistonPowerModel.CompressorStageParams[] stages =
-					controller.getCompressorStages();
+					prog.fm.FMManager.getInstance().current().compressorStages;
 				if (stages != null && stages.length > 1 && gaugeFields != null) {
 					for (GaugeField gf : gaugeFields) {
 						if (gf.gaugeType == GaugeType.COMPRESSOR.ordinal()) {
@@ -445,9 +446,10 @@ public class EngineControlOverlay extends FieldOverlay { // Revert to FieldOverl
 		if (gaugeFields == null || controller == null) return;
 
 		int optimalStage = payload.optimalCompressorStage;
-		// 使用 controller 而不是 config 访问 FM 数据
+		// P3: 直读 FMManager 句柄（R1 快照, EDT 纯读）; 非 READY 句柄 → null,
+		// 下方 stages != null 守卫存在, 无数据时隐藏 optimal 标记
 		prog.util.PistonPowerModel.CompressorStageParams[] stages =
-			controller.getCompressorStages();
+			prog.fm.FMManager.getInstance().current().compressorStages;
 
 		for (GaugeField gf : gaugeFields) {
 			if (gf.gaugeType == GaugeType.COMPRESSOR.ordinal() && gf.markedGauge != null) {

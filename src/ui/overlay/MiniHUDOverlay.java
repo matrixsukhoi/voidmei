@@ -440,7 +440,11 @@ public class MiniHUDOverlay extends DraggableOverlay implements FlightDataListen
         // Fallback: calculate on EDT if pre-computed data is not available
         // This handles preview mode and edge cases where Service hasn't computed yet
         if (data == null) {
-            data = HUDCalculator.calculate(event, service, controller.getBlkx(), hudSettings, ctx);
+            // P3/R1 快照写法: 单次 volatile 读 FMManager（EDT 上纯读安全, 不再经
+            // Controller.getBlkx() 桥接）; 非 READY 句柄 blkx=null,
+            // HUDCalculator 全程 null 容忍 → 自动降级为无 FM 数据
+            data = HUDCalculator.calculate(event, service,
+                    prog.fm.FMManager.getInstance().current().blkx, hudSettings, ctx);
         }
 
         // 2. Dispatch to Reactive Components

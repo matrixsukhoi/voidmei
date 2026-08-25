@@ -3,12 +3,11 @@ package prog;
 import prog.i18n.Lang;
 import prog.audio.VoiceWarning;
 import prog.util.HttpHelper;
-import prog.util.FMPowerExtractor;
+import prog.fm.FMManager;
 
 import java.awt.Color;
 import java.awt.Font;
 
-import parser.Blkx;
 import parser.FlightAnalyzer;
 import parser.FlightLog;
 import ui.StatusBar;
@@ -44,13 +43,8 @@ public class Controller {
 
 	public boolean logon = false;
 
-	private Blkx Blkx;
-	private String loadedFMName = null;
-	private String identifiedFMName = null;
-	/** 记录加载失败的飞机名，避免 FM 文件不存在时无限重试（每 50ms 一次） */
-	private String failedFMName = null;
-	private long lastBlkxCheckTime = 0;
-	private static final long BLKX_CHECK_INTERVAL = 5000;
+	// P2 清理: Blkx/loadedFMName/identifiedFMName/failedFMName 等九个 FM 状态字段
+	// 已由 prog.fm.FMManager 单一真相源取代——issue #55 死循环的根源清除
 
 	/** 配置变更防抖：延迟执行器，避免滑块拖动时频繁触发 FM 加载 */
 	private ScheduledFuture<?> pendingConfigRefresh;
@@ -63,15 +57,6 @@ public class Controller {
 		});
 	/** 防抖延迟毫秒数：200ms 内无新变更才执行 */
 	private static final long CONFIG_DEBOUNCE_MS = 200;
-
-	/** Cached compressor stage parameters for multi-stage supercharger aircraft */
-	private prog.util.PistonPowerModel.CompressorStageParams[] compressorStages;
-
-	/** Cached peak WEP power for piston aircraft (hp) */
-	private double peakWepPower = 0;
-
-	/** Cached peak afterburner thrust for jet aircraft (kgf) */
-	private double peakThrust = 0;
 
 	/** FM data adapter for FMUnpackedDataOverlay */
 	private ui.model.FMDataAdapter fmDataAdapter = new ui.model.FMDataAdapter();
@@ -161,6 +146,8 @@ public class Controller {
 	// Event Handlers
 	private java.util.function.Consumer<Object> configChangedHandler;
 	private java.util.function.Consumer<Object> uiReadyHandler;
+	/** P2: FM 句柄变化处理器（FMManager 在 FM-Loader 后台线程发布，订阅方须自行避开 EDT 直碰） */
+	private java.util.function.Consumer<Object> fmChangedHandler;
 
 	// Track current FM hotkey binding for rebind on config change
 	private int currentFmHotkeyCode = 0;
@@ -200,7 +187,13 @@ public class Controller {
 		}
 	}
 
-	public String cur_fmtype;
+	/**
+	 * 当前游戏会话的机型名（P4 取代旧 cur_fmtype 的会话级记忆）。
+	 * 由 onAircraftChanged() 唯一写入：null = 会话尚未开始（或已随 S4toS1 结束），
+	 * 非 null = openpad/换机时的机型。仅用于换机检测的幂等去重，
+	 * FM 真相源在 prog.fm.FMManager.currentTargetName()。
+	 */
+	private String sessionAircraftType = null;
 
 	private AutoMeasure aM;
 
@@ -214,8 +207,11 @@ public class Controller {
 			// 自动隐藏任务栏
 
 			// 初始化MapObj以及Msg、gamechat
-			cur_fmtype = S.sIndic.type;
-			identifiedFMName = cur_fmtype;
+			// P4: cur_fmtype 已删——机型识别唯一写者收敛到 Service 轮询链路
+			//（processPollingCycle 每轮 identify + onAircraftChanged），changeS3 只做首次触发
+			// P2: FM 单一真相源 —— 进游戏识别到机型即通知 FMManager 异步加载
+			//（identify 高频安全：目标未变零成本；缺失机型走负缓存不再重试）
+			FMManager.getInstance().identify(S.sIndic.type);
 			// Removed getfmdata call - Service will trigger load via calculate or start
 			// Application.debugPrint("状态3，连接成功，释放状态条，打开面板");
 			// usetempratureInformation =
@@ -254,6 +250,8 @@ public class Controller {
 
 	public void S4toS1() {
 		// 状态4，游戏返回，返回至状态1
+		// P4 起本方法只服务"退出游戏"语义（processPollingCycle 的 sState/sIndic flag 丢失
+		// 与 8111 无数据两条路径仍在调用）；换机不再走此重启，改由 onAircraftChanged 轻量 swap
 		if (State == ControllerState.PREVIEW) {
 			// Application.debugPrint("状态4，游戏退出，释放Service资源，返回至状态1");
 			// 不触发燃油低告警
@@ -271,12 +269,76 @@ public class Controller {
 			}
 
 			S.clear();
+			// P4: 会话结束——清除 FMManager 识别目标（刻意保留已加载句柄，重进同机型时
+			// identify 走"句柄已在"分支秒开）；同时清会话机型记忆，重进游戏由 openpad
+			// 重建 FlightLog，首轮 onAircraftChanged 只记名不换日志
+			FMManager.getInstance().clearTarget();
+			sessionAircraftType = null;
 			State = ControllerState.INIT;
 
 			// 自动显示任务栏
 			// hideTaskbarSw();
 		}
 
+	}
+
+	/**
+	 * 换机轻量 swap（P4）：机型变化时的会话级切换，取代旧版"检测到换机 → S4toS1
+	 * 重启整个生命周期（销毁全部 overlay → 下轮 changeS3 重建）"。
+	 *
+	 * <p>overlay 全部保留（HUD 无闪断）；FM 句柄由轮询侧 FMManager.identify 异步切换
+	 * （加载期间 HUD 用旧 FM 平滑过渡，READY 后 FM_CHANGED 驱动刷新）。本方法只做收尾：
+	 * FlightLog 关旧开新（复用 closepad）+ 会话变量重置（resetvaria，不从旧机继承）。
+	 *
+	 * <p>由 Service.processPollingCycle 每轮调用（~10Hz），幂等：机型未变直接返回；
+	 * 会话首机只记名不切换。调用线程为 Service 轮询线程，与读 c.Log 的线程一致，无竞态。
+	 *
+	 * @param newType 新机型名（sIndic.type，Service 已 update 完，即当前真实机型）
+	 */
+	public void onAircraftChanged(String newType) {
+		if (newType == null || newType.isEmpty())
+			return;
+		// 幂等守卫：同机型零成本返回（Service 轮询高频调用）
+		if (newType.equals(sessionAircraftType))
+			return;
+		// null = 会话首机：openpad 已按当前机型建好 FlightLog，此处只记名，不做任何切换
+		boolean isSwitch = sessionAircraftType != null;
+		sessionAircraftType = newType;
+		if (!isSwitch)
+			return;
+
+		prog.util.Logger.info("Controller",
+				"Aircraft type changed to: " + newType + ". Lightweight FM swap (no Controller restart).");
+
+		if (Boolean.parseBoolean(configService.getConfig("enableLogging"))) {
+			// 关掉上一机遗留的爬升曲线窗口（复用 openpad 对旧 dF 的清理方式）
+			if (dF != null) {
+				dF.doit = false;
+				dF = null;
+			}
+			// FlightLog 关旧开新 —— 收尾逻辑复用 closepad：保存通知 + 爬升档数≥1 弹 DrawFrame
+			if (Log != null) {
+				ui.util.NotificationService.show(Lang.cSavelog + Log.fileName + Lang.cPlsopen);
+				// fA 可能为 null（旧机全程未触发高度分析），防护避免 NPE 中断换机流程
+				if (Log.fA != null && Log.fA.curaltStage - Log.fA.initaltStage >= 1) {
+					dF = new DrawFrame();
+					showdrawFrame(Log.fA);
+				}
+				Log.close();
+				Log = null;
+			}
+			// 按新机型新建：FlightLog.init 内部用 s.sIndic.type 命名 records/<TYPE>_日期.csv
+			Log = new FlightLog();
+			Log.init(this, S, configService);
+			logon = true;
+		}
+
+		// 会话变量重置：燃油/能量累计等不从旧机继承（与加油检测共用同一入口）。
+		// 此刻新 FM 可能仍在异步加载（resetEngLoad 有 hasFM 守卫），新句柄 READY 后
+		// 引擎耐久由 Blkx 解析时的初始化保证满值，无脏数据
+		if (S != null) {
+			S.resetvaria();
+		}
 	}
 
 	public void openpad() {
@@ -489,6 +551,23 @@ public class Controller {
 		};
 		prog.event.UIStateBus.getInstance().subscribe(prog.event.UIStateEvents.UI_READY, uiReadyHandler);
 
+		// P2: 订阅 FM 句柄变化 —— FMManager 加载落定（READY/MISSING/CORRUPT）后
+		// 刷新全部预览, 让 overlay 通过 getBlkx() 拿到新 FM。
+		// 发布线程为 FM-Loader 后台线程, 这里只做防抖排队, 实际刷新在防抖线程/EDT 执行
+		fmChangedHandler = data -> {
+			if (State == ControllerState.PREVIEW) {
+				// 复用 configDebouncer 200ms 防抖: 连续换机/identify 抖动时只刷一次
+				if (pendingConfigRefresh != null && !pendingConfigRefresh.isDone()) {
+					pendingConfigRefresh.cancel(false);
+				}
+				pendingConfigRefresh = configDebouncer.schedule(() -> {
+					loadFromConfig();
+					overlayManager.refreshAllPreviews();
+				}, CONFIG_DEBOUNCE_MS, TimeUnit.MILLISECONDS);
+			}
+		};
+		prog.event.UIStateBus.getInstance().subscribe(prog.event.UIStateEvents.FM_CHANGED, fmChangedHandler);
+
 		// 刷新频率
 		State = ControllerState.INIT;
 		lastEvt = 0;
@@ -508,13 +587,15 @@ public class Controller {
 
 		if (autoStart) {
 			prog.util.Logger.info("Controller", "Auto-start enabled, entering game mode directly...");
-			ensureBlkxLoaded();
+			// P2: FM 识别改由 FMManager 异步承担——探测放后台线程, 不阻塞构造/start
+			new Thread(this::detectAndIdentify, "FM-Detect").start();
 			start();
 		} else {
 			M = new MainForm(this);
 			M.startRepaintTimer();
 			// Check for live aircraft on startup (lazy fallback - only loads if live)
-			ensureBlkxLoaded();
+			// P2: 同上, 网络探测放后台线程, 避免 MainForm 弹出被 8111 超时拖慢
+			new Thread(this::detectAndIdentify, "FM-Detect").start();
 		}
 	}
 
@@ -635,11 +716,12 @@ public class Controller {
 		overlayManager.registerWithPreview("enableFMPrint",
 				() -> new FMUnpackedDataOverlay(),
 				overlay -> {
-					fmDataAdapter.setBlkx(getBlkx());
+					// 直读 FMManager 句柄（P5 收尾: 桥接方法已删, 与各 overlay 的直读模式一致）
+					fmDataAdapter.setBlkx(FMManager.getInstance().current().blkx);
 					prog.config.OverlaySettings fmSettings = configService.getOverlaySettings("FM拆包数据");
 					((FMUnpackedDataOverlay) overlay).init(this, fmDataAdapter, fmSettings);
 				}, overlay -> {
-					fmDataAdapter.setBlkx(getBlkx());
+					fmDataAdapter.setBlkx(FMManager.getInstance().current().blkx);
 					prog.config.OverlaySettings fmSettings = configService.getOverlaySettings("FM拆包数据");
 					((FMUnpackedDataOverlay) overlay).initPreview(this, fmDataAdapter, fmSettings);
 				},
@@ -695,6 +777,11 @@ public class Controller {
 		if (uiReadyHandler != null) {
 			prog.event.UIStateBus.getInstance().unsubscribe(prog.event.UIStateEvents.UI_READY, uiReadyHandler);
 			uiReadyHandler = null;
+		}
+		// P2: 退订 FM 句柄变化（防止重启时重复刷新）
+		if (fmChangedHandler != null) {
+			prog.event.UIStateBus.getInstance().unsubscribe(prog.event.UIStateEvents.FM_CHANGED, fmChangedHandler);
+			fmChangedHandler = null;
 		}
 
 		// 3. 清理MainForm
@@ -760,71 +847,26 @@ public class Controller {
 	}
 
 	/**
-	 * IDENTIFY the current aircraft from live source or config.
-	 * Does NOT trigger parsing unless specifically requested via getBlkx().
+	 * 后台一次性探测当前机型并驱动 FMManager 识别加载（P2 桥接）。
+	 * live 数据（8111 /indicators）优先，未进游戏时回退 selectedFM0 配置的默认机。
+	 * 网络探测有阻塞风险，只在后台线程调用（构造器起 FM-Detect 线程 / refreshPreviews
+	 * 所在的防抖线程）。
 	 */
-	private void ensureBlkxLoaded() {
-		// Throttled live polling
-		long now = System.currentTimeMillis();
-		if (now - lastBlkxCheckTime < BLKX_CHECK_INTERVAL) {
-			return;
-		}
-		lastBlkxCheckTime = now;
-
+	private void detectAndIdentify() {
+		// getLiveAircraftType 自带异常兜底（失败/无游戏返回 null）
 		HttpHelper httpDataFetcher = new HttpHelper();
 		String livePlaneName = httpDataFetcher.getLiveAircraftType();
-
-		if (livePlaneName != null) {
-			// 飞机切换时清除失败记录，给新飞机加载机会
-			if (!livePlaneName.equalsIgnoreCase(identifiedFMName)) {
-				failedFMName = null;
-			}
-			identifiedFMName = livePlaneName;
-			return;
+		String target = livePlaneName;
+		if (target == null) {
+			// Fallback to config
+			target = configService.getConfig("selectedFM0");
 		}
-
-		// Fallback to config
-		String configPlane = configService.getConfig("selectedFM0");
-		if (configPlane != null && !configPlane.isEmpty()) {
-			identifiedFMName = configPlane;
+		if (target != null && !target.isEmpty()) {
+			FMManager.getInstance().identify(target);
 		}
 	}
 
-	/**
-	 * Just-In-Time getter for Flight Model data.
-	 * Triggers parsing only if target aircraft differs from loaded one.
-	 */
-	public synchronized Blkx getBlkx() {
-		// If we don't even have an identified plane yet, try to find one
-		if (identifiedFMName == null) {
-			ensureBlkxLoaded();
-		}
-
-		if (identifiedFMName == null)
-			return null;
-
-		// Skip if already loaded and valid
-		if (identifiedFMName.equalsIgnoreCase(loadedFMName) && Blkx != null && Blkx.valid) {
-			return Blkx;
-		}
-
-		// Trigger actual parsing
-		loadFMData(identifiedFMName);
-
-		// 预览模式回退：解析失败时加载 selectedFM0 配置的默认飞机
-		// 仅在预览模式下执行，避免影响游戏模式的正常行为
-		if ((Blkx == null || !Blkx.valid) && State == ControllerState.PREVIEW) {
-			String fallbackPlane = configService.getConfig("selectedFM0");
-			if (fallbackPlane != null && !fallbackPlane.isEmpty()
-					&& !fallbackPlane.equalsIgnoreCase(identifiedFMName)) {
-				prog.util.Logger.info("Controller",
-					"FM解析失败，回退到selectedFM0: " + fallbackPlane);
-				loadFMData(fallbackPlane);
-			}
-		}
-
-		return Blkx;
-	}
+	// P5 收尾: getBlkx() 桥接方法已删 —— FM 数据统一经 FMManager.getInstance().current() 直读
 
 	/**
 	 * Refresh previews with generation check to detect stale callbacks.
@@ -833,7 +875,9 @@ public class Controller {
 	public void refreshPreviews(long generation) {
 		prog.util.Logger.debug("Controller", "Refreshing overlays for preview/config change...");
 		loadFromConfig();
-		ensureBlkxLoaded();
+		// P2: 机型识别（live 优先, selectedFM0 兜底）改走 FMManager；
+		// identify 目标未变时零成本，此处同步调用与旧 ensureBlkxLoaded 行为等价
+		detectAndIdentify();
 		// Schedule UI update on EDT to prevent race conditions/NPEs
 		javax.swing.SwingUtilities.invokeLater(() -> {
 			// Check if callback is stale (state changed or generation incremented)
@@ -886,126 +930,8 @@ public class Controller {
 		}
 	}
 
-	// 使用 synchronized 与 getBlkx() 共享同一 monitor，防止并发加载竞态
-	// 注意: getBlkx() 也是 synchronized 且内部调用本方法，Java 内置锁可重入，不会死锁
-	public synchronized void loadFMData(String planename) {
-		if (planename == null || planename.isEmpty())
-			return;
-
-		// 避免 FM 文件不存在时无限重试：如果该飞机已经尝试加载且失败过，直接跳过
-		if (planename.equalsIgnoreCase(failedFMName)) {
-			prog.util.Logger.debug("Controller", "FM文件不存在，跳过重复加载: " + planename);
-			return;
-		}
-
-		// Skip if truly already loaded (double check for safety)
-		if (planename.equalsIgnoreCase(loadedFMName) && Blkx != null && Blkx.valid) {
-			return;
-		}
-
-		prog.util.Logger.info("Controller", "Lazily Loading Flight Model for: " + planename);
-
-		String fmfile = null;
-		String planeFileName = planename.toLowerCase();
-		Blkx lookupBlkx = new Blkx("./data/aces/gamedata/flightmodels/" + planeFileName + ".Blkx",
-				planeFileName + ".blk",
-				false);
-
-		// Extract fuel modifications from Central file before discarding it
-		// Note: use parser.Blkx to avoid shadowing by the 'Blkx' field
-		parser.Blkx.FuelModification fuelMod = null;
-		if (lookupBlkx.valid && lookupBlkx.data != null) {
-			fuelMod = parser.Blkx.extractFuelModifications(lookupBlkx.data);
-			if (fuelMod.type != parser.Blkx.FuelModification.FuelType.NONE) {
-				prog.util.Logger.info("Controller", "Fuel modification detected: " + fuelMod.type
-						+ " (HP bonus=" + fuelMod.sovietOctaneHpBonus + ")");
-			}
-
-			fmfile = lookupBlkx.getlastone("fmfile");
-			if (fmfile != null) {
-				fmfile = fmfile.substring(fmfile.indexOf("\"") + 1, fmfile.length() - 1);
-				if (fmfile.charAt(0) == '/')
-					fmfile = fmfile.substring(1);
-			}
-		}
-		if (fmfile == null) {
-			fmfile = "fm/" + planeFileName + ".blk";
-		}
-
-		if (-1 == fmfile.indexOf(".blk")) {
-			fmfile += ".blk";
-		}
-
-		// Final parse
-		// 构造时可能抛异常(如数组越界)，捕获后记录失败避免死循环重复加载
-		try {
-			Blkx = new Blkx("./data/aces/gamedata/flightmodels/" + fmfile + "x", fmfile);
-		} catch (Exception e) {
-			prog.util.Logger.warn("Controller", "FM解析异常，跳过重复加载: " + planename + " - " + e.toString());
-			failedFMName = planename;
-			return;
-		}
-
-		if (Blkx.valid == true) {
-			Blkx.getAllplotdata();
-			Blkx.finalizeLoading();
-
-			// Extract compressor stages for multi-stage supercharger aircraft
-			if (FMPowerExtractor.isPistonEngine(Blkx)) {
-				compressorStages = FMPowerExtractor.extractStages(Blkx, fuelMod);
-				// Multiply by engineNum for multi-engine aircraft (consistent with jet thrust calculation)
-				peakWepPower = prog.util.PistonPowerModel.peakWepPower(compressorStages) * Blkx.engineNum;
-				peakThrust = 0;
-			} else {
-				compressorStages = null;
-				peakWepPower = 0;
-				peakThrust = Blkx.peakThrust(true);  // Always use afterburner thrust
-			}
-
-			// Explicitly trigger GC after loading the massive FM data structures
-			System.gc();
-
-			loadedFMName = planename;
-			cur_fmtype = planename;
-
-			// 加载成功，清除失败记录（文件可能之前不存在后来被放置）
-			failedFMName = null;
-
-			// Update FM data adapter for FMUnpackedDataOverlay
-			fmDataAdapter.setBlkx(Blkx);
-
-			// Notify observers that FM data is ready
-			prog.event.UIStateBus.getInstance().publish(prog.event.UIStateEvents.FM_DATA_LOADED, planename);
-		} else {
-			// FM 文件不存在或解析失败，记录失败飞机名以避免每次 poll 循环（~50ms）都重复尝试
-			failedFMName = planename;
-			prog.util.Logger.warn("Controller", "FM文件不存在或解析失败: " + planename + "，跳过后续重复加载");
-		}
-	}
-
-	/**
-	 * Gets the cached compressor stage parameters for the current aircraft.
-	 *
-	 * @return array of CompressorStageParams, or null if jet/single-stage/no FM loaded
-	 */
-	public synchronized prog.util.PistonPowerModel.CompressorStageParams[] getCompressorStages() {
-		return compressorStages;
-	}
-
-	/**
-	 * Gets the cached peak WEP power for piston aircraft.
-	 * @return peak WEP power in hp, or 0 if jet/no FM loaded
-	 */
-	public synchronized double getPeakWepPower() {
-		return peakWepPower;
-	}
-
-	/**
-	 * Gets the cached peak afterburner thrust for jet aircraft.
-	 * @return peak thrust in kgf, or 0 if piston/no FM loaded
-	 */
-	public synchronized double getPeakThrust() {
-		return peakThrust;
-	}
+	// P2: loadFMData(String) 已整体移除——解析迁移至 FMLoader，调度/负缓存/FM_CHANGED
+	// 广播由 FMManager 承担（差异点见 FMLoader 类注释）
+	// P5: getBlkx()/getCompressorStages() 等桥接方法已删——统一改读 FMManager.current()
 
 }

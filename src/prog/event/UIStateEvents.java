@@ -22,12 +22,16 @@ public final class UIStateEvents {
      */
     public static final String CONFIG_CHANGED = "configChanged";
 
+    // 旧 FM_DATA_LOADED 事件（payload=String 机型名）已退役（P5）——
+    // FM 状态变化统一订阅 FM_CHANGED
+
     /**
-     * Published when FM data has been successfully parsed and loaded into the
-     * global pool.
-     * Payload: String (aircraft name)
+     * P2 重构新增：FMManager 管理的当前 FM 句柄发生变化（READY/MISSING/CORRUPT 落定，
+     * 或负缓存命中直接落 MISSING）。
+     * Payload: prog.fm.FMHandle（不可变句柄）。
+     * 发布线程 = FM-Loader 后台线程（同步派发），订阅方碰 Swing 必须自行 invokeLater。
      */
-    public static final String FM_DATA_LOADED = "fmDataLoaded";
+    public static final String FM_CHANGED = "fmChanged";
 
     /**
      * Published when the Main Form is fully initialized and visible.

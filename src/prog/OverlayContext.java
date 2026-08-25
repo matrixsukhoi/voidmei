@@ -2,6 +2,7 @@ package prog;
 
 import parser.Blkx;
 import prog.config.ConfigProvider;
+import prog.fm.FMManager;
 
 /**
  * Context object containing all data overlays might need.
@@ -113,12 +114,17 @@ public class OverlayContext {
     /**
      * Quick factory for game mode context.
      * configProvider 自动从 Controller 的 ConfigService 获取。
+     *
+     * <p>P3 迁移: Blkx 直读 FMManager 当前句柄（EDT 上的纯 volatile 读, 无锁无 IO）。
+     * 旧版经 Controller.getBlkx() 是 JIT 加载器, 可能在 EDT 触发同步文件解析;
+     * 现在加载由 FMManager.identify 后台驱动, 此处仅读结果。非 READY 句柄 blkx=null,
+     * 消费方（ActivationStrategy / isJet() 等）均已 null 容忍。
      */
     public static OverlayContext forGameMode(Controller tc) {
         return builder()
                 .Controller(tc)
                 .Service(tc.S)
-                .Blkx(tc.getBlkx())
+                .Blkx(FMManager.getInstance().current().blkx)
                 .configProvider(tc.getConfigService())
                 .previewMode(false)
                 .build();
@@ -127,12 +133,14 @@ public class OverlayContext {
     /**
      * Quick factory for preview mode context.
      * configProvider 自动从 Controller 的 ConfigService 获取。
+     *
+     * <p>P3 迁移: 同 forGameMode, Blkx 直读 FMManager（非 READY 为 null, 消费方 null 容忍）。
      */
     public static OverlayContext forPreviewMode(Controller tc) {
         return builder()
                 .Controller(tc)
                 .Service(tc.S)
-                .Blkx(tc.getBlkx())
+                .Blkx(FMManager.getInstance().current().blkx)
                 .configProvider(tc.getConfigService())
                 .previewMode(true)
                 .build();
