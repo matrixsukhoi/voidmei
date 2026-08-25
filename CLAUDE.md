@@ -64,6 +64,12 @@ java -jar VoidMei.jar
 
 **Unit tests** available for utility classes in `test/`. Integration testing is manual via the running application or mock server.
 
+**Rust POC (FlightInfoOverlay 复现)**: `rust/` 是 overlay Java→Rust 迁移的最小复现
+(平台原生纯 CPU 窗口 + swash 渲染 + 8111 轮询)。构建/测试/对拍见 `rust/README.md`;
+迁移设计文档: `doc/overlay_java_to_rust_migration.md`。Java 端离屏导出器:
+`java -classpath "bin;dep/*" ui.debug.OverlayPngExport`。
+一键对拍套件: `python script/build.py test rustcmp`(需桌面环境+cargo)。
+
 ### Windows Launch Scripts
 
 VoidMei provides multiple ways to launch on Windows:
