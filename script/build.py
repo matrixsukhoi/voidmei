@@ -370,11 +370,12 @@ def cmd_dist():
     cmd_jar()
     cmd_exe()
 
-    # zip 命名: 正式版 VoidMei_v1.590.zip; 本地 dev 版带 commit hash 与日期
+    # zip 命名: 正式版 VoidMei_v1_590.zip (版本号 . 换 _, 与历史分发包一致,
+    # 亦为 Lutra-Fs/scoop-bucket autoupdate 模板 $underscoreVersion 所需); 本地 dev 版带 commit hash 与日期
     if VERSION == "dev":
         zipname = "VoidMei_dev_%s_%s" % (git_short(), datetime.now().strftime("%Y%m%d"))
     else:
-        zipname = "VoidMei_v%s" % VERSION
+        zipname = "VoidMei_v%s" % VERSION.replace(".", "_")
 
     stage = DIST / "stage" / zipname
     rmtree(stage)
