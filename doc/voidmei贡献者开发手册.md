@@ -465,5 +465,95 @@ boolean isGWarning = data.gLoad > 5.0;
 
 ---
 
+## 11. FM 数据访问架构 (FMManager)
+
+> 背景: issue #55 —— 机型不在 FM 数据库时，旧 Controller 用 5 个分散变量
+> (cur_fmtype / identifiedFMName / loadedFMName / failedFMName / Blkx) 手动同步
+> "当前飞机的 FM 状态"，失步即死循环：加载失败 → 回退重解析默认机 → 清失败记录
+> → 又重试坏机型 → 每秒 ~20 次"解析 + gc + 事件"风暴，CPU 占用暴涨、界面卡死。
+> P2 重构后由 `prog.fm` 包的单一真相源架构根治。
+
+### 11.1 单一真相源设计 (Single Source of Truth)
+
+`prog/fm/` 五个类各管一件事：
+
+| 类 | 职责 |
+|----|------|
+| `FMManager` (单例) | "当前飞机 / FM 加载状态"的唯一真相源。`identify(name)` 唯一入口，后台单线程加载，完成后原子 swap volatile 句柄并广播 `FM_CHANGED` |
+| `FMHandle` (不可变) | 一次加载结果的完整描述：机型名 + `FMStatus` + 解析好的 `Blkx` + 派生功率/推力缓存。换机 = 换一个新句柄实例，不存在"半新半旧"中间态 |
+| `FMStatus` (枚举) | 五态状态机：`UNRESOLVED` / `LOADING` / `READY` / `MISSING`（中央文件不存在，机型不在库）/ `CORRUPT`（在库但解析失败） |
+| `FMLoader` (纯静态) | 项目内**唯一** `new Blkx` 的地方。全程 `catch(Throwable)` 收敛为 CORRUPT 句柄，永不抛出、永不返回 null |
+| `FMDataPaths` | FM 数据路径唯一来源 (`<root>/aces/gamedata/flightmodels/...`)，`setDataRoot()` 供白盒测试注入临时目录 |
+
+### 11.2 identify / 负缓存 / FM_CHANGED 事件流
+
+```
+Service 轮询线程 (10Hz, processPollingCycle)
+    └─ FMManager.identify(sIndic.type)      ← 高频调用安全
+         ├─ 目标未变 → 零成本返回 (去重)
+         ├─ 句柄已在 (clearTarget 后切回) → 恢复目标, 秒开
+         ├─ 负缓存命中 (曾 MISSING/CORRUPT) → 直接落 MISSING 句柄, 不触磁盘
+         └─ 提交 FM-Loader 单线程加载
+              └─ FMLoader.load → FMHandle (READY/MISSING/CORRUPT)
+                   ├─ 原子 swap current (加载期间 HUD 用旧 FM 平滑过渡)
+                   ├─ missing-like 结果进负缓存 → 同名 identify 永不再试
+                   └─ UIStateBus.publish(FM_CHANGED, handle)   ← 见下方规则
+```
+
+要点：
+*   **负缓存是死循环的根治点**——确认缺失的机型不再重试磁盘加载；想手动失效
+    (例如 data/ 更新后) 调 `FMManager.invalidate(name)`。
+*   `FM_CHANGED` 在 FM-Loader 后台线程同步派发，**订阅方碰 Swing 必须自行
+    `invokeLater`**。
+*   日志形态：缺失通知 = EventBus 留痕的
+    `PUBLISH: FMManager -> FMHandle[MISSING <机型>]: fmChanged`；
+    成功加载 = `Blkx` 组件的 `Parsed FM file '<fm/xxx.blk>' in N ms`。
+
+### 11.3 消费端规则 (三条铁律)
+
+| 规则 | 内容 | 违反后果 |
+|------|------|----------|
+| **R1 周期快照** | 每轮计算开头取一次 `FMHandle fm = FMManager.getInstance().current()` 存局部变量，本轮内复用；不要在多个方法里各自再取 | 同一轮内句柄被换，前后数据"半新半旧" |
+| **R2 hasFM 守卫** | 访问 `fm.blkx` 前必须 `if (fm.hasFM())`；无 FM 时走降级 (0/保持上次值/MAX_VALUE)，UI 端配合 hide-when-zero 隐藏 | blkx 为 null 的句柄 (UNRESOLVED/LOADING/MISSING/CORRUPT) 裸调即 NPE |
+| **R3 EDT 零解析** | `new Blkx` / `FMLoader.load` 只允许出现在后台线程 (它们本身就是 FMManager/FMLoader 内部)；EDT/overlay 只消费现成句柄 | EDT 上解析 FM (几十 ms) 会掉帧 |
+
+```java
+// ✅ 正确范式 (R1 + R2)
+FMHandle fm = FMManager.getInstance().current();   // 纯 volatile 读, 无锁无 IO
+if (fm.hasFM()) {
+    double limit = fm.blkx.GearDestructionIndSpeed; // READY 才碰 blkx
+} else {
+    limit = Integer.MAX_VALUE;                      // 降级: 无限制
+}
+```
+
+**不要再**通过 Controller 桥接方法拿 FM (旧 `getBlkx()` 已删)，也不要 new Blkx
+自己解析——例外只有对比窗口的"连字符机型名回退路径"，那是有注释的已知收编边界。
+
+### 11.4 用 mock_8111 场景做端到端验证
+
+`script/mock_8111.py` 可以脱离游戏完整复现"游戏在 8111 端口供数"的行为：
+
+```bash
+# 1. 起一个带场景的 mock (s5 = 机型 he_162 不在 FM 库, issue #55 原始复现)
+python script/mock_8111.py serve --port 8111 --scenario s5_missing_fm
+
+# 2. 一键编排: 起 mock → 起应用跑 N 秒 → 停 → 对日志跑 A1~A4 断言
+bash script/e2e_fm.sh --scenario s5_missing_fm --duration 120
+bash script/e2e_fm.sh --scenario s3_disconnect --duration 120
+```
+
+*   场景定义在 `script/mock_scenarios/scenarios/` (s1~s6)，快照在 `snapshots/`。
+*   控制通道：`/_mock/state` (运行状态与请求计数)、`/_mock/scenario/<name>` (切换)、
+    `/_mock/shutdown` (退出)。`/_mock/state` 的请求计数可证明应用"仍在轮询未假死"。
+*   断言器 `script/e2e_assert.py` 检查四个死循环特征：A1 FM 解析风暴、A2 异常刷屏、
+    A3 缺失提示刷屏、A4 消息模板刷屏。
+*   e2e_fm.sh 会临时把 `ui_layout.user.cfg` 的 `autoStartGameMode` 翻成 true
+    (退出还原)——否则应用停在预览模式没有轮询线程，断言会"空转通过"。
+*   blkx 解析器的变异 fuzz：`python script/build.py test fuzz-blkx`
+    (种子 bf-109e-4 真机文件，四类 13 种变异策略，任何 Throwable 逃逸即失败)。
+
+---
+
 *文档维护者: VoidMei Dev Team*
-*最后更新: 2026-02*
+*最后更新: 2026-08*

@@ -30,8 +30,10 @@ python script/build.py compile
 python script/build.py run
 
 # 运行单元测试 (全部或指定套件)
-python script/build.py test              # all / atmosphere / piston / visibility / voicepack
-python script/build.py test spitfire     # 真机 FM 验证 (项目内 data/ 的 blkx, 无 data 自动跳过)
+python script/build.py test              # all / atmosphere / piston / visibility / voicepack /
+                                         # telemetry-fuzz / fmstore / fmpaths / fmhandle
+python script/build.py test spitfire     # 真机 FM 验证 (项目内 data/ 的 blkx, 无 data 自动跳过):
+                                         # spitfire / tempest / fuzz-blkx (blkx 变异 fuzz)
 
 # 打 jar (MANIFEST 注入版本号) / 打 exe (launch4j, 版本资源注入)
 python script/build.py jar
@@ -48,7 +50,12 @@ python script/build.py fmdata
 python script/build.py clean
 
 # Mock server for testing (simulates War Thunder API)
-python3 script/mock_8111.py
+#   serve --scenario <name>  按 script/mock_scenarios/ 场景供数 (s1~s6);
+#   控制通道 /_mock/state (请求计数, 验证应用未假死) /_mock/scenario/<name> /_mock/shutdown
+python3 script/mock_8111.py serve --port 8111 --scenario s5_missing_fm
+
+# FM 端到端回归 (起 mock + 应用跑 N 秒 + 日志断言 A1~A4, 见 script/e2e_fm.sh)
+bash script/e2e_fm.sh --scenario s5_missing_fm --duration 120
 
 # 本地运行 (repo 即工作区, data/fonts/voice 都在项目根)
 java -jar VoidMei.jar
@@ -112,7 +119,7 @@ gh release upload data dist/VoidMei_data_*.zip dist/data_manifest.json --clobber
 
 ### Core Packages (`src/`)
 
-- **`prog/`** - Application kernel (14 files + 7 subpackages)
+- **`prog/`** - Application kernel (14 files + 8 subpackages)
   - `Launcher.java` - Bootstrap entry point, sets GPU compat JVM properties before AWT loads
   - `Application.java` - Main application initialization, global config, fonts, logging
   - `Service.java` - Background HTTP polling thread (~10Hz), data calculation (~55KB, largest file)
@@ -124,6 +131,7 @@ gh release upload data dist/VoidMei_data_*.zip dist/data_manifest.json --clobber
   - `AlwaysOnTopCoordinator.java` - Singleton z-order manager for overlay/dialog coordination
   - `FocusMonitor.java` - Game window focus tracking for auto-hide overlay feature
   - `event/` - Event buses (`UIStateBus`, `FlightDataBus`, `FlightDataEvent`, `EventPayload`, `FlightDataListener`)
+  - `fm/` - FM（飞行数据包）单一真相源（issue #55 死循环重构）: `FMManager`（单例，identify/负缓存/FM_CHANGED 广播的唯一入口）、`FMLoader`（项目内唯一 `new Blkx` 点，全程 catch(Throwable)→READY/MISSING/CORRUPT 句柄）、`FMHandle`（不可变加载结果句柄）、`FMStatus`（五态状态机）、`FMDataPaths`（FM 数据路径唯一来源 + 测试 setDataRoot 注入）
   - `config/` - Configuration system (`ConfigurationService`, `ConfigLoader`, `SExpParser`, `HUDSettings`, `OverlaySettings`)
   - `audio/` - Voice warning system (`VoiceWarning`, `VoiceResourceManager`)
   - `util/` - Utilities (`HttpHelper`, `Logger`, `CalcHelper`, `StringHelper`, `FileUtils`, `FormulaEvaluator`, `PhysicsConstants`, `Interpolation`, `AtmosphereModel`, `PistonPowerModel`, `ColorHelper`, `GPUCompatibilityHelper`, `DPIHelper`, `FocusDetector`, `ExceptionHelper`)
@@ -193,7 +201,9 @@ War Thunder HTTP API (127.0.0.1:8111)
     ↓ HTTP GET (~10Hz polling)
 Service.java (background thread)
     ↓ Parse JSON (State.java, Indicators.java)
-    ↓ Pre-compute HUDData (reduces EDT latency)
+    ↓ FMManager.identify(type) → FM-Loader 线程 → FMLoader.load → FMHandle
+    │   (READY/MISSING/CORRUPT; 缺失进负缓存不再重试 → UIStateBus FM_CHANGED)
+    ↓ Pre-compute HUDData (reduces EDT latency; FM 派生量经 hasFM() 守卫降级)
 FlightDataBus (event publisher)
     ↓ FlightDataEvent (carries pre-computed HUDData)
 Overlay components (FlightDataListener subscribers)
@@ -202,6 +212,10 @@ Swing/WebLaF UI (EDT thread)
 ```
 
 **Performance Note:** HUDData is pre-computed on the Service thread before publishing, reducing EDT latency by ~40-60ms. Overlays access this via `event.getHudData()` instead of computing on the EDT.
+
+**FM Loading Note:** Service 每轮 `FMManager.getInstance().identify(sIndic.type)`（同目标零成本），
+计算取 `FMManager.current()` 快照；无 FM（UNRESOLVED/LOADING/MISSING/CORRUPT）时相关
+指标按 0/上次值/MAX_VALUE 降级，UI 端配合 hide-when-zero 隐藏。**EDT 上不允许 new Blkx / FMLoader.load**（R3 规则，详见 `doc/voidmei贡献者开发手册.md` 第 11 章）。
 
 ### Key Configuration Files
 
@@ -262,7 +276,10 @@ private static final AtomicBoolean trayClickProcessing = new AtomicBoolean(false
 
 ### Preview Mode FM Fallback
 
-在`Controller.getBlkx()`中，如果预览模式下FM解析失败，会回退到`selectedFM0`配置的默认飞机。仅在`PREVIEW`状态触发，避免影响游戏模式。
+预览模式下 FM 识别走 `Controller.detectAndIdentify()`：优先探测 8111 的 live 机型
+（`HttpHelper.getLiveAircraftType()`），拿不到再回退 `selectedFM0` 配置的默认飞机，
+最终统一交给 `FMManager.identify()`（旧 `Controller.getBlkx()` 桥接已删，P5）。
+仅在 `PREVIEW` 状态触发，避免影响游戏模式。
 
 ### Overlay Z-Order (AlwaysOnTopCoordinator)
 
@@ -487,6 +504,7 @@ Application (Entry Point)
 Controller (Lifecycle Coordinator)
     ├→ Service (HTTP Data Polling)
     │       ├→ State/Indicators (JSON Parsers)
+    │       ├→ FMManager (identify → FM-Loader 线程 → FMLoader → Blkx；负缓存 + FM_CHANGED)
     │       ├→ HUDCalculator (pre-computes HUDData)
     │       ├→ FlightDataBus (publishes event with HUDData)
     │       └→ FocusMonitor → FocusDetector (game focus detection)
@@ -525,7 +543,7 @@ Controller (Lifecycle Coordinator)
 // ✅ 正确：位置保存使用 OverlaySettings（DraggableOverlay 父类已正确实现）
 public void init(Controller c, Service s, OverlaySettings settings) {
     this.config = c.getConfigProvider();  // 配置访问
-    this.controller = c;                   // FM 数据访问 (如 getBlkx())
+    this.controller = c;                   // 生命周期/刷新协作引用 (FM 数据请走 FMManager)
     setOverlaySettings(settings);          // 位置保存通过 OverlaySettings
 
     // 使用父类方法，不通过 Controller 访问 configService
@@ -550,7 +568,7 @@ prog.Controller ctrl = (prog.Controller) config;  // ClassCastException!
 | 字段 | 类型 | 用途 |
 |------|------|------|
 | `config` | `ConfigProvider` | 配置读写 (`getConfig`, `setConfig`) |
-| `controller` | `Controller` | FM 数据访问 (`getBlkx`, `getCompressorStages`) |
+| `controller` | `Controller` | 生命周期/刷新协作 (FM 数据统一走 `FMManager.getInstance().current()`) |
 | `overlaySettings` | `OverlaySettings` | 分组配置 (位置、字体等)，通过 init() 传入 |
 | `hudSettings` | `HUDSettings` | HUD 专用配置，通过 init() 参数传入 |
 

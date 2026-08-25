@@ -161,6 +161,12 @@ SUITE_ALIASES = {"atm": "atmosphere", "power": "piston", "vis": "visibility", "v
 FM_SUITES = {
     "spitfire": ("Spitfire F24 Tests", "TestSpitfireF24Power", "spitfire_f24"),
     "tempest": ("Tempest Mk V Tests", "TestTempestMk5Power", "tempest_mkv"),
+    # 全量真机 FM 边界普查 (检视反馈): 遍历 fm/ 全部文件断言引擎数/档位极值不触防御护栏,
+    # 解析零异常, invalid 仅限空文件。机型参数为 "*" 表示遍历模式 (不传单机型路径)
+    "fm-all": ("FM All-Data Boundary Scan", "TestFMAllBoundaries", "*"),
+    # blkx 文本变异 fuzz (P6): 种子 bf-109e-4 的真机物理 FM (中等体积且含 PASSPORT 曲线块,
+    # 覆盖 getAllplotdata 路径; spitfire_f24 无 PASSPORT 块不适用), data 缺失自动跳过 (同上)
+    "fuzz-blkx": ("Blkx Parser Fuzz Tests", "FMParserFuzzer", "bf-109e-4"),
 }
 FM_SUITE_ALIASES = {"f24": "spitfire", "mkv": "tempest"}
 
@@ -186,6 +192,13 @@ def cmd_test(suite="all"):
     def run_fm_test(label, cls, plane):
         # 真机 FM 验证: 文件取自项目内 data/ (自己解包的 fmdata), 缺失则跳过 (不计失败)
         nonlocal passed, failed
+        if plane == "*":
+            # 遍历模式 (TestFMAllBoundaries): 测试类自己扫描 fm/ 目录, 只检查目录存在
+            if not (DATA / "aces" / "gamedata" / "flightmodels" / "fm").is_dir():
+                warn("跳过 %s: 项目内 data/ 缺少 fmdata (先运行 python script/build.py fmdata)" % label)
+                return
+            run_one(label, cls)
+            return
         fm_root = DATA / "aces" / "gamedata" / "flightmodels"
         central = fm_root / (plane + ".blkx")
         fmfile = fm_root / "fm" / (plane + ".blkx")
