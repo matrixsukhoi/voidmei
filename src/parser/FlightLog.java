@@ -382,7 +382,9 @@ public class FlightLog implements Runnable {
 		c = Calendar.getInstance();
 		c.setTimeInMillis(System.currentTimeMillis());
 		String name = s.sIndic.type.toUpperCase();
-		if (name == "NO COCKPIT")
+		// 修复: 原为引用比较(name == "NO COCKPIT")永不为 true, 无座舱视角的飞行记录会以
+		// "NO COCKPIT" 命名而非 "Unknown" —— 改用 equals (P4 阶段发现的历史 bug)
+		if ("NO COCKPIT".equals(name))
 			name = "Unknown";
 		fileName = "records/" + name + "_" + (c.get(Calendar.MONTH) + 1) + "_" + c.get(Calendar.DATE) + "_"
 				+ c.get(Calendar.HOUR)

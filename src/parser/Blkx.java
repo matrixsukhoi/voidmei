@@ -6,7 +6,6 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.List;
 
 import prog.Application;
 import prog.i18n.Lang;
@@ -822,9 +821,20 @@ public class Blkx {
 			engLoad[i] = new engineLoad();
 		}
 		maxEngLoad = 0;
+		// 防御加固: do-while 原本无护栏——畸形 FM 若 Load0..Load10 全部存在, maxEngLoad 会
+		// 自增到 10, getEngineLoad(engLoad, 10) 写 engLoad[10] 越界 (数组长度恰为
+		// Application.maxEngLoad=10)。加数组长度守卫; 正常文件 Load 块数 < 数组容量, 行为不变
 		do {
 
-		} while (getEngineLoad(engLoad, maxEngLoad++));
+		} while (maxEngLoad < engLoad.length && getEngineLoad(engLoad, maxEngLoad++));
+		// 检视反馈: 档位数达数组容量退出时, 探测下一档是否仍存在——存在即发生了截断,
+		// 显式告警而非静默丢档 (探测仅此处一次 getdouble, 正常文件零成本)
+		if (maxEngLoad >= engLoad.length
+				&& getdouble("Load" + engLoad.length + ".WaterTemperature") != 0) {
+			prog.util.Logger.warn("Blkx", "发动机负载档位数超过数组容量 " + engLoad.length
+				+ ", Load" + engLoad.length + "+ 被截断 (如为真实机型请上调 Application.maxEngLoad), FM: "
+				+ readFileName);
+		}
 		maxEngLoad -= 1;
 		engLoad[maxEngLoad].WaterLimit = 999;
 		engLoad[maxEngLoad].OilLimit = 999;
@@ -834,7 +844,12 @@ public class Blkx {
 				avgEngRecoveryRate = avgEngRecoveryRate + engLoad[i].WorkTime / engLoad[i].RecoverTime;
 			showEngineLoad(engLoad, i);
 		}
-		avgEngRecoveryRate = avgEngRecoveryRate / (maxEngLoad - 1);
+		// 防御加固: maxEngLoad==1 (只有 Load0 一档有效) 时原代码除以 0 产生 NaN 流入 UI;
+		// 单档位无"平均恢复率"概念, 置 0。maxEngLoad==0 (喷气机无水温档) 时原为 -0.0, 一并归 0
+		if (maxEngLoad > 1)
+			avgEngRecoveryRate = avgEngRecoveryRate / (maxEngLoad - 1);
+		else
+			avgEngRecoveryRate = 0.0f;
 	}
 
 	public void getload() {
@@ -853,8 +868,19 @@ public class Blkx {
 			// 判断喷气
 			isJet = true;
 			// Application.debugPrint(getone("Engine"+engineNum));
+			// 防御加固: 病态文件若含大量 Engine 块, 此处每次 getone 全串扫描为 O(n²);
+			// 引擎数上限取遥测数组容量 State.maxEngNum (单一常量, 解析上限=可消费上限),
+			// 超出即无意义 (State 侧装不下); 正常文件不受影响
 			while (!getone("Engine" + engineNum).equals("null")) {
 				engineNum++;
+				if (engineNum >= State.maxEngNum) {
+					// 检视反馈: 真有引擎数超限的飞机时不能静默截断——探测下一块仍存在则显式告警
+					if (!getone("Engine" + engineNum).equals("null"))
+						prog.util.Logger.warn("Blkx", "引擎数超过解析上限 " + State.maxEngNum
+							+ ", Engine" + engineNum + "+ 被截断 (如为真实机型请上调 State.maxEngNum), FM: "
+							+ readFileName);
+					break;
+				}
 			}
 		} else {
 			if (res.equals("null")) {
@@ -865,8 +891,17 @@ public class Blkx {
 				}
 			}
 			// 遍历引擎数量（适用于所有非喷气引擎，包括活塞引擎）
+			// 防御加固: 同喷气分支——引擎数上限取遥测数组容量 State.maxEngNum (单一常量),
+			// 病态文件 O(n²) 防护; 超限截断时探测告警, 不做静默故障
 			while (!getone("Engine" + engineNum).equals("null")) {
 				engineNum++;
+				if (engineNum >= State.maxEngNum) {
+					if (!getone("Engine" + engineNum).equals("null"))
+						prog.util.Logger.warn("Blkx", "引擎数超过解析上限 " + State.maxEngNum
+							+ ", Engine" + engineNum + "+ 被截断 (如为真实机型请上调 State.maxEngNum), FM: "
+							+ readFileName);
+					break;
+				}
 			}
 		}
 		// Application.debugPrint("Engine Count: " + engineNum);
@@ -1602,9 +1637,20 @@ public class Blkx {
 			if (t.charAt(i) == '\n') {
 				String temp = t.substring(bix, i);
 				String[] tmp = temp.split(", ");
-				lo.y[lo.cur] = Double.parseDouble(tmp[0]);
-				lo.x[lo.cur] = Double.parseDouble(tmp[1]);
-				lo.cur++;
+				// 防御加固 (P6 fuzz 发现): 畸形曲线行 (缺逗号/数字混入字符) 原代码
+				// 直接 parseDouble 抛异常炸穿调用方 (对比窗口回退路径未包 try)。
+				// 改为跳过畸形行 (曲线少一个点), 完好行照常解析——仅曲线块受损的
+				// 文件仍可按 READY 用发动机数据
+				if (tmp.length >= 2) {
+					try {
+						lo.y[lo.cur] = Double.parseDouble(tmp[0].trim());
+						lo.x[lo.cur] = Double.parseDouble(tmp[1].trim());
+						lo.cur++;
+					} catch (NumberFormatException nfe) {
+						// 畸形数值行: 丢弃该数据点
+					}
+				}
+				// 缺逗号的行: 同样跳过 (曲线少一个点)
 				bix = i + 1;
 			}
 		}
@@ -1627,6 +1673,9 @@ public class Blkx {
 			StringBuilder sb = new StringBuilder();
 			String s = "";
 			BufferedReader br;
+			// 防御加固: 标记文件是否完整读入。原代码 IOException 后 data 为空串但 valid 仍置
+			// true, 假有效对象会流入后续解析流程 (Service/UI 拿到空 data 的 Blkx 当真 FM 用)
+			boolean readOk = true;
 			try {
 				br = new BufferedReader(new FileReader(file));
 				while ((s = br.readLine()) != null) {
@@ -1636,17 +1685,40 @@ public class Blkx {
 			} catch (FileNotFoundException e1) {
 				// FM文件不存在，使用统一异常处理
 				prog.util.ExceptionHelper.logAndContinue(e1, "FM文件读取");
+				readOk = false;
 			} catch (IOException e) {
 				// IO读取失败
 				prog.util.ExceptionHelper.logAndContinue(e, "FM文件读取");
+				readOk = false;
 			}
 			readFileName = name;
 			data = sb.toString();
-			if (doLoad) {
-				this.getload();
+			// 防御加固: 读失败或空文件一律判无效, 不允许空 data 带着 valid=true 走后续解析
+			if (!readOk || data.trim().isEmpty()) {
+				valid = false;
+				return;
 			}
-
-			valid = true;
+			// 防御加固: 用户误喂 JSON 文件 (拖错文件/version 文件等) 时优雅判无效。
+			// Dagor .blk 格式不可能以 '{' 开头, JSON 对象一定以 '{' 开头, 以此快速识别
+			if (data.trim().startsWith("{")) {
+				prog.util.Logger.warn("Blkx", "JSON 格式文件误作 FM 加载, 标记无效: " + name);
+				valid = false;
+				return;
+			}
+			if (doLoad) {
+				// 防御加固: getload() 内部任何异常 (畸形文件触发越界/解析错误) 都不允许炸构造器,
+				// 失败置 valid=false 交给上层按"FM 无效"处理, 避免半初始化对象外泄
+				try {
+					this.getload();
+					valid = true;
+				} catch (Exception e) {
+					prog.util.Logger.error("Blkx", "FM 解析失败, 标记无效: " + name + " - " + e);
+					fmdata = Lang.noblkx;
+					valid = false;
+				}
+			} else {
+				valid = true;
+			}
 		} else {
 			valid = false;
 		}
@@ -1661,9 +1733,17 @@ public class Blkx {
 		int bix = tmp.toUpperCase().indexOf(clslabel.toUpperCase() + " {");
 		if (bix == -1)
 			return "null";
+		// 防御加固: toUpperCase 可能使特殊 unicode 字符变长 (如 ß→SS), 大写串里量出的索引
+		// 不一定落在原串范围内; 索引失效时按"未找到块"返回 null 字符串, 与既有未找到路径一致
+		if (bix >= tmp.length())
+			return "null";
 		int cutleft = bix;
-		while (tmp.charAt(cutleft) != '{')
+		// 防御加固: 加长度上界——截断文件中块名后没有 '{' 时, 原代码会一直扫出字符串末尾抛
+		// StringIndexOutOfBoundsException; 越界按「未找到块」处理
+		while (cutleft < tmp.length() && tmp.charAt(cutleft) != '{')
 			cutleft++;
+		if (cutleft >= tmp.length())
+			return "null";
 		cutleft++;
 		for (i = bix; i < tmp.length(); i++) {
 			if (tmp.charAt(i) == '{')
@@ -1674,6 +1754,10 @@ public class Blkx {
 				break;
 		}
 		int cutright = i;
+		// 防御加固: 括号不配对/索引错位时 cutright 可能小于 cutleft, substring 会越界,
+		// 统一按"未找到块"返回 (正常文件 cutleft <= cutright, 行为不变)
+		if (cutright > tmp.length() || cutleft > cutright)
+			return "null";
 		return tmp.substring(cutleft, cutright);
 	}
 
@@ -1696,12 +1780,22 @@ public class Blkx {
 		int eix = 0;
 		bix = text.toUpperCase().indexOf(label.toUpperCase());
 		while (bix != -1) {
-			while (text.charAt(bix) != '=')
+			// 防御加固: 加长度上界——label 匹配处之后到文本末尾都没有 '=' (如匹配到块名/注释/
+			// 截断行) 时, 原代码会扫出末尾抛 StringIndexOutOfBoundsException; 越界时放弃剩余
+			// 匹配, 返回已积累的 value (与"未找到"时返回空串的语义一致)
+			while (bix < text.length() && text.charAt(bix) != '=')
 				bix++;
+			if (bix >= text.length())
+				break;
 			bix++;
 			eix = bix;
-			while (text.charAt(eix) != '\n')
+			// 防御加固: 末尾无换行符 (init() 直喂的截断文本) 时取到文本末尾, 原代码此处越界
+			while (eix < text.length() && text.charAt(eix) != '\n')
 				eix++;
+			if (eix >= text.length()) {
+				value = value + text.substring(bix);
+				break;
+			}
 			value = value + text.substring(bix, eix + 1);
 			text = text.substring(eix + 1);
 			bix = text.toUpperCase().indexOf(label.toUpperCase());
@@ -1728,11 +1822,15 @@ public class Blkx {
 		bix = text.toUpperCase().lastIndexOf(label.toUpperCase());
 		if (bix == -1)
 			return null;
-		while (text.charAt(bix) != '=')
+		// 防御加固: 无 '=' 时按"未找到"返回 (原代码扫出末尾越界)
+		while (bix < text.length() && text.charAt(bix) != '=')
 			bix++;
+		if (bix >= text.length())
+			return null;
 		bix++;
 		eix = bix;
-		while (text.charAt(eix) != '\n')
+		// 防御加固: 行尾无换行时取到文本末尾 (substring 到 length() 合法), 不再扫越界
+		while (eix < text.length() && text.charAt(eix) != '\n')
 			eix++;
 		value = text.substring(bix, eix);
 		return value;
@@ -1758,11 +1856,15 @@ public class Blkx {
 		bix = text.toUpperCase().indexOf(label.toUpperCase());
 		if (bix == -1)
 			return "null";
-		while (text.charAt(bix) != '=')
+		// 防御加固: 无 '=' 时按"未找到"返回 (原代码扫出末尾越界)
+		while (bix < text.length() && text.charAt(bix) != '=')
 			bix++;
+		if (bix >= text.length())
+			return "null";
 		bix++;
 		eix = bix;
-		while (text.charAt(eix) != '\n')
+		// 防御加固: 行尾无换行时取到文本末尾, 不再扫越界
+		while (eix < text.length() && text.charAt(eix) != '\n')
 			eix++;
 		value = text.substring(bix, eix);
 		return value;
@@ -1789,11 +1891,15 @@ public class Blkx {
 		bix = text.indexOf(label);
 		if (bix == -1)
 			return "null";
-		while (text.charAt(bix) != '=')
+		// 防御加固: 无 '=' 时按"未找到"返回 (原代码扫出末尾越界)
+		while (bix < text.length() && text.charAt(bix) != '=')
 			bix++;
+		if (bix >= text.length())
+			return "null";
 		bix++;
 		eix = bix;
-		while (text.charAt(eix) != '\n')
+		// 防御加固: 行尾无换行时取到文本末尾, 不再扫越界
+		while (eix < text.length() && text.charAt(eix) != '\n')
 			eix++;
 		value = text.substring(bix, eix);
 		return value;

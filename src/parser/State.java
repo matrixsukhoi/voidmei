@@ -2,13 +2,15 @@ package parser;
 
 import prog.util.StringHelper;
 
-import prog.Application;
-
 public class State {
 	public String valid;
 	public boolean flag;
 
-	public static final int maxEngNum = 8;
+	// 遥测侧每引擎数组容量 (throttles/power/pitch/thrust/efficiency)。
+	// 2026-08 全量普查 (TestFMAllBoundaries): 真机 FM 引擎数极值 14 (b_66b, 含助推器块),
+	// 原 8 会静默丢第 9+ 引擎数据; 上调至 16 (= Blkx 解析护栏, 见 Blkx.getload)。
+	// 下游消费循环均按实际 engineNum 遍历 (数据驱动), 扩容不影响小引擎机型行为
+	public static final int maxEngNum = 16;
 	public int engineNum;
 
 	public int aileron;

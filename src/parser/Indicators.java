@@ -1,5 +1,4 @@
 package parser;
-import prog.Application;
 import prog.util.StringHelper;
 
 import prog.Service;
@@ -69,16 +68,24 @@ public class Indicators{
 	public void update(String buf) {
 		valid = StringHelper.getString(buf, "valid");
 		army = StringHelper.getString(buf, "army");
-		if (valid != null && valid.equals("true") && !army.equals("tank")){
+		// 防御加固: army 字段缺失 (响应截断/畸形 JSON) 时 getString 返回 null,
+		// 原代码 army.equals("tank") 会抛 NullPointerException; 字面量前置统一判空
+		if (valid != null && valid.equals("true") && !"tank".equals(army)){
 			flag=true;
-			type=StringHelper.getString(buf, "type").toUpperCase();
-		
-			if(type.length()>0){
+			// 防御加固: type 字段缺失时 getString 返回 null, 原代码 .toUpperCase() 会 NPE,
+			// 缺失时按空类型处理 (走 type.length()>0 的既有兜底分支)
+			String typeRaw = StringHelper.getString(buf, "type");
+			type = typeRaw == null ? "" : typeRaw.toUpperCase();
+
+			// 防御加固: getString 提取的 type 值去首尾字符 (原为去空格+引号),
+			// 若值只有 0/1 个字符 (畸形响应如 "type": 0), substring(1, -1) 会越界,
+			// 长度不足 2 时保持原值跳过去壳, 正常机型名 (>=2 字符) 行为不变
+			if(type.length()>1){
 				type=type.substring(1, type.length()-1);
 				if(type.length()>9)stype=type.substring(0, 8);
 				else stype=type;
 			}
-			
+
 			speed=StringHelper.getDataFloat(StringHelper.getString(buf, "speed"));
 			pedals=StringHelper.getDataFloat(StringHelper.getString(buf, "pedals"));
 			stick_elevator=StringHelper.getDataFloat(StringHelper.getString(buf, "stick_elevator"));
@@ -100,7 +107,7 @@ public class Indicators{
 //			water_temperature=StringHelper.getDatadouble(StringHelper.getString(buf, "water_temperature"));
 			engine_temperature=StringHelper.getDataFloat(StringHelper.getString(buf, "head_temperature"));
 			mixture=StringHelper.getDataFloat(StringHelper.getString(buf, "mixture"));
-			
+
 			// 防止读到油压
 			fuel[0]=StringHelper.getDataFloat(StringHelper.getString(buf, "\"fuel\""));
 			fuelnum = 1;
