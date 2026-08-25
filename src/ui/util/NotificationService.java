@@ -1,10 +1,18 @@
 package ui.util;
 
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Image;
 import java.awt.Toolkit;
 
+import javax.swing.BorderFactory;
 import javax.swing.ImageIcon;
+import javax.swing.JPanel;
+import javax.swing.JWindow;
+import javax.swing.SwingUtilities;
+import javax.swing.Timer;
 
 import com.alee.extended.panel.GroupPanel;
 import com.alee.extended.time.ClockType;
@@ -63,6 +71,42 @@ public class NotificationService {
      */
     public static void showError(String text) {
         NotificationManager.showNotification(createErrorNotification(text));
+    }
+
+    /**
+     * 在屏幕右下角显示一条自绘 toast，displayMs 后自动销毁。
+     *
+     * <p>刻意不用 WebLaF NotificationManager —— 其显示位置是全局设置，
+     * 会牵连引擎倒计时等既有通知的位置；此处自绘 JWindow 完全独立。
+     * 线程安全：内部派发 EDT，任意线程可直接调用。
+     */
+    public static void showBottomRight(String text, int displayMs) {
+        SwingUtilities.invokeLater(() -> {
+            JPanel panel = new JPanel(new BorderLayout());
+            panel.setBackground(new Color(20, 20, 20, 220));
+            WebLabel label = new WebLabel(text);
+            label.setForeground(Color.WHITE);
+            label.setFont(Application.defaultFont);
+            label.setBorder(BorderFactory.createEmptyBorder(12, 16, 12, 16));
+            panel.add(label, BorderLayout.CENTER);
+
+            JWindow toast = new JWindow();
+            toast.setContentPane(panel);
+            toast.setAlwaysOnTop(true);
+            toast.setFocusable(false);
+            // 右下角定位（逻辑屏幕尺寸, 与 MainForm 定位惯例一致; 留 16px 边距）
+            Dimension pref = panel.getPreferredSize();
+            toast.setBounds(Application.logicalWidth - pref.width - 16,
+                    Application.logicalHeight - pref.height - 16, pref.width, pref.height);
+            toast.setVisible(true);
+            // 到时自动销毁（单次 Timer, dispose 释放原生资源）
+            Timer timer = new Timer(displayMs, e -> {
+                toast.setVisible(false);
+                toast.dispose();
+            });
+            timer.setRepeats(false);
+            timer.start();
+        });
     }
 
     // --- Internal factory methods ---

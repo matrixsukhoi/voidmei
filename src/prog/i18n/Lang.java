@@ -403,6 +403,9 @@ public class Lang {
 	public static String fA_turn4;
 
 	public static String noblkx;
+	/** FM 缺失/损坏的右下角 toast 提示 (检视需求: 告知用户该飞机无 FM 数据) */
+	public static String fmMissingToast;
+	public static String fmCorruptToast;
 	public static String bFmParts;
 	public static String bCdMin;
 	public static String bCl0;
@@ -1182,6 +1185,8 @@ public class Lang {
 		fA_turn4 = updateLanguage("fA_turn4", fA_turn4);
 
 		noblkx = updateLanguage("noblkx", noblkx);
+		fmMissingToast = updateLanguage("fmMissingToast", fmMissingToast);
+		fmCorruptToast = updateLanguage("fmCorruptToast", fmCorruptToast);
 		bFmParts = updateLanguage("bFmParts", bFmParts);
 		bCdMin = updateLanguage("bCdMin", bCdMin);
 		bCl0 = updateLanguage("bCl0", bCl0);

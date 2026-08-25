@@ -555,6 +555,16 @@ public class Controller {
 		// 刷新全部预览, 让 overlay 通过 getBlkx() 拿到新 FM。
 		// 发布线程为 FM-Loader 后台线程, 这里只做防抖排队, 实际刷新在防抖线程/EDT 执行
 		fmChangedHandler = data -> {
+			// FM 缺失/损坏: 右下角 toast 告知用户 (换机才广播一次, 天然不刷屏;
+			// 负缓存保证后续 identify 同名机型零重复, 无需额外冷却)
+			if (data instanceof prog.fm.FMHandle) {
+				prog.fm.FMHandle h = (prog.fm.FMHandle) data;
+				if (h.isMissingLike()) {
+					String msg = h.status == prog.fm.FMStatus.CORRUPT
+							? prog.i18n.Lang.fmCorruptToast : prog.i18n.Lang.fmMissingToast;
+					ui.util.NotificationService.showBottomRight(h.name + "\n" + msg, 5000);
+				}
+			}
 			if (State == ControllerState.PREVIEW) {
 				// 复用 configDebouncer 200ms 防抖: 连续换机/identify 抖动时只刷一次
 				if (pendingConfigRefresh != null && !pendingConfigRefresh.isDone()) {
