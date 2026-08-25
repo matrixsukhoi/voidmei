@@ -473,7 +473,9 @@ public class EngineControlOverlay extends FieldOverlay { // Revert to FieldOverl
 
 		for (GaugeField gf : gaugeFields) {
 			if (!gf.visible && gf.gaugeType != GaugeType.COMPRESSOR.ordinal()
-					&& gf.gaugeType != GaugeType.MIXTURE.ordinal())
+					&& gf.gaugeType != GaugeType.MIXTURE.ordinal()
+					// PITCH 需持续评估: 无桨距机型(自动桨)与手动桨机型间切换时恢复显示
+					&& gf.gaugeType != GaugeType.PITCH.ordinal())
 				continue;
 
 			// Skip logic for jets
@@ -491,6 +493,10 @@ public class EngineControlOverlay extends FieldOverlay { // Revert to FieldOverl
 					break;
 				case PITCH:
 					val = telemetrySource.getRPMThrottle();
+					// 无桨距数据(自动桨机型, 归一化后为-1) → 整条隐藏, 后续竖条自动补位
+					gf.visible = val >= 0;
+					if (!gf.visible)
+						hasVal = false;
 					break;
 				case POWER:
 					val = telemetrySource.getPowerPercent();
@@ -546,6 +552,8 @@ public class EngineControlOverlay extends FieldOverlay { // Revert to FieldOverl
 				break;
 			case PITCH:
 				updateGaugeFromData(gf, data, "rpm_throttle", "rpm_throttle_int");
+				// 无桨距数据 → 整条隐藏 (与 updateGaugesZeroGC 的 PITCH 分支一致)
+				gf.visible = parseIntSafe(data.get("rpm_throttle_int"), 0) >= 0;
 				break;
 			case POWER:
 				updateGaugeFromData(gf, data, "thrust_percent", "thrust_percent_int");

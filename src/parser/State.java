@@ -99,6 +99,10 @@ public class State {
 			Wx = StringHelper.getDataFloat(StringHelper.getString(buf, "Wx"));
 			throttle = StringHelper.getDataInt(StringHelper.getString(buf, "throttle"));
 			RPMthrottle = StringHelper.getDataInt(StringHelper.getString(buf, "RPM throttle"));
+			if (RPMthrottle == -65535)
+				// 自动桨机型(如P-63)8111不返回该字段, 归一化为-1表示无桨距数据(与mixture约定一致),
+				// 防止哨兵值-65535泄漏到UI层撑爆桨距竖条
+				RPMthrottle = -1;
 
 			radiator = StringHelper.getDataInt(StringHelper.getString(buf, "radiator"));
 
