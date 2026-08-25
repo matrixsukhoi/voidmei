@@ -1,0 +1,10 @@
+{
+    "name": "s3_disconnect",
+    "desc": "连接中断: 正常 10s -> 断开 20s (模拟游戏退出) -> 恢复正常, 验证端口翻转(8111/9222)与状态机回退",
+    "loop": false,
+    "steps": [
+        {"snapshot": "plane_p51d", "duration_ms": 10000},
+        {"snapshot": "plane_p51d", "duration_ms": 20000, "behavior": {"disconnect": true}},
+        {"snapshot": "plane_p51d", "duration_ms": 10000}
+    ]
+}

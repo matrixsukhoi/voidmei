@@ -1,0 +1,8 @@
+{
+    "name": "s1_preview_nodata",
+    "desc": "预览模式无数据: 全程断开, 应用预览探测拿不到任何机型 -> 应回退 selectedFM0 默认机",
+    "loop": false,
+    "steps": [
+        {"snapshot": "plane_p51d", "duration_ms": 3600000, "behavior": {"disconnect": true}}
+    ]
+}

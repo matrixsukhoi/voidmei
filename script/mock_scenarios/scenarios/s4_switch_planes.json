@@ -1,0 +1,11 @@
+{
+    "name": "s4_switch_planes",
+    "desc": "机型切换: p-51d -> yak-130 -> bf-109f-4 -> 回 p-51d, 循环播放, 验证机型变更检测触发 Controller 重启且每次 FM 加载仅一次",
+    "loop": true,
+    "steps": [
+        {"snapshot": "plane_p51d", "duration_ms": 8000},
+        {"snapshot": "plane_yak_130", "duration_ms": 8000},
+        {"snapshot": "plane_bf109f4", "duration_ms": 8000},
+        {"snapshot": "plane_p51d", "duration_ms": 8000}
+    ]
+}

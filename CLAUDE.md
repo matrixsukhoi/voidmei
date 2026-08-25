@@ -31,7 +31,7 @@ python script/build.py run
 
 # 运行单元测试 (全部或指定套件)
 python script/build.py test              # all / atmosphere / piston / visibility / voicepack /
-                                         # telemetry-fuzz / fmstore / fmpaths / fmhandle
+                                         # fmstore / fmpaths / fmhandle
 python script/build.py test spitfire     # 真机 FM 验证 (项目内 data/ 的 blkx, 无 data 自动跳过):
                                          # spitfire / tempest / fuzz-blkx (blkx 变异 fuzz)
 
@@ -54,8 +54,9 @@ python script/build.py clean
 #   控制通道 /_mock/state (请求计数, 验证应用未假死) /_mock/scenario/<name> /_mock/shutdown
 python3 script/mock_8111.py serve --port 8111 --scenario s5_missing_fm
 
-# FM 端到端回归 (起 mock + 应用跑 N 秒 + 日志断言 A1~A4, 见 script/e2e_fm.sh)
-bash script/e2e_fm.sh --scenario s5_missing_fm --duration 120
+# FM 端到端回归 (起 mock + 应用跑 N 秒 + 日志断言 A1~A6, 见 script/e2e_fm.sh)
+python script/build.py test e2e    # 套件化: s2 正常/s5 缺失/s6 畸形 三场景各 30 秒; 8111 被占自动跳过
+bash script/e2e_fm.sh --scenario s5_missing_fm --duration 120   # 单场景长跑 (不进 test all: 慢/动工作区)
 
 # 本地运行 (repo 即工作区, data/fonts/voice 都在项目根)
 java -jar VoidMei.jar

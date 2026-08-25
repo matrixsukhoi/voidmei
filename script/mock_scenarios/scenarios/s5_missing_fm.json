@@ -1,0 +1,8 @@
+{
+    "name": "s5_missing_fm",
+    "desc": "死循环复现 (issue #55): 机型 he_162 持续供应但不在 FM 数据库, 应用不得陷入 加载失败->回退->再失败 循环。注: 任务书原文的 yak_130_early 实际存在于 FM 库, 故改用 he_162 (本地 data/ 零匹配)",
+    "loop": false,
+    "steps": [
+        {"snapshot": "plane_missing_fm", "duration_ms": 3600000}
+    ]
+}

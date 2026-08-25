@@ -1,0 +1,8 @@
+{
+    "name": "menu_flag_false",
+    "desc": "玩家在菜单: state/indicators 的 valid=false 持续供应, 模拟 S4toS1 的 退出游戏 路径 (连接成功但未进战斗)",
+    "loop": false,
+    "steps": [
+        {"snapshot": "plane_p51d", "duration_ms": 3600000, "behavior": {"invalid_flag": true}}
+    ]
+}

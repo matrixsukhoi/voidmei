@@ -1,0 +1,8 @@
+{
+    "name": "s2_preview_live",
+    "desc": "预览模式有数据: 正常 p-51d 快照持续供应, 预览探测应拿到 p-51d-20_china",
+    "loop": false,
+    "steps": [
+        {"snapshot": "plane_p51d", "duration_ms": 3600000}
+    ]
+}

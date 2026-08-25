@@ -207,6 +207,39 @@ def cmd_test(suite="all"):
             return
         run_one(label, cls, ["--central", central, "--fm", fmfile])
 
+    def run_e2e_suite():
+        """端到端套件: 核心场景 (正常 / FM 缺失), 复用 e2e_fm.sh 全套编排
+        (起 mock -> 翻转 autoStartGameMode 起真实应用 -> 计时 -> 断言 A1~A6 -> 清理还原)"""
+        nonlocal passed, failed
+
+        # 端口占用前置检查: 游戏在跑或残留 mock 时跳过整个 e2e (环境不可用, 不计失败)
+        import socket
+        probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        probe.settimeout(0.5)
+        busy = probe.connect_ex(("127.0.0.1", 8111)) == 0
+        probe.close()
+        if busy:
+            warn("跳过 e2e 套件: 端口 8111 已被占用 (游戏在运行或残留 mock 进程?)")
+            return
+
+        # duration 定档依据 (检视反馈 "30 秒太长"): 目标行为均在启动后 ~10 秒内发生
+        # (死循环特征每 50ms 一周期, 10 秒 = 200 个轮询周期); 下限受断言器归一化约束 ——
+        # A1 阈值 2x窗口分钟+0.5, 15 秒窗口才不会把正常的 1 次加载误判为高频。
+        scenarios = [
+            ("s2_preview_live", 20, "E2E 正常场景 (实时机型供数)"),
+            ("s5_missing_fm", 20, "E2E FM 缺失场景 (issue #55 复现)"),
+        ]
+        for sc, dur, label in scenarios:
+            print("Running %s ..." % label)
+            if run_ok(["bash", str(ROOT / "script" / "e2e_fm.sh"),
+                       "--scenario", sc, "--duration", str(dur)]):
+                print("%s: PASSED" % label)
+                passed += 1
+            else:
+                print("%s: FAILED" % label, file=sys.stderr)
+                failed += 1
+
+
     suite = SUITE_ALIASES.get(suite, suite)
     suite = FM_SUITE_ALIASES.get(suite, suite)
     if suite == "all":
@@ -217,11 +250,17 @@ def cmd_test(suite="all"):
     elif suite in dict((s[0], s) for s in SUITES):
         _, label, cls = next(s for s in SUITES if s[0] == suite)
         run_one(label, cls)
+    elif suite == "e2e":
+        # 端到端套件 (检视反馈接入): 起真实应用连 mock_8111 场景, 断言器 A1~A6 判定。
+        # 刻意不进 "test all" —— 需真实 Swing 进程 (CI 无 display 会挂)、单场景数十秒、
+        # 且 e2e_fm.sh 会临时翻转 ui_layout.user.cfg 的 autoStartGameMode (退出还原)。
+        # 显式 `python script/build.py test e2e` 触发
+        run_e2e_suite()
     elif suite in FM_SUITES:
         label, cls, plane = FM_SUITES[suite]
         run_fm_test(label, cls, plane)
     else:
-        err("未知测试套件: %s (可选: all/%s/%s)" % (
+        err("未知测试套件: %s (可选: all/e2e/%s/%s)" % (
             suite, "/".join(s[0] for s in SUITES), "/".join(sorted(FM_SUITES))))
         sys.exit(1)
 
