@@ -1,4 +1,4 @@
-# 自动发版流水线: push v* tag → CI 构建完整分发包 → 创建 draft Release
+# 自动发版流水线: push 数字开头的版本 tag (如 1.590) → CI 构建完整分发包 → 创建 draft Release
 #
 # 设计原则 (详见 CLAUDE.md "Release" 节):
 #   - 代码内容由 tag 锁定: tag 事件下 checkout 的是 tag 指向的 commit,
@@ -12,7 +12,10 @@ name: release
 
 on:
   push:
-    tags: ['v*']
+    # tag 命名沿用仓库历史惯例: 纯数字三段号 (1.583/1.590), 无 v 前缀 ——
+    # Lutra-Fs/scoop-bucket 的 autoupdate 模板 download/$version/ 依赖此格式。
+    # 数字开头通配同时排除 data 等非版本 tag
+    tags: ['[0-9]*']
   workflow_dispatch:
     inputs:
       version:
@@ -51,9 +54,9 @@ jobs:
           INPUT_VERSION: ${{ inputs.version }}
         run: |
           if [ "${{ github.event_name }}" = "push" ]; then
-            TAG="${GITHUB_REF_NAME}"   # 如 v1.590
+            TAG="${GITHUB_REF_NAME}"   # 如 1.590 (tag 无 v 前缀, 与历史/scoop 约定一致)
           else
-            TAG="v${INPUT_VERSION:?手动触发 (workflow_dispatch) 必须填写 version}"
+            TAG="${INPUT_VERSION:?手动触发 (workflow_dispatch) 必须填写 version}"
           fi
           VERSION="${TAG#v}"
           echo "tag=$TAG"         >> "$GITHUB_OUTPUT"

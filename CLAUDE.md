@@ -93,13 +93,13 @@ VoidMei provides multiple ways to launch on Windows:
 
 ### Release（发版流程）
 
-**版本号单一来源 = git tag**（规范 `v1.590`，v 前缀 + 三位；fmdata 更新版也占正常版本号，如 `v1.591`，更新日志注明 WT 数据版本。**不要用四段号** `v1.590.1`——`checkUpdate()` 的正则会截断成 `1.590`，用户收不到更新提示）。
+**版本号单一来源 = git tag**（规范 `1.590`，纯数字三段、**无 v 前缀**——沿用仓库历史惯例（历史 tag 全为 `1.583` 格式），也是 Lutra-Fs/scoop-bucket autoupdate 模板 `download/$version/` 的依赖；fmdata 更新版也占正常版本号，如 `1.591`，更新日志注明 WT 数据版本。**不要用四段号** `1.590.1`——`checkUpdate()` 的正则会截断成 `1.590`，用户收不到更新提示。更新日志.txt 里的版本行**带 v**（`v1.590`，面向用户的显示格式），与 tag 无 v 是两回事，`release_notes.py` 内部做转换）。
 
 **更新记录唯一来源 = `更新日志.txt`**（人手写，git 跟踪；CHANGELOG.md 已废除——无外部开发者，Keep a Changelog 工具链用不上）。CI 对它**只读不改**：tag 的 commit 里就带着最新日志，zip 内外天然一致，不存在任何回写/同步环节。
 
 **日常发版（全自动，代码内容由 tag 锁定）:**
 1. 发版前直接在 `更新日志.txt` 顶部（TODO 注释块之后）插入新版本块：`____分隔线 / v1.590 / 一行一条改动`——**只写用户可感知的改动，不写工程实现细节**
-2. `git commit`，然后 `git tag v1.590 && git push origin v1.590` ← 触发 CI 构建 draft Release
+2. `git commit`，然后 `git tag 1.590 && git push origin master 1.590` ← 触发 CI 构建 draft Release
 3. CI（release.yml）: checkout tag 的 commit（不是 master HEAD）→ 从 `data` prerelease 拉取最新 FM 数据 → `build.py dist`（更新日志.txt 原样进 zip）→ 从 `更新日志.txt` 提取该版本条目块作 Release body（`release_notes.py extract`）→ 创建 **draft** Release
 4. 测试同学验证 draft 附件 → 人工点 "Publish release" 转正（见下）
 
@@ -107,10 +107,10 @@ VoidMei provides multiple ways to launch on Windows:
 ```bash
 python script/build.py fmdata   # 游戏目录自动探测 (或 WT_GAME_DIR=... 显式指定)
 gh release upload data dist/VoidMei_data_*.zip dist/data_manifest.json --clobber
-# 然后在已测试的 commit 上更新 更新日志.txt (如 "FM文件更新到2.57.2.x") 并打新 tag (如 v1.591), 由人拍板
+# 然后在已测试的 commit 上更新 更新日志.txt (如 "FM文件更新到2.57.2.x") 并打新 tag (如 1.591), 由人拍板
 ```
 
-**灰度测试（不影响用户）**: push 正式 tag（如 `v1.590`）→ CI 以 **draft** 创建 Release（公众不可见，`/releases/latest` 永不返回 draft，`checkUpdate()` 不弹）→ 测试同学（需仓库协作者权限）下载 draft 附件验证 → 通过后在 GitHub 页面点 "Publish release"（或 `gh release edit v1.590 --draft=false`）转正进 latest。测试与发布共用**同一份产物**，无需重新构建；不通过即删 draft + 删 tag 重来。将来若需公开灰度（外部无权限人员），Publish 时可勾选 pre-release。**版本号不使用 `-rc`/`-test` 后缀**——发布状态由 Release 的 draft/published 状态表达，不进版本号。
+**灰度测试（不影响用户）**: push 正式 tag（如 `1.590`）→ CI 以 **draft** 创建 Release（公众不可见，`/releases/latest` 永不返回 draft，`checkUpdate()` 不弹）→ 测试同学（需仓库协作者权限）下载 draft 附件验证 → 通过后在 GitHub 页面点 "Publish release"（或 `gh release edit 1.590 --draft=false`）转正进 latest。测试与发布共用**同一份产物**，无需重新构建；不通过即删 draft + 删 tag 重来。将来若需公开灰度（外部无权限人员），Publish 时可勾选 pre-release。**版本号不使用 `-rc`/`-test` 后缀**——发布状态由 Release 的 draft/published 状态表达，不进版本号。
 
 **纯构建核验**: Actions 页手动触发 `release` workflow 并填写 version + 勾选 dry-run → 只构建产出 artifact（不创建 Release、不改任何远端状态）。
 
