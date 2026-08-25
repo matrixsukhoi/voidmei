@@ -3,7 +3,7 @@ import prog.fm.FMStatus;
 import prog.util.PistonPowerModel;
 
 /**
- * FMHandle 白盒测试 —— 五态语义 / hasFM / isMissingLike / UNRESOLVED 哨兵字段值
+ * FMHandle 白盒测试 —— 六态语义 / hasFM / isMissingLike / UNRESOLVED 哨兵字段值
  *
  * 运行方式: python script/build.py test fmhandle
  */
@@ -19,6 +19,7 @@ public class TestFMHandle {
 		testReadyHandle();
 		testMissingHandle();
 		testCorruptHandle();
+		testNotAircraftHandle();
 		testMissingLikeSemantics();
 
 		System.out.println("\n=== 测试结果 ===");
@@ -87,6 +88,17 @@ public class TestFMHandle {
 		check(h.isMissingLike(), "CORRUPT isMissingLike 应为 true");
 	}
 
+	/** NOT_AIRCRAFT: 非飞机载具（坦克/军舰）——无 FM 但也不是数据缺失，不该弹缺失 toast */
+	private static void testNotAircraftHandle() {
+		System.out.println("-- NOT_AIRCRAFT 句柄语义测试 (陆战坦克) --");
+		FMHandle h = FMHandle.notAircraft("tankmodels/us_n4a3e8_76_sherman");
+		check(h.status == FMStatus.NOT_AIRCRAFT, "notAircraft() 工厂 status 应为 NOT_AIRCRAFT");
+		check("tankmodels/us_n4a3e8_76_sherman".equals(h.name), "name 应保留原始载具名");
+		check(h.blkx == null, "NOT_AIRCRAFT 不携带 blkx");
+		check(!h.hasFM(), "NOT_AIRCRAFT hasFM 应为 false (HUD 走降级)");
+		check(!h.isMissingLike(), "NOT_AIRCRAFT 不是 missing-like (不进负缓存/不弹缺失 toast)");
+	}
+
 	private static void testMissingLikeSemantics() {
 		System.out.println("-- isMissingLike 全枚举覆盖测试 --");
 		check(!FMHandle.UNRESOLVED.isMissingLike(), "UNRESOLVED 不是 missing-like");
@@ -94,6 +106,7 @@ public class TestFMHandle {
 		check(FMHandle.corrupt("x").blkx == null, "CORRUPT 永不携带 blkx");
 		check(FMHandle.corrupt("x").isMissingLike(), "CORRUPT 属于 missing-like");
 		check(FMHandle.missing("x").isMissingLike(), "MISSING 属于 missing-like");
+		check(!FMHandle.notAircraft("x/y").isMissingLike(), "NOT_AIRCRAFT 不属于 missing-like");
 	}
 
 	private static void check(boolean cond, String desc) {

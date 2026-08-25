@@ -132,7 +132,7 @@ gh release upload data dist/VoidMei_data_*.zip dist/data_manifest.json --clobber
   - `AlwaysOnTopCoordinator.java` - Singleton z-order manager for overlay/dialog coordination
   - `FocusMonitor.java` - Game window focus tracking for auto-hide overlay feature
   - `event/` - Event buses (`UIStateBus`, `FlightDataBus`, `FlightDataEvent`, `EventPayload`, `FlightDataListener`)
-  - `fm/` - FM（飞行数据包）单一真相源（issue #55 死循环重构）: `FMManager`（单例，identify/负缓存/FM_CHANGED 广播的唯一入口）、`FMLoader`（项目内唯一 `new Blkx` 点，全程 catch(Throwable)→READY/MISSING/CORRUPT 句柄）、`FMHandle`（不可变加载结果句柄）、`FMStatus`（五态状态机）、`FMDataPaths`（FM 数据路径唯一来源 + 测试 setDataRoot 注入）
+  - `fm/` - FM（飞行数据包）单一真相源（issue #55 死循环重构）: `FMManager`（单例，identify/负缓存/FM_CHANGED 广播的唯一入口；非飞机载具如坦克 type 含 `/` 前缀直接短路 NOT_AIRCRAFT，不加载不弹 toast）、`FMLoader`（项目内唯一 `new Blkx` 点，全程 catch(Throwable)→READY/MISSING/CORRUPT 句柄）、`FMHandle`（不可变加载结果句柄）、`FMStatus`（六态状态机）、`FMDataPaths`（FM 数据路径唯一来源 + 测试 setDataRoot 注入）
   - `config/` - Configuration system (`ConfigurationService`, `ConfigLoader`, `SExpParser`, `HUDSettings`, `OverlaySettings`)
   - `audio/` - Voice warning system (`VoiceWarning`, `VoiceResourceManager`)
   - `util/` - Utilities (`HttpHelper`, `Logger`, `CalcHelper`, `StringHelper`, `FileUtils`, `FormulaEvaluator`, `PhysicsConstants`, `Interpolation`, `AtmosphereModel`, `PistonPowerModel`, `ColorHelper`, `GPUCompatibilityHelper`, `DPIHelper`, `FocusDetector`, `ExceptionHelper`)

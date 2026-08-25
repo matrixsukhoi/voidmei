@@ -105,6 +105,18 @@ public final class FMManager {
 			return;
 		}
 
+		// 非飞机载具短路：坦克/军舰等 type 带路径前缀（如 "tankmodels/..."），
+		// 而飞机 type 恒为裸名（与 flightmodels/ 下文件名一致）。FM 数据库只有
+		// flightmodels，直接落 NOT_AIRCRAFT 句柄——不发加载任务（省一次注定失败的
+		// 磁盘查找）、不进负缓存（不是数据缺失而是不适用）、不弹缺失 toast。
+		// 修复: 陆战时误把坦克当"FM 缺失的新飞机"弹提示。
+		if (name.indexOf('/') >= 0) {
+			current = FMHandle.notAircraft(name);
+			currentTarget = name;
+			publishFmChanged(current);
+			return;
+		}
+
 		// 负缓存：确认 MISSING/CORRUPT 的机型不再发加载任务（issue #55 死循环根治点）。
 		// 直接落 MISSING 句柄并广播，让 HUD 立即知道当前机型无 FM 可用
 		if (negativeCache.containsKey(name)) {

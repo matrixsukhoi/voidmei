@@ -49,6 +49,7 @@ public class TestFMStore {
 			testCorruptAlsoCached(m);
 			testClearTargetKeepsHandle(m);
 			testRateGuardAndLiveness(m);
+			testNotAircraftShortCircuit(m);
 			testReset(m);
 			testConcurrentIdentify(m);
 		} finally {
@@ -213,6 +214,47 @@ public class TestFMStore {
 		check(ok, "A→B→A 回切后应回到 READY(plane1), 不得卡在 plane2");
 		check(FMLoader.getLoadCount() == 3,
 				"两次首载 + 一次回切重载 = 3 次执行 (实际 " + FMLoader.getLoadCount() + ")");
+	}
+
+	/**
+	 * 用例④b 非飞机载具短路：坦克 type（"tankmodels/..." 路径前缀名）直接落
+	 * NOT_AIRCRAFT——零磁盘加载、不进负缓存、飞机↔坦克往返行为正确。
+	 * 回归: 陆战时误把坦克当"FM 缺失的新飞机"弹 toast + 白做磁盘查找。
+	 */
+	private static void testNotAircraftShortCircuit(FMManager m) throws Exception {
+		System.out.println("-- 用例④b 非飞机载具短路 (陆战坦克) --");
+		m.reset();
+		FMLoader.resetLoadCount();
+
+		// 同步落定: 不经过 loader 线程
+		m.identify("tankmodels/us_n4a3e8_76_sherman");
+		check(m.current().status == FMStatus.NOT_AIRCRAFT, "坦克应立即落定 NOT_AIRCRAFT");
+		check(!m.current().isMissingLike(), "不属于 missing-like (不弹缺失 toast)");
+		check(!m.current().hasFM(), "无 FM, HUD 走降级");
+		check(FMLoader.getLoadCount() == 0, "不应触发任何磁盘加载");
+		check(!m.isLoading(), "无在途任务");
+
+		// 重复 identify 同一坦克: 目标去重拦截, 仍零加载
+		for (int i = 0; i < 100; i++)
+			m.identify("tankmodels/us_n4a3e8_76_sherman");
+		check(FMLoader.getLoadCount() == 0, "重复 identify 同一坦克仍零加载");
+
+		// 飞机 → 坦克 → 换坦克 → 回飞机: 往返行为正确
+		m.identify("plane1");
+		check(waitFor(() -> m.current().hasFM()), "前置: plane1 到达 READY");
+		long loadsBefore = FMLoader.getLoadCount();
+
+		m.identify("tankmodels/us_n4a3e8_76_sherman");
+		check(m.current().status == FMStatus.NOT_AIRCRAFT && !m.isLoading(),
+				"飞机→坦克: 句柄应让位为 NOT_AIRCRAFT");
+		m.identify("tankmodels/germ_panther_ii");
+		check(m.current().status == FMStatus.NOT_AIRCRAFT
+				&& "tankmodels/germ_panther_ii".equals(m.current().name),
+				"坦克→坦克: 直接换 NOT_AIRCRAFT 句柄");
+		check(FMLoader.getLoadCount() == loadsBefore, "坦克切换全程零加载");
+
+		m.identify("plane1");
+		check(waitFor(() -> m.current().hasFM()), "坦克→飞机: 应重新加载回 READY(plane1)");
 	}
 
 	/** 用例⑤ reset：清一切（含负缓存），停掉 pending 任务 */

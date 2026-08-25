@@ -481,7 +481,7 @@ boolean isGWarning = data.gLoad > 5.0;
 |----|------|
 | `FMManager` (单例) | "当前飞机 / FM 加载状态"的唯一真相源。`identify(name)` 唯一入口，后台单线程加载，完成后原子 swap volatile 句柄并广播 `FM_CHANGED` |
 | `FMHandle` (不可变) | 一次加载结果的完整描述：机型名 + `FMStatus` + 解析好的 `Blkx` + 派生功率/推力缓存。换机 = 换一个新句柄实例，不存在"半新半旧"中间态 |
-| `FMStatus` (枚举) | 五态状态机：`UNRESOLVED` / `LOADING` / `READY` / `MISSING`（中央文件不存在，机型不在库）/ `CORRUPT`（在库但解析失败） |
+| `FMStatus` (枚举) | 六态状态机：`UNRESOLVED` / `LOADING` / `READY` / `MISSING`（中央文件不存在，机型不在库）/ `CORRUPT`（在库但解析失败）/ `NOT_AIRCRAFT`（非飞机载具如陆战坦克，type 带 `tankmodels/` 路径前缀——identify 短路落此态，不加载不进负缓存不弹 toast） |
 | `FMLoader` (纯静态) | 项目内**唯一** `new Blkx` 的地方。全程 `catch(Throwable)` 收敛为 CORRUPT 句柄，永不抛出、永不返回 null |
 | `FMDataPaths` | FM 数据路径唯一来源 (`<root>/aces/gamedata/flightmodels/...`)，`setDataRoot()` 供白盒测试注入临时目录 |
 

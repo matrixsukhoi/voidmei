@@ -59,6 +59,14 @@ public final class FMHandle {
 		return new FMHandle(name, FMStatus.MISSING, null, 0, 0, null);
 	}
 
+	/**
+	 * 非飞机载具（陆战坦克/军舰等，type 带路径前缀如 "tankmodels/..."）。
+	 * FM 不适用而非数据缺失：不进负缓存、不触发缺失 toast（见 {@link #isMissingLike()}）。
+	 */
+	public static FMHandle notAircraft(String name) {
+		return new FMHandle(name, FMStatus.NOT_AIRCRAFT, null, 0, 0, null);
+	}
+
 	/** 存在但解析失败（物理文件缺失 / 解析异常） */
 	public static FMHandle corrupt(String name) {
 		return new FMHandle(name, FMStatus.CORRUPT, null, 0, 0, null);
@@ -75,7 +83,9 @@ public final class FMHandle {
 
 	/**
 	 * 是否属于"缺失类"状态（MISSING 或 CORRUPT）。
-	 * 这类结果会进 {@link FMManager} 的负缓存，是 issue #55 死循环的根治点。
+	 * 这类结果会进 {@link FMManager} 的负缓存，是 issue #55 死循环的根治点；
+	 * Controller 也以本方法为闸门弹缺失 toast。
+	 * 注意 NOT_AIRCRAFT 刻意不在其中——坦克/军舰不是数据缺失，不该被当飞机提示。
 	 */
 	public boolean isMissingLike() {
 		return status == FMStatus.MISSING || status == FMStatus.CORRUPT;
