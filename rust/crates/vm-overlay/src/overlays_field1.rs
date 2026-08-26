@@ -17,6 +17,7 @@
 //! 视觉语义逐项对照 Java paintComponent/drawTick/drawGauges; Java char[] 零 GC buffer
 //! 统一为 String (gauges_bars 先例, 无 stale tail)。
 
+use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::font::LoadedFont;
@@ -1972,6 +1973,123 @@ pub fn gear_flaps_preview_spec(
 }
 
 // ---------------------------------------------------------------------------
+// live 喂数形态工厂 (minihud_overlay_spec 先例: render 闭包与喂入方共享句柄)
+// ---------------------------------------------------------------------------
+// Java 各 overlay init(S) 时自订 FlightDataBus (LIFETIMES §2.1), preview 实例
+// (initPreview) 不订阅保持 previewValue 静态。Rust host 单条目跨 open/refresh_preview
+// 存活 (D8), 两形态共用一份 state — live 喂入由 win32 线程持句柄执行, preview 期
+// 喂入门控见 app_shell 的 feed_overlays_live (overlay_ctx_preview 标志)。
+
+/// 动力信息共享句柄 (render 闭包 + 喂入方各持克隆)
+pub type PowerInfoHandle = Rc<RefCell<PowerInfoState>>;
+
+/// 动力信息 OverlaySpec + live 句柄 (Java Controller.java:662 注册键 engineInfoSwitch)。
+/// 初始态 = previewValue (PowerInfoState::new), 游戏模式由喂入方 update 推进
+pub fn power_info_overlay_spec(
+    fonts_dir: &std::path::Path,
+    font_add: i32,
+    column_num: i32,
+) -> Result<(PowerInfoHandle, OverlaySpec), String> {
+    let ctx = RenderContext::load(fonts_dir, font_add, column_num)?;
+    let state = PowerInfoState::new();
+    let (w, h) = state.preferred_size(&ctx);
+    let handle: PowerInfoHandle = Rc::new(RefCell::new(state));
+    let render_handle = Rc::clone(&handle);
+    let mut renderer = BosStyleRenderer::default();
+    Ok((
+        handle,
+        OverlaySpec {
+            id: "engineInfoSwitch".to_string(),
+            config_key: "engineInfoSwitch".to_string(),
+            width: w,
+            height: h,
+            render: Box::new(move |cv: &mut PixCanvas| {
+                render_handle.borrow().draw(cv, &ctx, &mut renderer);
+            }),
+        },
+    ))
+}
+
+/// 引擎控制共享句柄
+pub type EngineControlHandle = Rc<RefCell<EngineControlState>>;
+
+/// 引擎控制 OverlaySpec + live 句柄 (Java Controller.java:654 注册键 enableEngineControl)。
+/// `data_poll_interval_ms` = dataPollIntervalMs 配置值 (loadRefreshInterval 的读键,
+/// refreshInterval = ×2; preview 工厂传不进此参故恒默认 100 — 两工厂的差异点仅此)
+pub fn engine_control_overlay_spec(
+    fonts_dir: &std::path::Path,
+    lang: &Lang,
+    font_add: i32,
+    dpi_scale: f64,
+    data_poll_interval_ms: i64,
+) -> Result<(EngineControlHandle, OverlaySpec), String> {
+    let interval_str = data_poll_interval_ms.to_string();
+    // init 链 (game 实例): initGaugeFields + calculateLayout + updateGaugesPreview
+    // (半量程初值, 首个有效事件前的显示态; initPreview 的二次调用是 preview 专属)
+    let state =
+        EngineControlState::new(lang, font_add, dpi_scale, &|_| false, &|_| interval_str.clone());
+    // fontLabel = BOLD(round(fontSize/2.0f)) (loadFontConfig)
+    let half = java_round_f32(state.font_size as f32 / 2.0);
+    let font_label = Rc::new(LoadedFont::new(
+        &fonts_dir.join("sarasa-mono-sc-bold.ttf"),
+        half,
+    )?);
+    let (w, h) = (state.width, state.height);
+    let handle: EngineControlHandle = Rc::new(RefCell::new(state));
+    let render_handle = Rc::clone(&handle);
+    Ok((
+        handle,
+        OverlaySpec {
+            id: "enableEngineControl".to_string(),
+            config_key: "enableEngineControl".to_string(),
+            width: w,
+            height: h,
+            render: Box::new(move |cv: &mut PixCanvas| {
+                // 生产 AA 恒开 (Application.java:102 graphAASetting 默认 ON)
+                render_handle.borrow_mut().draw(cv, &font_label, true);
+            }),
+        },
+    ))
+}
+
+/// 起落襟翼共享句柄
+pub type GearFlapsHandle = Rc<RefCell<GearFlapsState>>;
+
+/// 起落襟翼 OverlaySpec + live 句柄 (Java Controller.java:709 注册键 enablegearAndFlaps)。
+/// 初始态 = 襟翼 50% 无告警 (new 的预览初值), 游戏模式由喂入方 update_tick 推进
+pub fn gear_flaps_overlay_spec(
+    fonts_dir: &std::path::Path,
+    font_add: i32,
+    dpi_scale: f64,
+    show_edge: bool,
+) -> Result<(GearFlapsHandle, OverlaySpec), String> {
+    let state = GearFlapsState::new(font_add, dpi_scale, show_edge);
+    let bold = fonts_dir.join("sarasa-mono-sc-bold.ttf");
+    // fontNum = BOLD(fontSize); fontLabel = BOLD(round(fontSize/2.0f)) (reinitConfig)
+    let font_num = Rc::new(LoadedFont::new(&bold, state.font_size)?);
+    let font_label = Rc::new(LoadedFont::new(
+        &bold,
+        java_round_f32(state.font_size as f32 / 2.0),
+    )?);
+    let (w, h) = (state.total_width, state.total_height);
+    let handle: GearFlapsHandle = Rc::new(RefCell::new(state));
+    let render_handle = Rc::clone(&handle);
+    Ok((
+        handle,
+        OverlaySpec {
+            id: "enablegearAndFlaps".to_string(),
+            config_key: "enablegearAndFlaps".to_string(),
+            width: w,
+            height: h,
+            render: Box::new(move |cv: &mut PixCanvas| {
+                // 生产 AA 恒开 (Application.java:102 graphAASetting 默认 ON)
+                render_handle.borrow().draw(cv, &font_num, &font_label, true);
+            }),
+        },
+    ))
+}
+
+// ---------------------------------------------------------------------------
 // 测试
 // ---------------------------------------------------------------------------
 
@@ -2843,5 +2961,44 @@ mod tests {
         let mut cv = PixCanvas::new(spec.width, spec.height).unwrap();
         (spec.render)(&mut cv);
         assert!(cv.pixmap().data().iter().any(|&b| b != 0));
+    }
+
+    // ---- live 喂数形态工厂 (句柄共享: render 闭包与喂入方同一 state) ----
+
+    /// 三工厂: 句柄喂入后 render 闭包画到新值 (共享 state 生效); 尺寸与 preview 工厂一致
+    #[test]
+    fn live_spec_handles_share_state_with_render() {
+        let l = lang();
+        let fonts = std::path::Path::new(FONTS);
+        // PowerInfo: 功率 1200 → 首字段 buffer
+        let (h_power, mut spec) = power_info_overlay_spec(fonts, 0, 2).unwrap();
+        let t = MockTele { horse_power: 1200.0, ..MockTele::default() };
+        assert!(h_power.borrow_mut().update(100, &t));
+        assert_eq!(h_power.borrow().fields()[0].buffer, "1200");
+        let mut cv = PixCanvas::new(spec.width, spec.height).unwrap();
+        (spec.render)(&mut cv);
+        assert!(cv.pixmap().data().iter().any(|&b| b != 0));
+
+        // EngineControl: throttle 80 → gauge 值; render 走 &mut 通道不 panic
+        let (h_engine, mut spec2) =
+            engine_control_overlay_spec(fonts, &l, 0, 1.0, 50).unwrap();
+        assert_eq!((spec2.width, spec2.height), (192, 306), "尺寸与 preview 工厂一致");
+        // dataPollIntervalMs=50 → refreshInterval=100 (loadRefreshInterval ×2)
+        assert_eq!(h_engine.borrow().refresh_interval, 100);
+        let t2 = MockTele { throttle: 80.0, ..MockTele::default() };
+        assert!(h_engine.borrow_mut().update(200, &t2, &payload(false, false, -1), None));
+        assert_eq!(h_engine.borrow().gauge_by_key("throttle").unwrap().gauge.gauge.cur_value, 80);
+        let mut cv2 = PixCanvas::new(spec2.width, spec2.height).unwrap();
+        (spec2.render)(&mut cv2);
+        assert!(cv2.pixmap().data().iter().any(|&b| b != 0));
+
+        // GearFlaps: gear=100/flaps=25 → 告警文本 + flap_pix
+        let (h_gear, mut spec3) = gear_flaps_overlay_spec(fonts, 0, 1.0, false).unwrap();
+        let t3 = MockTele { gear: 100.0, flaps: 25.0, ..MockTele::default() };
+        assert!(h_gear.borrow_mut().update_tick(100, &l, &t3));
+        assert_eq!(h_gear.borrow().flap_pix, 24);
+        let mut cv3 = PixCanvas::new(spec3.width, spec3.height).unwrap();
+        (spec3.render)(&mut cv3);
+        assert!(cv3.pixmap().data().iter().any(|&b| b != 0));
     }
 }

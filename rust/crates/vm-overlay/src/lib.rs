@@ -27,7 +27,9 @@ pub mod warning_overlay;
 pub mod window;
 
 pub use config::{load_pos, save_pos};
-pub use gauge_attitude::{AttitudeIndicatorGauge, AttitudeOverlay};
+pub use gauge_attitude::{
+    attitude_overlay_spec, AttitudeIndicatorGauge, AttitudeOverlay, AttitudeOverlayHandle,
+};
 pub use gauge_compass::CompassGauge;
 pub use gauge_crosshair::CrosshairGauge;
 pub use gauges_bars::{FlapAngleBar, LabeledLinearGauge, LinearGauge, SpeedRatioBar};
@@ -48,13 +50,18 @@ pub use minihud_layout::{
 };
 pub use overlay_list::{BaseListOverlay, ZebraList};
 pub use overlays_field1::{
-    engine_control_preview_spec, gear_flaps_preview_spec, power_info_preview_spec, DynSource,
-    EngineControlState, EngineGauge, EngineGaugeDef, GaugeBarStyle, GaugeMarker, GaugeType,
-    GearFlapsState, MarkedGauge, MarkerType, PowerFieldDef, PowerFormat, PowerInfoState,
-    PowerSource, VisExpr, ENGINE_GAUGE_DEFS, ENGINE_REFRESH_MULTIPLIER,
-    FIELD_OVERLAY_REFRESH_INTERVAL_MS, GEAR_FLAPS_REFRESH_INTERVAL_MS, POWER_FIELD_DEFS,
+    engine_control_overlay_spec, engine_control_preview_spec, gear_flaps_overlay_spec,
+    gear_flaps_preview_spec, power_info_overlay_spec, power_info_preview_spec, DynSource,
+    EngineControlHandle, EngineControlState, EngineGauge, EngineGaugeDef, GaugeBarStyle,
+    GaugeMarker, GaugeType, GearFlapsHandle, GearFlapsState, MarkedGauge, MarkerType,
+    PowerFieldDef, PowerFormat, PowerInfoHandle, PowerInfoState, PowerSource, VisExpr,
+    ENGINE_GAUGE_DEFS, ENGINE_REFRESH_MULTIPLIER, FIELD_OVERLAY_REFRESH_INTERVAL_MS,
+    GEAR_FLAPS_REFRESH_INTERVAL_MS, POWER_FIELD_DEFS,
 };
-pub use overlays_field2::{ControlSurfacesOverlay, CsFonts, FmUnpackedDataOverlay, REFRESH_INTERVAL_MS};
+pub use overlays_field2::{
+    control_surfaces_overlay_spec, ControlSurfacesHandle, ControlSurfacesOverlay, CsFonts,
+    FmUnpackedDataOverlay, REFRESH_INTERVAL_MS,
+};
 pub use platform_extras::{parse_wav_duration, DpiHelper};
 pub use render::{draw_fields, render_fields, render_fields_fixed, FieldText, FontTriple, RenderColors, DEFAULT_COLORS};
 pub use render2d::{LineCapStyle, PixCanvas};

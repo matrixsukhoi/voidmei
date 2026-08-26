@@ -188,3 +188,60 @@ Java 同款算法同样如此——对拍动态帧时需两边同等预热。
 7. **打包分发**: 静态链接 musl (Linux) / MSVC (Windows), 替代 launch4j;
    不再需要 JRE, 分发体积从 ~30MB 降到 ~2MB
 8. **MainForm**: 最后迁移 (WebLaF 设置界面, 可选 egui/iced 或保留 Web 前端)
+
+---
+
+# 11. 全量迁移执行记录 (2026-08-26 ~ 08-27 终稿)
+
+> 本文档 §1-§10 为 FlightInfoOverlay POC 阶段内容, 全量迁移已完成, 执行档案见
+> `build/migration/` (PORTING 宪法 / CLASSIFY 全库地图 / LIFETIMES / DECISIONS D1-D8 /
+> PROGRESS)。以下为终态摘要。
+
+## 11.1 迁移总览
+
+- 源: 183 Java 文件 / 41,242 行 (A 纯逻辑 56 / B 轻耦合 31 / C 平台·UI 95+1 不迁移)
+- 产物: `rust/` cargo workspace 五 crate (vm-core/vm-data/vm-overlay/vm-ui/vm-app)
+- 方法论: 承袭 Bun Zig→Rust (PORTING 宪法/对抗双审/机械保真优先) + vLLM 规范
+  (注释逐字保留/expect-test), 三份宪法文档 + 1+2+1 agent 流水线 (批一验证后放量)
+- 规模: ~320 agents / 15 个 workflow 批次 / ~32M subagent tokens / 0 流水线失败
+  (批十三一次会话重启中断, resume 缓存恢复零重跑)
+
+## 11.2 终态验收数字
+
+| 验收项 | 结果 |
+|---|---|
+| cargo test (五 crate) | **1,239 passed / 0 failed** (连跑两遍无 flaky) |
+| cargo check / clippy | 零 warning (116 个 Java 保真点 #[allow]+PORT 注) |
+| e2e 三场景 (s2/s5/menu) | **全部 PASS** (A1~A6 断言, 复用 Java e2e_assert.py——Logger 格式逐字节保真的闭环) |
+| mock 冒烟 | Service 收数 + 6 注册 overlay 逐窗 present=140 帧, 三线程干净退出 |
+| 像素对拍 (rustcmp) | preview 11.7% / linear 2.4% / attitude 7.0% / compass 16.6% / MiniHUD 6.3% — **全部无结构性偏差** (bbox 一致/剖面平移 0/差异=AA 光栅化) |
+| 真机 FM 测试 | Spitfire/Tempest 燃料断言实跑 + blkx fuzz 200/200 变异体 |
+| Java 测试移植 | TestAtmosphere/PistonPower/Visibility/VoicePack/FMStore/FMDataPaths/FMHandle/NaWhen 等全量 |
+| 真窗验证 | iced 设置窗 + overlay 预览窗同进程共存 (批十四 EnumWindows 实测) |
+
+## 11.3 Java 版缺陷在迁移中根治 (类型级修复)
+
+1. VoiceWarning UIStateBus 订阅泄漏 (LIFETIMES §2 发现) → RAII Subscription
+2. OverlayEntry.close() 锁内回调死锁风险 → 锁内摘槽/销毁链锁外
+3. PREVIEW 态 WYSIWYG 刷新链非 EDT (现存线程违规) → UiCommand 走 win32 线程
+4. DraggableOverlay 轮询线程 interrupt 无效 (doit 唯一退出) → AtomicBool 统一停机
+5. 无真鼠标穿透 → WS_EX_TRANSPARENT 真穿透 (增强)
+
+## 11.4 已知差异与遗留
+
+1. 字形光栅化 AA 差异 (zeno vs FreeType): 全部对拍残差 2~17%, 无结构偏差; 进一步
+   逼近可换 freetype-rs 同引擎 (未做)
+2. X11 平台层占位 (设计完成, Windows 优先实装)
+3. D8 降级尾巴 (可选未迁移): replica 3 件 / DrawFrame×2 / comparison UI 壳 (~5k 行)
+4. MiniHUD live 喂数的 getload 降级路径 (无 FM 时) — PORT 备案
+5. numHeight 类 FontMetrics 校准闭环依赖 Java meta (Windows 实测 31)
+6. 注册面: 游戏模式默认启用 6 overlay 逐窗验收; 其余 overlay 注册键随 ui_layout.cfg
+   开关动态生效 (e2e 断言默认集)
+
+## 11.5 人工验收清单 (移交用户)
+
+1. `bash script/rust_run.sh` — iced 设置窗 + 全部 overlay 预览共存
+2. 设置窗交互: 开关/滑条/下拉/颜色 → WYSIWYG 实时刷新 overlay 预览
+3. 托盘: 图标/菜单/点击防重入; 热键: 注册键触发
+4. preview 拖拽 (含快速) 与位置持久化; live 穿透/置顶
+5. 游戏实机: WT 开局后 overlay 数据跟随 (8111 真数据)

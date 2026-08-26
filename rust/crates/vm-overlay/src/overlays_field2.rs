@@ -22,8 +22,11 @@
 use crate::font::LoadedFont;
 use crate::gauges_bars::{COLOR_LABEL, COLOR_NUM, COLOR_SHADE_SHAPE};
 use crate::gauge_attitude::COLOR_UNIT;
+use crate::host::OverlaySpec;
 use crate::overlay_list::BaseListOverlay;
 use crate::render2d::{LineCapStyle, PixCanvas};
+use std::cell::RefCell;
+use std::rc::Rc;
 use std::sync::Arc;
 use vm_core::blkx::{Blkx, FmParts};
 use vm_core::config_api::ConfigProvider;
@@ -699,6 +702,63 @@ impl ControlSurfacesOverlay {
             COLOR_NUM, &self.rudder_num, aa,
         );
     }
+}
+
+// ---------------------------------------------------------------------------
+// OverlayHost 挂载 (Java Controller.java:680 registerWithPreview("enableAxis"))
+// ---------------------------------------------------------------------------
+
+/// 操纵面共享句柄 (minihud_overlay_spec 先例: render 闭包与喂入方共享 state)
+pub type ControlSurfacesHandle = Rc<RefCell<ControlSurfacesOverlay>>;
+
+/// 操纵面 OverlaySpec + live 句柄。参数为 init(:80-160) 的配置面:
+/// `font_add` = "舵面值" panel 的 fontSize 增量, `enable_axis_edge` = enableAxisEdge
+/// (cfg 缺省 false)。
+/// PORT(边框不承载): Java totalWidth = twidth+sw·2 的 sw 是 WebLaF 窗口装饰边距,
+/// host 无边框层 — spec 尺寸 = 内容区 content_width×content_height (draw 的画布
+/// 断言钉内容尺寸, Swing 裁剪语义)。
+/// PORT(数据门控): Java init(S) 置 xs!=null (has_service) 才更新数据、initPreview
+/// 置 false; Rust 单实例形态下由 win32 命令处理点按**会话窗口形态**切换 has_service
+/// (app_shell OpenAllOverlays→true / CloseAllOverlays→false, 对位 init(S)/实例销毁;
+/// 喂入点 feed_overlays_live 幂等置 true) — 初值随 init_preview 为 false
+pub fn control_surfaces_overlay_spec(
+    fonts_dir: &std::path::Path,
+    font_add: i32,
+    dpi_scale: f64,
+    enable_axis_edge: bool,
+) -> Result<(ControlSurfacesHandle, OverlaySpec), String> {
+    let mut cs = ControlSurfacesOverlay::new();
+    // win_x/win_y = 0: 窗口定位归 host 位置存档 (HudSettingsSnapshot 同规)
+    cs.init_preview(font_add, dpi_scale, enable_axis_edge, 0, 0);
+    // 三字体 (Java init :96-103): num = NumFont BOLD(fontSize),
+    // label = FontName BOLD(round(fontSize/2)), unit = NumFont PLAIN(round(fontSize/2))
+    let bold_path = fonts_dir.join("sarasa-mono-sc-bold.ttf");
+    let regular_path = fonts_dir.join("sarasa-mono-sc-regular.ttf");
+    let f_num = Rc::new(LoadedFont::new(&bold_path, cs.font_size)?);
+    let f_label = Rc::new(LoadedFont::new(&bold_path, cs.label_font_size)?);
+    let f_unit = Rc::new(LoadedFont::new(&regular_path, cs.label_font_size)?);
+    let (w, h) = (cs.content_width, cs.content_height);
+    let handle: ControlSurfacesHandle = Rc::new(RefCell::new(cs));
+    let render_handle = Rc::clone(&handle);
+    Ok((
+        handle,
+        OverlaySpec {
+            // Java LinkedHashMap 键 = configKey (Controller.java:680)
+            id: "enableAxis".to_string(),
+            config_key: "enableAxis".to_string(),
+            width: w,
+            height: h,
+            render: Box::new(move |cv: &mut PixCanvas| {
+                // 生产 AA 恒开 (Application.java:102 graphAASetting 默认 ON)
+                let fonts = CsFonts {
+                    num: &*f_num,
+                    label: &*f_label,
+                    unit: &*f_unit,
+                };
+                render_handle.borrow().draw(cv, &fonts, true);
+            }),
+        },
+    ))
 }
 
 // ---------------------------------------------------------------------------
@@ -1716,5 +1776,29 @@ mod tests {
         host.render_tick().unwrap();
         assert_eq!(presents.get(), 5, "槽位全空: 不再 present");
         assert!(host.active_ids().is_empty());
+    }
+
+    /// live 工厂: 尺寸 = 内容区 (fontAdd 0/dpi 1 → fs=24, w=144, twidth=240,
+    /// theight=180), has_service 初值 false (init_preview), 喂入侧置 true 后
+    /// on_flight_data 才推数据; render 闭包共享句柄画到新值
+    #[test]
+    fn control_surfaces_overlay_spec_shared_state() {
+        let fonts_dir = std::path::Path::new("../../../fonts");
+        let (h, mut spec) = control_surfaces_overlay_spec(fonts_dir, 0, 1.0, false).unwrap();
+        assert_eq!((spec.width, spec.height), (240, 180), "内容区尺寸 (无 sw 边框)");
+        assert_eq!((spec.id.as_str(), spec.config_key.as_str()), ("enableAxis", "enableAxis"));
+        // 初值 px = width/2 = 72 (游标居中, Java init :108)
+        assert_eq!(h.borrow().px, 72);
+        // has_service=false: 数据不更新 (preview 形态)
+        assert!(h.borrow_mut().on_flight_data(100, 100.0, 0.0, 0.0, 0.0, false));
+        assert_eq!(h.borrow().px, 72, "preview 门控: 数据保持");
+        // 游戏形态 (喂入方切换 has_service, app_shell 承载): aileron=100 → px=144
+        h.borrow_mut().has_service = true;
+        assert!(h.borrow_mut().on_flight_data(200, 100.0, 0.0, 0.0, 0.0, false));
+        assert_eq!(h.borrow().px, 144);
+        assert_eq!(h.borrow().aileron_num, "100");
+        let mut cv = PixCanvas::new(spec.width, spec.height).unwrap();
+        (spec.render)(&mut cv);
+        assert!(cv.pixmap().data().iter().any(|&b| b != 0));
     }
 }

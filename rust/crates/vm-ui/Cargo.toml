@@ -4,7 +4,18 @@ name = "vm-ui"
 version = "0.1.0"
 edition = "2021"
 
+# 组装批: 暴露 lib 入口 (run_shell_form) 供 vm-app 组装调用; bin 保留独立调试形态
+[lib]
+name = "vm_ui"
+path = "src/lib.rs"
+
+[[bin]]
+name = "vm-ui"
+path = "src/main.rs"
+
 [dependencies]
-iced = { version = "0.13", default-features = false, features = ["tiny-skia", "system"] }
+# tokio feature: iced_futures 执行器 (默认 null 后端不跑 subscription 流,
+# 组装层的 50ms Tick 泵依赖 time::every — 见 lib.rs 头注)
+iced = { version = "0.13", default-features = false, features = ["tiny-skia", "system", "tokio"] }
 # 配置栈 (ConfigurationService/GroupConfig/RowConfig) + 事件总线 + 渲染器读写助手
 vm-core = { workspace = true }

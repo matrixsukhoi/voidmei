@@ -23,7 +23,7 @@
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU64, Ordering};
 use std::sync::mpsc::{Receiver, RecvTimeoutError, Sender};
 use std::sync::{Arc, Mutex, RwLock};
 use std::thread::JoinHandle;
@@ -43,6 +43,7 @@ use vm_core::http_helper::HttpHelper;
 use vm_core::hud_calculator::HudColors;
 use vm_core::lang::Lang;
 use vm_core::logger;
+use vm_core::ui_model::TelemetrySource as _;
 
 use vm_data::service_fields::ServiceData;
 use vm_data::service_loop::{
@@ -53,8 +54,10 @@ use vm_overlay::host::OverlayHost;
 use vm_overlay::hotkey::{HotkeyEvent, HotkeyManager, VC_P};
 use vm_overlay::platform_extras::DpiHelper;
 use vm_overlay::{
-    engine_control_preview_spec, gear_flaps_preview_spec, minihud_overlay_spec,
-    power_info_preview_spec, MiniHudHandle,
+    attitude_overlay_spec, control_surfaces_overlay_spec, engine_control_overlay_spec,
+    gear_flaps_overlay_spec, minihud_overlay_spec, power_info_overlay_spec,
+    AttitudeOverlayHandle, ControlSurfacesHandle, EngineControlHandle, GearFlapsHandle,
+    MiniHudHandle, PowerInfoHandle,
 };
 
 #[cfg(target_os = "windows")]
@@ -62,6 +65,11 @@ use vm_overlay::tray::{TrayConfig, TrayIcon, TrayHandler};
 
 /// Java Controller.java:59 `CONFIG_DEBOUNCE_MS = 200`
 pub const CONFIG_DEBOUNCE_MS: u64 = 200;
+
+/// FlightDataBus 事件流静默判定阈值 (审查 B1 补偿, 见
+/// [`ControllerShared::last_flight_event_ms`] 注): player_live 轮每 ~50ms 发布
+/// 一帧, 2s = 40 轮静默 — 比 Java 的串空即时判定更宽容 (网络抖动/加载切换不误判)。
+pub const FLIGHT_SILENT_EXIT_MS: i64 = 2000;
 
 // =====================================================================
 // Env — Application 静态只读区落位 (D8 表: 启动一次后只读 → 构造注入)
@@ -122,10 +130,18 @@ fn probe_fonts_dir() -> PathBuf {
     PathBuf::from("./fonts")
 }
 
-/// 仓库模板 ui_layout.cfg 探测 (CWD=仓库根 / rust/ 均可)
-fn locate_template_cfg() -> Option<&'static str> {
-    const CANDIDATES: [&str; 2] = ["ui_layout.cfg", "../ui_layout.cfg"];
-    CANDIDATES.iter().find(|p| Path::new(p).exists()).copied()
+/// 仓库模板 ui_layout.cfg 探测。
+/// 生产 CWD=仓库根 (java -jar / rust_run.sh); 测试 CWD=crate 根 (cargo 惯例),
+/// 上溯三级 (vm-app → crates → rust → 仓库根) — vm-core/vm-overlay 测试同款路径
+fn locate_template_cfg() -> Option<String> {
+    let mut candidates: Vec<PathBuf> =
+        [PathBuf::from("ui_layout.cfg"), PathBuf::from("../ui_layout.cfg")].to_vec();
+    candidates.push(
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../ui_layout.cfg"),
+    );
+    candidates.into_iter().find(|p| p.exists()).map(|p| {
+        p.to_string_lossy().into_owned()
+    })
 }
 
 /// Java Application.getScreenSize → DPIHelper.init() (DpiHelper.java:52)
@@ -164,7 +180,8 @@ pub enum UiCommand {
     /// MainForm.confirm "开始游戏" (MainForm.java:265-278) — **主线程属主**
     /// (MainForm 侧 vm-ui W2 接线调 `AppShell::dispatch`)。
     StartGame,
-    /// MainForm 底部"结束游戏"按钮 (MainForm.java:92-98 保存语义) — **主线程属主**
+    /// MainForm 底部"结束游戏"按钮 (MainForm.java:92-98 保存 + System.exit(0)) —
+    /// **主线程属主** (退出经 exit_requested, 见 dispatch 处理注)
     EndGame,
     /// Java OverlayManager.openAll (Controller.openpad, Controller.java:363) — win32 属主
     OpenAllOverlays,
@@ -189,7 +206,10 @@ pub enum UiCommand {
 pub enum TrayCommand {
     /// 左键/"设置" (Application.java:251-273: ctr.stop(); ctr = new Controller())
     Activate,
-    /// 菜单"开始" (tray.rs 拆分入口: Controller 重建的服务启动部分)
+    /// 菜单"开始" — PORT(多出能力, 非 Java 菜单项): Java 托盘菜单仅 about/close
+    /// (Application.java:223-247), 无"开始"项; Rust tray.rs 提供独立 start 入口,
+    /// handler 语义 = Controller.start() 的服务启动部分 (保真)。多出面的回收
+    /// 归 tray.rs 波次, 本侧仅忠实转发。
     Start,
     /// 菜单"退出" (Application.java:229-235 close → System.exit(0) 的归属方)
     Exit,
@@ -211,6 +231,15 @@ pub enum MainEvent {
     },
     /// 托盘动作
     Tray(TrayCommand),
+}
+
+/// 分相监督循环 ([`AppShell::run_supervisor_phase`]) 的退出形态
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SupervisorOutcome {
+    /// 进程退出请求 (EndGame / 托盘 Exit / 监督通道关闭)
+    Exit,
+    /// 托盘 Activate 已重建核, 请求弹设置窗 (主循环回相 A)
+    MainFormRequested,
 }
 
 /// ConfigDebouncer 输入 (Java 两个 handler 共用 configDebouncer 的两种任务载荷)
@@ -244,8 +273,28 @@ pub struct ControllerShared {
     /// win32 线程 live 喂入 + 主线程 tick 驱动读)
     pub live: RwLock<Option<Arc<RwLock<ServiceData>>>>,
     /// OverlayContext.isPreviewMode 的跨线程替身 (Java: forPreviewMode/forGameMode
-    /// 两种 ctx 构建; Rust 由 win32 命令处理点按操作语义设置)
+    /// 两种 ctx 构建)。语义 = **会话窗口形态** (审查 blocker 收口): openpad→false /
+    /// CloseAll/重建核→true; RefreshPreviews 仅在激活探测期临时置 true (对位 Java
+    /// refreshPreviews 传 forPreviewMode ctx, 见 win32 命令处理点 PORT 注)。
     pub overlay_ctx_preview: AtomicBool,
+    /// 最后一次 FlightDataEvent 到达时间 (ms epoch; 0 = 本核会话未见)。
+    /// PORT(B1 补偿): vm-data 不外泄原始串 (http_client 轮询线程独占),
+    /// 游戏退出 (HTTP 失败 → 串复位空串, http_helper NSTRING) 时 State/Indicators
+    /// 的 update 不执行, flags 保留陈旧真值 — Java 的 "串空 → S4toS1" 路径
+    /// (Service.java:1785-1790) 在 flags 判定下不可达。以 "事件流静默超时"
+    /// 顶替: player_live 轮每 ~50ms 发布一帧, 游戏退出即停发; 静默超过
+    /// [`FLIGHT_SILENT_EXIT_MS`] 且 flags/playerLive 陈旧真值 → 判定会话结束。
+    /// vm-data 后续波次补 raw_strings_valid 外泄后回收本补偿。
+    pub last_flight_event_ms: AtomicI64,
+    /// overlay present 帧数 (win32 线程 50ms 渲染节拍, 活跃 overlay 存在时 +1;
+    /// host 跨重建存活 → 跨核单调累积, 冒烟断言面)。host 无逐窗 present 计数
+    /// 外泄 (render_tick Result 不分首帧/脏检查抑制), 以"活跃窗口在场的成功
+    /// render_tick 次数"为 present 帧数的保守代理 (首帧必 present, 计数≥它)。
+    pub render_frames: AtomicU64,
+    /// 逐 overlay present 帧数 (注册面以 0 落键, 渲染节拍逐活跃窗口 +1;
+    /// 从未激活/注册失败的项如实暴露 — 冒烟"全部注册 overlay present>0"判据)。
+    /// 代理语义同 render_frames 注 (在场成功 render_tick ≥ 真实 present 数)。
+    pub overlay_present: Mutex<std::collections::BTreeMap<String, u64>>,
 }
 
 /// Controller 低频杂项字段 (Java Controller.java:122-134/196)
@@ -279,17 +328,40 @@ impl ControllerShared {
             flags: Mutex::new(ControllerFlags::default()),
             live: RwLock::new(None),
             overlay_ctx_preview: AtomicBool::new(true),
+            last_flight_event_ms: AtomicI64::new(0),
+            render_frames: AtomicU64::new(0),
+            overlay_present: Mutex::new(std::collections::BTreeMap::new()),
         }
     }
 
-    /// 托盘重建新核前复位 (Java 构造器 L582 `State = ControllerState.INIT` 显式赋值)
+    /// 托盘重建新核前复位 (Java 构造器 L582 `State = ControllerState.INIT` 显式赋值;
+    /// 审查 A-W1: sessionAircraftType 是 Controller 实例字段, Java 每次托盘重建随新
+    /// 实例归 null (Controller.java:196) — Rust flags 跨核共享, 需显式复位, 否则
+    /// 重建后首个不同机型被误判 is_switch。overlay_ctx_preview 同理回预览态初值,
+    /// 防残留游戏模式值影响 INIT 期的激活探测)
     pub fn reset_for_rebuild(&self) {
         *self.state.write().expect("Controller 状态锁中毒") = ControllerState::Init;
+        self.flags
+            .lock()
+            .expect("flags 锁中毒")
+            .session_aircraft_type = None;
+        self.overlay_ctx_preview.store(true, Ordering::SeqCst);
+        self.last_flight_event_ms.store(0, Ordering::SeqCst);
     }
 
     /// State 快照读 (跨线程安全; 主线程写点: 各状态转移方法)
     pub fn state(&self) -> ControllerState {
         *self.state.read().expect("Controller 状态锁中毒")
+    }
+
+    /// 注册面落键: overlay id → 0 (逐窗 present 计数起点)。注册失败不落键 —
+    /// 冒烟断言按 6 键全集判, 缺键即注册失败如实暴露 (不假通过)
+    fn note_registered_overlay(&self, id: &str) {
+        self.overlay_present
+            .lock()
+            .expect("overlay_present 锁中毒")
+            .entry(id.to_string())
+            .or_insert(0);
     }
 
     fn set_state(&self, s: ControllerState) {
@@ -334,7 +406,7 @@ pub fn is_stale_refresh(shared: &ControllerShared, generation: u64) -> bool {
 /// —— 新变更取消未执行任务并重排, 只有最后一次变更生效。
 /// 跨 Controller 重建共享 (Java static; Rust 由 AppShell 持有, tx 分发进各核)。
 pub struct ConfigDebouncer {
-    tx: Sender<DebounceMsg>,
+    tx: Option<Sender<DebounceMsg>>,
     join: Option<JoinHandle<()>>,
 }
 
@@ -378,19 +450,24 @@ impl ConfigDebouncer {
             })
             .expect("ConfigDebounce 线程创建失败");
         ConfigDebouncer {
-            tx,
+            tx: Some(tx),
             join: Some(join),
         }
     }
 
     pub fn sender(&self) -> Sender<DebounceMsg> {
-        self.tx.clone()
+        // shutdown 后取空句柄 (send 即 Err, 调用方一律 let _ 忽略)
+        self.tx
+            .clone()
+            .unwrap_or_else(|| std::sync::mpsc::channel().0)
     }
 
     pub fn shutdown(&mut self) {
-        // drop(tx) 使 recv 返回 Disconnected, 线程自然退出后 join
+        // 先 drop 全部自有发送端 → recv 返回 Disconnected → 线程退出 → join。
+        // (调用方持有的克隆 drop 前线程可能不退出 — join 前 Controller 已先行
+        // drop, AppShell 字段逆序声明保证该次序)
         if let Some(j) = self.join.take() {
-            drop(self.tx.clone());
+            self.tx = None;
             let _ = j.join();
         }
     }
@@ -483,7 +560,10 @@ impl HudSettingsSnapshot {
             attitude_indicator_inertial_mode: s.is_attitude_indicator_inertial_mode(),
             gpu_compatibility_mode: s.is_gpu_compatibility_mode(),
             always_show_radar_altitude: s.always_show_radar_altitude(),
-            font_name: s.get_font_name(),
+            // PORT: 不取 get_font_name — 其 defaultFont 回退分支是 vm-core 保真
+            // NPE (Application.defaultFont null, initFont TODO(port) 未接前不可达);
+            // MiniHUD ctx 只消费 num 字体 (get_num_font), text 字体空串顶位
+            font_name: String::new(),
             num_font_name: s.get_num_font_name(),
             font_size_add: s.get_font_size_add(),
             auto_hide_on_focus_loss: s.auto_hide_on_focus_loss(),
@@ -655,7 +735,12 @@ fn refresh_activation_cache(config: &ConfigurationService, cache: &ActivationCac
     }
 }
 
-/// overlay 注册面的 Send 参数快照 (win32 线程一次性注册用, D8: 字体→win32 线程)
+/// overlay 注册面的 Send 参数快照 (win32 线程一次性注册用, D8: 字体→win32 线程)。
+/// TODO(port) (审查 A-W4): 本快照是 spawn_win32_thread 时的一次性取值 — 核重建
+/// (rebuild_controller) 与 CONFIG_CHANGED 均只刷新 activation 缓存, MiniHUD 设置
+/// 快照 (font_size_add 等字号族) 与 service_loop_interval_ms 不随新核/配置变更
+/// 重建: WYSIWYG 链对字号类变更与"托盘重建后新配置进 MiniHUD"在组装层断链,
+/// 待 host 工厂面扩展 (win32 线程内重接线) 后收口。
 pub struct OverlayInputs {
     pub dpi_scale: f64,
     /// MiniHUD 全量设置快照
@@ -668,7 +753,18 @@ pub struct OverlayInputs {
     /// 起落襟翼字号增量 + 边缘模式 (getOverlaySettings("起落襟翼"))
     pub font_add_gear: i32,
     pub gear_show_edge: bool,
-    /// Service 轮询间隔 (MiniHUD blinkTicks/refreshInterval 同源)
+    /// 舵面值字号增量 + 边缘模式 (getOverlaySettings("舵面值"); Java :683)
+    pub font_add_axis: i32,
+    pub axis_show_edge: bool,
+    /// 地平仪几何/开关 (getOverlaySettings("地平仪"); 缺省 = Java reinitConfig 默认:
+    /// 150×300 / 40ms / direction false / AoA 极限 true, AttitudeOverlay.java:232-248)
+    pub attitude_width: i32,
+    pub attitude_height: i32,
+    pub attitude_freq_ms: i64,
+    pub attitude_show_direction: bool,
+    pub attitude_show_aoa_limits: bool,
+    /// Service 轮询间隔 (MiniHUD blinkTicks/refreshInterval 同源;
+    /// EngineControl loadRefreshInterval 读的 dataPollIntervalMs 亦同源)
     pub service_loop_interval_ms: i64,
 }
 
@@ -683,6 +779,8 @@ impl OverlayInputs {
         let engine = config.get_overlay_settings("引擎控制");
         let power = config.get_overlay_settings("动力信息");
         let gear = config.get_overlay_settings("起落襟翼");
+        let axis = config.get_overlay_settings("舵面值");
+        let attitude = config.get_overlay_settings("地平仪");
         OverlayInputs {
             dpi_scale: env.dpi.get_scale(),
             hud: HudSettingsSnapshot::build(&config.get_hud_settings()),
@@ -691,6 +789,15 @@ impl OverlayInputs {
             power_columns: power.get_int("hudColumns", 1),
             font_add_gear: gear.get_font_size_add(),
             gear_show_edge: gear.get_bool("enablegearAndFlapsEdge", false),
+            font_add_axis: axis.get_font_size_add(),
+            axis_show_edge: axis.get_bool("enableAxisEdge", false),
+            attitude_width: attitude.get_int("attitudeIndicatorWidth", 150),
+            attitude_height: attitude.get_int("attitudeIndicatorHeight", 300),
+            attitude_freq_ms: attitude.get_int("attitudeIndicatorFreqMs", 40) as i64,
+            attitude_show_direction: attitude
+                .get_bool("attitudeIndicatorDisplayDirection", false),
+            attitude_show_aoa_limits: attitude
+                .get_bool("attitudeIndicatorDisplayAoALimits", true),
             // load_app_check 缺省 50 (ConfigurationService.java 同源)
             service_loop_interval_ms: if interval > 0 { interval } else { 50 },
         }
@@ -710,9 +817,13 @@ pub struct ControllerDeps {
     pub hotkey: Arc<Mutex<HotkeyManager>>,
     pub shared: Arc<ControllerShared>,
     pub ui_cmd_tx: Sender<UiCommand>,
-    pub debounce_tx: Sender<DebounceMsg>,
     pub main_event_tx: Sender<MainEvent>,
     pub env: Env,
+    /// 8111 live 机型网络探测开关 (生产 true)。
+    /// PORT(测试注入面): get_live_aircraft_type 硬编码 127.0.0.1:8111 (Java 保真),
+    /// 单测环境该端口可能被 mock/游戏占用 (项目惯例: 端口占用即跳过/隔离),
+    /// 测试置 false 使 FM-Detect/Preview 刷新只走 selectedFM0 兜底, 不触网。
+    pub probe_network: bool,
 }
 
 /// 可重建应用核 (Java Controller; 恒留主线程 — config 字段 !Send)
@@ -723,15 +834,19 @@ pub struct Controller {
     flight_bus: Arc<FlightDataBus>,
     hotkey: Arc<Mutex<HotkeyManager>>,
     ui_cmd_tx: Sender<UiCommand>,
-    debounce_tx: Sender<DebounceMsg>,
     env: Env,
     /// stop 步2 退订的订阅句柄 (RAII Drop = unsubscribe, 对位 Java unsubscribe+置 null)
     subs: Vec<Subscription<UiStateEvent>>,
     fm_sub: Option<Subscription<vm_core::fm::FMHandle>>,
+    /// live 事件活跃度订阅 (B1 补偿信号, 见 ControllerShared.last_flight_event_ms;
+    /// start 建 / stop 退 — 回调在 Service 发布线程, 只写原子时间戳不碰 UI)
+    live_sub: Option<Subscription<FlightDataEvent>>,
     /// Service 线程句柄 (stop 步4: take + stop)
     pub service: Option<ServiceHandle>,
     /// Java `public MainForm M` 的存活位 (真窗归主线程 iced/W2; 此处只承载 null 判定)
     main_form_alive: bool,
+    /// 网络探测开关 (ControllerDeps.probe_network, 测试注入面)
+    probe_network: bool,
 }
 
 impl Controller {
@@ -749,9 +864,9 @@ impl Controller {
             hotkey,
             shared,
             ui_cmd_tx,
-            debounce_tx,
             main_event_tx,
             env,
+            probe_network,
         } = deps;
 
         // Java:474 loadFromConfig() (同步本地标志 + loadAppCheck)
@@ -771,12 +886,13 @@ impl Controller {
             flight_bus,
             hotkey: Arc::clone(&hotkey),
             ui_cmd_tx,
-            debounce_tx,
             env,
             subs: Vec::new(),
             fm_sub: None,
+            live_sub: None,
             service: None,
             main_form_alive: false,
+            probe_network,
         };
         c.bind_fm_hotkey_initial(); // Java:479-489
 
@@ -814,7 +930,6 @@ impl Controller {
                 corrupt: false,
             });
         }));
-        let _ = c.debounce_tx; // (依赖面保位: 防抖调度经 AppShell 的 debouncer)
 
         // Java:582 State = INIT (AppShell.reset_for_rebuild 已置); lastEvt/lastDmg=0 无对应物
 
@@ -869,9 +984,10 @@ impl Controller {
         let selected = self.config.get_config("selectedFM0").unwrap_or_default();
         let http_header = self.env.http_header.clone();
         let fm = Arc::clone(&self.fm);
+        let probe = self.probe_network;
         std::thread::Builder::new()
             .name("FM-Detect".to_string())
-            .spawn(move || detect_and_identify(&selected, &http_header, &fm))
+            .spawn(move || detect_and_identify(&selected, &http_header, &fm, probe))
             .expect("FM-Detect 线程创建失败");
     }
 
@@ -920,6 +1036,15 @@ impl Controller {
         if self.shared.state() != ControllerState::Init {
             return; // Java: if (State == ControllerState.INIT) 守卫
         }
+        // PORT(叠加态守卫, 审查 A-W6): 托盘 Start (Rust 多出面, 见 TrayCommand::Start)
+        // 起 Service 后 State 仍 Init, 用户再点 MainForm 确认时 confirm 链的
+        // end_preview 无条件置 Init — 仅 Java 守卫拦不住二次 start, 会二次 spawn
+        // Service (旧句柄 Drop 兜底 = 会话重启中断)。Java 无托盘 Start 入口故无
+        // 此形态; 此处以"Service 已在跑"为幂等条件丢弃, 保留首次会话。
+        if self.service.is_some() {
+            logger::info("Controller", "Service 已在运行, 忽略重复 start (托盘 Start 与确认叠加)");
+            return;
+        }
         // Java:619-623 M != null → stopRepaintTimer + dispose + M=null
         if self.main_form_alive {
             release_main_form();
@@ -951,6 +1076,15 @@ impl Controller {
         let handle = spawn_service_thread(service);
         *self.shared.live.write().expect("live 锁中毒") = Some(Arc::clone(&handle.data));
         self.service = Some(handle);
+        // B1 补偿信号接线 (ControllerShared.last_flight_event_ms 注): 新会话从 0 起,
+        // live 事件只记到达时间 (回调在 Service 发布线程, 原子写无锁)
+        self.shared.last_flight_event_ms.store(0, Ordering::SeqCst);
+        let stamp_shared = Arc::clone(&self.shared);
+        self.live_sub = Some(self.flight_bus.register(move |_ev: &FlightDataEvent| {
+            stamp_shared
+                .last_flight_event_ms
+                .store(current_time_millis(), Ordering::SeqCst);
+        }));
         // Java:640-641 进游戏模式即存配置
         self.config.save_config();
         self.config.save_layout_config();
@@ -971,9 +1105,11 @@ impl Controller {
                 let _ = self.ui_cmd_tx.send(UiCommand::CloseAllOverlays);
             }
         }
-        // 2. 取消事件订阅 (防重建后旧实例响应; RAII Drop = unsubscribe, Java 781-795)
+        // 2. 取消事件订阅 (防重建后旧实例响应; RAII Drop = unsubscribe, Java 781-795;
+        //    live_sub 为 Rust 侧 B1 补偿订阅, 同步退订防旧核刷新新核时间戳)
         self.subs.clear();
         self.fm_sub = None;
+        self.live_sub = None;
         // 3. 清理 MainForm (Java:797-802 M.stopRepaintTimer + dispose + M=null)
         if self.main_form_alive {
             release_main_form();
@@ -1004,6 +1140,7 @@ impl Controller {
         let http_header = self.env.http_header.clone();
         let fm = Arc::clone(&self.fm);
         let tx = self.ui_cmd_tx.clone();
+        let probe = self.probe_network;
         std::thread::Builder::new()
             .name("Preview-Refresh".to_string())
             .spawn(move || {
@@ -1011,7 +1148,7 @@ impl Controller {
                     "Controller",
                     "Refreshing overlays for preview/config change...",
                 );
-                detect_and_identify(&selected, &http_header, &fm);
+                detect_and_identify(&selected, &http_header, &fm, probe);
                 // Java:892-901 invokeLater + stale 守卫 → Rust: 送 win32 线程消费侧守卫
                 let _ = tx.send(UiCommand::RefreshPreviews {
                     changed_key: None,
@@ -1072,12 +1209,28 @@ impl Controller {
         self.fm.identify(indic_type);
         // Java:221-226 SB 释放 (StatusBar 未移植); Java:228-233 debug OtherService 未移植
         self.shared.set_state(ControllerState::Preview);
-        // Java:237-246 延迟 100ms 建 overlay 防数据闪烁 (小睡线程 + openpad)
+        // Java:237-246 延迟 100ms 建 overlay 防数据闪烁 (小睡线程 + openpad)。
+        // PORT(时序偏差备案, A-W7): Java openpad 全部内容 (含 FocusMonitor enable/
+        // FlightLog) 都在延迟线程内执行; Rust 仅 OpenAllOverlays 走延迟, 其余面
+        // (openpad_rest) 即时执行 — FocusMonitor 现为 TODO 无功能差, 备案。
+        // PORT(偏离声明, B-W5): Java 延迟线程 100ms 后**无守卫**发 openpad (停止窗口
+        // 内 overlay 被 CloseAll 后重开, bug 形态保真); Rust 加 state/世代号守卫 —
+        // Rust 侧重开残留形态比 Java 重 (overlay_ctx_preview 翻 false + 6 窗口全量
+        // live 喂入), 守卫为显式改进: 停止 (stop/end_preview 的 gen++) 或
+        // 退出 (S4toS1 → 非 Preview) 后丢弃本命令。
         let tx = self.ui_cmd_tx.clone();
+        let shared = Arc::clone(&self.shared);
+        let generation = self.shared.preview_generation.load(Ordering::SeqCst);
         std::thread::Builder::new()
             .name("Openpad-Delay".to_string())
             .spawn(move || {
                 std::thread::sleep(Duration::from_millis(100));
+                if shared.state() != ControllerState::Preview {
+                    return; // 已退出 (S4toS1) — 丢弃
+                }
+                if shared.preview_generation.load(Ordering::SeqCst) != generation {
+                    return; // stop()/end_preview() 已作废本回调
+                }
                 // openpad 的 overlay 面 (Java:363 openAll); 其余面见 openpad_rest
                 let _ = tx.send(UiCommand::OpenAllOverlays);
             })
@@ -1163,8 +1316,25 @@ impl Controller {
     /// PORT: Java Service.processPollingCycle 内联调用 c.initStatusBar/changeS2/
     /// changeS3/S4toS1 (vm-data service_loop.rs 对应位置留 TODO(port) — 本方法以
     /// ServiceData 公开字段顶替该调用面)。strState/strIndic 原始串在 HttpHelper
-    /// 内部不可见: "串空" 分支 (Java:755-761 直达 S4toS1) 与 "flag 丢失" 分支
-    /// (Java:746-754 同样 S4toS1) 合并 — 终态一致, 仅丢失 CONNECTED→IN_GAME 瞬态。
+    /// 内部不可见: "flag 丢失" 分支 (Java:746-754, 串非空 + update 后 flag=false)
+    /// 以 flags 假值直接顶替; "串空" 分支 (Java:755-761, 游戏退出/8111 消失 →
+    /// HTTP 失败 → 串复位空, update 不执行, flags 保留**陈旧真值**) 无法从
+    /// ServiceData 观测 — 以事件流静默超时补偿 (last_flight_event_ms 注/B1):
+    /// flags/playerLive 均真但事件停发超阈值 → 判定串空, S4toS1。
+    /// 残余偏差 (PORT 备案): 坠机 (playerLive=false) 后再退出游戏的组合不触发
+    /// (静默判定含 playerLive 真前置 — 防误杀 Java 的着陆停机等待态,
+    /// Service.java:746-754 sleep 等待路径), overlay 残留至托盘重建;
+    /// vm-data 外泄 raw_strings_valid 后两分支可逐字保真。
+    ///
+    /// PORT(时序偏差声明, 审查 A-W3 — 均无观察面, StatusBar 未移植):
+    /// a) changeS2 仅在 flags 双真时调用; Java (Service.java:1718) 串非空轮内
+    ///    update 后**无条件** changeS2 再判 flag — "串非空+flag 假" 轮 Java 停
+    ///    IN_GAME (changeS2 已推), Rust 停 Connected/Init; flags 转真的下一轮
+    ///    两者同轮可达 Preview, 收敛等价。
+    /// b) 串空补偿分支 (下方 silent) return 前不跑 init_status_bar; Java 串空轮
+    ///    (Service.java:1711/1785-1790) 每轮仍先 initStatusBar (INIT→CONNECTED)
+    ///    再 S4toS1 — 游戏退出后 Java 稳态 CONNECTED (等待重连), Rust 稳态停
+    ///    Init (下方注释的"不能照跑"论证即为此让步, 特此声明稳态差异)。
     pub fn drive_from_live(&mut self) {
         let live = self.shared.live.read().expect("live 锁中毒").clone();
         let Some(data) = live else { return };
@@ -1174,17 +1344,32 @@ impl Controller {
         let i_type = d.s_indic.as_ref().and_then(|i| i.r#type.clone());
         let player_live = d.player_live;
         drop(d);
+        // B1 补偿判定先行: 事件流静默 + flags/playerLive 陈旧真值 = 串空 (游戏退出)。
+        // 该轮对位 Java 串空分支 (L755-761): 只 S4toS1, 不 initStatusBar/changeS2
+        // (两者在 Java 串非空分支内 — 若照跑, 退出后状态会被 initStatusBar 重新
+        // 推到 Connected/InGame, s4to_s1 的 Preview 守卫即永久拦断)。
+        // last=0 视为非静默 (flags 真值必经串非空轮, 该轮 player_live 置真即同轮
+        // 发布事件, 竞态窗口远小于阈值; 保守侧防首轮误判)。
+        let last = self.shared.last_flight_event_ms.load(Ordering::SeqCst);
+        let silent = last != 0 && current_time_millis().saturating_sub(last) > FLIGHT_SILENT_EXIT_MS;
+        if silent && s_flag && i_flag && player_live {
+            self.s4to_s1(); // Java:758 串空路径的补偿触发
+            return;
+        }
         self.init_status_bar(); // Java:570 (每轮, 守卫在方法内)
         if s_flag && i_flag {
             self.change_s2(); // Java:598
             if player_live {
                 let t = i_type.clone();
-                self.change_s3(t.as_deref()); // Java:649 打开面板
+                self.change_s3(t.as_deref()); // Java:649 打开面板 (首进, guarded)
+                // Java:656-659 每轮 identify (service_loop TODO(port) 的顶替调用面;
+                // 目标未变零成本 — 换机时 FMManager 异步切句柄, P4 轻量 swap 语义)
+                self.fm.identify(t.as_deref());
                 self.on_aircraft_changed(i_type.as_deref()); // Java:668 换机
             }
             // else: Java 649 前的 playerLive 探测等待, 无 Controller 调用
         } else {
-            self.s4to_s1(); // Java:750/758 两条 S4toS1 路径的合并
+            self.s4to_s1(); // Java:750 flag 丢失路径 (flags 新值假, 真实可达)
         }
     }
 
@@ -1211,10 +1396,15 @@ fn load_from_config(config: &ConfigurationService, shared: &ControllerShared) {
 }
 
 /// Java:865-877 detectAndIdentify — live 机型探测 → selectedFM0 兜底 → identify。
-fn detect_and_identify(selected_fm0: &str, http_header: &str, fm: &FMManager) {
+/// `probe_network=false` 跳过 live 探测只走配置兜底 (测试注入面, 见 ControllerDeps)。
+fn detect_and_identify(selected_fm0: &str, http_header: &str, fm: &FMManager, probe_network: bool) {
     // getLiveAircraftType 自带异常兜底 (失败/无游戏 → None)
-    let fetcher = HttpHelper::new(http_header);
-    let live = fetcher.get_live_aircraft_type();
+    let live = if probe_network {
+        let fetcher = HttpHelper::new(http_header);
+        fetcher.get_live_aircraft_type()
+    } else {
+        None
+    };
     let target = live.unwrap_or_else(|| selected_fm0.to_string());
     if !target.is_empty() {
         fm.identify(Some(&target));
@@ -1267,18 +1457,37 @@ pub struct AppShell {
     pub release_main_form: Box<dyn FnMut()>,
     /// Exit 托盘命令 → run_supervisor 退出标志
     exit_requested: bool,
+    /// 托盘 Activate 置位 (新核构造了 MainForm 存活位) — 组装层主循环据此
+    /// 重开 iced 设置窗 (Java: 托盘点击 → ctr = new Controller(false) → 弹窗)。
+    /// 相 A (窗口期) 内置位 → 关窗重开; 相 B (监督期) 内置位 → run_supervisor_phase
+    /// 返回 MainFormRequested。
+    form_requested: bool,
+    /// 8111 网络探测开关 (生产 true; 测试隔离置 false, 见 fixture 注)
+    probe_network: bool,
+    /// 首次 rebuild 复用的注入配置 (AppShell::new 已 initConfig 的生产配置 /
+    /// 测试 tmp cfg); 托盘重建走磁盘新装载 (Java 每核 new ConfigurationService)
+    initial_config: Option<ConfigurationService>,
 }
 
 impl AppShell {
     /// 生产构造 (Java Application.main:533-604 启动序):
     /// Lang → 端口/Env → 总线/FM/热键 → 防抖 → 初始 Controller(true)。
-    pub fn new(debug: bool) -> Result<AppShell, String> {
+    /// `game_mode`: 对齐 `autoStartGameMode=true` 配置 (CLI --game-mode / e2e —
+    /// Java 无此开关, 由用户配置表达; 此处以等效配置注入, Controller 自启动
+    /// 判定路径零特判)。
+    pub fn new(debug: bool, game_mode: bool) -> Result<AppShell, String> {
         let lang = Lang::init_lang();
         let env = Env::probe(&lang, debug);
         let ui_bus = Arc::new(EventBus::new());
         let config = ConfigurationService::new(Some(Arc::clone(&ui_bus)));
         // Java Controller 构造器: configService.initConfig() 装载设置文件
         config.init_config();
+        if game_mode {
+            // 对位 Java e2e 的 autoStartGameMode=true 配置 (Controller.java:589-606
+            // 自启动分支: 跳过 MainForm 直接 start Service)
+            use vm_core::config_api::ConfigProvider as _;
+            config.set_config("autoStartGameMode", "true");
+        }
         let (hotkey, hotkey_rx) = HotkeyManager::with_channel();
         let mut shell = AppShell::with_parts(ShellParts {
             env,
@@ -1335,7 +1544,15 @@ impl AppShell {
                 logger::info("AppShell", "释放设置窗 (默认空操作 — W2 接线前)");
             }),
             exit_requested: false,
+            form_requested: false,
+            probe_network: true,
+            initial_config: Some(config),
         }
+    }
+
+    /// 测试注入面: 关闭 8111 live 探测 (须在 rebuild_controller 前调用)
+    pub fn probe_network_for_test(&mut self, on: bool) {
+        self.probe_network = on;
     }
 
     /// 托盘重建/初始构造 (Java Application.java:251-273 mouseClicked 与 main:590)。
@@ -1345,19 +1562,27 @@ impl AppShell {
         if let Some(old) = self.controller.as_mut() {
             old.stop(&mut self.release_main_form); // 旧核五步销毁
         }
-        // Java:470 每核 new ConfigurationService + initConfig (配置树随核重建)
-        let config = ConfigurationService::new(Some(Arc::clone(&self.ui_bus)));
-        config.init_config();
-        // 模板回退 (vm-ui main.rs 同款分歧备案: CWD 无用户 cfg 时以仓库模板自愈)
-        if config.get_layout_configs().is_none_or(|g| g.is_empty()) {
-            match locate_template_cfg() {
-                Some(p) => {
-                    logger::warn("AppShell", &format!("CWD 无用户配置, 回退模板 {}", p));
-                    config.load_layout(p);
+        // Java:470 每核 new ConfigurationService + initConfig (配置树随核重建)。
+        // 首核复用注入配置 (AppShell::new 已 initConfig / 测试 tmp cfg — 免重复装载
+        // 与写盘副作用); 托盘重建核走磁盘新装载
+        let config = match self.initial_config.take() {
+            Some(c) => c,
+            None => {
+                let config = ConfigurationService::new(Some(Arc::clone(&self.ui_bus)));
+                config.init_config();
+                // 模板回退 (vm-ui main.rs 同款分歧备案: CWD 无用户 cfg 时以仓库模板自愈)
+                if config.get_layout_configs().is_none_or(|g| g.is_empty()) {
+                    match locate_template_cfg() {
+                        Some(p) => {
+                            logger::warn("AppShell", &format!("CWD 无用户配置, 回退模板 {}", p));
+                            config.load_layout(&p);
+                        }
+                        None => logger::warn("AppShell", "未找到 ui_layout.cfg, 配置面为空"),
+                    }
                 }
-                None => logger::warn("AppShell", "未找到 ui_layout.cfg, 配置面为空"),
+                config
             }
-        }
+        };
         refresh_activation_cache(&config, &self.activation); // win32 激活面同步
         self.shared.reset_for_rebuild(); // Java:582 State = INIT
         self.controller = Some(Controller::new(
@@ -1369,9 +1594,9 @@ impl AppShell {
                 hotkey: Arc::clone(&self.hotkey),
                 shared: Arc::clone(&self.shared),
                 ui_cmd_tx: self.ui_cmd_tx.clone(),
-                debounce_tx: self.debounce.sender(),
                 main_event_tx: self.main_event_tx.clone(),
                 env: self.env.clone(),
+                probe_network: self.probe_network,
             },
             is_initial_launch,
         ));
@@ -1423,10 +1648,19 @@ impl AppShell {
                 }
             }
             UiCommand::EndGame => {
-                // Java MainForm.java:92-98 mCancel 保存语义 (配置落盘)
+                // Java MainForm.java:92-98 mCancel: MainForm.saveConfig + tc.saveConfig
+                // + System.exit(0)。tc.saveConfig 对位 Controller.config.save_config
+                // (空实现); saveLayoutConfig **不在** mCancel 链 (仅 start() 路径,
+                // Controller.java:640-641) — 设置窗内未确认落盘的 layout 改动随
+                // 退出丢弃, 勿在此加回 (审查 A-W1); System.exit(0) 的退出归属:
+                // 置 exit_requested — run_supervisor 路径经循环尾 shutdown() 收尾
+                // 退出 (比 Java 裸 exit 多做线程/托盘清理); W2 iced 外部驱动路径
+                // 由调用方轮询 is_exit_requested() 决定退出 (iced 侧 exit +
+                // drop AppShell = Drop 兜底 shutdown)。
                 if let Some(c) = self.controller.as_ref() {
-                    c.config.save_layout_config();
+                    c.config.save_config();
                 }
+                self.exit_requested = true;
             }
             // win32 属主变体不经 dispatch (发送方直达 ui_cmd_tx); 防御性转发
             other => {
@@ -1497,9 +1731,18 @@ impl AppShell {
                 }
             }
             MainEvent::Tray(TrayCommand::Activate) => {
-                // Java Application.java:251-273: CAS 防重入在托盘层 (tray.rs) 完成,
-                // 此处串行收到 — 旧核 stop + 新核构造
+                // Java Application.java:251-273: 旧核 stop + 新核构造。
+                // PORT(防重入窗口备案, 审查 A-W2): 托盘层 CAS (tray.rs dispatch_activate)
+                // 仅覆盖 handler.activate() 的 channel send (微秒级即复位), 远窄于
+                // Java CAS 覆盖整个 ctr.stop()+new Controller() 的窗口 — 快速双击
+                // 会向本通道投递**两条** Activate, 此处串行 rebuild×2 (串行 ≠ 只收到
+                // 一次)。与 Java 行为等价: Java 托盘回调同样在 EDT 串行, 第二次点击
+                // 在第一次 finally 复位后到达, 同样重建两次; 最终态一致且无泄漏
+                // (第二次 rebuild 的 stop 收掉刚建核, ServiceHandle Drop 兜底 stop+join)。
                 self.rebuild_controller(false);
+                // 新核 main_form_alive=true (Java Controller(false) 构造 MainForm) —
+                // 真窗开合归组装层主循环, 置请求位
+                self.form_requested = true;
             }
             MainEvent::Tray(TrayCommand::Start) => {
                 // tray.rs 拆分入口: Controller 重建的服务启动部分
@@ -1524,25 +1767,88 @@ impl AppShell {
         }
     }
 
+    /// 退出请求查询 (W2 iced 外部驱动路径: dispatch(EndGame)/托盘 Exit 置位;
+    /// 调用方见真即应退出事件循环并 drop AppShell — Drop 兜底收尾)。
+    pub fn is_exit_requested(&self) -> bool {
+        self.exit_requested
+    }
+
+    /// 取走设置窗重开请求 (托盘 Activate; 见 form_requested 注)。组装层主循环:
+    /// 相 A (iced 窗口期) Tick 泵查询 → true 即 iced::exit 关窗重开;
+    /// 相 B (监督期) 由 run_supervisor_phase 返回值表达。
+    pub fn take_form_request(&mut self) -> bool {
+        std::mem::replace(&mut self.form_requested, false)
+    }
+
     /// 阻塞监督循环 (无 MainForm 场景: --game-mode / 冒烟; Java 托盘+EDT 泵的对位)。
     /// Exit 托盘命令或通道关闭即返回 (进程退出归调用方)。
+    /// 防呆 (审查 A-W3): 生产入口必须先起 win32 线程 (托盘/overlay/热键泵);
+    /// 未 spawn 直接 run = 无托盘无窗口且 TrayCommand::Exit 永不可达 (通道不关
+    /// 则循环不退) — 此处对未启动的 win32 线程自动补 spawn。
+    /// spawn 失败 = Exit 兜底 (审查 B-W4): 线程创建失败/核缺失属 OS 级资源问题;
+    /// 若仅告警继续, 监督循环无退出面 (本 shell 自持 main_event_tx, 通道恒不
+    /// Disconnected) → 只能外部 kill。无桌面环境的冒烟不受影响: 托盘/窗口创建
+    /// 失败在线程**内部**逐项降级 (warn + 继续跑), 走不到本兜底。
     pub fn run_supervisor(mut self) {
-        loop {
-            match self.main_event_rx.recv_timeout(Duration::from_millis(50)) {
-                Ok(ev) => self.handle_main_event(ev),
-                Err(RecvTimeoutError::Timeout) => {}
-                Err(RecvTimeoutError::Disconnected) => break,
+        if self.win32.is_none() && self.ui_cmd_rx.is_some() {
+            if let Err(e) = self.spawn_win32_thread() {
+                logger::error(
+                    "AppShell",
+                    &format!("win32 线程启动失败, 无监督退出面, 转退出: {}", e),
+                );
+                self.exit_requested = true;
             }
-            self.pump();
-            if self.exit_requested {
-                break;
+        }
+        loop {
+            // 无 MainForm 的运行形态: 托盘 Activate 重建核后无窗可开, 记日志继续
+            // (设置窗的开合属组装层主循环的完整路径)
+            match self.run_supervisor_phase() {
+                SupervisorOutcome::Exit => break,
+                SupervisorOutcome::MainFormRequested => logger::info(
+                    "AppShell",
+                    "托盘请求设置窗 — 无 MainForm 运行形态, 已重建核继续监督",
+                ),
             }
         }
         self.shutdown();
     }
 
+    /// 分相监督循环 (组装层主循环的相 B: MainForm 关闭后 — 开始游戏/窗口 X)。
+    /// 对位 Java: MainForm.dispose 后 EDT 事件循环继续 (托盘/overlay 存活),
+    /// Controller 的 Service 驱动状态机推进。
+    /// 返回: Exit = 进程退出请求 (EndGame/托盘 Exit); MainFormRequested = 托盘
+    /// Activate 已重建核并请求弹设置窗 (主循环回相 A 重开 iced 窗口)。
+    /// win32 线程未启动时自动补 spawn (run_supervisor 同款防呆; spawn 失败转
+    /// Exit 兜底, 见其注释 — 无退出面的悬空监督不可达)。
+    pub fn run_supervisor_phase(&mut self) -> SupervisorOutcome {
+        if self.win32.is_none() && self.ui_cmd_rx.is_some() {
+            if let Err(e) = self.spawn_win32_thread() {
+                logger::error(
+                    "AppShell",
+                    &format!("win32 线程启动失败, 无监督退出面, 转退出: {}", e),
+                );
+                self.exit_requested = true;
+            }
+        }
+        loop {
+            match self.main_event_rx.recv_timeout(Duration::from_millis(50)) {
+                Ok(ev) => self.handle_main_event(ev),
+                Err(RecvTimeoutError::Timeout) => {}
+                Err(RecvTimeoutError::Disconnected) => return SupervisorOutcome::Exit,
+            }
+            self.pump();
+            if self.exit_requested {
+                return SupervisorOutcome::Exit;
+            }
+            if self.form_requested {
+                return SupervisorOutcome::MainFormRequested;
+            }
+        }
+    }
+
     /// 全量收尾: 旧核五步 → win32 线程 (先托盘 NIM_DELETE 后窗口, tray.rs 退出
-    /// 契约) → 防抖线程 → 热键钩子 (AppShell Drop 兜底)。
+    /// 契约) → 防抖线程 → 热键钩子。幂等 (controller 置 None / 各 join take 判空),
+    /// Drop 兜底与显式调用双保险。
     pub fn shutdown(&mut self) {
         if let Some(old) = self.controller.as_mut() {
             old.stop(&mut self.release_main_form);
@@ -1556,6 +1862,17 @@ impl AppShell {
         if let Ok(mut hm) = self.hotkey.lock() {
             hm.shutdown(); // Java shutdown() 不清全局钩子; Rust 实例自持钩子, 卸钩收线程
         }
+    }
+}
+
+impl Drop for AppShell {
+    /// 兜底收尾 (审查 A-W4/B-W1): 不经 shutdown() 直接 drop (W2 iced 外部驱动
+    /// 路径可能) 时, win32/防抖线程不泄漏、热键钩子必卸 — shutdown 幂等, 与
+    /// run_supervisor 尾部的显式调用双保险, 二次调用全部空转。
+    /// (win32 线程唯一出口是 UiCommand::Shutdown; 若仅 drop 发送端, 线程的
+    /// try_recv 恒 Disconnected 但循环仍 10ms 空转 — 必须显式 send。)
+    fn drop(&mut self) {
+        self.shutdown();
     }
 }
 
@@ -1577,10 +1894,21 @@ pub struct Win32ThreadConfig {
     pub main_event_tx: Sender<MainEvent>,
 }
 
-/// win32 线程内注册的 overlay 数据句柄 (Rc — 恒留本线程)
+/// win32 线程内注册的 overlay 数据句柄 (Rc — 恒留本线程)。
+/// None = spec 工厂失败 (字体缺失等, 注册点已 logger::error), 喂入跳过
 struct OverlayHandles {
     /// MiniHUD live 喂入口 (Java onFlightData → EDT 的单线程 host 对位)
     minihud: Option<MiniHudHandle>,
+    /// 动力信息 (Java PowerInfoOverlay.onFlightData 50ms 节流)
+    power_info: Option<PowerInfoHandle>,
+    /// 引擎控制 (Java EngineControlOverlay.onFlightData, 间隔配置驱动 ×2)
+    engine_control: Option<EngineControlHandle>,
+    /// 起落襟翼 (Java GearFlapsOverlay.onFlightData 100ms 节流)
+    gear_flaps: Option<GearFlapsHandle>,
+    /// 地平仪 (Java AttitudeOverlay.drawTick, freqMili 节流归喂入侧)
+    attitude: Option<AttitudeOverlayHandle>,
+    /// 操纵面 (Java ControlSurfacesOverlay.onFlightData 50ms 节流)
+    control_surfaces: Option<ControlSurfacesHandle>,
 }
 
 /// Java OverlayContext 的 win32 侧替身: 激活探测访问面
@@ -1635,39 +1963,70 @@ fn strategy_for(config_key: &str) -> ActivationStrategy {
     }
 }
 
+/// MiniHUD withInterest 键 (Java Controller.java:676-678 逐字对齐; 测试
+/// minihud_interest_keys_hit_ui_layout_cfg 以此为源核对 cfg 键空间 — 审查 W1:
+/// 曾笔误 "showAttitudeIndicator", 前缀匹配下不命中任何 cfg 键, 开关失效)
+const MINIHUD_INTEREST_KEYS: [&str; 13] = [
+    "displayCrosshair",
+    "drawHUD",
+    "disableHUD",
+    "crosshair",
+    "miniHUD",
+    "enableLayoutDebug",
+    "enableFlapAngleBar",
+    "hudMach",
+    "showSpeedBar",
+    "showAttitudeGauge",
+    "attitudeIndicatorInertialMode",
+    "alwaysShowRadarAltitude",
+    "showHUD",
+];
+
 /// Java Controller.registerGameModeOverlays (651-753) 的 win32 侧一次性注册。
 /// PORT(偏差备案): Java 每 Controller 重建 OverlayManager + 重注册; Rust host 跨
 /// 重建存活 (D8), 条目是无状态配置记录 (id/config_key/尺寸/渲染闭包), 重建语义
 /// 由激活探测 (实时配置) + 命令通道承载 — 重注册无信息增量。
-/// 本批可注册 = 有 spec 工厂的四件; 其余:
-/// - flightInfoSwitch: POC 走 window.rs 专径, 无 OverlaySpec 工厂 (TODO(port))
-/// - enableAxis/enableFMPrint (field2): 需 host 扩展 (overlays_field2.rs 头注契约)
-/// - enableVoiceWarn: 非窗口 (VoiceWarning 为 FlightDataBus 订阅者形态, TODO(port))
-/// - thrustdFS (DrawFrameSimpl): D8 降级清单 P6
-/// - enableAttitudeIndicator: gauge_attitude 无独立 spec 工厂 (TODO(port))
+///
+/// 注册键 10/10 落位 (P6 收口, 批十四 A-W5 备案收编):
+/// - 窗口条目 6: enableEngineControl / engineInfoSwitch / crosshairSwitch /
+///   enablegearAndFlaps / enableAxis / enableAttitudeIndicator (本批补齐后两键)。
+/// - 非窗口/降级 4 (键在激活缓存 ACTIVATION_KEYS / strategy_for 留有映射, 不建窗口):
+///   - flightInfoSwitch: FlightInfo 走 window.rs 专径 (POC 形态, 无 OverlaySpec 工厂)
+///   - enableVoiceWarn: VoiceWarning 为 FlightDataBus 订阅者形态非窗口 (TODO(port))
+///   - enableFMPrint: FMUnpackedData 需 host 扩展 (动态窗口高 resize + 逐条目可见性,
+///     overlays_field2.rs 头注 P5 组装契约), 键留激活缓存无窗口条目
+///   - thrustdFS (DrawFrameSimpl): D8 降级清单 P6 尾巴 (live 喂数覆盖的唯一豁口)
 fn register_game_mode_overlays(
     host: &mut OverlayHost,
     handles: &mut OverlayHandles,
     env: &Env,
     inputs: &OverlayInputs,
+    lang: &Lang,
+    shared: &ControllerShared,
 ) {
     let fonts = &env.fonts_dir;
-    // 引擎控制 (Java:654-659, 键 enableEngineControl)
-    match engine_control_preview_spec(
+    // 引擎控制 (Java:654-659, 键 enableEngineControl); dataPollIntervalMs 经
+    // loadRefreshInterval ×2 → refreshInterval (preview 工厂传不了此参恒默认 100)
+    match engine_control_overlay_spec(
         fonts,
-        &Lang::init_lang(),
+        lang,
         inputs.font_add_engine,
         inputs.dpi_scale,
+        inputs.service_loop_interval_ms,
     ) {
-        Ok(spec) => {
+        Ok((h, spec)) => {
+            shared.note_registered_overlay(&spec.id);
+            handles.engine_control = Some(h);
             host.register(spec)
                 .with_interest(&["disableEngineInfo", "fontSize"]);
         }
         Err(e) => logger::error("Controller", &format!("引擎控制 overlay 注册失败: {}", e)),
     }
     // 动力信息 (Java:662-667, 键 engineInfoSwitch)
-    match power_info_preview_spec(fonts, inputs.font_add_power, inputs.power_columns) {
-        Ok(spec) => {
+    match power_info_overlay_spec(fonts, inputs.font_add_power, inputs.power_columns) {
+        Ok((h, spec)) => {
+            shared.note_registered_overlay(&spec.id);
+            handles.power_info = Some(h);
             host.register(spec)
                 .with_interest(&["fontName", "fontSize", "hudColumns", "S."]);
         }
@@ -1684,41 +2043,64 @@ fn register_game_mode_overlays(
         &fonts.join("sarasa-mono-sc-bold.ttf"),
     ) {
         Ok((h, spec)) => {
+            shared.note_registered_overlay(&spec.id);
             handles.minihud = Some(h);
-            host.register(spec).with_interest(&[
-                "displayCrosshair",
-                "drawHUD",
-                "disableHUD",
-                "crosshair",
-                "miniHUD",
-                "enableLayoutDebug",
-                "enableFlapAngleBar",
-                "hudMach",
-                "showSpeedBar",
-                "showAttitudeIndicator",
-                "attitudeIndicatorInertialMode",
-                "alwaysShowRadarAltitude",
-                "showHUD",
-            ]);
+            host.register(spec).with_interest(&MINIHUD_INTEREST_KEYS);
         }
         Err(e) => logger::error("Controller", &format!("MiniHUD overlay 注册失败: {}", e)),
     }
     // 起落襟翼 (Java:709-714, 键 enablegearAndFlaps)
-    match gear_flaps_preview_spec(
+    match gear_flaps_overlay_spec(
         fonts,
         inputs.font_add_gear,
         inputs.dpi_scale,
         inputs.gear_show_edge,
     ) {
-        Ok(spec) => {
+        Ok((h, spec)) => {
+            shared.note_registered_overlay(&spec.id);
+            handles.gear_flaps = Some(h);
             host.register(spec)
                 .with_interest(&["enablegearAndFlapsEdge", "fontSize"]);
         }
         Err(e) => logger::error("Controller", &format!("起落襟翼 overlay 注册失败: {}", e)),
     }
+    // 操纵面 (Java:680-687, 键 enableAxis) — 本批补齐 (批十四 A-W5 备案收口)
+    match control_surfaces_overlay_spec(
+        fonts,
+        inputs.font_add_axis,
+        inputs.dpi_scale,
+        inputs.axis_show_edge,
+    ) {
+        Ok((h, spec)) => {
+            shared.note_registered_overlay(&spec.id);
+            handles.control_surfaces = Some(h);
+            host.register(spec)
+                .with_interest(&["enableAxisEdge", "fontSize"]);
+        }
+        Err(e) => logger::error("Controller", &format!("操纵面 overlay 注册失败: {}", e)),
+    }
+    // 地平仪 (Java:690-697, 键 enableAttitudeIndicator) — 本批补齐 (同上)
+    match attitude_overlay_spec(
+        inputs.attitude_width,
+        inputs.attitude_height,
+        inputs.dpi_scale,
+        inputs.attitude_show_direction,
+        inputs.attitude_show_aoa_limits,
+    ) {
+        Ok((h, spec)) => {
+            shared.note_registered_overlay(&spec.id);
+            handles.attitude = Some(h);
+            host.register(spec)
+                .with_interest(&["attitudeIndicator", "enableAttitudeIndicator"]);
+        }
+        Err(e) => logger::error("Controller", &format!("地平仪 overlay 注册失败: {}", e)),
+    }
 }
 
-/// 托盘 handler: 动作转发主线程 (Java 托盘回调在 EDT, Rust 泵线程→channel)
+/// 托盘 handler: 动作转发主线程 (Java 托盘回调在 EDT, Rust 泵线程→channel)。
+/// TODO(port) (P6 NotificationService 族, 审查 A-W5): Java 托盘菜单 about 项
+/// (Application.java:236-245, NotificationService.showAbout×3) 未移植 —
+/// tray.rs 菜单面加 about 项后在此转发 (tray.rs 头注已声明归组装层挂接)。
 #[cfg(target_os = "windows")]
 struct AppTrayHandler {
     tx: Sender<MainEvent>,
@@ -1748,35 +2130,150 @@ fn drain_latest<T>(rx: &Receiver<T>) -> Option<T> {
     Some(latest)
 }
 
-/// MiniHUD live 喂入 (Java onFlightData → invokeLater → EDT 的单线程对位)。
-/// PORT: FlightDataEvent 不可 Clone (OpaqueObject) — 转发链只送 EventPayload,
-/// 本侧重构事件对象; hud_data 恒 None → 走 MiniHudOverlay 的 EDT 回退计算路径
-/// (minihud.rs update_from_event 的 None 分支; service_loop 的 set_hud_data
-/// TODO(port) 期间即设计消费路径)。
-fn feed_minihud_live(
-    handle: &MiniHudHandle,
+/// 地平仪喂入节流状态 (Java AttitudeOverlay.java:96 freqMili + :352 freqCheckMili;
+/// update_telemetry 无节流闩 — 组件头注 "40ms 节流在 onFlightData 组装层")
+struct AttitudeFeedState {
+    freq_ms: i64,
+    last_ms: i64,
+}
+
+/// 全部窗口 overlay 的 live 喂入 (Java 各 overlay init(S) 时自订 FlightDataBus 的
+/// 单点对位; Rust 订阅生命周期由 OpenAllOverlays/CloseAllOverlays 承载, 本函数在
+/// 订阅期由 win32 渲染节拍调用, drain_latest 只留最新帧 = EDT repaint 合并)。
+///
+/// PORT(preview 门控): Java preview 实例 (initPreview) 不订阅 FlightDataBus, 恒显
+/// previewValue 静态; Rust host 单条目跨 open/refresh_preview 存活 (D8), 预览窗口
+/// 形态 (overlay_ctx_preview=true, CloseAll/重建核置位 — 会话窗口形态语义) 喂入
+/// 整帧跳过 — MiniHUD 此前的无条件喂入一并收口 (原 B-W3 备案族的收窄, 游戏内设
+/// 置窗期不再渗 live 数据)。游戏稳态 (openpad 后) 恒 false, RefreshPreviews 不再
+/// 翻转本标志 (Java refreshPreviews 对在场实例只调 reinitializer, 订阅不动 —
+/// OverlayManager.java:332-336)。
+///
+/// PORT(MiniHUD 事件重构): FlightDataEvent 不可 Clone (OpaqueObject) — 转发链只送
+/// EventPayload, 本侧重构事件对象; hud_data 恒 None → 走 MiniHudOverlay 的 EDT
+/// 回退计算路径 (minihud.rs update_from_event 的 None 分支)。
+///
+/// PORT(锁内计算形态备案, 审查 B-W2): 各 update 需要 &ServiceData 完整视图, 而
+/// 签名归 vm-overlay (不可越文件改) 且 ServiceData 无 Clone — 读锁跨纯计算段
+/// (无回调/IO/回写, 读锁共享不阻塞读者, 仅推迟 Service 写者排队)。与 Java 的 EDT
+/// 回退路径 (MiniHUDOverlay EDT 内直接读 Service 公开字段无锁计算) 同形态。
+/// vm-data 后续波次出 Clone/字段快照 API 后, 改锁内快照释放再算。
+///
+/// PORT(panic 边界): ServiceData 的保真 panic 点 (get_pitch/get_thrust 的空引擎
+/// 数组索引, service_fields.rs 注) 在畸形 s_state (update 失败 pitch/thrust 未填)
+/// 下可达 — Java NPE 由 AWT EDT 吞掉 (UI 存活), Rust win32 线程 panic 会杀整个
+/// host 泵, 故整帧 catch_unwind (AssertUnwindSafe: 状态可能半更新, 对位 Java
+/// EDT 半更新后吞 NPE 的形态), ERROR 留痕丢帧继续。
+fn feed_overlays_live(
+    handles: &OverlayHandles,
     payload: &EventPayload,
     shared: &ControllerShared,
     fm: &FMManager,
     settings: &HudSettingsSnapshot,
+    lang: &Lang,
+    attitude_feed: &mut AttitudeFeedState,
 ) {
+    // preview 门控 (见函数头注 PORT(preview 门控))
+    if shared.overlay_ctx_preview.load(Ordering::SeqCst) {
+        return;
+    }
     let live = shared.live.read().expect("live 锁中毒").clone();
     let Some(data) = live else { return };
     let Ok(guard) = data.read() else {
         return; // 中毒帧跳过 (Java 无锁无此形态; §6 契约下 Service 线程仍在轮询)
     };
-    let event = FlightDataEvent::new(payload.clone(), None, None);
-    let colors = HudColors::application_defaults();
+    let now = current_time_millis();
     let fm_handle = fm.current();
-    let blkx = fm_handle.blkx.as_ref();
-    handle.borrow_mut().on_flight_data(
-        current_time_millis(),
-        &event,
-        Some(&*guard),
-        blkx,
-        settings,
-        &colors,
-    );
+    // PORT(getload 过渡期禁令, hud_calculator.rs L197-205 ⚠): Blkx::parse 等价
+    // doLoad=false — is_v_wing 恒 None, calculate() 的 FM 分支 unwrap 必 panic
+    // ("getload 波次落地前禁止把 calculate() 接入 service_loop")。W1 设计的
+    // None-hud_data 回退路径在此形态不可达; 过渡期处置: 该形态 FM 不进喂入
+    // (走无 FM 降级路径, CLAUDE.md "指标按 0/上次值/MAX_VALUE 降级" 语义),
+    // 一次性 ERROR 上报 (禁令反对的是静默吞 panic — 显式留痕 + 帧继续渲染);
+    // getload 波次落地 (is_v_wing 被 populate) 后本守卫自然失效, 随该波次移除。
+    let blkx = match fm_handle.blkx.as_ref() {
+        Some(b) if b.is_v_wing.is_none() => {
+            static WARNED: std::sync::Once = std::sync::Once::new();
+            WARNED.call_once(|| {
+                logger::error(
+                    "Controller",
+                    "FM 已装载但 getload 未译 (is_v_wing=None) — MiniHUD live 喂入走无 FM 降级路径 (hud_calculator.rs 过渡期禁令)",
+                );
+            });
+            None
+        }
+        other => other,
+    };
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        // 1. MiniHUD (Java MiniHUDOverlay.onFlightData → invokeLater)
+        if let Some(h) = handles.minihud.as_ref() {
+            let event = FlightDataEvent::new(payload.clone(), None, None);
+            let colors = HudColors::application_defaults();
+            h.borrow_mut().on_flight_data(
+                now,
+                &event,
+                Some(&*guard),
+                blkx,
+                settings,
+                &colors,
+            );
+        }
+        // 2. 动力信息 (Java FieldOverlay.onFlightData 50ms 节流闩内置)
+        if let Some(h) = handles.power_info.as_ref() {
+            h.borrow_mut().update(now, &*guard);
+        }
+        // 3. 引擎控制 (节流闩 = refreshInterval 配置驱动; compressorStages 档位数 =
+        //    Java FMManager.current().compressorStages, 非 READY/喷气机 → None)
+        if let Some(h) = handles.engine_control.as_ref() {
+            let stages = fm_handle
+                .compressor_stages
+                .as_ref()
+                .map(|v| v.len() as i32);
+            h.borrow_mut().update(now, &*guard, payload, stages);
+        }
+        // 4. 起落襟翼 (100ms 节流闩内置)
+        if let Some(h) = handles.gear_flaps.as_ref() {
+            h.borrow_mut().update_tick(now, lang, &*guard);
+        }
+        // 5. 操纵面 (50ms 节流内置; has_service = Java init(S) 的 xs!=null 数据门控,
+        //    单实例形态下由喂入点随游戏窗口形态置位 — 见工厂头注 PORT(数据门控))
+        if let Some(h) = handles.control_surfaces.as_ref() {
+            let mut cs = h.borrow_mut();
+            cs.has_service = true;
+            cs.on_flight_data(
+                now,
+                guard.get_aileron(),
+                guard.get_elevator(),
+                guard.get_rudder(),
+                guard.get_wing_sweep(),
+                guard.is_wing_sweep_valid(),
+            );
+        }
+        // 6. 地平仪 (节流 = freqMili 40ms 配置驱动, 喂入侧承载;
+        //    aoa_limits = blkx.NoFlapsWing.AoACritHigh/Low, 无 FM → None 不显示)
+        if let Some(h) = handles.attitude.as_ref() {
+            if now - attitude_feed.last_ms > attitude_feed.freq_ms {
+                attitude_feed.last_ms = now;
+                let aoa_limits = blkx
+                    .and_then(|b| b.no_flaps_wing.as_ref())
+                    .map(|w| (w.aoa_crit_high, w.aoa_crit_low));
+                h.borrow_mut().update_telemetry(
+                    guard.get_aoa(),
+                    guard.get_aos(),
+                    guard.get_aviahorizon_pitch(),
+                    guard.get_aviahorizon_roll(),
+                    guard.get_compass(),
+                    aoa_limits,
+                );
+            }
+        }
+    }));
+    if result.is_err() {
+        logger::error(
+            "Controller",
+            "live 喂入帧 panic 已吞 (畸形数据帧, 对位 Java EDT NPE 吞), 帧丢弃继续",
+        );
+    }
 }
 
 /// win32 线程入口 (D8 拓扑): OverlayHost 泵 + 托盘 + 热键事件消费。
@@ -1786,6 +2283,9 @@ fn feed_minihud_live(
 /// D8 的"并入单泵"需 hotkey.rs 提供外部线程装钩入口 (未提供, 本批次不越文件改),
 /// 豁免期内钩子事件经 channel 汇入本线程统一消费 — 与托盘/overlay 共享的
 /// 泵约束 (安装线程需泵) 由钩子线程自泵满足, 行为面一致。
+/// 跟踪项 (审查 B-W4): 豁免收口 = hotkey.rs 提供外部线程装钩入口; 且
+/// FM_OVERLAY_TOGGLE 的发布线程从 Java 的钩子线程变为本 win32 线程 (经
+/// hotkey_rx 中转后 publish ui_bus) — 后续接 DrawFrame 系订阅方时注意此差异。
 pub fn win32_thread_main(cfg: Win32ThreadConfig) {
     let Win32ThreadConfig {
         env,
@@ -1811,10 +2311,24 @@ pub fn win32_thread_main(cfg: Win32ThreadConfig) {
     host.with_activation(Box::new(move |key: &str| {
         strategy_for(key).should_activate(&ctx)
     }));
-    let mut handles = OverlayHandles { minihud: None };
-    register_game_mode_overlays(&mut host, &mut handles, &env, &inputs);
+    let mut handles = OverlayHandles {
+        minihud: None,
+        power_info: None,
+        engine_control: None,
+        gear_flaps: None,
+        attitude: None,
+        control_surfaces: None,
+    };
+    // Lang 一次构造 (GearFlaps update_tick 的标签源; 注册面与喂入共用)
+    let lang = Lang::init_lang();
+    register_game_mode_overlays(&mut host, &mut handles, &env, &inputs, &lang, &shared);
     // live 喂入用设置快照 (注册面同源; WYSIWYG 字号变更的重接线随 host 工厂面扩展)
     let hud_settings = inputs.hud;
+    // 地平仪 40ms 喂入节流 (freqMili 配置快照; last_ms=0 = 首帧放行)
+    let mut attitude_feed = AttitudeFeedState {
+        freq_ms: inputs.attitude_freq_ms,
+        last_ms: 0,
+    };
 
     // ---- 托盘 (Java initSystemTray: 失败继续运行, Application.java:217-280) ----
     #[cfg(target_os = "windows")]
@@ -1856,22 +2370,54 @@ pub fn win32_thread_main(cfg: Win32ThreadConfig) {
         // 渲染节拍 50ms (Java FieldOverlay.onFlightData 50ms 节流, host.run 同款)
         if last_render.elapsed() >= Duration::from_millis(50) {
             last_render = Instant::now();
-            if let Err(e) = host.render_tick() {
-                logger::error("OverlayHost", &format!("render_tick: {}", e));
-            }
-            // live 数据喂入 (只留最新帧)
-            if let Some(payload) = drain_latest(&flight_rx) {
-                if let Some(h) = handles.minihud.as_ref() {
-                    feed_minihud_live(h, &payload, &shared, &fm, &hud_settings);
+            let tick_active = match host.render_tick() {
+                Err(e) => {
+                    logger::error("OverlayHost", &format!("render_tick: {}", e));
+                    Vec::new()
                 }
+                Ok(()) => host.active_ids(),
+            };
+            if !tick_active.is_empty() {
+                // present 帧数代理计数 (见 ControllerShared.render_frames 注)
+                shared.render_frames.fetch_add(1, Ordering::SeqCst);
+                // 逐窗计数 (见 ControllerShared.overlay_present 注): 注册面 0 落键,
+                // 此处在场即 +1 — 从未激活的注册项保留 0, 冒烟断言可判
+                let mut counts = shared
+                    .overlay_present
+                    .lock()
+                    .expect("overlay_present 锁中毒");
+                for id in &tick_active {
+                    *counts.entry(id.clone()).or_insert(0) += 1;
+                }
+            }
+            // live 数据喂入 (只留最新帧; preview 期整帧跳过 — feed_overlays_live 门控)
+            if let Some(payload) = drain_latest(&flight_rx) {
+                feed_overlays_live(
+                    &handles,
+                    &payload,
+                    &shared,
+                    &fm,
+                    &hud_settings,
+                    &lang,
+                    &mut attitude_feed,
+                );
             }
         }
         // UI 命令 (生命周期/WYSIWYG 的 win32 属主面)
         while let Ok(cmd) = ui_cmd_rx.try_recv() {
             match cmd {
                 UiCommand::OpenAllOverlays => {
-                    // Java openpad → openAll; live 订阅随建 (overlay 订阅生命周期)
+                    // Java openpad → openAll; live 订阅随建 (overlay 订阅生命周期)。
+                    // P6 收口 (原审查 B-W3): live 喂入已覆盖全部 6 个窗口 overlay
+                    // (feed_overlays_live — MiniHUD/PowerInfo/EngineControl/GearFlaps/
+                    // ControlSurfaces/Attitude 共享句柄形态); FlightInfo 走 window.rs
+                    // 专径自接, thrustdFS 为 D8 降级尾巴。
                     shared.overlay_ctx_preview.store(false, Ordering::SeqCst); // forGameMode
+                    // 操纵面数据门控 (overlays_field2.rs PORT(数据门控)): Java init(S)
+                    // 的 xs!=null 在此翻转 — openpad 即游戏形态 (has_service=true)
+                    if let Some(h) = handles.control_surfaces.as_ref() {
+                        h.borrow_mut().has_service = true;
+                    }
                     if let Err(e) = host.open_all() {
                         logger::error("OverlayHost", &format!("open_all: {}", e));
                     }
@@ -1885,6 +2431,15 @@ pub fn win32_thread_main(cfg: Win32ThreadConfig) {
                     drop(std::mem::replace(&mut flight_sub, Some(sub)));
                 }
                 UiCommand::CloseAllOverlays => {
+                    // 会话窗口形态回预览态 (审查 blocker 收口): Java closeAll → 实例
+                    // 销毁, 之后 refreshPreviews 重建的是 initPreview 实例 (无 live
+                    // 订阅); overlay_ctx_preview 的窗口形态门控在此复位, 防游戏会话
+                    // 结束后 preview 窗渗 live 残帧
+                    shared.overlay_ctx_preview.store(true, Ordering::SeqCst);
+                    // 操纵面门控同步复位 (Java preview 实例 xs=null 恒显静态值)
+                    if let Some(h) = handles.control_surfaces.as_ref() {
+                        h.borrow_mut().has_service = false;
+                    }
                     host.close_all(); // close 销毁链 (存位置 → drop)
                     // Java overlay dispose → Bus.unregister (drop 槽位即退订)
                     drop(std::mem::take(&mut flight_sub));
@@ -1896,11 +2451,21 @@ pub fn win32_thread_main(cfg: Win32ThreadConfig) {
                     if is_stale_refresh(&shared, generation) {
                         continue; // 防过期守卫 (Java invokeLater 内守卫的根治位)
                     }
-                    shared.overlay_ctx_preview.store(true, Ordering::SeqCst); // forPreviewMode
+                    // PORT(forPreviewMode 仅激活探测期, 审查 blocker 修复): Java
+                    // refreshPreviews 以 forPreviewMode ctx 判定激活 (OverlayManager
+                    // .java:203), 但对在场实例只调 reinitializer — 实例保留、
+                    // FlightDataBus 订阅不动, live 流持续 (OverlayManager.java:332-336)。
+                    // 原实现把 overlay_ctx_preview 永久置 true: 游戏稳态 State=Preview
+                    // 下 FM_CHANGED/ConfigChanged 必经本分支 → feed_overlays_live
+                    // 永久 early-return, 全部 overlay 冻结在 FM 加载完成瞬间的值。
+                    // 改为激活探测期临时置 preview, 完毕恢复会话窗口形态
+                    // (openpad→false / CloseAll/重建核→true)。
+                    let session_preview = shared.overlay_ctx_preview.swap(true, Ordering::SeqCst);
                     let r = match changed_key.as_deref() {
                         Some(k) => host.refresh_preview_key(Some(k)), // Java refreshPreviews(key)
                         None => host.refresh_preview(),               // Java refreshAllPreviews
                     };
+                    shared.overlay_ctx_preview.store(session_preview, Ordering::SeqCst);
                     if let Err(e) = r {
                         logger::error("OverlayHost", &format!("refresh_previews: {}", e));
                     }
@@ -1956,7 +2521,7 @@ mod tests {
 
     /// 测试配置: crosshairSwitch 开 / enableEngineControl 关 / 无自启动
     fn test_cfg() -> String {
-        tmp_cfg(
+        fixture_cfg(
             "(panel \"T\" :visible true\n\
              \x20 (item \"hud\" :type switch :target \"crosshairSwitch\" :value true)\n\
              \x20 (item \"engine\" :type switch :target \"enableEngineControl\" :value false)\n\
@@ -1965,19 +2530,47 @@ mod tests {
         )
     }
 
-    /// AppShell 测试装配: tmp cfg (无 init_config 写盘副作用) + 30ms 短防抖;
+    /// fixture 内容直装 (autoStartGameMode 变体等)
+    fn fixture_cfg(content: &str) -> String {
+        tmp_cfg(content)
+    }
+
+    /// 自启动变体配置 (对位 --game-mode / Java autoStartGameMode=true)
+    fn auto_start_cfg() -> String {
+        fixture_cfg(
+            "(panel \"T\" :visible true\n\
+             \x20 (item \"auto\" :type switch :target \"autoStartGameMode\" :value true))\n\
+            ",
+        )
+    }
+
+    /// AppShell 测试装配: tmp cfg (无 init_config 写盘副作用) + 30ms 短防抖 +
+    /// **网络隔离** (Service 指向 9 号死端口 — 连接立即拒绝; FM-Detect 探测关闭
+    /// — 8111 可能被 mock/游戏占用, 项目惯例端口占用即隔离, 不做假通过);
     /// 不起 win32 线程 — ui_cmd 接收端留在 shell 内供测试观察。
     fn fixture() -> AppShell {
         fixture_with_debounce(30)
     }
 
     fn fixture_with_debounce(ms: u64) -> AppShell {
+        fixture_full(ms, test_cfg())
+    }
+
+    /// 全参 fixture (自定义 cfg 内容; 见 fixture_with_debounce 注)
+    fn fixture_full(ms: u64, cfg: String) -> AppShell {
         let ui_bus = Arc::new(EventBus::new());
         let config = ConfigurationService::new(Some(Arc::clone(&ui_bus)));
-        config.load_layout(&test_cfg());
+        config.load_layout(&cfg);
         let (hotkey, hotkey_rx) = HotkeyManager::with_channel();
+        let mut env = Env::probe(&Lang::init_lang(), false);
+        env.app_port = 9; // discard 端口: 无服务监听, connect 立即 RST
+        env.app_port_bkp = 9;
+        // 字体目录钉在仓库根 (cargo 测试 CWD=crate 根, CWD 相对探测不稳;
+        // win32 线程注册面的 spec 工厂需要真实字体文件)
+        env.fonts_dir =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../fonts");
         let mut shell = AppShell::with_parts(ShellParts {
-            env: Env::probe(&Lang::init_lang(), false),
+            env,
             config,
             ui_bus,
             flight_bus: Arc::new(FlightDataBus::new()),
@@ -1986,6 +2579,8 @@ mod tests {
             hotkey_rx,
             debounce_delay: Duration::from_millis(ms),
         });
+        // 网络探测关闭 (见 fixture 注): FM-Detect/Preview 只走 selectedFM0 兜底
+        shell.probe_network_for_test(false);
         shell.rebuild_controller(true);
         shell
     }
@@ -2077,7 +2672,10 @@ mod tests {
         );
     }
 
-    /// flags 丢失 → S4toS1: Preview → Init + FM 目标清除 (会话结束语义)
+    /// flags 丢失 → S4toS1: Preview → Init + FM 目标清除 (会话结束语义)。
+    /// 真实形态 (审查 B 掩蔽指正): 串非空 + valid=false → State/Indicators 的
+    /// update 照常执行后 flag=false — 对象保留, **不是** ServiceData 回 default
+    /// (真实断连时快照从不整体复位)
     #[test]
     fn drive_from_live_exit_resets_session() {
         let mut shell = fixture();
@@ -2089,8 +2687,12 @@ mod tests {
         let data = Arc::new(std::sync::RwLock::new(live_service_data("p1")));
         *shell.shared.live.write().unwrap() = Some(Arc::clone(&data));
         shell.controller.as_mut().unwrap().drive_from_live(); // 进 Preview + identify(p1)
-        // 游戏退出: flags 全假 (Java S4toS1 两条路径合并)
-        *data.write().unwrap() = ServiceData::default();
+        // flags 丢失 (Java Service.java:1780 路径): 仅 flag 翻假, 其余保留
+        {
+            let mut d = data.write().unwrap();
+            d.s_state.as_mut().unwrap().flag = false;
+            d.s_indic.as_mut().unwrap().flag = false;
+        }
         shell.controller.as_mut().unwrap().drive_from_live();
         assert_eq!(
             shell.controller.as_ref().unwrap().state(),
@@ -2104,6 +2706,92 @@ mod tests {
         assert!(
             shell.shared.flags.lock().unwrap().session_aircraft_type.is_none(),
             "会话机型记忆清除"
+        );
+    }
+
+    /// B1 补偿核心: 串空路径 (游戏进程退出/8111 消失 → HTTP 失败串复位空 →
+    /// update 不执行 → flags/playerLive 保留**陈旧真值**) — 事件流静默超时
+    /// 触发 S4toS1; 且退出后状态稳定停 Init (串空轮不跑 initStatusBar/
+    /// changeS2, 对位 Java 串空分支)
+    #[test]
+    fn drive_from_live_silent_stream_exits_on_game_exit() {
+        let mut shell = fixture();
+        {
+            let c = shell.controller.as_mut().unwrap();
+            c.init_status_bar();
+            c.change_s2();
+        }
+        let data = Arc::new(std::sync::RwLock::new(live_service_data("p1")));
+        *shell.shared.live.write().unwrap() = Some(Arc::clone(&data));
+        // 首轮事件新鲜 (100ms 前): 正常进 Preview + identify
+        shell
+            .shared
+            .last_flight_event_ms
+            .store(current_time_millis() - 100, Ordering::SeqCst);
+        shell.controller.as_mut().unwrap().drive_from_live();
+        assert_eq!(
+            shell.controller.as_ref().unwrap().state(),
+            ControllerState::Preview
+        );
+        // 游戏退出: ServiceData 一字不动 (flags/playerLive 陈旧真), 仅事件停发
+        shell.shared.last_flight_event_ms.store(
+            current_time_millis() - FLIGHT_SILENT_EXIT_MS - 100,
+            Ordering::SeqCst,
+        );
+        shell.controller.as_mut().unwrap().drive_from_live();
+        assert_eq!(
+            shell.controller.as_ref().unwrap().state(),
+            ControllerState::Init,
+            "事件静默超时应触发 S4toS1 (串空路径补偿, B1)"
+        );
+        assert_eq!(shell.fm.current_target_name(), None, "会话结束清识别目标");
+        assert!(shell
+            .shared
+            .flags
+            .lock()
+            .unwrap()
+            .session_aircraft_type
+            .is_none());
+        // 再一轮 (仍静默): 稳定停 Init, 不回弹 Connected/InGame
+        shell.controller.as_mut().unwrap().drive_from_live();
+        assert_eq!(
+            shell.controller.as_ref().unwrap().state(),
+            ControllerState::Init
+        );
+    }
+
+    /// 静默不误杀: playerLive=false (着陆停机/坠机等待, Java Service.java:746-754
+    /// 的 sleep 等待路径) + 事件停发 — 补偿判定含 playerLive 真前置, 不触发
+    #[test]
+    fn drive_from_live_silent_player_not_live_waits() {
+        let mut shell = fixture();
+        {
+            let c = shell.controller.as_mut().unwrap();
+            c.init_status_bar();
+            c.change_s2();
+        }
+        let data = Arc::new(std::sync::RwLock::new(live_service_data("p1")));
+        *shell.shared.live.write().unwrap() = Some(Arc::clone(&data));
+        shell
+            .shared
+            .last_flight_event_ms
+            .store(current_time_millis() - 100, Ordering::SeqCst);
+        shell.controller.as_mut().unwrap().drive_from_live();
+        assert_eq!(
+            shell.controller.as_ref().unwrap().state(),
+            ControllerState::Preview
+        );
+        // 坠机/停机: playerLive 翻假 + 事件停发超阈值
+        data.write().unwrap().player_live = false;
+        shell.shared.last_flight_event_ms.store(
+            current_time_millis() - FLIGHT_SILENT_EXIT_MS - 100,
+            Ordering::SeqCst,
+        );
+        shell.controller.as_mut().unwrap().drive_from_live();
+        assert_eq!(
+            shell.controller.as_ref().unwrap().state(),
+            ControllerState::Preview,
+            "playerLive=false 的静默是等待态, 不应退出会话"
         );
     }
 
@@ -2159,14 +2847,12 @@ mod tests {
         assert!(ui_subs_before >= 2, "Controller 应持 config/uiReady 两订阅");
         assert!(fm_subs_before >= 1, "Controller 应持 FM_CHANGED 订阅");
 
-        // 步③注入: 执行时断言步①的 CloseAllOverlays 已可观察 (顺序 ①→③)
-        let ui_rx = shell.ui_cmd_rx.take().unwrap();
+        // 步③注入: 游戏模式下 M 已被 start() 释放 (Java start:619-623 dispose M),
+        // stop 的步③ (M!=null 判定) 不触发 — 断言不调用 (步③的触发面见
+        // stop_preview_releases_main_form_after_overlays_closed)
         let step3_seen = Arc::new(Mutex::new(false));
         let seen = Arc::clone(&step3_seen);
         let mut release = move || {
-            // 步①的 CloseAll (closepad 路径, service 存在) 应已先入队
-            let cmd = ui_rx.recv_timeout(Duration::from_millis(500)).expect("步①命令未达");
-            assert_eq!(cmd, UiCommand::CloseAllOverlays, "步①应为 CloseAllOverlays");
             *seen.lock().unwrap() = true;
         };
         shell.controller.as_mut().unwrap().stop(&mut release);
@@ -2176,18 +2862,74 @@ mod tests {
             shell.shared.preview_generation.load(Ordering::SeqCst),
             gen_before + 1
         );
+        // ①: CloseAllOverlays 命令已入队 (容忍 openpad 延迟线程 OpenAll 抢先)
+        let ui_rx = shell.ui_cmd_rx.take().unwrap();
+        let mut got_close = false;
+        for _ in 0..3 {
+            match ui_rx.try_recv() {
+                Ok(UiCommand::CloseAllOverlays) => {
+                    got_close = true;
+                    break;
+                }
+                Ok(_) => continue,
+                Err(_) => break,
+            }
+        }
+        assert!(got_close, "步①应发 CloseAllOverlays (closepad 路径)");
         // ②: 订阅全部退订
         assert_eq!(shell.ui_bus.subscriber_count(), ui_subs_before - 2);
         assert_eq!(
             shell.fm.fm_changed_bus().subscriber_count(),
             fm_subs_before - 1
         );
-        // ③: 释放设置窗已执行 (闭包内断言通过)
-        assert!(*step3_seen.lock().unwrap());
+        // ③: 游戏模式 M 已在 start() 释放 — 步③跳过 (Java M=null 判定)
+        assert!(
+            !*step3_seen.lock().unwrap(),
+            "游戏模式 stop 不应再释放 MainForm"
+        );
         // ④: Service 句柄已收 + live 清空
         assert!(shell.controller.as_ref().unwrap().service.is_none());
         assert!(shell.shared.live.read().unwrap().is_none());
         // ⑤: save_config 空实现 (全量在 ui_layout.cfg), 无可断言面 — 顺序由代码序保证
+    }
+
+    /// 步①→③ 顺序 (预览模式, M 存活): 步③执行时步①的 CloseAllOverlays
+    /// 已入队 (Java: "必须在 dispose MainForm 之前执行" 注释的顺序语义)
+    #[test]
+    fn stop_preview_releases_main_form_after_overlays_closed() {
+        let mut shell = fixture();
+        // 进 Preview (M 存活, 无 Service — 纯预览路径)
+        publish_ui_event(&shell.ui_bus, ui_state_events::UI_READY, "");
+        pump_events(&mut shell);
+        assert_eq!(
+            shell.controller.as_ref().unwrap().state(),
+            ControllerState::Preview
+        );
+
+        let ui_rx = shell.ui_cmd_rx.take().unwrap();
+        let order_ok = Arc::new(Mutex::new(false));
+        let ok = Arc::clone(&order_ok);
+        let mut release = move || {
+            // 步③执行点: 步①的 CloseAll 应已先入队 (容忍 Preview-Refresh 线程的
+            // RefreshPreviews 抢先)
+            let mut got_close = false;
+            for _ in 0..3 {
+                match ui_rx.recv_timeout(Duration::from_millis(500)) {
+                    Ok(UiCommand::CloseAllOverlays) => {
+                        got_close = true;
+                        break;
+                    }
+                    Ok(_) => continue,
+                    Err(_) => break,
+                }
+            }
+            *ok.lock().unwrap() = got_close;
+        };
+        shell.controller.as_mut().unwrap().stop(&mut release);
+        assert!(
+            *order_ok.lock().unwrap(),
+            "步③执行时步①的 CloseAllOverlays 应已入队 (overlay 先于 MainForm)"
+        );
     }
 
     // ------------------------------------------------------------------
@@ -2233,6 +2975,7 @@ mod tests {
             tx.send(DebounceMsg::ConfigKey(k.to_string())).unwrap();
             std::thread::sleep(Duration::from_millis(5));
         }
+        drop(tx); // shutdown 前 drop 全部发送端克隆, 否则 join 等 Disconnected 永阻塞
         match out_rx.recv_timeout(Duration::from_millis(500)) {
             Ok(UiCommand::RefreshPreviews {
                 changed_key,
@@ -2261,16 +3004,21 @@ mod tests {
         let shared = Arc::new(ControllerShared::new());
         let (out_tx, out_rx) = std::sync::mpsc::channel::<UiCommand>();
         let mut deb = ConfigDebouncer::spawn(Duration::from_millis(30), out_tx, shared);
-        deb.sender().send(DebounceMsg::FmChanged).unwrap();
+        {
+            let tx = deb.sender();
+            tx.send(DebounceMsg::FmChanged).unwrap();
+        } // 块尾 drop 发送端克隆
         match out_rx.recv_timeout(Duration::from_millis(500)) {
             Ok(UiCommand::RefreshPreviews { changed_key: None, .. }) => {}
             other => panic!("FmChanged 应产全量刷新: {:?}", other),
         }
-        deb.sender()
-            .send(DebounceMsg::ConfigKey(
+        {
+            let tx = deb.sender();
+            tx.send(DebounceMsg::ConfigKey(
                 ui_state_events::ACTION_RESET_COMPLETED.to_string(),
             ))
             .unwrap();
+        }
         match out_rx.recv_timeout(Duration::from_millis(500)) {
             Ok(UiCommand::RefreshPreviews { changed_key: None, .. }) => {}
             other => panic!("RESET_COMPLETED 应产全量刷新: {:?}", other),
@@ -2291,26 +3039,34 @@ mod tests {
         // MainForm 侧配置写入 (服务内联发布 CONFIG_CHANGED — vm-ui 链同源)
         publish_ui_event(&shell.ui_bus, ui_state_events::CONFIG_CHANGED, "showSpeedBar");
         assert!(pump_events(&mut shell), "CONFIG_CHANGED 应经转发到达监督循环");
-        // 防抖产出直达 win32 命令通道 — 接收端留在 shell (未 spawn win32)
-        let cmd = shell
-            .ui_cmd_rx
-            .as_ref()
-            .unwrap()
-            .recv_timeout(Duration::from_millis(500))
-            .expect("防抖后应有 RefreshPreviews 命令");
-        match cmd {
-            UiCommand::RefreshPreviews {
-                changed_key,
-                generation,
-            } => {
-                assert_eq!(changed_key, Some("showSpeedBar".to_string()));
-                assert_eq!(
+        // 防抖产出直达 win32 命令通道 — 接收端留在 shell (未 spawn win32)。
+        // 容忍 UI_READY→preview() 的 Preview-Refresh 线程全量刷新 (None) 抢先入队
+        let mut keyed = None;
+        let mut generation_seen = 0u64;
+        for _ in 0..4 {
+            match shell
+                .ui_cmd_rx
+                .as_ref()
+                .unwrap()
+                .recv_timeout(Duration::from_millis(500))
+            {
+                Ok(UiCommand::RefreshPreviews {
+                    changed_key: Some(k),
                     generation,
-                    shell.shared.preview_generation.load(Ordering::SeqCst)
-                );
+                }) => {
+                    keyed = Some(k);
+                    generation_seen = generation;
+                    break;
+                }
+                Ok(_) => continue, // 全量刷新 (Preview-Refresh/FmChanged) — 竞态容忍
+                Err(e) => panic!("防抖后应有键控刷新: {:?}", e),
             }
-            other => panic!("应为 RefreshPreviews: {:?}", other),
         }
+        assert_eq!(keyed.as_deref(), Some("showSpeedBar"), "最后一条变更生效");
+        assert_eq!(
+            generation_seen,
+            shell.shared.preview_generation.load(Ordering::SeqCst)
+        );
     }
 
     /// 非 Preview 态: CONFIG_CHANGED → 立即 ReinitActiveOverlays (无防抖)
@@ -2396,6 +3152,96 @@ mod tests {
         );
     }
 
+    /// A-W1: 托盘重建复位 — sessionAircraftType / overlay_ctx_preview /
+    /// last_flight_event_ms 随新核归零 (Java 均为 Controller 实例字段,
+    /// 每次重建随新构造器归默认; Rust 跨核共享故需显式复位)
+    #[test]
+    fn reset_for_rebuild_clears_session_state() {
+        let shared = ControllerShared::new();
+        shared.flags.lock().unwrap().session_aircraft_type = Some("old-plane".into());
+        shared.overlay_ctx_preview.store(false, Ordering::SeqCst);
+        shared.last_flight_event_ms.store(12345, Ordering::SeqCst);
+        *shared.state.write().unwrap() = ControllerState::Preview;
+        shared.reset_for_rebuild();
+        assert_eq!(*shared.state.read().unwrap(), ControllerState::Init);
+        assert!(shared.flags.lock().unwrap().session_aircraft_type.is_none());
+        assert!(shared.overlay_ctx_preview.load(Ordering::SeqCst));
+        assert_eq!(shared.last_flight_event_ms.load(Ordering::SeqCst), 0);
+    }
+
+    /// A-W2: EndGame = 保存 + 退出请求 (Java mCancel 的 System.exit(0) 归属)
+    #[test]
+    fn end_game_requests_exit() {
+        let mut shell = fixture();
+        assert!(!shell.is_exit_requested());
+        shell.dispatch(UiCommand::EndGame);
+        assert!(shell.is_exit_requested(), "EndGame 应置退出请求");
+    }
+
+    /// A-W6: 托盘 Start 与 MainForm 确认叠加 — start() 对"Service 已在跑"幂等:
+    /// 不二次 spawn (live 句柄不换新), 首次会话不中断
+    #[test]
+    fn start_guard_prevents_double_spawn_on_tray_start_overlay() {
+        let mut shell = fixture();
+        shell.handle_main_event(MainEvent::Tray(TrayCommand::Start));
+        assert!(
+            shell.controller.as_ref().unwrap().service.is_some(),
+            "托盘 Start 应起 Service"
+        );
+        let live1 = shell.shared.live.read().unwrap().clone();
+        // 用户再点 MainForm "开始游戏" (叠加态): confirm 链被 service.is_some() 守卫拦下
+        shell.dispatch(UiCommand::StartGame);
+        let live2 = shell.shared.live.read().unwrap().clone();
+        assert!(live2.is_some(), "首次 Service 应存活");
+        assert!(
+            Arc::ptr_eq(&live1.unwrap(), &live2.unwrap()),
+            "叠加 start 不应重建 Service (live 句柄不变)"
+        );
+    }
+
+    /// B-W5: change_s3 延迟开面板的停止守卫 — 100ms 窗口内游戏退出 (S4toS1 →
+    /// Init) 则 OpenAllOverlays 被丢弃 (Java 无守卫; Rust 侧重开残留形态更重,
+    /// 显式改进偏离, 见 change_s3 的 PORT 注)
+    #[test]
+    fn change_s3_openpad_delay_guarded_on_exit() {
+        let mut shell = fixture();
+        {
+            let c = shell.controller.as_mut().unwrap();
+            c.init_status_bar();
+            c.change_s2();
+        }
+        let data = Arc::new(std::sync::RwLock::new(live_service_data("g1")));
+        *shell.shared.live.write().unwrap() = Some(data);
+        shell
+            .shared
+            .last_flight_event_ms
+            .store(current_time_millis(), Ordering::SeqCst);
+        shell.controller.as_mut().unwrap().drive_from_live(); // changeS3 → 延迟线程
+        assert_eq!(
+            shell.controller.as_ref().unwrap().state(),
+            ControllerState::Preview
+        );
+        // 100ms 窗口内游戏退出 (静默) → S4toS1 → state=Init
+        shell.shared.last_flight_event_ms.store(
+            current_time_millis() - FLIGHT_SILENT_EXIT_MS - 1,
+            Ordering::SeqCst,
+        );
+        shell.controller.as_mut().unwrap().drive_from_live();
+        assert_eq!(shell.controller.as_ref().unwrap().state(), ControllerState::Init);
+        std::thread::sleep(Duration::from_millis(250)); // 越过延迟窗口
+        // 通道内可有 CloseAllOverlays (s4to_s1 的 closepad), 但不应有 OpenAllOverlays
+        let ui_rx = shell.ui_cmd_rx.take().unwrap();
+        loop {
+            match ui_rx.recv_timeout(Duration::from_millis(50)) {
+                Ok(UiCommand::OpenAllOverlays) => {
+                    panic!("退出后的 OpenAllOverlays 应被守卫丢弃")
+                }
+                Ok(_) => continue,
+                Err(_) => break,
+            }
+        }
+    }
+
     /// 激活缓存随配置装载 (win32 激活面的 WYSIWYG 输入)
     #[test]
     fn activation_cache_tracks_config() {
@@ -2457,6 +3303,175 @@ mod tests {
     }
 
     // ------------------------------------------------------------------
+    // 组装接线 (本批新增面)
+    // ------------------------------------------------------------------
+
+    /// autoStartGameMode=true → Controller 自启动分支 (跳过 MainForm, Service 直起;
+    /// --game-mode/--mock-smoke 的配置注入对位, Controller.java:589-606)
+    #[test]
+    fn auto_start_game_mode_skips_main_form() {
+        let shell = fixture_full(30, auto_start_cfg());
+        let c = shell.controller.as_ref().unwrap();
+        assert!(!c.main_form_alive, "自启动路径 M 恒 null (Java:604-606)");
+        assert!(c.service.is_some(), "自启动应直起 Service 线程");
+    }
+
+    /// 托盘 Activate 置设置窗请求位 (一次性取走; 组装层主循环的相位切换信号)
+    #[test]
+    fn tray_activate_requests_main_form() {
+        let mut shell = fixture();
+        shell.handle_main_event(MainEvent::Tray(TrayCommand::Activate));
+        assert!(shell.take_form_request(), "托盘 Activate 应置请求位");
+        assert!(!shell.take_form_request(), "取走后复位 (一次性)");
+        assert_eq!(
+            shell.controller.as_ref().unwrap().state(),
+            ControllerState::Init,
+            "Activate 同时重建核 (INIT)"
+        );
+    }
+
+    /// 分相监督循环: 退出请求 → Exit (EndGame/托盘 Exit 的相位出口;
+    /// 阻断自动 spawn win32 — 纯状态机断言, 不开真窗)
+    #[test]
+    fn supervisor_phase_returns_exit_on_request() {
+        let mut shell = fixture();
+        shell.ui_cmd_rx.take();
+        shell.handle_main_event(MainEvent::Tray(TrayCommand::Exit));
+        assert_eq!(shell.run_supervisor_phase(), SupervisorOutcome::Exit);
+    }
+
+    /// 分相监督循环: 托盘 Activate → MainFormRequested (重建核 + 请求开窗)
+    #[test]
+    fn supervisor_phase_returns_form_request_on_tray_activate() {
+        let mut shell = fixture();
+        shell.ui_cmd_rx.take();
+        shell.handle_main_event(MainEvent::Tray(TrayCommand::Activate));
+        assert_eq!(
+            shell.run_supervisor_phase(),
+            SupervisorOutcome::MainFormRequested
+        );
+    }
+
+    /// win32 渲染帧计数: 预览刷新打开 overlay 后 present 帧数递增
+    /// (--mock-smoke 核心断言的库内等价; 字体目录钉仓库根, 见 fixture 注)
+    #[test]
+    fn win32_render_frames_advance_with_active_overlays() {
+        let mut shell = fixture();
+        shell.spawn_win32_thread().expect("win32 线程启动");
+        // Preview 态 + 有效世代号 → 全量刷新 (MiniHUD crosshairSwitch=true 激活)
+        *shell.shared.state.write().unwrap() = ControllerState::Preview;
+        let gen = shell.shared.preview_generation.load(Ordering::SeqCst);
+        shell
+            .ui_cmd_tx
+            .send(UiCommand::RefreshPreviews {
+                changed_key: None,
+                generation: gen,
+            })
+            .unwrap();
+        // 泵消费 (10ms 节拍) + 窗口物化 + 至少数个 50ms 渲染节拍
+        std::thread::sleep(Duration::from_millis(800));
+        let frames = shell.shared.render_frames.load(Ordering::SeqCst);
+        shell.ui_cmd_tx.send(UiCommand::Shutdown).unwrap();
+        let join = shell.win32.take().unwrap();
+        assert!(join.join().is_ok());
+        assert!(
+            frames > 0,
+            "活跃 overlay 的 present 帧数应递增 (实测 {frames})"
+        );
+    }
+
+    /// 逐 overlay present 计数: 游戏模式全开 (open_all) 后 6 注册键全部 present>0
+    /// (--mock-smoke 断言 3 的库内等价; 字体目录钉仓库根, 见 fixture 注)
+    #[test]
+    fn win32_overlay_present_counts_per_registered_overlay() {
+        let all_on_cfg = fixture_cfg(
+            "(panel \"T\" :visible true\n\
+             \x20 (item \"a\" :type switch :target \"crosshairSwitch\" :value true)\n\
+             \x20 (item \"b\" :type switch :target \"engineInfoSwitch\" :value true)\n\
+             \x20 (item \"c\" :type switch :target \"enableEngineControl\" :value true)\n\
+             \x20 (item \"d\" :type switch :target \"enablegearAndFlaps\" :value true)\n\
+             \x20 (item \"e\" :type switch :target \"enableAxis\" :value true)\n\
+             \x20 (item \"f\" :type switch :target \"enableAttitudeIndicator\" :value true))\n\
+            ",
+        );
+        let mut shell = fixture_full(30, all_on_cfg);
+        shell.spawn_win32_thread().expect("win32 线程启动");
+        shell.ui_cmd_tx.send(UiCommand::OpenAllOverlays).unwrap();
+        // 泵消费 (10ms 节拍) + 6 窗物化 + 至少数个 50ms 渲染节拍
+        std::thread::sleep(Duration::from_millis(1200));
+        let counts = shell
+            .shared
+            .overlay_present
+            .lock()
+            .expect("overlay_present 锁中毒")
+            .clone();
+        shell.ui_cmd_tx.send(UiCommand::Shutdown).unwrap();
+        let join = shell.win32.take().unwrap();
+        assert!(join.join().is_ok());
+        for id in [
+            "enableEngineControl",
+            "engineInfoSwitch",
+            "crosshairSwitch",
+            "enablegearAndFlaps",
+            "enableAxis",
+            "enableAttitudeIndicator",
+        ] {
+            let c = counts.get(id).copied().unwrap_or(0);
+            assert!(c > 0, "overlay {id} present 应 >0 (实测 {c}, 全量 {counts:?})");
+        }
+    }
+
+    /// RefreshPreviews 不翻转会话窗口形态 (审查 blocker 回归锚): 游戏稳态
+    /// (openpad 后 overlay_ctx_preview=false, State=Preview) 下 FM_CHANGED/
+    /// ConfigChanged 防抖必发 RefreshPreviews — 原实现置 true 后生产路径无复位点,
+    /// feed_overlays_live 整帧 early-return, 6 窗口数据冻结; 修复 = 激活探测期
+    /// 临时置位 (Java refreshPreviews 的 forPreviewMode ctx), 完毕恢复会话形态。
+    /// CloseAllOverlays 复位 true (会话结束回预览态)。
+    ///
+    /// 断言用轮询终态: refresh_preview 的激活探测期内物化真窗口 (Win32
+    /// CreateWindow 冷启动可达百 ms 级), 标志短暂为 true 是修复的合法瞬态 —
+    /// 轮询穿过后核对终值; 原 bug 形态下永久 true, 轮询超时必失败。
+    #[test]
+    fn refresh_previews_keep_session_window_mode() {
+        fn wait_flag(flag: &AtomicBool, want: bool) -> bool {
+            let start = Instant::now();
+            while flag.load(Ordering::SeqCst) != want {
+                if start.elapsed() > Duration::from_millis(2000) {
+                    return false;
+                }
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            true
+        }
+        let mut shell = fixture();
+        shell.spawn_win32_thread().expect("win32 线程启动");
+        *shell.shared.state.write().unwrap() = ControllerState::Preview;
+        let gen = shell.shared.preview_generation.load(Ordering::SeqCst);
+        // 模拟游戏形态 (openpad → OpenAllOverlays 处理点置 false)
+        shell.shared.overlay_ctx_preview.store(false, Ordering::SeqCst);
+        shell
+            .ui_cmd_tx
+            .send(UiCommand::RefreshPreviews {
+                changed_key: None,
+                generation: gen,
+            })
+            .unwrap();
+        assert!(
+            wait_flag(&shell.shared.overlay_ctx_preview, false),
+            "游戏稳态刷新预览后 live 门控应恢复开启 (原 bug: 置 true 后 live 冻结)"
+        );
+        // CloseAll (stop/end_preview/S4toS1 的公共出口) → 回预览态
+        shell.ui_cmd_tx.send(UiCommand::CloseAllOverlays).unwrap();
+        assert!(
+            wait_flag(&shell.shared.overlay_ctx_preview, true),
+            "CloseAll 后窗口形态应回预览态"
+        );
+        shell.ui_cmd_tx.send(UiCommand::Shutdown).unwrap();
+        let join = shell.win32.take().unwrap();
+        assert!(join.join().is_ok());
+    }
+
+    // ------------------------------------------------------------------
     // 辅助
     // ------------------------------------------------------------------
 
@@ -2475,5 +3490,307 @@ mod tests {
         d.s_indic = Some(ind);
         d.player_live = true;
         d
+    }
+
+    // ------------------------------------------------------------------
+    // P6 收口: 注册面 6 窗口条目 / live 喂数全链 / 注册键 ↔ ui_layout.cfg 核对
+    // ------------------------------------------------------------------
+
+    /// 测试用空窗口 (field2 测试 MiniWin 同款; 免真窗依赖)
+    struct NullWin;
+
+    impl vm_overlay::platform::OverlayWindow for NullWin {
+        fn present(&mut self, _buf: &[u8]) -> Result<(), String> {
+            Ok(())
+        }
+        fn set_position(&mut self, _x: i32, _y: i32) {}
+        fn position(&self) -> (i32, i32) {
+            (0, 0)
+        }
+        fn set_click_through(&mut self, _on: bool) {}
+        fn poll_event(&mut self) -> Option<vm_overlay::platform::OverlayEvent> {
+            None
+        }
+        fn screen_size(&self) -> (i32, i32) {
+            (1920, 1080)
+        }
+    }
+
+    fn test_overlay_inputs() -> OverlayInputs {
+        OverlayInputs {
+            dpi_scale: 1.0,
+            hud: HudSettingsSnapshot::build(
+                &fixture().controller.as_ref().unwrap().config.get_hud_settings(),
+            ),
+            font_add_engine: 0,
+            font_add_power: 0,
+            power_columns: 1,
+            font_add_gear: 0,
+            gear_show_edge: false,
+            font_add_axis: 0,
+            axis_show_edge: false,
+            attitude_width: 150,
+            attitude_height: 300,
+            attitude_freq_ms: 40,
+            attitude_show_direction: false,
+            attitude_show_aoa_limits: true,
+            service_loop_interval_ms: 50,
+        }
+    }
+
+    /// 注册面: Java registerGameModeOverlays 的 6 个窗口条目全部落位
+    /// (open_all 默认激活全真; 剩 4 键非窗口/降级备案见 register_game_mode_overlays 头注)
+    #[test]
+    fn register_game_mode_overlays_six_window_entries() {
+        let mut host = OverlayHost::with_factory(Box::new(|_cfg| {
+            Ok(Box::new(NullWin) as Box<dyn vm_overlay::platform::OverlayWindow>)
+        }));
+        let mut handles = OverlayHandles {
+            minihud: None,
+            power_info: None,
+            engine_control: None,
+            gear_flaps: None,
+            attitude: None,
+            control_surfaces: None,
+        };
+        let shell = fixture();
+        let lang = Lang::init_lang();
+        register_game_mode_overlays(
+            &mut host,
+            &mut handles,
+            &shell.env,
+            &test_overlay_inputs(),
+            &lang,
+            &shell.shared,
+        );
+        // 注册面逐窗计数落键: 6 键全部以 0 落位 (present 计数起点)
+        let reg_keys: Vec<String> = shell
+            .shared
+            .overlay_present
+            .lock()
+            .expect("overlay_present 锁中毒")
+            .keys()
+            .cloned()
+            .collect();
+        assert_eq!(reg_keys.len(), 6, "注册落键应恰为 6 键 (实测 {reg_keys:?})");
+        // 6 个共享句柄全部登记 (spec 工厂成功)
+        assert!(handles.minihud.is_some(), "MiniHUD 句柄");
+        assert!(handles.power_info.is_some(), "动力信息句柄");
+        assert!(handles.engine_control.is_some(), "引擎控制句柄");
+        assert!(handles.gear_flaps.is_some(), "起落襟翼句柄");
+        assert!(handles.attitude.is_some(), "地平仪句柄");
+        assert!(handles.control_surfaces.is_some(), "操纵面句柄");
+        host.open_all().expect("全激活 open_all");
+        let mut ids: Vec<String> = host.active_ids();
+        ids.sort();
+        assert_eq!(
+            ids,
+            vec![
+                "crosshairSwitch",
+                "enableAttitudeIndicator",
+                "enableAxis",
+                "enableEngineControl",
+                "enablegearAndFlaps",
+                "engineInfoSwitch",
+            ],
+            "注册键 10 键中的 6 窗口条目 (Java 键一一对应)"
+        );
+    }
+
+    /// live 喂数全链: 一帧 payload 喂 6 个 overlay, 各 state 推进到遥测值
+    /// (ServiceData 的引擎数组必须非空 — get_pitch/get_thrust 的保真 panic 点,
+    /// 真实链路由 State.update 填满; catch_unwind 吞帧路径由 malformed 变体覆盖)
+    #[test]
+    fn feed_overlays_live_updates_all_handles() {
+        let fonts = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../fonts");
+        let lang = Lang::init_lang();
+        let inputs = test_overlay_inputs();
+        let (h_mini, _) = vm_overlay::minihud_overlay_spec(
+            false,
+            50,
+            &inputs.hud,
+            1.0,
+            &fonts.join("sarasa-mono-sc-bold.ttf"),
+        )
+        .unwrap();
+        let (h_power, _) = vm_overlay::power_info_overlay_spec(&fonts, 0, 1).unwrap();
+        let (h_engine, _) =
+            vm_overlay::engine_control_overlay_spec(&fonts, &lang, 0, 1.0, 50).unwrap();
+        let (h_gear, _) = vm_overlay::gear_flaps_overlay_spec(&fonts, 0, 1.0, false).unwrap();
+        let (h_att, _) = vm_overlay::attitude_overlay_spec(150, 300, 1.0, false, true).unwrap();
+        let (h_cs, _) = vm_overlay::control_surfaces_overlay_spec(&fonts, 0, 1.0, false).unwrap();
+        let handles = OverlayHandles {
+            minihud: Some(h_mini),
+            power_info: Some(h_power),
+            engine_control: Some(h_engine),
+            gear_flaps: Some(h_gear),
+            attitude: Some(h_att),
+            control_surfaces: Some(h_cs),
+        };
+
+        // live 快照: throttle 55 / flaps 25 / gear 100 / aileron 100 / aoa 10 /
+        // aviahorizon pitch 5 / 功率 1200 (引擎数组填满防 panic 点)
+        let mut d = live_service_data("feed-plane");
+        {
+            let st = d.s_state.as_mut().unwrap();
+            st.throttle = 55;
+            st.flaps = 25;
+            st.gear = 100;
+            st.aileron = 100;
+            st.aoa = 10.0;
+            st.pitch = vec![0.0; 8];
+            st.thrust = vec![0; 8];
+            st.power = vec![0.0; 8];
+            st.efficiency = vec![0.0; 8];
+            st.throttles = vec![0; 8];
+            st.rpm_throttle = 60;
+        }
+        d.s_indic.as_mut().unwrap().aviahorizon_pitch = 5.0;
+        d.total_hp = 1200;
+        let shared = ControllerShared::new();
+        shared.overlay_ctx_preview.store(false, Ordering::SeqCst); // 游戏窗口形态
+        *shared.live.write().unwrap() = Some(Arc::new(std::sync::RwLock::new(d)));
+        let fm = FMManager::new(Arc::new(EventBus::new()));
+        let settings = inputs.hud.clone();
+        let payload = EventPayload::builder().build();
+        let mut attitude_feed = AttitudeFeedState { freq_ms: 40, last_ms: 0 };
+
+        feed_overlays_live(&handles, &payload, &shared, &fm, &settings, &lang, &mut attitude_feed);
+
+        // 动力信息: 功率 1200 → 首字段 buffer (50ms 节流: now-0 恒放行)
+        let p = handles.power_info.as_ref().unwrap().borrow();
+        assert_eq!(p.fields()[0].buffer, "1200", "PowerInfo 功率字段");
+        drop(p);
+        // 引擎控制: throttle 55 (refreshInterval=100, 首帧放行)
+        let e = handles.engine_control.as_ref().unwrap().borrow();
+        assert_eq!(e.gauge_by_key("throttle").unwrap().gauge.gauge.cur_value, 55);
+        drop(e);
+        // 起落襟翼: gear=100 → "起落架" 告警; flaps=25 → flap_pix
+        let g = handles.gear_flaps.as_ref().unwrap().borrow();
+        assert_eq!(g.warn_text, "起落架");
+        assert_eq!(g.flap_pix, 24);
+        drop(g);
+        // 操纵面: aileron=100 → px = (100+100)*144/200 = 144 (has_service 喂入点置位)
+        let cs = handles.control_surfaces.as_ref().unwrap().borrow();
+        assert_eq!(cs.px, 144);
+        drop(cs);
+        // 地平仪: aoa=10 → AoA = round((10+30)·300/60) = 200
+        let a = handles.attitude.as_ref().unwrap().borrow();
+        assert_eq!(a.aoa_y, 200);
+        drop(a);
+        // 地平仪节流: 40ms 窗口内第二帧不重算 (last_ms 已推进)
+        assert!(attitude_feed.last_ms > 0);
+
+        // preview 门控: overlay_ctx_preview=true → 整帧跳过 (值不推进)
+        shared.overlay_ctx_preview.store(true, Ordering::SeqCst);
+        {
+            let live = shared.live.read().unwrap().clone();
+            let mut st = live.as_ref().unwrap().write().unwrap();
+            st.s_state.as_mut().unwrap().throttle = 99;
+        }
+        feed_overlays_live(&handles, &payload, &shared, &fm, &settings, &lang, &mut attitude_feed);
+        let e = handles.engine_control.as_ref().unwrap().borrow();
+        assert_eq!(
+            e.gauge_by_key("throttle").unwrap().gauge.gauge.cur_value,
+            55,
+            "preview 期不喂入 (Java initPreview 不订阅)"
+        );
+    }
+
+    /// 畸形 s_state (引擎数组空, update 未跑) 的保真 panic 点: catch_unwind 吞帧不杀线程
+    #[test]
+    fn feed_overlays_live_swallows_malformed_frame() {
+        let fonts = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../fonts");
+        let lang = Lang::init_lang();
+        // 只接 PowerInfo (get_pitch 空 Vec panic 点; 其余 handle 缺省 None)
+        let (h_power, _) = vm_overlay::power_info_overlay_spec(&fonts, 0, 1).unwrap();
+        let handles = OverlayHandles {
+            minihud: None,
+            power_info: Some(h_power),
+            engine_control: None,
+            gear_flaps: None,
+            attitude: None,
+            control_surfaces: None,
+        };
+        let shared = ControllerShared::new();
+        shared.overlay_ctx_preview.store(false, Ordering::SeqCst);
+        // State::new() 的 pitch/thrust 空 Vec — get_pitch 的 s.pitch[0] panic (保真)
+        *shared.live.write().unwrap() =
+            Some(Arc::new(std::sync::RwLock::new(live_service_data("bad"))));
+        let fm = FMManager::new(Arc::new(EventBus::new()));
+        let settings = test_overlay_inputs().hud;
+        let payload = EventPayload::builder().build();
+        let mut attitude_feed = AttitudeFeedState { freq_ms: 40, last_ms: 0 };
+        // 不 panic 即通过 (吞帧 + ERROR 留痕; Java NPE 由 EDT 吞的同位形态)
+        feed_overlays_live(&handles, &payload, &shared, &fm, &settings, &lang, &mut attitude_feed);
+    }
+
+    /// 注册键 ↔ ui_layout.cfg 核对: 9 个激活键 (ACTIVATION_KEYS) 全部以 panel switch
+    /// 形式存在 (Java 端第 10 键 thrustdFS 无 cfg 项 — 策略读 enableFMPrint,
+    /// DrawFrameSimpl 无独立开关, Java 同形态)
+    #[test]
+    fn activation_keys_match_ui_layout_cfg() {
+        let cfg_path =
+            locate_template_cfg().expect("仓库模板 ui_layout.cfg 应可达 (上溯三级)");
+        let text = std::fs::read_to_string(&cfg_path).unwrap();
+        for key in ACTIVATION_KEYS {
+            let target = format!(":target \"{}\"", key);
+            assert!(
+                text.contains(&target),
+                "激活键 {key} 应以 :target 开关项存在于 ui_layout.cfg"
+            );
+        }
+        // 6 个窗口条目键 (注册面) 与 cfg 面板一一对应 (10 panel 中 9 有 switch 键,
+        // thrustdFS 例外; 欢迎/飞行记录/全局设置 无 overlay 开关)
+        for key in [
+            "crosshairSwitch",
+            "flightInfoSwitch",
+            "engineInfoSwitch",
+            "enableEngineControl",
+            "enableAxis",
+            "enablegearAndFlaps",
+            "enableAttitudeIndicator",
+            "enableFMPrint",
+            "enableVoiceWarn",
+        ] {
+            assert!(text.contains(&format!(":target \"{}\"", key)), "键 {key} 缺失");
+        }
+    }
+
+    /// 提取 ui_layout.cfg 全部 :target 键值 (兴趣键命中核对的键空间源)
+    fn cfg_target_keys(text: &str) -> Vec<String> {
+        let mut keys = Vec::new();
+        let mut rest = text;
+        while let Some(i) = rest.find(":target \"") {
+            rest = &rest[i + 9..];
+            match rest.find('"') {
+                Some(j) => {
+                    keys.push(rest[..j].to_string());
+                    rest = &rest[j..];
+                }
+                None => break,
+            }
+        }
+        keys
+    }
+
+    /// MiniHUD 兴趣键 ↔ ui_layout.cfg 键空间核对 (审查 W1 回归锚): with_interest
+    /// 为前缀匹配 (host is_interested_in), 死键不命中任何 cfg 键 → WYSIWYG 开关
+    /// 切换时 MiniHUD 不刷新 (Java 会刷新)。曾笔误 "showAttitudeIndicator"
+    /// (正确键 showAttitudeGauge, ui_layout.cfg:63 / Java Controller.java:676)。
+    /// 注: "S." (PowerInfo) 为 Java 原样搬移的死前缀, cfg 无此键族 — 不在本测试面。
+    #[test]
+    fn minihud_interest_keys_hit_ui_layout_cfg() {
+        let cfg_path =
+            locate_template_cfg().expect("仓库模板 ui_layout.cfg 应可达 (上溯三级)");
+        let text = std::fs::read_to_string(&cfg_path).unwrap();
+        let keys = cfg_target_keys(&text);
+        assert!(!keys.is_empty(), "cfg 键空间非空 (解析自检)");
+        for p in MINIHUD_INTEREST_KEYS {
+            assert!(
+                keys.iter().any(|k| k.starts_with(p)),
+                "MiniHUD 兴趣键 {p} 应命中 ui_layout.cfg 的 :target 键 (前缀匹配)"
+            );
+        }
     }
 }

@@ -64,11 +64,12 @@ java -jar VoidMei.jar
 
 **Unit tests** available for utility classes in `test/`. Integration testing is manual via the running application or mock server.
 
-**Rust POC (FlightInfoOverlay 复现)**: `rust/` 是 overlay Java→Rust 迁移的最小复现
-(平台原生纯 CPU 窗口 + swash 渲染 + 8111 轮询)。构建/测试/对拍见 `rust/README.md`;
-迁移设计文档: `doc/overlay_java_to_rust_migration.md`。Java 端离屏导出器:
-`java -classpath "bin;dep/*" ui.debug.OverlayPngExport`。
-一键对拍套件: `python script/build.py test rustcmp`(需桌面环境+cargo)。
+**Rust 全量迁移 (已完成)**: `rust/` 是 Java 版的全量迁移产物 (cargo workspace 五 crate,
+1,239 测试, e2e 三场景 PASS)。构建/运行/对拍/e2e 见 `rust/README.md`;
+迁移设计档案: `build/migration/` (PORTING 宪法/CLASSIFY/LIFETIMES/DECISIONS/PROGRESS),
+迁移文档: `doc/overlay_java_to_rust_migration.md` (§11 执行记录+人工验收清单)。
+Java 端离屏导出器: `java -classpath "bin;dep/*" ui.debug.OverlayPngExport`。
+一键对拍: `python script/build.py test rustcmp`; Rust e2e: `bash script/rust_e2e.sh`。
 
 ### Windows Launch Scripts
 

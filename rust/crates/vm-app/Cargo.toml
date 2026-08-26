@@ -16,3 +16,4 @@ path = "src/main.rs"
 vm-core = { workspace = true }
 vm-data = { workspace = true }
 vm-overlay = { workspace = true }
+vm-ui = { workspace = true }

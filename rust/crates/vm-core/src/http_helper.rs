@@ -1242,8 +1242,22 @@ mod tests {
         TcpStream::connect("127.0.0.1:8111").is_ok()
     }
 
+    /// 8111 相关测试串行锁 (other_service::tests PORT8111_LOCK / fm::test_guard
+    /// 同款)。PORT: get_live_aircraft_type 硬编码 127.0.0.1:8111 (Java 保真,
+    /// 生产段无端口注入面), 三个用例共用 8111 —— 并行时 no_server 的 connect
+    /// 会抢走 parses/invalid 的唯一 accept 名额 (自己拿到 Some 假失败), 服务方
+    /// 随后 connect 被拒返回 None 也假失败, 双双 flaky; 持锁串行且探测→bind/
+    /// connect 同临界区后, no_server 连的 8111 在本测试二进制内必然空闲。
+    /// 锁中毒无不变量可破, 复取即可 (一次失败不连锁炸后续用例)。
+    static PORT8111_LOCK: Mutex<()> = Mutex::new(());
+
+    fn lock_8111() -> std::sync::MutexGuard<'static, ()> {
+        PORT8111_LOCK.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
     #[test]
     fn get_live_aircraft_type_parses_indicators() {
+        let _g = lock_8111();
         if port_8111_answered() {
             eprintln!("跳过: 8111 有服务应答 (真机在跑) —— 同 e2e_fm 约定");
             return;
@@ -1271,6 +1285,7 @@ mod tests {
 
     #[test]
     fn get_live_aircraft_type_invalid_returns_none() {
+        let _g = lock_8111();
         if port_8111_answered() {
             eprintln!("跳过: 8111 有服务应答 (真机在跑) —— 同 e2e_fm 约定");
             return;
@@ -1298,6 +1313,9 @@ mod tests {
 
     #[test]
     fn get_live_aircraft_type_no_server_returns_none() {
+        // 持锁后 8111 在本二进制内必然空闲 (另两用例的 listener 已 join 并
+        // drop 才放锁) → connect 必被拒, 语义保持 "连一个必然空闲的端口"
+        let _g = lock_8111();
         if port_8111_answered() {
             eprintln!("跳过: 8111 有服务应答 (真机在跑) —— 同 e2e_fm 约定");
             return;

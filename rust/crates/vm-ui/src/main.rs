@@ -1,11 +1,6 @@
-//! vm-ui: P5 MainForm (iced + tiny-skia 软件渲染, D1 决策)。
-//!
-//! 入口: 读真实 ui_layout.cfg 构建数据驱动设置表单; `--headless` 跳过窗口只做
-//! 状态机测试 (无落盘副作用)。窗口打开由人工验收, 运行日志确认表单构建成功。
-//! 注: view/update 用具名函数 (D1 坑位: 闭包触发高阶生命周期推断失败)。
-
-mod main_form;
-mod renderers;
+//! vm-ui bin: MainForm 独立调试入口 (P5 批十二原形态)。
+//! 模块本体已上移 lib (组装批 — vm-app 经 vm_ui::run_shell_form 复用);
+//! 本 bin 保持无 shell 的裸表单窗口 + --headless 状态机驱动。
 
 use std::sync::Arc;
 
@@ -13,7 +8,7 @@ use vm_core::bus::EventBus;
 use vm_core::config_manager;
 use vm_core::configuration_service::ConfigurationService;
 
-use crate::main_form::{MainFormState, Message};
+use vm_ui::main_form::{self, MainFormState, Message};
 
 fn main() -> iced::Result {
     if std::env::args().any(|a| a == "--headless") {
