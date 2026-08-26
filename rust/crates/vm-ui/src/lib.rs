@@ -102,6 +102,41 @@ pub fn view_app(state: &MainFormApp) -> Element<'_, AppMessage> {
     main_form::view(&state.form).map(AppMessage::Form)
 }
 
+/// MainForm 默认字体家族 (按平台选系统 CJK 字体)。
+///
+/// 对位 Java: Swing/WebLaF 用逻辑字体 (Dialog/SansSerif), JDK fontconfig 自动
+/// 映射到系统微软雅黑 → 中文从不缺字。**cfg 里的 Sarasa Mono SC 属 overlay/HUD
+/// 渲染** (vm-overlay 经 swash 从 fonts/ 加载), 与 MainForm 表单字体无关 (Java
+/// MainForm 同样不读 cfg 字体)。
+///
+/// tofu 根因 (三层叠加, 修复前从未设置任何字体):
+/// 1. iced Font::DEFAULT = "Fira Sans", 本 crate default-features=false 未打包
+///    Fira 字节 → fontdb 查无此家族, 命中任意默认字体 (通常无 CJK);
+/// 2. iced 0.13 widget 文本默认 Shaping::Basic — cosmic-text Basic 路径**不做
+///    字体回退** (Advanced 才做, 且只能逐 widget 显式开, 无全局开关);
+/// 3. 系统字体其实已进 fontdb (load_system_fonts 无条件调用), Basic 到不了。
+/// → 显式指定自身含 CJK 的系统字体, Basic shaping 直接命中, 无需回退。
+const PLATFORM_CJK_FONT: &str = {
+    // cosmic-text 自身 Windows 简中回退同款 (fallback/windows.rs han_unification)
+    #[cfg(windows)]
+    {
+        "Microsoft YaHei UI"
+    }
+    #[cfg(target_os = "linux")]
+    {
+        "Noto Sans CJK SC"
+    }
+    #[cfg(target_os = "macos")]
+    {
+        "PingFang SC"
+    }
+};
+
+/// MainForm 默认字体 (拉丁+CJK 单字体覆盖; Java 为 Segoe UI+系统回退, 视觉近似)
+pub fn platform_default_font() -> iced::Font {
+    iced::Font::with_name(PLATFORM_CJK_FONT)
+}
+
 /// 组装层入口: 构造完成的表单状态 + shell 回调 → iced 主循环 (阻塞至关窗/退出)。
 ///
 /// PORT(winit 复跑备案): run 返回后同进程可再次调用 (托盘 Activate → 重开设置窗
@@ -114,6 +149,8 @@ pub fn run_shell_form(form: MainFormState, hooks: MainFormHooks) -> iced::Result
         view_app,
     )
     .theme(|_| iced::Theme::default())
+    // 系统中文字体 (见 PLATFORM_CJK_FONT 头注 — 不设则 Basic shaping 中文全 tofu)
+    .default_font(platform_default_font())
     .window(iced::window::Settings {
         // Java: width = min(800, logicalWidth - 40) (MainForm.java:294); 与 bin
         // 入口同款固定近似 800 (Java 上限) x 620
@@ -225,5 +262,42 @@ mod tests {
         );
         let after = app.form().service_string(&key);
         assert_ne!(before, after, "Toggle 应经透传落服务树");
+    }
+
+    /// 默认字体必须真实命中系统字体库且含汉字 — 否则 Basic shaping 中文全 tofu
+    /// (fontdb 由 iced 全局 FontSystem 持有, load_system_fonts 无条件执行, 可直接查)。
+    /// 仅 Windows 硬断言: 当前唯一已接线平台 (X11 属 D8 遗留, 无 CJK 字体的
+    /// headless Linux 失败属环境事实而非代码缺陷)。
+    #[cfg(windows)]
+    #[test]
+    fn platform_default_font_resolves_with_cjk() {
+        use iced_graphics::text::{cosmic_text::fontdb, font_system};
+
+        let mut system = font_system().write().unwrap();
+        let id = system.raw().db().query(&fontdb::Query {
+            families: &[fontdb::Family::Name(crate::PLATFORM_CJK_FONT)],
+            weight: fontdb::Weight::default(),
+            style: fontdb::Style::default(),
+            stretch: fontdb::Stretch::default(),
+        });
+        let id = id.unwrap_or_else(|| {
+            panic!(
+                "平台默认字体 {} 未在系统字体库命中 — MainForm 中文将 tofu",
+                crate::PLATFORM_CJK_FONT
+            )
+        });
+        // 命中的字体必须同时覆盖汉字与数字 (表单标签/数值两态);
+        // fontdb 回调给原始字节, 自行解析 Face (同 vm-overlay font.rs 惯用法)
+        let covered = system.raw().db().with_face_data(id, |data, index| {
+            ttf_parser::Face::parse(data, index)
+                .map(|face| face.glyph_index('中').is_some() && face.glyph_index('0').is_some())
+                .unwrap_or(false)
+        });
+        assert_eq!(
+            covered,
+            Some(true),
+            "字体 {} 命中但缺汉字/数字字形",
+            crate::PLATFORM_CJK_FONT
+        );
     }
 }

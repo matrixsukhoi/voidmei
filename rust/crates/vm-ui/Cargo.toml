@@ -19,3 +19,10 @@ path = "src/main.rs"
 iced = { version = "0.13", default-features = false, features = ["tiny-skia", "system", "tokio"] }
 # 配置栈 (ConfigurationService/GroupConfig/RowConfig) + 事件总线 + 渲染器读写助手
 vm-core = { workspace = true }
+
+# 仅测试用: 访问 iced 全局 FontSystem 验证默认字体真实命中 (iced 0.13 不公开
+# graphics 模块; 同版本同实例, 与 iced 运行时共享同一个 font_system 静态量)
+[dev-dependencies]
+iced_graphics = "0.13"
+# 字形覆盖断言: fontdb with_face_data 回调给原始字节, 需自行解析 Face
+ttf-parser = { workspace = true }

@@ -2565,6 +2565,8 @@ name = "vm-ui"
 version = "0.1.0"
 dependencies = [
  "iced",
+ "iced_graphics",
+ "ttf-parser 0.25.1",
  "vm-core",
 ]
 

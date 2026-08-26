@@ -52,6 +52,9 @@ fn main() -> iced::Result {
         main_form::view,
     )
     .theme(|_| iced::Theme::default())
+    // 系统中文字体 (与 lib run_shell_form 同款; 不设则 Basic shaping 中文全 tofu,
+    // 见 lib.rs PLATFORM_CJK_FONT 头注)
+    .default_font(vm_ui::platform_default_font())
     .window(iced::window::Settings {
         // Java: width = min(800, logicalWidth - 40) (MainForm.java:294); 屏幕探测属
         // 组装层 (DPI 批次), 此处取固定近似 800 (Java 上限) x 620
