@@ -1,5 +1,4 @@
-[workspace]  # 独立于主 workspace (P5 转正时移除)
-# 用途: 早期验证 iced + tiny-skia 软件渲染可行性 (D1 决策)
+# 用途: P5 MainForm (iced + tiny-skia 软件渲染, D1 决策) — ui_layout.cfg 数据驱动设置面板
 [package]
 name = "vm-ui"
 version = "0.1.0"
@@ -7,3 +6,5 @@ edition = "2021"
 
 [dependencies]
 iced = { version = "0.13", default-features = false, features = ["tiny-skia", "system"] }
+# 配置栈 (ConfigurationService/GroupConfig/RowConfig) + 事件总线 + 渲染器读写助手
+vm-core = { workspace = true }

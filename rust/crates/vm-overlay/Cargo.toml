@@ -21,4 +21,9 @@ serde_json = { workspace = true }
 tiny-skia = "0.12.0"
 
 [target.'cfg(windows)'.dependencies]
-windows = { workspace = true }
+# 增补 feature (基线见 workspace 根):
+# - Win32_UI_Shell: Shell_NotifyIconW 系统托盘 (tray.rs)
+# - Win32_System_Threading: OpenProcess/QueryFullProcessImageNameW (platform_extras 焦点检测进程名);
+#   GetCurrentThreadId (hotkey.rs 钩子线程 id 回传, PostThreadMessageW 投 WM_QUIT 退泵用)
+# - Win32_Media_Audio: winmm PlaySoundW (platform_extras 语音播放)
+windows = { workspace = true, features = ["Win32_UI_Shell", "Win32_System_Threading", "Win32_Media_Audio"] }

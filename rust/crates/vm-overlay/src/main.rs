@@ -14,6 +14,7 @@ voidmei-overlay — VoidMei FlightInfoOverlay 的 Rust 复现
   voidmei-overlay --preview             预览模式: preview-value 静态渲染, 可拖拽
   voidmei-overlay --render-png <p>      离屏渲染导出 PNG (--meta 可同时导出度量)
   voidmei-overlay --gauge <name> <p>    gauge 对拍基线导出 (linear|compass|attitude)
+  voidmei-overlay --minihud --out <p>   MiniHUD 整帧对拍导出 (默认配置, preview 数据)
   voidmei-overlay compare <a.png> <b.png>  像素比对
 选项 (render-png):
   --font-add N      字号增量 (默认 0)
@@ -24,6 +25,9 @@ voidmei-overlay — VoidMei FlightInfoOverlay 的 Rust 复现
   --meta <p.json>   同时导出布局度量 JSON
 选项 (gauge):
   --data <f.txt>    数值参数注入 (每行 key=value, 缺省走共享默认数据)
+  --aa on|off       抗锯齿 (默认 on)
+  --fonts <dir>     字体目录 (同上)
+选项 (minihud):
   --aa on|off       抗锯齿 (默认 on)
   --fonts <dir>     字体目录 (同上)
 ";
@@ -71,6 +75,12 @@ fn main() {
                 std::process::exit(1);
             }
             if let Err(e) = cmd_render_gauge(&name, &args[2..]) {
+                eprintln!("错误: {}", e);
+                std::process::exit(1);
+            }
+        }
+        "--minihud" => {
+            if let Err(e) = cmd_render_minihud(&args[1..]) {
                 eprintln!("错误: {}", e);
                 std::process::exit(1);
             }
@@ -247,6 +257,24 @@ fn default_num_height(font_add: i32) -> i32 {
     } else {
         ((24 + font_add) as f32 * 1.25).round() as i32
     }
+}
+
+/// --minihud: MiniHUD 整帧对拍导出 (与 Java OverlayPngExport --minihud 逐像素对拍,
+/// 组装口径见 vm_overlay::parity_minihud 模块头)
+fn cmd_render_minihud(args: &[String]) -> Result<(), String> {
+    let out = opt_str(args, "--out")
+        .ok_or("缺少 --out <路径>")?
+        .to_string();
+    let aa = match opt_str(args, "--aa").unwrap_or("on") {
+        "on" => true,
+        "off" => false,
+        other => return Err(format!("--aa 仅支持 on|off: {}", other)),
+    };
+    let fonts_dir = find_fonts_dir(opt_str(args, "--fonts"));
+    let cv = vm_overlay::parity_minihud::render_minihud(&fonts_dir, aa)?;
+    cv.save_png(std::path::Path::new(&out))?;
+    println!("minihud -> {} ({}x{})", out, cv.width(), cv.height());
+    Ok(())
 }
 
 /// FlightValues → 16 getter 的映射 (fields.rs 的 source 对应)

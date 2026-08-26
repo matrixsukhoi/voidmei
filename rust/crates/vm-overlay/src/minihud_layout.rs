@@ -3,7 +3,7 @@
 //! | Rust | Java 源 | 语义要点 |
 //! |---|---|---|
 //! | [`ModernHUDLayoutEngine`] | src/ui/layout/ModernHUDLayoutEngine.java | DAG 依赖解析: DFS 前序拓扑排序 (根=无父节点, 父先子后) + 惰性 dirty 布局 + 可见节点包围盒/自动尺寸 |
-//! | [`MINIHUD_PANEL_ITEMS`] | ui_layout.cfg (panel "MiniHUD" L45-94) | cfg 常量表快照 (同 vm-core fields.rs 先例): 组件树生成的配置键/默认值单一来源 |
+//! | [`MINIHUD_PANEL_ITEMS`] | ui_layout.cfg (panel "MiniHUD" L45-94) | cfg 常量表快照 (同 vm-core fields.rs 先例, 布局消费子集): 组件树生成的配置键/默认值单一来源 |
 //! | [`MINIHUD_NODE_SPECS`] + [`build_mihud_layout`] | src/ui/overlay/MiniHUDOverlay.java initModernLayout (L652-763) | cfg 驱动组件树生成: Java 硬编码拓扑转常量 spec 表, build 按配置 (displayCrosshair) 与行数动态建树 |
 //!
 //! 锚点公式 (doc/minihud贡献者开发手册.md §3.2):
@@ -17,8 +17,12 @@
 //!   Weak 父升级失败会让节点被误判为 ROOT)。
 //! - Java `HashMap<String,HUDLayoutNode>` → `Vec<(String, SharedNode<T>)>` (线性
 //!   查找, MiniHUD 节点 <15)。PORT(§2.5): HashMap 迭代序 = String hash 桶序,
-//!   逐 id 复刻不现实; roots 遍历序决定跨根渲染序, MiniHUD 两根 (row0 链 与
-//!   crosshair) 互不重叠无视觉差 → 以插入序 (addNode 调用序) 近似, 保稳定可测。
+//!   逐 id 复刻不现实; roots 遍历序决定跨根渲染序 → 以插入序 (addNode 调用序)
+//!   近似, 保稳定可测。对拍帧实证 (审查 A 实测): 双根 (row0 链 与 crosshair) 的
+//!   preferred 矩形**相交** (crosshair x282-508 vs speedBar x339-426/y92-246),
+//!   但本帧实际像素不重叠 (speedBar 右缘 x438 < crosshair 图样左缘 x451) 且双端
+//!   渲染序一致 (crosshair 最后) → 当前无视觉差; 组件尺寸若变化, 跨根覆盖序将
+//!   依赖本 Vec 迭代序, 届时须复核 (勿再以「互不重叠」为前提)。
 //!   同 id 覆盖时位置不变 (HashMap.put 语义)。
 //! - `render(Graphics2D)` → 回调形式: Java 逐节点 `component.draw(g, x, y)` 与
 //!   debug 线框 `drawDebug` 两次绘制合并为一次闭包调用 (第 4 参 `None`=组件本体 /
@@ -382,6 +386,20 @@ impl<T> ModernHUDLayoutEngine<T> {
     }
 }
 
+/// PORT(hud_layout_node.rs 备案 b): 重复 setParent 可构造 children 强引用环
+/// (Rc 永不回收; Java GC 可收环)。[`ModernHUDLayoutEngine::visit_node`] 的环
+/// 检测分支保真 Java 只日志+跳过 (ModernHUDLayoutEngine.java:111-114),
+/// 断环职责由本引擎在 **drop 时**履行: 逐节点摘除父边 (同时从父 children 移除),
+/// engine 强持的引用环随 nodes map 一起释放。产品路径 (build_mihud_layout)
+/// 不可能构环, 此清扫仅覆盖对抗性直接 set_parent 的场景。
+impl<T> Drop for ModernHUDLayoutEngine<T> {
+    fn drop(&mut self) {
+        for (_, node) in &self.nodes {
+            node.set_parent(None);
+        }
+    }
+}
+
 /// [`ModernHUDLayoutEngine::apply_auto_sizing`] 的返回计划
 /// (Java applyAutoSizing 对 window 的两步副作用拆分)。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -466,6 +484,10 @@ pub struct MiniHudCfgItem {
 /// MiniHUD panel 段 28 条 item 逐行快照 (ui_layout.cfg L45-94, 顺序一致)。
 /// 组件树生成的配置键单一来源: displayCrosshair 控制 crosshair 节点与画布倍宽,
 /// enableFlapAngleBar/showSpeedBar/showAttitudeGauge 等控制组件可见性 (宿主消费)。
+/// PORT(审查 A3): 本表是**布局消费的子集**快照 — 只保留 label/group/type/
+/// target/value/min/max/unit; combo 的 :source ("_CROSSHAIRS_"/"_FONTS_") 与
+/// :desc/:desc-img/:column 等设置面板字段未入表。P5 vm-ui 生成完整设置面板时
+/// 须从 ui_layout.cfg 另出全量表, 勿复用本表 (避免单一来源分裂)。
 pub const MINIHUD_PANEL_ITEMS: &[MiniHudCfgItem] = &[
     // (group "基本设定")
     MiniHudCfgItem { group: "基本设定", label: "启用Overlay", item_type: MiniHudItemType::Switch, target: "crosshairSwitch", default: CfgDefault::Bool(true), min: None, max: None, unit: None },
@@ -519,17 +541,20 @@ pub const ENABLE_LAYOUT_DEBUG_ITEM: MiniHudCfgItem = MiniHudCfgItem {
 /// 组件树生成所需的布局开关系集。
 /// PORT: Java 侧 = MiniHUDOverlay 直接持 HUDSettings (initModernLayout 读
 /// isDisplayCrosshair / getBool("enableLayoutDebug", false)); Rust 以纯值结构
-/// 解耦配置源, 缺省值 = 上方 cfg 快照的 :default。
+/// 解耦配置源。两层缺省 (审查 B3): [`Default`] = cfg 树健康时的 :default 快照;
+/// [`from_bool_source`] 缺键 = Java getBool 的**字面兜底参数** (整树缺失/损坏
+/// 分支, 此时 Java 关准星 + 单宽画布)。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MiniHudLayoutConfig {
-    /// HUDSettings.isDisplayCrosshair() (target "displayCrosshair", 默认 true)
+    /// HUDSettings.isDisplayCrosshair() = getBool("displayCrosshair", false)
+    /// (cfg :default true; Java 字面兜底 false)
     pub display_crosshair: bool,
-    /// hudSettings.getBool("enableLayoutDebug", false) (默认 false)
+    /// hudSettings.getBool("enableLayoutDebug", false) (两层缺省均为 false)
     pub enable_layout_debug: bool,
 }
 
 impl Default for MiniHudLayoutConfig {
-    /// cfg :default 快照值
+    /// cfg :default 快照值 (displayCrosshair=true: cfg 树健康且用户未设时的值)
     fn default() -> Self {
         MiniHudLayoutConfig {
             display_crosshair: true,
@@ -540,10 +565,15 @@ impl Default for MiniHudLayoutConfig {
 
 impl MiniHudLayoutConfig {
     /// 从任意 bool 配置源构造 (键 = cfg :target 原样)。
-    /// 缺键/无法解析 → cfg :default (Java getBool(key, default) 同款兜底)。
+    /// 缺键/无法解析 → Java getBool 的字面兜底参数 (ConfigurationService.java:639
+    /// isDisplayCrosshair() = getBool("displayCrosshair", **false**);
+    /// MiniHUDOverlay.java:668 getBool("enableLayoutDebug", false))。
+    /// cfg 树健康时 row 的 :default (displayCrosshair=true) 由 src 侧生效 —
+    /// 与 [`MiniHudLayoutConfig::default`] 是两层不同缺省。
     pub fn from_bool_source(src: impl Fn(&str) -> Option<bool>) -> Self {
         MiniHudLayoutConfig {
-            display_crosshair: src("displayCrosshair").unwrap_or(true),
+            // PORT(审查 B3): Java 字面兜底是 false 而非 cfg :default 的 true
+            display_crosshair: src("displayCrosshair").unwrap_or(false),
             enable_layout_debug: src("enableLayoutDebug").unwrap_or(false),
         }
     }
@@ -632,9 +662,11 @@ pub const LAYOUT_PADDING: i32 = 45;
 
 /// [`build_mihud_layout`] 的输出: 布局引擎 + 自动尺寸计划
 /// (Java initModernLayout 尾部 applyAutoSizing 的 window.setSize 由宿主执行)。
+/// `sizing=None` = Java 空 components 裸 return 分支: 不自动尺寸, 宿主保持
+/// 自己的初始窗口尺寸, 引擎 renderOffset 保持缺省 (0,0)。
 pub struct BuiltMiniHudLayout<T> {
     pub engine: ModernHUDLayoutEngine<T>,
-    pub sizing: AutoSizingPlan,
+    pub sizing: Option<AutoSizingPlan>,
 }
 
 /// cfg 驱动组件树生成 (Java MiniHUDOverlay.initModernLayout L652-763 的树构建部分)。
@@ -645,7 +677,10 @@ pub struct BuiltMiniHudLayout<T> {
 /// - attitude/compass 仅当 "row2" 已建 (Java `if (row2 != null)`);
 /// - speedBar/throttle 无条件建, 父 "row4" 缺席时 setParent(None) → 根;
 /// - crosshair 仅 `display_crosshair` 且组件 Some (Java 只查 cfg — 组件恒非 null);
-/// - 尾部 doLayout + applyAutoSizing(LAYOUT_PADDING) + logTopology (L757-762)。
+/// - 空 rows = Java `components.isEmpty()` 裸 return: **不执行尾部三步** (无
+///   Auto-size/Topology 日志), sizing=None (窗口保持宿主初始值, renderOffset
+///   保持缺省 (0,0));
+/// - 非空才走尾部 doLayout + applyAutoSizing(LAYOUT_PADDING) + logTopology (L757-762)。
 pub fn build_mihud_layout<T>(
     cfg: &MiniHudLayoutConfig,
     parts: MiniHudParts<T>,
@@ -680,12 +715,12 @@ where
 
     // Java: if (components.isEmpty()) return — initComponentsLayout 硬编码添加
     // 组件恒非空; Rust 以 rows (组件清单主体) 为空近似该守卫。
+    // PORT: Java 此处裸 return — 尾部 doLayout/applyAutoSizing/logTopology 三步
+    // 均不执行 (窗口保持宿主 setBounds 初始值, renderOffset 保持 (0,0), 无对应
+    // 日志); sizing=None 由宿主解释为"不自动尺寸" (审查 A1/B1)。
     let mut rows: Vec<Option<T>> = parts.rows.into_iter().map(Some).collect();
     if rows.is_empty() {
-        engine.do_layout();
-        let sizing = engine.apply_auto_sizing(LAYOUT_PADDING);
-        engine.log_topology();
-        return BuiltMiniHudLayout { engine, sizing };
+        return BuiltMiniHudLayout { engine, sizing: None };
     }
     let mut flap = Some(parts.flap_angle_bar);
     let mut speed = Some(parts.speed_ratio_bar);
@@ -747,7 +782,7 @@ where
 
     engine.log_topology();
 
-    BuiltMiniHudLayout { engine, sizing }
+    BuiltMiniHudLayout { engine, sizing: Some(sizing) }
 }
 
 #[cfg(test)]
@@ -912,6 +947,29 @@ mod tests {
         assert_eq!(out.len(), 2); // a, b 各一次; 二次抵达 a 走环分支返回
         assert!(Rc::ptr_eq(&out[0], &a));
         assert!(Rc::ptr_eq(&out[1], &b));
+        // 清理: 无 engine 持有的手工环须显式断开 (Drop 清扫不覆盖本测试的图)
+        a.set_parent(None);
+        b.set_parent(None);
+    }
+
+    /// 备案 b 的断环履约 (审查 B2): 对抗性 set_parent 构环 (a↔b) + add_node 后
+    /// drop engine — Drop 清扫逐节点摘父边, 引用计数归一, 无 Rc 环泄漏
+    /// (Java GC 可收环的 Rust 对应物)。
+    #[test]
+    fn drop_sweeps_adversarial_cycle_edges() {
+        let a = node("a", 10, 10);
+        let b = node("b", 10, 10);
+        a.set_parent(Some(&b)); // b.children=[a]
+        b.set_parent(Some(&a)); // a.children=[b] — a↔b children 强环
+        let mut e = ModernHUDLayoutEngine::<VisComp>::new(100, 100);
+        e.add_node(a.clone());
+        e.add_node(b.clone());
+        // 本地句柄 + nodes map + 对方 children 各持一份强引用
+        assert_eq!(Rc::strong_count(&a), 3);
+        assert_eq!(Rc::strong_count(&b), 3);
+        drop(e); // Drop 清扫: a/b 各自从对方 children 摘除, map 随字段释放
+        assert_eq!(Rc::strong_count(&a), 1);
+        assert_eq!(Rc::strong_count(&b), 1);
     }
 
     /// doLayout 的 Java 怪癖: dirty 清零后仍无条件重算 (组件尺寸变化无需置脏)。
@@ -1078,13 +1136,14 @@ mod tests {
         // 布局调试开关 (panel 外「杂项→调试」组单列快照)
         assert_eq!(ENABLE_LAYOUT_DEBUG_ITEM.target, "enableLayoutDebug");
         assert_eq!(ENABLE_LAYOUT_DEBUG_ITEM.default, CfgDefault::Bool(false));
-        // cfg 驱动读取: 缺键走 :default; override 生效
-        assert_eq!(
-            MiniHudLayoutConfig::from_bool_source(|_| None),
-            MiniHudLayoutConfig::default()
-        );
-        let cfg = MiniHudLayoutConfig::from_bool_source(|k| (k == "displayCrosshair").then_some(false));
+        // cfg 驱动读取: 缺键 = Java getBool 字面兜底 (displayCrosshair **false**,
+        // 非 cfg :default true — 整树缺失时 Java 关准星; 两层缺省见 from_bool_source)
+        let cfg = MiniHudLayoutConfig::from_bool_source(|_| None);
         assert!(!cfg.display_crosshair);
+        assert!(!cfg.enable_layout_debug);
+        // override 生效; 未覆盖键走字面兜底
+        let cfg = MiniHudLayoutConfig::from_bool_source(|k| (k == "displayCrosshair").then_some(true));
+        assert!(cfg.display_crosshair);
         assert!(!cfg.enable_layout_debug);
     }
 
@@ -1136,7 +1195,7 @@ mod tests {
         // 内容包围盒 (3,62)~(600,192) → padding 45 自动尺寸
         assert_eq!(
             built.sizing,
-            AutoSizingPlan { new_width: 687, new_height: 220, offset_x: 42, offset_y: -17 }
+            Some(AutoSizingPlan { new_width: 687, new_height: 220, offset_x: 42, offset_y: -17 })
         );
     }
 
@@ -1159,7 +1218,7 @@ mod tests {
         // maxX 回落到 90 (attitude/compass/文本列右缘), 包围盒 (3,62,87,130)
         assert_eq!(
             built.sizing,
-            AutoSizingPlan { new_width: 177, new_height: 220, offset_x: 42, offset_y: -17 }
+            Some(AutoSizingPlan { new_width: 177, new_height: 220, offset_x: 42, offset_y: -17 })
         );
     }
 
@@ -1195,11 +1254,12 @@ mod tests {
         // 包围盒 (-47,62)~(90,200) → (-47,62,137,138)
         assert_eq!(
             built.sizing,
-            AutoSizingPlan { new_width: 227, new_height: 228, offset_x: 92, offset_y: -17 }
+            Some(AutoSizingPlan { new_width: 227, new_height: 228, offset_x: 92, offset_y: -17 })
         );
     }
 
-    /// 空 rows 守卫 (Java components.isEmpty() return): 空引擎 + 1x1 兜底尺寸。
+    /// 空 rows 守卫 (Java components.isEmpty() 裸 return): 空引擎, 不自动尺寸
+    /// (sizing=None, 窗口/renderOffset 保持宿主原状), 无任何节点。
     #[test]
     fn build_empty_rows_returns_empty_engine() {
         let parts = MiniHudParts {
@@ -1214,6 +1274,6 @@ mod tests {
         let built = build_mihud_layout(&MiniHudLayoutConfig::default(), parts, 300, 200, 24.0);
         assert!(built.engine.get_node("row0").is_none());
         assert!(built.engine.get_node("flap").is_none());
-        assert_eq!(built.sizing, AutoSizingPlan { new_width: 91, new_height: 91, offset_x: 45, offset_y: 45 });
+        assert!(built.sizing.is_none());
     }
 }

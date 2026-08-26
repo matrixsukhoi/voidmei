@@ -5,7 +5,8 @@
 //! | HUDTextRow | ui/component/row/HUDTextRow.java | 主文本行: 基线 = y+ascent, 警告色/常态色, 模板锁宽 |
 //! | HUDAkbRow | ui/component/row/HUDAkbRow.java | 速度行: 左主文字 + 右 AoA 横条(drawHRect)与 α 小字 |
 //! | HUDEnergyRow | ui/component/row/HUDEnergyRow.java | 高度行: 左主文字 + 右能量小字 (同基线) |
-//! | HUDFlapsRow | ui/component/row/HUDFlapsRow.java | 襟翼/起落架状态行 (纯数据映射, 无自绘) |
+//! | HUDFlapsRow | ui/component/row/HUDFlapsRow.java | 襟翼/起落架状态行 (纯数据映射, 无自绘; Java 前代组件, 生产 Row2 已被 HUDMechanizationRow 取代, 保真保留) |
+//! | HUDMechanizationRow | ui/component/row/HUDMechanizationRow.java | Row 2 生产组件: 襟翼/减速板/起落架三段拆分, 模板占位推进 curX, 独立三开关 |
 //! | HUDManeuverRow | ui/component/row/HUDManeuverRow.java | G 行: 左主文字 + 右机动指数条(thick 影线/thin 主线)与刻度 |
 //!
 //! 绘制目标 = render2d::PixCanvas; Java extends HUDTextRow 统一映射为组合
@@ -14,8 +15,8 @@
 //!
 //! // PORT: Java HUDRow 接口 (HUDRow.java) 的 getPreferredSize 默认 (200, getHeight)
 //! 由 preferred_size 实现覆盖, 不单独建 trait —— Rust 侧该接口无第二实现需求。
-//! // PORT: HUDMechanizationRow.java (Row 2 的三段拆分变体) 不在本批任务清单,
-//! 未移植; 其视觉 = 三段模板占位推进的文字行, 后续批次处理。
+
+use vm_core::hud_data::HUDData;
 
 use crate::font::LoadedFont;
 use crate::gauges_bars::{COLOR_NUM, COLOR_SHADE_SHAPE, COLOR_WARNING};
@@ -469,7 +470,8 @@ impl HUDEnergyRow {
 // HUDFlapsRow (襟翼/起落架状态行)
 // ---------------------------------------------------------------------------
 
-/// Row 2: 襟翼/减速板/起落架状态行 (HUDFlapsRow.java:8)。
+/// 襟翼/减速板/起落架状态行 (HUDFlapsRow.java:8; Java 遗留组件, 生产 Row2
+/// 已改用 HUDMechanizationRow — 本类保真保留, 见下方同文件邻居)。
 /// 纯数据映射组件 — 无自绘, 全部视觉 = 基类文本行
 /// (onDataUpdate: mechanizationStr + warnConfiguration → update)。
 pub struct HUDFlapsRow {
@@ -497,6 +499,230 @@ impl HUDFlapsRow {
     /// 基类 preferred_size 透传
     pub fn preferred_size(&self, font: &LoadedFont) -> (i32, i32) {
         self.base.preferred_size(font)
+    }
+}
+
+// ---------------------------------------------------------------------------
+// HUDMechanizationRow (襟翼/减速板/起落架三段拆分行)
+// ---------------------------------------------------------------------------
+
+/// Row 2 组件级拆分：襟翼/可变翼 + 减速板 + 起落架 (HUDMechanizationRow.java:12)。
+/// 三个子组件各有一个独立的可见性开关 (Java javadoc 原文)。
+pub struct HUDMechanizationRow {
+    /// Java extends HUDTextRow → 组合基座。draw 全覆写 (base.text 不参与渲染),
+    /// base.is_warning 参与三段取色; setStyle/模板锁宽复用基座。
+    pub base: HUDTextRow,
+    /// 组件级可见性开关：襟翼/可变翼 (Java:15)
+    pub show_flaps: bool,
+    /// 组件级可见性开关：减速板 (Java:17)
+    pub show_airbrake: bool,
+    /// 组件级可见性开关：起落架 (Java:19)
+    pub show_gear: bool,
+    /// 三段数据串 (Java:21-23 构造置 "")
+    pub flaps_wing_str: String,
+    pub airbrake_str: String,
+    pub gear_str: String,
+    /// 各子组件模板字符串（用于宽度估算）(Java 注释原文; 默认 W100/BRK/GEA)
+    pub flaps_template: String,
+    pub airbrake_template: String,
+    pub gear_template: String,
+}
+
+/// Java:52-60 / 75-80 共用的三段切分: 0..4 / 4..7 / 7..10 各自 trim。
+/// // PORT: Java substring + length()>=10 按 UTF-16 码元; 输入域为
+/// HUDCalculator 的 mechanization 格式串 (纯 ASCII: F/W 前缀+数字+空格+BRK/GEA),
+/// 字节索引与 UTF-16 索引等价 (§2.1)。Java trim() 删两端 <=U+0020, Rust trim()
+/// 删 Unicode 空白 — ASCII 域内等价。
+fn split_trim3(text: &str) -> Option<(String, String, String)> {
+    let b = text.as_bytes();
+    if b.len() < 10 {
+        return None; // Java length() < 10 分支
+    }
+    let seg = |r: std::ops::Range<usize>| -> String {
+        let bytes = &b[r];
+        // PORT: ASCII 域论证下 from_utf8 恒成功; debug_assert 让域漂移 (切分点落在
+        // 非 ASCII 字节) 在测试期响亮失败, release 静默回退空段保运行 (Java
+        // substring 会切出乱码文本而非空串 — 域内不可达, 保真不受影响)
+        debug_assert!(
+            std::str::from_utf8(bytes).is_ok(),
+            "mechanization 切分点落在非 ASCII 域: {text:?}"
+        );
+        std::str::from_utf8(bytes).unwrap_or("").trim().to_string()
+    };
+    Some((seg(0..4), seg(4..7), seg(7..10)))
+}
+
+/// Java getStringWidth(template + " ", font) (HUDCalculator.java:337-345, 内部
+/// FontMetrics.stringWidth — javadoc 明示串 advance 不必等于各字符 advance 之和):
+/// 拼接串宽按 模板宽 + 空格 advance 拆分。Rust 侧 font.measure 逐字符求和
+/// (font.rs charsWidth 口径), 拆分在 Rust 内部严格恒等; Java 侧等价性非规范
+/// 保证, 依据 = JDK8 无 layout 属性字体 stringWidth 的逐字符累加实现语义,
+/// 经 Java 8 oracle 实测 (1.8.0_342, 6 字号 × 6 段串 ALL-EQUAL) + 555×270
+/// 整帧对拍右缘 dx=0 背书 (换字体/字号理论可差 1px)。免 draw 路径堆分配
+/// (Java 原码每帧拼新串 — Rust 以拆分复刻); 空模板段宽 0 (Java isEmpty 分支)。
+fn seg_width(font: &LoadedFont, template: &str) -> i32 {
+    if template.is_empty() {
+        0
+    } else {
+        font.measure(template) + font.char_width(' ')
+    }
+}
+
+impl HUDMechanizationRow {
+    /// Java:30-32 构造 (font 为 draw/preferred 参数, 不入结构体)
+    pub fn new(index: i32, height: i32) -> Self {
+        HUDMechanizationRow {
+            base: HUDTextRow::new(index, height),
+            show_flaps: true,
+            show_airbrake: true,
+            show_gear: true,
+            flaps_wing_str: String::new(),
+            airbrake_str: String::new(),
+            gear_str: String::new(),
+            flaps_template: "W100".to_string(),
+            airbrake_template: "BRK".to_string(),
+            gear_template: "GEA".to_string(),
+        }
+    }
+
+    /// Java:34-37 可见性开关
+    pub fn set_show_flaps(&mut self, v: bool) {
+        self.show_flaps = v;
+    }
+    pub fn set_show_airbrake(&mut self, v: bool) {
+        self.show_airbrake = v;
+    }
+    pub fn set_show_gear(&mut self, v: bool) {
+        self.show_gear = v;
+    }
+
+    /// Java:40-45 updateParts (游戏模式数据入口)。
+    /// super.update("", isWarning) 清空主文字（不使用）(Java 注释原文)。
+    pub fn update_parts(
+        &mut self,
+        flaps_wing_str: &str,
+        airbrake_str: &str,
+        gear_str: &str,
+        is_warning: bool,
+    ) -> bool {
+        // 先判后写, 全字段参与 (update_changed_covers_all_fields 契约):
+        // 三段串逐帧变化而 isWarning 低频, 漏比任一即冻结对应段
+        let changed = !self.base.text.is_empty()
+            || self.base.is_warning != is_warning
+            || self.flaps_wing_str != flaps_wing_str
+            || self.airbrake_str != airbrake_str
+            || self.gear_str != gear_str;
+        self.base.update("", is_warning);
+        self.flaps_wing_str.clear();
+        self.flaps_wing_str.push_str(flaps_wing_str);
+        self.airbrake_str.clear();
+        self.airbrake_str.push_str(airbrake_str);
+        self.gear_str.clear();
+        self.gear_str.push_str(gear_str);
+        changed
+    }
+
+    /// Java:48-61 update(text, isWarning) 预览模式更新（兼容旧接口）。
+    /// 从合并字符串解析回子组件（预览用，格式: "F100BRKGEA" 或 "    BRKGEA"）
+    /// (Java 注释原文)。
+    pub fn update(&mut self, text: &str, is_warning: bool) -> bool {
+        let parts = split_trim3(text);
+        let (fw, ab, g) = match &parts {
+            Some((a, b, c)) => (a.as_str(), b.as_str(), c.as_str()),
+            None => ("", "", ""), // Java else 分支: 三段全清空
+        };
+        let changed = self.base.text != text
+            || self.base.is_warning != is_warning
+            || self.flaps_wing_str != fw
+            || self.airbrake_str != ab
+            || self.gear_str != g;
+        self.base.update(text, is_warning);
+        self.flaps_wing_str.clear();
+        self.flaps_wing_str.push_str(fw);
+        self.airbrake_str.clear();
+        self.airbrake_str.push_str(ab);
+        self.gear_str.clear();
+        self.gear_str.push_str(g);
+        changed
+    }
+
+    /// Java:63-70 onDataUpdate: 直接写三段串 + isWarning (不走 update ——
+    /// base.text 保持不动, 不参与渲染)。
+    pub fn on_data_update(&mut self, data: &HUDData) -> bool {
+        let changed = self.flaps_wing_str != data.flaps_wing_str
+            || self.airbrake_str != data.airbrake_str
+            || self.gear_str != data.gear_str
+            || self.base.is_warning != data.warn_configuration;
+        self.flaps_wing_str.clear();
+        self.flaps_wing_str.push_str(&data.flaps_wing_str);
+        self.airbrake_str.clear();
+        self.airbrake_str.push_str(&data.airbrake_str);
+        self.gear_str.clear();
+        self.gear_str.push_str(&data.gear_str);
+        self.base.is_warning = data.warn_configuration;
+        changed
+    }
+
+    /// Java:72-81 setTemplate（预览模式），格式同旧 mechanizationStr
+    /// (Java 注释原文)。空襟翼段回退 "F100" (Java:77)。
+    pub fn set_template(&mut self, template: Option<&str>) {
+        self.base.set_template(template);
+        if let Some((fw, ab, g)) = template.and_then(split_trim3) {
+            self.flaps_template = fw;
+            if self.flaps_template.is_empty() {
+                self.flaps_template = "F100".to_string();
+            }
+            self.airbrake_template = ab;
+            self.gear_template = g;
+        }
+    }
+
+    /// Java:83-113 draw。三段沿 curX 依次推进: 模板非空段恒占位 (模板宽 + 尾随
+    /// 空格), 数据非空且开关开才绘制文字; 段序 = 图层序, 同基线 baseY, 主字体。
+    pub fn draw(&self, cv: &mut PixCanvas, x: i32, y: i32, font: &LoadedFont, aa: bool) {
+        // PORT: Java:85-86 ascent = getFontMetrics(font).getAscent(); baseY = y + ascent
+        let base_y = y + font.metrics().ascent;
+        // PORT: Java:95/104/111 isWarning ? colorWarning : colorNum (三段同色)
+        let c = if self.base.is_warning {
+            COLOR_WARNING
+        } else {
+            COLOR_NUM
+        };
+
+        let mut cur_x = x;
+
+        // 襟翼/可变翼：始终占位推进 curX，隐藏时仅不绘制文字 (Java 注释原文)
+        let flaps_width = seg_width(font, &self.flaps_template);
+        if self.show_flaps && !self.flaps_wing_str.is_empty() {
+            text_shaded(cv, font, cur_x, base_y, &self.flaps_wing_str, c, aa);
+        }
+        cur_x += flaps_width;
+
+        // 减速板：始终占位推进 curX，隐藏时仅不绘制文字 (Java 注释原文)
+        let brk_width = seg_width(font, &self.airbrake_template);
+        if self.show_airbrake && !self.airbrake_str.is_empty() {
+            text_shaded(cv, font, cur_x, base_y, &self.airbrake_str, c, aa);
+        }
+        cur_x += brk_width;
+
+        // 起落架：始终占位推进 curX，隐藏时仅不绘制文字 (Java 注释原文;
+        // 末段, 其后无推进消费)
+        if self.show_gear && !self.gear_str.is_empty() {
+            text_shaded(cv, font, cur_x, base_y, &self.gear_str, c, aa);
+        }
+    }
+
+    /// Java:115-131 getPreferredSize: 三段模板宽之和 (襟翼/减速板含尾随空格,
+    /// 起落架无 — Java:128 原样); 隐藏段保留占位符。
+    pub fn preferred_size(&self, font: &LoadedFont) -> (i32, i32) {
+        let mut w = 0;
+        // 始终使用模板估算完整宽度，隐藏的组件保留占位符，保持布局稳定 (Java 注释原文)
+        w += seg_width(font, &self.flaps_template);
+        w += seg_width(font, &self.airbrake_template);
+        if !self.gear_template.is_empty() {
+            w += font.measure(&self.gear_template);
+        }
+        (w, self.base.height)
     }
 }
 
@@ -1066,6 +1292,209 @@ mod tests {
         assert!(
             any_alpha_above(&cv2, 5, 5, 155, 45, 200),
             "常态笔画存在"
+        );
+    }
+
+    /// HUDMechanizationRow 模板解析与占位宽 (Java:72-81 / 115-131):
+    /// 默认 W100/BRK/GEA; "    BRKGEAR" → 襟翼空段回退 F100; 占位宽 =
+    /// w("W100 ")+w("BRK ")+w("GEA") (getStringWidth 逐字符求和, Java 同口径;
+    /// 非等宽字符格 — 数字与空格 advance 不同, 见 font.rs charsWidth)。
+    #[test]
+    fn mech_row_template_parse_and_preferred_size() {
+        let f = main_font();
+        // Java getStringWidth(tpl + " ") 的拼接串直译 oracle
+        let seg = |t: &str| f.measure(&format!("{t} "));
+
+        let row = HUDMechanizationRow::new(2, 30);
+        assert_eq!(row.base.id(), "row.2");
+        assert_eq!(
+            row.preferred_size(&f),
+            (seg("W100") + seg("BRK") + f.measure("GEA"), 30)
+        );
+
+        let mut row = HUDMechanizationRow::new(2, 30);
+        row.set_template(Some("    BRKGEAR")); // enableFlapAngleBar 预览串
+        assert_eq!(row.flaps_template, "F100", "空襟翼段回退 F100 (Java:77)");
+        assert_eq!(row.airbrake_template, "BRK");
+        assert_eq!(row.gear_template, "GEA");
+        // 基座模板同步锁宽 (super.setTemplate)
+        assert_eq!(row.base.template.as_deref(), Some("    BRKGEAR"));
+        assert_eq!(
+            row.preferred_size(&f),
+            (seg("F100") + seg("BRK") + f.measure("GEA"), 30)
+        );
+
+        // 短串 (<10) 不解析, 模板保持; None 不解析
+        row.set_template(Some("F100BRK"));
+        assert_eq!(row.flaps_template, "F100");
+        row.set_template(None);
+        assert_eq!(row.flaps_template, "F100");
+        // 模板带 F100 前缀的解析 (襟翼条禁用预览串)
+        row.set_template(Some("F100BRKGEA"));
+        assert_eq!(
+            (&row.flaps_template, &row.airbrake_template, &row.gear_template),
+            (&"F100".to_string(), &"BRK".to_string(), &"GEA".to_string())
+        );
+    }
+
+    /// HUDMechanizationRow.update 合并串解析 (Java:48-61): ≥10 逐段 trim,
+    /// 短串三段全清; base.text 承载完整合并串。
+    #[test]
+    fn mech_row_update_parse() {
+        let mut row = HUDMechanizationRow::new(2, 30);
+        assert!(row.update("F100BRKGEA", false));
+        assert_eq!(
+            (&row.flaps_wing_str, &row.airbrake_str, &row.gear_str),
+            (&"F100".to_string(), &"BRK".to_string(), &"GEA".to_string())
+        );
+        assert_eq!(row.base.text, "F100BRKGEA");
+
+        assert!(row.update("    BRKGEAR", true), "内容与警告态均变");
+        assert_eq!(row.flaps_wing_str, "", "4 空格段 trim 后为空");
+        assert_eq!((&row.airbrake_str, &row.gear_str), (&"BRK".to_string(), &"GEA".to_string()));
+        assert!(row.base.is_warning);
+
+        assert!(!row.update("    BRKGEAR", true), "同值无变化");
+        assert!(row.update("    BRKGEAR", false), "仅警告态变化");
+        assert!(row.update("W50", false), "仅主文字变化");
+        assert_eq!(row.flaps_wing_str, "", "短串三段全清 (Java:56-59)");
+        assert_eq!(row.airbrake_str, "");
+        assert_eq!(row.gear_str, "");
+    }
+
+    /// HUDMechanizationRow.update_parts / on_data_update (Java:40-45 / 63-70):
+    /// 前者清主文字, 后者不动 base.text 直写 isWarning。
+    #[test]
+    fn mech_row_update_parts_and_on_data() {
+        let mut row = HUDMechanizationRow::new(2, 30);
+        row.update("F100BRKGEA", false);
+        assert!(row.update_parts("F50", "BRK", "GEA", true));
+        assert_eq!(row.base.text, "", "主文字清空 (Java:41)");
+        assert!(row.base.is_warning);
+        assert_eq!(row.flaps_wing_str, "F50");
+        assert!(!row.update_parts("F50", "BRK", "GEA", true), "全同值无变化");
+        assert!(row.update_parts("F60", "BRK", "GEA", true), "仅襟翼段变化");
+
+        // on_data_update: base.text 保持, is_warning 直写 (Java:66-69)
+        let mut b = vm_core::hud_data::Builder::default();
+        b.flaps_wing_str = "W 75".into();
+        b.airbrake_str = "".into();
+        b.gear_str = "GEA".into();
+        b.warn_configuration = false;
+        let data = b.build();
+        assert!(row.on_data_update(&data));
+        assert_eq!(
+            (&row.flaps_wing_str, &row.airbrake_str, &row.gear_str),
+            (&"W 75".to_string(), &String::new(), &"GEA".to_string())
+        );
+        assert!(!row.base.is_warning);
+        assert_eq!(row.base.text, "", "onDataUpdate 不触 update (Java 原样)");
+        assert!(!row.on_data_update(&data), "全同值无变化");
+    }
+
+    /// HUDMechanizationRow.draw 三段几何 (Java:83-113): 段起点 = 前段模板宽和
+    /// (含尾随空格), 隐藏/空数据段仍占位推进; 三开关独立。
+    #[test]
+    fn mech_row_draw_segments_and_gates() {
+        let f = main_font();
+        let (x, y) = (10, 5);
+        let base_y = y + f.metrics().ascent;
+        // 模板 F100/BRK/GEA 的段宽 (getStringWidth(tpl+" ") 直译; 逐字符求和)
+        let seg = |t: &str| f.measure(&format!("{t} "));
+        let flaps_seg = seg("F100");
+        let brk_seg = seg("BRK");
+        let gear_x = x + flaps_seg + brk_seg;
+        let right_edge = gear_x + f.measure("GEA");
+
+        // 单段点亮: 起落架 (起点 = 襟翼段宽 + 减速板段宽)
+        let mut row = HUDMechanizationRow::new(2, 30);
+        row.set_template(Some("F100BRKGEA"));
+        row.update_parts("", "", "GEA", false);
+        let mut cv = PixCanvas::new(200, 60).unwrap();
+        row.draw(&mut cv, x, y, &f, false);
+        assert!(
+            !any_alpha_above(&cv, x, 0, gear_x, 60, 30),
+            "前两段空 → 左侧无笔画"
+        );
+        assert!(
+            any_alpha_above(&cv, gear_x, base_y - 25, right_edge, base_y + 5, 200),
+            "起落架段起点 = 前两段占位宽之和"
+        );
+
+        // 隐藏段占位推进: 襟翼关而 BRK 仍从 x+襟翼段宽 起
+        let mut row2 = HUDMechanizationRow::new(2, 30);
+        row2.set_template(Some("F100BRKGEA"));
+        row2.update_parts("F100", "BRK", "", false);
+        row2.set_show_flaps(false);
+        let mut cv2 = PixCanvas::new(200, 60).unwrap();
+        row2.draw(&mut cv2, x, y, &f, false);
+        assert!(
+            !any_alpha_above(&cv2, x, 0, x + flaps_seg, 60, 30),
+            "襟翼隐藏 → 占位区无笔画"
+        );
+        assert!(
+            any_alpha_above(&cv2, x + flaps_seg, base_y - 25, x + flaps_seg + f.measure("BRK"), base_y + 5, 200),
+            "减速板仍从占位推进处起"
+        );
+
+        // 全开: 三段首尾相接, 右缘 = 三段宽和; 警告态三段同色
+        let mut row3 = HUDMechanizationRow::new(2, 30);
+        row3.set_template(Some("F100BRKGEA"));
+        row3.update_parts("F100", "BRK", "GEA", true);
+        let mut cv3 = PixCanvas::new(200, 60).unwrap();
+        row3.draw(&mut cv3, x, y, &f, false);
+        assert!(
+            any_alpha_above(&cv3, x, base_y - 25, x + flaps_seg, base_y + 5, 80),
+            "襟翼段 (警告色)"
+        );
+        assert!(
+            !any_alpha_above(&cv3, x, 0, right_edge, 60, 150),
+            "警告色无 240 级像素"
+        );
+        assert!(!any_alpha_above(&cv3, right_edge, 0, 200, 60, 30), "右缘外无");
+
+        // 起落架段无尾随空格占位: gear_template 清空 → 段宽 0 (Java:109-112 无推进消费)
+        let mut row4 = HUDMechanizationRow::new(2, 30);
+        row4.set_template(Some("F100BRKGEA"));
+        row4.gear_template.clear();
+        row4.update_parts("", "", "GEA", false);
+        let mut cv4 = PixCanvas::new(200, 60).unwrap();
+        row4.draw(&mut cv4, x, y, &f, false);
+        assert_eq!(row4.preferred_size(&f), (flaps_seg + brk_seg, 30), "空起落架模板不占宽");
+    }
+
+    /// 对拍口径锁定: enableFlapAngleBar 预览串 "    BRKGEAR" (模板同源) →
+    /// 襟翼段空数据不绘制, BRK 从 x+襟翼段宽 / GEA 从前两段宽和起, 行宽三段和。
+    #[test]
+    fn mech_row_preview_placeholder_advance() {
+        let f = main_font();
+        let (x, y) = (10, 5);
+        let base_y = y + f.metrics().ascent;
+        let seg = |t: &str| f.measure(&format!("{t} "));
+        let flaps_seg = seg("F100"); // 模板 "    " → 空段回退 "F100"
+        let gear_x = x + flaps_seg + seg("BRK");
+
+        let mut row = HUDMechanizationRow::new(2, 30);
+        row.set_template(Some("    BRKGEAR"));
+        row.update("    BRKGEAR", false);
+        assert_eq!(row.flaps_wing_str, "");
+        let mut cv = PixCanvas::new(200, 60).unwrap();
+        row.draw(&mut cv, x, y, &f, false);
+        assert!(
+            !any_alpha_above(&cv, x, 0, x + flaps_seg, 60, 30),
+            "襟翼段空占位"
+        );
+        assert!(
+            any_alpha_above(&cv, x + flaps_seg, base_y - 25, x + flaps_seg + f.measure("BRK"), base_y + 5, 200),
+            "BRK @ 襟翼段宽处"
+        );
+        assert!(
+            any_alpha_above(&cv, gear_x, base_y - 25, gear_x + f.measure("GEA"), base_y + 5, 200),
+            "GEA @ 前两段宽和处"
+        );
+        assert_eq!(
+            row.preferred_size(&f),
+            (flaps_seg + seg("BRK") + f.measure("GEA"), 30)
         );
     }
 

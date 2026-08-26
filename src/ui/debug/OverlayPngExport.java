@@ -43,9 +43,11 @@ import ui.util.FastNumberFormatter;
  *        [--font-add N] [--column N] [--values values.txt] [--aa on|off]
  *   java -classpath "bin;dep/*" ui.debug.OverlayPngExport --gauge <linear|compass|attitude>
  *        --out <p.png> [--data data.txt] [--aa on|off]
+ *   java -classpath "bin;dep/*" ui.debug.OverlayPngExport --minihud --out <p.png> [--aa on|off]
  *
  * values 文件: 每行 "getter名=数值", 注入动态数据走 FastNumberFormatter。
  * --data 文件: 每行 "key=value" (# 注释), gauge 数值参数见 exportGauge* 各默认。
+ * --minihud: 默认配置完整 HUD 整帧 (preview 静态数据), 见 exportMiniHud。
  */
 public class OverlayPngExport {
 
@@ -111,6 +113,12 @@ public class OverlayPngExport {
         String gauge = opt(args, "--gauge");
         if (gauge != null) {
             exportGauge(gauge, args);
+            return;
+        }
+
+        // MiniHUD 整帧对拍模式 (D7: 默认配置完整 HUD, 对端 = rust parity_minihud.rs)
+        if (hasFlag(args, "--minihud")) {
+            exportMiniHud(args);
             return;
         }
 
@@ -336,6 +344,263 @@ public class OverlayPngExport {
     private static String sval(Map<String, String> m, String key, String def) {
         String v = m.get(key);
         return v == null ? def : v;
+    }
+
+    // ==== MiniHUD 整帧对拍模式 (Rust parity_minihud.rs 同源快照, 改一处必须同步另一处) ====
+
+    /** MiniHUDOverlay.java:765 LAYOUT_PADDING 同值 */
+    private static final int MINIHUD_LAYOUT_PADDING = 45;
+
+    /**
+     * --minihud 模式入口: 默认配置 (ui_layout.cfg panel "MiniHUD" L45-94 :default 快照)
+     * 的完整 HUD 离屏渲染; 数据走 preview 静态注入 (service == null → refreshTemplates
+     * 的 lines[] 预览串, 同 FieldOverlay POC 模式)。
+     *
+     * 组装链是 MiniHUDOverlay.init(controller, null, settings) 私有编排的同源快照
+     * (reinitConfig→refreshTemplates / initComponentsLayout / applyStyleToComponents /
+     * updateComponents 预览分支 / initModernLayout 拓扑 + applyAutoSizing), 组件/ctx/
+     * 布局引擎全为生产类; 不实例化 MiniHUDOverlay 本身 (WebLaF WebFrame + Controller
+     * 依赖, FieldOverlay POC 先例同为手抄组装)。dpiScale = Application 静态默认 1.0
+     * (导出链不跑 DPIHelper.getScale)。
+     *
+     * 已知端口差异 (rust rows.rs 头部备案): Rust 侧 Row2 以 HUDFlapsRow (合并串文本行,
+     * 模板宽 w("    BRKGEAR")=11 格) 占位 HUDMechanizationRow (三段模板占位,
+     * w("F100 ")+w("BRK ")+w("GEA")=12 格) → 对拍时 row2 文字位与挂其右缘的
+     * attitude/compass 横向 ~1 字符格偏移为已知结构性差异, 其余应逐像素一致 (AA 口径同
+     * gauge 对拍)。
+     */
+    private static void exportMiniHud(String[] args) throws Exception {
+        String out = opt(args, "--out");
+        if (out == null) {
+            System.err.println("缺少 --out <路径>");
+            System.exit(1);
+        }
+        boolean aa = !"off".equals(opt(args, "--aa"));
+
+        registerFonts();
+        applyGaugeStaticState(aa); // MiniHUD 色系 = Application 静态默认 (同 gauge 模式, FlightInfo cfg 覆盖色不适用)
+
+        MiniHudSettings settings = new MiniHudSettings();
+        ui.overlay.MinimalHUDContext ctx = ui.overlay.MinimalHUDContext.create(settings);
+
+        // --- refreshTemplates() 快照 (MiniHUDOverlay.java L161-208; hudRows 尚未创建,
+        //     尾部模板推送段无操作) ---
+        String[] lines = new String[6];
+        lines[0] = String.format("M%5.2f", 0.85);        // drawHudMach=true (标签开关只影响非 mach 分支)
+        lines[1] = "ALT" + String.format("%6s", "1024"); // alwaysShowRadarAltitude=false
+        lines[3] = "SEP" + String.format("↑%-4s", "30");
+        lines[4] = "G" + String.format("%5s", "2.0");
+        lines[2] = String.format("%4s", "");             // enableFlapAngleBar=true
+        lines[2] += "BRK";
+        lines[2] += "GEAR";
+        String lineAoA = String.format("α%3.0f", 20.0);
+        String relEnergy = "E114514";
+        int aoaY = 10; // init 尾钳制: 10 <= rightDraw(154) 不变
+        java.awt.Color aoaColor = Application.colorNum;
+        java.awt.Color aoaBarColor = Application.colorNum;
+
+        // --- initComponentsLayout() 快照 (L524-589) ---
+        ui.component.FlapAngleBar flapAngleBar = new ui.component.FlapAngleBar();
+        ui.component.SpeedRatioBar speedRatioBar = new ui.component.SpeedRatioBar();
+        ui.component.CompassGauge compassGauge = new ui.component.CompassGauge(ctx.roundCompass);
+        ui.component.AttitudeIndicatorGauge attitudeGauge = new ui.component.AttitudeIndicatorGauge();
+        ui.component.CrosshairGauge crosshairGauge = new ui.component.CrosshairGauge();
+
+        ui.component.row.HUDAkbRow row0 = new ui.component.row.HUDAkbRow(0, ctx.drawFont,
+                ctx.hudFontSize, ctx.drawFontSmall, ctx.rightDraw, ctx.lineWidth);
+        row0.setTemplate(lines[0], lineAoA);
+        ui.component.row.HUDEnergyRow row1 = new ui.component.row.HUDEnergyRow(1, ctx.drawFont,
+                ctx.hudFontSize, ctx.drawFontSmall, ctx.rightDraw);
+        row1.setTemplate(lines[1], relEnergy);
+        ui.component.row.HUDMechanizationRow row2 = new ui.component.row.HUDMechanizationRow(2,
+                ctx.drawFont, ctx.hudFontSize);
+        row2.setTemplate(lines[2]); // 使用旧格式模板，内部自动解析 (Java 注释原文)
+        ui.component.row.HUDTextRow row3 = new ui.component.row.HUDTextRow(3, ctx.drawFont,
+                ctx.hudFontSize);
+        row3.setTemplate(lines[3]);
+        ui.component.row.HUDManeuverRow row4 = new ui.component.row.HUDManeuverRow(4, ctx.drawFont,
+                ctx.hudFontSize, ctx.rightDraw, ctx.halfLine, ctx.lineWidth,
+                ctx.strokeThick, ctx.strokeThin);
+        row4.setTemplate(lines[4]);
+        ui.component.LinearGauge throttleBar = new ui.component.LinearGauge("ThrottleBar", 110, true, false);
+
+        ui.component.row.HUDRow[] hudRows = { row0, row1, row2, row3, row4 };
+
+        // --- applyStyleToComponents() 快照 (L591-647; useTextureCrosshair=false 软件准星) ---
+        int w = (int) (ctx.hudFontSize * 0.25);
+        int h = (int) (ctx.hudFontSize * 5.5);
+        if (w < 6)
+            w = 6;
+        speedRatioBar.setStyleContext(w, h, ctx.drawFontSSmall);
+        crosshairGauge.setStyleContext(settings.getCrosshairScale());
+        int responsiveWidth = (int) (ctx.hudFontSize * 6);
+        flapAngleBar.setStyleContext(responsiveWidth, ctx.lineWidth + 2, ctx.drawFontSmall);
+        compassGauge.setStyleContext(ctx.roundCompass, ctx.lineWidth, ctx.hudFontSize,
+                ctx.hudFontSizeSmall, ctx.drawFontSmall);
+        compassGauge.setInertialMode(false);
+        attitudeGauge.setStyleContext(ctx.compassDiameter, ctx.compassRadius,
+                ctx.compassInnerMarkRadius, ctx.lineWidth, ctx.halfLine, ctx.drawFontSmall);
+        attitudeGauge.setInertialMode(false);
+        row0.setStyle(ctx.drawFont, ctx.hudFontSize, ctx.drawFontSmall, ctx.rightDraw,
+                ctx.lineWidth, (int) ctx.aoaLength);
+        row1.setStyle(ctx.drawFont, ctx.hudFontSize, ctx.drawFontSmall, ctx.rightDraw);
+        row2.setStyle(ctx.drawFont, ctx.hudFontSize);
+        row3.setStyle(ctx.drawFont, ctx.hudFontSize);
+        row4.setStyle(ctx.drawFont, ctx.hudFontSize, ctx.rightDraw, ctx.halfLine, ctx.lineWidth,
+                ctx.strokeThick, ctx.strokeThin);
+        int responsiveHeight = (int) (ctx.hudFontSize * 4.8);
+        throttleBar.setStyleContext(responsiveHeight, ctx.barWidth, ctx.drawFontSSmall, ctx.drawFontSSmall);
+
+        // --- updateComponents() 快照 (L309-402; service==null 预览分支) ---
+        flapAngleBar.setVisible(true);  // drawHUDtext && enableFlapAngleBar
+        compassGauge.setVisible(false); // showAttitudeGauge=true → 罗盘/姿态互斥
+        attitudeGauge.setVisible(true);
+        crosshairGauge.setVisible(true); // displayCrosshair (不受 drawHUDtext 管)
+        speedRatioBar.setVisible(true);  // showSpeedBar=true
+        throttleBar.setVisible(false);
+        row0.setVisible(true);
+        row0.setShowSpeed(true);
+        row0.setShowAoa(true);
+        row1.setVisible(true);
+        row1.setShowAltitude(true);
+        row1.setShowEnergy(true);
+        row2.setVisible(true); // 三开关之或 (全开)
+        row2.setShowFlaps(true);
+        row2.setShowAirbrake(true);
+        row2.setShowGear(true);
+        row3.setVisible(true);
+        row4.setVisible(true);
+        row4.setShowGLoad(true);
+        row4.setShowManeuverBar(true);
+        row0.update(lines[0], false, lineAoA, aoaY, aoaColor, aoaBarColor);
+        row1.update(lines[1], false, relEnergy);
+        row2.update(lines[2], false); // inAction=false
+        row3.update(lines[3], false);
+        row4.update(lines[4], false, 0, 0, 0, 0, 0, 0, 0); // maneuverIndex/len 族全 0
+        throttleBar.update(0, String.format("%3d", 0));   // service==null → throttleValue=0
+
+        // --- initModernLayout() 快照 (L652-763; displayCrosshair=true → layoutWidth=width*2) ---
+        ui.layout.ModernHUDLayoutEngine engine = new ui.layout.ModernHUDLayoutEngine(
+                ctx.width * 2, ctx.height);
+        engine.setLineHeight(ctx.hudFontSize);
+        ui.layout.HUDLayoutNode row0Node = new ui.layout.HUDLayoutNode("row0", row0);
+        row0Node.setRelativePosition(2.1, 3.5)
+                .setAnchors(ui.layout.Anchor.TOP_LEFT, ui.layout.Anchor.TOP_LEFT);
+        engine.addNode(row0Node);
+        ui.layout.HUDLayoutNode flapNode = new ui.layout.HUDLayoutNode("flap", flapAngleBar);
+        flapNode.setParent(row0Node)
+                .setRelativePosition(0, -0.1)
+                .setAnchors(ui.layout.Anchor.TOP_LEFT, ui.layout.Anchor.BOTTOM_LEFT);
+        engine.addNode(flapNode);
+        ui.layout.HUDLayoutNode prevRow = row0Node;
+        ui.layout.HUDLayoutNode row2Node = null, row4Node = null;
+        for (int i = 1; i < hudRows.length; i++) {
+            ui.layout.HUDLayoutNode rowNode = new ui.layout.HUDLayoutNode("row" + i, hudRows[i]);
+            rowNode.setParent(prevRow)
+                    .setRelativePosition(0, 0.1)
+                    .setAnchors(ui.layout.Anchor.BOTTOM_LEFT, ui.layout.Anchor.TOP_LEFT);
+            engine.addNode(rowNode);
+            prevRow = rowNode;
+            if (i == 2)
+                row2Node = rowNode;
+            else if (i == 4)
+                row4Node = rowNode;
+        }
+        ui.layout.HUDLayoutNode attitudeNode = new ui.layout.HUDLayoutNode("attitude", attitudeGauge);
+        attitudeNode.setParent(row2Node)
+                .setRelativePosition(0, 0.5)
+                .setAnchors(ui.layout.Anchor.BOTTOM_RIGHT, ui.layout.Anchor.TOP_RIGHT);
+        engine.addNode(attitudeNode);
+        ui.layout.HUDLayoutNode compassNode = new ui.layout.HUDLayoutNode("compass", compassGauge);
+        compassNode.setParent(row2Node)
+                .setRelativePosition(0, 0.1)
+                .setAnchors(ui.layout.Anchor.BOTTOM_RIGHT, ui.layout.Anchor.TOP_RIGHT);
+        engine.addNode(compassNode);
+        ui.layout.HUDLayoutNode speedBarNode = new ui.layout.HUDLayoutNode("speedBar", speedRatioBar);
+        speedBarNode.setParent(row4Node)
+                .setRelativePosition(-0.3, 0)
+                .setAnchors(ui.layout.Anchor.BOTTOM_LEFT, ui.layout.Anchor.BOTTOM_RIGHT);
+        engine.addNode(speedBarNode);
+        ui.layout.HUDLayoutNode throttleNode = new ui.layout.HUDLayoutNode("throttle", throttleBar);
+        throttleNode.setParent(row4Node)
+                .setRelativePosition(-0.3, 0)
+                .setAnchors(ui.layout.Anchor.BOTTOM_LEFT, ui.layout.Anchor.BOTTOM_RIGHT);
+        engine.addNode(throttleNode);
+        ui.layout.HUDLayoutNode crosshairNode = new ui.layout.HUDLayoutNode("crosshair", crosshairGauge);
+        crosshairNode.setRelativePosition(0, 0)
+                .setAnchors(ui.layout.Anchor.MIDDLE_RIGHT, ui.layout.Anchor.MIDDLE_RIGHT);
+        engine.addNode(crosshairNode);
+
+        engine.doLayout();
+        java.awt.Container win = new java.awt.Container(); // applyAutoSizing 的 setSize 目标 (离屏替身)
+        engine.applyAutoSizing(win, MINIHUD_LAYOUT_PADDING);
+
+        // --- paintComponent 快照 (L241-256): setPaintMode + 4 hints + doLayout + render;
+        //     drawBlinkX 的 blinkX 预览恒 false 无输出, 不复刻 ---
+        BufferedImage img = new BufferedImage(win.getWidth(), win.getHeight(),
+                BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g2d = img.createGraphics();
+        g2d.setPaintMode();
+        applyGaugeHints(g2d);
+        engine.doLayout();
+        engine.render(g2d);
+        g2d.dispose();
+        ImageIO.write(img, "png", new File(out));
+        System.out.println("minihud -> " + out + " (" + img.getWidth() + "x" + img.getHeight() + ")");
+    }
+
+    /** MiniHUD 对拍设置: ui_layout.cfg (panel "MiniHUD" L45-94) :default 快照
+     *  (同 rust parity_minihud.rs ParitySettings; 改一处必须同步另一处) */
+    private static class MiniHudSettings implements prog.config.HUDSettings {
+        public String getNumFont() { return "Sarasa Mono SC"; }
+        public int getWindowX(int width) { return 0; }
+        public int getWindowY(int height) { return 0; }
+        public void saveWindowPosition(double x, double y) { }
+        public String getFontName() { return "Sarasa Mono SC"; }
+        public String getNumFontName() { return "Sarasa Mono SC"; }
+        public int getFontSizeAdd() { return 0; }
+        public boolean getBool(String key, boolean def) { return def; } // enableLayoutDebug → false
+        public int getInt(String key, int def) { return def; }
+        public String getString(String key, String def) { return def; }
+        public GroupConfig getGroupConfig() { return null; }
+        public boolean autoHideOnFocusLoss() { return false; }
+        public int getCrosshairScale() { return 113; } // "minihud大小" :default
+        public String getCrosshairName() { return "软件渲染准星"; } // :default → 软件矢量路径
+        public boolean isDisplayCrosshair() { return true; }
+        public boolean useTextureCrosshair() { return false; }
+        public boolean drawHUDText() { return true; }
+        public boolean showAttitudeGauge() { return true; }
+        public double getAoAWarningRatio() { return 0.2; }   // :default 20 (%)
+        public double getAoABarWarningRatio() { return 0.25; } // :default 25 (%)
+        public boolean enableFlapAngleBar() { return true; }
+        public boolean showSpeedBar() { return true; }
+        public boolean drawHudMach() { return true; }
+        public boolean isSpeedLabelDisabled() { return false; }
+        public boolean isAltitudeLabelDisabled() { return false; }
+        public boolean isSEPLabelDisabled() { return false; }
+        public boolean showHUDSpeed() { return true; }
+        public boolean showHUDAoA() { return true; }
+        public boolean showHUDAltitude() { return true; }
+        public boolean showHUDEnergy() { return true; }
+        public boolean showHUDMechanization() { return true; }
+        public boolean showHUDFlaps() { return true; }
+        public boolean showHUDAirbrake() { return true; }
+        public boolean showHUDGear() { return true; }
+        public boolean showHUDSep() { return true; }
+        public boolean showHUDGLoad() { return true; }
+        public boolean showHUDManeuverBar() { return true; }
+        public boolean isAttitudeIndicatorInertialMode() { return false; }
+        public boolean isGPUCompatibilityMode() { return false; }
+        public boolean alwaysShowRadarAltitude() { return false; }
+    }
+
+    /** 无值开关节测 (--minihud) */
+    private static boolean hasFlag(String[] args, String key) {
+        for (String a : args) {
+            if (key.equals(a))
+                return true;
+        }
+        return false;
     }
 
     private static void setPrecision(ui.model.DataField f, int precision) {

@@ -10,6 +10,7 @@ pub mod voice_warning;
 pub mod voice_resource_manager;
 pub mod row_renderer_registry;
 pub mod renderer_config_helper;
+pub mod reflect_binder;
 pub mod hud_layout_node;
 pub mod overlay_context;
 pub mod other_service;

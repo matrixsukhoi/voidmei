@@ -5,6 +5,7 @@ members = [
     "crates/vm-data",
     "crates/vm-overlay",
     "crates/vm-app",
+    "crates/vm-ui",
 ]
 
 [workspace.package]
@@ -15,6 +16,7 @@ edition = "2021"
 vm-core = { path = "crates/vm-core" }
 vm-data = { path = "crates/vm-data" }
 vm-overlay = { path = "crates/vm-overlay" }
+vm-ui = { path = "crates/vm-ui" }
 serde_json = "1"
 png = "0.18"
 swash = "0.2"
