@@ -1,0 +1,507 @@
+//! Windows 平台实现: WS_POPUP + WS_EX_LAYERED + UpdateLayeredWindow (纯 CPU, 无 GPU 上下文)
+//! 行为对齐 Java AWT 透明窗 (同为 ULW 路径); 穿透 = WS_EX_TRANSPARENT 切换 (Java 版无, 属增强)
+
+#![allow(non_snake_case)]
+
+use std::collections::{HashMap, VecDeque};
+use std::sync::{LazyLock, Mutex};
+
+use windows::core::w;
+use windows::Win32::Foundation::{COLORREF, HWND, LPARAM, LRESULT, POINT, RECT, SIZE, WPARAM};
+use windows::Win32::Graphics::Gdi::{
+    CreateCompatibleDC, CreateDIBSection, DeleteDC, DeleteObject, GetDC, MonitorFromWindow,
+    ReleaseDC, SelectObject, AC_SRC_ALPHA, BLENDFUNCTION, BITMAPINFO, BITMAPINFOHEADER, BI_RGB,
+    DIB_RGB_COLORS, HBITMAP, HDC, HGDIOBJ, MONITOR_DEFAULTTONEAREST, MONITORINFO,
+};
+use windows::Win32::System::LibraryLoader::GetModuleHandleW;
+use windows::Win32::UI::HiDpi::SetProcessDpiAwarenessContext;
+use windows::Win32::UI::Input::KeyboardAndMouse::{ReleaseCapture, SetCapture};
+use windows::Win32::UI::WindowsAndMessaging::{
+    CreateWindowExW, DestroyWindow, DispatchMessageW, GetCursorPos, GetWindowLongPtrW,
+    PeekMessageW, RegisterClassW, SetWindowLongPtrW, SetWindowPos, ShowWindow,
+    TranslateMessage, CS_HREDRAW, CS_VREDRAW, GWL_EXSTYLE, HTCLIENT, HWND_BOTTOM,
+    HWND_NOTOPMOST, HWND_TOPMOST, IDC_ARROW, LoadCursorW, MSG, PM_REMOVE, SWP_NOACTIVATE,
+    SWP_NOMOVE, SWP_NOSIZE, SW_HIDE, SW_SHOWNOACTIVATE, ULW_ALPHA, WM_CAPTURECHANGED,
+    WINDOW_EX_STYLE, WNDCLASSW, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MOUSEMOVE,
+    WM_NCHITTEST, WM_POINTERUP, WM_DESTROY, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW,
+    WS_EX_TOPMOST, WS_EX_TRANSPARENT, WS_POPUP, WS_VISIBLE,
+};
+
+use super::{OverlayEvent, WindowConfig};
+
+/// WNDPROC 按 hwnd 分流的事件队列表 (多窗口支持)
+/// key = HWND.0 as isize; create 时登记条目, Drop 时销毁条目
+/// PORT: POC 期是全进程单队列 (EVENT_QUEUE), 多窗口下事件会串台;
+/// Java 无此层 (Swing 事件按组件分发), 此处等价于"每窗口自己的事件流"
+static EVENT_QUEUES: LazyLock<Mutex<HashMap<isize, VecDeque<OverlayEvent>>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+
+pub struct WinOverlay {
+    hwnd: HWND,
+    width: i32,
+    height: i32,
+    // DIB 资源 (present 用)
+    memdc: HDC,
+    dib: HBITMAP,
+    old_obj: HGDIOBJ,
+    dib_bits: *mut u8,
+}
+
+unsafe impl Send for WinOverlay {}
+
+unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
+    match msg {
+        WM_NCHITTEST => {
+            // 整窗客户区 (Java setFocusable(false) 等价效果: 不进系统移动/缩放)
+            LRESULT(HTCLIENT as isize)
+        }
+        WM_LBUTTONDOWN | WM_POINTERUP => {
+            // 捕获鼠标: 快速拖拽滑出窗口后仍能收到 MOVE/UP (否则拖拽中断)
+            let _ = SetCapture(hwnd);
+            let (x, y) = cursor_root_pos();
+            push_event(hwnd, OverlayEvent::MousePress { root_x: x, root_y: y });
+            LRESULT(0)
+        }
+        WM_LBUTTONUP => {
+            let _ = ReleaseCapture();
+            push_event(hwnd, OverlayEvent::MouseRelease);
+            LRESULT(0)
+        }
+        WM_MOUSEMOVE => {
+            let (x, y) = cursor_root_pos();
+            let left_down = wparam.0 & 0x0001 != 0;
+            push_event(hwnd, OverlayEvent::MouseMove { root_x: x, root_y: y, left_down });
+            LRESULT(0)
+        }
+        WM_CAPTURECHANGED => {
+            // 系统夺走捕获时结束拖拽 (防 drag 状态卡死)
+            push_event(hwnd, OverlayEvent::MouseRelease);
+            LRESULT(0)
+        }
+        WM_DESTROY => {
+            push_event(hwnd, OverlayEvent::Close);
+            LRESULT(0)
+        }
+        _ => DefWindowProcW(hwnd, msg, wparam, lparam),
+    }
+}
+
+fn push_event(hwnd: HWND, ev: OverlayEvent) {
+    if let Ok(mut map) = EVENT_QUEUES.lock() {
+        let q = map.entry(hwnd.0 as isize).or_insert_with(VecDeque::new);
+        // MouseMove 合并: 鼠标事件风暴时只保留最新位置, 防队列积压导致拖拽迟滞
+        if matches!(ev, OverlayEvent::MouseMove { .. }) {
+            if let Some(last) = q.back_mut() {
+                if matches!(last, OverlayEvent::MouseMove { .. }) {
+                    *last = ev;
+                    return;
+                }
+            }
+        }
+        q.push_back(ev);
+    }
+}
+
+/// 取走指定窗口队列头事件 (poll_event 用; 测试直接调用做分流模拟)
+fn drain_event(hwnd: HWND) -> Option<OverlayEvent> {
+    EVENT_QUEUES.lock().ok().and_then(|mut map| {
+        map.get_mut(&(hwnd.0 as isize))?.pop_front()
+    })
+}
+
+/// 移除窗口的事件队列条目 (Drop 用; 滞留事件一并丢弃)
+fn remove_queue(hwnd: HWND) {
+    if let Ok(mut map) = EVENT_QUEUES.lock() {
+        map.remove(&(hwnd.0 as isize));
+    }
+}
+
+fn cursor_root_pos() -> (i32, i32) {
+    unsafe {
+        let mut pt = POINT::default();
+        let _ = GetCursorPos(&mut pt);
+        (pt.x, pt.y)
+    }
+}
+
+// DefWindowProcW 在上面的 use 里没导入, 补在函数级
+use windows::Win32::UI::WindowsAndMessaging::DefWindowProcW;
+
+fn set_dpi_awareness() {
+    // Per-Monitor V2: 全 API 物理像素, 对齐 Java -Dsun.java2d.uiScale=1 的行为
+    unsafe {
+        let _ = SetProcessDpiAwarenessContext(windows::Win32::UI::HiDpi::DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+    }
+}
+
+pub fn create(cfg: WindowConfig) -> Result<WinOverlay, String> {
+    set_dpi_awareness();
+
+    unsafe {
+        let hinstance = GetModuleHandleW(None)
+            .map_err(|e| format!("GetModuleHandleW: {}", e))?;
+        let class_name = w!("VoidMeiOverlay");
+
+        let wc = WNDCLASSW {
+            style: CS_HREDRAW | CS_VREDRAW,
+            lpfnWndProc: Some(wnd_proc),
+            hInstance: hinstance.into(),
+            lpszClassName: class_name,
+            cbClsExtra: 0,
+            cbWndExtra: 0,
+            hIcon: Default::default(),
+            // 默认箭头光标 (preview 可见; Java applyPreviewStyle 的 setCursor(null) 等价;
+            // live 模式穿透, 光标不落本窗口)
+            hCursor: LoadCursorW(None, IDC_ARROW).unwrap_or_default(),
+            hbrBackground: Default::default(),
+            lpszMenuName: Default::default(),
+        };
+        let atom = RegisterClassW(&wc);
+        if atom == 0 {
+            // 多窗口: 第二个窗口起同类已注册 (ERROR_CLASS_ALREADY_EXISTS), 视为成功
+            if windows::Win32::Foundation::GetLastError()
+                != windows::Win32::Foundation::ERROR_CLASS_ALREADY_EXISTS
+            {
+                return Err("RegisterClassW 失败".into());
+            }
+        }
+
+        let mut ex_style: WINDOW_EX_STYLE =
+            WS_EX_LAYERED | WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE;
+        if cfg.click_through {
+            ex_style |= WS_EX_TRANSPARENT;
+        }
+
+        let hwnd = CreateWindowExW(
+            ex_style,
+            class_name,
+            w!("VoidMei FlightInfo"),
+            WS_POPUP | WS_VISIBLE,
+            cfg.x,
+            cfg.y,
+            cfg.width,
+            cfg.height,
+            None,
+            None,
+            Some(hinstance.into()),
+            None,
+        )
+        .map_err(|e| format!("CreateWindowExW: {}", e))?;
+
+        // 事件队列登记: 本 hwnd 的分流条目 (Drop 时移除)
+        if let Ok(mut map) = EVENT_QUEUES.lock() {
+            map.entry(hwnd.0 as isize).or_insert_with(VecDeque::new);
+        }
+
+        // DIB: 32bpp top-down (负 biHeight)
+        let bmi = BITMAPINFO {
+            bmiHeader: BITMAPINFOHEADER {
+                biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
+                biWidth: cfg.width,
+                biHeight: -cfg.height, // top-down
+                biPlanes: 1,
+                biBitCount: 32,
+                biCompression: BI_RGB.0,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let hdc_screen = GetDC(None);
+        let mut bits: *mut std::ffi::c_void = std::ptr::null_mut();
+        let dib = match CreateDIBSection(Some(hdc_screen), &bmi, DIB_RGB_COLORS, &mut bits, None, 0)
+        {
+            Ok(d) => d,
+            Err(e) => {
+                // 失败路径资源回收: 此时 hwnd 已创建且 EVENT_QUEUES 条目已登记,
+                // 直接向上传播会泄漏僵尸窗口句柄 + 队列永久条目 (条目不移除则
+                // 后续同槽位 key 复用时 push_event 仍会写入死队列)
+                ReleaseDC(None, hdc_screen);
+                let _ = DestroyWindow(hwnd);
+                remove_queue(hwnd);
+                return Err(format!("CreateDIBSection: {}", e));
+            }
+        };
+        let memdc = CreateCompatibleDC(Some(hdc_screen));
+        let old_obj = SelectObject(memdc, HGDIOBJ(dib.0));
+        ReleaseDC(None, hdc_screen);
+
+        Ok(WinOverlay {
+            hwnd,
+            width: cfg.width,
+            height: cfg.height,
+            memdc,
+            dib,
+            old_obj,
+            dib_bits: bits as *mut u8,
+        })
+    }
+}
+
+impl WinOverlay {
+    #[allow(dead_code)]
+    fn ex_style(&self) -> WINDOW_EX_STYLE {
+        unsafe { WINDOW_EX_STYLE(GetWindowLongPtrW(self.hwnd, GWL_EXSTYLE) as u32) }
+    }
+}
+
+impl super::OverlayWindow for WinOverlay {
+    fn present(&mut self, buf: &[u8]) -> Result<(), String> {
+        let expect = (self.width * self.height * 4) as usize;
+        if buf.len() != expect {
+            return Err(format!("缓冲尺寸不符: {} != {}", buf.len(), expect));
+        }
+        unsafe {
+            // buf 已是预乘 BGRA, 直接拷入 DIB
+            std::ptr::copy_nonoverlapping(buf.as_ptr(), self.dib_bits, expect);
+            let blend = BLENDFUNCTION {
+                BlendOp: 0, // AC_SRC_OVER
+                BlendFlags: 0,
+                SourceConstantAlpha: 255,
+                AlphaFormat: AC_SRC_ALPHA as u8,
+            };
+            let size = SIZE {
+                cx: self.width,
+                cy: self.height,
+            };
+            let pt_src = POINT { x: 0, y: 0 };
+            // pptDst = None: 保持当前位置
+            let ok = windows::Win32::UI::WindowsAndMessaging::UpdateLayeredWindow(
+                self.hwnd,
+                None,
+                None,
+                Some(&size),
+                Some(self.memdc),
+                Some(&pt_src),
+                COLORREF(0),
+                Some(&blend),
+                ULW_ALPHA,
+            );
+            if ok.is_err() {
+                return Err("UpdateLayeredWindow 失败".into());
+            }
+        }
+        Ok(())
+    }
+
+    fn set_position(&mut self, x: i32, y: i32) {
+        unsafe {
+            let _ = SetWindowPos(self.hwnd, Some(HWND_BOTTOM), x, y, 0, 0,
+                windows::Win32::UI::WindowsAndMessaging::SWP_NOSIZE
+                    | windows::Win32::UI::WindowsAndMessaging::SWP_NOZORDER
+                    | windows::Win32::UI::WindowsAndMessaging::SWP_NOACTIVATE);
+        }
+    }
+
+    fn position(&self) -> (i32, i32) {
+        unsafe {
+            let mut rc = RECT::default();
+            let _ = windows::Win32::UI::WindowsAndMessaging::GetWindowRect(self.hwnd, &mut rc);
+            (rc.left, rc.top)
+        }
+    }
+
+    fn set_click_through(&mut self, on: bool) {
+        let mut style = self.ex_style();
+        if on {
+            style |= WS_EX_TRANSPARENT;
+        } else {
+            style &= !WS_EX_TRANSPARENT;
+        }
+        unsafe {
+            SetWindowLongPtrW(self.hwnd, GWL_EXSTYLE, style.0 as isize);
+        }
+    }
+
+    fn set_topmost(&mut self, on: bool) {
+        // PORT: Java Window.setAlwaysOnTop — AlwaysOnTopCoordinator
+        // suspendAll/restoreAll 的底层动作; 创建即 WS_EX_TOPMOST (POC 全窗口置顶), 此处运行时切换
+        unsafe {
+            let after = if on { Some(HWND_TOPMOST) } else { Some(HWND_NOTOPMOST) };
+            let _ = SetWindowPos(self.hwnd, after, 0, 0, 0, 0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+        }
+    }
+
+    fn set_visible(&mut self, visible: bool) {
+        // PORT: Java Window.setVisible — AlwaysOnTopCoordinator.hideAllOverlays/
+        // showAllOverlays (FocusMonitor 游戏失焦自动隐藏) 的底层动作。
+        // 显示用 SW_SHOWNOACTIVATE (配 WS_EX_NOACTIVATE): 恢复显示不抢焦点
+        // (Java 侧 overlay setFocusable(false) 的等价防护)
+        unsafe {
+            let cmd = if visible { SW_SHOWNOACTIVATE } else { SW_HIDE };
+            let _ = ShowWindow(self.hwnd, cmd);
+        }
+    }
+
+    fn poll_event(&mut self) -> Option<OverlayEvent> {
+        unsafe {
+            // 只泵本窗口消息 → WNDPROC → 本 hwnd 队列 (多窗口互不串扰;
+            // 其他窗口的消息由各自实例的 poll_event 泵。POC 单窗口路径行为不变)
+            let mut msg = MSG::default();
+            while PeekMessageW(&mut msg, Some(self.hwnd), 0, 0, PM_REMOVE).as_bool() {
+                let _ = TranslateMessage(&msg);
+                DispatchMessageW(&msg);
+            }
+        }
+        // 只取本实例队列 (单实例时即原全局单队列语义)
+        drain_event(self.hwnd)
+    }
+
+    fn screen_size(&self) -> (i32, i32) {
+        unsafe {
+            // 以窗口所在显示器为准 (多屏时位置归一化稳定)。
+            // PORT: Java 侧统一除以启动主屏 Application.screenWidth/Height
+            // (ConfigurationService.java:460-472), 此处为 MonitorFromWindow — 单屏
+            // 行为一致; 多屏下跨显示器拖拽后存/取的归一化基准可能不同 (已知有意偏差,
+            // 对接 Java 版迁移来的归一化配置时需注意语义差异)
+            let mon = MonitorFromWindow(self.hwnd, MONITOR_DEFAULTTONEAREST);
+            let mut mi = MONITORINFO {
+                cbSize: std::mem::size_of::<MONITORINFO>() as u32,
+                ..Default::default()
+            };
+            if windows::Win32::Graphics::Gdi::GetMonitorInfoW(mon, &mut mi).as_bool() {
+                let r = mi.rcMonitor;
+                return (r.right - r.left, r.bottom - r.top);
+            }
+            (
+                windows::Win32::UI::WindowsAndMessaging::GetSystemMetrics(
+                    windows::Win32::UI::WindowsAndMessaging::SM_CXSCREEN),
+                windows::Win32::UI::WindowsAndMessaging::GetSystemMetrics(
+                    windows::Win32::UI::WindowsAndMessaging::SM_CYSCREEN),
+            )
+        }
+    }
+}
+
+impl Drop for WinOverlay {
+    fn drop(&mut self) {
+        unsafe {
+            let _ = SelectObject(self.memdc, self.old_obj);
+            let _ = DeleteDC(self.memdc);
+            let _ = DeleteObject(HGDIOBJ(self.dib.0));
+            // DestroyWindow 同步触发 WM_DESTROY → Close 事件入本 hwnd 队列 (条目移除前,
+            // 与 Java Window.dispose → 子类 dispose 链等价: 销毁动作先于注销)
+            let _ = windows::Win32::UI::WindowsAndMessaging::DestroyWindow(self.hwnd);
+        }
+        // 移除本 hwnd 的队列条目 (销毁后滞留事件一并丢弃)
+        remove_queue(self.hwnd);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*; // EVENT_QUEUES/push_event/drain_event/remove_queue/create + 平台项
+    use crate::platform::OverlayWindow; // poll_event/set_topmost trait 方法
+
+    /// 串行化本模块测试: 共享静态队列表, cargo 默认并行会互相清场
+    static TEST_LOCK: Mutex<()> = Mutex::new(());
+
+    /// 假 hwnd (仅作队列表 key, 不触碰真实窗口)
+    fn fake_hwnd(n: isize) -> HWND {
+        HWND(n as *mut std::ffi::c_void)
+    }
+
+    fn clear_queues() {
+        EVENT_QUEUES.lock().unwrap().clear();
+    }
+
+    fn queue_len(hwnd: HWND) -> usize {
+        EVENT_QUEUES.lock().unwrap().get(&(hwnd.0 as isize)).map(|q| q.len()).unwrap_or(0)
+    }
+
+    /// 事件按 hwnd 分流, 窗口间不串台
+    #[test]
+    fn event_routing_isolated_per_hwnd() {
+        let _guard = TEST_LOCK.lock().unwrap();
+        clear_queues();
+        let h1 = fake_hwnd(1);
+        let h2 = fake_hwnd(2);
+        push_event(h1, OverlayEvent::MousePress { root_x: 1, root_y: 1 });
+        push_event(h2, OverlayEvent::MousePress { root_x: 2, root_y: 2 });
+        push_event(h2, OverlayEvent::MouseRelease);
+        assert_eq!(queue_len(h1), 1);
+        assert_eq!(queue_len(h2), 2);
+        // h1 的队列只有 h1 的事件
+        assert_eq!(drain_event(h1), Some(OverlayEvent::MousePress { root_x: 1, root_y: 1 }));
+        assert_eq!(drain_event(h1), None);
+        // h2 的队列完整且未受 h1 消费影响
+        assert_eq!(drain_event(h2), Some(OverlayEvent::MousePress { root_x: 2, root_y: 2 }));
+        assert_eq!(drain_event(h2), Some(OverlayEvent::MouseRelease));
+        assert_eq!(drain_event(h2), None);
+    }
+
+    /// MouseMove 合并: 连续 move 只保留最新 (per 队列独立)
+    #[test]
+    fn mousemove_merge_per_queue() {
+        let _guard = TEST_LOCK.lock().unwrap();
+        clear_queues();
+        let h1 = fake_hwnd(1);
+        push_event(h1, OverlayEvent::MouseMove { root_x: 1, root_y: 1, left_down: true });
+        push_event(h1, OverlayEvent::MouseMove { root_x: 5, root_y: 6, left_down: true });
+        assert_eq!(queue_len(h1), 1);
+        assert_eq!(drain_event(h1), Some(OverlayEvent::MouseMove { root_x: 5, root_y: 6, left_down: true }));
+        // 非相邻事件间不合并
+        push_event(h1, OverlayEvent::MouseRelease);
+        push_event(h1, OverlayEvent::MouseMove { root_x: 9, root_y: 9, left_down: false });
+        assert_eq!(queue_len(h1), 2);
+    }
+
+    /// 队列条目移除后滞留事件丢弃
+    #[test]
+    fn remove_queue_drops_pending() {
+        let _guard = TEST_LOCK.lock().unwrap();
+        clear_queues();
+        let h1 = fake_hwnd(1);
+        push_event(h1, OverlayEvent::Close);
+        remove_queue(h1);
+        assert_eq!(drain_event(h1), None);
+    }
+
+    /// 真实窗口冒烟 = POC 单窗口路径回归 (window.rs run/run_live 的同一路径:
+    /// create → present → poll_event → drop), 兼 hwnd 条目登记/移除核对
+    #[test]
+    fn real_window_smoke_single_poc_path() {
+        let _guard = TEST_LOCK.lock().unwrap();
+        clear_queues();
+        let mut win = create(WindowConfig {
+            width: 8, height: 8, x: 0, y: 0, click_through: true,
+        })
+        .expect("创建真实窗口失败");
+        // 条目已登记
+        assert_eq!(queue_len(win.hwnd), 0);
+        assert!(EVENT_QUEUES.lock().unwrap().contains_key(&(win.hwnd.0 as isize)));
+        // present 全透明帧 (8x8 预乘 BGRA)
+        win.present(&vec![0u8; 8 * 8 * 4]).expect("present 失败");
+        // 无消息时 poll 为空
+        assert_eq!(win.poll_event(), None);
+        // 置顶切换 (AlwaysOnTopCoordinator 底层动作)
+        win.set_topmost(false);
+        win.set_topmost(true);
+        let hwnd = win.hwnd;
+        drop(win);
+        // Drop 后条目移除
+        assert!(!EVENT_QUEUES.lock().unwrap().contains_key(&(hwnd.0 as isize)));
+    }
+
+    /// 多真实窗口: 同进程二次 create (同类重注册) + 各自队列条目独立
+    #[test]
+    fn multi_real_windows_isolated_queues() {
+        let _guard = TEST_LOCK.lock().unwrap();
+        clear_queues();
+        let w1 = create(WindowConfig { width: 4, height: 4, x: 0, y: 0, click_through: true })
+            .expect("第一个窗口创建失败");
+        let w2 = create(WindowConfig { width: 4, height: 4, x: 20, y: 0, click_through: true })
+            .expect("第二个窗口创建失败 (RegisterClassW 重注册应被容忍)");
+        {
+            let map = EVENT_QUEUES.lock().unwrap();
+            assert!(map.contains_key(&(w1.hwnd.0 as isize)));
+            assert!(map.contains_key(&(w2.hwnd.0 as isize)));
+            assert_ne!(w1.hwnd.0, w2.hwnd.0);
+        }
+        let h1 = w1.hwnd;
+        drop(w1);
+        assert!(!EVENT_QUEUES.lock().unwrap().contains_key(&(h1.0 as isize)));
+        assert!(EVENT_QUEUES.lock().unwrap().contains_key(&(w2.hwnd.0 as isize)));
+        drop(w2);
+    }
+}

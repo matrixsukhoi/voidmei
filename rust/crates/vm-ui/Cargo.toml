@@ -1,0 +1,9 @@
+[workspace]  # 独立于主 workspace (P5 转正时移除)
+# 用途: 早期验证 iced + tiny-skia 软件渲染可行性 (D1 决策)
+[package]
+name = "vm-ui"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+iced = { version = "0.13", default-features = false, features = ["tiny-skia", "system"] }

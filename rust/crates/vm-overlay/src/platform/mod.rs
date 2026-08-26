@@ -1,0 +1,56 @@
+//! 平台窗口抽象: 透明/置顶/穿透 overlay 窗口的跨平台接口
+//! Windows = UpdateLayeredWindow, Linux = X11 depth-32 visual
+
+pub struct WindowConfig {
+    pub width: i32,
+    pub height: i32,
+    /// 初始位置 (物理像素)
+    pub x: i32,
+    pub y: i32,
+    /// 鼠标穿透 (游戏模式); preview 模式 false 可拖拽
+    pub click_through: bool,
+}
+
+/// 主循环消费的事件 (拖拽状态机输入)
+/// derive PartialEq: 事件分流单测断言用 (Java 无对应, Rust 测试面)
+#[derive(Debug, PartialEq)]
+pub enum OverlayEvent {
+    Close,
+    MousePress { root_x: i32, root_y: i32 },
+    MouseMove { root_x: i32, root_y: i32, left_down: bool },
+    MouseRelease,
+}
+
+pub trait OverlayWindow {
+    /// 提交预乘 BGRA 缓冲 (len = w*h*4, 行主序)
+    fn present(&mut self, buf: &[u8]) -> Result<(), String>;
+    fn set_position(&mut self, x: i32, y: i32);
+    fn position(&self) -> (i32, i32);
+    /// 运行时切换穿透 (预留: 目前创建时按模式一次定型)
+    #[allow(dead_code)]
+    fn set_click_through(&mut self, on: bool);
+    /// 运行时切换置顶 (PORT: Java Window.setAlwaysOnTop — AlwaysOnTopCoordinator
+    /// suspendAll/restoreAll 的底层动作; POC 全窗口恒 TOPMOST, 无对话框阶段不会被调用)
+    fn set_topmost(&mut self, _on: bool) {}
+    /// 运行时切换可见性 (PORT: Java Window.setVisible — AlwaysOnTopCoordinator
+    /// hideAllOverlays/showAllOverlays (FocusMonitor 游戏失焦自动隐藏) 的底层动作;
+    /// Java isDisplayable 守卫由所有权天然保证: 槽位存在 = 窗口未销毁,
+    /// 已销毁窗口不存在"复活"路径 — LIFETIMES §6.1 僵尸窗口防护)
+    fn set_visible(&mut self, _visible: bool) {}
+    /// 非阻塞取事件, 无事件返回 None
+    fn poll_event(&mut self) -> Option<OverlayEvent>;
+    /// 屏幕物理尺寸 (位置归一化用)
+    fn screen_size(&self) -> (i32, i32);
+}
+
+#[cfg(target_os = "windows")]
+mod win;
+
+#[cfg(not(target_os = "windows"))]
+mod x11;
+
+#[cfg(target_os = "windows")]
+pub use win::create;
+
+#[cfg(not(target_os = "windows"))]
+pub use x11::create;

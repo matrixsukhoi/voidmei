@@ -1,0 +1,24 @@
+[package]
+name = "vm-overlay"
+version.workspace = true
+edition.workspace = true
+description = "VoidMei overlay 层: 平台窗口/渲染/像素对拍工具 (POC 语义复刻)"
+
+[lib]
+name = "vm_overlay"
+
+[[bin]]
+name = "voidmei-overlay"
+path = "src/main.rs"
+
+[dependencies]
+vm-core = { workspace = true }
+vm-data = { workspace = true }
+png = { workspace = true }
+swash = { workspace = true }
+ttf-parser = { workspace = true }
+serde_json = { workspace = true }
+tiny-skia = "0.12.0"
+
+[target.'cfg(windows)'.dependencies]
+windows = { workspace = true }

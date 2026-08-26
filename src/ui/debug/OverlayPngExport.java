@@ -21,8 +21,12 @@ import prog.Application;
 import prog.config.ConfigLoader.GroupConfig;
 import prog.config.ConfigProvider;
 import prog.config.OverlaySettings;
+import ui.component.AttitudeIndicatorGauge;
+import ui.component.CompassGauge;
+import ui.component.LinearGauge;
 import ui.model.DefaultFieldManager;
 import ui.model.FieldDefinition;
+import ui.overlay.model.HUDData;
 import ui.renderer.BOSStyleRenderer;
 import ui.renderer.RenderContext;
 import ui.util.FastNumberFormatter;
@@ -37,8 +41,11 @@ import ui.util.FastNumberFormatter;
  * 用法 (repo 根目录):
  *   java -classpath "bin;dep/*" ui.debug.OverlayPngExport --out <p.png> [--meta <p.json>]
  *        [--font-add N] [--column N] [--values values.txt] [--aa on|off]
+ *   java -classpath "bin;dep/*" ui.debug.OverlayPngExport --gauge <linear|compass|attitude>
+ *        --out <p.png> [--data data.txt] [--aa on|off]
  *
  * values 文件: 每行 "getter名=数值", 注入动态数据走 FastNumberFormatter。
+ * --data 文件: 每行 "key=value" (# 注释), gauge 数值参数见 exportGauge* 各默认。
  */
 public class OverlayPngExport {
 
@@ -97,6 +104,13 @@ public class OverlayPngExport {
             g.dispose();
             ImageIO.write(im, "png", new File(out));
             System.out.println("single '" + single + "' -> " + out);
+            return;
+        }
+
+        // gauge 对拍模式 (D7 验收: 三 gauge 组件像素基线, 对端 = rust parity_gauges.rs)
+        String gauge = opt(args, "--gauge");
+        if (gauge != null) {
+            exportGauge(gauge, args);
             return;
         }
 
@@ -166,6 +180,162 @@ public class OverlayPngExport {
     /** #RRGGBBAA (cfg 语义) → Color */
     private static Color rgbaColor(int hex) {
         return new Color((hex >> 24) & 0xFF, (hex >> 16) & 0xFF, (hex >> 8) & 0xFF, hex & 0xFF);
+    }
+
+    // ==== gauge 对拍模式 (Rust parity_gauges.rs 同源快照, 改一处必须同步另一处) ====
+
+    /** gauge 画布外扩留白: linear/compass 20, attitude 40 (容纳北三角/文本伸出 preferred 界) */
+    private static final int PAD_LINEAR = 20;
+    private static final int PAD_COMPASS = 20;
+    private static final int PAD_ATTITUDE = 40;
+
+    /**
+     * --gauge 模式入口: 三 gauge 组件以最小参数实例化, 画到 preferred size + 2×pad
+     * 的 TYPE_INT_ARGB 离屏画布。
+     * 风格参数是与 Rust parity_gauges.rs 同源的固定对拍基线, 非 MinimalHUDContext
+     * 生产推导值 — 生产侧 applyStyleToComponents 按 hudFontSize 动态换算 (默认
+     * crosshairScale=113 → hudFontSize=28, 实为 linear(134,7,f14) /
+     * compass(22,2,28,21,f21) / attitude(35,18,22,2,1,f21)); 仅 attitude 基线
+     * 恰与 hudFontSize=24 推导巧合一致 (cd=round(2·24·0.618)=30)。
+     */
+    private static void exportGauge(String name, String[] args) throws Exception {
+        String out = opt(args, "--out");
+        if (out == null) {
+            System.err.println("缺少 --out <路径>");
+            System.exit(1);
+        }
+        boolean aa = !"off".equals(opt(args, "--aa"));
+        Map<String, String> data = readPairs(opt(args, "--data"));
+
+        registerFonts();
+        applyGaugeStaticState(aa);
+
+        BufferedImage img;
+        switch (name) {
+            case "linear":
+                img = exportLinearGauge(data);
+                break;
+            case "compass":
+                img = exportCompassGauge(data);
+                break;
+            case "attitude":
+                img = exportAttitudeGauge(data);
+                break;
+            default:
+                throw new IllegalArgumentException("未知 gauge: " + name + " (linear|compass|attitude)");
+        }
+        ImageIO.write(img, "png", new File(out));
+        System.out.println("gauge " + name + " -> " + out + " (" + img.getWidth() + "x" + img.getHeight() + ")");
+    }
+
+    /** gauge 模式静态态: 只覆盖 AA 开关, 颜色保持 Application.java:106-111 静态默认
+     *  (MiniHUD 色系 = Rust gauges_bars/gauge_* 的 COLOR_* 常量同源;
+     *  FlightInfo 的 cfg 覆盖色不适用于 gauge 组件) */
+    private static void applyGaugeStaticState(boolean aa) {
+        Application.graphAASetting = aa ? RenderingHints.VALUE_ANTIALIAS_ON : RenderingHints.VALUE_ANTIALIAS_OFF;
+        Application.textAASetting = aa ? RenderingHints.VALUE_TEXT_ANTIALIAS_ON
+                : RenderingHints.VALUE_TEXT_ANTIALIAS_OFF;
+    }
+
+    /** 生产 paint 链的 RenderingHints (MiniHUDOverlay.paintComponent L243-248 同集) */
+    private static void applyGaugeHints(Graphics2D g2d) {
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, Application.graphAASetting);
+        g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, Application.textAASetting);
+        g2d.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION,
+                RenderingHints.VALUE_ALPHA_INTERPOLATION_SPEED);
+        g2d.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_SPEED);
+    }
+
+    /** LinearGauge 竖向 (默认 tick 左) — 油门条典型形态 */
+    private static BufferedImage exportLinearGauge(Map<String, String> data) {
+        final int length = 120, thickness = 8, pad = PAD_LINEAR;
+        Font fontNum = new Font("Sarasa Mono SC", Font.BOLD, 24);
+        LinearGauge g = new LinearGauge("THR", 110, true);
+        g.setStyleContext(length, thickness, fontNum, fontNum);
+        int value = (int) dval(data, "value", 55.0);
+        g.update(value, sval(data, "display", String.valueOf(value)));
+
+        // preferred size 公式复刻 (LinearGauge.getPreferredSize L61-77: textMetric=(int)(size*2.0))
+        int textMetric = (int) (fontNum.getSize() * 2.0);
+        BufferedImage img = new BufferedImage(textMetric + thickness + 2 * pad, length + 2 * pad,
+                BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g2d = img.createGraphics();
+        applyGaugeHints(g2d);
+        g.draw(g2d, pad, pad, length, thickness, fontNum, fontNum);
+        g2d.dispose();
+        return img;
+    }
+
+    /** CompassGauge — heading=123.4 非基数角覆盖指针旋转 + 三字航向文本 */
+    private static BufferedImage exportCompassGauge(Map<String, String> data) {
+        final int r = 25, lineWidth = 3, big = 24, small = 12, pad = PAD_COMPASS;
+        CompassGauge g = new CompassGauge(r);
+        g.setStyleContext(r, lineWidth, big, small, new Font("Sarasa Mono SC", Font.BOLD, small));
+
+        HUDData.Builder b = new HUDData.Builder();
+        b.heading = dval(data, "heading", 123.4);
+        b.mapGrid = sval(data, "loc", "C4");
+        g.onDataUpdate(b.build()); // 派生 compassDx/Dy 即时重算 (无平滑)
+
+        // preferred size = 2r × 2r (CompassGauge.getPreferredSize L57-60)
+        BufferedImage img = new BufferedImage(r * 2 + 2 * pad, r * 2 + 2 * pad, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g2d = img.createGraphics();
+        applyGaugeHints(g2d);
+        g.draw(g2d, pad, pad);
+        g2d.dispose();
+        return img;
+    }
+
+    /** AttitudeIndicatorGauge — 恰为 MiniHUDContext hudFontSize=24 推导 (cd=round(2·24·0.618)=30 / cr=15 / inner=19) */
+    private static BufferedImage exportAttitudeGauge(Map<String, String> data) {
+        final int cd = 30, cr = 15, inner = 19, lw = 2, half = 1, pad = PAD_ATTITUDE;
+        AttitudeIndicatorGauge g = new AttitudeIndicatorGauge();
+        Font font = new Font("Sarasa Mono SC", Font.BOLD, 18); // hudFontSizeSmall = 24·0.75
+        g.setStyleContext(cd, cr, inner, lw, half, font);
+
+        // aosX 换算依赖 setStyleContext 的 font size — 先 style 后 data (生产同序)
+        HUDData.Builder b = new HUDData.Builder();
+        b.pitch = dval(data, "pitch", 12.5);
+        b.roll = dval(data, "roll", 25.0);
+        b.slip = dval(data, "slip", -3.4);
+        b.pitchValid = dval(data, "valid", 1.0) != 0.0;
+        g.onDataUpdate(b.build());
+
+        // preferred size = cd × cd (AttitudeIndicatorGauge.getPreferredSize L63-66)
+        BufferedImage img = new BufferedImage(cd + 2 * pad, cd + 2 * pad, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g2d = img.createGraphics();
+        applyGaugeHints(g2d);
+        g.draw(g2d, pad, pad);
+        g2d.dispose();
+        return img;
+    }
+
+    /** --data 文件: 每行 "key=value" (# 注释), 值保持字符串由各 gauge 按需解析 */
+    private static Map<String, String> readPairs(String path) throws Exception {
+        Map<String, String> map = new HashMap<>();
+        if (path == null)
+            return map;
+        try (Scanner sc = new Scanner(new File(path), "UTF-8")) {
+            while (sc.hasNextLine()) {
+                String line = sc.nextLine().trim();
+                if (line.isEmpty() || line.startsWith("#"))
+                    continue;
+                int eq = line.indexOf('=');
+                if (eq > 0)
+                    map.put(line.substring(0, eq), line.substring(eq + 1));
+            }
+        }
+        return map;
+    }
+
+    private static double dval(Map<String, String> m, String key, double def) {
+        String v = m.get(key);
+        return v == null ? def : Double.parseDouble(v.trim());
+    }
+
+    private static String sval(Map<String, String> m, String key, String def) {
+        String v = m.get(key);
+        return v == null ? def : v;
     }
 
     private static void setPrecision(ui.model.DataField f, int precision) {

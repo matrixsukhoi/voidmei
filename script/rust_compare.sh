@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Rust ↔ Java FlightInfoOverlay 渲染对拍 (M1 验收入口)
 # 流程: Java 离屏导出 → 读 java meta 的 numHeight 注入 Rust → 双 PNG compare + meta 硬断言
+#       + gauge 段: linear/compass/attitude 三组件像素基线 (D7 验收, 尽力而为)
 # 产物: build/rust_ref/{java,rust}_preview.png + diff.png (热力图, 供人工审)
+#       build/rust_ref/{java,rust}_gauge_*.png + diff_gauge_*.png
 # 需求: 桌面环境 (Java Toolkit 字体度量)、cargo、JDK 8
 # 注意: 全程相对路径 (git-bash 的 /c/... 绝对路径 Windows java/python 不识别)
 set -e
@@ -52,4 +54,17 @@ echo "[5/5] 像素比对 (尽力而为 + 人工审) ..."
 ./target/release/voidmei-overlay compare "../$OUTREL/java_preview.png" "../$OUTREL/rust_preview.png" \
   --heatmap "../$OUTREL/diff.png"
 echo ""
-echo "完成: 热力图 $OUT/diff.png 供人工审 (R=RGB 差, G=alpha 差, 黑=一致)"
+
+# ---- gauge 对拍段 (D7: 三 gauge 组件像素基线, 默认数据) ----
+# 常量表同源: java ui.debug.OverlayPngExport exportGauge* ↔ rust parity_gauges.rs
+echo "[gauge] 三 gauge 组件对拍 (linear/compass/attitude, 默认数据) ..."
+cd "$ROOT"
+for G in linear compass attitude; do
+  echo "  ---- gauge: $G ----"
+  java -classpath "$CP" ui.debug.OverlayPngExport --gauge "$G" --out "$OUTREL/java_gauge_$G.png" > /dev/null
+  "$ROOT/rust/target/release/voidmei-overlay" --gauge "$G" --out "$OUTREL/rust_gauge_$G.png"
+  "$ROOT/rust/target/release/voidmei-overlay" compare "$OUTREL/java_gauge_$G.png" "$OUTREL/rust_gauge_$G.png" \
+    --heatmap "$OUTREL/diff_gauge_$G.png"
+done
+echo ""
+echo "完成: 热力图 $OUT/diff.png + $OUT/diff_gauge_*.png 供人工审 (R=RGB 差, G=alpha 差, 黑=一致)"

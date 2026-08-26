@@ -1,0 +1,1608 @@
+//! 对应 Java: `src/prog/Service.java` 的**方法区**——run() 轮询循环 (L1799-1862) /
+//! processPollingCycle (L1705-1796) / publishFlightDataEvent (L440-482) /
+//! calculate 链接线 (L1115-1178) / resetvaria·clearvaria·resetEngLoad
+//! (L1510-1666) / 构造器 (L1678-1699)。
+//! (实例字段区 + TelemetrySource getter 见 service_fields.rs, D6 两 item 划分。)
+//!
+//! ## 结构裁决 (LIFETIMES / D6 / PORTING §2.8)
+//!
+//! - Java `Service` 的 public 字段被 EDT 混读无锁 → [`ServiceData`] 收进
+//!   `RwLock` (service_fields.rs 模块头裁决), 本模块**任何锁的临界区内不调
+//!   回调/不做 IO**: 方法开头 lock 取数据副本→释放→计算→短锁写回
+//!   (PORTING §2.8 "Service 类多 synchronized 互相调用" 的锁粒度指示)。
+//! - Java `Controller c` 反向引用 (环 1) 不迁移: 配置读经 [`ServiceConfig`]
+//!   构造注入, c.initStatusBar/changeS2/changeS3/S4toS1/onAircraftChanged/
+//!   c.Log.logTick 等 Controller 协作点逐处 `// TODO(port)` 标注 (Controller 波次)。
+//! - Java `FlightDataBus.getInstance()`/`FMManager.getInstance()` 单例解散 →
+//!   构造注入 `Arc` (LIFETIMES §1.1 "实例归调用方持有")。
+//! - **顶层 catch_unwind** (PORTING §6 契约): 对齐 Java run() L1850 顶层
+//!   `catch (Exception)` 丢一轮继续的语义——单条畸形遥测 (解析 panic 点, 如
+//!   Boolean 拆箱 NPE 的复刻) 不允许杀死遥测线程。
+//! - `Thread.interrupt()` 退出 → `Arc<AtomicBool>` 停机标志轮询 (§2.13);
+//!   `Thread.sleep` → `exception_helper::sleep_quietly` (可中断睡眠)。
+//! - run() 在独立线程由调用方经 [`start`] spawn, [`ServiceHandle`] 提供
+//!   stop 生命周期 (Java Controller.start:634 `S1 = new Thread(Service);
+//!   S1.setPriority(MAX_PRIORITY); S1.start()`)。
+//! - HTTP 选型: 用 **vm-core `HttpHelper`** (HttpHelper.java 一比一翻译, 含
+//!   buf 复用/CompletableFuture 等待/byte-perfect 读头语义), 不用本 crate
+//!   `data::http` (POC 存量, 行为等价但非保真翻译)——保真度裁决, 见
+//!   parser/mod.rs 并存说明。
+//! - parser 选型: 用 **vm-core `parser::{State, Indicators}`** (保真版,
+//!   任务指定); 已译 [`Deriver`] (data/derive.rs) 接口收 POC 版
+//!   `StateRaw/IndicatorsRaw`, 本文件以 [`to_state_raw`]/[`to_indicators_raw`]
+//!   适配 (字段级映射, 哨兵 -65535 同值穿透)。
+
+use std::net::SocketAddr;
+use std::panic::{catch_unwind, AssertUnwindSafe};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, RwLock};
+use std::thread::JoinHandle;
+use std::time::{SystemTime, UNIX_EPOCH};
+
+use vm_core::calc_helper::SimpleMovingAverage;
+use vm_core::event::event_payload::EventPayload;
+use vm_core::event::flight_data_event::{FlightDataEvent, OpaqueObject};
+use vm_core::flight_data_bus::FlightDataBus;
+use vm_core::fm::{FMHandle, FMManager};
+use vm_core::http_helper::HttpHelper;
+use vm_core::parser::state::MAX_ENG_NUM;
+use vm_core::parser::{Indicators, MapInfo, MapObj, State};
+use vm_core::{exception_helper, format, logger, G};
+
+use crate::data::derive::Deriver;
+use crate::data::json::{F_INVALID, IndicatorsRaw, StateRaw};
+use crate::service_fields::{ServiceData, ENGINE_TYPE_JET, ENGINE_TYPE_UNKNOWN, NASTRING};
+
+/// 读锁获取: **中毒穿透** (`into_inner`)——对齐 Java "异常后对象处于不一致状态
+/// 继续用" 的宽松语义 (§6 契约: panic 被顶层 catch_unwind 吞掉后线程继续轮询,
+/// 锁不得永久失效; std 的 poisoning 是 Rust 防御默认, 此处显式解除,
+/// flight_data_bus.rs 的 AssertUnwindSafe 同一宽松契约)。
+/// 临界区内确实只做赋值/字段拷贝, 中毒源只可能是跨锁 panic (如 publish 拆箱)。
+fn read_data(data: &RwLock<ServiceData>) -> std::sync::RwLockReadGuard<'_, ServiceData> {
+    data.read().unwrap_or_else(|e| e.into_inner())
+}
+
+/// 写锁获取: 中毒穿透 (同 [`read_data`])。
+fn write_data(data: &RwLock<ServiceData>) -> std::sync::RwLockWriteGuard<'_, ServiceData> {
+    data.write().unwrap_or_else(|e| e.into_inner())
+}
+
+/// Java `System.currentTimeMillis()` 的 crate 先例形态
+/// (fm_manager.rs / flight_data_event.rs 同款): SystemTime → as_millis u128 →
+/// as i64 截断; 时钟早于 epoch 时 Java 可得负值而 duration_since 报错 → 取 0。
+fn current_time_millis() -> i64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0)
+}
+
+/// panic 载荷 → 文本 (fm_manager.rs 同款私有助手, 不越文件共用)。
+/// 对齐 Java `"Service error: " + e.getClass().getSimpleName() + " at " + ...`
+/// 的 "类型名" 槽位: Rust panic 无类型名, 以消息文本顶位 (见 run 的 PORT 注)。
+fn panic_message(payload: Box<dyn std::any::Any + Send>) -> String {
+    if let Some(s) = payload.downcast_ref::<String>() {
+        s.clone()
+    } else if let Some(s) = payload.downcast_ref::<&'static str>() {
+        (*s).to_string()
+    } else {
+        "null".to_string()
+    }
+}
+
+/// Service 的构造参数集 —— 取代 Java 构造器从 `Controller xc` / `Application`
+/// 静态字段读取的全部输入 (环 1 断裂 + §2.9 全局态解散):
+/// - `service_loop_interval_ms` ← `xc.serviceLoopIntervalMs`
+///   (ConfigurationService 读 ui_layout.cfg, 缺省 50)
+/// - `app_port` ← `Application.appPort` (`Lang.httpPort` 缺省 8111;
+///   `appPortBkp = appPort + 1111`, 备端口 9222)
+/// - `http_header` ← `Application.httpHeader` (`Lang.httpHeader` 缺省 "\n")
+#[derive(Debug, Clone)]
+pub struct ServiceConfig {
+    pub service_loop_interval_ms: i64,
+    pub app_port: u16,
+    pub http_header: String,
+}
+
+impl Default for ServiceConfig {
+    fn default() -> Self {
+        ServiceConfig {
+            service_loop_interval_ms: 50,
+            app_port: 8111,
+            http_header: "\n".to_string(),
+        }
+    }
+}
+
+/// 核心轮询线程的组合体 (Java `class Service implements Runnable` 的方法面;
+/// 数据面见 [`ServiceData`])。
+///
+/// 所有权: 整个 `Service` 被 move 进轮询线程 (run 的 `self`), 与 Java
+/// "Service 对象由轮询线程独占写" 一致; `data`/`bus`/`fm_manager`/`stop`
+/// 以 `Arc` 与调用方共享 (对应 Java public 字段被 EDT 混读 + 单例总线)。
+/// `deriver`/`http_client`/`focus_monitor` 线程独占 (无锁, 对应 Java 字段
+/// 仅轮询线程触碰)。
+pub struct Service {
+    /// 字段快照 (service_fields.rs; Java public 字段的 RwLock 形态)
+    pub data: Arc<RwLock<ServiceData>>,
+    /// 派生量状态机 (updateSpeed/updateTurn/updateSEP 的 SMA 真人,
+    /// service_fields.rs "状态双主边界" 裁决的唯一主人)
+    deriver: Deriver,
+    /// Java `FMManager.getInstance()` 单例 → 构造注入
+    fm_manager: Arc<FMManager>,
+    /// Java `FlightDataBus.getInstance()` 单例 → 构造注入
+    bus: Arc<FlightDataBus>,
+    /// Java `public HttpHelper httpClient` (L1691 构造) —— 轮询线程独占
+    http_client: HttpHelper,
+    /// Java `private final FocusMonitor focusMonitor = new FocusMonitor()` (L117)。
+    /// PORT: vm-core FocusMonitor 构造需注入 detector/coordinator 两依赖
+    /// (Java 无参 new 的对应物缺位), 由调用方按需注入; None 时 tick 短路
+    /// (Java 默认 enabled=false 时 tick 本就空转, 行为等价)。
+    focus_monitor: Option<vm_core::focus_monitor::FocusMonitor>,
+    /// 构造参数 (见 [`ServiceConfig`])
+    pub config: ServiceConfig,
+    /// §2.13 停机标志 (Java interrupt 的电平形态)
+    pub stop: Arc<AtomicBool>,
+}
+
+/// Java `Application.requestDest = new InetSocketAddress(Lang.httpIp, appPort)`
+/// (Lang.httpIp 缺省 "127.0.0.1"; ip 不再参数化, 域内恒本地回环)。
+fn request_dest(config: &ServiceConfig) -> SocketAddr {
+    format!("127.0.0.1:{}", config.app_port)
+        .parse()
+        .expect("requestDest 解析失败")
+}
+
+/// Java `Application.requestDestBkp` (`appPortBkp = appPort + 1111`)。
+fn request_dest_bkp(config: &ServiceConfig) -> SocketAddr {
+    // PORT: Java int 加法静默回绕; u16 域内 app_port>64424 溢出不可达 (缺省 8111),
+    // saturating 根除 debug panic 回绕形态 (审查备案)
+    format!("127.0.0.1:{}", config.app_port.saturating_add(1111))
+        .parse()
+        .expect("requestDestBkp 解析失败")
+}
+
+impl Service {
+    /// 对应 Java 构造器 `public Service(Controller xc)` (L1678-1699)。
+    /// PORT: `Controller xc` 参数解散为 (config, fm_manager, bus) 三注入
+    /// (环 1 断裂; `freq = xc.serviceLoopIntervalMs` ← config 同名字段)。
+    /// 语句顺序逐行保持——clearvaria() 在 mapinfo/sState 构造**之前**执行,
+    /// 其尾部的 publishFlightDataEvent 因此读到 mapinfo=null/sState=null
+    /// (事件载荷 state=None/mapGrid="--"), 与 Java 同一窗口。
+    pub fn new(config: ServiceConfig, fm_manager: Arc<FMManager>, bus: Arc<FlightDataBus>) -> Self {
+        let data = Arc::new(RwLock::new(ServiceData::default()));
+        let mut svc = Service {
+            data: Arc::clone(&data),
+            // PORT: SMA 族构造提前到 struct 字面量 (Java 在 resetvaria L1587-1593
+            // 构造, 窗口同 1000/freq; 加油重置路径见 reset_varia 的重建)
+            deriver: Deriver::new(config.service_loop_interval_ms.max(1) as u64),
+            fm_manager,
+            bus,
+            http_client: HttpHelper::new(&config.http_header),
+            focus_monitor: None,
+            stop: Arc::new(AtomicBool::new(false)),
+            config,
+        };
+        {
+            let mut d = write_data(&svc.data);
+            // Java: freq = xc.serviceLoopIntervalMs;
+            d.freq = svc.config.service_loop_interval_ms;
+        }
+        // Java: clearvaria();
+        svc.clear_varia();
+        {
+            let mut d = write_data(&svc.data);
+            // Java: mapinfo = new MapInfo();
+            d.mapinfo = Some(MapInfo::new());
+            // Java: ratio = freq / 1000.0f; —— long/float 提升为 float 除法,
+            // 结果 float 拓宽存入 double 字段 (§2.12 浮点字面量保持)
+            let ratio = (d.freq as f32 / 1000.0f32) as f64;
+            d.ratio = ratio;
+            // Java: ratio_1 = 1.0f - ratio; —— 1.0f 提升为 double 后的 double 减法
+            d.ratio_1 = 1.0 - ratio;
+            // Java: sState = new State(); sState.init();
+            d.s_state = Some(State::new());
+            d.s_state.as_mut().unwrap().init();
+            // Java: sIndic = new Indicators(); sIndic.init();
+            d.s_indic = Some(Indicators::new());
+            d.s_indic.as_mut().unwrap().init();
+            // Java: power/pitch/thrust/efficiency = new String[State.maxEngNum];
+            // (null 填充; 覆盖 resetvaria 落下的 4 长度 nastring 数组, 保真次序)
+            d.power = Some(vec![None; MAX_ENG_NUM]);
+            d.pitch = Some(vec![None; MAX_ENG_NUM]);
+            d.thrust = Some(vec![None; MAX_ENG_NUM]);
+            d.efficiency = Some(vec![None; MAX_ENG_NUM]);
+            // Java: FuelCheckMili = System.currentTimeMillis();
+            d.fuel_check_mili = current_time_millis();
+            // isFuelpressure = false;
+        }
+        svc
+    }
+
+    /// 注入焦点监控器 (Java 字段初始化器 `new FocusMonitor()` 的对位物;
+    /// 见 struct 字段注)。
+    pub fn set_focus_monitor(&mut self, fm: vm_core::focus_monitor::FocusMonitor) {
+        self.focus_monitor = Some(fm);
+    }
+
+    // ------------------------------------------------------------------
+    // resetvaria / clearvaria / resetEngLoad (Java L1510-1666)
+    // ------------------------------------------------------------------
+
+    /// 对应 Java `public void clearvaria()` (L1662-1666)。
+    fn clear_varia(&mut self) {
+        // sState = null;
+        // iIndic = null;
+        self.reset_varia();
+    }
+
+    /// 对应 Java `public void resetvaria()` (L1528-1660)。
+    /// PORT(锁序 §2.8): Java 方法体直线赋值无锁; Rust 把字段写入收进一个
+    /// write 临界区 (锁内无回调无 IO), `resetEngLoad`/SMA 重建/尾部 publish
+    /// 均在锁外——publish 需要读锁, 与未释放的写锁同线程重入即死锁。
+    fn reset_varia(&mut self) {
+        // R1 周期快照: 本方法（及下传的 resetEngLoad）全程使用这一次取到的句柄,
+        // 可能从 Service 轮询线程或构造器调用, current() 均为纯 volatile 读
+        let fm = self.fm_manager.current();
+        {
+            let mut d = write_data(&self.data);
+            // PORT(快照字段): Java getter 现读单例 → Rust 读 d.fm 周期快照
+            // (service_fields.rs struct 级裁决), 此处随 reset 同步
+            d.fm = Arc::clone(&fm);
+            // Java: loc = new double[2]; dir = new double[2];
+            d.loc = Some([0.0; 2]);
+            d.dir = Some([0.0; 2]);
+            d.radio_alt_valid = Some(false);
+            d.player_live = false;
+            d.i_eng_type = ENGINE_TYPE_UNKNOWN;
+            d.check_maxium_rpm = 0;
+            d.compass_delta = 0.0;
+            d.flap_check = 0;
+            d.is_downing_flap = false;
+            d.get_maximum_rpm = false;
+            d.d_radio_alt = 0.0;
+            d.cur_load = 0;
+            d.wep_time = 0;
+            d.energy_j_kg = 0.0;
+            d.prev_energy_j_kg = 0.0;
+            d.elapsed_time = 0;
+            d.altper_circle = 0.0;
+            d.check_alt = 0;
+            d.altreg = 0.0;
+            d.altp = 0.0;
+            d.alt = 0.0;
+            d.calc_period = 0;
+            d.maximum_thr_rpm = 1.0;
+            d.max_total_thr = 0;
+            d.iastotascoff = 1.0;
+            d.thurst_percent = 0.0;
+            d.check_engine_flag = false;
+            d.check_engine_type = 0;
+            // Java: fueltime = Long.MAX_VALUE;
+            d.fueltime = i64::MAX;
+            d.check_pitch = 0;
+            d.fuel_percent = 0;
+            d.max_total_hp = 0;
+            // Java L1564 对 maxTotalThr 的第二次赋值 (L1555 已赋 0), 保真保留
+            d.max_total_thr = 0;
+            d.diffspeed = 0.0;
+            // Java: curLoadMinWorkTime = 99999 * 1000; —— int 乘法 99999000 拓宽 double
+            d.cur_load_min_work_time = (99999 * 1000) as f64;
+            /* 刷新引擎工作时间 */
+            // (锁外调用, 见下)
+            // if(c.getBlkx() != null && c.getBlkx().maxEngLoad !=
+            // 0)c.getBlkx().resetEngineLoad();
+            let now = current_time_millis();
+            // Java: FuelCheckMili = System.currentTimeMillis();
+            d.fuel_check_mili = now;
+            // Java: lastMapPollTimeMs = FuelCheckMili; lastMainLoopTimeMs = FuelCheckMili;
+            d.last_map_poll_time_ms = now;
+            d.last_main_loop_time_ms = now;
+            d.not_check_inch = false;
+            d.altper_circlflag = false;
+            // isFuelpressure = false;
+            // Java L1577 对 notCheckInch 的第二次赋值, 保真保留
+            d.not_check_inch = false;
+            d.has_wing_sweep_vario = false;
+            // Java: flapAllowSpeed/Angle = Float.MAX_VALUE —— float 拓宽 double (§2.12)
+            d.flap_allow_speed = f32::MAX as f64;
+            d.flap_allow_angle = f32::MAX as f64;
+            d.total_fuel_prev = 0.0;
+            d.is_state_jet = false;
+            d.nitrokg = 0.0;
+            d.nitro_consump = 0.0;
+            d.nitro_eng_nr = 0;
+
+            // Java L1587-1593: 7 个 SMA 构造, 窗口 (int)(1000/freq), fuelTimeSMA=4。
+            // PORT(状态双主裁决, service_fields.rs 字段区 PORT 注): calc/diff/sep/
+            // turnrds 四个 SMA 的真人在 Deriver (其 new/step 已按同窗口与同公式
+            // 移植), ServiceData 侧对应槽位**保持 None**——防双胞胎真互相漂移;
+            // sum/energyDiff/fuelTime 三个 Java 侧 addNewData 调用已被注释 (仅构造),
+            // 按 service_fields 裁决由本波次直接构造:
+            let freq = d.freq;
+            // Java: (int)(1000/freq) —— long 整除后截断; freq<=0 时 Java 构造器
+            // ArithmeticException, Rust 除零 panic 同构崩在构造期 (保真, 不防御)
+            let n = (1000 / freq) as usize;
+            d.sum_speed_sma = Some(SimpleMovingAverage::new(n));
+            d.energy_diff_sma = Some(SimpleMovingAverage::new(n));
+            d.fuel_time_sma = Some(SimpleMovingAverage::new(4));
+
+            // R2 守卫: 无 FM 时保持 nitrokg/nitroConsump 归零值（与 updateWepTime 的守卫配套）
+            if let Some(blkx) = &fm.blkx {
+                // Java: nitrokg = fm.blkx.nitro; nitroConsump = fm.blkx.nitroDecr;
+                d.nitrokg = blkx.nitro;
+                d.nitro_consump = blkx.nitro_decr;
+                // Java: engineLoad[] pL = fm.blx.engLoad; 循环体
+                // pL[i].curWaterWorkTimeMili = pL[i].curWaterWorkTimeMili; —— 自赋值
+                // 无操作 (保真保留为注释; 真正的会话态改写在 reset_eng_load)
+            }
+
+            // Initialize Strings to Defaults
+            let na = || Some(NASTRING.to_string());
+            d.total_hp_str = na();
+            d.total_thrust_str = na();
+            d.rpm = na();
+            d.total_hp_eff_str = na();
+            d.pressure_inch_hg = na();
+            d.manifoldpressure = na();
+            d.watertemp = na();
+            d.oiltemp = na();
+            d.total_fuel_str = na();
+            d.fueltime_str = na();
+            d.s_nitro = na();
+            d.s_wep_time = na();
+            d.s_eng_work_time = na();
+            d.sd_thrust_percent = na();
+            d.s_thurst_percent = na();
+            d.s_avg_eff = na();
+            d.tas = na();
+            d.ias = na();
+            d.m = na();
+            d.aoa = na();
+            d.aos = na();
+            d.ny = na();
+            d.s_n = na();
+            d.wx = na();
+            d.salt = na();
+            d.s_radio_alt = na();
+            d.vy = na();
+            d.compass = na();
+            d.throttle = na();
+            d.s_sep = na();
+            d.s_sep_abs = na();
+            d.s_acc = na();
+            d.s_turn_rate = na();
+            d.s_turn_rds = na();
+            d.s_wing_sweep = na();
+            d.flaps = na();
+            d.gear = na();
+            d.aileron = na();
+            d.elevator = na();
+            d.rudder = na();
+            // Java: svalid = "false";
+            d.svalid = Some("false".to_string());
+
+            // Java: efficiency/pitch = new String[4] (nastring 填充)
+            // (构造器随后覆盖为 16 长度 null 数组; 加油重置路径则停留在此形状)
+            d.efficiency = Some(vec![na(); 4]);
+            d.pitch = Some(vec![na(); 4]);
+        } // —— write 临界区结束 (publish 前必须释放, §2.8)
+
+        // Java: resetEngLoad(fm); (L1568, 字段赋值序列中间——锁外执行)
+        Self::reset_eng_load(&fm);
+        // PORT(SMA 重建): Java L1587-1590 的 calc/diff/sep/turnrds 四 SMA 在本
+        // 调用点重建 = Deriver 整体重建 (真人在彼, 见上)
+        let freq = self.config.service_loop_interval_ms;
+        self.deriver = Deriver::new(freq.max(1) as u64);
+
+        // Java: publishFlightDataEvent(); (L1659)
+        // Publish initial state immediately
+        self.publish_flight_data_event();
+    }
+
+    /// 重置引擎耐久计时（engLoad 为共享会话状态, 就地改写语义见 FMHandle javadoc 声明,
+    /// "换机 = 新 Blkx 实例" 天然保证会话状态不串机, 此处保持就地改写不变）。
+    ///
+    /// @param fm 本周期 FM 句柄快照（R1 下传）
+    //  (以上 javadoc 逐字保留, Java L1510-1515)
+    fn reset_eng_load(fm: &FMHandle) {
+        // R2 hasFM 守卫: blkx 非 null 即 READY, 无 FM 时无耐久数据可重置
+        // PORT(不可表达, §6 上报不越文件修): 会话态改写
+        // `engLoad[idx].curWater/OilWorkTimeMili = WorkTime * 1000` 依赖
+        // handle.rs 头注承诺的 "engLoad 就地改写以内部可变性承接" (reader 波次);
+        // 现形状 blkx 经 Arc<FMHandle> 共享仅只读, 本方法暂无法落写。
+        // TODO(port): engLoad 会话态改写 (blkx reader / 计算方法区波次)
+        if let Some(_blkx) = &fm.blkx {
+            // Java: for (idx in 0..blkx.maxEngLoad) {
+            //   blkx.engLoad[idx].curWaterWorkTimeMili = blkx.engLoad[idx].WorkTime * 1000;
+            //   blkx.engLoad[idx].curOilWorkTimeMili   = blkx.engLoad[idx].WorkTime * 1000; }
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // run() 主循环 (Java L1798-1862)
+    // ------------------------------------------------------------------
+
+    /// 对应 Java `public void run()` (L1799-1861)。消费 `self` (move 进线程)。
+    ///
+    /// PORT(§2.13): Java `while(true)` 唯一出口是 `Thread.sleep` 抛
+    /// InterruptedException → break; Rust 以 stop 电平标志轮询复刻
+    /// (sleep_quietly 提前返回 + 循环内检查)。Java 恢复期 sleep 吞中断的
+    /// 失效窗口 (L1857, LIFETIMES 审查修正 7) 在电平标志下天然消失。
+    pub fn run(mut self) {
+        // Main polling loop with exception recovery
+        loop {
+            // PORT(§6 契约): Java 顶层 `catch (Exception e)` (L1850) → catch_unwind。
+            // AssertUnwindSafe: 与 Java "异常后对象处于不一致状态继续用" 同一
+            // 宽松契约 (flight_data_bus.rs 同款论证)。
+            match catch_unwind(AssertUnwindSafe(|| self.poll_once())) {
+                Ok(Flow::Continue) => {}
+                Ok(Flow::Interrupted) => {
+                    // Thread was interrupted - exit the loop gracefully
+                    logger::info("Service", "Service thread interrupted, exiting...");
+                    break; // Exit the while(true) loop
+                }
+                Err(payload) => {
+                    // Unexpected error - log and recover after short delay
+                    // Java: "Service error: " + e.getClass().getSimpleName() + " at " +
+                    // (e.getStackTrace().length > 0 ? e.getStackTrace()[0] : "unknown")
+                    // PORT: Rust panic 无类型名/栈帧槽位, 以消息文本顶位
+                    logger::error(
+                        "Service",
+                        &format!("Service error: {} at unknown", panic_message(payload)),
+                    );
+                    // Java: e.printStackTrace(); —— 默认 panic hook 已在展开前打印
+                    // Java: Thread.sleep(1000) + catch (InterruptedException ignored)
+                    // PORT: 可中断恢复睡眠 (§2.13); 置位即提前醒并在此退出
+                    // (Java 吞中断后丢失退出信号属已知 bug, 电平标志根治)
+                    exception_helper::sleep_quietly(&self.stop, 1000);
+                    if self.stop.load(Ordering::SeqCst) {
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    /// run() 的 try 块体 (Java L1803-1844), 一轮轮询。
+    /// 返回值: Java 的 InterruptedException 出口 → [`Flow::Interrupted`]。
+    fn poll_once(&mut self) -> Flow {
+        // Java: currentTimeMs = System.currentTimeMillis();
+        let now = current_time_millis();
+        let (freq, port_ocupied, last_main_loop_time_ms) = {
+            let mut d = write_data(&self.data);
+            d.current_time_ms = now;
+            (d.freq, d.port_ocupied, d.last_main_loop_time_ms)
+        };
+        // long diffTime = currentTimeMs - lastMainLoopTimeMs;
+        let diff_time = now - last_main_loop_time_ms;
+        if diff_time >= freq {
+            // 尝试GET数据
+            // (HTTP IO 在锁外, §2.8; portOcupied 拆箱 None → panic 复刻 Java NPE,
+            //  由 run 的 catch_unwind 兜住——字段初始化器 false 使 None 不可达)
+            if port_ocupied != Some(true) {
+                self.http_client.get_req_result(request_dest(&self.config), &self.stop);
+            } else {
+                self.http_client.get_req_result(request_dest_bkp(&self.config), &self.stop);
+            }
+            // Java: actualIntervalMs = (diffTime / freq) * freq;
+            let actual_interval_ms = (diff_time / freq) * freq;
+            {
+                let mut d = write_data(&self.data);
+                d.actual_interval_ms = actual_interval_ms;
+                // Java: pollCycleDurationMs = actualIntervalMs;
+                d.poll_cycle_duration_ms = actual_interval_ms;
+                // Java: lastMainLoopTimeMs += actualIntervalMs;
+                d.last_main_loop_time_ms += actual_interval_ms;
+            }
+
+            // 检查是否需要改变状态
+            self.process_polling_cycle();
+
+            // 焦点监控（内部有200ms节流）
+            if let Some(fm) = self.focus_monitor.as_mut() {
+                fm.tick();
+            }
+
+            // 记录
+            // Java: if (c.logon) { FlightLog tempLog = c.Log; if (tempLog != null) tempLog.logTick(); }
+            // TODO(port): FlightLog 记录接线 (Controller.logon/c.Log 协作,
+            //  FlightLog::log_tick 需 FlightLogSnapshot——Controller 波次一并裁决)
+        }
+        let (freq, port_ocupied, last_map_poll_time_ms) = {
+            let d = read_data(&self.data);
+            (d.freq, d.port_ocupied, d.last_map_poll_time_ms)
+        };
+        // long diffTime1 = currentTimeMs - lastMapPollTimeMs;
+        let diff_time1 = now - last_map_poll_time_ms;
+        if diff_time1 >= 10 * freq {
+            {
+                let mut d = write_data(&self.data);
+                // Java: lastMapPollTimeMs = currentTimeMs;
+                d.last_map_poll_time_ms = now;
+            }
+            if port_ocupied != Some(true) {
+                self.http_client.get_req_map_obj_result(request_dest(&self.config));
+            } else {
+                self.http_client.get_req_map_obj_result(request_dest_bkp(&self.config));
+            }
+            // Java: MapObj.getPlayerLoc(httpClient.strMapObj, loc); getPlayerDir(..., dir);
+            let str_map_obj = self.http_client.str_map_obj.clone();
+            let mut d = write_data(&self.data);
+            if let Some(loc) = d.loc.as_mut() {
+                MapObj::get_player_loc(&str_map_obj, loc);
+            }
+            if let Some(dir) = d.dir.as_mut() {
+                MapObj::get_player_dir(&str_map_obj, dir);
+            }
+        }
+
+        // long sleeptime = currentTimeMs + freq - System.currentTimeMillis();
+        let sleeptime = now + freq - current_time_millis();
+        if sleeptime > 0 {
+            // Java: Thread.sleep(sleeptime); —— InterruptedException → stop 轮询 (§2.13)
+            exception_helper::sleep_quietly(&self.stop, sleeptime as u64);
+            if self.stop.load(Ordering::SeqCst) {
+                return Flow::Interrupted;
+            }
+        }
+        Flow::Continue
+    }
+
+    // ------------------------------------------------------------------
+    // processPollingCycle (Java L1701-1796)
+    // ------------------------------------------------------------------
+
+    /// Processes one polling cycle: updates state, calculates data, and publishes events.
+    /// Previously named checkState() - renamed for clarity.
+    /// (以上 javadoc 逐字保留, Java L1701-1704)
+    fn process_polling_cycle(&mut self) {
+        // int conState;
+        let con_state: i32;
+        {
+            let mut d = write_data(&self.data);
+            // 更新时间戳
+            d.time_stamp = d.current_time_ms;
+        }
+        // Application.debugPrint("s:"+httpClient.strState+"s1:"+httpClient.strIndic);
+        // 更新state
+
+        // Java: c.initStatusBar();
+        // TODO(port): Controller 状态条初始化 (Controller 波次)
+
+        // Java: if (httpClient.strState.length() > 0 && httpClient.strIndic.length() > 0)
+        // (strState 为跨线程 Arc<Mutex>——getReqResult 的子线程写, 读侧短锁克隆;
+        //  锁中毒穿透与 read_data/write_data 同一 §6 策略——该 Mutex 与子线程共享,
+        //  持锁 panic 不得令 Service 线程陷 "每轮 panic-恢复" 的活而死循环)
+        let str_state = self
+            .http_client
+            .str_state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
+        let str_indic = self.http_client.str_indic.clone();
+        if !str_state.is_empty() && !str_indic.is_empty() {
+            // 改变状态为连接成功
+            // Application.debugPrint(sState);
+            let (s_flag, i_flag);
+            {
+                let mut d = write_data(&self.data);
+                // Java: conState = sState.update(httpClient.strState);
+                // (sState 构造器恒建, unwrap 复刻 Java 的 null 不可达域)
+                con_state = d.s_state.as_mut().unwrap().update(&str_state);
+                // Java: sIndic.update(httpClient.strIndic);
+                d.s_indic.as_mut().unwrap().update(&str_indic);
+                s_flag = d.s_state.as_ref().unwrap().flag;
+                i_flag = d.s_indic.as_ref().unwrap().flag;
+            }
+            // Java: c.changeS2();
+            // TODO(port): Controller 连接成功状态切换 (Controller 波次)
+            if s_flag && i_flag {
+                // 读取本轮判定所需快照 (锁外判, §2.8)
+                let (i_type, total_thr, s_rpm, player_live, port_ocupied) = {
+                    let d = read_data(&self.data);
+                    (
+                        d.s_indic.as_ref().unwrap().r#type.clone(),
+                        d.s_state.as_ref().unwrap().total_thr,
+                        d.s_state.as_ref().unwrap().rpm,
+                        d.player_live,
+                        d.port_ocupied,
+                    )
+                };
+                /* 修复录像中没法使用的问题 */
+                // Java: (!sIndic.type.equals("DUMMY_PLANE")) —— type 经 update 已
+                // toUpperCase; Rust 侧 Indicators::update 恒产 Some (缺失→""),
+                // None 不可达, Option 域内比较 (vm-core indicators.rs 既有防御)
+                if i_type.as_deref() != Some("DUMMY_PLANE")
+                    && ((total_thr != 0.0) || (s_rpm != 0))
+                {
+                    if !player_live {
+                        // Java: if (!portOcupied) getReqMapInfoResult(requestDest);
+                        // else getReqMapInfoResult(requestDestBkp);
+                        let dest = if port_ocupied != Some(true) {
+                            request_dest(&self.config)
+                        } else {
+                            request_dest_bkp(&self.config)
+                        };
+                        // (HTTP IO 在锁外, §2.8)
+                        self.http_client.get_req_map_info_result(dest);
+                        let mut d = write_data(&self.data);
+                        // Java: mapinfo.update(httpClient.strMapInfo);
+                        let str_map_info = self.http_client.str_map_info.clone();
+                        d.mapinfo.as_mut().unwrap().update(&str_map_info);
+                        // Application.debugPrint("grid_zero: " + mapinfo.grid_zeroX + ", " +
+                        // mapinfo.grid_zeroY);
+                    }
+                    let mut d = write_data(&self.data);
+                    // Java: playerLive = true;
+                    d.player_live = true;
+                }
+
+                let player_live = {
+                    let d = read_data(&self.data);
+                    d.is_player_live()
+                };
+                if player_live {
+                    // 读取map info
+
+                    // Java: c.changeS3();// 打开面板
+                    // TODO(port): Controller 打开面板 (Controller 波次)
+                    // P4 换机轻量 swap: 只换 FM 句柄（FMManager 负责去重/负缓存/异步加载），
+                    // 不再重启 Controller——旧版 S4toS1 重启销毁全部 overlay 致 HUD 闪断，且与
+                    // 旧 FM 回退逻辑叠加曾构成 issue #55 换机死循环（P2 已断根，P4 删重启路径）。
+                    // identify/onAircraftChanged 同目标零成本，10Hz 轮询安全。
+                    {
+                        let d = read_data(&self.data);
+                        // Java: FMManager.getInstance().identify(sIndic.type);
+                        let plane_type = d.s_indic.as_ref().unwrap().r#type.clone();
+                        drop(d);
+                        self.fm_manager.identify(plane_type.as_deref());
+                        // R1: ServiceData.fm 周期句柄快照 (get_total_weight/has_wep
+                        // 读它, service_fields.rs 裁决) —— current() 取在 data 写锁外,
+                        // 锁序恒 data→fm 单向 (与 calculate()/reset_varia() 同款,
+                        // 杜绝 fm 侧未来持锁发布时的 ABBA 形态)
+                        let fm_cur = self.fm_manager.current();
+                        let mut d = write_data(&self.data);
+                        d.fm = fm_cur;
+                    }
+                    // Java: c.onAircraftChanged(sIndic.type);
+                    // TODO(port): Controller 换机回调 (Controller 波次)
+                    // speedvp = sState.IAS;
+                    // 开始计算数据
+                    self.calculate();
+
+                    // 检测到加油，重置数据
+                    {
+                        let d = read_data(&self.data);
+                        // Java: Math.abs(speedv) < 10 —— speedv 状态主在 Deriver
+                        // (FlightValues 未外泄), 本波次 d.speedv 恒 0 使首条件恒真;
+                        // totalFuel 写者在 updateFuel (TODO 见 calculate) 同为 0,
+                        // 分支死——结构保真保留, 待计算方法区波次激活
+                        let speedv = d.speedv;
+                        let total_fuel = d.total_fuel;
+                        let total_fuel_prev = d.total_fuel_prev;
+                        if (speedv.abs() < 10.0) && (total_fuel - total_fuel_prev > 1.0) {
+                            // (临界区内不做 IO——先释放读锁再打日志, 头部 §2.8 自律)
+                            drop(d);
+                            // Java: String.format("Refueling detected (Fuel: %.1f -> %.1f).
+                            // Resetting simulation variables.", ...)
+                            // —— Formatter %.1f HALF_UP → format::format (§2.3)
+                            logger::info(
+                                "Service",
+                                &format!(
+                                    "Refueling detected (Fuel: {} -> {}). Resetting simulation variables.",
+                                    format::format(total_fuel_prev, 1),
+                                    format::format(total_fuel, 1)
+                                ),
+                            );
+                            self.reset_varia();
+                        }
+                    }
+
+                    // 0.5秒一次慢计算
+                    {
+                        let d = read_data(&self.data);
+                        let freq = d.freq;
+                        let calc_period = d.calc_period;
+                        drop(d);
+                        let mut d = write_data(&self.data);
+                        // Java: ((calcPeriod++) % (500 / freq)) == 0 —— 后缀自增
+                        d.calc_period += 1;
+                        if calc_period % (500 / freq) == 0 {
+                            // TODO(port): slowcalculate((500 / freq) * freq) —— 油耗/
+                            // WEP 时间慢计算 (计算方法区波次; 入参 (500/freq)*freq
+                            // 届时随方法接线, 此处不留无编译器信号的占位表达式)
+                        }
+                    }
+
+                    // 将数据转换格式
+                    // TODO(port): formatDataAsStrings() —— 全量显示字符串格式化
+                    // (计算方法区波次; 其尾部对 publishFlightDataEvent 的调用
+                    // 由下方直接调用顶位, 发布时序不变——Java L431)
+                    self.publish_flight_data_event();
+
+                    // 写入文档
+                    // c.writeDown();
+
+                    // 检查死亡
+                    {
+                        let d = read_data(&self.data);
+                        let total_thr = d.s_state.as_ref().unwrap().total_thr;
+                        let rpm = d.s_state.as_ref().unwrap().rpm;
+                        let ias = d.s_state.as_ref().unwrap().ias;
+                        // Java: sState.totalThr == 0 && sState.RPM <= 0 && sState.IAS < 10
+                        if total_thr == 0.0 && rpm <= 0 && ias < 10 {
+                            // (临界区内不做 IO——先释放读锁再打日志, 头部 §2.8 自律)
+                            drop(d);
+                            logger::warn(
+                                "Service",
+                                "Player crash/stop detected. Simulation state invalidated.",
+                            );
+                            let mut d = write_data(&self.data);
+                            d.player_live = false;
+                        }
+                    }
+                }
+            } else {
+                // 状态置为等待游戏开始（状态1）
+                // c.changeS2();//连接成功等待游戏开始
+
+                // Java: c.S4toS1();
+                // TODO(port): Controller 等待游戏开始状态 (Controller 波次)
+                // 等待游戏开始
+                exception_helper::sleep_quietly(&self.stop, 500);
+            }
+        } else {
+            // 状态置为等待连接中
+            con_state = -1;
+            // Java: c.S4toS1();
+            // TODO(port): Controller 等待连接状态 (Controller 波次)
+            logger::debug("Service", "Waiting for game connection (8111/9222)...");
+        }
+        if con_state == -1 {
+            // 端口连接可能有问题，切换端口
+            // Application.debugPrint("切换端口\n");
+            let mut d = write_data(&self.data);
+            // Java: portOcupied = !portOcupied; (Boolean 拆箱→取反→装箱)
+            d.port_ocupied = Some(d.port_ocupied != Some(true));
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // calculate (Java L1115-1178) —— 本波次 Deriver 接线形态
+    // ------------------------------------------------------------------
+
+    /// 对应 Java `public void calculate()` (L1115-1178)。
+    ///
+    /// Java 链 17 个子方法中, 已译 [`Deriver`] 覆盖: updateClimbRate (L777) /
+    /// updateSpeed (L840) / updateTurn (L788) / updateSEP (L986) 四公式族 +
+    /// mach (updateSpeedRatio L1213-1215 的手动大气模型, R2 hasFM 守卫在写回段);
+    /// updateCompass (L1101, 含 compass==-65535 的地图方向回退) / updateAlt
+    /// (L739, 英制检测状态机 + 无线电高度有效性/英尺转米 + dRadioAlt 差分)
+    /// 在写回段逐行落地。其余子方法属计算方法区后续波次:
+    /// TODO(port): updateWepTime/updateTemp/checkOverheat/updateEngineState/
+    /// updateFuel/checkWing/checkFlap/getMaximumRPM/updateSpeedRatio(比值段)/
+    /// updateStallSpeed/updateOptimalCompressorStage
+    /// TODO(port): Deriver 内 speedv/speedvp 未外泄的三处活代码——updateSpeed 尾部
+    /// IASv/IASvp/TASv 写回、updateTurn 的 horizontalLoad (L821-826)、updateSEP 尾部
+    /// energyJKg/energyM (L1024-1025); 消费方 formatDataAsStrings/HUDCalculator 同在
+    /// 计算方法区波次, 届时一并接线
+    fn calculate(&mut self) {
+        // R1 周期快照（P3 迁移核心规则）: 整个 calculate 链路共用开头取到的一次 FM 句柄,
+        // 并以参数下传给所有依赖 FM 的子方法 —— 保证单周期内全部 FM 派生量来自同一
+        // Blkx 实例。FMManager.current() 是纯 volatile 读（无锁无 IO）; 换机时句柄由
+        // loader 线程原子替换, 本周期内可能取到旧句柄（平滑过渡, 下一周期自然切换）
+        let fm = self.fm_manager.current();
+
+        // 获得开始时间
+        // Java: elapsedTime = currentTimeMs - startTime;
+        let actual_interval_ms;
+        {
+            let mut d = write_data(&self.data);
+            d.fm = Arc::clone(&fm);
+            d.elapsed_time = d.current_time_ms - d.start_time;
+            // Java updateSEP/updateAlt 的分母是 actualIntervalMs (run() L1804 的区间
+            // 量化值, HTTP 慢于一个周期时 = 2*freq 及以上)——传 freq 会令卡顿轮
+            // 加速度/SEP 成倍失真
+            actual_interval_ms = d.actual_interval_ms;
+        }
+
+        // 增加wep时间 / 更新温度，优先使用更精确的 / 检查是否过热… (TODO 列表见 doc)
+        // 更新方向 / 更新爬升率 / 获得准确高度 / 更新速度 / 更新转弯半径 —— Deriver::step
+        // (updateCompass/updateAlt 的非公式部分在下方写回段逐行落地)
+        let (values, vy, radio_alt_raw, alt10k, dir) = {
+            let d = read_data(&self.data);
+            let s = to_state_raw(d.s_state.as_ref().unwrap());
+            let i = to_indicators_raw(d.s_indic.as_ref().unwrap());
+            // 写回段状态机输入: altitude_10k (IndicatorsRaw 无此槽, 取自保真版) /
+            // dir (run() 的 getPlayerDir 产物) / 原始 radio_altitude (哨兵判定,
+            // FlightValues.radio_altitude 已是回退后的值)
+            let alt10k = d.s_indic.as_ref().unwrap().altitude_10k;
+            let dir = d.dir;
+            let vy = s.vy;
+            let radio_alt_raw = i.radio_altitude;
+            // (锁内只做字段拷贝, step 计算在锁外——§2.8 锁粒度)
+            drop(d);
+            let values = self.deriver.step(&s, &i, actual_interval_ms as f64);
+            (values, vy, radio_alt_raw, alt10k, dir)
+        };
+
+        // 写回派生量 (FlightValues → ServiceData 字段, 来源映射见各字段)
+        {
+            let mut d = write_data(&self.data);
+            // R2 hasFM 守卫 (Java updateSpeedRatio L1191-1199): 无 FM 时整方法早退,
+            // mach 保持上轮值 (初始 0)——否则无 FM 机型 mach 非 0, 破坏
+            // hide-when-zero 显示行为
+            if fm.blkx.is_some() {
+                d.mach = values.mach;
+            }
+            // nVy ← vario (updateClimbRate)
+            d.n_vy = values.vario;
+            // An ← ny*G (updateTurn; FlightValues.ny = An/G, 往返还原)
+            d.an = values.ny * G;
+            d.sep = values.sep;
+            d.acceleration = values.acceleration;
+            d.turn_rate = values.turn_rate;
+            // PORT: FlightValues.turn_radius = |turnRds| (已取绝对值);
+            // get_turn_radius() 再 abs 无差 (abs 幂等), 带符号值丢失不改变任何
+            // 现有读者行为 (全库读点均经 abs 或与 9999 比较)
+            d.turn_rds = values.turn_radius;
+
+            // Java: updateCompass (L1101-1113)
+            // 如果有仪表罗盘，读取仪表罗表盘数据
+            if values.compass != F_INVALID {
+                d.compass_delta = values.compass;
+            } else {
+                // 否则读取地图中的方向数据 (dir 由 run() 的 getPlayerDir 持续更新;
+                // resetvaria 恒建数组 → unwrap 复刻 Java 的 null 不可达域)
+                let dir = dir.unwrap();
+                if dir[1] < 0.0 {
+                    d.compass_delta = (360.0 - (dir[0] / dir[1]).atan().to_degrees()) % 360.0;
+                } else {
+                    d.compass_delta = 180.0 - (dir[0] / dir[1]).atan().to_degrees();
+                }
+            }
+
+            // Java: updateAlt (L739-775) —— 获得准确高度, 需依赖 Vy 因此位于爬升率后
+            // altp = alt; alt = sState.heightm;
+            d.altp = d.alt;
+            d.alt = values.altitude;
+            // altmeterp = altmeter; altmeter = sIndic.altitude_10k;
+            d.altmeterp = d.altmeter;
+            d.altmeter = alt10k;
+
+            // 人类毒瘤英制飞机
+            if !d.not_check_inch && vy.abs() > 0.0 {
+                if (d.altmeter - d.altmeterp).abs() * 1000.0
+                    > (2.0 * vy * actual_interval_ms as f64).abs()
+                {
+                    // checkAlt += actualIntervalMs —— int += long 复合赋值隐式窄化
+                    // 为 (int)(long 和) 低 32 位截断 (§2.2 双转)
+                    d.check_alt = (((d.check_alt as i64).wrapping_add(actual_interval_ms))
+                        as u64 as u32) as i32;
+                } else {
+                    d.check_alt = (((d.check_alt as i64).wrapping_sub(actual_interval_ms))
+                        as u64 as u32) as i32;
+                }
+                // Java Math.abs(Integer.MIN_VALUE)=MIN_VALUE 溢出语义 → wrapping_abs
+                if d.check_alt.wrapping_abs() > 10000 {
+                    d.not_check_inch = true;
+                }
+            }
+
+            // 无线电高度
+            d.p_radio_alt = d.radio_alt;
+            // radioAlt = iIndic.radio_altitude;
+            if radio_alt_raw == F_INVALID {
+                d.radio_alt = d.alt;
+                d.radio_alt_valid = Some(false);
+            } else {
+                d.radio_alt_valid = Some(true);
+                if d.check_alt > 0 {
+                    // radioAlt = sIndic.radio_altitude * 0.3048f —— float 字面量
+                    // 先扩为 double 再乘 (§2.12: 0.3048f32 as f64 ≠ 0.3048)
+                    d.radio_alt = radio_alt_raw * (0.3048f32 as f64);
+                } else {
+                    d.radio_alt = radio_alt_raw;
+                }
+            }
+            // dRadioAlt = (ratio_1 * dRadioAlt) + ratio * 1000.0f * (radioAlt - pRadioAlt) / actualIntervalMs;
+            d.d_radio_alt = (d.ratio_1 * d.d_radio_alt)
+                + d.ratio * 1000.0 * (d.radio_alt - d.p_radio_alt) / actual_interval_ms as f64;
+
+            // PORT(speedv/speedvp 不写回): 状态主在 Deriver 内部且 FlightValues
+            // 未外泄——加油检测分支本波次恒死 (见 process_polling_cycle 注),
+            // TODO(port): 计算方法区波次裁决外泄或迁移
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // publishFlightDataEvent (Java L434-482)
+    // ------------------------------------------------------------------
+
+    /// Publishes flight data to FlightDataBus.
+    /// Pre-computes HUDData on Service thread to offload work from EDT.
+    ///
+    /// @deprecated Method name is legacy - renamed to publishFlightDataEvent() for clarity.
+    /// (以上 javadoc 逐字保留, Java L434-438)
+    fn publish_flight_data_event(&mut self) {
+        // 载荷三件套在锁内取齐后**先释放读锁再 publish**——订阅方回调若再取
+        // data 锁, 同线程 read→write 重入即死锁 (§2.8; Java 无此形态因其无锁)
+        let (payload, state_box, indic_box) = {
+            let d = read_data(&self.data);
+            // Build type-safe payload (replaces legacy Map<String, String>)
+            // Java: if (loc != null && mapinfo != null) { … } else mapGrid = "--";
+            let map_grid = match (&d.loc, &d.mapinfo) {
+                (Some(loc), Some(mi)) => {
+                    // Java: char map_x = (char) ('A' + (loc[1] * mapinfo.mapStage) + mapinfo.inGameOffset);
+                    // PORT: (char) 强转 = double→int→低 16 位; as i32 饱和与 Java
+                    // 截断仅在极端值域分叉 (§2.2), 地图坐标域远离, as 链等价
+                    let xf = ('A' as u32) as f64 + (loc[1] * mi.map_stage) + mi.in_game_offset;
+                    // PORT: 未配对代理区 (surrogate) 在 Java char 合法而 Rust char
+                    // 非法, 坍缩为 U+FFFD (域内 A-Z 不可达)
+                    let map_x = char::from_u32(xf as i32 as u16 as u32)
+                        .unwrap_or('\u{FFFD}');
+                    // Java: int map_y = (int) (loc[0] * mapinfo.mapStage + mapinfo.inGameOffset + 1);
+                    let map_y = (loc[0] * mi.map_stage + mi.in_game_offset + 1.0) as i32;
+                    // Java: String.format("%c%d", map_x, map_y)
+                    format!("{}{}", map_x, map_y)
+                }
+                _ => "--".to_string(),
+            };
+
+            let payload = EventPayload::builder()
+                .map_grid(map_grid)
+                // Java 自动拆箱 Boolean——null 时 NPE 由 run() 顶层 catch 兜住;
+                // unwrap 的 panic 同构 (构造链恒置 Some, None 不可达)
+                .fatal_warn(d.fatal_warn.unwrap())
+                .radio_alt_valid(d.radio_alt_valid.unwrap())
+                .is_downing_flap(d.is_downing_flap)
+                // Java: timeStr(fueltimeStr) —— null 病态分支在 Rust String 下坍缩
+                // 为 Builder 缺省 "--:--" (map_to_payload 先例; resetvaria 恒置
+                // nastring 使 None 不可达)
+                .time_str(
+                    d.fueltime_str
+                        .clone()
+                        .unwrap_or_else(|| "--:--".to_string()),
+                )
+                // Java: isJet(iEngType == ENGINE_TYPE_JET)
+                .is_jet(d.i_eng_type == ENGINE_TYPE_JET)
+                .engine_check_done(d.check_engine_flag)
+                .optimal_compressor_stage(d.optimal_compressor_stage)
+                .compressor_stage_mismatch(d.compressor_stage_mismatch)
+                .build();
+
+            // Java: new FlightDataEvent(payload, sState, sIndic) —— 传引用 (共享可变)。
+            // PORT: LIFETIMES §2.3 裁决 "事件对象改为每帧不可变快照"——逐字段
+            // 手工快照 (State/Indicators 未 derive Clone, 不越文件改 §6)。
+            // 消费方经 event.get_state() downcast 到 vm_core::parser::State。
+            let state_box: Option<OpaqueObject> =
+                d.s_state.as_ref().map(|s| Box::new(snapshot_state(s)) as OpaqueObject);
+            let indic_box: Option<OpaqueObject> = d
+                .s_indic
+                .as_ref()
+                .map(|i| Box::new(snapshot_indicators(i)) as OpaqueObject);
+            (payload, state_box, indic_box)
+        };
+
+        let event = FlightDataEvent::new(payload, state_box, indic_box);
+
+        // Pre-compute HUDData on Service thread (reduces EDT latency by ~40-60ms)
+        // Java: if (c != null && c.configService != null) { … HUDCalculator.calculate … }
+        // TODO(port): HUDData 预计算——HUDCalculator 未译 (vm-core hud_calculator.rs
+        // 占位) + c.configService/HUDSettings 依赖 Controller 波次; set_hud_data
+        // 暂不调用 (事件 hud_data 保持 None, 消费方按 null 容忍降级)
+
+        // Java: FlightDataBus.getInstance().publish(event); → 构造注入实例
+        // (回调线程 = 本 Service 线程, 对齐 Java 同步逐个调用)
+        self.bus.publish(&event);
+    }
+}
+
+/// run() 循环的控制流出口 (Java InterruptedException → break 的对应物)。
+enum Flow {
+    Continue,
+    Interrupted,
+}
+
+// ------------------------------------------------------------------
+// 快照/适配 helpers (无 Java 对应——服务于 §2.3 不可变快照与 Deriver 接口)
+// ------------------------------------------------------------------
+
+/// 保真版 [`State`] → POC 版 `StateRaw` (Deriver 接口适配)。
+/// 哨兵 -65535 (I_INVALID/F_INVALID 同值) 原样穿透, 判定语义不变。
+fn to_state_raw(s: &State) -> StateRaw {
+    StateRaw {
+        // int 拓宽 f64 (Java State int 字段的 double 消费点)
+        ias: s.ias as f64,
+        tas: s.tas as f64,
+        height_m: s.heightm,
+        vy: s.vy,
+        wx: s.wx,
+        aoa: s.aoa,
+        aos: s.aos,
+        ny: s.ny,
+    }
+}
+
+/// 保真版 [`Indicators`] → POC 版 `IndicatorsRaw` (Deriver 接口适配)。
+fn to_indicators_raw(i: &Indicators) -> IndicatorsRaw {
+    IndicatorsRaw {
+        // 保真版 valid 为字符串 "true"/"false" (getString 语义)
+        valid: i.valid.as_deref() == Some("true"),
+        speed: i.speed,
+        vario: i.vario,
+        aviahorizon_roll: i.aviahorizon_roll,
+        aviahorizon_pitch: i.aviahorizon_pitch,
+        compass: i.compass,
+        radio_altitude: i.radio_altitude,
+        wsweep: i.wsweep_indicator,
+    }
+}
+
+/// [`State`] 逐字段快照 (§2.3 事件不可变快照; State 未 derive Clone)。
+fn snapshot_state(s: &State) -> State {
+    State {
+        valid: s.valid.clone(),
+        flag: s.flag,
+        engine_num: s.engine_num,
+        aileron: s.aileron,
+        elevator: s.elevator,
+        rudder: s.rudder,
+        flaps: s.flaps,
+        gear: s.gear,
+        tas: s.tas,
+        ias: s.ias,
+        m: s.m,
+        aoa: s.aoa,
+        heightm: s.heightm,
+        aos: s.aos,
+        ny: s.ny,
+        vy: s.vy,
+        wx: s.wx,
+        throttle: s.throttle,
+        rpm_throttle: s.rpm_throttle,
+        radiator: s.radiator,
+        oilradiator: s.oilradiator,
+        mixture: s.mixture,
+        compressorstage: s.compressorstage,
+        magenato: s.magenato,
+        power: s.power.clone(),
+        rpm: s.rpm,
+        manifoldpressure: s.manifoldpressure,
+        watertemp: s.watertemp,
+        oiltemp: s.oiltemp,
+        mfuel: s.mfuel,
+        mfuel_1: s.mfuel_1,
+        mfuel0: s.mfuel0,
+        mfuel0_1: s.mfuel0_1,
+        pitch: s.pitch.clone(),
+        thrust: s.thrust.clone(),
+        efficiency: s.efficiency.clone(),
+        airbrake: s.airbrake,
+        total_thr: s.total_thr,
+        throttles: s.throttles.clone(),
+    }
+}
+
+/// [`Indicators`] 逐字段快照 (§2.3)。
+/// PORT(army): 私有字段 `army` (vm-core 模块私有) 跨 crate 不可读写, 快照
+/// 经 `Indicators::new()` 落默认值——全库无 army 读者 (仅 update 内部 tank
+/// 过滤使用), 无行为差异; 故用 new()+逐字段赋值而非 struct 字面量。
+fn snapshot_indicators(i: &Indicators) -> Indicators {
+    let mut s = Indicators::new();
+    s.valid = i.valid.clone();
+    s.r#type = i.r#type.clone();
+    s.stype = i.stype.clone();
+    s.flag = i.flag;
+    s.speed = i.speed;
+    s.pedals = i.pedals;
+    s.stick_elevator = i.stick_elevator;
+    s.stick_ailerons = i.stick_ailerons;
+    s.altitude_hour = i.altitude_hour;
+    s.altitude_min = i.altitude_min;
+    s.altitude_10k = i.altitude_10k;
+    s.bank = i.bank;
+    s.turn = i.turn;
+    s.compass = i.compass;
+    s.clock_hour = i.clock_hour;
+    s.clock_min = i.clock_min;
+    s.clock_sec = i.clock_sec;
+    s.manifold_pressure = i.manifold_pressure;
+    s.rpm = i.rpm;
+    s.oil_pressure = i.oil_pressure;
+    s.water_temperature = i.water_temperature;
+    s.engine_temperature = i.engine_temperature;
+    s.mixture = i.mixture;
+    s.fuel = i.fuel;
+    s.fuel_pressure = i.fuel_pressure;
+    s.oxygen = i.oxygen;
+    s.gears_lamp = i.gears_lamp;
+    s.flaps = i.flaps;
+    s.trimmer = i.trimmer;
+    s.throttle = i.throttle;
+    s.weapon1 = i.weapon1;
+    s.weapon2 = i.weapon2;
+    s.weapon3 = i.weapon3;
+    s.prop_pitch_hour = i.prop_pitch_hour;
+    s.prop_pitch_min = i.prop_pitch_min;
+    s.ammo_counter1 = i.ammo_counter1;
+    s.ammo_counter2 = i.ammo_counter2;
+    s.ammo_counter3 = i.ammo_counter3;
+    s.oil_temp = i.oil_temp;
+    s.water_temp = i.water_temp;
+    s.fuelnum = i.fuelnum;
+    s.vario = i.vario;
+    s.aviahorizon_pitch = i.aviahorizon_pitch;
+    s.aviahorizon_roll = i.aviahorizon_roll;
+    s.wsweep_indicator = i.wsweep_indicator;
+    s.radio_altitude = i.radio_altitude;
+    s.mach = i.mach;
+    s
+}
+
+// ------------------------------------------------------------------
+// start/stop 生命周期 (Java Controller.start:634 / stop:807 的 Service 侧)
+// ------------------------------------------------------------------
+
+/// Service 线程句柄: stop 置位 + join (对应 Java `S1.interrupt()` 后线程退出)。
+pub struct ServiceHandle {
+    /// 停机标志 (调用方可预置/轮询)
+    pub stop: Arc<AtomicBool>,
+    /// 数据快照共享句柄 (测试/调用方读 ServiceData)
+    pub data: Arc<RwLock<ServiceData>>,
+    join: Option<JoinHandle<()>>,
+}
+
+impl ServiceHandle {
+    /// 停止轮询线程并等待退出 (Java: `S1.interrupt()`, run 的 sleep 抛
+    /// InterruptedException → break)。幂等。
+    /// 返回线程是否正常退出 (false = panic 逃逸出 run, §6 契约破坏的观测点)。
+    pub fn stop(&mut self) -> bool {
+        self.stop.store(true, Ordering::SeqCst);
+        match self.join.take() {
+            Some(j) => j.join().is_ok(),
+            None => true,
+        }
+    }
+}
+
+impl Drop for ServiceHandle {
+    fn drop(&mut self) {
+        // 兜底: 忘记显式 stop 也不泄漏线程 (§2.13 电平标志的优势形态)
+        self.stop();
+    }
+}
+
+/// 在独立线程启动 Service 轮询 (调用方持 [`ServiceHandle`] 管理生命周期)。
+/// PORT: Java `S1.setPriority(Thread.MAX_PRIORITY)` —— Rust std 线程无优先级
+/// 概念, 不复刻 (Windows 下可后续经 SetThreadPriority 补, C 类窗口波次裁决)。
+pub fn start(service: Service) -> ServiceHandle {
+    let stop = Arc::clone(&service.stop);
+    let data = Arc::clone(&service.data);
+    let join = std::thread::Builder::new()
+        .name("Service".to_string())
+        .spawn(move || service.run())
+        .expect("Service 线程创建失败");
+    ServiceHandle {
+        stop,
+        data,
+        join: Some(join),
+    }
+}
+
+// =====================================================================
+// Tests
+// =====================================================================
+#[cfg(test)]
+mod tests {
+    // PORT: Java 保真 — 测试构造沿用 Java `new X(); x.f = v;` 逐字段赋值形态,
+    // 不改成 struct 字面量以保持与 Java 测试源逐行对应
+    #![allow(clippy::field_reassign_with_default)]
+
+    use super::*;
+    use std::net::{TcpListener, TcpStream};
+    use std::process::{Child, Command, Stdio};
+    use std::sync::atomic::AtomicU32;
+    use std::time::Duration;
+    use vm_core::bus::EventBus;
+    use vm_core::fm::status::FMStatus;
+
+    /// 真机抓取的 /state 快照 (state.rs / service_fields.rs 测试同源,
+    /// 断言值 = Java 8 oracle 实测; mock 契约: 冒号后一空格)
+    const STATE_MOCK: &str = "{\"valid\": true,\"aileron, %\": -48,\"elevator, %\": 20,\"rudder, %\": -47,\"flaps, %\": 0,\"gear, %\": 0,\"H, m\": 46,\"TAS, km/h\": 454,\"IAS, km/h\": 474,\"M\": 0.39,\"AoA, deg\": -1.6,\"AoS, deg\": -5.9,\"Ny\": 0.35,\"Vy, m/s\": -7.3,\"Wx, deg/s\": -34,\"Mfuel, kg\": 197,\"Mfuel0, kg\": 734,\"throttle 1, %\": 110,\"RPM throttle 1, %\": 100,\"mixture 1, %\": 100,\"radiator 1, %\": 42,\"magneto 1\": 3,\"power 1, hp\": 1597.8,\"RPM 1\": 3001,\"manifold pressure 1, atm\": 2.24,\"water temp 1, C\": 121,\"oil temp 1, C\": 90,\"pitch 1, deg\": 35.5,\"thrust 1, kgs\": 840,\"efficiency 1, %\": 87}";
+
+    /// p51d /indicators 快照 (s2_preview_live 场景同源数据的手工裁剪版,
+    /// 保 Deriver 判定所需字段; type/vario/compass 为快照原值)
+    const INDIC_MOCK: &str = "{\"valid\": true, \"army\": \"air\", \"type\": \"p-51d-20_china\", \"speed\": 131.007797, \"vario\": -7.342558, \"aviahorizon_roll\": -40.553505, \"aviahorizon_pitch\": 0.632352, \"compass\": 164.09729}";
+
+    fn new_service() -> Service {
+        let fm = Arc::new(FMManager::new(Arc::new(EventBus::new())));
+        let bus = Arc::new(FlightDataBus::new());
+        Service::new(ServiceConfig::default(), fm, bus)
+    }
+
+    /// Java 构造器 + resetvaria 接线逐项核对 (service_fields.rs 的
+    /// "Default 是声明态而非构造后态" 验收义务清单)
+    #[test]
+    fn constructor_wiring_matches_java() {
+        let svc = new_service();
+        let d = svc.data.read().unwrap();
+        // 构造器: freq = serviceLoopIntervalMs
+        assert_eq!(d.freq, 50);
+        // ratio = freq / 1000.0f (float 除法拓宽), ratio_1 = 1.0f - ratio
+        let ratio = (50f32 / 1000.0f32) as f64;
+        assert_eq!(d.ratio, ratio);
+        assert_eq!(d.ratio_1, 1.0 - ratio);
+        // mapinfo/sState/sIndic 构造 (构造器段, resetvaria 之后)
+        assert!(d.mapinfo.is_some());
+        assert!(d.s_state.is_some());
+        assert!(d.s_indic.is_some());
+        // power/pitch/thrust/efficiency = new String[maxEngNum] (null 填充,
+        // 覆盖 resetvaria 的 4 长度 nastring 数组)
+        for arr in [&d.power, &d.pitch, &d.thrust, &d.efficiency] {
+            assert_eq!(arr.as_ref().unwrap().len(), MAX_ENG_NUM);
+            assert!(arr.as_ref().unwrap().iter().all(|e| e.is_none()));
+        }
+        // resetvaria 关键初值 (Java L1528-1660)
+        assert_eq!(d.loc, Some([0.0; 2]));
+        assert_eq!(d.dir, Some([0.0; 2]));
+        assert_eq!(d.radio_alt_valid, Some(false));
+        assert!(!d.player_live);
+        assert_eq!(d.i_eng_type, ENGINE_TYPE_UNKNOWN);
+        assert_eq!(d.fueltime, i64::MAX, "Long.MAX_VALUE");
+        assert_eq!(d.maximum_thr_rpm, 1.0);
+        assert_eq!(d.iastotascoff, 1.0);
+        // Java: Float.MAX_VALUE 拓宽 double
+        assert_eq!(d.flap_allow_speed, f32::MAX as f64);
+        assert_eq!(d.flap_allow_angle, f32::MAX as f64);
+        assert_eq!(d.cur_load_min_work_time, 99999000.0);
+        assert_eq!(d.svalid.as_deref(), Some("false"));
+        // 字符串族 = nastring
+        assert_eq!(d.fueltime_str.as_deref(), Some("-"));
+        assert_eq!(d.ias.as_deref(), Some("-"));
+        assert_eq!(d.compass.as_deref(), Some("-"));
+        // 仅构造的三个 SMA 有值 (sum/energyDiff/fuelTime); calc/diff/sep/turnrds
+        // 四槽保持 None (状态双主裁决: 真人在 Deriver)
+        assert!(d.sum_speed_sma.is_some());
+        assert!(d.energy_diff_sma.is_some());
+        assert!(d.fuel_time_sma.is_some());
+        assert!(d.calc_speed_sma.is_none());
+        assert!(d.diff_speed_sma.is_none());
+        assert!(d.sep_sma.is_none());
+        assert!(d.turnrds_sma.is_none());
+        // 燃油窗口 (1000/50=20) / fuelTimeSMA 窗口 4
+        // (SMA 无窗口查询接口, 以行为验证: sum 首值预热段均值语义)
+        // FuelCheckMili/lastMapPollTimeMs/lastMainLoopTimeMs ≈ 构造时刻
+        let now = current_time_millis();
+        assert!((d.fuel_check_mili - now).abs() < 60_000);
+        // PORT: Java 构造序对 fuel_check_mili 是二次独立 System.currentTimeMillis
+        // (跨毫秒边界差 1ms 属正常语义, 断言容忍 ±1, 消除 flaky)
+        assert!((d.last_map_poll_time_ms - d.fuel_check_mili).abs() <= 1);
+        assert!((d.last_main_loop_time_ms - d.fuel_check_mili).abs() <= 1);
+        // R2 守卫: fresh manager 的 current = UNRESOLVED → nitro 族归零
+        assert_eq!(d.nitrokg, 0.0);
+        assert!(d.fm.blkx.is_none());
+        // 构造期 publish 已发生 (resetvaria 尾部; mapinfo 此刻仍 null → "--",
+        // sState 构造在 resetvaria 后 → state=None) —— 由下方事件测试覆盖
+    }
+
+    /// 构造期事件 (resetvaria 尾部 publish): mapGrid="--"/state=None 载荷窗口
+    #[test]
+    fn constructor_publishes_initial_event() {
+        let fm = Arc::new(FMManager::new(Arc::new(EventBus::new())));
+        let bus = Arc::new(FlightDataBus::new());
+        let seen = Arc::new(std::sync::Mutex::new(Vec::<(String, bool, bool)>::new()));
+        let s2 = Arc::clone(&seen);
+        let _sub = bus.register(move |e: &FlightDataEvent| {
+            let p = e.get_payload();
+            s2.lock().unwrap().push((
+                p.map_grid.clone(),
+                e.get_state().is_some(),
+                e.get_indicators().is_some(),
+            ));
+        });
+        let _svc = Service::new(ServiceConfig::default(), fm, Arc::clone(&bus));
+        let v = seen.lock().unwrap();
+        assert_eq!(v.len(), 1, "构造期恰发布一次初始事件");
+        // mapinfo 在 clearvaria 之后才构造 → mapGrid 走 "--" 分支 (Java 同窗口)
+        assert_eq!(v[0].0, "--");
+        // sState 在 resetvaria 之后才构造 → 载荷 state/indicators = null
+        assert!(!v[0].1);
+        assert!(!v[0].2);
+    }
+
+    /// 单周期直驱 (不起线程): 解析→playerLive→identify→Deriver→发布 全链
+    #[test]
+    fn process_polling_cycle_full_chain() {
+        let fm = Arc::new(FMManager::new(Arc::new(EventBus::new())));
+        let bus = Arc::new(FlightDataBus::new());
+        let hits = Arc::new(AtomicU32::new(0));
+        let h2 = Arc::clone(&hits);
+        let _sub = bus.register(move |_| {
+            h2.fetch_add(1, Ordering::SeqCst);
+        });
+        let mut svc =
+            Service::new(ServiceConfig::default(), Arc::clone(&fm), Arc::clone(&bus));
+        let base = hits.load(Ordering::SeqCst); // 构造期 1 次
+
+        // 预填 http 响应缓冲 (run 循环里 getReqResult 的产物)
+        *svc.http_client.str_state.lock().unwrap() = STATE_MOCK.to_string();
+        svc.http_client.str_indic = INDIC_MOCK.to_string();
+
+        svc.process_polling_cycle();
+
+        // sState 解析 (Java 8 oracle 值)
+        {
+            let d = svc.data.read().unwrap();
+            let s = d.s_state.as_ref().unwrap();
+            assert_eq!(s.ias, 474);
+            assert_eq!(s.rpm, 3001);
+            assert_eq!(s.total_thr, 840.0);
+            // sIndic.type: toUpperCase + 去引号
+            assert_eq!(
+                d.s_indic.as_ref().unwrap().r#type.as_deref(),
+                Some("P-51D-20_CHINA")
+            );
+            // totalThr != 0 → playerLive
+            assert!(d.player_live);
+            // Deriver 写回: vario(indicators 优先) / compass / an
+            assert!((d.n_vy - (-7.342558f32 as f64)).abs() < 1e-6);
+            assert!((d.compass_delta - 164.09729f32 as f64).abs() < 1e-4);
+            assert!(d.an > 0.0, "An = g*sqrt(Ny²+1-2Ny·cos(roll)·cos(pitch+AoA))");
+            // R2 hasFM 守卫 (Java updateSpeedRatio L1191-1199): 本轮 identify 的
+            // 异步加载尚未完成 → blkx None → 整方法早退, mach 保持初值 0
+            // (无 FM 机型不得进 hide-when-zero 显示; 无守卫时的 0.39 是越权计算)
+            assert_eq!(d.mach, 0.0, "无 FM 时 updateSpeedRatio 早退, mach 保持 0");
+            // updateAlt 写回: alt←H,m; mock 无 radio_altitude 键 → 哨兵 →
+            // radioAlt=alt 且 radioAltValid=false (EventPayload 载荷源)
+            assert_eq!(d.alt, 46.0);
+            assert_eq!(d.radio_alt, 46.0);
+            assert_eq!(d.radio_alt_valid, Some(false));
+            // mapGrid: loc=[0,0] + mapinfo(构造后仍全 0) → 'A' + 1
+        }
+        // identify 已建立目标 (规范化小写); loader 线程尝试磁盘加载 (data/ 缺失
+        // → MISSING 落负缓存, 不影响本断言)
+        assert_eq!(
+            fm.current_target_name().as_deref(),
+            Some("p-51d-20_china")
+        );
+        // 事件: 构造 1 次 + 本周期 1 次
+        assert_eq!(hits.load(Ordering::SeqCst), base + 1);
+        // calcPeriod 后缀自增
+        assert_eq!(svc.data.read().unwrap().calc_period, 1);
+        // 未翻转端口 (响应有效)
+        assert_eq!(svc.data.read().unwrap().port_ocupied, Some(false));
+    }
+
+    /// updateCompass 地图回退 + updateAlt 英制/无线电分支 (calculate 写回段,
+    /// Java L739-775 / L1101-1113)
+    #[test]
+    fn update_compass_fallback_and_update_alt_branches() {
+        let mut svc = new_service();
+        // indicators: 无 compass 键 (→ 哨兵 -65535 走地图回退), 带 radio_altitude
+        // (英尺) / altitude_10k (跳变源); army/头部字段契约同 INDIC_MOCK
+        let indic = "{\"valid\": true, \"army\": \"air\", \"type\": \"p-51d-20_china\", \
+                     \"speed\": 131.0, \"vario\": -7.3, \"aviahorizon_roll\": -40.5, \
+                     \"aviahorizon_pitch\": 0.6, \"radio_altitude\": 1000.0, \
+                     \"altitude_10k\": 10.0}";
+        {
+            let mut d = write_data(&svc.data);
+            d.s_state.as_mut().unwrap().update(STATE_MOCK);
+            d.s_indic.as_mut().unwrap().update(indic);
+            // 地图方向 (run() 的 getPlayerDir 产物): dir[1]<0 分支
+            d.dir = Some([0.1, -1.0]);
+            // run() 的区间量化产物 (卡顿轮 diffTime=100 → actualIntervalMs=100)
+            d.actual_interval_ms = 100;
+            // 冻结英制状态机 (notCheckInch=true), checkAlt>0 → 英尺转米分支
+            d.not_check_inch = true;
+            d.check_alt = 500;
+        }
+        svc.calculate();
+        {
+            let d = read_data(&svc.data);
+            // compass 哨兵 → 地图回退: (360 - atan(dir0/dir1)·deg) % 360
+            let expect = (360.0 - (0.1f64 / -1.0f64).atan().to_degrees()) % 360.0;
+            assert!(
+                (d.compass_delta - expect).abs() < 1e-9,
+                "地图方向回退 (实际 {})",
+                d.compass_delta
+            );
+            // updateAlt: altp←alt(初值 0), alt←H,m; altmeterp←0, altmeter←10
+            assert_eq!(d.altp, 0.0);
+            assert_eq!(d.alt, 46.0);
+            assert_eq!(d.altmeterp, 0.0);
+            assert_eq!(d.altmeter, 10.0);
+            // radio_altitude 有效 + checkAlt>0 → ×0.3048f (float 提升域, ≠ 0.3048)
+            assert_eq!(d.radio_alt_valid, Some(true));
+            assert!((d.radio_alt - 1000.0 * (0.3048f32 as f64)).abs() < 1e-9);
+            // dRadioAlt = ratio_1*0 + ratio*1000*(radioAlt-0)/100 (freq=50;
+            // ratio = freq/1000.0f 的 float 除法拓宽值, 非精确 0.05)
+            let ratio = (50f32 / 1000.0f32) as f64;
+            let expect_dralt = ratio * 1000.0 * (1000.0 * (0.3048f32 as f64)) / 100.0;
+            assert!((d.d_radio_alt - expect_dralt).abs() < 1e-9);
+        }
+
+        // 英制状态机活分支: notCheckInch=false + altmeter 跳变量 >> |2·Vy·interval|
+        // (|10-0|·1000=10000 > |2·(-7.3)·100|=1460) → checkAlt += actualIntervalMs
+        {
+            let mut d = write_data(&svc.data);
+            d.not_check_inch = false;
+            d.check_alt = 0;
+            d.altmeter = 0.0;
+            d.altmeterp = 0.0;
+        }
+        svc.calculate();
+        {
+            let d = read_data(&svc.data);
+            assert_eq!(d.check_alt, 100, "checkAlt += actualIntervalMs");
+            assert!(!d.not_check_inch, "|100| ≤ 10000 不置 notCheckInch");
+            // altmeterp ← 改写前的 altmeter (手工置 0), altmeter ← 本轮解析值 10
+            assert_eq!(d.altmeterp, 0.0);
+            assert_eq!(d.altmeter, 10.0);
+        }
+    }
+
+    /// 空响应 → conState=-1 → 端口翻转 (Java L1785-1795); 再翻回
+    #[test]
+    fn port_flip_on_empty_response() {
+        let mut svc = new_service();
+        // http 缓冲保持初始 NSTRING ("") → 走等待连接分支
+        assert!(svc.http_client.str_indic.is_empty());
+        svc.process_polling_cycle();
+        assert_eq!(svc.data.read().unwrap().port_ocupied, Some(true));
+        svc.process_polling_cycle();
+        assert_eq!(svc.data.read().unwrap().port_ocupied, Some(false));
+    }
+
+    /// §6 契约: 顶层 catch_unwind——单轮 panic (Boolean 拆箱 NPE 复刻) 不杀线程,
+    /// 线程经 stop 正常退出 (join ok = panic 未逃逸 run)。
+    /// 随机端口假 8111 供数 (不与 mock_e2e 的 8111 冲突), 响应按 send_get_fast_buf
+    /// 的单次 read 契约一次性 write。
+    #[test]
+    fn catch_unwind_keeps_thread_alive() {
+        // 假游戏端口 (bind :0 随机分配, 无并行冲突)
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        std::thread::spawn(move || {
+            use std::io::{Read, Write};
+            for stream in listener.incoming() {
+                let mut stream = match stream {
+                    Ok(s) => s,
+                    Err(_) => break,
+                };
+                let mut req = [0u8; 8192];
+                let _ = stream.read(&mut req); // 单次读请求 (GET 行即可)
+                let req = String::from_utf8_lossy(&req).to_string();
+                let body = if req.contains("/indicators") {
+                    INDIC_MOCK
+                } else {
+                    STATE_MOCK // /state 与 map 端点宽容回同一份
+                };
+                // 头标签避开 "type"/"valid" 子串 (getString 抢先命中即坏,
+                // mock_8111.py 同款契约)
+                let resp = format!("HTTP/1.1 200 OK\r\nCache-Control: no-cache\r\n\r\n{body}");
+                let _ = stream.write_all(resp.as_bytes());
+            }
+        });
+
+        let fm = Arc::new(FMManager::new(Arc::new(EventBus::new())));
+        let bus = Arc::new(FlightDataBus::new());
+        let mut cfg = ServiceConfig::default();
+        cfg.service_loop_interval_ms = 20;
+        cfg.app_port = port;
+        let svc = Service::new(cfg, fm, bus);
+        // 注入拆箱 panic 源: publish 的 fatal_warn.unwrap() (Java Boolean null
+        // 拆箱 NPE 的同构物, 由 run 顶层 catch_unwind 兜住)。注入在构造之后
+        // (构造期 resetvaria 会写回 Some(false))
+        svc.data.write().unwrap().fatal_warn = None;
+
+        let mut handle = start(svc);
+        std::thread::sleep(Duration::from_millis(400));
+        let t0 = std::time::Instant::now();
+        // 线程每轮 publish 必 panic: 若 catch_unwind 缺位, 首轮 panic 即杀线程
+        // → join 拿到 Err (stop 返回 false)
+        assert!(handle.stop(), "线程应经 Interrupted/恢复检查出口正常退出, 而非被 panic 杀死");
+        // 恢复 sleep (1000ms) 因 stop 电平提前醒, 退出不应拖满 1s
+        assert!(
+            t0.elapsed() < Duration::from_millis(900),
+            "stop 应在恢复睡眠内快速退出 (实际 {:?})",
+            t0.elapsed()
+        );
+    }
+
+    /// 规则 2 e2e: mock_8111.py 起 s2_preview_live, Service 跑 3 秒,
+    /// 断言事件数>0 且 ServiceData 的 ias/vario 与 mock 快照一致。
+    /// 8111 被占 (游戏在跑) 时跳过。
+    #[test]
+    fn mock_e2e_s2_preview_live() {
+        // 端口占用探测: 游戏或另一个 mock 在跑 → 跳过本测试
+        let probe = TcpListener::bind("127.0.0.1:8111");
+        if probe.is_err() {
+            println!("跳过: 127.0.0.1:8111 已被占用 (游戏/其他 mock 在跑), e2e 让位");
+            return;
+        }
+        drop(probe);
+
+        // 起 mock (失败也要清理 → KillOnDrop 兜底)
+        let script = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../script/mock_8111.py");
+        let child = Command::new("python")
+            .arg(&script)
+            .arg("serve")
+            .arg("--port")
+            .arg("8111")
+            .arg("--scenario")
+            .arg("s2_preview_live")
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .expect("启动 mock_8111.py 失败 (python 不在 PATH?)");
+        struct KillOnDrop(Child);
+        impl Drop for KillOnDrop {
+            fn drop(&mut self) {
+                let _ = self.0.kill();
+                let _ = self.0.wait();
+            }
+        }
+        let _mock = KillOnDrop(child);
+
+        // 等 mock 就绪 (最多 10s)
+        let deadline = std::time::Instant::now() + Duration::from_secs(10);
+        loop {
+            if TcpStream::connect("127.0.0.1:8111").is_ok() {
+                break;
+            }
+            if std::time::Instant::now() > deadline {
+                panic!("mock_8111.py 10s 内未在 8111 就绪");
+            }
+            std::thread::sleep(Duration::from_millis(100));
+        }
+
+        // Service 全链 (默认 config: 50ms / 8111)
+        let fm = Arc::new(FMManager::new(Arc::new(EventBus::new())));
+        let bus = Arc::new(FlightDataBus::new());
+        let hits = Arc::new(AtomicU32::new(0));
+        let h2 = Arc::clone(&hits);
+        let _sub = bus.register(move |_| {
+            h2.fetch_add(1, Ordering::SeqCst);
+        });
+        let svc = Service::new(ServiceConfig::default(), Arc::clone(&fm), bus);
+        let mut handle = start(svc);
+
+        // 跑 3 秒
+        std::thread::sleep(Duration::from_secs(3));
+
+        let n = hits.load(Ordering::SeqCst);
+        assert!(n > 0, "3 秒内应收到 FlightDataEvent (实际 {n})");
+        {
+            let d = handle.data.read().unwrap();
+            let s = d.s_state.as_ref().expect("sState 已解析");
+            // p51d 快照: IAS 474 km/h
+            assert_eq!(s.ias, 474, "IAS 应与 mock 快照一致");
+            // vario: indicators.vario = -7.342558 (Float.parseFloat f32 拓宽域)
+            assert!(
+                (d.n_vy - (-7.342558f32 as f64)).abs() < 1e-6,
+                "vario 应与 mock 快照一致 (实际 {})",
+                d.n_vy
+            );
+            assert!(d.player_live, "totalThr=840 → 玩家存活");
+            assert_eq!(s.valid.as_deref(), Some("true"));
+        }
+        // identify 链已建立 (mock 机型 p-51d-20_china)
+        assert_eq!(
+            fm.current_target_name().as_deref(),
+            Some("p-51d-20_china")
+        );
+        // FM 加载终态: 项目 data/ 有 p51d 则 READY, 无则 MISSING (两者皆合法;
+        // 只断言离开 UNRESOLVED)
+        let deadline = std::time::Instant::now() + Duration::from_secs(5);
+        while fm.current().status == FMStatus::Loading && std::time::Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(50));
+        }
+        assert_ne!(fm.current().status, FMStatus::Unresolved);
+
+        handle.stop();
+        // _mock Drop 时杀掉 mock 进程
+    }
+}

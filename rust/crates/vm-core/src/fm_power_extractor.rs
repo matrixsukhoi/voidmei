@@ -1,0 +1,1726 @@
+//! Extracts engine parameters from parsed FM (Flight Model) data and converts
+//! them to the format required by [`crate::piston_power_model`].
+//!
+//! <p>This class bridges the gap between Blkx's raw data arrays and the
+//! structured CompressorStageParams objects needed for power calculations.
+//!
+//! <h3>WAPC Compatibility</h3>
+//! <p>This implementation follows the wt-aircraft-performance-calculator (WAPC)
+//! formulas, including:
+//! <ul>
+//!   <li>Deck power: Uses Main.Power for stage 0, 0.8× previous stage deck power for later stages</li>
+//!   <li>WEP multiplier: 4-factor formula (octane, throttle, stage, RPM)</li>
+//!   <li>WEP critical altitude: Supercharger pressure model</li>
+//!   <li>ExactAltitudes detection: Old FM format handling</li>
+//!   <li>definition_alt_power_adjuster: RPM-based power/altitude correction</li>
+//!   <li>ConstRPM and Ceiling parameter propagation</li>
+//!   <li>Fuel modifications: Soviet octane (1.8% power) and British octane (WEP boost)</li>
+//! </ul>
+//!
+//! <h3>Fuel Modification Application Order (matching WAPC)</h3>
+//! <pre>
+//! 1. soviet_octane_adder()           ← modifies raw Power values
+//! 2. definition_alt_power_adjuster() ← uses boosted values
+//! 3. deck_power_maker()              ← cascades boost to all stages
+//! 4. brrritish_octane_adder()        ← modifies WEP parameters
+//! 5. wep_mulitiplierer()             ← uses modified WEP params
+//! </pre>
+//!
+//! 对应 Java: `src/prog/util/FMPowerExtractor.java` (一比一翻译)
+
+// PORT: Java `private FMPowerExtractor() {}` (final 工具类, 私有构造器防实例化)
+// → Rust 自由函数模块无实例化概念, 天然满足
+
+use crate::atmosphere_model::{altitude_at_pressure, pressure};
+use crate::blkx::{Blkx, FuelModification, FuelType};
+use crate::piston_power_model::{
+    interpolate_power, supercharger_rpm_effect, torque_rpm_boost, CompressorStageParams,
+};
+
+/// Soviet octane power multiplier: 1.8% power increase.
+/// Applied when addHorsePowers == 50 (WAPC soviet_octane_adder convention).
+const SOVIET_OCTANE_POWER_MULT: f64 = 1.018;
+
+/// Extracts compressor stage parameters from a parsed Blkx FM file.
+///
+/// - `blkx`: parsed FM file data
+///
+/// Returns array of CompressorStageParams, or None if not a piston engine
+// PORT: Java `extractStages(Blkx)` / `extractStages(Blkx, FuelModification)` 重载 →
+// Rust 无函数重载, 双参版更名 extract_stages_with_fuel (interpolation.rs 的
+// interp1d_extrapolate 先例); Java 可 null 的对象参数 → Option<&Blkx> (§1)
+pub fn extract_stages(blkx: Option<&Blkx>) -> Option<Vec<CompressorStageParams>> {
+    extract_stages_with_fuel(blkx, None)
+}
+
+/// Extracts compressor stage parameters from a parsed Blkx FM file,
+/// applying fuel quality modifications from the Central file.
+///
+/// <p>Fuel modifications are applied at the correct point in the WAPC pipeline:
+/// Soviet octane is applied to raw power values BEFORE deck_power_maker and
+/// definition_alt_power_adjuster, ensuring the boost cascades correctly through
+/// the entire calculation chain.
+///
+/// - `blkx`:    parsed FM file data
+/// - `fuel_mod`: fuel modification data from Central file, or None
+///
+/// Returns array of CompressorStageParams, or None if not a piston engine
+pub fn extract_stages_with_fuel(
+    blkx: Option<&Blkx>,
+    fuel_mod: Option<&FuelModification>,
+) -> Option<Vec<CompressorStageParams>> {
+    // PORT: Java `blkx == null || blkx.compNumSteps <= 0 → return null`;
+    // ? 运算符承接 null 分支, i32<=0 守卫同时排除 as usize 的负值风险 (§2.2)
+    let blkx = blkx?;
+    if blkx.comp_num_steps <= 0 {
+        return None;
+    }
+    let n = blkx.comp_num_steps as usize;
+
+    // === Soviet octane: compute power multiplier ===
+    // Applied to raw Compressor power values BEFORE deck_power_maker and
+    // definition_alt_power_adjuster, matching WAPC call order:
+    //   soviet_octane_adder() → definition_alt_power_adjuster() → deck_power_maker()
+    // PORT: Java L79 spm 计算(含 Logger.info)先于任何 comp* 数组解引用, 保持此顺序
+    let spm = compute_soviet_power_multiplier(fuel_mod);
+
+    // PORT: Java 对 comp* 数组直接索引 (compNumSteps>0 时 reader 在 getload
+    // L998-1006/L1036 与 compNumSteps 同批分配, null 即 NPE 崩溃) — unwrap
+    // 对齐该 NPE 语义 (§1: null → Option; 此处 None = 原程序已崩溃的病态输入)
+    let comp_alt = blkx.comp_alt.as_ref().unwrap();
+    let comp_power = blkx.comp_power.as_ref().unwrap();
+    let comp_ceil = blkx.comp_ceil.as_ref().unwrap();
+    let comp_ceil_pwr = blkx.comp_ceil_pwr.as_ref().unwrap();
+    let comp_rpm_ratio = blkx.comp_rpm_ratio.as_ref().unwrap();
+    let comp_boost = blkx.comp_boost.as_ref().unwrap();
+
+    // Detect ExactAltitudes:
+    // 1. If explicitly defined in FM file, use that
+    // 2. Otherwise, if CompressorOmegaFactorSq is missing, set true (old format)
+    let exact_altitudes = if let Some(explicit) = blkx.explicit_exact_altitudes {
+        explicit
+    } else {
+        !blkx.has_comp_omega_factor_sq
+    };
+
+    // Determine "default RPM" — the RPM at which FM power values are defined
+    let default_rpm = determine_default_rpm(blkx);
+
+    let mut stages: Vec<CompressorStageParams> = vec![CompressorStageParams::default(); n];
+
+    // --- Pass 1: Basic parameter extraction + Soviet octane ---
+    // Soviet octane multiplier (spm) is applied to all power values read from blkx,
+    // BEFORE the deck_power_maker cascade. This matches WAPC's soviet_octane_adder()
+    // which modifies Compressor["Power_i"] and Main["Power"] before initialization.
+    let mut stage_deck_power = vec![0.0f64; n];
+
+    for i in 0..n {
+        stages[i].stage_index = i as i32;
+        stages[i].exact_altitudes = exact_altitudes;
+
+        // Critical altitude and power (with Soviet octane applied to raw power)
+        stages[i].crit_alt = comp_alt[i];
+        stages[i].crit_power = comp_power[i] * spm;
+
+        // Store originals before adjustment (also boosted, matching WAPC order:
+        // soviet_octane_adder modifies Compressor values, then
+        // definition_alt_power_adjuster stores Old_ copies)
+        stages[i].old_altitude = comp_alt[i];
+        stages[i].old_power = comp_power[i] * spm;
+        stages[i].old_power_new_rpm = comp_power[i] * spm;
+
+        // ConstRPM parameters (Soviet octane applied if ConstRPM exists)
+        // PORT: Java `blkx.compConstRpmAlt != null && i < compConstRpmAlt.length`;
+        // compConstRpmPower 与 compConstRpmAlt 同批分配 (getload L1005-1006),
+        // 前者非空后者必非空 — unwrap 对齐 NPE
+        if let Some(const_rpm_alt) = blkx.comp_const_rpm_alt.as_ref() {
+            if i < const_rpm_alt.len() {
+                stages[i].const_rpm_alt = const_rpm_alt[i];
+                stages[i].const_rpm_power =
+                    blkx.comp_const_rpm_power.as_ref().unwrap()[i] * spm;
+            }
+        }
+
+        // Ceiling parameters (Soviet octane applied to power)
+        stages[i].ceiling_alt = comp_ceil[i];
+        stages[i].ceiling_power = comp_ceil_pwr[i] * spm;
+
+        // Power curve curvature
+        stages[i].curvature = if comp_rpm_ratio[i] > 0.0 {
+            comp_rpm_ratio[i]
+        } else {
+            1.0
+        };
+
+        // RAM effect coefficient
+        stages[i].speed_manifold_mult = if blkx.speed_to_manifold_multiplier > 0.0 {
+            blkx.speed_to_manifold_multiplier
+        } else {
+            1.0
+        };
+
+        // Deck power: WAPC deck_power_maker logic
+        // Stage 0: Main.Power (with Soviet octane); Stage 1+: 0.8× previous stage DECK power
+        if i == 0 {
+            stage_deck_power[i] = (if blkx.deck_power > 0.0 {
+                blkx.deck_power
+            } else {
+                comp_power[0] * 0.8
+            }) * spm;
+        } else {
+            stage_deck_power[i] = 0.8 * stage_deck_power[i - 1];
+            let min_deck = 0.8 * comp_power[i] * spm;
+            if stage_deck_power[i] < min_deck {
+                stage_deck_power[i] = min_deck;
+            }
+        }
+        stages[i].deck_power = stage_deck_power[i];
+    }
+
+    // --- Pass 2: definition_alt_power_adjuster ---
+    // If FM power/altitude is defined for a higher RPM (WEP or default RPM) rather
+    // than military RPM, adjust to military RPM baseline
+    let needs_rpm_adjustment = needs_rpm_adjustment(blkx, default_rpm);
+
+    for i in 0..n {
+        if needs_rpm_adjustment {
+            adjust_power_and_altitude(
+                &mut stages[i],
+                blkx,
+                i,
+                default_rpm,
+                &mut stage_deck_power,
+                spm,
+            );
+            // After adjustment, update stageDeckPower and cascade to subsequent stages
+            stage_deck_power[i] = stages[i].deck_power;
+            // Recalculate deck power for subsequent stages based on adjusted values
+            for j in (i + 1)..n {
+                let mut new_deck = 0.8 * stage_deck_power[j - 1];
+                let min_deck = 0.8 * comp_power[j] * spm;
+                if new_deck < min_deck {
+                    new_deck = min_deck;
+                }
+                stage_deck_power[j] = new_deck;
+                stages[j].deck_power = new_deck;
+            }
+        }
+
+        stages[i].old_power_new_rpm = stages[i].old_power;
+        if needs_rpm_adjustment {
+            stages[i].old_power_new_rpm =
+                stages[i].old_power / torque_rpm_boost(blkx.military_rpm, default_rpm);
+        }
+    }
+
+    // Set stage0DeckAlt for all stages (used in WEP non-ExactAltitudes mode)
+    let stage0_deck_alt = stages[0].deck_alt;
+    for stage in stages.iter_mut().take(n) {
+        stage.stage0_deck_alt = stage0_deck_alt;
+    }
+
+    // --- Pass 3: WEP parameters ---
+    for i in 0..n {
+        stages[i].wep_power_mult = calculate_wep_multiplier(blkx, i);
+        stages[i].wep_crit_alt = calculate_wep_critical_altitude(blkx, &stages[i], i);
+        stages[i].wep_deck_alt = calculate_wep_deck_altitude(blkx, &stages[i], i);
+
+        // WEP ConstRPM altitude (for non-ExactAltitudes FMs like F2G-1)
+        if !exact_altitudes && stages[i].const_rpm_alt != 0.0 && stages[i].const_rpm_power > 0.0 {
+            stages[i].wep_const_rpm_alt = calculate_wep_const_rpm_altitude(blkx, &stages[i], i);
+        }
+
+        // Handle AfterburnerBoostMul explicitly set to 0 (no WEP for this stage)
+        // Only disable WEP if the field EXISTS and is explicitly 0
+        // If field is missing, WEP uses global AfterburnerBoost (handled by calculateWepMultiplier)
+        let has_boost = blkx.has_comp_boost.as_ref().is_some_and(|hb| hb[i]);
+        if has_boost && comp_boost[i] == 0.0 {
+            stages[i].wep_deck_alt = 0.0;
+            stages[i].wep_crit_alt = stages[i].crit_alt;
+            stages[i].wep_power_mult = 1.0;
+        }
+    }
+
+    // --- Pass 4: British octane (post-processing on WEP parameters) ---
+    // Applied after WEP extraction, matching WAPC order where
+    // brrritish_octane_adder modifies OctaneAfterburnerMult before wep_mulitiplierer
+    if let Some(fm) = fuel_mod {
+        apply_british_octane_bonus(&mut stages, fm, blkx);
+    }
+
+    Some(stages)
+}
+
+// ==================== Soviet Octane ====================
+
+/// Computes the Soviet octane power multiplier from fuel modification data.
+///
+/// <p>Returns 1.0 (no change) if fuel modification is null, not Soviet type,
+/// or addHorsePowers is not exactly 50.
+///
+/// - `fuel_mod`: fuel modification data, or null
+///
+/// Returns power multiplier (1.0 or 1.018)
+fn compute_soviet_power_multiplier(fuel_mod: Option<&FuelModification>) -> f64 {
+    let fuel_mod = match fuel_mod {
+        Some(f) => f,
+        None => return 1.0,
+    };
+
+    let is_soviet = fuel_mod.r#type == FuelType::SovietB95 || fuel_mod.r#type == FuelType::SovietB100;
+    if !is_soviet {
+        return 1.0;
+    }
+
+    // WAPC only applies the bonus when addHorsePowers == 50
+    if (fuel_mod.soviet_octane_hp_bonus - 50.0).abs() > 0.01 {
+        return 1.0;
+    }
+
+    // TODO(port): Logger 未译 (B 类, CLASSIFY 裁决 → tracing/log); 原调用为 INFO 级
+    // 日志, 不影响计算结果:
+    // Logger.info("FMPowerExtractor", String.format(
+    //         "Applying Soviet octane bonus: %.1f%% power increase (addHorsePowers=%.0f)",
+    //         (SOVIET_OCTANE_POWER_MULT - 1) * 100, fuelMod.sovietOctaneHpBonus));
+
+    SOVIET_OCTANE_POWER_MULT
+}
+
+// ==================== RPM Adjustment (definition_alt_power_adjuster) ====================
+
+/// Checks if the FM defines power values at a higher RPM than military RPM.
+/// If so, the power/altitude values need to be adjusted down to military RPM baseline.
+fn needs_rpm_adjustment(blkx: &Blkx, default_rpm: f64) -> bool {
+    (default_rpm - blkx.military_rpm) > 5.0
+}
+
+/// Determines the "default RPM" — the RPM at which FM file power values are defined.
+///
+/// <p>Port of WAPC wep_rpm_ratioer priority logic:
+/// <ol>
+///   <li>ShaftRPMMax: if far from military AND close to WEP RPM</li>
+///   <li>RPMNom: if far from military RPM</li>
+///   <li>GovernorMaxParam: if far from military RPM</li>
+///   <li>Fallback: military RPM (no adjustment needed)</li>
+/// </ol>
+fn determine_default_rpm(blkx: &Blkx) -> f64 {
+    // Priority 1: ShaftRPMMax close to WEP but far from military
+    if blkx.shaft_rpm_max > 0.0
+        && (blkx.shaft_rpm_max - blkx.military_rpm) > 5.0
+        && (blkx.shaft_rpm_max - blkx.wep_rpm) < 5.0
+    {
+        return blkx.shaft_rpm_max;
+    }
+    // Priority 2: RPMNom far from military
+    if blkx.rpm_nom > 0.0 && (blkx.rpm_nom - blkx.military_rpm) > 5.0 {
+        return blkx.rpm_nom;
+    }
+    // Priority 3: GovernorMaxParam far from military
+    if blkx.governor_max_param > 0.0 && (blkx.governor_max_param - blkx.military_rpm) > 5.0 {
+        return blkx.governor_max_param;
+    }
+    blkx.military_rpm
+}
+
+/// Adjusts power and critical altitude from default RPM to military RPM.
+/// Port of WAPC definition_alt_power_adjuster().
+///
+/// - `stage`:          stage parameters to adjust
+/// - `blkx`:           raw FM data
+/// - `i`:              stage index
+/// - `default_rpm`:    the RPM at which FM values are defined
+/// - `stage_deck_power`: deck power array for cascade
+/// - `_spm`:           Soviet power multiplier (applied to raw blkx power reads; unused here)
+// PORT: Java `int i` 循环索引, 仅用于 `i == 0` 判定 → usize (调用方循环变量)
+// PORT: Java 签名即携带未使用的 spm (oldPower/oldPowerNewRpm 均已在 Pass 1 预乘,
+// 比值中相消 — 见函数内 "the spm cancels in the ratio" 注释), 保真保留形参;
+// 命名 _spm 为 Rust 未用形参约定 (审查意见: 收窄原函数级 #[allow(unused_variables)])
+fn adjust_power_and_altitude(
+    stage: &mut CompressorStageParams,
+    blkx: &Blkx,
+    i: usize,
+    default_rpm: f64,
+    stage_deck_power: &mut [f64],
+    _spm: f64,
+) {
+    let military_mp = blkx.military_mp;
+    if military_mp <= 0.0 {
+        return;
+    }
+
+    let rpm_boost = torque_rpm_boost(blkx.military_rpm, default_rpm);
+    if rpm_boost <= 0.0 || (rpm_boost - 1.0).abs() < 0.001 {
+        return;
+    }
+
+    // Calculate supercharger effect to find adjusted critical altitude
+    let pressure_at_rpm0 = if blkx.comp_pressure_at_rpm0 > 0.0 {
+        blkx.comp_pressure_at_rpm0
+    } else {
+        0.3
+    };
+    // WAPC: missing → 1.0; explicit 0 → 0
+    let omega_factor_sq = if blkx.has_comp_omega_factor_sq {
+        blkx.comp_omega_factor_sq
+    } else {
+        1.0
+    };
+    let default_mil_rpm_effect = supercharger_rpm_effect(
+        blkx.military_rpm,
+        default_rpm,
+        pressure_at_rpm0,
+        omega_factor_sq,
+    );
+
+    // Adjust critical altitude: remove the extra supercharger boost from higher RPM
+    let fake_supercharger_strength = military_mp / pressure(stage.crit_alt);
+    let real_supercharger_strength = fake_supercharger_strength / default_mil_rpm_effect;
+    // PORT: Java Math.round(double)=floor(x+0.5) 返回 long 再拓宽 double (§2.3)
+    let adjusted_crit_alt =
+        java_round(altitude_at_pressure(military_mp / real_supercharger_strength)) as f64;
+
+    // Adjust deck altitude similarly
+    let fake_deck_strength = military_mp / pressure(0.0);
+    let real_deck_strength = fake_deck_strength / default_mil_rpm_effect;
+    let adjusted_deck_alt = altitude_at_pressure(military_mp / real_deck_strength);
+    stage.deck_alt = adjusted_deck_alt;
+
+    // Adjust power: interpolate on original curve at new crit alt, then divide by RPM boost
+    // Note: deckPowerRatio uses raw blkx values — the spm cancels in the ratio
+    let comp_power = blkx.comp_power.as_ref().unwrap(); // PORT: unwrap=Java NPE, 见函数头注
+    let comp_alt = blkx.comp_alt.as_ref().unwrap();
+    let deck_power_ratio = if blkx.deck_power > 0.0 && stage.old_power > 0.0 {
+        blkx.deck_power / comp_power[0]
+    } else {
+        0.8
+    };
+    let adjusted_power = interpolate_power(
+        stage.old_power,
+        stage.old_altitude,
+        stage.old_power * deck_power_ratio,
+        stage.old_altitude - comp_alt[0],
+        adjusted_crit_alt,
+        1.0,
+    ) / rpm_boost;
+
+    // Adjust ConstRPM power
+    if stage.const_rpm_power > 0.0 {
+        if stage.const_rpm_power == stage.old_power {
+            // Special case (Hornet Mk3): keep constRPM aligned with adjusted power
+            stage.const_rpm_power = adjusted_power;
+        } else {
+            stage.const_rpm_power /= rpm_boost;
+        }
+    }
+
+    // Adjust ceiling altitude
+    if stage.ceiling_alt > 0.0 {
+        let fake_ceil_strength = military_mp / pressure(stage.ceiling_alt);
+        let real_ceil_strength = fake_ceil_strength / default_mil_rpm_effect;
+        stage.ceiling_alt =
+            java_round(altitude_at_pressure(military_mp / real_ceil_strength)) as f64;
+    }
+
+    stage.crit_alt = adjusted_crit_alt;
+    stage.crit_power = adjusted_power;
+
+    // Recalculate deck power after adjustment
+    if i == 0 {
+        // Deck power is interpolated on the original curve at the adjusted deck altitude, then /rpmBoost
+        stage.deck_power = interpolate_power(
+            stage.old_power,
+            stage.old_altitude,
+            stage_deck_power[0],
+            0.0,
+            adjusted_deck_alt,
+            1.0,
+        ) / rpm_boost;
+        stage_deck_power[0] = stage.deck_power;
+    }
+}
+
+// ==================== WEP Parameter Calculations ====================
+
+/// Calculates the complete WEP power multiplier.
+///
+/// <p>Implements WAPC WEP_power_mult formula:
+/// <pre>
+/// WEP_mult = (1 + (AfterburnerBoost - 1) x OctaneAfterburnerMult)
+///          x ThrottleBoost
+///          x AfterburnerBoostMul[i]
+///          x torque_rpm_boost(military_RPM, WEP_RPM)
+/// </pre>
+fn calculate_wep_multiplier(blkx: &Blkx, stage_index: usize) -> f64 {
+    let comp_boost = blkx.comp_boost.as_ref().unwrap(); // PORT: unwrap=Java NPE, 见函数头注
+    let afterburner_boost = if blkx.aftb_coff > 0.0 {
+        blkx.aftb_coff
+    } else {
+        1.0
+    };
+    let octane_mult = if blkx.octane_afterburner_mult > 0.0 {
+        blkx.octane_afterburner_mult
+    } else {
+        1.0
+    };
+    let boost_effect = 1.0 + (afterburner_boost - 1.0) * octane_mult;
+
+    let throttle_boost = if blkx.throttle_boost > 0.0 {
+        blkx.throttle_boost
+    } else {
+        1.0
+    };
+    let stage_mult = if comp_boost[stage_index] > 0.0 {
+        comp_boost[stage_index]
+    } else {
+        1.0
+    };
+    let rpm_boost = torque_rpm_boost(blkx.military_rpm, blkx.wep_rpm);
+
+    boost_effect * throttle_boost * stage_mult * rpm_boost
+}
+
+/// Calculates the WEP critical altitude using supercharger pressure model.
+fn calculate_wep_critical_altitude(
+    blkx: &Blkx,
+    stage: &CompressorStageParams,
+    stage_index: usize,
+) -> f64 {
+    // If WEP power multiplier ≈ 1.0, WEP is effectively military — no altitude shift
+    let wep_mult = calculate_wep_multiplier(blkx, stage_index);
+    if (wep_mult - 1.0).abs() < 0.001 {
+        return stage.crit_alt;
+    }
+
+    let military_mp = blkx.military_mp;
+    let wep_mp = blkx.wep_manifold_pressure;
+
+    if military_mp <= 0.0 || wep_mp <= 0.0 {
+        return stage.crit_alt * 0.9;
+    }
+
+    // Use the adjusted (military) critical altitude for strength calculation
+    let crit_pressure = pressure(stage.crit_alt);
+    let supercharger_strength = military_mp / crit_pressure;
+
+    // WAPC: missing → 1.0; explicit 0 → 0
+    let omega_factor_sq = if blkx.has_comp_omega_factor_sq {
+        blkx.comp_omega_factor_sq
+    } else {
+        1.0
+    };
+    let rpm_effect = supercharger_rpm_effect(
+        blkx.military_rpm,
+        blkx.wep_rpm,
+        if blkx.comp_pressure_at_rpm0 > 0.0 {
+            blkx.comp_pressure_at_rpm0
+        } else {
+            0.3
+        },
+        omega_factor_sq,
+    );
+
+    let pressure_boost = match blkx.comp_afterburner_pressure_boost.as_ref() {
+        Some(v) if stage_index < v.len() && v[stage_index] > 0.0 => v[stage_index],
+        _ => 1.0,
+    };
+
+    let wep_supercharger_strength = supercharger_strength * rpm_effect * pressure_boost;
+    let wep_crit_pressure = wep_mp / wep_supercharger_strength;
+    // PORT: Java Math.round(double)=floor(x+0.5) 返回 long 再拓宽 double (§2.3)
+    java_round(altitude_at_pressure(wep_crit_pressure)) as f64
+}
+
+/// Calculates the WEP deck altitude.
+fn calculate_wep_deck_altitude(
+    blkx: &Blkx,
+    stage: &CompressorStageParams,
+    stage_index: usize,
+) -> f64 {
+    // If WEP power multiplier ≈ 1.0, WEP is effectively military — no deck shift
+    let wep_mult = calculate_wep_multiplier(blkx, stage_index);
+    if (wep_mult - 1.0).abs() < 0.001 {
+        return stage.deck_alt;
+    }
+
+    let military_mp = blkx.military_mp;
+    let wep_mp = blkx.wep_manifold_pressure;
+
+    if military_mp <= 0.0 || wep_mp <= 0.0 {
+        return 0.0;
+    }
+
+    let deck_strength = military_mp / pressure(stage.deck_alt);
+    let omega_factor_sq = if blkx.has_comp_omega_factor_sq {
+        blkx.comp_omega_factor_sq
+    } else {
+        1.0
+    };
+    let rpm_effect = supercharger_rpm_effect(
+        blkx.military_rpm,
+        blkx.wep_rpm,
+        if blkx.comp_pressure_at_rpm0 > 0.0 {
+            blkx.comp_pressure_at_rpm0
+        } else {
+            0.3
+        },
+        omega_factor_sq,
+    );
+    let pressure_boost = match blkx.comp_afterburner_pressure_boost.as_ref() {
+        Some(v) if stage_index < v.len() && v[stage_index] > 0.0 => v[stage_index],
+        _ => 1.0,
+    };
+
+    let wep_deck_strength = deck_strength * rpm_effect * pressure_boost;
+    // PORT: Java Math.round(double)=floor(x+0.5) 返回 long 再拓宽 double (§2.3)
+    java_round(altitude_at_pressure(wep_mp / wep_deck_strength)) as f64
+}
+
+/// Calculates the WEP ConstRPM altitude for non-ExactAltitudes FMs.
+fn calculate_wep_const_rpm_altitude(
+    blkx: &Blkx,
+    stage: &CompressorStageParams,
+    stage_index: usize,
+) -> f64 {
+    let military_mp = blkx.military_mp;
+    let wep_mp = blkx.wep_manifold_pressure;
+
+    if military_mp <= 0.0 || wep_mp <= 0.0 || stage.const_rpm_alt == 0.0 {
+        return 0.0;
+    }
+
+    let const_rpm_strength = military_mp / pressure(stage.const_rpm_alt);
+    let omega_factor_sq = if blkx.has_comp_omega_factor_sq {
+        blkx.comp_omega_factor_sq
+    } else {
+        1.0
+    };
+    let rpm_effect = supercharger_rpm_effect(
+        blkx.military_rpm,
+        blkx.wep_rpm,
+        if blkx.comp_pressure_at_rpm0 > 0.0 {
+            blkx.comp_pressure_at_rpm0
+        } else {
+            0.3
+        },
+        omega_factor_sq,
+    );
+    let pressure_boost = match blkx.comp_afterburner_pressure_boost.as_ref() {
+        Some(v) if stage_index < v.len() && v[stage_index] > 0.0 => v[stage_index],
+        _ => 1.0,
+    };
+
+    let wep_const_rpm_strength = const_rpm_strength * rpm_effect * pressure_boost;
+    altitude_at_pressure(wep_mp / wep_const_rpm_strength)
+}
+
+// ==================== British Octane (Post-processing) ====================
+
+/// Applies British fuel octane bonus to all compressor stages.
+///
+/// <p>Port of WAPC brrritish_octane_adder():
+/// <ul>
+///   <li>If invertEnableLogic is true: high octane is the default, so
+///       the modification represents REMOVING it — no bonus applied</li>
+///   <li>Otherwise: replaces OctaneAfterburnerMult in the WEP formula
+///       with the fuel's afterburnerMult value, and recalculates WEP
+///       critical altitude using afterburnerCompressorMult</li>
+/// </ul>
+///
+/// - `stages`:  compressor stages to modify in-place
+/// - `fuel_mod`: fuel modification containing British fuel parameters
+/// - `blkx`:    parsed FM data for recalculating WEP altitudes
+fn apply_british_octane_bonus(
+    stages: &mut [CompressorStageParams],
+    fuel_mod: &FuelModification,
+    blkx: &Blkx,
+) {
+    let is_british = fuel_mod.r#type == FuelType::British150Octane
+        || fuel_mod.r#type == FuelType::British100Spitfire;
+    if !is_british {
+        return;
+    }
+
+    // invertEnableLogic means the high-octane fuel is the DEFAULT state
+    // The "modification" represents removing it, so we don't apply any bonus
+    if fuel_mod.british_invert_logic {
+        return;
+    }
+
+    // TODO(port): Logger 未译 (B 类, CLASSIFY 裁决 → tracing/log); 原调用为 INFO 级
+    // 日志, 不影响计算结果:
+    // Logger.info("FMPowerExtractor", String.format(
+    //         "Applying British octane bonus: afterburnerMult=%.3f, compressorMult=%.3f",
+    //         fuelMod.britishAfterburnerMult, fuelMod.britishAfterburnerCompressorMult));
+
+    // Recompute WEP power multiplier with fuel's afterburnerMult replacing OctaneAfterburnerMult
+    // WAPC: Main["OctaneAfterburnerMult"] = fuel's afterburnerMult
+    let afterburner_boost = if blkx.aftb_coff > 0.0 {
+        blkx.aftb_coff
+    } else {
+        1.0
+    };
+    let throttle_boost = if blkx.throttle_boost > 0.0 {
+        blkx.throttle_boost
+    } else {
+        1.0
+    };
+    let rpm_boost = torque_rpm_boost(blkx.military_rpm, blkx.wep_rpm);
+
+    let comp_boost = blkx.comp_boost.as_ref().unwrap(); // PORT: unwrap=Java NPE, 见函数头注
+    for i in 0..stages.len() {
+        let stage_mult = if comp_boost[i] > 0.0 {
+            comp_boost[i]
+        } else {
+            1.0
+        };
+
+        // Handle stages with explicitly disabled WEP
+        let has_boost = blkx.has_comp_boost.as_ref().is_some_and(|hb| hb[i]);
+        if has_boost && comp_boost[i] == 0.0 {
+            continue;
+        }
+
+        // WAPC formula with fuel's OctaneAfterburnerMult
+        let fuel_boost_effect = 1.0 + (afterburner_boost - 1.0) * fuel_mod.british_afterburner_mult;
+        stages[i].wep_power_mult = fuel_boost_effect * throttle_boost * stage_mult * rpm_boost;
+
+        // Recalculate WEP critical altitude with fuel's compressor boost
+        // WAPC: Octane_MP = Military_MP + (WEP_MP - Military_MP) × afterburnerCompressorMult
+        if blkx.military_mp > 0.0
+            && blkx.wep_manifold_pressure > 0.0
+            && (stages[i].wep_power_mult - 1.0).abs() > 0.001
+        {
+            let octane_mp = blkx.military_mp
+                + (blkx.wep_manifold_pressure - blkx.military_mp)
+                    * fuel_mod.british_afterburner_compressor_mult;
+
+            let crit_pressure = pressure(stages[i].crit_alt);
+            let supercharger_strength = blkx.military_mp / crit_pressure;
+
+            let omega_factor_sq = if blkx.has_comp_omega_factor_sq {
+                blkx.comp_omega_factor_sq
+            } else {
+                1.0
+            };
+            let rpm_effect = supercharger_rpm_effect(
+                blkx.military_rpm,
+                blkx.wep_rpm,
+                if blkx.comp_pressure_at_rpm0 > 0.0 {
+                    blkx.comp_pressure_at_rpm0
+                } else {
+                    0.3
+                },
+                omega_factor_sq,
+            );
+
+            let base_pressure_boost = match blkx.comp_afterburner_pressure_boost.as_ref() {
+                Some(v) if i < v.len() && v[i] > 0.0 => v[i],
+                _ => 1.0,
+            };
+
+            let wep_supercharger_strength =
+                supercharger_strength * rpm_effect * base_pressure_boost;
+            let wep_crit_pressure = octane_mp / wep_supercharger_strength;
+            // PORT: Java Math.round(double)=floor(x+0.5) 返回 long 再拓宽 double (§2.3)
+            stages[i].wep_crit_alt = java_round(altitude_at_pressure(wep_crit_pressure)) as f64;
+        }
+    }
+}
+
+// ==================== Public Utility Methods ====================
+
+/// Checks if the aircraft uses piston engines.
+///
+/// - `blkx`: parsed FM file data
+///
+/// Returns true if piston engine (has compressor stages), false otherwise
+pub fn is_piston_engine(blkx: Option<&Blkx>) -> bool {
+    // PORT: Java `blkx != null && !blkx.isJet && blkx.compNumSteps > 0`
+    blkx.is_some_and(|b| !b.is_jet && b.comp_num_steps > 0)
+}
+
+/// Gets the global WEP boost factor from FM data.
+///
+/// - `blkx`: parsed FM file data
+///
+/// Returns WEP boost factor, or 1.0 if not available
+pub fn get_wep_boost_factor(blkx: Option<&Blkx>) -> f64 {
+    // PORT: Java `if (blkx == null) return 1.0;`
+    let blkx = match blkx {
+        Some(b) => b,
+        None => return 1.0,
+    };
+    if blkx.aftb_coff > 0.0 {
+        blkx.aftb_coff
+    } else {
+        1.0
+    }
+}
+
+/// Gets the RAM effect coefficient from FM data.
+///
+/// - `blkx`: parsed FM file data
+///
+/// Returns SpeedManifoldMultiplier, or 1.0 if not available
+pub fn get_speed_manifold_multiplier(blkx: Option<&Blkx>) -> f64 {
+    // PORT: Java `if (blkx == null) return 1.0;`
+    let blkx = match blkx {
+        Some(b) => b,
+        None => return 1.0,
+    };
+    if blkx.speed_to_manifold_multiplier > 0.0 {
+        blkx.speed_to_manifold_multiplier
+    } else {
+        1.0
+    }
+}
+
+// ==================== Java Math.round 复刻 (§2.3) ====================
+
+/// Java `Math.round(double)` = `floor(x + 0.5)`, 返回 long
+// PORT: Rust f64::round 是半偶舍入, 不可用; 与 format.rs / piston_power_model.rs 的
+// java_round 同源实现; 调用处 `as f64` 复刻 Java long→double 拓宽
+fn java_round(x: f64) -> i64 {
+    (x + 0.5).floor() as i64
+}
+
+// =====================================================================
+// Tests — 移植 test/TestSpitfireF24Power.java + test/TestTempestMk5Power.java
+// 的 extractor 断言 + Java 8 oracle 对拍 (PORTING.md §5.1 A 类策略)。
+//
+// 真机数据 (spitfire_f24 / yak-3 / spitfire_ix / tempest_mkv) 因 reader.rs 波次
+// 未落地 (D4: Blkx 构造解析归 reader), fixture 按真实 data/ 文件的 FM 参数手工构造,
+// 全部数值 = Java 8 (OpenJDK 1.8.0_342) 以 bin/ 编译产物 + 真实
+// data/aces/gamedata/flightmodels/ 文件实测 dump 的 %.17g 值。
+// PORT: reader 波次落地后, 本组 fixture 应切换为 blkx::reader::parse 读真文件
+// (对齐 D4 验收: TestSpitfireF24Power/TestTempestMk5Power/FMParserFuzzer 移植,
+//  当前 FMParserFuzzer 仍欠)。
+//
+// fixture 数值陷阱: Blkx 的 getdouble 族用 Float.parseFloat 赋值 double
+// (24-bit 尾数, mod.rs 波次注 2) — 真机字段须写 `1.61f32 as f64` 形式,
+// 直接写 1.61f64 会对拍失败 (synthetic 组是 Java 双精度字面量直赋, 不带 f32 拓宽)。
+// =====================================================================
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::blkx::extract_fuel_modifications;
+    use crate::piston_power_model::optimal_power_advanced;
+
+    /// Java 8 oracle 混合容差 (atmosphere_model.rs / piston_power_model.rs 同款):
+    /// 1e-12·max(|expected|,1); Math.pow 跨 libm 允许最后几位 ULP 差异
+    fn check(name: &str, actual: f64, expected: f64) {
+        let diff = (actual - expected).abs();
+        assert!(
+            diff <= 1e-12 * expected.abs().max(1.0),
+            "oracle mismatch {name}: rust={actual:?} java={expected:?}"
+        );
+    }
+
+    /// 逐字段对拍一个 stage (18 个 f64 字段 + 2 个标量字段)
+    fn assert_stage(tag: &str, a: &CompressorStageParams, e: &CompressorStageParams) {
+        check(&format!("{tag}.critAlt"), a.crit_alt, e.crit_alt);
+        check(&format!("{tag}.critPower"), a.crit_power, e.crit_power);
+        check(&format!("{tag}.deckPower"), a.deck_power, e.deck_power);
+        check(&format!("{tag}.deckAlt"), a.deck_alt, e.deck_alt);
+        check(&format!("{tag}.curvature"), a.curvature, e.curvature);
+        check(&format!("{tag}.wepCritAlt"), a.wep_crit_alt, e.wep_crit_alt);
+        check(&format!("{tag}.wepPowerMult"), a.wep_power_mult, e.wep_power_mult);
+        check(&format!("{tag}.speedManifoldMult"), a.speed_manifold_mult, e.speed_manifold_mult);
+        check(&format!("{tag}.constRpmAlt"), a.const_rpm_alt, e.const_rpm_alt);
+        check(&format!("{tag}.constRpmPower"), a.const_rpm_power, e.const_rpm_power);
+        check(&format!("{tag}.ceilingAlt"), a.ceiling_alt, e.ceiling_alt);
+        check(&format!("{tag}.ceilingPower"), a.ceiling_power, e.ceiling_power);
+        check(&format!("{tag}.oldAltitude"), a.old_altitude, e.old_altitude);
+        check(&format!("{tag}.oldPower"), a.old_power, e.old_power);
+        check(&format!("{tag}.oldPowerNewRpm"), a.old_power_new_rpm, e.old_power_new_rpm);
+        check(&format!("{tag}.wepDeckAlt"), a.wep_deck_alt, e.wep_deck_alt);
+        check(&format!("{tag}.wepConstRpmAlt"), a.wep_const_rpm_alt, e.wep_const_rpm_alt);
+        check(&format!("{tag}.stage0DeckAlt"), a.stage0_deck_alt, e.stage0_deck_alt);
+        assert_eq!(a.stage_index, e.stage_index, "{tag}.stageIndex");
+        assert_eq!(a.exact_altitudes, e.exact_altitudes, "{tag}.exactAltitudes");
+    }
+
+    /// 期望值构造助手 (Java oracle dump 的 stage 全字段)
+    // PORT: Java 保真 — 20 参逐字段对应 oracle dump, 不打包成结构体
+    #[allow(clippy::too_many_arguments)]
+    fn exp(
+        crit_alt: f64, crit_power: f64, deck_power: f64, deck_alt: f64, curvature: f64,
+        wep_crit_alt: f64, wep_power_mult: f64, speed_mm: f64,
+        const_rpm_alt: f64, const_rpm_power: f64, ceiling_alt: f64, ceiling_power: f64,
+        old_altitude: f64, old_power: f64, old_power_new_rpm: f64,
+        wep_deck_alt: f64, wep_const_rpm_alt: f64, stage0_deck_alt: f64,
+        stage_index: i32, exact_altitudes: bool,
+    ) -> CompressorStageParams {
+        CompressorStageParams {
+            crit_alt, crit_power, deck_power, deck_alt, curvature,
+            wep_crit_alt, wep_power_mult, speed_manifold_mult: speed_mm,
+            const_rpm_alt, const_rpm_power, ceiling_alt, ceiling_power,
+            old_altitude, old_power, old_power_new_rpm,
+            wep_deck_alt, wep_const_rpm_alt, stage0_deck_alt,
+            stage_index, exact_altitudes,
+        }
+    }
+
+    // ---- 真机 fixture (FM 参数取自 data/aces/gamedata/flightmodels/, f32 拓宽见模块注) ----
+
+    /// spitfire_f24.blkx (fm) — TestSpitfireF24Power 的被测机
+    // PORT: Blkx 含 Java-private 字段 (blkx 模块树内可见, mod.rs 设计), 外部
+    /// struct 字面量 + ..default() 不可用 → default() 后逐 pub 字段赋值
+    fn spitfire_f24() -> Blkx {
+        let mut b = Blkx::default();
+        b.comp_num_steps = 2;
+        b.is_jet = false;
+        b.military_rpm = 2600.0;
+        b.wep_rpm = 2750.0;
+        b.shaft_rpm_max = 0.0;
+        b.rpm_nom = 2600.0;
+        b.governor_max_param = 2600.0;
+        b.military_mp = 1.61f32 as f64;
+        b.wep_manifold_pressure = 2.22f32 as f64;
+        b.aftb_coff = 1.41f32 as f64;
+        b.throttle_boost = 1.0001f32 as f64;
+        b.octane_afterburner_mult = 1.0;
+        b.speed_to_manifold_multiplier = 0.8f32 as f64;
+        b.deck_power = 1360.0;
+        b.comp_pressure_at_rpm0 = 0.3f32 as f64;
+        b.comp_omega_factor_sq = 1.0;
+        b.has_comp_omega_factor_sq = true;
+        b.explicit_exact_altitudes = Some(true);
+        b.comp_alt = Some(vec![4100.0, 8100.0]);
+        b.comp_power = Some(vec![1510.0, 1340.0]);
+        b.comp_ceil = Some(vec![10000.0, 12000.0]);
+        b.comp_ceil_pwr = Some(vec![600.0, 830.0]);
+        b.comp_rpm_ratio = Some(vec![0.5, 0.5]);
+        b.comp_boost = Some(vec![1.01f32 as f64, 0.98f32 as f64]);
+        b.has_comp_boost = Some(vec![true, true]);
+        b.comp_const_rpm_alt = Some(vec![18034.6f32 as f64, 18034.6f32 as f64]);
+        b.comp_const_rpm_power = Some(vec![200.0, 200.0]);
+        b.comp_afterburner_pressure_boost = Some(vec![0.0, 0.0]);
+        b
+    }
+
+    /// yak-3.blkx (fm) — 苏联 B-100 油料 (spm=1.018) 路径
+    fn yak3() -> Blkx {
+        let mut b = Blkx::default();
+        b.comp_num_steps = 2;
+        b.is_jet = false;
+        b.military_rpm = 2700.0;
+        b.wep_rpm = 2700.0;
+        b.shaft_rpm_max = 2700.0;
+        b.rpm_nom = 0.0;
+        b.governor_max_param = 0.0;
+        b.military_mp = 1.447f32 as f64;
+        b.wep_manifold_pressure = 1.48f32 as f64;
+        b.aftb_coff = 1.0;
+        b.throttle_boost = 1.0;
+        b.octane_afterburner_mult = 1.0;
+        b.speed_to_manifold_multiplier = 1.0;
+        b.deck_power = 1290.0;
+        b.comp_pressure_at_rpm0 = 0.4f32 as f64;
+        b.comp_omega_factor_sq = 0.0;
+        b.has_comp_omega_factor_sq = true;
+        b.explicit_exact_altitudes = Some(true);
+        b.comp_alt = Some(vec![300.0, 2600.0]);
+        b.comp_power = Some(vec![1310.0, 1240.0]);
+        b.comp_ceil = Some(vec![5000.0, 9000.0]);
+        b.comp_ceil_pwr = Some(vec![670.0, 510.0]);
+        b.comp_rpm_ratio = Some(vec![1.0, 1.0]);
+        b.comp_boost = Some(vec![1.0, 1.0]);
+        b.has_comp_boost = Some(vec![true, true]);
+        b.comp_const_rpm_alt = Some(vec![18300.0, 18300.0]);
+        b.comp_const_rpm_power = Some(vec![1310.0, 1240.0]);
+        b.comp_afterburner_pressure_boost = Some(vec![0.0, 0.0]);
+        b
+    }
+
+    /// spitfire_ix.blkx (fm) — Merlin 66: RPMNom=3000 > military=2850,
+    /// 触发 definition_alt_power_adjuster (含 deck/ceiling 调整与级联)
+    fn spitfire_ix() -> Blkx {
+        let mut b = Blkx::default();
+        b.comp_num_steps = 2;
+        b.is_jet = false;
+        b.military_rpm = 2850.0;
+        b.wep_rpm = 3000.0;
+        b.shaft_rpm_max = 0.0;
+        b.rpm_nom = 3000.0;
+        b.governor_max_param = 2999.0;
+        b.military_mp = 1.81f32 as f64;
+        b.wep_manifold_pressure = 2.22f32 as f64;
+        b.aftb_coff = 1.28f32 as f64;
+        b.throttle_boost = 1.0001f32 as f64;
+        b.octane_afterburner_mult = 1.0;
+        b.speed_to_manifold_multiplier = 0.65f32 as f64;
+        b.deck_power = 1330.0;
+        b.comp_pressure_at_rpm0 = 0.3f32 as f64;
+        b.comp_omega_factor_sq = 1.0;
+        b.has_comp_omega_factor_sq = true;
+        b.explicit_exact_altitudes = Some(true);
+        b.comp_alt = Some(vec![3600.0, 6800.0]);
+        b.comp_power = Some(vec![1440.0, 1340.0]);
+        b.comp_ceil = Some(vec![10000.0, 9090.0]);
+        b.comp_ceil_pwr = Some(vec![500.0, 930.0]);
+        b.comp_rpm_ratio = Some(vec![0.5, 0.5]);
+        b.comp_boost = Some(vec![1.0f32 as f64, 0.97f32 as f64]);
+        b.has_comp_boost = Some(vec![true, true]);
+        b.comp_const_rpm_alt = Some(vec![18034.6f32 as f64, -2000.0]);
+        b.comp_const_rpm_power = Some(vec![200.0, 950.0]);
+        b.comp_afterburner_pressure_boost = Some(vec![0.0, 0.0]);
+        b
+    }
+
+    /// tempest_mkv.blkx (fm) — Sabre II: invertEnableLogic=true 机型 (150 辛烷为默认,
+    /// FM 本身已含 150 辛烷值), RPMMax=3701/RPMAfterburner=3701, GovernorMaxParam=3700
+    fn tempest_mkv() -> Blkx {
+        let mut b = Blkx::default();
+        b.comp_num_steps = 2;
+        b.is_jet = false;
+        // militaryRPM/wepRPM/governorMaxParam 在 Blkx.getload 中走 Double.parseDouble
+        // (非 getdouble/Float.parseFloat), 整数值无拓宽差
+        b.military_rpm = 3700.0;
+        b.wep_rpm = 3701.0;
+        b.shaft_rpm_max = 0.0;
+        b.rpm_nom = 0.0;
+        b.governor_max_param = 3700.0;
+        b.military_mp = 1.477f32 as f64; // max(ATA0..2): 0.65/1.398/1.477
+        b.wep_manifold_pressure = 1.817f32 as f64;
+        b.aftb_coff = 1.235f32 as f64;
+        b.throttle_boost = 1.001f32 as f64;
+        b.octane_afterburner_mult = 1.0; // 文件缺失 → getdouble 0 → 回退 1.0
+        b.speed_to_manifold_multiplier = 0.7f32 as f64;
+        b.deck_power = 1995.0;
+        b.comp_pressure_at_rpm0 = 0.3f32 as f64;
+        b.comp_omega_factor_sq = 0.0; // 显式 0 (文件存在该键)
+        b.has_comp_omega_factor_sq = true;
+        b.explicit_exact_altitudes = Some(true);
+        b.comp_alt = Some(vec![1447.0, 4981.0]);
+        b.comp_power = Some(vec![2065.0, 1735.0]);
+        b.comp_ceil = Some(vec![1447.1f32 as f64, 9144.0]);
+        b.comp_ceil_pwr = Some(vec![2064.97f32 as f64, 1015.0]);
+        b.comp_rpm_ratio = Some(vec![0.5, 0.5]);
+        b.comp_boost = Some(vec![1.0, 1.0]);
+        b.has_comp_boost = Some(vec![true, true]);
+        b.comp_const_rpm_alt = Some(vec![18093.2f32 as f64, 18093.2f32 as f64]);
+        b.comp_const_rpm_power = Some(vec![2001.08f32 as f64, 2001.08f32 as f64]);
+        b.comp_afterburner_pressure_boost = Some(vec![0.0, 0.0]); // 键缺失 → 0
+        b
+    }
+
+    /// 中央文件文本 (types.rs 测试同款格式)
+    const CENTRAL_SPITFIRE_F24: &str = "modifications {\n\t150_octan_fuel {\n\t\tinvertEnableLogic:b = false\n\t\teffects {\n\t\t\tafterburnerMult:r = 1.42\n\t\t\tafterburnerCompressorMult:r = 1.33\n\t\t}\n\t}\n}\n";
+    const CENTRAL_YAK3: &str = "modifications {\n\tussr_fuel_b-100 {\n\t\teffects {\n\t\t\taddHorsePowers:r = 50\n\t\t}\n\t}\n}\n";
+    /// tempest_mkv.blkx (flightmodels 根, 中央文件) — invertEnableLogic=true
+    const CENTRAL_TEMPEST_MKV: &str = "modifications {\n\t150_octan_fuel {\n\t\tinvertEnableLogic:b = true\n\t\teffects {\n\t\t\tafterburnerMult:r = 0.4167\n\t\t\tafterburnerCompressorMult:r = 0.411\n\t\t}\n\t}\n}\n";
+
+    // ---- oracle: spitfire_f24 级参数 (无油料 + 150 辛烷) ----
+
+    #[test]
+    fn java8_oracle_spitfire_f24_stages() {
+        let blkx = spitfire_f24();
+        let speed_mm = 0.8f32 as f64;
+
+        // 无油料
+        let stages = extract_stages(Some(&blkx)).unwrap();
+        assert_eq!(stages.len(), 2);
+        assert_stage("spit_nofuel[0]", &stages[0], &exp(
+            4100.0, 1510.0, 1360.0, 0.0, 0.5,
+            2204.0, 1.4365986458951632, speed_mm,
+            18034.599609375, 200.0, 10000.0, 600.0,
+            4100.0, 1510.0, 1510.0,
+            -2090.0, 0.0, 0.0,
+            0, true,
+        ));
+        assert_stage("spit_nofuel[1]", &stages[1], &exp(
+            8100.0, 1340.0, 1088.0, 0.0, 0.5,
+            6392.0, 1.3939274392789431, speed_mm,
+            18034.599609375, 200.0, 12000.0, 830.0,
+            8100.0, 1340.0, 1340.0,
+            -2090.0, 0.0, 0.0,
+            1, true,
+        ));
+
+        // 150 辛烷 (invertEnableLogic=false → 应用加成, 仅 WEP 参数变化)
+        let fuel = extract_fuel_modifications(CENTRAL_SPITFIRE_F24);
+        assert_eq!(fuel.r#type, FuelType::British150Octane);
+        let stages = extract_stages_with_fuel(Some(&blkx), Some(&fuel)).unwrap();
+        assert_stage("spit_fuel[0]", &stages[0], &exp(
+            4100.0, 1510.0, 1360.0, 0.0, 0.5,
+            1502.0, 1.6120470661360677, speed_mm,
+            18034.599609375, 200.0, 10000.0, 600.0,
+            4100.0, 1510.0, 1510.0,
+            -2090.0, 0.0, 0.0,
+            0, true,
+        ));
+        assert_stage("spit_fuel[1]", &stages[1], &exp(
+            8100.0, 1340.0, 1088.0, 0.0, 0.5,
+            5760.0, 1.5641645252254845, speed_mm,
+            18034.599609375, 200.0, 12000.0, 830.0,
+            8100.0, 1340.0, 1340.0,
+            -2090.0, 0.0, 0.0,
+            1, true,
+        ));
+    }
+
+    // ---- oracle: spitfire_f24 功率曲线 (300 km/h IAS, 15C) + TestSpitfireF24Power 断言移植 ----
+
+    #[test]
+    fn java8_oracle_spitfire_f24_power_curve() {
+        let blkx = spitfire_f24();
+        let fuel = extract_fuel_modifications(CENTRAL_SPITFIRE_F24);
+        let stages = extract_stages_with_fuel(Some(&blkx), Some(&fuel)).unwrap();
+
+        // Java 实测值 (wtapc 参考表的相同高度点)
+        let mil = [
+            (0.0, 1_347.392_094_045_017), (1000.0, 1389.8180391263297),
+            (1830.0, 1422.0049800128452), (2000.0, 1428.2754521790348),
+            (3000.0, 1463.0547845674043), (4000.0, 1494.4314160977465),
+            (4100.0, 1_497.392_094_045_017), (5000.0, 1419.5820703859804),
+            (6000.0, 1281.0453572285796), (7000.0, 1304.3300257488868),
+            (8000.0, 1325.1061795411342), (8100.0, 1327.0541081198485),
+            (9000.0, 1309.5830015928336), (10000.0, 1170.6209315511492),
+        ];
+        let wep = [
+            (0.0, 2172.0594721402026), (1000.0, 2240.4520924365825),
+            (1830.0, 2292.3389560605847), (2000.0, 2252.2040537265793),
+            (3000.0, 2020.2184732230976), (4000.0, 1917.7207364971378),
+            (4100.0, 1922.4758689193295), (5000.0, 1963.0683450432875),
+            (6000.0, 2003.7657029817524), (7000.0, 1884.3087499654412),
+            (8000.0, 1718.4280598352361), (8100.0, 1702.8754344459285),
+            (9000.0, 1565.2725233772742), (10000.0, 1408.8425620388034),
+        ];
+        for (alt, expected) in mil {
+            check(
+                &format!("spit mil@{alt:.0}"),
+                optimal_power_advanced(&stages, alt, false, 300.0, true, 15.0),
+                expected,
+            );
+        }
+        for (alt, expected) in wep {
+            check(
+                &format!("spit wep@{alt:.0}"),
+                optimal_power_advanced(&stages, alt, true, 300.0, true, 15.0),
+                expected,
+            );
+        }
+
+        // 峰值: Java oracle 精确对拍
+        let mut mil_peak = 0.0f64;
+        let mut wep_peak = 0.0f64;
+        // PORT: Java `for (int alt = 0; alt <= 10000; alt += 50)` int 步进循环
+        for alt in (0..=10000i32).step_by(50) {
+            let alt_f = alt as f64;
+            let m = optimal_power_advanced(&stages, alt_f, false, 300.0, true, 15.0);
+            let w = optimal_power_advanced(&stages, alt_f, true, 300.0, true, 15.0);
+            if m > mil_peak {
+                mil_peak = m;
+            }
+            if w > wep_peak {
+                wep_peak = w;
+            }
+        }
+        check("spit milPeak", mil_peak, 1_508.925_763_857_947);
+        check("spit wepPeak", wep_peak, 2290.5371881238357);
+
+        // TestSpitfireF24Power.testPowerCurveCalculations 验收断言移植:
+        // assertClose("Military peak power", milPeakPower, 1510.0, 50.0);
+        // assertClose("WEP peak power", wepPeakPower, 2292.5, 100.0);
+        assert!((mil_peak - 1510.0).abs() <= 50.0, "Military peak power vs wtapc 1510");
+        assert!((wep_peak - 2292.5).abs() <= 100.0, "WEP peak power vs wtapc 2292.5");
+    }
+
+    // ---- oracle: yak-3 苏联 B-100 油料 (soviet_octane_adder, spm=1.018) ----
+
+    #[test]
+    fn java8_oracle_yak3_soviet_fuel() {
+        let blkx = yak3();
+        let fuel = extract_fuel_modifications(CENTRAL_YAK3);
+        assert_eq!(fuel.r#type, FuelType::SovietB100);
+        assert_eq!(fuel.soviet_octane_hp_bonus, 50.0);
+
+        // 无油料: 无 WEP 机型 (aftbCoff=1 → wepMult=1, WEP 曲线与军用一致)
+        let stages = extract_stages(Some(&blkx)).unwrap();
+        assert_stage("yak3_nofuel[0]", &stages[0], &exp(
+            300.0, 1310.0, 1290.0, 0.0, 1.0,
+            300.0, 1.0, 1.0,
+            18300.0, 1310.0, 5000.0, 670.0,
+            300.0, 1310.0, 1310.0,
+            0.0, 0.0, 0.0,
+            0, true,
+        ));
+        assert_stage("yak3_nofuel[1]", &stages[1], &exp(
+            2600.0, 1240.0, 1032.0, 0.0, 1.0,
+            2600.0, 1.0, 1.0,
+            18300.0, 1240.0, 9000.0, 510.0,
+            2600.0, 1240.0, 1240.0,
+            0.0, 0.0, 0.0,
+            1, true,
+        ));
+
+        // B-100 (addHorsePowers=50): 全功率值 ×1.018
+        let stages = extract_stages_with_fuel(Some(&blkx), Some(&fuel)).unwrap();
+        assert_stage("yak3_fuel[0]", &stages[0], &exp(
+            300.0, 1333.58, 1313.22, 0.0, 1.0,
+            300.0, 1.0, 1.0,
+            18300.0, 1333.58, 5000.0, 682.060_000_000_000_1,
+            300.0, 1333.58, 1333.58,
+            0.0, 0.0, 0.0,
+            0, true,
+        ));
+        assert_stage("yak3_fuel[1]", &stages[1], &exp(
+            2600.0, 1262.32, 1050.576, 0.0, 1.0,
+            2600.0, 1.0, 1.0,
+            18300.0, 1262.32, 9000.0, 519.180_000_000_000_1,
+            2600.0, 1262.32, 1262.32,
+            0.0, 0.0, 0.0,
+            1, true,
+        ));
+    }
+
+    // ---- oracle: spitfire_ix RPM 调整 (definition_alt_power_adjuster) ----
+
+    #[test]
+    fn java8_oracle_spitfire_ix_rpm_adjuster() {
+        let blkx = spitfire_ix();
+        let speed_mm = 0.65f32 as f64;
+        let deck_alt_adj = -614.535_722_854_266_6;
+
+        let stages = extract_stages(Some(&blkx)).unwrap();
+        assert_stage("spix_nofuel[0]", &stages[0], &exp(
+            3035.0, 1414.9355361480882, 1297.5481529514284, deck_alt_adj, 0.5,
+            1986.0, 1.2894766986926651, speed_mm,
+            18034.599609375, 198.55, 9524.0, 500.0,
+            3600.0, 1440.0, 1429.5600000000002,
+            -1756.0, 0.0, deck_alt_adj,
+            0, true,
+        ));
+        // stage1: constRpmAlt=-2000 (power ≠ oldPower → 走 /rpmBoost 分支), deckPower 级联 minDeck
+        assert_stage("spix_nofuel[1]", &stages[1], &exp(
+            6280.0, 1_317.959_589_650_867, 1072.0, deck_alt_adj, 0.5,
+            5314.0, 1.2507924346241095, speed_mm,
+            -2000.0, 943.112_500_000_000_1, 8601.0, 930.0,
+            6800.0, 1340.0, 1_330.285,
+            -1756.0, 0.0, deck_alt_adj,
+            1, true,
+        ));
+
+        // 150 辛烷 (abm=1.75, abcm=2.14): 在已调整的 WEP 参数上后处理
+        let fuel = FuelModification {
+            british_afterburner_mult: 1.75,
+            british_afterburner_compressor_mult: 2.14,
+            british_invert_logic: false,
+            r#type: FuelType::British150Octane,
+            ..Default::default()
+        };
+        let stages = extract_stages_with_fuel(Some(&blkx), Some(&fuel)).unwrap();
+        assert_stage("spix_fuel[0]", &stages[0], &exp(
+            3035.0, 1414.9355361480882, 1297.5481529514284, deck_alt_adj, 0.5,
+            419.0, 1.501_031_452_684_01, speed_mm,
+            18034.599609375, 198.55, 9524.0, 500.0,
+            3600.0, 1440.0, 1429.5600000000002,
+            -1756.0, 0.0, deck_alt_adj,
+            0, true,
+        ));
+        assert_stage("spix_fuel[1]", &stages[1], &exp(
+            6280.0, 1_317.959_589_650_867, 1072.0, deck_alt_adj, 0.5,
+            3869.0, 1.456_000_552_048_344, speed_mm,
+            -2000.0, 943.112_500_000_000_1, 8601.0, 930.0,
+            6800.0, 1340.0, 1_330.285,
+            -1756.0, 0.0, deck_alt_adj,
+            1, true,
+        ));
+    }
+
+    // ---- oracle: tempest_mkv (invertEnableLogic=true 机型, 无 RPM 调整路径) ----
+
+    #[test]
+    fn java8_oracle_tempest_mkv_stages() {
+        let blkx = tempest_mkv();
+        let speed_mm = 0.7f32 as f64;
+
+        let stages = extract_stages(Some(&blkx)).unwrap();
+        assert_eq!(stages.len(), 2);
+        assert_stage("temp_nofuel[0]", &stages[0], &exp(
+            1447.0, 2065.0, 1995.0, 0.0, 0.5,
+            -276.0, 1.2362353427420838, speed_mm,
+            18_093.199_218_75, 2001.0799560546875, 1447.0999755859375, 2_064.969_970_703_125,
+            1447.0, 2065.0, 2065.0,
+            -1781.0, 0.0, 0.0,
+            0, true,
+        ));
+        assert_stage("temp_nofuel[1]", &stages[1], &exp(
+            4981.0, 1735.0, 1596.0, 0.0, 0.5,
+            3400.0, 1.2362353427420838, speed_mm,
+            18_093.199_218_75, 2001.0799560546875, 9144.0, 1015.0,
+            4981.0, 1735.0, 1735.0,
+            -1781.0, 0.0, 0.0,
+            1, true,
+        ));
+
+        // 150 辛烷 invertEnableLogic=true → 不加成 (与无油料完全一致)
+        let fuel = extract_fuel_modifications(CENTRAL_TEMPEST_MKV);
+        assert_eq!(fuel.r#type, FuelType::British150Octane);
+        assert!(fuel.british_invert_logic);
+        let stages = extract_stages_with_fuel(Some(&blkx), Some(&fuel)).unwrap();
+        assert_stage("temp_fuel[0]", &stages[0], &exp(
+            1447.0, 2065.0, 1995.0, 0.0, 0.5,
+            -276.0, 1.2362353427420838, speed_mm,
+            18_093.199_218_75, 2001.0799560546875, 1447.0999755859375, 2_064.969_970_703_125,
+            1447.0, 2065.0, 2065.0,
+            -1781.0, 0.0, 0.0,
+            0, true,
+        ));
+        assert_stage("temp_fuel[1]", &stages[1], &exp(
+            4981.0, 1735.0, 1596.0, 0.0, 0.5,
+            3400.0, 1.2362353427420838, speed_mm,
+            18_093.199_218_75, 2001.0799560546875, 9144.0, 1015.0,
+            4981.0, 1735.0, 1735.0,
+            -1781.0, 0.0, 0.0,
+            1, true,
+        ));
+    }
+
+    // ---- oracle: tempest_mkv 功率曲线 (300 km/h IAS, 15C) + TestTempestMk5Power 断言移植 ----
+
+    #[test]
+    fn java8_oracle_tempest_mkv_power_curve() {
+        let blkx = tempest_mkv();
+        let stages = extract_stages(Some(&blkx)).unwrap();
+
+        // Java 实测值 (invert=true 机型, 油料不改变结果, 与 Java 测试同用无油料级)
+        let mil = [
+            (0.0, 1982.1485424919429), (1000.0, 2_031.571_975_675_931),
+            (1730.0, 2_064.712_288_887_363), (2000.0, 2001.0719318704785),
+            (3000.0, 1773.3185985020484), (4000.0, 1704.1738213842752),
+            (5000.0, 1726.6303467845094), (6000.0, 1615.3744254417463),
+            (7000.0, 1432.2817673942739), (8000.0, 1_268.914_132_656_07),
+            (9000.0, 1123.6030029761318), (10000.0, 994.780_295_170_574_6),
+        ];
+        let wep = [
+            (0.0, 2441.076377387389), (1000.0, 2222.94701594032),
+            (1730.0, 2076.682887909097), (2000.0, 2041.7125330963042),
+            (3000.0, 2075.909061190071), (4000.0, 2046.7054138147478),
+            (5000.0, 1845.3496781561112), (6000.0, 1650.074489978947),
+            (7000.0, 1466.0583319832253), (8000.0, 1301.866688222294),
+            (9000.0, 1155.8226246160557), (10000.0, 1026.3501487353587),
+        ];
+        for (alt, expected) in mil {
+            check(
+                &format!("temp mil@{alt:.0}"),
+                optimal_power_advanced(&stages, alt, false, 300.0, true, 15.0),
+                expected,
+            );
+        }
+        for (alt, expected) in wep {
+            check(
+                &format!("temp wep@{alt:.0}"),
+                optimal_power_advanced(&stages, alt, true, 300.0, true, 15.0),
+                expected,
+            );
+        }
+
+        // 50 m 步进峰值: Java oracle 精确对拍 (1730 非步进点, 峰在 1700)
+        let mut mil_peak = 0.0f64;
+        let mut wep_peak = 0.0f64;
+        // PORT: Java `for (int alt = 0; alt <= 10000; alt += 50)` int 步进循环
+        for alt in (0..=10000i32).step_by(50) {
+            let alt_f = alt as f64;
+            let m = optimal_power_advanced(&stages, alt_f, false, 300.0, true, 15.0);
+            let w = optimal_power_advanced(&stages, alt_f, true, 300.0, true, 15.0);
+            if m > mil_peak {
+                mil_peak = m;
+            }
+            if w > wep_peak {
+                wep_peak = w;
+            }
+        }
+        check("temp milPeak", mil_peak, 2_063.397_170_779_843);
+        check("temp wepPeak", wep_peak, 2_441.076_377_387_389);
+    }
+
+    // ---- oracle: synthetic 分支 (Java 直接设 public 字段构造, 双精度字面量, 无 f32 拓宽) ----
+
+    #[test]
+    fn java8_oracle_synthetic_branches() {
+        // syn1: AfterburnerBoostMul1=0 显式禁 WEP + deckPower=0 走 0.8*compPower[0]
+        let mut syn1 = Blkx::default();
+        syn1.comp_num_steps = 2;
+        syn1.comp_alt = Some(vec![4100.0, 8100.0]);
+        syn1.comp_power = Some(vec![1510.0, 1340.0]);
+        syn1.comp_ceil = Some(vec![10000.0, 12000.0]);
+        syn1.comp_ceil_pwr = Some(vec![600.0, 830.0]);
+        syn1.comp_rpm_ratio = Some(vec![0.5, 0.5]);
+        syn1.comp_boost = Some(vec![0.9, 0.0]);
+        syn1.has_comp_boost = Some(vec![true, true]);
+        syn1.military_rpm = 2600.0;
+        syn1.wep_rpm = 2750.0;
+        syn1.military_mp = 1.61;
+        syn1.wep_manifold_pressure = 2.22;
+        syn1.aftb_coff = 1.41;
+        syn1.throttle_boost = 1.0;
+        syn1.octane_afterburner_mult = 1.0;
+        syn1.speed_to_manifold_multiplier = 0.8;
+        syn1.deck_power = 0.0;
+        syn1.comp_pressure_at_rpm0 = 0.3;
+        syn1.comp_omega_factor_sq = 1.0;
+        syn1.has_comp_omega_factor_sq = true;
+        syn1.explicit_exact_altitudes = Some(true);
+        let stages = extract_stages(Some(&syn1)).unwrap();
+        assert_stage("syn1[0]", &stages[0], &exp(
+            4100.0, 1510.0, 1208.0, 0.0, 0.5,
+            2204.0, 1.2800094274420408, 0.8,
+            0.0, 0.0, 10000.0, 600.0,
+            4100.0, 1510.0, 1510.0,
+            -2090.0, 0.0, 0.0,
+            0, true,
+        ));
+        // stage1: WEP 禁用 (wepMult=1, wepCritAlt=critAlt, wepDeckAlt=0)
+        assert_stage("syn1[1]", &stages[1], &exp(
+            8100.0, 1340.0, 1072.0, 0.0, 0.5,
+            8100.0, 1.0, 0.8,
+            0.0, 0.0, 12000.0, 830.0,
+            8100.0, 1340.0, 1340.0,
+            0.0, 0.0, 0.0,
+            1, true,
+        ));
+
+        // syn2: 旧格式 (无 OmegaFactorSq) + ShaftRPMMax 优先 + ConstRPM 调整
+        let mut syn2 = Blkx::default();
+        syn2.comp_num_steps = 1;
+        syn2.comp_alt = Some(vec![5000.0]);
+        syn2.comp_power = Some(vec![1500.0]);
+        syn2.comp_ceil = Some(vec![10000.0]);
+        syn2.comp_ceil_pwr = Some(vec![700.0]);
+        syn2.comp_rpm_ratio = Some(vec![1.2]);
+        syn2.comp_boost = Some(vec![1.05]);
+        syn2.military_rpm = 2400.0;
+        syn2.wep_rpm = 2700.0;
+        syn2.shaft_rpm_max = 2695.0;
+        syn2.rpm_nom = 2600.0;
+        syn2.governor_max_param = 2500.0;
+        syn2.military_mp = 1.42;
+        syn2.wep_manifold_pressure = 1.65;
+        syn2.aftb_coff = 1.15;
+        syn2.throttle_boost = 1.0;
+        syn2.octane_afterburner_mult = 1.0;
+        syn2.speed_to_manifold_multiplier = 0.9;
+        syn2.deck_power = 1400.0;
+        syn2.comp_pressure_at_rpm0 = 0.2;
+        syn2.comp_omega_factor_sq = 0.0;
+        syn2.has_comp_omega_factor_sq = false;
+        syn2.explicit_exact_altitudes = None; // → !hasCompOmegaFactorSq = true
+        syn2.comp_const_rpm_alt = Some(vec![1000.0]);
+        syn2.comp_const_rpm_power = Some(vec![1450.0]);
+        let stages = extract_stages(Some(&syn2)).unwrap();
+        assert_stage("syn2[0]", &stages[0], &exp(
+            3571.0, 1427.2405762633953, 1_310.624_962_826_641, -1610.7846991254821, 1.2,
+            3884.0, 1.250_379_971_590_909, 0.9,
+            1000.0, 1401.6821765265818, 8753.0, 700.0,
+            5000.0, 1500.0, 1450.0160446826708,
+            -1258.0, 0.0, -1610.7846991254821,
+            0, true,
+        ));
+
+        // syn3: militaryMP=0 → wepCritAlt 走 critAlt*0.9 前需先过 mult≈1 早退 (此处 mult=1)
+        let mut syn3_base = Blkx::default();
+        syn3_base.comp_num_steps = 1;
+        syn3_base.comp_alt = Some(vec![3000.0]);
+        syn3_base.comp_power = Some(vec![1200.0]);
+        syn3_base.comp_ceil = Some(vec![8000.0]);
+        syn3_base.comp_ceil_pwr = Some(vec![500.0]);
+        syn3_base.comp_rpm_ratio = Some(vec![0.0]);
+        syn3_base.comp_boost = Some(vec![1.0]);
+        syn3_base.military_rpm = 2600.0;
+        syn3_base.wep_rpm = 2600.0;
+        syn3_base.military_mp = 0.0;
+        syn3_base.wep_manifold_pressure = 0.0;
+        syn3_base.aftb_coff = 1.0;
+        syn3_base.throttle_boost = 1.0;
+        syn3_base.octane_afterburner_mult = 1.0;
+        syn3_base.speed_to_manifold_multiplier = 0.95;
+        syn3_base.deck_power = 1180.0;
+        syn3_base.comp_pressure_at_rpm0 = 0.25;
+        syn3_base.comp_omega_factor_sq = 0.5;
+        syn3_base.has_comp_omega_factor_sq = true;
+        syn3_base.explicit_exact_altitudes = None;
+        let syn3_exp = exp(
+            3000.0, 1200.0, 1180.0, 0.0, 1.0,
+            3000.0, 1.0, 0.95,
+            0.0, 0.0, 8000.0, 500.0,
+            3000.0, 1200.0, 1200.0,
+            0.0, 0.0, 0.0,
+            0, false,
+        );
+        let stages = extract_stages(Some(&syn3_base)).unwrap();
+        assert_stage("syn3[0]", &stages[0], &syn3_exp);
+
+        // syn3b: militaryMP>0 但 mult≈1 → wepCritAlt=critAlt / wepDeckAlt=deckAlt
+        let mut syn3b = syn3_base.clone();
+        syn3b.military_mp = 1.35;
+        syn3b.wep_manifold_pressure = 1.5;
+        let stages = extract_stages(Some(&syn3b)).unwrap();
+        assert_stage("syn3b[0]", &stages[0], &syn3_exp);
+
+        // syn4: 苏联油 — bonus≠50 → spm=1.0 (与 syn3b 同); bonus=50 → ×1.018
+        let sov30 = FuelModification {
+            soviet_octane_hp_bonus: 30.0,
+            r#type: FuelType::SovietB95,
+            ..Default::default()
+        };
+        let stages = extract_stages_with_fuel(Some(&syn3b), Some(&sov30)).unwrap();
+        assert_stage("syn4_sov30[0]", &stages[0], &syn3_exp);
+        let sov50 = FuelModification {
+            soviet_octane_hp_bonus: 50.0,
+            r#type: FuelType::SovietB100,
+            ..Default::default()
+        };
+        let stages = extract_stages_with_fuel(Some(&syn3b), Some(&sov50)).unwrap();
+        assert_stage("syn4_sov50[0]", &stages[0], &exp(
+            3000.0, 1_221.6, 1_201.24, 0.0, 1.0,
+            3000.0, 1.0, 0.95,
+            0.0, 0.0, 8000.0, 509.0,
+            3000.0, 1_221.6, 1_221.6,
+            0.0, 0.0, 0.0,
+            0, false,
+        ));
+
+        // syn5: 英国油 invertEnableLogic=true → 不加成 (与 syn3b 相同)
+        let inv = FuelModification {
+            british_afterburner_mult: 1.3,
+            british_afterburner_compressor_mult: 1.2,
+            british_invert_logic: true,
+            r#type: FuelType::British100Spitfire,
+            ..Default::default()
+        };
+        let stages = extract_stages_with_fuel(Some(&syn3b), Some(&inv)).unwrap();
+        assert_stage("syn5_inv[0]", &stages[0], &syn3_exp);
+
+        // syn6: 显式 ExactAltitudes=false + ConstRPM → wepConstRpmAlt 分支 +
+        //       AfterburnerPressureBoost>0 + compConstRpm 数组短于级数 (i<len 守卫)
+        let mut syn6 = Blkx::default();
+        syn6.comp_num_steps = 2;
+        syn6.comp_alt = Some(vec![5000.0, 8000.0]);
+        syn6.comp_power = Some(vec![1500.0, 1300.0]);
+        syn6.comp_ceil = Some(vec![10000.0, 11000.0]);
+        syn6.comp_ceil_pwr = Some(vec![700.0, 600.0]);
+        syn6.comp_rpm_ratio = Some(vec![1.0, 1.0]);
+        syn6.comp_boost = Some(vec![1.05, 1.02]);
+        syn6.has_comp_boost = Some(vec![false, false]);
+        syn6.military_rpm = 2400.0;
+        syn6.wep_rpm = 2600.0;
+        syn6.military_mp = 1.42;
+        syn6.wep_manifold_pressure = 1.65;
+        syn6.aftb_coff = 1.15;
+        syn6.throttle_boost = 1.0;
+        syn6.octane_afterburner_mult = 1.0;
+        syn6.speed_to_manifold_multiplier = 0.9;
+        syn6.deck_power = 1400.0;
+        syn6.comp_pressure_at_rpm0 = 0.2;
+        syn6.comp_omega_factor_sq = 0.1;
+        syn6.has_comp_omega_factor_sq = true;
+        syn6.explicit_exact_altitudes = Some(false);
+        syn6.comp_const_rpm_alt = Some(vec![1200.0]);
+        syn6.comp_const_rpm_power = Some(vec![1450.0]);
+        syn6.comp_afterburner_pressure_boost = Some(vec![1.08, 1.05]);
+        let stages = extract_stages(Some(&syn6)).unwrap();
+        assert_stage("syn6[0]", &stages[0], &exp(
+            5000.0, 1500.0, 1400.0, 0.0, 1.0,
+            4984.0, 1.2281840277777778, 0.9,
+            1200.0, 1450.0, 10000.0, 700.0,
+            5000.0, 1500.0, 1500.0,
+            -18.0, 1_182.229_918_848_382, 0.0,
+            0, false,
+        ));
+        assert_stage("syn6[1]", &stages[1], &exp(
+            8000.0, 1300.0, 1120.0, 0.0, 1.0,
+            7790.0, 1.1930930555555554, 0.9,
+            0.0, 0.0, 11000.0, 600.0,
+            8000.0, 1300.0, 1300.0,
+            -257.0, 0.0, 0.0,
+            1, false,
+        ));
+    }
+
+    // ---- oracle: null / 守卫边界 ----
+
+    #[test]
+    fn java8_oracle_null_and_guard_boundaries() {
+        // Java: null isPiston=false / wepBoost=1.0 / speedMM=1.0 / stages=null
+        assert!(!is_piston_engine(None));
+        assert_eq!(get_wep_boost_factor(None), 1.0);
+        assert_eq!(get_speed_manifold_multiplier(None), 1.0);
+        assert!(extract_stages(None).is_none());
+        assert!(extract_stages_with_fuel(None, None).is_none());
+
+        // compNumSteps<=0 → null
+        let zero_steps = Blkx::default(); // comp_num_steps 默认 0
+        assert!(!is_piston_engine(Some(&zero_steps)));
+        assert!(extract_stages(Some(&zero_steps)).is_none());
+
+        // isJet → false
+        let mut jet = Blkx::default();
+        jet.comp_num_steps = 1;
+        jet.is_jet = true;
+        assert!(!is_piston_engine(Some(&jet)));
+
+        // 有数据时工具函数直读 (Java spitfire 实测: wepBoost=1.41(f32) speedMM=0.8(f32))
+        let blkx = spitfire_f24();
+        assert!(is_piston_engine(Some(&blkx)));
+        check("spit wepBoost", get_wep_boost_factor(Some(&blkx)), 1.409_999_966_621_399);
+        check("spit speedMM", get_speed_manifold_multiplier(Some(&blkx)), 0.800_000_011_920_929);
+    }
+
+    // ---- TestSpitfireF24Power.testParameterExtraction 断言移植 (fixture 自检) ----
+
+    #[test]
+    fn java_test_port_parameter_extraction() {
+        let blkx = spitfire_f24();
+        // assertClose(name, actual, expected, tolerance) — Java 断言逐条
+        assert_eq!(blkx.comp_num_steps as f64, 2.0, "compressor NumSteps");
+        let comp_alt = blkx.comp_alt.as_ref().unwrap();
+        let comp_power = blkx.comp_power.as_ref().unwrap();
+        assert!((comp_alt[0] - 4100.0).abs() <= 0.0, "Stage 0 altitude");
+        assert!((comp_alt[1] - 8100.0).abs() <= 0.0, "Stage 1 altitude");
+        assert!((comp_power[0] - 1510.0).abs() <= 0.0, "Stage 0 power");
+        assert!((comp_power[1] - 1340.0).abs() <= 0.0, "Stage 1 power");
+        assert!((blkx.aftb_coff - 1.41).abs() <= 0.01, "AfterburnerBoost");
+        assert!(
+            (blkx.wep_manifold_pressure - 2.22).abs() <= 0.01,
+            "AfterburnerManifoldPressure"
+        );
+        assert!(
+            (blkx.speed_to_manifold_multiplier - 0.8).abs() <= 0.01,
+            "SpeedManifoldMultiplier"
+        );
+
+        // assertNotNull + has 2 stages
+        let stages = extract_stages(Some(&blkx));
+        assert!(stages.is_some(), "extracted stages without fuel");
+        let stages = stages.unwrap();
+        assert_eq!(stages.len(), 2, "has 2 stages");
+    }
+
+    // ---- TestSpitfireF24Power.testInvertEnableLogicBehavior 断言移植 ----
+
+    #[test]
+    fn java_test_port_invert_enable_logic_behavior() {
+        let blkx = spitfire_f24();
+        let fuel = extract_fuel_modifications(CENTRAL_SPITFIRE_F24);
+        // fuelMod != null 由类型系统保证; Java 的 `fuelMod == null` SKIP 分支不移植
+
+        // Since invertEnableLogic is FALSE for Spitfire F24:
+        // - The modification represents ADDING 150 octane fuel
+        // - WEP parameters SHOULD be boosted when fuel is applied
+        let stages_no_fuel = extract_stages(Some(&blkx)).unwrap();
+        let stages_with_fuel = extract_stages_with_fuel(Some(&blkx), Some(&fuel)).unwrap();
+
+        // With invertEnableLogic=false, fuel mod SHOULD change WEP params
+        let mut wep_changed = false;
+        for i in 0..stages_no_fuel.len() {
+            let no_fuel_mult = stages_no_fuel[i].wep_power_mult;
+            let with_fuel_mult = stages_with_fuel[i].wep_power_mult;
+            let no_fuel_wep_alt = stages_no_fuel[i].wep_crit_alt;
+            let with_fuel_wep_alt = stages_with_fuel[i].wep_crit_alt;
+
+            if (no_fuel_mult - with_fuel_mult).abs() > 0.001
+                || (no_fuel_wep_alt - with_fuel_wep_alt).abs() > 1.0
+            {
+                wep_changed = true;
+            }
+        }
+        assert!(
+            wep_changed,
+            "WEP parameters change with fuel (invertEnableLogic=false)"
+        );
+    }
+
+    // ---- TestTempestMk5Power 断言移植 (fixture 自检, wtapc 参考值) ----
+
+    /// TestTempestMk5Power.testInvertEnableLogicDetection + testFuelModificationBehavior +
+    /// testParameterExtraction 断言逐条移植
+    #[test]
+    fn java_test_port_tempest_invert_enable_logic() {
+        let blkx = tempest_mkv();
+        let fuel = extract_fuel_modifications(CENTRAL_TEMPEST_MKV);
+
+        // fuelMod != null 由类型系统保证; Java 的 SKIP 分支不移植
+
+        // Tempest Mk V has invertEnableLogic:b = true (150 octane is default)
+        assert_eq!(fuel.r#type, FuelType::British150Octane, "detected British 150 octane fuel");
+        assert!(fuel.british_invert_logic, "invertEnableLogic is true (150 octane is default)");
+
+        // With invertEnableLogic=true, fuel mod should NOT change WEP params
+        let stages_no_fuel = extract_stages(Some(&blkx)).unwrap();
+        let stages_with_fuel = extract_stages_with_fuel(Some(&blkx), Some(&fuel)).unwrap();
+        let mut wep_unchanged = true;
+        for i in 0..stages_no_fuel.len() {
+            let no_fuel_mult = stages_no_fuel[i].wep_power_mult;
+            let with_fuel_mult = stages_with_fuel[i].wep_power_mult;
+            let no_fuel_wep_alt = stages_no_fuel[i].wep_crit_alt;
+            let with_fuel_wep_alt = stages_with_fuel[i].wep_crit_alt;
+
+            if (no_fuel_mult - with_fuel_mult).abs() > 0.001
+                || (no_fuel_wep_alt - with_fuel_wep_alt).abs() > 1.0
+            {
+                wep_unchanged = false;
+            }
+        }
+        assert!(
+            wep_unchanged,
+            "WEP parameters unchanged (invertEnableLogic=true means no bonus)"
+        );
+
+        // assertClose(name, actual, expected, tolerance) — Java 断言逐条
+        assert_eq!(blkx.comp_num_steps as f64, 2.0, "compressor NumSteps");
+        let comp_alt = blkx.comp_alt.as_ref().unwrap();
+        // 期望值须跟随游戏 FM 数据版本更新 (WT 2.57.1.103 中 Altitude0 已从 1730 → 1447)
+        assert!((comp_alt[0] - 1447.0).abs() <= 50.0, "Stage 0 altitude");
+        assert!((comp_alt[1] - 5000.0).abs() <= 200.0, "Stage 1 altitude");
+        assert_eq!(stages_no_fuel.len(), 2, "has 2 stages");
+    }
+
+    /// TestTempestMk5Power.testPowerCurveMilitary + testPowerCurveWEP 断言逐条移植
+    /// (wtapc 参考表, 300 km/h IAS, 15C)
+    #[test]
+    fn java_test_port_tempest_power_curve() {
+        let blkx = tempest_mkv();
+        let stages = extract_stages(Some(&blkx)).unwrap();
+
+        let wtapc_mil = [
+            (0.0, 1982.4), (1000.0, 2031.5), (1730.0, 2064.7),
+            (2000.0, 2001.8), (3000.0, 1773.7), (4000.0, 1704.3),
+            (5000.0, 1726.7), (6000.0, 1615.6), (7000.0, 1432.2),
+            (8000.0, 1269.0), (9000.0, 1124.1), (10000.0, 994.2),
+        ];
+        let wtapc_wep = [
+            (0.0, 2439.9), (1000.0, 2223.0), (2000.0, 2041.6), (3000.0, 2075.9),
+            (4000.0, 2045.9), (5000.0, 1844.6), (6000.0, 1650.3), (7000.0, 1466.0),
+            (8000.0, 1302.0), (9000.0, 1156.3), (10000.0, 1025.8),
+        ];
+
+        let mut mil_max_err = 0.0f64;
+        for (alt, expected) in wtapc_mil {
+            let actual = optimal_power_advanced(&stages, alt, false, 300.0, true, 15.0);
+            mil_max_err = mil_max_err.max((actual - expected).abs());
+        }
+        assert!(mil_max_err < 5.0, "Military max error < 5 hp (was {mil_max_err})");
+
+        let mut wep_max_err = 0.0f64;
+        for (alt, expected) in wtapc_wep {
+            let actual = optimal_power_advanced(&stages, alt, true, 300.0, true, 15.0);
+            wep_max_err = wep_max_err.max((actual - expected).abs());
+        }
+        assert!(wep_max_err < 10.0, "WEP max error < 10 hp (was {wep_max_err})");
+
+        // 峰值: Java `for (int alt = 0; alt <= 10000; alt += 50)` 同步进步进
+        let mut wep_peak = 0.0f64;
+        let mut wep_peak_alt = 0.0f64;
+        for alt in (0..=10000i32).step_by(50) {
+            let w = optimal_power_advanced(&stages, alt as f64, true, 300.0, true, 15.0);
+            if w > wep_peak {
+                wep_peak = w;
+                wep_peak_alt = alt as f64;
+            }
+        }
+        assert!((wep_peak - 2439.9).abs() <= 10.0, "WEP peak power vs wtapc 2439.9");
+        assert!((wep_peak_alt - 0.0).abs() <= 100.0, "WEP peak altitude vs wtapc 0");
+    }
+}

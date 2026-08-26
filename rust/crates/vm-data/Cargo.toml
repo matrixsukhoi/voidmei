@@ -1,0 +1,9 @@
+[package]
+name = "vm-data"
+version.workspace = true
+edition.workspace = true
+description = "VoidMei 数据层: 8111 轮询/JSON 提取/派生量 (Java Service 数据链)"
+
+[dependencies]
+vm-core = { workspace = true }
+serde_json = { workspace = true }

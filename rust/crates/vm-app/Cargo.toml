@@ -1,0 +1,14 @@
+[package]
+name = "vm-app"
+version.workspace = true
+edition.workspace = true
+description = "VoidMei 应用组装 bin (Controller/生命周期/MainForm 入口)"
+
+[[bin]]
+name = "voidmei"
+path = "src/main.rs"
+
+[dependencies]
+vm-core = { workspace = true }
+vm-data = { workspace = true }
+vm-overlay = { workspace = true }

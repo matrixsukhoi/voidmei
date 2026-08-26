@@ -169,7 +169,8 @@ Java 同款算法同样如此——对拍动态帧时需两边同等预热。
 5. numHeight 无法公式化 (Java FontDesignMetrics 取整策略特殊), 依赖 java meta 校准闭环
 6. flightInfoEdge 玻璃边框 (WebLaF shadeWidth=10) 未复刻 (默认关闭的配置, 优先级低)
 7. live 模式窗口尺寸固定 16 行 (visible-when 变化不重建窗口, 空行透明无碍)
-8. 拖拽已人工验收 (2026-08-26 快速拖拽 SetCapture 修复后确认); 预览灰底/多显示器位置语义待验收
+8. 人工验收 (2026-08-26 全部通过): 拖拽 (含快速拖拽 SetCapture 修复)、预览灰底、
+   背景拖拽、箭头光标; 多显示器位置语义未覆盖
 
 ## 10. 正式迁移路线图 (POC 通过后)
 

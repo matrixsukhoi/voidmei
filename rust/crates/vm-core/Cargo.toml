@@ -1,0 +1,16 @@
+[package]
+name = "vm-core"
+version.workspace = true
+edition.workspace = true
+description = "VoidMei 纯逻辑层: util/parser/物理计算 (Java A 类一比一翻译目标)"
+
+[dependencies]
+serde_json = { workspace = true }
+indexmap = { workspace = true }
+# Logger 时间戳: SimpleDateFormat("HH:mm:ss.SSS") 本地时区语义 (P3 批四)
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+# VoiceResourceManager.installPack: java.util.zip.ZipInputStream → zip crate (P4 批七);
+# 仅需读 (deflate 解压经 flate2 纯 Rust 后端), 关默认特性剔除 bzip2/lzma/aes 等
+zip = { version = "8", default-features = false, features = ["deflate-flate2"] }
+# zip 的 deflate-flate2 不带后端选择, 显式启用 miniz_oxide 纯 Rust 后端 (特性合一)
+flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
