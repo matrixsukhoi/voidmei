@@ -54,7 +54,10 @@ use vm_core::{exception_helper, format, logger, G};
 
 use crate::data::derive::Deriver;
 use crate::data::json::{F_INVALID, IndicatorsRaw, StateRaw};
-use crate::service_fields::{ServiceData, ENGINE_TYPE_JET, ENGINE_TYPE_UNKNOWN, NASTRING};
+use crate::service_fields::{
+    ServiceData, ENGINE_TYPE_JET, ENGINE_TYPE_PROP, ENGINE_TYPE_TURBOPROP, ENGINE_TYPE_UNKNOWN,
+    NASTRING,
+};
 
 /// 读锁获取: **中毒穿透** (`into_inner`)——对齐 Java "异常后对象处于不一致状态
 /// 继续用" 的宽松语义 (§6 契约: panic 被顶层 catch_unwind 吞掉后线程继续轮询,
@@ -704,11 +707,10 @@ impl Service {
                     // 检测到加油，重置数据
                     {
                         let d = read_data(&self.data);
-                        // Java: Math.abs(speedv) < 10 —— speedv 状态主在 Deriver
-                        // (FlightValues 未外泄), 本波次 d.speedv 恒 0 使首条件恒真;
-                        // totalFuel 写者在 updateFuel (TODO 见 calculate) 同为 0,
-                        // 分支死——结构保真保留, 待计算方法区波次激活
-                        let speedv = d.speedv;
+                        // Java: Math.abs(speedv) < 10 — speedv 状态主在 Deriver
+                        // (updateEngineState 同源的 speedv() 外泄面; ServiceData
+                        // 的 speedv 字段保持死存储, 不构成第二真相)
+                        let speedv = self.deriver.speedv();
                         let total_fuel = d.total_fuel;
                         let total_fuel_prev = d.total_fuel_prev;
                         if (speedv.abs() < 10.0) && (total_fuel - total_fuel_prev > 1.0) {
@@ -739,9 +741,11 @@ impl Service {
                         // Java: ((calcPeriod++) % (500 / freq)) == 0 —— 后缀自增
                         d.calc_period += 1;
                         if calc_period % (500 / freq) == 0 {
-                            // TODO(port): slowcalculate((500 / freq) * freq) —— 油耗/
-                            // WEP 时间慢计算 (计算方法区波次; 入参 (500/freq)*freq
-                            // 届时随方法接线, 此处不留无编译器信号的占位表达式)
+                            // Java: slowcalculate((500 / freq) * freq) — 油耗慢计算
+                            // + totalFuelPrev 追赶 (加油检测的 prev 写点)
+                            let dtime = (500 / freq) * freq;
+                            drop(d);
+                            self.slow_calculate(dtime);
                         }
                     }
 
@@ -836,6 +840,11 @@ impl Service {
             // 加速度/SEP 成倍失真
             actual_interval_ms = d.actual_interval_ms;
         }
+
+        // Java calculate 链头两步 (L1125-1129): 增加 WEP 时间 / 更新温度
+        // (顺序在 updateCompass 之前 — Rust 侧 Deriver step 之前同位)
+        self.update_wep_time(&fm);
+        self.update_temp();
 
         // 增加wep时间 / 更新温度，优先使用更精确的 / 检查是否过热… (TODO 列表见 doc)
         // 更新方向 / 更新爬升率 / 获得准确高度 / 更新速度 / 更新转弯半径 —— Deriver::step
@@ -947,10 +956,311 @@ impl Service {
             // TODO(port): 计算方法区波次裁决外泄或迁移
         }
 
+        // Java calculate 链 L1134-1136: updateEngineState (总功率/推力/百分比)
+        // + updateFuel (总油量) — EngineInfo/EngineControl 面板数据源。
+        // PORT(顺序备案): Java 在 updateTurn 与 updateSEP 之间调用, Rust 的
+        // Deriver::step 将四公式族并成一步, 无法插中间 — 两方法不读 SEP 族字段,
+        // 置于 step 写回后行为等价; speedv 取本轮 Deriver 值 (Java 同轮字段读)
+        self.update_engine_state(&fm);
+        self.update_fuel();
+
         // Java calculate 尾部两比值方法 (L1177-1178): 速度/马赫临界比值 + 失速速度
         // — MiniHUD 速度比值 bar 的数据源 (speed_limit_ratio 等 5 字段)
         self.update_speed_ratio(&fm);
         self.update_stall_speed(&fm);
+    }
+
+    /// 对应 Java `public void slowcalculate(long dtime)` (L517-560) — 0.5 秒一次
+    /// 慢计算: 油量变化率/剩余油量时间 + **totalFuelPrev 追赶** (加油检测分支的
+    /// prev 写点 — 未移植时 prev 恒 0, totalFuel 非零即每轮误判"加油"触发
+    /// resetvaria, player_live 永假)。
+    /// @param dtime (500/freq)*freq (Java 调用点 L1747)
+    fn slow_calculate(&mut self, dtime: i64) {
+        // 单一写锁临界区: fuelTimeSMA 的 addNewData 需 &mut (状态量更新), 临界区内
+        // 仅纯内存计算无 IO/回调 (Java 本方法无锁直写, §2.8 锁粒度等价收紧)
+        let mut d = write_data(&self.data);
+        // Java: fuelDelta = (totalFuelPrev - totalFuel) / dtime — double/int
+        let fuel_delta = (d.total_fuel_prev - d.total_fuel) / dtime as f64;
+        if fuel_delta > 0.0 {
+            d.fuelchange_time = d.last_main_loop_time_ms - d.fuel_lastchange_mili;
+            d.fuel_lastchange_mili = d.last_main_loop_time_ms;
+            d.fuel_change = d.total_fuel_prev - d.total_fuel; // 改变1公斤花了多长时间 (Java 注释原文)
+
+            // fuelTimeSMA 的真人在 ServiceData 侧 (状态双主边界: 仅构造的
+            // 三个 SMA 归 ServiceData, resetvaria 恒建 Some)
+            let mut sma = d.fuel_time_sma.take().unwrap();
+            if !d.low_acc_fuel {
+                // 改用滑动平均 (Java 注释原文)
+                d.fueltime = sma.add_new_data(d.total_fuel / fuel_delta) as i64;
+            } else {
+                // /* 已知油量不可能递增，考虑计算精度问题导致油量增多，因此取两者间最小值 */ (Java 注释原文)
+                let tmpft =
+                    sma.add_new_data(d.total_fuel * d.fuelchange_time as f64 / d.fuel_change) as i64;
+                if d.fueltime > 0 {
+                    // Java: fueltime < tmpft ? fueltime : tmpft
+                    d.fueltime = if d.fueltime < tmpft { d.fueltime } else { tmpft };
+                } else {
+                    d.fueltime = tmpft;
+                }
+            }
+            d.fuel_time_sma = Some(sma);
+        } else {
+            // 没有变化，使用上次 (Java 注释原文)
+            if d.fuel_change == 0.0 {
+                d.fueltime = 0;
+            } else {
+                let mut sma = d.fuel_time_sma.take().unwrap();
+                let tmpft =
+                    sma.add_new_data(d.total_fuel * d.fuelchange_time as f64 / d.fuel_change) as i64;
+                d.fuel_time_sma = Some(sma);
+                d.fueltime = tmpft;
+            }
+        }
+        d.fuel_delta = fuel_delta;
+        if d.fueltime < 0 {
+            d.fueltime = i64::MAX;
+        }
+        // Java: FuelCheckMili = lastMainLoopTimeMs; totalFuelPrev = totalFuel;
+        d.fuel_check_mili = d.last_main_loop_time_ms;
+        d.total_fuel_prev = d.total_fuel;
+    }
+
+    // ------------------------------------------------------------------
+    // updateWepTime / updateTemp / checkEngineJet / updateEngineState /
+    // updateFuel (Java L707-723 / L726-737 / L484-514 / L883-962 / L964-984)
+    // — EngineInfo/EngineControl 面板的功率/动力量/油量/温度数据源
+    // ------------------------------------------------------------------
+
+    /// 对应 Java `public void updateWepTime(FMHandle fm)` (L707-723)。
+    /// @param fm 本周期 FM 句柄快照（R1 下传, Java javadoc 原文）
+    fn update_wep_time(&mut self, fm: &FMHandle) {
+        // 输入快照 (锁外判, §2.8): engineNum/throttles 读一轮
+        let engine_num = {
+            let d = read_data(&self.data);
+            let s = d.s_state.as_ref().unwrap();
+            let mut nitro_eng_nr = 0i32;
+            let mut wep_time = d.wep_time;
+            let n = s.engine_num;
+            for i in 0..n as usize {
+                // Java: sState.throttles[i] 越界 (engineNum > throttles 长度) 抛
+                // AIOOBE → run 顶层 catch; 索引 panic 同收敛 (保真)
+                if s.throttles[i] > 100 {
+                    // 进入Wep状态 (Java 注释原文)
+                    wep_time += d.poll_cycle_duration_ms;
+                    nitro_eng_nr += 1;
+                }
+            }
+            (n, nitro_eng_nr, wep_time)
+        };
+        let (n, nitro_eng_nr, wep_time) = engine_num;
+        let mut d = write_data(&self.data);
+        d.engine_num = n;
+        d.nitro_eng_nr = nitro_eng_nr;
+        d.wep_time = wep_time;
+        // R2 守卫: 无 FM 时 blkx=null, nitrokg 归 0（显示 "-"）(Java 注释原文)
+        d.nitrokg = if let Some(blkx) = fm.blkx.as_ref() {
+            let v = blkx.nitro - (d.wep_time as f64 * d.nitro_consump) / 1000.0;
+            if v < 0.0 {
+                0.0
+            } else {
+                v
+            }
+        } else {
+            0.0
+        };
+    }
+
+    /// 对应 Java `public void updateTemp()` (L726-737) — 更新温度，优先使用更精确的。
+    fn update_temp(&mut self) {
+        let (noil, nwater) = {
+            let d = read_data(&self.data);
+            let i = d.s_indic.as_ref().unwrap();
+            let s = d.s_state.as_ref().unwrap();
+            let mut noil_temp = i.oil_temp;
+            let mut nwater_temp = i.water_temp;
+            if noil_temp <= -65534.0 {
+                noil_temp = s.oiltemp;
+            }
+            if nwater_temp <= -65534.0 {
+                nwater_temp = i.engine_temperature;
+                if nwater_temp <= -65534.0 {
+                    nwater_temp = s.watertemp;
+                }
+            }
+            (noil_temp, nwater_temp)
+        };
+        let mut d = write_data(&self.data);
+        d.noil_temp = noil;
+        d.nwater_temp = nwater;
+    }
+
+    /// 对应 Java `public void checkEngineJet()` (L484-514) — 磁电机/桨距投票
+    /// 状态机 (~5 秒收敛), 置 iEngType + checkEngineFlag。
+    fn check_engine_jet(&mut self) {
+        // TODO:自适应方式获得,由磁电机判断. 只有活塞才有磁电机 (Java 注释原文)
+        let mut d = write_data(&self.data);
+        if !d.check_engine_flag {
+            // 输入快照先行 (s 的不可变借用与 d 的字段写互斥, 拆两段)
+            let (magenato, pitch0) = {
+                let s = d.s_state.as_ref().unwrap();
+                (s.magenato, s.pitch[0])
+            };
+            if magenato < 0 {
+                d.check_engine_type -= 1;
+            } else {
+                d.check_engine_type += 1;
+            }
+            // Java: sState.pitch[0] — 空 Vec 索引 AIOOBE → run 顶层 catch (保真)
+            if pitch0 != -65535.0 {
+                d.check_pitch += 1;
+            } else {
+                d.check_pitch -= 1;
+            }
+
+            if d.check_engine_type.wrapping_abs() >= 100 {
+                d.check_engine_flag = true;
+                if d.check_engine_type >= 0 {
+                    d.i_eng_type = ENGINE_TYPE_PROP;
+                } else {
+                    // 涡桨 (Java 注释)
+                    if d.check_pitch > 0 {
+                        d.i_eng_type = ENGINE_TYPE_TURBOPROP;
+                    } else {
+                        d.i_eng_type = ENGINE_TYPE_JET;
+                    }
+                }
+            }
+        }
+    }
+
+    /// 对应 Java `public void updateEngineState(FMHandle fm)` (L883-962) —
+    /// 计算总功率/推力及推力百分比。EngineInfo/EngineControl 的核心数据源。
+    ///
+    /// @param fm 本周期 FM 句柄快照（R1 下传, Java javadoc 原文）
+    fn update_engine_state(&mut self, fm: &FMHandle) {
+        self.check_engine_jet();
+        // speedv (校正 TAS m/s) — Deriver 本轮值 (Java 字段直读的对应物)
+        let speedv = self.deriver.speedv();
+
+        // 输入快照 + 引擎循环 (锁外算, §2.8)
+        let (is_jet, total_hp, total_hp_eff, total_thrust, avgeff) = {
+            let d = read_data(&self.data);
+            let is_jet = d.i_eng_type == ENGINE_TYPE_JET;
+            let s = d.s_state.as_ref().unwrap();
+            let engine_num = d.engine_num as usize;
+            if !is_jet {
+                // 活塞机或者涡浆机 (Java 注释原文)
+                let mut ttotalhp = 0.0f64;
+                let mut ttotalhpeff = 0.0f64;
+                let mut ttotalthr = 0.0f64;
+                for i in 0..engine_num {
+                    ttotalthr += s.thrust[i] as f64;
+                    ttotalhp += s.power[i];
+                    ttotalhpeff += s.thrust[i] as f64 * G * speedv / 735.0;
+                }
+                // Java: (int) 截断向零 ↔ as i32 (§2.2)
+                let total_hp = ttotalhp as i32;
+                let total_hp_eff = ttotalhpeff as i32;
+                let total_thrust = ttotalthr as i32;
+                // Java: (double) 100 * ... int 提升回 double
+                let avgeff = if total_hp != 0 {
+                    100.0 * total_hp_eff as f64 / total_hp as f64
+                } else {
+                    0.0
+                };
+                (is_jet, total_hp, total_hp_eff, total_thrust, avgeff)
+            } else {
+                // 喷气机 (Java 注释原文)
+                let mut ttotalthr = 0.0f64;
+                for i in 0..engine_num {
+                    ttotalthr += s.thrust[i] as f64;
+                }
+                let ttotalhpeff = (ttotalthr * G * speedv) / 735.0;
+                // 元组槽位: (is_jet, total_hp, total_hp_eff, total_thrust, avgeff)
+                (is_jet, 0, ttotalhpeff as i32, ttotalthr as i32, 0.0)
+            }
+        };
+
+        {
+            let mut d = write_data(&self.data);
+            d.total_hp = total_hp;
+            d.total_hp_eff = total_hp_eff;
+            d.total_thrust = total_thrust;
+            d.avgeff = avgeff;
+
+            let throttle = d.s_state.as_ref().unwrap().throttle;
+            // Java: maxTotalThr = (int)(ratio_1*maxTotalThr + ratio*totalThrust) —
+            // int 提升 double 运算后 (int) 截断
+            if d.max_total_thr < total_thrust && throttle >= 100 {
+                d.max_total_thr =
+                    (d.ratio_1 * d.max_total_thr as f64 + d.ratio * total_thrust as f64) as i32;
+            }
+            if d.max_total_hp < total_hp_eff && throttle >= 100 {
+                d.max_total_hp =
+                    (d.ratio_1 * d.max_total_hp as f64 + d.ratio * total_hp_eff as f64) as i32;
+            }
+
+            d.p_thurst_percent = d.thurst_percent;
+
+            // R1: 峰值缓存直取句柄 (非 READY 两者 0 → 走 maxTotal 回退)
+            let peak_power = if fm.blkx.is_some() { fm.peak_wep_power } else { 0.0 };
+            let peak = if fm.blkx.is_some() { fm.peak_thrust } else { 0.0 };
+
+            if is_jet {
+                // Jet: current thrust / peak afterburner thrust (Java 注释原文)
+                if peak > 0.0 {
+                    d.thurst_percent = 100.0 * total_thrust as f64 / peak;
+                } else if d.max_total_thr != 0 {
+                    // Fallback to old algorithm (Java 注释原文)
+                    d.thurst_percent = 100.0 * total_thrust as f64 / d.max_total_thr as f64;
+                }
+            } else {
+                // Piston: current power / peak WEP power (Java 注释原文)
+                if peak_power > 0.0 {
+                    d.thurst_percent = 100.0 * total_hp as f64 / peak_power;
+                } else if d.max_total_hp != 0 {
+                    d.thurst_percent = 100.0 * total_hp as f64 / d.max_total_hp as f64;
+                }
+            }
+
+            // Java: ... * 1000.0f / actualIntervalMs — 1000.0f float 字面量提升 (§2.12)
+            let interval = d.actual_interval_ms;
+            d.t_eng_response = (d.ratio_1 * d.t_eng_response)
+                + d.ratio * (d.thurst_percent - d.p_thurst_percent) * (1000.0f32 as f64)
+                / interval as f64;
+        }
+    }
+
+    /// 对应 Java `public void updateFuel()` (L964-984) — 计算总油量。
+    fn update_fuel(&mut self) {
+        let (total_fuel, low_acc_fuel, fuel_percent) = {
+            let d = read_data(&self.data);
+            let i = d.s_indic.as_ref().unwrap();
+            let s = d.s_state.as_ref().unwrap();
+            let mut total_fuel = 0.0f64;
+            let mut low_acc_fuel = false;
+            if i.fuelnum != 0 {
+                /* 修复su-27油箱显示不正确的问题 (Java 注释原文) */
+                // Java: for (i = 0; i < 1; i++) — 循环上界写死 1 (只累加 fuel[0],
+                // 注释掉的 fuelnum 上限是旧逻辑), 保真直译
+                for k in 0..1 {
+                    total_fuel += i.fuel[k];
+                }
+            }
+            if total_fuel == 0.0 {
+                low_acc_fuel = true;
+                total_fuel = s.mfuel;
+            }
+            // Java: (int) (100 * totalFuel / sState.mfuel0) — double 除法截断
+            let fuel_percent = (100.0 * total_fuel / s.mfuel0) as i32;
+            (total_fuel, low_acc_fuel, fuel_percent)
+        };
+        let mut d = write_data(&self.data);
+        d.total_fuel = total_fuel;
+        d.low_acc_fuel = low_acc_fuel;
+        d.fuel_percent = fuel_percent;
+        // Java updateFuel 尾部未回写 totalFuelPrev (slowcalculate 的差分输入),
+        // totalFuelPrev 写点在 slowcalculate (TODO(port) 慢计算波次)
     }
 
     // ------------------------------------------------------------------

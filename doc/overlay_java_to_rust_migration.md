@@ -361,6 +361,22 @@ Java 同款算法同样如此——对拍动态帧时需两边同等预热。
     终验: 1,269 测试全绿 / clippy 0 / mock-smoke 7 窗 PASS (日志见 getload
     生产链真跑: "Parsed FM file ... (Engine Count: 1, Jet: false)")。
 
+16. **用户验收 5: EngineInfo/EngineControl 功率动力量为 0 → 计算方法区核心批**:
+    (a) **updateEngineState (L883-962) + updateWepTime (L707) + updateTemp (L726)
+    + updateFuel (L964) + checkEngineJet (L484) 移植**进 service_loop calculate
+    链 — totalHp/totalHpEff/totalThrust/avgeff/温度/油量/WEP 计时全落位;
+    speedv 经 Deriver::speedv() 外泄 (updateEngineState 实功率与加油检测共用,
+    ServiceData.speedv 保持死存储防双主)。python oracle 全链测试 + 投票状态机
+    测试 (测试抓出喷气分支元组槽位倒置 bug — totalThrust/totalHpEff 对调)。
+    (b) **slowcalculate (L517-560) 移植** (0.5s 慢计算槽位的 TODO 收口): 油量
+    变化率/剩余油量时间 + **totalFuelPrev 追赶** — updateFuel 落地后 prev 无人
+    写会令加油检测每轮误判触发 resetvaria (player_live 永假, 测试与冒烟双双
+    拦截); speedv 外泄后检测恢复 Java 语义 (飞行中 |speedv|≥10 不触发)。
+    (c) calculate 链现余 TODO: checkOverheat (engLoad 会话态改写前置)/
+    checkWing/checkFlap/getMaximumRPM/updateOptimalCompressorStage/
+    formatDataAsStrings — 各随前置批次。终验: 1,271 测试 / clippy 0 / 冒烟
+    7 窗 PASS。
+
 ## 11.5 人工验收清单 (移交用户)
 
 1. `bash script/rust_run.sh` — iced 设置窗 + 全部 overlay 预览共存

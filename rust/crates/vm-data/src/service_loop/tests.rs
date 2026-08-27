@@ -311,6 +311,139 @@ fn update_speed_ratio_and_stall_speed_oracle() {
     );
 }
 
+/// updateWepTime/updateTemp/checkEngineJet/updateEngineState/updateFuel
+/// (Java L707-723/L726-737/L484-514/L883-962/L964-984) 全链 — EngineInfo/
+/// EngineControl 的功率/动力量/油量/温度数据源。python oracle (f32 域):
+/// STATE_MOCK power1=1597.8hp/thrust1=840kgs/throttle1=110 + INDIC_MOCK
+/// speed=131.007797 → speedv=126.111… → hpEff=1412/avgeff=88.42。
+#[test]
+fn engine_state_and_fuel_full_chain() {
+    let mut svc = new_service();
+    // 预填 http 响应 → 解析 (STATE_MOCK/INDIC_MOCK)
+    *svc.http_client.str_state.lock().unwrap() = STATE_MOCK.to_string();
+    svc.http_client.str_indic = INDIC_MOCK.to_string();
+    svc.process_polling_cycle();
+    // 解析后补: 引擎数/油门(>100 进 WEP)/跳过投票状态机 (单轮投票不收敛,
+    // 收敛语义由 check_engine_jet_voting_state_machine 单独覆盖)
+    {
+        let mut d = write_data(&svc.data);
+        let s = d.s_state.as_mut().unwrap();
+        s.engine_num = 1;
+        s.throttles[0] = 110;
+        d.check_engine_flag = true;
+        d.i_eng_type = ENGINE_TYPE_PROP;
+        d.poll_cycle_duration_ms = 50; // run() 轮询的量化产物 (直驱 calculate 需手工模拟)
+    }
+    svc.calculate();
+
+    {
+        let d = read_data(&svc.data);
+        // updateEngineState (活塞分支, python oracle)
+        assert_eq!(d.total_hp, 1597, "(int) 1597.8");
+        assert_eq!(d.total_thrust, 840, "thrust 1 = 840 kgs");
+        assert_eq!(d.total_hp_eff, 1412, "840·g·speedv(126.111…)/735 截断");
+        assert!((d.avgeff - 88.41577958672511).abs() < 1e-9, "avgeff (实际 {})", d.avgeff);
+        // thurst_percent: 无 FM (UNRESOLVED) → peak=0 且 maxTotalHp 已积累但
+        // 首轮 pThurst 置换后分支不触发? — maxTotalHp 分支: peakPower=0 且
+        // maxTotalHp=70 != 0 → thurstPercent = 100*1597/70 = 2281.4…
+        // (Java 同式回退, 无 FM 域的已知大数形态)
+        // thurst_percent: 无 FM (UNRESOLVED) → peak=0 走 maxTotalHp 回退 — 两轮
+        // EMA: 首轮 max=70, 次轮 max=(int)(0.95*70+0.05*1412)=137 → 100*1597/137
+        // (State::update 已从遥测键推断 engineNum=1/throttles[0]=110, 首轮即完整计算)
+        assert!((d.thurst_percent - 100.0 * 1597.0 / 137.0).abs() < 1e-9);
+        // maxTotal 平滑 (EMA ratio=0.05), 两轮: 42 → (int)(0.95*42+0.05*840)=81
+        assert_eq!(d.max_total_thr, 81, "第二轮 EMA (0.95*42+0.05*840)");
+        assert_eq!(d.max_total_hp, 137, "(int)(0.95*70+0.05*1412)");
+        // updateWepTime: 两轮都进 WEP, 但首轮 pollCycleDurationMs=0 (run() 未跑),
+        // 仅第二轮 (手工置 50) 计入 → 50
+        assert_eq!(d.wep_time, 50, "次轮 WEP 计时 (首轮 pollCycle=0)");
+        assert_eq!(d.nitro_eng_nr, 1);
+        assert_eq!(d.nitrokg, 0.0, "R2 守卫: 无 FM nitrokg=0");
+        // updateTemp: INDIC_MOCK 无温度键 (哨兵) → 回退 sState
+        assert_eq!(d.noil_temp, 90.0, "oil temp 1 = 90");
+        assert_eq!(d.nwater_temp, 121.0, "water temp 1 = 121");
+        // updateFuel: fuelnum=0 → lowAccFuel + mfuel 回退
+        assert_eq!(d.total_fuel, 197.0, "Mfuel 回退");
+        assert!(d.low_acc_fuel);
+        assert_eq!(d.fuel_percent, 26, "(int)(100*197/734)");
+    }
+
+    // 喷气分支: iEngType 翻 JET → totalHp 归 0
+    {
+        let mut d = write_data(&svc.data);
+        d.i_eng_type = ENGINE_TYPE_JET;
+    }
+    let fm = svc.fm_manager.current(); // UNRESOLVED
+    svc.update_engine_state(&fm);
+    {
+        let d = read_data(&svc.data);
+        assert_eq!(d.total_hp, 0, "喷气分支不产马力");
+        assert_eq!(d.total_thrust, 840);
+        assert_eq!(d.avgeff, 0.0);
+    }
+}
+
+/// checkEngineJet 投票状态机 (L484-514): 磁电机正/负票 + 桨距票 → 100 票收敛
+#[test]
+fn check_engine_jet_voting_state_machine() {
+    let mut svc = new_service();
+    {
+        let mut d = write_data(&svc.data);
+        let s = d.s_state.as_mut().unwrap();
+        // 活塞投票: 磁电机 3 (>=0 正票), 桨距 35.5 有效 (正票)
+        s.magenato = 3;
+        s.pitch = vec![35.5];
+    }
+    for _ in 0..99 {
+        svc.check_engine_jet();
+    }
+    {
+        let d = read_data(&svc.data);
+        assert!(!d.check_engine_flag, "99 票未收敛");
+        assert_eq!(d.check_engine_type, 99);
+        assert_eq!(d.check_pitch, 99, "桨距有效 (非哨兵) 是正票 (Java: != -65535 → ++)");
+    }
+    svc.check_engine_jet(); // 第 100 票
+    {
+        let d = read_data(&svc.data);
+        assert!(d.check_engine_flag);
+        assert_eq!(d.i_eng_type, ENGINE_TYPE_PROP, "磁电机正票 → 活塞");
+    }
+
+    // 涡桨/喷气分流: 磁电机负票 + 桨距正票 → 涡桨; 桨距哨兵 → 喷气
+    let mut svc2 = new_service();
+    {
+        let mut d = write_data(&svc2.data);
+        let s = d.s_state.as_mut().unwrap();
+        s.magenato = -1;
+        s.pitch = vec![35.5];
+    }
+    for _ in 0..100 {
+        svc2.check_engine_jet();
+    }
+    assert_eq!(
+        read_data(&svc2.data).i_eng_type,
+        ENGINE_TYPE_TURBOPROP,
+        "磁电机负 + 桨距正 → 涡桨"
+    );
+
+    let mut svc3 = new_service();
+    {
+        let mut d = write_data(&svc3.data);
+        let s = d.s_state.as_mut().unwrap();
+        s.magenato = -1;
+        s.pitch = vec![-65535.0];
+    }
+    for _ in 0..100 {
+        svc3.check_engine_jet();
+    }
+    assert_eq!(
+        read_data(&svc3.data).i_eng_type,
+        ENGINE_TYPE_JET,
+        "磁电机负 + 桨距哨兵 → 喷气"
+    );
+}
+
 /// 空响应 → conState=-1 → 端口翻转 (Java L1785-1795); 再翻回
 #[test]
 fn port_flip_on_empty_response() {

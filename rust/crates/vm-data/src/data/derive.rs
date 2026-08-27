@@ -47,6 +47,13 @@ pub struct Deriver {
 }
 
 impl Deriver {
+    /// updateEngineState 消费的校正 TAS m/s (Java `speedv` 字段的外泄面 —
+    /// Service.java L864 计算实功率 `thrust*g*speedv/735`)。其余活代码消费方
+    /// (updateTurn 的 horizontalLoad / formatDataAsStrings) 随各自波次再外泄。
+    pub fn speedv(&self) -> f64 {
+        self.speedv
+    }
+
     /// SMA 窗口 = 1000/interval_ms (Java L1587-1591: n = 1000/freq, freq=serviceLoopIntervalMs)
     pub fn new(interval_ms: u64) -> Self {
         let n = (1000 / interval_ms.max(1)) as usize;
