@@ -37,7 +37,7 @@ use vm_core::config_api::{ConfigProvider, HudSettingsSnapshot, OverlaySettings};
 use vm_core::configuration_service::{ConfigurationService, ControllerIntervals, GlobalColors, UiStateEvent};
 use vm_core::controller_state::ControllerState;
 use vm_core::event::event_payload::EventPayload;
-use vm_core::event::flight_data_event::FlightDataEvent;
+use vm_core::event::flight_data_event::{FlightDataEvent, OpaqueObject};
 use vm_core::event::ui_state_events;
 use vm_core::flight_data_bus::FlightDataBus;
 use vm_core::flight_log::{
@@ -52,8 +52,8 @@ use vm_core::ui_model::TelemetrySource as _;
 
 use vm_data::service_fields::ServiceData;
 use vm_data::service_loop::{
-    flight_log_snapshot, start as spawn_service_thread, Service, ServiceAnalyzerSource,
-    ServiceConfig, ServiceHandle,
+    flight_log_snapshot, snapshot_indicators, snapshot_state, start as spawn_service_thread,
+    Service, ServiceAnalyzerSource, ServiceConfig, ServiceHandle,
 };
 
 use vm_overlay::host::OverlayHost;
@@ -1480,8 +1480,26 @@ impl AppShell {
     /// Java 无此开关, 由用户配置表达; 此处以等效配置注入, Controller 自启动
     /// 判定路径零特判)。
     pub fn new(debug: bool, game_mode: bool) -> Result<AppShell, String> {
+        AppShell::new_with_port(debug, game_mode, None)
+    }
+
+    /// 白盒端口覆盖 (`--port` CLI / mock-smoke 的 9222 约定): Env 只读区在 probe
+    /// 后覆写, 语义 = Lang.httpPort 解析结果的等价替换 (bkp 同步 +1111 保持
+    /// 备用端口关系)。生产路径 (desktop_main) 不传 — 端口仍由 Lang/配置表达;
+    /// 白盒测试统一走 9222 (游戏本地 API 恒占 8111, 备用端口域游戏永不监听,
+    /// 真机在跑也不再挤掉测试)。
+    pub fn new_with_port(
+        debug: bool,
+        game_mode: bool,
+        port_override: Option<u16>,
+    ) -> Result<AppShell, String> {
         let lang = Lang::init_lang();
-        let env = Env::probe(&lang, debug);
+        let mut env = Env::probe(&lang, debug);
+        if let Some(p) = port_override {
+            env.app_port = p;
+            // 与 probe 同式 (域内恒 p+1111, u16 加法无回绕面)
+            env.app_port_bkp = p + 1111;
+        }
         let ui_bus = Arc::new(EventBus::new());
         let config = ConfigurationService::new(Some(Arc::clone(&ui_bus)));
         // Java Controller 构造器: configService.initConfig() 装载设置文件
@@ -2276,8 +2294,12 @@ struct AttitudeFeedState {
 /// OverlayManager.java:332-336)。
 ///
 /// PORT(MiniHUD 事件重构): FlightDataEvent 不可 Clone (OpaqueObject) — 转发链只送
-/// EventPayload, 本侧重构事件对象; hud_data 恒 None → 走 MiniHudOverlay 的 EDT
-/// 回退计算路径 (minihud.rs update_from_event 的 None 分支)。
+/// EventPayload, 本侧重构事件对象; **state/indicators 从 live guard 现值重打快照**
+/// (Java 事件携带 sState/sIndic 共享可变引用, EDT 回退路径读到的是 EDT 时刻的
+/// 最新值 — 按喂入时刻快照即同一时序语义; 曾长期传 None/None, hud_calculator 的
+/// sState 整块被跳过, 襟翼/油门/姿态/G 值全 0 = "bar 恒 0" 根因); hud_data 恒
+/// None → 走 MiniHudOverlay 的 EDT 回退计算路径 (minihud.rs update_from_event
+/// 的 None 分支)。
 ///
 /// PORT(锁内计算形态备案, 审查 B-W2): 各 update 需要 &ServiceData 完整视图, 而
 /// 签名归 vm-overlay (不可越文件改) 且 ServiceData 无 Clone — 读锁跨纯计算段
@@ -2333,7 +2355,18 @@ fn feed_overlays_live(
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         // 1. MiniHUD (Java MiniHUDOverlay.onFlightData → invokeLater)
         if let Some(h) = handles.minihud.as_ref() {
-            let event = FlightDataEvent::new(payload.clone(), None, None);
+            // state/indicators 快照重建 (函数头 PORT(MiniHUD 事件重构) 注):
+            // hud_calculator 从事件读 sState/sIndic (flaps/throttle/gear/airbrake/
+            // aoa/ny/姿态), 丢掉即整块 0
+            let state_box = guard
+                .s_state
+                .as_ref()
+                .map(|s| Box::new(snapshot_state(s)) as OpaqueObject);
+            let indic_box = guard
+                .s_indic
+                .as_ref()
+                .map(|i| Box::new(snapshot_indicators(i)) as OpaqueObject);
+            let event = FlightDataEvent::new(payload.clone(), state_box, indic_box);
             // AoA 告警/状态色 = 全局仓 (Java HUDCalculator.java:132-155 每次计算
             // 直读 Application 静态; 曾传编译期常量冻结 — 审查轮 1-B)
             let gc = vm_overlay::global_colors::colors();
@@ -4067,13 +4100,14 @@ mod tests {
         };
 
         // live 快照: throttle 55 / flaps 25 / gear 100 / aileron 100 / aoa 10 /
-        // aviahorizon pitch 5 / 功率 1200 (引擎数组填满防 panic 点)
+        // aviahorizon pitch 5 / 功率 1200 / airbrake 100 (引擎数组填满防 panic 点)
         let mut d = live_service_data("feed-plane");
         {
             let st = d.s_state.as_mut().unwrap();
             st.throttle = 55;
             st.flaps = 25;
             st.gear = 100;
+            st.airbrake = 100;
             st.aileron = 100;
             st.aoa = 10.0;
             st.pitch = vec![0.0; 8];
@@ -4103,9 +4137,9 @@ mod tests {
         let e = handles.engine_control.as_ref().unwrap().borrow();
         assert_eq!(e.gauge_by_key("throttle").unwrap().gauge.gauge.cur_value, 55);
         drop(e);
-        // 起落襟翼: gear=100 → "起落架" 告警; flaps=25 → flap_pix
+        // 起落襟翼: gear=100 + airbrake=100 → "起落架 减速板" 告警; flaps=25 → flap_pix
         let g = handles.gear_flaps.as_ref().unwrap().borrow();
-        assert_eq!(g.warn_text, "起落架");
+        assert_eq!(g.warn_text, "起落架 减速板");
         assert_eq!(g.flap_pix, 24);
         drop(g);
         // 操纵面: aileron=100 → px = (100+100)*144/200 = 144 (has_service 喂入点置位)
@@ -4118,6 +4152,13 @@ mod tests {
         drop(a);
         // 地平仪节流: 40ms 窗口内第二帧不重算 (last_ms 已推进)
         assert!(attitude_feed.last_ms > 0);
+        // MiniHUD: 重构事件携带 state 快照 → hud_calculator 读到 sState.airbrake=100
+        // → warnVne 置真 (state 丢失时该块整体跳过, warn_vne 恒 false = "bar 恒 0"
+        // 根因的回归哨)
+        assert!(
+            handles.minihud.as_ref().unwrap().borrow().warn_vne,
+            "MiniHUD 应收到 sState 快照 (airbrake=100 → warnVne)"
+        );
 
         // preview 门控: overlay_ctx_preview=true → 整帧跳过 (值不推进)
         shared.overlay_ctx_preview.store(true, Ordering::SeqCst);

@@ -2428,6 +2428,34 @@ mod tests {
         assert_eq!(thr, " 64");
     }
 
+    /// 事件携带 state 快照 → hud_calculator 的 sState 整块生效 (flaps/airbrake 到
+    /// 组件)。喂数链 (vm-app feed_overlays_live) 曾以 None/None 重构事件, 该块整体
+    /// 跳过致襟翼条等恒 0 — 本测试钉住 "事件必须带 state" 的消费侧契约。
+    #[test]
+    fn update_from_event_consumes_state_snapshot() {
+        use vm_core::parser::State;
+        let mut o = overlay();
+        let s = TestSettings::default();
+        let src = MockSrc { alt: 5300.0 };
+        let mut st = State::new();
+        st.flaps = 50;
+        st.airbrake = 100;
+        let ev = FlightDataEvent::new(
+            EventPayload::builder().build(),
+            Some(Box::new(st) as vm_core::event::flight_data_event::OpaqueObject),
+            None,
+        );
+        o.update_from_event(&ev, Some(&src), None, &s, &HudColors::application_defaults());
+        // FlapAngleBar: flaps=50 / allowAngle=125 (无 FM 缺省) → " 50/125"
+        let flap = match &*inner_of(&o, &o.flap_angle_bar) {
+            MiniHudComponentInner::FlapBar(f) => f.display_text().to_string(),
+            _ => unreachable!(),
+        };
+        assert_eq!(flap, " 50/125", "襟翼条应吃到 sState.flaps");
+        // airbrake=100 → warnVne (sState 块生效的旁证)
+        assert!(o.warn_vne, "减速板 100% → warnVne");
+    }
+
     // ===== 渲染循环 =====
 
     /// draw: DAG 布局驱动 + 组件有输出 (预览数据已注入; paintComponent L250-255)

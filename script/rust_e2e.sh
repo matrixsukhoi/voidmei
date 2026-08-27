@@ -3,7 +3,7 @@
 #
 # Rust 版 e2e 编排 (对齐 script/e2e_fm.sh 的编排结构, 断言器复用 e2e_assert.py)
 #
-# 流程 (每场景): 8111 空闲探测(被占 SKIP) → 起 mock → 起 voidmei --game-mode
+# 流程 (每场景): 端口空闲探测(被占 SKIP) → 起 mock → 起 voidmei --game-mode --port
 #   (日志落文件) → 启动锚点校验 → 跑 duration 秒(每秒探活) → taskkill 杀进程树 →
 #   mock 终态快照落盘 → 停 mock → python script/e2e_assert.py 断言 (A1~A6) → 汇总
 #
@@ -27,8 +27,10 @@
 # 参数:
 #   --scenario <name>  s2_preview_live / s5_missing_fm / menu_flag_false / all(默认)
 #   --duration  <s>    每场景运行秒数 (默认 20)
-#   --port      <p>    mock 端口 (默认 8111; 应用固定轮询 8111 = Lang.httpPort,
-#                      非 8111 时应用连不上 mock, 仅用于排障)
+#   --port      <p>    mock+应用端口 (默认 9222; 应用经 --port CLI 同步覆盖。
+#                      白盒测试端口约定: 9222 = Java 备用端口 (appPortBkp) 域,
+#                      游戏本地 API 恒占 8111 而 9222 游戏永不监听 — 真机在跑
+#                      测试也不再被挤掉/误读游戏数据)
 #   --log       <path> 应用日志输出 (默认 build/e2e_rust_<场景>_<时间戳>.log;
 #                      仅单场景时生效, all 模式每场景独立文件)
 #   --no-build        跳过预热构建, 直接用既有 rust/target/release/voidmei
@@ -36,7 +38,7 @@
 #                      二进制缺失仍 FAIL —— 不假通过)
 #   --require-run     门禁模式: 全部场景 SKIP (零实跑) 时退出码 1。
 #                      默认关 (对齐 e2e_fm.sh "被占自动跳过"惯例); CI/P6 验收门禁
-#                      应带上, 避免 8111 被占时零实跑也绿。
+#                      应带上, 避免 9222 被占时零实跑也绿。
 #
 # 产物 (每场景, build/ 下): <场景>.log 应用日志 / mock_<场景>.log mock 日志 /
 #   mock_state_<场景>.json mock 终态快照 (含 /state 等请求计数, 量化证据可复验) /
@@ -44,7 +46,7 @@
 #
 # 退出码: 0=全部通过(含 SKIP; --require-run 下全 SKIP 为 1)  1=断言失败/流程失败
 #
-# 注意: 8111 被游戏/其它 mock 占用时该场景 SKIP (项目惯例: 不换端口硬凑、不假通过)。
+# 注意: 端口 (默认 9222) 被其它白盒测试/mock 占用时该场景 SKIP (项目惯例: 不换端口硬凑、不假通过)。
 #       SKIP 不计入失败 —— 三场景默认串行, 每场景起停独立 mock。
 
 set -u
@@ -52,7 +54,7 @@ set -u
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SCENARIO="all"
 DURATION=20
-PORT=8111
+PORT=9222
 LOG=""
 NO_BUILD=0
 REQUIRE_RUN=0
@@ -218,7 +220,7 @@ run_scenario() {
     return 1
   fi
   echo "[rust-e2e] 启动 voidmei --game-mode (日志: $SC_LOG) ..."
-  ( cd "$ROOT" && exec "$VOIDMEI_BIN" --game-mode >"$SC_LOG" 2>&1 ) &
+  ( cd "$ROOT" && exec "$VOIDMEI_BIN" --game-mode --port "$PORT" >"$SC_LOG" 2>&1 ) &
   APP_PID=$!
   # 归属留痕: 打出 winpid, 残留进程可按此判定是否本脚本泄漏并清理
   local APP_WINPID=""

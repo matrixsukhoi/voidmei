@@ -22,9 +22,12 @@
 //! CLI:
 //! - `--game-mode`: 对齐 `autoStartGameMode=true` (e2e 用) — 跳过 MainForm,
 //!   Controller 自启动 Service, 主线程直接进监督循环。
-//! - `--mock-smoke`: 起 `script/mock_8111.py` s2 场景 → 游戏模式跑 8 秒 →
-//!   断言 Service 收数 + 全部注册 overlay 逐窗 present>0 → 清理退出 (无 MainForm
-//!   冒烟; 8111 被占自动跳过 — 项目惯例, 不做假通过)。
+//! - `--port <p>`: 白盒 e2e 端口覆盖 (rust_e2e.sh 默认 9222)。白盒测试端口约定:
+//!   一律 9222 (Java 备用端口 appPortBkp 域, 游戏本地 API 恒占 8111 而 9222
+//!   游戏永不监听) — 真机在跑测试也不再被挤掉/误读游戏数据。
+//! - `--mock-smoke`: 起 `script/mock_8111.py` s2 场景 (端口 9222) → 游戏模式跑
+//!   8 秒 → 断言 Service 收数 + 全部注册 overlay 逐窗 present>0 → 清理退出
+//!   (无 MainForm 冒烟; 9222 被占自动跳过 — 项目惯例, 不做假通过)。
 //! - `--debug`: Application.debug = true (Logger DEBUG 级)。
 
 use std::path::PathBuf;
@@ -64,7 +67,9 @@ fn main() {
     let code = if args.iter().any(|a| a == "--mock-smoke") {
         mock_smoke_main(debug)
     } else if args.iter().any(|a| a == "--game-mode") {
-        game_mode_main(debug)
+        // 白盒 e2e 端口覆盖: rust_e2e.sh 默认 9222 (见 CLI 头注), 不与真机 8111 冲突
+        let port = parse_port_arg(&args);
+        game_mode_main(debug, port)
     } else {
         desktop_main(debug)
     };
@@ -226,8 +231,8 @@ fn make_hooks(shell: &Arc<Mutex<AppShell>>) -> MainFormHooks {
 // --game-mode: 跳过 MainForm 直接游戏模式 (Java autoStartGameMode=true, e2e)
 // =====================================================================
 
-fn game_mode_main(debug: bool) -> i32 {
-    let shell = match AppShell::new(debug, true) {
+fn game_mode_main(debug: bool, port_override: Option<u16>) -> i32 {
+    let shell = match AppShell::new_with_port(debug, true, port_override) {
         Ok(s) => s,
         Err(e) => {
             logger::error("App", &format!("AppShell 构造失败: {e}"));
@@ -244,16 +249,22 @@ fn game_mode_main(debug: bool) -> i32 {
 // =====================================================================
 
 fn mock_smoke_main(debug: bool) -> i32 {
-    // 端口占用跳过 (项目惯例: 8111 被游戏/真机/mock 占用时退出码 0 + SKIP)
-    if std::net::TcpListener::bind(("127.0.0.1", 8111)).is_err() {
-        println!("[mock-smoke] SKIP: 8111 已被占用 (游戏/mock 在跑?)");
+    // 白盒测试端口约定 (用户指令): 一律 9222 —— Java 备用端口 (appPortBkp) 域,
+    // 游戏本地 API 恒占 8111 而 9222 游戏永不监听, 真机在跑也互不干扰。
+    const SMOKE_PORT: u16 = 9222;
+    // 端口占用跳过 (项目惯例: 被其他 mock/白盒测试占用时退出码 0 + SKIP)。
+    // PORT(探测形态, 真机踩坑): bind 探测对通配监听者假阴性 (127.0.0.1 特定地址
+    // 仍可 bind 成功) → 后续 mock 抢绑失败 + 喂数连到别人, 误报 FAIL。connect
+    // 探测对任何在场监听者恒真 (service_loop.rs mock e2e 同修)。
+    if std::net::TcpStream::connect(("127.0.0.1", SMOKE_PORT)).is_ok() {
+        println!("[mock-smoke] SKIP: {SMOKE_PORT} 已有监听者 (其他 mock/白盒测试在跑?)");
         return 0;
     }
     let repo_root = repo_root();
     // 起 mock (s2_preview_live: 正常 p-51d 快照持续供应)
     let mut mock = match std::process::Command::new("python")
         .arg("script/mock_8111.py")
-        .args(["serve", "--port", "8111", "--scenario", "s2_preview_live"])
+        .args(["serve", "--port", &SMOKE_PORT.to_string(), "--scenario", "s2_preview_live"])
         .current_dir(&repo_root)
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
@@ -265,23 +276,24 @@ fn mock_smoke_main(debug: bool) -> i32 {
             return 0;
         }
     };
-    if !wait_mock_ready(MOCK_READY_TIMEOUT_MS) {
+    if !wait_mock_ready(MOCK_READY_TIMEOUT_MS, SMOKE_PORT) {
         println!("[mock-smoke] FAIL: mock server 未在限时就绪");
         let _ = mock.kill();
         let _ = mock.wait();
         return 1;
     }
     println!(
-        "[mock-smoke] mock s2_preview_live 就绪, 游戏模式运行 {}ms",
+        "[mock-smoke] mock s2_preview_live 就绪 (端口 {SMOKE_PORT}), 游戏模式运行 {}ms",
         MOCK_SMOKE_RUN_MS
     );
 
-    // 游戏模式组装 (autoStartGameMode=true 注入; 探测面保持真实 — mock 就在本机)
-    let mut shell = match AppShell::new(debug, true) {
+    // 游戏模式组装 (autoStartGameMode=true 注入; 探测面保持真实 — mock 就在本机;
+    // 端口走 9222 覆盖, 见 SMOKE_PORT 注)
+    let mut shell = match AppShell::new_with_port(debug, true, Some(SMOKE_PORT)) {
         Ok(s) => s,
         Err(e) => {
             println!("[mock-smoke] FAIL: AppShell 构造失败: {e}");
-            stop_mock(&mut mock);
+            stop_mock(&mut mock, SMOKE_PORT);
             return 1;
         }
     };
@@ -289,7 +301,7 @@ fn mock_smoke_main(debug: bool) -> i32 {
     if let Err(e) = shell.spawn_win32_thread() {
         println!("[mock-smoke] FAIL: win32 线程启动失败: {e}");
         drop(shell);
-        stop_mock(&mut mock);
+        stop_mock(&mut mock, SMOKE_PORT);
         return 1;
     }
 
@@ -320,7 +332,7 @@ fn mock_smoke_main(debug: bool) -> i32 {
 
     // 清理: 先收应用 (Drop = 五步销毁 + win32 join + 防抖 + 热键), 再停 mock
     drop(shell);
-    stop_mock(&mut mock);
+    stop_mock(&mut mock, SMOKE_PORT);
 
     if !service_ok {
         return fail(format!("Service 未收到有效数据 (frames={frames})"));
@@ -361,11 +373,17 @@ fn fail(msg: String) -> i32 {
     1
 }
 
+/// `--port <p>` 解析 (白盒 e2e 端口覆盖; 缺失/非法 → None = Lang 默认 8111)
+fn parse_port_arg(args: &[String]) -> Option<u16> {
+    let idx = args.iter().position(|a| a == "--port")?;
+    args.get(idx + 1)?.parse::<u16>().ok()
+}
+
 /// 停 mock: 优雅 /_mock/shutdown → 限期等待 → 兜底 kill (对位 e2e_fm.sh 收尾)。
 /// 限期 wait (审查 B-W3): mock 进程不响应 shutdown 时裸 wait() 会永久挂起冒烟
 /// 而非快速失败 — 3s 内 try_wait 轮询, 超时强杀后再收尸。
-fn stop_mock(mock: &mut std::process::Child) {
-    let _ = http_get_raw(8111, "/_mock/shutdown");
+fn stop_mock(mock: &mut std::process::Child, port: u16) {
+    let _ = http_get_raw(port, "/_mock/shutdown");
     let deadline = Instant::now() + Duration::from_millis(3_000);
     while Instant::now() < deadline {
         match mock.try_wait() {
@@ -379,10 +397,10 @@ fn stop_mock(mock: &mut std::process::Child) {
 }
 
 /// 阻塞等待 mock 的 /_mock/state 可连 (TCP 层就绪即可)
-fn wait_mock_ready(timeout_ms: u64) -> bool {
+fn wait_mock_ready(timeout_ms: u64, port: u16) -> bool {
     let deadline = Instant::now() + Duration::from_millis(timeout_ms);
     while Instant::now() < deadline {
-        if http_get_raw(8111, "/_mock/state").is_some() {
+        if http_get_raw(port, "/_mock/state").is_some() {
             return true;
         }
         std::thread::sleep(Duration::from_millis(100));

@@ -325,6 +325,21 @@ Java 同款算法同样如此——对拍动态帧时需两边同等预热。
     TODO, 数值列/analyze 链全实时正确); DrawFrame/toast/writeDown 按 D8/死码
     豁免备案
 
+14. **用户验收 4: MiniHUD bar 恒 0 + 白盒测试端口约定** (真机对拍发现):
+    (a) **事件 state 丢失** (主根因): vm-app 转发链通道边界只克隆 EventPayload,
+    重建 `FlightDataEvent::new(payload, None, None)` 令 hud_calculator 的
+    sState/sIndic 整块跳过 — 襟翼/油门/姿态/G/减速板全 0。修复: 喂数侧从 live
+    guard 现值重打快照 (snapshot_state/snapshot_indicators 转 pub), 对位 Java
+    事件携带共享可变引用、EDT 时刻读最新值的时序语义。(b) **速度比值 bar 仍 0
+    (备案)**: speed_limit_ratio/stall_speed 等 5 字段的 Java 写入方法
+    (updateSpeedRatio L1185-1231 / updateStallSpeed L1236-1266) 未移植, 且其
+    输入 (vne/翼数据) 由 getload 填充 — 移植前算出 inf/NaN 假数据, 归 getload
+    L 批次; 襟翼允许角度同期走 125 缺省 (feed 侧 getload 禁令降级)。
+    (c) **白盒测试一律 9222** (用户指令): 真机在跑时 8111 上 bind 探测对战雷
+    0.0.0.0 通配监听假阴性 → mock 抢绑失败 + Service 误读游戏数据 (IAS 593≠474
+    实测)。修复: connect 探测 + 全白盒面 (vm-data e2e / mock-smoke /
+    rust_e2e.sh) 切 9222, 应用侧新增 `AppShell::new_with_port` + `--port` CLI。
+
 ## 11.5 人工验收清单 (移交用户)
 
 1. `bash script/rust_run.sh` — iced 设置窗 + 全部 overlay 预览共存

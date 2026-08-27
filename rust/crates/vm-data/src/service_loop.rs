@@ -1072,7 +1072,9 @@ fn to_indicators_raw(i: &Indicators) -> IndicatorsRaw {
 }
 
 /// [`State`] 逐字段快照 (§2.3 事件不可变快照; State 未 derive Clone)。
-fn snapshot_state(s: &State) -> State {
+/// pub: vm-app 喂数侧重建 FlightDataEvent 时复用 (app_shell feed_overlays_live —
+/// 通道边界丢 OpaqueObject 后按 live guard 现值重打快照, 见彼处 PORT 注)。
+pub fn snapshot_state(s: &State) -> State {
     State {
         valid: s.valid.clone(),
         flag: s.flag,
@@ -1120,7 +1122,8 @@ fn snapshot_state(s: &State) -> State {
 /// PORT(army): 私有字段 `army` (vm-core 模块私有) 跨 crate 不可读写, 快照
 /// 经 `Indicators::new()` 落默认值——全库无 army 读者 (仅 update 内部 tank
 /// 过滤使用), 无行为差异; 故用 new()+逐字段赋值而非 struct 字面量。
-fn snapshot_indicators(i: &Indicators) -> Indicators {
+/// pub: 同 [`snapshot_state`] (vm-app 喂数侧重建事件复用)。
+pub fn snapshot_indicators(i: &Indicators) -> Indicators {
     let mut s = Indicators::new();
     s.valid = i.valid.clone();
     s.r#type = i.r#type.clone();
@@ -1607,7 +1610,7 @@ mod tests {
 
     /// §6 契约: 顶层 catch_unwind——单轮 panic (Boolean 拆箱 NPE 复刻) 不杀线程,
     /// 线程经 stop 正常退出 (join ok = panic 未逃逸 run)。
-    /// 随机端口假 8111 供数 (不与 mock_e2e 的 8111 冲突), 响应按 send_get_fast_buf
+    /// 随机端口假游戏端口供数 (不与 mock_e2e 的 9222 或真机 8111 冲突), 响应按 send_get_fast_buf
     /// 的单次 read 契约一次性 write。
     #[test]
     fn catch_unwind_keeps_thread_alive() {
@@ -1663,16 +1666,21 @@ mod tests {
 
     /// 规则 2 e2e: mock_8111.py 起 s2_preview_live, Service 跑 3 秒,
     /// 断言事件数>0 且 ServiceData 的 ias/vario 与 mock 快照一致。
-    /// 8111 被占 (游戏在跑) 时跳过。
+    /// 白盒测试端口约定 (用户指令): 9222 = Java 备用端口 (appPortBkp) 域,
+    /// 游戏本地 API 恒占 8111 而 9222 游戏永不监听 — 真机在跑测试也不被挤掉。
     #[test]
     fn mock_e2e_s2_preview_live() {
-        // 端口占用探测: 游戏或另一个 mock 在跑 → 跳过本测试
-        let probe = TcpListener::bind("127.0.0.1:8111");
-        if probe.is_err() {
-            println!("跳过: 127.0.0.1:8111 已被占用 (游戏/其他 mock 在跑), e2e 让位");
+        const TEST_PORT: u16 = 9222;
+        // 端口占用探测: 其他白盒测试/mock 在跑 → 跳过本测试
+        // PORT(探测形态, 真机踩坑): 原 8111 + bind 探测有两重坑 —— (a) bind 探测对
+        // 0.0.0.0 通配监听者 (战雷 aces.exe) 假阴性: Windows 允许 127.0.0.1 特定
+        // 地址 bind 成功, mock 抢绑失败退出后 Service 连的是游戏, 断言对着静态
+        // 快照必炸 (实测真机 IAS 593 ≠ 474); (b) 8111 本就是游戏端口。改 connect
+        // 探测 + 9222 后两坑皆除 (探测对任何在场监听者恒真)。
+        if TcpStream::connect(("127.0.0.1", TEST_PORT)).is_ok() {
+            println!("跳过: 127.0.0.1:{TEST_PORT} 已有监听者 (其他 mock/白盒测试在跑), e2e 让位");
             return;
         }
-        drop(probe);
 
         // 起 mock (失败也要清理 → KillOnDrop 兜底)
         let script = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -1681,7 +1689,7 @@ mod tests {
             .arg(&script)
             .arg("serve")
             .arg("--port")
-            .arg("8111")
+            .arg(TEST_PORT.to_string())
             .arg("--scenario")
             .arg("s2_preview_live")
             .stdout(Stdio::null())
@@ -1700,16 +1708,16 @@ mod tests {
         // 等 mock 就绪 (最多 10s)
         let deadline = std::time::Instant::now() + Duration::from_secs(10);
         loop {
-            if TcpStream::connect("127.0.0.1:8111").is_ok() {
+            if TcpStream::connect(("127.0.0.1", TEST_PORT)).is_ok() {
                 break;
             }
             if std::time::Instant::now() > deadline {
-                panic!("mock_8111.py 10s 内未在 8111 就绪");
+                panic!("mock_8111.py 10s 内未在 {TEST_PORT} 就绪");
             }
             std::thread::sleep(Duration::from_millis(100));
         }
 
-        // Service 全链 (默认 config: 50ms / 8111)
+        // Service 全链 (config: 50ms / 9222 — 白盒端口约定, 见测试头注)
         let fm = Arc::new(FMManager::new(Arc::new(EventBus::new())));
         let bus = Arc::new(FlightDataBus::new());
         let hits = Arc::new(AtomicU32::new(0));
@@ -1717,7 +1725,14 @@ mod tests {
         let _sub = bus.register(move |_| {
             h2.fetch_add(1, Ordering::SeqCst);
         });
-        let svc = Service::new(ServiceConfig::default(), Arc::clone(&fm), bus);
+        let svc = Service::new(
+            ServiceConfig {
+                app_port: TEST_PORT,
+                ..ServiceConfig::default()
+            },
+            Arc::clone(&fm),
+            bus,
+        );
         let mut handle = start(svc);
 
         // 跑 3 秒
