@@ -11,7 +11,7 @@ use std::sync::Arc;
 /// PORT: Java 参数类型 `prog.OverlayContext` 属后续翻译批次 (CLASSIFY 步骤 14,
 /// B 类), 本 crate 尚无对应物 —— 此处按 ActivationStrategy 的实际访问面
 /// (getBool/isDebug/isJet/isPreviewMode 字段/Blkx 字段 null 检查) 提取最小 trait。
-// TODO(port): overlay_context 落地后为 OverlayContext impl 本 trait
+// 已收口: overlay_context.rs 的 OverlayContext impl 即本 trait 的生产实现
 // (get_bool = Boolean.parseBoolean(configProvider.getConfig(key)) —— 只认
 // 不区分大小写的 "true", null/其余串均 false; has_blkx = self.Blkx.is_some()),
 // 组合逻辑零改动。

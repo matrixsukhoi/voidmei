@@ -35,7 +35,7 @@
 //!   inAction/disableAttitude) 保真保留 (§2.10 + hud_layout_node ignoreBounds
 //!   先例: write-only 状态不删), 各带 PORT 注。
 
-use crate::global_colors::colors;
+use crate::global_colors::{aa, colors};
 use std::cell::RefCell;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
@@ -53,7 +53,8 @@ use crate::gauge_attitude::AttitudeIndicatorGauge;
 use crate::gauge_compass::CompassGauge;
 use crate::gauge_crosshair::CrosshairGauge;
 use crate::gauges_bars::{FlapAngleBar, LinearGauge, SpeedRatioBar};
-use crate::host::OverlaySpec;
+use crate::host::{OverlaySpec, ReinitFn};
+use crate::reinit::ReinitParams;
 use crate::minihud_layout::{build_mihud_layout, AutoSizingPlan, BuiltMiniHudLayout, HasVisibility, MiniHudLayoutConfig, MiniHudParts, ModernHUDLayoutEngine};
 use crate::render2d::PixCanvas;
 use crate::rows::{HUDAkbRow, HUDEnergyRow, HUDMechanizationRow, HUDManeuverRow, HUDTextRow};
@@ -1506,12 +1507,11 @@ fn draw_rect_1px(cv: &mut PixCanvas, x: i32, y: i32, w: i32, h: i32, color: [u8;
 /// 备案), 数据钩子以共享句柄承载, 不扩 host 接口。
 ///
 /// spec 尺寸 = applyAutoSizing 计划 (Java: setBounds 初值被 applyAutoSizing 的
-/// window.setSize 覆盖, 净效果 = 内容包围盒 + 2×LAYOUT_PADDING);
-/// PORT: width/height 是**创建时** sizing() 快照 — reinit_config 重建布局后新
-/// 计划不回流本 spec (host 无 resize 通道, Java reinitConfig→applyAutoSizing 的
-/// window.setSize 副作用当前无承接); Controller 批次接手时须显式消费
-/// handle.borrow().sizing() 增设 resize 通道, 否则 WYSIWYG reinit 窗口冻结在
-/// 创建尺寸。
+/// window.setSize 覆盖, 净效果 = 内容包围盒 + 2×LAYOUT_PADDING)。
+/// PORT(WYSIWYG 收口, 原"创建时快照冻结"备案): reinit 闭包随 [`ReinitParams`] 仓
+/// 走 reinit_config (ctx/模板/风格/布局引擎全量重建, Java L127-159), 新 sizing()
+/// 计划经返回值交 host resize_entry — 对位 Java reinitConfig→applyAutoSizing 的
+/// window.setSize 副作用, 窗口不再冻结在创建尺寸。
 /// `service_loop_interval_ms` / `service_present` 语义见 [`MiniHudOverlay::init`]。
 pub fn minihud_overlay_spec<S: HUDSettings>(
     service_present: bool,
@@ -1519,6 +1519,7 @@ pub fn minihud_overlay_spec<S: HUDSettings>(
     settings: &S,
     dpi_scale: f64,
     font_path: &Path,
+    params: &Rc<RefCell<ReinitParams>>,
 ) -> Result<(MiniHudHandle, OverlaySpec), String> {
     let overlay = MiniHudOverlay::init(
         service_present,
@@ -1534,6 +1535,23 @@ pub fn minihud_overlay_spec<S: HUDSettings>(
     };
     let handle: MiniHudHandle = Rc::new(RefCell::new(overlay));
     let render_handle = Rc::clone(&handle);
+    // reinit 闭包: reinit_config(最新 hud 快照) → 新 sizing 计划 (setBounds 面);
+    // 重建失败 (字体文件缺失等) 留痕并保持旧尺寸
+    let reinit_handle = Rc::clone(&handle);
+    let reinit_params = Rc::clone(params);
+    let reinit: ReinitFn = Box::new(move || {
+        let hud = reinit_params.borrow().hud.clone();
+        let mut o = reinit_handle.borrow_mut();
+        if let Err(e) = o.reinit_config(&hud) {
+            vm_core::logger::error("MinimalHUD", &format!("reinit_config 失败: {}", e));
+            return None;
+        }
+        let (w, h) = match o.sizing() {
+            Some(p) => (p.new_width, p.new_height),
+            None => (o.ctx().width, o.ctx().height),
+        };
+        Some((w, h))
+    });
     Ok((
         handle,
         OverlaySpec {
@@ -1545,8 +1563,9 @@ pub fn minihud_overlay_spec<S: HUDSettings>(
             render: Box::new(move |cv: &mut PixCanvas| {
                 // 生产 AA 恒开 (Application.java:102 graphAASetting 默认 ON;
                 // 接配置层后随 host GLOBAL_CONFIG_KEYS 的 AA 键族回收)
-                render_handle.borrow_mut().draw(cv, true);
+                render_handle.borrow_mut().draw(cv, aa());
             }),
+            reinit: Some(reinit),
         },
     ))
 }
@@ -2480,7 +2499,13 @@ mod tests {
     #[test]
     fn overlay_spec_sizes_and_renders() {
         let s = TestSettings::default();
-        let (handle, mut spec) = minihud_overlay_spec(false, 100, &s, 1.0, &font_path()).unwrap();
+        // 参数仓 hud 快照与工厂 settings 同源 (生产面: inputs.hud == params.hud)
+        let cell = Rc::new(RefCell::new(ReinitParams {
+            hud: vm_core::config_api::HudSettingsSnapshot::build(&s),
+            ..Default::default()
+        }));
+        let (handle, mut spec) =
+            minihud_overlay_spec(false, 100, &s, 1.0, &font_path(), &cell).unwrap();
         assert_eq!(spec.id, "crosshairSwitch");
         assert_eq!(spec.config_key, "crosshairSwitch");
         let plan = handle.borrow().sizing().unwrap();
@@ -2490,5 +2515,17 @@ mod tests {
         let mut cv = PixCanvas::new(spec.width, spec.height).unwrap();
         (spec.render)(&mut cv);
         assert!(cv.pixmap().data().iter().any(|&b| b != 0));
+
+        // WYSIWYG reinit: hud 快照换字号/开关 → reinit_config 重建 + 新尺寸
+        // (TestSettings 全显行集; fontadd 0→6 行高变大 → 高度必增)
+        let (_w0, h0) = (spec.width, spec.height);
+        cell.borrow_mut().hud.font_size_add = 6;
+        let (w1, h1) = (spec.reinit.as_mut().unwrap())().expect("reinit 应成功");
+        assert!(h1 > h0, "字号增量后高度应变大 ({} → {})", h0, h1);
+        assert!(w1 > 0);
+        // reinit 后 render 闭包可画 (新布局/字体, 不 panic)
+        let mut cv2 = PixCanvas::new(w1, h1).unwrap();
+        (spec.render)(&mut cv2);
+        assert!(cv2.pixmap().data().iter().any(|&b| b != 0));
     }
 }

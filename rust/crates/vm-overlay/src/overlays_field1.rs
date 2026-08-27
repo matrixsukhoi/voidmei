@@ -17,13 +17,14 @@
 //! 视觉语义逐项对照 Java paintComponent/drawTick/drawGauges; Java char[] 零 GC buffer
 //! 统一为 String (gauges_bars 先例, 无 stale tail)。
 
-use crate::global_colors::colors;
+use crate::global_colors::{aa, colors};
 use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::font::LoadedFont;
 use crate::gauges_bars::LabeledLinearGauge;
-use crate::host::OverlaySpec;
+use crate::host::{OverlaySpec, ReinitFn};
+use crate::reinit::ReinitParams;
 use crate::render2d::PixCanvas;
 use crate::renderers::{BosStyleRenderer, Field, OverlayRenderer, RenderContext};
 use vm_core::event::EventPayload;
@@ -1256,6 +1257,19 @@ pub struct EngineGaugeDef {
 }
 
 /// initGaugeFields (EngineControlOverlay.java:224-244) 的 7 条定义, 顺序原样
+/// 7 仪表 disable 键 (ENGINE_GAUGE_DEFS 顺序; Java initGaugeFields 读
+/// ui_layout.cfg:185-191 发动机元素组 switch-inv, 审查轮 1-B: 曾 never-wired
+/// 恒显全部 7 条 — vm-app 经 OverlayInputs 按此表序传 [bool; 7])
+pub const ENGINE_DISABLE_KEYS: [&str; 7] = [
+    "disableEngineInfoThrottle",
+    "disableEngineInfoPitch",
+    "disableEngineInfoPower",
+    "disableEngineInfoMixture",
+    "disableEngineInfoRadiator",
+    "disableEngineInfoCompressor",
+    "disableEngineInfoLFuel",
+];
+
 pub const ENGINE_GAUGE_DEFS: &[EngineGaugeDef] = &[
     EngineGaugeDef {
         disable_key: "disableEngineInfoThrottle", key: "throttle",
@@ -1911,6 +1925,7 @@ pub fn power_info_preview_spec(
         width: w,
         height: h,
         render: Box::new(move |cv: &mut PixCanvas| state.draw(cv, &ctx, &mut renderer)),
+        reinit: None, // 预览专径 (POC 冒烟); WYSIWYG reinit 面在 live 工厂
     })
 }
 
@@ -1940,6 +1955,7 @@ pub fn engine_control_preview_spec(
             // 接配置层后随 graphAASetting (host GLOBAL_CONFIG_KEYS 的 AA 开关键族) 回收
             state.draw(cv, &font_label, true);
         }),
+        reinit: None,
     })
 }
 
@@ -1968,6 +1984,7 @@ pub fn gear_flaps_preview_spec(
             // 接配置层后随 graphAASetting (host GLOBAL_CONFIG_KEYS 的 AA 开关键族) 回收
             state.draw(cv, &font_num, &font_label, true);
         }),
+        reinit: None,
     })
 }
 
@@ -1983,18 +2000,46 @@ pub fn gear_flaps_preview_spec(
 pub type PowerInfoHandle = Rc<RefCell<PowerInfoState>>;
 
 /// 动力信息 OverlaySpec + live 句柄 (Java Controller.java:662 注册键 engineInfoSwitch)。
-/// 初始态 = previewValue (PowerInfoState::new), 游戏模式由喂入方 update 推进
+/// 初始态 = previewValue (PowerInfoState::new), 游戏模式由喂入方 update 推进。
+/// PORT(WYSIWYG): 字号/列数随 [`ReinitParams`] 仓 — render 闭包经共享 ctx 单元
+/// 读取, reinit 闭包重建 RenderContext (Java reinitConfig 的 super 段: 字体 +
+/// 列布局重载) 并返回新 preferred_size (setBounds 副作用)
 pub fn power_info_overlay_spec(
     fonts_dir: &std::path::Path,
-    font_add: i32,
-    column_num: i32,
+    params: &Rc<RefCell<ReinitParams>>,
 ) -> Result<(PowerInfoHandle, OverlaySpec), String> {
-    let ctx = RenderContext::load(fonts_dir, font_add, column_num)?;
+    let (font_add, column_num) = {
+        let p = params.borrow();
+        (p.font_add_power, p.power_columns)
+    };
+    let ctx = Rc::new(RefCell::new(RenderContext::load(fonts_dir, font_add, column_num)?));
     let state = PowerInfoState::new();
-    let (w, h) = state.preferred_size(&ctx);
+    let (w, h) = state.preferred_size(&ctx.borrow());
     let handle: PowerInfoHandle = Rc::new(RefCell::new(state));
     let render_handle = Rc::clone(&handle);
     let mut renderer = BosStyleRenderer::default();
+    // reinit 闭包: 重建 ctx (字体/列度量) → 新 preferred_size (Java setBounds)
+    let reinit_handle = Rc::clone(&handle);
+    let reinit_ctx = Rc::clone(&ctx);
+    let reinit_fonts = fonts_dir.to_path_buf();
+    let reinit_params = Rc::clone(params);
+    let reinit: ReinitFn = Box::new(move || {
+        let (fa, col) = {
+            let p = reinit_params.borrow();
+            (p.font_add_power, p.power_columns)
+        };
+        let new_ctx = match RenderContext::load(&reinit_fonts, fa, col) {
+            Ok(c) => c,
+            Err(e) => {
+                // 字体重载失败: 保持旧 ctx (Java 字体族随包分发, 此路径不可达;
+                // 显式留痕不静默)
+                vm_core::logger::error("PowerInfo", &format!("reinit 字体重载失败: {}", e));
+                return None;
+            }
+        };
+        *reinit_ctx.borrow_mut() = new_ctx;
+        Some(reinit_handle.borrow().preferred_size(&reinit_ctx.borrow()))
+    });
     Ok((
         handle,
         OverlaySpec {
@@ -2003,8 +2048,9 @@ pub fn power_info_overlay_spec(
             width: w,
             height: h,
             render: Box::new(move |cv: &mut PixCanvas| {
-                render_handle.borrow().draw(cv, &ctx, &mut renderer);
+                render_handle.borrow().draw(cv, &ctx.borrow(), &mut renderer);
             }),
+            reinit: Some(reinit),
         },
     ))
 }
@@ -2013,29 +2059,59 @@ pub fn power_info_overlay_spec(
 pub type EngineControlHandle = Rc<RefCell<EngineControlState>>;
 
 /// 引擎控制 OverlaySpec + live 句柄 (Java Controller.java:654 注册键 enableEngineControl)。
-/// `data_poll_interval_ms` = dataPollIntervalMs 配置值 (loadRefreshInterval 的读键,
-/// refreshInterval = ×2; preview 工厂传不进此参故恒默认 100 — 两工厂的差异点仅此)
+/// `lang` 以 Rc 共享 (reinit 闭包重建 state 需要标签源; Lang !Clone)。
+/// PORT(WYSIWYG): 字号/7 仪表 disable/轮询间隔随 [`ReinitParams`] 仓 — reinit
+/// 闭包整体重建 EngineControlState + fontLabel (Java reinitConfig: loadFontConfig +
+/// loadRefreshInterval + initGaugeFields + calculateLayout + updateGaugesPreview),
+/// 返回新 (width, height) (Java setLocation 尺寸面)
 pub fn engine_control_overlay_spec(
     fonts_dir: &std::path::Path,
-    lang: &Lang,
-    font_add: i32,
-    dpi_scale: f64,
-    data_poll_interval_ms: i64,
+    lang: Rc<Lang>,
+    params: &Rc<RefCell<ReinitParams>>,
 ) -> Result<(EngineControlHandle, OverlaySpec), String> {
-    let interval_str = data_poll_interval_ms.to_string();
+    let (font_add, dpi_scale, interval_ms, disables) = {
+        let p = params.borrow();
+        (p.font_add_engine, p.dpi_scale, p.service_loop_interval_ms, p.engine_disables)
+    };
+    let interval_str = interval_ms.to_string();
     // init 链 (game 实例): initGaugeFields + calculateLayout + updateGaugesPreview
     // (半量程初值, 首个有效事件前的显示态; initPreview 的二次调用是 preview 专属)
-    let state =
-        EngineControlState::new(lang, font_add, dpi_scale, &|_| false, &|_| interval_str.clone());
+    // cfg_true 按键名查 disables 表 (Java "true".equals(getConfigSafe(key));
+    // 曾恒 false — 7 个 disable 开关从未生效, 启动首帧即与 Java 不一致)
+    let state = build_engine_state(&lang, font_add, dpi_scale, &interval_str, &disables);
     // fontLabel = BOLD(round(fontSize/2.0f)) (loadFontConfig)
     let half = java_round_f32(state.font_size as f32 / 2.0);
-    let font_label = Rc::new(LoadedFont::new(
-        &fonts_dir.join("sarasa-mono-sc-bold.ttf"),
-        half,
-    )?);
+    let bold_path = fonts_dir.join("sarasa-mono-sc-bold.ttf");
+    let font_label = Rc::new(RefCell::new(Rc::new(LoadedFont::new(&bold_path, half)?)));
     let (w, h) = (state.width, state.height);
     let handle: EngineControlHandle = Rc::new(RefCell::new(state));
     let render_handle = Rc::clone(&handle);
+    let render_font = Rc::clone(&font_label);
+    // reinit 闭包: 状态整体重建 (Java initGaugeFields 全量重排) + fontLabel 重载
+    let reinit_handle = Rc::clone(&handle);
+    let reinit_font = Rc::clone(&font_label);
+    let reinit_lang = Rc::clone(&lang);
+    let reinit_params = Rc::clone(params);
+    let reinit_bold = bold_path;
+    let reinit: ReinitFn = Box::new(move || {
+        let (fa, dpi, iv, dis) = {
+            let p = reinit_params.borrow();
+            (p.font_add_engine, p.dpi_scale, p.service_loop_interval_ms, p.engine_disables)
+        };
+        let new_state = build_engine_state(&reinit_lang, fa, dpi, &iv.to_string(), &dis);
+        let half = java_round_f32(new_state.font_size as f32 / 2.0);
+        let new_font = match LoadedFont::new(&reinit_bold, half) {
+            Ok(f) => Rc::new(f),
+            Err(e) => {
+                vm_core::logger::error("EngineControl", &format!("reinit 字体重载失败: {}", e));
+                return None;
+            }
+        };
+        let (w, h) = (new_state.width, new_state.height);
+        *reinit_handle.borrow_mut() = new_state;
+        *reinit_font.borrow_mut() = new_font;
+        Some((w, h))
+    });
     Ok((
         handle,
         OverlaySpec {
@@ -2044,35 +2120,94 @@ pub fn engine_control_overlay_spec(
             width: w,
             height: h,
             render: Box::new(move |cv: &mut PixCanvas| {
-                // 生产 AA 恒开 (Application.java:102 graphAASetting 默认 ON)
-                render_handle.borrow_mut().draw(cv, &font_label, true);
+                // aa = 运行时仓 (cfg AAEnable 可关 — 审查轮 1-A 第 7 处钉死点)
+                render_handle.borrow_mut().draw(cv, &render_font.borrow(), aa());
             }),
+            reinit: Some(reinit),
         },
     ))
+}
+
+/// EngineControlState::new 的 interval/disables 参数打包 (工厂初建与 reinit 共用)
+fn build_engine_state(
+    lang: &Lang,
+    font_add: i32,
+    dpi_scale: f64,
+    interval_str: &str,
+    disables: &[bool; 7],
+) -> EngineControlState {
+    EngineControlState::new(
+        lang,
+        font_add,
+        dpi_scale,
+        &|key: &str| ENGINE_DISABLE_KEYS
+            .iter()
+            .position(|k| *k == key)
+            .map(|i| disables[i])
+            .unwrap_or(false),
+        &|_| interval_str.to_string(),
+    )
 }
 
 /// 起落襟翼共享句柄
 pub type GearFlapsHandle = Rc<RefCell<GearFlapsState>>;
 
 /// 起落襟翼 OverlaySpec + live 句柄 (Java Controller.java:709 注册键 enablegearAndFlaps)。
-/// 初始态 = 襟翼 50% 无告警 (new 的预览初值), 游戏模式由喂入方 update_tick 推进
+/// 初始态 = 襟翼 50% 无告警 (new 的预览初值), 游戏模式由喂入方 update_tick 推进。
+/// PORT(WYSIWYG): 字号/边缘开关随 [`ReinitParams`] 仓 — reinit 闭包重建几何 +
+/// 双字体 (Java reinitConfig :95-142), 返回新 (total_width, total_height)
 pub fn gear_flaps_overlay_spec(
     fonts_dir: &std::path::Path,
-    font_add: i32,
-    dpi_scale: f64,
-    show_edge: bool,
+    params: &Rc<RefCell<ReinitParams>>,
 ) -> Result<(GearFlapsHandle, OverlaySpec), String> {
+    let (font_add, dpi_scale, show_edge) = {
+        let p = params.borrow();
+        (p.font_add_gear, p.dpi_scale, p.gear_show_edge)
+    };
     let state = GearFlapsState::new(font_add, dpi_scale, show_edge);
     let bold = fonts_dir.join("sarasa-mono-sc-bold.ttf");
     // fontNum = BOLD(fontSize); fontLabel = BOLD(round(fontSize/2.0f)) (reinitConfig)
-    let font_num = Rc::new(LoadedFont::new(&bold, state.font_size)?);
-    let font_label = Rc::new(LoadedFont::new(
+    let font_num = Rc::new(RefCell::new(Rc::new(LoadedFont::new(
+        &bold,
+        state.font_size,
+    )?)));
+    let font_label = Rc::new(RefCell::new(Rc::new(LoadedFont::new(
         &bold,
         java_round_f32(state.font_size as f32 / 2.0),
-    )?);
+    )?)));
     let (w, h) = (state.total_width, state.total_height);
     let handle: GearFlapsHandle = Rc::new(RefCell::new(state));
     let render_handle = Rc::clone(&handle);
+    // reinit 闭包: 几何 + 双字体重建 (Java reinitConfig 同段; flap 50%/warn 清空
+    // 的预览复位语义原样保留)
+    let reinit_handle = Rc::clone(&handle);
+    let (reinit_num, reinit_label) = (Rc::clone(&font_num), Rc::clone(&font_label));
+    let reinit_params = Rc::clone(params);
+    let reinit_bold = bold;
+    let reinit: ReinitFn = Box::new(move || {
+        let (fa, dpi, edge) = {
+            let p = reinit_params.borrow();
+            (p.font_add_gear, p.dpi_scale, p.gear_show_edge)
+        };
+        let new_state = GearFlapsState::new(fa, dpi, edge);
+        let (num, label) = match (
+            LoadedFont::new(&reinit_bold, new_state.font_size),
+            LoadedFont::new(&reinit_bold, java_round_f32(new_state.font_size as f32 / 2.0)),
+        ) {
+            (Ok(n), Ok(l)) => (Rc::new(n), Rc::new(l)),
+            (r, _) => {
+                if let Err(e) = r {
+                    vm_core::logger::error("GearFlaps", &format!("reinit 字体重载失败: {}", e));
+                }
+                return None;
+            }
+        };
+        let (w, h) = (new_state.total_width, new_state.total_height);
+        *reinit_handle.borrow_mut() = new_state;
+        *reinit_num.borrow_mut() = num;
+        *reinit_label.borrow_mut() = label;
+        Some((w, h))
+    });
     Ok((
         handle,
         OverlaySpec {
@@ -2082,8 +2217,10 @@ pub fn gear_flaps_overlay_spec(
             height: h,
             render: Box::new(move |cv: &mut PixCanvas| {
                 // 生产 AA 恒开 (Application.java:102 graphAASetting 默认 ON)
-                render_handle.borrow().draw(cv, &font_num, &font_label, true);
+                let (num, label) = (font_num.borrow(), font_label.borrow());
+                render_handle.borrow().draw(cv, &num, &label, true);
             }),
+            reinit: Some(reinit),
         },
     ))
 }
@@ -2964,13 +3101,21 @@ mod tests {
 
     // ---- live 喂数形态工厂 (句柄共享: render 闭包与喂入方同一 state) ----
 
+    /// 测试参数仓 (缺省值 + 覆写便捷)
+    fn params_cell(mutate: impl FnOnce(&mut ReinitParams)) -> Rc<RefCell<ReinitParams>> {
+        let mut p = ReinitParams::default();
+        mutate(&mut p);
+        Rc::new(RefCell::new(p))
+    }
+
     /// 三工厂: 句柄喂入后 render 闭包画到新值 (共享 state 生效); 尺寸与 preview 工厂一致
     #[test]
     fn live_spec_handles_share_state_with_render() {
         let l = lang();
         let fonts = std::path::Path::new(FONTS);
         // PowerInfo: 功率 1200 → 首字段 buffer
-        let (h_power, mut spec) = power_info_overlay_spec(fonts, 0, 2).unwrap();
+        let (h_power, mut spec) =
+            power_info_overlay_spec(fonts, &params_cell(|p| p.power_columns = 2)).unwrap();
         let t = MockTele { horse_power: 1200.0, ..MockTele::default() };
         assert!(h_power.borrow_mut().update(100, &t));
         assert_eq!(h_power.borrow().fields()[0].buffer, "1200");
@@ -2979,9 +3124,31 @@ mod tests {
         assert!(cv.pixmap().data().iter().any(|&b| b != 0));
 
         // EngineControl: throttle 80 → gauge 值; render 走 &mut 通道不 panic
-        let (h_engine, mut spec2) =
-            engine_control_overlay_spec(fonts, &l, 0, 1.0, 50).unwrap();
+        let lang_rc = Rc::new(lang());
+        let (h_engine, mut spec2) = engine_control_overlay_spec(
+            fonts,
+            Rc::clone(&lang_rc),
+            &params_cell(|p| p.service_loop_interval_ms = 50),
+        )
+        .unwrap();
         assert_eq!((spec2.width, spec2.height), (192, 306), "尺寸与 preview 工厂一致");
+
+        // disable 键实效 (审查轮 1-B): 7 仪表全关 → 布局窗口显著变矮
+        // (EngineControlState::new 的 calculateLayout 按存活仪表数算高)
+        let (_h, spec_off) = engine_control_overlay_spec(
+            fonts,
+            Rc::clone(&lang_rc),
+            &params_cell(|p| {
+                p.service_loop_interval_ms = 50;
+                p.engine_disables = [true; 7];
+            }),
+        )
+        .unwrap();
+        assert!(
+            spec_off.height < 306,
+            "全关 ({}) 应矮于全开 (306) — 曾 never-wired 恒显全部 7 条",
+            spec_off.height
+        );
         // dataPollIntervalMs=50 → refreshInterval=100 (loadRefreshInterval ×2)
         assert_eq!(h_engine.borrow().refresh_interval, 100);
         let t2 = MockTele { throttle: 80.0, ..MockTele::default() };
@@ -2992,12 +3159,68 @@ mod tests {
         assert!(cv2.pixmap().data().iter().any(|&b| b != 0));
 
         // GearFlaps: gear=100/flaps=25 → 告警文本 + flap_pix
-        let (h_gear, mut spec3) = gear_flaps_overlay_spec(fonts, 0, 1.0, false).unwrap();
+        let (h_gear, mut spec3) = gear_flaps_overlay_spec(fonts, &params_cell(|_| {})).unwrap();
         let t3 = MockTele { gear: 100.0, flaps: 25.0, ..MockTele::default() };
         assert!(h_gear.borrow_mut().update_tick(100, &l, &t3));
         assert_eq!(h_gear.borrow().flap_pix, 24);
         let mut cv3 = PixCanvas::new(spec3.width, spec3.height).unwrap();
         (spec3.render)(&mut cv3);
         assert!(cv3.pixmap().data().iter().any(|&b| b != 0));
+    }
+
+    // ---- WYSIWYG reinit (Java reinitConfig → 新 preferred_size/setBounds) ----
+
+    /// PowerInfo: fontadd 0→6 → reinit 闭包返回更大高度 (host 侧走 resize_entry)
+    #[test]
+    fn power_info_reinit_grows_with_font_add() {
+        let fonts = std::path::Path::new(FONTS);
+        let cell = params_cell(|_| {});
+        let (_h, mut spec) = power_info_overlay_spec(fonts, &cell).unwrap();
+        let h0 = spec.height;
+        cell.borrow_mut().font_add_power = 6;
+        let (w1, h1) = (spec.reinit.as_mut().unwrap())().expect("reinit 应成功");
+        assert!(
+            h1 > h0,
+            "字号增量 0→6 后高度应变大 ({} → {})",
+            h0,
+            h1
+        );
+        assert!(w1 > 0);
+    }
+
+    /// EngineControl: fontadd 0→6 → 高度变大; 7 仪表全关 → 显著变矮 (disable 生效)
+    #[test]
+    fn engine_control_reinit_resizes_for_font_and_disables() {
+        let fonts = std::path::Path::new(FONTS);
+        let cell = params_cell(|_| {});
+        let (h, mut spec) =
+            engine_control_overlay_spec(fonts, Rc::new(lang()), &cell).unwrap();
+        let h0 = spec.height;
+        cell.borrow_mut().font_add_engine = 6;
+        let (_, h1) = (spec.reinit.as_mut().unwrap())().expect("reinit 应成功");
+        assert!(h1 > h0, "字号增量后高度应变大 ({} → {})", h0, h1);
+        // 全关: 存活仪表 0 → 布局显著变矮 (state 已重建, live 值复位为预览半量程)
+        cell.borrow_mut().engine_disables = [true; 7];
+        let (_, h2) = (spec.reinit.as_mut().unwrap())().expect("reinit 应成功");
+        assert!(h2 < h1, "全关仪表后应显著变矮 ({} → {})", h1, h2);
+        assert!(h.borrow().gauge_by_key("throttle").is_none(), "全关后 throttle 仪表移除");
+    }
+
+    /// GearFlaps: fontadd 0→6 → 总尺寸变大; 边缘开关 → sw=10 外扩 (Java sw·2)
+    #[test]
+    fn gear_flaps_reinit_grows_with_font_and_edge() {
+        let fonts = std::path::Path::new(FONTS);
+        let cell = params_cell(|_| {});
+        let (h, mut spec) = gear_flaps_overlay_spec(fonts, &cell).unwrap();
+        let (w0, h0) = (spec.width, spec.height);
+        cell.borrow_mut().gear_show_edge = true;
+        let (we, _) = (spec.reinit.as_mut().unwrap())().expect("reinit 应成功");
+        assert_eq!(we - w0, 20, "enablegearAndFlapsEdge → sw=10 双侧外扩");
+        // 字号 0→6: 更高 (state 重建, 预览复位: flap 50%)
+        cell.borrow_mut().font_add_gear = 6;
+        cell.borrow_mut().gear_show_edge = false;
+        let (_, h2) = (spec.reinit.as_mut().unwrap())().expect("reinit 应成功");
+        assert!(h2 > h0, "字号增量后高度应变大 ({} → {})", h0, h2);
+        assert_eq!(h.borrow().flap_pix, h.borrow().bar_height * 50 / 100, "reinit 复位预览 50%");
     }
 }

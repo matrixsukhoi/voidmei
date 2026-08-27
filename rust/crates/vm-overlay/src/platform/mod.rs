@@ -37,6 +37,9 @@ pub trait OverlayWindow {
     /// Java isDisplayable 守卫由所有权天然保证: 槽位存在 = 窗口未销毁,
     /// 已销毁窗口不存在"复活"路径 — LIFETIMES §6.1 僵尸窗口防护)
     fn set_visible(&mut self, _visible: bool) {}
+    /// 运行时改窗口尺寸 (PORT: Java Window.setSize/setBounds — WYSIWYG
+    /// reinitConfig 重算布局后 setBounds 的底层动作; x11 波次前缺省空实现)
+    fn set_size(&mut self, _w: i32, _h: i32) {}
     /// 非阻塞取事件, 无事件返回 None
     fn poll_event(&mut self) -> Option<OverlayEvent>;
     /// 屏幕物理尺寸 (位置归一化用)

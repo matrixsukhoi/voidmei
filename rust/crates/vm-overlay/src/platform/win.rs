@@ -21,7 +21,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
     PeekMessageW, RegisterClassW, SetWindowLongPtrW, SetWindowPos, ShowWindow,
     TranslateMessage, CS_HREDRAW, CS_VREDRAW, GWL_EXSTYLE, HTCLIENT, HWND_BOTTOM,
     HWND_NOTOPMOST, HWND_TOPMOST, IDC_ARROW, LoadCursorW, MSG, PM_REMOVE, SWP_NOACTIVATE,
-    SWP_NOMOVE, SWP_NOSIZE, SW_HIDE, SW_SHOWNOACTIVATE, ULW_ALPHA, WM_CAPTURECHANGED,
+    SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SW_HIDE, SW_SHOWNOACTIVATE, ULW_ALPHA, WM_CAPTURECHANGED,
     WINDOW_EX_STYLE, WNDCLASSW, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MOUSEMOVE,
     WM_NCHITTEST, WM_POINTERUP, WM_DESTROY, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW,
     WS_EX_TOPMOST, WS_EX_TRANSPARENT, WS_POPUP, WS_VISIBLE,
@@ -331,6 +331,64 @@ impl super::OverlayWindow for WinOverlay {
             let cmd = if visible { SW_SHOWNOACTIVATE } else { SW_HIDE };
             let _ = ShowWindow(self.hwnd, cmd);
         }
+    }
+
+    fn set_size(&mut self, w: i32, h: i32) {
+        // PORT(WYSIWYG): Java reinitConfig → setBounds 的窗口几何面。两步:
+        // ① DIB 重建 (present 缓冲 w*h*4 与新尺寸一致; UpdateLayeredWindow 的
+        //   psize 参数也随 present 用新尺寸驱动分层窗口大小);
+        // ② SetWindowPos 即时改窗几何 (present 前的空窗期不闪旧尺寸)。
+        // 失败路径: 新 DIB 建不成则保持旧资源提前返回 — 后续 present 因缓冲
+        // 尺寸不符报错 (诚实暴露, 不静默吞)
+        if w == self.width && h == self.height {
+            return;
+        }
+        unsafe {
+            let bmi = BITMAPINFO {
+                bmiHeader: BITMAPINFOHEADER {
+                    biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
+                    biWidth: w,
+                    biHeight: -h, // top-down
+                    biPlanes: 1,
+                    biBitCount: 32,
+                    biCompression: BI_RGB.0,
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+            let hdc_screen = GetDC(None);
+            let mut bits: *mut std::ffi::c_void = std::ptr::null_mut();
+            let new_dib =
+                match CreateDIBSection(Some(hdc_screen), &bmi, DIB_RGB_COLORS, &mut bits, None, 0)
+                {
+                    Ok(d) => d,
+                    Err(_) => {
+                        ReleaseDC(None, hdc_screen);
+                        return; // 保持旧尺寸 (见方法头失败路径注)
+                    }
+                };
+            let new_memdc = CreateCompatibleDC(Some(hdc_screen));
+            ReleaseDC(None, hdc_screen);
+            // 旧资源释放 (select 回默认位图再删, 防 DC 持已删句柄)
+            let _ = SelectObject(self.memdc, self.old_obj);
+            let _ = DeleteDC(self.memdc);
+            let _ = DeleteObject(HGDIOBJ(self.dib.0));
+            self.dib = new_dib;
+            self.memdc = new_memdc;
+            self.old_obj = SelectObject(new_memdc, HGDIOBJ(new_dib.0));
+            self.dib_bits = bits as *mut u8;
+            let _ = SetWindowPos(
+                self.hwnd,
+                None,
+                0,
+                0,
+                w,
+                h,
+                SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE,
+            );
+        }
+        self.width = w;
+        self.height = h;
     }
 
     fn poll_event(&mut self) -> Option<OverlayEvent> {

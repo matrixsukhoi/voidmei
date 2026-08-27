@@ -64,6 +64,13 @@ pub enum Message {
     EndGame,
     /// 刷新预览 — 主动广播 CONFIG_CHANGED, 对位 Controller.refreshPreviews 触发面
     RefreshPreviews,
+    /// 动作按钮按下 (Java ButtonRowRenderer 五键分派; 审查轮 2-D 接线):
+    /// resetConfig/factoryReset → 挂确认模态; open* 三键未迁移仍走 Ignore
+    ButtonAction { action: String },
+    /// 确认模态「确定」(Java JOptionPane OK_OPTION 分支执行)
+    ConfirmPending,
+    /// 确认模态「取消」
+    CancelPending,
     /// 无操作 (property/label 双空残端控件的交互回包, 对位 Java isUpdating 抑制;
     /// 正常无 :target 控件以 label 为键走键控消息)
     Ignore,
@@ -85,6 +92,8 @@ pub struct MainFormState {
     /// 持久化目标路径 (生产 = config_manager 用户配置路径); None = 不落盘
     /// (--headless 状态机驱动 / 测试注入 tmp 路径用 Some)
     persist_path: Option<String>,
+    /// 挂起确认动作 (确认模态态; Some = 模态显示中 — Java JOptionPane 模态期)
+    pending_action: Option<String>,
     /// 下拉选项缓存 (view 每帧调用, _CROSSHAIRS_ 磁盘源只解析一次; 单 UI 线程)
     combo_cache: RefCell<HashMap<String, Vec<String>>>,
     /// 挂起编辑 (clone-split 待收敛): 渲染器写入快照但未进服务树的量 —
@@ -111,6 +120,7 @@ impl MainFormState {
             groups,
             ui_bus,
             persist_path,
+            pending_action: None,
             combo_cache: RefCell::new(HashMap::new()),
             pending_panel_fields: Vec::new(),
             pending_row_values: Vec::new(),
@@ -346,6 +356,47 @@ pub fn update(state: &mut MainFormState, message: Message) {
             // WYSIWYG 刷新触发: 广播 CONFIG_CHANGED("ui_layout.cfg") — 对位 Java
             // publish → Controller.refreshPreviews (订阅方批十三接线)
             publish_config_changed(&state.ui_bus, "ui_layout.cfg");
+        }
+        Message::ButtonAction { action } => {
+            // Java ButtonRowRenderer: 确认对话框先行 (JOptionPane), OK 才执行。
+            // Rust 以模态挂起等价 (view 画确认层, ConfirmPending 执行)。
+            // open* 三键未走本消息 (button.rs 仍 Ignore — 窗口/文件对话框未迁移)
+            match action.as_str() {
+                "resetConfig" | "factoryReset" => {
+                    logger::info("MainForm", &format!("ACTION: 按钮按下 ({action}), 挂确认模态"));
+                    state.pending_action = Some(action);
+                }
+                other => logger::warn("MainForm", &format!("未迁移动作键: {other}")),
+            }
+        }
+        Message::ConfirmPending => {
+            // 确认框 OK 分支: 执行挂起动作 + 整树刷新 + 广播 (Java reset 链尾部
+            // refreshAllPreviews 语义 — "ui_layout.cfg" 全局键触发全量 WYSIWYG)
+            let action = state.pending_action.take().unwrap_or_default();
+            let ok = match action.as_str() {
+                // ButtonRowRenderer L121-147: resetToFactory (模板覆盖 + 备份)
+                "factoryReset" => state.config.reset_to_factory(),
+                // L38-62: publish(ACTION_RESET_REQUEST) → resetAllLayoutDefaults —
+                // 总线订阅未接 (init_config 备案), 直调顶替 (configuration_service
+                // reset_all_layout_defaults 注释指定的顶替路径)
+                "resetConfig" => state.config.reset_all_layout_defaults(),
+                _ => false,
+            };
+            logger::info(
+                "MainForm",
+                &format!("ACTION: 确认执行 ({action}) → {}", if ok { "成功" } else { "失败" }),
+            );
+            // 整树收敛: 服务重读自用户配置 (persist 优先, headless 回退全局路径)
+            let path = state
+                .persist_path
+                .clone()
+                .unwrap_or_else(|| vm_core::config_manager::get_user_config_path().to_string());
+            state.config.load_layout(&path);
+            state.groups = state.config.get_layout_configs().unwrap_or_default();
+            publish_config_changed(&state.ui_bus, "ui_layout.cfg");
+        }
+        Message::CancelPending => {
+            state.pending_action = None; // 确认框 CANCEL_OPTION
         }
         Message::Ignore => {} // 残端控件回包, 对位 Java isUpdating 抑制期
         Message::ColorPicked { panel, key, value } => {
@@ -680,6 +731,28 @@ pub fn view(state: &MainFormState) -> Element<'_, Message> {
 
     // Java 标题: appName + " v" + version (版本号注入属组装层, 批十三)
     let title = format!("{} 设置", state.lang.app_name);
+
+    // 确认模态 (pending_action 挂起期): Java JOptionPane 模态对话框等价 —
+    // 模态期主面板不可交互 (替换式呈现, 语义同阻塞)
+    if let Some(action) = state.pending_action.as_deref() {
+        let desc = match action {
+            "factoryReset" => "将把全部配置恢复为出厂默认, 当前配置会先备份。",
+            "resetConfig" => "将把全部配置项重置为默认值。",
+            _ => "确认执行?",
+        };
+        let buttons = Row::new()
+            .spacing(8)
+            .push(button("确定").on_press(Message::ConfirmPending))
+            .push(button("取消").on_press(Message::CancelPending));
+        return Column::with_children(vec![
+            text(title).size(16).into(),
+            text(format!("确认{desc}")).size(14).into(),
+            buttons.into(),
+        ])
+        .spacing(12)
+        .padding(20)
+        .into();
+    }
 
     Column::with_children(vec![
         text(title).size(16).into(),
@@ -1296,5 +1369,66 @@ mod tests {
         assert_eq!(ctx.get_string_from_config_service("missing_key", "默认"), "默认");
         assert!(ctx.get_from_config_service("missing_key", true));
         assert!(!ctx.get_from_config_service("missing_key", false));
+    }
+    /// 动作按钮执行链 (审查轮 2-D 接线): ButtonAction 挂模态 → ConfirmPending
+    /// 执行 reset + 整树收敛。
+    /// reset 链操作 config_manager 全局路径 (CWD 相对) → tmp 沙箱 + 专用锁
+    /// (进程级 CWD, 对齐 vm-core CWD_LOCK 纪律)。
+    /// ⚠ 沙箱守卫纪律 (事故教训): Drop 里 **chdir 回 orig、remove 的必须是
+    /// tmp dir** — 两目标分离存储, 清理对象写错会删工作区
+    #[test]
+    fn button_action_confirm_executes_reset() {
+        use std::sync::Mutex as TestMutex;
+        static CWD_LOCK: TestMutex<()> = TestMutex::new(());
+        let _cwd_guard = CWD_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+
+        let dir = std::env::temp_dir().join(format!("vm_ui_btn_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        // 沙箱放模板 (resetToFactory 读 ./ui_layout.cfg 覆盖用户配置)
+        let tpl = std::fs::read_to_string("../../../ui_layout.cfg").unwrap();
+        std::fs::write(dir.join("ui_layout.cfg"), &tpl).unwrap();
+        let orig = std::env::current_dir().unwrap();
+        std::env::set_current_dir(&dir).unwrap();
+        struct Sandbox {
+            orig: std::path::PathBuf, // chdir 回这里
+            dir: std::path::PathBuf,  // 只删这里 (tmp)
+        }
+        impl Drop for Sandbox {
+            fn drop(&mut self) {
+                let _ = std::env::set_current_dir(&self.orig);
+                let _ = std::fs::remove_dir_all(&self.dir);
+            }
+        }
+        let _sandbox = Sandbox { orig, dir: dir.clone() };
+
+        let bus = Arc::new(EventBus::new());
+        let config = ConfigurationService::new(Some(Arc::clone(&bus)));
+        config.load_layout("ui_layout.cfg");
+        let mut state = MainFormState::new(
+            config,
+            Arc::clone(&bus),
+            Some(dir.join("ui_layout.user.cfg").to_string_lossy().into_owned()),
+        );
+        let n_before = state.groups.len();
+
+        // ① 按下 factoryReset → 挂起确认模态 (不执行)
+        update(&mut state, Message::ButtonAction { action: "factoryReset".into() });
+        assert!(state.pending_action.is_some(), "确认模态应挂起");
+        assert_eq!(state.groups.len(), n_before, "未确认前不得重置");
+
+        // ② 取消 → 无副作用
+        update(&mut state, Message::CancelPending);
+        assert!(state.pending_action.is_none());
+
+        // ③ 再按 + 确认 → reset 执行 + 整树收敛 (模板组数回归)
+        update(&mut state, Message::ButtonAction { action: "factoryReset".into() });
+        update(&mut state, Message::ConfirmPending);
+        assert!(state.pending_action.is_none(), "执行后模态关闭");
+        assert!(
+            state.groups.len() >= 10,
+            "整树应从模板收敛 (实得 {} 组)",
+            state.groups.len()
+        );
     }
 }

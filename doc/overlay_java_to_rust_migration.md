@@ -267,6 +267,63 @@ Java 同款算法同样如此——对拍动态帧时需两边同等预热。
     `RenderContext.palette` 曾为构造期字段快照 (动力信息/TextGauge 路径仍冻结
     Java 默认荧光绿), 改为 `palette()` 方法每帧读仓 — Java TextGauge.
     drawTextShaded 本就直读 Application 静态, 方法化才是直译
+11. **审查轮 1** (模式 A/B 双 agent, 派生自人工验收四问题的病理提炼):
+    - **AA 三兄弟** (aaEnable/textAA/graphAA): Java cfg 键 AAEnable 用户可关
+      (缺省 false), Rust 生产渲染 7 处钉死 true — 已修: global_aa 仓 (同五色
+      模板) + UiCommand::SetAa + 启动快照注入; 多处"生产恒 ON"错误注释一并
+      修正 (Application.java:102 只是声明默认, 非运行时不变式)
+    - **HudColors 旁路** (palette 同型第三例): feed 传编译期 application_defaults,
+      AoA 告警色不跟随五色 — 已修: feed 处改从 global_colors 仓构造
+    - **disableEngineInfo* 7 键 never-wired**: Rust cfg_true 恒 false, 键从未
+      被读 — 用户关仪表 Rust 恒显全部 7 条, **启动首帧即错**。已修:
+      ENGINE_DISABLE_KEYS 表 + OverlayInputs.engine_disables + 工厂查表闭包
+      + 实效测试 (全关窗口 195 < 全开 306)
+    - **httpPort 四件套**: 用户改"8111端口" (mock 打桩) Java Service 改轮询
+      目标, Rust 恒 env 启动值 — 已修: ServiceConfig 构建读
+      application_state().request_dest (load_app_check 已写毕的值), 缺省回退 env
+    - **备案不修**: voiceVolumn (语音链未装配, 修了是死代码); 字体族
+      fontName/GlobalTextFont/GlobalNumFont (需 字体名→文件映射机制, 迁移
+      裁决字体随包分发; vm-ui _FONTS_ combo 本就单选占位); 组 :alpha (Java
+      setAlpha 无调用点, 两侧一致不消费)
+    - **批 2 进行中**: WYSIWYG 三层 (快照刷新/reinit 执行/窗口 resize) — 触发
+      链完好但 Java reinitConfig 重建字体/布局/窗口 vs Rust 只清指纹重绘同像素;
+      组件 reinit 方法大多已存在无人调, OverlayWindow 无 set_size
+12. **审查轮 2 + 批 2/3 修复** (模式 C 备案复查 + 模式 D cfg 键三方核对):
+    - **WYSIWYG 三层已通** (批 2, fix agent): platform set_size (Win32 DIB 重建
+      + SetWindowPos) / host resize_entry+reinit_idx (OverlaySpec.reinit 闭包,
+      返回新尺寸→原位 resize 不重建窗口) / UiCommand::ReinitOverlays (ReinitParams
+      线程局部仓 + MiniHUD 快照解冻); 顺带修"冷激活冻结旧配置尺寸"缺口。7 工厂
+      全挂 reinit, 13 个实效测试 (字号↑变高/仪表全关变矮/edge 外扩 20px 等)
+    - **.gitignore 根因**: 裸 `config/` 把 src/prog/config/ 从 rg/Grep 静默排除
+      (disableEngineInfo 漏检同源盲区) → 锚定 `/config/`
+    - **factoryReset/resetConfig 按钮接线**: 曾 Message::Ignore 全哑 — 确认模态
+      (Java JOptionPane 等价) → 直调 reset_to_factory/reset_all_layout_defaults
+      → 整树收敛 + 广播
+    - **FocusMonitor 接线** (轮 2-C 最高价值项): autoHideOnFocusLoss 开关曾只打
+      误导日志 — 现 FocusMonitor 随 Service 装配 (start 按 cfg 启停, 会话同生
+      共死, 对齐 Java openpad setEnabled 语义), 失焦回调经 ChannelFocusBridge
+      (UiCommand Hide/ShowAllOverlays + ControllerShared.overlays_hidden 镜像)
+      送 win32 执行 host hide/show
+    - **cfg 键审计结论**: 108 键中 68 正常/12 断链 (已修 4: importConfig 按钮
+      族中的 reset 两键 + UseNumColor 定性 + attitudeEdge 定性)/27 部分 (多数
+      随语音/对比窗口子系统装配批)/1 死键 (两侧一致)
+    - **备案 (有据)**: openComparison/openPowerCurve/importConfig (窗口/文件
+      对话框未迁移); attitudeIndicatorUseNumColor (键被读但写入字段无读者 —
+      无可观测行为, 精确定性注); flightInfoEdge/attitudeEdge (WebLaF 装饰层
+      专用, 不进 setBounds); MonoNumFont/flightInfoFontC (随包字体裁决补录);
+      voice 23 键 (语音未装配); enableLogging → 批 3 接线中
+    - **vm-core 8 处失实注释销号** (activation_strategy/fm_handle/row_registry/
+      data_field/gauge_field/service_loop/focus_monitor/overlay_context) —
+      "POC 未接配置层"式误导源清除
+13. **批 3 补: FlightLog 飞行记录接线** (轮 2-C/2-D 确诊"整面板功能死"):
+    enableLogging 开关 → FlightLogSlot (Controller.logon+Log 二位一体) 全链 —
+    Service 轮询 tick (每轮, 对齐 Service.java:1824-1828) / openpad 建 (机型名
+    从 live 快照) / closepad 存 / 换机关旧开新 / s4to_s1 自动保存; 履行
+    flight_analyzer.rs 集成合同 (弃快照 trait, Arc<dyn AnalyzerService> 活读 —
+    防曲线数据冻结在 init 时刻); enableAltInformation 随链自动复活。
+    deferred: CSV 的 String 列 (约 20 列) 待 formatDataAsStrings 波次 (既有
+    TODO, 数值列/analyze 链全实时正确); DrawFrame/toast/writeDown 按 D8/死码
+    豁免备案
 
 ## 11.5 人工验收清单 (移交用户)
 

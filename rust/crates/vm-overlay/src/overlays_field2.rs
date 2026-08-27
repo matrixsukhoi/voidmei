@@ -19,11 +19,12 @@
 //! 需 per-entry `set_visible` (现仅全局 hide/show_all); (c) 两组件的预览渲染
 //! 闭包工厂 (field1 先例 `*_preview_spec`) 留组装层接线。
 
-use crate::global_colors::colors;
+use crate::global_colors::{aa, colors};
 use crate::font::LoadedFont;
 
-use crate::host::OverlaySpec;
+use crate::host::{OverlaySpec, ReinitFn};
 use crate::overlay_list::BaseListOverlay;
+use crate::reinit::ReinitParams;
 use crate::render2d::{LineCapStyle, PixCanvas};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -711,22 +712,26 @@ impl ControlSurfacesOverlay {
 /// 操纵面共享句柄 (minihud_overlay_spec 先例: render 闭包与喂入方共享 state)
 pub type ControlSurfacesHandle = Rc<RefCell<ControlSurfacesOverlay>>;
 
-/// 操纵面 OverlaySpec + live 句柄。参数为 init(:80-160) 的配置面:
-/// `font_add` = "舵面值" panel 的 fontSize 增量, `enable_axis_edge` = enableAxisEdge
-/// (cfg 缺省 false)。
+/// 操纵面 OverlaySpec + live 句柄。参数为 init(:80-160)/reinitConfig (:225-271)
+/// 的配置面, 经 [`ReinitParams`] 仓读取: font_add = "舵面值" panel 的 fontSize
+/// 增量, enable_axis_edge = enableAxisEdge (cfg 缺省 false)。
 /// PORT(边框不承载): Java totalWidth = twidth+sw·2 的 sw 是 WebLaF 窗口装饰边距,
 /// host 无边框层 — spec 尺寸 = 内容区 content_width×content_height (draw 的画布
 /// 断言钉内容尺寸, Swing 裁剪语义)。
 /// PORT(数据门控): Java init(S) 置 xs!=null (has_service) 才更新数据、initPreview
 /// 置 false; Rust 单实例形态下由 win32 命令处理点按**会话窗口形态**切换 has_service
 /// (app_shell OpenAllOverlays→true / CloseAllOverlays→false, 对位 init(S)/实例销毁;
-/// 喂入点 feed_overlays_live 幂等置 true) — 初值随 init_preview 为 false
+/// 喂入点 feed_overlays_live 幂等置 true) — 初值随 init_preview 为 false。
+/// PORT(WYSIWYG): reinit 闭包 = reinit_config 的几何段 (字号/edge → 宽高派生) +
+/// 三字体重载 (Java :225-241 的 fontNum/fontLabel/fontUnit new Font)
 pub fn control_surfaces_overlay_spec(
     fonts_dir: &std::path::Path,
-    font_add: i32,
-    dpi_scale: f64,
-    enable_axis_edge: bool,
+    params: &Rc<RefCell<ReinitParams>>,
 ) -> Result<(ControlSurfacesHandle, OverlaySpec), String> {
+    let (font_add, dpi_scale, enable_axis_edge) = {
+        let p = params.borrow();
+        (p.font_add_axis, p.dpi_scale, p.axis_show_edge)
+    };
     let mut cs = ControlSurfacesOverlay::new();
     // win_x/win_y = 0: 窗口定位归 host 位置存档 (HudSettingsSnapshot 同规)
     cs.init_preview(font_add, dpi_scale, enable_axis_edge, 0, 0);
@@ -734,12 +739,54 @@ pub fn control_surfaces_overlay_spec(
     // label = FontName BOLD(round(fontSize/2)), unit = NumFont PLAIN(round(fontSize/2))
     let bold_path = fonts_dir.join("sarasa-mono-sc-bold.ttf");
     let regular_path = fonts_dir.join("sarasa-mono-sc-regular.ttf");
-    let f_num = Rc::new(LoadedFont::new(&bold_path, cs.font_size)?);
-    let f_label = Rc::new(LoadedFont::new(&bold_path, cs.label_font_size)?);
-    let f_unit = Rc::new(LoadedFont::new(&regular_path, cs.label_font_size)?);
+    let f_num = Rc::new(RefCell::new(Rc::new(LoadedFont::new(&bold_path, cs.font_size)?)));
+    let f_label = Rc::new(RefCell::new(Rc::new(LoadedFont::new(
+        &bold_path,
+        cs.label_font_size,
+    )?)));
+    let f_unit = Rc::new(RefCell::new(Rc::new(LoadedFont::new(
+        &regular_path,
+        cs.label_font_size,
+    )?)));
     let (w, h) = (cs.content_width, cs.content_height);
     let handle: ControlSurfacesHandle = Rc::new(RefCell::new(cs));
     let render_handle = Rc::clone(&handle);
+    let (render_num, render_label, render_unit) =
+        (Rc::clone(&f_num), Rc::clone(&f_label), Rc::clone(&f_unit));
+    // reinit 闭包: 几何 + 三字体重建, 返回新内容区尺寸 (Java setBounds 内容面)
+    let reinit_handle = Rc::clone(&handle);
+    let (reinit_num, reinit_label, reinit_unit) =
+        (Rc::clone(&f_num), Rc::clone(&f_label), Rc::clone(&f_unit));
+    let reinit_params = Rc::clone(params);
+    let (reinit_bold, reinit_regular) = (bold_path, regular_path);
+    let reinit: ReinitFn = Box::new(move || {
+        let (fa, dpi, edge) = {
+            let p = reinit_params.borrow();
+            (p.font_add_axis, p.dpi_scale, p.axis_show_edge)
+        };
+        let mut cs = reinit_handle.borrow_mut();
+        cs.reinit_config(fa, dpi, edge, 0, 0);
+        let (fs, lfs) = (cs.font_size, cs.label_font_size);
+        let (w, h) = (cs.content_width, cs.content_height);
+        drop(cs);
+        let fonts = match (
+            LoadedFont::new(&reinit_bold, fs),
+            LoadedFont::new(&reinit_bold, lfs),
+            LoadedFont::new(&reinit_regular, lfs),
+        ) {
+            (Ok(n), Ok(l), Ok(u)) => (Rc::new(n), Rc::new(l), Rc::new(u)),
+            (r, _, _) => {
+                if let Err(e) = r {
+                    vm_core::logger::error("ControlSurfaces", &format!("reinit 字体重载失败: {}", e));
+                }
+                return None;
+            }
+        };
+        *reinit_num.borrow_mut() = fonts.0;
+        *reinit_label.borrow_mut() = fonts.1;
+        *reinit_unit.borrow_mut() = fonts.2;
+        Some((w, h))
+    });
     Ok((
         handle,
         OverlaySpec {
@@ -750,13 +797,16 @@ pub fn control_surfaces_overlay_spec(
             height: h,
             render: Box::new(move |cv: &mut PixCanvas| {
                 // 生产 AA 恒开 (Application.java:102 graphAASetting 默认 ON)
+                let (num, label, unit) =
+                    (render_num.borrow(), render_label.borrow(), render_unit.borrow());
                 let fonts = CsFonts {
-                    num: &f_num,
-                    label: &f_label,
-                    unit: &f_unit,
+                    num: &num,
+                    label: &label,
+                    unit: &unit,
                 };
-                render_handle.borrow().draw(cv, &fonts, true);
+                render_handle.borrow().draw(cv, &fonts, aa());
             }),
+            reinit: Some(reinit),
         },
     ))
 }
@@ -1744,8 +1794,9 @@ mod tests {
             height: ch,
             render: Box::new(move |cv| {
                 let fonts = CsFonts { num: &f_num, label: &f_label, unit: &f_unit };
-                cs.draw(cv, &fonts, true);
+                cs.draw(cv, &fonts, aa());
             }),
+            reinit: None,
         });
         // ⑤ FMUnpackedData (Java 键 enableFMPrint): render(&mut) 同通道
         let f_list = font(REGULAR, 14);
@@ -1760,8 +1811,9 @@ mod tests {
             width: fw,
             height: fh,
             render: Box::new(move |cv| {
-                fm.render(cv, &f_list, true);
+                fm.render(cv, &f_list, aa());
             }),
+            reinit: None,
         });
 
         // 全链: 开 → 首帧五窗各 present 一次 (尺寸逐窗断言) → 静态内容脏检查抑制
@@ -1784,7 +1836,8 @@ mod tests {
     #[test]
     fn control_surfaces_overlay_spec_shared_state() {
         let fonts_dir = std::path::Path::new("../../../fonts");
-        let (h, mut spec) = control_surfaces_overlay_spec(fonts_dir, 0, 1.0, false).unwrap();
+        let cell = Rc::new(RefCell::new(ReinitParams::default()));
+        let (h, mut spec) = control_surfaces_overlay_spec(fonts_dir, &cell).unwrap();
         assert_eq!((spec.width, spec.height), (240, 180), "内容区尺寸 (无 sw 边框)");
         assert_eq!((spec.id.as_str(), spec.config_key.as_str()), ("enableAxis", "enableAxis"));
         // 初值 px = width/2 = 72 (游标居中, Java init :108)
@@ -1800,5 +1853,15 @@ mod tests {
         let mut cv = PixCanvas::new(spec.width, spec.height).unwrap();
         (spec.render)(&mut cv);
         assert!(cv.pixmap().data().iter().any(|&b| b != 0));
+
+        // WYSIWYG reinit: fontAdd 0→6 → fs=30 → w=180, twidth=300, theight=225
+        cell.borrow_mut().font_add_axis = 6;
+        let (w1, h1) = (spec.reinit.as_mut().unwrap())().expect("reinit 应成功");
+        assert_eq!((w1, h1), (300, 225), "字号 6 的内容区 (fs=30)");
+        assert_eq!(h.borrow().font_size, 30, "state 已换新几何");
+        // reinit 后 render 闭包可画 (共享字体单元已更新, 不 panic)
+        let mut cv2 = PixCanvas::new(w1, h1).unwrap();
+        (spec.render)(&mut cv2);
+        assert!(cv2.pixmap().data().iter().any(|&b| b != 0));
     }
 }

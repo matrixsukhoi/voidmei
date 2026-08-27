@@ -20,10 +20,11 @@
 //!
 //! 颜色 = Application.java:106-111 静态色直通 RGBA (与 gauges_bars 同源)。
 
-use crate::global_colors::colors;
+use crate::global_colors::{aa, colors};
 use crate::font::LoadedFont;
 
-use crate::host::OverlaySpec;
+use crate::host::{OverlaySpec, ReinitFn};
+use crate::reinit::ReinitParams;
 use crate::render2d::{LineCapStyle, PixCanvas};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -694,8 +695,10 @@ impl AttitudeOverlay {
         let cr_half = CENTER_ROUND / 2; // 6
 
         // 1. 地面多边形 (最底层, colorUnit) (Java:137-139)
-        //    PORT: locater 硬编码 Application.colorUnit — transParentWhite/
-        //    attitudeIndicatorUseNumColor 字段在 locater 无消费点 (Java 死配置), 不复刻
+        //    PORT(精确定性): Java :85 声明 transParentWhite=colorUnit, :253-254
+        //    读 attitudeIndicatorUseNumColor 覆盖为 colorNum — 但该字段全文件仅
+        //    声明+赋值两处, 无任何读取者 (键被读、值写进死字段) → 无可观测
+        //    行为, 不复刻 (本处恒 colorUnit 与 Java 可见行为一致)
         let poly: [(f32, f32); 4] = [
             (self.p_t[0].0 as f32, self.p_t[0].1 as f32),
             (self.p_t[1].0 as f32, self.p_t[1].1 as f32),
@@ -778,29 +781,52 @@ impl Default for AttitudeOverlay {
 /// 地平仪共享句柄 (minihud_overlay_spec 先例: render 闭包与喂入方共享 state)
 pub type AttitudeOverlayHandle = Rc<RefCell<AttitudeOverlay>>;
 
-/// 地平仪 OverlaySpec + live 句柄。参数为 reinitConfig (:230-270) 的配置面:
-/// `base_width`/`base_height` = attitudeIndicatorWidth/Height (cfg 缺省 150/300),
-/// 工厂内完成 DPI 缩放 (Java :237-238 round(base·dpiScale), §2.3 floor(x+0.5));
-/// `show_direction`/`show_aoa_limits` = attitudeIndicatorDisplayDirection (false) /
-/// ...DisplayAoALimits (true)。
+/// 地平仪 OverlaySpec + live 句柄。参数为 reinitConfig (:230-270) 的配置面,
+/// 经 [`ReinitParams`] 仓读取: base 宽高 = attitudeIndicatorWidth/Height
+/// (cfg 缺省 150/300), 工厂内完成 DPI 缩放 (Java :237-238 round(base·dpiScale),
+/// §2.3 floor(x+0.5)); show_direction/show_aoa_limits = attitudeIndicatorDisplay
+/// Direction (false) / ...DisplayAoALimits (true)。
 /// PORT(边框不承载): Java totalWidth = xWidth+4+sw·2 的 sw 边距是 WebLaF 窗口装饰
 /// (enableAttitudeIndicatorEdge, 默认 false), host 无边框层 — spec 尺寸 = 内容区
 /// x_width×x_height (draw 的画布断言钉内容尺寸, 裁剪语义)。
 /// 初始态 = 未飞形态 (AoA/AoS/Pitch 0, drawTick 未跑), 预览/游戏共用; live 由喂入方
-/// update_telemetry 推进 (40ms 节流归组装层, Java onFlightData freqMili)
+/// update_telemetry 推进 (40ms 节流归组装层, Java onFlightData freqMili)。
+/// PORT(WYSIWYG): reinit 闭包 = reinit_config 的绘制相关子集 (宽高/开关), 喂入
+/// 节流 freqMili 由组装层随参数仓同步 (app_shell ReinitOverlays 处理点)
 pub fn attitude_overlay_spec(
-    base_width: i32,
-    base_height: i32,
-    dpi_scale: f64,
-    show_direction: bool,
-    show_aoa_limits: bool,
+    params: &Rc<RefCell<ReinitParams>>,
 ) -> Result<(AttitudeOverlayHandle, OverlaySpec), String> {
-    let x_width = (base_width as f64 * dpi_scale + 0.5).floor() as i32;
-    let x_height = (base_height as f64 * dpi_scale + 0.5).floor() as i32;
+    let (x_width, x_height, show_direction, show_aoa_limits) = {
+        let p = params.borrow();
+        let dpi = p.dpi_scale;
+        (
+            (p.attitude_width as f64 * dpi + 0.5).floor() as i32,
+            (p.attitude_height as f64 * dpi + 0.5).floor() as i32,
+            p.attitude_show_direction,
+            p.attitude_show_aoa_limits,
+        )
+    };
     let mut overlay = AttitudeOverlay::new();
     overlay.reinit(x_width, x_height, show_direction, show_aoa_limits);
     let handle: AttitudeOverlayHandle = Rc::new(RefCell::new(overlay));
     let render_handle = Rc::clone(&handle);
+    // reinit 闭包: DPI 缩放后的新宽高 + 开关族 → state reinit + 新尺寸 (setBounds)
+    let reinit_handle = Rc::clone(&handle);
+    let reinit_params = Rc::clone(params);
+    let reinit: ReinitFn = Box::new(move || {
+        let (xw, xh, dir, aoa) = {
+            let p = reinit_params.borrow();
+            let dpi = p.dpi_scale;
+            (
+                (p.attitude_width as f64 * dpi + 0.5).floor() as i32,
+                (p.attitude_height as f64 * dpi + 0.5).floor() as i32,
+                p.attitude_show_direction,
+                p.attitude_show_aoa_limits,
+            )
+        };
+        reinit_handle.borrow_mut().reinit(xw, xh, dir, aoa);
+        Some((xw, xh))
+    });
     Ok((
         handle,
         OverlaySpec {
@@ -810,9 +836,11 @@ pub fn attitude_overlay_spec(
             width: x_width,
             height: x_height,
             render: Box::new(move |cv: &mut PixCanvas| {
-                // 生产 AA 恒开 (Application.java:102 graphAASetting 默认 ON)
-                render_handle.borrow_mut().draw(cv, true);
+                // aa = 运行时全局仓 (cfg AAEnable 可关 — Application.java:102 仅是
+                // 声明默认, 审查轮 1-A 曾误当生产不变式钉死 true)
+                render_handle.borrow_mut().draw(cv, aa());
             }),
+            reinit: Some(reinit),
         },
     ))
 }
@@ -1241,7 +1269,11 @@ mod tests {
     /// 句柄喂入后 render 闭包画到新值 (共享 state 生效) + 注册键
     #[test]
     fn attitude_overlay_spec_dpi_and_shared_state() {
-        let (h, mut spec) = attitude_overlay_spec(150, 300, 1.5, false, true).unwrap();
+        let cell = Rc::new(RefCell::new(ReinitParams {
+            dpi_scale: 1.5,
+            ..Default::default()
+        }));
+        let (h, mut spec) = attitude_overlay_spec(&cell).unwrap();
         assert_eq!((spec.width, spec.height), (225, 450));
         assert_eq!((spec.id.as_str(), spec.config_key.as_str()),
             ("enableAttitudeIndicator", "enableAttitudeIndicator"));
@@ -1252,5 +1284,11 @@ mod tests {
         (spec.render)(&mut cv);
         // 侧滑球十字在 y=300 (colorNum 线体, BasicStroke(2) 行 299..300)
         assert!(a(&cv, 110, 299) > 0 || a(&cv, 110, 300) > 0, "十字随 aoa 喂入下移");
+
+        // WYSIWYG reinit: 宽 150→200 (150%) → 新尺寸 300×450 (setBounds 面)
+        cell.borrow_mut().attitude_width = 200;
+        let (w1, h1) = (spec.reinit.as_mut().unwrap())().expect("reinit 应成功");
+        assert_eq!((w1, h1), (300, 450));
+        assert_eq!((h.borrow().x_width, h.borrow().x_height), (300, 450), "state 已换新几何");
     }
 }

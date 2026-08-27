@@ -42,7 +42,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use vm_core::calc_helper::SimpleMovingAverage;
 use vm_core::event::event_payload::EventPayload;
 use vm_core::event::flight_data_event::{FlightDataEvent, OpaqueObject};
+use vm_core::flight_analyzer::AnalyzerService;
 use vm_core::flight_data_bus::FlightDataBus;
+use vm_core::flight_log::{FlightLogSlot, FlightLogSnapshot};
 use vm_core::fm::{FMHandle, FMManager};
 use vm_core::http_helper::HttpHelper;
 use vm_core::parser::state::MAX_ENG_NUM;
@@ -139,6 +141,10 @@ pub struct Service {
     /// (Java 无参 new 的对应物缺位), 由调用方按需注入; None 时 tick 短路
     /// (Java 默认 enabled=false 时 tick 本就空转, 行为等价)。
     focus_monitor: Option<vm_core::focus_monitor::FocusMonitor>,
+    /// FlightLog 共享槽 (Java Controller.logon+Log 二位一体的收敛形态):
+    /// Controller 侧 (vm-app) openpad/closepad/换机换入换出, 本线程每轮
+    /// logTick (Service.java:1824-1828)。None = 未开记录 (Java Log==null/logon=false)。
+    flight_log: FlightLogSlot,
     /// 构造参数 (见 [`ServiceConfig`])
     pub config: ServiceConfig,
     /// §2.13 停机标志 (Java interrupt 的电平形态)
@@ -180,6 +186,7 @@ impl Service {
             bus,
             http_client: HttpHelper::new(&config.http_header),
             focus_monitor: None,
+            flight_log: Arc::new(std::sync::Mutex::new(None)),
             stop: Arc::new(AtomicBool::new(false)),
             config,
         };
@@ -223,6 +230,28 @@ impl Service {
     /// 见 struct 字段注)。
     pub fn set_focus_monitor(&mut self, fm: vm_core::focus_monitor::FocusMonitor) {
         self.focus_monitor = Some(fm);
+    }
+
+    /// 注入 FlightLog 共享槽 (Controller.start:633 建 Service 前, 对位 Java
+    /// Service 轮询读 `c.Log` 的共享字段; 见 struct 字段注)。
+    pub fn set_flight_log(&mut self, slot: FlightLogSlot) {
+        self.flight_log = slot;
+    }
+
+    /// Service.java:1824-1828 的 logTick 调用面:
+    /// `if (c.logon) { FlightLog tempLog = c.Log; if (tempLog != null) tempLog.logTick(); }`
+    /// PORT: Controller.logon 与 c.Log 的二段判定收敛为槽 Some/None (Java 的
+    /// logon 自 openpad 置 true 后无清零写点, 与 Log 非 null 同生同灭)。
+    /// 锁序: 槽锁 (clone 后即释) → data 读锁 (快照后即释) → log 锁, 三段不嵌套。
+    pub fn flight_log_tick(&self) {
+        let temp_log = self
+            .flight_log
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
+        let Some(temp_log) = temp_log else { return };
+        let snap = flight_log_snapshot(&read_data(&self.data));
+        temp_log.lock().unwrap_or_else(|e| e.into_inner()).log_tick(&snap);
     }
 
     // ------------------------------------------------------------------
@@ -506,8 +535,8 @@ impl Service {
 
             // 记录
             // Java: if (c.logon) { FlightLog tempLog = c.Log; if (tempLog != null) tempLog.logTick(); }
-            // TODO(port): FlightLog 记录接线 (Controller.logon/c.Log 协作,
-            //  FlightLog::log_tick 需 FlightLogSnapshot——Controller 波次一并裁决)
+            // (Service.java:1824-1828, 每轮一次 — 1024 行 flush 节奏在 FlightLog 内)
+            self.flight_log_tick();
         }
         let (freq, port_ocupied, last_map_poll_time_ms) = {
             let d = read_data(&self.data);
@@ -991,9 +1020,9 @@ impl Service {
 
         // Pre-compute HUDData on Service thread (reduces EDT latency by ~40-60ms)
         // Java: if (c != null && c.configService != null) { … HUDCalculator.calculate … }
-        // TODO(port): HUDData 预计算——HUDCalculator 未译 (vm-core hud_calculator.rs
-        // 占位) + c.configService/HUDSettings 依赖 Controller 波次; set_hud_data
-        // 暂不调用 (事件 hud_data 保持 None, 消费方按 null 容忍降级)
+        // 已收口 (形态选择备案): HUDCalculator 批六已完整落地, 但预计算改由
+        // win32 线程锁内执行 (审查 B-W2 — Service 线程算 + 跨线程传 HUDData 的
+        // Rust 形态不如共享句柄直喂), 事件 hud_data 恒 None, 消费方走句柄
 
         // Java: FlightDataBus.getInstance().publish(event); → 构造注入实例
         // (回调线程 = 本 Service 线程, 对齐 Java 同步逐个调用)
@@ -1141,6 +1170,125 @@ fn snapshot_indicators(i: &Indicators) -> Indicators {
     s.radio_altitude = i.radio_altitude;
     s.mach = i.mach;
     s
+}
+
+// ------------------------------------------------------------------
+// FlightLog 接线面 (D6 边界的 vm-data 侧落地, 见 flight_log.rs 模块头 PORT)
+// ------------------------------------------------------------------
+
+/// Java `null` 引用在字符串拼接里的字面量 (Java `bw.write(xs.IAS + ",")` 的
+/// IAS==null 写出 "null,")。Rust 字段是 Option<String>, None → "null" 保真;
+/// NASTRING ("-", resetvaria 初值) 原样透传 (与 Java formatDataAsStrings 未跑时的值一致)。
+fn jstr(v: &Option<String>) -> String {
+    v.clone().unwrap_or_else(|| "null".to_string())
+}
+
+/// logTick 时刻的 ServiceData → FlightLogSnapshot 构造面 (flight_log.rs 模块头
+/// PORT 注的 "vm-data 侧快照构造面")。字段逐一对应 ServiceData/State 字段
+/// (Service.java 的 xs 公有字段直读, 语义 = 读锁内一次成组快照)。
+pub fn flight_log_snapshot(d: &ServiceData) -> FlightLogSnapshot {
+    FlightLogSnapshot {
+        elapsed_time: d.elapsed_time,
+        throttle: jstr(&d.throttle),
+        ias: jstr(&d.ias),
+        tas: jstr(&d.tas),
+        mach: jstr(&d.m),
+        salt: jstr(&d.salt),
+        watertemp: jstr(&d.watertemp),
+        oiltemp: jstr(&d.oiltemp),
+        vy: jstr(&d.vy),
+        s_sep: jstr(&d.s_sep),
+        // Java: xs.sState.Ny (State.java:27)
+        ny: d.s_state.as_ref().map(|s| s.ny).unwrap_or(0.0),
+        wx: jstr(&d.wx),
+        total_hp_str: jstr(&d.total_hp_str),
+        // Java: xs.efficiency[0] — 数组/元素 null 时拼接产出 "null"
+        efficiency_0: d
+            .efficiency
+            .as_ref()
+            .and_then(|v| v.first())
+            .cloned()
+            .flatten()
+            .unwrap_or_else(|| "null".to_string()),
+        total_hp_eff_str: jstr(&d.total_hp_eff_str),
+        rpm: jstr(&d.rpm),
+        total_thrust: d.total_thrust,
+        acceleration: d.acceleration,
+        rpm_throttle: jstr(&d.rpm_throttle),
+        pitch_0: d
+            .pitch
+            .as_ref()
+            .and_then(|v| v.first())
+            .cloned()
+            .flatten()
+            .unwrap_or_else(|| "null".to_string()),
+        radiator: jstr(&d.radiator),
+        mixture: jstr(&d.mixture),
+        compressorstage: d.s_state.as_ref().map(|s| s.compressorstage).unwrap_or(0),
+        magenato: d.s_state.as_ref().map(|s| s.magenato).unwrap_or(0),
+        manifoldpressure: jstr(&d.manifoldpressure),
+        flaps: jstr(&d.flaps),
+        elevator: d.s_state.as_ref().map(|s| s.elevator).unwrap_or(0),
+        aileron: d.s_state.as_ref().map(|s| s.aileron).unwrap_or(0),
+        rudder: d.s_state.as_ref().map(|s| s.rudder).unwrap_or(0),
+        aoa: jstr(&d.aoa),
+        aos: jstr(&d.aos),
+        alt: d.alt,
+        check_alt: d.check_alt,
+        ias_v: d.ias_v,
+        sep: d.sep,
+        state_wx: d.s_state.as_ref().map(|s| s.wx).unwrap_or(0.0),
+        // Java: init 读 `s.sIndic.type`; sIndic 存在而 type 键缺失 → null →
+        // toUpperCase() NPE (Java 崩 openpad 线程), Rust 以空串降级 (PORT 备案:
+        // 常态不可达 — 换机/开局时 type 必在; 崩线程无观察面)
+        indic_type: d
+            .s_indic
+            .as_ref()
+            .and_then(|i| i.r#type.clone())
+            .unwrap_or_default(),
+    }
+}
+
+/// [`AnalyzerService`] 的 ServiceData 适配器 (flight_analyzer.rs 接线合同的
+/// vm-data 侧 impl)。getter 逐字段读锁 (合同义务 2: 逐字段调用对应 Java 逐字段
+/// 读取时刻); sIndic 缺失 panic 对齐 Java NPE (合同义务 1)。
+pub struct ServiceAnalyzerSource {
+    data: Arc<RwLock<ServiceData>>,
+}
+
+impl ServiceAnalyzerSource {
+    pub fn new(data: Arc<RwLock<ServiceData>>) -> Self {
+        ServiceAnalyzerSource { data }
+    }
+}
+
+impl AnalyzerService for ServiceAnalyzerSource {
+    fn s_indic_type(&self) -> Option<String> {
+        let d = read_data(&self.data);
+        let s = d
+            .s_indic
+            .as_ref()
+            .expect("PORT: Java NPE — xs.sIndic 为 null 时 FlightAnalyzer.init 首行 NPE");
+        s.r#type.clone()
+    }
+    fn i_eng_type(&self) -> i32 {
+        read_data(&self.data).i_eng_type
+    }
+    fn elapsed_time(&self) -> i64 {
+        read_data(&self.data).elapsed_time
+    }
+    fn total_hp(&self) -> i32 {
+        read_data(&self.data).total_hp
+    }
+    fn total_thrust(&self) -> i32 {
+        read_data(&self.data).total_thrust
+    }
+    fn total_hp_eff(&self) -> i32 {
+        read_data(&self.data).total_hp_eff
+    }
+    fn sep(&self) -> f64 {
+        read_data(&self.data).sep
+    }
 }
 
 // ------------------------------------------------------------------
@@ -1606,5 +1754,104 @@ mod tests {
 
         handle.stop();
         // _mock Drop 时杀掉 mock 进程
+    }
+
+    // ------------------------------------------------------------------
+    // FlightLog 接线 (Service.java:1824-1828 的 logTick 调用面)
+    // ------------------------------------------------------------------
+
+    /// ControllerLogSink no-op (本测试不覆盖 init 失败路径, 见 vm-core flight_log 测试)
+    struct NopSink;
+    impl vm_core::flight_log::ControllerLogSink for NopSink {
+        fn set_logon(&self, _logon: bool) {}
+    }
+
+    /// 槽注入 → 数轮 tick → CSV 行数 (首 tick flush / 其后缓冲, close 兜底);
+    /// analyze 链活体验证 (checkAlt 过阈值 → fA 落地 + AnalyzerService 活读 ServiceData)
+    #[test]
+    fn flight_log_tick_writes_rows_and_close_flushes() {
+        // CWD 沙箱: FlightLog 的 records/ 是相对 CWD 的硬编码 (与 Java 一致);
+        // 本测试二进制内并行线程共享进程 CWD → 串行化 + 用完恢复 (vm-core
+        // flight_log.rs 同款; 与 vm-core 测试是不同进程, 天然互斥)
+        static CWD_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+        let _guard = CWD_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+        let root = std::env::temp_dir().join(format!("vm_svc_fl_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join("records")).unwrap();
+        let old = std::env::current_dir().unwrap();
+        std::env::set_current_dir(&root).unwrap();
+        let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let mut svc = new_service();
+            let slot: FlightLogSlot = Arc::new(std::sync::Mutex::new(None));
+            svc.set_flight_log(Arc::clone(&slot));
+            // ServiceData 喂判别值 (check_alt 过阈值 → 首帧 analyze 触发 init)
+            {
+                let mut d = write_data(&svc.data);
+                d.elapsed_time = 120000;
+                d.check_alt = 15;
+                d.alt = 1500.0;
+                d.total_thrust = 3400;
+                if let Some(s) = d.s_state.as_mut() {
+                    s.ny = 1.5;
+                    s.wx = -140.7;
+                    s.elevator = -20;
+                    s.aileron = 15;
+                    s.rudder = -5;
+                    s.compressorstage = 1;
+                    s.magenato = 1;
+                }
+                d.s_indic.as_mut().unwrap().r#type = Some("bf-109e-4".to_string());
+            }
+            // FlightLog init (表头落盘) 并入槽 = Java openpad 的 Log=new + init
+            let mut fl = vm_core::flight_log::FlightLog::new();
+            let snap = flight_log_snapshot(&read_data(&svc.data));
+            fl.init(
+                Arc::new(NopSink),
+                &snap,
+                None,
+                Arc::new(|_| {}),
+                Arc::new(ServiceAnalyzerSource::new(Arc::clone(&svc.data))),
+            );
+            let file_name = fl.file_name.clone();
+            *slot.lock().unwrap() = Some(Arc::new(std::sync::Mutex::new(fl)));
+
+            // 3 轮 tick: t=0 命中 %1024==0 flush (表头+首行落盘), t=1/2 留缓冲
+            svc.flight_log_tick();
+            svc.flight_log_tick();
+            svc.flight_log_tick();
+            let rows = std::fs::read_to_string(&file_name).unwrap().lines().count();
+            assert_eq!(rows, 2, "首 tick flush 一行, 其余在 BufferedWriter 内存");
+            // 快照映射: elapsed 120000ms→2.0 分钟列 + String 列为 resetvaria 的 "-" 初值
+            let line1 = std::fs::read_to_string(&file_name)
+                .unwrap()
+                .lines()
+                .nth(1)
+                .unwrap()
+                .to_string();
+            assert!(line1.starts_with("2.0,-,"), "elapsed/ias 列映射: {line1}");
+            assert_eq!(line1.split(',').count(), 32, "31 列 + 尾随逗号: {line1}");
+
+            // analyze 链活体: fA 落地 (stage 15) + 活读 ServiceData (thrust 3400)
+            {
+                let g = slot.lock().unwrap();
+                let fl = g.as_ref().unwrap().lock().unwrap();
+                let fa = fl.f_a.as_ref().expect("checkAlt 过阈值应触发 FlightAnalyzer init");
+                assert_eq!(fa.curalt_stage, 15);
+                assert_eq!(fa.initalt_stage, 15);
+                assert_eq!(fa.thrust[15], 3400, "AnalyzerService 活读 totalThrust");
+            }
+
+            // close 兜底 flush + 三份分析 CSV (fA 已落地, 无 Java NPE 路径)
+            let fl_arc = slot.lock().unwrap().take().unwrap();
+            fl_arc.lock().unwrap().close();
+            let rows = std::fs::read_to_string(&file_name).unwrap().lines().count();
+            assert_eq!(rows, 4, "close 兜底 flush 表头+3 行");
+        }));
+        std::env::set_current_dir(old).unwrap();
+        let _ = std::fs::remove_dir_all(&root);
+        drop(_guard); // 先放锁再重抛, 避免 panic 穿过 guard 毒化锁
+        if let Err(e) = r {
+            std::panic::resume_unwind(e);
+        }
     }
 }

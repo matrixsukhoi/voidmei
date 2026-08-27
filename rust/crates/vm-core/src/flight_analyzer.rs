@@ -9,15 +9,17 @@
 //! vm-data 的 service_fields 落地时 `impl AnalyzerService for Service` 接线
 //! (Java 侧为 public 字段直读, 收敛为 getter 是 crate 边界所需, 非语义变更)。
 //!
-//! PORT (FlightLog 接线合同, 集成期): Java `analyze()` 每次调用**活读**
+//! PORT (FlightLog 接线合同, **已履行**): Java `analyze()` 每次调用**活读**
 //! xs.elapsedTime/totalHp/totalThrust/totalHpEff/SEP (FlightAnalyzer.java:55-59,65-66),
 //! 故 retained `Arc<dyn AnalyzerService>` 是唯一正确建模 —— `FlightLog` 集成时
 //! 应弃其 `FlightAnalyzerApi` 快照合同、直接持有本具体类型 (pub 字段面 + 包私有
 //! init/analyze 的 pub(crate) 同 crate 可见), 并在构造面携带
-//! `Arc<dyn AnalyzerService>` (flight_log::FlightLogSnapshot 已含全部 7 个字段,
-//! 可由 vm-data 构造); 按快照合同适配会使 analyze 冻结在 init 时刻的值 (time[]
+//! `Arc<dyn AnalyzerService>`; 按快照合同适配会使 analyze 冻结在 init 时刻的值 (time[]
 //! 记录错误时刻、eff/sep 累加失真)。notify 两侧类型一致
 //! (`Arc<dyn Fn(&str) + Send + Sync>` = flight_log::NotifySink), 可共用同一 sink。
+//! (落地形态: FlightLog::init 第 5 参注入 Arc<dyn AnalyzerService>, vm-data 提供
+//! ServiceData 的 impl 适配器 ServiceAnalyzerSource; 活读防回归由
+//! flight_log.rs 的 analyze_flow 测试锁定 — RecordingService 每读递增。)
 //!
 //! PORT (CLASSIFY 裁决"注入回调"): `ui.util.NotificationService.show(String)` 是
 //! C 类 UI 静态入口 —— 本译以 [`FlightAnalyzer::notify`] 字段注入, 未接线 (None)
@@ -137,9 +139,7 @@ impl FlightAnalyzer {
     }
 
     /// Java: `void init(int stage, Service st, prog.config.ConfigProvider config)` (包私有)。
-    // 唯一调用者 flight_log (parser 同包) 集成期才接线到本具体类型 (见模块头接线合同),
-    // 接线前非测试构建无调用者 — allow 随接线移除
-    #[allow(dead_code)]
+    // 唯一调用者 flight_log (parser 同包, Controller.java:332 `Log.init` → 首帧 analyzeData)
     pub(crate) fn init(
         &mut self,
         stage: i32,
@@ -175,8 +175,7 @@ impl FlightAnalyzer {
     }
 
     /// Java: `void analyze(int stage)` (包私有)。
-    // 同 init: flight_log 集成期接线, 接线前非测试构建无调用者
-    #[allow(dead_code)]
+    // 唯一调用者 flight_log (parser 同包, logTick → analyzeData 每帧)
     pub(crate) fn analyze(&mut self, stage: i32) {
         let xs = self.xs().clone(); // Arc 浅拷贝, 避免与 &mut self 借用冲突
         self.engine_type = xs.i_eng_type();

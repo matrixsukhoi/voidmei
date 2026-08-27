@@ -21,8 +21,10 @@
 //! 2. win32 线程需要的配置面以 Send 快照送达 ([`HudSettingsSnapshot`] +
 //!   [`ActivationCache`]), 快照刷新由监督循环在 CONFIG_CHANGED 到达时执行。
 
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU64, Ordering};
 use std::sync::mpsc::{Receiver, RecvTimeoutError, Sender};
 use std::sync::{Arc, Mutex, RwLock};
@@ -31,13 +33,16 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use vm_core::activation_strategy::{ActivationContext, ActivationStrategy};
 use vm_core::bus::{EventBus, Subscription};
-use vm_core::config_api::{ConfigProvider, HUDSettings, OverlaySettings};
+use vm_core::config_api::{ConfigProvider, HudSettingsSnapshot, OverlaySettings};
 use vm_core::configuration_service::{ConfigurationService, ControllerIntervals, GlobalColors, UiStateEvent};
 use vm_core::controller_state::ControllerState;
 use vm_core::event::event_payload::EventPayload;
 use vm_core::event::flight_data_event::FlightDataEvent;
 use vm_core::event::ui_state_events;
 use vm_core::flight_data_bus::FlightDataBus;
+use vm_core::flight_log::{
+    ControllerLogSink, FlightLog, FlightLogSlot, NotifySink,
+};
 use vm_core::fm::{FMManager, FMStatus};
 use vm_core::http_helper::HttpHelper;
 use vm_core::hud_calculator::HudColors;
@@ -47,7 +52,8 @@ use vm_core::ui_model::TelemetrySource as _;
 
 use vm_data::service_fields::ServiceData;
 use vm_data::service_loop::{
-    start as spawn_service_thread, Service, ServiceConfig, ServiceHandle,
+    flight_log_snapshot, start as spawn_service_thread, Service, ServiceAnalyzerSource,
+    ServiceConfig, ServiceHandle,
 };
 
 use vm_overlay::host::OverlayHost;
@@ -65,6 +71,42 @@ use vm_overlay::tray::{TrayConfig, TrayIcon, TrayHandler};
 
 /// Java Controller.java:59 `CONFIG_DEBOUNCE_MS = 200`
 pub const CONFIG_DEBOUNCE_MS: u64 = 200;
+
+// =====================================================================
+// FlightLog 接线辅助 (Controller.java:366-376/402-411 的依赖注入面)
+// =====================================================================
+
+/// Java `Controller.logon` 布尔 (Controller.java:44) 的写入面对位: 唯一写点 =
+/// FlightLog.init 失败路径的 `xc.logon = false` (FlightLog.java:409), 语义为
+/// "停 tick" — Rust 以清槽表达 (槽 None ⇒ Service 轮询 logTick 短路)。
+/// true 分支无 Java 写点, 空实现。
+struct LogonSink(FlightLogSlot);
+impl ControllerLogSink for LogonSink {
+    fn set_logon(&self, logon: bool) {
+        if !logon {
+            *self.0.lock().expect("flight_log 槽锁中毒") = None;
+        }
+    }
+}
+
+/// ConfigurationService (!Send, 主线程独占) 的单键快照适配: FlightLog 侧 config
+/// 的唯一消费是 FlightAnalyzer.init 的一次性 `getConfig("enableAltInformation")`
+/// (flight_analyzer.rs:154-160), 与 Java 同一时刻同值 (见 open_flight_log 注)。
+struct FlightLogConfig(Option<String>);
+impl ConfigProvider for FlightLogConfig {
+    fn get_config(&self, key: &str) -> Option<String> {
+        if key == "enableAltInformation" {
+            self.0.clone()
+        } else {
+            // FlightLog 链无其它读键 (Java 侧 FlightLog/FlightAnalyzer 只读此键)
+            None
+        }
+    }
+    fn set_config(&self, _key: &str, _value: &str) {}
+    fn is_field_disabled(&self, _key: &str) -> bool {
+        false
+    }
+}
 
 /// FlightDataBus 事件流静默判定阈值 (审查 B1 补偿, 见
 /// [`ControllerShared::last_flight_event_ms`] 注): player_live 轮每 ~50ms 发布
@@ -197,6 +239,20 @@ pub enum UiCommand {
     },
     /// Java OverlayManager.reinitActiveOverlays (非 PREVIEW 态配置变更) — win32 属主
     ReinitActiveOverlays,
+    /// WYSIWYG reinit 参数直送 (PORT 新增命令, 五色直送同款模式): 主线程
+    /// CONFIG_CHANGED 时即时读配置重建 [`vm_overlay::ReinitParams`] (纯值 Send),
+    /// 先于 RefreshPreviews/ReinitActiveOverlays 入队 — win32 线程存入线程局部
+    /// 参数仓供各 spec 工厂 reinit 闭包读取 (配置 !Send, 值随命令进线程) — win32 属主
+    /// Box: 参数包 ~272B 远大于其余变体, 装箱拉平枚举尺寸 (clippy large_enum_variant)
+    ReinitOverlays { params: Box<vm_overlay::ReinitParams> },
+    /// 游戏失焦隐藏全部 overlay (Java FocusMonitor → hideAllOverlays;
+    /// 不销毁实例) — win32 属主
+    HideAllOverlays,
+    /// 游戏复焦恢复 (Java showAllOverlays) — win32 属主
+    ShowAllOverlays,
+    /// AA 开关更新 (cfg AAEnable — Java 同开同关 graph/text 两 hint, Rust 仓单值;
+    /// 直读 cfg 即时值, 配置 !Send) — win32 属主
+    SetAa(bool),
     /// 全局五色更新 (Java: 改色 → CONFIG_CHANGED(font 前缀全局键) → 刷新;
     /// Rust 配置 !Send, 色值随命令直送 win32 线程的 global_colors 仓) — win32 属主
     SetGlobalColors(GlobalColors),
@@ -274,6 +330,10 @@ pub struct ControllerShared {
     pub state: RwLock<ControllerState>,
     /// Java loadAppCheck 写入的轮询间隔组 (ConfigurationService.load_app_check 目标)
     pub intervals: Mutex<ControllerIntervals>,
+    /// host.overlays_hidden 的跨线程镜像 (Java AlwaysOnTopCoordinator.
+    /// overlaysHidden volatile — FocusMonitor 经通道桥查询; win32 处理
+    /// Hide/Show 命令时与 host 同步置位)
+    pub overlays_hidden: AtomicBool,
     /// 低频杂项标志 (showStatus/sessionAircraftType/currentFmHotkeyCode)
     pub flags: Mutex<ControllerFlags>,
     /// 游戏模式 Service 数据快照句柄 (start() 建 / stop() 清;
@@ -323,6 +383,7 @@ impl ControllerShared {
             preview_generation: AtomicU64::new(0),
             state: RwLock::new(ControllerState::Init),
             intervals: Mutex::new(ControllerIntervals::default()),
+            overlays_hidden: AtomicBool::new(false),
             flags: Mutex::new(ControllerFlags::default()),
             live: RwLock::new(None),
             overlay_ctx_preview: AtomicBool::new(true),
@@ -478,230 +539,6 @@ impl Drop for ConfigDebouncer {
 }
 
 // =====================================================================
-// HudSettingsSnapshot — HUDSettings 的 Send 快照 (win32 线程注册面输入)
-// =====================================================================
-
-/// MiniHUD 注册所需的 HUDSettings 全量值快照。
-/// PORT: ConfigurationService (!Send, Rc<SExp> 配置树) 不能进 win32 线程,
-/// 主线程 (AppShell) 构建本纯值快照随 [`Win32ThreadConfig`] 送入。
-/// `get_window_x/y`: 窗口定位归 OverlayHost 位置存档 (host.materialize),
-/// ctx.window_x/y 在 Rust 端无消费点 — 返回 0 (保位)。
-#[derive(Debug, Clone)]
-pub struct HudSettingsSnapshot {
-    pub num_font: String,
-    pub crosshair_scale: i32,
-    pub crosshair_name: String,
-    pub display_crosshair: bool,
-    pub use_texture_crosshair: bool,
-    pub draw_hud_text: bool,
-    pub show_attitude_gauge: bool,
-    pub aoa_warning_ratio: f64,
-    pub aoa_bar_warning_ratio: f64,
-    pub enable_flap_angle_bar: bool,
-    pub show_speed_bar: bool,
-    pub draw_hud_mach: bool,
-    pub speed_label_disabled: bool,
-    pub altitude_label_disabled: bool,
-    pub sep_label_disabled: bool,
-    pub show_hud_speed: bool,
-    pub show_hud_aoa: bool,
-    pub show_hud_altitude: bool,
-    pub show_hud_energy: bool,
-    pub show_hud_mechanization: bool,
-    pub show_hud_flaps: bool,
-    pub show_hud_airbrake: bool,
-    pub show_hud_gear: bool,
-    pub show_hud_sep: bool,
-    pub show_hud_g_load: bool,
-    pub show_hud_maneuver_bar: bool,
-    pub attitude_indicator_inertial_mode: bool,
-    pub gpu_compatibility_mode: bool,
-    pub always_show_radar_altitude: bool,
-    pub font_name: String,
-    pub num_font_name: String,
-    pub font_size_add: i32,
-    pub auto_hide_on_focus_loss: bool,
-    /// 通用 bool getter 快照 (minihud initModernLayout 读 "enableLayoutDebug")
-    pub bools: HashMap<String, bool>,
-}
-
-impl HudSettingsSnapshot {
-    /// 主线程从真实设置视图提取 (调用点持 ConfigurationService)
-    pub fn build<S: HUDSettings>(s: &S) -> Self {
-        HudSettingsSnapshot {
-            num_font: s.get_num_font(),
-            crosshair_scale: s.get_crosshair_scale(),
-            crosshair_name: s.get_crosshair_name(),
-            display_crosshair: s.is_display_crosshair(),
-            use_texture_crosshair: s.use_texture_crosshair(),
-            draw_hud_text: s.draw_hud_text(),
-            show_attitude_gauge: s.show_attitude_gauge(),
-            aoa_warning_ratio: s.get_aoa_warning_ratio(),
-            aoa_bar_warning_ratio: s.get_aoa_bar_warning_ratio(),
-            enable_flap_angle_bar: s.enable_flap_angle_bar(),
-            show_speed_bar: s.show_speed_bar(),
-            draw_hud_mach: s.draw_hud_mach(),
-            speed_label_disabled: s.is_speed_label_disabled(),
-            altitude_label_disabled: s.is_altitude_label_disabled(),
-            sep_label_disabled: s.is_sep_label_disabled(),
-            show_hud_speed: s.show_hud_speed(),
-            show_hud_aoa: s.show_hud_aoa(),
-            show_hud_altitude: s.show_hud_altitude(),
-            show_hud_energy: s.show_hud_energy(),
-            show_hud_mechanization: s.show_hud_mechanization(),
-            show_hud_flaps: s.show_hud_flaps(),
-            show_hud_airbrake: s.show_hud_airbrake(),
-            show_hud_gear: s.show_hud_gear(),
-            show_hud_sep: s.show_hud_sep(),
-            show_hud_g_load: s.show_hud_g_load(),
-            show_hud_maneuver_bar: s.show_hud_maneuver_bar(),
-            attitude_indicator_inertial_mode: s.is_attitude_indicator_inertial_mode(),
-            gpu_compatibility_mode: s.is_gpu_compatibility_mode(),
-            always_show_radar_altitude: s.always_show_radar_altitude(),
-            // PORT: 不取 get_font_name — 其 defaultFont 回退分支是 vm-core 保真
-            // NPE (Application.defaultFont null, initFont TODO(port) 未接前不可达);
-            // MiniHUD ctx 只消费 num 字体 (get_num_font), text 字体空串顶位
-            font_name: String::new(),
-            num_font_name: s.get_num_font_name(),
-            font_size_add: s.get_font_size_add(),
-            auto_hide_on_focus_loss: s.auto_hide_on_focus_loss(),
-            // minihud 走通用 getter 的键集 (initModernLayout L1293; 新键随接线补)
-            bools: HashMap::from([(
-                "enableLayoutDebug".to_string(),
-                s.get_bool("enableLayoutDebug", false),
-            )]),
-        }
-    }
-}
-
-impl OverlaySettings for HudSettingsSnapshot {
-    type GroupConfig = ();
-    fn get_window_x(&self, _width: i32) -> i32 {
-        0 // 定位归 host 位置存档 (见类型注)
-    }
-    fn get_window_y(&self, _height: i32) -> i32 {
-        0
-    }
-    fn save_window_position(&self, _x: f64, _y: f64) {
-        // host.saved_positions 接管 (host.rs close 链), 无回写面
-    }
-    fn get_font_name(&self) -> String {
-        self.font_name.clone()
-    }
-    fn get_num_font_name(&self) -> String {
-        self.num_font_name.clone()
-    }
-    fn get_font_size_add(&self) -> i32 {
-        self.font_size_add
-    }
-    fn get_bool(&self, key: &str, def: bool) -> bool {
-        self.bools.get(key).copied().unwrap_or(def)
-    }
-    fn get_int(&self, _key: &str, def: i32) -> i32 {
-        def
-    }
-    fn get_string(&self, _key: &str, def: &str) -> String {
-        def.to_string()
-    }
-    fn get_group_config(&self) -> Option<&Self::GroupConfig> {
-        None
-    }
-    fn auto_hide_on_focus_loss(&self) -> bool {
-        self.auto_hide_on_focus_loss
-    }
-}
-
-impl HUDSettings for HudSettingsSnapshot {
-    fn get_num_font(&self) -> String {
-        self.num_font.clone()
-    }
-    fn get_crosshair_scale(&self) -> i32 {
-        self.crosshair_scale
-    }
-    fn get_crosshair_name(&self) -> String {
-        self.crosshair_name.clone()
-    }
-    fn is_display_crosshair(&self) -> bool {
-        self.display_crosshair
-    }
-    fn use_texture_crosshair(&self) -> bool {
-        self.use_texture_crosshair
-    }
-    fn draw_hud_text(&self) -> bool {
-        self.draw_hud_text
-    }
-    fn show_attitude_gauge(&self) -> bool {
-        self.show_attitude_gauge
-    }
-    fn get_aoa_warning_ratio(&self) -> f64 {
-        self.aoa_warning_ratio
-    }
-    fn get_aoa_bar_warning_ratio(&self) -> f64 {
-        self.aoa_bar_warning_ratio
-    }
-    fn enable_flap_angle_bar(&self) -> bool {
-        self.enable_flap_angle_bar
-    }
-    fn show_speed_bar(&self) -> bool {
-        self.show_speed_bar
-    }
-    fn draw_hud_mach(&self) -> bool {
-        self.draw_hud_mach
-    }
-    fn is_speed_label_disabled(&self) -> bool {
-        self.speed_label_disabled
-    }
-    fn is_altitude_label_disabled(&self) -> bool {
-        self.altitude_label_disabled
-    }
-    fn is_sep_label_disabled(&self) -> bool {
-        self.sep_label_disabled
-    }
-    fn show_hud_speed(&self) -> bool {
-        self.show_hud_speed
-    }
-    fn show_hud_aoa(&self) -> bool {
-        self.show_hud_aoa
-    }
-    fn show_hud_altitude(&self) -> bool {
-        self.show_hud_altitude
-    }
-    fn show_hud_energy(&self) -> bool {
-        self.show_hud_energy
-    }
-    fn show_hud_mechanization(&self) -> bool {
-        self.show_hud_mechanization
-    }
-    fn show_hud_flaps(&self) -> bool {
-        self.show_hud_flaps
-    }
-    fn show_hud_airbrake(&self) -> bool {
-        self.show_hud_airbrake
-    }
-    fn show_hud_gear(&self) -> bool {
-        self.show_hud_gear
-    }
-    fn show_hud_sep(&self) -> bool {
-        self.show_hud_sep
-    }
-    fn show_hud_g_load(&self) -> bool {
-        self.show_hud_g_load
-    }
-    fn show_hud_maneuver_bar(&self) -> bool {
-        self.show_hud_maneuver_bar
-    }
-    fn is_attitude_indicator_inertial_mode(&self) -> bool {
-        self.attitude_indicator_inertial_mode
-    }
-    fn is_gpu_compatibility_mode(&self) -> bool {
-        self.gpu_compatibility_mode
-    }
-    fn always_show_radar_altitude(&self) -> bool {
-        self.always_show_radar_altitude
-    }
-}
-
-// =====================================================================
 // 激活缓存 + 注册参数快照 (win32 线程的配置面)
 // =====================================================================
 
@@ -734,11 +571,10 @@ fn refresh_activation_cache(config: &ConfigurationService, cache: &ActivationCac
 }
 
 /// overlay 注册面的 Send 参数快照 (win32 线程一次性注册用, D8: 字体→win32 线程)。
-/// TODO(port) (审查 A-W4): 本快照是 spawn_win32_thread 时的一次性取值 — 核重建
-/// (rebuild_controller) 与 CONFIG_CHANGED 均只刷新 activation 缓存, MiniHUD 设置
-/// 快照 (font_size_add 等字号族) 与 service_loop_interval_ms 不随新核/配置变更
-/// 重建: WYSIWYG 链对字号类变更与"托盘重建后新配置进 MiniHUD"在组装层断链,
-/// 待 host 工厂面扩展 (win32 线程内重接线) 后收口。
+/// PORT(WYSIWYG 收口, 原审查 A-W4): 本快照仍只喂 spawn 期初始注册; 配置变更后的
+/// 重建经 [`ReinitParams`] 走 `UiCommand::ReinitOverlays` (见 vm-overlay reinit.rs
+/// 头注) — 主线程 CONFIG_CHANGED 时即时重建参数包直送 win32 线程的线程局部仓,
+/// 各 spec 工厂的 reinit 闭包消费, 不再冻结在 spawn 时刻。
 pub struct OverlayInputs {
     pub dpi_scale: f64,
     /// MiniHUD 全量设置快照
@@ -770,6 +606,11 @@ pub struct OverlayInputs {
     /// 全局五色快照 (Java Application.colorNum 族静态; cfg fontNum/fontLabel/
     /// fontUnit/fontWarn/fontShade → win32 线程 global_colors 仓)
     pub colors: GlobalColors,
+    /// AA 开关快照 (cfg AAEnable, Java cfg 缺省 false; → global_aa 仓)
+    pub aa: bool,
+    /// 引擎控制 7 仪表 disable 开关 (ENGINE_DISABLE_KEYS 序; 曾 never-wired
+    /// 恒 false — 用户关仪表 Rust 恒显全部, 启动首帧即错, 审查轮 1-B)
+    pub engine_disables: [bool; 7],
 }
 
 impl OverlayInputs {
@@ -808,6 +649,39 @@ impl OverlayInputs {
             // load_app_check 缺省 50 (ConfigurationService.java 同源)
             service_loop_interval_ms: if interval > 0 { interval } else { 50 },
             colors: config.global_colors(),
+            aa: config.application_state().aa_enable,
+            engine_disables: std::array::from_fn(|i| {
+                config
+                    .get_config(vm_overlay::ENGINE_DISABLE_KEYS[i])
+                    .map(|v| java_parse_boolean(&v))
+                    .unwrap_or(false)
+            }),
+        }
+    }
+}
+
+/// 注册快照 → WYSIWYG reinit 参数包 (同源配置键的子集投影; 颜色/AA 有专命令不入包)
+impl From<&OverlayInputs> for vm_overlay::ReinitParams {
+    fn from(i: &OverlayInputs) -> Self {
+        vm_overlay::ReinitParams {
+            dpi_scale: i.dpi_scale,
+            font_add_engine: i.font_add_engine,
+            engine_disables: i.engine_disables,
+            service_loop_interval_ms: i.service_loop_interval_ms,
+            font_add_power: i.font_add_power,
+            power_columns: i.power_columns,
+            font_add_flight: i.font_add_flight,
+            flight_columns: i.flight_columns,
+            font_add_gear: i.font_add_gear,
+            gear_show_edge: i.gear_show_edge,
+            font_add_axis: i.font_add_axis,
+            axis_show_edge: i.axis_show_edge,
+            attitude_width: i.attitude_width,
+            attitude_height: i.attitude_height,
+            attitude_freq_ms: i.attitude_freq_ms,
+            attitude_show_direction: i.attitude_show_direction,
+            attitude_show_aoa_limits: i.attitude_show_aoa_limits,
+            hud: i.hud.clone(),
         }
     }
 }
@@ -849,6 +723,10 @@ pub struct Controller {
     /// live 事件活跃度订阅 (B1 补偿信号, 见 ControllerShared.last_flight_event_ms;
     /// start 建 / stop 退 — 回调在 Service 发布线程, 只写原子时间戳不碰 UI)
     live_sub: Option<Subscription<FlightDataEvent>>,
+    /// FlightLog 共享槽 (Java Controller.java:44 `logon` + `Log` 字段二位一体的
+    /// 收敛形态): openpad/closepad/换机换入换出, Service 轮询线程每轮 logTick
+    /// (Service.java:1824-1828)。随核销毁 (stop 的 closepad 路径保存)
+    flight_log: FlightLogSlot,
     /// Service 线程句柄 (stop 步4: take + stop)
     pub service: Option<ServiceHandle>,
     /// Java `public MainForm M` 的存活位 (真窗归主线程 iced/W2; 此处只承载 null 判定)
@@ -898,6 +776,7 @@ impl Controller {
             subs: Vec::new(),
             fm_sub: None,
             live_sub: None,
+            flight_log: Arc::new(Mutex::new(None)),
             service: None,
             main_form_alive: false,
             probe_network,
@@ -1070,17 +949,55 @@ impl Controller {
             .lock()
             .expect("intervals 锁中毒")
             .service_loop_interval_ms;
-        let service = Service::new(
+        // cfg httpPort 覆盖 (Java Service 每请求读 Application.requestDest 静态 —
+        // loadAppCheck 已写毕; 审查轮 1-A: 曾恒 env(Lang) 值, 打桩 9222 场景失效)。
+        // None/0 = cfg 未写或未跑 loadFromConfig → 回退 env 启动值 (Java main 同位)
+        let cfg_port = self
+            .config
+            .application_state()
+            .request_dest
+            .as_ref()
+            .map(|a| a.port)
+            .filter(|p| *p > 0)
+            .map(|p| p as u16);
+        let mut service = Service::new(
             ServiceConfig {
                 // load_app_check 缺省 50; 字段 0 = 未跑过 loadFromConfig 的防御回退
                 service_loop_interval_ms: if interval > 0 { interval } else { 50 },
-                app_port: self.env.app_port,
+                app_port: cfg_port.unwrap_or(self.env.app_port),
                 http_header: self.env.http_header.clone(),
             },
             Arc::clone(&self.fm),
             // FlightDataBus 单例语义 (LIFETIMES §1.1): AppShell 分发同一 Arc
             Arc::clone(&self.flight_bus),
         );
+        // FocusMonitor 装配 (轮 2-C 收口, Java Controller.java:353-360 语义:
+        // 会话启动按 cfg 启停 — 与 Service 同生共死, closepad 停 Service 即失效,
+        // 等价 Java openpad 时 setEnabled + closepad setEnabled(false)):
+        // tick 在 Service 轮询线程, 失焦回调经通道桥送 win32 执行 host hide/show
+        {
+            let auto_hide = self
+                .config
+                .get_config("autoHideOnFocusLoss")
+                .map(|v| java_parse_boolean(&v))
+                .unwrap_or(false);
+            let mut fm = vm_core::focus_monitor::FocusMonitor::new(
+                Arc::new(vm_overlay::platform_extras::WindowsFocusDetector),
+                Arc::new(ChannelFocusBridge {
+                    tx: self.ui_cmd_tx.clone(),
+                    shared: Arc::clone(&self.shared),
+                }),
+            );
+            fm.set_enabled(auto_hide);
+            logger::info(
+                "Controller",
+                if auto_hide { "焦点监控已启用 (随 Service 装配)" } else { "焦点监控未启用 (autoHideOnFocusLoss=false)" },
+            );
+            service.set_focus_monitor(fm);
+        }
+        // FlightLog 槽注入 (Service 轮询线程每轮 logTick, Service.java:1824-1828;
+        // Controller.java:44 logon/Log 字段的共享面) — spawn 前随其余注入一次
+        service.set_flight_log(Arc::clone(&self.flight_log));
         let handle = spawn_service_thread(service);
         *self.shared.live.write().expect("live 锁中毒") = Some(Arc::clone(&handle.data));
         self.service = Some(handle);
@@ -1248,30 +1165,105 @@ impl Controller {
 
     /// Java openpad (344-386) 中非 overlay 窗口的其余面
     fn openpad_rest(&mut self) {
-        // Java:352-360 autoHideOnFocusLoss → S.getFocusMonitor().setEnabled
-        // TODO(port): FocusMonitor 由 Service 线程内持有 (vm-data), 外部开关面缺,
-        // 接线需 vm-data 补回调 (同 drive_from_live 的 TODO 族)
-        let auto_hide_cfg = self.config.get_config("autoHideOnFocusLoss").unwrap_or_default();
-        logger::info(
-            "Controller",
-            &format!("autoHideOnFocusLoss 配置值: {}", auto_hide_cfg),
-        );
-        if java_parse_boolean(&auto_hide_cfg) {
-            logger::info("Controller", "焦点监控已启用 (接线待 vm-data 回调面)");
-        } else {
-            logger::info("Controller", "焦点监控未启用（配置为 false 或未设置）");
-        }
-        // Java:366-376 FlightLog (enableLogging) — FlightLog/NotificationService/
-        //   DrawFrame 未接 (TODO(port), D8 降级清单 DrawFrame×2 属 P6)
+        // Java:352-360 autoHideOnFocusLoss → setEnabled — 已收口 (轮 2-C):
+        // FocusMonitor 随 Service 装配 (start() 内按 cfg 启停, 与会话同生共死),
+        // 本处不再重复读键
+        // Java:366-376 FlightLog (enableLogging) — 已接线 (下方法)
+        self.open_flight_log();
         // Java:378-382 UIThread — D7 弃译清单 (空转轮询线程已废)
         // Java:383-385 S.startTime — Service 内部时间面, vm-data 未外泄 (TODO(port))
     }
 
+    /// Java openpad 的 FlightLog 段 (Controller.java:366-376): enableLogging 开 →
+    /// 通知 + `Log = new FlightLog(); Log.init(this, S, configService); logon = true`。
+    /// onAircraftChanged 换机开新 (331-333) 复用本方法。
+    fn open_flight_log(&mut self) {
+        // Java: Boolean.parseBoolean(getConfig("enableLogging"))
+        if !java_parse_boolean(&self.config.get_config("enableLogging").unwrap_or_default()) {
+            return;
+        }
+        // Java:367-370 关旧 DrawFrame — D8 豁免 (DrawFrame×2 属 P6, 不碰)
+        // Java:371 NotificationService.show(Lang.cStartlog) — toast 未移植 (豁免),
+        // logger 顶位留痕
+        logger::info("Controller", Lang::init_lang().c_startlog);
+        // Java:372-374 Log.init(this, S, configService) — init 只读 `s.sIndic.type`,
+        // 与 Java 同时刻从 live ServiceData 取快照。Service 缺失 = 测试 fixture
+        // 手塞 live 绕过 start() 的专有形态 (Java 轮询链 openpad 必有 S), 跳过
+        let Some(handle) = self.service.as_ref() else { return };
+        let data = Arc::clone(&handle.data);
+        let snap = flight_log_snapshot(&data.read().unwrap_or_else(|e| e.into_inner()));
+        let mut log = FlightLog::new();
+        log.init(
+            Arc::new(LogonSink(Arc::clone(&self.flight_log))),
+            &snap,
+            // config !Send (ConfigurationService 主线程独占) 不能整件入 FlightLog
+            // (Service 线程 tick); 消费面仅 FlightAnalyzer.init 一次性读
+            // "enableAltInformation" (flight_analyzer.rs:154-160, 此后 is_information
+            // 固化不再读) — 单键快照与 Java 同一时刻同值, 语义等价
+            Some(Arc::new(FlightLogConfig(
+                self.config.get_config("enableAltInformation"),
+            ))),
+            Arc::new(|t: &str| logger::info("FlightLog", t)) as NotifySink,
+            Arc::new(ServiceAnalyzerSource::new(data)),
+        );
+        // Java:375 logon = true → 槽 Some (Service 轮询开始 logTick)。
+        // 注: init 失败路径的 xc.logon=false (FlightLog.java:409) 被 Java openpad:375
+        // 的无条件 logon=true 覆盖 (失败也 tick, 每轮 write 失败 warn — Java 行为),
+        // 保真跟随无条件置 Some
+        *self.flight_log.lock().expect("flight_log 槽锁中毒") = Some(Arc::new(Mutex::new(log)));
+    }
+
+    /// Java closepad 的 FlightLog 段 (Controller.java:402-411): 保存通知 + 爬升档数
+    /// 判断弹 DrawFrame + `Log.close(); Log = null`。onAircraftChanged 关旧 (319-328)
+    /// 与 stop 的 closepad 路径复用本方法。
+    fn close_flight_log(&mut self) {
+        if !java_parse_boolean(&self.config.get_config("enableLogging").unwrap_or_default()) {
+            return;
+        }
+        // Java:403 `(Log != null)` 守卫 + :410 `Log = null` — take 一次完成
+        let log = self
+            .flight_log
+            .lock()
+            .expect("flight_log 槽锁中毒")
+            .take();
+        let Some(log) = log else { return };
+        let mut log = log.lock().expect("flight_log 实例锁中毒");
+        // Java:404 NotificationService.show(cSavelog + fileName + cPlsopen) —
+        // toast 未移植 (豁免), logger 顶位
+        let lang = Lang::init_lang();
+        logger::info(
+            "Controller",
+            &format!("{}{}{}", lang.c_savelog, log.file_name, lang.c_plsopen),
+        );
+        // Java:405-408 爬升档数 ≥1 弹 DrawFrame — D8 豁免 (该行 fA==null 时 NPE
+        // 的 Java bug 形态随 DrawFrame 一并豁免)
+        // Java:409 Log.close(): fA==null (全程未过 |checkAlt|>10) 时 save*Data 抛
+        // NPE 逃逸 closepad, 由 Service 轮询线程顶层 catch(Exception) 吞掉
+        // (Service.java:1850) — 本方法在主线程 (pump) 无该兜底, catch_unwind
+        // 复刻 "崩方法不崩应用" 的 Java 净效果
+        if let Err(payload) =
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| log.close()))
+        {
+            let msg = if let Some(s) = payload.downcast_ref::<String>() {
+                s.clone()
+            } else if let Some(s) = payload.downcast_ref::<&'static str>() {
+                (*s).to_string()
+            } else {
+                "null".to_string()
+            };
+            logger::error(
+                "Controller",
+                &format!("FlightLog close 异常 (Java NPE 对位, 已吞): {msg}"),
+            );
+        }
+    }
+
     /// Java closepad (388-421) — overlay 关闭 (命令) + 其余收尾面
     pub fn closepad(&mut self) {
-        // Java:390 FocusMonitor disable (TODO(port) 同上)
+        // Java:390 FocusMonitor disable (随 Service 装配已收口, 见 openpad_rest 注)
         let _ = self.ui_cmd_tx.send(UiCommand::CloseAllOverlays); // Java:400 closeAll
-        // Java:402-411 FlightLog 保存/DrawFrame (TODO(port) P6)
+        // Java:402-411 FlightLog 保存 (已接线; DrawFrame 段 D8 豁免)
+        self.close_flight_log();
         // Java:413-418 UIThread 停 (D7 弃译); Java:420 System.gc() 无对应物
     }
 
@@ -1280,6 +1272,7 @@ impl Controller {
         if self.shared.state() != ControllerState::Preview {
             return;
         }
+        // closepad 内含 FlightLog 保存 (Java:260 → 402-411)
         self.closepad();
         // Java:271 S.clear() — vm-data 未外泄 (TODO(port))
         // Java:275-276 会话结束: 清识别目标 (保留已加载句柄秒开) + 会话机型记忆
@@ -1316,7 +1309,10 @@ impl Controller {
                 t
             ),
         );
-        // Java:313-334 enableLogging → FlightLog 关旧开新 (TODO(port), P6 DrawFrame 族)
+        // Java:313-334 enableLogging → FlightLog 关旧开新 (关旧 = closepad 的
+        // 319-328 段含保存通知; 开新 = openpad 的 331-333 段; DrawFrame D8 豁免)
+        self.close_flight_log();
+        self.open_flight_log();
         // Java:336-341 S.resetvaria() (vm-data 未外泄, TODO(port))
     }
 
@@ -1717,6 +1713,16 @@ impl AppShell {
                 // 即时读 cfg 键而非 global_colors() 快照: app 状态五色由
                 // load_from_config_ 刷新 (时序在下游), 发布方 (ColorRowRenderer)
                 // 此刻已写服务树值
+                if key == "AAEnable" {
+                    // 直读 cfg 即时值 (java_parse_boolean: "true"→true 其他 false;
+                    // loadFromConfig 缺省语义 false, app 状态刷新在下游)
+                    let on = c
+                        .config
+                        .get_config("AAEnable")
+                        .map(|v| java_parse_boolean(&v))
+                        .unwrap_or(false);
+                    let _ = self.ui_cmd_tx.send(UiCommand::SetAa(on));
+                }
                 if GLOBAL_COLOR_KEYS.contains(&key.as_str()) {
                     let g = GlobalColors {
                         num: c.config.get_color_config("fontNum"),
@@ -1729,6 +1735,17 @@ impl AppShell {
                 }
                 // win32 激活面同步 (配置已由发布方写毕, 最后写胜出 — 见缓存头注)
                 refresh_activation_cache(&c.config, &self.activation);
+                // WYSIWYG reinit 参数直送 (五色直送同款模式): 即时读配置重建参数包,
+                // 先于下方 RefreshPreviews(防抖)/ReinitActiveOverlays 入队 —
+                // 对位 Java refreshPreviews → reinitConfig 即时读配置的时序
+                let params = vm_overlay::ReinitParams::from(&OverlayInputs::build(
+                    &c.config,
+                    &self.env,
+                    &self.shared,
+                ));
+                let _ = self
+                    .ui_cmd_tx
+                    .send(UiCommand::ReinitOverlays { params: Box::new(params) });
                 if c.state() == ControllerState::Preview {
                     // Java:514-536 防抖 (200ms 安静期最后一次生效)。
                     // loadFromConfig 在调度点先行 (Java 在任务体首行; 配置 !Send
@@ -2031,6 +2048,27 @@ const MINIHUD_INTEREST_KEYS: [&str; 13] = [
     "showHUD",
 ];
 
+/// FocusMonitor 的通道桥 (轮 2-C 收口): Service 轮询线程内 FocusMonitor tick →
+/// coordinator 回调 → UiCommand 送 win32 线程执行 host hide/show (配置/窗口
+/// !Send 不能进 Service 线程 — ChannelPositionStore 同款模式)。
+/// is_overlays_hidden 读 ControllerShared 镜像 (win32 处理命令时同步)
+struct ChannelFocusBridge {
+    tx: Sender<UiCommand>,
+    shared: Arc<ControllerShared>,
+}
+
+impl vm_core::focus_monitor::AlwaysOnTopCoordinatorApi for ChannelFocusBridge {
+    fn is_overlays_hidden(&self) -> bool {
+        self.shared.overlays_hidden.load(Ordering::SeqCst)
+    }
+    fn hide_all_overlays(&self) {
+        let _ = self.tx.send(UiCommand::HideAllOverlays);
+    }
+    fn show_all_overlays(&self) {
+        let _ = self.tx.send(UiCommand::ShowAllOverlays);
+    }
+}
+
 /// 全局五色 cfg 键 (ui_layout.cfg:379-383; Java ConfigurationService.java:136-140
 /// loadFromConfig 读入 Application 静态)
 const GLOBAL_COLOR_KEYS: [&str; 5] = ["fontNum", "fontLabel", "fontUnit", "fontWarn", "fontShade"];
@@ -2096,19 +2134,16 @@ fn register_game_mode_overlays(
     handles: &mut OverlayHandles,
     env: &Env,
     inputs: &OverlayInputs,
-    lang: &Lang,
+    // WYSIWYG reinit 参数仓 (CONFIG_CHANGED 后 ReinitOverlays 命令覆写;
+    // 各 spec 工厂 reinit 闭包持引用读取 — 见 vm-overlay reinit.rs 头注)
+    params: &Rc<RefCell<vm_overlay::ReinitParams>>,
+    lang: &Rc<Lang>,
     shared: &ControllerShared,
 ) {
     let fonts = &env.fonts_dir;
     // 引擎控制 (Java:654-659, 键 enableEngineControl); dataPollIntervalMs 经
     // loadRefreshInterval ×2 → refreshInterval (preview 工厂传不了此参恒默认 100)
-    match engine_control_overlay_spec(
-        fonts,
-        lang,
-        inputs.font_add_engine,
-        inputs.dpi_scale,
-        inputs.service_loop_interval_ms,
-    ) {
+    match engine_control_overlay_spec(fonts, Rc::clone(lang), params) {
         Ok((h, spec)) => {
             shared.note_registered_overlay(&spec.id);
             handles.engine_control = Some(h);
@@ -2118,7 +2153,7 @@ fn register_game_mode_overlays(
         Err(e) => logger::error("Controller", &format!("引擎控制 overlay 注册失败: {}", e)),
     }
     // 动力信息 (Java:662-667, 键 engineInfoSwitch)
-    match power_info_overlay_spec(fonts, inputs.font_add_power, inputs.power_columns) {
+    match power_info_overlay_spec(fonts, params) {
         Ok((h, spec)) => {
             shared.note_registered_overlay(&spec.id);
             handles.power_info = Some(h);
@@ -2136,6 +2171,7 @@ fn register_game_mode_overlays(
         &inputs.hud,
         inputs.dpi_scale,
         &fonts.join("sarasa-mono-sc-bold.ttf"),
+        params,
     ) {
         Ok((h, spec)) => {
             shared.note_registered_overlay(&spec.id);
@@ -2146,7 +2182,7 @@ fn register_game_mode_overlays(
     }
     // 飞行信息 (Java:683-686, 键 flightInfoSwitch) — POC window.rs 专径收编
     // (渲染栈复用 fields/layout/render 对拍三件套, 见 vm-overlay flight_info.rs)
-    match flight_info_overlay_spec(fonts, inputs.font_add_flight, inputs.flight_columns) {
+    match flight_info_overlay_spec(fonts, params) {
         Ok((h, spec)) => {
             shared.note_registered_overlay(&spec.id);
             handles.flight_info = Some(h);
@@ -2156,12 +2192,7 @@ fn register_game_mode_overlays(
         Err(e) => logger::error("Controller", &format!("飞行信息 overlay 注册失败: {}", e)),
     }
     // 起落襟翼 (Java:709-714, 键 enablegearAndFlaps)
-    match gear_flaps_overlay_spec(
-        fonts,
-        inputs.font_add_gear,
-        inputs.dpi_scale,
-        inputs.gear_show_edge,
-    ) {
+    match gear_flaps_overlay_spec(fonts, params) {
         Ok((h, spec)) => {
             shared.note_registered_overlay(&spec.id);
             handles.gear_flaps = Some(h);
@@ -2171,12 +2202,7 @@ fn register_game_mode_overlays(
         Err(e) => logger::error("Controller", &format!("起落襟翼 overlay 注册失败: {}", e)),
     }
     // 操纵面 (Java:680-687, 键 enableAxis) — 本批补齐 (批十四 A-W5 备案收口)
-    match control_surfaces_overlay_spec(
-        fonts,
-        inputs.font_add_axis,
-        inputs.dpi_scale,
-        inputs.axis_show_edge,
-    ) {
+    match control_surfaces_overlay_spec(fonts, params) {
         Ok((h, spec)) => {
             shared.note_registered_overlay(&spec.id);
             handles.control_surfaces = Some(h);
@@ -2186,13 +2212,7 @@ fn register_game_mode_overlays(
         Err(e) => logger::error("Controller", &format!("操纵面 overlay 注册失败: {}", e)),
     }
     // 地平仪 (Java:690-697, 键 enableAttitudeIndicator) — 本批补齐 (同上)
-    match attitude_overlay_spec(
-        inputs.attitude_width,
-        inputs.attitude_height,
-        inputs.dpi_scale,
-        inputs.attitude_show_direction,
-        inputs.attitude_show_aoa_limits,
-    ) {
+    match attitude_overlay_spec(params) {
         Ok((h, spec)) => {
             shared.note_registered_overlay(&spec.id);
             handles.attitude = Some(h);
@@ -2314,7 +2334,14 @@ fn feed_overlays_live(
         // 1. MiniHUD (Java MiniHUDOverlay.onFlightData → invokeLater)
         if let Some(h) = handles.minihud.as_ref() {
             let event = FlightDataEvent::new(payload.clone(), None, None);
-            let colors = HudColors::application_defaults();
+            // AoA 告警/状态色 = 全局仓 (Java HUDCalculator.java:132-155 每次计算
+            // 直读 Application 静态; 曾传编译期常量冻结 — 审查轮 1-B)
+            let gc = vm_overlay::global_colors::colors();
+            let colors = HudColors {
+                color_warning: gc.warning,
+                color_num: gc.num,
+                color_unit: gc.unit,
+            };
             h.borrow_mut().on_flight_data(
                 now,
                 &event,
@@ -2416,6 +2443,7 @@ pub fn win32_thread_main(cfg: Win32ThreadConfig) {
     // loadFromConfig 覆盖, 此前组件用编译期 Java 初始默认 — 人工验收发现的
     // 颜色不一致根源)。须先于任何组件渲染
     vm_overlay::global_colors::set(inputs.colors);
+    vm_overlay::global_colors::set_aa(inputs.aa);
 
     // ---- host 构建 + 激活探测 (Java new OverlayManager + ActivationStrategy) ----
     let mut host = OverlayHost::new();
@@ -2442,12 +2470,18 @@ pub fn win32_thread_main(cfg: Win32ThreadConfig) {
         control_surfaces: None,
         flight_info: None,
     };
-    // Lang 一次构造 (GearFlaps update_tick 的标签源; 注册面与喂入共用)
-    let lang = Lang::init_lang();
-    register_game_mode_overlays(&mut host, &mut handles, &env, &inputs, &lang, &shared);
-    // live 喂入用设置快照 (注册面同源; WYSIWYG 字号变更的重接线随 host 工厂面扩展)
-    let hud_settings = inputs.hud;
-    // 地平仪 40ms 喂入节流 (freqMili 配置快照; last_ms=0 = 首帧放行)
+    // Lang 一次构造 (GearFlaps update_tick 的标签源; 注册面与喂入共用)。
+    // Rc 共享: engine 工厂的 reinit 闭包重建 state 需要标签源 (Lang !Clone)
+    let lang = Rc::new(Lang::init_lang());
+    // WYSIWYG reinit 参数仓 (初始 = 注册快照投影; CONFIG_CHANGED 后
+    // UiCommand::ReinitOverlays 覆写, 各 spec 工厂 reinit 闭包读取)
+    let params = Rc::new(RefCell::new(vm_overlay::ReinitParams::from(&inputs)));
+    register_game_mode_overlays(&mut host, &mut handles, &env, &inputs, &params, &lang, &shared);
+    // live 喂入用设置快照 (注册面同源; ReinitOverlays 命令同步覆写 — MiniHUD
+    // on_flight_data 的 settings 参数不再冻结在 spawn 时刻)
+    let mut hud_settings = inputs.hud;
+    // 地平仪 40ms 喂入节流 (freqMili 配置快照; last_ms=0 = 首帧放行;
+    // ReinitOverlays 命令同步刷新 freq_ms)
     let mut attitude_feed = AttitudeFeedState {
         freq_ms: inputs.attitude_freq_ms,
         last_ms: 0,
@@ -2594,9 +2628,28 @@ pub fn win32_thread_main(cfg: Win32ThreadConfig) {
                     }
                 }
                 UiCommand::ReinitActiveOverlays => host.reinit_active_overlays(),
+                // WYSIWYG reinit 参数仓覆写 (不直接触发刷新 — 后继
+                // RefreshPreviews/ReinitActiveOverlays 消费最新参数, 命令入队序
+                // 即消费序; MiniHUD live 喂入快照与地平仪节流同步解冻)
+                UiCommand::ReinitOverlays { params: new_params } => {
+                    attitude_feed.freq_ms = new_params.attitude_freq_ms;
+                    hud_settings = new_params.hud.clone();
+                    *params.borrow_mut() = *new_params;
+                }
                 // 全局五色更新: 仓内直写, 下帧渲染生效 (reinit 标脏不必须 —
                 // 色变本身改变渲染输出, host 像素指纹自然触发重绘)
                 UiCommand::SetGlobalColors(c) => vm_overlay::global_colors::set(c),
+                UiCommand::SetAa(on) => vm_overlay::global_colors::set_aa(on),
+                // FocusMonitor 通道桥目标 (Java hideAllOverlays/showAllOverlays;
+                // host 幂等标志防重复, shared 镜像供桥回读)
+                UiCommand::HideAllOverlays => {
+                    host.hide_all_overlays();
+                    shared.overlays_hidden.store(true, Ordering::SeqCst);
+                }
+                UiCommand::ShowAllOverlays => {
+                    host.show_all_overlays();
+                    shared.overlays_hidden.store(false, Ordering::SeqCst);
+                },
                 UiCommand::Shutdown => {
                     logger::info("AppShell", "win32 线程退出 (Shutdown)");
                     // Drop 序: tray 最先 (NIM_DELETE 防僵尸 — tray.rs 退出契约),
@@ -2945,6 +2998,116 @@ mod tests {
         assert_eq!(c.state(), ControllerState::Preview, "换机不重启生命周期");
     }
 
+    /// FlightLog 开/存生命周期 (Controller.java:366-376 openpad / 402-411 closepad):
+    /// enableLogging=true → 进 Preview (openpad_rest) 槽置 Some + records/ 建
+    /// 机型命名 CSV; s4to_s1 → closepad 保存 (槽清 None, 表头落盘)。
+    /// tick 行数语义由 vm-data 的 flight_log_tick 测试锁定 (此处 Service 真线程
+    /// HTTP 失败, 行数时序不定, 只断言 ≥ 表头)。
+    #[test]
+    fn flight_log_open_close_lifecycle() {
+        // CWD 沙箱: FlightLog 的 records/ 是相对 CWD 的硬编码 (与 Java 一致);
+        // 串行化 + 用完恢复 (vm-core/vm-data 同款; 跨 crate 测试进程天然互斥)
+        static FL_CWD_LOCK: Mutex<()> = Mutex::new(());
+        let _guard = FL_CWD_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+        let root = std::env::temp_dir().join(format!("vm_app_fl_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join("records")).unwrap();
+        let old = std::env::current_dir().unwrap();
+        std::env::set_current_dir(&root).unwrap();
+        let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            // enableLogging=true 配置 (fixture 其余键同 test_cfg)
+            let cfg = fixture_cfg(
+                "(panel \"T\" :visible true\n\
+                 \x20 (item \"log\" :type switch :target \"enableLogging\" :value true)\n\
+                 \x20 (item \"auto\" :type switch :target \"autoStartGameMode\" :value false))\n\
+                ",
+            );
+            let mut shell = fixture_full(30, cfg);
+            // 进游戏: UI_READY → StartGame (spawn Service) → live → Preview
+            publish_ui_event(&shell.ui_bus, ui_state_events::UI_READY, "");
+            pump_events(&mut shell);
+            shell.dispatch(UiCommand::StartGame);
+            // 生产语义: shared.live 即 handle.data 的同一 Arc (start() 内 clone);
+            // fixture 手塞场景下需同步塞真 Service 侧 (open_flight_log 的机型名
+            // 与 ServiceAnalyzerSource 都读 handle.data)
+            let svc_data =
+                Arc::clone(&shell.controller.as_ref().unwrap().service.as_ref().unwrap().data);
+            *shell.shared.live.write().unwrap() = Some(Arc::clone(&svc_data));
+            *svc_data.write().unwrap() = live_service_data("s1");
+            shell.pump();
+            assert_eq!(
+                shell.controller.as_ref().unwrap().state(),
+                ControllerState::Preview
+            );
+
+            // openpad_rest → open_flight_log: 槽 Some, 主 CSV 已建 (表头 flush)
+            let file_name = {
+                let c = shell.controller.as_ref().unwrap();
+                let slot = c.flight_log.lock().expect("flight_log 槽锁中毒");
+                let log = slot.as_ref().expect("openpad 应建 FlightLog").lock().unwrap();
+                log.file_name.clone()
+            };
+            assert!(
+                file_name.starts_with("records/S1_"),
+                "机型大写命名: {file_name}"
+            );
+            let content = std::fs::read_to_string(&file_name).unwrap();
+            assert!(
+                content.lines().count() >= 1 && content.starts_with("时间/s,"),
+                "init 写表头: {content:?}"
+            );
+
+            // 换机: 关旧开新 (onAircraftChanged:320-333) — 新文件名随新机型
+            *svc_data.write().unwrap() = live_service_data("b2");
+            let c = shell.controller.as_mut().unwrap();
+            c.on_aircraft_changed(Some("b2"));
+            {
+                let slot = c.flight_log.lock().expect("flight_log 槽锁中毒");
+                let log = slot.as_ref().expect("换机应开新 FlightLog").lock().unwrap();
+                assert!(
+                    log.file_name.starts_with("records/B2_"),
+                    "换机开新: {}",
+                    log.file_name
+                );
+            }
+
+            // 退出 (S4toS1 → closepad): 保存 + 槽清 None (Log = null)
+            c.s4to_s1();
+            assert_eq!(c.state(), ControllerState::Init);
+            assert!(
+                c.flight_log.lock().unwrap().is_none(),
+                "closepad 后槽应清空 (Log = null)"
+            );
+            // 旧/新两份主 CSV 均留存 (fA==null 的 close NPE 路径由 catch_unwind 吞,
+            // 不中断 closepad — Java 由 Service 顶层 catch 兜住的净效果)。
+            // 主 CSV 与分析 CSV 以 _climb/_roll/_ny 后缀区分
+            let is_main = |n: &str| {
+                n.ends_with(".csv")
+                    && !n.ends_with("_climb.csv")
+                    && !n.ends_with("_roll.csv")
+                    && !n.ends_with("_ny.csv")
+            };
+            let mut s1_seen = false;
+            let mut b2_seen = false;
+            for e in std::fs::read_dir("records").unwrap() {
+                let name = e.unwrap().file_name().to_string_lossy().to_string();
+                s1_seen |= name.starts_with("S1_") && is_main(&name);
+                b2_seen |= name.starts_with("B2_") && is_main(&name);
+            }
+            assert!(s1_seen, "s1 主 CSV 留存");
+            assert!(b2_seen, "b2 主 CSV 留存");
+
+            // 停 Service 线程 (恢复 CWD / 删沙箱前必须 — 免线程写已删目录)
+            shell.controller.as_mut().unwrap().stop(&mut || {});
+        }));
+        std::env::set_current_dir(old).unwrap();
+        let _ = std::fs::remove_dir_all(&root);
+        drop(_guard); // 先放锁再重抛
+        if let Err(e) = r {
+            std::panic::resume_unwind(e);
+        }
+    }
+
     // ------------------------------------------------------------------
     // stop 五步序 (LIFETIMES §4.2)
     // ------------------------------------------------------------------
@@ -3216,6 +3379,21 @@ mod tests {
             shade_shape: [255, 255, 255, 255],
         };
         assert_eq!(cmd, UiCommand::SetGlobalColors(all_white));
+        // WYSIWYG reinit 参数直送 (ReinitActiveOverlays 前置): 参数包随命令进
+        // win32 线程 (配置 !Send — 五色直送同款模式)
+        let cmd_rp = shell
+            .ui_cmd_rx
+            .as_ref()
+            .unwrap()
+            .recv_timeout(Duration::from_millis(200))
+            .expect("ReinitActiveOverlays 前应先到 ReinitOverlays");
+        match cmd_rp {
+            UiCommand::ReinitOverlays { params } => {
+                // fixture cfg 无地平仪组 → Java reinitConfig 缺省 150×300
+                assert_eq!(params.attitude_width, 150);
+            }
+            other => panic!("应是 ReinitOverlays: {:?}", other),
+        }
         let cmd2 = shell
             .ui_cmd_rx
             .as_ref()
@@ -3234,6 +3412,84 @@ mod tests {
             shell.controller.as_ref().unwrap().state(),
             ControllerState::Init
         );
+    }
+
+    /// CONFIG_CHANGED 的 reinit 参数直送: 配置写入值即时进 ReinitOverlays 参数包
+    /// (写 "地平仪" 组的 attitudeIndicatorWidth 行 → attitude_width)
+    #[test]
+    fn config_change_reinit_params_carry_written_config() {
+        // cfg 需含目标行 (Java setConfig 只改既有行, 无行即 no-op)
+        let cfg = fixture_cfg(
+            "(panel \"地平仪\" :visible true\n\
+             \x20 (item \"宽\" :type slider :target \"attitudeIndicatorWidth\" :value 150))\n",
+        );
+        let mut shell = fixture_full(30, cfg);
+        // 发布方 (渲染器) 已写配置树 — 本测试直接经 set_config 模拟写点
+        shell
+            .controller
+            .as_ref()
+            .unwrap()
+            .config
+            .set_config("attitudeIndicatorWidth", "222");
+        publish_ui_event(
+            &shell.ui_bus,
+            ui_state_events::CONFIG_CHANGED,
+            "attitudeIndicatorWidth",
+        );
+        assert!(pump_events(&mut shell));
+        let mut saw_reinit = None;
+        for _ in 0..4 {
+            match shell
+                .ui_cmd_rx
+                .as_ref()
+                .unwrap()
+                .recv_timeout(Duration::from_millis(200))
+            {
+                Ok(UiCommand::ReinitOverlays { params }) => {
+                    saw_reinit = Some(params);
+                    break;
+                }
+                Ok(_) => continue,
+                Err(e) => panic!("应有 ReinitOverlays: {:?}", e),
+            }
+        }
+        let params = saw_reinit.expect("ReinitOverlays 应到达");
+        // 写值即时进参数包 (初值 150, 写 222 — 证明非 spawn 期冻结快照)
+        assert_eq!(params.attitude_width, 222, "写值应即时进参数包");
+    }
+
+    /// Preview 态: ReinitOverlays 先于防抖的 RefreshPreviews 入队
+    /// (win32 消费序 = 参数先刷新, 再跑各 overlay reinit — Java refreshPreviews →
+    /// reinitConfig 读即时配置的时序等价)
+    #[test]
+    fn preview_reinit_params_precede_debounced_refresh() {
+        let mut shell = fixture_with_debounce(30);
+        publish_ui_event(&shell.ui_bus, ui_state_events::UI_READY, "");
+        pump_events(&mut shell);
+        publish_ui_event(&shell.ui_bus, ui_state_events::CONFIG_CHANGED, "showSpeedBar");
+        assert!(pump_events(&mut shell));
+        let mut reinit_at: Option<usize> = None;
+        let mut refresh_at: Option<usize> = None;
+        for i in 0..6 {
+            match shell
+                .ui_cmd_rx
+                .as_ref()
+                .unwrap()
+                .recv_timeout(Duration::from_millis(400))
+            {
+                Ok(UiCommand::ReinitOverlays { .. }) => reinit_at = Some(i),
+                Ok(UiCommand::RefreshPreviews { changed_key: Some(k), .. }) if k == "showSpeedBar" => {
+                    refresh_at = Some(i)
+                }
+                Ok(_) => {}
+                Err(_) => break,
+            }
+            if reinit_at.is_some() && refresh_at.is_some() {
+                break;
+            }
+        }
+        let (r, f) = (reinit_at.expect("ReinitOverlays 应到达"), refresh_at.expect("键控 RefreshPreviews 应到达"));
+        assert!(r < f, "参数直送 ({}) 应先于防抖刷新 ({})", r, f);
     }
 
     /// FM_CHANGED (missing-like) → 摘要转发 (toast 面) + Preview 态防抖全量刷新
@@ -3679,6 +3935,8 @@ mod tests {
             attitude_show_aoa_limits: true,
             service_loop_interval_ms: 50,
             colors: GlobalColors::JAVA_DEFAULT,
+            aa: true,
+            engine_disables: [false; 7],
         }
     }
 
@@ -3699,12 +3957,16 @@ mod tests {
         flight_info: None,
         };
         let shell = fixture();
-        let lang = Lang::init_lang();
+        let lang = Rc::new(Lang::init_lang());
+        let params = Rc::new(RefCell::new(vm_overlay::ReinitParams::from(
+            &test_overlay_inputs(),
+        )));
         register_game_mode_overlays(
             &mut host,
             &mut handles,
             &shell.env,
             &test_overlay_inputs(),
+            &params,
             &lang,
             &shell.shared,
         );
@@ -3750,7 +4012,7 @@ mod tests {
     #[test]
     fn feed_overlays_live_updates_all_handles() {
         let fonts = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../fonts");
-        let lang = Lang::init_lang();
+        let lang = Rc::new(Lang::init_lang());
         let inputs = test_overlay_inputs();
         let (h_mini, _) = vm_overlay::minihud_overlay_spec(
             false,
@@ -3758,15 +4020,42 @@ mod tests {
             &inputs.hud,
             1.0,
             &fonts.join("sarasa-mono-sc-bold.ttf"),
+            &Rc::new(RefCell::new(vm_overlay::ReinitParams::default())),
         )
         .unwrap();
-        let (h_power, _) = vm_overlay::power_info_overlay_spec(&fonts, 0, 1).unwrap();
-        let (h_engine, _) =
-            vm_overlay::engine_control_overlay_spec(&fonts, &lang, 0, 1.0, 50).unwrap();
-        let (h_gear, _) = vm_overlay::gear_flaps_overlay_spec(&fonts, 0, 1.0, false).unwrap();
-        let (h_att, _) = vm_overlay::attitude_overlay_spec(150, 300, 1.0, false, true).unwrap();
-        let (h_cs, _) = vm_overlay::control_surfaces_overlay_spec(&fonts, 0, 1.0, false).unwrap();
-        let (h_fi, _) = vm_overlay::flight_info_overlay_spec(&fonts, 0, 1).unwrap();
+        let (h_power, _) = vm_overlay::power_info_overlay_spec(
+            &fonts,
+            &Rc::new(RefCell::new(vm_overlay::ReinitParams::default())),
+        )
+        .unwrap();
+        let (h_engine, _) = vm_overlay::engine_control_overlay_spec(
+            &fonts,
+            Rc::clone(&lang),
+            &Rc::new(RefCell::new(vm_overlay::ReinitParams {
+                service_loop_interval_ms: 50,
+                ..Default::default()
+            })),
+        )
+        .unwrap();
+        let (h_gear, _) = vm_overlay::gear_flaps_overlay_spec(
+            &fonts,
+            &Rc::new(RefCell::new(vm_overlay::ReinitParams::default())),
+        )
+        .unwrap();
+        let (h_att, _) = vm_overlay::attitude_overlay_spec(&Rc::new(RefCell::new(
+            vm_overlay::ReinitParams::default(),
+        )))
+        .unwrap();
+        let (h_cs, _) = vm_overlay::control_surfaces_overlay_spec(
+            &fonts,
+            &Rc::new(RefCell::new(vm_overlay::ReinitParams::default())),
+        )
+        .unwrap();
+        let (h_fi, _) = vm_overlay::flight_info_overlay_spec(
+            &fonts,
+            &Rc::new(RefCell::new(vm_overlay::ReinitParams::default())),
+        )
+        .unwrap();
         let handles = OverlayHandles {
             minihud: Some(h_mini),
             power_info: Some(h_power),
@@ -3852,7 +4141,11 @@ mod tests {
         let fonts = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../fonts");
         let lang = Lang::init_lang();
         // 只接 PowerInfo (get_pitch 空 Vec panic 点; 其余 handle 缺省 None)
-        let (h_power, _) = vm_overlay::power_info_overlay_spec(&fonts, 0, 1).unwrap();
+        let (h_power, _) = vm_overlay::power_info_overlay_spec(
+            &fonts,
+            &Rc::new(RefCell::new(vm_overlay::ReinitParams::default())),
+        )
+        .unwrap();
         let handles = OverlayHandles {
             minihud: None,
             power_info: Some(h_power),
@@ -3942,6 +4235,20 @@ mod tests {
                 "MiniHUD 兴趣键 {p} 应命中 ui_layout.cfg 的 :target 键 (前缀匹配)"
             );
         }
+    }
+
+    /// FocusMonitor 通道桥: coordinator 回调 → UiCommand 命令 + shared 镜像
+    #[test]
+    fn focus_bridge_sends_commands_and_mirrors_hidden() {
+        use vm_core::focus_monitor::AlwaysOnTopCoordinatorApi as _;
+        let (tx, rx) = std::sync::mpsc::channel::<UiCommand>();
+        let shared = ControllerShared::default();
+        let bridge = ChannelFocusBridge { tx, shared: Arc::new(shared) };
+        assert!(!bridge.is_overlays_hidden(), "初始未隐藏");
+        bridge.hide_all_overlays();
+        assert_eq!(rx.recv_timeout(Duration::from_millis(200)).unwrap(), UiCommand::HideAllOverlays);
+        bridge.show_all_overlays();
+        assert_eq!(rx.recv_timeout(Duration::from_millis(200)).unwrap(), UiCommand::ShowAllOverlays);
     }
 
     /// 位置映射 ↔ ui_layout.cfg panel 标题核对: OVERLAY_SECTIONS 的 section 查不到

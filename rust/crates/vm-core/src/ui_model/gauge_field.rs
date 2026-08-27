@@ -6,8 +6,8 @@ use crate::ui_model::data_field::DataField;
 /// Swing 可视组件 (C 类, 归 vm-overlay 批次), vm-core 无渲染层 —— 先以占位类型
 /// 顶住字段位 (fm::handle::BlkxPlaceholder 先例)。构造参数 (label, maxValue,
 /// vertical) 是数据侧状态, 留存供 vm-overlay 批次消费; 渲染行为缺失。
-// TODO(port): vm-overlay LinearGauge 族落地时切换为真实类型 (跨 crate 依赖的
-// 引入方式由 C 类批次裁决)。
+// 已收口 (架构裁决): 视觉组件归 vm-overlay renderers.rs 侧缓存持有 (Java 组件
+// 存活于本字段 → Rust 缓存+失效钩子), 数据侧不回流组件引用; 本占位零消费。
 #[derive(Debug, Clone)]
 pub struct LinearGaugePlaceholder {
     /// LabeledLinearGauge 构造参数: 显示标签
@@ -32,7 +32,7 @@ impl LinearGaugePlaceholder {
 /// PORT: Java `ui.component.gauge.MarkedGauge` 同为 Swing 可视组件 (C 类)。
 /// 其状态 (label/maxValue/barStyle/marker 表) 由 EngineControlOverlay 的
 /// builder 链设置 (C 类消费点, 不在本批), 占位类型零字段。
-// TODO(port): vm-overlay MarkedGauge 落地时切换为真实类型。
+// 已收口: 同 LinearGaugePlaceholder — 视觉面归 renderers.rs 缓存, 占位零消费。
 #[derive(Debug, Clone, Default)]
 pub struct MarkedGaugePlaceholder;
 
@@ -96,7 +96,7 @@ impl GaugeField {
         // PORT: Java `if (gauge != null) gauge.update(value, displayText);` ——
         // gauge 是 Swing 可视组件 (C 类, vm-overlay 批次), 占位类型无副作用可调;
         // 数据侧赋值已完整保留, null 判断无可观察行为 (构造即 Some)。
-        // TODO(port): vm-overlay LinearGauge 落地后恢复视觉组件联动调用。
+        // 已收口: 联动由 renderers.rs 侧组件缓存每帧 update 同步 (架构裁决)。
     }
 }
 

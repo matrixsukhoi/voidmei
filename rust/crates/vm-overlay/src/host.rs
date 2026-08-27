@@ -35,6 +35,13 @@ use crate::render2d::PixCanvas;
 /// 内容渲染闭包: 每帧把 overlay 内容画进画布 (对应 Java overlay 子类的 paintComponent)
 pub type RenderFn = Box<dyn FnMut(&mut PixCanvas)>;
 
+/// WYSIWYG reinitializer 闭包 (Java 各 overlay `reinitConfig()` 的执行面):
+/// 重建 state/字体/几何, 返回 Some((w,h)) = 新窗口尺寸 (Java setBounds 副作用,
+/// host 走 resize_entry 落窗口), None = 尺寸不变或重建失败 (闭包内自行留痕)。
+/// PORT: 闭包内部读线程局部 [`crate::reinit::ReinitParams`] 仓取最新参数
+/// (配置 !Send, 值随 UiCommand 进 win32 线程 — 五色直送同款模式)
+pub type ReinitFn = Box<dyn FnMut() -> Option<(i32, i32)>>;
+
 /// 窗口工厂 (依赖注入点: 生产用 platform::create, 测试注入 mock 做事件分流/销毁序模拟)
 pub type WindowFactory = Box<dyn Fn(WindowConfig) -> Result<Box<dyn OverlayWindow>, String>>;
 
@@ -76,6 +83,9 @@ pub struct OverlaySpec {
     pub width: i32,
     pub height: i32,
     pub render: RenderFn,
+    /// WYSIWYG reinitializer (Java reinitConfig; None = 该 overlay 无 reinit 面,
+    /// 仅清像素指纹强制重绘)
+    pub reinit: Option<ReinitFn>,
 }
 
 /// 窗口槽位: Java OverlayEntry 的 instance/thread 字段 (Rust 无轮询线程, thread 无对应物;
@@ -97,6 +107,7 @@ pub struct OverlayEntry {
     width: i32,
     height: i32,
     render: RenderFn,
+    reinit: Option<ReinitFn>,
     /// 窗口槽位 — PORT: Java entry 的 instance 字段 + synchronized(entry) monitor 合并;
     /// 只允许锁内摘/放槽位, 销毁链锁外 (见模块头锁纪律)
     slot: Mutex<Option<OverlaySlot>>,
@@ -222,6 +233,7 @@ impl OverlayHost {
             width: spec.width,
             height: spec.height,
             render: spec.render,
+            reinit: spec.reinit,
             slot: Mutex::new(None),
             canvas: None,
         };
@@ -354,13 +366,13 @@ impl OverlayHost {
         let should_open = (self.activation)(&self.entries[idx].config_key);
         let active = self.entries[idx].slot.lock().unwrap().is_some();
         if should_open {
+            // WYSIWYG reinitializer (Java refreshPreview → reinitializer)。
+            // PORT(冷激活补口): Java 工厂创建实例时读即时配置; Rust spec 工厂是
+            // 启动期一次性快照 — 未开实例先跑 reinit 把 state/尺寸刷到最新参数,
+            // 再 materialize 建窗 (否则首次激活冻结在旧配置尺寸)
+            self.reinit_idx(idx)?;
             if !active {
                 self.materialize(idx, true)?;
-            } else {
-                // reinitializer 等价: 清指纹强制重绘 (WYSIWYG)
-                if let Some(slot) = self.entries[idx].slot.lock().unwrap().as_mut() {
-                    slot.last_frame = None;
-                }
             }
         } else if active {
             let id = self.entries[idx].id.clone();
@@ -369,11 +381,68 @@ impl OverlayHost {
         Ok(())
     }
 
-    /// 重初始化全部已开实例 (Java reinitActiveOverlays; reinit = 标脏强制重绘)
+    /// 单条目 reinitializer (Java reinitConfig 的组装面): 跑工厂闭包重建 state,
+    /// 返回新尺寸则 resize (setBounds 副作用); 无论尺寸是否变化均清指纹强制重绘
+    /// (Java reinitConfig 末尾 repaint)
+    fn reinit_idx(&mut self, idx: usize) -> Result<(), String> {
+        // 闭包是任意第三方代码 (锁纪律: 不得持任何锁执行)
+        let new_size = match self.entries[idx].reinit.as_mut() {
+            Some(f) => f(),
+            None => None,
+        };
+        match new_size {
+            Some((w, h)) => self.resize_idx(idx, w, h)?,
+            None => {
+                if let Some(slot) = self.entries[idx].slot.lock().unwrap().as_mut() {
+                    slot.last_frame = None;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// 改条目尺寸 (Java Window.setSize/setBounds): 更新 entry 宽高 + 重建画布
+    /// (present 缓冲与新尺寸一致); 活跃窗口锁外 set_size (系统调用, 锁内只摘/放)
+    pub fn resize_entry(&mut self, id: &str, w: i32, h: i32) -> Result<(), String> {
+        let idx = self
+            .entries
+            .iter()
+            .position(|e| e.id == id)
+            .ok_or_else(|| format!("未注册的 overlay: {}", id))?;
+        self.resize_idx(idx, w, h)
+    }
+
+    fn resize_idx(&mut self, idx: usize, w: i32, h: i32) -> Result<(), String> {
+        let same = self.entries[idx].width == w && self.entries[idx].height == h;
+        if !same {
+            self.entries[idx].width = w;
+            self.entries[idx].height = h;
+            // 画布重建 (materialize 的 is_none 守卫不再重建 — 尺寸变更须显式换)
+            self.entries[idx].canvas = Some(PixCanvas::new(w, h)?);
+        }
+        // ① 锁内: 摘槽位
+        let taken = self.entries[idx].slot.lock().unwrap().take();
+        let Some(mut sl) = taken else {
+            return Ok(()); // 未开: entry 尺寸已更新, 建窗时生效
+        };
+        // ② 锁外: 窗口 resize (系统调用)
+        if !same {
+            sl.window.set_size(w, h);
+        }
+        // 旧指纹尺寸已失配, 清掉强制下一帧 present (同 Java reinit 后 repaint)
+        sl.last_frame = None;
+        // ③ 锁内: 放回
+        self.entries[idx].slot.lock().unwrap().replace(sl);
+        Ok(())
+    }
+
+    /// 重初始化全部已开实例 (Java reinitActiveOverlays): 跑各条目 reinit 闭包
+    /// (重建 state + 尺寸跟随), 无闭包者退化为清指纹强制重绘
     pub fn reinit_active_overlays(&mut self) {
-        for entry in &mut self.entries {
-            if let Some(slot) = entry.slot.lock().unwrap().as_mut() {
-                slot.last_frame = None;
+        for i in 0..self.entries.len() {
+            if self.entries[i].slot.lock().unwrap().is_some() {
+                // 重建失败 (画布分配) 不中断其余条目 — reinit 非销毁链, 单条降级
+                let _ = self.reinit_idx(i);
             }
         }
     }
@@ -722,6 +791,9 @@ mod tests {
         fn set_visible(&mut self, visible: bool) {
             self.log.borrow_mut().push(format!("{}:set_visible:{}", self.label, visible));
         }
+        fn set_size(&mut self, w: i32, h: i32) {
+            self.log.borrow_mut().push(format!("{}:set_size:{},{}", self.label, w, h));
+        }
         fn poll_event(&mut self) -> Option<OverlayEvent> {
             self.events.borrow_mut().pop_front()
         }
@@ -803,6 +875,7 @@ mod tests {
             render: Box::new(move |c: &mut PixCanvas| {
                 c.fill_rect(0, 0, 10, 10, color);
             }),
+            reinit: None,
         }
     }
 
@@ -1001,6 +1074,94 @@ mod tests {
         assert_eq!(mock.count(":present:"), 2);
     }
 
+    // ===== WYSIWYG reinit + resize (Java reinitConfig → setBounds 的 host 面) =====
+
+    /// resize_entry: entry 宽高/画布尺寸更新 + 活跃窗口收到 set_size + 新画布
+    /// present 缓冲长度 = 新 w*h*4
+    #[test]
+    fn resize_entry_updates_canvas_and_window() {
+        let mock = MockHandle::new();
+        let mut host = OverlayHost::with_factory(mock.factory());
+        host.register(spec("a", 40, 30, [255, 0, 0, 255]));
+        host.refresh_preview().unwrap();
+        host.render_tick().unwrap();
+        mock.log.borrow_mut().clear();
+        host.resize_entry("a", 60, 50).unwrap();
+        assert_eq!(host.entries[0].width, 60);
+        assert_eq!(host.entries[0].height, 50);
+        let cv = host.entries[0].canvas.as_ref().unwrap();
+        assert_eq!((cv.width(), cv.height()), (60, 50));
+        // 窗口收到 set_size (Java setBounds 的底层动作)
+        assert!(mock.log().contains(&"win0:set_size:60,50".to_string()));
+        // 下一帧 present 缓冲 = 60*50*4 (画布与窗口尺寸同步)
+        host.render_tick().unwrap();
+        assert!(mock.log().iter().any(|l| l.contains("win0:present:12000")));
+        // 未注册 id 报错
+        assert!(host.resize_entry("nope", 10, 10).is_err());
+    }
+
+    /// reinit 闭包返回新尺寸: refresh_preview 不重建窗口, 原位 resize (Java
+    /// reinitializer + setBounds); 无闭包条目仅清指纹
+    #[test]
+    fn refresh_preview_runs_reinit_closure_and_resizes() {
+        let mock = MockHandle::new();
+        let calls = Rc::new(Cell::new(0));
+        // 首轮 (冷激活) 尺寸不变, 次轮 (模拟配置变更后) 返回新尺寸
+        let grown = Rc::new(Cell::new(false));
+        let (calls_c, grown_c) = (Rc::clone(&calls), Rc::clone(&grown));
+        let mut host = OverlayHost::with_factory(mock.factory());
+        host.register(OverlaySpec {
+            id: "a".into(),
+            config_key: "a".into(),
+            width: 40,
+            height: 30,
+            render: Box::new(|_c: &mut PixCanvas| {}),
+            reinit: Some(Box::new(move || {
+                calls_c.set(calls_c.get() + 1);
+                if grown_c.get() { Some((80, 60)) } else { None }
+            })),
+        });
+        host.register(spec("b", 40, 30, [0, 255, 0, 255])); // 无 reinit 对照
+        host.refresh_preview().unwrap();
+        assert_eq!(calls.get(), 1, "冷激活也跑 reinit (尺寸未变分支)");
+        assert_eq!(mock.count(":create:"), 2);
+        mock.log.borrow_mut().clear();
+        grown.set(true); // 模拟 fontadd 配置变更 → 新 preferred_size
+        host.refresh_preview().unwrap(); // 已开: 原位 reinit + resize
+        assert_eq!(calls.get(), 2);
+        assert_eq!(mock.count(":create:"), 0, "已开实例不重建窗口 (Java 实例保留)");
+        assert!(mock.log().contains(&"win0:set_size:80,60".to_string()));
+        // 无 reinit 闭包的 b: 无 set_size 调用
+        assert!(!mock.log().iter().any(|l| l.starts_with("win1:set_size")));
+    }
+
+    /// reinit_active_overlays: 活跃条目跑 reinit 闭包, 未开条目不动
+    #[test]
+    fn reinit_active_overlays_runs_closures_for_active_only() {
+        let mock = MockHandle::new();
+        let calls = Rc::new(Cell::new(0));
+        let calls_c = Rc::clone(&calls);
+        let mut host = OverlayHost::with_factory(mock.factory());
+        host.register(OverlaySpec {
+            id: "a".into(),
+            config_key: "a".into(),
+            width: 40,
+            height: 30,
+            render: Box::new(|_c: &mut PixCanvas| {}),
+            reinit: Some(Box::new(move || {
+                calls_c.set(calls_c.get() + 1);
+                None // 尺寸不变分支: 只清指纹
+            })),
+        });
+        host.register(spec("b", 40, 30, [0, 255, 0, 255]));
+        host.reinit_active_overlays();
+        assert_eq!(calls.get(), 0, "全未开: 不跑闭包 (Java reinitActiveOverlays 只动在场实例)");
+        assert!(host.open("a").unwrap());
+        host.reinit_active_overlays();
+        assert_eq!(calls.get(), 1, "活跃条目跑闭包");
+        assert!(!mock.log().iter().any(|l| l.contains("set_size")), "None = 不动尺寸");
+    }
+
     /// refresh_preview_key: 自身键/兴趣前缀/全局键过滤 (Java refreshPreviews(changedKey))
     #[test]
     fn refresh_preview_key_filtering() {
@@ -1112,6 +1273,7 @@ mod tests {
             render: Box::new(move |c: &mut PixCanvas| {
                 c.fill_rect(0, 0, 10, 10, [tick_b.get() as u8, 0, 0, 255]);
             }),
+            reinit: None,
         });
         host.refresh_preview().unwrap();
         host.render_tick().unwrap(); // 双首帧: a + b 各 present 一次
@@ -1141,6 +1303,7 @@ mod tests {
             render: Box::new(move |c: &mut PixCanvas| {
                 c.fill_rect(0, 0, 10, 10, [t.get(), 0, 0, 255]);
             }),
+            reinit: None,
         });
         host.open("a").unwrap();
         host.render_tick().unwrap(); // 首帧 present 成功

@@ -7,9 +7,9 @@
 /// (fm::handle::BlkxPlaceholder 先例)。真实构造点 (FlightInfoOverlay:138 /
 /// PowerInfoOverlay:173, C 类, `new VisibilityExpressionEvaluator(row.naWhen, s)`)
 /// 与求值点 (FieldOverlay:208 `naWhenEvaluator.evaluate(val)`) 均不在本批。
-// TODO(port): FieldOverlay 移植时切换 na_when_evaluator 为真实求值器 —— 需把
-// VisibilityExpressionEvaluator 的 &'a dyn TelemetrySource 借用改为共享所有权
-// (或 DataField 只存 naWhen 表达式、由消费方持 source 临时构造求值器)。
+// 已收口 (架构裁决): na_when/visible_when 求值由 vm-overlay fields.rs 承接
+// (FIELDS 静态表 + 编译期 cond, flight_info.rs 生产消费), 本占位无切换计划
+// (DefaultFieldManager 无生产消费者, 仅测试引用)。
 #[derive(Debug, Clone)]
 pub struct VisibilityExpressionEvaluatorPlaceholder;
 

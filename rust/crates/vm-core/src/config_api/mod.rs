@@ -4,8 +4,10 @@
 
 pub mod config_provider;
 pub mod hud_settings;
+pub mod hud_settings_snapshot;
 pub mod overlay_settings;
 
 pub use config_provider::ConfigProvider;
 pub use hud_settings::HUDSettings;
+pub use hud_settings_snapshot::HudSettingsSnapshot;
 pub use overlay_settings::OverlaySettings;

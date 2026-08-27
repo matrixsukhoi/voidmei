@@ -19,6 +19,7 @@ pub mod parity_gauges;
 pub mod parity_minihud;
 pub mod platform;
 pub mod platform_extras;
+pub mod reinit;
 pub mod render;
 pub mod render2d;
 pub mod renderers;
@@ -35,7 +36,8 @@ pub use gauge_attitude::{
 pub use gauge_compass::CompassGauge;
 pub use gauge_crosshair::CrosshairGauge;
 pub use gauges_bars::{FlapAngleBar, LabeledLinearGauge, LinearGauge, SpeedRatioBar};
-pub use host::{DialogHooks, OverlayEntry, OverlayHost, OverlaySpec, RenderFn, WindowFactory};
+pub use host::{DialogHooks, OverlayEntry, OverlayHost, OverlaySpec, RenderFn, ReinitFn, WindowFactory};
+pub use reinit::ReinitParams;
 pub use hotkey::{
     vk_to_vc, ChannelHotkeySink, HotkeyEvent, HotkeyEventSink, HotkeyManager, VC_CAPS_LOCK,
     VC_NUM_LOCK, VC_P, VC_SCROLL_LOCK, VC_UNDEFINED,
@@ -54,6 +56,7 @@ pub use overlay_list::{BaseListOverlay, ZebraList};
 pub use flight_info::{build_texts_from_values, flight_info_overlay_spec, FlightInfoHandle};
 pub use overlays_field1::{
     engine_control_overlay_spec, engine_control_preview_spec, gear_flaps_overlay_spec,
+    ENGINE_DISABLE_KEYS,
     gear_flaps_preview_spec, power_info_overlay_spec, power_info_preview_spec, DynSource,
     EngineControlHandle, EngineControlState, EngineGauge, EngineGaugeDef, GaugeBarStyle,
     GaugeMarker, GaugeType, GearFlapsHandle, GearFlapsState, MarkedGauge, MarkerType,

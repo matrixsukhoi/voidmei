@@ -114,7 +114,8 @@ impl<TC, S> OverlayContext<TC, S> {
     // 故先返回其声明初始值 —— 该字段全库零写入点 (grep 实证: 读者仅
     // Application.java:539 / Controller.java:228,262 / MainForm.java:336 / 本方法),
     // 生产可观测行为恒 false, 与此处返回值一致。
-    // TODO(port): Application/Env 波次 (LIFETIMES §1.2 debug_flags) 落地后切换为注入读。
+    // 已收口 (终态语义): Application.debug 全库零写入点 → 恒 false 即对齐;
+    // env.debug 是 --debug 启动参 (对应 debugLog 而非本字段), 注入反而偏离 Java。
     pub fn is_debug(&self) -> bool {
         false
     }

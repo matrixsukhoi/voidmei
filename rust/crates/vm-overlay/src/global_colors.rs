@@ -21,14 +21,27 @@ use vm_core::configuration_service::GlobalColors;
 
 static GLOBAL: OnceLock<RwLock<GlobalColors>> = OnceLock::new();
 
+/// Application.aaEnable 的运行时值 (graph/text 两 hint 同开同关 — Java 单配置
+/// 键 AAEnable 驱动, ConfigurationService.java:152-165)。cfg 缺省 false,
+/// ui_layout.cfg:391 的 :value true 撑默认开机 AA; 用户可关 → Java 全部
+/// overlay 变硬边。曾与五色同病: 生产渲染 6 处钉死 true, 审查轮 1-A 修复
+static GLOBAL_AA: OnceLock<RwLock<bool>> = OnceLock::new();
+
 /// 注入运行时色 (win32 线程启动快照 / WYSIWYG 色变命令)
 pub fn set(c: GlobalColors) {
     *global().write().expect("global_colors 锁中毒") = c;
 }
 
-/// 还原 Java 静态初始值 (测试清理用)
+/// 注入 AA 开关 (启动快照 / UiCommand::SetAa; 历史默认 true 仅为多数渲染
+/// 路径的 POC 期取值, 真值由启动快照决定)
+pub fn set_aa(on: bool) {
+    *global_aa().write().expect("global_aa 锁中毒") = on;
+}
+
+/// 还原 Java 静态初始值 (测试清理用; AA 还原 true 与旧渲染默认一致)
 pub fn reset_default() {
     set(GlobalColors::JAVA_DEFAULT);
+    set_aa(true);
 }
 
 /// 当前色快照 (Copy 直取, 渲染路径每帧调用 — 读锁 ~20ns 可忽略)
@@ -36,8 +49,17 @@ pub fn colors() -> GlobalColors {
     *global().read().expect("global_colors 锁中毒")
 }
 
+/// 当前 AA 开关 (每帧直读 — Java setRenderingHint 读运行时静态的同位)
+pub fn aa() -> bool {
+    *global_aa().read().expect("global_aa 锁中毒")
+}
+
 fn global() -> &'static RwLock<GlobalColors> {
     GLOBAL.get_or_init(|| RwLock::new(GlobalColors::JAVA_DEFAULT))
+}
+
+fn global_aa() -> &'static RwLock<bool> {
+    GLOBAL_AA.get_or_init(|| RwLock::new(true))
 }
 
 #[cfg(test)]
@@ -56,5 +78,15 @@ mod tests {
         assert_eq!(colors(), custom);
         reset_default();
         assert_eq!(colors(), GlobalColors::JAVA_DEFAULT);
+    }
+
+    /// AA 仓往返 (set_aa/aa/reset)
+    #[test]
+    fn set_aa_and_reset() {
+        assert!(aa(), "默认 true (旧渲染路径取值)");
+        set_aa(false);
+        assert!(!aa());
+        reset_default();
+        assert!(aa());
     }
 }

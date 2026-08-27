@@ -5,9 +5,11 @@ build/
 dist/
 # 派生数据：由 wt_ext_cli 从游戏客户端解包生成，不进 git（云端备份在 data prerelease 附件）
 data/
-# 运行时生成物：用户数据与日志
+# 运行时生成物：用户数据与日志 (锚定仓库根 — 裸 `config/` 会把 src/prog/config/
+# 源码目录也匹配掉, 且令 rg/Grep 等遵守 gitignore 的工具静默跳过该目录,
+# 曾致配置键断链漏检; 审查轮 2-D 修正)
 records/
-config/
+/config/
 ui_layout.user.cfg*
 output.log
 error.log

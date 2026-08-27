@@ -24,8 +24,9 @@ use vm_core::{fields, format};
 use vm_data::FlightValues;
 
 use crate::font::Canvas;
-use crate::host::OverlaySpec;
-use crate::global_colors::colors;
+use crate::host::{OverlaySpec, ReinitFn};
+use crate::reinit::ReinitParams;
+use crate::global_colors::{aa, colors};
 use crate::render::{render_fields_fixed, FieldText, FontTriple, RenderColors};
 use crate::render2d::PixCanvas;
 
@@ -105,6 +106,24 @@ impl FlightInfoState {
         self.rows = build_texts_from_values(v);
     }
 
+    /// reinitConfig 的资源重建段 (Java FieldOverlay.java:121-140 super 段):
+    /// 度量/字体/直通画布按新字号/列数重载, rows 保留 (Java 字段行绑定独立于字体)。
+    /// 返回新 (w, h) (Java setBounds; 全行高度口径与工厂一致)
+    pub fn reinit(
+        &mut self,
+        fonts_dir: &std::path::Path,
+        font_add: i32,
+        column: i32,
+    ) -> Result<(i32, i32), String> {
+        let ctx = RenderCtx::new(font_add, column, default_num_height(font_add));
+        let fonts = FontTriple::load(fonts_dir, &ctx)?;
+        let (w, h) = (ctx.total_width(), ctx.total_height(self.rows.len() as i32));
+        self.canvas = Canvas::new(w, h);
+        self.ctx = ctx;
+        self.fonts = fonts;
+        Ok((w, h))
+    }
+
     /// 文本行只读访问 (测试/诊断面)
     pub fn rows(&self) -> &[(String, String, String)] {
         &self.rows
@@ -112,12 +131,17 @@ impl FlightInfoState {
 }
 
 /// FlightInfo OverlaySpec + live 句柄 (Java Controller.java:683 注册键
-/// flightInfoSwitch; 字号/列数来自 getOverlaySettings("飞行信息") 组字段)
+/// flightInfoSwitch; 字号/列数来自 getOverlaySettings("飞行信息") 组字段)。
+/// PORT(WYSIWYG): 字号/列数随 [`ReinitParams`] 仓, reinit 闭包走
+/// [`FlightInfoState::reinit`] 重建资源并返回新尺寸 (Java setBounds)
 pub fn flight_info_overlay_spec(
     fonts_dir: &std::path::Path,
-    font_add: i32,
-    column: i32,
+    params: &Rc<RefCell<ReinitParams>>,
 ) -> Result<(FlightInfoHandle, OverlaySpec), String> {
+    let (font_add, column) = {
+        let p = params.borrow();
+        (p.font_add_flight, p.flight_columns)
+    };
     let ctx = RenderCtx::new(font_add, column, default_num_height(font_add));
     let fonts = FontTriple::load(fonts_dir, &ctx)?;
     // preview 初值: FIELDS 静态 preview 文本 (POC --preview 同源)
@@ -136,6 +160,22 @@ pub fn flight_info_overlay_spec(
     };
     let handle: FlightInfoHandle = Rc::new(RefCell::new(state));
     let render_handle = Rc::clone(&handle);
+    let reinit_handle = Rc::clone(&handle);
+    let reinit_params = Rc::clone(params);
+    let reinit_fonts = fonts_dir.to_path_buf();
+    let reinit: ReinitFn = Box::new(move || {
+        let (fa, col) = {
+            let p = reinit_params.borrow();
+            (p.font_add_flight, p.flight_columns)
+        };
+        match reinit_handle.borrow_mut().reinit(&reinit_fonts, fa, col) {
+            Ok(size) => Some(size),
+            Err(e) => {
+                vm_core::logger::error("FlightInfo", &format!("reinit 资源重建失败: {}", e));
+                None
+            }
+        }
+    });
     Ok((
         handle,
         OverlaySpec {
@@ -152,7 +192,7 @@ pub fn flight_info_overlay_spec(
                     .map(|(l, u, v)| FieldText { label: l, unit: u, value: v })
                     .collect();
                 // 清零重绘到直通 Canvas → 整帧 SrcOver 桥入 PixCanvas
-                // (aa 恒 on, POC cmd_run_window 同款)。色板 = 运行时全局五色
+                // aa = 运行时全局仓 (cfg AAEnable 可关, 审查轮 1-A)。色板 = 运行时全局五色
                 // (Java FieldOverlay 读 Application.colorNum 族; 对拍工具路径
                 // 仍用 render::DEFAULT_COLORS 常量基线, 互不影响)
                 let pal = RenderColors {
@@ -161,12 +201,13 @@ pub fn flight_info_overlay_spec(
                     unit: colors().unit,
                     shade: colors().shade_shape,
                 };
-                render_fields_fixed(canvas, &texts, ctx, fonts, &pal, true);
+                render_fields_fixed(canvas, &texts, ctx, fonts, &pal, aa());
                 if !cv.composite_straight_frame(&canvas.buf) {
                     // 不可达 (spec 尺寸 = Canvas 尺寸 = host 画布尺寸); 防御性留痕
                     vm_core::logger::warn("FlightInfo", "整帧桥尺寸不符, 本帧丢弃");
                 }
             }),
+            reinit: Some(reinit),
         },
     ))
 }
@@ -182,12 +223,19 @@ mod tests {
         std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../fonts")
     }
 
+    fn params_cell(mutate: impl FnOnce(&mut ReinitParams)) -> Rc<RefCell<ReinitParams>> {
+        let mut p = ReinitParams::default();
+        mutate(&mut p);
+        Rc::new(RefCell::new(p))
+    }
+
     /// 工厂最小面: preview 行数 = FIELDS 数, 尺寸与 ctx 度量一致, 渲染闭包可跑
     /// (PixCanvas 合成 + 灰底保留)
     #[test]
     fn spec_renders_preview_rows_to_pixcanvas() {
         let (handle, mut spec) =
-            flight_info_overlay_spec(&fonts_dir(), 0, 1).expect("字体目录应可用");
+            flight_info_overlay_spec(&fonts_dir(), &params_cell(|_| {}))
+                .expect("字体目录应可用");
         assert_eq!(spec.id, "flightInfoSwitch");
         assert_eq!(handle.borrow().rows().len(), fields::FIELDS.len());
         assert!(spec.width > 0 && spec.height > 0);
@@ -206,7 +254,8 @@ mod tests {
     /// 零值 FlightValues 下被滤除 → 行数少于 FIELDS 数)
     #[test]
     fn update_from_values_applies_visibility() {
-        let (handle, _spec) = flight_info_overlay_spec(&fonts_dir(), 0, 1).unwrap();
+        let (handle, _spec) =
+            flight_info_overlay_spec(&fonts_dir(), &params_cell(|_| {})).unwrap();
         let zero = FlightValues::default();
         handle.borrow_mut().update_from_values(&zero);
         let n_zero = handle.borrow().rows().len();
@@ -220,5 +269,21 @@ mod tests {
         handle.borrow_mut().update_from_values(&v);
         let n_live = handle.borrow().rows().len();
         assert!(n_live >= n_zero, "非零帧可见行应不少于全零帧 ({n_live} vs {n_zero})");
+    }
+
+    /// WYSIWYG reinit: fontadd 0→6 → 高度变大; live rows 保留 (字段行绑定独立于字体)
+    #[test]
+    fn reinit_grows_with_font_add_and_keeps_rows() {
+        let cell = params_cell(|_| {});
+        let (handle, mut spec) = flight_info_overlay_spec(&fonts_dir(), &cell).unwrap();
+        // live 行覆盖 (行数可能少于 FIELDS — visible-when 过滤)
+        handle.borrow_mut().update_from_values(&FlightValues::default());
+        let rows_before = handle.borrow().rows().to_vec();
+        let h0 = spec.height;
+        cell.borrow_mut().font_add_flight = 6;
+        let (w1, h1) = (spec.reinit.as_mut().unwrap())().expect("reinit 应成功");
+        assert!(h1 > h0, "字号增量后高度应变大 ({} → {})", h0, h1);
+        assert!(w1 > 0);
+        assert_eq!(handle.borrow().rows(), rows_before.as_slice(), "reinit 不动字段行数据");
     }
 }

@@ -71,8 +71,12 @@ pub fn view_row(row: &RowConfig) -> Element<'_, Message> {
         });
     }
     match row.property.as_deref() {
-        // 已知动作: 消息转发占位 (见模块文档动作表; 接线批十三替换 Ignore 为
-        // 专属动作消息)
+        // 已接动作 (审查轮 2-D): 确认模态 → 直调 (main_form update 执行链)
+        Some(p @ ("resetConfig" | "factoryReset")) => {
+            btn.on_press(Message::ButtonAction { action: p.to_string() }).into()
+        }
+        // 未迁移动作 (openComparison/openPowerCurve/importConfig — 窗口/文件
+        // 对话框未译, 模块文档表备案): 按压链路保通但不执行
         Some(p) if KNOWN_ACTIONS.contains(&p) => btn.on_press(Message::Ignore).into(),
         // 未知 :target / 无 :target: 无监听器纯按钮 (Java 无 if 命中)
         _ => btn.into(),

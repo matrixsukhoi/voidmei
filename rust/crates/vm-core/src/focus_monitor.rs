@@ -59,9 +59,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 /// crate 绑定实现; 非 Windows 平台恒 true 的 OS 分派 (Java `os.name` 判定,
 /// Rust 可用 `cfg!(windows)` 表达) 是 FocusDetector.java 本体的 A 类机械翻译,
 /// 随其自身波次落地, 不随 Windows 腿顺延 P4。
-/// TODO(port): WindowsFocusDetector 腿 (C 类/P4) 以 windows crate 实现接线;
-/// FocusDetector.java (A 类) 波次落地时回收本消费面 trait 归属并补 OS 分派
-/// (§0.6 一文件一模块)。
+/// 已收口: WindowsFocusDetector 已实装 (vm-overlay platform_extras.rs,
+/// GetForegroundWindow 链), impl FocusDetector 生产可用; trait 归属维持本文件。
 ///
 /// 实现合同 (锁内回调): 本方法在集成方 `Mutex<FocusMonitor>` 锁内被调
 /// (tick); 真实 Win32 实现阻塞 3-5ms, 会延长该轮锁持有至上限 ~5ms, 可接受,

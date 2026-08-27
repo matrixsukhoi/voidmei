@@ -87,11 +87,10 @@ pub trait RenderContext {
 /// Java `<clinit>` 静态块 15 条 `renderers.put(...)` 的数据化对位
 /// (键 → 渲染器 Java 类简单名, 按 put 顺序原样)。
 ///
-/// TODO(port): 各渲染器实现是 C 类 (Swing/WebPanel, CLASSIFY.md §13 豁免),
-/// Java 类加载即完成的 15 条内建注册在 Rust 侧尚未接线 —— 由后续 C 类批次
-/// 在 App 层构造点按本表逐条 `register` 补齐 (P5 MainForm 移植
-/// DynamicDataPage 前必须完成, 否则 `get` 对一切类型回退默认)。
-/// 本表锁定键集合/归属/顺序防漂移。
+/// 已收口 (架构裁决): vm-ui renderers/mod.rs 的 `view_row` match 分发为最终
+/// 形态 (Elm view 函数替代策略对象注册表 — iced 无类加载自注册面), 九键专属
+/// 渲染器 + fallback_row + data::view_row 兜底齐备, WYSIWYG 链生产在用。
+/// 本表降级为键集合/归属/顺序的对照文档 (防漂移), registry 结构无生产消费者。
 /// Java 侧每个 `new XxxRenderer()` 均为独立实例: INPUT 与 TEXT 各持一个
 /// TextRowRenderer; "DATA" 条目与 defaultRenderer 也是两个不同实例。
 pub const BUILTIN_ROW_TYPES: &[(&str, &str)] = &[

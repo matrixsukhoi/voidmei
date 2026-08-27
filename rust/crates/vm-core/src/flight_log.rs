@@ -4,16 +4,17 @@
 //! 写一行遥测快照; 换机/退出时 close() 落盘三份分析 CSV (climb/roll/ny)。
 //!
 //! PORT (crate 边界, D6): Java 直接持有 `Service xs` / `Controller xc` / `FlightAnalyzer fA`
-//! 三个跨文件引用 —— Service 落 vm-data (本 crate 不可见), FlightAnalyzer 是 W1 并行
-//! item (类型落地时加 impl), Controller 属后续批次。处理方式:
+//! 三个跨文件引用 —— Service 落 vm-data (本 crate 不可见), Controller 属后续批次。处理方式:
 //! - Service → 每次调用注入快照 [`FlightLogSnapshot`] (Java 在 Service 线程上实时读
-//!   xs 公有字段, 快照即该时刻字段值, 语义等价);
-//! - FlightAnalyzer → 本文件定义 [`FlightAnalyzerApi`] trait (FocusMonitor/
-//!   FocusDetector 先例), 构造点 `new FlightAnalyzer()` 以工厂注入; 方法面 =
-//!   FlightLog 自身读取面 + Controller 集成读取面 (含 initaltStage, Controller.java:323/405);
+//!   xs 公有字段, 快照即该时刻字段值, 语义等价); vm-data 侧的快照构造面 =
+//!   `vm_data::service_loop::flight_log_snapshot`;
+//! - FlightAnalyzer → **已按 flight_analyzer.rs 模块头的集成合同弃快照 trait**:
+//!   直接持有同 crate 具体类型 [`FlightAnalyzer`] (pub 字段面 + pub(crate) 方法),
+//!   并注入 `Arc<dyn AnalyzerService>` 令 analyze 活读 Service 字段 (快照合同会把
+//!   time[]/eff/sep 冻结在 init 时刻, 见彼处论证);
 //! - Controller → [`ControllerLogSink`] 最小接口 (唯一用途 `xc.logon = false`);
 //! - NotificationService.show (C 类 UI 静态入口, CLASSIFY 裁决"翻译时须注入回调") →
-//!   [`NotifySink`] 回调注入。
+//!   [`NotifySink`] 回调注入 (FlightAnalyzer.notify 同类型, 共用同一 sink)。
 //!
 //! 行格式保真: CSV 数值列的文本 = Java `String.concat` 的隐式 toString
 //! (Double.toString / Float.toString / Integer.toString), 见 [`java_double_to_string`]。
@@ -21,11 +22,12 @@
 use std::fs::{File, OpenOptions};
 use std::io::{self, BufWriter, Write};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use chrono::{Datelike, Local, Timelike};
 
 use crate::config_api::ConfigProvider;
+use crate::flight_analyzer::{AnalyzerService, FlightAnalyzer, MAX_IAS_STAGE};
 use crate::g;
 use crate::lang::Lang;
 use crate::logger::warn_default;
@@ -131,53 +133,11 @@ pub trait ControllerLogSink: Send + Sync {
 	fn set_logon(&self, logon: bool);
 }
 
-/// FlightLog 对 `parser.FlightAnalyzer` 的依赖面 (Java: `public FlightAnalyzer fA`
-/// 字段直读直调)。PORT: FlightAnalyzer 是本批 W1 并行 item (crate::flight_analyzer),
-/// 其 Rust 类型落地时实现本 trait (集成期接线); 方法面 = FlightLog 自身 + Controller
-/// (closepad/DrawFrame, 后续批次) 的读取面, 非完整 Java public 面 —— 集成期接线时
-/// 按 flight_analyzer.rs 的 PORT 合同, 也可弃本 trait 直接持有具体类型。
-pub trait FlightAnalyzerApi: Send {
-	/// Java: `void init(int stage, Service st, prog.config.ConfigProvider config)`
-	/// (Service 以快照代餐, 见模块头 PORT)
-	fn init(&mut self, stage: i32, xs: &FlightLogSnapshot, config: Option<Arc<dyn ConfigProvider + Send + Sync>>);
-
-	/// Java: `void analyze(int stage)`
-	fn analyze(&mut self, stage: i32);
-
-	/// Java: `void updateEMChart(double ias, double g_load, int wx, double sep, int abs_elev, int abs_alr)`
-	fn update_em_chart(&mut self, ias: f64, g_load: f64, wx: i32, sep: f64, abs_elev: i32, abs_alr: i32);
-
-	// ---- Java public 字段直读 (无 getter, 数组按切片暴露) ----
-
-	/// Java: `public int curaltStage`
-	fn curalt_stage(&self) -> i32;
-	/// Java: `public int initaltStage` — FlightLog 自身不读, Controller.java:323/405
-	/// 读 `fA.curaltStage - fA.initaltStage` (Controller 集成期读取面, 补齐)
-	fn initalt_stage(&self) -> i32;
-	/// Java: `public double[] time`
-	fn time(&self) -> &[f64];
-	/// Java: `public int power[]`
-	fn power(&self) -> &[i32];
-	/// Java: `public int thrust[]`
-	fn thrust(&self) -> &[i32];
-	/// Java: `public double sep[]`
-	fn sep(&self) -> &[f64];
-	/// Java: `public int[] roll_rate`
-	fn roll_rate(&self) -> &[i32];
-	/// Java: `public int[] roll_alr`
-	fn roll_alr(&self) -> &[i32];
-	/// Java: `public double[] turn_load`
-	fn turn_load(&self) -> &[f64];
-	/// Java: `public int[] turn_elev`
-	fn turn_elev(&self) -> &[i32];
-	/// Java: `public double sep_loss[]`
-	fn sep_loss(&self) -> &[f64];
-}
-
-/// Java: `FlightAnalyzer.maxIASStage` (`public static final int = 256`)。
-/// PORT: 常量属 flight_analyzer 模块, 并行期本文件局部定义, 集成期与
-/// `crate::flight_analyzer` 的同名常量合一 (值由 Java 源锁定)。
-pub const MAX_IAS_STAGE: usize = 256;
+/// FlightLog 的跨线程共享槽: Java `Controller.Log` 字段 (Service 轮询线程每轮
+/// `c.Log.logTick()`, Controller 主线程 init/close 换入换出) 的 Rust 对位形态。
+/// 外层 Mutex 保护 Some/None 切换 (= Java 的 `Log = new/null`), 内层 Mutex 串行化
+/// tick/close 对实例的独占访问; 两侧均**不嵌套持锁** (先取 Arc 后释放外层), 无死锁。
+pub type FlightLogSlot = Arc<Mutex<Option<Arc<Mutex<FlightLog>>>>>;
 
 /// logTick 时刻 Service 公有字段的快照 (D6: Service 落 vm-data, 本 crate 以值注入;
 /// Java 在 Service 线程上实时读 `xs.` 字段, 快照即该时刻字段值, 语义等价)。
@@ -261,14 +221,6 @@ pub struct FlightLogSnapshot {
 	// ---- init 使用 ----
 	/// Java: `public String sIndic.type` (Indicators.java:8)
 	pub indic_type: String,
-	// ---- FlightLog 自身不读, 但 Java analyzeData 把同一个 xs 传给 FlightAnalyzer.init
-	// (其读取面 = flight_analyzer::AnalyzerService trait); 集成期桥接用, 先行入快照 ----
-	/// Java: `public int totalHp` (Service.java, FlightAnalyzer.init 读取)
-	pub total_hp: i32,
-	/// Java: `public int totalHpEff` (Service.java, FlightAnalyzer.init/analyze 读取)
-	pub total_hp_eff: i32,
-	/// Java: `public int iEngType` (Service.java, FlightAnalyzer.init/analyze 读取)
-	pub i_eng_type: i32,
 }
 
 /// Java `BufferedWriter.ensureOpen()` 的 "Stream closed" IOException 复刻:
@@ -299,8 +251,8 @@ pub struct FlightLog {
 	pub csv: Option<File>,
 	/// Java: `public String fileName`
 	pub file_name: String,
-	/// Java: `public FlightAnalyzer fA` → 依赖面 trait (见模块头 PORT)
-	pub f_a: Option<Box<dyn FlightAnalyzerApi>>,
+	/// Java: `public FlightAnalyzer fA` → 直接持有具体类型 (集成合同, 见模块头 PORT)
+	pub f_a: Option<FlightAnalyzer>,
 	/// Java: `Controller xc` (唯一用途 `xc.logon = false`) → 最小接口注入
 	xc: Option<Arc<dyn ControllerLogSink>>,
 	// PORT: Java 字段 `Service xs` 不落地 — D6 边界, 快照按调用注入;
@@ -329,8 +281,9 @@ pub struct FlightLog {
 	lang: Lang,
 	/// PORT: NotificationService.show 注入回调 (None = 未注入, 静默)
 	notify: Option<NotifySink>,
-	/// PORT: `new FlightAnalyzer()` 构造点工厂 (FlightAnalyzerApi 见模块头 PORT)
-	new_flight_analyzer: Option<Box<dyn Fn() -> Box<dyn FlightAnalyzerApi> + Send>>,
+	/// `new FlightAnalyzer()` 依赖的 Service 活读面 (集成合同: analyze 每次调用
+	/// 活读 elapsedTime/totalHp 等 7 字段, 故注入 Arc 而非快照 — 见模块头 PORT)
+	analyze_service: Option<Arc<dyn AnalyzerService + Send + Sync>>,
 }
 
 /// 对应 Java: `new FlightLog()` — 字段默认值 (PORTING §2.10: 引用 null → Option::None,
@@ -361,7 +314,7 @@ impl FlightLog {
 			config: None,
 			lang: Lang::default(),
 			notify: None,
-			new_flight_analyzer: None,
+			analyze_service: None,
 		}
 	}
 
@@ -535,13 +488,15 @@ impl FlightLog {
 		if xs.check_alt.wrapping_abs() > 10 {
 			if self.first_analyze {
 				// 第一次分析，先取当前高度
-				// PORT: Java `new FlightAnalyzer()` — 工厂 Fn 借调即还 (调用只夺返回值
-				// 所有权, 不夺工厂): factory()/init 中途 panic 不留 "工厂已耗尽" 脏状态
-				let mut fa = (self
-					.new_flight_analyzer
-					.as_ref()
-					.expect("PORT: 注入缺失 — analyze_data 需要 new FlightAnalyzer() 工厂 (Java: new FlightAnalyzer())"))();
-				fa.init(stage, xs, self.config.clone());
+				// Java `new FlightAnalyzer()` — 同 crate 直接构造 (集成合同, 见模块头);
+				// notify 与 FlightLog 共用同一 sink (flight_analyzer.rs 模块头合同)
+				let mut fa = FlightAnalyzer::default();
+				fa.notify = self.notify.clone();
+				let src = self
+					.analyze_service
+					.clone()
+					.expect("PORT: 注入缺失 — init 需要 AnalyzerService (Java: Log.init 传 Service xs)");
+				fa.init(stage, src, self.config.clone());
 				self.f_a = Some(fa);
 				self.first_analyze = false;
 			} else {
@@ -591,7 +546,7 @@ impl FlightLog {
 	}
 
 	/// 对应 Java: `void writeClimbData(FileWriter txt) throws IOException`
-	fn write_climb_data(txt: &mut File, f_a: Option<&dyn FlightAnalyzerApi>) -> io::Result<()> {
+	fn write_climb_data(txt: &mut File, f_a: Option<&FlightAnalyzer>) -> io::Result<()> {
 		let mut bw = BufWriter::new(txt);
 		// Java: fA==null 时 `fA.curaltStage` 抛 NullPointerException (非 IOException,
 		// 逃逸 saveClimbData 的 catch 直达 close() 调用方) — §1 映射: panic!
@@ -599,13 +554,13 @@ impl FlightLog {
 			panic!("PORT: Java NPE — fA == null (全程未触发高度分析) 于 fA.curaltStage 抛 NullPointerException")
 		});
 
-		for i in 0..f_a.curalt_stage() {
+		for i in 0..f_a.curalt_stage {
 			let i = i as usize;
 			write!(bw, "{}, ", i * 100)?;
-			write!(bw, "{}, ", java_double_to_string(f_a.time()[i]))?;
-			write!(bw, "{}, ", f_a.power()[i])?;
-			write!(bw, "{}, ", f_a.thrust()[i])?;
-			writeln!(bw, "{}", java_double_to_string(f_a.sep()[i]))?;
+			write!(bw, "{}, ", java_double_to_string(f_a.time[i]))?;
+			write!(bw, "{}, ", f_a.power[i])?;
+			write!(bw, "{}, ", f_a.thrust[i])?;
+			writeln!(bw, "{}", java_double_to_string(f_a.sep[i]))?;
 
 			// bw.write("\n");
 		}
@@ -632,7 +587,7 @@ impl FlightLog {
 		// Java: try { writeClimbLabel; writeClimbData; tcsv.close(); } catch (IOException)
 		let res = (|| {
 			FlightLog::write_climb_label(&mut tcsv, &self.lang)?;
-			FlightLog::write_climb_data(&mut tcsv, self.f_a.as_deref())?;
+			FlightLog::write_climb_data(&mut tcsv, self.f_a.as_ref())?;
 			// tcsv.close() — 句柄离开作用域即关闭
 			Ok::<(), io::Error>(())
 		})();
@@ -661,7 +616,7 @@ impl FlightLog {
 
 	/// 对应 Java: `void writeRollData(FileWriter txt) throws IOException`
 	#[allow(unused_assignments, unused_variables)] // Java: int k = 0; k++ 后未读 (消费处已被注释)
-	fn write_roll_data(txt: &mut File, f_a: Option<&dyn FlightAnalyzerApi>) -> io::Result<()> {
+	fn write_roll_data(txt: &mut File, f_a: Option<&FlightAnalyzer>) -> io::Result<()> {
 		let mut bw = BufWriter::new(txt);
 		// Java: fA==null 时 `fA.roll_rate[i]` 循环条件读 fA 抛 NPE — 同 writeClimbData
 		let f_a = f_a.unwrap_or_else(|| {
@@ -670,11 +625,12 @@ impl FlightLog {
 		let mut k = 0;
 		for i in 0..MAX_IAS_STAGE {
 			// 速度区间
-			if f_a.roll_rate()[i] > 0 {
+			let i = i as usize;
+			if f_a.roll_rate[i] > 0 {
 				k += 1;
 				write!(bw, "{}, ", i as i32 * 10)?;
-				write!(bw, "{}, ", f_a.roll_alr()[i])?;
-				writeln!(bw, "{}", f_a.roll_rate()[i])?;
+				write!(bw, "{}, ", f_a.roll_alr[i])?;
+				writeln!(bw, "{}", f_a.roll_rate[i])?;
 			}
 			// bw.write("\n");
 		}
@@ -699,7 +655,7 @@ impl FlightLog {
 
 		let res = (|| {
 			FlightLog::write_roll_label(&mut tcsv, &self.lang)?;
-			FlightLog::write_roll_data(&mut tcsv, self.f_a.as_deref())?;
+			FlightLog::write_roll_data(&mut tcsv, self.f_a.as_ref())?;
 			Ok::<(), io::Error>(())
 		})();
 		if let Err(e) = res {
@@ -730,7 +686,7 @@ impl FlightLog {
 
 	/// 对应 Java: `void writeNyData(FileWriter txt) throws IOException`
 	#[allow(unused_assignments, unused_variables)] // Java: int k = 0; k++ 后未读 (消费处已被注释)
-	fn write_ny_data(txt: &mut File, f_a: Option<&dyn FlightAnalyzerApi>) -> io::Result<()> {
+	fn write_ny_data(txt: &mut File, f_a: Option<&FlightAnalyzer>) -> io::Result<()> {
 		let mut bw = BufWriter::new(txt);
 		// Java: fA==null 时 `fA.turn_load[i]` 循环条件读 fA 抛 NPE — 同 writeClimbData
 		let f_a = f_a.unwrap_or_else(|| {
@@ -739,12 +695,13 @@ impl FlightLog {
 		let mut k = 0;
 		for i in 0..MAX_IAS_STAGE {
 			// 速度区间
-			if f_a.turn_load()[i] > 0.0 { // Java: > 0 (int 提升为 double 0.0)
+			let i = i as usize;
+			if f_a.turn_load[i] > 0.0 { // Java: > 0 (int 提升为 double 0.0)
 				k += 1;
 				write!(bw, "{}, ", i as i32 * 10)?;
-				write!(bw, "{}, ", f_a.turn_elev()[i])?;
-				write!(bw, "{}, ", java_double_to_string(f_a.turn_load()[i]))?;
-				writeln!(bw, "{}", java_double_to_string(f_a.sep_loss()[i]))?;
+				write!(bw, "{}, ", f_a.turn_elev[i])?;
+				write!(bw, "{}, ", java_double_to_string(f_a.turn_load[i]))?;
+				writeln!(bw, "{}", java_double_to_string(f_a.sep_loss[i]))?;
 			}
 			// bw.write("\n");
 		}
@@ -769,7 +726,7 @@ impl FlightLog {
 
 		let res = (|| {
 			FlightLog::write_ny_label(&mut tcsv, &self.lang)?;
-			FlightLog::write_ny_data(&mut tcsv, self.f_a.as_deref())?;
+			FlightLog::write_ny_data(&mut tcsv, self.f_a.as_ref())?;
 			Ok::<(), io::Error>(())
 		})();
 		if let Err(e) = res {
@@ -781,20 +738,21 @@ impl FlightLog {
 	///
 	/// PORT (注入参数, 见模块头): `xc` 以 [`ControllerLogSink`] 代餐;
 	/// `s` 以 [`FlightLogSnapshot`] 代餐 (仅读 `s.sIndic.type`);
-	/// `notify`/`new_flight_analyzer` 为 C 类 UI 与并行 FlightAnalyzer 的注入面。
+	/// `notify` 为 C 类 UI 注入面; `analyze_service` 是 FlightAnalyzer 集成合同
+	/// 要求的 Service 活读面 (取代旧快照工厂, 见模块头 PORT)。
 	pub fn init(
 		&mut self,
 		xc: Arc<dyn ControllerLogSink>,
 		s: &FlightLogSnapshot,
 		config: Option<Arc<dyn ConfigProvider + Send + Sync>>,
 		notify: NotifySink,
-		new_flight_analyzer: Box<dyn Fn() -> Box<dyn FlightAnalyzerApi> + Send>,
+		analyze_service: Arc<dyn AnalyzerService + Send + Sync>,
 	) {
 		self.xc = Some(xc);
 		// Java: xs = s; — D6 边界, 不存 Service 引用 (快照按调用注入)
 		self.config = config;
 		self.notify = Some(notify);
-		self.new_flight_analyzer = Some(new_flight_analyzer);
+		self.analyze_service = Some(analyze_service);
 		self.doit.store(false, Ordering::SeqCst);
 		// Application.debugPrint("flightlog初始化了");
 		// Java: c = Calendar.getInstance(); c.setTimeInMillis(System.currentTimeMillis());
@@ -939,6 +897,7 @@ mod tests {
 	use super::*;
 	use std::collections::HashMap;
 	use std::path::{Path, PathBuf};
+	use std::sync::atomic::AtomicI64;
 	use std::sync::Mutex;
 	use std::time::Duration;
 
@@ -1009,11 +968,47 @@ mod tests {
 		}
 	}
 
-	/// FlightAnalyzerApi mock: 调用记录 + 可配置数据面
-	struct MockAnalyzer {
-		log: Arc<Mutex<Vec<String>>>,
+	/// AnalyzerService 的活读 mock (FlightAnalyzer 集成合同的 Service 面):
+	/// elapsed_time 每读 +1000 — 令 "init 之后 analyze 读到新值" 可观测,
+	/// 防快照合同回潮 (快照会把 analyze 冻结在 init 时刻, 见 flight_analyzer.rs 论证)
+	struct RecordingService {
+		elapsed: AtomicI64,
+	}
+	impl RecordingService {
+		fn shared() -> Arc<Self> {
+			Arc::new(RecordingService { elapsed: AtomicI64::new(0) })
+		}
+	}
+	impl AnalyzerService for RecordingService {
+		fn s_indic_type(&self) -> Option<String> {
+			Some("rec-type".into())
+		}
+		fn i_eng_type(&self) -> i32 {
+			2
+		}
+		fn elapsed_time(&self) -> i64 {
+			// 活读证据: 每次调用值递增
+			self.elapsed.fetch_add(1000, Ordering::SeqCst)
+		}
+		fn total_hp(&self) -> i32 {
+			1200
+		}
+		fn total_thrust(&self) -> i32 {
+			3400
+		}
+		fn total_hp_eff(&self) -> i32 {
+			1100
+		}
+		fn sep(&self) -> f64 {
+			49.0
+		}
+	}
+
+	/// 真实 FlightAnalyzer 直填构造 (Java 保真 — 测试构造器逐字段喂值, 参数表对齐
+	/// FlightAnalyzer 的十个保存面字段; 字段全 pub, 免 mock)
+	#[allow(clippy::too_many_arguments)]
+	fn analyzer_with_data(
 		curalt_stage: i32,
-		initalt_stage: i32,
 		time: Vec<f64>,
 		power: Vec<i32>,
 		thrust: Vec<i32>,
@@ -1023,97 +1018,19 @@ mod tests {
 		turn_load: Vec<f64>,
 		turn_elev: Vec<i32>,
 		sep_loss: Vec<f64>,
-	}
-	impl MockAnalyzer {
-		fn recording(log: Arc<Mutex<Vec<String>>>) -> Self {
-			MockAnalyzer {
-				log,
-				curalt_stage: 0,
-				initalt_stage: 0,
-				time: vec![0.0; 256],
-				power: vec![0; 256],
-				thrust: vec![0; 256],
-				sep: vec![0.0; 256],
-				roll_rate: vec![0; 256],
-				roll_alr: vec![0; 256],
-				turn_load: vec![0.0; 256],
-				turn_elev: vec![0; 256],
-				sep_loss: vec![0.0; 256],
-			}
-		}
-		// PORT: Java 保真 — 测试构造器逐字段喂值, 参数表对齐 FlightAnalyzer 字段组
-		#[allow(clippy::too_many_arguments)]
-		fn with_data(
-			curalt_stage: i32,
-			time: Vec<f64>,
-			power: Vec<i32>,
-			thrust: Vec<i32>,
-			sep: Vec<f64>,
-			roll_rate: Vec<i32>,
-			roll_alr: Vec<i32>,
-			turn_load: Vec<f64>,
-			turn_elev: Vec<i32>,
-			sep_loss: Vec<f64>,
-		) -> Self {
-			let mut m = MockAnalyzer::recording(Arc::new(Mutex::new(Vec::new())));
-			m.curalt_stage = curalt_stage;
-			m.time = time;
-			m.power = power;
-			m.thrust = thrust;
-			m.sep = sep;
-			m.roll_rate = roll_rate;
-			m.roll_alr = roll_alr;
-			m.turn_load = turn_load;
-			m.turn_elev = turn_elev;
-			m.sep_loss = sep_loss;
-			m
-		}
-	}
-	impl FlightAnalyzerApi for MockAnalyzer {
-		fn init(&mut self, stage: i32, _xs: &FlightLogSnapshot, config: Option<Arc<dyn ConfigProvider + Send + Sync>>) {
-			self.log.lock().unwrap().push(format!("init stage={stage} cfg={}", config.is_some()));
-		}
-		fn analyze(&mut self, stage: i32) {
-			self.log.lock().unwrap().push(format!("analyze stage={stage}"));
-		}
-		fn update_em_chart(&mut self, ias: f64, g_load: f64, wx: i32, sep: f64, abs_elev: i32, abs_alr: i32) {
-			self.log.lock().unwrap().push(format!(
-				"em {ias:?} {g_load:?} {wx} {sep:?} {abs_elev} {abs_alr}"
-			));
-		}
-		fn curalt_stage(&self) -> i32 {
-			self.curalt_stage
-		}
-		fn initalt_stage(&self) -> i32 {
-			self.initalt_stage
-		}
-		fn time(&self) -> &[f64] {
-			&self.time
-		}
-		fn power(&self) -> &[i32] {
-			&self.power
-		}
-		fn thrust(&self) -> &[i32] {
-			&self.thrust
-		}
-		fn sep(&self) -> &[f64] {
-			&self.sep
-		}
-		fn roll_rate(&self) -> &[i32] {
-			&self.roll_rate
-		}
-		fn roll_alr(&self) -> &[i32] {
-			&self.roll_alr
-		}
-		fn turn_load(&self) -> &[f64] {
-			&self.turn_load
-		}
-		fn turn_elev(&self) -> &[i32] {
-			&self.turn_elev
-		}
-		fn sep_loss(&self) -> &[f64] {
-			&self.sep_loss
-		}
+	) -> FlightAnalyzer {
+		let mut fa = FlightAnalyzer::default();
+		fa.curalt_stage = curalt_stage;
+		fa.time = time;
+		fa.power = power;
+		fa.thrust = thrust;
+		fa.sep = sep;
+		fa.roll_rate = roll_rate;
+		fa.roll_alr = roll_alr;
+		fa.turn_load = turn_load;
+		fa.turn_elev = turn_elev;
+		fa.sep_loss = sep_loss;
+		fa
 	}
 
 	fn notify_collector() -> (NotifySink, Arc<Mutex<Vec<String>>>) {
@@ -1129,9 +1046,6 @@ mod tests {
 		v
 	}
 
-	fn factory_collector(log: Arc<Mutex<Vec<String>>>) -> Box<dyn Fn() -> Box<dyn FlightAnalyzerApi> + Send> {
-		Box::new(move || Box::new(MockAnalyzer::recording(log.clone())))
-	}
 
 	/// 带判别值的快照 (各列取值互不相同, 便于校验列序)
 	fn sample_snapshot() -> FlightLogSnapshot {
@@ -1173,9 +1087,6 @@ mod tests {
 			sep: 49.0,
 			state_wx: -140.7,
 			indic_type: "bf-109e-4".into(),
-			total_hp: 1200,
-			total_hp_eff: 1100,
-			i_eng_type: 0,
 		}
 	}
 
@@ -1187,7 +1098,7 @@ mod tests {
 			&sample_snapshot(),
 			Some(Arc::new(MapConfig::new())),
 			notify,
-			factory_collector(Arc::new(Mutex::new(Vec::new()))),
+			RecordingService::shared(),
 		);
 		assert!(root.join(&fl.file_name).is_file(), "init 应创建主 CSV");
 		fl
@@ -1308,11 +1219,10 @@ mod tests {
 		});
 	}
 
-	// ---- 6. 分析链: 首帧 init, 其后 analyze + updateEMChart (参数逐一对应) ----
+	// ---- 6. 分析链: 首帧 init, 其后 analyze + updateEMChart (效果面断言) ----
 	#[test]
 	fn analyze_flow_init_then_analyze_and_em_chart() {
 		with_temp_cwd("analyze", true, |_root| {
-			let log: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
 			let mut fl = FlightLog::new();
 			let (notify, _) = notify_collector();
 			fl.init(
@@ -1320,30 +1230,57 @@ mod tests {
 				&sample_snapshot(),
 				Some(Arc::new(MapConfig::new())),
 				notify,
-				factory_collector(log.clone()),
+				RecordingService::shared(),
 			);
 			let mut snap = sample_snapshot();
 			snap.alt = 1500.0; // stage = (int)1500/100 = 15
 			snap.check_alt = 15; // |checkAlt| > 10 触发分析
-			fl.log_tick(&snap); // 首帧: init
-			fl.log_tick(&snap); // 其后: analyze + updateEMChart
+			// 48/9.80≈4.898 < 5.0 — 过载分支的 sep<5 门槛 (49 会得整 5.0 进不去,
+			// g=9.80 见 physics_constants)
+			snap.sep = 48.0;
+			fl.log_tick(&snap); // 首帧: init (initaltStage/curaltStage=15)
+			fl.log_tick(&snap); // 其后: analyze 同级累加 + updateEMChart
 			fl.log_tick(&snap);
-			let calls = log.lock().unwrap().clone();
-			assert_eq!(&calls[0], "init stage=15 cfg=true", "首帧: stage=15, config 非空透传");
-			let inits = calls.iter().filter(|c| c.starts_with("init ")).count();
-			let analyzes = calls.iter().filter(|c| c.starts_with("analyze ")).count();
-			assert_eq!(inits, 1, "init 只发生一次 (firstAnalyze 翻转): {calls:?}");
-			assert_eq!(analyzes, 2, "其后每 tick 一次 analyze: {calls:?}");
-			let ems: Vec<&String> = calls.iter().filter(|c| c.starts_with("em ")).collect();
-			assert_eq!(ems.len(), 2, "第二/三 tick 各一次 updateEMChart: {calls:?}");
-			// updateEMChart 参数与 Java 表达式逐一对应:
-			// (xs.IASv, xs.sState.Ny, (int)|xs.sState.Wx|, xs.SEP/g, |elevator|, |aileron|)
-			let expected_em = format!(
-				"em {:?} {:?} {} {:?} {} {}",
-				snap.ias_v, snap.ny, snap.state_wx.abs() as i32, snap.sep / g, 20, 15
+			{
+				let fa = fl.f_a.as_ref().expect("首帧 init 应落地 fA");
+				// init: stage=15 落地; config 非空透传 (MapConfig 无键 → is_information=false)
+				assert_eq!(fa.initalt_stage, 15);
+				assert_eq!(fa.curalt_stage, 15, "同级 analyze 不推进 curaltStage");
+				assert!(!fa.is_information);
+				// 同级 analyze ×2 (Java else 分支): eff[15] = 1100(init) + 2×1100,
+				// sep[15] = 49×3 (换级才做 /count 的均值收口)
+				assert_eq!(fa.eff[15], 1100 + 2 * 1100, "init 一次 + 两次同级累加");
+				assert_eq!(fa.sep[15], 49.0 * 3.0);
+				// updateEMChart 参数与 Java 表达式逐一对应:
+				// (xs.IASv=520 → speed stage 52, (int)|xs.sState.Wx|=140,
+				//  xs.SEP/g≈4.997, |elevator|=20, |aileron|=15)
+				// 滚转: abs_alr=15>5, wx=140>10, 15>=0, 140>0 → 记录
+				assert_eq!(fa.roll_alr[52], 15);
+				assert_eq!(fa.roll_rate[52], 140);
+				// 过载: ny=1.5>1.0, SEP/g<5, elev=20>=0 → 记录 (turn_load 均值收敛)
+				assert_eq!(fa.turn_elev[52], 20);
+				// 两次 tick 均命中 (20 >= turn_elev 恒真) → 均值收敛叠加:
+				// turn_load: (0+1.5)/2=0.75 → (0.75+1.5)/2=1.125
+				assert_eq!(fa.turn_load[52], 1.5 * (0.5 + 0.25));
+				assert_eq!(fa.sep_loss[52], (48.0 / g) * 0.75);
+			}
+			// 第四 tick 换级 (alt 1600 → stage 16): analyze 的 stage+1 分支
+			snap.alt = 1600.0;
+			fl.log_tick(&snap);
+			let fa = fl.f_a.as_ref().unwrap();
+			assert_eq!(fa.curalt_stage, 16, "stage+1 推进");
+			// 换级收口: eff[15] /= count (3300/3, int/int 截断), sep[15] /= count*g
+			assert_eq!(fa.eff[15], 1100);
+			assert_eq!(fa.sep[15], 49.0 * 3.0 / (3.0 * g));
+			// 活读证据 (集成合同): time[16] 取 analyze 时刻的 elapsed (RecordingService
+			// 每读 +1000, 此刻 >0) — 快照合同会冻结为 init 时刻的 0
+			assert!(
+				fa.time[16] > 0.0,
+				"analyze 活读 elapsed_time: time[16]={}",
+				fa.time[16]
 			);
-			assert_eq!(ems[0], &expected_em, "em 参数逐一对应");
-			assert!(calls[1].starts_with("analyze stage=15"), "{}", calls[1]);
+			assert_eq!(fa.power[16], 1200);
+			assert_eq!(fa.thrust[16], 3400);
 		});
 	}
 
@@ -1351,7 +1288,6 @@ mod tests {
 	#[test]
 	fn analyze_skipped_when_check_alt_below_threshold() {
 		with_temp_cwd("noanalyze", true, |_root| {
-			let log: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
 			let mut fl = FlightLog::new();
 			let (notify, _) = notify_collector();
 			fl.init(
@@ -1359,11 +1295,11 @@ mod tests {
 				&sample_snapshot(),
 				None,
 				notify,
-				factory_collector(log.clone()),
+				RecordingService::shared(),
 			);
 			let snap = sample_snapshot(); // check_alt = 0
 			fl.log_tick(&snap);
-			assert!(log.lock().unwrap().is_empty(), "|checkAlt| <= 10 不进分析分支");
+			assert!(fl.f_a.is_none(), "|checkAlt| <= 10 不进分析分支");
 		});
 	}
 
@@ -1378,9 +1314,9 @@ mod tests {
 				&sample_snapshot(),
 				None,
 				notify,
-				factory_collector(Arc::new(Mutex::new(Vec::new()))),
+				RecordingService::shared(),
 			);
-			fl.f_a = Some(Box::new(MockAnalyzer::with_data(
+			fl.f_a = Some(analyzer_with_data(
 				2,
 				padded(vec![10.0, 20.5], 0.0),
 				padded(vec![100, 200], 0),
@@ -1391,7 +1327,7 @@ mod tests {
 				vec![0.0; 256],
 				vec![0; 256],
 				vec![0.0; 256],
-			)));
+			));
 			fl.save_climb_data();
 			let content = std::fs::read_to_string(&fl.climb_name).unwrap();
 			let lang = Lang::init_lang();
@@ -1423,7 +1359,7 @@ mod tests {
 				&sample_snapshot(),
 				None,
 				notify,
-				factory_collector(Arc::new(Mutex::new(Vec::new()))),
+				RecordingService::shared(),
 			);
 			let mut roll_rate = vec![0; 256];
 			let mut roll_alr = vec![0; 256];
@@ -1440,7 +1376,7 @@ mod tests {
 			turn_load[5] = 6.25;
 			turn_elev[5] = 50;
 			sep_loss[5] = 2.25;
-			fl.f_a = Some(Box::new(MockAnalyzer::with_data(
+			fl.f_a = Some(analyzer_with_data(
 				0,
 				vec![0.0; 256],
 				vec![0; 256],
@@ -1451,7 +1387,7 @@ mod tests {
 				turn_load,
 				turn_elev,
 				sep_loss,
-			)));
+			));
 			fl.save_roll_data();
 			fl.save_ny_data();
 			let lang = Lang::init_lang();
@@ -1519,7 +1455,7 @@ mod tests {
 				&snap,
 				None,
 				notify,
-				factory_collector(Arc::new(Mutex::new(Vec::new()))),
+				RecordingService::shared(),
 			);
 			assert!(fl2.file_name.starts_with("records/Unknown_"), "{}", fl2.file_name);
 		});
@@ -1538,7 +1474,7 @@ mod tests {
 				&sample_snapshot(),
 				None,
 				notify,
-				factory_collector(Arc::new(Mutex::new(Vec::new()))),
+				RecordingService::shared(),
 			);
 			// Java: FileOutputStream 失败 → notify + warn + xc.logon=false;
 			//       FileWriter 失败 → notify + warn; writeLabel → IOException("Stream closed") → warn
@@ -1581,7 +1517,7 @@ mod tests {
 				&sample_snapshot(),
 				None,
 				notify,
-				factory_collector(Arc::new(Mutex::new(Vec::new()))),
+				RecordingService::shared(),
 			);
 			fl.close(); // csvWritter.close() 静默 (out==null), csv.close() 抛 NPE
 		});
@@ -1601,7 +1537,7 @@ mod tests {
 			fl2.log_tick(&sample_snapshot());
 			// close() 内 save*Data 需要 fA (fA==null 是 Java NPE 路径, 由测试 12 单独锁定),
 			// 此处给空数据 mock 以聚焦缓冲 flush 语义
-			fl2.f_a = Some(Box::new(MockAnalyzer::with_data(
+			fl2.f_a = Some(analyzer_with_data(
 				0,
 				vec![0.0; 256],
 				vec![0; 256],
@@ -1612,7 +1548,7 @@ mod tests {
 				vec![0.0; 256],
 				vec![0; 256],
 				vec![0.0; 256],
-			)));
+			));
 			fl2.close();
 			let content2 = std::fs::read_to_string(&fl2.file_name).unwrap();
 			assert_eq!(content2.lines().count(), 2, "close() 兜底 flush (首帧 t=0 已 flush 的表头 + 本行)");
@@ -1630,7 +1566,7 @@ mod tests {
 				&sample_snapshot(),
 				None,
 				notify,
-				factory_collector(Arc::new(Mutex::new(Vec::new()))),
+				RecordingService::shared(),
 			);
 			let doit = fl.doit.clone();
 			let logon = fl.logon.clone();

@@ -23,14 +23,13 @@ use crate::piston_power_model::CompressorStageParams;
 /// <p>构造只经静态工厂，字段全 final，线程安全（volatile 发布由 {@link FMManager} 负责）。
 // PORT: Java final 类 + 全 final 字段 → Rust 字段无 mut 即不可变; #[derive(Clone)]
 // 对应 Java "引用可自由赋值传递" 的可用性 —— 注意 Java 赋值是 O(1) 共享, Rust Clone
-// 是深拷贝 (Vec / 未来真 Blkx 均复制); 当前值全不可变, 深拷贝与共享无行为差异。
-// TODO(port): 真 Blkx 落地 / FMManager.current() ~10Hz 快照分发时, 裁决
-// Arc<FMHandle> 共享 vs 每轮深拷 (LIFETIMES 所有权决策点, 预留于此)。
+// 是深拷贝。已裁决 (fm_manager.rs "Arc 共享在此销号"): 分发走 Arc<FMHandle>
+// 共享, Clone 仅为字段级可用性保留。
 // PORT: 刻意不 derive PartialEq —— Java FMHandle 无 equals 覆写, 语义只有引用同一性,
 // 且全库无句柄 == 比较使用点 (审查已 grep 确认); 后续批次 (FMManager 等) 勿顺手补
 // derive, 以免与 Java 引用语义分叉。
-// PORT: "blkx.engLoad 就地改写" 依赖 Blkx 内部可变性 —— 占位类型无该层状态,
-// 真 Blkx 移植时需以内部可变性 (RwLock/Mutex) 承接 engLoad 会话语义。
+// PORT: blkx 已是真身; "engLoad 就地改写" 的会话态语义仍归 getload 波次
+// (reader.rs 后续批次, 未译 — 见 realtests canary), 落地时以内部可变性承接。
 // PORT: §0.7 pub 字段结构体无法复刻 "私有构造器 + 仅静态工厂" 的编译期约束,
 // 工厂仍是规范构造入口 (调用方约定, 语义不变)。
 #[derive(Debug, Clone)]
