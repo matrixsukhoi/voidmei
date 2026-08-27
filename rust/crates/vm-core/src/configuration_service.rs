@@ -149,6 +149,54 @@ impl ConfigurationService {
         self.inner.save_layout_config();
     }
 
+    /// 组装层位置桥 (归一化直读): Java overlay init 时经 OverlaySettings.loadPosition
+    /// 取 gc.x/y (ConfigurationService.java:430-457 读的同一组字段)。Rust host 在
+    /// win32 线程不碰 !Send 配置树 — 组装层启动时经此取快照 (vm-app
+    /// ChannelPositionStore); 返回归一化 (0..1) 坐标, 无同题分组 = None
+    /// (host 居中兜底, 对齐 Java gc=null 的 center 分支)。
+    pub fn group_position(&self, section: &str) -> Option<(f64, f64)> {
+        let configs = self.inner.layout_configs.read().expect(LC_LOCK_MSG);
+        let list = configs.as_ref()?;
+        list.iter()
+            .find(|gc| section.eq_ignore_ascii_case(&gc.title))
+            .map(|gc| (gc.x, gc.y))
+    }
+
+    /// 组装层位置桥 (归一化直写): 与视图 save_window_position 同源
+    /// (ConfigurationService.java:460-472 — 命中首个同题分组写回 + saveLayoutConfig,
+    /// 未命中只 warn), 差异仅在参数已是归一化坐标 (host 拖拽存档即归一化,
+    /// 免像素/比例往返); 视图版带屏幕尺寸守卫, 本版无该守卫 (归一化无涉屏幕)。
+    pub fn save_group_position(&self, section: &str, nx: f64, ny: f64) -> bool {
+        let mut hit = false;
+        {
+            let mut configs = self.inner.layout_configs.write().expect(LC_LOCK_MSG);
+            if let Some(list) = configs.as_mut() {
+                // Java: 命中首个同题分组即用 (equalsIgnoreCase)
+                for gc in list.iter_mut() {
+                    if section.eq_ignore_ascii_case(&gc.title) {
+                        gc.x = nx;
+                        gc.y = ny;
+                        hit = true;
+                        break;
+                    }
+                }
+            }
+        }
+        if hit {
+            logger::debug(
+                "OverlaySettings",
+                &format!("[{section}] saveGroupPosition: rel {nx:.4},{ny:.4}"),
+            );
+            self.save_layout_config();
+        } else {
+            logger::warn(
+                "OverlaySettings",
+                &format!("[{section}] CANNOT save position: gc=null"),
+            );
+        }
+        hit
+    }
+
     /// Imports configuration from an external file.
     ///
     /// @param sourcePath Path to the config file to import
@@ -2001,6 +2049,25 @@ mod tests {
         assert!(!s.reset_to_factory());
         assert!(log.lock().unwrap().is_empty());
         assert_eq!(s.get_config("k"), Some(String::new()));
+    }
+
+    // ---- 组装层位置桥 (group_position / save_group_position) ----
+
+    #[test]
+    fn group_position_read_write_roundtrip() {
+        let _guard = UserCfgGuard; // save_group_position 落盘 → Drop 清理 ./ui_layout.user.cfg
+        let s = svc("(panel \"飞行信息\" :x 0.0602 :y 0.1188)");
+        // 读: 归一化原值 (忽略大小写, 对齐视图 getGroupConfig 语义)
+        assert_eq!(s.group_position("飞行信息"), Some((0.0602, 0.1188)));
+        assert_eq!(s.group_position("FLIGHT 信息"), None); // 未命中 → None (host 居中兜底)
+        // 写: 归一化直写 + 回读一致 (落盘副作用同 save_window_position 测试先例)
+        assert!(s.save_group_position("飞行信息", 0.25, 0.75));
+        assert_eq!(s.group_position("飞行信息"), Some((0.25, 0.75)));
+        // 未命中写: false 不 panic (Java warn 分支)
+        assert!(!s.save_group_position("不存在", 0.1, 0.1));
+        // 与视图像素面一致性: 写归一化后 get_window_x 跟随 (同源字段)
+        s.set_screen_size(1920, 1080);
+        assert_eq!(s.get_overlay_settings("飞行信息").get_window_x(0), 480); // round(0.25*1920)
     }
 
     // ---- findGroupByTitle (大小写敏感) vs 视图 getGroupConfig (忽略大小写) ----

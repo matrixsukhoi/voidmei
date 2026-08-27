@@ -50,6 +50,17 @@ pub trait DialogHooks {
     fn restore_overlays(&mut self) {}
 }
 
+/// 位置存档后端 — Java overlay 持 OverlaySettings(loadPosition/saveWindowPosition)
+/// 直读写 GroupConfig.x/y; Rust 配置树 !Send 不能进 win32 线程, host 经此 trait
+/// 解耦: 组装层注入"快照 + 回传"实现 (vm-app ChannelPositionStore), 测试注入 mock。
+/// 坐标恒归一化 (0..1) — 与 host 内存档同量纲; id→配置 section 的映射归组装层。
+pub trait PositionStore {
+    /// 读初始位置 (Java loadPosition: gc.x/y; None = 无组配置 → host 居中兜底)
+    fn load(&mut self, id: &str) -> Option<(f64, f64)>;
+    /// 写拖拽/销毁存档 (Java saveCurrentPosition → saveWindowPosition + 落盘)
+    fn store(&mut self, id: &str, x: f64, y: f64);
+}
+
 /// Java Application.previewColor = (0,0,0,10): 预览模式极淡黑底 (同 window.rs, 便于看清范围)
 const PREVIEW_BG: [u8; 4] = [0x00, 0x00, 0x00, 0x0A];
 
@@ -131,9 +142,11 @@ pub struct OverlayHost {
     dialog_hooks: Box<dyn DialogHooks>,
     /// Java AtomicInteger pendingDialogs
     pending_dialogs: i32,
-    /// 位置存档 (归一化屏幕坐标; Java saveCurrentPosition → OverlaySettings 的 POC 内存版,
-    /// 持久化归配置层接入后接管)
+    /// 会话内存档 (归一化屏幕坐标; 同会话拖拽/销毁存档, 优先于 position_store —
+    /// Java 同进程内 gc 内存值即最新)。跨进程持久化经 [`PositionStore`] 后端
     saved_positions: HashMap<String, (f64, f64)>,
+    /// 位置存档后端 (Java OverlaySettings 的 GroupConfig.x/y; None = 纯内存档)
+    position_store: Option<Box<dyn PositionStore>>,
     /// Java volatile boolean overlaysHidden (AlwaysOnTopCoordinator.java:38) —
     /// 游戏失焦隐藏标志。Java 需 volatile 因 FocusMonitor 在 Service 线程调用;
     /// Rust 侧 host 为单线程独占 (&mut self), 服务线程经消息送主循环调用, 普通 bool 即可
@@ -165,6 +178,7 @@ impl OverlayHost {
             dialog_hooks: Box::new(NoopDialogHooks),
             pending_dialogs: 0,
             saved_positions: HashMap::new(),
+            position_store: None,
             overlays_hidden: false,
             stop: Arc::new(AtomicBool::new(false)),
         }
@@ -186,6 +200,12 @@ impl OverlayHost {
     /// 注入 dialog 协调钩子 (PORT: Java AlwaysOnTopCoordinator 挂起/恢复; 空实现合法)
     pub fn with_dialog_hooks(&mut self, hooks: Box<dyn DialogHooks>) -> &mut Self {
         self.dialog_hooks = hooks;
+        self
+    }
+
+    /// 注入位置存档后端 (Java overlay 的 OverlaySettings 位置面; 缺省纯内存档)
+    pub fn with_position_store(&mut self, store: Box<dyn PositionStore>) -> &mut Self {
+        self.position_store = Some(store);
         self
     }
 
@@ -284,8 +304,11 @@ impl OverlayHost {
         let (wx, wy) = slot.window.position();
         let (sw, sh) = slot.window.screen_size();
         if sw > 0 && sh > 0 {
-            self.saved_positions
-                .insert(id.to_string(), (wx as f64 / sw as f64, wy as f64 / sh as f64));
+            let n = (wx as f64 / sw as f64, wy as f64 / sh as f64);
+            self.saved_positions.insert(id.to_string(), n);
+            if let Some(store) = self.position_store.as_mut() {
+                store.store(id, n.0, n.1);
+            }
         }
         // ③ 锁外: 销毁窗口 (drop = DestroyWindow; Java Window.dispose → 子类 dispose →
         //    unregisterOverlay 注销链由 Drop 天然完成, 顺序见 Drop 实现体)
@@ -370,8 +393,17 @@ impl OverlayHost {
             click_through: !preview,
         };
         let mut window = (self.factory)(cfg)?;
-        // 初始位置: 会话存档 (归一化 → 物理像素, Java loadPosition) → 屏幕居中
-        match self.saved_positions.get(&id).copied() {
+        // 初始位置 (Java loadPosition 优先级): 会话内存档 → 配置后端 (GroupConfig.x/y)
+        // → 屏幕居中 (Java gc=null 兜底)。后端命中填入内存档: 后续同会话不再查,
+        // 且拖拽存档双写时内存/后端天然一致
+        let initial = self.saved_positions.get(&id).copied().or_else(|| {
+            let pos = self.position_store.as_mut().and_then(|s| s.load(&id));
+            if let Some(p) = pos {
+                self.saved_positions.insert(id.clone(), p);
+            }
+            pos
+        });
+        match initial {
             Some((nx, ny)) => {
                 let (sw, sh) = window.screen_size();
                 // PORT: Java (int) Math.round = floor(x+0.5) (ConfigurationService.java:433);
@@ -565,7 +597,12 @@ impl OverlayHost {
             }
         }
         for (id, nx, ny) in position_saves {
-            self.saved_positions.insert(id, (nx, ny));
+            self.saved_positions.insert(id.clone(), (nx, ny));
+            // 拖拽松手即落盘 (Java DraggableOverlay mouseReleased → saveWindowPosition
+            // + saveLayoutConfig — 持久化不等销毁)
+            if let Some(store) = self.position_store.as_mut() {
+                store.store(&id, nx, ny);
+            }
         }
         for id in &closed {
             self.close(id);
@@ -703,6 +740,8 @@ mod tests {
     /// mock 工厂句柄: 按创建序给窗口编号 (win0/win1/...), 各窗口独立事件通道
     struct MockHandle {
         log: Rc<RefCell<Vec<String>>>,
+        // 测试通道嵌套 (共享日志 + 每窗口事件队列), 类型别名反而绕
+        #[allow(clippy::type_complexity)]
         channels: Rc<RefCell<Vec<Rc<RefCell<VecDeque<OverlayEvent>>>>>>,
         counter: Rc<Cell<usize>>,
         fail: Rc<Cell<bool>>,
@@ -1267,6 +1306,106 @@ mod tests {
         assert!(host.is_stop_requested());
         host.request_stop(); // 本体直调同效
         assert!(host.is_stop_requested());
+    }
+
+    // ---- PositionStore 后端 (配置位置桥) ----
+
+    /// 记录型后端句柄 (Rc 共享, host 持实现、测试持句柄读记录)
+    #[derive(Clone, Default)]
+    struct StoreHandle {
+        loads: Rc<RefCell<Vec<String>>>,
+        saves: Rc<RefCell<Vec<(String, f64, f64)>>>,
+    }
+
+    struct RecordingStore {
+        h: StoreHandle,
+        map: HashMap<String, (f64, f64)>,
+    }
+
+    impl PositionStore for RecordingStore {
+        fn load(&mut self, id: &str) -> Option<(f64, f64)> {
+            self.h.loads.borrow_mut().push(id.to_string());
+            self.map.get(id).copied()
+        }
+        fn store(&mut self, id: &str, x: f64, y: f64) {
+            self.h.saves.borrow_mut().push((id.to_string(), x, y));
+            self.map.insert(id.to_string(), (x, y));
+        }
+    }
+
+    fn store_with(map: &[(&str, f64, f64)]) -> (Box<RecordingStore>, StoreHandle) {
+        let h = StoreHandle::default();
+        let mut s = RecordingStore { h: h.clone(), map: HashMap::new() };
+        for (id, x, y) in map {
+            s.map.insert(id.to_string(), (*x, *y));
+        }
+        (Box::new(s), h)
+    }
+
+    /// 后端位置作为初始位置 (Java loadPosition: gc.x/y × 屏幕; round(0.25*1920)=480)
+    #[test]
+    fn open_uses_position_store_when_no_memory_archive() {
+        let mock = MockHandle::new();
+        let mut host = OverlayHost::with_factory(mock.factory());
+        let (store, _h) = store_with(&[("a", 0.25, 0.5)]);
+        host.with_position_store(store);
+        host.register(spec("a", 300, 200, [255, 0, 0, 255]));
+        host.refresh_preview().unwrap();
+        // round(0.25*1920)=480, round(0.5*1080)=540 — 不再居中 (810,440)
+        assert!(mock.log().contains(&"win0:set_position:480,540".to_string()));
+        assert_eq!(host.saved_position("a"), Some((0.25, 0.5))); // 后端命中填内存档
+    }
+
+    /// 会话内存档优先于后端 (同会话拖拽后, 后端快照是旧值; 且不再触发 load)
+    #[test]
+    fn memory_archive_takes_priority_over_store() {
+        let mock = MockHandle::new();
+        let mut host = OverlayHost::with_factory(mock.factory());
+        let (store, h) = store_with(&[("a", 0.9, 0.9)]);
+        host.with_position_store(store);
+        host.register(spec("a", 300, 200, [255, 0, 0, 255]));
+        // 预置内存档 (模拟本会话已拖拽; 子模块直摸私有字段): round(0.1*1920)=192
+        host.saved_positions.insert("a".to_string(), (0.1, 0.2));
+        host.refresh_preview().unwrap();
+        assert!(mock.log().contains(&"win0:set_position:192,216".to_string()));
+        assert!(h.loads.borrow().is_empty(), "内存档命中不应查后端");
+    }
+
+    /// 拖拽松手双写: 内存档 + 后端 (Java mouseReleased → saveWindowPosition 落盘)
+    #[test]
+    fn drag_release_persists_to_store() {
+        let mock = MockHandle::new();
+        let mut host = OverlayHost::with_factory(mock.factory());
+        let (store, h) = store_with(&[]);
+        host.with_position_store(store);
+        host.register(spec("a", 300, 200, [255, 0, 0, 255]));
+        host.refresh_preview().unwrap(); // 居中 (810,440)
+        mock.push(0, OverlayEvent::MousePress { root_x: 860, root_y: 480 });
+        mock.push(0, OverlayEvent::MouseMove { root_x: 900, root_y: 520, left_down: true });
+        mock.push(0, OverlayEvent::MouseRelease);
+        host.pump_events();
+        let saves = h.saves.borrow();
+        assert_eq!(saves.len(), 1);
+        assert_eq!(saves[0].0, "a");
+        assert!((saves[0].1 - 850.0 / 1920.0).abs() < 1e-9);
+        assert!((saves[0].2 - 480.0 / 1080.0).abs() < 1e-9);
+    }
+
+    /// 销毁链双写: close 存档也进后端 (Java close → saveCurrentPosition)
+    #[test]
+    fn close_persists_to_store() {
+        let mock = MockHandle::new();
+        let mut host = OverlayHost::with_factory(mock.factory());
+        let (store, h) = store_with(&[]);
+        host.with_position_store(store);
+        host.register(spec("a", 300, 200, [255, 0, 0, 255]));
+        host.refresh_preview().unwrap(); // 居中 (810,440)
+        host.close("a");
+        let saves = h.saves.borrow();
+        assert_eq!(saves.len(), 1);
+        assert_eq!(saves[0].0, "a");
+        assert!((saves[0].1 - 810.0 / 1920.0).abs() < 1e-9);
+        assert!((saves[0].2 - 440.0 / 1080.0).abs() < 1e-9);
     }
 }
 

@@ -298,7 +298,7 @@ unsafe fn tray_dispatch(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) ->
         }
         WM_COMMAND => {
             // 菜单选择: LOWORD(wParam) = 菜单项 id; 未知 id 交默认处理不吞消息
-            if on_menu_command((wparam.0 & 0xFFFF) as usize) {
+            if on_menu_command(wparam.0 & 0xFFFF) {
                 LRESULT(0)
             } else {
                 DefWindowProcW(hwnd, msg, wparam, lparam)

@@ -178,7 +178,7 @@ pub fn run(
                         }
                     }
                 }
-                OverlayEvent::MouseRelease { .. } => {
+                OverlayEvent::MouseRelease => {
                     if drag.take().is_some() {
                         // 保存归一化位置 (同 Java saveCurrentPosition)
                         let (wx, wy) = win.position();

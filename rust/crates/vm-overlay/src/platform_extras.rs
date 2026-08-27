@@ -726,11 +726,11 @@ mod tests {
         b.extend_from_slice(&channels.to_le_bytes());
         b.extend_from_slice(&sample_rate.to_le_bytes());
         b.extend_from_slice(&byte_rate.to_le_bytes());
-        b.extend_from_slice(&((channels * bits / 8) as u16).to_le_bytes()); // block align
+        b.extend_from_slice(&(channels * bits / 8).to_le_bytes()); // block align
         b.extend_from_slice(&bits.to_le_bytes());
         b.extend_from_slice(b"data");
         b.extend_from_slice(&(data as u32).to_le_bytes());
-        b.extend(std::iter::repeat(0u8).take(data)); // 静音
+        b.extend(std::iter::repeat_n(0u8, data)); // 静音
         b
     }
 
@@ -764,7 +764,7 @@ mod tests {
         b.extend_from_slice(&8u16.to_le_bytes()); // bits
         b.extend_from_slice(b"data");
         b.extend_from_slice(&1600u32.to_le_bytes());
-        b.extend(std::iter::repeat(0u8).take(1600));
+        b.extend(std::iter::repeat_n(0u8, 1600));
         let d = parse_wav_duration(&b).expect("含额外块的 WAV 应解析");
         assert!((d - 0.2).abs() < 1e-9, "got {}", d);
     }
@@ -790,7 +790,7 @@ mod tests {
         no_fmt.extend_from_slice(b"WAVE");
         no_fmt.extend_from_slice(b"data");
         no_fmt.extend_from_slice(&8000u32.to_le_bytes());
-        no_fmt.extend(std::iter::repeat(0u8).take(8000));
+        no_fmt.extend(std::iter::repeat_n(0u8, 8000));
         assert!(parse_wav_duration(&no_fmt).is_err());
     }
 

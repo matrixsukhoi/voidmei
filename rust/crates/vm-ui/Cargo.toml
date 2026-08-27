@@ -26,3 +26,6 @@ vm-core = { workspace = true }
 iced_graphics = "0.13"
 # 字形覆盖断言: fontdb with_face_data 回调给原始字节, 需自行解析 Face
 ttf-parser = { workspace = true }
+
+[lints]
+workspace = true

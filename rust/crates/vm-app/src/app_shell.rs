@@ -231,6 +231,10 @@ pub enum MainEvent {
     },
     /// 托盘动作
     Tray(TrayCommand),
+    /// overlay 位置存档 (win32 线程拖拽松手/销毁链 → 主线程落盘)。
+    /// section = 配置组标题 (Java OverlaySettings 按 sectionName 查 GroupConfig),
+    /// 坐标归一化 (Java saveWindowPosition 的 gc.x/y 量纲)
+    PositionSaved { section: String, x: f64, y: f64 },
 }
 
 /// 分相监督循环 ([`AppShell::run_supervisor_phase`]) 的退出形态
@@ -299,6 +303,7 @@ pub struct ControllerShared {
 
 /// Controller 低频杂项字段 (Java Controller.java:122-134/196)
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct ControllerFlags {
     /// `private boolean showStatus` (loadFromConfig 同步; StatusBar 未移植, 仅保位)
     pub show_status: bool,
@@ -308,16 +313,6 @@ pub struct ControllerFlags {
     pub current_fm_hotkey_code: i32,
 }
 
-impl Default for ControllerFlags {
-    fn default() -> Self {
-        // Java 字段声明默认值 (§2.10): false / null / 0
-        ControllerFlags {
-            show_status: false,
-            session_aircraft_type: None,
-            current_fm_hotkey_code: 0,
-        }
-    }
-}
 
 impl ControllerShared {
     pub fn new() -> Self {
@@ -1618,6 +1613,17 @@ impl AppShell {
             .ok_or_else(|| "hotkey 接收端已移交".to_string())?;
         let controller = self.controller.as_ref().ok_or("controller 未构造")?;
         let inputs = OverlayInputs::build(&controller.config, &self.env, &self.shared);
+        // 初始位置快照 (Java overlay init 时 loadPosition 读 gc.x/y; 配置 !Send
+        // → 一次性快照进 win32 线程, 保存经 MainEvent::PositionSaved 回传落盘)
+        let position_snapshot: HashMap<String, (f64, f64)> = OVERLAY_SECTIONS
+            .iter()
+            .filter_map(|(id, section)| {
+                controller
+                    .config
+                    .group_position(section)
+                    .map(|p| (id.to_string(), p))
+            })
+            .collect();
         let cfg = Win32ThreadConfig {
             env: self.env.clone(),
             inputs,
@@ -1629,6 +1635,7 @@ impl AppShell {
             ui_cmd_rx,
             hotkey_rx,
             main_event_tx: self.main_event_tx.clone(),
+            position_snapshot,
         };
         let join = std::thread::Builder::new()
             .name("win32-pump".to_string())
@@ -1672,6 +1679,14 @@ impl AppShell {
     /// 监督事件处理 (Controller 订阅转发 + 托盘动作的落地点; 主线程)
     pub fn handle_main_event(&mut self, ev: MainEvent) {
         match ev {
+            // overlay 位置存档落盘 (win32 线程拖拽松手/销毁链回传; Java
+            // DraggableOverlay.saveCurrentPosition → saveWindowPosition +
+            // saveLayoutConfig — 归一化直写, 免像素往返)
+            MainEvent::PositionSaved { section, x, y } => {
+                if let Some(c) = self.controller.as_ref() {
+                    c.config.save_group_position(&section, x, y);
+                }
+            }
             // Java configChangedHandler (Controller.java:498-544)
             MainEvent::ConfigChanged(key) => {
                 let is_reset_completed = key == ui_state_events::ACTION_RESET_COMPLETED;
@@ -1892,6 +1907,9 @@ pub struct Win32ThreadConfig {
     pub ui_cmd_rx: Receiver<UiCommand>,
     pub hotkey_rx: Receiver<HotkeyEvent>,
     pub main_event_tx: Sender<MainEvent>,
+    /// overlay 初始位置快照 (id → 归一化; 主线程 spawn 前从 GroupConfig.x/y 取,
+    /// win32 线程不能碰 !Send 配置树 — 见 ChannelPositionStore 头注)
+    pub position_snapshot: HashMap<String, (f64, f64)>,
 }
 
 /// win32 线程内注册的 overlay 数据句柄 (Rc — 恒留本线程)。
@@ -1981,6 +1999,47 @@ const MINIHUD_INTEREST_KEYS: [&str; 13] = [
     "alwaysShowRadarAltitude",
     "showHUD",
 ];
+
+/// 窗口 overlay id → 配置组标题 (Java Controller 各 init 的 getOverlaySettings
+/// 字面量, Controller.java:656-714; MiniHUD 经 getHUDSettings → sectionName
+/// "MiniHUD", ConfigurationService.java:569)。位置持久化按此映射读写
+/// GroupConfig.x/y; 测试 overlay_sections_hit_ui_layout_cfg 以 cfg 为源核对。
+/// (flightInfoSwitch 走 window.rs 专径无 host 条目, 不列; enableVoiceWarn/
+/// enableFMPrint/thrustdFS 非窗口条目同不列)
+const OVERLAY_SECTIONS: [(&str, &str); 6] = [
+    ("enableEngineControl", "引擎控制"),
+    ("engineInfoSwitch", "动力信息"),
+    ("crosshairSwitch", "MiniHUD"),
+    ("enableAxis", "舵面值"),
+    ("enableAttitudeIndicator", "地平仪"),
+    ("enablegearAndFlaps", "起落襟翼"),
+];
+
+/// 位置存档后端 (win32 线程侧): 启动快照直读 + 保存经 MainEvent 回传主线程落盘。
+/// PORT(线程桥): Java overlay 直接持 OverlaySettings (EDT 单世界); Rust 配置树
+/// !Send 不能进 win32 线程, 位置面拆成 读=启动快照 (位置仅拖拽改变, 而拖拽存档
+/// 双写快照, 快照不滞后) 写=回传 (PositionSaved → save_group_position 落盘,
+/// 对齐 Java saveWindowPosition 即时 saveLayoutConfig)。
+struct ChannelPositionStore {
+    snapshot: HashMap<String, (f64, f64)>,
+    tx: Sender<MainEvent>,
+}
+
+impl vm_overlay::host::PositionStore for ChannelPositionStore {
+    fn load(&mut self, id: &str) -> Option<(f64, f64)> {
+        self.snapshot.get(id).copied()
+    }
+    fn store(&mut self, id: &str, x: f64, y: f64) {
+        self.snapshot.insert(id.to_string(), (x, y));
+        if let Some((_, section)) = OVERLAY_SECTIONS.iter().find(|(sid, _)| *sid == id) {
+            let _ = self.tx.send(MainEvent::PositionSaved {
+                section: section.to_string(),
+                x,
+                y,
+            });
+        }
+    }
+}
 
 /// Java Controller.registerGameModeOverlays (651-753) 的 win32 侧一次性注册。
 /// PORT(偏差备案): Java 每 Controller 重建 OverlayManager + 重注册; Rust host 跨
@@ -2298,10 +2357,16 @@ pub fn win32_thread_main(cfg: Win32ThreadConfig) {
         ui_cmd_rx,
         hotkey_rx,
         main_event_tx,
+        position_snapshot,
     } = cfg;
 
     // ---- host 构建 + 激活探测 (Java new OverlayManager + ActivationStrategy) ----
     let mut host = OverlayHost::new();
+    // 位置存档后端 (Java overlay 的 OverlaySettings 位置面; 快照读 + 回传写)
+    host.with_position_store(Box::new(ChannelPositionStore {
+        snapshot: position_snapshot,
+        tx: main_event_tx.clone(),
+    }));
     let ctx = HostActivationCtx {
         activation: Arc::clone(&activation),
         fm: Arc::clone(&fm),
@@ -2428,7 +2493,7 @@ pub fn win32_thread_main(cfg: Win32ThreadConfig) {
                         let _ = tx.send(ev.get_payload().clone());
                     });
                     // 旧订阅 (如有) 显式 drop = unregister; 槽位持新订阅保活
-                    drop(std::mem::replace(&mut flight_sub, Some(sub)));
+                    drop(flight_sub.replace(sub));
                 }
                 UiCommand::CloseAllOverlays => {
                     // 会话窗口形态回预览态 (审查 blocker 收口): Java closeAll → 实例
@@ -3790,6 +3855,33 @@ mod tests {
             assert!(
                 keys.iter().any(|k| k.starts_with(p)),
                 "MiniHUD 兴趣键 {p} 应命中 ui_layout.cfg 的 :target 键 (前缀匹配)"
+            );
+        }
+    }
+
+    /// 位置映射 ↔ ui_layout.cfg panel 标题核对: OVERLAY_SECTIONS 的 section 查不到
+    /// GroupConfig → group_position 返回 None → 该 overlay 恒居中, 位置持久化静默失效
+    #[test]
+    fn overlay_sections_hit_ui_layout_cfg() {
+        let cfg_path =
+            locate_template_cfg().expect("仓库模板 ui_layout.cfg 应可达 (上溯三级)");
+        let text = std::fs::read_to_string(&cfg_path).unwrap();
+        // 顶层 panel 标题集 (行首 `(panel "标题"`; GroupConfig.x/y 挂在顶层标题上)
+        let mut titles: Vec<&str> = Vec::new();
+        for line in text.lines() {
+            let t = line.trim_start();
+            if let Some(rest) = t.strip_prefix("(panel \"") {
+                if let Some(end) = rest.find('"') {
+                    titles.push(&rest[..end]);
+                }
+            }
+        }
+        assert!(titles.len() >= 6, "cfg 顶层 panel 数量自检 (实得 {})", titles.len());
+        for (id, section) in OVERLAY_SECTIONS {
+            assert!(
+                titles.contains(&section),
+                "overlay {id} 的 section {section} 不在 ui_layout.cfg 顶层 panel 标题中 — \
+                 位置读写将永远落空"
             );
         }
     }

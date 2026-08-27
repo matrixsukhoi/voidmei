@@ -111,6 +111,8 @@ pub fn draw_fields(
 }
 
 /// Java TextGauge.drawTextShaded: (+1,+1) 阴影先画, 本体后画
+// PORT(allow too_many_arguments): 签名对齐 Java drawTextShaded 原参列表
+#[allow(clippy::too_many_arguments)]
 fn draw_shaded(
     canvas: &mut Canvas,
     font: &LoadedFont,

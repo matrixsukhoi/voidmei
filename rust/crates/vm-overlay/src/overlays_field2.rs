@@ -751,9 +751,9 @@ pub fn control_surfaces_overlay_spec(
             render: Box::new(move |cv: &mut PixCanvas| {
                 // 生产 AA 恒开 (Application.java:102 graphAASetting 默认 ON)
                 let fonts = CsFonts {
-                    num: &*f_num,
-                    label: &*f_label,
-                    unit: &*f_unit,
+                    num: &f_num,
+                    label: &f_label,
+                    unit: &f_unit,
                 };
                 render_handle.borrow().draw(cv, &fonts, true);
             }),

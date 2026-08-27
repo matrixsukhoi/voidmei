@@ -237,6 +237,18 @@ Java 同款算法同样如此——对拍动态帧时需两边同等预热。
 5. numHeight 类 FontMetrics 校准闭环依赖 Java meta (Windows 实测 31)
 6. 注册面: 游戏模式默认启用 6 overlay 逐窗验收; 其余 overlay 注册键随 ui_layout.cfg
    开关动态生效 (e2e 断言默认集)
+7. MainForm 字体: 平台系统中文字体单字体覆盖 (Win "Microsoft YaHei UI" /
+   Linux "Noto Sans CJK SC" / macOS "PingFang SC", `vm-ui lib.rs
+   PLATFORM_CJK_FONT`); Java 为 Segoe UI + 逻辑字体系统回退, 拉丁字形有近似差异。
+   背景: iced 0.13 文本默认 Shaping::Basic 无字体回退, 未显式指定 CJK 字体时
+   中文全部 tofu (人工验收发现, 已修复并加 fontdb 命中+字形覆盖测试)
+8. overlay 位置持久化: Java overlay 持 OverlaySettings 直接读写 GroupConfig.x/y
+   (归一化, 按组标题索引); Rust 配置树 !Send 不能进 win32 线程 → PositionStore
+   trait 桥 (host.rs) + 组装层 ChannelPositionStore 快照读/回传写
+   (MainEvent::PositionSaved → save_group_position 落盘)。人工验收发现预览
+   恒居中 (原为 POC 内存版无持久化), 已修复: 启动读 cfg/user.cfg 位置 → 拖拽
+   松手/关闭即时落盘 (对齐 Java saveWindowPosition 语义)。FlightInfo 走
+   window.rs 专径无 host 条目, 位置桥不覆盖 (POC 形态遗留)
 
 ## 11.5 人工验收清单 (移交用户)
 

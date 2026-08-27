@@ -192,6 +192,8 @@ impl Canvas {
         }
     }
 
+    // PORT(allow needless_range_loop): RGB 通道下标直写对齐 Java2D 逐通道合成公式
+    #[allow(clippy::needless_range_loop)]
     fn blit_glyph(&mut self, g: &CachedGlyph, pen_x: i32, baseline: i32, color: [u8; 4]) {
         let gx = pen_x + g.x;
         // swash 0.2 的 placement.top 是字形顶相对基线的高度(正值向上), 与常见

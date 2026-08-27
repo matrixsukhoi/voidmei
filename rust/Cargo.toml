@@ -32,3 +32,12 @@ windows = { version = "0.62", features = [
 opt-level = 3
 lto = true
 strip = true
+
+# workspace 级 lint 豁免 (clippy 1.97 新 lint 对存量迁移代码的误伤; 各 crate
+# [lints] workspace = true 生效)
+[workspace.lints.clippy]
+# 中文 //! 模块注释是技术注非 markdown 文档, 无序列表续行判定恒误报
+doc_lazy_continuation = "allow"
+# Java 构造器直译的测试惯用形 (new X() 逐字段赋值 → Default 后赋值),
+# 字面量改写无语义收益
+field_reassign_with_default = "allow"

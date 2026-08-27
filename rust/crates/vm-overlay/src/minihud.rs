@@ -1391,6 +1391,9 @@ impl MiniHudOverlay {
     }
 
     /// Java updateLegacyComponents(HUDData) (L470-496)
+    // PORT(allow eq_op): lenN = N/0.5 系列统一公式在 N=0.5 时字面为 0.5/0.5
+    // (Java HUDManeuverRow 调用点原样), 保真保留字面结构
+    #[allow(clippy::eq_op)]
     fn update_legacy_components(&mut self, data: &HUDData) {
         // Row 0, 1, 2 are refactored (Akb, Energy, Mechanization). They use
         // onDataUpdate. (Java 注释原文)

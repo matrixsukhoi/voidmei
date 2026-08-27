@@ -98,6 +98,9 @@ fn desktop_main(debug: bool) -> i32 {
 
     // AppShell 主线程持有; hooks 闭包经 Arc<Mutex> 共享 (AppShell 含 !Send 的
     // 配置树, iced State 仅要求 'static — 恒留主线程, 跨线程不发生)
+    // PORT(allow arc_with_non_send_sync): 同 configuration_service.rs 先例 —
+    // Arc 复刻 Java this 引用共享, 不为 lint 改 Rc (相位循环生命周期等价)
+    #[allow(clippy::arc_with_non_send_sync)]
     let shell = Arc::new(Mutex::new(shell));
 
     // Java Controller(true) 的自启动分支 (autoStartGameMode=true): 不构造 MainForm,

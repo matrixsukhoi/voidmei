@@ -60,7 +60,7 @@ pub fn view_row<'a>(
     };
     Row::with_children(vec![
         text(row.label.clone()).width(Length::Fill).into(),
-        field.into(),
+        field,
     ])
     .spacing(8)
     .into()
