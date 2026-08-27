@@ -13,6 +13,8 @@
   python script/build.py exe                launch4j 打 VoidMei.exe (版本号注入 EXE 资源)
   python script/build.py dist               jar+exe 后组装完整分发包 -> dist/VoidMei_v*.zip
   python script/build.py fmdata             从 War Thunder 客户端解包并裁剪 FM 数据 (游戏版本更新后执行)
+  python script/build.py web                D9 前端构建 (pnpm → rust/crates/vm-webui/web/dist)
+  python script/build.py rust               D9 Rust 构建链 (web 前端 + cargo release → voidmei.exe)
   python script/build.py clean              清理 bin/ build/ dist/
 
 环境变量:
@@ -615,6 +617,41 @@ def cmd_clean():
     log("已清理 bin/ build/ dist/")
 
 
+def _find_pnpm():
+    """pnpm 探测: PATH > corepack (Node 自带; corepack 按 web/package.json 的
+    packageManager 字段自动钉版本, 与 CI 一致)。"""
+    p = shutil.which("pnpm")
+    if p:
+        return [p]
+    if shutil.which("corepack"):
+        return ["corepack", "pnpm"]
+    err("未找到 pnpm/corepack (D9 web 前端构建需要 Node 工具链, 见 rust/README.md)")
+    raise SystemExit(1)
+
+
+def cmd_web():
+    """D9 前端构建: pnpm install + build → web/dist (cargo 编译期被 generate_context! 嵌入)。"""
+    web_dir = ROOT / "rust" / "crates" / "vm-webui" / "web"
+    pnpm = _find_pnpm()
+    lock = web_dir / "pnpm-lock.yaml"
+    install = pnpm + (["install", "--frozen-lockfile"] if lock.exists() else ["install"])
+    run(install, cwd=str(web_dir))
+    run(pnpm + ["build"], cwd=str(web_dir))
+    log("前端 dist 构建完成 (rust/crates/vm-webui/web/dist)")
+
+
+def cmd_rust():
+    """D9 Rust 构建链: 前端 dist → cargo release (voidmei.exe 含 web 壳 + 外部 manifest)。"""
+    cmd_web()
+    cargo = shutil.which("cargo")
+    if not cargo:
+        err("未找到 cargo (Rust 工具链, 见 rust/README.md)")
+        raise SystemExit(1)
+    run([cargo, "build", "--release"], cwd=str(ROOT / "rust"))
+    exe = ROOT / "rust" / "target" / "release" / "voidmei.exe"
+    log("Rust 构建完成: %s" % exe)
+
+
 def main():
     import argparse
     parser = argparse.ArgumentParser(prog="build.py", description="VoidMei 统一构建脚本")
@@ -627,6 +664,8 @@ def main():
     sub.add_parser("exe", help="launch4j 打 VoidMei.exe")
     sub.add_parser("dist", help="组装完整分发包")
     sub.add_parser("fmdata", help="解包并裁剪 FM 数据")
+    sub.add_parser("web", help="D9 前端构建 (pnpm → web/dist)")
+    sub.add_parser("rust", help="D9 Rust 构建链 (web + cargo release)")
     sub.add_parser("clean", help="清理构建产物")
     args = parser.parse_args()
 
@@ -644,6 +683,10 @@ def main():
         cmd_dist()
     elif args.cmd == "fmdata":
         cmd_fmdata()
+    elif args.cmd == "web":
+        cmd_web()
+    elif args.cmd == "rust":
+        cmd_rust()
     elif args.cmd == "clean":
         cmd_clean()
 

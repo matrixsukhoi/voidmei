@@ -173,13 +173,3 @@ fn apply_real_service_chain_updates_row_value() {
     assert_eq!(config.get_config("fontWarn").unwrap(), "255, 36, 0, 128");
     let _ = std::fs::remove_file(&p);
 }
-
-// ---- 视图构建冒烟 (无 panic 即结构成立) ----
-#[test]
-fn view_row_builds() {
-    let row = color_row(Some("fontNum"), Some("#FFFFFFFF"));
-    let ctx = MapCtx::default();
-    let _el = view_row(&row, &ctx, "面板");
-    let row2 = color_row(None, Some("#FFFFFFFF"));
-    let _el2 = view_row(&row2, &ctx, "面板");
-}

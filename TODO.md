@@ -18,5 +18,6 @@
 [18:22:21.452] [ConfigurationService] ACTION: ConfigurationService: Saving to ./ui_layout.user.cfg
 - gamemode或许应该改名叫做别的名字
 - 白盒测试默认跑在9222上
-- engine info 和 engine control 的动力量, 功率等等是0
+- 语音“试听”按钮是占位(语音子系统未装配，与 UI 解耦)；openComparison/openPowerCurve 弹“阶段④”提示——这两项属后续阶段
+- 
 

@@ -1,0 +1,4 @@
+# pnpm 11 设置文件: 构建脚本许可从此处读取 (package.json 的 pnpm 字段已废弃)。
+# esbuild: vite 的 postinstall 需装平台二进制, 显式批准 (供应链审计点)。
+allowBuilds:
+  esbuild: true

@@ -1,5 +1,8 @@
-//! SwitchRowRenderer / SwitchInvRowRenderer 的 iced 语义复刻
+//! SwitchRowRenderer / SwitchInvRowRenderer 的写回链语义复刻
 //! (src/ui/layout/renderer/SwitchRowRenderer.java + SwitchInvRowRenderer.java)。
+//!
+//! **D9 变更**: 原 iced view_row 已删 (渲染归 vm-webui web 壳), 本模块仅存
+//! 读链 (read_display) + 写链 (apply)。
 //!
 //! 交互语义保真:
 //! - SWITCH: 显示值 = readBool(PropertyBinder 组字段 → ConfigurationService → 默认);
@@ -8,17 +11,13 @@
 //!   写回 = 显示值取反落库 + row.value 存显示值 (Java L33-38)。
 //!
 //! PORT: Java 的 gpuCompatibilityMode 特例 (SwitchRowRenderer.java:19,28-59, 经
-//! GPUCompatibilityHelper 存独立文件 + 重启对话框) 不迁移 — 该类在 D7 弃译清单
-//! (iced 软件渲染本身即 GPU 兼容路线, 无 AWT 预启动约束)。
+//! GPUCompatibilityHelper 存独立文件 + 重启对话框) 不迁移 — 该类在 D7 弃译清单。
 
-use iced::widget::{checkbox, Row};
-use iced::Element;
 use vm_core::config_loader::{ConfigValue, GroupConfig, RowConfig};
 use vm_core::renderer_config_helper;
 use vm_core::row_renderer_registry::RenderContext;
 
 use super::{find_row_path, row_by_path, row_by_path_mut};
-use crate::main_form::Message;
 
 /// 显示值 (对位 Java render 期的 currentVal):
 /// - SWITCH: RendererConfigHelper.readBool 优先级 PropertyBinder → 服务 → row.getBool()
@@ -66,32 +65,6 @@ pub fn apply(panel: &mut GroupConfig, key: &str, display_val: bool, ctx: &dyn Re
         }
     }
     ctx.on_save();
-}
-
-/// 复选框行视图。消息键: :target 优先; 无 :target 以 label 为键 (Java 闭包
-/// prop=null 仍写 row.value + onSave — [`apply`] 的 write_bool(None) 回落分支承接;
-/// property/label 双空残端 → 纯展示)。
-pub fn view_row<'a>(
-    row: &'a RowConfig,
-    panel: &'a GroupConfig,
-    ctx: &dyn RenderContext,
-    panel_title: &'a str,
-) -> Element<'a, Message> {
-    let current = read_display(row, panel, ctx);
-    let key = row
-        .property
-        .clone()
-        .or_else(|| (!row.label.is_empty()).then(|| row.label.clone()));
-    let cb = match key {
-        Some(key) => {
-            let p = panel_title.to_string();
-            checkbox(row.label.clone(), current)
-                .on_toggle(move |v| Message::Toggle { panel: p.clone(), key: key.clone(), value: v })
-        }
-        None => checkbox(row.label.clone(), current),
-    };
-    // Java createSwitchItem: [label ... switch]; iced checkbox 自带标签, 包 Row 留位对齐
-    Row::with_children(vec![cb.into()]).spacing(8).into()
 }
 
 #[cfg(test)]

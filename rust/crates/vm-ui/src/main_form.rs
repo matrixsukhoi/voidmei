@@ -1,10 +1,15 @@
-//! MainForm 的 iced 语义复刻 (src/ui/MainForm.java + src/ui/layout/DynamicDataPage.java)。
+//! MainForm 的表单数据层 (src/ui/MainForm.java + src/ui/layout/DynamicDataPage.java)。
+//!
+//! **D9 变更**: 设置窗换 Tauri 2 web 壳 (vm-webui) — 原 iced view 段 (view/
+//! panel_section/build_rows/grid_section + ReadContext) 已删, 表单渲染归 web 壳;
+//! 本模块仅存数据层 (Message/MainFormState/update/persist 写回链/run_headless)。
+//! 下述 Elm/view 布局描述为 D1 历史备案。
 //!
 //! C 类语义复刻 (非机械翻译): Swing/WebLaF 无 Rust 对应物, 以 Elm 架构对位 —
 //! - Java MainForm 的 WebTabbedPane 每 panel 一页 → 本 view 顺序平铺各 panel 区块
 //!   (滚动列); tab 切换/窗口尺寸自适应属窗口管理层, 后续批次。
-//! - Java DynamicDataPage.buildContainer 的 (group ...) 卡片/网格 → [`build_rows`]
-//!   的组标题 + 列数分块 (数据驱动, 不写死任何面板)。
+//! - Java DynamicDataPage.buildContainer 的 (group ...) 卡片/网格 → 原 build_rows
+//!   的组标题 + 列数分块 (数据驱动, 不写死任何面板; view 已删, 布局归 web 壳)。
 //! - WYSIWYG 更新链 (对齐 Java MainForm→UIStateBus→Controller.refreshPreviews):
 //!   值变更 → config.set_config (服务树更新 + 服务侧内联 publish CONFIG_CHANGED(key),
 //!   对位 Java ConfigurationService.setConfig) → 保存链 persist_and_notify 落盘 +
@@ -28,18 +33,15 @@ use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-use iced::widget::{button, column, container, scrollable, text, Column, Row};
-use iced::{Element, Length};
 use vm_core::bus::EventBus;
 use vm_core::config_api::ConfigProvider;
 use vm_core::config_loader::{save_config as save_layout_file, GroupConfig, RowConfig};
 use vm_core::configuration_service::{ConfigurationService, UiStateEvent};
 use vm_core::event::ui_state_events;
-use vm_core::lang::Lang;
 use vm_core::logger;
 use vm_core::row_renderer_registry::RenderContext;
 
-use crate::renderers::{self, combo};
+use crate::renderers;
 
 // =====================================================================
 // 消息
@@ -94,7 +96,8 @@ pub struct MainFormState {
     persist_path: Option<String>,
     /// 挂起确认动作 (确认模态态; Some = 模态显示中 — Java JOptionPane 模态期)
     pending_action: Option<String>,
-    /// 下拉选项缓存 (view 每帧调用, _CROSSHAIRS_ 磁盘源只解析一次; 单 UI 线程)
+    /// 下拉选项缓存 (D9: view 删除后缓存归数据层持有 — _CROSSHAIRS_ 磁盘源只解析
+    /// 一次; _FONTS_ 依赖当前值不缓存。vm-webui GetComboOptions 经 dispatcher 调用)
     combo_cache: RefCell<HashMap<String, Vec<String>>>,
     /// 挂起编辑 (clone-split 待收敛): 渲染器写入快照但未进服务树的量 —
     /// (a) PropertyBinder 组字段写 (fontSize/fontName/…); (b) 无 :target 行的
@@ -103,8 +106,6 @@ pub struct MainFormState {
     pending_panel_fields: Vec<(String, PanelField)>,
     /// 无 :target 行 (panel 标题, label) 的 row.value 挂起
     pending_row_values: Vec<(String, String)>,
-    /// i18n 快照 (Java Lang 静态字段; init_lang 读盘, 构造期一次)
-    lang: Lang,
 }
 
 impl MainFormState {
@@ -124,7 +125,6 @@ impl MainFormState {
             combo_cache: RefCell::new(HashMap::new()),
             pending_panel_fields: Vec::new(),
             pending_row_values: Vec::new(),
-            lang: Lang::init_lang(),
         }
     }
 
@@ -178,15 +178,21 @@ impl MainFormState {
         self.config.get_config(key).unwrap_or_default()
     }
 
+    /// panel 树快照只读访问 (D9: vm-webui dto 序列化用)
+    pub fn groups(&self) -> &[GroupConfig] {
+        &self.groups
+    }
+
     /// 下拉选项解析 (带缓存): _FONTS_ 依赖当前值不缓存, 其余按 source 缓存一次
-    fn options_of(&self, source: &str, current: &str) -> Vec<String> {
+    /// (D9: view 删除后由数据层承接, vm-webui GetComboOptions 经 dispatcher 调用)
+    pub fn options_for(&self, source: &str, current: &str) -> Vec<String> {
         if source == "_FONTS_" {
-            return combo::resolve_options(source, current);
+            return renderers::combo::resolve_options(source, current);
         }
         self.combo_cache
             .borrow_mut()
             .entry(source.to_string())
-            .or_insert_with(|| combo::resolve_options(source, current))
+            .or_insert_with(|| renderers::combo::resolve_options(source, current))
             .clone()
     }
 }
@@ -194,49 +200,6 @@ impl MainFormState {
 // =====================================================================
 // RenderContext 实现 (Java DynamicDataPage.java:126-175 匿名类)
 // =====================================================================
-
-/// 读侧上下文 (view 用, 纯函数只读)。
-/// PORT: sync_*/on_* 为写路径契约方法, view 侧不可达 — 空实现保留 trait 完整性
-/// (写路径走 [`WriteContext`])。
-pub(crate) struct ReadContext<'a> {
-    config: &'a ConfigurationService,
-}
-
-impl<'a> ReadContext<'a> {
-    pub(crate) fn new(config: &'a ConfigurationService) -> Self {
-        ReadContext { config }
-    }
-}
-
-impl RenderContext for ReadContext<'_> {
-    fn on_save(&self) {}
-    fn on_rebuild(&self) {}
-    fn is_updating(&self) -> bool {
-        // Java isUpdatingControls 仅 rebuild 期置位抑制 Swing 监听反馈环;
-        // Elm 视图纯函数无此环
-        false
-    }
-    fn sync_to_config_service(&self, _key: &str, _value: bool) {}
-    fn get_from_config_service(&self, key: &str, default_val: bool) -> bool {
-        // Java L155-161: getConfig; 空 → 默认; Boolean.parseBoolean (= equalsIgnoreCase("true"))
-        let val = self.config.get_config(key).unwrap_or_default();
-        if val.is_empty() {
-            default_val
-        } else {
-            val.eq_ignore_ascii_case("true")
-        }
-    }
-    fn sync_string_to_config_service(&self, _key: &str, _value: &str) {}
-    fn get_string_from_config_service(&self, key: &str, default_val: &str) -> String {
-        // Java L169-174: getConfig; 空 → 默认
-        let val = self.config.get_config(key).unwrap_or_default();
-        if val.is_empty() {
-            default_val.to_string()
-        } else {
-            val
-        }
-    }
-}
 
 /// 写侧上下文 (update 用): on_save/on_rebuild 以标志位暂存, 由 [`with_panel`] 统一
 /// flush (对位 Java 回调直调 save()/rebuild(); Elm 下写路径在 update, 无重入面)。
@@ -274,7 +237,9 @@ impl RenderContext for WriteContext<'_> {
         self.rebuild_requested.set(true); // Java: rebuild() (L133-137)
     }
     fn is_updating(&self) -> bool {
-        false // 同 ReadContext 注
+        // Java isUpdatingControls 仅 rebuild 期置位抑制 Swing 监听反馈环;
+        // 本数据层无视图反馈环 (D9 后渲染归 web 壳), 恒 false
+        false
     }
     fn sync_to_config_service(&self, key: &str, value: bool) {
         // Java L143-152: setConfig(key, Boolean.toString(value)) + enableFMPrint 特例
@@ -314,7 +279,8 @@ impl RenderContext for WriteContext<'_> {
 // update (WYSIWYG 更新链)
 // =====================================================================
 
-/// iced update 函数 (D1: 具名函数, 闭包触发高阶生命周期推断失败)。
+/// 表单消息驱动的状态更新 (D1 期为 iced update; D9 后由 web 壳经 vm-app
+/// dispatcher 投递同一消息集, 链路不变)。
 pub fn update(state: &mut MainFormState, message: Message) {
     match message {
         Message::Toggle { panel, key, value } => {
@@ -451,8 +417,9 @@ fn with_panel(
         }
     }
 
-    // flush: on_save → 保存链; on_rebuild → iced 声明式视图每帧自重建 (组列数变更
-    // 即时生效), Java rebuild 的"取最新配置树"目的由 persist 的服务树为基承担
+    // flush: on_save → 保存链; on_rebuild → D1 期为 iced 声明式视图每帧自重建,
+    // D9 后视图刷新归 web 壳 (CONFIG_CHANGED 广播面), Java rebuild 的"取最新配置
+    // 树"目的由 persist 的服务树为基承担
     // (先取标志再落保存链 — ctx 与 &mut state 的借用分界)
     let save = ctx.take_save();
     let rebuild = ctx.take_rebuild();
@@ -460,7 +427,7 @@ fn with_panel(
         persist_and_notify(state);
     }
     if rebuild {
-        logger::info("ComboDebug", "rebuild() called — iced 声明式视图即时生效");
+        logger::info("ComboDebug", "rebuild() called — 视图刷新归 web 壳 (D9)");
     }
 }
 
@@ -702,155 +669,6 @@ fn label_row_mut<'a>(rows: &'a mut [RowConfig], label: &str) -> Option<&'a mut R
 }
 
 // =====================================================================
-// view (数据驱动, 不写死面板)
-// =====================================================================
-
-/// iced view 函数 (D1: 具名函数)。
-pub fn view(state: &MainFormState) -> Element<'_, Message> {
-    let options_of = |src: &str, cur: &str| state.options_of(src, cur);
-    let ctx = ReadContext::new(&state.config);
-
-    let mut panels = Column::new().spacing(12);
-    if state.groups.is_empty() {
-        // Java MainForm.java:155-157: dynamicConfigs 空 → "Data (Empty)" 占位页
-        panels = panels.push(text("Data (Empty)"));
-    }
-    for g in &state.groups {
-        panels = panels.push(panel_section(g, &ctx, &options_of));
-    }
-
-    // Java MainForm 底部按钮组 (createbuttonGroup L80-105 / createLBGroup L109-135);
-    // 预览开关 (startPreview/stopPreview) 合并为"刷新预览"广播触发
-    let actions = Row::with_children(vec![
-        button("保存").on_press(Message::Save).into(),
-        button(state.lang.m_start).on_press(Message::StartGame).into(),
-        button(state.lang.m_cancel).on_press(Message::EndGame).into(),
-        button("刷新预览").on_press(Message::RefreshPreviews).into(),
-    ])
-    .spacing(8);
-
-    // Java 标题: appName + " v" + version (版本号注入属组装层, 批十三)
-    let title = format!("{} 设置", state.lang.app_name);
-
-    // 确认模态 (pending_action 挂起期): Java JOptionPane 模态对话框等价 —
-    // 模态期主面板不可交互 (替换式呈现, 语义同阻塞)
-    if let Some(action) = state.pending_action.as_deref() {
-        let desc = match action {
-            "factoryReset" => "将把全部配置恢复为出厂默认, 当前配置会先备份。",
-            "resetConfig" => "将把全部配置项重置为默认值。",
-            _ => "确认执行?",
-        };
-        let buttons = Row::new()
-            .spacing(8)
-            .push(button("确定").on_press(Message::ConfirmPending))
-            .push(button("取消").on_press(Message::CancelPending));
-        return Column::with_children(vec![
-            text(title).size(16).into(),
-            text(format!("确认{desc}")).size(14).into(),
-            buttons.into(),
-        ])
-        .spacing(12)
-        .padding(20)
-        .into();
-    }
-
-    Column::with_children(vec![
-        text(title).size(16).into(),
-        actions.into(),
-        scrollable(panels).height(Length::Fill).into(),
-    ])
-    .spacing(8)
-    .padding(10)
-    .into()
-}
-
-/// 一个 panel 区块 (Java: WebTabbedPane 一页 = DynamicDataPage)。
-fn panel_section<'a>(
-    group: &'a GroupConfig,
-    ctx: &dyn RenderContext,
-    options_of: &dyn Fn(&str, &str) -> Vec<String>,
-) -> Element<'a, Message> {
-    // Java rebuildSimple L123: pCols = panelColumns > 0 ? panelColumns : 2
-    let p_cols = if group.panel_columns > 0 { group.panel_columns } else { 2 };
-    let body = build_rows(&group.rows, group, p_cols, ctx, &group.title, options_of);
-    container(
-        Column::with_children(vec![
-            text(group.title.clone()).size(18).into(), // Java tab 标题
-            body.into(),
-        ])
-        .spacing(8),
-    )
-    .padding(10)
-    .into()
-}
-
-/// 行树 → 列 (Java DynamicDataPage.buildContainer L184-243):
-/// HEADER 行 = 组标题 + 子项递归 (列数 = :column > 0 ? :column : 父默认列数, L207);
-/// 松散项按默认列数分块入网格。
-fn build_rows<'a>(
-    rows: &'a [RowConfig],
-    panel: &'a GroupConfig,
-    default_cols: i32,
-    ctx: &dyn RenderContext,
-    panel_title: &'a str,
-    options_of: &dyn Fn(&str, &str) -> Vec<String>,
-) -> Column<'a, Message> {
-    let mut col = Column::new().spacing(6);
-    let mut items: Vec<Element<'a, Message>> = Vec::new();
-    for r in rows {
-        if r.r#type == "HEADER" {
-            if !items.is_empty() {
-                let grid = grid_section(std::mem::take(&mut items), default_cols);
-                col = col.push(grid);
-            }
-            // Java createContainer(label) 卡片标题
-            col = col.push(text(r.label.clone()).size(15));
-            let cols = if r.group_columns > 0 { r.group_columns } else { default_cols };
-            col = col.push(build_rows(&r.children, panel, cols, ctx, panel_title, options_of));
-        } else {
-            // Java: RowRendererRegistry.get(rowType).render(row, groupConfig, ctx)
-            items.push(renderers::view_row(r, panel, ctx, panel_title, options_of));
-        }
-    }
-    if !items.is_empty() {
-        let grid = grid_section(items, default_cols);
-        col = col.push(grid);
-    }
-    col
-}
-
-/// 网格分块 (Java ResponsiveGridLayout(cols, hgap=10, vgap=5) 的 iced 近位:
-/// 行内横向间距 = hgap 10, 行间纵向间距 = vgap 5 — 构造参数序 (cols, hgap, vgap))。
-fn grid_section(items: Vec<Element<'_, Message>>, cols: i32) -> Element<'_, Message> {
-    let cols = cols.max(1) as usize;
-    let mut lines: Vec<Element<'_, Message>> = Vec::new();
-    let mut cur: Vec<Element<'_, Message>> = Vec::new();
-    for el in items {
-        if cur.len() == cols {
-            let line = Row::with_children(
-                std::mem::take(&mut cur)
-                    .into_iter()
-                    .map(|e| container(e).width(Length::Fill).into())
-                    .collect::<Vec<_>>(),
-            )
-            .spacing(10);
-            lines.push(line.into());
-        }
-        cur.push(el);
-    }
-    if !cur.is_empty() {
-        let line = Row::with_children(
-            cur.into_iter()
-                .map(|e| container(e).width(Length::Fill).into())
-                .collect::<Vec<_>>(),
-        )
-        .spacing(10);
-        lines.push(line.into());
-    }
-    column(lines).spacing(5).into()
-}
-
-// =====================================================================
 // --headless 状态机驱动 (无窗口, 读真实 ui_layout.cfg)
 // =====================================================================
 
@@ -868,9 +686,13 @@ pub fn locate_template_cfg() -> Option<&'static str> {
         .find(|p| std::path::Path::new(p).exists())
 }
 
-/// 无窗口状态机测试: 构建真实表单 → 驱动四类渲染器写回消息 → 断言 WYSIWYG 链路。
+/// 无窗口状态机测试: 构建真实表单 → 驱动固定 Message 序列 → 断言 WYSIWYG 链路。
 /// 返回进程退出码 (0 = 全部通过)。
-pub fn run_headless() -> i32 {
+///
+/// `persist_path` (CLI `--persist <path>`): 固定序列落盘到指定路径 — D9 换框架
+/// 验收工具 (相同序列在新旧 UI 层各跑一次 → ui_layout.user.cfg 逐字节 diff=0)。
+/// None = 不落盘 (原纯链路断言形态)。
+pub fn run_headless(persist_path: Option<String>) -> i32 {
     let Some(cfg_path) = locate_template_cfg() else {
         eprintln!("vm-ui: --headless 未找到 ui_layout.cfg (候选: ./ ../ ../../ ../../../)");
         return 2;
@@ -884,7 +706,13 @@ pub fn run_headless() -> i32 {
 
     let config = ConfigurationService::new(Some(Arc::clone(&bus)));
     config.load_layout(cfg_path);
-    let mut state = MainFormState::new(config, Arc::clone(&bus), None);
+    if persist_path.is_some() {
+        println!(
+            "vm-ui: --persist 基线模式, 固定序列将落盘至 {}",
+            persist_path.as_deref().unwrap_or_default()
+        );
+    }
+    let mut state = MainFormState::new(config, Arc::clone(&bus), persist_path);
     println!(
         "vm-ui: --headless 表单构建成功: {} panels / {} rows (源: {cfg_path})",
         state.panel_count(),

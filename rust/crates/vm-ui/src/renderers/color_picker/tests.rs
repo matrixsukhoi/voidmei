@@ -62,12 +62,3 @@ fn hsb_round_trip_exact() {
         assert_eq!(hsb_to_rgb(rgb_to_hsb(rgb)), rgb, "往返失配: {rgb:?}");
     }
 }
-
-// 视图构建冒烟 (含 alpha=0 边缘色)
-#[test]
-fn view_picker_builds() {
-    let st = PickerState::new([232, 147, 50, 128]);
-    let _el = view_picker(&st, "面板", "fontWarn");
-    let st2 = PickerState::new([0, 0, 0, 0]);
-    let _el2 = view_picker(&st2, "面板", "fontWarn");
-}

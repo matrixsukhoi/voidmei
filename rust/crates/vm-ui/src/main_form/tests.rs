@@ -361,21 +361,6 @@ fn write_context_fmprint_special_publishes() {
     );
 }
 
-// ReadContext: 空配置串回落默认值 (Java L169-174 守卫)
-#[test]
-fn read_context_empty_falls_back_to_default() {
-    let p = tmp_path("readctx");
-    std::fs::write(&p, r#"(panel "p" (item "s" :type switch :target "absent" :value true))"#).unwrap();
-    let bus = Arc::new(EventBus::new());
-    let config = ConfigurationService::new(Some(bus));
-    config.load_layout(&p);
-
-    let ctx = ReadContext::new(&config);
-    // "missing_key" 不属任何行 :target (注意 "absent" 恰是上方 cfg 的键)
-    assert_eq!(ctx.get_string_from_config_service("missing_key", "默认"), "默认");
-    assert!(ctx.get_from_config_service("missing_key", true));
-    assert!(!ctx.get_from_config_service("missing_key", false));
-}
 /// 动作按钮执行链 (审查轮 2-D 接线): ButtonAction 挂模态 → ConfirmPending
 /// 执行 reset + 整树收敛。
 /// reset 链操作 config_manager 全局路径 (CWD 相对) → tmp 沙箱 + 专用锁

@@ -1,17 +1,19 @@
-//! RowRenderer 族的 iced 语义复刻分发层 (对应 src/ui/layout/renderer/ + RowRendererRegistry.java)。
+//! RowRenderer 族的**写回链 + 纯数据层** (对应 src/ui/layout/renderer/ + RowRendererRegistry.java)。
 //!
-//! Java: DynamicDataPage.buildContainer (DynamicDataPage.java:184-243) 按 row.type 经
-//! RowRendererRegistry.get 取策略渲染器; 本层按同键集合分发到各渲染器模块
-//! (SWITCH/SWITCH_INV/SLIDER/COMBO/COLOR/BUTTON/DATA/TEXT/INPUT 九键 + COLOR 弹层
-//! color_picker)。
-//! PORT: 已注册未落地的渲染器 (HOTKEY/VOICE/FILELIST/FMLIST/VOICE_GLOBAL/INFO) 走
-//! [`fallback_row`] 只读占位 (Java 各有专属渲染器, 语义面见其 <clinit> 注册表;
-//! 热键/语音/文件列表依赖系统钩子与音频子系统, 批十三接线)。**未知类型**走
-//! data::view_row 交互开关 — 对位 Java defaultRenderer=DataRowRenderer 的完整语义
-//! (DataRowRenderer.java:25-31: WebSwitch 点击即 syncStringToConfigService + onSave,
-//! 非只读)。
+//! **D9 变更**: 原 iced view 分发层 (view_row/fallback_row 及各渲染器 view_row) 已删
+//! — 表单渲染归 vm-webui web 壳。本层保留:
+//! - 各类型 apply 写回链 (`switch::apply`/`slider::apply`/`combo::apply`/`color::apply`,
+//!   对位 Java renderer 闭包体的配置写路径);
+//! - 纯数据函数 (`combo::resolve_options`/`slider::effective_range`/`color` 解析与
+//!   格式化/`color_picker` HSB↔RGB 数学);
+//! - 行定位助手 (find_row_path/row_by_path, main_form 消息定位在用)。
+//!
+//! Java 各渲染器的读链 (read_display/read_current) 一并保留 — web 壳回显当前值
+//! 需要与 Java 同优先级的取值链 (PropertyBinder → 服务 → 行值)。
+//! PORT: 已注册未落地的渲染器 (HOTKEY/VOICE/FILELIST/FMLIST/VOICE_GLOBAL/INFO) 的
+//! 专属交互依赖系统钩子与音频子系统; 未知类型对位 Java defaultRenderer=
+//! DataRowRenderer (点击写配置, 走 `data::read_display` 同键规则)。
 
-pub mod button;
 pub mod color;
 pub mod color_picker;
 pub mod combo;
@@ -20,74 +22,7 @@ pub mod slider;
 pub mod switch;
 pub mod text;
 
-use iced::widget::{text as text_widget, tooltip, Row};
-use iced::{Element, Length};
-use vm_core::config_loader::{GroupConfig, RowConfig};
-use vm_core::row_renderer_registry::RenderContext;
-
-use crate::main_form::Message;
-
-/// 渲染一行配置项为 iced 元素 (对位 Java renderer.render(row, groupConfig, ctx))。
-///
-/// @param row          行配置 (ui_layout.cfg 的 (item ...))
-/// @param panel        行所属 panel 的 GroupConfig (PropertyBinder 字段绑定目标,
-///                     Java buildContainer 传入的 groupConfig 即 panel 级)
-/// @param ctx          读侧上下文 (view 纯函数, 只读)
-/// @param panel_title  行所属 panel 标题 (消息定位, 对位 Java 闭包捕获)
-/// @param options_of   下拉选项解析器 (source, current) → options (含磁盘缓存, main_form 注入)
-pub fn view_row<'a>(
-    row: &'a RowConfig,
-    panel: &'a GroupConfig,
-    ctx: &dyn RenderContext,
-    panel_title: &'a str,
-    options_of: &dyn Fn(&str, &str) -> Vec<String>,
-) -> Element<'a, Message> {
-    let el: Element<'a, Message> = match row.r#type.as_str() {
-        // RowRendererRegistry.java <clinit> 的键集合 (TEXT/INPUT 为同渲染器别名, L25-26)
-        "SWITCH" | "SWITCH_INV" => switch::view_row(row, panel, ctx, panel_title),
-        "SLIDER" => slider::view_row(row, panel, ctx, panel_title),
-        "COMBO" => combo::view_row(row, panel, ctx, panel_title, options_of),
-        "COLOR" => color::view_row(row, ctx, panel_title),
-        "TEXT" | "INPUT" => text::view_row(row, panel, ctx, panel_title),
-        "DATA" => data::view_row(row, ctx, panel_title),
-        "BUTTON" => button::view_row(row),
-        // 已注册未落地的专属渲染器键 (Java 各有实现, 本批只读占位)
-        "INFO" | "VOICE" | "VOICE_GLOBAL" | "HOTKEY" | "FMLIST" | "FILELIST" => {
-            fallback_row(row, ctx)
-        }
-        // 未知类型 → Java getOrDefault 兜底 defaultRenderer=DataRowRenderer:
-        // 可交互开关, 点击写配置 (非只读, DataRowRenderer.java:25-31)
-        _ => data::view_row(row, ctx, panel_title),
-    };
-    match row.desc.as_deref() {
-        // :desc tooltip — Java ReplicaBuilder.createXxxItem(..., desc, descImg) 内建气泡;
-        // :desc-img 图片气泡不迁移 (无 AWT 图像加载, 需要时随图片资产批次补)
-        Some(d) if !d.is_empty() => {
-            tooltip(el, text_widget(d.to_string()), tooltip::Position::FollowCursor).into()
-        }
-        _ => el,
-    }
-}
-
-/// 已注册未落地类型的只读占位行: label + 当前配置值/静态值。
-/// PORT: 各类型的专属渲染器 (INFO 富文本超链接/热键捕获/语音选择…) 批十三;
-/// 未知类型不再走此占位 (改走 data::view_row, 见 view_row 分发注释)。
-fn fallback_row<'a>(row: &'a RowConfig, ctx: &dyn RenderContext) -> Element<'a, Message> {
-    let value = match row.property.as_deref() {
-        Some(p) => ctx.get_string_from_config_service(p, &row.get_str()),
-        None => row.get_str(),
-    };
-    if row.label.is_empty() {
-        text_widget(value).into()
-    } else {
-        Row::with_children(vec![
-            text_widget(row.label.clone()).width(Length::Fill).into(),
-            text_widget(value).into(),
-        ])
-        .spacing(8)
-        .into()
-    }
-}
+use vm_core::config_loader::RowConfig;
 
 // =====================================================================
 // 行定位助手 (消息 key → 行路径)
@@ -95,7 +30,7 @@ fn fallback_row<'a>(row: &'a RowConfig, ctx: &dyn RenderContext) -> Element<'a, 
 
 /// 在行树内按 :target (property) DFS 定位行, 返回索引路径; 无 property 的行以
 /// label 匹配 (与服务侧 update_rows_recursive 同一命中谓词 — 无 :target 控件以
-/// label 为消息键)。消息 key 来自行自身 (view 闭包捕获), 恒可命中。
+/// label 为消息键)。消息 key 来自行自身 (视图闭包捕获), 恒可命中。
 pub(crate) fn find_row_path(rows: &[RowConfig], key: &str) -> Option<Vec<usize>> {
     for (i, r) in rows.iter().enumerate() {
         if r.property.as_deref() == Some(key) || (r.property.is_none() && key == r.label) {

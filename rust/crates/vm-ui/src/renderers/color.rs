@@ -1,6 +1,9 @@
-//! ColorRowRenderer 的 iced 语义复刻 (src/ui/layout/renderer/ColorRowRenderer.java)
+//! ColorRowRenderer 的写回链语义复刻 (src/ui/layout/renderer/ColorRowRenderer.java)
 //! + ColorHelper 的解析/格式化移植 (src/prog/util/ColorHelper.java, vm-core 未译,
 //! 就近落地本文件供 color_picker 共用)。
+//!
+//! **D9 变更**: 原 iced view_row/swatch 已删 (渲染归 vm-webui web 壳), 本模块仅存
+//! ColorHelper 解析/格式化 + 读链 (read_current) + 写链 (apply)。
 //!
 //! ColorHelper 语义 (边缘行为经 Java 8 oracle 对拍, 2026-08-26, 用例值见 tests):
 //! - parse_color: hex (#RRGGBB / #RRGGBBAA) 与十进制 ("R, G, B[, A]") 双格式,
@@ -13,20 +16,14 @@
 //! - 写 (apply): 主键存十进制 (Java L124) + legacy 分键 keyR/G/B/A (Java L127-130,
 //!   全库无读取方, 保真写入) + row.value=十进制串 (L133) + onSave (L135)。
 //!
-//! PORT(提交时机分歧): Java hex 输入 Enter/失焦提交 (L55-63); iced 无失焦消息且
-//! 枚举冻结 → on_input 仅在解析出合法完整色串时发 ColorPicked (部分输入静默);
-//! on_submit 补 Enter 面 (提交 current = Java 非法输入回落 initialColor 的提交,
-//! L46-51)。失焦提交与逐键编辑的 draft 态留接线批。色块 (swatch) 点击弹层
-//! (ColorPickerPopup) 需接线层持有打开状态 (color_picker::PickerState), 本批色块
-//! 为纯展示。
+//! PORT(提交时机备案): Java hex 输入 Enter/失焦提交 (L55-63); D1 期 iced 无失焦
+//! 消息 → 仅在解析出合法完整色串时发 ColorPicked (部分输入静默)。D9 后提交时机
+//! 归 web 壳 (JS 输入框), Message::ColorPicked 消息形状不变。
 
-use iced::widget::{container, text, text_input, Container, Row, Space};
-use iced::{Border, Color, Element, Length};
 use vm_core::config_loader::{ConfigValue, GroupConfig, RowConfig};
 use vm_core::row_renderer_registry::RenderContext;
 
 use super::{find_row_path, row_by_path, row_by_path_mut};
-use crate::main_form::Message;
 
 /// Java Color.WHITE (ColorRowRenderer.java:35 解析回落的默认白)
 pub const WHITE: [u8; 4] = [255, 255, 255, 255];
@@ -166,70 +163,6 @@ pub fn apply(panel: &mut GroupConfig, key: &str, rgba: [u8; 4], ctx: &dyn Render
         .value = Some(ConfigValue::Str(unified));
     // Java L135: onSave
     ctx.on_save();
-}
-
-/// 颜色行视图: [label | hex 输入框 | 色块] (Java createColorField 布局)。
-pub fn view_row<'a>(
-    row: &'a RowConfig,
-    ctx: &dyn RenderContext,
-    panel_title: &'a str,
-) -> Element<'a, Message> {
-    let current = read_current(row, ctx);
-    let hex_display = to_hex_string(&current, true); // Java L38: hex 显示格式
-    // 消息键: :target 优先; 无 :target 以 label 为键 (Java null-key NPE 域折叠)
-    let key = row
-        .property
-        .clone()
-        .or_else(|| (!row.label.is_empty()).then(|| row.label.clone()));
-    let field: Element<'a, Message> = match key {
-        Some(key) => {
-            // Java L46-51 updateFromColor: Enter 提交 parseColor(text, initialColor) —
-            // 非法输入亦以 initialColor 走完整 apply (写配置+onSave+回填文本)。
-            // 无 draft 态下字段恒显 canonical: 合法输入已被 on_input 逐键提交
-            // (Enter 时 current=已解析值), 非法输入视图已回弹 → current=旧值,
-            // Enter 提交 current 即 Java 的 initialColor 语义
-            let submit = Message::ColorPicked {
-                panel: panel_title.to_string(),
-                key: key.clone(),
-                value: current,
-            };
-            text_input("", &hex_display)
-                // 合法完整色串才提交 (Java Enter/失焦提交的逐键近似, 见模块文档)
-                .on_input(move |s| match try_parse_color(&s) {
-                    Some(c) => Message::ColorPicked {
-                        panel: panel_title.to_string(),
-                        key: key.clone(),
-                        value: c,
-                    },
-                    None => Message::Ignore,
-                })
-                .on_submit(submit)
-                .into()
-        }
-        None => text_input("", &hex_display).into(), // 无 on_input → 禁用态
-    };
-    Row::with_children(vec![
-        text(row.label.clone()).width(Length::Fill).into(),
-        field,
-        swatch(current).into(),
-    ])
-    .spacing(8)
-    .into()
-}
-
-/// 色块 (Java getColorSwatch): 背景色 + 灰边框方块。
-/// 纯展示 — Java 点击打开弹层, 弹层状态归接线层 (color_picker.rs)。
-fn swatch(c: [u8; 4]) -> Container<'static, Message> {
-    container(Space::new(Length::Fixed(20.0), Length::Fixed(16.0)))
-        .style(move |_| container::Style {
-            background: Some(Color::from_rgba8(c[0], c[1], c[2], c[3] as f32 / 255.0).into()),
-            border: Border {
-                color: Color::from_rgba8(128, 128, 128, 1.0),
-                width: 1.0,
-                radius: 0.0.into(),
-            },
-            ..Default::default()
-        })
 }
 
 // =====================================================================

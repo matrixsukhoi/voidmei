@@ -124,3 +124,39 @@ jobs:
           # "Publish release" (或 gh release edit "$TAG" --draft=false) 转正
           gh release create "$TAG" dist/*.zip dist/*.sha256 \
             --draft --title "VoidMei v$VERSION" --notes-file build/release_body.md
+
+  # D9 Rust+web 壳核验构建 (Windows): tag/手动触发时产出 rust exe artifact 供测试,
+  # 不进发布 zip — 分发主体切换另立项 (Java zip 结构不变)
+  rust-webui:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node (pnpm)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 启用 pnpm (corepack, 版本由 web/package.json 的 packageManager 钉定)
+        run: corepack enable
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust 缓存
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+
+      - name: 构建 (web 前端 + cargo release)
+        run: python script/build.py rust
+
+      - name: 上传 rust 构建产物 (含 web 壳)
+        uses: actions/upload-artifact@v4
+        with:
+          name: VoidMei-rust-${{ github.ref_name || inputs.version || 'manual' }}
+          path: |
+            rust/target/release/voidmei.exe
+            rust/target/release/voidmei.exe.manifest
+          retention-days: 7

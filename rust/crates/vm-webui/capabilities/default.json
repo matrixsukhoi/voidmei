@@ -1,0 +1,7 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/schema.json",
+  "identifier": "default",
+  "description": "主窗口默认权限: 核心 API (事件 listen/emit) + 文件选择框 (importConfig); 自定义命令不受 capability 管",
+  "windows": ["main"],
+  "permissions": ["core:default", "dialog:default"]
+}

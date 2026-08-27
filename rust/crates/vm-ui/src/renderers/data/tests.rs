@@ -80,13 +80,3 @@ fn toggle_message_routes_data_on() {
     assert_eq!(state.service_string("getMach"), "true");
     assert!(state.snapshot_row("数据", "getMach").unwrap().get_bool());
 }
-
-// 视图构建冒烟 (键控/无键两形态)
-#[test]
-fn view_row_builds() {
-    let ctx = MapCtx::default();
-    let r1 = data_row(Some("getIAS"), Some(true));
-    let _el = view_row(&r1, &ctx, "数据");
-    let r2 = data_row(None, None);
-    let _el2 = view_row(&r2, &ctx, "数据");
-}

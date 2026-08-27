@@ -82,14 +82,3 @@ fn combo_message_unkeyed_row_writes_row_value_only() {
     assert_eq!(state.service_string("备注"), "新");
     let _ = std::fs::remove_file(&persist);
 }
-
-// 视图构建冒烟 (键控/无键两形态)
-#[test]
-fn view_row_builds() {
-    let panel = GroupConfig::new("p".into());
-    let ctx = MapCtx::default();
-    let r1 = text_row(Some("httpPort"), Some("8111"));
-    let _el = view_row(&r1, &panel, &ctx, "连接");
-    let r2 = text_row(None, Some("v"));
-    let _el2 = view_row(&r2, &panel, &ctx, "连接");
-}

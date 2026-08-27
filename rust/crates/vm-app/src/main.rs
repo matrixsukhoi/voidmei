@@ -11,13 +11,10 @@
 //!    → 主线程组装: rebuild_controller(true) (AppShell::new 内) + iced MainForm。
 //!    (checkUpdate 的更新检查未移植 — 网络面 P6 收口, TODO(port))
 //!
-//! 相位主循环 (D8 线程拓扑下的 MainForm 生命周期, 对位 Java EDT 常驻):
-//! - 相 A (窗口期): iced MainForm 消息循环阻塞主线程, 50ms Tick 泵驱动
-//!   `AppShell::pump` (vm-ui subscription — 见 vm-ui lib.rs 头注的执行器备案)。
-//!   出口: 开始游戏 (confirm → iced::exit) / 结束游戏 (mCancel → exit) /
-//!   窗口 X (Java setDefaultCloseOperation(3)=DISPOSE, 应用继续) / 托盘重建。
-//! - 相 B (监督期): `run_supervisor_phase` (Service 驱动状态机 + 托盘),
-//!   出口: 退出请求 / 托盘 Activate 请求弹设置窗 (回相 A)。
+//! 相位主循环 (D9 后为 web 壳单循环; 原 iced 相 A/B 已合并, 见 desktop_main 注):
+//! - 主线程: `shell.pump()` + `ShellForm::pump_once()` (tao 事件 + IPC) +
+//!   sleep(可见 10ms / 隐藏 50ms); 设置窗常驻隐藏预热, 每次 show 发布 UI_READY。
+//! - 无窗降级 (`run_supervisor_phase`) 与 `--game-mode`/`--mock-smoke` 形态保留。
 //!
 //! CLI:
 //! - `--game-mode`: 对齐 `autoStartGameMode=true` (e2e 用) — 跳过 MainForm,
@@ -30,20 +27,21 @@
 //!   (无 MainForm 冒烟; 9222 被占自动跳过 — 项目惯例, 不做假通过)。
 //! - `--debug`: Application.debug = true (Logger DEBUG 级)。
 
+use std::cell::RefCell;
 use std::path::PathBuf;
+use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use vm_app::{AppShell, SupervisorOutcome, UiCommand};
+use vm_app::{AppShell, SupervisorOutcome};
 
+use tauri::Emitter;
 use vm_core::bus::EventBus;
-use vm_core::config_manager;
-use vm_core::configuration_service::{ConfigurationService, UiStateEvent};
+use vm_core::configuration_service::UiStateEvent;
 use vm_core::event::ui_state_events;
 use vm_core::logger;
 
-use vm_ui::main_form::MainFormState;
-use vm_ui::MainFormHooks;
+mod form_dispatch;
 
 /// 冒烟默认时长 (任务验收单: 游戏模式跑 8 秒)
 const MOCK_SMOKE_RUN_MS: u64 = 8_000;
@@ -77,9 +75,19 @@ fn main() {
 }
 
 // =====================================================================
-// 默认路径: MainForm 相位主循环 (Java autoStartGameMode=false 默认)
+// 默认路径: Tauri web 壳单循环 (D9, 原 iced 相 A/B 合并; 常驻隐藏预热)
 // =====================================================================
 
+/// 单循环主形态 (D9 后):
+/// - 主线程 = `shell.pump()` (监督事件 + drive_from_live) + `form.pump_once()`
+///   (tao 事件 + IPC drain-dispatch) + sleep(可见 10ms / 隐藏 50ms);
+/// - 设置窗常驻隐藏: 启动即后台预热 WebView2 (首启 1-3s 与 FM-Detect 并行),
+///   前端就绪后首显 (对位原"启动即开窗"); 托盘 Activate → 核重建 → show;
+/// - **每次 show 发布 UI_READY** (对位原相 A 每次构造 MainForm 的
+///   on_ready → uiReadyHandler → Preview 链, rebuild 后新核必经此进 Preview);
+/// - 窗口 X 由 vm-webui on_window_event 拦截转 hide (对位 Java DISPOSE→托盘态);
+/// - 核状态进游戏 (Connected/InGame) 时收窗 (Java confirm 的 setVisible(false));
+/// - 壳不可用 (WebView2 缺失等) → 降级无窗阻塞监督 (托盘可退出)。
 fn desktop_main(debug: bool) -> i32 {
     let mut shell = match AppShell::new(debug, false) {
         Ok(s) => s,
@@ -89,29 +97,59 @@ fn desktop_main(debug: bool) -> i32 {
         }
     };
     // D8: win32 线程先行 (托盘 + overlay host + 热键泵)。预览模式全开语义 =
-    // UI_READY → Preview() → RefreshPreviews 命令由相 A 的 Tick 泵触发,
+    // UI_READY → Preview() → RefreshPreviews 命令由主循环泵触发,
     // 对齐 Java autoStartGameMode=false 默认 (MainForm 先行, 预览窗随后)
     if let Err(e) = shell.spawn_win32_thread() {
         logger::error("App", &format!("win32 线程启动失败: {e}"));
         return 1;
     }
-    // start/stop 的设置窗释放闭包: iced 窗口的生灭由相位循环统一管理,
-    // Controller 侧释放 = 记日志 (Java release 链的真窗面已由相位切换承担)
-    shell.release_main_form = Box::new(|| {
-        logger::info("AppShell", "释放设置窗 (相位循环已收口 iced 窗口)");
-    });
 
-    // AppShell 主线程持有; hooks 闭包经 Arc<Mutex> 共享 (AppShell 含 !Send 的
-    // 配置树, iced State 仅要求 'static — 恒留主线程, 跨线程不发生)
+    // UI_READY 发布句柄 (每次 show 发一次; 见函数头注)
+    let ui_bus = Arc::clone(&shell.ui_bus);
+
+    // 表单态 cell (D9 阶段②): dispatcher 与主循环共享 (Rc 单线程);
+    // 初始 = 与首个核同源 (对位原相 A 首次 build_form_state)
+    let form_cell: form_dispatch::FormCell = {
+        let init = form_dispatch::build_form_state(&shell);
+        Rc::new(RefCell::new(Some(init)))
+    };
+
+    // AppShell 主线程持有 (D8: 含 !Send 配置树恒留主线程 — 原 iced 相 A/B
+    // 形态下的 hooks 闭包共享点已随单循环消失, Arc 仅留 dispatcher 注入用)
     // PORT(allow arc_with_non_send_sync): 同 configuration_service.rs 先例 —
-    // Arc 复刻 Java this 引用共享, 不为 lint 改 Rc (相位循环生命周期等价)
+    // Arc 复刻 Java this 引用共享, 不为 lint 改 Rc
     #[allow(clippy::arc_with_non_send_sync)]
     let shell = Arc::new(Mutex::new(shell));
 
-    // Java Controller(true) 的自启动分支 (autoStartGameMode=true): 不构造 MainForm,
-    // 直接游戏模式 — 相 A 整体跳过 (UI_READY 只在 MainForm 首显发布, 游戏模式不该
-    // 被 Preview 翻转)。仅首迭代判定; 后续相 A 只能经托盘 Activate 进入 (重建核)
+    // Tauri 壳: 常驻隐藏, build 即后台预热 (不阻塞; 首显等 is_web_ready);
+    // dispatcher = 表单写链真实现 (数据面请求经 MainFormState/UiCommand)
+    let mut form = match vm_webui::ShellForm::new(form_dispatch::make_dispatcher(
+        &shell,
+        Rc::clone(&form_cell),
+    )) {
+        Ok(f) => Some(f),
+        Err(e) => {
+            logger::error("App", &format!("Web 设置壳不可用, 降级无窗监督: {e}"));
+            None
+        }
+    };
+    // 事件桥: CONFIG_CHANGED → 前端 config-changed (reset/import 后整树刷新);
+    // FM_CHANGED → fm-changed (MISSING/CORRUPT toast, 对位 NotificationService);
+    // Subscription RAII — 与主循环同生命周期
+    let fm_changed_bus = shell.lock().expect("AppShell 锁中毒").fm.fm_changed_bus();
+    let _bridge_sub = form.as_ref().map(|f| {
+        (
+            vm_webui::bridge::bridge_config_changed(f.app_handle(), &ui_bus),
+            vm_webui::bridge::bridge_fm_changed(f.app_handle(), &fm_changed_bus),
+        )
+    });
+
+    // Java Controller(true) 的自启动分支 (autoStartGameMode=true): 不显设置窗
+    // (UI_READY 不发布, 游戏模式不被 Preview 翻转)。仅 desktop 形态首迭代判定
     let mut first_iteration = true;
+    let mut initial_shown = false;
+    // StatusBar 面: 核状态变化 → 前端 controller-state (Init/Preview/Connected/InGame)
+    let mut last_state = String::new();
     loop {
         let auto_started = first_iteration
             && shell
@@ -120,111 +158,91 @@ fn desktop_main(debug: bool) -> i32 {
                 .controller
                 .as_ref()
                 .is_some_and(|c| c.service.is_some());
+        if auto_started {
+            initial_shown = true; // 自启动形态永不主动开窗
+        }
         first_iteration = false;
 
-        if !auto_started {
-            // ---- 相 A: iced MainForm (阻塞至关窗/退出) ----
-            let form = build_form_state(&shell);
-            let hooks = make_hooks(&shell);
-            match vm_ui::run_shell_form(form, hooks) {
-                Ok(()) => {}
-                Err(e) => {
-                    // 窗口不可开 (无显示/复跑失败): 降级监督模式 (Java 无窗 + 托盘继续)
-                    logger::error("App", &format!("MainForm 窗口异常退出, 转监督模式: {e}"));
-                }
+        // 壳不可用降级: 阻塞监督 (事件驱动响应快); 托盘请求设置窗时无窗可开,
+        // 核已重建, 记日志继续 (run_supervisor 形态同款)
+        let Some(form) = form.as_mut() else {
+            match shell.lock().expect("AppShell 锁中毒").run_supervisor_phase() {
+                SupervisorOutcome::Exit => break,
+                SupervisorOutcome::MainFormRequested => logger::info(
+                    "App",
+                    "托盘请求设置窗 — web 壳不可用, 已重建核继续监督",
+                ),
             }
+            continue;
+        };
+
+        let (exit, form_req, in_game, state_str) = {
+            let mut s = shell.lock().expect("AppShell 锁中毒");
+            s.pump();
+            // 游戏模式运行判定 (收窗面): Connected/InGame = start() 后的形态
+            let state = s.shared.state();
+            let in_game = matches!(
+                state,
+                vm_core::controller_state::ControllerState::Connected
+                    | vm_core::controller_state::ControllerState::InGame
+            );
+            (
+                s.is_exit_requested(),
+                s.take_form_request(),
+                in_game,
+                format!("{state:?}"),
+            )
+        };
+        // StatusBar: 核状态变化 → 前端 controller-state
+        if state_str != last_state {
+            last_state = state_str.clone();
+            // form 此处为 &mut ShellForm (as_mut 解构); 方法调用自动可变降级
+            let _ = form.app_handle().emit("controller-state", state_str);
         }
-        let mut s = shell.lock().expect("AppShell 锁中毒");
-        // 不变量 (审查 B-W5): 本 MutexGuard 跨整个相 B 的阻塞期持有。当前无竞争者
-        // — iced 已退 (hooks 随 iced State drop, 不再持 shell 锁), win32/Service
-        // 线程只经 channel 通信、从不 lock shell — 故安全。未来任何来自 win32/
-        // Service 线程的 shell 锁获取都会与整个监督相位串行化, 接线时须先破此形态。
-        if s.is_exit_requested() {
-            break; // EndGame (mCancel) / 托盘 Exit
+
+        if exit {
+            break; // EndGame (mCancel IPC, 阶段②接线) / 托盘 Exit
         }
-        if s.take_form_request() {
-            continue; // 相 A 期托盘 Activate → 核已重建, 直接重开窗
+
+        let visible = form.is_main_visible();
+        if form_req && !in_game {
+            // 托盘 Activate: 核已由 handle_main_event 重建 (rebuild_controller) —
+            // 表单态随之重建 (与核共享新 config 服务, 对位原相 A 重开窗的重新构造),
+            // show 幂等 (可能已可见) + UI_READY → 新核进 Preview
+            {
+                let s = shell.lock().expect("AppShell 锁中毒");
+                *form_cell.borrow_mut() = Some(form_dispatch::build_form_state(&s));
+            }
+            form.show();
+            initial_shown = true;
+            publish_ui_ready(&ui_bus);
+        } else if !visible && !in_game && !initial_shown && form.is_web_ready() {
+            // 首显: 预热就绪即开窗 (对位原"启动即开设置窗")
+            form.show();
+            initial_shown = true;
+            publish_ui_ready(&ui_bus);
+        } else if visible && in_game {
+            // 开始游戏 (托盘 Start / StartGame): 收窗, 对位 confirm 的 setVisible(false)
+            form.hide();
         }
-        // ---- 相 B: 监督循环 (开始游戏后的常驻态 / 窗口 X 后的托盘态) ----
-        match s.run_supervisor_phase() {
-            SupervisorOutcome::Exit => break,
-            SupervisorOutcome::MainFormRequested => continue, // 托盘弹设置 → 回相 A
-        }
+
+        form.pump_once();
+        // 泵率: 可见期 10ms (IPC 交互手感 — 滑条/选色实时回执), 隐藏期 50ms
+        // (监督节拍, 对位原 iced 50ms Tick)
+        let visible = form.is_main_visible();
+        std::thread::sleep(Duration::from_millis(if visible { 10 } else { 50 }));
     }
     shell.lock().expect("AppShell 锁中毒").shutdown();
     0
 }
 
-/// 相 A 的表单状态: 与当前核共享同一 ConfigurationService (Arc<ServiceInner> 克隆
-/// = Java tc.configService 单对象语义, clone-split 备案见 main_form.rs 头注)
-fn build_form_state(shell: &Arc<Mutex<AppShell>>) -> MainFormState {
-    let s = shell.lock().expect("AppShell 锁中毒");
-    let config = s
-        .controller
-        .as_ref()
-        .map(|c| c.config.clone())
-        .unwrap_or_else(|| ConfigurationService::new(Some(Arc::clone(&s.ui_bus))));
-    MainFormState::new(
-        config,
-        Arc::clone(&s.ui_bus),
-        Some(config_manager::get_user_config_path().to_string()),
-    )
-}
-
-/// shell 回调 (全部在 iced 主循环内调用):
-/// - on_ready: UI_READY 发布 (Java MainForm 首显 → uiReadyHandler → Preview)
-/// - on_start_game/on_end_game: MainForm.confirm/mCancel 的 tc 侧序列
-/// - on_tick: 50ms 泵; true = 托盘重建/退出请求 → iced::exit 切相位
-fn make_hooks(shell: &Arc<Mutex<AppShell>>) -> MainFormHooks {
-    let ready_bus = {
-        let s = shell.lock().expect("AppShell 锁中毒");
-        Arc::clone(&s.ui_bus)
-    };
-    let on_ready = {
-        let bus: Arc<EventBus<UiStateEvent>> = Arc::clone(&ready_bus);
-        Box::new(move || {
-            bus.publish(&UiStateEvent {
-                event_type: ui_state_events::UI_READY.to_string(),
-                source: "MainForm".to_string(),
-                data: String::new(),
-            });
-        })
-    };
-    let on_start_game = {
-        let s = Arc::clone(shell);
-        Box::new(move || {
-            if let Ok(mut s) = s.lock() {
-                s.dispatch(UiCommand::StartGame);
-            }
-        })
-    };
-    let on_end_game = {
-        let s = Arc::clone(shell);
-        Box::new(move || {
-            if let Ok(mut s) = s.lock() {
-                s.dispatch(UiCommand::EndGame);
-            }
-        })
-    };
-    let on_tick = {
-        let s = Arc::clone(shell);
-        Box::new(move || {
-            let mut close = false;
-            if let Ok(mut s) = s.lock() {
-                s.pump();
-                if s.is_exit_requested() || s.take_form_request() {
-                    close = true;
-                }
-            }
-            close
-        })
-    };
-    MainFormHooks {
-        on_ready,
-        on_start_game,
-        on_end_game,
-        on_tick,
-    }
+/// UI_READY 发布 (Java MainForm 首显 → uiReadyHandler → Preview 的触发面)
+fn publish_ui_ready(bus: &Arc<EventBus<UiStateEvent>>) {
+    bus.publish(&UiStateEvent {
+        event_type: ui_state_events::UI_READY.to_string(),
+        source: "MainForm".to_string(),
+        data: String::new(),
+    });
 }
 
 // =====================================================================
