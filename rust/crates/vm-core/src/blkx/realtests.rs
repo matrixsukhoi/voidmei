@@ -30,7 +30,7 @@
 /// grep 本文件内全部 TODO(port) (fuzz 腿1 getAllplotdata / 腿2 FMLoader) 逐个
 /// 销号, 否则 fuzz 覆盖永久半挂; [`getload_wired_follows_reader_todo`] canary
 /// 钉住 reader.rs 标注与本开关的一致性 (标注移除而开关未翻即判失败)。
-const GETLOAD_WIRED: bool = false;
+const GETLOAD_WIRED: bool = true;
 
 /// 项目内真机 FM 数据根 (cargo 测试 cwd 无关; data/ 缺失由各测试自行 return early,
 /// 对齐 build.py 跳过语义 — reader.rs real 先例)

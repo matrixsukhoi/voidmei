@@ -18,4 +18,5 @@
 [18:22:21.452] [ConfigurationService] ACTION: ConfigurationService: Saving to ./ui_layout.user.cfg
 - gamemode或许应该改名叫做别的名字
 - 白盒测试默认跑在9222上
+- engine info 和 engine control 的动力量, 功率等等是0
 

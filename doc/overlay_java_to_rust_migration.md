@@ -330,15 +330,36 @@ Java 同款算法同样如此——对拍动态帧时需两边同等预热。
     重建 `FlightDataEvent::new(payload, None, None)` 令 hud_calculator 的
     sState/sIndic 整块跳过 — 襟翼/油门/姿态/G/减速板全 0。修复: 喂数侧从 live
     guard 现值重打快照 (snapshot_state/snapshot_indicators 转 pub), 对位 Java
-    事件携带共享可变引用、EDT 时刻读最新值的时序语义。(b) **速度比值 bar 仍 0
-    (备案)**: speed_limit_ratio/stall_speed 等 5 字段的 Java 写入方法
-    (updateSpeedRatio L1185-1231 / updateStallSpeed L1236-1266) 未移植, 且其
-    输入 (vne/翼数据) 由 getload 填充 — 移植前算出 inf/NaN 假数据, 归 getload
-    L 批次; 襟翼允许角度同期走 125 缺省 (feed 侧 getload 禁令降级)。
-    (c) **白盒测试一律 9222** (用户指令): 真机在跑时 8111 上 bind 探测对战雷
+    事件携带共享可变引用、EDT 时刻读最新值的时序语义。
+    (b) **白盒测试一律 9222** (用户指令): 真机在跑时 8111 上 bind 探测对战雷
     0.0.0.0 通配监听假阴性 → mock 抢绑失败 + Service 误读游戏数据 (IAS 593≠474
     实测)。修复: connect 探测 + 全白盒面 (vm-data e2e / mock-smoke /
     rust_e2e.sh) 切 9222, 应用侧新增 `AppShell::new_with_port` + `--port` CLI。
+
+15. **getload 批次 (用户指令"必须迁移", 原 L 级备案收口)**:
+    (a) **Blkx.getload (Java L855-1590, ~735 行) 全量移植**进 reader.rs —
+    引擎数探测/喷气推力表/增压器 WAPC 族/vne 三级回退/舵面效率/重量族/面积
+    三级回退/极曲线 (getPartsFm)/sweepLevels 动态检测/安装角补偿/翼载/襟翼
+    破坏表 (含 1.25x 哨兵)/fmdata 摘要串 (java_format: %s/%d/%N.Mf/%%,
+    String.format 语义 = java_f 最短往返 HALF_UP, **非** FastNumberFormatter);
+    Java 源码自身的 bug 保真保留 (AFuselage 重复读两遍/Stab-KeelAngle 段误写
+    WingAngle)。构造器接线: parse/parse_named = doLoad=true (catch_unwind
+    收敛 panic → Err ↔ Java valid=false), 新增 parse_named_opts 显式三参形态
+    (FMLoader 中央文件 false)。**对拍**: 真机 spitfire_f24 逐字段位级一致
+    (vne/翼数据/WLL/RPM/增压器/襟翼表/过载转换), fmdata 41/42 行逐行一致
+    (唯一分歧 = version 段, 测试 CWD 读不到 data/aces/version 的环境差异);
+    realtests 的 GETLOAD_WIRED 哨兵翻 true — TestSpitfireF24Power/
+    TestTempestMk5Power 的功率曲线 oracle 断言全部激活并通过。
+    (b) **Service.updateSpeedRatio/updateStallSpeed (L1185-1231/L1236-1266)
+    移植**进 service_loop.rs calculate 尾部 — speed_limit_ratio 等 5 字段
+    (MiniHUD 速度比值 bar 数据源); mach 保持 Deriver 单写者 (同公式防漂移);
+    python f32 域 oracle 位级断言。
+    (c) **feed 侧 getload 禁令解除** (app_shell blkx 降级守卫删除) —
+    VNE/AoA 告警/flapAllowAngle 真实插值/机动指数全量走 FM 数据。
+    deferred: engLoad 会话态就地改写 (reset_eng_load 的 TODO, 需 handle 内部
+    可变性); transUnit/getAllplotdata/getplotdata (getAllplotdata 批次)。
+    终验: 1,269 测试全绿 / clippy 0 / mock-smoke 7 窗 PASS (日志见 getload
+    生产链真跑: "Parsed FM file ... (Engine Count: 1, Jet: false)")。
 
 ## 11.5 人工验收清单 (移交用户)
 

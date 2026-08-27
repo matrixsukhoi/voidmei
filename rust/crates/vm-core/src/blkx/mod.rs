@@ -4,21 +4,22 @@
 //!   D4: "Blx 聚合 struct" 的宿主; Rust 结构体字段不可跨文件拆分, 故字段区落此)【本波】
 //! - `model.rs` — getter/计算方法 (L523-631 的 findmax*/getVersion、L676-1660 的纯字段
 //!   计算面、L1978-2028 的 finalizeLoading/calculatePeakThrust/peakThrust)【本波】
-//! - `reader.rs` — 构造器解析逻辑 (L1665-1900) → `parse(path) -> Result<Blkx>`【后续波次, 占位】
+//! - `reader.rs` — 构造器 + 原语 + getload 全量装载 (L408-575/L817-1590/L1665-1906)
+//!   → `parse/parse_named/parse_named_opts -> Result<Blkx>`【getload 批次已译,
+//!   真机位级对拍; 余 transUnit/getAllplotdata/getplotdata 待 getAllplotdata 批次】
 //!
 //! PORT: 反射段 (getValue/dumpVariables/getVariableMap, L1908-2000) 按 D4 裁决
 //! **不迁移** (getVariableMap 唯一下游 FormulaEvaluator 归 C 类; FMPowerExtractor
 //! 直读字段; dumpVariables 是调试工具) — 具体标注职责落在 reader.rs 波次。
 //!
-//! PORT (方法波次边界): 以下方法依赖原始文本抽取原语 getone/cut/getArray/
-//! getlastone/getoneinData (L1728-1900, 归 reader.rs 波次), 本波不译、待 reader 波次
-//! 在 reader.rs 内以 `impl Blkx` 落地 (子模块可见本 struct 的全部字段):
-//! getPartsFm (L408) / extractRpmFromThrottleAuto (L431) / getEngineLoad (L477) /
-//! showEngineLoad (L496) / WritePartsFm (L502) / getdoubles (L523) / getdouble (L543) /
-//! getdouble_exc (L557) / initEngineLoad (L817) / getload (L855) / transUnit (L1590;
-//! 喂入 sub_st 的 PASSPORT.UNITSYSTEM 行值须保持 ASCII 域, §2.1, 见 model.rs
-//! sub_st 函数级注) / getAllplotdata (L1618) / getplotdata (L1627)。其中 getload 还依赖 Lang 格式串、
-//! Logger、Application.maxEngLoad、State.maxEngNum (跨文件, §6 只标注不越文件修)。
+//! PORT (方法波次边界): 依赖原始文本抽取原语 getone/cut/getArray/getlastone/
+//! getoneinData (L1728-1900, 归 reader.rs 波次) 的方法族已随 getload 批次在
+//! reader.rs 落地 (真机 spitfire 位级对拍): getPartsFm (L408) /
+//! extractRpmFromThrottleAuto (L431) / getEngineLoad (L477) / showEngineLoad (L496) /
+//! WritePartsFm (L502) / getdoubles (L523) / getdouble (L543) / getdouble_exc (L557) /
+//! initEngineLoad (L817) / getload (L855)。**仍未译**: transUnit (L1590; 喂入
+//! sub_st 的 PASSPORT.UNITSYSTEM 行值须保持 ASCII 域, §2.1, 见 model.rs sub_st
+//! 函数级注) / getAllplotdata (L1618) / getplotdata (L1627) — getAllplotdata 批次。
 //! interpolateSweepDouble (L718) 由 crate::interpolation::interp_sweep_level 承接
 //! (单一来源规约, 见 model.rs 函数级注)。
 //!
@@ -237,11 +238,8 @@ pub struct Blkx {
     pub mode_engine_mult: Option<[f64; 10]>,
     // 冲压系数
     pub speed_to_manifold_multiplier: f64,
-    #[allow(dead_code)] // Java private; 写入方在 reader 波次 getload L940
     mode_engine_num: i32,
-    #[allow(dead_code)] // Java private; 写入方在 reader 波次 getload L1247
     a_wing_right_cut: f64,
-    #[allow(dead_code)] // Java private; 写入方在 reader 波次 getload L1247
     a_wing_left_cut: f64,
     pub gear_destruction_ind_speed: f64,
     pub max_rpm: f64,
@@ -276,9 +274,9 @@ pub struct Blkx {
 
     // PORT: 以下均为 Java private 字段 (本波无读取方: 写入方在 reader 波次 getload,
     // Wx* 族在 Java 里仅剩注释引用即死字段, 保真保留)
-    #[allow(dead_code)] // getload L1503 写入后无读取 (Java 亦然, 死存储保真保留)
+    #[allow(dead_code)] // getload 写入后无读取 (Java 亦然, 死存储保真保留)
     cl_a: f64,
-    #[allow(dead_code)] // getload L1506 写入; 读取方全在被注释的滚转率代码里
+    #[allow(dead_code)] // getload 写入; 读取方全在被注释的滚转率代码里 (Java 亦死)
     aileron_defl: Option<[f64; 2]>,
     #[allow(dead_code)] // Java 即死字段 (仅注释引用)
     wx100: f64,
@@ -294,9 +292,7 @@ pub struct Blkx {
     wx_max: f64,
     #[allow(dead_code)] // Java 即死字段 (仅注释引用)
     wx600: f64,
-    #[allow(dead_code)] // getload L942 写入 / L957 读取 (reader 波次)
     mode_engine_rpm_mult: Option<[f64; 10]>,
-    #[allow(dead_code)] // getload L908/L957/L1092 (reader 波次)
     engine_rpm_mult_wep: f64,
     #[allow(dead_code)] // Java 全文无引用 (L713 声明即止), 保真保留
     full_flaps_wing_s: Option<FmParts>,

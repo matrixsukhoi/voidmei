@@ -124,7 +124,8 @@ fn try_load(name: &str) -> Result<FMHandle, String> {
     // 下游 `lookupBlkx.valid && lookupBlkx.data != null` 双条件在 Result 化后坍缩为
     // Option 的 is_some (reader.rs 契约: Ok 恒 valid=true 且 data 非 None),
     // `.ok()` 即 "valid=false 时整块跳过"
-    let lookup_blkx = Blkx::parse_named(&central.to_string_lossy(), &format!("{name}.blk")).ok();
+    let lookup_blkx =
+        Blkx::parse_named_opts(&central.to_string_lossy(), &format!("{name}.blk"), false).ok();
 
     // 3. 提取燃油改装修正（中央文件专属信息，物理文件里没有）
     let mut fuel_mod: Option<FuelModification> = None;
@@ -191,10 +192,9 @@ fn try_load(name: &str) -> Result<FMHandle, String> {
     }
 
     // 5. 全量解析物理 FM 文件（物理文件 = fmfile + "x"，即 .blkx）
-    // TODO(port): Java 此处是 doLoad=true 构造 (getload 全量解析); getload 属
-    // reader.rs 后续波次 (reader.rs from_read_data 既有 TODO), 当前 parse_named
-    // 等价 doLoad=false —— engineNum/peakThr/comp* 族字段暂为默认 0, getload
-    // 落地后本行自动补齐全量语义
+    // parse_named = Java 两参构造器 (doLoad=true): getload 全量装载 —
+    // engineNum/peakThr/comp*/翼数据/vne 族齐备; getload 内 panic (畸形文件)
+    // 由构造器 catch_unwind 收敛 Err → 此处 CORRUPT (Java valid=false 同位)
     let physical = fm_data_paths::physical_file(&format!("{fmfile}x"));
     let mut blkx = match Blkx::parse_named(&physical.to_string_lossy(), &fmfile) {
         Ok(b) => b,

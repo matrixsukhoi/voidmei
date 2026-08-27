@@ -49,6 +49,7 @@ use vm_core::fm::{FMHandle, FMManager};
 use vm_core::http_helper::HttpHelper;
 use vm_core::parser::state::MAX_ENG_NUM;
 use vm_core::parser::{Indicators, MapInfo, MapObj, State};
+use vm_core::ui_model::TelemetrySource as _;
 use vm_core::{exception_helper, format, logger, G};
 
 use crate::data::derive::Deriver;
@@ -945,6 +946,120 @@ impl Service {
             // 未外泄——加油检测分支本波次恒死 (见 process_polling_cycle 注),
             // TODO(port): 计算方法区波次裁决外泄或迁移
         }
+
+        // Java calculate 尾部两比值方法 (L1177-1178): 速度/马赫临界比值 + 失速速度
+        // — MiniHUD 速度比值 bar 的数据源 (speed_limit_ratio 等 5 字段)
+        self.update_speed_ratio(&fm);
+        self.update_stall_speed(&fm);
+    }
+
+    // ------------------------------------------------------------------
+    // updateSpeedRatio / updateStallSpeed (Java L1185-1231 / L1236-1266)
+    // ------------------------------------------------------------------
+
+    /// 对应 Java `public void updateSpeedRatio(FMHandle fm)` (L1185-1231) —
+    /// 计算速度/马赫与临界值比值及舵面锁定比值。
+    ///
+    /// PORT(mach 单写者): Java L1213-1215 的手动大气模型 mach 写字段 — Rust 侧
+    /// 同公式已由 Deriver 承接且写回段带 R2 hasFM 守卫 (本方法早退域与 Deriver
+    /// 写回守卫同域, 值恒一致), 此处 mach 为局部量不再写字段 (防双写者漂移)。
+    /// @param fm 本周期 FM 句柄快照（R1 下传, Java javadoc 原文）
+    fn update_speed_ratio(&mut self, fm: &FMHandle) {
+        // R2 hasFM 守卫 (Java L1194-1198): 无 FM 时比值归零（UI 端 hide-when-zero 隐藏）
+        let Some(blkx) = fm.blkx.as_ref() else {
+            let mut d = write_data(&self.data);
+            d.speed_limit_ratio = 0.0;
+            d.aileron_lock_ratio = 0.0;
+            d.rudder_lock_ratio = 0.0;
+            return;
+        };
+
+        let mut wing_sweep = 0.0f64;
+        // 锁外快照输入 (§2.8): wsweep/ias/heightm 三读一写锁内取, 计算锁外
+        let (ias, height_m) = {
+            let d = read_data(&self.data);
+            if d.is_wing_sweep_valid() {
+                wing_sweep = d.s_indic.as_ref().unwrap().wsweep_indicator;
+            }
+            (d.get_ias(), d.s_state.as_ref().unwrap().heightm)
+        };
+
+        let ias_limit = blkx.get_vne_v_wing(wing_sweep);
+        let mach_limit = blkx.get_mne_v_wing(wing_sweep);
+        let aileron_lock_speed = blkx.aileron_eff;
+        let rudder_lock_speed = blkx.rudder_eff;
+
+        // 1. 根据地球大气模型计算mach (Java 注释原文)
+        let ias_per_mach = 3.6 * (1.4 / 1.225 * 101325.0
+            * (1.0 - 0.0000225577 * height_m).powf(5.25588))
+            .sqrt();
+        let mach = ias / ias_per_mach;
+
+        // 2. 计算速度比值 (Java 注释原文)
+        let ias_ratio = ias / ias_limit;
+        let mach_ratio = mach / mach_limit;
+        // 3. 计算更大的速度 (Java 注释原文)
+        let mut d = write_data(&self.data);
+        if ias_per_mach == 0.0 || ias_ratio >= mach_ratio {
+            d.speed_limit_ratio = ias_ratio;
+            d.aileron_lock_ratio = aileron_lock_speed / ias_limit;
+            d.rudder_lock_ratio = rudder_lock_speed / ias_limit;
+            d.unit_mach_limit_ratio = ias_per_mach / ias_limit;
+        } else {
+            d.speed_limit_ratio = mach_ratio;
+            d.aileron_lock_ratio = aileron_lock_speed / (mach_limit * ias_per_mach);
+            d.rudder_lock_ratio = rudder_lock_speed / (mach_limit * ias_per_mach);
+            d.unit_mach_limit_ratio = 1.0 / mach_limit;
+        }
+    }
+
+    /// 对应 Java `public void updateStallSpeed(FMHandle fm)` (L1236-1266) —
+    /// 计算失速速度。
+    ///
+    /// PORT(flap 来源): Java `flap` 字段由 checkFlap L1045 `flap = sState.flaps`
+    /// 赋值 (唯一写点, 恒等) — checkFlap 未移植, 此处直读 s_state.flaps 同值。
+    /// @param fm 本周期 FM 句柄快照（R1 下传, Java javadoc 原文）
+    fn update_stall_speed(&mut self, fm: &FMHandle) {
+        // R2 hasFM 守卫 (Java L1243-1245): 无 FM 时保持上次值/初始值 0（UI 端按无效值隐藏）
+        let Some(blkx) = fm.blkx.as_ref() else {
+            return;
+        };
+        let Some(nf) = blkx.no_flaps_wing.as_ref() else {
+            return; // doLoad=false 形态的占位 blkx (翼数据未装载)
+        };
+        let Some(ff) = blkx.full_flaps_wing.as_ref() else {
+            return;
+        };
+        let Some(fu) = blkx.fuselage.as_ref() else {
+            return;
+        };
+
+        let (flap, mfuel) = {
+            let d = read_data(&self.data);
+            (
+                d.s_state.as_ref().unwrap().flaps as f64,
+                d.s_state.as_ref().unwrap().mfuel,
+            )
+        };
+
+        // 主升力面积因数载荷 (Java 注释原文)
+        let wing_body_lift_area_load_no_flap = blkx.a_wing * nf.cl_crit_high
+            + blkx.a_fuselage
+                * blkx.fuse_cl_high
+                * (nf.aoa_crit_high / fu.aoa_crit_high);
+        let wing_body_lift_area_load_full_flap = blkx.a_wing * ff.cl_crit_high
+            + blkx.a_fuselage
+                * blkx.fuse_cl_high
+                * (ff.aoa_crit_high / fu.aoa_crit_high);
+        let current_weight = blkx.nofuelweight + mfuel;
+
+        // 假设战雷的襟翼是线性的 (Java 注释原文)
+        // 单位换算: 3.6 / 单位制混用: 1 / 1.225 (Java 注释原文)
+        let flap_factor = flap / 100.0;
+        let total_lift_area = (1.0 - flap_factor) * wing_body_lift_area_load_no_flap
+            + flap_factor * wing_body_lift_area_load_full_flap;
+        let mut d = write_data(&self.data);
+        d.stall_speed = 3.6 * ((2.0 * current_weight * G) / (1.225 * total_lift_area)).sqrt();
     }
 
     // ------------------------------------------------------------------
@@ -1594,6 +1709,72 @@ mod tests {
             assert_eq!(d.altmeterp, 0.0);
             assert_eq!(d.altmeter, 10.0);
         }
+    }
+
+    /// updateSpeedRatio/updateStallSpeed (Java L1185-1231 / L1236-1266) —
+    /// MiniHUD 速度比值 bar 的数据源。无 FM 归零 / 有 FM 走 python 位级 oracle
+    /// (真机 spitfire_f24 blkx 的 getload f32 拓宽域值 + STATE_MOCK ias=474/
+    /// heightm=46: iasRatio 0.5417… > machRatio 0.4460… 走 ias 分支; 失速
+    /// flaps 0/50 两档)。data/ 缺失时仅跑无 FM 域 (对齐 build.py 跳过语义)。
+    #[test]
+    fn update_speed_ratio_and_stall_speed_oracle() {
+        let mut svc = new_service();
+
+        // 无 FM (fresh manager = UNRESOLVED): R2 守卫 → 三比值归零, stall 保持 0
+        {
+            let mut d = write_data(&svc.data);
+            d.s_state.as_mut().unwrap().update(STATE_MOCK);
+        }
+        svc.calculate();
+        {
+            let d = read_data(&svc.data);
+            assert_eq!(d.speed_limit_ratio, 0.0, "无 FM 比值归零");
+            assert_eq!(d.aileron_lock_ratio, 0.0);
+            assert_eq!(d.stall_speed, 0.0, "无 FM 失速保持上次值 (初始 0)");
+        }
+
+        // 有 FM: 真机 spitfire 全量装载 (getload 波次产物)
+        let phys = format!(
+            "{}/../../../data/aces/gamedata/flightmodels/fm/spitfire_f24.blkx",
+            env!("CARGO_MANIFEST_DIR")
+        );
+        if !std::path::Path::new(&phys).exists() {
+            return; // data/ 未解包
+        }
+        let blkx = vm_core::blkx::Blkx::parse(&phys).unwrap();
+        let fm = FMHandle::ready(Some("spitfire_f24".to_string()), Some(blkx), 0.0, 0.0, None);
+
+        svc.update_speed_ratio(&fm);
+        {
+            let d = read_data(&svc.data);
+            // python oracle (f32 拓宽域公式直算, 位级)
+            assert_eq!(d.speed_limit_ratio, 0.5417142857142857, "iasRatio = 474/875");
+            assert_eq!(d.aileron_lock_ratio, 0.5508571428571428, "482/875");
+            assert_eq!(d.rudder_lock_ratio, 0.45714285714285713, "400/875");
+            assert_eq!(
+                d.unit_mach_limit_ratio, 1.3962520958006088,
+                "iasPerMach/875 (ias 分支)"
+            );
+        }
+
+        // 失速: flap=0 (STATE_MOCK "flaps, %": 0; mfuel=197)
+        svc.update_stall_speed(&fm);
+        assert_eq!(
+            svc.data.read().unwrap().stall_speed,
+            158.26201720161404,
+            "flap=0 失速 (python oracle)"
+        );
+        // flap=50 → 襟翼线性混合
+        {
+            let mut d = write_data(&svc.data);
+            d.s_state.as_mut().unwrap().flaps = 50;
+        }
+        svc.update_stall_speed(&fm);
+        assert_eq!(
+            svc.data.read().unwrap().stall_speed,
+            143.78318105378034,
+            "flap=50 失速 (python oracle)"
+        );
     }
 
     /// 空响应 → conState=-1 → 端口翻转 (Java L1785-1795); 再翻回

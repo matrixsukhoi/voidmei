@@ -192,12 +192,12 @@ pub fn calculate<S: HUDSettings>(
         let mut vwing = 0.0;
         // PORT: Java `blkx.isVWing` (Boolean 装箱) 在布尔上下文自动拆箱, null → NPE
         // (§1 非受检异常 → panic)。"不可达"仅对 Java 生产链成立: FMLoader.load L101
-        // 两参构造 = doLoad=true → getload L1333 必赋值; doLoad=false 构造 (lookup
+        // 两参构造 = doLoad=true → getload 必赋值 isVWing; doLoad=false 构造 (lookup
         // 用) 上为 null 会真 NPE, unwrap 忠实复刻两者。
-        // ⚠ 过渡期: Blkx::parse 等价 doLoad=false (getload 未译, reader.rs),
-        // valid=true 而 is_v_wing=None → 此 unwrap 必 panic; getload 波次落地前
-        // 禁止把 calculate() 接入 service_loop — panic 被 §6 catch_unwind 吞掉会
-        // 变成 HUD 永久空帧的静默降级, 比崩溃更难被发现 (L312/L335 同因)。
+        // getload 已落地 (reader.rs, 真机位级对拍): 生产链 READY 句柄的 is_v_wing
+        // 恒 Some; None 仅剩手工构造的 doLoad=false 形态 (中央文件/旧测试) — 该
+        // 形态调用本方法 = Java 对位 NPE, panic 由调用点 (vm-app feed 的整帧
+        // catch_unwind) 收敛, 语义一致。
         // PORT: Java 保真 — `blkx.isVWing && sIndic != null` 的直译 (is_some 检查 +
         // unwrap 取值), 不改成 if-let 以保持与 Java 源逐行对应
         #[allow(clippy::unnecessary_unwrap)]
@@ -497,7 +497,7 @@ pub fn get_string_width<F>(text: Option<&str>, font: Option<&F>, measure: impl F
 ///   二进制 (...91611392) 也非最短展开; Rust `{:e}` 给真最短 "1e23" → 本实现输出
 ///   "100000000000000000000000"。HUD 值域 (速度/高度/能量 < 10^7) 距该域不可达
 ///   (Java 8 oracle fuzz 35k 例仅 1e23 一例分歧)。
-fn java_f(d: f64, prec: usize) -> String {
+pub(crate) fn java_f(d: f64, prec: usize) -> String {
     if d.is_nan() {
         return "NaN".to_string();
     }

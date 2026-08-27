@@ -2332,26 +2332,10 @@ fn feed_overlays_live(
     };
     let now = current_time_millis();
     let fm_handle = fm.current();
-    // PORT(getload 过渡期禁令, hud_calculator.rs L197-205 ⚠): Blkx::parse 等价
-    // doLoad=false — is_v_wing 恒 None, calculate() 的 FM 分支 unwrap 必 panic
-    // ("getload 波次落地前禁止把 calculate() 接入 service_loop")。W1 设计的
-    // None-hud_data 回退路径在此形态不可达; 过渡期处置: 该形态 FM 不进喂入
-    // (走无 FM 降级路径, CLAUDE.md "指标按 0/上次值/MAX_VALUE 降级" 语义),
-    // 一次性 ERROR 上报 (禁令反对的是静默吞 panic — 显式留痕 + 帧继续渲染);
-    // getload 波次落地 (is_v_wing 被 populate) 后本守卫自然失效, 随该波次移除。
-    let blkx = match fm_handle.blkx.as_ref() {
-        Some(b) if b.is_v_wing.is_none() => {
-            static WARNED: std::sync::Once = std::sync::Once::new();
-            WARNED.call_once(|| {
-                logger::error(
-                    "Controller",
-                    "FM 已装载但 getload 未译 (is_v_wing=None) — MiniHUD live 喂入走无 FM 降级路径 (hud_calculator.rs 过渡期禁令)",
-                );
-            });
-            None
-        }
-        other => other,
-    };
+    // getload 已落地 (reader.rs, 真机位级对拍): READY 句柄的 blkx 翼数据/
+    // is_v_wing 恒被 populate, 原过渡期降级守卫 (is_v_wing=None → 无 FM 路径)
+    // 已随该波次移除 — VNE/AoA 告警/flapAllowAngle/机动指数全量走 FM 数据
+    let blkx = fm_handle.blkx.as_ref();
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         // 1. MiniHUD (Java MiniHUDOverlay.onFlightData → invokeLater)
         if let Some(h) = handles.minihud.as_ref() {
