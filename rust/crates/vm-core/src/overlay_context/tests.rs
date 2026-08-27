@@ -207,13 +207,13 @@ fn test_builder_reusable_after_build() {
     assert!(c2.get_bool("k"), "二次 build 同样携带回退的 configProvider");
 }
 
-// -- for_game_mode: 全字段接线 (OverlayManager.java:94 的调用形态) --
+// -- for_live: 全字段接线 (OverlayManager.java:94 的调用形态) --
 #[test]
-fn test_for_game_mode_wiring() {
+fn test_for_live_wiring() {
     let fm = FMManager::new(Arc::new(EventBus::new()));
     let tc = mock_controller("showSpeedBar", "TRUE", true);
     let svc = tc.service().unwrap();
-    let ctx = OverlayContext::for_game_mode(&fm, Arc::clone(&tc));
+    let ctx = OverlayContext::for_live(&fm, Arc::clone(&tc));
     assert!(ctx.tc.is_some() && Arc::ptr_eq(ctx.tc.as_ref().unwrap(), &tc));
     assert!(ctx.s.is_some() && Arc::ptr_eq(ctx.s.as_ref().unwrap(), &svc));
     // 未 identify 的 FMManager → UNRESOLVED 句柄 blkx=null (javadoc: 消费方 null 容忍)
@@ -258,10 +258,10 @@ fn test_activation_context_impl_semantics() {
     let jet_ctx = jet.build();
     assert!(ActivationStrategy::jet_only().should_activate(&jet_ctx));
     assert!(ActivationStrategy::preview_only().should_activate(&jet_ctx));
-    assert!(!ActivationStrategy::game_mode_only().should_activate(&jet_ctx));
+    assert!(!ActivationStrategy::live_only().should_activate(&jet_ctx));
     assert!(ActivationStrategy::blkx_available().should_activate(&jet_ctx));
     // Controller.java:723 使用形态: config(...).and(gameModeOnly()) —— 预览态不激活
-    let voice = ActivationStrategy::config("enableVoiceWarn").and(&ActivationStrategy::game_mode_only());
+    let voice = ActivationStrategy::config("enableVoiceWarn").and(&ActivationStrategy::live_only());
     assert!(voice.should_activate(&ctx), "游戏态 + 配置 true → 激活");
     assert!(!voice.should_activate(&jet_ctx), "预览态一律不激活");
 }

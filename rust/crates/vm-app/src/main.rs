@@ -14,15 +14,15 @@
 //! 相位主循环 (D9 后为 web 壳单循环; 原 iced 相 A/B 已合并, 见 desktop_main 注):
 //! - 主线程: `shell.pump()` + `ShellForm::pump_once()` (tao 事件 + IPC) +
 //!   sleep(可见 10ms / 隐藏 50ms); 设置窗常驻隐藏预热, 每次 show 发布 UI_READY。
-//! - 无窗降级 (`run_supervisor_phase`) 与 `--game-mode`/`--mock-smoke` 形态保留。
+//! - 无窗降级 (`run_supervisor_phase`) 与 `--live`/`--mock-smoke` 形态保留。
 //!
 //! CLI:
-//! - `--game-mode`: 对齐 `autoStartGameMode=true` (e2e 用) — 跳过 MainForm,
+//! - `--live`: 对齐 `autoStartGameMode=true` (e2e 用) — 跳过 MainForm,
 //!   Controller 自启动 Service, 主线程直接进监督循环。
 //! - `--port <p>`: 白盒 e2e 端口覆盖 (rust_e2e.sh 默认 9222)。白盒测试端口约定:
 //!   一律 9222 (Java 备用端口 appPortBkp 域, 游戏本地 API 恒占 8111 而 9222
 //!   游戏永不监听) — 真机在跑测试也不再被挤掉/误读游戏数据。
-//! - `--mock-smoke`: 起 `script/mock_8111.py` s2 场景 (端口 9222) → 游戏模式跑
+//! - `--mock-smoke`: 起 `script/mock_8111.py` s2 场景 (端口 9222) → live 模式跑
 //!   8 秒 → 断言 Service 收数 + 全部注册 overlay 逐窗 present>0 → 清理退出
 //!   (无 MainForm 冒烟; 9222 被占自动跳过 — 项目惯例, 不做假通过)。
 //! - `--debug`: Application.debug = true (Logger DEBUG 级)。
@@ -43,7 +43,7 @@ use vm_core::logger;
 
 mod form_dispatch;
 
-/// 冒烟默认时长 (任务验收单: 游戏模式跑 8 秒)
+/// 冒烟默认时长 (任务验收单: live 模式跑 8 秒)
 const MOCK_SMOKE_RUN_MS: u64 = 8_000;
 /// mock server 就绪等待上限
 const MOCK_READY_TIMEOUT_MS: u64 = 8_000;
@@ -64,10 +64,10 @@ fn main() {
 
     let code = if args.iter().any(|a| a == "--mock-smoke") {
         mock_smoke_main(debug)
-    } else if args.iter().any(|a| a == "--game-mode") {
+    } else if args.iter().any(|a| a == "--live") {
         // 白盒 e2e 端口覆盖: rust_e2e.sh 默认 9222 (见 CLI 头注), 不与真机 8111 冲突
         let port = parse_port_arg(&args);
-        game_mode_main(debug, port)
+        live_main(debug, port)
     } else {
         desktop_main(debug)
     };
@@ -145,7 +145,7 @@ fn desktop_main(debug: bool) -> i32 {
     });
 
     // Java Controller(true) 的自启动分支 (autoStartGameMode=true): 不显设置窗
-    // (UI_READY 不发布, 游戏模式不被 Preview 翻转)。仅 desktop 形态首迭代判定
+    // (UI_READY 不发布, live 模式不被 Preview 翻转)。仅 desktop 形态首迭代判定
     let mut first_iteration = true;
     let mut initial_shown = false;
     // StatusBar 面: 核状态变化 → 前端 controller-state (Init/Preview/Connected/InGame)
@@ -179,7 +179,7 @@ fn desktop_main(debug: bool) -> i32 {
         let (exit, form_req, in_game, state_str) = {
             let mut s = shell.lock().expect("AppShell 锁中毒");
             s.pump();
-            // 游戏模式运行判定 (收窗面): Connected/InGame = start() 后的形态
+            // live 模式运行判定 (收窗面): Connected/InGame = start() 后的形态
             let state = s.shared.state();
             let in_game = matches!(
                 state,
@@ -246,10 +246,11 @@ fn publish_ui_ready(bus: &Arc<EventBus<UiStateEvent>>) {
 }
 
 // =====================================================================
-// --game-mode: 跳过 MainForm 直接游戏模式 (Java autoStartGameMode=true, e2e)
+// --live: 跳过 MainForm 直接 live 模式 (Java autoStartGameMode=true, e2e;
+// 旧名 --game-mode, 术语 preview↔live 对仗, 见 D9 后命名统一)
 // =====================================================================
 
-fn game_mode_main(debug: bool, port_override: Option<u16>) -> i32 {
+fn live_main(debug: bool, port_override: Option<u16>) -> i32 {
     let shell = match AppShell::new_with_port(debug, true, port_override) {
         Ok(s) => s,
         Err(e) => {
@@ -263,7 +264,7 @@ fn game_mode_main(debug: bool, port_override: Option<u16>) -> i32 {
 }
 
 // =====================================================================
-// --mock-smoke: mock s2 场景 → 游戏模式 8 秒 → 断言 → 清理退出
+// --mock-smoke: mock s2 场景 → live 模式 8 秒 → 断言 → 清理退出
 // =====================================================================
 
 fn mock_smoke_main(debug: bool) -> i32 {
@@ -301,11 +302,11 @@ fn mock_smoke_main(debug: bool) -> i32 {
         return 1;
     }
     println!(
-        "[mock-smoke] mock s2_preview_live 就绪 (端口 {SMOKE_PORT}), 游戏模式运行 {}ms",
+        "[mock-smoke] mock s2_preview_live 就绪 (端口 {SMOKE_PORT}), live 模式运行 {}ms",
         MOCK_SMOKE_RUN_MS
     );
 
-    // 游戏模式组装 (autoStartGameMode=true 注入; 探测面保持真实 — mock 就在本机;
+    // live 模式组装 (autoStartGameMode=true 注入; 探测面保持真实 — mock 就在本机;
     // 端口走 9222 覆盖, 见 SMOKE_PORT 注)
     let mut shell = match AppShell::new_with_port(debug, true, Some(SMOKE_PORT)) {
         Ok(s) => s,
@@ -358,8 +359,8 @@ fn mock_smoke_main(debug: bool) -> i32 {
     if frames == 0 {
         return fail("overlay present 帧数为 0 (窗口未开/渲染未跑)".to_string());
     }
-    // 游戏模式注册全集 (register_game_mode_overlays 的 7 键; 缺键 = 注册失败)
-    const GAME_MODE_OVERLAYS: [&str; 7] = [
+    // live 模式注册全集 (register_live_overlays 的 7 键; 缺键 = 注册失败)
+    const LIVE_OVERLAYS: [&str; 7] = [
         "enableEngineControl",
         "engineInfoSwitch",
         "crosshairSwitch",
@@ -370,7 +371,7 @@ fn mock_smoke_main(debug: bool) -> i32 {
     ];
     let mut missing = Vec::new();
     let mut zero = Vec::new();
-    for id in GAME_MODE_OVERLAYS {
+    for id in LIVE_OVERLAYS {
         match overlay_counts.get(id) {
             None => missing.push(id),
             Some(0) => zero.push(id),

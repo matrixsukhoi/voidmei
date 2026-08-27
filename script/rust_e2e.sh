@@ -3,19 +3,19 @@
 #
 # Rust 版 e2e 编排 (对齐 script/e2e_fm.sh 的编排结构, 断言器复用 e2e_assert.py)
 #
-# 流程 (每场景): 端口空闲探测(被占 SKIP) → 起 mock → 起 voidmei --game-mode --port
+# 流程 (每场景): 端口空闲探测(被占 SKIP) → 起 mock → 起 voidmei --live --port
 #   (日志落文件) → 启动锚点校验 → 跑 duration 秒(每秒探活) → taskkill 杀进程树 →
 #   mock 终态快照落盘 → 停 mock → python script/e2e_assert.py 断言 (A1~A6) → 汇总
 #
 # 防空转通过 (审查警告 W1): 应用秒崩/中途退出时残缺日志上的断言可能整体空转
 # PASS, 故门禁三重收口:
 #   1) 启动锚点: 日志必须在 30s 内出现 "Auto-start enabled"/"Starting Game Mode
-#      Services" (游戏模式进入的必经日志), 否则 FAIL;
+#      Services" (live 模式进入的必经日志, 文本对位 Java), 否则 FAIL;
 #   2) 运行期探活: duration 内每秒 kill -0 探活, 应用中途死亡立即 FAIL;
 #   3) --require-run: 全场景 SKIP (零实跑) 时退出码 1, 供 CI/P6 门禁拒绝空转绿。
 #
 # 与 Java e2e_fm.sh 的差异:
-#   - 游戏模式由 `voidmei --game-mode` CLI 注入 (等价 autoStartGameMode=true),
+#   - live 模式由 `voidmei --live` CLI 注入 (等价 autoStartGameMode=true),
 #     无需临时翻转 ui_layout.user.cfg (也就无需备份/还原)。
 #   - 断言结果同时落 JSON (build/e2e_rust_<场景>_<时间戳>.json) 供 CI/收口读取。
 #
@@ -209,7 +209,7 @@ run_scenario() {
   fi
   echo "[rust-e2e] mock 就绪 (日志: $MOCK_LOG)"
 
-  # 3. 起应用 (--game-mode = autoStartGameMode 注入, 无需动 user cfg)。
+  # 3. 起应用 (--live = autoStartGameMode 注入, 无需动 user cfg)。
   #    直起二进制而非 rust_run.sh: 预热构建已保证产物新鲜, rust_run.sh 内的
   #    cargo build 输出会混入应用日志污染断言 (build + cd 根 + exec 的语义
   #    已被预热步骤与本处 cd 完整覆盖)
@@ -219,8 +219,8 @@ run_scenario() {
     LAST_RESULT="FAIL:$SC"
     return 1
   fi
-  echo "[rust-e2e] 启动 voidmei --game-mode (日志: $SC_LOG) ..."
-  ( cd "$ROOT" && exec "$VOIDMEI_BIN" --game-mode --port "$PORT" >"$SC_LOG" 2>&1 ) &
+  echo "[rust-e2e] 启动 voidmei --live (日志: $SC_LOG) ..."
+  ( cd "$ROOT" && exec "$VOIDMEI_BIN" --live --port "$PORT" >"$SC_LOG" 2>&1 ) &
   APP_PID=$!
   # 归属留痕: 打出 winpid, 残留进程可按此判定是否本脚本泄漏并清理
   local APP_WINPID=""

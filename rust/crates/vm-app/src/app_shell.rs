@@ -745,7 +745,7 @@ impl Controller {
     /// PORT(侧序): configService.initConfig() 与 initDynamicOverlays 的文件装载
     /// 挪至 AppShell 构造面 (配置服务先于 Controller 存在, 免测试写盘副作用);
     /// overlayManager 注册挪至 win32 线程一次性注册 (host 跨重建存活, 条目为
-    /// 无状态配置记录 — 见 register_game_mode_overlays 头注)。
+    /// 无状态配置记录 — 见 register_live_overlays 头注)。
     pub fn new(deps: ControllerDeps, is_initial_launch: bool) -> Controller {
         let ControllerDeps {
             config,
@@ -1482,11 +1482,11 @@ pub struct AppShell {
 impl AppShell {
     /// 生产构造 (Java Application.main:533-604 启动序):
     /// Lang → 端口/Env → 总线/FM/热键 → 防抖 → 初始 Controller(true)。
-    /// `game_mode`: 对齐 `autoStartGameMode=true` 配置 (CLI --game-mode / e2e —
+    /// `live`: 对齐 `autoStartGameMode=true` 配置 (CLI --live / e2e —
     /// Java 无此开关, 由用户配置表达; 此处以等效配置注入, Controller 自启动
     /// 判定路径零特判)。
-    pub fn new(debug: bool, game_mode: bool) -> Result<AppShell, String> {
-        AppShell::new_with_port(debug, game_mode, None)
+    pub fn new(debug: bool, live: bool) -> Result<AppShell, String> {
+        AppShell::new_with_port(debug, live, None)
     }
 
     /// 白盒端口覆盖 (`--port` CLI / mock-smoke 的 9222 约定): Env 只读区在 probe
@@ -1496,7 +1496,7 @@ impl AppShell {
     /// 真机在跑也不再挤掉测试)。
     pub fn new_with_port(
         debug: bool,
-        game_mode: bool,
+        live: bool,
         port_override: Option<u16>,
     ) -> Result<AppShell, String> {
         let lang = Lang::init_lang();
@@ -1511,7 +1511,7 @@ impl AppShell {
         let config = ConfigurationService::new(Some(Arc::clone(&ui_bus)));
         // Java Controller 构造器: configService.initConfig() 装载设置文件
         config.init_config();
-        if game_mode {
+        if live {
             // 对位 Java e2e 的 autoStartGameMode=true 配置 (Controller.java:589-606
             // 自启动分支: 跳过 MainForm 直接 start Service)
             use vm_core::config_api::ConfigProvider as _;
@@ -1866,7 +1866,7 @@ impl AppShell {
         std::mem::replace(&mut self.form_requested, false)
     }
 
-    /// 阻塞监督循环 (无 MainForm 场景: --game-mode / 冒烟; Java 托盘+EDT 泵的对位)。
+    /// 阻塞监督循环 (无 MainForm 场景: --live / 冒烟; Java 托盘+EDT 泵的对位)。
     /// Exit 托盘命令或通道关闭即返回 (进程退出归调用方)。
     /// 防呆 (审查 A-W3): 生产入口必须先起 win32 线程 (托盘/overlay/热键泵);
     /// 未 spawn 直接 run = 无托盘无窗口且 TrayCommand::Exit 永不可达 (通道不关
@@ -2046,7 +2046,7 @@ impl ActivationContext for HostActivationCtx {
 fn strategy_for(config_key: &str) -> ActivationStrategy {
     match config_key {
         "enableVoiceWarn" => ActivationStrategy::config(config_key)
-            .and(&ActivationStrategy::game_mode_only()),
+            .and(&ActivationStrategy::live_only()),
         "thrustdFS" => {
             ActivationStrategy::config("enableFMPrint").and(&ActivationStrategy::jet_only())
         }
@@ -2140,7 +2140,8 @@ impl vm_overlay::host::PositionStore for ChannelPositionStore {
     }
 }
 
-/// Java Controller.registerGameModeOverlays (651-753) 的 win32 侧一次性注册。
+/// Java Controller.registerGameModeOverlays (651-753) 的 win32 侧一次性注册
+/// (live 模式 overlay 全集: 真实遥测数据态; 旧名 register_game_mode_overlays)。
 /// PORT(偏差备案): Java 每 Controller 重建 OverlayManager + 重注册; Rust host 跨
 /// 重建存活 (D8), 条目是无状态配置记录 (id/config_key/尺寸/渲染闭包), 重建语义
 /// 由激活探测 (实时配置) + 命令通道承载 — 重注册无信息增量。
@@ -2154,7 +2155,7 @@ impl vm_overlay::host::PositionStore for ChannelPositionStore {
 ///   - enableFMPrint: FMUnpackedData 需 host 扩展 (动态窗口高 resize + 逐条目可见性,
 ///     overlays_field2.rs 头注 P5 组装契约), 键留激活缓存无窗口条目
 ///   - thrustdFS (DrawFrameSimpl): D8 降级清单 P6 尾巴 (live 喂数覆盖的唯一豁口)
-fn register_game_mode_overlays(
+fn register_live_overlays(
     host: &mut OverlayHost,
     handles: &mut OverlayHandles,
     env: &Env,
@@ -2500,7 +2501,7 @@ pub fn win32_thread_main(cfg: Win32ThreadConfig) {
     // WYSIWYG reinit 参数仓 (初始 = 注册快照投影; CONFIG_CHANGED 后
     // UiCommand::ReinitOverlays 覆写, 各 spec 工厂 reinit 闭包读取)
     let params = Rc::new(RefCell::new(vm_overlay::ReinitParams::from(&inputs)));
-    register_game_mode_overlays(&mut host, &mut handles, &env, &inputs, &params, &lang, &shared);
+    register_live_overlays(&mut host, &mut handles, &env, &inputs, &params, &lang, &shared);
     // live 喂入用设置快照 (注册面同源; ReinitOverlays 命令同步覆写 — MiniHUD
     // on_flight_data 的 settings 参数不再冻结在 spawn 时刻)
     let mut hud_settings = inputs.hud;
@@ -2593,7 +2594,7 @@ pub fn win32_thread_main(cfg: Win32ThreadConfig) {
                     // (feed_overlays_live — MiniHUD/PowerInfo/EngineControl/GearFlaps/
                     // ControlSurfaces/Attitude 共享句柄形态); FlightInfo 走 window.rs
                     // 专径自接, thrustdFS 为 D8 降级尾巴。
-                    shared.overlay_ctx_preview.store(false, Ordering::SeqCst); // forGameMode
+                    shared.overlay_ctx_preview.store(false, Ordering::SeqCst); // for_live (Java forGameMode)
                     // 操纵面数据门控 (overlays_field2.rs PORT(数据门控)): Java init(S)
                     // 的 xs!=null 在此翻转 — openpad 即游戏形态 (has_service=true)
                     if let Some(h) = handles.control_surfaces.as_ref() {

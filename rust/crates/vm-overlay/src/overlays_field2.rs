@@ -498,7 +498,7 @@ impl ControlSurfacesOverlay {
 
     /// init 的数据面 (Java :80-160, 窗口操作除外):
     /// reinitConfig → 初值 50 → Lang 标签 → px/py/locateSize/strokeSize →
-    /// 游戏模式标记 (s != null 分支的 setVisible/register 归组装层)。
+    /// live 模式标记 (Java s != null 分支; 真实翻转在组装层, 见 has_service)。
     /// * `win_x`/`win_y` — overlaySettings.getWindowX/Y(total) 的结果 (调用方取)。
     pub fn init(
         &mut self,
@@ -507,9 +507,9 @@ impl ControlSurfacesOverlay {
         enable_axis_edge: bool,
         win_x: i32,
         win_y: i32,
-        game_mode: bool,
+        live: bool,
     ) {
-        self.has_service = game_mode;
+        self.has_service = live;
         self.reinit_config(font_add, dpi_scale, enable_axis_edge, win_x, win_y);
 
         // Initial Values (50) (Java :91-94)

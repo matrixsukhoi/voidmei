@@ -32,7 +32,7 @@ fn fixture_cfg(content: &str) -> String {
     tmp_cfg(content)
 }
 
-/// 自启动变体配置 (对位 --game-mode / Java autoStartGameMode=true)
+/// 自启动变体配置 (对位 --live / Java autoStartGameMode=true)
 fn auto_start_cfg() -> String {
     fixture_cfg(
         "(panel \"T\" :visible true\n\
@@ -1022,9 +1022,9 @@ fn win32_thread_shutdown_joins_cleanly() {
 // ------------------------------------------------------------------
 
 /// autoStartGameMode=true → Controller 自启动分支 (跳过 MainForm, Service 直起;
-/// --game-mode/--mock-smoke 的配置注入对位, Controller.java:589-606)
+/// --live/--mock-smoke 的配置注入对位, Controller.java:589-606)
 #[test]
-fn auto_start_game_mode_skips_main_form() {
+fn auto_start_live_skips_main_form() {
     let shell = fixture_full(30, auto_start_cfg());
     let c = shell.controller.as_ref().unwrap();
     assert!(!c.main_form_alive, "自启动路径 M 恒 null (Java:604-606)");
@@ -1259,9 +1259,9 @@ fn test_overlay_inputs() -> OverlayInputs {
 }
 
 /// 注册面: Java registerGameModeOverlays 的 7 个窗口条目全部落位
-/// (open_all 默认激活全真; 剩 3 键非窗口/降级备案见 register_game_mode_overlays 头注)
+/// (open_all 默认激活全真; 剩 3 键非窗口/降级备案见 register_live_overlays 头注)
 #[test]
-fn register_game_mode_overlays_seven_window_entries() {
+fn register_live_overlays_seven_window_entries() {
     let mut host = OverlayHost::with_factory(Box::new(|_cfg| {
         Ok(Box::new(NullWin) as Box<dyn vm_overlay::platform::OverlayWindow>)
     }));
@@ -1279,7 +1279,7 @@ fn register_game_mode_overlays_seven_window_entries() {
     let params = Rc::new(RefCell::new(vm_overlay::ReinitParams::from(
         &test_overlay_inputs(),
     )));
-    register_game_mode_overlays(
+    register_live_overlays(
         &mut host,
         &mut handles,
         &shell.env,

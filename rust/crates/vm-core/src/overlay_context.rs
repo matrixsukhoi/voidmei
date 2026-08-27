@@ -125,7 +125,7 @@ impl<TC, S> OverlayContext<TC, S> {
         Builder::new()
     }
 
-    /// Quick factory for game mode context.
+    /// Quick factory for live mode context (对位 Java forGameMode; live=真实遥测数据态).
     /// configProvider 自动从 Controller 的 ConfigService 获取。
     ///
     /// <p>P3 迁移: Blkx 直读 FMManager 当前句柄（EDT 上的纯 volatile 读, 无锁无 IO）。
@@ -137,7 +137,7 @@ impl<TC, S> OverlayContext<TC, S> {
     // current() 的 blkx 为句柄私有值, Java 引用拷贝 ↔ Rust clone (Blkx 深拷,
     // 低频路径: 仅 overlay 开启/刷新时构造, 非 ~10Hz 热点; engLoad 会话态共享
     // 由 FMManager 的 Arc<FMHandle> 层承载, 见 fm_manager.rs ★1 注)。
-    pub fn for_game_mode(fm: &FMManager, tc: Arc<TC>) -> OverlayContext<TC, S>
+    pub fn for_live(fm: &FMManager, tc: Arc<TC>) -> OverlayContext<TC, S>
     where
         TC: ControllerRef<S>,
     {
@@ -153,7 +153,7 @@ impl<TC, S> OverlayContext<TC, S> {
     /// Quick factory for preview mode context.
     /// configProvider 自动从 Controller 的 ConfigService 获取。
     ///
-    /// <p>P3 迁移: 同 forGameMode, Blkx 直读 FMManager（非 READY 为 null, 消费方 null 容忍）。
+    /// <p>P3 迁移: 同 for_live, Blkx 直读 FMManager（非 READY 为 null, 消费方 null 容忍）。
     pub fn for_preview_mode(fm: &FMManager, tc: Arc<TC>) -> OverlayContext<TC, S>
     where
         TC: ControllerRef<S>,
@@ -250,7 +250,7 @@ impl<TC, S> Builder<TC, S> {
     /// Java `public OverlayContext build()` —— 非 static, 写回 this 后经私有构造器
     /// 组装 (builder 存活可复用)。
     // PORT: Java 构造器按引用拷贝 builder 字段 (`this.tc = builder.tc`) ↔ Rust
-    // clone (Arc 克隆 O(1); Blkx 深拷, 低频构造路径, 见 for_game_mode 注)。
+    // clone (Arc 克隆 O(1); Blkx 深拷, 低频构造路径, 见 for_live 注)。
     pub fn build(&mut self) -> OverlayContext<TC, S>
     where
         TC: ControllerRef<S>,

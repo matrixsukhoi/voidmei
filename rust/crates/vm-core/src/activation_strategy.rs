@@ -133,8 +133,9 @@ impl ActivationStrategy {
         }
     }
 
-    /// Activate only in game mode (not preview).
-    pub fn game_mode_only() -> ActivationStrategy {
+    /// Activate only in live mode (not preview). 术语对齐: live=接入真实遥测数据
+    /// (对位 Java isPreviewMode=false; 旧名 game_mode_only, 业界 preview↔live 对仗)
+    pub fn live_only() -> ActivationStrategy {
         ActivationStrategy {
             f: Arc::new(|ctx| !ctx.is_preview_mode()),
         }

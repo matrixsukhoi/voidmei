@@ -98,8 +98,8 @@ fn test_context_flag_presets() {
     preview.preview_mode = true;
     assert!(ActivationStrategy::preview_only().should_activate(&preview));
     assert!(!ActivationStrategy::preview_only().should_activate(&MockCtx::new()));
-    assert!(!ActivationStrategy::game_mode_only().should_activate(&preview));
-    assert!(ActivationStrategy::game_mode_only().should_activate(&MockCtx::new()));
+    assert!(!ActivationStrategy::live_only().should_activate(&preview));
+    assert!(ActivationStrategy::live_only().should_activate(&MockCtx::new()));
 }
 
 #[test]
@@ -184,7 +184,7 @@ fn test_receiver_reusable_after_combination() {
 /// 预览模式下无论配置真假均不激活。
 #[test]
 fn test_controller_usage_composition() {
-    let voice = ActivationStrategy::config("enableVoiceWarn").and(&ActivationStrategy::game_mode_only());
+    let voice = ActivationStrategy::config("enableVoiceWarn").and(&ActivationStrategy::live_only());
     let game_on = MockCtx::new().with_bool("enableVoiceWarn", true);
     let game_off = MockCtx::new().with_bool("enableVoiceWarn", false);
     let mut preview_on = MockCtx::new().with_bool("enableVoiceWarn", true);
@@ -225,7 +225,7 @@ fn test_stored_and_chained_composition() {
     // 存储形态 (OverlayEntry.strategy 字段 → Vec 持有, 按序调用)
     let entries: Vec<ActivationStrategy> = vec![
         ActivationStrategy::config("a"),
-        ActivationStrategy::game_mode_only(),
+        ActivationStrategy::live_only(),
         ActivationStrategy::always(),
     ];
     let results: Vec<bool> = entries.iter().map(|s| s.should_activate(&piston_ctx)).collect();
