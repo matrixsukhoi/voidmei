@@ -1,31 +1,53 @@
 /**
- * MainForm 主界面 (阶段②+③): 左侧 Tabs (对位 Java WebTabbedPane LEFT) +
- * cfg 树数据驱动渲染 (HEADER 卡片嵌套 + 列网格) + 底部按钮组。
- * 值变更 → form_message IPC → Rust main_form::update (WYSIWYG 链 Rust 侧闭环);
- * 阶段③: controller-state 核状态徽标 / fm-changed toast / 导入配置。
+ * MainForm 主界面 (阶段②+③, 视觉对位 Java PinkStyle/WebLaF):
+ * - 自绘标题栏 (对位 Java setUndecorated: 拖拽区 + ─/✕ 窗口按钮, X=hide);
+ * - 左侧 Tabs (WebTabbedPane LEFT 同位);
+ * - TitledBorder 卡片 (标题嵌边框线, 白底) + 网格 (DynamicDataPage.buildContainer 同构);
+ * - 底部左组 (保存/刷新预览/导入) + 右组胶囊 [结束游戏|开始游戏] (WebButtonGroup 同位);
+ * - 水印 (Java setWatermark(image/watermark.png))。
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
+import { getCurrentWindow } from '@tauri-apps/api/window'
 import { listen } from '@tauri-apps/api/event'
 import { open } from '@tauri-apps/plugin-dialog'
-import {
-  Badge,
-  Button,
-  Card,
-  Col,
-  Row as GridRow,
-  Space,
-  Spin,
-  Tabs,
-  Typography,
-  message,
-  notification,
-} from 'antd'
+import { convertFileSrc } from '@tauri-apps/api/core'
+import { Badge, Button, Col, Row as GridRow, Space, Spin, Tabs, Typography, message, notification } from 'antd'
 import type { PanelDto, RowDto } from './api'
-import { getLayoutTree, importConfig, sendFormMessage } from './api'
+import { getAssetRoot, getLayoutTree, importConfig, sendFormMessage } from './api'
 import { RowRenderer } from './rows'
 
 const { Title, Text } = Typography
+
+const appWindow = getCurrentWindow()
+
+/** 自绘标题栏: 拖拽区 + 状态徽标 + 最小化/关闭 (关闭=hide, 对位 Java X 后托盘常驻) */
+const TitleBar: React.FC<{ ctrlState: string }> = ({ ctrlState }) => (
+  <div className="titlebar" data-tauri-drag-region>
+    <Title level={5} style={{ margin: 0, fontSize: 14, flex: 1 }} data-tauri-drag-region>
+      VoidMei 设置
+    </Title>
+    <Badge {...(STATE_BADGE[ctrlState] ?? STATE_BADGE.Init)} style={{ marginRight: 10 }} />
+    <button className="win-btn" title="最小化" onClick={() => appWindow.minimize()}>
+      ─
+    </button>
+    <button className="win-btn close" title="隐藏 (托盘常驻)" onClick={() => appWindow.hide()}>
+      ✕
+    </button>
+  </div>
+)
+
+/** TitledBorder 卡片 (Java PinkStyle.createContainer: 白底+细边+标题嵌边框线) */
+const TitledCard: React.FC<{ title: string; nested?: boolean; children: React.ReactNode }> = ({
+  title,
+  nested,
+  children,
+}) => (
+  <div className={`titled-card${nested ? ' nested' : ''}`}>
+    <span className="tc-title">{title}</span>
+    {children}
+  </div>
+)
 
 /** 行树 → 卡片/网格 (对位 DynamicDataPage.buildContainer: HEADER=组标题+递归, 其余入网格) */
 const RowsTree: React.FC<{ rows: RowDto[]; panel: string; cols: number; values: Record<string, unknown> }> = ({
@@ -39,9 +61,9 @@ const RowsTree: React.FC<{ rows: RowDto[]; panel: string; cols: number; values: 
   const flush = () => {
     if (!chunk.length) return
     items.push(
-      <GridRow key={`g${items.length}`} gutter={[10, 5]}>
+      <GridRow key={`g${items.length}`} gutter={[14, 6]}>
         {chunk.map((n, i) => (
-          <Col key={i} span={24 / cols}>
+          <Col key={i} span={Math.floor(24 / cols)}>
             {n}
           </Col>
         ))}
@@ -54,9 +76,9 @@ const RowsTree: React.FC<{ rows: RowDto[]; panel: string; cols: number; values: 
       flush()
       const childCols = r.groupColumns > 0 ? r.groupColumns : cols
       items.push(
-        <Card key={r.label} size="small" title={r.label} style={{ margin: '4px 0' }}>
+        <TitledCard key={r.label} title={r.label}>
           <RowsTree rows={r.children} panel={panel} cols={childCols} values={values} />
-        </Card>,
+        </TitledCard>,
       )
     } else {
       chunk.push(<RowRenderer row={r} panel={panel} values={values} />)
@@ -72,7 +94,7 @@ interface FmChangedPayload {
   status: string
 }
 
-/** 核状态 → 徽标形态 (payload = Rust ControllerState Debug 串, main.rs:200 emit) */
+/** 核状态 → 徽标形态 (payload = Rust ControllerState Debug 串) */
 const STATE_BADGE: Record<string, { status: 'default' | 'processing' | 'warning' | 'success'; text: string }> = {
   Init: { status: 'default', text: '初始化' },
   Preview: { status: 'processing', text: '预览' },
@@ -80,8 +102,7 @@ const STATE_BADGE: Record<string, { status: 'default' | 'processing' | 'warning'
   InGame: { status: 'success', text: '游戏中' },
 }
 
-/** 导入外部 ui_layout.user.cfg (open 选路径 → import_config; 成功后 Rust 广播
- *  config-changed → 既有监听自动重拉树) */
+/** 导入外部 ui_layout.user.cfg (成功后 Rust 广播 config-changed → 既有监听自动重拉树) */
 const importConfigDialog = async () => {
   const path = await open({ filters: [{ name: 'VoidMei 配置', extensions: ['cfg'] }] })
   if (typeof path !== 'string') return // 取消选择静默
@@ -96,8 +117,8 @@ export default function App() {
   const [values, setValues] = useState<Record<string, Record<string, unknown>>>({})
   const [loadErr, setLoadErr] = useState('')
   const [activeTab, setActiveTab] = useState('')
-  /** 核状态徽标 (初值 Init; controller-state 事件驱动) */
   const [ctrlState, setCtrlState] = useState('Init')
+  const [watermark, setWatermark] = useState<string | null>(null)
 
   const reload = useCallback(async () => {
     try {
@@ -133,6 +154,10 @@ export default function App() {
         notification.warning({ message: name ?? '未知机型', description: 'FM 数据损坏' })
       }
     }).catch(console.error)
+    // 水印 (Java setWatermark(image/watermark.png))
+    getAssetRoot()
+      .then((root) => setWatermark(convertFileSrc(`${root}/image/watermark.png`)))
+      .catch(() => undefined)
   }, [reload])
 
   useEffect(() => {
@@ -155,7 +180,7 @@ export default function App() {
     key: p.title,
     label: p.title,
     children: (
-      <div style={{ padding: '8px 12px', overflowY: 'auto', height: 'calc(100vh - 120px)' }}>
+      <div style={{ padding: '6px 14px 16px', overflowY: 'auto', height: 'calc(100vh - 36px - 52px)' }}>
         {p.rows.length ? (
           <RowsTree
             rows={p.rows}
@@ -166,50 +191,32 @@ export default function App() {
         ) : (
           <Text type="secondary">Data (Empty)</Text>
         )}
+        {watermark && <img className="watermark" src={watermark} alt="" />}
       </div>
     ),
   }))
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
-      <div style={{ padding: '8px 12px 0' }}>
-        <Space>
-          <Title level={4} style={{ margin: 0 }}>
-            VoidMei 设置
-          </Title>
-          <Badge {...(STATE_BADGE[ctrlState] ?? STATE_BADGE.Init)} />
-          {!ready && <Spin size="small" />}
-          {ready && !panels.length && !loadErr && <Badge status="processing" text="加载 cfg 树…" />}
-          {loadErr && <Badge status="error" text={`加载失败: ${loadErr}`} />}
-        </Space>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#F5F5F5' }}>
+      <TitleBar ctrlState={ctrlState} />
+      <div style={{ flex: 1, minHeight: 0, background: '#FFFFFF' }}>
+        {tabs.length ? (
+          <Tabs tabPosition="left" items={tabs} activeKey={activeTab} onChange={setActiveTab} style={{ height: '100%' }} />
+        ) : (
+          <div style={{ padding: 24 }}>
+            <Space>
+              {!ready && <Spin size="small" />}
+              <Text type="secondary">{loadErr ? `加载失败: ${loadErr}` : '等待配置树…'}</Text>
+            </Space>
+          </div>
+        )}
       </div>
-      <div style={{ flex: 1, minHeight: 0 }}>{tabs.length ? (
-        <Tabs
-          tabPosition="left"
-          items={tabs}
-          activeKey={activeTab}
-          onChange={setActiveTab}
-          style={{ height: '100%' }}
-        />
-      ) : (
-        <div style={{ padding: 24 }}>
-          <Text type="secondary">等待配置树… (先 ui_ready 后拉取)</Text>
-        </div>
-      )}</div>
-      <div style={{ padding: '8px 12px', borderTop: '1px solid #333' }}>
+      {/* 底部: 左组 (保存/刷新预览/导入) + 右组胶囊 [结束游戏|开始游戏]
+          (Java BasePage: 左 [显示预览|关闭预览] / 右 WebButtonGroup [取消|启动]) */}
+      <div className="footerbar">
         <Space>
           <Button size="small" onClick={() => act({ kind: 'Save' })}>
             保存
-          </Button>
-          <Button
-            size="small"
-            type="primary"
-            onClick={() => act({ kind: 'StartGame' })}
-          >
-            开始游戏
-          </Button>
-          <Button size="small" danger onClick={() => act({ kind: 'EndGame' })}>
-            结束游戏
           </Button>
           <Button size="small" onClick={() => act({ kind: 'RefreshPreviews' })}>
             刷新预览
@@ -218,6 +225,14 @@ export default function App() {
             导入配置
           </Button>
         </Space>
+        <Space.Compact>
+          <Button size="small" danger onClick={() => act({ kind: 'EndGame' })}>
+            结束游戏
+          </Button>
+          <Button size="small" type="primary" onClick={() => act({ kind: 'StartGame' })}>
+            开始游戏
+          </Button>
+        </Space.Compact>
       </div>
     </div>
   )

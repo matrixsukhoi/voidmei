@@ -1,1 +1,1 @@
-{"default":{"identifier":"default","description":"主窗口默认权限: 核心 API (事件 listen/emit) + 文件选择框 (importConfig); 自定义命令不受 capability 管","local":true,"windows":["main"],"permissions":["core:default","dialog:default"]}}
+{"default":{"identifier":"default","description":"主窗口默认权限: 核心 API (事件) + 文件选择框 (importConfig) + 自绘标题栏窗口操作 (拖拽/最小化/隐藏)","local":true,"windows":["main"],"permissions":["core:default","dialog:default","core:window:allow-minimize","core:window:allow-hide","core:window:allow-start-dragging"]}}

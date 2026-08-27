@@ -3,7 +3,7 @@
  * 语义对位 vm-ui renderers (SWITCH_INV 落库取反在 Rust apply 层, 前端只发显示值)。
  */
 import React, { useEffect, useState } from 'react'
-import { Button, ColorPicker, Input, Modal, Select, Slider, Switch, Tooltip, Typography, message } from 'antd'
+import { Button, ColorPicker, Input, InputNumber, Modal, Select, Slider, Switch, Tooltip, Typography, message } from 'antd'
 import { convertFileSrc } from '@tauri-apps/api/core'
 import type { RowDto } from './api'
 import {
@@ -33,7 +33,8 @@ interface RowProps {
 /** 行键: :target 优先, 无则 label (与 Rust 取键规则一致) */
 const rowKey = (row: RowDto): string => row.property ?? row.label
 
-/** desc/desc-img 气泡 (Java ReplicaBuilder.applyStylizedTooltip: 文本 + image/ 目录图片) */
+/** desc/desc-img 气泡 (Java ReplicaBuilder.applyStylizedTooltip: 文本 + image/ 目录图片)。
+ *  行内统一 label 载体 — 行布局对位 createSwitchItem: label 左, 控件紧随 */
 const Label: React.FC<{ text: string; desc?: string | null; descImg?: string | null }> = ({
   text,
   desc,
@@ -48,7 +49,8 @@ const Label: React.FC<{ text: string; desc?: string | null; descImg?: string | n
       .then((root) => setImgUrl(convertFileSrc(`${root}/${normalizeDescImg(descImg)}`)))
       .catch(() => undefined)
   }, [descImg])
-  if (!desc && !descImg) return <Text>{text}</Text>
+  if (!text) return null
+  if (!desc && !descImg) return <Text style={{ fontSize: 13 }}>{text}</Text>
   return (
     <Tooltip
       title={
@@ -58,7 +60,7 @@ const Label: React.FC<{ text: string; desc?: string | null; descImg?: string | n
         </>
       }
     >
-      <span style={{ cursor: 'help', borderBottom: '1px dotted #888' }}>{text}</span>
+      <span style={{ cursor: 'help', borderBottom: '1px dotted #bbb', fontSize: 13 }}>{text}</span>
     </Tooltip>
   )
 }
@@ -67,55 +69,56 @@ const RowLine: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <div style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 28 }}>{children}</div>
 )
 
-/** SWITCH / SWITCH_INV / DATA (DATA 是开关, Java data toggles) */
+/** SWITCH / SWITCH_INV / DATA (DATA 是开关, Java data toggles): label 左, 开关紧随 */
 const SwitchRow: React.FC<RowProps> = ({ row, panel, values }) => {
   const key = rowKey(row)
   const local = values[key]
   const checked = typeof local === 'boolean' ? local : String(row.value ?? '').toLowerCase() === 'true'
   return (
     <RowLine>
+      <Label text={row.label} desc={row.desc} descImg={row.descImg} />
       <Switch
-        size="small"
         checked={checked}
         onChange={(v) => sendFormMessage({ kind: 'Toggle', panel, key, value: v })}
       />
-      <Label text={row.label} desc={row.desc} descImg={row.descImg} />
     </RowLine>
   )
 }
 
-/** SLIDER: onChange 实时 (拖拽期不落盘), onAfterChange → Save (valueIsAdjusting 语义) */
+/** SLIDER: 滑条 + 数值输入 (对位 Java WebSlider+WebSpinner); onChange 实时
+ *  (拖拽期不落盘), onChangeComplete/输入失焦 → Save (valueIsAdjusting 语义) */
 const SliderRow: React.FC<RowProps> = ({ row, panel, values }) => {
   const key = rowKey(row)
   const local = values[key]
   const initial = typeof local === 'number' ? local : Number(row.value ?? row.minVal)
   const [v, setV] = useState(initial)
   useEffect(() => setV(initial), [initial])
+  const push = (nv: number, persist: boolean) => {
+    setV(nv)
+    const p = sendFormMessage({ kind: 'Slider', panel, key, value: nv })
+    if (persist) p.then(() => sendFormMessage({ kind: 'Save' }))
+  }
   return (
     <RowLine>
-      <Text style={{ minWidth: 130, display: 'inline-block' }}>
-        <Label text={row.label} desc={row.desc} descImg={row.descImg} />
-      </Text>
+      <Label text={row.label} desc={row.desc} descImg={row.descImg} />
       <Slider
-        style={{ flex: 1, minWidth: 120, margin: '0 4px 0 0' }}
+        style={{ flex: 1, minWidth: 100, margin: '0 2px 0 0' }}
         min={row.minVal}
         max={row.maxVal}
         value={v}
-        onChange={(nv) => {
-          setV(nv)
-          sendFormMessage({ kind: 'Slider', panel, key, value: nv })
-        }}
-        onChangeComplete={(nv) => {
-          // 释放 = Java valueIsAdjusting==false → persist
-          sendFormMessage({ kind: 'Slider', panel, key, value: nv }).then(() =>
-            sendFormMessage({ kind: 'Save' }),
-          )
-        }}
+        onChange={(nv) => push(nv, false)}
+        onChangeComplete={(nv) => push(nv, true)}
       />
-      <Text type="secondary" style={{ minWidth: 56, textAlign: 'right' }}>
-        {v}
-        {row.unit ? ` ${row.unit}` : ''}
-      </Text>
+      <InputNumber
+        size="small"
+        style={{ width: 76 }}
+        min={row.minVal}
+        max={row.maxVal}
+        value={v}
+        formatter={(n) => (row.unit ? `${n} ${row.unit}` : `${n}`)}
+        parser={(s) => parseInt(String(s).replace(/[^\d-]/g, ''), 10) || 0}
+        onChange={(nv) => nv != null && push(nv, true)}
+      />
     </RowLine>
   )
 }
@@ -134,9 +137,7 @@ const ComboRow: React.FC<RowProps> = ({ row, panel, values }) => {
   }, [source, current])
   return (
     <RowLine>
-      <Text style={{ minWidth: 130, display: 'inline-block' }}>
-        <Label text={row.label} desc={row.desc} descImg={row.descImg} />
-      </Text>
+      <Label text={row.label} desc={row.desc} descImg={row.descImg} />
       <Select
         size="small"
         style={{ minWidth: 160 }}
@@ -172,9 +173,7 @@ const ColorRow: React.FC<RowProps> = ({ row, panel, values }) => {
   }
   return (
     <RowLine>
-      <Text style={{ minWidth: 130, display: 'inline-block' }}>
-        <Label text={row.label} desc={row.desc} descImg={row.descImg} />
-      </Text>
+      <Label text={row.label} desc={row.desc} descImg={row.descImg} />
       <ColorPicker
         size="small"
         value={rgbaToHex(rgba)}
@@ -209,9 +208,7 @@ const TextRow: React.FC<RowProps> = ({ row, panel, values }) => {
   }
   return (
     <RowLine>
-      <Text style={{ minWidth: 130, display: 'inline-block' }}>
-        <Label text={row.label} desc={row.desc} descImg={row.descImg} />
-      </Text>
+      <Label text={row.label} desc={row.desc} descImg={row.descImg} />
       <Input
         size="small"
         style={{ width: 200 }}
@@ -289,9 +286,7 @@ const VoiceRow: React.FC<RowProps> = ({ row, panel, values }) => {
   const current = parseVoicePackValue(values[key] ?? row.value ?? row.defaultValue)
   return (
     <RowLine>
-      <Text style={{ minWidth: 130, display: 'inline-block' }}>
-        <Label text={row.label} desc={row.desc} descImg={row.descImg} />
-      </Text>
+      <Label text={row.label} desc={row.desc} descImg={row.descImg} />
       <Select
         size="small"
         style={{ minWidth: 140 }}
@@ -319,9 +314,7 @@ const FmListRow: React.FC<RowProps> = ({ row, panel, values }) => {
   const current = typeof local === 'string' ? local : String(row.value ?? '')
   return (
     <RowLine>
-      <Text style={{ minWidth: 60, display: 'inline-block' }}>
-        <Label text={row.label} desc={row.desc} descImg={row.descImg} />
-      </Text>
+      <Label text={row.label} desc={row.desc} descImg={row.descImg} />
       <Select
         size="small"
         showSearch
@@ -366,9 +359,7 @@ const HotkeyRow: React.FC<RowProps> = ({ row, panel, values }) => {
   const name = vc === 0 ? '无' : (vcToKeyName(vc) ?? `键码 ${vc}`)
   return (
     <RowLine>
-      <Text style={{ minWidth: 130, display: 'inline-block' }}>
-        <Label text={row.label} desc={row.desc} descImg={row.descImg} />
-      </Text>
+      <Label text={row.label} desc={row.desc} descImg={row.descImg} />
       <Button size="small" style={{ minWidth: 90 }} onClick={() => setRecording((r) => !r)}>
         {recording ? '按键…' : name}
       </Button>

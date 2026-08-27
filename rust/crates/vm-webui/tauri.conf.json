@@ -13,9 +13,12 @@
         "title": "VoidMei 设置",
         "width": 800,
         "height": 620,
+        "minWidth": 640,
+        "minHeight": 480,
         "visible": false,
         "center": true,
-        "resizable": true
+        "resizable": true,
+        "decorations": false
       }
     ],
     "security": {

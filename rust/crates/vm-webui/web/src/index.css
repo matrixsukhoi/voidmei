@@ -1,0 +1,107 @@
+/* D9 视觉对位 Java PinkStyle (src/ui/replica/PinkStyle.java):
+   亮色粉白主题 — 白卡片 #FFF / 主底 #F5F5F5 / 细边 #E6E6E6 / 文字 #333
+   Hot Pink #FF69B4 强调; TitledBorder 卡片 (标题嵌边框线) + 胶囊开关 */
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  background: #f5f5f5;
+  font-family: 'Microsoft YaHei UI', 'Segoe UI', 'PingFang SC', sans-serif;
+  overflow: hidden;
+}
+
+/* --- 自绘标题栏 (对位 Java setUndecorated + 自绘窗口按钮) --- */
+.titlebar {
+  height: 36px;
+  display: flex;
+  align-items: center;
+  padding: 0 4px 0 14px;
+  background: #ffffff;
+  border-bottom: 1px solid #ececec;
+  user-select: none;
+}
+.titlebar .win-btn {
+  width: 34px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: #666;
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: 6px;
+}
+.titlebar .win-btn:hover {
+  background: #f0f0f0;
+}
+.titlebar .win-btn.close:hover {
+  background: #ff5f57;
+  color: #fff;
+}
+
+/* --- TitledBorder 卡片 (Java BorderFactory.createTitledBorder 的 web 等价:
+       细灰边 + 标题嵌在边框线上, 白底圆角) --- */
+.titled-card {
+  position: relative;
+  border: 1px solid #e6e6e6;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 14px 12px 10px;
+  margin: 8px 0;
+}
+.titled-card > .tc-title {
+  position: absolute;
+  top: -9px;
+  left: 10px;
+  background: #ffffff;
+  padding: 0 6px;
+  font-weight: 600;
+  font-size: 13px;
+  color: #333333;
+  line-height: 18px;
+}
+/* 嵌套子分组 (HEADER 内 HEADER): 更小一号, plain */
+.titled-card.nested {
+  border-color: #efefef;
+  padding: 10px 10px 8px;
+  margin: 6px 0 2px;
+}
+.titled-card.nested > .tc-title {
+  top: -8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #555555;
+}
+
+/* --- 胶囊开关 OFF 态 (Java: 白底+浅边+深灰钮, 非 AntD 默认灰底) --- */
+.ant-switch.ant-switch:not(.ant-switch-checked) {
+  background: #ffffff;
+  border: 1px solid #d9d9d9;
+}
+.ant-switch:not(.ant-switch-checked) .ant-switch-handle::before {
+  background: #808080;
+}
+
+/* --- 水印 (Java setWatermark(image/watermark.png)): 右下低透明度 --- */
+.watermark {
+  position: absolute;
+  right: 18px;
+  bottom: 52px;
+  max-width: 220px;
+  opacity: 0.07;
+  pointer-events: none;
+}
+
+/* --- 底部按钮栏 (Java BasePage.createBottomPanel: 左预览组/右取消+启动组) --- */
+.footerbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 14px;
+  background: #fafafa;
+  border-top: 1px solid #ececec;
+}
