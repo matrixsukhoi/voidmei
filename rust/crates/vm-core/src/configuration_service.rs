@@ -2055,6 +2055,10 @@ mod tests {
 
     #[test]
     fn group_position_read_write_roundtrip() {
+        // 跨模块 CWD 锁 (config_manager::CWD_LOCK, 审查 B4): 落盘走全局路径
+        // ./ui_layout.user.cfg, 须与 config_manager 的 chdir 型沙箱测试互斥 —
+        // 并行时本测试的落盘会写进他人沙箱 (实测曾打挂 reset_to_factory 断言)
+        let _cwd = crate::config_manager::CWD_LOCK.lock().expect("cwd 测试锁中毒");
         let _guard = UserCfgGuard; // save_group_position 落盘 → Drop 清理 ./ui_layout.user.cfg
         let s = svc("(panel \"飞行信息\" :x 0.0602 :y 0.1188)");
         // 读: 归一化原值 (忽略大小写, 对齐视图 getGroupConfig 语义)

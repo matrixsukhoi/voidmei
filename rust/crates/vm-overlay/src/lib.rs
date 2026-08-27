@@ -1,6 +1,7 @@
 //! vm-overlay: overlay 渲染与平台窗口层 (POC 语义复刻成果)
 pub mod compare;
 pub mod config;
+pub mod flight_info;
 pub mod font;
 pub mod gauge_attitude;
 pub mod gauge_compass;
@@ -49,6 +50,7 @@ pub use minihud_layout::{
     ENABLE_LAYOUT_DEBUG_ITEM, LAYOUT_PADDING, MINIHUD_NODE_SPECS, MINIHUD_PANEL_ITEMS,
 };
 pub use overlay_list::{BaseListOverlay, ZebraList};
+pub use flight_info::{build_texts_from_values, flight_info_overlay_spec, FlightInfoHandle};
 pub use overlays_field1::{
     engine_control_overlay_spec, engine_control_preview_spec, gear_flaps_overlay_spec,
     gear_flaps_preview_spec, power_info_overlay_spec, power_info_preview_spec, DynSource,

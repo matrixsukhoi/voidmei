@@ -65,6 +65,10 @@ pub struct ServiceData {
     /// MapObj.getPlayerLoc 按 &mut [f64;2] 写入 → 定长 [f64; 2] (§1)
     pub loc: Option<[f64; 2]>,
     pub dir: Option<[f64; 2]>,
+    /// Deriver 整包快照 (step 返回值原样存; 组装面 FlightInfo overlay 的字段行
+    /// 数据源, 免 16 字段反向映射。PORT: Rust 组装便利层, Java 无对应物 —
+    /// 散字段写回仍是主消费者面, 两者同源自 step, 不漂移)
+    pub flight_values: crate::data::derive::FlightValues,
     pub energy_j_kg: f64,
     pub prev_energy_j_kg: f64,
     pub calc_period: i64,
@@ -382,6 +386,7 @@ impl Default for ServiceData {
             energy_diff_sma: None,
             loc: None,
             dir: None,
+            flight_values: Default::default(),
             energy_j_kg: 0.0,
             prev_energy_j_kg: 0.0,
             calc_period: 0,

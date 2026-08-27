@@ -249,15 +249,8 @@ fn cmd_render_gauge(name: &str, args: &[String]) -> Result<(), String> {
     Ok(())
 }
 
-/// numHeight 默认值: Java 实测校准 (24px BOLD Sarasa: ascent24+descent6+leading1=31)
-/// 其余字号用 1.25×fontSize 近似 (与实测差 ≤1px, 精确值由对拍脚本 --num-height 注入)
-fn default_num_height(font_add: i32) -> i32 {
-    if font_add == 0 {
-        31
-    } else {
-        ((24 + font_add) as f32 * 1.25).round() as i32
-    }
-}
+/// numHeight 默认值 — 已平移 lib (flight_info.rs, 组装面共用), bin 复用
+use vm_overlay::flight_info::{build_texts_from_values, default_num_height, flight_value};
 
 /// --minihud: MiniHUD 整帧对拍导出 (与 Java OverlayPngExport --minihud 逐像素对拍,
 /// 组装口径见 vm_overlay::parity_minihud 模块头)
@@ -278,28 +271,7 @@ fn cmd_render_minihud(args: &[String]) -> Result<(), String> {
 }
 
 /// FlightValues → 16 getter 的映射 (fields.rs 的 source 对应)
-fn flight_value(v: &vm_data::FlightValues, getter: &str) -> Option<f64> {
-    Some(match getter {
-        "getIAS" => v.ias,
-        "getTAS" => v.tas,
-        "getMach" => v.mach,
-        "getCompass" => v.compass,
-        "getAltitude" => v.altitude,
-        "getVario" => v.vario,
-        "getSEP" => v.sep,
-        "getAcceleration" => v.acceleration,
-        "getRollRate" => v.roll_rate,
-        "getNy" => v.ny,
-        "getTurnRate" => v.turn_rate,
-        "getTurnRadius" => v.turn_radius,
-        "getAoA" => v.aoa,
-        "getAoS" => v.aos,
-        "getWingSweep" => v.wing_sweep, // 已 ×100
-        "getRadioAltitude" => v.radio_altitude,
-        _ => return None,
-    })
-}
-
+// flight_value — 已平移 lib (flight_info.rs), bin 经 use 复用
 /// --log-values: 从 8111 取一帧数据, 以 values.txt 格式输出 (回灌 Java --values 对拍用)
 fn cmd_log_values() -> Result<(), String> {
     let timeout = std::time::Duration::from_millis(2000);
@@ -350,30 +322,7 @@ fn cmd_run_window(mode: vm_overlay::OverlayMode) -> Result<(), String> {
     }
 }
 
-/// FlightValues → (label, unit, value) owned 元组 (visible-when/na-when 求值, 同 --values 路径)
-fn build_texts_from_values(
-    v: &vm_data::FlightValues,
-) -> Vec<(String, String, String)> {
-    let mut out = Vec::new();
-    for f in fields::FIELDS {
-        let raw = match flight_value(v, f.source.getter()) {
-            Some(x) => x,
-            None => continue,
-        };
-        if let Some(cond) = f.visible_when {
-            if !cond.eval(raw) {
-                continue;
-            }
-        }
-        // wing_sweep 已在 Deriver 里 ×100 (cfg 表达式), 此处直接用
-        let text = match f.na_when {
-            Some(cond) if cond.eval(raw) => "-".to_string(),
-            _ => format::format(raw, f.precision),
-        };
-        out.push((f.label.to_string(), f.unit.to_string(), text));
-    }
-    out
-}
+// FlightValues → owned 元组 — 已平移 lib (flight_info.rs), bin 经上方 use 复用
 
 /// values 文件: 每行 "getter名=数值", # 注释
 fn parse_values_file(path: &str) -> Result<std::collections::HashMap<String, f64>, String> {

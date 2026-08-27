@@ -247,8 +247,13 @@ Java 同款算法同样如此——对拍动态帧时需两边同等预热。
    trait 桥 (host.rs) + 组装层 ChannelPositionStore 快照读/回传写
    (MainEvent::PositionSaved → save_group_position 落盘)。人工验收发现预览
    恒居中 (原为 POC 内存版无持久化), 已修复: 启动读 cfg/user.cfg 位置 → 拖拽
-   松手/关闭即时落盘 (对齐 Java saveWindowPosition 语义)。FlightInfo 走
-   window.rs 专径无 host 条目, 位置桥不覆盖 (POC 形态遗留)
+   松手/关闭即时落盘 (对齐 Java saveWindowPosition 语义)
+9. FlightInfo overlay (flightInfoSwitch) 原走 POC window.rs 专径未进 host
+   组装面 (人工验收发现预览缺窗), 已收编: vm-overlay `flight_info.rs` 工厂
+   复用 POC 像素对拍过的 fields/layout/render 渲染栈, 经
+   `PixCanvas::composite_straight_frame` 整帧 SrcOver 桥入 host 画布体系
+   (预览灰底保留); live 数据 = ServiceData.flight_values (Deriver step 整包
+   快照, service_loop 写回)。注册面 7/7 窗口条目, mock 冒烟逐窗 present>0
 
 ## 11.5 人工验收清单 (移交用户)
 

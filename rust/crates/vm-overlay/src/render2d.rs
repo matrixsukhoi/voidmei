@@ -176,6 +176,52 @@ impl PixCanvas {
         &self.pm
     }
 
+    /// 整帧直通 RGBA 以 SrcOver 合入 (POC font::Canvas → PixCanvas 桥,
+    /// FlightInfo 专径渲染栈产出直通帧)。逐像素式与 font.rs Canvas.blit_glyph
+    /// 同源: 直通域 SrcOver 合成 + 截断式镜像预乘 — host 预览灰底 (fill_rect
+    /// 先行) 得以保留, live 全透明底上等效整帧替换。
+    /// 尺寸不符返回 false 不动状态 (调用方自查)
+    pub fn composite_straight_frame(&mut self, rgba_direct: &[u8]) -> bool {
+        if rgba_direct.len() != self.straight.len() {
+            return false;
+        }
+        if !self.straight_valid {
+            // 形状动过预乘存储 (如 fill_rect 铺灰底): 先重构直通域再合成
+            rebuild_straight(self.pm.data(), &mut self.straight);
+            self.straight_valid = true;
+        }
+        let pm = self.pm.data_mut();
+        let st = &mut self.straight;
+        for ((s, d), m) in rgba_direct
+            .chunks_exact(4)
+            .zip(st.chunks_exact_mut(4))
+            .zip(pm.chunks_exact_mut(4))
+        {
+            let sa = s[3] as u32;
+            if sa == 0 {
+                continue; // 零 alpha 源 SrcOver = 目标不变 (Java 快路径)
+            }
+            let fa = sa as f32 / 255.0;
+            let fda = d[3] as f32 / 255.0;
+            let out_a = fa + fda * (1.0 - fa);
+            if out_a <= 0.0 {
+                continue;
+            }
+            let out_a_u8 = (out_a * 255.0 + 0.5) as u8;
+            for c in 0..3 {
+                let out_c = (s[c] as f32 * fa + d[c] as f32 * fda * (1.0 - fa)) / out_a;
+                d[c] = out_c.min(255.0).round() as u8;
+            }
+            d[3] = out_a_u8;
+            // 镜像写预乘 (截断式同 window.rs to_premul_bgra)
+            for c in 0..3 {
+                m[c] = (d[c] as u32 * out_a_u8 as u32 / 255) as u8;
+            }
+            m[3] = out_a_u8;
+        }
+        true
+    }
+
     /// Java Graphics.fillRect: 整数坐标下 AA 与非 AA 输出一致 (精确覆盖), 故无 aa 参数;
     /// 负宽高静默不绘制 (Java 同)
     pub fn fill_rect(&mut self, x: i32, y: i32, w: i32, h: i32, color: [u8; 4]) {

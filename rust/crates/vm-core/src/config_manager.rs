@@ -29,6 +29,8 @@ use std::path::{Path, PathBuf};
 use crate::config_loader::{load_config, save_config, GroupConfig, RowConfig};
 use crate::lang::Lang;
 use crate::logger;
+#[cfg(test)]
+use std::sync::Mutex;
 
 const TEMPLATE_PATH: &str = "./ui_layout.cfg";
 const USER_PATH: &str = "./ui_layout.user.cfg";
@@ -447,6 +449,14 @@ pub fn reset_to_factory() -> bool {
 pub fn get_user_config_path() -> &'static str {
     USER_PATH
 }
+
+/// 跨模块共享的 CWD 测试锁 (审查 B4 落地): 进程级 CWD 对全部并行测试线程可见 —
+/// 本模块沙箱测试 (chdir 型) 与任何触发全局路径 `./ui_layout.user.cfg` 落盘的
+/// 用例 (configuration_service 的 save_group_position/save_window_position 族)
+/// 必须经此锁互斥, 否则并行落盘会写进他人沙箱。锁内不 chdir 的调用方也须持锁
+/// (其相对路径落盘与沙箱 chdir 互斥)。
+#[cfg(test)]
+pub(crate) static CWD_LOCK: Mutex<()> = Mutex::new(());
 
 /// Gets the path to the template config file.
 pub fn get_template_config_path() -> &'static str {
@@ -874,7 +884,7 @@ mod tests {
     use super::*;
     use crate::config_loader::ConfigValue;
     use std::sync::atomic::{AtomicUsize, Ordering};
-    use std::sync::{Mutex, MutexGuard};
+    use std::sync::MutexGuard;
 
     // ---- MD5 (RFC 1321 附录 A.5 七向量, 与 java.security.MessageDigest 逐字节一致) ----
 
@@ -1146,12 +1156,10 @@ mod tests {
 
     // ---- 文件流 (initialize/import/reset/backup): CWD 沙箱 + ui_state 目录注入 ----
     // 相对路径常量照 Java (工作区根运行), 测试以串行锁 + 沙箱目录隔离。
+    // CWD_LOCK 已上移模块级 pub(crate) (跨模块共享 — 见其声明处注, 审查 B4)。
 
-    // 注意: 本锁只串行化本模块改 CWD 的测试; 进程级 CWD 对全部并行测试线程可见,
-    // lang/blkx 等模块读 "./lang/cur.properties"、"./data/..." 的相对路径用例不在
-    // 保护内 — 现状两类 CWD 下同 miss/降级一致故全绿。新增依赖真实 CWD 资源的
-    // 用例前, 须先在测试设施层引入跨模块共享的 CWD 锁 (超出本文件, 见审查 B4)。
-    static CWD_LOCK: Mutex<()> = Mutex::new(());
+    // 注意: lang/blkx 等模块读 "./lang/cur.properties"、"./data/..." 的相对路径
+    // 用例不在锁保护内 — 现状两类 CWD 下同 miss/降级一致故全绿。
 
     /// CWD 沙箱守卫: Drop 恢复原工作目录并清除 ui_state 注入 (panic 安全)
     struct SandboxGuard {

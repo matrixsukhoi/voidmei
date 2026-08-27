@@ -55,9 +55,9 @@ use vm_overlay::hotkey::{HotkeyEvent, HotkeyManager, VC_P};
 use vm_overlay::platform_extras::DpiHelper;
 use vm_overlay::{
     attitude_overlay_spec, control_surfaces_overlay_spec, engine_control_overlay_spec,
-    gear_flaps_overlay_spec, minihud_overlay_spec, power_info_overlay_spec,
-    AttitudeOverlayHandle, ControlSurfacesHandle, EngineControlHandle, GearFlapsHandle,
-    MiniHudHandle, PowerInfoHandle,
+    flight_info_overlay_spec, gear_flaps_overlay_spec, minihud_overlay_spec,
+    power_info_overlay_spec, AttitudeOverlayHandle, ControlSurfacesHandle,
+    EngineControlHandle, FlightInfoHandle, GearFlapsHandle, MiniHudHandle, PowerInfoHandle,
 };
 
 #[cfg(target_os = "windows")]
@@ -745,6 +745,9 @@ pub struct OverlayInputs {
     /// 动力信息字号增量 + 列数 (getOverlaySettings("动力信息"))
     pub font_add_power: i32,
     pub power_columns: i32,
+    /// 飞行信息字号增量 + 列数 (getOverlaySettings("飞行信息"); Java Controller:683)
+    pub font_add_flight: i32,
+    pub flight_columns: i32,
     /// 起落襟翼字号增量 + 边缘模式 (getOverlaySettings("起落襟翼"))
     pub font_add_gear: i32,
     pub gear_show_edge: bool,
@@ -776,12 +779,15 @@ impl OverlayInputs {
         let gear = config.get_overlay_settings("起落襟翼");
         let axis = config.get_overlay_settings("舵面值");
         let attitude = config.get_overlay_settings("地平仪");
+        let flight = config.get_overlay_settings("飞行信息");
         OverlayInputs {
             dpi_scale: env.dpi.get_scale(),
             hud: HudSettingsSnapshot::build(&config.get_hud_settings()),
             font_add_engine: engine.get_font_size_add(),
             font_add_power: power.get_font_size_add(),
             power_columns: power.get_int("hudColumns", 1),
+            font_add_flight: flight.get_font_size_add(),
+            flight_columns: flight.get_int("flightInfoColumn", 1),
             font_add_gear: gear.get_font_size_add(),
             gear_show_edge: gear.get_bool("enablegearAndFlapsEdge", false),
             font_add_axis: axis.get_font_size_add(),
@@ -1927,6 +1933,8 @@ struct OverlayHandles {
     attitude: Option<AttitudeOverlayHandle>,
     /// 操纵面 (Java ControlSurfacesOverlay.onFlightData 50ms 节流)
     control_surfaces: Option<ControlSurfacesHandle>,
+    /// 飞行信息 (Java FlightInfoOverlay.onFlightData 字段行; POC 专径收编批接入)
+    flight_info: Option<FlightInfoHandle>,
 }
 
 /// Java OverlayContext 的 win32 侧替身: 激活探测访问面
@@ -2006,10 +2014,11 @@ const MINIHUD_INTEREST_KEYS: [&str; 13] = [
 /// GroupConfig.x/y; 测试 overlay_sections_hit_ui_layout_cfg 以 cfg 为源核对。
 /// (flightInfoSwitch 走 window.rs 专径无 host 条目, 不列; enableVoiceWarn/
 /// enableFMPrint/thrustdFS 非窗口条目同不列)
-const OVERLAY_SECTIONS: [(&str, &str); 6] = [
+const OVERLAY_SECTIONS: [(&str, &str); 7] = [
     ("enableEngineControl", "引擎控制"),
     ("engineInfoSwitch", "动力信息"),
     ("crosshairSwitch", "MiniHUD"),
+    ("flightInfoSwitch", "飞行信息"),
     ("enableAxis", "舵面值"),
     ("enableAttitudeIndicator", "地平仪"),
     ("enablegearAndFlaps", "起落襟翼"),
@@ -2046,11 +2055,11 @@ impl vm_overlay::host::PositionStore for ChannelPositionStore {
 /// 重建存活 (D8), 条目是无状态配置记录 (id/config_key/尺寸/渲染闭包), 重建语义
 /// 由激活探测 (实时配置) + 命令通道承载 — 重注册无信息增量。
 ///
-/// 注册键 10/10 落位 (P6 收口, 批十四 A-W5 备案收编):
-/// - 窗口条目 6: enableEngineControl / engineInfoSwitch / crosshairSwitch /
-///   enablegearAndFlaps / enableAxis / enableAttitudeIndicator (本批补齐后两键)。
-/// - 非窗口/降级 4 (键在激活缓存 ACTIVATION_KEYS / strategy_for 留有映射, 不建窗口):
-///   - flightInfoSwitch: FlightInfo 走 window.rs 专径 (POC 形态, 无 OverlaySpec 工厂)
+/// 注册键 10/10 落位 (P6 收口 + 人工验收补口):
+/// - 窗口条目 7: enableEngineControl / engineInfoSwitch / crosshairSwitch /
+///   flightInfoSwitch (POC window.rs 专径收编, vm-overlay flight_info.rs) /
+///   enablegearAndFlaps / enableAxis / enableAttitudeIndicator。
+/// - 非窗口/降级 3 (键在激活缓存 ACTIVATION_KEYS / strategy_for 留有映射, 不建窗口):
 ///   - enableVoiceWarn: VoiceWarning 为 FlightDataBus 订阅者形态非窗口 (TODO(port))
 ///   - enableFMPrint: FMUnpackedData 需 host 扩展 (动态窗口高 resize + 逐条目可见性,
 ///     overlays_field2.rs 头注 P5 组装契约), 键留激活缓存无窗口条目
@@ -2107,6 +2116,17 @@ fn register_game_mode_overlays(
             host.register(spec).with_interest(&MINIHUD_INTEREST_KEYS);
         }
         Err(e) => logger::error("Controller", &format!("MiniHUD overlay 注册失败: {}", e)),
+    }
+    // 飞行信息 (Java:683-686, 键 flightInfoSwitch) — POC window.rs 专径收编
+    // (渲染栈复用 fields/layout/render 对拍三件套, 见 vm-overlay flight_info.rs)
+    match flight_info_overlay_spec(fonts, inputs.font_add_flight, inputs.flight_columns) {
+        Ok((h, spec)) => {
+            shared.note_registered_overlay(&spec.id);
+            handles.flight_info = Some(h);
+            host.register(spec)
+                .with_interest(&["flightInfo", "fontSize", "disableFlightInfo"]);
+        }
+        Err(e) => logger::error("Controller", &format!("飞行信息 overlay 注册失败: {}", e)),
     }
     // 起落襟翼 (Java:709-714, 键 enablegearAndFlaps)
     match gear_flaps_overlay_spec(
@@ -2296,6 +2316,11 @@ fn feed_overlays_live(
         }
         // 5. 操纵面 (50ms 节流内置; has_service = Java init(S) 的 xs!=null 数据门控,
         //    单实例形态下由喂入点随游戏窗口形态置位 — 见工厂头注 PORT(数据门控))
+        // 飞行信息 (Java FlightInfoOverlay.onFlightData 字段行更新, 无节流 —
+        // host 50ms 渲染节拍 + 像素指纹兜底; 数据 = Deriver 整包快照)
+        if let Some(h) = handles.flight_info.as_ref() {
+            h.borrow_mut().update_from_values(&guard.flight_values);
+        }
         if let Some(h) = handles.control_surfaces.as_ref() {
             let mut cs = h.borrow_mut();
             cs.has_service = true;
@@ -2383,6 +2408,7 @@ pub fn win32_thread_main(cfg: Win32ThreadConfig) {
         gear_flaps: None,
         attitude: None,
         control_surfaces: None,
+        flight_info: None,
     };
     // Lang 一次构造 (GearFlaps update_tick 的标签源; 注册面与喂入共用)
     let lang = Lang::init_lang();
@@ -3590,6 +3616,8 @@ mod tests {
             font_add_engine: 0,
             font_add_power: 0,
             power_columns: 1,
+            font_add_flight: 0,
+            flight_columns: 1,
             font_add_gear: 0,
             gear_show_edge: false,
             font_add_axis: 0,
@@ -3603,10 +3631,10 @@ mod tests {
         }
     }
 
-    /// 注册面: Java registerGameModeOverlays 的 6 个窗口条目全部落位
-    /// (open_all 默认激活全真; 剩 4 键非窗口/降级备案见 register_game_mode_overlays 头注)
+    /// 注册面: Java registerGameModeOverlays 的 7 个窗口条目全部落位
+    /// (open_all 默认激活全真; 剩 3 键非窗口/降级备案见 register_game_mode_overlays 头注)
     #[test]
-    fn register_game_mode_overlays_six_window_entries() {
+    fn register_game_mode_overlays_seven_window_entries() {
         let mut host = OverlayHost::with_factory(Box::new(|_cfg| {
             Ok(Box::new(NullWin) as Box<dyn vm_overlay::platform::OverlayWindow>)
         }));
@@ -3617,6 +3645,7 @@ mod tests {
             gear_flaps: None,
             attitude: None,
             control_surfaces: None,
+        flight_info: None,
         };
         let shell = fixture();
         let lang = Lang::init_lang();
@@ -3637,11 +3666,12 @@ mod tests {
             .keys()
             .cloned()
             .collect();
-        assert_eq!(reg_keys.len(), 6, "注册落键应恰为 6 键 (实测 {reg_keys:?})");
-        // 6 个共享句柄全部登记 (spec 工厂成功)
+        assert_eq!(reg_keys.len(), 7, "注册落键应恰为 7 键 (实测 {reg_keys:?})");
+        // 7 个共享句柄全部登记 (spec 工厂成功)
         assert!(handles.minihud.is_some(), "MiniHUD 句柄");
         assert!(handles.power_info.is_some(), "动力信息句柄");
         assert!(handles.engine_control.is_some(), "引擎控制句柄");
+        assert!(handles.flight_info.is_some(), "飞行信息句柄");
         assert!(handles.gear_flaps.is_some(), "起落襟翼句柄");
         assert!(handles.attitude.is_some(), "地平仪句柄");
         assert!(handles.control_surfaces.is_some(), "操纵面句柄");
@@ -3657,8 +3687,9 @@ mod tests {
                 "enableEngineControl",
                 "enablegearAndFlaps",
                 "engineInfoSwitch",
+                "flightInfoSwitch",
             ],
-            "注册键 10 键中的 6 窗口条目 (Java 键一一对应)"
+            "注册键 10 键中的 7 窗口条目 (Java 键一一对应)"
         );
     }
 
@@ -3684,6 +3715,7 @@ mod tests {
         let (h_gear, _) = vm_overlay::gear_flaps_overlay_spec(&fonts, 0, 1.0, false).unwrap();
         let (h_att, _) = vm_overlay::attitude_overlay_spec(150, 300, 1.0, false, true).unwrap();
         let (h_cs, _) = vm_overlay::control_surfaces_overlay_spec(&fonts, 0, 1.0, false).unwrap();
+        let (h_fi, _) = vm_overlay::flight_info_overlay_spec(&fonts, 0, 1).unwrap();
         let handles = OverlayHandles {
             minihud: Some(h_mini),
             power_info: Some(h_power),
@@ -3691,6 +3723,7 @@ mod tests {
             gear_flaps: Some(h_gear),
             attitude: Some(h_att),
             control_surfaces: Some(h_cs),
+            flight_info: Some(h_fi),
         };
 
         // live 快照: throttle 55 / flaps 25 / gear 100 / aileron 100 / aoa 10 /
@@ -3776,6 +3809,7 @@ mod tests {
             gear_flaps: None,
             attitude: None,
             control_surfaces: None,
+        flight_info: None,
         };
         let shared = ControllerShared::new();
         shared.overlay_ctx_preview.store(false, Ordering::SeqCst);

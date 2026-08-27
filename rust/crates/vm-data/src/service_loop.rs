@@ -830,6 +830,8 @@ impl Service {
         // 写回派生量 (FlightValues → ServiceData 字段, 来源映射见各字段)
         {
             let mut d = write_data(&self.data);
+            // 整包快照 (FlightInfo overlay 数据源; 与下方散字段同源同值)
+            d.flight_values = values;
             // R2 hasFM 守卫 (Java updateSpeedRatio L1191-1199): 无 FM 时整方法早退,
             // mach 保持上轮值 (初始 0)——否则无 FM 机型 mach 非 0, 破坏
             // hide-when-zero 显示行为

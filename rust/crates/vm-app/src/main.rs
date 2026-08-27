@@ -328,14 +328,15 @@ fn mock_smoke_main(debug: bool) -> i32 {
     if frames == 0 {
         return fail("overlay present 帧数为 0 (窗口未开/渲染未跑)".to_string());
     }
-    // 游戏模式注册全集 (register_game_mode_overlays 的 6 键; 缺键 = 注册失败)
-    const GAME_MODE_OVERLAYS: [&str; 6] = [
+    // 游戏模式注册全集 (register_game_mode_overlays 的 7 键; 缺键 = 注册失败)
+    const GAME_MODE_OVERLAYS: [&str; 7] = [
         "enableEngineControl",
         "engineInfoSwitch",
         "crosshairSwitch",
         "enablegearAndFlaps",
         "enableAxis",
         "enableAttitudeIndicator",
+        "flightInfoSwitch",
     ];
     let mut missing = Vec::new();
     let mut zero = Vec::new();
