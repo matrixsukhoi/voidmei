@@ -6,13 +6,14 @@
  * - 底部左组 (保存/刷新预览/导入) + 右组胶囊 [结束游戏|开始游戏] (WebButtonGroup 同位);
  * - 水印 (Java setWatermark(image/watermark.png))。
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { invoke } from '@tauri-apps/api/core'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { invoke, convertFileSrc } from '@tauri-apps/api/core'
 import { getCurrentWindow } from '@tauri-apps/api/window'
+import { getVersion } from '@tauri-apps/api/app'
+import { LogicalSize } from '@tauri-apps/api/dpi'
 import { listen } from '@tauri-apps/api/event'
 import { open } from '@tauri-apps/plugin-dialog'
-import { convertFileSrc } from '@tauri-apps/api/core'
-import { Badge, Button, Col, Row as GridRow, Space, Spin, Tabs, Typography, message, notification } from 'antd'
+import { Badge, Button, Space, Spin, Tabs, Typography, message, notification } from 'antd'
 import type { PanelDto, RowDto } from './api'
 import { getAssetRoot, getLayoutTree, importConfig, sendFormMessage } from './api'
 import { RowRenderer } from './rows'
@@ -21,11 +22,11 @@ const { Title, Text } = Typography
 
 const appWindow = getCurrentWindow()
 
-/** 自绘标题栏: 拖拽区 + 状态徽标 + 最小化/关闭 (关闭=hide, 对位 Java X 后托盘常驻) */
-const TitleBar: React.FC<{ ctrlState: string }> = ({ ctrlState }) => (
+/** 自绘标题栏: 拖拽区 + 版本号 + 状态徽标 + 最小化/关闭 (关闭=hide, 对位 Java X 后托盘常驻) */
+const TitleBar: React.FC<{ ctrlState: string; version: string }> = ({ ctrlState, version }) => (
   <div className="titlebar" data-tauri-drag-region>
     <Title level={5} style={{ margin: 0, fontSize: 14, flex: 1 }} data-tauri-drag-region>
-      VoidMei 设置
+      VoidMei 设置{version ? ` v${version}` : ''}
     </Title>
     <Badge {...(STATE_BADGE[ctrlState] ?? STATE_BADGE.Init)} style={{ marginRight: 10 }} />
     <button className="win-btn" title="最小化" onClick={() => appWindow.minimize()}>
@@ -49,7 +50,11 @@ const TitledCard: React.FC<{ title: string; nested?: boolean; children: React.Re
   </div>
 )
 
-/** 行树 → 卡片/网格 (对位 DynamicDataPage.buildContainer: HEADER=组标题+递归, 其余入网格) */
+/**
+ * 行树 → 卡片/网格 (对位 DynamicDataPage.buildContainer: HEADER=组标题+递归, 其余入网格)。
+ * 网格轨道 `repeat(cols, max-content 1fr)` + 行组件 subgrid = ResponsiveGridLayout
+ * 的 maxLabelWidthPerColumn: 同列 label 等宽 → 控件垂直对齐 (内容感知列宽的 CSS 近似)。
+ */
 const RowsTree: React.FC<{ rows: RowDto[]; panel: string; cols: number; values: Record<string, unknown> }> = ({
   rows,
   panel,
@@ -61,13 +66,9 @@ const RowsTree: React.FC<{ rows: RowDto[]; panel: string; cols: number; values: 
   const flush = () => {
     if (!chunk.length) return
     items.push(
-      <GridRow key={`g${items.length}`} gutter={[14, 6]}>
-        {chunk.map((n, i) => (
-          <Col key={i} span={Math.floor(24 / cols)}>
-            {n}
-          </Col>
-        ))}
-      </GridRow>,
+      <div key={`g${items.length}`} className="row-grid" style={{ gridTemplateColumns: `repeat(${cols}, max-content 1fr)` }}>
+        {chunk}
+      </div>,
     )
     chunk = []
   }
@@ -81,7 +82,7 @@ const RowsTree: React.FC<{ rows: RowDto[]; panel: string; cols: number; values: 
         </TitledCard>,
       )
     } else {
-      chunk.push(<RowRenderer row={r} panel={panel} values={values} />)
+      chunk.push(<RowRenderer key={r.label + r.type} row={r} panel={panel} values={values} />)
     }
   }
   flush()
@@ -116,9 +117,13 @@ export default function App() {
   const [panels, setPanels] = useState<PanelDto[]>([])
   const [values, setValues] = useState<Record<string, Record<string, unknown>>>({})
   const [loadErr, setLoadErr] = useState('')
-  const [activeTab, setActiveTab] = useState('')
+  // tab 记忆 (Java UIStateStorage.saveLastTab 的本地等价)
+  const [activeTab, setActiveTab] = useState(() => localStorage.getItem('vm-last-tab') ?? '')
   const [ctrlState, setCtrlState] = useState('Init')
   const [watermark, setWatermark] = useState<string | null>(null)
+  const [version, setVersion] = useState('')
+  /** 内容测量层 (不设 overflow, 高度=真实内容; Java getRequiredHeight 等价) */
+  const measureRef = useRef<HTMLDivElement | null>(null)
 
   const reload = useCallback(async () => {
     try {
@@ -130,6 +135,34 @@ export default function App() {
       setLoadErr(String(e))
     }
   }, [])
+
+  // 切 tab 即记忆 (Java saveLastTab 同点)
+  const switchTab = (t: string) => {
+    setActiveTab(t)
+    localStorage.setItem('vm-last-tab', t)
+  }
+
+  // 动态窗口高度 (Java MainForm.updateDynamicSize: 按 tab 内容高度, min=tab×30+180,
+  // max=屏-80) — 300ms 防抖, 高度差 >16px 才调 (防抖动)
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const el = measureRef.current
+      if (!el) return
+      const panels_n = Math.max(panels.length, 1)
+      const minH = panels_n * 30 + 180
+      const maxH = window.screen.availHeight - 80
+      const target = Math.min(Math.max(el.scrollHeight + 36 + 52 + 16, minH), maxH)
+      appWindow
+        .innerSize()
+        .then(({ height }) => {
+          if (Math.abs(height - target) > 16) {
+            appWindow.setSize(new LogicalSize(800, Math.round(target)))
+          }
+        })
+        .catch(() => undefined)
+    }, 300)
+    return () => clearTimeout(t)
+  }, [activeTab, panels])
 
   useEffect(() => {
     // 就绪 = 监听注册后再上报 (Rust show+emit 与 listen 注册的竞态, 见阶段①记录)
@@ -158,6 +191,10 @@ export default function App() {
     getAssetRoot()
       .then((root) => setWatermark(convertFileSrc(`${root}/image/watermark.png`)))
       .catch(() => undefined)
+    // 版本号 (Java 标题 = appName + " v" + version; tauri.conf version 编译期注入)
+    getVersion()
+      .then(setVersion)
+      .catch(() => undefined)
   }, [reload])
 
   useEffect(() => {
@@ -181,16 +218,23 @@ export default function App() {
     label: p.title,
     children: (
       <div style={{ padding: '6px 14px 16px', overflowY: 'auto', height: 'calc(100vh - 36px - 52px)' }}>
-        {p.rows.length ? (
-          <RowsTree
-            rows={p.rows}
-            panel={p.title}
-            cols={p.panelColumns > 0 ? p.panelColumns : 2}
-            values={valueTree[p.title] ?? {}}
-          />
-        ) : (
-          <Text type="secondary">Data (Empty)</Text>
-        )}
+        {/* 测量层: 高度=真实内容 (getRequiredHeight 等价, 不受滚动容器视口影响) */}
+        <div
+          ref={(el) => {
+            if (p.title === activeTab) measureRef.current = el
+          }}
+        >
+          {p.rows.length ? (
+            <RowsTree
+              rows={p.rows}
+              panel={p.title}
+              cols={p.panelColumns > 0 ? p.panelColumns : 2}
+              values={valueTree[p.title] ?? {}}
+            />
+          ) : (
+            <Text type="secondary">Data (Empty)</Text>
+          )}
+        </div>
         {watermark && <img className="watermark" src={watermark} alt="" />}
       </div>
     ),
@@ -198,10 +242,16 @@ export default function App() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#F5F5F5' }}>
-      <TitleBar ctrlState={ctrlState} />
+      <TitleBar ctrlState={ctrlState} version={version} />
       <div style={{ flex: 1, minHeight: 0, background: '#FFFFFF' }}>
         {tabs.length ? (
-          <Tabs tabPosition="left" items={tabs} activeKey={activeTab} onChange={setActiveTab} style={{ height: '100%' }} />
+          <Tabs
+            tabPosition="left"
+            items={tabs}
+            activeKey={activeTab}
+            onChange={switchTab}
+            style={{ height: '100%' }}
+          />
         ) : (
           <div style={{ padding: 24 }}>
             <Space>
@@ -211,25 +261,29 @@ export default function App() {
           </div>
         )}
       </div>
-      {/* 底部: 左组 (保存/刷新预览/导入) + 右组胶囊 [结束游戏|开始游戏]
-          (Java BasePage: 左 [显示预览|关闭预览] / 右 WebButtonGroup [取消|启动]) */}
+      {/* 底部: 左组 (保存/刷新预览/导入, 透明底文字按钮 = Java createFooterButton
+          透明样式) + 右组胶囊 [结束游戏|开始游戏] (WebButtonGroup 同位) */}
       <div className="footerbar">
         <Space>
-          <Button size="small" onClick={() => act({ kind: 'Save' })}>
+          <Button type="text" className="footer-btn" onClick={() => act({ kind: 'Save' })}>
             保存
           </Button>
-          <Button size="small" onClick={() => act({ kind: 'RefreshPreviews' })}>
+          <Button type="text" className="footer-btn" onClick={() => act({ kind: 'RefreshPreviews' })}>
             刷新预览
           </Button>
-          <Button size="small" onClick={() => importConfigDialog().catch((e) => message.error(`打开文件框失败: ${e}`))}>
+          <Button
+            type="text"
+            className="footer-btn"
+            onClick={() => importConfigDialog().catch((e) => message.error(`打开文件框失败: ${e}`))}
+          >
             导入配置
           </Button>
         </Space>
         <Space.Compact>
-          <Button size="small" danger onClick={() => act({ kind: 'EndGame' })}>
+          <Button danger onClick={() => act({ kind: 'EndGame' })} style={{ height: 32 }}>
             结束游戏
           </Button>
-          <Button size="small" type="primary" onClick={() => act({ kind: 'StartGame' })}>
+          <Button type="primary" onClick={() => act({ kind: 'StartGame' })} style={{ height: 32 }}>
             开始游戏
           </Button>
         </Space.Compact>

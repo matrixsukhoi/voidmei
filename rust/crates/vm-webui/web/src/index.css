@@ -96,7 +96,31 @@ body,
   pointer-events: none;
 }
 
-/* --- 底部按钮栏 (Java BasePage.createBottomPanel: 左预览组/右取消+启动组) --- */
+/* --- 网格行 (对位 ResponsiveGridLayout): max-content 轨道共享 → 同列 label 等宽,
+       行组件 subgrid 继承外层轨道 (maxLabelWidthPerColumn 的 CSS 等价) --- */
+.row-grid {
+  display: grid;
+  column-gap: 18px;
+  row-gap: 6px;
+  align-items: center;
+}
+.row-line {
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-column: span 2;
+  align-items: center;
+  column-gap: 10px;
+  min-height: 30px;
+}
+.row-line .ctrl {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* --- 底部按钮栏 (Java BasePage.createBottomPanel: 左预览组/右取消+启动组;
+       createFooterButton = defaultFontBig 14pt + 透明底) --- */
 .footerbar {
   display: flex;
   justify-content: space-between;
@@ -105,3 +129,17 @@ body,
   background: #fafafa;
   border-top: 1px solid #ececec;
 }
+.footerbar .footer-btn {
+  font-size: 14px;
+  min-width: 96px;
+  color: #555;
+}
+
+/* --- 字号对位 (Java defaultFont 12pt ≈ 14px / 卡片标题 bold 14pt ≈ 15px) --- */
+.ant-tabs-tab {
+  font-size: 14px !important;
+}
+.titled-card > .tc-title {
+  font-size: 15px;
+}
+

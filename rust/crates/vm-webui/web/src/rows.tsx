@@ -50,7 +50,8 @@ const Label: React.FC<{ text: string; desc?: string | null; descImg?: string | n
       .catch(() => undefined)
   }, [descImg])
   if (!text) return null
-  if (!desc && !descImg) return <Text style={{ fontSize: 13 }}>{text}</Text>
+  if (!desc && !descImg) return <Text style={{ fontSize: 14 }}>{text}</Text>
+  // Java applyStylizedTooltip 无视觉标记 (纯悬停弹层) — 不加下划线, 仅 help 光标
   return (
     <Tooltip
       title={
@@ -60,13 +61,29 @@ const Label: React.FC<{ text: string; desc?: string | null; descImg?: string | n
         </>
       }
     >
-      <span style={{ cursor: 'help', borderBottom: '1px dotted #bbb', fontSize: 13 }}>{text}</span>
+      <span style={{ cursor: 'help', fontSize: 14 }}>{text}</span>
     </Tooltip>
   )
 }
 
-const RowLine: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div style={{ display: 'flex', alignItems: 'center', gap: 8, minHeight: 28 }}>{children}</div>
+/**
+ * 行骨架 (对位 ReplicaBuilder.createSwitchItem 的 BorderLayout.WEST+CENTER):
+ * label 段 + 控件段两列 grid — 配合外层 RowsTree 的 `max-content 1fr` 轨道
+ * (subgrid), 同列 label 等宽 → 控件垂直对齐 (= ResponsiveGridLayout 的
+ * maxLabelWidthPerColumn 的 CSS 等价)。
+ */
+const RowLine: React.FC<{ label?: React.ReactNode; children?: React.ReactNode; full?: boolean }> = ({
+  label,
+  children,
+  full,
+}) => (
+  <div
+    className={`row-line${full ? ' full' : ''}`}
+    style={full ? { gridColumn: '1 / -1' } : undefined}
+  >
+    {label}
+    <span className="ctrl">{children}</span>
+  </div>
 )
 
 /** SWITCH / SWITCH_INV / DATA (DATA 是开关, Java data toggles): label 左, 开关紧随 */
@@ -75,8 +92,7 @@ const SwitchRow: React.FC<RowProps> = ({ row, panel, values }) => {
   const local = values[key]
   const checked = typeof local === 'boolean' ? local : String(row.value ?? '').toLowerCase() === 'true'
   return (
-    <RowLine>
-      <Label text={row.label} desc={row.desc} descImg={row.descImg} />
+    <RowLine label={<Label text={row.label} desc={row.desc} descImg={row.descImg}  />}> 
       <Switch
         checked={checked}
         onChange={(v) => sendFormMessage({ kind: 'Toggle', panel, key, value: v })}
@@ -99,8 +115,7 @@ const SliderRow: React.FC<RowProps> = ({ row, panel, values }) => {
     if (persist) p.then(() => sendFormMessage({ kind: 'Save' }))
   }
   return (
-    <RowLine>
-      <Label text={row.label} desc={row.desc} descImg={row.descImg} />
+    <RowLine label={<Label text={row.label} desc={row.desc} descImg={row.descImg}  />}> 
       <Slider
         style={{ flex: 1, minWidth: 100, margin: '0 2px 0 0' }}
         min={row.minVal}
@@ -136,8 +151,7 @@ const ComboRow: React.FC<RowProps> = ({ row, panel, values }) => {
       .catch(() => setOptions([current]))
   }, [source, current])
   return (
-    <RowLine>
-      <Label text={row.label} desc={row.desc} descImg={row.descImg} />
+    <RowLine label={<Label text={row.label} desc={row.desc} descImg={row.descImg}  />}> 
       <Select
         size="small"
         style={{ minWidth: 160 }}
@@ -172,8 +186,7 @@ const ColorRow: React.FC<RowProps> = ({ row, panel, values }) => {
     }
   }
   return (
-    <RowLine>
-      <Label text={row.label} desc={row.desc} descImg={row.descImg} />
+    <RowLine label={<Label text={row.label} desc={row.desc} descImg={row.descImg}  />}> 
       <ColorPicker
         size="small"
         value={rgbaToHex(rgba)}
@@ -207,8 +220,7 @@ const TextRow: React.FC<RowProps> = ({ row, panel, values }) => {
     }
   }
   return (
-    <RowLine>
-      <Label text={row.label} desc={row.desc} descImg={row.descImg} />
+    <RowLine label={<Label text={row.label} desc={row.desc} descImg={row.descImg}  />}> 
       <Input
         size="small"
         style={{ width: 200 }}
@@ -252,15 +264,16 @@ const ButtonRow: React.FC<RowProps> = ({ row }) => {
   )
 }
 
-/** INFO: 只读长文本 + URL 自动链接 (Java InfoRowRenderer 的 JEditorPane HTML 超链接) */
+/** INFO: 只读长文本 + URL 自动链接 (Java InfoRowRenderer 的 JEditorPane HTML 超链接);
+ *  占整行 (Java INFO 行不进网格槽, 全宽段落) */
 const InfoRow: React.FC<{ row: RowDto }> = ({ row }) => (
-  <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '2px 0' }}>
+  <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '2px 0', gridColumn: '1 / -1' }}>
     {row.label && (
-      <Text strong style={{ whiteSpace: 'nowrap' }}>
+      <Text strong style={{ whiteSpace: 'nowrap', fontSize: 14 }}>
         {row.label}
       </Text>
     )}
-    <Typography.Paragraph style={{ fontSize: 13, whiteSpace: 'pre-wrap', marginBottom: 0, flex: 1 }}>
+    <Typography.Paragraph style={{ fontSize: 14, whiteSpace: 'pre-wrap', marginBottom: 0, flex: 1 }}>
       {splitUrlText(String(row.value ?? '')).map((seg, i) =>
         seg.type === 'url' ? (
           <a key={i} href={seg.value} target="_blank" rel="noreferrer">
@@ -285,8 +298,7 @@ const VoiceRow: React.FC<RowProps> = ({ row, panel, values }) => {
   // 值回退链: 本地态 → row.value → row.defaultValue (Java VoicePackConfig.parse 空值→default)
   const current = parseVoicePackValue(values[key] ?? row.value ?? row.defaultValue)
   return (
-    <RowLine>
-      <Label text={row.label} desc={row.desc} descImg={row.descImg} />
+    <RowLine label={<Label text={row.label} desc={row.desc} descImg={row.descImg}  />}> 
       <Select
         size="small"
         style={{ minWidth: 140 }}
@@ -313,8 +325,7 @@ const FmListRow: React.FC<RowProps> = ({ row, panel, values }) => {
   const local = values[key]
   const current = typeof local === 'string' ? local : String(row.value ?? '')
   return (
-    <RowLine>
-      <Label text={row.label} desc={row.desc} descImg={row.descImg} />
+    <RowLine label={<Label text={row.label} desc={row.desc} descImg={row.descImg}  />}> 
       <Select
         size="small"
         showSearch
@@ -358,8 +369,7 @@ const HotkeyRow: React.FC<RowProps> = ({ row, panel, values }) => {
   // 键名显示: VC→名称映射 (Java getKeyText 近似), 无映射兜底 "键码 N"; 0=未设置
   const name = vc === 0 ? '无' : (vcToKeyName(vc) ?? `键码 ${vc}`)
   return (
-    <RowLine>
-      <Label text={row.label} desc={row.desc} descImg={row.descImg} />
+    <RowLine label={<Label text={row.label} desc={row.desc} descImg={row.descImg}  />}> 
       <Button size="small" style={{ minWidth: 90 }} onClick={() => setRecording((r) => !r)}>
         {recording ? '按键…' : name}
       </Button>
@@ -369,14 +379,19 @@ const HotkeyRow: React.FC<RowProps> = ({ row, panel, values }) => {
 
 /** 占位键 (FILELIST; cfg 实际 0 个) — 只读兜底 */
 const FallbackRow: React.FC<RowProps> = ({ row }) => (
-  <RowLine>
-    <Text type="secondary">{row.label}</Text>
+  <RowLine
+    label={
+      <Text type="secondary" style={{ fontSize: 14 }}>
+        {row.label}
+      </Text>
+    }
+  >
     {row.value != null && (
-      <Text code style={{ fontSize: 12 }}>
+      <Text code style={{ fontSize: 13 }}>
         {String(row.value)}
       </Text>
     )}
-    <Text type="secondary" style={{ fontSize: 11 }}>
+    <Text type="secondary" style={{ fontSize: 12 }}>
       ({row.type})
     </Text>
   </RowLine>
