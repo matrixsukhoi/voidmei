@@ -222,7 +222,7 @@ fn desktop_main(debug: bool) -> i32 {
             initial_shown = true;
             publish_ui_ready(&ui_bus);
         } else if visible && in_game {
-            // 开始游戏 (托盘 Start / StartGame): 收窗, 对位 confirm 的 setVisible(false)
+            // 开始 (托盘 Start / StartGame; mStart): 收窗, 对位 confirm 的 setVisible(false)
             form.hide();
         }
 

@@ -904,7 +904,7 @@ fn start_guard_prevents_double_spawn_on_tray_start_overlay() {
         "托盘 Start 应起 Service"
     );
     let live1 = shell.shared.live.read().unwrap().clone();
-    // 用户再点 MainForm "开始游戏" (叠加态): confirm 链被 service.is_some() 守卫拦下
+    // 用户再点 MainForm "开　始" (叠加态): confirm 链被 service.is_some() 守卫拦下
     shell.dispatch(UiCommand::StartGame);
     let live2 = shell.shared.live.read().unwrap().clone();
     assert!(live2.is_some(), "首次 Service 应存活");

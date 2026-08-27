@@ -3,7 +3,7 @@
  * - 自绘标题栏 (对位 Java setUndecorated: 拖拽区 + ─/✕ 窗口按钮, X=hide);
  * - 左侧 Tabs (WebTabbedPane LEFT 同位);
  * - TitledBorder 卡片 (标题嵌边框线, 白底) + 网格 (DynamicDataPage.buildContainer 同构);
- * - 底部左组 (保存/刷新预览/导入) + 右组胶囊 [结束游戏|开始游戏] (WebButtonGroup 同位);
+ * - 底部左组 (保存/刷新预览/导入) + 右组胶囊 [退　出|开　始] (Java mCancel/mStart 同款);
  * - 水印 (Java setWatermark(image/watermark.png))。
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -262,7 +262,7 @@ export default function App() {
         )}
       </div>
       {/* 底部: 左组 (保存/刷新预览/导入, 透明底文字按钮 = Java createFooterButton
-          透明样式) + 右组胶囊 [结束游戏|开始游戏] (WebButtonGroup 同位) */}
+          透明样式) + 右组胶囊 [退　出|开　始] (Java BasePage 右组同款, 全角空格等宽) */}
       <div className="footerbar">
         <Space>
           <Button type="text" className="footer-btn" onClick={() => act({ kind: 'Save' })}>
@@ -281,10 +281,10 @@ export default function App() {
         </Space>
         <Space.Compact>
           <Button danger onClick={() => act({ kind: 'EndGame' })} style={{ height: 32 }}>
-            结束游戏
+            退　出
           </Button>
           <Button type="primary" onClick={() => act({ kind: 'StartGame' })} style={{ height: 32 }}>
-            开始游戏
+            开　始
           </Button>
         </Space.Compact>
       </div>

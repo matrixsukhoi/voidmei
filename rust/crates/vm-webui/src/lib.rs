@@ -8,7 +8,7 @@
 //! - IPC: command (tauri async 线程) → mpsc → [`ShellForm::pump_once`] 内 drain →
 //!   dispatcher (主线程执行体) → oneshot 回执。**AppShell !Send 恒留主线程不变**;
 //! - 窗口生命周期: 常驻隐藏, 托盘 Activate → `show()` (预热后 ≈100-200ms);
-//!   开始游戏/窗口 X → `hide()` (X 由 on_window_event prevent_close 拦截);
+//!   开始 (mStart; 旧文案"开始游戏")/窗口 X → `hide()` (X 由 on_window_event prevent_close 拦截);
 //! - UI_READY 语义: 每次 show 由 vm-app 主循环发布 (rebuild 后 Init→preview 保真),
 //!   本 crate 不持有 ui_bus (依赖方向: vm-app → vm-webui)。
 //!
@@ -126,7 +126,7 @@ impl ShellForm {
         }
     }
 
-    /// 隐藏设置窗 (开始游戏/窗口 X 路径)
+    /// 隐藏设置窗 (开始/窗口 X 路径)
     pub fn hide(&self) {
         if let Some(w) = self.main_window() {
             let _ = w.hide();
