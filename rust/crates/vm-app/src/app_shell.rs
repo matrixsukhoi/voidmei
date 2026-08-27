@@ -32,7 +32,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use vm_core::activation_strategy::{ActivationContext, ActivationStrategy};
 use vm_core::bus::{EventBus, Subscription};
 use vm_core::config_api::{ConfigProvider, HUDSettings, OverlaySettings};
-use vm_core::configuration_service::{ConfigurationService, ControllerIntervals, UiStateEvent};
+use vm_core::configuration_service::{ConfigurationService, ControllerIntervals, GlobalColors, UiStateEvent};
 use vm_core::controller_state::ControllerState;
 use vm_core::event::event_payload::EventPayload;
 use vm_core::event::flight_data_event::FlightDataEvent;
@@ -197,6 +197,9 @@ pub enum UiCommand {
     },
     /// Java OverlayManager.reinitActiveOverlays (非 PREVIEW 态配置变更) — win32 属主
     ReinitActiveOverlays,
+    /// 全局五色更新 (Java: 改色 → CONFIG_CHANGED(font 前缀全局键) → 刷新;
+    /// Rust 配置 !Send, 色值随命令直送 win32 线程的 global_colors 仓) — win32 属主
+    SetGlobalColors(GlobalColors),
     /// win32 线程退出 (host 停泵 + 托盘 NIM_DELETE)
     Shutdown,
 }
@@ -764,6 +767,9 @@ pub struct OverlayInputs {
     /// Service 轮询间隔 (MiniHUD blinkTicks/refreshInterval 同源;
     /// EngineControl loadRefreshInterval 读的 dataPollIntervalMs 亦同源)
     pub service_loop_interval_ms: i64,
+    /// 全局五色快照 (Java Application.colorNum 族静态; cfg fontNum/fontLabel/
+    /// fontUnit/fontWarn/fontShade → win32 线程 global_colors 仓)
+    pub colors: GlobalColors,
 }
 
 impl OverlayInputs {
@@ -801,6 +807,7 @@ impl OverlayInputs {
                 .get_bool("attitudeIndicatorDisplayAoALimits", true),
             // load_app_check 缺省 50 (ConfigurationService.java 同源)
             service_loop_interval_ms: if interval > 0 { interval } else { 50 },
+            colors: config.global_colors(),
         }
     }
 }
@@ -1704,6 +1711,22 @@ impl AppShell {
                 if is_reset_completed {
                     c.handle_fm_hotkey_config_change();
                 }
+                // 全局五色直送 (fontNum/fontLabel/fontUnit/fontWarn/fontShade —
+                // Java 经 font 前缀全局键触发全量刷新; 配置 !Send 色值随命令进
+                // win32 线程, 下帧渲染即新色, 不需重建窗口)。
+                // 即时读 cfg 键而非 global_colors() 快照: app 状态五色由
+                // load_from_config_ 刷新 (时序在下游), 发布方 (ColorRowRenderer)
+                // 此刻已写服务树值
+                if GLOBAL_COLOR_KEYS.contains(&key.as_str()) {
+                    let g = GlobalColors {
+                        num: c.config.get_color_config("fontNum"),
+                        label: c.config.get_color_config("fontLabel"),
+                        unit: c.config.get_color_config("fontUnit"),
+                        warning: c.config.get_color_config("fontWarn"),
+                        shade_shape: c.config.get_color_config("fontShade"),
+                    };
+                    let _ = self.ui_cmd_tx.send(UiCommand::SetGlobalColors(g));
+                }
                 // win32 激活面同步 (配置已由发布方写毕, 最后写胜出 — 见缓存头注)
                 refresh_activation_cache(&c.config, &self.activation);
                 if c.state() == ControllerState::Preview {
@@ -2007,6 +2030,10 @@ const MINIHUD_INTEREST_KEYS: [&str; 13] = [
     "alwaysShowRadarAltitude",
     "showHUD",
 ];
+
+/// 全局五色 cfg 键 (ui_layout.cfg:379-383; Java ConfigurationService.java:136-140
+/// loadFromConfig 读入 Application 静态)
+const GLOBAL_COLOR_KEYS: [&str; 5] = ["fontNum", "fontLabel", "fontUnit", "fontWarn", "fontShade"];
 
 /// 窗口 overlay id → 配置组标题 (Java Controller 各 init 的 getOverlaySettings
 /// 字面量, Controller.java:656-714; MiniHUD 经 getHUDSettings → sectionName
@@ -2385,6 +2412,11 @@ pub fn win32_thread_main(cfg: Win32ThreadConfig) {
         position_snapshot,
     } = cfg;
 
+    // 全局五色注入 (Java Application.colorNum 族静态的运行时值; cfg 经
+    // loadFromConfig 覆盖, 此前组件用编译期 Java 初始默认 — 人工验收发现的
+    // 颜色不一致根源)。须先于任何组件渲染
+    vm_overlay::global_colors::set(inputs.colors);
+
     // ---- host 构建 + 激活探测 (Java new OverlayManager + ActivationStrategy) ----
     let mut host = OverlayHost::new();
     // 位置存档后端 (Java overlay 的 OverlaySettings 位置面; 快照读 + 回传写)
@@ -2562,6 +2594,9 @@ pub fn win32_thread_main(cfg: Win32ThreadConfig) {
                     }
                 }
                 UiCommand::ReinitActiveOverlays => host.reinit_active_overlays(),
+                // 全局五色更新: 仓内直写, 下帧渲染生效 (reinit 标脏不必须 —
+                // 色变本身改变渲染输出, host 像素指纹自然触发重绘)
+                UiCommand::SetGlobalColors(c) => vm_overlay::global_colors::set(c),
                 UiCommand::Shutdown => {
                     logger::info("AppShell", "win32 线程退出 (Shutdown)");
                     // Drop 序: tray 最先 (NIM_DELETE 防僵尸 — tray.rs 退出契约),
@@ -3171,8 +3206,23 @@ mod tests {
             .as_ref()
             .unwrap()
             .recv_timeout(Duration::from_millis(200))
+            .expect("fontNum 触发五色直送 + ReinitActiveOverlays");
+        // 五色键: 先 SetGlobalColors (fixture cfg 五色全白 #FFFFFFFF), 后 Reinit
+        let all_white = GlobalColors {
+            num: [255, 255, 255, 255],
+            label: [255, 255, 255, 255],
+            unit: [255, 255, 255, 255],
+            warning: [255, 255, 255, 255],
+            shade_shape: [255, 255, 255, 255],
+        };
+        assert_eq!(cmd, UiCommand::SetGlobalColors(all_white));
+        let cmd2 = shell
+            .ui_cmd_rx
+            .as_ref()
+            .unwrap()
+            .recv_timeout(Duration::from_millis(200))
             .expect("非 Preview 态应立即 ReinitActiveOverlays");
-        assert_eq!(cmd, UiCommand::ReinitActiveOverlays);
+        assert_eq!(cmd2, UiCommand::ReinitActiveOverlays);
         // 防抖不排队 (无后续刷新命令)
         assert!(shell
             .ui_cmd_rx
@@ -3628,6 +3678,7 @@ mod tests {
             attitude_show_direction: false,
             attitude_show_aoa_limits: true,
             service_loop_interval_ms: 50,
+            colors: GlobalColors::JAVA_DEFAULT,
         }
     }
 

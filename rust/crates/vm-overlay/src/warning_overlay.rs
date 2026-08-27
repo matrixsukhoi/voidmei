@@ -17,7 +17,8 @@
 //! blinkActing; blinkX=false 时完全不推进 (计数/相位冻结)。
 //! blinkTicks = (1000/intervalMs)>>3 (Java:263, long 整除), 0 钳 1 (:264-265)。
 
-use crate::gauges_bars::{COLOR_NUM, COLOR_SHADE_SHAPE};
+
+use crate::global_colors::colors;
 use crate::render2d::PixCanvas;
 
 /// WarningOverlay.java:43 影层线宽 (常量 — Java 按 width 重建缓存但值与 width 无关,
@@ -55,13 +56,13 @@ impl WarningOverlay {
 
         // Draw shadow X (Java:48-52): colorShadeShape (Application.java:108),
         // 两端各内缩 2px
-        cv.draw_line(x + 2, y + 2, x + width - 2, y + height - 2, OUTER_STROKE, COLOR_SHADE_SHAPE, aa);
-        cv.draw_line(x + width - 2, y + 2, x + 2, y + height - 2, OUTER_STROKE, COLOR_SHADE_SHAPE, aa);
+        cv.draw_line(x + 2, y + 2, x + width - 2, y + height - 2, OUTER_STROKE, colors().shade_shape, aa);
+        cv.draw_line(x + width - 2, y + 2, x + 2, y + height - 2, OUTER_STROKE, colors().shade_shape, aa);
 
         // Draw foreground X (Java:54-58): colorNum (Application.java:111),
         // 两端各内缩 1px
-        cv.draw_line(x + 1, y + 1, x + width - 1, y + height - 1, INNER_STROKE, COLOR_NUM, aa);
-        cv.draw_line(x + width - 1, y + 1, x + 1, y + height - 1, INNER_STROKE, COLOR_NUM, aa);
+        cv.draw_line(x + 1, y + 1, x + width - 1, y + height - 1, INNER_STROKE, colors().num, aa);
+        cv.draw_line(x + width - 1, y + 1, x + 1, y + height - 1, INNER_STROKE, colors().num, aa);
     }
 }
 

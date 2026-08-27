@@ -25,7 +25,8 @@ use vm_data::FlightValues;
 
 use crate::font::Canvas;
 use crate::host::OverlaySpec;
-use crate::render::{render_fields_fixed, FieldText, FontTriple, DEFAULT_COLORS};
+use crate::global_colors::colors;
+use crate::render::{render_fields_fixed, FieldText, FontTriple, RenderColors};
 use crate::render2d::PixCanvas;
 
 /// numHeight 默认值 (POC main.rs 平移): Java 实测校准 24px BOLD Sarasa = 31,
@@ -151,8 +152,16 @@ pub fn flight_info_overlay_spec(
                     .map(|(l, u, v)| FieldText { label: l, unit: u, value: v })
                     .collect();
                 // 清零重绘到直通 Canvas → 整帧 SrcOver 桥入 PixCanvas
-                // (aa 恒 on, POC cmd_run_window 同款)
-                render_fields_fixed(canvas, &texts, ctx, fonts, &DEFAULT_COLORS, true);
+                // (aa 恒 on, POC cmd_run_window 同款)。色板 = 运行时全局五色
+                // (Java FieldOverlay 读 Application.colorNum 族; 对拍工具路径
+                // 仍用 render::DEFAULT_COLORS 常量基线, 互不影响)
+                let pal = RenderColors {
+                    num: colors().num,
+                    label: colors().label,
+                    unit: colors().unit,
+                    shade: colors().shade_shape,
+                };
+                render_fields_fixed(canvas, &texts, ctx, fonts, &pal, true);
                 if !cv.composite_straight_frame(&canvas.buf) {
                     // 不可达 (spec 尺寸 = Canvas 尺寸 = host 画布尺寸); 防御性留痕
                     vm_core::logger::warn("FlightInfo", "整帧桥尺寸不符, 本帧丢弃");

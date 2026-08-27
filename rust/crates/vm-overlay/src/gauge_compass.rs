@@ -18,12 +18,11 @@
 //! 平滑/低通**——每轮 ~10Hz 轮询值直接驱动指针。Rust 侧同样直通 (update 即时重算);
 //! -65535 哨兵回退分支属数据层, 已落 vm-data::service_loop (update_compass), 不在本文件。
 
+use crate::global_colors::colors;
 use crate::font::LoadedFont;
-use crate::gauges_bars::{COLOR_NUM, COLOR_SHADE_SHAPE};
+
 use crate::render2d::{LineCapStyle, PixCanvas};
 
-/// Application.java:109 colorUnit — 北三角填充色 (RGBA 直通)
-pub const COLOR_UNIT: [u8; 4] = [166, 166, 166, 220];
 
 /// Java (int) double 强转语义: 向零截断, NaN→0, ±∞ 饱和到 MIN/MAX —
 /// 与 Rust `as i32` (饱和转换) 逐例一致 (PORTING §2.2 的 long 位截断差异不适用于浮点)
@@ -325,9 +324,9 @@ impl CompassGauge {
             fp[i] = (pts[i].0 as f32, pts[i].1 as f32);
         }
         // PORT: Java:216-217 fillPolygon (偶奇填充) colorUnit
-        cv.fill_path(&fp, COLOR_UNIT, aa);
+        cv.fill_path(&fp, colors().unit, aa);
         // PORT: Java:219-222 drawPolygon THIN_STROKE colorShadeShape
-        stroke_polygon_thin(cv, &pts, COLOR_SHADE_SHAPE, aa);
+        stroke_polygon_thin(cv, &pts, colors().shade_shape, aa);
     }
 
     /// Java:102-173 draw。font_small=None 跳过文本 (Java fontSmall==null 同)。
@@ -345,20 +344,20 @@ impl CompassGauge {
         Self::draw_north_triangle(cv, center_x, center_y, r, north_angle(self.inertial_mode, self.compass_rads), aa);
 
         // 图层 2: 罗盘圆双层描边 (Java:125-132, drawOval(x,y,2r,2r) 圆心 (x+r,y+r))
-        cv.stroke_circle(center_x, center_y, r, out_w, COLOR_SHADE_SHAPE, aa);
-        cv.stroke_circle(center_x, center_y, r, in_w, COLOR_NUM, aa);
+        cv.stroke_circle(center_x, center_y, r, out_w, colors().shade_shape, aa);
+        cv.stroke_circle(center_x, center_y, r, in_w, colors().num, aa);
 
         // 图层 3 (顶): 航向指针 (离体) / 固定机标线 (随体), 均 shade 粗线 + num 细线 (Java:135-163)
         if self.inertial_mode {
             let ((tx, ty), (ex, ey)) = fixed_segment(center_x, center_y, r);
-            cv.draw_line(tx, ty, ex, ey, out_w, COLOR_SHADE_SHAPE, aa);
-            cv.draw_line(tx, ty, ex, ey, in_w, COLOR_NUM, aa);
+            cv.draw_line(tx, ty, ex, ey, out_w, colors().shade_shape, aa);
+            cv.draw_line(tx, ty, ex, ey, in_w, colors().num, aa);
         } else {
             let (tx, ty) = pointer_tip(center_x, center_y, r, self.compass_rads);
             let ex = center_x + self.compass_dx;
             let ey = center_y - self.compass_dy;
-            cv.draw_line(tx, ty, ex, ey, out_w, COLOR_SHADE_SHAPE, aa);
-            cv.draw_line(tx, ty, ex, ey, in_w, COLOR_NUM, aa);
+            cv.draw_line(tx, ty, ex, ey, out_w, colors().shade_shape, aa);
+            cv.draw_line(tx, ty, ex, ey, in_w, colors().num, aa);
         }
 
         // 图层 4: 文本标签 (两模式同位, Java:165-172)
@@ -371,8 +370,8 @@ impl CompassGauge {
                 self.hud_font_size,
                 self.hud_font_size_small,
             );
-            draw_string_shade(cv, f, cpx, cpy, &self.line_compass, COLOR_NUM, COLOR_SHADE_SHAPE, aa);
-            draw_string_shade(cv, f, lpx, lpy, &self.line_loc, COLOR_NUM, COLOR_SHADE_SHAPE, aa);
+            draw_string_shade(cv, f, cpx, cpy, &self.line_compass, colors().num, colors().shade_shape, aa);
+            draw_string_shade(cv, f, lpx, lpy, &self.line_loc, colors().num, colors().shade_shape, aa);
         }
         self.dirty = false;
     }

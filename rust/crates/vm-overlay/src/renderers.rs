@@ -17,11 +17,13 @@
 //!   Rust 侧由渲染器按 field key 缓存 + 每帧 update 同步 (脏检查在组件内)。
 //! - BOS 的 TextGauge 按 label 缓存 (Java gaugeCache, BOSStyleRenderer.java:18)。
 
+use vm_core::configuration_service::GlobalColors;
 use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::font::LoadedFont;
 use crate::gauges_bars::LabeledLinearGauge;
+use crate::global_colors::colors;
 use crate::render2d::PixCanvas;
 use vm_core::layout::RenderCtx;
 use vm_core::ui_model::{DataField, GaugeField};
@@ -40,13 +42,13 @@ pub struct RenderPalette {
 }
 
 /// Application.java:108-111 默认值 (Color(r,g,b,a) 直读 RGBA)。
-/// PORT: num/label/shade 与 gauges_bars 的同源色收敛单源 (COLOR_NUM/COLOR_LABEL/
-/// COLOR_SHADE_SHAPE), 消除双份维护漂移; colorUnit 仅本文件消费, 保留唯一一份。
+/// PORT: num/label/shade 与 gauges_bars 的同源色收敛单源 (colors().num/colors().label/
+/// colors().shade_shape), 消除双份维护漂移; colorUnit 仅本文件消费, 保留唯一一份。
 pub const APPLICATION_COLORS: RenderPalette = RenderPalette {
-    num: crate::gauges_bars::COLOR_NUM,           // colorNum
-    label: crate::gauges_bars::COLOR_LABEL,       // colorLabel
-    unit: [166, 166, 166, 220],                   // colorUnit
-    shade: crate::gauges_bars::COLOR_SHADE_SHAPE, // colorShadeShape
+    num: GlobalColors::JAVA_DEFAULT.num,           // colorNum
+    label: GlobalColors::JAVA_DEFAULT.label,       // colorLabel
+    unit: GlobalColors::JAVA_DEFAULT.unit,         // colorUnit
+    shade: GlobalColors::JAVA_DEFAULT.shade_shape, // colorShadeShape
 };
 
 /// java.awt.Color.WHITE (TextOnlyRenderer.java:27 默认字色)
@@ -73,8 +75,6 @@ pub struct RenderContext {
     pub unit_font: Rc<LoadedFont>,
     /// 几何公式 (fontSize/columnNum/numHeight 及派生), RenderContext.java:104-121
     pub geom: RenderCtx,
-    /// Java 静态配色快照
-    pub palette: RenderPalette,
     /// Application.graphAASetting (Application.java:102 默认 ANTIALIAS_ON)
     pub graph_aa: bool,
     /// Application.textAASetting (Application.java:101 默认 GASP ≈ 开)
@@ -107,9 +107,22 @@ impl RenderContext {
             label_font,
             unit_font,
             geom: RenderCtx::new(font_add, column_num, num_height),
-            palette: APPLICATION_COLORS,
             graph_aa: true,
             text_aa: true,
+        }
+    }
+
+    /// Java 静态配色 (colorNum 族) — 每帧动态读全局仓: Java TextGauge.
+    /// drawTextShaded 直读 Application 静态, cfg 五键 (fontNum 等) 运行时可变
+    /// (WYSIWYG); 构造期字段快照会冻结启动值 (人工验收: 动力信息文本曾冻结
+    /// Java 静态初始值荧光绿, 即此因), 故为方法非字段。
+    /// 对拍工具路径 (需恒定基线) 用 [`APPLICATION_COLORS`] 常量
+    pub fn palette(&self) -> RenderPalette {
+        RenderPalette {
+            num: colors().num,
+            label: colors().label,
+            unit: colors().unit,
+            shade: colors().shade_shape,
         }
     }
 
@@ -261,8 +274,8 @@ impl TextGauge {
             x + lwidth - val_width - num_padding,
             center_y,
             value,
-            ctx.palette.num,
-            ctx.palette.shade,
+            ctx.palette().num,
+            ctx.palette().shade,
             ctx.text_aa,
         );
         // 标签 (基线 y) — TextGauge.java:63
@@ -272,8 +285,8 @@ impl TextGauge {
             x + lwidth,
             y,
             &self.label,
-            ctx.palette.label,
-            ctx.palette.shade,
+            ctx.palette().label,
+            ctx.palette().shade,
             ctx.text_aa,
         );
         // 单位 (基线 y + labelFontSize) — TextGauge.java:64
@@ -283,8 +296,8 @@ impl TextGauge {
             x + lwidth,
             y + ctx.label_font.size,
             &self.unit,
-            ctx.palette.unit,
-            ctx.palette.shade,
+            ctx.palette().unit,
+            ctx.palette().shade,
             ctx.text_aa,
         );
     }
@@ -998,5 +1011,14 @@ mod tests {
         let mut c = PixCanvas::new(10, 10).unwrap();
         let mut off = [0, 0];
         r.render(&mut c, &fields, &ctx, &mut off);
+    }
+
+    /// 默认态 palette() = Java 静态初始值 (对拍基线常量同源)。
+    /// 动态性 (set 后跟随) 不以 set 操演断言: 并行渲染测试读同一仓, set 窗口
+    /// 会互踩 (实测撞 linear_gauge 断言); palette() 方法体直调 colors() 无缓存,
+    /// 动态性由结构保证 + global_colors.rs 的仓往返测试覆盖
+    #[test]
+    fn palette_defaults_to_java_static_values() {
+        assert_eq!(ctx_n(1).palette(), APPLICATION_COLORS);
     }
 }

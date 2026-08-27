@@ -254,6 +254,19 @@ Java 同款算法同样如此——对拍动态帧时需两边同等预热。
    `PixCanvas::composite_straight_frame` 整帧 SrcOver 桥入 host 画布体系
    (预览灰底保留); live 数据 = ServiceData.flight_values (Deriver step 整包
    快照, service_loop 写回)。注册面 7/7 窗口条目, mock 冒烟逐窗 present>0
+10. 全局五色 (fontNum/fontLabel/fontUnit/fontWarn/fontShade, ui_layout.cfg:379-383,
+    键名不带 Color 后缀): Java 经 loadFromConfig 写 Application 五色静态
+    (colorNum 族) → 全组件消费; Rust 侧组件曾用编译期常量 (Java **静态初始值**
+    直译, 如 colorNum=(27,255,128,240)) 未接 cfg 运行时覆盖 — 用户 cfg 改色后
+    Rust 不跟随 (人工验收: 除 FlightInfo 外全部 overlay 颜色不符)。已接通:
+    vm-core `GlobalColors`/`global_colors()` + vm-overlay `global_colors` 受控
+    全局仓 (OnceLock<RwLock>, 初始 = Java 静态默认 → 现有测试零感知, ~185
+    引用点常量改 `colors().x` 访问器) + vm-app 启动快照注入 + WYSIWYG
+    `UiCommand::SetGlobalColors` (五键即时读 cfg 直送 win32, 下帧生效不需
+    重建窗口)。对拍工具路径保留常量基线 (rustcmp 不受影响)。后续二轮修复:
+    `RenderContext.palette` 曾为构造期字段快照 (动力信息/TextGauge 路径仍冻结
+    Java 默认荧光绿), 改为 `palette()` 方法每帧读仓 — Java TextGauge.
+    drawTextShaded 本就直读 Application 静态, 方法化才是直译
 
 ## 11.5 人工验收清单 (移交用户)
 

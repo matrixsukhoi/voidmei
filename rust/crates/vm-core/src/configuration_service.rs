@@ -149,6 +149,20 @@ impl ConfigurationService {
         self.inner.save_layout_config();
     }
 
+    /// 五色运行时快照 (Java 组件直接读 Application.colorNum 等静态;
+    /// Rust 侧配置 !Send 不能进 win32 线程, 组装层启动/WYSIWYG 色变时取快照
+    /// 注入 vm-overlay 的 global_colors 仓)
+    pub fn global_colors(&self) -> GlobalColors {
+        let app = self.inner.app.read().expect("app 状态锁中毒");
+        GlobalColors {
+            num: app.color_num,
+            label: app.color_label,
+            unit: app.color_unit,
+            warning: app.color_warning,
+            shade_shape: app.color_shade_shape,
+        }
+    }
+
     /// 组装层位置桥 (归一化直读): Java overlay init 时经 OverlaySettings.loadPosition
     /// 取 gc.x/y (ConfigurationService.java:430-457 读的同一组字段)。Rust host 在
     /// win32 线程不碰 !Send 配置树 — 组装层启动时经此取快照 (vm-app
@@ -1685,6 +1699,31 @@ pub struct AppFont {
 }
 
 /// Application 静态字段的消费面 (依赖桩, 非翻译):
+/// Java Application 五色静态字段 (colorNum/colorLabel/colorUnit/colorWarning/
+/// colorShadeShape) 的快照形态 — cfg 全局键 fontNum/fontLabel/fontUnit/
+/// fontWarn/fontShade (ui_layout.cfg:379-383) 经 loadFromConfig 覆盖为运行时
+/// 真值; 组件消费经 vm-overlay 的 global_colors 受控全局仓
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct GlobalColors {
+    pub num: [u8; 4],
+    pub label: [u8; 4],
+    pub unit: [u8; 4],
+    pub warning: [u8; 4],
+    pub shade_shape: [u8; 4],
+}
+
+impl GlobalColors {
+    /// Java Application.java:106-111 静态初始值 (cfg 加载前的默认;
+    /// 与 vm-overlay 各组件原编译期常量逐字节一致)
+    pub const JAVA_DEFAULT: GlobalColors = GlobalColors {
+        num: [27, 255, 128, 240],
+        label: [27, 255, 128, 166],
+        unit: [166, 166, 166, 220],
+        warning: [216, 33, 13, 100],
+        shade_shape: [0, 0, 0, 42],
+    };
+}
+
 /// 仅收录 ConfigurationService.java 读/写触达的成员; 声明默认值 =
 /// Application.java 字段初始化值 (§2.10 按有意保真)。
 /// PORT: Java 全局静态 → 服务持有的注入态 (§2.9 禁裸全局; vm-app 波次收口)。
@@ -2118,6 +2157,25 @@ mod tests {
 
         // trait 借出面
         assert_eq!(v.get_group_config().map(|g| g.title.as_str()), Some("飞行信息"));
+    }
+
+    /// 全局五色读链: cfg 五键 (ui_layout.cfg:379-383) 经 load_app_check 覆盖
+    /// Application 静态初值 — global_colors() 应返回模板色而非 Java 默认。
+    /// (人工验收: 组件曾用编译期 Java 初始值, 用户 cfg 改色后 Rust 不跟随)
+    #[test]
+    fn global_colors_read_repo_template_cfg() {
+        let s = ConfigurationService::new(None);
+        s.load_layout(&repo_cfg_path());
+        let mut c = ControllerIntervals::default();
+        s.load_app_check(&mut c);
+        let g = s.global_colors();
+        // 模板色 (hex #RRGGBBAA 直读)
+        assert_eq!(g.num, [255, 255, 255, 255], "fontNum #FFFFFFFF");
+        assert_eq!(g.label, [255, 255, 255, 255], "fontLabel #FFFFFFFF");
+        assert_eq!(g.unit, [232, 147, 50, 255], "fontUnit #E89332FF");
+        assert_eq!(g.warning, [255, 36, 0, 255], "fontWarn #FF2400FF");
+        assert_eq!(g.shade_shape, [0, 0, 0, 255], "fontShade #000000FF");
+        assert_ne!(g, GlobalColors::JAVA_DEFAULT, "运行时值已覆盖静态初始值");
     }
 
     // ---- 视图回退分支 ----

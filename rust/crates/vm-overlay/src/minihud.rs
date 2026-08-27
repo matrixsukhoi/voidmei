@@ -35,6 +35,7 @@
 //!   inAction/disableAttitude) 保真保留 (§2.10 + hud_layout_node ignoreBounds
 //!   先例: write-only 状态不删), 各带 PORT 注。
 
+use crate::global_colors::colors;
 use std::cell::RefCell;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
@@ -51,12 +52,9 @@ use crate::font::LoadedFont;
 use crate::gauge_attitude::AttitudeIndicatorGauge;
 use crate::gauge_compass::CompassGauge;
 use crate::gauge_crosshair::CrosshairGauge;
-use crate::gauges_bars::{COLOR_NUM, COLOR_SHADE_SHAPE, FlapAngleBar, LinearGauge, SpeedRatioBar};
+use crate::gauges_bars::{FlapAngleBar, LinearGauge, SpeedRatioBar};
 use crate::host::OverlaySpec;
-use crate::minihud_layout::{
-    build_mihud_layout, AutoSizingPlan, BuiltMiniHudLayout, HasVisibility, MiniHudLayoutConfig,
-    MiniHudParts, ModernHUDLayoutEngine,
-};
+use crate::minihud_layout::{build_mihud_layout, AutoSizingPlan, BuiltMiniHudLayout, HasVisibility, MiniHudLayoutConfig, MiniHudParts, ModernHUDLayoutEngine};
 use crate::render2d::PixCanvas;
 use crate::rows::{HUDAkbRow, HUDEnergyRow, HUDMechanizationRow, HUDManeuverRow, HUDTextRow};
 use crate::warning_overlay::WarningBlinkHost;
@@ -764,9 +762,9 @@ impl MiniHudOverlay {
             line_aoa: String::new(),
             throttley: 0,
             aoa_y: 0,
-            throttle_color: COLOR_SHADE_SHAPE,
-            aoa_color: COLOR_NUM,
-            aoa_bar_color: COLOR_NUM,
+            throttle_color: colors().shade_shape,
+            aoa_color: colors().num,
+            aoa_bar_color: colors().num,
             in_action: false,
             disable_attitude: false,
             real_spd_pitch: 0.0,
@@ -792,8 +790,8 @@ impl MiniHudOverlay {
         if overlay.aoa_y > overlay.ctx.right_draw {
             overlay.aoa_y = overlay.ctx.right_draw;
         }
-        overlay.aoa_color = COLOR_NUM;
-        overlay.aoa_bar_color = COLOR_NUM;
+        overlay.aoa_color = colors().num;
+        overlay.aoa_bar_color = colors().num;
 
         overlay.init_components_layout(settings);
 
@@ -874,9 +872,9 @@ impl MiniHudOverlay {
         self.lines[2].push_str("GEAR");
         self.throttley = 100;
         self.aoa_y = 10;
-        self.throttle_color = COLOR_SHADE_SHAPE; // Application.colorShadeShape
-        self.aoa_color = COLOR_NUM;              // Application.colorNum
-        self.aoa_bar_color = COLOR_NUM;
+        self.throttle_color = colors().shade_shape; // Application.colorShadeShape
+        self.aoa_color = colors().num;              // Application.colorNum
+        self.aoa_bar_color = colors().num;
         self.line_aoa = format!("α{}", pad_width(java_f(20.0, 0), 3, false));
         self.rel_energy = "E114514".to_string();
 
@@ -1874,9 +1872,9 @@ mod tests {
         assert_eq!(o.rel_energy, "E114514");
         assert_eq!(o.throttley, 100);
         assert_eq!(o.aoa_y, 10);
-        assert_eq!(o.throttle_color, COLOR_SHADE_SHAPE);
-        assert_eq!(o.aoa_color, COLOR_NUM);
-        assert_eq!(o.aoa_bar_color, COLOR_NUM);
+        assert_eq!(o.throttle_color, colors().shade_shape);
+        assert_eq!(o.aoa_color, colors().num);
+        assert_eq!(o.aoa_bar_color, colors().num);
 
         // 变体: mach 关 + 标签关 + 雷达开 + 襟翼条关
         let mut s = TestSettings::default();

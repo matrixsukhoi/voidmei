@@ -20,17 +20,15 @@
 //!
 //! 颜色 = Application.java:106-111 静态色直通 RGBA (与 gauges_bars 同源)。
 
+use crate::global_colors::colors;
 use crate::font::LoadedFont;
-use crate::gauges_bars::{COLOR_LABEL, COLOR_NUM, COLOR_SHADE_SHAPE, COLOR_WARNING};
+
 use crate::host::OverlaySpec;
 use crate::render2d::{LineCapStyle, PixCanvas};
 use std::cell::RefCell;
 use std::rc::Rc;
 
-/// Application.java:109 colorUnit = (166,166,166,220) — IndicatorGauge 文本负色 /
-/// Overlay 地面多边形色 (gauges_bars 未导出, 本模块地平仪专用)
-pub const COLOR_UNIT: [u8; 4] = [166, 166, 166, 220];
-
+// Application.java:109 colorUnit = (166,166,166,220) — IndicatorGauge 文本负色 /
 /// Java Math.round(double)→long: floor(x+0.5) (§2.3, Rust round 是半偶)
 fn java_round_i64(x: f64) -> i64 {
     (x + 0.5).floor() as i64
@@ -94,7 +92,7 @@ fn text_shade(
     c: [u8; 4],
     aa: bool,
 ) {
-    cv.draw_text(font, x + 1, y + 1, s, COLOR_SHADE_SHAPE, aa);
+    cv.draw_text(font, x + 1, y + 1, s, colors().shade_shape, aa);
     cv.draw_text(font, x, y, s, c, aa);
 }
 
@@ -408,9 +406,9 @@ impl AttitudeIndicatorGauge {
         //    BasicStroke(lw+2 / lw, CAP_ROUND, JOIN_ROUND)
         cv.draw_line(
             center_x, center_y, target_x, target_y,
-            lw + 2.0, COLOR_SHADE_SHAPE, aa,
+            lw + 2.0, colors().shade_shape, aa,
         );
-        cv.draw_line(center_x, center_y, target_x, target_y, lw, COLOR_LABEL, aa);
+        cv.draw_line(center_x, center_y, target_x, target_y, lw, colors().label, aa);
 
         // 2. 旋转 marks (Java:136-151): rotate(θ, target) 后 下半圆弧 + 3 刻度,
         //    粗 shade → 细 colorNum。端点/圆心/角度按同一旋转变换预计算。
@@ -422,9 +420,9 @@ impl AttitudeIndicatorGauge {
 
             // Pitch 角 — 右侧 (Java:158-159)
             let pitch_color = if self.round_horizon >= 0 {
-                COLOR_NUM
+                colors().num
             } else {
-                COLOR_UNIT
+                colors().unit
             };
             text_shade(cv, font, target_x + gap, target_y - 1, &self.s_attitude, pitch_color, aa);
 
@@ -432,9 +430,9 @@ impl AttitudeIndicatorGauge {
             if !self.s_sideslip.is_empty() {
                 let template_width = font.measure("888");
                 let slip_color = if self.round_slip >= 0 {
-                    COLOR_NUM
+                    colors().num
                 } else {
-                    COLOR_UNIT
+                    colors().unit
                 };
                 text_shade(
                     cv, font, target_x - gap - template_width, target_y - 1,
@@ -474,7 +472,7 @@ impl AttitudeIndicatorGauge {
             ((target_x - cr + hbs, target_y + hbs), (target_x - inner + hbs, target_y + hbs)),    // 左横刻度
         ];
 
-        for &(width, color) in &[(lw + 2.0, COLOR_SHADE_SHAPE), (lw, COLOR_NUM)] {
+        for &(width, color) in &[(lw + 2.0, colors().shade_shape), (lw, colors().num)] {
             // 粗遍 (Java:142-144) / 细遍 (Java:147-149); 每遍内先弧后线 (drawMarks 序)
             // PORT: arc_r==0 (compassDiameter=0) 时 Java BasicStroke(CAP_ROUND) 对零尺寸弧
             // 仍画直径 lineWidth 的圆帽点 (弧两端点重合), Rust 此处整体跳过 — 仅退化布局
@@ -704,7 +702,7 @@ impl AttitudeOverlay {
             (self.p_t[2].0 as f32, self.p_t[2].1 as f32),
             (self.p_t[3].0 as f32, self.p_t[3].1 as f32),
         ];
-        cv.fill_path(&poly, COLOR_UNIT, aa);
+        cv.fill_path(&poly, colors().unit, aa);
 
         // 2. 边框 (BasicStroke(1) 裸 = CAP_SQUARE/JOIN_MITER, shade) (Java:141-147)
         for &(x0, y0, x1, y1) in &[
@@ -713,14 +711,14 @@ impl AttitudeOverlay {
             (0, h - 1, w - 1, h - 1),
             (w - 1, 0, w - 1, h - 1),
         ] {
-            cv.draw_line_cap(x0, y0, x1, y1, 1.0, COLOR_SHADE_SHAPE, LineCapStyle::Square, aa);
+            cv.draw_line_cap(x0, y0, x1, y1, 1.0, colors().shade_shape, LineCapStyle::Square, aa);
         }
 
         // 3. pitch 刻度线 (仍 1px shade): 4 条 = 2·tickLine 对 (Java:149-152)
         for i in 0..(2 * TICK_LINE) as usize {
             let (x0, y0) = self.p_t[4 + 2 * i];
             let (x1, y1) = self.p_t[4 + 2 * i + 1];
-            cv.draw_line_cap(x0, y0, x1, y1, 1.0, COLOR_SHADE_SHAPE, LineCapStyle::Square, aa);
+            cv.draw_line_cap(x0, y0, x1, y1, 1.0, colors().shade_shape, LineCapStyle::Square, aa);
         }
 
         // 4. 中心参考 (BasicStroke(3), colorNum) (Java:154-166)
@@ -731,26 +729,26 @@ impl AttitudeOverlay {
             (0, w / 8 - 1),                                     // 左外段
             (w - w / 8 + 1, w),                                 // 右外段
         ] {
-            cv.draw_line_cap(x0, mid_y, x1, mid_y, 3.0, COLOR_NUM, LineCapStyle::Square, aa);
+            cv.draw_line_cap(x0, mid_y, x1, mid_y, 3.0, colors().num, LineCapStyle::Square, aa);
         }
         // 中心下半圆: drawArc(w/2−7, h/2−7, 12, 12, −180, 180) 的弧心 = 盒角+半径
         // = (w/2−1, h/2−1), r=6 (stroke_arc 收圆心而非盒角)
         cv.stroke_arc(
             w / 2 - 1, h / 2 - 1, CENTER_ROUND / 2,
-            -180.0, 0.0, 3.0, COLOR_NUM, LineCapStyle::Square, aa,
+            -180.0, 0.0, 3.0, colors().num, LineCapStyle::Square, aa,
         );
 
         // 5. 侧滑球十字 (BasicStroke(2), colorNum 承袭) (Java:168-171)
         let ls_half = LOCATOR_SIZE / 2; // 3
-        cv.draw_line_cap(x - ls_half - 1, y - 1, x + ls_half - 1, y - 1, 2.0, COLOR_NUM, LineCapStyle::Square, aa);
-        cv.draw_line_cap(x - 1, y - ls_half - 1, x - 1, y + ls_half - 1, 2.0, COLOR_NUM, LineCapStyle::Square, aa);
+        cv.draw_line_cap(x - ls_half - 1, y - 1, x + ls_half - 1, y - 1, 2.0, colors().num, LineCapStyle::Square, aa);
+        cv.draw_line_cap(x - 1, y - ls_half - 1, x - 1, y + ls_half - 1, 2.0, colors().num, LineCapStyle::Square, aa);
 
         // 6. 攻角极限线 (colorWarning, 仍 2px) (Java:173-176); 哨兵 −10 落在窗口外被裁
         // PORT: Java (int) AoALimitU/D — long→int 位截断 (§2.2 双转)
         let lu = (self.aoa_limit_u as u32) as i32;
         let ld = (self.aoa_limit_d as u32) as i32;
-        cv.draw_line_cap(0, lu, w - 1, lu, 2.0, COLOR_WARNING, LineCapStyle::Square, aa);
-        cv.draw_line_cap(0, ld, w - 1, ld, 2.0, COLOR_WARNING, LineCapStyle::Square, aa);
+        cv.draw_line_cap(0, lu, w - 1, lu, 2.0, colors().warning, LineCapStyle::Square, aa);
+        cv.draw_line_cap(0, ld, w - 1, ld, 2.0, colors().warning, LineCapStyle::Square, aa);
 
         // 7. 航向指针对 (Java:178-184): colorNum 正向 + warning 反向
         if self.show_direction {
@@ -760,8 +758,8 @@ impl AttitudeOverlay {
             let py = ((ccy as i64 + self.compass_y) as u32) as i32;
             let mx = ((ccx as i64 - self.compass_x) as u32) as i32;
             let my = ((ccy as i64 - self.compass_y) as u32) as i32;
-            cv.draw_line_cap(ccx, ccy, px, py, 2.0, COLOR_NUM, LineCapStyle::Square, aa);
-            cv.draw_line_cap(ccx, ccy, mx, my, 2.0, COLOR_WARNING, LineCapStyle::Square, aa);
+            cv.draw_line_cap(ccx, ccy, px, py, 2.0, colors().num, LineCapStyle::Square, aa);
+            cv.draw_line_cap(ccx, ccy, mx, my, 2.0, colors().warning, LineCapStyle::Square, aa);
         }
         self.dirty = false;
     }

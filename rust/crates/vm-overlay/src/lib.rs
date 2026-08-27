@@ -4,6 +4,7 @@ pub mod config;
 pub mod flight_info;
 pub mod font;
 pub mod gauge_attitude;
+pub mod global_colors;
 pub mod gauge_compass;
 pub mod gauge_crosshair;
 pub mod gauges_bars;

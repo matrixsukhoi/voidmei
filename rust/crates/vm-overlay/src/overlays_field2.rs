@@ -19,9 +19,9 @@
 //! 需 per-entry `set_visible` (现仅全局 hide/show_all); (c) 两组件的预览渲染
 //! 闭包工厂 (field1 先例 `*_preview_spec`) 留组装层接线。
 
+use crate::global_colors::colors;
 use crate::font::LoadedFont;
-use crate::gauges_bars::{COLOR_LABEL, COLOR_NUM, COLOR_SHADE_SHAPE};
-use crate::gauge_attitude::COLOR_UNIT;
+
 use crate::host::OverlaySpec;
 use crate::overlay_list::BaseListOverlay;
 use crate::render2d::{LineCapStyle, PixCanvas};
@@ -258,7 +258,7 @@ fn draw_string_shade(
     aa: bool,
 ) {
     // drawshade (No Shape support for char[] yet, fallback to simple shade)
-    cv.draw_text(font, x + 1, y + 1, s, COLOR_SHADE_SHAPE, aa);
+    cv.draw_text(font, x + 1, y + 1, s, colors().shade_shape, aa);
     cv.draw_text(font, x, y, s, color, aa);
 }
 
@@ -285,11 +285,11 @@ fn draw_label_bos_type(
     let lwidth = (lwwidth * num.size) >> 2;
     // y偏移式加下底边再减去自己字体大小的一半
     let num_y = (y_offset + y_offset + label.size + unit.size) >> 1;
-    draw_string_shade(cv, num, x_offset, num_y, s_num, COLOR_NUM, aa);
+    draw_string_shade(cv, num, x_offset, num_y, s_num, colors().num, aa);
     // 标签名
-    draw_string_shade(cv, label, x_offset + lwidth, y_offset, s_label, COLOR_LABEL, aa);
+    draw_string_shade(cv, label, x_offset + lwidth, y_offset, s_label, colors().label, aa);
     // 单位名
-    draw_string_shade(cv, unit, x_offset + lwidth, y_offset + label.size, s_unit, COLOR_UNIT, aa);
+    draw_string_shade(cv, unit, x_offset + lwidth, y_offset + label.size, s_unit, colors().unit, aa);
 }
 
 /// drawHBar (UIBaseElements.java:168-185) 的 val_width ≥ 0 分支 (调用域恒非负):
@@ -307,7 +307,7 @@ fn draw_h_bar(
     c: [u8; 4],
 ) {
     // 外边框 (BasicStroke(borderwidth=1, CAP_ROUND, JOIN_ROUND) 的 1px 周界等效)
-    draw_rect_perimeter(cv, x, y, width, height, COLOR_SHADE_SHAPE);
+    draw_rect_perimeter(cv, x, y, width, height, colors().shade_shape);
     // 内部条
     cv.fill_rect(
         x + borderwidth,
@@ -330,7 +330,7 @@ fn draw_v_rect_negative(
     borderwidth: i32,
     c: [u8; 4],
 ) {
-    draw_rect_perimeter(cv, x, y, width, height, COLOR_SHADE_SHAPE);
+    draw_rect_perimeter(cv, x, y, width, height, colors().shade_shape);
     cv.fill_rect(
         x + borderwidth,
         y + borderwidth,
@@ -371,7 +371,7 @@ fn draw_h_bar_text_num(
         3,
         marker_h,
         borderwidth,
-        COLOR_LABEL,
+        colors().label,
     );
     // 数字
     draw_string_shade(
@@ -380,7 +380,7 @@ fn draw_h_bar_text_num(
         x + val_width,
         y + height + num_font.size,
         num,
-        COLOR_LABEL,
+        colors().label,
         aa,
     );
 }
@@ -648,16 +648,16 @@ impl ControlSurfacesOverlay {
     fn locater(&self, cv: &mut PixCanvas, x: i32, y: i32, r: i32, width: i32, stroke: f32, aa: bool) {
         // 绘制边框
         for &(x0, y0, x1, y1) in &[(0, 0, 0, r), (0, 0, r, 0), (0, r - 1, r - 1, r - 1), (r - 1, 0, r - 1, r - 1)] {
-            cv.draw_line_cap(x0, y0, x1, y1, 1.0, COLOR_SHADE_SHAPE, LineCapStyle::Square, aa);
+            cv.draw_line_cap(x0, y0, x1, y1, 1.0, colors().shade_shape, LineCapStyle::Square, aa);
         }
 
         // 绘制影子 (横线 + 竖线)
-        cv.draw_line_cap(x - width / 2, y, x + width / 2, y, stroke, COLOR_SHADE_SHAPE, LineCapStyle::Square, aa);
-        cv.draw_line_cap(x, y - width / 2, x, y + width / 2, stroke, COLOR_SHADE_SHAPE, LineCapStyle::Square, aa);
+        cv.draw_line_cap(x - width / 2, y, x + width / 2, y, stroke, colors().shade_shape, LineCapStyle::Square, aa);
+        cv.draw_line_cap(x, y - width / 2, x, y + width / 2, stroke, colors().shade_shape, LineCapStyle::Square, aa);
 
         // 主十字 (colorNum, -1 偏移): 横线 + 竖线
-        cv.draw_line_cap(x - width / 2 - 1, y - 1, x + width / 2 - 1, y - 1, stroke, COLOR_NUM, LineCapStyle::Square, aa);
-        cv.draw_line_cap(x - 1, y - width / 2 - 1, x - 1, y + width / 2 - 1, stroke, COLOR_NUM, LineCapStyle::Square, aa);
+        cv.draw_line_cap(x - width / 2 - 1, y - 1, x + width / 2 - 1, y - 1, stroke, colors().num, LineCapStyle::Square, aa);
+        cv.draw_line_cap(x - 1, y - width / 2 - 1, x - 1, y + width / 2 - 1, stroke, colors().num, LineCapStyle::Square, aa);
     }
 
     /// topPanel.paintComponent (Java :116-149) 的绘制序:
@@ -699,7 +699,7 @@ impl ControlSurfacesOverlay {
         draw_h_bar_text_num(
             cv, fonts.label, fonts.label,
             0, self.height, self.width, self.font_size >> 1, self.rudder_val_pix, 1,
-            COLOR_NUM, &self.rudder_num, aa,
+            colors().num, &self.rudder_num, aa,
         );
     }
 }
@@ -1336,21 +1336,21 @@ mod tests {
         for (x, y) in [(0, 0), (143, 0), (0, 143), (143, 143)] {
             assert_eq!(px(&cv, x, y), corner_blend, "边框角双叠 ({x},{y})");
         }
-        assert_eq!(px(&cv, 0, 72), COLOR_SHADE_SHAPE, "左边框中点");
+        assert_eq!(px(&cv, 0, 72), colors().shade_shape, "左边框中点");
         // 边框外无字
         assert_eq!(px(&cv, 60, 60), [0, 0, 0, 0], "十字区中心空");
 
         // 主十字 (colorNum, 中心 (72,72) 偏移 -1, 线宽 2): 六条独立 drawLine 的
         // 描边互相交叠 — 断言取**单笔画覆盖**点 (Java 同样叠出混合 alpha):
         // 主横线 y=71 (行 70/71 实心, 臂 x∈[68,73]); 主竖线 x=71 (列 70/71 实心)
-        assert_eq!(px(&cv, 69, 70), premul(COLOR_NUM), "主横线单覆盖点 (69,70)");
-        assert_eq!(px(&cv, 70, 69), premul(COLOR_NUM), "主竖线单覆盖点 (70,69)");
+        assert_eq!(px(&cv, 69, 70), premul(colors().num), "主横线单覆盖点 (69,70)");
+        assert_eq!(px(&cv, 70, 69), premul(colors().num), "主竖线单覆盖点 (70,69)");
         // 主线交叠中心 (行70/71 × 列70/71): 240+240·15/255 → 饱和 255
         assert_eq!(px(&cv, 70, 70)[3], 255, "主十字中心核心双叠饱和");
         // 影子十字 (colorShadeShape, 轴 y=72/x=72, 偏移 +1): 在主线臂端外侧露出 —
         // 影横臂延至 x=74 (主横臂 x≤73), 影竖臂延至 y=74 (主竖臂 y≤73) → 单覆盖点
-        assert_eq!(px(&cv, 74, 71), COLOR_SHADE_SHAPE, "影横臂右尖端 (74,71)");
-        assert_eq!(px(&cv, 71, 74), COLOR_SHADE_SHAPE, "影竖臂下尖端 (71,74)");
+        assert_eq!(px(&cv, 74, 71), colors().shade_shape, "影横臂右尖端 (74,71)");
+        assert_eq!(px(&cv, 71, 74), colors().shade_shape, "影竖臂下尖端 (71,74)");
         // 影子自身交点 (72,72) 双叠: 42+213·42/255 ≈ 77 (Java 同)
         assert_eq!(px(&cv, 72, 72), [0, 0, 0, 77], "影子交点双叠");
 
@@ -1358,17 +1358,17 @@ mod tests {
         // 条顶左角 (0,144) 与 locater 左边框线端点 (drawLine(0,0,0,r), r=144
         // 含端点) 重叠 → SrcOver 双叠 77 (Java 同序同叠); 条底右角单覆盖
         assert_eq!(px(&cv, 0, 144), [0, 0, 0, 77], "条顶左角 (与边框线端点双叠)");
-        assert_eq!(px(&cv, 143, 155), COLOR_SHADE_SHAPE, "条底边框右角 (144+12-1)");
-        assert_eq!(px(&cv, 2, 150), premul(COLOR_NUM), "条内填充 (初值 108 宽)");
-        assert_eq!(px(&cv, 105, 150), premul(COLOR_NUM), "条内填充右段 (x ≤ 106)");
+        assert_eq!(px(&cv, 143, 155), colors().shade_shape, "条底边框右角 (144+12-1)");
+        assert_eq!(px(&cv, 2, 150), premul(colors().num), "条内填充 (初值 108 宽)");
+        assert_eq!(px(&cv, 105, 150), premul(colors().num), "条内填充右段 (x ≤ 106)");
         assert_eq!(px(&cv, 109, 150), [0, 0, 0, 0], "游标右缘外空 (x=109)");
 
         // 游标竖线 (x=106..108, y=144..167): 阴影框 + colorLabel 中心 1px。
         // 顶行与条顶边框重叠 → 双叠 77; 中心列 (x=107) 从 y=145 起, 底段无条遮挡
         assert_eq!(px(&cv, 106, 144), [0, 0, 0, 77], "游标左上角 (与条顶边框双叠)");
-        assert_eq!(px(&cv, 106, 160), COLOR_SHADE_SHAPE, "游标左框单覆盖 (条外段)");
-        assert_eq!(px(&cv, 107, 160), premul(COLOR_LABEL), "游标中心 colorLabel (条外段)");
-        assert_eq!(px(&cv, 107, 166), premul(COLOR_LABEL), "游标下端 (144+24-2)");
+        assert_eq!(px(&cv, 106, 160), colors().shade_shape, "游标左框单覆盖 (条外段)");
+        assert_eq!(px(&cv, 107, 160), premul(colors().label), "游标中心 colorLabel (条外段)");
+        assert_eq!(px(&cv, 107, 166), premul(colors().label), "游标下端 (144+24-2)");
     }
 
     /// draw 文本带: 4 行 BOS 标签 (数字 x=width 基线 24; 标签/单位 x=width+54)

@@ -16,10 +16,11 @@
 //! // PORT: Java HUDRow 接口 (HUDRow.java) 的 getPreferredSize 默认 (200, getHeight)
 //! 由 preferred_size 实现覆盖, 不单独建 trait —— Rust 侧该接口无第二实现需求。
 
+use crate::global_colors::colors;
 use vm_core::hud_data::HUDData;
 
 use crate::font::LoadedFont;
-use crate::gauges_bars::{COLOR_NUM, COLOR_SHADE_SHAPE, COLOR_WARNING};
+
 use crate::render2d::PixCanvas;
 
 /// Java Color.YELLOW (HUDAkbRow.java:30-31 构造默认)
@@ -37,7 +38,7 @@ fn text_shaded(
     c: [u8; 4],
     aa: bool,
 ) {
-    cv.draw_text(font, x + 1, y + 1, s, COLOR_SHADE_SHAPE, aa);
+    cv.draw_text(font, x + 1, y + 1, s, colors().shade_shape, aa);
     cv.draw_text(font, x, y, s, c, aa);
 }
 
@@ -79,7 +80,7 @@ fn draw_h_rect(
     if width >= 0 {
         // PORT: UIBaseElements.java:102-105 drawRect(x,y,width-1,height-1) 环 +
         // fillRect(x+bw, y+bw, width-2*bw, height-2*bw) 内芯
-        ring(cv, x, y, width - 1, height - 1, COLOR_SHADE_SHAPE);
+        ring(cv, x, y, width - 1, height - 1, colors().shade_shape);
         cv.fill_rect(
             x + borderwidth,
             y + borderwidth,
@@ -89,7 +90,7 @@ fn draw_h_rect(
         );
     } else {
         // PORT: UIBaseElements.java:106-109 负宽分支: 环自 x+width 起, 填充同步翻转
-        ring(cv, x + width, y, -width - 1, height - 1, COLOR_SHADE_SHAPE);
+        ring(cv, x + width, y, -width - 1, height - 1, colors().shade_shape);
         cv.fill_rect(
             x + borderwidth + width,
             y + borderwidth,
@@ -171,9 +172,9 @@ impl HUDTextRow {
         let ascent = font.metrics().ascent;
         let base_y = y + ascent;
         let c = if self.is_warning {
-            COLOR_WARNING
+            colors().warning
         } else {
-            COLOR_NUM
+            colors().num
         };
         text_shaded(cv, font, x, base_y, &self.text, c, aa);
     }
@@ -443,7 +444,7 @@ impl HUDEnergyRow {
                 x + self.right_draw,
                 base_y,
                 &self.energy_text,
-                COLOR_NUM,
+                colors().num,
                 aa,
             );
         }
@@ -684,9 +685,9 @@ impl HUDMechanizationRow {
         let base_y = y + font.metrics().ascent;
         // PORT: Java:95/104/111 isWarning ? colorWarning : colorNum (三段同色)
         let c = if self.base.is_warning {
-            COLOR_WARNING
+            colors().warning
         } else {
-            COLOR_NUM
+            colors().num
         };
 
         let mut cur_x = x;
@@ -896,9 +897,9 @@ impl HUDManeuverRow {
 
         // 刻度颜色 = 主文字色 (见 draw_line_mark 的 PORT 注)
         let mark_color = if self.base.is_warning {
-            COLOR_WARNING
+            colors().warning
         } else {
-            COLOR_NUM
+            colors().num
         };
 
         // PORT: Java:87-102 len10 恒画; 0.1~0.4 阈值逐级点亮
@@ -971,7 +972,7 @@ impl HUDManeuverRow {
             new_x - self.maneuver_index_len,
             line_y,
             self.stroke_thick_w,
-            COLOR_SHADE_SHAPE,
+            colors().shade_shape,
             aa,
         );
         cv.draw_line(
@@ -980,7 +981,7 @@ impl HUDManeuverRow {
             new_x - self.maneuver_index_len,
             line_y,
             self.stroke_thin_w,
-            COLOR_NUM,
+            colors().num,
             aa,
         );
     }

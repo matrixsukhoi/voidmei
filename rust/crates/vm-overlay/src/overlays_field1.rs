@@ -17,13 +17,12 @@
 //! 视觉语义逐项对照 Java paintComponent/drawTick/drawGauges; Java char[] 零 GC buffer
 //! 统一为 String (gauges_bars 先例, 无 stale tail)。
 
+use crate::global_colors::colors;
 use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::font::LoadedFont;
-use crate::gauges_bars::{
-    LabeledLinearGauge, COLOR_LABEL, COLOR_NUM, COLOR_SHADE_SHAPE, COLOR_WARNING,
-};
+use crate::gauges_bars::LabeledLinearGauge;
 use crate::host::OverlaySpec;
 use crate::render2d::PixCanvas;
 use crate::renderers::{BosStyleRenderer, Field, OverlayRenderer, RenderContext};
@@ -172,7 +171,7 @@ fn text_shaded(
     c: [u8; 4],
     aa: bool,
 ) {
-    cv.draw_text(font, x + 1, y + 1, s, COLOR_SHADE_SHAPE, aa);
+    cv.draw_text(font, x + 1, y + 1, s, colors().shade_shape, aa);
     cv.draw_text(font, x, y, s, c, aa);
 }
 
@@ -375,8 +374,8 @@ impl MarkedGauge {
             width: 10,
             height: 100,
             bar_style: GaugeBarStyle {
-                fill_color: COLOR_NUM,
-                background_color: COLOR_SHADE_SHAPE,
+                fill_color: colors().num,
+                background_color: colors().shade_shape,
                 vertical: true,
                 ..GaugeBarStyle::default()
             },
@@ -602,11 +601,11 @@ impl MarkedGauge {
         // 按此确定性复刻两条路径
         if tick_stroke_set {
             butt_line(cv, x + pix_val + 1, y, x + pix_val + 1, y + sep_height,
-                style.stroke_width, COLOR_SHADE_SHAPE, aa);
+                style.stroke_width, colors().shade_shape, aa);
             butt_line(cv, x + pix_val, y, x + pix_val, y + sep_height,
                 style.stroke_width, text_color, aa);
         } else {
-            vline_1px(cv, x + pix_val + 1, y, y + sep_height, COLOR_SHADE_SHAPE);
+            vline_1px(cv, x + pix_val + 1, y, y + sep_height, colors().shade_shape);
             vline_1px(cv, x + pix_val, y, y + sep_height, text_color);
         }
         // 7. 数值文本 (条下方)
@@ -741,7 +740,7 @@ impl MarkedGauge {
 
     /// drawSeparator (MarkedGauge.java:383-390): shade 环 (w×3) + fill 1px 内芯
     fn draw_separator(cv: &mut PixCanvas, x: i32, y: i32, width: i32, c: [u8; 4]) {
-        ring1px(cv, x, y, width - 1, 3 - 1, COLOR_SHADE_SHAPE);
+        ring1px(cv, x, y, width - 1, 3 - 1, colors().shade_shape);
         cv.fill_rect(x + 1, y + 1, width - 2, 3 - 2, c);
     }
 
@@ -1389,9 +1388,9 @@ impl EngineControlState {
             // COMPRESSOR 用 MarkedGauge 画 optimal 档指示 (addGaugeIfEnabled 内)
             if def.gauge_type == GaugeType::Compressor {
                 let style = GaugeBarStyle {
-                    fill_color: COLOR_NUM,
+                    fill_color: colors().num,
                     background_color: [0, 0, 0, 0], // 透明背景
-                    border_color: COLOR_SHADE_SHAPE,
+                    border_color: colors().shade_shape,
                     show_border: true,
                     vertical: !def.is_horizontal, // COMPRESSOR 横条 → vertical=false
                     stroke_width: 2,
@@ -1405,7 +1404,7 @@ impl EngineControlState {
                     id: "optimal".to_string(),
                     marker_type: MarkerType::LineFull,
                     ratio: -1.0,
-                    color: COLOR_WARNING,
+                    color: colors().warning,
                     ..GaugeMarker::default()
                 });
                 gauge.marked_gauge = Some(mg);
@@ -1711,10 +1710,10 @@ fn draw_v_bar(
     c: [u8; 4],
 ) {
     if val_h >= 0 {
-        ring1px(cv, x, y - h, w - 1, h - 1, COLOR_SHADE_SHAPE);
+        ring1px(cv, x, y - h, w - 1, h - 1, colors().shade_shape);
         cv.fill_rect(x + bw, y + bw - val_h, w - 2 * bw, val_h - 2 * bw, c);
     } else {
-        ring1px(cv, x, y, w - 1, -h - 1, COLOR_SHADE_SHAPE); // 负高 → 不绘制
+        ring1px(cv, x, y, w - 1, -h - 1, colors().shade_shape); // 负高 → 不绘制
         cv.fill_rect(x + bw, y + bw, w - 2 * bw, -val_h - 2 * bw, c);
     }
 }
@@ -1723,10 +1722,10 @@ fn draw_v_bar(
 #[allow(clippy::too_many_arguments)] // 对齐 Java drawHRect(g2d,x,y,width,height,borderwidth,c)
 fn draw_h_rect(cv: &mut PixCanvas, x: i32, y: i32, w: i32, h: i32, bw: i32, c: [u8; 4]) {
     if w >= 0 {
-        ring1px(cv, x, y, w - 1, h - 1, COLOR_SHADE_SHAPE);
+        ring1px(cv, x, y, w - 1, h - 1, colors().shade_shape);
         cv.fill_rect(x + bw, y + bw, w - 2 * bw, h - 2 * bw, c);
     } else {
-        ring1px(cv, x + w, y, -w - 1, h - 1, COLOR_SHADE_SHAPE);
+        ring1px(cv, x + w, y, -w - 1, h - 1, colors().shade_shape);
         cv.fill_rect(x + bw + w, y + bw, -w - 2 * bw, h - 2 * bw, c);
     }
 }
@@ -1752,9 +1751,9 @@ fn draw_v_bar_text_num(
     let val_h = if val_h > h { h } else { val_h };
     draw_v_bar(cv, x, y, w, h, val_h, bw, c);
     // 指针横线 (drawHRect): colorLabel, 总宽 = width + 3*numFontSize
-    draw_h_rect(cv, x, y - val_h - 1, w + 3 * num_font.size, 3, 1, COLOR_LABEL);
+    draw_h_rect(cv, x, y - val_h - 1, w + 3 * num_font.size, 3, 1, colors().label);
     // 数值文本: shade (+1,+1) + 本色 colorLabel (基线 y-val_height-2)
-    text_shaded(cv, num_font, x + w, y - val_h - 2, num, COLOR_LABEL, aa);
+    text_shaded(cv, num_font, x + w, y - val_h - 2, num, colors().label, aa);
 }
 
 /// Throttling to prevent EDT task accumulation (gear/flaps are low-frequency data)
@@ -1811,7 +1810,7 @@ impl GearFlapsState {
             flap_pix,
             flap_text,
             warn_text: String::new(),
-            warn_color: COLOR_NUM,
+            warn_color: colors().num,
         }
     }
 
@@ -1834,18 +1833,18 @@ impl GearFlapsState {
         if gear >= 0 {
             if gear == 0 {
                 self.warn_text.clear();
-                self.warn_color = COLOR_NUM;
+                self.warn_color = colors().num;
             } else if gear == 100 {
                 self.warn_text = lang.g_gear.to_string();
-                self.warn_color = COLOR_NUM;
+                self.warn_color = colors().num;
             } else {
                 self.warn_text = lang.g_gear_down.to_string();
-                self.warn_color = COLOR_WARNING;
+                self.warn_color = colors().warning;
             }
             if airbrake > 0 {
                 self.warn_text.push(' ');
                 self.warn_text.push_str(lang.g_brake);
-                self.warn_color = COLOR_WARNING;
+                self.warn_color = colors().warning;
             }
         }
         // gear < 0 (无数据): 保留上次告警状态 (Java 同)
@@ -1876,7 +1875,7 @@ impl GearFlapsState {
         // 条画在 (0, dy), 数值 "F"+flapText
         let num = format!("F{}", self.flap_text);
         draw_v_bar_text_num(
-            cv, 0, dy, self.bar_width, self.bar_height, self.flap_pix, 1, COLOR_NUM,
+            cv, 0, dy, self.bar_width, self.bar_height, self.flap_pix, 1, colors().num,
             "", &num, font_num, font_label, aa,
         );
         // 告警文本: (width, baseline=fontSize), fontLabel, 无阴影
@@ -2399,9 +2398,9 @@ mod tests {
         let font = bold(12);
         let mut mg = MarkedGauge::new();
         mg.set_bar_style(GaugeBarStyle {
-            fill_color: COLOR_NUM,
+            fill_color: colors().num,
             background_color: [0, 0, 0, 0], // COMPRESSOR 透明背景
-            border_color: COLOR_SHADE_SHAPE,
+            border_color: colors().shade_shape,
             show_border: true,
             vertical: false,
             stroke_width: 2,
@@ -2413,17 +2412,17 @@ mod tests {
         // 背景 (透明) + 未填充段: 无输出 (fillRect alpha=0 无效)
         assert_eq!(alpha(&cv, 100, 25), 0, "填充外/边框内无背景");
         // 填充: (10,20,48,12) → 右缘列 57
-        assert_eq!(alpha(&cv, 11, 21), COLOR_NUM[3], "填充左上内");
-        assert_eq!(alpha(&cv, 57, 30), COLOR_NUM[3], "填充右下内 (row31 与环底行重叠)");
+        assert_eq!(alpha(&cv, 11, 21), colors().num[3], "填充左上内");
+        assert_eq!(alpha(&cv, 57, 30), colors().num[3], "填充右下内 (row31 与环底行重叠)");
         // (58,25) 为分隔线主线列 (x+pixVal); 其右 2px 才是填充外
         assert_eq!(alpha(&cv, 60, 25), 0, "填充/分隔线右外");
         // 边框环 (drawRect(10,20,95,11)): 右边框列 105 纯 shade
-        assert_eq!(alpha(&cv, 105, 25), COLOR_SHADE_SHAPE[3]);
+        assert_eq!(alpha(&cv, 105, 25), colors().shade_shape[3]);
         assert_eq!(alpha(&cv, 10, 20), 242, "左上角 = shade over fill (SrcOver)");
         // 分隔线 (无标记 → 1px): 主线列 x+pixVal=58, 影线列 59,
         // 行 y..y+sepHeight = 20..20+(12+12+2)=46
-        assert_eq!(alpha(&cv, 58, 45), COLOR_NUM[3], "主线延伸到条下方");
-        assert_eq!(alpha(&cv, 59, 45), COLOR_SHADE_SHAPE[3], "影线 (+1)");
+        assert_eq!(alpha(&cv, 58, 45), colors().num[3], "主线延伸到条下方");
+        assert_eq!(alpha(&cv, 59, 45), colors().shade_shape[3], "影线 (+1)");
         assert_eq!(alpha(&cv, 60, 45), 0, "线右邻空");
         assert_eq!(alpha(&cv, 58, 47), 0, "线末端外");
         // 数值文本: 基线 (x+pixVal, y+thickness+fontSize) = (58, 44), "50" 在其右
@@ -2438,9 +2437,9 @@ mod tests {
         let font = bold(12);
         let mut mg = MarkedGauge::new();
         mg.set_bar_style(GaugeBarStyle {
-            fill_color: COLOR_NUM,
+            fill_color: colors().num,
             background_color: [0, 0, 0, 0],
-            border_color: COLOR_SHADE_SHAPE,
+            border_color: colors().shade_shape,
             show_border: true,
             vertical: false,
             stroke_width: 2,
@@ -2452,25 +2451,25 @@ mod tests {
             id: "optimal".to_string(),
             marker_type: MarkerType::LineFull,
             ratio: 0.25,
-            color: COLOR_WARNING,
+            color: colors().warning,
             ..GaugeMarker::default()
         });
         let mut cv = PixCanvas::new(140, 60).unwrap();
         mg.draw(&mut cv, 10, 20, 96, 12, &font, false);
         // LINE_FULL 标记 (列 33..34, 行 20..30): warning(a=100) SrcOver 填充(a=240) → 加深
-        assert!(alpha(&cv, 33, 25) > COLOR_NUM[3], "标记左列 = warning over fill");
-        assert!(alpha(&cv, 34, 25) > COLOR_NUM[3], "标记右列");
-        assert_eq!(alpha(&cv, 32, 25), COLOR_NUM[3], "标记左外 = 纯填充");
-        assert_eq!(alpha(&cv, 35, 25), COLOR_NUM[3], "标记右外 = 纯填充");
+        assert!(alpha(&cv, 33, 25) > colors().num[3], "标记左列 = warning over fill");
+        assert!(alpha(&cv, 34, 25) > colors().num[3], "标记右列");
+        assert_eq!(alpha(&cv, 32, 25), colors().num[3], "标记左外 = 纯填充");
+        assert_eq!(alpha(&cv, 35, 25), colors().num[3], "标记右外 = 纯填充");
         // 标记端行: Java 线终点 y=barY+thickness(=32) → 中心规则行 20..31 亮;
         // 行 31 = warning over fill 再叠边框环底 ≈247, 行 32 (条外) 无标记
-        assert!(alpha(&cv, 34, 31) > COLOR_NUM[3], "标记贯穿到条底行");
+        assert!(alpha(&cv, 34, 31) > colors().num[3], "标记贯穿到条底行");
         assert_eq!(alpha(&cv, 34, 32), 0, "条外行无标记");
         // 分隔线承袭 tickStroke (2px): 主线列 57..58, 影线列 58..59 (先主线后影线,
         // col58 = 影线 over 主线 ≈243); 延伸行到 46
-        assert_eq!(alpha(&cv, 57, 45), COLOR_NUM[3], "主线 (2px) 左列 (纯主线)");
+        assert_eq!(alpha(&cv, 57, 45), colors().num[3], "主线 (2px) 左列 (纯主线)");
         assert_eq!(alpha(&cv, 58, 45), 243, "主线右列 = 主线+影线叠加");
-        assert_eq!(alpha(&cv, 59, 45), COLOR_SHADE_SHAPE[3], "影线纯段");
+        assert_eq!(alpha(&cv, 59, 45), colors().shade_shape[3], "影线纯段");
         assert_eq!(alpha(&cv, 60, 45), 0, "影线右外");
     }
 
@@ -2479,7 +2478,7 @@ mod tests {
     #[test]
     fn marked_gauge_vertical_geometry() {
         let font = bold(12);
-        let mut mg = MarkedGauge::new(); // fill=COLOR_NUM, bg=COLOR_SHADE_SHAPE, vertical
+        let mut mg = MarkedGauge::new(); // fill=colors().num, bg=colors().shade_shape, vertical
         mg.label = "节".to_string();
         mg.set_max_value(100.0);
         mg.update_display(50, "50");
@@ -2488,15 +2487,15 @@ mod tests {
         // barX = x + labelW + valueW + 2
         let bar_x = 5 + font.measure("节") + font.measure("50") + 2;
         // 背景条 (shade): 顶端行 10
-        assert_eq!(alpha(&cv, bar_x + 3, 10), COLOR_SHADE_SHAPE[3], "背景条顶端");
+        assert_eq!(alpha(&cv, bar_x + 3, 10), colors().shade_shape[3], "背景条顶端");
         // 填充自底向上: pixVal = 20 → rows 30..49; 背景在 rows 10..29
-        assert_eq!(alpha(&cv, bar_x + 3, 15), COLOR_SHADE_SHAPE[3], "上半背景");
+        assert_eq!(alpha(&cv, bar_x + 3, 15), colors().shade_shape[3], "上半背景");
         // 下半填充 = colorNum SrcOver colorShadeShape 背景 → alpha ≈ 243 (双层)
         assert!((242..=244).contains(&alpha(&cv, bar_x + 3, 35)), "下半填充 (叠背景)");
         // 分隔线: sepY = 10+40-1-20 = 29, 环 29..31 + fill 内芯行 30
-        assert_eq!(alpha(&cv, 5, 29), COLOR_SHADE_SHAPE[3], "分隔环上边");
+        assert_eq!(alpha(&cv, 5, 29), colors().shade_shape[3], "分隔环上边");
         // 内芯行 30: 取文本与条之间的列 (bar_x-1), 避开文本 descender
-        assert_eq!(alpha(&cv, bar_x - 1, 30), COLOR_NUM[3], "分隔内芯");
+        assert_eq!(alpha(&cv, bar_x - 1, 30), colors().num[3], "分隔内芯");
     }
 
     // ---- PowerInfo ----
@@ -2828,20 +2827,20 @@ mod tests {
         // x = 12, y = 168; 竖条 top = y-4fs = 72
         let tw1 = font_label.measure("节") + font_label.measure("55");
         let bar1_x = 12 + tw1 + 2;
-        assert_eq!(alpha(&cv, bar1_x, 72), COLOR_SHADE_SHAPE[3], "竖条1 环左上");
-        assert_eq!(alpha(&cv, bar1_x + 11, 100), COLOR_SHADE_SHAPE[3], "竖条1 环右边");
+        assert_eq!(alpha(&cv, bar1_x, 72), colors().shade_shape[3], "竖条1 环左上");
+        assert_eq!(alpha(&cv, bar1_x + 11, 100), colors().shade_shape[3], "竖条1 环右边");
         assert_eq!(alpha(&cv, bar1_x + 3, 110), 0, "填充上方 (val=48 → rows 119+)");
-        assert_eq!(alpha(&cv, bar1_x + 3, 130), COLOR_NUM[3], "填充段内");
+        assert_eq!(alpha(&cv, bar1_x + 3, 130), colors().num[3], "填充段内");
         // 竖条2 (pitch): dx = (5*24)>>1 = 60
         let tw2 = font_label.measure("桨") + font_label.measure("60");
         let bar2_x = 12 + 60 + tw2 + 2;
-        assert_eq!(alpha(&cv, bar2_x, 72), COLOR_SHADE_SHAPE[3], "竖条2 环左上 (dx 推进)");
+        assert_eq!(alpha(&cv, bar2_x, 72), colors().shade_shape[3], "竖条2 环左上 (dx 推进)");
         // 横条 (mixture, 第一个横向): (12, 168+12=180)
-        assert_eq!(alpha(&cv, 12, 180), COLOR_SHADE_SHAPE[3], "横条环左上");
-        assert_eq!(alpha(&cv, 14, 182), COLOR_NUM[3], "横条填充内");
+        assert_eq!(alpha(&cv, 12, 180), colors().shade_shape[3], "横条环左上");
+        assert_eq!(alpha(&cv, 14, 182), colors().num[3], "横条填充内");
         assert_eq!(alpha(&cv, 70, 182), 0, "横条填充外 (val=48)");
         // 横条第 2 行 (radiator, y=210) 在非 jet 下存在
-        assert_eq!(alpha(&cv, 12, 210), COLOR_SHADE_SHAPE[3], "radiator 第二横行");
+        assert_eq!(alpha(&cv, 12, 210), colors().shade_shape[3], "radiator 第二横行");
         // 喷气机: 隐藏 mixture/radiator/compressor (FUEL 不在 isJetHiddenGauge 列表,
         // 仍画在第一横行 y=180); 第二横行无输出
         let mut st_jet = EngineControlState::new(&l, 0, 1.0, &|_| false, &|_| String::new());
@@ -2849,9 +2848,9 @@ mod tests {
         assert!(st_jet.update(200, &t_jet, &payload(true, true, -1), None));
         let mut cv2 = PixCanvas::new(st_jet.width, st_jet.height).unwrap();
         st_jet.draw(&mut cv2, &font_label, false);
-        assert_eq!(alpha(&cv2, 12, 180), COLOR_SHADE_SHAPE[3], "jet 下 fuel 横条仍在 (第一横行)");
+        assert_eq!(alpha(&cv2, 12, 180), colors().shade_shape[3], "jet 下 fuel 横条仍在 (第一横行)");
         assert_eq!(alpha(&cv2, 12, 210), 0, "jet 隐藏 radiator → 第二横行空");
-        assert_eq!(alpha(&cv2, bar1_x, 72), COLOR_SHADE_SHAPE[3], "jet 保留竖条");
+        assert_eq!(alpha(&cv2, bar1_x, 72), colors().shade_shape[3], "jet 保留竖条");
     }
 
     /// 预览闭包工厂: 尺寸/内容 (半量程 + optimal 示例标记)
@@ -2888,7 +2887,7 @@ mod tests {
         assert_eq!((st.flap_pix, st.flap_text.as_str()), (48, " 50"), "跳过时保持预览初值");
         assert!(st.update_tick(100, &l, &t));
         assert_eq!(st.warn_text, "起落架");
-        assert_eq!(st.warn_color, COLOR_NUM);
+        assert_eq!(st.warn_color, colors().num);
         assert_eq!((st.flap_pix, st.flap_text.as_str()), (24, " 25"));
         // 节流: 100ms 间隔内 (+50ms) 拒绝且数据不更新
         t.flaps = 90.0;
@@ -2900,13 +2899,13 @@ mod tests {
         t.airbrake = 60.0;
         assert!(st.update_tick(200, &l, &t));
         assert_eq!(st.warn_text, "收起落 减速板");
-        assert_eq!(st.warn_color, COLOR_WARNING);
+        assert_eq!(st.warn_color, colors().warning);
         // gear=0: 告警清空
         t.gear = 0.0;
         t.airbrake = 0.0;
         assert!(st.update_tick(300, &l, &t));
         assert_eq!(st.warn_text, "");
-        assert_eq!(st.warn_color, COLOR_NUM);
+        assert_eq!(st.warn_color, colors().num);
         // flaps<0: 归零显示 "  0"
         t.flaps = -5.0;
         assert!(st.update_tick(400, &l, &t));
@@ -2915,7 +2914,7 @@ mod tests {
         t.gear = -1.0;
         t.flaps = 50.0;
         assert!(st.update_tick(500, &l, &t));
-        assert_eq!(st.warn_color, COLOR_NUM, "上次为空告警 (gear=0) 保留");
+        assert_eq!(st.warn_color, colors().num, "上次为空告警 (gear=0) 保留");
         t.gear = -1.0;
         assert!(st.update_tick(600, &l, &t));
         assert_eq!(st.flap_pix, 48);
@@ -2934,17 +2933,17 @@ mod tests {
         let mut cv = PixCanvas::new(st.total_width, st.total_height).unwrap();
         st.draw(&mut cv, &font_num, &font_label, false);
         // dy = 12+96 = 108; 条盒 rows 12..107 × cols 0..11
-        assert_eq!(alpha(&cv, 0, 12), COLOR_SHADE_SHAPE[3], "条环左上");
-        assert_eq!(alpha(&cv, 11, 107), COLOR_SHADE_SHAPE[3], "条环右下");
+        assert_eq!(alpha(&cv, 0, 12), colors().shade_shape[3], "条环左上");
+        assert_eq!(alpha(&cv, 11, 107), colors().shade_shape[3], "条环右下");
         // 填充: (1, 108+1-48=61, 10, 46) rows 61..106; 指针线行 59..61 叠在 61 上
-        assert_eq!(alpha(&cv, 5, 65), COLOR_NUM[3], "填充内");
+        assert_eq!(alpha(&cv, 5, 65), colors().num[3], "填充内");
         assert_eq!(alpha(&cv, 5, 55), 0, "填充上方");
         // 指针横线 drawHRect(0, 108-48-1=59, 12+36=48, 3): 内芯行 60 colorLabel
-        assert_eq!(alpha(&cv, 5, 60), COLOR_LABEL[3], "指针线内芯");
+        assert_eq!(alpha(&cv, 5, 60), colors().label[3], "指针线内芯");
         // (0,59) = 指针环上边 over 条环左列 (42 over 42 → 77); 取条宽外的 (20,59)
         assert_eq!(alpha(&cv, 0, 59), 77, "指针环上边叠条环 (SrcOver)");
-        assert_eq!(alpha(&cv, 20, 59), COLOR_SHADE_SHAPE[3], "指针环上边 (条外段)");
-        assert_eq!(alpha(&cv, 47, 60), COLOR_SHADE_SHAPE[3], "指针环右边列");
+        assert_eq!(alpha(&cv, 20, 59), colors().shade_shape[3], "指针环上边 (条外段)");
+        assert_eq!(alpha(&cv, 47, 60), colors().shade_shape[3], "指针环右边列");
         // "F 50" 文本: 基线 (12, 108-48-2=58), fontLabel
         let text_zone = (12..48).any(|x| (44..58).any(|y| alpha(&cv, x, y) > 0));
         assert!(text_zone, "襟翼数值文本存在");

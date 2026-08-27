@@ -26,14 +26,10 @@
 //!   1px 线规整后覆盖盒边界恰为整数像素边界 ([x,x+1]), AA 开关输出一致。
 //! - drawRect 环: 负宽/负高整体不绘制 (oracle 0 像素); 零宽/零高退化 1px 线。
 
+use crate::global_colors::colors;
 use crate::font::LoadedFont;
 use crate::render2d::PixCanvas;
 
-/// Application.java:106-111 静态色 (RGBA 直通)
-pub const COLOR_WARNING: [u8; 4] = [216, 33, 13, 100];
-pub const COLOR_SHADE_SHAPE: [u8; 4] = [0, 0, 0, 42];
-pub const COLOR_LABEL: [u8; 4] = [27, 255, 128, 166];
-pub const COLOR_NUM: [u8; 4] = [27, 255, 128, 240];
 
 /// Java Math.round(float): floor(x+0.5) (PORTING.md §2.3, Rust round 是半偶)
 fn java_round_f32(x: f32) -> i32 {
@@ -197,7 +193,7 @@ fn vline_square2(cv: &mut PixCanvas, tx: i32, y0: i32, y1: i32, color: [u8; 4], 
 // ---------------------------------------------------------------------------
 
 /// 通用条形 gauge (LinearGauge.java:10)。
-/// Java public 字段直译为 pub; value_color=None → 用 COLOR_NUM (Java:127)。
+/// Java public 字段直译为 pub; value_color=None → 用 colors().num (Java:127)。
 pub struct LinearGauge {
     pub label: String,
     pub max_value: i32,
@@ -364,8 +360,8 @@ impl LinearGauge {
     ) {
         let pix_val = self.pix_value(length);
         // PORT: Java:127-128 值色覆盖 / shade 恒为 colorShadeShape; 条填充恒 colorNum
-        let c = self.value_color.unwrap_or(COLOR_NUM);
-        let shade = COLOR_SHADE_SHAPE;
+        let c = self.value_color.unwrap_or(colors().num);
+        let shade = colors().shade_shape;
 
         if self.vertical {
             // (x,y) = 组合区域左上 (Java:133)
@@ -378,7 +374,7 @@ impl LinearGauge {
 
             if self.tick_on_right {
                 // PORT: Java:141-154 条在左, 刻度(分隔线+文本)在右
-                Self::draw_bar(cv, x, y, thickness, length, pix_val, shade, COLOR_NUM, true);
+                Self::draw_bar(cv, x, y, thickness, length, pix_val, shade, colors().num, true);
                 let total_width = thickness + label_spacing + text_width;
                 gauge_rect(cv, x, sep_y, total_width, 3, shade, c, false);
                 text_shaded(
@@ -388,14 +384,14 @@ impl LinearGauge {
             } else {
                 // PORT: Java:155-169 刻度(文本+分隔线)在左, 条在右 (默认)
                 let bar_x = x + text_width + label_spacing;
-                Self::draw_bar(cv, bar_x, y, thickness, length, pix_val, shade, COLOR_NUM, true);
+                Self::draw_bar(cv, bar_x, y, thickness, length, pix_val, shade, colors().num, true);
                 let total_width = text_width + label_spacing + thickness;
                 gauge_rect(cv, x, sep_y, total_width, 3, shade, c, false);
                 text_shaded(cv, font_num, x, sep_y - 1, &self.display_value, c, shade, aa);
             }
         } else {
             // PORT: Java:170-180 横条 + 竖直分隔线(flip 环在条上方) + 条下方文本
-            Self::draw_bar(cv, x, y, length, thickness, pix_val, shade, COLOR_NUM, false);
+            Self::draw_bar(cv, x, y, length, thickness, pix_val, shade, colors().num, false);
             gauge_rect(cv, x + pix_val - 2, y, 3, -thickness - font_num.size, shade, c, true);
             text_shaded(
                 cv, font_num, x + pix_val, y + thickness + font_num.size,
@@ -463,13 +459,13 @@ impl LabeledLinearGauge {
         if g.vertical {
             // PORT: Java:53-55 基类逻辑, 文本宽度换 label+value 合成 (条与分隔线右移)
             let pix_val = g.pix_value(length);
-            let c = g.value_color.unwrap_or(COLOR_NUM);
-            let shade = COLOR_SHADE_SHAPE;
+            let c = g.value_color.unwrap_or(colors().num);
+            let shade = colors().shade_shape;
             let text_width = self.value_width(font_num);
             let label_spacing = 2;
             let sep_y = y + length - 1 - pix_val;
             if g.tick_on_right {
-                LinearGauge::draw_bar(cv, x, y, thickness, length, pix_val, shade, COLOR_NUM, true);
+                LinearGauge::draw_bar(cv, x, y, thickness, length, pix_val, shade, colors().num, true);
                 let total_width = thickness + label_spacing + text_width;
                 gauge_rect(cv, x, sep_y, total_width, 3, shade, c, false);
                 self.draw_value_text(
@@ -477,7 +473,7 @@ impl LabeledLinearGauge {
                 );
             } else {
                 let bar_x = x + text_width + label_spacing;
-                LinearGauge::draw_bar(cv, bar_x, y, thickness, length, pix_val, shade, COLOR_NUM, true);
+                LinearGauge::draw_bar(cv, bar_x, y, thickness, length, pix_val, shade, colors().num, true);
                 let total_width = text_width + label_spacing + thickness;
                 gauge_rect(cv, x, sep_y, total_width, 3, shade, c, false);
                 self.draw_value_text(cv, x, sep_y - 1, font_num, c, shade, aa);
@@ -485,11 +481,11 @@ impl LabeledLinearGauge {
         } else {
             // PORT: Java:57-85 横向修正版
             let pix_val = g.pix_value(length);
-            let c = COLOR_NUM; // Java:64 恒 colorNum (忽略 valueColor)
-            let shade_shadow = COLOR_SHADE_SHAPE;
+            let c = colors().num; // Java:64 恒 colorNum (忽略 valueColor)
+            let shade_shadow = colors().shade_shape;
 
             // 1. 条背景+边框 (Java:68; drawBarFixed 横向分支与基类横向 drawBar 一致)
-            LinearGauge::draw_bar(cv, x, y, length, thickness, pix_val, shade_shadow, COLOR_NUM, false);
+            LinearGauge::draw_bar(cv, x, y, length, thickness, pix_val, shade_shadow, colors().num, false);
 
             // 2. 竖直分隔线: 条顶延伸到文本底 (Java:72-80)
             //    sepHeight = thickness + fontSize + 2; 影线 x+pixVal+1 / 主线 x+pixVal
@@ -612,22 +608,22 @@ impl SpeedRatioBar {
         // 1. 副翼锁舵刻度 (左) (Java:95-101)
         if self.aileron_lock_ratio > 0.0 && self.aileron_lock_ratio < 1.0 {
             let lock_y = self.ratio_y(y, self.aileron_lock_ratio);
-            hline_butt2(cv, x - 4, x + w / 2, lock_y, COLOR_NUM, aa);
+            hline_butt2(cv, x - 4, x + w / 2, lock_y, colors().num, aa);
         }
 
         // 2. 方向舵锁舵刻度 (右) (Java:104-110)
         if self.rudder_lock_ratio > 0.0 && self.rudder_lock_ratio < 1.0 {
             let lock_y = self.ratio_y(y, self.rudder_lock_ratio);
-            hline_butt2(cv, x + w / 2, x + w + 4, lock_y, COLOR_NUM, aa);
+            hline_butt2(cv, x + w / 2, x + w + 4, lock_y, colors().num, aa);
         }
 
         // 3. 背景 colorNum 全条 = 剩余范围 (Java:113-114)
-        cv.fill_rect(x, y, w, h, COLOR_NUM);
+        cv.fill_rect(x, y, w, h, colors().num);
 
         // 4. shade 填充 = 当前速度比 (底→值) (Java:117-121)
         let green_h = java_round_f32((h as f64 * clamp01(self.speed_ratio)) as f32);
         if green_h > 0 {
-            cv.fill_rect(x, y + h - green_h, w, green_h, COLOR_SHADE_SHAPE);
+            cv.fill_rect(x, y + h - green_h, w, green_h, colors().shade_shape);
         }
 
         // 4.5 速度比刻度 (左, 跨文本区到条右缘) + 右对齐数值 (Java:123-159)
@@ -638,7 +634,7 @@ impl SpeedRatioBar {
             let label_spacing = 2;
             let tick_start_x = x - tick_extend - label_spacing - template_width;
             let tick_width = template_width + label_spacing + tick_extend + w;
-            hline_butt2(cv, tick_start_x, tick_start_x + tick_width - 1, tick_y, COLOR_NUM, aa);
+            hline_butt2(cv, tick_start_x, tick_start_x + tick_width - 1, tick_y, colors().num, aa);
 
             if let Some(f) = tick_font {
                 // PORT: Java:143 (int) Math.round(speedRatio * 100)
@@ -648,7 +644,7 @@ impl SpeedRatioBar {
                 let text_right_edge = x - tick_extend - label_spacing;
                 let text_x = text_right_edge - actual_text_width;
                 let text_y = tick_y - 3; // 刻度上方 (Java:150)
-                text_shaded(cv, f, text_x, text_y, &value_str, COLOR_NUM, COLOR_SHADE_SHAPE, aa);
+                text_shaded(cv, f, text_x, text_y, &value_str, colors().num, colors().shade_shape, aa);
             }
         }
 
@@ -659,13 +655,13 @@ impl SpeedRatioBar {
             if stall_w < 2 {
                 stall_w = 2; // Java:166-167 最小宽保护
             }
-            cv.fill_rect(x + w - stall_w, y + h - stall_h, stall_w, stall_h, COLOR_WARNING);
+            cv.fill_rect(x + w - stall_w, y + h - stall_h, stall_w, stall_h, colors().warning);
         }
 
         // 6. 马赫单位红线 (Java:172-178)
         if self.unit_mach_ratio > 0.0 && self.unit_mach_ratio < 1.0 {
             let mach_y = self.ratio_y(y, self.unit_mach_ratio);
-            hline_butt2(cv, x, x + w, mach_y, COLOR_WARNING, aa);
+            hline_butt2(cv, x, x + w, mach_y, colors().warning, aa);
         }
         // 无边框 (Java:180, 对齐 FlapAngleBar 风格)
         self.dirty = false;
@@ -773,7 +769,7 @@ impl FlapAngleBar {
         let str_width = font.measure(&self.display_text);
         // PORT: Java:81 int 除法向零截断 (strWidth 超宽时整体左移)
         let str_x = x + (total_width - str_width) / 2;
-        text_shaded(cv, font, str_x, text_y, &self.display_text, COLOR_NUM, COLOR_SHADE_SHAPE, aa);
+        text_shaded(cv, font, str_x, text_y, &self.display_text, colors().num, colors().shade_shape, aa);
 
         // 条位于文本下方 (字号近似行高) (Java:84-85)
         let bar_y = y + font.size + 2;
@@ -803,20 +799,20 @@ impl FlapAngleBar {
         for &tick in &TICK_POSITIONS {
             let tx = x + tick * total_width / MAX_SCALE;
             let ext = if tick == 100 { bar_height } else { bar_height / 4 };
-            vline_square2(cv, tx, bar_y - ext - 2, bar_y, COLOR_LABEL, aa);
+            vline_square2(cv, tx, bar_y - ext - 2, bar_y, colors().label, aa);
         }
 
         // 已用区 (0→current, shade) (Java:127-131)
         if used_width > 0 {
-            cv.fill_rect(x, bar_y, used_width, bar_height, COLOR_SHADE_SHAPE);
+            cv.fill_rect(x, bar_y, used_width, bar_height, colors().shade_shape);
         }
         // 安全裕度区 (current→maxSafe, colorNum) (Java:133-137)
         if margin_width > 0 {
-            cv.fill_rect(x + used_width, bar_y, margin_width, bar_height, COLOR_NUM);
+            cv.fill_rect(x + used_width, bar_y, margin_width, bar_height, colors().num);
         }
         // 超速区 (右侧剩余, warning) (Java:139-143)
         if overspeed_width > 0 {
-            cv.fill_rect(x + used_width + margin_width, bar_y, overspeed_width, bar_height, COLOR_WARNING);
+            cv.fill_rect(x + used_width + margin_width, bar_y, overspeed_width, bar_height, colors().warning);
         }
         self.dirty = false;
     }
@@ -1191,12 +1187,12 @@ mod tests {
     /// - square2 AA OFF: drawLine(·,10,·,25) 覆盖列 tx-1..tx / 行 9..25 —
     ///   方帽下端行不点亮
     /// - AA ON: 宽 2 线 3 行/列柔边, oracle 不透明色 a=128/255/128 角点 a=64,
-    ///   此处按 cov_color 同式 (COLOR_NUM a=240 → 120/60; LABEL 166 → 83/42)
+    ///   此处按 cov_color 同式 (colors().num a=240 → 120/60; LABEL 166 → 83/42)
     #[test]
     fn line_primitive_pixel_boxes() {
         // butt2 AA OFF: 列 10..19, 行 14..15
         let mut cv = PixCanvas::new(40, 40).unwrap();
-        hline_butt2(&mut cv, 10, 20, 15, COLOR_NUM, false);
+        hline_butt2(&mut cv, 10, 20, 15, colors().num, false);
         assert_eq!(a(&cv, 10, 14), 240, "butt2 左端列");
         assert_eq!(a(&cv, 19, 15), 240, "butt2 右端列 (oracle: 端点列不点亮)");
         assert_eq!(a(&cv, 20, 15), 0, "butt2 右端外");
@@ -1207,7 +1203,7 @@ mod tests {
         // butt2 AA ON: 覆盖盒 [10.5,20.5]×[14.5,16.5] → 3 行柔边 + 端点列半覆盖
         // (oracle: 21 列×3 行 = 63 非零像素)
         let mut cvs = PixCanvas::new(40, 40).unwrap();
-        hline_butt2(&mut cvs, 10, 20, 15, COLOR_NUM, true);
+        hline_butt2(&mut cvs, 10, 20, 15, colors().num, true);
         assert_eq!(a(&cvs, 15, 15), 240, "AA 中行全值");
         assert_eq!(a(&cvs, 15, 14), 120, "AA 上柔边行 a=round(240·0.5)");
         assert_eq!(a(&cvs, 15, 16), 120, "AA 下柔边行");
@@ -1221,7 +1217,7 @@ mod tests {
 
         // square2 AA OFF: 列 29..30, 行 9..25 (方帽上端外伸 1 行、下端行不点亮)
         let mut cv2 = PixCanvas::new(40, 40).unwrap();
-        vline_square2(&mut cv2, 30, 10, 25, COLOR_LABEL, false);
+        vline_square2(&mut cv2, 30, 10, 25, colors().label, false);
         assert_eq!(a(&cv2, 29, 9), 166, "square2 左列方帽上伸");
         assert_eq!(a(&cv2, 30, 25), 166, "square2 下端行 y1 (oracle: y1+1 行不点亮)");
         assert_eq!(a(&cv2, 30, 26), 0, "square2 下端行外");
@@ -1232,7 +1228,7 @@ mod tests {
         // square2 AA ON: 覆盖盒 [29.5,31.5]×[9.5,26.5] → 3 列柔边, 端行半透明
         // (oracle: 行 4..26 端行半透明, 列 a=128/255/128)
         let mut cv2s = PixCanvas::new(40, 40).unwrap();
-        vline_square2(&mut cv2s, 30, 10, 25, COLOR_LABEL, true);
+        vline_square2(&mut cv2s, 30, 10, 25, colors().label, true);
         assert_eq!(a(&cv2s, 30, 15), 166, "AA 中列全值");
         assert_eq!(a(&cv2s, 29, 15), 83, "AA 左柔边列 a=round(166·0.5)");
         assert_eq!(a(&cv2s, 31, 15), 83, "AA 右柔边列");
@@ -1244,8 +1240,8 @@ mod tests {
 
         // 1px: 列恰 x, 行 y0..y1 (AA 开关输出一致)
         let mut cv3 = PixCanvas::new(40, 40).unwrap();
-        vline_1px(&mut cv3, 12, 5, 15, COLOR_WARNING, false);
-        vline_1px(&mut cv3, 14, 5, 15, COLOR_WARNING, true);
+        vline_1px(&mut cv3, 12, 5, 15, colors().warning, false);
+        vline_1px(&mut cv3, 14, 5, 15, colors().warning, true);
         assert_eq!(a(&cv3, 12, 5), 100, "1px 线顶");
         assert_eq!(a(&cv3, 12, 15), 100, "1px 线底");
         assert_eq!(a(&cv3, 11, 10), 0, "1px 线左外");
@@ -1259,14 +1255,14 @@ mod tests {
     #[test]
     fn ring_negative_and_degenerate() {
         let mut cv = PixCanvas::new(40, 40).unwrap();
-        ring(&mut cv, 10, 10, -4, 20, COLOR_NUM);
-        ring(&mut cv, 10, 10, 20, -4, COLOR_NUM);
-        ring(&mut cv, 10, 10, -4, -9, COLOR_NUM);
+        ring(&mut cv, 10, 10, -4, 20, colors().num);
+        ring(&mut cv, 10, 10, 20, -4, colors().num);
+        ring(&mut cv, 10, 10, -4, -9, colors().num);
         assert!(cv.pixmap().data().iter().all(|&b| b == 0), "负宽/负高 0 像素");
 
         // 零宽: oracle drawRect(50,10,0,20) = 列 50 行 10..30 的 1px 竖线
         let mut cv2 = PixCanvas::new(40, 40).unwrap();
-        ring(&mut cv2, 20, 5, 0, 15, COLOR_NUM);
+        ring(&mut cv2, 20, 5, 0, 15, colors().num);
         assert_eq!(a(&cv2, 20, 5), 240, "零宽退化竖线顶");
         assert_eq!(a(&cv2, 20, 20), 240, "零宽退化竖线底 (行 y..y+h)");
         assert_eq!(a(&cv2, 20, 21), 0, "竖线底外");
@@ -1274,7 +1270,7 @@ mod tests {
 
         // 零高: 1px 横线 列 x..x+w
         let mut cv3 = PixCanvas::new(40, 40).unwrap();
-        ring(&mut cv3, 5, 20, 15, 0, COLOR_NUM);
+        ring(&mut cv3, 5, 20, 15, 0, colors().num);
         assert_eq!(a(&cv3, 5, 20), 240, "零高退化横线左端");
         assert_eq!(a(&cv3, 20, 20), 240, "零高退化横线右端");
         assert_eq!(a(&cv3, 21, 20), 0, "横线右外");
@@ -1282,7 +1278,7 @@ mod tests {
 
         // 双零: drawRect 的 4 条边线全为零长度段, 无输出
         let mut cv4 = PixCanvas::new(40, 40).unwrap();
-        ring(&mut cv4, 10, 10, 0, 0, COLOR_NUM);
+        ring(&mut cv4, 10, 10, 0, 0, colors().num);
         assert!(cv4.pixmap().data().iter().all(|&b| b == 0), "双零无输出");
     }
 
@@ -1339,7 +1335,7 @@ mod tests {
         g.draw(&mut cv, 5, 5, &f, false);
         assert!(!g.is_dirty(), "draw 后清脏");
 
-        g.set_value_color(Some(COLOR_WARNING));
+        g.set_value_color(Some(colors().warning));
         assert!(g.is_dirty(), "值色注入置脏");
         g.set_vertical(false);
         g.set_tick_on_right(true);
@@ -1349,7 +1345,7 @@ mod tests {
         assert!(!g.is_dirty(), "再次 draw 清脏");
 
         g.set_vertical(false);
-        g.set_value_color(Some(COLOR_WARNING));
+        g.set_value_color(Some(colors().warning));
         assert!(!g.is_dirty(), "同值 setter 不置脏");
     }
 }
