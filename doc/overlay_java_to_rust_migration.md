@@ -377,6 +377,39 @@ Java 同款算法同样如此——对拍动态帧时需两边同等预热。
     formatDataAsStrings — 各随前置批次。终验: 1,271 测试 / clippy 0 / 冒烟
     7 窗 PASS。
 
+17. **calculate 链收尾批 (用户指令: 剩余全迁, 4 agent 最大并行)**:
+    依赖/文件冲突分析后按独占文件集分四路全并行 (A: Blkx 曲线族 reader.rs/
+    fm_loader/realtests; B: 四小方法 methods_engine.rs; C: formatDataAsStrings
+    format_strings.rs; D: engLoad 会话态 handle.rs+overheat.rs), 预检确认
+    ServiceData 字段全存在使共享文件冲突面清零, calculate 插桩收归主线统一。
+    (a) **A**: transUnit/getAllplotdata/getplotdata (Blkx L1590-1658) 直译 +
+    fm_loader 接线 (finalize 前) + fuzz 腿1 管线恢复; Java 8 位级对拍 (真机
+    bf-109e-4 metric + 合成英制变体, f32 拓宽域 304.80000376701355 锚点)。
+    (b) **B**: checkWing/checkFlap(+Service 版 getFlapAllowSpeed/Angle)/
+    getMaximumRPM(命名避让 _learn)/updateOptimalCompressorStage — Service 版
+    与 HUDCalculator 版襟翼表查询的不同源差异 (i-=1 有无/i==0 分支 x/y 互换)
+    逐行保真; Java 8 oracle 实测增压器档位状态机。
+    (c) **C**: formatDataAsStrings (L242-432) ~47 显示字符串列 — java_f/
+    pad_width 本地拷贝 (vm-core pub(crate) 跨 crate 不可见, minihud 先例) +
+    java_d0/java_f_plus/java_round 三新助手; Java 8 FmtOracle 逐表达式对拍
+    (HALF_UP 判别点: 2.675→"3"/12.25→"12.3"/359.97→"360" 等)。
+    (d) **D**: engLoad 会话态提升 FMHandle.eng_load_state (Mutex<Option<Vec<
+    EngineLoad>>>, ready() 克隆初始化, 手写 Clone) + checkOverheat (超温递减/
+    关机回满/降档恢复) + resetEngLoad; handle.rs 头注预留兑现。
+    (e) **主线接线**: calculate 七处插桩 (check_overheat 在 update_temp 后/
+    check_wing-check_flap-get_maximum_rpm_learn 在比值方法前/
+    update_optimal_compressor_stage 链尾) + publish 前 format_data_as_strings。
+    (f) **测试统一跑暴露三问题并修**: B 的 getMaximumRPM 置位守卫测试误读
+    (Java if(!getMaximumRPM) 短路, 补 FM 直取正向用例); C 的换机等待假通过
+    (LOADING 期 current() 返回旧 Ready 句柄, 改等 name); **smoke 端口覆盖
+    bug** — 用户 cfg 的 httpPort=8111 键压过 9222 注入 (此前游戏在线时
+    smoke 假 PASS 实读游戏数据!), 加 Env.port_override (CLI > cfg > Lang)。
+    过程事故: D 误用 git stash 波及 A 的 reader.rs (A 重做恢复, 主线核验);
+    主线建骨架时 #[cfg(test)] 属性吸附错位 (已修)。
+    终验: **1,295 测试 / clippy 0 / 冒烟 7 窗 × 143 帧 PASS (真 9222 数据)**。
+    calculate 链 17 方法全部落地; 现余: realtests 腿2 (FMLoader 测试接线) 与
+    Controller 协作点 6 处 (状态栏 UI 面)。
+
 ## 11.5 人工验收清单 (移交用户)
 
 1. `bash script/rust_run.sh` — iced 设置窗 + 全部 overlay 预览共存

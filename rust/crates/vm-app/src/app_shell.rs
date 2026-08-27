@@ -139,6 +139,10 @@ pub struct Env {
     pub dpi: DpiHelper,
     /// Application.debug (OverlayContext.isDebug 的来源)
     pub debug: bool,
+    /// 白盒端口 CLI 覆盖 (`--port` / mock-smoke 9222): 优先级压过 cfg 的
+    /// httpPort 键 (smoke 踩坑: 用户 cfg 写死 httpPort=8111 令 9222 注入失效,
+    /// 游戏在场时假 PASS / 离线时 FAIL)。生产 desktop 恒 None — cfg > Lang 不变
+    pub port_override: Option<u16>,
 }
 
 impl Env {
@@ -157,6 +161,7 @@ impl Env {
             icon_path: PathBuf::from("image/16x16.png"),
             dpi: detect_dpi(),
             debug,
+            port_override: None,
         }
     }
 }
@@ -964,7 +969,8 @@ impl Controller {
             ServiceConfig {
                 // load_app_check 缺省 50; 字段 0 = 未跑过 loadFromConfig 的防御回退
                 service_loop_interval_ms: if interval > 0 { interval } else { 50 },
-                app_port: cfg_port.unwrap_or(self.env.app_port),
+                // 白盒 CLI 覆盖 > cfg httpPort 键 > Lang 启动值 (见 Env.port_override 注)
+                app_port: self.env.port_override.or(cfg_port).unwrap_or(self.env.app_port),
                 http_header: self.env.http_header.clone(),
             },
             Arc::clone(&self.fm),
@@ -1499,6 +1505,7 @@ impl AppShell {
             env.app_port = p;
             // 与 probe 同式 (域内恒 p+1111, u16 加法无回绕面)
             env.app_port_bkp = p + 1111;
+            env.port_override = Some(p);
         }
         let ui_bus = Arc::new(EventBus::new());
         let config = ConfigurationService::new(Some(Arc::clone(&ui_bus)));

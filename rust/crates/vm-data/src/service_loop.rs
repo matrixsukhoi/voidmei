@@ -422,6 +422,7 @@ impl Service {
         } // —— write 临界区结束 (publish 前必须释放, §2.8)
 
         // Java: resetEngLoad(fm); (L1568, 字段赋值序列中间——锁外执行)
+        // (方法体已随 engLoad 会话态批次迁至 overheat.rs, 关联函数签名不变)
         Self::reset_eng_load(&fm);
         // PORT(SMA 重建): Java L1587-1590 的 calc/diff/sep/turnrds 四 SMA 在本
         // 调用点重建 = Deriver 整体重建 (真人在彼, 见上)
@@ -431,25 +432,6 @@ impl Service {
         // Java: publishFlightDataEvent(); (L1659)
         // Publish initial state immediately
         self.publish_flight_data_event();
-    }
-
-    /// 重置引擎耐久计时（engLoad 为共享会话状态, 就地改写语义见 FMHandle javadoc 声明,
-    /// "换机 = 新 Blkx 实例" 天然保证会话状态不串机, 此处保持就地改写不变）。
-    ///
-    /// @param fm 本周期 FM 句柄快照（R1 下传）
-    //  (以上 javadoc 逐字保留, Java L1510-1515)
-    fn reset_eng_load(fm: &FMHandle) {
-        // R2 hasFM 守卫: blkx 非 null 即 READY, 无 FM 时无耐久数据可重置
-        // PORT(不可表达, §6 上报不越文件修): 会话态改写
-        // `engLoad[idx].curWater/OilWorkTimeMili = WorkTime * 1000` 依赖
-        // handle.rs 头注承诺的 "engLoad 就地改写以内部可变性承接" (reader 波次);
-        // 现形状 blkx 经 Arc<FMHandle> 共享仅只读, 本方法暂无法落写。
-        // TODO(port): engLoad 会话态改写 (blkx reader / 计算方法区波次)
-        if let Some(_blkx) = &fm.blkx {
-            // Java: for (idx in 0..blkx.maxEngLoad) {
-            //   blkx.engLoad[idx].curWaterWorkTimeMili = blkx.engLoad[idx].WorkTime * 1000;
-            //   blkx.engLoad[idx].curOilWorkTimeMili   = blkx.engLoad[idx].WorkTime * 1000; }
-        }
     }
 
     // ------------------------------------------------------------------
@@ -749,10 +731,11 @@ impl Service {
                         }
                     }
 
-                    // 将数据转换格式
-                    // TODO(port): formatDataAsStrings() —— 全量显示字符串格式化
-                    // (计算方法区波次; 其尾部对 publishFlightDataEvent 的调用
-                    // 由下方直接调用顶位, 发布时序不变——Java L431)
+                    // 将数据转换格式 — format_strings.rs (Agent C 批次):
+                    // ~47 个显示字符串列 (FlightInfo/FlightLog CSV 的 String 数据源)。
+                    // Java 本方法尾部的 publishFlightDataEvent 由下方直接调用顶位,
+                    // 发布时序不变 (Java L431)
+                    self.format_data_as_strings();
                     self.publish_flight_data_event();
 
                     // 写入文档
@@ -845,6 +828,10 @@ impl Service {
         // (顺序在 updateCompass 之前 — Rust 侧 Deriver step 之前同位)
         self.update_wep_time(&fm);
         self.update_temp();
+
+        // Java calculate 链 L1130-1131: 检查过热, 计算引擎健康度 — overheat.rs
+        // (engLoad 会话态走 FMHandle.eng_load_state, D 批次)
+        self.check_overheat(&fm);
 
         // 增加wep时间 / 更新温度，优先使用更精确的 / 检查是否过热… (TODO 列表见 doc)
         // 更新方向 / 更新爬升率 / 获得准确高度 / 更新速度 / 更新转弯半径 —— Deriver::step
@@ -964,10 +951,19 @@ impl Service {
         self.update_engine_state(&fm);
         self.update_fuel();
 
+        // Java calculate 链 L1168-1170 (updateSEP 之后): 可变翼判断 / 襟翼判断 /
+        // 最大转速 — methods_engine.rs (Agent B 批次)
+        self.check_wing();
+        self.check_flap(&fm);
+        self.get_maximum_rpm_learn(&fm);
+
         // Java calculate 尾部两比值方法 (L1177-1178): 速度/马赫临界比值 + 失速速度
         // — MiniHUD 速度比值 bar 的数据源 (speed_limit_ratio 等 5 字段)
         self.update_speed_ratio(&fm);
         self.update_stall_speed(&fm);
+
+        // Java calculate 链尾 (L1173): 最佳增压器档位/失配提示 — methods_engine.rs
+        self.update_optimal_compressor_stage(&fm);
     }
 
     /// 对应 Java `public void slowcalculate(long dtime)` (L517-560) — 0.5 秒一次
@@ -1772,5 +1768,10 @@ pub fn start(service: Service) -> ServiceHandle {
 // =====================================================================
 // Tests
 // =====================================================================
+// calculate 链方法族的跨文件 impl 宿主 (接线调用统一在 calculate 内, 见各模块头注)
+mod format_strings;
+mod methods_engine;
+mod overheat;
+
 #[cfg(test)]
 mod tests;

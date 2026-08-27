@@ -5,8 +5,9 @@
 //! - `model.rs` — getter/计算方法 (L523-631 的 findmax*/getVersion、L676-1660 的纯字段
 //!   计算面、L1978-2028 的 finalizeLoading/calculatePeakThrust/peakThrust)【本波】
 //! - `reader.rs` — 构造器 + 原语 + getload 全量装载 (L408-575/L817-1590/L1665-1906)
-//!   → `parse/parse_named/parse_named_opts -> Result<Blkx>`【getload 批次已译,
-//!   真机位级对拍; 余 transUnit/getAllplotdata/getplotdata 待 getAllplotdata 批次】
+//!   → `parse/parse_named/parse_named_opts -> Result<Blkx>`【getload 批次 +
+//!   getAllplotdata 批次 (transUnit/getAllplotdata/getplotdata) 均已译,
+//!   真机/合成英制位级对拍】
 //!
 //! PORT: 反射段 (getValue/dumpVariables/getVariableMap, L1908-2000) 按 D4 裁决
 //! **不迁移** (getVariableMap 唯一下游 FormulaEvaluator 归 C 类; FMPowerExtractor
@@ -17,9 +18,11 @@
 //! reader.rs 落地 (真机 spitfire 位级对拍): getPartsFm (L408) /
 //! extractRpmFromThrottleAuto (L431) / getEngineLoad (L477) / showEngineLoad (L496) /
 //! WritePartsFm (L502) / getdoubles (L523) / getdouble (L543) / getdouble_exc (L557) /
-//! initEngineLoad (L817) / getload (L855)。**仍未译**: transUnit (L1590; 喂入
-//! sub_st 的 PASSPORT.UNITSYSTEM 行值须保持 ASCII 域, §2.1, 见 model.rs sub_st
-//! 函数级注) / getAllplotdata (L1618) / getplotdata (L1627) — getAllplotdata 批次。
+//! initEngineLoad (L817) / getload (L855); getAllplotdata 批次补齐曲线族:
+//! transUnit (L1590, 喂入 sub_st 的 PASSPORT.UNITSYSTEM 行值保持 ASCII 域 §2.1,
+//! 见 model.rs sub_st 函数级注) / getAllplotdata (L1618) / getplotdata (L1627)
+//! — fm_loader 接线 + fuzz 腿1 管线恢复, 真机 bf-109e-4 metric 路径 + 合成英制
+//! 变体 (DumpPlot oracle) 位级对拍。
 //! interpolateSweepDouble (L718) 由 crate::interpolation::interp_sweep_level 承接
 //! (单一来源规约, 见 model.rs 函数级注)。
 //!

@@ -16,7 +16,8 @@
 //! [`Blkx::parse`]/[`Blkx::parse_named`] (Java 两参构造器) 走 getload 全量装载 +
 //! catch_unwind 收敛 (panic → Err ↔ Java valid=false); [`Blx::parse_named_opts`]
 //! (三参构造器) 显式 doLoad, FMLoader 中央文件传 false 只读。
-//! 仍未译: transUnit/getAllplotdata/getplotdata (getAllplotdata 批次)。
+//! getAllplotdata 批次已落地: transUnit/getAllplotdata/getplotdata (L1590-1658,
+//! fm_loader 接线 + fuzz 腿1 管线恢复, 真机/合成英制 oracle 位级对拍)。
 //!
 //! PORT (§2.1): Java charAt/indexOf/substring 按 UTF-16 码元计数, 此处一律字节偏移
 //! + `as_bytes()` 索引 — 域内 (FM/中央文件) 为纯 ASCII (真机三文件 od/grep 实测),
@@ -26,7 +27,7 @@
 //!   逐条对应; 终点取子串经 `get()` 边界守卫, 病态漂移按"未找到"哨兵收敛
 //!   (types.rs cut_static 同款裁决: Rust UTF-8 字节域 ß 2→2 不漂移, 反而更对齐)。
 
-use super::types::{EngineLoad, FmParts, SweepLevel};
+use super::types::{EngineLoad, FmParts, SweepLevel, XY};
 use super::Blkx;
 use crate::g;
 use crate::lang::Lang;
@@ -292,7 +293,6 @@ impl Blkx {
 
     /// 对应 Java `public String getArray(String label)` (L1764-1804) —
     /// 点分标签逐段 cut 后, 收集**所有**匹配行 (含行尾 '\n') 拼接; 无匹配返回 ""。
-    #[allow(dead_code)] // 调用方 getplotdata (L1629) 属 reader.rs 后续波次
     pub fn get_array(&self, label: &str) -> String {
         let mut value = String::new();
         // PORT: Java `String text = data` 为 null 时在 toUpperCase 处 NPE ↔ unwrap panic
@@ -1574,6 +1574,135 @@ impl Blkx {
             ],
         ));
         s
+    }
+
+    // ------------------------------------------------------------------
+    // transUnit / getAllplotdata / getplotdata (Java L1590-1658) —
+    // PASSPORT 曲线抽取 + 英制单位换算 (getAllplotdata 批次)
+    // ------------------------------------------------------------------
+
+    /// 对应 Java `public void transUnit()` (L1590-1616) — 英制单位系 FM 的
+    /// PASSPORT 曲线换算 (高度英尺→米 0.3048 / 速度英里每小时→公里 1.609344)。
+    ///
+    /// PORT: Java `loc.y[i] * 0.3048f` — float 字面量先取 f32 值再拓宽
+    /// double 参与乘法 (24-bit 尾数域, `(0.3048f32 as f64) ≠ 0.3048f64`);
+    /// oracle (DumpPlot 腿B, OpenJDK 1.8.0_342): 1000 * 0.3048f =
+    /// 304.80000376701355, 321.84 * 1.609344f = 517.9512747573852, 位级一致。
+    ///
+    /// PORT: loc..loc3 未赋值 (Java null) 时 NPE ↔ unwrap panic — 生产调用点
+    /// 是 get_all_plotdata 尾部 (五字段刚赋值, 不可达); 直连时的 panic 由
+    /// FMLoader.load 的 catch_unwind 收敛 CORRUPT (§1)。
+    #[allow(unused_assignments)] // Java 死赋值保真 (L1591 的 "" 立即被覆盖)
+    #[allow(clippy::needless_range_loop)]
+    pub fn trans_unit(&mut self) {
+        let mut unit_system = "".to_string();
+        unit_system = self.getone("PASSPORT.UNITSYSTEM");
+        unit_system = self.sub_st(&unit_system);
+        // Java: unitSystem.indexOf("Imperial") != -1 (区分大小写; ASCII 域
+        // 字节 find ≡ UTF-16 indexOf, §2.1)。getone 未找到时返回哨兵 "null",
+        // sub_st 剥首尾得 "ul" 同样不含 "Imperial" → 空转 (DumpPlot 腿A 钉死;
+        // 真机 FM 键名恒小写 camelCase, getone 大小写敏感 → metric 数据不走换算)
+        if unit_system.find("Imperial").is_some() {
+            // Application.debugPrint("英制");
+            // PORT: Java for (int i = 0; i < loc.cur; i++) — cur 在循环体内
+            // 不被修改, 绑定一次等价 (i32 计数 → usize 供数组索引);
+            // `loc.y[i] = loc.y[i] * 0.3048f` 的赋值形态 → `*=` (clippy
+            // manual_assign, 单操作数乘法逐位等价)
+            let loc = self.loc.as_mut().unwrap();
+            let cur = loc.cur as usize;
+            for i in 0..cur {
+                loc.y[i] *= 0.3048f32 as f64;
+            }
+            let loc0 = self.loc0.as_mut().unwrap();
+            let cur = loc0.cur as usize;
+            for i in 0..cur {
+                loc0.y[i] *= 0.3048f32 as f64;
+            }
+            let loc1 = self.loc1.as_mut().unwrap();
+            let cur = loc1.cur as usize;
+            for i in 0..cur {
+                loc1.y[i] *= 0.3048f32 as f64;
+                loc1.x[i] *= 1.609344f32 as f64;
+            }
+            let loc2 = self.loc2.as_mut().unwrap();
+            let cur = loc2.cur as usize;
+            for i in 0..cur {
+                loc2.y[i] *= 0.3048f32 as f64;
+                loc2.x[i] *= 1.609344f32 as f64;
+            }
+            let loc3 = self.loc3.as_mut().unwrap();
+            let cur = loc3.cur as usize;
+            for i in 0..cur {
+                loc3.y[i] *= 1.609344f32 as f64;
+                // Application.debugPrint(loc3.x[i]+" "+loc3.y[i]);
+            }
+        }
+    }
+
+    /// 对应 Java `public void getAllplotdata()` (L1618-1625) — 五条 PASSPORT
+    /// 曲线全量抽取 + 单位换算 (FMLoader.load 第 6 步, finalizeLoading 前)。
+    pub fn get_all_plotdata(&mut self) {
+        self.loc = Some(self.getplotdata("PASSPORT.ALT.minClimbTimeWep"));
+        self.loc0 = Some(self.getplotdata("PASSPORT.ALT.minClimbTimeNom"));
+        self.loc1 = Some(self.getplotdata("PASSPORT.ALT.maxSpeedWep"));
+        self.loc2 = Some(self.getplotdata("PASSPORT.ALT.maxSpeedNom"));
+        self.loc3 = Some(self.getplotdata("PASSPORT.IAS.maxRollRateLeft"));
+        self.trans_unit();
+    }
+
+    /// 对应 Java `public XY getplotdata(String t)` (L1627-1658) — 抽取点分
+    /// 标签曲线块 (getArray 多行累积) 的逐行 (y, x) 对; 无匹配时空表
+    /// (cur=0, 数组长度 0)。
+    // PORT(allow needless_range_loop): Java for(int i...) 直译 — i 是行段
+    // substring 的终点索引, 计数形态是本意
+    #[allow(clippy::needless_range_loop)]
+    pub fn getplotdata(&self, t: &str) -> XY {
+        let mut line = 0usize;
+        // Java: t = getArray(t); — 形参重赋 ↔ 变量遮蔽 (无匹配返回 "")
+        let t = self.get_array(t);
+        for i in 0..t.len() {
+            if t.as_bytes()[i] == b'\n' {
+                line += 1;
+            }
+        }
+        let mut lo = XY::new(line);
+        let mut bix = 0usize;
+        for i in 0..t.len() {
+            if t.as_bytes()[i] == b'\n' {
+                // Java: String temp = t.substring(bix, i); — §2.1 ASCII 域字节
+                // 切片 ≡ substring (bix <= i < len 恒合法, 此处无防御加固点)
+                let temp = &t[bix..i];
+                // PORT: Java split(", ") 丢弃尾部空串, Rust split 保留 — 本方法
+                // 只消费 tmp[0]/tmp[1], 尾部空串差异的所有分叉 (Java 长度 <2
+                // 跳过 / Rust tmp[1]="" 解析失败丢弃) 最终都不写入数据点, 等价
+                let tmp: Vec<&str> = temp.split(", ").collect();
+                // 防御加固 (P6 fuzz 发现): 畸形曲线行 (缺逗号/数字混入字符) 原代码
+                // 直接 parseDouble 抛异常炸穿调用方 (对比窗口回退路径未包 try)。
+                // 改为跳过畸形行 (曲线少一个点), 完好行照常解析——仅曲线块受损的
+                // 文件仍可按 READY 用发动机数据
+                if tmp.len() >= 2 {
+                    // Java: lo.y[lo.cur] = Double.parseDouble(tmp[0].trim());
+                    // lo.x[lo.cur] = Double.parseDouble(tmp[1].trim()); lo.cur++;
+                    // — Double 域 (f64, 与 getdouble 族的 Float 域不同!);
+                    // NumberFormatException catch → 丢弃该数据点。
+                    // PORT: Java 在 y 写入后 x 解析失败会留下不可观察的脏 y[cur]
+                    // (cur 未自增, 消费方只读 [0, cur)), Rust 双成功才写入,
+                    // 可观察行为一致; trim 用 java_trim (Java String.trim 语义)
+                    if let (Ok(y), Ok(x)) = (
+                        java_trim(tmp[0]).parse::<f64>(),
+                        java_trim(tmp[1]).parse::<f64>(),
+                    ) {
+                        let cur = lo.cur as usize;
+                        lo.y[cur] = y;
+                        lo.x[cur] = x;
+                        lo.cur += 1;
+                    }
+                }
+                // 缺逗号的行: 同样跳过 (曲线少一个点)
+                bix = i + 1;
+            }
+        }
+        lo
     }
 }
 

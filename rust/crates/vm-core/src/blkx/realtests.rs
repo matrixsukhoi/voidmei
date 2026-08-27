@@ -9,27 +9,22 @@
 //! build.py 语义")。路径相对仓库根: cargo 测试经 `CARGO_MANIFEST_DIR` 上溯三级
 //! (reader.rs / sexp_parser.rs 测试同款约定)。
 //!
-//! PORT (getload 未落地): 三套测试的 Java 侧核心 `new Blkx(path, name, true)`
-//! (doLoad=true → getload(), Blkx.java L855-1590) 属 reader.rs 后续波次
-//! (reader.rs L129 TODO(port)) — 当前 `Blkx::parse` 等价 doLoad=false 构造。
-//! 依赖 getload 填充字段 (compNumSteps/compAlt/compPower/aftbCoff/
-//! wepManifoldPressure/speedToManifoldMultiplier) 或 extract_stages (其以
-//! compNumSteps>0 为前置) 的断言段以 [`GETLOAD_WIRED`] 开关整体挂起; 同理
-//! fuzzer 腿1 的 getAllplotdata 与腿2 的 FMLoader.load (fm 模块后续批次)。
-//! reader/fm 波次落地后置 true 即恢复全量断言 — 禁为此放宽阈值或删断言
-//! (§6: 跨文件依赖只标注不越文件修)。开关恢复前 fuzz 腿1 的 200/200 valid=true
-//! 是无 getload 弱化管线的产物, 不构成 getload 波次的回归基线 (D4 腿1 防御性
-//! 验收须待全管线恢复后重做)。
+//! PORT (波次状态): getload 批次与 getAllplotdata 批次均已落地 (reader.rs,
+//! `Blkx::parse` = Java doLoad=true 构造器), [`GETLOAD_WIRED`] 开关已置 true —
+//! 依赖 getload 字段的功率断言段与 fuzzer 腿1 管线 (getAllplotdata +
+//! finalizeLoading) 全部恢复。仍挂起: 腿2 的 FMLoader.load 抽样腿 —
+//! fm_loader.rs/fm_data_paths (含 set_data_root) 虽已落地, 临时数据根注入的
+//! 测试接线属后续批次 (见 fuzz 模块内 TODO(port)); 禁为此放宽阈值或删断言
+//! (§6: 跨文件依赖只标注不越文件修)。
 //!
 //! oracle: fuzzer 的 JavaRandom/mutate 移植值来自 OpenJDK 1.8.0_342 实测 dump
 //! (build/oracle/rand/RandOracle.java, §5.1 双实现对拍方法论)。
 
-/// PORT(reader 波次开关): 见模块头注。当前 `Blkx::parse` 等价 Java doLoad=false
-/// 构造 (getload 未译), 依赖 getload 字段的功率断言段在开关为 false 时提前返回。
-/// reader 波次把 getload 接入 parse 后置 true 恢复全量断言 — 翻开关时必须同步
-/// grep 本文件内全部 TODO(port) (fuzz 腿1 getAllplotdata / 腿2 FMLoader) 逐个
-/// 销号, 否则 fuzz 覆盖永久半挂; [`getload_wired_follows_reader_todo`] canary
-/// 钉住 reader.rs 标注与本开关的一致性 (标注移除而开关未翻即判失败)。
+/// PORT(reader 波次开关): 见模块头注。getload/getAllplotdata 批次已落地,
+/// 本开关已置 true — 依赖 getload 字段的功率断言段与 fuzz 腿1 管线全量执行。
+/// 后续波次若再挂断言 (如腿2 FMLoader), 翻回 false 时必须同步 grep 本文件内
+/// 全部 TODO(port) 逐个销号, 否则覆盖永久半挂; [`getload_wired_follows_reader_todo`]
+/// canary 钉住 reader.rs 标注与本开关的一致性 (标注移除而开关未翻即判失败)。
 const GETLOAD_WIRED: bool = true;
 
 /// 项目内真机 FM 数据根 (cargo 测试 cwd 无关; data/ 缺失由各测试自行 return early,
@@ -984,8 +979,10 @@ mod fuzzer {
     //!    data/ 缺失时 build.py 的 run_fm_test 机制自动跳过整套)
     //!
     //! PORT: 本移植固定 --central/--fm 为仓库相对路径 (realtests 模块头注);
-    //! getload/getAllplotdata (reader 波次) 与 FMLoader/FMDataPaths (fm 模块后续
-    //! 批次) 未译 — 腿1 的管线后两步与腿2 整段挂起, 详见各 TODO(port) 标注。
+    //! getload/getAllplotdata 批次均已落地 — 腿1 全管线 (构造器 + getAllplotdata
+    //! + finalizeLoading) 恢复; 腿2 (FMLoader.load 抽样) 仍挂起: fm_loader.rs 与
+    //! fm_data_paths (含 set_data_root) 虽已落地, 临时数据根注入的测试接线属
+    //! 后续批次, 见腿2 处 TODO(port) 标注。
     //! JavaRandom/mutate 与 Java 端逐位一致 (oracle 对拍, 见下方测试)。
 
     use super::fm_root;
@@ -999,7 +996,7 @@ mod fuzzer {
     /// 默认随机种子 —— 固定值保证变异序列可复现
     const DEFAULT_SEED: u64 = 20260825;
     /// 腿2 抽样走 FMLoader 的变异体个数
-    #[allow(dead_code)] // 腿2 挂起 (TODO(port)), fm 波次落地后消费
+    #[allow(dead_code)] // 腿2 挂起 (TODO(port) 接线批次), 落地后消费
     const LOADER_SAMPLES: usize = 30;
     /// 单变异体耗时上限 (ms), 超过判失败 (疑似死循环)
     const PER_CASE_LIMIT_MS: u128 = 5000;
@@ -1509,9 +1506,9 @@ mod fuzzer {
             };
             // 同 run_direct_pipeline: Ok ⇒ valid==true 契约钉死
             assert!(b.valid, "基线 parse 返回 Ok 但 valid=false (违反 reader.rs 契约)");
-            // Java: b.getAllplotdata(); — TODO(port): 属 reader 波次未译;
-            // finalize_loading 已译 (model.rs), 先行执行这一步, getload/
-            // getAllplotdata 波次接入后补齐完整序列
+            // Java: b.getAllplotdata(); b.finalizeLoading(); — 与 FMLoader.load
+            // 第 5/6 步完全一致 (getAllplotdata 批次已接入 reader.rs)
+            b.get_all_plotdata();
             b.finalize_loading();
             println!("  [通过] 基线: 原始种子全管线解析成功");
             c.passed += 1;
@@ -1581,10 +1578,11 @@ mod fuzzer {
                     c.failed += 1;
                     return;
                 }
-                // 与生产管线一致的后两步 (FMLoader.load 第 6 步)
-                // TODO(port): getAllplotdata (Blkx.java L1618) 属 reader 波次未译;
-                // finalize_loading 已译 (model.rs), 管线相位先只执行这一步
+                // 与生产管线一致的后两步 (FMLoader.load 第 6 步):
+                // get_all_plotdata → finalize_loading; 任何 panic 逃逸即失败
+                // (断言①; Java 以堆栈首帧分类为"管线逃逸"同计, 此处单相位天然区分)
                 let piped = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    b.get_all_plotdata();
                     b.finalize_loading();
                 }));
                 if piped.is_err() {
@@ -1713,15 +1711,16 @@ mod fuzzer {
 
         // ---- 腿2: 抽样变异体走 FMLoader.load (P2 句柄契约回归) ----
         if Path::new(&central_path).is_file() {
-            // TODO(port): FMLoader/FMDataPaths 未译 (fm 模块后续批次, fm/mod.rs
-            // 头注) — 腿2 整段挂起, 不做无覆盖的死代码移植。落地后按 Java
-            // runLoaderLeg 补: 临时 data 根注入 (FMDataPaths::set_data_root) +
-            // 中央文件真机原件拷入 + 物理文件名取中央文件 fmFile 字段
-            // (extractFmFile, 回退 fm/<机型>.blkx 约定, FMLoader 拼 fmfile+"x") +
-            // step = max(1, mutants/LOADER_SAMPLES) 抽样 + FMLoader::load(plane),
-            // 断言句柄契约: status ∈ {READY,MISSING,CORRUPT} ∧ READY⇔blkx!=null
+            // TODO(port): fm_loader.rs/fm_data_paths (含 set_data_root) 已落地,
+            // 但临时数据根注入的测试接线未做 — 腿2 整段挂起, 不做无覆盖的死代码
+            // 移植。接线批次按 Java runLoaderLeg 补: 临时 data 根注入
+            // (fm_data_paths::set_data_root) + 中央文件真机原件拷入 + 物理文件名
+            // 取中央文件 fmFile 字段 (extractFmFile, 回退 fm/<机型>.blkx 约定,
+            // FMLoader 拼 fmfile+"x") + step = max(1, mutants/LOADER_SAMPLES)
+            // 抽样 + fm_loader::load(plane), 断言句柄契约:
+            // status ∈ {READY,MISSING,CORRUPT} ∧ READY⇔blkx!=null
             // ∧ isMissingLike⇒blkx==null; finally 还原数据根 "./data" + rmtree
-            println!("\n-- 腿2 跳过: FMLoader 未译 (fm 模块后续批次 TODO(port)) --");
+            println!("\n-- 腿2 跳过: FMLoader 接线属后续批次 TODO(port) --");
         } else {
             println!("\n-- 腿2 跳过: 未提供有效的 --central (FMLoader 契约测试需要中央文件) --");
         }

@@ -206,9 +206,10 @@ fn try_load(name: &str) -> Result<FMHandle, String> {
     };
 
     // 6. plot 数据解析同样可能抛异常，必须留在 try 内（第二条循环路径）
-    // TODO(port): getAllplotdata (Blkx.java L1618) 属 reader.rs 后续波次
-    // (getplotdata/transUnit 未译, 见 blkx/mod.rs 方法波次边界清单); 落地后在此
-    // 接入, 其异常路径由本函数 Result 通道承接
+    // PORT: getAllplotdata 的 panic (畸形 UNITSYSTEM 行 sub_st 越界 / 曲线块
+    // 病态输入的切片越界) 由外层 load 的 catch_unwind 收敛 CORRUPT — 对齐
+    // Java L109 该调用在 catch(Throwable) 内的同一防线 (reader.rs 批次已译)
+    blkx.get_all_plotdata();
     blkx.finalize_loading();
 
     // 7. 按发动机类型提取派生数据（与旧 loadFMData 一致）

@@ -331,3 +331,147 @@ fn getload_real_fm_spitfire_matches_java8() {
     assert!(fm.contains("襟翼限速(km/h)0: 50% / 290"), "%% 转义与档位行");
     assert!(fm.contains("翼展效率: 0.90 展弦比: 5.3"), "bLift 数值段");
 }
+
+// ---- getAllplotdata 批次: transUnit/getAllplotdata/getplotdata ----
+// oracle 来源: build/oracle/DumpPlot/DumpPlot.java (真机 bf-109e-4 metric 腿A +
+// Passport 块头插大写 UNITSYSTEM 键的合成英制腿B), OpenJDK 1.8.0_342 实测 dump,
+// doubleToLongBits 十六进制 → Rust to_bits() 逐位断言。
+
+/// oracle 真机对拍 (DumpPlot 腿A): bf-109e-4 的 PASSPORT 曲线五条全量
+/// (metric 路径, transUnit 空转 — 文件无 unitSystem 键), 行数与首尾锚点位级
+/// 一致。parse_str = doLoad=false: getAllplotdata 只读 data 文本, 与 Java
+/// DumpPlot (doLoad=true 全管线) 输出恒等 — getload 不触碰 loc 族。
+/// data/ 缺失自动跳过 (对齐 build.py test 语义)。
+#[test]
+fn get_all_plotdata_real_bf109_metric_matches_java8() {
+    let root = fm_root();
+    let fm_path = format!("{root}/fm/bf-109e-4.blkx");
+    if !std::path::Path::new(&fm_path).exists() {
+        return; // data/ 未解包
+    }
+    let content = std::fs::read_to_string(&fm_path).unwrap();
+    let mut b = Blkx::parse_str("fm/bf-109e-4.blk", &content).unwrap();
+    b.get_all_plotdata();
+
+    // 行数 (oracle cur: 3/6/7/7/3)
+    assert_eq!(b.loc.as_ref().unwrap().cur, 3, "loc (minClimbTimeWep)");
+    assert_eq!(b.loc0.as_ref().unwrap().cur, 6, "loc0 (minClimbTimeNom)");
+    assert_eq!(b.loc1.as_ref().unwrap().cur, 7, "loc1 (maxSpeedWep)");
+    assert_eq!(b.loc2.as_ref().unwrap().cur, 7, "loc2 (maxSpeedNom)");
+    assert_eq!(b.loc3.as_ref().unwrap().cur, 3, "loc3 (maxRollRateLeft)");
+
+    // 首尾锚点 (oracle doubleToLongBits hex, 逐位断言; 括号内十进制对照)
+    let loc = b.loc.as_ref().unwrap();
+    assert_eq!(loc.y[0].to_bits(), 0, "loc.y[0] (0.0)");
+    assert_eq!(loc.x[0].to_bits(), 0, "loc.x[0] (0.0)");
+    assert_eq!(loc.y[2].to_bits(), 0x409f400000000000, "loc.y[2] (2000.0)");
+    assert_eq!(loc.x[2].to_bits(), 0x4070f66666666666, "loc.x[2] (271.4)");
+    let loc0 = b.loc0.as_ref().unwrap();
+    assert_eq!(loc0.y[5].to_bits(), 0x40b3880000000000, "loc0.y[5] (5000.0)");
+    assert_eq!(loc0.x[5].to_bits(), 0x4090d26666666666, "loc0.x[5] (1076.6)");
+    let loc1 = b.loc1.as_ref().unwrap();
+    assert_eq!(loc1.x[0].to_bits(), 0x40775ae147ae147b, "loc1.x[0] (373.68)");
+    assert_eq!(loc1.y[6].to_bits(), 0x40b7700000000000, "loc1.y[6] (6000.0)");
+    assert_eq!(loc1.x[6].to_bits(), 0x407b847ae147ae14, "loc1.x[6] (440.28)");
+    let loc2 = b.loc2.as_ref().unwrap();
+    assert_eq!(loc2.x[0].to_bits(), 0x4075d8f5c28f5c29, "loc2.x[0] (349.56)");
+    assert_eq!(loc2.x[6].to_bits(), 0x407a13d70a3d70a4, "loc2.x[6] (417.24)");
+    let loc3 = b.loc3.as_ref().unwrap();
+    assert_eq!(loc3.y[0].to_bits(), 0x40741d70a3d70a3d, "loc3.y[0] (321.84)");
+    assert_eq!(loc3.x[0].to_bits(), 0x40413051eb851eb8, "loc3.x[0] (34.3775)");
+    assert_eq!(loc3.y[2].to_bits(), 0x408219eb851eb852, "loc3.y[2] (579.24)");
+    assert_eq!(loc3.x[2].to_bits(), 0x4049c8793dd97f63, "loc3.x[2] (51.5662)");
+}
+
+/// oracle 合成英制对拍 (DumpPlot 腿B): bf-109e-4 + Passport 块头插**大写**
+/// UNITSYSTEM 键 (getone 定位大小写敏感, 只有字面 "UNITSYSTEM" 键能喂到
+/// sub_st; 真机键名恒小写 camelCase → 真数据不走换算) → transUnit 换算路径:
+/// loc/loc0 的 y×0.3048f (x 不动), loc1/loc2 的 y×0.3048f + x×1.609344f,
+/// loc3 的 y×1.609344f (x 不动)。f32 字面量拓宽域位级断言。
+#[test]
+fn get_all_plotdata_imperial_conversion_matches_java8() {
+    let root = fm_root();
+    let fm_path = format!("{root}/fm/bf-109e-4.blkx");
+    if !std::path::Path::new(&fm_path).exists() {
+        return; // data/ 未解包
+    }
+    let content = std::fs::read_to_string(&fm_path).unwrap();
+    // 与 Java DumpPlot 同款插入 (Passport 块在行首无缩进, od 实测)
+    let imperial =
+        content.replacen("\nPassport {\n", "\nPassport {\n\t\tUNITSYSTEM:t = \"Imperial\"\n", 1);
+    assert!(imperial.len() > content.len(), "UNITSYSTEM 行已插入");
+    let mut b = Blkx::parse_str("fm/imperial.blk", &imperial).unwrap();
+    b.get_all_plotdata();
+
+    // 行数与 metric 腿一致 (换算只改数值不改行数)
+    assert_eq!(b.loc.as_ref().unwrap().cur, 3);
+    assert_eq!(b.loc0.as_ref().unwrap().cur, 6);
+    assert_eq!(b.loc1.as_ref().unwrap().cur, 7);
+    assert_eq!(b.loc2.as_ref().unwrap().cur, 7);
+    assert_eq!(b.loc3.as_ref().unwrap().cur, 3);
+
+    // 换算锚点 (oracle: float 字面量先取 f32 值再拓宽参与乘法)
+    let loc = b.loc.as_ref().unwrap();
+    assert_eq!(loc.y[1].to_bits(), 0x40730cccd0c00000, "1000 * 0.3048f = 304.80000376701355");
+    assert_eq!(loc.x[1].to_bits(), 0x40612ccccccccccd, "loc.x 不换算 (137.4)");
+    let loc0 = b.loc0.as_ref().unwrap();
+    assert_eq!(loc0.y[5].to_bits(), 0x4097d00004f00000, "5000 * 0.3048f = 1524.0000188350677");
+    let loc1 = b.loc1.as_ref().unwrap();
+    assert_eq!(loc1.y[3].to_bits(), 0x408c933339200000, "3000 * 0.3048f = 914.4000113010406");
+    assert_eq!(loc1.x[0].to_bits(), 0x4082cb098f6147ae, "373.68 * 1.609344f = 601.379668006897");
+    let loc2 = b.loc2.as_ref().unwrap();
+    assert_eq!(loc2.y[0].to_bits(), 0, "0.0 * 0.3048f = 0.0");
+    assert_eq!(loc2.x[0].to_bits(), 0x4081947f9235c28f, "349.56 * 1.609344f = 562.5622905921936");
+    let loc3 = b.loc3.as_ref().unwrap();
+    assert_eq!(loc3.y[0].to_bits(), 0x40802f9c35f0a3d7, "321.84 * 1.609344f = 517.9512747573852");
+    assert_eq!(loc3.x[0].to_bits(), 0x40413051eb851eb8, "loc3.x 不换算 (34.3775)");
+}
+
+/// oracle 真机对拍: spitfire_f24 的 Passport 块为空 (Alt {}/IAS {} 无键,
+/// real_ga_empty 已钉 getArray 空串) → 五条曲线全空 (cur=0, 空表); 走完整
+/// doLoad=true 管线 + getAllplotdata, 验证 getload/getAllplotdata 两阶段共存
+/// (spitfire 的 getload 真机测试已钉解析成功)。
+#[test]
+fn get_all_plotdata_real_spitfire_empty_curves() {
+    let root = fm_root();
+    let fm_path = format!("{root}/fm/spitfire_f24.blkx");
+    if !std::path::Path::new(&fm_path).exists() {
+        return; // data/ 未解包
+    }
+    let mut b = Blkx::parse(&fm_path).unwrap();
+    assert!(b.valid);
+    b.get_all_plotdata();
+    for (name, lo) in [
+        ("loc", &b.loc),
+        ("loc0", &b.loc0),
+        ("loc1", &b.loc1),
+        ("loc2", &b.loc2),
+        ("loc3", &b.loc3),
+    ] {
+        let lo = lo.as_ref().unwrap();
+        assert_eq!(lo.cur, 0, "{name} 空块 → cur=0");
+        assert!(lo.x.is_empty() && lo.y.is_empty(), "{name} 空表");
+    }
+    // transUnit 空转不 panic (unitSystem 键缺席 → getone "null" → sub_st "ul"),
+    // finalize 收尾与生产管线 (FMLoader.load 第 6 步) 同序列
+    b.finalize_loading();
+    assert!(b.data.is_none());
+}
+
+/// getplotdata 畸形行防御 (P6 fuzz 发现的加固面): 非数字段/缺逗号行/尾部空串
+/// 行跳过该数据点, 完好行照常解析 (Java split 丢尾空串 → len<2 跳过与 Rust
+/// tmp[1]="" 解析失败丢弃两条路径, 见 reader.rs PORT 注)
+#[test]
+fn getplotdata_malformed_lines_skip_points() {
+    let mut b = Blkx::default();
+    b.data = Some(
+        "blk {\n k:p2 = 1.0, 2.0\n k:p2 = nodigit, 3.0\n k:p2 = 4.0\n k = 5.0, 6.0\n k = 7.0, \n}\n"
+            .to_string(),
+    );
+    let lo = b.getplotdata("blk.k");
+    // 5 个 '\n' → 容量 5; 第2行 y 非数字丢弃, 第3行缺 ", " 丢弃,
+    // 第5行尾部空串丢弃 → 仅 2 个完好点
+    assert_eq!(lo.cur, 2, "畸形行跳过, cur=2");
+    assert_eq!((lo.y[0], lo.x[0]), (1.0, 2.0));
+    assert_eq!((lo.y[1], lo.x[1]), (5.0, 6.0));
+}

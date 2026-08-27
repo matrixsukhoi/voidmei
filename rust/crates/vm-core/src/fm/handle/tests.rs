@@ -1,3 +1,5 @@
+#![allow(clippy::borrow_interior_mutable_const)] // UNRESOLVED 含 Mutex (见 handle.rs 注)
+
 use super::*;
 
 /// Java check(boolean, String) 计数式断言 → assert! 宏 (失败即 panic), 描述逐字保留
