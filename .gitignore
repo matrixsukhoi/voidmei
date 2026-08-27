@@ -4,7 +4,8 @@ bin/
 build/
 dist/
 # 派生数据：由 wt_ext_cli 从游戏客户端解包生成，不进 git（云端备份在 data prerelease 附件）
-data/
+# 锚定仓库根 — 裸 `data/` 曾把 rust/crates/vm-data/src/data/ 源码目录也忽略掉 (对齐 /config/ 的教训)
+/data/
 # 运行时生成物：用户数据与日志 (锚定仓库根 — 裸 `config/` 会把 src/prog/config/
 # 源码目录也匹配掉, 且令 rg/Grep 等遵守 gitignore 的工具静默跳过该目录,
 # 曾致配置键断链漏检; 审查轮 2-D 修正)

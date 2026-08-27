@@ -240,63 +240,7 @@ impl Canvas {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// Sarasa 字体度量快照: 校准 numHeight 的依据 (Java FontMetrics 实测 24/6/1 @24px)
-    #[test]
-    fn sarasa_metrics_snapshot() {
-        let f = LoadedFont::new(std::path::Path::new("../../../fonts/sarasa-mono-sc-bold.ttf"), 24).unwrap();
-        let m = f.metrics();
-        println!("rust metrics @24px: {:?}", m);
-        // dump 原始表值用于校准分析
-        let data = std::fs::read("../../../fonts/sarasa-mono-sc-bold.ttf").unwrap();
-        let face = Face::parse(&data, 0).unwrap();
-        println!("upem={}", face.units_per_em());
-        println!(
-            "hhea: ascender={} descender={} line_gap={}",
-            face.ascender(),
-            face.descender(),
-            face.line_gap()
-        );
-        if let Some(os2) = face.tables().os2 {
-            println!(
-                "os2 typo: asc={} desc={} linegap={}",
-                os2.typographic_ascender(), os2.typographic_descender(), os2.typographic_line_gap()
-            );
-            println!(
-                "os2 win:  asc={} desc={}",
-                os2.windows_ascender(), os2.windows_descender()
-            );
-        }
-        assert!(m.height > 0);
-    }
-}
+mod tests;
 
 #[cfg(test)]
-mod debug_tests {
-    use super::*;
-
-    /// 调试: 打印字形 placement 与 ASCII 渲染, 排查基线定位
-    #[test]
-    fn glyph_placement_debug() {
-        let f = LoadedFont::new(std::path::Path::new("../../../fonts/sarasa-mono-sc-bold.ttf"), 24).unwrap();
-        let m = f.metrics();
-        println!("metrics @24px: {:?}", m);
-        for ch in ['5', '表'] {
-            let g = f.glyph(ch, true).unwrap();
-            println!("char {:?}: left={} top={} w={} h={}", ch, g.x, g.y, g.w, g.h);
-        }
-        // ASCII art: '5' 画在基线=24 的 48x48 画布 (draw_text 走修正后的 blit)
-        let mut c = Canvas::new(48, 48);
-        c.draw_text(&f, 0, 24, "5", [255, 255, 255, 255], true);
-        for y in 0..48 {
-            let mut row = String::new();
-            for x in 0..48 {
-                let a = c.buf[(y * 48 + x) * 4 + 3];
-                row.push(if a > 200 { '#' } else if a > 80 { '+' } else if a > 10 { '.' } else { ' ' });
-            }
-            println!("{:02}|{}", y, row);
-        }
-    }
-}
+mod debug_tests;

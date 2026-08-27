@@ -1,0 +1,253 @@
+use super::*;
+use crate::font::Canvas;
+use crate::window::to_premul_bgra;
+
+const FONT: &str = "../../../fonts/sarasa-mono-sc-bold.ttf";
+
+/// 读预乘 RGBA 像素
+fn px(c: &PixCanvas, x: i32, y: i32) -> [u8; 4] {
+    let i = ((y * c.width() + x) * 4) as usize;
+    let d = &c.pm.data()[i..i + 4];
+    [d[0], d[1], d[2], d[3]]
+}
+
+/// fillRect 角点精确值: 不透明色预乘=直通, 恰好覆盖 w×h (无 drawRect 的 +1 扩展)
+#[test]
+fn fill_rect_corner_pixels_exact() {
+    let mut c = PixCanvas::new(64, 64).unwrap();
+    c.fill_rect(10, 12, 20, 30, [0xAB, 0xCD, 0xEF, 0xFF]);
+    for (x, y) in [(10, 12), (29, 12), (10, 41), (29, 41)] {
+        assert_eq!(px(&c, x, y), [0xAB, 0xCD, 0xEF, 0xFF], "内角点 ({x},{y})");
+    }
+    for (x, y) in [(9, 12), (30, 12), (10, 11), (10, 42), (9, 41), (30, 41)] {
+        assert_eq!(px(&c, x, y), [0, 0, 0, 0], "紧邻外侧 ({x},{y})");
+    }
+}
+
+/// 半透明 fillRect 的预乘存储 + 负宽高不绘制
+#[test]
+fn fill_rect_partial_alpha_and_negative() {
+    let mut c = PixCanvas::new(32, 32).unwrap();
+    c.fill_rect(5, 5, 10, 10, [200, 100, 50, 128]);
+    // 预乘 ≈ c*a/255 (tiny-skia 取整式, 与截断式在此值一致): 100/50/25, a=128
+    assert_eq!(px(&c, 10, 10), [100, 50, 25, 128]);
+    // PORT: Java 负宽高 fillRect 静默不绘制
+    c.fill_rect(0, 0, -5, 5, [255, 255, 255, 255]);
+    c.fill_rect(0, 0, 5, -5, [255, 255, 255, 255]);
+    assert_eq!(px(&c, 1, 1), [0, 0, 0, 0]);
+}
+
+/// 无 AA 线: 中线行/列必覆盖, 远离线体必空, 圆帽端点外伸 w/2 有界
+/// (只断言两种像素中心采样约定下都成立的行/列, 避免过钉边界)
+#[test]
+fn draw_line_bw_endpoints_and_caps() {
+    let col = [0xFF, 0xFF, 0xFF, 0xFF];
+    // 水平线 y=10, x∈[5,25], 宽 3 → stroke 纵向 [8.5,11.5]
+    let mut c = PixCanvas::new(48, 48).unwrap();
+    c.draw_line(5, 10, 25, 10, 3.0, col, false);
+    for x in [5, 15, 25] {
+        assert_eq!(px(&c, x, 10), col, "中线 ({x},10)");
+        assert_eq!(px(&c, x, 9), col, "上邻行 ({x},9)");
+    }
+    assert_eq!(px(&c, 15, 7), [0, 0, 0, 0], "线体上方 2px");
+    assert_eq!(px(&c, 15, 13), [0, 0, 0, 0], "线体下方 2px");
+    // 圆帽: 端点 (5,10) 左侧 (4,10) 距帽心 0.707 < 1.5 必覆盖 (CAP_ROUND vs BUTT 的判据);
+    // 右端 (25,10) 本体覆盖, 再外 2px 必空 ((26,10) 距帽心 1.58 > 1.5 属帽边界不钉)
+    assert_eq!(px(&c, 4, 10), col, "左圆帽外伸");
+    assert_eq!(px(&c, 25, 10), col, "右端点");
+    assert_eq!(px(&c, 3, 10), [0, 0, 0, 0], "左帽外");
+    assert_eq!(px(&c, 27, 10), [0, 0, 0, 0], "右帽外");
+    // 竖线 x=10 宽 3 → stroke 横向 [8.5,11.5], 列 9/10 必覆盖
+    let mut c2 = PixCanvas::new(48, 48).unwrap();
+    c2.draw_line(10, 5, 10, 40, 3.0, col, false);
+    for y in [5, 20, 40] {
+        assert_eq!(px(&c2, 9, y), col, "左邻列 (9,{y})");
+        assert_eq!(px(&c2, 10, y), col, "中线 (10,{y})");
+    }
+    assert_eq!(px(&c2, 7, 20), [0, 0, 0, 0], "线体左侧 2px");
+    assert_eq!(px(&c2, 12, 20), [0, 0, 0, 0], "线体右侧 2px");
+}
+
+/// fillCircle 几何: 圆心/内部覆盖, 外部与外接盒角透明
+#[test]
+fn fill_circle_geometry() {
+    let mut c = PixCanvas::new(48, 48).unwrap();
+    let col = [0x30, 0x60, 0x90, 0xFF];
+    c.fill_circle(24, 24, 15, col, false);
+    assert_eq!(px(&c, 24, 24), col, "圆心");
+    assert_eq!(px(&c, 24, 10), col, "内部 (距心 13.5)");
+    assert_eq!(px(&c, 38, 24), col, "内部 (距心 14.5)");
+    assert_eq!(px(&c, 24, 8), [0, 0, 0, 0], "外部 (距心 15.5)");
+    assert_eq!(px(&c, 10, 10), [0, 0, 0, 0], "外接盒角 (距心 20.5)");
+}
+
+/// strokeArc 下半圆 (Java oracle: drawArc(-180,180) 弧体在下半 —
+/// drawArc(0,0,40,40,-180,180) downPixels=171 顶部空, 正角=视觉逆时针,
+/// -180→0 途经 -90°=6 点): 弧底/两端覆盖, 上半无弧
+#[test]
+fn stroke_arc_lower_semicircle() {
+    let mut c = PixCanvas::new(64, 64).unwrap();
+    let col = [0xFF, 0xFF, 0xFF, 0xFF];
+    c.stroke_arc(32, 32, 20, -180.0, 0.0, 3.0, col, LineCapStyle::Round, false);
+    // 断言取径向距离 ≥1px 离内外描边界 [18.5,21.5] 的稳态点 (贝塞尔压平误差 ~0.05px)
+    assert_eq!(px(&c, 32, 51), col, "弧底 (径向 19.5)");
+    assert_eq!(px(&c, 12, 32), col, "弧左端 (径向 19.5)");
+    assert_eq!(px(&c, 52, 32), col, "弧右端 (径向 19.5)");
+    assert_eq!(px(&c, 9, 32), [0, 0, 0, 0], "左端外 (径向 22.5)");
+    assert_eq!(px(&c, 32, 12), [0, 0, 0, 0], "上半圆位置无弧");
+    assert_eq!(px(&c, 32, 32), [0, 0, 0, 0], "圆心无弧");
+}
+
+/// Java drawArc 方向 oracle: drawArc(0,90) 覆盖 12点→3点右上象限,
+/// drawArc(0,-90) 走 3点→6点右下短弧 (负 extent = 顺时针反向)
+#[test]
+fn stroke_arc_direction_quadrants() {
+    let col = [0xFF, 0xFF, 0xFF, 0xFF];
+    let mut c = PixCanvas::new(64, 64).unwrap();
+    c.stroke_arc(32, 32, 20, 0.0, 90.0, 3.0, col, LineCapStyle::Round, false);
+    assert_eq!(px(&c, 46, 18), col, "正 sweep 45° 中点 = 右上象限");
+    assert_eq!(px(&c, 32, 12), col, "12 点端点");
+    assert_eq!(px(&c, 18, 46), [0, 0, 0, 0], "左下象限无弧");
+    assert_eq!(px(&c, 46, 46), [0, 0, 0, 0], "右下象限无弧 (正 sweep 不经 6 点)");
+    let mut c2 = PixCanvas::new(64, 64).unwrap();
+    c2.stroke_arc(32, 32, 20, 0.0, -90.0, 3.0, col, LineCapStyle::Round, false);
+    assert_eq!(px(&c2, 46, 46), col, "负 sweep -45° 中点 = 右下象限 (顺时针)");
+    assert_eq!(px(&c2, 32, 51), col, "6 点端点");
+    assert_eq!(px(&c2, 46, 18), [0, 0, 0, 0], "右上象限无弧");
+    assert_eq!(px(&c2, 32, 12), [0, 0, 0, 0], "12 点无弧");
+}
+
+/// sweep 边界语义: 零 extent 不绘制 (Java drawArc(start,0) oracle 0 像素);
+/// NaN/±inf 入参消毒不绘制不挂死 (Java int 入参无此态);
+/// |sweep|≥360 (含负向) = 整圆
+#[test]
+fn stroke_arc_zero_nonfinite_and_full_circle() {
+    let mut c = PixCanvas::new(64, 64).unwrap();
+    let col = [0xFF, 0xFF, 0xFF, 0xFF];
+    c.stroke_arc(32, 32, 20, 45.0, 45.0, 3.0, col, LineCapStyle::Round, false);
+    c.stroke_arc(32, 32, 20, f32::NAN, 90.0, 3.0, col, LineCapStyle::Round, false);
+    c.stroke_arc(32, 32, 20, 0.0, f32::NAN, 3.0, col, LineCapStyle::Round, false);
+    c.stroke_arc(32, 32, 20, f32::NEG_INFINITY, f32::INFINITY, 3.0, col, LineCapStyle::Round, false);
+    assert!(c.pm.data().iter().all(|&b| b == 0), "零/非有限角度均无输出");
+    let mut c2 = PixCanvas::new(64, 64).unwrap();
+    c2.stroke_arc(32, 32, 20, 90.0, -270.0, 3.0, col, LineCapStyle::Round, false);
+    assert_eq!(px(&c2, 32, 12), col, "负向 360 整圆: 12 点");
+    assert_eq!(px(&c2, 32, 51), col, "6 点");
+    assert_eq!(px(&c2, 12, 32), col, "9 点");
+    assert_eq!(px(&c2, 52, 32), col, "3 点");
+}
+
+/// CAP_SQUARE (Java 裸 new BasicStroke(w) 默认): 端点沿切向外伸 width/2 平头,
+/// 与 Butt (无外伸) / Round (端点半圆) 的判别像素
+#[test]
+fn draw_line_cap_square_vs_butt_round() {
+    let col = [0xFF, 0xFF, 0xFF, 0xFF];
+    // 水平线 (10,10)-(20,10) 宽 4: 方帽外伸 2px → 覆盖域 x∈[8,22), y∈[8,12)
+    let mut c = PixCanvas::new(32, 32).unwrap();
+    c.draw_line_cap(10, 10, 20, 10, 4.0, col, LineCapStyle::Square, false);
+    assert_eq!(px(&c, 9, 10), col, "左端方帽外伸");
+    assert_eq!(px(&c, 21, 10), col, "右端方帽外伸");
+    assert_eq!(px(&c, 8, 8), col, "方帽直角 (圆帽此处距帽心 2.12>2 为空)");
+    assert_eq!(px(&c, 15, 8), col, "本体上缘行");
+    assert_eq!(px(&c, 15, 12), [0, 0, 0, 0], "本体下缘外");
+    assert_eq!(px(&c, 7, 10), [0, 0, 0, 0], "方帽外");
+    let mut b = PixCanvas::new(32, 32).unwrap();
+    b.draw_line_cap(10, 10, 20, 10, 4.0, col, LineCapStyle::Butt, false);
+    assert_eq!(px(&b, 9, 10), [0, 0, 0, 0], "Butt 端点无外伸");
+    assert_eq!(px(&b, 15, 10), col, "Butt 本体中线");
+    let mut r = PixCanvas::new(32, 32).unwrap();
+    r.draw_line_cap(10, 10, 20, 10, 4.0, col, LineCapStyle::Round, false);
+    assert_eq!(px(&r, 8, 8), [0, 0, 0, 0], "圆帽无直角");
+    assert_eq!(px(&r, 9, 10), col, "圆帽外伸 (距帽心 0.71<2)");
+}
+
+/// fillPath 三角形: 内部覆盖, 斜边外/上边外透明
+#[test]
+fn fill_path_triangle() {
+    let mut c = PixCanvas::new(64, 64).unwrap();
+    let col = [0xEE, 0x00, 0x77, 0xFF];
+    c.fill_path(&[(10.0, 10.0), (50.0, 10.0), (10.0, 50.0)], col, false);
+    assert_eq!(px(&c, 11, 11), col, "内部近直角顶");
+    assert_eq!(px(&c, 20, 20), col, "斜边内侧 (中心和 41<60)");
+    assert_eq!(px(&c, 40, 40), [0, 0, 0, 0], "斜边外侧 (中心和 81>60)");
+    assert_eq!(px(&c, 49, 12), [0, 0, 0, 0], "上边外");
+}
+
+/// 双路对拍: PixCanvas 文本 vs Canvas 文本 (经 window.rs 预乘转换) 逐字节一致。
+/// 覆盖 aa 开/关 × 不透明/半透明色 × ASCII/CJK, 同字体同坐标。
+#[test]
+fn text_blit_matches_canvas() {
+    let font = LoadedFont::new(std::path::Path::new(FONT), 24).unwrap();
+    for &aa in &[true, false] {
+        for &color in &[
+            [255u8, 255, 255, 255],
+            [0x12, 0x34, 0x56, 0xFF],
+            [0x80, 0x60, 0x40, 0xC0],
+        ] {
+            let mut cv = Canvas::new(220, 120);
+            let mut pc = PixCanvas::new(220, 120).unwrap();
+            let texts = ["5", "M5 88", "表速度 1234", "0.-+", "W"];
+            for (i, t) in texts.iter().enumerate() {
+                let (x, y) = (4, 26 + i as i32 * 18);
+                cv.draw_text(&font, x, y, t, color, aa);
+                pc.draw_text(&font, x, y, t, color, aa);
+            }
+            assert_eq!(
+                to_premul_bgra(&cv),
+                pc.to_premul_bgra(),
+                "aa={aa} color={color:?}"
+            );
+        }
+    }
+}
+
+/// drawTextShade 双遍流 (黑影 +1,+1 → 本色): 直通伴随缓冲保证第二遍
+/// 合成域与 Canvas 一致, 两路逐字节相同 (LinearGauge/MarkedGauge
+/// drawTextShaded 的生产绘制顺序)
+#[test]
+fn text_shaded_two_pass_matches_canvas() {
+    let font = LoadedFont::new(std::path::Path::new(FONT), 24).unwrap();
+    let shade = [0x00, 0x00, 0x00, 0xFF]; // Application.colorShadeShape
+    let color = [0xFF, 0xFF, 0xFF, 0xFF]; // Application.colorNum
+    for &aa in &[true, false] {
+        let mut cv = Canvas::new(160, 60);
+        let mut pc = PixCanvas::new(160, 60).unwrap();
+        let t = "875 表";
+        cv.draw_text(&font, 11, 31, t, shade, aa);
+        cv.draw_text(&font, 10, 30, t, color, aa);
+        pc.draw_text(&font, 11, 31, t, shade, aa);
+        pc.draw_text(&font, 10, 30, t, color, aa);
+        assert_eq!(to_premul_bgra(&cv), pc.to_premul_bgra(), "aa={aa}");
+    }
+}
+
+/// 形状上叠文本: 直通伴随缓冲失效 → 重构路径 (形状像素 un_premul 还原后合成)
+#[test]
+fn text_over_shape_rebuild() {
+    let mut c = PixCanvas::new(120, 60).unwrap();
+    c.fill_rect(0, 0, 120, 60, [80, 80, 80, 255]); // 不透明灰底
+    let font = LoadedFont::new(std::path::Path::new(FONT), 24).unwrap();
+    c.draw_text(&font, 10, 40, "7", [255, 255, 255, 255], true);
+    // 不透明底上 fa=1 的笔画核心像素应为纯白 (预乘=直通)
+    assert!(
+        c.pm.data().chunks_exact(4).any(|p| p[0] == 255 && p[1] == 255 && p[2] == 255 && p[3] == 255),
+        "文本笔画核心像素存在"
+    );
+    // 底色仍在 (字形外区域未被动过)
+    assert_eq!(px(&c, 5, 5), [80, 80, 80, 255]);
+}
+
+/// clear: 尺寸重建 + 原地清零 + 非法尺寸拒改
+#[test]
+fn clear_resets_and_resizes() {
+    let mut c = PixCanvas::new(20, 10).unwrap();
+    c.fill_rect(0, 0, 20, 10, [255, 255, 255, 255]);
+    c.clear(30, 8);
+    assert_eq!((c.width(), c.height()), (30, 8));
+    assert!(c.pm.data().iter().all(|&b| b == 0), "重建后清零");
+    c.fill_rect(0, 0, 30, 8, [10, 20, 30, 40]);
+    assert!(c.clear(30, 8), "同尺寸原地清零");
+    assert!(c.pm.data().iter().all(|&b| b == 0));
+    assert!(!c.clear(-1, 5), "非法尺寸拒绝");
+    assert_eq!(c.width(), 30, "状态不变");
+}
