@@ -46,6 +46,22 @@ python script/build.py rust   # web + cargo release (一键)
   vm-app 的 build.rs 构建时自动拷贝到 target/<profile>/, 源 =
   `rust/crates/vm-app/app.manifest`)。缺它进程加载期即 0xC0000139 (D9 坑位 1)。
 
+## 编译速度 (2026-08-28 优化)
+
+改动 workspace 代码后的增量 release 构建 ~27s (原 1m43s, 提速 4 倍), 三项配置:
+
+1. `[profile.release] lto = "thin"` (原 `true`/fat): fat 每次增量全图重优化+重链,
+   thin 保留 95%+ 跨 crate 优化收益、只重链受影响分区 — 最大单项;
+2. `[profile.release] incremental = true`: release 默认关; thin LTO 下兼容
+   (fat 才与增量互斥), 首跑建缓存 48s、次跑起 27s;
+3. `.cargo/config.toml` linker = `rust-lld` (工具链自带, 替代 mingw ld.bfd):
+   tauri/wry 大符号表链接提速 (改 vm-app 一层 24s, 原 43s)。
+
+产物已验证: mock-smoke PASS (7 overlay × 138 present 帧) + workspace 1290 测试全绿。
+性能敏感度: overlay 为低频 GDI 渲染, thin↔fat LTO 差异不可观。
+仍嫌慢可再把 `target/` 加入 Windows Defender 排除列表 (管理员 PowerShell:
+`Add-MpPreference -ExclusionPath <repo>\rust\target`)。
+
 ## 验收状态
 
 - 2026-08-27: 1,239 测试 / e2e 三场景 PASS / 像素对拍无结构偏差 / 真窗共存验证

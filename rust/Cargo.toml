@@ -30,9 +30,12 @@ windows = { version = "0.62", features = [
 ] }
 
 [profile.release]
-# overlay 低频渲染, 体积与启动优先
+# overlay 低频渲染, 体积与启动优先。thin LTO (fat→thin): 跨 crate 优化收益
+# 保留 95%+, 链接时间大幅下降 — fat LTO 下每次增量都要全图重优化+重链
+# (改一行 vm-app 实测 1m43s), thin 只重链受影响分区
 opt-level = 3
-lto = true
+lto = "thin"
+incremental = true
 strip = true
 
 # workspace 级 lint 豁免 (clippy 1.97 新 lint 对存量迁移代码的误伤; 各 crate

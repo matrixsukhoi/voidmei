@@ -1,0 +1,4 @@
+# lld 替代 ld.bfd: tauri 大符号表链接提速 (mingw ld 是增量编译剩余大头)
+# rust-lld 随工具链自带 (rust-mingw 组件), linker 名为一等支持, rustc 自动解析路径与 flavor
+[target.x86_64-pc-windows-gnu]
+linker = "rust-lld"
