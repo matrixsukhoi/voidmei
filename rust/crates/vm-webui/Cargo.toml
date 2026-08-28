@@ -20,6 +20,10 @@ path = "src/main.rs"
 tauri = { version = "2", features = ["protocol-asset"] }
 # 阶段③ importConfig 的系统文件选择框 (前端 open())
 tauri-plugin-dialog = "2"
+# checkUpdate 的 GitHub API 请求 (前端 fetch; scope 仅 api.github.com, capabilities 限定)
+tauri-plugin-http = "2"
+# 更新弹窗链接打开浏览器 (Java Desktop.browse; scope 仅 releases 页)
+tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 # IPC 回执 (command 异步线程 → oneshot → 主线程 dispatch 结果)

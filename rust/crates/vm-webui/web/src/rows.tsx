@@ -12,8 +12,10 @@ import {
   fmListOnce,
   getComboOptions,
   normalizeDescImg,
+  openComparisonWindow,
   parseColorValue,
   parseVoicePackValue,
+  previewVoice,
   rgbaToHex,
   sendFormMessage,
   splitUrlText,
@@ -245,7 +247,9 @@ const TextRow: React.FC<RowProps> = ({ row, panel, values }) => {
   )
 }
 
-/** BUTTON: resetConfig/factoryReset 前端确认 (Rust pending 语义保持) */
+/** BUTTON: resetConfig/factoryReset 前端确认 (Rust pending 语义保持);
+ *  open* 两键真实接线 (批3): ButtonAction → Rust form_dispatch 拦截 → 开 web 窗口
+ *  (Java ButtonRowRenderer 直接 new 窗口, 无确认模态/无 pending — 不补 CancelPending) */
 const ButtonRow: React.FC<RowProps> = ({ row }) => {
   const onClick = () => {
     const action = rowKey(row)
@@ -261,8 +265,12 @@ const ButtonRow: React.FC<RowProps> = ({ row }) => {
           await sendFormMessage({ kind: 'ConfirmPending' })
         },
       })
+    } else if (action === 'openComparison' || action === 'openPowerCurve') {
+      // fm0/fm1/speed/wep 由 Rust 侧读 cfg (selectedFM*/powerCurve*) 组装开窗参数
+      sendFormMessage({ kind: 'ButtonAction', action }).catch((e) =>
+        message.error(`IPC 失败: ${e}`),
+      )
     } else {
-      // open* 三键阶段④前为占位 (Rust 侧日志备案)
       sendFormMessage({ kind: 'ButtonAction', action }).then(() =>
         sendFormMessage({ kind: 'CancelPending' }),
       )
@@ -298,10 +306,14 @@ const InfoRow: React.FC<{ row: RowDto }> = ({ row }) => (
   </div>
 )
 
-/** VOICE / VOICE_GLOBAL: 语音包 Select + 试听占位 (Java VoiceRowRenderer/VoiceGlobalRenderer;
- *  播放依赖语音子系统装配, 阶段③ disabled + Tooltip 备案) */
+/** VOICE / VOICE_GLOBAL: 语音包 Select + 试听按钮 (Java VoiceRowRenderer/
+ * VoiceGlobalRenderer; 试听 = loadClip(当前包) + setFramePosition(0) + start,
+ * 忽略 enable 态, 失败静默无声)。▶ 仅 VOICE 行渲染 — Java VoiceGlobalRenderer
+ * 无播放按钮 (控件是 Import Zip, 属 web 窗口批), 且 VOICE_GLOBAL 的键
+ * (globalVoicePack) 无 voice_ 前缀, strip 后 resolve 必失败只会静默无声 */
 const VoiceRow: React.FC<RowProps> = ({ row, panel, values }) => {
   const key = rowKey(row)
+  const isGlobal = row.type.toUpperCase() === 'VOICE_GLOBAL'
   const [packs, setPacks] = useState<string[]>([])
   useEffect(() => {
     voicePacksOnce().then(setPacks).catch(() => setPacks(['default']))
@@ -322,16 +334,23 @@ const VoiceRow: React.FC<RowProps> = ({ row, panel, values }) => {
           sendFormMessage({ kind: 'Combo', panel, key, value: v })
         }}
       />
-      <Tooltip title="试听待语音子系统装配">
-        <Button size="small" disabled>
+      {/* Java: btnPlay "▶" — pack 为 combo 当前项; 缺资源 (clip==null) Rust 侧恒回
+       *  Ok 静默无声 (Java 同款无失败反馈面), 此处 catch 仅兜 IPC 传输层故障 */}
+      {!isGlobal && (
+        <Button
+          size="small"
+          onClick={() => {
+            previewVoice(key, cur).catch((e) => message.error(`试听失败: ${String(e)}`))
+          }}
+        >
           ▶
         </Button>
-      </Tooltip>
+      )}
     </RowLine>
   )
 }
 
-/** FMLIST: FM 机型搜索下拉 + 对比占位 (Java FMListRowRenderer; 对比窗口属阶段④) */
+/** FMLIST: FM 机型搜索下拉 + 对比按钮 (Java FMListRowRenderer; 批3 真实接线) */
 const FmListRow: React.FC<RowProps> = ({ row, panel, values }) => {
   const key = rowKey(row)
   const [fms, setFms] = useState<string[]>([])
@@ -356,7 +375,15 @@ const FmListRow: React.FC<RowProps> = ({ row, panel, values }) => {
           sendFormMessage({ kind: 'Combo', panel, key, value: v })
         }}
       />
-      <Button size="small" onClick={() => message.info('对比窗口属阶段④')}>
+      {/* Java FMListRowRenderer.java:124-144 View 键: 选中机型开单机数据视图
+       * (CompactComparisonWindow fm1=null); selected 为空回退 "a_4h" (Java 同) */}
+      <Button
+        size="small"
+        onClick={() => {
+          const fmName = cur || 'a_4h'
+          openComparisonWindow(fmName, null).catch((e) => message.error(`IPC 失败: ${e}`))
+        }}
+      >
         对比
       </Button>
     </RowLine>

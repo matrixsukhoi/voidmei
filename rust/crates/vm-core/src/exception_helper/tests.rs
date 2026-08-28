@@ -60,6 +60,50 @@ fn sleep_quietly_returns_early_when_flag_set_midway() {
     setter.join().unwrap();
 }
 
+// ---- sleep_while_run: 运行极性辅助 (备案收口: other_service/flight_log 专用) ----
+
+#[test]
+fn sleep_while_run_sleeps_full_duration_when_running() {
+    // 极性回归: is_run/logon 这类 true=运行 标志在睡眠期间保持 true → 睡满
+    // (接反 sleep_quietly 会立即返回 → 热自旋, 本测试即钉住该缺陷)
+    let run = AtomicBool::new(true);
+    let t0 = Instant::now();
+    sleep_while_run(&run, 120);
+    let elapsed = t0.elapsed();
+    assert!(elapsed.as_millis() >= 120, "实际 {:?} < 120ms", elapsed);
+    // 上界哨兵同 sleep_quietly_sleeps_full_duration (Windows 计时器粒度 + 抖动余量)
+    assert!(elapsed.as_millis() < 600, "实际 {:?} 过长", elapsed);
+    assert!(run.load(Ordering::SeqCst));
+}
+
+#[test]
+fn sleep_while_run_returns_immediately_when_run_pre_clear() {
+    // 进入时运行标志已 false → 立即返回 (循环即刻退出, 等价中断位已置位)
+    let run = AtomicBool::new(false);
+    let t0 = Instant::now();
+    sleep_while_run(&run, 60_000);
+    assert!(t0.elapsed().as_millis() < 500, "预清标志应立即返回");
+}
+
+#[test]
+fn sleep_while_run_returns_early_when_run_cleared_midway() {
+    let run = Arc::new(AtomicBool::new(true));
+    let clearer = {
+        let run = Arc::clone(&run);
+        thread::spawn(move || {
+            thread::sleep(Duration::from_millis(40));
+            run.store(false, Ordering::SeqCst);
+        })
+    };
+    let t0 = Instant::now();
+    sleep_while_run(&run, 60_000);
+    let elapsed = t0.elapsed();
+    assert!(elapsed.as_millis() >= 35, "不应在标志清零前返回, 实际 {:?}", elapsed);
+    // 响应延迟上界 = 一个轮询片 (10ms) + 调度误差 (防重载机器抖动)
+    assert!(elapsed.as_millis() < 2_000, "清零后应及时返回, 实际 {:?}", elapsed);
+    clearer.join().unwrap();
+}
+
 // ---- sleep_quietly_strict: 不可中断版 ----
 
 #[test]

@@ -1,6 +1,7 @@
 //! vm-overlay: overlay 渲染与平台窗口层 (POC 语义复刻成果)
 pub mod compare;
 pub mod config;
+pub mod draw_frame_simpl;
 pub mod flight_info;
 pub mod font;
 pub mod gauge_attitude;
@@ -64,9 +65,13 @@ pub use overlays_field1::{
     ENGINE_GAUGE_DEFS, ENGINE_REFRESH_MULTIPLIER, FIELD_OVERLAY_REFRESH_INTERVAL_MS,
     GEAR_FLAPS_REFRESH_INTERVAL_MS, POWER_FIELD_DEFS,
 };
+pub use draw_frame_simpl::{
+    draw_frame_simpl_spec, DfsFlight, DrawFrameSimplFeed, DrawFrameSimplHandle, DrawFrameSimpl,
+};
 pub use overlays_field2::{
-    control_surfaces_overlay_spec, ControlSurfacesHandle, ControlSurfacesOverlay, CsFonts,
-    FmUnpackedDataOverlay, REFRESH_INTERVAL_MS,
+    control_surfaces_overlay_spec, fm_unpacked_data_overlay_spec, ControlSurfacesHandle,
+    ControlSurfacesOverlay, CsFonts, FmUnpackedDataHandle, FmUnpackedDataOverlay,
+    FmUnpackedFeed, REFRESH_INTERVAL_MS,
 };
 pub use platform_extras::{parse_wav_duration, DpiHelper};
 pub use render::{draw_fields, render_fields, render_fields_fixed, FieldText, FontTriple, RenderColors, DEFAULT_COLORS};

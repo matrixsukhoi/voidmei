@@ -402,6 +402,78 @@ fn initialize_missing_stored_hash_triggers_merge() {
     assert_eq!(ui_state_load_template_hash().as_deref(), Some(md5_hex(TPL_V2.as_bytes()).as_str()));
 }
 
+// ---- 弹窗 sink (ConfigDialog: web 壳形态的 showMergeReport 转发面) ----
+
+/// sink 是进程级静态 — 触碰 sink 的测试用此锁串行; Drop 摘除恢复日志兜底路径
+static SINK_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+struct SinkGuard;
+impl Drop for SinkGuard {
+    fn drop(&mut self) {
+        remove_config_dialog_sink_for_test();
+    }
+}
+
+/// 模板升级合并 → MergeReport 经 sink 转发一次 (标题/正文 Rust 侧 Lang 就绪);
+/// 首跑 (无合并) 不弹。sink 缺席路径 = 其余 initialize 用例 (日志兜底, 不弹不 panic)
+#[test]
+fn initialize_merge_report_reaches_dialog_sink() {
+    let _sink_guard = SinkGuard;
+    let _g = SINK_TEST_LOCK.lock().expect("sink 测试锁中毒");
+    let (_g, _sg) = sandbox("init_sink");
+    fs::write(TEMPLATE_PATH, TPL_V1).unwrap();
+    initialize(); // 首跑: 无合并 → sink 不触发
+    fs::write(TEMPLATE_PATH, TPL_V2).unwrap(); // 模板升级
+
+    let seen: std::sync::Arc<std::sync::Mutex<Vec<String>>> =
+        std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let recorder = std::sync::Arc::clone(&seen);
+    set_config_dialog_sink(std::sync::Arc::new(move |d: &ConfigDialog| {
+        if let ConfigDialog::MergeReport(message) = d {
+            recorder.lock().unwrap().push(message.clone());
+        }
+        // ParseError 分支: 调用点为 Java 侧死路径 (见 show_parse_error_dialog 注),
+        // 唯一活路径 showMergeReport 不产生 — 记录面只挂 MergeReport
+    }));
+
+    let cfgs = initialize();
+    assert_eq!(cfgs.len(), 2, "合并路径本身不受 sink 影响");
+    let dialogs = seen.lock().unwrap();
+    assert_eq!(dialogs.len(), 1, "合并报告应经 sink 转发恰一次: {dialogs:?}");
+    assert!(dialogs[0].contains("新增面板:"), "Lang 标题就绪: {dialogs:?}");
+    assert!(dialogs[0].contains("面板B"));
+    assert!(dialogs[0].contains("新增配置项:"), "新增项 k3 在列: {dialogs:?}");
+}
+
+/// 无 sink 期 (启动早期) 的合并报告: 日志兜底 + 缓存最后一条; web 就绪后
+/// replay 经已装 sink 补发恰一次, 取后清空 (审查 W2 — 首启模板升级场景)
+#[test]
+fn merge_report_without_sink_cached_then_replayed() {
+    let _sink_guard = SinkGuard;
+    let _g = SINK_TEST_LOCK.lock().expect("sink 测试锁中毒");
+    clear_pending_config_dialog_for_test(); // 并行用例隔离: 不捡他人残留
+    let (_g, _sg) = sandbox("init_replay");
+    fs::write(TEMPLATE_PATH, TPL_V1).unwrap();
+    initialize(); // 首跑 (无 sink): 无合并 → 无缓存
+    fs::write(TEMPLATE_PATH, TPL_V2).unwrap(); // 模板升级
+    initialize(); // 合并 → 报告无 sink: 日志兜底 + 缓存
+
+    // 组装层等价面: web 就绪后装 sink → 回放恰一次, 再回放空
+    let seen: std::sync::Arc<std::sync::Mutex<Vec<String>>> =
+        std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let recorder = std::sync::Arc::clone(&seen);
+    set_config_dialog_sink(std::sync::Arc::new(move |d: &ConfigDialog| {
+        if let ConfigDialog::MergeReport(message) = d {
+            recorder.lock().unwrap().push(message.clone());
+        }
+    }));
+    assert!(replay_pending_config_dialog(), "缓存中有待补发弹窗");
+    assert!(!replay_pending_config_dialog(), "回放取后清空");
+    let dialogs = seen.lock().unwrap();
+    assert_eq!(dialogs.len(), 1, "补发恰一次: {dialogs:?}");
+    assert!(dialogs[0].contains("面板B"), "合并报告内容在列: {dialogs:?}");
+}
+
 #[test]
 fn create_backup_only_when_user_exists() {
     let (_g, _sg) = sandbox("bak_none");

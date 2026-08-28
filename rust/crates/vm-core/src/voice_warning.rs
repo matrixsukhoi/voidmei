@@ -1347,8 +1347,11 @@ impl VoiceWarning {
         // 闸门 stderr (voice_resource_manager.rs 同款先例)
         match self.legacy_player.open_clip(Path::new(path)) {
             Ok(audio_clip) => {
-                // Java: audioClip.start();
+                // Java: audioClip.start(); 局部引用出作用域后靠 GC finalizer
+                // 延迟释放自然播完 → Rust 交保活线程持有 (审查 B-B1, 见
+                // [`hold_clip_until_done`] 注)
                 audio_clip.start();
+                hold_clip_until_done(audio_clip);
             }
             Err(e) => {
                 if logger::get_level().value() <= logger::Level::Debug.value() {
@@ -1407,6 +1410,32 @@ fn sleep_while_run(run: &AtomicBool, millis: u64) {
         let chunk = std::cmp::min(deadline - now, Duration::from_millis(10));
         std::thread::sleep(chunk);
     }
+}
+
+/// fire-and-forget 播放的 clip 保活持有 (审查 B-B1 修复)。
+///
+/// Java 形态 (VoiceRowRenderer.java:126-136 试听 / playWav): clip 局部引用
+/// start() 后出作用域, 原生 line 靠 GC finalizer **非确定性延迟释放**而自然
+/// 播完。Rust 的确定性 Drop (SoundClip RAII 兜底契约: Drop 等价 close →
+/// winmm waveOutReset+waveOutClose 立即停) 与 fire-and-forget 消费形态直接
+/// 冲突 — 调用点提交即被掐断 (试听无声)。
+///
+/// 对位 GC 延迟语义: 起后台线程持 clip 轮询 `is_running()` 至播完再释放;
+/// 60s 上限兜底 (语音包告警音最长数秒, 防异常滞留泄漏设备句柄)。
+/// **不适用**告警路径 (VoiceAlert 持有 clip 至 reload/close, 生命周期由
+/// VoiceWarning 管理, Drop 契约是防原生句柄泄漏的正向依赖)。
+/// 返回 JoinHandle 供测试同步; 生产调用点忽略。
+pub fn hold_clip_until_done(clip: Box<dyn SoundClip>) -> std::thread::JoinHandle<()> {
+    std::thread::Builder::new()
+        .name("VoicePreview".to_string())
+        .spawn(move || {
+            let deadline = Instant::now() + Duration::from_secs(60);
+            while clip.is_running() && Instant::now() < deadline {
+                std::thread::sleep(Duration::from_millis(50));
+            }
+            clip.close(); // 显式释放 (Drop 兜底幂等, Java close 状态机)
+        })
+        .expect("VoicePreview 保活线程创建失败")
 }
 
 // =====================================================================

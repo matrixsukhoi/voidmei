@@ -1,0 +1,7 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/schema.json",
+  "identifier": "aux-windows",
+  "description": "对比/功率曲线辅助窗口权限 (批3, web_windows.rs 动态建窗): 核心 API (事件/invoke) + 自身关闭 (Java JDialog dispose 对位); 不开 asset/http/dialog 全量",
+  "windows": ["comparison", "powercurve"],
+  "permissions": ["core:default", "core:window:allow-close"]
+}

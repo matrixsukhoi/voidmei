@@ -18,19 +18,19 @@
 //! Java MessageDigest.getInstance("MD5") 为必支持算法, 语义逐字节一致)。
 //! PORT: prog.util.UIStateStorage 未译 (B 类后续波次) — 本文件尾部的依赖桩
 //! (非翻译) 顶住 loadTemplateHash/saveTemplateHash 消费面, 见桩头注。
-//! PORT: DialogService/SwingUtilities.invokeLater 属 C 类 Swing 接线 (vm-ui 波次),
-//! showParseErrorDialog/showMergeReport 的弹窗调用以 TODO(port) 挂起。
+//! PORT: DialogService.showMessageDialog (C 类 Swing) → [`ConfigDialog`] sink
+//! 转发 (vm-webui 波次装配): 组装层注入 tauri emit → 前端 Modal; 未装 sink
+//! (启动早期配置装载先于 web 壳构造 / 无窗形态) 记日志兜底, 语义不丢。
 
 use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, LazyLock, Mutex};
 
 use crate::config_loader::{load_config, save_config, GroupConfig, RowConfig};
 use crate::lang::Lang;
 use crate::logger;
-#[cfg(test)]
-use std::sync::Mutex;
 
 const TEMPLATE_PATH: &str = "./ui_layout.cfg";
 const USER_PATH: &str = "./ui_layout.user.cfg";
@@ -469,16 +469,108 @@ fn java_trim(s: &str) -> &str {
     s.trim_matches(|c: char| (c as u32) <= 0x20)
 }
 
+/// 配置弹窗请求 (Java showParseErrorDialog/showMergeReport 的弹窗参数面):
+/// web 壳形态经 sink 转发前端 Modal (组装层注入 tauri emit); 标题/正文在
+/// Rust 侧以 Lang 就绪 (单一来源), 前端只渲染。
+pub enum ConfigDialog {
+    /// 解析失败弹窗 (Lang.mConfigErrorTitle + mConfigErrorContent,
+    /// WebOptionPane.ERROR_MESSAGE 形态)
+    ParseError,
+    /// 合并报告弹窗 (Lang.mConfigMergedTitle + 逐条报告正文,
+    /// WebOptionPane.INFORMATION_MESSAGE 形态)
+    MergeReport(String),
+}
+
+/// 弹窗 sink 签名 (clippy type_complexity 折叠)
+type ConfigDialogSink = Arc<dyn Fn(&ConfigDialog) + Send + Sync>;
+
+/// 弹窗转发 sink (Java: SwingUtilities.invokeLater + DialogService → EDT 弹窗;
+/// Rust: 任意线程可调, sink 自行派发)。Arc 承载: dispatch 锁内克隆即放锁再调用
+/// (回调不得持锁执行 — 回调面若重入本域不会死锁)。组装层构造 web 壳后注入,
+/// 启动早期 (AppShell 配置装载先于 web 壳) 未装时走日志兜底。
+static CONFIG_DIALOG_SINK: LazyLock<Mutex<Option<ConfigDialogSink>>> =
+    LazyLock::new(|| Mutex::new(None));
+
+/// 启动期未达弹窗缓存 (审查 W2): 无 sink 时 (AppShell 配置装载先于 web 壳装配)
+/// 的 ParseError/MergeReport 日志兜底之外再缓存最后一条; 组装层在 **web 就绪后**
+/// 经 [`replay_pending_config_dialog`] 补发 — 不在 sink 安装时点立即回放, 因彼时
+/// 前端 config-dialog 监听尚未注册 (App.tsx 就绪序: 监听注册 → ui_ready), 立即
+/// 回放会再丢一次。Java 升级首跑的用户可见合并报告 (ConfigManager.java:425-477)
+/// 由此在 web 形态达用户。
+static PENDING_CONFIG_DIALOG: Mutex<Option<ConfigDialog>> = Mutex::new(None);
+
+/// 安装弹窗 sink (vm-app 组装层: web 壳构造后调用; 覆盖式, 生产单装点)
+pub fn set_config_dialog_sink(sink: ConfigDialogSink) {
+    *CONFIG_DIALOG_SINK.lock().expect("config 弹窗 sink 锁中毒") = Some(sink);
+}
+
+/// 测试专用: 摘除 sink (恢复日志兜底路径; Drop 守卫配套); 同清待发缓存,
+/// 不把残留弹窗漏给后续用例 (并行测试隔离)
+#[cfg(test)]
+pub(crate) fn remove_config_dialog_sink_for_test() {
+    *CONFIG_DIALOG_SINK.lock().expect("config 弹窗 sink 锁中毒") = None;
+    *PENDING_CONFIG_DIALOG.lock().expect("config 待发弹窗锁中毒") = None;
+}
+
+/// 回放缓存的未达弹窗 (组装层 web 就绪后调用一次): 经已装 sink 转发前端,
+/// 取后清空。返回是否回放了弹窗 (日志/测试面)。
+pub fn replay_pending_config_dialog() -> bool {
+    let pending = PENDING_CONFIG_DIALOG
+        .lock()
+        .expect("config 待发弹窗锁中毒")
+        .take();
+    match pending {
+        Some(dialog) => {
+            dispatch_config_dialog(dialog);
+            true
+        }
+        None => false,
+    }
+}
+
+/// 测试专用: 清空待发弹窗缓存 (并行用例隔离 — 不捡他人 initialize 的残留)
+#[cfg(test)]
+pub(crate) fn clear_pending_config_dialog_for_test() {
+    *PENDING_CONFIG_DIALOG.lock().expect("config 待发弹窗锁中毒") = None;
+}
+
+/// 弹窗分发: sink 在场转发; 未装 (启动早期/无窗形态) 记日志兜底 + 缓存待补发
+fn dispatch_config_dialog(dialog: ConfigDialog) {
+    let sink = CONFIG_DIALOG_SINK
+        .lock()
+        .expect("config 弹窗 sink 锁中毒")
+        .clone();
+    match sink {
+        Some(sink) => sink(&dialog),
+        None => {
+            // Java 此处必弹窗; 无 sink 时日志承载 (对位 Java 弹窗的可见性)
+            let lang = Lang::init_lang();
+            match &dialog {
+                ConfigDialog::ParseError => logger::warn(
+                    "ConfigManager",
+                    &format!("[弹窗兜底] {}: {}", lang.m_config_error_title, lang.m_config_error_content),
+                ),
+                ConfigDialog::MergeReport(message) => logger::info(
+                    "ConfigManager",
+                    &format!("[弹窗兜底] {}: {}", lang.m_config_merged_title, message),
+                ),
+            }
+            // 缓存待 web 就绪后补发 (审查 W2; 覆盖式留最后一条 — Java 首启
+            // 模板升级的合并报告单发, 无连弹队列面)
+            *PENDING_CONFIG_DIALOG
+                .lock()
+                .expect("config 待发弹窗锁中毒") = Some(dialog);
+        }
+    }
+}
+
 /// Shows a dialog when config parsing fails.
 /// PORT: 调用点 (initialize 的 parse-error 分支) 为 Java 侧即不可达的死路径
 /// (§2.7, 见 initialize 内标注), Java 同为永不走到的代码 — allow(dead_code) 保形。
 #[allow(dead_code)]
 fn show_parse_error_dialog() {
     // Run on EDT for thread safety (using DialogService to avoid overlay blocking)
-    // TODO(port): javax.swing.SwingUtilities.invokeLater + DialogService.showMessageDialog(
-    //     null, Lang.mConfigErrorContent, Lang.mConfigErrorTitle,
-    //     WebOptionPane.ERROR_MESSAGE) — C 类 Swing 接线 (vm-ui 波次);
-    // 文本届时经 crate::lang::Lang 取 m_config_error_content / m_config_error_title。
+    dispatch_config_dialog(ConfigDialog::ParseError);
 }
 
 /// Shows a detailed merge report dialog listing what was added/updated.
@@ -516,9 +608,7 @@ fn show_merge_report(report: &MergeReport) {
     logger::info("ConfigManager", &format!("Merge report:\n{message}"));
 
     // Using DialogService to avoid overlay blocking
-    // TODO(port): SwingUtilities.invokeLater + DialogService.showMessageDialog(
-    //     null, message, Lang.mConfigMergedTitle, WebOptionPane.INFORMATION_MESSAGE)
-    //     — C 类 Swing 接线 (vm-ui 波次); message 构造与 Logger 输出已保真落地。
+    dispatch_config_dialog(ConfigDialog::MergeReport(message));
 }
 
 // =====================================================================

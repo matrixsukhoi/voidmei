@@ -51,6 +51,9 @@ pub struct ReinitParams {
     /// 操纵面: 字号增量 + 边缘开关 (enableAxisEdge)
     pub font_add_axis: i32,
     pub axis_show_edge: bool,
+    /// FM拆包数据: 字号增量 (getOverlaySettings("FM拆包数据").getFontSizeAdd;
+    /// cfg 该组无字号滑条, 恒走 OverlaySettings 默认 0 — setupFont 的 14+add 面)
+    pub font_add_fm: i32,
     /// 地平仪: 宽高 (attitudeIndicatorWidth/Height, 工厂内再 DPI 缩放) +
     /// 喂入节流 (attitudeIndicatorFreqMs) + 开关族
     pub attitude_width: i32,
@@ -80,6 +83,7 @@ impl Default for ReinitParams {
             gear_show_edge: false,
             font_add_axis: 0,
             axis_show_edge: false,
+            font_add_fm: 0,
             attitude_width: 150,
             attitude_height: 300,
             attitude_freq_ms: 40,

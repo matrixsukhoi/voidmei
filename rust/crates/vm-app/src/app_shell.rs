@@ -49,6 +49,9 @@ use vm_core::hud_calculator::HudColors;
 use vm_core::lang::Lang;
 use vm_core::logger;
 use vm_core::ui_model::TelemetrySource as _;
+use vm_core::ui_state_bus::UIStateBus;
+use vm_core::voice_resource_manager::VoiceResourceManager;
+use vm_core::voice_warning::{VoiceWarning, VoiceWarningService};
 
 use vm_data::service_fields::ServiceData;
 use vm_data::service_loop::{
@@ -60,14 +63,19 @@ use vm_overlay::host::OverlayHost;
 use vm_overlay::hotkey::{HotkeyEvent, HotkeyManager, VC_P};
 use vm_overlay::platform_extras::DpiHelper;
 use vm_overlay::{
-    attitude_overlay_spec, control_surfaces_overlay_spec, engine_control_overlay_spec,
-    flight_info_overlay_spec, gear_flaps_overlay_spec, minihud_overlay_spec,
-    power_info_overlay_spec, AttitudeOverlayHandle, ControlSurfacesHandle,
-    EngineControlHandle, FlightInfoHandle, GearFlapsHandle, MiniHudHandle, PowerInfoHandle,
+    attitude_overlay_spec, control_surfaces_overlay_spec, draw_frame_simpl_spec,
+    engine_control_overlay_spec, flight_info_overlay_spec, fm_unpacked_data_overlay_spec,
+    gear_flaps_overlay_spec, minihud_overlay_spec, power_info_overlay_spec,
+    AttitudeOverlayHandle, ControlSurfacesHandle, DfsFlight, DrawFrameSimplFeed,
+    DrawFrameSimplHandle, EngineControlHandle, FlightInfoHandle, FmUnpackedDataHandle,
+    FmUnpackedFeed, GearFlapsHandle, MiniHudHandle, PowerInfoHandle,
 };
 
 #[cfg(target_os = "windows")]
 use vm_overlay::tray::{TrayConfig, TrayIcon, TrayHandler};
+
+/// 语音播放平台件 (winmm waveOut 每路独立流; 播放模型裁决见该模块头注)
+pub mod winmm_player;
 
 /// Java Controller.java:59 `CONFIG_DEBOUNCE_MS = 200` (Rust 为 leading+trailing 窗口,
 /// 见 [ConfigDebouncer] 头注: 200 = trailing 收尾间隔, leading 沿不受此延迟)
@@ -276,6 +284,9 @@ pub enum TrayCommand {
     /// handler 语义 = Controller.start() 的服务启动部分 (保真)。多出面的回收
     /// 归 tray.rs 波次, 本侧仅忠实转发。
     Start,
+    /// 菜单"关于" (Application.java:236-245 about → NotificationService.showAbout×3;
+    /// 纯展示动作, 不重建核 — 组装层转发前端 About Modal)
+    About,
     /// 菜单"退出" (Application.java:229-235 close → System.exit(0) 的归属方)
     Exit,
 }
@@ -420,7 +431,8 @@ impl ControllerShared {
     }
 
     /// 注册面落键: overlay id → 0 (逐窗 present 计数起点)。注册失败不落键 —
-    /// 冒烟断言按 6 键全集判, 缺键即注册失败如实暴露 (不假通过)
+    /// 冒烟断言按 9 键全集判 (窗口条目), 缺键即注册失败如实暴露 (不假通过);
+    /// thrustdFS 呈键但计数可为 0 (激活需喷气机 — 冒烟场景 p-51d 为螺旋桨)
     fn note_registered_overlay(&self, id: &str) {
         self.overlay_present
             .lock()
@@ -609,6 +621,9 @@ pub struct OverlayInputs {
     /// 舵面值字号增量 + 边缘模式 (getOverlaySettings("舵面值"); Java :683)
     pub font_add_axis: i32,
     pub axis_show_edge: bool,
+    /// FM拆包数据字号增量 (getOverlaySettings("FM拆包数据"); Java :731-736 —
+    /// cfg 该组无字号滑条, 恒默认 0, setupFont 的 14+add 面)
+    pub font_add_fm: i32,
     /// 地平仪几何/开关 (getOverlaySettings("地平仪"); 缺省 = Java reinitConfig 默认:
     /// 150×300 / 40ms / direction false / AoA 极限 true, AttitudeOverlay.java:232-248)
     pub attitude_width: i32,
@@ -641,6 +656,7 @@ impl OverlayInputs {
         let power = config.get_overlay_settings("动力信息");
         let gear = config.get_overlay_settings("起落襟翼");
         let axis = config.get_overlay_settings("舵面值");
+        let fm_print = config.get_overlay_settings("FM拆包数据");
         let attitude = config.get_overlay_settings("地平仪");
         let flight = config.get_overlay_settings("飞行信息");
         OverlayInputs {
@@ -655,6 +671,7 @@ impl OverlayInputs {
             gear_show_edge: gear.get_bool("enablegearAndFlapsEdge", false),
             font_add_axis: axis.get_font_size_add(),
             axis_show_edge: axis.get_bool("enableAxisEdge", false),
+            font_add_fm: fm_print.get_font_size_add(),
             attitude_width: attitude.get_int("attitudeIndicatorWidth", 150),
             attitude_height: attitude.get_int("attitudeIndicatorHeight", 300),
             attitude_freq_ms: attitude.get_int("attitudeIndicatorFreqMs", 40) as i64,
@@ -692,6 +709,7 @@ impl From<&OverlayInputs> for vm_overlay::ReinitParams {
             gear_show_edge: i.gear_show_edge,
             font_add_axis: i.font_add_axis,
             axis_show_edge: i.axis_show_edge,
+            font_add_fm: i.font_add_fm,
             attitude_width: i.attitude_width,
             attitude_height: i.attitude_height,
             attitude_freq_ms: i.attitude_freq_ms,
@@ -713,6 +731,9 @@ pub struct ControllerDeps {
     pub flight_bus: Arc<FlightDataBus>,
     pub fm: Arc<FMManager>,
     pub hotkey: Arc<Mutex<HotkeyManager>>,
+    /// 共享语音资源管理器 (Java VoiceResourceManager.getInstance(); loadFromConfig
+    /// 的音量同步写点在 Controller 内 — 见 load_from_config)
+    pub voice: Arc<VoiceResourceManager>,
     pub shared: Arc<ControllerShared>,
     pub ui_cmd_tx: Sender<UiCommand>,
     pub main_event_tx: Sender<MainEvent>,
@@ -731,6 +752,8 @@ pub struct Controller {
     fm: Arc<FMManager>,
     flight_bus: Arc<FlightDataBus>,
     hotkey: Arc<Mutex<HotkeyManager>>,
+    /// 共享语音资源管理器 (AppShell 分发; load_from_config 的音量同步面)
+    voice: Arc<VoiceResourceManager>,
     ui_cmd_tx: Sender<UiCommand>,
     env: Env,
     /// stop 步2 退订的订阅句柄 (RAII Drop = unsubscribe, 对位 Java unsubscribe+置 null)
@@ -764,6 +787,7 @@ impl Controller {
             flight_bus,
             fm,
             hotkey,
+            voice,
             shared,
             ui_cmd_tx,
             main_event_tx,
@@ -772,7 +796,7 @@ impl Controller {
         } = deps;
 
         // Java:474 loadFromConfig() (同步本地标志 + loadAppCheck)
-        load_from_config(&config, &shared);
+        load_from_config(&config, &shared, &voice);
 
         // Java:477-478 HotkeyManager.getInstance().init()
         if let Ok(mut hm) = hotkey.lock() {
@@ -787,6 +811,7 @@ impl Controller {
             fm: Arc::clone(&fm),
             flight_bus,
             hotkey: Arc::clone(&hotkey),
+            voice,
             ui_cmd_tx,
             env,
             subs: Vec::new(),
@@ -896,7 +921,7 @@ impl Controller {
 
     /// Java:447-454 loadFromConfig — loadAppCheck + showStatus 同步
     fn load_from_config_(&self) {
-        load_from_config(&self.config, &self.shared);
+        load_from_config(&self.config, &self.shared, &self.voice);
     }
 
     /// Java:823-847 handleFmHotkeyConfigChange — 解绑旧键/绑新键
@@ -1209,6 +1234,12 @@ impl Controller {
         let Some(handle) = self.service.as_ref() else { return };
         let data = Arc::clone(&handle.data);
         let snap = flight_log_snapshot(&data.read().unwrap_or_else(|e| e.into_inner()));
+        // 修 (批3裁决, 运行期兜底): records/ 相对 CWD 硬编码, 目录缺失时 init 的
+        // 三个文件句柄全失败 (Java 同 bug — FileNotFoundException → "记录文件创建
+        // 失败" toast + WARN, 基线冒烟可见)。生产路径启动记录前先建目录消除;
+        // FlightLog 本体的降级行为不动 (vm-core tests.rs "records/ 缺失" 用例钉住)。
+        // 创建失败 (只读介质等) 不拦截 — 后续 init 按原降级路径走。
+        let _ = std::fs::create_dir_all("records");
         let mut log = FlightLog::new();
         log.init(
             Arc::new(LogonSink(Arc::clone(&self.flight_log))),
@@ -1401,11 +1432,21 @@ impl Controller {
 }
 
 /// Java:447-454 loadFromConfig (独立函数: 订阅转发面不持 config, 主线程统一调用)
-fn load_from_config(config: &ConfigurationService, shared: &ControllerShared) {
+fn load_from_config(
+    config: &ConfigurationService,
+    shared: &ControllerShared,
+    voice: &VoiceResourceManager,
+) {
     // Java:448 configService.loadAppCheck(this) — 间隔组 + ApplicationState
     let mut intervals = shared.intervals.lock().expect("intervals 锁中毒");
     config.load_app_check(&mut intervals);
     drop(intervals);
+    // Java: loadAppCheck 写 Application.voiceVolumn (ConfigurationService.java:142-149),
+    // VoiceResourceManager.applyVolume 读它 (跨线程非 volatile 隐患) — Rust 侧
+    // ApplicationState.voice_volumn 与管理器内原子是两消费面 (voice_resource_manager.rs
+    // PORT 注), 在此单一写点同步 (§2.9 状态分裂禁令的收口: 配置 !Send 恒留主线程,
+    // 管理器经原子跨线程读; Java 的三处 loadFromConfig 调用路径均经本函数)
+    voice.set_voice_volumn(config.application_state().voice_volumn);
     // Java:449-453 showStatus = true; enableStatusBar 非空则 parseBoolean
     let mut flags = shared.flags.lock().expect("flags 锁中毒");
     flags.show_status = true;
@@ -1459,6 +1500,24 @@ pub struct AppShell {
     pub flight_bus: Arc<FlightDataBus>,
     pub fm: Arc<FMManager>,
     pub hotkey: Arc<Mutex<HotkeyManager>>,
+    /// Java `VoiceResourceManager.getInstance()` 进程级单例 (静态 final INSTANCE)
+    /// 的落位: AppShell 显式持有 (D8; §2.9 禁全局静态的载体替换), 跨核重建
+    /// 存活 = Java static 语义; 组装层各消费面 (表单 IPC 的语音包列表/试听、
+    /// VoiceWarning 告警线程) 经同一 Arc 共享。voice 目录 "voice" 与
+    /// form_dispatch 旧局部实例一致 (Java "./voice/")。
+    pub voice: Arc<VoiceResourceManager>,
+    /// Java `UIStateBus.getInstance()` 在 VoiceWarning.configHandler 订阅面的
+    /// 落位: 配置服务桩总线 (未路由 EventBus, !Send 侧) 与 vm-core 路由总线
+    /// (UIStateBus) 类型分裂 (ui_state_bus.rs 头注已上报), 转发桥见
+    /// [`AppShell::handle_main_event`] 的 ConfigChanged 分支
+    pub voice_bus: Arc<UIStateBus>,
+    /// voice_* 配置键快照 ([`VoiceConfigSnapshot`] 的数据面; 配置 !Send 恒留
+    /// 主线程, VoiceWarning 的 reload 链经快照跨线程读 — FlightLogConfig 单键
+    /// 快照先例的全键版)
+    pub voice_config: Arc<Mutex<HashMap<String, String>>>,
+    /// FM拆包数据 show* 配置键快照 ([`FmFieldConfigSnapshot`] 的数据面;
+    /// FMUnpackedData 的 generate_lines 每 tick 读, CONFIG_CHANGED 逐键刷新)
+    pub fm_field_config: Arc<Mutex<HashMap<String, String>>>,
     pub shared: Arc<ControllerShared>,
     /// 激活缓存 (win32 线程激活探测的配置面)
     pub activation: ActivationCache,
@@ -1478,6 +1537,10 @@ pub struct AppShell {
     pub release_main_form: Box<dyn FnMut()>,
     /// Exit 托盘命令 → run_supervisor 退出标志
     exit_requested: bool,
+    /// 托盘 About 置位 (Java about 菜单的 showAbout×3 展示动作) — 组装层主循环
+    /// 据此 emit `about-requested` 转发前端 Modal; 无窗形态 (run_supervisor_phase)
+    /// 消费时记日志兜底
+    about_requested: bool,
     /// 托盘 Activate 置位 (新核构造了 MainForm 存活位) — 组装层主循环据此
     /// 重开 iced 设置窗 (Java: 托盘点击 → ctr = new Controller(false) → 弹窗)。
     /// 相 A (窗口期) 内置位 → 关窗重开; 相 B (监督期) 内置位 → run_supervisor_phase
@@ -1561,6 +1624,20 @@ impl AppShell {
         // 激活缓存初建 (win32 线程激活探测输入)
         let activation: ActivationCache = Arc::new(Mutex::new(HashMap::new()));
         refresh_activation_cache(&config, &activation);
+        // 语音资源管理共享实例 (Java getInstance() 单例; 播放器 = winmm waveOut 腿)
+        let voice = Arc::new(VoiceResourceManager::new_with_voice_dir(
+            winmm_player::make_player(),
+            "voice".to_string(),
+        ));
+        // VoiceWarning 的 configHandler 订阅面 (Java UIStateBus 单例落位) +
+        // voice_* 配置键快照 (跨线程读面, 初始全量填充)
+        let voice_bus = Arc::new(UIStateBus::new());
+        let voice_config: Arc<Mutex<HashMap<String, String>>> =
+            Arc::new(Mutex::new(HashMap::new()));
+        refresh_voice_config_snapshot(&config, &voice_config);
+        let fm_field_config: Arc<Mutex<HashMap<String, String>>> =
+            Arc::new(Mutex::new(HashMap::new()));
+        refresh_fm_field_config_snapshot(&config, &fm_field_config);
         let debounce =
             ConfigDebouncer::spawn(debounce_delay, ui_cmd_tx.clone(), Arc::clone(&shared));
         AppShell {
@@ -1569,6 +1646,10 @@ impl AppShell {
             flight_bus,
             fm,
             hotkey: Arc::new(Mutex::new(hotkey)),
+            voice,
+            voice_bus,
+            voice_config,
+            fm_field_config,
             shared,
             activation,
             ui_cmd_tx,
@@ -1584,6 +1665,7 @@ impl AppShell {
                 logger::info("AppShell", "释放设置窗 (默认空操作 — W2 接线前)");
             }),
             exit_requested: false,
+            about_requested: false,
             form_requested: false,
             probe_network: true,
             initial_config: Some(config),
@@ -1624,6 +1706,10 @@ impl AppShell {
             }
         };
         refresh_activation_cache(&config, &self.activation); // win32 激活面同步
+        // voice_* 快照随新配置树全量重刷 (VoiceWarning 跨线程配置读面)
+        refresh_voice_config_snapshot(&config, &self.voice_config);
+        // FM show* 快照同批重刷 (FMUnpackedData 的 generate_lines 读面)
+        refresh_fm_field_config_snapshot(&config, &self.fm_field_config);
         self.shared.reset_for_rebuild(); // Java:582 State = INIT
         self.controller = Some(Controller::new(
             ControllerDeps {
@@ -1632,6 +1718,7 @@ impl AppShell {
                 flight_bus: Arc::clone(&self.flight_bus),
                 fm: Arc::clone(&self.fm),
                 hotkey: Arc::clone(&self.hotkey),
+                voice: Arc::clone(&self.voice),
                 shared: Arc::clone(&self.shared),
                 ui_cmd_tx: self.ui_cmd_tx.clone(),
                 main_event_tx: self.main_event_tx.clone(),
@@ -1677,6 +1764,10 @@ impl AppShell {
             fm: Arc::clone(&self.fm),
             shared: Arc::clone(&self.shared),
             activation: Arc::clone(&self.activation),
+            voice: Arc::clone(&self.voice),
+            voice_bus: Arc::clone(&self.voice_bus),
+            voice_config: Arc::clone(&self.voice_config),
+            fm_field_config: Arc::clone(&self.fm_field_config),
             ui_cmd_rx,
             hotkey_rx,
             main_event_tx: self.main_event_tx.clone(),
@@ -1771,6 +1862,33 @@ impl AppShell {
                 }
                 // win32 激活面同步 (配置已由发布方写毕, 最后写胜出 — 见缓存头注)
                 refresh_activation_cache(&c.config, &self.activation);
+                // Java VoiceWarning.configHandler 的触发链 (UIStateBus 单例 →
+                // CONFIG_CHANGED(voice_*) → alert.reload): 桩总线 (configuration_
+                // service 的 EventBus) 与 vm-core UIStateBus 类型分裂, 此处单点
+                // 转发 — 先同步 voice_* 快照 (reload 读到新值), 再发布到 voice_bus
+                // (VoiceWarning 订阅方在 publish 调用线程 = 主线程同步执行,
+                // 对位 Java handler 在 EDT 发布线程内联执行)
+                if key.starts_with("voice_") {
+                    let val = c.config.get_config(&key).unwrap_or_default();
+                    self.voice_config
+                        .lock()
+                        .expect("voice 配置快照锁中毒")
+                        .insert(key.clone(), val);
+                    self.voice_bus.publish(
+                        ui_state_events::CONFIG_CHANGED,
+                        Some("ConfigurationService"),
+                        Some(&key),
+                    );
+                }
+                // FM show* 快照逐键刷新 (FMUnpackedData generate_lines 的跨线程
+                // 读面; Java 每轮直读配置, 此处最后写胜出 — 激活缓存同款等价)
+                if FM_FIELD_KEYS.contains(&key.as_str()) {
+                    let val = c.config.get_config(&key).unwrap_or_default();
+                    self.fm_field_config
+                        .lock()
+                        .expect("FM 字段快照锁中毒")
+                        .insert(key.clone(), val);
+                }
                 // WYSIWYG reinit 参数直送 (五色直送同款模式): 即时读配置重建参数包,
                 // 先于下方 RefreshPreviews(防抖)/ReinitActiveOverlays 入队 —
                 // 对位 Java refreshPreviews → reinitConfig 即时读配置的时序
@@ -1847,6 +1965,10 @@ impl AppShell {
                     c.start(&mut self.release_main_form);
                 }
             }
+            MainEvent::Tray(TrayCommand::About) => {
+                // Java:236-245 纯展示动作 (不重建核) — 置请求位交组装层转发前端 Modal
+                self.about_requested = true;
+            }
             MainEvent::Tray(TrayCommand::Exit) => {
                 self.exit_requested = true;
             }
@@ -1875,6 +1997,12 @@ impl AppShell {
     /// 相 B (监督期) 由 run_supervisor_phase 返回值表达。
     pub fn take_form_request(&mut self) -> bool {
         std::mem::replace(&mut self.form_requested, false)
+    }
+
+    /// 取走托盘"关于"请求 (Java about 菜单的展示动作; 见 about_requested 注)。
+    /// 组装层主循环查询 → emit `about-requested` 转发前端 About Modal。
+    pub fn take_about_request(&mut self) -> bool {
+        std::mem::replace(&mut self.about_requested, false)
     }
 
     /// 阻塞监督循环 (无 MainForm 场景: --live / 冒烟; Java 托盘+EDT 泵的对位)。
@@ -1940,6 +2068,10 @@ impl AppShell {
             if self.form_requested {
                 return SupervisorOutcome::MainFormRequested;
             }
+            // 托盘关于 (无 web 壳形态): Java 弹 About 通知, 此处日志兜底 (语义不丢)
+            if self.take_about_request() {
+                logger::info("AppShell", "托盘关于请求 (无 web 壳, About 弹窗不可用)");
+            }
         }
     }
 
@@ -1986,6 +2118,15 @@ pub struct Win32ThreadConfig {
     pub fm: Arc<FMManager>,
     pub shared: Arc<ControllerShared>,
     pub activation: ActivationCache,
+    /// 共享语音资源管理器 (AppShell.voice; VoiceWarning 告警线程的 reload 面)
+    pub voice: Arc<VoiceResourceManager>,
+    /// VoiceWarning configHandler 订阅面 (AppShell.voice_bus)
+    pub voice_bus: Arc<UIStateBus>,
+    /// voice_* 配置键快照 (AppShell.voice_config; 配置 !Send 的跨线程桥)
+    pub voice_config: Arc<Mutex<HashMap<String, String>>>,
+    /// FM show* 配置键快照 (AppShell.fm_field_config; 同上跨线程桥,
+    /// FMUnpackedData generate_lines 的读面)
+    pub fm_field_config: Arc<Mutex<HashMap<String, String>>>,
     pub ui_cmd_rx: Receiver<UiCommand>,
     pub hotkey_rx: Receiver<HotkeyEvent>,
     pub main_event_tx: Sender<MainEvent>,
@@ -2011,6 +2152,12 @@ struct OverlayHandles {
     control_surfaces: Option<ControlSurfacesHandle>,
     /// 飞行信息 (Java FlightInfoOverlay.onFlightData 字段行; POC 专径收编批接入)
     flight_info: Option<FlightInfoHandle>,
+    /// FM拆包数据 (Java FMUnpackedDataOverlay: FM_CHANGED 重载 + 热键切换自管可见;
+    /// 无 FlightDataBus 订阅 — 不进 feed_overlays_live, 事件面在 win32 循环驱动)
+    fm_unpacked: Option<FmUnpackedDataHandle>,
+    /// 推力曲线 (Java DrawFrameSimpl: FM_CHANGED 重载 (两会话) + 热键切换自管可见
+    /// (仅游戏); run 循环含 displayFmKey==0 收腿退场 — DrawFrameSimplFeed 驱动)
+    draw_frame_simpl: Option<DrawFrameSimplHandle>,
 }
 
 /// CloseAllOverlays 时数据面回 preview 静态初值 (win32 命令处理点调用)。
@@ -2020,6 +2167,10 @@ struct OverlayHandles {
 /// 不重置: MiniHUD (reinit 刷新 mock 模板 + update_components(None)) /
 /// 引擎控制 (build_engine_state 整建) / 起落襟翼 (GearFlapsState::new 整建) —
 /// preview 冷激活路径 refresh_preview_idx 先跑 reinit 即自愈。
+/// FM拆包数据另加会话形态复位 (reset_preview: 可见/预览态/lastData 清空 — Java
+/// closeAll 销毁实例 + 预览工厂新建 initPreview 的形态)。
+/// 推力曲线同族 (reset_preview: visible=true / is_preview=true — Java closeAll
+/// 销毁 + 预览工厂新建 initPreview 恒可见)。
 fn reset_handles_preview_values(handles: &OverlayHandles) {
     if let Some(h) = handles.power_info.as_ref() {
         h.borrow_mut().reset_preview();
@@ -2031,6 +2182,12 @@ fn reset_handles_preview_values(handles: &OverlayHandles) {
         h.borrow_mut().reset_preview();
     }
     if let Some(h) = handles.attitude.as_ref() {
+        h.borrow_mut().reset_preview();
+    }
+    if let Some(h) = handles.fm_unpacked.as_ref() {
+        h.borrow_mut().reset_preview();
+    }
+    if let Some(h) = handles.draw_frame_simpl.as_ref() {
         h.borrow_mut().reset_preview();
     }
 }
@@ -2106,6 +2263,33 @@ const MINIHUD_INTEREST_KEYS: [&str; 13] = [
     "showHUD",
 ];
 
+/// FM拆包数据 withInterest 键 (Java Controller.java:739-743 逐字对齐, 20 键)。
+/// 注: fmInfoColumn 在 cfg 无 :target 项 (Java 同为死键, 原样搬移不裁 —
+/// PowerInfo "S." 死前缀同款备案); selectedFM 前缀命中 cfg 的 selectedFM0/1;
+/// fontName 同时命中全局前缀 "font" (is_global_config 全量刷新, Java 同)
+const FM_UNPACKED_INTEREST_KEYS: [&str; 20] = [
+    "displayFmKey",
+    "selectedFM",
+    "fmInfoColumn",
+    "fontName",
+    "showWeight",
+    "showCritSpeed",
+    "showGLoadLimits",
+    "showFlapLimits",
+    "showControlEffectiveness",
+    "showNitro",
+    "showHeatRecovery",
+    "showMaxLiftLoad",
+    "showInertia",
+    "showLift",
+    "showDrag",
+    "showNoFlapsWing",
+    "showFullFlapsWing",
+    "showFuselage",
+    "showFin",
+    "showStab",
+];
+
 /// FocusMonitor 的通道桥 (轮 2-C 收口): Service 轮询线程内 FocusMonitor tick →
 /// coordinator 回调 → UiCommand 送 win32 线程执行 host hide/show (配置/窗口
 /// !Send 不能进 Service 线程 — ChannelPositionStore 同款模式)。
@@ -2127,6 +2311,257 @@ impl vm_core::focus_monitor::AlwaysOnTopCoordinatorApi for ChannelFocusBridge {
     }
 }
 
+// =====================================================================
+// VoiceWarning 装配 (Java Controller.java:716-723 注册 → OverlayManager
+// .open/close 的线程启停; 语音子系统装配批)
+// =====================================================================
+
+/// ConfigurationService (!Send) 的 voice_* 键快照适配器 (FlightLogConfig 先例
+/// 的全键版): VoiceWarning.reload 链唯一读面 = `get_config("voice_<alert>")`,
+/// set/is_field_disabled 无调用方 (空实现)。数据面 = AppShell.voice_config
+/// (主线程刷新: 初始/rebuild 全量 + CONFIG_CHANGED(voice_*) 逐键, 最后写胜出)。
+struct VoiceConfigSnapshot(Arc<Mutex<HashMap<String, String>>>);
+
+impl ConfigProvider for VoiceConfigSnapshot {
+    fn get_config(&self, key: &str) -> Option<String> {
+        self.0.lock().expect("voice 配置快照锁中毒").get(key).cloned()
+    }
+    fn set_config(&self, _key: &str, _value: &str) {
+        // Java 侧 VoiceWarning 经 configProvider 只读 (reload 的 getConfig)
+    }
+    fn is_field_disabled(&self, _key: &str) -> bool {
+        false
+    }
+}
+
+/// 全量刷新 voice_* 快照: 键集 = VoiceAlertType 全部告警键 (含 start1) 加前缀。
+/// 调用点: AppShell 构造 / 托盘 rebuild (新配置树) — 均主线程。
+fn refresh_voice_config_snapshot(
+    config: &ConfigurationService,
+    snapshot: &Arc<Mutex<HashMap<String, String>>>,
+) {
+    let mut m = snapshot.lock().expect("voice 配置快照锁中毒");
+    for ty in vm_core::audio::voice_alert_type::ALL {
+        // with_voice_prefix: "voice_" + key (无前缀时补, 有则原样)
+        let cfg_key = vm_core::audio::VoicePackConfig::with_voice_prefix(Some(ty.get_key()))
+            .expect("告警键非 null");
+        m.insert(cfg_key.clone(), config.get_config(&cfg_key).unwrap_or_default());
+    }
+}
+
+/// FM拆包数据 generateLines 逐 tick 直读的开关键集 (FMUnpackedDataOverlay.java
+/// :172-268 的 isFieldEnabled 实参全集, 16 键; interest 键 displayFmKey/
+/// selectedFM/fmInfoColumn/fontName 不入 — generateLines 不读它们)
+const FM_FIELD_KEYS: [&str; 16] = [
+    "showWeight",
+    "showCritSpeed",
+    "showGLoadLimits",
+    "showFlapLimits",
+    "showControlEffectiveness",
+    "showNitro",
+    "showHeatRecovery",
+    "showMaxLiftLoad",
+    "showInertia",
+    "showLift",
+    "showDrag",
+    "showNoFlapsWing",
+    "showFullFlapsWing",
+    "showFuselage",
+    "showFin",
+    "showStab",
+];
+
+/// ConfigurationService (!Send) 的 FM show* 键快照适配器 (VoiceConfigSnapshot 同款):
+/// FMUnpackedDataOverlay.generate_lines 每 tick 读 `get_config(show*)` (Java 每轮
+/// 直读 ConfigProvider; Rust 配置树恒留主线程, win32 线程经快照读 — 配置写点必发
+/// CONFIG_CHANGED, 最后写胜出, 最多滞后一次变更)。set/is_field_disabled 无调用方。
+struct FmFieldConfigSnapshot(Arc<Mutex<HashMap<String, String>>>);
+
+impl ConfigProvider for FmFieldConfigSnapshot {
+    fn get_config(&self, key: &str) -> Option<String> {
+        self.0.lock().expect("FM 字段快照锁中毒").get(key).cloned()
+    }
+    fn set_config(&self, _key: &str, _value: &str) {
+        // Java 侧 generateLines 经 configProvider 只读
+    }
+    fn is_field_disabled(&self, _key: &str) -> bool {
+        false
+    }
+}
+
+/// 全量刷新 FM show* 快照 (调用点同 voice: 构造 / 托盘 rebuild)
+fn refresh_fm_field_config_snapshot(
+    config: &ConfigurationService,
+    snapshot: &Arc<Mutex<HashMap<String, String>>>,
+) {
+    let mut m = snapshot.lock().expect("FM 字段快照锁中毒");
+    for key in FM_FIELD_KEYS {
+        m.insert(key.to_string(), config.get_config(key).unwrap_or_default());
+    }
+}
+
+/// VoiceWarning 对 Service 消费面的生产实现 (VoiceWarningService trait):
+/// 直接持有 live ServiceData 的 RwLock Arc (Java xS 引用在 openpad 时刻捕获的
+/// 对位 — S 实例持续存活, stop 清槽后数据不再更新但读不悬垂, 比 Java 更稳)。
+///
+/// PORT(备案, 审查 W2): 每 trait 方法独立 read 锁 + s_state/s_indic 各做一次
+/// 整结构深拷 (Java 无锁 volatile 直读的快照等价物) — run() 一轮 tick 约 20
+/// 次锁获取; 10Hz 节拍下总开销可忽略, 读锁共享无死锁面, 比 Java 无锁读更一致
+/// (无撕裂)。若后续提高节拍, 可改锁内一次性快照释放再算 (feed_overlays_live
+/// 的同族优化)。
+struct LiveVoiceService {
+    data: Arc<std::sync::RwLock<ServiceData>>,
+}
+
+impl VoiceWarningService for LiveVoiceService {
+    fn current_time_ms(&self) -> i64 {
+        self.data.read().unwrap_or_else(|e| e.into_inner()).current_time_ms
+    }
+    fn player_live(&self) -> bool {
+        self.data.read().unwrap_or_else(|e| e.into_inner()).player_live
+    }
+    fn set_fatal_warn(&self, v: bool) {
+        self.data.write().unwrap_or_else(|e| e.into_inner()).fatal_warn = Some(v);
+    }
+    fn is_downing_flap(&self) -> bool {
+        self.data.read().unwrap_or_else(|e| e.into_inner()).is_downing_flap
+    }
+    fn flap_allow_angle(&self) -> f64 {
+        self.data.read().unwrap_or_else(|e| e.into_inner()).flap_allow_angle
+    }
+    fn flap_allow_speed(&self) -> f64 {
+        self.data.read().unwrap_or_else(|e| e.into_inner()).flap_allow_speed
+    }
+    fn total_fuel(&self) -> f64 {
+        self.data.read().unwrap_or_else(|e| e.into_inner()).total_fuel
+    }
+    fn fuel_percent(&self) -> i32 {
+        self.data.read().unwrap_or_else(|e| e.into_inner()).fuel_percent
+    }
+    fn radio_alt(&self) -> f64 {
+        self.data.read().unwrap_or_else(|e| e.into_inner()).radio_alt
+    }
+    fn d_radio_alt(&self) -> f64 {
+        self.data.read().unwrap_or_else(|e| e.into_inner()).d_radio_alt
+    }
+    fn cur_load_min_work_time(&self) -> f64 {
+        self.data.read().unwrap_or_else(|e| e.into_inner()).cur_load_min_work_time
+    }
+    fn maximum_thr_rpm(&self) -> f64 {
+        self.data.read().unwrap_or_else(|e| e.into_inner()).maximum_thr_rpm
+    }
+    fn get_maximum_rpm(&self) -> bool {
+        self.data.read().unwrap_or_else(|e| e.into_inner()).get_maximum_rpm
+    }
+    fn is_eng_jet(&self) -> bool {
+        // Java Service.isEngJet() = iEngType == ENGINE_TYPE_JET (Service.java:874-876)
+        self.data.read().unwrap_or_else(|e| e.into_inner()).i_eng_type
+            == vm_data::service_fields::ENGINE_TYPE_JET
+    }
+    fn get_stall_speed(&self) -> f64 {
+        self.data.read().unwrap_or_else(|e| e.into_inner()).stall_speed
+    }
+    fn s_state(&self) -> vm_core::parser::State {
+        let d = self.data.read().unwrap_or_else(|e| e.into_inner());
+        // Java st 恒非 null (Service 构造即建); 槽内 None 仅畸形帧窗口 — 零值让步
+        d.s_state.as_ref().map(snapshot_state).unwrap_or_default()
+    }
+    fn s_indic(&self) -> vm_core::parser::Indicators {
+        let d = self.data.read().unwrap_or_else(|e| e.into_inner());
+        d.s_indic.as_ref().map(snapshot_indicators).unwrap_or_default()
+    }
+}
+
+/// VoiceWarning 会话句柄 (Java OverlayEntry 的 instance+thread 二位一体):
+/// OpenAllOverlays 建 / CloseAllOverlays 停; Drop 兜底停 (win32 线程局部声明,
+/// Shutdown return 时逆序 drop 自动收线程)。
+struct VoiceWarnSession {
+    doit: Arc<AtomicBool>,
+    join: Option<JoinHandle<()>>,
+}
+
+impl VoiceWarnSession {
+    /// Java OverlayEntry.close: thread.interrupt() 的电平形态 — doit 翻 false
+    /// + join (run 的分片睡眠 10ms 轮询, 退出时延 ≤ 一片)
+    fn stop(&mut self) {
+        self.doit.store(false, Ordering::SeqCst);
+        if let Some(j) = self.join.take() {
+            let _ = j.join();
+        }
+    }
+}
+
+impl Drop for VoiceWarnSession {
+    fn drop(&mut self) {
+        self.stop();
+    }
+}
+
+/// voice_warn 条目的 refreshPreviews 触达判定 (审查 W1 修复的配套):
+/// Java OverlayManager.refreshPreviews 对 `isGlobalConfig(key) ||
+/// entry.isInterestedIn(key)` 的条目调 refreshPreview (OverlayManager.java
+/// :201-207)。voice_warn 非 host 条目无注册面可挂 interest — 此处复刻同款
+/// 判定: 全局键集/前缀 = host.rs GLOBAL_CONFIG_KEYS/PREFIXES 同源 (Java
+/// OverlayManager.java:217-227); interest 集 = Java 默认 own key
+/// ("enableVoiceWarn", registerWithStrategy 无 withInterest 追加,
+/// Controller.java:716-723)。None = refreshAllPreviews 全条目触达。
+fn voice_warn_refresh_reaches(changed_key: Option<&str>) -> bool {
+    match changed_key {
+        None => true,
+        Some(k) => {
+            const GLOBAL_KEYS: [&str; 5] =
+                ["AAEnable", "simpleFont", "Interval", "voiceVolume", "ui_layout.cfg"];
+            const GLOBAL_PREFIXES: [&str; 2] = ["Global", "font"];
+            GLOBAL_KEYS.contains(&k)
+                || GLOBAL_PREFIXES.iter().any(|p| k.starts_with(p))
+                || k == "enableVoiceWarn"
+        }
+    }
+}
+
+/// Java OverlayEntry.open (OverlayManager.java:294-312) 的 VoiceWarning 专项:
+/// factory.get() + init(this, S) + needsThread → new Thread(instance).start()。
+/// `live`: shared.live 槽现值 (openpad 必在 start() 之后, Some 是生产形态;
+/// None = Java init(S=null) 的 doit=false 短路, 不起线程)。
+/// 线程名对位 Java 默认 "Thread-N" — 取语义名便于排障。
+///
+/// PORT(备案, 审查 W3): init 在 win32 线程同步执行 ~20 个 new_alert→reload→
+/// load_clip (文件读 + waveOutOpen 每路开设备), OpenAllOverlays 处理期间事件
+/// 泵阻塞几十至百 ms (一次性) — Java 对位 OverlayEntry.open 在 EDT 调 init 同
+/// 样阻塞 EDT, 形态保真; 若后续观察到 openpad 卡顿再议预加载 (偏离 Java 时
+/// 序, 需裁决)。
+fn open_voice_warning(
+    voice: &Arc<VoiceResourceManager>,
+    voice_bus: &Arc<UIStateBus>,
+    voice_config: &Arc<Mutex<HashMap<String, String>>>,
+    fm: &Arc<FMManager>,
+    flight_bus: &Arc<FlightDataBus>,
+    live: Option<Arc<std::sync::RwLock<ServiceData>>>,
+) -> Option<VoiceWarnSession> {
+    let data = live?;
+    let mut vw = VoiceWarning::new(
+        Arc::new(VoiceConfigSnapshot(Arc::clone(voice_config)))
+            as Arc<dyn ConfigProvider + Send + Sync>,
+        Arc::clone(voice),
+        Arc::clone(fm),
+        Arc::clone(voice_bus),
+        Arc::clone(flight_bus),
+        // legacy_player: playWav/getClip 直开面 (全库无调用方), 独立 winmm 实例
+        // 与 resource_manager 注入同一实现即等价 (voice_warning.rs PORT 注)
+        Arc::from(winmm_player::make_player()) as Arc<dyn vm_core::voice_resource_manager::SoundPlayer>,
+    );
+    let doit = Arc::clone(&vw.doit);
+    vw.init(Some(Arc::new(LiveVoiceService { data })));
+    let join = std::thread::Builder::new()
+        .name("VoiceWarning".to_string())
+        .spawn(move || vw.run())
+        .expect("VoiceWarning 线程创建失败");
+    Some(VoiceWarnSession {
+        doit,
+        join: Some(join),
+    })
+}
+
 /// 全局五色 cfg 键 (ui_layout.cfg:379-383; Java ConfigurationService.java:136-140
 /// loadFromConfig 读入 Application 静态)
 const GLOBAL_COLOR_KEYS: [&str; 5] = ["fontNum", "fontLabel", "fontUnit", "fontWarn", "fontShade"];
@@ -2136,8 +2571,10 @@ const GLOBAL_COLOR_KEYS: [&str; 5] = ["fontNum", "fontLabel", "fontUnit", "fontW
 /// "MiniHUD", ConfigurationService.java:569)。位置持久化按此映射读写
 /// GroupConfig.x/y; 测试 overlay_sections_hit_ui_layout_cfg 以 cfg 为源核对。
 /// (flightInfoSwitch 走 window.rs 专径无 host 条目, 不列; enableVoiceWarn/
-/// enableFMPrint/thrustdFS 非窗口条目同不列)
-const OVERLAY_SECTIONS: [(&str, &str); 7] = [
+/// thrustdFS 非窗口条目同不列; enableFMPrint 本批落 host 注册面 —
+/// FMUnpackedDataOverlay extends BaseOverlay, loadPosition/saveWindowPosition
+/// 经 OverlaySettings("FM拆包数据") — Controller.java:731)
+const OVERLAY_SECTIONS: [(&str, &str); 8] = [
     ("enableEngineControl", "引擎控制"),
     ("engineInfoSwitch", "动力信息"),
     ("crosshairSwitch", "MiniHUD"),
@@ -2145,6 +2582,7 @@ const OVERLAY_SECTIONS: [(&str, &str); 7] = [
     ("enableAxis", "舵面值"),
     ("enableAttitudeIndicator", "地平仪"),
     ("enablegearAndFlaps", "起落襟翼"),
+    ("enableFMPrint", "FM拆包数据"),
 ];
 
 /// 位置存档后端 (win32 线程侧): 启动快照直读 + 保存经 MainEvent 回传主线程落盘。
@@ -2179,15 +2617,23 @@ impl vm_overlay::host::PositionStore for ChannelPositionStore {
 /// 重建存活 (D8), 条目是无状态配置记录 (id/config_key/尺寸/渲染闭包), 重建语义
 /// 由激活探测 (实时配置) + 命令通道承载 — 重注册无信息增量。
 ///
-/// 注册键 10/10 落位 (P6 收口 + 人工验收补口):
-/// - 窗口条目 7: enableEngineControl / engineInfoSwitch / crosshairSwitch /
+/// 注册键 10/10 落位 (P6 收口 + 人工验收补口 + 本批 enableFMPrint/thrustdFS):
+/// - 窗口条目 9: enableEngineControl / engineInfoSwitch / crosshairSwitch /
 ///   flightInfoSwitch (POC window.rs 专径收编, vm-overlay flight_info.rs) /
-///   enablegearAndFlaps / enableAxis / enableAttitudeIndicator。
-/// - 非窗口/降级 3 (键在激活缓存 ACTIVATION_KEYS / strategy_for 留有映射, 不建窗口):
-///   - enableVoiceWarn: VoiceWarning 为 FlightDataBus 订阅者形态非窗口 (TODO(port))
-///   - enableFMPrint: FMUnpackedData 需 host 扩展 (动态窗口高 resize + 逐条目可见性,
-///     overlays_field2.rs 头注 P5 组装契约), 键留激活缓存无窗口条目
-///   - thrustdFS (DrawFrameSimpl): D8 降级清单 P6 尾巴 (live 喂数覆盖的唯一豁口)
+///   enablegearAndFlaps / enableAxis / enableAttitudeIndicator /
+///   enableFMPrint (FMUnpackedData, P5 组装契约三点销号 — 动态窗口高经
+///   FmUnpackedFeed pump 落 resize_entry, 逐条目可见性经 host set_entry_visible,
+///   spec 工厂 vm-overlay fm_unpacked_data_overlay_spec) /
+///   thrustdFS (DrawFrameSimpl, 本批全量翻译装配 — vm-overlay draw_frame_simpl.rs:
+///   激活策略 config("enableFMPrint").and(jetOnly) 经 [`strategy_for`] 实际生效,
+///   固定几何 (0, screenH-500, 900, 500) 经 host set_entry_fixed_pos,
+///   run 循环 (自管可见性 + displayFmKey==0 收腿退场) 经 DrawFrameSimplFeed)。
+/// - 非窗口 1 (键在激活缓存 ACTIVATION_KEYS / strategy_for 留有映射, 不建窗口):
+///   - enableVoiceWarn: VoiceWarning 为线程形态非窗口 — 装配在 OpenAllOverlays/
+///     CloseAllOverlays 命令处理点 ([`open_voice_warning`]/VoiceWarnSession,
+///     激活探测与窗口条目同源), 不走 host 注册面
+#[allow(clippy::too_many_arguments)] // 组装面参数包 (host/handles/env/inputs/仓/lang/
+                                     // shared/fm/fm_config) — 对位 Java registerGameModeOverlays 的 this 域
 fn register_live_overlays(
     host: &mut OverlayHost,
     handles: &mut OverlayHandles,
@@ -2198,6 +2644,10 @@ fn register_live_overlays(
     params: &Rc<RefCell<vm_overlay::ReinitParams>>,
     lang: &Rc<Lang>,
     shared: &ControllerShared,
+    // FM拆包数据: reinit 闭包的 blkx 直读源 (Java FMManager.getInstance())
+    fm: &Arc<FMManager>,
+    // FM show* 配置键快照 (generate_lines 逐 tick 读面, 配置 !Send 的跨线程桥)
+    fm_field_config: &Arc<Mutex<HashMap<String, String>>>,
 ) {
     let fonts = &env.fonts_dir;
     // 引擎控制 (Java:654-659, 键 enableEngineControl); dataPollIntervalMs 经
@@ -2280,12 +2730,47 @@ fn register_live_overlays(
         }
         Err(e) => logger::error("Controller", &format!("地平仪 overlay 注册失败: {}", e)),
     }
+    // FM拆包数据 (Java:726-743, 键 enableFMPrint, previewEnabled=true) — 本批补齐
+    // (P5 组装契约三点销号; 事件面/tick 泵在 win32 循环驱动, 见 win32_thread_main)
+    match fm_unpacked_data_overlay_spec(
+        fonts,
+        env.dpi.get_logical_screen_height(),
+        params,
+        Some(Arc::new(FmFieldConfigSnapshot(Arc::clone(fm_field_config)))
+            as Arc<dyn ConfigProvider>),
+        fm,
+    ) {
+        Ok((h, spec)) => {
+            shared.note_registered_overlay(&spec.id);
+            handles.fm_unpacked = Some(h);
+            host.register(spec).with_interest(&FM_UNPACKED_INTEREST_KEYS);
+        }
+        Err(e) => logger::error("Controller", &format!("FM拆包数据 overlay 注册失败: {}", e)),
+    }
+    // 推力曲线 (Java:745-752 registerWithStrategy("thrustdFS"), 键 =
+    // enableFMPrint && jetOnly, previewEnabled=true/needsThread) — 本批补齐
+    // (D8 降级清单 P6 尾巴收口; 事件面/run 泵在 win32 循环驱动)
+    match draw_frame_simpl_spec(fonts, fm) {
+        Ok((h, spec)) => {
+            shared.note_registered_overlay(&spec.id);
+            handles.draw_frame_simpl = Some(h);
+            host.register(spec);
+            // Java init/initPreview 的 setBounds(0, screenH-500, 900, 500) — 每次
+            // 实例化固定几何 (thrustdFSX/Y 只写不读, 不参与定位)。
+            // PORT: Java Toolkit.getScreenSize() 在生产 JVM 标志 -Dsun.java2d.
+            // uiScale=1 下与 DPIHelper 逻辑高同值 (恒等), 取逻辑高
+            host.set_entry_fixed_pos(
+                "thrustdFS",
+                0,
+                env.dpi.get_logical_screen_height() - 500,
+            );
+        }
+        Err(e) => logger::error("Controller", &format!("推力曲线 overlay 注册失败: {}", e)),
+    }
 }
 
 /// 托盘 handler: 动作转发主线程 (Java 托盘回调在 EDT, Rust 泵线程→channel)。
-/// TODO(port) (P6 NotificationService 族, 审查 A-W5): Java 托盘菜单 about 项
-/// (Application.java:236-245, NotificationService.showAbout×3) 未移植 —
-/// tray.rs 菜单面加 about 项后在此转发 (tray.rs 头注已声明归组装层挂接)。
+/// 关于项 (Application.java:236-245) 已接线: About → 主循环 emit → 前端 Modal。
 #[cfg(target_os = "windows")]
 struct AppTrayHandler {
     tx: Sender<MainEvent>,
@@ -2298,6 +2783,10 @@ impl TrayHandler for AppTrayHandler {
     }
     fn start(&mut self) {
         let _ = self.tx.send(MainEvent::Tray(TrayCommand::Start));
+    }
+    fn about(&mut self) {
+        // Java:236-245 NotificationService.showAbout×3 (展示动作) — 主线程转发前端
+        let _ = self.tx.send(MainEvent::Tray(TrayCommand::About));
     }
     fn exit(&mut self) {
         // 退出序契约 (tray.rs): 进程退出前先 drop TrayIcon — 本命令驱动主线程
@@ -2481,7 +2970,8 @@ fn feed_overlays_live(
 /// 泵约束 (安装线程需泵) 由钩子线程自泵满足, 行为面一致。
 /// 跟踪项 (审查 B-W4): 豁免收口 = hotkey.rs 提供外部线程装钩入口; 且
 /// FM_OVERLAY_TOGGLE 的发布线程从 Java 的钩子线程变为本 win32 线程 (经
-/// hotkey_rx 中转后 publish ui_bus) — 后续接 DrawFrame 系订阅方时注意此差异。
+/// hotkey_rx 中转后 publish ui_bus) — DrawFrameSimpl/FMUnpacked 的订阅消费
+/// (渲染节拍块) 已按此拓扑接线, 后续 DrawFrame (P6 批三) 照此办理。
 pub fn win32_thread_main(cfg: Win32ThreadConfig) {
     let Win32ThreadConfig {
         env,
@@ -2491,6 +2981,10 @@ pub fn win32_thread_main(cfg: Win32ThreadConfig) {
         fm,
         shared,
         activation,
+        voice,
+        voice_bus,
+        voice_config,
+        fm_field_config,
         ui_cmd_rx,
         hotkey_rx,
         main_event_tx,
@@ -2527,6 +3021,8 @@ pub fn win32_thread_main(cfg: Win32ThreadConfig) {
         attitude: None,
         control_surfaces: None,
         flight_info: None,
+        fm_unpacked: None,
+        draw_frame_simpl: None,
     };
     // Lang 一次构造 (GearFlaps update_tick 的标签源; 注册面与喂入共用)。
     // Rc 共享: engine 工厂的 reinit 闭包重建 state 需要标签源 (Lang !Clone)
@@ -2534,7 +3030,17 @@ pub fn win32_thread_main(cfg: Win32ThreadConfig) {
     // WYSIWYG reinit 参数仓 (初始 = 注册快照投影; CONFIG_CHANGED 后
     // UiCommand::ReinitOverlays 覆写, 各 spec 工厂 reinit 闭包读取)
     let params = Rc::new(RefCell::new(vm_overlay::ReinitParams::from(&inputs)));
-    register_live_overlays(&mut host, &mut handles, &env, &inputs, &params, &lang, &shared);
+    register_live_overlays(
+        &mut host,
+        &mut handles,
+        &env,
+        &inputs,
+        &params,
+        &lang,
+        &shared,
+        &fm,
+        &fm_field_config,
+    );
     // live 喂入用设置快照 (注册面同源; ReinitOverlays 命令同步覆写 — MiniHUD
     // on_flight_data 的 settings 参数不再冻结在 spawn 时刻)
     let mut hud_settings = inputs.hud;
@@ -2571,6 +3077,33 @@ pub fn win32_thread_main(cfg: Win32ThreadConfig) {
     // 命令驱动建/撤 — OpenAll 建立, CloseAll 撤销, 对位 overlay 订阅生命周期) ----
     let mut flight_sub: Option<Subscription<FlightDataEvent>> = None;
     let (flight_tx, flight_rx) = std::sync::mpsc::channel::<EventPayload>();
+    // VoiceWarning 会话槽 (非窗口 overlay 条目: Java registerWithStrategy 的
+    // needsThread 形态 — openAll 建/closeAll 停; 激活策略与窗口条目同源探测)
+    let mut voice_warn: Option<VoiceWarnSession> = None;
+
+    // ---- FMUnpackedData 事件订阅 (Java FMUnpackedDataOverlay.init 的两处
+    // UIStateBus.subscribe: FM_OVERLAY_TOGGLE 翻转 / FM_CHANGED reload;
+    // overlays_field2.rs 头注契约 "由组装层的事件循环驱动" — 句柄 !Send (Rc),
+    // 经 channel 中转到本循环消费; 订阅句柄随线程 Drop = Java dispose 退订链) ----
+    let (fm_toggle_tx, fm_toggle_rx) = std::sync::mpsc::channel::<()>();
+    let _fm_toggle_sub = ui_bus.subscribe(move |ev: &UiStateEvent| {
+        if ev.event_type == ui_state_events::FM_OVERLAY_TOGGLE {
+            let _ = fm_toggle_tx.send(());
+        }
+    });
+    // FM_CHANGED 载荷 = FMHandle (fm_manager 强类型总线, Java instanceof 过滤由
+    // 类型免除)。blkx 深拷一次进通道 (FMHandle.blkx 值字段 → 句柄侧 Arc<Blkx>;
+    // 换机事件低频, 成本可忽略)
+    let (fm_blkx_tx, fm_blkx_rx) = std::sync::mpsc::channel::<Option<vm_core::blkx::Blkx>>();
+    let _fm_changed_sub = fm.fm_changed_bus().subscribe(move |h| {
+        let _ = fm_blkx_tx.send(h.blkx.clone());
+    });
+    // FMUnpackedData 的 run() 轮询泵 (Java BaseOverlay.run 线程的单线程驱动侧,
+    // 200ms 节流 + 可见门控 + 高度自适应, 见 FmUnpackedFeed 头注)
+    let mut fm_unpacked_feed = FmUnpackedFeed::new();
+    // DrawFrameSimpl 的 run() 循环泵 (Java :737-767: 1000ms 节流 + 自管可见性 +
+    // displayFmKey==0 收腿 10s 退场, 见 DrawFrameSimplFeed 头注)
+    let mut dfs_feed = DrawFrameSimplFeed::new();
 
     let mut last_render = Instant::now();
     loop {
@@ -2617,6 +3150,79 @@ pub fn win32_thread_main(cfg: Win32ThreadConfig) {
                     &mut attitude_feed,
                 );
             }
+            // FMUnpackedData 事件面 + run 泵 (Java: 游戏实例订阅 toggle/FM_CHANGED —
+            // initPreview 不订阅, 保持 fm_live 门控; run 线程 needsThread=true 两会话
+            // 均在跑 (OverlayManager.refreshPreview :326-331, 审查 B2-2 修正 — 原
+            // "预览实例无 run 线程" 为假前提), 泵不再门控, 仅条目未激活 (Java 无
+            // 实例 = host 槽位空) 时跳过。事件恒排空防积压跨会话误触发)
+            let fm_live = !shared.overlay_ctx_preview.load(Ordering::SeqCst);
+            while fm_toggle_rx.try_recv().is_ok() {
+                if fm_live {
+                    if let Some(h) = handles.fm_unpacked.as_ref() {
+                        h.borrow_mut().toggle(); // FM_OVERLAY_TOGGLE handler (:72-75)
+                    }
+                    // DrawFrameSimpl toggle handler (Java :526-529, 仅游戏 init 挂接 —
+                    // Java 双订阅方之二)
+                    if let Some(h) = handles.draw_frame_simpl.as_ref() {
+                        h.borrow_mut().toggle();
+                    }
+                }
+            }
+            while let Ok(blkx) = fm_blkx_rx.try_recv() {
+                if fm_live {
+                    if let Some(h) = handles.fm_unpacked.as_ref() {
+                        // FM_CHANGED handler reloadFMData (:130-136)
+                        h.borrow_mut().reload_fm_data(blkx.clone().map(Arc::new));
+                    }
+                }
+                // DrawFrameSimpl 的 FM_CHANGED (Java initFmHandleCache :79-88 被
+                // init 与 initPreview 共用) — 两会话均刷新缓存 (预览实例同样订阅,
+                // repaint 由渲染节拍脏检查承接)
+                if let Some(h) = handles.draw_frame_simpl.as_ref() {
+                    h.borrow_mut().reload_fm(blkx.map(Arc::new));
+                }
+            }
+            if host.is_active("enableFMPrint") {
+                if let Some(h) = handles.fm_unpacked.as_ref() {
+                    fm_unpacked_feed.pump(&mut host, "enableFMPrint", h, current_time_millis());
+                }
+            }
+            // DrawFrameSimpl run 泵: displayFmKey = Application.displayFmKey 的
+            // ControllerShared.flags 对位 (bind/handleFmHotkeyConfigChange 同步);
+            // flight = live Service 快照 (None = 预览无 Service — Java NPE 杀线程
+            // 的对位为冻结判定, 见 pump 头注)
+            if host.is_active("thrustdFS") {
+                if let Some(h) = handles.draw_frame_simpl.as_ref() {
+                    let display_fm_key = shared
+                        .flags
+                        .lock()
+                        .expect("flags 锁中毒")
+                        .current_fm_hotkey_code;
+                    let flight = shared
+                        .live
+                        .read()
+                        .expect("live 锁中毒")
+                        .as_ref()
+                        .map(|data| {
+                            let d = data.read().unwrap_or_else(|e| e.into_inner());
+                            // Java sState 恒非 null (Service 构造即建) — None 轮按
+                            // 缺省 0 (同 Java State 字段初值)
+                            DfsFlight {
+                                gear: d.s_state.as_ref().map(|s| s.gear).unwrap_or(0),
+                                speedv: d.speedv,
+                                throttle: d.s_state.as_ref().map(|s| s.throttle).unwrap_or(0),
+                            }
+                        });
+                    dfs_feed.pump(
+                        &mut host,
+                        "thrustdFS",
+                        h,
+                        current_time_millis(),
+                        display_fm_key,
+                        flight,
+                    );
+                }
+            }
         }
         // UI 命令 (生命周期/WYSIWYG 的 win32 属主面)
         while let Ok(cmd) = ui_cmd_rx.try_recv() {
@@ -2626,15 +3232,73 @@ pub fn win32_thread_main(cfg: Win32ThreadConfig) {
                     // P6 收口 (原审查 B-W3): live 喂入已覆盖全部 6 个窗口 overlay
                     // (feed_overlays_live — MiniHUD/PowerInfo/EngineControl/GearFlaps/
                     // ControlSurfaces/Attitude 共享句柄形态); FlightInfo 走 window.rs
-                    // 专径自接, thrustdFS 为 D8 降级尾巴。
+                    // 专径自接, thrustdFS 无 FlightDataBus 订阅 (事件面/run 泵在
+                    // 渲染节拍块驱动)。
                     shared.overlay_ctx_preview.store(false, Ordering::SeqCst); // for_live (Java forGameMode)
                     // 操纵面数据门控 (overlays_field2.rs PORT(数据门控)): Java init(S)
                     // 的 xs!=null 在此翻转 — openpad 即游戏形态 (has_service=true)
                     if let Some(h) = handles.control_surfaces.as_ref() {
                         h.borrow_mut().has_service = true;
                     }
+                    // FM拆包数据游戏形态 (Java init :57-94 的单实例对位):
+                    // :730 fmDataAdapter.setBlkx(current().blkx) + :64 isPreview=false
+                    // + :67 Game mode: initially hidden (表头谓词/setupFont 与
+                    // preview 形态同值, 免重设)
+                    if let Some(h) = handles.fm_unpacked.as_ref() {
+                        let mut fmov = h.borrow_mut();
+                        fmov.base.is_preview = false;
+                        fmov.visible = false;
+                        fmov.reload_fm_data(fm.current().blkx.clone().map(Arc::new));
+                    }
+                    // 推力曲线游戏形态 (Java init :514-528 的单实例对位):
+                    // initFmHandleCache (current 快照) + isPreview=false + 隐藏起步
+                    if let Some(h) = handles.draw_frame_simpl.as_ref() {
+                        h.borrow_mut().init(fm.current().blkx.clone().map(Arc::new));
+                    }
                     if let Err(e) = host.open_all() {
                         logger::error("OverlayHost", &format!("open_all: {}", e));
+                    }
+                    // Java init 末尾 setVisible(false): 窗口隐藏起步 (热键切换),
+                    // 免首个 tick (≤200ms) 前的可见闪现
+                    host.set_entry_visible("enableFMPrint", false);
+                    // DrawFrameSimpl 同理 (init 末 setVisible(true) 后 run 首轮即
+                    // 隐藏 — Java 有 ≤1 线程轮的闪现, 此处同 FMUnpacked 先例预消)
+                    host.set_entry_visible("thrustdFS", false);
+                    // VoiceWarning (非窗口条目): Java openAll 对 enableVoiceWarn 走
+                    // 同一 OverlayEntry.open — 激活探测 (config+live_only, 此刻
+                    // preview 已翻 false = forGameMode ctx) 命中即 init(this,S) +
+                    // 起告警线程 (100ms tick + fatalWarn 回写)。幂等守卫对位
+                    // Java "instance != null 跳过"
+                    if voice_warn.is_none() {
+                        let vctx = HostActivationCtx {
+                            activation: Arc::clone(&activation),
+                            fm: Arc::clone(&fm),
+                            shared: Arc::clone(&shared),
+                            debug: env.debug,
+                        };
+                        if strategy_for("enableVoiceWarn").should_activate(&vctx) {
+                            let live = shared.live.read().expect("live 锁中毒").clone();
+                            match open_voice_warning(
+                                &voice,
+                                &voice_bus,
+                                &voice_config,
+                                &fm,
+                                &flight_bus,
+                                live,
+                            ) {
+                                Some(s) => {
+                                    logger::info(
+                                        "OverlayManager",
+                                        "Started thread for: enableVoiceWarn",
+                                    );
+                                    voice_warn = Some(s);
+                                }
+                                None => logger::info(
+                                    "OverlayManager",
+                                    "Skipping open for enableVoiceWarn: no live Service",
+                                ),
+                            }
+                        }
                     }
                     let tx = flight_tx.clone();
                     let sub = flight_bus.register(move |ev: &FlightDataEvent| {
@@ -2660,9 +3324,18 @@ pub fn win32_thread_main(cfg: Win32ThreadConfig) {
                     // handle 跨 close 存活 (render 闭包持同一 Rc), 不重置则下次
                     // preview 窗渲染上次 live 残留值 (托盘 live→preview 复现)
                     reset_handles_preview_values(&handles);
+                    // 推力曲线 run 循环复位 (Java closeAll → 实例/线程销毁; 下次
+                    // open/refreshPreview 重建 — 自动退场后的重生入口)
+                    dfs_feed.reset();
                     host.close_all(); // close 销毁链 (存位置 → drop)
                     // Java overlay dispose → Bus.unregister (drop 槽位即退订)
                     drop(std::mem::take(&mut flight_sub));
+                    // VoiceWarning 停 (Java OverlayEntry.close: interrupt 告警线程;
+                    // Drop 兜底 = doit 翻 false + join, 双订阅同时被退订)
+                    if voice_warn.is_some() {
+                        logger::info("OverlayManager", "Closing overlay: enableVoiceWarn");
+                        voice_warn = None;
+                    }
                 }
                 UiCommand::RefreshPreviews {
                     changed_key,
@@ -2681,6 +3354,33 @@ pub fn win32_thread_main(cfg: Win32ThreadConfig) {
                     // 改为激活探测期临时置 preview, 完毕恢复会话窗口形态
                     // (openpad→false / CloseAll/重建核→true)。
                     let session_preview = shared.overlay_ctx_preview.swap(true, Ordering::SeqCst);
+                    // ---- voice_warn 条目的 refreshPreview 重估面 (审查 W1 修复) ----
+                    // Java refreshPreviews 对触达条目调 entry.refreshPreview
+                    // (forPreviewMode ctx): shouldBeOpen = config &&
+                    // gameModeOnly, preview ctx 下 gameModeOnly=false → 在场
+                    // 即 close (关开关即时生效, Controller.java:498-536 →
+                    // OverlayManager.java:320-340)。Rust 原实现只走 host 窗口
+                    // 条目, voice_warn 无重估面 — 关掉开关后告警继续响到会话
+                    // 结束 (CloseAllOverlays 才停), 用户可感知偏差。补齐: 探测
+                    // 窗口内 (preview=true → live_only=false, 与 Java forPreviewMode
+                    // 下 gameModeOnly=false 同源) 对触达键在场即停。
+                    // 开方向不重建 — Java preview-ctx 下 shouldBeOpen 恒 false
+                    // 同样不 open (怪癖保真), 重起等下次 OpenAllOverlays。
+                    if voice_warn.is_some() && voice_warn_refresh_reaches(changed_key.as_deref()) {
+                        let vctx = HostActivationCtx {
+                            activation: Arc::clone(&activation),
+                            fm: Arc::clone(&fm),
+                            shared: Arc::clone(&shared),
+                            debug: env.debug,
+                        };
+                        if !strategy_for("enableVoiceWarn").should_activate(&vctx) {
+                            logger::info(
+                                "OverlayManager",
+                                "Closing overlay (inactive strategy): enableVoiceWarn",
+                            );
+                            voice_warn = None; // Drop → stop (doit 翻 false + join), 订阅退订兜底
+                        }
+                    }
                     let r = match changed_key.as_deref() {
                         Some(k) => host.refresh_preview_key(Some(k)), // Java refreshPreviews(key)
                         None => host.refresh_preview(),               // Java refreshAllPreviews

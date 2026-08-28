@@ -25,12 +25,18 @@ pub enum RequestKind {
     FormMessage(FormMessageDto),
     /// 语音包列表 (voice/ 目录扫描, Java get_available_packs 语义; 阶段③)
     GetVoicePacks,
+    /// 试听语音 (Java VoiceRowRenderer 播放按钮: loadClip + setFramePosition(0) +
+    /// start, 忽略 enable 态; key = 配置键 voice_<alert>, pack = 当前选中包)
+    PreviewVoice { key: String, pack: String },
     /// FM 列表 (fm_dir 扫描 .blkx 文件名; 阶段③ FMLIST 行)
     GetFmList,
     /// 导入外部配置 (备份+模板哈希合并, Java ConfigImportDialog; 阶段③)
     ImportConfig { path: String },
     /// 资产根目录绝对路径 (desc-img 图片气泡经 asset protocol 加载, 阶段③)
     GetAssetRoot,
+    /// 打开对比 web 窗口 (批3: FMLIST 行 对比按钮 — Java FMListRowRenderer View,
+    /// 选中机型单机视图 fm1=None; 窗口创建必须主线程, 故走 dispatcher 而非直算)
+    OpenComparisonWindow { fm0: String, fm1: Option<String> },
 }
 
 /// 一条 IPC 请求 (含回执通道; 单向通知类 reply=None)
@@ -51,6 +57,9 @@ pub enum IpcReply {
 pub struct FormRuntime {
     /// 前端就绪时刻 (UiReady 首次到达)
     pub web_ready_at: Option<Instant>,
+    /// Tauri AppHandle (批3: ShellForm 构造期注入 — dispatcher 开辅助 web 窗口
+    /// 用; 窗口创建必须主线程, dispatcher 恰在主线程泵内执行, 无死锁面)
+    pub app_handle: Option<tauri::AppHandle<tauri::Wry>>,
 }
 
 /// 请求执行体 (纯函数, 主线程调用; 单测不开 webview)。
@@ -73,9 +82,11 @@ pub fn dispatch(kind: RequestKind, rt: &mut FormRuntime) -> IpcReply {
         | RequestKind::GetComboOptions { .. }
         | RequestKind::FormMessage(_)
         | RequestKind::GetVoicePacks
+        | RequestKind::PreviewVoice { .. }
         | RequestKind::GetFmList
         | RequestKind::ImportConfig { .. }
-        | RequestKind::GetAssetRoot => {
+        | RequestKind::GetAssetRoot
+        | RequestKind::OpenComparisonWindow { .. } => {
             IpcReply::Err("壳形态 dispatcher 不支持数据面请求 (应由 vm-app 注入)".to_string())
         }
     }
@@ -124,6 +135,8 @@ mod tests {
             RequestKind::GetLayoutTree,
             RequestKind::GetComboOptions { source: "_FONTS_".into(), current: "x".into() },
             RequestKind::FormMessage(crate::dto::FormMessageDto::Save),
+            // 批3: 开窗请求同样依赖注入侧 AppHandle (壳形态无 webview 可开)
+            RequestKind::OpenComparisonWindow { fm0: "a_4h".into(), fm1: None },
         ];
         for c in cases {
             match dispatch(c, &mut rt) {

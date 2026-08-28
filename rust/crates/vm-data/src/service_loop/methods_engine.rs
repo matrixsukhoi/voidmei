@@ -810,9 +810,11 @@ mod tests {
             println!("SKIP: data/ 真机 FM 缺失");
             return;
         }
-        // DATA_ROOT 注入 (fm_data_paths 测试钩子; vm-data 测试二进制内无其它
-        // DATA_ROOT 行为敏感读者 —— identify 缺机型在 "./data" 与注入根下同为
-        // MISSING, 进程内并行安全)
+        // DATA_ROOT 注入 (fm_data_paths 测试钩子)。原注"进程内并行安全"不成立
+        // (workspace 全量并行复现 flake): format_strings 的 nitro 场景并行注入
+        // tmp 根/复位会覆盖本注入 — 持串行锁互斥 (见 lib.rs DATA_ROOT_TEST_LOCK)
+        let _root_guard =
+            crate::DATA_ROOT_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         vm_core::fm::fm_data_paths::set_data_root(&root);
         let fm = vm_core::fm::fm_loader::load(Some("spitfire_f24"));
         let Some(blkx) = fm.blkx.as_ref() else {

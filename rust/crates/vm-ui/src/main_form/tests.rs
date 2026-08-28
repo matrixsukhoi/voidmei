@@ -14,8 +14,9 @@ const TEST_CFG: &str = r#"(panel "面板A" :panel-columns 2
 )"#;
 
 fn tmp_path(name: &str) -> String {
+    // 掺 PID: 防两个测试进程并发跑时同名临时文件 truncate/read 竞争
     std::env::temp_dir()
-        .join(format!("vm_ui_main_form_{name}.cfg"))
+        .join(format!("vm_ui_main_form_{}_{name}.cfg", std::process::id()))
         .to_str()
         .unwrap()
         .to_string()

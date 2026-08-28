@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/schema.json",
   "identifier": "default",
-  "description": "主窗口默认权限: 核心 API (事件) + 文件选择框 (importConfig) + 自绘标题栏窗口操作 (拖拽/最小化/隐藏)",
+  "description": "主窗口默认权限: 核心 API (事件) + 文件选择框 (importConfig) + 自绘标题栏窗口操作 (拖拽/最小化/隐藏) + checkUpdate 网络/开链 (按域收口)",
   "windows": ["main"],
   "permissions": [
     "core:default",
@@ -10,6 +10,13 @@
     "core:window:allow-hide",
     "core:window:allow-start-dragging",
     "core:window:allow-set-size",
-    "core:app:allow-version"
+    {
+      "identifier": "http:default",
+      "allow": [{ "url": "https://api.github.com/*" }]
+    },
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [{ "url": "https://github.com/matrixsukhoi/voidmei/releases*" }]
+    }
   ]
 }

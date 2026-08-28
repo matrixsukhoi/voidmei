@@ -6,6 +6,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   browserCodeToVc,
+  extractLatestVersion,
+  hasNewerVersion,
   normalizeDescImg,
   parseColorValue,
   parseVoicePackValue,
@@ -76,15 +78,19 @@ describe('normalizeDescImg (ReplicaBuilder.java:625 同语义)', () => {
   })
 })
 
-describe('parseVoicePackValue (VoicePackConfig.parse 语义)', () => {
+describe('parseVoicePackValue (VoicePackConfig.parse 语义, 分隔符 |)', () => {
   it('空值/null 回退 default', () => {
     expect(parseVoicePackValue('')).toBe('default')
     expect(parseVoicePackValue(null)).toBe('default')
     expect(parseVoicePackValue(undefined)).toBe('default')
   })
-  it('"pack:enabled" 取 pack 段', () => {
-    expect(parseVoicePackValue('jarvis:true')).toBe('jarvis')
+  it('"pack|enabled" 取 pack 段 (Java toConfigString 格式)', () => {
+    expect(parseVoicePackValue('jarvis|true')).toBe('jarvis')
+    expect(parseVoicePackValue('jarvis|false')).toBe('jarvis')
+  })
+  it('裸包名原样; 空包段回退 default (Java 构造器 isEmpty→default)', () => {
     expect(parseVoicePackValue('default')).toBe('default')
+    expect(parseVoicePackValue('|true')).toBe('default')
   })
 })
 
@@ -108,5 +114,40 @@ describe('VC 键码转换 (evdev 域; VC_P=25)', () => {
     expect(vcToKeyName(1)).toBe('Esc')
     expect(vcToKeyName(0)).toBeNull()
     expect(vcToKeyName(9999)).toBeNull()
+  })
+})
+
+describe('extractLatestVersion (Application.java:464-472 逐句对位)', () => {
+  it('典型 GitHub 响应: tag_name 段截取 + 正则提取', () => {
+    // 真实 releases/latest 响应形态 (字段顺序: url ... html_url ... tag_name ...)
+    const res = `{"url":"https://api.github.com/repos/matrixsukhoi/voidmei/releases/1",
+      "html_url":"https://github.com/matrixsukhoi/voidmei/releases/tag/1.590",
+      "tag_name": "1.590","target_commitish":"master","name":"v1.590"}`
+    expect(extractLatestVersion(res)).toBe('1.590')
+  })
+  it('v 前缀 tag: 正则跳过非数字前缀取数字段 (Java [0-9].([0-9])* 同源)', () => {
+    expect(extractLatestVersion(`{"tag_name":"v2.01","draft":false}`)).toBe('2.01')
+  })
+  it('无 tag_name → null (Java indexOf=-1, substring 抛异常被线程池吞 = 静默)', () => {
+    expect(extractLatestVersion('{"message":"Not Found"}')).toBeNull()
+  })
+  it('tag_name 后无逗号 → null (Java substring(sidx,-1) 抛异常面)', () => {
+    expect(extractLatestVersion('{"tag_name":"1.590"')).toBeNull()
+  })
+  it('tag_name 段无数字 → null (m.find()==false 分支)', () => {
+    expect(extractLatestVersion('{"tag_name":"beta","x":1}')).toBeNull()
+  })
+})
+
+describe('hasNewerVersion (Double.parseDouble 数值比较, Application.java:474)', () => {
+  it('数值比较非字符串比较: 2.0 < 10.0', () => {
+    expect(hasNewerVersion('2.0', '10.0')).toBe(true)
+  })
+  it('尾零等值: 1.590 与 1.59 数值相等 → 不弹窗', () => {
+    expect(hasNewerVersion('1.590', '1.59')).toBe(false)
+  })
+  it('旧 < 新 / 旧 > 新', () => {
+    expect(hasNewerVersion('1.589', '1.590')).toBe(true)
+    expect(hasNewerVersion('1.591', '1.590')).toBe(false)
   })
 })

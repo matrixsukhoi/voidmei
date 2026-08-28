@@ -18,8 +18,10 @@
 
 pub mod bridge;
 pub mod commands;
+pub mod commands_windows;
 pub mod dto;
 pub mod ipc;
+pub mod web_windows;
 
 use std::sync::mpsc;
 use std::time::Instant;
@@ -52,6 +54,10 @@ impl ShellForm {
         let (tx, rx) = mpsc::channel::<IpcRequest>();
         let mut app = tauri::Builder::default()
             .plugin(tauri_plugin_dialog::init())
+            // checkUpdate 的 GitHub API 请求 (前端 fetch; capabilities 限 api.github.com)
+            .plugin(tauri_plugin_http::init())
+            // 更新弹窗链接 → 系统浏览器 (Java Desktop.browse; scope 限 releases 页)
+            .plugin(tauri_plugin_opener::init())
             .manage(commands::IpcState { tx })
             .invoke_handler(tauri::generate_handler![
                 commands::ping,
@@ -61,19 +67,39 @@ impl ShellForm {
                 commands::get_combo_options,
                 commands::form_message,
                 commands::get_voice_packs,
+                commands::preview_voice,
                 commands::get_fm_list,
                 commands::import_config,
-                commands::get_asset_root
+                commands::get_asset_root,
+                commands::get_app_version,
+                // 批3: FMLIST 行 对比按钮 → 对比 web 窗口 (经主线程 dispatcher 开窗)
+                commands::open_comparison_window,
+                // P6 web 窗口域 (对比/功率曲线/飞行记录/机型选择; 直连 vm-core,
+                // 不经主线程 dispatcher — 见 commands_windows 模块头)
+                commands_windows::comparison_data,
+                commands_windows::power_curve_data,
+                commands_windows::flight_record_data,
+                commands_windows::fm_list,
+                // 托盘关于 Modal 关闭回执 (bridge.rs; 审查 B1 — 恢复 InGame 收窗)
+                bridge::about_modal_closed
             ])
             // 窗口 X = 退出 VoidMei (对位 Java MainForm.java:374
             // setDefaultCloseOperation(3)=EXIT_ON_CLOSE)。prevent_close 防
             // WebView2 默认销毁破坏常驻壳; hide 给即时视觉反馈, emit 交前端走
-            // EndGame 干净退出链 (saveConfig + 主循环收尾, 覆盖 ✕/Alt+F4/任务栏关闭)
+            // EndGame 干净退出链 (saveConfig + 主循环收尾, 覆盖 ✕/Alt+F4/任务栏关闭)。
+            // 审查 W1: 按 label 分流 — 仅 main 的 X 转退出链; 阶段④ 辅助窗
+            // (对比/功率曲线/飞行记录) 的 X = 销毁 (对位 Java JDialog dispose),
+            // 不分流则未来任何新窗口的 X 都会退出整个应用 (新 label 的
+            // capabilities 补配归阶段④ 开窗批)
             .on_window_event(|window, event| {
                 if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                     api.prevent_close();
-                    let _ = window.hide();
-                    let _ = window.emit("quit-requested", ());
+                    if window.label() == MAIN_LABEL {
+                        let _ = window.hide();
+                        let _ = window.emit("quit-requested", ());
+                    } else {
+                        let _ = window.destroy();
+                    }
                 }
             })
             .build(tauri::generate_context!())
@@ -81,11 +107,14 @@ impl ShellForm {
         // 隐藏窗口后台预热: WebView2 就绪/前端 dist 加载在 build 后首轮泵中推进,
         // 不阻塞调用方 (首启 1-3s 与 FM-Detect 并行, D9 决策)
         let _ = &mut app;
+        // 批3: dispatcher 开辅助 web 窗口用的 AppHandle (主线程同步建窗, 见 web_windows)
+        let mut rt = FormRuntime::default();
+        rt.app_handle = Some(app.handle().clone());
         Ok(ShellForm {
             app,
             rx,
             dispatcher,
-            rt: FormRuntime::default(),
+            rt,
             echo_at: None,
         })
     }

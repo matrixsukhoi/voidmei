@@ -76,6 +76,16 @@ pub async fn get_voice_packs(state: tauri::State<'_, IpcState>) -> Result<Value,
     roundtrip(&state.tx, RequestKind::GetVoicePacks).await
 }
 
+/// 试听语音 (Java VoiceRowRenderer.java:126-136 播放按钮; key=voice_<alert> 配置键)
+#[tauri::command]
+pub async fn preview_voice(
+    state: tauri::State<'_, IpcState>,
+    key: String,
+    pack: String,
+) -> Result<Value, String> {
+    roundtrip(&state.tx, RequestKind::PreviewVoice { key, pack }).await
+}
+
 /// FM 列表 (阶段③ FMLIST 行)
 #[tauri::command]
 pub async fn get_fm_list(state: tauri::State<'_, IpcState>) -> Result<Value, String> {
@@ -92,4 +102,30 @@ pub async fn import_config(state: tauri::State<'_, IpcState>, path: String) -> R
 #[tauri::command]
 pub async fn get_asset_root(state: tauri::State<'_, IpcState>) -> Result<Value, String> {
     roundtrip(&state.tx, RequestKind::GetAssetRoot).await
+}
+
+/// 打开对比 web 窗口 (批3 FMLIST 行 对比按钮 — Java FMListRowRenderer View:
+/// 选中机型单机视图 fm1=None)。经 mpsc → 主线程 dispatcher 执行 (窗口创建必须
+/// 主线程, W1 直算先例不适用)
+#[tauri::command]
+pub async fn open_comparison_window(
+    state: tauri::State<'_, IpcState>,
+    fm0: String,
+    fm1: Option<String>,
+) -> Result<Value, String> {
+    roundtrip(&state.tx, RequestKind::OpenComparisonWindow { fm0, fm1 }).await
+}
+
+/// 应用版本号 (Java Application.readVersion, Application.java:442-449):
+/// MANIFEST Implementation-Version ↔ 构建期 VOIDMEI_VERSION 环境变量注入
+/// (build.py jar / CI 从 git tag 提取同源); 未注入 = 本地开发形态 → "dev"
+/// (checkUpdate 的 dev 守卫以此判定, 标题栏版本同源)。
+pub fn app_version() -> &'static str {
+    option_env!("VOIDMEI_VERSION").unwrap_or("dev")
+}
+
+/// 版本号查询 (静态值, 无需 IPC roundtrip — 不经主线程 dispatcher)
+#[tauri::command]
+pub fn get_app_version() -> String {
+    app_version().to_string()
 }

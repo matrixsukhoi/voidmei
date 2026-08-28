@@ -285,8 +285,12 @@ fn quote_and_is_numeric_edges() {
 // ---- load/save: 文件级 ----
 
 fn tmp(name: &str) -> String {
+    // 掺 PID: 固定名文件在两个测试进程并发跑同一套测试时会互踩
+    // (A 进程 fs::write truncate 与 B 进程 read 竞争 → B 读到截断/空文件,
+    // 解析组数断言假失败 — 实测于双 cargo test 并行场景, 同 vm_core_vrm
+    // 残留缺陷的姊妹面)
     std::env::temp_dir()
-        .join(format!("vm_core_config_loader_{name}"))
+        .join(format!("vm_core_config_loader_{}_{name}", std::process::id()))
         .to_str()
         .unwrap()
         .to_string()

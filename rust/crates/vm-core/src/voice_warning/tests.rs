@@ -1093,12 +1093,20 @@ fn run_loop_ticks_and_exits_on_stop() {
         let _ = tx.send(());
     });
 
-    // 启动延迟 1s + 至少一个 100ms tick
-    std::thread::sleep(Duration::from_millis(1500));
-    assert!(
-        svc.data.lock().unwrap().fatal_warn.is_some(),
-        "至少一轮 tick 应写 fatalWarn"
-    );
+    // 启动延迟 1s + 至少一个 100ms tick。轮询等待而非固定 sleep(1500):
+    // 理论 1.1s 出结果但断言余量仅 ~400ms, 线程调度重负载下间歇假失败
+    // (审查轮 A-W 复现面) — 轮询超时 8s 是等待手法的鲁棒化, 断言语义不变
+    let deadline = Instant::now() + Duration::from_secs(8);
+    loop {
+        if svc.data.lock().unwrap().fatal_warn.is_some() {
+            break;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "8s 内至少一轮 tick 应写 fatalWarn (线程未打点 = 行为缺失)"
+        );
+        std::thread::sleep(Duration::from_millis(25));
+    }
 
     doit.store(false, Ordering::SeqCst); // ≈ Java OverlayEntry.close 的 interrupt
     let done = rx.recv_timeout(Duration::from_secs(2));

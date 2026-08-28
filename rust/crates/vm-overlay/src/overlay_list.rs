@@ -331,6 +331,14 @@ impl BaseListOverlay {
         }
     }
 
+    /// lastData 清空 — PORT: Java `protected List<String> lastData` 的子类可达面
+    /// (组合形态下私有字段经本方法开放)。closeAll 后 preview 重开的"新实例
+    /// lastData=null 空面板"语义 (FMUnpackedData reset_preview 消费): 不清则预览
+    /// 窗渲染上次 live 行
+    pub fn clear_last_data(&mut self) {
+        self.last_data = None;
+    }
+
     /// adjustPosition (BaseOverlay.java:272-284):
     /// preferred = dataPanel preferred 高 (行数 × 行高); 超过 logicalHeight-40 钳制;
     /// 与当前高差 >2px 才 setSize (宽恒定, 位置由 OverlaySettings 管理)。

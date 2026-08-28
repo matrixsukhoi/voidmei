@@ -3,13 +3,16 @@
 //! iced 走 tiny-skia 纯 CPU 软渲染, D1 决策本身即 GPU 兼容哲学)。
 //!
 //! Java Application.main (Application.java:534-604) 启动序对位:
-//! 1. Logger 级别 (debug 标志)        → `--debug` 参数 (Java: Application.debug 静态)
+//! 1. Logger 级别 (debugLog||debug → DEBUG, :539-543) → `--debug` 参数 +
+//!    cfg 键 debugLog (`read_debug_log_flag`); debugLog 重定向
+//!    (output.log/error.log, :550-553) 同源
 //! 2. Lang.initLang + 端口/屏幕探测    → `AppShell::new` → `Env::probe`
 //! 3. initFont (字体)                 → Env.fonts_dir → win32 线程 (D8: 字体→win32)
 //! 4. initSystemTray                  → win32 线程内 (D8 单泵共享)
 //! 5. SwingUtilities.invokeLater(EDT): initWebLaf + `new Controller(true)` + checkUpdate
-//!    → 主线程组装: rebuild_controller(true) (AppShell::new 内) + iced MainForm。
-//!    (checkUpdate 的更新检查未移植 — 网络面 P6 收口, TODO(port))
+//!    → 主线程组装: rebuild_controller(true) (AppShell::new 内) + web MainForm;
+//!    checkUpdate → 前端 (web 就绪后异步一次, web/src/dialogs.tsx 的
+//!    VersionChecker; 版本源 get_app_version 命令, dev 守卫同 Java)。
 //!
 //! 相位主循环 (D9 后为 web 壳单循环; 原 iced 相 A/B 已合并, 见 desktop_main 注):
 //! - 主线程: `shell.pump()` + `ShellForm::pump_once()` (tao 事件 + IPC) +
@@ -52,15 +55,27 @@ fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let debug = args.iter().any(|a| a == "--debug");
 
-    // Java Application.main:541-546 Logger 级别 (debugLog||debug → DEBUG, 否则 INFO)
-    // TODO(port) (P6 日志族, 审查 A-W5): debugLog=true 时 stdout/stderr 重定向
-    // (Application.setDebugLog/setErrLog → ./output.log ./error.log, :550-553)
-    // 未移植 — Rust Logger 出文件面后接。
-    logger::set_min_level(if debug {
+    // Java Application.main:539-543 Logger 级别: debugLog || debug → DEBUG, 否则
+    // INFO。debugLog 是 cfg 键 (批3裁决配置化, 缺省 false), 须先读配置再定级 —
+    // 审查 A1: 原实现漏并 ||, cfg 键 debugLog=true 时仅重定向日志文件而级别仍
+    // INFO (output.log 缺 DEBUG 行)。先读后判的代价: 配置装载期的日志行走默认
+    // INFO 级 (Java 读的是编译期静态, 无此面; 仅丢装载期的 debug 行, 可接受)
+    let debug_log = read_debug_log_flag();
+    logger::set_min_level(if debug || debug_log {
         logger::Level::Debug
     } else {
         logger::Level::Info
     });
+
+    // Java Application.main:550-553: debugLog → setDebugLog("./output.log") +
+    // setErrLog("./error.log") (System.setOut/setErr 重定向)。重定向须赶在任何
+    // Logger 输出前 — read_debug_log_flag 独立轻装载配置树读键 (AppShell 随后
+    // 完整装载; initialize 幂等: 首跑拷模板+存哈希, 二次装载哈希命中跳过合并,
+    // 无双写副作用)。
+    if debug_log {
+        logger::set_debug_log("./output.log");
+        logger::set_err_log("./error.log");
+    }
 
     let code = if args.iter().any(|a| a == "--mock-smoke") {
         mock_smoke_main(debug)
@@ -144,10 +159,44 @@ fn desktop_main(debug: bool) -> i32 {
         )
     });
 
+    // config_manager 弹窗桥 (ConfigManager.java:425-477): ParseError/MergeReport →
+    // 前端 config-dialog 事件 → Modal.error / Modal.info。sink 覆盖式单装 (Mutex);
+    // 启动早期 (AppShell::new 的配置装载先于本点, 首跑合并报告常见于此) 的弹窗
+    // 走 config_manager 内的日志兜底 — 语义不丢; 托盘重建核的后续装载经此达前端
+    if let Some(f) = form.as_ref() {
+        let handle = f.app_handle();
+        let sink: std::sync::Arc<dyn Fn(&vm_core::config_manager::ConfigDialog) + Send + Sync> =
+            std::sync::Arc::new(move |d: &vm_core::config_manager::ConfigDialog| {
+                let lang = vm_core::lang::Lang::init_lang();
+                let payload = match d {
+                    vm_core::config_manager::ConfigDialog::ParseError => {
+                        vm_webui::bridge::ConfigDialogPayload {
+                            kind: "parse-error",
+                            title: lang.m_config_error_title.to_string(),
+                            message: lang.m_config_error_content.to_string(),
+                        }
+                    }
+                    vm_core::config_manager::ConfigDialog::MergeReport(message) => {
+                        vm_webui::bridge::ConfigDialogPayload {
+                            kind: "merge-report",
+                            title: lang.m_config_merged_title.to_string(),
+                            message: message.clone(),
+                        }
+                    }
+                };
+                if let Err(e) = tauri::Emitter::emit(&handle, "config-dialog", payload) {
+                    logger::warn("ConfigManager", &format!("弹窗事件发送失败: {e}"));
+                }
+            });
+        vm_core::config_manager::set_config_dialog_sink(sink);
+    }
+
     // Java Controller(true) 的自启动分支 (autoStartGameMode=true): 不显设置窗
     // (UI_READY 不发布, live 模式不被 Preview 翻转)。仅 desktop 形态首迭代判定
     let mut first_iteration = true;
     let mut initial_shown = false;
+    // W2: 启动期 (sink 安装前) config 弹窗缓存的回放是否已尝试 (web 就绪后一次)
+    let mut startup_dialog_replayed = false;
     // StatusBar 面: 核状态变化 → 前端 controller-state (Init/Preview/Connected/InGame)
     let mut last_state = String::new();
     loop {
@@ -196,12 +245,53 @@ fn desktop_main(debug: bool) -> i32 {
         // StatusBar: 核状态变化 → 前端 controller-state
         if state_str != last_state {
             last_state = state_str.clone();
-            // form 此处为 &mut ShellForm (as_mut 解构); 方法调用自动可变降级
-            let _ = form.app_handle().emit("controller-state", state_str);
+            // form 此处为 &mut ShellForm (as_mut 解构); 方法调用自动可变降级。
+            // 审查 W4: 静默吞 emit 失败 → 徽标失更新无自愈, 至少留告警面
+            if let Err(e) = form.app_handle().emit("controller-state", state_str) {
+                logger::warn("App", &format!("controller-state 事件发送失败: {e}"));
+            }
+        }
+
+        // W2: 启动期 (sink 安装前) 的 config 弹窗缓存回放 — 等到 web 就绪
+        // (前端 config-dialog 监听已注册, 见 App.tsx 就绪序: 监听注册 → ui_ready)
+        // 再经 sink 补发, 一次即止 (首启模板升级的合并报告由此达用户)
+        if !startup_dialog_replayed && form.is_web_ready() {
+            startup_dialog_replayed = true;
+            if vm_core::config_manager::replay_pending_config_dialog() {
+                logger::info("App", "启动期配置弹窗已补发前端 (web 就绪)");
+            }
         }
 
         if exit {
             break; // EndGame (mCancel IPC, 阶段②接线) / 托盘 Exit
+        }
+
+        // 托盘"关于" (Application.java:236-245 三段 showAbout) → 前端 About Modal。
+        // Java 的通知弹窗独立于 MainForm 可见性; web 形态 Modal 寄居设置窗 —
+        // 窗隐藏期 (托盘驻留常态) 连带 show 设置窗, 否则 Modal 落在不可见窗内。
+        // B1 修复: emit 前标记 Modal 展示期 (仅 web 就绪时 — 冷启动期前端监听
+        // 未注册, 事件会丢且标记无人清, 不标记防 InGame 恒不收窗), 下方 InGame
+        // 收窗分支凭标记豁免; 前端 Modal 关闭回执 (about_modal_closed 命令)
+        // 或 60s 上界清除标记
+        if shell.lock().expect("AppShell 锁中毒").take_about_request() {
+            if form.is_web_ready() {
+                vm_webui::bridge::set_about_modal_open(true);
+            }
+            let lang = vm_core::lang::Lang::init_lang();
+            let payload = vm_webui::bridge::AboutPayload {
+                version: vm_webui::commands::app_version().to_string(),
+                contents: [
+                    lang.aboutcontent.to_string(),
+                    lang.aboutcontentsub1.to_string(),
+                    lang.aboutcontentsub2.to_string(),
+                ],
+            };
+            if let Err(e) = form.app_handle().emit("about-requested", payload) {
+                logger::warn("App", &format!("about 事件发送失败: {e}"));
+            }
+            if !form.is_main_visible() {
+                form.show();
+            }
         }
 
         let visible = form.is_main_visible();
@@ -221,8 +311,11 @@ fn desktop_main(debug: bool) -> i32 {
             form.show();
             initial_shown = true;
             publish_ui_ready(&ui_bus);
-        } else if visible && in_game {
-            // 开始 (托盘 Start / StartGame; mStart): 收窗, 对位 confirm 的 setVisible(false)
+        } else if visible && in_game && !vm_webui::bridge::about_modal_open() {
+            // 开始 (托盘 Start / StartGame; mStart): 收窗, 对位 confirm 的
+            // setVisible(false)。About Modal 展示期豁免 (B1): Java 通知弹窗独立
+            // 于 MainForm 可见性, 游戏中托盘"关于"恒可读 — Modal 关闭回执/超时
+            // 清标记后下一轮恢复收窗
             form.hide();
         }
 
@@ -243,6 +336,18 @@ fn publish_ui_ready(bus: &Arc<EventBus<UiStateEvent>>) {
         source: "MainForm".to_string(),
         data: String::new(),
     });
+}
+
+/// debugLog cfg 键读取 (Java Application.debugLog 静态开关的配置化, 缺省 false)。
+/// 值域 = switch 行的 "true"/"false" 字符串 — Boolean.parseBoolean 语义
+/// (equalsIgnoreCase("true"), 其余恒 false)
+fn read_debug_log_flag() -> bool {
+    use vm_core::config_api::ConfigProvider as _;
+    let cs = vm_core::configuration_service::ConfigurationService::new(None);
+    cs.init_config();
+    cs.get_config("debugLog")
+        .unwrap_or_default()
+        .eq_ignore_ascii_case("true")
 }
 
 // =====================================================================
@@ -359,8 +464,11 @@ fn mock_smoke_main(debug: bool) -> i32 {
     if frames == 0 {
         return fail("overlay present 帧数为 0 (窗口未开/渲染未跑)".to_string());
     }
-    // live 模式注册全集 (register_live_overlays 的 7 键; 缺键 = 注册失败)
-    const LIVE_OVERLAYS: [&str; 7] = [
+    // live 模式注册全集 (register_live_overlays 的 8 键; 缺键 = 注册失败)。
+    // enableFMPrint 默认开 (ui_layout.cfg:262 :value true) → 窗口条目在场;
+    // 游戏形态隐藏起步 (FMUnpackedData 自管可见性) 不影响 present 计数
+    // (active 判定 = 槽位存在, 渲染节拍照常)
+    const LIVE_OVERLAYS: [&str; 8] = [
         "enableEngineControl",
         "engineInfoSwitch",
         "crosshairSwitch",
@@ -368,6 +476,7 @@ fn mock_smoke_main(debug: bool) -> i32 {
         "enableAxis",
         "enableAttitudeIndicator",
         "flightInfoSwitch",
+        "enableFMPrint",
     ];
     let mut missing = Vec::new();
     let mut zero = Vec::new();
@@ -381,6 +490,14 @@ fn mock_smoke_main(debug: bool) -> i32 {
     if !missing.is_empty() || !zero.is_empty() {
         return fail(format!(
             "逐 overlay present 断言不过 (注册缺失: {missing:?}; present=0: {zero:?}; 全量计数 {overlay_counts:?})"
+        ));
+    }
+    // thrustdFS (DrawFrameSimpl, 本批注册面新增): 注册键必须落位; present 计数
+    // 可为 0 — 激活策略 enableFMPrint && jetOnly, 冒烟场景 s2 的 p-51d 为螺旋桨
+    // (is_jet=false 不激活, Java 同形态不建窗)
+    if !overlay_counts.contains_key("thrustdFS") {
+        return fail(format!(
+            "thrustdFS 注册缺失 (DrawFrameSimpl spec 工厂失败? 全量计数 {overlay_counts:?})"
         ));
     }
     println!("[mock-smoke] PASS: Service 收数 + present 帧数 = {frames} (逐 overlay: {overlay_counts:?})");

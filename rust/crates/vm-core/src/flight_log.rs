@@ -876,10 +876,11 @@ impl FlightLog {
 	/// 实际 tick 由 Service 轮询线程直调 logTick) — 保真翻译, 保留备用。
 	/// PORT: Java 直接读 xs 公有字段 (与 Service 线程共享实例); D6 边界下以快照源
 	/// 闭包代餐。ExceptionHelper.sleepQuietly(5) 的中断→吞掉→重查 logon 语义, 由
-	/// 停机标志版 sleep_quietly(&logon) 等价复刻 (§2.13: 提前返回后 while 重查)。
+	/// 运行极性版 sleep_while_run(&logon) 等价复刻 (§2.13: logon 是 true=运行,
+	/// 直传 stop 语义的 sleep_quietly 会立即返回 → 热自旋; 备案收口修复)。
 	pub fn run(&mut self, xs_source: &(dyn Fn() -> FlightLogSnapshot + Sync)) {
 		while self.logon.load(Ordering::SeqCst) {
-			crate::exception_helper::sleep_quietly(&self.logon, 5);
+			crate::exception_helper::sleep_while_run(&self.logon, 5);
 			while self.doit.load(Ordering::SeqCst) {
 				self.log_tick(&xs_source());
 				self.doit.store(false, Ordering::SeqCst); // 写完后关闭

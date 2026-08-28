@@ -364,9 +364,10 @@ impl OtherService {
 		while self.is_run.load(Ordering::SeqCst) {
 			// 500毫秒执行一次
 			// PORT §2.13: Thread.sleep(500) + InterruptedException→break ⇒
-			// 停机标志分片睡眠, 提前返回后 while 重查 is_run 退出 (标志保持
-			// 置位 = Java 恢复中断语义)
-			exception_helper::sleep_quietly(&self.is_run, 500);
+			// 运行标志极性睡眠 (is_run 是 true=运行, 直传 stop 语义的
+			// sleep_quietly 会立即返回 → 热自旋; 备案收口修复), 睡眠中
+			// is_run 翻 false 提前返回, while 重查退出
+			exception_helper::sleep_while_run(&self.is_run, 500);
 			// 取得地图数据
 			// Application.debugPrint("正在处理地图数据");
 			self.enemycount = 0;

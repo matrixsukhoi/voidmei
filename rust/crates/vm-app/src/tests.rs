@@ -1052,6 +1052,20 @@ fn tray_activate_requests_main_form() {
     );
 }
 
+/// 托盘 About 置关于请求位 (一次性取走; Java:236-245 纯展示动作不重建核 —
+/// 组装层主循环据此 emit about-requested 转发前端 Modal)
+#[test]
+fn tray_about_requests_modal_without_rebuild() {
+    let mut shell = fixture();
+    shell.handle_main_event(MainEvent::Tray(TrayCommand::About));
+    assert!(shell.take_about_request(), "托盘 About 应置请求位");
+    assert!(!shell.take_about_request(), "取走后复位 (一次性)");
+    assert!(
+        !shell.take_form_request(),
+        "About 不触发设置窗请求 (与 Activate 分流)"
+    );
+}
+
 /// 分相监督循环: 退出请求 → Exit (EndGame/托盘 Exit 的相位出口;
 /// 阻断自动 spawn win32 — 纯状态机断言, 不开真窗)
 #[test]
@@ -1253,6 +1267,7 @@ fn test_overlay_inputs() -> OverlayInputs {
         gear_show_edge: false,
         font_add_axis: 0,
         axis_show_edge: false,
+        font_add_fm: 0,
         attitude_width: 150,
         attitude_height: 300,
         attitude_freq_ms: 40,
@@ -1265,10 +1280,11 @@ fn test_overlay_inputs() -> OverlayInputs {
     }
 }
 
-/// 注册面: Java registerGameModeOverlays 的 7 个窗口条目全部落位
-/// (open_all 默认激活全真; 剩 3 键非窗口/降级备案见 register_live_overlays 头注)
+/// 注册面: Java registerGameModeOverlays 的 9 个窗口条目全部落位
+/// (open_all 默认激活全真 — thrustdFS 的 jetOnly 策略在 ctx 真值下生效;
+/// 剩 1 键非窗口备案见 register_live_overlays 头注)
 #[test]
-fn register_live_overlays_seven_window_entries() {
+fn register_live_overlays_nine_window_entries() {
     let mut host = OverlayHost::with_factory(Box::new(|_cfg| {
         Ok(Box::new(NullWin) as Box<dyn vm_overlay::platform::OverlayWindow>)
     }));
@@ -1279,7 +1295,9 @@ fn register_live_overlays_seven_window_entries() {
         gear_flaps: None,
         attitude: None,
         control_surfaces: None,
-    flight_info: None,
+        flight_info: None,
+        fm_unpacked: None,
+        draw_frame_simpl: None,
     };
     let shell = fixture();
     let lang = Rc::new(Lang::init_lang());
@@ -1294,8 +1312,10 @@ fn register_live_overlays_seven_window_entries() {
         &params,
         &lang,
         &shell.shared,
+        &shell.fm,
+        &shell.fm_field_config,
     );
-    // 注册面逐窗计数落键: 6 键全部以 0 落位 (present 计数起点)
+    // 注册面逐窗计数落键: 9 键全部以 0 落位 (present 计数起点)
     let reg_keys: Vec<String> = shell
         .shared
         .overlay_present
@@ -1304,8 +1324,8 @@ fn register_live_overlays_seven_window_entries() {
         .keys()
         .cloned()
         .collect();
-    assert_eq!(reg_keys.len(), 7, "注册落键应恰为 7 键 (实测 {reg_keys:?})");
-    // 7 个共享句柄全部登记 (spec 工厂成功)
+    assert_eq!(reg_keys.len(), 9, "注册落键应恰为 9 键 (实测 {reg_keys:?})");
+    // 9 个共享句柄全部登记 (spec 工厂成功)
     assert!(handles.minihud.is_some(), "MiniHUD 句柄");
     assert!(handles.power_info.is_some(), "动力信息句柄");
     assert!(handles.engine_control.is_some(), "引擎控制句柄");
@@ -1313,6 +1333,20 @@ fn register_live_overlays_seven_window_entries() {
     assert!(handles.gear_flaps.is_some(), "起落襟翼句柄");
     assert!(handles.attitude.is_some(), "地平仪句柄");
     assert!(handles.control_surfaces.is_some(), "操纵面句柄");
+    assert!(handles.fm_unpacked.is_some(), "FM拆包数据句柄");
+    assert!(handles.draw_frame_simpl.is_some(), "推力曲线句柄");
+    // 初始形态 = preview (恒可见 + 空面板, Java initPreview; spec 尺寸 = init 几何)
+    {
+        let fm = handles.fm_unpacked.as_ref().unwrap().borrow();
+        assert!(fm.visible && fm.base.is_preview, "preview 形态起步");
+        assert_eq!((fm.base.width, fm.base.height), (spec_fm_size(&shell)), "init 几何");
+    }
+    // 推力曲线: initPreview 形态恒可见 (setBounds 900×500 几何在 vm-overlay
+    // draw_frame_simpl/tests.rs 锁定, 此处锁注册面)
+    {
+        let d = handles.draw_frame_simpl.as_ref().unwrap().borrow();
+        assert!(d.is_preview && d.visible && d.should_show(), "preview 形态恒可见");
+    }
     host.open_all().expect("全激活 open_all");
     let mut ids: Vec<String> = host.active_ids();
     ids.sort();
@@ -1323,12 +1357,26 @@ fn register_live_overlays_seven_window_entries() {
             "enableAttitudeIndicator",
             "enableAxis",
             "enableEngineControl",
+            "enableFMPrint",
             "enablegearAndFlaps",
             "engineInfoSwitch",
             "flightInfoSwitch",
+            "thrustdFS",
         ],
-        "注册键 10 键中的 7 窗口条目 (Java 键一一对应)"
+        "注册键 10 键中的 9 窗口条目 (Java 键一一对应)"
     );
+}
+
+/// FM拆包数据 init 几何期望 (BaseOverlay.java:92-95 公式复算, 输入 = fixture
+/// 探测的真实 logicalHeight/dpiScale — 验证工厂正确接线屏幕快照):
+/// width = round(12·36·scaleFactor), height = 12·72 (首帧, adjustPosition 前)
+fn spec_fm_size(shell: &AppShell) -> (i32, i32) {
+    let lh = shell.env.dpi.get_logical_screen_height();
+    let scale = (lh as f64 / 1440.0) * shell.env.dpi.get_scale();
+    (
+        ((12 * 36) as f32 * scale as f32 + 0.5).floor() as i32,
+        12 * 72,
+    )
 }
 
 /// live 喂数全链: 一帧 payload 喂 6 个 overlay, 各 state 推进到遥测值
@@ -1389,6 +1437,8 @@ fn feed_overlays_live_updates_all_handles() {
         attitude: Some(h_att),
         control_surfaces: Some(h_cs),
         flight_info: Some(h_fi),
+    fm_unpacked: None,
+    draw_frame_simpl: None,
     };
 
     // live 快照: throttle 55 / flaps 25 / gear 100 / aileron 100 / aoa 10 /
@@ -1487,6 +1537,8 @@ fn feed_overlays_live_swallows_malformed_frame() {
         attitude: None,
         control_surfaces: None,
     flight_info: None,
+    fm_unpacked: None,
+    draw_frame_simpl: None,
     };
     let shared = ControllerShared::new();
     shared.overlay_ctx_preview.store(false, Ordering::SeqCst);
@@ -1623,6 +1675,14 @@ fn reset_handles_preview_values_clears_live_residue() {
     let (flight, _) = vm_overlay::flight_info_overlay_spec(&fonts, &cell).unwrap();
     let (axis, _) = vm_overlay::control_surfaces_overlay_spec(&fonts, &cell).unwrap();
     let (att, _) = vm_overlay::attitude_overlay_spec(&cell).unwrap();
+    let (fm_unpacked, _) = vm_overlay::fm_unpacked_data_overlay_spec(
+        &fonts,
+        1080,
+        &cell,
+        None,
+        &Arc::new(FMManager::new(Arc::new(EventBus::new()))),
+    )
+    .unwrap();
     let handles = OverlayHandles {
         minihud: None,
         power_info: Some(power),
@@ -1631,12 +1691,20 @@ fn reset_handles_preview_values_clears_live_residue() {
         attitude: Some(att),
         control_surfaces: Some(axis),
         flight_info: Some(flight),
+        fm_unpacked: Some(fm_unpacked),
+        draw_frame_simpl: None,
     };
     // live 残留注入 (各 handle 公开喂入面)
     {
         let mut cs = handles.control_surfaces.as_ref().unwrap().borrow_mut();
         cs.has_service = true;
         assert!(cs.on_flight_data(200, 100.0, -80.0, 60.0, 40.0, true));
+    }
+    // FM拆包数据 live 残留: 游戏形态 + 隐藏中 (OpenAll 处理点同款翻转)
+    {
+        let mut fm = handles.fm_unpacked.as_ref().unwrap().borrow_mut();
+        fm.base.is_preview = false;
+        fm.visible = false;
     }
     handles
         .attitude
@@ -1681,4 +1749,550 @@ fn reset_handles_preview_values_clears_live_residue() {
             assert_eq!(row.2, f.preview_text(), "飞行信息值列回 preview 静态: {}", f.label);
         }
     }
+    {
+        let fm = handles.fm_unpacked.as_ref().unwrap().borrow();
+        assert!(fm.visible && fm.base.is_preview, "FM拆包数据回 preview 形态 (恒可见)");
+    }
+}
+
+// ------------------------------------------------------------------
+// FM拆包数据装配面 (P5 组装契约销号: enableFMPrint 注册 + withInterest + 配置快照)
+// ------------------------------------------------------------------
+
+/// withInterest 键 ↔ Java Controller.java:739-743 逐字核对 (20 键; 审查 W1
+/// 同族回归锚 — 死键 fmInfoColumn 为 Java 原样, 见 const 注)
+#[test]
+fn fm_unpacked_interest_keys_verbatim_java_controller() {
+    assert_eq!(
+        FM_UNPACKED_INTEREST_KEYS,
+        [
+            "displayFmKey",
+            "selectedFM",
+            "fmInfoColumn",
+            "fontName",
+            "showWeight",
+            "showCritSpeed",
+            "showGLoadLimits",
+            "showFlapLimits",
+            "showControlEffectiveness",
+            "showNitro",
+            "showHeatRecovery",
+            "showMaxLiftLoad",
+            "showInertia",
+            "showLift",
+            "showDrag",
+            "showNoFlapsWing",
+            "showFullFlapsWing",
+            "showFuselage",
+            "showFin",
+            "showStab",
+        ]
+    );
+}
+
+/// FM show* 配置键快照: 构造期全量落 + CONFIG_CHANGED 逐键同步 (win32 线程
+/// generate_lines 的跨线程读面; voice_config 同族)
+#[test]
+fn fm_field_config_snapshot_syncs_config_changed() {
+    let cfg = fixture_cfg(
+        "(panel \"T\" :visible true\n\
+             \x20 (item \"w\" :type switch :target \"showWeight\" :value true)\n\
+             \x20 (item \"fm\" :type switch :target \"enableFMPrint\" :value true)\n\
+             \x20 (item \"auto\" :type switch :target \"autoStartGameMode\" :value false))\n\
+            ",
+    );
+    let mut shell = fixture_full(30, cfg);
+    // 构造期: 16 键全量落 (无 cfg 项的键 = 空串, isFieldEnabled 空串→默认启用,
+    // Java getConfig 返回 null 的对位)
+    assert_eq!(shell.fm_field_config.lock().unwrap().len(), FM_FIELD_KEYS.len());
+    assert_eq!(
+        shell.fm_field_config.lock().unwrap().get("showWeight").map(|s| s.as_str()),
+        Some("true"),
+        "初始快照应含配置树现值"
+    );
+    // 发布方写配置树 (set_config 放锁后补发 CONFIG_CHANGED 到桩总线)
+    shell
+        .controller
+        .as_ref()
+        .unwrap()
+        .config
+        .set_config("showWeight", "false");
+    pump_events(&mut shell); // Controller 转发 → handle_main_event → 快照同步
+    assert_eq!(
+        shell.fm_field_config.lock().unwrap().get("showWeight").map(|s| s.as_str()),
+        Some("false"),
+        "show* 变更应同步进跨线程快照 (generate_lines 读到新值的前提)"
+    );
+    // 非 show* 键不入快照 (键集封闭; enableFMPrint 走激活缓存)
+    shell
+        .controller
+        .as_ref()
+        .unwrap()
+        .config
+        .set_config("enableFMPrint", "false");
+    pump_events(&mut shell);
+    assert!(
+        !shell.fm_field_config.lock().unwrap().contains_key("enableFMPrint"),
+        "enableFMPrint 走激活缓存, 不入 show* 快照"
+    );
+}
+
+// ------------------------------------------------------------------
+// 语音子系统装配: 共享 VoiceResourceManager (Java getInstance() 单例落位)
+// ------------------------------------------------------------------
+
+/// Java 静态 final INSTANCE 语义: 托盘重建核后管理器**不**随核销毁重建
+/// (跨核存活的共享实例; 表单 IPC/告警线程复用同一 Arc)
+#[test]
+fn voice_共享实例跨核重建不变() {
+    let mut shell = fixture();
+    let before = Arc::clone(&shell.voice);
+    shell.rebuild_controller(false); // 托盘 Activate 路径
+    assert!(
+        Arc::ptr_eq(&before, &shell.voice),
+        "VoiceResourceManager 应跨核重建存活 (Java getInstance 单例语义)"
+    );
+}
+
+/// 音量同步写点: loadAppCheck 读 cfg voiceVolume → Application.voiceVolumn 的
+/// 消费面收敛 (app_shell.rs load_from_config 的 PORT 注)
+#[test]
+fn voice_volume_经load_from_config同步进管理器() {
+    let cfg = fixture_cfg(
+        "(panel \"T\" :visible true\n\
+             \x20 (item \"vol\" :type slider :target \"voiceVolume\" :min 0 :max 200 :value 42)\n\
+             \x20 (item \"auto\" :type switch :target \"autoStartGameMode\" :value false))\n\
+            ",
+    );
+    let shell = fixture_full(30, cfg);
+    assert_eq!(
+        shell.voice.voice_volumn(),
+        42,
+        "cfg voiceVolume=42 应经 Controller 构造链同步进共享管理器"
+    );
+}
+
+/// 共享管理器错误路径 (真实播放器, 文件解析失败面 — 不触音频设备):
+/// Java loadClip 的 catch→null 语义 (resolve 失败先于 open_clip, 音频会话无关)
+#[test]
+fn voice_共享管理器_缺失告警文件_load_clip_返_none() {
+    let shell = fixture();
+    assert!(
+        shell
+            .voice
+            .load_clip("no_such_warning_zz", Some("default"))
+            .is_none(),
+        "缺失 wav 必须返 None (Java catch→null), 不得假成功"
+    );
+}
+
+// ------------------------------------------------------------------
+// VoiceWarning 装配 (Java Controller.java:716-723 → OverlayManager.java:294-312
+// 的 open→init(this,S)→new Thread().start() 链; 批1 审查 A-B1 收口)
+// ------------------------------------------------------------------
+
+/// 游戏模式会话时序核查点: open_voice_warning (live 在位) → 告警线程跑 100ms
+/// tick → xS.fatalWarn 有人写 (Java VoiceWarning.run() 的唯一外显副作用);
+/// stop (Java OverlayEntry.close 的 interrupt 形态) 后线程退出。
+/// CWD 无 voice/ 目录 → start1/告警 wav 全部 load 失败 → available=false →
+/// 无声 (不触音频设备, 无声卡环境安全)。
+/// tick 信号修正 (假通过根治): ServiceData::default 的 fatal_warn 初值即
+/// Some(false) (Java `= false` 初始化器), is_some() 从 t=0 恒真 — 曾令本
+/// 测试的等待环 0ms 空转后假过; 改为放置起落架超速遥测 (gear=100, IAS=500
+/// ≥ 默认限速 450) 令 checkGearWarning 置 fatal, 轮询 Some(true) 才是真
+/// "至少一轮 tick 已跑" 的信号
+#[test]
+fn voice_warning_游戏模式会话_启动tick写fatal_warn并停机() {
+    let shell = fixture();
+    // openpad 前提: start() 已建 live (生产时序); fixture 手塞 (先例);
+    // 遥测含致命告警形态 (gear 放下 + 超速) — 见函数头 tick 信号修正注
+    let mut sd = live_service_data("spitfire");
+    sd.s_state.as_mut().unwrap().ias = 500;
+    sd.s_state.as_mut().unwrap().gear = 100;
+    let data = Arc::new(std::sync::RwLock::new(sd));
+    let mut session = open_voice_warning(
+        &shell.voice,
+        &shell.voice_bus,
+        &shell.voice_config,
+        &shell.fm,
+        &shell.flight_bus,
+        Some(Arc::clone(&data)),
+    )
+    .expect("live 在位时应启动会话 (Java init(S) 非短路)");
+    // run(): 启动延迟 1s + 100ms tick; 轮询等待 (固定 sleep 的调度余量坑,
+    // voice_warning/tests.rs 同款修法), 超时即失败 — 不假通过
+    let deadline = Instant::now() + Duration::from_secs(8);
+    loop {
+        if data.read().unwrap().fatal_warn == Some(true) {
+            break;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "8s 内至少一轮 tick 应写 fatalWarn=true (线程未跑 = 装配失败)"
+        );
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    session.stop();
+    assert!(!session.doit.load(Ordering::SeqCst), "停机后 doit 应为 false");
+    session.stop(); // 幂等 (Drop 兜底同款)
+}
+
+/// live 缺失 (Java init(S=null) 的 doit=false 短路): 不起线程
+#[test]
+fn voice_warning_live缺失_不起会话() {
+    let shell = fixture();
+    assert!(
+        open_voice_warning(
+            &shell.voice,
+            &shell.voice_bus,
+            &shell.voice_config,
+            &shell.fm,
+            &shell.flight_bus,
+            None,
+        )
+        .is_none(),
+        "live=None 应返 None (Java init(null) 短路形态)"
+    );
+}
+
+/// 激活策略 (config("enableVoiceWarn") + live_only): cfg 开关 + 会话窗口形态
+/// 双门控 — openpad (preview=false) 且 cfg true 才激活; 生产消费点 = win32 线程
+/// OpenAllOverlays 命令处理 (同 host 窗口条目同源探测)
+#[test]
+fn voice_warning_激活判定_配置开关与live门控() {
+    let cfg = fixture_cfg(
+        "(panel \"T\" :visible true\n\
+             \x20 (item \"vw\" :type switch :target \"enableVoiceWarn\" :value true)\n\
+             \x20 (item \"auto\" :type switch :target \"autoStartGameMode\" :value false))\n\
+            ",
+    );
+    let mut shell = fixture_full(30, cfg);
+    let mk_ctx = |shell: &AppShell| HostActivationCtx {
+        activation: Arc::clone(&shell.activation),
+        fm: Arc::clone(&shell.fm),
+        shared: Arc::clone(&shell.shared),
+        debug: false,
+    };
+    // cfg=true + 预览态 (CloseAll/重建核初值) → live_only 拦截
+    assert!(
+        !strategy_for("enableVoiceWarn").should_activate(&mk_ctx(&shell)),
+        "预览态 (overlay_ctx_preview=true) 不得激活 (Java gameModeOnly)"
+    );
+    // openpad: 会话窗口形态翻 false (forGameMode ctx) → 激活
+    shell.shared.overlay_ctx_preview.store(false, Ordering::SeqCst);
+    assert!(
+        strategy_for("enableVoiceWarn").should_activate(&mk_ctx(&shell)),
+        "cfg=true + 游戏模式应激活"
+    );
+    // 游戏模式但 cfg 改关 (WYSIWYG): 经 CONFIG_CHANGED 链刷新激活缓存后拦截
+    shell
+        .controller
+        .as_ref()
+        .unwrap()
+        .config
+        .set_config("enableVoiceWarn", "false");
+    pump_events(&mut shell);
+    assert!(
+        !strategy_for("enableVoiceWarn").should_activate(&mk_ctx(&shell)),
+        "cfg 改关后不得激活 (激活缓存应已刷新)"
+    );
+}
+
+/// configHandler 触发链 (转发桥): 配置发布 → Controller 转发 → 主线程同步
+/// voice_* 快照 + voice_bus 发布 (VoiceWarning 订阅面的送达源)
+#[test]
+fn voice_config_变更同步快照并转发voice_bus() {
+    let cfg = fixture_cfg(
+        "(panel \"T\" :visible true\n\
+             \x20 (item \"vw\" :type combo :target \"voice_aoaCrit\" :value \"default|false\")\n\
+             \x20 (item \"auto\" :type switch :target \"autoStartGameMode\" :value false))\n\
+            ",
+    );
+    let mut shell = fixture_full(30, cfg);
+    // 快照初值 = 配置树当前值 (with_parts 全量填充)
+    assert_eq!(
+        shell
+            .voice_config
+            .lock()
+            .unwrap()
+            .get("voice_aoaCrit")
+            .map(|s| s.as_str()),
+        Some("default|false"),
+        "初始快照应含配置树现值"
+    );
+    // 探针挂 voice_bus (Java VoiceWarning.configHandler 的送达面)
+    let hits = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let h2 = Arc::clone(&hits);
+    let sub = shell.voice_bus.subscribe(
+        ui_state_events::CONFIG_CHANGED,
+        move |msg: &vm_core::ui_state_bus::UiStateEvent| {
+            if msg.data.as_deref() == Some("voice_aoaCrit") {
+                h2.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            }
+        },
+    );
+    // 发布方写配置树 (set_config 放锁后补发 CONFIG_CHANGED 到桩总线)
+    shell
+        .controller
+        .as_ref()
+        .unwrap()
+        .config
+        .set_config("voice_aoaCrit", "default|true");
+    pump_events(&mut shell); // Controller 转发 → handle_main_event → 快照 + voice_bus
+    assert_eq!(
+        shell
+            .voice_config
+            .lock()
+            .unwrap()
+            .get("voice_aoaCrit")
+            .map(|s| s.as_str()),
+        Some("default|true"),
+        "voice_* 变更应同步进跨线程快照 (reload 链读到新值的前提)"
+    );
+    assert_eq!(
+        hits.load(std::sync::atomic::Ordering::SeqCst),
+        1,
+        "voice_bus 应收到恰好一次 CONFIG_CHANGED(voice_aoaCrit)"
+    );
+    drop(sub);
+}
+
+// ------------------------------------------------------------------
+// VoiceWarning 装配面验收 (任务书: mock SoundPlayer 计数断言 + 订阅生命周期)
+// "=false 不建" 的判定点 (=OpenAllOverlays 处理器消费的 strategy_for 门)
+// 由 voice_warning_激活判定_配置开关与live门控 覆盖, 此处钉会话级全链
+// ------------------------------------------------------------------
+
+/// 计数 mock 播放器: start() 按告警键 (wav 文件名去扩展) 计数 — 装配面
+/// "告警键触发 play 路径" 的观测探针 (vm-core voice_warning tests 的
+/// starts() 同款手法; 此处钉的是 open_voice_warning 装配链:
+/// reload→load_clip→play_once→start 的端到端贯通)
+struct CountingPlayer {
+    plays: Arc<Mutex<HashMap<String, usize>>>,
+}
+
+impl vm_core::voice_resource_manager::SoundPlayer for CountingPlayer {
+    fn open_clip(
+        &self,
+        path: &std::path::Path,
+    ) -> Result<
+        Box<dyn vm_core::voice_resource_manager::SoundClip>,
+        vm_core::voice_resource_manager::SoundError,
+    > {
+        let key = path
+            .file_stem()
+            .map(|s| s.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        Ok(Box::new(CountingClip {
+            key,
+            plays: Arc::clone(&self.plays),
+        }))
+    }
+}
+
+struct CountingClip {
+    key: String,
+    plays: Arc<Mutex<HashMap<String, usize>>>,
+}
+
+impl vm_core::voice_resource_manager::SoundClip for CountingClip {
+    fn start(&self) {
+        *self
+            .plays
+            .lock()
+            .unwrap()
+            .entry(self.key.clone())
+            .or_insert(0) += 1;
+    }
+    fn stop(&self) {}
+    fn is_running(&self) -> bool {
+        false // 恒停: 冷却由时间项压制 (本测试 current_time_ms 恒 0)
+    }
+    fn set_frame_position(&self, _frame: i32) {}
+    fn close(&self) {}
+    fn master_gain_range(&self) -> Option<(f32, f32)> {
+        None // Control not supported → applyVolume 跳过 (Java 空 catch 面)
+    }
+    fn set_master_gain(&self, _value: f32) {}
+}
+
+/// 装配面全链 (mock SoundPlayer, 不触音频设备):
+/// 1) enableVoiceWarn=true 会话建 → FlightDataBus 订阅在 (+1) +
+///    voice_bus configHandler 在 (发布送达 1);
+/// 2) 告警键触发 play 路径: playerLive+IAS 200+AoA 20 (>默认线 15-1) →
+///    aoaCrit start 计 1, init 的 start1 计 1;
+/// 3) stop (Java OverlayEntry.close) 后无僵尸订阅: 总线计数回基线 +
+///    configHandler 送达 0 (Java 泄漏点的根治面)。
+#[test]
+fn voice_warning_装配面_播放计数与订阅生命周期() {
+    let shell = fixture();
+    // tmp voice 目录 + 两个告警 wav (内容任意 — mock 播放器不解析,
+    // 仅供 resolve_audio_file 的 exists 探测命中)
+    let dir = std::env::temp_dir().join(format!("vm_app_voice_assembly_{}", std::process::id()));
+    let _ = std::fs::create_dir_all(&dir);
+    std::fs::write(dir.join("start1.wav"), b"mock").unwrap();
+    std::fs::write(dir.join("aoaCrit.wav"), b"mock").unwrap();
+    let plays: Arc<Mutex<HashMap<String, usize>>> = Arc::new(Mutex::new(HashMap::new()));
+    // W1 共享管理器接口匹配消费: open_voice_warning 的 manager 参数直接注入
+    // mock 装配的管理器 (无需适配层)
+    let mgr = Arc::new(VoiceResourceManager::new_with_voice_dir(
+        Box::new(CountingPlayer {
+            plays: Arc::clone(&plays),
+        }),
+        dir.to_string_lossy().into_owned(),
+    ));
+    // 遥测: playerLive + IAS 200 + AoA 20 → checkAoAWarning 的 aoaCrit 腿
+    let mut d = live_service_data("spitfire");
+    d.s_state.as_mut().unwrap().ias = 200;
+    d.s_state.as_mut().unwrap().aoa = 20.0;
+    let data = Arc::new(std::sync::RwLock::new(d));
+
+    // 订阅在: 装配后 FlightDataBus +1 (initCompressorWarning 的 register)
+    let base = shell.flight_bus.subscriber_count();
+    let mut session = open_voice_warning(
+        &mgr,
+        &shell.voice_bus,
+        &shell.voice_config,
+        &shell.fm,
+        &shell.flight_bus,
+        Some(Arc::clone(&data)),
+    )
+    .expect("live 在位应建会话 (Java init(S) 非短路)");
+    assert_eq!(
+        shell.flight_bus.subscriber_count(),
+        base + 1,
+        "会话存活期 FlightDataBus 订阅应在"
+    );
+    // configHandler 在: 发布送达数 = 1 (voice_bus 上仅 VoiceWarning 的订阅)
+    assert_eq!(
+        shell.voice_bus.publish(
+            ui_state_events::CONFIG_CHANGED,
+            Some("test"),
+            Some("voice_aoaCrit")
+        ),
+        1,
+        "configHandler 应在订阅中 (送达 1)"
+    );
+
+    // 等 tick (启动延迟 1s + 100ms 节拍; 轮询 8s 超时即失败 — 不假通过)。
+    // 信号 = fatal_warn==Some(true): AoA 遥测同 tick 先触发 aoaCrit 播放
+    // (checkAoAWarning 的 play 先于 fatal 累积), 故此处成立时播放计数已就绪;
+    // 不能用 is_some() — ServiceData 初值即 Some(false), 0ms 即真 (假通过面)
+    let deadline = Instant::now() + Duration::from_secs(8);
+    loop {
+        if data.read().unwrap().fatal_warn == Some(true) {
+            break;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "8s 内至少一轮 tick (fatalWarn=true 未写 = 线程未跑)"
+        );
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    // 播放计数: current_time_ms 恒 0 → 冷却期内不重播, 计数确定性为 1
+    {
+        let p = plays.lock().unwrap();
+        assert_eq!(p.get("start1"), Some(&1), "启动音效应播一次: {p:?}");
+        assert_eq!(p.get("aoaCrit"), Some(&1), "AoA 告警键应触发 play 路径: {p:?}");
+    }
+
+    // 销毁: 停机 (join = VoiceWarning Drop) 后无僵尸订阅 (双总线注销)
+    session.stop();
+    assert_eq!(
+        shell.flight_bus.subscriber_count(),
+        base,
+        "停机后 FlightDataBus 订阅应注销 (RAII)"
+    );
+    assert_eq!(
+        shell.voice_bus.publish(
+            ui_state_events::CONFIG_CHANGED,
+            Some("test"),
+            Some("voice_aoaCrit")
+        ),
+        0,
+        "configHandler 应随线程退出注销 (Java 泄漏点的根治面)"
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// W1 (审查): 游戏会话中 RefreshPreviews(enableVoiceWarn) 即时停语音告警 —
+/// Java refreshPreviews 对触达条目调 refreshPreview(forPreviewMode ctx):
+/// gameModeOnly(preview)=false → 在场即 close (Controller.java:498-536 +
+/// OverlayManager.java:320-340); Rust 原实现只走 host 窗口条目, voice_warn
+/// 无重估面 — 关掉开关后告警继续响到会话结束。观测面 = voice_bus 订阅计数
+/// (VoiceWarning 起线程订阅 +1, 停机退订回落)。开方向不重建: Java preview-ctx
+/// 下 shouldBeOpen 恒 false 同样不 open (怪癖保真), 重起等 OpenAllOverlays。
+#[test]
+fn refresh_previews_stop_voice_warn_session() {
+    // 观测探针: CONFIG_CHANGED 的送达数 (UIStateBus 路由总线无订阅计数面,
+    // publish 返回送达数 — 本文件 VoiceWarnSession 会话测试同款; 探针触发的
+    // configHandler→reload 无副作用: 测试 CWD voice/ 无音频文件, load_clip
+    // 静默 None)
+    fn probe_deliveries(bus: &vm_core::ui_state_bus::UIStateBus) -> usize {
+        bus.publish(ui_state_events::CONFIG_CHANGED, Some("W1Probe"), None)
+    }
+    fn wait_deliveries(bus: &vm_core::ui_state_bus::UIStateBus, want: usize) -> bool {
+        let start = Instant::now();
+        loop {
+            if probe_deliveries(bus) == want {
+                return true;
+            }
+            if start.elapsed() > Duration::from_millis(3000) {
+                return false;
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+    }
+    let cfg = fixture_cfg(
+        "(panel \"T\" :visible true\n\
+         \x20 (item \"v\" :type switch :target \"enableVoiceWarn\" :value true))\n\
+        ",
+    );
+    let mut shell = fixture_full(30, cfg);
+    // live 槽手工装填 (openpad 前提; 不起真 Service — 零值数据 player_live=false,
+    // 告警静默, 只驱动会话生命周期; open_voice_warning 测试同款先例)
+    *shell.shared.live.write().unwrap() =
+        Some(Arc::new(std::sync::RwLock::new(ServiceData::default())));
+    shell.spawn_win32_thread().expect("win32 线程启动");
+    let base = probe_deliveries(&shell.voice_bus); // 无会话期送达 0
+    shell.ui_cmd_tx.send(UiCommand::OpenAllOverlays).unwrap();
+    assert!(
+        wait_deliveries(&shell.voice_bus, base + 1),
+        "OpenAllOverlays 应起 VoiceWarning 线程 (configHandler 送达 +1, 实测 {})",
+        probe_deliveries(&shell.voice_bus)
+    );
+    // 游戏稳态 (openpad 后 overlay_ctx_preview=false) + WYSIWYG 键控刷新
+    // (State=Preview 是 Java 同名态, 防过期守卫放行)
+    *shell.shared.state.write().unwrap() = ControllerState::Preview;
+    let gen = shell.shared.preview_generation.load(std::sync::atomic::Ordering::SeqCst);
+    shell
+        .ui_cmd_tx
+        .send(UiCommand::RefreshPreviews {
+            changed_key: Some("enableVoiceWarn".to_string()),
+            generation: gen,
+        })
+        .unwrap();
+    assert!(
+        wait_deliveries(&shell.voice_bus, base),
+        "RefreshPreviews(enableVoiceWarn) 应即时停语音会话 (退订回落, 实测 {})",
+        probe_deliveries(&shell.voice_bus)
+    );
+    // 开方向不重建 (Java preview-ctx 怪癖同形态): 再次键控刷新计数不动
+    let gen2 = shell.shared.preview_generation.load(std::sync::atomic::Ordering::SeqCst);
+    shell
+        .ui_cmd_tx
+        .send(UiCommand::RefreshPreviews {
+            changed_key: Some("enableVoiceWarn".to_string()),
+            generation: gen2,
+        })
+        .unwrap();
+    std::thread::sleep(Duration::from_millis(200));
+    assert_eq!(
+        probe_deliveries(&shell.voice_bus),
+        base,
+        "开方向不得经 RefreshPreviews 重建 (Java 同形态, 重起等 OpenAllOverlays)"
+    );
+    shell.ui_cmd_tx.send(UiCommand::Shutdown).unwrap();
+    let join = shell.win32.take().unwrap();
+    assert!(join.join().is_ok(), "win32 线程应干净退出");
 }

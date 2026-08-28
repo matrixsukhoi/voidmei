@@ -4,10 +4,15 @@ use std::sync::{Arc, Mutex};
 
 static DIR_N: AtomicUsize = AtomicUsize::new(0);
 
-/// 每测试独立临时 voice 根目录 (configuration_service 测试先例)
+/// 每测试独立临时 voice 根目录 (configuration_service 测试先例)。
+/// PID+计数不保证唯一: Windows PID 复用 + 同计数 n 时 create_dir_all 会命中
+/// 历史残留目录 (本套测试不清理临时目录, %TEMP% 已积累大量含 jarvis/hal9000
+/// 的残留), 首断言"空目录仅 default"必被污染 — 返回前先清残留 (审查 A-B1)
 fn tmp_voice_dir() -> PathBuf {
     let n = DIR_N.fetch_add(1, Ordering::SeqCst);
-    std::env::temp_dir().join(format!("vm_core_vrm_{}_{n}", std::process::id()))
+    let p = std::env::temp_dir().join(format!("vm_core_vrm_{}_{n}", std::process::id()));
+    let _ = fs::remove_dir_all(&p); // 不存在时忽略
+    p
 }
 
 fn mkdir(p: &Path) -> PathBuf {

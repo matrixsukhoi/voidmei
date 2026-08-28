@@ -366,8 +366,13 @@ struct HookCtx {
 
 // 钩子回调上下文: WH_KEYBOARD_LL 回调只会在安装它的线程上执行 (即本管理器
 // 起的钩子线程), thread_local 即按实例隔离, 无裸全局 (§2.9)。
+// 初始化已是 const block (该 lint 建议的最终形态), clippy 1.97.0 的
+// missing_const_for_thread_local 不跳过 const block 形态仍触发 (最简
+// `const { RefCell::new(0) }` 实验同报) — 确系误报, allow 收口 (审查 A-B2;
+// 属性须落在宏内 static 上, 落在宏调用上会被编译器忽略)
 #[cfg(target_os = "windows")]
 thread_local! {
+    #[allow(clippy::missing_const_for_thread_local)]
     static HOOK_CTX: RefCell<Option<HookCtx>> = const { RefCell::new(None) };
 }
 

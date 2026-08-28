@@ -10,6 +10,7 @@ static TEST_LOCK: Mutex<()> = Mutex::new(());
 struct Counts {
     activate: Arc<std::sync::atomic::AtomicUsize>,
     start: Arc<std::sync::atomic::AtomicUsize>,
+    about: Arc<std::sync::atomic::AtomicUsize>,
     exit: Arc<std::sync::atomic::AtomicUsize>,
 }
 
@@ -29,6 +30,9 @@ impl TrayHandler for Recorder {
     }
     fn start(&mut self) {
         self.counts.start.fetch_add(1, Ordering::SeqCst);
+    }
+    fn about(&mut self) {
+        self.counts.about.fetch_add(1, Ordering::SeqCst);
     }
     fn exit(&mut self) {
         self.counts.exit.fetch_add(1, Ordering::SeqCst);
@@ -93,8 +97,8 @@ fn nested_click_during_handler_is_ignored() {
     *TRAY_HANDLER.lock().unwrap() = None;
 }
 
-/// 菜单命令分发: 三个 id 各达其位, 未知 id 无副作用;
-/// "设置"走 CAS 守卫路径 (与左键同语义), 开始/退出直调 (Java 菜单项无守卫)
+/// 菜单命令分发: 四个 id 各达其位, 未知 id 无副作用;
+/// "设置"走 CAS 守卫路径 (与左键同语义), 开始/关于/退出直调 (Java 菜单项无守卫)
 #[test]
 fn menu_command_dispatch_routes_to_handler() {
     let _guard = TEST_LOCK.lock().unwrap();
@@ -105,10 +109,12 @@ fn menu_command_dispatch_routes_to_handler() {
         nested_click_in_activate: false,
     }));
     assert!(on_menu_command(MENU_ID_START));
+    assert!(on_menu_command(MENU_ID_ABOUT));
     assert!(on_menu_command(MENU_ID_EXIT));
     assert!(on_menu_command(MENU_ID_SETTINGS));
     assert!(!on_menu_command(9999), "未知 id 必须报告未处理");
     assert_eq!(counts.start.load(Ordering::SeqCst), 1);
+    assert_eq!(counts.about.load(Ordering::SeqCst), 1);
     assert_eq!(counts.exit.load(Ordering::SeqCst), 1);
     assert_eq!(counts.activate.load(Ordering::SeqCst), 1);
     *TRAY_HANDLER.lock().unwrap() = None;
@@ -122,6 +128,7 @@ fn dispatch_without_handler_is_noop() {
     *TRAY_HANDLER.lock().unwrap() = None;
     dispatch_activate();
     dispatch_start();
+    dispatch_about();
     dispatch_exit();
     assert!(!TRAY_CLICK_PROCESSING.load(Ordering::SeqCst));
 }
@@ -269,6 +276,7 @@ impl TrayHandler for PanickingActivator {
         panic!("handler 故意 panic (panic 墙测试)");
     }
     fn start(&mut self) {}
+    fn about(&mut self) {}
     fn exit(&mut self) {}
 }
 

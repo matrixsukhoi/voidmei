@@ -26,8 +26,9 @@
 //!   非 INFO: `[HH:mm:ss.SSS] [Component ] [LEVEL] message` (LEVEL 左对齐宽 5, 如 "WARN ")
 
 use std::fmt;
+use std::fs::File;
 use std::io::{self, Write};
-use std::sync::RwLock;
+use std::sync::{LazyLock, Mutex, RwLock};
 
 use chrono::Local;
 
@@ -91,6 +92,88 @@ pub fn set_min_level(level: Level) {
     *CURRENT_LEVEL.write().expect("logger 级别锁中毒") = level;
 }
 
+// ===== stdout/stderr 文件重定向 (Application.setDebugLog/setErrLog, :362-382) =====
+// Java debugLog 开关 (Application.main:550-553) 把 System.setOut/setErr 指到
+// ./output.log / ./error.log — Logger 的输出口径整体随 System.out 走, 故 Rust 侧
+// 由 Logger 输出面接管 (println!/eprintln! 的其余调用点为测试模式打字, 不走本面)。
+// D5 豁免同源 (见模块头): 横切面全局静态。
+
+/// stdout 重定向目标 (None = 控制台 stdout, 默认)
+static OUT_REDIRECT: LazyLock<Mutex<Option<File>>> = LazyLock::new(|| Mutex::new(None));
+/// stderr 重定向目标 (printStackTrace 面; None = 控制台 stderr)
+static ERR_REDIRECT: LazyLock<Mutex<Option<File>>> = LazyLock::new(|| Mutex::new(None));
+
+/// 对应 Java `setDebugLog(String path)` (Application.java:362-371):
+/// 建文件失败 (FileNotFoundException) → logAndContinue("日志文件") 后维持原输出,
+/// 不中断启动 (out=null 时 Java System.setOut(null) 会令后续打印 NPE, 属 Java 原
+/// 坑; Rust 侧失败即保持控制台输出, 有意加强)。
+pub fn set_debug_log(path: &str) {
+    let created = File::create(path);
+    let mut slot = OUT_REDIRECT.lock().expect("logger stdout 重定向锁中毒");
+    match created {
+        Ok(f) => *slot = Some(f),
+        Err(e) => {
+            // 日志文件创建失败，使用统一异常处理 (ExceptionHelper.logAndContinue:
+            // 单参 warn, 组件取默认 "App", 消息 = context + ": " + message)
+            drop(slot);
+            warn_default(&format!("日志文件: {e}"));
+        }
+    }
+}
+
+/// 对应 Java `setErrLog(String path)` (Application.java:373-382), 同上语义
+pub fn set_err_log(path: &str) {
+    let created = File::create(path);
+    let mut slot = ERR_REDIRECT.lock().expect("logger stderr 重定向锁中毒");
+    match created {
+        Ok(f) => *slot = Some(f),
+        Err(e) => {
+            // 错误日志文件创建失败，使用统一异常处理
+            drop(slot);
+            warn_default(&format!("错误日志文件: {e}"));
+        }
+    }
+}
+
+/// 单行落盘 (stdout 重定向态): writeln! 到 File 无 println! 的 panic 面, 同样吞错
+fn write_out(line: &str) {
+    let mut slot = OUT_REDIRECT.lock().expect("logger stdout 重定向锁中毒");
+    if let Some(f) = slot.as_mut() {
+        let _ = f.write_all(line.as_bytes());
+        let _ = f.write_all(b"\n");
+    } else {
+        drop(slot);
+        let _ = writeln!(io::stdout().lock(), "{line}");
+    }
+}
+
+/// 堆栈行落盘 (stderr 重定向态, printStackTrace 面)
+fn write_err(line: &str) {
+    let mut slot = ERR_REDIRECT.lock().expect("logger stderr 重定向锁中毒");
+    if let Some(f) = slot.as_mut() {
+        let _ = f.write_all(line.as_bytes());
+        let _ = f.write_all(b"\n");
+    } else {
+        drop(slot);
+        let _ = writeln!(io::stderr().lock(), "{line}");
+    }
+}
+
+/// 测试专用: 重定向激活状态 (out, err)
+#[cfg(test)]
+pub(crate) fn redirects_active_for_test() -> (bool, bool) {
+    let o = OUT_REDIRECT.lock().expect("logger stdout 重定向锁中毒").is_some();
+    let e = ERR_REDIRECT.lock().expect("logger stderr 重定向锁中毒").is_some();
+    (o, e)
+}
+
+/// 测试专用: 清空重定向恢复控制台输出 (Drop 守卫恢复语义的显式面)
+#[cfg(test)]
+pub(crate) fn clear_redirects_for_test() {
+    *OUT_REDIRECT.lock().expect("logger stdout 重定向锁中毒") = None;
+    *ERR_REDIRECT.lock().expect("logger stderr 重定向锁中毒") = None;
+}
+
 /// 获取当前日志级别
 /// @return 当前日志级别
 pub fn get_level() -> Level {
@@ -136,7 +219,7 @@ pub fn error_with_throwable(component: &str, message: &str, t: &dyn std::error::
     // Java: if (currentLevel.value <= Level.DEBUG.value) — 与 log() 内各读一次, 两处独立读取
     if current_level().value() <= Level::Debug.value() {
         // Java: t.printStackTrace() — PrintStream 吞 IOException, 见 log() 内 PORT 注释
-        let _ = writeln!(io::stderr().lock(), "{t:?}");
+        write_err(&format!("{t:?}"));
     }
 }
 
@@ -168,7 +251,7 @@ pub fn error_default_with_throwable(message: &str, t: &dyn std::error::Error) {
     log(Level::Error, DEFAULT_COMPONENT, &format!("{message}: {t}"));
     if current_level().value() <= Level::Debug.value() {
         // Java: t.printStackTrace() — PrintStream 吞 IOException, 见 log() 内 PORT 注释
-        let _ = writeln!(io::stderr().lock(), "{t:?}");
+        write_err(&format!("{t:?}"));
     }
 }
 
@@ -198,7 +281,8 @@ fn log(level: Level, component: &str, message: &str) {
     if level.value() >= current_level().value() {
         // Java: String timestamp = dateFormat.format(new Date()) — "HH:mm:ss.SSS" 本地时区
         let timestamp = Local::now().format("%H:%M:%S%.3f").to_string();
-        // 单次持锁 writeln 对齐 Java printf 单调用 (System.out 自带锁, 多线程行不交错)。
+        // 单次持锁写入对齐 Java printf 单调用 (System.out 自带锁, 多线程行不交错);
+        // setDebugLog 重定向态下改走文件 (write_out 内吞错, 见其注)。
         // Java %n 是平台行分隔符 (Windows \r\n) ↔ 此处固定 \n — e2e 断言按行
         // 解析 (splitlines/rstrip), 两者等价; 见 port_notes。
         // PORT: Java 8 System.out 按平台默认字符集编码 (zh-CN Windows=GBK),
@@ -206,13 +290,8 @@ fn log(level: Level, component: &str, message: &str) {
         // 且更优; 已接受偏差, 与 %n 条目并列备案。
         // PORT: Java PrintStream 按设计吞掉 IOException 永不抛出, 而 println!/
         // eprintln! 写失败 (broken pipe / Windows GUI 子系统无控制台句柄) 会 panic —
-        // 故用 `let _ = writeln!` 吞错写入对齐之 (§6 catch_unwind 只兜 Service,
-        // 日志调用不该炸调用线程)。
-        let _ = writeln!(
-            io::stdout().lock(),
-            "{}",
-            format_line(level, component, message, &timestamp)
-        );
+        // 故写入面统一吞错对齐之 (§6 catch_unwind 只兜 Service, 日志调用不该炸调用线程)。
+        write_out(&format_line(level, component, message, &timestamp));
     }
 }
 

@@ -9,14 +9,14 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { invoke, convertFileSrc } from '@tauri-apps/api/core'
 import { getCurrentWindow } from '@tauri-apps/api/window'
-import { getVersion } from '@tauri-apps/api/app'
 import { LogicalSize } from '@tauri-apps/api/dpi'
 import { listen } from '@tauri-apps/api/event'
 import { open } from '@tauri-apps/plugin-dialog'
 import { Badge, Button, Space, Spin, Tabs, Typography, message, notification } from 'antd'
 import type { PanelDto, RowDto } from './api'
-import { getAssetRoot, getLayoutTree, importConfig, sendFormMessage } from './api'
+import { getAppVersion, getAssetRoot, getLayoutTree, importConfig, sendFormMessage } from './api'
 import { RowRenderer } from './rows'
+import { AppDialogs } from './dialogs'
 
 const { Title, Text } = Typography
 
@@ -209,8 +209,9 @@ export default function App() {
     getAssetRoot()
       .then((root) => setWatermark(convertFileSrc(`${root}/image/watermark.png`)))
       .catch(() => undefined)
-    // 版本号 (Java 标题 = appName + " v" + version; tauri.conf version 编译期注入)
-    getVersion()
+    // 版本号 (Java 标题 = appName + " v" + version; 单一来源 = 构建注入 VOIDMEI_VERSION
+    // → get_app_version 命令, 与 checkUpdate 的 dev 守卫同源; tauri.conf version 不用)
+    getAppVersion()
       .then(setVersion)
       .catch(() => undefined)
   }, [reload])
@@ -261,6 +262,8 @@ export default function App() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#F5F5F5' }}>
       <TitleBar ctrlState={ctrlState} version={version} onQuit={quit} />
+      {/* 批3小件弹窗宿主: checkUpdate 一次 + 托盘关于/config 弹窗监听 (渲染 null) */}
+      <AppDialogs ready={ready} />
       <div style={{ flex: 1, minHeight: 0, background: '#FFFFFF' }}>
         {tabs.length ? (
           <Tabs

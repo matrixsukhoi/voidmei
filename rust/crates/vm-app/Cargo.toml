@@ -22,5 +22,10 @@ vm-webui = { workspace = true }
 serde_json = "1"
 tauri = "2"
 
+# 语音子系统装配批: winmm waveOut 播放器 (winmm_player.rs)
+# feature 写法对齐 vm-overlay Cargo.toml (基线见 workspace 根)
+[target.'cfg(windows)'.dependencies]
+windows = { workspace = true, features = ["Win32_Media_Audio"] }
+
 [lints]
 workspace = true

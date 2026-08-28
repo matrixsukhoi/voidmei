@@ -254,9 +254,14 @@ fn reset_all_layout_defaults_no_change() {
     assert!(log.lock().unwrap().is_empty());
 }
 
-/// 失败路径: 源缺失 / 模板缺失 (crate CWD 无 ./ui_layout.cfg) → false 且不发事件
+/// 失败路径: 源缺失 / 模板缺失 (crate CWD 无 ./ui_layout.cfg) → false 且不发事件。
+/// CWD 锁 (config_manager::CWD_LOCK): reset_to_factory 的模板存在性检查走全局
+/// ./ui_layout.cfg — 与 config_manager 的 chdir 型沙箱测试并行时, 进程 CWD 可能
+/// 已被切进沙箱 (沙箱内有模板) → reset 误判 true 打挂断言 (既有竞态, 本批新增
+/// 沙箱用例加大暴露窗口后实测复现; group_position_read_write_roundtrip 同款锁)
 #[test]
 fn import_reset_failure_paths() {
+    let _cwd = crate::config_manager::CWD_LOCK.lock().expect("cwd 测试锁中毒");
     let _guard = UserCfgGuard;
     let (s, log, _sub) = svc_bus("(panel \"P\")");
     assert!(!s.import_config("definitely_missing_zzz.cfg"));

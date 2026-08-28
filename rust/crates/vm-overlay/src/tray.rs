@@ -2,10 +2,10 @@
 //! 语义对齐 Java `Application.initSystemTray` (SystemTray/TrayIcon 的 C 类复刻):
 //! - 左键点击 → CAS 防重入 → handler.activate()
 //!   (Java: `ctr.stop(); ctr = new Controller()` — 重建应用核并弹设置窗)
-//! - 右键 → 上下文菜单 设置/开始/退出 (Java 菜单仅 about/close 两项;
+//! - 右键 → 上下文菜单 设置/开始/关于/退出 (Java 菜单仅 about/close 两项;
 //!   "设置/开始"是把 Java 左键"一键重建(开设置窗+重启服务)"拆成菜单独立入口,
-//!   "退出"对应 Java close 菜单项。Java 的 about 项是 UI 层 toast 通知,
-//!   归组装层在 handler 侧挂接, 托盘本体不依赖 vm-ui)
+//!   "关于"对应 Java about 项 (handler 转发组装层 → 前端 Modal, 托盘不依赖 UI crate),
+//!   "退出"对应 Java close 菜单项)
 //! - Drop → NIM_DELETE 删图标 + 销毁菜单/图标/窗口 (Java: close 项的 tray.remove(icon))
 //!
 //! 消息泵: 托盘回调经隐藏窗口 WNDPROC 到达, 消息在创建线程排队 —
@@ -54,6 +54,7 @@ const TRAY_ID: u32 = 1;
 /// 菜单项 id (WM_COMMAND 的 LOWORD(wParam))
 const MENU_ID_SETTINGS: usize = 1001; // Java 菜单无此项 (左键语义拆分)
 const MENU_ID_START: usize = 1002; // Java 菜单无此项
+const MENU_ID_ABOUT: usize = 1004; // PORT: Java about 菜单项 (Lang.about)
 const MENU_ID_EXIT: usize = 1003; // PORT: Java close 菜单项 (Lang.close)
 
 /// 托盘触发的 UI 动作回调 (组装层注入; 托盘不依赖具体 UI 实现)
@@ -77,6 +78,11 @@ pub trait TrayHandler: Send {
     /// [`TrayIcon`] — `std::process::exit` 不运行 Drop, 直接 exit 会丢 NIM_DELETE
     /// 留下僵尸托盘图标 (Java close 项是 `tray.remove(icon)` 显式在 `System.exit(0)` 之前)
     fn exit(&mut self);
+
+    /// 菜单"关于": PORT: Application.java:236-245 about MenuItem →
+    /// `NotificationService.showAbout(Lang.aboutcontent×3)` 三段 toast。
+    /// Java 不重建 Controller (纯展示动作); 组装层转发前端 About Modal (web 形态)。
+    fn about(&mut self);
 }
 
 /// 托盘配置 (标签/图标由组装层注入; Java 侧对应 Lang.close/Lang.mStart/appName
@@ -92,6 +98,8 @@ pub struct TrayConfig {
     pub settings_label: String,
     /// 菜单"开始"标签 (Java: Lang.mStart)
     pub start_label: String,
+    /// 菜单"关于"标签 (Java: Lang.about)
+    pub about_label: String,
     /// 菜单"退出"标签 (Java: Lang.close)
     pub exit_label: String,
 }
@@ -105,6 +113,7 @@ impl Default for TrayConfig {
             icon_path: PathBuf::from("image/16x16.png"),
             settings_label: "设置".to_string(),
             start_label: lang.m_start.to_string(),
+            about_label: lang.about.to_string(),
             exit_label: lang.close.to_string(),
         }
     }
@@ -238,6 +247,11 @@ fn dispatch_exit() {
     with_handler(|h| h.exit());
 }
 
+/// 菜单"关于"分发 (Java 菜单项无 CAS 守卫, 直调; 纯展示动作)
+fn dispatch_about() {
+    with_handler(|h| h.about());
+}
+
 /// WM_COMMAND 分发: 返回是否为已知菜单项 (测试断言用)
 fn on_menu_command(cmd_id: usize) -> bool {
     match cmd_id {
@@ -247,6 +261,10 @@ fn on_menu_command(cmd_id: usize) -> bool {
         }
         MENU_ID_START => {
             dispatch_start();
+            true
+        }
+        MENU_ID_ABOUT => {
+            dispatch_about();
             true
         }
         MENU_ID_EXIT => {
@@ -510,7 +528,8 @@ impl TrayIcon {
                 format!("CreateWindowExW: {}", e)
             })?;
 
-            // 菜单: 设置 / 开始 / 退出 (Java: PopupMenu + about/close 两项)
+            // 菜单: 设置 / 开始 / 关于 / 退出 (Java: PopupMenu + about/close 两项,
+            // p.add(about) 在 p.add(close) 前 — 关于先于退出的次序保真)
             let menu = match CreatePopupMenu() {
                 Ok(m) => m,
                 Err(e) => {
@@ -522,6 +541,7 @@ impl TrayIcon {
             for (id, label) in [
                 (MENU_ID_SETTINGS, &cfg.settings_label),
                 (MENU_ID_START, &cfg.start_label),
+                (MENU_ID_ABOUT, &cfg.about_label),
                 (MENU_ID_EXIT, &cfg.exit_label),
             ] {
                 let wide = to_wide(label);

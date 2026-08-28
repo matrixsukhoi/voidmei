@@ -142,6 +142,88 @@ fn set_and_get_level_roundtrip() {
     assert_eq!(get_level(), Level::Info);
 }
 
+// ===== Application.setDebugLog/setErrLog 重定向 (debugLog 开关面) =====
+
+/// 重定向静态与级别静态同级共享进程, 触碰重定向的测试用此锁串行
+static REDIRECT_LOCK: Mutex<()> = Mutex::new(());
+
+/// Drop 清空重定向 (panic 也不污染后续测试的 stdout 捕获)
+struct RedirectGuard;
+impl Drop for RedirectGuard {
+    fn drop(&mut self) {
+        clear_redirects_for_test();
+    }
+}
+
+/// setDebugLog 重定向后 Logger 输出改落文件 (格式与控制台同源 format_line);
+/// setErrLog 同语义 (printStackTrace 面)。
+/// 并行测试的日志与本测试共用进程级重定向静态 — 断言按唯一标记过滤行
+/// (他测试的 INFO 行可能交错落进同一文件, 不参与计数); 级别面持 LEVEL_LOCK 串行。
+#[test]
+fn set_debug_log_redirects_output_to_file() {
+    let (_lvl, _restore) = lock_level();
+    let _g = REDIRECT_LOCK.lock().expect("测试重定向锁中毒");
+    let _restore_redirect = RedirectGuard;
+    let dir = env::temp_dir().join(format!("vm_logger_redirect_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let out_path = dir.join("output.log");
+    let err_path = dir.join("error.log");
+
+    set_debug_log(out_path.to_str().unwrap());
+    set_err_log(err_path.to_str().unwrap());
+    assert_eq!(redirects_active_for_test(), (true, true));
+
+    info("Update", "Latest remote version: 1.590");
+    error_default_with_throwable("软失败", &TestIoError("boom".to_string()));
+    // 默认 INFO 级下堆栈不打 (printStackTrace 闸门 = DEBUG), 先降级再触发
+    set_min_level(Level::Trace);
+    error_default_with_throwable("带堆栈", &TestIoError("trace-boom".to_string()));
+    set_min_level(Level::Info);
+
+    let out = std::fs::read_to_string(&out_path).unwrap();
+    let lines: Vec<&str> = out
+        .lines()
+        .filter(|l| {
+            l.contains("Latest remote version")
+                || l.contains("软失败: boom")
+                || l.contains("带堆栈: trace-boom")
+        })
+        .collect();
+    assert_eq!(lines.len(), 3, "三条本测试日志行: {out:?}");
+    assert!(e2e_timestamp_prefix_ok(lines[0]), "时间戳前缀失形: {}", lines[0]);
+    assert_eq!(&lines[0][15..], "[Update    ] Latest remote version: 1.590");
+    assert!(lines[1].contains("[App       ] [ERROR] 软失败: boom"));
+    assert!(lines[2].contains("[App       ] [ERROR] 带堆栈: trace-boom"));
+    let err = std::fs::read_to_string(&err_path).unwrap();
+    assert_eq!(
+        err.matches("java.io.IOException: trace-boom").count(),
+        1,
+        "DEBUG 级堆栈走 error.log: {err:?}"
+    );
+    assert_eq!(
+        err.matches("java.io.IOException: boom").count(),
+        0,
+        "INFO 级软失败不打堆栈: {err:?}"
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// 建文件失败 (父目录缺失): logAndContinue 语义 — 不 panic, 维持控制台输出
+#[test]
+fn set_debug_log_create_failure_keeps_console() {
+    let _g = REDIRECT_LOCK.lock().expect("测试重定向锁中毒");
+    let _restore = RedirectGuard;
+    let bad = env::temp_dir()
+        .join(format!("vm_logger_missing_{}", std::process::id()))
+        .join("output.log"); // 父目录不存在 → File::create NotFound
+    set_debug_log(bad.to_str().unwrap());
+    assert!(!redirects_active_for_test().0, "失败后不应激活重定向");
+    // 失败告警本身走控制台 warn (logAndContinue), 后续日志不受影响
+    info("Service", "still on console");
+    assert!(!redirects_active_for_test().0);
+}
+
 /// 测试用 Throwable 替身: Display = getMessage(), Debug 刻意复刻 Java
 /// printStackTrace 首行形态 ("类全名: 消息"), 对齐 e2e A2 的 RE_EXC_FIRST 域
 #[derive(Clone)]

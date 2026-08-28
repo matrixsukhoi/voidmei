@@ -888,6 +888,10 @@ mod tests {
 	/// twepTime/秒位串/sWepTimeVal 保持语义)。Java 8 oracle 场景 C/D 值。
 	#[test]
 	fn format_strings_nitro_block_wep_time() {
+		// DATA_ROOT 全局态串行锁 (见 lib.rs DATA_ROOT_TEST_LOCK 注): 覆盖
+		// set_data_root(tmp) → RootCleanup 复位 全程, 与真机管道测试互斥
+		let _root_guard =
+			crate::DATA_ROOT_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
 		// 合成 data root: central + 物理 fm (MaxNitro/NitroConsumption 进 blkx)
 		let tmp = std::env::temp_dir().join(format!("vm_fmt_nitro_{}", std::process::id()));
 		let _ = std::fs::remove_dir_all(&tmp);

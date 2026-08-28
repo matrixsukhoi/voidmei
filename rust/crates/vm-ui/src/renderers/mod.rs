@@ -141,7 +141,8 @@ pub(crate) mod test_util {
         cfg: &str,
         persist: Option<String>,
     ) -> crate::main_form::MainFormState {
-        let p = std::env::temp_dir().join(format!("vm_ui_renderers_{name}.cfg"));
+        // 掺 PID: 防两个测试进程并发跑时同名临时文件 truncate/read 竞争 (config_loader 实测同款踩坑)
+        let p = std::env::temp_dir().join(format!("vm_ui_renderers_{}_{name}.cfg", std::process::id()));
         std::fs::write(&p, cfg).unwrap();
         let bus = Arc::new(EventBus::new());
         let config = ConfigurationService::new(Some(Arc::clone(&bus)));

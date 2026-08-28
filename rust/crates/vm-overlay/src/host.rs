@@ -96,6 +96,11 @@ struct OverlaySlot {
     drag: Option<(i32, i32)>,
     /// 上帧像素指纹 (脏检查: 对应 Java repaint 抑制 / window.rs last_frame)
     last_frame: Option<Vec<u8>>,
+    /// 窗口当前可见态 (Java isVisible() 的替身记录): Win32 无查询面, 以本记录做
+    /// 幂等守卫 (Issue #54 — 重复 setVisible(true) 触发 DWM 全量合成致 DX12 卡顿)。
+    /// 全局 hide/show_all 与单条目 set_entry_visible 均经此记录, 二者互不感知
+    /// (Java 同形态: FocusMonitor 隐藏后 BaseOverlay.run 的可见分支会再拉起, 保真)
+    visible: bool,
 }
 
 /// 注册表条目 (Java OverlayManager.OverlayEntry)
@@ -108,6 +113,11 @@ pub struct OverlayEntry {
     height: i32,
     render: RenderFn,
     reinit: Option<ReinitFn>,
+    /// 僵尸实例标志 (Java run() 自动退场形态: 窗口已 dispose 但 entry.instance
+    /// 僵留非 null — DrawFrameSimpl 的 displayFmKey==0 收腿退场是唯一置位点)。
+    /// 语义对位 OverlayManager.java: open(:294-299) 跳过 / refreshPreview
+    /// (:332-336) 只跑 reinitializer 不重建窗口 / close(:370 instance=null) 清除
+    zombie: bool,
     /// 窗口槽位 — PORT: Java entry 的 instance 字段 + synchronized(entry) monitor 合并;
     /// 只允许锁内摘/放槽位, 销毁链锁外 (见模块头锁纪律)
     slot: Mutex<Option<OverlaySlot>>,
@@ -115,6 +125,11 @@ pub struct OverlayEntry {
     canvas: Option<PixCanvas>,
     /// 感兴趣的配置键前缀 (Java interestedPrefixes, 默认含自身 config_key)
     interested_prefixes: Vec<String>,
+    /// 固定初始位置 (像素) — Java overlay init 的 setBounds 字面量形态
+    /// (DrawFrameSimpl 每次 init/initPreview 硬编码 (0, screenH-500)): materialize
+    /// 时优先于存档/居中, 且每次重新 materialize 都重 applying = Java 工厂每实例
+    /// setBounds 的等价面 (位置存档键 thrustdFSX/Y 只写不读, 不参与定位)
+    fixed_pos: Option<(i32, i32)>,
 }
 
 impl OverlayEntry {
@@ -137,6 +152,15 @@ const GLOBAL_CONFIG_PREFIXES: [&str; 2] = ["Global", "font"];
 fn is_global_config(key: Option<&str>) -> bool {
     let Some(k) = key else { return true };
     GLOBAL_CONFIG_KEYS.contains(&k) || GLOBAL_CONFIG_PREFIXES.iter().any(|p| k.starts_with(p))
+}
+
+/// 槽位可见性落地: 幂等守卫 (与记录态相同即跳过, Issue #54 DWM 全量合成防抖),
+/// 命中才调系统 set_visible 并同步记录 (Java isVisible()/setVisible 对)
+fn set_slot_visible(sl: &mut OverlaySlot, visible: bool) {
+    if sl.visible != visible {
+        sl.visible = visible;
+        sl.window.set_visible(visible);
+    }
 }
 
 struct NoopDialogHooks;
@@ -234,8 +258,10 @@ impl OverlayHost {
             height: spec.height,
             render: spec.render,
             reinit: spec.reinit,
+            zombie: false,
             slot: Mutex::new(None),
             canvas: None,
+            fixed_pos: None,
         };
         match self.entries.iter().position(|e| e.id == entry.id) {
             Some(idx) => {
@@ -261,6 +287,33 @@ impl OverlayHost {
         self
     }
 
+    /// 条目固定初始位置 (P6 组装契约: Java overlay init 的 setBounds 字面量 —
+    /// DrawFrameSimpl 每次 init/initPreview 硬编码 (0, screenH-500), 位置存档键
+    /// thrustdFSX/Y 只写不读)。materialize 时优先于存档/居中生效, 每次
+    /// re-materialize 重 applying。返回 false = 未注册条目。
+    pub fn set_entry_fixed_pos(&mut self, id: &str, x: i32, y: i32) -> bool {
+        match self.entries.iter_mut().find(|e| e.id == id) {
+            Some(entry) => {
+                entry.fixed_pos = Some((x, y));
+                true
+            }
+            None => false,
+        }
+    }
+
+    /// 条目僵尸化开关 (Java run() 自动退场: 窗口 dispose 后 instance 僵留)。
+    /// 置位后 open 跳过 / refreshPreview 不重建窗口 (只跑 reinitializer),
+    /// 直至 close 清除 (closeAll 或策略失活路径)。返回 false = 未注册条目。
+    pub fn set_entry_zombie(&mut self, id: &str, on: bool) -> bool {
+        match self.entries.iter_mut().find(|e| e.id == id) {
+            Some(entry) => {
+                entry.zombie = on;
+                true
+            }
+            None => false,
+        }
+    }
+
     /// 打开单个 overlay — 游戏模式 (Java OverlayEntry.open: 已开则跳过并记日志)
     /// 实例 = live 穿透窗口 (click_through=true), preview 标志置 false
     pub fn open(&mut self, id: &str) -> Result<bool, String> {
@@ -274,8 +327,9 @@ impl OverlayHost {
 
     fn open_idx(&mut self, idx: usize) -> Result<bool, String> {
         // 锁内: 只查槽位
-        if self.entries[idx].slot.lock().unwrap().is_some() {
-            // Java: "Skipping open for {key}: already active"
+        if self.entries[idx].slot.lock().unwrap().is_some() || self.entries[idx].zombie {
+            // Java: "Skipping open for {key}: already active" — 僵尸实例 (run 自动
+            // 退场后 instance 僵留) 同跳过, 不重建死窗口 (OverlayManager.java:294-299)
             return Ok(false);
         }
         // 锁外: 建窗口 (工厂可能慢/失败, 不占锁)
@@ -309,6 +363,9 @@ impl OverlayHost {
         };
         // ① 锁内: 摘槽位 (take 走 ownership; 槽位 None = Java instance=null)
         let taken = self.entries[idx].slot.lock().unwrap().take();
+        // 僵尸清除 (Java close 末尾 instance=null): 无窗口的死实例同样要清标志,
+        // 否则 closeAll 后的会话重开会被 open/refresh 的僵尸守卫误拦
+        self.entries[idx].zombie = false;
         let Some(slot) = taken else {
             return false; // 未开: Java close() 首行 instance==null 直接 return
         };
@@ -365,16 +422,21 @@ impl OverlayHost {
     fn refresh_preview_idx(&mut self, idx: usize) -> Result<(), String> {
         let should_open = (self.activation)(&self.entries[idx].config_key);
         let active = self.entries[idx].slot.lock().unwrap().is_some();
+        let zombie = self.entries[idx].zombie;
         if should_open {
             // WYSIWYG reinitializer (Java refreshPreview → reinitializer)。
             // PORT(冷激活补口): Java 工厂创建实例时读即时配置; Rust spec 工厂是
             // 启动期一次性快照 — 未开实例先跑 reinit 把 state/尺寸刷到最新参数,
             // 再 materialize 建窗 (否则首次激活冻结在旧配置尺寸)
             self.reinit_idx(idx)?;
-            if !active {
+            // 僵尸实例 (Java instance != null): 只跑 reinitializer, 已 dispose 的
+            // 死窗口不重建 (OverlayManager.java:332-336 — 中途换配置不复活退场窗)
+            if !active && !zombie {
                 self.materialize(idx, true)?;
             }
-        } else if active {
+        } else if active || zombie {
+            // Java: instance != null 即走 close (僵尸同样清 instance=null — 之后
+            // 策略再开才会建新实例; OverlayManager.java:337-340)
             let id = self.entries[idx].id.clone();
             self.close(&id);
         }
@@ -462,9 +524,13 @@ impl OverlayHost {
             click_through: !preview,
         };
         let mut window = (self.factory)(cfg)?;
-        // 初始位置 (Java loadPosition 优先级): 会话内存档 → 配置后端 (GroupConfig.x/y)
-        // → 屏幕居中 (Java gc=null 兜底)。后端命中填入内存档: 后续同会话不再查,
-        // 且拖拽存档双写时内存/后端天然一致
+        // 初始位置优先级: 条目固定几何 (Java setBounds 字面量 — DrawFrameSimpl) →
+        // 会话内存档 → 配置后端 (GroupConfig.x/y) → 屏幕居中 (Java gc=null 兜底)。
+        // 后端命中填入内存档: 后续同会话不再查, 且拖拽存档双写时内存/后端天然一致
+        if let Some((fx, fy)) = self.entries[idx].fixed_pos {
+            window.set_position(fx, fy);
+            return self.finish_materialize(idx, preview, window);
+        }
         let initial = self.saved_positions.get(&id).copied().or_else(|| {
             let pos = self.position_store.as_mut().and_then(|s| s.load(&id));
             if let Some(p) = pos {
@@ -487,6 +553,17 @@ impl OverlayHost {
                 window.set_position((sw - w) / 2, (sh - h) / 2);
             }
         }
+        self.finish_materialize(idx, preview, window)
+    }
+
+    /// materialize 尾段 (窗口落槽): 锁内只放槽位, 并发已开则锁外销毁新建窗
+    /// (补偿锁外建窗的窗口期 — 见调用点锁纪律注)
+    fn finish_materialize(
+        &mut self,
+        idx: usize,
+        preview: bool,
+        mut window: Box<dyn OverlayWindow>,
+    ) -> Result<(), String> {
         // Java registerOverlay: 有挂起对话框则暂缓置顶 (AlwaysOnTopCoordinator.java:68-73)
         // — 防对话框期间新建的 overlay 盖住对话框 (该协调器存在意义正是修这个时序 bug)
         if self.pending_dialogs > 0 {
@@ -503,7 +580,8 @@ impl OverlayHost {
                 drop(window); // 再销毁新建窗口 (锁外销毁链)
                 return Ok(());
             }
-            *slot = Some(OverlaySlot { window, drag: None, last_frame: None });
+            // visible=true: 窗口以 WS_VISIBLE 建立 (win.rs create)
+            *slot = Some(OverlaySlot { window, drag: None, last_frame: None, visible: true });
         }
         Ok(())
     }
@@ -581,7 +659,7 @@ impl OverlayHost {
             return; // Java: "overlay 已处于隐藏状态，跳过"
         }
         self.overlays_hidden = true;
-        self.for_each_active_window(|w| w.set_visible(false));
+        self.for_each_active_slot(|sl| set_slot_visible(sl, false));
     }
 
     /// 显示所有被隐藏的 overlay 窗口（游戏重新获得焦点时恢复显示）。
@@ -591,7 +669,7 @@ impl OverlayHost {
             return; // Java: "overlay 已处于显示状态，跳过"
         }
         self.overlays_hidden = false;
-        self.for_each_active_window(|w| w.set_visible(true));
+        self.for_each_active_slot(|sl| set_slot_visible(sl, true));
     }
 
     /// 检查 overlay 是否因游戏失焦而被隐藏 (Java isOverlaysHidden)
@@ -599,12 +677,29 @@ impl OverlayHost {
         self.overlays_hidden
     }
 
-    /// 遍历活跃窗口执行动作 — 锁内摘/放槽位, 窗口操作 (系统调用) 锁外 (模块头锁纪律)
-    fn for_each_active_window(&mut self, mut f: impl FnMut(&mut dyn OverlayWindow)) {
+    /// 单条目窗口可见性 (Java `Window.setVisible` 的 per-overlay 面 — P5 组装契约
+    /// (b) 的 host 扩展): BaseOverlay.run() 的不可见分支 setVisible(false) / 可见
+    /// 分支按需拉起, 供列表型 overlay 的自管可见性 (FMUnpackedData 热键开关) 落窗。
+    /// 幂等守卫 = 槽位 `visible` 记录 (Java isVisible() 守卫同义, Issue #54 防抖);
+    /// 未注册/未开条目静默无操作 (Java instance==null 时无窗口可设)。**不动全局
+    /// overlays_hidden 标志** — Java setVisible 亦不经协调器 (见 OverlaySlot 注)
+    pub fn set_entry_visible(&mut self, id: &str, visible: bool) {
+        let Some(idx) = self.entries.iter().position(|e| e.id == id) else {
+            return;
+        };
+        // 锁内: 只摘/放槽位; set_visible (系统调用) 在持槽位所有权下锁外执行
+        let taken = self.entries[idx].slot.lock().unwrap().take();
+        let Some(mut sl) = taken else { return };
+        set_slot_visible(&mut sl, visible);
+        self.entries[idx].slot.lock().unwrap().replace(sl);
+    }
+
+    /// 遍历活跃槽位执行动作 — 锁内摘/放槽位, 窗口操作 (系统调用) 锁外 (模块头锁纪律)
+    fn for_each_active_slot(&mut self, mut f: impl FnMut(&mut OverlaySlot)) {
         for i in 0..self.entries.len() {
             let taken = self.entries[i].slot.lock().unwrap().take();
             let Some(mut sl) = taken else { continue };
-            f(sl.window.as_mut());
+            f(&mut sl);
             self.entries[i].slot.lock().unwrap().replace(sl);
         }
     }

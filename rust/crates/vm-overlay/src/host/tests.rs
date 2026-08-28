@@ -306,6 +306,44 @@ fn refresh_preview_lifecycle() {
     assert_eq!(mock.count(":create:"), 2);
 }
 
+/// 僵尸实例 (Java run 自动退场后 instance 僵留): open 跳过 / refreshPreview 只跑
+/// reinitializer 不重建 / 策略失活的 close 清僵尸后再激活可重建 (DrawFrameSimpl
+/// 收腿退场是生产置位点, 本测试锁 host 通用语义)
+#[test]
+fn zombie_entry_blocks_rematerialize_until_cleared() {
+    let mock = MockHandle::new();
+    let enabled = Rc::new(Cell::new(true));
+    let probe = {
+        let enabled = Rc::clone(&enabled);
+        move |_: &str| enabled.get()
+    };
+    let mut host = OverlayHost::with_factory(mock.factory());
+    host.with_activation(Box::new(probe));
+    host.register(spec("a", 40, 30, [255, 0, 0, 255]));
+    host.open_all().unwrap();
+    assert!(host.is_active("a"));
+    // run 退场序 (draw_frame_simpl pump): close 销毁窗口 → 置僵尸
+    host.close("a");
+    host.set_entry_zombie("a", true);
+    assert!(!host.is_active("a"));
+    let creates_before = mock.count(":create:");
+    // openAll 跳过 (Java :294-299 "already active")
+    host.open_all().unwrap();
+    assert!(!host.is_active("a"));
+    // refreshPreview 只跑 reinitializer, 不建窗 (Java :332-336)
+    host.refresh_preview().unwrap();
+    assert!(!host.is_active("a"));
+    assert_eq!(mock.count(":create:"), creates_before, "僵尸期零 materialize");
+    // 策略失活: instance != null 即 close → 僵尸清除 (Java :337-340 + :370)
+    enabled.set(false);
+    host.refresh_preview().unwrap();
+    // 策略再开: 无僵尸 → 重建 preview 实例
+    enabled.set(true);
+    host.refresh_preview().unwrap();
+    assert!(host.is_active("a"), "close 清僵尸后再激活重建");
+    assert_eq!(mock.count(":create:"), creates_before + 1);
+}
+
 /// reinit 标脏: 同内容下 present 恰好发生在指纹失效后
 #[test]
 fn refresh_preview_reinit_forces_repaint() {
@@ -345,6 +383,59 @@ fn resize_entry_updates_canvas_and_window() {
     assert!(mock.log().iter().any(|l| l.contains("win0:present:12000")));
     // 未注册 id 报错
     assert!(host.resize_entry("nope", 10, 10).is_err());
+}
+
+// ===== per-entry 可见性 (Java Window.setVisible 的单条目面 — P5 组装契约 (b)) =====
+
+/// set_entry_visible: 只动目标条目窗口 + 幂等守卫 (重复同值零调用, Issue #54
+/// DWM 全量合成防抖 = Java isVisible() 守卫); 未注册/未开条目静默无操作
+#[test]
+fn set_entry_visible_targets_entry_and_is_idempotent() {
+    let mock = MockHandle::new();
+    let mut host = OverlayHost::with_factory(mock.factory());
+    host.register(spec("a", 40, 30, [255, 0, 0, 255]));
+    host.register(spec("b", 40, 30, [0, 255, 0, 255]));
+    host.open_all().unwrap();
+    mock.log.borrow_mut().clear();
+    // 隐藏 a: 仅 win0 收 set_visible(false), b 不受影响
+    host.set_entry_visible("a", false);
+    assert_eq!(mock.log(), vec!["win0:set_visible:false"]);
+    // 幂等: 同值再调零系统调用
+    host.set_entry_visible("a", false);
+    assert_eq!(mock.log(), vec!["win0:set_visible:false"]);
+    // 拉起 a: 记录翻转后再次生效
+    host.set_entry_visible("a", true);
+    assert_eq!(
+        mock.log(),
+        vec!["win0:set_visible:false", "win0:set_visible:true"]
+    );
+    // 未注册 id / 未开条目: 静默无操作 (Java instance==null 无窗口可设)
+    host.set_entry_visible("nope", false);
+    host.close("b");
+    host.set_entry_visible("b", true);
+    assert_eq!(mock.count(":set_visible:"), 2);
+}
+
+/// 全局 hide/show_all 与 per-entry 记录互通: hide_all 后同值 per-entry 调用
+/// 幂等跳过, 反向值仍生效 (Java FocusMonitor 隐藏 vs BaseOverlay.run 拉起的
+/// "互不感知" 形态 — 保真不打架为闭环, 行为与 Swing isVisible 同源)
+#[test]
+fn global_hide_show_syncs_slot_visibility_record() {
+    let mock = MockHandle::new();
+    let mut host = OverlayHost::with_factory(mock.factory());
+    host.register(spec("a", 40, 30, [255, 0, 0, 255]));
+    host.open("a").unwrap();
+    host.hide_all_overlays(); // 窗口隐藏 + 槽位记录同步 false
+    mock.log.borrow_mut().clear();
+    host.set_entry_visible("a", false); // 已隐藏: 幂等跳过
+    assert!(mock.log().is_empty());
+    host.set_entry_visible("a", true); // 反向: 生效 (对位 run() 的按需拉起)
+    assert_eq!(mock.log(), vec!["win0:set_visible:true"]);
+    // show_all 恢复记录: 此后 hide 幂等路径重新闭合
+    host.show_all_overlays();
+    mock.log.borrow_mut().clear();
+    host.set_entry_visible("a", true);
+    assert!(mock.log().is_empty(), "show_all 后同值幂等");
 }
 
 /// reinit 闭包返回新尺寸: refresh_preview 不重建窗口, 原位 resize (Java
@@ -461,6 +552,50 @@ fn drag_moves_window_and_saves_position() {
     assert!((nx - 850.0 / 1920.0).abs() < 1e-9);
     assert!((ny - 480.0 / 1080.0).abs() < 1e-9);
     assert!(host.is_active("a")); // 拖拽不销毁
+}
+
+/// 条目固定初始位置 (P6: Java DrawFrameSimpl 每次 init/initPreview 的
+/// setBounds(0, screenH-500, 900, 500) 字面量 — 存档键 thrustdFSX/Y 只写不读):
+/// materialize 优先于居中 (不查 screen_size); 拖拽/销毁存档照常写入但
+/// re-materialize 恒回固定几何
+#[test]
+fn fixed_pos_overrides_saved_and_center_on_materialize() {
+    let mock = MockHandle::new();
+    let mut host = OverlayHost::with_factory(mock.factory());
+    host.register(spec("thrustdFS", 900, 500, [255, 0, 0, 255]));
+    assert!(host.set_entry_fixed_pos("thrustdFS", 0, 580));
+    assert!(!host.set_entry_fixed_pos("missing", 0, 0), "未注册条目报 false");
+    host.open("thrustdFS").unwrap();
+    assert!(
+        mock.log().contains(&"win0:set_position:0,580".to_string()),
+        "固定几何优先"
+    );
+    assert!(
+        !mock.log().iter().any(|l| l.contains("screen_size")),
+        "不走居中/归一化换算路径"
+    );
+    // preview 形态拖拽存档 (Java initPreview setupDragListeners — 游戏模式不可拖)
+    host.close("thrustdFS");
+    host.refresh_preview().unwrap(); // win1 回固定几何
+    mock.push(1, OverlayEvent::MousePress { root_x: 500, root_y: 700 });
+    mock.push(1, OverlayEvent::MouseMove { root_x: 900, root_y: 900, left_down: true });
+    mock.push(1, OverlayEvent::MouseRelease);
+    host.pump_events();
+    assert!(host.saved_position("thrustdFS").is_some(), "拖拽存档照常写入");
+    // 销毁重开: 恒回固定几何 (Java 工厂每实例 setBounds 的等价面)
+    host.close("thrustdFS");
+    host.refresh_preview().unwrap(); // win2
+    let pos_logs: Vec<String> = mock
+        .log()
+        .iter()
+        .filter(|l| l.contains("set_position"))
+        .cloned()
+        .collect();
+    assert_eq!(
+        pos_logs.last().unwrap(),
+        "win2:set_position:0,580",
+        "re-materialize 回固定几何 (实测 {pos_logs:?})"
+    );
 }
 
 /// Close 事件 → 走 close 销毁链 (存位置 + drop), pump 返回被关闭 id
