@@ -16,6 +16,6 @@
 [18:22:21.452] [ConfigurationService] ACTION: ConfigurationService: Saving to ./ui_layout.user.cfg
 - gamemode -> live
 - 语音“试听”按钮是占位(语音子系统未装配，与 UI 解耦)；openComparison/openPowerCurve 弹“阶段④”提示——这两项属后续阶段
-- 点击tray icon重新唤起的预览的overlay保留了上次gamemode下的数据?
+- 点击tray icon后, 从live->preview后, 重新唤起的预览的overlay保留了上次live下的数据? minihud还有残留
 - mainform的自动上下拉伸很奇怪
-
+- 变量名和可读性

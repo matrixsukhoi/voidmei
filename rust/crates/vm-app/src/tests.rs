@@ -1610,3 +1610,75 @@ fn overlay_sections_hit_ui_layout_cfg() {
         );
     }
 }
+
+/// win32 CloseAllOverlays 数据面重置 (reset_handles_preview_values 接线面):
+/// 四个 reinit 闭包不重建数据态的 overlay, live 残留 → preview 静态初值。
+/// 语义断言在 vm-overlay 各单测, 此处锁 win32 处理点的调用面 (托盘 live→preview
+/// 后重开的预览窗不得显示上次 live 数据 — TODO 项根治的回归面)
+#[test]
+fn reset_handles_preview_values_clears_live_residue() {
+    let fonts = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../fonts");
+    let cell = Rc::new(RefCell::new(vm_overlay::ReinitParams::default()));
+    let (power, _) = vm_overlay::power_info_overlay_spec(&fonts, &cell).unwrap();
+    let (flight, _) = vm_overlay::flight_info_overlay_spec(&fonts, &cell).unwrap();
+    let (axis, _) = vm_overlay::control_surfaces_overlay_spec(&fonts, &cell).unwrap();
+    let (att, _) = vm_overlay::attitude_overlay_spec(&cell).unwrap();
+    let handles = OverlayHandles {
+        minihud: None,
+        power_info: Some(power),
+        engine_control: None,
+        gear_flaps: None,
+        attitude: Some(att),
+        control_surfaces: Some(axis),
+        flight_info: Some(flight),
+    };
+    // live 残留注入 (各 handle 公开喂入面)
+    {
+        let mut cs = handles.control_surfaces.as_ref().unwrap().borrow_mut();
+        cs.has_service = true;
+        assert!(cs.on_flight_data(200, 100.0, -80.0, 60.0, 40.0, true));
+    }
+    handles
+        .attitude
+        .as_ref()
+        .unwrap()
+        .borrow_mut()
+        .update_telemetry(10.0, 5.0, -20.0, 30.0, 90.0, Some((20.0, -8.0)));
+    let mut v = vm_data::FlightValues::default();
+    v.mach = 0.72;
+    v.ias = 450.0;
+    handles
+        .flight_info
+        .as_ref()
+        .unwrap()
+        .borrow_mut()
+        .update_from_values(&v);
+    handles.power_info.as_ref().unwrap().borrow_mut().last_refresh_time = 999;
+    // 重置 (win32 CloseAllOverlays 处理点同款)
+    reset_handles_preview_values(&handles);
+    // 四路断言: 全部回 preview 态
+    {
+        let p = handles.power_info.as_ref().unwrap().borrow();
+        assert_eq!(p.last_refresh_time, 0, "动力信息节流基准复位");
+        assert!(p.fields().iter().all(|f| f.length == 0), "动力信息 buffer 清空");
+    }
+    {
+        let cs = handles.control_surfaces.as_ref().unwrap().borrow();
+        assert_eq!(
+            (cs.px, cs.py),
+            (cs.width / 2, cs.height / 2),
+            "舵面值游标回几何中心 (live 位置清除)"
+        );
+    }
+    assert_eq!(
+        handles.attitude.as_ref().unwrap().borrow().pitch_y, 0,
+        "地平仪姿态点集复位"
+    );
+    {
+        let rows = handles.flight_info.as_ref().unwrap().borrow().rows().to_vec();
+        assert_eq!(rows.len(), vm_core::fields::FIELDS.len(), "飞行信息回全量行");
+        for (row, f) in rows.iter().zip(vm_core::fields::FIELDS.iter()) {
+            assert_eq!(row.2, f.preview_text(), "飞行信息值列回 preview 静态: {}", f.label);
+        }
+    }
+}

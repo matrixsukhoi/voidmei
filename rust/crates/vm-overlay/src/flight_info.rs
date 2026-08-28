@@ -90,6 +90,15 @@ pub fn build_texts_from_values(v: &FlightValues) -> Vec<(String, String, String)
 /// FlightInfo 共享句柄 (win32 线程内; live 喂数经 [`FlightInfoState::update_from_values`])
 pub type FlightInfoHandle = Rc<RefCell<FlightInfoState>>;
 
+/// preview 静态行 (工厂初值与 [`FlightInfoState::reset_preview_rows`] 同源,
+/// 免两处漂移): FIELDS 全量, preview_text 原样不经格式化
+fn preview_rows() -> Vec<(String, String, String)> {
+    fields::FIELDS
+        .iter()
+        .map(|f| (f.label.to_string(), f.unit.to_string(), f.preview_text().to_string()))
+        .collect()
+}
+
 pub struct FlightInfoState {
     /// owned 文本行 (preview 静态初值; live 由 update_from_values 覆写)
     rows: Vec<(String, String, String)>,
@@ -124,6 +133,16 @@ impl FlightInfoState {
         Ok((w, h))
     }
 
+    /// rows 回 preview 静态初值 (Java closeAll = 实例销毁 + refreshPreview 工厂
+    /// 新建实例; D8 单条目跨重建存活的补口 — live 会话残留行在 preview 重开前
+    /// 清除, 否则预览窗显示上次 live 数值)。canvas 尺寸同步: live 行经
+    /// visible-when 过滤可少于 FIELDS, 回满行高 (reinit 用 rows.len() 度量)。
+    pub fn reset_preview_rows(&mut self) {
+        self.rows = preview_rows();
+        let (w, h) = (self.ctx.total_width(), self.ctx.total_height(self.rows.len() as i32));
+        self.canvas = Canvas::new(w, h);
+    }
+
     /// 文本行只读访问 (测试/诊断面)
     pub fn rows(&self) -> &[(String, String, String)] {
         &self.rows
@@ -145,10 +164,7 @@ pub fn flight_info_overlay_spec(
     let ctx = RenderCtx::new(font_add, column, default_num_height(font_add));
     let fonts = FontTriple::load(fonts_dir, &ctx)?;
     // preview 初值: FIELDS 静态 preview 文本 (POC --preview 同源)
-    let rows: Vec<(String, String, String)> = fields::FIELDS
-        .iter()
-        .map(|f| (f.label.to_string(), f.unit.to_string(), f.preview_text().to_string()))
-        .collect();
+    let rows: Vec<(String, String, String)> = preview_rows();
     // 窗口尺寸: 全行高度 (POC run_live 同款 — visible-when 变化不重建窗口,
     // 空行区域透明无碍)
     let (w, h) = (ctx.total_width(), ctx.total_height(rows.len() as i32));

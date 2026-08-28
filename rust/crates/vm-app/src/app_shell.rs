@@ -2013,6 +2013,28 @@ struct OverlayHandles {
     flight_info: Option<FlightInfoHandle>,
 }
 
+/// CloseAllOverlays 时数据面回 preview 静态初值 (win32 命令处理点调用)。
+/// 覆盖面 = reinit 闭包只重建几何/资源、不重建数据态的 4 个 overlay:
+/// 动力信息 (RenderContext 重载)、飞行信息 (字体/画布重载, rows 保留)、
+/// 舵面值 (几何派生)、地平仪 (尺寸/开关)。
+/// 不重置: MiniHUD (reinit 刷新 mock 模板 + update_components(None)) /
+/// 引擎控制 (build_engine_state 整建) / 起落襟翼 (GearFlapsState::new 整建) —
+/// preview 冷激活路径 refresh_preview_idx 先跑 reinit 即自愈。
+fn reset_handles_preview_values(handles: &OverlayHandles) {
+    if let Some(h) = handles.power_info.as_ref() {
+        h.borrow_mut().reset_preview();
+    }
+    if let Some(h) = handles.flight_info.as_ref() {
+        h.borrow_mut().reset_preview_rows();
+    }
+    if let Some(h) = handles.control_surfaces.as_ref() {
+        h.borrow_mut().reset_preview();
+    }
+    if let Some(h) = handles.attitude.as_ref() {
+        h.borrow_mut().reset_preview();
+    }
+}
+
 /// Java OverlayContext 的 win32 侧替身: 激活探测访问面
 /// (get_bool/isDebug/isJet/isPreviewMode/has_blkx — activation_strategy.rs trait 注)
 struct HostActivationCtx {
@@ -2633,6 +2655,11 @@ pub fn win32_thread_main(cfg: Win32ThreadConfig) {
                     if let Some(h) = handles.control_surfaces.as_ref() {
                         h.borrow_mut().has_service = false;
                     }
+                    // 数据面重置 (同上"实例销毁"语义的另一半): Java close 即实例
+                    // 死亡, preview 重开经工厂全新实例 + initPreview 静态值; Rust
+                    // handle 跨 close 存活 (render 闭包持同一 Rc), 不重置则下次
+                    // preview 窗渲染上次 live 残留值 (托盘 live→preview 复现)
+                    reset_handles_preview_values(&handles);
                     host.close_all(); // close 销毁链 (存位置 → drop)
                     // Java overlay dispose → Bus.unregister (drop 槽位即退订)
                     drop(std::mem::take(&mut flight_sub));

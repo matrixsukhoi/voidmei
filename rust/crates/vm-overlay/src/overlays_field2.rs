@@ -589,6 +589,20 @@ impl ControlSurfacesOverlay {
         self.locate_size = self.width / 30;
     }
 
+    /// 数据面回 preview 初值 (Java closeAll = 实例销毁 + refreshPreview 工厂新建
+    /// initPreview 实例的 "Initial Values (50)" 段; D8 单条目跨重建存活的补口 —
+    /// live 会话残留的 num 串/游标位置在 preview 重开前清除, 否则预览窗显示
+    /// 上次 live 数据)。几何不动 (reinit 闭包负责刷新)。
+    pub fn reset_preview(&mut self) {
+        self.elevator_num = fast_number_format::format(50.0, 0);
+        self.aileron_num = fast_number_format::format(50.0, 0);
+        self.rudder_num = fast_number_format::format(50.0, 0);
+        self.wing_sweep_num = fast_number_format::format(50.0, 0);
+        self.px = self.width / 2;
+        self.py = self.width / 2;
+        self.rudder_val_pix = (50 + 100) * self.width / 200;
+    }
+
     /// onFlightData (Java :280-312) 的单事件语义: 50ms 节流 → (EDT lambda 内)
     /// xs != null 才更新数据; 返回值 = 是否需要重绘 (Java 末尾无条件 repaint)。
     /// PORT: System.currentTimeMillis 由调用方注入 (now_ms), 便于测试。

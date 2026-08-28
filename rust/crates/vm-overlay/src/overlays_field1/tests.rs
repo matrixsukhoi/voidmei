@@ -499,6 +499,32 @@ fn power_info_preview_state() {
     assert_eq!(st.fields().iter().filter(|f| f.visible).count(), 19);
 }
 
+/// CloseAllOverlays 数据面重置 (app_shell reset_handles_preview_values 调用面):
+/// live 残留 (buffer/可见性/节流基准) → reset_preview → 构造态 previewValue 静态。
+/// 场景: 托盘 live→preview 后重开的预览窗不得显示上次 live 数值
+#[test]
+fn power_info_reset_preview_restores_statics() {
+    let mut st = PowerInfoState::new();
+    // 活塞机形态 (buffer 写入面) + 助推标志 false (live 驱动的可见性残留面)
+    let t = MockTele {
+        horse_power: 1200.0,
+        manifold: 0.98,
+        piston: true,
+        ..MockTele::default()
+    };
+    assert!(st.update(100, &t));
+    assert_eq!(st.fields()[0].buffer, "1200", "live 已写 buffer");
+    assert!(!st.fields().iter().find(|x| x.label == "助推燃料").unwrap().visible,
+        "助推 false → live 隐藏 (preview 构造态为全可见)");
+    // 重置 → 构造态: buffer 清空 / 全可见 / currentValue 回 previewValue
+    st.reset_preview();
+    assert!(st.fields().iter().all(|f| f.length == 0 && f.buffer.is_empty()));
+    assert!(st.fields().iter().all(|f| f.visible), "可见性回构造态 (live 残留清除)");
+    assert_eq!(st.fields()[0].current_value, "1200");
+    assert_eq!(st.fields().iter().find(|x| x.label == "进气压").unwrap().current_value, "1.2");
+    assert_eq!(st.last_refresh_time, 0, "节流基准复位 (重进游戏首帧不误吞)");
+}
+
 /// BOS 网格绘制 + 预览闭包工厂: 出像素且尺寸正确
 #[test]
 fn power_info_draw_and_preview_spec() {

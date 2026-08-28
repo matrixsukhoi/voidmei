@@ -590,6 +590,22 @@ impl AttitudeOverlay {
         self.dirty
     }
 
+    /// 数据面回构造器初值 (Java closeAll = 实例销毁 + refreshPreview 工厂新建
+    /// 实例; D8 单条目跨重建存活的补口 — live 会话残留的姿态点集在 preview
+    /// 重开前清除, 否则预览窗地平仪冻结在上次 live 姿态)。几何保留
+    /// (xWidth/xHeight/开关 — reinit 闭包负责刷新)。
+    pub fn reset_preview(&mut self) {
+        self.aos_x = 0;
+        self.aoa_y = 0;
+        self.pitch_y = 0;
+        self.compass_x = 0;
+        self.compass_y = 0;
+        self.aoa_limit_u = AOA_LIMIT_OFF;
+        self.aoa_limit_d = AOA_LIMIT_OFF;
+        self.p_t = [(0, 0); (4 + TICK_LINE * 4) as usize];
+        self.dirty = true;
+    }
+
     /// drawTick (Java:375-448): 遥测换算 + 地面多边形/刻度点集的平移旋转。
     /// `aoa_limits` = FM 的 (NoFlapsWing.AoACritHigh, AoACritLow);
     /// None = 无 FM —— Java blkx==null 分支, 极限线取哨兵 −10 (画在窗口外)。

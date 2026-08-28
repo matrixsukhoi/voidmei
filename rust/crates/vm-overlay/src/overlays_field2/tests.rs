@@ -682,3 +682,35 @@ fn control_surfaces_overlay_spec_shared_state() {
     (spec.render)(&mut cv2);
     assert!(cv2.pixmap().data().iter().any(|&b| b != 0));
 }
+
+/// CloseAllOverlays 数据面重置 (app_shell reset_handles_preview_values 调用面):
+/// live 残留 (num 串 + 游标/舵条) → reset_preview → initPreview 的
+/// "Initial Values (50)" + 游标居中。场景: 托盘 live→preview 后重开的
+/// 预览窗不得显示上次 live 舵面值
+#[test]
+fn control_surfaces_reset_preview_restores_initial_values() {
+    let fonts_dir = std::path::Path::new("../../../fonts");
+    let cell = Rc::new(RefCell::new(ReinitParams::default()));
+    let (h, _spec) = control_surfaces_overlay_spec(fonts_dir, &cell).unwrap();
+    // live 残留: has_service=true 喂非 50 值 (副翼 100/升降 -80/舵 60/翼扫 40)
+    h.borrow_mut().has_service = true;
+    assert!(h.borrow_mut().on_flight_data(200, 100.0, -80.0, 60.0, 40.0, true));
+    assert_eq!(h.borrow().aileron_num, "100");
+    // 重置 → 初值段: 四 num 串 "50" + 游标/舵条回几何中心 (init :91-94/:108-111)
+    h.borrow_mut().reset_preview();
+    let cs = h.borrow();
+    assert_eq!(
+        (
+            cs.elevator_num.as_str(),
+            cs.aileron_num.as_str(),
+            cs.rudder_num.as_str(),
+            cs.wing_sweep_num.as_str()
+        ),
+        ("50", "50", "50", "50")
+    );
+    assert_eq!(
+        (cs.px, cs.py, cs.rudder_val_pix),
+        (cs.width / 2, cs.height / 2, (50 + 100) * cs.width / 200),
+        "游标居中 + 舵条半量程"
+    );
+}

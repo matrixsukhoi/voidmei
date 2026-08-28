@@ -67,3 +67,26 @@ fn reinit_grows_with_font_add_and_keeps_rows() {
     assert!(w1 > 0);
     assert_eq!(handle.borrow().rows(), rows_before.as_slice(), "reinit 不动字段行数据");
 }
+
+/// CloseAllOverlays 数据面重置 (app_shell reset_handles_preview_values 调用面):
+/// live 行残留 (visible-when 过滤 + live 格式化值) → reset_preview_rows →
+/// FIELDS 全量 preview 静态行。场景: 托盘 live→preview 后重开的预览窗
+/// 不得显示上次 live 数值
+#[test]
+fn reset_preview_rows_restores_statics() {
+    let (handle, _spec) =
+        flight_info_overlay_spec(&fonts_dir(), &params_cell(|_| {})).unwrap();
+    // live 残留: 非零 Mach/IAS 帧 (行集与 preview 静态不同)
+    let mut v = FlightValues::default();
+    v.mach = 0.72;
+    v.ias = 450.0;
+    handle.borrow_mut().update_from_values(&v);
+    // 重置 → preview 行: FIELDS 全量 + preview_text 原样
+    handle.borrow_mut().reset_preview_rows();
+    let rows = handle.borrow().rows().to_vec();
+    assert_eq!(rows.len(), fields::FIELDS.len(), "回全量行 (visible-when 过滤清除)");
+    for (row, f) in rows.iter().zip(fields::FIELDS.iter()) {
+        assert_eq!(row.0, f.label);
+        assert_eq!(row.2, f.preview_text(), "值列回 preview 静态: {}", f.label);
+    }
+}

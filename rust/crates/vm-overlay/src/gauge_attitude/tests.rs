@@ -442,3 +442,36 @@ fn attitude_overlay_spec_dpi_and_shared_state() {
     assert_eq!((w1, h1), (300, 450));
     assert_eq!((h.borrow().x_width, h.borrow().x_height), (300, 450), "state 已换新几何");
 }
+
+/// CloseAllOverlays 数据面重置 (app_shell reset_handles_preview_values 调用面):
+/// live 残留姿态点集/极限线 → reset_preview → 构造器数据初值, 几何保留。
+/// 场景: 托盘 live→preview 后重开的预览窗地平仪不得冻结在上次 live 姿态
+#[test]
+fn attitude_reset_preview_clears_telemetry_state() {
+    let cell = Rc::new(RefCell::new(ReinitParams::default()));
+    let (h, _spec) = attitude_overlay_spec(&cell).unwrap();
+    // live 残留: aoa/pitch/roll/极限线全量喂入 (非构造态)
+    h.borrow_mut().update_telemetry(10.0, 5.0, -20.0, 30.0, 90.0, Some((20.0, -8.0)));
+    {
+        let g = h.borrow();
+        assert_ne!(g.aoa_y, 0, "aoa 喂入已离开构造态");
+        assert_ne!(g.pitch_y, 0, "pitch 喂入已离开构造态");
+        assert!(g.p_t.iter().any(|&p| p != (0, 0)), "姿态点集已生成");
+    }
+    let geo_before = {
+        let g = h.borrow();
+        (g.x_width, g.x_height, g.show_direction, g.show_aoa_limits)
+    };
+    // 重置 → 构造器数据值; 几何不动 (reinit 闭包职责)
+    h.borrow_mut().reset_preview();
+    let att = h.borrow();
+    assert_eq!(
+        (att.aos_x, att.aoa_y, att.pitch_y, att.compass_x, att.compass_y),
+        (0, 0, 0, 0, 0)
+    );
+    assert_eq!((att.aoa_limit_u, att.aoa_limit_d), (AOA_LIMIT_OFF, AOA_LIMIT_OFF));
+    assert!(att.p_t.iter().all(|&p| p == (0, 0)), "姿态点集清空");
+    assert!(att.is_dirty(), "重置标脏 (强制下一帧重绘)");
+    let geo_after = (att.x_width, att.x_height, att.show_direction, att.show_aoa_limits);
+    assert_eq!(geo_before, geo_after, "几何保留 (reinit 面不动)");
+}

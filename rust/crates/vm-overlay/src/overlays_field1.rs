@@ -1096,6 +1096,15 @@ impl PowerInfoState {
         &self.fields
     }
 
+    /// 数据面回 previewValue 静态 (Java closeAll = 实例销毁 + refreshPreview
+    /// 工厂新建 initPreview 实例的 initFields 段; D8 host 单条目跨重建存活的
+    /// 补口 — live 会话残留的 buffer/length 在 preview 重开前清除, 否则预览窗
+    /// 显示上次 live 数值而非 previewValue)。reinit 闭包只重建 RenderContext
+    /// (字体/列度量), 不动数据面, 故此处显式重置。
+    pub fn reset_preview(&mut self) {
+        *self = Self::new();
+    }
+
     /// FieldOverlay.onFlightData (FieldOverlay.java:166-217) 的单事件语义:
     /// 50ms 节流闩 → (invokeLater lambda 内) 零 GC 路径 (:178-217): 取值 →
     /// visible-when → 动态精度 → 动态单位 → 可见时格式化 (na-when → "-",
