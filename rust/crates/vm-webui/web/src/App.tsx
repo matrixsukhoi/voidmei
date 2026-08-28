@@ -22,8 +22,12 @@ const { Title, Text } = Typography
 
 const appWindow = getCurrentWindow()
 
-/** 自绘标题栏: 拖拽区 + 版本号 + 状态徽标 + 最小化/关闭 (关闭=hide, 对位 Java X 后托盘常驻) */
-const TitleBar: React.FC<{ ctrlState: string; version: string }> = ({ ctrlState, version }) => (
+/** 自绘标题栏: 拖拽区 + 版本号 + 状态徽标 + 最小化/关闭 (关闭=退出, 对位 Java EXIT_ON_CLOSE) */
+const TitleBar: React.FC<{ ctrlState: string; version: string; onQuit: () => void }> = ({
+  ctrlState,
+  version,
+  onQuit,
+}) => (
   <div className="titlebar" data-tauri-drag-region>
     <Title level={5} style={{ margin: 0, fontSize: 14, flex: 1 }} data-tauri-drag-region>
       VoidMei 设置{version ? ` v${version}` : ''}
@@ -32,7 +36,7 @@ const TitleBar: React.FC<{ ctrlState: string; version: string }> = ({ ctrlState,
     <button className="win-btn" title="最小化" onClick={() => appWindow.minimize()}>
       ─
     </button>
-    <button className="win-btn close" title="隐藏 (托盘常驻)" onClick={() => appWindow.hide()}>
+    <button className="win-btn close" title="退出 VoidMei" onClick={onQuit}>
       ✕
     </button>
   </div>
@@ -145,6 +149,13 @@ export default function App() {
     localStorage.setItem('vm-last-tab', t)
   }
 
+  /** 退出 VoidMei (对位 Java X=EXIT_ON_CLOSE 与 mCancel 同链: saveConfig + 退出)。
+   *  hide 给即时反馈, EndGame 走 Rust 干净退出链 (保存 + 主循环收尾, 非裸 exit) */
+  const quit = () => {
+    appWindow.hide().catch(() => undefined)
+    sendFormMessage({ kind: 'EndGame' }).catch((e) => message.error(`IPC 失败: ${e}`))
+  }
+
   // 动态窗口高度 (Java MainForm.updateDynamicSize: 按 tab 内容高度, min=tab×30+180,
   // max=屏-80) — 300ms 防抖, 高度差 >16px 才调 (防抖动)
   useEffect(() => {
@@ -178,6 +189,10 @@ export default function App() {
     // cfg 树变化 (reset/import 后 Rust 广播) → 重拉
     listen<unknown>('config-changed', () => {
       reload().catch(console.error)
+    }).catch(console.error)
+    // X/Alt+F4/任务栏关闭 (Rust on_window_event prevent_close 后转发) → 退出
+    listen('quit-requested', () => {
+      quit()
     }).catch(console.error)
     // 核状态徽标 (Init/Preview/Connected/InGame)
     listen<string>('controller-state', (e) => setCtrlState(e.payload)).catch(console.error)
@@ -245,7 +260,7 @@ export default function App() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#F5F5F5' }}>
-      <TitleBar ctrlState={ctrlState} version={version} />
+      <TitleBar ctrlState={ctrlState} version={version} onQuit={quit} />
       <div style={{ flex: 1, minHeight: 0, background: '#FFFFFF' }}>
         {tabs.length ? (
           <Tabs

@@ -17,7 +17,6 @@
 - gamemode -> live
 - 语音“试听”按钮是占位(语音子系统未装配，与 UI 解耦)；openComparison/openPowerCurve 弹“阶段④”提示——这两项属后续阶段
 - 点击tray icon重新唤起的预览的overlay保留了上次gamemode下的数据?
-- mainform的开关的所见即所得有点不跟手
 - 关闭mainform时没有退出游戏
 - 编译速度慢
 - mainform的自动上下拉伸很奇怪

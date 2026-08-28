@@ -8,7 +8,8 @@
 //! - IPC: command (tauri async 线程) → mpsc → [`ShellForm::pump_once`] 内 drain →
 //!   dispatcher (主线程执行体) → oneshot 回执。**AppShell !Send 恒留主线程不变**;
 //! - 窗口生命周期: 常驻隐藏, 托盘 Activate → `show()` (预热后 ≈100-200ms);
-//!   开始 (mStart; 旧文案"开始游戏")/窗口 X → `hide()` (X 由 on_window_event prevent_close 拦截);
+//!   开始 (mStart) → `hide()`; 窗口 X → 退出 (对位 Java setDefaultCloseOperation(3)
+//!   = EXIT_ON_CLOSE; on_window_event prevent_close + emit, 前端走 EndGame 干净退出链);
 //! - UI_READY 语义: 每次 show 由 vm-app 主循环发布 (rebuild 后 Init→preview 保真),
 //!   本 crate 不持有 ui_bus (依赖方向: vm-app → vm-webui)。
 //!
@@ -64,11 +65,15 @@ impl ShellForm {
                 commands::import_config,
                 commands::get_asset_root
             ])
-            // 窗口 X = hide (对位 Java DISPOSE→托盘常驻; 真退出走托盘菜单/EndGame)
+            // 窗口 X = 退出 VoidMei (对位 Java MainForm.java:374
+            // setDefaultCloseOperation(3)=EXIT_ON_CLOSE)。prevent_close 防
+            // WebView2 默认销毁破坏常驻壳; hide 给即时视觉反馈, emit 交前端走
+            // EndGame 干净退出链 (saveConfig + 主循环收尾, 覆盖 ✕/Alt+F4/任务栏关闭)
             .on_window_event(|window, event| {
                 if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                     api.prevent_close();
                     let _ = window.hide();
+                    let _ = window.emit("quit-requested", ());
                 }
             })
             .build(tauri::generate_context!())
@@ -126,7 +131,7 @@ impl ShellForm {
         }
     }
 
-    /// 隐藏设置窗 (开始/窗口 X 路径)
+    /// 隐藏设置窗 (开始路径; X 退出路径的 hide 在 on_window_event 内联)
     pub fn hide(&self) {
         if let Some(w) = self.main_window() {
             let _ = w.hide();
