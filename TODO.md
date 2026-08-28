@@ -19,3 +19,7 @@
 - 点击tray icon后, 从live->preview后, 重新唤起的预览的overlay保留了上次live下的数据? minihud还有残留
 - mainform的自动上下拉伸很奇怪
 - 变量名和可读性
+- 误报引擎转速低?
+- flightinfo的所见即所得不生效
+- vm-webui/vm-app 每次重编是 cmd_web 无条件 vite 重建触发的 tauri build.rs 重跑，属 build.py rust 的存量行为
+- 

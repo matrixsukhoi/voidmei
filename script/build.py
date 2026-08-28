@@ -12,6 +12,7 @@
   python script/build.py jar                打 VoidMei.jar (版本号注入 MANIFEST)
   python script/build.py exe                launch4j 打 VoidMei.exe (版本号注入 EXE 资源)
   python script/build.py dist               jar+exe 后组装完整分发包 -> dist/VoidMei_v*.zip
+  python script/build.py rustdist           rust 构建链后组装 Rust 版分发包 -> dist/VoidMei_Rust_*.zip
   python script/build.py fmdata             从 War Thunder 客户端解包并裁剪 FM 数据 (游戏版本更新后执行)
   python script/build.py web                D9 前端构建 (pnpm → rust/crates/vm-webui/web/dist)
   python script/build.py rust               D9 Rust 构建链 (web 前端 + cargo release → voidmei.exe)
@@ -390,17 +391,31 @@ def git_short():
     return r.strip() or "nogit"
 
 
+def dist_zip_name(prefix="VoidMei"):
+    """分发包命名: 正式版 <prefix>_v1_590.zip (版本号 . 换 _, 与历史分发包一致,
+    亦为 Lutra-Fs/scoop-bucket autoupdate 模板 $underscoreVersion 所需); 本地 dev 版带 commit hash 与日期。"""
+    if VERSION == "dev":
+        return "%s_dev_%s_%s" % (prefix, git_short(), datetime.now().strftime("%Y%m%d"))
+    return "%s_v%s" % (prefix, VERSION.replace(".", "_"))
+
+
+def pack_dist(stage, zipname):
+    """分发包收尾: 打 zip + sha256 侧车, 清 staging (Java/Rust 分发包共用)。"""
+    zip_path = DIST / (zipname + ".zip")
+    zip_tree(stage, zip_path, zipname)
+    rmtree(DIST / "stage")
+    # sha256 文件与 sha256sum 命令输出格式一致 ("<hash>  <name>")。
+    # 必须显式 newline="\n": Windows 文本模式会把 \n 转 \r\n, sha256sum -c 解析失败
+    with open(DIST / (zipname + ".zip.sha256"), "w", encoding="utf-8", newline="\n") as f:
+        f.write("%s  %s\n" % (sha256_of(zip_path), zipname + ".zip"))
+    log("分发包完成: dist/%s.zip (%.1f MB)" % (zipname, zip_path.stat().st_size / (1 << 20)))
+
+
 def cmd_dist():
     cmd_jar()
     cmd_exe()
 
-    # zip 命名: 正式版 VoidMei_v1_590.zip (版本号 . 换 _, 与历史分发包一致,
-    # 亦为 Lutra-Fs/scoop-bucket autoupdate 模板 $underscoreVersion 所需); 本地 dev 版带 commit hash 与日期
-    if VERSION == "dev":
-        zipname = "VoidMei_dev_%s_%s" % (git_short(), datetime.now().strftime("%Y%m%d"))
-    else:
-        zipname = "VoidMei_v%s" % VERSION.replace(".", "_")
-
+    zipname = dist_zip_name()
     stage = DIST / "stage" / zipname
     rmtree(stage)
     stage.mkdir(parents=True)
@@ -427,13 +442,60 @@ def cmd_dist():
     if (ROOT / "fonts" / "DIN Pro 400.otf").is_file():
         warn("本地 fonts/ 含 DIN Pro 400.otf (商业字体, 未入库), 本地打的包将携带该字体; 正式发布请使用 CI 产物")
 
-    zip_path = DIST / (zipname + ".zip")
-    zip_tree(stage, zip_path, zipname)
-    rmtree(DIST / "stage")
-    # sha256 文件与 sha256sum 命令输出格式一致 ("<hash>  <name>")
-    (DIST / (zipname + ".zip.sha256")).write_text(
-        "%s  %s\n" % (sha256_of(zip_path), zipname + ".zip"), encoding="utf-8")
-    log("分发包完成: dist/%s.zip (%.1f MB)" % (zipname, zip_path.stat().st_size / (1 << 20)))
+    pack_dist(stage, zipname)
+
+
+# ---------- rustdist: 组装 Rust 版分发包 ----------
+RUST_REL = ROOT / "rust" / "target" / "release"
+RUST_EXE = RUST_REL / "voidmei.exe"
+# Rust 渲染 (tiny-skia/swash) 实际使用的字体白名单; DIN Pro 是 Java 商业字体, 绝不进包
+RUST_DIST_FONTS = ("sarasa-mono-sc-bold.ttf", "sarasa-mono-sc-regular.ttf")
+
+
+def cmd_rustdist():
+    """组装 Rust 版分发包: rust 构建链 → dist/VoidMei_Rust_*.zip (解压即用, 无 JRE 依赖)。
+
+    与 Java dist 同形态 (data/fonts/image/voice/ui_layout.cfg/文档), 差异:
+    少 jar/bat/exe/dep/lang (前端与语言表已内嵌 exe), 多 voidmei.exe + WebView2Loader.dll + manifest。
+    """
+    cmd_rust()
+    if not RUST_EXE.is_file():
+        err("构建产物缺失: %s" % RUST_EXE)
+        sys.exit(1)
+
+    zipname = dist_zip_name("VoidMei_Rust")
+    stage = DIST / "stage" / zipname
+    rmtree(stage)
+    stage.mkdir(parents=True)
+
+    log("组装 Rust 分发包: %s ..." % zipname)
+    # --- 程序三件套: exe 必需; dll/manifest 存在则拷 (缺失仅告警 — 静态链工具链可无 dll) ---
+    shutil.copy2(RUST_EXE, stage / "voidmei.exe")
+    for name, why in (("WebView2Loader.dll", "exe 导入表依赖, 目标机缺失会启动失败"),
+                      ("voidmei.exe.manifest", "manifest 冗余腿 (主腿已 windres 嵌入 exe)")):
+        src = RUST_REL / name
+        if src.is_file():
+            shutil.copy2(src, stage / name)
+        else:
+            warn("%s 不在 rust/target/release/, 跳过 (%s)" % (name, why))
+    # --- fonts: 白名单两文件 (与 Java dist 整目录拷不同, 从根上杜绝商业字体混入) ---
+    (stage / "fonts").mkdir()
+    for f in RUST_DIST_FONTS:
+        if not (ROOT / "fonts" / f).is_file():
+            err("fonts/%s 缺失 (Rust 渲染必需)" % f)
+            sys.exit(1)
+        shutil.copy2(ROOT / "fonts" / f, stage / "fonts" / f)
+    # --- 其余资源同 Java dist: 整目录 + 配置 + 文档 (白名单复制, 天然排除用户数据) ---
+    copytree(ROOT / "image", stage / "image")
+    copytree(ROOT / "voice", stage / "voice")
+    shutil.copy2(ROOT / "ui_layout.cfg", stage / "ui_layout.cfg")
+    for txt in ("使用说明.txt", "快速使用说明.txt", "更新日志.txt"):
+        if (ROOT / txt).is_file():
+            shutil.copy2(ROOT / txt, stage / txt)
+    # --- FM 数据 (裁剪版, 与 Java 共用) ---
+    stage_data(stage)
+
+    pack_dist(stage, zipname)
 
 
 # ---------- fmdata: 解包并裁剪 FM 数据 ----------
@@ -647,9 +709,18 @@ def cmd_rust():
     if not cargo:
         err("未找到 cargo (Rust 工具链, 见 rust/README.md)")
         raise SystemExit(1)
+    # rustc 不把 option_env! 读的环境变量计入编译指纹, VOIDMEI_VERSION 变化不会触发重编
+    # (exe 内嵌版本号会陈旧)。用版本戳检测变化, 变了就 clean vm-webui (option_env! 所在
+    # crate), 下游 vm-app 随依赖 hash 连锁重编; 版本不变零代价。
+    stamp = BUILD / "rust_version.stamp"
+    prev = stamp.read_text(encoding="utf-8").strip() if stamp.is_file() else None
+    if prev is not None and prev != VERSION:
+        warn("VOIDMEI_VERSION 变化 (%s -> %s), 强制重编 vm-webui 使 exe 内嵌版本号生效" % (prev, VERSION))
+        run([cargo, "clean", "--release", "-p", "vm-webui"], cwd=str(ROOT / "rust"))
     run([cargo, "build", "--release"], cwd=str(ROOT / "rust"))
-    exe = ROOT / "rust" / "target" / "release" / "voidmei.exe"
-    log("Rust 构建完成: %s" % exe)
+    BUILD.mkdir(exist_ok=True)
+    stamp.write_text(VERSION + "\n", encoding="utf-8")
+    log("Rust 构建完成: %s (注入版本: %s)" % (RUST_EXE, VERSION))
 
 
 def main():
@@ -663,6 +734,7 @@ def main():
     sub.add_parser("jar", help="打 VoidMei.jar (版本号注入 MANIFEST)")
     sub.add_parser("exe", help="launch4j 打 VoidMei.exe")
     sub.add_parser("dist", help="组装完整分发包")
+    sub.add_parser("rustdist", help="组装 Rust 版分发包 (web+cargo 构建 → dist/VoidMei_Rust_*.zip)")
     sub.add_parser("fmdata", help="解包并裁剪 FM 数据")
     sub.add_parser("web", help="D9 前端构建 (pnpm → web/dist)")
     sub.add_parser("rust", help="D9 Rust 构建链 (web + cargo release)")
@@ -681,6 +753,8 @@ def main():
         cmd_exe()
     elif args.cmd == "dist":
         cmd_dist()
+    elif args.cmd == "rustdist":
+        cmd_rustdist()
     elif args.cmd == "fmdata":
         cmd_fmdata()
     elif args.cmd == "web":

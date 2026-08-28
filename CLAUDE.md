@@ -43,6 +43,9 @@ python script/build.py exe
 # 组装完整分发包 → dist/VoidMei_v*.zip (含裁剪版 data, 剔除用户数据)
 python script/build.py dist
 
+# 组装 Rust 版分发包 → dist/VoidMei_Rust_*.zip (同形态, 解压即用免 JRE; 版本号注入同 VOIDMEI_VERSION)
+python script/build.py rustdist
+
 # 游戏版本更新后: 解包并裁剪 FM 数据 (更新项目内 ./data, 产出 data zip + manifest)
 # 游戏目录自动探测 (注册表 > Steam 库 > 常见路径, 缓存 .wt_game_dir), 也可 WT_GAME_DIR 显式指定
 python script/build.py fmdata
