@@ -570,9 +570,9 @@ fn end_preview_invalidates_inflight_generation() {
 // debounce 时序 (Java ConfigDebounce 语义, 短间隔)
 // ------------------------------------------------------------------
 
-/// 连发变更合并为一次刷新, 载荷 = 最后一条键; 安静后无重复
+/// 连发变更 (leading+trailing): 首条立即刷 + 末条安静期后收尾, 之后无更多
 #[test]
-fn debounce_coalesces_rapid_changes() {
+fn debounce_leading_immediate_and_trailing_final() {
     let shared = Arc::new(ControllerShared::new());
     let (out_tx, out_rx) = std::sync::mpsc::channel::<UiCommand>();
     let mut deb =
@@ -583,29 +583,36 @@ fn debounce_coalesces_rapid_changes() {
         std::thread::sleep(Duration::from_millis(5));
     }
     drop(tx); // shutdown 前 drop 全部发送端克隆, 否则 join 等 Disconnected 永阻塞
-    match out_rx.recv_timeout(Duration::from_millis(500)) {
-        Ok(UiCommand::RefreshPreviews {
-            changed_key,
-            generation,
-        }) => {
-            assert_eq!(changed_key, Some("k5".to_string()), "最后一条变更生效");
+    // leading: 首条 k1 立即 (30ms 门槛 < 纯尾沿最早 65ms = k5@25ms + 窗 40ms,
+    // 区分两种实现且留调度余量)
+    match out_rx.recv_timeout(Duration::from_millis(30)) {
+        Ok(UiCommand::RefreshPreviews { changed_key, generation }) => {
+            assert_eq!(changed_key, Some("k1".to_string()), "首条立即刷 (leading)");
             assert_eq!(
                 generation,
                 shared.preview_generation.load(Ordering::SeqCst),
                 "世代号为发送时快照"
             );
         }
-        other => panic!("防抖后应送达一次刷新: {:?}", other),
+        other => panic!("leading 沿应立即送达: {:?}", other),
     }
-    // 安静期无第二条 (合并为一次)
+    // trailing: 窗口内连发合并, 末条 k5 生效
+    match out_rx.recv_timeout(Duration::from_millis(500)) {
+        Ok(UiCommand::RefreshPreviews { changed_key, .. }) => {
+            assert_eq!(changed_key, Some("k5".to_string()), "末条变更收尾 (trailing)");
+        }
+        other => panic!("trailing 沿应送达末条刷新: {:?}", other),
+    }
+    // 安静期无第三条 (leading+trailing 各一次, 不多刷)
     assert!(
         out_rx.recv_timeout(Duration::from_millis(120)).is_err(),
-        "防抖窗口内连发只触发一次"
+        "连发只产生 leading+trailing 两次刷新"
     );
     deb.shutdown();
 }
 
-/// FmChanged → 全量刷新 (changed_key=None); RESET_COMPLETED → 全量
+/// FmChanged → 全量刷新 (changed_key=None); RESET_COMPLETED → 全量。
+/// (leading 下单发场景只此一条: 窗口内无后续 → trailing 不触发)
 #[test]
 fn debounce_fm_and_reset_full_refresh() {
     let shared = Arc::new(ControllerShared::new());

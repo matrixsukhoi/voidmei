@@ -129,6 +129,9 @@ export default function App() {
     try {
       const tree = await getLayoutTree()
       setPanels(tree)
+      // 与 setPanels 同批清空乐观层: 重拉真值接管 (reset/导入的全量变更不被旧值遮蔽;
+      // 普通开关场景重拉值与乐观值相同, 无闪烁)
+      setValues({})
       setActiveTab((cur) => (tree.some((p) => p.title === cur) ? cur : tree[0]?.title ?? ''))
       setLoadErr('')
     } catch (e) {

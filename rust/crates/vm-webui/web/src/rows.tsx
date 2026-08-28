@@ -86,16 +86,22 @@ const RowLine: React.FC<{ label?: React.ReactNode; children?: React.ReactNode; f
   </div>
 )
 
-/** SWITCH / SWITCH_INV / DATA (DATA 是开关, Java data toggles): label 左, 开关紧随 */
+/** SWITCH / SWITCH_INV / DATA (DATA 是开关, Java data toggles): label 左, 开关紧随。
+ *  乐观翻转 (Java Swing 组件本地态同款): 点按即翻, 真值经 config-changed 重拉同步 */
 const SwitchRow: React.FC<RowProps> = ({ row, panel, values }) => {
   const key = rowKey(row)
   const local = values[key]
-  const checked = typeof local === 'boolean' ? local : String(row.value ?? '').toLowerCase() === 'true'
+  const initial = typeof local === 'boolean' ? local : String(row.value ?? '').toLowerCase() === 'true'
+  const [on, setOn] = useState(initial)
+  useEffect(() => setOn(initial), [initial])
   return (
-    <RowLine label={<Label text={row.label} desc={row.desc} descImg={row.descImg}  />}> 
+    <RowLine label={<Label text={row.label} desc={row.desc} descImg={row.descImg}  />}>
       <Switch
-        checked={checked}
-        onChange={(v) => sendFormMessage({ kind: 'Toggle', panel, key, value: v })}
+        checked={on}
+        onChange={(v) => {
+          setOn(v) // 乐观: 不等 IPC 往返
+          sendFormMessage({ kind: 'Toggle', panel, key, value: v })
+        }}
       />
     </RowLine>
   )
@@ -138,26 +144,31 @@ const SliderRow: React.FC<RowProps> = ({ row, panel, values }) => {
   )
 }
 
-/** COMBO: _FONTS_/_CROSSHAIRS_/静态 options (Rust resolve_options 同源) */
+/** COMBO: _FONTS_/_CROSSHAIRS_/静态 options (Rust resolve_options 同源); 乐观选中 */
 const ComboRow: React.FC<RowProps> = ({ row, panel, values }) => {
   const key = rowKey(row)
   const local = values[key]
-  const current = typeof local === 'string' ? local : String(row.value ?? '')
+  const initial = typeof local === 'string' ? local : String(row.value ?? '')
+  const [cur, setCur] = useState(initial)
+  useEffect(() => setCur(initial), [initial])
   const source = String(row.format ?? '') // cfg :format 承载 options 源 (Rust combo.rs 同)
   const [options, setOptions] = useState<string[]>([])
   useEffect(() => {
-    getComboOptions(source, current)
-      .then((opts) => setOptions(opts.length ? opts : [current]))
-      .catch(() => setOptions([current]))
-  }, [source, current])
+    getComboOptions(source, cur)
+      .then((opts) => setOptions(opts.length ? opts : [cur]))
+      .catch(() => setOptions([cur]))
+  }, [source, cur])
   return (
-    <RowLine label={<Label text={row.label} desc={row.desc} descImg={row.descImg}  />}> 
+    <RowLine label={<Label text={row.label} desc={row.desc} descImg={row.descImg}  />}>
       <Select
         size="small"
         style={{ minWidth: 160 }}
-        value={current || undefined}
+        value={cur || undefined}
         options={options.map((o) => ({ value: o, label: o }))}
-        onChange={(v) => sendFormMessage({ kind: 'Combo', panel, key, value: v })}
+        onChange={(v) => {
+          setCur(v) // 乐观
+          sendFormMessage({ kind: 'Combo', panel, key, value: v })
+        }}
       />
     </RowLine>
   )
@@ -296,15 +307,20 @@ const VoiceRow: React.FC<RowProps> = ({ row, panel, values }) => {
     voicePacksOnce().then(setPacks).catch(() => setPacks(['default']))
   }, [])
   // 值回退链: 本地态 → row.value → row.defaultValue (Java VoicePackConfig.parse 空值→default)
-  const current = parseVoicePackValue(values[key] ?? row.value ?? row.defaultValue)
+  const initial = parseVoicePackValue(values[key] ?? row.value ?? row.defaultValue)
+  const [cur, setCur] = useState(initial)
+  useEffect(() => setCur(initial), [initial])
   return (
-    <RowLine label={<Label text={row.label} desc={row.desc} descImg={row.descImg}  />}> 
+    <RowLine label={<Label text={row.label} desc={row.desc} descImg={row.descImg}  />}>
       <Select
         size="small"
         style={{ minWidth: 140 }}
-        value={current || undefined}
+        value={cur || undefined}
         options={packs.map((p) => ({ value: p, label: p }))}
-        onChange={(v) => sendFormMessage({ kind: 'Combo', panel, key, value: v })}
+        onChange={(v) => {
+          setCur(v) // 乐观
+          sendFormMessage({ kind: 'Combo', panel, key, value: v })
+        }}
       />
       <Tooltip title="试听待语音子系统装配">
         <Button size="small" disabled>
@@ -323,17 +339,22 @@ const FmListRow: React.FC<RowProps> = ({ row, panel, values }) => {
     fmListOnce().then(setFms).catch(() => setFms([]))
   }, [])
   const local = values[key]
-  const current = typeof local === 'string' ? local : String(row.value ?? '')
+  const initial = typeof local === 'string' ? local : String(row.value ?? '')
+  const [cur, setCur] = useState(initial)
+  useEffect(() => setCur(initial), [initial])
   return (
-    <RowLine label={<Label text={row.label} desc={row.desc} descImg={row.descImg}  />}> 
+    <RowLine label={<Label text={row.label} desc={row.desc} descImg={row.descImg}  />}>
       <Select
         size="small"
         showSearch
         optionFilterProp="label"
         style={{ minWidth: 180 }}
-        value={current || undefined}
+        value={cur || undefined}
         options={fms.map((f) => ({ value: f, label: f }))}
-        onChange={(v) => sendFormMessage({ kind: 'Combo', panel, key, value: v })}
+        onChange={(v) => {
+          setCur(v) // 乐观
+          sendFormMessage({ kind: 'Combo', panel, key, value: v })
+        }}
       />
       <Button size="small" onClick={() => message.info('对比窗口属阶段④')}>
         对比
@@ -347,7 +368,9 @@ const FmListRow: React.FC<RowProps> = ({ row, panel, values }) => {
 const HotkeyRow: React.FC<RowProps> = ({ row, panel, values }) => {
   const key = rowKey(row)
   const raw = values[key] ?? row.value
-  const vc = typeof raw === 'number' ? raw : parseInt(String(raw ?? '0'), 10) || 0
+  const vcInitial = typeof raw === 'number' ? raw : parseInt(String(raw ?? '0'), 10) || 0
+  const [vc, setVc] = useState(vcInitial)
+  useEffect(() => setVc(vcInitial), [vcInitial])
   const [recording, setRecording] = useState(false)
   // 录制态: window 一次性 keydown; 卸载/退出录制必移除 (防泄漏 + 防复发)
   useEffect(() => {
@@ -361,6 +384,7 @@ const HotkeyRow: React.FC<RowProps> = ({ row, panel, values }) => {
       const code = browserCodeToVc(e.code)
       if (code == null) return
       setRecording(false)
+      setVc(code) // 乐观: 键名立即更新
       sendFormMessage({ kind: 'Combo', panel, key, value: String(code) })
     }
     window.addEventListener('keydown', onKey, { once: true })

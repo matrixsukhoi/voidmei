@@ -69,7 +69,8 @@ use vm_overlay::{
 #[cfg(target_os = "windows")]
 use vm_overlay::tray::{TrayConfig, TrayIcon, TrayHandler};
 
-/// Java Controller.java:59 `CONFIG_DEBOUNCE_MS = 200`
+/// Java Controller.java:59 `CONFIG_DEBOUNCE_MS = 200` (Rust 为 leading+trailing 窗口,
+/// 见 [ConfigDebouncer] 头注: 200 = trailing 收尾间隔, leading 沿不受此延迟)
 pub const CONFIG_DEBOUNCE_MS: u64 = 200;
 
 // =====================================================================
@@ -465,13 +466,34 @@ pub fn is_stale_refresh(shared: &ControllerShared, generation: u64) -> bool {
 // ConfigDebouncer — Java static configDebouncer 的线程化 (Controller.java:52-59)
 // =====================================================================
 
-/// 单线程防抖器: 安静期 `delay` 内的最后一条消息触发一次 RefreshPreviews。
-/// PORT(Java 语义): `pendingConfigRefresh.cancel(false)` + `schedule(200ms)`
-/// —— 新变更取消未执行任务并重排, 只有最后一次变更生效。
+/// 单线程防抖器 (leading + trailing): 首条消息**立即**触发刷新, 安静期 `delay`
+/// 内的后续变更合并为末条再触发一次。
+/// PORT(Java 语义偏差备案): Java 为纯尾沿 `pendingConfigRefresh.schedule(200ms)`
+/// —— 配置变更要等满 200ms 才见预览变化, WYSIWYG 明显不跟手 (端到端 ~220ms 大头)。
+/// Rust 增强 leading 沿: 开关类单发操作端到端降至 ~30ms; 滑条拖动中每窗口亦刷
+/// 一次 (Java 是拖动中完全不刷), 稳态刷新率 ≤ 1/delay, 开销可控。
 /// 跨 Controller 重建共享 (Java static; Rust 由 AppShell 持有, tx 分发进各核)。
 pub struct ConfigDebouncer {
     tx: Option<Sender<DebounceMsg>>,
     join: Option<JoinHandle<()>>,
+}
+
+/// 防抖任务体 (Java Controller.java:525-536/573-576): refreshPreviews(key)/
+/// refreshAllPreviews()。loadFromConfig 已挪至主线程调度点 (配置 !Send, 见模块头);
+/// 此处只取世代号快照送刷新命令, 消费侧 win32 做守卫。
+fn refresh_cmd(msg: DebounceMsg, shared: &ControllerShared) -> UiCommand {
+    let generation = shared.preview_generation.load(Ordering::SeqCst);
+    let changed_key = match msg {
+        DebounceMsg::ConfigKey(ref k) if k == ui_state_events::ACTION_RESET_COMPLETED => {
+            None // 全局重置: refreshAllPreviews (Controller.java:530)
+        }
+        DebounceMsg::ConfigKey(k) => Some(k),
+        DebounceMsg::FmChanged => None, // FM_CHANGED: refreshAllPreviews
+    };
+    UiCommand::RefreshPreviews {
+        changed_key,
+        generation,
+    }
 }
 
 impl ConfigDebouncer {
@@ -483,33 +505,22 @@ impl ConfigDebouncer {
             .name("ConfigDebounce".to_string()) // Java 线程名 "ConfigDebounce"
             .spawn(move || {
                 while let Ok(first) = rx.recv() {
-                    let mut last = first;
+                    // leading: 首条立即刷 (跟手关键; 时序上 ReinitOverlays 参数仓
+                    // 覆写先入队, 本命令紧随 → win32 消费序参数恒新)
+                    let _ = out.send(refresh_cmd(first, &shared));
+                    let mut last: Option<DebounceMsg> = None;
                     // 安静期窗口: 每到一条即重排 (cancel+reschedule 的电平等价)
                     loop {
                         match rx.recv_timeout(delay) {
-                            Ok(next) => last = next,
+                            Ok(next) => last = Some(next),
                             Err(RecvTimeoutError::Timeout) => break,
                             Err(RecvTimeoutError::Disconnected) => return,
                         }
                     }
-                    // Java 防抖任务体 (Controller.java:525-536/573-576):
-                    // loadFromConfig() + refreshPreviews(key)/refreshAllPreviews()。
-                    // loadFromConfig 已挪至主线程调度点 (配置 !Send, 见模块头);
-                    // 此处只取世代号快照送刷新命令, 消费侧 win32 做守卫。
-                    let generation = shared.preview_generation.load(Ordering::SeqCst);
-                    let changed_key = match last {
-                        DebounceMsg::ConfigKey(ref k)
-                            if k == ui_state_events::ACTION_RESET_COMPLETED =>
-                        {
-                            None // 全局重置: refreshAllPreviews (Controller.java:530)
-                        }
-                        DebounceMsg::ConfigKey(k) => Some(k),
-                        DebounceMsg::FmChanged => None, // FM_CHANGED: refreshAllPreviews
-                    };
-                    let _ = out.send(UiCommand::RefreshPreviews {
-                        changed_key,
-                        generation,
-                    });
+                    // trailing: 窗口内有后续变更 → 末条生效 (Java 语义保留)
+                    if let Some(last) = last {
+                        let _ = out.send(refresh_cmd(last, &shared));
+                    }
                 }
             })
             .expect("ConfigDebounce 线程创建失败");
