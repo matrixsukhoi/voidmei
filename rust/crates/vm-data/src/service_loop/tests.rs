@@ -717,3 +717,47 @@ fn flight_log_tick_writes_rows_and_close_flushes() {
         std::panic::resume_unwind(e);
     }
 }
+
+/// 公式系统集成 (阶段 2 A 级外置验收): formula_step 求值链 + mach 覆写守卫。
+/// 注: READY 句柄的覆写发生路径 (blkx.is_some) 由 mock e2e 场景覆盖 (暂缓跑),
+/// 本测试覆盖: (1) mach 公式按内置式求值正确 (2) 无 FM 守卫生效 (mach 不被覆写)。
+#[test]
+fn formula_step_evaluates_and_guards_mach() {
+    let mut svc = new_service();
+    // 安装与 formulas.cfg 内置同式的 mach 公式 (测试 cwd 无该文件, 手动装载)
+    let defs = vec![vm_core::formula::FormulaDef {
+        name: "mach".into(),
+        expr: "ias_per_mach(altitude) != 0 ? ias / ias_per_mach(altitude) : 0".into(),
+        ..Default::default()
+    }];
+    svc.formula.install(&defs, &["mach".to_string()]);
+
+    // 喂一帧遥测: ias=474, heightm=46 (STATE_MOCK 同源值)
+    {
+        let mut d = svc.data.write().unwrap();
+        let s = d.s_state.as_mut().unwrap();
+        s.engine_num = 1;
+        s.ias = 474;
+        s.heightm = 46.0;
+        // 生产链 d.alt 由 Deriver 写回段先置 (= s.heightm 直通),
+        // 本测试直调 formula_step 需预置同值
+        d.alt = 46.0;
+        d.actual_interval_ms = 50;
+    }
+    // 无 FM 句柄 (UNRESOLVED, 对应构造默认)
+    let fm = vm_core::fm::FMHandle::UNRESOLVED;
+    let before_mach = svc.data.read().unwrap().mach;
+    svc.formula_step(&fm);
+
+    let d = svc.data.read().unwrap();
+    // (1) 公式求值链通: mach 槽存在且 = 手算值 (与 Deriver 手写式位级同式)
+    let slot = d.formula_slots.get("mach").copied().expect("mach 槽存在");
+    let v = d.formula_values.get(slot);
+    let ias_per_mach = 3.6
+        * (1.4f64 / 1.225 * 101325.0 * (1.0f64 - 0.0000225577 * 46.0).powf(5.25588))
+            .sqrt();
+    let expect = 474.0 / ias_per_mach;
+    assert!((v - expect).abs() < 1e-12, "公式 mach {v} vs 手算 {expect}");
+    // (2) 无 FM 守卫: d.mach 不被覆写 (保持上轮值)
+    assert_eq!(d.mach, before_mach);
+}

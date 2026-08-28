@@ -12,6 +12,7 @@ dist/
 records/
 /config/
 ui_layout.user.cfg*
+formulas.user.cfg*
 output.log
 error.log
 gpu_compat.properties

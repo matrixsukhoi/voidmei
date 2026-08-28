@@ -740,5 +740,68 @@ impl FMDataSource for FMDataAdapter {
     }
 }
 
+/// 真 Blkx → 消费面快照 (公式系统 L0 的 fm.* 变量供值链, 设计 §3.4):
+/// 换机时由 Service 侧一次性转换 (fm_manager.rs 的 READY 句柄 blkx → 本快照)。
+/// 定长数组 → Vec / FmParts → FmPartsPlaceholder 逐字段拷贝。
+impl From<&crate::blkx::Blkx> for BlkxPlaceholder {
+    fn from(b: &crate::blkx::Blkx) -> Self {
+        let parts = |p: Option<&crate::blkx::FmParts>| {
+            p.map(|p| FmPartsPlaceholder {
+                cd_min: p.cd_min,
+                cl0: p.cl0,
+                cl_crit_high: p.cl_crit_high,
+                cl_crit_low: p.cl_crit_low,
+                aoa_crit_high: p.aoa_crit_high,
+                aoa_crit_low: p.aoa_crit_low,
+            })
+        };
+        BlkxPlaceholder {
+            read_file_name: b.read_file_name.clone(),
+            version: b.version.clone(),
+            emptyweight: b.emptyweight,
+            maxfuelweight: b.maxfuelweight,
+            critical_speed: b.critical_speed,
+            vne: b.vne,
+            vne_mach: b.vne_mach,
+            raw_wing_crit_overload: b.raw_wing_crit_overload.map(|a| a.to_vec()),
+            grossweight: b.grossweight,
+            halfweight: b.halfweight,
+            elav_eff: b.elav_eff,
+            aileron_eff: b.aileron_eff,
+            rudder_eff: b.rudder_eff,
+            elav_power_loss: b.elav_power_loss,
+            aileron_power_loss: b.aileron_power_loss,
+            rudder_power_loss: b.rudder_power_loss,
+            nitro: b.nitro,
+            nitro_decr: b.nitro_decr,
+            avg_eng_recovery_rate: b.avg_eng_recovery_rate,
+            no_flap_wll: b.no_flap_wll,
+            full_flap_wll: b.full_flap_wll,
+            moment_of_inertia: b.moment_of_inertia.map(|a| a.to_vec()),
+            a_wing: b.a_wing,
+            a_fuselage: b.a_fuselage,
+            oswalds_efficiency_number: b.oswalds_efficiency_number,
+            aspect_ratio: b.aspect_ratio,
+            swept_wing_angle: b.swept_wing_angle,
+            cd_s: b.cd_s,
+            ind_cd_f: b.ind_cd_f,
+            radiator_cd: b.radiator_cd,
+            oil_radiator_cd: b.oil_radiator_cd,
+            no_flaps_wing: parts(b.no_flaps_wing.as_ref()),
+            full_flaps_wing: parts(b.full_flaps_wing.as_ref()),
+            fuselage: parts(b.fuselage.as_ref()),
+            fin: parts(b.fin.as_ref()),
+            stab: parts(b.stab.as_ref()),
+            flaps_destruction_num: b.flaps_destruction_num,
+            flaps_destruction_ind_speed: b
+                .flaps_destruction_ind_speed
+                .map(|t| t.iter().map(|r| r.to_vec()).collect()),
+            gear_destruction_ind_speed: b.gear_destruction_ind_speed,
+            is_jet: b.is_jet,
+            engine_num: b.engine_num,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests;

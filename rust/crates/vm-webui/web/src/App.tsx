@@ -17,6 +17,7 @@ import type { PanelDto, RowDto } from './api'
 import { getAppVersion, getAssetRoot, getLayoutTree, importConfig, sendFormMessage } from './api'
 import { RowRenderer } from './rows'
 import { AppDialogs } from './dialogs'
+import { FORMULA_TAB, FormulaTab } from './formulas/FormulaTab'
 
 const { Title, Text } = Typography
 
@@ -136,7 +137,10 @@ export default function App() {
       // 与 setPanels 同批清空乐观层: 重拉真值接管 (reset/导入的全量变更不被旧值遮蔽;
       // 普通开关场景重拉值与乐观值相同, 无闪烁)
       setValues({})
-      setActiveTab((cur) => (tree.some((p) => p.title === cur) ? cur : tree[0]?.title ?? ''))
+      // 手工 "公式" tab 不在 cfg 树里, 但同样是合法停留位 (config-changed 重拉不踢出)
+      setActiveTab((cur) =>
+        tree.some((p) => p.title === cur) || cur === FORMULA_TAB ? cur : tree[0]?.title ?? '',
+      )
       setLoadErr('')
     } catch (e) {
       setLoadErr(String(e))
@@ -257,7 +261,24 @@ export default function App() {
         {watermark && <img className="watermark" src={watermark} alt="" />}
       </div>
     ),
-  }))
+  })).concat({
+    // 手工 tab: "公式"编辑器 (cfg panels 之外的功能页, 不由 ui_layout.cfg 驱动)
+    key: FORMULA_TAB,
+    label: FORMULA_TAB,
+    children: (
+      <div style={{ padding: '6px 14px 16px', overflowY: 'auto', height: 'calc(100vh - 36px - 52px)' }}>
+        {/* 测量层同 panels tab (动态窗口高度逻辑统一处理) */}
+        <div
+          ref={(el) => {
+            if (activeTab === FORMULA_TAB) measureRef.current = el
+          }}
+        >
+          <FormulaTab />
+        </div>
+        {watermark && <img className="watermark" src={watermark} alt="" />}
+      </div>
+    ),
+  })
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#F5F5F5' }}>

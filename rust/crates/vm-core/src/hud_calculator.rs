@@ -162,7 +162,11 @@ pub fn calculate<S: HUDSettings>(
         b.g_load = s_state.ny;
     }
 
-    b.energy_m = source.get_energy_jkg() / g;
+    // 公式驱动 (阶段 2 A 级外置): 公式结果优先, 公式缺失/禁用/NaN 回退原计算
+    // (迁移期双保险 — 用户删改内置公式时 HUD 数据不断链)
+    b.energy_m = source
+        .get_formula_value("energy_m")
+        .unwrap_or_else(|| source.get_energy_jkg() / g);
 
     b.is_mach_mode = settings.draw_hud_mach();
     b.is_gear_down = b.gear > 0.0;
@@ -182,12 +186,15 @@ pub fn calculate<S: HUDSettings>(
         let nfweight = blkx.nofuelweight;
         let current_fuel = s_state.map_or(0.0, |s| s.mfuel);
 
-        // Check for valid weights to avoid division by zero
-        if nfweight > 0.0 && (nfweight + current_fuel) > 0.0 {
-            b.maneuver_index = 1.0 - (nfweight / (nfweight + current_fuel));
-        } else {
-            b.maneuver_index = 0.0;
-        }
+        // 公式驱动 (阶段 2 A 级外置, 公式式含同款零除守卫; fm.* 未接线时回退原式)
+        b.maneuver_index = source.get_formula_value("maneuver_index").unwrap_or_else(|| {
+            // Check for valid weights to avoid division by zero
+            if nfweight > 0.0 && (nfweight + current_fuel) > 0.0 {
+                1.0 - (nfweight / (nfweight + current_fuel))
+            } else {
+                0.0
+            }
+        });
 
         let mut vwing = 0.0;
         // PORT: Java `blkx.isVWing` (Boolean 装箱) 在布尔上下文自动拆箱, null → NPE
@@ -389,10 +396,14 @@ pub fn calculate<S: HUDSettings>(
 
 /// 对应 Java `private static double getFlapAllowAngle(double ias, boolean
 /// isDowningFlap, Blkx blkx)`。
+/// **双胞胎合一** (设计 §7): Service 侧 methods_engine 曾有一份逐行同构的
+/// Service 版 (Java Service.java L1108-1145 与 HUDCalculator.java:300-341
+/// 本就是两份拷贝), 现统一走本实现 (含 Java 的 `!blkx.valid → 125` 防御分支;
+/// 生产链两调用方的 blkx 均来自 READY 句柄, valid 恒真, 该分支不可达 —
+/// Service 版测试 mock 需 valid=true 对齐生产形态)。
 /// PORT: 形参 isDowningFlap 在 Java 方法体内未使用 — 签名保真, `_` 前缀消告警。
-fn get_flap_allow_angle(ias: f64, _is_downing_flap: bool, blkx: Option<&Blkx>) -> f64 {
+pub fn get_flap_allow_angle(ias: f64, _is_downing_flap: bool, blkx: Option<&Blkx>) -> f64 {
     // Java: if (ias == 0 || blkx == null || !blkx.valid) return 125;
-    // (纯条件短路, 逐项保持判定顺序)
     if ias == 0.0 {
         return 125.0;
     }

@@ -136,6 +136,15 @@ fn desktop_main(debug: bool) -> i32 {
     #[allow(clippy::arc_with_non_send_sync)]
     let shell = Arc::new(Mutex::new(shell));
 
+    // 公式系统启动桥: Service 未装配的空闲/preview 期, 公式编辑器 tab 也要
+    // 可用 — 先发布独立 manager (装载出厂+用户文件); 进游戏模式装配 Service
+    // 时 app_shell.rs start() 覆盖为会话实例 (编辑保存已落盘, 会话装载不丢)
+    {
+        let mgr = std::sync::Arc::new(vm_core::formula::FormulaManager::new());
+        mgr.load_from_files();
+        vm_webui::commands_formula::publish_formula_bridge(mgr);
+    }
+
     // Tauri 壳: 常驻隐藏, build 即后台预热 (不阻塞; 首显等 is_web_ready);
     // dispatcher = 表单写链真实现 (数据面请求经 MainFormState/UiCommand)
     let mut form = match vm_webui::ShellForm::new(form_dispatch::make_dispatcher(

@@ -201,6 +201,13 @@ pub trait TelemetrySource {
     /// 通过检查 API 返回的 Mfuel 1 和 Mfuel0 1 是否有效（> 0）
     /// @return true 如果有助推器系统，false 如果没有
     fn has_booster(&self) -> bool;
+
+    /// 公式系统取值 (无 Java 对应, doc/formula_system_design.md §8):
+    /// 按公式名查最近一帧求值结果; 默认 None = 实现方未接公式系统。
+    /// NaN (invalid/缺数据) 返回 None — 上层走 na/hide-when-zero 降级。
+    fn get_formula_value(&self, _name: &str) -> Option<f64> {
+        None
+    }
 }
 
 #[cfg(test)]

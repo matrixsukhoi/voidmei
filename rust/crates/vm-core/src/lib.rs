@@ -21,6 +21,7 @@ pub mod flight_log;
 pub mod flight_analyzer;
 pub mod ui_state_bus;
 pub mod flight_data_bus;
+pub mod formula;
 pub mod config_loader;
 pub mod config_manager;
 pub mod config_watcher;

@@ -135,6 +135,35 @@ body,
   color: #555;
 }
 
+/* --- 公式 tab 变量目录 (右栏常驻面板) --- */
+/* 条目两行紧凑布局; hover 高亮提示整行可点击插入 */
+.var-row {
+  padding: 3px 4px;
+  border-bottom: 1px dashed #f0f0f0;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.var-row:hover {
+  background: #fff7fb;
+}
+/* 折叠态窄条 (竖排"变量目录", 点击展开) */
+.var-rail {
+  width: 30px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e6e6e6;
+  border-radius: 8px;
+  background: #ffffff;
+  cursor: pointer;
+  user-select: none;
+}
+.var-rail:hover {
+  background: #fff0f7;
+  border-color: #ffd6e8;
+}
+
 /* --- 字号对位 (Java defaultFont 12pt ≈ 14px / 卡片标题 bold 14pt ≈ 15px) --- */
 .ant-tabs-tab {
   font-size: 14px !important;

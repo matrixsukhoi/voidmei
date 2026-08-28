@@ -328,18 +328,7 @@ impl Service {
         }
     }
 
-    /// 对应 Java `double normFlapAngle(double t)` (L1429-1436) — 襟翼角度
-    /// 归一到 [0, 125]。
-    pub(super) fn norm_flap_angle(t: f64) -> f64 {
-        if t < 0.0 {
-            return 0.0;
-        }
-        if t < 125.0 {
-            t
-        } else {
-            125.0
-        }
-    }
+    // (norm_flap_angle 随 flap 双胞胎合一移除 — vm-core hud_calculator 版共享实现)
 
     /// 对应 Java `public double getFlapAllowAngle(double ias, Boolean isDowningFlap, FMHandle fm)`
     /// (L1443-1508) — 计算当前速度下的允许襟翼角度。
@@ -347,65 +336,11 @@ impl Service {
     /// PORT(Java bug 保真): isDowningFlap 形参全程未被读 (越级使用分支已被
     /// 注释掉), 保真保留形参 (Rust 未用形参以 _ 前缀消警, fm_power_extractor
     /// 同款约定)。
-    /// PORT(同名陷阱): 见模块头注 —— 本方法是 Service 版, 非 hud_calculator 版。
-    pub(super) fn get_flap_allow_angle(ias: f64, _is_downing_flap: bool, fm: &FMHandle) -> f64 {
-        // R2 hasFM 守卫: blkx 非 null 即 READY, 无 FM 时无限制（125 = normFlapAngle 上限）
-        // fm文件无法解析
-        if ias == 0.0 || fm.blkx.is_none() {
-            return 125.0;
-        }
-        let blkx = fm.blkx.as_ref().unwrap();
-        // 找到襟翼档位 (table 的 unwrap 语义同 get_flap_allow_speed 注)
-        let table = blkx.flaps_destruction_ind_speed.as_ref().unwrap();
-        let mut i: i32 = 0;
-        while i < blkx.flaps_destruction_num - 1 {
-            // 大于
-            if ias > table[i as usize][1] {
-                break;
-            }
-            i += 1;
-        }
-        // PORT: 与 getFlapAllowSpeed 的关键差异 —— 此处**无** i -= 1
-
-        // 找到档位了
-        // 线性求值
-        // 找前面的flap值
-        // 没有找到，都小于
-
-        if i == 0 {
-            // 下襟翼时直接越级使用下一级
-            // (Java 注释掉的 "襟翼只有0级" 分支)
-            // (x/y 与 Speed 版互换: 此处按速度查允许 flap 角度)
-            let x0 = table[i as usize][1];
-            let y0 = table[i as usize][0] * 100.0;
-            let x1 = table[(i + 1) as usize][1];
-            let y1 = table[(i + 1) as usize][0] * 100.0;
-            let k = Self::calc_k(x0, y0, x1, y1);
-
-            let t = y0 + (ias - x0) * k;
-            Self::norm_flap_angle(t)
-        } else {
-            // 下襟翼时直接越级使用
-            // (Java 注释掉的 if (isDowningFlap) return ...[i][1]; 分支)
-
-            // 相等
-            if ias == table[(i - 1) as usize][1] {
-                // 直接返回速度
-                return table[(i - 1) as usize][0] * 100.0;
-            }
-
-            // 否则进行线性插值运算
-            // 算斜率
-            let x0 = table[(i - 1) as usize][1];
-            let y0 = table[(i - 1) as usize][0] * 100.0;
-            let x1 = table[i as usize][1];
-            let y1 = table[i as usize][0] * 100.0;
-            let k = Self::calc_k(x0, y0, x1, y1);
-
-            // 速度等于
-            let t = y0 + (ias - x0) * k;
-            Self::norm_flap_angle(t)
-        }
+    /// PORT(双胞胎合一, 设计 §7): 原本方法的算法体与 vm-core
+    /// hud_calculator::get_flap_allow_angle 逐行同构 (Java 两份拷贝的遗留),
+    /// 现委托共享实现; valid 检查对 READY 句柄恒真 (R2), 行为等价。
+    pub(super) fn get_flap_allow_angle(ias: f64, is_downing_flap: bool, fm: &FMHandle) -> f64 {
+        vm_core::hud_calculator::get_flap_allow_angle(ias, is_downing_flap, fm.blkx.as_ref())
     }
 }
 
@@ -441,6 +376,9 @@ mod tests {
     /// 同源: Java getload 实测 [0.5,290]/[1.0,260] + 1.25x 哨兵行)
     fn spitfire_flap_blkx() -> Blkx {
         let mut b = Blkx::default();
+        // 对齐 READY 句柄生产形态 (R2: blkx 非 null 即 READY → valid 恒真);
+        // 合一后的共享实现保留 Java 的 !valid → 125 防御分支 (设计 §7)
+        b.valid = true;
         b.flaps_destruction_num = 2;
         let mut rows = [[0.0f64; 2]; 6];
         rows[0] = [0.5, 290.0];

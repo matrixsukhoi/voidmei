@@ -341,6 +341,15 @@ pub struct ServiceData {
     /// blkx.nofuelweight (getTotalWeight) / blkx.nitro (hasWep)。
     /// 初始值 = `FMHandle.UNRESOLVED` (对齐 FMManager.current 的 volatile 初值)。
     pub fm: Arc<FMHandle>,
+
+    /// 公式系统一帧求值结果 (公式名→槽号的定位见 CompiledFormulaSet.slots;
+    /// 无 Java 对应, 公式系统设计 doc/formula_system_design.md §2 裁决 A1/A2:
+    /// Service 线程单点求值, win32 线程经本 RwLock 只读)。
+    pub formula_values: vm_core::formula::FormulaResults,
+    /// 公式名→结果槽 (formula_step 与 values 同步写; overlay 绑定解析用)
+    pub formula_slots: std::sync::Arc<std::collections::HashMap<String, u16>>,
+    /// L2 规则本帧触发事件 (formula_step 产出; 消费面 vm-app toast/语音链)
+    pub rule_triggers: Vec<vm_core::formula::rules::RuleTriggered>,
 }
 
 /// Java `public static final int ENGINE_TYPE_*` (L213-216, DrawFrame.java 外部引用)。
@@ -564,6 +573,9 @@ impl Default for ServiceData {
             unit_mach_limit_ratio: 0.0,
             stall_speed: 0.0,
             fm: Arc::new(FMHandle::UNRESOLVED),
+            formula_values: Default::default(),
+            formula_slots: std::sync::Arc::default(),
+            rule_triggers: Vec::new(),
         }
     }
 }
@@ -971,6 +983,17 @@ impl TelemetrySource for ServiceData {
             .blkx
             .as_ref()
             .is_some_and(|blkx| blkx.nitro > 0.0)
+    }
+
+    /// 公式系统取值: 名字 → 槽 → 最近一帧结果 (NaN → None 走降级)
+    fn get_formula_value(&self, name: &str) -> Option<f64> {
+        let slot = *self.formula_slots.get(name)?;
+        let v = self.formula_values.get(slot);
+        if v.is_nan() {
+            None
+        } else {
+            Some(v)
+        }
     }
 }
 

@@ -325,3 +325,67 @@ export const getWebFmList = (): Promise<string[]> => invoke('fm_list')
 /** 打开对比 web 窗口 (FMLIST 行 对比按钮 — 选中机型单机视图; 经主线程 dispatcher) */
 export const openComparisonWindow = (fm0: string, fm1: string | null): Promise<unknown> =>
   invoke('open_comparison_window', { fm0, fm1 })
+
+// ---------------------------------------------------------------------------
+// 公式系统 IPC (commands_formula.rs 全部 7 个命令; camelCase DTO 一一对应)
+// ---------------------------------------------------------------------------
+
+/** 公式条目 (FormulaItemDto; error 只读由后端编译时生成, 提交时后端忽略) */
+export interface FormulaItem {
+  name: string
+  expr: string
+  unit: string
+  precision: number
+  desc: string
+  disabled: boolean
+  builtin: boolean
+  error: string | null
+}
+
+/** 校验/试算/保存结果 (FormulaEvalDto; NaN/inf 经 JSON 序列化为 null) */
+export interface FormulaEval {
+  ok: boolean
+  value: number | null
+  error: string | null
+}
+
+/** 变量目录条目 (VarCatalogEntryDto; 统一命名空间 = 系统变量 + 公式产出变量,
+ *  category = Flight/Engine/State/Limit/Fm/Meta/Const/Formula — "公式即变量" 设计 §5) */
+export interface VarCatalogEntry {
+  name: string
+  unit: string
+  desc: string
+  category: string
+  /** 数据来源中文标签 ("8111 /state" | "8111 /indicators" | "内部计算" | "FM 文件" | "运行时" | "常量" | "公式") */
+  origin: string
+  /** 来源筛选键 ("state" | "indicators" | "derived" | "fm" | "meta" | "const" | "formula") */
+  originKey: string
+  /** 公式产出变量最近一帧值 (serde skip None — 系统变量条目无此键; null = 最近帧求值无效) */
+  value?: number | null
+  /** 公式与系统变量同名 = 接管其值 (如内置 mach; serde skip false — 键缺省即未接管) */
+  overridesSystem?: boolean
+}
+
+/** 最近一帧变量快照 (试算 "当前数据" 用; names 与 values 下标一一对应) */
+export interface VarSnapshot {
+  names: string[]
+  values: (number | null)[]
+}
+
+/** 公式列表 (含编译错误标注) */
+export const getFormulaList = (): Promise<FormulaItem[]> => invoke('get_formula_list')
+/** 单公式校验 (语法/未知符号/arity, 不求值状态原语) */
+export const formulaValidate = (expr: string): Promise<FormulaEval> =>
+  invoke('formula_validate', { expr })
+/** 单公式试算 (对最近一帧数据求值) */
+export const formulaTryEval = (expr: string): Promise<FormulaEval> =>
+  invoke('formula_try_eval', { expr })
+/** 变量目录 (统一目录 = 系统变量 + 公式产出变量; 公式条目带最近帧值与接管标志) */
+export const getVarCatalog = (): Promise<VarCatalogEntry[]> => invoke('get_var_catalog')
+/** 最近一帧变量快照 */
+export const getLastVarSnapshot = (): Promise<VarSnapshot> => invoke('get_last_var_snapshot')
+/** 全量保存 + 热更新 (编辑器保存链; builtin 条目保留标志 = 用户覆盖内置) */
+export const saveFormulas = (items: FormulaItem[]): Promise<FormulaEval> =>
+  invoke('save_formulas', { items })
+/** 恢复出厂公式 (删除自定义 + 重置内置覆盖) */
+export const resetFormulas = (): Promise<FormulaEval> => invoke('reset_formulas')

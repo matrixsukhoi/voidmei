@@ -149,6 +149,15 @@ pub struct Service {
     /// Controller 侧 (vm-app) openpad/closepad/换机换入换出, 本线程每轮
     /// logTick (Service.java:1824-1828)。None = 未开记录 (Java Log==null/logon=false)。
     flight_log: FlightLogSlot,
+    /// 公式系统 (无 Java 对应, doc/formula_system_design.md §2 裁决 A1):
+    /// 本线程每帧求值单点; Arc 共享给编辑器保存链跨线程 install (热更新)。
+    pub formula: Arc<vm_core::formula::FormulaManager>,
+    /// L2 规则引擎 (formula_step 尾部求值, 触发事件写 ServiceData.rule_triggers)
+    rule_engine: vm_core::formula::rules::RuleEngine,
+    /// FM→公式变量适配器 (fm.* 58 变量供值; 换机时 set_blkx 重建)
+    fm_adapter: vm_core::ui_model::fm_data_adapter::FMDataAdapter,
+    /// 换机检测 (FM name 变化 → 公式状态原语全清 + adapter 重建, 设计 §3.5)
+    last_fm_name: Option<String>,
     /// 构造参数 (见 [`ServiceConfig`])
     pub config: ServiceConfig,
     /// §2.13 停机标志 (Java interrupt 的电平形态)
@@ -181,6 +190,9 @@ impl Service {
     /// (事件载荷 state=None/mapGrid="--"), 与 Java 同一窗口。
     pub fn new(config: ServiceConfig, fm_manager: Arc<FMManager>, bus: Arc<FlightDataBus>) -> Self {
         let data = Arc::new(RwLock::new(ServiceData::default()));
+        // 公式装载 (内置+用户文件, 逻辑收敛在 FormulaManager::load_from_files)
+        let formula = Arc::new(vm_core::formula::FormulaManager::new());
+        formula.load_from_files();
         let mut svc = Service {
             data: Arc::clone(&data),
             // PORT: SMA 族构造提前到 struct 字面量 (Java 在 resetvaria L1587-1593
@@ -191,9 +203,23 @@ impl Service {
             http_client: HttpHelper::new(&config.http_header),
             focus_monitor: None,
             flight_log: Arc::new(std::sync::Mutex::new(None)),
+            formula,
+            rule_engine: vm_core::formula::rules::RuleEngine::new(),
+            fm_adapter: vm_core::ui_model::fm_data_adapter::FMDataAdapter::new(),
+            last_fm_name: None,
             stop: Arc::new(AtomicBool::new(false)),
             config,
         };
+        // 规则装载 (formulas.cfg/user 的 (rule ...) 段)
+        {
+            let builtin = std::fs::read_to_string(vm_core::formula::persistence::BUILTIN_FORMULAS_PATH)
+                .unwrap_or_default();
+            let user = std::fs::read_to_string(vm_core::formula::persistence::USER_FORMULAS_PATH)
+                .unwrap_or_default();
+            let mut rules = vm_core::formula::persistence::parse_rules(&builtin);
+            rules.extend(vm_core::formula::persistence::parse_rules(&user));
+            svc.rule_engine.install(&rules, vm_core::formula::registry());
+        }
         {
             let mut d = write_data(&svc.data);
             // Java: freq = xc.serviceLoopIntervalMs;
@@ -964,6 +990,64 @@ impl Service {
 
         // Java calculate 链尾 (L1173): 最佳增压器档位/失配提示 — methods_engine.rs
         self.update_optimal_compressor_stage(&fm);
+
+        // 公式系统步 (无 Java 对应): Service 线程单点求值 (裁决 A1),
+        // 结果写回 ServiceData 供 win32 线程只读消费 (裁决 A2, 零新总线)
+        self.formula_step(&fm);
+    }
+
+    /// 公式一帧: 换机检测(adapter 重建+状态清零) → 组快照 → 求值 → 写回。
+    /// fm.* 变量经 FMDataAdapter (Blkx→消费面快照, 换机时一次转换);
+    /// 无 FM 时传 None → fm.* 全 NaN (设计 §3.6)。
+    fn formula_step(&mut self, fm: &FMHandle) {
+        // 换机 → adapter 重建 + 状态原语全清 (设计 §3.5)
+        if self.last_fm_name.as_deref() != fm.name.as_deref() {
+            self.formula.reset_states();
+            self.last_fm_name = fm.name.clone();
+            self.fm_adapter.set_blkx(fm.blkx.as_ref().map(|b| {
+                std::sync::Arc::new(vm_core::ui_model::fm_data_adapter::BlkxPlaceholder::from(b))
+            }));
+        }
+        let (results, slots, snap, interval_ms) = {
+            let d = read_data(&self.data);
+            let engine_num = d.s_state.as_ref().map(|s| s.engine_num).unwrap_or(0);
+            let meta = vm_core::formula::MetaInputs {
+                interval_ms: d.actual_interval_ms.max(1) as f64,
+                freq: d.freq as f64,
+                fm_loaded: fm.blkx.is_some(),
+                engine_count: engine_num as f64,
+                ..Default::default()
+            };
+            let fm_src: Option<&dyn vm_core::ui_model::fm_data_source::FMDataSource> =
+                if fm.blkx.is_some() { Some(&self.fm_adapter) } else { None };
+            // 快照重建供规则求值 (formula.eval_frame 内部快照已 move 进缓存)
+            let snap = vm_core::formula::registry::assemble_snapshot(&*d, fm_src, &meta);
+            (
+                self.formula.eval_frame(&*d, fm_src, &meta, current_time_millis() as u64),
+                self.formula.current().slots_arc(),
+                snap,
+                meta.interval_ms,
+            )
+        };
+        // L2 规则求值 (公式之后同快照; 触发事件写 ServiceData, 消费面 vm-app 接)
+        let triggers =
+            self.rule_engine.eval(&snap, &results, current_time_millis() as u64, interval_ms);
+        let mut d = write_data(&self.data);
+        d.formula_values = results;
+        d.formula_slots = slots.clone();
+        d.rule_triggers = triggers;
+        // mach 公式覆盖 (阶段 2 A 级外置): 公式式与 Deriver 手写式位级同源
+        // (ias=s_state.ias 拓宽, altitude=d.alt=s.height_m 直通), 同值覆写零行为差;
+        // hasFM 守卫语义保留 (无 FM 不更新, 对齐上方 L880 写回守卫);
+        // NaN (公式 invalid) 不覆写 — 保持 Deriver 值
+        if fm.blkx.is_some() {
+            if let Some(&slot) = slots.get("mach") {
+                let v = d.formula_values.get(slot);
+                if !v.is_nan() {
+                    d.mach = v;
+                }
+            }
+        }
     }
 
     /// 对应 Java `public void slowcalculate(long dtime)` (L517-560) — 0.5 秒一次

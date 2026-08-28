@@ -1040,6 +1040,9 @@ impl Controller {
         // FlightLog 槽注入 (Service 轮询线程每轮 logTick, Service.java:1824-1828;
         // Controller.java:44 logon/Log 字段的共享面) — spawn 前随其余注入一次
         service.set_flight_log(Arc::clone(&self.flight_log));
+        // 公式系统桥 (公式编辑器 tab 的直算命令面): Service 构造时已装载
+        // formulas.cfg+user 并进 live 集, 此处挂 Arc 供 vm-webui 命令线程访问
+        vm_webui::commands_formula::publish_formula_bridge(Arc::clone(&service.formula));
         let handle = spawn_service_thread(service);
         *self.shared.live.write().expect("live 锁中毒") = Some(Arc::clone(&handle.data));
         self.service = Some(handle);

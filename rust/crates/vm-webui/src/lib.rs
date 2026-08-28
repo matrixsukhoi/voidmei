@@ -18,6 +18,7 @@
 
 pub mod bridge;
 pub mod commands;
+pub mod commands_formula;
 pub mod commands_windows;
 pub mod dto;
 pub mod ipc;
@@ -80,6 +81,14 @@ impl ShellForm {
                 commands_windows::power_curve_data,
                 commands_windows::flight_record_data,
                 commands_windows::fm_list,
+                // 公式管理编辑器 (直算: 只依赖 vm-core formula 模块, 见模块头)
+                commands_formula::get_formula_list,
+                commands_formula::formula_validate,
+                commands_formula::formula_try_eval,
+                commands_formula::get_var_catalog,
+                commands_formula::get_last_var_snapshot,
+                commands_formula::save_formulas,
+                commands_formula::reset_formulas,
                 // 托盘关于 Modal 关闭回执 (bridge.rs; 审查 B1 — 恢复 InGame 收窗)
                 bridge::about_modal_closed
             ])
