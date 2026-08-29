@@ -33,22 +33,57 @@ fn spec_renders_preview_rows_to_pixcanvas() {
 
 /// live 喂数: update 覆写 rows, visible-when 过滤生效 (Mach>0 才显示的行,
 /// 零值数据帧下被滤除 → 行数少于 FIELDS 数)
+
+/// 零值视图桩 (var_value 全 0; 名字先经 canonical 归一 — 对位生产链路的
+/// "公式槽 getter 双键 + registry getter 索引" 两通道, 曾直接 registry.lookup
+/// 把 getter 名断链掩成桩内硬编码, 假绿掩盖 live 7 行消失)
+struct ZeroView;
+impl vm_core::ui_model::TelemetrySource for ZeroView {
+    fn var_value(&self, name: &str) -> Option<f64> {
+        canonical_var_name(name).map(|_| 0.0)
+    }
+}
 #[test]
 fn update_applies_visibility() {
     let (handle, _spec) =
         flight_info_overlay_spec(&fonts_dir(), &params_cell(|_| {})).unwrap();
-    let zero = vm_data::service_fields::ServiceData::default();
-    handle.borrow_mut().update(&zero);
+    handle.borrow_mut().update(&ZeroView);
     let n_zero = handle.borrow().rows().len();
     // 全零值: Mach (>0) 等条件行被滤; 至少 IAS 等直通行保留
     assert!(n_zero > 0 && n_zero <= fields::FIELDS.len());
 
     // 非零 Mach 帧行数应不少于全零帧 (Mach 行回归)
-    let mut v = vm_data::service_fields::ServiceData::default();
-    v.mach = 0.72;
-    handle.borrow_mut().update(&v);
+    struct MachView;
+    impl vm_core::ui_model::TelemetrySource for MachView {
+        fn var_value(&self, name: &str) -> Option<f64> {
+            match canonical_var_name(name).as_deref() {
+                Some("mach") => Some(0.72),
+                Some(_) => Some(0.0),
+                None => None,
+            }
+        }
+    }
+    handle.borrow_mut().update(&MachView);
     let n_live = handle.borrow().rows().len();
     assert!(n_live >= n_zero, "非零帧可见行应不少于全零帧 ({n_live} vs {n_zero})");
+    // Mach 行真的回来了 (值 0.72 → 文本 "0.72")
+    let rows = handle.borrow().rows().to_vec();
+    let labels: Vec<&str> = rows.iter().map(|(l, _, _)| l.as_str()).collect();
+    assert!(labels.contains(&"马赫数"), "非零 mach 帧行应可见: {labels:?}");
+}
+
+/// 守卫: FIELDS 全部 target 经生产双通道可达 — 断链即行消失/恒 0
+/// (getter 名必须命中 公式槽 getter 别名 或 registry getter 索引)
+#[test]
+fn flight_info_targets_all_reachable() {
+    for f in fields::FIELDS {
+        let g = f.source.getter();
+        assert!(
+            canonical_var_name(g).is_some(),
+            "飞行信息行 {} 的 target {g} 解析断链 (公式 :getter 别名/registry 缺失)",
+            f.label
+        );
+    }
 }
 
 /// WYSIWYG reinit: fontadd 0→6 → 高度变大; live rows 保留 (字段行绑定独立于字体)
@@ -56,8 +91,7 @@ fn update_applies_visibility() {
 fn reinit_grows_with_font_add_and_keeps_rows() {
     let cell = params_cell(|_| {});
     let (handle, mut spec) = flight_info_overlay_spec(&fonts_dir(), &cell).unwrap();
-    // live 行覆盖 (行数可能少于 FIELDS — visible-when 过滤)
-    handle.borrow_mut().update(&vm_data::service_fields::ServiceData::default());
+    // 行集保持 preview 全行 (字号断言与行过滤无关; live 行为另测)
     let rows_before = handle.borrow().rows().to_vec();
     let h0 = spec.height;
     cell.borrow_mut().font_add_flight = 6;
@@ -76,9 +110,17 @@ fn reset_preview_rows_restores_statics() {
     let (handle, _spec) =
         flight_info_overlay_spec(&fonts_dir(), &params_cell(|_| {})).unwrap();
     // live 残留: 非零 Mach/IAS 帧 (行集与 preview 静态不同)
-    let mut v = vm_data::service_fields::ServiceData::default();
-    v.mach = 0.72;
-    handle.borrow_mut().update(&v);
+    struct MachView;
+    impl vm_core::ui_model::TelemetrySource for MachView {
+        fn var_value(&self, name: &str) -> Option<f64> {
+            match canonical_var_name(name).as_deref() {
+                Some("mach") => Some(0.72),
+                Some(_) => Some(0.0),
+                None => None,
+            }
+        }
+    }
+    handle.borrow_mut().update(&MachView);
     // 重置 → preview 行: FIELDS 全量 + preview_text 原样
     handle.borrow_mut().reset_preview_rows();
     let rows = handle.borrow().rows().to_vec();

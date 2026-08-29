@@ -6,8 +6,9 @@
 
 use super::definition::VarLookup;
 use super::functions::Value;
-use crate::ui_model::fm_data_source::FMDataSource;
-use crate::ui_model::telemetry_source::TelemetrySource;
+use crate::blkx::Blkx;
+use crate::parser::{Indicators, State};
+use crate::string_helper::F_INVALID;
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
@@ -72,13 +73,64 @@ pub enum MetaVar {
     EngineCount,
 }
 
-/// 取值源 (fn 指针, 非捕获闭包强转)
+/// 取值源 (fn 指针, 非捕获闭包强转) — W6 直通化:
+/// 变量直接绑定 parser 原始字段 / blkx 字段, TelemetrySource/FMDataSource
+/// 中间 getter 层消亡 (设计 §15 数据直通重构)。哨兵守卫按原 getter 逐一对齐。
 pub enum VarSrc {
-    Tel(fn(&dyn TelemetrySource) -> f64),
-    TelBool(fn(&dyn TelemetrySource) -> bool),
-    Fm(fn(&dyn FMDataSource) -> f64),
+    /// /state 原始字段直通
+    State(fn(&State) -> f64),
+    /// /indicators 原始字段直通
+    Indic(fn(&Indicators) -> f64),
+    /// FM (blkx) 字段直通
+    Blk(fn(&Blkx) -> f64),
+    /// C 级会话量 (聚合/状态机产物, W8 消解)
+    Session(fn(&SessionInputs) -> f64),
     Const(f64),
     Meta(MetaVar),
+}
+
+/// 一帧原始输入 (快照组装的三元组; None → 该源变量 NaN 隔离)
+#[derive(Default)]
+pub struct RawInputs<'a> {
+    pub state: Option<&'a State>,
+    pub indic: Option<&'a Indicators>,
+    pub blkx: Option<&'a Blkx>,
+}
+
+/// C 级会话量暂存通道 (W6): 聚合/状态机产物经此供值, W8 公式化后逐项消亡。
+/// 字段与 ServiceData 的 C 级字段一一对应 (计算留在原处, 本通道只搬运)。
+#[derive(Debug, Clone, Copy, Default)]
+pub struct SessionInputs {
+    pub total_fuel: f64,
+    pub fuel_time_mili: f64,
+    pub total_hp: f64,
+    pub total_hp_eff: f64,
+    pub total_thrust: f64,
+    pub n_water_temp: f64,
+    pub n_oil_temp: f64,
+    pub energy_j_kg: f64,
+    pub radio_alt: f64,
+    pub compass_delta: f64,
+    pub nitro_kg: f64,
+    pub wep_time: f64,
+    pub heat_tolerance: f64,
+    pub thurst_percent: f64,
+    pub t_eng_response: f64,
+    pub avgeff: f64,
+    pub manifold_display: f64,
+    pub fuel_percent: f64,
+    pub is_imperial: bool,
+    pub is_jet: bool,
+    pub is_prop: bool,
+    pub is_piston: bool,
+    pub is_turboprop: bool,
+    pub engine_check_done: bool,
+}
+
+/// 统一取值视图 (W6): resolve_target 求值面 — 实现方 (ServiceData) 持
+/// 快照+公式槽, 按名字取变量或公式值
+pub trait FormulaView {
+    fn var_value(&self, name: &str) -> Option<f64>;
 }
 
 /// 变量元数据
@@ -162,23 +214,16 @@ pub fn registry() -> &'static Registry {
     REG.get_or_init(build_registry)
 }
 
-/// 组装一帧快照 (Service 线程调用; fm=None 时 fm.* 全 NaN)
-pub fn assemble_snapshot(
-    tel: &dyn TelemetrySource,
-    fm: Option<&dyn FMDataSource>,
-    meta: &MetaInputs,
-) -> VarSnapshot {
+/// 组装一帧快照 (Service 线程调用; 源缺失 → 该源变量 NaN 隔离)
+pub fn assemble_snapshot(raw: &RawInputs, session: &SessionInputs, meta: &MetaInputs) -> VarSnapshot {
     let reg = registry();
     let mut values = Vec::with_capacity(reg.vars.len());
     for v in &reg.vars {
         let x = match &v.src {
-            VarSrc::Tel(f) => f(tel),
-            VarSrc::TelBool(f) => f(tel) as u8 as f64,
-            VarSrc::Fm(f) => match fm {
-                Some(src) => f(src),
-                // FM 未加载: 隔离为 NaN (设计 §3.6), 不用哨兵污染
-                None => f64::NAN,
-            },
+            VarSrc::State(f) => raw.state.map_or(f64::NAN, |s| f(s)),
+            VarSrc::Indic(f) => raw.indic.map_or(f64::NAN, |i| f(i)),
+            VarSrc::Blk(f) => raw.blkx.map_or(f64::NAN, |b| f(b)),
+            VarSrc::Session(f) => f(session),
             VarSrc::Const(c) => *c,
             VarSrc::Meta(m) => match m {
                 MetaVar::IntervalMs => meta.interval_ms,
@@ -196,153 +241,152 @@ pub fn assemble_snapshot(
 
 fn build_registry() -> Registry {
     use VarCategory as C;
-    use VarSrc::{Const as K, Fm as F, Meta as M, Tel as T, TelBool as TB};
+    use VarOrigin as O;
+    use VarSrc::{Blk as B, Const as K, Indic as I, Meta as M, Session as SE, State as T};
 
+    // 哨兵守卫小件 (与原 getter 实现逐一对齐)
+    const FI: f64 = F_INVALID; // -65535 (float 域哨兵)
     let vars: Vec<VarMeta> = vec![
-        // ===== 飞行数据 (TelemetrySource) =====
-        VarMeta { name: "ias", getter: "getIAS", unit: "km/h", desc: "指示空速", category: C::Flight, origin: VarOrigin::State, src: T(|s| s.get_ias()) },
-        VarMeta { name: "tas", getter: "getTAS", unit: "km/h", desc: "真空速", category: C::Flight, origin: VarOrigin::State, src: T(|s| s.get_tas()) },
-        VarMeta { name: "mach", getter: "getMach", unit: "Ma", desc: "马赫数", category: C::Flight, origin: VarOrigin::Derived, src: T(|s| s.get_mach()) },
-        VarMeta { name: "aoa", getter: "getAoA", unit: "°", desc: "迎角", category: C::Flight, origin: VarOrigin::State, src: T(|s| s.get_aoa()) },
-        VarMeta { name: "aos", getter: "getAoS", unit: "°", desc: "侧滑角", category: C::Flight, origin: VarOrigin::State, src: T(|s| s.get_aos()) },
-        VarMeta { name: "ny", getter: "getNy", unit: "G", desc: "过载", category: C::Flight, origin: VarOrigin::Derived, src: T(|s| s.get_ny()) },
-        VarMeta { name: "ny_raw", getter: "getNyRaw", unit: "G", desc: "原始过载(state 直通)", category: C::Flight, origin: VarOrigin::State, src: T(|s| s.get_ny_raw()) },
-        VarMeta { name: "vario", getter: "getVario", unit: "m/s", desc: "升降速度", category: C::Flight, origin: VarOrigin::Indicators, src: T(|s| s.get_vario()) },
-        VarMeta { name: "indic_speed", getter: "getIndicSpeed", unit: "m/s", desc: "校正速度(indicators.speed, m/s)", category: C::Flight, origin: VarOrigin::Indicators, src: T(|s| s.get_indic_speed()) },
-        VarMeta { name: "altitude", getter: "getAltitude", unit: "m", desc: "气压高度", category: C::Flight, origin: VarOrigin::State, src: T(|s| s.get_altitude()) }, // state.heightm 直通 (FlightValues 回写, 无滤波)
-        VarMeta { name: "radio_altitude", getter: "getRadioAltitude", unit: "m", desc: "雷达高度", category: C::Flight, origin: VarOrigin::Indicators, src: T(|s| s.get_radio_altitude()) },
-        VarMeta { name: "compass", getter: "getCompass", unit: "°", desc: "航向", category: C::Flight, origin: VarOrigin::Derived, src: T(|s| s.get_compass()) },
-        VarMeta { name: "sep", getter: "getSep", unit: "m", desc: "单位能量高度", category: C::Flight, origin: VarOrigin::Derived, src: T(|s| s.get_sep()) },
-        VarMeta { name: "acceleration", getter: "getAcceleration", unit: "m/s²", desc: "加速度", category: C::Flight, origin: VarOrigin::Derived, src: T(|s| s.get_acceleration()) },
-        VarMeta { name: "turn_rate", getter: "getTurnRate", unit: "°/s", desc: "盘旋率", category: C::Flight, origin: VarOrigin::Derived, src: T(|s| s.get_turn_rate()) },
-        VarMeta { name: "turn_radius", getter: "getTurnRadius", unit: "m", desc: "盘旋半径", category: C::Flight, origin: VarOrigin::Derived, src: T(|s| s.get_turn_radius()) },
-        VarMeta { name: "roll_rate", getter: "getRollRate", unit: "°/s", desc: "滚转率", category: C::Flight, origin: VarOrigin::State, src: T(|s| s.get_roll_rate()) },
-        VarMeta { name: "energy_jkg", getter: "getEnergyJkg", unit: "J/kg", desc: "单位动能(比能量)", category: C::Flight, origin: VarOrigin::Derived, src: T(|s| s.get_energy_jkg()) },
-        VarMeta { name: "aviahorizon_pitch", getter: "getAviahorizonPitch", unit: "°", desc: "地平仪俯仰", category: C::Flight, origin: VarOrigin::Indicators, src: T(|s| s.get_aviahorizon_pitch()) },
-        VarMeta { name: "aviahorizon_roll", getter: "getAviahorizonRoll", unit: "°", desc: "地平仪滚转", category: C::Flight, origin: VarOrigin::Indicators, src: T(|s| s.get_aviahorizon_roll()) },
-        // ===== 引擎 (TelemetrySource) =====
-        VarMeta { name: "mass_fuel", getter: "getMassFuel", unit: "kg", desc: "当前油量", category: C::Engine, origin: VarOrigin::Derived, src: T(|s| s.get_mass_fuel()) },
-        VarMeta { name: "total_weight", getter: "getTotalWeight", unit: "kg", desc: "全机重量", category: C::Engine, origin: VarOrigin::Derived, src: T(|s| s.get_total_weight()) },
-        VarMeta { name: "fuel_time_mili", getter: "getFuelTimeMili", unit: "ms", desc: "剩余油量时间", category: C::Engine, origin: VarOrigin::Derived, src: T(|s| s.get_fuel_time_mili() as f64) },
-        VarMeta { name: "throttle", getter: "getThrottle", unit: "%", desc: "油门", category: C::Engine, origin: VarOrigin::State, src: T(|s| s.get_throttle()) },
-        VarMeta { name: "rpm", getter: "getRPM", unit: "rpm", desc: "转速", category: C::Engine, origin: VarOrigin::State, src: T(|s| s.get_rpm()) },
-        VarMeta { name: "manifold_pressure", getter: "getManifoldPressure", unit: "ata", desc: "进气压", category: C::Engine, origin: VarOrigin::State, src: T(|s| s.get_manifold_pressure()) },
-        VarMeta { name: "water_temp", getter: "getWaterTemp", unit: "°C", desc: "水温", category: C::Engine, origin: VarOrigin::Indicators, src: T(|s| s.get_water_temp()) }, // indic.waterTemp 优先, state 兜底 (updateTemp)
-        VarMeta { name: "oil_temp", getter: "getOilTemp", unit: "°C", desc: "油温", category: C::Engine, origin: VarOrigin::Indicators, src: T(|s| s.get_oil_temp()) }, // indic.oilTemp 优先, state 兜底 (updateTemp)
-        VarMeta { name: "prop_pitch", getter: "getPitch", unit: "", desc: "桨距", category: C::Engine, origin: VarOrigin::State, src: T(|s| s.get_pitch()) },
-        VarMeta { name: "eff_hp", getter: "getEffHp", unit: "hp", desc: "有效功率", category: C::Engine, origin: VarOrigin::State, src: T(|s| s.get_eff_hp()) }, // state.thrust[] 聚合 (speedv 校正因子来自 Deriver)
-        VarMeta { name: "thrust", getter: "getThrust", unit: "kgf", desc: "推力", category: C::Engine, origin: VarOrigin::State, src: T(|s| s.get_thrust()) },
-        VarMeta { name: "horse_power", getter: "getHorsePower", unit: "hp", desc: "功率", category: C::Engine, origin: VarOrigin::State, src: T(|s| s.get_horse_power()) },
-        VarMeta { name: "engine_response", getter: "getEngineResponse", unit: "", desc: "引擎响应速率", category: C::Engine, origin: VarOrigin::Derived, src: T(|s| s.get_engine_response()) },
-        VarMeta { name: "prop_efficiency", getter: "getPropEfficiency", unit: "%", desc: "螺旋桨效率", category: C::Engine, origin: VarOrigin::State, src: T(|s| s.get_prop_efficiency()) },
-        VarMeta { name: "wep_kg", getter: "getWepKg", unit: "kg", desc: "WEP 剩余工质", category: C::Engine, origin: VarOrigin::Derived, src: T(|s| s.get_wep_kg()) }, // fm.nitro 减 wep_time 状态机消耗 (updateWepTime)
-        VarMeta { name: "wep_time", getter: "getWepTime", unit: "s", desc: "WEP 剩余时间", category: C::Engine, origin: VarOrigin::Derived, src: T(|s| s.get_wep_time()) }, // fm.nitro/nitro_decr 与 wep_time 状态机 (formatStrings)
-        VarMeta { name: "heat_tolerance", getter: "getHeatTolerance", unit: "", desc: "耐热阈值", category: C::Engine, origin: VarOrigin::Derived, src: T(|s| s.get_heat_tolerance()) },
-        VarMeta { name: "power_percent", getter: "getPowerPercent", unit: "%", desc: "推力/功率百分比", category: C::Engine, origin: VarOrigin::Derived, src: T(|s| s.get_power_percent()) },
-        VarMeta { name: "manifold_pressure_pounds", getter: "getManifoldPressurePounds", unit: "psi", desc: "进气压(英制)", category: C::Engine, origin: VarOrigin::State, src: T(|s| s.get_manifold_pressure_pounds()) },
-        VarMeta { name: "manifold_pressure_inch_hg", getter: "getManifoldPressureInchHg", unit: "inHg", desc: "进气压(英寸汞柱)", category: C::Engine, origin: VarOrigin::State, src: T(|s| s.get_manifold_pressure_inch_hg()) },
-        VarMeta { name: "manifold_pressure_display", getter: "getManifoldPressureDisplay", unit: "", desc: "进气压显示值(公/英制)", category: C::Engine, origin: VarOrigin::State, src: T(|s| s.get_manifold_pressure_display()) }, // 两分支均为 state.manifoldpressure 换算
-        VarMeta { name: "manifold_pressure_display_precision", getter: "getManifoldPressureDisplayPrecision", unit: "", desc: "进气压显示精度", category: C::Engine, origin: VarOrigin::Derived, src: T(|s| s.get_manifold_pressure_display_precision() as f64) }, // 纯 is_imperial (英制检测状态机) 的函数
-        VarMeta { name: "mixture_state", getter: "getUnknownMixture", unit: "", desc: "混合比状态", category: C::Engine, origin: VarOrigin::State, src: T(|s| s.get_unknown_mixture()) },
-        VarMeta { name: "radiator", getter: "getRadiator", unit: "", desc: "散热器", category: C::Engine, origin: VarOrigin::State, src: T(|s| s.get_radiator()) },
-        VarMeta { name: "compressor_stage", getter: "getCompressorStage", unit: "", desc: "增压器档位", category: C::Engine, origin: VarOrigin::State, src: T(|s| s.get_compressor_stage()) },
-        VarMeta { name: "fuel_percent", getter: "getFuelPercent", unit: "%", desc: "油量百分比", category: C::Engine, origin: VarOrigin::Derived, src: T(|s| s.get_fuel_percent()) }, // total_fuel (indic.fuel/state.mfuel 混合) / state.mfuel0
-        VarMeta { name: "rpm_throttle", getter: "getRPMThrottle", unit: "", desc: "转速油门", category: C::Engine, origin: VarOrigin::State, src: T(|s| s.get_rpm_throttle()) },
-        VarMeta { name: "booster_fuel_kg", getter: "getBoosterFuelKg", unit: "kg", desc: "助推器剩余燃料", category: C::Engine, origin: VarOrigin::State, src: T(|s| s.get_booster_fuel_kg()) },
-        VarMeta { name: "booster_fuel_percent", getter: "getBoosterFuelPercent", unit: "%", desc: "助推器燃料百分比", category: C::Engine, origin: VarOrigin::State, src: T(|s| s.get_booster_fuel_percent()) },
-        // ===== 操纵面与状态 (TelemetrySource) =====
-        VarMeta { name: "gear", getter: "getGear", unit: "", desc: "起落架", category: C::State, origin: VarOrigin::State, src: T(|s| s.get_gear()) },
-        VarMeta { name: "flaps", getter: "getFlaps", unit: "", desc: "襟翼", category: C::State, origin: VarOrigin::State, src: T(|s| s.get_flaps()) },
-        VarMeta { name: "airbrake", getter: "getAirbrake", unit: "", desc: "空气刹车", category: C::State, origin: VarOrigin::State, src: T(|s| s.get_airbrake()) },
-        VarMeta { name: "aileron", getter: "getAileron", unit: "", desc: "副翼", category: C::State, origin: VarOrigin::State, src: T(|s| s.get_aileron()) },
-        VarMeta { name: "elevator", getter: "getElevator", unit: "", desc: "升降舵", category: C::State, origin: VarOrigin::State, src: T(|s| s.get_elevator()) },
-        VarMeta { name: "rudder", getter: "getRudder", unit: "", desc: "方向舵", category: C::State, origin: VarOrigin::State, src: T(|s| s.get_rudder()) },
-        VarMeta { name: "wing_sweep", getter: "getWingSweep", unit: "", desc: "变后掠翼", category: C::State, origin: VarOrigin::Indicators, src: T(|s| s.get_wing_sweep()) },
-        // ===== 限制 (TelemetrySource) =====
-        VarMeta { name: "speed_limit_ratio", getter: "getSpeedLimitRatio", unit: "", desc: "速度限制比值", category: C::Limit, origin: VarOrigin::Derived, src: T(|s| s.get_speed_limit_ratio()) },
-        VarMeta { name: "aileron_lock_ratio", getter: "getAileronLockRatio", unit: "", desc: "副翼锁止比值", category: C::Limit, origin: VarOrigin::Derived, src: T(|s| s.get_aileron_lock_ratio()) },
-        VarMeta { name: "rudder_lock_ratio", getter: "getRudderLockRatio", unit: "", desc: "方向舵锁止比值", category: C::Limit, origin: VarOrigin::Derived, src: T(|s| s.get_rudder_lock_ratio()) },
-        VarMeta { name: "unit_mach_limit_ratio", getter: "getUnitMachLimitRatio", unit: "", desc: "马赫限制比值", category: C::Limit, origin: VarOrigin::Derived, src: T(|s| s.get_unit_mach_limit_ratio()) },
-        VarMeta { name: "stall_speed", getter: "getStallSpeed", unit: "km/h", desc: "失速速度", category: C::Limit, origin: VarOrigin::Derived, src: T(|s| s.get_stall_speed()) },
-        // ===== 布尔标志 (TelemetrySource, 0/1) =====
-        VarMeta { name: "radio_altitude_valid", getter: "isRadioAltitudeValid", unit: "", desc: "雷达高度有效", category: C::Flight, origin: VarOrigin::Indicators, src: TB(|s| s.is_radio_altitude_valid()) },
-        VarMeta { name: "turn_radius_valid", getter: "isTurnRadiusValid", unit: "", desc: "盘旋半径有效", category: C::Flight, origin: VarOrigin::Derived, src: TB(|s| s.is_turn_radius_valid()) },
-        VarMeta { name: "wing_sweep_valid", getter: "isWingSweepValid", unit: "", desc: "变后掠翼有效", category: C::State, origin: VarOrigin::Indicators, src: TB(|s| s.is_wing_sweep_valid()) },
-        VarMeta { name: "is_imperial", getter: "isImperial", unit: "", desc: "英制单位", category: C::Meta, origin: VarOrigin::Derived, src: TB(|s| s.is_imperial()) },
-        VarMeta { name: "is_jet_engine", getter: "isJetEngine", unit: "", desc: "喷气引擎", category: C::Engine, origin: VarOrigin::Derived, src: TB(|s| s.is_jet_engine()) },
-        VarMeta { name: "is_prop_engine", getter: "isPropEngine", unit: "", desc: "螺旋桨引擎", category: C::Engine, origin: VarOrigin::Derived, src: TB(|s| s.is_prop_engine()) },
-        VarMeta { name: "is_piston_engine", getter: "isPistonEngine", unit: "", desc: "活塞引擎", category: C::Engine, origin: VarOrigin::Derived, src: TB(|s| s.is_piston_engine()) },
-        VarMeta { name: "is_turboprop_engine", getter: "isTurbopropEngine", unit: "", desc: "涡桨引擎", category: C::Engine, origin: VarOrigin::Derived, src: TB(|s| s.is_turboprop_engine()) },
-        VarMeta { name: "is_engine_check_done", getter: "isEngineCheckDone", unit: "", desc: "引擎检测完成", category: C::Engine, origin: VarOrigin::Derived, src: TB(|s| s.is_engine_check_done()) },
-        VarMeta { name: "has_wep", getter: "hasWep", unit: "", desc: "有加力系统", category: C::Engine, origin: VarOrigin::Fm, src: TB(|s| s.has_wep()) }, // Tel 源但读 fm.blkx.nitro, 按数据本质标 Fm
-        VarMeta { name: "has_booster", getter: "hasBooster", unit: "", desc: "有火箭助推器", category: C::Engine, origin: VarOrigin::State, src: TB(|s| s.has_booster()) },
-        // ===== FM 字段 (fm.* 前缀, 换机重载; 无 FM = NaN) =====
-        VarMeta { name: "fm.empty_weight", getter: "", unit: "kg", desc: "空重", category: C::Fm, origin: VarOrigin::Fm, src: F(|f| f.get_empty_weight()) },
-        VarMeta { name: "fm.max_fuel_weight", getter: "", unit: "kg", desc: "最大油量", category: C::Fm, origin: VarOrigin::Fm, src: F(|f| f.get_max_fuel_weight()) },
-        VarMeta { name: "fm.critical_speed", getter: "", unit: "km/h", desc: "临界速度", category: C::Fm, origin: VarOrigin::Fm, src: F(|f| f.get_critical_speed()) },
-        VarMeta { name: "fm.vne", getter: "", unit: "km/h", desc: "最大速度(VNE)", category: C::Fm, origin: VarOrigin::Fm, src: F(|f| f.get_vne()) },
-        VarMeta { name: "fm.vne_mach", getter: "", unit: "Ma", desc: "最大马赫数", category: C::Fm, origin: VarOrigin::Fm, src: F(|f| f.get_vne_mach()) },
-        VarMeta { name: "fm.full_fuel_pos_g", getter: "", unit: "G", desc: "满油正过载限制", category: C::Fm, origin: VarOrigin::Fm, src: F(|f| f.get_full_fuel_pos_g()) },
-        VarMeta { name: "fm.full_fuel_neg_g", getter: "", unit: "G", desc: "满油负过载限制", category: C::Fm, origin: VarOrigin::Fm, src: F(|f| f.get_full_fuel_neg_g()) },
-        VarMeta { name: "fm.half_fuel_pos_g", getter: "", unit: "G", desc: "半油正过载限制", category: C::Fm, origin: VarOrigin::Fm, src: F(|f| f.get_half_fuel_pos_g()) },
-        VarMeta { name: "fm.half_fuel_neg_g", getter: "", unit: "G", desc: "半油负过载限制", category: C::Fm, origin: VarOrigin::Fm, src: F(|f| f.get_half_fuel_neg_g()) },
-        VarMeta { name: "fm.elevator_eff_speed", getter: "", unit: "km/h", desc: "升降舵生效速度", category: C::Fm, origin: VarOrigin::Fm, src: F(|f| f.get_elevator_eff_speed()) },
-        VarMeta { name: "fm.aileron_eff_speed", getter: "", unit: "km/h", desc: "副翼生效速度", category: C::Fm, origin: VarOrigin::Fm, src: F(|f| f.get_aileron_eff_speed()) },
-        VarMeta { name: "fm.rudder_eff_speed", getter: "", unit: "km/h", desc: "方向舵生效速度", category: C::Fm, origin: VarOrigin::Fm, src: F(|f| f.get_rudder_eff_speed()) },
-        VarMeta { name: "fm.elevator_power_loss", getter: "", unit: "km/h", desc: "升降舵锁速", category: C::Fm, origin: VarOrigin::Fm, src: F(|f| f.get_elevator_power_loss()) },
-        VarMeta { name: "fm.aileron_power_loss", getter: "", unit: "km/h", desc: "副翼锁速", category: C::Fm, origin: VarOrigin::Fm, src: F(|f| f.get_aileron_power_loss()) },
-        VarMeta { name: "fm.rudder_power_loss", getter: "", unit: "km/h", desc: "方向舵锁速", category: C::Fm, origin: VarOrigin::Fm, src: F(|f| f.get_rudder_power_loss()) },
-        VarMeta { name: "fm.nitro_amount", getter: "", unit: "kg", desc: "氧化亚氮量", category: C::Fm, origin: VarOrigin::Fm, src: F(|f| f.get_nitro_amount()) },
-        VarMeta { name: "fm.nitro_time", getter: "", unit: "s", desc: "氧化亚氮时间", category: C::Fm, origin: VarOrigin::Fm, src: F(|f| f.get_nitro_time()) },
-        VarMeta { name: "fm.avg_eng_recovery_rate", getter: "", unit: "", desc: "平均引擎恢复率", category: C::Fm, origin: VarOrigin::Fm, src: F(|f| f.get_avg_eng_recovery_rate()) },
-        VarMeta { name: "fm.no_flap_wing_load", getter: "", unit: "kg/m²", desc: "翼载(无襟翼)", category: C::Fm, origin: VarOrigin::Fm, src: F(|f| f.get_no_flap_wing_load()) },
-        VarMeta { name: "fm.full_flap_wing_load", getter: "", unit: "kg/m²", desc: "翼载(满襟翼)", category: C::Fm, origin: VarOrigin::Fm, src: F(|f| f.get_full_flap_wing_load()) },
-        VarMeta { name: "fm.moi_pitch", getter: "", unit: "kg·m²", desc: "俯仰转动惯量", category: C::Fm, origin: VarOrigin::Fm, src: F(|f| f.get_moi_pitch()) },
-        VarMeta { name: "fm.moi_roll", getter: "", unit: "kg·m²", desc: "滚转转动惯量", category: C::Fm, origin: VarOrigin::Fm, src: F(|f| f.get_moi_roll()) },
-        VarMeta { name: "fm.moi_yaw", getter: "", unit: "kg·m²", desc: "偏航转动惯量", category: C::Fm, origin: VarOrigin::Fm, src: F(|f| f.get_moi_yaw()) },
-        VarMeta { name: "fm.wing_area", getter: "", unit: "m²", desc: "机翼面积", category: C::Fm, origin: VarOrigin::Fm, src: F(|f| f.get_wing_area()) },
-        VarMeta { name: "fm.fuselage_area", getter: "", unit: "m²", desc: "机身面积", category: C::Fm, origin: VarOrigin::Fm, src: F(|f| f.get_fuselage_area()) },
-        VarMeta { name: "fm.fuse_cl_high", getter: "", unit: "", desc: "机身最大升力因数", category: C::Fm, origin: VarOrigin::Fm, src: F(|f| f.get_fuse_cl_high()) },
-        VarMeta { name: "fm.fuselage_aoa_crit_high", getter: "", unit: "°", desc: "机身临界迎角上限", category: C::Fm, origin: VarOrigin::Fm, src: F(|f| f.get_fuselage_aoa_crit_high()) },
-        VarMeta { name: "fm.oswalds_efficiency", getter: "", unit: "", desc: "奥斯瓦尔德效率", category: C::Fm, origin: VarOrigin::Fm, src: F(|f| f.get_oswalds_efficiency()) },
-        VarMeta { name: "fm.aspect_ratio", getter: "", unit: "", desc: "展弦比", category: C::Fm, origin: VarOrigin::Fm, src: F(|f| f.get_aspect_ratio()) },
-        VarMeta { name: "fm.swept_wing_angle", getter: "", unit: "°", desc: "后掠角", category: C::Fm, origin: VarOrigin::Fm, src: F(|f| f.get_swept_wing_angle()) },
-        VarMeta { name: "fm.cd_s", getter: "", unit: "", desc: "寄生阻力系数", category: C::Fm, origin: VarOrigin::Fm, src: F(|f| f.get_cd_s()) },
-        VarMeta { name: "fm.ind_cd_f", getter: "", unit: "", desc: "诱导阻力系数", category: C::Fm, origin: VarOrigin::Fm, src: F(|f| f.get_ind_cd_f()) },
-        VarMeta { name: "fm.radiator_cd", getter: "", unit: "", desc: "散热器阻力系数", category: C::Fm, origin: VarOrigin::Fm, src: F(|f| f.get_radiator_cd()) },
-        VarMeta { name: "fm.oil_radiator_cd", getter: "", unit: "", desc: "滑油散热器阻力系数", category: C::Fm, origin: VarOrigin::Fm, src: F(|f| f.get_oil_radiator_cd()) },
-        VarMeta { name: "fm.no_flaps_wing_cd_min", getter: "", unit: "", desc: "最小阻力系数(无襟翼)", category: C::Fm, origin: VarOrigin::Fm, src: F(|f| f.get_no_flaps_wing_cd_min()) },
-        VarMeta { name: "fm.no_flaps_wing_cl0", getter: "", unit: "", desc: "零升力系数(无襟翼)", category: C::Fm, origin: VarOrigin::Fm, src: F(|f| f.get_no_flaps_wing_cl0()) },
-        VarMeta { name: "fm.no_flaps_wing_aoa_crit_high", getter: "", unit: "°", desc: "临界迎角上限(无襟翼)", category: C::Fm, origin: VarOrigin::Fm, src: F(|f| f.get_no_flaps_wing_aoa_crit_high()) },
-        VarMeta { name: "fm.no_flaps_wing_aoa_crit_low", getter: "", unit: "°", desc: "临界迎角下限(无襟翼)", category: C::Fm, origin: VarOrigin::Fm, src: F(|f| f.get_no_flaps_wing_aoa_crit_low()) },
-        VarMeta { name: "fm.no_flaps_wing_cl_crit_high", getter: "", unit: "", desc: "临界升力系数上限(无襟翼)", category: C::Fm, origin: VarOrigin::Fm, src: F(|f| f.get_no_flaps_wing_cl_crit_high()) },
-        VarMeta { name: "fm.no_flaps_wing_cl_crit_low", getter: "", unit: "", desc: "临界升力系数下限(无襟翼)", category: C::Fm, origin: VarOrigin::Fm, src: F(|f| f.get_no_flaps_wing_cl_crit_low()) },
-        VarMeta { name: "fm.full_flaps_wing_cd_min", getter: "", unit: "", desc: "最小阻力系数(满襟翼)", category: C::Fm, origin: VarOrigin::Fm, src: F(|f| f.get_full_flaps_wing_cd_min()) },
-        VarMeta { name: "fm.full_flaps_wing_cl0", getter: "", unit: "", desc: "零升力系数(满襟翼)", category: C::Fm, origin: VarOrigin::Fm, src: F(|f| f.get_full_flaps_wing_cl0()) },
-        VarMeta { name: "fm.full_flaps_wing_aoa_crit_high", getter: "", unit: "°", desc: "临界迎角上限(满襟翼)", category: C::Fm, origin: VarOrigin::Fm, src: F(|f| f.get_full_flaps_wing_aoa_crit_high()) },
-        VarMeta { name: "fm.full_flaps_wing_cl_crit_high", getter: "", unit: "", desc: "临界升力系数上限(满襟翼)", category: C::Fm, origin: VarOrigin::Fm, src: F(|f| f.get_full_flaps_wing_cl_crit_high()) },
-        VarMeta { name: "fm.full_flaps_wing_cl_crit_low", getter: "", unit: "", desc: "临界升力系数下限(满襟翼)", category: C::Fm, origin: VarOrigin::Fm, src: F(|f| f.get_full_flaps_wing_cl_crit_low()) },
-        VarMeta { name: "fm.full_flaps_wing_aoa_crit_low", getter: "", unit: "°", desc: "临界迎角下限(满襟翼)", category: C::Fm, origin: VarOrigin::Fm, src: F(|f| f.get_full_flaps_wing_aoa_crit_low()) },
-        VarMeta { name: "fm.fuselage_cd_min", getter: "", unit: "", desc: "机身最小阻力系数", category: C::Fm, origin: VarOrigin::Fm, src: F(|f| f.get_fuselage_cd_min()) },
-        VarMeta { name: "fm.fin_cd_min", getter: "", unit: "", desc: "垂尾最小阻力系数", category: C::Fm, origin: VarOrigin::Fm, src: F(|f| f.get_fin_cd_min()) },
-        VarMeta { name: "fm.stab_cd_min", getter: "", unit: "", desc: "平尾最小阻力系数", category: C::Fm, origin: VarOrigin::Fm, src: F(|f| f.get_stab_cd_min()) },
-        VarMeta { name: "fm.flap0_speed", getter: "", unit: "km/h", desc: "襟翼档位0速度", category: C::Fm, origin: VarOrigin::Fm, src: F(|f| f.get_flap0_speed()) },
-        VarMeta { name: "fm.flap1_speed", getter: "", unit: "km/h", desc: "襟翼档位1速度", category: C::Fm, origin: VarOrigin::Fm, src: F(|f| f.get_flap1_speed()) },
-        VarMeta { name: "fm.flap2_speed", getter: "", unit: "km/h", desc: "襟翼档位2速度", category: C::Fm, origin: VarOrigin::Fm, src: F(|f| f.get_flap2_speed()) },
-        VarMeta { name: "fm.flap3_speed", getter: "", unit: "km/h", desc: "襟翼档位3速度", category: C::Fm, origin: VarOrigin::Fm, src: F(|f| f.get_flap3_speed()) },
-        VarMeta { name: "fm.gear_destruction_speed", getter: "", unit: "km/h", desc: "起落架损毁速度", category: C::Fm, origin: VarOrigin::Fm, src: F(|f| f.get_gear_destruction_speed()) },
-        VarMeta { name: "fm.engine_num", getter: "", unit: "", desc: "引擎数(FM)", category: C::Fm, origin: VarOrigin::Fm, src: F(|f| f.get_engine_num() as f64) },
+        // ===== /state 原始直通 (哨兵原样穿透, 守卫在消费侧/公式内联) =====
+        VarMeta { name: "ias", getter: "getIAS", unit: "km/h", desc: "指示空速", category: C::Flight, origin: O::State, src: T(|s| s.ias as f64) },
+        VarMeta { name: "tas", getter: "getTAS", unit: "km/h", desc: "真空速", category: C::Flight, origin: O::State, src: T(|s| s.tas as f64) },
+        VarMeta { name: "aoa", getter: "getAoA", unit: "°", desc: "迎角", category: C::Flight, origin: O::State, src: T(|s| s.aoa) },
+        VarMeta { name: "aos", getter: "getAoS", unit: "°", desc: "侧滑角", category: C::Flight, origin: O::State, src: T(|s| s.aos) },
+        VarMeta { name: "altitude", getter: "getAltitude", unit: "m", desc: "气压高度", category: C::Flight, origin: O::State, src: T(|s| s.heightm) },
+        VarMeta { name: "ny_raw", getter: "getNyRaw", unit: "G", desc: "原始过载(state 直通)", category: C::Flight, origin: O::State, src: T(|s| s.ny) },
+        VarMeta { name: "vy", getter: "", unit: "m/s", desc: "垂直速度(state 直通)", category: C::Flight, origin: O::State, src: T(|s| s.vy) },
+        VarMeta { name: "roll_rate", getter: "getRollRate", unit: "°/s", desc: "滚转率(Wx)", category: C::Flight, origin: O::State, src: T(|s| s.wx) },
+        VarMeta { name: "mfuel", getter: "", unit: "kg", desc: "主油量(state 直通)", category: C::Engine, origin: O::State, src: T(|s| s.mfuel) },
+        VarMeta { name: "mfuel0", getter: "", unit: "kg", desc: "初始主油量(state 直通)", category: C::Engine, origin: O::State, src: T(|s| s.mfuel0) },
+        VarMeta { name: "mfuel_1", getter: "", unit: "kg", desc: "助推器燃料(state 直通)", category: C::Engine, origin: O::State, src: T(|s| s.mfuel_1) },
+        VarMeta { name: "mfuel0_1", getter: "", unit: "kg", desc: "助推器初始燃料(state 直通)", category: C::Engine, origin: O::State, src: T(|s| s.mfuel0_1) },
+        // 助推器两量 = 原 getBoosterFuelKg/Percent getter 直绑复刻 (守卫 NaN
+        // 穿透原样 §2.12: `!(x <= 0.0)` 而非 `x > 0.0`, min 手写 NaN 传播)
+        VarMeta { name: "booster_fuel_kg", getter: "getBoosterFuelKg", unit: "kg", desc: "助推器燃料(守卫归零)", category: C::Engine, origin: O::State, src: T(|s| if !(s.mfuel_1 <= 0.0) { s.mfuel_1 } else { 0.0 }) },
+        VarMeta { name: "booster_fuel_percent", getter: "getBoosterFuelPercent", unit: "%", desc: "助推器剩余百分比", category: C::Engine, origin: O::State, src: T(|s| if !(s.mfuel0_1 <= 0.0) {
+            let v = 100.0 * s.mfuel_1 / s.mfuel0_1;
+            if v.is_nan() { v } else { v.min(100.0) }
+        } else { 0.0 }) },
+        VarMeta { name: "has_booster", getter: "", unit: "", desc: "有助推器(mfuel_1>0 且初始>0)", category: C::Engine, origin: O::State, src: T(|s| (s.mfuel_1 > 0.0 && s.mfuel0_1 > 0.0) as u8 as f64) },
+        VarMeta { name: "engine_count", getter: "", unit: "", desc: "引擎数(遥测)", category: C::Meta, origin: O::State, src: T(|s| s.engine_num as f64) },
+        // ===== /indicators 原始直通 =====
+        VarMeta { name: "indic_speed", getter: "getIndicSpeed", unit: "m/s", desc: "校正速度(indicators.speed, m/s)", category: C::Flight, origin: O::Indicators, src: I(|i| i.speed) },
+        VarMeta { name: "indic_vario", getter: "", unit: "m/s", desc: "仪表升降速度(含哨兵)", category: C::Flight, origin: O::Indicators, src: I(|i| i.vario) },
+        VarMeta { name: "radio_alt_raw", getter: "", unit: "m", desc: "雷达高度原始值(含哨兵)", category: C::Flight, origin: O::Indicators, src: I(|i| i.radio_altitude) },
+        VarMeta { name: "radio_altitude_valid", getter: "isRadioAltitudeValid", unit: "", desc: "雷达高度有效", category: C::Flight, origin: O::Indicators, src: I(|i| (i.radio_altitude != FI) as u8 as f64) },
+        VarMeta { name: "wing_sweep", getter: "getWingSweep", unit: "", desc: "变后掠翼(哨兵归零)", category: C::State, origin: O::Indicators, src: I(|i| if i.wsweep_indicator != FI { i.wsweep_indicator } else { 0.0 }) },
+        VarMeta { name: "wing_sweep_valid", getter: "isWingSweepValid", unit: "", desc: "变后掠翼有效", category: C::State, origin: O::Indicators, src: I(|i| (i.wsweep_indicator != FI) as u8 as f64) },
+        VarMeta { name: "aviahorizon_pitch", getter: "getAviahorizonPitch", unit: "°", desc: "地平仪俯仰", category: C::Flight, origin: O::Indicators, src: I(|i| i.aviahorizon_pitch) },
+        VarMeta { name: "aviahorizon_roll", getter: "getAviahorizonRoll", unit: "°", desc: "地平仪滚转", category: C::Flight, origin: O::Indicators, src: I(|i| i.aviahorizon_roll) },
+        // ===== /state 引擎/操纵面直通 (int 拓宽) =====
+        VarMeta { name: "throttle", getter: "getThrottle", unit: "%", desc: "油门", category: C::Engine, origin: O::State, src: T(|s| s.throttle as f64) },
+        VarMeta { name: "rpm", getter: "getRPM", unit: "rpm", desc: "转速", category: C::Engine, origin: O::State, src: T(|s| s.rpm as f64) },
+        VarMeta { name: "manifold_pressure", getter: "getManifoldPressure", unit: "ata", desc: "进气压", category: C::Engine, origin: O::State, src: T(|s| s.manifoldpressure) },
+        VarMeta { name: "prop_pitch", getter: "getPitch", unit: "", desc: "桨距(pitch[0])", category: C::Engine, origin: O::State, src: T(|s| s.pitch.first().copied().unwrap_or(0.0)) },
+        VarMeta { name: "mixture_state", getter: "getUnknownMixture", unit: "", desc: "混合比状态", category: C::Engine, origin: O::State, src: T(|s| s.mixture as f64) },
+        VarMeta { name: "radiator", getter: "getRadiator", unit: "", desc: "散热器", category: C::Engine, origin: O::State, src: T(|s| s.radiator as f64) },
+        VarMeta { name: "compressor_stage", getter: "getCompressorStage", unit: "", desc: "增压器档位(遥测)", category: C::Engine, origin: O::State, src: T(|s| s.compressorstage as f64) },
+        VarMeta { name: "rpm_throttle", getter: "getRPMThrottle", unit: "", desc: "转速油门", category: C::Engine, origin: O::State, src: T(|s| s.rpm_throttle as f64) },
+        VarMeta { name: "gear", getter: "getGear", unit: "", desc: "起落架", category: C::State, origin: O::State, src: T(|s| s.gear as f64) },
+        VarMeta { name: "flaps", getter: "getFlaps", unit: "", desc: "襟翼", category: C::State, origin: O::State, src: T(|s| s.flaps as f64) },
+        VarMeta { name: "airbrake", getter: "getAirbrake", unit: "", desc: "空气刹车", category: C::State, origin: O::State, src: T(|s| s.airbrake as f64) },
+        VarMeta { name: "aileron", getter: "getAileron", unit: "", desc: "副翼", category: C::State, origin: O::State, src: T(|s| s.aileron as f64) },
+        VarMeta { name: "elevator", getter: "getElevator", unit: "", desc: "升降舵", category: C::State, origin: O::State, src: T(|s| s.elevator as f64) },
+        VarMeta { name: "rudder", getter: "getRudder", unit: "", desc: "方向舵", category: C::State, origin: O::State, src: T(|s| s.rudder as f64) },
+        // ===== C 级会话量 (聚合/状态机产物, W8 公式化后逐项消亡) =====
+        VarMeta { name: "mass_fuel", getter: "getMassFuel", unit: "kg", desc: "当前总油量(聚合)", category: C::Engine, origin: O::Derived, src: SE(|x| x.total_fuel) },
+        VarMeta { name: "fuel_time_mili", getter: "getFuelTimeMili", unit: "ms", desc: "剩余油量时间(SMA 慢算)", category: C::Engine, origin: O::Derived, src: SE(|x| x.fuel_time_mili) },
+        VarMeta { name: "horse_power", getter: "getHorsePower", unit: "hp", desc: "总功率(引擎聚合)", category: C::Engine, origin: O::Derived, src: SE(|x| x.total_hp) },
+        VarMeta { name: "eff_hp", getter: "getEffHp", unit: "hp", desc: "有效功率(引擎聚合)", category: C::Engine, origin: O::Derived, src: SE(|x| x.total_hp_eff) },
+        VarMeta { name: "thrust", getter: "getThrust", unit: "kgf", desc: "总推力(引擎聚合)", category: C::Engine, origin: O::Derived, src: SE(|x| x.total_thrust) },
+        VarMeta { name: "water_temp", getter: "getWaterTemp", unit: "°C", desc: "水温(耐久状态机)", category: C::Engine, origin: O::Derived, src: SE(|x| x.n_water_temp) },
+        VarMeta { name: "oil_temp", getter: "getOilTemp", unit: "°C", desc: "油温(耐久状态机)", category: C::Engine, origin: O::Derived, src: SE(|x| x.n_oil_temp) },
+        VarMeta { name: "energy_jkg", getter: "getEnergyJkg", unit: "J/kg", desc: "单位动能(计算待移植, 现恒 0)", category: C::Flight, origin: O::Derived, src: SE(|x| x.energy_j_kg) },
+        VarMeta { name: "radio_altitude", getter: "getRadioAltitude", unit: "m", desc: "雷达高度(回退计算)", category: C::Flight, origin: O::Derived, src: SE(|x| x.radio_alt) },
+        VarMeta { name: "compass", getter: "getCompass", unit: "°", desc: "航向(罗盘回退链)", category: C::Flight, origin: O::Derived, src: SE(|x| x.compass_delta) },
+        VarMeta { name: "wep_kg", getter: "getWepKg", unit: "kg", desc: "WEP 剩余工质(消耗状态机)", category: C::Engine, origin: O::Derived, src: SE(|x| x.nitro_kg) },
+        VarMeta { name: "wep_time", getter: "getWepTime", unit: "s", desc: "WEP 剩余时间(消耗状态机)", category: C::Engine, origin: O::Derived, src: SE(|x| x.wep_time) },
+        VarMeta { name: "heat_tolerance", getter: "getHeatTolerance", unit: "", desc: "耐热阈值", category: C::Engine, origin: O::Derived, src: SE(|x| x.heat_tolerance) },
+        VarMeta { name: "power_percent", getter: "getPowerPercent", unit: "%", desc: "推力/功率百分比", category: C::Engine, origin: O::Derived, src: SE(|x| x.thurst_percent) },
+        VarMeta { name: "engine_response", getter: "getEngineResponse", unit: "", desc: "引擎响应速率(惯性)", category: C::Engine, origin: O::Derived, src: SE(|x| x.t_eng_response) },
+        VarMeta { name: "prop_efficiency", getter: "getPropEfficiency", unit: "%", desc: "螺旋桨效率(聚合比)", category: C::Engine, origin: O::Derived, src: SE(|x| x.avgeff) },
+        VarMeta { name: "manifold_pressure_display", getter: "getManifoldPressureDisplay", unit: "", desc: "进气压显示值(公/英制)", category: C::Engine, origin: O::Derived, src: SE(|x| x.manifold_display) },
+        VarMeta { name: "fuel_percent", getter: "getFuelPercent", unit: "%", desc: "油量百分比(update_fuel 聚合)", category: C::Engine, origin: O::Derived, src: SE(|x| x.fuel_percent) },
+        VarMeta { name: "is_imperial", getter: "isImperial", unit: "", desc: "英制单位(检测状态机)", category: C::Meta, origin: O::Derived, src: SE(|x| x.is_imperial as u8 as f64) },
+        VarMeta { name: "is_jet_engine", getter: "isJetEngine", unit: "", desc: "喷气引擎(投票)", category: C::Engine, origin: O::Derived, src: SE(|x| x.is_jet as u8 as f64) },
+        VarMeta { name: "is_prop_engine", getter: "isPropEngine", unit: "", desc: "螺旋桨引擎(投票)", category: C::Engine, origin: O::Derived, src: SE(|x| x.is_prop as u8 as f64) },
+        VarMeta { name: "is_piston_engine", getter: "isPistonEngine", unit: "", desc: "活塞引擎(投票)", category: C::Engine, origin: O::Derived, src: SE(|x| x.is_piston as u8 as f64) },
+        VarMeta { name: "is_turboprop_engine", getter: "isTurbopropEngine", unit: "", desc: "涡桨引擎(投票)", category: C::Engine, origin: O::Derived, src: SE(|x| x.is_turboprop as u8 as f64) },
+        VarMeta { name: "is_engine_check_done", getter: "isEngineCheckDone", unit: "", desc: "引擎检测完成(投票)", category: C::Engine, origin: O::Derived, src: SE(|x| x.engine_check_done as u8 as f64) },
+        // ===== FM 字段直通 (blkx 直绑, None 守卫对齐 adapter) =====
+        VarMeta { name: "fm.empty_weight", getter: "", unit: "kg", desc: "空重", category: C::Fm, origin: O::Fm, src: B(|b| b.emptyweight) },
+        VarMeta { name: "fm.nofuel_weight", getter: "", unit: "kg", desc: "无油重量", category: C::Fm, origin: O::Fm, src: B(|b| b.nofuelweight) },
+        VarMeta { name: "fm.max_fuel_weight", getter: "", unit: "kg", desc: "最大油量", category: C::Fm, origin: O::Fm, src: B(|b| b.maxfuelweight) },
+        VarMeta { name: "fm.critical_speed", getter: "", unit: "km/h", desc: "临界速度", category: C::Fm, origin: O::Fm, src: B(|b| b.critical_speed * 3.6) },
+        VarMeta { name: "fm.vne", getter: "", unit: "km/h", desc: "最大速度(VNE)", category: C::Fm, origin: O::Fm, src: B(|b| b.vne) },
+        VarMeta { name: "fm.vne_mach", getter: "", unit: "Ma", desc: "最大马赫数", category: C::Fm, origin: O::Fm, src: B(|b| b.vne_mach) },
+        VarMeta { name: "fm.full_fuel_pos_g", getter: "", unit: "G", desc: "满油正过载限制", category: C::Fm, origin: O::Fm, src: B(|b| b.raw_wing_crit_overload.map_or(0.0, |r| 1.2 * (2.0 * r[1] / (9.80 * b.grossweight) - 1.0))) },
+        VarMeta { name: "fm.full_fuel_neg_g", getter: "", unit: "G", desc: "满油负过载限制", category: C::Fm, origin: O::Fm, src: B(|b| b.raw_wing_crit_overload.map_or(0.0, |r| 1.2 * (2.0 * r[0] / (9.80 * b.grossweight) + 1.0))) },
+        VarMeta { name: "fm.half_fuel_pos_g", getter: "", unit: "G", desc: "半油正过载限制", category: C::Fm, origin: O::Fm, src: B(|b| b.raw_wing_crit_overload.map_or(0.0, |r| 1.2 * (2.0 * r[1] / (9.80 * b.halfweight) - 1.0))) },
+        VarMeta { name: "fm.half_fuel_neg_g", getter: "", unit: "G", desc: "半油负过载限制", category: C::Fm, origin: O::Fm, src: B(|b| b.raw_wing_crit_overload.map_or(0.0, |r| 1.2 * (2.0 * r[0] / (9.80 * b.halfweight) + 1.0))) },
+        VarMeta { name: "fm.elevator_eff_speed", getter: "", unit: "km/h", desc: "升降舵生效速度", category: C::Fm, origin: O::Fm, src: B(|b| b.elav_eff) },
+        VarMeta { name: "fm.aileron_eff_speed", getter: "", unit: "km/h", desc: "副翼生效速度", category: C::Fm, origin: O::Fm, src: B(|b| b.aileron_eff) },
+        VarMeta { name: "fm.rudder_eff_speed", getter: "", unit: "km/h", desc: "方向舵生效速度", category: C::Fm, origin: O::Fm, src: B(|b| b.rudder_eff) },
+        VarMeta { name: "fm.elevator_power_loss", getter: "", unit: "km/h", desc: "升降舵锁速", category: C::Fm, origin: O::Fm, src: B(|b| b.elav_power_loss) },
+        VarMeta { name: "fm.aileron_power_loss", getter: "", unit: "km/h", desc: "副翼锁速", category: C::Fm, origin: O::Fm, src: B(|b| b.aileron_power_loss) },
+        VarMeta { name: "fm.rudder_power_loss", getter: "", unit: "km/h", desc: "方向舵锁速", category: C::Fm, origin: O::Fm, src: B(|b| b.rudder_power_loss) },
+        VarMeta { name: "fm.nitro_amount", getter: "", unit: "kg", desc: "氧化亚氮量", category: C::Fm, origin: O::Fm, src: B(|b| b.nitro) },
+        // WEP 装配判定 = 原 hasWep() getter 直绑 (无 FM → NaN → var_value None → 恒 false, 对位原 false)
+        VarMeta { name: "has_wep", getter: "", unit: "", desc: "有 WEP(nitro>0)", category: C::Engine, origin: O::Fm, src: B(|b| (b.nitro > 0.0) as u8 as f64) },
+        VarMeta { name: "fm.nitro_time", getter: "", unit: "s", desc: "氧化亚氮时间", category: C::Fm, origin: O::Fm, src: B(|b| if b.nitro_decr <= 0.0 { 0.0 } else { b.nitro / (b.nitro_decr * 60.0) }) },
+        VarMeta { name: "fm.avg_eng_recovery_rate", getter: "", unit: "", desc: "平均引擎恢复率", category: C::Fm, origin: O::Fm, src: B(|b| b.avg_eng_recovery_rate) },
+        VarMeta { name: "fm.no_flap_wing_load", getter: "", unit: "kg/m²", desc: "翼载(无襟翼)", category: C::Fm, origin: O::Fm, src: B(|b| b.no_flap_wll) },
+        VarMeta { name: "fm.full_flap_wing_load", getter: "", unit: "kg/m²", desc: "翼载(满襟翼)", category: C::Fm, origin: O::Fm, src: B(|b| b.full_flap_wll) },
+        VarMeta { name: "fm.moi_pitch", getter: "", unit: "kg·m²", desc: "俯仰转动惯量", category: C::Fm, origin: O::Fm, src: B(|b| b.moment_of_inertia.map_or(0.0, |m| if m.len() >= 3 { m[2] } else { 0.0 })) },
+        VarMeta { name: "fm.moi_roll", getter: "", unit: "kg·m²", desc: "滚转转动惯量", category: C::Fm, origin: O::Fm, src: B(|b| b.moment_of_inertia.map_or(0.0, |m| if !m.is_empty() { m[0] } else { 0.0 })) },
+        VarMeta { name: "fm.moi_yaw", getter: "", unit: "kg·m²", desc: "偏航转动惯量", category: C::Fm, origin: O::Fm, src: B(|b| b.moment_of_inertia.map_or(0.0, |m| if m.len() >= 2 { m[1] } else { 0.0 })) },
+        VarMeta { name: "fm.wing_area", getter: "", unit: "m²", desc: "机翼面积", category: C::Fm, origin: O::Fm, src: B(|b| b.a_wing) },
+        VarMeta { name: "fm.fuselage_area", getter: "", unit: "m²", desc: "机身面积", category: C::Fm, origin: O::Fm, src: B(|b| b.a_fuselage) },
+        VarMeta { name: "fm.oswalds_efficiency", getter: "", unit: "", desc: "奥斯瓦尔德效率", category: C::Fm, origin: O::Fm, src: B(|b| b.oswalds_efficiency_number) },
+        VarMeta { name: "fm.aspect_ratio", getter: "", unit: "", desc: "展弦比", category: C::Fm, origin: O::Fm, src: B(|b| b.aspect_ratio) },
+        VarMeta { name: "fm.swept_wing_angle", getter: "", unit: "°", desc: "后掠角", category: C::Fm, origin: O::Fm, src: B(|b| b.swept_wing_angle) },
+        VarMeta { name: "fm.cd_s", getter: "", unit: "", desc: "寄生阻力系数", category: C::Fm, origin: O::Fm, src: B(|b| b.cd_s) },
+        VarMeta { name: "fm.ind_cd_f", getter: "", unit: "", desc: "诱导阻力系数", category: C::Fm, origin: O::Fm, src: B(|b| b.ind_cd_f) },
+        VarMeta { name: "fm.radiator_cd", getter: "", unit: "", desc: "散热器阻力系数", category: C::Fm, origin: O::Fm, src: B(|b| b.radiator_cd) },
+        VarMeta { name: "fm.oil_radiator_cd", getter: "", unit: "", desc: "滑油散热器阻力系数", category: C::Fm, origin: O::Fm, src: B(|b| b.oil_radiator_cd) },
+        VarMeta { name: "fm.no_flaps_wing_cd_min", getter: "", unit: "", desc: "最小阻力系数(无襟翼)", category: C::Fm, origin: O::Fm, src: B(|b| b.no_flaps_wing.as_ref().map_or(0.0, |p| p.cd_min)) },
+        VarMeta { name: "fm.no_flaps_wing_cl0", getter: "", unit: "", desc: "零升力系数(无襟翼)", category: C::Fm, origin: O::Fm, src: B(|b| b.no_flaps_wing.as_ref().map_or(0.0, |p| p.cl0)) },
+        VarMeta { name: "fm.no_flaps_wing_aoa_crit_high", getter: "", unit: "°", desc: "临界迎角上限(无襟翼)", category: C::Fm, origin: O::Fm, src: B(|b| b.no_flaps_wing.as_ref().map_or(0.0, |p| p.aoa_crit_high)) },
+        VarMeta { name: "fm.no_flaps_wing_aoa_crit_low", getter: "", unit: "°", desc: "临界迎角下限(无襟翼)", category: C::Fm, origin: O::Fm, src: B(|b| b.no_flaps_wing.as_ref().map_or(0.0, |p| p.aoa_crit_low)) },
+        VarMeta { name: "fm.no_flaps_wing_cl_crit_high", getter: "", unit: "", desc: "临界升力系数上限(无襟翼)", category: C::Fm, origin: O::Fm, src: B(|b| b.no_flaps_wing.as_ref().map_or(0.0, |p| p.cl_crit_high)) },
+        VarMeta { name: "fm.no_flaps_wing_cl_crit_low", getter: "", unit: "", desc: "临界升力系数下限(无襟翼)", category: C::Fm, origin: O::Fm, src: B(|b| b.no_flaps_wing.as_ref().map_or(0.0, |p| p.cl_crit_low)) },
+        VarMeta { name: "fm.full_flaps_wing_cd_min", getter: "", unit: "", desc: "最小阻力系数(满襟翼)", category: C::Fm, origin: O::Fm, src: B(|b| b.full_flaps_wing.as_ref().map_or(0.0, |p| p.cd_min)) },
+        VarMeta { name: "fm.full_flaps_wing_cl0", getter: "", unit: "", desc: "零升力系数(满襟翼)", category: C::Fm, origin: O::Fm, src: B(|b| b.full_flaps_wing.as_ref().map_or(0.0, |p| p.cl0)) },
+        VarMeta { name: "fm.full_flaps_wing_aoa_crit_high", getter: "", unit: "°", desc: "临界迎角上限(满襟翼)", category: C::Fm, origin: O::Fm, src: B(|b| b.full_flaps_wing.as_ref().map_or(0.0, |p| p.aoa_crit_high)) },
+        VarMeta { name: "fm.full_flaps_wing_aoa_crit_low", getter: "", unit: "°", desc: "临界迎角下限(满襟翼)", category: C::Fm, origin: O::Fm, src: B(|b| b.full_flaps_wing.as_ref().map_or(0.0, |p| p.aoa_crit_low)) },
+        VarMeta { name: "fm.full_flaps_wing_cl_crit_high", getter: "", unit: "", desc: "临界升力系数上限(满襟翼)", category: C::Fm, origin: O::Fm, src: B(|b| b.full_flaps_wing.as_ref().map_or(0.0, |p| p.cl_crit_high)) },
+        VarMeta { name: "fm.full_flaps_wing_cl_crit_low", getter: "", unit: "", desc: "临界升力系数下限(满襟翼)", category: C::Fm, origin: O::Fm, src: B(|b| b.full_flaps_wing.as_ref().map_or(0.0, |p| p.cl_crit_low)) },
+        VarMeta { name: "fm.fuse_cl_high", getter: "", unit: "", desc: "机身最大升力因数", category: C::Fm, origin: O::Fm, src: B(|b| b.fuse_cl_high) },
+        VarMeta { name: "fm.fuselage_aoa_crit_high", getter: "", unit: "°", desc: "机身临界迎角上限", category: C::Fm, origin: O::Fm, src: B(|b| b.fuselage.as_ref().map_or(0.0, |p| p.aoa_crit_high)) },
+        VarMeta { name: "fm.fuselage_cd_min", getter: "", unit: "", desc: "机身最小阻力系数", category: C::Fm, origin: O::Fm, src: B(|b| b.fuselage.as_ref().map_or(0.0, |p| p.cd_min)) },
+        VarMeta { name: "fm.fin_cd_min", getter: "", unit: "", desc: "垂尾最小阻力系数", category: C::Fm, origin: O::Fm, src: B(|b| b.fin.as_ref().map_or(0.0, |p| p.cd_min)) },
+        VarMeta { name: "fm.stab_cd_min", getter: "", unit: "", desc: "平尾最小阻力系数", category: C::Fm, origin: O::Fm, src: B(|b| b.stab.as_ref().map_or(0.0, |p| p.cd_min)) },
+        VarMeta { name: "fm.flap0_speed", getter: "", unit: "km/h", desc: "襟翼档位0速度", category: C::Fm, origin: O::Fm, src: B(|b| flap_speed(b, 0)) },
+        VarMeta { name: "fm.flap1_speed", getter: "", unit: "km/h", desc: "襟翼档位1速度", category: C::Fm, origin: O::Fm, src: B(|b| flap_speed(b, 1)) },
+        VarMeta { name: "fm.flap2_speed", getter: "", unit: "km/h", desc: "襟翼档位2速度", category: C::Fm, origin: O::Fm, src: B(|b| flap_speed(b, 2)) },
+        VarMeta { name: "fm.flap3_speed", getter: "", unit: "km/h", desc: "襟翼档位3速度", category: C::Fm, origin: O::Fm, src: B(|b| flap_speed(b, 3)) },
+        VarMeta { name: "fm.gear_destruction_speed", getter: "", unit: "km/h", desc: "起落架损毁速度", category: C::Fm, origin: O::Fm, src: B(|b| b.gear_destruction_ind_speed) },
+        VarMeta { name: "fm.engine_num", getter: "", unit: "", desc: "引擎数(FM)", category: C::Fm, origin: O::Fm, src: B(|b| b.engine_num as f64) },
         // ===== 元变量 =====
-        VarMeta { name: "interval_ms", getter: "", unit: "ms", desc: "本帧轮询间隔", category: C::Meta, origin: VarOrigin::Meta, src: M(MetaVar::IntervalMs) },
-        VarMeta { name: "freq", getter: "", unit: "Hz", desc: "轮询频率", category: C::Meta, origin: VarOrigin::Meta, src: M(MetaVar::Freq) },
-        VarMeta { name: "elapsed_ms", getter: "", unit: "ms", desc: "会话经过时间", category: C::Meta, origin: VarOrigin::Meta, src: M(MetaVar::ElapsedMs) },
-        VarMeta { name: "session_ms", getter: "", unit: "ms", desc: "会话开始至今", category: C::Meta, origin: VarOrigin::Meta, src: M(MetaVar::SessionMs) },
-        VarMeta { name: "fm_loaded", getter: "", unit: "", desc: "FM 已加载", category: C::Meta, origin: VarOrigin::Meta, src: M(MetaVar::FmLoaded) },
-        VarMeta { name: "engine_count", getter: "", unit: "", desc: "引擎数(遥测)", category: C::Meta, origin: VarOrigin::Meta, src: M(MetaVar::EngineCount) },
-        // ===== 物理常量 (physics_constants 单一来源) =====
-        VarMeta { name: "g", getter: "", unit: "m/s²", desc: "重力加速度", category: C::Const, origin: VarOrigin::Const, src: K(crate::physics_constants::g) },
-        VarMeta { name: "rho0", getter: "", unit: "kg/m³", desc: "海平面空气密度", category: C::Const, origin: VarOrigin::Const, src: K(crate::physics_constants::SEA_LEVEL_DENSITY) },
-        VarMeta { name: "P0", getter: "", unit: "Pa", desc: "海平面气压", category: C::Const, origin: VarOrigin::Const, src: K(crate::physics_constants::SEA_LEVEL_PRESSURE) },
+        VarMeta { name: "interval_ms", getter: "", unit: "ms", desc: "本帧轮询间隔", category: C::Meta, origin: O::Meta, src: M(MetaVar::IntervalMs) },
+        VarMeta { name: "freq", getter: "", unit: "Hz", desc: "轮询频率", category: C::Meta, origin: O::Meta, src: M(MetaVar::Freq) },
+        VarMeta { name: "elapsed_ms", getter: "", unit: "ms", desc: "会话经过时间", category: C::Meta, origin: O::Meta, src: M(MetaVar::ElapsedMs) },
+        VarMeta { name: "session_ms", getter: "", unit: "ms", desc: "会话开始至今", category: C::Meta, origin: O::Meta, src: M(MetaVar::SessionMs) },
+        VarMeta { name: "fm_loaded", getter: "", unit: "", desc: "FM 已加载", category: C::Meta, origin: O::Meta, src: M(MetaVar::FmLoaded) },
+        // ===== 物理常量 =====
+        VarMeta { name: "g", getter: "", unit: "m/s²", desc: "重力加速度", category: C::Const, origin: O::Const, src: K(crate::physics_constants::g) },
+        VarMeta { name: "rho0", getter: "", unit: "kg/m³", desc: "海平面空气密度", category: C::Const, origin: O::Const, src: K(crate::physics_constants::SEA_LEVEL_DENSITY) },
+        VarMeta { name: "P0", getter: "", unit: "Pa", desc: "海平面气压", category: C::Const, origin: O::Const, src: K(crate::physics_constants::SEA_LEVEL_PRESSURE) },
     ];
 
     let mut index: HashMap<&'static str, u16> = HashMap::with_capacity(vars.len() * 2);
@@ -353,4 +397,17 @@ fn build_registry() -> Registry {
         }
     }
     Registry { vars, index }
+}
+
+/// 襟翼档位速度表取值 (fm.flapN_speed 共用; adapter 同款守卫)
+fn flap_speed(b: &Blkx, idx: usize) -> f64 {
+    if b.flaps_destruction_num as usize > idx {
+        b.flaps_destruction_ind_speed
+            .as_ref()
+            .and_then(|t| t.get(idx))
+            .map(|r| r[1])
+            .unwrap_or(0.0)
+    } else {
+        0.0
+    }
 }

@@ -339,6 +339,8 @@ export interface FormulaItem {
   desc: string
   disabled: boolean
   builtin: boolean
+  /** Java getter 别名 (:getter; 内置公式的 overlay 面板绑定键, 保存往返保留) */
+  getter: string | null
   error: string | null
 }
 

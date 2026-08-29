@@ -42,6 +42,11 @@ use crate::hud_data::Builder;
 use crate::parser::{Indicators, State};
 use crate::ui_model::TelemetrySource;
 
+/// W7: var_value 桥取值 (NaN→0, 对齐原 getter map_or(0.0) 零值帧语义)
+fn v(s: &dyn TelemetrySource, name: &str) -> f64 {
+    s.var_value(name).unwrap_or(0.0)
+}
+
 /// `java.awt.Color.RED` = new Color(255, 0, 0) (alpha 255, Java 8 oracle)
 const COLOR_RED: [u8; 4] = [255, 0, 0, 255];
 /// `java.awt.Color.WHITE` = new Color(255, 255, 255) (alpha 255)
@@ -100,12 +105,12 @@ pub fn calculate<S: HUDSettings>(
         .and_then(|o| o.downcast_ref::<Indicators>());
 
     // --- Raw Flight Data ---
-    b.ias = source.get_ias();
-    b.mach = source.get_mach();
-    b.altitude = source.get_altitude();
-    b.radio_altitude = source.get_radio_altitude();
-    b.vertical_speed = source.get_sep();
-    b.heading = source.get_compass();
+    b.ias = v(source, "ias");
+    b.mach = v(source, "mach");
+    b.altitude = v(source, "altitude");
+    b.radio_altitude = v(source, "radio_altitude");
+    b.vertical_speed = v(source, "sep");
+    b.heading = v(source, "compass");
 
     b.map_grid = payload.map_grid.clone();
 
@@ -166,7 +171,7 @@ pub fn calculate<S: HUDSettings>(
     // (迁移期双保险 — 用户删改内置公式时 HUD 数据不断链)
     b.energy_m = source
         .get_formula_value("energy_m")
-        .unwrap_or_else(|| source.get_energy_jkg() / g);
+        .unwrap_or_else(|| v(source, "energy_jkg") / g);
 
     b.is_mach_mode = settings.draw_hud_mach();
     b.is_gear_down = b.gear > 0.0;
@@ -264,7 +269,7 @@ pub fn calculate<S: HUDSettings>(
 
     // Warnings
     let radio_alt = b.radio_altitude;
-    let radio_alt_valid = source.is_radio_altitude_valid();
+    let radio_alt_valid = v(source, "radio_altitude_valid") != 0.0;
     let always_radar = settings.always_show_radar_altitude();
 
     // Low altitude warning flag - always based on <=500m threshold
@@ -374,10 +379,10 @@ pub fn calculate<S: HUDSettings>(
     b.warn_configuration = in_action;
 
     // --- Speed Ratio Bar Logic ---
-    b.speed_bar_speed_ratio = source.get_speed_limit_ratio();
-    b.speed_bar_aileron_lock_ratio = source.get_aileron_lock_ratio();
-    b.speed_bar_rudder_lock_ratio = source.get_rudder_lock_ratio();
-    b.speed_bar_unit_mach_limit_ratio = source.get_unit_mach_limit_ratio();
+    b.speed_bar_speed_ratio = v(source, "speed_limit_ratio");
+    b.speed_bar_aileron_lock_ratio = v(source, "aileron_lock_ratio");
+    b.speed_bar_rudder_lock_ratio = v(source, "rudder_lock_ratio");
+    b.speed_bar_unit_mach_limit_ratio = v(source, "unit_mach_limit_ratio");
 
     // Calculate Stall Ratio
     let mut current_limit = 1.0;
@@ -387,13 +392,13 @@ pub fn calculate<S: HUDSettings>(
     } else if let Some(blkx) = valid_blkx {
         // Fallback to static VNE
         let mut vwing = 0.0;
-        if source.is_wing_sweep_valid() {
-            vwing = source.get_wing_sweep();
+        if v(source, "wing_sweep_valid") != 0.0 {
+            vwing = v(source, "wing_sweep");
         }
         current_limit = blkx.get_vne_v_wing(vwing);
     }
 
-    let stall_speed = source.get_stall_speed();
+    let stall_speed = v(source, "stall_speed");
     if current_limit > 0.1 {
         b.speed_bar_stall_ratio = stall_speed / current_limit;
     } else {

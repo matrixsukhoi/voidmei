@@ -16,10 +16,8 @@ pub mod rules;
 pub use definition::{CompiledFormulaSet, FormulaDef, FormulaResults, VarLookup};
 pub use eval::{EvalCtx, StateStore};
 pub use functions::{FnId, Value};
-pub use registry::{assemble_snapshot, registry, MetaInputs, Registry, VarSnapshot, VarSrc};
+pub use registry::{assemble_snapshot, registry, MetaInputs, Registry, VarSnapshot};
 
-use crate::ui_model::fm_data_source::FMDataSource;
-use crate::ui_model::telemetry_source::TelemetrySource;
 use std::sync::{Arc, Mutex, RwLock};
 
 // ---------------------------------------------------------------------------
@@ -48,19 +46,19 @@ pub fn resolve_target(target: &str) -> Option<(TargetVar, f64)> {
     Some((TargetVar::Formula(name.to_string()), mult))
 }
 
-/// 求值: 变量限 Telemetry 源 (fm.*/元变量/常量应进公式, 不进 :target);
-/// 公式经 TelemetrySource::get_formula_value (None = 0 降级, Java 语义)。
-pub fn target_value(var: &TargetVar, mult: f64, s: &dyn TelemetrySource) -> Option<f64> {
+/// 求值: 任意变量 (直通/会话/FM/常量) 或公式, 经统一视图取值
+/// (实现方持快照+公式槽; None = 0 降级, Java NoSuchMethod 语义)。
+pub fn target_value(
+    var: &TargetVar,
+    mult: f64,
+    s: &dyn crate::ui_model::TelemetrySource,
+) -> Option<f64> {
     match var {
         TargetVar::Var(vid) => {
             let meta = registry().vars.get(*vid as usize)?;
-            match &meta.src {
-                VarSrc::Tel(f) => Some(f(s) * mult),
-                VarSrc::TelBool(f) => Some(f(s) as u8 as f64 * mult),
-                _ => None,
-            }
+            s.var_value(meta.name).map(|x| x * mult)
         }
-        TargetVar::Formula(name) => s.get_formula_value(name).map(|v| v * mult),
+        TargetVar::Formula(name) => s.var_value(name).map(|x| x * mult),
     }
 }
 
@@ -107,22 +105,22 @@ impl FormulaManager {
         *self.current.write().expect("公式集锁中毒") = set;
     }
 
-    /// 帧求值: 组快照 → 拓扑序求值 → 结果 (Service 线程调用)
+    /// 帧求值: 组快照 → 拓扑序求值 → 结果 (Service 线程调用)。
+    /// W6 直通化: 唯一数据入口 = 原始三元组 + C 级会话量。
     pub fn eval_frame(
         &self,
-        tel: &dyn TelemetrySource,
-        fm: Option<&dyn FMDataSource>,
-        fm_blkx: Option<&crate::blkx::Blkx>,
+        raw: &registry::RawInputs,
+        session: &registry::SessionInputs,
         meta: &MetaInputs,
         now_ms: u64,
     ) -> FormulaResults {
         let set = self.current.read().expect("公式集锁中毒").clone();
-        let snap = assemble_snapshot(tel, fm, meta);
+        let snap = assemble_snapshot(raw, session, meta);
         let results = if set.formulas.is_empty() {
             FormulaResults { values: Vec::new() }
         } else {
             let mut store = self.store.lock().expect("状态仓锁中毒");
-            set.eval_frame(&snap, &mut store, now_ms, meta.interval_ms, fm_blkx)
+            set.eval_frame(&snap, &mut store, now_ms, meta.interval_ms, raw.blkx)
         };
         // 快照缓存供编辑器试算 (求值后 move, 免克隆)
         *self.last_snap.write().expect("快照锁中毒") = Arc::new(snap);

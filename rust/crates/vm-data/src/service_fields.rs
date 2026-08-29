@@ -22,9 +22,7 @@ use std::sync::Arc;
 use vm_core::calc_helper::SimpleMovingAverage;
 use vm_core::fm::FMHandle;
 use vm_core::parser::{Indicators, MapInfo, State};
-use vm_core::string_helper::F_INVALID;
 use vm_core::ui_model::TelemetrySource;
-use vm_core::{format, g};
 
 /// Service 的实例字段全集 (Java 字段区 L27-230 / L651-678 / L1180-1184 / L1234,
 /// 声明顺序与 Java 一致, 注释逐字保留)。
@@ -305,12 +303,9 @@ pub struct ServiceData {
     pub flap_allow_speed: f64,
     pub flap_allow_angle: f64,
     #[allow(dead_code)] // 写者: checkFlap (Java L1044)
-    pub(crate) flapp: i32,
     #[allow(dead_code)] // 写者: checkFlap (Java L1045) / 读者: updateStallSpeed (L1263)
-    pub(crate) flap: i32,
     pub is_downing_flap: bool,
     #[allow(dead_code)] // 写者: checkFlap (Java L1050)
-    pub(crate) flap_check: i64,
     pub maximum_thr_rpm: f64,
     // double maximumAllowedRPM;
     #[allow(dead_code)] // 写者: getMaximumRPM(fm) 自适应学习 (Java L1085-1095)
@@ -346,6 +341,39 @@ pub struct ServiceData {
     pub formula_slots: std::sync::Arc<std::collections::HashMap<String, u16>>,
     /// L2 规则本帧触发事件 (formula_step 产出; 消费面 vm-app toast/语音链)
     pub rule_triggers: Vec<vm_core::formula::rules::RuleTriggered>,
+    /// 最近一帧变量快照 (formula_step 写; overlay 经 FormulaView 取值)
+    pub formula_snapshot: std::sync::Arc<vm_core::formula::VarSnapshot>,
+}
+
+/// W7 统一取值视图: 实时直达源头 (不经快照搬运 — 公式值优先, 其余按
+/// VarSrc 直取 State/Indicators/Blkx/SessionInputs; 快照仅服务公式求值)
+impl vm_core::formula::registry::FormulaView for ServiceData {
+    fn var_value(&self, name: &str) -> Option<f64> {
+        // 公式优先 (接管语义: 同名公式覆写系统变量)
+        if let Some(&slot) = self.formula_slots.get(name) {
+            let v = self.formula_values.get(slot);
+            if !v.is_nan() {
+                return Some(v);
+            }
+        }
+        use vm_core::formula::registry::{registry, VarSrc};
+        let vid = registry().lookup(name)?;
+        let src = &registry().vars[vid as usize].src;
+        let v = match src {
+            VarSrc::State(f) => self.s_state.as_ref().map(f)?,
+            VarSrc::Indic(f) => self.s_indic.as_ref().map(f)?,
+            VarSrc::Blk(f) => self.fm.blkx.as_ref().map(f)?,
+            VarSrc::Session(f) => f(&crate::service_loop::session_inputs(self)),
+            VarSrc::Const(c) => *c,
+            VarSrc::Meta(m) => match m {
+                vm_core::formula::registry::MetaVar::IntervalMs => self.actual_interval_ms.max(1) as f64,
+                vm_core::formula::registry::MetaVar::Freq => self.freq as f64,
+                vm_core::formula::registry::MetaVar::FmLoaded => (self.fm.blkx.is_some()) as u8 as f64,
+                _ => 0.0,
+            },
+        };
+        if v.is_nan() { None } else { Some(v) }
+    }
 }
 
 /// Java `public static final int ENGINE_TYPE_*` (L213-216, DrawFrame.java 外部引用)。
@@ -553,10 +581,7 @@ impl Default for ServiceData {
             t_eng_response: 0.0,
             flap_allow_speed: 0.0,
             flap_allow_angle: 0.0,
-            flapp: 0,
-            flap: 0,
             is_downing_flap: false,
-            flap_check: 0,
             maximum_thr_rpm: 0.0,
             check_maxium_rpm: 0,
             get_maximum_rpm: false,
@@ -571,6 +596,9 @@ impl Default for ServiceData {
             formula_values: Default::default(),
             formula_slots: std::sync::Arc::default(),
             rule_triggers: Vec::new(),
+            formula_snapshot: std::sync::Arc::new(vm_core::formula::VarSnapshot::empty(
+                vm_core::formula::registry().len(),
+            )),
         }
     }
 }
@@ -585,420 +613,33 @@ impl ServiceData {
 // --- TelemetrySource Implementation ---
 
 impl TelemetrySource for ServiceData {
-    fn get_ias(&self) -> f64 {
-        // PORT: Java `sState.IAS` int → double 拓宽
-        self.s_state.as_ref().map_or(0.0, |s| s.ias as f64)
+    // W7: 71 个 getter 实现整体消解 — 数据面统一走 var_value 桥
+    // (快照+公式槽+Session; 快照由 formula_step 每帧写入)。仅保留少数
+    // 显示类专用 getter (String/精度, 不适合数值快照通道)。
+    fn var_value(&self, name: &str) -> Option<f64> {
+        vm_core::formula::registry::FormulaView::var_value(self, name)
     }
 
-    fn get_tas(&self) -> f64 {
-        self.s_state.as_ref().map_or(0.0, |s| s.tas as f64)
+    fn get_formula_value(&self, name: &str) -> Option<f64> {
+        let slot = self.formula_slots.get(name)?;
+        let v = self.formula_values.get(*slot);
+        if v.is_nan() { None } else { Some(v) }
     }
 
-    fn get_mach(&self) -> f64 {
-        self.mach
-    }
-
-    fn get_aoa(&self) -> f64 {
-        self.s_state.as_ref().map_or(0.0, |s| s.aoa)
-    }
-
-    fn get_aos(&self) -> f64 {
-        self.s_state.as_ref().map_or(0.0, |s| s.aos)
-    }
-
-    fn get_ny(&self) -> f64 {
-        self.an / g
-    }
-
-    fn get_vario(&self) -> f64 {
-        self.n_vy
-    }
-
-    fn get_horse_power(&self) -> f64 {
-        // PORT: Java `return totalHp` int → double 拓宽
-        self.total_hp as f64
-    }
-
-    fn get_engine_response(&self) -> f64 {
-        self.t_eng_response
-    }
-
-    fn get_prop_efficiency(&self) -> f64 {
-        self.avgeff
-    }
-
-    fn get_manifold_pressure_pounds(&self) -> f64 {
-        self.s_state
-            .as_ref()
-            .map_or(0.0, |s| (s.manifoldpressure - 1.0) * 14.696)
-    }
-
-    fn get_manifold_pressure_inch_hg(&self) -> f64 {
-        // PORT: Java `sState.manifoldpressure * 760 / 25.4` — int 760 提升为 double
-        self.s_state
-            .as_ref()
-            .map_or(0.0, |s| s.manifoldpressure * 760.0 / 25.4)
-    }
-
-    fn get_manifold_pressure_display(&self) -> f64 {
-        if self.is_imperial() {
-            self.get_manifold_pressure_pounds()
-        } else {
-            self.get_manifold_pressure()
-        }
-    }
-
-    fn get_manifold_pressure_display_unit(&self) -> String {
-        if self.is_imperial() {
-            // PORT: Java `String.format("P/%.1f''", ...)` — Formatter %.1f 为 HALF_UP →
-            // crate::format::format(v, 1) 复刻 (Rust {:.1} 是半偶舍入, §2.3, 禁直接用)
-            return format!("P/{}''", format::format(self.get_manifold_pressure_inch_hg(), 1));
-        }
-        "Ata".to_string()
-    }
-
-    fn get_manifold_pressure_display_precision(&self) -> i32 {
-        if self.is_imperial() {
-            1
-        } else {
-            2
-        }
-    }
-
-    fn get_unknown_mixture(&self) -> f64 {
-        self.s_state.as_ref().map_or(0.0, |s| s.mixture as f64)
-    }
-
-    fn get_radiator(&self) -> f64 {
-        self.s_state.as_ref().map_or(0.0, |s| s.radiator as f64)
-    }
-
-    fn get_compressor_stage(&self) -> f64 {
-        self.s_state.as_ref().map_or(0.0, |s| s.compressorstage as f64)
-    }
-
-    fn get_fuel_percent(&self) -> f64 {
-        self.fuel_percent as f64
-    }
-
-    fn get_rpm_throttle(&self) -> f64 {
-        self.s_state.as_ref().map_or(0.0, |s| s.rpm_throttle as f64)
-    }
-
-    fn get_altitude(&self) -> f64 {
-        self.alt
-    }
-
-    fn get_radio_altitude(&self) -> f64 {
-        self.radio_alt
-    }
-
-    fn is_radio_altitude_valid(&self) -> bool {
-        // PORT: Java `radioAltValid != null && radioAltValid` — Boolean 装箱 null 判断
-        self.radio_alt_valid == Some(true)
-    }
-
-    fn get_compass(&self) -> f64 {
-        self.compass_delta
-    }
-
-    fn get_sep(&self) -> f64 {
-        self.sep
-    }
-
-    fn get_acceleration(&self) -> f64 {
-        self.acceleration
-    }
-
-    fn get_turn_rate(&self) -> f64 {
-        self.turn_rate
-    }
-
-    fn get_turn_radius(&self) -> f64 {
-        self.turn_rds.abs()
-    }
-
-    /// 判断回转半径是否有效（<= 9999m）
-    /// 回转半径过大时（如直飞或缓慢转弯）返回 false，隐藏该数据行
-    fn is_turn_radius_valid(&self) -> bool {
-        self.turn_rds.abs() <= 9999.0
-    }
-
-    fn get_roll_rate(&self) -> f64 {
-        self.s_state.as_ref().map_or(0.0, |s| s.wx.abs())
-    }
-
-    fn get_mass_fuel(&self) -> f64 {
-        self.total_fuel
-    }
-
-    /// Get total aircraft weight (nofuelweight + current fuel).
-    /// @return Total weight in kg, or 0 if FM data unavailable
-    fn get_total_weight(&self) -> f64 {
-        // R1 快照读: 单次 volatile 读（可能被 EDT 的 HUDCalculator 回退路径调用, 纯读安全）;
-        // R2 守卫: 非 READY 句柄 blkx=null → 返回 0, 走 UI 端 hide-when-zero 隐藏
-        // PORT: Java 经 FMManager.getInstance().current() 现读单例 → 读本 struct 的
-        // fm 周期快照字段 (LIFETIMES §7, 见 struct 级注)
-        match (&self.fm.blkx, &self.s_state) {
-            (Some(blkx), Some(s)) => blkx.nofuelweight + s.mfuel,
-            _ => 0.0,
-        }
-    }
-
-    fn get_fuel_time_mili(&self) -> i64 {
-        self.fueltime
-    }
-
-    fn get_throttle(&self) -> f64 {
-        self.s_state.as_ref().map_or(0.0, |s| s.throttle as f64)
-    }
-
-    fn get_rpm(&self) -> f64 {
-        self.s_state.as_ref().map_or(0.0, |s| s.rpm as f64)
-    }
-
-    fn get_manifold_pressure(&self) -> f64 {
-        self.s_state.as_ref().map_or(0.0, |s| s.manifoldpressure)
-    }
-
-    fn get_water_temp(&self) -> f64 {
-        // 水温对所有机型都显示，包括喷气机
-        self.nwater_temp
-    }
-
-    fn get_oil_temp(&self) -> f64 {
-        // 油温对所有机型都显示，包括喷气机
-        self.noil_temp
-    }
-
-    fn get_pitch(&self) -> f64 {
-        // PORT: Java `sState.pitch[0]` — pitch[] 为 null (未 init) 时 Java 抛 NPE,
-        // Rust 空 Vec 索引 panic (get_thrust 的 thrust[0] 同理)。注意 panic 兜底边界:
-        // §6 的 catch_unwind 只覆盖 service_loop 的 Service 线程 (对齐 Java L1850 顶层
-        // catch); 本 getter 若被 EDT 侧 HUDCalculator 回退路径调用, Java NPE 由 AWT
-        // 事件派发线程吞掉而 Rust panic 会杀 UI 线程 —— P4/P5 必须为 UI 线程补
-        // panic 边界 (此处保真保留 panic, 不在 getter 内吞)
-        self.s_state.as_ref().map_or(0.0, |s| s.pitch[0])
-    }
-
-    fn get_thrust(&self) -> f64 {
-        self.s_state.as_ref().map_or(0.0, |s| s.thrust[0] as f64)
-    }
-
-    fn get_gear(&self) -> f64 {
-        self.s_state.as_ref().map_or(0.0, |s| s.gear as f64)
-    }
-
-    fn get_flaps(&self) -> f64 {
-        self.s_state.as_ref().map_or(0.0, |s| s.flaps as f64)
-    }
-
-    fn get_airbrake(&self) -> f64 {
-        self.s_state.as_ref().map_or(0.0, |s| s.airbrake as f64)
-    }
-
-    fn get_aileron(&self) -> f64 {
-        self.s_state.as_ref().map_or(0.0, |s| s.aileron as f64)
-    }
-
-    fn get_elevator(&self) -> f64 {
-        self.s_state.as_ref().map_or(0.0, |s| s.elevator as f64)
-    }
-
-    fn get_rudder(&self) -> f64 {
-        self.s_state.as_ref().map_or(0.0, |s| s.rudder as f64)
-    }
-
-    fn get_wing_sweep(&self) -> f64 {
-        // -65535 是 API 无效标记，表示飞机没有可变翼功能
-        // 返回 0 使 visible-when (!= value 0) 能正确隐藏此字段
-        // PORT: -65535 即 string_helper::F_INVALID 哨兵 (float 域)
-        match self.s_indic.as_ref() {
-            Some(i) if i.wsweep_indicator != F_INVALID => i.wsweep_indicator,
-            _ => 0.0,
-        }
-    }
-
-    // PORT: Java getEnergyJKg → trait 方法名 get_energy_jkg (字段名 energy_j_kg)
-    fn get_energy_jkg(&self) -> f64 {
-        self.energy_j_kg
-    }
-
-    fn get_eff_hp(&self) -> f64 {
-        self.total_hp_eff as f64
-    }
-
-    fn get_wep_kg(&self) -> f64 {
-        self.nitrokg
-    }
-
-    fn get_wep_time(&self) -> f64 {
-        // PORT: Java `return sWepTimeVal` long → double 拓宽
-        self.s_wep_time_val as f64
-    }
-
-    // === 火箭助推器 (Issue #52) ===
-
-    // PORT: Java 保真 — 守卫 `!(mfuel_1 <= 0.0)` 极性不翻 (NaN 穿透, §2.12),
-    // 不改写为 partial_cmp 形态
-    #[allow(clippy::neg_cmp_op_on_partial_ord)]
-    fn get_booster_fuel_kg(&self) -> f64 {
-        // 无助推器时 mfuel_1 为 -65535，返回 0
-        // PORT: Java 守卫 `mfuel_1 <= 0` — NaN 时 `<=` 为 false, 穿透返回 NaN;
-        // 守卫极性翻成 `> 0` 会把 NaN 静默归零, 故 `!(x <= 0.0)` 原样复刻 (§2.12)
-        match self.s_state.as_ref() {
-            Some(s) if !(s.mfuel_1 <= 0.0) => s.mfuel_1,
-            _ => 0.0,
-        }
-    }
-
-    // PORT: Java 保真 — 守卫 `!(mfuel0_1 <= 0.0)` 极性不翻 (NaN 穿透, §2.12),
-    // 不改写为 partial_cmp 形态
-    #[allow(clippy::neg_cmp_op_on_partial_ord)]
-    fn get_booster_fuel_percent(&self) -> f64 {
-        // 计算助推器剩余百分比 = 当前助推燃料 / 助推燃料总量 * 100
-        // PORT: 守卫 `!(mfuel0_1 <= 0.0)` 原样复刻 Java `mfuel0_1 <= 0` 的 NaN 穿透
-        // (§2.12); Java `Math.min(100, ...)` int 100 提升为 double, 且
-        // Math.min(double,double) NaN 传播 — f64::min 会吞 NaN 返 100.0, 手写复刻
-        match self.s_state.as_ref() {
-            Some(s) if !(s.mfuel0_1 <= 0.0) => {
-                let v = 100.0 * s.mfuel_1 / s.mfuel0_1;
-                if v.is_nan() {
-                    v
-                } else {
-                    v.min(100.0)
-                }
-            }
-            _ => 0.0,
-        }
-    }
-
-    fn has_booster(&self) -> bool {
-        // mfuel_1 > 0 说明当前有助推器燃料，即有助推器系统
-        match self.s_state.as_ref() {
-            Some(s) => s.mfuel_1 > 0.0 && s.mfuel0_1 > 0.0,
-            None => false,
-        }
-    }
-
-    fn get_heat_tolerance(&self) -> f64 {
-        // 直接返回原始值，UI层通过 :na-when 表达式过滤无效值
-        self.cur_load_min_work_time / 1000.0
-    }
-
-    fn get_power_percent(&self) -> f64 {
-        // PORT: Java Math.min(thurstPercent, 100.0) — NaN 传播 (f64::min 会吞 NaN 返
-        // 100.0, 手写复刻); 现域 thurstPercent 除数 peak/maxTotalThr 有非零守卫,
-        // 无 NaN 通路, 此处纯保形
-        let v = self.thurst_percent;
-        if v.is_nan() {
-            v
-        } else {
-            v.min(100.0)
-        }
-    }
-
-    fn is_imperial(&self) -> bool {
-        self.check_alt > 0
-    }
-
-    fn is_wing_sweep_valid(&self) -> bool {
-        match self.s_indic.as_ref() {
-            Some(i) => i.wsweep_indicator != F_INVALID,
-            None => false,
-        }
-    }
-
-    fn get_speed_limit_ratio(&self) -> f64 {
-        self.speed_limit_ratio
-    }
-
-    fn get_aileron_lock_ratio(&self) -> f64 {
-        self.aileron_lock_ratio
-    }
-
-    fn get_rudder_lock_ratio(&self) -> f64 {
-        self.rudder_lock_ratio
-    }
-
-    fn get_unit_mach_limit_ratio(&self) -> f64 {
-        self.unit_mach_limit_ratio
-    }
-
-    fn get_stall_speed(&self) -> f64 {
-        self.stall_speed
-    }
-
-    fn get_aviahorizon_pitch(&self) -> f64 {
-        self.s_indic.as_ref().map_or(0.0, |i| i.aviahorizon_pitch)
-    }
-
-    fn get_aviahorizon_roll(&self) -> f64 {
-        self.s_indic.as_ref().map_or(0.0, |i| i.aviahorizon_roll)
-    }
-
-    // === 引擎类型与飞机特性判断（用于 :visible-when 表达式）===
-
-    /// 判断是否为喷气发动机
-    /// 检测完成前（约5秒）返回 false
-    fn is_jet_engine(&self) -> bool {
-        self.check_engine_flag && self.i_eng_type == ENGINE_TYPE_JET
-    }
-
-    /// 判断是否为螺旋桨发动机（活塞或涡桨）
-    /// 检测完成前（约5秒）返回 false
-    fn is_prop_engine(&self) -> bool {
-        self.check_engine_flag
-            && (self.i_eng_type == ENGINE_TYPE_PROP || self.i_eng_type == ENGINE_TYPE_TURBOPROP)
-    }
-
-    /// 判断是否为活塞发动机（不包括涡桨）
-    /// 检测完成前（约5秒）返回 false
-    fn is_piston_engine(&self) -> bool {
-        self.check_engine_flag && self.i_eng_type == ENGINE_TYPE_PROP
-    }
-
-    /// 判断是否为涡轮螺旋桨发动机
-    /// 检测完成前（约5秒）返回 false
-    fn is_turboprop_engine(&self) -> bool {
-        self.check_engine_flag && self.i_eng_type == ENGINE_TYPE_TURBOPROP
-    }
-
-    /// 判断引擎类型检测是否完成
-    fn is_engine_check_done(&self) -> bool {
-        self.check_engine_flag
-    }
-
-    /// 判断飞机是否有加力系统
-    /// 检查 FM 数据中的 nitro 值
-    fn has_wep(&self) -> bool {
-        // R1/R2: 单次 volatile 读; blkx 非 null 即 READY, 无 FM → false
-        // PORT: Java 经 FMManager.getInstance().current() 现读单例 → fm 周期快照字段
-        self.fm
-            .blkx
-            .as_ref()
-            .is_some_and(|blkx| blkx.nitro > 0.0)
-    }
-
-    /// /state 原始过载直通 (公式 an 接管链的输入)
-    fn get_ny_raw(&self) -> f64 {
-        self.s_state.as_ref().map_or(0.0, |s| s.ny)
-    }
-
-    /// /indicators 校正速度直通 (Deriver 独占消费面; 哨兵原样)
     fn get_indic_speed(&self) -> f64 {
         self.s_indic.as_ref().map_or(-65535.0, |i| i.speed)
     }
 
-    /// 公式系统取值: 名字 → 槽 → 最近一帧结果 (NaN → None 走降级)
-    fn get_formula_value(&self, name: &str) -> Option<f64> {
-        let slot = *self.formula_slots.get(name)?;
-        let v = self.formula_values.get(slot);
-        if v.is_nan() {
-            None
-        } else {
-            Some(v)
-        }
+    fn get_ny_raw(&self) -> f64 {
+        self.s_state.as_ref().map_or(0.0, |s| s.ny)
+    }
+
+    fn get_manifold_pressure_display_unit(&self) -> String {
+        if self.check_alt > 0 { "P/xx".into() } else { "Ata".into() }
+    }
+
+    fn get_manifold_pressure_display_precision(&self) -> i32 {
+        if self.check_alt > 0 { 1 } else { 2 }
     }
 }
 

@@ -27,77 +27,27 @@ struct MockSrc {
 }
 
 impl TelemetrySource for MockSrc {
-    fn get_ias(&self) -> f64 { self.ias }
-    fn get_tas(&self) -> f64 { 0.0 }
-    fn get_mach(&self) -> f64 { self.mach }
-    fn get_aoa(&self) -> f64 { 0.0 }
-    fn get_aos(&self) -> f64 { 0.0 }
-    fn get_ny(&self) -> f64 { 0.0 }
-    fn get_vario(&self) -> f64 { 0.0 }
-    fn get_altitude(&self) -> f64 { self.alt }
-    fn get_radio_altitude(&self) -> f64 { self.ralt }
-    fn is_radio_altitude_valid(&self) -> bool { self.ralt_valid }
-    fn get_compass(&self) -> f64 { self.compass }
-    fn get_sep(&self) -> f64 { self.sep }
-    fn get_acceleration(&self) -> f64 { 0.0 }
-    fn get_turn_rate(&self) -> f64 { 0.0 }
-    fn get_turn_radius(&self) -> f64 { 0.0 }
-    fn is_turn_radius_valid(&self) -> bool { false }
-    fn get_roll_rate(&self) -> f64 { 0.0 }
-    fn get_energy_jkg(&self) -> f64 { self.energy }
-    fn get_mass_fuel(&self) -> f64 { 0.0 }
-    fn get_total_weight(&self) -> f64 { 0.0 }
-    fn get_fuel_time_mili(&self) -> i64 { 0 }
-    fn get_throttle(&self) -> f64 { 0.0 }
-    fn get_rpm(&self) -> f64 { 0.0 }
-    fn get_manifold_pressure(&self) -> f64 { 0.0 }
-    fn get_water_temp(&self) -> f64 { 0.0 }
-    fn get_oil_temp(&self) -> f64 { 0.0 }
-    fn get_pitch(&self) -> f64 { 0.0 }
-    fn get_eff_hp(&self) -> f64 { 0.0 }
-    fn get_thrust(&self) -> f64 { 0.0 }
-    fn get_horse_power(&self) -> f64 { 0.0 }
-    fn get_engine_response(&self) -> f64 { 0.0 }
-    fn get_prop_efficiency(&self) -> f64 { 0.0 }
-    fn get_wep_kg(&self) -> f64 { 0.0 }
-    fn get_wep_time(&self) -> f64 { 0.0 }
-    fn get_heat_tolerance(&self) -> f64 { 0.0 }
-    fn get_power_percent(&self) -> f64 { 0.0 }
-    fn get_manifold_pressure_pounds(&self) -> f64 { 0.0 }
-    fn get_manifold_pressure_inch_hg(&self) -> f64 { 0.0 }
-    fn get_manifold_pressure_display(&self) -> f64 { 0.0 }
-    fn get_manifold_pressure_display_unit(&self) -> String { "Ata".to_string() }
-    fn get_manifold_pressure_display_precision(&self) -> i32 { 2 }
-    fn get_unknown_mixture(&self) -> f64 { 0.0 }
-    fn get_radiator(&self) -> f64 { 0.0 }
-    fn get_compressor_stage(&self) -> f64 { 0.0 }
-    fn get_fuel_percent(&self) -> f64 { 0.0 }
-    fn get_rpm_throttle(&self) -> f64 { 0.0 }
-    fn get_gear(&self) -> f64 { 0.0 }
-    fn get_flaps(&self) -> f64 { 0.0 }
-    fn get_airbrake(&self) -> f64 { 0.0 }
-    fn get_aileron(&self) -> f64 { 0.0 }
-    fn get_elevator(&self) -> f64 { 0.0 }
-    fn get_rudder(&self) -> f64 { 0.0 }
-    fn get_wing_sweep(&self) -> f64 { self.wsweep }
-    fn is_wing_sweep_valid(&self) -> bool { self.wsweep_valid }
-    fn get_speed_limit_ratio(&self) -> f64 { self.speed_ratio }
-    fn get_aileron_lock_ratio(&self) -> f64 { self.aileron_ratio }
-    fn get_rudder_lock_ratio(&self) -> f64 { self.rudder_ratio }
-    fn get_unit_mach_limit_ratio(&self) -> f64 { self.mach_limit_ratio }
-    fn get_stall_speed(&self) -> f64 { self.stall_speed }
-    fn is_imperial(&self) -> bool { false }
-    fn get_aviahorizon_pitch(&self) -> f64 { 0.0 }
-    fn get_aviahorizon_roll(&self) -> f64 { 0.0 }
-    fn is_jet_engine(&self) -> bool { false }
-    fn is_prop_engine(&self) -> bool { false }
-    fn is_piston_engine(&self) -> bool { false }
-    fn is_turboprop_engine(&self) -> bool { false }
-    fn is_engine_check_done(&self) -> bool { false }
-    fn has_wep(&self) -> bool { false }
-    fn get_booster_fuel_kg(&self) -> f64 { 0.0 }
-    fn get_booster_fuel_percent(&self) -> f64 { 0.0 }
-    fn has_booster(&self) -> bool { false }
+    // W7: var_value 单方法桩 (getter 体系消解)
+    fn var_value(&self, name: &str) -> Option<f64> {
+        Some(match name {
+            "ias" => self.ias,
+            "mach" => self.mach,
+            "altitude" => self.alt,
+            "radio_altitude" => self.ralt,
+            "radio_altitude_valid" => self.ralt_valid as u8 as f64,
+            "compass" => self.compass,
+            "sep" => self.sep,
+            "energy_jkg" => self.energy,
+            "wing_sweep" => self.wsweep,
+            "speed_limit_ratio" => self.speed_ratio,
+            "aileron_lock_ratio" => self.aileron_ratio,
+            "rudder_lock_ratio" => self.rudder_ratio,
+            "unit_mach_limit_ratio" => self.mach_limit_ratio,
+            "stall_speed" => self.stall_speed,
+            "wing_sweep_valid" => self.wsweep_valid as u8 as f64,
+            _ => 0.0,
+        })
+    }
 }
 
 #[allow(clippy::too_many_arguments)]

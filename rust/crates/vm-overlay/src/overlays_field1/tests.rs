@@ -101,77 +101,56 @@ impl Default for MockTele {
 
 #[allow(clippy::too_many_lines)]
 impl TelemetrySource for MockTele {
-    fn get_ias(&self) -> f64 { 0.0 }
-    fn get_tas(&self) -> f64 { 0.0 }
-    fn get_mach(&self) -> f64 { 0.0 }
-    fn get_aoa(&self) -> f64 { 0.0 }
-    fn get_aos(&self) -> f64 { 0.0 }
-    fn get_ny(&self) -> f64 { 0.0 }
-    fn get_vario(&self) -> f64 { 0.0 }
-    fn get_altitude(&self) -> f64 { 0.0 }
-    fn get_radio_altitude(&self) -> f64 { 0.0 }
-    fn is_radio_altitude_valid(&self) -> bool { false }
-    fn get_compass(&self) -> f64 { 0.0 }
-    fn get_sep(&self) -> f64 { 0.0 }
-    fn get_acceleration(&self) -> f64 { 0.0 }
-    fn get_turn_rate(&self) -> f64 { 0.0 }
-    fn get_turn_radius(&self) -> f64 { 0.0 }
-    fn is_turn_radius_valid(&self) -> bool { false }
-    fn get_roll_rate(&self) -> f64 { 0.0 }
-    fn get_energy_jkg(&self) -> f64 { 0.0 }
-    fn get_mass_fuel(&self) -> f64 { self.mass_fuel }
-    fn get_total_weight(&self) -> f64 { self.total_weight }
-    fn get_fuel_time_mili(&self) -> i64 { self.fuel_time_mili }
-    fn get_throttle(&self) -> f64 { self.throttle }
-    fn get_rpm(&self) -> f64 { self.rpm }
-    fn get_manifold_pressure(&self) -> f64 { self.manifold }
-    fn get_water_temp(&self) -> f64 { self.water_temp }
-    fn get_oil_temp(&self) -> f64 { self.oil_temp }
-    fn get_pitch(&self) -> f64 { self.pitch }
-    fn get_eff_hp(&self) -> f64 { self.eff_hp }
-    fn get_thrust(&self) -> f64 { self.thrust }
-    fn get_horse_power(&self) -> f64 { self.horse_power }
-    fn get_engine_response(&self) -> f64 { self.engine_resp }
-    fn get_prop_efficiency(&self) -> f64 { self.prop_eff }
-    fn get_wep_kg(&self) -> f64 { self.wep_kg }
-    fn get_wep_time(&self) -> f64 { self.wep_time }
-    fn get_heat_tolerance(&self) -> f64 { self.heat_tol }
-    fn get_power_percent(&self) -> f64 { self.power_percent }
-    fn get_manifold_pressure_pounds(&self) -> f64 { 0.0 }
-    fn get_manifold_pressure_inch_hg(&self) -> f64 { 0.0 }
-    fn get_manifold_pressure_display(&self) -> f64 { self.manifold }
-    fn get_manifold_pressure_display_unit(&self) -> String { self.manifold_unit.to_string() }
-    fn get_manifold_pressure_display_precision(&self) -> i32 { self.manifold_prec }
-    fn get_unknown_mixture(&self) -> f64 { self.mixture }
-    fn get_radiator(&self) -> f64 { self.radiator }
-    fn get_compressor_stage(&self) -> f64 { self.compressor_stage }
-    fn get_fuel_percent(&self) -> f64 { self.fuel_percent }
-    fn get_rpm_throttle(&self) -> f64 { self.rpm_throttle }
-    fn get_gear(&self) -> f64 { self.gear }
-    fn get_flaps(&self) -> f64 { self.flaps }
-    fn get_airbrake(&self) -> f64 { self.airbrake }
-    fn get_aileron(&self) -> f64 { 0.0 }
-    fn get_elevator(&self) -> f64 { 0.0 }
-    fn get_rudder(&self) -> f64 { 0.0 }
-    fn get_wing_sweep(&self) -> f64 { 0.0 }
-    fn is_wing_sweep_valid(&self) -> bool { false }
-    fn get_speed_limit_ratio(&self) -> f64 { 0.0 }
-    fn get_aileron_lock_ratio(&self) -> f64 { 0.0 }
-    fn get_rudder_lock_ratio(&self) -> f64 { 0.0 }
-    fn get_unit_mach_limit_ratio(&self) -> f64 { 0.0 }
-    fn get_stall_speed(&self) -> f64 { 0.0 }
-    fn is_imperial(&self) -> bool { false }
-    fn get_aviahorizon_pitch(&self) -> f64 { 0.0 }
-    fn get_aviahorizon_roll(&self) -> f64 { 0.0 }
-    fn is_jet_engine(&self) -> bool { self.jet }
-    fn is_prop_engine(&self) -> bool { !self.jet }
-    fn is_piston_engine(&self) -> bool { self.piston }
-    fn is_turboprop_engine(&self) -> bool { false }
-    fn is_engine_check_done(&self) -> bool { true }
-    fn has_wep(&self) -> bool { self.wep }
-    fn get_booster_fuel_kg(&self) -> f64 { self.booster_kg }
-    fn get_booster_fuel_percent(&self) -> f64 { self.booster_pct }
-    fn has_booster(&self) -> bool { self.booster }
+    // W7: var_value 桩 (字段直映); 名字先经 canonical 归一 — 消费方以
+    // getter 名/getter 别名发问 (PowerSource::getter / VisExpr / 仪表),
+    // 曾只答短名把断链掩成 _ => 0.0 (booster 三字段 never read 即旁证)
+    fn var_value(&self, name: &str) -> Option<f64> {
+        let name = crate::flight_info::canonical_var_name(name)?;
+        Some(match name.as_str() {
+            "throttle" => self.throttle,
+            "rpm_throttle" => self.rpm_throttle,
+            "power_percent" => self.power_percent,
+            "mixture_state" => self.mixture,
+            "radiator" => self.radiator,
+            "compressor_stage" => self.compressor_stage,
+            "fuel_percent" => self.fuel_percent,
+            "gear" => self.gear,
+            "flaps" => self.flaps,
+            "airbrake" => self.airbrake,
+            "horse_power" => self.horse_power,
+            "thrust" => self.thrust,
+            "rpm" => self.rpm,
+            "prop_pitch" => self.pitch,
+            "prop_efficiency" => self.prop_eff,
+            "eff_hp" => self.eff_hp,
+            "manifold_pressure_display" => self.manifold,
+            "mass_fuel" => self.mass_fuel,
+            "total_weight" => self.total_weight,
+            "fuel_time_mili" => self.fuel_time_mili as f64,
+            "wep_kg" => self.wep_kg,
+            "wep_time" => self.wep_time,
+            "booster_fuel_kg" => self.booster_kg,
+            "booster_fuel_percent" => self.booster_pct,
+            "has_booster" => self.booster as u8 as f64,
+            "water_temp" => self.water_temp,
+            "oil_temp" => self.oil_temp,
+            "heat_tolerance" => self.heat_tol,
+            "engine_response" => self.engine_resp,
+            "is_jet_engine" => self.jet as u8 as f64,
+            "is_piston_engine" => self.piston as u8 as f64,
+            "has_wep" => self.wep as u8 as f64,
+            "is_imperial" => (self.manifold_prec == 1) as u8 as f64,
+            _ => 0.0,
+        })
+    }
+
+    fn get_manifold_pressure_display_unit(&self) -> String {
+        self.manifold_unit.to_string()
+    }
+
+    fn get_manifold_pressure_display_precision(&self) -> i32 {
+        self.manifold_prec
+    }
 }
 
 fn payload(is_jet: bool, engine_check_done: bool, optimal: i32) -> EventPayload {
@@ -1015,4 +994,45 @@ fn gear_flaps_reinit_grows_with_font_and_edge() {
     let (_, h2) = (spec.reinit.as_mut().unwrap())().expect("reinit 应成功");
     assert!(h2 > h0, "字号增量后高度应变大 ({} → {})", h0, h2);
     assert_eq!(h.borrow().flap_pix, h.borrow().bar_height * 50 / 100, "reinit 复位预览 50%");
+}
+
+/// 守卫: overlay 层全部 var_value 消费名经生产双通道 (公式槽 getter 别名 +
+/// registry getter 索引) 可达 — 断链即面板行消失/恒 0/仪表恒零
+/// (live 显示回归的回归锚, 名单 = 逐调用点 grep 收录)
+#[test]
+fn all_overlay_var_consumers_reachable() {
+    let canon = crate::flight_info::canonical_var_name;
+    // 1. 动力信息 19 行 :target (PowerSource::getter, 含乘数形式的基名)
+    let power = [
+        "getHorsePower", "getThrust", "getRPM", "getPitch", "getPropEfficiency",
+        "getEffHp", "getManifoldPressureDisplay", "getPowerPercent", "getMassFuel",
+        "getTotalWeight", "getFuelTimeMili", "getWepKg", "getWepTime",
+        "getBoosterFuelKg", "getBoosterFuelPercent", "getWaterTemp", "getOilTemp",
+        "getHeatTolerance", "getEngineResponse",
+    ];
+    for g in power {
+        assert!(canon(g).is_some(), "动力信息 target {g} 解析断链");
+    }
+    // 2. VisExpr 判定名 (overlays_field1 eval 消费)
+    for n in ["is_jet_engine", "is_piston_engine", "has_wep", "has_booster"] {
+        assert!(canon(n).is_some(), "VisExpr 名 {n} 未注册 (判定恒假)");
+    }
+    // 3. 仪表/操纵面/地平仪短名面 (app_shell feed_overlays_live + gauges)
+    for n in [
+        "throttle", "rpm_throttle", "radiator", "power_percent", "mixture_state",
+        "fuel_percent", "gear", "flaps", "airbrake", "compressor_stage",
+        "aileron", "elevator", "rudder", "wing_sweep", "wing_sweep_valid",
+        "aoa", "aos", "aviahorizon_pitch", "aviahorizon_roll", "compass",
+    ] {
+        assert!(canon(n).is_some(), "短名 {n} 未注册");
+    }
+    // 4. hud_calculator v() 取值名 (公式名/短名)
+    for n in [
+        "aileron_lock_ratio", "altitude", "compass", "energy_jkg", "ias", "mach",
+        "radio_altitude", "radio_altitude_valid", "rudder_lock_ratio", "sep",
+        "speed_limit_ratio", "stall_speed", "unit_mach_limit_ratio",
+        "wing_sweep", "wing_sweep_valid",
+    ] {
+        assert!(canon(n).is_some(), "hud_calculator 名 {n} 未注册");
+    }
 }

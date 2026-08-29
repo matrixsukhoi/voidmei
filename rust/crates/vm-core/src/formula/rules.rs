@@ -187,59 +187,13 @@ fn compile_when(src: &str, reg: &dyn VarLookup) -> Result<RExpr, RuleError> {
 mod tests {
     use super::*;
     use crate::formula::registry::{assemble_snapshot, registry, MetaInputs};
-    use crate::ui_model::telemetry_source::TelemetrySource;
 
-    // 最小 TelemetrySource 桩 (radio_altitude 可配)
-    struct Tel {
-        radio_altitude: f64,
-    }
-    macro_rules! z {
-        ($($m:ident),*) => {$(
-            fn $m(&self) -> f64 { 0.0 }
-        )*};
-    }
-    impl TelemetrySource for Tel {
-        fn get_radio_altitude(&self) -> f64 {
-            self.radio_altitude
-        }
-        fn get_manifold_pressure_display_unit(&self) -> String {
-            "Ata".into()
-        }
-        fn get_manifold_pressure_display_precision(&self) -> i32 {
-            2
-        }
-        fn get_fuel_time_mili(&self) -> i64 {
-            0
-        }
-        z!(get_ias, get_tas, get_mach, get_aoa, get_aos, get_ny, get_vario,
-           get_altitude, get_compass, get_sep, get_acceleration, get_turn_rate,
-           get_turn_radius, get_roll_rate, get_energy_jkg, get_aviahorizon_pitch,
-           get_aviahorizon_roll, get_mass_fuel, get_total_weight, get_throttle,
-           get_rpm, get_manifold_pressure, get_water_temp, get_oil_temp, get_pitch,
-           get_eff_hp, get_thrust, get_horse_power, get_engine_response,
-           get_prop_efficiency, get_wep_kg, get_wep_time, get_heat_tolerance,
-           get_power_percent, get_manifold_pressure_pounds, get_manifold_pressure_inch_hg,
-           get_manifold_pressure_display, get_unknown_mixture, get_radiator,
-           get_compressor_stage, get_fuel_percent, get_rpm_throttle, get_gear,
-           get_flaps, get_airbrake, get_aileron, get_elevator, get_rudder,
-           get_wing_sweep, get_speed_limit_ratio, get_aileron_lock_ratio,
-           get_rudder_lock_ratio, get_unit_mach_limit_ratio, get_stall_speed,
-           get_booster_fuel_kg, get_booster_fuel_percent);
-        fn is_radio_altitude_valid(&self) -> bool { true }
-        fn is_turn_radius_valid(&self) -> bool { false }
-        fn is_wing_sweep_valid(&self) -> bool { false }
-        fn is_imperial(&self) -> bool { false }
-        fn is_jet_engine(&self) -> bool { false }
-        fn is_prop_engine(&self) -> bool { false }
-        fn is_piston_engine(&self) -> bool { false }
-        fn is_turboprop_engine(&self) -> bool { false }
-        fn is_engine_check_done(&self) -> bool { false }
-        fn has_wep(&self) -> bool { false }
-        fn has_booster(&self) -> bool { false }
-    }
-
+    /// 快照 (Session radio_alt 可配)
     fn snap(alt: f64) -> VarSnapshot {
-        assemble_snapshot(&Tel { radio_altitude: alt }, None, &MetaInputs::default())
+        let ind0 = crate::parser::Indicators::default();
+        let raw0 = crate::formula::registry::RawInputs { state: None, indic: Some(&ind0), blkx: None };
+        let sess = crate::formula::registry::SessionInputs { radio_alt: alt, ..Default::default() };
+        assemble_snapshot(&raw0, &sess, &MetaInputs::default())
     }
 
     fn def(name: &str, when: &str, hold_ms: f64, cooldown_s: f64) -> RuleDef {
@@ -253,9 +207,7 @@ mod tests {
         }
     }
 
-    fn results() -> FormulaResults {
-        FormulaResults { values: Vec::new() }
-    }
+    const RESULTS: FormulaResults = FormulaResults { values: Vec::new() };
 
     #[test]
     fn hold_then_fire_then_cooldown() {
@@ -264,23 +216,22 @@ mod tests {
         let s = snap(400.0);
         // 前 5 帧 (250ms) 未达 hold 300ms
         for i in 0..5 {
-            let ev = eng.eval(&s, &results(), i * 50, 50.0);
+            let ev = eng.eval(&s, &RESULTS, i * 50, 50.0);
             assert!(ev.is_empty(), "帧 {i} 不应触发");
         }
         // 第 6 帧 (300ms) 触发
-        let ev = eng.eval(&s, &results(), 250, 50.0);
+        let ev = eng.eval(&s, &RESULTS, 250, 50.0);
         assert_eq!(ev.len(), 1);
         assert_eq!(ev[0].rule, "低空");
         // 冷却期 (5s) 条件仍真不重复
         for t in (300..5000u64).step_by(50) {
-            assert!(eng.eval(&s, &results(), t, 50.0).is_empty(), "冷却期 {t} 不应触发");
+            assert!(eng.eval(&s, &RESULTS, t, 50.0).is_empty(), "冷却期 {t} 不应触发");
         }
-        // 出冷却后条件仍真 → 冷却期已持续累计, 出冷却 (5250) 后每帧 +50,
-        // held 达 300ms (t=5500) 再触发
+        // 出冷却后条件仍真 → 冷却期已持续累计, held 达 300ms 再触发
         let mut fired = false;
         for i in 0..12 {
             let t = 5000 + i * 50;
-            if !eng.eval(&s, &results(), t, 50.0).is_empty() {
+            if !eng.eval(&s, &RESULTS, t, 50.0).is_empty() {
                 fired = true;
                 break;
             }
@@ -292,26 +243,24 @@ mod tests {
     fn condition_false_resets_hold() {
         let mut eng = RuleEngine::new();
         eng.install(&[def("x", "radio_altitude <= 500", 300.0, 0.0)], registry());
-        // 真两帧 → 假一帧 → 真两帧: hold 清零, 不足 300ms 不触发
         let hi = snap(400.0);
         let lo = snap(2000.0);
-        let _ = eng.eval(&hi, &results(), 0, 50.0);
-        let _ = eng.eval(&hi, &results(), 50, 50.0);
-        let _ = eng.eval(&lo, &results(), 100, 50.0); // 假 → 清零
+        let _ = eng.eval(&hi, &RESULTS, 0, 50.0);
+        let _ = eng.eval(&hi, &RESULTS, 50, 50.0);
+        let _ = eng.eval(&lo, &RESULTS, 100, 50.0); // 假 → 清零
         // 重累计: t=150 起每帧 +50, t=400 达 300ms 触发
         for t in [150, 200, 250, 300, 350] {
-            assert!(eng.eval(&hi, &results(), t, 50.0).is_empty(), "t={t} 未达 300ms");
+            assert!(eng.eval(&hi, &RESULTS, t, 50.0).is_empty(), "t={t} 未达 300ms");
         }
-        assert!(!eng.eval(&hi, &results(), 400, 50.0).is_empty(), "重累计 300ms 后触发");
+        assert!(!eng.eval(&hi, &RESULTS, 400, 50.0).is_empty(), "重累计 300ms 后触发");
     }
 
     #[test]
     fn nan_condition_never_fires() {
         let mut eng = RuleEngine::new();
-        // when 求值为 NaN (0/0) → 不可判定视为假
         eng.install(&[def("n", "0/0", 0.0, 0.0)], registry());
         let s = snap(0.0);
-        assert!(eng.eval(&s, &results(), 0, 50.0).is_empty());
+        assert!(eng.eval(&s, &RESULTS, 0, 50.0).is_empty());
     }
 
     #[test]
@@ -320,10 +269,9 @@ mod tests {
         let mut off = def("off", "1", 0.0, 0.0);
         off.disabled = true;
         eng.install(&[def("bad", "nope > 1", 0.0, 0.0), off], registry());
-        // disabled 滤除; bad (编译失败) 保留在集内但求值跳过 (隔离不阻断)
         assert_eq!(eng.len(), 1);
         let s = snap(0.0);
-        assert!(eng.eval(&s, &results(), 0, 50.0).is_empty(), "坏规则不触发");
+        assert!(eng.eval(&s, &RESULTS, 0, 50.0).is_empty(), "坏规则不触发");
     }
 
     #[test]
@@ -336,7 +284,7 @@ mod tests {
             RuleAction::Flag("low_alt".into()),
         ];
         eng.install(&[d], registry());
-        let ev = eng.eval(&snap(0.0), &results(), 0, 50.0);
+        let ev = eng.eval(&snap(0.0), &RESULTS, 0, 50.0);
         assert_eq!(ev.len(), 3);
         assert_eq!(ev[0].action, RuleAction::Voice("warnAltitude".into()));
     }
@@ -346,11 +294,9 @@ mod tests {
         let mut eng = RuleEngine::new();
         eng.install(&[def("r", "1", 0.0, 100.0)], registry());
         let s = snap(0.0);
-        assert!(!eng.eval(&s, &results(), 0, 50.0).is_empty());
-        // 冷却中
-        assert!(eng.eval(&s, &results(), 1000, 50.0).is_empty());
-        // 重置 (换机语义) → 立即可再触发
+        assert!(!eng.eval(&s, &RESULTS, 0, 50.0).is_empty());
+        assert!(eng.eval(&s, &RESULTS, 1000, 50.0).is_empty());
         eng.reset();
-        assert!(!eng.eval(&s, &results(), 1000, 50.0).is_empty());
+        assert!(!eng.eval(&s, &RESULTS, 1000, 50.0).is_empty());
     }
 }

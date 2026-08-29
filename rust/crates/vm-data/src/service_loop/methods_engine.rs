@@ -28,57 +28,6 @@ impl Service {
         d.has_wing_sweep_vario = d.s_indic.as_ref().unwrap().wsweep_indicator != F_INVALID;
     }
 
-    /// 襟翼状态判断与允许速度/角度计算。
-    ///
-    /// @param fm 本周期 FM 句柄快照（R1 下传）
-    /// (对应 Java `public void checkFlap(FMHandle fm)` L1042-1064;
-    ///  calculate 链位置: checkWing 之后, Java L1162)
-    pub(super) fn check_flap(&mut self, fm: &FMHandle) {
-        // 读快照→锁外查表插值→短写锁写回 (§2.8): getFlapAllowSpeed/Angle 的
-        // 档位循环与插值计算在锁外
-        let (flap_prev, flap_check, actual_interval_ms, flaps, ias) = {
-            let d = read_data(&self.data);
-            let s = d.s_state.as_ref().unwrap();
-            (d.flap, d.flap_check, d.actual_interval_ms, s.flaps, s.ias)
-        };
-
-        // Java: boolean downflap = false;
-        let mut downflap = false;
-        // Java: flapp = flap; flap = sState.flaps;
-        let flapp = flap_prev;
-        let flap = flaps;
-        // flapCheck 的中间推进 (Java 字段 +=, 此处局部, 尾部写回)
-        let mut flap_check = flap_check;
-        // Java: if (flap - flapp > 0) —— int 差比较
-        if flap - flapp > 0 {
-            downflap = true;
-        } else if flap - flapp == 0 {
-            // 加计数
-            flap_check += actual_interval_ms;
-
-            // 维持1秒稳定
-            if flap_check >= 1000 {
-                flap_check = 0;
-                downflap = false;
-            }
-        } else {
-            // 小于则一定是收
-            downflap = false;
-        }
-        // Java: isDowningFlap = downflap;
-        // Java: flapAllowSpeed = getFlapAllowSpeed(sState.flaps, downflap, fm);
-        let flap_allow_speed = Self::get_flap_allow_speed(flaps, downflap, fm);
-        // Java: flapAllowAngle = getFlapAllowAngle(sState.IAS, downflap, fm);
-        let flap_allow_angle = Self::get_flap_allow_angle(ias as f64, downflap, fm);
-
-        let mut d = write_data(&self.data);
-        d.flapp = flapp;
-        d.flap = flap;
-        d.flap_check = flap_check;
-        d.is_downing_flap = downflap;
-        d.flap_allow_speed = flap_allow_speed;
-        d.flap_allow_angle = flap_allow_angle;
-    }
 
     /// 获取最大转速（优先 FM, 无 FM 时自适应学习）。
     ///
@@ -245,30 +194,8 @@ impl Service {
     }
 
     // (calc_k 随 flap 双胞胎合一移除 — vm-core hud_calculator::calc_k 共享实现)
-
-    /// 对应 Java `public double getFlapAllowSpeed(int flapPercent, Boolean isDowningFlap, FMHandle fm)`
-    /// (L1354-1427) — 计算当前襟翼开度下的允许速度。
-    ///
-    /// PORT(双胞胎合一, 设计 §7/W1a): 算法体与 vm-core
-    /// hud_calculator::get_flap_allow_speed 同构 (Java 两份拷贝遗留), 现委托共享。
-    pub(super) fn get_flap_allow_speed(flap_percent: i32, is_downing_flap: bool, fm: &FMHandle) -> f64 {
-        vm_core::hud_calculator::get_flap_allow_speed(flap_percent, is_downing_flap, fm.blkx.as_ref())
-    }
-
-    // (norm_flap_angle 随 flap 双胞胎合一移除 — vm-core hud_calculator 版共享实现)
-
-    /// 对应 Java `public double getFlapAllowAngle(double ias, Boolean isDowningFlap, FMHandle fm)`
-    /// (L1443-1508) — 计算当前速度下的允许襟翼角度。
-    ///
-    /// PORT(Java bug 保真): isDowningFlap 形参全程未被读 (越级使用分支已被
-    /// 注释掉), 保真保留形参 (Rust 未用形参以 _ 前缀消警, fm_power_extractor
-    /// 同款约定)。
-    /// PORT(双胞胎合一, 设计 §7): 原本方法的算法体与 vm-core
-    /// hud_calculator::get_flap_allow_angle 逐行同构 (Java 两份拷贝的遗留),
-    /// 现委托共享实现; valid 检查对 READY 句柄恒真 (R2), 行为等价。
-    pub(super) fn get_flap_allow_angle(ias: f64, is_downing_flap: bool, fm: &FMHandle) -> f64 {
-        vm_core::hud_calculator::get_flap_allow_angle(ias, is_downing_flap, fm.blkx.as_ref())
-    }
+    // (getFlapAllowSpeed/getFlapAllowAngle W8 公式化后无生产调用方, 委托臂
+    //  已删 — Java oracle 锚定测试直调 vm-core 共享实现, 见下方 tests)
 }
 
 // =====================================================================
@@ -381,83 +308,39 @@ mod tests {
 
     // ---------------- checkFlap ----------------
 
-    /// 襟翼状态机: 增 → downing; 维持/收 → 立即 false; flapCheck 1 秒归零路径
+
+    /// W8: check_flap 状态机公式化 — is_downing_flap 接管公式位级锚定
+    /// (变化方向 latch + 1 秒稳定归零, 语义见 formulas.cfg 的 is_downing_flap)
     #[test]
-    fn check_flap_downing_state_machine() {
+    fn flap_takeover_state_machine() {
         let mut svc = new_service();
-        let unr = FMHandle::UNRESOLVED;
+        let defs = vm_core::formula::persistence::load_merged(
+            concat!(env!("CARGO_MANIFEST_DIR"), "/../../../formulas.cfg"), "");
+        let refs: Vec<String> = defs.iter().map(|d| d.name.clone()).collect();
+        svc.formula.install(&defs, &refs);
+        // 放下襟翼 (0→50): 变化方向为增 → is_downing = true
         {
-            let mut d = svc.data.write().unwrap();
-            d.actual_interval_ms = 50;
-            d.flap = 0; // resetvaria 后本就 0, 显式示意快照输入
+            let mut d = write_data(&svc.data);
             d.s_state.as_mut().unwrap().flaps = 50;
+            d.actual_interval_ms = 50; // 稳定计时步进 (meta.interval_ms 来源)
         }
-        // 增襟翼 0→50
-        svc.check_flap(&unr);
+        svc.calculate();
+        assert!(svc.data.read().unwrap().is_downing_flap, "放下中");
+        // 持续稳定 1 秒后归 false
+        for _ in 0..21 {
+            svc.calculate();
+        }
+        assert!(!svc.data.read().unwrap().is_downing_flap, "稳定 1s 后归零");
+        // 收起 (50→0): 方向为减 → false
         {
-            let d = svc.data.read().unwrap();
-            assert_eq!((d.flap, d.flapp), (50, 0));
-            assert!(d.is_downing_flap);
-            // 无 FM: getFlapAllowSpeed → Double.MAX_VALUE / Angle → 125
-            // (Java L1359/L1448 的无 FM 早退字面)
-            assert_eq!(d.flap_allow_speed, f64::MAX);
-            assert_eq!(d.flap_allow_angle, 125.0);
-            // 增襟翼分支不动 flapCheck
-            assert_eq!(d.flap_check, 0);
+            let mut d = write_data(&svc.data);
+            d.s_state.as_mut().unwrap().flaps = 0;
         }
-        // 维持 50 (== 分支): downflap 保持初始 false (Java 保真: 1 秒稳定
-        // 分支只把 false 再赋 false, 不构成观察效果)
-        svc.check_flap(&unr);
-        {
-            let d = svc.data.read().unwrap();
-            assert!(!d.is_downing_flap);
-            assert_eq!(d.flap_check, 50);
-        }
-        // 收襟翼 50→30
-        svc.data.write().unwrap().s_state.as_mut().unwrap().flaps = 30;
-        svc.check_flap(&unr);
-        assert!(!svc.data.read().unwrap().is_downing_flap);
-
-        // 维持 30: 预置 950 + 50 = 1000 ≥ 1000 → 归零
-        svc.data.write().unwrap().flap_check = 950;
-        svc.check_flap(&unr);
-        {
-            let d = svc.data.read().unwrap();
-            assert_eq!(d.flap_check, 0);
-            assert!(!d.is_downing_flap);
-        }
+        svc.calculate();
+        assert!(!svc.data.read().unwrap().is_downing_flap, "收起");
     }
 
-    /// 带 FM 表的 checkFlap 集成 (python 位精确 oracle)
-    #[test]
-    fn check_flap_with_fm_table() {
-        let mut svc = new_service();
-        {
-            let mut d = svc.data.write().unwrap();
-            d.actual_interval_ms = 50;
-            let s = d.s_state.as_mut().unwrap();
-            s.flaps = 60;
-            s.ias = 270;
-        }
-        let fm = FMHandle::ready(
-            Some("mock".to_string()),
-            Some(spitfire_flap_blkx()),
-            0.0,
-            0.0,
-            None,
-        );
-        svc.check_flap(&fm);
-        let d = svc.data.read().unwrap();
-        assert!(d.is_downing_flap);
-        // 下襟翼 60% 落 [50,100] 档线性插值:
-        // python: 290 + (60-50)*((260-290)/(100-50)) = 284.0
-        assert_eq!(d.flap_allow_speed, 284.0);
-        // ias=270: python: 50 + (270-290)*((100-50)/(260-290))
-        //          = 83.33333333333334
-        assert_eq!(d.flap_allow_angle, 83.33333333333334);
-    }
-
-    // ---------------- getFlapAllowSpeed / getFlapAllowAngle ----------------
+// ---------------- getFlapAllowSpeed / getFlapAllowAngle ----------------
 
     /// 襟翼允许速度/角度的公式族 (python 位精确 oracle + 分支覆盖)
     #[test]
@@ -470,33 +353,33 @@ mod tests {
             None,
         );
         // 60%: 档间插值 → 284.0
-        assert_eq!(Service::get_flap_allow_speed(60, true, &fm), 284.0);
+        assert_eq!(vm_core::hud_calculator::get_flap_allow_speed(60, true, fm.blkx.as_ref()), 284.0);
         // 50%: 相等档位 (50 == 0.5*100) → 直接返回首档速度 290.0
-        assert_eq!(Service::get_flap_allow_speed(50, false, &fm), 290.0);
+        assert_eq!(vm_core::hud_calculator::get_flap_allow_speed(50, false, fm.blkx.as_ref()), 290.0);
         // 30% (i=-1): 下襟翼越级 → 首档速度 290.0; 非下襟翼 → Double.MAX_VALUE
-        assert_eq!(Service::get_flap_allow_speed(30, true, &fm), 290.0);
-        assert_eq!(Service::get_flap_allow_speed(30, false, &fm), f64::MAX);
+        assert_eq!(vm_core::hud_calculator::get_flap_allow_speed(30, true, fm.blkx.as_ref()), 290.0);
+        assert_eq!(vm_core::hud_calculator::get_flap_allow_speed(30, false, fm.blkx.as_ref()), f64::MAX);
         // 120%: 超表外插 (Java 无 clamp): 290 + 70*(-0.6) = 248.0
-        assert_eq!(Service::get_flap_allow_speed(120, false, &fm), 248.0);
+        assert_eq!(vm_core::hud_calculator::get_flap_allow_speed(120, false, fm.blkx.as_ref()), 248.0);
         // flapPercent=0 早退 (先于 blkx 判定)
-        assert_eq!(Service::get_flap_allow_speed(0, true, &fm), f64::MAX);
+        assert_eq!(vm_core::hud_calculator::get_flap_allow_speed(0, true, fm.blkx.as_ref()), f64::MAX);
 
         // 角度 (x/y 与速度版互换: 按速度查允许 flap 角度)
         // 270: 档间插值 → 83.33333333333334
-        assert_eq!(Service::get_flap_allow_angle(270.0, false, &fm), 83.33333333333334);
+        assert_eq!(vm_core::hud_calculator::get_flap_allow_angle(270.0, false, fm.blkx.as_ref()), 83.33333333333334);
         // 290: 相等 → 首档角 0.5*100 = 50.0
-        assert_eq!(Service::get_flap_allow_angle(290.0, false, &fm), 50.0);
+        assert_eq!(vm_core::hud_calculator::get_flap_allow_angle(290.0, false, fm.blkx.as_ref()), 50.0);
         // 350 (i=0 分支): 50 + 60*(-5/3) = -50 → normFlapAngle → 0
-        assert_eq!(Service::get_flap_allow_angle(350.0, false, &fm), 0.0);
+        assert_eq!(vm_core::hud_calculator::get_flap_allow_angle(350.0, false, fm.blkx.as_ref()), 0.0);
         // 100 (低速外插): 50 + (100-290)*(-5/3) = 366.6.. → 封顶 125
-        assert_eq!(Service::get_flap_allow_angle(100.0, false, &fm), 125.0);
+        assert_eq!(vm_core::hud_calculator::get_flap_allow_angle(100.0, false, fm.blkx.as_ref()), 125.0);
         // ias=0 早退
-        assert_eq!(Service::get_flap_allow_angle(0.0, true, &fm), 125.0);
+        assert_eq!(vm_core::hud_calculator::get_flap_allow_angle(0.0, true, fm.blkx.as_ref()), 125.0);
 
         // 无 FM (UNRESOLVED)
         let unr = FMHandle::UNRESOLVED;
-        assert_eq!(Service::get_flap_allow_speed(50, false, &unr), f64::MAX);
-        assert_eq!(Service::get_flap_allow_angle(300.0, false, &unr), 125.0);
+        assert_eq!(vm_core::hud_calculator::get_flap_allow_speed(50, false, unr.blkx.as_ref()), f64::MAX);
+        assert_eq!(vm_core::hud_calculator::get_flap_allow_angle(300.0, false, unr.blkx.as_ref()), 125.0);
     }
 
     // ---------------- getMaximumRPM ----------------
@@ -700,11 +583,10 @@ mod tests {
             s.flaps = (table[0][0] * 100.0) as i32;
             s.ias = 300;
         }
-        svc.check_flap(&fm);
-        {
-            let d = svc.data.read().unwrap();
-            assert_eq!(d.flap_allow_speed, table[0][1]);
-        }
+        // W8: check_flap 已公式化 — fm_flap_allow_speed 直查对拍 (首档相等分支)
+        let flap_pct = (table[0][0] * 100.0) as i32;
+        let got = vm_core::hud_calculator::get_flap_allow_speed(flap_pct, false, Some(blkx));
+        assert_eq!(got, table[0][1]);
 
         // getMaximumRPM 的 FM 直取: maximumThrRPM = blkx.maxRPM
         svc.get_maximum_rpm_learn(&fm);
@@ -727,3 +609,4 @@ mod tests {
         }
     }
 }
+

@@ -217,10 +217,10 @@ impl VisExpr {
     /// 求值; value 为字段当前值 (对应 Java evaluator.evaluate(value))
     pub fn eval(&self, s: &dyn TelemetrySource, value: f64) -> bool {
         match self {
-            VisExpr::IsJetEngine => s.is_jet_engine(),
-            VisExpr::IsPistonEngine => s.is_piston_engine(),
-            VisExpr::HasWep => s.has_wep(),
-            VisExpr::HasBooster => s.has_booster(),
+            VisExpr::IsJetEngine => s.var_value("is_jet_engine").unwrap_or(0.0) != 0.0,
+            VisExpr::IsPistonEngine => s.var_value("is_piston_engine").unwrap_or(0.0) != 0.0,
+            VisExpr::HasWep => s.var_value("has_wep").unwrap_or(0.0) != 0.0,
+            VisExpr::HasBooster => s.var_value("has_booster").unwrap_or(0.0) != 0.0,
             VisExpr::Gt(n) => value > *n,
             VisExpr::Gte(n) => value >= *n,
             VisExpr::Lt(n) => value < *n,
@@ -849,31 +849,6 @@ impl PowerSource {
         }
     }
 
-    /// ReflectBinder.resolveDouble(s, property) 的 match 注册表等价物 (禁反射, POC 先例)
-    fn get(self, s: &dyn TelemetrySource) -> f64 {
-        match self {
-            PowerSource::HorsePower => s.get_horse_power(),
-            PowerSource::Thrust => s.get_thrust(),
-            PowerSource::Rpm => s.get_rpm(),
-            PowerSource::Pitch => s.get_pitch(),
-            PowerSource::PropEfficiency => s.get_prop_efficiency(),
-            PowerSource::EffHp => s.get_eff_hp(),
-            PowerSource::ManifoldPressureDisplay => s.get_manifold_pressure_display(),
-            PowerSource::PowerPercent => s.get_power_percent(),
-            PowerSource::MassFuel => s.get_mass_fuel(),
-            PowerSource::TotalWeight => s.get_total_weight(),
-            // PORT: cfg 表达式 "getFuelTimeMili * 0.001" (int 毫秒 → 秒)
-            PowerSource::FuelTimeMiliMul001 => s.get_fuel_time_mili() as f64 * 0.001,
-            PowerSource::WepKg => s.get_wep_kg(),
-            PowerSource::WepTime => s.get_wep_time(),
-            PowerSource::BoosterFuelKg => s.get_booster_fuel_kg(),
-            PowerSource::BoosterFuelPercent => s.get_booster_fuel_percent(),
-            PowerSource::WaterTemp => s.get_water_temp(),
-            PowerSource::OilTemp => s.get_oil_temp(),
-            PowerSource::HeatTolerance => s.get_heat_tolerance(),
-            PowerSource::EngineResponse => s.get_engine_response(),
-        }
-    }
 }
 
 /// :unit-source / :precision-source 动态通道 (cfg 全表仅进气压一条使用)
@@ -884,14 +859,14 @@ pub enum DynSource {
 }
 
 impl DynSource {
-    /// 动态单位 (Java unitSupplier)
+    /// 动态单位 (Java unitSupplier) — String 域, 直调 trait default 化 getter
     fn unit(self, s: &dyn TelemetrySource) -> String {
         match self {
             DynSource::ManifoldDisplay => s.get_manifold_pressure_display_unit(),
         }
     }
 
-    /// 动态精度 (Java precisionSupplier)
+    /// 动态精度 (Java precisionSupplier) — 经 var_value 桥 (Session is_imperial)
     fn precision(self, s: &dyn TelemetrySource) -> i32 {
         match self {
             DynSource::ManifoldDisplay => s.get_manifold_pressure_display_precision(),
@@ -1129,9 +1104,10 @@ impl PowerInfoState {
         for (def, field) in POWER_FIELD_DEFS.iter().zip(self.fields.iter_mut()) {
             // 1. 取值 (visibilitySupplier 求值需要) — W4: 统一解析优先,
             //    静态臂兜底 (行为等价; :target 公式名通路就绪)
+            // W7: 统一解析是唯一取值路径 (原 19 臂 fallback 已死代码删除)
             let val = vm_core::formula::resolve_target(def.source.getter_expr())
                 .and_then(|(var, mult)| vm_core::formula::target_value(&var, mult, s))
-                .unwrap_or_else(|| def.source.get(s));
+                .unwrap_or(0.0);
             // 2. 可见性: 无 :visible-when 恒可见 (PowerInfoOverlay.java:147)
             field.visible = def.visible_when.as_ref().is_none_or(|e| e.eval(s, val));
             // 3. 动态精度 (仅变化时写)
@@ -1630,31 +1606,31 @@ impl EngineControlState {
             let mut has_val = true;
             match g.gauge_type {
                 GaugeType::Throttle => {
-                    val = s.get_throttle(); // sState.throttle is 0-110
+                    val = s.var_value("throttle").unwrap_or(0.0);
                 }
                 GaugeType::Pitch => {
                     // 无桨距数据(自动桨机型, 归一化后为-1) → 整条隐藏, 后续竖条自动补位
-                    val = s.get_rpm_throttle();
+                    val = s.var_value("rpm_throttle").unwrap_or(0.0);
                     g.visible = val >= 0.0;
                     if !g.visible {
                         has_val = false;
                     }
                 }
                 GaugeType::Power => {
-                    val = s.get_power_percent();
+                    val = s.var_value("power_percent").unwrap_or(0.0);
                 }
                 GaugeType::Mixture => {
-                    val = s.get_unknown_mixture(); // sState.mixture
+                    val = s.var_value("mixture_state").unwrap_or(0.0);
                     g.visible = val >= 0.0;
                     if !g.visible {
                         has_val = false;
                     }
                 }
                 GaugeType::Radiator => {
-                    val = s.get_radiator();
+                    val = s.var_value("radiator").unwrap_or(0.0);
                 }
                 GaugeType::Compressor => {
-                    val = s.get_compressor_stage();
+                    val = s.var_value("compressor_stage").unwrap_or(0.0);
                     let stage = val as i32; // Java (int) 截断
                     g.visible = stage > 0;
                     if stage > 0 {
@@ -1665,7 +1641,7 @@ impl EngineControlState {
                     }
                 }
                 GaugeType::Fuel => {
-                    val = s.get_fuel_percent();
+                    val = s.var_value("fuel_percent").unwrap_or(0.0);
                 }
             }
             if has_val {
@@ -1861,9 +1837,9 @@ impl GearFlapsState {
         }
         self.last_refresh_time = now_ms;
         // Java (int) 强转截断; 值域 0..100
-        let gear = s.get_gear() as i32;
-        let mut flaps = s.get_flaps() as i32;
-        let airbrake = s.get_airbrake() as i32;
+        let gear = s.var_value("gear").unwrap_or(0.0) as i32;
+        let mut flaps = s.var_value("flaps").unwrap_or(0.0) as i32;
+        let airbrake = s.var_value("airbrake").unwrap_or(0.0) as i32;
 
         if gear >= 0 {
             if gear == 0 {

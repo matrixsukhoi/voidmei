@@ -908,6 +908,44 @@ fn w2_deriver_takeover_bitexact_oracle() {
     }
 }
 
+/// 面板 :target 名 (Java getter) 端到端取值 — live 显示回归锚:
+/// getter 名经公式槽别名直达公式真值 (曾断链致飞行信息 7 行消失/动力 3 行恒 0)。
+/// 数据同 oracle 回放 (无 FM — mach/total_weight 公式 invalid → None,
+/// 消费面 unwrap_or(0) 对位 Java 无 FM 显示 0.00)
+#[test]
+fn panel_targets_via_getter_names() {
+    use vm_core::ui_model::TelemetrySource as _;
+    let mut svc = new_service();
+    for i in 0..20 {
+        {
+            let mut d = svc.data.write().unwrap();
+            d.s_state.as_mut().unwrap().update(&replay_state_json(i));
+            d.s_indic.as_mut().unwrap().update(INDIC_MOCK);
+            d.actual_interval_ms = 50;
+        }
+        svc.calculate();
+    }
+    let d = svc.data.read().unwrap();
+    // 7 个公式接管 getter (断链修复主体): 值 = 公式槽经别名直达, 非 None
+    for g in ["getVario", "getNy", "getSEP", "getAcceleration", "getTurnRate", "getTurnRadius"] {
+        assert!(
+            d.var_value(g).is_some(),
+            "{g} 应经公式槽 getter 别名取到真值 (断链回归)"
+        );
+    }
+    // 与 ServiceData 写回字段一致 (别名与公式名同槽)
+    assert_eq!(d.var_value("getSEP"), Some(d.sep));
+    assert_eq!(d.var_value("getTurnRadius"), Some(d.turn_rds));
+    assert_eq!(d.var_value("getTurnRate"), Some(d.turn_rate));
+    assert_eq!(d.var_value("getAcceleration"), Some(d.acceleration));
+    // 无 FM: fm 门公式 invalid → None (显示层 0.00, 对位 Java)
+    assert_eq!(d.var_value("getMach"), None);
+    assert_eq!(d.var_value("getTotalWeight"), None);
+    // registry 补齐面 (恒有值)
+    assert!(d.var_value("getFuelPercent").is_some());
+    assert!(d.var_value("getBoosterFuelKg").is_some());
+}
+
 
 
 

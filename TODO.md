@@ -17,3 +17,16 @@
 - flightinfo的所见即所得不生效
 - vm-webui/vm-app 每次重编是 cmd_web 无条件 vite 重建触发的 tauri build.rs 重跑，属 build.py rust 的存量行为
 - fmdata切换成json的
+- 确认有无内存泄漏
+-   四层搬运(TelemetrySource→getter→变量→target)收敛为直绑闭包一层。fm.* 53 个变量现在直接读 blkx 字段，不再经过 adapter 快照。
+
+  C 级暂存通道(SessionInputs)
+
+  22 个聚合/状态机产物(总功率/水温/WEP 消耗/引擎类型投票等)经 session_inputs() 搬运——这是 W8 之后继续消解的队列，is_downing_flap 已是第一个消解为公式的(证明通道可行)。
+
+  剩余精简空间(按价值排序)
+
+  1. format_strings 模板化(1018 行)——显示字符串的模板系统，最大单项
+  2. SessionInputs 队列消解——check_engine_jet(vote)、rpm learn(learn_max)、update_engine_state(sum_eng 聚合原语)
+  3. voice/flag 动作消费面、VoiceWarning 17 条外置(需真机验证)
+- 

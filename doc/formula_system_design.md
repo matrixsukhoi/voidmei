@@ -369,6 +369,27 @@ NUMBER      := [0-9]+("." [0-9]+)? ([eE] [+-]? [0-9]+)?
 
 ## 14. 实施记录(2026-08-29)
 
+**W6-W8 数据直通重构**(同日, "telemetry 代码应可删掉" 用户洞察驱动):
+
+| 波次 | 内容 |
+|---|---|
+| **W6 registry 直通化** | VarSrc 三元直绑(State/Indic/Blkx — fm.* 直绑 blkx 字段); SessionInputs C 级暂存通道; FormulaView 统一取值; **删 FMDataSource/FMDataAdapter/BlkxPlaceholder 三层**; TelemetrySource 全 getter default 化; vario/ny/total_weight 转同名公式 |
+| **W7 TelemetrySource 消解** | ServiceData 71 getter 实现 → 5 个(String/精度类); overlay 消费面(hud_calculator/flight_info/PowerInfo/engine_control/gear_flaps/attitude/control_surfaces/minihud) 全走 var_value 桥; visibility_expression/VisExpr 同; ServiceData FormulaView 实时直达源头(State/Indic/Blkx/Session 现取, 不经快照) |
+| **W8 check_flap 公式化** | `is_downing_flap = latch(变化方向) * (1 - stable(flaps,1000))` 接管(白名单 bool 写回); flap_allow_speed/angle 公式(fm_flap_allow_* 函数); **删 check_flap 方法 + flap/flapp/flap_check 字段** |
+
+净效果: 21 files, **+867/-2559**(净 -1692 行); vm-data 6438→5613; registry 直绑闭包对齐原 getter 哨兵语义; formulas.cfg 123 行 30+ 公式。
+
+**W9 live 显示回归修复**(2026-08-29, 真机发现"FlightInfo 面板少了很多信息"):
+
+根因 = W6-W8 把公式产出名(registry 短名)与 overlay 静态表 :target(Java getter 名)的**映射通道删了**:overlay 以 getter 名发问(getMach/getVario/...), 公式槽键只有公式名(mach/vario/...), registry 也无这些 getter 索引 → `var_value` 返回 None → FlightInfo 7 行消失(马赫/爬升率/SEP/加速度/过载/转弯率/转半径)、动力信息 3 行恒 0(getTotalWeight/getBoosterFuelKg/getBoosterFuelPercent)、EngineControl 油量表恒 0(fuel_percent)与 WEP/助推器行恒隐(has_wep/has_booster — W7 重构引用了从未注册的名字)。测试桩(MachView 手工 match "getMach")把断链掩成假绿。
+
+修复(1414 测试全绿, e2e 三场景 PASS):
+1. **公式 `:getter` 别名 + slots 双键**(FormulaDef.getter;编译期公式名+别名同槽双键;serialize/merge/DTO/前端全链往返保留) — formulas.cfg 8 个公式补别名(mach/vario/sep/acceleration/ny/turn_rate/turn_rds/total_weight)
+2. **registry 补 5 量**: booster_fuel_kg/booster_fuel_percent(守卫 NaN 穿透原样)/has_booster(State)/has_wep(Blk 直绑 nitro>0)/fuel_percent(SessionInputs 通道)
+3. **build_texts None→0.0**(行不消失; 对位 Java 反射 getter 永不失败, 行只受 visible-when 控制)
+4. **守卫测试**(反向验证非假绿): flight_info/overlays_field1 全部消费 target 经双通道可达(canonical_var_name 测试 helper = 生产双通道对位); panel_targets_via_getter_names 端到端真值断言
+
+
 **已完成**(workspace 1427 测试全绿,零回归):
 
 | 项 | 落点 |

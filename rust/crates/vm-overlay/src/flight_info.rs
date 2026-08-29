@@ -55,10 +55,9 @@ pub fn flight_value(s: &dyn TelemetrySource, getter: &str) -> Option<f64> {
 pub fn build_texts(s: &dyn TelemetrySource) -> Vec<(String, String, String)> {
     let mut out = Vec::new();
     for f in fields::FIELDS {
-        let raw = match flight_value(s, f.source.getter()) {
-            Some(x) => x,
-            None => continue,
-        };
+        // 解析不到按 0 处理 (Java 反射 getter 永不失败, 行只受 visible-when
+        // 控制; 曾 None→continue 致 7 行整行消失 — live 显示回归根因之一)
+        let raw = flight_value(s, f.source.getter()).unwrap_or(0.0);
         if let Some(cond) = f.visible_when {
             if !cond.eval(raw) {
                 continue;
@@ -219,5 +218,38 @@ pub fn flight_info_overlay_spec(
 // =====================================================================
 // Tests
 // =====================================================================
+/// 名字归一 (测试面): 任意名字 (短名/Java getter/公式 getter 别名) → 主名。
+/// 对位生产双通道 (ServiceData::var_value: 公式槽含 getter 双键优先,
+/// registry getter 索引兜底) — 守卫测试用它钉死 overlay 全部消费 target
+/// 可达, 防 "名字解析断链 → 面板行消失/恒 0" 的 live 显示回归。
+#[cfg(test)]
+pub(crate) fn canonical_var_name(name: &str) -> Option<String> {
+    use std::collections::HashMap;
+    use std::sync::OnceLock;
+    static MAP: OnceLock<HashMap<String, String>> = OnceLock::new();
+    let m = MAP.get_or_init(|| {
+        let mut m: HashMap<String, String> = HashMap::new();
+        let reg = vm_core::formula::registry::registry();
+        for v in &reg.vars {
+            m.insert(v.name.to_string(), v.name.to_string());
+            if !v.getter.is_empty() {
+                m.insert(v.getter.to_string(), v.name.to_string());
+            }
+        }
+        // 公式层后插 (生产公式槽优先: getter 别名/公式名 → 公式名)
+        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../../formulas.cfg");
+        if let Ok(src) = std::fs::read_to_string(path) {
+            for d in vm_core::formula::persistence::parse_formulas(&src) {
+                m.insert(d.name.clone(), d.name.clone());
+                if let Some(g) = d.getter.clone().filter(|g| !g.is_empty()) {
+                    m.insert(g, d.name.clone());
+                }
+            }
+        }
+        m
+    });
+    m.get(name).cloned()
+}
+
 #[cfg(test)]
 mod tests;

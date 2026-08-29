@@ -41,6 +41,7 @@ const newFormula = (name: string): FormulaItem => ({
   desc: '',
   disabled: false,
   builtin: false,
+  getter: null,
   error: null,
 })
 

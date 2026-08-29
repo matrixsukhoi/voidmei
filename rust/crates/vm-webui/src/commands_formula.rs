@@ -47,6 +47,9 @@ pub struct FormulaItemDto {
     pub desc: String,
     pub disabled: bool,
     pub builtin: bool,
+    /// Java getter 别名 (:getter; 内置公式的 overlay 面板绑定键, 编辑器往返保留)
+    #[serde(default)]
+    pub getter: Option<String>,
     /// 编译错误 (只读, 后端生成)
     #[serde(skip_deserializing)]
     pub error: Option<String>,
@@ -62,6 +65,7 @@ impl From<&FormulaDef> for FormulaItemDto {
             desc: d.desc.clone(),
             disabled: d.disabled,
             builtin: d.builtin,
+            getter: d.getter.clone(),
             error: None,
         }
     }
@@ -76,6 +80,7 @@ fn def_of(dto: &FormulaItemDto) -> FormulaDef {
         desc: dto.desc.clone(),
         disabled: dto.disabled,
         builtin: dto.builtin,
+        getter: dto.getter.clone(),
     }
 }
 

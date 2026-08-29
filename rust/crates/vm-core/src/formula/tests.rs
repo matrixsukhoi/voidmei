@@ -7,36 +7,10 @@ use super::eval::StateStore;
 use super::registry::{assemble_snapshot, registry, MetaInputs, VarOrigin, VarSnapshot};
 use super::FormulaManager;
 use crate::calc_helper::SimpleMovingAverage;
-use crate::ui_model::fm_data_source::FMDataSource;
 use crate::ui_model::telemetry_source::TelemetrySource;
 
 // ===== 测试桩: TelemetrySource (关键字段可配, 其余 0) =====
 
-struct TestTel {
-    ias: f64,
-    tas: f64,
-    alt: f64,
-    mach: f64,
-    ny: f64,
-    energy_jkg: f64,
-    mass_fuel: f64,
-    total_weight: f64,
-}
-
-impl Default for TestTel {
-    fn default() -> Self {
-        TestTel {
-            ias: 400.0,
-            tas: 450.0,
-            alt: 5000.0,
-            mach: 0.66,
-            ny: 2.0,
-            energy_jkg: 9000.0,
-            mass_fuel: 300.0,
-            total_weight: 4000.0,
-        }
-    }
-}
 
 macro_rules! tel_field {
     ($m:ident, $f:ident) => {
@@ -60,180 +34,38 @@ macro_rules! tel_false {
     };
 }
 
-impl TelemetrySource for TestTel {
-    tel_field!(get_ias, ias);
-    tel_field!(get_tas, tas);
-    tel_field!(get_mach, mach);
-    tel_zero!(get_aoa);
-    tel_zero!(get_aos);
-    tel_field!(get_ny, ny);
-    tel_zero!(get_vario);
-    tel_field!(get_altitude, alt);
-    tel_zero!(get_radio_altitude);
-    tel_false!(is_radio_altitude_valid);
-    tel_zero!(get_compass);
-    tel_zero!(get_sep);
-    tel_zero!(get_acceleration);
-    tel_zero!(get_turn_rate);
-    tel_zero!(get_turn_radius);
-    tel_false!(is_turn_radius_valid);
-    tel_zero!(get_roll_rate);
-    tel_field!(get_energy_jkg, energy_jkg);
-    tel_field!(get_mass_fuel, mass_fuel);
-    tel_field!(get_total_weight, total_weight);
-    fn get_fuel_time_mili(&self) -> i64 {
-        0
-    }
-    tel_zero!(get_throttle);
-    tel_zero!(get_rpm);
-    tel_zero!(get_manifold_pressure);
-    tel_zero!(get_water_temp);
-    tel_zero!(get_oil_temp);
-    tel_zero!(get_pitch);
-    tel_zero!(get_eff_hp);
-    tel_zero!(get_thrust);
-    tel_zero!(get_horse_power);
-    tel_zero!(get_engine_response);
-    tel_zero!(get_prop_efficiency);
-    tel_zero!(get_wep_kg);
-    tel_zero!(get_wep_time);
-    tel_zero!(get_heat_tolerance);
-    tel_zero!(get_power_percent);
-    tel_zero!(get_manifold_pressure_pounds);
-    tel_zero!(get_manifold_pressure_inch_hg);
-    tel_zero!(get_manifold_pressure_display);
-    fn get_manifold_pressure_display_unit(&self) -> String {
-        "Ata".into()
-    }
-    fn get_manifold_pressure_display_precision(&self) -> i32 {
-        2
-    }
-    tel_zero!(get_unknown_mixture);
-    tel_zero!(get_radiator);
-    tel_zero!(get_compressor_stage);
-    tel_zero!(get_fuel_percent);
-    tel_zero!(get_rpm_throttle);
-    tel_zero!(get_gear);
-    tel_zero!(get_flaps);
-    tel_zero!(get_airbrake);
-    tel_zero!(get_aileron);
-    tel_zero!(get_elevator);
-    tel_zero!(get_rudder);
-    tel_zero!(get_wing_sweep);
-    tel_false!(is_wing_sweep_valid);
-    tel_zero!(get_speed_limit_ratio);
-    tel_zero!(get_aileron_lock_ratio);
-    tel_zero!(get_rudder_lock_ratio);
-    tel_zero!(get_unit_mach_limit_ratio);
-    tel_zero!(get_stall_speed);
-    tel_false!(is_imperial);
-    tel_zero!(get_aviahorizon_pitch);
-    tel_zero!(get_aviahorizon_roll);
-    tel_false!(is_jet_engine);
-    tel_false!(is_prop_engine);
-    tel_false!(is_piston_engine);
-    tel_false!(is_turboprop_engine);
-    tel_false!(is_engine_check_done);
-    tel_false!(has_wep);
-    tel_zero!(get_booster_fuel_kg);
-    tel_zero!(get_booster_fuel_percent);
-    tel_false!(has_booster);
-}
-
-// ===== 测试桩: FMDataSource (全 0) =====
-
-macro_rules! fm_zero {
-    ($m:ident) => {
-        fn $m(&self) -> f64 {
-            0.0
-        }
-    };
-}
-
-struct TestFm;
-
-impl FMDataSource for TestFm {
-    fn get_fm_version(&self) -> String {
-        "".into()
-    }
-    fm_zero!(get_empty_weight);
-    fm_zero!(get_max_fuel_weight);
-    fm_zero!(get_critical_speed);
-    fm_zero!(get_vne);
-    fm_zero!(get_vne_mach);
-    fm_zero!(get_full_fuel_pos_g);
-    fm_zero!(get_full_fuel_neg_g);
-    fm_zero!(get_half_fuel_pos_g);
-    fm_zero!(get_half_fuel_neg_g);
-    fm_zero!(get_elevator_eff_speed);
-    fm_zero!(get_aileron_eff_speed);
-    fm_zero!(get_rudder_eff_speed);
-    fm_zero!(get_elevator_power_loss);
-    fm_zero!(get_aileron_power_loss);
-    fm_zero!(get_rudder_power_loss);
-    fm_zero!(get_nitro_amount);
-    fm_zero!(get_nitro_time);
-    fm_zero!(get_avg_eng_recovery_rate);
-    fm_zero!(get_no_flap_wing_load);
-    fm_zero!(get_full_flap_wing_load);
-    fm_zero!(get_moi_pitch);
-    fm_zero!(get_moi_roll);
-    fm_zero!(get_moi_yaw);
-    fm_zero!(get_wing_area);
-    fm_zero!(get_fuselage_area);
-    fm_zero!(get_oswalds_efficiency);
-    fm_zero!(get_aspect_ratio);
-    fm_zero!(get_swept_wing_angle);
-    fm_zero!(get_cd_s);
-    fm_zero!(get_ind_cd_f);
-    fm_zero!(get_radiator_cd);
-    fm_zero!(get_oil_radiator_cd);
-    fm_zero!(get_no_flaps_wing_cd_min);
-    fm_zero!(get_no_flaps_wing_cl0);
-    fm_zero!(get_no_flaps_wing_aoa_crit_high);
-    fm_zero!(get_no_flaps_wing_aoa_crit_low);
-    fm_zero!(get_no_flaps_wing_cl_crit_high);
-    fm_zero!(get_no_flaps_wing_cl_crit_low);
-    fm_zero!(get_full_flaps_wing_cd_min);
-    fm_zero!(get_full_flaps_wing_cl0);
-    fm_zero!(get_full_flaps_wing_aoa_crit_high);
-    fm_zero!(get_full_flaps_wing_aoa_crit_low);
-    fm_zero!(get_fuselage_cd_min);
-    fm_zero!(get_fin_cd_min);
-    fm_zero!(get_stab_cd_min);
-    fm_zero!(get_flap0_speed);
-    fm_zero!(get_flap1_speed);
-    fm_zero!(get_flap2_speed);
-    fm_zero!(get_flap3_speed);
-    fm_zero!(get_gear_destruction_speed);
-    fn get_engine_num(&self) -> i32 {
-        0
-    }
-    fn is_nitro_amount_valid(&self) -> bool {
-        false
-    }
-    fn is_flap0_speed_valid(&self) -> bool {
-        false
-    }
-    fn is_flap1_speed_valid(&self) -> bool {
-        false
-    }
-    fn is_flap2_speed_valid(&self) -> bool {
-        false
-    }
-    fn is_flap3_speed_valid(&self) -> bool {
-        false
-    }
-    fn is_jet(&self) -> bool {
-        false
-    }
-}
 
 // ===== 工具: 快照与求值 ====
 
+/// 测试帧数据 (纯值; 直通 State/Indicators 的构造成品)
+#[derive(Clone, Copy)]
+struct TestTel {
+    ias: f64,
+    tas: f64,
+    alt: f64,
+    ny: f64,
+    mass_fuel: f64,
+    energy_jkg: f64,
+}
+
+impl Default for TestTel {
+    fn default() -> Self {
+        TestTel { ias: 400.0, tas: 450.0, alt: 5000.0, ny: 0.35, mass_fuel: 300.0, energy_jkg: 0.0 }
+    }
+}
+
 fn snap_of(tel: &TestTel) -> super::registry::VarSnapshot {
     let meta = MetaInputs { interval_ms: 50.0, freq: 20.0, ..Default::default() };
-    assemble_snapshot(tel, None, &meta)
+    let mut st = crate::parser::State::default();
+    st.ias = tel.ias as i32;
+    st.tas = tel.tas as i32;
+    st.heightm = tel.alt;
+    st.ny = tel.ny;
+    st.mfuel = tel.mass_fuel;
+    let ind = crate::parser::Indicators::default();
+    let raw = super::registry::RawInputs { state: Some(&st), indic: Some(&ind), blkx: None };
+    let sess = super::registry::SessionInputs { energy_j_kg: tel.energy_jkg, ..Default::default() };
+    assemble_snapshot(&raw, &sess, &meta)
 }
 
 fn try_eval(expr: &str, tel: &TestTel) -> f64 {
@@ -456,12 +288,14 @@ fn def(name: &str, expr: &str) -> FormulaDef {
 #[test]
 fn compile_topo_order_correct() {
     // b 依赖 a: 拓扑序 a 在 b 前, 求值链正确 (b 被 :target 引用 → a,b 均 live)
-    let defs = vec![def("b", "a * 2"), def("a", "ias + 1")];
+    let defs = vec![def("b", "a * 2"), def("a", "400 + 1")];
     let set = CompiledFormulaSet::compile(&defs, registry(), &["b".to_string()]);
     assert!(set.formulas.iter().all(|f| f.err.is_none()));
     let tel = TestTel::default();
     let meta = MetaInputs { interval_ms: 50.0, ..Default::default() };
-    let snap = assemble_snapshot(&tel, None, &meta);
+    let ind0 = crate::parser::Indicators::default();
+    let raw0 = super::registry::RawInputs { state: None, indic: Some(&ind0), blkx: None };
+    let snap = assemble_snapshot(&raw0, &super::registry::SessionInputs::default(), &meta);
     let mut store = StateStore::new();
     let r = set.eval_frame(&snap, &mut store, 0, 50.0, None);
     let sa = set.slots["a"];
@@ -511,7 +345,9 @@ fn compile_invalid_dep_propagates_nan() {
     ));
     let tel = TestTel::default();
     let meta = MetaInputs::default();
-    let snap = assemble_snapshot(&tel, None, &meta);
+    let ind0 = crate::parser::Indicators::default();
+    let raw0 = super::registry::RawInputs { state: None, indic: Some(&ind0), blkx: None };
+    let snap = assemble_snapshot(&raw0, &super::registry::SessionInputs::default(), &meta);
     let mut store = StateStore::new();
     let r = set.eval_frame(&snap, &mut store, 0, 50.0, None);
     assert!(r.get(set.slots["c"]).is_nan());
@@ -572,8 +408,8 @@ fn registry_size_and_unique() {
 fn registry_getter_aliases_hit() {
     // 存量 ui_layout.cfg :target 的 getter 名必须命中 (向后兼容)
     let reg = registry();
-    for g in ["getIAS", "getTAS", "getMach", "getNy", "getFuelTimeMili", "getWingSweep",
-        "getManifoldPressureDisplay", "getSpeedLimitRatio", "getStallSpeed"] {
+    for g in ["getIAS", "getTAS", "getNyRaw", "getIndicSpeed", "getWingSweep",
+        "getManifoldPressureDisplay", "getRadioAltitude", "getRPM"] {
         assert!(reg.lookup(g).is_some(), "getter 别名未命中: {g}");
     }
 }
@@ -582,12 +418,14 @@ fn registry_getter_aliases_hit() {
 fn registry_snapshot_assemble() {
     let tel = TestTel::default();
     let meta = MetaInputs { interval_ms: 50.0, freq: 20.0, fm_loaded: false, ..Default::default() };
-    let snap = assemble_snapshot(&tel, Some(&TestFm), &meta);
+    let mut st0 = crate::parser::State::default();
+    st0.ias = 400;
+    let ind0 = crate::parser::Indicators::default();
+    let raw0 = super::registry::RawInputs { state: Some(&st0), indic: Some(&ind0), blkx: None };
+    let snap = assemble_snapshot(&raw0, &super::registry::SessionInputs::default(), &meta);
     let reg = registry();
     let ias = reg.lookup("ias").unwrap();
     assert_eq!(snap.values[ias as usize], 400.0);
-    let has_wep = reg.lookup("has_wep").unwrap();
-    assert_eq!(snap.values[has_wep as usize], 0.0);
 }
 
 #[test]
@@ -627,9 +465,14 @@ fn manager_install_and_eval() {
         &[def("energy_m", "energy_jkg / g"), def("maneuver_index", "1.0 - (fm.empty_weight / (fm.empty_weight + mass_fuel))")],
         &["energy_m".to_string(), "maneuver_index".to_string()],
     );
-    let tel = TestTel { energy_jkg: 9000.0, mass_fuel: 300.0, ..Default::default() };
+    let tel = TestTel { energy_jkg: 9000.0, ..Default::default() };
     let meta = MetaInputs { interval_ms: 50.0, ..Default::default() };
-    let r = mgr.eval_frame(&tel, None, None, &meta, 0);
+    let r = { let mut st0 = crate::parser::State::default();
+        st0.ias = tel.ias as i32;
+        let ind0 = crate::parser::Indicators::default();
+        let raw0 = crate::formula::registry::RawInputs { state: Some(&st0), indic: Some(&ind0), blkx: None };
+        let sess0 = crate::formula::registry::SessionInputs { energy_j_kg: tel.energy_jkg, ..Default::default() };
+        mgr.eval_frame(&raw0, &sess0, &meta, 0) };
     let set = mgr.current();
     assert!((r.get(set.slots["energy_m"]) - 9000.0 / 9.80).abs() < 1e-9);
     // fm.empty_weight 无 FM → NaN 传播
@@ -644,10 +487,20 @@ fn manager_hot_update_retains_states() {
     mgr.install(&[def("p", "prev(ias)")], &["p".to_string()]);
     let tel = TestTel::default();
     let meta = MetaInputs { interval_ms: 50.0, ..Default::default() };
-    let _ = mgr.eval_frame(&tel, None, None, &meta, 0);
+    let _ = { let mut st0 = crate::parser::State::default();
+        st0.ias = tel.ias as i32;
+        let ind0 = crate::parser::Indicators::default();
+        let raw0 = crate::formula::registry::RawInputs { state: Some(&st0), indic: Some(&ind0), blkx: None };
+        let sess0 = crate::formula::registry::SessionInputs { energy_j_kg: tel.energy_jkg, ..Default::default() };
+        mgr.eval_frame(&raw0, &sess0, &meta, 0) };
     // 热更新: 加一个公式, 原 p 的状态保留
     mgr.install(&[def("p", "prev(ias)"), def("q", "ias * 2")], &["p".to_string(), "q".to_string()]);
-    let r = mgr.eval_frame(&tel, None, None, &meta, 50);
+    let r = { let mut st0 = crate::parser::State::default();
+        st0.ias = tel.ias as i32;
+        let ind0 = crate::parser::Indicators::default();
+        let raw0 = crate::formula::registry::RawInputs { state: Some(&st0), indic: Some(&ind0), blkx: None };
+        let sess0 = crate::formula::registry::SessionInputs { energy_j_kg: tel.energy_jkg, ..Default::default() };
+        mgr.eval_frame(&raw0, &sess0, &meta, 50) };
     let set = mgr.current();
     // p 第二帧 = 上帧 ias = 400 (状态跨热更新保留)
     assert_eq!(r.get(set.slots["p"]), 400.0);
@@ -665,6 +518,16 @@ fn manager_try_eval_isolated() {
 
 // ===== :target 统一解析 (设计 §8) =====
 
+/// target_value 桥桩: var_value 走 snap_of 快照 (registry 下标取值)
+struct TargetView(super::registry::VarSnapshot);
+impl crate::ui_model::TelemetrySource for TargetView {
+    fn var_value(&self, name: &str) -> Option<f64> {
+        let vid = registry().lookup(name)?;
+        let v = self.0.values.get(vid as usize).copied()?;
+        if v.is_nan() { None } else { Some(v) }
+    }
+}
+
 #[test]
 fn resolve_target_variants() {
     // getter 别名
@@ -674,13 +537,14 @@ fn resolve_target_variants() {
     // 短名 + 乘数语法 ("getWingSweep * 100" 形态)
     let (v, m) = super::resolve_target("tas * 2").unwrap();
     assert_eq!(m, 2.0);
-    let tel = TestTel::default();
-    assert_eq!(super::target_value(&v, m, &tel), Some(900.0));
+    let view = TargetView(snap_of(&TestTel::default()));
+    assert_eq!(super::target_value(&v, m, &view), Some(900.0));
     // 未知名 → 公式名形态 (延迟判定)
     let (v, _) = super::resolve_target("my_formula").unwrap();
     assert_eq!(v, super::TargetVar::Formula("my_formula".into()));
     // 公式名取值: 未接公式系统的源 → None (上层 0 降级)
-    assert_eq!(super::target_value(&v, 1.0, &tel), None);
+    let view = TargetView(snap_of(&TestTel::default()));
+    assert_eq!(super::target_value(&v, 1.0, &view), None);
     // 乘数非法 → None
     assert!(super::resolve_target("ias * abc").is_none());
 }
@@ -689,21 +553,21 @@ fn resolve_target_variants() {
 
 #[test]
 fn compile_self_override_formula_rejected() {
-    // mach 与系统变量同名 (接管型), 表达式引用 mach 自身 → SelfOverride
+    // ias 与系统变量同名 (接管型), 表达式引用 ias 自身 → SelfOverride
     let set = CompiledFormulaSet::compile(
-        &[def("mach", "mach + 1")],
+        &[def("ias", "ias + 1")],
         registry(),
-        &["mach".to_string()],
+        &["ias".to_string()],
     );
     assert!(matches!(
         set.formulas[0].err,
         Some(CompileError::SelfOverride(_))
     ));
-    // 合法接管: 表达式不引用自身 (与内置公式同形态)
+    // 合法接管: 表达式不引用自身
     let ok = CompiledFormulaSet::compile(
-        &[def("mach", "ias / ias_per_mach(altitude)")],
+        &[def("ias", "tas * 1.0")],
         registry(),
-        &["mach".to_string()],
+        &["ias".to_string()],
     );
     assert!(ok.formulas[0].err.is_none());
 }
@@ -732,7 +596,9 @@ fn bench_eval_frame_50_formulas() {
     let n = 10_000;
     let t0 = std::time::Instant::now();
     for k in 0..n {
-        let snap = assemble_snapshot(&tel, None, &meta);
+        let ind0 = crate::parser::Indicators::default();
+    let raw0 = super::registry::RawInputs { state: None, indic: Some(&ind0), blkx: None };
+    let snap = assemble_snapshot(&raw0, &super::registry::SessionInputs::default(), &meta);
         let _ = set.eval_frame(&snap, &mut store, k, 50.0, None);
     }
     let us = t0.elapsed().as_micros() as f64 / n as f64;

@@ -2928,13 +2928,14 @@ fn feed_overlays_live(
         if let Some(h) = handles.control_surfaces.as_ref() {
             let mut cs = h.borrow_mut();
             cs.has_service = true;
+            // W7: var_value 桥取值 (getter 实现已消解)
             cs.on_flight_data(
                 now,
-                guard.get_aileron(),
-                guard.get_elevator(),
-                guard.get_rudder(),
-                guard.get_wing_sweep(),
-                guard.is_wing_sweep_valid(),
+                guard.var_value("aileron").unwrap_or(0.0),
+                guard.var_value("elevator").unwrap_or(0.0),
+                guard.var_value("rudder").unwrap_or(0.0),
+                guard.var_value("wing_sweep").unwrap_or(0.0),
+                guard.var_value("wing_sweep_valid").unwrap_or(0.0) != 0.0,
             );
         }
         // 6. 地平仪 (节流 = freqMili 40ms 配置驱动, 喂入侧承载;
@@ -2946,11 +2947,11 @@ fn feed_overlays_live(
                     .and_then(|b| b.no_flaps_wing.as_ref())
                     .map(|w| (w.aoa_crit_high, w.aoa_crit_low));
                 h.borrow_mut().update_telemetry(
-                    guard.get_aoa(),
-                    guard.get_aos(),
-                    guard.get_aviahorizon_pitch(),
-                    guard.get_aviahorizon_roll(),
-                    guard.get_compass(),
+                    guard.var_value("aoa").unwrap_or(0.0),
+                    guard.var_value("aos").unwrap_or(0.0),
+                    guard.var_value("aviahorizon_pitch").unwrap_or(0.0),
+                    guard.var_value("aviahorizon_roll").unwrap_or(0.0),
+                    guard.var_value("compass").unwrap_or(0.0),
                     aoa_limits,
                 );
             }

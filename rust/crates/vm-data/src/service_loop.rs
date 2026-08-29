@@ -71,6 +71,41 @@ fn write_data(data: &RwLock<ServiceData>) -> std::sync::RwLockWriteGuard<'_, Ser
     data.write().unwrap_or_else(|e| e.into_inner())
 }
 
+/// C 级会话量收集 (W6: registry Session 通道的供值面 — 聚合/状态机产物
+/// 暂经 ServiceData 字段搬运, W8 公式化后逐项消亡)
+pub(crate) fn session_inputs(d: &ServiceData) -> vm_core::formula::registry::SessionInputs {
+    vm_core::formula::registry::SessionInputs {
+        total_fuel: d.total_fuel,
+        fuel_time_mili: d.fueltime as f64,
+        total_hp: d.total_hp as f64,
+        total_hp_eff: d.total_hp_eff as f64,
+        total_thrust: d.total_thrust as f64,
+        n_water_temp: d.nwater_temp,
+        n_oil_temp: d.noil_temp,
+        energy_j_kg: d.energy_j_kg,
+        radio_alt: d.radio_alt,
+        compass_delta: d.compass_delta,
+        nitro_kg: d.nitrokg,
+        wep_time: d.s_wep_time_val as f64,
+        heat_tolerance: d.cur_load_min_work_time / 1000.0,
+        thurst_percent: d.thurst_percent,
+        t_eng_response: d.t_eng_response,
+        avgeff: d.avgeff,
+        // 原 getFuelPercent getter: i32 字段拓宽 (EngineControl 油量表数据源)
+        fuel_percent: d.fuel_percent as f64,
+        manifold_display: {
+            use vm_core::ui_model::TelemetrySource as _;
+            d.get_manifold_pressure_display()
+        },
+        is_imperial: d.check_alt > 0,
+        is_jet: d.check_engine_flag && d.i_eng_type == ENGINE_TYPE_JET,
+        is_prop: d.check_engine_flag && d.i_eng_type == ENGINE_TYPE_PROP,
+        is_piston: d.check_engine_flag && d.i_eng_type == ENGINE_TYPE_PROP,
+        is_turboprop: d.check_engine_flag && d.i_eng_type == ENGINE_TYPE_TURBOPROP,
+        engine_check_done: d.check_engine_flag,
+    }
+}
+
 /// 接管型公式的可写白名单 (公式名 == ServiceData 字段名, W1b 设计 §5 同名规则)。
 /// NaN 不写 (公式 invalid/缺输入 → 保持 Rust 路径值, 双保险);
 /// 白名单外同名公式只进公式命名空间 (formula_values), 不影响系统字段。
@@ -95,6 +130,8 @@ fn write_back(d: &mut ServiceData, name: &str, v: f64) {
         "flap_allow_angle" => d.flap_allow_angle = v,
         "maximum_thr_rpm" => d.maximum_thr_rpm = v,
         "speedv" => d.speedv = v,
+        // W8: check_flap 状态机公式化 (bool 写回)
+        "is_downing_flap" => d.is_downing_flap = v != 0.0,
         _ => {}
     }
 }
@@ -177,8 +214,6 @@ pub struct Service {
     pub formula: Arc<vm_core::formula::FormulaManager>,
     /// L2 规则引擎 (formula_step 尾部求值, 触发事件写 ServiceData.rule_triggers)
     rule_engine: vm_core::formula::rules::RuleEngine,
-    /// FM→公式变量适配器 (fm.* 58 变量供值; 换机时 set_blkx 重建)
-    fm_adapter: vm_core::ui_model::fm_data_adapter::FMDataAdapter,
     /// 换机检测 (FM name 变化 → 公式状态原语全清 + adapter 重建, 设计 §3.5)
     last_fm_name: Option<String>,
     /// 构造参数 (见 [`ServiceConfig`])
@@ -225,7 +260,6 @@ impl Service {
             flight_log: Arc::new(std::sync::Mutex::new(None)),
             formula,
             rule_engine: vm_core::formula::rules::RuleEngine::new(),
-            fm_adapter: vm_core::ui_model::fm_data_adapter::FMDataAdapter::new(),
             last_fm_name: None,
             stop: Arc::new(AtomicBool::new(false)),
             config,
@@ -336,7 +370,6 @@ impl Service {
             d.i_eng_type = ENGINE_TYPE_UNKNOWN;
             d.check_maxium_rpm = 0;
             d.compass_delta = 0.0;
-            d.flap_check = 0;
             d.is_downing_flap = false;
             d.get_maximum_rpm = false;
             d.d_radio_alt = 0.0;
@@ -1007,7 +1040,7 @@ impl Service {
         // Java calculate 链 L1168-1170 (updateSEP 之后): 可变翼判断 / 襟翼判断 /
         // 最大转速 — methods_engine.rs (Agent B 批次)
         self.check_wing();
-        self.check_flap(&fm);
+        // (check_flap 已 W8 公式化 — is_downing_flap/flap_allow_* 走公式写回)
         self.get_maximum_rpm_learn(&fm);
 
         // Java calculate 尾部两比值方法 (L1177-1178): 速度/马赫临界比值 + 失速速度
@@ -1026,32 +1059,27 @@ impl Service {
         if self.last_fm_name.as_deref() != fm.name.as_deref() {
             self.formula.reset_states();
             self.last_fm_name = fm.name.clone();
-            self.fm_adapter.set_blkx(fm.blkx.as_ref().map(|b| {
-                std::sync::Arc::new(vm_core::ui_model::fm_data_adapter::BlkxPlaceholder::from(b))
-            }));
+            // W6: fm.* 直绑 blkx, adapter 三层已删 — 无重建动作
         }
         let (results, slots, snap, interval_ms) = {
             let d = read_data(&self.data);
-            let engine_num = d.s_state.as_ref().map(|s| s.engine_num).unwrap_or(0);
             let meta = vm_core::formula::MetaInputs {
                 interval_ms: d.actual_interval_ms.max(1) as f64,
                 freq: d.freq as f64,
                 fm_loaded: fm.blkx.is_some(),
-                engine_count: engine_num as f64,
                 ..Default::default()
             };
-            let fm_src: Option<&dyn vm_core::ui_model::fm_data_source::FMDataSource> =
-                if fm.blkx.is_some() { Some(&self.fm_adapter) } else { None };
+            // W6 直通: 原始三元组 + C 级会话量 (FMDataSource/adapter 三层已删)
+            let raw = vm_core::formula::registry::RawInputs {
+                state: d.s_state.as_ref(),
+                indic: d.s_indic.as_ref(),
+                blkx: fm.blkx.as_ref(),
+            };
+            let session = session_inputs(&d);
             // 快照重建供规则求值 (formula.eval_frame 内部快照已 move 进缓存)
-            let snap = vm_core::formula::registry::assemble_snapshot(&*d, fm_src, &meta);
+            let snap = vm_core::formula::registry::assemble_snapshot(&raw, &session, &meta);
             (
-                self.formula.eval_frame(
-                    &*d,
-                    fm_src,
-                    fm.blkx.as_ref(),
-                    &meta,
-                    current_time_millis() as u64,
-                ),
+                self.formula.eval_frame(&raw, &session, &meta, current_time_millis() as u64),
                 self.formula.current().slots_arc(),
                 snap,
                 meta.interval_ms,
@@ -1063,6 +1091,7 @@ impl Service {
         let mut d = write_data(&self.data);
         d.formula_values = results;
         d.formula_slots = slots.clone();
+        d.formula_snapshot = std::sync::Arc::new(snap);
         d.rule_triggers = triggers;
         // 接管型公式统一写回 (W1b 通用机制, 设计 §5 同名规则):
         // 公式名命中可写白名单 → 求值结果覆写 ServiceData 对应字段。

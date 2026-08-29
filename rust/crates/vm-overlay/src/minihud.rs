@@ -1272,7 +1272,7 @@ impl MiniHudOverlay {
             // 折入 TelemetrySource 实现域 (Service 批次); getThrottle 返回 double
             // 而 Java 读 int 字段 sState.throttle → as i32 (JLS 5.1.3 同义)
             if let Some(s) = service {
-                throttle_value = s.get_throttle() as i32;
+                throttle_value = s.var_value("throttle").unwrap_or(0.0) as i32;
             }
             let mut c = self.throttle_bar.0.borrow_mut();
             if let MiniHudComponentInner::ThrottleBar(t) = &mut c.inner {
