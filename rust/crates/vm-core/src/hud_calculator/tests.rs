@@ -26,7 +26,7 @@ struct MockSrc {
     wsweep_valid: bool,
 }
 
-impl TelemetrySource for MockSrc {
+impl FormulaView for MockSrc {
     // W7: var_value 单方法桩 (getter 体系消解)
     fn var_value(&self, name: &str) -> Option<f64> {
         Some(match name {

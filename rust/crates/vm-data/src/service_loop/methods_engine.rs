@@ -14,7 +14,6 @@ use super::{read_data, write_data, Service};
 use vm_core::fm::FMHandle;
 use vm_core::piston_power_model::find_optimal_stage_index;
 use vm_core::string_helper::F_INVALID;
-use vm_core::ui_model::TelemetrySource as _;
 
 impl Service {
     /// 对应 Java `public void checkWing()` (L1030-1035) — 可变翼判断。
@@ -118,7 +117,8 @@ impl Service {
                 s.throttles.clone(),
                 d.alt,
                 // Java: getIAS() = sState != null ? sState.IAS : 0
-                d.get_ias(),
+                // (曾误走 trait default 恒 0, 增压器最优档判定失真)
+                s.ias as f64,
                 s.compressorstage,
                 d.compressor_stage_mismatch,
                 d.prev_actual_compressor_stage,

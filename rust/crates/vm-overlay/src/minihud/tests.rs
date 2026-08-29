@@ -613,7 +613,7 @@ struct MockSrc {
     alt: f64,
 }
 
-impl TelemetrySource for MockSrc {
+impl FormulaView for MockSrc {
     // W7: var_value 桩 (alt 字段驱动)
     fn var_value(&self, name: &str) -> Option<f64> {
         match name {

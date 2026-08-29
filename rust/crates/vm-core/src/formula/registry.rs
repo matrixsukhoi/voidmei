@@ -127,10 +127,17 @@ pub struct SessionInputs {
     pub engine_check_done: bool,
 }
 
-/// 统一取值视图 (W6): resolve_target 求值面 — 实现方 (ServiceData) 持
-/// 快照+公式槽, 按名字取变量或公式值
+/// 统一取值视图 (W6; 批1 升格为唯一取数接口, TelemetrySource 已删):
+/// 实现方 (ServiceData) 持公式槽+源头引用, 按名字取变量或公式值
 pub trait FormulaView {
+    /// 快照变量/会话量/公式值 按名字统一取 (公式优先, NaN→None)
     fn var_value(&self, name: &str) -> Option<f64>;
+
+    /// 公式槽直查 (无 registry fallthrough; NaN→None)。
+    /// hud_calculator 的 energy_m/warn_* 族专用 — 语义 = "只要公式值"。
+    fn get_formula_value(&self, _name: &str) -> Option<f64> {
+        None
+    }
 }
 
 /// 变量元数据

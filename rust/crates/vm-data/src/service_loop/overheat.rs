@@ -126,9 +126,9 @@ impl Service {
 
         let mut d = write_data(&self.data);
         match outcome {
-            Some((cur_w_load, cur_o_load, min_work_time)) => {
-                d.cur_w_load = cur_w_load;
-                d.cur_o_load = cur_o_load;
+            Some((_cur_w_load, _cur_o_load, min_work_time)) => {
+                // (curWLoad/curOLoad 字段已删: 全库无读者, 引擎载荷态真身
+                //  在 FMHandle.eng_load_state, 此处只落 min_work_time)
                 // curLoadMinWorkTime = minWorkTime;
                 d.cur_load_min_work_time = min_work_time;
             }
@@ -267,8 +267,6 @@ mod tests {
         assert_eq!(p[0].cur_oil_work_time_mili, 299950.0, "档0 油耐久 -50ms");
         assert_eq!(p[1].cur_oil_work_time_mili, 59950.0, "档1 油耐久 -50ms");
         let d = read_data(&svc.data);
-        assert_eq!(d.cur_w_load, 2, "水温 90 超两档");
-        assert_eq!(d.cur_o_load, 2, "油温 70 超两档");
         assert_eq!(d.cur_load_min_work_time, 59950.0, "minWorkTime 汇聚最小值");
         // blkx 本体保持不可变解析产物 (会话态提升契约)
         assert_eq!(
@@ -298,8 +296,6 @@ mod tests {
         assert_eq!(p[1].cur_water_work_time_mili, 60000.0);
         assert_eq!(p[1].cur_oil_work_time_mili, 60000.0);
         let d = read_data(&svc.data);
-        assert_eq!(d.cur_w_load, 0);
-        assert_eq!(d.cur_o_load, 0);
         // 无超温档 → minWorkTime 保持哨兵 99999000
         assert_eq!(d.cur_load_min_work_time, 99999000.0);
     }

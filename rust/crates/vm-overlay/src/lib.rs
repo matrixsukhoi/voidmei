@@ -58,13 +58,10 @@ pub use flight_info::{build_texts, flight_info_overlay_spec, FlightInfoHandle};
 pub use overlays_field1::{
     engine_control_overlay_spec, engine_control_preview_spec, gear_flaps_overlay_spec,
     ENGINE_DISABLE_KEYS,
-    gear_flaps_preview_spec, power_info_overlay_spec, power_info_preview_spec, DynSource,
-    EngineControlHandle, EngineControlState, EngineGauge, EngineGaugeDef, GaugeBarStyle,
+    gear_flaps_preview_spec, power_info_overlay_spec, power_info_preview_spec, EngineControlHandle, EngineControlState, EngineGauge, EngineGaugeDef, GaugeBarStyle,
     GaugeMarker, GaugeType, GearFlapsHandle, GearFlapsState, MarkedGauge, MarkerType,
-    PowerFieldDef, PowerFormat, PowerInfoHandle, PowerInfoState, PowerSource, VisExpr,
-    ENGINE_GAUGE_DEFS, ENGINE_REFRESH_MULTIPLIER, FIELD_OVERLAY_REFRESH_INTERVAL_MS,
-    GEAR_FLAPS_REFRESH_INTERVAL_MS, POWER_FIELD_DEFS,
-};
+    PowerInfoHandle, PowerInfoState, ENGINE_GAUGE_DEFS, ENGINE_REFRESH_MULTIPLIER, FIELD_OVERLAY_REFRESH_INTERVAL_MS,
+    GEAR_FLAPS_REFRESH_INTERVAL_MS, };
 pub use draw_frame_simpl::{
     draw_frame_simpl_spec, DfsFlight, DrawFrameSimplFeed, DrawFrameSimplHandle, DrawFrameSimpl,
 };
@@ -77,10 +74,10 @@ pub use platform_extras::{parse_wav_duration, DpiHelper};
 pub use render::{draw_fields, render_fields, render_fields_fixed, FieldText, FontTriple, RenderColors, DEFAULT_COLORS};
 pub use render2d::{LineCapStyle, PixCanvas};
 pub use renderers::{
-    BosStyleRenderer, Field, LinearGaugeRenderer, OverlayRenderer, RenderContext, RenderPalette, TextGauge,
-    TextOnlyRenderer, APPLICATION_COLORS, WHITE,
+    BosStyleRenderer, Field, OverlayRenderer, RenderContext, RenderPalette, TextGauge,
+    APPLICATION_COLORS, WHITE,
 };
-pub use rows::{HUDAkbRow, HUDEnergyRow, HUDFlapsRow, HUDManeuverRow, HUDTextRow};
+pub use rows::{HUDAkbRow, HUDEnergyRow, HUDManeuverRow, HUDTextRow};
 #[cfg(target_os = "windows")]
 pub use tray::{TrayConfig, TrayHandler, TrayIcon};
 pub use warning_overlay::{WarningBlinkHost, WarningOverlay};

@@ -4,9 +4,7 @@
 //! |---|---|---|
 //! | OverlayRenderer.java:23/28 | [`OverlayRenderer`] trait | 多实现接口 → trait dyn (§1) |
 //! | RenderContext.java | [`RenderContext`] | 几何公式复用 vm-core `RenderCtx`, 本层挂字体/调色板/AA |
-//! | LinearGaugeRenderer.java | [`LinearGaugeRenderer`] | 竖/横条布局推进 (dx/dy), 组件走 gauges_bars |
 //! | BOSStyleRenderer.java | [`BosStyleRenderer`] | 多列网格 + TextGauge 按 label 缓存 |
-//! | TextOnlyRenderer.java | [`TextOnlyRenderer`] | 纯数值行, 白色无阴影 |
 //!
 //! 绘制委托目标分工: 条形 gauge 族 = `crate::gauges_bars` (W 批已落地,
 //! LabeledLinearGauge 即 GaugeField.java:28 的唯一实例化类型);
@@ -22,7 +20,6 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::font::LoadedFont;
-use crate::gauges_bars::LabeledLinearGauge;
 use crate::global_colors::colors;
 use crate::render2d::PixCanvas;
 use vm_core::layout::RenderCtx;
@@ -316,20 +313,6 @@ fn bos_value_text<'a>(base: &'a DataField, gauge_value: &'a str) -> &'a str {
 /// (vm-core 数据态映射: base.buffer/length ↔ gauge.valueBuffer/valueLen,
 /// base.current_value ↔ gauge.displayValue, 见 gauge_field.rs PORT 注)
 ///
-/// PORT 通道语义差 (当前不可达; C 批 EngineControlOverlay 移植时必须对齐):
-/// Java 是"后写者胜" — String 通道 LinearGauge.update(int,String) 置组件
-/// valueLen=0 使缓冲失效 (LinearGauge.java:40-44); 本函数是"length>0 则缓冲恒胜",
-/// 且 vm-core GaugeField::update_gauge 不清 base.length → 同一字段混用两通道时
-/// 陈旧缓冲会盖掉新值。生产路径每渲染器实例互斥 (telemetrySource 定死于 init,
-/// 零 GC 与 Map 两套更新走同一通道); 对齐手段 = vm-core update_gauge 清 length
-/// 或 overlay 保证单通道写入 (跨文件契约, 本批不越界修 — PORTING.md §6)。
-fn gauge_value_text(gf: &GaugeField) -> &str {
-    if gf.base.length > 0 {
-        gf.base.buffer.as_str()
-    } else {
-        gf.base.current_value.as_str()
-    }
-}
 
 /// Java TextGauge.drawTextShaded / LinearGauge.drawTextShaded:
 /// (+1,+1) 阴影先画, 本色后画 (TextGauge.java:85-93)
@@ -349,117 +332,6 @@ fn draw_text_shaded(
 }
 
 // ---------------------------------------------------------------------------
-// LinearGaugeRenderer (LinearGaugeRenderer.java:17)
-// ---------------------------------------------------------------------------
-
-/// 竖/横条渲染器。gauge 组件缓存: Java 中组件存活于 GaugeField.gauge 字段
-/// (Swing 组件), Rust 侧由渲染器按 field key 持有并每帧 update 同步
-/// (脏检查在 LabeledLinearGauge 内部)。
-///
-/// PORT 缓存失效契约: Java 的 LabeledLinearGauge 组件随 GaugeField 重建而消亡
-/// (FieldOverlay.reinitConfig → initFields → fieldManager.clearAll, FieldOverlay
-/// .java:121-146; renderer 实例本身存活, LinearGaugeRenderer.java 无缓存);
-/// Rust 缓存跨字段重建存活, 首帧固化 (label, max_value) — LabeledLinearGauge::new
-/// 的构造参数, update 不改写。调用方重建字段 (量程/标签变化, 如公英制切换) 后
-/// **必须调用 [`LinearGaugeRenderer::clear`] 或重建渲染器**, 否则条形量程/标签陈旧错绘。
-#[derive(Default)]
-pub struct LinearGaugeRenderer {
-    gauges: HashMap<String, LabeledLinearGauge>,
-}
-
-impl LinearGaugeRenderer {
-    /// 组件缓存失效钩子: 等价 Java "组件随 GaugeField 重建" 的语义 — 清空后
-    /// 下一帧按新字段的 (label, max_value) 重建组件。见结构体 PORT 契约注。
-    pub fn clear(&mut self) {
-        self.gauges.clear();
-    }
-}
-
-impl OverlayRenderer for LinearGaugeRenderer {
-    fn render(
-        &mut self,
-        canvas: &mut PixCanvas,
-        fields: &[Field<'_>],
-        ctx: &RenderContext,
-        offset: &mut [i32; 2],
-    ) {
-        // Java :21-22 设置 graphAA/textAA hint → ctx.*_aa
-        let fontsize = ctx.font_size(); // ctx.numFont.getSize()
-        let x = offset[0];
-        let y = offset[1];
-        let mut dx = 0;
-        let mut dy = fontsize >> 1;
-        for f in fields {
-            // Java :31 !visible || !(instanceof GaugeField) → continue
-            let Field::Gauge(gf) = f else { continue };
-            if !gf.base.visible {
-                continue;
-            }
-            if gf.gauge.is_none() {
-                continue; // Java :38-39 gauge==null 防御
-            }
-            let gauge = match self.gauges.get_mut(gf.base.key.as_str()) {
-                Some(g) => g,
-                None => {
-                    // GaugeField.java:28: new LabeledLinearGauge(label, maxValue, !isHorizontal)
-                    self.gauges.insert(
-                        gf.base.key.clone(),
-                        LabeledLinearGauge::new(&gf.base.label, gf.max_value, !gf.is_horizontal),
-                    );
-                    self.gauges.get_mut(gf.base.key.as_str()).expect("刚插入")
-                }
-            };
-            // Java :42/:46 每帧原地赋 gauge.vertical = isHorizontal ? false : true —
-            // 幂等状态同步, 等价按场推导
-            gauge.gauge.vertical = !gf.is_horizontal;
-            // Java 中 gauge 由 GaugeField.updateGauge 更新; Rust 数据态在
-            // current_int_value/base, 每帧同步进缓存组件 (同值不置脏)。
-            // PORT 值通道契约 (EngineControlOverlay C 批移植必须遵守): Java 双通道
-            // 互斥 — (a) 零 GC 路径 (EngineControlOverlay.java:530-541) 只写
-            // gf.buffer/length + gauge.update(intVal, buffer, length), 不写
-            // GaugeField.currentValue/currentIntValue (恒 "---"/0); (b) String 路径
-            // (:571/:579-585/:588-605) 绕过 GaugeField 直写 gauge 组件。本渲染器
-            // 消费 gf.current_int_value + gauge_value_text(gf) → 移植时必须统一走
-            // vm-core GaugeField::update_gauge (int/文本两通道同写), 不可只写
-            // base.buffer/length — 否则条恒画 0 / 文本陈旧 (gauge_value_text 注)。
-            gauge.gauge.update(gf.current_int_value, gauge_value_text(gf));
-            // draw 的 aa 只传 graph_aa: gauge 内文本在 Java 受 textAA 管, 依赖
-            // "graph_aa==text_aa 恒成立" 的生产不变式 (见 RenderContext PORT 注)
-            if gf.is_horizontal {
-                // Java :43: draw(x, y+dy, 4*fontsize, fontsize>>1, labelFont, labelFont)
-                gauge.draw(canvas, x, y + dy, 4 * fontsize, fontsize >> 1, &ctx.label_font, ctx.graph_aa);
-                dy += fontsize + (fontsize >> 2); // Java :44
-            } else {
-                gauge.draw(canvas, x + dx, y, 4 * fontsize, fontsize >> 1, &ctx.label_font, ctx.graph_aa);
-                dx += (5 * fontsize) >> 1; // Java :48
-            }
-        }
-    }
-
-    fn calculate_preferred_size(&mut self, fields: &[Field<'_>], ctx: &RenderContext) -> (i32, i32) {
-        let fontsize = ctx.font_size();
-        let mut row_num = 0;
-        // Java :57 columnNum 计数后从未参与公式 (仅循环结构保留), 保真照抄
-        let mut _column_num = 0;
-        for f in fields {
-            let Field::Gauge(gf) = f else { continue };
-            if !gf.base.visible {
-                continue;
-            }
-            if gf.is_horizontal {
-                row_num += 1;
-            } else {
-                _column_num += 1;
-            }
-        }
-        let width = fontsize * 8; // Java :70
-        // Java :71 `(fontsize*4 + (fontsize*9) >> 1)`: JLS §15.22 移位优先级低于
-        // 加法 → (13*fontsize)>>1 (保真陷阱, 勿"顺手"加括号到别处)
-        let height = ((fontsize * 4 + fontsize * 9) >> 1) + (row_num + 1) * (fontsize + (fontsize >> 2));
-        (width, height)
-    }
-}
-
 // ---------------------------------------------------------------------------
 // BOSStyleRenderer (BOSStyleRenderer.java:15)
 // ---------------------------------------------------------------------------
@@ -557,54 +429,3 @@ impl OverlayRenderer for BosStyleRenderer {
         (ctx.geom.total_width(), ctx.geom.total_height(visible_count)) // Java :86-87
     }
 }
-
-// ---------------------------------------------------------------------------
-// TextOnlyRenderer (TextOnlyRenderer.java:17)
-// ---------------------------------------------------------------------------
-
-pub struct TextOnlyRenderer;
-
-impl OverlayRenderer for TextOnlyRenderer {
-    fn render(
-        &mut self,
-        canvas: &mut PixCanvas,
-        fields: &[Field<'_>],
-        ctx: &RenderContext,
-        offset: &mut [i32; 2],
-    ) {
-        // Java :26-27: setFont(labelFont) + setColor(WHITE) — 无阴影直画
-        let x = ctx.font_size() >> 1; // Java :29
-        let mut y = ctx.font_size();  // Java :30 (留出 ascent)
-        let line_height = (ctx.font_size() as f64 * 1.5) as i32; // Java :31 (int)(fs*1.5)
-        for f in fields {
-            let base = f.base();
-            if !base.visible {
-                continue;
-            }
-            canvas.draw_text(&ctx.label_font, x, y, &base.current_value, WHITE, ctx.text_aa);
-            y += line_height;
-        }
-        offset[1] = y; // Java :44 (offset[0] 不动)
-    }
-
-    fn calculate_preferred_size(&mut self, fields: &[Field<'_>], ctx: &RenderContext) -> (i32, i32) {
-        let char_width = ctx.font_size() / 2; // Java :52
-        let line_height = (ctx.font_size() as f64 * 1.5) as i32;
-        let mut visible_count = 0;
-        let mut max_width = 0;
-        for f in fields {
-            let base = f.base();
-            if base.visible {
-                visible_count += 1;
-                // Java :58 currentValue.length() = UTF-16 码元数; 值域为格式化
-                // ASCII 数字串, chars().count() 等价 (§2.1)
-                max_width = std::cmp::max(max_width, base.current_value.chars().count() as i32 * char_width);
-            }
-        }
-        let height = visible_count * line_height + ctx.font_size(); // Java :64
-        (max_width + ctx.font_size(), height) // Java :66
-    }
-}
-
-#[cfg(test)]
-mod tests;

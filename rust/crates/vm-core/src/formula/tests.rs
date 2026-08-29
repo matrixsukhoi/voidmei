@@ -7,33 +7,6 @@ use super::eval::StateStore;
 use super::registry::{assemble_snapshot, registry, MetaInputs, VarOrigin, VarSnapshot};
 use super::FormulaManager;
 use crate::calc_helper::SimpleMovingAverage;
-use crate::ui_model::telemetry_source::TelemetrySource;
-
-// ===== 测试桩: TelemetrySource (关键字段可配, 其余 0) =====
-
-
-macro_rules! tel_field {
-    ($m:ident, $f:ident) => {
-        fn $m(&self) -> f64 {
-            self.$f
-        }
-    };
-}
-macro_rules! tel_zero {
-    ($m:ident) => {
-        fn $m(&self) -> f64 {
-            0.0
-        }
-    };
-}
-macro_rules! tel_false {
-    ($m:ident) => {
-        fn $m(&self) -> bool {
-            false
-        }
-    };
-}
-
 
 // ===== 工具: 快照与求值 ====
 
@@ -289,7 +262,7 @@ fn compile_topo_order_correct() {
     let defs = vec![def("b", "a * 2"), def("a", "400 + 1")];
     let set = CompiledFormulaSet::compile(&defs, registry(), &["b".to_string()]);
     assert!(set.formulas.iter().all(|f| f.err.is_none()));
-    let tel = TestTel::default();
+    let _tel = TestTel::default();
     let meta = MetaInputs { interval_ms: 50.0, ..Default::default() };
     let ind0 = crate::parser::Indicators::default();
     let raw0 = super::registry::RawInputs { state: None, indic: Some(&ind0), blkx: None };
@@ -341,7 +314,7 @@ fn compile_invalid_dep_propagates_nan() {
         set.formulas[set.slots["a"] as usize].err,
         Some(CompileError::UnknownName(_))
     ));
-    let tel = TestTel::default();
+    let _tel = TestTel::default();
     let meta = MetaInputs::default();
     let ind0 = crate::parser::Indicators::default();
     let raw0 = super::registry::RawInputs { state: None, indic: Some(&ind0), blkx: None };
@@ -415,7 +388,7 @@ fn registry_single_name_no_getter_aliases() {
 
 #[test]
 fn registry_snapshot_assemble() {
-    let tel = TestTel::default();
+    let _tel = TestTel::default();
     let meta = MetaInputs { interval_ms: 50.0, freq: 20.0, fm_loaded: false, ..Default::default() };
     let mut st0 = crate::parser::State::default();
     st0.ias = 400;
@@ -519,7 +492,7 @@ fn manager_try_eval_isolated() {
 
 /// target_value 桥桩: var_value 走 snap_of 快照 (registry 下标取值)
 struct TargetView(super::registry::VarSnapshot);
-impl crate::ui_model::TelemetrySource for TargetView {
+impl crate::formula::registry::FormulaView for TargetView {
     fn var_value(&self, name: &str) -> Option<f64> {
         let vid = registry().lookup(name)?;
         let v = self.0.values.get(vid as usize).copied()?;
@@ -589,7 +562,7 @@ fn bench_eval_frame_50_formulas() {
     }
     let refs: Vec<String> = defs.iter().map(|d| d.name.clone()).collect();
     let set = CompiledFormulaSet::compile(&defs, registry(), &refs);
-    let tel = TestTel::default();
+    let _tel = TestTel::default();
     let meta = MetaInputs { interval_ms: 50.0, ..Default::default() };
     let mut store = StateStore::new();
     let n = 10_000;

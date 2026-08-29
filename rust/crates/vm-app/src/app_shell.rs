@@ -48,7 +48,7 @@ use vm_core::http_helper::HttpHelper;
 use vm_core::hud_calculator::HudColors;
 use vm_core::lang::Lang;
 use vm_core::logger;
-use vm_core::ui_model::TelemetrySource as _;
+use vm_core::formula::registry::FormulaView as _; // var_value 取数唯一接口 (W10 后 TelemetrySource 已删)
 use vm_core::ui_state_bus::UIStateBus;
 use vm_core::voice_resource_manager::VoiceResourceManager;
 use vm_core::voice_warning::{VoiceWarning, VoiceWarningService};

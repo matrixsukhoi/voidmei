@@ -1,5 +1,5 @@
 use super::*;
-use vm_core::ui_model::TelemetrySource;
+use vm_core::formula::registry::FormulaView;
 
 const FONTS: &str = "../../../fonts";
 
@@ -39,7 +39,6 @@ struct MockTele {
     prop_eff: f64,
     eff_hp: f64,
     manifold: f64,
-    manifold_unit: &'static str,
     manifold_prec: i32,
     mass_fuel: f64,
     total_weight: f64,
@@ -78,7 +77,6 @@ impl Default for MockTele {
             prop_eff: 0.0,
             eff_hp: 0.0,
             manifold: 0.0,
-            manifold_unit: "Ata",
             manifold_prec: 2,
             mass_fuel: 0.0,
             total_weight: 0.0,
@@ -100,7 +98,7 @@ impl Default for MockTele {
 }
 
 #[allow(clippy::too_many_lines)]
-impl TelemetrySource for MockTele {
+impl FormulaView for MockTele {
     // W7: var_value 桩 (字段直映); 名字先经 canonical 可达性检查 — 消费方以
     // 短名发问 (PowerSource::getter / VisExpr / 仪表, W10 单名制),
     // 桩只答可达名, 未注册名 None (对位生产行为, 不做 _ => 0.0 兜底)
@@ -124,6 +122,7 @@ impl TelemetrySource for MockTele {
             "prop_efficiency" => self.prop_eff,
             "eff_hp" => self.eff_hp,
             "manifold_pressure_display" => self.manifold,
+            "manifold_pressure" => self.manifold,
             "mass_fuel" => self.mass_fuel,
             "total_weight" => self.total_weight,
             "fuel_time_mili" => self.fuel_time_mili as f64,
@@ -142,14 +141,6 @@ impl TelemetrySource for MockTele {
             "is_imperial" => (self.manifold_prec == 1) as u8 as f64,
             _ => 0.0,
         })
-    }
-
-    fn get_manifold_pressure_display_unit(&self) -> String {
-        self.manifold_unit.to_string()
-    }
-
-    fn get_manifold_pressure_display_precision(&self) -> i32 {
-        self.manifold_prec
     }
 }
 
@@ -214,22 +205,22 @@ fn butt_line_width2_aa_coverage() {
 #[test]
 fn vis_expr_semantics() {
     let t = MockTele::default(); // piston=true, jet=false
-    assert!(!VisExpr::IsJetEngine.eval(&t, 0.0));
-    assert!(VisExpr::IsPistonEngine.eval(&t, 0.0));
-    assert!(!VisExpr::HasWep.eval(&t, 0.0));
-    assert!(VisExpr::Gt(0.0).eval(&t, 0.1));
-    assert!(!VisExpr::Gt(0.0).eval(&t, 0.0));
-    assert!(VisExpr::Lte(0.0).eval(&t, 0.0));
-    assert!(VisExpr::Eq(1.0).eval(&t, 1.00001));
-    assert!(!VisExpr::Eq(1.0).eval(&t, 1.0002));
+    assert!(!vm_core::fields::Cond::IsJetEngine.eval(&t, 0.0));
+    assert!(vm_core::fields::Cond::IsPistonEngine.eval(&t, 0.0));
+    assert!(!vm_core::fields::Cond::HasWep.eval(&t, 0.0));
+    assert!(vm_core::fields::Cond::Gt(0.0).eval(&t, 0.1));
+    assert!(!vm_core::fields::Cond::Gt(0.0).eval(&t, 0.0));
+    assert!(vm_core::fields::Cond::Lte(0.0).eval(&t, 0.0));
+    assert!(vm_core::fields::Cond::Eq(1.0).eval(&t, 1.00001));
+    assert!(!vm_core::fields::Cond::Eq(1.0).eval(&t, 1.0002));
     // f64 边界: 字面量 1.0001-1.0 实际差 ≈ 9.9999e-5 < 0.0001 → 视为相等
     // (vm-core 求值器测试同款 oracle: "(= value 1)" 对 1.0001 为 true)
-    assert!(VisExpr::Eq(1.0).eval(&t, 1.0001));
-    assert!(!VisExpr::NotEq(1.0).eval(&t, 1.0001));
-    assert!(!VisExpr::NotEq(1.0).eval(&t, 1.0));
-    let not_jet = VisExpr::Not(&VisExpr::IsJetEngine);
+    assert!(vm_core::fields::Cond::Eq(1.0).eval(&t, 1.0001));
+    assert!(!vm_core::fields::Cond::NotEq(1.0).eval(&t, 1.0001));
+    assert!(!vm_core::fields::Cond::NotEq(1.0).eval(&t, 1.0));
+    let not_jet = vm_core::fields::Cond::Not(&vm_core::fields::Cond::IsJetEngine);
     assert!(not_jet.eval(&t, 0.0));
-    let and = VisExpr::And(&VisExpr::IsPistonEngine, &VisExpr::NotEq(1.0));
+    let and = vm_core::fields::Cond::And(&vm_core::fields::Cond::IsPistonEngine, &vm_core::fields::Cond::NotEq(1.0));
     assert!(and.eval(&t, 0.98));
     assert!(!and.eval(&t, 1.0));
 }
@@ -386,18 +377,17 @@ fn marked_gauge_vertical_geometry() {
 /// 常量表快照: 19 项, 关键行 (进气压动态通道 / 燃油时 TIME_MM_SS) 与 cfg 一致
 #[test]
 fn power_field_defs_snapshot() {
-    assert_eq!(POWER_FIELD_DEFS.len(), 19);
-    assert_eq!(POWER_FIELD_DEFS[0].label, "功  率");
-    assert_eq!(POWER_FIELD_DEFS[0].na_when, Some(VisExpr::Lte(0.0)));
-    let manifold = &POWER_FIELD_DEFS[6];
+    assert_eq!(vm_core::fields::POWER_FIELD_DEFS.len(), 19);
+    assert_eq!(vm_core::fields::POWER_FIELD_DEFS[0].label, "功  率");
+    assert_eq!(vm_core::fields::POWER_FIELD_DEFS[0].na_when, Some(vm_core::fields::Cond::Lte(0.0)));
+    let manifold = &vm_core::fields::POWER_FIELD_DEFS[6];
     assert_eq!(manifold.label, "进气压");
-    assert_eq!(manifold.unit_source, Some(DynSource::ManifoldDisplay));
-    assert_eq!(manifold.precision_source, Some(DynSource::ManifoldDisplay));
-    assert_eq!(manifold.visible_when, Some(VisExpr::And(&VisExpr::IsPistonEngine, &VisExpr::NotEq(1.0))));
-    let fuel_time = &POWER_FIELD_DEFS[10];
-    assert_eq!(fuel_time.source, PowerSource::FuelTimeMiliMul001);
-    assert_eq!(fuel_time.format, PowerFormat::TimeMmSs);
-    assert_eq!(POWER_FIELD_DEFS[17].na_when, Some(VisExpr::Gt(90000.0)));
+    assert!(manifold.imperial_display, "进气压动态单位/精度通道");
+    assert_eq!(manifold.visible_when, Some(vm_core::fields::Cond::And(&vm_core::fields::Cond::IsPistonEngine, &vm_core::fields::Cond::NotEq(1.0))));
+    let fuel_time = &vm_core::fields::POWER_FIELD_DEFS[10];
+    assert_eq!(fuel_time.source, "fuel_time_mili * 0.001");
+    assert!(fuel_time.time_mm_ss);
+    assert_eq!(vm_core::fields::POWER_FIELD_DEFS[17].na_when, Some(vm_core::fields::Cond::Gt(90000.0)));
 }
 
 /// 更新路径 (FieldOverlay.onFlightData 零 GC): visible-when / na-when "-" /
@@ -447,13 +437,16 @@ fn power_info_update_paths() {
     assert!(st.update(200, &t));
     assert_eq!(st.fields()[0].buffer, "-");
     assert_eq!(st.fields()[0].length, 1);
-    // 动态单位/精度: 英制 Psi + 0 位
-    t.manifold_unit = "Psi";
-    t.manifold_prec = 0;
+    // 动态单位/精度: 英制 (is_imperial) → Java "P/x.x''" + 1 位 (生产: unit/prec
+    // 同源 is_imperial, 不可独立分叉; 旧桩的独立 unit/prec 字段属想象行为已删)
+    t.manifold_prec = 1;
     t.manifold = 44.6;
     assert!(st.update(300, &t));
     let m = st.fields().iter().find(|x| x.label == "进气压").unwrap();
-    assert_eq!((m.unit.as_str(), m.buffer.as_str(), m.precision), ("Psi", "45", 0));
+    let inhg = vm_core::format::format(44.6 * 760.0 / 25.4, 1);
+    assert_eq!(m.unit, format!("P/{inhg}''"));
+    assert_eq!(m.buffer, "44.6");
+    assert_eq!(m.precision, 1);
     // 喷气机: 功率/桨距角/桨效率/实功率 隐藏, 推力仍在
     t.jet = true;
     t.piston = false;

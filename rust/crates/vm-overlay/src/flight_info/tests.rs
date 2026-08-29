@@ -38,7 +38,7 @@ fn spec_renders_preview_rows_to_pixcanvas() {
 /// "公式槽 ∪ registry" 单名制通道, 曾直接 registry.lookup 把断链掩成桩内
 /// 硬编码, 假绿掩盖 live 7 行消失)
 struct ZeroView;
-impl vm_core::ui_model::TelemetrySource for ZeroView {
+impl vm_core::formula::registry::FormulaView for ZeroView {
     fn var_value(&self, name: &str) -> Option<f64> {
         canonical_var_name(name).map(|_| 0.0)
     }
@@ -54,7 +54,7 @@ fn update_applies_visibility() {
 
     // 非零 Mach 帧行数应不少于全零帧 (Mach 行回归)
     struct MachView;
-    impl vm_core::ui_model::TelemetrySource for MachView {
+    impl vm_core::formula::registry::FormulaView for MachView {
         fn var_value(&self, name: &str) -> Option<f64> {
             match canonical_var_name(name).as_deref() {
                 Some("mach") => Some(0.72),
@@ -76,7 +76,15 @@ fn update_applies_visibility() {
 #[test]
 fn flight_info_targets_all_reachable() {
     for f in fields::FIELDS {
-        let t = f.source.target();
+        // 乘数表达式先拆 ("wing_sweep * 100" → wing_sweep), 裸名查可达
+        let (var, _) = vm_core::formula::resolve_target(f.source)
+            .unwrap_or((vm_core::formula::TargetVar::Var(0), 1.0));
+        let t = match &var {
+            vm_core::formula::TargetVar::Var(vid) => {
+                vm_core::formula::registry::registry().vars[*vid as usize].name
+            }
+            vm_core::formula::TargetVar::Formula(name) => name,
+        };
         assert!(
             canonical_var_name(t).is_some(),
             "飞行信息行 {} 的 target {t} 解析断链 (registry/公式集缺失)",
@@ -110,7 +118,7 @@ fn reset_preview_rows_restores_statics() {
         flight_info_overlay_spec(&fonts_dir(), &params_cell(|_| {})).unwrap();
     // live 残留: 非零 Mach/IAS 帧 (行集与 preview 静态不同)
     struct MachView;
-    impl vm_core::ui_model::TelemetrySource for MachView {
+    impl vm_core::formula::registry::FormulaView for MachView {
         fn var_value(&self, name: &str) -> Option<f64> {
             match canonical_var_name(name).as_deref() {
                 Some("mach") => Some(0.72),

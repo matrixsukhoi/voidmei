@@ -46,7 +46,7 @@ use vm_core::event::flight_data_event::FlightDataEvent;
 use vm_core::hud_calculator::{self, HudColors};
 use vm_core::hud_data::HUDData;
 use vm_core::hud_layout_node::{Dimension, HasPreferredSize, HUDLayoutNodeExt};
-use vm_core::ui_model::TelemetrySource;
+use vm_core::formula::registry::FormulaView;
 
 use crate::font::LoadedFont;
 use crate::gauge_attitude::AttitudeIndicatorGauge;
@@ -1128,7 +1128,7 @@ impl MiniHudOverlay {
     fn update_components<S: HUDSettings>(
         &mut self,
         settings: &S,
-        service: Option<&dyn TelemetrySource>,
+        service: Option<&dyn FormulaView>,
     ) {
         let text_visible = settings.draw_hud_text();
 
@@ -1322,7 +1322,7 @@ impl MiniHudOverlay {
         &mut self,
         now_ms: i64,
         event: &FlightDataEvent,
-        service: Option<&dyn TelemetrySource>,
+        service: Option<&dyn FormulaView>,
         blkx: Option<&Blkx>,
         settings: &S,
         colors: &HudColors,
@@ -1343,7 +1343,7 @@ impl MiniHudOverlay {
     fn update_from_event<S: HUDSettings>(
         &mut self,
         event: &FlightDataEvent,
-        service: Option<&dyn TelemetrySource>,
+        service: Option<&dyn FormulaView>,
         blkx: Option<&Blkx>,
         settings: &S,
         colors: &HudColors,

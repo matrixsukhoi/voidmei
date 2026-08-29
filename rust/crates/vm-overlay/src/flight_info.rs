@@ -21,7 +21,7 @@ use std::rc::Rc;
 
 use vm_core::layout::RenderCtx;
 use vm_core::{fields, format};
-use vm_core::ui_model::TelemetrySource;
+use vm_core::formula::registry::FormulaView;
 
 use crate::font::Canvas;
 use crate::host::{OverlaySpec, ReinitFn};
@@ -42,26 +42,26 @@ pub fn default_num_height(font_add: i32) -> i32 {
 
 /// TelemetrySource → 变量数值 (W2: FlightValues 整包快照消解; W10: 统一
 /// 短名制 — 变量名 | 公式名 | "X * N" 乘数, Java getter 名不再进内核取数)
-pub fn flight_value(s: &dyn TelemetrySource, target: &str) -> Option<f64> {
+pub fn flight_value(s: &dyn FormulaView, target: &str) -> Option<f64> {
     let (var, mult) = vm_core::formula::resolve_target(target)?;
     vm_core::formula::target_value(&var, mult, s)
 }
 
 /// TelemetrySource → (label, unit, value) owned 行 (visible-when/na-when 求值)
-pub fn build_texts(s: &dyn TelemetrySource) -> Vec<(String, String, String)> {
+pub fn build_texts(s: &dyn FormulaView) -> Vec<(String, String, String)> {
     let mut out = Vec::new();
     for f in fields::FIELDS {
         // 解析不到按 0 处理 (Java 反射 getter 永不失败, 行只受 visible-when
         // 控制; 曾 None→continue 致 7 行整行消失 — live 显示回归根因之一)
-        let raw = flight_value(s, f.source.target()).unwrap_or(0.0);
-        if let Some(cond) = f.visible_when {
-            if !cond.eval(raw) {
+        let raw = flight_value(s, f.source).unwrap_or(0.0);
+        if let Some(cond) = &f.visible_when {
+            if !cond.eval(s, raw) {
                 continue;
             }
         }
-        // wing_sweep 已在 Deriver 里 ×100 (cfg 表达式), 此处直接用
-        let text = match f.na_when {
-            Some(cond) if cond.eval(raw) => "-".to_string(),
+        // wing_sweep 的 ×100 在 source 乘数表达式里 ("wing_sweep * 100")
+        let text = match &f.na_when {
+            Some(cond) if cond.eval(s, raw) => "-".to_string(),
             _ => format::format(raw, f.precision),
         };
         out.push((f.label.to_string(), f.unit.to_string(), text));
@@ -94,7 +94,7 @@ impl FlightInfoState {
     /// live 喂数 (Java FieldOverlay.onFlightData → 字段行更新; host 50ms 渲染
     /// 节拍 + 像素指纹脏检查兜底, 此处纯数据面; W2 起数据源 = TelemetrySource
     /// (ServiceData 散字段, Deriver 整包快照已消解))
-    pub fn update(&mut self, s: &dyn TelemetrySource) {
+    pub fn update(&mut self, s: &dyn FormulaView) {
         self.rows = build_texts(s);
     }
 

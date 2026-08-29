@@ -471,7 +471,6 @@ impl HUDEnergyRow {
 // HUDFlapsRow (襟翼/起落架状态行)
 // ---------------------------------------------------------------------------
 
-/// 襟翼/减速板/起落架状态行 (HUDFlapsRow.java:8; Java 遗留组件, 生产 Row2
 /// 已改用 HUDMechanizationRow — 本类保真保留, 见下方同文件邻居)。
 /// 纯数据映射组件 — 无自绘, 全部视觉 = 基类文本行
 /// (onDataUpdate: mechanizationStr + warnConfiguration → update)。

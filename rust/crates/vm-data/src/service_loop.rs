@@ -1,36 +1,10 @@
-//! 对应 Java: `src/prog/Service.java` 的**方法区**——run() 轮询循环 (L1799-1862) /
-//! processPollingCycle (L1705-1796) / publishFlightDataEvent (L440-482) /
-//! calculate 链接线 (L1115-1178) / resetvaria·clearvaria·resetEngLoad
-//! (L1510-1666) / 构造器 (L1678-1699)。
-//! (实例字段区 + TelemetrySource getter 见 service_fields.rs, D6 两 item 划分。)
+//! Service 轮询线程主体: run() 循环 → HTTP 轮询 → calculate 链 (状态机 + 公式步)
+//! → publish。数据快照见 service_fields.rs。
 //!
-//! ## 结构裁决 (LIFETIMES / D6 / PORTING §2.8)
-//!
-//! - Java `Service` 的 public 字段被 EDT 混读无锁 → [`ServiceData`] 收进
-//!   `RwLock` (service_fields.rs 模块头裁决), 本模块**任何锁的临界区内不调
-//!   回调/不做 IO**: 方法开头 lock 取数据副本→释放→计算→短锁写回
-//!   (PORTING §2.8 "Service 类多 synchronized 互相调用" 的锁粒度指示)。
-//! - Java `Controller c` 反向引用 (环 1) 不迁移: 配置读经 [`ServiceConfig`]
-//!   构造注入, c.initStatusBar/changeS2/changeS3/S4toS1/onAircraftChanged/
-//!   c.Log.logTick 等 Controller 协作点逐处 `// TODO(port)` 标注 (Controller 波次)。
-//! - Java `FlightDataBus.getInstance()`/`FMManager.getInstance()` 单例解散 →
-//!   构造注入 `Arc` (LIFETIMES §1.1 "实例归调用方持有")。
-//! - **顶层 catch_unwind** (PORTING §6 契约): 对齐 Java run() L1850 顶层
-//!   `catch (Exception)` 丢一轮继续的语义——单条畸形遥测 (解析 panic 点, 如
-//!   Boolean 拆箱 NPE 的复刻) 不允许杀死遥测线程。
-//! - `Thread.interrupt()` 退出 → `Arc<AtomicBool>` 停机标志轮询 (§2.13);
-//!   `Thread.sleep` → `exception_helper::sleep_quietly` (可中断睡眠)。
-//! - run() 在独立线程由调用方经 [`start`] spawn, [`ServiceHandle`] 提供
-//!   stop 生命周期 (Java Controller.start:634 `S1 = new Thread(Service);
-//!   S1.setPriority(MAX_PRIORITY); S1.start()`)。
-//! - HTTP 选型: 用 **vm-core `HttpHelper`** (HttpHelper.java 一比一翻译, 含
-//!   buf 复用/CompletableFuture 等待/byte-perfect 读头语义), 不用本 crate
-//!   `data::http` (POC 存量, 行为等价但非保真翻译)——保真度裁决, 见
-//!   parser/mod.rs 并存说明。
-//! - parser 选型: 用 **vm-core `parser::{State, Indicators}`** (保真版,
-//!   任务指定); 已译 [`Deriver`] (data/derive.rs) 接口收 POC 版
-//!   `StateRaw/IndicatorsRaw`, 本文件以 [`to_state_raw`]/[`to_indicators_raw`]
-//!   适配 (字段级映射, 哨兵 -65535 同值穿透)。
+//! 锁纪律: 临界区内不调回调/不做 IO——先取副本→释放→计算→短锁写回。
+//! 顶层 catch_unwind: 单条畸形遥测 panic 不杀线程, 丢一轮继续 (锁中毒穿透
+//! 见 read_data/write_data)。
+//! HTTP/parser 用 vm-core 保真版 (HttpHelper / parser::{State, Indicators})。
 
 use std::net::SocketAddr;
 use std::panic::{catch_unwind, AssertUnwindSafe};
@@ -47,7 +21,6 @@ use vm_core::flight_data_bus::FlightDataBus;
 use vm_core::flight_log::{FlightLogSlot, FlightLogSnapshot};
 use vm_core::fm::{FMHandle, FMManager};
 use vm_core::http_helper::HttpHelper;
-use vm_core::parser::state::MAX_ENG_NUM;
 use vm_core::parser::{Indicators, MapInfo, MapObj, State};
 use vm_core::{exception_helper, format, logger, G};
 
@@ -93,16 +66,42 @@ pub(crate) fn session_inputs(d: &ServiceData) -> vm_core::formula::registry::Ses
         avgeff: d.avgeff,
         // 原 getFuelPercent getter: i32 字段拓宽 (EngineControl 油量表数据源)
         fuel_percent: d.fuel_percent as f64,
+        // Java getManifoldPressureDisplay: 英制 → (manifold-1)*14.696 psi,
+        // 公制 → manifoldpressure 直读 (曾误走 trait default 恒 0, live 进气压行失真)
         manifold_display: {
-            use vm_core::ui_model::TelemetrySource as _;
-            d.get_manifold_pressure_display()
+            let s = d.s_state.as_ref();
+            if d.check_alt > 0 {
+                s.map_or(0.0, |s| (s.manifoldpressure - 1.0) * 14.696)
+            } else {
+                s.map_or(0.0, |s| s.manifoldpressure)
+            }
         },
         is_imperial: d.check_alt > 0,
         is_jet: d.check_engine_flag && d.i_eng_type == ENGINE_TYPE_JET,
-        is_prop: d.check_engine_flag && d.i_eng_type == ENGINE_TYPE_PROP,
+        // Java isPropEngine = PROP || TURBOPROP (isPistonEngine 才是 ==PROP);
+        // 曾漏 TURBOPROP 致涡桨机 is_prop_engine 恒 false
+        is_prop: d.check_engine_flag
+            && (d.i_eng_type == ENGINE_TYPE_PROP || d.i_eng_type == ENGINE_TYPE_TURBOPROP),
         is_piston: d.check_engine_flag && d.i_eng_type == ENGINE_TYPE_PROP,
         is_turboprop: d.check_engine_flag && d.i_eng_type == ENGINE_TYPE_TURBOPROP,
         engine_check_done: d.check_engine_flag,
+    }
+}
+
+/// fueltimeStr (Java formatDataAsStrings L265-278): 无效 → "-";
+/// <100 分钟 → "%02d'%02d" (秒位向下取整到十位); 否则 "%.0f" 分钟
+/// ((float)fueltime/60000 的 float 除法域再拓宽, §2.12)。
+fn format_fueltime(fueltime: i64) -> String {
+    if fueltime <= 0 || fueltime > 24 * 3600 * 1000 {
+        NASTRING.to_string()
+    } else if fueltime / 60000 < 100 {
+        format!(
+            "{}'{}",
+            format::java_d0(fueltime / 60000, 2),
+            format::java_d0((fueltime / 1000) % 60 / 10 * 10, 2)
+        )
+    } else {
+        format::java_f((fueltime as f32 / 60000.0f32) as f64, 0)
     }
 }
 
@@ -297,15 +296,6 @@ impl Service {
             // Java: sIndic = new Indicators(); sIndic.init();
             d.s_indic = Some(Indicators::new());
             d.s_indic.as_mut().unwrap().init();
-            // Java: power/pitch/thrust/efficiency = new String[State.maxEngNum];
-            // (null 填充; 覆盖 resetvaria 落下的 4 长度 nastring 数组, 保真次序)
-            d.power = Some(vec![None; MAX_ENG_NUM]);
-            d.pitch = Some(vec![None; MAX_ENG_NUM]);
-            d.thrust = Some(vec![None; MAX_ENG_NUM]);
-            d.efficiency = Some(vec![None; MAX_ENG_NUM]);
-            // Java: FuelCheckMili = System.currentTimeMillis();
-            d.fuel_check_mili = current_time_millis();
-            // isFuelpressure = false;
         }
         svc
     }
@@ -373,20 +363,15 @@ impl Service {
             d.is_downing_flap = false;
             d.get_maximum_rpm = false;
             d.d_radio_alt = 0.0;
-            d.cur_load = 0;
             d.wep_time = 0;
             d.energy_j_kg = 0.0;
-            d.prev_energy_j_kg = 0.0;
             d.elapsed_time = 0;
-            d.altper_circle = 0.0;
             d.check_alt = 0;
-            d.altreg = 0.0;
             d.altp = 0.0;
             d.alt = 0.0;
             d.calc_period = 0;
             d.maximum_thr_rpm = 1.0;
             d.max_total_thr = 0;
-            d.iastotascoff = 1.0;
             d.thurst_percent = 0.0;
             d.check_engine_flag = false;
             d.check_engine_type = 0;
@@ -397,7 +382,6 @@ impl Service {
             d.max_total_hp = 0;
             // Java L1564 对 maxTotalThr 的第二次赋值 (L1555 已赋 0), 保真保留
             d.max_total_thr = 0;
-            d.diffspeed = 0.0;
             // Java: curLoadMinWorkTime = 99999 * 1000; —— int 乘法 99999000 拓宽 double
             d.cur_load_min_work_time = (99999 * 1000) as f64;
             /* 刷新引擎工作时间 */
@@ -405,13 +389,10 @@ impl Service {
             // if(c.getBlkx() != null && c.getBlkx().maxEngLoad !=
             // 0)c.getBlkx().resetEngineLoad();
             let now = current_time_millis();
-            // Java: FuelCheckMili = System.currentTimeMillis();
-            d.fuel_check_mili = now;
             // Java: lastMapPollTimeMs = FuelCheckMili; lastMainLoopTimeMs = FuelCheckMili;
             d.last_map_poll_time_ms = now;
             d.last_main_loop_time_ms = now;
             d.not_check_inch = false;
-            d.altper_circlflag = false;
             // isFuelpressure = false;
             // Java L1577 对 notCheckInch 的第二次赋值, 保真保留
             d.not_check_inch = false;
@@ -420,7 +401,6 @@ impl Service {
             d.flap_allow_speed = f32::MAX as f64;
             d.flap_allow_angle = f32::MAX as f64;
             d.total_fuel_prev = 0.0;
-            d.is_state_jet = false;
             d.nitrokg = 0.0;
             d.nitro_consump = 0.0;
             d.nitro_eng_nr = 0;
@@ -431,12 +411,6 @@ impl Service {
             // 移植), ServiceData 侧对应槽位**保持 None**——防双胞胎真互相漂移;
             // sum/energyDiff/fuelTime 三个 Java 侧 addNewData 调用已被注释 (仅构造),
             // 按 service_fields 裁决由本波次直接构造:
-            let freq = d.freq;
-            // Java: (int)(1000/freq) —— long 整除后截断; freq<=0 时 Java 构造器
-            // ArithmeticException, Rust 除零 panic 同构崩在构造期 (保真, 不防御)
-            let n = (1000 / freq) as usize;
-            d.sum_speed_sma = Some(SimpleMovingAverage::new(n));
-            d.energy_diff_sma = Some(SimpleMovingAverage::new(n));
             d.fuel_time_sma = Some(SimpleMovingAverage::new(4));
 
             // R2 守卫: 无 FM 时保持 nitrokg/nitroConsump 归零值（与 updateWepTime 的守卫配套）
@@ -449,55 +423,6 @@ impl Service {
                 // 无操作 (保真保留为注释; 真正的会话态改写在 reset_eng_load)
             }
 
-            // Initialize Strings to Defaults
-            let na = || Some(NASTRING.to_string());
-            d.total_hp_str = na();
-            d.total_thrust_str = na();
-            d.rpm = na();
-            d.total_hp_eff_str = na();
-            d.pressure_inch_hg = na();
-            d.manifoldpressure = na();
-            d.watertemp = na();
-            d.oiltemp = na();
-            d.total_fuel_str = na();
-            d.fueltime_str = na();
-            d.s_nitro = na();
-            d.s_wep_time = na();
-            d.s_eng_work_time = na();
-            d.sd_thrust_percent = na();
-            d.s_thurst_percent = na();
-            d.s_avg_eff = na();
-            d.tas = na();
-            d.ias = na();
-            d.m = na();
-            d.aoa = na();
-            d.aos = na();
-            d.ny = na();
-            d.s_n = na();
-            d.wx = na();
-            d.salt = na();
-            d.s_radio_alt = na();
-            d.vy = na();
-            d.compass = na();
-            d.throttle = na();
-            d.s_sep = na();
-            d.s_sep_abs = na();
-            d.s_acc = na();
-            d.s_turn_rate = na();
-            d.s_turn_rds = na();
-            d.s_wing_sweep = na();
-            d.flaps = na();
-            d.gear = na();
-            d.aileron = na();
-            d.elevator = na();
-            d.rudder = na();
-            // Java: svalid = "false";
-            d.svalid = Some("false".to_string());
-
-            // Java: efficiency/pitch = new String[4] (nastring 填充)
-            // (构造器随后覆盖为 16 长度 null 数组; 加油重置路径则停留在此形状)
-            d.efficiency = Some(vec![na(); 4]);
-            d.pitch = Some(vec![na(); 4]);
         } // —— write 临界区结束 (publish 前必须释放, §2.8)
 
         // Java: resetEngLoad(fm); (L1568, 字段赋值序列中间——锁外执行)
@@ -654,11 +579,6 @@ impl Service {
     fn process_polling_cycle(&mut self) {
         // int conState;
         let con_state: i32;
-        {
-            let mut d = write_data(&self.data);
-            // 更新时间戳
-            d.time_stamp = d.current_time_ms;
-        }
         // Application.debugPrint("s:"+httpClient.strState+"s1:"+httpClient.strIndic);
         // 更新state
 
@@ -809,11 +729,8 @@ impl Service {
                         }
                     }
 
-                    // 将数据转换格式 — format_strings.rs (Agent C 批次):
-                    // ~47 个显示字符串列 (FlightInfo/FlightLog CSV 的 String 数据源)。
-                    // Java 本方法尾部的 publishFlightDataEvent 由下方直接调用顶位,
-                    // 发布时序不变 (Java L431)
-                    self.format_data_as_strings();
+                    // 批2: formatDataAsStrings 镜像层已拆 — 显示文本由消费侧
+                    // 就地格式化 (FlightLog CSV / EventPayload.time_str)
                     self.publish_flight_data_event();
 
                     // 写入文档
@@ -1091,7 +1008,6 @@ impl Service {
         let mut d = write_data(&self.data);
         d.formula_values = results;
         d.formula_slots = slots.clone();
-        d.formula_snapshot = std::sync::Arc::new(snap);
         d.rule_triggers = triggers;
         // 接管型公式统一写回 (W1b 通用机制, 设计 §5 同名规则):
         // 公式名命中可写白名单 → 求值结果覆写 ServiceData 对应字段。
@@ -1165,12 +1081,9 @@ impl Service {
                 d.fueltime = tmpft;
             }
         }
-        d.fuel_delta = fuel_delta;
         if d.fueltime < 0 {
             d.fueltime = i64::MAX;
         }
-        // Java: FuelCheckMili = lastMainLoopTimeMs; totalFuelPrev = totalFuel;
-        d.fuel_check_mili = d.last_main_loop_time_ms;
         d.total_fuel_prev = d.total_fuel;
     }
 
@@ -1209,14 +1122,22 @@ impl Service {
         // R2 守卫: 无 FM 时 blkx=null, nitrokg 归 0（显示 "-"）(Java 注释原文)
         d.nitrokg = if let Some(blkx) = fm.blkx.as_ref() {
             let v = blkx.nitro - (d.wep_time as f64 * d.nitro_consump) / 1000.0;
-            if v < 0.0 {
-                0.0
-            } else {
-                v
-            }
+            if v < 0.0 { 0.0 } else { v }
         } else {
             0.0
         };
+        // twepTime (原 formatStrings 段): WEP 剩余秒数 — registry wep_time 变量
+        // 数据源 (session_inputs)。Java 仅在 nitro!=0 且 nitroEngNr!=0 时写,
+        // 其余分支保持上轮值 (保真)。
+        // (int)(((blkx.nitro / blkx.nitroDecr - wepTime / 1000)) / nitroEngNr)
+        // —— wepTime/1000 是 long 整除后才并入 double
+        if let Some(blkx) = fm.blkx.as_ref() {
+            if blkx.nitro != 0.0 && nitro_eng_nr != 0 {
+                d.s_wep_time_val = ((blkx.nitro / blkx.nitro_decr
+                    - (wep_time as i64 / 1000) as f64)
+                    / nitro_eng_nr as f64) as i32 as i64;
+            }
+        }
     }
 
     /// 对应 Java `public void updateTemp()` (L726-737) — 更新温度，优先使用更精确的。
@@ -1459,11 +1380,8 @@ impl Service {
                 // Java: timeStr(fueltimeStr) —— null 病态分支在 Rust String 下坍缩
                 // 为 Builder 缺省 "--:--" (map_to_payload 先例; resetvaria 恒置
                 // nastring 使 None 不可达)
-                .time_str(
-                    d.fueltime_str
-                        .clone()
-                        .unwrap_or_else(|| "--:--".to_string()),
-                )
+                // 批2: fueltime 文本现算 (镜像字段已拆)
+                .time_str(format_fueltime(d.fueltime))
                 // Java: isJet(iEngType == ENGINE_TYPE_JET)
                 .is_jet(d.i_eng_type == ENGINE_TYPE_JET)
                 .engine_check_done(d.check_engine_flag)
@@ -1507,8 +1425,6 @@ enum Flow {
 // ------------------------------------------------------------------
 // 快照/适配 helpers (无 Java 对应——服务于 §2.3 不可变快照与 Deriver 接口)
 // ------------------------------------------------------------------
-
-
 
 /// [`State`] 逐字段快照 (§2.3 事件不可变快照; State 未 derive Clone)。
 /// pub: vm-app 喂数侧重建 FlightDataEvent 时复用 (app_shell feed_overlays_live —
@@ -1621,65 +1537,98 @@ pub fn snapshot_indicators(i: &Indicators) -> Indicators {
 /// Java `null` 引用在字符串拼接里的字面量 (Java `bw.write(xs.IAS + ",")` 的
 /// IAS==null 写出 "null,")。Rust 字段是 Option<String>, None → "null" 保真;
 /// NASTRING ("-", resetvaria 初值) 原样透传 (与 Java formatDataAsStrings 未跑时的值一致)。
-fn jstr(v: &Option<String>) -> String {
-    v.clone().unwrap_or_else(|| "null".to_string())
-}
 
 /// logTick 时刻的 ServiceData → FlightLogSnapshot 构造面 (flight_log.rs 模块头
 /// PORT 注的 "vm-data 侧快照构造面")。字段逐一对应 ServiceData/State 字段
 /// (Service.java 的 xs 公有字段直读, 语义 = 读锁内一次成组快照)。
 pub fn flight_log_snapshot(d: &ServiceData) -> FlightLogSnapshot {
+    // 批2: String 镜像层已拆 — CSV 列就地格式化 (语义与 Java formatDataAsStrings
+    // 逐行对齐, java_f 族 = vm_core::format)。State 缺失的病态帧列值 "null"
+    // (对位原 jstr(None) 的 Java null 拼接)。
+    let st = d.s_state.as_ref();
+    let col = |f: &dyn Fn(&State) -> String| st.map_or_else(|| "null".to_string(), f);
+    let na = NASTRING;
+    // %d 列 (负值 → "-"): rpmThrottle/radiator/mixture/throttle
+    let int_na = |v: i32| if v >= 0 { v.to_string() } else { na.to_string() };
+    // SEP 取整 (可读性): (long)SEP/50*2.5, 0 → 1
+    let mut sep_acc = ((d.sep as i64) / 50) as f64;
+    sep_acc *= 2.5;
+    if sep_acc == 0.0 { sep_acc = 1.0; }
+    let sep_rounded = format::java_round(d.sep / sep_acc) as f64 * sep_acc;
     FlightLogSnapshot {
         elapsed_time: d.elapsed_time,
-        throttle: jstr(&d.throttle),
-        ias: jstr(&d.ias),
-        tas: jstr(&d.tas),
-        mach: jstr(&d.m),
-        salt: jstr(&d.salt),
-        watertemp: jstr(&d.watertemp),
-        oiltemp: jstr(&d.oiltemp),
-        vy: jstr(&d.vy),
-        s_sep: jstr(&d.s_sep),
+        throttle: col(&|s| int_na(s.throttle)),
+        ias: col(&|s| s.ias.to_string()),
+        tas: col(&|s| s.tas.to_string()),
+        mach: col(&|s| format::java_f(s.m, 2)),
+        salt: format::java_f(d.alt, 0),
+        watertemp: if d.nwater_temp != -65535.0 {
+            format::java_f(d.nwater_temp, 0)
+        } else {
+            na.to_string()
+        },
+        oiltemp: format::java_f(d.noil_temp, 0),
+        vy: format::java_f(d.n_vy, 1),
+        s_sep: format::java_f(sep_rounded, 0),
         // Java: xs.sState.Ny (State.java:27)
-        ny: d.s_state.as_ref().map(|s| s.ny).unwrap_or(0.0),
-        wx: jstr(&d.wx),
-        total_hp_str: jstr(&d.total_hp_str),
+        ny: st.map(|s| s.ny).unwrap_or(0.0),
+        wx: col(&|s| format::java_f(s.wx.abs(), 0)),
+        total_hp_str: if d.total_hp == 0 { na.to_string() } else { d.total_hp.to_string() },
         // Java: xs.efficiency[0] — 数组/元素 null 时拼接产出 "null"
-        efficiency_0: d
-            .efficiency
-            .as_ref()
-            .and_then(|v| v.first())
-            .cloned()
-            .flatten()
-            .unwrap_or_else(|| "null".to_string()),
-        total_hp_eff_str: jstr(&d.total_hp_eff_str),
-        rpm: jstr(&d.rpm),
+        efficiency_0: st.map_or_else(
+            || "null".to_string(),
+            |s| {
+                let e0 = s.efficiency.first().copied().unwrap_or(0.0);
+                if e0 == 0.0 { na.to_string() } else { format::java_f(e0, 0) }
+            },
+        ),
+        total_hp_eff_str: if d.total_hp_eff >= 100000 {
+            // %.2f of /1e6 — int/float float 除法域再拓宽 (§2.12)
+            format::java_f((d.total_hp_eff as f32 / 1000000.0f32) as f64, 2)
+        } else {
+            d.total_hp_eff.to_string()
+        },
+        rpm: col(&|s| s.rpm.to_string()),
         total_thrust: d.total_thrust,
         acceleration: d.acceleration,
-        rpm_throttle: jstr(&d.rpm_throttle),
-        pitch_0: d
-            .pitch
-            .as_ref()
-            .and_then(|v| v.first())
-            .cloned()
-            .flatten()
-            .unwrap_or_else(|| "null".to_string()),
-        radiator: jstr(&d.radiator),
-        mixture: jstr(&d.mixture),
-        compressorstage: d.s_state.as_ref().map(|s| s.compressorstage).unwrap_or(0),
-        magenato: d.s_state.as_ref().map(|s| s.magenato).unwrap_or(0),
-        manifoldpressure: jstr(&d.manifoldpressure),
-        flaps: jstr(&d.flaps),
-        elevator: d.s_state.as_ref().map(|s| s.elevator).unwrap_or(0),
-        aileron: d.s_state.as_ref().map(|s| s.aileron).unwrap_or(0),
-        rudder: d.s_state.as_ref().map(|s| s.rudder).unwrap_or(0),
-        aoa: jstr(&d.aoa),
-        aos: jstr(&d.aos),
+        rpm_throttle: col(&|s| int_na(s.rpm_throttle)),
+        pitch_0: st.map_or_else(
+            || "null".to_string(),
+            |s| {
+                let p0 = s.pitch.first().copied().unwrap_or(-65535.0);
+                if p0 != -65535.0 { format::java_f(p0, 1) } else { na.to_string() }
+            },
+        ),
+        radiator: col(&|s| int_na(s.radiator)),
+        mixture: col(&|s| int_na(s.mixture)),
+        compressorstage: st.map(|s| s.compressorstage).unwrap_or(0),
+        magenato: st.map(|s| s.magenato).unwrap_or(0),
+        manifoldpressure: st.map_or_else(
+            || "null".to_string(),
+            |s| {
+                if s.manifoldpressure != 1.0 {
+                    if d.check_alt > 0 {
+                        // 英制: 显示 Boost psi (%+.1f)
+                        format::java_f_plus((s.manifoldpressure - 1.0) * 14.696, 1)
+                    } else {
+                        format::java_f(s.manifoldpressure, 2)
+                    }
+                } else {
+                    na.to_string()
+                }
+            },
+        ),
+        flaps: col(&|s| s.flaps.to_string()),
+        elevator: st.map(|s| s.elevator).unwrap_or(0),
+        aileron: st.map(|s| s.aileron).unwrap_or(0),
+        rudder: st.map(|s| s.rudder).unwrap_or(0),
+        aoa: col(&|s| if s.aoa != -65535.0 { format::java_f(s.aoa, 1) } else { na.to_string() }),
+        aos: col(&|s| if s.aos != -65535.0 { format::java_f(s.aos, 1) } else { na.to_string() }),
         alt: d.alt,
         check_alt: d.check_alt,
         ias_v: d.ias_v,
         sep: d.sep,
-        state_wx: d.s_state.as_ref().map(|s| s.wx).unwrap_or(0.0),
+        state_wx: st.map(|s| s.wx).unwrap_or(0.0),
         // Java: init 读 `s.sIndic.type`; sIndic 存在而 type 键缺失 → null →
         // toUpperCase() NPE (Java 崩 openpad 线程), Rust 以空串降级 (PORT 备案:
         // 常态不可达 — 换机/开局时 type 必在; 崩线程无观察面)
@@ -1787,7 +1736,6 @@ pub fn start(service: Service) -> ServiceHandle {
 // Tests
 // =====================================================================
 // calculate 链方法族的跨文件 impl 宿主 (接线调用统一在 calculate 内, 见各模块头注)
-mod format_strings;
 mod methods_engine;
 mod overheat;
 

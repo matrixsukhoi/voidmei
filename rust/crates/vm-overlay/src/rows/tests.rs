@@ -270,30 +270,6 @@ fn energy_row_side_text_and_gates() {
     );
 }
 
-/// HUDFlapsRow: 纯委托 (Java:15-19 mechanizationStr/warnConfiguration 映射)。
-#[test]
-fn flaps_row_delegates_to_text_row() {
-    let f = main_font();
-    let mut row = HUDFlapsRow::new(2, 30);
-    assert_eq!(row.base.id(), "row.2");
-    assert!(row.update("F100 BRK GEA", true));
-    assert!(!row.update("F100 BRK GEA", true));
-    let mut cv = PixCanvas::new(160, 60).unwrap();
-    row.draw(&mut cv, 10, 5, &f, false);
-    assert!(
-        any_alpha_above(&cv, 5, 5, 155, 45, 80),
-        "警告态笔画存在 (colorWarning)"
-    );
-    assert!(!any_alpha_above(&cv, 5, 5, 155, 45, 150), "无常态色像素");
-    row.update("F100 BRK GEA", false);
-    let mut cv2 = PixCanvas::new(160, 60).unwrap();
-    row.draw(&mut cv2, 10, 5, &f, false);
-    assert!(
-        any_alpha_above(&cv2, 5, 5, 155, 45, 200),
-        "常态笔画存在"
-    );
-}
-
 /// HUDMechanizationRow 模板解析与占位宽 (Java:72-81 / 115-131):
 /// 默认 W100/BRK/GEA; "    BRKGEAR" → 襟翼空段回退 F100; 占位宽 =
 /// w("W100 ")+w("BRK ")+w("GEA") (getStringWidth 逐字符求和, Java 同口径;

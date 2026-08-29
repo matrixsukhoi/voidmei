@@ -51,7 +51,7 @@ pub fn resolve_target(target: &str) -> Option<(TargetVar, f64)> {
 pub fn target_value(
     var: &TargetVar,
     mult: f64,
-    s: &dyn crate::ui_model::TelemetrySource,
+    s: &dyn crate::formula::registry::FormulaView,
 ) -> Option<f64> {
     match var {
         TargetVar::Var(vid) => {

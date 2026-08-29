@@ -1714,7 +1714,7 @@ fn reset_handles_preview_values_clears_live_residue() {
         .update_telemetry(10.0, 5.0, -20.0, 30.0, 90.0, Some((20.0, -8.0)));
     let mut v = vm_data::service_fields::ServiceData::default();
     v.mach = 0.72;
-    let v = &v as &dyn vm_core::ui_model::TelemetrySource;
+    let v = &v as &dyn vm_core::formula::registry::FormulaView;
     handles
         .flight_info
         .as_ref()

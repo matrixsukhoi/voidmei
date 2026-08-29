@@ -53,12 +53,6 @@ fn constructor_wiring_matches_java() {
     assert!(d.mapinfo.is_some());
     assert!(d.s_state.is_some());
     assert!(d.s_indic.is_some());
-    // power/pitch/thrust/efficiency = new String[maxEngNum] (null 填充,
-    // 覆盖 resetvaria 的 4 长度 nastring 数组)
-    for arr in [&d.power, &d.pitch, &d.thrust, &d.efficiency] {
-        assert_eq!(arr.as_ref().unwrap().len(), MAX_ENG_NUM);
-        assert!(arr.as_ref().unwrap().iter().all(|e| e.is_none()));
-    }
     // resetvaria 关键初值 (Java L1528-1660)
     assert_eq!(d.loc, Some([0.0; 2]));
     assert_eq!(d.dir, Some([0.0; 2]));
@@ -67,34 +61,15 @@ fn constructor_wiring_matches_java() {
     assert_eq!(d.i_eng_type, ENGINE_TYPE_UNKNOWN);
     assert_eq!(d.fueltime, i64::MAX, "Long.MAX_VALUE");
     assert_eq!(d.maximum_thr_rpm, 1.0);
-    assert_eq!(d.iastotascoff, 1.0);
     // Java: Float.MAX_VALUE 拓宽 double
     assert_eq!(d.flap_allow_speed, f32::MAX as f64);
     assert_eq!(d.flap_allow_angle, f32::MAX as f64);
     assert_eq!(d.cur_load_min_work_time, 99999000.0);
-    assert_eq!(d.svalid.as_deref(), Some("false"));
-    // 字符串族 = nastring
-    assert_eq!(d.fueltime_str.as_deref(), Some("-"));
-    assert_eq!(d.ias.as_deref(), Some("-"));
-    assert_eq!(d.compass.as_deref(), Some("-"));
-    // 仅构造的三个 SMA 有值 (sum/energyDiff/fuelTime); calc/diff/sep/turnrds
-    // 四槽保持 None (状态双主裁决: 真人在 Deriver)
-    assert!(d.sum_speed_sma.is_some());
-    assert!(d.energy_diff_sma.is_some());
     assert!(d.fuel_time_sma.is_some());
-    assert!(d.calc_speed_sma.is_none());
-    assert!(d.diff_speed_sma.is_none());
-    assert!(d.sep_sma.is_none());
-    assert!(d.turnrds_sma.is_none());
-    // 燃油窗口 (1000/50=20) / fuelTimeSMA 窗口 4
-    // (SMA 无窗口查询接口, 以行为验证: sum 首值预热段均值语义)
-    // FuelCheckMili/lastMapPollTimeMs/lastMainLoopTimeMs ≈ 构造时刻
+    // lastMapPollTimeMs/lastMainLoopTimeMs ≈ 构造时刻 (原 FuelCheckMili 字段已删)
     let now = current_time_millis();
-    assert!((d.fuel_check_mili - now).abs() < 60_000);
-    // PORT: Java 构造序对 fuel_check_mili 是二次独立 System.currentTimeMillis
-    // (跨毫秒边界差 1ms 属正常语义, 断言容忍 ±1, 消除 flaky)
-    assert!((d.last_map_poll_time_ms - d.fuel_check_mili).abs() <= 1);
-    assert!((d.last_main_loop_time_ms - d.fuel_check_mili).abs() <= 1);
+    assert!((d.last_map_poll_time_ms - now).abs() < 60_000);
+    assert!((d.last_main_loop_time_ms - now).abs() < 60_000);
     // R2 守卫: fresh manager 的 current = UNRESOLVED → nitro 族归零
     assert_eq!(d.nitrokg, 0.0);
     assert!(d.fm.blkx.is_none());
@@ -701,14 +676,15 @@ fn flight_log_tick_writes_rows_and_close_flushes() {
         svc.flight_log_tick();
         let rows = std::fs::read_to_string(&file_name).unwrap().lines().count();
         assert_eq!(rows, 2, "首 tick flush 一行, 其余在 BufferedWriter 内存");
-        // 快照映射: elapsed 120000ms→2.0 分钟列 + String 列为 resetvaria 的 "-" 初值
+        // 快照映射: elapsed 120000ms→2.0 分钟列; String 列就地格式化自数值
+        // (批2 拆镜像层后不再有 "-" 初值语义, init 态数值 0 → "0")
         let line1 = std::fs::read_to_string(&file_name)
             .unwrap()
             .lines()
             .nth(1)
             .unwrap()
             .to_string();
-        assert!(line1.starts_with("2.0,-,"), "elapsed/ias 列映射: {line1}");
+        assert!(line1.starts_with("2.0,0,"), "elapsed/ias 列映射: {line1}");
         assert_eq!(line1.split(',').count(), 32, "31 列 + 尾随逗号: {line1}");
 
         // analyze 链活体: fA 落地 (stage 15) + 活读 ServiceData (thrust 3400)
@@ -914,7 +890,7 @@ fn w2_deriver_takeover_bitexact_oracle() {
 /// 消费面 unwrap_or(0) 对位 Java 无 FM 显示 0.00)
 #[test]
 fn panel_targets_via_short_names() {
-    use vm_core::ui_model::TelemetrySource as _;
+    use vm_core::formula::registry::FormulaView as _;
     let mut svc = new_service();
     for i in 0..20 {
         {

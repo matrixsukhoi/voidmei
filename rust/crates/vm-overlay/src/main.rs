@@ -172,27 +172,35 @@ fn cmd_render_png(out: &str, args: &[String]) -> Result<(), String> {
     let mut owned_values: Vec<String> = Vec::new();
     let texts: Vec<FieldText> = if let Some(vpath) = opt_str(args, "--values") {
         let values = parse_values_file(vpath)?;
+        // 回灌视图: getter 名 → 值 (谓词型 Cond 经 var_value 短名查回灌表;
+        // 短名 = getter 名小写去 get 前缀的近似不可靠, 直接短名再查一轮)
+        struct ValuesView<'a>(&'a std::collections::HashMap<String, f64>);
+        impl vm_core::formula::registry::FormulaView for ValuesView<'_> {
+            fn var_value(&self, name: &str) -> Option<f64> {
+                self.0.get(name).copied()
+            }
+        }
+        let view = ValuesView(&values);
         // 先记 (label, unit, 值索引), 循环后统一借阅避免借用冲突
         let mut idxs: Vec<(&'static str, &'static str, usize)> = Vec::new();
         for f in fields::FIELDS {
-            let raw = match values.get(f.source.getter()) {
+            let raw = match values.get(f.getter) {
                 Some(v) => *v,
                 None => continue, // 未提供的字段不显示 (与 Java 一致)
             };
             // visible-when
-            if let Some(cond) = f.visible_when {
-                if !cond.eval(raw) {
+            if let Some(cond) = &f.visible_when {
+                if !cond.eval(&view, raw) {
                     continue;
                 }
             }
-            // 可变翼显示 ×100
-            let v = if f.source == fields::FieldSource::WingSweepMul100 {
-                raw * 100.0
-            } else {
-                raw
-            };
-            let text = match f.na_when {
-                Some(cond) if cond.eval(v) => "-".to_string(),
+            // 可变翼显示 ×100 (cfg 乘数表达式在 source 里)
+            let mult = vm_core::formula::resolve_target(f.source)
+                .map(|(_, m)| m)
+                .unwrap_or(1.0);
+            let v = raw * mult;
+            let text = match &f.na_when {
+                Some(cond) if cond.eval(&view, v) => "-".to_string(),
                 _ => format::format(v, f.precision),
             };
             owned_values.push(text);
@@ -303,8 +311,8 @@ fn cmd_log_values() -> Result<(), String> {
     let mut out = String::from("# voidmei-overlay live frame (getter=value)\n");
     for f in fields::FIELDS {
         // 取数走短名 (单名制), 输出键保持 Java getter 名 (values.txt 跨端回灌格式)
-        if let Some(val) = flight_value(&*d, f.source.target()) {
-            out.push_str(&format!("{}={:.6}\n", f.source.getter(), val));
+        if let Some(val) = flight_value(&*d, f.source) {
+            out.push_str(&format!("{}={:.6}\n", f.getter, val));
         }
     }
     print!("{}", out);

@@ -32,7 +32,8 @@ use vm_core::format;
 use vm_core::lang::Lang;
 // EngineControlOverlay.java:50 DEFAULT_REFRESH_INTERVAL 的既有移植 (单一来源, 勿重复定义)
 use vm_core::ui_constants::ENGINE_DEFAULT_REFRESH_MS;
-use vm_core::ui_model::{DataField, TelemetrySource};
+use vm_core::formula::registry::FormulaView;
+use vm_core::ui_model::DataField;
 
 // ---------------------------------------------------------------------------
 // 公共像素基元 (Java Graphics2D 语义; 与 gauges_bars 同源规则的局部实现)
@@ -174,63 +175,6 @@ fn text_shaded(
 ) {
     cv.draw_text(font, x + 1, y + 1, s, colors().shade_shape, aa);
     cv.draw_text(font, x, y, s, c, aa);
-}
-
-// ---------------------------------------------------------------------------
-// VisExpr: :visible-when / :na-when 表达式的常量表快照形态
-// ---------------------------------------------------------------------------
-
-/// ui_layout.cfg "动力信息" 段实际用到的表达式算子闭包 (求值语义与
-/// vm_core::visibility_expression 的 VisibilityExpressionEvaluator 逐算子一致:
-/// = / != 带 0.0001 容差; 方法调用走 TelemetrySource)。
-/// 完整 SExp 求值器持 `&dyn TelemetrySource` 借用无法进常量表, 故按 fields.rs
-/// (POC) 先例把本 panel 用到的表达式树快照为枚举。
-#[derive(Debug, Clone, PartialEq)]
-pub enum VisExpr {
-    /// (isJetEngine)
-    IsJetEngine,
-    /// (isPistonEngine)
-    IsPistonEngine,
-    /// (hasWep)
-    HasWep,
-    /// (hasBooster)
-    HasBooster,
-    /// (> value N)
-    Gt(f64),
-    /// (>= value N)
-    Gte(f64),
-    /// (< value N)
-    Lt(f64),
-    /// (<= value N)
-    Lte(f64),
-    /// (= value N) — |value-N| < 0.0001 视为相等 (Java 求值器容差)
-    Eq(f64),
-    /// (!= value N) — |value-N| >= 0.0001 (Java 求值器容差边界)
-    NotEq(f64),
-    /// (not e) — 子树为 const 提升的静态引用 (常量表可构造; Box::new 非 const)
-    Not(&'static VisExpr),
-    /// (and a b)
-    And(&'static VisExpr, &'static VisExpr),
-}
-
-impl VisExpr {
-    /// 求值; value 为字段当前值 (对应 Java evaluator.evaluate(value))
-    pub fn eval(&self, s: &dyn TelemetrySource, value: f64) -> bool {
-        match self {
-            VisExpr::IsJetEngine => s.var_value("is_jet_engine").unwrap_or(0.0) != 0.0,
-            VisExpr::IsPistonEngine => s.var_value("is_piston_engine").unwrap_or(0.0) != 0.0,
-            VisExpr::HasWep => s.var_value("has_wep").unwrap_or(0.0) != 0.0,
-            VisExpr::HasBooster => s.var_value("has_booster").unwrap_or(0.0) != 0.0,
-            VisExpr::Gt(n) => value > *n,
-            VisExpr::Gte(n) => value >= *n,
-            VisExpr::Lt(n) => value < *n,
-            VisExpr::Lte(n) => value <= *n,
-            VisExpr::Eq(n) => (value - n).abs() < 0.0001,
-            VisExpr::NotEq(n) => (value - n).abs() >= 0.0001,
-            VisExpr::Not(e) => !e.eval(s, value),
-            VisExpr::And(a, b) => a.eval(s, value) && b.eval(s, value),
-        }
-    }
 }
 
 // ---------------------------------------------------------------------------
@@ -788,245 +732,8 @@ impl MarkedGauge {
 // PowerInfoOverlay (ui/overlay/PowerInfoOverlay.java) — 动力信息 BOS 字段网格
 // ---------------------------------------------------------------------------
 
-/// 字段取值来源 (ui_layout.cfg :target 的 getter 名映射; 仅 "getFuelTimeMili * 0.001"
-/// 一条带算术, 快照为专用变体)
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PowerSource {
-    HorsePower,
-    Thrust,
-    Rpm,
-    Pitch,
-    PropEfficiency,
-    EffHp,
-    ManifoldPressureDisplay,
-    PowerPercent,
-    MassFuel,
-    TotalWeight,
-    /// "getFuelTimeMili * 0.001" (cfg 原样表达式)
-    FuelTimeMiliMul001,
-    WepKg,
-    WepTime,
-    BoosterFuelKg,
-    BoosterFuelPercent,
-    WaterTemp,
-    OilTemp,
-    HeatTolerance,
-    EngineResponse,
-}
-
-impl PowerSource {
-    /// 统一变量短名 (W10 单名制: registry/公式槽直查, Java getter 名退场)
-    pub fn getter(self) -> &'static str {
-        match self {
-            PowerSource::HorsePower => "horse_power",
-            PowerSource::Thrust => "thrust",
-            PowerSource::Rpm => "rpm",
-            PowerSource::Pitch => "prop_pitch",
-            PowerSource::PropEfficiency => "prop_efficiency",
-            PowerSource::EffHp => "eff_hp",
-            PowerSource::ManifoldPressureDisplay => "manifold_pressure_display",
-            PowerSource::PowerPercent => "power_percent",
-            PowerSource::MassFuel => "mass_fuel",
-            PowerSource::TotalWeight => "total_weight",
-            PowerSource::FuelTimeMiliMul001 => "fuel_time_mili",
-            PowerSource::WepKg => "wep_kg",
-            PowerSource::WepTime => "wep_time",
-            PowerSource::BoosterFuelKg => "booster_fuel_kg",
-            PowerSource::BoosterFuelPercent => "booster_fuel_percent",
-            PowerSource::WaterTemp => "water_temp",
-            PowerSource::OilTemp => "oil_temp",
-            PowerSource::HeatTolerance => "heat_tolerance",
-            PowerSource::EngineResponse => "engine_response",
-        }
-    }
-
-    /// 统一解析键 (乘数语法): 交 resolve_target, 公式名/短名皆可
-    fn getter_expr(self) -> &'static str {
-        match self {
-            PowerSource::FuelTimeMiliMul001 => "fuel_time_mili * 0.001",
-            other => other.getter(),
-        }
-    }
-
-}
-
-/// :unit-source / :precision-source 动态通道 (cfg 全表仅进气压一条使用)
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DynSource {
-    /// "getManifoldPressureDisplayUnit" / "...Precision"
-    ManifoldDisplay,
-}
-
-impl DynSource {
-    /// 动态单位 (Java unitSupplier) — String 域, 直调 trait default 化 getter
-    fn unit(self, s: &dyn TelemetrySource) -> String {
-        match self {
-            DynSource::ManifoldDisplay => s.get_manifold_pressure_display_unit(),
-        }
-    }
-
-    /// 动态精度 (Java precisionSupplier) — 经 var_value 桥 (Session is_imperial)
-    fn precision(self, s: &dyn TelemetrySource) -> i32 {
-        match self {
-            DynSource::ManifoldDisplay => s.get_manifold_pressure_display_precision(),
-        }
-    }
-}
-
-/// :format 自定义格式 (cfg 仅 "TIME_MM_SS")
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PowerFormat {
-    Plain,
-    /// TIME_MM_SS → FastNumberFormatter.formatTime
-    TimeMmSs,
-}
-
-/// 单个数据行定义 (ui_layout.cfg panel "动力信息" 性能数据组的 (item :type data) 行)
-#[derive(Debug, Clone, PartialEq)]
-pub struct PowerFieldDef {
-    /// :target-name (全角/双空格对齐原样保留)
-    pub label: &'static str,
-    pub unit: &'static str,
-    /// :preview-value 原样字符串 (preview 恒可见, 不经格式化)
-    pub preview_value: &'static str,
-    pub source: PowerSource,
-    /// :precision (缺省 0)
-    pub precision: u8,
-    pub format: PowerFormat,
-    pub visible_when: Option<VisExpr>,
-    pub na_when: Option<VisExpr>,
-    /// :unit-source
-    pub unit_source: Option<DynSource>,
-    /// :precision-source
-    pub precision_source: Option<DynSource>,
-}
-
-/// ui_layout.cfg L151-170 "性能数据" 组逐行快照 (19 项, 顺序一致)
-pub const POWER_FIELD_DEFS: &[PowerFieldDef] = &[
-    PowerFieldDef {
-        label: "功  率", unit: "Hp", preview_value: "1200",
-        source: PowerSource::HorsePower, precision: 0, format: PowerFormat::Plain,
-        visible_when: Some(VisExpr::Not(&VisExpr::IsJetEngine)),
-        na_when: Some(VisExpr::Lte(0.0)),
-        unit_source: None, precision_source: None,
-    },
-    PowerFieldDef {
-        label: "推  力", unit: "Kgf", preview_value: "1000",
-        source: PowerSource::Thrust, precision: 0, format: PowerFormat::Plain,
-        visible_when: None, na_when: None,
-        unit_source: None, precision_source: None,
-    },
-    PowerFieldDef {
-        label: "转  速", unit: "Rpm", preview_value: "2400",
-        source: PowerSource::Rpm, precision: 0, format: PowerFormat::Plain,
-        visible_when: None, na_when: None,
-        unit_source: None, precision_source: None,
-    },
-    PowerFieldDef {
-        label: "桨距角", unit: "Deg", preview_value: "55",
-        source: PowerSource::Pitch, precision: 1, format: PowerFormat::Plain,
-        visible_when: Some(VisExpr::Not(&VisExpr::IsJetEngine)),
-        na_when: Some(VisExpr::Eq(-65535.0)),
-        unit_source: None, precision_source: None,
-    },
-    PowerFieldDef {
-        label: "桨效率", unit: "%", preview_value: "85",
-        source: PowerSource::PropEfficiency, precision: 1, format: PowerFormat::Plain,
-        visible_when: Some(VisExpr::Not(&VisExpr::IsJetEngine)),
-        na_when: Some(VisExpr::Lte(0.0)),
-        unit_source: None, precision_source: None,
-    },
-    PowerFieldDef {
-        label: "实功率", unit: "Hp", preview_value: "1100",
-        source: PowerSource::EffHp, precision: 0, format: PowerFormat::Plain,
-        visible_when: Some(VisExpr::Not(&VisExpr::IsJetEngine)),
-        na_when: Some(VisExpr::Lte(0.0)),
-        unit_source: None, precision_source: None,
-    },
-    PowerFieldDef {
-        label: "进气压", unit: "Ata", preview_value: "1.2",
-        source: PowerSource::ManifoldPressureDisplay, precision: 2, format: PowerFormat::Plain,
-        visible_when: Some(VisExpr::And(&VisExpr::IsPistonEngine, &VisExpr::NotEq(1.0))),
-        na_when: None,
-        unit_source: Some(DynSource::ManifoldDisplay),
-        precision_source: Some(DynSource::ManifoldDisplay),
-    },
-    PowerFieldDef {
-        label: "动力量", unit: "%", preview_value: "95",
-        source: PowerSource::PowerPercent, precision: 0, format: PowerFormat::Plain,
-        visible_when: None, na_when: None,
-        unit_source: None, precision_source: None,
-    },
-    PowerFieldDef {
-        label: "燃油量", unit: "Kg", preview_value: "500",
-        source: PowerSource::MassFuel, precision: 0, format: PowerFormat::Plain,
-        visible_when: None, na_when: None,
-        unit_source: None, precision_source: None,
-    },
-    PowerFieldDef {
-        label: "总  重", unit: "Kg", preview_value: "3500",
-        source: PowerSource::TotalWeight, precision: 0, format: PowerFormat::Plain,
-        visible_when: Some(VisExpr::Gt(0.0)), na_when: None,
-        unit_source: None, precision_source: None,
-    },
-    PowerFieldDef {
-        label: "燃油时", unit: "s", preview_value: "45",
-        source: PowerSource::FuelTimeMiliMul001, precision: 0, format: PowerFormat::TimeMmSs,
-        visible_when: None, na_when: None,
-        unit_source: None, precision_source: None,
-    },
-    PowerFieldDef {
-        label: "加力量", unit: "Kg", preview_value: "50",
-        source: PowerSource::WepKg, precision: 0, format: PowerFormat::Plain,
-        visible_when: Some(VisExpr::HasWep), na_when: None,
-        unit_source: None, precision_source: None,
-    },
-    PowerFieldDef {
-        label: "加力时", unit: "s", preview_value: "300",
-        source: PowerSource::WepTime, precision: 0, format: PowerFormat::TimeMmSs,
-        visible_when: Some(VisExpr::And(&VisExpr::HasWep, &VisExpr::Gt(0.0))),
-        na_when: None,
-        unit_source: None, precision_source: None,
-    },
-    PowerFieldDef {
-        label: "助推燃料", unit: "Kg", preview_value: "850",
-        source: PowerSource::BoosterFuelKg, precision: 1, format: PowerFormat::Plain,
-        visible_when: Some(VisExpr::HasBooster), na_when: None,
-        unit_source: None, precision_source: None,
-    },
-    PowerFieldDef {
-        label: "助推余量", unit: "%", preview_value: "100",
-        source: PowerSource::BoosterFuelPercent, precision: 0, format: PowerFormat::Plain,
-        visible_when: Some(VisExpr::HasBooster), na_when: None,
-        unit_source: None, precision_source: None,
-    },
-    PowerFieldDef {
-        label: "温  度", unit: "C", preview_value: "90",
-        source: PowerSource::WaterTemp, precision: 0, format: PowerFormat::Plain,
-        visible_when: None,
-        na_when: Some(VisExpr::Lte(-65535.0)),
-        unit_source: None, precision_source: None,
-    },
-    PowerFieldDef {
-        label: "油  温", unit: "C", preview_value: "80",
-        source: PowerSource::OilTemp, precision: 0, format: PowerFormat::Plain,
-        visible_when: None, na_when: None,
-        unit_source: None, precision_source: None,
-    },
-    PowerFieldDef {
-        label: "耐热时", unit: "S", preview_value: "60",
-        source: PowerSource::HeatTolerance, precision: 0, format: PowerFormat::Plain,
-        visible_when: None,
-        na_when: Some(VisExpr::Gt(90000.0)),
-        unit_source: None, precision_source: None,
-    },
-    PowerFieldDef {
-        label: "响应速", unit: "%/s", preview_value: "10",
-        source: PowerSource::EngineResponse, precision: 0, format: PowerFormat::Plain,
-        visible_when: None, na_when: None,
-        unit_source: None, precision_source: None,
-    },
-];
+// 字段表 (PowerSource/DynSource/PowerFormat/POWER_FIELD_DEFS) 已批3 统一收编
+// vm_core::fields (FieldDef/Cond + POWER_FIELD_DEFS); 本文件只持状态与渲染。
 
 /// Throttling to prevent EDT task accumulation (FieldOverlay.java:37-38
 /// REFRESH_INTERVAL_MS)
@@ -1053,14 +760,14 @@ impl PowerInfoState {
     /// currentValue = previewValue 原样 (不经 %5s), hideWhenNA=true (EngineInfoConfig
     /// populateFromGroup 固定传 true), hideWhenZero=false (cfg 无 :hide-when-zero)
     pub fn new() -> Self {
-        let fields = POWER_FIELD_DEFS
+        let fields = vm_core::fields::POWER_FIELD_DEFS
             .iter()
             .map(|def| {
                 let mut f = DataField::new(
-                    def.source.getter(),
+                    def.getter,
                     def.label,
                     def.unit,
-                    def.source.getter(), // configKey = property (EngineInfoConfig.populateFromGroup)
+                    def.getter, // configKey = property (EngineInfoConfig.populateFromGroup)
                     true,
                     false,
                 );
@@ -1094,31 +801,34 @@ impl PowerInfoState {
     /// TIME_MM_SS → formatTime, 其余 format(val, precision))。
     /// PORT: System.currentTimeMillis 由调用方注入 now_ms (field2 先例, 便于测试);
     /// 返回值 = 是否执行了更新 (false = 节流跳过, Java 原方法 void, 宿主可据此省重绘)
-    pub fn update(&mut self, now_ms: i64, s: &dyn TelemetrySource) -> bool {
+    pub fn update(&mut self, now_ms: i64, s: &dyn FormulaView) -> bool {
         // Throttling prevents EDT task accumulation
         if now_ms - self.last_refresh_time < FIELD_OVERLAY_REFRESH_INTERVAL_MS {
             return false; // Skip this update, too soon
         }
         self.last_refresh_time = now_ms;
-        for (def, field) in POWER_FIELD_DEFS.iter().zip(self.fields.iter_mut()) {
-            // 1. 取值 (visibilitySupplier 求值需要) — W4: 统一解析优先,
-            //    静态臂兜底 (行为等价; :target 公式名通路就绪)
-            // W7: 统一解析是唯一取值路径 (原 19 臂 fallback 已死代码删除)
-            let val = vm_core::formula::resolve_target(def.source.getter_expr())
+        for (def, field) in vm_core::fields::POWER_FIELD_DEFS.iter().zip(self.fields.iter_mut()) {
+            // 1. 取值 (visibilitySupplier 求值需要) — 统一解析 (短名 | 公式名 | 乘数)
+            let val = vm_core::formula::resolve_target(def.source)
                 .and_then(|(var, mult)| vm_core::formula::target_value(&var, mult, s))
                 .unwrap_or(0.0);
             // 2. 可见性: 无 :visible-when 恒可见 (PowerInfoOverlay.java:147)
             field.visible = def.visible_when.as_ref().is_none_or(|e| e.eval(s, val));
-            // 3. 动态精度 (仅变化时写)
-            if let Some(ds) = def.precision_source {
-                let new_precision = ds.precision(s);
+            // 3+4. 动态精度/单位 (cfg 全表仅进气压 imperial_display 一条:
+            //      英制 "P/x.x''"+1 位 / 公制 "Ata"+2 位; 仅变化时写)
+            if def.imperial_display {
+                let imperial = s.var_value("is_imperial").unwrap_or(0.0) > 0.0;
+                let new_precision = if imperial { 1 } else { 2 };
                 if new_precision != field.precision {
                     field.precision = new_precision;
                 }
-            }
-            // 4. 动态单位 (仅变化时写)
-            if let Some(ds) = def.unit_source {
-                let new_unit = ds.unit(s);
+                let new_unit = if imperial {
+                    // Java unitSupplier: String.format("P/%.1f''", manifold*760/25.4)
+                    let inhg = s.var_value("manifold_pressure").unwrap_or(0.0) * 760.0 / 25.4;
+                    format!("P/{}''", format::format(inhg, 1))
+                } else {
+                    "Ata".to_string()
+                };
                 if new_unit != field.unit {
                     field.set_unit(&new_unit);
                 }
@@ -1134,13 +844,10 @@ impl PowerInfoState {
                         continue;
                     }
                 }
-                match def.format {
-                    PowerFormat::TimeMmSs => {
-                        field.buffer = format::format_time(val);
-                    }
-                    PowerFormat::Plain => {
-                        field.buffer = format::format(val, field.precision as u8);
-                    }
+                if def.time_mm_ss {
+                    field.buffer = format::format_time(val);
+                } else {
+                    field.buffer = format::format(val, field.precision as u8);
                 }
                 // 缓冲内容为 ASCII 数字域, 字符数 = UTF-16 码元数 (§2.1)
                 field.length = field.buffer.chars().count() as i32;
@@ -1512,7 +1219,7 @@ impl EngineControlState {
     pub fn update(
         &mut self,
         now_ms: i64,
-        s: &dyn TelemetrySource,
+        s: &dyn FormulaView,
         payload: &EventPayload,
         compressor_stages: Option<i32>,
     ) -> bool {
@@ -1586,7 +1293,7 @@ impl EngineControlState {
     }
 
     /// updateGaugesZeroGC (EngineControlOverlay.java:470-545)
-    fn update_gauges_zero_gc(&mut self, s: &dyn TelemetrySource) {
+    fn update_gauges_zero_gc(&mut self, s: &dyn FormulaView) {
         for g in &mut self.gauges {
             // 隐藏字段短路; COMPRESSOR/MIXTURE/PITCH 持续评估 (数据可能回归)
             if !g.visible
@@ -1829,7 +1536,7 @@ impl GearFlapsState {
     /// 状态文本 + 襟翼像素/文本。
     /// PORT: System.currentTimeMillis 由调用方注入 now_ms (field2 先例); 返回
     /// false = 节流跳过 (Java 原方法 void, 宿主可据此省重绘)
-    pub fn update_tick(&mut self, now_ms: i64, lang: &Lang, s: &dyn TelemetrySource) -> bool {
+    pub fn update_tick(&mut self, now_ms: i64, lang: &Lang, s: &dyn FormulaView) -> bool {
         // Throttling prevents EDT task accumulation
         if now_ms - self.last_refresh_time < GEAR_FLAPS_REFRESH_INTERVAL_MS {
             return false; // Skip this update, too soon

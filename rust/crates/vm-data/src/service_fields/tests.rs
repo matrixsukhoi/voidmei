@@ -7,7 +7,7 @@ use super::*;
 #[test]
 fn var_value_null_state_defaults() {
     let d = ServiceData::default();
-    use vm_core::ui_model::TelemetrySource as _;
+    use vm_core::formula::registry::FormulaView as _;
     assert_eq!(d.var_value("ias"), None, "无 state → None (NaN 隔离)");
 }
 
@@ -17,7 +17,7 @@ fn var_value_state_passthrough() {
     d.s_state = Some(vm_core::parser::State::default());
     d.s_state.as_mut().unwrap().ias = 474;
     d.s_indic = Some(vm_core::parser::Indicators::default());
-    use vm_core::ui_model::TelemetrySource as _;
+    use vm_core::formula::registry::FormulaView as _;
     assert_eq!(d.var_value("ias"), Some(474.0));
     assert_eq!(d.var_value("getIAS"), None, "单名制: getter 名不进内核 (W10)");
 }
@@ -28,7 +28,7 @@ fn var_value_wing_sweep_sentinel_zero() {
     d.s_indic = Some(vm_core::parser::Indicators::default());
     use vm_core::string_helper::F_INVALID;
     d.s_indic.as_mut().unwrap().wsweep_indicator = F_INVALID;
-    use vm_core::ui_model::TelemetrySource as _;
+    use vm_core::formula::registry::FormulaView as _;
     assert_eq!(d.var_value("wing_sweep"), Some(0.0), "哨兵归零");
     assert_eq!(d.var_value("wing_sweep_valid"), Some(0.0));
 }
@@ -50,7 +50,7 @@ fn var_value_formula_slot_and_single_name() {
     d.formula_slots = mgr.current().slots_arc();
     let raw = vm_core::formula::registry::RawInputs::default();
     d.formula_values = mgr.eval_frame(&raw, &Default::default(), &Default::default(), 0);
-    use vm_core::ui_model::TelemetrySource as _;
+    use vm_core::formula::registry::FormulaView as _;
     assert_eq!(d.var_value("mach"), Some(0.72));
     assert_eq!(d.var_value("getMach"), None, "getter 名不可达 (单名制, 边界外禁用)");
 }
@@ -64,7 +64,7 @@ fn var_value_booster_wep_fuel_registry_vars() {
     s.mfuel_1 = 300.0;
     s.mfuel0_1 = 400.0;
     d.s_state = Some(s);
-    use vm_core::ui_model::TelemetrySource as _;
+    use vm_core::formula::registry::FormulaView as _;
     assert_eq!(d.var_value("booster_fuel_kg"), Some(300.0));
     assert_eq!(d.var_value("getBoosterFuelKg"), None, "单名制: getter 名不进内核");
     assert_eq!(d.var_value("booster_fuel_percent"), Some(75.0));

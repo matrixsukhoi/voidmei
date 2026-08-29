@@ -123,7 +123,7 @@ fn java_format(tpl: &str, args: &[FmtArg]) -> String {
                     // Java: 精度由模板说了算 (%.Mf); String.format 语义 =
                     // 最短往返十进制 HALF_UP (java_f, 非 FastNumberFormatter 的
                     // 二进制半舍入 — 2.675 → "2.68" oracle 钉死)
-                    out.push_str(&crate::hud_calculator::java_f(*v, prec as usize));
+                    out.push_str(&crate::format::java_f(*v, prec as usize));
                 } else {
                     panic!("java_format: %f 收到非 F 实参 (模板 {tpl})");
                 }
