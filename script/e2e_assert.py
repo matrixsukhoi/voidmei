@@ -9,7 +9,8 @@ VoidMei E2E 日志断言器 (纯标准库)
   A1 FM 加载风暴: FM 全量解析日志 (新架构 "Parsed FM file '<机型>' in N ms",
      旧架构 "Lazily Loading Flight Model for: <机型>") 每机型 > 2 次/分钟
   A2 异常堆栈刷屏: 同一异常首行 (类名+消息) 重复 > 5 次
-  A3 FM 缺失提示: 缺失场景下应出现 >= 1 次, 且同类提示 <= 3 次/分钟 (降级不刷屏)
+  A3 FM 缺失提示: 缺失场景下应出现 >= 1 次, 且同机型连续 MISSING (无 READY 穿插)
+     <= 3 次/分钟 (降级不刷屏; 换机清负缓存后重试属正确行为, 见 run_assertions 注)
   A5 日志总量: 总行数 > 2500 行/分钟 (单模板互不重复的海量爆炸兜底;
      历史三档基线 s2=74/s5=107/畸形692 行/分钟, 峰值 3.6x 余量)
   A6 WARN/ERROR 速率: > 30 行/分钟 (错误场景降级也不该告警刷屏; 实测三档均 0)
@@ -61,6 +62,9 @@ RE_EXC_FIRST = re.compile(r"^([\w.$]+(?:Exception|Error))(?::\s*(.*))?$")
 RE_MISSING_FM = re.compile(
     r"FM文件不存在|FM文件缺失|FM数据缺失|FM解析异常|FM文件加载失败|加载失败|解析失败"
     r"|FMHandle\[(?:MISSING|CORRUPT)")
+
+# FMManager 广播的句柄状态串 (A3 连续-run 口径: 状态 + 机型)
+RE_FM_STATE = re.compile(r"FMHandle\[(MISSING|CORRUPT|READY)\s+(\S+?)\]")
 
 # 时间窗口下限 (分钟): 日志极短时避免 1 次/0.01min 的除零式误报
 MIN_WINDOW_MIN = 0.1
@@ -130,6 +134,7 @@ def analyze(lines, duration_s: float):
     exc_first = Counter()
     stats.setdefault("warn_err_lines", 0)
     missing_tpl = Counter()
+    run_missing = {}
     msg_tpl = Counter()
 
     for line in lines:
@@ -168,6 +173,16 @@ def analyze(lines, duration_s: float):
         # A3: FM 缺失提示 (按归一化模板分组)
         if RE_MISSING_FM.search(msg):
             missing_tpl[normalize_template(msg)] += 1
+        # 负缓存语义的刷屏口径: 只有**同机型连续 MISSING (无 READY 穿插)**
+        # 才是负缓存失效刷屏; 换机 (任意机型 READY 清负缓存) 后对原机型
+        # 重试再 MISSING 属正确行为 (e2e 双 identify 时序: selectedFM0 默认
+        # 机与 live 机型的 READY/MISSING 交错不应误判)。
+        # 注意 READY 行不匹配 RE_MISSING_FM, 状态扫描须在块外逐行执行
+        m = RE_FM_STATE.search(msg)
+        if m and m.group(1) in ("MISSING", "CORRUPT"):
+            run_missing[m.group(2)] = run_missing.get(m.group(2), 0) + 1
+        elif m and m.group(1) == "READY":
+            run_missing.clear()
 
         # A4: 任意消息模板刷屏 (排除异常首行与 "\tat " 堆栈帧行, 避免与 A2 双重计数)
         if msg and not RE_EXC_FIRST.match(line.strip()) and not line.lstrip().startswith("at "):
@@ -183,6 +198,8 @@ def analyze(lines, duration_s: float):
     stats["exception_first_lines"] = dict(exc_first)
     stats["missing_fm_total"] = sum(missing_tpl.values())
     stats["missing_fm_templates"] = dict(missing_tpl)
+    # 同机型连续 MISSING (无 READY 穿插) 的最大 run — A3 判定用
+    stats["missing_run_max"] = max(run_missing.values(), default=0)
     stats["message_templates"] = dict(msg_tpl.most_common(10))
     return stats
 
@@ -213,22 +230,26 @@ def run_assertions(stats, allow_missing_notify: bool):
                   + ("; 超标: %s" % bad_exc if bad_exc else ""),
     })
 
-    # ---- A3: FM 缺失提示 >= 1 (除非 --allow-missing-notify) 且同类 <= 3 次/分钟 ----
+    # ---- A3: FM 缺失提示 >= 1 (除非 --allow-missing-notify) 且同机型连续
+    #      MISSING (无 READY 穿插) <= 3 次/分钟 ----
+    # 口径修正 (2026-08-29): 曾按模板总计数, 把 "换机清负缓存后对原机型重试
+    # 再 MISSING" (e2e 双 identify 时序的正常交错) 误判为刷屏; 负缓存失效的
+    # 真信号是同机型连续 MISSING 无限重试 — 按 run 计数
     total = stats["missing_fm_total"]
-    bad_tpl = {k: c for k, c in stats["missing_fm_templates"].items()
-               if c > 3.0 * wmin + 0.5}
+    run_max = stats.get("missing_run_max", 0)
+    bad_run = run_max > 3.0 * wmin + 0.5
     if allow_missing_notify:
-        a3_pass = not bad_tpl
-        a3_name = "FM 缺失提示不刷屏 (同类 <= 3 次/分钟; 允许 0 次)"
+        a3_pass = not bad_run
+        a3_name = "FM 缺失提示不刷屏 (同机型连续 <= 3 次/分钟; 允许 0 次)"
     else:
-        a3_pass = (total >= 1) and not bad_tpl
-        a3_name = "FM 缺失提示 (>= 1 次且同类 <= 3 次/分钟)"
+        a3_pass = (total >= 1) and not bad_run
+        a3_name = "FM 缺失提示 (>= 1 次且同机型连续 <= 3 次/分钟)"
     results.append({
         "id": "A3", "name": a3_name,
         "pass": a3_pass,
-        "detail": "缺失提示共 %d 次, 模板: %s%s" % (
-            total, stats["missing_fm_templates"] or "(无)",
-            "; 超标模板: %s" % bad_tpl if bad_tpl else ""),
+        "detail": "缺失提示共 %d 次, 同机型连续最大 %d 次, 模板: %s%s" % (
+            total, run_max, stats["missing_fm_templates"] or "(无)",
+            "; 超标: 连续 %d > 阈值" % run_max if bad_run else ""),
     })
 
     # ---- A4: 任意消息模板刷屏 (<= 120 次/分钟) ----

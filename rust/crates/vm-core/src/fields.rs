@@ -24,7 +24,30 @@ pub enum FieldSource {
 }
 
 impl FieldSource {
-    /// getter 名 (values 文件的 key, 对应 Java :target)
+    /// 变量短名 (公式槽/registry 统一名 — 内核取数唯一键, 单名制)
+    pub fn target(&self) -> &'static str {
+        match self {
+            FieldSource::Ias => "ias",
+            FieldSource::Tas => "tas",
+            FieldSource::Mach => "mach",
+            FieldSource::Compass => "compass",
+            FieldSource::Altitude => "altitude",
+            FieldSource::Vario => "vario",
+            FieldSource::Sep => "sep",
+            FieldSource::Acceleration => "acceleration",
+            FieldSource::RollRate => "roll_rate",
+            FieldSource::Ny => "ny",
+            FieldSource::TurnRate => "turn_rate",
+            FieldSource::TurnRadius => "turn_rds",
+            FieldSource::AoA => "aoa",
+            FieldSource::AoS => "aos",
+            FieldSource::WingSweepMul100 => "wing_sweep",
+            FieldSource::RadioAltitude => "radio_altitude",
+        }
+    }
+
+    /// Java getter 名 (**仅对拍文件边界** — values.txt 跨 Java/Rust 回灌格式,
+    /// 内核取数禁用; 曾作为 :target 双名制主键致 live 显示断链, W10 收口)
     pub fn getter(&self) -> &'static str {
         match self {
             FieldSource::Ias => "getIAS",

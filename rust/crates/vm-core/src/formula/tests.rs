@@ -133,8 +133,6 @@ fn eval_div_by_zero_is_nan_or_inf() {
 fn eval_vars_from_snapshot() {
     let t = TestTel::default();
     assert_eq!(try_eval("ias * 2", &t), 800.0);
-    // getter 别名同值
-    assert_eq!(try_eval("getIAS * 2", &t), 800.0);
     // 常量
     assert_eq!(try_eval("g", &t), 9.80);
     assert_eq!(try_eval("rho0", &t), 1.225);
@@ -405,12 +403,13 @@ fn registry_size_and_unique() {
 }
 
 #[test]
-fn registry_getter_aliases_hit() {
-    // 存量 ui_layout.cfg :target 的 getter 名必须命中 (向后兼容)
+fn registry_single_name_no_getter_aliases() {
+    // W10 单名制: Java getter 名不得进内核索引 (对拍文件边界专用;
+    // 双名制曾致 live 显示断链 — 别名回归即刻发现)
     let reg = registry();
     for g in ["getIAS", "getTAS", "getNyRaw", "getIndicSpeed", "getWingSweep",
-        "getManifoldPressureDisplay", "getRadioAltitude", "getRPM"] {
-        assert!(reg.lookup(g).is_some(), "getter 别名未命中: {g}");
+        "getManifoldPressureDisplay", "getRadioAltitude", "getRPM", "getMach"] {
+        assert!(reg.lookup(g).is_none(), "getter 名 {g} 不应可达 (单名制)");
     }
 }
 
@@ -530,11 +529,11 @@ impl crate::ui_model::TelemetrySource for TargetView {
 
 #[test]
 fn resolve_target_variants() {
-    // getter 别名
-    let (v, m) = super::resolve_target("getIAS").unwrap();
+    // 短名解析
+    let (v, m) = super::resolve_target("ias").unwrap();
     assert_eq!(v, super::TargetVar::Var(registry().lookup("ias").unwrap()));
     assert_eq!(m, 1.0);
-    // 短名 + 乘数语法 ("getWingSweep * 100" 形态)
+    // 短名 + 乘数语法 ("wing_sweep * 100" 形态)
     let (v, m) = super::resolve_target("tas * 2").unwrap();
     assert_eq!(m, 2.0);
     let view = TargetView(snap_of(&TestTel::default()));

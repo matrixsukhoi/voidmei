@@ -34,9 +34,9 @@ fn spec_renders_preview_rows_to_pixcanvas() {
 /// live 喂数: update 覆写 rows, visible-when 过滤生效 (Mach>0 才显示的行,
 /// 零值数据帧下被滤除 → 行数少于 FIELDS 数)
 
-/// 零值视图桩 (var_value 全 0; 名字先经 canonical 归一 — 对位生产链路的
-/// "公式槽 getter 双键 + registry getter 索引" 两通道, 曾直接 registry.lookup
-/// 把 getter 名断链掩成桩内硬编码, 假绿掩盖 live 7 行消失)
+/// 零值视图桩 (var_value 全 0; 名字先经 canonical 可达性检查 — 对位生产
+/// "公式槽 ∪ registry" 单名制通道, 曾直接 registry.lookup 把断链掩成桩内
+/// 硬编码, 假绿掩盖 live 7 行消失)
 struct ZeroView;
 impl vm_core::ui_model::TelemetrySource for ZeroView {
     fn var_value(&self, name: &str) -> Option<f64> {
@@ -72,15 +72,14 @@ fn update_applies_visibility() {
     assert!(labels.contains(&"马赫数"), "非零 mach 帧行应可见: {labels:?}");
 }
 
-/// 守卫: FIELDS 全部 target 经生产双通道可达 — 断链即行消失/恒 0
-/// (getter 名必须命中 公式槽 getter 别名 或 registry getter 索引)
+/// 守卫: FIELDS 全部 target 短名经 registry/公式集可达 — 断链即行消失/恒 0
 #[test]
 fn flight_info_targets_all_reachable() {
     for f in fields::FIELDS {
-        let g = f.source.getter();
+        let t = f.source.target();
         assert!(
-            canonical_var_name(g).is_some(),
-            "飞行信息行 {} 的 target {g} 解析断链 (公式 :getter 别名/registry 缺失)",
+            canonical_var_name(t).is_some(),
+            "飞行信息行 {} 的 target {t} 解析断链 (registry/公式集缺失)",
             f.label
         );
     }

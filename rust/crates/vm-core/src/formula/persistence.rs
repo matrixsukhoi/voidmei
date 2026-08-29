@@ -101,7 +101,6 @@ fn parse_one(list: &crate::sexp_parser::SList) -> Option<FormulaDef> {
         desc: keyword_string(list, ":desc").unwrap_or_default(),
         disabled: keyword_int(list, ":disabled", 0) != 0,
         builtin: keyword_int(list, ":builtin", 0) != 0,
-        getter: keyword_string(list, ":getter").filter(|g| !g.is_empty()),
     })
 }
 
@@ -126,7 +125,6 @@ fn merge_defs(builtin: &[FormulaDef], user: &[FormulaDef]) -> Vec<FormulaDef> {
         match index.get(&u.name) {
             Some(&i) => {
                 // 用户覆盖内置: 编辑字段以用户为准, builtin 标志保留
-                // (:getter 别名随用户条目 — 编辑器全字段序列化, 缺省即摘除)
                 out[i] = FormulaDef {
                     name: u.name.clone(),
                     expr: u.expr.clone(),
@@ -135,7 +133,6 @@ fn merge_defs(builtin: &[FormulaDef], user: &[FormulaDef]) -> Vec<FormulaDef> {
                     desc: u.desc.clone(),
                     disabled: u.disabled,
                     builtin: true,
-                    getter: u.getter.clone(),
                 };
             }
             None => {
@@ -152,7 +149,7 @@ pub fn serialize_user(defs: &[FormulaDef]) -> String {
     let mut s = String::from(";; VoidMei 用户公式 (自动生成; 内置出厂定义见 formulas.cfg)\n(formulas\n");
     for d in defs {
         s.push_str(&format!(
-            "  (formula \"{}\" :expr \"{}\" :unit \"{}\" :precision {} :desc \"{}\"{}{}{})\n",
+            "  (formula \"{}\" :expr \"{}\" :unit \"{}\" :precision {} :desc \"{}\"{}{})\n",
             escape(&d.name),
             escape(&d.expr),
             escape(&d.unit),
@@ -160,8 +157,6 @@ pub fn serialize_user(defs: &[FormulaDef]) -> String {
             escape(&d.desc),
             if d.disabled { " :disabled 1" } else { "" },
             if d.builtin { " :builtin 1" } else { "" },
-            // getter 别名往返保留 (slots 双键依赖, 丢失即面板断链)
-            d.getter.as_deref().map_or(String::new(), |g| format!(" :getter \"{}\"", escape(g))),
         ));
     }
     s.push_str(")\n");

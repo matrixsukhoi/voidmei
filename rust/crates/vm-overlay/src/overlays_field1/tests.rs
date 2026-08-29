@@ -101,9 +101,9 @@ impl Default for MockTele {
 
 #[allow(clippy::too_many_lines)]
 impl TelemetrySource for MockTele {
-    // W7: var_value 桩 (字段直映); 名字先经 canonical 归一 — 消费方以
-    // getter 名/getter 别名发问 (PowerSource::getter / VisExpr / 仪表),
-    // 曾只答短名把断链掩成 _ => 0.0 (booster 三字段 never read 即旁证)
+    // W7: var_value 桩 (字段直映); 名字先经 canonical 可达性检查 — 消费方以
+    // 短名发问 (PowerSource::getter / VisExpr / 仪表, W10 单名制),
+    // 桩只答可达名, 未注册名 None (对位生产行为, 不做 _ => 0.0 兜底)
     fn var_value(&self, name: &str) -> Option<f64> {
         let name = crate::flight_info::canonical_var_name(name)?;
         Some(match name.as_str() {
@@ -1002,13 +1002,13 @@ fn gear_flaps_reinit_grows_with_font_and_edge() {
 #[test]
 fn all_overlay_var_consumers_reachable() {
     let canon = crate::flight_info::canonical_var_name;
-    // 1. 动力信息 19 行 :target (PowerSource::getter, 含乘数形式的基名)
+    // 1. 动力信息 19 行 :target 短名 (PowerSource::getter, W10 单名制)
     let power = [
-        "getHorsePower", "getThrust", "getRPM", "getPitch", "getPropEfficiency",
-        "getEffHp", "getManifoldPressureDisplay", "getPowerPercent", "getMassFuel",
-        "getTotalWeight", "getFuelTimeMili", "getWepKg", "getWepTime",
-        "getBoosterFuelKg", "getBoosterFuelPercent", "getWaterTemp", "getOilTemp",
-        "getHeatTolerance", "getEngineResponse",
+        "horse_power", "thrust", "rpm", "prop_pitch", "prop_efficiency",
+        "eff_hp", "manifold_pressure_display", "power_percent", "mass_fuel",
+        "total_weight", "fuel_time_mili", "wep_kg", "wep_time",
+        "booster_fuel_kg", "booster_fuel_percent", "water_temp", "oil_temp",
+        "heat_tolerance", "engine_response",
     ];
     for g in power {
         assert!(canon(g).is_some(), "动力信息 target {g} 解析断链");

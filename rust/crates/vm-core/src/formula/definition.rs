@@ -20,10 +20,6 @@ pub struct FormulaDef {
     pub disabled: bool,
     /// 内置(出厂)公式 — 编辑器只读/另存副本
     pub builtin: bool,
-    /// Java getter 别名 (如 mach → "getMach"): 编译进 slots 双键,
-    /// overlay 静态表 (:target = getter 名) 经 var_value 直达公式值。
-    /// 缺失时 getter 名解析断链 → 面板行消失/恒 0 (live 显示回归根因)
-    pub getter: Option<String>,
 }
 
 /// 编译错误 (诊断/编辑器标注)
@@ -120,11 +116,6 @@ impl CompiledFormulaSet {
         for (i, def) in defs.iter().enumerate() {
             let dup = def.name.is_empty() || !occupied.insert(def.name.clone());
             slots.insert(def.name.clone(), i as u16);
-            // getter 别名同槽双键 (var_value("getMach") 直达公式值);
-            // 公式名严格优先: 别名仅填补空键, 不覆盖既有公式名
-            if let Some(g) = def.getter.as_deref().filter(|g| !g.is_empty() && *g != def.name) {
-                slots.entry(g.to_string()).or_insert(i as u16);
-            }
             formulas.push(CompiledFormula {
                 def: def.clone(),
                 rexpr: None,

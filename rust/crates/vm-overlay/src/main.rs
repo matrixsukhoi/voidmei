@@ -302,7 +302,8 @@ fn cmd_log_values() -> Result<(), String> {
     let d = svc.data.read().unwrap();
     let mut out = String::from("# voidmei-overlay live frame (getter=value)\n");
     for f in fields::FIELDS {
-        if let Some(val) = flight_value(&*d, f.source.getter()) {
+        // 取数走短名 (单名制), 输出键保持 Java getter 名 (values.txt 跨端回灌格式)
+        if let Some(val) = flight_value(&*d, f.source.target()) {
             out.push_str(&format!("{}={:.6}\n", f.source.getter(), val));
         }
     }

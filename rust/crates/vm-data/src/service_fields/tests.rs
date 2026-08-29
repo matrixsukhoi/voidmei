@@ -19,7 +19,7 @@ fn var_value_state_passthrough() {
     d.s_indic = Some(vm_core::parser::Indicators::default());
     use vm_core::ui_model::TelemetrySource as _;
     assert_eq!(d.var_value("ias"), Some(474.0));
-    assert_eq!(d.var_value("getIAS"), Some(474.0), "getter 别名");
+    assert_eq!(d.var_value("getIAS"), None, "单名制: getter 名不进内核 (W10)");
 }
 
 #[test]
@@ -33,11 +33,11 @@ fn var_value_wing_sweep_sentinel_zero() {
     assert_eq!(d.var_value("wing_sweep_valid"), Some(0.0));
 }
 
-/// 公式 getter 别名双键 (live 显示回归锚): var_value("getMach") 等面板
-/// :target 名经 formula_slots 别名直达公式值 — 曾断链致飞行信息 7 行消失。
-/// 手工装最小公式集 (mimic formula_step 的 slots 写入形态)
+/// 公式槽取值 + 名字单轨锚定 (W10): 公式名直达公式值; Java getter 名不进
+/// slots/registry (对拍文件边界专用, 曾以 :getter 别名双键兼容 — 双名制
+/// 是 live 显示断链的温床, 已根除)
 #[test]
-fn var_value_formula_getter_alias() {
+fn var_value_formula_slot_and_single_name() {
     use vm_core::formula::{FormulaDef, FormulaManager};
     let mgr = FormulaManager::new();
     let defs = vec![FormulaDef {
@@ -52,19 +52,7 @@ fn var_value_formula_getter_alias() {
     d.formula_values = mgr.eval_frame(&raw, &Default::default(), &Default::default(), 0);
     use vm_core::ui_model::TelemetrySource as _;
     assert_eq!(d.var_value("mach"), Some(0.72));
-    assert_eq!(d.var_value("getMach"), None, "无 :getter 别名的公式仅公式名可达");
-    // 装上别名后 getter 名直达公式值
-    let defs = vec![FormulaDef {
-        name: "mach".into(),
-        expr: "0.72".into(),
-        getter: Some("getMach".into()),
-        ..Default::default()
-    }];
-    mgr.install(&defs, &["mach".to_string()]);
-    d.formula_slots = mgr.current().slots_arc();
-    let raw = vm_core::formula::registry::RawInputs::default();
-    d.formula_values = mgr.eval_frame(&raw, &Default::default(), &Default::default(), 0);
-    assert_eq!(d.var_value("getMach"), Some(0.72), "getter 别名经 slots 双键直达");
+    assert_eq!(d.var_value("getMach"), None, "getter 名不可达 (单名制, 边界外禁用)");
 }
 
 /// registry 补齐的助推器/WEP/油量五量 (live 显示回归锚): 直绑闭包语义
@@ -77,14 +65,13 @@ fn var_value_booster_wep_fuel_registry_vars() {
     s.mfuel0_1 = 400.0;
     d.s_state = Some(s);
     use vm_core::ui_model::TelemetrySource as _;
-    assert_eq!(d.var_value("getBoosterFuelKg"), Some(300.0));
     assert_eq!(d.var_value("booster_fuel_kg"), Some(300.0));
+    assert_eq!(d.var_value("getBoosterFuelKg"), None, "单名制: getter 名不进内核");
     assert_eq!(d.var_value("booster_fuel_percent"), Some(75.0));
     assert_eq!(d.var_value("has_booster"), Some(1.0));
     assert_eq!(d.var_value("has_wep"), None, "无 FM → None → 消费面 false (对位原 false)");
     // fuel_percent 走 SessionInputs 搬运
     assert_eq!(d.var_value("fuel_percent"), Some(0.0));
-    assert_eq!(d.var_value("getFuelPercent"), Some(0.0));
     // 无助推器 (哨兵) → 归零
     let mut d2 = ServiceData::default();
     let mut s2 = vm_core::parser::State::default();

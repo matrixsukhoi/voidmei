@@ -815,36 +815,35 @@ pub enum PowerSource {
 }
 
 impl PowerSource {
-    /// cfg :target 原名 (ReflectBinder 反射键)
+    /// 统一变量短名 (W10 单名制: registry/公式槽直查, Java getter 名退场)
     pub fn getter(self) -> &'static str {
         match self {
-            PowerSource::HorsePower => "getHorsePower",
-            PowerSource::Thrust => "getThrust",
-            PowerSource::Rpm => "getRPM",
-            PowerSource::Pitch => "getPitch",
-            PowerSource::PropEfficiency => "getPropEfficiency",
-            PowerSource::EffHp => "getEffHp",
-            PowerSource::ManifoldPressureDisplay => "getManifoldPressureDisplay",
-            PowerSource::PowerPercent => "getPowerPercent",
-            PowerSource::MassFuel => "getMassFuel",
-            PowerSource::TotalWeight => "getTotalWeight",
-            PowerSource::FuelTimeMiliMul001 => "getFuelTimeMili",
-            PowerSource::WepKg => "getWepKg",
-            PowerSource::WepTime => "getWepTime",
-            PowerSource::BoosterFuelKg => "getBoosterFuelKg",
-            PowerSource::BoosterFuelPercent => "getBoosterFuelPercent",
-            PowerSource::WaterTemp => "getWaterTemp",
-            PowerSource::OilTemp => "getOilTemp",
-            PowerSource::HeatTolerance => "getHeatTolerance",
-            PowerSource::EngineResponse => "getEngineResponse",
+            PowerSource::HorsePower => "horse_power",
+            PowerSource::Thrust => "thrust",
+            PowerSource::Rpm => "rpm",
+            PowerSource::Pitch => "prop_pitch",
+            PowerSource::PropEfficiency => "prop_efficiency",
+            PowerSource::EffHp => "eff_hp",
+            PowerSource::ManifoldPressureDisplay => "manifold_pressure_display",
+            PowerSource::PowerPercent => "power_percent",
+            PowerSource::MassFuel => "mass_fuel",
+            PowerSource::TotalWeight => "total_weight",
+            PowerSource::FuelTimeMiliMul001 => "fuel_time_mili",
+            PowerSource::WepKg => "wep_kg",
+            PowerSource::WepTime => "wep_time",
+            PowerSource::BoosterFuelKg => "booster_fuel_kg",
+            PowerSource::BoosterFuelPercent => "booster_fuel_percent",
+            PowerSource::WaterTemp => "water_temp",
+            PowerSource::OilTemp => "oil_temp",
+            PowerSource::HeatTolerance => "heat_tolerance",
+            PowerSource::EngineResponse => "engine_response",
         }
     }
 
-    /// 统一解析键 (W4): getter 名 + 乘数语法 — 交 resolve_target (设计 §8),
-    /// :target 为公式名时取公式值; 解析失败回退静态臂
+    /// 统一解析键 (乘数语法): 交 resolve_target, 公式名/短名皆可
     fn getter_expr(self) -> &'static str {
         match self {
-            PowerSource::FuelTimeMiliMul001 => "getFuelTimeMili * 0.001",
+            PowerSource::FuelTimeMiliMul001 => "fuel_time_mili * 0.001",
             other => other.getter(),
         }
     }

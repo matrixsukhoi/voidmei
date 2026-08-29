@@ -40,13 +40,9 @@ pub fn default_num_height(font_add: i32) -> i32 {
     }
 }
 
-/// TelemetrySource → getter 数值 (W2: FlightValues 整包快照消解, 数据源改
-/// ServiceData 散字段 (公式接管值); WingSweep 的 ×100 与原 Deriver 预乘对齐)
-pub fn flight_value(s: &dyn TelemetrySource, getter: &str) -> Option<f64> {
-    // W4: 统一解析 (设计 §8) — getter 名 | 短名 | 公式名 | "X * N" 乘数;
-    // 16 臂 match 消解, :target 改成公式名即可在飞行信息面板显示该公式。
-    // WingSweep 的 ×100 预乘由乘数语法承接 (原 Deriver 预乘对齐)
-    let target = if getter == "getWingSweep" { "getWingSweep * 100" } else { getter };
+/// TelemetrySource → 变量数值 (W2: FlightValues 整包快照消解; W10: 统一
+/// 短名制 — 变量名 | 公式名 | "X * N" 乘数, Java getter 名不再进内核取数)
+pub fn flight_value(s: &dyn TelemetrySource, target: &str) -> Option<f64> {
     let (var, mult) = vm_core::formula::resolve_target(target)?;
     vm_core::formula::target_value(&var, mult, s)
 }
@@ -57,7 +53,7 @@ pub fn build_texts(s: &dyn TelemetrySource) -> Vec<(String, String, String)> {
     for f in fields::FIELDS {
         // 解析不到按 0 处理 (Java 反射 getter 永不失败, 行只受 visible-when
         // 控制; 曾 None→continue 致 7 行整行消失 — live 显示回归根因之一)
-        let raw = flight_value(s, f.source.getter()).unwrap_or(0.0);
+        let raw = flight_value(s, f.source.target()).unwrap_or(0.0);
         if let Some(cond) = f.visible_when {
             if !cond.eval(raw) {
                 continue;
@@ -218,10 +214,9 @@ pub fn flight_info_overlay_spec(
 // =====================================================================
 // Tests
 // =====================================================================
-/// 名字归一 (测试面): 任意名字 (短名/Java getter/公式 getter 别名) → 主名。
-/// 对位生产双通道 (ServiceData::var_value: 公式槽含 getter 双键优先,
-/// registry getter 索引兜底) — 守卫测试用它钉死 overlay 全部消费 target
-/// 可达, 防 "名字解析断链 → 面板行消失/恒 0" 的 live 显示回归。
+/// 名字可达性检查 (测试面): registry 名 ∪ 公式名 — 守卫测试用它钉死
+/// overlay 全部消费 target 可达, 防 "名字解析断链 → 面板行消失/恒 0" 的
+/// live 显示回归。单名制 (W10): 无别名翻译, 查不到即真断链。
 #[cfg(test)]
 pub(crate) fn canonical_var_name(name: &str) -> Option<String> {
     use std::collections::HashMap;
@@ -232,18 +227,11 @@ pub(crate) fn canonical_var_name(name: &str) -> Option<String> {
         let reg = vm_core::formula::registry::registry();
         for v in &reg.vars {
             m.insert(v.name.to_string(), v.name.to_string());
-            if !v.getter.is_empty() {
-                m.insert(v.getter.to_string(), v.name.to_string());
-            }
         }
-        // 公式层后插 (生产公式槽优先: getter 别名/公式名 → 公式名)
         let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../../formulas.cfg");
         if let Ok(src) = std::fs::read_to_string(path) {
             for d in vm_core::formula::persistence::parse_formulas(&src) {
                 m.insert(d.name.clone(), d.name.clone());
-                if let Some(g) = d.getter.clone().filter(|g| !g.is_empty()) {
-                    m.insert(g, d.name.clone());
-                }
             }
         }
         m

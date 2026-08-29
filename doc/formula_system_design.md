@@ -389,6 +389,20 @@ NUMBER      := [0-9]+("." [0-9]+)? ([eE] [+-]? [0-9]+)?
 3. **build_texts None→0.0**(行不消失; 对位 Java 反射 getter 永不失败, 行只受 visible-when 控制)
 4. **守卫测试**(反向验证非假绿): flight_info/overlays_field1 全部消费 target 经双通道可达(canonical_var_name 测试 helper = 生产双通道对位); panel_targets_via_getter_names 端到端真值断言
 
+**W10 根除 getter 双名制**(同日, 用户洞察"getter 名也是和 telemetry 同构的坏味道"):
+
+W9 的 :getter 别名双键本质是**名字搬运层**——与 W6-W8 删除的值搬运层(telemetry getter)同构。W10 把兼容层整个拆除, 单名制落地:
+
+| 动作 | 内容 |
+|---|---|
+| 静态表短名化 | fields.rs 加 `target()`(短名, 内核取数键); PowerSource 19 臂全部改短名; DataField key/configKey 随之(write-only 字段, 零风险) |
+| 删别名机制 | FormulaDef.getter 字段/persistence :getter 解析与序列化/编译 slots 双键/DTO/前端 formulas.cfg 8 处别名 — 全链拆除 |
+| registry 单名化 | VarMeta.getter 字段删(127 处)/index 只插 name; getter 名不再进内核索引 |
+| 边界保留 | Java getter 名仅存于**对拍文件边界**: vm-overlay main.rs --values/--log-values 的 values.txt 跨端回灌格式(fields.rs `getter()` 专职此用途) |
+| 守卫更新 | registry_single_name_no_getter_aliases(getter 名必须**不可达**, 防别名回归); canonical_var_name 简化为单通道; panel_targets_via_short_names 端到端 |
+
+裁决: **内核(公式槽/registry/静态表/resolve)单名制; 兼容翻译只准出现在文件边界**(values.txt 对拍格式、未来 ui_layout.cfg 驱动化解析), 且须集中一处显式映射。1415 测试全绿, e2e 三场景 PASS。
+
 
 **已完成**(workspace 1427 测试全绿,零回归):
 
