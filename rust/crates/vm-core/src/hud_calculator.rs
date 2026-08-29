@@ -173,9 +173,13 @@ pub fn calculate<S: HUDSettings>(
     b.is_flaps_down = b.flaps > 0.0;
     b.is_airbrake_active = b.airbrake > 0.0;
 
-    // --- Warning Logic ---
-    let mut warn_vne = false;
-    if b.is_airbrake_active && b.airbrake == 100.0 {
+    // --- Warning Logic (W4: 警告布尔公式接管优先, 判定式原样进 formulas.cfg) ---
+    let mut warn_vne = source
+        .get_formula_value("warn_vne")
+        .map(|v| v != 0.0)
+        .unwrap_or(false);
+    let warn_vne_fallback = !warn_vne; // 公式缺失时走原判定
+    if warn_vne_fallback && b.is_airbrake_active && b.airbrake == 100.0 {
         warn_vne = true;
     }
 
@@ -212,13 +216,14 @@ pub fn calculate<S: HUDSettings>(
             vwing = s_indic.unwrap().wsweep_indicator;
         }
 
-        // Dynamic Vne calculation
-        // PORT: 第二项 Java 是 `* 0.95f` (float 字面量提升), 与第一项的 0.95 (double)
-        // 位级不同 (0.94999998807907104...), 不得合并 (§2.12)
-        if b.ias >= blkx.get_vne_v_wing(vwing) * 0.95
-            || b.mach >= blkx.get_mne_v_wing(vwing) * (0.95f32 as f64)
-        {
-            warn_vne = true;
+        // Dynamic Vne calculation (公式接管时跳过; 位级注记:
+        // 第二项 Java 是 `* 0.95f` 提升 = 0.94999998807907104, 不得与 0.95 合并 §2.12)
+        if warn_vne_fallback {
+            if b.ias >= blkx.get_vne_v_wing(vwing) * 0.95
+                || b.mach >= blkx.get_mne_v_wing(vwing) * (0.95f32 as f64)
+            {
+                warn_vne = true;
+            }
         }
 
         // AoA Warnings
@@ -244,9 +249,11 @@ pub fn calculate<S: HUDSettings>(
             b.aoa_ratio = 0.0;
         }
 
-        if available_aoa <= 0.0 {
-            b.warn_stall = true;
-        }
+        // W4: 公式接管优先 (warn_stall), 回退原判定
+        b.warn_stall = match source.get_formula_value("warn_stall") {
+            Some(v) => v != 0.0,
+            None => available_aoa <= 0.0,
+        };
     } else {
         b.maneuver_index = 0.0;
         b.aoa_color = colors.color_num;
@@ -260,10 +267,12 @@ pub fn calculate<S: HUDSettings>(
     let radio_alt_valid = source.is_radio_altitude_valid();
     let always_radar = settings.always_show_radar_altitude();
 
-    // Low altitude warning flag (for color/audio warnings) - always based on <=500m threshold
-    if radio_alt_valid && radio_alt <= 500.0 {
-        b.warn_altitude = true;
-    }
+    // Low altitude warning flag - always based on <=500m threshold
+    // (W4: 公式接管优先)
+    b.warn_altitude = match source.get_formula_value("warn_altitude") {
+        Some(v) => v != 0.0,
+        None => radio_alt_valid && radio_alt <= 500.0,
+    };
 
     // --- Strings Formatting (using Data) ---
     if b.is_mach_mode {
@@ -455,6 +464,50 @@ pub fn get_flap_allow_angle(ias: f64, _is_downing_flap: bool, blkx: Option<&Blkx
         let k = calc_k(x0, y0, x1, y1);
         t = y0 + (ias - x0) * k;
         norm_flap_angle(t)
+    }
+}
+
+/// 对应 Java `public double getFlapAllowSpeed(int flapPercent, Boolean isDowningFlap, FMHandle fm)`
+/// (Service.java L1354-1427) — 当前襟翼开度下的允许速度。
+/// **双胞胎合一** (设计 §7): 与 getFlap_allow_angle 同族, Service 版
+/// (methods_engine) 曾有逐行同构拷贝, 统一走本实现; 签名对齐 angle 版
+/// 收 Option<&Blkx>。flapPercent==0/无 FM → f64::MAX (Java Double.MAX_VALUE,
+/// 与 resetvaria 侧 Float.MAX_VALUE 刻意不同, 保真)。
+pub fn get_flap_allow_speed(flap_percent: i32, is_downing_flap: bool, blkx: Option<&Blkx>) -> f64 {
+    if flap_percent == 0 {
+        return f64::MAX;
+    }
+    let blkx = match blkx {
+        None => return f64::MAX,
+        Some(b) => b,
+    };
+    let flaps_destruction_num = blkx.flaps_destruction_num;
+    let table = blkx.flaps_destruction_ind_speed.as_ref().unwrap();
+    let mut i: i32 = 0;
+    while i < flaps_destruction_num - 1 {
+        // Java: flapPercent < ...[i][0] * 100.0f — int 提升 double (§2.12)
+        if (flap_percent as f64) < table[i as usize][0] * 100.0 {
+            break;
+        }
+        i += 1;
+    }
+    let i = i - 1;
+    if i == -1 {
+        // 下襟翼时直接越级使用下一级 (num=0 畸形 FM 域内是活条件, reader 回退全 miss)
+        if is_downing_flap && flaps_destruction_num >= 1 {
+            return table[0][1];
+        }
+        f64::MAX
+    } else {
+        if (flap_percent as f64) == table[i as usize][0] * 100.0 {
+            return table[i as usize][1];
+        }
+        let x0 = table[i as usize][0] * 100.0;
+        let y0 = table[i as usize][1];
+        let x1 = table[(i + 1) as usize][0] * 100.0;
+        let y1 = table[(i + 1) as usize][1];
+        let k = calc_k(x0, y0, x1, y1);
+        y0 + (flap_percent as f64 - x0) * k
     }
 }
 

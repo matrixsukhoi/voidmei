@@ -62,6 +62,14 @@ pub enum FnId {
     IasToTas,
     TasToIas,
     IasPerMach,
+    /// invalid(): 显式 NaN — 接管公式的"此帧不接管"表达 (write_back NaN 守卫)
+    Invalid,
+    // FM 查表族 (需求值上下文的当前 blkx, eval.rs 分派)
+    FmVne,
+    FmMne,
+    FmAoaHigh,
+    FmFlapAllowSpeed,
+    FmFlapAllowAngle,
     // 状态原语 (eval.rs 分派)
     Sma,
     Prev,
@@ -70,6 +78,8 @@ pub enum FnId {
     Vote,
     Stable,
     LearnMax,
+    /// latch(cond, x): cond 真 → x (并记忆); 假 → 上帧输出 (x **不求值**, 状态不污染)
+    Latch,
 }
 
 /// 名字 → FnId (精确 match, 注册表面)
@@ -101,6 +111,12 @@ pub fn resolve_fn(name: &str) -> Option<FnId> {
         "ias_to_tas" => FnId::IasToTas,
         "tas_to_ias" => FnId::TasToIas,
         "ias_per_mach" => FnId::IasPerMach,
+        "invalid" => FnId::Invalid,
+        "fm_vne" => FnId::FmVne,
+        "fm_mne" => FnId::FmMne,
+        "fm_aoa_high" => FnId::FmAoaHigh,
+        "fm_flap_allow_speed" => FnId::FmFlapAllowSpeed,
+        "fm_flap_allow_angle" => FnId::FmFlapAllowAngle,
         "sma" => FnId::Sma,
         "prev" => FnId::Prev,
         "blend" => FnId::Blend,
@@ -108,6 +124,7 @@ pub fn resolve_fn(name: &str) -> Option<FnId> {
         "vote" => FnId::Vote,
         "stable" => FnId::Stable,
         "learn_max" => FnId::LearnMax,
+        "latch" => FnId::Latch,
         _ => return None,
     })
 }
@@ -141,6 +158,12 @@ pub fn fn_name(fid: FnId) -> &'static str {
         FnId::IasToTas => "ias_to_tas",
         FnId::TasToIas => "tas_to_ias",
         FnId::IasPerMach => "ias_per_mach",
+        FnId::Invalid => "invalid",
+        FnId::FmVne => "fm_vne",
+        FnId::FmMne => "fm_mne",
+        FnId::FmAoaHigh => "fm_aoa_high",
+        FnId::FmFlapAllowSpeed => "fm_flap_allow_speed",
+        FnId::FmFlapAllowAngle => "fm_flap_allow_angle",
         FnId::Sma => "sma",
         FnId::Prev => "prev",
         FnId::Blend => "blend",
@@ -148,6 +171,7 @@ pub fn fn_name(fid: FnId) -> &'static str {
         FnId::Vote => "vote",
         FnId::Stable => "stable",
         FnId::LearnMax => "learn_max",
+        FnId::Latch => "latch",
     }
 }
 
@@ -165,6 +189,10 @@ pub fn arity(fid: FnId) -> (usize, usize) {
         FnId::Interp2d => (5, 5),
         FnId::IsaPressure | FnId::IsaDensity | FnId::IsaTemp | FnId::IasPerMach => (1, 1),
         FnId::IasToTas | FnId::TasToIas => (2, 2),
+        FnId::Invalid => (0, 0),
+        FnId::FmVne | FnId::FmMne => (1, 1),
+        FnId::FmAoaHigh => (2, 2),
+        FnId::FmFlapAllowSpeed | FnId::FmFlapAllowAngle => (2, 2),
         FnId::Sma => (2, 2),
         FnId::Prev => (1, 1),
         FnId::Blend => (2, 2),
@@ -172,7 +200,16 @@ pub fn arity(fid: FnId) -> (usize, usize) {
         FnId::Vote => (3, 3),
         FnId::Stable => (2, 2),
         FnId::LearnMax => (3, 3),
+        FnId::Latch => (2, 2),
     }
+}
+
+/// 是否 FM 查表函数 (求值需上下文携带当前 blkx)
+pub fn is_ctx_fn(fid: FnId) -> bool {
+    matches!(
+        fid,
+        FnId::FmVne | FnId::FmMne | FnId::FmAoaHigh | FnId::FmFlapAllowSpeed | FnId::FmFlapAllowAngle
+    )
 }
 
 /// 是否状态原语 (求值需 &mut StateStore)
@@ -180,54 +217,27 @@ pub fn is_stateful(fid: FnId) -> bool {
     matches!(
         fid,
         FnId::Sma | FnId::Prev | FnId::Blend | FnId::Deriv | FnId::Vote | FnId::Stable | FnId::LearnMax
+            | FnId::Latch
     )
 }
 
-/// 求值期 FnId ↔ u16 (RExpr::Call.fid 的存储形态)
-pub fn fid_to_u16(fid: FnId) -> u16 {
-    fid as u16
+/// 求值期 FnId ↔ u16 双向映射 — 宏以声明序生成, 与枚举判别值恒一致
+/// (手写映射曾在插入 FM 查表族后判别值移位, 分派错乱, 此处根治)
+macro_rules! fn_id_codec {
+    ($($v:ident),* $(,)?) => {
+        pub fn fid_to_u16(fid: FnId) -> u16 {
+            match fid {
+                $(FnId::$v => FnId::$v as u16,)*
+            }
+        }
+        /// 声明序即判别序 (无显式判别值的 enum 保证), 切片线性取回
+        pub fn fid_from_u16(v: u16) -> Option<FnId> {
+            const IDS: &[FnId] = &[$(FnId::$v),*];
+            IDS.get(v as usize).copied()
+        }
+    };
 }
-
-/// u16 → FnId (与 enum 判别序一致; 编译产物只在 resolve 后存在, 无越界来源)
-pub fn fid_from_u16(v: u16) -> Option<FnId> {
-    Some(match v {
-        0 => FnId::Abs,
-        1 => FnId::Min,
-        2 => FnId::Max,
-        3 => FnId::Sqrt,
-        4 => FnId::Sin,
-        5 => FnId::Cos,
-        6 => FnId::Atan2,
-        7 => FnId::Exp,
-        8 => FnId::Ln,
-        9 => FnId::Floor,
-        10 => FnId::Ceil,
-        11 => FnId::Round,
-        12 => FnId::Clamp,
-        13 => FnId::IsValid,
-        14 => FnId::Na,
-        15 => FnId::IsNan,
-        16 => FnId::Lerp,
-        17 => FnId::Interp1d,
-        18 => FnId::Interp1dEx,
-        19 => FnId::Interp2d,
-        20 => FnId::IsaPressure,
-        21 => FnId::IsaDensity,
-        22 => FnId::IsaTemp,
-        23 => FnId::IasToTas,
-        24 => FnId::TasToIas,
-        25 => FnId::IasPerMach,
-        26 => FnId::Sma,
-        27 => FnId::Prev,
-        28 => FnId::Blend,
-        29 => FnId::Deriv,
-        30 => FnId::Vote,
-        31 => FnId::Stable,
-        32 => FnId::LearnMax,
-        _ => return None,
-    })
-}
-
+fn_id_codec!(Abs, Min, Max, Sqrt, Sin, Cos, Atan2, Exp, Ln, Floor, Ceil, Round, Clamp, IsValid, Na, IsNan, Lerp, Interp1d, Interp1dEx, Interp2d, IsaPressure, IsaDensity, IsaTemp, IasToTas, TasToIas, IasPerMach, Invalid, FmVne, FmMne, FmAoaHigh, FmFlapAllowSpeed, FmFlapAllowAngle, Sma, Prev, Blend, Deriv, Vote, Stable, LearnMax, Latch);
 /// 表实参取引用; 数值实参 → None (类型错误, 上层 NaN)
 fn tbl(v: &Value) -> Option<&Arc<Vec<f64>>> {
     match v {
@@ -297,8 +307,10 @@ pub fn eval_pure(fid: FnId, args: &[Value]) -> Value {
             let h = nums[0];
             3.6 * (1.4 / 1.225 * 101325.0 * (1.0 - 0.0000225577 * h).powf(5.25588)).sqrt()
         }
-        // 状态原语不由本函数处理 (编译期已分流); 防御性兜底 NaN
-        F::Sma | F::Prev | F::Blend | F::Deriv | F::Vote | F::Stable | F::LearnMax => f64::NAN,
+        // 状态原语/FM 查表不由本函数处理 (编译期已分流); 防御性兜底 NaN
+        F::Sma | F::Prev | F::Blend | F::Deriv | F::Vote | F::Stable | F::LearnMax | F::Latch
+        | F::FmVne | F::FmMne | F::FmAoaHigh | F::FmFlapAllowSpeed | F::FmFlapAllowAngle => f64::NAN,
+        F::Invalid => f64::NAN,
     };
     Value::Num(v)
 }

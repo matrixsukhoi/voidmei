@@ -32,22 +32,21 @@ fn spec_renders_preview_rows_to_pixcanvas() {
 }
 
 /// live 喂数: update 覆写 rows, visible-when 过滤生效 (Mach>0 才显示的行,
-/// 零值 FlightValues 下被滤除 → 行数少于 FIELDS 数)
+/// 零值数据帧下被滤除 → 行数少于 FIELDS 数)
 #[test]
-fn update_from_values_applies_visibility() {
+fn update_applies_visibility() {
     let (handle, _spec) =
         flight_info_overlay_spec(&fonts_dir(), &params_cell(|_| {})).unwrap();
-    let zero = FlightValues::default();
-    handle.borrow_mut().update_from_values(&zero);
+    let zero = vm_data::service_fields::ServiceData::default();
+    handle.borrow_mut().update(&zero);
     let n_zero = handle.borrow().rows().len();
     // 全零值: Mach (>0) 等条件行被滤; 至少 IAS 等直通行保留
     assert!(n_zero > 0 && n_zero <= fields::FIELDS.len());
 
     // 非零 Mach 帧行数应不少于全零帧 (Mach 行回归)
-    let mut v = FlightValues::default();
+    let mut v = vm_data::service_fields::ServiceData::default();
     v.mach = 0.72;
-    v.ias = 450.0;
-    handle.borrow_mut().update_from_values(&v);
+    handle.borrow_mut().update(&v);
     let n_live = handle.borrow().rows().len();
     assert!(n_live >= n_zero, "非零帧可见行应不少于全零帧 ({n_live} vs {n_zero})");
 }
@@ -58,7 +57,7 @@ fn reinit_grows_with_font_add_and_keeps_rows() {
     let cell = params_cell(|_| {});
     let (handle, mut spec) = flight_info_overlay_spec(&fonts_dir(), &cell).unwrap();
     // live 行覆盖 (行数可能少于 FIELDS — visible-when 过滤)
-    handle.borrow_mut().update_from_values(&FlightValues::default());
+    handle.borrow_mut().update(&vm_data::service_fields::ServiceData::default());
     let rows_before = handle.borrow().rows().to_vec();
     let h0 = spec.height;
     cell.borrow_mut().font_add_flight = 6;
@@ -77,10 +76,9 @@ fn reset_preview_rows_restores_statics() {
     let (handle, _spec) =
         flight_info_overlay_spec(&fonts_dir(), &params_cell(|_| {})).unwrap();
     // live 残留: 非零 Mach/IAS 帧 (行集与 preview 静态不同)
-    let mut v = FlightValues::default();
+    let mut v = vm_data::service_fields::ServiceData::default();
     v.mach = 0.72;
-    v.ias = 450.0;
-    handle.borrow_mut().update_from_values(&v);
+    handle.borrow_mut().update(&v);
     // 重置 → preview 行: FIELDS 全量 + preview_text 原样
     handle.borrow_mut().reset_preview_rows();
     let rows = handle.borrow().rows().to_vec();

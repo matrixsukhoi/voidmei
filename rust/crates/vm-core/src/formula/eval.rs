@@ -3,7 +3,7 @@
 //! 设计: doc/formula_system_design.md §3.5/§3.6
 
 use super::ast::{BinOp, RExpr, UnOp};
-use super::functions::{eval_pure, fid_from_u16, is_stateful, FnId, Value};
+use super::functions::{eval_pure, fid_from_u16, is_ctx_fn, is_stateful, FnId, Value};
 use super::definition::FormulaResults;
 use super::registry::VarSnapshot;
 use std::collections::HashMap;
@@ -17,6 +17,8 @@ pub struct EvalCtx<'a> {
     /// 本帧实际间隔 (ms) — blend/learn_max 的隐含 ratio = interval_ms/1000,
     /// 对齐 service_fields.rs L368 `ratio=freq/1000f`
     pub interval_ms: f64,
+    /// 当前 FM (FM 查表函数族 fm_vne 等的表源; None → NaN 隔离)
+    pub fm_blkx: Option<&'a crate::blkx::Blkx>,
 }
 
 /// 状态原语的私有状态 (键 = (公式槽, 调用点 site))
@@ -62,7 +64,9 @@ impl StateStore {
 pub fn eval(expr: &RExpr, ctx: &EvalCtx, store: &mut StateStore) -> Value {
     match expr {
         RExpr::Num(v) => Value::Num(*v),
-        RExpr::Var(vid) => ctx.snap.get(*vid).unwrap_or(Value::Num(f64::NAN)),
+        // 直接索引 (W1c, §6.1): VarId 编译期由 registry 分配恒 < 快照长度
+        // (empty 快照也按 registry().len() 构造), 越界不可达 — 免 Option 分支
+        RExpr::Var(vid) => Value::Num(ctx.snap.values[*vid as usize]),
         RExpr::Formula(slot) => Value::Num(ctx.results.get(*slot)),
         RExpr::Unary { op, expr } => {
             let v = eval(expr, ctx, store).num();
@@ -93,6 +97,32 @@ pub fn eval(expr: &RExpr, ctx: &EvalCtx, store: &mut StateStore) -> Value {
             let Some(fid) = fid_from_u16(*fid) else {
                 return Value::Num(f64::NAN);
             };
+            if fid == FnId::Latch {
+                // latch(cond, x) 惰性原语 (W2): cond 真 → 输出 x 并记忆;
+                // cond 假 → 输出上帧值, x **不求值** (内部 sma/prev 状态不污染) —
+                // 对齐 Deriver 的 "if (an != 0) 才更新" 条件更新语义
+                let c = eval(&args[0], ctx, store).num();
+                if c.is_nan() {
+                    return Value::Num(f64::NAN);
+                }
+                if c != 0.0 {
+                    let x = eval(&args[1], ctx, store).num();
+                    if x.is_nan() {
+                        return Value::Num(f64::NAN); // NaN 不污染记忆
+                    }
+                    let st = store.map.entry(*site).or_insert(PrimState::Prev(0.0));
+                    if let PrimState::Prev(p) = st {
+                        *p = x;
+                    }
+                    return Value::Num(x);
+                }
+                let st = store.map.entry(*site).or_insert(PrimState::Prev(0.0));
+                let out = match st {
+                    PrimState::Prev(p) => *p,
+                    _ => f64::NAN,
+                };
+                return Value::Num(out);
+            }
             if is_stateful(fid) {
                 // 状态原语: 先求实参, NaN 输入不污染状态 (设计 §3.6 隔离)
                 let vals: Vec<f64> = args
@@ -103,6 +133,16 @@ pub fn eval(expr: &RExpr, ctx: &EvalCtx, store: &mut StateStore) -> Value {
                     return Value::Num(f64::NAN);
                 }
                 Value::Num(eval_stateful(fid, &vals, *site, ctx, store))
+            } else if is_ctx_fn(fid) {
+                // FM 查表族: 需上下文携带的当前 blkx (无 FM → NaN 隔离)
+                let vals: Vec<f64> = args
+                    .iter()
+                    .map(|a| eval(a, ctx, store).num())
+                    .collect();
+                if vals.iter().any(|v| v.is_nan()) {
+                    return Value::Num(f64::NAN);
+                }
+                Value::Num(eval_ctx_fn(fid, &vals, ctx.fm_blkx))
             } else {
                 let vals: Vec<Value> = args.iter().map(|a| eval(a, ctx, store)).collect();
                 eval_pure(fid, &vals)
@@ -304,4 +344,31 @@ fn eval_stateful(fid: FnId, vals: &[f64], site: u32, ctx: &EvalCtx, store: &mut 
         }
         _ => f64::NAN, // 非状态原语防御兜底
     }
+}
+
+/// FM 查表族求值 (当前 blkx 由上下文携带)。
+/// 语义: vne/mne/aoa_high 无 FM → NaN 隔离; flap 两函数走共享实现的业务默认
+/// (0 级/无 FM → MAX/125), 与被替代代码位级一致。
+/// 共享实现里的 unwrap panic (Java NPE 保真) 以 catch_unwind 收敛为 NaN —
+/// 生产 READY 链表恒 Some 不可达, 防御仅为公式用户免崩 Service 线程。
+fn eval_ctx_fn(fid: FnId, vals: &[f64], blkx: Option<&crate::blkx::Blkx>) -> f64 {
+    use FnId as F;
+    let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| match fid {
+        F::FmFlapAllowSpeed => {
+            crate::hud_calculator::get_flap_allow_speed(vals[0] as i32, vals[1] != 0.0, blkx)
+        }
+        F::FmFlapAllowAngle => {
+            crate::hud_calculator::get_flap_allow_angle(vals[0], vals[1] != 0.0, blkx)
+        }
+        _ => {
+            let Some(b) = blkx else { return f64::NAN };
+            match fid {
+                F::FmVne => b.get_vne_v_wing(vals[0]),
+                F::FmMne => b.get_mne_v_wing(vals[0]),
+                F::FmAoaHigh => b.get_aoa_high_v_wing(vals[0], vals[1] as i32),
+                _ => f64::NAN,
+            }
+        }
+    }));
+    r.unwrap_or(f64::NAN)
 }

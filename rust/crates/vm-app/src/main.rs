@@ -261,6 +261,35 @@ fn desktop_main(debug: bool) -> i32 {
             }
         }
 
+        // W5: 规则触发事件转发 (rule_triggers → 前端 toast; 消费链首段)。
+        // 读后清空防重发; 冷却态机已保证触发不刷屏
+        {
+            let triggers: Vec<_> = {
+                let shell = shell.lock().expect("AppShell 锁中毒");
+                let live = shell.shared.live.read().expect("live 锁中毒").clone();
+                match live {
+                    Some(data) => {
+                        let mut d = data.write().expect("ServiceData 锁中毒");
+                        std::mem::take(&mut d.rule_triggers)
+                    }
+                    None => Vec::new(),
+                }
+            };
+            for t in &triggers {
+                let (kind, arg) = match &t.action {
+                    vm_core::formula::rules::RuleAction::Toast(msg) => ("toast", msg.clone()),
+                    vm_core::formula::rules::RuleAction::Voice(key) => ("voice", key.clone()),
+                    vm_core::formula::rules::RuleAction::Flag(name) => ("flag", name.clone()),
+                };
+                let payload = serde_json::json!({
+                    "rule": t.rule, "kind": kind, "arg": arg, "at": t.at_ms,
+                });
+                if let Err(e) = form.app_handle().emit("rule-triggered", payload) {
+                    logger::warn("App", &format!("rule-triggered 发送失败: {e}"));
+                }
+            }
+        }
+
         // W2: 启动期 (sink 安装前) 的 config 弹窗缓存回放 — 等到 web 就绪
         // (前端 config-dialog 监听已注册, 见 App.tsx 就绪序: 监听注册 → ui_ready)
         // 再经 sink 补发, 一次即止 (首启模板升级的合并报告由此达用户)

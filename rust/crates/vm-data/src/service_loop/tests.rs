@@ -18,10 +18,23 @@ const STATE_MOCK: &str = "{\"valid\": true,\"aileron, %\": -48,\"elevator, %\": 
 /// 保 Deriver 判定所需字段; type/vario/compass 为快照原值)
 const INDIC_MOCK: &str = "{\"valid\": true, \"army\": \"air\", \"type\": \"p-51d-20_china\", \"speed\": 131.007797, \"vario\": -7.342558, \"aviahorizon_roll\": -40.553505, \"aviahorizon_pitch\": 0.632352, \"compass\": 164.09729}";
 
+/// W2: 公式集是数据链本体 (Deriver 消解) — 测试统一从仓库根装出厂公式
+/// (cwd 在 crate 目录; 与生产装载语义一致)
+fn install_factory_formulas(svc: &Service) {
+    let defs = vm_core::formula::persistence::load_merged(
+        concat!(env!("CARGO_MANIFEST_DIR"), "/../../../formulas.cfg"),
+        "",
+    );
+    let refs: Vec<String> = defs.iter().map(|d| d.name.clone()).collect();
+    svc.formula.install(&defs, &refs);
+}
+
 fn new_service() -> Service {
     let fm = Arc::new(FMManager::new(Arc::new(EventBus::new())));
     let bus = Arc::new(FlightDataBus::new());
-    Service::new(ServiceConfig::default(), fm, bus)
+    let svc = Service::new(ServiceConfig::default(), fm, bus);
+    install_factory_formulas(&svc);
+    svc
 }
 
 /// Java 构造器 + resetvaria 接线逐项核对 (service_fields.rs 的
@@ -126,6 +139,7 @@ fn process_polling_cycle_full_chain() {
     });
     let mut svc =
         Service::new(ServiceConfig::default(), Arc::clone(&fm), Arc::clone(&bus));
+    install_factory_formulas(&svc);
     let base = hits.load(Ordering::SeqCst); // 构造期 1 次
 
     // 预填 http 响应缓冲 (run 循环里 getReqResult 的产物)
@@ -278,7 +292,10 @@ fn update_speed_ratio_and_stall_speed_oracle() {
     let blkx = vm_core::blkx::Blkx::parse(&phys).unwrap();
     let fm = FMHandle::ready(Some("spitfire_f24".to_string()), Some(blkx), 0.0, 0.0, None);
 
-    svc.update_speed_ratio(&fm);
+    // W3: 两方法消解 — 公式接管 (formula_step 驱动, oracle 数值不变);
+    // d.fm 生产链由 calculate 开头注入 (R1 快照), 直调此处补注
+    svc.data.write().unwrap().fm = Arc::new(fm.clone());
+    svc.formula_step(&fm);
     {
         let d = read_data(&svc.data);
         // python oracle (f32 拓宽域公式直算, 位级)
@@ -292,7 +309,7 @@ fn update_speed_ratio_and_stall_speed_oracle() {
     }
 
     // 失速: flap=0 (STATE_MOCK "flaps, %": 0; mfuel=197)
-    svc.update_stall_speed(&fm);
+    svc.formula_step(&fm);
     assert_eq!(
         svc.data.read().unwrap().stall_speed,
         158.26201720161404,
@@ -303,7 +320,7 @@ fn update_speed_ratio_and_stall_speed_oracle() {
         let mut d = write_data(&svc.data);
         d.s_state.as_mut().unwrap().flaps = 50;
     }
-    svc.update_stall_speed(&fm);
+    svc.formula_step(&fm);
     assert_eq!(
         svc.data.read().unwrap().stall_speed,
         143.78318105378034,
@@ -718,19 +735,27 @@ fn flight_log_tick_writes_rows_and_close_flushes() {
     }
 }
 
-/// 公式系统集成 (阶段 2 A 级外置验收): formula_step 求值链 + mach 覆写守卫。
-/// 注: READY 句柄的覆写发生路径 (blkx.is_some) 由 mock e2e 场景覆盖 (暂缓跑),
-/// 本测试覆盖: (1) mach 公式按内置式求值正确 (2) 无 FM 守卫生效 (mach 不被覆写)。
+/// 公式系统集成 (W1b 通用写回验收): formula_step 求值链 + 接管写回 + NaN 守卫。
+/// 覆盖: (1) mach 公式按内置式求值正确 (2) 无 FM → invalid() → 不接管
+/// (3) 有 FM → 接管生效 (4) 白名单外同名公式不影响系统字段。
 #[test]
 fn formula_step_evaluates_and_guards_mach() {
     let mut svc = new_service();
-    // 安装与 formulas.cfg 内置同式的 mach 公式 (测试 cwd 无该文件, 手动装载)
-    let defs = vec![vm_core::formula::FormulaDef {
-        name: "mach".into(),
-        expr: "ias_per_mach(altitude) != 0 ? ias / ias_per_mach(altitude) : 0".into(),
-        ..Default::default()
-    }];
-    svc.formula.install(&defs, &["mach".to_string()]);
+    // 安装与 formulas.cfg 内置同式的 mach 接管公式 + 一个白名单外同名公式
+    let defs = vec![
+        vm_core::formula::FormulaDef {
+            name: "mach".into(),
+            expr: "fm_loaded ? (ias_per_mach(altitude) != 0 ? ias / ias_per_mach(altitude) : 0) : invalid()".into(),
+            ..Default::default()
+        },
+        vm_core::formula::FormulaDef {
+            name: "ias".into(),
+            expr: "999".into(),
+            ..Default::default()
+        },
+    ];
+    let refs = vec!["mach".to_string(), "ias".to_string()];
+    svc.formula.install(&defs, &refs);
 
     // 喂一帧遥测: ias=474, heightm=46 (STATE_MOCK 同源值)
     {
@@ -739,25 +764,151 @@ fn formula_step_evaluates_and_guards_mach() {
         s.engine_num = 1;
         s.ias = 474;
         s.heightm = 46.0;
-        // 生产链 d.alt 由 Deriver 写回段先置 (= s.heightm 直通),
-        // 本测试直调 formula_step 需预置同值
-        d.alt = 46.0;
+        d.alt = 46.0; // 生产链由 Deriver 写回段先置 (= s.heightm 直通)
         d.actual_interval_ms = 50;
     }
-    // 无 FM 句柄 (UNRESOLVED, 对应构造默认)
+    // (2) 无 FM: mach 公式 invalid() → 不接管 (原 hasFM 守卫语义由公式表达)
     let fm = vm_core::fm::FMHandle::UNRESOLVED;
     let before_mach = svc.data.read().unwrap().mach;
     svc.formula_step(&fm);
-
+    {
+        let d = svc.data.read().unwrap();
+        let slot = d.formula_slots.get("mach").copied().expect("mach 槽存在");
+        assert!(d.formula_values.get(slot).is_nan(), "无 FM 公式值应 NaN");
+        assert_eq!(d.mach, before_mach, "NaN 守卫: mach 不被接管");
+        // (4) 白名单外: 公式 ias=999 进公式命名空间, 不改系统 ias (getter 读 s_state)
+        let ias_slot = d.formula_slots.get("ias").copied().unwrap();
+        assert_eq!(d.formula_values.get(ias_slot), 999.0);
+        assert_eq!(d.s_state.as_ref().unwrap().ias, 474);
+    }
+    // (3) 有 FM: 接管生效 (READY 句柄; blkx 最小有效形态)
+    let blkx = {
+        let mut b = vm_core::blkx::Blkx::default();
+        b.valid = true;
+        b
+    };
+    let fm_ready = vm_core::fm::FMHandle::ready(Some("mock".into()), Some(blkx), 0.0, 0.0, None);
+    svc.formula_step(&fm_ready);
     let d = svc.data.read().unwrap();
-    // (1) 公式求值链通: mach 槽存在且 = 手算值 (与 Deriver 手写式位级同式)
-    let slot = d.formula_slots.get("mach").copied().expect("mach 槽存在");
-    let v = d.formula_values.get(slot);
     let ias_per_mach = 3.6
         * (1.4f64 / 1.225 * 101325.0 * (1.0f64 - 0.0000225577 * 46.0).powf(5.25588))
             .sqrt();
     let expect = 474.0 / ias_per_mach;
-    assert!((v - expect).abs() < 1e-12, "公式 mach {v} vs 手算 {expect}");
-    // (2) 无 FM 守卫: d.mach 不被覆写 (保持上轮值)
-    assert_eq!(d.mach, before_mach);
+    assert!((d.mach - expect).abs() < 1e-12, "接管 mach {0} vs 手算 {expect}", d.mach);
 }
+
+// ===== W1c: 帧回放对拍设施 (W2 Deriver 消解的安全网骨架) =====
+
+/// 参数化 /state 帧: ias 爬升 / 高度爬升 / Ny 变化 (STATE_MOCK 同构变体)
+fn replay_state_json(i: usize) -> String {
+    format!(
+        r#"{{"valid": true,"aileron, %": -48,"elevator, %": 20,"rudder, %": -47,"flaps, %": 0,"gear, %": 0,"H, m": {h},"TAS, km/h": {tas},"IAS, km/h": {ias},"M": 0.39,"AoA, deg": -1.6,"AoS, deg": -5.9,"Ny": {ny},"Vy, m/s": -7.3,"Wx, deg/s": -34,"Mfuel, kg": 197,"Mfuel0, kg": 734,"throttle 1, %": 110,"RPM throttle 1, %": 100,"mixture 1, %": 100,"radiator 1, %": 42,"magneto 1": 3,"power 1, hp": 1597.8,"RPM 1": 3001,"manifold pressure 1, atm": 2.24,"water temp 1, C": 121,"oil temp 1, C": 90,"pitch 1, deg": 35.5,"thrust 1, kgs": 840,"efficiency 1, %": 87}}"#,
+        h = 46 + i * 50,
+        tas = 454 + i,
+        ias = 474 + i * 2,
+        ny = 0.35 + i as f64 * 0.05,
+    )
+}
+
+/// 喂一帧 + 跑完整 calculate 链 (含 formula_step)
+fn feed_and_calculate(svc: &mut Service, i: usize) {
+    {
+        let mut d = svc.data.write().unwrap();
+        d.s_state.as_mut().unwrap().update(&replay_state_json(i));
+        d.s_indic.as_mut().unwrap().update(INDIC_MOCK);
+        d.actual_interval_ms = 50;
+    }
+    // calculate 内部自取 fm_manager.current() (无 FM → UNRESOLVED)
+    svc.calculate();
+}
+
+/// 20 帧回放: 整链无 panic + mach 公式值逐帧 = 手算 oracle (与 Deriver 同式)
+#[test]
+fn frame_replay_formula_matches_oracle() {
+    let mut svc = new_service();
+    // 测试公式 (无 fm_loaded 条件 — 直接验证公式链对帧序列的正确性;
+    // 接管链的守卫语义另由 formula_step_evaluates_and_guards_mach 覆盖)
+    let defs = vec![vm_core::formula::FormulaDef {
+        name: "mach_probe".into(),
+        expr: "ias_per_mach(altitude) != 0 ? ias / ias_per_mach(altitude) : 0".into(),
+        ..Default::default()
+    }];
+    svc.formula.install(&defs, &["mach_probe".to_string()]);
+    for i in 0..20 {
+        feed_and_calculate(&mut svc, i);
+        let d = svc.data.read().unwrap();
+        // altitude 链: d.alt = values.altitude = s.heightm 直通
+        let h = 46.0 + i as f64 * 50.0;
+        assert_eq!(d.alt, h, "帧 {i}: altitude 直通");
+        let ias = (474 + i * 2) as f64;
+        let ias_per_mach = 3.6
+            * (1.4f64 / 1.225 * 101325.0 * (1.0f64 - 0.0000225577 * h).powf(5.25588))
+                .sqrt();
+        let expect = ias / ias_per_mach;
+        let slot = d.formula_slots.get("mach_probe").copied().unwrap();
+        let got = d.formula_values.get(slot);
+        assert!(
+            (got - expect).abs() < 1e-12,
+            "帧 {i}: 公式 mach {got} vs 手算 {expect}"
+        );
+    }
+}
+
+
+/// W2 Deriver 消解的位级对拍: 出厂公式集接管 an/sep/turn_rate/turn_rds/
+/// acceleration 后, 20 帧字段值必须与删 Deriver 前的输出**逐位相等**
+/// (oracle = 2026-08-29 抓取的 Deriver 输出, 测试数据同 replay_state_json)。
+#[test]
+fn w2_deriver_takeover_bitexact_oracle() {
+    let mut svc = new_service();
+    // 从仓库根装出厂公式集 (测试 cwd 在 crate 目录, CARGO_MANIFEST_DIR 定位)
+    let defs = vm_core::formula::persistence::load_merged(
+        concat!(env!("CARGO_MANIFEST_DIR"), "/../../../formulas.cfg"),
+        "",
+    );
+    let refs: Vec<String> = defs.iter().map(|d| d.name.clone()).collect();
+    svc.formula.install(&defs, &refs);
+    const ORACLE: [(f64, f64, f64, f64, f64); 20] = [
+(7.53209183003146, 16221.241468295968, 6.844076924919721, 527.8750148221635, 2522.222222222222),
+(7.282708013342137, 8124.832186990853, 4.197322284429346, 1357.04274869907, 1262.5),
+(7.058573983528785, 5426.042215755446, 3.738169538698215, 1658.2280126127207, 842.5925925925926),
+(6.862164055475022, 4076.6570720374657, 3.512125574825262, 1826.2754888979678, 632.6388888888889),
+(6.695918502829513, 3267.0338593264555, 3.3663367534095654, 1939.7256402222934, 506.66666666666674),
+(6.562130286560385, 2727.291612118931, 3.2621085317480425, 2024.3858888175364, 422.6851851851853),
+(6.462815538437047, 2341.7670594848264, 3.1853379003702953, 2091.0095061874767, 362.6984126984127),
+(6.399579194809071, 2052.628565959109, 3.1297580496772075, 2144.7424735239274, 317.70833333333337),
+(6.373495374312285, 1827.7474451723165, 3.0921345735355774, 2188.296503242731, 282.7160493827161),
+(6.3850194150922, 1647.8464853027722, 3.070513583502098, 2223.2353593145153, 254.72222222222226),
+(6.433949238594114, 1500.6583697366802, 3.063482912550724, 2250.5671238510276, 231.81818181818184),
+(6.51944256061084, 1378.004887398178, 3.069839319744817, 2271.0382000234285, 212.7314814814815),
+(6.640087428665138, 1274.2241998501293, 3.0884434097778417, 2285.2818285204785, 196.58119658119656),
+(6.794011410684177, 1185.2721367802944, 3.118168418976909, 2293.889003289691, 182.73809523809527),
+(6.979012676730488, 1108.1829732930303, 3.157896364627535, 2297.4364411253464, 170.74074074074076),
+(7.192694329096608, 1040.7324157166045, 3.206535185757458, 2296.491537592272, 160.24305555555557),
+(7.432582183759874, 981.2195335961636, 3.2630405040676296, 2291.606552573115, 150.98039215686276),
+(7.696227211500395, 928.321381022377, 3.3264362954007662, 2283.309187186382, 142.7469135802469),
+(7.981274259830538, 880.9935270141935, 3.3958275440815857, 2272.0937457067876, 135.38011695906434),
+(8.285515277538234, 838.4004267867731, 3.4704082022482896, 2258.4145598744262, 128.75),
+    ];
+    for i in 0..20 {
+        {
+            let mut d = svc.data.write().unwrap();
+            d.s_state.as_mut().unwrap().update(&replay_state_json(i));
+            d.s_indic.as_mut().unwrap().update(INDIC_MOCK);
+            d.actual_interval_ms = 50;
+        }
+        svc.calculate();
+        let d = svc.data.read().unwrap();
+        let (an, sep, tr, trds, acc) = ORACLE[i];
+        assert_eq!(d.an.to_bits(), an.to_bits(), "帧 {i} an");
+        assert_eq!(d.sep.to_bits(), sep.to_bits(), "帧 {i} sep");
+        assert_eq!(d.turn_rate.to_bits(), tr.to_bits(), "帧 {i} turn_rate");
+        assert_eq!(d.turn_rds.to_bits(), trds.to_bits(), "帧 {i} turn_rds");
+        assert_eq!(d.acceleration.to_bits(), acc.to_bits(), "帧 {i} acceleration");
+    }
+}
+
+
+
+
+

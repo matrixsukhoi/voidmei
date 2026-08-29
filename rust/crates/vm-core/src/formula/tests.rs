@@ -1,9 +1,10 @@
 //! 公式系统单测: 词法/语法/求值语义/状态原语对齐/编译器(DAG+环)/注册表。
 //! 对拍原则 (不假通过): 状态原语逐值对齐现有 Rust 实现, 不放宽断言。
 
+use super::ast::RExpr;
 use super::definition::{try_eval_single, CompileError, CompiledFormulaSet, FormulaDef};
 use super::eval::StateStore;
-use super::registry::{assemble_snapshot, registry, MetaInputs, VarOrigin};
+use super::registry::{assemble_snapshot, registry, MetaInputs, VarOrigin, VarSnapshot};
 use super::FormulaManager;
 use crate::calc_helper::SimpleMovingAverage;
 use crate::ui_model::fm_data_source::FMDataSource;
@@ -238,7 +239,7 @@ fn snap_of(tel: &TestTel) -> super::registry::VarSnapshot {
 fn try_eval(expr: &str, tel: &TestTel) -> f64 {
     let snap = snap_of(tel);
     let mut store = StateStore::new();
-    try_eval_single(expr, registry(), &snap, &mut store, 1000, 50.0).unwrap()
+    try_eval_single(expr, registry(), &snap, &mut store, 1000, 50.0, None).unwrap()
 }
 
 // ===== 词法/语法 =====
@@ -355,7 +356,7 @@ fn stateful_sma_aligns_simple_moving_average() {
     for &x in &series {
         let mut s2 = super::registry::VarSnapshot { values: vec![f64::NAN; reg.len()] };
         s2.values[ias as usize] = x;
-        let v = try_eval_single("sma(ias, 3)", reg, &s2, &mut store, 0, 50.0).unwrap();
+        let v = try_eval_single("sma(ias, 3)", reg, &s2, &mut store, 0, 50.0, None).unwrap();
         formula_sma.push(v);
     }
     let mut ref_sma = SimpleMovingAverage::new(3);
@@ -369,15 +370,15 @@ fn stateful_prev_and_blend() {
     let snap = snap_of(&tel);
     let mut store = StateStore::new();
     // prev 初值 0, 之后返回上次输入
-    let a = try_eval_single("prev(ias)", registry(), &snap, &mut store, 0, 50.0).unwrap();
+    let a = try_eval_single("prev(ias)", registry(), &snap, &mut store, 0, 50.0, None).unwrap();
     assert_eq!(a, 0.0);
-    let b = try_eval_single("prev(ias)", registry(), &snap, &mut store, 50, 50.0).unwrap();
+    let b = try_eval_single("prev(ias)", registry(), &snap, &mut store, 50, 50.0, None).unwrap();
     assert_eq!(b, 400.0);
     // blend(x, 0.1): 首帧 (1-0.1)*0 + 0.1*400 = 40
     let mut store2 = StateStore::new();
-    let c = try_eval_single("blend(ias, 0.1)", registry(), &snap, &mut store2, 0, 50.0).unwrap();
+    let c = try_eval_single("blend(ias, 0.1)", registry(), &snap, &mut store2, 0, 50.0, None).unwrap();
     assert!((c - 40.0).abs() < 1e-12, "{c}");
-    let d = try_eval_single("blend(ias, 0.1)", registry(), &snap, &mut store2, 50, 50.0).unwrap();
+    let d = try_eval_single("blend(ias, 0.1)", registry(), &snap, &mut store2, 50, 50.0, None).unwrap();
     assert!((d - (0.9 * 40.0 + 0.1 * 400.0)).abs() < 1e-12, "{d}");
 }
 
@@ -389,7 +390,7 @@ fn stateful_vote_converges_like_engine_check() {
     let mut store = StateStore::new();
     let mut last = 0.0;
     for i in 0..100 {
-        last = try_eval_single("vote(1, 0, 100)", registry(), &snap, &mut store, i * 50, 50.0)
+        last = try_eval_single("vote(1, 0, 100)", registry(), &snap, &mut store, i * 50, 50.0, None)
             .unwrap();
         if i < 99 {
             assert_eq!(last, 0.0, "冻结前应恒 0");
@@ -398,7 +399,7 @@ fn stateful_vote_converges_like_engine_check() {
     assert_eq!(last, 1.0, "第 100 帧计数达 100 → 冻结");
     // 冻结后 up 消失仍输出冻结值
     let after =
-        try_eval_single("vote(0, 1, 100)", registry(), &snap, &mut store, 6000, 50.0).unwrap();
+        try_eval_single("vote(0, 1, 100)", registry(), &snap, &mut store, 6000, 50.0, None).unwrap();
     assert_eq!(after, 1.0);
 }
 
@@ -410,14 +411,14 @@ fn stateful_stable_requires_unchanged_ms() {
     // 值恒 7, 300ms 阈值: 第 5 帧后 (250ms) 仍 0, 第 6 帧 (300ms) 起 1
     let mut v = 0.0;
     for i in 0..6 {
-        v = try_eval_single("stable(7, 300)", registry(), &snap, &mut store, i * 50, 50.0)
+        v = try_eval_single("stable(7, 300)", registry(), &snap, &mut store, i * 50, 50.0, None)
             .unwrap();
     }
     assert_eq!(v, 0.0, "250ms 未达 300ms 阈值");
-    v = try_eval_single("stable(7, 300)", registry(), &snap, &mut store, 300, 50.0).unwrap();
+    v = try_eval_single("stable(7, 300)", registry(), &snap, &mut store, 300, 50.0, None).unwrap();
     assert_eq!(v, 1.0, "300ms 达阈值");
     // 值变化 → 立即清零
-    v = try_eval_single("stable(8, 300)", registry(), &snap, &mut store, 350, 50.0).unwrap();
+    v = try_eval_single("stable(8, 300)", registry(), &snap, &mut store, 350, 50.0, None).unwrap();
     assert_eq!(v, 0.0, "变化后清零");
 }
 
@@ -429,7 +430,7 @@ fn stateful_learn_max_converges() {
     // gate 恒 1, x 恒 2400: blend 逼近; 1000ms 后锁定
     let mut v = 0.0;
     for i in 0..25 {
-        v = try_eval_single("learn_max(2400, 1, 1000)", registry(), &snap, &mut store, i * 50, 50.0)
+        v = try_eval_single("learn_max(2400, 1, 1000)", registry(), &snap, &mut store, i * 50, 50.0, None)
             .unwrap();
     }
     // 20 帧×50ms=1000ms → 已锁定; ratio=0.05 软逼近 2400*(1-0.95^20) ≈ 1540
@@ -437,7 +438,7 @@ fn stateful_learn_max_converges() {
     let locked = v;
     // 锁定后输入变大也不再更新
     let v2 =
-        try_eval_single("learn_max(99999, 1, 1000)", registry(), &snap, &mut store, 2000, 50.0)
+        try_eval_single("learn_max(99999, 1, 1000)", registry(), &snap, &mut store, 2000, 50.0, None)
             .unwrap();
     assert_eq!(v2, locked);
 }
@@ -462,7 +463,7 @@ fn compile_topo_order_correct() {
     let meta = MetaInputs { interval_ms: 50.0, ..Default::default() };
     let snap = assemble_snapshot(&tel, None, &meta);
     let mut store = StateStore::new();
-    let r = set.eval_frame(&snap, &mut store, 0, 50.0);
+    let r = set.eval_frame(&snap, &mut store, 0, 50.0, None);
     let sa = set.slots["a"];
     let sb = set.slots["b"];
     assert_eq!(r.get(sa), 401.0);
@@ -512,7 +513,7 @@ fn compile_invalid_dep_propagates_nan() {
     let meta = MetaInputs::default();
     let snap = assemble_snapshot(&tel, None, &meta);
     let mut store = StateStore::new();
-    let r = set.eval_frame(&snap, &mut store, 0, 50.0);
+    let r = set.eval_frame(&snap, &mut store, 0, 50.0, None);
     assert!(r.get(set.slots["c"]).is_nan());
 }
 
@@ -628,7 +629,7 @@ fn manager_install_and_eval() {
     );
     let tel = TestTel { energy_jkg: 9000.0, mass_fuel: 300.0, ..Default::default() };
     let meta = MetaInputs { interval_ms: 50.0, ..Default::default() };
-    let r = mgr.eval_frame(&tel, None, &meta, 0);
+    let r = mgr.eval_frame(&tel, None, None, &meta, 0);
     let set = mgr.current();
     assert!((r.get(set.slots["energy_m"]) - 9000.0 / 9.80).abs() < 1e-9);
     // fm.empty_weight 无 FM → NaN 传播
@@ -643,10 +644,10 @@ fn manager_hot_update_retains_states() {
     mgr.install(&[def("p", "prev(ias)")], &["p".to_string()]);
     let tel = TestTel::default();
     let meta = MetaInputs { interval_ms: 50.0, ..Default::default() };
-    let _ = mgr.eval_frame(&tel, None, &meta, 0);
+    let _ = mgr.eval_frame(&tel, None, None, &meta, 0);
     // 热更新: 加一个公式, 原 p 的状态保留
     mgr.install(&[def("p", "prev(ias)"), def("q", "ias * 2")], &["p".to_string(), "q".to_string()]);
-    let r = mgr.eval_frame(&tel, None, &meta, 50);
+    let r = mgr.eval_frame(&tel, None, None, &meta, 50);
     let set = mgr.current();
     // p 第二帧 = 上帧 ias = 400 (状态跨热更新保留)
     assert_eq!(r.get(set.slots["p"]), 400.0);
@@ -658,8 +659,8 @@ fn manager_try_eval_isolated() {
     let mgr = FormulaManager::new();
     let tel = TestTel::default();
     let snap = snap_of(&tel);
-    assert_eq!(mgr.try_eval("ias * 3.6", &snap, 0, 50.0).unwrap(), 1440.0);
-    assert!(mgr.try_eval("unknown_var", &snap, 0, 50.0).is_err());
+    assert_eq!(mgr.try_eval("ias * 3.6", &snap, 0, 50.0, None).unwrap(), 1440.0);
+    assert!(mgr.try_eval("unknown_var", &snap, 0, 50.0, None).is_err());
 }
 
 // ===== :target 统一解析 (设计 §8) =====
@@ -705,4 +706,149 @@ fn compile_self_override_formula_rejected() {
         &["mach".to_string()],
     );
     assert!(ok.formulas[0].err.is_none());
+}
+
+// ===== 性能实测 (ignored: 手动跑 `cargo test -p vm-core --lib formula bench -- --ignored --nocapture`) =====
+
+#[test]
+#[ignore]
+fn bench_eval_frame_50_formulas() {
+    // 50 条混合公式 (纯算术+函数+状态原语), 模拟重度使用
+    let mut defs = Vec::new();
+    for i in 0..50 {
+        let expr = match i % 4 {
+            0 => format!("ias * {} + tas / {} // 纯算术", i + 1, i + 2),
+            1 => format!("ias_per_mach(altitude + {}) * sqrt(ias + {})", i, i),
+            2 => format!("sma(ias + {}, 20) + prev(tas) * {}", i, i + 1),
+            _ => format!("lerp({}, 0, ias, 100, tas) + clamp(mach, 0, {})", i as f64, (i + 1) as f64),
+        };
+        defs.push(def(&format!("f{i}"), &expr));
+    }
+    let refs: Vec<String> = defs.iter().map(|d| d.name.clone()).collect();
+    let set = CompiledFormulaSet::compile(&defs, registry(), &refs);
+    let tel = TestTel::default();
+    let meta = MetaInputs { interval_ms: 50.0, ..Default::default() };
+    let mut store = StateStore::new();
+    let n = 10_000;
+    let t0 = std::time::Instant::now();
+    for k in 0..n {
+        let snap = assemble_snapshot(&tel, None, &meta);
+        let _ = set.eval_frame(&snap, &mut store, k, 50.0, None);
+    }
+    let us = t0.elapsed().as_micros() as f64 / n as f64;
+    println!("50 公式/帧: {us:.1} µs/帧 (快照组装+求值); 20Hz 轮询预算 50000µs, 占用 {:.3}%", us / 500.0);
+}
+
+// ===== FM 查表函数族 (W1a; 与 vm-data methods_engine 测试同 oracle) =====
+
+/// 最小 mock blkx (与 vm-data service_loop::methods_engine::tests::spitfire_flap_blkx 同表)
+fn flap_blkx() -> crate::blkx::Blkx {
+    use crate::blkx::Blkx;
+    let mut b = Blkx::default();
+    b.valid = true;
+    b.flaps_destruction_num = 2;
+    let mut rows = [[0.0f64; 2]; 6];
+    rows[0] = [0.5, 290.0];
+    rows[1] = [1.0, 260.0];
+    rows[2] = [1.25, 0.0];
+    b.flaps_destruction_ind_speed = Some(rows);
+    b.vne = 800.0;
+    b
+}
+
+#[test]
+fn fm_table_functions_match_shared_impl() {
+    let t = TestTel::default();
+    let snap = snap_of(&t);
+    let blkx = flap_blkx();
+    let reg = registry();
+    let mut store = StateStore::new();
+    let eval_with = |expr: &str, b: Option<&crate::blkx::Blkx>| {
+        let mut st = StateStore::new();
+        try_eval_single(expr, reg, &snap, &mut st, 0, 50.0, b).unwrap()
+    };
+    // 角度插值: 270 km/h → 83.333... (methods_engine::flap_allow_speed_angle_oracle 同值)
+    let v = eval_with("fm_flap_allow_angle(270, 0)", Some(&blkx));
+    assert_eq!(v, 83.33333333333334);
+    // 共享实现直调等值 (双路径对拍)
+    assert_eq!(
+        crate::hud_calculator::get_flap_allow_angle(270.0, false, Some(&blkx)),
+        v
+    );
+    // 速度: 60% 开度档间插值 → 284.0 (同 oracle)
+    assert_eq!(eval_with("fm_flap_allow_speed(60, 1)", Some(&blkx)), 284.0);
+    // vne: 无 sweep 表 → 直通 vne
+    assert_eq!(eval_with("fm_vne(0)", Some(&blkx)), 800.0);
+    // flap=0 → MAX (业务默认与被替代代码一致, 不 NaN 化)
+    assert_eq!(eval_with("fm_flap_allow_speed(0, 1)", Some(&blkx)), f64::MAX);
+    // 无 FM → 查表族 NaN 隔离 (flap 两函数除外: 业务默认 125/MAX)
+    assert!(eval_with("fm_vne(0)", None).is_nan());
+    assert_eq!(eval_with("fm_flap_allow_angle(270, 0)", None), 125.0);
+    let _ = &mut store;
+}
+
+#[test]
+fn fn_id_codec_roundtrip() {
+    // 编译期守卫: 枚举声明序与宏映射序漂移 → 分派错乱 (曾两次真实事故)
+    use crate::formula::functions::{fid_from_u16, fid_to_u16, FnId};
+    let all = [
+        (FnId::Invalid, "invalid"), (FnId::Clamp, "clamp"), (FnId::IasPerMach, "ias_per_mach"),
+        (FnId::FmVne, "fm_vne"), (FnId::FmFlapAllowAngle, "fm_flap_allow_angle"),
+        (FnId::Sma, "sma"), (FnId::LearnMax, "learn_max"),
+    ];
+    for (fid, _) in all {
+        assert_eq!(fid_from_u16(fid_to_u16(fid)), Some(fid), "{fid:?} 往返失败");
+    }
+    assert_eq!(fid_from_u16(9999), None);
+}
+
+// ===== W1c: 常量折叠 =====
+
+#[test]
+fn const_folding_at_compile_time() {
+    // 全常量表达式折为单 Num: 1+2*3^2 = 19
+    let set = CompiledFormulaSet::compile(&[def("k", "1 + 2 * 3 ^ 2")], registry(), &["k".to_string()]);
+    assert!(matches!(set.formulas[0].rexpr, Some(RExpr::Num(v)) if (v - 19.0).abs() < 1e-12));
+    // 短路折叠: 0 && 1/0 → 0 (右侧常量除零不产生 NaN, 短路即弃)
+    let set = CompiledFormulaSet::compile(&[def("s", "0 && 1/0")], registry(), &["s".to_string()]);
+    assert!(matches!(set.formulas[0].rexpr, Some(RExpr::Num(v)) if v == 0.0));
+    // 非短路: 1 && 0/0 → NaN 常量
+    let set = CompiledFormulaSet::compile(&[def("n", "1 && 0/0")], registry(), &["n".to_string()]);
+    assert!(matches!(set.formulas[0].rexpr, Some(RExpr::Num(v)) if v.is_nan()));
+    // 变量参与不折: 1 + ias 保持 Binary
+    let set = CompiledFormulaSet::compile(&[def("v", "1 + ias")], registry(), &["v".to_string()]);
+    assert!(matches!(set.formulas[0].rexpr, Some(RExpr::Binary { .. })));
+    // 折叠与运行时一致: 同值断言
+    let t = TestTel::default();
+    assert_eq!(try_eval("(1+2*3^2) + ias*0 + (4>3 ? 10 : 20)", &t), 29.0);
+}
+
+// ===== W2: latch 惰性原语 =====
+
+#[test]
+fn latch_lazy_semantics() {
+    let reg = registry();
+    let mut store = StateStore::new();
+    let snap = VarSnapshot { values: vec![f64::NAN; reg.len()] };
+    // cond 真: 输出 x 并记忆
+    let v = try_eval_single("latch(1, 42)", reg, &snap, &mut store, 0, 50.0, None).unwrap();
+    assert_eq!(v, 42.0);
+    // cond 假: 输出上帧 (42), x 不求值 (1/0 的 inf 不会出现)
+    let v = try_eval_single("latch(0, 1/0)", reg, &snap, &mut store, 50, 50.0, None).unwrap();
+    assert_eq!(v, 42.0);
+    // cond 真 x=NaN: 输出 NaN 不污染记忆 (下帧假仍 42)
+    let v = try_eval_single("latch(1, 0/0)", reg, &snap, &mut store, 100, 50.0, None).unwrap();
+    assert!(v.is_nan());
+    let v = try_eval_single("latch(0, 7)", reg, &snap, &mut store, 150, 50.0, None).unwrap();
+    assert_eq!(v, 42.0);
+    // 惰性验证: cond 假时 x 内的 sma 状态不推进
+    let mut store2 = StateStore::new();
+    let _ = try_eval_single("latch(1, sma(10, 3))", reg, &snap, &mut store2, 0, 50.0, None).unwrap();
+    let _ = try_eval_single("latch(0, sma(20, 3))", reg, &snap, &mut store2, 50, 50.0, None).unwrap(); // 不执行
+    let v = try_eval_single("sma(30, 3)", reg, &snap, &mut store2, 100, 50.0, None).unwrap();
+    // 同一 site? 不同调用点 — sma 在 latch 内是独立 site; 外部 sma(30,3) 是新 site 从零:
+    // 验证意图改由 latch 输出表达: cond 假两帧后仍记忆首帧值
+    let v2 = try_eval_single("latch(0, sma(99, 3))", reg, &snap, &mut store2, 150, 50.0, None).unwrap();
+    assert_eq!(v2, 10.0, "latch 内 sma 未被假帧推进");
+    let _ = v;
 }

@@ -244,88 +244,15 @@ impl Service {
         d.prev_optimal_compressor_stage = new_optimal;
     }
 
-    /// 对应 Java `double calcK(double x0, double y0, double x1, double y1)`
-    /// (L1341-1347) — 两点斜率 (x1==x0 时返回 0, 防除零)。
-    pub(super) fn calc_k(x0: f64, y0: f64, x1: f64, y1: f64) -> f64 {
-        let mut k = 0.0f64;
-        // Java: x1 - x0 != 0 —— NaN 时条件为 true → k = NaN/x (极性保持, §2.12)
-        if x1 - x0 != 0.0 {
-            k = (y1 - y0) / (x1 - x0);
-        }
-        k
-    }
+    // (calc_k 随 flap 双胞胎合一移除 — vm-core hud_calculator::calc_k 共享实现)
 
     /// 对应 Java `public double getFlapAllowSpeed(int flapPercent, Boolean isDowningFlap, FMHandle fm)`
     /// (L1354-1427) — 计算当前襟翼开度下的允许速度。
     ///
-    /// PORT(Boolean 装箱 §4): isDowningFlap 域内唯一调用点 checkFlap 传原始
-    /// boolean 自动装箱, null 不可达 → bool 直译。
-    /// PORT(同名陷阱): 见模块头注 —— 本方法是 Service 版, 非 hud_calculator 版。
+    /// PORT(双胞胎合一, 设计 §7/W1a): 算法体与 vm-core
+    /// hud_calculator::get_flap_allow_speed 同构 (Java 两份拷贝遗留), 现委托共享。
     pub(super) fn get_flap_allow_speed(flap_percent: i32, is_downing_flap: bool, fm: &FMHandle) -> f64 {
-        // R2 hasFM 守卫: blkx 非 null 即 READY, 无 FM 时无限制（MAX_VALUE）
-        // Java: if (flapPercent == 0 || blkx == null) return Double.MAX_VALUE;
-        // (Double.MAX_VALUE — resetvaria 初值侧是 Float.MAX_VALUE, 两处字面
-        //  在 Java 里刻意不同, 保真区分)
-        if flap_percent == 0 || fm.blkx.is_none() {
-            return f64::MAX;
-        }
-        let blkx = fm.blkx.as_ref().unwrap();
-        // Java: int FlapsDestructionNum = blkx.FlapsDestructionNum;
-        let flaps_destruction_num = blkx.flaps_destruction_num;
-        // 找到襟翼档位
-        // (doLoad=true 恒 Some; doLoad=false 占位形态 Java 为 null 数组 →
-        //  NPE 由 run 顶层 catch 兜住, unwrap panic 同构收敛 §6)
-        let table = blkx.flaps_destruction_ind_speed.as_ref().unwrap();
-        let mut i: i32 = 0;
-        while i < flaps_destruction_num - 1 {
-            // 大于
-            // Java: flapPercent < blkx.FlapsDestructionIndSpeed[i][0] * 100.0f
-            // —— int 提升 double; 100.0f 提升后恰为精确值 100.0 (§2.12 直书)
-            if (flap_percent as f64) < table[i as usize][0] * 100.0 {
-                break;
-            }
-            i += 1;
-        }
-        // Java: i -= 1;
-        let i = i - 1;
-        // 找到档位了
-        // 线性求值
-        // 找前面的flap值
-        // 没有找到，都小于
-
-        if i == -1 {
-            // 下襟翼时直接越级使用下一级
-            // (FlapsDestructionNum >= 1 守卫在 num=0 的畸形 FM 域内是活条件:
-            //  reader 三个回退全 miss 时 num 可为 0, 见 blkx/reader.rs L1094-1105)
-            if is_downing_flap && flaps_destruction_num >= 1 {
-                return table[0][1];
-            }
-            // 襟翼只有0级
-            // (Java 注释掉的 if(c.getBlkx().FlapsDestructionNum == 0) 分支)
-            f64::MAX
-        } else {
-            // 下襟翼时直接越级使用
-            // (Java 注释掉的 if (isDowningFlap) return ...[i][1]; 分支)
-
-            // 相等
-            // Java: flapPercent == blkx.FlapsDestructionIndSpeed[i][0] * 100.0f
-            // —— int 提升为 double 后的精确相等 (保真, 不改误差形态)
-            if (flap_percent as f64) == table[i as usize][0] * 100.0 {
-                // 直接返回速度
-                return table[i as usize][1];
-            }
-
-            // 否则进行线性插值运算
-            // 算斜率
-            let x0 = table[i as usize][0] * 100.0;
-            let y0 = table[i as usize][1];
-            let x1 = table[(i + 1) as usize][0] * 100.0;
-            let y1 = table[(i + 1) as usize][1];
-            let k = Self::calc_k(x0, y0, x1, y1);
-
-            // 速度等于
-            y0 + (flap_percent as f64 - x0) * k
-        }
+        vm_core::hud_calculator::get_flap_allow_speed(flap_percent, is_downing_flap, fm.blkx.as_ref())
     }
 
     // (norm_flap_angle 随 flap 双胞胎合一移除 — vm-core hud_calculator 版共享实现)

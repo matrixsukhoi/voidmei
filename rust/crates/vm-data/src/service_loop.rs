@@ -49,11 +49,9 @@ use vm_core::fm::{FMHandle, FMManager};
 use vm_core::http_helper::HttpHelper;
 use vm_core::parser::state::MAX_ENG_NUM;
 use vm_core::parser::{Indicators, MapInfo, MapObj, State};
-use vm_core::ui_model::TelemetrySource as _;
 use vm_core::{exception_helper, format, logger, G};
 
-use crate::data::derive::Deriver;
-use crate::data::json::{F_INVALID, IndicatorsRaw, StateRaw};
+use crate::data::json::F_INVALID;
 use crate::service_fields::{
     ServiceData, ENGINE_TYPE_JET, ENGINE_TYPE_PROP, ENGINE_TYPE_TURBOPROP, ENGINE_TYPE_UNKNOWN,
     NASTRING,
@@ -71,6 +69,34 @@ fn read_data(data: &RwLock<ServiceData>) -> std::sync::RwLockReadGuard<'_, Servi
 /// 写锁获取: 中毒穿透 (同 [`read_data`])。
 fn write_data(data: &RwLock<ServiceData>) -> std::sync::RwLockWriteGuard<'_, ServiceData> {
     data.write().unwrap_or_else(|e| e.into_inner())
+}
+
+/// 接管型公式的可写白名单 (公式名 == ServiceData 字段名, W1b 设计 §5 同名规则)。
+/// NaN 不写 (公式 invalid/缺输入 → 保持 Rust 路径值, 双保险);
+/// 白名单外同名公式只进公式命名空间 (formula_values), 不影响系统字段。
+/// 新增可接管字段 = 加一臂 (W2: Deriver 族, W3: 限制/襟翼族)。
+fn write_back(d: &mut ServiceData, name: &str, v: f64) {
+    if v.is_nan() {
+        return;
+    }
+    match name {
+        "mach" => d.mach = v,
+        "sep" => d.sep = v,
+        "turn_rate" => d.turn_rate = v,
+        "turn_rds" => d.turn_rds = v,
+        "acceleration" => d.acceleration = v,
+        "an" => d.an = v,
+        "stall_speed" => d.stall_speed = v,
+        "speed_limit_ratio" => d.speed_limit_ratio = v,
+        "aileron_lock_ratio" => d.aileron_lock_ratio = v,
+        "rudder_lock_ratio" => d.rudder_lock_ratio = v,
+        "unit_mach_limit_ratio" => d.unit_mach_limit_ratio = v,
+        "flap_allow_speed" => d.flap_allow_speed = v,
+        "flap_allow_angle" => d.flap_allow_angle = v,
+        "maximum_thr_rpm" => d.maximum_thr_rpm = v,
+        "speedv" => d.speedv = v,
+        _ => {}
+    }
 }
 
 /// Java `System.currentTimeMillis()` 的 crate 先例形态
@@ -131,9 +157,6 @@ impl Default for ServiceConfig {
 pub struct Service {
     /// 字段快照 (service_fields.rs; Java public 字段的 RwLock 形态)
     pub data: Arc<RwLock<ServiceData>>,
-    /// 派生量状态机 (updateSpeed/updateTurn/updateSEP 的 SMA 真人,
-    /// service_fields.rs "状态双主边界" 裁决的唯一主人)
-    deriver: Deriver,
     /// Java `FMManager.getInstance()` 单例 → 构造注入
     fm_manager: Arc<FMManager>,
     /// Java `FlightDataBus.getInstance()` 单例 → 构造注入
@@ -195,9 +218,6 @@ impl Service {
         formula.load_from_files();
         let mut svc = Service {
             data: Arc::clone(&data),
-            // PORT: SMA 族构造提前到 struct 字面量 (Java 在 resetvaria L1587-1593
-            // 构造, 窗口同 1000/freq; 加油重置路径见 reset_varia 的重建)
-            deriver: Deriver::new(config.service_loop_interval_ms.max(1) as u64),
             fm_manager,
             bus,
             http_client: HttpHelper::new(&config.http_header),
@@ -452,8 +472,9 @@ impl Service {
         Self::reset_eng_load(&fm);
         // PORT(SMA 重建): Java L1587-1590 的 calc/diff/sep/turnrds 四 SMA 在本
         // 调用点重建 = Deriver 整体重建 (真人在彼, 见上)
-        let freq = self.config.service_loop_interval_ms;
-        self.deriver = Deriver::new(freq.max(1) as u64);
+        let _freq = self.config.service_loop_interval_ms;
+        // W2: Deriver 消解 — SMA 状态改由公式状态仓承载, 会话重置在此
+        self.formula.reset_states();
 
         // Java: publishFlightDataEvent(); (L1659)
         // Publish initial state immediately
@@ -715,10 +736,8 @@ impl Service {
                     // 检测到加油，重置数据
                     {
                         let d = read_data(&self.data);
-                        // Java: Math.abs(speedv) < 10 — speedv 状态主在 Deriver
-                        // (updateEngineState 同源的 speedv() 外泄面; ServiceData
-                        // 的 speedv 字段保持死存储, 不构成第二真相)
-                        let speedv = self.deriver.speedv();
+                        // Java: Math.abs(speedv) < 10 — W2 起 speedv 为公式接管值
+                        let speedv = d.speedv;
                         let total_fuel = d.total_fuel;
                         let total_fuel_prev = d.total_fuel_prev;
                         if (speedv.abs() < 10.0) && (total_fuel - total_fuel_prev > 1.0) {
@@ -819,6 +838,22 @@ impl Service {
     ///
     /// Java 链 17 个子方法中, 已译 [`Deriver`] 覆盖: updateClimbRate (L777) /
     /// updateSpeed (L840) / updateTurn (L788) / updateSEP (L986) 四公式族 +
+
+
+    // ------------------------------------------------------------------
+    // publishFlightDataEvent (Java L434-482)
+    // ------------------------------------------------------------------
+
+    /// Publishes flight data to FlightDataBus.
+    /// Pre-computes HUDData on Service thread to offload work from EDT.
+    ///
+    /// @deprecated Method name is legacy - renamed to publishFlightDataEvent() for clarity.
+    /// (以上 javadoc 逐字保留, Java L434-438)
+ 
+    /// 对应 Java `public void calculate()` (L1115-1178)。
+    ///
+    /// Java 链 17 个子方法中, 已译 [`Deriver`] 覆盖: updateClimbRate (L777) /
+    /// updateSpeed (L840) / updateTurn (L788) / updateSEP (L986) 四公式族 +
     /// mach (updateSpeedRatio L1213-1215 的手动大气模型, R2 hasFM 守卫在写回段);
     /// updateCompass (L1101, 含 compass==-65535 的地图方向回退) / updateAlt
     /// (L739, 英制检测状态机 + 无线电高度有效性/英尺转米 + dRadioAlt 差分)
@@ -862,50 +897,39 @@ impl Service {
         // 增加wep时间 / 更新温度，优先使用更精确的 / 检查是否过热… (TODO 列表见 doc)
         // 更新方向 / 更新爬升率 / 获得准确高度 / 更新速度 / 更新转弯半径 —— Deriver::step
         // (updateCompass/updateAlt 的非公式部分在下方写回段逐行落地)
-        let (values, vy, radio_alt_raw, alt10k, dir) = {
+        let (vy, radio_alt_raw, alt10k, dir, indic_compass, heightm, n_vy) = {
             let d = read_data(&self.data);
-            let s = to_state_raw(d.s_state.as_ref().unwrap());
-            let i = to_indicators_raw(d.s_indic.as_ref().unwrap());
-            // 写回段状态机输入: altitude_10k (IndicatorsRaw 无此槽, 取自保真版) /
-            // dir (run() 的 getPlayerDir 产物) / 原始 radio_altitude (哨兵判定,
-            // FlightValues.radio_altitude 已是回退后的值)
+            let s = d.s_state.as_ref().unwrap();
+            // 写回段状态机输入: altitude_10k / dir / 原始 radio_altitude (哨兵判定) /
+            // vario (仪表罗盘优先) — W2: Deriver step 消解, 直通量就地内联,
+            // 派生量由公式接管 (下方 formula_step), FlightValues 整包快照删除
+            // (FlightInfo 改吃 TelemetrySource 散字段)
             let alt10k = d.s_indic.as_ref().unwrap().altitude_10k;
             let dir = d.dir;
             let vy = s.vy;
-            let radio_alt_raw = i.radio_altitude;
-            // (锁内只做字段拷贝, step 计算在锁外——§2.8 锁粒度)
+            let radio_alt_raw = d.s_indic.as_ref().unwrap().radio_altitude;
+            let indic_compass = d.s_indic.as_ref().unwrap().compass;
+            let heightm = s.heightm;
+            let n_vy = if d.s_indic.as_ref().unwrap().vario != F_INVALID {
+                d.s_indic.as_ref().unwrap().vario
+            } else {
+                vy
+            };
             drop(d);
-            let values = self.deriver.step(&s, &i, actual_interval_ms as f64);
-            (values, vy, radio_alt_raw, alt10k, dir)
+            (vy, radio_alt_raw, alt10k, dir, indic_compass, heightm, n_vy)
         };
 
-        // 写回派生量 (FlightValues → ServiceData 字段, 来源映射见各字段)
+        // 直通量写回 + 公式接管 (W2: 原 Deriver step 的直通部分; 公式含
+        // an/sep/turn 族/speedv/mach 全链, 位级对拍见 tests w2_deriver_takeover)
         {
             let mut d = write_data(&self.data);
-            // 整包快照 (FlightInfo overlay 数据源; 与下方散字段同源同值)
-            d.flight_values = values;
-            // R2 hasFM 守卫 (Java updateSpeedRatio L1191-1199): 无 FM 时整方法早退,
-            // mach 保持上轮值 (初始 0)——否则无 FM 机型 mach 非 0, 破坏
-            // hide-when-zero 显示行为
-            if fm.blkx.is_some() {
-                d.mach = values.mach;
-            }
-            // nVy ← vario (updateClimbRate)
-            d.n_vy = values.vario;
-            // An ← ny*G (updateTurn; FlightValues.ny = An/G, 往返还原)
-            d.an = values.ny * G;
-            d.sep = values.sep;
-            d.acceleration = values.acceleration;
-            d.turn_rate = values.turn_rate;
-            // PORT: FlightValues.turn_radius = |turnRds| (已取绝对值);
-            // get_turn_radius() 再 abs 无差 (abs 幂等), 带符号值丢失不改变任何
-            // 现有读者行为 (全库读点均经 abs 或与 9999 比较)
-            d.turn_rds = values.turn_radius;
+            // nVy ← vario (updateClimbRate 的 indic 优先回退)
+            d.n_vy = n_vy;
 
             // Java: updateCompass (L1101-1113)
             // 如果有仪表罗盘，读取仪表罗表盘数据
-            if values.compass != F_INVALID {
-                d.compass_delta = values.compass;
+            if indic_compass != F_INVALID {
+                d.compass_delta = indic_compass;
             } else {
                 // 否则读取地图中的方向数据 (dir 由 run() 的 getPlayerDir 持续更新;
                 // resetvaria 恒建数组 → unwrap 复刻 Java 的 null 不可达域)
@@ -920,7 +944,7 @@ impl Service {
             // Java: updateAlt (L739-775) —— 获得准确高度, 需依赖 Vy 因此位于爬升率后
             // altp = alt; alt = sState.heightm;
             d.altp = d.alt;
-            d.alt = values.altitude;
+            d.alt = heightm;
             // altmeterp = altmeter; altmeter = sIndic.altitude_10k;
             d.altmeterp = d.altmeter;
             d.altmeter = alt10k;
@@ -969,11 +993,14 @@ impl Service {
             // TODO(port): 计算方法区波次裁决外泄或迁移
         }
 
+        // 公式系统步 (W2: 提前至 updateEngineState 前 — speedv 等 HP 有效功率
+        // 输入需本帧公式值, 尾部求值会引入一帧滞后; 快照输入 state/indicators/
+        // alt/n_vy 直通均已就绪)
+        self.formula_step(&fm);
+
         // Java calculate 链 L1134-1136: updateEngineState (总功率/推力/百分比)
         // + updateFuel (总油量) — EngineInfo/EngineControl 面板数据源。
-        // PORT(顺序备案): Java 在 updateTurn 与 updateSEP 之间调用, Rust 的
-        // Deriver::step 将四公式族并成一步, 无法插中间 — 两方法不读 SEP 族字段,
-        // 置于 step 写回后行为等价; speedv 取本轮 Deriver 值 (Java 同轮字段读)
+        // PORT(W2): speedv 为公式接管值 (Deriver 消解), 读 ServiceData 散字段
         self.update_engine_state(&fm);
         self.update_fuel();
 
@@ -985,15 +1012,10 @@ impl Service {
 
         // Java calculate 尾部两比值方法 (L1177-1178): 速度/马赫临界比值 + 失速速度
         // — MiniHUD 速度比值 bar 的数据源 (speed_limit_ratio 等 5 字段)
-        self.update_speed_ratio(&fm);
-        self.update_stall_speed(&fm);
 
         // Java calculate 链尾 (L1173): 最佳增压器档位/失配提示 — methods_engine.rs
+        // (公式步已提前至 updateEngineState 前 — speedv 本帧值依赖; 此处不再调)
         self.update_optimal_compressor_stage(&fm);
-
-        // 公式系统步 (无 Java 对应): Service 线程单点求值 (裁决 A1),
-        // 结果写回 ServiceData 供 win32 线程只读消费 (裁决 A2, 零新总线)
-        self.formula_step(&fm);
     }
 
     /// 公式一帧: 换机检测(adapter 重建+状态清零) → 组快照 → 求值 → 写回。
@@ -1023,7 +1045,13 @@ impl Service {
             // 快照重建供规则求值 (formula.eval_frame 内部快照已 move 进缓存)
             let snap = vm_core::formula::registry::assemble_snapshot(&*d, fm_src, &meta);
             (
-                self.formula.eval_frame(&*d, fm_src, &meta, current_time_millis() as u64),
+                self.formula.eval_frame(
+                    &*d,
+                    fm_src,
+                    fm.blkx.as_ref(),
+                    &meta,
+                    current_time_millis() as u64,
+                ),
                 self.formula.current().slots_arc(),
                 snap,
                 meta.interval_ms,
@@ -1036,18 +1064,30 @@ impl Service {
         d.formula_values = results;
         d.formula_slots = slots.clone();
         d.rule_triggers = triggers;
-        // mach 公式覆盖 (阶段 2 A 级外置): 公式式与 Deriver 手写式位级同源
-        // (ias=s_state.ias 拓宽, altitude=d.alt=s.height_m 直通), 同值覆写零行为差;
-        // hasFM 守卫语义保留 (无 FM 不更新, 对齐上方 L880 写回守卫);
-        // NaN (公式 invalid) 不覆写 — 保持 Deriver 值
-        if fm.blkx.is_some() {
-            if let Some(&slot) = slots.get("mach") {
-                let v = d.formula_values.get(slot);
-                if !v.is_nan() {
-                    d.mach = v;
-                }
+        // 接管型公式统一写回 (W1b 通用机制, 设计 §5 同名规则):
+        // 公式名命中可写白名单 → 求值结果覆写 ServiceData 对应字段。
+        // NaN 守卫: 公式 invalid/缺输入不覆写, 保持 Rust 路径值 (双保险)。
+        let set = self.formula.current();
+        for f in &set.formulas {
+            if f.err.is_some() || !f.live {
+                continue;
             }
+            let Some(&slot) = set.slots.get(&f.def.name) else { continue };
+            let v = d.formula_values.get(slot);
+            write_back(&mut d, &f.def.name, v);
         }
+    }
+
+    /// 对拍工具入口 (voidmei-overlay --log-values): 喂一帧 JSON + 跑完整
+    /// calculate 链 (数据 = 生产同款公式接管值)
+    pub fn process_frame_for_parity(&mut self, state_json: &str, indic_json: &str) {
+        {
+            let mut d = write_data(&self.data);
+            d.s_state.as_mut().unwrap().update(state_json);
+            d.s_indic.as_mut().unwrap().update(indic_json);
+            d.actual_interval_ms = 50;
+        }
+        self.calculate();
     }
 
     /// 对应 Java `public void slowcalculate(long dtime)` (L517-560) — 0.5 秒一次
@@ -1219,8 +1259,8 @@ impl Service {
     /// @param fm 本周期 FM 句柄快照（R1 下传, Java javadoc 原文）
     fn update_engine_state(&mut self, fm: &FMHandle) {
         self.check_engine_jet();
-        // speedv (校正 TAS m/s) — Deriver 本轮值 (Java 字段直读的对应物)
-        let speedv = self.deriver.speedv();
+        // speedv (校正 TAS m/s) — W2: 公式接管值 (formula_step 已先行)
+        let speedv = read_data(&self.data).speedv;
 
         // 输入快照 + 引擎循环 (锁外算, §2.8)
         let (is_jet, total_hp, total_hp_eff, total_thrust, avgeff) = {
@@ -1354,114 +1394,8 @@ impl Service {
     /// 同公式已由 Deriver 承接且写回段带 R2 hasFM 守卫 (本方法早退域与 Deriver
     /// 写回守卫同域, 值恒一致), 此处 mach 为局部量不再写字段 (防双写者漂移)。
     /// @param fm 本周期 FM 句柄快照（R1 下传, Java javadoc 原文）
-    fn update_speed_ratio(&mut self, fm: &FMHandle) {
-        // R2 hasFM 守卫 (Java L1194-1198): 无 FM 时比值归零（UI 端 hide-when-zero 隐藏）
-        let Some(blkx) = fm.blkx.as_ref() else {
-            let mut d = write_data(&self.data);
-            d.speed_limit_ratio = 0.0;
-            d.aileron_lock_ratio = 0.0;
-            d.rudder_lock_ratio = 0.0;
-            return;
-        };
 
-        let mut wing_sweep = 0.0f64;
-        // 锁外快照输入 (§2.8): wsweep/ias/heightm 三读一写锁内取, 计算锁外
-        let (ias, height_m) = {
-            let d = read_data(&self.data);
-            if d.is_wing_sweep_valid() {
-                wing_sweep = d.s_indic.as_ref().unwrap().wsweep_indicator;
-            }
-            (d.get_ias(), d.s_state.as_ref().unwrap().heightm)
-        };
-
-        let ias_limit = blkx.get_vne_v_wing(wing_sweep);
-        let mach_limit = blkx.get_mne_v_wing(wing_sweep);
-        let aileron_lock_speed = blkx.aileron_eff;
-        let rudder_lock_speed = blkx.rudder_eff;
-
-        // 1. 根据地球大气模型计算mach (Java 注释原文)
-        let ias_per_mach = 3.6 * (1.4 / 1.225 * 101325.0
-            * (1.0 - 0.0000225577 * height_m).powf(5.25588))
-            .sqrt();
-        let mach = ias / ias_per_mach;
-
-        // 2. 计算速度比值 (Java 注释原文)
-        let ias_ratio = ias / ias_limit;
-        let mach_ratio = mach / mach_limit;
-        // 3. 计算更大的速度 (Java 注释原文)
-        let mut d = write_data(&self.data);
-        if ias_per_mach == 0.0 || ias_ratio >= mach_ratio {
-            d.speed_limit_ratio = ias_ratio;
-            d.aileron_lock_ratio = aileron_lock_speed / ias_limit;
-            d.rudder_lock_ratio = rudder_lock_speed / ias_limit;
-            d.unit_mach_limit_ratio = ias_per_mach / ias_limit;
-        } else {
-            d.speed_limit_ratio = mach_ratio;
-            d.aileron_lock_ratio = aileron_lock_speed / (mach_limit * ias_per_mach);
-            d.rudder_lock_ratio = rudder_lock_speed / (mach_limit * ias_per_mach);
-            d.unit_mach_limit_ratio = 1.0 / mach_limit;
-        }
-    }
-
-    /// 对应 Java `public void updateStallSpeed(FMHandle fm)` (L1236-1266) —
-    /// 计算失速速度。
-    ///
-    /// PORT(flap 来源): Java `flap` 字段由 checkFlap L1045 `flap = sState.flaps`
-    /// 赋值 (唯一写点, 恒等) — checkFlap 未移植, 此处直读 s_state.flaps 同值。
-    /// @param fm 本周期 FM 句柄快照（R1 下传, Java javadoc 原文）
-    fn update_stall_speed(&mut self, fm: &FMHandle) {
-        // R2 hasFM 守卫 (Java L1243-1245): 无 FM 时保持上次值/初始值 0（UI 端按无效值隐藏）
-        let Some(blkx) = fm.blkx.as_ref() else {
-            return;
-        };
-        let Some(nf) = blkx.no_flaps_wing.as_ref() else {
-            return; // doLoad=false 形态的占位 blkx (翼数据未装载)
-        };
-        let Some(ff) = blkx.full_flaps_wing.as_ref() else {
-            return;
-        };
-        let Some(fu) = blkx.fuselage.as_ref() else {
-            return;
-        };
-
-        let (flap, mfuel) = {
-            let d = read_data(&self.data);
-            (
-                d.s_state.as_ref().unwrap().flaps as f64,
-                d.s_state.as_ref().unwrap().mfuel,
-            )
-        };
-
-        // 主升力面积因数载荷 (Java 注释原文)
-        let wing_body_lift_area_load_no_flap = blkx.a_wing * nf.cl_crit_high
-            + blkx.a_fuselage
-                * blkx.fuse_cl_high
-                * (nf.aoa_crit_high / fu.aoa_crit_high);
-        let wing_body_lift_area_load_full_flap = blkx.a_wing * ff.cl_crit_high
-            + blkx.a_fuselage
-                * blkx.fuse_cl_high
-                * (ff.aoa_crit_high / fu.aoa_crit_high);
-        let current_weight = blkx.nofuelweight + mfuel;
-
-        // 假设战雷的襟翼是线性的 (Java 注释原文)
-        // 单位换算: 3.6 / 单位制混用: 1 / 1.225 (Java 注释原文)
-        let flap_factor = flap / 100.0;
-        let total_lift_area = (1.0 - flap_factor) * wing_body_lift_area_load_no_flap
-            + flap_factor * wing_body_lift_area_load_full_flap;
-        let mut d = write_data(&self.data);
-        d.stall_speed = 3.6 * ((2.0 * current_weight * G) / (1.225 * total_lift_area)).sqrt();
-    }
-
-    // ------------------------------------------------------------------
-    // publishFlightDataEvent (Java L434-482)
-    // ------------------------------------------------------------------
-
-    /// Publishes flight data to FlightDataBus.
-    /// Pre-computes HUDData on Service thread to offload work from EDT.
-    ///
-    /// @deprecated Method name is legacy - renamed to publishFlightDataEvent() for clarity.
-    /// (以上 javadoc 逐字保留, Java L434-438)
-    fn publish_flight_data_event(&mut self) {
+   fn publish_flight_data_event(&mut self) {
         // 载荷三件套在锁内取齐后**先释放读锁再 publish**——订阅方回调若再取
         // data 锁, 同线程 read→write 重入即死锁 (§2.8; Java 无此形态因其无锁)
         let (payload, state_box, indic_box) = {
@@ -1545,36 +1479,7 @@ enum Flow {
 // 快照/适配 helpers (无 Java 对应——服务于 §2.3 不可变快照与 Deriver 接口)
 // ------------------------------------------------------------------
 
-/// 保真版 [`State`] → POC 版 `StateRaw` (Deriver 接口适配)。
-/// 哨兵 -65535 (I_INVALID/F_INVALID 同值) 原样穿透, 判定语义不变。
-fn to_state_raw(s: &State) -> StateRaw {
-    StateRaw {
-        // int 拓宽 f64 (Java State int 字段的 double 消费点)
-        ias: s.ias as f64,
-        tas: s.tas as f64,
-        height_m: s.heightm,
-        vy: s.vy,
-        wx: s.wx,
-        aoa: s.aoa,
-        aos: s.aos,
-        ny: s.ny,
-    }
-}
 
-/// 保真版 [`Indicators`] → POC 版 `IndicatorsRaw` (Deriver 接口适配)。
-fn to_indicators_raw(i: &Indicators) -> IndicatorsRaw {
-    IndicatorsRaw {
-        // 保真版 valid 为字符串 "true"/"false" (getString 语义)
-        valid: i.valid.as_deref() == Some("true"),
-        speed: i.speed,
-        vario: i.vario,
-        aviahorizon_roll: i.aviahorizon_roll,
-        aviahorizon_pitch: i.aviahorizon_pitch,
-        compass: i.compass,
-        radio_altitude: i.radio_altitude,
-        wsweep: i.wsweep_indicator,
-    }
-}
 
 /// [`State`] 逐字段快照 (§2.3 事件不可变快照; State 未 derive Clone)。
 /// pub: vm-app 喂数侧重建 FlightDataEvent 时复用 (app_shell feed_overlays_live —

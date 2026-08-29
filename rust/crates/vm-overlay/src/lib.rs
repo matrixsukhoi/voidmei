@@ -54,7 +54,7 @@ pub use minihud_layout::{
     ENABLE_LAYOUT_DEBUG_ITEM, LAYOUT_PADDING, MINIHUD_NODE_SPECS, MINIHUD_PANEL_ITEMS,
 };
 pub use overlay_list::{BaseListOverlay, ZebraList};
-pub use flight_info::{build_texts_from_values, flight_info_overlay_spec, FlightInfoHandle};
+pub use flight_info::{build_texts, flight_info_overlay_spec, FlightInfoHandle};
 pub use overlays_field1::{
     engine_control_overlay_spec, engine_control_preview_spec, gear_flaps_overlay_spec,
     ENGINE_DISABLE_KEYS,
@@ -84,4 +84,4 @@ pub use rows::{HUDAkbRow, HUDEnergyRow, HUDFlapsRow, HUDManeuverRow, HUDTextRow}
 #[cfg(target_os = "windows")]
 pub use tray::{TrayConfig, TrayHandler, TrayIcon};
 pub use warning_overlay::{WarningBlinkHost, WarningOverlay};
-pub use window::{run, run_live, OverlayMode};
+pub use window::{run, OverlayMode};

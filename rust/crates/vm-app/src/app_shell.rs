@@ -2921,9 +2921,9 @@ fn feed_overlays_live(
         // 5. 操纵面 (50ms 节流内置; has_service = Java init(S) 的 xs!=null 数据门控,
         //    单实例形态下由喂入点随游戏窗口形态置位 — 见工厂头注 PORT(数据门控))
         // 飞行信息 (Java FlightInfoOverlay.onFlightData 字段行更新, 无节流 —
-        // host 50ms 渲染节拍 + 像素指纹兜底; 数据 = Deriver 整包快照)
+        // host 50ms 渲染节拍 + 像素指纹兜底; W2: 数据 = TelemetrySource 散字段)
         if let Some(h) = handles.flight_info.as_ref() {
-            h.borrow_mut().update_from_values(&guard.flight_values);
+            h.borrow_mut().update(&*guard);
         }
         if let Some(h) = handles.control_surfaces.as_ref() {
             let mut cs = h.borrow_mut();

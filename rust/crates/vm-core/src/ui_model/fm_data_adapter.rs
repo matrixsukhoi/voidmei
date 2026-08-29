@@ -52,6 +52,8 @@ pub struct BlkxPlaceholder {
     pub no_flaps_wing: Option<FmPartsPlaceholder>,
     pub full_flaps_wing: Option<FmPartsPlaceholder>,
     pub fuselage: Option<FmPartsPlaceholder>,
+    /// 机身最大升力因数 (Blkx.fuse_cl_high, W3 stall 公式化)
+    pub fuse_cl_high: f64,
     pub fin: Option<FmPartsPlaceholder>,
     pub stab: Option<FmPartsPlaceholder>,
     pub flaps_destruction_num: i32,
@@ -112,6 +114,7 @@ impl Default for BlkxPlaceholder {
             no_flaps_wing: None,
             full_flaps_wing: None,
             fuselage: None,
+            fuse_cl_high: 0.0,
             fin: None,
             stab: None,
             flaps_destruction_num: 0,
@@ -612,6 +615,42 @@ impl FMDataSource for FMDataAdapter {
         }
     }
 
+    fn get_fuse_cl_high(&self) -> f64 {
+        let guard = self.blkx.read().unwrap();
+        match guard.as_ref() {
+            Some(b) => b.fuse_cl_high,
+            None => 0.0,
+        }
+    }
+
+    fn get_full_flaps_wing_cl_crit_high(&self) -> f64 {
+        let guard = self.blkx.read().unwrap();
+        match guard.as_ref() {
+            Some(b) if b.full_flaps_wing.is_some() => b.full_flaps_wing.as_ref().unwrap().cl_crit_high,
+            _ => 0.0,
+        }
+    }
+
+    fn get_full_flaps_wing_cl_crit_low(&self) -> f64 {
+        let guard = self.blkx.read().unwrap();
+        match guard.as_ref() {
+            Some(b) if b.full_flaps_wing.is_some() => b.full_flaps_wing.as_ref().unwrap().cl_crit_low,
+            _ => 0.0,
+        }
+    }
+
+    fn get_fuselage_aoa_crit_high(&self) -> f64 {
+        let guard = self.blkx.read().unwrap();
+        match guard.as_ref() {
+            Some(b) => b
+                .fuselage
+                .as_ref()
+                .map(|f| f.aoa_crit_high)
+                .unwrap_or(0.0),
+            None => 0.0,
+        }
+    }
+
     fn get_fin_cd_min(&self) -> f64 {
         let guard = self.blkx.read().unwrap();
         match guard.as_ref() {
@@ -790,6 +829,7 @@ impl From<&crate::blkx::Blkx> for BlkxPlaceholder {
             no_flaps_wing: parts(b.no_flaps_wing.as_ref()),
             full_flaps_wing: parts(b.full_flaps_wing.as_ref()),
             fuselage: parts(b.fuselage.as_ref()),
+            fuse_cl_high: b.fuse_cl_high,
             fin: parts(b.fin.as_ref()),
             stab: parts(b.stab.as_ref()),
             flaps_destruction_num: b.flaps_destruction_num,

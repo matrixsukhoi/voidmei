@@ -250,7 +250,7 @@ fn cmd_render_gauge(name: &str, args: &[String]) -> Result<(), String> {
 }
 
 /// numHeight 默认值 — 已平移 lib (flight_info.rs, 组装面共用), bin 复用
-use vm_overlay::flight_info::{build_texts_from_values, default_num_height, flight_value};
+use vm_overlay::flight_info::{default_num_height, flight_value};
 
 /// --minihud: MiniHUD 整帧对拍导出 (与 Java OverlayPngExport --minihud 逐像素对拍,
 /// 组装口径见 vm_overlay::parity_minihud 模块头)
@@ -277,20 +277,32 @@ fn cmd_log_values() -> Result<(), String> {
     let timeout = std::time::Duration::from_millis(2000);
     let state_raw = vm_data::data::http::http_get(8111, "/state", timeout)?;
     let indic_raw = vm_data::data::http::http_get(8111, "/indicators", timeout)?;
-    let st = vm_data::data::json::parse_state(&state_raw).ok_or("/state 解析失败")?;
+    // 保真版解析器做 valid 门控 (数据面走 Service)
+    let _ = vm_data::data::json::parse_state(&state_raw).ok_or("/state 解析失败")?;
     let ind = vm_data::data::json::parse_indicators(&indic_raw).ok_or("/indicators 解析失败")?;
     if !ind.valid {
         return Err("indicators.valid = false (游戏未在飞行中)".into());
     }
-    let mut deriver = vm_data::Deriver::new(50);
-    // 预热 SMA (模拟应用已运行状态, 单轮瞬态值无对拍意义)
-    let mut v = deriver.step(&st, &ind, 50.0);
-    for _ in 0..99 {
-        v = deriver.step(&st, &ind, 50.0);
+    // W2: Deriver 消解 — 预热走 Service 公式链 (与生产同款数据源)
+    let fm = std::sync::Arc::new(vm_core::fm::FMManager::new(std::sync::Arc::new(
+        vm_core::bus::EventBus::new(),
+    )));
+    let bus = std::sync::Arc::new(vm_core::flight_data_bus::FlightDataBus::new());
+    let mut svc = vm_data::service_loop::Service::new(
+        vm_data::service_loop::ServiceConfig::default(),
+        fm,
+        bus,
+    );
+    // 预热公式 SMA (模拟应用已运行状态, 单轮瞬态值无对拍意义)
+    let state_s = String::from_utf8(state_raw).map_err(|e| e.to_string())?;
+    let indic_s = String::from_utf8(indic_raw).map_err(|e| e.to_string())?;
+    for _ in 0..100 {
+        svc.process_frame_for_parity(&state_s, &indic_s);
     }
+    let d = svc.data.read().unwrap();
     let mut out = String::from("# voidmei-overlay live frame (getter=value)\n");
     for f in fields::FIELDS {
-        if let Some(val) = flight_value(&v, f.source.getter()) {
+        if let Some(val) = flight_value(&*d, f.source.getter()) {
             out.push_str(&format!("{}={:.6}\n", f.source.getter(), val));
         }
     }
@@ -316,8 +328,8 @@ fn cmd_run_window(mode: vm_overlay::OverlayMode) -> Result<(), String> {
             vm_overlay::window::run(mode, ctx, fonts, texts, &vm_overlay::render::DEFAULT_COLORS, true)
         }
         vm_overlay::OverlayMode::Live => {
-            let snapshot = vm_data::data::start_polling(8111);
-            vm_overlay::window::run_live(ctx, fonts, &vm_overlay::render::DEFAULT_COLORS, true, snapshot, build_texts_from_values)
+            // W2: POC live 轮询退役 (Deriver 消解) — live 数据链在生产 bin (vm-app)
+            Err("live 模式已退役: 运行 voidmei 主程序 (公式系统接管数据链)".to_string())
         }
     }
 }

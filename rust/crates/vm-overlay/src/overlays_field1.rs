@@ -840,6 +840,15 @@ impl PowerSource {
         }
     }
 
+    /// 统一解析键 (W4): getter 名 + 乘数语法 — 交 resolve_target (设计 §8),
+    /// :target 为公式名时取公式值; 解析失败回退静态臂
+    fn getter_expr(self) -> &'static str {
+        match self {
+            PowerSource::FuelTimeMiliMul001 => "getFuelTimeMili * 0.001",
+            other => other.getter(),
+        }
+    }
+
     /// ReflectBinder.resolveDouble(s, property) 的 match 注册表等价物 (禁反射, POC 先例)
     fn get(self, s: &dyn TelemetrySource) -> f64 {
         match self {
@@ -1118,8 +1127,11 @@ impl PowerInfoState {
         }
         self.last_refresh_time = now_ms;
         for (def, field) in POWER_FIELD_DEFS.iter().zip(self.fields.iter_mut()) {
-            // 1. 取值 (visibilitySupplier 求值需要)
-            let val = def.source.get(s);
+            // 1. 取值 (visibilitySupplier 求值需要) — W4: 统一解析优先,
+            //    静态臂兜底 (行为等价; :target 公式名通路就绪)
+            let val = vm_core::formula::resolve_target(def.source.getter_expr())
+                .and_then(|(var, mult)| vm_core::formula::target_value(&var, mult, s))
+                .unwrap_or_else(|| def.source.get(s));
             // 2. 可见性: 无 :visible-when 恒可见 (PowerInfoOverlay.java:147)
             field.visible = def.visible_when.as_ref().is_none_or(|e| e.eval(s, val));
             // 3. 动态精度 (仅变化时写)

@@ -199,6 +199,21 @@ NUMBER      := [0-9]+("." [0-9]+)? ([eE] [+-]? [0-9]+)?
 - **live 标记**:被 `:target`/规则/其他 live 公式引用的传递闭包;死公式保留定义但跳过求值(编辑器里灰显)。
 - **每帧**(Service 线程):组装 VarSnapshot → clone Arc<CompiledFormulaSet> → 按拓扑序全量求值(状态原语 &mut StateStore,Service 线程私有无竞争) → 写回 ServiceData → 规则求值(§9)。
 - **热更新**:原子换 Arc,下一帧生效。悬空引用(被删公式)→ NaN → "-" + 保存时警告。
+
+### 6.1 性能模型与字节码演进选项(2026-08-29 实测)
+
+**当前模型已是编译制**(即"IR"形态):保存时 parse→resolve(名字→VarId/FnId 编号)→拓扑排序→`Arc<CompiledFormulaSet>`;live 每帧零字符串/零名字查找(VarId 下标直取快照 Vec,FnId match 跳表分派),热更新=重编译+原子换。
+
+**实测**(debug 构建,tests.rs `bench_eval_frame_50_formulas`):50 条混合公式(算术+大气函数+sma/prev 状态原语)**20.2µs/帧**(含快照组装),占 20Hz 轮询预算 **0.04%**。
+
+**字节码化(平坦指令+栈机)的裁决:现在不做**——
+- 收益:解释执行约 2-5x,但 0.04%→0.008% 无意义;
+- 成本:指令集定义+编译 pass+栈机+测试(数百行);
+- 持久化字节码是双源风险:文本是唯一真相源,编译 µs 级连缓存文件都不需要(Python .pyc 存在的理由是编译慢,我们不适用)。
+
+**升级门**:RExpr 已是编号化 IR,flatten 成后缀字节码是机械转换(~200 行)。触发条件:公式数量达数百条 / overlay 渲染层需要逐帧公式值(60fps)/ 实测占用超帧预算 5%。
+
+**已采纳的编译期小优化**(随 W1 做):AST 常量折叠;快照取值 Option→直接索引。
 - **性能预算**:AST 解释求值 ~1-3µs/公式,几十 live 公式 + 快照组装 <100µs/帧,对比现有 50ms 轮询周期可忽略;编译结果缓存(不逐帧 parse)。
 
 ## 7. 外置分级清单(已确认:分级外置)
@@ -370,10 +385,75 @@ NUMBER      := [0-9]+("." [0-9]+)? ([eE] [+-]? [0-9]+)?
 3. 阶段 4 走 **O4 降级路径**:Deriver 四族/磁电机投票/襟翼稳定保留 Rust(已注册为 L0 变量供公式引用;磁电机投票/襟翼稳定归 C 级——多输出耦合符合 C 级判定标准);HUDData 线程迁移未做(win32 兜底计算保留,mach/energy_m/maneuver_index 已公式化双保险)。
 4. Table 类型机制(Value::Table 已定义)未接入快照——FM 动态表(sweep/推力表)公式化待此设施。
 
-**遗留清单**(按优先级):
-- 规则触发事件的 vm-app 消费链(toast/语音播放接线,rule_triggers 数据面已就绪)
+**遗留清单**(W2-W5 后更新,按优先级):
+- voice/flag 规则动作的消费面(语音播放/overlay 着色;数据链与前端 toast 已通)
 - VoiceWarning ~17 条 check_* 判定外置为出厂规则(需真机验证语音时序)
-- FlightValues/Deriver 逐帧回放位级对拍设施(阶段 4 完整外置的前置)
-- Table 设施 + FM 表格变量(sweep 插值/推力表公式化)
-- overlay 三表改走 resolve_target + cfg 驱动化
+- overlay 面板的 cfg 驱动化(行定义仍静态固化;取值已走 resolve_target, :target 公式名通路就绪)
+- Table 设施 + FM 表格变量(推力表公式化)
 - 编辑器:内置公式 `:test` 对拍面板、试算 200 帧环形缓冲(现单帧近似)
+- 警告公式路径的独立测试锚定(现由回退路径存量测试+公式系统测试分保)
+
+**W2-W5 实施补充记录**(2026-08-29):
+- 语言扩展:`latch(cond, x)` 惰性原语(cond 假时 x 完全不求值,内部 SMA/prev 状态不污染——承载 Deriver 的"if (an != 0) 才更新"条件更新语义);`invalid()`(显式 NaN=本帧不接管)
+- 新直通变量:`indic_speed`(/indicators 校正速度, Deriver 独占消费面)、`ny_raw`(/state 原始过载——注册表 ny 是派生量 an/g, an 被接管后二者语义分离,防自引用)
+- formula_step 位置:calculate 内 updateEngineState **之前**(speedv 等有效功率输入需本帧公式值)
+- 测试基线:1433 全绿;--log-values 对拍工具改走 Service 公式链(数据与生产一致)
+
+## 15. 内核整合重构分析(2026-08-29, 基于 §14 实施现状; W1 已完成见 §15.3)
+
+### 15.1 代码盘点: 公式系统替代后的去留
+
+**可完全抛弃**(等价公式已可表达, 待写回机制+对拍设施):
+
+| 代码 | 位置 | 替代公式 |
+|---|---|---|
+| Deriver 四公式族 | derive.rs step() 全部 (~150 行) | speedv/prev/an/turn_rds/turn_rate/sep/acceleration/mach 全链(§15.2 验证过 prev 语义位级对齐 speedvp) |
+| FlightValues 整包快照 | derive.rs + app_shell 写回段 | FlightInfo 改吃 TelemetrySource(:target 通路), FlightValues 删除 |
+| update_speed_ratio (5 量) | service_loop.rs L1273-1320 | **前置: FM 查表函数族**(fm_vne(sweep) 等, 函数库已列未实现) |
+| update_stall_speed | service_loop.rs L1368 | `3.6*sqrt(2*total_weight*g/(rho0*fm.wing_area))` — 输入全在注册表, **现在就能外置** |
+| check_flap 稳定计时 | methods_engine.rs L36-81 | stable() 原语 |
+| flap 双胞胎求值体 | hud_calculator.rs(已合一) | **前置: FM 查表函数**(档位表插值) |
+| get_maximum_rpm_learn | methods_engine.rs L91-131 | learn_max() 原语 |
+| check_engine_jet 投票 | service_loop.rs L1095-1130 | vote() 组合 — 但输出三态枚举需写回转换约定 |
+| slow_calculate fuel SMA | service_loop.rs L974-1019 | sma()(窗口语义需核对 0.5s 慢算周期) |
+| hud_calculator 纯算术+警告判定 | hud_calculator.rs ~300 行 | energy_m✓maneuver_index✓已外置; VNE/AoA/低空警告 → 公式变量+规则 |
+| 三静态表 | fields.rs / overlays_field1 / flight_info flight_value | resolve_target 已就绪, 行定义走 cfg |
+
+**必须永久保留**(公式系统天然不管):
+
+- 8111 轮询/HTTP/JSON 解析(State/Indicators 解析器)— 公式系统的输入面
+- FM 加载解析(blkx reader/getload)
+- FlightDataBus/EventBus、win32 线程/窗口/渲染/DPI
+- 配置系统(config_manager/loader/S-expr parser)、Controller 生命周期/托盘/热键/焦点
+- **多引擎数组状态**(eng_load 会话态/FMHandle.eng_load_state Mutex)— 单值公式语义表达不了 per-engine 状态机
+- **update_engine_state 循环聚合**(Σ thrust[i], int 截断语义)— C 级, 保真难
+- format_strings 字符串族(~15 个预格式化字段)— 非目标(§1.3)
+- VoiceWarning 播放面(判定可外置, 资源/播放保留)
+- 英制检测/compass 回退/加油检测 — C 级多输出耦合(§7 已裁决)
+
+净效果估计: 删 ~1000-1200 行计算代码 → formulas.cfg ~40 条声明式公式(~100 行); 内核计算面几乎清空, 全部变为用户可见可改。
+
+### 15.2 缺口清单(按依赖序)
+
+1. **FM 查表函数族**: fm_vne(sweep)/fm_mne(sweep)/fm_aoa_high(sweep,flap)/fm_flap_allow_angle(ias)/fm_flap_allow_speed(flap)/stage_power 族 — EvalCtx 需带 FMDataAdapter(或函数经注册闭包读当前 FM)。解锁: 速度限制族/襟翼族/VNE 警告。
+2. **通用公式值写回机制**: 现仅 mach 一处硬编码覆写。需要 FormulaDef 声明 `:writes` 目标字段(或约定同名接管即写回), formula_step 统一执行(NaN 守卫)。解锁: Deriver 全族接管。类型面: f64 直写; 枚举/bool 需转换约定。
+3. **注册表增补 indicators 原始直通**: indicators.speed(校正速度, Deriver 独占消费)等 — speedv 链的输入前提。
+4. **逐帧位级对拍设施**: 帧序列 fixture(mock_8111 场景供源)→ 旧路径/公式路径双跑逐位比对 — 删除 Deriver 的安全网。
+5. **HUDData 求值迁移**: hud_calculator 迁回 Service 线程(裁决 A1 完整落地), win32 侧缩为组装+格式化。
+6. **规则动作消费链**: rule_triggers → toast/语音(vm-app 接线)。解锁: VoiceWarning 判定外置。
+7. (可选) 编辑器 :test 对拍面板 — 迁移验收工具。
+
+### 15.3 整合重构路线(五波次, 每波独立可验收可停)
+
+| 波次 | 内容 | 前置 | 验收 |
+|---|---|---|---|
+| **W1 地基 ✅(2026-08-29)** | FM 查表函数族(fm_vne/fm_mne/fm_aoa_high/fm_flap_allow_{speed,angle}, EvalCtx 带 blkx;get_flap_allow_speed 合一入 vm-core)+ 通用写回机制(接管语义: 公式名命中白名单→formula_step 覆写, NaN 守卫, 白名单 14 字段; mach 硬编码并入; hasFM 守卫语义改由公式 `fm_loaded ? ... : invalid()` 表达)+ 帧回放对拍设施(20 帧参数化序列+oracle)+ 常量折叠 + VarId 直接索引 | — | 1433 测试全绿; FnId 编解码宏化根治判别值移位(两事故后加往返守卫测试) |
+| **W2 Deriver 消解 ✅(2026-08-29)** | latch 惰性原语(条件更新语义)+ indic_speed/ny_raw 直通变量 + 四族接管公式(speed_raw/iastotascooff/speedv/an/turn_rds/turn_rate/acceleration/sep, formula_step 提前至 engineState 前消除 speedv 一帧滞后)+ FlightInfo 改吃 TelemetrySource + **删 derive.rs/FlightValues/to_state_raw/POC live 轮询**(--log-values 改走 Service 公式链) | W1 | **20 帧位级 oracle 对拍全绿**(an/sep/turn_rate/turn_rds/acceleration 逐位相等, oracle = 删前 Deriver 输出) |
+| **W3 限制/襟翼族 ✅(2026-08-29)** | speed_ratio 5 量 + stall_speed 公式化(补 trait/adapter/注册表的 fuse_cl_high/fuselage_aoa_crit_high/full_flaps cl_crit 缺口)+ **删 update_speed_ratio/update_stall_speed**; flap_allow 双胞胎求值留 C 级 check_flap 内联(W1a 已合一) | W1 | 存量 oracle(spitfire 真机数据)数值不变 |
+| **W4 HUD 层瘦身 ✅(2026-08-29, 有界)** | flight_value 16 臂/PowerSource 19 臂 → resolve_target 统一解析(:target 可指向公式名); warn_vne/warn_altitude/warn_stall 公式化(hud 读公式优先+原判定回退); **HUDData 线程迁移跳过**(偏离备案: A1 的动机"状态双主"已由 W2 根除, hud_calculator 无跨帧状态, 迁移无收益) | W1 | 1433 全绿(回退路径由存量 hud 测试锚定) |
+| **W5 告警统一 ✅(2026-08-29, 有界)** | 规则消费链首段: rule_triggers → vm-app 主循环 emit `rule-triggered` → 前端 toast(voice 播放/flag 着色消费面留接口); VoiceWarning 17 条判定外置**未做**(真机验证不可行, 归遗留) | W1 | 前端 typecheck/build/77 测试过 |
+| W3 限制/襟翼族 (~2-3d) | speed_ratio 5 量/stall_speed/flap 族/check_flap → 公式; 删对应段 | W1 | 同上 + mock e2e |
+| W4 HUD 汇聚层瘦身 (~2-3d) | hud_calculator 迁线程+警告公式化+三表走 resolve_target; 删 fields.rs 静态表 | W1-W3 | 像素对拍不回归 |
+| W5 告警统一 (~2-3d) | 规则消费链 + VoiceWarning 低风险判定外置 + warn_* 走规则 | W1 | 真机语音时序不变 |
+
+总量 ~2-3 周。删除动作一律在对拍全绿后的独立波次(删错可回退)。

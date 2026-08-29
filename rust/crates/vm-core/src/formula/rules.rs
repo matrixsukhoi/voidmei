@@ -115,7 +115,8 @@ impl RuleEngine {
                 Ok(c) => c,
                 Err(_) => continue, // 坏规则隔离
             };
-            let ctx = EvalCtx { snap, results, now_ms, interval_ms };
+            // 规则条件暂不含 FM 查表函数 (阶段 5 后续), fm_blkx=None
+            let ctx = EvalCtx { snap, results, now_ms, interval_ms, fm_blkx: None };
             let v = eval(cond, &ctx, &mut super::eval::StateStore::new()).num();
             // 条件 NaN = 不可判定, 视为假 (不累计不触发)
             let active = !v.is_nan() && v != 0.0;

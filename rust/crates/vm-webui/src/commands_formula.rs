@@ -134,7 +134,8 @@ pub async fn get_formula_list() -> Result<Vec<FormulaItemDto>, String> {
 pub async fn formula_validate(expr: String) -> Result<FormulaEvalDto, String> {
     let mgr = bridge().ok_or(NO_BRIDGE)?;
     let snap = mgr.last_snapshot();
-    let r = mgr.try_eval(&expr, &snap, 0, 50.0);
+    // fm_blkx=None: 编辑器试算暂无 FM 句柄 (W3 补桥), 查表函数得 NaN
+    let r = mgr.try_eval(&expr, &snap, 0, 50.0, None);
     Ok(match r {
         Ok(_) => FormulaEvalDto { ok: true, value: None, error: None },
         Err(e) => FormulaEvalDto { ok: false, value: None, error: Some(e) },
@@ -146,7 +147,8 @@ pub async fn formula_validate(expr: String) -> Result<FormulaEvalDto, String> {
 pub async fn formula_try_eval(expr: String) -> Result<FormulaEvalDto, String> {
     let mgr = bridge().ok_or(NO_BRIDGE)?;
     let snap = mgr.last_snapshot();
-    let r = mgr.try_eval(&expr, &snap, 0, 50.0);
+    // fm_blkx=None: 编辑器试算暂无 FM 句柄 (W3 补桥), 查表函数得 NaN
+    let r = mgr.try_eval(&expr, &snap, 0, 50.0, None);
     Ok(match r {
         Ok(v) => FormulaEvalDto { ok: true, value: Some(v), error: None },
         Err(e) => FormulaEvalDto { ok: false, value: None, error: Some(e) },
@@ -179,9 +181,9 @@ pub async fn get_var_catalog() -> Result<Vec<VarCatalogEntryDto>, String> {
             if f.err.is_some() {
                 continue;
             }
-            // 最近帧值: 试算路径 (独立状态仓, 编辑期近似)
+            // 最近帧值: 试算路径 (独立状态仓+无 FM 句柄, 编辑期近似)
             let value = mgr
-                .try_eval(&f.def.expr, &snap, 0, 50.0)
+                .try_eval(&f.def.expr, &snap, 0, 50.0, None)
                 .unwrap_or(f64::NAN);
             out.push(VarCatalogEntryDto {
                 name: f.def.name.clone(),

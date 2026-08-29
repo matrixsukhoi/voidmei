@@ -1712,15 +1712,15 @@ fn reset_handles_preview_values_clears_live_residue() {
         .unwrap()
         .borrow_mut()
         .update_telemetry(10.0, 5.0, -20.0, 30.0, 90.0, Some((20.0, -8.0)));
-    let mut v = vm_data::FlightValues::default();
+    let mut v = vm_data::service_fields::ServiceData::default();
     v.mach = 0.72;
-    v.ias = 450.0;
+    let v = &v as &dyn vm_core::ui_model::TelemetrySource;
     handles
         .flight_info
         .as_ref()
         .unwrap()
         .borrow_mut()
-        .update_from_values(&v);
+        .update(v);
     handles.power_info.as_ref().unwrap().borrow_mut().last_refresh_time = 999;
     // 重置 (win32 CloseAllOverlays 处理点同款)
     reset_handles_preview_values(&handles);

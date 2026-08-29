@@ -202,6 +202,18 @@ pub trait TelemetrySource {
     /// @return true 如果有助推器系统，false 如果没有
     fn has_booster(&self) -> bool;
 
+    /// /state 的原始过载 (state.ny 直通, 无 Java getter 对应 — W2 公式供值;
+    /// 注意 get_ny 是派生量 an/g, an 被公式接管后二者语义分离)
+    fn get_ny_raw(&self) -> f64 {
+        0.0
+    }
+
+    /// /indicators 的校正速度 (座舱仪表 speed; 无 Java TelemetrySource 对应,
+    /// W2 Deriver 消解为公式供值 — Deriver 独占消费的原始直通, F_INVALID 哨兵)
+    fn get_indic_speed(&self) -> f64 {
+        -65535.0
+    }
+
     /// 公式系统取值 (无 Java 对应, doc/formula_system_design.md §8):
     /// 按公式名查最近一帧求值结果; 默认 None = 实现方未接公式系统。
     /// NaN (invalid/缺数据) 返回 None — 上层走 na/hide-when-zero 降级。

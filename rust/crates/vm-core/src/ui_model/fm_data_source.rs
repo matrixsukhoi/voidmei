@@ -171,6 +171,26 @@ pub trait FMDataSource {
     /// Get Fuselage CdMin
     fn get_fuselage_cd_min(&self) -> f64;
 
+    /// 机身最大升力因数 (W3 stall_speed 公式化供值, 无 Java getter 对应)
+    fn get_fuse_cl_high(&self) -> f64 {
+        0.0
+    }
+
+    /// 机身临界迎角上限 (同上)
+    fn get_fuselage_aoa_crit_high(&self) -> f64 {
+        0.0
+    }
+
+    /// 满襟翼临界升力系数上限 (W3 stall 公式化; 原 trait 缺失补齐)
+    fn get_full_flaps_wing_cl_crit_high(&self) -> f64 {
+        0.0
+    }
+
+    /// 满襟翼临界升力系数下限 (同上)
+    fn get_full_flaps_wing_cl_crit_low(&self) -> f64 {
+        0.0
+    }
+
     /// Get Fin CdMin
     fn get_fin_cd_min(&self) -> f64;
 

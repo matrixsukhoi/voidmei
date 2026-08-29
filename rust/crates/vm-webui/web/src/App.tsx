@@ -209,6 +209,18 @@ export default function App() {
         notification.warning({ message: name ?? '未知机型', description: 'FM 数据损坏' })
       }
     }).catch(console.error)
+    // 规则触发 toast (W5 消费链: rule_triggers → vm-app emit → 此处;
+    // voice/flag 动作的播放/着色消费面归后续, 先 toast 呈现触发事实)
+    interface RuleTriggeredPayload { rule: string; kind: string; arg: string; at: number }
+    listen<RuleTriggeredPayload>('rule-triggered', (e) => {
+      const { rule, kind, arg } = e.payload
+      if (kind === 'toast') {
+        notification.warning({ message: rule, description: arg })
+      } else if (kind === 'voice') {
+        notification.info({ message: rule, description: `语音告警: ${arg} (播放链待接)` })
+      }
+      // flag 动作: overlay 变色消费面归后续, 静默
+    }).catch(console.error)
     // 水印 (Java setWatermark(image/watermark.png))
     getAssetRoot()
       .then((root) => setWatermark(convertFileSrc(`${root}/image/watermark.png`)))

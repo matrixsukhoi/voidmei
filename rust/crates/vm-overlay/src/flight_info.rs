@@ -13,15 +13,15 @@
 //! - preview: [`fields::FIELDS`] 静态 [`preview_text`](FieldDef::preview_text)
 //!   (POC --preview 同源);
 //! - live: ServiceData.flight_values (service_loop deriver.step 整包快照) →
-//!   [`build_texts_from_values`] (visible-when/na-when 求值, POC 同源),
-//!   经 [`FlightInfoState::update_from_values`] 喂入。
+//!   [`build_texts`] (visible-when/na-when 求值, POC 同源),
+//!   经 [`FlightInfoState::update`] 喂入 (W2: 数据源 = TelemetrySource)。
 
 use std::cell::RefCell;
 use std::rc::Rc;
 
 use vm_core::layout::RenderCtx;
 use vm_core::{fields, format};
-use vm_data::FlightValues;
+use vm_core::ui_model::TelemetrySource;
 
 use crate::font::Canvas;
 use crate::host::{OverlaySpec, ReinitFn};
@@ -40,35 +40,22 @@ pub fn default_num_height(font_add: i32) -> i32 {
     }
 }
 
-/// FlightValues → getter 数值 (POC main.rs flight_value 平移; cfg :target 键域)
-pub fn flight_value(v: &FlightValues, getter: &str) -> Option<f64> {
-    Some(match getter {
-        "getIAS" => v.ias,
-        "getTAS" => v.tas,
-        "getMach" => v.mach,
-        "getCompass" => v.compass,
-        "getAltitude" => v.altitude,
-        "getVario" => v.vario,
-        "getSEP" => v.sep,
-        "getAcceleration" => v.acceleration,
-        "getRollRate" => v.roll_rate,
-        "getNy" => v.ny,
-        "getTurnRate" => v.turn_rate,
-        "getTurnRadius" => v.turn_radius,
-        "getAoA" => v.aoa,
-        "getAoS" => v.aos,
-        "getWingSweep" => v.wing_sweep, // 已 ×100 (cfg 表达式)
-        "getRadioAltitude" => v.radio_altitude,
-        _ => return None,
-    })
+/// TelemetrySource → getter 数值 (W2: FlightValues 整包快照消解, 数据源改
+/// ServiceData 散字段 (公式接管值); WingSweep 的 ×100 与原 Deriver 预乘对齐)
+pub fn flight_value(s: &dyn TelemetrySource, getter: &str) -> Option<f64> {
+    // W4: 统一解析 (设计 §8) — getter 名 | 短名 | 公式名 | "X * N" 乘数;
+    // 16 臂 match 消解, :target 改成公式名即可在飞行信息面板显示该公式。
+    // WingSweep 的 ×100 预乘由乘数语法承接 (原 Deriver 预乘对齐)
+    let target = if getter == "getWingSweep" { "getWingSweep * 100" } else { getter };
+    let (var, mult) = vm_core::formula::resolve_target(target)?;
+    vm_core::formula::target_value(&var, mult, s)
 }
 
-/// FlightValues → (label, unit, value) owned 行 (visible-when/na-when 求值,
-/// POC main.rs build_texts_from_values 平移)
-pub fn build_texts_from_values(v: &FlightValues) -> Vec<(String, String, String)> {
+/// TelemetrySource → (label, unit, value) owned 行 (visible-when/na-when 求值)
+pub fn build_texts(s: &dyn TelemetrySource) -> Vec<(String, String, String)> {
     let mut out = Vec::new();
     for f in fields::FIELDS {
-        let raw = match flight_value(v, f.source.getter()) {
+        let raw = match flight_value(s, f.source.getter()) {
             Some(x) => x,
             None => continue,
         };
@@ -87,7 +74,7 @@ pub fn build_texts_from_values(v: &FlightValues) -> Vec<(String, String, String)
     out
 }
 
-/// FlightInfo 共享句柄 (win32 线程内; live 喂数经 [`FlightInfoState::update_from_values`])
+/// FlightInfo 共享句柄 (win32 线程内; live 喂数经 [`FlightInfoState::update`])
 pub type FlightInfoHandle = Rc<RefCell<FlightInfoState>>;
 
 /// preview 静态行 (工厂初值与 [`FlightInfoState::reset_preview_rows`] 同源,
@@ -100,7 +87,7 @@ fn preview_rows() -> Vec<(String, String, String)> {
 }
 
 pub struct FlightInfoState {
-    /// owned 文本行 (preview 静态初值; live 由 update_from_values 覆写)
+    /// owned 文本行 (preview 静态初值; live 由 update 覆写)
     rows: Vec<(String, String, String)>,
     /// POC 渲染栈三件套 (度量 + 字体 + 复用直通画布, 尺寸恒定零重分配)
     ctx: RenderCtx,
@@ -110,9 +97,10 @@ pub struct FlightInfoState {
 
 impl FlightInfoState {
     /// live 喂数 (Java FieldOverlay.onFlightData → 字段行更新; host 50ms 渲染
-    /// 节拍 + 像素指纹脏检查兜底, 此处纯数据面)
-    pub fn update_from_values(&mut self, v: &FlightValues) {
-        self.rows = build_texts_from_values(v);
+    /// 节拍 + 像素指纹脏检查兜底, 此处纯数据面; W2 起数据源 = TelemetrySource
+    /// (ServiceData 散字段, Deriver 整包快照已消解))
+    pub fn update(&mut self, s: &dyn TelemetrySource) {
+        self.rows = build_texts(s);
     }
 
     /// reinitConfig 的资源重建段 (Java FieldOverlay.java:121-140 super 段):

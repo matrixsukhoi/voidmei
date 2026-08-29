@@ -41,70 +41,8 @@ struct DragState {
     off_y: i32,
 }
 
-/// 实时模式: 轮询快照 + 脏检查重绘 (对应 FieldOverlay.onFlightData 50ms 节流)
-/// 窗口尺寸固定为全 16 行 (POC 简化: visible-when 变化不重建窗口, 空行透明无碍)
-pub fn run_live(
-    ctx: RenderCtx,
-    fonts: FontTriple,
-    colors: &RenderColors,
-    aa: bool,
-    snapshot: std::sync::Arc<std::sync::Mutex<Option<vm_data::data::derive::FlightValues>>>,
-    build_texts: fn(&vm_data::data::derive::FlightValues) -> Vec<(String, String, String)>,
-) -> Result<(), String> {
-    let max_height = ctx.total_height(16);
-    let max_width = ctx.total_width();
-    let saved = crate::config::load_pos();
-    let cfg = WindowConfig {
-        width: max_width,
-        height: max_height,
-        x: 60,
-        y: 100,
-        click_through: true, // live 恒穿透
-    };
-    let mut win = platform::create(cfg)?;
-    if let Some(p) = saved {
-        let (sw, sh) = win.screen_size();
-        win.set_position((p.x * sw as f64).round() as i32, (p.y * sh as f64).round() as i32);
-    } else {
-        let (sw, sh) = win.screen_size();
-        win.set_position((sw - max_width) / 2, (sh - max_height) / 2);
-    }
-
-    eprintln!("overlay live: {}x{} @ {:?} (穿透模式, Ctrl+C 退出)", max_width, max_height, win.position());
-
-    // 画布复用: 尺寸固定, 每帧清零重绘
-    let mut canvas = crate::font::Canvas::new(max_width, max_height);
-    let mut last_frame: Option<String> = None; // 脏检查: 格式化字符串指纹
-    let mut last_poll = std::time::Instant::now();
-    loop {
-        while let Some(_ev) = win.poll_event() {
-            // 穿透模式无交互事件 (保留泵消息避免假死)
-        }
-        if last_poll.elapsed() >= std::time::Duration::from_millis(50) {
-            last_poll = std::time::Instant::now();
-            if let Some(v) = snapshot.lock().ok().and_then(|s| *s) {
-                let owned = build_texts(&v);
-                // 指纹: 直接拼接格式化值 (脏检查, 对应 Java repaint 抑制)
-                let fp = owned
-                    .iter()
-                    .map(|(_, _, val)| val.as_str())
-                    .collect::<Vec<_>>()
-                    .join("|");
-                if last_frame.as_deref() != Some(fp.as_str()) {
-                    last_frame = Some(fp);
-                    let texts: Vec<FieldText> = owned
-                        .iter()
-                        .map(|(l, u, val)| FieldText { label: l, unit: u, value: val })
-                        .collect();
-                    crate::render::render_fields_fixed(&mut canvas, &texts, &ctx, &fonts, colors, aa);
-                    let buf = to_premul_bgra(&canvas);
-                    win.present(&buf)?;
-                }
-            }
-        }
-        std::thread::sleep(std::time::Duration::from_millis(10));
-    }
-}
+// (run_live 已随 W2 Deriver 消解移除 — POC live 轮询路径退役,
+//  生产 live 数据链 = vm-app feed_overlays_live → FlightInfoState::update)
 
 pub fn run(
     mode: OverlayMode,

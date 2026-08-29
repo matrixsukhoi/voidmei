@@ -59,6 +59,13 @@ const FN_CATALOG: { label: string; sig: string; desc: string }[] = [
   { label: 'ias_to_tas', sig: 'ias_to_tas(ias, rho)', desc: '表速 → 真空速 (km/h)' },
   { label: 'tas_to_ias', sig: 'tas_to_ias(tas, rho)', desc: '真空速 → 表速 (km/h)' },
   { label: 'ias_per_mach', sig: 'ias_per_mach(alt)', desc: 'Ma=1 对应表速 (km/h, 按高度)' },
+  { label: 'invalid', sig: 'invalid()', desc: '显式 NaN — 接管公式"本帧不接管"的表达' },
+  // FM 查表族 (需当前 FM; 无 FM 时 NaN, flap 两函数走业务默认)
+  { label: 'fm_vne', sig: 'fm_vne(sweep)', desc: '可变翼 VNE (查 FM 表)' },
+  { label: 'fm_mne', sig: 'fm_mne(sweep)', desc: '可变翼 MNE (查 FM 表)' },
+  { label: 'fm_aoa_high', sig: 'fm_aoa_high(sweep, flap%)', desc: '临界迎角上限 (查 FM 表)' },
+  { label: 'fm_flap_allow_speed', sig: 'fm_flap_allow_speed(flap%, downing)', desc: '襟翼允许速度 (查 FM 表)' },
+  { label: 'fm_flap_allow_angle', sig: 'fm_flap_allow_angle(ias, downing)', desc: '允许襟翼角 (查 FM 表)' },
   // 状态原语 (帧间记忆, 编辑期试算从零起步)
   { label: 'sma', sig: 'sma(x, n)', desc: 'n 帧滑动平均 (状态)' },
   { label: 'prev', sig: 'prev(x)', desc: '上一帧值 (状态)' },

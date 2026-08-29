@@ -186,6 +186,7 @@ impl CompiledFormulaSet {
         store: &mut StateStore,
         now_ms: u64,
         interval_ms: f64,
+        fm_blkx: Option<&crate::blkx::Blkx>,
     ) -> FormulaResults {
         let mut results = FormulaResults {
             values: vec![f64::NAN; self.formulas.len()],
@@ -196,7 +197,7 @@ impl CompiledFormulaSet {
                 continue;
             }
             if let Some(rexpr) = &f.rexpr {
-                let ctx = EvalCtx { snap, results: &results, now_ms, interval_ms };
+                let ctx = EvalCtx { snap, results: &results, now_ms, interval_ms, fm_blkx };
                 let v = eval(rexpr, &ctx, store).num();
                 results.values[slot as usize] = v;
             }
@@ -245,7 +246,8 @@ fn resolve_formula(
     let (expr, _site_count) = super::parser::parse(src).map_err(CompileError::Parse)?;
     let mut sites = Vec::new();
     let r = resolve_expr(&expr, reg, slots, own_name, next_site, &mut sites)?;
-    Ok((r, sites))
+    // 常量折叠 pass (W1c): 纯运算符 Num-Num 子树折为 Num, 不折函数调用
+    Ok((fold_consts(r), sites))
 }
 
 fn resolve_expr(
@@ -442,12 +444,85 @@ pub fn try_eval_single(
     store: &mut StateStore,
     now_ms: u64,
     interval_ms: f64,
+    fm_blkx: Option<&crate::blkx::Blkx>,
 ) -> Result<f64, CompileError> {
     // 单公式命名空间: 空 slots (无公式间引用), site 从 0 起
     let slots = HashMap::new();
     let mut next_site = 0u32;
     let (rexpr, _sites) = resolve_formula(expr_src, reg, &slots, "", &mut next_site)?;
     let empty = FormulaResults { values: Vec::new() };
-    let ctx = EvalCtx { snap, results: &empty, now_ms, interval_ms };
+    let ctx = EvalCtx { snap, results: &empty, now_ms, interval_ms, fm_blkx };
     Ok(eval(&rexpr, &ctx, store).num())
+}
+
+/// 编译期常量折叠 (W1c, 设计 §6.1): 纯运算符两端皆 Num 的子树折为单 Num,
+/// 运算式与 eval.rs 运行时语义逐项一致 (含除零→IEEE、比较→0/1、逻辑短路)。
+/// 不折函数调用 (语义/NaN 陷阱保守); site 已在折叠前收集, 不受影响。
+fn fold_consts(r: RExpr) -> RExpr {
+    use super::ast::BinOp::{self, *};
+    use super::ast::UnOp;
+    let fold_bin = |op: BinOp, l: f64, rr: f64| -> f64 {
+        match op {
+            Add => l + rr,
+            Sub => l - rr,
+            Mul => l * rr,
+            Div => l / rr,
+            Mod => l % rr,
+            Pow => l.powf(rr),
+            Eq => (l == rr) as u8 as f64,
+            Ne => (l != rr) as u8 as f64,
+            Lt => (l < rr) as u8 as f64,
+            Le => (l <= rr) as u8 as f64,
+            Gt => (l > rr) as u8 as f64,
+            Ge => (l >= rr) as u8 as f64,
+            And => {
+                if l == 0.0 { 0.0 } else if l.is_nan() || rr.is_nan() { f64::NAN } else { (rr != 0.0) as u8 as f64 }
+            }
+            Or => {
+                if l != 0.0 && !l.is_nan() { 1.0 } else if l.is_nan() || rr.is_nan() { f64::NAN } else { (rr != 0.0) as u8 as f64 }
+            }
+        }
+    };
+    match r {
+        RExpr::Unary { op, expr } => {
+            let e = fold_consts(*expr);
+            if let (RExpr::Num(v), UnOp::Neg) = (&e, op) {
+                RExpr::Num(-v)
+            } else {
+                RExpr::Unary { op, expr: Box::new(e) }
+            }
+        }
+        RExpr::Binary { op, lhs, rhs } => {
+            let l = fold_consts(*lhs);
+            let rr = fold_consts(*rhs);
+            // 逻辑短路常量先判 (另一支不约束, 折叠即短路)
+            if let RExpr::Num(a) = &l {
+                if op == BinOp::And && *a == 0.0 {
+                    return RExpr::Num(0.0);
+                }
+                if op == BinOp::Or && *a != 0.0 && !a.is_nan() {
+                    return RExpr::Num(1.0);
+                }
+            }
+            match (&l, &rr) {
+                (RExpr::Num(a), RExpr::Num(b)) => RExpr::Num(fold_bin(op, *a, *b)),
+                _ => RExpr::Binary { op, lhs: Box::new(l), rhs: Box::new(rr) },
+            }
+        }
+        RExpr::Ternary { cond, then, els } => {
+            let c = fold_consts(*cond);
+            match &c {
+                RExpr::Num(v) if !v.is_nan() => {
+                    if *v != 0.0 { fold_consts(*then) } else { fold_consts(*els) }
+                }
+                _ => RExpr::Ternary { cond: Box::new(c), then: Box::new(fold_consts(*then)), els: Box::new(fold_consts(*els)) },
+            }
+        }
+        RExpr::Call { fid, args, site } => RExpr::Call {
+            fid,
+            args: args.into_iter().map(fold_consts).collect(),
+            site,
+        },
+        other => other,
+    }
 }
