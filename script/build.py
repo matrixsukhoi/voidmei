@@ -242,26 +242,6 @@ def cmd_test(suite="all"):
                 print("%s: FAILED" % label, file=sys.stderr)
                 failed += 1
 
-
-    def run_rustcmp_suite():
-        """Rust↔Java 渲染对拍套件: 复用 rust_compare.sh 全套编排
-        (Java/Rust 各自离屏导出 → meta 硬断言 → 像素比对, 热力图人工审)"""
-        nonlocal passed, failed
-
-        # 环境前置: cargo 缺失则跳过 (CI 无 Rust 工具链时不计失败)
-        import shutil
-        if shutil.which("cargo") is None:
-            warn("跳过 rustcmp 套件: 未安装 cargo (Rust 工具链)")
-            return
-
-        print("Running Rust Compare Suite ...")
-        if run_ok(["bash", str(ROOT / "script" / "rust_compare.sh")]):
-            print("Rust Compare Suite: PASSED")
-            passed += 1
-        else:
-            print("Rust Compare Suite: FAILED", file=sys.stderr)
-            failed += 1
-
     suite = SUITE_ALIASES.get(suite, suite)
     suite = FM_SUITE_ALIASES.get(suite, suite)
     if suite == "all":
@@ -278,14 +258,11 @@ def cmd_test(suite="all"):
         # 且 e2e_fm.sh 会临时翻转 ui_layout.user.cfg 的 autoStartGameMode (退出还原)。
         # 显式 `python script/build.py test e2e` 触发
         run_e2e_suite()
-    elif suite == "rustcmp":
-        # Rust 复现对拍套件: 需桌面环境 (Java Toolkit 字体度量), 同 e2e 不进 "test all"
-        run_rustcmp_suite()
     elif suite in FM_SUITES:
         label, cls, plane = FM_SUITES[suite]
         run_fm_test(label, cls, plane)
     else:
-        err("未知测试套件: %s (可选: all/e2e/rustcmp/%s/%s)" % (
+        err("未知测试套件: %s (可选: all/e2e/%s/%s)" % (
             suite, "/".join(s[0] for s in SUITES), "/".join(sorted(FM_SUITES))))
         sys.exit(1)
 

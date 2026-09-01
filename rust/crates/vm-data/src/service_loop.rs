@@ -1019,17 +1019,6 @@ impl Service {
         }
     }
 
-    /// 对拍工具入口 (voidmei-overlay --log-values): 喂一帧 JSON + 跑完整
-    /// calculate 链 (数据 = 生产同款公式接管值)
-    pub fn process_frame_for_parity(&mut self, state_json: &str, indic_json: &str) {
-        {
-            let mut d = write_data(&self.data);
-            d.s_state.as_mut().unwrap().update(state_json);
-            d.s_indic.as_mut().unwrap().update(indic_json);
-            d.actual_interval_ms = 50;
-        }
-        self.calculate();
-    }
 
     /// 对应 Java `public void slowcalculate(long dtime)` (L517-560) — 0.5 秒一次
     /// 慢计算: 油量变化率/剩余油量时间 + **totalFuelPrev 追赶** (加油检测分支的

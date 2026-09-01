@@ -1,5 +1,4 @@
 //! vm-overlay: overlay 渲染与平台窗口层 (POC 语义复刻成果)
-pub mod compare;
 pub mod config;
 pub mod draw_frame_simpl;
 pub mod flight_info;
@@ -16,8 +15,6 @@ pub mod minihud_layout;
 pub mod overlay_list;
 pub mod overlays_field1;
 pub mod overlays_field2;
-pub mod parity_gauges;
-pub mod parity_minihud;
 pub mod platform;
 pub mod platform_extras;
 pub mod reinit;

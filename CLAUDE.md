@@ -73,7 +73,7 @@ java -jar VoidMei.jar
 迁移设计档案: `build/migration/` (PORTING 宪法/CLASSIFY/LIFETIMES/DECISIONS/PROGRESS),
 迁移文档: `doc/overlay_java_to_rust_migration.md` (§11 执行记录+人工验收清单)。
 Java 端离屏导出器: `java -classpath "bin;dep/*" ui.debug.OverlayPngExport`。
-一键对拍: `python script/build.py test rustcmp`; Rust e2e: `bash script/rust_e2e.sh`。
+Rust e2e: `bash script/rust_e2e.sh`(Java 对拍链已随 Java 版退役删除)。
 
 ### Windows Launch Scripts
 

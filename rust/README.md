@@ -24,9 +24,7 @@ bash script/rust_run.sh               # 完整应用 (设置窗 + overlay 预览
 bash script/rust_run.sh --live        # 直接 live 模式 (e2e 用)
 bash script/rust_run.sh --mock-smoke  # mock 冒烟 (逐 overlay present 断言)
 bash script/rust_e2e.sh               # e2e 三场景 (A1~A6 断言, 复用 e2e_assert.py)
-bash script/rust_compare.sh           # Java↔Rust 全链像素对拍 (preview/gauge/minihud)
 python script/build.py rustdist       # 组装 Rust 分发包 → dist/VoidMei_Rust_*.zip (解压即用)
-./target/release/voidmei-overlay ...  # POC 工具 (render-png/compare/analyze/gauge)
 ./target/debug/vm-webui-selftest --bench-reopen 10   # D9: 预热重开延迟
 bash script/measure_reopen.sh         # D9: 进程启动→窗口可见延迟 (外部观测)
 ./target/debug/vm-ui --headless --persist <path>     # 固定序列落盘 (换框架 diff 基线)
