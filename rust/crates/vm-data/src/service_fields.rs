@@ -64,10 +64,6 @@ pub struct ServiceData {
     // public int enginenum;
     // public int enginetype;
 
-    pub speedv: f64,
-    pub acceleration: f64,
-    pub sep: f64,
-
     pub wep_time: i64,
 
 
@@ -95,7 +91,6 @@ pub struct ServiceData {
     pub radio_alt: f64,
     pub p_radio_alt: f64,
     pub d_radio_alt: f64,
-    pub an: f64,
     pub i_eng_type: i32,
     pub nitrokg: f64,
     pub nitro_consump: f64,
@@ -128,11 +123,6 @@ pub struct ServiceData {
     pub player_live: bool,
     pub s_loc: Option<String>,
 
-    // ---- L651-678 ----
-    // 转弯半径和转弯时间计算
-    pub turn_rds: f64,
-    pub turn_rate: f64,
-
     pub altmeterp: f64,
     pub altmeter: f64,
     pub thurst_percent: f64,
@@ -142,9 +132,7 @@ pub struct ServiceData {
         pub(crate) max_total_hp: i32,
             pub(crate) p_thurst_percent: f64,
     pub t_eng_response: f64,
-    pub flap_allow_speed: f64,
-    pub flap_allow_angle: f64,
-            pub is_downing_flap: bool,
+    /// C 级保留: get_maximum_rpm_learn 状态机的存储 (W-C 唯一存留的写回字段)
         pub maximum_thr_rpm: f64,
     // double maximumAllowedRPM;
         pub(crate) check_maxium_rpm: i64,
@@ -153,16 +141,6 @@ pub struct ServiceData {
     pub get_maximum_rpm: bool,
     // PORT(Java `public HttpHelper httpClient` 不迁移): IO 机械 (socket + 响应缓冲),
     // 归 service_loop 线程持有, 非数据快照成员。
-
-    // ---- L1180-1184 ----
-    pub mach: f64, // 精准mach, 精度高于state.mach, 小于indicators.mach, 不过只有部分飞机有indicators.mach
-    pub speed_limit_ratio: f64,
-    pub aileron_lock_ratio: f64,
-    pub rudder_lock_ratio: f64,
-    pub unit_mach_limit_ratio: f64, // 单位马赫数限制比值
-
-    // ---- L1234 ----
-    pub stall_speed: f64,
 
     /// R1 周期 FM 句柄快照 (无 Java 对应字段, 见 struct 级 PORT 注):
     /// service_loop 每周期 `FMManager.current()` 写入; getter 经它读
@@ -240,9 +218,6 @@ impl Default for ServiceData {
             elapsed_time: 0,
             noil_temp: 0.0,
             nwater_temp: 0.0,
-            speedv: 0.0,
-            acceleration: 0.0,
-            sep: 0.0,
             wep_time: 0,
             fatal_warn: Some(false),
             compass_delta: 0.0,
@@ -254,7 +229,6 @@ impl Default for ServiceData {
             radio_alt: 0.0,
             p_radio_alt: 0.0,
             d_radio_alt: 0.0,
-            an: 0.0,
             i_eng_type: 0,
             nitrokg: 0.0,
             nitro_consump: 0.0,
@@ -271,8 +245,6 @@ impl Default for ServiceData {
             mapinfo: None,
             player_live: false,
             s_loc: None,
-            turn_rds: 0.0,
-            turn_rate: 0.0,
             altmeterp: 0.0,
             altmeter: 0.0,
             thurst_percent: 0.0,
@@ -282,18 +254,9 @@ impl Default for ServiceData {
             max_total_hp: 0,
             p_thurst_percent: 0.0,
             t_eng_response: 0.0,
-            flap_allow_speed: 0.0,
-            flap_allow_angle: 0.0,
-            is_downing_flap: false,
             maximum_thr_rpm: 0.0,
             check_maxium_rpm: 0,
             get_maximum_rpm: false,
-            mach: 0.0,
-            speed_limit_ratio: 0.0,
-            aileron_lock_ratio: 0.0,
-            rudder_lock_ratio: 0.0,
-            unit_mach_limit_ratio: 0.0,
-            stall_speed: 0.0,
             fm: Arc::new(FMHandle::UNRESOLVED),
             formula_values: Default::default(),
             formula_slots: std::sync::Arc::default(),

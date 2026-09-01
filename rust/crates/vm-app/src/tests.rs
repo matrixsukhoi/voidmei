@@ -1713,7 +1713,13 @@ fn reset_handles_preview_values_clears_live_residue() {
         .borrow_mut()
         .update_telemetry(10.0, 5.0, -20.0, 30.0, 90.0, Some((20.0, -8.0)));
     let mut v = vm_data::service_fields::ServiceData::default();
-    v.mach = 0.72;
+    // W-C: 派生量唯一真相 = 公式槽 (mach 经槽 0 注入)
+    {
+        let mut slots = std::collections::HashMap::new();
+        slots.insert("mach".to_string(), 0u16);
+        v.formula_slots = std::sync::Arc::new(slots);
+        v.formula_values = vm_core::formula::FormulaResults { values: vec![0.72] };
+    }
     let v = &v as &dyn vm_core::formula::registry::FormulaView;
     handles
         .flight_info

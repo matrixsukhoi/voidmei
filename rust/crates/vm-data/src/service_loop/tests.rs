@@ -61,9 +61,6 @@ fn constructor_wiring_matches_java() {
     assert_eq!(d.i_eng_type, ENGINE_TYPE_UNKNOWN);
     assert_eq!(d.fueltime, i64::MAX, "Long.MAX_VALUE");
     assert_eq!(d.maximum_thr_rpm, 1.0);
-    // Java: Float.MAX_VALUE 拓宽 double
-    assert_eq!(d.flap_allow_speed, f32::MAX as f64);
-    assert_eq!(d.flap_allow_angle, f32::MAX as f64);
     assert_eq!(d.cur_load_min_work_time, 99999000.0);
     assert!(d.fuel_time_sma.is_some());
     // lastMapPollTimeMs/lastMainLoopTimeMs ≈ 构造时刻 (原 FuelCheckMili 字段已删)
@@ -138,11 +135,11 @@ fn process_polling_cycle_full_chain() {
         // Deriver 写回: vario(indicators 优先) / compass / an
         assert!((d.n_vy - (-7.342558f32 as f64)).abs() < 1e-6);
         assert!((d.compass_delta - 164.09729f32 as f64).abs() < 1e-4);
-        assert!(d.an > 0.0, "An = g*sqrt(Ny²+1-2Ny·cos(roll)·cos(pitch+AoA))");
+        assert!(d.var_value("an").unwrap_or(0.0) > 0.0, "An = g*sqrt(Ny²+1-2Ny·cos(roll)·cos(pitch+AoA))");
         // R2 hasFM 守卫 (Java updateSpeedRatio L1191-1199): 本轮 identify 的
         // 异步加载尚未完成 → blkx None → 整方法早退, mach 保持初值 0
         // (无 FM 机型不得进 hide-when-zero 显示; 无守卫时的 0.39 是越权计算)
-        assert_eq!(d.mach, 0.0, "无 FM 时 updateSpeedRatio 早退, mach 保持 0");
+        assert_eq!(d.var_value("mach").unwrap_or(0.0), 0.0, "无 FM 公式 invalid → None → 0");
         // updateAlt 写回: alt←H,m; mock 无 radio_altitude 键 → 哨兵 →
         // radioAlt=alt (radioAltValid 写入点已随 W-B 删除)
         assert_eq!(d.alt, 46.0);
@@ -248,9 +245,9 @@ fn update_speed_ratio_and_stall_speed_oracle() {
     svc.calculate();
     {
         let d = read_data(&svc.data);
-        assert_eq!(d.speed_limit_ratio, 0.0, "无 FM 比值归零");
-        assert_eq!(d.aileron_lock_ratio, 0.0);
-        assert_eq!(d.stall_speed, 0.0, "无 FM 失速保持上次值 (初始 0)");
+        assert_eq!(d.var_value("speed_limit_ratio").unwrap_or(0.0), 0.0, "无 FM 比值归零");
+        assert_eq!(d.var_value("aileron_lock_ratio").unwrap_or(0.0), 0.0);
+        assert_eq!(d.var_value("stall_speed").unwrap_or(0.0), 0.0, "无 FM 失速 invalid → None → 0");
     }
 
     // 有 FM: 真机 spitfire 全量装载 (getload 波次产物)
@@ -271,11 +268,11 @@ fn update_speed_ratio_and_stall_speed_oracle() {
     {
         let d = read_data(&svc.data);
         // python oracle (f32 拓宽域公式直算, 位级)
-        assert_eq!(d.speed_limit_ratio, 0.5417142857142857, "iasRatio = 474/875");
-        assert_eq!(d.aileron_lock_ratio, 0.5508571428571428, "482/875");
-        assert_eq!(d.rudder_lock_ratio, 0.45714285714285713, "400/875");
+        assert_eq!(d.var_value("speed_limit_ratio").unwrap_or(f64::NAN), 0.5417142857142857, "iasRatio = 474/875");
+        assert_eq!(d.var_value("aileron_lock_ratio").unwrap_or(f64::NAN), 0.5508571428571428, "482/875");
+        assert_eq!(d.var_value("rudder_lock_ratio").unwrap_or(f64::NAN), 0.45714285714285713, "400/875");
         assert_eq!(
-            d.unit_mach_limit_ratio, 1.3962520958006088,
+            d.var_value("unit_mach_limit_ratio").unwrap_or(f64::NAN), 1.3962520958006088,
             "iasPerMach/875 (ias 分支)"
         );
     }
@@ -283,7 +280,7 @@ fn update_speed_ratio_and_stall_speed_oracle() {
     // 失速: flap=0 (STATE_MOCK "flaps, %": 0; mfuel=197)
     svc.formula_step(&fm);
     assert_eq!(
-        svc.data.read().unwrap().stall_speed,
+        svc.data.read().unwrap().var_value("stall_speed").unwrap_or(f64::NAN),
         158.26201720161404,
         "flap=0 失速 (python oracle)"
     );
@@ -294,7 +291,7 @@ fn update_speed_ratio_and_stall_speed_oracle() {
     }
     svc.formula_step(&fm);
     assert_eq!(
-        svc.data.read().unwrap().stall_speed,
+        svc.data.read().unwrap().var_value("stall_speed").unwrap_or(f64::NAN),
         143.78318105378034,
         "flap=50 失速 (python oracle)"
     );
@@ -742,13 +739,13 @@ fn formula_step_evaluates_and_guards_mach() {
     }
     // (2) 无 FM: mach 公式 invalid() → 不接管 (原 hasFM 守卫语义由公式表达)
     let fm = vm_core::fm::FMHandle::UNRESOLVED;
-    let before_mach = svc.data.read().unwrap().mach;
     svc.formula_step(&fm);
     {
         let d = svc.data.read().unwrap();
         let slot = d.formula_slots.get("mach").copied().expect("mach 槽存在");
         assert!(d.formula_values.get(slot).is_nan(), "无 FM 公式值应 NaN");
-        assert_eq!(d.mach, before_mach, "NaN 守卫: mach 不被接管");
+        // W-C: 副本字段已删 — invalid 公式 = 本帧无值 (var_value None)
+        assert!(d.var_value("mach").is_none(), "invalid → var_value None");
         // (4) 白名单外: 公式 ias=999 进公式命名空间, 不改系统 ias (getter 读 s_state)
         let ias_slot = d.formula_slots.get("ias").copied().unwrap();
         assert_eq!(d.formula_values.get(ias_slot), 999.0);
@@ -767,7 +764,8 @@ fn formula_step_evaluates_and_guards_mach() {
         * (1.4f64 / 1.225 * 101325.0 * (1.0f64 - 0.0000225577 * 46.0).powf(5.25588))
             .sqrt();
     let expect = 474.0 / ias_per_mach;
-    assert!((d.mach - expect).abs() < 1e-12, "接管 mach {0} vs 手算 {expect}", d.mach);
+    let mach = d.var_value("mach").unwrap_or(f64::NAN);
+    assert!((mach - expect).abs() < 1e-12, "接管 mach {0} vs 手算 {expect}", mach);
 }
 
 // ===== W1c: 帧回放对拍设施 (W2 Deriver 消解的安全网骨架) =====
@@ -873,11 +871,11 @@ fn w2_deriver_takeover_bitexact_oracle() {
         svc.calculate();
         let d = svc.data.read().unwrap();
         let (an, sep, tr, trds, acc) = ORACLE[i];
-        assert_eq!(d.an.to_bits(), an.to_bits(), "帧 {i} an");
-        assert_eq!(d.sep.to_bits(), sep.to_bits(), "帧 {i} sep");
-        assert_eq!(d.turn_rate.to_bits(), tr.to_bits(), "帧 {i} turn_rate");
-        assert_eq!(d.turn_rds.to_bits(), trds.to_bits(), "帧 {i} turn_rds");
-        assert_eq!(d.acceleration.to_bits(), acc.to_bits(), "帧 {i} acceleration");
+        assert_eq!(d.var_value("an").unwrap_or(f64::NAN).to_bits(), an.to_bits(), "帧 {i} an");
+        assert_eq!(d.var_value("sep").unwrap_or(f64::NAN).to_bits(), sep.to_bits(), "帧 {i} sep");
+        assert_eq!(d.var_value("turn_rate").unwrap_or(f64::NAN).to_bits(), tr.to_bits(), "帧 {i} turn_rate");
+        assert_eq!(d.var_value("turn_rds").unwrap_or(f64::NAN).to_bits(), trds.to_bits(), "帧 {i} turn_rds");
+        assert_eq!(d.var_value("acceleration").unwrap_or(f64::NAN).to_bits(), acc.to_bits(), "帧 {i} acceleration");
     }
 }
 
@@ -903,11 +901,7 @@ fn panel_targets_via_short_names() {
     for g in ["vario", "ny", "sep", "acceleration", "turn_rate", "turn_rds"] {
         assert!(d.var_value(g).is_some(), "{g} 应取到公式真值 (断链回归)");
     }
-    // 与 ServiceData 写回字段一致 (公式接管值即字段值)
-    assert_eq!(d.var_value("sep"), Some(d.sep));
-    assert_eq!(d.var_value("turn_rds"), Some(d.turn_rds));
-    assert_eq!(d.var_value("turn_rate"), Some(d.turn_rate));
-    assert_eq!(d.var_value("acceleration"), Some(d.acceleration));
+    // (W-C 起槽值即唯一真相, 原与副本字段的一致性断言随字段删除)
     // 无 FM: fm 门公式 invalid → None (显示层 0.00, 对位 Java)
     assert_eq!(d.var_value("mach"), None);
     assert_eq!(d.var_value("total_weight"), None);

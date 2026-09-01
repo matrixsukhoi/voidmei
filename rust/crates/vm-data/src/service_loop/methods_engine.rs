@@ -201,6 +201,7 @@ mod tests {
     use vm_core::blkx::Blkx;
     use vm_core::bus::EventBus;
     use vm_core::flight_data_bus::FlightDataBus;
+    use vm_core::formula::registry::FormulaView as _; // var_value 取数
     use vm_core::fm::FMManager;
     use vm_core::piston_power_model::CompressorStageParams;
 
@@ -282,19 +283,19 @@ mod tests {
             d.actual_interval_ms = 50; // 稳定计时步进 (meta.interval_ms 来源)
         }
         svc.calculate();
-        assert!(svc.data.read().unwrap().is_downing_flap, "放下中");
+        assert!(svc.data.read().unwrap().var_value("is_downing_flap").unwrap_or(0.0) != 0.0, "放下中");
         // 持续稳定 1 秒后归 false
         for _ in 0..21 {
             svc.calculate();
         }
-        assert!(!svc.data.read().unwrap().is_downing_flap, "稳定 1s 后归零");
+        assert!(svc.data.read().unwrap().var_value("is_downing_flap").unwrap_or(0.0) == 0.0, "稳定 1s 后归零");
         // 收起 (50→0): 方向为减 → false
         {
             let mut d = write_data(&svc.data);
             d.s_state.as_mut().unwrap().flaps = 0;
         }
         svc.calculate();
-        assert!(!svc.data.read().unwrap().is_downing_flap, "收起");
+        assert!(svc.data.read().unwrap().var_value("is_downing_flap").unwrap_or(0.0) == 0.0, "收起");
     }
 
 // ---------------- getFlapAllowSpeed / getFlapAllowAngle ----------------

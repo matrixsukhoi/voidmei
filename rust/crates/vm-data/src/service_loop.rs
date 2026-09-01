@@ -16,6 +16,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use vm_core::calc_helper::SimpleMovingAverage;
 use vm_core::event::event_payload::EventPayload;
 use vm_core::event::flight_data_event::FlightDataEvent;
+use vm_core::formula::registry::FormulaView as _; // var_value 取数唯一接口
 use vm_core::flight_analyzer::AnalyzerService;
 use vm_core::flight_data_bus::FlightDataBus;
 use vm_core::flight_log::{FlightLogSlot, FlightLogSnapshot};
@@ -104,33 +105,15 @@ fn format_fueltime(fueltime: i64) -> String {
     }
 }
 
-/// 接管型公式的可写白名单 (公式名 == ServiceData 字段名, W1b 设计 §5 同名规则)。
-/// NaN 不写 (公式 invalid/缺输入 → 保持 Rust 路径值, 双保险);
-/// 白名单外同名公式只进公式命名空间 (formula_values), 不影响系统字段。
-/// 新增可接管字段 = 加一臂 (W2: Deriver 族, W3: 限制/襟翼族)。
+/// W-C 取数单通道后的唯一写回点: maximum_thr_rpm 是 get_maximum_rpm_learn
+/// 状态机的存储 (C 级, 公式可覆写), 其余派生量一律走公式槽 (var_value),
+/// 不再有 ServiceData 副本字段。NaN 不写 (公式 invalid → 状态机保持原值)。
 fn write_back(d: &mut ServiceData, name: &str, v: f64) {
     if v.is_nan() {
         return;
     }
-    match name {
-        "mach" => d.mach = v,
-        "sep" => d.sep = v,
-        "turn_rate" => d.turn_rate = v,
-        "turn_rds" => d.turn_rds = v,
-        "acceleration" => d.acceleration = v,
-        "an" => d.an = v,
-        "stall_speed" => d.stall_speed = v,
-        "speed_limit_ratio" => d.speed_limit_ratio = v,
-        "aileron_lock_ratio" => d.aileron_lock_ratio = v,
-        "rudder_lock_ratio" => d.rudder_lock_ratio = v,
-        "unit_mach_limit_ratio" => d.unit_mach_limit_ratio = v,
-        "flap_allow_speed" => d.flap_allow_speed = v,
-        "flap_allow_angle" => d.flap_allow_angle = v,
-        "maximum_thr_rpm" => d.maximum_thr_rpm = v,
-        "speedv" => d.speedv = v,
-        // W8: check_flap 状态机公式化 (bool 写回)
-        "is_downing_flap" => d.is_downing_flap = v != 0.0,
-        _ => {}
+    if name == "maximum_thr_rpm" {
+        d.maximum_thr_rpm = v;
     }
 }
 
@@ -358,7 +341,6 @@ impl Service {
             d.i_eng_type = ENGINE_TYPE_UNKNOWN;
             d.check_maxium_rpm = 0;
             d.compass_delta = 0.0;
-            d.is_downing_flap = false;
             d.get_maximum_rpm = false;
             d.d_radio_alt = 0.0;
             d.wep_time = 0;
@@ -393,9 +375,6 @@ impl Service {
             // isFuelpressure = false;
             // Java L1577 对 notCheckInch 的第二次赋值, 保真保留
             d.not_check_inch = false;
-            // Java: flapAllowSpeed/Angle = Float.MAX_VALUE —— float 拓宽 double (§2.12)
-            d.flap_allow_speed = f32::MAX as f64;
-            d.flap_allow_angle = f32::MAX as f64;
             d.total_fuel_prev = 0.0;
             d.nitrokg = 0.0;
             d.nitro_consump = 0.0;
@@ -685,8 +664,8 @@ impl Service {
                     // 检测到加油，重置数据
                     {
                         let d = read_data(&self.data);
-                        // Java: Math.abs(speedv) < 10 — W2 起 speedv 为公式接管值
-                        let speedv = d.speedv;
+                        // Java: Math.abs(speedv) < 10 — W-C 起直读公式槽
+                        let speedv = d.var_value("speedv").unwrap_or(0.0);
                         let total_fuel = d.total_fuel;
                         let total_fuel_prev = d.total_fuel_prev;
                         if (speedv.abs() < 10.0) && (total_fuel - total_fuel_prev > 1.0) {
@@ -1191,8 +1170,8 @@ impl Service {
     /// @param fm 本周期 FM 句柄快照（R1 下传, Java javadoc 原文）
     fn update_engine_state(&mut self, fm: &FMHandle) {
         self.check_engine_jet();
-        // speedv (校正 TAS m/s) — W2: 公式接管值 (formula_step 已先行)
-        let speedv = read_data(&self.data).speedv;
+        // speedv (校正 TAS m/s) — W-C: 直读公式槽 (formula_step 已先行)
+        let speedv = read_data(&self.data).var_value("speedv").unwrap_or(0.0);
 
         // 输入快照 + 引擎循环 (锁外算, §2.8)
         let (is_jet, total_hp, total_hp_eff, total_thrust, avgeff) = {
@@ -1347,7 +1326,8 @@ impl Service {
             EventPayload::builder()
                 .map_grid(map_grid)
                 .fatal_warn(d.fatal_warn.unwrap())
-                .is_downing_flap(d.is_downing_flap)
+                // W-C: 直读公式槽 (is_downing_flap 公式)
+                .is_downing_flap(d.var_value("is_downing_flap").unwrap_or(0.0) != 0.0)
                 // 批2: fueltime 文本现算 (镜像字段已拆)
                 .time_str(format_fueltime(d.fueltime))
                 // Java: isJet(iEngType == ENGINE_TYPE_JET)
@@ -1396,11 +1376,12 @@ pub fn flight_log_snapshot(d: &ServiceData) -> FlightLogSnapshot {
     let na = NASTRING;
     // %d 列 (负值 → "-"): rpmThrottle/radiator/mixture/throttle
     let int_na = |v: i32| if v >= 0 { v.to_string() } else { na.to_string() };
-    // SEP 取整 (可读性): (long)SEP/50*2.5, 0 → 1
-    let mut sep_acc = ((d.sep as i64) / 50) as f64;
+    // SEP 取整 (可读性): (long)SEP/50*2.5, 0 → 1 (W-C: 直读公式槽, None→0)
+    let sep = d.var_value("sep").unwrap_or(0.0);
+    let mut sep_acc = ((sep as i64) / 50) as f64;
     sep_acc *= 2.5;
     if sep_acc == 0.0 { sep_acc = 1.0; }
-    let sep_rounded = format::java_round(d.sep / sep_acc) as f64 * sep_acc;
+    let sep_rounded = format::java_round(sep / sep_acc) as f64 * sep_acc;
     FlightLogSnapshot {
         elapsed_time: d.elapsed_time,
         throttle: col(&|s| int_na(s.throttle)),
@@ -1436,7 +1417,7 @@ pub fn flight_log_snapshot(d: &ServiceData) -> FlightLogSnapshot {
         },
         rpm: col(&|s| s.rpm.to_string()),
         total_thrust: d.total_thrust,
-        acceleration: d.acceleration,
+        acceleration: d.var_value("acceleration").unwrap_or(0.0),
         rpm_throttle: col(&|s| int_na(s.rpm_throttle)),
         pitch_0: st.map_or_else(
             || "null".to_string(),
@@ -1474,7 +1455,7 @@ pub fn flight_log_snapshot(d: &ServiceData) -> FlightLogSnapshot {
         check_alt: d.check_alt,
         // EM 图速度分档 (原 IASv 平滑值未移植, 用 State 直读 IAS, 显示 0-3 位不敏感)
         ias_v: st.map(|s| s.ias as f64).unwrap_or(0.0),
-        sep: d.sep,
+        sep,
         state_wx: st.map(|s| s.wx).unwrap_or(0.0),
         // Java: init 读 `s.sIndic.type`; sIndic 存在而 type 键缺失 → null →
         // toUpperCase() NPE (Java 崩 openpad 线程), Rust 以空串降级 (PORT 备案:
@@ -1525,7 +1506,8 @@ impl AnalyzerService for ServiceAnalyzerSource {
         read_data(&self.data).total_hp_eff
     }
     fn sep(&self) -> f64 {
-        read_data(&self.data).sep
+        // W-C: 直读公式槽, None→0
+        read_data(&self.data).var_value("sep").unwrap_or(0.0)
     }
 }
 

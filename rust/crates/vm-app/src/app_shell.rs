@@ -2435,13 +2435,19 @@ impl VoiceWarningService for LiveVoiceService {
         self.data.write().unwrap_or_else(|e| e.into_inner()).fatal_warn = Some(v);
     }
     fn is_downing_flap(&self) -> bool {
-        self.data.read().unwrap_or_else(|e| e.into_inner()).is_downing_flap
+        // W-C: 直读公式槽, None→false
+        let d = self.data.read().unwrap_or_else(|e| e.into_inner());
+        d.var_value("is_downing_flap").unwrap_or(0.0) != 0.0
     }
     fn flap_allow_angle(&self) -> f64 {
-        self.data.read().unwrap_or_else(|e| e.into_inner()).flap_allow_angle
+        // W-C: 直读公式槽, None→MAX(无限制, 不触发告警)
+        let d = self.data.read().unwrap_or_else(|e| e.into_inner());
+        d.var_value("flap_allow_angle").unwrap_or(f64::MAX)
     }
     fn flap_allow_speed(&self) -> f64 {
-        self.data.read().unwrap_or_else(|e| e.into_inner()).flap_allow_speed
+        // W-C: 直读公式槽, None→MAX(无限制, 不触发告警)
+        let d = self.data.read().unwrap_or_else(|e| e.into_inner());
+        d.var_value("flap_allow_speed").unwrap_or(f64::MAX)
     }
     fn total_fuel(&self) -> f64 {
         self.data.read().unwrap_or_else(|e| e.into_inner()).total_fuel
@@ -2470,7 +2476,9 @@ impl VoiceWarningService for LiveVoiceService {
             == vm_data::service_fields::ENGINE_TYPE_JET
     }
     fn get_stall_speed(&self) -> f64 {
-        self.data.read().unwrap_or_else(|e| e.into_inner()).stall_speed
+        // W-C: 直读公式槽, None→0(永不触发失速告警)
+        let d = self.data.read().unwrap_or_else(|e| e.into_inner());
+        d.var_value("stall_speed").unwrap_or(0.0)
     }
     fn s_state(&self) -> vm_core::parser::State {
         let d = self.data.read().unwrap_or_else(|e| e.into_inner());
@@ -3211,7 +3219,7 @@ pub fn win32_thread_main(cfg: Win32ThreadConfig) {
                             // 缺省 0 (同 Java State 字段初值)
                             DfsFlight {
                                 gear: d.s_state.as_ref().map(|s| s.gear).unwrap_or(0),
-                                speedv: d.speedv,
+                                speedv: d.var_value("speedv").unwrap_or(0.0),
                                 throttle: d.s_state.as_ref().map(|s| s.throttle).unwrap_or(0),
                             }
                         });
