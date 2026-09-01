@@ -1252,6 +1252,19 @@ impl vm_overlay::platform::OverlayWindow for NullWin {
     }
 }
 
+/// 测试行定义: 仓库 ui_layout.cfg 两面板 (与生产 OverlayInputs::build 同源)
+fn cfg_test_rows(panel: &str) -> std::sync::Arc<Vec<vm_core::row_def::RowDef>> {
+    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../../ui_layout.cfg");
+    let groups = vm_core::config_loader::load_config(path);
+    let gc = groups
+        .iter()
+        .find(|g| g.title == panel)
+        .unwrap_or_else(|| panic!("ui_layout.cfg 应含面板 {panel} (path={path})"));
+    let rows = vm_core::row_def::rows_from_group(gc, &|_| false);
+    assert!(!rows.is_empty(), "面板 {panel} 的 data 行不应为空");
+    std::sync::Arc::new(rows)
+}
+
 fn test_overlay_inputs() -> OverlayInputs {
     OverlayInputs {
         dpi_scale: 1.0,
@@ -1277,6 +1290,8 @@ fn test_overlay_inputs() -> OverlayInputs {
         colors: GlobalColors::JAVA_DEFAULT,
         aa: true,
         engine_disables: [false; 7],
+        flight_rows: cfg_test_rows("飞行信息"),
+        power_rows: cfg_test_rows("动力信息"),
     }
 }
 
@@ -1398,7 +1413,7 @@ fn feed_overlays_live_updates_all_handles() {
     .unwrap();
     let (h_power, _) = vm_overlay::power_info_overlay_spec(
         &fonts,
-        &Rc::new(RefCell::new(vm_overlay::ReinitParams::default())),
+        &Rc::new(RefCell::new(vm_overlay::ReinitParams::from(&inputs))),
     )
     .unwrap();
     let (h_engine, _) = vm_overlay::engine_control_overlay_spec(
@@ -1426,7 +1441,7 @@ fn feed_overlays_live_updates_all_handles() {
     .unwrap();
     let (h_fi, _) = vm_overlay::flight_info_overlay_spec(
         &fonts,
-        &Rc::new(RefCell::new(vm_overlay::ReinitParams::default())),
+        &Rc::new(RefCell::new(vm_overlay::ReinitParams::from(&inputs))),
     )
     .unwrap();
     let handles = OverlayHandles {
@@ -1532,7 +1547,7 @@ fn feed_overlays_live_swallows_malformed_frame() {
     // 只接 PowerInfo (get_pitch 空 Vec panic 点; 其余 handle 缺省 None)
     let (h_power, _) = vm_overlay::power_info_overlay_spec(
         &fonts,
-        &Rc::new(RefCell::new(vm_overlay::ReinitParams::default())),
+        &Rc::new(RefCell::new(vm_overlay::ReinitParams::from(&test_overlay_inputs()))),
     )
     .unwrap();
     let handles = OverlayHandles {
@@ -1756,9 +1771,10 @@ fn reset_handles_preview_values_clears_live_residue() {
     );
     {
         let rows = handles.flight_info.as_ref().unwrap().borrow().rows().to_vec();
-        assert_eq!(rows.len(), vm_core::fields::FIELDS.len(), "飞行信息回全量行");
-        for (row, f) in rows.iter().zip(vm_core::fields::FIELDS.iter()) {
-            assert_eq!(row.2, f.preview_text(), "飞行信息值列回 preview 静态: {}", f.label);
+        let defs = handles.flight_info.as_ref().unwrap().borrow().defs.clone();
+        assert_eq!(rows.len(), defs.len(), "飞行信息回全量行");
+        for (row, f) in rows.iter().zip(defs.iter()) {
+            assert_eq!(row.2, f.preview_value, "飞行信息值列回 preview 静态: {}", f.label);
         }
     }
     {

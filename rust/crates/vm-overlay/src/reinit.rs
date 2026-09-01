@@ -12,7 +12,10 @@
 //! reinit 闭包 (OverlaySpec.reinit) 读取最新值重建 state, 返回新 (w,h) 由 host
 //! resize_entry 落窗口 — 对位 Java reinitConfig 的 setBounds 副作用。
 
+use std::sync::Arc;
+
 use vm_core::config_api::HudSettingsSnapshot;
+use vm_core::row_def::RowDef;
 
 /// reinit 参数包 (纯值 Send; 各字段来源 = OverlayInputs 同源配置键)。
 /// PORT(取舍备案): 不整包重送 `OverlayInputs` — 颜色/AA 有专命令
@@ -63,6 +66,9 @@ pub struct ReinitParams {
     pub attitude_show_aoa_limits: bool,
     /// MiniHUD 全量设置快照 (reinit_config 的 S: HUDSettings 实参)
     pub hud: HudSettingsSnapshot,
+    /// W-D cfg 驱动行定义 (主线程从 ui_layout.cfg 编译, 行开关过滤后随包进 win32)
+    pub flight_rows: Arc<Vec<RowDef>>,
+    pub power_rows: Arc<Vec<RowDef>>,
 }
 
 impl Default for ReinitParams {
@@ -90,6 +96,8 @@ impl Default for ReinitParams {
             attitude_show_direction: false,
             attitude_show_aoa_limits: true,
             hud: HudSettingsSnapshot::default(),
+            flight_rows: Arc::new(Vec::new()),
+            power_rows: Arc::new(Vec::new()),
         }
     }
 }

@@ -1,11 +1,16 @@
 use super::*;
 
+use crate::flight_info::cfg_rows;
+
 fn fonts_dir() -> std::path::PathBuf {
     std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../fonts")
 }
 
 fn params_cell(mutate: impl FnOnce(&mut ReinitParams)) -> Rc<RefCell<ReinitParams>> {
     let mut p = ReinitParams::default();
+    // W-D: 行定义走 cfg (与生产同源)
+    p.flight_rows = std::sync::Arc::new(cfg_rows("飞行信息"));
+    p.power_rows = std::sync::Arc::new(cfg_rows("动力信息"));
     mutate(&mut p);
     Rc::new(RefCell::new(p))
 }
@@ -18,7 +23,7 @@ fn spec_renders_preview_rows_to_pixcanvas() {
         flight_info_overlay_spec(&fonts_dir(), &params_cell(|_| {}))
             .expect("字体目录应可用");
     assert_eq!(spec.id, "flightInfoSwitch");
-    assert_eq!(handle.borrow().rows().len(), fields::FIELDS.len());
+    assert_eq!(handle.borrow().rows().len(), cfg_rows("飞行信息").len());
     assert!(spec.width > 0 && spec.height > 0);
 
     // 渲染闭包: 先铺 host 预览灰底再合成 (host 渲染循环同序)
@@ -50,7 +55,7 @@ fn update_applies_visibility() {
     handle.borrow_mut().update(&ZeroView);
     let n_zero = handle.borrow().rows().len();
     // 全零值: Mach (>0) 等条件行被滤; 至少 IAS 等直通行保留
-    assert!(n_zero > 0 && n_zero <= fields::FIELDS.len());
+    assert!(n_zero > 0 && n_zero <= cfg_rows("飞行信息").len());
 
     // 非零 Mach 帧行数应不少于全零帧 (Mach 行回归)
     struct MachView;
@@ -75,9 +80,9 @@ fn update_applies_visibility() {
 /// 守卫: FIELDS 全部 target 短名经 registry/公式集可达 — 断链即行消失/恒 0
 #[test]
 fn flight_info_targets_all_reachable() {
-    for f in fields::FIELDS {
+    for f in cfg_rows("飞行信息") {
         // 乘数表达式先拆 ("wing_sweep * 100" → wing_sweep), 裸名查可达
-        let (var, _) = vm_core::formula::resolve_target(f.source)
+        let (var, _) = vm_core::formula::resolve_target(&f.source)
             .unwrap_or((vm_core::formula::TargetVar::Var(0), 1.0));
         let t = match &var {
             vm_core::formula::TargetVar::Var(vid) => {
@@ -131,9 +136,10 @@ fn reset_preview_rows_restores_statics() {
     // 重置 → preview 行: FIELDS 全量 + preview_text 原样
     handle.borrow_mut().reset_preview_rows();
     let rows = handle.borrow().rows().to_vec();
-    assert_eq!(rows.len(), fields::FIELDS.len(), "回全量行 (visible-when 过滤清除)");
-    for (row, f) in rows.iter().zip(fields::FIELDS.iter()) {
+    let defs = cfg_rows("飞行信息");
+    assert_eq!(rows.len(), defs.len(), "回全量行 (visible-when 过滤清除)");
+    for (row, f) in rows.iter().zip(defs.iter()) {
         assert_eq!(row.0, f.label);
-        assert_eq!(row.2, f.preview_text(), "值列回 preview 静态: {}", f.label);
+        assert_eq!(row.2, f.preview_value, "值列回 preview 静态: {}", f.label);
     }
 }

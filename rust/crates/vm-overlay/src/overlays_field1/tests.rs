@@ -205,22 +205,22 @@ fn butt_line_width2_aa_coverage() {
 #[test]
 fn vis_expr_semantics() {
     let t = MockTele::default(); // piston=true, jet=false
-    assert!(!vm_core::fields::Cond::IsJetEngine.eval(&t, 0.0));
-    assert!(vm_core::fields::Cond::IsPistonEngine.eval(&t, 0.0));
-    assert!(!vm_core::fields::Cond::HasWep.eval(&t, 0.0));
-    assert!(vm_core::fields::Cond::Gt(0.0).eval(&t, 0.1));
-    assert!(!vm_core::fields::Cond::Gt(0.0).eval(&t, 0.0));
-    assert!(vm_core::fields::Cond::Lte(0.0).eval(&t, 0.0));
-    assert!(vm_core::fields::Cond::Eq(1.0).eval(&t, 1.00001));
-    assert!(!vm_core::fields::Cond::Eq(1.0).eval(&t, 1.0002));
+    assert!(!vm_core::row_def::Cond::IsJetEngine.eval(&t, 0.0));
+    assert!(vm_core::row_def::Cond::IsPistonEngine.eval(&t, 0.0));
+    assert!(!vm_core::row_def::Cond::HasWep.eval(&t, 0.0));
+    assert!(vm_core::row_def::Cond::Gt(0.0).eval(&t, 0.1));
+    assert!(!vm_core::row_def::Cond::Gt(0.0).eval(&t, 0.0));
+    assert!(vm_core::row_def::Cond::Lte(0.0).eval(&t, 0.0));
+    assert!(vm_core::row_def::Cond::Eq(1.0).eval(&t, 1.00001));
+    assert!(!vm_core::row_def::Cond::Eq(1.0).eval(&t, 1.0002));
     // f64 边界: 字面量 1.0001-1.0 实际差 ≈ 9.9999e-5 < 0.0001 → 视为相等
     // (vm-core 求值器测试同款 oracle: "(= value 1)" 对 1.0001 为 true)
-    assert!(vm_core::fields::Cond::Eq(1.0).eval(&t, 1.0001));
-    assert!(!vm_core::fields::Cond::NotEq(1.0).eval(&t, 1.0001));
-    assert!(!vm_core::fields::Cond::NotEq(1.0).eval(&t, 1.0));
-    let not_jet = vm_core::fields::Cond::Not(&vm_core::fields::Cond::IsJetEngine);
+    assert!(vm_core::row_def::Cond::Eq(1.0).eval(&t, 1.0001));
+    assert!(!vm_core::row_def::Cond::NotEq(1.0).eval(&t, 1.0001));
+    assert!(!vm_core::row_def::Cond::NotEq(1.0).eval(&t, 1.0));
+    let not_jet = vm_core::row_def::Cond::Not(Box::new(vm_core::row_def::Cond::IsJetEngine));
     assert!(not_jet.eval(&t, 0.0));
-    let and = vm_core::fields::Cond::And(&vm_core::fields::Cond::IsPistonEngine, &vm_core::fields::Cond::NotEq(1.0));
+    let and = vm_core::row_def::Cond::And(Box::new(vm_core::row_def::Cond::IsPistonEngine), Box::new(vm_core::row_def::Cond::NotEq(1.0)));
     assert!(and.eval(&t, 0.98));
     assert!(!and.eval(&t, 1.0));
 }
@@ -374,27 +374,39 @@ fn marked_gauge_vertical_geometry() {
 
 // ---- PowerInfo ----
 
-/// 常量表快照: 19 项, 关键行 (进气压动态通道 / 燃油时 TIME_MM_SS) 与 cfg 一致
+/// 测试 defs: 从仓库 ui_layout.cfg 编译 "动力信息" 19 行 (与生产同源)
+fn defs19() -> std::sync::Arc<Vec<vm_core::row_def::RowDef>> {
+    std::sync::Arc::new(crate::flight_info::cfg_rows("动力信息"))
+}
+
+
+/// cfg 驱动快照 (W-D): "动力信息" 组 19 行, 关键行 (进气压动态通道 / 燃油时
+/// TIME_MM_SS) 与原静态表逐值一致 — cfg 是行定义唯一来源的守卫锚
 #[test]
 fn power_field_defs_snapshot() {
-    assert_eq!(vm_core::fields::POWER_FIELD_DEFS.len(), 19);
-    assert_eq!(vm_core::fields::POWER_FIELD_DEFS[0].label, "功  率");
-    assert_eq!(vm_core::fields::POWER_FIELD_DEFS[0].na_when, Some(vm_core::fields::Cond::Lte(0.0)));
-    let manifold = &vm_core::fields::POWER_FIELD_DEFS[6];
+    use vm_core::row_def::{Cond, DisplayMode, FormatKind};
+    let defs = crate::flight_info::cfg_rows("动力信息");
+    assert_eq!(defs.len(), 19);
+    assert_eq!(defs[0].label, "功  率");
+    assert_eq!(defs[0].na_when, Some(Cond::Lte(0.0)));
+    let manifold = &defs[6];
     assert_eq!(manifold.label, "进气压");
-    assert!(manifold.imperial_display, "进气压动态单位/精度通道");
-    assert_eq!(manifold.visible_when, Some(vm_core::fields::Cond::And(&vm_core::fields::Cond::IsPistonEngine, &vm_core::fields::Cond::NotEq(1.0))));
-    let fuel_time = &vm_core::fields::POWER_FIELD_DEFS[10];
+    assert_eq!(manifold.display, DisplayMode::ImperialManifold, "进气压动态单位/精度通道");
+    assert_eq!(
+        manifold.visible_when,
+        Some(Cond::And(Box::new(Cond::IsPistonEngine), Box::new(Cond::NotEq(1.0))))
+    );
+    let fuel_time = &defs[10];
     assert_eq!(fuel_time.source, "fuel_time_mili * 0.001");
-    assert!(fuel_time.time_mm_ss);
-    assert_eq!(vm_core::fields::POWER_FIELD_DEFS[17].na_when, Some(vm_core::fields::Cond::Gt(90000.0)));
+    assert_eq!(fuel_time.format, FormatKind::TimeMmSs);
+    assert_eq!(defs[17].na_when, Some(Cond::Gt(90000.0)));
 }
 
 /// 更新路径 (FieldOverlay.onFlightData 零 GC): visible-when / na-when "-" /
 /// TIME_MM_SS / 动态单位精度 / 预览不受影响
 #[test]
 fn power_info_update_paths() {
-    let mut st = PowerInfoState::new();
+    let mut st = PowerInfoState::new(defs19());
     let mut t = MockTele {
         horse_power: 1200.0,
         thrust: 1000.0,
@@ -454,7 +466,7 @@ fn power_info_update_paths() {
     assert!(!st.fields()[0].visible, "喷气机隐藏功率");
     assert!(st.fields().iter().find(|x| x.label == "推  力").unwrap().visible);
     // 进气压 value=1 (容差内) → 活塞机也隐藏
-    let mut st2 = PowerInfoState::new();
+    let mut st2 = PowerInfoState::new(defs19());
     let mut t2 = MockTele { manifold: 1.0, ..MockTele::default() };
     t2.piston = true;
     assert!(st2.update(100, &t2));
@@ -464,7 +476,7 @@ fn power_info_update_paths() {
 /// 预览 = 构造后不 update: previewValue 原样落 currentValue, 全部可见
 #[test]
 fn power_info_preview_state() {
-    let st = PowerInfoState::new();
+    let st = PowerInfoState::new(defs19());
     assert!(st.fields().iter().all(|f| f.visible));
     assert_eq!(st.fields()[0].current_value, "1200");
     assert_eq!(st.fields().iter().find(|x| x.label == "进气压").unwrap().current_value, "1.2");
@@ -476,7 +488,7 @@ fn power_info_preview_state() {
 /// 场景: 托盘 live→preview 后重开的预览窗不得显示上次 live 数值
 #[test]
 fn power_info_reset_preview_restores_statics() {
-    let mut st = PowerInfoState::new();
+    let mut st = PowerInfoState::new(defs19());
     // 活塞机形态 (buffer 写入面) + 助推标志 false (live 驱动的可见性残留面)
     let t = MockTele {
         horse_power: 1200.0,
@@ -501,14 +513,14 @@ fn power_info_reset_preview_restores_statics() {
 #[test]
 fn power_info_draw_and_preview_spec() {
     let ctx = RenderContext::load(std::path::Path::new(FONTS), 0, 2).unwrap();
-    let st = PowerInfoState::new();
+    let st = PowerInfoState::new(defs19());
     let (w, h) = st.preferred_size(&ctx);
     let mut cv = PixCanvas::new(w, h).unwrap();
     let mut renderer = BosStyleRenderer::default();
     st.draw(&mut cv, &ctx, &mut renderer);
     assert!(cv.pixmap().data().iter().any(|&b| b != 0), "预览网格非空");
     // 工厂闭包 (OverlayHost 渲染闭包形态)
-    let mut spec = power_info_preview_spec(std::path::Path::new(FONTS), 0, 2).unwrap();
+    let mut spec = power_info_preview_spec(std::path::Path::new(FONTS), 0, 2, defs19()).unwrap();
     assert_eq!((spec.width, spec.height), (w, h));
     let mut cv2 = PixCanvas::new(spec.width, spec.height).unwrap();
     (spec.render)(&mut cv2);
@@ -869,6 +881,9 @@ fn gear_flaps_preview_spec_renders() {
 /// 测试参数仓 (缺省值 + 覆写便捷)
 fn params_cell(mutate: impl FnOnce(&mut ReinitParams)) -> Rc<RefCell<ReinitParams>> {
     let mut p = ReinitParams::default();
+    // W-D: 行定义走 cfg (与生产同源)
+    p.flight_rows = std::sync::Arc::new(crate::flight_info::cfg_rows("飞行信息"));
+    p.power_rows = std::sync::Arc::new(crate::flight_info::cfg_rows("动力信息"));
     mutate(&mut p);
     Rc::new(RefCell::new(p))
 }

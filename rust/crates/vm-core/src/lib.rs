@@ -46,7 +46,7 @@ pub mod fm_power_extractor;
 pub mod power_curve_helper;
 pub mod piston_power_model;
 pub mod sexp_parser;
-pub mod fields;
+pub mod row_def;
 pub mod format;
 pub mod interpolation;
 pub mod layout;

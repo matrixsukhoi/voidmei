@@ -567,7 +567,7 @@ fn ui_layout_cfg_na_when_expressions_parsed() {
         }
     }
 
-    // 对应 TestNaWhenParsing 的搜索目标: 转半径行 (target 含 TurnRadius) 的
+    // 对应 TestNaWhenParsing 的搜索目标: 转半径行 (target = turn_rds) 的
     // :na-when 表达式确已解析为 (> value 9999)
     let found = find_turn_radius_na_when(&panels);
     assert_eq!(found.as_deref(), Some("(> value 9999)"));
@@ -581,7 +581,7 @@ fn find_turn_radius_na_when(exprs: &[Rc<SExp>]) -> Option<String> {
         let has_target = l.children.iter().any(|c| {
             matches!(
                 &**c,
-                SExp::Atom(a) if a.r#type == AtomType::String && a.get_string() == "getTurnRadius"
+                SExp::Atom(a) if a.r#type == AtomType::String && a.get_string() == "turn_rds"
             )
         });
         if has_target {

@@ -588,7 +588,7 @@ fn five_overlays_mount_into_overlay_host() {
     let lang = Lang::init_lang();
 
     // ① PowerInfo (Java 注册键 engineInfoSwitch, field1 预览工厂)
-    host.register(crate::overlays_field1::power_info_preview_spec(fonts_dir, 0, 1).unwrap());
+    host.register(crate::overlays_field1::power_info_preview_spec(fonts_dir, 0, 1, std::sync::Arc::new(Vec::new())).unwrap());
     // ② EngineControl (enableEngineControl)
     host.register(
         crate::overlays_field1::engine_control_preview_spec(fonts_dir, &lang, 0, 1.0).unwrap(),

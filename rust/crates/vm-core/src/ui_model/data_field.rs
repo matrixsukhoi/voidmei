@@ -1,18 +1,5 @@
 //! 对应 Java: `src/ui/model/DataField.java` (一比一翻译)
 
-/// PORT: `crate::visibility_expression::VisibilityExpressionEvaluator` 已完整落地,
-/// 但其持有 `&'a dyn TelemetrySource` 借用 (求值时临时构造), 无法直接存入长寿命的
-/// DataField 字段 —— 装配需 Rc/Arc<dyn TelemetrySource> 所有权重设计, 属 C 类
-/// FieldOverlay 移植的整体决策, 本批不预判。故先以零字段占位类型顶住
-/// (fm::handle::BlkxPlaceholder 先例)。真实构造点 (FlightInfoOverlay:138 /
-/// PowerInfoOverlay:173, C 类, `new VisibilityExpressionEvaluator(row.naWhen, s)`)
-/// 与求值点 (FieldOverlay:208 `naWhenEvaluator.evaluate(val)`) 均不在本批。
-// 已收口 (架构裁决): na_when/visible_when 求值由 vm-overlay fields.rs 承接
-// (FIELDS 静态表 + 编译期 cond, flight_info.rs 生产消费), 本占位无切换计划
-// (DefaultFieldManager 无生产消费者, 仅测试引用)。
-#[derive(Debug, Clone)]
-pub struct VisibilityExpressionEvaluatorPlaceholder;
-
 /// Represents a single data field displayed in an overlay.
 /// Generic version - can be used for any type of data display.
 pub struct DataField {
@@ -65,8 +52,6 @@ pub struct DataField {
     pub format: Option<String>, // Custom format (e.g., "TIME_MM_SS")
     pub unit_supplier: Option<Box<dyn Fn() -> String>>, // Dynamic unit source
     pub precision_supplier: Option<Box<dyn Fn() -> i32>>, // Dynamic precision source
-    /// NA显示条件求值器，满足条件时显示 "-"
-    pub na_when_evaluator: Option<VisibilityExpressionEvaluatorPlaceholder>,
 }
 
 // PORT: Java 构造器 + 字段声明默认值 (visible=true / currentValue="---" /
@@ -98,7 +83,6 @@ impl DataField {
             format: None,
             unit_supplier: None,
             precision_supplier: None,
-            na_when_evaluator: None,
         }
     }
 

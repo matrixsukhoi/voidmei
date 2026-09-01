@@ -21,7 +21,6 @@ fn initial_state() {
     assert!(df.visibility_supplier.is_none());
     assert!(df.unit_supplier.is_none());
     assert!(df.precision_supplier.is_none());
-    assert!(df.na_when_evaluator.is_none());
 }
 
 /// Java String.format("%5s", v): 右对齐宽 5, 不足补前导空格, 超宽原样

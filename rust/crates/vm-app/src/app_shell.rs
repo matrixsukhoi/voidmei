@@ -642,6 +642,9 @@ pub struct OverlayInputs {
     /// 引擎控制 7 仪表 disable 开关 (ENGINE_DISABLE_KEYS 序; 曾 never-wired
     /// 恒 false — 用户关仪表 Rust 恒显全部, 启动首帧即错, 审查轮 1-B)
     pub engine_disables: [bool; 7],
+    /// W-D cfg 驱动行定义 (行开关过滤后)
+    pub flight_rows: std::sync::Arc<Vec<vm_core::row_def::RowDef>>,
+    pub power_rows: std::sync::Arc<Vec<vm_core::row_def::RowDef>>,
 }
 
 impl OverlayInputs {
@@ -659,6 +662,20 @@ impl OverlayInputs {
         let fm_print = config.get_overlay_settings("FM拆包数据");
         let attitude = config.get_overlay_settings("地平仪");
         let flight = config.get_overlay_settings("飞行信息");
+        let compile_rows = |title: &str| -> std::sync::Arc<Vec<vm_core::row_def::RowDef>> {
+            match config.get_overlay_settings(title).get_group_config() {
+                Some(gc) => {
+                    // 行开关 (is_field_disabled = Java isFieldDisabled): value=false
+                    // 的 data 行不进面板 — Rust 侧此前 no-op, W-D 接线修复
+                    let rows = vm_core::row_def::rows_from_group(gc, &|r| {
+                        let key = r.property.clone().unwrap_or_else(|| r.label.clone());
+                        ConfigProvider::is_field_disabled(config, &key)
+                    });
+                    std::sync::Arc::new(rows)
+                }
+                None => std::sync::Arc::new(Vec::new()),
+            }
+        };
         OverlayInputs {
             dpi_scale: env.dpi.get_scale(),
             hud: HudSettingsSnapshot::build(&config.get_hud_settings()),
@@ -689,6 +706,8 @@ impl OverlayInputs {
                     .map(|v| java_parse_boolean(&v))
                     .unwrap_or(false)
             }),
+            flight_rows: compile_rows("飞行信息"),
+            power_rows: compile_rows("动力信息"),
         }
     }
 }
@@ -716,6 +735,8 @@ impl From<&OverlayInputs> for vm_overlay::ReinitParams {
             attitude_show_direction: i.attitude_show_direction,
             attitude_show_aoa_limits: i.attitude_show_aoa_limits,
             hud: i.hud.clone(),
+            flight_rows: std::sync::Arc::clone(&i.flight_rows),
+            power_rows: std::sync::Arc::clone(&i.power_rows),
         }
     }
 }

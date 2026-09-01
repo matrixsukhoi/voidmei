@@ -18,10 +18,12 @@
 
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::sync::Arc;
 
 use vm_core::layout::RenderCtx;
-use vm_core::{fields, format};
+use vm_core::format;
 use vm_core::formula::registry::FormulaView;
+use vm_core::row_def::RowDef;
 
 use crate::font::Canvas;
 use crate::host::{OverlaySpec, ReinitFn};
@@ -47,13 +49,13 @@ pub fn flight_value(s: &dyn FormulaView, target: &str) -> Option<f64> {
     vm_core::formula::target_value(&var, mult, s)
 }
 
-/// TelemetrySource → (label, unit, value) owned 行 (visible-when/na-when 求值)
-pub fn build_texts(s: &dyn FormulaView) -> Vec<(String, String, String)> {
+/// 行定义 → (label, unit, value) owned 行 (visible-when/na-when 求值)
+pub fn build_texts(defs: &[RowDef], s: &dyn FormulaView) -> Vec<(String, String, String)> {
     let mut out = Vec::new();
-    for f in fields::FIELDS {
+    for f in defs {
         // 解析不到按 0 处理 (Java 反射 getter 永不失败, 行只受 visible-when
         // 控制; 曾 None→continue 致 7 行整行消失 — live 显示回归根因之一)
-        let raw = flight_value(s, f.source).unwrap_or(0.0);
+        let raw = flight_value(s, &f.source).unwrap_or(0.0);
         if let Some(cond) = &f.visible_when {
             if !cond.eval(s, raw) {
                 continue;
@@ -64,7 +66,7 @@ pub fn build_texts(s: &dyn FormulaView) -> Vec<(String, String, String)> {
             Some(cond) if cond.eval(s, raw) => "-".to_string(),
             _ => format::format(raw, f.precision),
         };
-        out.push((f.label.to_string(), f.unit.to_string(), text));
+        out.push((f.label.clone(), f.unit.clone(), text));
     }
     out
 }
@@ -73,15 +75,16 @@ pub fn build_texts(s: &dyn FormulaView) -> Vec<(String, String, String)> {
 pub type FlightInfoHandle = Rc<RefCell<FlightInfoState>>;
 
 /// preview 静态行 (工厂初值与 [`FlightInfoState::reset_preview_rows`] 同源,
-/// 免两处漂移): FIELDS 全量, preview_text 原样不经格式化
-fn preview_rows() -> Vec<(String, String, String)> {
-    fields::FIELDS
-        .iter()
-        .map(|f| (f.label.to_string(), f.unit.to_string(), f.preview_text().to_string()))
+/// 免两处漂移): 行定义全量, preview 值原样不经格式化
+fn preview_rows(defs: &[RowDef]) -> Vec<(String, String, String)> {
+    defs.iter()
+        .map(|f| (f.label.clone(), f.unit.clone(), f.preview_value.clone()))
         .collect()
 }
 
 pub struct FlightInfoState {
+    /// 行定义 (cfg 驱动, 随 ReinitParams 更新)
+    pub defs: Arc<Vec<RowDef>>,
     /// owned 文本行 (preview 静态初值; live 由 update 覆写)
     rows: Vec<(String, String, String)>,
     /// POC 渲染栈三件套 (度量 + 字体 + 复用直通画布, 尺寸恒定零重分配)
@@ -95,7 +98,7 @@ impl FlightInfoState {
     /// 节拍 + 像素指纹脏检查兜底, 此处纯数据面; W2 起数据源 = TelemetrySource
     /// (ServiceData 散字段, Deriver 整包快照已消解))
     pub fn update(&mut self, s: &dyn FormulaView) {
-        self.rows = build_texts(s);
+        self.rows = build_texts(&self.defs, s);
     }
 
     /// reinitConfig 的资源重建段 (Java FieldOverlay.java:121-140 super 段):
@@ -106,9 +109,14 @@ impl FlightInfoState {
         fonts_dir: &std::path::Path,
         font_add: i32,
         column: i32,
+        defs: Arc<Vec<RowDef>>,
     ) -> Result<(i32, i32), String> {
         let ctx = RenderCtx::new(font_add, column, default_num_height(font_add));
         let fonts = FontTriple::load(fonts_dir, &ctx)?;
+        // 行定义随包更新 + rows 回 preview 初值 (live 下一帧覆写; 行开关变更
+        // 即时生效)
+        self.defs = defs;
+        self.rows = preview_rows(&self.defs);
         let (w, h) = (ctx.total_width(), ctx.total_height(self.rows.len() as i32));
         self.canvas = Canvas::new(w, h);
         self.ctx = ctx;
@@ -121,7 +129,7 @@ impl FlightInfoState {
     /// 清除, 否则预览窗显示上次 live 数值)。canvas 尺寸同步: live 行经
     /// visible-when 过滤可少于 FIELDS, 回满行高 (reinit 用 rows.len() 度量)。
     pub fn reset_preview_rows(&mut self) {
-        self.rows = preview_rows();
+        self.rows = preview_rows(&self.defs);
         let (w, h) = (self.ctx.total_width(), self.ctx.total_height(self.rows.len() as i32));
         self.canvas = Canvas::new(w, h);
     }
@@ -146,12 +154,14 @@ pub fn flight_info_overlay_spec(
     };
     let ctx = RenderCtx::new(font_add, column, default_num_height(font_add));
     let fonts = FontTriple::load(fonts_dir, &ctx)?;
-    // preview 初值: FIELDS 静态 preview 文本 (POC --preview 同源)
-    let rows: Vec<(String, String, String)> = preview_rows();
+    // preview 初值: cfg 行定义的 preview 值
+    let defs = { let p = params.borrow(); Arc::clone(&p.flight_rows) };
+    let rows: Vec<(String, String, String)> = preview_rows(&defs);
     // 窗口尺寸: 全行高度 (POC run_live 同款 — visible-when 变化不重建窗口,
     // 空行区域透明无碍)
     let (w, h) = (ctx.total_width(), ctx.total_height(rows.len() as i32));
     let state = FlightInfoState {
+        defs,
         rows,
         canvas: Canvas::new(w, h),
         ctx,
@@ -163,11 +173,11 @@ pub fn flight_info_overlay_spec(
     let reinit_params = Rc::clone(params);
     let reinit_fonts = fonts_dir.to_path_buf();
     let reinit: ReinitFn = Box::new(move || {
-        let (fa, col) = {
+        let (fa, col, defs) = {
             let p = reinit_params.borrow();
-            (p.font_add_flight, p.flight_columns)
+            (p.font_add_flight, p.flight_columns, Arc::clone(&p.flight_rows))
         };
-        match reinit_handle.borrow_mut().reinit(&reinit_fonts, fa, col) {
+        match reinit_handle.borrow_mut().reinit(&reinit_fonts, fa, col, defs) {
             Ok(size) => Some(size),
             Err(e) => {
                 vm_core::logger::error("FlightInfo", &format!("reinit 资源重建失败: {}", e));
@@ -185,7 +195,7 @@ pub fn flight_info_overlay_spec(
             render: Box::new(move |cv: &mut PixCanvas| {
                 let mut st = render_handle.borrow_mut();
                 // 借用拆分: rows 只读 / canvas 可变 (同结构不相交字段)
-                let FlightInfoState { rows, canvas, ctx, fonts } = &mut *st;
+                let FlightInfoState { defs: _, rows, canvas, ctx, fonts } = &mut *st;
                 let texts: Vec<FieldText> = rows
                     .iter()
                     .map(|(l, u, v)| FieldText { label: l, unit: u, value: v })
@@ -237,6 +247,18 @@ pub(crate) fn canonical_var_name(name: &str) -> Option<String> {
         m
     });
     m.get(name).cloned()
+}
+
+/// 测试面: 从仓库 ui_layout.cfg 编译面板行 (W-D 守卫测试的数据源)
+#[cfg(test)]
+pub(crate) fn cfg_rows(panel: &str) -> Vec<vm_core::row_def::RowDef> {
+    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../../ui_layout.cfg");
+    let groups = vm_core::config_loader::load_config(path);
+    let gc = groups
+        .iter()
+        .find(|g| g.title == panel)
+        .unwrap_or_else(|| panic!("ui_layout.cfg 应含面板 {panel}"));
+    vm_core::row_def::rows_from_group(gc, &|_| false)
 }
 
 #[cfg(test)]

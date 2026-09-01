@@ -732,8 +732,7 @@ impl MarkedGauge {
 // PowerInfoOverlay (ui/overlay/PowerInfoOverlay.java) — 动力信息 BOS 字段网格
 // ---------------------------------------------------------------------------
 
-// 字段表 (PowerSource/DynSource/PowerFormat/POWER_FIELD_DEFS) 已批3 统一收编
-// vm_core::fields (FieldDef/Cond + POWER_FIELD_DEFS); 本文件只持状态与渲染。
+// 字段表已 W-D cfg 驱动化 (vm_core::row_def::RowDef, 经 ReinitParams 进线程); 本文件只持状态与渲染。
 
 /// Throttling to prevent EDT task accumulation (FieldOverlay.java:37-38
 /// REFRESH_INTERVAL_MS)
@@ -744,40 +743,37 @@ pub const FIELD_OVERLAY_REFRESH_INTERVAL_MS: i64 = 50;
 pub struct PowerInfoState {
     /// 节流基准 (FieldOverlay.java:39 lastRefreshTime, System.currentTimeMillis 毫秒)
     pub last_refresh_time: i64,
+    /// 行定义 (cfg 驱动, 随 ReinitParams 更新)
+    pub defs: std::sync::Arc<Vec<vm_core::row_def::RowDef>>,
     /// DataField 承接 (visible/buffer/length/precision/unit 与 BosStyleRenderer 的
     /// Field::Data 通道天然对接)
     fields: Vec<DataField>,
-}
-
-impl Default for PowerInfoState {
-    fn default() -> Self {
-        Self::new()
-    }
 }
 
 impl PowerInfoState {
     /// initFields (FieldOverlay.java:145-155) + DefaultFieldManager.addField:
     /// currentValue = previewValue 原样 (不经 %5s), hideWhenNA=true (EngineInfoConfig
     /// populateFromGroup 固定传 true), hideWhenZero=false (cfg 无 :hide-when-zero)
-    pub fn new() -> Self {
-        let fields = vm_core::fields::POWER_FIELD_DEFS
+    pub fn new(defs: std::sync::Arc<Vec<vm_core::row_def::RowDef>>) -> Self {
+        let fields = defs
             .iter()
             .map(|def| {
                 let mut f = DataField::new(
-                    def.getter,
-                    def.label,
-                    def.unit,
-                    def.getter, // configKey = property (EngineInfoConfig.populateFromGroup)
+                    &def.source,
+                    &def.label,
+                    &def.unit,
+                    &def.source, // configKey = :target (write-only, 无人读)
                     true,
                     false,
                 );
-                f.current_value = def.preview_value.to_string();
+                f.current_value = def.preview_value.clone();
                 f.precision = def.precision as i32;
                 f
             })
             .collect();
         PowerInfoState {
             last_refresh_time: 0, // Java :39 隐式 0 初始化 (§2.10)
+            defs,
             fields,
         }
     }
@@ -792,7 +788,13 @@ impl PowerInfoState {
     /// 显示上次 live 数值而非 previewValue)。reinit 闭包只重建 RenderContext
     /// (字体/列度量), 不动数据面, 故此处显式重置。
     pub fn reset_preview(&mut self) {
-        *self = Self::new();
+        let defs = std::sync::Arc::clone(&self.defs);
+        *self = Self::new(defs);
+    }
+
+    /// reinit 链: 换行定义并按 preview 值重建 fields (可见态随 update 恢复)
+    pub fn rebind_defs(&mut self, defs: std::sync::Arc<Vec<vm_core::row_def::RowDef>>) {
+        *self = Self::new(defs);
     }
 
     /// FieldOverlay.onFlightData (FieldOverlay.java:166-217) 的单事件语义:
@@ -807,16 +809,16 @@ impl PowerInfoState {
             return false; // Skip this update, too soon
         }
         self.last_refresh_time = now_ms;
-        for (def, field) in vm_core::fields::POWER_FIELD_DEFS.iter().zip(self.fields.iter_mut()) {
+        for (def, field) in self.defs.iter().zip(self.fields.iter_mut()) {
             // 1. 取值 (visibilitySupplier 求值需要) — 统一解析 (短名 | 公式名 | 乘数)
-            let val = vm_core::formula::resolve_target(def.source)
+            let val = vm_core::formula::resolve_target(&def.source)
                 .and_then(|(var, mult)| vm_core::formula::target_value(&var, mult, s))
                 .unwrap_or(0.0);
             // 2. 可见性: 无 :visible-when 恒可见 (PowerInfoOverlay.java:147)
             field.visible = def.visible_when.as_ref().is_none_or(|e| e.eval(s, val));
             // 3+4. 动态精度/单位 (cfg 全表仅进气压 imperial_display 一条:
             //      英制 "P/x.x''"+1 位 / 公制 "Ata"+2 位; 仅变化时写)
-            if def.imperial_display {
+            if def.display == vm_core::row_def::DisplayMode::ImperialManifold {
                 let imperial = s.var_value("is_imperial").unwrap_or(0.0) > 0.0;
                 let new_precision = if imperial { 1 } else { 2 };
                 if new_precision != field.precision {
@@ -844,7 +846,7 @@ impl PowerInfoState {
                         continue;
                     }
                 }
-                if def.time_mm_ss {
+                if def.format == vm_core::row_def::FormatKind::TimeMmSs {
                     field.buffer = format::format_time(val);
                 } else {
                     field.buffer = format::format(val, field.precision as u8);
@@ -1616,9 +1618,10 @@ pub fn power_info_preview_spec(
     fonts_dir: &std::path::Path,
     font_add: i32,
     column_num: i32,
+    defs: std::sync::Arc<Vec<vm_core::row_def::RowDef>>,
 ) -> Result<OverlaySpec, String> {
     let ctx = RenderContext::load(fonts_dir, font_add, column_num)?;
-    let state = PowerInfoState::new();
+    let state = PowerInfoState::new(defs);
     let (w, h) = state.preferred_size(&ctx);
     let mut renderer = BosStyleRenderer::default();
     Ok(OverlaySpec {
@@ -1716,7 +1719,7 @@ pub fn power_info_overlay_spec(
         (p.font_add_power, p.power_columns)
     };
     let ctx = Rc::new(RefCell::new(RenderContext::load(fonts_dir, font_add, column_num)?));
-    let state = PowerInfoState::new();
+    let state = PowerInfoState::new({ let p = params.borrow(); std::sync::Arc::clone(&p.power_rows) });
     let (w, h) = state.preferred_size(&ctx.borrow());
     let handle: PowerInfoHandle = Rc::new(RefCell::new(state));
     let render_handle = Rc::clone(&handle);
@@ -1727,10 +1730,12 @@ pub fn power_info_overlay_spec(
     let reinit_fonts = fonts_dir.to_path_buf();
     let reinit_params = Rc::clone(params);
     let reinit: ReinitFn = Box::new(move || {
-        let (fa, col) = {
+        let (fa, col, defs) = {
             let p = reinit_params.borrow();
-            (p.font_add_power, p.power_columns)
+            (p.font_add_power, p.power_columns, std::sync::Arc::clone(&p.power_rows))
         };
+        // 行定义随包更新 (行开关变更即时生效); preview 值回填, live 下一帧覆写
+        reinit_handle.borrow_mut().rebind_defs(defs);
         let new_ctx = match RenderContext::load(&reinit_fonts, fa, col) {
             Ok(c) => c,
             Err(e) => {
