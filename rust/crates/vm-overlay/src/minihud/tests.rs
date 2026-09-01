@@ -506,23 +506,31 @@ fn sample_data() -> HUDData {
     b.build()
 }
 
-fn event_with(data: HUDData, fatal: bool) -> FlightDataEvent {
-    let mut ev = FlightDataEvent::new(
-        EventPayload::builder().fatal_warn(fatal).build(),
-        None,
-        None,
-    );
-    ev.set_hud_data(Box::new(data));
-    ev
+/// W-B 事件瘦身后事件不再携带 HUDData (update_from_event 恒现场 calculate),
+/// 手造 HUDData 的分发链以直调分发段 (组件 on_data_update + legacy 桥 + blink
+/// + 油门条, 同 update_from_event 尾段) 覆盖, 断言原样保留
+fn dispatch_data(o: &mut MiniHudOverlay, data: &HUDData, fatal: bool) {
+    for comp in &o.components {
+        comp.0.borrow_mut().on_data_update(data);
+    }
+    o.warn_vne = data.warn_vne;
+    o.warn_rh = data.warn_altitude;
+    o.warning.set_blink_x(fatal);
+    if o.hud_rows.len() >= 5 {
+        o.update_legacy_components(data);
+    }
+    let mut c = o.throttle_bar.0.borrow_mut();
+    if let MiniHudComponentInner::ThrottleBar(t) = &mut c.inner {
+        t.update(data.throttle, &fmt_d(data.throttle, 3));
+    }
 }
 
-/// updateFromEvent: 预计算 HUDData 消费 + len 族 + 布尔状态 + blink (L433-468)
+/// updateFromEvent: HUDData 消费 + len 族 + 布尔状态 + blink (L433-468)
 #[test]
 fn update_from_event_dispatches() {
     let mut o = overlay();
-    let s = TestSettings::default();
-    let ev = event_with(sample_data(), true);
-    o.update_from_event(&ev, None, None, &s, &HudColors::application_defaults());
+    let data = sample_data();
+    dispatch_data(&mut o, &data, true);
 
     let (txt, warn, aoa, aoa_y) = match &*inner_of(&o, &o.hud_rows[0]) {
         MiniHudComponentInner::Row0(r) => {
@@ -592,46 +600,64 @@ fn update_from_event_dispatches() {
 fn on_flight_data_throttle_gate() {
     let mut o = overlay();
     let s = TestSettings::default();
-    let ev = event_with(sample_data(), false);
+    let payload = EventPayload::builder().build();
+    let src = MockSrc { alt: 5300.0, sep: -13.2 };
+    let st = vm_core::parser::State::new();
     let colors = HudColors::application_defaults();
-    assert!(o.on_flight_data(1000, &ev, None, None, &s, &colors), "首帧 (0→1000)");
-    assert!(!o.on_flight_data(1050, &ev, None, None, &s, &colors), "+50ms 跳过");
-    assert!(!o.on_flight_data(1099, &ev, None, None, &s, &colors), "+99ms 跳过");
-    assert!(o.on_flight_data(1100, &ev, None, None, &s, &colors), "+100ms 放行");
+    assert!(
+        o.on_flight_data(1000, Some(&st), None, &payload, Some(&src), None, &s, &colors),
+        "首帧 (0→1000)"
+    );
+    assert!(
+        !o.on_flight_data(1050, Some(&st), None, &payload, Some(&src), None, &s, &colors),
+        "+50ms 跳过"
+    );
+    assert!(
+        !o.on_flight_data(1099, Some(&st), None, &payload, Some(&src), None, &s, &colors),
+        "+99ms 跳过"
+    );
+    assert!(
+        o.on_flight_data(1100, Some(&st), None, &payload, Some(&src), None, &s, &colors),
+        "+100ms 放行"
+    );
     let txt = match &*inner_of(&o, &o.hud_rows[3]) {
         MiniHudComponentInner::Row3(r) => r.text.clone(),
         _ => unreachable!(),
     };
-    assert_eq!(txt, " 12", "放行帧已更新");
+    assert_eq!(txt, "SEP↓-13 ", "放行帧已更新 (现场 calculate 的 sep_str)");
 }
 
-// ===== Fallback: 无预计算 HUDData → calculate 现算 =====
+// ===== 现场计算: service 喂入 → calculate 现算 =====
 
 /// MockSrc: TelemetrySource 全量最小实现 (签名漂移即编译失败, 同
 /// telemetry_source.rs MockTelemetry 形态)
 struct MockSrc {
     alt: f64,
+    sep: f64,
 }
 
 impl FormulaView for MockSrc {
-    // W7: var_value 桩 (alt 字段驱动)
+    // W7: var_value 桩 (alt/sep 字段驱动)
     fn var_value(&self, name: &str) -> Option<f64> {
         match name {
             "altitude" => Some(self.alt),
+            "sep" => Some(self.sep),
             "throttle" => Some(64.0),
             _ => vm_core::formula::registry::registry().lookup(name).map(|_| 0.0),
         }
     }
 }
 
-/// Java L442-447: data==null → HUDCalculator.calculate 现算 (service 喂入)
+/// Java L442-447 同窗口: HUDCalculator.calculate 现算 (service 喂入;
+/// W-B 早退守卫要求 state 在场, 传中性全零 State)
 #[test]
-fn update_from_event_fallback_calculates() {
+fn update_from_event_calculates_from_service() {
     let mut o = overlay();
     let s = TestSettings::default();
-    let src = MockSrc { alt: 5300.0 };
-    let ev = FlightDataEvent::new(EventPayload::builder().build(), None, None);
-    o.update_from_event(&ev, Some(&src), None, &s, &HudColors::application_defaults());
+    let src = MockSrc { alt: 5300.0, sep: 0.0 };
+    let st = vm_core::parser::State::new();
+    let payload = EventPayload::builder().build();
+    o.update_from_event(Some(&st), None, &payload, Some(&src), None, &s, &HudColors::application_defaults());
     // altStr = "ALT" + %6.0f(5300) (HUDCalculator 的标签前缀语义 — 标签开时
     // refreshTemplates 的 lines[1] 同格式, Java L177 注释 "Format must match
     // HUDCalculator" 即此对齐契约)
@@ -649,24 +675,19 @@ fn update_from_event_fallback_calculates() {
     assert_eq!(thr, " 64");
 }
 
-/// 事件携带 state 快照 → hud_calculator 的 sState 整块生效 (flaps/airbrake 到
+/// state 快照直传 → hud_calculator 的 sState 整块生效 (flaps/airbrake 到
 /// 组件)。喂数链 (vm-app feed_overlays_live) 曾以 None/None 重构事件, 该块整体
-/// 跳过致襟翼条等恒 0 — 本测试钉住 "事件必须带 state" 的消费侧契约。
+/// 跳过致襟翼条等恒 0 — 本测试钉住 "喂数必须带 state" 的消费侧契约。
 #[test]
 fn update_from_event_consumes_state_snapshot() {
-    use vm_core::parser::State;
     let mut o = overlay();
     let s = TestSettings::default();
-    let src = MockSrc { alt: 5300.0 };
-    let mut st = State::new();
+    let src = MockSrc { alt: 5300.0, sep: 0.0 };
+    let mut st = vm_core::parser::State::new();
     st.flaps = 50;
     st.airbrake = 100;
-    let ev = FlightDataEvent::new(
-        EventPayload::builder().build(),
-        Some(Box::new(st) as vm_core::event::flight_data_event::OpaqueObject),
-        None,
-    );
-    o.update_from_event(&ev, Some(&src), None, &s, &HudColors::application_defaults());
+    let payload = EventPayload::builder().build();
+    o.update_from_event(Some(&st), None, &payload, Some(&src), None, &s, &HudColors::application_defaults());
     // FlapAngleBar: flaps=50 / allowAngle=125 (无 FM 缺省) → " 50/125"
     let flap = match &*inner_of(&o, &o.flap_angle_bar) {
         MiniHudComponentInner::FlapBar(f) => f.display_text().to_string(),

@@ -56,7 +56,7 @@ fn constructor_wiring_matches_java() {
     // resetvaria 关键初值 (Java L1528-1660)
     assert_eq!(d.loc, Some([0.0; 2]));
     assert_eq!(d.dir, Some([0.0; 2]));
-    assert_eq!(d.radio_alt_valid, Some(false));
+    // radioAltValid 写入点已随 W-B 事件瘦身删除 (有效位改走公式变量)
     assert!(!d.player_live);
     assert_eq!(d.i_eng_type, ENGINE_TYPE_UNKNOWN);
     assert_eq!(d.fueltime, i64::MAX, "Long.MAX_VALUE");
@@ -77,29 +77,27 @@ fn constructor_wiring_matches_java() {
     // sState 构造在 resetvaria 后 → state=None) —— 由下方事件测试覆盖
 }
 
-/// 构造期事件 (resetvaria 尾部 publish): mapGrid="--"/state=None 载荷窗口
+/// 构造期事件 (resetvaria 尾部 publish): mapGrid="--" 载荷窗口
 #[test]
 fn constructor_publishes_initial_event() {
     let fm = Arc::new(FMManager::new(Arc::new(EventBus::new())));
     let bus = Arc::new(FlightDataBus::new());
-    let seen = Arc::new(std::sync::Mutex::new(Vec::<(String, bool, bool)>::new()));
+    let seen = Arc::new(std::sync::Mutex::new(Vec::<String>::new()));
     let s2 = Arc::clone(&seen);
     let _sub = bus.register(move |e: &FlightDataEvent| {
-        let p = e.get_payload();
-        s2.lock().unwrap().push((
-            p.map_grid.clone(),
-            e.get_state().is_some(),
-            e.get_indicators().is_some(),
-        ));
+        // W-B: 事件只承载 payload (state/indicators 不再装箱)
+        s2.lock().unwrap().push(e.get_payload().map_grid.clone());
     });
-    let _svc = Service::new(ServiceConfig::default(), fm, Arc::clone(&bus));
+    let svc = Service::new(ServiceConfig::default(), fm, Arc::clone(&bus));
     let v = seen.lock().unwrap();
     assert_eq!(v.len(), 1, "构造期恰发布一次初始事件");
     // mapinfo 在 clearvaria 之后才构造 → mapGrid 走 "--" 分支 (Java 同窗口)
-    assert_eq!(v[0].0, "--");
-    // sState 在 resetvaria 之后才构造 → 载荷 state/indicators = null
-    assert!(!v[0].1);
-    assert!(!v[0].2);
+    assert_eq!(v[0], "--");
+    // state/indicators 不再随事件携带 → 构造完成态改由 ServiceData 直读
+    // (resetvaria 之后 sState/sIndic 已建, 与原 "载荷 state=null" 同一窗口的终态)
+    let d = svc.data.read().unwrap();
+    assert!(d.s_state.is_some());
+    assert!(d.s_indic.is_some());
 }
 
 /// 单周期直驱 (不起线程): 解析→playerLive→identify→Deriver→发布 全链
@@ -146,10 +144,9 @@ fn process_polling_cycle_full_chain() {
         // (无 FM 机型不得进 hide-when-zero 显示; 无守卫时的 0.39 是越权计算)
         assert_eq!(d.mach, 0.0, "无 FM 时 updateSpeedRatio 早退, mach 保持 0");
         // updateAlt 写回: alt←H,m; mock 无 radio_altitude 键 → 哨兵 →
-        // radioAlt=alt 且 radioAltValid=false (EventPayload 载荷源)
+        // radioAlt=alt (radioAltValid 写入点已随 W-B 删除)
         assert_eq!(d.alt, 46.0);
         assert_eq!(d.radio_alt, 46.0);
-        assert_eq!(d.radio_alt_valid, Some(false));
         // mapGrid: loc=[0,0] + mapinfo(构造后仍全 0) → 'A' + 1
     }
     // identify 已建立目标 (规范化小写); loader 线程尝试磁盘加载 (data/ 缺失
@@ -205,7 +202,7 @@ fn update_compass_fallback_and_update_alt_branches() {
         assert_eq!(d.altmeterp, 0.0);
         assert_eq!(d.altmeter, 10.0);
         // radio_altitude 有效 + checkAlt>0 → ×0.3048f (float 提升域, ≠ 0.3048)
-        assert_eq!(d.radio_alt_valid, Some(true));
+        // (radioAltValid 断言已随 W-B 写入点删除而移除)
         assert!((d.radio_alt - 1000.0 * (0.3048f32 as f64)).abs() < 1e-9);
         // dRadioAlt = ratio_1*0 + ratio*1000*(radioAlt-0)/100 (freq=50;
         // ratio = freq/1000.0f 的 float 除法拓宽值, 非精确 0.05)

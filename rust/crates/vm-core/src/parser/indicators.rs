@@ -11,6 +11,7 @@ use crate::string_helper::{get_data_float, get_string, F_INVALID};
 const NA_STRING: &str = "-";
 
 /// /indicators 遥测快照。字段顺序与 Java 声明一致。
+#[derive(Clone)]
 pub struct Indicators {
     pub valid: Option<String>,
     pub r#type: Option<String>,

@@ -9,12 +9,11 @@
 //! PORT: Java 无 equals 覆写 (引用等值); 此处 derive PartialEq 仅为测试基建
 //! (fields.rs 先例), 不改变翻译逻辑。
 
-/// Type-safe payload for flight data events. 字段与顺序与 Java 一致。
+/// Type-safe payload for flight data events. (radioAltValid 已删: 零消费方)
 #[derive(Debug, Clone, PartialEq)]
 pub struct EventPayload {
     pub map_grid: String,
     pub fatal_warn: bool,
-    pub radio_alt_valid: bool,
     pub is_downing_flap: bool,
     pub time_str: String,
     pub is_jet: bool,
@@ -26,13 +25,12 @@ pub struct EventPayload {
 }
 
 impl EventPayload {
-    /// 对应 Java 公有构造器 `EventPayload(String, boolean, ..., boolean)` (9 参)。
+    /// 对应 Java 公有构造器 `EventPayload(String, boolean, ..., boolean)`。
     // PORT: Java 保真 — 参数表逐个对应 Java 构造器形参, 不打包成结构体
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         map_grid: String,
         fatal_warn: bool,
-        radio_alt_valid: bool,
         is_downing_flap: bool,
         time_str: String,
         is_jet: bool,
@@ -43,7 +41,6 @@ impl EventPayload {
         EventPayload {
             map_grid,
             fatal_warn,
-            radio_alt_valid,
             is_downing_flap,
             time_str,
             is_jet,
@@ -67,7 +64,6 @@ impl EventPayload {
 pub struct EventPayloadBuilder {
     map_grid: String,
     fatal_warn: bool,
-    radio_alt_valid: bool,
     is_downing_flap: bool,
     time_str: String,
     is_jet: bool,
@@ -89,7 +85,6 @@ impl EventPayloadBuilder {
         EventPayloadBuilder {
             map_grid: "--".to_string(),
             fatal_warn: false,
-            radio_alt_valid: false,
             is_downing_flap: false,
             time_str: "--:--".to_string(),
             is_jet: false,
@@ -107,11 +102,6 @@ impl EventPayloadBuilder {
 
     pub fn fatal_warn(mut self, v: bool) -> Self {
         self.fatal_warn = v;
-        self
-    }
-
-    pub fn radio_alt_valid(mut self, v: bool) -> Self {
-        self.radio_alt_valid = v;
         self
     }
 
@@ -150,7 +140,6 @@ impl EventPayloadBuilder {
         EventPayload::new(
             self.map_grid.clone(),
             self.fatal_warn,
-            self.radio_alt_valid,
             self.is_downing_flap,
             self.time_str.clone(),
             self.is_jet,

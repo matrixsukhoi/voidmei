@@ -42,8 +42,9 @@ use std::rc::Rc;
 
 use vm_core::blkx::Blkx;
 use vm_core::config_api::HUDSettings;
-use vm_core::event::flight_data_event::FlightDataEvent;
+use vm_core::event::event_payload::EventPayload;
 use vm_core::hud_calculator::{self, HudColors};
+use vm_core::parser::{Indicators, State};
 use vm_core::hud_data::HUDData;
 use vm_core::hud_layout_node::{Dimension, HasPreferredSize, HUDLayoutNodeExt};
 use vm_core::formula::registry::FormulaView;
@@ -1317,11 +1318,14 @@ impl MiniHudOverlay {
     /// Java onFlightData(FlightDataEvent) (L418-431)。
     /// 返回 false = 节流跳过 (Java return); true = 已进入 updateFromEvent。
     /// `now_ms` = System.currentTimeMillis (宿主时钟注入, 可测)。
-    /// Java invokeLater 的 EDT 转发在 Rust 单线程 host 下为直接调用 (模块头映射裁决)。
+    /// W-B 事件瘦身后直参: State/Indicators/payload 由调用方从共享 guard 借引用传入。
+    #[allow(clippy::too_many_arguments)]
     pub fn on_flight_data<S: HUDSettings>(
         &mut self,
         now_ms: i64,
-        event: &FlightDataEvent,
+        state: Option<&State>,
+        indic: Option<&Indicators>,
+        payload: &EventPayload,
         service: Option<&dyn FormulaView>,
         blkx: Option<&Blkx>,
         settings: &S,
@@ -1334,51 +1338,42 @@ impl MiniHudOverlay {
         }
         self.last_refresh_time = now_ms;
 
-        self.update_from_event(event, service, blkx, settings, colors);
+        self.update_from_event(state, indic, payload, service, blkx, settings, colors);
         // root.repaint() → 宿主 render_tick (脏检查逐字节, 无需显式标脏)
         true
     }
 
     /// Java updateFromEvent(FlightDataEvent) (L433-468)
+    #[allow(clippy::too_many_arguments)]
     fn update_from_event<S: HUDSettings>(
         &mut self,
-        event: &FlightDataEvent,
+        state: Option<&State>,
+        indic: Option<&Indicators>,
+        payload: &EventPayload,
         service: Option<&dyn FormulaView>,
         blkx: Option<&Blkx>,
         settings: &S,
         colors: &HudColors,
     ) {
         // Java: ctx == null 守卫 — Rust ctx 构造期恒建, 不复刻
+        // (Java 的 FMManager.current().blkx 快照语义由调用方以 blkx=None 表达 —
+        // 非 READY 句柄降级)
+        let data = hud_calculator::calculate(state, indic, payload, service, blkx, settings, colors);
 
-        // 1. Get pre-computed HUDData from Service thread (reduces EDT latency)
-        // (Java 注释原文)
-        // Fallback: calculate on EDT if pre-computed data is not available
-        // This handles preview mode and edge cases where Service hasn't computed yet
-        // (Java 注释原文) — Java 的 FMManager.current().blkx 快照语义由调用方以
-        // blkx=None 表达 (非 READY 句柄降级)
-        let owned;
-        let data: &HUDData = match event.get_hud_data().and_then(|o| o.downcast_ref::<HUDData>()) {
-            Some(d) => d,
-            None => {
-                owned = hud_calculator::calculate(Some(event), service, blkx, settings, colors);
-                &owned
-            }
-        };
-
-        // 2. Dispatch to Reactive Components (Java 注释原文)
+        // Dispatch to Reactive Components (Java 注释原文)
         for comp in &self.components {
-            comp.0.borrow_mut().on_data_update(data);
+            comp.0.borrow_mut().on_data_update(&data);
         }
 
-        // 3. Update Legacy Components (Bridge) & Global State (Java 注释原文)
+        // Update Legacy Components (Bridge) & Global State (Java 注释原文)
         self.warn_vne = data.warn_vne;
         self.warn_rh = data.warn_altitude;
         // blinkX = event.getPayload().fatalWarn (Java:458)
-        self.warning.set_blink_x(event.get_payload().fatal_warn);
+        self.warning.set_blink_x(payload.fatal_warn);
 
         if self.hud_rows.len() >= 5 {
             // Let's call a legacy bridge method explicitly (Java 注释原文)
-            self.update_legacy_components(data);
+            self.update_legacy_components(&data);
         }
 
         {

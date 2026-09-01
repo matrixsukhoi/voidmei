@@ -4,11 +4,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Mutex;
 
 fn mk_event(map_grid: &str) -> FlightDataEvent {
-    FlightDataEvent::new(
-        EventPayload::builder().map_grid(map_grid.to_string()).build(),
-        None,
-        None,
-    )
+    FlightDataEvent::new(EventPayload::builder().map_grid(map_grid.to_string()).build())
 }
 
 struct RecordingListener {

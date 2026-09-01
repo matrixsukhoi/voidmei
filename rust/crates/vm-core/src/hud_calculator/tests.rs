@@ -2,7 +2,6 @@ use super::*;
 use crate::blkx::{FmParts, SweepLevel};
 use crate::config_api::overlay_settings::OverlaySettings;
 use crate::event::event_payload::EventPayload;
-use crate::event::flight_data_event::OpaqueObject;
 
 // Java 8 oracle: build/oracle_hud (HudOracle.java, 本仓库)。
 // 位级断言 (to_bits) 锁定浮点链的运算顺序保真。
@@ -196,18 +195,6 @@ fn mk_indic(aviahp: f64, aviar: f64, wsweep: f64) -> Indicators {
     i
 }
 
-fn mk_event(
-    payload: EventPayload,
-    state: Option<State>,
-    indic: Option<Indicators>,
-) -> FlightDataEvent {
-    FlightDataEvent::new(
-        payload,
-        state.map(|s| Box::new(s) as OpaqueObject),
-        indic.map(|i| Box::new(i) as OpaqueObject),
-    )
-}
-
 /// oracle: spit_flds — 真机 spitfire_f24 经 Java getload 后 calculate 消费的字段
 /// (Rust Blkx::parse 等价 doLoad=false, 手工复原同一 FM 状态)
 fn spitfire_blkx() -> Blkx {
@@ -305,13 +292,14 @@ const COLORS: HudColors = HudColors {
     color_unit: [166, 166, 166, 220],
 };
 
-// ---- s1: event=null → Builder 全默认 (oracle s1_null_event) ----
+// ---- s1: state 缺失 → Builder 全默认 (oracle s1_null_event 早退守卫) ----
 #[test]
-fn s1_null_event_returns_builder_defaults() {
+fn s1_no_state_returns_builder_defaults() {
     let src = mk_src(412.5, 0.62, 5300.0, 245.7, -13.2, 164.09, 14913.0, 0.83, 0.72, 0.66,
         0.9, 144.0, true, false, 0.0);
     let hud = MockHud::default();
-    let h = calculate(None, Some(&src), None, &hud, &COLORS);
+    let payload = EventPayload::builder().build();
+    let h = calculate(None, None, &payload, Some(&src), None, &hud, &COLORS);
     assert_eq!(h, Builder::default().build());
     // 关键默认哨兵 (对齐 oracle 逐项): 三色 GREEN、全部空串、数值 0
     assert_eq!(h.aoa_color, [0, 255, 0, 255]);
@@ -322,16 +310,17 @@ fn s1_null_event_returns_builder_defaults() {
 // ---- s2: source=null → 同一早退 (oracle s2_null_source) ----
 #[test]
 fn s2_null_source_returns_builder_defaults() {
-    let ev = mk_event(EventPayload::builder().build(), Some(State::new()),
-        Some(Indicators::new()));
+    let (st, ind) = (State::new(), Indicators::new());
     let hud = MockHud::default();
-    let h = calculate(Some(&ev), None, None, &hud, &COLORS);
+    let payload = EventPayload::builder().build();
+    let h = calculate(Some(&st), Some(&ind), &payload, None, None, &hud, &COLORS);
     assert_eq!(h, Builder::default().build());
 }
 
-// ---- s3: sState/sIndic null, blkx null (oracle s3_no_state) ----
+// ---- s3: sIndic=null, blkx=null (oracle s3_no_state; W-B 后 state 由早退
+// 守卫保证在场, 原 "sState=null 仍继续算" 窗口已并入 s1 的早退) ----
 #[test]
-fn s3_no_state_keeps_defaults_and_formats() {
+fn s3_no_indic_keeps_defaults_and_formats() {
     let src = mk_src(412.5, 0.62, 5300.0, 245.7, -13.2, 164.09, 14913.0, 0.83, 0.72, 0.66,
         0.9, 144.0, true, false, 0.0);
     let hud = MockHud::default();
@@ -340,16 +329,18 @@ fn s3_no_state_keeps_defaults_and_formats() {
         .time_str("12:34".to_string())
         .is_downing_flap(true)
         .build();
-    let ev = mk_event(payload, None, None);
-    let h = calculate(Some(&ev), Some(&src), None, &hud, &COLORS);
+    // 中性全零 state: 原 "sState 缺 → 字段保持 Builder 默认 0" 的等值复现
+    let st = State::new();
+    let h = calculate(Some(&st), None, &payload, Some(&src), None, &hud, &COLORS);
 
     // aviahp/aviar 缺省 0 → pitch/roll = -0.0 (oracle 位级: 8000000000000000)
     assert_eq!(h.pitch.to_bits(), 0x8000_0000_0000_0000);
     assert_eq!(h.roll.to_bits(), 0x8000_0000_0000_0000);
     assert!(h.pitch_valid);
-    // sState 缺 → throttle/flaps/gear/airbrake/flapAllowAngle 保持 Builder 默认 0
+    // 全零 state → throttle/flaps/gear/airbrake 保持 0
     assert_eq!(h.throttle, 0);
-    assert_eq!(h.flap_allow_angle, 0.0);
+    // state 块恒执行 + blkx=null 短路 → 125 (原 0 属已死的 state 缺失窗口)
+    assert_eq!(h.flap_allow_angle, 125.0);
     assert_eq!(h.energy_m.to_bits(), 0x4097_c6f0_5397_829c); // 1521.7346938775509
     assert_eq!(h.aoa_ratio, 0.0 / 30.0); // aoa=0 → else 分支
     assert_eq!(h.aoa_color, COLORS.color_num);
@@ -379,12 +370,9 @@ fn s4_full_telemetry_without_fm() {
         .time_str("12:34".to_string())
         .is_downing_flap(true)
         .build();
-    let ev = mk_event(
-        payload,
-        Some(mk_state(-65535.0, 110, 50, 100, 80, 850.0, 8.3, 2.6)),
-        Some(mk_indic(-65535.0, -40.55, 0.5)),
-    );
-    let h = calculate(Some(&ev), Some(&src), None, &hud, &COLORS);
+    let st = mk_state(-65535.0, 110, 50, 100, 80, 850.0, 8.3, 2.6);
+    let ind = mk_indic(-65535.0, -40.55, 0.5);
+    let h = calculate(Some(&st), Some(&ind), &payload, Some(&src), None, &hud, &COLORS);
 
     assert_eq!(h.ias.to_bits(), 0x4079_c800_0000_0000);
     assert_eq!(h.mach.to_bits(), 0x3fe3_d70a_3d70_a3d7);
@@ -440,13 +428,11 @@ fn s5_spitfire_real_fm_values() {
     let hud = MockHud { aoa_warn_ratio: 0.85, aoa_bar_warn_ratio: 0.95, ..Default::default() };
     let src = mk_src(610.0, 0.52, 3200.0, 4900.0, 5.1, 10.5, 9800.0, 0.0, 0.0, 0.0, 0.0,
         144.0, false, false, 0.0);
-    let ev = mk_event(
-        EventPayload::builder().build(),
-        Some(mk_state(0.35, 100, 0, 55, 100, 350.0, 1.0, 1.0)),
-        Some(mk_indic(-2.5, 15.0, -65535.0)),
-    );
+    let st = mk_state(0.35, 100, 0, 55, 100, 350.0, 1.0, 1.0);
+    let ind = mk_indic(-2.5, 15.0, -65535.0);
+    let payload = EventPayload::builder().build();
     let fm = spitfire_blkx();
-    let h = calculate(Some(&ev), Some(&src), Some(&fm), &hud, &COLORS);
+    let h = calculate(Some(&st), Some(&ind), &payload, Some(&src), Some(&fm), &hud, &COLORS);
 
     assert_eq!(h.pitch.to_bits(), 0x4004_0000_0000_0000); // 2.5 = -(-2.5)
     assert_eq!(h.roll.to_bits(), 0xc02e_0000_0000_0000); // -15.0
@@ -496,13 +482,10 @@ fn s6_mach_mode_and_stall_warning() {
         155.0, true, false, 0.0);
     let payload = EventPayload::builder().map_grid("A1".to_string())
         .time_str(String::new()).build();
-    let ev = mk_event(
-        payload,
-        Some(mk_state(-65535.0, 50, 100, 0, 0, 60.0, 30.5, 0.25)),
-        Some(mk_indic(3.0, -65535.0, -65535.0)),
-    );
+    let st = mk_state(-65535.0, 50, 100, 0, 0, 60.0, 30.5, 0.25);
+    let ind = mk_indic(3.0, -65535.0, -65535.0);
     let fm = spitfire_blkx();
-    let h = calculate(Some(&ev), Some(&src), Some(&fm), &hud, &COLORS);
+    let h = calculate(Some(&st), Some(&ind), &payload, Some(&src), Some(&fm), &hud, &COLORS);
 
     assert!(h.is_mach_mode);
     assert_eq!(h.pitch, -3.0);
@@ -549,12 +532,10 @@ fn s7_vwing_flap_allow_angle_branches() {
     for &(ias, want_angle, want_vne) in cases {
         let src = mk_src(ias, 0.75, 4000.0, 600.0, 3.3, 45.0, 6000.0, 0.0, 0.0, 0.0, 0.0,
             120.0, false, true, 0.6);
-        let ev = mk_event(
-            EventPayload::builder().build(),
-            Some(mk_state(0.1, 90, 0, 0, 0, 400.0, 4.0, 0.9)),
-            Some(mk_indic(-1.0, 2.0, 0.6)),
-        );
-        let h = calculate(Some(&ev), Some(&src), Some(&vw), &hud, &COLORS);
+        let st = mk_state(0.1, 90, 0, 0, 0, 400.0, 4.0, 0.9);
+        let ind = mk_indic(-1.0, 2.0, 0.6);
+        let payload = EventPayload::builder().build();
+        let h = calculate(Some(&st), Some(&ind), &payload, Some(&src), Some(&vw), &hud, &COLORS);
         assert_eq!(h.flap_allow_angle.to_bits(), want_angle, "ias={ias}");
         assert_eq!(h.warn_vne, want_vne, "ias={ias}");
         // vwing=0.6 插值链 (oracle 恒定值)
@@ -572,22 +553,17 @@ fn s7_vwing_flap_allow_angle_branches() {
 fn s9_descending_rows_early_return_and_clamp() {
     let hud = MockHud { aoa_warn_ratio: 0.85, aoa_bar_warn_ratio: 0.95, ..Default::default() };
     let dw = descending_blkx();
-    let mk_ev = || {
-        let payload = EventPayload::builder().map_grid("B2".to_string())
-            .time_str("01:02".to_string()).build();
-        mk_event(
-            payload,
-            Some(mk_state(0.2, 105, 40, 30, 60, 520.0, 6.2, -0.8)),
-            Some(mk_indic(2.0, -3.0, -65535.0)),
-        )
-    };
+    let st = mk_state(0.2, 105, 40, 30, 60, 520.0, 6.2, -0.8);
+    let ind = mk_indic(2.0, -3.0, -65535.0);
+    let payload = EventPayload::builder().map_grid("B2".to_string())
+        .time_str("01:02".to_string()).build();
     let mk = |ias: f64| {
         mk_src(ias, 0.6, 2500.0, 700.0, -2.5, 270.0, 4100.0, 0.62, 0.4, 0.3, 0.5,
             130.5, false, false, 0.0)
     };
 
     // ias=640: i=0 分支, 外推 t=-1 → norm 0 (oracle s9_dw_ias640 全量)
-    let h = calculate(Some(&mk_ev()), Some(&mk(640.0)), Some(&dw), &hud, &COLORS);
+    let h = calculate(Some(&st), Some(&ind), &payload, Some(&mk(640.0)), Some(&dw), &hud, &COLORS);
     assert_eq!(h.flap_allow_angle, 0.0);
     assert!(h.warn_vne); // 640 >= 650*0.95
     assert_eq!(h.aoa_ratio.to_bits(), 0x3fe4_ba2e_8ba2_e8bb);
@@ -603,14 +579,14 @@ fn s9_descending_rows_early_return_and_clamp() {
     assert_eq!(h.alt_str, "ALT  2500");
 
     // ias=300: i 扫到 num-1=2, ias == speeds[1][1]=300 → 早退 return 0.5*100
-    let h = calculate(Some(&mk_ev()), Some(&mk(300.0)), Some(&dw), &hud, &COLORS);
+    let h = calculate(Some(&st), Some(&ind), &payload, Some(&mk(300.0)), Some(&dw), &hud, &COLORS);
     assert_eq!(h.flap_allow_angle, 50.0, "行值精确相等早退");
     assert_eq!(h.speed_str, "SPD   300");
     // vneMach 未赋值 (=0) → mach 0.6 >= 0*0.95 恒真 (oracle 同: warnVne=true)
     assert!(h.warn_vne);
 
     // ias=150: i=2 分支外推 t=125 恰触上界 → norm 保持 125 (oracle)
-    let h = calculate(Some(&mk_ev()), Some(&mk(150.0)), Some(&dw), &hud, &COLORS);
+    let h = calculate(Some(&st), Some(&ind), &payload, Some(&mk(150.0)), Some(&dw), &hud, &COLORS);
     assert_eq!(h.flap_allow_angle, 125.0);
 }
 
@@ -622,12 +598,10 @@ fn s10_invalid_fm_short_circuits() {
     bad.valid = false;
     let src = mk_src(250.0, 0.5, 1000.0, 300.0, 1.0, 90.0, 2000.0, 0.0, 0.0, 0.0, 0.0,
         110.0, true, false, 0.0);
-    let ev = mk_event(
-        EventPayload::builder().build(),
-        Some(mk_state(0.0, 80, 20, 10, 0, 100.0, 2.0, 1.5)),
-        Some(mk_indic(0.0, 0.0, 0.0)),
-    );
-    let h = calculate(Some(&ev), Some(&src), Some(&bad), &hud, &COLORS);
+    let st = mk_state(0.0, 80, 20, 10, 0, 100.0, 2.0, 1.5);
+    let ind = mk_indic(0.0, 0.0, 0.0);
+    let payload = EventPayload::builder().build();
+    let h = calculate(Some(&st), Some(&ind), &payload, Some(&src), Some(&bad), &hud, &COLORS);
 
     assert_eq!(h.flap_allow_angle, 125.0);
     assert_eq!(h.maneuver_index, 0.0);

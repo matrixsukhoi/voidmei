@@ -92,9 +92,6 @@ pub struct ServiceData {
     // iIndic
     /// Java `private double nVy` — 私有但 getVario() 读
     pub(crate) n_vy: f64,
-    /// Java `Boolean` 装箱, **无初始化器** → null 默认 (isRadioAltitudeValid 的
-    /// null 判断是活语义, Java L1990); resetvaria 才赋 false
-    pub radio_alt_valid: Option<bool>,
     pub radio_alt: f64,
     pub p_radio_alt: f64,
     pub d_radio_alt: f64,
@@ -254,7 +251,6 @@ impl Default for ServiceData {
             ratio: 0.0,
             ratio_1: 0.0,
             n_vy: 0.0,
-            radio_alt_valid: None,
             radio_alt: 0.0,
             p_radio_alt: 0.0,
             d_radio_alt: 0.0,

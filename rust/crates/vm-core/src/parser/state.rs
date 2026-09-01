@@ -15,6 +15,7 @@ use crate::string_helper::{get_data_float, get_data_int, get_string, I_INVALID};
 pub const MAX_ENG_NUM: usize = 16;
 
 /// /state 遥测快照。字段顺序与 Java 声明一致。
+#[derive(Clone)]
 pub struct State {
     /// Java `String valid` — getString 可返回 null (键缺失) → Option
     pub valid: Option<String>,

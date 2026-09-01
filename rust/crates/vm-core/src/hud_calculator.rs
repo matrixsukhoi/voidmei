@@ -35,7 +35,7 @@
 
 use crate::blkx::Blkx;
 use crate::config_api::HUDSettings;
-use crate::event::flight_data_event::FlightDataEvent;
+use crate::event::event_payload::EventPayload;
 use crate::g;
 use crate::hud_data::HUDData;
 use crate::hud_data::Builder;
@@ -75,17 +75,14 @@ impl HudColors {
     }
 }
 
-/// 对应 Java `public static HUDData calculate(FlightDataEvent, TelemetrySource,
-/// Blkx, HUDSettings, MinimalHUDContext)` —— ctx 形参解耦砍除 (模块头注 1),
-/// colors 参数为 Application 静态颜色注入 (模块头注 2)。
-///
-/// PORT: `event == null || source == null` 早退 → 两个 Option 参数;
-/// `blkx != null` 判空 → `Option<&Blkx>`;
-/// `(parser.State) event.getState()` 错误强转 (ClassCastException) → downcast_ref
-/// (flight_data_event.rs OpaqueObject 契约: 类型不符返回 None, Java 里该值恒为
-/// State/Indicators 或 null, None 分支仅承接 Java null)。
+/// HUDData 计算 (Java HUDCalculator.calculate 的 Rust 形态, W-B 事件瘦身后
+/// 直参: State/Indicators/payload 由调用方从共享 guard 借引用传入, 不经事件装箱)。
+/// `state.is_none() || source.is_none()` 早退对位 Java 的 null 守卫。
+#[allow(clippy::too_many_arguments)]
 pub fn calculate<S: HUDSettings>(
-    event: Option<&FlightDataEvent>,
+    state: Option<&State>,
+    indic: Option<&Indicators>,
+    payload: &EventPayload,
     source: Option<&dyn FormulaView>,
     blkx: Option<&Blkx>,
     settings: &S,
@@ -93,17 +90,12 @@ pub fn calculate<S: HUDSettings>(
 ) -> HUDData {
     let mut b = Builder::default();
 
-    let (event, source) = match (event, source) {
-        (Some(e), Some(s)) => (e, s),
+    let (s_state, source) = match (state, source) {
+        (Some(s), Some(src)) => (s, src),
         // Java: if (event == null || source == null) return b.build();
         _ => return b.build(),
     };
-
-    let payload = event.get_payload();
-    let s_state: Option<&State> = event.get_state().and_then(|o| o.downcast_ref::<State>());
-    let s_indic: Option<&Indicators> = event
-        .get_indicators()
-        .and_then(|o| o.downcast_ref::<Indicators>());
+    let s_indic = indic;
 
     // --- Raw Flight Data ---
     b.ias = v(source, "ias");
@@ -136,8 +128,8 @@ pub fn calculate<S: HUDSettings>(
         b.roll = 0.0;
     }
 
-    // --- AoS / System State ---
-    if let Some(s_state) = s_state {
+    // --- AoS / System State --- (state 由早退守卫保证在场)
+    {
         if s_state.aos != -65535.0 {
             b.slip = s_state.aos;
         }
@@ -194,7 +186,7 @@ pub fn calculate<S: HUDSettings>(
     if let Some(blkx) = valid_blkx {
         // User requested formula: 1 - (nfweight / (nfweight + fuel))
         let nfweight = blkx.nofuelweight;
-        let current_fuel = s_state.map_or(0.0, |s| s.mfuel);
+        let current_fuel = s_state.mfuel;
 
         // 公式驱动 (阶段 2 A 级外置, 公式式含同款零除守卫; fm.* 未接线时回退原式)
         b.maneuver_index = source.get_formula_value("maneuver_index").unwrap_or_else(|| {

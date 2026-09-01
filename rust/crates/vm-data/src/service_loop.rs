@@ -15,7 +15,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use vm_core::calc_helper::SimpleMovingAverage;
 use vm_core::event::event_payload::EventPayload;
-use vm_core::event::flight_data_event::{FlightDataEvent, OpaqueObject};
+use vm_core::event::flight_data_event::FlightDataEvent;
 use vm_core::flight_analyzer::AnalyzerService;
 use vm_core::flight_data_bus::FlightDataBus;
 use vm_core::flight_log::{FlightLogSlot, FlightLogSnapshot};
@@ -354,7 +354,6 @@ impl Service {
             // Java: loc = new double[2]; dir = new double[2];
             d.loc = Some([0.0; 2]);
             d.dir = Some([0.0; 2]);
-            d.radio_alt_valid = Some(false);
             d.player_live = false;
             d.i_eng_type = ENGINE_TYPE_UNKNOWN;
             d.check_maxium_rpm = 0;
@@ -920,9 +919,7 @@ impl Service {
             // radioAlt = iIndic.radio_altitude;
             if radio_alt_raw == F_INVALID {
                 d.radio_alt = d.alt;
-                d.radio_alt_valid = Some(false);
-            } else {
-                d.radio_alt_valid = Some(true);
+                } else {
                 if d.check_alt > 0 {
                     // radioAlt = sIndic.radio_altitude * 0.3048f —— float 字面量
                     // 先扩为 double 再乘 (§2.12: 0.3048f32 as f64 ≠ 0.3048)
@@ -1331,40 +1328,26 @@ impl Service {
     /// @param fm 本周期 FM 句柄快照（R1 下传, Java javadoc 原文）
 
    fn publish_flight_data_event(&mut self) {
-        // 载荷三件套在锁内取齐后**先释放读锁再 publish**——订阅方回调若再取
-        // data 锁, 同线程 read→write 重入即死锁 (§2.8; Java 无此形态因其无锁)
-        let (payload, state_box, indic_box) = {
+        // W-B 事件瘦身: 事件只承载标量 payload; State/Indicators/派生量由消费方
+        // 持共享 ServiceData guard 现取, 不再装箱逐字段快照。
+        let payload = {
             let d = read_data(&self.data);
-            // Build type-safe payload (replaces legacy Map<String, String>)
             // Java: if (loc != null && mapinfo != null) { … } else mapGrid = "--";
             let map_grid = match (&d.loc, &d.mapinfo) {
                 (Some(loc), Some(mi)) => {
                     // Java: char map_x = (char) ('A' + (loc[1] * mapinfo.mapStage) + mapinfo.inGameOffset);
-                    // PORT: (char) 强转 = double→int→低 16 位; as i32 饱和与 Java
-                    // 截断仅在极端值域分叉 (§2.2), 地图坐标域远离, as 链等价
                     let xf = ('A' as u32) as f64 + (loc[1] * mi.map_stage) + mi.in_game_offset;
-                    // PORT: 未配对代理区 (surrogate) 在 Java char 合法而 Rust char
-                    // 非法, 坍缩为 U+FFFD (域内 A-Z 不可达)
-                    let map_x = char::from_u32(xf as i32 as u16 as u32)
-                        .unwrap_or('\u{FFFD}');
-                    // Java: int map_y = (int) (loc[0] * mapinfo.mapStage + mapinfo.inGameOffset + 1);
+                    let map_x = char::from_u32(xf as i32 as u16 as u32).unwrap_or('\u{FFFD}');
                     let map_y = (loc[0] * mi.map_stage + mi.in_game_offset + 1.0) as i32;
-                    // Java: String.format("%c%d", map_x, map_y)
                     format!("{}{}", map_x, map_y)
                 }
                 _ => "--".to_string(),
             };
 
-            let payload = EventPayload::builder()
+            EventPayload::builder()
                 .map_grid(map_grid)
-                // Java 自动拆箱 Boolean——null 时 NPE 由 run() 顶层 catch 兜住;
-                // unwrap 的 panic 同构 (构造链恒置 Some, None 不可达)
                 .fatal_warn(d.fatal_warn.unwrap())
-                .radio_alt_valid(d.radio_alt_valid.unwrap())
                 .is_downing_flap(d.is_downing_flap)
-                // Java: timeStr(fueltimeStr) —— null 病态分支在 Rust String 下坍缩
-                // 为 Builder 缺省 "--:--" (map_to_payload 先例; resetvaria 恒置
-                // nastring 使 None 不可达)
                 // 批2: fueltime 文本现算 (镜像字段已拆)
                 .time_str(format_fueltime(d.fueltime))
                 // Java: isJet(iEngType == ENGINE_TYPE_JET)
@@ -1372,30 +1355,10 @@ impl Service {
                 .engine_check_done(d.check_engine_flag)
                 .optimal_compressor_stage(d.optimal_compressor_stage)
                 .compressor_stage_mismatch(d.compressor_stage_mismatch)
-                .build();
-
-            // Java: new FlightDataEvent(payload, sState, sIndic) —— 传引用 (共享可变)。
-            // PORT: LIFETIMES §2.3 裁决 "事件对象改为每帧不可变快照"——逐字段
-            // 手工快照 (State/Indicators 未 derive Clone, 不越文件改 §6)。
-            // 消费方经 event.get_state() downcast 到 vm_core::parser::State。
-            let state_box: Option<OpaqueObject> =
-                d.s_state.as_ref().map(|s| Box::new(snapshot_state(s)) as OpaqueObject);
-            let indic_box: Option<OpaqueObject> = d
-                .s_indic
-                .as_ref()
-                .map(|i| Box::new(snapshot_indicators(i)) as OpaqueObject);
-            (payload, state_box, indic_box)
+                .build()
         };
 
-        let event = FlightDataEvent::new(payload, state_box, indic_box);
-
-        // Pre-compute HUDData on Service thread (reduces EDT latency by ~40-60ms)
-        // Java: if (c != null && c.configService != null) { … HUDCalculator.calculate … }
-        // 已收口 (形态选择备案): HUDCalculator 批六已完整落地, 但预计算改由
-        // win32 线程锁内执行 (审查 B-W2 — Service 线程算 + 跨线程传 HUDData 的
-        // Rust 形态不如共享句柄直喂), 事件 hud_data 恒 None, 消费方走句柄
-
-        // Java: FlightDataBus.getInstance().publish(event); → 构造注入实例
+        let event = FlightDataEvent::new(payload);
         // (回调线程 = 本 Service 线程, 对齐 Java 同步逐个调用)
         self.bus.publish(&event);
     }
@@ -1411,109 +1374,7 @@ enum Flow {
 // 快照/适配 helpers (无 Java 对应——服务于 §2.3 不可变快照与 Deriver 接口)
 // ------------------------------------------------------------------
 
-/// [`State`] 逐字段快照 (§2.3 事件不可变快照; State 未 derive Clone)。
-/// pub: vm-app 喂数侧重建 FlightDataEvent 时复用 (app_shell feed_overlays_live —
-/// 通道边界丢 OpaqueObject 后按 live guard 现值重打快照, 见彼处 PORT 注)。
-pub fn snapshot_state(s: &State) -> State {
-    State {
-        valid: s.valid.clone(),
-        flag: s.flag,
-        engine_num: s.engine_num,
-        aileron: s.aileron,
-        elevator: s.elevator,
-        rudder: s.rudder,
-        flaps: s.flaps,
-        gear: s.gear,
-        tas: s.tas,
-        ias: s.ias,
-        m: s.m,
-        aoa: s.aoa,
-        heightm: s.heightm,
-        aos: s.aos,
-        ny: s.ny,
-        vy: s.vy,
-        wx: s.wx,
-        throttle: s.throttle,
-        rpm_throttle: s.rpm_throttle,
-        radiator: s.radiator,
-        oilradiator: s.oilradiator,
-        mixture: s.mixture,
-        compressorstage: s.compressorstage,
-        magenato: s.magenato,
-        power: s.power.clone(),
-        rpm: s.rpm,
-        manifoldpressure: s.manifoldpressure,
-        watertemp: s.watertemp,
-        oiltemp: s.oiltemp,
-        mfuel: s.mfuel,
-        mfuel_1: s.mfuel_1,
-        mfuel0: s.mfuel0,
-        mfuel0_1: s.mfuel0_1,
-        pitch: s.pitch.clone(),
-        thrust: s.thrust.clone(),
-        efficiency: s.efficiency.clone(),
-        airbrake: s.airbrake,
-        total_thr: s.total_thr,
-        throttles: s.throttles.clone(),
-    }
-}
 
-/// [`Indicators`] 逐字段快照 (§2.3)。
-/// PORT(army): 私有字段 `army` (vm-core 模块私有) 跨 crate 不可读写, 快照
-/// 经 `Indicators::new()` 落默认值——全库无 army 读者 (仅 update 内部 tank
-/// 过滤使用), 无行为差异; 故用 new()+逐字段赋值而非 struct 字面量。
-/// pub: 同 [`snapshot_state`] (vm-app 喂数侧重建事件复用)。
-pub fn snapshot_indicators(i: &Indicators) -> Indicators {
-    let mut s = Indicators::new();
-    s.valid = i.valid.clone();
-    s.r#type = i.r#type.clone();
-    s.stype = i.stype.clone();
-    s.flag = i.flag;
-    s.speed = i.speed;
-    s.pedals = i.pedals;
-    s.stick_elevator = i.stick_elevator;
-    s.stick_ailerons = i.stick_ailerons;
-    s.altitude_hour = i.altitude_hour;
-    s.altitude_min = i.altitude_min;
-    s.altitude_10k = i.altitude_10k;
-    s.bank = i.bank;
-    s.turn = i.turn;
-    s.compass = i.compass;
-    s.clock_hour = i.clock_hour;
-    s.clock_min = i.clock_min;
-    s.clock_sec = i.clock_sec;
-    s.manifold_pressure = i.manifold_pressure;
-    s.rpm = i.rpm;
-    s.oil_pressure = i.oil_pressure;
-    s.water_temperature = i.water_temperature;
-    s.engine_temperature = i.engine_temperature;
-    s.mixture = i.mixture;
-    s.fuel = i.fuel;
-    s.fuel_pressure = i.fuel_pressure;
-    s.oxygen = i.oxygen;
-    s.gears_lamp = i.gears_lamp;
-    s.flaps = i.flaps;
-    s.trimmer = i.trimmer;
-    s.throttle = i.throttle;
-    s.weapon1 = i.weapon1;
-    s.weapon2 = i.weapon2;
-    s.weapon3 = i.weapon3;
-    s.prop_pitch_hour = i.prop_pitch_hour;
-    s.prop_pitch_min = i.prop_pitch_min;
-    s.ammo_counter1 = i.ammo_counter1;
-    s.ammo_counter2 = i.ammo_counter2;
-    s.ammo_counter3 = i.ammo_counter3;
-    s.oil_temp = i.oil_temp;
-    s.water_temp = i.water_temp;
-    s.fuelnum = i.fuelnum;
-    s.vario = i.vario;
-    s.aviahorizon_pitch = i.aviahorizon_pitch;
-    s.aviahorizon_roll = i.aviahorizon_roll;
-    s.wsweep_indicator = i.wsweep_indicator;
-    s.radio_altitude = i.radio_altitude;
-    s.mach = i.mach;
-    s
-}
 
 // ------------------------------------------------------------------
 // FlightLog 接线面 (D6 边界的 vm-data 侧落地, 见 flight_log.rs 模块头 PORT)

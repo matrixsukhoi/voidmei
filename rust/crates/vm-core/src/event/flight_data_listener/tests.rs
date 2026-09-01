@@ -15,11 +15,7 @@ impl FlightDataListener for RecordingListener {
 }
 
 fn mk_event(map_grid: &str) -> FlightDataEvent {
-    FlightDataEvent::new(
-        EventPayload::builder().map_grid(map_grid.to_string()).build(),
-        None,
-        None,
-    )
+    FlightDataEvent::new(EventPayload::builder().map_grid(map_grid.to_string()).build())
 }
 
 // 单个监听者按发布顺序收到每次事件的载荷

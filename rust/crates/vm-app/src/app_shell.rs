@@ -37,7 +37,7 @@ use vm_core::config_api::{ConfigProvider, HudSettingsSnapshot, OverlaySettings};
 use vm_core::configuration_service::{ConfigurationService, ControllerIntervals, GlobalColors, UiStateEvent};
 use vm_core::controller_state::ControllerState;
 use vm_core::event::event_payload::EventPayload;
-use vm_core::event::flight_data_event::{FlightDataEvent, OpaqueObject};
+use vm_core::event::flight_data_event::FlightDataEvent;
 use vm_core::event::ui_state_events;
 use vm_core::flight_data_bus::FlightDataBus;
 use vm_core::flight_log::{
@@ -55,7 +55,7 @@ use vm_core::voice_warning::{VoiceWarning, VoiceWarningService};
 
 use vm_data::service_fields::ServiceData;
 use vm_data::service_loop::{
-    flight_log_snapshot, snapshot_indicators, snapshot_state, start as spawn_service_thread,
+    flight_log_snapshot, start as spawn_service_thread,
     Service, ServiceAnalyzerSource, ServiceConfig, ServiceHandle,
 };
 
@@ -2475,11 +2475,11 @@ impl VoiceWarningService for LiveVoiceService {
     fn s_state(&self) -> vm_core::parser::State {
         let d = self.data.read().unwrap_or_else(|e| e.into_inner());
         // Java st 恒非 null (Service 构造即建); 槽内 None 仅畸形帧窗口 — 零值让步
-        d.s_state.as_ref().map(snapshot_state).unwrap_or_default()
+        d.s_state.as_ref().cloned().unwrap_or_default()
     }
     fn s_indic(&self) -> vm_core::parser::Indicators {
         let d = self.data.read().unwrap_or_else(|e| e.into_inner());
-        d.s_indic.as_ref().map(snapshot_indicators).unwrap_or_default()
+        d.s_indic.as_ref().cloned().unwrap_or_default()
     }
 }
 
@@ -2834,13 +2834,11 @@ struct AttitudeFeedState {
 /// 翻转本标志 (Java refreshPreviews 对在场实例只调 reinitializer, 订阅不动 —
 /// OverlayManager.java:332-336)。
 ///
-/// PORT(MiniHUD 事件重构): FlightDataEvent 不可 Clone (OpaqueObject) — 转发链只送
-/// EventPayload, 本侧重构事件对象; **state/indicators 从 live guard 现值重打快照**
-/// (Java 事件携带 sState/sIndic 共享可变引用, EDT 回退路径读到的是 EDT 时刻的
-/// 最新值 — 按喂入时刻快照即同一时序语义; 曾长期传 None/None, hud_calculator 的
-/// sState 整块被跳过, 襟翼/油门/姿态/G 值全 0 = "bar 恒 0" 根因); hud_data 恒
-/// None → 走 MiniHudOverlay 的 EDT 回退计算路径 (minihud.rs update_from_event
-/// 的 None 分支)。
+/// PORT(MiniHUD 喂入形态, W-B 事件瘦身后): 转发链只送 EventPayload (瘦事件,
+/// 纯节拍+标量); state/indicators 由本函数持 live guard 借引用直传 hud_calculator
+/// (按喂入时刻取最新值, 与 Java EDT 读共享可变引用同一时序语义; 曾长期传
+/// None/None 致襟翼/油门/姿态/G 值全 0 = "bar 恒 0" 根因); HUDData 由
+/// minihud::update_from_event 现场计算 (hud_data 通道已删)。
 ///
 /// PORT(锁内计算形态备案, 审查 B-W2): 各 update 需要 &ServiceData 完整视图, 而
 /// 签名归 vm-overlay (不可越文件改) 且 ServiceData 无 Clone — 读锁跨纯计算段
@@ -2880,18 +2878,8 @@ fn feed_overlays_live(
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         // 1. MiniHUD (Java MiniHUDOverlay.onFlightData → invokeLater)
         if let Some(h) = handles.minihud.as_ref() {
-            // state/indicators 快照重建 (函数头 PORT(MiniHUD 事件重构) 注):
-            // hud_calculator 从事件读 sState/sIndic (flaps/throttle/gear/airbrake/
-            // aoa/ny/姿态), 丢掉即整块 0
-            let state_box = guard
-                .s_state
-                .as_ref()
-                .map(|s| Box::new(snapshot_state(s)) as OpaqueObject);
-            let indic_box = guard
-                .s_indic
-                .as_ref()
-                .map(|i| Box::new(snapshot_indicators(i)) as OpaqueObject);
-            let event = FlightDataEvent::new(payload.clone(), state_box, indic_box);
+            // W-B: State/Indicators 直接从共享 guard 借引用下传 (hud_calculator
+            // 读 flaps/throttle/gear/airbrake/aoa/ny/姿态), 不再装箱重建事件
             // AoA 告警/状态色 = 全局仓 (Java HUDCalculator.java:132-155 每次计算
             // 直读 Application 静态; 曾传编译期常量冻结 — 审查轮 1-B)
             let gc = vm_overlay::global_colors::colors();
@@ -2902,7 +2890,9 @@ fn feed_overlays_live(
             };
             h.borrow_mut().on_flight_data(
                 now,
-                &event,
+                guard.s_state.as_ref(),
+                guard.s_indic.as_ref(),
+                payload,
                 Some(&*guard),
                 blkx,
                 settings,

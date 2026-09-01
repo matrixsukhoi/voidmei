@@ -392,8 +392,6 @@ fn fd_event(compressor_stage_mismatch: bool) -> FlightDataEvent {
         EventPayload::builder()
             .compressor_stage_mismatch(compressor_stage_mismatch)
             .build(),
-        None,
-        None,
     )
 }
 

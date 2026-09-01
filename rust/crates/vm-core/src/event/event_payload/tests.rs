@@ -6,7 +6,6 @@ fn test_builder_defaults() {
     let p = EventPayload::builder().build();
     assert_eq!(p.map_grid, "--");
     assert!(!p.fatal_warn);
-    assert!(!p.radio_alt_valid);
     assert!(!p.is_downing_flap);
     assert_eq!(p.time_str, "--:--");
     assert!(!p.is_jet);
@@ -21,7 +20,6 @@ fn test_builder_setters_override_defaults() {
     let p = EventPayload::builder()
         .map_grid("A1".to_string())
         .fatal_warn(true)
-        .radio_alt_valid(true)
         .is_downing_flap(true)
         .time_str("12:34".to_string())
         .is_jet(true)
@@ -31,7 +29,6 @@ fn test_builder_setters_override_defaults() {
         .build();
     assert_eq!(p.map_grid, "A1");
     assert!(p.fatal_warn);
-    assert!(p.radio_alt_valid);
     assert!(p.is_downing_flap);
     assert_eq!(p.time_str, "12:34");
     assert!(p.is_jet);
@@ -50,13 +47,12 @@ fn test_builder_partial_set() {
     assert_eq!(p.optimal_compressor_stage, -1);
 }
 
-// 公有 9 参构造器按参赋值 (与 Builder 无关的独立入口)
+// 公有 8 参构造器按参赋值 (与 Builder 无关的独立入口)
 #[test]
 fn test_constructor_assigns_all_fields() {
     let p = EventPayload::new(
         "B2".to_string(),
         true,
-        false,
         true,
         "00:01".to_string(),
         false,
@@ -66,7 +62,6 @@ fn test_constructor_assigns_all_fields() {
     );
     assert_eq!(p.map_grid, "B2");
     assert!(p.fatal_warn);
-    assert!(!p.radio_alt_valid);
     assert!(p.is_downing_flap);
     assert_eq!(p.time_str, "00:01");
     assert!(!p.is_jet);
