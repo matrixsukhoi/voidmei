@@ -82,7 +82,7 @@ fn java_format(tpl: &str, args: &[FmtArg]) -> String {
             j += 1;
         }
         // 可选 .M 精度
-        let mut prec: u8 = 6; // Java %f 缺省精度 6
+        let mut prec: u8 = 6;
         if j < cs.len() && cs[j] == '.' {
             j += 1;
             let mut p: u8 = 0;
@@ -120,7 +120,6 @@ fn java_format(tpl: &str, args: &[FmtArg]) -> String {
             }
             'f' => {
                 if let FmtArg::F(v, _p) = arg {
-                    // Java: 精度由模板说了算 (%.Mf); String.format 语义 =
                     // 最短往返十进制 HALF_UP (java_f, 非 FastNumberFormatter 的
                     // 二进制半舍入 — 2.675 → "2.68" oracle 钉死)
                     out.push_str(&crate::format::java_f(*v, prec as usize));
@@ -189,7 +188,6 @@ impl Blkx {
         // 此处不再预构造 (曾遗留死赋值: 对象随即被丢弃, 白做一次 default+init_lang)
         let file = std::path::Path::new(filepath);
         if !file.exists() {
-            // Java: else 分支, 静默 valid = false (data/readFileName 保持 null)
             return Err(format!("FM文件不存在: {filepath}"));
         }
         let mut sb = String::new();
@@ -204,17 +202,14 @@ impl Blkx {
         // lines() 仅按 \n 切并剥行尾单个 \r (单独 \r 不终止行) — 域内无单独 \r。
         let read_res: std::io::Result<()> = (|| {
             use std::io::{BufRead, BufReader};
-            let f = std::fs::File::open(file)?; // Java: FileNotFoundException (exists 后消失的 TOCTOU)
+            let f = std::fs::File::open(file)?;
             for line in BufReader::new(f).lines() {
-                // Java: while ((s = br.readLine()) != null) sb.append(s + "\n");
-                sb.push_str(&line?); // Java: IOException
+                sb.push_str(&line?);
                 sb.push('\n');
             }
-            // Java: br.close() ↔ Rust Drop
             Ok(())
         })();
         if let Err(e) = read_res {
-            // Java: ExceptionHelper.logAndContinue(e, "FM文件读取") 吞错 + readOk=false;
             // crate 内暂无 Logger (model.rs 同款注), Err 串承载同一诊断文本
             return Err(format!("FM文件读取: {e}"));
         }
@@ -248,16 +243,14 @@ impl Blkx {
         let data = b.data.as_deref().unwrap(); // 上一行刚赋值, 恒 Some
         // 防御加固: 读失败或空文件一律判无效, 不允许空 data 带着 valid=true 走后续解析
         if java_trim(data).is_empty() {
-            return Err(format!("FM文件读取失败或内容为空: {name}")); // Java: 静默 valid=false
+            return Err(format!("FM文件读取失败或内容为空: {name}"));
         }
         // 防御加固: 用户误喂 JSON 文件 (拖错文件/version 文件等) 时优雅判无效。
         // Dagor .blk 格式不可能以 '{' 开头, JSON 对象一定以 '{' 开头, 以此快速识别
         if java_trim(data).starts_with('{') {
-            // Java: Logger.warn("Blkx", "JSON 格式文件误作 FM 加载, 标记无效: " + name)
             return Err(format!("JSON 格式文件误作 FM 加载, 标记无效: {name}"));
         }
         if do_load {
-            // Java: try { this.getload(); valid = true; } catch (Exception e) {
             //         Logger.error("Blkx", "FM 解析失败, 标记无效: " + name + " - " + e);
             //         fmdata = Lang.noblkx; valid = false; }
             // PORT(§6): panic 展开前的默认 hook 打印 = e.printStackTrace 对应物
@@ -279,13 +272,11 @@ impl Blkx {
                         "Blkx",
                         &format!("FM 解析失败, 标记无效: {name} - {msg}"),
                     );
-                    // Java: fmdata = Lang.noblkx (失败对象字段复位; Rust 侧 Err 丢弃
                     // 对象, 此行仅为日志面对齐的语义注记)
                     return Err(format!("FM 解析失败, 标记无效: {name} - {msg}"));
                 }
             }
         } else {
-            // Java: else { valid = true; }
             b.valid = true;
         }
         Ok(b)
@@ -329,11 +320,9 @@ impl Blkx {
                 eix += 1;
             }
             if eix >= text.len() {
-                // Java: value = value + text.substring(bix);
                 value.push_str(text.get(bi..).unwrap_or(""));
                 break;
             }
-            // Java: value = value + text.substring(bix, eix + 1); (含行尾 '\n')
             value.push_str(text.get(bi..eix + 1).unwrap_or(""));
             // PORT: Java text = text.substring(eix + 1) 共享底层 ↔ drain 原地移除前缀
             text.drain(..eix + 1);
@@ -359,7 +348,6 @@ impl Blkx {
         }
         let label = &label[clsbix..];
         // 第二步获得值
-        // Java: bix = text.toUpperCase().lastIndexOf(label.toUpperCase());
         let mut bix = text.to_uppercase().rfind(&label.to_uppercase())?;
         // 防御加固: 无 '=' 时按"未找到"返回 (原代码扫出末尾越界)
         while bix < text.len() && text.as_bytes()[bix] != b'=' {
@@ -374,7 +362,6 @@ impl Blkx {
         while eix < text.len() && text.as_bytes()[eix] != b'\n' {
             eix += 1;
         }
-        // Java: value = text.substring(bix, eix); (不含 '\n' — 与 getArray 的 eix+1 相对)
         Some(text.get(bix..eix).unwrap_or("").to_string())
     }
 
@@ -397,7 +384,6 @@ impl Blkx {
         // 第二步获得值
         let mut bix = match text.to_uppercase().find(&label.to_uppercase()) {
             Some(i) => i,
-            // Java: if (bix == -1) return "null";
             None => return "null".to_string(),
         };
         // 防御加固: 无 '=' 时按"未找到"返回 (原代码扫出末尾越界)
@@ -436,11 +422,9 @@ impl Blkx {
         // Application.debugPrint(text);
         // 第二步获得值
         // bix = text.toUpperCase().indexOf(label.toUpperCase());
-        // Java: bix = text.indexOf(label); — 大小写敏感 (与 getArray/getlastone/
         // getoneinData 的 toUpperCase 定位不同, 源码本意, oracle go_o2 钉死)
         let mut bix = match text.find(label) {
             Some(i) => i,
-            // Java: if (bix == -1) return "null";
             None => return "null".to_string(),
         };
         // 防御加固: 无 '=' 时按"未找到"返回 (原代码扫出末尾越界)
@@ -471,9 +455,7 @@ impl Blkx {
         let mut ret = 0.0;
         let one = self.getone(c);
         if one != "null" {
-            // Java: 两次独立 getone 调用 (判 null + split) — 值相同, 绑定复用等价
             let tmp: Vec<&str> = one.split(',').collect();
-            // Java: split(",") 恒产至少一段 (tmp[0] 存在); parseFloat 失败 → catch → return 0
             match tmp.first().and_then(|s| s.trim().parse::<f32>().ok()) {
                 Some(v) => ret = v as f64,
                 None => return 0.0,
@@ -486,7 +468,6 @@ impl Blkx {
     /// 缺席哨兵 = Float.MAX_VALUE (调用方以 `== Float.MAX_VALUE` 判截断);
     /// 解析失败返回 0 (Java catch 路径)。
     fn getdouble_exc(&self, c: &str) -> f64 {
-        // Java: double ret = Float.MAX_VALUE; — f32 域拓宽 (≠ f64::MAX)
         let mut ret = f32::MAX as f64;
         let one = self.getone(c);
         if one != "null" {
@@ -508,13 +489,12 @@ impl Blkx {
     ///   此时已写入的前缀保留 — 部分写入保真)。
     fn getdoubles(&self, c: &str, ret: &mut [f64], num: usize) -> Option<()> {
         if num == 0 {
-            return None; // Java: num <= 0 → null
+            return None;
         }
         let one = self.getone(c);
         if one != "null" {
             let tmp: Vec<&str> = one.split(',').collect();
             for (i, slot) in ret.iter_mut().enumerate().take(num) {
-                // Java: Float.parseFloat(tmp[i]) — f32 域 (模块注 2); 越界/失败
                 // 双路径同为 catch → null
                 *slot = tmp
                     .get(i)
@@ -552,7 +532,7 @@ impl Blkx {
         self.military_rpm = 0.0;
         self.wep_rpm = 0.0;
 
-        // Try to find Propellor section within the engine type (Java 注释原文)
+        // Try to find Propellor section within the engine type
         // PORT: Java `cut(data, ...)` — data 为 null 时 cut 处 NPE ↔ unwrap panic
         // (from_read_data 的 catch_unwind 收敛, §1)
         let data = self.data.clone().unwrap();
@@ -569,11 +549,10 @@ impl Blkx {
                     continue;
                 }
 
-                // Parse comma-separated throttle/RPM pairs (Java 注释原文)
+                // Parse comma-separated throttle/RPM pairs
                 let trimmed = val.trim();
                 let parts: Vec<&str> = trimmed.split(',').collect();
                 if parts.len() >= 2 {
-                    // Java: Double.parseDouble (f64 域, 与 getdouble 的 f32 域不同!)
                     // + NumberFormatException ignored
                     if let (Ok(throttle), Ok(rpm)) = (
                         parts[0].trim().parse::<f64>(),
@@ -592,7 +571,7 @@ impl Blkx {
             }
         }
 
-        // Fallback to maxRPM approximation if parsing failed (Java 注释原文)
+        // Fallback to maxRPM approximation if parsing failed
         if self.military_rpm <= 0.0 && self.wep_rpm <= 0.0 {
             self.wep_rpm = self.max_rpm;
             self.military_rpm = self.max_rpm;
@@ -609,7 +588,7 @@ impl Blkx {
         let c = format!("Load{load_index}");
         el[load_index].water_limit = self.getdouble(&format!("{c}.WaterTemperature"));
         if el[load_index].water_limit == 0.0 {
-            return false; // Java: Boolean.FALSE
+            return false;
         }
         el[load_index].oil_limit = self.getdouble(&format!("{c}.OilTemperature"));
         if el[load_index].oil_limit == 0.0 {
@@ -617,7 +596,6 @@ impl Blkx {
         }
         el[load_index].work_time = self.getdouble(&format!("{c}.WorkTime"));
         el[load_index].recover_time = self.getdouble(&format!("{c}.RecoverTime"));
-        // Java: curWater/OilWorkTimeMili = WorkTime * 1000 (int 字面量提升 double)
         el[load_index].cur_water_work_time_mili = el[load_index].work_time * 1000.0;
         el[load_index].cur_oil_work_time_mili = el[load_index].work_time * 1000.0;
         true
@@ -627,10 +605,9 @@ impl Blkx {
     /// `Application.maxEngLoad` = 10 (Java 常量, Application.java:67)。
     fn init_engine_load(&mut self) {
         const APP_MAX_ENG_LOAD: usize = 10; // Application.maxEngLoad
-        self.avg_eng_recovery_rate = 0.0; // Java: 0.0f 拓宽
+        self.avg_eng_recovery_rate = 0.0;
         let mut eng_load: Vec<EngineLoad> = vec![EngineLoad::default(); APP_MAX_ENG_LOAD];
         self.max_eng_load = 0;
-        // Java: do { } while (maxEngLoad < engLoad.length && getEngineLoad(engLoad,
         //       maxEngLoad++)); — 空体 do-while, 后缀自增在条件求值内 (无论成败
         //       都 +1), 循环继续 = getEngineLoad 返回值
         loop {
@@ -671,7 +648,6 @@ impl Blkx {
                 self.avg_eng_recovery_rate +=
                     eng_load[i].work_time / eng_load[i].recover_time;
             }
-            // Java: showEngineLoad — Logger.debug
             logger::debug(
                 "Blkx",
                 &format!(
@@ -712,7 +688,7 @@ impl Blkx {
         let start_time = std::time::Instant::now(); // System.currentTimeMillis 计时面
         self.is_jet = false;
 
-        // 读取推力高度 (Java 注释原文)
+        // 读取推力高度
         self.engine_num = 1;
         let mut hdr_string = "EngineType0.".to_string();
         let res = self.getone("EngineType0.Main.Type");
@@ -746,7 +722,7 @@ impl Blkx {
                     self.is_jet = true;
                 }
             }
-            // 遍历引擎数量（适用于所有非喷气引擎，包括活塞引擎）(Java 注释原文)
+            // 遍历引擎数量（适用于所有非喷气引擎，包括活塞引擎）
             while self.getone(&format!("Engine{}", self.engine_num)) != "null" {
                 self.engine_num += 1;
                 if self.engine_num >= MAX_ENG_NUM as i32 {
@@ -765,7 +741,6 @@ impl Blkx {
                 }
             }
         }
-        // Java: 1.0f 拓宽 double (精确值, 直书)
         self.engine_rpm_mult_wep = 1.0;
         if self.is_jet {
             self.aftb_coff = self.getdouble(&format!("{hdr_string}Main.AfterburnerBoost"));
@@ -784,7 +759,7 @@ impl Blkx {
             }
             self.altitude_thr = Some(altitude_thr);
 
-            // 读取推力速度 (Java 注释原文)
+            // 读取推力速度
             self.vel_thr_num = 0;
             let mut velocity_thr = [0.0f64; 30];
             for i in 0..30 {
@@ -797,7 +772,7 @@ impl Blkx {
             }
             self.velocity_thr = Some(velocity_thr);
 
-            // 读取发动机工作模式 (Java 注释原文)
+            // 读取发动机工作模式
             self.mode_engine_num = 0;
             let mut mode_engine_mult = [0.0f64; 10];
             let mut mode_engine_rpm_mult = [0.0f64; 10];
@@ -814,7 +789,6 @@ impl Blkx {
             self.mode_engine_mult = Some(mode_engine_mult);
             self.mode_engine_rpm_mult = Some(mode_engine_rpm_mult);
 
-            // Java: 1.0f 拓宽
             let mut engine_mult_wep = 1.0f64;
             if self.mode_engine_num != 0 {
                 engine_mult_wep = mode_engine_mult[self.mode_engine_num as usize - 1];
@@ -822,7 +796,7 @@ impl Blkx {
                     mode_engine_rpm_mult[self.mode_engine_num as usize - 1];
             }
 
-            // 读取推力系数包络 (Java 注释原文)
+            // 读取推力系数包络
             let alt_n = self.alt_thr_num as usize;
             let vel_n = self.vel_thr_num as usize;
             let mut max_thr_coff: Vec<Vec<f64>> = vec![vec![0.0; vel_n]; alt_n];
@@ -836,7 +810,7 @@ impl Blkx {
                     max_thr_aft_coff[i][j] =
                         self.getdouble(&format!("ThrustMax.ThrAftMaxCoeff_{i}_{j}"));
                     if max_thr_aft_coff[i][j] == 0.0 {
-                        max_thr_aft_coff[i][j] = 1.0; // Java: 1.0f
+                        max_thr_aft_coff[i][j] = 1.0;
                     }
                     max_thr[i][j] =
                         self.thr_max0 * max_thr_coff[i][j] * self.engine_num as f64;
@@ -846,7 +820,7 @@ impl Blkx {
                         * self.engine_num as f64;
                 }
             }
-            // 预计算峰值推力 (Java 注释原文)
+            // 预计算峰值推力
             self.peak_thr_mil = self.calculate_peak_thrust(Some(&max_thr));
             self.peak_thr_aft = self.calculate_peak_thrust(Some(&max_thr_aft));
             self.max_thr_coff = Some(max_thr_coff);
@@ -865,14 +839,12 @@ impl Blkx {
                 ),
             );
         } else {
-            // radial inline (Java 注释原文)
+            // radial inline
             self.aftb_coff = self.getdouble(&format!("{hdr_string}Main.AfterburnerBoost"));
-            // Java: (int) getdouble — JLS 5.1.3 截断 ↔ as i32 (§2.2)
             self.comp_num_steps = self.getdouble("Compressor.NumSteps") as i32;
             self.speed_to_manifold_multiplier =
                 self.getdouble("Compressor.SpeedManifoldMultiplier");
 
-            // Java: compNumSteps 为负 (病态文件) 时 new double[负] 抛
             // NegativeArraySizeException → 构造器 catch; as usize 巨量 → Vec
             // 分配 panic 同被 from_read_data 收敛 (CORRUPT 同语义)
             let n = self.comp_num_steps as usize;
@@ -910,7 +882,7 @@ impl Blkx {
             self.comp_const_rpm_alt = Some(comp_const_rpm_alt);
             self.comp_const_rpm_power = Some(comp_const_rpm_power);
 
-            // === Extended WAPC-compatible parameters === (Java 注释原文)
+            // === Extended WAPC-compatible parameters ===
             self.comp_pressure_at_rpm0 =
                 self.getdouble("Compressor.CompressorPressureAtRPM0");
             self.comp_omega_factor_sq =
@@ -918,13 +890,13 @@ impl Blkx {
             self.has_comp_omega_factor_sq =
                 self.getone("Compressor.CompressorOmegaFactorSq") != "null";
 
-            // ExactAltitudes: explicitly defined in FM file (Java 注释原文)
+            // ExactAltitudes: explicitly defined in FM file
             let ea_str = self.getone("Compressor.ExactAltitudes");
             if ea_str != "null" {
                 self.explicit_exact_altitudes = Some(ea_str.trim() == "true");
             }
 
-            // Per-stage manifold pressure and afterburner pressure boost (Java 注释原文)
+            // Per-stage manifold pressure and afterburner pressure boost
             let mut comp_ata = vec![0.0f64; n];
             let mut comp_afterburner_pressure_boost = vec![0.0f64; n];
             for i in 0..n {
@@ -935,7 +907,7 @@ impl Blkx {
             self.comp_ata = Some(comp_ata);
             self.comp_afterburner_pressure_boost = Some(comp_afterburner_pressure_boost);
 
-            // Iterate all ATA entries (ATA0..ATA9) and take the maximum (Java 注释原文)
+            // Iterate all ATA entries (ATA0..ATA9) and take the maximum
             self.military_mp = 0.0;
             for i in 0..10 {
                 let ata = self.getdouble(&format!("Compressor.ATA{i}"));
@@ -944,7 +916,7 @@ impl Blkx {
                 }
             }
 
-            // WEP parameters from Main section (Java 注释原文)
+            // WEP parameters from Main section
             self.throttle_boost = self.getdouble(&format!("{hdr_string}Main.ThrottleBoost"));
             if self.throttle_boost <= 0.0 {
                 self.throttle_boost = 1.0;
@@ -956,17 +928,17 @@ impl Blkx {
                 self.octane_afterburner_mult = 1.0;
             }
 
-            // WEP manifold pressure (ata) (Java 注释原文)
+            // WEP manifold pressure (ata)
             self.wep_manifold_pressure = self.getdouble("AfterburnerManifoldPressure");
 
-            // Sea level power from Main.Power (Java 注释原文)
+            // Sea level power from Main.Power
             self.deck_power = self.getdouble(&format!("{hdr_string}Main.Power"));
 
-            // RPM parameters for determineDefaultRpm (BUG 2 fix) (Java 注释原文)
+            // RPM parameters for determineDefaultRpm (BUG 2 fix)
             self.shaft_rpm_max = self.getdouble(&format!("{hdr_string}Main.ShaftRPMMax"));
             self.rpm_nom = self.getdouble(&format!("{hdr_string}Main.RPMNom"));
 
-            // GovernorMaxParam is in the Propeller/Propellor section (Java 注释原文)
+            // GovernorMaxParam is in the Propeller/Propellor section
             self.governor_max_param = 0.0;
             let data = self.data.clone().unwrap();
             let mut prop_section_for_gov = cut(&data, "Propellor");
@@ -975,10 +947,8 @@ impl Blkx {
             }
             if prop_section_for_gov != "null" {
                 let gov_str = self.getonein_data(&prop_section_for_gov, "GovernorMaxParam");
-                // Java: govStr != null && !govStr.equals("null") (getoneinData 恒非
                 // null 返回, 前半恒真 — 直译保留判 "null")
                 if gov_str != "null" {
-                    // Java: Double.parseDouble(govStr.trim().split(",")[0].trim())
                     // (f64 域) + NumberFormatException ignored
                     if let Some(first) = gov_str.trim().split(',').next() {
                         if let Ok(v) = first.trim().parse::<f64>() {
@@ -990,17 +960,17 @@ impl Blkx {
         }
 
         // 读取最大转速和最大允许转速 (must be before extractRpmFromThrottleAuto)
-        // (Java 注释原文)
+        //
         self.max_rpm = self.getdouble("RPMAfterburner");
         let max_rpm_normal = self.getdouble(" RPMMax");
         if self.max_rpm < max_rpm_normal {
             self.max_rpm = max_rpm_normal;
         }
 
-        // 针对幻影2000C mode6 rpm乘数1.01的修复 (Java 注释原文)
+        // 针对幻影2000C mode6 rpm乘数1.01的修复
         self.max_rpm *= self.engine_rpm_mult_wep;
 
-        // Extract military/WEP RPM after maxRPM is available as fallback (Java 注释原文)
+        // Extract military/WEP RPM after maxRPM is available as fallback
         if !self.is_jet && self.comp_num_steps > 0 {
             self.extract_rpm_from_throttle_auto(&hdr_string);
         }
@@ -1074,13 +1044,12 @@ impl Blkx {
         self.critical_speed = self.getdouble("CriticalSpeed");
 
         // +1 留给 1.25x 襟翼档位插值哨兵行，避免5档襟翼飞机(如F-82E/P-51B/P-51A-36)
-        // 数组越界 (Java 注释原文)
+        // 数组越界
         let mut flaps_destruction = [[0.0f64; 2]; 6];
         let mut flaps_destruction_num: usize = 0;
         {
             let mut p = 0;
             while p < 5 {
-                // Java: getdoubles("FlapsDestructionIndSpeedP" + (p++), ...) — p 增量
                 // 在实参求值内; 键缺席时行保持 0 → [1]==0 → continue (档位不进位)
                 let key = format!("FlapsDestructionIndSpeedP{p}");
                 p += 1;
@@ -1101,18 +1070,18 @@ impl Blkx {
             flaps_destruction_num = 2;
         }
         if flaps_destruction_num == 0 {
-            flaps_destruction[0][0] = 1.0; // Java: 1.0f
+            flaps_destruction[0][0] = 1.0;
             flaps_destruction[0][1] = self.getdouble("FlapsDestructionIndSpeed");
         }
-        // 125襟翼档位插值，辅助运算 (Java 注释原文)
-        flaps_destruction[flaps_destruction_num][0] = 1.25; // Java: 1.25f
+        // 125襟翼档位插值，辅助运算
+        flaps_destruction[flaps_destruction_num][0] = 1.25;
         flaps_destruction[flaps_destruction_num][1] = 0.0;
         self.flaps_destruction_ind_speed = Some(flaps_destruction);
         self.flaps_destruction_num = flaps_destruction_num as i32;
 
         self.gear_destruction_ind_speed = self.getdouble("GearDestructionIndSpeed");
 
-        // 面积 (Java 注释原文) — 三级回退族: 顶层键 → WingPlane.* → WingPlaneSweep0.*
+        // 面积 — 三级回退族: 顶层键 → WingPlane.* → WingPlaneSweep0.*
         // PORT: 宏观直译 (Java 每段 3 行 if, 逐字段展开)
         let fallback3 = |b: &Blkx, top: &str, plane: &str, sweep0: &str| -> f64 {
             let v = b.getdouble(top);
@@ -1202,7 +1171,7 @@ impl Blkx {
             self.get_parts_fm("FlapsPolar1", &mut full_flaps_wing);
         }
 
-        // 可变翼: 动态检测 WingPlaneSweep 数量 (Java 注释原文)
+        // 可变翼: 动态检测 WingPlaneSweep 数量
         let data = self.data.clone().unwrap();
         let mut sweep_levels: Vec<SweepLevel> = Vec::new();
         for i in 0..10 {
@@ -1235,7 +1204,7 @@ impl Blkx {
         }
         self.is_v_wing = Some(sweep_levels.len() > 1);
 
-        // 向后兼容: 填充旧字段 (Java 注释原文)
+        // 向后兼容: 填充旧字段
         // PORT: Java 引用共享 (V50 = sweepLevels.get(1).noFlaps) → 值克隆
         // (mod.rs 字段区裁决: 解析后只读)
         let mut no_flaps_wing_v50 = FmParts::default();
@@ -1276,7 +1245,7 @@ impl Blkx {
             self.get_parts_fm("VerStabPlane.Polar", &mut stab);
         }
 
-        // 获得安装角 (Java 注释原文)
+        // 获得安装角
         self.wing_angle = self.getdouble("\nWingAngle");
         if self.wing_angle == 0.0 {
             self.wing_angle = self.getdouble("WingPlane. Angle");
@@ -1298,7 +1267,7 @@ impl Blkx {
             self.wing_angle = self.getdouble("FuselagePlane.Angle");
         }
 
-        // 计算安装角补偿 (Java 注释原文)
+        // 计算安装角补偿
         no_flaps_wing.aoa_crit_high -= self.wing_angle;
         no_flaps_wing.aoa_crit_low -= self.wing_angle;
         full_flaps_wing.aoa_crit_high -= self.wing_angle;
@@ -1314,8 +1283,8 @@ impl Blkx {
         let _ = self.getdoubles("MomentOfInertia", &mut moment_of_inertia, 3);
         self.moment_of_inertia = Some(moment_of_inertia);
 
-        // 最大升力面积因子载荷计算(气动升力系数x部件面积除以满油重量）(Java 注释原文)
-        // 最大攻角转弯时机身是失速的 (Java 注释原文)
+        // 最大升力面积因子载荷计算(气动升力系数x部件面积除以满油重量）
+        // 最大攻角转弯时机身是失速的
         self.fuse_cl_high = fuselage.cl_crit_high * fuselage.line_cl_coeff;
         if fuselage.aoa_crit_high < no_flaps_wing.aoa_crit_high {
             self.fuse_cl_high = fuselage.cl_after_crit * fuselage.line_cl_coeff;
@@ -1335,11 +1304,11 @@ impl Blkx {
         full_flaps_wing.sq = self.a_wing;
         fuselage.sq = self.a_fuselage;
 
-        // NoFlapsWing.AoACritHigh 可能不等于 Fuselage.AoACritHigh (Java 注释原文)
+        // NoFlapsWing.AoACritHigh 可能不等于 Fuselage.AoACritHigh
         self.no_flap_wll = self.a_wing * no_flaps_wing.cl_crit_high
             + self.a_fuselage * self.fuse_cl_high
                 * (no_flaps_wing.aoa_crit_high / fuselage.aoa_crit_high);
-        // 这里用空重 (Java 注释原文); Java: / (emptyweight / 1000.f) — 1000.f 精确
+        // 这里用空重; Java: / (emptyweight / 1000.f) — 1000.f 精确
         self.no_flap_wll /= self.emptyweight / 1000.0;
 
         self.fuse_cl_high = fuselage.cl_crit_high * fuselage.line_cl_coeff;
@@ -1352,10 +1321,10 @@ impl Blkx {
             + self.a_fuselage * self.fuse_cl_high
                 * (no_flaps_wing.aoa_crit_high / fuselage.aoa_crit_high);
         self.full_flap_wll /= self.emptyweight / 1000.0;
-        // 阻力面积因子计算 (Java 注释原文)
+        // 阻力面积因子计算
         self.cd_s = self.a_wing * no_flaps_wing.cd_min + self.a_fuselage * fuselage.cd_min;
 
-        // 翼展 (Java 注释原文)
+        // 翼展
         self.wingspan = self.getdouble("Wingspan");
         if self.wingspan == 0.0 {
             self.wingspan = self.getdouble("WingPlane.Span");
@@ -1366,7 +1335,7 @@ impl Blkx {
 
         self.aspect_ratio = self.wingspan * self.wingspan / self.a_wing;
 
-        // 诱导阻力还要 (Java 注释原文)
+        // 诱导阻力还要
         self.ind_cd_f = 1.0 / (std::f64::consts::PI * self.aspect_ratio * self.oswalds_efficiency_number);
 
         let mut max_allow_gload = [0.0f64; 2];
@@ -1375,7 +1344,7 @@ impl Blkx {
             let _ = self.getdoubles("Strength.CritOverload", &mut max_allow_gload, 2);
         }
 
-        // Save raw values for dynamic G-load calculation before conversion (Java 注释原文)
+        // Save raw values for dynamic G-load calculation before conversion
         self.raw_wing_crit_overload = Some(max_allow_gload);
 
         // ---- fmdata 摘要串构造 (Java L1464-1560 的 String.format 族) ----
@@ -1456,19 +1425,19 @@ impl Blkx {
             ],
         ));
 
-        // 战雷在过载超限到真正断留了20%的余量 (Java 注释原文)
+        // 战雷在过载超限到真正断留了20%的余量
         max_allow_gload[0] = 1.2 * (2.0 * max_allow_gload[0] / (g * self.grossweight) + 1.0);
         max_allow_gload[1] = 1.2 * (2.0 * max_allow_gload[1] / (g * self.grossweight) - 1.0);
         self.max_allow_gload = Some(max_allow_gload);
 
-        // 计算滚转率 (Java 注释原文)
+        // 计算滚转率
 
-        // 先计算Cla (Java 注释原文)
+        // 先计算Cla
         // (死存储保真: cl_a 写入后无读取方, Java 亦然 — mod.rs allow(dead_code))
         self.cl_a = (no_flaps_wing.cl_crit_high - no_flaps_wing.cl0)
             / no_flaps_wing.aoa_crit_high;
 
-        // 获得襟翼偏转角度(上偏和下偏) (Java 注释原文)
+        // 获得襟翼偏转角度(上偏和下偏)
         let mut aileron_defl = [0.0f64; 2];
         if self
             .getdoubles("AileronAngles", &mut aileron_defl, 2)
@@ -1478,7 +1447,7 @@ impl Blkx {
         }
         self.aileron_defl = Some(aileron_defl);
 
-        // 三轴转动惯量的值的顺序和三舵的要保持一致, 即pitch, roll, yaw (Java 注释原文)
+        // 三轴转动惯量的值的顺序和三舵的要保持一致, 即pitch, roll, yaw
         s.push_str(&java_format(
             lang.b_inertia,
             &[
@@ -1592,13 +1561,12 @@ impl Blkx {
     /// PORT: loc..loc3 未赋值 (Java null) 时 NPE ↔ unwrap panic — 生产调用点
     /// 是 get_all_plotdata 尾部 (五字段刚赋值, 不可达); 直连时的 panic 由
     /// FMLoader.load 的 catch_unwind 收敛 CORRUPT (§1)。
-    #[allow(unused_assignments)] // Java 死赋值保真 (L1591 的 "" 立即被覆盖)
+    #[allow(unused_assignments)]
     #[allow(clippy::needless_range_loop)]
     pub fn trans_unit(&mut self) {
         let mut unit_system = "".to_string();
         unit_system = self.getone("PASSPORT.UNITSYSTEM");
         unit_system = self.sub_st(&unit_system);
-        // Java: unitSystem.indexOf("Imperial") != -1 (区分大小写; ASCII 域
         // 字节 find ≡ UTF-16 indexOf, §2.1)。getone 未找到时返回哨兵 "null",
         // sub_st 剥首尾得 "ul" 同样不含 "Imperial" → 空转 (DumpPlot 腿A 钉死;
         // 真机 FM 键名恒小写 camelCase, getone 大小写敏感 → metric 数据不走换算)
@@ -1658,7 +1626,6 @@ impl Blkx {
     #[allow(clippy::needless_range_loop)]
     pub fn getplotdata(&self, t: &str) -> XY {
         let mut line = 0usize;
-        // Java: t = getArray(t); — 形参重赋 ↔ 变量遮蔽 (无匹配返回 "")
         let t = self.get_array(t);
         for i in 0..t.len() {
             if t.as_bytes()[i] == b'\n' {
@@ -1669,7 +1636,6 @@ impl Blkx {
         let mut bix = 0usize;
         for i in 0..t.len() {
             if t.as_bytes()[i] == b'\n' {
-                // Java: String temp = t.substring(bix, i); — §2.1 ASCII 域字节
                 // 切片 ≡ substring (bix <= i < len 恒合法, 此处无防御加固点)
                 let temp = &t[bix..i];
                 // PORT: Java split(", ") 丢弃尾部空串, Rust split 保留 — 本方法
@@ -1681,7 +1647,6 @@ impl Blkx {
                 // 改为跳过畸形行 (曲线少一个点), 完好行照常解析——仅曲线块受损的
                 // 文件仍可按 READY 用发动机数据
                 if tmp.len() >= 2 {
-                    // Java: lo.y[lo.cur] = Double.parseDouble(tmp[0].trim());
                     // lo.x[lo.cur] = Double.parseDouble(tmp[1].trim()); lo.cur++;
                     // — Double 域 (f64, 与 getdouble 族的 Float 域不同!);
                     // NumberFormatException catch → 丢弃该数据点。
@@ -1716,7 +1681,6 @@ fn cut(t: &str, clslabel: &str) -> String {
     let mut i: usize;
     let mut left = 0usize;
     let mut right = 0usize;
-    // Java: int bix = tmp.toUpperCase().indexOf(clslabel.toUpperCase() + " {");
     let bix = match tmp.to_uppercase().find(&(clslabel.to_uppercase() + " {")) {
         Some(b) => b,
         None => return "null".to_string(),
@@ -1736,7 +1700,6 @@ fn cut(t: &str, clslabel: &str) -> String {
         return "null".to_string();
     }
     cutleft += 1;
-    // Java: for (i = bix; i < tmp.length(); i++) { ... if (left != 0 && right != 0
     // && left == right) break; } — 计数含块头 '{' (bix 起步, 早于 cutleft)
     i = bix;
     while i < tmp.len() {
@@ -1758,7 +1721,6 @@ fn cut(t: &str, clslabel: &str) -> String {
     if cutright > tmp.len() || cutleft > cutright {
         return "null".to_string();
     }
-    // Java: tmp.substring(cutleft, cutright); — 未闭合时 i==len, 返回余段 (oracle cut_c3)
     tmp.get(cutleft..cutright).unwrap_or("null").to_string()
 }
 

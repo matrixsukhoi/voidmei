@@ -257,25 +257,18 @@ impl Service {
         }
         {
             let mut d = write_data(&svc.data);
-            // Java: freq = xc.serviceLoopIntervalMs;
             d.freq = svc.config.service_loop_interval_ms;
         }
-        // Java: clearvaria();
         svc.clear_varia();
         {
             let mut d = write_data(&svc.data);
-            // Java: mapinfo = new MapInfo();
             d.mapinfo = Some(MapInfo::new());
-            // Java: ratio = freq / 1000.0f; —— long/float 提升为 float 除法,
             // 结果 float 拓宽存入 double 字段 (§2.12 浮点字面量保持)
             let ratio = (d.freq as f32 / 1000.0f32) as f64;
             d.ratio = ratio;
-            // Java: ratio_1 = 1.0f - ratio; —— 1.0f 提升为 double 后的 double 减法
             d.ratio_1 = 1.0 - ratio;
-            // Java: sState = new State(); sState.init();
             d.s_state = Some(State::new());
             d.s_state.as_mut().unwrap().init();
-            // Java: sIndic = new Indicators(); sIndic.init();
             d.s_indic = Some(Indicators::new());
             d.s_indic.as_mut().unwrap().init();
         }
@@ -334,7 +327,6 @@ impl Service {
             // PORT(快照字段): Java getter 现读单例 → Rust 读 d.fm 周期快照
             // (service_fields.rs struct 级裁决), 此处随 reset 同步
             d.fm = Arc::clone(&fm);
-            // Java: loc = new double[2]; dir = new double[2];
             d.loc = Some([0.0; 2]);
             d.dir = Some([0.0; 2]);
             d.player_live = false;
@@ -354,27 +346,22 @@ impl Service {
             d.thurst_percent = 0.0;
             d.check_engine_flag = false;
             d.check_engine_type = 0;
-            // Java: fueltime = Long.MAX_VALUE;
             d.fueltime = i64::MAX;
             d.check_pitch = 0;
             d.fuel_percent = 0;
             d.max_total_hp = 0;
-            // Java L1564 对 maxTotalThr 的第二次赋值 (L1555 已赋 0), 保真保留
-            d.max_total_thr = 0;
-            // Java: curLoadMinWorkTime = 99999 * 1000; —— int 乘法 99999000 拓宽 double
+
             d.cur_load_min_work_time = (99999 * 1000) as f64;
             /* 刷新引擎工作时间 */
             // (锁外调用, 见下)
             // if(c.getBlkx() != null && c.getBlkx().maxEngLoad !=
             // 0)c.getBlkx().resetEngineLoad();
             let now = current_time_millis();
-            // Java: lastMapPollTimeMs = FuelCheckMili; lastMainLoopTimeMs = FuelCheckMili;
             d.last_map_poll_time_ms = now;
             d.last_main_loop_time_ms = now;
             d.not_check_inch = false;
             // isFuelpressure = false;
-            // Java L1577 对 notCheckInch 的第二次赋值, 保真保留
-            d.not_check_inch = false;
+
             d.total_fuel_prev = 0.0;
             d.nitrokg = 0.0;
             d.nitro_consump = 0.0;
@@ -390,17 +377,14 @@ impl Service {
 
             // R2 守卫: 无 FM 时保持 nitrokg/nitroConsump 归零值（与 updateWepTime 的守卫配套）
             if let Some(blkx) = &fm.blkx {
-                // Java: nitrokg = fm.blkx.nitro; nitroConsump = fm.blkx.nitroDecr;
                 d.nitrokg = blkx.nitro;
                 d.nitro_consump = blkx.nitro_decr;
-                // Java: engineLoad[] pL = fm.blx.engLoad; 循环体
                 // pL[i].curWaterWorkTimeMili = pL[i].curWaterWorkTimeMili; —— 自赋值
                 // 无操作 (保真保留为注释; 真正的会话态改写在 reset_eng_load)
             }
 
         } // —— write 临界区结束 (publish 前必须释放, §2.8)
 
-        // Java: resetEngLoad(fm); (L1568, 字段赋值序列中间——锁外执行)
         // (方法体已随 engLoad 会话态批次迁至 overheat.rs, 关联函数签名不变)
         Self::reset_eng_load(&fm);
         // PORT(SMA 重建): Java L1587-1590 的 calc/diff/sep/turnrds 四 SMA 在本
@@ -409,7 +393,6 @@ impl Service {
         // W2: Deriver 消解 — SMA 状态改由公式状态仓承载, 会话重置在此
         self.formula.reset_states();
 
-        // Java: publishFlightDataEvent(); (L1659)
         // Publish initial state immediately
         self.publish_flight_data_event();
     }
@@ -439,15 +422,12 @@ impl Service {
                 }
                 Err(payload) => {
                     // Unexpected error - log and recover after short delay
-                    // Java: "Service error: " + e.getClass().getSimpleName() + " at " +
                     // (e.getStackTrace().length > 0 ? e.getStackTrace()[0] : "unknown")
                     // PORT: Rust panic 无类型名/栈帧槽位, 以消息文本顶位
                     logger::error(
                         "Service",
                         &format!("Service error: {} at unknown", panic_message(payload)),
                     );
-                    // Java: e.printStackTrace(); —— 默认 panic hook 已在展开前打印
-                    // Java: Thread.sleep(1000) + catch (InterruptedException ignored)
                     // PORT: 可中断恢复睡眠 (§2.13); 置位即提前醒并在此退出
                     // (Java 吞中断后丢失退出信号属已知 bug, 电平标志根治)
                     exception_helper::sleep_quietly(&self.stop, 1000);
@@ -462,7 +442,6 @@ impl Service {
     /// run() 的 try 块体 (Java L1803-1844), 一轮轮询。
     /// 返回值: Java 的 InterruptedException 出口 → [`Flow::Interrupted`]。
     fn poll_once(&mut self) -> Flow {
-        // Java: currentTimeMs = System.currentTimeMillis();
         let now = current_time_millis();
         let (freq, port_ocupied, last_main_loop_time_ms) = {
             let mut d = write_data(&self.data);
@@ -475,19 +454,16 @@ impl Service {
             // 尝试GET数据
             // (HTTP IO 在锁外, §2.8; portOcupied 拆箱 None → panic 复刻 Java NPE,
             //  由 run 的 catch_unwind 兜住——字段初始化器 false 使 None 不可达)
-            if port_ocupied != Some(true) {
+            if !port_ocupied {
                 self.http_client.get_req_result(request_dest(&self.config), &self.stop);
             } else {
                 self.http_client.get_req_result(request_dest_bkp(&self.config), &self.stop);
             }
-            // Java: actualIntervalMs = (diffTime / freq) * freq;
             let actual_interval_ms = (diff_time / freq) * freq;
             {
                 let mut d = write_data(&self.data);
                 d.actual_interval_ms = actual_interval_ms;
-                // Java: pollCycleDurationMs = actualIntervalMs;
                 d.poll_cycle_duration_ms = actual_interval_ms;
-                // Java: lastMainLoopTimeMs += actualIntervalMs;
                 d.last_main_loop_time_ms += actual_interval_ms;
             }
 
@@ -500,7 +476,6 @@ impl Service {
             }
 
             // 记录
-            // Java: if (c.logon) { FlightLog tempLog = c.Log; if (tempLog != null) tempLog.logTick(); }
             // (Service.java:1824-1828, 每轮一次 — 1024 行 flush 节奏在 FlightLog 内)
             self.flight_log_tick();
         }
@@ -513,15 +488,13 @@ impl Service {
         if diff_time1 >= 10 * freq {
             {
                 let mut d = write_data(&self.data);
-                // Java: lastMapPollTimeMs = currentTimeMs;
                 d.last_map_poll_time_ms = now;
             }
-            if port_ocupied != Some(true) {
+            if !port_ocupied {
                 self.http_client.get_req_map_obj_result(request_dest(&self.config));
             } else {
                 self.http_client.get_req_map_obj_result(request_dest_bkp(&self.config));
             }
-            // Java: MapObj.getPlayerLoc(httpClient.strMapObj, loc); getPlayerDir(..., dir);
             let str_map_obj = self.http_client.str_map_obj.clone();
             let mut d = write_data(&self.data);
             if let Some(loc) = d.loc.as_mut() {
@@ -535,7 +508,6 @@ impl Service {
         // long sleeptime = currentTimeMs + freq - System.currentTimeMillis();
         let sleeptime = now + freq - current_time_millis();
         if sleeptime > 0 {
-            // Java: Thread.sleep(sleeptime); —— InterruptedException → stop 轮询 (§2.13)
             exception_helper::sleep_quietly(&self.stop, sleeptime as u64);
             if self.stop.load(Ordering::SeqCst) {
                 return Flow::Interrupted;
@@ -550,17 +522,13 @@ impl Service {
 
     /// Processes one polling cycle: updates state, calculates data, and publishes events.
     /// Previously named checkState() - renamed for clarity.
-    /// (以上 javadoc 逐字保留, Java L1701-1704)
     fn process_polling_cycle(&mut self) {
         // int conState;
         let con_state: i32;
         // Application.debugPrint("s:"+httpClient.strState+"s1:"+httpClient.strIndic);
         // 更新state
 
-        // Java: c.initStatusBar();
-        // TODO(port): Controller 状态条初始化 (Controller 波次)
 
-        // Java: if (httpClient.strState.length() > 0 && httpClient.strIndic.length() > 0)
         // (strState 为跨线程 Arc<Mutex>——getReqResult 的子线程写, 读侧短锁克隆;
         //  锁中毒穿透与 read_data/write_data 同一 §6 策略——该 Mutex 与子线程共享,
         //  持锁 panic 不得令 Service 线程陷 "每轮 panic-恢复" 的活而死循环)
@@ -577,16 +545,12 @@ impl Service {
             let (s_flag, i_flag);
             {
                 let mut d = write_data(&self.data);
-                // Java: conState = sState.update(httpClient.strState);
                 // (sState 构造器恒建, unwrap 复刻 Java 的 null 不可达域)
                 con_state = d.s_state.as_mut().unwrap().update(&str_state);
-                // Java: sIndic.update(httpClient.strIndic);
                 d.s_indic.as_mut().unwrap().update(&str_indic);
                 s_flag = d.s_state.as_ref().unwrap().flag;
                 i_flag = d.s_indic.as_ref().unwrap().flag;
             }
-            // Java: c.changeS2();
-            // TODO(port): Controller 连接成功状态切换 (Controller 波次)
             if s_flag && i_flag {
                 // 读取本轮判定所需快照 (锁外判, §2.8)
                 let (i_type, total_thr, s_rpm, player_live, port_ocupied) = {
@@ -600,16 +564,14 @@ impl Service {
                     )
                 };
                 /* 修复录像中没法使用的问题 */
-                // Java: (!sIndic.type.equals("DUMMY_PLANE")) —— type 经 update 已
                 // toUpperCase; Rust 侧 Indicators::update 恒产 Some (缺失→""),
                 // None 不可达, Option 域内比较 (vm-core indicators.rs 既有防御)
                 if i_type.as_deref() != Some("DUMMY_PLANE")
                     && ((total_thr != 0.0) || (s_rpm != 0))
                 {
                     if !player_live {
-                        // Java: if (!portOcupied) getReqMapInfoResult(requestDest);
                         // else getReqMapInfoResult(requestDestBkp);
-                        let dest = if port_ocupied != Some(true) {
+                        let dest = if !port_ocupied {
                             request_dest(&self.config)
                         } else {
                             request_dest_bkp(&self.config)
@@ -617,14 +579,12 @@ impl Service {
                         // (HTTP IO 在锁外, §2.8)
                         self.http_client.get_req_map_info_result(dest);
                         let mut d = write_data(&self.data);
-                        // Java: mapinfo.update(httpClient.strMapInfo);
                         let str_map_info = self.http_client.str_map_info.clone();
                         d.mapinfo.as_mut().unwrap().update(&str_map_info);
                         // Application.debugPrint("grid_zero: " + mapinfo.grid_zeroX + ", " +
                         // mapinfo.grid_zeroY);
                     }
                     let mut d = write_data(&self.data);
-                    // Java: playerLive = true;
                     d.player_live = true;
                 }
 
@@ -635,15 +595,12 @@ impl Service {
                 if player_live {
                     // 读取map info
 
-                    // Java: c.changeS3();// 打开面板
-                    // TODO(port): Controller 打开面板 (Controller 波次)
                     // P4 换机轻量 swap: 只换 FM 句柄（FMManager 负责去重/负缓存/异步加载），
                     // 不再重启 Controller——旧版 S4toS1 重启销毁全部 overlay 致 HUD 闪断，且与
                     // 旧 FM 回退逻辑叠加曾构成 issue #55 换机死循环（P2 已断根，P4 删重启路径）。
                     // identify/onAircraftChanged 同目标零成本，10Hz 轮询安全。
                     {
                         let d = read_data(&self.data);
-                        // Java: FMManager.getInstance().identify(sIndic.type);
                         let plane_type = d.s_indic.as_ref().unwrap().r#type.clone();
                         drop(d);
                         self.fm_manager.identify(plane_type.as_deref());
@@ -655,8 +612,6 @@ impl Service {
                         let mut d = write_data(&self.data);
                         d.fm = fm_cur;
                     }
-                    // Java: c.onAircraftChanged(sIndic.type);
-                    // TODO(port): Controller 换机回调 (Controller 波次)
                     // speedvp = sState.IAS;
                     // 开始计算数据
                     self.calculate();
@@ -664,14 +619,12 @@ impl Service {
                     // 检测到加油，重置数据
                     {
                         let d = read_data(&self.data);
-                        // Java: Math.abs(speedv) < 10 — W-C 起直读公式槽
                         let speedv = d.var_value("speedv").unwrap_or(0.0);
                         let total_fuel = d.total_fuel;
                         let total_fuel_prev = d.total_fuel_prev;
                         if (speedv.abs() < 10.0) && (total_fuel - total_fuel_prev > 1.0) {
                             // (临界区内不做 IO——先释放读锁再打日志, 头部 §2.8 自律)
                             drop(d);
-                            // Java: String.format("Refueling detected (Fuel: %.1f -> %.1f).
                             // Resetting simulation variables.", ...)
                             // —— Formatter %.1f HALF_UP → format::format (§2.3)
                             logger::info(
@@ -693,10 +646,8 @@ impl Service {
                         let calc_period = d.calc_period;
                         drop(d);
                         let mut d = write_data(&self.data);
-                        // Java: ((calcPeriod++) % (500 / freq)) == 0 —— 后缀自增
                         d.calc_period += 1;
                         if calc_period % (500 / freq) == 0 {
-                            // Java: slowcalculate((500 / freq) * freq) — 油耗慢计算
                             // + totalFuelPrev 追赶 (加油检测的 prev 写点)
                             let dtime = (500 / freq) * freq;
                             drop(d);
@@ -717,7 +668,6 @@ impl Service {
                         let total_thr = d.s_state.as_ref().unwrap().total_thr;
                         let rpm = d.s_state.as_ref().unwrap().rpm;
                         let ias = d.s_state.as_ref().unwrap().ias;
-                        // Java: sState.totalThr == 0 && sState.RPM <= 0 && sState.IAS < 10
                         if total_thr == 0.0 && rpm <= 0 && ias < 10 {
                             // (临界区内不做 IO——先释放读锁再打日志, 头部 §2.8 自律)
                             drop(d);
@@ -734,24 +684,19 @@ impl Service {
                 // 状态置为等待游戏开始（状态1）
                 // c.changeS2();//连接成功等待游戏开始
 
-                // Java: c.S4toS1();
-                // TODO(port): Controller 等待游戏开始状态 (Controller 波次)
                 // 等待游戏开始
                 exception_helper::sleep_quietly(&self.stop, 500);
             }
         } else {
             // 状态置为等待连接中
             con_state = -1;
-            // Java: c.S4toS1();
-            // TODO(port): Controller 等待连接状态 (Controller 波次)
             logger::debug("Service", "Waiting for game connection (8111/9222)...");
         }
         if con_state == -1 {
             // 端口连接可能有问题，切换端口
             // Application.debugPrint("切换端口\n");
             let mut d = write_data(&self.data);
-            // Java: portOcupied = !portOcupied; (Boolean 拆箱→取反→装箱)
-            d.port_ocupied = Some(d.port_ocupied != Some(true));
+            d.port_ocupied = !d.port_ocupied;
         }
     }
 
@@ -773,7 +718,6 @@ impl Service {
     /// Pre-computes HUDData on Service thread to offload work from EDT.
     ///
     /// @deprecated Method name is legacy - renamed to publishFlightDataEvent() for clarity.
-    /// (以上 javadoc 逐字保留, Java L434-438)
  
     /// 对应 Java `public void calculate()` (L1115-1178)。
     ///
@@ -783,13 +727,6 @@ impl Service {
     /// updateCompass (L1101, 含 compass==-65535 的地图方向回退) / updateAlt
     /// (L739, 英制检测状态机 + 无线电高度有效性/英尺转米 + dRadioAlt 差分)
     /// 在写回段逐行落地。其余子方法属计算方法区后续波次:
-    /// TODO(port): updateWepTime/updateTemp/checkOverheat/updateEngineState/
-    /// updateFuel/checkWing/checkFlap/getMaximumRPM/updateSpeedRatio(比值段)/
-    /// updateStallSpeed/updateOptimalCompressorStage
-    /// TODO(port): Deriver 内 speedv/speedvp 未外泄的三处活代码——updateSpeed 尾部
-    /// IASv/IASvp/TASv 写回、updateTurn 的 horizontalLoad (L821-826)、updateSEP 尾部
-    /// energyJKg/energyM (L1024-1025); 消费方 formatDataAsStrings/HUDCalculator 同在
-    /// 计算方法区波次, 届时一并接线
     fn calculate(&mut self) {
         // R1 周期快照（P3 迁移核心规则）: 整个 calculate 链路共用开头取到的一次 FM 句柄,
         // 并以参数下传给所有依赖 FM 的子方法 —— 保证单周期内全部 FM 派生量来自同一
@@ -798,7 +735,6 @@ impl Service {
         let fm = self.fm_manager.current();
 
         // 获得开始时间
-        // Java: elapsedTime = currentTimeMs - startTime;
         let actual_interval_ms;
         {
             let mut d = write_data(&self.data);
@@ -851,7 +787,6 @@ impl Service {
             // nVy ← vario (updateClimbRate 的 indic 优先回退)
             d.n_vy = n_vy;
 
-            // Java: updateCompass (L1101-1113)
             // 如果有仪表罗盘，读取仪表罗表盘数据
             if indic_compass != F_INVALID {
                 d.compass_delta = indic_compass;
@@ -866,7 +801,6 @@ impl Service {
                 }
             }
 
-            // Java: updateAlt (L739-775) —— 获得准确高度, 需依赖 Vy 因此位于爬升率后
             // altp = alt; alt = sState.heightm;
             d.altp = d.alt;
             d.alt = heightm;
@@ -900,9 +834,7 @@ impl Service {
                 d.radio_alt = d.alt;
                 } else {
                 if d.check_alt > 0 {
-                    // radioAlt = sIndic.radio_altitude * 0.3048f —— float 字面量
-                    // 先扩为 double 再乘 (§2.12: 0.3048f32 as f64 ≠ 0.3048)
-                    d.radio_alt = radio_alt_raw * (0.3048f32 as f64);
+                    d.radio_alt = radio_alt_raw * 0.3048;
                 } else {
                     d.radio_alt = radio_alt_raw;
                 }
@@ -913,7 +845,6 @@ impl Service {
 
             // PORT(speedv/speedvp 不写回): 状态主在 Deriver 内部且 FlightValues
             // 未外泄——加油检测分支本波次恒死 (见 process_polling_cycle 注),
-            // TODO(port): 计算方法区波次裁决外泄或迁移
         }
 
         // 公式系统步 (W2: 提前至 updateEngineState 前 — speedv 等 HP 有效功率
@@ -1005,25 +936,23 @@ impl Service {
         // 单一写锁临界区: fuelTimeSMA 的 addNewData 需 &mut (状态量更新), 临界区内
         // 仅纯内存计算无 IO/回调 (Java 本方法无锁直写, §2.8 锁粒度等价收紧)
         let mut d = write_data(&self.data);
-        // Java: fuelDelta = (totalFuelPrev - totalFuel) / dtime — double/int
         let fuel_delta = (d.total_fuel_prev - d.total_fuel) / dtime as f64;
         if fuel_delta > 0.0 {
             d.fuelchange_time = d.last_main_loop_time_ms - d.fuel_lastchange_mili;
             d.fuel_lastchange_mili = d.last_main_loop_time_ms;
-            d.fuel_change = d.total_fuel_prev - d.total_fuel; // 改变1公斤花了多长时间 (Java 注释原文)
+            d.fuel_change = d.total_fuel_prev - d.total_fuel; // 改变1公斤花了多长时间
 
             // fuelTimeSMA 的真人在 ServiceData 侧 (状态双主边界: 仅构造的
             // 三个 SMA 归 ServiceData, resetvaria 恒建 Some)
             let mut sma = d.fuel_time_sma.take().unwrap();
             if !d.low_acc_fuel {
-                // 改用滑动平均 (Java 注释原文)
+                // 改用滑动平均
                 d.fueltime = sma.add_new_data(d.total_fuel / fuel_delta) as i64;
             } else {
-                // /* 已知油量不可能递增，考虑计算精度问题导致油量增多，因此取两者间最小值 */ (Java 注释原文)
+                // /* 已知油量不可能递增，考虑计算精度问题导致油量增多，因此取两者间最小值 */
                 let tmpft =
                     sma.add_new_data(d.total_fuel * d.fuelchange_time as f64 / d.fuel_change) as i64;
                 if d.fueltime > 0 {
-                    // Java: fueltime < tmpft ? fueltime : tmpft
                     d.fueltime = if d.fueltime < tmpft { d.fueltime } else { tmpft };
                 } else {
                     d.fueltime = tmpft;
@@ -1031,7 +960,7 @@ impl Service {
             }
             d.fuel_time_sma = Some(sma);
         } else {
-            // 没有变化，使用上次 (Java 注释原文)
+            // 没有变化，使用上次
             if d.fuel_change == 0.0 {
                 d.fueltime = 0;
             } else {
@@ -1065,10 +994,9 @@ impl Service {
             let mut wep_time = d.wep_time;
             let n = s.engine_num;
             for i in 0..n as usize {
-                // Java: sState.throttles[i] 越界 (engineNum > throttles 长度) 抛
                 // AIOOBE → run 顶层 catch; 索引 panic 同收敛 (保真)
                 if s.throttles[i] > 100 {
-                    // 进入Wep状态 (Java 注释原文)
+                    // 进入Wep状态
                     wep_time += d.poll_cycle_duration_ms;
                     nitro_eng_nr += 1;
                 }
@@ -1080,7 +1008,7 @@ impl Service {
         d.engine_num = n;
         d.nitro_eng_nr = nitro_eng_nr;
         d.wep_time = wep_time;
-        // R2 守卫: 无 FM 时 blkx=null, nitrokg 归 0（显示 "-"）(Java 注释原文)
+        // R2 守卫: 无 FM 时 blkx=null, nitrokg 归 0（显示 "-"）
         d.nitrokg = if let Some(blkx) = fm.blkx.as_ref() {
             let v = blkx.nitro - (d.wep_time as f64 * d.nitro_consump) / 1000.0;
             if v < 0.0 { 0.0 } else { v }
@@ -1128,7 +1056,7 @@ impl Service {
     /// 对应 Java `public void checkEngineJet()` (L484-514) — 磁电机/桨距投票
     /// 状态机 (~5 秒收敛), 置 iEngType + checkEngineFlag。
     fn check_engine_jet(&mut self) {
-        // TODO:自适应方式获得,由磁电机判断. 只有活塞才有磁电机 (Java 注释原文)
+        // TODO:自适应方式获得,由磁电机判断. 只有活塞才有磁电机
         let mut d = write_data(&self.data);
         if !d.check_engine_flag {
             // 输入快照先行 (s 的不可变借用与 d 的字段写互斥, 拆两段)
@@ -1141,7 +1069,6 @@ impl Service {
             } else {
                 d.check_engine_type += 1;
             }
-            // Java: sState.pitch[0] — 空 Vec 索引 AIOOBE → run 顶层 catch (保真)
             if pitch0 != -65535.0 {
                 d.check_pitch += 1;
             } else {
@@ -1180,7 +1107,7 @@ impl Service {
             let s = d.s_state.as_ref().unwrap();
             let engine_num = d.engine_num as usize;
             if !is_jet {
-                // 活塞机或者涡浆机 (Java 注释原文)
+                // 活塞机或者涡浆机
                 let mut ttotalhp = 0.0f64;
                 let mut ttotalhpeff = 0.0f64;
                 let mut ttotalthr = 0.0f64;
@@ -1189,11 +1116,9 @@ impl Service {
                     ttotalhp += s.power[i];
                     ttotalhpeff += s.thrust[i] as f64 * G * speedv / 735.0;
                 }
-                // Java: (int) 截断向零 ↔ as i32 (§2.2)
                 let total_hp = ttotalhp as i32;
                 let total_hp_eff = ttotalhpeff as i32;
                 let total_thrust = ttotalthr as i32;
-                // Java: (double) 100 * ... int 提升回 double
                 let avgeff = if total_hp != 0 {
                     100.0 * total_hp_eff as f64 / total_hp as f64
                 } else {
@@ -1201,7 +1126,7 @@ impl Service {
                 };
                 (is_jet, total_hp, total_hp_eff, total_thrust, avgeff)
             } else {
-                // 喷气机 (Java 注释原文)
+                // 喷气机
                 let mut ttotalthr = 0.0f64;
                 for i in 0..engine_num {
                     ttotalthr += s.thrust[i] as f64;
@@ -1220,7 +1145,6 @@ impl Service {
             d.avgeff = avgeff;
 
             let throttle = d.s_state.as_ref().unwrap().throttle;
-            // Java: maxTotalThr = (int)(ratio_1*maxTotalThr + ratio*totalThrust) —
             // int 提升 double 运算后 (int) 截断
             if d.max_total_thr < total_thrust && throttle >= 100 {
                 d.max_total_thr =
@@ -1238,15 +1162,15 @@ impl Service {
             let peak = if fm.blkx.is_some() { fm.peak_thrust } else { 0.0 };
 
             if is_jet {
-                // Jet: current thrust / peak afterburner thrust (Java 注释原文)
+                // Jet: current thrust / peak afterburner thrust
                 if peak > 0.0 {
                     d.thurst_percent = 100.0 * total_thrust as f64 / peak;
                 } else if d.max_total_thr != 0 {
-                    // Fallback to old algorithm (Java 注释原文)
+                    // Fallback to old algorithm
                     d.thurst_percent = 100.0 * total_thrust as f64 / d.max_total_thr as f64;
                 }
             } else {
-                // Piston: current power / peak WEP power (Java 注释原文)
+                // Piston: current power / peak WEP power
                 if peak_power > 0.0 {
                     d.thurst_percent = 100.0 * total_hp as f64 / peak_power;
                 } else if d.max_total_hp != 0 {
@@ -1254,10 +1178,9 @@ impl Service {
                 }
             }
 
-            // Java: ... * 1000.0f / actualIntervalMs — 1000.0f float 字面量提升 (§2.12)
             let interval = d.actual_interval_ms;
             d.t_eng_response = (d.ratio_1 * d.t_eng_response)
-                + d.ratio * (d.thurst_percent - d.p_thurst_percent) * (1000.0f32 as f64)
+                + d.ratio * (d.thurst_percent - d.p_thurst_percent) * 1000.0
                 / interval as f64;
         }
     }
@@ -1271,18 +1194,13 @@ impl Service {
             let mut total_fuel = 0.0f64;
             let mut low_acc_fuel = false;
             if i.fuelnum != 0 {
-                /* 修复su-27油箱显示不正确的问题 (Java 注释原文) */
-                // Java: for (i = 0; i < 1; i++) — 循环上界写死 1 (只累加 fuel[0],
-                // 注释掉的 fuelnum 上限是旧逻辑), 保真直译
-                for k in 0..1 {
-                    total_fuel += i.fuel[k];
-                }
+                /* 修复su-27油箱显示不正确的问题: 只取 fuel[0] */
+                total_fuel += i.fuel[0];
             }
             if total_fuel == 0.0 {
                 low_acc_fuel = true;
                 total_fuel = s.mfuel;
             }
-            // Java: (int) (100 * totalFuel / sState.mfuel0) — double 除法截断
             let fuel_percent = (100.0 * total_fuel / s.mfuel0) as i32;
             (total_fuel, low_acc_fuel, fuel_percent)
         };
@@ -1291,7 +1209,6 @@ impl Service {
         d.low_acc_fuel = low_acc_fuel;
         d.fuel_percent = fuel_percent;
         // Java updateFuel 尾部未回写 totalFuelPrev (slowcalculate 的差分输入),
-        // totalFuelPrev 写点在 slowcalculate (TODO(port) 慢计算波次)
     }
 
     // ------------------------------------------------------------------
@@ -1311,10 +1228,8 @@ impl Service {
         // 持共享 ServiceData guard 现取, 不再装箱逐字段快照。
         let payload = {
             let d = read_data(&self.data);
-            // Java: if (loc != null && mapinfo != null) { … } else mapGrid = "--";
             let map_grid = match (&d.loc, &d.mapinfo) {
                 (Some(loc), Some(mi)) => {
-                    // Java: char map_x = (char) ('A' + (loc[1] * mapinfo.mapStage) + mapinfo.inGameOffset);
                     let xf = ('A' as u32) as f64 + (loc[1] * mi.map_stage) + mi.in_game_offset;
                     let map_x = char::from_u32(xf as i32 as u16 as u32).unwrap_or('\u{FFFD}');
                     let map_y = (loc[0] * mi.map_stage + mi.in_game_offset + 1.0) as i32;
@@ -1325,12 +1240,11 @@ impl Service {
 
             EventPayload::builder()
                 .map_grid(map_grid)
-                .fatal_warn(d.fatal_warn.unwrap())
+                .fatal_warn(d.fatal_warn)
                 // W-C: 直读公式槽 (is_downing_flap 公式)
                 .is_downing_flap(d.var_value("is_downing_flap").unwrap_or(0.0) != 0.0)
                 // 批2: fueltime 文本现算 (镜像字段已拆)
                 .time_str(format_fueltime(d.fueltime))
-                // Java: isJet(iEngType == ENGINE_TYPE_JET)
                 .is_jet(d.i_eng_type == ENGINE_TYPE_JET)
                 .engine_check_done(d.check_engine_flag)
                 .optimal_compressor_stage(d.optimal_compressor_stage)
@@ -1397,11 +1311,9 @@ pub fn flight_log_snapshot(d: &ServiceData) -> FlightLogSnapshot {
         oiltemp: format::java_f(d.noil_temp, 0),
         vy: format::java_f(d.n_vy, 1),
         s_sep: format::java_f(sep_rounded, 0),
-        // Java: xs.sState.Ny (State.java:27)
         ny: st.map(|s| s.ny).unwrap_or(0.0),
         wx: col(&|s| format::java_f(s.wx.abs(), 0)),
         total_hp_str: if d.total_hp == 0 { na.to_string() } else { d.total_hp.to_string() },
-        // Java: xs.efficiency[0] — 数组/元素 null 时拼接产出 "null"
         efficiency_0: st.map_or_else(
             || "null".to_string(),
             |s| {
@@ -1457,7 +1369,6 @@ pub fn flight_log_snapshot(d: &ServiceData) -> FlightLogSnapshot {
         ias_v: st.map(|s| s.ias as f64).unwrap_or(0.0),
         sep,
         state_wx: st.map(|s| s.wx).unwrap_or(0.0),
-        // Java: init 读 `s.sIndic.type`; sIndic 存在而 type 键缺失 → null →
         // toUpperCase() NPE (Java 崩 openpad 线程), Rust 以空串降级 (PORT 备案:
         // 常态不可达 — 换机/开局时 type 必在; 崩线程无观察面)
         indic_type: d

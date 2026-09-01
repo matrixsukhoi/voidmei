@@ -116,7 +116,6 @@ impl UIStateBus {
     where
         F: FnMut(&UiStateEvent) + Send + 'static,
     {
-        // Java: subscribers.computeIfAbsent(eventType, k -> new CopyOnWriteArrayList<>()).add(handler);
         // 写锁覆盖登记全程 (锁内无回调执行, EventBus::subscribe 只压 Weak, §2.8 安全);
         // 此写法顺带免除了 Java 版 "computeIfAbsent 与并发 clear 间让 handler
         // 落入孤儿表" 的窗口 (不可观察差异, 因 clear() 全库无调用方)。
@@ -143,7 +142,6 @@ impl UIStateBus {
         let mut handler = handler;
         let sub = bus.subscribe(move |msg: &UiStateEvent| {
             if let Err(payload) = catch_unwind(AssertUnwindSafe(|| handler(msg))) {
-                // Java: prog.util.Logger.error("UIStateBus", "Error in handler for "
                 // + eventType + ": " + e.getMessage());
                 logger::error(
                     "UIStateBus",
@@ -156,7 +154,6 @@ impl UIStateBus {
             }
         });
 
-        // Java: prog.util.Logger.event("SUBSCRIBE", eventType, handler, null);
         // PORT: source 位 Java 反射取 handler 类简单名 (匿名类如 Controller$$Lambda),
         // Rust 闭包无名且禁引反射 (§1) → None (日志渲染 "Unknown")
         logger::event("SUBSCRIBE", event_type, None, None);
@@ -173,18 +170,15 @@ impl UIStateBus {
     /// 其依赖的 '键不存在则跳过日志' 分支在此仍成立, 但 '错配键 = 无操作'
     /// 不成立 (退订总会发生)。
     pub fn unsubscribe(&self, event_type: &str, handler: Subscription<UiStateEvent>) {
-        // Java: List<Consumer<Object>> handlers = subscribers.get(eventType);
         //       if (handlers != null) { ... }
         let known = self
             .map
             .read()
             .expect(MAP_LOCK_MSG)
             .contains_key(event_type);
-        // Java: handlers.remove(handler); — Drop 即注销, 键保留 (Java 清空后的
         // 空 List 也留在 map 里, 永不移除键)
         drop(handler);
         if known {
-            // Java: prog.util.Logger.event("UNSUBSCRIBE", eventType, handler, null);
             logger::event("UNSUBSCRIBE", event_type, None, None);
         }
     }
@@ -198,7 +192,6 @@ impl UIStateBus {
     /// 返回送达数 (bus.rs 诊断扩展; Java void)。同步派发: 调用线程 =
     /// 发布线程逐个执行订阅方代码 (对齐 Java)。
     pub fn publish(&self, event_type: &str, source: Option<&str>, data: Option<&str>) -> usize {
-        // Java: prog.util.Logger.event("PUBLISH", eventType, source, data);
         // PORT(日志渲染分歧备案): Java Logger.event 用 source.getClass()
         // .getSimpleName(), 调用方传 String source 的点 (ConfigurationService
         // .java:65/82/295/322/361, DynamicDataPage.java:149/252,
@@ -208,7 +201,6 @@ impl UIStateBus {
         // 翻译上述调用方时须知此偏差。
         logger::event("PUBLISH", event_type, source, data);
 
-        // Java: List<Consumer<Object>> handlers = subscribers.get(eventType);
         // 持读锁只做查表克隆随即放锁 — 回调在锁外执行 (§2.8: handler 重入
         // subscribe/clear/跨类型 publish 不死锁; 同类型嵌套 publish 死锁,
         // 见模块文档 PORT 标注); 迭代快照语义由 bus.rs publish 的升级快照
@@ -219,7 +211,6 @@ impl UIStateBus {
             .expect(MAP_LOCK_MSG)
             .get(event_type)
             .cloned();
-        // Java: if (handlers != null) { for (Consumer<Object> handler : handlers) {...} }
         match bus {
             Some(bus) => {
                 // Java 循环体内被注释掉的调试行 (逐字保留):
@@ -231,7 +222,6 @@ impl UIStateBus {
                     data: data.map(|d| d.to_string()),
                 })
             }
-            // Java: handlers == null → 无订阅者, 静默无调用
             None => 0,
         }
     }
@@ -249,7 +239,6 @@ impl UIStateBus {
     /// 旧总线整体丢弃: 在途回调持快照不受影响 (对位 Java COW 迭代中 clear
     /// 不影响本轮), 之后所有发布送达 0。Java 全库无调用方 (LIFETIMES 审查 #10)。
     pub fn clear(&self) {
-        // Java: subscribers.clear();
         self.map.write().expect(MAP_LOCK_MSG).clear();
     }
 }

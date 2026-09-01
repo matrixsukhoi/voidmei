@@ -87,7 +87,6 @@ pub fn initialize() -> Vec<GroupConfig> {
     let stored_hash = ui_state_load_template_hash();
 
     // Hash matches - no merge needed
-    // Java: currentTemplateHash != null && currentTemplateHash.equals(storedHash)
     // (equals(null) 恒 false ↔ Option 双 Some 匹配)
     if let (Some(cur), Some(stored)) = (&current_template_hash, &stored_hash) {
         if cur == stored {
@@ -123,20 +122,17 @@ pub fn initialize() -> Vec<GroupConfig> {
 /// @param filePath Path to the file
 /// @return Hex string of the MD5 hash, or null on error
 fn calculate_file_hash(file_path: &str) -> Option<String> {
-    // Java: try { MessageDigest.getInstance("MD5") ... } catch (Exception e) { log; return null; }
     // (getInstance 对 MD5 不抛 NoSuchAlgorithmException — 必支持算法; 读文件 IO 是唯一异常面)
     match fs::read(file_path) {
         Ok(content) => {
             let hash = md5_digest(&content);
             let mut sb = String::new();
             for b in hash {
-                // Java: String.format("%02x", b) — byte 按无符号两位小写 hex
                 sb.push_str(&format!("{b:02x}"));
             }
             Some(sb)
         }
         Err(e) => {
-            // Java: e.getMessage() ↔ io::Error Display (可观测意图等价, 框架先例 print_java_exception)
             logger::error("ConfigManager", &format!("Failed to calculate file hash: {e}"));
             None
         }
@@ -313,7 +309,6 @@ fn merge_row(
     panel_title: &str,
     report: Option<&mut MergeReport>,
 ) -> RowConfig {
-    // Java: new RowConfig(template.label, template.formula, template.format)
     let mut merged = RowConfig::new(
         template.label.clone(),
         template.formula.clone(),
@@ -369,7 +364,6 @@ pub fn create_backup() {
     let backup_file = Path::new(BACKUP_PATH);
 
     if user_file.exists() {
-        // Java: Files.copy(..., REPLACE_EXISTING) ↔ fs::copy (存在即覆盖)
         match fs::copy(user_file, backup_file) {
             Ok(_) => {
                 logger::info("ConfigManager", &format!("Created backup: {BACKUP_PATH}"));
@@ -432,7 +426,6 @@ pub fn reset_to_factory() -> bool {
         return false;
     }
 
-    // Java: Files.copy(..., REPLACE_EXISTING) 抛 IOException → catch → log + false
     match fs::copy(template_file, user_file) {
         Ok(_) => {
             logger::info("ConfigManager", "Config reset to factory defaults");
@@ -725,7 +718,6 @@ fn ui_state_config_dir() -> PathBuf {
         return d.clone();
     }
 
-    // Java: System.getProperty("user.home") — 桩以 USERPROFILE/HOME 近似, 缺省 "."
     let user_home = || -> String {
         let v = if cfg!(windows) { env::var("USERPROFILE") } else { env::var("HOME") };
         v.unwrap_or_else(|_| ".".to_string())
@@ -758,7 +750,7 @@ fn ui_state_config_dir() -> PathBuf {
 fn ui_state_config_file() -> PathBuf {
     let dir = ui_state_config_dir();
     if !dir.exists() {
-        let _ = fs::create_dir_all(&dir); // Java dir.mkdirs() 返回值被忽略
+        let _ = fs::create_dir_all(&dir);
     }
     dir.join(UI_STATE_FILE)
 }
@@ -910,7 +902,6 @@ fn ui_state_escape_store(s: &str) -> String {
 fn ui_state_load_template_hash() -> Option<String> {
     let file = ui_state_config_file();
     if file.exists() {
-        // Java: FileInputStream/Properties.load 均在 try 内 — 读失败走
         // catch(Exception) → Logger.info("UIStateStorage", ...) 后返回 null
         match ui_state_read_properties(&file) {
             Ok(entries) => {
@@ -959,7 +950,6 @@ fn ui_state_save_template_hash(hash: Option<&str>) {
             ui_state_escape_store(v)
         ));
     }
-    // Java: store 失败 catch(IOException) → Logger.info 后吞
     if let Err(e) = fs::write(&file, out) {
         logger::info("UIStateStorage", &format!("Failed to save template hash: {e}"));
     }

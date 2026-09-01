@@ -146,7 +146,6 @@ fn completable_future_get_blocks_until_completed() {
 
 #[test]
 fn completable_future_get_interrupted_when_stop_pre_set() {
-    // Java: 中断位已置位时 get() 立即抛 InterruptedException
     let cf = CompletableFuture::new();
     let stop = AtomicBool::new(true);
     let t0 = std::time::Instant::now();

@@ -306,7 +306,6 @@ impl FMManager {
 		self.inner.negative_cache.lock().expect(LOCK_MSG).clear();
 		self.inner.last_attempt_ms.lock().expect(LOCK_MSG).clear();
 		self.inner.in_flight.store(0, Ordering::SeqCst);
-		// Java: loader.shutdownNow() —— 排队任务作废 (世代号 +1, 任务执行时自查),
 		// 运行中任务不可中断、跑完 (Java interrupt 对磁盘解析同样无效); 世代推进与
 		// 通道换新同在 loader 锁内, 与 submit_load 的 "取号+取发送端" 互斥 —— 保证
 		// 旧世代任务必落旧通道被丢弃, 换代后提交的任务带新世代正常执行
@@ -417,7 +416,6 @@ fn run_load_job(inner: Arc<Inner>, target_name: String, epoch: u64) {
 	if inner.loader_epoch.load(Ordering::SeqCst) != epoch {
 		return;
 	}
-	// Java: try { ... } finally { inFlight.decrementAndGet(); }
 	// PORT: finally 的 "含早退 return 与 panic 双路径必执行" 语义由 Drop guard
 	// 承接 (§1 finally→Drop 映射)
 	struct InFlightDecrement<'a>(&'a AtomicI32);

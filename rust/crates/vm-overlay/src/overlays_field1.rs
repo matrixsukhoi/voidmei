@@ -451,7 +451,7 @@ impl MarkedGauge {
     ) {
         let pix_val = self.pix_value(length);
         let text_width = self.value_width(font_value);
-        let label_spacing = 2; // Java :222
+        let label_spacing = 2;
         let bar_x = x + text_width + label_spacing; // 文本左, 条右
         let style = self.bar_style;
 
@@ -612,7 +612,6 @@ impl MarkedGauge {
             MarkerType::TickLabeled => {
                 butt_line(cv, bar_x, marker_y, bar_x + thickness, marker_y,
                     style.stroke_width, m.color, aa);
-                // Java: m.label != null && tickFont != null 才画 (条右侧)
                 if let Some(f) = tick_font {
                     if !m.label.is_empty() {
                         text_shaded(cv, f, bar_x + thickness + 4, marker_y + 4,
@@ -672,7 +671,6 @@ impl MarkedGauge {
             MarkerType::TickLabeled => {
                 butt_line(cv, marker_x, bar_y, marker_x, bar_y + thickness,
                     style.stroke_width, m.color, aa);
-                // Java: markerX+4, barY+thickness+tickFont.getSize()
                 if let Some(f) = tick_font {
                     if !m.label.is_empty() {
                         text_shaded(cv, f, marker_x + 4,
@@ -772,7 +770,7 @@ impl PowerInfoState {
             })
             .collect();
         PowerInfoState {
-            last_refresh_time: 0, // Java :39 隐式 0 初始化 (§2.10)
+            last_refresh_time: 0,
             defs,
             fields,
         }
@@ -1146,8 +1144,8 @@ impl EngineControlState {
             width,
             height,
             row_num,
-            refresh_interval: ENGINE_DEFAULT_REFRESH_MS, // Java :61 字段初始 DEFAULT_REFRESH_INTERVAL
-            last_refresh_time: 0, // Java :62 隐式 0 初始化 (§2.10)
+            refresh_interval: ENGINE_DEFAULT_REFRESH_MS,
+            last_refresh_time: 0,
             gauges,
             is_jet: false,
             jet_label_updated: false,
@@ -1339,7 +1337,7 @@ impl EngineControlState {
                 }
                 GaugeType::Compressor => {
                     val = s.var_value("compressor_stage").unwrap_or(0.0);
-                    let stage = val as i32; // Java (int) 截断
+                    let stage = val as i32;
                     g.visible = stage > 0;
                     if stage > 0 {
                         // 显示 1 基档号, 条用 0 基值
@@ -1515,10 +1513,10 @@ impl GearFlapsState {
         let height = 5 * font_size;
         // 初始 (预览) 襟翼 50%
         let flap_pix = bar_height * 50 / 100;
-        let flap_text = format!("{:>3}", 50); // Java String.format("%3d", 50)
+        let flap_text = format!("{:>3}", 50);
         let sw = if show_edge { 10 } else { 0 };
         GearFlapsState {
-            last_refresh_time: 0, // Java :30 隐式 0 初始化 (§2.10)
+            last_refresh_time: 0,
             font_size,
             bar_width,
             bar_height,
@@ -1574,7 +1572,7 @@ impl GearFlapsState {
             self.flap_pix = 0;
             flaps = 0;
         }
-        self.flap_text = format!("{:>3}", flaps); // Java String.format("%3d", flaps)
+        self.flap_text = format!("{:>3}", flaps);
         true
     }
 

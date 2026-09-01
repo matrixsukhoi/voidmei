@@ -29,7 +29,6 @@ impl ComparisonRule for MultiListIndexRule {
             return None;
         }
 
-        // Java: try { ... } catch (Exception e) { // ignore } — 本体为纯扫描,
         // 与 Java 一致无异常路径, 末尾统一 return null。
         // Find all lists
         let lists = super::find_all_bracket_lists(raw_value);

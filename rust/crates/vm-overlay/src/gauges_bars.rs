@@ -232,7 +232,7 @@ impl LinearGauge {
             vertical,
             tick_on_right,
             value_color: None,
-            length_cache: 100, // Java:79-80 默认
+            length_cache: 100,
             thickness_cache: 10,
             dirty: true,
         }
@@ -366,7 +366,7 @@ impl LinearGauge {
         if self.vertical {
             // (x,y) = 组合区域左上 (Java:133)
             let text_width = font_num.measure(&self.display_value);
-            let label_spacing = 2; // Java:135
+            let label_spacing = 2;
 
             // PORT: Java:139 分隔线 y = 底 - 1 - pixVal
             // (极端 curValue 下 i32 加减 Java 静默回绕 / Rust panic §2.2, 不可达, 备查)
@@ -481,7 +481,7 @@ impl LabeledLinearGauge {
         } else {
             // PORT: Java:57-85 横向修正版
             let pix_val = g.pix_value(length);
-            let c = colors().num; // Java:64 恒 colorNum (忽略 valueColor)
+            let c = colors().num;
             let shade_shadow = colors().shade_shape;
 
             // 1. 条背景+边框 (Java:68; drawBarFixed 横向分支与基类横向 drawBar 一致)
@@ -539,7 +539,7 @@ fn clamp01(v: f64) -> f64 {
 impl SpeedRatioBar {
     pub fn new() -> Self {
         SpeedRatioBar {
-            width: 10, // Java:26-27 默认
+            width: 10,
             height: 100,
             speed_ratio: 0.0,
             stall_ratio: 0.0,
@@ -653,7 +653,7 @@ impl SpeedRatioBar {
         if stall_h > 0 {
             let mut stall_w = w / 2;
             if stall_w < 2 {
-                stall_w = 2; // Java:166-167 最小宽保护
+                stall_w = 2;
             }
             cv.fill_rect(x + w - stall_w, y + h - stall_h, stall_w, stall_h, colors().warning);
         }
@@ -723,8 +723,8 @@ impl FlapAngleBar {
             total_width: 0,
             bar_height: 0,
             current_angle: 0.0,
-            max_safe_angle: 100.0,      // Java:37
-            display_text: "  0/100".to_string(), // Java:38
+            max_safe_angle: 100.0,     
+            display_text: "  0/100".to_string(),
             dirty: true,
         }
     }

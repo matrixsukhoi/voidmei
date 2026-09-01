@@ -113,7 +113,7 @@ fn akb_row_bar_and_text_geometry() {
     row.draw(&mut cv, x, y, &f, &sf, false);
 
     let ascent = f.metrics().ascent;
-    let liney = y + ascent + 1; // Java:87 liney = baseY + 1
+    let liney = y + ascent + 1;
     // 环 (shade): 上边行 liney / 下边行 liney+4, 列 x+30..x+59
     assert_eq!(a(&cv, x + 30, liney), 42, "条环上边 shade");
     assert_eq!(a(&cv, x + 59, liney), 42, "条环上边右端");

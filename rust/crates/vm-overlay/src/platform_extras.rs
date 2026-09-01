@@ -426,7 +426,6 @@ mod win {
         if ok.is_err() {
             return None;
         }
-        // Java: new String(buffer, 0, size) — UTF-16 → String
         // PORT: Java String(char[]) 对未配对代理原样保留 (无 U+FFFD 替换),
         // from_utf16_lossy 则替换为 U+FFFD — 存在串级分歧, 但两侧结果都不可能
         // 等于 "aces.exe", 比对布尔不变 (真实进程路径为合法 UTF-16, 分歧不可达)
@@ -456,8 +455,8 @@ mod win {
         /// AudioInputStream 的开关生命周期 (trait 文档注) 在本腿无对应物 —
         /// PlaySound 直接按路径播文件, open 时仅读头校验, 流即读即弃。
         fn open_clip(&self, path: &Path) -> Result<Box<dyn SoundClip>, SoundError> {
-            let bytes = std::fs::read(path)?; // Java IOException 面
-            let duration_secs = parse_wav_duration(&bytes)?; // Java UnsupportedAudioFileException 面
+            let bytes = std::fs::read(path)?;
+            let duration_secs = parse_wav_duration(&bytes)?;
             Ok(Box::new(WinMmClip {
                 path_wide: path_as_wide(path),
                 duration_secs,
@@ -528,7 +527,6 @@ mod win {
         /// Java: `clip.start()` — 非阻塞; SND_ASYNC 同为即发即忘。
         /// SND_NODEFAULT: 文件不可播时禁掉系统默认提示音 (Java 失败路径无声)。
         fn start(&self) {
-            // Java: 已 close 的 line 上 start() 抛 IllegalStateException →
             // playOnce 的 catch 吞掉 → debug 日志无声跳过; closed 守卫恢复该语义
             if self.closed.load(Ordering::SeqCst) {
                 logger::debug("VoiceAlert", "PlaySoundW 播放失败: line closed");
@@ -548,7 +546,6 @@ mod win {
                 *self.start_at.lock().unwrap() = Some(Instant::now());
                 self.playing.store(true, Ordering::SeqCst);
             } else {
-                // Java: start() 抛异常被 playOnce 的 catch 吞 → debug 日志
                 // ("播放失败: {key} - {msg}", key 属 VoiceAlert 层上下文,
                 // clip 层不可得); trait 无 Result 返回面, 就地落同语义 debug
                 // 日志, 拼 GetLastError 便于现场排障 (PlaySoundW 返回 BOOL,

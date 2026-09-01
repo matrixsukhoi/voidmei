@@ -14,12 +14,9 @@
 pub fn get_filelist_name_no_ex<'a>(list: Option<&'a [Option<&'a str>]>) -> Vec<Option<&'a str>> {
     let list = match list {
         Some(l) => l,
-        // Java: if (list == null) return new String[0];
         None => return Vec::new(),
     };
-    // Java: String[] a = new String[list.length];
     let mut a: Vec<Option<&str>> = Vec::with_capacity(list.len());
-    // Java: for (int i = 0; i < list.length; i++) a[i] = getFileNameNoEx(list[i]);
     for item in list {
         a.push(get_file_name_no_ex(*item));
     }
@@ -29,21 +26,17 @@ pub fn get_filelist_name_no_ex<'a>(list: Option<&'a [Option<&'a str>]>) -> Vec<O
 /// 对应 Java `getFileNameNoEx(String filename)`:
 /// 截掉最后一个 '.' 及其后的部分; null/空串/无点时原样返回。
 pub fn get_file_name_no_ex(filename: Option<&str>) -> Option<&str> {
-    // Java: if ((filename != null) && (filename.length() > 0))
     if let Some(filename) = filename {
         if !filename.is_empty() {
-            // Java: int dot = filename.lastIndexOf('.');
             if let Some(dot) = filename.rfind('.') {
-                // Java: if ((dot > -1) && (dot < (filename.length()))) —
                 // rfind 命中即等价 dot > -1; 命中索引必 < len (两语言下均恒真), 保真保留
                 if dot < filename.len() {
-                    // Java: return filename.substring(0, dot);
                     return Some(&filename[..dot]);
                 }
             }
         }
     }
-    filename // Java: return filename; — null/空串/无点原样返回
+    filename
 }
 
 #[cfg(test)]

@@ -38,18 +38,16 @@ pub fn get_string_builder(r: &str, s: &str, buf: &mut [u8], buflen: usize) {
     let mut bix;
     let mut eix;
     match r.rfind(s) {
-        Some(i) => bix = i, // Java: bix = R.lastIndexOf(S);
-        None => return,     // Java: bix < 0 → 整块跳过, buf 原样
+        Some(i) => bix = i,
+        None => return,    
     }
     eix = bix;
     // while (eix < R.length() && R.charAt(eix) != ':') eix++;
     while eix < r.len() && r.as_bytes()[eix] != b':' {
         eix += char_len_at(r, eix);
     }
-    // Java: eix++ — 无条件 +1 (':' 为 ASCII, +1 字节 = +1 码元);
     // 扫不到 ':' 时会越过串尾, 后续取子串 Java 抛异常 ↔ Rust panic
     eix += 1;
-    // Java: bix = eix + 1 — 跳过 ':' 后 1 个码元 (域内为 ASCII 空格/引号)。
     // PORT: 越界分支的 eix + 1 对齐 Java 的越界量, 保持 panic 路径
     bix = if eix < r.len() { eix + char_len_at(r, eix) } else { eix + 1 };
     // while (eix < R.length() && R.charAt(eix) != ',' && R.charAt(eix) != '}') eix++;
@@ -57,7 +55,6 @@ pub fn get_string_builder(r: &str, s: &str, buf: &mut [u8], buflen: usize) {
         eix += char_len_at(r, eix);
     }
 
-    // Java: R.getChars(bix, eix, buf, buflen);
     let src = &r[bix..eix]; // bix > eix → panic ≈ Java srcBegin > srcEnd 异常
     buf[buflen..buflen + src.len()].copy_from_slice(src.as_bytes());
 }
@@ -68,17 +65,14 @@ pub fn get_string_builder(r: &str, s: &str, buf: &mut [u8], buflen: usize) {
 pub fn get_string<'a>(r: &'a str, s: &str) -> Option<&'a str> {
     let mut bix;
     let mut eix;
-    // Java: bix = R.indexOf(S); bix < 0 → return null
     bix = r.find(s)?;
     eix = bix;
     // while (eix < R.length() && R.charAt(eix) != ':') eix++;
     while eix < r.len() && r.as_bytes()[eix] != b':' {
         eix += char_len_at(r, eix);
     }
-    // Java: eix++ — 无条件 +1 (':' 为 ASCII, +1 字节 = +1 码元);
     // 扫不到 ':' 时越过串尾, substring 抛异常 ↔ Rust 切片 panic
     eix += 1;
-    // Java: bix = eix + 1 — 跳过 ':' 后 1 个码元 (域内为 ASCII 空格/引号)。
     // PORT: 值首字符为代理对时 Java 只跳高半码元 (得含孤立代理的坏串),
     // Rust 跳整字符 — 域内 (JSON 值首字符为 '"' 或数字) 不出现
     bix = if eix < r.len() { eix + char_len_at(r, eix) } else { eix + 1 };
@@ -87,7 +81,7 @@ pub fn get_string<'a>(r: &'a str, s: &str) -> Option<&'a str> {
         eix += char_len_at(r, eix);
     }
 
-    Some(&r[bix..eix]) // Java: R.substring(bix, eix); 越界异常 ↔ panic
+    Some(&r[bix..eix])
 }
 
 /// 对应 Java `getDataFloatC(CharSequence cs)`: null → fInvalid;
@@ -107,7 +101,7 @@ pub fn get_string<'a>(r: &'a str, s: &str) -> Option<&'a str> {
 /// 'NaN'/'Infinity', oracle 实测 'inf' 抛 NumberFormatException)。
 pub fn get_data_float_c(cs: Option<&str>) -> f64 {
     if let Some(cs) = cs {
-        cs.trim().parse::<f32>().unwrap() as f64 // Java: Float.parseFloat(cs.toString()) (parseFloat 隐含 trim)
+        cs.trim().parse::<f32>().unwrap() as f64
     } else {
         F_INVALID
     }
@@ -117,7 +111,7 @@ pub fn get_data_float_c(cs: Option<&str>) -> f64 {
 /// **double** (Integer.parseInt 结果拓宽), 保真保留; null → iInvalid 拓宽。
 pub fn get_data_int_c(cs: Option<&str>) -> f64 {
     if let Some(cs) = cs {
-        cs.parse::<i32>().unwrap() as f64 // Java: Integer.parseInt(cs.toString())
+        cs.parse::<i32>().unwrap() as f64
     } else {
         I_INVALID as f64
     }
@@ -127,7 +121,7 @@ pub fn get_data_int_c(cs: Option<&str>) -> f64 {
 /// 单精度解析后拓宽 + 隐含 trim + panic/语法域注意事项, 见 get_data_float_c 的 PORT 注释。
 pub fn get_data_float(sdata: Option<&str>) -> f64 {
     if let Some(sdata) = sdata {
-        sdata.trim().parse::<f32>().unwrap() as f64 // Java: Float.parseFloat(sdata) (parseFloat 隐含 trim)
+        sdata.trim().parse::<f32>().unwrap() as f64
     } else {
         F_INVALID
     }
@@ -139,7 +133,7 @@ pub fn get_data_float(sdata: Option<&str>) -> f64 {
 /// 均抛 NumberFormatException) — 与 Float.parseFloat 相反, 此处不加 trim 是保真。
 pub fn get_data_int(sdata: Option<&str>) -> i32 {
     if let Some(sdata) = sdata {
-        sdata.parse::<i32>().unwrap() // Java: Integer.parseInt(sdata)
+        sdata.parse::<i32>().unwrap()
     } else {
         I_INVALID
     }

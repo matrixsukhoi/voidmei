@@ -31,7 +31,6 @@ pub fn effective_range(min: i32, max: i32) -> (i32, i32) {
 /// 显示值 (Java L18-43): readInt 优先级链 + 钳位。
 pub fn read_current(row: &RowConfig, panel: &GroupConfig, ctx: &dyn RenderContext) -> i32 {
     let (min, max) = effective_range(row.min_val, row.max_val);
-    // Java: defaultVal = 0; if (row.value != null) try { row.getInt() } catch {}
     // — getInt 自吞解析异常 → 0, 与 row.get_int() 的 None→0/Str→0 逐位一致
     let default_val = row.get_int();
     let current = renderer_config_helper::read_int(ctx, panel, row, default_val);

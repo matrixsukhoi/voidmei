@@ -150,12 +150,10 @@ impl FlightAnalyzer {
         self.config = config;
         self.count = 1;
 
-        // Java: String enableAltInfo = config != null ? config.getConfig("enableAltInformation") : "false";
         let enable_alt_info = match &self.config {
             Some(c) => c.get_config("enableAltInformation"),
             None => Some("false".to_string()),
         };
-        // Java: Boolean.parseBoolean — null/非 "true" 一律 false (不抛 NPE)
         self.is_information = java_parse_boolean(enable_alt_info.as_deref().unwrap_or(""));
 
         let xs = self.xs().clone();
@@ -164,7 +162,6 @@ impl FlightAnalyzer {
         self.initalt_stage = stage;
         self.curalt_stage = self.initalt_stage;
         let idx = self.curalt_stage as usize;
-        // Java: time[..] = (xs.elapsedTime / 1000f) — long/float 先转 float 再除 (§2.12), 存入 double[] 再加宽
         self.time[idx] = (xs.elapsed_time() as f32 / 1000.0f32) as f64;
         self.power[idx] = xs.total_hp();
         self.thrust[idx] = xs.total_thrust();
@@ -180,7 +177,7 @@ impl FlightAnalyzer {
         self.engine_type = xs.i_eng_type();
         if stage == self.curalt_stage + 1 {
             let idx = self.curalt_stage as usize;
-            self.eff[idx] /= self.count; // Java int/int 截断除 (§2.4)
+            self.eff[idx] /= self.count;
             self.sep[idx] /= self.count as f64 * g; // count * g: int 提升为 double
             // Application.debugPrint("已经记录stage"+curaltStage+"时间戳"+time[curaltStage]+"功率"+power[curaltStage]+"推力"+thrust[curaltStage]+"实功率"+eff[curaltStage]+"SEP"+sep[curaltStage]);
             self.curalt_stage += 1;
@@ -194,7 +191,6 @@ impl FlightAnalyzer {
             self.count = 1;
             if self.is_information {
                 let lang = Lang::init_lang();
-                // Java: Lang.fA1 + stage * 100 + Lang.fA2 + (int) time[..] + Lang.fA3
                 //       + (int) ((stage - initaltStage) * 1000 / time[..]) / 10.0f + Lang.fA4
                 // — (int) X / 10.0f 是 int 除 float 得 float, 字符串拼接走 Float.toString
                 let climb = ((stage - self.initalt_stage) * 1000) as f64 / self.time[idx];
@@ -203,7 +199,7 @@ impl FlightAnalyzer {
                     lang.f_a1,
                     stage * 100,
                     lang.f_a2,
-                    self.time[idx] as i32, // Java (int) double: NaN→0/饱和, Rust as i32 同语义
+                    self.time[idx] as i32,
                     lang.f_a3,
                     java_float_to_string(climb as i32 as f32 / 10.0f32),
                     lang.f_a4
@@ -220,7 +216,6 @@ impl FlightAnalyzer {
 
     // 获得速度阶段
     pub fn get_speed_stage(&self, ias: f64) -> i32 {
-        // Java: (int) Math.round(ias / 10.0f) — 10.0f 按二元数值提升转 double (精确值 10.0)
         // (int)(long) 双转: Java long→int 截断低 32 位 (§2.2); Rust as i32 饱和, 仅巨值域分歧
         (java_math_round(ias / 10.0) as u32) as i32
     }
@@ -245,7 +240,6 @@ impl FlightAnalyzer {
             if abs_alr > 5 && wx > 10 && abs_alr >= self.roll_alr[s] && wx > self.roll_rate[s] {
                 self.roll_alr[s] = abs_alr;
 
-                // Java: wx - roll_rate[..] 用的是尚未更新的旧值 (赋值在其后), 顺序保真
                 if self.is_information && (wx - self.roll_rate[s] > 40) {
                     let lang = Lang::init_lang();
                     self.show(&format!(
@@ -261,13 +255,11 @@ impl FlightAnalyzer {
                 self.roll_rate[s] = wx;
             }
 
-            // Java: g_load > 1.0f / 3.0f 字面量按 double 比较 (float 字面量精确提升)
             if g_load > 1.0 && sep < 5.0 && abs_elev >= self.turn_elev[s] {
                 // if (g_load > turn_load[stage] ) {
                 self.turn_elev[s] = abs_elev;
                 if self.is_information && (g_load - self.turn_load[s] > 3.0) {
                     let lang = Lang::init_lang();
-                    // Java: String.format("%.1f", ...) ×2 — HALF_UP on 最短往返十进制 (见 java_format_f1)
                     self.show(&format!(
                         "{}{}{}{}{}{}{}",
                         lang.f_a_turn1,

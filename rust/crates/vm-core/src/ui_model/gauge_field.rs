@@ -83,7 +83,6 @@ impl GaugeField {
             max_value,
             current_int_value: 0,
             is_horizontal,
-            // Java: new LabeledLinearGauge(label, maxValue, !isHorizontal)
             gauge: Some(LinearGaugePlaceholder::new(label, max_value, !is_horizontal)),
             marked_gauge: None,
         }

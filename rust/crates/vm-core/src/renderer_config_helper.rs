@@ -143,7 +143,7 @@ mod property_binder {
             "panelColumns" => Some(GroupField::PanelColumns),
             "switchKey" => Some(GroupField::SwitchKey),
             "rows" => Some(GroupField::Rows),
-            _ => None, // Java: NoSuchFieldException
+            _ => None,
         }
     }
 
@@ -190,7 +190,6 @@ mod property_binder {
     ///
     /// Java: `public static int getInt(Object target, String property, int defaultValue)`
     pub(super) fn get_int(group: &GroupConfig, property: &str, default_value: i32) -> i32 {
-        // Java: val instanceof Number → ((Number) val).intValue()
         match get(group, property) {
             Some(FieldValue::Int(i)) => i,
             // PORT: Java double→int (JLS 5.1.3: NaN→0, 越界饱和, 向零截断) 与
@@ -205,7 +204,6 @@ mod property_binder {
     ///
     /// Java: `public static String getString(Object target, String property, String defaultValue)`
     pub(super) fn get_string(group: &GroupConfig, property: &str, default_value: &str) -> String {
-        // Java: val instanceof String → (String) val
         match get(group, property) {
             Some(FieldValue::Str(s)) => s.to_string(),
             _ => default_value.to_string(),
@@ -216,7 +214,6 @@ mod property_binder {
     ///
     /// Java: `public static boolean getBool(Object target, String property, boolean defaultValue)`
     pub(super) fn get_bool(group: &GroupConfig, property: &str, default_value: bool) -> bool {
-        // Java: val instanceof Boolean → (Boolean) val
         match get(group, property) {
             Some(FieldValue::Bool(b)) => b,
             _ => default_value,
@@ -232,13 +229,11 @@ mod property_binder {
     /// @param value    The value to set
     /// @return true if successful, false otherwise
     fn set(group: &mut GroupConfig, property: Option<&str>, value: BindingValue) -> bool {
-        // Java: if (target == null || property == null) return false;
         let Some(property) = property else {
             return false;
         };
         let field = match resolve(property) {
             Some(f) => f,
-            // Java: NoSuchFieldException → catch → return false
             None => return false,
         };
         match (field, value) {
@@ -291,7 +286,6 @@ mod property_binder {
                 group.y = i as f64;
                 true
             }
-            // Java: field.set 对类型不符抛 IllegalArgumentException (未受检,
             // PropertyBinder 仅捕 NoSuchFieldException|IllegalAccessException →
             // 原样上抛), §1 映射 panic!。剩余组合 (Boolean/String 装入数值或
             // boolean 字段, Integer 装入 boolean/String/List 字段) 均 = JDK8
@@ -412,9 +406,7 @@ pub fn read_int(
         if property_binder::has_field(group_config, property) {
             return property_binder::get_int(group_config, property, default_val);
         }
-        // Java: Integer.toString(defaultVal) 作兜底串 — 解析恒等回 default_val
         let val = ctx.get_string_from_config_service(property, &default_val.to_string());
-        // Java: try { return Integer.parseInt(val); } catch (Exception e) { return defaultVal; }
         // §2.15: catch 吞异常给默认值 → unwrap_or
         return java_parse_int(&val).unwrap_or(default_val);
     }
@@ -487,7 +479,6 @@ pub fn write_int(
     let bound_success = property_binder::set_int(group_config, property, value);
     // 总是同步到 ConfigurationService
     if let Some(property) = property {
-        // Java: Integer.toString(value)
         ctx.sync_string_to_config_service(property, &value.to_string());
     }
     bound_success

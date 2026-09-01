@@ -243,7 +243,6 @@ fn spitfire_blkx() -> Blkx {
         ..Default::default()
     });
     b.full_flaps_wing = Some(FmParts { aoa_crit_high: 16.0, ..Default::default() });
-    // Java: 空 ArrayList (size 0) — 各 getter 的 null/<=1 守卫同 None 命中
     b.sweep_levels = None;
     b
 }
@@ -735,7 +734,7 @@ fn java8_oracle_format_battery() {
     assert_eq!(d6(-412.9), "  -412");
     assert_eq!(d6(1e9), "1000000000");
     assert_eq!(d6(-1e9), "-1000000000");
-    assert_eq!(d6(1e300), "2147483647"); // Java (int) 饱和 ↔ as i32 饱和
+    assert_eq!(d6(1e300), "2147483647");
     assert_eq!(d6(f64::NAN), "     0");
     assert_eq!(pad_width(412i32.to_string(), 6, false), "   412");
     assert_eq!(pad_width((-12345i32).to_string(), 6, false), "-12345");

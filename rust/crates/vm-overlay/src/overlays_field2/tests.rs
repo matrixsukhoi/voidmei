@@ -850,7 +850,7 @@ fn fm_unpacked_feed_game_flow() {
     {
         let mut fm = h.borrow_mut();
         fm.base.is_preview = false;
-        fm.visible = false; // Java :67 Game mode: initially hidden
+        fm.visible = false;
     }
     host.set_entry_visible("enableFMPrint", false);
     let mut feed = FmUnpackedFeed::new();

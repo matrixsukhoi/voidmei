@@ -155,7 +155,7 @@ fn with_interest_targets_last_entry() {
     assert!(!host.entries[0].is_interested_in(Some("shared_x")));
     assert!(host.entries[1].is_interested_in(Some("shared_x")));
     assert!(host.entries[1].is_interested_in(Some("b"))); // 默认自身键
-    assert!(host.entries[1].is_interested_in(None)); // Java: null 恒真
+    assert!(host.entries[1].is_interested_in(None));
 }
 
 /// 重注册活跃 overlay: 先走 close 销毁链 (存位置 + drop) 再原位替换 —

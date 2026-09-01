@@ -257,8 +257,8 @@ mod winmm {
         /// Java: `getAudioInputStream(file)` + `getLine(info)` + `clip.open(audioStream)`
         /// 的合成; 读取/格式/行资源失败 → Err (loadClip catch→None 语义的对端)。
         fn open_clip(&self, path: &Path) -> Result<Box<dyn SoundClip>, SoundError> {
-            let bytes = std::fs::read(path)?; // Java IOException 面
-            let wav = parse_wav_pcm(&bytes)?; // Java UnsupportedAudioFileException 面
+            let bytes = std::fs::read(path)?;
+            let wav = parse_wav_pcm(&bytes)?;
             // PORT: 畸形头 rate 可虚标近 u32::MAX, rate×blockAlign 的 u32 乘法
             // 溢出 (debug panic/release 回绕) — 对齐 open_clip 其余错误面: 拒绝 →
             // Err → loadClip catch → None
@@ -287,7 +287,6 @@ mod winmm {
                 waveOutOpen(Some(&mut hwo), WAVE_MAPPER, &wfx, None, None, CALLBACK_NULL)
             };
             if mmr != MMSYSERR_NOERROR {
-                // Java: LineUnavailableException → loadClip catch → 日志 + null
                 return Err(format!("waveOutOpen 失败: {}", mmr_text(mmr)).into());
             }
             Ok(Box::new(WaveOutClip {
@@ -298,7 +297,6 @@ mod winmm {
                 play: Mutex::new(ScaledBuf::new()),
                 hdr: UnsafeCell::new(WAVEHDR::default()),
                 start_offset: AtomicUsize::new(0),
-                // Java: 增益缺省 = 控件 0 dB = 原始幅度
                 gain_db: AtomicU32::new(0.0f32.to_bits()),
                 written: AtomicBool::new(false),
                 closed: AtomicBool::new(false),
@@ -412,7 +410,6 @@ mod winmm {
     impl SoundClip for WaveOutClip {
         /// Java: `clip.start()` — 非阻塞 (waveOutWrite 即发即忘, winmm 线程播出)。
         fn start(&self) {
-            // Java: 已 close 的 line 上 start() 抛 IllegalStateException →
             // playOnce 的 catch 吞掉 → debug 日志无声跳过; closed 守卫恢复该语义
             if self.closed.load(Ordering::SeqCst) {
                 logger::debug("VoiceAlert", "waveOut 播放失败: line closed");
@@ -452,7 +449,6 @@ mod winmm {
                     std::mem::size_of::<WAVEHDR>() as u32,
                 );
                 if mmr != MMSYSERR_NOERROR {
-                    // Java: start() 异常被 playOnce catch 吞 → debug 日志 (同款)
                     logger::debug(
                         "VoiceAlert",
                         &format!("waveOutPrepareHeader 失败: {}", mmr_text(mmr)),
@@ -815,7 +811,7 @@ mod tests {
             clip.set_master_gain(3.0);
             clip.set_frame_position(0);
             clip.close();
-            clip.close(); // Java line close 幂等语义
+            clip.close();
         }
 
         /// 播放状态: start → 在播窗口内 is_running 真 → 超时后假

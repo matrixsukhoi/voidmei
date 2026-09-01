@@ -118,7 +118,6 @@ fn create_temp_root() -> PathBuf {
 /// 最小中央文件 —— 只需 getlastone("fmfile") 能命中（参考真机文件头 fmFile:t = "fm/xxx.blk"）
 fn write_central(fm_dir: &Path, name: &str) {
     let content = format!("model:t = \"{name}\"\nfmFile:t = \"fm/{name}.blk\"\n");
-    // Java: Files.write(path, content.getBytes("UTF-8")) ↔ String 写盘即 UTF-8
     std::fs::write(fm_dir.join(format!("{name}.blkx")), content).unwrap();
 }
 
@@ -131,10 +130,8 @@ fn write_physical(fm_sub: &Path, name: &str) {
 }
 
 fn setup_synthetic_data(tmp_root: &Path) {
-    // Java: tmpRoot.resolve("aces").resolve("gamedata").resolve("flightmodels")
     let fm_dir = tmp_root.join("aces/gamedata/flightmodels");
     let fm_sub = fm_dir.join("fm");
-    // Java: Files.createDirectories(fmSub)
     std::fs::create_dir_all(&fm_sub).unwrap();
 
     // 可加载机型: central 指向 fm/<name>.blk, 物理文件存在
@@ -383,7 +380,6 @@ fn test_concurrent_identify(m: &mut FMManager) {
     m.reset();
     fm_loader::reset_load_count();
 
-    // Java: new Thread(..., "identify-plane1"/"identify-plane2") + start/join;
     // PORT: scoped thread + Builder 保名 (join 由 scope 收尾保证, 时序等价)
     let mgr: &FMManager = &*m;
     std::thread::scope(|s| {
@@ -443,21 +439,17 @@ fn java_main_sequence() {
     // 还原 (挂锁方看到的恒为 "./data" 干净初态)
     let _guard = crate::fm::test_guard::data_root();
 
-    // Java: Files.createTempDirectory("voidmei_fmtest") —— 绝对路径,
     // 对 config_manager sandbox 的进程级 CWD 翻转免疫 (审查 A B1 修复点)
     let tmp_root = create_temp_root();
     // Java finally 的 Drop 承接: panic 展栈时也还原 DATA_ROOT + rmtree
     let _cleanup = RootCleanup { root: tmp_root.clone() };
 
     setup_synthetic_data(&tmp_root);
-    // Java: FMDataPaths.setDataRoot(tmpRoot.toString()) —— 绝对根注入,
     // load 的 central/physical 解析不再随 CWD 漂移
     fm_data_paths::set_data_root(&tmp_root.to_string_lossy());
 
-    // Java: Lang.initLang() —— Blkx 构造器依赖 Lang.noblkx 等字符串, 先初始化语言;
     // PORT: Rust Lang 为静态表, blkx 构造内部自取 (blkx/model.rs 先例), 无全局 init
 
-    // Java: FMManager m = FMManager.getInstance(); → 测试自建实例 (非单例 API)
     let mut m = new_manager();
     let m = &mut m;
 

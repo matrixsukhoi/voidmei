@@ -97,7 +97,6 @@ impl CrosshairGauge {
 
         let stroke_width = Self::stroke_width(self.width);
 
-        // Java:98-100 全 int 算术 — width*l 按 §2.2 wrapping_mul 对齐 Java 静默回绕
         // (crosshairScale≤200 溢出不可达, 防御性消除 debug panic; /4 两语言同向零截断)
         let half_width = self.width / 2;
         let quarter_width = self.width / 4;

@@ -328,7 +328,6 @@ impl OverlayHost {
     fn open_idx(&mut self, idx: usize) -> Result<bool, String> {
         // 锁内: 只查槽位
         if self.entries[idx].slot.lock().unwrap().is_some() || self.entries[idx].zombie {
-            // Java: "Skipping open for {key}: already active" — 僵尸实例 (run 自动
             // 退场后 instance 僵留) 同跳过, 不重建死窗口 (OverlayManager.java:294-299)
             return Ok(false);
         }
@@ -435,7 +434,6 @@ impl OverlayHost {
                 self.materialize(idx, true)?;
             }
         } else if active || zombie {
-            // Java: instance != null 即走 close (僵尸同样清 instance=null — 之后
             // 策略再开才会建新实例; OverlayManager.java:337-340)
             let id = self.entries[idx].id.clone();
             self.close(&id);
@@ -618,7 +616,6 @@ impl OverlayHost {
     pub fn dialog_did_dismiss(&mut self) {
         self.pending_dialogs -= 1;
         if self.pending_dialogs <= 0 {
-            // Java: pendingDialogs.compareAndSet(count, 0) 下溢复位
             self.pending_dialogs = 0;
             self.dialog_hooks.restore_overlays();
         }
@@ -656,7 +653,7 @@ impl OverlayHost {
     /// 重复 set_visible(false) 幂等无害
     pub fn hide_all_overlays(&mut self) {
         if self.overlays_hidden {
-            return; // Java: "overlay 已处于隐藏状态，跳过"
+            return;
         }
         self.overlays_hidden = true;
         self.for_each_active_slot(|sl| set_slot_visible(sl, false));
@@ -666,7 +663,7 @@ impl OverlayHost {
     /// 亦为 FocusMonitor.setEnabled(false) 的恢复路径 (FocusMonitor.java:43-47)
     pub fn show_all_overlays(&mut self) {
         if !self.overlays_hidden {
-            return; // Java: "overlay 已处于显示状态，跳过"
+            return;
         }
         self.overlays_hidden = false;
         self.for_each_active_slot(|sl| set_slot_visible(sl, true));

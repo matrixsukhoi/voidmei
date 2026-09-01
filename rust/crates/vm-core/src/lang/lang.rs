@@ -849,12 +849,11 @@ impl Lang {
     /// (原行为保真保留); 形参因永不读取改名 `_dft` 消未用告警。
     pub fn update_language(lanuage_config: &Config, key: &str, _dft: &str) -> &'static str {
         let v = lanuage_config.get_value(key);
-        if !v.is_empty() { // Java: !v.equals("")
+        if !v.is_empty() {
             // Application.debugPrint(v);
             v
         } else {
             // Application.debugPrint(key);
-            // Java: dft = "";
             ""
         }
     }

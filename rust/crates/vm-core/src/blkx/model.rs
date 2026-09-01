@@ -41,7 +41,6 @@ impl Blkx {
             // unwrap panic 复刻同一崩溃语义 (§1 RuntimeException→panic)
             let no_flaps = self.no_flaps_wing.as_ref().unwrap();
             let full_flaps = self.full_flaps_wing.as_ref().unwrap();
-            // Java: ... * flaps_percent / 100.0f — int 提升 double, 100.0f 提升后即 100.0
             return no_flaps.aoa_crit_high
                 + (full_flaps.aoa_crit_high - no_flaps.aoa_crit_high) * flaps_percent as f64 / 100.0;
         }
@@ -176,7 +175,6 @@ impl Blkx {
                 use std::io::{BufRead, BufReader};
                 for line in BufReader::new(f).lines() {
                     match line {
-                        // Java: sb.append(s + "\n")
                         Ok(s) => {
                             sb.push_str(&s);
                             sb.push('\n');
@@ -189,7 +187,6 @@ impl Blkx {
             // PORT: Java 打开失败 (FileNotFoundException) 同被吞掉, sb 保持 ""
             tmp_data = Some(sb);
         } else {
-            // Java: valid = false; (注释形态, 无操作)
         }
         tmp_data
     }

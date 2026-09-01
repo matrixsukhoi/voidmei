@@ -28,7 +28,6 @@ impl Service {
         // 简单状态推进 → 单写锁临界区 (无 IO/回调; s_state 不可变借用拆局部,
         // 对齐 check_engine_jet 形态)
         let mut d = write_data(&self.data);
-        // Java: if (!getMaximumRPM) —— 字段读, 非方法自递归
         if !d.get_maximum_rpm {
             // R2 守卫: blkx 非 null 即 READY（等价旧版 null+valid 双判）
             if let Some(blkx) = fm.blkx.as_ref() {
@@ -41,18 +40,14 @@ impl Service {
                 // 自适应获得(无FM)
 
                 // 获得最大转速，条件是以最大转速持续约20秒或者桨距
-                // Java: 20000 / freq —— int 20000 提升为 long 除法; freq=0 时
                 // Java ArithmeticException ↔ Rust 除零 panic (保真, 构造域恒 50)
                 if d.check_maxium_rpm < 20000 / d.freq {
                     let (ias, rpm) = {
                         let s = d.s_state.as_ref().unwrap();
                         (s.ias, s.rpm)
                     };
-                    // Java: sState.IAS > 50 —— int 比较 (无浮点提升)
                     if ias > 50 {
-                        // Java: sState.RPM >= maximumThrRPM —— int 提升 double
                         if rpm as f64 >= d.maximum_thr_rpm {
-                            // Java: maximumThrRPM = (ratio_1 * maximumThrRPM)
                             //       + ratio * (sState.RPM)
                             d.maximum_thr_rpm =
                                 (d.ratio_1 * d.maximum_thr_rpm) + d.ratio * rpm as f64;
@@ -71,7 +66,6 @@ impl Service {
     /// Also detects mismatch between actual and optimal stage (at full throttle).
     /// Uses state-change detection to only update mismatch status when actual or optimal changes.
     /// Results are published via FlightDataBus for voice warning.
-    /// (以上 javadoc 逐字保留, Java L1270-1273)
     ///
     /// @param fm 本周期 FM 句柄快照（R1 下传, Java javadoc 原文）
     /// (对应 Java `public void updateOptimalCompressorStage(FMHandle fm)`
@@ -82,7 +76,6 @@ impl Service {
         let stages = if fm.has_fm() { fm.compressor_stages.as_ref() } else { None };
 
         // Invalid cases: jet, single-stage, or no FM loaded
-        // Java: stages == null || stages.length <= 1
         let stages = match stages {
             Some(s) if s.len() > 1 => s,
             _ => {
@@ -104,7 +97,6 @@ impl Service {
                 d.engine_num,
                 s.throttles.clone(),
                 d.alt,
-                // Java: getIAS() = sState != null ? sState.IAS : 0
                 // (曾误走 trait default 恒 0, 增压器最优档判定失真)
                 s.ias as f64,
                 s.compressorstage,
@@ -120,7 +112,6 @@ impl Service {
         // PORT(allow needless_range_loop): Java for(int i...) 直译 — i 仅索引
         #[allow(clippy::needless_range_loop)]
         for i in 0..engine_num as usize {
-            // Java: sState.throttles[i] 越界 (engineNum > throttles 长度) 抛
             // AIOOBE → run 顶层 catch; 索引 panic 同构收敛 (update_wep_time 同注)
             if throttles[i] > 100 {
                 is_wep = true;
@@ -131,7 +122,6 @@ impl Service {
         }
 
         // Calculate optimal stage
-        // Java: PistonPowerModel.findOptimalStageIndex(stages, alt, isWep,
         //       getIAS(), true, 15.0) —— Rust 侧返回 usize (Java int), 收窄
         //       存 i32 字段 (域内 = 档位下标)
         let new_optimal = find_optimal_stage_index(stages, alt, is_wep, ias, true, 15.0) as i32;

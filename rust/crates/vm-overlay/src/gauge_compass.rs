@@ -335,7 +335,6 @@ impl CompassGauge {
         let r = self.radius;
         let center_x = x + r;
         let center_y = y + r;
-        // Java:105-109 的 BasicStroke 缓存 (cachedStrokeWidth) 是零 GC 优化, 无视觉
         // 影响, 不移植 — 线宽每帧由参数直取
         let out_w = (self.line_width + 2) as f32;
         let in_w = self.line_width as f32;

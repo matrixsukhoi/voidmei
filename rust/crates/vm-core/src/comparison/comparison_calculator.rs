@@ -34,7 +34,6 @@ impl DiffResult {
 pub struct ComparisonCalculator;
 
 impl ComparisonCalculator {
-    // Java: public static DiffResult compare(double val0, double val1, boolean higherIsBetter)
     //
     // PORT: `val0 == 0` 的浮点相等比较 (含 -0.0/±0.0 相等、NaN 恒不等) 原样保留,
     // 不改写为 is_zero()/abs < eps —— NaN 传入时走 LOSS 分支是 Java 实测行为。

@@ -78,7 +78,6 @@ fn java_plain_or_exp(exp_repr: &str) -> String {
 	if neg {
 		out.push('-');
 	}
-	// Java: 10^-3 <= |v| < 10^7 ⇔ -3 <= lead_exp <= 6 → 小数形式
 	if (-3..=6).contains(&exp) {
 		if exp >= 0 {
 			if n <= exp + 1 {
@@ -328,7 +327,6 @@ impl FlightLog {
 	/// 对应 Java: `void writeLabel(FileWriter txt) throws IOException`
 	fn write_label(txt: Option<&mut File>, lang: &Lang) -> io::Result<()> {
 		let Some(txt) = txt else {
-			// Java: new BufferedWriter(null) 惰性成功, 首 bw.write 触发 ensureOpen
 			// → IOException("Stream closed") — init 文件打开失败路径即走这里
 			return Err(stream_closed());
 		};
@@ -402,15 +400,13 @@ impl FlightLog {
 	}
 
 	/// 对应 Java: `void writeData(BufferedWriter bw) throws IOException`
-	#[allow(unused_assignments)] // Java: String tmp = ""; 随即被覆盖 (保真)
+	#[allow(unused_assignments)]
 	fn write_data(bw: Option<&mut BufWriter<File>>, xs: &FlightLogSnapshot) -> io::Result<()> {
 		let Some(bw) = bw else {
-			// Java: csvWritter 为 null writer 时 write → IOException("Stream closed")
 			return Err(stream_closed());
 		};
 		let mut tmp = String::new();
 
-		// Java: xs.elapsedTime / 60000.0f — long 提升为 float 后除 (f32 链, §2.12)
 		write!(bw, "{},", java_float_to_string(xs.elapsed_time as f32 / 60000.0f32))?; // 1
 
 		tmp = xs.throttle.clone();
@@ -482,9 +478,7 @@ impl FlightLog {
 
 	// 进行数据分析
 	fn analyze_data(&mut self, xs: &FlightLogSnapshot) {
-		// Java: (int) xs.alt / 100 — 强转先于除法, 整数除法向零截断
 		let stage = (xs.alt as i32) / 100;
-		// Java: Math.abs(int) 对 Integer.MIN_VALUE 回绕为负 (§2.2)
 		if xs.check_alt.wrapping_abs() > 10 {
 			if self.first_analyze {
 				// 第一次分析，先取当前高度
@@ -501,9 +495,7 @@ impl FlightLog {
 				self.first_analyze = false;
 			} else {
 				// 开始分析
-				// Java: fA 此处必非 null (firstAnalyze 已翻, fA 与之同生)
 				let fa = self.f_a.as_mut().expect("PORT: Java 不变量 — firstAnalyze==false ⇒ fA!=null");
-				// Java: (int) Math.abs(xs.sState.Wx) — double abs 后 (int) 截断/饱和,
 				// 与 Rust as i32 语义一致
 				fa.analyze(stage);
 				fa.update_em_chart(
@@ -548,7 +540,6 @@ impl FlightLog {
 	/// 对应 Java: `void writeClimbData(FileWriter txt) throws IOException`
 	fn write_climb_data(txt: &mut File, f_a: Option<&FlightAnalyzer>) -> io::Result<()> {
 		let mut bw = BufWriter::new(txt);
-		// Java: fA==null 时 `fA.curaltStage` 抛 NullPointerException (非 IOException,
 		// 逃逸 saveClimbData 的 catch 直达 close() 调用方) — §1 映射: panic!
 		let f_a = f_a.unwrap_or_else(|| {
 			panic!("PORT: Java NPE — fA == null (全程未触发高度分析) 于 fA.curaltStage 抛 NullPointerException")
@@ -571,9 +562,7 @@ impl FlightLog {
 
 	/// 对应 Java: `public void saveClimbData()`
 	pub fn save_climb_data(&mut self) {
-		// Java: FileWriter tcsv = null;
 		// Application.debugPrint("climbdata save to "+ climbName);
-		// Java: new FileWriter(climbName, true) — append, 文件不存在则创建
 		let mut tcsv = match OpenOptions::new().append(true).create(true).open(&self.climb_name) {
 			Ok(f) => f,
 			Err(e) => {
@@ -584,7 +573,6 @@ impl FlightLog {
 		};
 		// Application.debugPrint("打开文件成功");
 
-		// Java: try { writeClimbLabel; writeClimbData; tcsv.close(); } catch (IOException)
 		let res = (|| {
 			FlightLog::write_climb_label(&mut tcsv, &self.lang)?;
 			FlightLog::write_climb_data(&mut tcsv, self.f_a.as_ref())?;
@@ -615,10 +603,9 @@ impl FlightLog {
 	}
 
 	/// 对应 Java: `void writeRollData(FileWriter txt) throws IOException`
-	#[allow(unused_assignments, unused_variables)] // Java: int k = 0; k++ 后未读 (消费处已被注释)
+	#[allow(unused_assignments, unused_variables)]
 	fn write_roll_data(txt: &mut File, f_a: Option<&FlightAnalyzer>) -> io::Result<()> {
 		let mut bw = BufWriter::new(txt);
-		// Java: fA==null 时 `fA.roll_rate[i]` 循环条件读 fA 抛 NPE — 同 writeClimbData
 		let f_a = f_a.unwrap_or_else(|| {
 			panic!("PORT: Java NPE — fA == null (全程未触发高度分析) 于 fA.roll_rate 抛 NullPointerException")
 		});
@@ -641,7 +628,6 @@ impl FlightLog {
 
 	/// 对应 Java: `public void saveRollData()`
 	pub fn save_roll_data(&mut self) {
-		// Java: FileWriter tcsv = null;
 		// Application.debugPrint("rolldata save to "+ climbName);
 		let mut tcsv = match OpenOptions::new().append(true).create(true).open(&self.roll_name) {
 			Ok(f) => f,
@@ -685,10 +671,9 @@ impl FlightLog {
 	}
 
 	/// 对应 Java: `void writeNyData(FileWriter txt) throws IOException`
-	#[allow(unused_assignments, unused_variables)] // Java: int k = 0; k++ 后未读 (消费处已被注释)
+	#[allow(unused_assignments, unused_variables)]
 	fn write_ny_data(txt: &mut File, f_a: Option<&FlightAnalyzer>) -> io::Result<()> {
 		let mut bw = BufWriter::new(txt);
-		// Java: fA==null 时 `fA.turn_load[i]` 循环条件读 fA 抛 NPE — 同 writeClimbData
 		let f_a = f_a.unwrap_or_else(|| {
 			panic!("PORT: Java NPE — fA == null (全程未触发高度分析) 于 fA.turn_load 抛 NullPointerException")
 		});
@@ -696,7 +681,7 @@ impl FlightLog {
 		for i in 0..MAX_IAS_STAGE {
 			// 速度区间
 			let i = i as usize;
-			if f_a.turn_load[i] > 0.0 { // Java: > 0 (int 提升为 double 0.0)
+			if f_a.turn_load[i] > 0.0 {
 				k += 1;
 				write!(bw, "{}, ", i as i32 * 10)?;
 				write!(bw, "{}, ", f_a.turn_elev[i])?;
@@ -712,7 +697,6 @@ impl FlightLog {
 
 	/// 对应 Java: `public void saveNyData()`
 	pub fn save_ny_data(&mut self) {
-		// Java: FileWriter tcsv = null;
 		// Application.debugPrint("rolldata save to "+ climbName);
 		let mut tcsv = match OpenOptions::new().append(true).create(true).open(&self.load_name) {
 			Ok(f) => f,
@@ -749,22 +733,20 @@ impl FlightLog {
 		analyze_service: Arc<dyn AnalyzerService + Send + Sync>,
 	) {
 		self.xc = Some(xc);
-		// Java: xs = s; — D6 边界, 不存 Service 引用 (快照按调用注入)
 		self.config = config;
 		self.notify = Some(notify);
 		self.analyze_service = Some(analyze_service);
 		self.doit.store(false, Ordering::SeqCst);
 		// Application.debugPrint("flightlog初始化了");
-		// Java: c = Calendar.getInstance(); c.setTimeInMillis(System.currentTimeMillis());
 		// — 时间仅用于文件名。PORT: Calendar.HOUR 是 12 小时制 (0..11, 正午/午夜为 0),
 		// 原代码刻意/无意未用 HOUR_OF_DAY — 保真取 hour % 12; 时区 = 本地 (chrono::Local)。
 		self.lang = Lang::init_lang();
 		let now = Local::now();
-		let month = now.month() as i64; // Java: c.get(Calendar.MONTH) + 1 (0 基 + 1)
-		let date = now.day() as i64; // Java: c.get(Calendar.DATE)
-		let hour = (now.hour() % 12) as i64; // Java: c.get(Calendar.HOUR)
-		let minute = now.minute() as i64; // Java: c.get(Calendar.MINUTE)
-		let second = now.second() as i64; // Java: c.get(Calendar.SECOND)
+		let month = now.month() as i64;
+		let date = now.day() as i64;
+		let hour = (now.hour() % 12) as i64;
+		let minute = now.minute() as i64;
+		let second = now.second() as i64;
 		// PORT: Java String.toUpperCase() 取默认 locale (土耳其语 'i'→'İ' 会分叉);
 		// Rust to_uppercase 无 locale — 机型名 (ASCII) 两端一致
 		let mut name = s.indic_type.to_uppercase();
@@ -778,13 +760,11 @@ impl FlightLog {
 		self.roll_name = format!("records/{name}_{month}_{date}_{hour}.{minute}.{second}_roll.csv");
 		self.load_name = format!("records/{name}_{month}_{date}_{hour}.{minute}.{second}_ny.csv");
 
-		// Java: new FileOutputStream(fileName) — 创建/截断 (records/ 不存在则 FileNotFoundException)
 		self.results_file = match OpenOptions::new().write(true).create(true).truncate(true).open(&self.file_name) {
 			Ok(f) => Some(f),
 			Err(e) => {
 				self.notify_show(self.lang.lfail_create);
 				warn_default(&format!("日志文件创建失败: {e}"));
-				// Java: xc.logon = false (Controller.java:44, 非 volatile 跨线程写 — Rust 侧实现取原子)
 				if let Some(xc) = &self.xc {
 					xc.set_logon(false);
 				}
@@ -792,7 +772,6 @@ impl FlightLog {
 			}
 		};
 		// Application.debugPrint("文件创建成功");
-		// Java: new FileWriter(fileName, true)
 		self.csv = match OpenOptions::new().append(true).create(true).open(&self.file_name) {
 			Ok(f) => Some(f),
 			Err(e) => {
@@ -804,7 +783,6 @@ impl FlightLog {
 		if let Err(e) = FlightLog::write_label(self.csv.as_mut(), &self.lang) {
 			warn_default(&format!("写入标签失败: {e}"));
 		}
-		// Java: csvWritter = new BufferedWriter(csv) — csv==null 时为 "null writer"
 		// (write/flush/close 抛 IOException("Stream closed"), 见 stream_closed)
 		// PORT: 独立 append 句柄 (见 csv 字段注释); 打开失败 ⇒ None (null writer 模型)
 		self.csv_writter = match OpenOptions::new().append(true).create(true).open(&self.file_name) {
@@ -818,7 +796,6 @@ impl FlightLog {
 	/// 对应 Java: `public void close()`
 	pub fn close(&mut self) {
 		// 保存
-		// Java: try { csvWritter.close(); csv.close(); } catch (IOException e) { warn } 语义分解:
 		// - csvWritter.close(): BufferedWriter.close() 对 out==null (null writer **或已 close**)
 		//   静默返回 (close 不走 ensureOpen); 正常路径 flush 后 finally 置 out=null。
 		//   flush 失败 → IOException → csv.close() 被短路跳过。
@@ -849,13 +826,11 @@ impl FlightLog {
 
 	/// 对应 Java: `public void logTick()` (Service 轮询线程直调, Service.java:1827)
 	pub fn log_tick(&mut self, xs: &FlightLogSnapshot) {
-		// Java: try { analyzeData(); writeData(csvWritter); } catch (IOException e)
 		self.analyze_data(xs);
 		if let Err(e) = FlightLog::write_data(self.csv_writter.as_mut(), xs) {
 			self.notify_show(self.lang.lfail_write);
 			warn_default(&format!("写入日志数据失败: {e}"));
 		}
-		// Java: writeTime++ % 1024 == 0 — 后置自增: 先取原值判断再递增;
 		// long 静默回绕 (§2.2, 10Hz 下 2900 万年才触顶, 保真取 wrapping)
 		let t = self.write_time;
 		self.write_time = self.write_time.wrapping_add(1);

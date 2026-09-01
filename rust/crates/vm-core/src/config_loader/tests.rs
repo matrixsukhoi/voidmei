@@ -57,7 +57,7 @@ fn java_format_f4_matches_java8_oracle() {
 /// saveConfig :x/:y 域 (0..1/像素坐标) 该量级不可达 — 见 java_format_f4 PORT 注释。
 #[test]
 fn java_format_f4_jdk_4511638_domain_divergence() {
-    assert_eq!(java_format_f4(1.0e23), "100000000000000000000000.0000"); // Java: 99999999999999990000000.0000
+    assert_eq!(java_format_f4(1.0e23), "100000000000000000000000.0000");
 }
 
 /// Double.toString — 最短区分 + [1e-3, 1e7) 平原式 / 恒一位小数 / E 计数。
@@ -111,9 +111,9 @@ fn java_double_to_string_matches_java8_oracle() {
 /// 归入上方一致 battery。)
 #[test]
 fn java_double_to_string_jdk_4511638_domain_divergence() {
-    assert_eq!(java_double_to_string(1.0e23), "1.0E23"); // Java: 9.999999999999999E22
-    assert_eq!(java_double_to_string(5e-324), "5.0E-324"); // Java: 4.9E-324
-    assert_eq!(java_double_to_string(4.9e-324), "5.0E-324"); // Java: 4.9E-324
+    assert_eq!(java_double_to_string(1.0e23), "1.0E23");
+    assert_eq!(java_double_to_string(5e-324), "5.0E-324");
+    assert_eq!(java_double_to_string(4.9e-324), "5.0E-324");
 }
 
 /// getKeyCodeFromText — en_US locale oracle (中文 JDK 的 AWT 属性表本地化
@@ -124,7 +124,7 @@ fn key_code_from_text_matches_java8_oracle() {
         (Some("P"), 25),
         (Some("p"), 25),
         (Some("30"), 30),
-        (Some("  25  "), 25), // Java trim
+        (Some("  25  "), 25),
         (Some("F5"), 63),
         (Some("f5"), 63),
         (Some("Space"), 57),
@@ -263,7 +263,7 @@ fn quote_and_is_numeric_edges() {
     assert!(is_numeric("1.5"));
     assert!(is_numeric(".5"));
     assert!(is_numeric("5."));
-    assert!(is_numeric("-")); // Java: '-' 仅限首位, 单字符通过 — 保真
+    assert!(is_numeric("-"));
     assert!(!is_numeric(""));
     assert!(!is_numeric("1.2.3"));
     assert!(!is_numeric("12a"));

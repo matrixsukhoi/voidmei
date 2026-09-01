@@ -211,7 +211,6 @@ impl HttpHelper {
             buffered_writer.write_all(tmp_req.as_bytes())?;
             buffered_writer.flush()?;
         }
-        // Java: 构造 bufferedReader 但从不读取, close 即关流; Rust Drop 等价
         drop(socket);
         Ok(())
     }
@@ -317,7 +316,6 @@ impl HttpHelper {
                 body.to_vec() // EOF 兜底
             };
 
-            // Java: BufferedReader.readLine() 循环 append (换行符被剥离后拼接)
             // PORT: lines() 只按 \n/\r\n 切行, Java readLine 额外接受孤立 \r ——
             // 域内 JSON 无孤立 \r
             let result: String = String::from_utf8_lossy(&body_bytes)
@@ -405,8 +403,8 @@ impl HttpHelper {
         let read_chars = read_once_into_chars(&mut socket, buf)?;
         // PORT: Java close 序列 (reader/writer/socket) → Drop
         let _ = read_chars;
-        bd.clear(); // Java bd.delete(0, bd.length())
-        bd.extend(buf.iter()); // Java bd.append(buf) —— 整个数组, 含未读区段的 '\0'
+        bd.clear();
+        bd.extend(buf.iter());
         Ok(())
     }
 

@@ -199,7 +199,6 @@ impl VoiceAlert {
             available: AtomicBool::new(false),
             is_act: AtomicBool::new(false),
             last_time_play: AtomicI64::new(0),
-            // Java: this.coolDownMs = coolDownSeconds * 1000;
             cool_down_ms: cool_down_seconds * 1000,
             key: key.to_string(),
         }
@@ -215,7 +214,6 @@ impl VoiceAlert {
 
         // 先关闭旧资源
         if let Some(old_clip) = clip_slot.as_ref() {
-            // Java: try { if (oldClip.isRunning()) oldClip.stop(); oldClip.close(); }
             //      catch (Exception e) { Logger.warn("VoiceAlert", "关闭旧 Clip 失败: " + key); }
             // PORT: SoundClip 面不可失败 (D7), catch 腿不可达
             if old_clip.is_running() {
@@ -225,7 +223,6 @@ impl VoiceAlert {
         }
 
         // 解析配置
-        // Java: String configKey = VoicePackConfig.withVoicePrefix(key); — key 非 null
         let config_key = VoicePackConfig::with_voice_prefix(Some(&self.key)).unwrap();
         let val = config_provider.get_config(&config_key);
         let config = VoicePackConfig::parse(val.as_deref());
@@ -237,7 +234,6 @@ impl VoiceAlert {
         }
 
         // 加载新 Clip
-        // Java: this.clip = VoiceResourceManager.getInstance().loadClip(key, config.packName);
         *clip_slot = resource_manager.load_clip(&self.key, Some(&config.pack_name));
         self.available.store(clip_slot.is_some(), Ordering::SeqCst);
     }
@@ -258,7 +254,6 @@ impl VoiceAlert {
             return;
         }
 
-        // Java: try { c.setFramePosition(0); c.start(); }
         //      catch (Exception e) { Logger.debug("VoiceAlert", "播放失败: " + key + " - " + e.getMessage()); }
         // PORT: SoundClip 面不可失败, catch 腿不可达
         let c = c.as_ref().unwrap();
@@ -289,7 +284,6 @@ impl VoiceAlert {
     pub fn close(&self) {
         let mut clip_slot = self.clip.lock().expect(CLIP_LOCK_MSG);
         if let Some(c) = clip_slot.as_ref() {
-            // Java: try { ... } catch (Exception e) { // ignore }
             // PORT: SoundClip 面不可失败, 空 catch 腿不可达 (§2.7)
             if c.is_running() {
                 c.stop();
@@ -530,13 +524,11 @@ impl VoiceWarning {
     /// §1 内部类→独立 struct 规则; 顺序 = Java 构造器语句序: put → reload)。
     fn new_alert(&self, key: &str, cool_down_seconds: i64) -> Arc<VoiceAlert> {
         let alert = Arc::new(VoiceAlert::new(key, cool_down_seconds));
-        // Java: alerts.put(key, this) — 同 key 后写覆盖 (engFail/engFailInvert
         // 共用 "fail_engine", map 最终指向后注册的 invert 实例, 保真)
         self.alerts
             .lock()
             .expect(ALERTS_LOCK_MSG)
             .insert(key.to_string(), Arc::clone(&alert));
-        // Java: 构造器尾部的 reload()
         alert.reload(&*self.config_provider, &self.resource_manager);
         alert
     }
@@ -563,7 +555,6 @@ impl VoiceWarning {
             return;
         };
         self.xs = Some(Arc::clone(&s));
-        // Java: this.configProvider = c.getConfigService(); — Rust 构造注入
 
         // PORT: Java 捕获活引用; Rust 取首帧快照 (run 每轮再刷新)
         self.st = s.s_state();
@@ -571,7 +562,6 @@ impl VoiceWarning {
 
         // Config Listener - 使用 VoicePackConfig 工具方法
         if self.config_subscription.is_none() {
-            // Java: configHandler = key -> { ... };
             //       UIStateBus.getInstance().subscribe(CONFIG_CHANGED, configHandler);
             let alerts = Arc::clone(&self.alerts);
             let config_provider = Arc::clone(&self.config_provider);
@@ -579,10 +569,8 @@ impl VoiceWarning {
             self.config_subscription = Some(self.ui_state_bus.subscribe(
                 ui_state_events::CONFIG_CHANGED,
                 move |msg: &UiStateEvent| {
-                    // Java: if (key instanceof String) — CONFIG_CHANGED 载荷 = String 配置键
                     if let Some(str_key) = msg.data.as_deref() {
                         if str_key.starts_with(VOICE_PREFIX) {
-                            // Java: String alertKey = VoicePackConfig.stripVoicePrefix(strKey);
                             let alert_key =
                                 VoicePackConfig::strip_voice_prefix(Some(str_key)).unwrap();
                             // ConcurrentHashMap 线程安全 ↔ Mutex 快照取值
@@ -615,7 +603,6 @@ impl VoiceWarning {
         self.init_compressor_warning();
 
         // 播放启动音效
-        // Java: VoiceAlert startSound = new VoiceAlert("start1", 1);
         let start_sound = self.new_alert("start1", 1);
         start_sound.play_once(s.current_time_ms());
 
@@ -644,7 +631,6 @@ impl VoiceWarning {
         // 无 FM（未识别/加载中/MISSING）→ 保持默认告警线 15
         let fm = self.fm_manager.current();
         if let Some(b) = fm.blkx.as_ref() {
-            // Java: b.NoFlapsWing.AoACritHigh — NoFlapsWing null 即 NPE ≡ unwrap panic
             self.aoa_warning_line = b.no_flaps_wing.as_ref().unwrap().aoa_crit_high;
         }
     }
@@ -671,11 +657,9 @@ impl VoiceWarning {
         self.ias_warning_line = 0.0;
         self.mach_warning_line = 0.0;
         if let Some(b) = b {
-            // Java: b.vne * 0.95f — 0.95f 的 f32 值 ≠ f64 0.95, 显式转换 (§2.12)
-            self.ias_warning_line = b.vne * 0.95f32 as f64;
-            self.mach_warning_line = b.vne_mach * 0.95f32 as f64;
+            self.ias_warning_line = b.vne * 0.95;
+            self.mach_warning_line = b.vne_mach * 0.95;
         }
-        // Java: Float.MAX_VALUE 赋给 double 字段 (拓宽)
         if self.ias_warning_line == 0.0 {
             self.ias_warning_line = f32::MAX as f64;
         }
@@ -724,7 +708,6 @@ impl VoiceWarning {
         self.ny_warning_line0 = 0.0;
         self.ny_warning_line1 = 0.0;
         if let Some(bb) = self.blkx.as_ref() {
-            // Java: b.maxAllowGload[0] — 数组 null 即 NPE ≡ unwrap panic
             let g = bb.max_allow_gload.unwrap();
             self.ny_warning_line0 = g[0];
             self.ny_warning_line1 = g[1];
@@ -815,7 +798,6 @@ impl VoiceWarning {
         // 无 FM → 舵效告警线保持 65535（告警关闭）
         let fm = self.fm_manager.current();
         if let Some(b) = fm.blkx.as_ref() {
-            // Java: (int) b.rudderEff — JLS 5.1.3 double→int (NaN→0/越界饱和)
             // 与 Rust `as i32` 逐位同语义, 无需双转 (§2.2)
             self.rudder_eff_ias = b.rudder_eff as i32;
             self.elevator_eff_ias = b.elav_eff as i32;
@@ -832,7 +814,6 @@ impl VoiceWarning {
         ));
 
         // 订阅 FlightDataBus 获取增压器档位不匹配事件
-        // Java: flightDataListener = new FlightDataListener() {...};
         //       FlightDataBus.getInstance().register(flightDataListener);
         // PORT: 匿名 listener → RAII Subscription (见字段注的泄漏根治说明)
         let current_mismatch = Arc::clone(&self.current_mismatch);
@@ -855,7 +836,6 @@ impl VoiceWarning {
     pub fn dispose(&mut self) {
         self.doit.store(false, Ordering::SeqCst);
         if let Some(sub) = self.flight_data_subscription.take() {
-            // Java: FlightDataBus.getInstance().unregister(flightDataListener);
             sub.unsubscribe();
         }
         // Java 版无此步 (泄漏点) — 根治补齐
@@ -939,15 +919,13 @@ impl VoiceWarning {
         let fm = self.fm_manager.current();
         let b = fm.blkx.as_ref();
         if let Some(b) = b {
-            // Java: if (b.isVWing) — Boolean 拆箱 null→NPE ≡ unwrap panic
             // (hud_calculator.rs 同款先例)
             if b.is_v_wing.unwrap() {
                 vwing = self.indic.wsweep_indicator;
             }
             self.aoa_warning_line = b.get_aoa_high_v_wing(vwing, flaps);
-            // Java: * 0.95f — f32 字面量值, 显式转换 (§2.12)
-            self.ias_warning_line = b.get_vne_v_wing(vwing) * 0.95f32 as f64;
-            self.mach_warning_line = b.get_mne_v_wing(vwing) * 0.95f32 as f64;
+            self.ias_warning_line = b.get_vne_v_wing(vwing) * 0.95;
+            self.mach_warning_line = b.get_mne_v_wing(vwing) * 0.95;
         }
     }
 
@@ -1074,7 +1052,6 @@ impl VoiceWarning {
         let xs = Arc::clone(self.xs());
         // 无油告警
         if xs.total_fuel() == 0.0 {
-            // Java: if (oofCheck++ > 16) — 后自增: 先比旧值, 计数恒 +1
             let old = self.oof_check;
             self.oof_check += 1;
             if old > 16 {
@@ -1174,7 +1151,6 @@ impl VoiceWarning {
 
         // 定距桨特殊处理：不是喷气但桨距无效
         if !(!xs.is_eng_jet() && self.st.rpm_throttle < 0) {
-            // Java: st.RPM * 100.0f — int * float 为 float 算术链, 再除 double
             // 时提升 (§2.12: f32 中间量显式保持)
             if (self.st.throttle - 30) as f64
                 > (self.st.rpm as f32 * 100.0f32) as f64 / xs.maximum_thr_rpm()
@@ -1224,7 +1200,6 @@ impl VoiceWarning {
             && self.nofuelweight > 0.0
         {
             let current_weight = self.nofuelweight + self.st.mfuel;
-            // Java: blkx.getMaxAllowGloadForWeight(currentWeight) — 守卫只查
             // rawWingCritOverload != null 且 nofuelweight > 0, currentWeight =
             // nofuelweight + mfuel 仍可 <= 0 (mfuel 可为负值/哨兵), 此时走回退
             // 分支返回 maxAllowGload (可为 null) → Java 在 dynamicLimits[0] 处
@@ -1340,14 +1315,12 @@ impl VoiceWarning {
 
     /// Java: `public void playWav(String Path)` — Legacy tool for direct playWav
     pub fn play_wav(&self, path: &str) {
-        // Java: AudioSystem.getAudioInputStream + getLine + open + start;
         //      catch (Exception e) { e.printStackTrace(); }
         // PORT: AudioSystem 直开面 → legacy_player 注入 (与 resource_manager 共用
         // 同一实现即等价); 异常腿收敛为 Err 分支, printStackTrace 收窄为 DEBUG
         // 闸门 stderr (voice_resource_manager.rs 同款先例)
         match self.legacy_player.open_clip(Path::new(path)) {
             Ok(audio_clip) => {
-                // Java: audioClip.start(); 局部引用出作用域后靠 GC finalizer
                 // 延迟释放自然播完 → Rust 交保活线程持有 (审查 B-B1, 见
                 // [`hold_clip_until_done`] 注)
                 audio_clip.start();
@@ -1367,20 +1340,18 @@ impl VoiceWarning {
     fn get_clip(&mut self, audio_file_path: &str) -> Option<Box<dyn SoundClip>> {
         let audio_file = PathBuf::from(audio_file_path);
         self.play_completed = false;
-        // Java: AudioSystem.getAudioInputStream/getLine/open + 三类异常各自
         // debugPrint 不同文案 (UnsupportedAudioFile/LineUnavailable/IOException);
         // PORT: SoundPlayer 注入面 (D7) 将三类异常收敛为单一 Err, 差异化文案
         // 不可复刻 — 取 IOException 腿文案 ("Error playing the audio file.")
         match self.legacy_player.open_clip(&audio_file) {
             Ok(audio_clip) => Some(audio_clip),
             Err(e) => {
-                // Java: Application.debugPrint("Error playing the audio file.")
                 //      = Logger.info("Legacy", t) (flight_analyzer.rs 先例)
                 logger::info("Legacy", "Error playing the audio file.");
                 if logger::get_level().value() <= logger::Level::Debug.value() {
                     let _ = writeln!(std::io::stderr().lock(), "{e:?}");
                 }
-                None // Java: audioClip 保持 null 返回
+                None
             }
         }
     }

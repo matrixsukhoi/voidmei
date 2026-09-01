@@ -76,7 +76,7 @@ pub struct ServiceData {
 
     // 对飞机结构有重大影响的警告
     // PORT: Java `Boolean` 装箱 (可 null) → Option<bool> (§1); 初始化器 = false → Some(false)
-    pub fatal_warn: Option<bool>,
+    pub fatal_warn: bool,
 
     // sState转换后
     pub compass_delta: f64,
@@ -111,7 +111,7 @@ pub struct ServiceData {
         pub(crate) prev_optimal_compressor_stage: i32,
 
     /// Java 包私有 `Boolean portOcupied = false` (装箱 → Option, 初始化器 false)
-        pub(crate) port_ocupied: Option<bool>,
+        pub(crate) port_ocupied: bool,
         pub(crate) check_engine_type: i32,
         pub(crate) check_pitch: i32,
     /// Java 初始化器 `= false`
@@ -219,7 +219,7 @@ impl Default for ServiceData {
             noil_temp: 0.0,
             nwater_temp: 0.0,
             wep_time: 0,
-            fatal_warn: Some(false),
+            fatal_warn: false,
             compass_delta: 0.0,
             engine_num: 0,
             cur_load_min_work_time: 0.0,
@@ -238,7 +238,7 @@ impl Default for ServiceData {
             compressor_stage_mismatch: false,
             prev_actual_compressor_stage: -1,
             prev_optimal_compressor_stage: -1,
-            port_ocupied: Some(false),
+            port_ocupied: false,
             check_engine_type: 0,
             check_pitch: 0,
             check_engine_flag: false,

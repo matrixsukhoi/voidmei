@@ -14,7 +14,6 @@ impl Service {
     /// 引擎过热/耐久度检查。
     ///
     /// @param fm 本周期 FM 句柄快照（R1 下传, 单周期内同一 Blkx 实例）
-    //  (以上 javadoc 逐字保留, Java L565-569)
     // 接线点: calculate 链 updateTemp 之后 (主线波次, 见文件尾注) — 接线前
     // dead_code 以 allow 静音 (service_fields.rs cur_w_load 同款先例), 接线后无感
     pub(super) fn check_overheat(&mut self, fm: &FMHandle) {
@@ -143,7 +142,6 @@ impl Service {
     /// "换机 = 新 Blx 实例" 天然保证会话态不串机, 此处保持就地改写不变）。
     ///
     /// @param fm 本周期 FM 句柄快照（R1 下传）
-    //  (以上 javadoc 逐字保留, Java L1510-1515)
     // PORT(形态): Java 为实例方法 `public void resetEngLoad(FMHandle fm)` (L1516),
     // 方法体不触碰任何 Service 实例字段 → 关联函数形态, 与 reset_varia 的既有
     // 调用点 `Self::reset_eng_load(&fm)` 零改动衔接。
@@ -156,7 +154,6 @@ impl Service {
                 .eng_load_state
                 .lock()
                 .unwrap_or_else(|e| e.into_inner());
-            // Java: blkx.engLoad[idx] —— 会话态真人; blkx 有而 engLoad 为 null 的
             // 畸形 FM 在 Java 裸索引即 NPE (resetvaria 调用域由 run 顶层 catch 兜住),
             // expect panic 同构
             let p_l = session

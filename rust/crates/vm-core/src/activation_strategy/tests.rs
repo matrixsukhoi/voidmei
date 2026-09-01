@@ -104,7 +104,6 @@ fn test_context_flag_presets() {
 
 #[test]
 fn test_and_truth_table() {
-    // Java: this.shouldActivate(ctx) && other.shouldActivate(ctx)
     for (a, b, expect) in [(true, true, true), (true, false, false), (false, true, false), (false, false, false)] {
         let left = if a { ActivationStrategy::always() } else { ActivationStrategy::never() };
         let right = if b { ActivationStrategy::always() } else { ActivationStrategy::never() };
@@ -118,7 +117,6 @@ fn test_and_truth_table() {
 
 #[test]
 fn test_or_truth_table() {
-    // Java: this.shouldActivate(ctx) || other.shouldActivate(ctx)
     for (a, b, expect) in [(true, true, true), (true, false, true), (false, true, true), (false, false, false)] {
         let left = if a { ActivationStrategy::always() } else { ActivationStrategy::never() };
         let right = if b { ActivationStrategy::always() } else { ActivationStrategy::never() };
@@ -132,7 +130,6 @@ fn test_or_truth_table() {
 
 #[test]
 fn test_not_flips() {
-    // Java: !this.shouldActivate(ctx)
     assert!(!ActivationStrategy::always().not().should_activate(&MockCtx::new()));
     assert!(ActivationStrategy::never().not().should_activate(&MockCtx::new()));
     let t = MockCtx::new().with_bool("k", true);

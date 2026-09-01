@@ -189,7 +189,6 @@ impl MapObj {
         let s = self.s.clone();
         let bix: i32 = s.find('{').map_or(-1, |v| v as i32);
         if bix != -1 {
-            // Java: eix = s.indexOf('}') — 全串首个 '}', 无则 -1 (后续 substring 抛异常 ↔ panic)
             eix = s.find('}').map_or(-1, |v| v as i32);
             buf = s[bix as usize..(eix + 1) as usize].to_string();
             // Application.debugPrint("切片值"+buf);
@@ -254,7 +253,6 @@ impl MapObj {
             eix += 1;
             bix = eix;
             scan_until!(t, eix, b',');
-            // Java: Integer.parseInt — 不 trim, 坏输入抛 NumberFormatException ↔ panic
             let red = get_data_int(Some(&t[bix as usize..eix as usize]));
             // Application.debugPrint(red);
             eix += 1;
@@ -265,7 +263,6 @@ impl MapObj {
             bix = eix;
             scan_until!(t, eix, b']');
             let blue = get_data_int(Some(&t[bix as usize..eix as usize]));
-            // Java: new Color(red, green, blue), alpha=255。PORT: as u8 截断 (& 0xFF 语义),
             // Java 构造器对 0-255 外抛 IllegalArgumentException — 域内 color[] 恒 0-255, 不可达
             colorg = [red as u8, green as u8, blue as u8, 255];
             // Application.debugPrint(colorg);
@@ -315,7 +312,6 @@ impl MapObj {
             scan_until!(t, eix, b'"');
             icon_bg = t[bix as usize..eix as usize].to_string();
             if icon_bg != "none" {
-                // Java: iconBg.equals("none") != true
                 is_selected = true;
             }
             // Application.debugPrint(iconBg);
@@ -701,7 +697,7 @@ impl MapObj {
     pub fn get_player_loc(json_text: &str, loc: &mut [f64; 2]) {
         // 正则表达式用于匹配整个JSON对象，并捕获icon为"Player"的x和y坐标
         for (g1, g3) in find_pairs(json_text, "\"icon\"", "\"Player\"", "\"x\"", "\"y\"") {
-            let x: f64 = g1.parse().unwrap(); // Java: Double.parseDouble(m.group(1))
+            let x: f64 = g1.parse().unwrap();
             let y: f64 = g3.parse().unwrap();
             // System.out.println("Player coordinates: x = " + x + ", y = " + y);
             loc[0] = x;

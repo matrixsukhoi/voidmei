@@ -252,9 +252,9 @@ impl MinimalHudContext {
         let cross_scale = java_round_long_narrowed(base_cross_scale as f64 * dpi_scale);
 
         let f_add = settings.get_font_size_add();
-        // Font size is derived from crossScale (already scaled) (Java 注释原文)
+        // Font size is derived from crossScale (already scaled)
         let mut hud_font_size = cross_scale / 4 + java_round_long_narrowed(f_add as f64 * dpi_scale);
-        // Ensure minimum size to prevent crash (Java 注释原文)
+        // Ensure minimum size to prevent crash
         if hud_font_size < 8 {
             hud_font_size = 8;
         }
@@ -287,7 +287,7 @@ impl MinimalHudContext {
         // Math.round(float)→int (非 double 版, §2.3 双语义)
         let round_compass = java_round_f32(hud_font_size as f32 * 0.8f32);
 
-        // Dynamic rightDraw calculation (WYSWYG Overlap Fix) (Java 注释原文)
+        // Dynamic rightDraw calculation (WYSWYG Overlap Fix)
         // Standard value (~5 chars): 3.5f * fontSize
         // Labeled value (~9 chars): 5.5f * fontSize
         let multiplier = if !settings.is_speed_label_disabled()
@@ -305,7 +305,7 @@ impl MinimalHudContext {
         let compass_radius = java_round_long_narrowed(compass_diameter as f64 / 2.0);
         let compass_inner_mark_radius = java_round_long_narrowed(0.618 * compass_diameter as f64);
 
-        // Adjusted for dynamic rightDraw (Java 注释原文)
+        // Adjusted for dynamic rightDraw
         let aoa_length = right_draw as f64 - hud_font_size as f64 / 1.5;
 
         // 4. Strokes & Fonts - scaled stroke widths for crisp lines (Java 注释)
@@ -757,7 +757,7 @@ impl MiniHudOverlay {
             service_present,
             components: Vec::new(),
             hud_rows: Vec::new(),
-            warning: WarningBlinkHost::new(service_loop_interval_ms), // Java:263-265
+            warning: WarningBlinkHost::new(service_loop_interval_ms),
             layout: BuiltMiniHudLayout { engine: empty_engine, sizing: None },
             lines: std::array::from_fn(|_| String::new()),
             rel_energy: String::new(),
@@ -781,14 +781,13 @@ impl MiniHudOverlay {
             maneuver_index_len50: 0,
             warn_rh: false,
             warn_vne: false,
-            refresh_interval: service_loop_interval_ms, // Java:267
+            refresh_interval: service_loop_interval_ms,
             last_refresh_time: 0,
             ctx,
         };
 
-        overlay.reinit_config(settings)?; // Java:226 (ctx/模板/风格/布局)
+        overlay.reinit_config(settings)?;
 
-        // Java:231-234 — aoaY 钳制 + 颜色冗余重置 (原样保留)
         if overlay.aoa_y > overlay.ctx.right_draw {
             overlay.aoa_y = overlay.ctx.right_draw;
         }
@@ -797,7 +796,6 @@ impl MiniHudOverlay {
 
         overlay.init_components_layout(settings);
 
-        // Java:280 (init 尾部的第二次 updateComponents)。
         // PORT: Java 读 service 字段 — 游戏模式 S1.start() 先于 overlay 激活
         // (Controller.java:633-641), sState 可能已轮询出值, throttle 分支可吃到
         // 真值; 组装层此阶段无遥测口可传 → None, throttle 闪 0, 由下一放行的
@@ -814,11 +812,11 @@ impl MiniHudOverlay {
     pub fn reinit_config<S: HUDSettings>(&mut self, settings: &S) -> Result<(), String> {
         vm_core::logger::info("MinimalHUD", "reinitConfig called");
 
-        // Create Immutable Context (Java 注释原文)
+        // Create Immutable Context
         self.ctx = MinimalHudContext::create(settings, self.dpi_scale, &self.font_path)?;
         self.fonts = Rc::new(self.ctx.fonts.clone());
 
-        // 1. Refresh mock data and templates (WYSIWYG support) (Java 注释原文)
+        // 1. Refresh mock data and templates (WYSIWYG support)
         self.refresh_templates(settings);
 
         // Apply dimensions (Initial guess, will be refined by dynamic layout)
@@ -826,14 +824,14 @@ impl MiniHudOverlay {
 
         // 2. Sync Component State (Style & Visibility) BEFORE Layout
         // This ensures getContentBounds() sees the correct visible components
-        // (Java 注释原文)
+        //
         self.apply_style_to_components(settings);
         // PORT: Java 此处 updateComponents() 读 service 字段 — 游戏模式 WYSIWYG
         // reinit 时 sState 可非 null (throttle 吃真值); Rust 恒传 None → 油门条
         // 闪 0, 下一放行 on_flight_data (≤refreshInterval) 修复, 影响 ≤1 帧
         self.update_components(settings, None);
 
-        // 3. Setup Layout Engine & Dynamic Sizing (Java 注释原文)
+        // 3. Setup Layout Engine & Dynamic Sizing
         self.init_modern_layout(settings);
 
         self.first_draw = true;
@@ -843,7 +841,6 @@ impl MiniHudOverlay {
 
     /// Java refreshTemplates() (L161-208)
     fn refresh_templates<S: HUDSettings>(&mut self, settings: &S) {
-        // Java: lines == null 守卫 — Rust 数组恒在, 不复刻
         let spd_pre = if settings.is_speed_label_disabled() { "" } else { "SPD" };
         let alt_pre = if settings.is_altitude_label_disabled() { "" } else { "ALT" };
         let sep_pre = if settings.is_sep_label_disabled() { "" } else { "SEP" };
@@ -855,7 +852,7 @@ impl MiniHudOverlay {
             self.lines[0] = format!("{spd_pre}{}", pad_width("360".to_string(), 5, false));
         }
         // Format must match HUDCalculator: radar = "R%5.0f" (R + 5 digits),
-        // barometric = "%6.0f" (6 digits) (Java 注释原文)
+        // barometric = "%6.0f" (6 digits)
         self.lines[1] = if settings.always_show_radar_altitude() {
             // "R%5s" ("1024") — R 前缀 + 5 宽右对齐
             format!("{alt_pre}R{}", pad_width("1024".to_string(), 5, false))
@@ -880,7 +877,7 @@ impl MiniHudOverlay {
         self.line_aoa = format!("α{}", pad_width(java_f(20.0, 0), 3, false));
         self.rel_energy = "E114514".to_string();
 
-        // Push new templates to existing components immediately (Java 注释原文)
+        // Push new templates to existing components immediately
         if self.hud_rows.len() >= 5 {
             self.set_row_templates();
         }
@@ -929,7 +926,7 @@ impl MiniHudOverlay {
         self.flap_angle_bar = cell(MiniHudComponentInner::FlapBar(FlapAngleBar::new()));
         self.components.push(self.flap_angle_bar.clone());
 
-        // New SpeedRatioBar (Java 注释原文)
+        // New SpeedRatioBar
         self.speed_ratio_bar = cell(MiniHudComponentInner::SpeedRatioBar(SpeedRatioBar::new()));
         self.components.push(self.speed_ratio_bar.clone());
 
@@ -998,7 +995,6 @@ impl MiniHudOverlay {
     /// Java applyStyleToComponents() (L591-647)
     fn apply_style_to_components<S: HUDSettings>(&mut self, settings: &S) {
         if self.components.is_empty() {
-            // Java: 各字段 null 守卫逐个短路 (首轮 reinitConfig) — Rust 占位组件
             // 恒在, 以 components 清单空近似同一守卫 (占位件随后被整体替换)
             return;
         }
@@ -1012,7 +1008,7 @@ impl MiniHudOverlay {
         {
             let mut c = self.speed_ratio_bar.0.borrow_mut();
             if let MiniHudComponentInner::SpeedRatioBar(s) = &mut c.inner {
-                // Width: similar to throttle bar or slightly thinner? (Java 注释原文)
+                // Width: similar to throttle bar or slightly thinner?
                 let mut w = (ctx.hud_font_size as f64 * 0.25) as i32;
                 let h = (ctx.hud_font_size as f64 * 5.5) as i32;
                 if w < 6 {
@@ -1034,7 +1030,7 @@ impl MiniHudOverlay {
         {
             let mut c = self.flap_angle_bar.0.borrow_mut();
             if let MiniHudComponentInner::FlapBar(b) = &mut c.inner {
-                // Dynamic width (Java 注释原文)
+                // Dynamic width
                 let responsive_width = (ctx.hud_font_size as f64 * 6.0) as i32;
                 b.set_style_context(responsive_width, ctx.line_width + 2);
                 c.flap_total_width = responsive_width;
@@ -1067,7 +1063,7 @@ impl MiniHudOverlay {
                 g.set_inertial_mode(settings.is_attitude_indicator_inertial_mode());
             }
         }
-        // Synchronize styles for Rows (Java 注释原文)
+        // Synchronize styles for Rows
         if self.hud_rows.len() >= 5 {
             {
                 let mut c = self.hud_rows[0].0.borrow_mut();
@@ -1112,7 +1108,7 @@ impl MiniHudOverlay {
             let mut c = self.throttle_bar.0.borrow_mut();
             if let MiniHudComponentInner::ThrottleBar(t) = &mut c.inner {
                 // Re-calc explicit height for ThrottleBar if needed or use existing
-                // throttley_max (Java 注释原文)
+                // throttley_max
                 // Standardizing to relative size: 4.8 lines high (closer to legacy 4.75)
                 let responsive_height = (ctx.hud_font_size as f64 * 4.8) as i32;
                 t.set_style_context(responsive_height, ctx.bar_width);
@@ -1147,9 +1143,9 @@ impl MiniHudOverlay {
         self.speed_ratio_bar.set_visible(text_visible && show_speed);
         let master = settings.draw_hud_text();
 
-        // 组件级独立可见性控制 (Java 注释原文)
+        // 组件级独立可见性控制
         if self.hud_rows.len() >= 5 {
-            // Row 0: Speed + AoA — 两个独立组件 (Java 注释原文)
+            // Row 0: Speed + AoA — 两个独立组件
             let row0_speed = master && settings.show_hud_speed();
             let row0_aoa = master && settings.show_hud_aoa();
             self.hud_rows[0].set_visible(row0_speed || row0_aoa);
@@ -1161,7 +1157,7 @@ impl MiniHudOverlay {
                 }
             }
 
-            // Row 1: Altitude + Energy — 两个独立组件 (Java 注释原文)
+            // Row 1: Altitude + Energy — 两个独立组件
             let row1_alt = master && settings.show_hud_altitude();
             let row1_energy = master && settings.show_hud_energy();
             self.hud_rows[1].set_visible(row1_alt || row1_energy);
@@ -1173,7 +1169,7 @@ impl MiniHudOverlay {
                 }
             }
 
-            // Row 2: 襟翼/可变翼 + 减速板 + 起落架 — 三个独立组件 (Java 注释原文)
+            // Row 2: 襟翼/可变翼 + 减速板 + 起落架 — 三个独立组件
             let row2_flaps = master && settings.show_hud_flaps();
             let row2_brk = master && settings.show_hud_airbrake();
             let row2_gear = master && settings.show_hud_gear();
@@ -1187,10 +1183,10 @@ impl MiniHudOverlay {
                 }
             }
 
-            // Row 3: 单组件（爬升率）(Java 注释原文)
+            // Row 3: 单组件（爬升率）
             self.hud_rows[3].set_visible(master && settings.show_hud_sep());
 
-            // Row 4: G-force + ManeuverBar — 两个独立组件 (Java 注释原文)
+            // Row 4: G-force + ManeuverBar — 两个独立组件
             let row4_g_load = master && settings.show_hud_g_load();
             let row4_bar = master && settings.show_hud_maneuver_bar();
             self.hud_rows[4].set_visible(row4_g_load || row4_bar);
@@ -1226,13 +1222,13 @@ impl MiniHudOverlay {
                     let mut c = self.hud_rows[1].0.borrow_mut();
                     if let MiniHudComponentInner::Row1(r) = &mut c.inner {
                         // 能量颜色已统一使用 Application.colorNum，不再需要传入颜色参数
-                        // (Java 注释原文)
+                        //
                         r.update(&l1, false, &lrel);
                     }
                 }
             }
 
-            // Row 2: Standard (Flaps/Gear) (Java 注释原文)
+            // Row 2: Standard (Flaps/Gear)
             let l2 = self.lines[2].clone();
             {
                 let mut c = self.hud_rows[2].0.borrow_mut();
@@ -1240,7 +1236,7 @@ impl MiniHudOverlay {
                     r.update(&l2, self.in_action);
                 }
             }
-            // Row 3: Standard (SEP) (Java 注释原文)
+            // Row 3: Standard (SEP)
             let l3 = self.lines[3].clone();
             {
                 let mut c = self.hud_rows[3].0.borrow_mut();
@@ -1248,7 +1244,7 @@ impl MiniHudOverlay {
                     r.update(&l3, false);
                 }
             }
-            // Row 4: Maneuver (G) (Java 注释原文)
+            // Row 4: Maneuver (G)
             let l4 = self.lines[4].clone();
             let (mi, l, l10, l20, l30, l40, l50) = (
                 self.maneuver_index,
@@ -1308,7 +1304,7 @@ impl MiniHudOverlay {
             parts,
             self.ctx.width,
             self.ctx.height,
-            // Use lineHeight from font size for responsive scaling (Java 注释原文)
+            // Use lineHeight from font size for responsive scaling
             self.ctx.hud_font_size as f64,
         );
     }
@@ -1332,7 +1328,7 @@ impl MiniHudOverlay {
         colors: &HudColors,
     ) -> bool {
         // Throttling prevents EDT task accumulation when events arrive faster
-        // than processing (Java 注释原文)
+        // than processing
         if now_ms - self.last_refresh_time < self.refresh_interval {
             return false; // Skip this update, too soon
         }
@@ -1355,24 +1351,23 @@ impl MiniHudOverlay {
         settings: &S,
         colors: &HudColors,
     ) {
-        // Java: ctx == null 守卫 — Rust ctx 构造期恒建, 不复刻
         // (Java 的 FMManager.current().blkx 快照语义由调用方以 blkx=None 表达 —
         // 非 READY 句柄降级)
         let data = hud_calculator::calculate(state, indic, payload, service, blkx, settings, colors);
 
-        // Dispatch to Reactive Components (Java 注释原文)
+        // Dispatch to Reactive Components
         for comp in &self.components {
             comp.0.borrow_mut().on_data_update(&data);
         }
 
-        // Update Legacy Components (Bridge) & Global State (Java 注释原文)
+        // Update Legacy Components (Bridge) & Global State
         self.warn_vne = data.warn_vne;
         self.warn_rh = data.warn_altitude;
         // blinkX = event.getPayload().fatalWarn (Java:458)
         self.warning.set_blink_x(payload.fatal_warn);
 
         if self.hud_rows.len() >= 5 {
-            // Let's call a legacy bridge method explicitly (Java 注释原文)
+            // Let's call a legacy bridge method explicitly
             self.update_legacy_components(&data);
         }
 
@@ -1390,7 +1385,7 @@ impl MiniHudOverlay {
     #[allow(clippy::eq_op)]
     fn update_legacy_components(&mut self, data: &HUDData) {
         // Row 0, 1, 2 are refactored (Akb, Energy, Mechanization). They use
-        // onDataUpdate. (Java 注释原文)
+        // onDataUpdate.
         // Row 3: SEP
         {
             let sep = data.sep_str.clone();
@@ -1400,7 +1395,7 @@ impl MiniHudOverlay {
             }
         }
         // Row 4: Maneuver
-        // ManeuverRow update signature is complex. (Java 注释原文)
+        // ManeuverRow update signature is complex.
         {
             let (ms, mi) = (data.maneuver_state_str.clone(), data.maneuver_index);
             let (l, l10, l20, l30, l40, l50) = (
@@ -1417,7 +1412,7 @@ impl MiniHudOverlay {
             }
         }
         // Note: maneuverIndexLen variables are member fields of MinimalHUD
-        // calculated in legacy loop. (Java 注释原文)
+        // calculated in legacy loop.
         let right_draw = self.ctx.right_draw;
         // PORT: (int) Math.round(double) — round→long→(int) 窄化 (§2.2 双转);
         // 求值序 (index / 0.5) * rightDraw 与 Java 左结合一致
@@ -1433,7 +1428,6 @@ impl MiniHudOverlay {
     /// Java paintComponent 主体 (L241-256): doLayout + render + drawBlinkX。
     /// aa = graphAASetting (生产恒 ON; false 供对拍)。
     pub fn draw(&mut self, cv: &mut PixCanvas, aa: bool) {
-        // Java:243-248 渲染提示 (AA/alpha/color) 由 PixCanvas 的 aa 参数承载
         // (render2d 口径)
         {
             self.layout.engine.do_layout();
@@ -1474,7 +1468,7 @@ impl MiniHudOverlay {
 /// 覆盖 x..x+w × y..y+h (含端点)。rows.rs ring 同一语义 (模块私有故本地拷贝)。
 fn draw_rect_1px(cv: &mut PixCanvas, x: i32, y: i32, w: i32, h: i32, color: [u8; 4]) {
     if w < 0 || h < 0 {
-        return; // Java drawRect 负宽/负高不绘制
+        return;
     }
     if w == 0 || h == 0 {
         if w == 0 && h > 0 {

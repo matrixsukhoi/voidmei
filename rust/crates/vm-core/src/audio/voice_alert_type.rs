@@ -196,7 +196,6 @@ impl VoiceAlertType {
     /// 获取冷却时间（毫秒）
     /// @return 冷却时间毫秒数
     pub fn get_cooldown_ms(&self) -> i64 {
-        // Java: cooldownSeconds * 1000L — int 提升为 long 后相乘
         self.parts().1 as i64 * 1000
     }
 
@@ -219,8 +218,7 @@ impl VoiceAlertType {
     /// @return 对应的枚举值，找不到返回 null
     // PORT: Java null 返回值/入参 → Option<VoiceAlertType> / Option<&str>。
     pub fn from_key(key: Option<&str>) -> Option<VoiceAlertType> {
-        let key = key?; // Java: if (key == null) return null;
-        // Java: type.key.equals(key) — String 值比较
+        let key = key?;
         ALL.iter().copied().find(|t| t.parts().0 == key)
     }
 

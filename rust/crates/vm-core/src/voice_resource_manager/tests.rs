@@ -275,7 +275,7 @@ fn test_install_pack_bad_zip_no_panic() {
     fs::write(&bad, b"this is not a zip archive").unwrap();
 
     let (m, _) = mgr(&voice, MockPlayer::new(None));
-    m.install_pack(&bad); // Java: catch(Exception) 仅记日志
+    m.install_pack(&bad);
 
     // 包目录在 try 之前已建 (Java mkdirs 先行), 但无 wav 落地
     let pack = voice.join("broken");

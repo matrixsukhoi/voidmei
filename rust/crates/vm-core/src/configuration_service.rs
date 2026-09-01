@@ -123,7 +123,6 @@ impl ConfigurationService {
         *self.inner.layout_configs.write().expect(LC_LOCK_MSG) = Some(configs);
 
         // Subscribe to global reset requests (EDA implementation)
-        // Java: UIStateBus.getInstance().subscribe(CONFIG_CHANGED, key -> {
         //           if (ACTION_RESET_REQUEST.equals(key)) resetAllLayoutDefaults(); })
         // PORT(跨文件, §6 只标注): bus.rs 的 subscribe 要求回调 Send + 'static,
         // 而 config_loader::GroupConfig 含 Rc<SExp> (visible_when/na_when) →
@@ -185,7 +184,6 @@ impl ConfigurationService {
         {
             let mut configs = self.inner.layout_configs.write().expect(LC_LOCK_MSG);
             if let Some(list) = configs.as_mut() {
-                // Java: 命中首个同题分组即用 (equalsIgnoreCase)
                 for gc in list.iter_mut() {
                     if section.eq_ignore_ascii_case(&gc.title) {
                         gc.x = nx;
@@ -315,7 +313,6 @@ impl ConfigurationService {
         let color_shade_shape = self.get_color_config("fontShade");
         {
             let mut app = self.inner.app.write().expect(APP_LOCK_MSG);
-            // Java: (long)(serviceLoopIntervalMs / 3) — long/long 整除 (无浮点)
             app.thread_sleep_time = service_loop_interval_ms / 3;
 
             app.color_num = color_num;
@@ -324,7 +321,6 @@ impl ConfigurationService {
             app.color_warning = color_warning;
             app.color_shade_shape = color_shade_shape;
 
-            // Java: try { vol...; if (非空) voiceVolumn = parseInt } catch { voiceVolumn = 0 }
             let vol = self.inner.get_config_j("voiceVolume");
             if !vol.is_empty() {
                 // catch(NumberFormatException) → 0 // Default
@@ -350,7 +346,6 @@ impl ConfigurationService {
 
             let fm_key = self.inner.get_config_j("displayFmKey");
             if !fm_key.is_empty() {
-                // Java: try { displayFmKey = parseInt } catch (NumberFormatException e) { // Ignore }
                 if let Ok(k) = fm_key.parse::<i32>() {
                     app.display_fm_key = k;
                 }
@@ -359,14 +354,12 @@ impl ConfigurationService {
             // --- HTTP Port Sync ---
             let port_str = self.inner.get_config_j("httpPort");
             if !port_str.is_empty() {
-                // Java: try { ... } catch (NumberFormatException e) { // Ignore }
                 if let Ok(port) = port_str.parse::<i32>() {
                     app.app_port = port;
                     // PORT §2.2: Java int + int 静默回绕 ↔ wrapping_add
                     app.app_port_bkp = port.wrapping_add(1111);
                     // Assuming httpIp is still from Lang or static 127.0.0.1
                     let mut ip = "127.0.0.1".to_string();
-                    // Java: Lang.httpIp 为启动期 initLang() 覆写的静态字段;
                     // Rust 无全局 Lang 状态 — init_lang() 静态表快照现取 (blkx 先例)
                     let lang_ip = Lang::init_lang().http_ip;
                     if !lang_ip.is_empty() {
@@ -402,7 +395,6 @@ impl ConfigurationService {
             }
         }
 
-        // Java: Application.initFont(); Application.updateWebLafFonts();
         // PORT: C 类接线 (AWT GraphicsEnvironment 注册 fonts/ 目录字体并解析
         // defaultFont / WebLaF 全局字体注入), vm-app/vm-ui 波次处理;
         // 落地前 ApplicationState.default_font 维持 None。
@@ -410,7 +402,6 @@ impl ConfigurationService {
         // defaultFont 回退分支届时生效)。
     }
 
-    // Java: `private synchronized void scheduleBackgroundSave() { ... }` (Removed)
     // (被移除的原代码注释, 原样保留)
 
     // --- Helpers ---
@@ -434,7 +425,6 @@ impl ConfigurationService {
         let g = i32::from(c[1]);
         let b = i32::from(c[2]);
         let a = i32::from(c[3]);
-        // Java: R + ", " + G + ", " + B + ", " + A
         let unified = format!("{r}, {g}, {b}, {a}");
 
         self.set_config(key, &unified);
@@ -514,7 +504,6 @@ impl ServiceInner {
                 }
 
                 // Check Group SwitchKey (e.g. flightInfoSwitch maps to Group visibility)
-                // Java: key.equals(gc.switchKey) — switchKey 可 null (equals(null)=false)
                 if let Some(sk) = &gc.switch_key {
                     if key == sk {
                         return gc.visible.to_string(); // String.valueOf(boolean)
@@ -522,7 +511,7 @@ impl ServiceInner {
                 }
             }
         }
-        String::new() // Java: return ""
+        String::new()
     }
 
     /// Java: `public void setConfig(String key, String value)` 主体
@@ -556,7 +545,6 @@ impl ServiceInner {
 
     /// Java: `public boolean isFieldDisabled(String key)`
     fn is_field_disabled(&self, key: &str) -> bool {
-        // Java: key == null || key.isEmpty() — &str 无 null, 折叠空串判定
         if key.is_empty() {
             return false;
         }
@@ -576,7 +564,6 @@ impl ServiceInner {
                         // For 'data' or 'switch', if value is false, it means it is HIDDEN/DISABLED.
                         return !b;
                     }
-                    // Java: 非 Boolean 值不返回, 继续扫描后续分组 (原控制流保真)
                 }
             }
         }
@@ -586,7 +573,6 @@ impl ServiceInner {
     /// Java: `public boolean resetAllLayoutDefaults()`
     fn reset_all_layout_defaults(&self) -> bool {
         let mut changed = false;
-        // Java: List<RowConfig> pendingChanges — 持引用两阶段;
         // PORT: RwLock 下引用不可跨锁存活, 以 (组下标, 行路径) 定位 (单线程内等价)
         let mut pending: Vec<(usize, Vec<usize>)> = Vec::new();
 
@@ -627,7 +613,6 @@ impl ServiceInner {
 
         // Phase 3: Persist and Notify
         if changed {
-            // Java: saveLayoutConfig() — 锁外在下方 read 完成后调用
             self.save_layout_config();
             // Broadcast global reset event so all components refresh
             self.publish_config_changed(ui_state_events::ACTION_RESET_COMPLETED);
@@ -728,7 +713,6 @@ impl ServiceInner {
 fn find_row_recursive<'a>(rows: &'a [RowConfig], key: &str) -> Option<&'a RowConfig> {
     for row in rows {
         // Priority 1: Match property target exactly
-        // Java: key.equals(row.property) — property 可 null (equals(null)=false)
         if row.property.as_deref() == Some(key) {
             return Some(row);
         }
@@ -737,7 +721,6 @@ fn find_row_recursive<'a>(rows: &'a [RowConfig], key: &str) -> Option<&'a RowCon
             return Some(row);
         }
         // Recurse
-        // Java: row.children != null && !row.children.isEmpty() — Vec 恒非 null
         if !row.children.is_empty() {
             if let Some(found) = find_row_recursive(&row.children, key) {
                 return Some(found);
@@ -756,7 +739,6 @@ fn update_rows_recursive(
     events: &mut Vec<String>,
 ) {
     for row in rows.iter_mut() {
-        // Java: key.equals(row.property) || (row.property == null && key.equals(row.label))
         if row.property.as_deref() == Some(key)
             || (row.property.is_none() && key == row.label)
         {
@@ -768,14 +750,12 @@ fn update_rows_recursive(
                 value.to_string()
             };
 
-            // Java: instanceof Boolean → Integer → 其他/默认 String
             row.value = match &row.value {
                 Some(ConfigValue::Bool(_)) => {
                     Some(ConfigValue::Bool(java_parse_boolean(&val_to_store)))
                 }
                 Some(ConfigValue::Int(_)) => match val_to_store.parse::<i32>() {
                     Ok(i) => Some(ConfigValue::Int(i)),
-                    // Java: catch (Exception e) { row.value = valToStore; } (存字符串)
                     Err(_) => Some(ConfigValue::Str(val_to_store)),
                 },
                 // Double / Str / null → String (Java else 分支)
@@ -783,7 +763,6 @@ fn update_rows_recursive(
             };
             events.push(key.to_string());
         }
-        // Java: row.children != null && !row.children.isEmpty()
         if !row.children.is_empty() {
             update_rows_recursive(&mut row.children, key, value, events);
         }
@@ -818,7 +797,6 @@ fn collect_reset_candidates_recursive(
 ) {
     for (i, r) in rows.iter().enumerate() {
         // Check self
-        // Java: r.defaultValue != null && !r.defaultValue.equals(r.value)
         // (value 为 null 时 equals 返回 false → 仍收集)
         if let Some(dv) = &r.default_value {
             let equal = r.value.as_ref().is_some_and(|v| config_value_java_equals(dv, v));
@@ -911,7 +889,6 @@ impl OverlaySettings for GenericOverlaySettingsImpl {
         let gc = self.get_group_config_snapshot();
         let (screen_w, _) = self.service.screen_size();
         if let Some(gc) = gc {
-            // Java: (int) Math.round(gc.x * Application.screenWidth)
             // PORT §2.3: Math.round(double)=floor(x+0.5); §2.2: (int) 窄化 =
             // 低 32 位 (双转复刻)
             let px = ((gc.x * f64::from(screen_w) + 0.5).floor() as i64) as u32 as i32;
@@ -962,7 +939,6 @@ impl OverlaySettings for GenericOverlaySettingsImpl {
     /// Java: `public void saveWindowPosition(double x, double y)`
     fn save_window_position(&self, x: f64, y: f64) {
         let (screen_w, screen_h) = self.service.screen_size();
-        // Java: gc = getGroupConfig(); if (gc != null && sw > 0 && sh > 0) {...} else {warn}
         // PORT: 查找+判定+写回收敛在同一写锁作用域 (Java 引用一经获取即稳定)
         let mut wrote: Option<(f64, f64)> = None;
         let mut gc_ok = false;
@@ -973,18 +949,16 @@ impl OverlaySettings for GenericOverlaySettingsImpl {
                     if self.section_name.eq_ignore_ascii_case(&gc.title) {
                         gc_ok = true;
                         if screen_w > 0 && screen_h > 0 {
-                            // Java: gc.x = x / screenWidth (double / int → double)
                             gc.x = x / f64::from(screen_w);
                             gc.y = y / f64::from(screen_h);
                             wrote = Some((gc.x, gc.y));
                         }
-                        break; // Java: 命中首个同题分组即用
+                        break;
                     }
                 }
             }
         }
         if let Some((rx, ry)) = wrote {
-            // Java: %f 默认 6 位小数 (Rust {:.6} 同宽度; 舍入差异同上 {:.4} 注)
             logger::debug(
                 "OverlaySettings",
                 &format!(
@@ -1011,7 +985,6 @@ impl OverlaySettings for GenericOverlaySettingsImpl {
     fn get_font_name(&self) -> String {
         let gc = self.get_group_config_snapshot();
         if let Some(gc) = &gc {
-            // Java: gc.fontName != null && !gc.fontName.isEmpty()
             if let Some(fname) = &gc.font_name {
                 if !fname.is_empty() {
                     return fname.clone();
@@ -1056,7 +1029,6 @@ impl OverlaySettings for GenericOverlaySettingsImpl {
             }
         }
         let val = self.service.get_config_j(key);
-        // Java: val == null || val.isEmpty() — 本实现 getConfig 恒非 null
         if val.is_empty() {
             return def;
         }
@@ -1075,7 +1047,6 @@ impl OverlaySettings for GenericOverlaySettingsImpl {
         if val.is_empty() {
             return def;
         }
-        // Java: try { Integer.parseInt } catch (NumberFormatException) { return def } (§2.15)
         val.parse::<i32>().unwrap_or(def)
     }
 
@@ -1123,7 +1094,6 @@ impl HUDSettingsImpl {
     /// Java: `private double getDouble(String key, double def)`
     fn get_double(&self, key: &str, def: f64) -> f64 {
         let val = self.base.service.get_config_j(key);
-        // Java: val.isEmpty() ? def : Double.parseDouble(val); catch → def
         if val.is_empty() {
             def
         } else {
@@ -1171,11 +1141,9 @@ fn layout_first_double(list: &[GroupConfig], section: &str, property: &str) -> O
             if let Some(row) = find_row_recursive(&gc.rows, property) {
                 if let Some(v) = &row.value {
                     match v {
-                        // Java: row.value instanceof Number → doubleValue()
                         ConfigValue::Int(i) => return Some(f64::from(*i)),
                         ConfigValue::Double(d) => return Some(*d),
                         other => {
-                            // Java: try { Double.parseDouble(row.value.toString()) }
                             //      catch (NumberFormatException e) { // ignore } → 继续循环
                             if let Ok(d) =
                                 java_parse_double(&config_value_to_java_string(other))
@@ -1227,7 +1195,6 @@ impl OverlaySettings for HUDSettingsImpl {
         let gc = self.base.get_group_config_snapshot();
         let (screen_w, screen_h) = self.base.service.screen_size();
         if gc.is_some() {
-            // Java: gc.x = x / screenWidth (double / int; sw=0 时 Java 得 ±Inf/NaN,
             // Rust f64 除零同义 — 与父类实现不同, 子类无 screen>0 守卫, 保真)
             self.base.service.set_group_position_ignore_case(
                 &self.base.section_name,
@@ -1236,7 +1203,6 @@ impl OverlaySettings for HUDSettingsImpl {
             );
             self.base.service.save_layout_config();
         } else {
-            // Java: setConfig("crosshairX", Integer.toString((int) x))
             // (int) double: JLS 5.1.3 (NaN→0/饱和/向零) ↔ Rust as i32 同义
             self.base
                 .service
@@ -1296,7 +1262,6 @@ impl HUDSettings for HUDSettingsImpl {
 
     /// Java: `@Override public String getCrosshairName()`
     fn get_crosshair_name(&self) -> String {
-        // Java: getConfig("crosshairName").trim() — java.lang.String.trim (<= U+0020)
         java_trim(&self.base.service.get_config_j("crosshairName")).to_string()
     }
 
@@ -1308,7 +1273,6 @@ impl HUDSettings for HUDSettingsImpl {
     /// Java: `@Override public boolean useTextureCrosshair()`
     fn use_texture_crosshair(&self) -> bool {
         let name = self.get_crosshair_name();
-        // Java: name != null && !name.isEmpty() && !"软件渲染准星".equalsIgnoreCase(name)
         // (getCrosshairName 恒非 null; CJK 无大小写折叠, equalsIgnoreCase ≡ equals)
         !name.is_empty() && name != "软件渲染准星"
     }
@@ -1569,7 +1533,6 @@ const COLOR_WHITE: [u8; 4] = [255, 255, 255, 255];
 /// PORT: java.awt.Color → [u8;4] RGBA (POC 先例, §3 字节序: R,G,B,A 序);
 /// ColorHelper 未翻译 — 一比一内联 (该文件波次落地后收敛)。
 fn parse_color(text: &str, default_color: [u8; 4]) -> [u8; 4] {
-    // Java: text == null || text.trim().isEmpty() — 调用域 text 恒非 null
     if java_trim(text).is_empty() {
         return default_color;
     }
@@ -1587,7 +1550,6 @@ fn parse_color(text: &str, default_color: [u8; 4]) -> [u8; 4] {
 
 /// Java: `ColorHelper.parseHexColor(String hex, Color defaultColor)`
 fn parse_hex_color(hex: &str, default_color: [u8; 4]) -> [u8; 4] {
-    // Java: try {...} catch (Exception e) { /* Fall through to default */ }
     // PORT §2.1: substring 按 UTF-16 码元、parseInt 遇非 ASCII 抛异常 → 默认;
     // Rust 字节切片遇多字节字符会 panic — 整段 ASCII 校验把该路径收敛到默认
     let h = &hex[1..]; // Remove #  ('#' 单字节, 切片安全)
@@ -1615,20 +1577,17 @@ fn parse_hex_color(hex: &str, default_color: [u8; 4]) -> [u8; 4] {
 
 /// Java: `ColorHelper.parseDecimalColor(String decimal, Color defaultColor)`
 fn parse_decimal_color(decimal: &str, default_color: [u8; 4]) -> [u8; 4] {
-    // Java: decimal.replaceAll("\\s+", "") — Java 正则 \s = ASCII 空白六类
     // [ \t\n\x0B\f\r] (默认无 UNICODE_CHARACTER_CLASS)
     let cleaned: String = decimal
         .chars()
         .filter(|c| !matches!(c, ' ' | '\t' | '\n' | '\u{b}' | '\u{c}' | '\r'))
         .collect();
-    // Java: cleaned.split(",") — limit 0 语义: 剔除全部尾部空串, 保留中间空串
     let mut parts: Vec<&str> = cleaned.split(',').collect();
     while parts.last() == Some(&"") {
         parts.pop();
     }
 
     if parts.len() >= 3 {
-        // Java: parseInt 各段, 任一 NumberFormatException → catch → 默认
         let (r, g, bl) = match (parts[0].parse::<i32>(), parts[1].parse::<i32>(), parts[2].parse::<i32>()) {
             (Ok(r), Ok(g), Ok(b)) => (r, g, b),
             _ => return default_color,

@@ -90,7 +90,6 @@ impl fmt::Display for SList {
         write!(f, "(")?;
         let mut i = 0;
         while i < self.children.len() {
-            // Java: sb.append(children.get(i).toString()) — 虚分派到元素实际类型
             write!(f, "{}", self.children[i])?;
             if i < self.children.len() - 1 {
                 write!(f, " ")?;
@@ -260,7 +259,6 @@ enum ParseDoubleErr {
 /// - 次正规边界位形: 中间量若落入次正规区产生双重舍入 (需 ~250+ 位小数或
 ///   |e10|>2000, 详见 hex 求值处注释); 正常指数域已按 oracle 位级对齐
 fn java_parse_double(s: &str) -> Result<f64, ParseDoubleErr> {
-    // Java: FloatingDecimal.readJavaFormatString 首步 in.trim() — 去两端 <= ' '
     let t = s.trim_matches(|c: char| (c as u32) <= 0x20);
     if t.is_empty() {
         // oracle: parseDouble(""/"   ") 抛 NumberFormatException: empty String

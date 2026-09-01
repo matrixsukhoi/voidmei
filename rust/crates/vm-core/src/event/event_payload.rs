@@ -52,7 +52,6 @@ impl EventPayload {
 
     /// 对应 Java `public static Builder builder()`。
     pub fn builder() -> EventPayloadBuilder {
-        // Java: return new Builder(); — 每次调用返回全新 Builder (字段取初始缺省值)
         EventPayloadBuilder::new()
     }
 }

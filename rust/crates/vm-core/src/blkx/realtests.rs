@@ -116,7 +116,6 @@ mod spitfire {
     }
 
     fn spitfire_paths() -> (String, String) {
-        // Java: main 由 --central/--fm 传参 (build.py 注入 data/ 同路径);
         // PORT: Rust 测试固定仓库相对路径 (fm_root 先例), data 缺失 return early
         let central = format!("{}/spitfire_f24.blkx", fm_root());
         let fm = format!("{}/fm/spitfire_f24.blkx", fm_root());
@@ -140,7 +139,6 @@ mod spitfire {
 
         let central_data = match read_file(&central_path) {
             Some(d) => d,
-            // Java: if (centralData == null) { println SKIP; return; }
             None => {
                 println!("  SKIP: Cannot read central file");
                 return;
@@ -188,13 +186,11 @@ mod spitfire {
         println!("\nTesting parameter extraction...");
 
         // Parse FM file
-        // Java: new Blkx(fmPath, "spitfire_f24", true) — doLoad=true 走 getload
         // PORT: Blkx::parse 当前等价 doLoad=false (getload 属 reader 波次, 模块头注);
         // Java 显式传的 name ("spitfire_f24") 由 parse 取文件名分量承接 — 该值只在
         // getload L1471 版本串使用, 未落地前无行为差异 (reader.rs L51-56 注)
         let blkx = match Blkx::parse(&fm_path) {
             Ok(b) => b,
-            // Java: if (!blkx.valid) { println SKIP; return; }
             Err(_) => {
                 println!("  SKIP: Cannot parse FM file");
                 return;
@@ -265,14 +261,12 @@ mod spitfire {
         let blkx = match Blkx::parse(&fm_path) {
             Ok(b) => b,
             Err(_) => {
-                // Java: !blkx.valid 分支并入下方 SKIP
                 println!("  SKIP: Cannot load files");
                 return;
             }
         };
         let central_data = read_file(&central_path).unwrap_or_default();
         let fuel_mod = extract_fuel_modifications(&central_data);
-        // Java: if (!blkx.valid || fuelMod == null) — fuelMod 无 null 形态:
         // extractFuelModifications 各分支皆返 new FuelModification() (Blkx.java
         // L63 起), 该 null 检查在 Java 本就是死代码; Rust 端同样无此冗余检查,
         // 行为一致
@@ -347,7 +341,6 @@ mod spitfire {
         // Use stages WITH fuel modification (since wtapc uses full upgrades)
         let stages = match extract_stages_with_fuel(Some(&blkx), Some(&fuel_mod)) {
             Some(s) => s,
-            // Java: if (stages == null) { println SKIP; return; }
             None => {
                 println!("  SKIP: Cannot extract stages");
                 return;
@@ -486,7 +479,6 @@ mod spitfire {
     }
 
     fn read_file(path: &str) -> Option<String> {
-        // Java: BufferedReader(new FileReader(path)) 平台默认字符集 + readLine 拼 "\n"
         // PORT: 域内中央文件纯 ASCII (od 实测), BufReader::lines() strict UTF-8 等价
         // (reader.rs 构造器同款裁决); IOException → println + return null ↔ None
         use std::io::{BufRead, BufReader};
@@ -571,7 +563,6 @@ mod tempest {
     }
 
     fn tempest_paths() -> (String, String) {
-        // Java: main 由 --central/--fm 传参; PORT: 固定仓库相对路径 (fm_root 先例)
         let central = format!("{}/tempest_mkv.blkx", fm_root());
         let fm = format!("{}/fm/tempest_mkv.blkx", fm_root());
         (central, fm)
@@ -636,7 +627,6 @@ mod tempest {
         let blkx = match Blkx::parse(&fm_path) {
             Ok(b) => b,
             Err(_) => {
-                // Java: if (!blkx.valid || fuelMod == null) { SKIP }
                 println!("  SKIP: Cannot load files");
                 return;
             }
@@ -696,7 +686,6 @@ mod tempest {
         let mut t = Tally::new();
         println!("\nTesting parameter extraction...");
 
-        // Java: new Blkx(fmPath, "tempest_mkv", true) — PORT: parse 等价 doLoad=false
         // (name 由文件名分量承接, 未落地前无行为差异, 见 spitfire 同款注)
         let blkx = match Blkx::parse(&fm_path) {
             Ok(b) => b,
@@ -801,7 +790,6 @@ mod tempest {
                 max_error = abs_diff;
             }
         }
-        // Java: errors 计数最终未被断言消费 (只看 maxError), 保真保留
         let _ = errors;
 
         println!("\n  Max error: {:.1} hp", max_error);
@@ -867,7 +855,7 @@ mod tempest {
                 max_error = abs_diff;
             }
         }
-        let _ = errors; // Java: errors 计数最终未被断言消费, 保真保留
+        let _ = errors;
 
         // Find peak values
         let mut wep_peak_power = 0.0f64;
@@ -921,7 +909,6 @@ mod tempest {
     }
 
     fn read_file(path: &str) -> Option<String> {
-        // Java: BufferedReader(FileReader) + readLine 拼 "\n"; IOException → null
         // PORT: 域内中央文件纯 ASCII, strict UTF-8 等价 (spitfire 同款注)
         use std::io::{BufRead, BufReader};
         let mut sb = String::new();
@@ -1006,7 +993,6 @@ mod fuzzer {
 
     /// 语义级: 数值字面量的替换池 (NaN / 上下溢 / 500 位长数字 / 负零)
     fn num_replacements() -> [String; 5] {
-        // Java: { "NaN", "1e999", "-1e999", repeat('9', 500), "-0" }
         [
             "NaN".to_string(),
             "1e999".to_string(),
@@ -1164,7 +1150,6 @@ mod fuzzer {
         if len < 32 {
             return s.to_string();
         }
-        // Java: Math.max(1, (int) (len * (0.02 + rnd.nextDouble() * 0.53)))
         let cut = 1.max((len as f64 * (0.02 + rnd.next_double() * 0.53)) as i32) as usize;
         let mode = rnd.next_int_bound(3);
         if mode == 0 {
@@ -1203,7 +1188,6 @@ mod fuzzer {
         if len < 64 {
             return s.to_string();
         }
-        // Java: 1 + rnd.nextInt(Math.min(2000, Math.max(2, len / 10)))
         let clen = 1 + rnd.next_int_bound(2000.min(2.max(len / 10)));
         let from = floor_char_boundary(s, rnd.next_int_bound(len - clen));
         let chunk = &s[from..ceil_char_boundary(s, from + clen)];
@@ -1213,7 +1197,6 @@ mod fuzzer {
 
     /// 行级-删行: 随机删 1~3 行
     fn delete_lines(s: &str, rnd: &mut JavaRandom) -> String {
-        // Java: split("\n", -1) 保留尾部空串 ↔ Rust split('\n') 同语义
         let lines: Vec<&str> = s.split('\n').collect();
         if lines.len() < 4 {
             return s.to_string();
@@ -1255,7 +1238,6 @@ mod fuzzer {
         let n = 1 + rnd.next_int_bound(3);
         for _ in 0..n {
             let i = rnd.next_int_bound(lines.len());
-            // Java: lines[i].trim().length() > 0 — String.trim 剥 <= U+0020;
             // 行内无 \n 且域内 ASCII, Rust trim() 同域 (§2.1)
             if !lines[i].trim().is_empty() {
                 lines[i] = format!("//{}", lines[i]);
@@ -1273,7 +1255,6 @@ mod fuzzer {
         let w = rnd.next_int_bound(lines.len());
         let end = lines.len().min(w + 30);
         for line in lines.iter_mut().take(end).skip(w) {
-            // Java: replaceFirst("^[ \\t]+", "") — 贪婪行首空格/制表符前缀
             // PORT: crate 无 regex 依赖, 手写等价扫描 (空格/制表符是 ASCII 单字节,
             // 前缀必在 char 边界收尾)
             let n = line
@@ -1324,7 +1305,6 @@ mod fuzzer {
         let mut sb = String::from(s);
         let n = 1 + rnd.next_int_bound(3);
         for _ in 0..n {
-            // Java: rnd.nextInt(sb.length() + 1) — 长度随插入增长
             let at = ceil_char_boundary(&sb, rnd.next_int_bound(sb.len() + 1));
             sb.insert_str(at, "{\n");
         }
@@ -1358,7 +1338,6 @@ mod fuzzer {
         if len < 40 {
             return s.to_string();
         }
-        // Java: 1 + rnd.nextInt(Math.max(2, len / 20))
         let span = 1 + rnd.next_int_bound(2.max(len / 20));
         let from = rnd.next_int_bound(len - span);
         let json = if rnd.next_boolean() {
@@ -1374,7 +1353,6 @@ mod fuzzer {
     // ==================== 工具 ====================
 
     fn join<S: AsRef<str>>(lines: &[S]) -> String {
-        // Java: for (String l : lines) sb.append(l).append('\n');
         // (每行都补 \n, 含末尾原空行 — 与原串相比可能多一个尾部换行, 保真)
         let mut sb = String::new();
         for l in lines {
@@ -1469,7 +1447,6 @@ mod fuzzer {
     fn fnv1a64(s: &str) -> u64 {
         let mut h: u64 = 0xcbf29ce484222325;
         for b in s.as_bytes() {
-            // Java: h ^= b & 0xffL (byte 有符号, 先转无符号)
             h ^= *b as u64;
             h = h.wrapping_mul(0x100000001b3);
         }
@@ -1488,12 +1465,10 @@ mod fuzzer {
     /// 原始种子必须 valid (真机数据本应可解析; 失败说明种子选择或环境有误)
     fn baseline_check(seed_text: &str, _seed_name: &str, c: &mut Counters) -> bool {
         let tmp = temp_file("voidmei_fuzz_base_", ".blkx");
-        // Java: try { ... } finally { Files.deleteIfExists(tmp); }
         let ok = (|| {
             if std::fs::write(&tmp, seed_text).is_err() {
-                panic!("基线临时文件写入失败"); // Java: Files.write 抛出 → main 外抛
+                panic!("基线临时文件写入失败");
             }
-            // Java: Blkx b = new Blkx(tmp.toString(), seedName); — doLoad=true 全管线
             // PORT: Blkx::parse 当前等价 doLoad=false (realtests 模块头注);
             // name 参数暂无消费方 (parse 无 name 入参, reader.rs L51-56 注)
             let mut b = match Blkx::parse(tmp.to_str().unwrap()) {
@@ -1506,7 +1481,6 @@ mod fuzzer {
             };
             // 同 run_direct_pipeline: Ok ⇒ valid==true 契约钉死
             assert!(b.valid, "基线 parse 返回 Ok 但 valid=false (违反 reader.rs 契约)");
-            // Java: b.getAllplotdata(); b.finalizeLoading(); — 与 FMLoader.load
             // 第 5/6 步完全一致 (getAllplotdata 批次已接入 reader.rs)
             b.get_all_plotdata();
             b.finalize_loading();
@@ -1540,7 +1514,6 @@ mod fuzzer {
 
         let t0 = Instant::now();
         // 构造器即 P1 加固边界: getload 包 try, 任何解析失败都应置 valid=false 而非抛出
-        // Java: Blkx b = new Blkx(tmpBlkx.toString(), seedName); — doLoad=true
         // PORT: Blkx::parse 当前等价 doLoad=false (getload 未译, Err(诊断串) 即
         // Java 的 valid=false); catch_unwind 承接断言① — 任何 panic 逃逸即失败。
         // OutOfMemoryError 的单独分类 Rust 无对应 (分配失败不可捕获), 统一按
@@ -1623,7 +1596,6 @@ mod fuzzer {
             return; // 无 build 目录 (如 CI 精简环境) 时静默跳过, 不影响测试结果
         }
         let out = build_dir.join(format!("fuzz_fail_{index}.blkx"));
-        // Java: catch (Exception ignore) {} — 留存失败不影响断言结果
         let _ = std::fs::write(&out, mutant);
     }
 
@@ -1642,7 +1614,6 @@ mod fuzzer {
 
         println!("=== blkx 文本变异 Fuzz 测试 ===\n");
 
-        // Java: Lang.initLang() + Logger.setMinLevel(WARN) — PORT: Rust Lang 为
         // 静态表 (parse 内部自取), crate 暂无 Logger, 无需降噪
 
         // 读文件用平台默认字符集 —— 与 Blx 构造器内 FileReader 一致,
@@ -1660,7 +1631,6 @@ mod fuzzer {
                 .unwrap()
                 .to_string_lossy()
                 .into_owned();
-            // Java: seedName.substring(0, seedName.lastIndexOf('.'))
             n[..n.rfind('.').unwrap()].to_string()
         };
         println!(
@@ -1700,7 +1670,6 @@ mod fuzzer {
         for i in 0..mutants.len() {
             run_direct_pipeline(&mutants[i], kinds[i], i, &tmp_str, &seed_name, &mut c);
         }
-        // Java: finally { Files.deleteIfExists(tmpBlkx); }
         let _ = std::fs::remove_file(&tmp_blkx);
         println!(
             "  完成: valid=true {} 个, valid=false {} 个, 逃逸异常 {} 个",
@@ -1808,7 +1777,7 @@ mod fuzzer {
         assert_eq!(ri, vec![-1155484576, -723955400, 1033096058, -1690734402, -1557280266], "RI");
 
         // Random(-1) nextLong 序列 (48-bit mask + 符号扩展路径)
-        let mut rm1 = JavaRandom::new(u64::MAX); // Java -1L ↔ 64 位全 1
+        let mut rm1 = JavaRandom::new(u64::MAX);
         let rl: Vec<i64> = (0..5).map(|_| rm1.next_long()).collect();
         assert_eq!(
             rl,

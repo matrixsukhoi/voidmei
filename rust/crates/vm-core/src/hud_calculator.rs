@@ -91,7 +91,6 @@ pub fn calculate<S: HUDSettings>(
 
     let (s_state, source) = match (state, source) {
         (Some(s), Some(src)) => (s, src),
-        // Java: if (event == null || source == null) return b.build();
         _ => return b.build(),
     };
     let s_indic = indic;
@@ -171,7 +170,6 @@ pub fn calculate<S: HUDSettings>(
         .map(|v| v != 0.0)
         .unwrap_or(false);
 
-    // Java: if (blkx != null && blkx.valid)
     let valid_blkx = blkx.filter(|x| x.valid);
     if let Some(blkx) = valid_blkx {
         // W-E: 公式路径唯一 (公式式含同款零除守卫)
@@ -194,7 +192,6 @@ pub fn calculate<S: HUDSettings>(
         }
 
         // AoA Warnings
-        // Java: b.flaps > 0 ? (int) b.flaps : 0 — (int) 截断/饱和/NaN→0 ↔ as i32 同语义
         let max_available_aoa =
             blkx.get_aoa_high_v_wing(vwing, if b.flaps > 0.0 { b.flaps as i32 } else { 0 });
         let available_aoa = max_available_aoa - b.aoa;
@@ -238,7 +235,6 @@ pub fn calculate<S: HUDSettings>(
         b.speed_str = format!("M{}", pad_width(java_f(b.mach, 2), 5, false));
     } else {
         let spd_pre = if settings.is_speed_label_disabled() { "" } else { "SPD" };
-        // Java: (int) b.ias 截断后 %6d
         b.speed_str = format!("{spd_pre}{}", pad_width((b.ias as i32).to_string(), 6, false));
     }
 
@@ -317,7 +313,6 @@ pub fn calculate<S: HUDSettings>(
             );
         } else {
             // Bar enabled -> Hide text (keep Brk/Gear)
-            // Java: String.format("%4s%s%s", "", brk, gear) — 空串补 4 空格
             b.mechanization_str = format!("{}{brk}{gear}", pad_width(String::new(), 4, false));
         }
     } else if blkx.is_some() && blkx.unwrap().is_v_wing.unwrap() && s_indic.is_some() {
@@ -371,7 +366,6 @@ pub fn calculate<S: HUDSettings>(
 /// Service 版测试 mock 需 valid=true 对齐生产形态)。
 /// PORT: 形参 isDowningFlap 在 Java 方法体内未使用 — 签名保真, `_` 前缀消告警。
 pub fn get_flap_allow_angle(ias: f64, _is_downing_flap: bool, blkx: Option<&Blkx>) -> f64 {
-    // Java: if (ias == 0 || blkx == null || !blkx.valid) return 125;
     if ias == 0.0 {
         return 125.0;
     }
@@ -390,7 +384,6 @@ pub fn get_flap_allow_angle(ias: f64, _is_downing_flap: bool, blkx: Option<&Blkx
     let speeds = blkx.flaps_destruction_ind_speed.as_ref().unwrap();
 
     let mut i: i32 = 0;
-    // Java: for (; i < FlapsDestructionNum - 1; i++) { if (...) break; }
     while i < blkx.flaps_destruction_num - 1 {
         if ias > speeds[i as usize][1] {
             break;
@@ -444,7 +437,6 @@ pub fn get_flap_allow_speed(flap_percent: i32, is_downing_flap: bool, blkx: Opti
     let table = blkx.flaps_destruction_ind_speed.as_ref().unwrap();
     let mut i: i32 = 0;
     while i < flaps_destruction_num - 1 {
-        // Java: flapPercent < ...[i][0] * 100.0f — int 提升 double (§2.12)
         if (flap_percent as f64) < table[i as usize][0] * 100.0 {
             break;
         }

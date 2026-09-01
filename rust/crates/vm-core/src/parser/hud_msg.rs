@@ -55,11 +55,10 @@ impl HudMsg {
 
     /// Java `String getLine(String a)`: 定位 a 后取首个 {...} 切片 (update 未使用,
     /// 保留公共行为)
-    #[allow(dead_code)] // Java 同为死代码 (调用点已注释), 保真保留
+    #[allow(dead_code)]
     fn get_line(&self, a: &str) -> String {
         let cs: Vec<char> = self.s.chars().collect();
         let needle: Vec<char> = a.chars().collect();
-        // Java: s.indexOf(a) — 首次出现, 无则 -1
         let mut bix: i32 = -1;
         if needle.len() <= cs.len() {
             for i in 0..=(cs.len() - needle.len()) {
@@ -107,7 +106,6 @@ impl HudMsg {
             while cs[eix] != ',' {
                 eix += 1;
             }
-            // Java: Integer.parseInt — 不 trim, 坏输入抛 NumberFormatException ↔ panic
             dmg.id = cs[bix..eix].iter().collect::<String>().parse::<i32>().unwrap();
 
             eix += 1;

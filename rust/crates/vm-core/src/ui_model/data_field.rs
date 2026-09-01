@@ -104,7 +104,6 @@ impl DataField {
     pub fn set_value_with_visibility(&mut self, value: &str, na_string: &str) {
         self.set_value(value);
         if self.hide_when_na {
-            // Java: this.visible = !value.equals(naString) —— 取反保留
             self.visible = value != na_string;
         }
     }

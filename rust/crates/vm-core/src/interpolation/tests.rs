@@ -105,7 +105,7 @@ fn find_interval_single_element_returns_zero() {
 }
 
 #[test]
-#[should_panic] // Java: ArrayIndexOutOfBoundsException (xs[0] 越界)
+#[should_panic]
 fn find_interval_empty_panics() {
     let _ = find_interval(1.0, &[]);
 }
@@ -169,7 +169,7 @@ fn interp2d_empty_or_none_returns_zero() {
 }
 
 #[test]
-#[should_panic] // Java: ArrayIndexOutOfBoundsException (zz[0][1] 内层过短)
+#[should_panic]
 fn interp2d_ragged_inner_panics() {
     let xs = [0.0, 1.0];
     let ys = [0.0, 1.0];
@@ -179,7 +179,7 @@ fn interp2d_ragged_inner_panics() {
 }
 
 #[test]
-#[should_panic] // Java: ArrayIndexOutOfBoundsException (zz[ix+1] 外层行数 < nx)
+#[should_panic]
 fn interp2d_short_outer_panics() {
     let xs = [0.0, 1.0];
     let ys = [0.0, 1.0];
@@ -189,7 +189,7 @@ fn interp2d_short_outer_panics() {
 }
 
 #[test]
-#[should_panic] // Java: NaN 不满足任何边界比较走 else 分支, xs[ix+1] 越界 → AIOOBE
+#[should_panic]
 fn interp2d_nan_with_single_element_dimension_panics() {
     // 单元素维 + NaN: 跳过上方 clamp 分支进 find_interval, ix+1=1 处 xs[1] 越界
     let xs = [5.0];

@@ -46,7 +46,6 @@ impl ComparisonRule for LambdaRule {
         if raw_value.is_empty() {
             return None;
         }
-        // Java: try { return extractor.apply(rawValue); } catch (Exception e) { return null; }
         // PORT: Java 异常控制流 (提取器抛任意异常 → 吞掉返回 null) ↔ Rust panic
         // 捕获; 提取器为纯扫描时恒不触发。与 Java 的微小差异: Rust 默认 panic
         // hook 仍会向 stderr 打印 panic 消息 (Java 静默) —— 不在库代码里替换

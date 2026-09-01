@@ -93,7 +93,6 @@ fn string_escape_handling() {
 
 #[test]
 fn string_escape_keeps_char_verbatim() {
-    // Java: sb.append(input.charAt(i)) — \n 收编的是字母 'n', 不解释为换行
     let e = parse_one(r#""\n""#);
     assert_eq!(e.as_atom().get_string(), "n");
 }

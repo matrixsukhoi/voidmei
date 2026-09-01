@@ -22,7 +22,6 @@ pub fn rgb_to_hsb(rgb: [u8; 3]) -> [f32; 3] {
     let hue = if max == min {
         0.0
     } else {
-        // Java: 各通道对 (max-min) 的归一差
         let rc = (max - r) as f32 / (max - min) as f32;
         let gc = (max - g) as f32 / (max - min) as f32;
         let bc = (max - b) as f32 / (max - min) as f32;
@@ -49,7 +48,6 @@ pub fn hsb_to_rgb(hsb: [f32; 3]) -> [u8; 3] {
         let v = (brightness * 255.0 + 0.5) as i32;
         return [v as u8, v as u8, v as u8];
     }
-    // Java: h = (hue - floor(hue)) * 6 — hue >= 1 或 < 0 归一化到 [0,1)
     let h = (hue - hue.floor()) * 6.0;
     let f = h - h.floor();
     let p = brightness * (1.0 - saturation);
@@ -62,7 +60,7 @@ pub fn hsb_to_rgb(hsb: [f32; 3]) -> [u8; 3] {
         2 => [v255(p), v255(brightness), v255(t)],
         3 => [v255(p), v255(q), v255(brightness)],
         4 => [v255(t), v255(p), v255(brightness)],
-        _ => [v255(brightness), v255(p), v255(q)], // Java case 5 + 越界落 default
+        _ => [v255(brightness), v255(p), v255(q)],
     }
 }
 

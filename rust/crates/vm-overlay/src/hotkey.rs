@@ -265,7 +265,6 @@ impl HotkeyManager {
 
         match spawn_hook_thread(self.key_bindings.clone(), self.sink.clone()) {
             Ok(h) => {
-                // Java: Logger.info("Native hook registered") — register 成功即记
                 logger::info("HotkeyManager", "Native hook registered");
                 self.hook = Some(h);
                 logger::info("HotkeyManager", "Initialized with native key listener");
@@ -332,10 +331,9 @@ impl HotkeyManager {
     /// 钩子, 等价动作为停泵卸钩 (见模块头注释)。
     pub fn shutdown(&mut self) {
         let Some(h) = self.hook.take() else {
-            return; // Java: if (!initialized) return;
+            return;
         };
 
-        // Java: GlobalScreen.removeNativeKeyListener(keyListener)
         h.stop();
 
         // keyBindings.clear()

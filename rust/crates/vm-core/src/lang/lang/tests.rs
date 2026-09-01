@@ -9,7 +9,6 @@ fn update_language_hit() {
 
 #[test]
 fn update_language_missing_key_returns_empty_not_default() {
-    // Java: getValue 缺失 → "" → dft 被覆写为 "" 返回 —— 默认值是死参数 (原行为)
     let cfg = Config::new("./lang/cur.properties");
     assert_eq!(Lang::update_language(&cfg, "httpPort", "12345"), "");
     assert_eq!(Lang::update_language(&cfg, "__no_such_key__", "fallback"), "");
@@ -74,7 +73,6 @@ fn init_lang_whitespace_semantics() {
 
 #[test]
 fn init_lang_never_assigned_fields_stay_none() {
-    // Java: 三字段声明后从未在 initLang() 赋值, 保持 null;
     // cEnginedmg 被 ui.util.NotificationService.showNotification 读取
     let lang = Lang::init_lang();
     assert!(lang.c_enginedmg.is_none());

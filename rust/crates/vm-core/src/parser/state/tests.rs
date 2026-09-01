@@ -60,7 +60,6 @@ fn update_full_snapshot_matches_java_oracle() {
 
 #[test]
 fn update_missing_valid_returns_minus_1() {
-    // Java: getString 返回 null → valid == null → return -1, 其余字段不动 (oracle 实测)
     let mut st = State::new();
     st.init();
     assert_eq!(st.update("{\"IAS, km/h\": 100}"), -1);

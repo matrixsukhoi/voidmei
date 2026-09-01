@@ -46,7 +46,6 @@ impl VoicePackConfig {
     /// @param packName 语音包名称，null 或空字符串会被替换为 "default"
     /// @param enabled 是否启用
     pub fn new(pack_name: Option<&str>, enabled: bool) -> Self {
-        // Java: (packName == null || packName.isEmpty()) ? DEFAULT_PACK : packName
         let pack_name = match pack_name {
             Some(p) if !p.is_empty() => p.to_string(),
             _ => DEFAULT_PACK.to_string(),
@@ -64,15 +63,12 @@ impl VoicePackConfig {
         let mut enabled = true;
 
         if let Some(v) = config_value {
-            // Java: if (configValue != null && !configValue.isEmpty())
             if !v.is_empty() {
                 if v.contains('|') {
-                    // Java: configValue.split("\\|", 2) — 字面 '|', limit 2
                     // (首个 '|' 处切一刀, 尾部空串保留) ↔ splitn(2, '|') 语义一致
                     let mut parts = v.splitn(2, '|');
                     pack_name = parts.next().unwrap(); // parts[0], splitn 必有首段
                     if let Some(part1) = parts.next() {
-                        // Java: parts.length > 1
                         enabled = parse_boolean(part1);
                     }
                 } else {
@@ -87,7 +83,6 @@ impl VoicePackConfig {
     /// 序列化为配置字符串
     /// @return 格式: "packName|enabled"
     pub fn to_config_string(&self) -> String {
-        // Java: packName + "|" + enabled — boolean toString 为 "true"/"false"
         format!("{}|{}", self.pack_name, self.enabled)
     }
 
@@ -111,12 +106,11 @@ impl VoicePackConfig {
     // PORT: key 可为 null → Option, null 原样返回 None。
     pub fn strip_voice_prefix(key: Option<&str>) -> Option<String> {
         key.map(|k| {
-            // Java: key.substring(VOICE_PREFIX.length()) — 前缀 "voice_" 全 ASCII,
             // starts_with 命中后 6 字节处必为 UTF-8 字符边界,
             // 字节切片与 Java UTF-16 码元切片等价 (§2.1)。
             match k.strip_prefix(VOICE_PREFIX) {
                 Some(rest) => rest.to_string(),
-                None => k.to_string(), // Java: return key (原串)
+                None => k.to_string(),
             }
         })
     }
@@ -127,9 +121,8 @@ impl VoicePackConfig {
     pub fn with_voice_prefix(key: Option<&str>) -> Option<String> {
         key.map(|k| {
             if k.starts_with(VOICE_PREFIX) {
-                k.to_string() // Java: return key (原串)
+                k.to_string()
             } else {
-                // Java: VOICE_PREFIX + key
                 format!("{}{}", VOICE_PREFIX, k)
             }
         })
@@ -139,7 +132,6 @@ impl VoicePackConfig {
 /// 对应 Java toString() 覆写
 impl fmt::Display for VoicePackConfig {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // Java: "VoicePackConfig{packName='" + packName + "', enabled=" + enabled + "}"
         write!(
             f,
             "VoicePackConfig{{packName='{}', enabled={}}}",

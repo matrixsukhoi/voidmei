@@ -198,7 +198,6 @@ pub trait HUDLayoutNodeExt<T> {
 
 impl<T> HUDLayoutNodeExt<T> for SharedNode<T> {
     fn set_parent(&self, parent: Option<&SharedNode<T>>) -> SharedNode<T> {
-        // Java: if (this.parent != null) { this.parent.children.remove(this); }
         let old = self.borrow_mut().parent.take().and_then(|w| w.upgrade());
         if let Some(old_parent) = old {
             // List.remove(Object) 按同一性 (默认 equals) 删首个匹配
@@ -208,13 +207,11 @@ impl<T> HUDLayoutNodeExt<T> for SharedNode<T> {
                 pc.children.remove(idx);
             }
         }
-        // Java: this.parent = parent;
         self.borrow_mut().parent = parent.map(Rc::downgrade);
-        // Java: if (parent != null) { parent.children.add(this); }
         if let Some(p) = parent {
             p.borrow_mut().children.push(self.clone());
         }
-        self.clone() // Java: return this
+        self.clone()
     }
 
     fn set_relative_position(&self, unit_x: f64, unit_y: f64) -> SharedNode<T> {
@@ -222,7 +219,7 @@ impl<T> HUDLayoutNodeExt<T> for SharedNode<T> {
         this.unit_x = unit_x;
         this.unit_y = unit_y;
         drop(this);
-        self.clone() // Java: return this
+        self.clone()
     }
 
     fn set_anchors(&self, parent_anchor: Anchor, self_anchor: Anchor) -> SharedNode<T> {
@@ -230,12 +227,12 @@ impl<T> HUDLayoutNodeExt<T> for SharedNode<T> {
         this.parent_anchor = parent_anchor;
         this.self_anchor = self_anchor;
         drop(this);
-        self.clone() // Java: return this
+        self.clone()
     }
 
     fn set_ignore_bounds(&self, ignore: bool) -> SharedNode<T> {
         self.borrow_mut().ignore_bounds = ignore;
-        self.clone() // Java: return this
+        self.clone()
     }
 
     fn get_parent(&self) -> Option<SharedNode<T>> {

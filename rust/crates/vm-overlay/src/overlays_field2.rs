@@ -97,7 +97,6 @@ fn java_string_format(template: &str, args: &[FmtArg]) -> String {
                 match *arg {
                     FmtArg::S(s) => match next {
                         Some(b's') => out.push_str(s),
-                        // Java: %d 收 String 抛 IllegalFormatConversionException (§1 崩溃语义)
                         _ => panic!(
                             "String.format %d 收到字符串实参 (IllegalFormatConversionException): {template:?}"
                         ),
@@ -105,7 +104,6 @@ fn java_string_format(template: &str, args: &[FmtArg]) -> String {
                     // Integer 的 %s/%d 位点 Java 均合法 (toString / 十进制)
                     FmtArg::D(v) => out.push_str(&v.to_string()),
                     FmtArg::F(_) => match next {
-                        // Java: %d 收 Double 抛 IllegalFormatConversionException (§1 崩溃语义)
                         Some(b'd') => panic!(
                             "String.format %d 收到浮点实参 (IllegalFormatConversionException): {template:?}"
                         ),
@@ -631,7 +629,6 @@ impl ControlSurfacesOverlay {
         if self.has_service {
             self.update_flight_data(aileron, elevator, rudder, wing_sweep, wing_sweep_valid);
         }
-        // Java: this.getContentPane().repaint() — 恒调度重绘 (preview 亦然)
         true
     }
 
@@ -1166,7 +1163,7 @@ fn generate_lines(blkx: Option<&Blkx>, config: Option<&dyn ConfigProvider>) -> V
 /// addFmParts (Java :283-290): 表头 + 4 数据行 (null 部件整段跳过)。
 fn add_fm_parts(lines: &mut Vec<String>, lang: &Lang, p: Option<&FmParts>) {
     let p = match p {
-        None => return, // Java: if (p == null) return;
+        None => return,
         Some(p) => p,
     };
     add_lines(

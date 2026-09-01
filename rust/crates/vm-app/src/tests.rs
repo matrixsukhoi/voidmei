@@ -1951,7 +1951,7 @@ fn voice_warning_游戏模式会话_启动tick写fatal_warn并停机() {
     // voice_warning/tests.rs 同款修法), 超时即失败 — 不假通过
     let deadline = Instant::now() + Duration::from_secs(8);
     loop {
-        if data.read().unwrap().fatal_warn == Some(true) {
+        if data.read().unwrap().fatal_warn {
             break;
         }
         assert!(
@@ -2208,7 +2208,7 @@ fn voice_warning_装配面_播放计数与订阅生命周期() {
     // 不能用 is_some() — ServiceData 初值即 Some(false), 0ms 即真 (假通过面)
     let deadline = Instant::now() + Duration::from_secs(8);
     loop {
-        if data.read().unwrap().fatal_warn == Some(true) {
+        if data.read().unwrap().fatal_warn {
             break;
         }
         assert!(

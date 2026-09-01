@@ -160,7 +160,6 @@ impl<R> RowRendererRegistry<R> {
     /// ConfigLoader (`row.type = rawType.toUpperCase().replace("-", "_")`,
     /// ConfigLoader.java:295 / config_loader.rs:827), 注册表不做归一 (保真)。
     pub fn get(&self, row_type: &str) -> Arc<dyn RowRenderer<R>> {
-        // Java: return renderers.getOrDefault(rowType, defaultRenderer);
         self.renderers
             .get(row_type)
             .cloned()
@@ -173,7 +172,6 @@ impl<R> RowRendererRegistry<R> {
     /// 同语义。Java 可 put null 值 (此后 get 命中 null 而非默认, 调用方
     /// NPE), Rust 的 Arc 非 null —— 该缺陷形态不可表示 (良性收紧)。
     pub fn register(&mut self, row_type: &str, renderer: Arc<dyn RowRenderer<R>>) {
-        // Java: renderers.put(rowType, renderer);
         self.renderers.insert(row_type.to_string(), renderer);
     }
 }

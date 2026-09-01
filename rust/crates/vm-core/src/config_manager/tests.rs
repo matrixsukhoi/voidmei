@@ -48,7 +48,6 @@ fn calculate_file_hash_reads_file_and_missing_returns_none() {
     let p = tmp("hash_ok.cfg");
     fs::write(&p, "abc").unwrap();
     assert_eq!(calculate_file_hash(&p).as_deref(), Some("900150983cd24fb0d6963f7d28e17f72"));
-    // Java: Files.readAllBytes IOException → catch → null
     let missing = tmp("hash_missing.cfg");
     let _ = fs::remove_file(&missing);
     assert_eq!(calculate_file_hash(&missing), None);
@@ -223,7 +222,6 @@ fn merge_configs_new_panel_reported_user_panel_dropped() {
     assert_eq!(merged[1].title, "B");
     assert!(merged.iter().all(|g| g.title != "C"), "用户独有面板 C 应被丢弃");
     assert_eq!(report.added_panels, vec!["B".to_string()]);
-    // Java: 全新面板走 `merged.add(templatePanel)` 整体透传, **不调 mergeRows**
     // — 面板内新项不进 addedItems (报告只记面板级); 新项报告仅发生在
     // 既有面板内 (见 merge_row_children_recursive_with_report)
     assert!(report.added_items.is_empty(), "全新面板的内部条目不应逐项报告");

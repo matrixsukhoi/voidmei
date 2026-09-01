@@ -133,9 +133,7 @@ impl OtherService {
 	/// 关联函数, http_helper 先例)。
 	pub fn angle_toclock(angle: f64) -> f64 {
 		let mut temp: f64;
-		// PORT §2.12: Java `12 + angle / 30.0f` — float 字面量提升 double,
-		// 30.0f32 as f64 == 30.0 精确
-		temp = 12.0 + angle / 30.0f32 as f64;
+		temp = 12.0 + angle / 30.0;
 		if temp >= 12.0 {
 			temp -= 12.0;
 		}
@@ -147,7 +145,6 @@ impl OtherService {
 	/// 连续叠加 (如 dy=0,dx=-0 → 360) — 逐字保真。
 	pub fn dxdy_to_angle(dx: f64, dy: f64) -> f64 {
 		let mut tems: f64;
-		// Java: Math.atan(dy / dx) * 180 / Math.PI (左结合: (atan*180)/PI)
 		tems = (dy / dx).atan() * 180.0 / std::f64::consts::PI;
 		if dy >= 0.0 && dx <= 0.0 {
 			tems += 180.0;
@@ -216,7 +213,6 @@ impl OtherService {
 			content_buf.push_str(&line);
 		}
 		let result = content_buf;
-		// Java: bufferedReader/bufferedWriter/socket 显式 close → Rust Drop 等价
 		Ok(result)
 	}
 
@@ -226,7 +222,6 @@ impl OtherService {
 		self.xc = Some(xc);
 		self.p_x = 0.0;
 		self.p_y = 0.0;
-		// Java: lastEvt/lastDmg 先置 0 再被 xc 值覆盖 (死存储, 保形保留)
 		self.last_evt.store(0, Ordering::SeqCst);
 		self.last_dmg.store(0, Ordering::SeqCst);
 		self.last_evt

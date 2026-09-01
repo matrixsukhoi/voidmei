@@ -16,7 +16,7 @@ pub struct Zb {
 
 impl Default for Zb {
     fn default() -> Self {
-        Zb { x: 0.0, y: 0.0 } // Java: new zb() 数值字段默认 0
+        Zb { x: 0.0, y: 0.0 }
     }
 }
 
@@ -76,7 +76,7 @@ impl MapInfo {
         let s = &self.s;
         let mut bix: i32;
         let mut eix: i32;
-        let mut a = Zb::default(); // Java: new zb()
+        let mut a = Zb::default();
         bix = s.find(t).map_or(-1, |v| v as i32);
 
         if bix >= 0 {

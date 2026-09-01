@@ -209,7 +209,6 @@ fn write_int_bound_mutates_group_and_syncs() {
     let ctx = MockCtx::new();
     assert!(write_int(&ctx, &mut group, Some("panelColumns"), 4));
     assert_eq!(group.panel_columns, 4);
-    // Java: syncStringToConfigService(property, Integer.toString(value))
     assert_eq!(
         ctx.synced(),
         vec![("panelColumns".to_string(), "4".to_string())]
@@ -234,7 +233,6 @@ fn write_bool_bound_mutates_group_and_syncs() {
     let ctx = MockCtx::new();
     assert!(write_bool(&ctx, &mut group, Some("visible"), true));
     assert!(group.visible);
-    // Java: syncToConfigService(property, value) → Boolean.toString → "true"
     assert_eq!(ctx.synced(), vec![("visible".to_string(), "true".to_string())]);
 }
 

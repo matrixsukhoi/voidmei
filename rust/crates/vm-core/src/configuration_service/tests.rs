@@ -198,7 +198,7 @@ fn is_field_disabled_matrix() {
              \x20 (item \"sl\" :type slider :target \"intRow\" :value 5)\n)\
             ",
     );
-    assert!(!s.is_field_disabled("")); // Java: null/empty → false
+    assert!(!s.is_field_disabled(""));
     // SWITCH_INV: !getBool
     assert!(!s.is_field_disabled("disableX")); // value true → !true
     assert!(s.is_field_disabled("disableY")); // value false → !false
@@ -675,7 +675,7 @@ fn dyn_trait_dispatch() {
 #[test]
 fn save_config_noop_and_empty_layout_guard() {
     let s = ConfigurationService::new(None);
-    s.save_config(); // Java: 空方法 (No longer using config.properties)
+    s.save_config();
     s.save_layout_config(); // layoutConfigs == null → 无落盘/无日志副作用, 不崩溃
 }
 
@@ -762,7 +762,7 @@ fn reset_collect_negative_zero_double() {
     let mut pending = Vec::new();
     let mut path = Vec::new();
     collect_reset_candidates_recursive(&[r], 0, &mut path, &mut pending);
-    assert_eq!(pending.len(), 1); // Java: Double(0.0).equals(Double(-0.0))=false
+    assert_eq!(pending.len(), 1);
 
     // NaN 值 == NaN 默认 → Java equals 相等 → 不收集
     let mut r2 = RowConfig::new("n".to_string(), None, String::new());

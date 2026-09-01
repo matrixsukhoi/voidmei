@@ -257,7 +257,7 @@ fn draw_point(
     cv: &mut PixCanvas,
     x: i32,
     y: i32,
-    _dwidth: i32, // Java 亦未消费 (:312-334 只用 dheight), 保形保留
+    _dwidth: i32,
     dheight: i32,
     ggx: f64,
     ggy: f64,
@@ -471,7 +471,7 @@ pub fn draw_frame_simpl_spec(
                     );
                 }
             }),
-            reinit: None, // Java reinitConfig 空实现 (:723-725)
+            reinit: None,
         },
     ))
 }
@@ -541,7 +541,6 @@ impl DrawFrameSimplFeed {
             if now_ms.saturating_sub(start) >= 10_000 {
                 vm_core::logger::info("DrawFrameSimpl", "Exiting run loop, disposing");
                 host.close(id); // 销毁链 (Java dispose: 注销 + 窗口销毁)
-                // Java: run 退场只 dispose 窗口, entry.instance 僵留非 null — 之后
                 // openAll 跳过 / refreshPreviews 只跑 reinit, 死窗口不复活; 直到
                 // closeAll (entry.close → instance=null) 才允许重建
                 host.set_entry_zombie(id, true);

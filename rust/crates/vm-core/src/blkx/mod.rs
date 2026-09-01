@@ -281,25 +281,25 @@ pub struct Blkx {
     cl_a: f64,
     #[allow(dead_code)] // getload 写入; 读取方全在被注释的滚转率代码里 (Java 亦死)
     aileron_defl: Option<[f64; 2]>,
-    #[allow(dead_code)] // Java 即死字段 (仅注释引用)
+    #[allow(dead_code)]
     wx100: f64,
-    #[allow(dead_code)] // Java 即死字段 (仅注释引用)
+    #[allow(dead_code)]
     wx_vcoff: f64,
-    #[allow(dead_code)] // Java 即死字段 (仅注释引用)
+    #[allow(dead_code)]
     wx250: f64,
-    #[allow(dead_code)] // Java 即死字段 (仅注释引用)
+    #[allow(dead_code)]
     wx300: f64,
-    #[allow(dead_code)] // Java 即死字段 (仅注释引用)
+    #[allow(dead_code)]
     wx350: f64,
-    #[allow(dead_code)] // Java 即死字段 (仅注释引用)
+    #[allow(dead_code)]
     wx_max: f64,
-    #[allow(dead_code)] // Java 即死字段 (仅注释引用)
+    #[allow(dead_code)]
     wx600: f64,
     mode_engine_rpm_mult: Option<[f64; 10]>,
     engine_rpm_mult_wep: f64,
-    #[allow(dead_code)] // Java 全文无引用 (L713 声明即止), 保真保留
+    #[allow(dead_code)]
     full_flaps_wing_s: Option<FmParts>,
-    #[allow(dead_code)] // Java 全文无引用 (L714 声明即止), 保真保留
+    #[allow(dead_code)]
     no_flaps_wing_s: Option<FmParts>,
     pub fuse_cl_high: f64,
 }

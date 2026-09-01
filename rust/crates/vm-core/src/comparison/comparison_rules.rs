@@ -108,7 +108,6 @@ fn leak_rule<R: ComparisonRule + Send + Sync + 'static>(r: R) -> &'static (dyn C
     Box::leak(Box::new(r))
 }
 
-// Java: private static final Map<String, ComparisonRule> rules = new HashMap<>();
 static RULES: OnceLock<HashMap<&'static str, &'static (dyn ComparisonRule + Send + Sync)>> =
     OnceLock::new();
 

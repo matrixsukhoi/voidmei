@@ -580,7 +580,6 @@
 				notify,
 				RecordingService::shared(),
 			);
-			// Java: FileOutputStream 失败 → notify + warn + xc.logon=false;
 			//       FileWriter 失败 → notify + warn; writeLabel → IOException("Stream closed") → warn
 			assert!(!logon_flag.0.load(Ordering::SeqCst), "xc.logon = false 已透传");
 			let texts = seen.lock().unwrap().clone();

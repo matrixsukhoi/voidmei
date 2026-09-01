@@ -713,7 +713,6 @@ where
     // Use lineHeight from font size for responsive scaling
     engine.set_line_height(line_height);
 
-    // Java: if (components.isEmpty()) return — initComponentsLayout 硬编码添加
     // 组件恒非空; Rust 以 rows (组件清单主体) 为空近似该守卫。
     // PORT: Java 此处裸 return — 尾部 doLayout/applyAutoSizing/logTopology 三步
     // 均不执行 (窗口保持宿主 setBounds 初始值, renderOffset 保持 (0,0), 无对应
@@ -750,7 +749,7 @@ where
                 if show_crosshair {
                     crosshair.take()
                 } else {
-                    None // Java: if (hudSettings.isDisplayCrosshair()) 才建节点
+                    None
                 }
             }
         };
@@ -764,7 +763,7 @@ where
             && spec.parent.is_some()
             && parent.is_none()
         {
-            continue; // Java L716: if (row2 != null) 才建右挂件
+            continue;
         }
 
         let node = HUDLayoutNode::new(spec.id, component);

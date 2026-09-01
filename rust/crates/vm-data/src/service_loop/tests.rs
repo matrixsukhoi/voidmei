@@ -156,7 +156,7 @@ fn process_polling_cycle_full_chain() {
     // calcPeriod 后缀自增
     assert_eq!(svc.data.read().unwrap().calc_period, 1);
     // 未翻转端口 (响应有效)
-    assert_eq!(svc.data.read().unwrap().port_ocupied, Some(false));
+    assert!(!svc.data.read().unwrap().port_ocupied);
 }
 
 /// updateCompass 地图回退 + updateAlt 英制/无线电分支 (calculate 写回段,
@@ -197,13 +197,13 @@ fn update_compass_fallback_and_update_alt_branches() {
         assert_eq!(d.alt, 46.0);
         assert_eq!(d.altmeterp, 0.0);
         assert_eq!(d.altmeter, 10.0);
-        // radio_altitude 有效 + checkAlt>0 → ×0.3048f (float 提升域, ≠ 0.3048)
+        // radio_altitude 有效 + checkAlt>0 → 英制英尺转米
         // (radioAltValid 断言已随 W-B 写入点删除而移除)
-        assert!((d.radio_alt - 1000.0 * (0.3048f32 as f64)).abs() < 1e-9);
+        assert!((d.radio_alt - 1000.0 * 0.3048).abs() < 1e-9);
         // dRadioAlt = ratio_1*0 + ratio*1000*(radioAlt-0)/100 (freq=50;
-        // ratio = freq/1000.0f 的 float 除法拓宽值, 非精确 0.05)
+        // 生产 ratio 仍是 freq/1000 的 float 除法拓宽值, 期望对齐该域)
         let ratio = (50f32 / 1000.0f32) as f64;
-        let expect_dralt = ratio * 1000.0 * (1000.0 * (0.3048f32 as f64)) / 100.0;
+        let expect_dralt = ratio * 1000.0 * (1000.0 * 0.3048) / 100.0;
         assert!((d.d_radio_alt - expect_dralt).abs() < 1e-9);
     }
 
@@ -436,9 +436,9 @@ fn port_flip_on_empty_response() {
     // http 缓冲保持初始 NSTRING ("") → 走等待连接分支
     assert!(svc.http_client.str_indic.is_empty());
     svc.process_polling_cycle();
-    assert_eq!(svc.data.read().unwrap().port_ocupied, Some(true));
+    assert!(svc.data.read().unwrap().port_ocupied);
     svc.process_polling_cycle();
-    assert_eq!(svc.data.read().unwrap().port_ocupied, Some(false));
+    assert!(!svc.data.read().unwrap().port_ocupied);
 }
 
 /// §6 契约: 顶层 catch_unwind——单轮 panic (Boolean 拆箱 NPE 复刻) 不杀线程,
@@ -478,10 +478,14 @@ fn catch_unwind_keeps_thread_alive() {
     cfg.service_loop_interval_ms = 20;
     cfg.app_port = port;
     let svc = Service::new(cfg, fm, bus);
-    // 注入拆箱 panic 源: publish 的 fatal_warn.unwrap() (Java Boolean null
-    // 拆箱 NPE 的同构物, 由 run 顶层 catch_unwind 兜住)。注入在构造之后
-    // (构造期 resetvaria 会写回 Some(false))
-    svc.data.write().unwrap().fatal_warn = None;
+    // 注入轮询 panic 源: engine_num 超出 throttles 长度 → update_wep_time
+    // 索引越界 panic (Java AIOOBE 同构物, 由 run 顶层 catch_unwind 兜住)
+    {
+        let mut d = svc.data.write().unwrap();
+        let s = d.s_state.as_mut().unwrap();
+        s.engine_num = 2;
+        s.throttles = vec![];
+    }
 
     let mut handle = start(svc);
     std::thread::sleep(Duration::from_millis(400));

@@ -46,7 +46,7 @@ fn linear_gauge_vertical_fill_and_separator() {
     g.draw(&mut cv, 20, 10, &f, false);
 
     let text_w = f.measure("55");
-    let bar_x = 20 + text_w + 2; // Java:157 barX = x + textWidth + labelSpacing
+    let bar_x = 20 + text_w + 2;
     // 填充: 列 bar_x+1..bar_x+6 (w-2), 行 69..128; 129 为底边框行 (shade)
     assert_eq!(a(&cv, bar_x + 1, 72), 240, "填充体 (分隔线覆盖区之下)");
     assert_eq!(a(&cv, bar_x + 1, 128), 240, "填充底");

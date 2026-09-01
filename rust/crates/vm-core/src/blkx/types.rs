@@ -202,7 +202,7 @@ pub fn extract_fuel_modifications(central_data: &str) -> FuelModification {
 // 更对齐); Java 可产出错位子串继续解析, Rust 统一 get() 收敛 "null"。两侧均不
 // panic, ASCII 域完全一致。reader.rs 波次移植成员版 cut() 时同理由适用。
 fn cut_static(text: &str, block_label: &str) -> String {
-    let upper = text.to_uppercase(); // Java: text.toUpperCase() (两次调用, 结果确定性相同, 合并计算)
+    let upper = text.to_uppercase();
     let bix = upper.find(&(block_label.to_uppercase() + " {"));
     // Also try without space: "blockLabel{"
     let bix = bix.or_else(|| upper.find(&(block_label.to_uppercase() + "{")));
@@ -238,7 +238,6 @@ fn cut_static(text: &str, block_label: &str) -> String {
     if i >= text.len() {
         return "null".to_string();
     }
-    // Java: text.substring(cutleft, i)
     text.get(cutleft..i).unwrap_or("null").to_string()
 }
 
@@ -288,7 +287,7 @@ fn get_double_from_block(block: &str, key: &str) -> f64 {
 /// @return true if the key exists and its value is "true", false otherwise
 fn get_bool_from_block(block: &str, key: &str) -> bool {
     // Try key:b = value first (typed boolean format)
-    let upper = block.to_uppercase(); // Java: block.toUpperCase() (locale 差异同 cut_static 注)
+    let upper = block.to_uppercase();
     let key_typed = format!("{key}:B").to_uppercase();
     let key_plain = key.to_uppercase();
 
@@ -307,7 +306,6 @@ fn get_bool_from_block(block: &str, key: &str) -> bool {
     };
 
     // Find end of value (newline or end of string)
-    // Java: block.indexOf('\n', eqIdx) — 自 '=' 位起搜 ('\n' 不可能在 '=' 位, 等价)
     let end_idx = block[eq_idx..]
         .find('\n')
         .map_or(block.len(), |i| eq_idx + i);

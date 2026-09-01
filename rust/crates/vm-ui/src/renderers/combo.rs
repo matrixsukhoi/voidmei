@@ -28,7 +28,6 @@ const CROSSHAIR_DIR: &str = "image/gunsight";
 /// 解析下拉选项 (Java getComboOptions)。current 仅为 _FONTS_ 占位所需。
 pub fn resolve_options(source: &str, current: &str) -> Vec<String> {
     match source {
-        // Java: optionSource == null → new String[0]; format 恒非 null, 空串走 split 域
         "_FONTS_" => vec![current.to_string()],
         "_CROSSHAIRS_" => crosshair_options(CROSSHAIR_DIR),
         // Java L86: optionSource.split(",") — 空串 → [""] (与 Java split 逐位一致)

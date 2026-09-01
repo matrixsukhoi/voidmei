@@ -73,7 +73,6 @@ pub struct OverlayContext<TC, S> {
     pub config_provider: Option<Arc<dyn ConfigProvider>>,
 }
 
-// Java: private OverlayContext(Builder builder) —— 私有构造器由 build() 内的
 // 结构体字面量对位 (§0.7: 编译期私有性不可复刻, 构造入口约定走 Builder)。
 impl<TC, S> OverlayContext<TC, S> {
     /// Get a boolean config value.

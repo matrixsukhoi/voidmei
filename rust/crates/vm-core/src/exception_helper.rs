@@ -45,7 +45,6 @@ const POLL_INTERVAL: Duration = Duration::from_millis(10);
 /// 此差异只影响日志文案, 不影响控制流语义。
 pub fn log_and_continue(err: &dyn std::error::Error, context: &str) {
     crate::logger::warn_default(&format!("{}: {}", context, err));
-    // Java: Logger.getLevel().compareTo(Logger.Level.DEBUG) <= 0
     // PORT: 枚举 ordinal 序与 value 序严格同构 (TRACE(-1) < DEBUG(0) < INFO(1)
     // < WARN(2) < ERROR(3)), compareTo <= 0 即 TRACE/DEBUG 两级,
     // 用 value() 比较等价复刻

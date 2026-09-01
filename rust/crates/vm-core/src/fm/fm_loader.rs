@@ -158,7 +158,6 @@ fn try_load(name: &str) -> Result<FMHandle, String> {
             // 以 Err 复刻。§2.1: 域内 fmFile 值为 ASCII 路径, 字节偏移 ≡ UTF-16
             // 码元偏移
             if f.is_empty() {
-                // Java: length()-1 = -1 → substring 越界异常
                 return Err(format!("fmFile 值为空串: {name}"));
             }
             let start = match f.find('"') {
@@ -171,7 +170,6 @@ fn try_load(name: &str) -> Result<FMHandle, String> {
             }
             let stripped = f[start..end].to_string();
             if stripped.is_empty() {
-                // Java: charAt(0) 越界异常
                 return Err(format!("fmFile 剥引号后为空: {f}"));
             }
             fmfile = if stripped.as_bytes()[0] == b'/' {
@@ -187,7 +185,6 @@ fn try_load(name: &str) -> Result<FMHandle, String> {
     }
     let mut fmfile = fmfile.unwrap();
     if !fmfile.contains(".blk") {
-        // Java: if (-1 == fmfile.indexOf(".blk")) fmfile += ".blk";
         fmfile.push_str(".blk");
     }
 

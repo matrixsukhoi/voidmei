@@ -97,7 +97,6 @@ impl RenderContext {
         column_num: i32,
     ) -> Self {
         let num_height = num_font.metrics().height;
-        // Java: fontSize = 24 + fontAdd → 反解 fontAdd (RenderCtx::new 内部再加回)
         let font_add = num_font.size - 24;
         RenderContext {
             num_font,
@@ -393,8 +392,8 @@ impl OverlayRenderer for BosStyleRenderer {
         offset: &mut [i32; 2],
     ) {
         // Java :22-28: setPaintMode + AA/速度 hint → 无几何作用, AA 走 ctx
-        offset[0] = ctx.font_size() >> 1; // Java :30 (覆盖进入值)
-        offset[1] = ctx.font_size() >> 1; // Java :31
+        offset[0] = ctx.font_size() >> 1;
+        offset[1] = ctx.font_size() >> 1;
         let mut visible_index = 0;
         for f in fields {
             let base = f.base();
@@ -410,7 +409,7 @@ impl OverlayRenderer for BosStyleRenderer {
                     self.gauge_cache.get_mut(base.label.as_str()).expect("刚插入")
                 }
             };
-            gauge.update(&base.current_value); // Java :49
+            gauge.update(&base.current_value);
             // Java :52: field.unit != null && !equals(gauge.unit) → setUnit
             // PORT: Rust String 恒非 null, 条件退化为不等比较
             if base.unit != gauge.unit {
@@ -418,14 +417,14 @@ impl OverlayRenderer for BosStyleRenderer {
             }
             let value = bos_value_text(base, gauge.value.as_str());
             let val_buffer = if base.length > 0 { Some(value) } else { None };
-            gauge.draw(canvas, ctx, offset[0], offset[1], 1, val_buffer); // Java :61-62
+            gauge.draw(canvas, ctx, offset[0], offset[1], 1, val_buffer);
             visible_index += 1;
-            self.update_offset(visible_index, offset, ctx); // Java :65
+            self.update_offset(visible_index, offset, ctx);
         }
     }
 
     fn calculate_preferred_size(&mut self, fields: &[Field<'_>], ctx: &RenderContext) -> (i32, i32) {
         let visible_count = fields.iter().filter(|f| f.base().visible).count() as i32;
-        (ctx.geom.total_width(), ctx.geom.total_height(visible_count)) // Java :86-87
+        (ctx.geom.total_width(), ctx.geom.total_height(visible_count))
     }
 }

@@ -145,7 +145,6 @@ impl VoiceResourceManager {
 
         let voice_dir = PathBuf::from(&self.voice_dir);
         if voice_dir.exists() && voice_dir.is_dir() {
-            // Java: File[] files = voiceDir.listFiles(); if (files != null)
             // listFiles IO 失败返回 null ↔ read_dir 返回 Err, 均跳过循环体
             if let Ok(entries) = fs::read_dir(&voice_dir) {
                 // PORT: Java listFiles() 顺序未定义 (NTFS B-tree ≈ 字典序) —
@@ -167,10 +166,8 @@ impl VoiceResourceManager {
     /// Checks if a resource exists for the given pack and key.
     // PORT: Java String 入参可为 null → Option<&str> (§1 null 映射)
     pub fn has_resource(&self, warning_name: &str, pack_name: Option<&str>) -> bool {
-        // Java: packName != null && !packName.isEmpty() && !"default".equals(packName)
         if let Some(p) = pack_name {
             if !p.is_empty() && p != "default" {
-                // Java: new File(VOICE_DIR + packName + "/" + warningName + ".wav")
                 let file = PathBuf::from(format!("{}{p}/{warning_name}.wav", self.voice_dir));
                 if file.exists() {
                     return true;
@@ -183,7 +180,6 @@ impl VoiceResourceManager {
 
     /// Exactly checks if the specfic pack has the resource (without fallback check).
     pub fn has_resource_strict(&self, warning_name: &str, pack_name: Option<&str>) -> bool {
-        // Java: "default".equals(packName) — null 安全 (null 不等于 "default")
         if pack_name == Some("default") {
             return PathBuf::from(format!("{}{warning_name}.wav", self.voice_dir)).exists();
         }
@@ -198,21 +194,18 @@ impl VoiceResourceManager {
         let mut pack_name = zip_file
             .file_name()
             .map(|n| n.to_string_lossy().into_owned())
-            .unwrap_or_default(); // Java: getName() 对空路径返回 ""
+            .unwrap_or_default();
         // PORT: 路径以 '.'/'..' 结尾时 Java getName() 返回 "."/"..", Rust
         // Path::file_name() 对 CurDir/ParentDir 返回 None → ""; 调用源为
         // JFileChooser 文件选择器 (VoiceGlobalRenderer), 该边界不可达
-        // Java: packName.toLowerCase().endsWith(".zip")
         // PORT: Java toLowerCase() 用系统默认 locale, Rust to_lowercase 为 locale
         // 无关 (ROOT 语义; 仅 tr 等 locale 的 'I'→'ı' 映射差异, 不复刻)
         if pack_name.to_lowercase().ends_with(".zip") {
-            // Java: packName.substring(0, packName.length() - 4)
             // PORT: 命中处尾 4 字节必为 ASCII ".zip" 变体, 字节切片 == UTF-16 码元切片 (§2.1)
             let new_len = pack_name.len() - 4;
             pack_name.truncate(new_len);
         }
 
-        // Java: new File(VOICE_DIR, packName) — VOICE_DIR 以 '/' 结尾, 等价于直接拼接
         let pack_dir = PathBuf::from(format!("{}{pack_name}", self.voice_dir));
         if !pack_dir.exists() {
             // PORT: Java mkdirs() 返回值未检查 (失败静默继续)
@@ -220,7 +213,6 @@ impl VoiceResourceManager {
         }
 
         if let Err(e) = self.extract_pack(zip_file, &pack_dir) {
-            // Java: Logger.error(..., "Failed to install pack: " + e.getMessage());
             //      e.printStackTrace();
             // PORT: 消息面等价 — Java 两参版手工拼 "msg: {message}" 与
             // error_with_throwable 的 "{msg}: {t}" 模板逐字相同; 堆栈输出收窄:
@@ -238,32 +230,25 @@ impl VoiceResourceManager {
         let mut zip = zip::ZipArchive::new(file)?;
         for i in 0..zip.len() {
             let mut entry = zip.by_index(i)?;
-            // Java: !zipEntry.isDirectory() && zipEntry.getName().toLowerCase().endsWith(".wav")
             // (toLowerCase 的 locale 差异同 install_pack 处 PORT 注)
             if !entry.is_dir() && entry.name().to_lowercase().ends_with(".wav") {
                 // Flatten: Ignore parent path in zip, use only filename
                 let file_name = file_name_of(entry.name());
-                // Java: new File(packDir, fileName)
                 let new_file = pack_dir.join(file_name);
 
-                // Java: try (FileOutputStream fos = new FileOutputStream(newFile))
                 let mut fos = File::create(&new_file)?;
-                // Java: byte[] buffer = new byte[1024]
                 let mut buffer = [0u8; 1024];
                 loop {
-                    // Java: while ((len = zis.read(buffer)) > 0) —
                     // Rust read 的 Ok(0) 即 EOF (对应 Java -1); Java read 返回 0
                     // 仅在 len==0 时出现, 实际不发生, "> 0" 判定语义等价
                     let len = entry.read(&mut buffer)?;
                     if len == 0 {
                         break;
                     }
-                    // Java: fos.write(buffer, 0, len)
                     fos.write_all(&buffer[..len])?;
                 }
             }
         }
-        // Java: zis.closeEntry() — 收尾当前条目; ZipArchive 按需读取, 无对应动作
         Ok(())
     }
 
@@ -289,7 +274,6 @@ impl VoiceResourceManager {
         let file = match self.resolve_audio_file(warning_name, pack_name) {
             Some(f) => f,
             None => {
-                // Java: packName null 拼接为字面 "null"
                 logger::error(
                     "VoiceResourceManager",
                     &format!(
@@ -308,7 +292,6 @@ impl VoiceResourceManager {
                 Some(audio_clip)
             }
             Err(e) => {
-                // Java: Logger.error(..., "Error loading clip: " + file.getPath() + " -> "
                 //      + e.getMessage()); e.printStackTrace();
                 // PORT: " -> " 分隔符不符合 error_with_throwable 的 "{msg}: {t}" 模板,
                 // 为逐字复刻日志行直接拼 Display。
@@ -349,7 +332,6 @@ impl VoiceResourceManager {
         }
 
         // 2. 回退到 default
-        // Java: return defaultFile.exists() ? defaultFile : null;
         let default_file = PathBuf::from(format!("{}{warning_name}.wav", self.voice_dir));
         if default_file.exists() {
             Some(default_file)
@@ -361,12 +343,10 @@ impl VoiceResourceManager {
     /// Applies global volume setting to a clip.
     // PORT: Java applyVolume(Clip) 的 null 入参 → Option<&dyn SoundClip>
     pub fn apply_volume(&self, clip: Option<&dyn SoundClip>) {
-        // Java: if (clip == null) return;
         let clip = match clip {
             Some(c) => c,
             None => return,
         };
-        // Java: try { FloatControl gainControl = (FloatControl)
         //      clip.getControl(FloatControl.Type.MASTER_GAIN); if (gainControl == null)
         //      return; ... } catch (Exception e) { // Control not supported }
         // — 获取失败面 (抛异常/强转失败/null) 收敛为 master_gain_range() -> None,
@@ -382,7 +362,6 @@ impl VoiceResourceManager {
         // Logic copied from VoiceWarning.java
         let val = if volume <= 100 {
             // Logarithmic attenuation
-            // Java: gainControl.getMinimum() + (float) Math.log10(
             //      Math.max(1, Application.voiceVolumn)) * rangen / 2.0f
             // — log10 按 f64 计算 (Java 隐式提升), 强转 f32 后整式保持 f32 链
             let v = gmin + f64::log10(volume.max(1) as f64) as f32 * rangen / 2.0f32;
@@ -393,7 +372,6 @@ impl VoiceResourceManager {
             }
         } else {
             // Linear amplification
-            // Java: (Application.voiceVolumn - 100) * rangep / 100.0f — 全 f32 链
             let v = (volume - 100) as f32 * rangep / 100.0f32;
             if v > gmax {
                 gmax

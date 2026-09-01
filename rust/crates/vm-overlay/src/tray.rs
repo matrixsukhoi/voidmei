@@ -52,8 +52,8 @@ const TRAY_CALLBACK_MSG: u32 = WM_APP + 1;
 const TRAY_ID: u32 = 1;
 
 /// 菜单项 id (WM_COMMAND 的 LOWORD(wParam))
-const MENU_ID_SETTINGS: usize = 1001; // Java 菜单无此项 (左键语义拆分)
-const MENU_ID_START: usize = 1002; // Java 菜单无此项
+const MENU_ID_SETTINGS: usize = 1001;
+const MENU_ID_START: usize = 1002;
 const MENU_ID_ABOUT: usize = 1004; // PORT: Java about 菜单项 (Lang.about)
 const MENU_ID_EXIT: usize = 1003; // PORT: Java close 菜单项 (Lang.close)
 

@@ -121,7 +121,6 @@ impl State {
 
     pub fn get_eng_num(&mut self, buf: &str) {
         for i in 0..MAX_ENG_NUM {
-            // Java: "thrust " + i — 0 起始键名 (与 update 的 1 起始不同, 保真)
             self.thrust[i] = get_data_int(get_string(buf, &format!("thrust {}", i)));
             if self.thrust[i] != I_INVALID {
                 self.engine_num += 1;

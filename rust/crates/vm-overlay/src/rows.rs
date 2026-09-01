@@ -184,11 +184,9 @@ impl HUDTextRow {
     pub fn preferred_size(&self, font: &LoadedFont) -> (i32, i32) {
         // PORT: Java:67 w=200 起始, 但非空测量路径必覆盖 (getStringWidth 空串=0)
         let text_to_measure: &str = match &self.template {
-            // Java:69 templateText != null && !isEmpty() ? templateText : text
             Some(t) if !t.is_empty() => t,
             _ => &self.text,
         };
-        // Java:71 textToMeasure != null (恒真, 构造置 "") → 无条件测量
         let w = font.measure(text_to_measure);
         (w, self.height)
     }
@@ -232,7 +230,7 @@ impl HUDAkbRow {
             aoa_y: 0,
             right_draw,
             line_width,
-            aoa_length: 100, // Java:34 默认
+            aoa_length: 100,
             aoa_color: COLOR_YELLOW,
             aoa_bar_color: COLOR_YELLOW,
             aoa_template: None,
@@ -536,7 +534,7 @@ pub struct HUDMechanizationRow {
 fn split_trim3(text: &str) -> Option<(String, String, String)> {
     let b = text.as_bytes();
     if b.len() < 10 {
-        return None; // Java length() < 10 分支
+        return None;
     }
     let seg = |r: std::ops::Range<usize>| -> String {
         let bytes = &b[r];
@@ -597,7 +595,7 @@ impl HUDMechanizationRow {
     }
 
     /// Java:40-45 updateParts (游戏模式数据入口)。
-    /// super.update("", isWarning) 清空主文字（不使用）(Java 注释原文)。
+    /// super.update("", isWarning) 清空主文字（不使用）。
     pub fn update_parts(
         &mut self,
         flaps_wing_str: &str,
@@ -624,12 +622,12 @@ impl HUDMechanizationRow {
 
     /// Java:48-61 update(text, isWarning) 预览模式更新（兼容旧接口）。
     /// 从合并字符串解析回子组件（预览用，格式: "F100BRKGEA" 或 "    BRKGEA"）
-    /// (Java 注释原文)。
+    ///。
     pub fn update(&mut self, text: &str, is_warning: bool) -> bool {
         let parts = split_trim3(text);
         let (fw, ab, g) = match &parts {
             Some((a, b, c)) => (a.as_str(), b.as_str(), c.as_str()),
-            None => ("", "", ""), // Java else 分支: 三段全清空
+            None => ("", "", ""),
         };
         let changed = self.base.text != text
             || self.base.is_warning != is_warning
@@ -664,7 +662,7 @@ impl HUDMechanizationRow {
     }
 
     /// Java:72-81 setTemplate（预览模式），格式同旧 mechanizationStr
-    /// (Java 注释原文)。空襟翼段回退 "F100" (Java:77)。
+    ///。空襟翼段回退 "F100" (Java:77)。
     pub fn set_template(&mut self, template: Option<&str>) {
         self.base.set_template(template);
         if let Some((fw, ab, g)) = template.and_then(split_trim3) {
@@ -691,14 +689,14 @@ impl HUDMechanizationRow {
 
         let mut cur_x = x;
 
-        // 襟翼/可变翼：始终占位推进 curX，隐藏时仅不绘制文字 (Java 注释原文)
+        // 襟翼/可变翼：始终占位推进 curX，隐藏时仅不绘制文字
         let flaps_width = seg_width(font, &self.flaps_template);
         if self.show_flaps && !self.flaps_wing_str.is_empty() {
             text_shaded(cv, font, cur_x, base_y, &self.flaps_wing_str, c, aa);
         }
         cur_x += flaps_width;
 
-        // 减速板：始终占位推进 curX，隐藏时仅不绘制文字 (Java 注释原文)
+        // 减速板：始终占位推进 curX，隐藏时仅不绘制文字
         let brk_width = seg_width(font, &self.airbrake_template);
         if self.show_airbrake && !self.airbrake_str.is_empty() {
             text_shaded(cv, font, cur_x, base_y, &self.airbrake_str, c, aa);
@@ -716,7 +714,7 @@ impl HUDMechanizationRow {
     /// 起落架无 — Java:128 原样); 隐藏段保留占位符。
     pub fn preferred_size(&self, font: &LoadedFont) -> (i32, i32) {
         let mut w = 0;
-        // 始终使用模板估算完整宽度，隐藏的组件保留占位符，保持布局稳定 (Java 注释原文)
+        // 始终使用模板估算完整宽度，隐藏的组件保留占位符，保持布局稳定
         w += seg_width(font, &self.flaps_template);
         w += seg_width(font, &self.airbrake_template);
         if !self.gear_template.is_empty() {

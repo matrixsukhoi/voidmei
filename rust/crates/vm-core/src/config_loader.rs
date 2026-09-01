@@ -96,14 +96,12 @@ impl RowConfig {
     /// `catch (Exception e)` 兜住 → 0 (§2.7 异常控制流, 语义在此收敛为常量)。
     pub fn get_int(&self) -> i32 {
         match &self.value {
-            // Java: value instanceof Number → ((Number) value).intValue()
             // Int 原值; Double 走 JLS 5.1.3 (Rust `as i32` 同义, 见 sexp_parser
             // get_int 的 oracle 对拍注释)
             Some(ConfigValue::Int(i)) => *i,
             Some(ConfigValue::Double(d)) => *d as i32,
-            // Java: Integer.parseInt(value.toString()) 捕获一切异常 → 0 (§2.15)
             Some(v) => java_parse_int(&config_value_to_string(v)).unwrap_or(0),
-            None => 0, // Java: null → NullPointerException → catch → 0
+            None => 0,
         }
     }
 
@@ -112,7 +110,7 @@ impl RowConfig {
     /// 保持 panic (调用方 ConfigurationService 波次须知晓此契约)。
     pub fn get_bool(&self) -> bool {
         match &self.value {
-            Some(ConfigValue::Bool(b)) => *b, // Java: value instanceof Boolean
+            Some(ConfigValue::Bool(b)) => *b,
             Some(v) => java_parse_boolean(&config_value_to_string(v)),
             None => panic!("java.lang.NullPointerException: value is null in getBool()"),
         }
@@ -556,7 +554,7 @@ pub fn get_key_text(key_code: i32) -> String {
 /// Attempts to resolve key code from string (either "P" or "25")
 fn get_key_code_from_text(text: Option<&str>) -> i32 {
     let Some(text) = text else {
-        return 0; // Java: text == null
+        return 0;
     };
     if java_trim(text).is_empty() {
         return 0;
@@ -623,7 +621,6 @@ fn get_keyword_double(list: &SList, keyword: &str, def: f64) -> f64 {
 }
 
 fn get_keyword_int(list: &SList, keyword: &str, def: i32) -> i32 {
-    // Java: (int) getKeywordDouble(...) — JLS 5.1.3, Rust as i32 同义
     get_keyword_double(list, keyword, f64::from(def)) as i32
 }
 
@@ -682,7 +679,6 @@ pub fn load_config(path: &str) -> Vec<GroupConfig> {
         return groups;
     }
 
-    // Java: try { 读文件+解析+建组 } catch (Exception e) { e.printStackTrace(); }
     let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         build_groups_from_file(path, &mut groups)
     }));
@@ -707,7 +703,6 @@ pub fn load_config(path: &str) -> Vec<GroupConfig> {
 /// loadConfig 的 try 块主体 — Err = IO 异常, panic = 未受检运行时异常。
 fn build_groups_from_file(path: &str, groups: &mut Vec<GroupConfig>) -> Result<(), String> {
     // Read file content
-    // Java: BufferedReader.readLine() 把 \r\n / \r / \n 都视为行终止符, 每行 append("\n")
     // — 净效果 = 行终止符归一为 "\n"; InputStreamReader(UTF-8) 的非法字节替换 U+FFFD
     // ↔ from_utf8_lossy
     let raw = fs::read(path).map_err(|e| format!("java.io.IOException: {e}"))?;
@@ -905,7 +900,6 @@ fn extract_value(list: &SList, keyword: &str) -> Option<ConfigValue> {
             }
             if val.r#type == AtomType::Number {
                 let d = val.get_double();
-                // Java: if (d == (int) d) return (int) d; — NaN/±Inf/巨值不等 → Double
                 if d == f64::from(d as i32) {
                     return Some(ConfigValue::Int(d as i32));
                 }
@@ -1015,7 +1009,6 @@ fn write_children(pw: &mut String, rows: &[RowConfig], indent: &str) {
                 pw.push_str(&format!(" :target {}", quote(Some(property))));
             }
 
-            // Java: row.unit != null && !row.unit.isEmpty() — loader 路径 unit 恒非 null
             // (默认 ""), null 检查按死代码折叠
             if !row.unit.is_empty() {
                 pw.push_str(&format!(" :unit {}", quote(Some(&row.unit))));

@@ -32,7 +32,7 @@ pub fn format(value: f64, precision: u8) -> String {
         scale *= 10.0;
     }
 
-    let mut integral = value as i64; // Java (long) 截断向零
+    let mut integral = value as i64;
     let fractional = value - integral as f64;
     let mut scaled_fraction = java_round(fractional * scale);
     if scaled_fraction as f64 >= scale {
@@ -65,7 +65,7 @@ pub fn format_time(value: f64) -> String {
     if value.is_nan() || value < 0.0 {
         return "--'--".to_string();
     }
-    let total_seconds = value as i32; // Java (int) 截断向零
+    let total_seconds = value as i32;
     let minutes = total_seconds / 60;
     let seconds = total_seconds % 60;
 

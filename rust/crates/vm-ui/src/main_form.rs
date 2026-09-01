@@ -114,7 +114,6 @@ impl MainFormState {
         ui_bus: Arc<EventBus<UiStateEvent>>,
         persist_path: Option<String>,
     ) -> Self {
-        // Java: tc.dynamicConfigs = configService.layoutConfigs (构造期快照)
         let groups = config.get_layout_configs().unwrap_or_default();
         MainFormState {
             config,
@@ -231,10 +230,10 @@ impl<'a> WriteContext<'a> {
 
 impl RenderContext for WriteContext<'_> {
     fn on_save(&self) {
-        self.save_requested.set(true); // Java: save() (L128-131)
+        self.save_requested.set(true);
     }
     fn on_rebuild(&self) {
-        self.rebuild_requested.set(true); // Java: rebuild() (L133-137)
+        self.rebuild_requested.set(true);
     }
     fn is_updating(&self) -> bool {
         // Java isUpdatingControls 仅 rebuild 期置位抑制 Swing 监听反馈环;
@@ -284,20 +283,17 @@ impl RenderContext for WriteContext<'_> {
 pub fn update(state: &mut MainFormState, message: Message) {
     match message {
         Message::Toggle { panel, key, value } => {
-            // Java: SwitchRowRenderer.java:41-68 / SwitchInvRowRenderer.java:30-39 闭包体
             with_panel(state, &panel, &key, |g, ctx| {
                 renderers::switch::apply(g, &key, value, ctx)
             });
         }
         Message::Slider { panel, key, value } => {
-            // Java: SliderRowRenderer.persistValue (L53-66); 拖拽期不落盘
             // (valueIsAdjusting 语义), 落盘由 on_release → Message::Save 承担
             with_panel(state, &panel, &key, |g, ctx| {
                 renderers::slider::apply(g, &key, value, ctx)
             });
         }
         Message::Combo { panel, key, value } => {
-            // Java: ComboRowRenderer.java:52-62
             with_panel(state, &panel, &key, |g, ctx| {
                 renderers::combo::apply(g, &key, &value, ctx)
             });

@@ -30,7 +30,6 @@ fn sleep_quietly_zero_millis_returns_immediately() {
 
 #[test]
 fn sleep_quietly_returns_immediately_when_flag_pre_set() {
-    // Java: 中断位已置位的 Thread.sleep 立即抛 InterruptedException → 此处立即返回
     let stop = AtomicBool::new(true);
     let t0 = Instant::now();
     sleep_quietly(&stop, 60_000);
@@ -126,7 +125,6 @@ fn ignore_sets_stop_flag() {
 
 #[test]
 fn close_quietly_none_is_noop() {
-    // Java: closeable == null → 什么都不做
     close_quietly(None::<std::fs::File>);
 }
 

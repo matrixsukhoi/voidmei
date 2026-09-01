@@ -50,7 +50,6 @@ fn routing_isolation_between_event_types() {
     assert_eq!(hits.load(Ordering::SeqCst), 1);
 }
 
-// Java: CopyOnWriteArrayList 迭代序 = 订阅序
 #[test]
 fn multiple_subscribers_in_subscription_order() {
     let bus = UIStateBus::new();
@@ -99,7 +98,7 @@ fn raii_drop_and_explicit_unsubscribe() {
     let sub2 = bus.subscribe(ui_state_events::UI_READY, move |_| {
         h3.fetch_add(1, Ordering::SeqCst);
     });
-    bus.unsubscribe(ui_state_events::UI_READY, sub2); // Java 显式退订路径
+    bus.unsubscribe(ui_state_events::UI_READY, sub2);
     assert_eq!(bus.publish_legacy(ui_state_events::UI_READY, None), 0);
 
     let h4 = Arc::clone(&hits);
@@ -127,11 +126,10 @@ fn legacy_publish_null_source_and_data() {
     let got = seen.lock().unwrap();
     assert_eq!(got.len(), 1);
     assert_eq!(got[0].event_type, ui_state_events::UI_READY);
-    assert_eq!(got[0].source, None); // Java source=null
-    assert_eq!(got[0].data, None); // Java data=null (handler 收到 null 载荷)
+    assert_eq!(got[0].source, None);
+    assert_eq!(got[0].data, None);
 }
 
-// Java: catch (Exception e) → 记日志后继续下一个 handler, 发布线程存活
 #[test]
 fn panicking_handler_isolated_and_loop_continues() {
     let bus = UIStateBus::new();
@@ -157,7 +155,6 @@ fn panicking_handler_isolated_and_loop_continues() {
     assert_eq!(after.load(Ordering::SeqCst), 2);
 }
 
-// Java: subscribers.clear() — 清空后一切发布无调用, 可重新订阅
 #[test]
 fn clear_removes_all_subscribers_across_types() {
     let bus = UIStateBus::new();
@@ -183,7 +180,6 @@ fn clear_removes_all_subscribers_across_types() {
     assert_eq!(hits.load(Ordering::SeqCst), 1);
 }
 
-// Java: for 循环起始取 COW 快照, handler 内 clear() 不影响本轮送达
 #[test]
 fn in_flight_delivery_survives_clear_inside_handler() {
     let bus = Arc::new(UIStateBus::new());
@@ -276,7 +272,6 @@ fn cross_thread_publish_from_loader_like_thread() {
     assert_eq!(got[0].source.as_deref(), Some("FMManager"));
 }
 
-// Java: 迭代开始已取 COW 快照, handler 内退订自身不影响本轮, 下轮起生效
 #[test]
 fn self_unsubscribe_during_delivery_snapshot_semantics() {
     let bus = UIStateBus::new();

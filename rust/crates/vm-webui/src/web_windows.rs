@@ -176,7 +176,7 @@ pub fn open_power_curve_window(
     build_aux_window(
         handle,
         POWER_CURVE_LABEL,
-        "功率曲线", // Java super(owner, "功率曲线", MODELESS)
+        "功率曲线",
         POWER_CURVE_SIZE,
         &power_curve_query(fm0, fm1, speed_kmh, wep),
     )

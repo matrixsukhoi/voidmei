@@ -88,7 +88,6 @@ const DEFAULT_COMPONENT: &str = "App";
 
 /// 对应 Java `public static void setMinLevel(Level level)`
 pub fn set_min_level(level: Level) {
-    // Java: currentLevel = level (plain 写, 无同步) → Rust 显式加锁写
     *CURRENT_LEVEL.write().expect("logger 级别锁中毒") = level;
 }
 
@@ -214,11 +213,8 @@ pub fn error(component: &str, message: &str) {
 /// `printStackTrace()` (打到 System.err) ↔ stderr 写 `{t:?}` — Rust 错误类型
 /// 不携带 Java 形堆栈, 以 Debug repr 顶位 (调用方错误类型的 Debug 决定形态)。
 pub fn error_with_throwable(component: &str, message: &str, t: &dyn std::error::Error) {
-    // Java: log(Level.ERROR, component, message + ": " + t.getMessage())
     log(Level::Error, component, &format!("{message}: {t}"));
-    // Java: if (currentLevel.value <= Level.DEBUG.value) — 与 log() 内各读一次, 两处独立读取
     if current_level().value() <= Level::Debug.value() {
-        // Java: t.printStackTrace() — PrintStream 吞 IOException, 见 log() 内 PORT 注释
         write_err(&format!("{t:?}"));
     }
 }
@@ -250,7 +246,6 @@ pub fn error_default(message: &str) {
 pub fn error_default_with_throwable(message: &str, t: &dyn std::error::Error) {
     log(Level::Error, DEFAULT_COMPONENT, &format!("{message}: {t}"));
     if current_level().value() <= Level::Debug.value() {
-        // Java: t.printStackTrace() — PrintStream 吞 IOException, 见 log() 内 PORT 注释
         write_err(&format!("{t:?}"));
     }
 }
@@ -261,9 +256,7 @@ pub fn error_default_with_throwable(message: &str, t: &dyn std::error::Error) {
 /// source 传类简单名 (如 "FMManager"), target 传 toString 结果 (如
 /// "FMHandle[MISSING he_162]"); null 语义 ↔ `Option::None` ("Unknown"/"Global")。
 pub fn event(action: &str, event_name: &str, source: Option<&str>, target: Option<&str>) {
-    // Java: if (currentLevel.value <= Level.INFO.value)
     if current_level().value() <= Level::Info.value() {
-        // Java: String.format("%s: %s -> %s: %s", action, source名, target串, eventName)
         let msg = format!(
             "{}: {} -> {}: {}",
             action,
@@ -277,9 +270,7 @@ pub fn event(action: &str, event_name: &str, source: Option<&str>, target: Optio
 
 /// 对应 Java `private static void log(Level level, String component, String message)`
 fn log(level: Level, component: &str, message: &str) {
-    // Java: if (level.value >= currentLevel.value)
     if level.value() >= current_level().value() {
-        // Java: String timestamp = dateFormat.format(new Date()) — "HH:mm:ss.SSS" 本地时区
         let timestamp = Local::now().format("%H:%M:%S%.3f").to_string();
         // 单次持锁写入对齐 Java printf 单调用 (System.out 自带锁, 多线程行不交错);
         // setDebugLog 重定向态下改走文件 (write_out 内吞错, 见其注)。

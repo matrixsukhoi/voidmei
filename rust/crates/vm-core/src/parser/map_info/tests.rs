@@ -50,12 +50,11 @@ fn get_map_info_parser_array_missing_key_returns_zeros() {
     let mut mi = MapInfo::new();
     mi.update("{\"foo\": [1.0, 2.0]}");
     let zb = mi.get_map_info_parser_array("grid_steps");
-    assert_eq!((zb.x, zb.y), (0.0, 0.0)); // Java: new zb() 未写值
+    assert_eq!((zb.x, zb.y), (0.0, 0.0));
 }
 
 #[test]
 fn string_to_float_empty_and_trim() {
-    // Java: 空串 → 0 (length()==0 分支); parseFloat 隐含 trim
     assert_eq!(MapInfo::string_to_float(""), 0.0);
     assert_eq!(MapInfo::string_to_float(" 6400.0\n"), 6400.0);
     assert_eq!(MapInfo::string_to_float("31426.1953125"), 31426.1953125);

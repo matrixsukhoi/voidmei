@@ -238,7 +238,7 @@ struct MockSvcData {
 impl MockSvcData {
     fn new() -> Self {
         let mut st = State::new();
-        st.init(); // Java Service 构造即 sState.init() — 引擎数组 len 16
+        st.init();
         MockSvcData {
             current_time_ms: 0,
             player_live: true,
@@ -252,7 +252,7 @@ impl MockSvcData {
             d_radio_alt: 0.0,
             // Java Service 缺省 99999*1000
             cur_load_min_work_time: 99999.0 * 1000.0,
-            maximum_thr_rpm: 1.0, // Java Service 缺省 1
+            maximum_thr_rpm: 1.0,
             get_maximum_rpm: false,
             is_eng_jet: false,
             stall_speed: 0.0,

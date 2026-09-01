@@ -58,7 +58,7 @@ pub fn parse_color(text: &str, default: [u8; 4]) -> [u8; 4] {
 pub fn try_parse_color(text: &str) -> Option<[u8; 4]> {
     let trimmed = java_trim(text);
     if trimmed.is_empty() {
-        return None; // Java L42-44: null/trim 后空 → default
+        return None;
     }
     if trimmed.starts_with('#') {
         parse_hex_color(trimmed)
@@ -78,7 +78,6 @@ fn parse_hex_color(hex: &str) -> Option<[u8; 4]> {
     let b = h.as_bytes();
     let byte = |r: std::ops::Range<usize>| u8::from_str_radix(&h[r], 16).ok();
     match b.len() {
-        // Java: new Color(r, g, b) — 2 位十六进制恒 0-255, 无需钳位
         6 => Some([byte(0..2)?, byte(2..4)?, byte(4..6)?, 255]),
         8 => Some([byte(0..2)?, byte(2..4)?, byte(4..6)?, byte(6..8)?]),
         _ => None,

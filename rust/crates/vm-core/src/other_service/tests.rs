@@ -221,7 +221,7 @@
 	#[test]
 	fn close_clears_is_run() {
 		let os = OtherService::new("\n");
-		assert!(!os.is_run.load(Ordering::SeqCst)); // Java 默认 false
+		assert!(!os.is_run.load(Ordering::SeqCst));
 		os.is_run.store(true, Ordering::SeqCst); // init 的置位动作
 		os.close();
 		assert!(!os.is_run.load(Ordering::SeqCst));
@@ -314,7 +314,6 @@
 		let handle = std::thread::spawn(move || os.run());
 		// 首轮 fetch 失败 → s_map_obj 保持 None → update(null) NPE ↔ unwrap panic
 		assert!(handle.join().is_err(), "线程应在 unwrap(None) panic 中死亡");
-		// Java: 线程死亡时 isRun 仍为 true (close 未被调用)
 		assert!(is_run.load(Ordering::SeqCst));
 
 		stop.store(true, Ordering::SeqCst);

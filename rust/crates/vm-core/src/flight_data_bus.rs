@@ -68,7 +68,6 @@ impl FlightDataBus {
         mut listener: F,
     ) -> Subscription<FlightDataEvent> {
         self.inner.subscribe(move |event| {
-            // Java: try { listener.onFlightData(event); } catch (Exception e) { ... }
             // AssertUnwindSafe: 异常后订阅者留在可能不一致的状态继续用, 与 Java 同
             if let Err(panic_val) = catch_unwind(AssertUnwindSafe(|| listener(event))) {
                 eprintln!(

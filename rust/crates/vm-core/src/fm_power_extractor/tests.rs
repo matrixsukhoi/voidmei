@@ -739,7 +739,6 @@ fn java8_oracle_synthetic_branches() {
 
 #[test]
 fn java8_oracle_null_and_guard_boundaries() {
-    // Java: null isPiston=false / wepBoost=1.0 / speedMM=1.0 / stages=null
     assert!(!is_piston_engine(None));
     assert_eq!(get_wep_boost_factor(None), 1.0);
     assert_eq!(get_speed_manifold_multiplier(None), 1.0);

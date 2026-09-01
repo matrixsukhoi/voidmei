@@ -64,10 +64,10 @@ fn fmt_d3(v: i32) -> String {
 /// 真实侧滑显示值不落在该边界)。
 fn fmt_f41(v: f64) -> String {
     if v.is_nan() {
-        return "NaN ".to_string(); // Java Formatter: "NaN" 左对齐宽 4
+        return "NaN ".to_string();
     }
     if v.is_infinite() {
-        return "Infinity".to_string(); // Java Formatter 同串 (超宽原样)
+        return "Infinity".to_string();
     }
     let ri = java_round_i64(v * 10.0); // 一位小数 ×10
     let mut s = if ri >= 10 {
@@ -316,7 +316,7 @@ impl AttitudeIndicatorGauge {
     /// Java:192-224 onDataUpdate。pitch/roll/slip 注入 + aosX 换算 + 双值文本格式化。
     /// 返回是否变化 (脏检查)。
     pub fn on_data_update(&mut self, data: &vm_core::hud_data::HUDData) -> bool {
-        let slide_limit = 4 * self.font_size; // Java:204 (font==null 时 Java 跳过;
+        let slide_limit = 4 * self.font_size;
         // font_size=0 → 乘积 0 → aos_x=0, 与 Java else 分支数值一致, 无需分支)
         // PORT: Java:205 (int)(-slip * slideLimit / 30.0f) — double 链, (int) 窄化。
         // JLS 5.1.3: double→int 是饱和 (NaN→0, 超界→±MAX), 与 Rust as i32 语义一致
@@ -365,7 +365,7 @@ impl AttitudeIndicatorGauge {
     /// Java:91-125 目标点 (天地基准符号中心): (x,y) 组件左上 → center →
     /// pitch/侧滑偏移出 target。双模式符号表 = Java:112-122 代码值。
     pub fn target_point(&self, x: i32, y: i32) -> (i32, i32) {
-        let radius = self.compass_diameter / 2; // Java:94 int 除
+        let radius = self.compass_diameter / 2;
         let center_x = x + radius;
         let center_y = y + radius;
         let (sign_pitch, sign_slip): (i32, i32) = if self.inertial_mode {
@@ -417,7 +417,7 @@ impl AttitudeIndicatorGauge {
 
         // 3. 文本 (Java:153-167, 已恢复原 transform — 不随滚转旋转)
         if let Some(font) = font {
-            let gap = font.size / 4; // Java:155 gap = font.getSize()/4 (int 除)
+            let gap = font.size / 4;
 
             // Pitch 角 — 右侧 (Java:158-159)
             let pitch_color = if self.round_horizon >= 0 {
@@ -447,7 +447,7 @@ impl AttitudeIndicatorGauge {
     /// Java:141-151+170-181: 旋转 marks。粗 (lw+2) shade → 细 (lw) colorNum,
     /// 双遍 CAP_ROUND。中心参数是 target (Java:144/149 drawMarks(g2d, targetX, targetY, ...))。
     fn draw_marks(&self, cv: &mut PixCanvas, target_x: i32, target_y: i32, theta: f64, aa: bool) {
-        let hbs = self.half_line + 1; // Java:172 半线宽后仍差 1px 的经验修正
+        let hbs = self.half_line + 1;
         let cd = self.compass_diameter;
         let cr = self.compass_radius;
         let inner = self.compass_inner_mark_radius;
@@ -624,12 +624,10 @@ impl AttitudeOverlay {
     ) -> bool {
         let w = self.x_width;
         let h = self.x_height;
-        // Java:385-387 — double 链, Math.round → long
         self.aoa_y = java_round_i64((aoa + MAX_AOA as f64) * h as f64 / (2 * MAX_AOA) as f64);
         self.aos_x = java_round_i64((-aos + MAX_AOS as f64) * w as f64 / (2 * MAX_AOS) as f64);
         self.pitch_y = java_round_i64((-pitch + MAX_AOA as f64) * h as f64 / (2 * MAX_AOA) as f64);
 
-        // Java:389-393 — compassX/Y = (int)(w/4 · sin/cos) 后 widen 到 long 字段,
         // (int) 是 double→int 饱和 (JLS 5.1.3), 故先 as i32 再拓宽, 非 as i64
         if self.show_direction {
             let rads = compass.to_radians();
@@ -637,7 +635,6 @@ impl AttitudeOverlay {
             self.compass_y = (((w / 4) as f64 * rads.cos()) as i32) as i64;
         }
 
-        // Java:397-406 攻角极限 (FM 有效且开关开才显示)
         match aoa_limits {
             Some((crit_high, crit_low)) if self.show_aoa_limits => {
                 self.aoa_limit_u = java_round_i64((crit_high + MAX_AOA as f64) * h as f64 / (2 * MAX_AOA) as f64);

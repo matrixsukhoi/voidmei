@@ -258,7 +258,6 @@ pub fn load_fm_lines(name: Option<&str>) -> Vec<String> {
                     Lang::init_lang().noblkx.to_string()
                 }
             },
-            // Java: 物理文件也不存在 → Blkx 构造器读文件异常, valid=false 对象
             // fmdata=noblkx (Blkx.java:1671 构造器头部赋值) — 与上方解析失败分支
             // 同文本顶位: load_fm_lines 返回 noblkx 两行 (无冒号 → 对比解析段全滤,
             // DTO 可观察结果不变; 直接消费行内容的调用点也与 Java 一致)
@@ -267,11 +266,9 @@ pub fn load_fm_lines(name: Option<&str>) -> Vec<String> {
     };
 
     // fmdata is string.
-    // Java: if (b.fmdata == null) return new ArrayList<>() — fmdata 为空串同效
     if fmdata.is_empty() {
         return Vec::new();
     }
-    // Java: split("\n") 后滤掉 trim 空白行
     fmdata
         .split('\n')
         .filter(|s| !java_trim(s).is_empty())
@@ -334,7 +331,7 @@ pub fn comparison_data_impl(fm0_name: &str, fm1_name: Option<&str>) -> Compariso
     let lines1 = load_fm_lines(fm1_name);
 
     // Parse Data into Maps and Structure
-    let lines1_safe = lines1; // Java: (lines1 != null) ? lines1 : new ArrayList<>()
+    let lines1_safe = lines1;
     let (structure, map0, map1) = build_structure(&lines0, &lines1_safe);
 
     // Render (行清单: 标题行/属性行 + 胜负符号)
@@ -428,7 +425,6 @@ fn load_fuel_modification(fm_name: &str) -> Option<FuelModification> {
             // (原 catch(Exception) 分支注释语义)
             match std::fs::read(&cf) {
                 Ok(bytes) => {
-                    // Java: new String(bytes, "UTF-8") — 非法字节解 U+FFFD 继续
                     let data = String::from_utf8_lossy(&bytes).into_owned();
                     let mod_ = extract_fuel_modifications(&data);
                     if mod_.r#type != FuelType::None {
@@ -621,7 +617,6 @@ pub fn identify_inflection_points_for_curve(
                 }
             }
             let alt_m = best_idx * ALT_STEP;
-            // Java: Math.abs((int) prev[0] - altM) < minSepM
             let mut too_close = false;
             for prev in &peak_candidates {
                 if (prev.0 - alt_m).abs() < min_sep_m {
@@ -700,7 +695,6 @@ pub fn identify_inflection_points_for_curve(
 
     // ========== Phase 4: Detect slope kinks ==========
     let kink_half_window = 4;
-    // Java: |curve[maxIdx] - curve[0]| / (maxIdx * ALT_STEP) — int 乘法提升 double
     let avg_slope = (power_curve[max_idx as usize] - power_curve[0]).abs() / (max_idx * ALT_STEP) as f64;
     let kink_threshold = (avg_slope * 2.5).max(0.08);
 
@@ -723,7 +717,6 @@ pub fn identify_inflection_points_for_curve(
         if !is_peak_or_valley && slope_change > kink_threshold {
             let mut best_idx = i;
             let mut best_change = slope_change;
-            // Java: for (j = i-2; j <= i+2 && j >= hw && j <= maxIdx-hw; j++) —
             // 条件逐轮求值, i-2 可低于 hw 使循环体不执行
             let mut j = i - 2;
             while j <= i + 2 && j >= kink_half_window && j <= max_idx - kink_half_window {
@@ -772,7 +765,6 @@ fn calculate_display_range(curve0: &PowerCurveDto, curve1: &Option<PowerCurveDto
     }
 
     // Handle case where no valid curves
-    // Java: combinedMin == Double.MAX_VALUE float 相等比较, 原样保留
     #[allow(clippy::float_cmp)]
     if combined_min == f64::MAX {
         combined_min = 0.0;
@@ -1327,7 +1319,6 @@ mod tests {
 
     #[test]
     fn load_fm_lines_物理不存在返回noblkx两行() {
-        // Java: 物理文件也不存在 → Blkx 构造器读文件异常, fmdata=noblkx
         // (Blkx.java:1671), loadFmLines 返回 noblkx 两行 — 与解析失败分支同文本
         let lines = load_fm_lines(Some("voidmei-nonexistent-fm"));
         let expect: Vec<String> = Lang::init_lang()

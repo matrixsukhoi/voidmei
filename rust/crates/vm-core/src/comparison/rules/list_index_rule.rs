@@ -27,7 +27,6 @@ impl ComparisonRule for ListIndexRule {
             return None;
         }
 
-        // Java: try { ... } catch (Exception e) { // ignore } — 本体为纯扫描,
         // 与 Java 一致无异常路径, 末尾统一 return null。
         if let Some(list_content) = super::find_bracket_list(raw_value) {
             let parts = super::java_split_comma(list_content);

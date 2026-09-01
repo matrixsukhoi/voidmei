@@ -127,7 +127,7 @@ fn default_arrays_full_length_zeroed_and_fields_null() {
     assert_eq!(fa.initalt_stage, 0);
     assert_eq!(fa.curalt_stage, 0);
     assert!(!fa.is_information);
-    assert_eq!(fa.r#type, None); // Java null
+    assert_eq!(fa.r#type, None);
 }
 
 // ---- init ----
@@ -190,7 +190,7 @@ fn init_config_flag_variants() {
 #[should_panic]
 fn analyze_before_init_panics_like_npe() {
     let mut fa = FlightAnalyzer::default();
-    fa.analyze(1); // Java: xs.iEngType → NullPointerException
+    fa.analyze(1);
 }
 
 // ---- analyze ----
@@ -465,7 +465,6 @@ fn remove_zeroes_i32_smooths_three_point() {
 #[test]
 #[should_panic]
 fn remove_zeroes_i32_first_nonzero_panics_like_aioobe() {
-    // Java: i=0 且 oy[0]!=0 → oy[-1] ArrayIndexOutOfBoundsException
     let fa = FlightAnalyzer::default();
     let mut x = [0.0; 4];
     let mut y = [0.0; 4];
@@ -475,7 +474,6 @@ fn remove_zeroes_i32_first_nonzero_panics_like_aioobe() {
 #[test]
 #[should_panic]
 fn remove_zeroes_i32_last_nonzero_panics_like_aioobe() {
-    // Java: i=len-1 且非零 → oy[len] 越界
     let fa = FlightAnalyzer::default();
     let mut x = [0.0; 4];
     let mut y = [0.0; 4];

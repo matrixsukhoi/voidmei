@@ -77,7 +77,7 @@ impl ConfigWatcherService {
             on_reload,
             state: Arc::new(Mutex::new(WatcherState {
                 last_mod_time,
-                ignore_next: false, // Java 显式初始化 ignoreNext = false
+                ignore_next: false,
             })),
             timer: None,
         }

@@ -94,7 +94,6 @@ fn row_and_group() -> (RowConfig, GroupConfig) {
     )
 }
 
-// Java: getOrDefault 未知键 → defaultRenderer (本层为注入的默认)
 #[test]
 fn get_unknown_type_falls_back_to_default() {
     let default: Arc<dyn RowRenderer<&'static str>> = Arc::new(FakeRenderer(Some("default")));
@@ -104,11 +103,10 @@ fn get_unknown_type_falls_back_to_default() {
     let (row, group) = row_and_group();
     let ctx = RecordingContext::new(false);
     let got = reg.get("NO_SUCH_TYPE");
-    assert!(Arc::ptr_eq(&got, &default)); // Java 返回同一 defaultRenderer 引用
+    assert!(Arc::ptr_eq(&got, &default));
     assert_eq!(got.render(&row, &group, &ctx), Some("default"));
 }
 
-// Java: 命中键返回 map 内共享实例, 反复 get 同一引用
 #[test]
 fn get_returns_registered_shared_instance() {
     let default: Arc<dyn RowRenderer<&'static str>> = Arc::new(FakeRenderer(Some("default")));
@@ -118,7 +116,7 @@ fn get_returns_registered_shared_instance() {
 
     let a = reg.get("COMBO");
     let b = reg.get("COMBO");
-    assert!(Arc::ptr_eq(&a, &b)); // Java: map 值即同一实例
+    assert!(Arc::ptr_eq(&a, &b));
     assert!(Arc::ptr_eq(&a, &shared));
 
     let (row, group) = row_and_group();
@@ -126,7 +124,6 @@ fn get_returns_registered_shared_instance() {
     assert_eq!(a.render(&row, &group, &ctx), Some("combo-impl"));
 }
 
-// Java: Map.put 覆盖旧映射 (register 二次调用后新渲染器生效)
 #[test]
 fn register_overwrites_existing_mapping() {
     let default: Arc<dyn RowRenderer<&'static str>> = Arc::new(FakeRenderer(Some("default")));
@@ -139,7 +136,6 @@ fn register_overwrites_existing_mapping() {
     assert_eq!(reg.get("SWITCH").render(&row, &group, &ctx), Some("new"));
 }
 
-// Java: render 可返回 null ("should not produce a component") → Option::None;
 // 同时验证 &dyn RenderContext 动态分发到实现 (is_updating 路由)
 #[test]
 fn render_none_path_and_context_dispatch() {
@@ -181,7 +177,6 @@ fn builtin_table_matches_java_static_block() {
     assert_eq!(BUILTIN_ROW_TYPES, expected);
 }
 
-// Java: HashMap 精确 String 匹配 —— 大小写不同即未命中走默认;
 // 归一化责任在上游 ConfigLoader (ConfigLoader.java:295 / config_loader.rs:827)
 #[test]
 fn lookup_is_exact_case_sensitive_match() {
@@ -198,7 +193,6 @@ fn lookup_is_exact_case_sensitive_match() {
     );
 }
 
-// Java: interface 默认方法 resetToDefaults() 空实现 — 无副作用可调用
 #[test]
 fn render_context_default_reset_to_defaults_is_noop() {
     let ctx = RecordingContext::new(false);

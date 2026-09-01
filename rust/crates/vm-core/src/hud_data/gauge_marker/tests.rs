@@ -44,7 +44,7 @@ fn is_visible_boundaries_match_java() {
         (-0.0001, false),
         (1.0001, false),
         (-1.0, false),
-        (f64::NAN, false), // Java: NaN >= 0.0 为 false
+        (f64::NAN, false),
         (0.5, true),
     ];
     for (r, expect) in cases {

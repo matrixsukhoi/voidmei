@@ -51,7 +51,7 @@ impl WarningOverlay {
         aa: bool,
     ) {
         if is_blink_off {
-            return; // Java:37-39 — blink "off" 相位整体不绘制
+            return;
         }
 
         // Draw shadow X (Java:48-52): colorShadeShape (Application.java:108),

@@ -11,7 +11,6 @@ pub struct SimpleRule {
 }
 
 impl SimpleRule {
-    // Java: public SimpleRule(boolean lowerIsBetter)
     pub fn new(lower_is_better: bool) -> Self {
         Self { lower_is_better }
     }
@@ -37,7 +36,6 @@ impl ComparisonRule for SimpleRule {
             return None; // Skip array values - use ListIndexRule for these
         }
 
-        // Java: try { Matcher m = NUMBER_PATTERN.matcher(rawValue); if (m.find()) {
         //           return Double.parseDouble(m.group(1)); } } catch (Exception e) { // ignore }
         // PORT: 组1 文本仅含 [-.0-9], parse 对其不可能失败; Java catch 吞异常
         // 继续走到末尾 return null ↔ Rust `.ok()`。

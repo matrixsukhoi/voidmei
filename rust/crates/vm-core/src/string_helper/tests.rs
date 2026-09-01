@@ -145,7 +145,7 @@ fn get_data_float_bad_number_panics_like_java() {
 fn get_data_int_parses() {
     assert_eq!(get_data_int(Some("505")), 505);
     assert_eq!(get_data_int(Some("-42")), -42);
-    assert_eq!(get_data_int(Some("+7")), 7); // Java parseInt 接受 '+', Rust 亦然
+    assert_eq!(get_data_int(Some("+7")), 7);
     assert_eq!(get_data_int(None), I_INVALID);
     assert_eq!(get_data_int(None), -65535);
 }
@@ -208,7 +208,6 @@ fn get_data_int_leading_space_panics_like_java() {
 #[test]
 #[should_panic]
 fn get_string_builder_empty_needle_panics_like_java() {
-    // Java: lastIndexOf("") == length → bix=eix+2 > eix+1, getChars
     // srcBegin > srcEnd 抛 StringIndexOutOfBoundsException (oracle 实测) ↔ panic
     let mut buf = [0u8; 8];
     get_string_builder("ab", "", &mut buf, 0);
