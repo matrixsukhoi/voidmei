@@ -25,7 +25,6 @@ pub struct ServiceData {
     /// MapObj.getPlayerLoc 按 &mut [f64;2] 写入 → 定长 [f64; 2] (§1)
     pub loc: Option<[f64; 2]>,
     pub dir: Option<[f64; 2]>,
-    pub energy_j_kg: f64,
     pub calc_period: i64,
     // Gravitational constant imported from PhysicsConstants.g
     pub freq: i64,
@@ -56,8 +55,8 @@ pub struct ServiceData {
         pub(crate) fuel_lastchange_mili: i64,
         pub(crate) fuelchange_time: i64,
     /// 外部写者: Controller.java:384 `S.startTime = System.currentTimeMillis()`
-    /// (Java 包私有; Controller 若落 vm-data 外的 crate, 届时再上调可见性)
-        pub(crate) start_time: i64,
+    /// (openpad 写入 — elapsed_time 的会话起点基准)
+    pub start_time: i64,
     pub elapsed_time: i64,
 
     pub noil_temp: f64,
@@ -66,8 +65,6 @@ pub struct ServiceData {
     // public int enginetype;
 
     pub speedv: f64,
-    pub ias_v: f64,
-    pub ias_vp: f64,
     pub acceleration: f64,
     pub sep: f64,
 
@@ -86,7 +83,6 @@ pub struct ServiceData {
     pub fatal_warn: Option<bool>,
 
     // sState转换后
-    pub has_wing_sweep_vario: bool,
     pub compass_delta: f64,
     pub engine_num: i32,
     pub cur_load_min_work_time: f64,
@@ -140,8 +136,6 @@ pub struct ServiceData {
     pub turn_rds: f64,
     pub turn_rate: f64,
 
-    pub horizontal_load: f64,
-
     pub altmeterp: f64,
     pub altmeter: f64,
     pub thurst_percent: f64,
@@ -162,7 +156,6 @@ pub struct ServiceData {
     pub get_maximum_rpm: bool,
     // PORT(Java `public HttpHelper httpClient` 不迁移): IO 机械 (socket + 响应缓冲),
     // 归 service_loop 线程持有, 非数据快照成员。
-    pub energy_m: f64,
 
     // ---- L1180-1184 ----
     pub mach: f64, // 精准mach, 精度高于state.mach, 小于indicators.mach, 不过只有部分飞机有indicators.mach
@@ -200,10 +193,6 @@ pub const ENGINE_TYPE_UNKNOWN: i32 = -1;
 /// PORT: indicators.rs 已按 CLASSIFY 裁决内联为私有 NA_STRING (不越文件改, §6);
 /// 本处为规范定义, 后续波次统一收敛引用点。
 pub const NASTRING: &str = "-";
-/// Java `public static final String nullstring = ""` (L228)。
-pub const NULLSTRING: &str = "";
-/// Java `public static final String pressureUnit = "Ata"` (L236)。
-pub const PRESSURE_UNIT: &str = "Ata";
 
 impl Default for ServiceData {
     /// 对应 Java 字段声明默认值: 隐式初始化 (数值 0 / boolean false / 引用 null, §2.10)
@@ -227,7 +216,6 @@ impl Default for ServiceData {
             fuel_time_sma: None,
             loc: None,
             dir: None,
-            energy_j_kg: 0.0,
             calc_period: 0,
             freq: 0,
             s_state: None,
@@ -256,13 +244,10 @@ impl Default for ServiceData {
             noil_temp: 0.0,
             nwater_temp: 0.0,
             speedv: 0.0,
-            ias_v: 0.0,
-            ias_vp: 0.0,
             acceleration: 0.0,
             sep: 0.0,
             wep_time: 0,
             fatal_warn: Some(false),
-            has_wing_sweep_vario: false,
             compass_delta: 0.0,
             engine_num: 0,
             cur_load_min_work_time: 0.0,
@@ -292,7 +277,6 @@ impl Default for ServiceData {
             s_loc: None,
             turn_rds: 0.0,
             turn_rate: 0.0,
-            horizontal_load: 0.0,
             altmeterp: 0.0,
             altmeter: 0.0,
             thurst_percent: 0.0,
@@ -308,7 +292,6 @@ impl Default for ServiceData {
             maximum_thr_rpm: 0.0,
             check_maxium_rpm: 0,
             get_maximum_rpm: false,
-            energy_m: 0.0,
             mach: 0.0,
             speed_limit_ratio: 0.0,
             aileron_lock_ratio: 0.0,

@@ -1,8 +1,4 @@
-//! vm-data: 8111 轮询与派生量计算 (POC data/ 迁入)
-pub mod data;
-pub use data::json::{parse_indicators, parse_state};
-pub use data::http::http_get;
-
+//! vm-data: 8111 轮询与派生量计算
 pub mod service_fields;
 pub mod service_loop;
 

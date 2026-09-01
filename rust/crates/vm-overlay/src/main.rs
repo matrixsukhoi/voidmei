@@ -51,12 +51,6 @@ fn main() {
                 std::process::exit(1);
             }
         }
-        "--log-values" => {
-            if let Err(e) = cmd_log_values() {
-                eprintln!("错误: {}", e);
-                std::process::exit(1);
-            }
-        }
         "--render-png" => {
             let out = args.get(1).cloned().unwrap_or_default();
             if out.is_empty() {
@@ -258,7 +252,7 @@ fn cmd_render_gauge(name: &str, args: &[String]) -> Result<(), String> {
 }
 
 /// numHeight 默认值 — 已平移 lib (flight_info.rs, 组装面共用), bin 复用
-use vm_overlay::flight_info::{default_num_height, flight_value};
+use vm_overlay::flight_info::default_num_height;
 
 /// --minihud: MiniHUD 整帧对拍导出 (与 Java OverlayPngExport --minihud 逐像素对拍,
 /// 组装口径见 vm_overlay::parity_minihud 模块头)
@@ -280,44 +274,6 @@ fn cmd_render_minihud(args: &[String]) -> Result<(), String> {
 
 /// FlightValues → 16 getter 的映射 (fields.rs 的 source 对应)
 // flight_value — 已平移 lib (flight_info.rs), bin 经 use 复用
-/// --log-values: 从 8111 取一帧数据, 以 values.txt 格式输出 (回灌 Java --values 对拍用)
-fn cmd_log_values() -> Result<(), String> {
-    let timeout = std::time::Duration::from_millis(2000);
-    let state_raw = vm_data::data::http::http_get(8111, "/state", timeout)?;
-    let indic_raw = vm_data::data::http::http_get(8111, "/indicators", timeout)?;
-    // 保真版解析器做 valid 门控 (数据面走 Service)
-    let _ = vm_data::data::json::parse_state(&state_raw).ok_or("/state 解析失败")?;
-    let ind = vm_data::data::json::parse_indicators(&indic_raw).ok_or("/indicators 解析失败")?;
-    if !ind.valid {
-        return Err("indicators.valid = false (游戏未在飞行中)".into());
-    }
-    // W2: Deriver 消解 — 预热走 Service 公式链 (与生产同款数据源)
-    let fm = std::sync::Arc::new(vm_core::fm::FMManager::new(std::sync::Arc::new(
-        vm_core::bus::EventBus::new(),
-    )));
-    let bus = std::sync::Arc::new(vm_core::flight_data_bus::FlightDataBus::new());
-    let mut svc = vm_data::service_loop::Service::new(
-        vm_data::service_loop::ServiceConfig::default(),
-        fm,
-        bus,
-    );
-    // 预热公式 SMA (模拟应用已运行状态, 单轮瞬态值无对拍意义)
-    let state_s = String::from_utf8(state_raw).map_err(|e| e.to_string())?;
-    let indic_s = String::from_utf8(indic_raw).map_err(|e| e.to_string())?;
-    for _ in 0..100 {
-        svc.process_frame_for_parity(&state_s, &indic_s);
-    }
-    let d = svc.data.read().unwrap();
-    let mut out = String::from("# voidmei-overlay live frame (getter=value)\n");
-    for f in fields::FIELDS {
-        // 取数走短名 (单名制), 输出键保持 Java getter 名 (values.txt 跨端回灌格式)
-        if let Some(val) = flight_value(&*d, f.source) {
-            out.push_str(&format!("{}={:.6}\n", f.getter, val));
-        }
-    }
-    print!("{}", out);
-    Ok(())
-}
 
 /// 窗口模式 (preview 静态 / live 实时轮询)
 fn cmd_run_window(mode: vm_overlay::OverlayMode) -> Result<(), String> {

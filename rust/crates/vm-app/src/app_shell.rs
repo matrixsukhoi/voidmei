@@ -1216,7 +1216,15 @@ impl Controller {
         // Java:366-376 FlightLog (enableLogging) — 已接线 (下方法)
         self.open_flight_log();
         // Java:378-382 UIThread — D7 弃译清单 (空转轮询线程已废)
-        // Java:383-385 S.startTime — Service 内部时间面, vm-data 未外泄 (TODO(port))
+        // Java:384 S.startTime = System.currentTimeMillis() — 会话起点
+        // (elapsed_time 基准; 缺写者时 elapsed=epoch 巨值, 污染 FlightLog/CSV 首列)
+        if let Some(handle) = self.service.as_ref() {
+            handle
+                .data
+                .write()
+                .unwrap_or_else(|e| e.into_inner())
+                .start_time = current_time_millis();
+        }
     }
 
     /// Java openpad 的 FlightLog 段 (Controller.java:366-376): enableLogging 开 →

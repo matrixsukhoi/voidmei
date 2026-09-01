@@ -30,7 +30,6 @@ use std::sync::Arc;
 
 use crate::config_api::config_provider::ConfigProvider;
 use crate::lang::lang::Lang;
-use crate::logger;
 use crate::physics_constants::g;
 
 /// FlightAnalyzer 对 Service 的读取面 (PORT: D6 依赖倒置, 见模块头说明)。
@@ -368,23 +367,6 @@ impl FlightAnalyzer {
             }
             i += 1;
         }
-    }
-
-    pub fn show_all_em_chart(&self) {
-        logger::info("Legacy", "roll rate:"); // Application.debugPrint → Logger.info("Legacy", t)
-        let mut i = 0;
-        while i < 256 {
-            print!("{},", self.roll_rate[i]);
-            i += 1;
-        }
-
-        // Application.debugPrint("turn:");
-        // for(int i = 0; i < 256; i++){
-        // System.out.print(turn_load[i]+",");
-        // }
-        // for(int i = 0; i < 256; i++){
-        // System.out.print(sep_loss[i]+",");
-        // }
     }
 
     /// PORT: `ui.util.NotificationService.show(String)` 的注入位 (C 类, 见模块头)。

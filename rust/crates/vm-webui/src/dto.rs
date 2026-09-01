@@ -187,58 +187,6 @@ pub struct PowerCurveDataDto {
     pub error_message: Option<String>,
 }
 
-/// 飞行记录曲线页的一条数据序列 (drawPoint/drawCoordinates 的点列)
-///
-/// 前端连线契约 (阶段④ SVG/canvas 任务书): DrawFrame 页 0-3 (index 0/1/2/3)
-/// 的连线带毛刺抑制 — Java drawCoordinates 连线循环 (DrawFrame.java:392-395)
-/// `if (Math.abs(X[ii] - X[ii+1]) > 100) X[ii+1] = X[ii+2];` 对相邻点跳变
-/// >100 的段落做替换后连线。该规则属绘图数据变换, 未随本 DTO 输出 (快照不可
-/// 变 — Java 的就地改数组 + 重绘跨页累积形态不适用); 前端连线时按只读规则
-/// 逐段复刻判断 (不回写 x), 绘点不受此规则影响。页 5/6/7 无此过滤。
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct FlightSeriesDto {
-    pub x: Vec<f64>,
-    pub y: Vec<f64>,
-    /// 语义色标 "black"/"red"/"blue" (Java Color 的 web 对位, 前端映射)
-    pub color: String,
-    /// 图例文本 (无图例页 None)
-    pub legend: Option<String>,
-}
-
-/// 飞行记录曲线窗口一页 (Java pixIndex 页; 页号 4 无页面)
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct FlightPageDto {
-    /// Java pixIndex (0/1/2/3/5/6/7)
-    pub index: i32,
-    pub title: String,
-    pub x_name: String,
-    pub y_name: String,
-    pub x_unit: String,
-    pub y_unit: String,
-    pub series: Vec<FlightSeriesDto>,
-    /// 页内占位提示 (如 page6 FM 未加载时的 "FM数据未加载")
-    pub error_text: Option<String>,
-}
-
-/// 飞行记录曲线窗口全量数据 (DrawFrame.init(c, A) 后 paintAction 读取的子集)
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct FlightRecordDataDto {
-    /// 机型名 (Java fA.type; 缺失 None)
-    pub plane_type: Option<String>,
-    /// Java fA.engineType (0=活塞 1=喷气 2=涡桨)
-    pub engine_type: i32,
-    pub initalt_stage: i32,
-    pub curalt_stage: i32,
-    pub pages: Vec<FlightPageDto>,
-    /// getdata(fA.type) 的 FM 加载成败 (page6 守卫)
-    pub fm_loaded: bool,
-    /// 窗口标题 (Java: fA.type + Lang.dFTitleHZ)
-    pub window_title: String,
-}
-
 /// 前端表单消息 (与 vm-ui main_form::Message 一一对应; 转换在 vm-app dispatcher —
 /// vm-webui 不依赖 vm-ui, 组装层单点粘合)
 #[derive(Debug, Clone, Deserialize)]

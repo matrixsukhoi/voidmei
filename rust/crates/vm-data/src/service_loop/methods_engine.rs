@@ -1,8 +1,9 @@
-//! 对应 Java: `src/prog/Service.java` calculate 链的四方法 + Service 版襟翼
-//! 允许速度/角度计算: checkWing (L1030-1035) / checkFlap (L1042-1064) /
+//! 对应 Java: `src/prog/Service.java` calculate 链的三方法 + Service 版襟翼
+//! 允许速度/角度计算: checkFlap (L1042-1064, 已 W8 公式化) /
 //! getMaximumRPM (L1071-1099) / updateOptimalCompressorStage (L1276-1339) /
 //! getFlapAllowSpeed (L1354-1427) / getFlapAllowAngle (L1443-1508) 及其辅助
 //! calcK (L1341-1347) / normFlapAngle (L1429-1436)。
+//! (checkWing 已删: 产物无消费者, registry wing_sweep_valid 直通替代)
 //!
 //! PORT(模块边界): impl Service 跨文件块, 方法一律 pub(super); calculate 内的
 //! 接线调用与 `mod methods_engine;` 声明归主线波次 (见交付说明)。
@@ -13,21 +14,8 @@
 use super::{read_data, write_data, Service};
 use vm_core::fm::FMHandle;
 use vm_core::piston_power_model::find_optimal_stage_index;
-use vm_core::string_helper::F_INVALID;
 
 impl Service {
-    /// 对应 Java `public void checkWing()` (L1030-1035) — 可变翼判断。
-    /// calculate 链位置: updateSEP 之后 (Java L1159)。
-    pub(super) fn check_wing(&mut self) {
-        // 简单字段搬运 → 单写锁临界区完成 (§2.8 简单形态)
-        let mut d = write_data(&self.data);
-        // Java: if (sIndic.wsweep_indicator != -65535) —— float 与 int 字面量
-        // 比较, -65535 提升 float; F_INVALID = -65535.0 (float 域哨兵)。
-        // (sIndic 构造器恒建 → unwrap 复刻 Java 的 null 不可达域)
-        d.has_wing_sweep_vario = d.s_indic.as_ref().unwrap().wsweep_indicator != F_INVALID;
-    }
-
-
     /// 获取最大转速（优先 FM, 无 FM 时自适应学习）。
     ///
     /// PORT(命名避让, service_fields.rs 字段区备注): Java 字段 getMaximumRPM
@@ -216,10 +204,6 @@ mod tests {
     use vm_core::fm::FMManager;
     use vm_core::piston_power_model::CompressorStageParams;
 
-    /// p51d /indicators 快照 (service_loop/tests.rs 同源数据; 无
-    /// wing_sweep_indicator 键 → update 后该字段 = F_INVALID)
-    const INDIC_MOCK: &str = "{\"valid\": true, \"army\": \"air\", \"type\": \"p-51d-20_china\", \"speed\": 131.007797, \"vario\": -7.342558, \"aviahorizon_roll\": -40.553505, \"aviahorizon_pitch\": 0.632352, \"compass\": 164.09729}";
-
     fn new_service() -> Service {
         let fm = Arc::new(FMManager::new(Arc::new(EventBus::new())));
         let bus = Arc::new(FlightDataBus::new());
@@ -277,34 +261,7 @@ mod tests {
         s.throttles = vec![throttle];
     }
 
-    // ---------------- checkWing ----------------
-
-    /// wsweep 缺键 (-65535 哨兵) → false; 带读数 → true
-    #[test]
-    fn check_wing_sets_flag_from_wsweep() {
-        let mut svc = new_service();
-        // INDIC_MOCK 无 wing_sweep_indicator 键 → get_data_float 缺省 F_INVALID
-        svc.data
-            .write()
-            .unwrap()
-            .s_indic
-            .as_mut()
-            .unwrap()
-            .update(INDIC_MOCK);
-        svc.check_wing();
-        assert!(!svc.data.read().unwrap().has_wing_sweep_vario);
-
-        // 带可变翼读数
-        svc.data
-            .write()
-            .unwrap()
-            .s_indic
-            .as_mut()
-            .unwrap()
-            .update(r#"{"valid": true, "wing_sweep_indicator": 25.5}"#);
-        svc.check_wing();
-        assert!(svc.data.read().unwrap().has_wing_sweep_vario);
-    }
+    // ---------------- checkWing (已删: 产物无消费者, registry wing_sweep_valid 直通替代) ----------------
 
     // ---------------- checkFlap ----------------
 

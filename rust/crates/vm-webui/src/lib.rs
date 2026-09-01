@@ -75,11 +75,10 @@ impl ShellForm {
                 commands::get_app_version,
                 // 批3: FMLIST 行 对比按钮 → 对比 web 窗口 (经主线程 dispatcher 开窗)
                 commands::open_comparison_window,
-                // P6 web 窗口域 (对比/功率曲线/飞行记录/机型选择; 直连 vm-core,
+                // P6 web 窗口域 (对比/功率曲线/机型选择; 直连 vm-core,
                 // 不经主线程 dispatcher — 见 commands_windows 模块头)
                 commands_windows::comparison_data,
                 commands_windows::power_curve_data,
-                commands_windows::flight_record_data,
                 commands_windows::fm_list,
                 // 公式管理编辑器 (直算: 只依赖 vm-core formula 模块, 见模块头)
                 commands_formula::get_formula_list,

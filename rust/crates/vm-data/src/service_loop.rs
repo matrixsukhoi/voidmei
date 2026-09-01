@@ -24,7 +24,7 @@ use vm_core::http_helper::HttpHelper;
 use vm_core::parser::{Indicators, MapInfo, MapObj, State};
 use vm_core::{exception_helper, format, logger, G};
 
-use crate::data::json::F_INVALID;
+use vm_core::string_helper::F_INVALID;
 use crate::service_fields::{
     ServiceData, ENGINE_TYPE_JET, ENGINE_TYPE_PROP, ENGINE_TYPE_TURBOPROP, ENGINE_TYPE_UNKNOWN,
     NASTRING,
@@ -55,7 +55,6 @@ pub(crate) fn session_inputs(d: &ServiceData) -> vm_core::formula::registry::Ses
         total_thrust: d.total_thrust as f64,
         n_water_temp: d.nwater_temp,
         n_oil_temp: d.noil_temp,
-        energy_j_kg: d.energy_j_kg,
         radio_alt: d.radio_alt,
         compass_delta: d.compass_delta,
         nitro_kg: d.nitrokg,
@@ -364,7 +363,6 @@ impl Service {
             d.get_maximum_rpm = false;
             d.d_radio_alt = 0.0;
             d.wep_time = 0;
-            d.energy_j_kg = 0.0;
             d.elapsed_time = 0;
             d.check_alt = 0;
             d.altp = 0.0;
@@ -396,7 +394,6 @@ impl Service {
             // isFuelpressure = false;
             // Java L1577 对 notCheckInch 的第二次赋值, 保真保留
             d.not_check_inch = false;
-            d.has_wing_sweep_vario = false;
             // Java: flapAllowSpeed/Angle = Float.MAX_VALUE —— float 拓宽 double (§2.12)
             d.flap_allow_speed = f32::MAX as f64;
             d.flap_allow_angle = f32::MAX as f64;
@@ -954,9 +951,8 @@ impl Service {
         self.update_engine_state(&fm);
         self.update_fuel();
 
-        // Java calculate 链 L1168-1170 (updateSEP 之后): 可变翼判断 / 襟翼判断 /
-        // 最大转速 — methods_engine.rs (Agent B 批次)
-        self.check_wing();
+        // Java calculate 链 L1168-1170 (updateSEP 之后): 襟翼判断 / 最大转速 —
+        // methods_engine.rs (可变翼判断已删: registry wing_sweep_valid 直通替代)
         // (check_flap 已 W8 公式化 — is_downing_flap/flap_allow_* 走公式写回)
         self.get_maximum_rpm_learn(&fm);
 
@@ -1626,7 +1622,8 @@ pub fn flight_log_snapshot(d: &ServiceData) -> FlightLogSnapshot {
         aos: col(&|s| if s.aos != -65535.0 { format::java_f(s.aos, 1) } else { na.to_string() }),
         alt: d.alt,
         check_alt: d.check_alt,
-        ias_v: d.ias_v,
+        // EM 图速度分档 (原 IASv 平滑值未移植, 用 State 直读 IAS, 显示 0-3 位不敏感)
+        ias_v: st.map(|s| s.ias as f64).unwrap_or(0.0),
         sep: d.sep,
         state_wx: st.map(|s| s.wx).unwrap_or(0.0),
         // Java: init 读 `s.sIndic.type`; sIndic 存在而 type 键缺失 → null →

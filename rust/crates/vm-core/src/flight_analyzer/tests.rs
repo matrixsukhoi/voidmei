@@ -522,14 +522,6 @@ fn remove_load_zeroes_end_to_end() {
     assert_eq!(ias[1], 0.0); // 其余层为 0 不写
 }
 
-// ---- showAllEMChart ----
-
-#[test]
-fn show_all_em_chart_smoke() {
-    let fa = FlightAnalyzer::default();
-    fa.show_all_em_chart(); // 不 panic (输出被 cargo test 捕获)
-}
-
 // ---- 通知注入边界 ----
 
 #[test]

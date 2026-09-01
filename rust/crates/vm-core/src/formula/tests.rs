@@ -18,12 +18,11 @@ struct TestTel {
     alt: f64,
     ny: f64,
     mass_fuel: f64,
-    energy_jkg: f64,
 }
 
 impl Default for TestTel {
     fn default() -> Self {
-        TestTel { ias: 400.0, tas: 450.0, alt: 5000.0, ny: 0.35, mass_fuel: 300.0, energy_jkg: 0.0 }
+        TestTel { ias: 400.0, tas: 450.0, alt: 5000.0, ny: 0.35, mass_fuel: 300.0 }
     }
 }
 
@@ -37,7 +36,7 @@ fn snap_of(tel: &TestTel) -> super::registry::VarSnapshot {
     st.mfuel = tel.mass_fuel;
     let ind = crate::parser::Indicators::default();
     let raw = super::registry::RawInputs { state: Some(&st), indic: Some(&ind), blkx: None };
-    let sess = super::registry::SessionInputs { energy_j_kg: tel.energy_jkg, ..Default::default() };
+    let sess = super::registry::SessionInputs::default();
     assemble_snapshot(&raw, &sess, &meta)
 }
 
@@ -432,21 +431,23 @@ fn registry_origin_complete() {
 #[test]
 fn manager_install_and_eval() {
     let mgr = FormulaManager::new();
-    // 内置公式形状预演: energy_m 与 maneuver_index (hud_calculator A 级外置目标)
+    // 内置公式形状预演: energy_jkg→energy_m 公式链与 maneuver_index
+    // (energy_jkg 已公式化: (sum_speedv)²/8 的简化形态用 tas 直代)
     mgr.install(
-        &[def("energy_m", "energy_jkg / g"), def("maneuver_index", "1.0 - (fm.empty_weight / (fm.empty_weight + mass_fuel))")],
-        &["energy_m".to_string(), "maneuver_index".to_string()],
+        &[def("energy_jkg", "tas * tas / 2"), def("energy_m", "energy_jkg / g"), def("maneuver_index", "1.0 - (fm.empty_weight / (fm.empty_weight + mass_fuel))")],
+        &["energy_jkg".to_string(), "energy_m".to_string(), "maneuver_index".to_string()],
     );
-    let tel = TestTel { energy_jkg: 9000.0, ..Default::default() };
+    let tel = TestTel::default();
     let meta = MetaInputs { interval_ms: 50.0, ..Default::default() };
     let r = { let mut st0 = crate::parser::State::default();
         st0.ias = tel.ias as i32;
+        st0.tas = tel.tas as i32;
         let ind0 = crate::parser::Indicators::default();
         let raw0 = crate::formula::registry::RawInputs { state: Some(&st0), indic: Some(&ind0), blkx: None };
-        let sess0 = crate::formula::registry::SessionInputs { energy_j_kg: tel.energy_jkg, ..Default::default() };
+        let sess0 = crate::formula::registry::SessionInputs::default();
         mgr.eval_frame(&raw0, &sess0, &meta, 0) };
     let set = mgr.current();
-    assert!((r.get(set.slots["energy_m"]) - 9000.0 / 9.80).abs() < 1e-9);
+    assert!((r.get(set.slots["energy_m"]) - 101250.0 / 9.80).abs() < 1e-9);
     // fm.empty_weight 无 FM → NaN 传播
     assert!(r.get(set.slots["maneuver_index"]).is_nan());
     // reset 后状态清零 (prev 从 0 再来)
@@ -463,7 +464,7 @@ fn manager_hot_update_retains_states() {
         st0.ias = tel.ias as i32;
         let ind0 = crate::parser::Indicators::default();
         let raw0 = crate::formula::registry::RawInputs { state: Some(&st0), indic: Some(&ind0), blkx: None };
-        let sess0 = crate::formula::registry::SessionInputs { energy_j_kg: tel.energy_jkg, ..Default::default() };
+        let sess0 = crate::formula::registry::SessionInputs::default();
         mgr.eval_frame(&raw0, &sess0, &meta, 0) };
     // 热更新: 加一个公式, 原 p 的状态保留
     mgr.install(&[def("p", "prev(ias)"), def("q", "ias * 2")], &["p".to_string(), "q".to_string()]);
@@ -471,7 +472,7 @@ fn manager_hot_update_retains_states() {
         st0.ias = tel.ias as i32;
         let ind0 = crate::parser::Indicators::default();
         let raw0 = crate::formula::registry::RawInputs { state: Some(&st0), indic: Some(&ind0), blkx: None };
-        let sess0 = crate::formula::registry::SessionInputs { energy_j_kg: tel.energy_jkg, ..Default::default() };
+        let sess0 = crate::formula::registry::SessionInputs::default();
         mgr.eval_frame(&raw0, &sess0, &meta, 50) };
     let set = mgr.current();
     // p 第二帧 = 上帧 ias = 400 (状态跨热更新保留)
