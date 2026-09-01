@@ -986,7 +986,7 @@ impl Service {
         // NaN 守卫: 公式 invalid/缺输入不覆写, 保持 Rust 路径值 (双保险)。
         let set = self.formula.current();
         for f in &set.formulas {
-            if f.err.is_some() || !f.live {
+            if f.err.is_some() {
                 continue;
             }
             let Some(&slot) = set.slots.get(&f.def.name) else { continue };

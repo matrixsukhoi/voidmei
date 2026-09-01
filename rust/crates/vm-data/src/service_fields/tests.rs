@@ -45,7 +45,7 @@ fn var_value_formula_slot_and_single_name() {
         expr: "0.72".into(),
         ..Default::default()
     }];
-    mgr.install(&defs, &["mach".to_string()]);
+    mgr.install(&defs);
     let mut d = ServiceData::default();
     d.formula_slots = mgr.current().slots_arc();
     let raw = vm_core::formula::registry::RawInputs::default();

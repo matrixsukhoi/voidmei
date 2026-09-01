@@ -259,7 +259,7 @@ fn def(name: &str, expr: &str) -> FormulaDef {
 fn compile_topo_order_correct() {
     // b 依赖 a: 拓扑序 a 在 b 前, 求值链正确 (b 被 :target 引用 → a,b 均 live)
     let defs = vec![def("b", "a * 2"), def("a", "400 + 1")];
-    let set = CompiledFormulaSet::compile(&defs, registry(), &["b".to_string()]);
+    let set = CompiledFormulaSet::compile(&defs, registry());
     assert!(set.formulas.iter().all(|f| f.err.is_none()));
     let _tel = TestTel::default();
     let meta = MetaInputs { interval_ms: 50.0, ..Default::default() };
@@ -277,7 +277,7 @@ fn compile_topo_order_correct() {
 #[test]
 fn compile_detects_cycle() {
     let defs = vec![def("a", "b + 1"), def("b", "a + 1"), def("c", "ias")];
-    let set = CompiledFormulaSet::compile(&defs, registry(), &["c".to_string()]);
+    let set = CompiledFormulaSet::compile(&defs, registry());
     let sa = set.slots["a"];
     let sb = set.slots["b"];
     assert!(matches!(
@@ -295,7 +295,7 @@ fn compile_detects_cycle() {
 #[test]
 fn compile_cycle_chain_names() {
     let defs = vec![def("x", "y"), def("y", "z"), def("z", "x")];
-    let set = CompiledFormulaSet::compile(&defs, registry(), &[]);
+    let set = CompiledFormulaSet::compile(&defs, registry());
     if let Some(CompileError::Cycle(chain)) = &set.formulas[set.slots["x"] as usize].err {
         // 环链包含全部三个名字
         assert!(chain.contains(&"x".to_string()) && chain.contains(&"y".to_string()) && chain.contains(&"z".to_string()));
@@ -308,7 +308,7 @@ fn compile_cycle_chain_names() {
 fn compile_invalid_dep_propagates_nan() {
     // c 依赖未知变量的 a → a invalid, c 求 NaN (不阻断)
     let defs = vec![def("a", "nope + 1"), def("c", "a * 2")];
-    let set = CompiledFormulaSet::compile(&defs, registry(), &["c".to_string()]);
+    let set = CompiledFormulaSet::compile(&defs, registry());
     assert!(matches!(
         set.formulas[set.slots["a"] as usize].err,
         Some(CompileError::UnknownName(_))
@@ -326,39 +326,29 @@ fn compile_invalid_dep_propagates_nan() {
 #[test]
 fn compile_duplicate_and_disabled() {
     let defs = vec![def("a", "1"), def("a", "2")];
-    let set = CompiledFormulaSet::compile(&defs, registry(), &[]);
+    let set = CompiledFormulaSet::compile(&defs, registry());
     assert!(matches!(
         set.formulas[1].err,
         Some(CompileError::DuplicateName(_))
     ));
     let mut d = def("b", "1");
     d.disabled = true;
-    let set2 = CompiledFormulaSet::compile(&[d], registry(), &[]);
+    let set2 = CompiledFormulaSet::compile(&[d], registry());
     assert!(matches!(set2.formulas[0].err, Some(CompileError::DisabledByUser)));
 }
 
 #[test]
 fn compile_bad_arity_and_unknown_fn() {
-    let set = CompiledFormulaSet::compile(&[def("a", "clamp(1, 2)")], registry(), &[]);
+    let set = CompiledFormulaSet::compile(&[def("a", "clamp(1, 2)")], registry());
     assert!(matches!(
         set.formulas[0].err,
         Some(CompileError::BadArity { .. })
     ));
-    let set2 = CompiledFormulaSet::compile(&[def("a", "nosuchfn(1)")], registry(), &[]);
+    let set2 = CompiledFormulaSet::compile(&[def("a", "nosuchfn(1)")], registry());
     assert!(matches!(
         set2.formulas[0].err,
         Some(CompileError::UnknownFn(_))
     ));
-}
-
-#[test]
-fn compile_live_marking() {
-    // external_refs 只引 c: c 与其依赖 a live, 孤儿 b 死
-    let defs = vec![def("a", "ias"), def("b", "tas"), def("c", "a + 1")];
-    let set = CompiledFormulaSet::compile(&defs, registry(), &["c".to_string()]);
-    assert!(set.formulas[set.slots["a"] as usize].live);
-    assert!(set.formulas[set.slots["c"] as usize].live);
-    assert!(!set.formulas[set.slots["b"] as usize].live);
 }
 
 // ===== 注册表完整性 =====
@@ -435,7 +425,6 @@ fn manager_install_and_eval() {
     // (energy_jkg 已公式化: (sum_speedv)²/8 的简化形态用 tas 直代)
     mgr.install(
         &[def("energy_jkg", "tas * tas / 2"), def("energy_m", "energy_jkg / g"), def("maneuver_index", "1.0 - (fm.empty_weight / (fm.empty_weight + mass_fuel))")],
-        &["energy_jkg".to_string(), "energy_m".to_string(), "maneuver_index".to_string()],
     );
     let tel = TestTel::default();
     let meta = MetaInputs { interval_ms: 50.0, ..Default::default() };
@@ -457,7 +446,7 @@ fn manager_install_and_eval() {
 #[test]
 fn manager_hot_update_retains_states() {
     let mgr = FormulaManager::new();
-    mgr.install(&[def("p", "prev(ias)")], &["p".to_string()]);
+    mgr.install(&[def("p", "prev(ias)")]);
     let tel = TestTel::default();
     let meta = MetaInputs { interval_ms: 50.0, ..Default::default() };
     let _ = { let mut st0 = crate::parser::State::default();
@@ -467,7 +456,7 @@ fn manager_hot_update_retains_states() {
         let sess0 = crate::formula::registry::SessionInputs::default();
         mgr.eval_frame(&raw0, &sess0, &meta, 0) };
     // 热更新: 加一个公式, 原 p 的状态保留
-    mgr.install(&[def("p", "prev(ias)"), def("q", "ias * 2")], &["p".to_string(), "q".to_string()]);
+    mgr.install(&[def("p", "prev(ias)"), def("q", "ias * 2")]);
     let r = { let mut st0 = crate::parser::State::default();
         st0.ias = tel.ias as i32;
         let ind0 = crate::parser::Indicators::default();
@@ -527,21 +516,13 @@ fn resolve_target_variants() {
 #[test]
 fn compile_self_override_formula_rejected() {
     // ias 与系统变量同名 (接管型), 表达式引用 ias 自身 → SelfOverride
-    let set = CompiledFormulaSet::compile(
-        &[def("ias", "ias + 1")],
-        registry(),
-        &["ias".to_string()],
-    );
+    let set = CompiledFormulaSet::compile(&[def("ias", "ias + 1")], registry());
     assert!(matches!(
         set.formulas[0].err,
         Some(CompileError::SelfOverride(_))
     ));
     // 合法接管: 表达式不引用自身
-    let ok = CompiledFormulaSet::compile(
-        &[def("ias", "tas * 1.0")],
-        registry(),
-        &["ias".to_string()],
-    );
+    let ok = CompiledFormulaSet::compile(&[def("ias", "tas * 1.0")], registry());
     assert!(ok.formulas[0].err.is_none());
 }
 
@@ -561,8 +542,7 @@ fn bench_eval_frame_50_formulas() {
         };
         defs.push(def(&format!("f{i}"), &expr));
     }
-    let refs: Vec<String> = defs.iter().map(|d| d.name.clone()).collect();
-    let set = CompiledFormulaSet::compile(&defs, registry(), &refs);
+    let set = CompiledFormulaSet::compile(&defs, registry());
     let _tel = TestTel::default();
     let meta = MetaInputs { interval_ms: 50.0, ..Default::default() };
     let mut store = StateStore::new();
@@ -646,16 +626,16 @@ fn fn_id_codec_roundtrip() {
 #[test]
 fn const_folding_at_compile_time() {
     // 全常量表达式折为单 Num: 1+2*3^2 = 19
-    let set = CompiledFormulaSet::compile(&[def("k", "1 + 2 * 3 ^ 2")], registry(), &["k".to_string()]);
+    let set = CompiledFormulaSet::compile(&[def("k", "1 + 2 * 3 ^ 2")], registry());
     assert!(matches!(set.formulas[0].rexpr, Some(RExpr::Num(v)) if (v - 19.0).abs() < 1e-12));
     // 短路折叠: 0 && 1/0 → 0 (右侧常量除零不产生 NaN, 短路即弃)
-    let set = CompiledFormulaSet::compile(&[def("s", "0 && 1/0")], registry(), &["s".to_string()]);
+    let set = CompiledFormulaSet::compile(&[def("s", "0 && 1/0")], registry());
     assert!(matches!(set.formulas[0].rexpr, Some(RExpr::Num(v)) if v == 0.0));
     // 非短路: 1 && 0/0 → NaN 常量
-    let set = CompiledFormulaSet::compile(&[def("n", "1 && 0/0")], registry(), &["n".to_string()]);
+    let set = CompiledFormulaSet::compile(&[def("n", "1 && 0/0")], registry());
     assert!(matches!(set.formulas[0].rexpr, Some(RExpr::Num(v)) if v.is_nan()));
     // 变量参与不折: 1 + ias 保持 Binary
-    let set = CompiledFormulaSet::compile(&[def("v", "1 + ias")], registry(), &["v".to_string()]);
+    let set = CompiledFormulaSet::compile(&[def("v", "1 + ias")], registry());
     assert!(matches!(set.formulas[0].rexpr, Some(RExpr::Binary { .. })));
     // 折叠与运行时一致: 同值断言
     let t = TestTel::default();

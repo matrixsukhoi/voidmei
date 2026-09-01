@@ -71,8 +71,6 @@ pub struct CompiledFormula {
     pub deps: Vec<u16>,
     /// 本公式持有的状态原语调用点 (热更新差集清理用)
     pub sites: Vec<u32>,
-    /// live = 被外部(:target/规则)或 live 公式引用 (死公式跳过帧求值)
-    pub live: bool,
 }
 
 /// 编译集: 槽号 = formulas 下标
@@ -106,9 +104,9 @@ impl FormulaResults {
 }
 
 impl CompiledFormulaSet {
-    /// 编译入口。external_refs = 外部引用的公式名 (:target/规则, 接线层供),
-    /// 决定 live 根集合; 阶段 0 无接线可传空。
-    pub fn compile(defs: &[FormulaDef], reg: &dyn VarLookup, external_refs: &[String]) -> Self {
+    /// 编译入口 (W-C: 公式恒活 — 原 external_refs/liveness 机制因"全名塞入=永不
+    /// 生效"已删, 公式量小成本可忽略; disabled/invalid 仍排除出求值序)。
+    pub fn compile(defs: &[FormulaDef], reg: &dyn VarLookup) -> Self {
         // 1. 槽预分配 + 重名检查 (后者 invalid)
         let mut slots: HashMap<String, u16> = HashMap::new();
         let mut formulas: Vec<CompiledFormula> = Vec::with_capacity(defs.len());
@@ -128,7 +126,6 @@ impl CompiledFormulaSet {
                 },
                 deps: Vec::new(),
                 sites: Vec::new(),
-                live: false,
             });
         }
 
@@ -162,15 +159,6 @@ impl CompiledFormulaSet {
         //    被 invalid 公式依赖者求值自然 NaN, 不阻断拓扑)
         let order = topo_sort(&formulas);
 
-        // 5. live 传递闭包: 外部引用根 + 公式间引用
-        let mut live_roots: Vec<u16> = Vec::new();
-        for name in external_refs {
-            if let Some(&s) = slots.get(name) {
-                live_roots.push(s);
-            }
-        }
-        mark_live(&mut formulas, &live_roots);
-
         CompiledFormulaSet {
             formulas,
             order,
@@ -193,9 +181,6 @@ impl CompiledFormulaSet {
         };
         for &slot in &self.order {
             let f = &self.formulas[slot as usize];
-            if !f.live {
-                continue;
-            }
             if let Some(rexpr) = &f.rexpr {
                 let ctx = EvalCtx { snap, results: &results, now_ms, interval_ms, fm_blkx };
                 let v = eval(rexpr, &ctx, store).num();
@@ -414,27 +399,6 @@ fn topo_sort(formulas: &[CompiledFormula]) -> Vec<u16> {
     order
 }
 
-/// live 传递闭包 (BFS from roots)
-fn mark_live(formulas: &mut [CompiledFormula], roots: &[u16]) {
-    let mut seen: HashSet<u16> = HashSet::new();
-    let mut q: VecDeque<u16> = VecDeque::new();
-    for &r in roots {
-        if seen.insert(r) {
-            q.push_back(r);
-        }
-    }
-    while let Some(u) = q.pop_front() {
-        let deps = formulas[u as usize].deps.clone();
-        for d in deps {
-            if seen.insert(d) {
-                q.push_back(d);
-            }
-        }
-    }
-    for (i, f) in formulas.iter_mut().enumerate() {
-        f.live = seen.contains(&(i as u16));
-    }
-}
 
 /// 单公式试算 (编辑器 TryPanel 用: 无持久化/无依赖公式时逐个验证)
 pub fn try_eval_single(

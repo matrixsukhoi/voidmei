@@ -80,11 +80,7 @@ impl Default for FormulaManager {
 impl FormulaManager {
     pub fn new() -> Self {
         FormulaManager {
-            current: RwLock::new(Arc::new(CompiledFormulaSet::compile(
-                &[],
-                registry(),
-                &[],
-            ))),
+            current: RwLock::new(Arc::new(CompiledFormulaSet::compile(&[], registry()))),
             store: Mutex::new(StateStore::new()),
             last_snap: RwLock::new(Arc::new(VarSnapshot::empty(registry().len()))),
         }
@@ -96,8 +92,8 @@ impl FormulaManager {
     }
 
     /// 安装新公式集 (编辑器保存/启动装载): 编译 → 差集清状态 → 原子换 Arc
-    pub fn install(&self, defs: &[FormulaDef], external_refs: &[String]) {
-        let set = Arc::new(CompiledFormulaSet::compile(defs, registry(), external_refs));
+    pub fn install(&self, defs: &[FormulaDef]) {
+        let set = Arc::new(CompiledFormulaSet::compile(defs, registry()));
         let alive = set.alive_sites();
         if let Ok(mut store) = self.store.lock() {
             store.retain_sites(&alive);
@@ -166,10 +162,9 @@ impl FormulaManager {
 
     /// 保存全部公式并热更新 (编辑器保存链): 写用户文件 → 重新编译安装
     pub fn save_all(&self, defs: &[FormulaDef]) -> Result<(), String> {
-        let refs: Vec<String> = defs.iter().map(|d| d.name.clone()).collect();
         persistence::save_user(defs, persistence::USER_FORMULAS_PATH)
             .map_err(|e| format!("写入公式文件失败: {e}"))?;
-        self.install(defs, &refs);
+        self.install(defs);
         Ok(())
     }
 
@@ -188,8 +183,7 @@ impl FormulaManager {
             persistence::BUILTIN_FORMULAS_PATH,
             persistence::USER_FORMULAS_PATH,
         );
-        let refs: Vec<String> = defs.iter().map(|d| d.name.clone()).collect();
-        self.install(&defs, &refs);
+        self.install(&defs);
     }
 }
 

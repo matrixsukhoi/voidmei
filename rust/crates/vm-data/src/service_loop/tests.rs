@@ -25,8 +25,7 @@ fn install_factory_formulas(svc: &Service) {
         concat!(env!("CARGO_MANIFEST_DIR"), "/../../../formulas.cfg"),
         "",
     );
-    let refs: Vec<String> = defs.iter().map(|d| d.name.clone()).collect();
-    svc.formula.install(&defs, &refs);
+    svc.formula.install(&defs);
 }
 
 fn new_service() -> Service {
@@ -724,8 +723,7 @@ fn formula_step_evaluates_and_guards_mach() {
             ..Default::default()
         },
     ];
-    let refs = vec!["mach".to_string(), "ias".to_string()];
-    svc.formula.install(&defs, &refs);
+    svc.formula.install(&defs);
 
     // 喂一帧遥测: ias=474, heightm=46 (STATE_MOCK 同源值)
     {
@@ -804,7 +802,7 @@ fn frame_replay_formula_matches_oracle() {
         expr: "ias_per_mach(altitude) != 0 ? ias / ias_per_mach(altitude) : 0".into(),
         ..Default::default()
     }];
-    svc.formula.install(&defs, &["mach_probe".to_string()]);
+    svc.formula.install(&defs);
     for i in 0..20 {
         feed_and_calculate(&mut svc, i);
         let d = svc.data.read().unwrap();
@@ -837,8 +835,7 @@ fn w2_deriver_takeover_bitexact_oracle() {
         concat!(env!("CARGO_MANIFEST_DIR"), "/../../../formulas.cfg"),
         "",
     );
-    let refs: Vec<String> = defs.iter().map(|d| d.name.clone()).collect();
-    svc.formula.install(&defs, &refs);
+    svc.formula.install(&defs);
     const ORACLE: [(f64, f64, f64, f64, f64); 20] = [
 (7.53209183003146, 16221.241468295968, 6.844076924919721, 527.8750148221635, 2522.222222222222),
 (7.282708013342137, 8124.832186990853, 4.197322284429346, 1357.04274869907, 1262.5),

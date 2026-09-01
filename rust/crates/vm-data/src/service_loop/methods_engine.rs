@@ -274,8 +274,7 @@ mod tests {
         let mut svc = new_service();
         let defs = vm_core::formula::persistence::load_merged(
             concat!(env!("CARGO_MANIFEST_DIR"), "/../../../formulas.cfg"), "");
-        let refs: Vec<String> = defs.iter().map(|d| d.name.clone()).collect();
-        svc.formula.install(&defs, &refs);
+        svc.formula.install(&defs);
         // 放下襟翼 (0→50): 变化方向为增 → is_downing = true
         {
             let mut d = write_data(&svc.data);
