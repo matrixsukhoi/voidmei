@@ -23,6 +23,13 @@ struct MockSrc {
     wsweep: f64,
     ralt_valid: bool,
     wsweep_valid: bool,
+    // W-E 回退拆除后的公式槽面 (HUD 只读槽, mock 直供期望值)
+    flap_angle: f64,
+    energy_m: f64,
+    maneuver: f64,
+    warn_v: f64,
+    warn_s: f64,
+    warn_a: f64,
 }
 
 impl FormulaView for MockSrc {
@@ -44,7 +51,20 @@ impl FormulaView for MockSrc {
             "unit_mach_limit_ratio" => self.mach_limit_ratio,
             "stall_speed" => self.stall_speed,
             "wing_sweep_valid" => self.wsweep_valid as u8 as f64,
+            "flap_allow_angle" => self.flap_angle,
             _ => 0.0,
+        })
+    }
+
+    // 公式槽直供 (生产 = ServiceData.formula_values; mock 按场景喂 oracle 值)
+    fn get_formula_value(&self, name: &str) -> Option<f64> {
+        Some(match name {
+            "energy_m" => self.energy_m,
+            "maneuver_index" => self.maneuver,
+            "warn_vne" => self.warn_v,
+            "warn_stall" => self.warn_s,
+            "warn_altitude" => self.warn_a,
+            _ => return None,
         })
     }
 }
@@ -83,6 +103,14 @@ fn mk_src(
         wsweep,
         ralt_valid,
         wsweep_valid,
+        // 公式面默认: 无 FM 形态 (125=引擎无 FM 分支同值; energy_m=g 换算;
+        // 低空告警 = 旧回退判定; 其余告警 0 = 公式缺省不告警)
+        flap_angle: 125.0,
+        energy_m: energy / 9.80,
+        maneuver: 0.0,
+        warn_v: 0.0,
+        warn_s: 0.0,
+        warn_a: (ralt_valid && ralt <= 500.0) as u8 as f64,
     }
 }
 
@@ -426,8 +454,13 @@ fn s4_full_telemetry_without_fm() {
 #[test]
 fn s5_spitfire_real_fm_values() {
     let hud = MockHud { aoa_warn_ratio: 0.85, aoa_bar_warn_ratio: 0.95, ..Default::default() };
-    let src = mk_src(610.0, 0.52, 3200.0, 4900.0, 5.1, 10.5, 9800.0, 0.0, 0.0, 0.0, 0.0,
+    let mut src = mk_src(610.0, 0.52, 3200.0, 4900.0, 5.1, 10.5, 9800.0, 0.0, 0.0, 0.0, 0.0,
         144.0, false, false, 0.0);
+    // 公式槽 oracle 值 (数学由 vm-data 位级对拍锚定, 此处锚定 HUD 接线)
+    src.maneuver = f64::from_bits(0x3fb6_c29b_2566_fa68);
+    src.flap_angle = 0.0;
+    src.warn_v = 1.0;
+    let src = src;
     let st = mk_state(0.35, 100, 0, 55, 100, 350.0, 1.0, 1.0);
     let ind = mk_indic(-2.5, 15.0, -65535.0);
     let payload = EventPayload::builder().build();
@@ -478,8 +511,13 @@ fn s6_mach_mode_and_stall_warning() {
         aoa_warn_ratio: 0.9,
         aoa_bar_warn_ratio: 0.7,
     };
-    let src = mk_src(300.0, 0.82, 800.0, 120.0, -999.9, 359.9, 5200.0, 0.55, 0.3, 0.2, 0.44,
+    let mut src = mk_src(300.0, 0.82, 800.0, 120.0, -999.9, 359.9, 5200.0, 0.55, 0.3, 0.2, 0.44,
         155.0, true, false, 0.0);
+    src.flap_angle = f64::from_bits(0x4040_aaaa_aaaa_aaaa);
+    src.maneuver = f64::from_bits(0x3f90_d91d_b002_b840);
+    src.warn_s = 1.0;
+    src.warn_v = 0.0;
+    let src = src;
     let payload = EventPayload::builder().map_grid("A1".to_string())
         .time_str(String::new()).build();
     let st = mk_state(-65535.0, 50, 100, 0, 0, 60.0, 30.5, 0.25);
@@ -530,8 +568,12 @@ fn s7_vwing_flap_allow_angle_branches() {
         (700.0, 0x405f_4000_0000_0000, true),  // 125 (插值越上界钳位) + VNE 告警
     ];
     for &(ias, want_angle, want_vne) in cases {
-        let src = mk_src(ias, 0.75, 4000.0, 600.0, 3.3, 45.0, 6000.0, 0.0, 0.0, 0.0, 0.0,
+        let mut src = mk_src(ias, 0.75, 4000.0, 600.0, 3.3, 45.0, 6000.0, 0.0, 0.0, 0.0, 0.0,
             120.0, false, true, 0.6);
+        // 公式槽 oracle 值
+        src.flap_angle = f64::from_bits(want_angle);
+        src.warn_v = want_vne as u8 as f64;
+        src.maneuver = f64::from_bits(0x3fbe_1e1e_1e1e_1e20);
         let st = mk_state(0.1, 90, 0, 0, 0, 400.0, 4.0, 0.9);
         let ind = mk_indic(-1.0, 2.0, 0.6);
         let payload = EventPayload::builder().build();
@@ -557,13 +599,17 @@ fn s9_descending_rows_early_return_and_clamp() {
     let ind = mk_indic(2.0, -3.0, -65535.0);
     let payload = EventPayload::builder().map_grid("B2".to_string())
         .time_str("01:02".to_string()).build();
-    let mk = |ias: f64| {
-        mk_src(ias, 0.6, 2500.0, 700.0, -2.5, 270.0, 4100.0, 0.62, 0.4, 0.3, 0.5,
-            130.5, false, false, 0.0)
+    let mk = |ias: f64, flap: f64, vne: bool, man_bits: u64| {
+        let mut s = mk_src(ias, 0.6, 2500.0, 700.0, -2.5, 270.0, 4100.0, 0.62, 0.4, 0.3, 0.5,
+            130.5, false, false, 0.0);
+        s.flap_angle = flap;
+        s.warn_v = vne as u8 as f64;
+        s.maneuver = f64::from_bits(man_bits);
+        s
     };
 
     // ias=640: i=0 分支, 外推 t=-1 → norm 0 (oracle s9_dw_ias640 全量)
-    let h = calculate(Some(&st), Some(&ind), &payload, Some(&mk(640.0)), Some(&dw), &hud, &COLORS);
+    let h = calculate(Some(&st), Some(&ind), &payload, Some(&mk(640.0, 0.0, true, 0x3fc6_0a2c_1458_28b0)), Some(&dw), &hud, &COLORS);
     assert_eq!(h.flap_allow_angle, 0.0);
     assert!(h.warn_vne); // 640 >= 650*0.95
     assert_eq!(h.aoa_ratio.to_bits(), 0x3fe4_ba2e_8ba2_e8bb);
@@ -579,14 +625,14 @@ fn s9_descending_rows_early_return_and_clamp() {
     assert_eq!(h.alt_str, "ALT  2500");
 
     // ias=300: i 扫到 num-1=2, ias == speeds[1][1]=300 → 早退 return 0.5*100
-    let h = calculate(Some(&st), Some(&ind), &payload, Some(&mk(300.0)), Some(&dw), &hud, &COLORS);
+    let h = calculate(Some(&st), Some(&ind), &payload, Some(&mk(300.0, 50.0, true, 0x3fc6_0a2c_1458_28b0)), Some(&dw), &hud, &COLORS);
     assert_eq!(h.flap_allow_angle, 50.0, "行值精确相等早退");
     assert_eq!(h.speed_str, "SPD   300");
     // vneMach 未赋值 (=0) → mach 0.6 >= 0*0.95 恒真 (oracle 同: warnVne=true)
     assert!(h.warn_vne);
 
     // ias=150: i=2 分支外推 t=125 恰触上界 → norm 保持 125 (oracle)
-    let h = calculate(Some(&st), Some(&ind), &payload, Some(&mk(150.0)), Some(&dw), &hud, &COLORS);
+    let h = calculate(Some(&st), Some(&ind), &payload, Some(&mk(150.0, 125.0, true, 0x3fc6_0a2c_1458_28b0)), Some(&dw), &hud, &COLORS);
     assert_eq!(h.flap_allow_angle, 125.0);
 }
 

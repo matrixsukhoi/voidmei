@@ -36,7 +36,6 @@
 use crate::blkx::Blkx;
 use crate::config_api::HUDSettings;
 use crate::event::event_payload::EventPayload;
-use crate::g;
 use crate::hud_data::HUDData;
 use crate::hud_data::Builder;
 use crate::parser::{Indicators, State};
@@ -143,9 +142,6 @@ pub fn calculate<S: HUDSettings>(
         b.gear = s_state.gear as f64;
         b.airbrake = s_state.airbrake as f64;
 
-        // Java 连续两次相同赋值 (源码 L73/L75), 原样保留
-        b.airbrake = s_state.airbrake as f64;
-
         if b.throttle > 100 {
             b.throttle_color = COLOR_RED;
         } else {
@@ -153,50 +149,33 @@ pub fn calculate<S: HUDSettings>(
                                              // text.
         }
 
-        let is_downing_flap = payload.is_downing_flap;
-        b.flap_allow_angle = get_flap_allow_angle(b.ias, is_downing_flap, blkx);
+        // W-E: HUDData 副本统一走公式槽 (fm_flap_allow_angle 引擎函数在公式侧,
+        // 无 FM → 125 与本地计算同值)
+        b.flap_allow_angle = v(source, "flap_allow_angle");
 
         b.aoa = s_state.aoa;
         b.g_load = s_state.ny;
     }
 
-    // 公式驱动 (阶段 2 A 级外置): 公式结果优先, 公式缺失/禁用/NaN 回退原计算
-    // (迁移期双保险 — 用户删改内置公式时 HUD 数据不断链)
-    b.energy_m = source
-        .get_formula_value("energy_m")
-        .unwrap_or_else(|| v(source, "energy_jkg") / g);
+    // W-E: 公式路径唯一 (回退拆除 — 内置公式随出厂分发, 缺失=用户显式删除)
+    b.energy_m = source.get_formula_value("energy_m").unwrap_or(0.0);
 
     b.is_mach_mode = settings.draw_hud_mach();
     b.is_gear_down = b.gear > 0.0;
     b.is_flaps_down = b.flaps > 0.0;
     b.is_airbrake_active = b.airbrake > 0.0;
 
-    // --- Warning Logic (W4: 警告布尔公式接管优先, 判定式原样进 formulas.cfg) ---
-    let mut warn_vne = source
+    // --- Warning Logic (W-E: 公式路径唯一, 判定式在 formulas.cfg) ---
+    let warn_vne = source
         .get_formula_value("warn_vne")
         .map(|v| v != 0.0)
         .unwrap_or(false);
-    let warn_vne_fallback = !warn_vne; // 公式缺失时走原判定
-    if warn_vne_fallback && b.is_airbrake_active && b.airbrake == 100.0 {
-        warn_vne = true;
-    }
 
     // Java: if (blkx != null && blkx.valid)
     let valid_blkx = blkx.filter(|x| x.valid);
     if let Some(blkx) = valid_blkx {
-        // User requested formula: 1 - (nfweight / (nfweight + fuel))
-        let nfweight = blkx.nofuelweight;
-        let current_fuel = s_state.mfuel;
-
-        // 公式驱动 (阶段 2 A 级外置, 公式式含同款零除守卫; fm.* 未接线时回退原式)
-        b.maneuver_index = source.get_formula_value("maneuver_index").unwrap_or_else(|| {
-            // Check for valid weights to avoid division by zero
-            if nfweight > 0.0 && (nfweight + current_fuel) > 0.0 {
-                1.0 - (nfweight / (nfweight + current_fuel))
-            } else {
-                0.0
-            }
-        });
+        // W-E: 公式路径唯一 (公式式含同款零除守卫)
+        b.maneuver_index = source.get_formula_value("maneuver_index").unwrap_or(0.0);
 
         let mut vwing = 0.0;
         // PORT: Java `blkx.isVWing` (Boolean 装箱) 在布尔上下文自动拆箱, null → NPE
@@ -212,16 +191,6 @@ pub fn calculate<S: HUDSettings>(
         #[allow(clippy::unnecessary_unwrap)]
         if blkx.is_v_wing.unwrap() && s_indic.is_some() {
             vwing = s_indic.unwrap().wsweep_indicator;
-        }
-
-        // Dynamic Vne calculation (公式接管时跳过; 位级注记:
-        // 第二项 Java 是 `* 0.95f` 提升 = 0.94999998807907104, 不得与 0.95 合并 §2.12)
-        if warn_vne_fallback {
-            if b.ias >= blkx.get_vne_v_wing(vwing) * 0.95
-                || b.mach >= blkx.get_mne_v_wing(vwing) * (0.95f32 as f64)
-            {
-                warn_vne = true;
-            }
         }
 
         // AoA Warnings
@@ -247,11 +216,8 @@ pub fn calculate<S: HUDSettings>(
             b.aoa_ratio = 0.0;
         }
 
-        // W4: 公式接管优先 (warn_stall), 回退原判定
-        b.warn_stall = match source.get_formula_value("warn_stall") {
-            Some(v) => v != 0.0,
-            None => available_aoa <= 0.0,
-        };
+        // W-E: 公式路径唯一
+        b.warn_stall = source.get_formula_value("warn_stall").map(|v| v != 0.0).unwrap_or(false);
     } else {
         b.maneuver_index = 0.0;
         b.aoa_color = colors.color_num;
@@ -261,16 +227,11 @@ pub fn calculate<S: HUDSettings>(
     b.warn_vne = warn_vne;
 
     // Warnings
-    let radio_alt = b.radio_altitude;
     let radio_alt_valid = v(source, "radio_altitude_valid") != 0.0;
     let always_radar = settings.always_show_radar_altitude();
 
-    // Low altitude warning flag - always based on <=500m threshold
-    // (W4: 公式接管优先)
-    b.warn_altitude = match source.get_formula_value("warn_altitude") {
-        Some(v) => v != 0.0,
-        None => radio_alt_valid && radio_alt <= 500.0,
-    };
+    // Low altitude warning flag (W-E: 公式路径唯一)
+    b.warn_altitude = source.get_formula_value("warn_altitude").map(|v| v != 0.0).unwrap_or(false);
 
     // --- Strings Formatting (using Data) ---
     if b.is_mach_mode {

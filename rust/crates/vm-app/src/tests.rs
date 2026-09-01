@@ -1461,6 +1461,14 @@ fn feed_overlays_live_updates_all_handles() {
     }
     d.s_indic.as_mut().unwrap().aviahorizon_pitch = 5.0;
     d.total_hp = 1200;
+    // W-E 后 warn_vne 只走公式槽 — 槽注入 1.0 作喂通哨 (state 经 guard 直传已由
+    // throttle/airbrake 各 handle 断言覆盖)
+    {
+        let mut slots = std::collections::HashMap::new();
+        slots.insert("warn_vne".to_string(), 0u16);
+        d.formula_slots = std::sync::Arc::new(slots);
+        d.formula_values = vm_core::formula::FormulaResults { values: vec![1.0] };
+    }
     let shared = ControllerShared::new();
     shared.overlay_ctx_preview.store(false, Ordering::SeqCst); // 游戏窗口形态
     *shared.live.write().unwrap() = Some(Arc::new(std::sync::RwLock::new(d)));
@@ -1494,12 +1502,10 @@ fn feed_overlays_live_updates_all_handles() {
     drop(a);
     // 地平仪节流: 40ms 窗口内第二帧不重算 (last_ms 已推进)
     assert!(attitude_feed.last_ms > 0);
-    // MiniHUD: 重构事件携带 state 快照 → hud_calculator 读到 sState.airbrake=100
-    // → warnVne 置真 (state 丢失时该块整体跳过, warn_vne 恒 false = "bar 恒 0"
-    // 根因的回归哨)
+    // MiniHUD: 公式槽 warn_vne=1.0 → 置真 (喂通回归哨: 槽值经 feed 链到达 HUD)
     assert!(
         handles.minihud.as_ref().unwrap().borrow().warn_vne,
-        "MiniHUD 应收到 sState 快照 (airbrake=100 → warnVne)"
+        "MiniHUD 应收到公式槽 warn_vne"
     );
 
     // preview 门控: overlay_ctx_preview=true → 整帧跳过 (值不推进)

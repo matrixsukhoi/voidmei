@@ -643,7 +643,17 @@ impl FormulaView for MockSrc {
             "altitude" => Some(self.alt),
             "sep" => Some(self.sep),
             "throttle" => Some(64.0),
+            // W-E 后 HUD 只走公式槽 — 桩按场景直供 (无 FM 缺省 125)
+            "flap_allow_angle" => Some(125.0),
             _ => vm_core::formula::registry::registry().lookup(name).map(|_| 0.0),
+        }
+    }
+
+    // 公式槽桩: warn_vne 直供 (airbrake==100 场景对位公式判定)
+    fn get_formula_value(&self, name: &str) -> Option<f64> {
+        match name {
+            "warn_vne" => Some(1.0),
+            _ => None,
         }
     }
 }
