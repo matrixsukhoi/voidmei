@@ -601,11 +601,18 @@ def cmd_fmdata():
         sys.exit(1)
 
     # 裁剪更新项目内 ./data —— 单一来源, 本地即刻可用
-    log("裁剪并更新项目内 data/ (仅 version + flightmodels, 程序只读这两处) ...")
+    # 程序只读三处 (FMDataPaths 是路径唯一来源): 根目录 *.blkx (中央文件) /
+    # fm/ 子目录 (物理 FM) / aces/version。解包产物其余子树 (weaponpresets/
+    # performance/dm/exhausteffects/fueldumping, 约 1 万个文件) 程序不读,
+    # 不拷入; 若未来新增读取处, 须同步这里的白名单
+    log("裁剪并更新项目内 data/ (仅根 blkx + fm/, 程序只读这两处) ...")
     target = DATA / "aces" / "gamedata" / "flightmodels"
     rmtree(target)
-    target.mkdir(parents=True)
-    copytree(fm_dir, target)
+    for rel in ("", "fm"):
+        dst_dir = target / rel if rel else target
+        dst_dir.mkdir(parents=True, exist_ok=True)
+        for f in (fm_dir / rel).glob("*.blkx"):
+            shutil.copy2(f, dst_dir / f.name)
 
     # 生成 version 文件 (供 Blkx.getVersion() 显示 FM 数据版本)
     # 优先 WT_VERSION 显式指定; 缺省用 wt_ext_cli vromf_version 从 vromfs 二进制头读取

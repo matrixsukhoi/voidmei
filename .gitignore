@@ -37,3 +37,5 @@ script/voidmeil4j.gen.xml
 # D9 web 前端 (vm-webui): 依赖不入库 (dist/target 及产物 manifest 已被上方裸规则
 # target/、dist/ 覆盖; pnpm-lock.yaml 必须入库锁定依赖, dist 由 cargo 编译期嵌入)
 node_modules/
+
+*.pyc
