@@ -128,19 +128,20 @@ fn register_live_overlays_nine_window_entries() {
     };
     let shell = fixture();
     let lang = Rc::new(Lang::init_lang());
-    let params = Rc::new(RefCell::new(vm_overlay::ReinitParams::from(
-        &test_overlay_inputs(),
-    )));
+    let inputs = test_overlay_inputs();
+    let params = Rc::new(RefCell::new(vm_overlay::ReinitParams::from(&inputs)));
     register_live_overlays(
         &mut host,
         &mut handles,
-        &shell.env,
-        &test_overlay_inputs(),
-        &params,
-        &lang,
-        &shell.shared,
-        &shell.fm,
-        &shell.fm_field_config,
+        &OverlayRegSetup {
+            env: &shell.env,
+            inputs: &inputs,
+            params: &params,
+            lang: &lang,
+            shared: &shell.shared,
+            fm: &shell.fm,
+            fm_field_config: &shell.fm_field_config,
+        },
     );
     // 注册面逐窗计数落键: 9 键全部以 0 落位 (present 计数起点)
     let reg_keys: Vec<String> = shell

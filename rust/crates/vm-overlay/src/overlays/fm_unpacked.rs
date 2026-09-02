@@ -31,6 +31,7 @@ use crate::render::palette::aa;
 
 use crate::platform::host::{OverlayHost, OverlaySpec, ReinitFn};
 use crate::overlays::list::BaseListOverlay;
+use crate::overlays::spec_common::{keyed_spec, FontSlot};
 use crate::platform::reinit::ReinitParams;
 use crate::render::canvas::PixCanvas;
 use vm_core::fm::data::{FmData, FmParts};
@@ -176,6 +177,8 @@ impl FmUnpackedDataOverlay {
 
 /// generateLines (Java :157-278): 按 ui_layout.cfg 开关过滤的 blkx 字段清单。
 /// Lang 模板取 init_lang() 快照 (Java 读全局静态字段, 值同源 cur.properties)。
+/// 15+ 个开关段改表驱动 (重构波15): 键-生成器对见 [`FM_FIELD_TABLE`],
+/// 各段内条件 (nitro>0 / Option 守卫) 原样留在生成器内。
 pub(crate) fn generate_lines(fmdata: Option<&FmData>, config: Option<&dyn ConfigProvider>) -> Vec<String> {
     let lang = Lang::init_lang();
     let mut lines: Vec<String> = Vec::new();
@@ -187,178 +190,24 @@ pub(crate) fn generate_lines(fmdata: Option<&FmData>, config: Option<&dyn Config
         }
         Some(b) => b,
     };
+    let ctx = LineCtx { lang: &lang, fmdata };
 
     // ==================== FM Version (always shown) ====================
     // PORT: Java %s 收 null 字段打印 "null" (Formatter 行为), Option 展开对齐
     let fm_version = java_string_format(
-        lang.b_fm_version,
+        ctx.lang.b_fm_version,
         &[
-            FmtArg::S(fmdata.read_file_name.as_deref().unwrap_or("null")),
-            FmtArg::S(fmdata.version.as_deref().unwrap_or("null")),
+            FmtArg::S(ctx.fmdata.read_file_name.as_deref().unwrap_or("null")),
+            FmtArg::S(ctx.fmdata.version.as_deref().unwrap_or("null")),
         ],
     );
     add_lines(&mut lines, &fm_version);
 
-    // ==================== Weight ====================
-    if is_field_enabled(config, "showWeight") {
-        let weight = java_string_format(
-            lang.b_weight,
-            &[FmtArg::F(fmdata.emptyweight), FmtArg::F(fmdata.maxfuelweight)],
-        );
-        add_lines(&mut lines, &weight);
-    }
-
-    // ==================== Critical Speed ====================
-    if is_field_enabled(config, "showCritSpeed") {
-        let crit_speed = java_string_format(
-            lang.b_crit_speed,
-            &[FmtArg::F(fmdata.critical_speed * 3.6), FmtArg::F(fmdata.vne)],
-        );
-        add_lines(&mut lines, &crit_speed);
-    }
-
-    // ==================== G-Load Limits (combined full/half fuel) ====================
-    if is_field_enabled(config, "showGLoadLimits") {
-        if let Some(raw) = fmdata.raw_wing_crit_overload {
-            // PORT: 与 getMaxAllowGloadForWeight 同式内联 (Java 源如此, 不收敛去重)
-            let full_neg = 1.2 * (2.0 * raw[0] / (g * fmdata.grossweight) + 1.0);
-            let full_pos = 1.2 * (2.0 * raw[1] / (g * fmdata.grossweight) - 1.0);
-            let half_neg = 1.2 * (2.0 * raw[0] / (g * fmdata.halfweight) + 1.0);
-            let half_pos = 1.2 * (2.0 * raw[1] / (g * fmdata.halfweight) - 1.0);
-            let load_factor = java_string_format(
-                lang.b_allow_load_factor,
-                &[FmtArg::F(full_neg), FmtArg::F(full_pos), FmtArg::F(half_neg), FmtArg::F(half_pos)],
-            );
-            add_lines(&mut lines, &load_factor);
+    // ==================== 开关过滤段 (键序 = Java 块序, 保真) ====================
+    for (key, gen) in FM_FIELD_TABLE {
+        if is_field_enabled(config, key) {
+            gen(&mut lines, &ctx);
         }
-    }
-
-    // ==================== Flap Speed Limits ====================
-    // PORT: Java AIOOBE (num > 6) ↔ Rust 索引 panic 同构 (§1 崩溃语义)。
-    // 线程模型差异: Java 仅杀死本 overlay 的 run 轮询线程, Rust tick/draw 在
-    // 唯一主循环上 — P5 组装必须对逐 overlay tick/render 包 catch_unwind
-    // (PORTING §6 先例), 本 panic 与 java_string_format 错配 panic 均属此契约
-    if is_field_enabled(config, "showFlapLimits") {
-        if let Some(table) = fmdata.flaps_destruction_ind_speed {
-            for i in 0..fmdata.flaps_destruction_num {
-                let flap_limit = java_string_format(
-                    lang.b_flap_restrict,
-                    &[
-                        FmtArg::D(i),
-                        FmtArg::F(table[i as usize][0] * 100.0),
-                        FmtArg::F(table[i as usize][1]),
-                    ],
-                );
-                add_lines(&mut lines, &flap_limit);
-            }
-        }
-    }
-
-    // ==================== Control Surface Effectiveness (combined) ====================
-    if is_field_enabled(config, "showControlEffectiveness") {
-        let eff_speed = java_string_format(
-            lang.b_eff_speed_and_power_loss,
-            &[
-                FmtArg::F(fmdata.elav_eff),
-                FmtArg::F(fmdata.aileron_eff),
-                FmtArg::F(fmdata.rudder_eff),
-                FmtArg::F(fmdata.elav_power_loss),
-                FmtArg::F(fmdata.aileron_power_loss),
-                FmtArg::F(fmdata.rudder_power_loss),
-            ],
-        );
-        add_lines(&mut lines, &eff_speed);
-    }
-
-    // ==================== Nitro (only if present) ====================
-    if is_field_enabled(config, "showNitro") && fmdata.nitro > 0.0 {
-        let nitro = java_string_format(
-            lang.b_nitro,
-            &[FmtArg::F(fmdata.nitro), FmtArg::F(fmdata.nitro / (fmdata.nitro_decr * 60.0))],
-        );
-        add_lines(&mut lines, &nitro);
-    }
-
-    // ==================== Heat Recovery ====================
-    if is_field_enabled(config, "showHeatRecovery") {
-        let heat_recovery =
-            java_string_format(lang.b_average_heat_recovery, &[FmtArg::F(fmdata.avg_eng_recovery_rate)]);
-        add_lines(&mut lines, &heat_recovery);
-    }
-
-    // ==================== Max Lift Load ====================
-    if is_field_enabled(config, "showMaxLiftLoad") {
-        let max_lift_load = java_string_format(
-            lang.b_max_lift_load350,
-            &[
-                FmtArg::F((fmdata.no_flap_wll + 1.0) / 2.0),
-                FmtArg::F((fmdata.full_flap_wll + 1.0) / 2.0),
-            ],
-        );
-        add_lines(&mut lines, &max_lift_load);
-    }
-
-    // ==================== Inertia ====================
-    if is_field_enabled(config, "showInertia") {
-        if let Some(m) = fmdata.moment_of_inertia {
-            if m.len() >= 3 {
-                let inertia = java_string_format(
-                    lang.b_inertia,
-                    &[FmtArg::F(m[2]), FmtArg::F(m[0]), FmtArg::F(m[1])],
-                );
-                add_lines(&mut lines, &inertia);
-            }
-        }
-    }
-
-    // ==================== Lift Parameters ====================
-    if is_field_enabled(config, "showLift") {
-        let lift = java_string_format(
-            lang.b_lift,
-            &[
-                FmtArg::F(fmdata.a_wing),
-                FmtArg::F(fmdata.a_fuselage),
-                FmtArg::F(fmdata.no_flap_wll),
-                FmtArg::F(fmdata.full_flap_wll),
-                FmtArg::F(fmdata.oswalds_efficiency_number),
-                FmtArg::F(fmdata.aspect_ratio),
-                FmtArg::F(fmdata.swept_wing_angle),
-            ],
-        );
-        add_lines(&mut lines, &lift);
-    }
-
-    // ==================== Drag Parameters ====================
-    if is_field_enabled(config, "showDrag") {
-        let drag = java_string_format(
-            lang.b_drag,
-            &[
-                FmtArg::F(fmdata.cd_s),
-                FmtArg::F(fmdata.cd_s / (fmdata.halfweight / 1000.0)),
-                FmtArg::F(fmdata.ind_cd_f),
-                FmtArg::F(fmdata.halfweight * fmdata.ind_cd_f),
-                FmtArg::F(fmdata.radiator_cd),
-                FmtArg::F(fmdata.oil_radiator_cd),
-            ],
-        );
-        add_lines(&mut lines, &drag);
-    }
-
-    // ==================== FM Parts Sections ====================
-    if is_field_enabled(config, "showNoFlapsWing") {
-        add_fm_parts(&mut lines, &lang, fmdata.no_flaps_wing.as_ref());
-    }
-    if is_field_enabled(config, "showFullFlapsWing") {
-        add_fm_parts(&mut lines, &lang, fmdata.full_flaps_wing.as_ref());
-    }
-    if is_field_enabled(config, "showFuselage") {
-        add_fm_parts(&mut lines, &lang, fmdata.fuselage.as_ref());
-    }
-    if is_field_enabled(config, "showFin") {
-        add_fm_parts(&mut lines, &lang, fmdata.fin.as_ref());
-    }
-    if is_field_enabled(config, "showStab") {
-        add_fm_parts(&mut lines, &lang, fmdata.stab.as_ref());
     }
 
     // If no fields are enabled or all filtered out, show a placeholder
@@ -369,6 +218,214 @@ pub(crate) fn generate_lines(fmdata: Option<&FmData>, config: Option<&dyn Config
     }
 
     lines
+}
+
+/// 行生成器的共享入参 (闭包捕获面: Lang 快照 + FM 数据)
+struct LineCtx<'a> {
+    lang: &'a Lang,
+    fmdata: &'a FmData,
+}
+
+/// 单段行生成器: 把格式化结果拆行入列 (各段一个 fn, 表驱动入口)
+type LineFn = fn(&mut Vec<String>, &LineCtx);
+
+/// 开关键 → 行段 的静态表 (顺序 = Java generateLines 的 if 块顺序)
+static FM_FIELD_TABLE: &[(&str, LineFn)] = &[
+    ("showWeight", add_weight),
+    ("showCritSpeed", add_crit_speed),
+    ("showGLoadLimits", add_g_load_limits),
+    ("showFlapLimits", add_flap_limits),
+    ("showControlEffectiveness", add_control_effectiveness),
+    ("showNitro", add_nitro),
+    ("showHeatRecovery", add_heat_recovery),
+    ("showMaxLiftLoad", add_max_lift_load),
+    ("showInertia", add_inertia),
+    ("showLift", add_lift),
+    ("showDrag", add_drag),
+    ("showNoFlapsWing", add_no_flaps_wing),
+    ("showFullFlapsWing", add_full_flaps_wing),
+    ("showFuselage", add_fuselage),
+    ("showFin", add_fin),
+    ("showStab", add_stab),
+];
+
+// ---- 表驱动各段 (段内逻辑/PORT 注与原 if 块逐字一致) ----
+
+/// Weight (空重/满油重)
+fn add_weight(lines: &mut Vec<String>, ctx: &LineCtx) {
+    let weight = java_string_format(
+        ctx.lang.b_weight,
+        &[FmtArg::F(ctx.fmdata.emptyweight), FmtArg::F(ctx.fmdata.maxfuelweight)],
+    );
+    add_lines(lines, &weight);
+}
+
+/// Critical Speed (临界速度/VNE)
+fn add_crit_speed(lines: &mut Vec<String>, ctx: &LineCtx) {
+    let crit_speed = java_string_format(
+        ctx.lang.b_crit_speed,
+        &[FmtArg::F(ctx.fmdata.critical_speed * 3.6), FmtArg::F(ctx.fmdata.vne)],
+    );
+    add_lines(lines, &crit_speed);
+}
+
+/// G-Load Limits (combined full/half fuel)
+fn add_g_load_limits(lines: &mut Vec<String>, ctx: &LineCtx) {
+    if let Some(raw) = ctx.fmdata.raw_wing_crit_overload {
+        // PORT: 与 getMaxAllowGloadForWeight 同式内联 (Java 源如此, 不收敛去重)
+        let full_neg = 1.2 * (2.0 * raw[0] / (g * ctx.fmdata.grossweight) + 1.0);
+        let full_pos = 1.2 * (2.0 * raw[1] / (g * ctx.fmdata.grossweight) - 1.0);
+        let half_neg = 1.2 * (2.0 * raw[0] / (g * ctx.fmdata.halfweight) + 1.0);
+        let half_pos = 1.2 * (2.0 * raw[1] / (g * ctx.fmdata.halfweight) - 1.0);
+        let load_factor = java_string_format(
+            ctx.lang.b_allow_load_factor,
+            &[FmtArg::F(full_neg), FmtArg::F(full_pos), FmtArg::F(half_neg), FmtArg::F(half_pos)],
+        );
+        add_lines(lines, &load_factor);
+    }
+}
+
+/// Flap Speed Limits (襟翼段限速)
+/// PORT: Java AIOOBE (num > 6) ↔ Rust 索引 panic 同构 (§1 崩溃语义)。
+/// 线程模型差异: Java 仅杀死本 overlay 的 run 轮询线程, Rust tick/draw 在
+/// 唯一主循环上 — P5 组装必须对逐 overlay tick/render 包 catch_unwind
+/// (PORTING §6 先例), 本 panic 与 java_string_format 错配 panic 均属此契约
+fn add_flap_limits(lines: &mut Vec<String>, ctx: &LineCtx) {
+    if let Some(table) = ctx.fmdata.flaps_destruction_ind_speed {
+        for i in 0..ctx.fmdata.flaps_destruction_num {
+            let flap_limit = java_string_format(
+                ctx.lang.b_flap_restrict,
+                &[
+                    FmtArg::D(i),
+                    FmtArg::F(table[i as usize][0] * 100.0),
+                    FmtArg::F(table[i as usize][1]),
+                ],
+            );
+            add_lines(lines, &flap_limit);
+        }
+    }
+}
+
+/// Control Surface Effectiveness (combined)
+fn add_control_effectiveness(lines: &mut Vec<String>, ctx: &LineCtx) {
+    let eff_speed = java_string_format(
+        ctx.lang.b_eff_speed_and_power_loss,
+        &[
+            FmtArg::F(ctx.fmdata.elav_eff),
+            FmtArg::F(ctx.fmdata.aileron_eff),
+            FmtArg::F(ctx.fmdata.rudder_eff),
+            FmtArg::F(ctx.fmdata.elav_power_loss),
+            FmtArg::F(ctx.fmdata.aileron_power_loss),
+            FmtArg::F(ctx.fmdata.rudder_power_loss),
+        ],
+    );
+    add_lines(lines, &eff_speed);
+}
+
+/// Nitro (only if present) — 表外附加条件 nitro > 0 留段内
+fn add_nitro(lines: &mut Vec<String>, ctx: &LineCtx) {
+    if ctx.fmdata.nitro > 0.0 {
+        let nitro = java_string_format(
+            ctx.lang.b_nitro,
+            &[
+                FmtArg::F(ctx.fmdata.nitro),
+                FmtArg::F(ctx.fmdata.nitro / (ctx.fmdata.nitro_decr * 60.0)),
+            ],
+        );
+        add_lines(lines, &nitro);
+    }
+}
+
+/// Heat Recovery (发动机平均恢复率)
+fn add_heat_recovery(lines: &mut Vec<String>, ctx: &LineCtx) {
+    let heat_recovery = java_string_format(
+        ctx.lang.b_average_heat_recovery,
+        &[FmtArg::F(ctx.fmdata.avg_eng_recovery_rate)],
+    );
+    add_lines(lines, &heat_recovery);
+}
+
+/// Max Lift Load (350 段最大升力系数)
+fn add_max_lift_load(lines: &mut Vec<String>, ctx: &LineCtx) {
+    let max_lift_load = java_string_format(
+        ctx.lang.b_max_lift_load350,
+        &[
+            FmtArg::F((ctx.fmdata.no_flap_wll + 1.0) / 2.0),
+            FmtArg::F((ctx.fmdata.full_flap_wll + 1.0) / 2.0),
+        ],
+    );
+    add_lines(lines, &max_lift_load);
+}
+
+/// Inertia (惯量, 三分量齐才显示)
+fn add_inertia(lines: &mut Vec<String>, ctx: &LineCtx) {
+    if let Some(m) = ctx.fmdata.moment_of_inertia {
+        if m.len() >= 3 {
+            let inertia = java_string_format(
+                ctx.lang.b_inertia,
+                &[FmtArg::F(m[2]), FmtArg::F(m[0]), FmtArg::F(m[1])],
+            );
+            add_lines(lines, &inertia);
+        }
+    }
+}
+
+/// Lift Parameters (升力参数族)
+fn add_lift(lines: &mut Vec<String>, ctx: &LineCtx) {
+    let lift = java_string_format(
+        ctx.lang.b_lift,
+        &[
+            FmtArg::F(ctx.fmdata.a_wing),
+            FmtArg::F(ctx.fmdata.a_fuselage),
+            FmtArg::F(ctx.fmdata.no_flap_wll),
+            FmtArg::F(ctx.fmdata.full_flap_wll),
+            FmtArg::F(ctx.fmdata.oswalds_efficiency_number),
+            FmtArg::F(ctx.fmdata.aspect_ratio),
+            FmtArg::F(ctx.fmdata.swept_wing_angle),
+        ],
+    );
+    add_lines(lines, &lift);
+}
+
+/// Drag Parameters (阻力参数族)
+fn add_drag(lines: &mut Vec<String>, ctx: &LineCtx) {
+    let drag = java_string_format(
+        ctx.lang.b_drag,
+        &[
+            FmtArg::F(ctx.fmdata.cd_s),
+            FmtArg::F(ctx.fmdata.cd_s / (ctx.fmdata.halfweight / 1000.0)),
+            FmtArg::F(ctx.fmdata.ind_cd_f),
+            FmtArg::F(ctx.fmdata.halfweight * ctx.fmdata.ind_cd_f),
+            FmtArg::F(ctx.fmdata.radiator_cd),
+            FmtArg::F(ctx.fmdata.oil_radiator_cd),
+        ],
+    );
+    add_lines(lines, &drag);
+}
+
+/// FM Parts: 无襟翼机翼段
+fn add_no_flaps_wing(lines: &mut Vec<String>, ctx: &LineCtx) {
+    add_fm_parts(lines, ctx.lang, ctx.fmdata.no_flaps_wing.as_ref());
+}
+
+/// FM Parts: 满襟翼机翼段
+fn add_full_flaps_wing(lines: &mut Vec<String>, ctx: &LineCtx) {
+    add_fm_parts(lines, ctx.lang, ctx.fmdata.full_flaps_wing.as_ref());
+}
+
+/// FM Parts: 机身段
+fn add_fuselage(lines: &mut Vec<String>, ctx: &LineCtx) {
+    add_fm_parts(lines, ctx.lang, ctx.fmdata.fuselage.as_ref());
+}
+
+/// FM Parts: 垂尾段
+fn add_fin(lines: &mut Vec<String>, ctx: &LineCtx) {
+    add_fm_parts(lines, ctx.lang, ctx.fmdata.fin.as_ref());
+}
+
+/// FM Parts: 平尾段
+fn add_stab(lines: &mut Vec<String>, ctx: &LineCtx) {
+    add_fm_parts(lines, ctx.lang, ctx.fmdata.stab.as_ref());
 }
 
 /// addFmParts (Java :283-290): 表头 + 4 数据行 (null 部件整段跳过)。
@@ -467,51 +524,43 @@ pub fn fm_unpacked_data_overlay_spec(
     // Application.defaultFontsize = 12 (Lang defaultFontSize, Application.java:93)
     let mut ov = FmUnpackedDataOverlay::new(logical_height, dpi_scale, 12);
     let regular_path = fonts_dir.join("sarasa-mono-sc-regular.ttf");
-    let font = Rc::new(RefCell::new(Rc::new(LoadedFont::new(
-        &regular_path,
-        14 + font_add,
-    )?)));
-    ov.init_preview(config, &font.borrow());
+    let font = FontSlot::new("FMUnpackedData", &regular_path, 14 + font_add)?;
+    ov.init_preview(config, &font.get());
     let (w, h) = (ov.base.width, ov.base.height);
     let handle: FmUnpackedDataHandle = Rc::new(RefCell::new(ov));
     let render_handle = Rc::clone(&handle);
-    let render_font = Rc::clone(&font);
+    let render_font = font.clone();
     // reinit 闭包 (Java reinitConfig :142-151): setBlkx(current) + setupFont。
     // PORT(返回 None): Java reinitConfig 无 setBounds — 高度由下次数据变更的
     // adjustPosition 接管 (行高随新字体变化, 数据 dirty 时自纠); 此处仅清指纹
     let reinit_handle = Rc::clone(&handle);
-    let reinit_font = Rc::clone(&font);
+    let reinit_font = font;
     let reinit_params = Rc::clone(params);
     let reinit_fm = Arc::clone(fm);
     let reinit_regular = regular_path;
     let reinit: ReinitFn = Box::new(move || {
         let fa = reinit_params.borrow().font_add_fm;
-        let new_font = match LoadedFont::new(&reinit_regular, 14 + fa) {
-            Ok(f) => Rc::new(f),
-            Err(e) => {
-                vm_core::base::logger::error("FMUnpackedData", &format!("reinit 字体重载失败: {}", e));
-                return None;
-            }
-        };
+        if !reinit_font.reload(&reinit_regular, 14 + fa) {
+            return None;
+        }
         // P3: 直读 FMManager 句柄 (blkx None → 清空 → 占位容忍)
         let fmdata = reinit_fm.current().fmdata.clone().map(Arc::new);
-        reinit_handle.borrow_mut().reinit_config(fmdata, &new_font);
-        *reinit_font.borrow_mut() = new_font;
+        let font = reinit_font.get();
+        reinit_handle.borrow_mut().reinit_config(fmdata, &font);
         None
     });
     Ok((
         handle,
-        OverlaySpec {
-            id: "enableFMPrint".to_string(),
-            config_key: "enableFMPrint".to_string(),
-            width: w,
-            height: h,
-            render: Box::new(move |cv: &mut PixCanvas| {
-                let font = render_font.borrow();
+        keyed_spec(
+            "enableFMPrint",
+            w,
+            h,
+            Box::new(move |cv: &mut PixCanvas| {
+                let font = render_font.get();
                 render_handle.borrow_mut().render(cv, &font, aa());
             }),
-            reinit: Some(reinit),
-        },
+            Some(reinit),
+        ),
     ))
 }
 

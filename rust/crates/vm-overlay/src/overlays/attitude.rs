@@ -27,6 +27,7 @@ use crate::render::font::LoadedFont;
 
 use crate::platform::host::{OverlaySpec, ReinitFn};
 use crate::platform::reinit::ReinitParams;
+use crate::overlays::spec_common::keyed_spec;
 use crate::render::canvas::{LineCapStyle, PixCanvas};
 use crate::render::primitives::{arc_stroke_outline, line_stroke_outline, text_shaded_auto};
 use std::cell::RefCell;
@@ -677,11 +678,23 @@ impl Default for AttitudeOverlay {
 /// 地平仪共享句柄 (minihud_overlay_spec 先例: render 闭包与喂入方共享 state)
 pub type AttitudeOverlayHandle = Rc<RefCell<AttitudeOverlay>>;
 
+/// 参数仓 → reinitConfig 绘制面 (工厂初建与 reinit 闭包共用一份读取):
+/// base 宽高 = attitudeIndicatorWidth/Height (cfg 缺省 150/300), 此处完成 DPI
+/// 缩放 (Java :237-238 round(base·dpiScale), §2.3 floor(x+0.5));
+/// show_direction/show_aoa_limits = attitudeIndicatorDisplayDirection (false) /
+/// ...DisplayAoALimits (true)
+fn attitude_geom(p: &ReinitParams) -> (i32, i32, bool, bool) {
+    let dpi = p.dpi_scale;
+    (
+        (p.attitude_width as f64 * dpi + 0.5).floor() as i32,
+        (p.attitude_height as f64 * dpi + 0.5).floor() as i32,
+        p.attitude_show_direction,
+        p.attitude_show_aoa_limits,
+    )
+}
+
 /// 地平仪 OverlaySpec + live 句柄。参数为 reinitConfig (:230-270) 的配置面,
-/// 经 [`ReinitParams`] 仓读取: base 宽高 = attitudeIndicatorWidth/Height
-/// (cfg 缺省 150/300), 工厂内完成 DPI 缩放 (Java :237-238 round(base·dpiScale),
-/// §2.3 floor(x+0.5)); show_direction/show_aoa_limits = attitudeIndicatorDisplay
-/// Direction (false) / ...DisplayAoALimits (true)。
+/// 经 [`ReinitParams`] 仓读取 (换算见 [`attitude_geom`])。
 /// PORT(边框不承载): Java totalWidth = xWidth+4+sw·2 的 sw 边距是 WebLaF 窗口装饰
 /// (enableAttitudeIndicatorEdge, 默认 false), host 无边框层 — spec 尺寸 = 内容区
 /// x_width×x_height (draw 的画布断言钉内容尺寸, 裁剪语义)。
@@ -692,16 +705,7 @@ pub type AttitudeOverlayHandle = Rc<RefCell<AttitudeOverlay>>;
 pub fn attitude_overlay_spec(
     params: &Rc<RefCell<ReinitParams>>,
 ) -> Result<(AttitudeOverlayHandle, OverlaySpec), String> {
-    let (x_width, x_height, show_direction, show_aoa_limits) = {
-        let p = params.borrow();
-        let dpi = p.dpi_scale;
-        (
-            (p.attitude_width as f64 * dpi + 0.5).floor() as i32,
-            (p.attitude_height as f64 * dpi + 0.5).floor() as i32,
-            p.attitude_show_direction,
-            p.attitude_show_aoa_limits,
-        )
-    };
+    let (x_width, x_height, show_direction, show_aoa_limits) = attitude_geom(&params.borrow());
     let mut overlay = AttitudeOverlay::new();
     overlay.reinit(x_width, x_height, show_direction, show_aoa_limits);
     let handle: AttitudeOverlayHandle = Rc::new(RefCell::new(overlay));
@@ -710,34 +714,24 @@ pub fn attitude_overlay_spec(
     let reinit_handle = Rc::clone(&handle);
     let reinit_params = Rc::clone(params);
     let reinit: ReinitFn = Box::new(move || {
-        let (xw, xh, dir, aoa) = {
-            let p = reinit_params.borrow();
-            let dpi = p.dpi_scale;
-            (
-                (p.attitude_width as f64 * dpi + 0.5).floor() as i32,
-                (p.attitude_height as f64 * dpi + 0.5).floor() as i32,
-                p.attitude_show_direction,
-                p.attitude_show_aoa_limits,
-            )
-        };
+        let (xw, xh, dir, aoa) = attitude_geom(&reinit_params.borrow());
         reinit_handle.borrow_mut().reinit(xw, xh, dir, aoa);
         Some((xw, xh))
     });
     Ok((
         handle,
-        OverlaySpec {
-            // Java LinkedHashMap 键 = configKey (Controller.java:690)
-            id: "enableAttitudeIndicator".to_string(),
-            config_key: "enableAttitudeIndicator".to_string(),
-            width: x_width,
-            height: x_height,
-            render: Box::new(move |cv: &mut PixCanvas| {
+        // Java LinkedHashMap 键 = configKey (Controller.java:690)
+        keyed_spec(
+            "enableAttitudeIndicator",
+            x_width,
+            x_height,
+            Box::new(move |cv: &mut PixCanvas| {
                 // aa = 运行时全局仓 (cfg AAEnable 可关 — Application.java:102 仅是
                 // 声明默认, 审查轮 1-A 曾误当生产不变式钉死 true)
                 render_handle.borrow_mut().draw(cv, aa());
             }),
-            reinit: Some(reinit),
-        },
+            Some(reinit),
+        ),
     ))
 }
 

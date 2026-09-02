@@ -28,6 +28,7 @@ use vm_core::base::format::{java_format_f, java_round_f32};
 use crate::render::font::LoadedFont;
 use crate::render::palette::aa;
 use crate::platform::host::{OverlayHost, OverlaySpec};
+use crate::overlays::spec_common::{keyed_spec, FontSlot};
 use crate::render::canvas::{LineCapStyle, PixCanvas};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -428,30 +429,30 @@ pub fn draw_frame_simpl_spec(
     fm: &Arc<FMManager>,
 ) -> Result<(DrawFrameSimplHandle, OverlaySpec), String> {
     let regular = fonts_dir.join("sarasa-mono-sc-regular.ttf");
-    let f12 = Rc::new(RefCell::new(Rc::new(LoadedFont::new(&regular, 12)?)));
-    let f16 = Rc::new(RefCell::new(Rc::new(LoadedFont::new(&regular, 16)?)));
-    let f18 = Rc::new(RefCell::new(Rc::new(LoadedFont::new(&regular, 18)?)));
+    let f12 = FontSlot::new("DrawFrameSimpl", &regular, 12)?;
+    let f16 = FontSlot::new("DrawFrameSimpl", &regular, 16)?;
+    let f18 = FontSlot::new("DrawFrameSimpl", &regular, 18)?;
     let mut dfs = DrawFrameSimpl::new();
     // initFmHandleCache (:74): fmHandle = FMManager.current() 快照
     dfs.init_preview(fm.current().fmdata.clone().map(Arc::new));
     let handle: DrawFrameSimplHandle = Rc::new(RefCell::new(dfs));
     let render_handle = Rc::clone(&handle);
-    let (r12, r16, r18) = (Rc::clone(&f12), Rc::clone(&f16), Rc::clone(&f18));
+    let (r12, r16, r18) = (f12, f16, f18);
     Ok((
         handle,
-        OverlaySpec {
-            // Java registerWithStrategy("thrustdFS", ...) — LinkedHashMap 键
-            id: "thrustdFS".to_string(),
-            config_key: "thrustdFS".to_string(),
-            width: 900,
-            height: 500,
-            render: Box::new(move |cv: &mut PixCanvas| {
+        // Java registerWithStrategy("thrustdFS", ...) — LinkedHashMap 键
+        keyed_spec(
+            "thrustdFS",
+            900,
+            500,
+            Box::new(move |cv: &mut PixCanvas| {
                 // aa = 运行时仓 (cfg AAEnable 可关)
+                let (n12, n16, n18) = (r12.get(), r16.get(), r18.get());
                 let fonts = DfsFonts {
-                    num12: &r12.borrow(),
-                    text16: &r16.borrow(),
-                    text18: &r18.borrow(),
-                    text12: &r12.borrow(),
+                    num12: &n12,
+                    text16: &n16,
+                    text18: &n18,
+                    text12: &n12,
                 };
                 // PORT(panic 边界): 畸形 FM 短行的索引 panic (Java AIOOBE 由 EDT 吞,
                 // 窗口存活) 不许毒化 host 槽位锁 — catch_unwind 吞帧留空画布
@@ -466,8 +467,8 @@ pub fn draw_frame_simpl_spec(
                     );
                 }
             }),
-            reinit: None,
-        },
+            None,
+        ),
     ))
 }
 

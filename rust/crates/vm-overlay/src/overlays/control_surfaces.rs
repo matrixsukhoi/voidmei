@@ -13,6 +13,7 @@ use std::rc::Rc;
 use crate::render::font::LoadedFont;
 use crate::render::palette::{aa, colors};
 
+use crate::overlays::spec_common::{keyed_spec, FontSlot};
 use crate::platform::host::{OverlaySpec, ReinitFn};
 use crate::platform::reinit::ReinitParams;
 use crate::render::canvas::{LineCapStyle, PixCanvas};
@@ -517,24 +518,18 @@ pub fn control_surfaces_overlay_spec(
     // label = FontName BOLD(round(fontSize/2)), unit = NumFont PLAIN(round(fontSize/2))
     let bold_path = fonts_dir.join("sarasa-mono-sc-bold.ttf");
     let regular_path = fonts_dir.join("sarasa-mono-sc-regular.ttf");
-    let f_num = Rc::new(RefCell::new(Rc::new(LoadedFont::new(&bold_path, cs.font_size)?)));
-    let f_label = Rc::new(RefCell::new(Rc::new(LoadedFont::new(
-        &bold_path,
-        cs.label_font_size,
-    )?)));
-    let f_unit = Rc::new(RefCell::new(Rc::new(LoadedFont::new(
-        &regular_path,
-        cs.label_font_size,
-    )?)));
+    let f_num = FontSlot::new("ControlSurfaces", &bold_path, cs.font_size)?;
+    let f_label = FontSlot::new("ControlSurfaces", &bold_path, cs.label_font_size)?;
+    let f_unit = FontSlot::new("ControlSurfaces", &regular_path, cs.label_font_size)?;
     let (w, h) = (cs.content_width, cs.content_height);
     let handle: ControlSurfacesHandle = Rc::new(RefCell::new(cs));
     let render_handle = Rc::clone(&handle);
-    let (render_num, render_label, render_unit) =
-        (Rc::clone(&f_num), Rc::clone(&f_label), Rc::clone(&f_unit));
-    // reinit 闭包: 几何 + 三字体重建, 返回新内容区尺寸 (Java setBounds 内容面)
+    let (render_num, render_label, render_unit) = (f_num.clone(), f_label.clone(), f_unit.clone());
+    // reinit 闭包: 几何 + 三字体重建, 返回新内容区尺寸 (Java setBounds 内容面)。
+    // 几何先行 (原序保真 — state 已换而字体失败时保持旧三档); 三档字体成组热换,
+    // 任一失败全组保持旧字体且仅首个错误留痕 (原 tuple-match `(r, _)` 语义)
     let reinit_handle = Rc::clone(&handle);
-    let (reinit_num, reinit_label, reinit_unit) =
-        (Rc::clone(&f_num), Rc::clone(&f_label), Rc::clone(&f_unit));
+    let (reinit_num, reinit_label, reinit_unit) = (f_num, f_label, f_unit);
     let reinit_params = Rc::clone(params);
     let (reinit_bold, reinit_regular) = (bold_path, regular_path);
     let reinit: ReinitFn = Box::new(move || {
@@ -547,36 +542,26 @@ pub fn control_surfaces_overlay_spec(
         let (fs, lfs) = (cs.font_size, cs.label_font_size);
         let (w, h) = (cs.content_width, cs.content_height);
         drop(cs);
-        let fonts = match (
-            LoadedFont::new(&reinit_bold, fs),
-            LoadedFont::new(&reinit_bold, lfs),
-            LoadedFont::new(&reinit_regular, lfs),
-        ) {
-            (Ok(n), Ok(l), Ok(u)) => (Rc::new(n), Rc::new(l), Rc::new(u)),
-            (r, _, _) => {
-                if let Err(e) = r {
-                    vm_core::base::logger::error("ControlSurfaces", &format!("reinit 字体重载失败: {}", e));
-                }
-                return None;
-            }
-        };
-        *reinit_num.borrow_mut() = fonts.0;
-        *reinit_label.borrow_mut() = fonts.1;
-        *reinit_unit.borrow_mut() = fonts.2;
+        if !FontSlot::reload_group(&[
+            (&reinit_num, &reinit_bold, fs),
+            (&reinit_label, &reinit_bold, lfs),
+            (&reinit_unit, &reinit_regular, lfs),
+        ]) {
+            return None;
+        }
         Some((w, h))
     });
     Ok((
         handle,
-        OverlaySpec {
-            // Java LinkedHashMap 键 = configKey (Controller.java:680)
-            id: "enableAxis".to_string(),
-            config_key: "enableAxis".to_string(),
-            width: w,
-            height: h,
-            render: Box::new(move |cv: &mut PixCanvas| {
+        // Java LinkedHashMap 键 = configKey (Controller.java:680)
+        keyed_spec(
+            "enableAxis",
+            w,
+            h,
+            Box::new(move |cv: &mut PixCanvas| {
                 // aa = 运行时仓 (cfg AAEnable 可关)
                 let (num, label, unit) =
-                    (render_num.borrow(), render_label.borrow(), render_unit.borrow());
+                    (render_num.get(), render_label.get(), render_unit.get());
                 let fonts = CsFonts {
                     num: &num,
                     label: &label,
@@ -584,7 +569,7 @@ pub fn control_surfaces_overlay_spec(
                 };
                 render_handle.borrow().draw(cv, &fonts, aa());
             }),
-            reinit: Some(reinit),
-        },
+            Some(reinit),
+        ),
     ))
 }

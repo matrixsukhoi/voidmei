@@ -10,6 +10,7 @@ use std::rc::Rc;
 
 use crate::render::palette::{aa, colors};
 use crate::render::font::LoadedFont;
+use crate::overlays::spec_common::{keyed_spec, FontSlot};
 use crate::platform::host::{OverlaySpec, ReinitFn};
 use crate::platform::reinit::ReinitParams;
 use crate::render::canvas::PixCanvas;
@@ -221,21 +222,21 @@ pub fn gear_flaps_overlay_spec(
     let state = GearFlapsState::new(font_add, dpi_scale, show_edge);
     let bold = fonts_dir.join("sarasa-mono-sc-bold.ttf");
     // fontNum = BOLD(fontSize); fontLabel = BOLD(round(fontSize/2.0f)) (reinitConfig)
-    let font_num = Rc::new(RefCell::new(Rc::new(LoadedFont::new(
-        &bold,
-        state.font_size,
-    )?)));
-    let font_label = Rc::new(RefCell::new(Rc::new(LoadedFont::new(
+    let font_num = FontSlot::new("GearFlaps", &bold, state.font_size)?;
+    let font_label = FontSlot::new(
+        "GearFlaps",
         &bold,
         java_round_f32(state.font_size as f32 / 2.0),
-    )?)));
+    )?;
     let (w, h) = (state.total_width, state.total_height);
     let handle: GearFlapsHandle = Rc::new(RefCell::new(state));
     let render_handle = Rc::clone(&handle);
+    let (render_num, render_label) = (font_num.clone(), font_label.clone());
     // reinit 闭包: 几何 + 双字体重建 (Java reinitConfig 同段; flap 50%/warn 清空
-    // 的预览复位语义原样保留)
+    // 的预览复位语义原样保留); 双档字体成组热换 — 任一失败全组保持旧字体且
+    // 仅首个错误留痕 (原 tuple-match `(r, _)` 语义)
     let reinit_handle = Rc::clone(&handle);
-    let (reinit_num, reinit_label) = (Rc::clone(&font_num), Rc::clone(&font_label));
+    let (reinit_num, reinit_label) = (font_num, font_label);
     let reinit_params = Rc::clone(params);
     let reinit_bold = bold;
     let reinit: ReinitFn = Box::new(move || {
@@ -244,37 +245,28 @@ pub fn gear_flaps_overlay_spec(
             (p.font_add_gear, p.dpi_scale, p.gear_show_edge)
         };
         let new_state = GearFlapsState::new(fa, dpi, edge);
-        let (num, label) = match (
-            LoadedFont::new(&reinit_bold, new_state.font_size),
-            LoadedFont::new(&reinit_bold, java_round_f32(new_state.font_size as f32 / 2.0)),
-        ) {
-            (Ok(n), Ok(l)) => (Rc::new(n), Rc::new(l)),
-            (r, _) => {
-                if let Err(e) = r {
-                    vm_core::base::logger::error("GearFlaps", &format!("reinit 字体重载失败: {}", e));
-                }
-                return None;
-            }
-        };
+        if !FontSlot::reload_group(&[
+            (&reinit_num, &reinit_bold, new_state.font_size),
+            (&reinit_label, &reinit_bold, java_round_f32(new_state.font_size as f32 / 2.0)),
+        ]) {
+            return None;
+        }
         let (w, h) = (new_state.total_width, new_state.total_height);
         *reinit_handle.borrow_mut() = new_state;
-        *reinit_num.borrow_mut() = num;
-        *reinit_label.borrow_mut() = label;
         Some((w, h))
     });
     Ok((
         handle,
-        OverlaySpec {
-            id: "enablegearAndFlaps".to_string(),
-            config_key: "enablegearAndFlaps".to_string(),
-            width: w,
-            height: h,
-            render: Box::new(move |cv: &mut PixCanvas| {
+        keyed_spec(
+            "enablegearAndFlaps",
+            w,
+            h,
+            Box::new(move |cv: &mut PixCanvas| {
                 // aa = 运行时仓 (cfg AAEnable 可关 — 同 engine_control 先例)
-                let (num, label) = (font_num.borrow(), font_label.borrow());
+                let (num, label) = (render_num.get(), render_label.get());
                 render_handle.borrow().draw(cv, &num, &label, aa());
             }),
-            reinit: Some(reinit),
-        },
+            Some(reinit),
+        ),
     ))
 }

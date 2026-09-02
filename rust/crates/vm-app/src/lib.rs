@@ -111,7 +111,7 @@ use crate::voice_setup::open_voice_warning;
 #[cfg(test)]
 use crate::win32::{
     feed_overlays_live, register_live_overlays, reset_handles_preview_values, strategy_for,
-    AttitudeFeedState, ChannelFocusBridge, HostActivationCtx, OverlayHandles,
+    AttitudeFeedState, ChannelFocusBridge, HostActivationCtx, OverlayHandles, OverlayRegSetup,
 };
 
 /// 语音播放平台件 (winmm waveOut 每路独立流; 播放模型裁决见该模块头注)

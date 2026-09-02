@@ -47,6 +47,9 @@ pub use fm_unpacked::{
     fm_unpacked_data_overlay_spec, FmUnpackedDataHandle, FmUnpackedDataOverlay, FmUnpackedFeed,
 };
 
+// ---- spec 工厂公共脚手架 (波15: 字体热换槽 + 键控 spec 构造) ----
+pub(crate) mod spec_common;
+
 // Field 系组件域级集成测试 (波10 合并原 field1/2 壳下 tests.rs; 先例 fm::store_tests)
 #[cfg(test)]
 mod fields_tests;

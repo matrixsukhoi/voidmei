@@ -12,6 +12,7 @@ use crate::render::palette::{aa, colors};
 use crate::render::canvas::PixCanvas;
 use crate::render::font::LoadedFont;
 use crate::overlays::bars::LabeledLinearGauge;
+use crate::overlays::spec_common::{keyed_spec, FontSlot};
 use crate::platform::host::{OverlaySpec, ReinitFn};
 use crate::platform::reinit::ReinitParams;
 use crate::overlays::gauges::{GaugeBarStyle, GaugeMarker, MarkedGauge, MarkerType};
@@ -582,14 +583,15 @@ pub fn engine_control_overlay_spec(
     // fontLabel = BOLD(round(fontSize/2.0f)) (loadFontConfig)
     let half = java_round_f32(state.font_size as f32 / 2.0);
     let bold_path = fonts_dir.join("sarasa-mono-sc-bold.ttf");
-    let font_label = Rc::new(RefCell::new(Rc::new(LoadedFont::new(&bold_path, half)?)));
+    let font_label = FontSlot::new("EngineControl", &bold_path, half)?;
     let (w, h) = (state.width, state.height);
     let handle: EngineControlHandle = Rc::new(RefCell::new(state));
     let render_handle = Rc::clone(&handle);
-    let render_font = Rc::clone(&font_label);
+    let render_font = font_label.clone();
     // reinit 闭包: 状态整体重建 (Java initGaugeFields 全量重排) + fontLabel 重载
+    // (字体热换失败 → 日志 + None, state 同步保持旧值)
     let reinit_handle = Rc::clone(&handle);
-    let reinit_font = Rc::clone(&font_label);
+    let reinit_font = font_label;
     let reinit_lang = Rc::clone(&lang);
     let reinit_params = Rc::clone(params);
     let reinit_bold = bold_path;
@@ -600,31 +602,26 @@ pub fn engine_control_overlay_spec(
         };
         let new_state = build_engine_state(&reinit_lang, fa, dpi, &iv.to_string(), &dis);
         let half = java_round_f32(new_state.font_size as f32 / 2.0);
-        let new_font = match LoadedFont::new(&reinit_bold, half) {
-            Ok(f) => Rc::new(f),
-            Err(e) => {
-                vm_core::base::logger::error("EngineControl", &format!("reinit 字体重载失败: {}", e));
-                return None;
-            }
-        };
+        if !reinit_font.reload(&reinit_bold, half) {
+            return None;
+        }
         let (w, h) = (new_state.width, new_state.height);
         *reinit_handle.borrow_mut() = new_state;
-        *reinit_font.borrow_mut() = new_font;
         Some((w, h))
     });
     Ok((
         handle,
-        OverlaySpec {
-            id: "enableEngineControl".to_string(),
-            config_key: "enableEngineControl".to_string(),
-            width: w,
-            height: h,
-            render: Box::new(move |cv: &mut PixCanvas| {
+        keyed_spec(
+            "enableEngineControl",
+            w,
+            h,
+            Box::new(move |cv: &mut PixCanvas| {
                 // aa = 运行时仓 (cfg AAEnable 可关 — 审查轮 1-A 第 7 处钉死点)
-                render_handle.borrow_mut().draw(cv, &render_font.borrow(), aa());
+                let font = render_font.get();
+                render_handle.borrow_mut().draw(cv, &font, aa());
             }),
-            reinit: Some(reinit),
-        },
+            Some(reinit),
+        ),
     ))
 }
 

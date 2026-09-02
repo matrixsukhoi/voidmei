@@ -12,6 +12,7 @@ use std::rc::Rc;
 
 use crate::render::canvas::PixCanvas;
 use crate::render::renderers::{BosStyleRenderer, Field, OverlayRenderer, RenderContext};
+use crate::overlays::spec_common::{keyed_spec, log_font_reload_failed};
 use crate::platform::host::{OverlaySpec, ReinitFn};
 use crate::platform::reinit::ReinitParams;
 use crate::ui_model::DataField;
@@ -212,7 +213,7 @@ pub fn power_info_overlay_spec(
             Err(e) => {
                 // 字体重载失败: 保持旧 ctx (Java 字体族随包分发, 此路径不可达;
                 // 显式留痕不静默)
-                vm_core::base::logger::error("PowerInfo", &format!("reinit 字体重载失败: {}", e));
+                log_font_reload_failed("PowerInfo", &e);
                 return None;
             }
         };
@@ -221,15 +222,14 @@ pub fn power_info_overlay_spec(
     });
     Ok((
         handle,
-        OverlaySpec {
-            id: "engineInfoSwitch".to_string(),
-            config_key: "engineInfoSwitch".to_string(),
-            width: w,
-            height: h,
-            render: Box::new(move |cv: &mut PixCanvas| {
+        keyed_spec(
+            "engineInfoSwitch",
+            w,
+            h,
+            Box::new(move |cv: &mut PixCanvas| {
                 render_handle.borrow().draw(cv, &ctx.borrow(), &mut renderer);
             }),
-            reinit: Some(reinit),
-        },
+            Some(reinit),
+        ),
     ))
 }

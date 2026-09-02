@@ -247,55 +247,15 @@ fn desktop_main(debug: bool) -> i32 {
                 format!("{state:?}"),
             )
         };
-        // StatusBar: 核状态变化 → 前端 controller-state
-        if state_str != last_state {
-            last_state = state_str.clone();
-            // form 此处为 &mut ShellForm (as_mut 解构); 方法调用自动可变降级。
-            // 审查 W4: 静默吞 emit 失败 → 徽标失更新无自愈, 至少留告警面
-            if let Err(e) = form.app_handle().emit("controller-state", state_str) {
-                logger::warn("App", &format!("controller-state 事件发送失败: {e}"));
-            }
-        }
-
-        // W5: 规则触发事件转发 (rule_triggers → 前端 toast; 消费链首段)。
-        // 波4: 帧序号去重 (原 ServiceData 读后清空 drain 语义的帧仓等价物);
-        // 冷却态机已保证触发不刷屏
-        {
-            let triggers: Vec<_> = {
-                let shell = shell.borrow();
-                let live = shell.shared.live.read().expect("live 锁中毒").clone();
-                match live.as_ref().and_then(|frames| frames.latest()) {
-                    Some(f) if f.frame_seq != rule_triggers_seen => {
-                        rule_triggers_seen = f.frame_seq;
-                        f.rule_triggers.clone()
-                    }
-                    _ => Vec::new(),
-                }
-            };
-            for t in &triggers {
-                let (kind, arg) = match &t.action {
-                    vm_core::formula::rules::RuleAction::Toast(msg) => ("toast", msg.clone()),
-                    vm_core::formula::rules::RuleAction::Voice(key) => ("voice", key.clone()),
-                    vm_core::formula::rules::RuleAction::Flag(name) => ("flag", name.clone()),
-                };
-                let payload = serde_json::json!({
-                    "rule": t.rule, "kind": kind, "arg": arg, "at": t.at_ms,
-                });
-                if let Err(e) = form.app_handle().emit("rule-triggered", payload) {
-                    logger::warn("App", &format!("rule-triggered 发送失败: {e}"));
-                }
-            }
-        }
-
-        // W2: 启动期 (sink 安装前) 的 config 弹窗缓存回放 — 等到 web 就绪
-        // (前端 config-dialog 监听已注册, 见 App.tsx 就绪序: 监听注册 → ui_ready)
-        // 再经 sink 补发, 一次即止 (首启模板升级的合并报告由此达用户)
-        if !startup_dialog_replayed && form.is_web_ready() {
-            startup_dialog_replayed = true;
-            if vm_core::config::config_manager::replay_pending_config_dialog() {
-                logger::info("App", "启动期配置弹窗已补发前端 (web 就绪)");
-            }
-        }
+        // web 桥泵: 状态推送 + 规则触发转发 + 启动期弹窗回放 (见函数注)
+        pump_web_bridges(
+            form,
+            &shell,
+            &mut last_state,
+            &mut rule_triggers_seen,
+            &mut startup_dialog_replayed,
+            &state_str,
+        );
 
         if exit {
             break; // EndGame (mCancel IPC, 阶段②接线) / 托盘 Exit
@@ -329,30 +289,16 @@ fn desktop_main(debug: bool) -> i32 {
             }
         }
 
-        let visible = form.is_main_visible();
-        if form_req && !in_game {
-            // 托盘 Activate: 核已由 handle_main_event 重建 (rebuild_controller) —
-            // 表单态随之重建 (与核共享新 config 服务, 对位原相 A 重开窗的重新构造),
-            // show 幂等 (可能已可见) + UI_READY → 新核进 Preview
-            {
-                let s = shell.borrow();
-                *form_cell.borrow_mut() = Some(form_dispatch::build_form_state(&s));
-            }
-            form.show();
-            initial_shown = true;
-            publish_ui_ready(&ui_bus);
-        } else if !visible && !in_game && !initial_shown && form.is_web_ready() {
-            // 首显: 预热就绪即开窗 (对位原"启动即开设置窗")
-            form.show();
-            initial_shown = true;
-            publish_ui_ready(&ui_bus);
-        } else if visible && in_game && !vm_webui::bridge::about_modal_open() {
-            // 开始 (托盘 Start / StartGame; mStart): 收窗, 对位 confirm 的
-            // setVisible(false)。About Modal 展示期豁免 (B1): Java 通知弹窗独立
-            // 于 MainForm 可见性, 游戏中托盘"关于"恒可读 — Modal 关闭回执/超时
-            // 清标记后下一轮恢复收窗
-            form.hide();
-        }
+        // 窗口形态一步: 开窗/收窗决策 (见函数注)
+        window_visibility_step(
+            form,
+            &shell,
+            &form_cell,
+            &ui_bus,
+            form_req,
+            in_game,
+            &mut initial_shown,
+        );
 
         form.pump_once();
         // 泵率: 可见期 10ms (IPC 交互手感 — 滑条/选色实时回执), 隐藏期 50ms
@@ -362,6 +308,112 @@ fn desktop_main(debug: bool) -> i32 {
     }
     shell.borrow_mut().shutdown();
     0
+}
+
+/// web 桥泵 (主循环每迭代的 web 前端转发面, 自 desktop_main 主循环拆出):
+/// - StatusBar 状态推送: 核状态变化 → `controller-state` 事件;
+/// - 规则触发转发: `rule_triggers` → 前端 `rule-triggered` toast (W5 消费链
+///   首段, 帧序号去重 — 波4, 冷却态机已保证不刷屏);
+/// - 启动期 config 弹窗缓存回放 (web 就绪后一次)。
+/// 去重/回放状态经可变参数随循环持有
+fn pump_web_bridges(
+    form: &mut vm_webui::ShellForm,
+    shell: &Rc<RefCell<AppShell>>,
+    last_state: &mut String,
+    rule_triggers_seen: &mut u64,
+    startup_dialog_replayed: &mut bool,
+    state_str: &str,
+) {
+    // StatusBar: 核状态变化 → 前端 controller-state
+    if state_str != last_state {
+        *last_state = state_str.to_string();
+        // 审查 W4: 静默吞 emit 失败 → 徽标失更新无自愈, 至少留告警面
+        if let Err(e) = form.app_handle().emit("controller-state", state_str) {
+            logger::warn("App", &format!("controller-state 事件发送失败: {e}"));
+        }
+    }
+
+    // W5: 规则触发事件转发 (rule_triggers → 前端 toast; 消费链首段)。
+    // 波4: 帧序号去重 (原 ServiceData 读后清空 drain 语义的帧仓等价物);
+    // 冷却态机已保证触发不刷屏
+    {
+        let triggers: Vec<_> = {
+            let shell = shell.borrow();
+            let live = shell.shared.live.read().expect("live 锁中毒").clone();
+            match live.as_ref().and_then(|frames| frames.latest()) {
+                Some(f) if f.frame_seq != *rule_triggers_seen => {
+                    *rule_triggers_seen = f.frame_seq;
+                    f.rule_triggers.clone()
+                }
+                _ => Vec::new(),
+            }
+        };
+        for t in &triggers {
+            let (kind, arg) = match &t.action {
+                vm_core::formula::rules::RuleAction::Toast(msg) => ("toast", msg.clone()),
+                vm_core::formula::rules::RuleAction::Voice(key) => ("voice", key.clone()),
+                vm_core::formula::rules::RuleAction::Flag(name) => ("flag", name.clone()),
+            };
+            let payload = serde_json::json!({
+                "rule": t.rule, "kind": kind, "arg": arg, "at": t.at_ms,
+            });
+            if let Err(e) = form.app_handle().emit("rule-triggered", payload) {
+                logger::warn("App", &format!("rule-triggered 发送失败: {e}"));
+            }
+        }
+    }
+
+    // W2: 启动期 (sink 安装前) 的 config 弹窗缓存回放 — 等到 web 就绪
+    // (前端 config-dialog 监听已注册, 见 App.tsx 就绪序: 监听注册 → ui_ready)
+    // 再经 sink 补发, 一次即止 (首启模板升级的合并报告由此达用户)
+    if !*startup_dialog_replayed && form.is_web_ready() {
+        *startup_dialog_replayed = true;
+        if vm_core::config::config_manager::replay_pending_config_dialog() {
+            logger::info("App", "启动期配置弹窗已补发前端 (web 就绪)");
+        }
+    }
+}
+
+/// 窗口形态一步 (主循环的开窗/收窗决策, 自 desktop_main 主循环拆出):
+/// - 托盘 Activate (`form_req`): 表单态随核重建 + show + UI_READY → 新核进
+///   Preview (show 幂等);
+/// - 首显: 预热就绪即开窗 (对位原"启动即开设置窗");
+/// - 进游戏收窗: 对位 Java confirm 的 setVisible(false), About Modal 展示期
+///   豁免 (B1 — 见调用点下方注释)。
+/// `initial_shown` 经可变参数随循环持有
+fn window_visibility_step(
+    form: &mut vm_webui::ShellForm,
+    shell: &Rc<RefCell<AppShell>>,
+    form_cell: &form_dispatch::FormCell,
+    ui_bus: &Arc<UIStateBus>,
+    form_req: bool,
+    in_game: bool,
+    initial_shown: &mut bool,
+) {
+    let visible = form.is_main_visible();
+    if form_req && !in_game {
+        // 托盘 Activate: 核已由 handle_main_event 重建 (rebuild_controller) —
+        // 表单态随之重建 (与核共享新 config 服务, 对位原相 A 重开窗的重新构造),
+        // show 幂等 (可能已可见) + UI_READY → 新核进 Preview
+        {
+            let s = shell.borrow();
+            *form_cell.borrow_mut() = Some(form_dispatch::build_form_state(&s));
+        }
+        form.show();
+        *initial_shown = true;
+        publish_ui_ready(ui_bus);
+    } else if !visible && !in_game && !*initial_shown && form.is_web_ready() {
+        // 首显: 预热就绪即开窗 (对位原"启动即开设置窗")
+        form.show();
+        *initial_shown = true;
+        publish_ui_ready(ui_bus);
+    } else if visible && in_game && !vm_webui::bridge::about_modal_open() {
+        // 开始 (托盘 Start / StartGame; mStart): 收窗, 对位 confirm 的
+        // setVisible(false)。About Modal 展示期豁免 (B1): Java 通知弹窗独立
+        // 于 MainForm 可见性, 游戏中托盘"关于"恒可读 — Modal 关闭回执/超时
+        // 清标记后下一轮恢复收窗
+        form.hide();
+    }
 }
 
 /// UI_READY 发布 (Java MainForm 首显 → uiReadyHandler → Preview 的触发面)

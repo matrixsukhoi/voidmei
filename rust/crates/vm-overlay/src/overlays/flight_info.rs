@@ -26,6 +26,7 @@ use vm_core::formula::registry::FormulaView;
 use vm_core::ui_support::row_def::RowDef;
 
 use crate::render::font::Canvas;
+use crate::overlays::spec_common::keyed_spec;
 use crate::platform::host::{OverlaySpec, ReinitFn};
 use crate::platform::reinit::ReinitParams;
 use crate::render::palette::{aa, colors};
@@ -187,12 +188,11 @@ pub fn flight_info_overlay_spec(
     });
     Ok((
         handle,
-        OverlaySpec {
-            id: "flightInfoSwitch".to_string(),
-            config_key: "flightInfoSwitch".to_string(),
-            width: w,
-            height: h,
-            render: Box::new(move |cv: &mut PixCanvas| {
+        keyed_spec(
+            "flightInfoSwitch",
+            w,
+            h,
+            Box::new(move |cv: &mut PixCanvas| {
                 let mut st = render_handle.borrow_mut();
                 // 借用拆分: rows 只读 / canvas 可变 (同结构不相交字段)
                 let FlightInfoState { defs: _, rows, canvas, ctx, fonts } = &mut *st;
@@ -216,8 +216,8 @@ pub fn flight_info_overlay_spec(
                     vm_core::base::logger::warn("FlightInfo", "整帧桥尺寸不符, 本帧丢弃");
                 }
             }),
-            reinit: Some(reinit),
-        },
+            Some(reinit),
+        ),
     ))
 }
 

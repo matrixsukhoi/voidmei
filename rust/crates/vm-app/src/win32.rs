@@ -11,17 +11,17 @@ use std::time::{Duration, Instant};
 use vm_core::activation::strategy::{ActivationContext, ActivationStrategy};
 use vm_core::base::bus::Subscription;
 use vm_core::base::java_compat::{current_time_millis, java_parse_boolean};
-use vm_core::config::config_api::ConfigProvider;
+use vm_core::config::config_api::{ConfigProvider, HudSettingsSnapshot};
 use vm_core::base::event::event_payload::EventPayload;
 use vm_core::base::event::flight_data_event::FlightDataEvent;
 use vm_core::base::event::ui_state_events;
 use vm_core::base::bus::flight_data_bus::FlightDataBus;
-use vm_core::fm::FMManager;
+use vm_core::fm::{FMHandle, FMManager};
 use vm_core::formula::registry::FormulaView as _; // var_value 取数唯一接口 (W10 后 TelemetrySource 已删)
 use vm_core::derived::hud_calculator::HudColors;
 use vm_core::lang::Lang;
 use vm_core::base::logger;
-use vm_core::base::bus::ui_state_bus::UIStateBus;
+use vm_core::base::bus::ui_state_bus::{UiStateEvent, UIStateBus};
 use vm_core::audio::voice_resource_manager::VoiceResourceManager;
 
 use vm_overlay::platform::host::OverlayHost;
@@ -29,7 +29,7 @@ use vm_overlay::platform::hotkey::HotkeyEvent;
 use vm_overlay::{
     attitude_overlay_spec, control_surfaces_overlay_spec, draw_frame_simpl_spec,
     engine_control_overlay_spec, flight_info_overlay_spec, fm_unpacked_data_overlay_spec,
-    gear_flaps_overlay_spec, minihud_overlay_spec, power_info_overlay_spec,
+    gear_flaps_overlay_spec, minihud_overlay_spec, power_info_overlay_spec, OverlaySpec,
     AttitudeOverlayHandle, ControlSurfacesHandle, DfsFlight, DrawFrameSimplFeed,
     DrawFrameSimplHandle, EngineControlHandle, FlightInfoHandle, FmUnpackedDataHandle,
     FmUnpackedFeed, GearFlapsHandle, MiniHudHandle, PowerInfoHandle,
@@ -246,141 +246,163 @@ impl vm_overlay::platform::host::PositionStore for ChannelPositionStore {
 ///   - enableVoiceWarn: VoiceWarning 为线程形态非窗口 — 装配在 OpenAllOverlays/
 ///     CloseAllOverlays 命令处理点 ([`open_voice_warning`]/VoiceWarnSession,
 ///     激活探测与窗口条目同源), 不走 host 注册面
-#[allow(clippy::too_many_arguments)] // 组装面参数包 (host/handles/env/inputs/仓/lang/
-                                     // shared/fm/fm_config) — 对位 Java registerGameModeOverlays 的 this 域
+///
+/// 9 段同构样板 (工厂 → 落键/落槽/注册 / Err 日志) 经 [`register_one`] 收敛,
+/// 句柄 Option 返回值直接落 [`OverlayHandles`] 槽位。
 pub(crate) fn register_live_overlays(
     host: &mut OverlayHost,
     handles: &mut OverlayHandles,
-    env: &Env,
-    inputs: &OverlayInputs,
-    // WYSIWYG reinit 参数仓 (CONFIG_CHANGED 后 ReinitOverlays 命令覆写;
-    // 各 spec 工厂 reinit 闭包持引用读取 — 见 vm-overlay reinit.rs 头注)
-    params: &Rc<RefCell<vm_overlay::ReinitParams>>,
-    lang: &Rc<Lang>,
-    shared: &ControllerShared,
-    // FM拆包数据: reinit 闭包的 blkx 直读源 (Java FMManager.getInstance())
-    fm: &Arc<FMManager>,
-    // FM show* 配置键快照 (generate_lines 逐 tick 读面, 配置 !Send 的跨线程桥)
-    fm_field_config: &Arc<Mutex<HashMap<String, String>>>,
+    setup: &OverlayRegSetup,
 ) {
+    let OverlayRegSetup {
+        env,
+        inputs,
+        params,
+        lang,
+        shared,
+        fm,
+        fm_field_config,
+    } = setup;
     let fonts = &env.fonts_dir;
     // 引擎控制 (Java:654-659, 键 enableEngineControl); dataPollIntervalMs 经
     // loadRefreshInterval ×2 → refreshInterval (preview 工厂传不了此参恒默认 100)
-    match engine_control_overlay_spec(fonts, Rc::clone(lang), params) {
-        Ok((h, spec)) => {
-            shared.note_registered_overlay(&spec.id);
-            handles.engine_control = Some(h);
-            host.register(spec)
-                .with_interest(&["disableEngineInfo", "fontSize"]);
-        }
-        Err(e) => logger::error("Controller", &format!("引擎控制 overlay 注册失败: {}", e)),
-    }
+    handles.engine_control = register_one(
+        host,
+        shared,
+        "引擎控制",
+        &["disableEngineInfo", "fontSize"],
+        || engine_control_overlay_spec(fonts, Rc::clone(lang), params),
+    );
     // 动力信息 (Java:662-667, 键 engineInfoSwitch)
-    match power_info_overlay_spec(fonts, params) {
-        Ok((h, spec)) => {
-            shared.note_registered_overlay(&spec.id);
-            handles.power_info = Some(h);
-            host.register(spec)
-                .with_interest(&["fontName", "fontSize", "hudColumns", "S."]);
-        }
-        Err(e) => logger::error("Controller", &format!("动力信息 overlay 注册失败: {}", e)),
-    }
+    handles.power_info = register_one(
+        host,
+        shared,
+        "动力信息",
+        &["fontName", "fontSize", "hudColumns", "S."],
+        || power_info_overlay_spec(fonts, params),
+    );
     // MiniHUD (Java:671-679, 键 crosshairSwitch; HUDSettings 经快照)
     // PORT: service_present=false (注册时 Service 尚未建; 该标志影响 preview 行为集,
     // live 重接线批次随 spec 工厂参数化回收)
-    match minihud_overlay_spec(
-        false,
-        inputs.service_loop_interval_ms,
-        &inputs.hud,
-        inputs.dpi_scale,
-        &fonts.join("sarasa-mono-sc-bold.ttf"),
-        params,
-    ) {
-        Ok((h, spec)) => {
-            shared.note_registered_overlay(&spec.id);
-            handles.minihud = Some(h);
-            host.register(spec).with_interest(&MINIHUD_INTEREST_KEYS);
-        }
-        Err(e) => logger::error("Controller", &format!("MiniHUD overlay 注册失败: {}", e)),
-    }
+    handles.minihud = register_one(host, shared, "MiniHUD", &MINIHUD_INTEREST_KEYS, || {
+        minihud_overlay_spec(
+            false,
+            inputs.service_loop_interval_ms,
+            &inputs.hud,
+            inputs.dpi_scale,
+            &fonts.join("sarasa-mono-sc-bold.ttf"),
+            params,
+        )
+    });
     // 飞行信息 (Java:683-686, 键 flightInfoSwitch) — POC window.rs 专径收编
     // (渲染栈复用 fields/layout/render 对拍三件套, 见 vm-overlay flight_info.rs)
-    match flight_info_overlay_spec(fonts, params) {
-        Ok((h, spec)) => {
-            shared.note_registered_overlay(&spec.id);
-            handles.flight_info = Some(h);
-            host.register(spec)
-                .with_interest(&["flightInfo", "fontSize", "disableFlightInfo"]);
-        }
-        Err(e) => logger::error("Controller", &format!("飞行信息 overlay 注册失败: {}", e)),
-    }
+    handles.flight_info = register_one(
+        host,
+        shared,
+        "飞行信息",
+        &["flightInfo", "fontSize", "disableFlightInfo"],
+        || flight_info_overlay_spec(fonts, params),
+    );
     // 起落襟翼 (Java:709-714, 键 enablegearAndFlaps)
-    match gear_flaps_overlay_spec(fonts, params) {
-        Ok((h, spec)) => {
-            shared.note_registered_overlay(&spec.id);
-            handles.gear_flaps = Some(h);
-            host.register(spec)
-                .with_interest(&["enablegearAndFlapsEdge", "fontSize"]);
-        }
-        Err(e) => logger::error("Controller", &format!("起落襟翼 overlay 注册失败: {}", e)),
-    }
+    handles.gear_flaps = register_one(
+        host,
+        shared,
+        "起落襟翼",
+        &["enablegearAndFlapsEdge", "fontSize"],
+        || gear_flaps_overlay_spec(fonts, params),
+    );
     // 操纵面 (Java:680-687, 键 enableAxis) — 本批补齐 (批十四 A-W5 备案收口)
-    match control_surfaces_overlay_spec(fonts, params) {
-        Ok((h, spec)) => {
-            shared.note_registered_overlay(&spec.id);
-            handles.control_surfaces = Some(h);
-            host.register(spec)
-                .with_interest(&["enableAxisEdge", "fontSize"]);
-        }
-        Err(e) => logger::error("Controller", &format!("操纵面 overlay 注册失败: {}", e)),
-    }
+    handles.control_surfaces = register_one(
+        host,
+        shared,
+        "操纵面",
+        &["enableAxisEdge", "fontSize"],
+        || control_surfaces_overlay_spec(fonts, params),
+    );
     // 地平仪 (Java:690-697, 键 enableAttitudeIndicator) — 本批补齐 (同上)
-    match attitude_overlay_spec(params) {
-        Ok((h, spec)) => {
-            shared.note_registered_overlay(&spec.id);
-            handles.attitude = Some(h);
-            host.register(spec)
-                .with_interest(&["attitudeIndicator", "enableAttitudeIndicator"]);
-        }
-        Err(e) => logger::error("Controller", &format!("地平仪 overlay 注册失败: {}", e)),
-    }
+    handles.attitude = register_one(
+        host,
+        shared,
+        "地平仪",
+        &["attitudeIndicator", "enableAttitudeIndicator"],
+        || attitude_overlay_spec(params),
+    );
     // FM拆包数据 (Java:726-743, 键 enableFMPrint, previewEnabled=true) — 本批补齐
     // (P5 组装契约三点销号; 事件面/tick 泵在 win32 循环驱动, 见 win32_thread_main)
-    match fm_unpacked_data_overlay_spec(
-        fonts,
-        env.dpi.get_logical_screen_height(),
-        params,
-        // 原 FmFieldConfigSnapshot (FM show* 快照) — SnapshotConfigProvider 三合一
-        Some(Arc::new(SnapshotConfigProvider::new(Arc::clone(fm_field_config)))
-            as Arc<dyn ConfigProvider>),
-        fm,
-    ) {
-        Ok((h, spec)) => {
-            shared.note_registered_overlay(&spec.id);
-            handles.fm_unpacked = Some(h);
-            host.register(spec).with_interest(&FM_UNPACKED_INTEREST_KEYS);
-        }
-        Err(e) => logger::error("Controller", &format!("FM拆包数据 overlay 注册失败: {}", e)),
-    }
+    handles.fm_unpacked = register_one(
+        host,
+        shared,
+        "FM拆包数据",
+        &FM_UNPACKED_INTEREST_KEYS,
+        || {
+            fm_unpacked_data_overlay_spec(
+                fonts,
+                env.dpi.get_logical_screen_height(),
+                params,
+                // 原 FmFieldConfigSnapshot (FM show* 快照) — SnapshotConfigProvider 三合一
+                Some(Arc::new(SnapshotConfigProvider::new(Arc::clone(fm_field_config)))
+                    as Arc<dyn ConfigProvider>),
+                fm,
+            )
+        },
+    );
     // 推力曲线 (Java:745-752 registerWithStrategy("thrustdFS"), 键 =
     // enableFMPrint && jetOnly, previewEnabled=true/needsThread) — 本批补齐
-    // (D8 降级清单 P6 尾巴收口; 事件面/run 泵在 win32 循环驱动)
-    match draw_frame_simpl_spec(fonts, fm) {
+    // (D8 降级清单 P6 尾巴收口; 事件面/run 泵在 win32 循环驱动)。
+    // 无 with_interest 追加键 (键集为空, Java 同); 固定几何在注册成功后落
+    handles.draw_frame_simpl =
+        register_one(host, shared, "推力曲线", &[], || draw_frame_simpl_spec(fonts, fm));
+    // Java init/initPreview 的 setBounds(0, screenH-500, 900, 500) — 每次
+    // 实例化固定几何 (thrustdFSX/Y 只写不读, 不参与定位)。
+    // PORT: Java Toolkit.getScreenSize() 在生产 JVM 标志 -Dsun.java2d.
+    // uiScale=1 下与 DPIHelper 逻辑高同值 (恒等), 取逻辑高
+    if handles.draw_frame_simpl.is_some() {
+        host.set_entry_fixed_pos(
+            "thrustdFS",
+            0,
+            env.dpi.get_logical_screen_height() - 500,
+        );
+    }
+}
+
+/// [`register_live_overlays`] 的装配上下文 (原 9 参收敛的参数包, 对位 Java
+/// registerGameModeOverlays 的 this 域; host/handles 为可变目标不入包)
+pub(crate) struct OverlayRegSetup<'a> {
+    pub(crate) env: &'a Env,
+    pub(crate) inputs: &'a OverlayInputs,
+    /// WYSIWYG reinit 参数仓 (CONFIG_CHANGED 后 ReinitOverlays 命令覆写;
+    /// 各 spec 工厂 reinit 闭包持引用读取 — 见 vm-overlay reinit.rs 头注)
+    pub(crate) params: &'a Rc<RefCell<vm_overlay::ReinitParams>>,
+    pub(crate) lang: &'a Rc<Lang>,
+    pub(crate) shared: &'a ControllerShared,
+    /// FM拆包数据: reinit 闭包的 blkx 直读源 (Java FMManager.getInstance())
+    pub(crate) fm: &'a Arc<FMManager>,
+    /// FM show* 配置键快照 (generate_lines 逐 tick 读面, 配置 !Send 的跨线程桥)
+    pub(crate) fm_field_config: &'a Arc<Mutex<HashMap<String, String>>>,
+}
+
+/// 单条窗口 overlay 的注册样板收敛 (原 9 段同构 match 的公共面):
+/// spec 工厂 → Ok: [`ControllerShared::note_registered_overlay`] 落键 +
+/// `host.register(spec).with_interest(keys)` / Err: error 日志。
+/// 返回句柄 Option (None = 工厂失败, 喂入跳过 — 见 [`OverlayHandles`] 头注),
+/// 调用点直接落对应槽位; `keys` 空集 = 无追加键 (对位不调 with_interest)
+fn register_one<H>(
+    host: &mut OverlayHost,
+    shared: &ControllerShared,
+    label: &str,
+    keys: &[&str],
+    factory: impl FnOnce() -> Result<(H, OverlaySpec), String>,
+) -> Option<H> {
+    match factory() {
         Ok((h, spec)) => {
             shared.note_registered_overlay(&spec.id);
-            handles.draw_frame_simpl = Some(h);
-            host.register(spec);
-            // Java init/initPreview 的 setBounds(0, screenH-500, 900, 500) — 每次
-            // 实例化固定几何 (thrustdFSX/Y 只写不读, 不参与定位)。
-            // PORT: Java Toolkit.getScreenSize() 在生产 JVM 标志 -Dsun.java2d.
-            // uiScale=1 下与 DPIHelper 逻辑高同值 (恒等), 取逻辑高
-            host.set_entry_fixed_pos(
-                "thrustdFS",
-                0,
-                env.dpi.get_logical_screen_height() - 500,
-            );
+            host.register(spec).with_interest(keys);
+            Some(h)
         }
-        Err(e) => logger::error("Controller", &format!("推力曲线 overlay 注册失败: {}", e)),
+        Err(e) => {
+            logger::error("Controller", &format!("{} overlay 注册失败: {}", label, e));
+            None
+        }
     }
 }
 
@@ -458,7 +480,7 @@ pub(crate) fn feed_overlays_live(
     payload: &EventPayload,
     shared: &ControllerShared,
     fm: &FMManager,
-    settings: &vm_core::config::config_api::HudSettingsSnapshot,
+    settings: &HudSettingsSnapshot,
     lang: &Lang,
     attitude_feed: &mut AttitudeFeedState,
 ) {
@@ -577,160 +599,34 @@ pub(crate) fn feed_overlays_live(
 /// hotkey_rx 中转后 publish ui_bus) — DrawFrameSimpl/FMUnpacked 的订阅消费
 /// (渲染节拍块) 已按此拓扑接线, 后续 DrawFrame (P6 批三) 照此办理。
 pub fn win32_thread_main(cfg: Win32ThreadConfig) {
-    let Win32ThreadConfig {
-        env,
-        inputs,
-        ui_bus,
-        flight_bus,
-        fm,
-        shared,
-        activation,
-        voice,
-        voice_config,
-        fm_field_config,
-        ui_cmd_rx,
-        hotkey_rx,
-        main_event_tx,
-        position_snapshot,
-    } = cfg;
-
-    // 全局五色注入 (Java Application.colorNum 族静态的运行时值; cfg 经
-    // loadFromConfig 覆盖, 此前组件用编译期 Java 初始默认 — 人工验收发现的
-    // 颜色不一致根源)。须先于任何组件渲染
-    vm_overlay::render::palette::set(inputs.colors);
-    vm_overlay::render::palette::set_aa(inputs.aa);
-
-    // ---- host 构建 + 激活探测 (Java new OverlayManager + ActivationStrategy) ----
-    let mut host = OverlayHost::new();
-    // 位置存档后端 (Java overlay 的 OverlaySettings 位置面; 快照读 + 回传写)
-    host.with_position_store(Box::new(ChannelPositionStore {
-        snapshot: position_snapshot,
-        tx: main_event_tx.clone(),
-    }));
-    let ctx = HostActivationCtx {
-        activation: Arc::clone(&activation),
-        fm: Arc::clone(&fm),
-        shared: Arc::clone(&shared),
-        debug: env.debug,
-    };
-    host.with_activation(Box::new(move |key: &str| {
-        strategy_for(key).should_activate(&ctx)
-    }));
-    let mut handles = OverlayHandles {
-        minihud: None,
-        power_info: None,
-        engine_control: None,
-        gear_flaps: None,
-        attitude: None,
-        control_surfaces: None,
-        flight_info: None,
-        fm_unpacked: None,
-        draw_frame_simpl: None,
-    };
-    // Lang 一次构造 (GearFlaps update_tick 的标签源; 注册面与喂入共用)。
-    // Rc 共享: engine 工厂的 reinit 闭包重建 state 需要标签源 (Lang !Clone)
-    let lang = Rc::new(Lang::init_lang());
-    // WYSIWYG reinit 参数仓 (初始 = 注册快照投影; CONFIG_CHANGED 后
-    // UiCommand::ReinitOverlays 覆写, 各 spec 工厂 reinit 闭包读取)
-    let params = Rc::new(RefCell::new(vm_overlay::ReinitParams::from(&inputs)));
-    register_live_overlays(
-        &mut host,
-        &mut handles,
-        &env,
-        &inputs,
-        &params,
-        &lang,
-        &shared,
-        &fm,
-        &fm_field_config,
-    );
-    // live 喂入用设置快照 (注册面同源; ReinitOverlays 命令同步覆写 — MiniHUD
-    // on_flight_data 的 settings 参数不再冻结在 spawn 时刻)
-    let mut hud_settings = inputs.hud;
-    // 地平仪 40ms 喂入节流 (freqMili 配置快照; last_ms=0 = 首帧放行;
-    // ReinitOverlays 命令同步刷新 freq_ms)
-    let mut attitude_feed = AttitudeFeedState {
-        freq_ms: inputs.attitude_freq_ms,
-        last_ms: 0,
-    };
-
-    // ---- 托盘 (Java initSystemTray: 失败继续运行, Application.java:217-280) ----
-    #[cfg(target_os = "windows")]
-    let mut tray = {
-        let handler = AppTrayHandler {
-            tx: main_event_tx,
-        };
-        let tray_cfg = TrayConfig {
-            icon_path: env.icon_path.clone(),
-            ..Default::default()
-        };
-        match TrayIcon::new(Box::new(handler), tray_cfg) {
-            Ok(t) => Some(t),
-            Err(e) => {
-                logger::warn("系统托盘", &format!("托盘创建失败, 程序继续运行: {}", e));
-                None
-            }
-        }
-    };
-    #[cfg(not(target_os = "windows"))]
-    let _ = main_event_tx; // 非 Windows 无托盘 (x11 波次)
-
-    // ---- live 数据转发订阅 (Java: overlay init 时 FlightDataBus.register; Rust 由
-    // 命令驱动建/撤 — OpenAll 建立, CloseAll 撤销, 对位 overlay 订阅生命周期) ----
-    let mut flight_sub: Option<Subscription<FlightDataEvent>> = None;
-    let (flight_tx, flight_rx) = std::sync::mpsc::channel::<EventPayload>();
-    // VoiceWarning 会话槽 (非窗口 overlay 条目: Java registerWithStrategy 的
-    // needsThread 形态 — openAll 建/closeAll 停; 激活策略与窗口条目同源探测)
-    let mut voice_warn: Option<VoiceWarnSession> = None;
-
-    // ---- FMUnpackedData 事件订阅 (Java FMUnpackedDataOverlay.init 的两处
-    // UIStateBus.subscribe: FM_OVERLAY_TOGGLE 翻转 / FM_CHANGED reload;
-    // overlays_field2.rs 头注契约 "由组装层的事件循环驱动" — 句柄 !Send (Rc),
-    // 经 channel 中转到本循环消费; 订阅句柄随线程 Drop = Java dispose 退订链) ----
-    let (fm_toggle_tx, fm_toggle_rx) = std::sync::mpsc::channel::<()>();
-    let _fm_toggle_sub = ui_bus.subscribe(ui_state_events::FM_OVERLAY_TOGGLE, move |_ev| {
-        let _ = fm_toggle_tx.send(());
-    });
-    // FM_CHANGED 载荷 = FMHandle (fm_manager 强类型总线, Java instanceof 过滤由
-    // 类型免除)。blkx 深拷一次进通道 (FMHandle.blkx 值字段 → 句柄侧 Arc<Blkx>;
-    // 换机事件低频, 成本可忽略)
-    let (fm_data_tx, fm_data_rx) = std::sync::mpsc::channel::<Option<vm_core::fm::data::FmData>>();
-    let _fm_changed_sub = fm.fm_changed_bus().subscribe(move |h| {
-        let _ = fm_data_tx.send(h.fmdata.clone());
-    });
-    // FMUnpackedData 的 run() 轮询泵 (Java BaseOverlay.run 线程的单线程驱动侧,
-    // 200ms 节流 + 可见门控 + 高度自适应, 见 FmUnpackedFeed 头注)
-    let mut fm_unpacked_feed = FmUnpackedFeed::new();
-    // DrawFrameSimpl 的 run() 循环泵 (Java :737-767: 1000ms 节流 + 自管可见性 +
-    // displayFmKey==0 收腿 10s 退场, 见 DrawFrameSimplFeed 头注)
-    let mut dfs_feed = DrawFrameSimplFeed::new();
-
+    let mut session = Win32Session::new(cfg);
     let mut last_render = Instant::now();
     loop {
         // 托盘消息泵 (创建线程亲和, tray.rs 头注)
         #[cfg(target_os = "windows")]
         {
-            if let Some(t) = tray.as_mut() {
+            if let Some(t) = session.tray.as_mut() {
                 t.pump();
             }
         }
-        host.pump_events();
+        session.host.pump_events();
         // 渲染节拍 50ms (Java FieldOverlay.onFlightData 50ms 节流, host.run 同款)
         if last_render.elapsed() >= Duration::from_millis(50) {
             last_render = Instant::now();
-            let tick_active = match host.render_tick() {
+            let tick_active = match session.host.render_tick() {
                 Err(e) => {
                     logger::error("OverlayHost", &format!("render_tick: {}", e));
                     Vec::new()
                 }
-                Ok(()) => host.active_ids(),
+                Ok(()) => session.host.active_ids(),
             };
             if !tick_active.is_empty() {
                 // present 帧数代理计数 (见 ControllerShared.render_frames 注)
-                shared.render_frames.fetch_add(1, Ordering::SeqCst);
+                session.shared.render_frames.fetch_add(1, Ordering::SeqCst);
                 // 逐窗计数 (见 ControllerShared.overlay_present 注): 注册面 0 落键,
                 // 此处在场即 +1 — 从未激活的注册项保留 0, 冒烟断言可判
-                let mut counts = shared
+                let mut counts = session
+                    .shared
                     .overlay_present
                     .lock()
                     .expect("overlay_present 锁中毒");
@@ -739,15 +635,15 @@ pub fn win32_thread_main(cfg: Win32ThreadConfig) {
                 }
             }
             // live 数据喂入 (只留最新帧; preview 期整帧跳过 — feed_overlays_live 门控)
-            if let Some(payload) = drain_latest(&flight_rx) {
+            if let Some(payload) = drain_latest(&session.flight_rx) {
                 feed_overlays_live(
-                    &handles,
+                    &session.handles,
                     &payload,
-                    &shared,
-                    &fm,
-                    &hud_settings,
-                    &lang,
-                    &mut attitude_feed,
+                    &session.shared,
+                    &session.fm,
+                    &session.hud_settings,
+                    &session.lang,
+                    &mut session.attitude_feed,
                 );
             }
             // FMUnpackedData 事件面 + run 泵 (Java: 游戏实例订阅 toggle/FM_CHANGED —
@@ -755,22 +651,22 @@ pub fn win32_thread_main(cfg: Win32ThreadConfig) {
             // 均在跑 (OverlayManager.refreshPreview :326-331, 审查 B2-2 修正 — 原
             // "预览实例无 run 线程" 为假前提), 泵不再门控, 仅条目未激活 (Java 无
             // 实例 = host 槽位空) 时跳过。事件恒排空防积压跨会话误触发)
-            let fm_live = !shared.overlay_ctx_preview.load(Ordering::SeqCst);
-            while fm_toggle_rx.try_recv().is_ok() {
+            let fm_live = !session.shared.overlay_ctx_preview.load(Ordering::SeqCst);
+            while session.fm_toggle_rx.try_recv().is_ok() {
                 if fm_live {
-                    if let Some(h) = handles.fm_unpacked.as_ref() {
+                    if let Some(h) = session.handles.fm_unpacked.as_ref() {
                         h.borrow_mut().toggle(); // FM_OVERLAY_TOGGLE handler (:72-75)
                     }
                     // DrawFrameSimpl toggle handler (Java :526-529, 仅游戏 init 挂接 —
                     // Java 双订阅方之二)
-                    if let Some(h) = handles.draw_frame_simpl.as_ref() {
+                    if let Some(h) = session.handles.draw_frame_simpl.as_ref() {
                         h.borrow_mut().toggle();
                     }
                 }
             }
-            while let Ok(fmdata) = fm_data_rx.try_recv() {
+            while let Ok(fmdata) = session.fm_data_rx.try_recv() {
                 if fm_live {
-                    if let Some(h) = handles.fm_unpacked.as_ref() {
+                    if let Some(h) = session.handles.fm_unpacked.as_ref() {
                         // FM_CHANGED handler reloadFMData (:130-136)
                         h.borrow_mut().reload_fm_data(fmdata.clone().map(Arc::new));
                     }
@@ -778,27 +674,31 @@ pub fn win32_thread_main(cfg: Win32ThreadConfig) {
                 // DrawFrameSimpl 的 FM_CHANGED (Java initFmHandleCache :79-88 被
                 // init 与 initPreview 共用) — 两会话均刷新缓存 (预览实例同样订阅,
                 // repaint 由渲染节拍脏检查承接)
-                if let Some(h) = handles.draw_frame_simpl.as_ref() {
+                if let Some(h) = session.handles.draw_frame_simpl.as_ref() {
                     h.borrow_mut().reload_fm(fmdata.map(Arc::new));
                 }
             }
-            if host.is_active("enableFMPrint") {
-                if let Some(h) = handles.fm_unpacked.as_ref() {
-                    fm_unpacked_feed.pump(&mut host, "enableFMPrint", h, current_time_millis());
+            if session.host.is_active("enableFMPrint") {
+                if let Some(h) = session.handles.fm_unpacked.as_ref() {
+                    session
+                        .fm_unpacked_feed
+                        .pump(&mut session.host, "enableFMPrint", h, current_time_millis());
                 }
             }
             // DrawFrameSimpl run 泵: displayFmKey = Application.displayFmKey 的
             // ControllerShared.flags 对位 (bind/handleFmHotkeyConfigChange 同步);
             // flight = live Service 快照 (None = 预览无 Service — Java NPE 杀线程
             // 的对位为冻结判定, 见 pump 头注)
-            if host.is_active("thrustdFS") {
-                if let Some(h) = handles.draw_frame_simpl.as_ref() {
-                    let display_fm_key = shared
+            if session.host.is_active("thrustdFS") {
+                if let Some(h) = session.handles.draw_frame_simpl.as_ref() {
+                    let display_fm_key = session
+                        .shared
                         .flags
                         .lock()
                         .expect("flags 锁中毒")
                         .current_fm_hotkey_code;
-                    let flight = shared
+                    let flight = session
+                        .shared
                         .live
                         .read()
                         .expect("live 锁中毒")
@@ -813,8 +713,8 @@ pub fn win32_thread_main(cfg: Win32ThreadConfig) {
                                 throttle: f.s_state.as_ref().map(|s| s.throttle).unwrap_or(0),
                             }
                         });
-                    dfs_feed.pump(
-                        &mut host,
+                    session.dfs_feed.pump(
+                        &mut session.host,
                         "thrustdFS",
                         h,
                         current_time_millis(),
@@ -824,180 +724,21 @@ pub fn win32_thread_main(cfg: Win32ThreadConfig) {
                 }
             }
         }
-        // UI 命令 (生命周期/WYSIWYG 的 win32 属主面)
-        while let Ok(cmd) = ui_cmd_rx.try_recv() {
+        // UI 命令 (生命周期/WYSIWYG 的 win32 属主面; 重分支见 Win32Session::on_*)
+        while let Ok(cmd) = session.ui_cmd_rx.try_recv() {
             match cmd {
-                UiCommand::OpenAllOverlays => {
-                    // Java openpad → openAll; live 订阅随建 (overlay 订阅生命周期)。
-                    // P6 收口 (原审查 B-W3): live 喂入已覆盖全部 6 个窗口 overlay
-                    // (feed_overlays_live — MiniHUD/PowerInfo/EngineControl/GearFlaps/
-                    // ControlSurfaces/Attitude 共享句柄形态); FlightInfo 走 window.rs
-                    // 专径自接, thrustdFS 无 FlightDataBus 订阅 (事件面/run 泵在
-                    // 渲染节拍块驱动)。
-                    shared.overlay_ctx_preview.store(false, Ordering::SeqCst); // for_live (Java forGameMode)
-                    // 操纵面数据门控 (overlays_field2.rs PORT(数据门控)): Java init(S)
-                    // 的 xs!=null 在此翻转 — openpad 即游戏形态 (has_service=true)
-                    if let Some(h) = handles.control_surfaces.as_ref() {
-                        h.borrow_mut().has_service = true;
-                    }
-                    // FM拆包数据游戏形态 (Java init :57-94 的单实例对位):
-                    // :730 fmDataAdapter.setBlkx(current().blkx) + :64 isPreview=false
-                    // + :67 Game mode: initially hidden (表头谓词/setupFont 与
-                    // preview 形态同值, 免重设)
-                    if let Some(h) = handles.fm_unpacked.as_ref() {
-                        let mut fmov = h.borrow_mut();
-                        fmov.base.is_preview = false;
-                        fmov.visible = false;
-                        fmov.reload_fm_data(fm.current().fmdata.clone().map(Arc::new));
-                    }
-                    // 推力曲线游戏形态 (Java init :514-528 的单实例对位):
-                    // initFmHandleCache (current 快照) + isPreview=false + 隐藏起步
-                    if let Some(h) = handles.draw_frame_simpl.as_ref() {
-                        h.borrow_mut().init(fm.current().fmdata.clone().map(Arc::new));
-                    }
-                    if let Err(e) = host.open_all() {
-                        logger::error("OverlayHost", &format!("open_all: {}", e));
-                    }
-                    // Java init 末尾 setVisible(false): 窗口隐藏起步 (热键切换),
-                    // 免首个 tick (≤200ms) 前的可见闪现
-                    host.set_entry_visible("enableFMPrint", false);
-                    // DrawFrameSimpl 同理 (init 末 setVisible(true) 后 run 首轮即
-                    // 隐藏 — Java 有 ≤1 线程轮的闪现, 此处同 FMUnpacked 先例预消)
-                    host.set_entry_visible("thrustdFS", false);
-                    // VoiceWarning (非窗口条目): Java openAll 对 enableVoiceWarn 走
-                    // 同一 OverlayEntry.open — 激活探测 (config+live_only, 此刻
-                    // preview 已翻 false = forGameMode ctx) 命中即 init(this,S) +
-                    // 起告警线程 (100ms tick + fatalWarn 回写)。幂等守卫对位
-                    // Java "instance != null 跳过"
-                    if voice_warn.is_none() {
-                        let vctx = HostActivationCtx {
-                            activation: Arc::clone(&activation),
-                            fm: Arc::clone(&fm),
-                            shared: Arc::clone(&shared),
-                            debug: env.debug,
-                        };
-                        if strategy_for("enableVoiceWarn").should_activate(&vctx) {
-                            let live = shared.live.read().expect("live 锁中毒").clone();
-                            match open_voice_warning(
-                                &voice,
-                                &ui_bus,
-                                &voice_config,
-                                &fm,
-                                &flight_bus,
-                                live,
-                            ) {
-                                Some(s) => {
-                                    logger::info(
-                                        "OverlayManager",
-                                        "Started thread for: enableVoiceWarn",
-                                    );
-                                    voice_warn = Some(s);
-                                }
-                                None => logger::info(
-                                    "OverlayManager",
-                                    "Skipping open for enableVoiceWarn: no live Service",
-                                ),
-                            }
-                        }
-                    }
-                    let tx = flight_tx.clone();
-                    let sub = flight_bus.register(move |ev: &FlightDataEvent| {
-                        // 转发线程 = Service 发布线程; 本闭包只 send 不碰 UI
-                        // (flight_data_bus.rs 重入死锁警戒的 channel 转发要求)
-                        let _ = tx.send(ev.get_payload().clone());
-                    });
-                    // 旧订阅 (如有) 显式 drop = unregister; 槽位持新订阅保活
-                    drop(flight_sub.replace(sub));
-                }
-                UiCommand::CloseAllOverlays => {
-                    // 会话窗口形态回预览态 (审查 blocker 收口): Java closeAll → 实例
-                    // 销毁, 之后 refreshPreviews 重建的是 initPreview 实例 (无 live
-                    // 订阅); overlay_ctx_preview 的窗口形态门控在此复位, 防游戏会话
-                    // 结束后 preview 窗渗 live 残帧
-                    shared.overlay_ctx_preview.store(true, Ordering::SeqCst);
-                    // 操纵面门控同步复位 (Java preview 实例 xs=null 恒显静态值)
-                    if let Some(h) = handles.control_surfaces.as_ref() {
-                        h.borrow_mut().has_service = false;
-                    }
-                    // 数据面重置 (同上"实例销毁"语义的另一半): Java close 即实例
-                    // 死亡, preview 重开经工厂全新实例 + initPreview 静态值; Rust
-                    // handle 跨 close 存活 (render 闭包持同一 Rc), 不重置则下次
-                    // preview 窗渲染上次 live 残留值 (托盘 live→preview 复现)
-                    reset_handles_preview_values(&handles);
-                    // 推力曲线 run 循环复位 (Java closeAll → 实例/线程销毁; 下次
-                    // open/refreshPreview 重建 — 自动退场后的重生入口)
-                    dfs_feed.reset();
-                    host.close_all(); // close 销毁链 (存位置 → drop)
-                    // Java overlay dispose → Bus.unregister (drop 槽位即退订)
-                    drop(std::mem::take(&mut flight_sub));
-                    // VoiceWarning 停 (Java OverlayEntry.close: interrupt 告警线程;
-                    // Drop 兜底 = doit 翻 false + join, 双订阅同时被退订)
-                    if voice_warn.is_some() {
-                        logger::info("OverlayManager", "Closing overlay: enableVoiceWarn");
-                        voice_warn = None;
-                    }
-                }
+                UiCommand::OpenAllOverlays => session.on_open_all(),
+                UiCommand::CloseAllOverlays => session.on_close_all(),
                 UiCommand::RefreshPreviews {
                     changed_key,
                     generation,
-                } => {
-                    if is_stale_refresh(&shared, generation) {
-                        continue; // 防过期守卫 (Java invokeLater 内守卫的根治位)
-                    }
-                    // PORT(forPreviewMode 仅激活探测期, 审查 blocker 修复): Java
-                    // refreshPreviews 以 forPreviewMode ctx 判定激活 (OverlayManager
-                    // .java:203), 但对在场实例只调 reinitializer — 实例保留、
-                    // FlightDataBus 订阅不动, live 流持续 (OverlayManager.java:332-336)。
-                    // 原实现把 overlay_ctx_preview 永久置 true: 游戏稳态 State=Preview
-                    // 下 FM_CHANGED/ConfigChanged 必经本分支 → feed_overlays_live
-                    // 永久 early-return, 全部 overlay 冻结在 FM 加载完成瞬间的值。
-                    // 改为激活探测期临时置 preview, 完毕恢复会话窗口形态
-                    // (openpad→false / CloseAll/重建核→true)。
-                    let session_preview = shared.overlay_ctx_preview.swap(true, Ordering::SeqCst);
-                    // ---- voice_warn 条目的 refreshPreview 重估面 (审查 W1 修复) ----
-                    // Java refreshPreviews 对触达条目调 entry.refreshPreview
-                    // (forPreviewMode ctx): shouldBeOpen = config &&
-                    // gameModeOnly, preview ctx 下 gameModeOnly=false → 在场
-                    // 即 close (关开关即时生效, Controller.java:498-536 →
-                    // OverlayManager.java:320-340)。Rust 原实现只走 host 窗口
-                    // 条目, voice_warn 无重估面 — 关掉开关后告警继续响到会话
-                    // 结束 (CloseAllOverlays 才停), 用户可感知偏差。补齐: 探测
-                    // 窗口内 (preview=true → live_only=false, 与 Java forPreviewMode
-                    // 下 gameModeOnly=false 同源) 对触达键在场即停。
-                    // 开方向不重建 — Java preview-ctx 下 shouldBeOpen 恒 false
-                    // 同样不 open (怪癖保真), 重起等下次 OpenAllOverlays。
-                    if voice_warn.is_some() && voice_warn_refresh_reaches(changed_key.as_deref()) {
-                        let vctx = HostActivationCtx {
-                            activation: Arc::clone(&activation),
-                            fm: Arc::clone(&fm),
-                            shared: Arc::clone(&shared),
-                            debug: env.debug,
-                        };
-                        if !strategy_for("enableVoiceWarn").should_activate(&vctx) {
-                            logger::info(
-                                "OverlayManager",
-                                "Closing overlay (inactive strategy): enableVoiceWarn",
-                            );
-                            voice_warn = None; // Drop → stop (doit 翻 false + join), 订阅退订兜底
-                        }
-                    }
-                    let r = match changed_key.as_deref() {
-                        Some(k) => host.refresh_preview_key(Some(k)),
-                        None => host.refresh_preview(),
-                    };
-                    shared.overlay_ctx_preview.store(session_preview, Ordering::SeqCst);
-                    if let Err(e) = r {
-                        logger::error("OverlayHost", &format!("refresh_previews: {}", e));
-                    }
-                }
-                UiCommand::ReinitActiveOverlays => host.reinit_active_overlays(),
+                } => session.on_refresh_previews(changed_key, generation),
+                UiCommand::ReinitActiveOverlays => session.host.reinit_active_overlays(),
                 // WYSIWYG reinit 参数仓覆写 (不直接触发刷新 — 后继
                 // RefreshPreviews/ReinitActiveOverlays 消费最新参数, 命令入队序
                 // 即消费序; MiniHUD live 喂入快照与地平仪节流同步解冻)
                 UiCommand::ReinitOverlays { params: new_params } => {
-                    attitude_feed.freq_ms = new_params.attitude_freq_ms;
-                    hud_settings = new_params.hud.clone();
-                    *params.borrow_mut() = *new_params;
+                    session.on_reinit_overlays(new_params)
                 }
                 // 全局五色更新: 仓内直写, 下帧渲染生效 (reinit 标脏不必须 —
                 // 色变本身改变渲染输出, host 像素指纹自然触发重绘)
@@ -1006,18 +747,19 @@ pub fn win32_thread_main(cfg: Win32ThreadConfig) {
                 // FocusMonitor 通道桥目标 (Java hideAllOverlays/showAllOverlays;
                 // host 幂等标志防重复, shared 镜像供桥回读)
                 UiCommand::HideAllOverlays => {
-                    host.hide_all_overlays();
-                    shared.overlays_hidden.store(true, Ordering::SeqCst);
+                    session.host.hide_all_overlays();
+                    session.shared.overlays_hidden.store(true, Ordering::SeqCst);
                 }
                 UiCommand::ShowAllOverlays => {
-                    host.show_all_overlays();
-                    shared.overlays_hidden.store(false, Ordering::SeqCst);
+                    session.host.show_all_overlays();
+                    session.shared.overlays_hidden.store(false, Ordering::SeqCst);
                 },
                 UiCommand::Shutdown => {
                     logger::info("AppShell", "win32 线程退出 (Shutdown)");
-                    // Drop 序: tray 最先 (NIM_DELETE 防僵尸 — tray.rs 退出契约),
-                    // 继而 flight_sub / host (窗口销毁)。局部声明序 host→tray,
-                    // 逆序 drop 恰好 tray 在 host 前 ✓
+                    // Drop 序: return 后 session 按字段声明序销毁 — flight_sub (退订)
+                    // → tray (NIM_DELETE 防僵尸 — tray.rs 退出契约) → … → host
+                    // (窗口销毁最后)。字段序即为此保持 (见 Win32Session 头注),
+                    // 调整序前必读
                     return;
                 }
                 // 主线程属主命令不经本通道 (UiCommand 文档); 防御性忽略
@@ -1025,9 +767,427 @@ pub fn win32_thread_main(cfg: Win32ThreadConfig) {
             }
         }
         // 热键事件 (钩子线程 → 本线程统一消费; Java jnativehook 派发线程直发 UIStateBus)
-        while let Ok(hk) = hotkey_rx.try_recv() {
-            ui_bus.publish(&hk.event_type, Some("HotkeyManager"), Some(&hk.key_code.to_string()));
+        while let Ok(hk) = session.hotkey_rx.try_recv() {
+            session.ui_bus.publish(
+                &hk.event_type,
+                Some("HotkeyManager"),
+                Some(&hk.key_code.to_string()),
+            );
         }
         std::thread::sleep(Duration::from_millis(10)); // 事件泵 10ms (host.run 同款)
+    }
+}
+
+/// win32 线程会话: [`win32_thread_main`] 的装配产物 + 命令处理面
+/// (原内联在入口函数的部件归拢, 重构波15)。
+///
+/// ⚠ **Drop 序契约**: Shutdown return 后 session 按字段声明序销毁 — "序敏感段"
+/// 的字段序 = 原入口函数局部声明的**逆序**销毁链 (函数局部逆序 drop ↔ struct
+/// 字段正序 drop 的等价换算): feed 泵 → 订阅 → 中转通道 → voice_warn (停告警
+/// 线程) → flight_sub (live 订阅退订) → tray (NIM_DELETE 防僵尸, tray.rs 退出
+/// 契约) → 数据态/Rc → **host (窗口销毁最后)**。调整字段序前必读 Shutdown
+/// 分支注; 依赖段 (Arc 克隆/接收端) 无 Drop 契约。
+struct Win32Session {
+    // ---- 序敏感段 (字段序 = Drop 序, 见头注) ----
+    /// DrawFrameSimpl 的 run() 循环泵 (1000ms 节流 + 自管可见性 +
+    /// displayFmKey==0 收腿退场, 见 DrawFrameSimplFeed 头注)
+    dfs_feed: DrawFrameSimplFeed,
+    /// FMUnpackedData 的 run() 轮询泵 (200ms 节流 + 可见门控 + 高度自适应,
+    /// 见 FmUnpackedFeed 头注)
+    fm_unpacked_feed: FmUnpackedFeed,
+    /// FM_CHANGED 订阅 (RAII 保活: 持有即订阅, Drop 即退订 — 原局部
+    /// `_fm_changed_sub` 同义; 载荷经通道中转, 句柄本身不读)
+    #[allow(dead_code)] // RAII 订阅句柄, 生命周期面 (序敏感段成员)
+    fm_changed_sub: Subscription<FMHandle>,
+    /// FM_CHANGED 中转通道接收端 (载荷 = blkx 深拷)
+    fm_data_rx: Receiver<Option<vm_core::fm::data::FmData>>,
+    /// FM_OVERLAY_TOGGLE 订阅 (RAII 保活, 同上; 热键切换经通道中转)
+    #[allow(dead_code)] // RAII 订阅句柄, 生命周期面 (序敏感段成员)
+    fm_toggle_sub: Subscription<UiStateEvent>,
+    /// FM_OVERLAY_TOGGLE 中转通道接收端
+    fm_toggle_rx: Receiver<()>,
+    /// VoiceWarning 会话槽 (非窗口条目: openAll 建 / closeAll 停)
+    voice_warn: Option<VoiceWarnSession>,
+    /// live 数据转发通道接收端 (喂入侧 drain_latest 只留最新帧)
+    flight_rx: Receiver<EventPayload>,
+    /// live 数据转发通道发送端 (live 订阅闭包持克隆)
+    flight_tx: Sender<EventPayload>,
+    /// live 订阅槽 (OpenAll 建立 / CloseAll 撤销, 对位 overlay 订阅生命周期)
+    flight_sub: Option<Subscription<FlightDataEvent>>,
+    /// 托盘 (创建线程亲和; None = 创建失败继续运行)
+    #[cfg(target_os = "windows")]
+    tray: Option<TrayIcon>,
+    /// 地平仪 40ms 喂入节流 (freqMili 配置快照, ReinitOverlays 同步刷新)
+    attitude_feed: AttitudeFeedState,
+    /// live 喂入用设置快照 (ReinitOverlays 命令同步覆写)
+    hud_settings: HudSettingsSnapshot,
+    /// WYSIWYG reinit 参数仓 (各 spec 工厂 reinit 闭包读取)
+    params: Rc<RefCell<vm_overlay::ReinitParams>>,
+    /// 标签源 (GearFlaps update_tick / engine reinit 闭包共用; Lang !Clone)
+    lang: Rc<Lang>,
+    /// 注册成功的 overlay 数据句柄全集
+    handles: OverlayHandles,
+    /// overlay 宿主 (注册/激活/渲染/开收窗)
+    host: OverlayHost,
+    // ---- 依赖段 (命令处理/循环所需; Drop 序无契约) ----
+    /// UI 命令接收端 (主线程/桥发送)
+    ui_cmd_rx: Receiver<UiCommand>,
+    /// 热键事件接收端 (钩子线程发送)
+    hotkey_rx: Receiver<HotkeyEvent>,
+    /// Application.debug (Env 快照, 激活探测 ctx 用)
+    debug: bool,
+    ui_bus: Arc<UIStateBus>,
+    flight_bus: Arc<FlightDataBus>,
+    fm: Arc<FMManager>,
+    shared: Arc<ControllerShared>,
+    /// 激活缓存 (本身即 Arc, cfg 同源克隆)
+    activation: ActivationCache,
+    voice: Arc<VoiceResourceManager>,
+    /// voice_* 配置键快照 (VoiceWarning reload 读面)
+    voice_config: Arc<Mutex<HashMap<String, String>>>,
+}
+
+impl Win32Session {
+    /// 会话装配 (原 win32_thread_main 装配段整段原序搬迁: 五色注入 → host/
+    /// 激活探测 → 注册面 → 设置快照 → 托盘 → 订阅与泵; 字段序 = Drop 序)
+    fn new(cfg: Win32ThreadConfig) -> Self {
+        let Win32ThreadConfig {
+            env,
+            inputs,
+            ui_bus,
+            flight_bus,
+            fm,
+            shared,
+            activation,
+            voice,
+            voice_config,
+            fm_field_config,
+            ui_cmd_rx,
+            hotkey_rx,
+            main_event_tx,
+            position_snapshot,
+        } = cfg;
+
+        // 全局五色注入 (Java Application.colorNum 族静态的运行时值; cfg 经
+        // loadFromConfig 覆盖, 此前组件用编译期 Java 初始默认 — 人工验收发现的
+        // 颜色不一致根源)。须先于任何组件渲染
+        vm_overlay::render::palette::set(inputs.colors);
+        vm_overlay::render::palette::set_aa(inputs.aa);
+
+        // ---- host 构建 + 激活探测 (Java new OverlayManager + ActivationStrategy) ----
+        let mut host = OverlayHost::new();
+        // 位置存档后端 (Java overlay 的 OverlaySettings 位置面; 快照读 + 回传写)
+        host.with_position_store(Box::new(ChannelPositionStore {
+            snapshot: position_snapshot,
+            tx: main_event_tx.clone(),
+        }));
+        let ctx = HostActivationCtx {
+            activation: Arc::clone(&activation),
+            fm: Arc::clone(&fm),
+            shared: Arc::clone(&shared),
+            debug: env.debug,
+        };
+        host.with_activation(Box::new(move |key: &str| {
+            strategy_for(key).should_activate(&ctx)
+        }));
+        let mut handles = OverlayHandles {
+            minihud: None,
+            power_info: None,
+            engine_control: None,
+            gear_flaps: None,
+            attitude: None,
+            control_surfaces: None,
+            flight_info: None,
+            fm_unpacked: None,
+            draw_frame_simpl: None,
+        };
+        // Lang 一次构造 (GearFlaps update_tick 的标签源; 注册面与喂入共用)。
+        // Rc 共享: engine 工厂的 reinit 闭包重建 state 需要标签源 (Lang !Clone)
+        let lang = Rc::new(Lang::init_lang());
+        // WYSIWYG reinit 参数仓 (初始 = 注册快照投影; CONFIG_CHANGED 后
+        // UiCommand::ReinitOverlays 覆写, 各 spec 工厂 reinit 闭包读取)
+        let params = Rc::new(RefCell::new(vm_overlay::ReinitParams::from(&inputs)));
+        register_live_overlays(
+            &mut host,
+            &mut handles,
+            &OverlayRegSetup {
+                env: &env,
+                inputs: &inputs,
+                params: &params,
+                lang: &lang,
+                shared: &shared,
+                fm: &fm,
+                fm_field_config: &fm_field_config,
+            },
+        );
+        // live 喂入用设置快照 (注册面同源; ReinitOverlays 命令同步覆写 — MiniHUD
+        // on_flight_data 的 settings 参数不再冻结在 spawn 时刻)
+        let hud_settings = inputs.hud;
+        // 地平仪 40ms 喂入节流 (freqMili 配置快照; last_ms=0 = 首帧放行;
+        // ReinitOverlays 命令同步刷新 freq_ms)
+        let attitude_feed = AttitudeFeedState {
+            freq_ms: inputs.attitude_freq_ms,
+            last_ms: 0,
+        };
+
+        // ---- 托盘 (Java initSystemTray: 失败继续运行, Application.java:217-280) ----
+        #[cfg(target_os = "windows")]
+        let tray = {
+            let handler = AppTrayHandler {
+                tx: main_event_tx,
+            };
+            let tray_cfg = TrayConfig {
+                icon_path: env.icon_path.clone(),
+                ..Default::default()
+            };
+            match TrayIcon::new(Box::new(handler), tray_cfg) {
+                Ok(t) => Some(t),
+                Err(e) => {
+                    logger::warn("系统托盘", &format!("托盘创建失败, 程序继续运行: {}", e));
+                    None
+                }
+            }
+        };
+        #[cfg(not(target_os = "windows"))]
+        let _ = main_event_tx; // 非 Windows 无托盘 (x11 波次)
+
+        // ---- live 数据转发订阅 (Java: overlay init 时 FlightDataBus.register; Rust 由
+        // 命令驱动建/撤 — OpenAll 建立, CloseAll 撤销, 对位 overlay 订阅生命周期) ----
+        let flight_sub: Option<Subscription<FlightDataEvent>> = None;
+        let (flight_tx, flight_rx) = std::sync::mpsc::channel::<EventPayload>();
+        // VoiceWarning 会话槽 (非窗口 overlay 条目: Java registerWithStrategy 的
+        // needsThread 形态 — openAll 建/closeAll 停; 激活策略与窗口条目同源探测)
+        let voice_warn: Option<VoiceWarnSession> = None;
+
+        // ---- FMUnpackedData 事件订阅 (Java FMUnpackedDataOverlay.init 的两处
+        // UIStateBus.subscribe: FM_OVERLAY_TOGGLE 翻转 / FM_CHANGED reload;
+        // overlays_field2.rs 头注契约 "由组装层的事件循环驱动" — 句柄 !Send (Rc),
+        // 经 channel 中转到本循环消费; 订阅句柄随线程 Drop = Java dispose 退订链) ----
+        let (fm_toggle_tx, fm_toggle_rx) = std::sync::mpsc::channel::<()>();
+        let fm_toggle_sub = ui_bus.subscribe(ui_state_events::FM_OVERLAY_TOGGLE, move |_ev| {
+            let _ = fm_toggle_tx.send(());
+        });
+        // FM_CHANGED 载荷 = FMHandle (fm_manager 强类型总线, Java instanceof 过滤由
+        // 类型免除)。blkx 深拷一次进通道 (FMHandle.blkx 值字段 → 句柄侧 Arc<Blkx>;
+        // 换机事件低频, 成本可忽略)
+        let (fm_data_tx, fm_data_rx) =
+            std::sync::mpsc::channel::<Option<vm_core::fm::data::FmData>>();
+        let fm_changed_sub = fm.fm_changed_bus().subscribe(move |h| {
+            let _ = fm_data_tx.send(h.fmdata.clone());
+        });
+        // FMUnpackedData 的 run() 轮询泵 (Java BaseOverlay.run 线程的单线程驱动侧,
+        // 200ms 节流 + 可见门控 + 高度自适应, 见 FmUnpackedFeed 头注)
+        let fm_unpacked_feed = FmUnpackedFeed::new();
+        // DrawFrameSimpl 的 run() 循环泵 (Java :737-767: 1000ms 节流 + 自管可见性 +
+        // displayFmKey==0 收腿 10s 退场, 见 DrawFrameSimplFeed 头注)
+        let dfs_feed = DrawFrameSimplFeed::new();
+
+        Self {
+            dfs_feed,
+            fm_unpacked_feed,
+            fm_changed_sub,
+            fm_data_rx,
+            fm_toggle_sub,
+            fm_toggle_rx,
+            voice_warn,
+            flight_rx,
+            flight_tx,
+            flight_sub,
+            #[cfg(target_os = "windows")]
+            tray,
+            attitude_feed,
+            hud_settings,
+            params,
+            lang,
+            handles,
+            host,
+            // ---- 依赖段 ----
+            ui_cmd_rx,
+            hotkey_rx,
+            debug: env.debug,
+            ui_bus,
+            flight_bus,
+            fm,
+            shared,
+            activation,
+            voice,
+            voice_config,
+        }
+    }
+
+    /// 激活探测上下文 (Java OverlayContext 替身; 各命令点按需现场构造)
+    fn vctx(&self) -> HostActivationCtx {
+        HostActivationCtx {
+            activation: Arc::clone(&self.activation),
+            fm: Arc::clone(&self.fm),
+            shared: Arc::clone(&self.shared),
+            debug: self.debug,
+        }
+    }
+
+    /// OpenAllOverlays 命令处理 (Java openpad → openAll): 会话翻游戏形态
+    /// (句柄 is_preview/门控/句柄缓存) + host 开窗 + VoiceWarning 装配 +
+    /// live 订阅重建
+    fn on_open_all(&mut self) {
+        // Java openpad → openAll; live 订阅随建 (overlay 订阅生命周期)。
+        // P6 收口 (原审查 B-W3): live 喂入已覆盖全部 6 个窗口 overlay
+        // (feed_overlays_live — MiniHUD/PowerInfo/EngineControl/GearFlaps/
+        // ControlSurfaces/Attitude 共享句柄形态); FlightInfo 走 window.rs
+        // 专径自接, thrustdFS 无 FlightDataBus 订阅 (事件面/run 泵在
+        // 渲染节拍块驱动)。
+        self.shared
+            .overlay_ctx_preview
+            .store(false, Ordering::SeqCst); // for_live (Java forGameMode)
+        // 操纵面数据门控 (overlays_field2.rs PORT(数据门控)): Java init(S)
+        // 的 xs!=null 在此翻转 — openpad 即游戏形态 (has_service=true)
+        if let Some(h) = self.handles.control_surfaces.as_ref() {
+            h.borrow_mut().has_service = true;
+        }
+        // FM拆包数据游戏形态 (Java init :57-94 的单实例对位):
+        // :730 fmDataAdapter.setBlkx(current().blkx) + :64 isPreview=false
+        // + :67 Game mode: initially hidden (表头谓词/setupFont 与
+        // preview 形态同值, 免重设)
+        if let Some(h) = self.handles.fm_unpacked.as_ref() {
+            let mut fmov = h.borrow_mut();
+            fmov.base.is_preview = false;
+            fmov.visible = false;
+            fmov.reload_fm_data(self.fm.current().fmdata.clone().map(Arc::new));
+        }
+        // 推力曲线游戏形态 (Java init :514-528 的单实例对位):
+        // initFmHandleCache (current 快照) + isPreview=false + 隐藏起步
+        if let Some(h) = self.handles.draw_frame_simpl.as_ref() {
+            h.borrow_mut().init(self.fm.current().fmdata.clone().map(Arc::new));
+        }
+        if let Err(e) = self.host.open_all() {
+            logger::error("OverlayHost", &format!("open_all: {}", e));
+        }
+        // Java init 末尾 setVisible(false): 窗口隐藏起步 (热键切换),
+        // 免首个 tick (≤200ms) 前的可见闪现
+        self.host.set_entry_visible("enableFMPrint", false);
+        // DrawFrameSimpl 同理 (init 末 setVisible(true) 后 run 首轮即
+        // 隐藏 — Java 有 ≤1 线程轮的闪现, 此处同 FMUnpacked 先例预消)
+        self.host.set_entry_visible("thrustdFS", false);
+        // VoiceWarning (非窗口条目): Java openAll 对 enableVoiceWarn 走
+        // 同一 OverlayEntry.open — 激活探测 (config+live_only, 此刻
+        // preview 已翻 false = forGameMode ctx) 命中即 init(this,S) +
+        // 起告警线程 (100ms tick + fatalWarn 回写)。幂等守卫对位
+        // Java "instance != null 跳过"
+        if self.voice_warn.is_none() {
+            let vctx = self.vctx();
+            if strategy_for("enableVoiceWarn").should_activate(&vctx) {
+                let live = self.shared.live.read().expect("live 锁中毒").clone();
+                match open_voice_warning(
+                    &self.voice,
+                    &self.ui_bus,
+                    &self.voice_config,
+                    &self.fm,
+                    &self.flight_bus,
+                    live,
+                ) {
+                    Some(s) => {
+                        logger::info("OverlayManager", "Started thread for: enableVoiceWarn");
+                        self.voice_warn = Some(s);
+                    }
+                    None => logger::info(
+                        "OverlayManager",
+                        "Skipping open for enableVoiceWarn: no live Service",
+                    ),
+                }
+            }
+        }
+        let tx = self.flight_tx.clone();
+        let sub = self.flight_bus.register(move |ev: &FlightDataEvent| {
+            // 转发线程 = Service 发布线程; 本闭包只 send 不碰 UI
+            // (flight_data_bus.rs 重入死锁警戒的 channel 转发要求)
+            let _ = tx.send(ev.get_payload().clone());
+        });
+        // 旧订阅 (如有) 显式 drop = unregister; 槽位持新订阅保活
+        drop(self.flight_sub.replace(sub));
+    }
+
+    /// CloseAllOverlays 命令处理 (Java closeAll): 会话回预览态 + 数据面重置 +
+    /// host 收窗 + live 订阅撤销 + VoiceWarning 停
+    fn on_close_all(&mut self) {
+        // 会话窗口形态回预览态 (审查 blocker 收口): Java closeAll → 实例
+        // 销毁, 之后 refreshPreviews 重建的是 initPreview 实例 (无 live
+        // 订阅); overlay_ctx_preview 的窗口形态门控在此复位, 防游戏会话
+        // 结束后 preview 窗渗 live 残帧
+        self.shared.overlay_ctx_preview.store(true, Ordering::SeqCst);
+        // 操纵面门控同步复位 (Java preview 实例 xs=null 恒显静态值)
+        if let Some(h) = self.handles.control_surfaces.as_ref() {
+            h.borrow_mut().has_service = false;
+        }
+        // 数据面重置 (同上"实例销毁"语义的另一半): Java close 即实例
+        // 死亡, preview 重开经工厂全新实例 + initPreview 静态值; Rust
+        // handle 跨 close 存活 (render 闭包持同一 Rc), 不重置则下次
+        // preview 窗渲染上次 live 残留值 (托盘 live→preview 复现)
+        reset_handles_preview_values(&self.handles);
+        // 推力曲线 run 循环复位 (Java closeAll → 实例/线程销毁; 下次
+        // open/refreshPreview 重建 — 自动退场后的重生入口)
+        self.dfs_feed.reset();
+        self.host.close_all(); // close 销毁链 (存位置 → drop)
+        // Java overlay dispose → Bus.unregister (drop 槽位即退订)
+        drop(std::mem::take(&mut self.flight_sub));
+        // VoiceWarning 停 (Java OverlayEntry.close: interrupt 告警线程;
+        // Drop 兜底 = doit 翻 false + join, 双订阅同时被退订)
+        if self.voice_warn.is_some() {
+            logger::info("OverlayManager", "Closing overlay: enableVoiceWarn");
+            self.voice_warn = None;
+        }
+    }
+
+    /// RefreshPreviews 命令处理 (WYSIWYG 预览刷新 + voice_warn 重估面);
+    /// 过期世代直接返回 (原 continue — 分支尾即迭代尾, 等价)
+    fn on_refresh_previews(&mut self, changed_key: Option<String>, generation: u64) {
+        if is_stale_refresh(&self.shared, generation) {
+            return; // 防过期守卫 (Java invokeLater 内守卫的根治位)
+        }
+        // PORT(forPreviewMode 仅激活探测期, 审查 blocker 修复): Java
+        // refreshPreviews 以 forPreviewMode ctx 判定激活 (OverlayManager
+        // .java:203), 但对在场实例只调 reinitializer — 实例保留、
+        // FlightDataBus 订阅不动, live 流持续 (OverlayManager.java:332-336)。
+        // 原实现把 overlay_ctx_preview 永久置 true: 游戏稳态 State=Preview
+        // 下 FM_CHANGED/ConfigChanged 必经本分支 → feed_overlays_live
+        // 永久 early-return, 全部 overlay 冻结在 FM 加载完成瞬间的值。
+        // 改为激活探测期临时置 preview, 完毕恢复会话窗口形态
+        // (openpad→false / CloseAll/重建核→true)。
+        let session_preview = self.shared.overlay_ctx_preview.swap(true, Ordering::SeqCst);
+        // ---- voice_warn 条目的 refreshPreview 重估面 (审查 W1 修复) ----
+        // Java refreshPreviews 对触达条目调 entry.refreshPreview
+        // (forPreviewMode ctx): shouldBeOpen = config &&
+        // gameModeOnly, preview ctx 下 gameModeOnly=false → 在场
+        // 即 close (关开关即时生效, Controller.java:498-536 →
+        // OverlayManager.java:320-340)。Rust 原实现只走 host 窗口
+        // 条目, voice_warn 无重估面 — 关掉开关后告警继续响到会话
+        // 结束 (CloseAllOverlays 才停), 用户可感知偏差。补齐: 探测
+        // 窗口内 (preview=true → live_only=false, 与 Java forPreviewMode
+        // 下 gameModeOnly=false 同源) 对触达键在场即停。
+        // 开方向不重建 — Java preview-ctx 下 shouldBeOpen 恒 false
+        // 同样不 open (怪癖保真), 重起等下次 OpenAllOverlays。
+        if self.voice_warn.is_some() && voice_warn_refresh_reaches(changed_key.as_deref()) {
+            let vctx = self.vctx();
+            if !strategy_for("enableVoiceWarn").should_activate(&vctx) {
+                logger::info(
+                    "OverlayManager",
+                    "Closing overlay (inactive strategy): enableVoiceWarn",
+                );
+                self.voice_warn = None; // Drop → stop (doit 翻 false + join), 订阅退订兜底
+            }
+        }
+        let r = match changed_key.as_deref() {
+            Some(k) => self.host.refresh_preview_key(Some(k)),
+            None => self.host.refresh_preview(),
+        };
+        self.shared.overlay_ctx_preview.store(session_preview, Ordering::SeqCst);
+        if let Err(e) = r {
+            logger::error("OverlayHost", &format!("refresh_previews: {}", e));
+        }
+    }
+
+    /// ReinitOverlays 命令处理: WYSIWYG reinit 参数仓覆写 (不直接触发刷新)
+    fn on_reinit_overlays(&mut self, new_params: Box<vm_overlay::ReinitParams>) {
+        self.attitude_feed.freq_ms = new_params.attitude_freq_ms;
+        self.hud_settings = new_params.hud.clone();
+        *self.params.borrow_mut() = *new_params;
     }
 }

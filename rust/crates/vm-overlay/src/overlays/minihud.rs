@@ -52,6 +52,7 @@ use crate::layout::hud_layout_node::{Dimension, HasPreferredSize, HUDLayoutNodeE
 use vm_core::formula::registry::FormulaView;
 
 use crate::render::font::LoadedFont;
+use crate::overlays::spec_common::keyed_spec;
 use crate::overlays::attitude::AttitudeIndicatorGauge;
 use crate::overlays::compass::CompassGauge;
 use crate::overlays::crosshair::CrosshairGauge;
@@ -511,6 +512,20 @@ impl CompCell {
         CompCell(Rc::new(RefCell::new(MiniHudComponent::new(inner, fonts))))
     }
 
+    /// 枚举分发借出口: 把 inner 交给闭包, 调用侧以 `if let Inner::X(r) = inner`
+    /// 守卫变体 (不匹配即空转, 同原 borrow_mut+if let 样板)。
+    /// **闭包内不得再借其它 CompCell** — RefCell 独占借用跨槽嵌套会 panic
+    /// (现有调用已守此纪律)
+    fn map_inner<R>(&self, f: impl FnOnce(&mut MiniHudComponentInner) -> R) -> R {
+        f(&mut self.0.borrow_mut().inner)
+    }
+
+    /// 组件整体借出口: inner 之外还要改组装层镜像字段 (speed_w/flap_total_width/
+    /// throttle_length 等风格缓存) 的混合写面专用, 其余场景用 [`Self::map_inner`]
+    fn map_comp<R>(&self, f: impl FnOnce(&mut MiniHudComponent) -> R) -> R {
+        f(&mut self.0.borrow_mut())
+    }
+
     /// AbstractHUDComponent.setVisible 的句柄侧便捷口 (组装层/测试)
     pub fn set_visible(&self, v: bool) {
         self.0.borrow_mut().set_visible(v);
@@ -545,6 +560,16 @@ impl HasVisibility for CompCell {
 /// overlay 的共享数据句柄 (host render 闭包与数据喂入方各持一份;
 /// 单线程 RefCell — host 是主循环单线程独占, 上层 Controller 须同线程喂入)
 pub type MiniHudHandle = Rc<RefCell<MiniHudOverlay>>;
+
+/// 六个具名仪表组件的构造集 (见 [`MiniHudOverlay::named_gauge_cells`])
+struct NamedGaugeCells {
+    flap_angle_bar: CompCell,
+    speed_ratio_bar: CompCell,
+    compass_gauge: CompCell,
+    attitude_indicator_gauge: CompCell,
+    crosshair_gauge: CompCell,
+    throttle_bar: CompCell,
+}
 
 /// MinimalHUD overlay for displaying compact flight information.
 /// Being migrated to event-driven architecture. (Java 类 javadoc 原文)
@@ -622,6 +647,25 @@ pub struct MiniHudOverlay {
 }
 
 impl MiniHudOverlay {
+    /// 六个具名仪表组件的构造集 — init 占位 (Java null 字段的 Rust 可查替身) 与
+    /// init_components_layout 正式建身共用一份 (C27 双份构造收敛; 构造参数同源
+    /// ctx.roundCompass, 行组件仅正式建身 — 占位期 hud_rows 为空)
+    fn named_gauge_cells(fonts: &Rc<MiniHudFonts>, round_compass: i32) -> NamedGaugeCells {
+        let cell = |inner: MiniHudComponentInner| CompCell::new(inner, Rc::clone(fonts));
+        NamedGaugeCells {
+            flap_angle_bar: cell(MiniHudComponentInner::FlapBar(FlapAngleBar::new())),
+            speed_ratio_bar: cell(MiniHudComponentInner::SpeedRatioBar(SpeedRatioBar::new())),
+            compass_gauge: cell(MiniHudComponentInner::Compass(CompassGauge::new(round_compass))),
+            attitude_indicator_gauge: cell(MiniHudComponentInner::Attitude(
+                AttitudeIndicatorGauge::new(),
+            )),
+            crosshair_gauge: cell(MiniHudComponentInner::Crosshair(CrosshairGauge::new())),
+            throttle_bar: cell(MiniHudComponentInner::ThrottleBar(LinearGauge::new(
+                "ThrottleBar", 110, true,
+            ))),
+        }
+    }
+
     /// Java init(Controller c, Service s, HUDSettings settings) (L217-281)。
     /// `service_loop_interval_ms` = controller.serviceLoopIntervalMs (blinkTicks/
     /// refreshInterval 同源); `service_present` = (s != null); Rust 侧 service /
@@ -641,23 +685,15 @@ impl MiniHudOverlay {
         // applyStyle/updateComponents 对组件全空转 (initModernLayout 空表早退)。
         // Rust 无 null: 占位组件即刻可查 (空引擎不渲染), initComponentsLayout
         // 建齐真身后整体替换 — 调用序列与 Java 逐行对应。
-        let placeholder = |inner: MiniHudComponentInner| CompCell::new(inner, Rc::clone(&fonts));
+        let ng = Self::named_gauge_cells(&fonts, ctx.round_compass);
         let empty_engine = ModernHUDLayoutEngine::new(ctx.width, ctx.height);
         let mut overlay = MiniHudOverlay {
-            crosshair_gauge: placeholder(MiniHudComponentInner::Crosshair(CrosshairGauge::new())),
-            flap_angle_bar: placeholder(MiniHudComponentInner::FlapBar(FlapAngleBar::new())),
-            compass_gauge: placeholder(MiniHudComponentInner::Compass(CompassGauge::new(
-                ctx.round_compass,
-            ))),
-            attitude_indicator_gauge: placeholder(MiniHudComponentInner::Attitude(
-                AttitudeIndicatorGauge::new(),
-            )),
-            speed_ratio_bar: placeholder(MiniHudComponentInner::SpeedRatioBar(
-                SpeedRatioBar::new(),
-            )),
-            throttle_bar: placeholder(MiniHudComponentInner::ThrottleBar(LinearGauge::new(
-                "ThrottleBar", 110, true,
-            ))),
+            crosshair_gauge: ng.crosshair_gauge,
+            flap_angle_bar: ng.flap_angle_bar,
+            compass_gauge: ng.compass_gauge,
+            attitude_indicator_gauge: ng.attitude_indicator_gauge,
+            speed_ratio_bar: ng.speed_ratio_bar,
+            throttle_bar: ng.throttle_bar,
             fonts,
             font_path: font_path.to_path_buf(),
             dpi_scale,
@@ -801,25 +837,35 @@ impl MiniHudOverlay {
             self.lines[3].clone(),
             self.lines[4].clone(),
         );
-        if let MiniHudComponentInner::Row0(r) = &mut self.hud_rows[0].0.borrow_mut().inner {
-            r.set_template(Some(&l0), Some(&laoa));
-        }
-        if let MiniHudComponentInner::Row1(r) = &mut self.hud_rows[1].0.borrow_mut().inner {
-            r.set_template(Some(&l1), Some(&lrel));
-        }
-        if let MiniHudComponentInner::Row2(r) = &mut self.hud_rows[2].0.borrow_mut().inner {
-            // PORT: Java MiniHUDOverlay.java:204 强转 HUDTextRow, 但 setTemplate 非
-            // final 且被 HUDMechanizationRow 同签名覆写 → 虚分派走覆写 (super + 三段
-            // 模板重解析)。须调完整 set_template 而非仅基座, 否则模板变化时三段
-            // 占位宽滞留旧值 (Java 会重解析)
-            r.set_template(Some(&l2));
-        }
-        if let MiniHudComponentInner::Row3(r) = &mut self.hud_rows[3].0.borrow_mut().inner {
-            r.set_template(Some(&l3));
-        }
-        if let MiniHudComponentInner::Row4(r) = &mut self.hud_rows[4].0.borrow_mut().inner {
-            r.base.set_template(Some(&l4));
-        }
+        self.hud_rows[0].map_inner(|inner| {
+            if let MiniHudComponentInner::Row0(r) = inner {
+                r.set_template(Some(&l0), Some(&laoa));
+            }
+        });
+        self.hud_rows[1].map_inner(|inner| {
+            if let MiniHudComponentInner::Row1(r) = inner {
+                r.set_template(Some(&l1), Some(&lrel));
+            }
+        });
+        self.hud_rows[2].map_inner(|inner| {
+            if let MiniHudComponentInner::Row2(r) = inner {
+                // PORT: Java MiniHUDOverlay.java:204 强转 HUDTextRow, 但 setTemplate 非
+                // final 且被 HUDMechanizationRow 同签名覆写 → 虚分派走覆写 (super + 三段
+                // 模板重解析)。须调完整 set_template 而非仅基座, 否则模板变化时三段
+                // 占位宽滞留旧值 (Java 会重解析)
+                r.set_template(Some(&l2));
+            }
+        });
+        self.hud_rows[3].map_inner(|inner| {
+            if let MiniHudComponentInner::Row3(r) = inner {
+                r.set_template(Some(&l3));
+            }
+        });
+        self.hud_rows[4].map_inner(|inner| {
+            if let MiniHudComponentInner::Row4(r) = inner {
+                r.base.set_template(Some(&l4));
+            }
+        });
     }
 
     /// Java initComponentsLayout() (L524-589)
@@ -829,27 +875,26 @@ impl MiniHudOverlay {
         let fonts = Rc::clone(&self.fonts);
         let cell = |inner: MiniHudComponentInner| CompCell::new(inner, Rc::clone(&fonts));
 
-        // 0. Aux Overlays — warningOverlay 已由 WarningBlinkHost 组合持有 (Java:528)
-        self.flap_angle_bar = cell(MiniHudComponentInner::FlapBar(FlapAngleBar::new()));
+        // 0.~3. 六具名仪表 (构造集与 init 占位共用一份; 入表序 = Java 添加序:
+        // warningOverlay 已由 WarningBlinkHost 组合持有, Java:528)
+        let ng = Self::named_gauge_cells(&fonts, self.ctx.round_compass);
+        self.flap_angle_bar = ng.flap_angle_bar;
         self.components.push(self.flap_angle_bar.clone());
 
         // New SpeedRatioBar
-        self.speed_ratio_bar = cell(MiniHudComponentInner::SpeedRatioBar(SpeedRatioBar::new()));
+        self.speed_ratio_bar = ng.speed_ratio_bar;
         self.components.push(self.speed_ratio_bar.clone());
 
         // 1. Compass — 构造注入 ctx.roundCompass (Java:537)
-        self.compass_gauge = cell(MiniHudComponentInner::Compass(CompassGauge::new(
-            self.ctx.round_compass,
-        )));
+        self.compass_gauge = ng.compass_gauge;
         self.components.push(self.compass_gauge.clone());
 
         // 2. Attitude
-        self.attitude_indicator_gauge =
-            cell(MiniHudComponentInner::Attitude(AttitudeIndicatorGauge::new()));
+        self.attitude_indicator_gauge = ng.attitude_indicator_gauge;
         self.components.push(self.attitude_indicator_gauge.clone());
 
         // 3. Crosshair — 无条件入 components (节点是否建由 cfg 决定, Java:545-546)
-        self.crosshair_gauge = cell(MiniHudComponentInner::Crosshair(CrosshairGauge::new()));
+        self.crosshair_gauge = ng.crosshair_gauge;
         self.components.push(self.crosshair_gauge.clone());
 
         // 4. Rows (L549-578) — 构造第三参 height = ctx.hudFontSize (Java 各行构造)
@@ -886,8 +931,7 @@ impl MiniHudOverlay {
         }
 
         // 5. Bars — throttleBar (Java:581: new LinearGauge("ThrottleBar", 110, true, false))
-        self.throttle_bar =
-            cell(MiniHudComponentInner::ThrottleBar(LinearGauge::new("ThrottleBar", 110, true)));
+        self.throttle_bar = ng.throttle_bar;
         self.components.push(self.throttle_bar.clone());
 
         // Ensure everything is styled and updated before layout & sizing (Java 注释)
@@ -910,10 +954,19 @@ impl MiniHudOverlay {
         for c in &self.components {
             c.set_fonts(Rc::clone(&fonts));
         }
+        self.style_gauges(settings);
+        // Synchronize styles for Rows
+        if self.hud_rows.len() >= 5 {
+            self.style_rows();
+        }
+        self.style_throttle_bar();
+    }
 
+    /// applyStyleToComponents 仪表段 (Java 段序: speed → crosshair → flap →
+    /// compass → attitude)
+    fn style_gauges<S: HUDSettings>(&mut self, settings: &S) {
         let ctx = &self.ctx;
-        {
-            let mut c = self.speed_ratio_bar.0.borrow_mut();
+        self.speed_ratio_bar.map_comp(|c| {
             if let MiniHudComponentInner::SpeedRatioBar(s) = &mut c.inner {
                 // Width: similar to throttle bar or slightly thinner?
                 let mut w = (ctx.hud_font_size as f64 * 0.25) as i32;
@@ -925,17 +978,15 @@ impl MiniHudOverlay {
                 c.speed_w = w;
                 c.speed_h = h;
             }
-        }
-        {
-            let mut c = self.crosshair_gauge.0.borrow_mut();
-            if let MiniHudComponentInner::Crosshair(g) = &mut c.inner {
+        });
+        self.crosshair_gauge.map_inner(|inner| {
+            if let MiniHudComponentInner::Crosshair(g) = inner {
                 // PORT: Java useTextureCrosshair 纹理分支 (L605-607) 不迁移 —
                 // gauge_crosshair.rs 裁决, 软件路径即唯一视觉语义
                 g.set_style_context(settings.get_crosshair_scale());
             }
-        }
-        {
-            let mut c = self.flap_angle_bar.0.borrow_mut();
+        });
+        self.flap_angle_bar.map_comp(|c| {
             if let MiniHudComponentInner::FlapBar(b) = &mut c.inner {
                 // Dynamic width
                 let responsive_width = (ctx.hud_font_size as f64 * 6.0) as i32;
@@ -943,10 +994,9 @@ impl MiniHudOverlay {
                 c.flap_total_width = responsive_width;
                 c.flap_bar_height = ctx.line_width + 2;
             }
-        }
-        {
-            let mut c = self.compass_gauge.0.borrow_mut();
-            if let MiniHudComponentInner::Compass(g) = &mut c.inner {
+        });
+        self.compass_gauge.map_inner(|inner| {
+            if let MiniHudComponentInner::Compass(g) = inner {
                 g.set_style_context(
                     ctx.round_compass,
                     ctx.line_width,
@@ -955,10 +1005,9 @@ impl MiniHudOverlay {
                 );
                 g.set_inertial_mode(settings.is_attitude_indicator_inertial_mode());
             }
-        }
-        {
-            let mut c = self.attitude_indicator_gauge.0.borrow_mut();
-            if let MiniHudComponentInner::Attitude(g) = &mut c.inner {
+        });
+        self.attitude_indicator_gauge.map_inner(|inner| {
+            if let MiniHudComponentInner::Attitude(g) = inner {
                 g.set_style_context(
                     ctx.compass_diameter,
                     ctx.compass_radius,
@@ -969,50 +1018,51 @@ impl MiniHudOverlay {
                 );
                 g.set_inertial_mode(settings.is_attitude_indicator_inertial_mode());
             }
-        }
-        // Synchronize styles for Rows
-        if self.hud_rows.len() >= 5 {
-            {
-                let mut c = self.hud_rows[0].0.borrow_mut();
-                if let MiniHudComponentInner::Row0(r) = &mut c.inner {
-                    // PORT: (int) ctx.aoaLength — double→int 截断 (JLS 5.1.3)
-                    r.set_style(ctx.right_draw, ctx.line_width, ctx.aoa_length as i32);
-                }
+        });
+    }
+
+    /// applyStyleToComponents 行段: 5 行的风格注入 (调用方保证 hud_rows.len()>=5)
+    fn style_rows(&mut self) {
+        let ctx = &self.ctx;
+        self.hud_rows[0].map_inner(|inner| {
+            if let MiniHudComponentInner::Row0(r) = inner {
+                // PORT: (int) ctx.aoaLength — double→int 截断 (JLS 5.1.3)
+                r.set_style(ctx.right_draw, ctx.line_width, ctx.aoa_length as i32);
             }
-            {
-                let mut c = self.hud_rows[1].0.borrow_mut();
-                if let MiniHudComponentInner::Row1(r) = &mut c.inner {
-                    r.set_style(ctx.right_draw);
-                }
+        });
+        self.hud_rows[1].map_inner(|inner| {
+            if let MiniHudComponentInner::Row1(r) = inner {
+                r.set_style(ctx.right_draw);
             }
-            {
-                let mut c = self.hud_rows[2].0.borrow_mut();
-                if let MiniHudComponentInner::Row2(r) = &mut c.inner {
-                    r.base.set_style(ctx.hud_font_size);
-                }
+        });
+        self.hud_rows[2].map_inner(|inner| {
+            if let MiniHudComponentInner::Row2(r) = inner {
+                r.base.set_style(ctx.hud_font_size);
             }
-            {
-                let mut c = self.hud_rows[3].0.borrow_mut();
-                if let MiniHudComponentInner::Row3(r) = &mut c.inner {
-                    r.set_style(ctx.hud_font_size);
-                }
+        });
+        self.hud_rows[3].map_inner(|inner| {
+            if let MiniHudComponentInner::Row3(r) = inner {
+                r.set_style(ctx.hud_font_size);
             }
-            {
-                let mut c = self.hud_rows[4].0.borrow_mut();
-                if let MiniHudComponentInner::Row4(r) = &mut c.inner {
-                    r.set_style(
-                        ctx.hud_font_size,
-                        ctx.right_draw,
-                        ctx.half_line,
-                        ctx.line_width,
-                        ctx.stroke_thick_w,
-                        ctx.stroke_thin_w,
-                    );
-                }
+        });
+        self.hud_rows[4].map_inner(|inner| {
+            if let MiniHudComponentInner::Row4(r) = inner {
+                r.set_style(
+                    ctx.hud_font_size,
+                    ctx.right_draw,
+                    ctx.half_line,
+                    ctx.line_width,
+                    ctx.stroke_thick_w,
+                    ctx.stroke_thin_w,
+                );
             }
-        }
-        {
-            let mut c = self.throttle_bar.0.borrow_mut();
+        });
+    }
+
+    /// applyStyleToComponents 尾段: throttleBar 的响应式高度
+    fn style_throttle_bar(&mut self) {
+        let ctx = &self.ctx;
+        self.throttle_bar.map_comp(|c| {
             if let MiniHudComponentInner::ThrottleBar(t) = &mut c.inner {
                 // Re-calc explicit height for ThrottleBar if needed or use existing
                 // throttley_max
@@ -1022,7 +1072,7 @@ impl MiniHudOverlay {
                 c.throttle_length = responsive_height;
                 c.throttle_thickness = ctx.bar_width;
             }
-        }
+        });
     }
 
     /// Java updateComponents() (L309-402)。
@@ -1034,6 +1084,25 @@ impl MiniHudOverlay {
         settings: &S,
         service: Option<&dyn FormulaView>,
     ) {
+        self.update_component_visibility(settings);
+
+        if self.hud_rows.len() >= 5 {
+            self.update_row_visibility(settings);
+            self.update_row_values();
+        }
+
+        // PORT: Java `service != null && service.sState != null` — sState 空判
+        // 折入 TelemetrySource 实现域 (Service 批次); getThrottle 返回 double
+        // 而 Java 读 int 字段 sState.throttle → as i32 (JLS 5.1.3 同义)
+        let mut throttle_value = 0;
+        if let Some(s) = service {
+            throttle_value = s.var_value("throttle").unwrap_or(0.0) as i32;
+        }
+        self.push_throttle(throttle_value);
+    }
+
+    /// updateComponents 仪表可见性段 (L311-323)
+    fn update_component_visibility<S: HUDSettings>(&mut self, settings: &S) {
         let text_visible = settings.draw_hud_text();
 
         let enable_flap_bar = settings.enable_flap_angle_bar();
@@ -1048,141 +1117,135 @@ impl MiniHudOverlay {
         let show_speed = settings.show_speed_bar();
         self.throttle_bar.set_visible(text_visible && !show_speed);
         self.speed_ratio_bar.set_visible(text_visible && show_speed);
+    }
+
+    /// updateComponents 行可见性段 (L325-360; 调用方保证 hud_rows.len()>=5)
+    fn update_row_visibility<S: HUDSettings>(&mut self, settings: &S) {
+        // Java: master = drawHudText() 二次读取 (与 text_visible 同源, 保真保留)
         let master = settings.draw_hud_text();
 
         // 组件级独立可见性控制
-        if self.hud_rows.len() >= 5 {
-            // Row 0: Speed + AoA — 两个独立组件
-            let row0_speed = master && settings.show_hud_speed();
-            let row0_aoa = master && settings.show_hud_aoa();
-            self.hud_rows[0].set_visible(row0_speed || row0_aoa);
-            {
-                let mut c = self.hud_rows[0].0.borrow_mut();
-                if let MiniHudComponentInner::Row0(r) = &mut c.inner {
-                    r.set_show_speed(row0_speed);
-                    r.set_show_aoa(row0_aoa);
-                }
+        // Row 0: Speed + AoA — 两个独立组件
+        let row0_speed = master && settings.show_hud_speed();
+        let row0_aoa = master && settings.show_hud_aoa();
+        self.hud_rows[0].set_visible(row0_speed || row0_aoa);
+        self.hud_rows[0].map_inner(|inner| {
+            if let MiniHudComponentInner::Row0(r) = inner {
+                r.set_show_speed(row0_speed);
+                r.set_show_aoa(row0_aoa);
             }
+        });
 
-            // Row 1: Altitude + Energy — 两个独立组件
-            let row1_alt = master && settings.show_hud_altitude();
-            let row1_energy = master && settings.show_hud_energy();
-            self.hud_rows[1].set_visible(row1_alt || row1_energy);
-            {
-                let mut c = self.hud_rows[1].0.borrow_mut();
-                if let MiniHudComponentInner::Row1(r) = &mut c.inner {
-                    r.set_show_altitude(row1_alt);
-                    r.set_show_energy(row1_energy);
-                }
+        // Row 1: Altitude + Energy — 两个独立组件
+        let row1_alt = master && settings.show_hud_altitude();
+        let row1_energy = master && settings.show_hud_energy();
+        self.hud_rows[1].set_visible(row1_alt || row1_energy);
+        self.hud_rows[1].map_inner(|inner| {
+            if let MiniHudComponentInner::Row1(r) = inner {
+                r.set_show_altitude(row1_alt);
+                r.set_show_energy(row1_energy);
             }
+        });
 
-            // Row 2: 襟翼/可变翼 + 减速板 + 起落架 — 三个独立组件
-            let row2_flaps = master && settings.show_hud_flaps();
-            let row2_brk = master && settings.show_hud_airbrake();
-            let row2_gear = master && settings.show_hud_gear();
-            self.hud_rows[2].set_visible(row2_flaps || row2_brk || row2_gear);
-            {
-                let mut c = self.hud_rows[2].0.borrow_mut();
-                if let MiniHudComponentInner::Row2(r) = &mut c.inner {
-                    r.set_show_flaps(row2_flaps);
-                    r.set_show_airbrake(row2_brk);
-                    r.set_show_gear(row2_gear);
-                }
+        // Row 2: 襟翼/可变翼 + 减速板 + 起落架 — 三个独立组件
+        let row2_flaps = master && settings.show_hud_flaps();
+        let row2_brk = master && settings.show_hud_airbrake();
+        let row2_gear = master && settings.show_hud_gear();
+        self.hud_rows[2].set_visible(row2_flaps || row2_brk || row2_gear);
+        self.hud_rows[2].map_inner(|inner| {
+            if let MiniHudComponentInner::Row2(r) = inner {
+                r.set_show_flaps(row2_flaps);
+                r.set_show_airbrake(row2_brk);
+                r.set_show_gear(row2_gear);
             }
+        });
 
-            // Row 3: 单组件（爬升率）
-            self.hud_rows[3].set_visible(master && settings.show_hud_sep());
+        // Row 3: 单组件（爬升率）
+        self.hud_rows[3].set_visible(master && settings.show_hud_sep());
 
-            // Row 4: G-force + ManeuverBar — 两个独立组件
-            let row4_g_load = master && settings.show_hud_g_load();
-            let row4_bar = master && settings.show_hud_maneuver_bar();
-            self.hud_rows[4].set_visible(row4_g_load || row4_bar);
-            {
-                let mut c = self.hud_rows[4].0.borrow_mut();
-                if let MiniHudComponentInner::Row4(r) = &mut c.inner {
-                    r.set_show_g_load(row4_g_load);
-                    r.set_show_maneuver_bar(row4_bar);
-                }
+        // Row 4: G-force + ManeuverBar — 两个独立组件
+        let row4_g_load = master && settings.show_hud_g_load();
+        let row4_bar = master && settings.show_hud_maneuver_bar();
+        self.hud_rows[4].set_visible(row4_g_load || row4_bar);
+        self.hud_rows[4].map_inner(|inner| {
+            if let MiniHudComponentInner::Row4(r) = inner {
+                r.set_show_g_load(row4_g_load);
+                r.set_show_maneuver_bar(row4_bar);
             }
-        }
+        });
+    }
 
-        if self.hud_rows.len() >= 5 {
-            // Row 0, 1: Only update in preview mode (service == null)
-            // In game mode, they are updated via onDataUpdate() from FlightDataEvent
-            // (Java 注释原文; service==null 即 init 的 service_present=false)
-            if !self.service_present {
-                let (l0, laoa, aoa_y, a_col, ab_col) = (
-                    self.lines[0].clone(),
-                    self.line_aoa.clone(),
-                    self.aoa_y,
-                    self.aoa_color,
-                    self.aoa_bar_color,
-                );
-                {
-                    let mut c = self.hud_rows[0].0.borrow_mut();
-                    if let MiniHudComponentInner::Row0(r) = &mut c.inner {
-                        r.update(&l0, false, &laoa, aoa_y, a_col, ab_col);
-                    }
-                }
-                let (l1, lrel) = (self.lines[1].clone(), self.rel_energy.clone());
-                {
-                    let mut c = self.hud_rows[1].0.borrow_mut();
-                    if let MiniHudComponentInner::Row1(r) = &mut c.inner {
-                        // 能量颜色已统一使用 Application.colorNum，不再需要传入颜色参数
-                        //
-                        r.update(&l1, false, &lrel);
-                    }
-                }
-            }
-
-            // Row 2: Standard (Flaps/Gear)
-            let l2 = self.lines[2].clone();
-            {
-                let mut c = self.hud_rows[2].0.borrow_mut();
-                if let MiniHudComponentInner::Row2(r) = &mut c.inner {
-                    r.update(&l2, self.in_action);
-                }
-            }
-            // Row 3: Standard (SEP)
-            let l3 = self.lines[3].clone();
-            {
-                let mut c = self.hud_rows[3].0.borrow_mut();
-                if let MiniHudComponentInner::Row3(r) = &mut c.inner {
-                    r.update(&l3, false);
-                }
-            }
-            // Row 4: Maneuver (G)
-            let l4 = self.lines[4].clone();
-            let (mi, l, l10, l20, l30, l40, l50) = (
-                self.maneuver_index,
-                self.maneuver_index_len,
-                self.maneuver_index_len10,
-                self.maneuver_index_len20,
-                self.maneuver_index_len30,
-                self.maneuver_index_len40,
-                self.maneuver_index_len50,
+    /// updateComponents 行值段 (L362-397; 调用方保证 hud_rows.len()>=5)。
+    /// 行 0/1 预览串仅 service 缺席 (init 的 service_present) 时推 — 游戏模式由
+    /// onDataUpdate 事件路径覆写
+    fn update_row_values(&mut self) {
+        // Row 0, 1: Only update in preview mode (service == null)
+        // In game mode, they are updated via onDataUpdate() from FlightDataEvent
+        // (Java 注释原文; service==null 即 init 的 service_present=false)
+        if !self.service_present {
+            let (l0, laoa, aoa_y, a_col, ab_col) = (
+                self.lines[0].clone(),
+                self.line_aoa.clone(),
+                self.aoa_y,
+                self.aoa_color,
+                self.aoa_bar_color,
             );
-            {
-                let mut c = self.hud_rows[4].0.borrow_mut();
-                if let MiniHudComponentInner::Row4(r) = &mut c.inner {
-                    r.update(&l4, false, mi, l, l10, l20, l30, l40, l50);
+            self.hud_rows[0].map_inner(|inner| {
+                if let MiniHudComponentInner::Row0(r) = inner {
+                    r.update(&l0, false, &laoa, aoa_y, a_col, ab_col);
                 }
-            }
+            });
+            let (l1, lrel) = (self.lines[1].clone(), self.rel_energy.clone());
+            self.hud_rows[1].map_inner(|inner| {
+                if let MiniHudComponentInner::Row1(r) = inner {
+                    // 能量颜色已统一使用 Application.colorNum，不再需要传入颜色参数
+                    //
+                    r.update(&l1, false, &lrel);
+                }
+            });
         }
 
-        {
-            let mut throttle_value = 0;
-            // PORT: Java `service != null && service.sState != null` — sState 空判
-            // 折入 TelemetrySource 实现域 (Service 批次); getThrottle 返回 double
-            // 而 Java 读 int 字段 sState.throttle → as i32 (JLS 5.1.3 同义)
-            if let Some(s) = service {
-                throttle_value = s.var_value("throttle").unwrap_or(0.0) as i32;
+        // Row 2: Standard (Flaps/Gear)
+        let l2 = self.lines[2].clone();
+        let in_action = self.in_action;
+        self.hud_rows[2].map_inner(|inner| {
+            if let MiniHudComponentInner::Row2(r) = inner {
+                r.update(&l2, in_action);
             }
-            let mut c = self.throttle_bar.0.borrow_mut();
-            if let MiniHudComponentInner::ThrottleBar(t) = &mut c.inner {
-                t.update(throttle_value, &fmt_d(throttle_value, 3));
+        });
+        // Row 3: Standard (SEP)
+        let l3 = self.lines[3].clone();
+        self.hud_rows[3].map_inner(|inner| {
+            if let MiniHudComponentInner::Row3(r) = inner {
+                r.update(&l3, false);
             }
-        }
+        });
+        // Row 4: Maneuver (G)
+        let l4 = self.lines[4].clone();
+        let (mi, l, l10, l20, l30, l40, l50) = (
+            self.maneuver_index,
+            self.maneuver_index_len,
+            self.maneuver_index_len10,
+            self.maneuver_index_len20,
+            self.maneuver_index_len30,
+            self.maneuver_index_len40,
+            self.maneuver_index_len50,
+        );
+        self.hud_rows[4].map_inner(|inner| {
+            if let MiniHudComponentInner::Row4(r) = inner {
+                r.update(&l4, false, mi, l, l10, l20, l30, l40, l50);
+            }
+        });
+    }
+
+    /// throttleBar 推值 (updateComponents 的 service 口与 updateFromEvent 的
+    /// HUDData 口双路径共用; C27 双份收敛)
+    fn push_throttle(&mut self, v: i32) {
+        self.throttle_bar.map_inner(|inner| {
+            if let MiniHudComponentInner::ThrottleBar(t) = inner {
+                t.update(v, &fmt_d(v, 3));
+            }
+        });
     }
 
     /// Java initModernLayout() (L652-763) — 树构建委托
@@ -1278,12 +1341,7 @@ impl MiniHudOverlay {
             self.update_legacy_components(&data);
         }
 
-        {
-            let mut c = self.throttle_bar.0.borrow_mut();
-            if let MiniHudComponentInner::ThrottleBar(t) = &mut c.inner {
-                t.update(data.throttle, &fmt_d(data.throttle, 3));
-            }
-        }
+        self.push_throttle(data.throttle);
     }
 
     /// Java updateLegacyComponents(HUDData) (L470-496)
@@ -1294,30 +1352,28 @@ impl MiniHudOverlay {
         // Row 0, 1, 2 are refactored (Akb, Energy, Mechanization). They use
         // onDataUpdate.
         // Row 3: SEP
-        {
-            let sep = data.sep_str.clone();
-            let mut c = self.hud_rows[3].0.borrow_mut();
-            if let MiniHudComponentInner::Row3(r) = &mut c.inner {
+        let sep = data.sep_str.clone();
+        self.hud_rows[3].map_inner(|inner| {
+            if let MiniHudComponentInner::Row3(r) = inner {
                 r.update(&sep, false);
             }
-        }
+        });
         // Row 4: Maneuver
         // ManeuverRow update signature is complex.
-        {
-            let (ms, mi) = (data.maneuver_state_str.clone(), data.maneuver_index);
-            let (l, l10, l20, l30, l40, l50) = (
-                self.maneuver_index_len,
-                self.maneuver_index_len10,
-                self.maneuver_index_len20,
-                self.maneuver_index_len30,
-                self.maneuver_index_len40,
-                self.maneuver_index_len50,
-            );
-            let mut c = self.hud_rows[4].0.borrow_mut();
-            if let MiniHudComponentInner::Row4(r) = &mut c.inner {
+        let (ms, mi) = (data.maneuver_state_str.clone(), data.maneuver_index);
+        let (l, l10, l20, l30, l40, l50) = (
+            self.maneuver_index_len,
+            self.maneuver_index_len10,
+            self.maneuver_index_len20,
+            self.maneuver_index_len30,
+            self.maneuver_index_len40,
+            self.maneuver_index_len50,
+        );
+        self.hud_rows[4].map_inner(|inner| {
+            if let MiniHudComponentInner::Row4(r) = inner {
                 r.update(&ms, false, mi, l, l10, l20, l30, l40, l50);
             }
-        }
+        });
         // Note: maneuverIndexLen variables are member fields of MinimalHUD
         // calculated in legacy loop.
         let right_draw = self.ctx.right_draw;
@@ -1428,18 +1484,17 @@ pub fn minihud_overlay_spec<S: HUDSettings>(
     });
     Ok((
         handle,
-        OverlaySpec {
-            // Java LinkedHashMap 键 = configKey (Controller.java:671)
-            id: "crosshairSwitch".to_string(),
-            config_key: "crosshairSwitch".to_string(),
-            width: w,
-            height: h,
-            render: Box::new(move |cv: &mut PixCanvas| {
+        // Java LinkedHashMap 键 = configKey (Controller.java:671)
+        keyed_spec(
+            "crosshairSwitch",
+            w,
+            h,
+            Box::new(move |cv: &mut PixCanvas| {
                 // aa = 运行时仓 (cfg AAEnable 可关)
                 render_handle.borrow_mut().draw(cv, aa());
             }),
-            reinit: Some(reinit),
-        },
+            Some(reinit),
+        ),
     ))
 }
 

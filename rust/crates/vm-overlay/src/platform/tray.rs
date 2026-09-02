@@ -460,6 +460,66 @@ pub struct TrayIcon {
 // (见模块文档; D8 拓扑下托盘全程留在单 win32 泵线程)
 unsafe impl Send for TrayIcon {}
 
+/// 窗口类注册 (多次注册同类: 已存在视为成功 — 对齐 win.rs 先例)。
+/// 本段无已建资源, 失败回收 (handler) 归调用方
+unsafe fn register_tray_class() -> Result<windows::Win32::Foundation::HINSTANCE, String> {
+    let hinstance = GetModuleHandleW(None).map_err(|e| format!("GetModuleHandleW: {}", e))?;
+    let wc = WNDCLASSW {
+        style: CS_HREDRAW | CS_VREDRAW,
+        lpfnWndProc: Some(tray_wnd_proc),
+        hInstance: hinstance.into(),
+        lpszClassName: w!("VoidMeiTrayWnd"),
+        cbClsExtra: 0,
+        cbWndExtra: 0,
+        hIcon: Default::default(),
+        hCursor: Default::default(),
+        hbrBackground: Default::default(),
+        lpszMenuName: Default::default(),
+    };
+    if RegisterClassW(&wc) == 0
+        && windows::Win32::Foundation::GetLastError()
+            != windows::Win32::Foundation::ERROR_CLASS_ALREADY_EXISTS
+    {
+        return Err("RegisterClassW 失败".into());
+    }
+    Ok(hinstance.into())
+}
+
+/// 上下文菜单构建: 设置 / 开始 / 关于 / 退出 (Java: PopupMenu + about/close 两项,
+/// p.add(about) 在 p.add(close) 前 — 关于先于退出的次序保真)。
+/// 失败时自毁半成品菜单, 更早资源 (窗口/handler) 归调用方回收
+unsafe fn create_tray_menu(cfg: &TrayConfig) -> Result<HMENU, String> {
+    let menu = CreatePopupMenu().map_err(|e| format!("CreatePopupMenu: {}", e))?;
+    for (id, label) in [
+        (MENU_ID_SETTINGS, &cfg.settings_label),
+        (MENU_ID_START, &cfg.start_label),
+        (MENU_ID_ABOUT, &cfg.about_label),
+        (MENU_ID_EXIT, &cfg.exit_label),
+    ] {
+        let wide = to_wide(label);
+        if let Err(e) = AppendMenuW(menu, MF_STRING, id, windows::core::PCWSTR(wide.as_ptr())) {
+            let _ = DestroyMenu(menu);
+            return Err(format!("AppendMenuW: {}", e));
+        }
+    }
+    Ok(menu)
+}
+
+/// 图标装载: PNG 优先, 失败回退系统默认 (Java getImage 失败画空图, 有意加强)。
+/// 返回 (HICON, 是否需 DestroyIcon — LoadIconW 共享图标禁删);
+/// 双双失败返回 Err, 资源回收 (窗口/菜单/handler) 归调用方
+unsafe fn load_icon_or_default(path: &Path) -> Result<(HICON, bool), String> {
+    match load_icon(path) {
+        Ok(h) => Ok((h, true)),
+        Err(e) => {
+            vm_core::base::logger::warn_default(&format!("图标加载失败回退默认: {}", e));
+            LoadIconW(None, IDI_APPLICATION)
+                .map(|h| (h, false))
+                .map_err(|e| format!("LoadIconW: {}", e))
+        }
+    }
+}
+
 impl TrayIcon {
     /// 创建托盘: 隐藏窗口 → 菜单 → 图标 → NIM_ADD。
     /// NIM_ADD 失败不致命: PORT: Java `tray.add(icon)` 抛 AWTException →
@@ -479,39 +539,21 @@ impl TrayIcon {
             // 先装 handler: 窗口一旦可达, WNDPROC 回调就要有受体
             let handler_gen = install_handler(handler);
 
-            let hinstance = GetModuleHandleW(None)
-                .map_err(|e| format!("GetModuleHandleW: {}", e))?;
-            let class_name = w!("VoidMeiTrayWnd");
-            let wc = WNDCLASSW {
-                style: CS_HREDRAW | CS_VREDRAW,
-                lpfnWndProc: Some(tray_wnd_proc),
-                hInstance: hinstance.into(),
-                lpszClassName: class_name,
-                cbClsExtra: 0,
-                cbWndExtra: 0,
-                hIcon: Default::default(),
-                hCursor: Default::default(),
-                hbrBackground: Default::default(),
-                lpszMenuName: Default::default(),
-            };
-            let atom = RegisterClassW(&wc);
-            if atom == 0 {
-                // 多次注册同类: 已存在视为成功 (对齐 win.rs 先例)
-                if windows::Win32::Foundation::GetLastError()
-                    != windows::Win32::Foundation::ERROR_CLASS_ALREADY_EXISTS
-                {
-                    // 失败路径回收已装 handler (窗口不可达, 槽位无意义)
+            let hinstance = match register_tray_class() {
+                Ok(h) => h,
+                // 失败路径回收已装 handler (窗口不可达, 槽位无意义)
+                Err(e) => {
                     uninstall_handler(handler_gen);
-                    return Err("RegisterClassW 失败".into());
+                    return Err(e);
                 }
-            }
+            };
 
             // 隐藏消息窗口: WS_OVERLAPPED 且不 ShowWindow (Java: AWT 内部辅助窗口,
             // 用户不可见; 不用 HWND_MESSAGE 消息专用窗口 — TrackPopupMenu
             // 需可前台化的属主窗口, 否则菜单点外部不关闭)
-            let hwnd = CreateWindowExW(
+            let hwnd = match CreateWindowExW(
                 Default::default(),
-                class_name,
+                w!("VoidMeiTrayWnd"),
                 w!("VoidMei Tray"),
                 WS_OVERLAPPED,
                 0,
@@ -520,60 +562,34 @@ impl TrayIcon {
                 0,
                 None,
                 None,
-                Some(hinstance.into()),
+                Some(hinstance),
                 None,
-            )
-            .map_err(|e| {
-                uninstall_handler(handler_gen);
-                format!("CreateWindowExW: {}", e)
-            })?;
+            ) {
+                Ok(h) => h,
+                Err(e) => {
+                    uninstall_handler(handler_gen);
+                    return Err(format!("CreateWindowExW: {}", e));
+                }
+            };
 
-            // 菜单: 设置 / 开始 / 关于 / 退出 (Java: PopupMenu + about/close 两项,
-            // p.add(about) 在 p.add(close) 前 — 关于先于退出的次序保真)
-            let menu = match CreatePopupMenu() {
+            let menu = match create_tray_menu(&cfg) {
                 Ok(m) => m,
                 Err(e) => {
                     uninstall_handler(handler_gen);
                     let _ = DestroyWindow(hwnd);
-                    return Err(format!("CreatePopupMenu: {}", e));
+                    return Err(e);
                 }
             };
-            for (id, label) in [
-                (MENU_ID_SETTINGS, &cfg.settings_label),
-                (MENU_ID_START, &cfg.start_label),
-                (MENU_ID_ABOUT, &cfg.about_label),
-                (MENU_ID_EXIT, &cfg.exit_label),
-            ] {
-                let wide = to_wide(label);
-                if let Err(e) = AppendMenuW(
-                    menu,
-                    MF_STRING,
-                    id,
-                    windows::core::PCWSTR(wide.as_ptr()),
-                ) {
+
+            // 图标: 在共享槽登记前加载 — 彻底失败时槽未登记, 回收路径无需回滚共享槽
+            // (win.rs create 同纪律: 窗口/菜单/handler)
+            let (icon, owns_icon) = match load_icon_or_default(&cfg.icon_path) {
+                Ok(v) => v,
+                Err(e) => {
                     uninstall_handler(handler_gen);
                     let _ = DestroyMenu(menu);
                     let _ = DestroyWindow(hwnd);
-                    return Err(format!("AppendMenuW: {}", e));
-                }
-            }
-
-            // 图标: PNG 优先, 失败回退系统默认 (Java getImage 失败画空图, 有意加强)。
-            // 在共享槽登记前加载 — 彻底失败时槽未登记, 回收路径无需回滚共享槽
-            let (icon, owns_icon) = match load_icon(&cfg.icon_path) {
-                Ok(h) => (h, true),
-                Err(e) => {
-                    vm_core::base::logger::warn_default(&format!("图标加载失败回退默认: {}", e));
-                    match LoadIconW(None, IDI_APPLICATION) {
-                        Ok(h) => (h, false),
-                        // 失败路径资源回收 (win.rs create 同纪律): 窗口/菜单/handler
-                        Err(e) => {
-                            uninstall_handler(handler_gen);
-                            let _ = DestroyMenu(menu);
-                            let _ = DestroyWindow(hwnd);
-                            return Err(format!("LoadIconW: {}", e));
-                        }
-                    }
+                    return Err(e);
                 }
             };
 
