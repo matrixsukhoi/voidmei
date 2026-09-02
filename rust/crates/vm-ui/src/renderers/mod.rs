@@ -1,26 +1,23 @@
-//! RowRenderer 族的**写回链 + 纯数据层** (对应 src/ui/layout/renderer/ + RowRendererRegistry.java)。
+//! RowRenderer 族的**写回链 + 纯数据层** (对应 src/ui/layout/renderer/ 的闭包体)。
 //!
 //! **D9 变更**: 原 iced view 分发层 (view_row/fallback_row 及各渲染器 view_row) 已删
-//! — 表单渲染归 vm-webui web 壳。本层保留:
+//! — 表单渲染归 vm-webui web 壳; Java 各渲染器的读链 (read_display/read_current)
+//! 亦随之退役 (波12: 回显由 web 壳经 GetLayoutTree 整树 DTO 承担, 前端 JS 自带
+//! 同语义取值/解析)。本层保留:
 //! - 各类型 apply 写回链 (`switch::apply`/`slider::apply`/`combo::apply`/`color::apply`,
 //!   对位 Java renderer 闭包体的配置写路径);
 //! - 纯数据函数 (`combo::resolve_options`/`slider::effective_range`/`color` 解析与
-//!   格式化/`color_picker` HSB↔RGB 数学);
+//!   格式化);
 //! - 行定位助手 (find_row_path/row_by_path, main_form 消息定位在用)。
 //!
-//! Java 各渲染器的读链 (read_display/read_current) 一并保留 — web 壳回显当前值
-//! 需要与 Java 同优先级的取值链 (PropertyBinder → 服务 → 行值)。
-//! PORT: 已注册未落地的渲染器 (HOTKEY/VOICE/FILELIST/FMLIST/VOICE_GLOBAL/INFO) 的
-//! 专属交互依赖系统钩子与音频子系统; 未知类型对位 Java defaultRenderer=
-//! DataRowRenderer (点击写配置, 走 `data::read_display` 同键规则)。
+//! 未迁移专属渲染器的行类型 (HOTKEY/VOICE/FILELIST/FMLIST/INFO/BUTTON) 的交互
+//! 归 web 壳 + vm-app dispatcher (form_dispatch.rs); INPUT/TEXT/DATA 行的写回
+//! 分别复用 `combo::apply`/`switch::apply` (路由等价备案见各自测试)。
 
 pub mod color;
-pub mod color_picker;
 pub mod combo;
-pub mod data;
 pub mod slider;
 pub mod switch;
-pub mod text;
 
 use vm_core::config::config_loader::RowConfig;
 
@@ -30,7 +27,7 @@ use vm_core::config::config_loader::RowConfig;
 
 /// 在行树内按 :target (property) DFS 定位行, 返回索引路径; 无 property 的行以
 /// label 匹配 (与服务侧 update_rows_recursive 同一命中谓词 — 无 :target 控件以
-/// label 为消息键)。消息 key 来自行自身 (视图闭包捕获), 恒可命中。
+/// label 为消息键)。消息 key 来自行自身 (前端控件携带), 恒可命中。
 pub(crate) fn find_row_path(rows: &[RowConfig], key: &str) -> Option<Vec<usize>> {
     for (i, r) in rows.iter().enumerate() {
         if r.property.as_deref() == Some(key) || (r.property.is_none() && key == r.label) {
@@ -83,7 +80,7 @@ pub(crate) mod test_util {
     use std::sync::Arc;
 
     use vm_core::config::configuration_service::ConfigurationService;
-    use crate::row_renderer_registry::RenderContext;
+    use crate::render_context::RenderContext;
 
     #[derive(Default)]
     pub(crate) struct MapCtx {
@@ -91,21 +88,11 @@ pub(crate) mod test_util {
         pub calls: RefCell<Vec<String>>,
     }
 
-    impl MapCtx {
-        pub fn set(&mut self, k: &str, v: &str) {
-            self.values.insert(k.to_string(), v.to_string());
-        }
-    }
+    impl MapCtx {}
 
     impl RenderContext for MapCtx {
         fn on_save(&self) {
             self.calls.borrow_mut().push("on_save".into());
-        }
-        fn on_rebuild(&self) {
-            self.calls.borrow_mut().push("on_rebuild".into());
-        }
-        fn is_updating(&self) -> bool {
-            false
         }
         fn sync_to_config_service(&self, key: &str, value: bool) {
             self.calls

@@ -90,7 +90,6 @@ fn fixture_full(ms: u64, cfg: String) -> AppShell {
     let (hotkey, hotkey_rx) = HotkeyManager::with_channel();
     let mut env = Env::probe(&Lang::init_lang(), false);
     env.app_port = 9; // discard 端口: 无服务监听, connect 立即 RST
-    env.app_port_bkp = 9;
     // 字体目录钉在仓库根 (cargo 测试 CWD=crate 根, CWD 相对探测不稳;
     // win32 线程注册面的 spec 工厂需要真实字体文件)
     env.fonts_dir =

@@ -14,28 +14,28 @@
 //!
 //! PORT: Java 类仅含 static 方法 → Rust 模块自由函数 (exception_helper/string_helper 先例)。
 //! PORT: 形参类型 `RowRenderer.RenderContext` (RowRenderer.java:27-52 嵌套接口) 的
-//! trait 定义落位于 [`crate::row_renderer_registry`] (RowRenderer.java 的占位翻译,
-//! 嵌套归属保真), 本文件 re-export 引入 — 对应 Java 侧 `import
+//! trait 定义落位于 [`crate::render_context`] (D9 后 RowRenderer 策略接口已退役,
+//! 契约独立成文件), 本文件 re-export 引入 — 对应 Java 侧 `import
 //! ui.layout.renderer.RowRenderer.RenderContext` (RendererConfigHelper.java:6)。
-//! 全 crate 必须共用该单一类型: render() 收到的 `&dyn RenderContext` 要能直接
-//! 传入本助手六函数 (两个同名 trait = 名义类型不兼容, 审查 blocker)。
-//! 注意与 `crate::layout::RenderContext` (ui/renderer/RenderContext.java, 布局公式
-//! 上下文) 是**同名不同物**的两个 Java 类型。
+//! 全 crate 必须共用该单一类型: 各 apply 写链与读写助手收到的 `&dyn RenderContext`
+//! 要能直接互通 (两个同名 trait = 名义类型不兼容, 审查 blocker)。
+//! 注意与 vm-overlay `render::renderers::RenderContext` (ui/renderer/RenderContext.java,
+//! 布局公式上下文) 是**同名不同物**的两个 Java 类型。
 
 use vm_core::config::config_loader::{GroupConfig, RowConfig};
 
 /// Context object providing callbacks and state for rendering.
 ///
-/// PORT: 定义在 [`crate::row_renderer_registry::RenderContext`] (Java 为
+/// PORT: 定义在 [`crate::render_context::RenderContext`] (Java 为
 /// `ui.layout.renderer.RowRenderer.RenderContext` 嵌套接口, 唯一实现是
-/// DynamicDataPage.java:126-175 的匿名类), 此处 re-export 使本助手六方法的
-/// 契约类型与 `RowRenderer::render` 的形参类型归一 (对应 Java 侧 import 语句)。
+/// DynamicDataPage.java:126-175 的匿名类), 此处 re-export 使本助手六方法与
+/// 各渲染器 apply 写链的契约类型归一 (对应 Java 侧 import 语句)。
 /// PORT: 方法签名取 `&self` (非 `&mut`): Java 实现的 syncToConfigService →
 /// ConfigurationService.setConfig → **同步** publish CONFIG_CHANGED →
 /// DynamicDataPage 自身的 handler rebuild() 重入 (§2.8) — `&mut` 版在
 /// RefCell 实现下即借用 panic; 共享与重入安全由实现侧内部可变性承担
 /// (与 config_api::config_provider::ConfigProvider::set_config 的同款裁决)。
-pub use crate::row_renderer_registry::RenderContext;
+pub use crate::render_context::RenderContext;
 
 /// PORT (D7 重设计): Java `prog.util.PropertyBinder` 是通用反射工具 —
 /// `target.getClass().getField(property)` 按名读/写任意对象的 public 字段。
@@ -53,6 +53,7 @@ pub use crate::row_renderer_registry::RenderContext;
 /// Allows dynamic get/set of object fields by name, eliminating switch-case
 /// boilerplate.
 mod property_binder {
+    use vm_core::base::logger;
     use vm_core::config::config_loader::GroupConfig;
 
     /// 注册表键 → GroupConfig 字段选择子 (Java: getField 返回的 Field 对象)。
@@ -286,20 +287,23 @@ mod property_binder {
                 group.y = i as f64;
                 true
             }
-            // PropertyBinder 仅捕 NoSuchFieldException|IllegalAccessException →
-            // 原样上抛), §1 映射 panic!。剩余组合 (Boolean/String 装入数值或
-            // boolean 字段, Integer 装入 boolean/String/List 字段) 均 = JDK8
-            // oracle 实测的 IllegalArgumentException 路径。域内不可达论据:
-            // 现行 ui_layout.cfg 的 :target 仅绑 fontSize(int)/fontName(String),
-            // 无越型绑定 — 但 slider 绑 x/y (double) 属 cfg 可达路径, 已由上方
-            // 拓宽臂承接, 不落入此处
-            (field, value) => panic!(
-                "java.lang.IllegalArgumentException: Can not set {} field '{}' to {} \
-                 (PropertyBinder.set 未捕获, 原样上抛)",
-                field.kind_name(),
-                property,
-                value.kind_name()
-            ),
+            // Java 剩余组合 (Boolean/String 装入数值或 boolean 字段, Integer 装入
+            // boolean/String/List 字段) = JDK8 oracle 实测的 IllegalArgumentException
+            // 路径 (PropertyBinder 未捕获, 原样上抛)。cfg 是用户可编辑输入, 越型
+            // 绑定不该 panic 主线程 (A5) — warn 日志 + 忽略该次绑定 (返回 false,
+            // 调用方回落 row.value; write_* 的服务同步仍执行)
+            (field, value) => {
+                logger::warn(
+                    "RendererConfigHelper",
+                    &format!(
+                        "越型绑定被忽略: {} 字段 '{}' 不能接受 {}",
+                        field.kind_name(),
+                        property,
+                        value.kind_name()
+                    ),
+                );
+                false
+            }
         }
     }
 
@@ -442,13 +446,6 @@ pub fn read_bool(
 /// @param property   属性名
 /// @param value      新值
 /// @return 是否成功写入 PropertyBinder
-///
-/// PORT(跨文件上报, C 类渲染器批次前必须裁决): 兄弟文件 row_renderer_registry.rs
-/// 的 `RowRenderer::render` 占位签名给 `&GroupConfig`, 而本助手 write_* 需
-/// `&mut GroupConfig` (Java 三个渲染器均在 render 内经本助手原地改 groupConfig,
-/// PropertyBinder.set 反射写入同一活对象)。需在 C 类批次前显式抉择其一并记
-/// DECISIONS.md: render 形参提为 `&mut GroupConfig` / 改传 `&RefCell<GroupConfig>`
-/// / 经 ctx 通道改值。本文件不越文件改动 (PORTING §6)。
 pub fn write_string(
     ctx: &dyn RenderContext,
     group_config: &mut GroupConfig,

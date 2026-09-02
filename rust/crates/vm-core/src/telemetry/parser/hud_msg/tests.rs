@@ -58,28 +58,6 @@ fn parse_obj_short_returns_zero() {
 }
 
 #[test]
-fn get_line_extracts_object_slice() {
-    // update 未调用的公共路径 (原为取 "damage" 数组首对象):
-    // 从定位点后扫到 '{', 再扫到首个 '}' (对象无嵌套), 返回含两端花括号的整段
-    let mut hm = HudMsg::new();
-    hm.init();
-    hm.update(HUDMSG_MOCK, 0);
-    let line = hm.get_line("damage");
-    assert_eq!(
-        line,
-        "{\"id\": 532213658,\"msg\": \"player1_VS_player2\",\"sender\": \"someone\",\"enemy\": true,\"mode\": \"ES\"}"
-    );
-}
-
-#[test]
-fn get_line_missing_returns_empty() {
-    let mut hm = HudMsg::new();
-    hm.init();
-    hm.update("{\"foo\": 1}", 0);
-    assert_eq!(hm.get_line("damage"), "");
-}
-
-#[test]
 fn init_creates_default_damage() {
     let mut hm = HudMsg::new();
     assert!(hm.dmg.is_none()); // new 后未 init ≈ Java null

@@ -119,7 +119,6 @@ pub struct ServiceData {
 
     // ---- L219-236 (方法/常量区, 常量见 struct 后) ----
     pub player_live: bool,
-    pub s_loc: Option<String>,
 
     pub altmeterp: f64,
     pub altmeter: f64,
@@ -240,7 +239,6 @@ impl Default for ServiceData {
             check_engine_flag: false,
             mapinfo: None,
             player_live: false,
-            s_loc: None,
             altmeterp: 0.0,
             altmeter: 0.0,
             thurst_percent: 0.0,

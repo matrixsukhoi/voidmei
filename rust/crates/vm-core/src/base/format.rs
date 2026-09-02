@@ -69,8 +69,7 @@ pub fn format(value: f64, precision: u8) -> String {
 }
 
 /// MM'SS 时间格式化, 对应 Java formatTime(double, char[])
-/// (FlightInfo 的 16 字段未用到 TIME_MM_SS, 其它 overlay 迁移时使用)
-#[allow(dead_code)]
+/// (power_info 油温耐热时间使用)
 pub fn format_time(value: f64) -> String {
     if value.is_nan() || value < 0.0 {
         return "--'--".to_string();

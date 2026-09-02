@@ -1,5 +1,7 @@
-//! BOSStyleRenderer + TextGauge 的移植: 多列网格渲染
-//! 逐段绘制顺序严格对齐 Java: value(阴影+本体) → label(阴影+本体) → unit(阴影+本体)
+//! FlightInfo 直通渲染栈的字段网格绘制 (font::Canvas GDI 形态):
+//! value(阴影+本体) → label(阴影+本体) → unit(阴影+本体)
+//! (BOS 形态的 PixCanvas 路径在 renderers.rs; render_fields 整帧自建画布变体
+//! 已随波12 死代码清扫删除, 生产仅剩 fixed 复用缓冲形态)
 
 use crate::render::font::{Canvas, LoadedFont};
 use crate::layout::RenderCtx;
@@ -44,19 +46,6 @@ pub struct FieldText<'a> {
     pub label: &'a str,
     pub unit: &'a str,
     pub value: &'a str,
-}
-
-/// 渲染全部可见字段, 对应 BOSStyleRenderer.render (画布尺寸按可见数计算)
-pub fn render_fields(
-    fields: &[FieldText<'_>],
-    ctx: &RenderCtx,
-    fonts: &FontTriple,
-    colors: &RenderColors,
-    aa: bool,
-) -> Canvas {
-    let mut canvas = Canvas::new(ctx.total_width(), ctx.total_height(fields.len() as i32));
-    draw_fields(&mut canvas, fields, ctx, fonts, colors, aa);
-    canvas
 }
 
 /// 渲染到固定尺寸画布 (live 模式复用缓冲; 先清零, 空白行透明)
@@ -125,20 +114,4 @@ fn draw_shaded(
 ) {
     canvas.draw_text(font, x + 1, baseline + 1, text, shade, aa);
     canvas.draw_text(font, x, baseline, text, color, aa);
-}
-
-/// 画布写 PNG (RGBA 直通)
-pub fn save_png(canvas: &Canvas, path: &std::path::Path) -> Result<(), String> {
-    let file = std::fs::File::create(path)
-        .map_err(|e| format!("创建 {} 失败: {}", path.display(), e))?;
-    let mut enc = png::Encoder::new(std::io::BufWriter::new(file), canvas.width as u32, canvas.height as u32);
-    enc.set_color(png::ColorType::Rgba);
-    enc.set_depth(png::BitDepth::Eight);
-    let mut writer = enc
-        .write_header()
-        .map_err(|e| format!("PNG header 失败: {}", e))?;
-    writer
-        .write_image_data(&canvas.buf)
-        .map_err(|e| format!("PNG 数据失败: {}", e))?;
-    Ok(())
 }

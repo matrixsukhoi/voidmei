@@ -234,7 +234,7 @@ fn test_for_preview_mode_wiring() {
     assert!(ctx.get_bool("k"));
 }
 
-// -- ActivationContext 实现 (activation_strategy.rs TODO(port) 指定语义) --
+// -- ActivationContext 实现 (指定语义) --
 #[test]
 fn test_activation_context_impl_semantics() {
     let config = Arc::new(MapConfig::new());

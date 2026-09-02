@@ -154,8 +154,8 @@ impl HttpHelper {
             let (scheme, host, port, path) = parse_url(&current)?;
             if scheme == "https" {
                 // PORT: TLS 依赖未引入 (见方法注释), 上报项
-                // TODO(port): https 支持 (reqwest/TLS 栈引入待 workspace 裁决,
-                // CLASSIFY C 类; 唯一生产调用方 checkUpdate 固定 https URL)
+                // TODO(https): 真实功能缺口 — 唯一生产调用方 checkUpdate 固定
+                // https URL, 引入 reqwest/TLS 栈前更新检查持续失败 (静默跳过)
                 return Err(format!("https 协议暂不受支持 (无 TLS 依赖): {}", current));
             }
             let addr: SocketAddr = format!("{}:{}", host, port)

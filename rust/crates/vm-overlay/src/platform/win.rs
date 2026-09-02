@@ -238,7 +238,6 @@ pub fn create(cfg: WindowConfig) -> Result<WinOverlay, String> {
 }
 
 impl WinOverlay {
-    #[allow(dead_code)]
     fn ex_style(&self) -> WINDOW_EX_STYLE {
         unsafe { WINDOW_EX_STYLE(GetWindowLongPtrW(self.hwnd, GWL_EXSTYLE) as u32) }
     }

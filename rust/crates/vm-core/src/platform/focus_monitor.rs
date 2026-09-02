@@ -83,7 +83,7 @@ pub trait FocusDetector: Send + Sync {
 /// 消费方最小接口代餐; hide/showAllOverlays 各自的 overlaysHidden 幂等标志与
 /// EDT 派发属协调器自身职责 (AlwaysOnTopCoordinator.java:197-233), 不在本文件
 /// 复刻。
-/// TODO(port): 真实协调器 (P4) 落地时为 AlwaysOnTopCoordinator impl 本 trait。
+/// 后续: 真实协调器落地时为 AlwaysOnTopCoordinator 实现本 trait。
 ///
 /// 实现合同 (非阻塞, 硬性): 本 trait 全部方法在集成方 `Mutex<FocusMonitor>`
 /// 锁内被调 (set_enabled 禁用分支 / tick 变化分支, 见模块头线程模型注)。

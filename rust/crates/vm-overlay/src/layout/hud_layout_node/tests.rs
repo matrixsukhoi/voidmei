@@ -41,7 +41,6 @@ fn initial_defaults_match_java() {
         assert_eq!((g.unit_x, g.unit_y), (0.0, 0.0));
         assert_eq!(g.parent_anchor, Anchor::TopLeft);
         assert_eq!(g.self_anchor, Anchor::TopLeft);
-        assert!(!g.ignore_bounds);
         assert_eq!(g.pixel_rect, Rectangle::new()); // new Rectangle() = 全 0
         assert!(g.dirty);
     }
@@ -95,14 +94,12 @@ fn fluent_setters_return_self_and_apply() {
     let n = HUDLayoutNode::new("x", fixed(5, 5));
     let ret = n
         .set_relative_position(1.5, -2.0)
-        .set_anchors(Anchor::BottomRight, Anchor::Center)
-        .set_ignore_bounds(true);
+        .set_anchors(Anchor::BottomRight, Anchor::Center);
     assert!(Rc::ptr_eq(&ret, &n));
     let g = n.borrow();
     assert_eq!((g.unit_x, g.unit_y), (1.5, -2.0));
     assert_eq!(g.parent_anchor, Anchor::BottomRight);
     assert_eq!(g.self_anchor, Anchor::Center);
-    assert!(g.ignore_bounds);
 }
 
 /// solve 锚点数学的 Java oracle 对拍。

@@ -1,6 +1,25 @@
 use super::*;
 use crate::render::font::Canvas;
-use crate::render::canvas::to_premul_bgra;
+
+/// 直通 RGBA 画布 → 预乘 BGRA (双路文本对拍测试的参照转换; 生产面同款逻辑
+/// 内联在 PixCanvas::composite/blit 的截断式镜像里, 此处仅测试自持一份)
+fn to_premul_bgra(canvas: &Canvas) -> Vec<u8> {
+    let n = canvas.buf.len() / 4;
+    let mut out = vec![0u8; canvas.buf.len()];
+    for i in 0..n {
+        let (r, g, b, a) = (
+            canvas.buf[i * 4] as u32,
+            canvas.buf[i * 4 + 1] as u32,
+            canvas.buf[i * 4 + 2] as u32,
+            canvas.buf[i * 4 + 3] as u32,
+        );
+        out[i * 4] = (b * a / 255) as u8;
+        out[i * 4 + 1] = (g * a / 255) as u8;
+        out[i * 4 + 2] = (r * a / 255) as u8;
+        out[i * 4 + 3] = a as u8;
+    }
+    out
+}
 
 const FONT: &str = "../../../fonts/sarasa-mono-sc-bold.ttf";
 

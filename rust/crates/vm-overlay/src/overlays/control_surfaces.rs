@@ -590,7 +590,7 @@ pub fn control_surfaces_overlay_spec(
             width: w,
             height: h,
             render: Box::new(move |cv: &mut PixCanvas| {
-                // 生产 AA 恒开 (Application.java:102 graphAASetting 默认 ON)
+                // aa = 运行时仓 (cfg AAEnable 可关)
                 let (num, label, unit) =
                     (render_num.borrow(), render_label.borrow(), render_unit.borrow());
                 let fonts = CsFonts {

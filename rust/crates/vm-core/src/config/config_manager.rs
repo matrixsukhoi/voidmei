@@ -560,15 +560,6 @@ fn dispatch_config_dialog(dialog: ConfigDialog) {
     }
 }
 
-/// Shows a dialog when config parsing fails.
-/// PORT: 调用点 (initialize 的 parse-error 分支) 为 Java 侧即不可达的死路径
-/// (§2.7, 见 initialize 内标注), Java 同为永不走到的代码 — allow(dead_code) 保形。
-#[allow(dead_code)]
-fn show_parse_error_dialog() {
-    // Run on EDT for thread safety (using DialogService to avoid overlay blocking)
-    dispatch_config_dialog(ConfigDialog::ParseError);
-}
-
 /// Shows a detailed merge report dialog listing what was added/updated.
 fn show_merge_report(report: &MergeReport) {
     let lang = Lang::init_lang();
@@ -613,7 +604,7 @@ fn show_merge_report(report: &MergeReport) {
 // (ui_model/config_stub.rs 桩先例; 仅覆盖 ConfigManager 消费面
 // loadTemplateHash/saveTemplateHash 两个方法)
 //
-// TODO(port): ui_state_storage 波次落地后删除本节, initialize() 的两处调用
+// TODO(ui_state_storage): 真实现落地后删除本节, initialize() 的两处调用
 // 切换到 `crate::ui_state_storage::{load_template_hash, save_template_hash}`。
 // =====================================================================
 

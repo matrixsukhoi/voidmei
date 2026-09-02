@@ -341,8 +341,7 @@ mod win {
     /// 对应 Java: `src/prog/util/WindowsFocusDetector.java` (C 类/P4,
     /// windows crate 绑定)。Windows 平台专用焦点检测器。
     /// 跨平台分派腿 (FocusDetector.java 的 os.name 判定, A 类) 不在本文件,
-    /// 见 vm-core focus_monitor.rs trait 注 — 其 TODO(port) 的 Windows 实现腿
-    /// 由本类型落地 (trait 归属回收仍留 A 类波次)。
+    /// 见 vm-core focus_monitor.rs trait 注 (FocusDetector trait 归属维持在那侧)。
     ///
     /// 实现合同 (锁内回调, focus_monitor.rs): 纯 Win32 调用 ~3-5ms,
     /// 不等待其他锁/线程, 满足非阻塞要求。

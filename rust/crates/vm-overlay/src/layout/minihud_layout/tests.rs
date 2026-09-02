@@ -309,6 +309,98 @@ fn clear_resets_engine() {
 }
 
 /// cfg 快照 oracle: 逐项对照 ui_layout.cfg (panel "MiniHUD" L45-94)。
+/// 波12 起常量表仅测试消费, 自 minihud_layout.rs 移入本文件 (生产代码不持
+/// ui_layout.cfg 的第二份手工快照 — 配置真值走 ReinitParams/cfg 树)。
+///
+/// :type (布局消费的子集; info 行不含 target 不入表)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum MiniHudItemType {
+    /// switch (UI ON = value true)
+    Switch,
+    /// switch-inv (UI ON = value false)
+    SwitchInv,
+    /// slider (:min/:max/:unit)
+    Slider,
+    /// combo (:source 列表)
+    Combo,
+}
+
+/// :value / :default 字面量 (cfg 两列恒同值)
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum CfgDefault {
+    Bool(bool),
+    Int(i32),
+    Str(&'static str),
+}
+
+/// panel "MiniHUD" 单条 (item ...) 定义快照
+#[derive(Debug, Clone, Copy)]
+struct MiniHudCfgItem {
+    item_type: MiniHudItemType,
+    /// :target 配置键 (cfg 字符串键原样)
+    target: &'static str,
+    default: CfgDefault,
+    /// slider :min
+    min: Option<i32>,
+    /// slider :max
+    max: Option<i32>,
+    /// slider :unit
+    unit: Option<&'static str>,
+}
+
+/// MiniHUD panel 段 28 条 item 逐行快照 (ui_layout.cfg L45-94, 顺序一致;
+/// group 归属见行间注释, label 断言未消费故不入表)。
+/// 只保留 type/target/value/min/max/unit (布局消费的子集);
+/// combo 的 :source 与 :desc 等设置面板字段未入表 — vm-ui 生成完整设置面板时
+/// 须从 ui_layout.cfg 另出全量表, 勿复用本表 (避免单一来源分裂)。
+const MINIHUD_PANEL_ITEMS: &[MiniHudCfgItem] = &[
+    // (group "基本设定")
+    MiniHudCfgItem { item_type: MiniHudItemType::Switch, target: "crosshairSwitch", default: CfgDefault::Bool(true), min: None, max: None, unit: None },
+    // (group "hud面板设置")
+    MiniHudCfgItem { item_type: MiniHudItemType::Switch, target: "drawHUDtext", default: CfgDefault::Bool(true), min: None, max: None, unit: None },
+    MiniHudCfgItem { item_type: MiniHudItemType::Switch, target: "displayCrosshair", default: CfgDefault::Bool(true), min: None, max: None, unit: None },
+    // (group "hud数据设置")
+    MiniHudCfgItem { item_type: MiniHudItemType::Switch, target: "enableFlapAngleBar", default: CfgDefault::Bool(true), min: None, max: None, unit: None },
+    MiniHudCfgItem { item_type: MiniHudItemType::Switch, target: "showSpeedBar", default: CfgDefault::Bool(true), min: None, max: None, unit: None },
+    MiniHudCfgItem { item_type: MiniHudItemType::Switch, target: "showAttitudeGauge", default: CfgDefault::Bool(true), min: None, max: None, unit: None },
+    MiniHudCfgItem { item_type: MiniHudItemType::Switch, target: "attitudeIndicatorInertialMode", default: CfgDefault::Bool(false), min: None, max: None, unit: None },
+    MiniHudCfgItem { item_type: MiniHudItemType::Switch, target: "hudMach", default: CfgDefault::Bool(true), min: None, max: None, unit: None },
+    MiniHudCfgItem { item_type: MiniHudItemType::Switch, target: "alwaysShowRadarAltitude", default: CfgDefault::Bool(false), min: None, max: None, unit: None },
+    MiniHudCfgItem { item_type: MiniHudItemType::Slider, target: "miniHUDaoaWarningRatio", default: CfgDefault::Int(20), min: Some(0), max: Some(100), unit: Some("%") },
+    MiniHudCfgItem { item_type: MiniHudItemType::Slider, target: "miniHUDaoaBarWarningRatio", default: CfgDefault::Int(25), min: Some(0), max: Some(100), unit: Some("%") },
+    MiniHudCfgItem { item_type: MiniHudItemType::Switch, target: "showHUDSpeed", default: CfgDefault::Bool(true), min: None, max: None, unit: None },
+    MiniHudCfgItem { item_type: MiniHudItemType::Switch, target: "showHUDAoA", default: CfgDefault::Bool(true), min: None, max: None, unit: None },
+    MiniHudCfgItem { item_type: MiniHudItemType::Switch, target: "showHUDAltitude", default: CfgDefault::Bool(true), min: None, max: None, unit: None },
+    MiniHudCfgItem { item_type: MiniHudItemType::Switch, target: "showHUDEnergy", default: CfgDefault::Bool(true), min: None, max: None, unit: None },
+    MiniHudCfgItem { item_type: MiniHudItemType::Switch, target: "showHUDFlaps", default: CfgDefault::Bool(true), min: None, max: None, unit: None },
+    MiniHudCfgItem { item_type: MiniHudItemType::Switch, target: "showHUDAirbrake", default: CfgDefault::Bool(true), min: None, max: None, unit: None },
+    MiniHudCfgItem { item_type: MiniHudItemType::Switch, target: "showHUDGear", default: CfgDefault::Bool(true), min: None, max: None, unit: None },
+    MiniHudCfgItem { item_type: MiniHudItemType::Switch, target: "showHUDSep", default: CfgDefault::Bool(true), min: None, max: None, unit: None },
+    MiniHudCfgItem { item_type: MiniHudItemType::Switch, target: "showHUDGLoad", default: CfgDefault::Bool(true), min: None, max: None, unit: None },
+    MiniHudCfgItem { item_type: MiniHudItemType::Switch, target: "showHUDManeuverBar", default: CfgDefault::Bool(true), min: None, max: None, unit: None },
+    // (group "hud文字标签设置")
+    MiniHudCfgItem { item_type: MiniHudItemType::SwitchInv, target: "disableHUDSpeedLabel", default: CfgDefault::Bool(false), min: None, max: None, unit: None },
+    MiniHudCfgItem { item_type: MiniHudItemType::SwitchInv, target: "disableHUDHeightLabel", default: CfgDefault::Bool(false), min: None, max: None, unit: None },
+    MiniHudCfgItem { item_type: MiniHudItemType::SwitchInv, target: "disableHUDSEPLabel", default: CfgDefault::Bool(false), min: None, max: None, unit: None },
+    // (group "hud准星设置")
+    MiniHudCfgItem { item_type: MiniHudItemType::Combo, target: "crosshairName", default: CfgDefault::Str("软件渲染准星"), min: None, max: None, unit: None },
+    // (group "外观设置")
+    MiniHudCfgItem { item_type: MiniHudItemType::Slider, target: "crosshairScale", default: CfgDefault::Int(113), min: Some(0), max: Some(200), unit: None },
+    MiniHudCfgItem { item_type: MiniHudItemType::Slider, target: "fontSize", default: CfgDefault::Int(0), min: Some(-10), max: Some(10), unit: None },
+    MiniHudCfgItem { item_type: MiniHudItemType::Combo, target: "MonoNumFont", default: CfgDefault::Str("Sarasa Mono SC"), min: None, max: None, unit: None },
+];
+
+/// enableLayoutDebug 不在 MiniHUD panel 段 (位于「杂项→调试」组), 布局引擎
+/// 开关的单列快照。
+const ENABLE_LAYOUT_DEBUG_ITEM: MiniHudCfgItem = MiniHudCfgItem {
+    item_type: MiniHudItemType::Switch,
+    target: "enableLayoutDebug",
+    default: CfgDefault::Bool(false),
+    min: None,
+    max: None,
+    unit: None,
+};
+
 #[test]
 fn cfg_snapshot_matches_ui_layout_panel() {
     assert_eq!(MINIHUD_PANEL_ITEMS.len(), 28);

@@ -1,39 +1,31 @@
 //! ColorRowRenderer 的写回链语义复刻 (src/ui/layout/renderer/ColorRowRenderer.java)
 //! + ColorHelper 的解析/格式化移植 (src/prog/util/ColorHelper.java, vm-core 未译,
-//! 就近落地本文件供 color_picker 共用)。
+//! 就近落地本文件)。
 //!
-//! **D9 变更**: 原 iced view_row/swatch 已删 (渲染归 vm-webui web 壳), 本模块仅存
-//! ColorHelper 解析/格式化 + 读链 (read_current) + 写链 (apply)。
+//! **D9 变更**: 原 iced view_row/swatch、读链 (read_current) 及取色器 HSB 数学
+//! (color_picker 模块) 已删 — 渲染与取色归 vm-webui web 壳 (JS 侧
+//! parseColorValue/rgbaToHex 与本模块解析语义对齐), 本模块仅存 ColorHelper
+//! 解析/格式化 + 写链 (apply)。
 //!
 //! ColorHelper 语义 (边缘行为经 Java 8 oracle 对拍, 2026-08-26, 用例值见 tests):
 //! - parse_color: hex (#RRGGBB / #RRGGBBAA) 与十进制 ("R, G, B[, A]") 双格式,
 //!   失败回落默认色 (cfg :value 为 hex, 用户编辑后存十进制 — 双格式互通的原因)。
-//! - to_decimal_string: 配置存储格式 (向后兼容); to_hex_string: 显示格式 (大写)。
+//! - to_decimal_string: 配置存储格式 (向后兼容)。
 //!
-//! 交互语义保真 (Java L30-136):
-//! - 读: ctx.getStringFromConfigService(key, "255, 255, 255, 255") — 直读服务,
-//!   无 PropertyBinder 分支 (ColorRowRenderer.java:34)。
-//! - 写 (apply): 主键存十进制 (Java L124) + legacy 分键 keyR/G/B/A (Java L127-130,
-//!   全库无读取方, 保真写入) + row.value=十进制串 (L133) + onSave (L135)。
+//! 写回语义保真 (Java L110-136, apply):
+//! 主键存十进制 (Java L124) + legacy 分键 keyR/G/B/A (Java L127-130,
+//! 全库无读取方, 保真写入) + row.value=十进制串 (L133) + onSave (L135)。
 //!
-//! PORT(提交时机备案): Java hex 输入 Enter/失焦提交 (L55-63); D1 期 iced 无失焦
-//! 消息 → 仅在解析出合法完整色串时发 ColorPicked (部分输入静默)。D9 后提交时机
-//! 归 web 壳 (JS 输入框), Message::ColorPicked 消息形状不变。
+//! PORT(提交时机备案): Java hex 输入 Enter/失焦提交 (L55-63); web 壳 JS 输入框
+//! 同语义 (合法完整色串才提交), Message::ColorPicked 消息形状不变。
 
-use vm_core::config::config_loader::{ConfigValue, GroupConfig, RowConfig};
-use crate::row_renderer_registry::RenderContext;
+use vm_core::config::config_loader::{ConfigValue, GroupConfig};
+use crate::render_context::RenderContext;
 
 use super::{find_row_path, row_by_path, row_by_path_mut};
 
 /// Java Color.WHITE (ColorRowRenderer.java:35 解析回落的默认白)
 pub const WHITE: [u8; 4] = [255, 255, 255, 255];
-
-/// Java ColorHelper.isHexFormat (L160-162): trim 后以 '#' 开头。
-/// PORT(dead_code): ColorHelper 全量移植的 API 面 (Java 侧同样无生产调用方)。
-#[allow(dead_code)]
-pub fn is_hex_format(text: &str) -> bool {
-    java_trim(text).starts_with('#')
-}
 
 /// Java String.trim(): 去两端码点 <= U+0020 的字符。
 /// PORT: Rust str::trim 是 Unicode 空白集, 对 nbsp/U+3000 会多删 (oracle nbsp-hex
@@ -54,7 +46,7 @@ pub fn parse_color(text: &str, default: [u8; 4]) -> [u8; 4] {
     try_parse_color(text).unwrap_or(default)
 }
 
-/// 解析的 Option 形态 (hex 输入框的"合法完整色串"门控用, 见 view_row)。
+/// 解析的 Option 形态 (None = 非法色串; tests 直接消费)。
 pub fn try_parse_color(text: &str) -> Option<[u8; 4]> {
     let trimmed = java_trim(text);
     if trimmed.is_empty() {
@@ -114,26 +106,6 @@ fn clamp_u8(v: i32) -> u8 {
 /// PORT: Java null 分支 ("255, 255, 255, 255") 在 Rust 类型下不可达。
 pub fn to_decimal_string(c: &[u8; 4]) -> String {
     format!("{}, {}, {}, {}", c[0], c[1], c[2], c[3])
-}
-
-/// Java toHexString (L140-152): 显示格式, 大写十六进制 ("%02X")。
-pub fn to_hex_string(c: &[u8; 4], include_alpha: bool) -> String {
-    if include_alpha {
-        format!("#{:02X}{:02X}{:02X}{:02X}", c[0], c[1], c[2], c[3])
-    } else {
-        format!("#{:02X}{:02X}{:02X}", c[0], c[1], c[2])
-    }
-}
-
-/// 读链 (Java L33-35): 服务串 (cfg 内 hex / 编辑后十进制) 双格式解析,
-/// 缺省 "255, 255, 255, 255"。
-pub fn read_current(row: &RowConfig, ctx: &dyn RenderContext) -> [u8; 4] {
-    match row.property.as_deref() {
-        Some(key) => parse_color(&ctx.get_string_from_config_service(key, "255, 255, 255, 255"), WHITE),
-        // Java key=null → getConfig 对 null key NPE (域内不可达: COLOR 行恒带
-        // :target), 折叠为行值解析 — 与 switch.rs 的同类折叠一致
-        None => parse_color(&row.get_str(), WHITE),
-    }
 }
 
 /// 颜色变更写回 (Java applyColorChange L110-136)。经 main_form::update 的

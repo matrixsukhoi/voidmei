@@ -260,7 +260,8 @@ pub struct FlightLog {
 	first_analyze: bool,
 	/// Java: `private String climbName`
 	climb_name: String,
-	/// Java: `private String maneuverName` — 原文件即从未赋值/读取的死字段, 保真保留
+	/// Java: `private String maneuverName` — 原文件即从未赋值/读取的死字段
+	// DEAD(kept): Java §2.10 死字段移植群, 有意保真保留
 	#[allow(dead_code)]
 	maneuver_name: String,
 	/// Java: `private String rollName`
@@ -846,22 +847,6 @@ impl FlightLog {
 		}
 	}
 
-	/// 对应 Java: `public void run()` (Runnable)。
-	/// PORT: 该线程在 Java 中**从未启动** (Controller.java:933 `// Log1.start();` 已注释,
-	/// 实际 tick 由 Service 轮询线程直调 logTick) — 保真翻译, 保留备用。
-	/// PORT: Java 直接读 xs 公有字段 (与 Service 线程共享实例); D6 边界下以快照源
-	/// 闭包代餐。ExceptionHelper.sleepQuietly(5) 的中断→吞掉→重查 logon 语义, 由
-	/// 运行极性版 sleep_while_run(&logon) 等价复刻 (§2.13: logon 是 true=运行,
-	/// 直传 stop 语义的 sleep_quietly 会立即返回 → 热自旋; 备案收口修复)。
-	pub fn run(&mut self, xs_source: &(dyn Fn() -> FlightLogSnapshot + Sync)) {
-		while self.logon.load(Ordering::SeqCst) {
-			crate::base::exception_helper::sleep_while_run(&self.logon, 5);
-			while self.doit.load(Ordering::SeqCst) {
-				self.log_tick(&xs_source());
-				self.doit.store(false, Ordering::SeqCst); // 写完后关闭
-			}
-		}
-	}
 }
 
 // ============================================================================

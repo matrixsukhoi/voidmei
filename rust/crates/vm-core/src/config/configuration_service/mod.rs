@@ -27,6 +27,7 @@ use crate::config::config_api::{ConfigProvider, HUDSettings, OverlaySettings};
 use crate::config::config_loader::{self, ConfigValue, GroupConfig, RowConfig};
 use crate::config::config_manager;
 use crate::base::event::ui_state_events;
+use crate::base::ports::bkp_port;
 use crate::lang::Lang;
 use crate::base::logger;
 use crate::base::bus::ui_state_bus::UIStateBus;
@@ -343,8 +344,9 @@ impl ConfigurationService {
             if !port_str.is_empty() {
                 if let Ok(port) = port_str.parse::<i32>() {
                     app.app_port = port;
-                    // PORT §2.2: Java int + int 静默回绕 ↔ wrapping_add
-                    app.app_port_bkp = port.wrapping_add(1111);
+                    // 备份端口统一走 bkp_port 饱和策略 (A3 收敛); 越域主端口在
+                    // 下方 InetSocketAddress::new 的域检查先行 panic, as 收窄无新差异
+                    app.app_port_bkp = i32::from(bkp_port(port as u16));
                     // Assuming httpIp is still from Lang or static 127.0.0.1
                     let mut ip = "127.0.0.1".to_string();
                     // Rust 无全局 Lang 状态 — init_lang() 静态表快照现取 (blkx 先例)

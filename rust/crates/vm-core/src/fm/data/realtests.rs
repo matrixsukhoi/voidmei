@@ -12,17 +12,10 @@
 //! PORT (blkx→json 迁移终态): 功率断言走 parse_real (parse_named_json);
 //! fuzzer 变异对象为 JSON 原文 (合成种子承担 JavaRandom/mutate 移植对拍,
 //! 真机种子腿为变异鲁棒性烟雾)。仍挂起: 腿2 的 FMLoader.load 抽样腿
-//! (见 fuzz 模块内 TODO(port)); 禁为此放宽阈值或删断言 (§6)。
+//! (见 fuzz 模块内腿2 TODO 备案); 禁为此放宽阈值或删断言 (§6)。
 //!
 //! oracle: fuzzer 的 JavaRandom/mutate 移植值来自 OpenJDK 1.8.0_342 实测 dump
 //! (build/oracle/rand/RandOracle.java, §5.1 双实现对拍方法论)。
-
-/// PORT(reader 波次开关): 见模块头注。getload/getAllplotdata 批次已落地,
-/// 本开关已置 true — 依赖 getload 字段的功率断言段与 fuzz 腿1 管线全量执行。
-/// 后续波次若再挂断言 (如腿2 FMLoader), 翻回 false 时必须同步 grep 本文件内
-/// 全部 TODO(port) 逐个销号, 否则覆盖永久半挂; [`getload_wired_follows_reader_todo`]
-/// canary 钉住 reader.rs 标注与本开关的一致性 (标注移除而开关未翻即判失败)。
-const GETLOAD_WIRED: bool = true;
 
 /// 项目内真机 FM 数据根 (cargo 测试 cwd 无关; data/ 缺失由各测试自行 return early,
 /// 对齐 build.py 跳过语义 — reader.rs real 先例)
@@ -52,30 +45,6 @@ fn fuel_mod_from_json(path: &str) -> crate::fm::data::types::FuelModification {
         .unwrap_or_default()
 }
 
-/// GETLOAD_WIRED ↔ reader.rs getload TODO(port) 一致性 canary:
-/// reader 波次把 getload 接入 parse 时, 按 PORTING.md §0.4 纪理会移除 reader.rs 内
-/// 的 `TODO(port): getload` 标注 — 标注已消失而开关仍为 false 即"永久假通过"
-/// (no-fake-test-pass), 此处直接判失败, 强制翻开关恢复全量断言。
-/// 反向 (标注在而开关 true) 不判错: 翻开关先行、标注清理同波次补齐属正常顺序。
-#[test]
-fn getload_wired_follows_reader_todo() {
-    // 波8 fmdata→data 目录更名 (路径同步 — 曾旧路径致 NotFound)
-    let reader_src = std::fs::read_to_string(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/src/fm/data/reader.rs"
-    ))
-    .expect("reader.rs 源码可读");
-    // PORT: 常量哨兵断言是 no-fake-test-pass 机制本体, 保真不削
-    #[allow(clippy::assertions_on_constants)]
-    if !reader_src.contains("TODO(port): getload") {
-        assert!(
-            GETLOAD_WIRED,
-            "reader.rs 的 getload TODO(port) 已移除 (波次已落地?) 但 GETLOAD_WIRED 仍为 false \
-             — 挂起理由失效, 须翻开关并 grep 本文件全部 TODO(port) 逐个销号"
-        );
-    }
-}
-
 // ==================== spitfire ← test/TestSpitfireF24Power.java ====================
 
 mod spitfire {
@@ -88,7 +57,6 @@ mod spitfire {
     //!
     //! Run with: ./script/test.sh spitfire
 
-    use super::GETLOAD_WIRED;
     use super::fm_root;
     use super::{fuel_mod_from_json, parse_real};
     use crate::fm::data::FuelType;
@@ -195,10 +163,7 @@ mod spitfire {
         let mut t = Tally::new();
         println!("\nTesting parameter extraction...");
 
-        // Parse FM file
-        // PORT: Blkx::parse 当前等价 doLoad=false (getload 属 reader 波次, 模块头注);
-        // Java 显式传的 name ("spitfire_f24") 由 parse 取文件名分量承接 — 该值只在
-        // getload L1471 版本串使用, 未落地前无行为差异 (reader.rs L51-56 注)
+        // Parse FM file (parse_named_json = doLoad=true 全量装载 getload_from)
         let fmdata = match parse_real(&fm_path) {
             Ok(b) => b,
             Err(_) => {
@@ -207,12 +172,6 @@ mod spitfire {
             }
         };
 
-        // PORT: 以下断言全部依赖 getload 填充字段或 extract_stages, getload 未译前
-        // 挂起 (模块头注 GETLOAD_WIRED); Java 原流程此处直接执行
-        if !GETLOAD_WIRED {
-            eprintln!("  SKIP: getload 未译 (reader 波次 TODO(port)), 参数提取断言暂挂");
-            return;
-        }
 
         // Extract WITHOUT fuel modification
         let stages_no_fuel = extract_stages(Some(&fmdata));
@@ -279,11 +238,6 @@ mod spitfire {
         // L63 起), 该 null 检查在 Java 本就是死代码; Rust 端同样无此冗余检查,
         // 行为一致
 
-        // PORT: 以下依赖 extract_stages (getload 字段前置), getload 未译前挂起
-        if !GETLOAD_WIRED {
-            eprintln!("  SKIP: getload 未译 (reader 波次 TODO(port)), 断言暂挂");
-            return;
-        }
 
         // Since invertEnableLogic is FALSE for Spitfire F24:
         // - The modification represents ADDING 150 octane fuel
@@ -339,11 +293,6 @@ mod spitfire {
         };
         let fuel_mod = fuel_mod_from_json(&central_path);
 
-        // PORT: 功率曲线断言依赖 extract_stages (getload 字段前置), 未译前挂起
-        if !GETLOAD_WIRED {
-            eprintln!("  SKIP: getload 未译 (reader 波次 TODO(port)), 功率曲线断言暂挂");
-            return;
-        }
 
         // Use stages WITH fuel modification (since wtapc uses full upgrades)
         let stages = match extract_stages_with_fuel(Some(&fmdata), Some(&fuel_mod)) {
@@ -502,7 +451,6 @@ mod tempest {
     //!
     //! Run with: ./script/test.sh tempest
 
-    use super::GETLOAD_WIRED;
     use super::fm_root;
     use super::{fuel_mod_from_json, parse_real};
     use crate::fm::data::FuelType;
@@ -607,12 +555,6 @@ mod tempest {
         };
         let fuel_mod = fuel_mod_from_json(&central_path);
 
-        // PORT: 以下依赖 extract_stages (getload 字段前置), getload 未译前挂起
-        // (realtests 模块头注 GETLOAD_WIRED)
-        if !GETLOAD_WIRED {
-            eprintln!("  SKIP: getload 未译 (reader 波次 TODO(port)), 断言暂挂");
-            return;
-        }
 
         // Extract stages with and without fuel modification
         let stages_no_fuel = extract_stages(Some(&fmdata));
@@ -668,11 +610,6 @@ mod tempest {
             }
         };
 
-        // PORT: 以下断言依赖 getload 填充字段 / extract_stages, 未译前挂起
-        if !GETLOAD_WIRED {
-            eprintln!("  SKIP: getload 未译 (reader 波次 TODO(port)), 参数提取断言暂挂");
-            return;
-        }
 
         // Since invertEnableLogic=true, we can extract with or without fuel mod - same result
         let stages = extract_stages(Some(&fmdata));
@@ -720,11 +657,6 @@ mod tempest {
             }
         };
 
-        // PORT: 功率曲线断言依赖 extract_stages (getload 字段前置), 未译前挂起
-        if !GETLOAD_WIRED {
-            eprintln!("  SKIP: getload 未译 (reader 波次 TODO(port)), 功率曲线断言暂挂");
-            return;
-        }
 
         // For Tempest Mk V, since invertEnableLogic=true, fuel mod doesn't change anything
         // Use stages directly without fuel modification (or with - same result)
@@ -787,11 +719,6 @@ mod tempest {
             }
         };
 
-        // PORT: 同上, getload 未译前挂起
-        if !GETLOAD_WIRED {
-            eprintln!("  SKIP: getload 未译 (reader 波次 TODO(port)), 功率曲线断言暂挂");
-            return;
-        }
 
         let stages = match extract_stages(Some(&fmdata)) {
             Some(s) => s,
@@ -914,10 +841,8 @@ mod fuzzer {
     //!    data/ 缺失时 build.py 的 run_fm_test 机制自动跳过整套)
     //!
     //! PORT: 本移植固定 --central/--fm 为仓库相对路径 (realtests 模块头注);
-    //! getload/getAllplotdata 批次均已落地 — 腿1 全管线 (构造器 + getAllplotdata
-    //! + finalizeLoading) 恢复; 腿2 (FMLoader.load 抽样) 仍挂起: fm_loader.rs 与
-    //! fm_data_paths (含 set_data_root) 虽已落地, 临时数据根注入的测试接线属
-    //! 后续批次, 见腿2 处 TODO(port) 标注。
+    //! 腿1 全管线 (构造器 + getAllplotdata + finalizeLoading) 已全量执行;
+    //! 腿2 (FMLoader.load 抽样) 仍挂起, 接线方案见 run_fuzzer 内腿2 TODO 备案。
     //! JavaRandom/mutate 与 Java 端逐位一致 (oracle 对拍, 见下方测试)。
 
     use super::fm_root;
@@ -931,7 +856,8 @@ mod fuzzer {
     /// 默认随机种子 —— 固定值保证变异序列可复现
     const DEFAULT_SEED: u64 = 20260825;
     /// 腿2 抽样走 FMLoader 的变异体个数
-    #[allow(dead_code)] // 腿2 挂起 (TODO(port) 接线批次), 落地后消费
+    // DEAD(kept): 腿2 (FMLoader 接线) 挂起中, 接线批次消费
+    #[allow(dead_code)]
     const LOADER_SAMPLES: usize = 30;
     /// 单变异体耗时上限 (ms), 超过判失败 (疑似死循环)
     const PER_CASE_LIMIT_MS: u128 = 5000;
@@ -1578,16 +1504,15 @@ mod fuzzer {
 
         // ---- 腿2: 抽样变异体走 FMLoader.load (P2 句柄契约回归) ----
         if Path::new(&central_path).is_file() {
-            // TODO(port): fm_loader.rs/fm_data_paths (含 set_data_root) 已落地,
-            // 但临时数据根注入的测试接线未做 — 腿2 整段挂起, 不做无覆盖的死代码
-            // 移植。接线批次按 Java runLoaderLeg 补: 临时 data 根注入
-            // (data_paths::set_data_root) + 中央文件真机原件拷入 + 物理文件名
-            // 取中央文件 fmFile 字段 (extractFmFile, 回退 fm/<机型>.blkx 约定,
-            // FMLoader 拼 fmfile+"x") + step = max(1, mutants/LOADER_SAMPLES)
+            // TODO(腿2): FMLoader 契约回归未接线 — fm_loader/fm_data_paths 本体已
+            // 就绪, 缺临时数据根注入的测试接线。接线时按 Java runLoaderLeg 补:
+            // 临时 data 根注入 (data_paths::set_data_root) + 中央文件真机原件拷入
+            // + 物理文件名取中央文件 fmFile 字段 (extractFmFile, 回退 fm/<机型>.blkx
+            // 约定, FMLoader 拼 fmfile+"x") + step = max(1, mutants/LOADER_SAMPLES)
             // 抽样 + loader::load(plane), 断言句柄契约:
             // status ∈ {READY,MISSING,CORRUPT} ∧ READY⇔blkx!=null
             // ∧ isMissingLike⇒blkx==null; finally 还原数据根 "./data" + rmtree
-            println!("\n-- 腿2 跳过: FMLoader 接线属后续批次 TODO(port) --");
+            println!("\n-- 腿2 跳过: FMLoader 接线未做 (见上方 TODO) --");
         } else {
             println!("\n-- 腿2 跳过: 未提供有效的 --central (FMLoader 契约测试需要中央文件) --");
         }

@@ -153,11 +153,8 @@ fn try_load_json(name: &str) -> Result<FMHandle, String> {
             if f.is_empty() {
                 return Err(format!("fmFile 值为空串: {name}"));
             }
-            fmfile = if f.starts_with('/') {
-                Some(f[1..].to_string())
-            } else {
-                Some(f.to_string())
-            };
+            // 绝对路径 '/fm/...' → 剥前导斜杠回相对路径
+            fmfile = Some(f.strip_prefix('/').unwrap_or(f).to_string());
         }
     }
     if fmfile.is_none() {

@@ -277,12 +277,6 @@ fn compute_soviet_power_multiplier(fuel_mod: Option<&FuelModification>) -> f64 {
         return 1.0;
     }
 
-    // TODO(port): Logger 未译 (B 类, CLASSIFY 裁决 → tracing/log); 原调用为 INFO 级
-    // 日志, 不影响计算结果:
-    // Logger.info("FMPowerExtractor", String.format(
-    //         "Applying Soviet octane bonus: %.1f%% power increase (addHorsePowers=%.0f)",
-    //         (SOVIET_OCTANE_POWER_MULT - 1) * 100, fuelMod.sovietOctaneHpBonus));
-
     SOVIET_OCTANE_POWER_MULT
 }
 
@@ -645,12 +639,6 @@ fn apply_british_octane_bonus(
     if fuel_mod.british_invert_logic {
         return;
     }
-
-    // TODO(port): Logger 未译 (B 类, CLASSIFY 裁决 → tracing/log); 原调用为 INFO 级
-    // 日志, 不影响计算结果:
-    // Logger.info("FMPowerExtractor", String.format(
-    //         "Applying British octane bonus: afterburnerMult=%.3f, compressorMult=%.3f",
-    //         fuelMod.britishAfterburnerMult, fuelMod.britishAfterburnerCompressorMult));
 
     // Recompute WEP power multiplier with fuel's afterburnerMult replacing OctaneAfterburnerMult
     // WAPC: Main["OctaneAfterburnerMult"] = fuel's afterburnerMult

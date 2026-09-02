@@ -3,7 +3,6 @@
 	use std::path::{Path, PathBuf};
 	use std::sync::atomic::AtomicI64;
 	use std::sync::Mutex;
-	use std::time::Duration;
 
 	/// FlightLog 的 records/ 路径是相对 CWD 的硬编码 (与 Java 一致);
 	/// cargo test 并行线程共用进程 CWD → 串行化 + 用完恢复。
@@ -655,53 +654,5 @@
 			fl2.close();
 			let content2 = std::fs::read_to_string(&fl2.file_name).unwrap();
 			assert_eq!(content2.lines().count(), 2, "close() 兜底 flush (首帧 t=0 已 flush 的表头 + 本行)");
-		});
-	}
-
-	// ---- 14. run(): doit 单发单写, logon=false 退出 (Java 死线程的保真翻译) ----
-	#[test]
-	fn run_thread_writes_once_per_doit_and_exits_on_logon_false() {
-		with_temp_cwd("run", true, |root| {
-			let mut fl = FlightLog::new();
-			let (notify, _) = notify_collector();
-			fl.init(
-				Arc::new(LogonFlag(AtomicBool::new(true))),
-				&sample_snapshot(),
-				None,
-				notify,
-				RecordingService::shared(),
-			);
-			let doit = fl.doit.clone();
-			let logon = fl.logon.clone();
-			let path = root.join(&fl.file_name);
-			let snapshot = Arc::new(sample_snapshot());
-			// 'static 快照源 (run 的 xs 直读 → 闭包代餐, 见 run 的 PORT 注释)
-			let src: &'static (dyn Fn() -> FlightLogSnapshot + Sync) =
-				Box::leak(Box::new(move || (*snapshot).clone()));
-			let (tx, rx) = std::sync::mpsc::channel::<()>();
-			let mut fl = fl;
-			let handle = std::thread::spawn(move || {
-				fl.run(src);
-				tx.send(()).unwrap();
-			});
-			doit.store(true, Ordering::SeqCst);
-			let mut rows = 0usize;
-			for _ in 0..400 {
-				std::thread::sleep(Duration::from_millis(5));
-				if let Ok(c) = std::fs::read_to_string(&path) {
-					rows = c.lines().count();
-					if rows >= 2 {
-						break;
-					}
-				}
-			}
-			assert!(rows >= 2, "run 线程消费一次 doit 并写入数据行");
-			std::thread::sleep(Duration::from_millis(30));
-			assert!(!doit.load(Ordering::SeqCst), "写完后 doit 复位 (写完后关闭)");
-			let after = std::fs::read_to_string(&path).unwrap().lines().count();
-			assert_eq!(after, rows, "doit 未再置位 ⇒ 不再追加行");
-			logon.store(false, Ordering::SeqCst);
-			assert!(rx.recv_timeout(Duration::from_secs(3)).is_ok(), "logon=false 后 run 退出");
-			handle.join().unwrap();
 		});
 	}

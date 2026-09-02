@@ -1,6 +1,6 @@
-//! 平台域 (波10 分域): 跨平台窗口抽象 (win/x11) + 宿主 (host) + 窗口坐标
-//! 持久化 (position) + 托盘 (tray) + 热键 (hotkey) + WYSIWYG reinit 参数包
-//! (reinit) + DPI/焦点检测等平台杂项 (extras)。
+//! 平台域 (波10 分域): 跨平台窗口抽象 (win/x11) + 宿主 (host) + 托盘 (tray)
+//! + 热键 (hotkey) + WYSIWYG reinit 参数包 (reinit) + DPI/焦点检测等平台杂项
+//! (extras)。窗口坐标持久化经 host 的 PositionStore trait (组装层注入)。
 
 pub struct WindowConfig {
     pub width: i32,
@@ -63,7 +63,6 @@ pub use x11::create;
 pub mod extras;
 pub mod host;
 pub mod hotkey;
-pub mod position;
 pub mod reinit;
 #[cfg(target_os = "windows")]
 pub mod tray;

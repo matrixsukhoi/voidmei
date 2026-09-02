@@ -24,7 +24,7 @@ use vm_core::fm::{FMHandle, FMManager};
 use vm_core::telemetry::http::HttpHelper;
 use vm_core::telemetry::parser::{Indicators, MapInfo, MapObj, State};
 // format 别名避开 tests.rs 的 format! 宏歧义 (overlay_control_surfaces 同款先例)
-use vm_core::base::{exception_helper, format as jfmt, logger, physics_constants::G};
+use vm_core::base::{exception_helper, format as jfmt, logger, physics_constants::G, ports::bkp_port};
 
 use vm_core::base::string_helper::F_INVALID;
 use crate::service_fields::{
@@ -221,9 +221,7 @@ fn request_dest(config: &ServiceConfig) -> SocketAddr {
 
 /// Java `Application.requestDestBkp` (`appPortBkp = appPort + 1111`)。
 fn request_dest_bkp(config: &ServiceConfig) -> SocketAddr {
-    // PORT: Java int 加法静默回绕; u16 域内 app_port>64424 溢出不可达 (缺省 8111),
-    // saturating 根除 debug panic 回绕形态 (审查备案)
-    format!("127.0.0.1:{}", config.app_port.saturating_add(1111))
+    format!("127.0.0.1:{}", bkp_port(config.app_port))
         .parse()
         .expect("requestDestBkp 解析失败")
 }
@@ -710,32 +708,18 @@ impl Service {
     }
 
     // ------------------------------------------------------------------
-    // calculate (Java L1115-1178) —— 本波次 Deriver 接线形态
+    // calculate (Java L1115-1178) —— 派生量计算链 (公式系统 + 写回段)
     // ------------------------------------------------------------------
 
     /// 对应 Java `public void calculate()` (L1115-1178)。
     ///
-    /// Java 链 17 个子方法中, 已译 [`Deriver`] 覆盖: updateClimbRate (L777) /
-    /// updateSpeed (L840) / updateTurn (L788) / updateSEP (L986) 四公式族 +
-
-
-    // ------------------------------------------------------------------
-    // publishFlightDataEvent (Java L434-482)
-    // ------------------------------------------------------------------
-
-    /// Publishes flight data to FlightDataBus.
-    /// Pre-computes HUDData on Service thread to offload work from EDT.
-    ///
-    /// @deprecated Method name is legacy - renamed to publishFlightDataEvent() for clarity.
- 
-    /// 对应 Java `public void calculate()` (L1115-1178)。
-    ///
-    /// Java 链 17 个子方法中, 已译 [`Deriver`] 覆盖: updateClimbRate (L777) /
-    /// updateSpeed (L840) / updateTurn (L788) / updateSEP (L986) 四公式族 +
-    /// mach (updateSpeedRatio L1213-1215 的手动大气模型, R2 hasFM 守卫在写回段);
+    /// Java 链 17 个子方法中, updateClimbRate (L777) / updateSpeed (L840) /
+    /// updateTurn (L788) / updateSEP (L986) 四公式族 + mach (updateSpeedRatio
+    /// L1213-1215 的手动大气模型, R2 hasFM 守卫) 已由公式系统接管 (formula_step);
     /// updateCompass (L1101, 含 compass==-65535 的地图方向回退) / updateAlt
     /// (L739, 英制检测状态机 + 无线电高度有效性/英尺转米 + dRadioAlt 差分)
-    /// 在写回段逐行落地。其余子方法属计算方法区后续波次:
+    /// 在写回段逐行落地; 其余子方法 (WEP 时间/温度/过热/引擎状态/油量/最大
+    /// 转速/最佳增压器档位) 为本文件独立方法。
     fn calculate(&mut self) {
         // R1 周期快照（P3 迁移核心规则）: 整个 calculate 链路共用开头取到的一次 FM 句柄,
         // 并以参数下传给所有依赖 FM 的子方法 —— 保证单周期内全部 FM 派生量来自同一
@@ -765,8 +749,7 @@ impl Service {
         // (engLoad 会话态走 FMHandle.eng_load_state, D 批次)
         self.check_overheat(&fm);
 
-        // 增加wep时间 / 更新温度，优先使用更精确的 / 检查是否过热… (TODO 列表见 doc)
-        // 更新方向 / 更新爬升率 / 获得准确高度 / 更新速度 / 更新转弯半径 —— Deriver::step
+        // 更新方向 / 更新爬升率 / 获得准确高度 / 更新速度 / 更新转弯半径 —— 公式系统接管
         // (updateCompass/updateAlt 的非公式部分在下方写回段逐行落地)
         let (vy, radio_alt_raw, alt10k, dir, indic_compass, heightm, n_vy) = {
             let d = read_data(&self.data);
@@ -872,9 +855,6 @@ impl Service {
         // methods_engine.rs (可变翼判断已删: registry wing_sweep_valid 直通替代)
         // (check_flap 已 W8 公式化 — is_downing_flap/flap_allow_* 走公式写回)
         self.get_maximum_rpm_learn(&fm);
-
-        // Java calculate 尾部两比值方法 (L1177-1178): 速度/马赫临界比值 + 失速速度
-        // — MiniHUD 速度比值 bar 的数据源 (speed_limit_ratio 等 5 字段)
 
         // Java calculate 链尾 (L1173): 最佳增压器档位/失配提示 — methods_engine.rs
         // (公式步已提前至 updateEngineState 前 — speedv 本帧值依赖; 此处不再调)
@@ -1029,7 +1009,7 @@ impl Service {
         if let Some(fmdata) = fm.fmdata.as_ref() {
             if fmdata.nitro != 0.0 && nitro_eng_nr != 0 {
                 d.s_wep_time_val = ((fmdata.nitro / fmdata.nitro_decr
-                    - (wep_time as i64 / 1000) as f64)
+                    - (wep_time / 1000) as f64)
                     / nitro_eng_nr as f64) as i32 as i64;
             }
         }
@@ -1217,19 +1197,10 @@ impl Service {
         // Java updateFuel 尾部未回写 totalFuelPrev (slowcalculate 的差分输入),
     }
 
-    // ------------------------------------------------------------------
-    // updateSpeedRatio / updateStallSpeed (Java L1185-1231 / L1236-1266)
-    // ------------------------------------------------------------------
-
-    /// 对应 Java `public void updateSpeedRatio(FMHandle fm)` (L1185-1231) —
-    /// 计算速度/马赫与临界值比值及舵面锁定比值。
-    ///
-    /// PORT(mach 单写者): Java L1213-1215 的手动大气模型 mach 写字段 — Rust 侧
-    /// 同公式已由 Deriver 承接且写回段带 R2 hasFM 守卫 (本方法早退域与 Deriver
-    /// 写回守卫同域, 值恒一致), 此处 mach 为局部量不再写字段 (防双写者漂移)。
-    /// @param fm 本周期 FM 句柄快照（R1 下传, Java javadoc 原文）
-
-   fn publish_flight_data_event(&mut self) {
+    /// 发布飞行数据事件 (Java publishFlightDataEvent, L434-482): 同一读快照内
+    /// 构建不可变帧发布 FrameStore + 装箱标量 payload, 再广播 FlightDataEvent
+    /// (回调 = 本 Service 线程同步逐个调用)。
+    fn publish_flight_data_event(&mut self) {
         // W-B 事件瘦身: 事件只承载标量 payload; State/Indicators/派生量由消费方
         // 持共享 ServiceData guard 现取, 不再装箱逐字段快照。
         let payload = {
@@ -1283,9 +1254,9 @@ enum Flow {
 // FlightLog 接线面 (D6 边界的 vm-data 侧落地, 见 flight_log.rs 模块头 PORT)
 // ------------------------------------------------------------------
 
-/// Java `null` 引用在字符串拼接里的字面量 (Java `bw.write(xs.IAS + ",")` 的
-/// IAS==null 写出 "null,")。Rust 字段是 Option<String>, None → "null" 保真;
-/// NASTRING ("-", resetvaria 初值) 原样透传 (与 Java formatDataAsStrings 未跑时的值一致)。
+// Java `null` 引用在字符串拼接里的字面量 (Java `bw.write(xs.IAS + ",")` 的
+// IAS==null 写出 "null,")。Rust 字段是 Option<String>, None → "null" 保真;
+// NASTRING ("-", resetvaria 初值) 原样透传 (与 Java formatDataAsStrings 未跑时的值一致)。
 
 /// logTick 时刻的 ServiceData → FlightLogSnapshot 构造面 (flight_log.rs 模块头
 /// PORT 注的 "vm-data 侧快照构造面")。字段逐一对应 ServiceData/State 字段

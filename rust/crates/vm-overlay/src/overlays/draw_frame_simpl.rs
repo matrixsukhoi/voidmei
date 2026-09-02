@@ -447,7 +447,7 @@ pub fn draw_frame_simpl_spec(
             width: 900,
             height: 500,
             render: Box::new(move |cv: &mut PixCanvas| {
-                // 生产 AA 恒开 (Application.java:102 graphAASetting 默认 ON)
+                // aa = 运行时仓 (cfg AAEnable 可关)
                 let fonts = DfsFonts {
                     num12: &r12.borrow(),
                     text16: &r16.borrow(),

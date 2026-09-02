@@ -149,6 +149,7 @@ impl Controller {
         };
         c.bind_fm_hotkey_initial();
 
+        // (订阅回调只做转发到监督通道, 实际处理在主线程
         // AppShell::handle_main_event, 对位 Java handler 内联执行的语义)
         // 重构波1: 路由总线按 event_type 精确订阅 (原桩总线广播+手工过滤退役)
         let tx = main_event_tx.clone();
@@ -167,7 +168,8 @@ impl Controller {
         ));
         let tx = main_event_tx.clone();
         c.fm_sub = Some(fm.fm_changed_bus().subscribe(move |handle| {
-            // 摘要转发由主线程记日志, TODO(port) 接 toast
+            // 摘要转发由主线程记日志 + Preview 刷新调度; 缺失/损坏的 toast 面由
+            // vm-webui bridge_fm_changed 直连同一总线 (main.rs 接线)
             if handle.is_missing_like() {
                 let _ = tx.send(MainEvent::FmChanged {
                     name: handle.name.clone(),
@@ -463,7 +465,7 @@ impl Controller {
 
     // ------------------------------------------------------------------
     // Service 轮询驱动的状态转移 (Java Service→Controller 协作面;
-    // vm-data 侧 TODO(port) 调用点由 AppShell::tick/pump 顶替, 见 drive_from_live)
+    // vm-data 侧调用点已由 AppShell::pump → drive_from_live 顶替)
     // ------------------------------------------------------------------
 
     /// Java:155-175 initStatusBar — INIT → CONNECTED。
@@ -490,7 +492,8 @@ impl Controller {
         self.shared.set_state(ControllerState::Preview);
         // PORT(时序偏差备案, A-W7): Java openpad 全部内容 (含 FocusMonitor enable/
         // FlightLog) 都在延迟线程内执行; Rust 仅 OpenAllOverlays 走延迟, 其余面
-        // (openpad_rest) 即时执行 — FocusMonitor 现为 TODO 无功能差, 备案。
+        // (openpad_rest) 即时执行 — FocusMonitor 现随 Service 装配 (start()),
+        // 时序差无观察面, 备案。
         // PORT(偏离声明, B-W5): Java 延迟线程 100ms 后**无守卫**发 openpad (停止窗口
         // 内 overlay 被 CloseAll 后重开, bug 形态保真); Rust 加 state/世代号守卫 —
         // Rust 侧重开残留形态比 Java 重 (overlay_ctx_preview 翻 false + 6 窗口全量
@@ -590,9 +593,9 @@ impl Controller {
             "Controller",
             &format!("{}{}{}", lang.c_savelog, log.file_name, lang.c_plsopen),
         );
-        // 的 Java bug 形态随 DrawFrame 一并豁免)
-        // NPE 逃逸 closepad, 由 Service 轮询线程顶层 catch(Exception) 吞掉
-        // (Service.java:1850) — 本方法在主线程 (pump) 无该兜底, catch_unwind
+        // (爬升档数判断弹 DrawFrame 未移植, 对应的 Java bug 形态随 DrawFrame 一并豁免)
+        // Log.close() 的 NPE 逃逸 closepad 时, 由 Service 轮询线程顶层 catch(Exception)
+        // 吞掉 (Service.java:1850) — 本方法在主线程 (pump) 无该兜底, catch_unwind
         // 复刻 "崩方法不崩应用" 的 Java 净效果
         if let Err(payload) =
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| log.close()))
@@ -663,8 +666,8 @@ impl Controller {
 
     /// Service 轮询驱动的状态机推进 (AppShell::pump 调用)。
     /// PORT: Java Service.processPollingCycle 内联调用 c.initStatusBar/changeS2/
-    /// changeS3/S4toS1 (vm-data service_loop.rs 对应位置留 TODO(port) — 本方法以
-    /// ServiceData 公开字段顶替该调用面)。strState/strIndic 原始串在 HttpHelper
+    /// changeS3/S4toS1 (vm-data 侧不再回调 Controller — 本方法轮询帧快照
+    /// 顶替该调用面)。strState/strIndic 原始串在 HttpHelper
     /// 内部不可见: "flag 丢失" 分支 (Java:746-754, 串非空 + update 后 flag=false)
     /// 以 flags 假值直接顶替; "串空" 分支 (Java:755-761, 游戏退出/8111 消失 →
     /// HTTP 失败 → 串复位空, update 不执行, flags 保留**陈旧真值**) 无法从

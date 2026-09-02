@@ -3,6 +3,7 @@ use crate::audio::voice_alert_type;
 use crate::base::bus::EventBus;
 use crate::base::event::event_payload::EventPayload;
 use crate::audio::voice_resource_manager::SoundError;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicUsize;
 
 static DIR_N: AtomicUsize = AtomicUsize::new(0);
@@ -1051,27 +1052,6 @@ fn update_dynamic_parameters_keeps_lines_without_fm() {
     assert_eq!(vw.aoa_warning_line, aoa);
     assert_eq!(vw.ias_warning_line, ias);
     assert_eq!(vw.mach_warning_line, mach);
-}
-
-// ---- Legacy 直播面 ----
-
-// playWav/getClip: 文件缺失走异常腿不 panic; 存在文件返回可用句柄
-#[test]
-fn play_wav_and_get_clip_legacy_paths() {
-    let TestEnv {
-        mut vw,
-        log,
-        _dir,
-        ..
-    } = env();
-    vw.play_wav("no_such_file.wav"); // Err 分支: 吞掉不 panic
-    assert_eq!(starts(&log, "no_such_file"), 0);
-
-    assert!(vw.get_clip("no_such_file.wav").is_none());
-
-    let clip = vw.get_clip(_dir.join("aoaCrit.wav").to_str().unwrap());
-    assert!(clip.is_some(), "存在的文件应打开成功");
-    assert!(!clip.as_ref().unwrap().is_running());
 }
 
 // ---- run() 主循环 (§2.13 线程映射) ----

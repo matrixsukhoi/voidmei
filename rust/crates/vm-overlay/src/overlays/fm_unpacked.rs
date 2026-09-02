@@ -229,10 +229,8 @@ pub(crate) fn java_format_f(d: f64, prec: u8) -> String {
 /// (Java extends BaseOverlay — §1 禁强行继承, 公共行为已上提基座):
 /// 自管可见性 (游戏模式热键切换) + blkx 字段直读清单。
 ///
-/// PORT: Java 经 FMDataAdapter 持 volatile blkx; vm-core 的 FMDataAdapter
-/// 尚消费 BlkxPlaceholder (fm_data_adapter.rs TODO(port)), 本组件按任务裁决
-/// 直读真实 `blkx::Blkx` (D4 model 字段面), 避免占位类型第二真相源。
-/// set_blkx 的 volatile 赋值语义由"单写者(事件循环)+tick 前快照"承接。
+/// PORT: Java 经 FMDataAdapter 持 volatile blkx; Rust 直持 `Arc<FmData>`
+/// 快照 (单写者(事件循环) + tick 前快照承接 volatile 赋值语义)。
 pub struct FmUnpackedDataOverlay {
     /// BaseOverlay 基座 (run 循环状态机: 脏检查/高度自适应/可见门控)
     pub base: BaseListOverlay,

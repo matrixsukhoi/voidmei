@@ -1,5 +1,6 @@
 use super::*;
 use crate::renderers::test_util::MapCtx;
+use vm_core::config::config_loader::RowConfig;
 
 const DEF: [u8; 4] = [1, 2, 3, 4];
 
@@ -61,41 +62,17 @@ fn java_trim_and_whitespace_semantics() {
     assert_eq!(parse_color("255,\u{00A0}85, 0", DEF), DEF);
     // 全角空格: 同 nbsp → 默认
     assert_eq!(parse_color("\u{3000}255, 0, 0", DEF), DEF);
-    // is_hex_format: trim 后 '#' 开头 (Java isHexFormat(" #abc") = true)
-    assert!(is_hex_format(" #abc"));
-    assert!(!is_hex_format("abc"));
 }
 
-// ---- 格式化 + 双格式往返 ----
+// ---- 格式化 + 存储串解析恒等 ----
 #[test]
 fn format_and_round_trip() {
     let c = [255, 85, 0, 170];
     assert_eq!(to_decimal_string(&c), "255, 85, 0, 170"); // oracle 格式
-    assert_eq!(to_hex_string(&c, true), "#FF5500AA");
-    assert_eq!(to_hex_string(&c, false), "#FF5500");
-    // 存储串 ↔ 显示串 双向解析恒等 (双格式互通的根据)
+    // 存储串解析恒等 (双格式互通的根据; hex 域见 parse_hex_formats)
     for c in [[0, 0, 0, 0], [255, 255, 255, 255], [232, 147, 50, 128], [1, 2, 3, 4]] {
         assert_eq!(parse_color(&to_decimal_string(&c), DEF), c);
-        assert_eq!(parse_color(&to_hex_string(&c, true), DEF), c);
-        assert_eq!(parse_color(&to_hex_string(&c, false), DEF), [c[0], c[1], c[2], 255]);
     }
-}
-
-// ---- 读链: 服务值 (hex/十进制) 双格式; 缺省白 (Java L34-35) ----
-#[test]
-fn read_current_service_and_default() {
-    let row = color_row(Some("fontNum"), Some("#FF0000FF"));
-    let mut ctx = MapCtx::default();
-    ctx.set("fontNum", "#FF5500AA"); // cfg :value hex 形态
-    assert_eq!(read_current(&row, &ctx), [255, 85, 0, 170]);
-    ctx.set("fontNum", "255, 85, 0, 170"); // 用户编辑后十进制形态
-    assert_eq!(read_current(&row, &ctx), [255, 85, 0, 170]);
-    // 服务缺省 → "255, 255, 255, 255" → 白
-    let ctx2 = MapCtx::default();
-    assert_eq!(read_current(&row, &ctx2), WHITE);
-    // 无 :target 折叠行值
-    let row2 = color_row(None, Some("#00FF0080"));
-    assert_eq!(read_current(&row2, &MapCtx::default()), [0, 255, 0, 128]);
 }
 
 // ---- 写链: 主键十进制 + 分键 R/G/B/A + row.value + on_save (Java L110-136) ----

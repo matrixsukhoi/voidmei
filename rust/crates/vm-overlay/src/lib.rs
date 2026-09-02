@@ -15,9 +15,8 @@ pub mod ui_model;
 pub use layout::hud_layout_node;
 pub use layout::minihud_layout::{
     build_mihud_layout, debug_frame_color, java_string_hashcode, AutoSizingPlan,
-    BuiltMiniHudLayout, CfgDefault, HasVisibility, MiniHudComp, MiniHudCfgItem, MiniHudItemType,
-    MiniHudLayoutConfig, MiniHudNodeSpec, MiniHudParts, ModernHUDLayoutEngine,
-    ENABLE_LAYOUT_DEBUG_ITEM, LAYOUT_PADDING, MINIHUD_NODE_SPECS, MINIHUD_PANEL_ITEMS,
+    BuiltMiniHudLayout, HasVisibility, MiniHudComp, MiniHudLayoutConfig, MiniHudNodeSpec,
+    MiniHudParts, ModernHUDLayoutEngine, LAYOUT_PADDING, MINIHUD_NODE_SPECS,
 };
 pub use overlays::attitude::{
     attitude_overlay_spec, AttitudeIndicatorGauge, AttitudeOverlay, AttitudeOverlayHandle,
@@ -57,14 +56,12 @@ pub use platform::hotkey::{
     VC_NUM_LOCK, VC_P, VC_SCROLL_LOCK, VC_UNDEFINED,
 };
 pub use platform::host::{DialogHooks, OverlayEntry, OverlayHost, OverlaySpec, RenderFn, ReinitFn, WindowFactory};
-pub use platform::position::{load_pos, save_pos};
 pub use platform::reinit::ReinitParams;
 #[cfg(target_os = "windows")]
 pub use platform::tray::{TrayConfig, TrayHandler, TrayIcon};
-pub use render::canvas::{to_premul_bgra, LineCapStyle, PixCanvas};
-pub use render::fields::{draw_fields, render_fields, render_fields_fixed, FieldText, FontTriple, RenderColors, DEFAULT_COLORS};
+pub use render::canvas::{LineCapStyle, PixCanvas};
+pub use render::fields::{draw_fields, render_fields_fixed, FieldText, FontTriple, RenderColors, DEFAULT_COLORS};
 pub use render::palette;
 pub use render::renderers::{
     BosStyleRenderer, Field, OverlayRenderer, RenderContext, RenderPalette, TextGauge,
-    APPLICATION_COLORS, WHITE,
 };

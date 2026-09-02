@@ -40,7 +40,7 @@ use vm_core::config::configuration_service::ConfigurationService;
 use vm_core::base::bus::ui_state_bus::{UIStateBus, UiStateEvent};
 use vm_core::base::event::ui_state_events;
 use vm_core::base::logger;
-use crate::row_renderer_registry::RenderContext;
+use crate::render_context::RenderContext;
 
 use crate::renderers;
 
@@ -68,15 +68,13 @@ pub enum Message {
     /// 刷新预览 — 主动广播 CONFIG_CHANGED, 对位 Controller.refreshPreviews 触发面
     RefreshPreviews,
     /// 动作按钮按下 (Java ButtonRowRenderer 五键分派; 审查轮 2-D 接线):
-    /// resetConfig/factoryReset → 挂确认模态; open* 三键未迁移仍走 Ignore
+    /// resetConfig/factoryReset → 挂确认模态; open* 三键由 vm-app dispatcher
+    /// 在表单写链前拦截直接开窗 (form_dispatch.rs), 不达本层
     ButtonAction { action: String },
     /// 确认模态「确定」(Java JOptionPane OK_OPTION 分支执行)
     ConfirmPending,
     /// 确认模态「取消」
     CancelPending,
-    /// 无操作 (property/label 双空残端控件的交互回包, 对位 Java isUpdating 抑制;
-    /// 正常无 :target 控件以 label 为键走键控消息)
-    Ignore,
 }
 
 // =====================================================================
@@ -201,13 +199,12 @@ impl MainFormState {
 // RenderContext 实现 (Java DynamicDataPage.java:126-175 匿名类)
 // =====================================================================
 
-/// 写侧上下文 (update 用): on_save/on_rebuild 以标志位暂存, 由 [`with_panel`] 统一
-/// flush (对位 Java 回调直调 save()/rebuild(); Elm 下写路径在 update, 无重入面)。
+/// 写侧上下文 (update 用): on_save 以标志位暂存, 由 [`with_panel`] 统一
+/// flush (对位 Java 回调直调 save(); Elm 下写路径在 update, 无重入面)。
 pub(crate) struct WriteContext<'a> {
     config: &'a ConfigurationService,
     ui_bus: &'a UIStateBus,
     save_requested: Cell<bool>,
-    rebuild_requested: Cell<bool>,
 }
 
 impl<'a> WriteContext<'a> {
@@ -216,30 +213,17 @@ impl<'a> WriteContext<'a> {
             config,
             ui_bus,
             save_requested: Cell::new(false),
-            rebuild_requested: Cell::new(false),
         }
     }
 
     fn take_save(&self) -> bool {
         self.save_requested.replace(false)
     }
-
-    fn take_rebuild(&self) -> bool {
-        self.rebuild_requested.replace(false)
-    }
 }
 
 impl RenderContext for WriteContext<'_> {
     fn on_save(&self) {
         self.save_requested.set(true);
-    }
-    fn on_rebuild(&self) {
-        self.rebuild_requested.set(true);
-    }
-    fn is_updating(&self) -> bool {
-        // Java isUpdatingControls 仅 rebuild 期置位抑制 Swing 监听反馈环;
-        // 本数据层无视图反馈环 (D9 后渲染归 web 壳), 恒 false
-        false
     }
     fn sync_to_config_service(&self, key: &str, value: bool) {
         // Java L143-152: setConfig(key, Boolean.toString(value)) + enableFMPrint 特例
@@ -322,8 +306,8 @@ pub fn update(state: &mut MainFormState, message: Message) {
         }
         Message::ButtonAction { action } => {
             // Java ButtonRowRenderer: 确认对话框先行 (JOptionPane), OK 才执行。
-            // Rust 以模态挂起等价 (view 画确认层, ConfirmPending 执行)。
-            // open* 三键未走本消息 (button.rs 仍 Ignore — 窗口/文件对话框未迁移)
+            // Rust 以模态挂起等价 (web 壳画确认层, ConfirmPending 执行)。
+            // open* 三键由 vm-app dispatcher 拦截开窗, 不达本臂
             match action.as_str() {
                 "resetConfig" | "factoryReset" => {
                     logger::info("MainForm", &format!("ACTION: 按钮按下 ({action}), 挂确认模态"));
@@ -361,7 +345,6 @@ pub fn update(state: &mut MainFormState, message: Message) {
         Message::CancelPending => {
             state.pending_action = None; // 确认框 CANCEL_OPTION
         }
-        Message::Ignore => {} // 残端控件回包, 对位 Java isUpdating 抑制期
         Message::ColorPicked { panel, key, value } => {
             // Java ColorRowRenderer.applyColorChange (L110-136): 主键十进制 + 分键
             // R/G/B/A 写服务 + row.value + onSave (即存, 每次 apply 落盘)
@@ -414,17 +397,13 @@ fn with_panel(
         }
     }
 
-    // flush: on_save → 保存链; on_rebuild → D1 期为 iced 声明式视图每帧自重建,
-    // D9 后视图刷新归 web 壳 (CONFIG_CHANGED 广播面), Java rebuild 的"取最新配置
-    // 树"目的由 persist 的服务树为基承担
+    // flush: on_save → 保存链
+    // (Java rebuild 链已退役: D9 后视图刷新归 web 壳的 CONFIG_CHANGED 广播面,
+    // "取最新配置树"目的由 persist 的服务树为基承担)
     // (先取标志再落保存链 — ctx 与 &mut state 的借用分界)
     let save = ctx.take_save();
-    let rebuild = ctx.take_rebuild();
     if save {
         persist_and_notify(state);
-    }
-    if rebuild {
-        logger::info("ComboDebug", "rebuild() called — 视图刷新归 web 壳 (D9)");
     }
 }
 

@@ -1525,8 +1525,7 @@ pub fn minihud_overlay_spec<S: HUDSettings>(
             width: w,
             height: h,
             render: Box::new(move |cv: &mut PixCanvas| {
-                // 生产 AA 恒开 (Application.java:102 graphAASetting 默认 ON;
-                // 接配置层后随 host GLOBAL_CONFIG_KEYS 的 AA 键族回收)
+                // aa = 运行时仓 (cfg AAEnable 可关)
                 render_handle.borrow_mut().draw(cv, aa());
             }),
             reinit: Some(reinit),

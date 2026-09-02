@@ -25,41 +25,6 @@ pub enum ControllerState {
     Preview,
 }
 
-/// Java `values()` 的声明序 (INIT→CONNECTED→IN_GAME→PREVIEW),
-/// `fromLegacyValue` 按此序遍历取首个匹配。
-const VALUES: [ControllerState; 4] = [
-    ControllerState::Init,
-    ControllerState::Connected,
-    ControllerState::InGame,
-    ControllerState::Preview,
-];
-
-impl ControllerState {
-    /// Get the legacy integer value for backwards compatibility.
-    // PORT: Java `private final int legacyValue` 字段 (构造器注入, 仅经本 getter
-    // 暴露) → match 常量编码; 字段不可直达, 保持 Java 私有语义 (§0.7 免 getter
-    // 规则只针对 public 字段)。
-    pub fn get_legacy_value(&self) -> i32 {
-        match *self {
-            ControllerState::Init => 1,
-            ControllerState::Connected => 2,
-            ControllerState::InGame => 3,
-            ControllerState::Preview => 4,
-        }
-    }
-
-    /// Convert legacy integer flag to ControllerState.
-    // Java enhanced-for over values(), 声明序首个 legacyValue 匹配返回, 兜底 INIT。
-    pub fn from_legacy_value(value: i32) -> ControllerState {
-        for state in VALUES.iter() {
-            if state.get_legacy_value() == value {
-                return *state;
-            }
-        }
-        ControllerState::Init
-    }
-}
-
 /// 对应 Java 枚举默认 `toString()` = `name()` = 声明常量名 (含下划线)。
 // PORT: Java 8 oracle 实测 (/tmp 临时工程, 用完已删): 四态 toString/name
 // 均为声明名 "INIT"/"CONNECTED"/"IN_GAME"/"PREVIEW"。
@@ -76,10 +41,10 @@ impl fmt::Display for ControllerState {
 }
 
 // =====================================================================
-// Tests — Java 侧无独立测试文件; 公共面 (get_legacy_value / from_legacy_value
-// / Display=toString 形态) 按"每个公共函数写边界测试"规则补齐, 期望值取自
-// Java 8 oracle dump。四态互异由 Rust enum 判别式唯一性 + 派生 PartialEq
-// 编译期保证, 不写空转测试 (§5)。
+// Tests — Java 侧无独立测试文件; 公共面 (Display=toString 形态) 按"每个
+// 公共函数写边界测试"规则补齐, 期望值取自 Java 8 oracle dump。四态互异由
+// Rust enum 判别式唯一性 + 派生 PartialEq 编译期保证, 不写空转测试 (§5)。
+// (B16: get/from_legacy_value 生产零调用已删, 其对拍测试一并移除)
 // =====================================================================
 #[cfg(test)]
 mod tests;

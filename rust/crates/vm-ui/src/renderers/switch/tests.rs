@@ -1,6 +1,7 @@
 use super::*;
-use crate::renderers::test_util::MapCtx;
-use vm_core::config::config_loader::ConfigValue;
+use crate::main_form::{update, Message};
+use crate::renderers::test_util::{state_from_cfg, MapCtx};
+use vm_core::config::config_loader::{ConfigValue, RowConfig};
 
 fn switch_row(prop: Option<&str>, value: Option<bool>) -> RowConfig {
     let mut r = RowConfig::new("开关".into(), None, "%s".into());
@@ -14,46 +15,6 @@ fn inv_row(prop: &str, value: bool) -> RowConfig {
     let mut r = switch_row(Some(prop), Some(value));
     r.r#type = "SWITCH_INV".into();
     r
-}
-
-// SWITCH 读路径: 服务值压制 row 默认 (SwitchRowRenderer.java:30-33)
-#[test]
-fn read_display_switch_prefers_service() {
-    let row = switch_row(Some("showSpeedBar"), Some(false)); // 默认 false
-    let mut ctx = MapCtx::default();
-    ctx.set("showSpeedBar", "true");
-    let panel = GroupConfig::new("p".into());
-    assert!(read_display(&row, &panel, &ctx));
-    // 服务空值 → 回落 row.getBool() 默认
-    let ctx2 = MapCtx::default();
-    assert!(!read_display(&row, &panel, &ctx2));
-}
-
-// SWITCH 读路径: PropertyBinder 组字段 (visible) 压制服务同键 (read_bool 优先级 1)
-#[test]
-fn read_display_switch_group_field_wins() {
-    let mut row = switch_row(Some("visible"), Some(false));
-    row.value = Some(ConfigValue::Bool(false));
-    let mut panel = GroupConfig::new("p".into());
-    panel.visible = true; // 组字段
-    let mut ctx = MapCtx::default();
-    ctx.set("visible", "false"); // 服务侧 false 应被组字段压制
-    assert!(read_display(&row, &panel, &ctx));
-}
-
-// SWITCH_INV 读路径: 双重取反 (配置 true=禁用 → 显示 OFF)
-#[test]
-fn read_display_switch_inv_double_inversion() {
-    let row = inv_row("disableX", true); // row.value=true (显示值语义)
-    let mut ctx = MapCtx::default();
-    ctx.set("disableX", "true"); // 服务: 禁用
-    let panel = GroupConfig::new("p".into());
-    assert!(!read_display(&row, &panel, &ctx), "disableX=true → 显示 OFF");
-    ctx.set("disableX", "false");
-    assert!(read_display(&row, &panel, &ctx), "disableX=false → 显示 ON");
-    // 服务空 → !(!row.getBool()) = row.getBool()
-    let ctx2 = MapCtx::default();
-    assert!(read_display(&row, &panel, &ctx2));
 }
 
 // SWITCH 写回: 非组字段 → write_bool 返回 false → row.value 回落 (Java L64-66)
@@ -109,4 +70,48 @@ fn apply_unknown_key_is_noop() {
     apply(&mut panel, "absent", false, &ctx);
     assert_eq!(panel.rows[0].value, Some(ConfigValue::Bool(true)));
     assert!(ctx.calls.borrow().is_empty());
+}
+
+// 真实链: DATA 开关经 Message::Toggle → switch::apply — 服务值 + 快照行值
+// (ui_layout.cfg 实况: "示空速/表速/IAS" :type data :target getIAS :value true)
+// 路由等价备案 (原 data.rs): Java DATA 行经 syncStringToConfigService + onSave
+// 无 PropertyBinder; Rust 走 switch::apply 的 write_bool → sync_to_config_service
+// 同串同链 (DATA :target 皆遥测 getter, 恒不绑组字段), 终态一致。
+#[test]
+fn toggle_message_routes_data_write_chain() {
+    let mut state = state_from_cfg(
+        "data_route",
+        r#"(panel "数据" (item "表速" :type data :target-name "表  速" :target "getIAS" :unit "Km/h" :value true :default true))"#,
+        None,
+    );
+    update(
+        &mut state,
+        Message::Toggle { panel: "数据".into(), key: "getIAS".into(), value: false },
+    );
+    assert_eq!(state.service_string("getIAS"), "false");
+    // 服务树行值 Bool(false) (setConfig instanceof Boolean 分支), mirror 回快照
+    assert_eq!(
+        state.snapshot_row("数据", "getIAS").unwrap().value,
+        Some(ConfigValue::Bool(false))
+    );
+}
+
+// 真实链: DATA 开为 true → 服务 "true" (往返)
+#[test]
+fn toggle_message_routes_data_on() {
+    let mut state = state_from_cfg(
+        "data_on",
+        r#"(panel "数据" (item "马赫数" :type data :target "getMach" :precision 2 :value true))"#,
+        None,
+    );
+    update(
+        &mut state,
+        Message::Toggle { panel: "数据".into(), key: "getMach".into(), value: false },
+    );
+    update(
+        &mut state,
+        Message::Toggle { panel: "数据".into(), key: "getMach".into(), value: true },
+    );
+    assert_eq!(state.service_string("getMach"), "true");
+    assert!(state.snapshot_row("数据", "getMach").unwrap().get_bool());
 }

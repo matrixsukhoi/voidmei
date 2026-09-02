@@ -1,22 +1,21 @@
 //! ComboRowRenderer 的写回链语义复刻 (src/ui/layout/renderer/ComboRowRenderer.java)。
 //!
-//! **D9 变更**: 原 iced view_row 已删 (渲染归 vm-webui web 壳), 本模块仅存
-//! 选项解析 (resolve_options) + 读链 (read_current) + 写链 (apply)。
+//! **D9 变更**: 原 iced view_row 与读链 (read_current) 已删 (渲染归 vm-webui
+//! web 壳, 回显走整树 DTO), 本模块仅存选项解析 (resolve_options) + 写链 (apply)。
 //!
-//! 交互语义保真:
+//! 语义保真:
 //! - 选项解析 (Java getComboOptions L68-87): ":source" 存于 row.format (loader 覆写);
 //!   "_FONTS_" / "_CROSSHAIRS_" 特例源, 其余按逗号字面量拆分。
-//! - 读 (Java L30-33): readString 优先级 PropertyBinder → 服务 → row.getStr();
-//!   空值不预选 (Java `currentVal != null && !currentVal.isEmpty()` 守卫)。
 //! - 写 (Java L52-62): row.value 存新串 → writeString (组字段 fontName + 服务同步) → onSave。
+//! - INPUT/TEXT 文本行同走本写链 (经 Message::Combo 路由, 等价备案见 tests)。
 //!
-//! PORT: "_FONTS_" 的 AWT 系统字体族枚举无 Rust 对应物 (D1 期以当前值单选占位,
+//! PORT: "_FONTS_" 的 AWT 系统字体族枚举无 Rust 对应物 (以当前值单选占位,
 //! 显示不回退); Java 下拉弹出互斥逻辑 (registerComboBox/dismissActivePopups) 属
 //! 窗口管理层, 不迁移。
 
-use vm_core::config::config_loader::{ConfigValue, GroupConfig, RowConfig};
+use vm_core::config::config_loader::{ConfigValue, GroupConfig};
 use crate::renderer_config_helper;
-use crate::row_renderer_registry::RenderContext;
+use crate::render_context::RenderContext;
 
 use super::{find_row_path, row_by_path, row_by_path_mut};
 
@@ -49,11 +48,6 @@ pub(crate) fn crosshair_options(dir: &str) -> Vec<String> {
         }
     }
     opts
-}
-
-/// 当前选中串 (Java L30: readString(ctx, groupConfig, row, row.getStr()))。
-pub fn read_current(row: &RowConfig, panel: &GroupConfig, ctx: &dyn RenderContext) -> String {
-    renderer_config_helper::read_string(ctx, panel, row, &row.get_str())
 }
 
 /// 选中写回 (Java combo.addActionListener 闭包体 L52-62)。

@@ -65,8 +65,6 @@
 //! 与同名 f64 字面量逐位相等, 直接写 f64 字面量。
 
 use std::collections::HashMap;
-use std::io::Write;
-use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -321,9 +319,6 @@ pub struct VoiceWarning {
     indic: Indicators,
     /// Java: `volatile Boolean doit` (volatile 保证可见性)
     pub doit: Arc<AtomicBool>,
-    /// Java: `private boolean playCompleted` (仅 getClip 写入, 无读取点)
-    #[allow(dead_code)]
-    play_completed: bool,
 
     // ---- 注入面 (Java 全局单例/Controller 访问的解散, 见模块头 PORT 注) ----
     /// Java: `private ConfigProvider configProvider` (原经 `c.getConfigService()`)
@@ -336,8 +331,10 @@ pub struct VoiceWarning {
     ui_state_bus: Arc<UIStateBus>,
     /// Java: `prog.event.FlightDataBus.getInstance()`
     flight_data_bus: Arc<FlightDataBus>,
-    /// playWav/getClip 的 Java `AudioSystem` 直开面 (不经 VoiceResourceManager;
-    /// 两方法全库无调用方, legacy 保真) — 与 resource_manager 注入同一实现即等价
+    /// playWav/getClip 的 Java `AudioSystem` 直开面 — 两方法已随保真残留退役删除,
+    /// 字段与 `new` 第 6 参数仅为 vm-app voice_setup 装配腿签名锁定而留
+    // DEAD(kept): 装配签名由 vm-app voice_setup.rs 锁定, AppShell 收口波次连带退役
+    #[allow(dead_code)]
     legacy_player: Arc<dyn SoundPlayer>,
 
     pub aoa_warning_line: f64,
@@ -417,7 +414,8 @@ pub struct VoiceWarning {
     elevator_eff: Option<Arc<VoiceAlert>>,
     aileron_eff: Option<Arc<VoiceAlert>>,
     /// Java 声明带 `= false` 初始化器; 原版只写不读 (elevator 告警触发块在 Java
-    /// 源码中即缺失, 保真保留写点) — §2.10 按有意处理
+    /// 源码中即缺失, 保真保留写点)
+    // DEAD(kept): Java §2.10 有意保留的只写不读字段, 保真保留写点
     #[allow(dead_code)]
     elevator_eff_check: bool,
     aileron_eff_check: bool,
@@ -446,6 +444,7 @@ impl VoiceWarning {
         fm_manager: Arc<FMManager>,
         ui_state_bus: Arc<UIStateBus>,
         flight_data_bus: Arc<FlightDataBus>,
+        // 见 legacy_player 字段注 (保留仅为 vm-app 装配腿签名兼容)
         legacy_player: Arc<dyn SoundPlayer>,
     ) -> Self {
         VoiceWarning {
@@ -456,7 +455,6 @@ impl VoiceWarning {
             st: State::new(),
             indic: Indicators::new(),
             doit: Arc::new(AtomicBool::new(false)),
-            play_completed: false,
             config_provider,
             resource_manager,
             fm_manager,
@@ -1311,50 +1309,6 @@ impl VoiceWarning {
         }
     }
 
-    // ==================== Legacy 直播面 (全库无调用方, 保真翻译) ====================
-
-    /// Java: `public void playWav(String Path)` — Legacy tool for direct playWav
-    pub fn play_wav(&self, path: &str) {
-        //      catch (Exception e) { e.printStackTrace(); }
-        // PORT: AudioSystem 直开面 → legacy_player 注入 (与 resource_manager 共用
-        // 同一实现即等价); 异常腿收敛为 Err 分支, printStackTrace 收窄为 DEBUG
-        // 闸门 stderr (voice_resource_manager.rs 同款先例)
-        match self.legacy_player.open_clip(Path::new(path)) {
-            Ok(audio_clip) => {
-                // 延迟释放自然播完 → Rust 交保活线程持有 (审查 B-B1, 见
-                // [`hold_clip_until_done`] 注)
-                audio_clip.start();
-                hold_clip_until_done(audio_clip);
-            }
-            Err(e) => {
-                if logger::get_level().value() <= logger::Level::Debug.value() {
-                    let _ = writeln!(std::io::stderr().lock(), "playWav: {e:?}");
-                }
-            }
-        }
-    }
-
-    /// Java: `Clip getClip(String audioFilePath)` — Legacy method for backward
-    /// compatibility (package-private, 全库无调用方 — 仅本文件测试消费)
-    #[allow(dead_code)]
-    fn get_clip(&mut self, audio_file_path: &str) -> Option<Box<dyn SoundClip>> {
-        let audio_file = PathBuf::from(audio_file_path);
-        self.play_completed = false;
-        // debugPrint 不同文案 (UnsupportedAudioFile/LineUnavailable/IOException);
-        // PORT: SoundPlayer 注入面 (D7) 将三类异常收敛为单一 Err, 差异化文案
-        // 不可复刻 — 取 IOException 腿文案 ("Error playing the audio file.")
-        match self.legacy_player.open_clip(&audio_file) {
-            Ok(audio_clip) => Some(audio_clip),
-            Err(e) => {
-                //      = Logger.info("Legacy", t) (flight_analyzer.rs 先例)
-                logger::info("Legacy", "Error playing the audio file.");
-                if logger::get_level().value() <= logger::Level::Debug.value() {
-                    let _ = writeln!(std::io::stderr().lock(), "{e:?}");
-                }
-                None
-            }
-        }
-    }
 }
 
 /// §2.13 辅助: 睡眠至 deadline 或运行标志翻 false (Java `Thread.sleep` 被
@@ -1367,10 +1321,7 @@ impl VoiceWarning {
 /// 无差异。
 /// PORT: [`crate::base::exception_helper::sleep_quietly`] 的 stop 语义是 **true=停**,
 /// 本类 doit 是 **true=运行**, 极性相反且 AtomicBool 无反视图可复用, 就地写
-/// 翻转版 (§6 跨文件观察, 只上报不越文件修; 双审查复核属实):
-/// other_service.rs:366 与 flight_log.rs:926 把 true=运行 的标志 (is_run/
-/// logon) 直接传给了 stop 语义的 sleep_quietly (立即返回 → 运行期热自旋),
-/// 请主 agent 裁决修那两处调用点 (或加 run 极性辅助函数)。
+/// 翻转版 (与 base 的 sleep_while_run 同语义, 收敛归波13 C8)。
 fn sleep_while_run(run: &AtomicBool, millis: u64) {
     let deadline = Instant::now() + Duration::from_millis(millis);
     while run.load(Ordering::SeqCst) {

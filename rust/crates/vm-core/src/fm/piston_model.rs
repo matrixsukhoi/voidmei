@@ -831,10 +831,6 @@ fn variabler(p: &CompressorStageParams, alt_ram: f64, is_wep: bool, wep_mult: f6
         }
     }
 
-    // TODO(port): Logger 未译 (B 类, CLASSIFY 裁决 → tracing/log); 原调用为 DEBUG 级
-    // 调试日志, 不影响计算结果:
-    // Logger.debug("variabler", String.format("altRam=%.1f, isWep=%s | lower=(%.1f, %.1f), higher=(%.1f, %.1f), curv=%.1f",
-    //         altRam, isWep, lowerAlt, lowerPower, higherAlt, higherPower, curvature));
     [higher_power, higher_alt, lower_power, lower_alt, curvature]
 }
 

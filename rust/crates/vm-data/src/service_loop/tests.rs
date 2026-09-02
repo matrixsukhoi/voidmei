@@ -862,7 +862,7 @@ fn w2_deriver_takeover_bitexact_oracle() {
 (7.981274259830538, 880.9935270141935, 3.3958275440815857, 2272.0937457067876, 135.38011695906434),
 (8.285515277538234, 838.4004267867731, 3.4704082022482896, 2258.4145598744262, 128.75),
     ];
-    for i in 0..20 {
+    for (i, (an, sep, tr, trds, acc)) in (0..20).zip(ORACLE.iter().copied()) {
         {
             let mut d = svc.data.write().unwrap();
             d.s_state.as_mut().unwrap().update(&replay_state_json(i));
@@ -871,7 +871,6 @@ fn w2_deriver_takeover_bitexact_oracle() {
         }
         svc.calculate();
         let d = svc.data.read().unwrap();
-        let (an, sep, tr, trds, acc) = ORACLE[i];
         assert_eq!(d.var_value("an").unwrap_or(f64::NAN).to_bits(), an.to_bits(), "帧 {i} an");
         assert_eq!(d.var_value("sep").unwrap_or(f64::NAN).to_bits(), sep.to_bits(), "帧 {i} sep");
         assert_eq!(d.var_value("turn_rate").unwrap_or(f64::NAN).to_bits(), tr.to_bits(), "帧 {i} turn_rate");

@@ -167,9 +167,9 @@ impl<TC, S> OverlayContext<TC, S> {
     }
 }
 
-/// activation_strategy.rs 预留 TODO(port) 的兑现: OverlayContext 实现其按实际
-/// 访问面提取的最小 trait (Java `ActivationStrategy.shouldActivate(OverlayContext)`
-/// → Rust `&dyn ActivationContext`), 预设工厂零改动即可消费本上下文。
+/// [`OverlayContext`] 实现 activation 消费面的最小 trait [`ActivationContext`]
+/// (Java `ActivationStrategy.shouldActivate(OverlayContext)` → Rust
+/// `&dyn ActivationContext`), 预设工厂零改动即可消费本上下文。
 // PORT: 方法体转发到同名固有方法/字段 —— Rust 方法解析固有 impl 优先于 trait
 // impl, 此处 self.get_bool(key) 调的是上方固有方法, 无自递归。
 impl<TC, S> crate::activation::strategy::ActivationContext for OverlayContext<TC, S> {
@@ -279,7 +279,7 @@ impl<TC, S> Default for Builder<TC, S> {
 // =====================================================================
 // Tests — Java 侧无独立测试文件; 按"每个公共项写边界测试"规则补齐。
 // 期望值按 Java 语义手工推算 (Boolean.parseBoolean / null 容忍 / 级联回退),
-// 并覆盖 activation_strategy.rs TODO(port) 指定的 ActivationContext 实现语义。
+// 并覆盖 ActivationContext 实现语义。
 // =====================================================================
 #[cfg(test)]
 mod tests;

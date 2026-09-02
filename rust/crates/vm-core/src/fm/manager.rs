@@ -45,9 +45,8 @@ use crate::base::logger;
 /// arc-swap): 读侧 O(1) clone Arc = Java volatile 读返回共享引用, 且消费者共享
 /// 同一句柄实例 —— blkx.engLoad 是 Service 线程 ~10Hz 就地改写的共享会话态
 /// (handle.rs javadoc / blkx 波次陷阱注 5), 每读深拷会让消费者拿到 fork、对快照的
-/// 改写静默丢失, Arc 共享在此销号。handle.rs TODO(port) 预留的 "Arc 共享 vs
-/// 每轮深拷" 决策点由本波次裁决为 Arc 共享 (该文件注释销号落点在其自身波次,
-/// §6 不越文件改)。
+/// 改写静默丢失, Arc 共享在此销号。handle.rs 预留的 "Arc 共享 vs 每轮深拷"
+/// 决策点已裁决为 Arc 共享。
 /// PORT(锁外发布, §2.8): 本文件所有锁的临界区只做赋值/查表/清空 (无 panic 路径,
 /// 锁不可中毒, fm_data_paths.rs 同款论证), 且**任何锁都不跨 publish 持有** ——
 /// 对齐 Java "volatile 无 monitor + 事件在锁外发布" 的可重入语义 (订阅方可回调

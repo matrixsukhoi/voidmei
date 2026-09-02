@@ -3,8 +3,10 @@
 //! | Rust | Java 源 | 语义要点 |
 //! |---|---|---|
 //! | [`ModernHUDLayoutEngine`] | src/ui/layout/ModernHUDLayoutEngine.java | DAG 依赖解析: DFS 前序拓扑排序 (根=无父节点, 父先子后) + 惰性 dirty 布局 + 可见节点包围盒/自动尺寸 |
-//! | [`MINIHUD_PANEL_ITEMS`] | ui_layout.cfg (panel "MiniHUD" L45-94) | cfg 常量表快照 (同 vm-core fields.rs 先例, 布局消费子集): 组件树生成的配置键/默认值单一来源 |
 //! | [`MINIHUD_NODE_SPECS`] + [`build_mihud_layout`] | src/ui/overlay/MiniHUDOverlay.java initModernLayout (L652-763) | cfg 驱动组件树生成: Java 硬编码拓扑转常量 spec 表, build 按配置 (displayCrosshair) 与行数动态建树 |
+//!
+//! ui_layout.cfg panel "MiniHUD" 段的常量表快照 (原 MINIHUD_PANEL_ITEMS 族)
+//! 仅测试消费, 已随波12 移入 tests.rs — 生产布局不持 cfg 第二份手工快照。
 //!
 //! 锚点公式 (doc/minihud贡献者开发手册.md §3.2):
 //! **Self.Point(SelfAnchor) = Parent.Point(ParentAnchor) + Offset(Unit × LineHeight)**
@@ -438,107 +440,9 @@ pub fn debug_frame_color(id: &str) -> [u8; 4] {
 }
 
 // ---------------------------------------------------------------------------
-// ui_layout.cfg (panel "MiniHUD" L45-94) 常量表快照 — 同 vm-core fields.rs 先例
+// 布局开关系集 (cfg → 纯值结构)
 // ---------------------------------------------------------------------------
 
-/// :type (布局引擎/设置面板消费的子集; info 行不含 target 不入表)
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum MiniHudItemType {
-    /// switch (UI ON = value true)
-    Switch,
-    /// switch-inv (UI ON = value false)
-    SwitchInv,
-    /// slider (:min/:max/:unit)
-    Slider,
-    /// combo (:source 列表)
-    Combo,
-}
-
-/// :value / :default 字面量 (cfg 两列恒同值)
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum CfgDefault {
-    Bool(bool),
-    Int(i32),
-    Str(&'static str),
-}
-
-/// panel "MiniHUD" 单条 (item ...) 定义快照
-#[derive(Debug, Clone, Copy)]
-pub struct MiniHudCfgItem {
-    /// 所属 (group "...") 名
-    pub group: &'static str,
-    /// item 标签原文
-    pub label: &'static str,
-    pub item_type: MiniHudItemType,
-    /// :target 配置键 (cfg 字符串键原样, PORTING.md §0.5)
-    pub target: &'static str,
-    pub default: CfgDefault,
-    /// slider :min
-    pub min: Option<i32>,
-    /// slider :max
-    pub max: Option<i32>,
-    /// slider :unit
-    pub unit: Option<&'static str>,
-}
-
-/// MiniHUD panel 段 28 条 item 逐行快照 (ui_layout.cfg L45-94, 顺序一致)。
-/// 组件树生成的配置键单一来源: displayCrosshair 控制 crosshair 节点与画布倍宽,
-/// enableFlapAngleBar/showSpeedBar/showAttitudeGauge 等控制组件可见性 (宿主消费)。
-/// PORT(审查 A3): 本表是**布局消费的子集**快照 — 只保留 label/group/type/
-/// target/value/min/max/unit; combo 的 :source ("_CROSSHAIRS_"/"_FONTS_") 与
-/// :desc/:desc-img/:column 等设置面板字段未入表。P5 vm-ui 生成完整设置面板时
-/// 须从 ui_layout.cfg 另出全量表, 勿复用本表 (避免单一来源分裂)。
-pub const MINIHUD_PANEL_ITEMS: &[MiniHudCfgItem] = &[
-    // (group "基本设定")
-    MiniHudCfgItem { group: "基本设定", label: "启用Overlay", item_type: MiniHudItemType::Switch, target: "crosshairSwitch", default: CfgDefault::Bool(true), min: None, max: None, unit: None },
-    // (group "hud面板设置")
-    MiniHudCfgItem { group: "hud面板设置", label: "显示hud数据", item_type: MiniHudItemType::Switch, target: "drawHUDtext", default: CfgDefault::Bool(true), min: None, max: None, unit: None },
-    MiniHudCfgItem { group: "hud面板设置", label: "显示hud准星", item_type: MiniHudItemType::Switch, target: "displayCrosshair", default: CfgDefault::Bool(true), min: None, max: None, unit: None },
-    // (group "hud数据设置")
-    MiniHudCfgItem { group: "hud数据设置", label: "智能襟翼指示器", item_type: MiniHudItemType::Switch, target: "enableFlapAngleBar", default: CfgDefault::Bool(true), min: None, max: None, unit: None },
-    MiniHudCfgItem { group: "hud数据设置", label: "油门条/速度条", item_type: MiniHudItemType::Switch, target: "showSpeedBar", default: CfgDefault::Bool(true), min: None, max: None, unit: None },
-    MiniHudCfgItem { group: "hud数据设置", label: "罗盘/姿态指示", item_type: MiniHudItemType::Switch, target: "showAttitudeGauge", default: CfgDefault::Bool(true), min: None, max: None, unit: None },
-    MiniHudCfgItem { group: "hud数据设置", label: "离体/随体配置", item_type: MiniHudItemType::Switch, target: "attitudeIndicatorInertialMode", default: CfgDefault::Bool(false), min: None, max: None, unit: None },
-    MiniHudCfgItem { group: "hud数据设置", label: "表速更换马赫数", item_type: MiniHudItemType::Switch, target: "hudMach", default: CfgDefault::Bool(true), min: None, max: None, unit: None },
-    MiniHudCfgItem { group: "hud数据设置", label: "始终显示雷达高度", item_type: MiniHudItemType::Switch, target: "alwaysShowRadarAltitude", default: CfgDefault::Bool(false), min: None, max: None, unit: None },
-    MiniHudCfgItem { group: "hud数据设置", label: "攻角数值告警阈值", item_type: MiniHudItemType::Slider, target: "miniHUDaoaWarningRatio", default: CfgDefault::Int(20), min: Some(0), max: Some(100), unit: Some("%") },
-    MiniHudCfgItem { group: "hud数据设置", label: "攻角条告警阈值", item_type: MiniHudItemType::Slider, target: "miniHUDaoaBarWarningRatio", default: CfgDefault::Int(25), min: Some(0), max: Some(100), unit: Some("%") },
-    MiniHudCfgItem { group: "hud数据设置", label: "速度读数", item_type: MiniHudItemType::Switch, target: "showHUDSpeed", default: CfgDefault::Bool(true), min: None, max: None, unit: None },
-    MiniHudCfgItem { group: "hud数据设置", label: "攻角指示", item_type: MiniHudItemType::Switch, target: "showHUDAoA", default: CfgDefault::Bool(true), min: None, max: None, unit: None },
-    MiniHudCfgItem { group: "hud数据设置", label: "高度读数", item_type: MiniHudItemType::Switch, target: "showHUDAltitude", default: CfgDefault::Bool(true), min: None, max: None, unit: None },
-    MiniHudCfgItem { group: "hud数据设置", label: "能量读数", item_type: MiniHudItemType::Switch, target: "showHUDEnergy", default: CfgDefault::Bool(true), min: None, max: None, unit: None },
-    MiniHudCfgItem { group: "hud数据设置", label: "襟翼/可变翼", item_type: MiniHudItemType::Switch, target: "showHUDFlaps", default: CfgDefault::Bool(true), min: None, max: None, unit: None },
-    MiniHudCfgItem { group: "hud数据设置", label: "减速板", item_type: MiniHudItemType::Switch, target: "showHUDAirbrake", default: CfgDefault::Bool(true), min: None, max: None, unit: None },
-    MiniHudCfgItem { group: "hud数据设置", label: "起落架", item_type: MiniHudItemType::Switch, target: "showHUDGear", default: CfgDefault::Bool(true), min: None, max: None, unit: None },
-    MiniHudCfgItem { group: "hud数据设置", label: "爬升率", item_type: MiniHudItemType::Switch, target: "showHUDSep", default: CfgDefault::Bool(true), min: None, max: None, unit: None },
-    MiniHudCfgItem { group: "hud数据设置", label: "过载读数", item_type: MiniHudItemType::Switch, target: "showHUDGLoad", default: CfgDefault::Bool(true), min: None, max: None, unit: None },
-    MiniHudCfgItem { group: "hud数据设置", label: "机动条", item_type: MiniHudItemType::Switch, target: "showHUDManeuverBar", default: CfgDefault::Bool(true), min: None, max: None, unit: None },
-    // (group "hud文字标签设置")
-    MiniHudCfgItem { group: "hud文字标签设置", label: "速度读数显示标签", item_type: MiniHudItemType::SwitchInv, target: "disableHUDSpeedLabel", default: CfgDefault::Bool(false), min: None, max: None, unit: None },
-    MiniHudCfgItem { group: "hud文字标签设置", label: "高度读数显示标签", item_type: MiniHudItemType::SwitchInv, target: "disableHUDHeightLabel", default: CfgDefault::Bool(false), min: None, max: None, unit: None },
-    MiniHudCfgItem { group: "hud文字标签设置", label: "SEP读数显示标签", item_type: MiniHudItemType::SwitchInv, target: "disableHUDSEPLabel", default: CfgDefault::Bool(false), min: None, max: None, unit: None },
-    // (group "hud准星设置")
-    MiniHudCfgItem { group: "hud准星设置", label: "选择准星", item_type: MiniHudItemType::Combo, target: "crosshairName", default: CfgDefault::Str("软件渲染准星"), min: None, max: None, unit: None },
-    // (group "外观设置")
-    MiniHudCfgItem { group: "外观设置", label: "minihud大小", item_type: MiniHudItemType::Slider, target: "crosshairScale", default: CfgDefault::Int(113), min: Some(0), max: Some(200), unit: None },
-    MiniHudCfgItem { group: "外观设置", label: "hud读数和指示器字体大小", item_type: MiniHudItemType::Slider, target: "fontSize", default: CfgDefault::Int(0), min: Some(-10), max: Some(10), unit: None },
-    MiniHudCfgItem { group: "外观设置", label: "等宽字体", item_type: MiniHudItemType::Combo, target: "MonoNumFont", default: CfgDefault::Str("Sarasa Mono SC"), min: None, max: None, unit: None },
-];
-
-/// enableLayoutDebug 不在 MiniHUD panel 段 (位于「杂项→调试」组, ui_layout.cfg:392),
-/// 但为 MiniHUDOverlay.initModernLayout:668 消费的布局引擎开关 — 单列快照。
-pub const ENABLE_LAYOUT_DEBUG_ITEM: MiniHudCfgItem = MiniHudCfgItem {
-    group: "调试",
-    label: "显示布局调试",
-    item_type: MiniHudItemType::Switch,
-    target: "enableLayoutDebug",
-    default: CfgDefault::Bool(false),
-    min: None,
-    max: None,
-    unit: None,
-};
-
-/// 组件树生成所需的布局开关系集。
 /// PORT: Java 侧 = MiniHUDOverlay 直接持 HUDSettings (initModernLayout 读
 /// isDisplayCrosshair / getBool("enableLayoutDebug", false)); Rust 以纯值结构
 /// 解耦配置源。两层缺省 (审查 B3): [`Default`] = cfg 树健康时的 :default 快照;

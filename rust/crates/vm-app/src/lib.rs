@@ -12,7 +12,8 @@
 //! - `src/prog/Application.java` — 静态字段落位 (D8: AppShell 显式持有, 禁 static mut)。
 //!
 //! 线程拓扑 (DECISIONS.md D8):
-//! - 主线程: MainForm (iced, W2 波次接线) + AppShell 监督循环 (本文件 `run_supervisor`)。
+//! - 主线程: AppShell 监督循环 (`run_supervisor`/`run_supervisor_phase`) +
+//!   vm-webui ShellForm (Tauri web 设置壳, D9) 的事件泵迭代 — main.rs 单循环驱动。
 //! - win32 线程: OverlayHost 全部 overlay 窗口 + 托盘消息窗口 + 热键事件消费
 //!   (单泵共享; 热键钩子线程豁免记录见 `win32::win32_thread_main` 头注)。
 //! - Service 线程: vm-data service_loop (8111 轮询, Controller 波次仅负责启停)。
@@ -218,8 +219,6 @@ impl AppShell {
         let mut env = Env::probe(&lang, debug);
         if let Some(p) = port_override {
             env.app_port = p;
-            // 与 probe 同式 (域内恒 p+1111, u16 加法无回绕面)
-            env.app_port_bkp = p + 1111;
             env.port_override = Some(p);
         }
         let ui_bus = Arc::new(UIStateBus::new());

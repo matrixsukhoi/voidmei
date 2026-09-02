@@ -189,10 +189,9 @@ impl FmData {
     /// 遍历推力表找全局最大值
     /// @param table 推力表 [altitude][velocity]
     /// @return 峰值推力(kgf)
-    // PORT: Java private → pub(super) (blkx 模块树内可见: getload 在 reader 波次
-    // 落地为本模块树的兄弟 impl, 对应"类内可见"); Java double[][] 传 null →
+    // PORT: Java private → pub(super) (blkx 模块树内可见: getload 落地为本模块树
+    // 的兄弟 impl, 对应"类内可见"); Java double[][] 传 null →
     // Option<&[Vec<f64>]>; 内层行短于 vel_thr_num 时 Java AIOOBE ↔ 索引 panic
-    #[allow(dead_code)] // 唯一调用方 getload (L983-984) 在 reader 波次
     pub(super) fn calculate_peak_thrust(&self, table: Option<&[Vec<f64>]>) -> f64 {
         if table.is_none() || self.alt_thr_num == 0 || self.vel_thr_num == 0 {
             return 0.0;

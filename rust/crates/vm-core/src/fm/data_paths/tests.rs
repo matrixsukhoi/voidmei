@@ -106,8 +106,8 @@ impl Drop for DataRootResetOnDrop {
 // 依赖前序默认根状态, 且会改写全局); cargo test 默认多线程并行跑 #[test],
 // 拆成多个 #[test] 会与全局注入竞态 —— 故收敛为单个 #[test] 复刻 main() 的
 // 顺序执行, 五个方法体与断言逐条保留。
-// ⚠ 后续新增任何触碰 set_data_root 的测试 (如 blkx/realtests.rs 腿2 TODO(port)
-// 计划的临时 data 根注入) 必须并入本 #[test], 或加共享 static Mutex<()> 的
+// ⚠ 后续新增任何触碰 set_data_root 的测试 (如 realtests.rs 腿2 TODO 备案
+// 的临时 data 根注入) 必须并入本 #[test], 或加共享 static Mutex<()> 的
 // 手写串行守卫 (serial_test 式, 禁新增依赖) —— cargo 在同测试二进制内并行跑
 // #[test], Java 靠"单 JVM 顺序 + finally 还原"规避的 DATA_ROOT 竞态会真实发生。
 #[test]

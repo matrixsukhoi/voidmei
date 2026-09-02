@@ -48,11 +48,6 @@ pub struct HUDLayoutNode<T> {
     parent_anchor: Anchor,
     self_anchor: Anchor,
 
-    // Flags
-    // PORT(审查 B4): 该标志在 Java 即 write-only 死状态 (全库无读者,
-    // getContentBounds 不检查它), 保真保留 — 勿据注释名推断其已生效。
-    ignore_bounds: bool, // If true, doesn't affect parent's bound calculation (Overlay)
-
     // Runtime State (Calculated)
     pixel_rect: Rectangle,
     dirty: bool,
@@ -120,7 +115,7 @@ impl<T> HUDLayoutNode<T> {
     /// Java 构造器 `new HUDLayoutNode(id, component)`;
     /// 直接返回共享句柄 (Java 引用即共享)。
     /// 字段缺省值对齐 Java 隐式初始化 (§2.10): unit 0.0 / 锚 TOP_LEFT /
-    /// ignoreBounds false / pixelRect 全 0 / dirty true。
+    /// pixelRect 全 0 / dirty true。
     pub fn new(id: impl Into<String>, component: T) -> SharedNode<T> {
         Rc::new(RefCell::new(HUDLayoutNode {
             id: id.into(),
@@ -131,7 +126,6 @@ impl<T> HUDLayoutNode<T> {
             unit_y: 0.0,
             parent_anchor: Anchor::TopLeft,
             self_anchor: Anchor::TopLeft,
-            ignore_bounds: false,
             pixel_rect: Rectangle::new(),
             dirty: true,
         }))
@@ -172,9 +166,6 @@ pub trait HUDLayoutNodeExt<T> {
 
     /// Java `setAnchors(Anchor, Anchor)` (`return this`)
     fn set_anchors(&self, parent_anchor: Anchor, self_anchor: Anchor) -> SharedNode<T>;
-
-    /// Java `setIgnoreBounds(boolean)` (`return this`)
-    fn set_ignore_bounds(&self, ignore: bool) -> SharedNode<T>;
 
     /// Java `getParent()` (null → None)
     fn get_parent(&self) -> Option<SharedNode<T>>;
@@ -227,11 +218,6 @@ impl<T> HUDLayoutNodeExt<T> for SharedNode<T> {
         this.parent_anchor = parent_anchor;
         this.self_anchor = self_anchor;
         drop(this);
-        self.clone()
-    }
-
-    fn set_ignore_bounds(&self, ignore: bool) -> SharedNode<T> {
-        self.borrow_mut().ignore_bounds = ignore;
         self.clone()
     }
 

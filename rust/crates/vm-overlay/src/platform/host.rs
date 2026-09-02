@@ -352,8 +352,8 @@ impl OverlayHost {
 
     /// 关闭单个 overlay — PORT: Java OverlayEntry.close() 销毁序
     /// Java: saveCurrentPosition() → 反射 doit=false → Window.dispose() → thread.interrupt()
-    ///       → instance=null (全在 synchronized 锁内)
-    /// Rust: 锁内只摘槽位, 存位置/销毁链锁外 (LIFETIMES §3.3-1 根治);
+    ///       → instance=null
+    /// Rust: 槽位摘取期间完成存位置/销毁链 (单线程独占, 无锁 — LIFETIMES §3.3-1);
     ///       doit/interrupt 无对应物 (无轮询线程), drop(window) = dispose 注销链
     pub fn close(&mut self, id: &str) -> bool {
         let Some(idx) = self.entries.iter().position(|e| e.id == id) else {
@@ -444,7 +444,7 @@ impl OverlayHost {
     /// 返回新尺寸则 resize (setBounds 副作用); 无论尺寸是否变化均清指纹强制重绘
     /// (Java reinitConfig 末尾 repaint)
     fn reinit_idx(&mut self, idx: usize) -> Result<(), String> {
-        // 闭包是任意第三方代码 (锁纪律: 不得持任何锁执行)
+        // 闭包是任意第三方代码 (槽位摘取期外执行, 无状态借用交叉)
         let new_size = match self.entries[idx].reinit.as_mut() {
             Some(f) => f(),
             None => None,
@@ -553,8 +553,8 @@ impl OverlayHost {
         self.finish_materialize(idx, preview, window)
     }
 
-    /// materialize 尾段 (窗口落槽): 锁内只放槽位, 并发已开则锁外销毁新建窗
-    /// (补偿锁外建窗的窗口期 — 见调用点锁纪律注)
+    /// materialize 尾段 (窗口落槽): 重复 open 的已开条目丢弃新建窗
+    /// (drop → DestroyWindow 销毁链)
     fn finish_materialize(
         &mut self,
         idx: usize,
@@ -678,7 +678,7 @@ impl OverlayHost {
         let Some(idx) = self.entries.iter().position(|e| e.id == id) else {
             return;
         };
-        // 锁内: 只摘/放槽位; set_visible (系统调用) 在持槽位所有权下锁外执行
+        // 槽位摘取期间改可见态; set_visible (系统调用) 在持槽位所有权下执行
         let taken = self.entries[idx].slot.take();
         let Some(mut sl) = taken else { return };
         set_slot_visible(&mut sl, visible);
@@ -695,7 +695,7 @@ impl OverlayHost {
         }
     }
 
-    /// 一轮消息泵: 逐窗口取事件 → 拖拽状态机; Close 事件走 close 销毁链 (锁外)。
+    /// 一轮消息泵: 逐窗口取事件 → 拖拽状态机; Close 事件走 close 销毁链 (槽位放回后)。
     /// 返回本轮因 Close 事件被关闭的 id (Java 无对应返回, 测试/上层生命周期用)。
     /// poll_event (→DispatchMessageW→WNDPROC 回调) 与 set_position/position/screen_size
     /// (系统调用) 均为外部代码; 事件处理在持槽位所有权下执行, 拖拽落点保存推迟到循环尾。

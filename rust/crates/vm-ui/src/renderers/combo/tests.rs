@@ -1,6 +1,7 @@
 use super::*;
-use crate::renderers::test_util::MapCtx;
-use vm_core::config::config_loader::ConfigValue;
+use crate::main_form::{update, Message};
+use crate::renderers::test_util::{state_from_cfg, MapCtx};
+use vm_core::config::config_loader::{ConfigValue, RowConfig};
 
 fn combo_row(prop: Option<&str>, source: &str, value: Option<&str>) -> RowConfig {
     let mut r = RowConfig::new("字体".into(), None, "%s".into());
@@ -63,28 +64,8 @@ fn crosshair_options_dir_and_missing_dir() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-// 读链: 服务值压制 row 默认; 空服务回落 row.getStr()
-#[test]
-fn read_current_prefers_service() {
-    let panel = GroupConfig::new("p".into());
-    let row = combo_row(Some("MonoNumFont"), "_FONTS_", Some("默认字体"));
-    let mut ctx = MapCtx::default();
-    ctx.set("MonoNumFont", "Sarasa Mono SC");
-    assert_eq!(read_current(&row, &panel, &ctx), "Sarasa Mono SC");
-    let ctx2 = MapCtx::default();
-    assert_eq!(read_current(&row, &panel, &ctx2), "默认字体");
-}
-
-// 读链: PropertyBinder 组字段 (fontName) 压制服务 (read_string 优先级 1)
-#[test]
-fn read_current_group_field_wins() {
-    let mut panel = GroupConfig::new("引擎信息".into());
-    panel.font_name = Some("DIN Pro 400".into());
-    let mut ctx = MapCtx::default();
-    ctx.set("fontName", "Arial");
-    let row = combo_row(Some("fontName"), "_FONTS_", Some("X"));
-    assert_eq!(read_current(&row, &panel, &ctx), "DIN Pro 400");
-}
+// 读链已删 (D9 回显走整树 DTO); 读链的 Java 优先级语义 (PropertyBinder 组字段
+// > 服务 > 行默认) 仍由 renderer_config_helper 的 read_string 测试锁定。
 
 // 写链: row.value + 组字段 fontName + 服务同步 + on_save (Java L52-62)
 #[test]
@@ -111,4 +92,47 @@ fn apply_unknown_key_is_noop() {
     apply(&mut panel, "absent", "B", &ctx);
     assert_eq!(panel.rows[0].value, Some(ConfigValue::Str("A".into())));
     assert!(ctx.calls.borrow().is_empty());
+}
+
+// 真实链: INPUT 行经 Message::Combo 写回 — 服务 + 快照 + on_save 即落盘
+// (ui_layout.cfg 实况: "8111端口" :type input :target httpPort)
+// 路由等价备案 (原 text.rs): Java TextRowRenderer 闭包体与 Combo 逐步同构,
+// 提交时机归 web 壳 (JS 输入框), 消息形状不变。
+#[test]
+fn combo_message_routes_text_write_chain() {
+    let mut state = state_from_cfg(
+        "text_route",
+        r#"(panel "连接" (item "8111端口" :type input :target "httpPort" :value 8111 :default 8111))"#,
+        None,
+    );
+    update(
+        &mut state,
+        Message::Combo { panel: "连接".into(), key: "httpPort".into(), value: "9222".into() },
+    );
+    assert_eq!(state.service_string("httpPort"), "9222");
+    // Int 行经 setConfig 保持 Int 形态 (Java instanceof Integer 分支)
+    assert_eq!(state.snapshot_row("连接", "httpPort").unwrap().get_int(), 9222);
+}
+
+// 真实链: 无 :target 文本行 — row.value 落快照 + onSave 即落盘 (persist 收敛
+// 服务树; Java L57-67: prop=null 不落服务, row.value 在共享树本体上)
+#[test]
+fn combo_message_unkeyed_row_writes_row_value_only() {
+    let persist = std::env::temp_dir().join("vm_ui_text_unkeyed_user.cfg");
+    let _ = std::fs::remove_file(&persist);
+    let mut state = state_from_cfg(
+        "text_unkeyed",
+        r#"(panel "P" (item "备注" :type text :value "旧"))"#,
+        Some(persist.to_string_lossy().into_owned()),
+    );
+    update(
+        &mut state,
+        Message::Combo { panel: "P".into(), key: "备注".into(), value: "新".into() },
+    );
+    let row = state.snapshot_row("P", "备注").unwrap();
+    assert_eq!(row.value, Some(ConfigValue::Str("新".into())));
+    assert!(persist.exists(), "onSave 即落盘");
+    // 挂起重放 → 落盘 → 重载: 服务树同 label 行持 "新" (get_config 按 label 命中)
+    assert_eq!(state.service_string("备注"), "新");
+    let _ = std::fs::remove_file(&persist);
 }

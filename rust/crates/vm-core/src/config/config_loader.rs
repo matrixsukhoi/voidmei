@@ -711,12 +711,6 @@ fn build_groups_from_file(path: &str, groups: &mut Vec<GroupConfig>) -> Result<(
         .replace('\r', "\n");
 
     let content = content.as_str();
-    // Legacy compatibility: Check if it starts with '[' (INI format)
-    if java_trim(content).starts_with('[') {
-        // Fallback to legacy parser if needed, or just warn.
-        // For now, let's assume valid S-Expr input or strict migration.
-        // If you needed legacy support, we'd paste the old parser code here.
-    }
 
     let mut parser = SExpParser::new();
     let panels = parser.parse(content);

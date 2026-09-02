@@ -5,8 +5,7 @@
 //! | HUDTextRow | ui/component/row/HUDTextRow.java | 主文本行: 基线 = y+ascent, 警告色/常态色, 模板锁宽 |
 //! | HUDAkbRow | ui/component/row/HUDAkbRow.java | 速度行: 左主文字 + 右 AoA 横条(drawHRect)与 α 小字 |
 //! | HUDEnergyRow | ui/component/row/HUDEnergyRow.java | 高度行: 左主文字 + 右能量小字 (同基线) |
-//! | HUDFlapsRow | ui/component/row/HUDFlapsRow.java | 襟翼/起落架状态行 (纯数据映射, 无自绘; Java 前代组件, 生产 Row2 已被 HUDMechanizationRow 取代, 保真保留) |
-//! | HUDMechanizationRow | ui/component/row/HUDMechanizationRow.java | Row 2 生产组件: 襟翼/减速板/起落架三段拆分, 模板占位推进 curX, 独立三开关 |
+//! | HUDMechanizationRow | ui/component/row/HUDMechanizationRow.java | Row 2 生产组件: 襟翼/减速板/起落架三段拆分, 模板占位推进 curX, 独立三开关 (Java 前代 HUDFlapsRow 已随波12 死代码清扫删除) |
 //! | HUDManeuverRow | ui/component/row/HUDManeuverRow.java | G 行: 左主文字 + 右机动指数条(thick 影线/thin 主线)与刻度 |
 //!
 //! 绘制目标 = render2d::PixCanvas; Java extends HUDTextRow 统一映射为组合
@@ -424,41 +423,6 @@ impl HUDEnergyRow {
             w = extra_w;
         }
         (w, self.base.height)
-    }
-}
-
-// ---------------------------------------------------------------------------
-// HUDFlapsRow (襟翼/起落架状态行)
-// ---------------------------------------------------------------------------
-
-/// 已改用 HUDMechanizationRow — 本类保真保留, 见下方同文件邻居)。
-/// 纯数据映射组件 — 无自绘, 全部视觉 = 基类文本行
-/// (onDataUpdate: mechanizationStr + warnConfiguration → update)。
-pub struct HUDFlapsRow {
-    pub base: HUDTextRow,
-}
-
-impl HUDFlapsRow {
-    /// Java:10-13 构造
-    pub fn new(index: i32, height: i32) -> Self {
-        HUDFlapsRow {
-            base: HUDTextRow::new(index, height),
-        }
-    }
-
-    /// Java:15-19 onDataUpdate → 基类 update
-    pub fn update(&mut self, mechanization_str: &str, warn_configuration: bool) -> bool {
-        self.base.update(mechanization_str, warn_configuration)
-    }
-
-    /// 基类 draw 透传
-    pub fn draw(&self, cv: &mut PixCanvas, x: i32, y: i32, font: &LoadedFont, aa: bool) {
-        self.base.draw(cv, x, y, font, aa);
-    }
-
-    /// 基类 preferred_size 透传
-    pub fn preferred_size(&self, font: &LoadedFont) -> (i32, i32) {
-        self.base.preferred_size(font)
     }
 }
 

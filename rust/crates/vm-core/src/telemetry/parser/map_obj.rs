@@ -464,21 +464,8 @@ impl MapObj {
             self.parse_obj(&sobj);
             sobj = self.get_line();
         }
-        // testmov();//测试用
         // Application.debugPrint(mov[movcur-1].x);
         //Application.debugPrint("切片完成");
-    }
-
-    /// 死方法 (调用点已注释) — 保留移植; System.out.print → print!
-    #[allow(dead_code)]
-    fn test_mov(&self) {
-        let mut i = 0;
-        while i < self.num {
-            print!("{} ", self.mov[i].x);
-            i += 1;
-        }
-        // PORT: Application.debugPrint 未移植 (C 类), 以 eprintln! 代位 — 死方法, 无行为面
-        eprintln!("{}", i);
     }
 
     fn init_mobj(&mut self) {

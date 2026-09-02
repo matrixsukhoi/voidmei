@@ -8,7 +8,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::render::palette::colors;
+use crate::render::palette::{aa, colors};
 use crate::render::font::LoadedFont;
 use crate::platform::host::{OverlaySpec, ReinitFn};
 use crate::platform::reinit::ReinitParams;
@@ -282,9 +282,9 @@ pub fn gear_flaps_overlay_spec(
             width: w,
             height: h,
             render: Box::new(move |cv: &mut PixCanvas| {
-                // 生产 AA 恒开 (Application.java:102 graphAASetting 默认 ON)
+                // aa = 运行时仓 (cfg AAEnable 可关 — 同 engine_control 先例)
                 let (num, label) = (font_num.borrow(), font_label.borrow());
-                render_handle.borrow().draw(cv, &num, &label, true);
+                render_handle.borrow().draw(cv, &num, &label, aa());
             }),
             reinit: Some(reinit),
         },

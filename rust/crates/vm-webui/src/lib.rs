@@ -53,7 +53,7 @@ impl ShellForm {
     /// Err = WebView2 不可用等致命面 (调用方降级监督模式, D9 风险表)。
     pub fn new(dispatcher: Dispatcher) -> Result<Self, String> {
         let (tx, rx) = mpsc::channel::<IpcRequest>();
-        let mut app = tauri::Builder::default()
+        let app = tauri::Builder::default()
             .plugin(tauri_plugin_dialog::init())
             // checkUpdate 的 GitHub API 请求 (前端 fetch; capabilities 限 api.github.com)
             .plugin(tauri_plugin_http::init())
@@ -96,7 +96,7 @@ impl ShellForm {
             // WebView2 默认销毁破坏常驻壳; hide 给即时视觉反馈, emit 交前端走
             // EndGame 干净退出链 (saveConfig + 主循环收尾, 覆盖 ✕/Alt+F4/任务栏关闭)。
             // 审查 W1: 按 label 分流 — 仅 main 的 X 转退出链; 阶段④ 辅助窗
-            // (对比/功率曲线/飞行记录) 的 X = 销毁 (对位 Java JDialog dispose),
+            // (对比/功率曲线) 的 X = 销毁 (对位 Java JDialog dispose),
             // 不分流则未来任何新窗口的 X 都会退出整个应用 (新 label 的
             // capabilities 补配归阶段④ 开窗批)
             .on_window_event(|window, event| {
@@ -114,7 +114,6 @@ impl ShellForm {
             .map_err(|e| format!("Tauri 壳构建失败 (WebView2 运行时缺失?): {e}"))?;
         // 隐藏窗口后台预热: WebView2 就绪/前端 dist 加载在 build 后首轮泵中推进,
         // 不阻塞调用方 (首启 1-3s 与 FM-Detect 并行, D9 决策)
-        let _ = &mut app;
         // 批3: dispatcher 开辅助 web 窗口用的 AppHandle (主线程同步建窗, 见 web_windows)
         let mut rt = FormRuntime::default();
         rt.app_handle = Some(app.handle().clone());

@@ -38,7 +38,7 @@ fn spec_renders_preview_rows_to_pixcanvas() {
 
 /// live 喂数: update 覆写 rows, visible-when 过滤生效 (Mach>0 才显示的行,
 /// 零值数据帧下被滤除 → 行数少于 FIELDS 数)
-
+///
 /// 零值视图桩 (var_value 全 0; 名字先经 canonical 可达性检查 — 对位生产
 /// "公式槽 ∪ registry" 单名制通道, 曾直接 registry.lookup 把断链掩成桩内
 /// 硬编码, 假绿掩盖 live 7 行消失)

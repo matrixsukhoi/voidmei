@@ -86,7 +86,7 @@ impl HudSettingsSnapshot {
             gpu_compatibility_mode: s.is_gpu_compatibility_mode(),
             always_show_radar_altitude: s.always_show_radar_altitude(),
             // PORT: 不取 get_font_name — 其 defaultFont 回退分支是 vm-core 保真
-            // NPE (Application.defaultFont null, initFont TODO(port) 未接前不可达);
+            // NPE (Application.defaultFont null, init_font 接线前不可达);
             // MiniHUD ctx 只消费 num 字体 (get_num_font), text 字体空串顶位
             font_name: String::new(),
             num_font_name: s.get_num_font_name(),

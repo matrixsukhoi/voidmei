@@ -53,41 +53,6 @@ impl HudMsg {
         }
     }
 
-    /// Java `String getLine(String a)`: 定位 a 后取首个 {...} 切片 (update 未使用,
-    /// 保留公共行为)
-    #[allow(dead_code)]
-    fn get_line(&self, a: &str) -> String {
-        let cs: Vec<char> = self.s.chars().collect();
-        let needle: Vec<char> = a.chars().collect();
-        let mut bix: i32 = -1;
-        if needle.len() <= cs.len() {
-            for i in 0..=(cs.len() - needle.len()) {
-                if cs[i..i + needle.len()] == needle[..] {
-                    bix = i as i32;
-                    break;
-                }
-            }
-        }
-        if bix != -1 {
-            let mut eix = (bix + 1) as usize;
-            while cs[eix] != '{' {
-                eix += 1;
-                if cs[eix] == ']' {
-                    return String::new();
-                }
-            }
-            let start = eix;
-            eix += 1;
-            while cs[eix] != '}' {
-                eix += 1;
-            }
-            eix += 1;
-            cs[start..eix].iter().collect()
-        } else {
-            String::new()
-        }
-    }
-
     pub fn parse_obj(&mut self, buf: &str) -> i32 {
         // Application.debugPrint(buf);
         let cs: Vec<char> = buf.chars().collect();

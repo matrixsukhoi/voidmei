@@ -20,8 +20,6 @@ pub struct Env {
     pub http_header: String,
     /// Application.appPort (Lang.httpPort parseInt, 失败 8111; :559-563)
     pub app_port: u16,
-    /// Application.appPortBkp = appPort + 1111 (:564)
-    pub app_port_bkp: u16,
     /// 字体目录探测 (Java initFont 的 AWT 注册 → Rust 字体文件路径供给, D8: 字体→win32 线程)
     pub fonts_dir: PathBuf,
     /// 托盘图标 (Application.initSystemTray: "image/16x16.png")
@@ -45,8 +43,6 @@ impl Env {
             app_name: lang.app_name.to_string(),
             http_header: lang.http_header.to_string(),
             app_port,
-            // 域内恒 8111+1111=9222, u16 加法无回绕面 (Java int 同值)
-            app_port_bkp: app_port + 1111,
             fonts_dir: probe_fonts_dir(),
             icon_path: PathBuf::from("image/16x16.png"),
             dpi: detect_dpi(),

@@ -189,6 +189,8 @@ impl Registry {
         self.index.get(name).copied()
     }
 
+    // 注册表构建后恒非空, 无 is_empty 语义
+    #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize {
         self.vars.len()
     }
@@ -224,9 +226,9 @@ pub fn assemble_snapshot(raw: &RawInputs, session: &SessionInputs, meta: &MetaIn
     let mut values = Vec::with_capacity(reg.vars.len());
     for v in &reg.vars {
         let x = match &v.src {
-            VarSrc::State(f) => raw.state.map_or(f64::NAN, |s| f(s)),
-            VarSrc::Indic(f) => raw.indic.map_or(f64::NAN, |i| f(i)),
-            VarSrc::Blk(f) => raw.fmdata.map_or(f64::NAN, |b| f(b)),
+            VarSrc::State(f) => raw.state.map_or(f64::NAN, f),
+            VarSrc::Indic(f) => raw.indic.map_or(f64::NAN, f),
+            VarSrc::Blk(f) => raw.fmdata.map_or(f64::NAN, f),
             VarSrc::Session(f) => f(session),
             VarSrc::Const(c) => *c,
             VarSrc::Meta(m) => match m {
@@ -265,9 +267,10 @@ fn build_registry() -> Registry {
         VarMeta { name: "mfuel_1", unit: "kg", desc: "助推器燃料(state 直通)", category: C::Engine, origin: O::State, src: T(|s| s.mfuel_1) },
         VarMeta { name: "mfuel0_1", unit: "kg", desc: "助推器初始燃料(state 直通)", category: C::Engine, origin: O::State, src: T(|s| s.mfuel0_1) },
         // 助推器两量 = 原 getBoosterFuelKg/Percent getter 直绑复刻 (守卫 NaN
-        // 穿透原样 §2.12: `!(x <= 0.0)` 而非 `x > 0.0`, min 手写 NaN 传播)
-        VarMeta { name: "booster_fuel_kg", unit: "kg", desc: "助推器燃料(守卫归零)", category: C::Engine, origin: O::State, src: T(|s| if !(s.mfuel_1 <= 0.0) { s.mfuel_1 } else { 0.0 }) },
-        VarMeta { name: "booster_fuel_percent", unit: "%", desc: "助推器剩余百分比", category: C::Engine, origin: O::State, src: T(|s| if !(s.mfuel0_1 <= 0.0) {
+        // 穿透原样 §2.12: `x > 0.0 || x.is_nan()` ≡ `!(x <= 0.0)`, NaN 传播
+        // 而非归零; min 手写 NaN 传播)
+        VarMeta { name: "booster_fuel_kg", unit: "kg", desc: "助推器燃料(守卫归零)", category: C::Engine, origin: O::State, src: T(|s| if s.mfuel_1 > 0.0 || s.mfuel_1.is_nan() { s.mfuel_1 } else { 0.0 }) },
+        VarMeta { name: "booster_fuel_percent", unit: "%", desc: "助推器剩余百分比", category: C::Engine, origin: O::State, src: T(|s| if s.mfuel0_1 > 0.0 || s.mfuel0_1.is_nan() {
             let v = 100.0 * s.mfuel_1 / s.mfuel0_1;
             if v.is_nan() { v } else { v.min(100.0) }
         } else { 0.0 }) },

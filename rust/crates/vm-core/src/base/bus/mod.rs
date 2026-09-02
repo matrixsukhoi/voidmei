@@ -27,6 +27,7 @@ pub struct EventBus<M> {
 /// 订阅句柄: Drop 自动注销 (RAII); unsubscribe() 为显式退订 (对齐 Java 语义)
 pub struct Subscription<M> {
     /// RAII 保活字段: Drop 即注销的机制载体, 天然不被读取
+    // DEAD(kept): 字段存在即功能 (保活防 Weak 清扫), 读点即无意义
     #[allow(dead_code)]
     listener: Arc<Listener<M>>,
 }

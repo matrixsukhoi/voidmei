@@ -30,10 +30,6 @@ impl MockCtx {
 
 impl RenderContext for MockCtx {
     fn on_save(&self) {}
-    fn on_rebuild(&self) {}
-    fn is_updating(&self) -> bool {
-        false
-    }
     fn sync_to_config_service(&self, key: &str, value: bool) {
         // DynamicDataPage: setConfig(key, Boolean.toString(value))
         self.synced.borrow_mut().push((key.to_string(), value.to_string()));
@@ -260,13 +256,16 @@ fn write_none_property_no_sync_returns_false() {
     assert!(ctx.synced().is_empty());
 }
 
-// 类型不符: Java field.set 抛 IllegalArgumentException (未捕获上抛) → panic!
+// 类型不符: Java field.set 抛 IllegalArgumentException (未捕获上抛) — A5 修复:
+// cfg 用户可编辑输入不 panic 主线程, 改忽略该次绑定 (false + 组字段不动 + 仍同步服务)
 #[test]
-#[should_panic(expected = "IllegalArgumentException")]
-fn write_type_mismatch_panics_like_java() {
+fn write_type_mismatch_is_ignored_not_panic() {
     let mut group = GroupConfig::new("g".to_string());
+    group.font_name = Some("旧".to_string());
     let ctx = MockCtx::new();
-    write_int(&ctx, &mut group, Some("fontName"), 1); // String 字段 ← Integer
+    assert!(!write_int(&ctx, &mut group, Some("fontName"), 1)); // String 字段 ← Integer
+    assert_eq!(group.font_name.as_deref(), Some("旧"), "组字段不受越型绑定影响");
+    assert_eq!(ctx.synced(), vec![("fontName".to_string(), "1".to_string())]);
 }
 
 // Java 反射拓宽 (JLS 5.1.2): field.set(double 字段, Integer) 成功写入
@@ -289,13 +288,15 @@ fn write_int_widens_into_double_field_like_java() {
 }
 
 // Boolean 装入 double 字段: JDK8 oracle 实测仍抛 IllegalArgumentException
-// (只拓宽数值包装类, Boolean 不参与) → panic! 维持
+// (只拓宽数值包装类, Boolean 不参与) — A5 修复后同走忽略路径
 #[test]
-#[should_panic(expected = "IllegalArgumentException")]
-fn write_bool_into_double_field_panics_like_java() {
+fn write_bool_into_double_field_is_ignored() {
     let mut group = GroupConfig::new("g".to_string());
+    group.x = 1.5;
     let ctx = MockCtx::new();
-    write_bool(&ctx, &mut group, Some("x"), true); // double 字段 ← Boolean
+    assert!(!write_bool(&ctx, &mut group, Some("x"), true)); // double 字段 ← Boolean
+    assert_eq!(group.x, 1.5, "double 字段不接受 Boolean");
+    assert_eq!(ctx.synced(), vec![("x".to_string(), "true".to_string())]);
 }
 
 // ---- 注册表完整性 (D7: 反射域 → 编译期 match 域) ----
@@ -321,34 +322,4 @@ fn render_context_object_safe_dyn() {
     let ctx: Box<dyn RenderContext> = Box::new(MockCtx::new());
     let group = GroupConfig::new("g".to_string());
     assert_eq!(read_string(ctx.as_ref(), &group, &row_with(None), "D"), "D");
-}
-
-// 契约钉死: RowRenderer::render 收到的 &dyn RenderContext (registry 侧类型)
-// 必须能直接传入本助手读函数 — 两文件曾各自声明同形 trait, 名义类型不兼容
-// (审查 blocker), re-export 归一后由本测试锁死, 再分裂即编译失败。
-// 写路径 (write_* 需 &mut GroupConfig 而 render 占位签名只给 &) 无法在此
-// 接线, 裁决待 C 类批次 (见 write_string 的 PORT 上报)。
-#[test]
-fn render_context_single_type_across_registry_and_helper() {
-    use crate::row_renderer_registry::RowRenderer;
-
-    struct ReadBackRenderer;
-    impl RowRenderer<bool> for ReadBackRenderer {
-        fn render(
-            &self,
-            row: &RowConfig,
-            group_config: &GroupConfig,
-            context: &dyn RenderContext,
-        ) -> Option<bool> {
-            // 模拟 Java 渲染器: render 内经 RendererConfigHelper 读配置
-            Some(read_bool(context, group_config, row, false))
-        }
-    }
-
-    let renderer = ReadBackRenderer;
-    let group = GroupConfig::new("g".to_string());
-    let mut ctx = MockCtx::new();
-    ctx.set("showSpeedBar", "true");
-    let row = row_with(Some("showSpeedBar"));
-    assert_eq!(renderer.render(&row, &group, &ctx), Some(true));
 }

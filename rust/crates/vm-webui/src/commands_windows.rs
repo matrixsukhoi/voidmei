@@ -49,9 +49,9 @@ fn to_json<T: serde::Serialize>(v: &T) -> Result<serde_json::Value, String> {
     serde_json::to_value(v).map_err(|e| e.to_string())
 }
 
-/// 名字空间差异回退的物理文件定位: 依次尝试 `fm/<name>.json` (JSON 链, 主) /
-/// `fm/<name>.blkx` / `fm/<name>.blk` (过渡期回落), 都不存在返回 None
-/// (name 原样使用 — Java 拼串不做大小写规范化)。
+/// 名字空间差异回退的物理文件定位: 只查 `fm/<name>.json`, 不存在返回 None
+/// (name 原样使用 — Java 拼串不做大小写规范化; blkx/blk 过渡期回落已随
+/// blkx→json 迁移终态退役)。
 /// 背景: name 是 fm/ 物理文件名（连字符, 如 a-10c）, 中央机型名是下划线
 /// （a_10c）——少数不同名机型 FMLoader 判 MISSING, 按物理文件直读。
 fn fallback_physical_file(name: &str) -> Option<PathBuf> {
@@ -407,29 +407,30 @@ const ALT_STEP: i32 = 25;
 /// 融入句柄的 compressorStages。路径统一走 `FMDataPaths::fmDir()` 拼装: 中央
 /// 文件在 flightmodels 根目录, 物理文件在其 fm/ 子目录。
 fn load_fuel_modification(fm_name: &str) -> Option<FuelModification> {
-    // Try common extensions for Central file (blkx→json 迁移终态: 只 .json)
-    let extensions = [".json"];
-    for ext in extensions {
-        let cf = data_paths::fm_dir().join(format!("{fm_name}{ext}"));
-        if cf.exists() {
-            // Central file exists but failed to parse — continue without fuel mod
-            // (原 catch(Exception) 分支注释语义)
-            let parsed = std::fs::read_to_string(&cf).ok().and_then(|data| {
-                serde_json::from_str::<serde_json::Value>(&data)
-                    .ok()
-                    .map(|root| extract_fuel_modifications_json(&root))
-            });
-            if let Some(mod_) = parsed {
-                if mod_.r#type != FuelType::None {
-                    logger::info("PowerCurveWindow", &format!("Fuel modification: {}", mod_.r#type));
-                }
-                return Some(mod_);
-            } else {
-                logger::debug("PowerCurveWindow", "Failed to parse Central file");
+    // Central file (blkx→json 迁移终态: 只 .json)
+    let cf = data_paths::fm_dir().join(format!("{fm_name}.json"));
+    if !cf.exists() {
+        return None;
+    }
+    // Central file exists but failed to parse — continue without fuel mod
+    // (原 catch(Exception) 分支注释语义)
+    let parsed = std::fs::read_to_string(&cf).ok().and_then(|data| {
+        serde_json::from_str::<serde_json::Value>(&data)
+            .ok()
+            .map(|root| extract_fuel_modifications_json(&root))
+    });
+    match parsed {
+        Some(mod_) => {
+            if mod_.r#type != FuelType::None {
+                logger::info("PowerCurveWindow", &format!("Fuel modification: {}", mod_.r#type));
             }
+            Some(mod_)
+        }
+        None => {
+            logger::debug("PowerCurveWindow", "Failed to parse Central file");
+            None
         }
     }
-    None
 }
 
 /// 错误形态的 CurveData (Java: powerCurve=null/max=min=peak=0/points 空)

@@ -3,29 +3,26 @@
 //! | Java (src/ui/renderer/) | 本文件 | 语义要点 |
 //! |---|---|---|
 //! | OverlayRenderer.java:23/28 | [`OverlayRenderer`] trait | 多实现接口 → trait dyn (§1) |
-//! | RenderContext.java | [`RenderContext`] | 几何公式复用 vm-core `RenderCtx`, 本层挂字体/调色板/AA |
+//! | RenderContext.java | [`RenderContext`] | 几何公式复用 vm-core `RenderCtx`, 本层挂字体/调色板 (AA 绘制期直读 palette 仓) |
 //! | BOSStyleRenderer.java | [`BosStyleRenderer`] | 多列网格 + TextGauge 按 label 缓存 |
 //!
-//! 绘制委托目标分工: 条形 gauge 族 = `crate::overlays::bars` (W 批已落地,
-//! LabeledLinearGauge 即 GaugeField.java:28 的唯一实例化类型);
+//! 绘制委托目标分工: 条形 gauge 族 = `crate::overlays::bars` + engine_control
+//! (gauge 组件由渲染侧直接拥有, 不经字段模型 — GaugeField 数据类已随重构波12 删除);
 //! TextGauge (ui/component/TextGauge.java) 是 BOS 专属组件, 随本文件落地。
 //!
 //! 保真对象 = 像素级视觉输出与状态行为 (非代码结构):
-//! - LinearGaugeRenderer 的 gauge 组件在 Java 存活于 GaugeField 字段,
-//!   Rust 侧由渲染器按 field key 缓存 + 每帧 update 同步 (脏检查在组件内)。
 //! - BOS 的 TextGauge 按 label 缓存 (Java gaugeCache, BOSStyleRenderer.java:18)。
 
 use crate::render::primitives;
 use vm_core::base::format::java_round_f32;
-use vm_core::config::configuration_service::GlobalColors;
 use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::render::font::LoadedFont;
-use crate::render::palette::colors;
+use crate::render::palette::{aa, colors};
 use crate::render::canvas::PixCanvas;
 use crate::layout::RenderCtx;
-use crate::ui_model::{DataField, GaugeField};
+use crate::ui_model::DataField;
 
 // ---------------------------------------------------------------------------
 // 调色板 (Application.java:108-111 静态默认色, TextGauge 直接引用)
@@ -40,31 +37,14 @@ pub struct RenderPalette {
     pub shade: [u8; 4],
 }
 
-/// Application.java:108-111 默认值 (Color(r,g,b,a) 直读 RGBA)。
-/// PORT: num/label/shade 与 gauges_bars 的同源色收敛单源 (colors().num/colors().label/
-/// colors().shade_shape), 消除双份维护漂移; colorUnit 仅本文件消费, 保留唯一一份。
-pub const APPLICATION_COLORS: RenderPalette = RenderPalette {
-    num: GlobalColors::JAVA_DEFAULT.num,           // colorNum
-    label: GlobalColors::JAVA_DEFAULT.label,       // colorLabel
-    unit: GlobalColors::JAVA_DEFAULT.unit,         // colorUnit
-    shade: GlobalColors::JAVA_DEFAULT.shade_shape, // colorShadeShape
-};
-
-/// java.awt.Color.WHITE (TextOnlyRenderer.java:27 默认字色)
-pub const WHITE: [u8; 4] = [255, 255, 255, 255];
-
 // ---------------------------------------------------------------------------
 // RenderContext (RenderContext.java)
 // ---------------------------------------------------------------------------
 
-/// 渲染配置上下文: 字体三元组 + 几何 (vm-core RenderCtx) + 调色板 + AA 开关。
-/// Java 端字体/AA 是 Application 全局态, 此处收敛为显式字段。
-///
-/// PORT AA 不变式: graph_aa 与 text_aa 生产上恒相等 — Java 单配置 AAEnable 同开同关
-/// 两个 hint (ConfigurationService.java:159-164), LinearGaugeRenderer.java:21-22 也是
-/// 成对设置。LinearGaugeRenderer 渲染路径只把 graph_aa 传入 gauge.draw (gauge 内的
-/// label/value 文本在 Java 受 KEY_TEXT_ANTIALIASING 管), 依赖该不变式无视觉差;
-/// 若未来两 AA 拆成独立配置, 必须给 gauge.draw 增设 text_aa 参数, 否则 gauge 内文本失真。
+/// 渲染配置上下文: 字体三元组 + 几何 (vm-core RenderCtx) + 调色板。
+/// Java 端字体/AA/配色是 Application 全局态 — 调色板经 [`RenderContext::palette`]
+/// 方法、AA 经 [`crate::render::palette::aa`] 在绘制期直读运行时仓 (构造期快照
+/// 会冻结启动值: WYSIWYG 色变/SetAa 运行时可变, 见 palette 模块注)。
 pub struct RenderContext {
     /// num = BOLD(fontSize) (Java RenderContext.java:72)
     pub num_font: Rc<LoadedFont>,
@@ -74,10 +54,6 @@ pub struct RenderContext {
     pub unit_font: Rc<LoadedFont>,
     /// 几何公式 (fontSize/columnNum/numHeight 及派生), RenderContext.java:104-121
     pub geom: RenderCtx,
-    /// Application.graphAASetting (Application.java:102 默认 ANTIALIAS_ON)
-    pub graph_aa: bool,
-    /// Application.textAASetting (Application.java:101 默认 GASP ≈ 开)
-    pub text_aa: bool,
 }
 
 impl RenderContext {
@@ -100,16 +76,14 @@ impl RenderContext {
             label_font,
             unit_font,
             geom: RenderCtx::new(font_add, column_num, num_height),
-            graph_aa: true,
-            text_aa: true,
         }
     }
 
     /// Java 静态配色 (colorNum 族) — 每帧动态读全局仓: Java TextGauge.
     /// drawTextShaded 直读 Application 静态, cfg 五键 (fontNum 等) 运行时可变
     /// (WYSIWYG); 构造期字段快照会冻结启动值 (人工验收: 动力信息文本曾冻结
-    /// Java 静态初始值荧光绿, 即此因), 故为方法非字段。
-    /// 对拍工具路径 (需恒定基线) 用 [`APPLICATION_COLORS`] 常量
+    /// Java 静态初始值荧光绿, 即此因), 故为方法非字段。AA 开关同理由
+    /// (draw 期直读 palette::aa)。
     pub fn palette(&self) -> RenderPalette {
         RenderPalette {
             num: colors().num,
@@ -169,19 +143,18 @@ impl RenderContext {
 // Field 判别通道 (Java List<DataField> + instanceof GaugeField)
 // ---------------------------------------------------------------------------
 
-/// gauge_field.rs 预告的 enum 判别方案: 替代 Java `field instanceof GaugeField`
-/// (LinearGaugeRenderer.java:31/60), 继承字段经 `base` 通道访问。
+/// 渲染输入的字段通道 (Java 以 List<DataField> + instanceof 做多态判别;
+/// GaugeField 分支已随重构波12 死代码清扫删除 — 全库零构造, 引擎仪表的
+/// gauge 组件由 engine_control 直接拥有, 不再经字段模型)。
 pub enum Field<'a> {
     Data(&'a DataField),
-    Gauge(&'a GaugeField),
 }
 
 impl<'a> Field<'a> {
-    /// Java 多态读取公共字段 (GaugeField extends DataField)
+    /// 读取公共字段
     pub fn base(&self) -> &'a DataField {
         match self {
             Field::Data(d) => d,
-            Field::Gauge(g) => &g.base,
         }
     }
 }
@@ -259,6 +232,7 @@ impl TextGauge {
         let num_padding = std::cmp::max(4, ctx.num_font.size / 4); // :52
 
         // 数值右对齐: charsWidth/stringWidth = Σround(advance) = measure (font.rs)
+        // AA 绘制期直读运行时仓 (cfg AAEnable 可关 — 构造期快照会冻结启动值)
         let value = val_buffer.unwrap_or(self.value.as_str());
         let val_width = ctx.num_font.measure(value);
         primitives::text_shaded(
@@ -269,7 +243,7 @@ impl TextGauge {
             value,
             ctx.palette().num,
             ctx.palette().shade,
-            ctx.text_aa,
+            aa(),
         );
         // 标签 (基线 y) — TextGauge.java:63
         primitives::text_shaded(
@@ -280,7 +254,7 @@ impl TextGauge {
             &self.label,
             ctx.palette().label,
             ctx.palette().shade,
-            ctx.text_aa,
+            aa(),
         );
         // 单位 (基线 y + labelFontSize) — TextGauge.java:64
         primitives::text_shaded(
@@ -291,7 +265,7 @@ impl TextGauge {
             &self.unit,
             ctx.palette().unit,
             ctx.palette().shade,
-            ctx.text_aa,
+            aa(),
         );
     }
 }
@@ -305,12 +279,6 @@ fn bos_value_text<'a>(base: &'a DataField, gauge_value: &'a str) -> &'a str {
     }
 }
 
-/// GaugeField 侧数值文本解析: Java gauge.valueLen>0 ? valueBuffer : displayValue
-/// (vm-core 数据态映射: base.buffer/length ↔ gauge.valueBuffer/valueLen,
-/// base.current_value ↔ gauge.displayValue, 见 gauge_field.rs PORT 注)
-///
-
-// ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
 // BOSStyleRenderer (BOSStyleRenderer.java:15)
 // ---------------------------------------------------------------------------
