@@ -1,6 +1,7 @@
 target/
 **/*.class
-bin/
+# Java 编译输出 (锚定仓库根 — 裸 `bin/` 会静默忽略任意 src/bin/ 目录, 波7 修正)
+/bin/
 build/
 dist/
 # 派生数据：由 wt_ext_cli 从游戏客户端解包生成，不进 git（云端备份在 data prerelease 附件）

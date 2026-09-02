@@ -20,7 +20,7 @@
 //!
 //! PORT: Java `public final class FMLoader` + `private FMLoader() {}` 私有构造器的
 //! 纯静态工具类 → Rust 模块自由函数 (fm_data_paths.rs 同款先例); "唯一解析点"
-//! = [`crate::blkx::Blkx::parse_named_json`] (blkx→json 迁移: FM 数据源为 JSON)。
+//! = [`crate::fmdata::reader`] 全量装载 (blkx→json 迁移: FM 数据源为 JSON)。
 //! PORT: 线程模型 — Java 在 FM-Loader 线程调用 → 保持同步函数, 线程由
 //! Manager/调用方管 (无自起线程)。
 

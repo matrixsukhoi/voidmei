@@ -1,8 +1,8 @@
 //! vm-core: VoidMei 纯逻辑层。
-//! 重构波2 起按域分组 (原 47 个平铺模块 → 8 域 + 4 根留);
+//! 重构波2 起按域分组 (原 47 个平铺模块 → 9 域 + 5 根留);
 //! 根部 `pub use` shim 保 `crate::x` / `vm_core::x` 旧路径全部有效。
 //! UI 面 (renderer_config_helper/row_renderer_registry → vm-ui;
-//! ui_model/hud_layout_node/layout/ui_constants → vm-overlay) 已随本波下沉消费 crate。
+//! ui_model/hud_layout_node/layout/ui_constants → vm-overlay) 已随波2 下沉消费 crate。
 
 // PhysicsConstants.g 的转发 (单一来源在 base::physics_constants, 试运行审查裁决)
 pub use base::physics_constants::{g, G};

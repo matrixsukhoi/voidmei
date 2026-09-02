@@ -19,7 +19,7 @@ vm-overlay = { workspace = true }
 vm-ui = { workspace = true }
 vm-webui = { workspace = true }
 # D9 表单 IPC dispatcher 的 dto 序列化 + 主循环事件 emit (Emitter trait)
-serde_json = "1"
+serde_json = { workspace = true }
 tauri = "2"
 
 # 语音子系统装配批: winmm waveOut 播放器 (winmm_player.rs)

@@ -2,8 +2,8 @@
 # Message/update/persist 写回链 + 渲染器 apply 链 + headless 状态机验证
 [package]
 name = "vm-ui"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
 
 # lib = 表单数据层 (vm-app dispatcher 驱动); bin = headless-only 调试入口
 [lib]

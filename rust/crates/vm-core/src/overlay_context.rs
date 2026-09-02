@@ -1,6 +1,6 @@
 //! 对应 Java: `src/prog/OverlayContext.java` (一比一翻译)
 //!
-//! import 映射: `parser.Blkx` → [`crate::blkx::Blkx`];
+//! import 映射: `parser.Blkx` → [`crate::fmdata::FmData`];
 //! `prog.config.ConfigProvider` → [`crate::config_api::ConfigProvider`];
 //! `prog.fm.FMManager` → [`crate::fm::FMManager`];
 //! `prog.Controller` / `prog.Service` → **泛型参数 TC/S** (见 [`ControllerRef`] 注)。

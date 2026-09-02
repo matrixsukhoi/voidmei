@@ -4771,14 +4771,14 @@ dependencies = [
 
 [[package]]
 name = "vm-ui"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "vm-core",
 ]
 
 [[package]]
 name = "vm-webui"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "serde",
  "serde_json",
