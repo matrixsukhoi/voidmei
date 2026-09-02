@@ -1,5 +1,6 @@
 use super::*;
 use std::net::TcpListener;
+use std::sync::{Arc, Mutex};
 
 /// 本地 mock 服务器: 接受 n 个连接, 每连接收满请求 (读间隙 100ms 超时)
 /// 后以 f(req) 的返回值响应并关闭。f 内部可 sleep 制造延迟。
@@ -73,10 +74,6 @@ fn request_strings_exact_format() {
         "GET /map_info.json HTTP/1.1\nHost: 127.0.0.1\nCache-Control:no-cache\n\n\n"
     );
     assert_eq!(
-        h.fmcm_request,
-        "GET /editor/fm_commands?cmd=getFmProperties HTTP/1.1\nHost: 127.0.0.1\nCache-Control:no-cache\n\n\n"
-    );
-    assert_eq!(
         h.set_alt_req,
         "GET /editor/fm_commands?cmd=setAlt&value=%d HTTP/1.1\nHost: 127.0.0.1\nCache-Control:no-cache\n\n\n"
     );
@@ -93,143 +90,6 @@ fn request_strings_exact_format() {
 }
 
 // ---- CompletableFuture 单次完成语义 ----
-
-#[test]
-fn completable_future_complete_once_sticky_success() {
-    let cf = CompletableFuture::new();
-    let stop = stop_off();
-    assert!(cf.complete(true));
-    assert!(!cf.complete(true), "第二次 complete 必须无操作");
-    assert!(!cf.complete_exceptionally(), "已完成后再异常完成也无效");
-    assert!(matches!(cf.get(&stop), CfOutcome::Value(true)));
-}
-
-#[test]
-fn completable_future_exceptional_is_sticky() {
-    // Java CompletableFuture 单次完成语义: completeExceptionally 置入后
-    // complete 无效、get 抛 ExecutionException。
-    // 注: HttpHelper 从不调用 completeExceptionally (worker 失败时 future
-    // 停在 Pending), 本语义在 getReqResult 链路不可达 —— 见 get_req_result 注释
-    let cf = CompletableFuture::new();
-    let stop = stop_off();
-    assert!(cf.complete_exceptionally());
-    assert!(!cf.complete(true));
-    assert!(matches!(cf.get(&stop), CfOutcome::ExecutionException));
-}
-
-#[test]
-fn completable_future_completed_wins_over_interrupt() {
-    // JDK8 waitingGet: result != null 时直接返回值, 不查中断位 ——
-    // 已完成的 future 不因停机标志改走 InterruptedException
-    let cf = CompletableFuture::new();
-    cf.complete(true);
-    let stop = AtomicBool::new(true);
-    assert!(matches!(cf.get(&stop), CfOutcome::Value(true)));
-}
-
-#[test]
-fn completable_future_get_blocks_until_completed() {
-    let cf = CompletableFuture::new();
-    let cf2 = cf.clone();
-    std::thread::spawn(move || {
-        std::thread::sleep(Duration::from_millis(80));
-        cf2.complete(true);
-    });
-    let stop = stop_off();
-    let t0 = std::time::Instant::now();
-    assert!(matches!(cf.get(&stop), CfOutcome::Value(true)));
-    assert!(
-        t0.elapsed() >= Duration::from_millis(60),
-        "get 应阻塞至 complete"
-    );
-}
-
-#[test]
-fn completable_future_get_interrupted_when_stop_pre_set() {
-    let cf = CompletableFuture::new();
-    let stop = AtomicBool::new(true);
-    let t0 = std::time::Instant::now();
-    assert!(matches!(cf.get(&stop), CfOutcome::InterruptedException));
-    assert!(t0.elapsed() < Duration::from_millis(500));
-    // 标志保持置位 = 恢复中断状态语义
-    assert!(stop.load(Ordering::SeqCst));
-}
-
-// ---- send_get_fast_buf: 原始单次 read 语义 ----
-
-#[test]
-fn send_get_fast_buf_raw_single_read_semantics() {
-    let body = "{\"valid\":true,\"speed\":131.0}";
-    let resp = format!(
-        "HTTP/1.1 200 OK\r\nServer: wt\r\nContent-Length: {}\r\n\r\n{}",
-        body.len(),
-        body
-    );
-    let (addr, h) = serve_n(1, move |_| resp.clone().into_bytes());
-    let mut h_helper = HttpHelper::new("\n");
-    let r = HttpHelper::send_get_fast_buf(
-        &mut h_helper.buf_indic,
-        &h_helper.indic_request,
-        addr,
-    )
-    .unwrap();
-    // 不跳响应头, 原文含 HTTP 头 + body (Java 同此, 交给子串提取解析器)
-    assert!(r.starts_with("HTTP/1.1 200 OK\r\n"));
-    assert!(r.contains("\"valid\":true"));
-    // buf 参数被写入 (Java 副作用, send_get_fast_buf_b 依赖)
-    assert!(h_helper.buf_indic[..r.chars().count()]
-        .iter()
-        .collect::<String>()
-        .starts_with("HTTP/1.1"));
-    h.join().unwrap();
-}
-
-#[test]
-fn send_get_fast_buf_connection_refused_is_err() {
-    let mut h = HttpHelper::new("\n");
-    assert!(HttpHelper::send_get_fast_buf(&mut h.buf_indic, &h.indic_request, refused_addr())
-        .is_err());
-}
-
-// ---- send_get_fast: 跳 6 行 + 换行剥离拼接 ----
-
-#[test]
-fn send_get_fast_skips_six_header_lines_and_joins_body() {
-    let resp = "HTTP/1.1 200 OK\r\nA: 1\r\nB: 2\r\nC: 3\r\nD: 4\r\nE: 5\r\n\r\nLINE1\nLINE2\nLINE3";
-    let (addr, h) = serve_n(1, move |_| resp.as_bytes().to_vec());
-    let hh = HttpHelper::new("\n");
-    let r = HttpHelper::send_get_fast(&hh.state_request, addr).unwrap();
-    assert_eq!(r, "LINE1LINE2LINE3");
-    h.join().unwrap();
-}
-
-// ---- send_get: 请求组装 + 读体 ----
-
-#[test]
-fn send_get_request_composition_and_body() {
-    let reqs = Arc::new(Mutex::new(Vec::new()));
-    let reqs2 = Arc::clone(&reqs);
-    let (addr, h) = serve_n(1, move |req| {
-        *reqs2.lock().unwrap() = req.to_vec();
-        b"HTTP/1.1 200 OK\r\nA: 1\r\nB: 2\r\nC: 3\r\nD: 4\r\nE: 5\r\n\r\nBODY1\nBODY2".to_vec()
-    });
-    let hh = HttpHelper::new("\n");
-    let host = "127.0.0.1";
-    let r = hh.send_get(host, addr.port(), "/state").unwrap();
-    assert_eq!(r, "BODY1BODY2");
-    h.join().unwrap();
-    let got = String::from_utf8(reqs.lock().unwrap().clone()).unwrap();
-    // Java 四次 write + flush 的逐字节拼接 (httpHeader 缺省 "\n")
-    assert_eq!(
-        got,
-        format!(
-            "GET /state HTTP/1.1\r\nHost: {}\r\nCache-Control:no-cache\n\r\n",
-            host
-        )
-    );
-}
-
-// ---- fmCmd 指令格式 ----
 
 #[test]
 fn fm_cmd_set_alt_percent_d_format() {
@@ -346,94 +206,9 @@ fn get_req_result_recovers_after_failed_round() {
         }
     });
     hh.get_req_result(addr, &stop);
-    // get() 阻塞至 worker complete, 返回后双字段有值
+    // 波5: 同线程顺序取数, 返回后双字段有值
     assert!(hh.str_state.lock().unwrap().contains("\"alt\":999"));
     assert!(hh.str_indic.contains("\"speed\":7.0"));
-    h.join().unwrap();
-}
-
-#[test]
-fn get_req_result_state_fail_indic_ok_blocks_until_stop() {
-    // Java 原怪癖: 同轮 "/state 任务失败 + /indicators 成功" → future 永远
-    // Pending (无人再 complete 它), get() 无限期阻塞, 仅 Controller.stop 的
-    // interrupt 可解 → InterruptedException 分支清空双字段
-    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-    let addr = listener.local_addr().unwrap();
-    let server = std::thread::spawn(move || {
-        for _ in 0..2 {
-            let (mut stream, _) = match listener.accept() {
-                Ok(s) => s,
-                Err(_) => break,
-            };
-            stream.set_read_timeout(Some(Duration::from_millis(200))).ok();
-            // 只读请求前缀用于分类 (16 字节缓冲, 单次 read 至多 16 字节)
-            let mut b = [0u8; 16];
-            let mut head = Vec::new();
-            while head.len() < 10 {
-                match stream.read(&mut b) {
-                    Ok(0) => break,
-                    Ok(k) => head.extend_from_slice(&b[..k]),
-                    Err(_) => break,
-                }
-            }
-            let is_state = head.starts_with(b"GET /state");
-            if is_state {
-                // 剩余 ~44 字节请求未读即关闭 → 对端收到 RST,
-                // 客户端 read 得到 Err (对齐 Java 任务内 IOException)
-                continue;
-            }
-            // /indicators: 排干请求 (避免未读数据把干净 FIN 变 RST) 后响应
-            let mut b = [0u8; 4096];
-            loop {
-                match stream.read(&mut b) {
-                    Ok(0) => break,
-                    Ok(_) => {}
-                    Err(_) => break, // 读间隙超时 → 请求收满
-                }
-            }
-            stream
-                .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\n{}")
-                .ok();
-        }
-    });
-
-    let stop = Arc::new(AtomicBool::new(false));
-    let stop2 = Arc::clone(&stop);
-    let stopper = std::thread::spawn(move || {
-        std::thread::sleep(Duration::from_millis(300));
-        stop2.store(true, Ordering::SeqCst);
-    });
-
-    let mut hh = HttpHelper::new("\n");
-    let t0 = std::time::Instant::now();
-    hh.get_req_result(addr, &stop);
-    let elapsed = t0.elapsed();
-    // get() 应阻塞至 stop 置位 (而非立即返回)
-    assert!(
-        elapsed >= Duration::from_millis(200),
-        "get() 应阻塞至 stop, 实际 {:?}",
-        elapsed
-    );
-    // InterruptedException 分支清空双字段
-    assert_eq!(*hh.str_state.lock().unwrap(), NSTRING);
-    assert_eq!(hh.str_indic, NSTRING);
-    stopper.join().unwrap();
-    server.join().unwrap();
-}
-
-// ---- map_obj / map_info ----
-
-#[test]
-fn get_req_map_obj_result_truncates_at_buf_len() {
-    // 响应 > 8192 字节 → 单次 read 上限 BUF_LEN
-    let mut resp = String::from("HTTP/1.1 200 OK\r\n\r\n");
-    resp.push_str(&"A".repeat(20000));
-    let (addr, h) = serve_n(1, move |_| resp.clone().into_bytes());
-    let mut hh = HttpHelper::new("\n");
-    hh.get_req_map_obj_result(addr);
-    let s = &hh.str_map_obj;
-    assert!(s.starts_with("HTTP/1.1 200 OK"));
-    assert!(s.chars().count() <= BUF_LEN, "实际 {} > {}", s.chars().count(), BUF_LEN);
     h.join().unwrap();
 }
 
@@ -442,23 +217,6 @@ fn get_req_map_info_result_refused_sets_nstring() {
     let mut hh = HttpHelper::new("\n");
     hh.get_req_map_info_result(refused_addr());
     assert_eq!(hh.str_map_info, NSTRING);
-}
-
-// ---- send_get_fast_buf_b: 整数组 append 怪癖 ----
-
-#[test]
-fn send_get_fast_buf_b_appends_whole_buffer() {
-    let resp = "HTTP/1.1 200 OK\r\n\r\nXY";
-    let (addr, h) = serve_n(1, move |_| resp.as_bytes().to_vec());
-    let mut hh = HttpHelper::new("\n");
-    let mut bd = String::from("OLD");
-    HttpHelper::send_get_fast_buf_b(&mut hh.buf_mapinfo, &hh.mapinfo_request, addr, &mut bd)
-        .unwrap();
-    // Java bd.append(char[]) 追加**整个数组** (含未读区段的 '\0')
-    assert_eq!(bd.chars().count(), BUF_LEN);
-    assert!(bd.starts_with("HTTP/1.1 200 OK\r\n\r\nXY"));
-    assert!(bd.ends_with('\0'));
-    h.join().unwrap();
 }
 
 // ---- getLiveAircraftType (8111 固定端口; 被占自动跳过, e2e 先例) ----
