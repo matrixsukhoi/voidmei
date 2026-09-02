@@ -6,4 +6,5 @@ pub mod config_loader;
 pub mod config_manager;
 pub mod config_watcher;
 pub mod configuration_service;
+pub mod md5;
 pub mod sexp_parser;

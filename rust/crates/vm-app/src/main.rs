@@ -36,6 +36,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use vm_app::form_dispatch;
 use vm_app::{AppShell, SupervisorOutcome};
 
 use tauri::Emitter;
@@ -43,7 +44,6 @@ use vm_core::base::event::ui_state_events;
 use vm_core::base::logger;
 use vm_core::base::bus::ui_state_bus::UIStateBus;
 
-mod form_dispatch;
 
 /// 冒烟默认时长 (任务验收单: live 模式跑 8 秒)
 const MOCK_SMOKE_RUN_MS: u64 = 8_000;

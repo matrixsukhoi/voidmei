@@ -6,7 +6,6 @@ description = "VoidMei 应用组装 bin (Controller/生命周期/MainForm 入口
 
 [lib]
 name = "vm_app"
-path = "src/app_shell.rs"
 
 [[bin]]
 name = "voidmei"

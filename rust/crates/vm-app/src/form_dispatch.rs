@@ -9,7 +9,7 @@ use std::sync::Arc;
 use vm_core::config::config_manager;
 use vm_core::config::configuration_service::ConfigurationService;
 use vm_ui::main_form::{self, MainFormState, Message};
-use vm_app::{AppShell, UiCommand};
+use crate::{AppShell, UiCommand};
 use vm_webui::dto::{FormMessageDto, PanelDto};
 use vm_webui::ipc::{self, FormRuntime, IpcReply, RequestKind};
 
@@ -372,7 +372,7 @@ mod tests {
 
     /// 按给定 cfg 文本建壳 (min_shell 的可配置版; 测试并行各自独立 tmp 文件)
     fn shell_with_cfg(cfg_text: &str, tag: &str) -> Rc<RefCell<AppShell>> {
-        use vm_app::ShellParts;
+        use crate::ShellParts;
         let ui_bus = Arc::new(vm_core::base::bus::ui_state_bus::UIStateBus::new());
         let config = ConfigurationService::new(Some(Arc::clone(&ui_bus)));
         let cfg = std::env::temp_dir().join(format!(
@@ -382,7 +382,7 @@ mod tests {
         std::fs::write(&cfg, cfg_text).unwrap();
         config.load_layout(cfg.to_str().unwrap());
         let (hotkey, hotkey_rx) = vm_overlay::HotkeyManager::with_channel();
-        let env = vm_app::Env::probe(&vm_core::lang::Lang::init_lang(), false);
+        let env = crate::Env::probe(&vm_core::lang::Lang::init_lang(), false);
         Rc::new(RefCell::new(AppShell::with_parts(ShellParts {
             env,
             config,

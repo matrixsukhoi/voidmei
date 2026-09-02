@@ -6,14 +6,17 @@ Java 版 (159 文件 Swing) → Rust 全量迁移产物。设计档案: `build/m
 
 ## Workspace 结构
 
+波7~11 组织结构重构 (2026-09): vm-core 11 域 + 根 shim 退役 (全库唯一路径
+`vm_core::<域>::<模块>`), vm-overlay 五域, vm-app lib 化; 引用路径全统一, 无旧扁平别名。
+
 | crate | 职责 |
 |---|---|
-| vm-core | 纯逻辑, 按域分组: base(总线/日志/工具)/config(配置栈)/telemetry(HTTP+parser)/fm(管理栈+fmdata+功率)/formula(公式系统)/derived(HUD 派生)/audio(语音)/uisupport/platform (Java A+B 类) |
+| vm-core | 纯逻辑, 11 域: base(总线家族/事件/日志/工具/物理/大气)/config(配置栈)/telemetry(HTTP+parser)/fm(管理栈+data+功率族)/formula(公式系统)/derived(HUD 派生)/audio(语音)/ui_support(行定义+机型对比)/platform(平台检测)/lang(i18n)/activation(激活) |
 | vm-data | 8111 轮询/派生量/Service 链 (catch_unwind 护航); FrameStore 不可变帧 = 跨线程唯一读面 |
-| vm-overlay | 平台窗口(ULW 多窗口)/渲染(render2d+tiny-skia)/全部 overlay 组件/托盘/热键 |
+| vm-overlay | 五域: platform(win/x11/host/tray/hotkey/position/reinit)/render(canvas/fields/renderers/font/palette/primitives)/overlays(~17 组件, fields_tests 域级测试)/layout(布局引擎+常量)/ui_model |
 | vm-ui | MainForm **数据层** (main_form 状态机 + renderers 写回链; D9 起 view 归 web 壳) |
 | vm-webui | MainForm **Tauri 2 web 壳** (D9): 常驻隐藏预热窗口 + IPC(dto/commands) + `web/` React/AntD 前端 |
-| vm-app | AppShell/Controller 组装 bin (`voidmei`; 单循环主线程 = shell.pump + tauri run_iteration) |
+| vm-app | AppShell/Controller 组装 bin (`voidmei`; 单循环主线程 = shell.pump + tauri run_iteration); lib 标准入口 + form_dispatch + tests/ 四主题分片 |
 
 ## 常用命令
 
@@ -63,6 +66,11 @@ python script/build.py rust   # web + cargo release (一键)
 
 ## 验收状态
 
+- 2026-09-03 (波7~11 组织结构重构): 清扫卫生 (workspace 化/游离产物出库/global_colors
+  测试竞态根治) / vm-core 11 域定稿+根留清零+formula↔derived 循环拆解 (flap_limits 归 fm) /
+  根 shim 退役+全库 ~490 处引用统一域路径 / vm-overlay 45 平铺→五域+field 壳退役 /
+  vm-app lib 化+tests 四分片+configuration_service 三分+md5 抽出 —
+  五提交, 1,292 测试全绿, clippy 无新增
 - 2026-09-02 (六波架构重构): UIStateBus 死锁根治+统一路由 / vm-core 九域分组+UI 面下沉 /
   overlay 基元收敛+host 摘锁 / Frame 帧快照 (跨线程读者零锁) / HTTP 单线程阻塞重写 /
   Lang 缓存 — 六提交 92e2e63..3a579bf, 1,292 测试全绿, clippy 无新增

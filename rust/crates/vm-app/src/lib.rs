@@ -1,4 +1,5 @@
 //! vm-app 组装层 (P5 批十四 W1): AppShell + Controller 生命周期核心 + win32 线程入口。
+//! 波11 lib 化: 入口文件名 app_shell.rs → lib.rs (Cargo 标准), form_dispatch 自 bin 收编。
 //! 重构波2 九劈: 内容按职责拆至子模块 (env/commands/controller_shared/debouncer/
 //! overlay_inputs/controller/voice_setup/win32/keys), 本文件保留 AppShell 装配、
 //! handle_main_event/dispatch/pump/rebuild/shutdown 主体与 lib 根 re-export。
@@ -113,6 +114,9 @@ use crate::win32::{
 
 /// 语音播放平台件 (winmm waveOut 每路独立流; 播放模型裁决见该模块头注)
 pub mod winmm_player;
+// 表单 IPC 粘合层 (波11 自 main.rs 收编入 lib — bin 只剩纯入口; vm-ui/vm-webui
+// 的唯一接线点, 依赖已在 Cargo.toml)
+pub mod form_dispatch;
 
 // =====================================================================
 // AppShell — Application 静态态收敛 + 监督循环 (D8)

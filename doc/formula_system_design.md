@@ -60,7 +60,7 @@ Java 版的 `FormulaEvaluator.java`(Nashorn JS 引擎 + 编译缓存)与 `Blkx.g
 
 | # | 裁决 | 理由 |
 |---|---|---|
-| A1 | **公式求值收敛 Service 线程单点** | Rust 迁移版 HUDData 计算在 win32 线程(`vm-app/src/app_shell.rs` L2869-2900,与 Java 的 Service 线程预计算**不同**)。若两线程各自求值,`sma/prev` 状态原语会双份漂移。阶段 4 把 HUDData 计算一并迁回 Service 线程,恢复 Java 语义(预计算降 EDT——此处是 win32——延迟) |
+| A1 | **公式求值收敛 Service 线程单点** | Rust 迁移版 HUDData 计算在 win32 线程(`vm-app/src/lib.rs` L2869-2900,与 Java 的 Service 线程预计算**不同**)。若两线程各自求值,`sma/prev` 状态原语会双份漂移。阶段 4 把 HUDData 计算一并迁回 Service 线程,恢复 Java 语义(预计算降 EDT——此处是 win32——延迟) |
 | A2 | 结果经既有 `Arc<RwLock<ServiceData>>` 传递,零新总线 | win32 线程 `feed_overlays_live` 已只读快照 ServiceData |
 | A3 | 引擎放 **vm-core** | vm-webui 不依赖 vm-data(`commands_windows.rs` 头注),直算类试算/校验命令只能触达 vm-core |
 | A4 | **自研解释器,不引 rhai** | workspace 零新依赖惯例(`config_manager.rs` 手写 MD5);语言面小(表达式+函数库+状态原语),不需要 rhai 的循环/对象;与 ui_layout.cfg 的 S-expr 配置体系风格统一 |
@@ -168,7 +168,7 @@ NUMBER      := [0-9]+("." [0-9]+)? ([eE] [+-]? [0-9]+)?
 | `vm-data/src/service_loop.rs` `calculate()` L807-967 尾部 | 新增 `formula_step`:组快照→求值→写回→规则求值(求值唯一发生点,裁决 A1) |
 | `vm-data/src/service_fields.rs` | ServiceData 新增 `formula_values: FormulaResults`(Vec<f64> + 注册表版本号) |
 | `vm-app/src/form_dispatch.rs` | 新 RequestKind:`GetFormulaList/SaveFormula/DeleteFormula/ResetFormulas`(写链单点) |
-| `vm-app/src/app_shell.rs` | 订阅 FORMULA_CHANGED → 重建 FormulaManager;阶段 4 HUDData 迁移 |
+| `vm-app/src/lib.rs` | 订阅 FORMULA_CHANGED → 重建 FormulaManager;阶段 4 HUDData 迁移 |
 | `vm-webui/src/commands_windows.rs` | 直算类:`formula_validate` / `formula_try_eval` / `get_var_catalog` / `get_last_var_snapshot` |
 | `vm-webui/web/src/` | 新 `formulas/` 前端目录 + App.tsx 手工 append tab |
 
