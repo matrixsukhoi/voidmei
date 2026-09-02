@@ -33,14 +33,14 @@
 //! catch_unwind (§6 循环级会额外丢整轮事件发布, 降级幅度不同) — 归 vm-data Service
 //! (D6) 波次落实, 过渡期警告见 calculate() 内 unwrap 处。
 
-use crate::fmdata::FmData;
-use crate::config_api::HUDSettings;
-use crate::event::event_payload::EventPayload;
-use crate::hud_data::HUDData;
-use crate::hud_data::Builder;
-use crate::parser::{Indicators, State};
+use crate::fm::data::FmData;
+use crate::config::config_api::HUDSettings;
+use crate::base::event::event_payload::EventPayload;
+use crate::derived::hud_data::HUDData;
+use crate::derived::hud_data::Builder;
+use crate::telemetry::parser::{Indicators, State};
 use crate::formula::registry::FormulaView;
-use crate::format::{java_f, pad_width};
+use crate::base::format::{java_f, pad_width};
 
 /// W7: var_value 桥取值 (NaN→0, 对齐原 getter map_or(0.0) 零值帧语义)
 fn v(s: &dyn FormulaView, name: &str) -> f64 {

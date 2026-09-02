@@ -7,7 +7,7 @@ use crate::primitives::cov_color;
 use crate::primitives::text_shaded_auto;
 use crate::primitives::vline_1px;
 use crate::primitives::ring1px;
-use vm_core::format::java_round_f32;
+use vm_core::base::format::java_round_f32;
 use std::rc::Rc;
 
 use crate::font::LoadedFont;

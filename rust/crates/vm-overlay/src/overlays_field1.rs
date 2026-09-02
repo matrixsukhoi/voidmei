@@ -48,7 +48,7 @@ use std::cell::RefCell;
 #[cfg(test)]
 use std::rc::Rc;
 #[cfg(test)]
-use vm_core::event::EventPayload;
+use vm_core::base::event::EventPayload;
 #[cfg(test)]
 use vm_core::lang::Lang;
 // tests 直测基元 (butt_line 为 pub(crate) 项, cfg(test) 私有引入即可见)

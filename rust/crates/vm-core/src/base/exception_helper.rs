@@ -44,11 +44,11 @@ const POLL_INTERVAL: Duration = Duration::from_millis(10);
 /// Java getMessage() 可能返回 null 被拼成 "null", Rust Display 必有值 —
 /// 此差异只影响日志文案, 不影响控制流语义。
 pub fn log_and_continue(err: &dyn std::error::Error, context: &str) {
-    crate::logger::warn_default(&format!("{}: {}", context, err));
+    crate::base::logger::warn_default(&format!("{}: {}", context, err));
     // PORT: 枚举 ordinal 序与 value 序严格同构 (TRACE(-1) < DEBUG(0) < INFO(1)
     // < WARN(2) < ERROR(3)), compareTo <= 0 即 TRACE/DEBUG 两级,
     // 用 value() 比较等价复刻
-    if crate::logger::get_level().value() <= crate::logger::Level::Debug.value() {
+    if crate::base::logger::get_level().value() <= crate::base::logger::Level::Debug.value() {
         // PORT: printStackTrace() → stderr 打印错误链。Rust 错误无 Java 式
         // 抛出点栈回溯; 首行用 Debug repr (错误类型的 Debug 可复刻 Java
         // "类全名: 消息" 首行形态, 与 logger.rs error_with_throwable 的 `{:?}`

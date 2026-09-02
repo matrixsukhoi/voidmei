@@ -13,7 +13,7 @@ use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicI32, Ordering};
 
-use crate::logger;
+use crate::base::logger;
 
 /// Java: `private static final String VOICE_DIR = "./voice/"`
 /// (保留字符串拼接形态: 生成的路径 "./voice/x.wav" 与 Java File.getPath() 一致)

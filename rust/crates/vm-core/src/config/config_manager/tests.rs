@@ -1,5 +1,5 @@
 use super::*;
-use crate::config_loader::ConfigValue;
+use crate::config::config_loader::ConfigValue;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::MutexGuard;
 

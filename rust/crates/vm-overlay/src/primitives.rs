@@ -2,7 +2,7 @@
 //! 原分散于 gauges_bars/rows/minihud/overlay_gauges/renderers/gauge_compass/
 //! overlay_control_surfaces 的逐字级副本 (各副本 oracle 对拍等价) 统一于此;
 //! 组件特有基元 (butt_line/hline_butt2/vline_square2 等) 仍留各自模块。
-//! Java 取整族 (java_round_*) 收敛在 vm_core::format。
+//! Java 取整族 (java_round_*) 收敛在 vm_core::base::format。
 
 use crate::font::LoadedFont;
 use crate::global_colors::colors;

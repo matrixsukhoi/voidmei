@@ -1,6 +1,6 @@
 //! 对应 Java: `src/prog/config/HUDSettings.java`
 
-use crate::config_api::overlay_settings::OverlaySettings;
+use crate::config::config_api::overlay_settings::OverlaySettings;
 
 /// Interface for reading HUD-specific configurations.
 /// Decouples the UI layer from underlying key names and parsing logic.

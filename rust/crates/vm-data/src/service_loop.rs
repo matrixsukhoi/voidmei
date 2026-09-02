@@ -13,19 +13,20 @@ use std::sync::{Arc, RwLock};
 use std::thread::JoinHandle;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use vm_core::calc_helper::SimpleMovingAverage;
-use vm_core::event::event_payload::EventPayload;
-use vm_core::event::flight_data_event::FlightDataEvent;
+use vm_core::base::calc_helper::SimpleMovingAverage;
+use vm_core::base::event::event_payload::EventPayload;
+use vm_core::base::event::flight_data_event::FlightDataEvent;
 use vm_core::formula::registry::FormulaView as _; // var_value 取数唯一接口
-use vm_core::flight_analyzer::AnalyzerService;
-use vm_core::flight_data_bus::FlightDataBus;
-use vm_core::flight_log::{FlightLogSlot, FlightLogSnapshot};
+use vm_core::derived::flight_analyzer::AnalyzerService;
+use vm_core::base::bus::flight_data_bus::FlightDataBus;
+use vm_core::derived::flight_log::{FlightLogSlot, FlightLogSnapshot};
 use vm_core::fm::{FMHandle, FMManager};
-use vm_core::http_helper::HttpHelper;
-use vm_core::parser::{Indicators, MapInfo, MapObj, State};
-use vm_core::{exception_helper, format, logger, G};
+use vm_core::telemetry::http::HttpHelper;
+use vm_core::telemetry::parser::{Indicators, MapInfo, MapObj, State};
+// format 别名避开 tests.rs 的 format! 宏歧义 (overlay_control_surfaces 同款先例)
+use vm_core::base::{exception_helper, format as jfmt, logger, physics_constants::G};
 
-use vm_core::string_helper::F_INVALID;
+use vm_core::base::string_helper::F_INVALID;
 use crate::service_fields::{
     ServiceData, ENGINE_TYPE_JET, ENGINE_TYPE_PROP, ENGINE_TYPE_TURBOPROP, ENGINE_TYPE_UNKNOWN,
     NASTRING,
@@ -100,11 +101,11 @@ fn format_fueltime(fueltime: i64) -> String {
     } else if fueltime / 60000 < 100 {
         format!(
             "{}'{}",
-            format::java_d0(fueltime / 60000, 2),
-            format::java_d0((fueltime / 1000) % 60 / 10 * 10, 2)
+            jfmt::java_d0(fueltime / 60000, 2),
+            jfmt::java_d0((fueltime / 1000) % 60 / 10 * 10, 2)
         )
     } else {
-        format::java_f((fueltime as f32 / 60000.0f32) as f64, 0)
+        jfmt::java_f((fueltime as f32 / 60000.0f32) as f64, 0)
     }
 }
 
@@ -192,7 +193,7 @@ pub struct Service {
     /// PORT: vm-core FocusMonitor 构造需注入 detector/coordinator 两依赖
     /// (Java 无参 new 的对应物缺位), 由调用方按需注入; None 时 tick 短路
     /// (Java 默认 enabled=false 时 tick 本就空转, 行为等价)。
-    focus_monitor: Option<vm_core::focus_monitor::FocusMonitor>,
+    focus_monitor: Option<vm_core::platform::focus_monitor::FocusMonitor>,
     /// FlightLog 共享槽 (Java Controller.logon+Log 二位一体的收敛形态):
     /// Controller 侧 (vm-app) openpad/closepad/换机换入换出, 本线程每轮
     /// logTick (Service.java:1824-1828)。None = 未开记录 (Java Log==null/logon=false)。
@@ -285,7 +286,7 @@ impl Service {
 
     /// 注入焦点监控器 (Java 字段初始化器 `new FocusMonitor()` 的对位物;
     /// 见 struct 字段注)。
-    pub fn set_focus_monitor(&mut self, fm: vm_core::focus_monitor::FocusMonitor) {
+    pub fn set_focus_monitor(&mut self, fm: vm_core::platform::focus_monitor::FocusMonitor) {
         self.focus_monitor = Some(fm);
     }
 
@@ -634,13 +635,13 @@ impl Service {
                             // (临界区内不做 IO——先释放读锁再打日志, 头部 §2.8 自律)
                             drop(d);
                             // Resetting simulation variables.", ...)
-                            // —— Formatter %.1f HALF_UP → format::format (§2.3)
+                            // —— Formatter %.1f HALF_UP → jfmt::format (§2.3)
                             logger::info(
                                 "Service",
                                 &format!(
                                     "Refueling detected (Fuel: {} -> {}). Resetting simulation variables.",
-                                    format::format(total_fuel_prev, 1),
-                                    format::format(total_fuel, 1)
+                                    jfmt::format(total_fuel_prev, 1),
+                                    jfmt::format(total_fuel, 1)
                                 ),
                             );
                             self.reset_varia();
@@ -1291,7 +1292,7 @@ enum Flow {
 /// (Service.java 的 xs 公有字段直读, 语义 = 读锁内一次成组快照)。
 pub fn flight_log_snapshot(d: &ServiceData) -> FlightLogSnapshot {
     // 批2: String 镜像层已拆 — CSV 列就地格式化 (语义与 Java formatDataAsStrings
-    // 逐行对齐, java_f 族 = vm_core::format)。State 缺失的病态帧列值 "null"
+    // 逐行对齐, java_f 族 = vm_core::base::format)。State 缺失的病态帧列值 "null"
     // (对位原 jstr(None) 的 Java null 拼接)。
     let st = d.s_state.as_ref();
     let col = |f: &dyn Fn(&State) -> String| st.map_or_else(|| "null".to_string(), f);
@@ -1303,35 +1304,35 @@ pub fn flight_log_snapshot(d: &ServiceData) -> FlightLogSnapshot {
     let mut sep_acc = ((sep as i64) / 50) as f64;
     sep_acc *= 2.5;
     if sep_acc == 0.0 { sep_acc = 1.0; }
-    let sep_rounded = format::java_round(sep / sep_acc) as f64 * sep_acc;
+    let sep_rounded = jfmt::java_round(sep / sep_acc) as f64 * sep_acc;
     FlightLogSnapshot {
         elapsed_time: d.elapsed_time,
         throttle: col(&|s| int_na(s.throttle)),
         ias: col(&|s| s.ias.to_string()),
         tas: col(&|s| s.tas.to_string()),
-        mach: col(&|s| format::java_f(s.m, 2)),
-        salt: format::java_f(d.alt, 0),
+        mach: col(&|s| jfmt::java_f(s.m, 2)),
+        salt: jfmt::java_f(d.alt, 0),
         watertemp: if d.nwater_temp != -65535.0 {
-            format::java_f(d.nwater_temp, 0)
+            jfmt::java_f(d.nwater_temp, 0)
         } else {
             na.to_string()
         },
-        oiltemp: format::java_f(d.noil_temp, 0),
-        vy: format::java_f(d.n_vy, 1),
-        s_sep: format::java_f(sep_rounded, 0),
+        oiltemp: jfmt::java_f(d.noil_temp, 0),
+        vy: jfmt::java_f(d.n_vy, 1),
+        s_sep: jfmt::java_f(sep_rounded, 0),
         ny: st.map(|s| s.ny).unwrap_or(0.0),
-        wx: col(&|s| format::java_f(s.wx.abs(), 0)),
+        wx: col(&|s| jfmt::java_f(s.wx.abs(), 0)),
         total_hp_str: if d.total_hp == 0 { na.to_string() } else { d.total_hp.to_string() },
         efficiency_0: st.map_or_else(
             || "null".to_string(),
             |s| {
                 let e0 = s.efficiency.first().copied().unwrap_or(0.0);
-                if e0 == 0.0 { na.to_string() } else { format::java_f(e0, 0) }
+                if e0 == 0.0 { na.to_string() } else { jfmt::java_f(e0, 0) }
             },
         ),
         total_hp_eff_str: if d.total_hp_eff >= 100000 {
             // %.2f of /1e6 — int/float float 除法域再拓宽 (§2.12)
-            format::java_f((d.total_hp_eff as f32 / 1000000.0f32) as f64, 2)
+            jfmt::java_f((d.total_hp_eff as f32 / 1000000.0f32) as f64, 2)
         } else {
             d.total_hp_eff.to_string()
         },
@@ -1343,7 +1344,7 @@ pub fn flight_log_snapshot(d: &ServiceData) -> FlightLogSnapshot {
             || "null".to_string(),
             |s| {
                 let p0 = s.pitch.first().copied().unwrap_or(-65535.0);
-                if p0 != -65535.0 { format::java_f(p0, 1) } else { na.to_string() }
+                if p0 != -65535.0 { jfmt::java_f(p0, 1) } else { na.to_string() }
             },
         ),
         radiator: col(&|s| int_na(s.radiator)),
@@ -1356,9 +1357,9 @@ pub fn flight_log_snapshot(d: &ServiceData) -> FlightLogSnapshot {
                 if s.manifoldpressure != 1.0 {
                     if d.check_alt > 0 {
                         // 英制: 显示 Boost psi (%+.1f); 换算单源见 manifold_display
-                        format::java_f_plus(manifold_display(Some(s), true), 1)
+                        jfmt::java_f_plus(manifold_display(Some(s), true), 1)
                     } else {
-                        format::java_f(manifold_display(Some(s), false), 2)
+                        jfmt::java_f(manifold_display(Some(s), false), 2)
                     }
                 } else {
                     na.to_string()
@@ -1369,8 +1370,8 @@ pub fn flight_log_snapshot(d: &ServiceData) -> FlightLogSnapshot {
         elevator: st.map(|s| s.elevator).unwrap_or(0),
         aileron: st.map(|s| s.aileron).unwrap_or(0),
         rudder: st.map(|s| s.rudder).unwrap_or(0),
-        aoa: col(&|s| if s.aoa != -65535.0 { format::java_f(s.aoa, 1) } else { na.to_string() }),
-        aos: col(&|s| if s.aos != -65535.0 { format::java_f(s.aos, 1) } else { na.to_string() }),
+        aoa: col(&|s| if s.aoa != -65535.0 { jfmt::java_f(s.aoa, 1) } else { na.to_string() }),
+        aos: col(&|s| if s.aos != -65535.0 { jfmt::java_f(s.aos, 1) } else { na.to_string() }),
         alt: d.alt,
         check_alt: d.check_alt,
         // EM 图速度分档 (原 IASv 平滑值未移植, 用 State 直读 IAS, 显示 0-3 位不敏感)

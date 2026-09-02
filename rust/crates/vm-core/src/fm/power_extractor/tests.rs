@@ -1,5 +1,5 @@
 use super::*;
-use crate::fmdata::json::extract_fuel_modifications_json;
+use crate::fm::data::json::extract_fuel_modifications_json;
 use crate::fm::piston_model::optimal_power_advanced;
 
 /// Java 8 oracle 混合容差 (atmosphere_model.rs / piston_power_model.rs 同款):
@@ -203,7 +203,7 @@ fn tempest_mkv() -> FmData {
 
 /// 中央文件文本 (types.rs 测试同款格式)
 /// 内嵌中央 JSON → 燃油修正 (serde 解析; 常量合法 JSON, unwrap 恒成功)
-fn fuel_mod_json(central: &str) -> crate::fmdata::FuelModification {
+fn fuel_mod_json(central: &str) -> crate::fm::data::FuelModification {
     let root: serde_json::Value = serde_json::from_str(central).unwrap();
     extract_fuel_modifications_json(&root)
 }

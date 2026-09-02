@@ -2,7 +2,7 @@
 
 use std::panic::{catch_unwind, AssertUnwindSafe};
 
-use crate::comparison::comparison_rule::ComparisonRule;
+use crate::ui_support::comparison::comparison_rule::ComparisonRule;
 
 /// Rule that uses a custom lambda function to extract values.
 /// Useful for complex extraction patterns that don't fit the standard rules.

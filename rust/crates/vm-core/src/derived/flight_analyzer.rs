@@ -28,9 +28,9 @@
 
 use std::sync::Arc;
 
-use crate::config_api::config_provider::ConfigProvider;
+use crate::config::config_api::config_provider::ConfigProvider;
 use crate::lang::Lang;
-use crate::physics_constants::g;
+use crate::base::physics_constants::g;
 
 /// FlightAnalyzer 对 Service 的读取面 (PORT: D6 依赖倒置, 见模块头说明)。
 /// 方法名 = Java 字段名 (§0 规则 7 的 crate 边界变体)。

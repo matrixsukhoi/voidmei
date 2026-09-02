@@ -6,13 +6,13 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 
-use vm_core::config_api::ConfigProvider;
-use vm_core::configuration_service::ConfigurationService;
+use vm_core::config::config_api::ConfigProvider;
+use vm_core::config::configuration_service::ConfigurationService;
 use vm_core::formula::registry::FormulaView as _; // var_value 取数唯一接口
-use vm_core::ui_state_bus::UIStateBus;
-use vm_core::voice_resource_manager::VoiceResourceManager;
-use vm_core::voice_warning::{VoiceWarning, VoiceWarningService};
-use vm_core::flight_data_bus::FlightDataBus;
+use vm_core::base::bus::ui_state_bus::UIStateBus;
+use vm_core::audio::voice_resource_manager::VoiceResourceManager;
+use vm_core::audio::voice_warning::{VoiceWarning, VoiceWarningService};
+use vm_core::base::bus::flight_data_bus::FlightDataBus;
 use vm_core::fm::FMManager;
 
 use crate::keys::FM_FIELD_KEYS;
@@ -180,14 +180,14 @@ impl VoiceWarningService for LiveVoiceService {
             .and_then(|f| f.var_value("stall_speed"))
             .unwrap_or(0.0)
     }
-    fn s_state(&self) -> vm_core::parser::State {
+    fn s_state(&self) -> vm_core::telemetry::parser::State {
         // Java st 恒非 null (Service 构造即建); 无帧/槽内 None 仅畸形帧窗口 — 零值让步
         self.frames
             .latest()
             .and_then(|f| f.s_state.clone())
             .unwrap_or_default()
     }
-    fn s_indic(&self) -> vm_core::parser::Indicators {
+    fn s_indic(&self) -> vm_core::telemetry::parser::Indicators {
         self.frames
             .latest()
             .and_then(|f| f.s_indic.clone())
@@ -272,7 +272,7 @@ pub(crate) fn open_voice_warning(
         Arc::clone(flight_bus),
         // legacy_player: playWav/getClip 直开面 (全库无调用方), 独立 winmm 实例
         // 与 resource_manager 注入同一实现即等价 (voice_warning.rs PORT 注)
-        Arc::from(crate::winmm_player::make_player()) as Arc<dyn vm_core::voice_resource_manager::SoundPlayer>,
+        Arc::from(crate::winmm_player::make_player()) as Arc<dyn vm_core::audio::voice_resource_manager::SoundPlayer>,
     );
     let doit = Arc::clone(&vw.doit);
     vw.init(Some(Arc::new(LiveVoiceService { frames })));

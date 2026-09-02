@@ -3,9 +3,9 @@
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
-use crate::comparison::comparison_rule::ComparisonRule;
-use crate::comparison::rules::{try_number_ends, LambdaRule, ListIndexRule, MultiListIndexRule, SimpleRule};
-use crate::parser::char_len_at;
+use crate::ui_support::comparison::comparison_rule::ComparisonRule;
+use crate::ui_support::comparison::rules::{try_number_ends, LambdaRule, ListIndexRule, MultiListIndexRule, SimpleRule};
+use crate::telemetry::parser::char_len_at;
 
 /// Registry of comparison rules for FM properties.
 ///

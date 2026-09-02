@@ -4,9 +4,9 @@
 //! 单点维护。编译在主线程完成 (RowConfig 持 Rc<SExp> 不可跨线程),
 //! 产物 owned/Send, 经 ReinitParams 通道进 win32 线程。
 
-use crate::config_loader::{GroupConfig, RowConfig};
+use crate::config::config_loader::{GroupConfig, RowConfig};
 use crate::formula::registry::FormulaView;
-use crate::sexp_parser::{AtomType, SExp};
+use crate::config::sexp_parser::{AtomType, SExp};
 
 /// 受限条件 (:visible-when / :na-when 的编译产物; owned)。
 /// `=`/`!=` 带 0.0001 容差 — 语义对齐 Java VisibilityExpressionEvaluator。

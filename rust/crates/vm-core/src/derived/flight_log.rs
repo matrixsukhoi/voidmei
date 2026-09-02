@@ -26,11 +26,11 @@ use std::sync::{Arc, Mutex};
 
 use chrono::{Datelike, Local, Timelike};
 
-use crate::config_api::ConfigProvider;
-use crate::flight_analyzer::{AnalyzerService, FlightAnalyzer, MAX_IAS_STAGE};
-use crate::g;
+use crate::config::config_api::ConfigProvider;
+use crate::derived::flight_analyzer::{AnalyzerService, FlightAnalyzer, MAX_IAS_STAGE};
+use crate::base::physics_constants::g;
 use crate::lang::Lang;
-use crate::logger::warn_default;
+use crate::base::logger::warn_default;
 
 // ============================================================================
 // Java Float.toString / Double.toString 复刻 (行格式保真依赖)
@@ -855,7 +855,7 @@ impl FlightLog {
 	/// 直传 stop 语义的 sleep_quietly 会立即返回 → 热自旋; 备案收口修复)。
 	pub fn run(&mut self, xs_source: &(dyn Fn() -> FlightLogSnapshot + Sync)) {
 		while self.logon.load(Ordering::SeqCst) {
-			crate::exception_helper::sleep_while_run(&self.logon, 5);
+			crate::base::exception_helper::sleep_while_run(&self.logon, 5);
 			while self.doit.load(Ordering::SeqCst) {
 				self.log_tick(&xs_source());
 				self.doit.store(false, Ordering::SeqCst); // 写完后关闭

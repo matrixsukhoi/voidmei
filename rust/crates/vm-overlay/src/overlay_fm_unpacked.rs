@@ -30,10 +30,10 @@ use crate::host::{OverlayHost, OverlaySpec, ReinitFn};
 use crate::overlay_list::BaseListOverlay;
 use crate::reinit::ReinitParams;
 use crate::render2d::PixCanvas;
-use vm_core::fmdata::{FmData, FmParts};
-use vm_core::config_api::ConfigProvider;
+use vm_core::fm::data::{FmData, FmParts};
+use vm_core::config::config_api::ConfigProvider;
 use vm_core::fm::FMManager;
-use vm_core::g;
+use vm_core::base::physics_constants::g;
 use vm_core::lang::Lang;
 
 // ---------------------------------------------------------------------------
@@ -669,7 +669,7 @@ pub fn fm_unpacked_data_overlay_spec(
         let new_font = match LoadedFont::new(&reinit_regular, 14 + fa) {
             Ok(f) => Rc::new(f),
             Err(e) => {
-                vm_core::logger::error("FMUnpackedData", &format!("reinit 字体重载失败: {}", e));
+                vm_core::base::logger::error("FMUnpackedData", &format!("reinit 字体重载失败: {}", e));
                 return None;
             }
         };
@@ -750,7 +750,7 @@ impl FmUnpackedFeed {
             handle.borrow_mut().tick();
         }));
         if ticked.is_err() {
-            vm_core::logger::error(
+            vm_core::base::logger::error(
                 "FMUnpackedData",
                 "run 轮 panic 已吞 (畸形 FM 字段, 对位 Java 杀 run 线程), 本 overlay 冻结",
             );

@@ -31,8 +31,8 @@
 // PORT: Java `private FMPowerExtractor() {}` (final 工具类, 私有构造器防实例化)
 // → Rust 自由函数模块无实例化概念, 天然满足
 
-use crate::atmosphere_model::{altitude_at_pressure, pressure};
-use crate::fmdata::{FmData, FuelModification, FuelType};
+use crate::base::atmosphere_model::{altitude_at_pressure, pressure};
+use crate::fm::data::{FmData, FuelModification, FuelType};
 use crate::fm::piston_model::{
     interpolate_power, supercharger_rpm_effect, torque_rpm_boost, CompressorStageParams,
 };

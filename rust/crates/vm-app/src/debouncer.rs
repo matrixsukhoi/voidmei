@@ -7,7 +7,7 @@ use std::sync::Arc;
 use std::thread::JoinHandle;
 use std::time::Duration;
 
-use vm_core::event::ui_state_events;
+use vm_core::base::event::ui_state_events;
 
 use crate::commands::{DebounceMsg, UiCommand};
 use crate::controller_shared::ControllerShared;

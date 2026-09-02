@@ -23,7 +23,7 @@
 //! 间隙 (panel²)=0xE9141414, 行 (label over panel²) alpha=249, 表头 0xF93E3005 /
 //! 偶 0xF9181818 / 奇 0xF9222222。draw() 按 [`java2d_src_over`] 预合成最终单色直铺。
 
-use vm_core::format::java_round_f32;
+use vm_core::base::format::java_round_f32;
 use crate::font::LoadedFont;
 use crate::render2d::PixCanvas;
 

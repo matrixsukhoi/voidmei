@@ -17,7 +17,7 @@
 //! 原始文本 data 串 (init/finalizeLoading 一并退役)。
 //!
 //! PORT: 反射段 (getValue/dumpVariables, L1908-2000) 按 D4 裁决不迁移。
-//! interpolateSweepDouble (L718) 由 crate::interpolation::interp_sweep_level 承接
+//! interpolateSweepDouble (L718) 由 crate::base::interpolation::interp_sweep_level 承接
 //! (单一来源规约, 见 model.rs 函数级注)。
 
 mod model;

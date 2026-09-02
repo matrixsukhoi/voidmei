@@ -167,8 +167,8 @@ mod win_tests {
     };
     use super::super::DpiHelper;
     use super::wav_bytes;
-    use vm_core::focus_monitor::FocusDetector;
-    use vm_core::voice_resource_manager::SoundPlayer;
+    use vm_core::platform::focus_monitor::FocusDetector;
+    use vm_core::audio::voice_resource_manager::SoundPlayer;
     use windows::Win32::Foundation::HWND;
     use windows::Win32::System::Threading::GetCurrentProcessId;
 

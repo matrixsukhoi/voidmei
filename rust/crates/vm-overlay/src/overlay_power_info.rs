@@ -15,12 +15,12 @@ use crate::renderers::{BosStyleRenderer, Field, OverlayRenderer, RenderContext};
 use crate::host::{OverlaySpec, ReinitFn};
 use crate::reinit::ReinitParams;
 use crate::ui_model::DataField;
-use vm_core::format;
+use vm_core::base::format;
 use vm_core::formula::registry::FormulaView;
 
 use crate::overlay_gear_flaps::FIELD_OVERLAY_REFRESH_INTERVAL_MS;
 
-// 字段表已 W-D cfg 驱动化 (vm_core::row_def::RowDef, 经 ReinitParams 进线程); 本文件只持状态与渲染。
+// 字段表已 W-D cfg 驱动化 (vm_core::ui_support::row_def::RowDef, 经 ReinitParams 进线程); 本文件只持状态与渲染。
 
 /// 动力信息面板状态 (Java PowerInfoOverlay 的 fieldManager + bindDynamicFields 产物)。
 /// 预览 = 构造后不调 update (FieldOverlay.initPreview 不订阅事件, 字段保持 previewValue)。
@@ -28,7 +28,7 @@ pub struct PowerInfoState {
     /// 节流基准 (FieldOverlay.java:39 lastRefreshTime, System.currentTimeMillis 毫秒)
     pub last_refresh_time: i64,
     /// 行定义 (cfg 驱动, 随 ReinitParams 更新)
-    pub defs: std::sync::Arc<Vec<vm_core::row_def::RowDef>>,
+    pub defs: std::sync::Arc<Vec<vm_core::ui_support::row_def::RowDef>>,
     /// DataField 承接 (visible/buffer/length/precision/unit 与 BosStyleRenderer 的
     /// Field::Data 通道天然对接)
     fields: Vec<DataField>,
@@ -38,7 +38,7 @@ impl PowerInfoState {
     /// initFields (FieldOverlay.java:145-155) + DefaultFieldManager.addField:
     /// currentValue = previewValue 原样 (不经 %5s), hideWhenNA=true (EngineInfoConfig
     /// populateFromGroup 固定传 true), hideWhenZero=false (cfg 无 :hide-when-zero)
-    pub fn new(defs: std::sync::Arc<Vec<vm_core::row_def::RowDef>>) -> Self {
+    pub fn new(defs: std::sync::Arc<Vec<vm_core::ui_support::row_def::RowDef>>) -> Self {
         let fields = defs
             .iter()
             .map(|def| {
@@ -77,7 +77,7 @@ impl PowerInfoState {
     }
 
     /// reinit 链: 换行定义并按 preview 值重建 fields (可见态随 update 恢复)
-    pub fn rebind_defs(&mut self, defs: std::sync::Arc<Vec<vm_core::row_def::RowDef>>) {
+    pub fn rebind_defs(&mut self, defs: std::sync::Arc<Vec<vm_core::ui_support::row_def::RowDef>>) {
         *self = Self::new(defs);
     }
 
@@ -102,7 +102,7 @@ impl PowerInfoState {
             field.visible = def.visible_when.as_ref().is_none_or(|e| e.eval(s, val));
             // 3+4. 动态精度/单位 (cfg 全表仅进气压 imperial_display 一条:
             //      英制 "P/x.x''"+1 位 / 公制 "Ata"+2 位; 仅变化时写)
-            if def.display == vm_core::row_def::DisplayMode::ImperialManifold {
+            if def.display == vm_core::ui_support::row_def::DisplayMode::ImperialManifold {
                 let imperial = s.var_value("is_imperial").unwrap_or(0.0) > 0.0;
                 let new_precision = if imperial { 1 } else { 2 };
                 if new_precision != field.precision {
@@ -130,7 +130,7 @@ impl PowerInfoState {
                         continue;
                     }
                 }
-                if def.format == vm_core::row_def::FormatKind::TimeMmSs {
+                if def.format == vm_core::ui_support::row_def::FormatKind::TimeMmSs {
                     field.buffer = format::format_time(val);
                 } else {
                     field.buffer = format::format(val, field.precision as u8);
@@ -212,7 +212,7 @@ pub fn power_info_overlay_spec(
             Err(e) => {
                 // 字体重载失败: 保持旧 ctx (Java 字体族随包分发, 此路径不可达;
                 // 显式留痕不静默)
-                vm_core::logger::error("PowerInfo", &format!("reinit 字体重载失败: {}", e));
+                vm_core::base::logger::error("PowerInfo", &format!("reinit 字体重载失败: {}", e));
                 return None;
             }
         };

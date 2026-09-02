@@ -224,13 +224,13 @@ fn dispatch_activate() {
         .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
         .is_err()
     {
-        vm_core::logger::info("Application", "Ignoring duplicate tray click");
+        vm_core::base::logger::info("Application", "Ignoring duplicate tray click");
         return;
     }
     // (Java 在 try 内打点三行日志, e2e 断言标记 — 原文保留)
-    vm_core::logger::info("Application", "--------------------------------------------------");
-    vm_core::logger::info("Application", "ACTION: Tray Icon Clicked. Restoring MainForm...");
-    vm_core::logger::info("Application", "--------------------------------------------------");
+    vm_core::base::logger::info("Application", "--------------------------------------------------");
+    vm_core::base::logger::info("Application", "ACTION: Tray Icon Clicked. Restoring MainForm...");
+    vm_core::base::logger::info("Application", "--------------------------------------------------");
     with_handler(|h| h.activate());
     // 无论成功或异常都重置标志，允许下一次点击
     // (Java finally — handler panic 已被 with_handler 捕获, 此处必达)
@@ -338,7 +338,7 @@ unsafe fn readd_icon() {
     let Some(nid) = shared else { return };
     // 广播迟到 (Drop 后 NIM_DELETE 已清) 或 (hWnd,uID) 仍存在时失败无害
     if Shell_NotifyIconW(NIM_ADD, &nid).as_bool() {
-        vm_core::logger::info("Application", "任务栏重启, 托盘图标已重挂");
+        vm_core::base::logger::info("Application", "任务栏重启, 托盘图标已重挂");
     }
 }
 
@@ -563,7 +563,7 @@ impl TrayIcon {
             let (icon, owns_icon) = match load_icon(&cfg.icon_path) {
                 Ok(h) => (h, true),
                 Err(e) => {
-                    vm_core::logger::warn_default(&format!("图标加载失败回退默认: {}", e));
+                    vm_core::base::logger::warn_default(&format!("图标加载失败回退默认: {}", e));
                     match LoadIconW(None, IDI_APPLICATION) {
                         Ok(h) => (h, false),
                         // 失败路径资源回收 (win.rs create 同纪律): 窗口/菜单/handler
@@ -604,9 +604,9 @@ impl TrayIcon {
             if !added {
                 // PORT: Java 两条失败日志 — `ExceptionHelper.logAndContinue(e1, "系统托盘")`
                 // (WARN, 组件"系统托盘"; Shell_NotifyIconW 只回 BOOL 无异常对象, 以描述代)
-                vm_core::logger::warn("系统托盘", "托盘加入失败 (NIM_ADD), 程序继续运行");
+                vm_core::base::logger::warn("系统托盘", "托盘加入失败 (NIM_ADD), 程序继续运行");
                 // PORT: Java `debugPrint(Lang.failaddtoTray)` → Logger.info("Legacy", ...)
-                vm_core::logger::info(
+                vm_core::base::logger::info(
                     "Legacy",
                     vm_core::lang::Lang::init_lang().failaddto_tray,
                 );

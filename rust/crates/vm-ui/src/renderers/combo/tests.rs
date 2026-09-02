@@ -1,6 +1,6 @@
 use super::*;
 use crate::renderers::test_util::MapCtx;
-use vm_core::config_loader::ConfigValue;
+use vm_core::config::config_loader::ConfigValue;
 
 fn combo_row(prop: Option<&str>, source: &str, value: Option<&str>) -> RowConfig {
     let mut r = RowConfig::new("字体".into(), None, "%s".into());

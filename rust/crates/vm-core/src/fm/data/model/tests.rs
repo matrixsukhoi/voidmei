@@ -3,7 +3,7 @@
 #![allow(clippy::field_reassign_with_default)]
 
 use super::*;
-use crate::fmdata::types::{FmParts, SweepLevel};
+use crate::fm::data::types::{FmParts, SweepLevel};
 
 /// oracle 场景: 3 档可变翼 (sweep 0/0.5/1) + 静态守卫字段 (与 BlkxModelOracle 一致)
 fn oracle_sweep_fmdata() -> FmData {

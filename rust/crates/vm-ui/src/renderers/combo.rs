@@ -14,7 +14,7 @@
 //! 显示不回退); Java 下拉弹出互斥逻辑 (registerComboBox/dismissActivePopups) 属
 //! 窗口管理层, 不迁移。
 
-use vm_core::config_loader::{ConfigValue, GroupConfig, RowConfig};
+use vm_core::config::config_loader::{ConfigValue, GroupConfig, RowConfig};
 use crate::renderer_config_helper;
 use crate::row_renderer_registry::RenderContext;
 
@@ -43,7 +43,7 @@ pub(crate) fn crosshair_options(dir: &str) -> Vec<String> {
     if let Ok(entries) = std::fs::read_dir(dir) {
         for e in entries.flatten() {
             let name = e.file_name().to_string_lossy().to_string();
-            if let Some(stripped) = vm_core::file_utils::get_file_name_no_ex(Some(&name)) {
+            if let Some(stripped) = vm_core::base::file_utils::get_file_name_no_ex(Some(&name)) {
                 opts.push(stripped.to_string());
             }
         }

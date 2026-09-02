@@ -1,5 +1,5 @@
 use super::*;
-use crate::event::event_payload::EventPayload;
+use crate::base::event::event_payload::EventPayload;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Mutex;
 

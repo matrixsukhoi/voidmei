@@ -16,7 +16,7 @@ use crate::global_colors::{aa, colors};
 use crate::host::{OverlaySpec, ReinitFn};
 use crate::reinit::ReinitParams;
 use crate::render2d::{LineCapStyle, PixCanvas};
-use vm_core::format as fast_number_format;
+use vm_core::base::format as fast_number_format;
 use vm_core::lang::Lang;
 
 // ---------------------------------------------------------------------------
@@ -571,7 +571,7 @@ pub fn control_surfaces_overlay_spec(
             (Ok(n), Ok(l), Ok(u)) => (Rc::new(n), Rc::new(l), Rc::new(u)),
             (r, _, _) => {
                 if let Err(e) = r {
-                    vm_core::logger::error("ControlSurfaces", &format!("reinit 字体重载失败: {}", e));
+                    vm_core::base::logger::error("ControlSurfaces", &format!("reinit 字体重载失败: {}", e));
                 }
                 return None;
             }

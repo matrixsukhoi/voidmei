@@ -32,7 +32,7 @@
 // PORT: Java `private PistonPowerModel() {}` (final 工具类, 私有构造器防实例化)
 // → Rust 自由函数模块无实例化概念, 天然满足
 
-use crate::atmosphere_model::{altitude_at_pressure, pressure, ram_effect_altitude};
+use crate::base::atmosphere_model::{altitude_at_pressure, pressure, ram_effect_altitude};
 
 // ==================== Torque/RPM Calculations ====================
 
@@ -1028,7 +1028,7 @@ fn java_round(x: f64) -> i64 {
 // 流水线后续波次翻译 (rust 侧 power_curve_helper.rs 当前为占位), 其被本文件用到的
 // 8 个函数按 PowerCurveHelper.java 逐字内联为私有函数 (7 个被直接调用 +
 // hasCeiling 作为 ceilingIsUseful 的内部依赖)。待 power_curve_helper.rs
-// 落地后应切换为 crate::power_curve_helper 调用并删除这些内联副本 (Rust 同 crate
+// 落地后应切换为 crate::fm::power_curve 调用并删除这些内联副本 (Rust 同 crate
 // 模块互相引用合法, 无循环依赖障碍)。constRpmBelowOldCritAlt 未被本文件使用, 不内联。
 
 /// Checks if the stage has ConstRPM parameters defined.

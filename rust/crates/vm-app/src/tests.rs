@@ -1,6 +1,6 @@
 use super::*;
 use std::sync::atomic::AtomicUsize;
-use vm_core::bus::EventBus; // FmChangedBus 底座 (EventBus<FMHandle>) 的构造面
+use vm_core::base::bus::EventBus; // FmChangedBus 底座 (EventBus<FMHandle>) 的构造面
 use vm_core::fm::FMHandle;
 
 static CFG_N: AtomicUsize = AtomicUsize::new(0);
@@ -72,7 +72,7 @@ fn fixture_with_debounce(ms: u64) -> AppShell {
 
 /// 全参 fixture (自定义 cfg 内容; 见 fixture_with_debounce 注)
 fn fixture_full(ms: u64, cfg: String) -> AppShell {
-    let ui_bus = Arc::new(vm_core::ui_state_bus::UIStateBus::new());
+    let ui_bus = Arc::new(vm_core::base::bus::ui_state_bus::UIStateBus::new());
     let config = ConfigurationService::new(Some(Arc::clone(&ui_bus)));
     config.load_layout(&cfg);
     let (hotkey, hotkey_rx) = HotkeyManager::with_channel();
@@ -88,7 +88,7 @@ fn fixture_full(ms: u64, cfg: String) -> AppShell {
         config,
         ui_bus,
         flight_bus: Arc::new(FlightDataBus::new()),
-        fm: Arc::new(FMManager::new(Arc::new(vm_core::bus::EventBus::new()))),
+        fm: Arc::new(FMManager::new(Arc::new(vm_core::base::bus::EventBus::new()))),
         hotkey,
         hotkey_rx,
         debounce_delay: Duration::from_millis(ms),
@@ -109,7 +109,7 @@ fn pump_events(shell: &mut AppShell) -> bool {
     handled
 }
 
-fn publish_ui_event(bus: &vm_core::ui_state_bus::UIStateBus, event_type: &str, data: &str) {
+fn publish_ui_event(bus: &vm_core::base::bus::ui_state_bus::UIStateBus, event_type: &str, data: &str) {
     bus.publish(event_type, Some("MainForm"), Some(data));
 }
 
@@ -1254,9 +1254,9 @@ fn refresh_previews_keep_session_window_mode() {
 /// 构造 drive_from_live 判定所需的 live ServiceData 快照
 /// (真机由 Service.update 写; 测试直填公开字段 — flags/type/playerLive)
 fn live_service_data(plane: &str) -> ServiceData {
-    let mut st = vm_core::parser::State::new();
+    let mut st = vm_core::telemetry::parser::State::new();
     st.flag = true;
-    let mut ind = vm_core::parser::Indicators::new();
+    let mut ind = vm_core::telemetry::parser::Indicators::new();
     ind.flag = true;
     ind.r#type = Some(plane.to_string());
     let mut d = ServiceData::default();
@@ -1293,14 +1293,14 @@ impl vm_overlay::platform::OverlayWindow for NullWin {
 }
 
 /// 测试行定义: 仓库 ui_layout.cfg 两面板 (与生产 OverlayInputs::build 同源)
-fn cfg_test_rows(panel: &str) -> std::sync::Arc<Vec<vm_core::row_def::RowDef>> {
+fn cfg_test_rows(panel: &str) -> std::sync::Arc<Vec<vm_core::ui_support::row_def::RowDef>> {
     let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../../ui_layout.cfg");
-    let groups = vm_core::config_loader::load_config(path);
+    let groups = vm_core::config::config_loader::load_config(path);
     let gc = groups
         .iter()
         .find(|g| g.title == panel)
         .unwrap_or_else(|| panic!("ui_layout.cfg 应含面板 {panel} (path={path})"));
-    let rows = vm_core::row_def::rows_from_group(gc, &|_| false);
+    let rows = vm_core::ui_support::row_def::rows_from_group(gc, &|_| false);
     assert!(!rows.is_empty(), "面板 {panel} 的 data 行不应为空");
     std::sync::Arc::new(rows)
 }
@@ -1687,7 +1687,7 @@ fn minihud_interest_keys_hit_ui_layout_cfg() {
 /// FocusMonitor 通道桥: coordinator 回调 → UiCommand 命令 + shared 镜像
 #[test]
 fn focus_bridge_sends_commands_and_mirrors_hidden() {
-    use vm_core::focus_monitor::AlwaysOnTopCoordinatorApi as _;
+    use vm_core::platform::focus_monitor::AlwaysOnTopCoordinatorApi as _;
     let (tx, rx) = std::sync::mpsc::channel::<UiCommand>();
     let shared = ControllerShared::default();
     let bridge = ChannelFocusBridge { tx, shared: Arc::new(shared) };
@@ -2094,7 +2094,7 @@ fn voice_config_变更同步快照并直达总线() {
     let h2 = Arc::clone(&hits);
     let sub = shell.ui_bus.subscribe(
         ui_state_events::CONFIG_CHANGED,
-        move |msg: &vm_core::ui_state_bus::UiStateEvent| {
+        move |msg: &vm_core::base::bus::ui_state_bus::UiStateEvent| {
             if msg.data.as_deref() == Some("voice_aoaCrit") {
                 h2.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
             }
@@ -2141,13 +2141,13 @@ struct CountingPlayer {
     plays: Arc<Mutex<HashMap<String, usize>>>,
 }
 
-impl vm_core::voice_resource_manager::SoundPlayer for CountingPlayer {
+impl vm_core::audio::voice_resource_manager::SoundPlayer for CountingPlayer {
     fn open_clip(
         &self,
         path: &std::path::Path,
     ) -> Result<
-        Box<dyn vm_core::voice_resource_manager::SoundClip>,
-        vm_core::voice_resource_manager::SoundError,
+        Box<dyn vm_core::audio::voice_resource_manager::SoundClip>,
+        vm_core::audio::voice_resource_manager::SoundError,
     > {
         let key = path
             .file_stem()
@@ -2165,7 +2165,7 @@ struct CountingClip {
     plays: Arc<Mutex<HashMap<String, usize>>>,
 }
 
-impl vm_core::voice_resource_manager::SoundClip for CountingClip {
+impl vm_core::audio::voice_resource_manager::SoundClip for CountingClip {
     fn start(&self) {
         *self
             .plays
@@ -2299,10 +2299,10 @@ fn refresh_previews_stop_voice_warn_session() {
     // publish 返回送达数 — 本文件 VoiceWarnSession 会话测试同款; 探针触发的
     // configHandler→reload 无副作用: 测试 CWD voice/ 无音频文件, load_clip
     // 静默 None)
-    fn probe_deliveries(bus: &vm_core::ui_state_bus::UIStateBus) -> usize {
+    fn probe_deliveries(bus: &vm_core::base::bus::ui_state_bus::UIStateBus) -> usize {
         bus.publish(ui_state_events::CONFIG_CHANGED, Some("W1Probe"), None)
     }
-    fn wait_deliveries(bus: &vm_core::ui_state_bus::UIStateBus, want: usize) -> bool {
+    fn wait_deliveries(bus: &vm_core::base::bus::ui_state_bus::UIStateBus, want: usize) -> bool {
         let start = Instant::now();
         loop {
             if probe_deliveries(bus) == want {

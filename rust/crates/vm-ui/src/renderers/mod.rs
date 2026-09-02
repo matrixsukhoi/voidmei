@@ -22,7 +22,7 @@ pub mod slider;
 pub mod switch;
 pub mod text;
 
-use vm_core::config_loader::RowConfig;
+use vm_core::config::config_loader::RowConfig;
 
 // =====================================================================
 // 行定位助手 (消息 key → 行路径)
@@ -82,7 +82,7 @@ pub(crate) mod test_util {
     use std::collections::HashMap;
     use std::sync::Arc;
 
-    use vm_core::configuration_service::ConfigurationService;
+    use vm_core::config::configuration_service::ConfigurationService;
     use crate::row_renderer_registry::RenderContext;
 
     #[derive(Default)]
@@ -143,7 +143,7 @@ pub(crate) mod test_util {
         // 掺 PID: 防两个测试进程并发跑时同名临时文件 truncate/read 竞争 (config_loader 实测同款踩坑)
         let p = std::env::temp_dir().join(format!("vm_ui_renderers_{}_{name}.cfg", std::process::id()));
         std::fs::write(&p, cfg).unwrap();
-        let bus = Arc::new(vm_core::ui_state_bus::UIStateBus::new());
+        let bus = Arc::new(vm_core::base::bus::ui_state_bus::UIStateBus::new());
         let config = ConfigurationService::new(Some(Arc::clone(&bus)));
         config.load_layout(p.to_str().unwrap());
         crate::main_form::MainFormState::new(config, bus, persist)

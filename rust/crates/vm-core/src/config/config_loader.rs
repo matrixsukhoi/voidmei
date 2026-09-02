@@ -16,7 +16,7 @@ use std::path::Path;
 use std::rc::Rc;
 use std::sync::RwLock;
 
-use crate::sexp_parser::{AtomType, SExp, SExpParser, SList};
+use crate::config::sexp_parser::{AtomType, SExp, SExpParser, SList};
 
 // --- Java `Object value` 的类型域 (extractValue 实际产出) ---
 

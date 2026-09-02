@@ -16,8 +16,8 @@
 //! - BOS 的 TextGauge 按 label 缓存 (Java gaugeCache, BOSStyleRenderer.java:18)。
 
 use crate::primitives;
-use vm_core::format::java_round_f32;
-use vm_core::configuration_service::GlobalColors;
+use vm_core::base::format::java_round_f32;
+use vm_core::config::configuration_service::GlobalColors;
 use std::collections::HashMap;
 use std::rc::Rc;
 

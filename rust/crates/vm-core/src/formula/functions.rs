@@ -3,8 +3,8 @@
 //! 状态原语 (sma/prev/blend/deriv/vote/stable/learn_max) 的求值在 eval.rs (需 StateStore)。
 //! 设计: doc/formula_system_design.md §3.3/§3.5
 
-use crate::atmosphere_model;
-use crate::interpolation;
+use crate::base::atmosphere_model;
+use crate::base::interpolation;
 use std::sync::Arc;
 
 /// 求值期的值类型: 数值 (bool 以 0.0/1.0 编码) 或命名表 (不透明, 仅插值函数实参)

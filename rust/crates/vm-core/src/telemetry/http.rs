@@ -26,8 +26,8 @@ use std::net::{SocketAddr, TcpStream};
 use std::sync::atomic::AtomicBool;
 use std::time::Duration;
 
-use crate::logger;
-use crate::parser::Indicators;
+use crate::base::logger;
+use crate::telemetry::parser::Indicators;
 
 /// 对应 Java `public static final String nstring = ""`
 pub const NSTRING: &str = "";

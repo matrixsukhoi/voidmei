@@ -1,6 +1,6 @@
 //! prog/config 接口层移植 (P2 批二): ConfigProvider / OverlaySettings / HUDSettings。
 //! 仅含三个接口文件; ConfigurationService / ConfigLoader 等 B 类实现不在本批,
-//! 后续落各自模块 (如 crate::config_loader) 后在此补实现。
+//! 后续落各自模块 (如 crate::config::config_loader) 后在此补实现。
 
 pub mod config_provider;
 pub mod hud_settings;

@@ -36,18 +36,18 @@
 //!   先例: write-only 状态不删), 各带 PORT 注。
 
 use crate::primitives;
-use vm_core::format::java_round_f32;
+use vm_core::base::format::java_round_f32;
 use crate::global_colors::{aa, colors};
 use std::cell::RefCell;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
-use vm_core::fmdata::FmData;
-use vm_core::config_api::HUDSettings;
-use vm_core::event::event_payload::EventPayload;
-use vm_core::hud_calculator::{self, HudColors};
-use vm_core::parser::{Indicators, State};
-use vm_core::hud_data::HUDData;
+use vm_core::fm::data::FmData;
+use vm_core::config::config_api::HUDSettings;
+use vm_core::base::event::event_payload::EventPayload;
+use vm_core::derived::hud_calculator::{self, HudColors};
+use vm_core::telemetry::parser::{Indicators, State};
+use vm_core::derived::hud_data::HUDData;
 use crate::hud_layout_node::{Dimension, HasPreferredSize, HUDLayoutNodeExt};
 use vm_core::formula::registry::FormulaView;
 
@@ -325,7 +325,7 @@ impl MinimalHudContext {
 
         // 5. Resource Loading (IO) — 纹理准星链不迁移 (模块头 PORT 注)
 
-        vm_core::logger::info(
+        vm_core::base::logger::info(
             "MinimalHUD",
             &format!(
                 "MinimalHUD Config: Width={}, Height={}, CrossWidth={}",
@@ -724,7 +724,7 @@ impl MiniHudOverlay {
         dpi_scale: f64,
         font_path: &Path,
     ) -> Result<Self, String> {
-        vm_core::logger::info("MinimalHUD", "init called");
+        vm_core::base::logger::info("MinimalHUD", "init called");
         let ctx = MinimalHudContext::create(settings, dpi_scale, font_path)?;
         let fonts = Rc::new(ctx.fonts.clone());
         // Java initComponentsLayout 之前各组件字段为 null → 首轮 reinitConfig 的
@@ -807,7 +807,7 @@ impl MiniHudOverlay {
     /// applyAutoSizing 计划); Java 先 setBounds 再被 applyAutoSizing 的
     /// window.setSize 覆盖, 净效果 = 内容包围盒 + 2×LAYOUT_PADDING。
     pub fn reinit_config<S: HUDSettings>(&mut self, settings: &S) -> Result<(), String> {
-        vm_core::logger::info("MinimalHUD", "reinitConfig called");
+        vm_core::base::logger::info("MinimalHUD", "reinitConfig called");
 
         // Create Immutable Context
         self.ctx = MinimalHudContext::create(settings, self.dpi_scale, &self.font_path)?;
@@ -1507,7 +1507,7 @@ pub fn minihud_overlay_spec<S: HUDSettings>(
         let hud = reinit_params.borrow().hud.clone();
         let mut o = reinit_handle.borrow_mut();
         if let Err(e) = o.reinit_config(&hud) {
-            vm_core::logger::error("MinimalHUD", &format!("reinit_config 失败: {}", e));
+            vm_core::base::logger::error("MinimalHUD", &format!("reinit_config 失败: {}", e));
             return None;
         }
         let (w, h) = match o.sizing() {

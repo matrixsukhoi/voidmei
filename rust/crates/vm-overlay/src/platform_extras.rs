@@ -7,9 +7,9 @@
 //!    实现 vm-core `voice_resource_manager::{SoundPlayer, SoundClip}` trait
 //!    (PORTING §3 库映射裁决: winmm PlaySound, "语音是整文件播放, 够用")
 
-use vm_core::format::java_round;
-use vm_core::logger;
-use vm_core::voice_resource_manager::SoundError;
+use vm_core::base::format::java_round;
+use vm_core::base::logger;
+use vm_core::audio::voice_resource_manager::SoundError;
 
 // =====================================================================
 // 1. DPI — 对应 Java: src/prog/util/DPIHelper.java (一比一翻译)
@@ -220,9 +220,9 @@ mod win {
     use std::sync::Mutex;
     use std::time::Instant;
 
-    use vm_core::focus_monitor::FocusDetector;
-    use vm_core::logger;
-    use vm_core::voice_resource_manager::{SoundClip, SoundPlayer, SoundError};
+    use vm_core::platform::focus_monitor::FocusDetector;
+    use vm_core::base::logger;
+    use vm_core::audio::voice_resource_manager::{SoundClip, SoundPlayer, SoundError};
 
     use super::{parse_wav_duration, DpiHelper};
 

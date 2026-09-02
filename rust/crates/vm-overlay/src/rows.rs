@@ -18,7 +18,7 @@
 
 use crate::primitives;
 use crate::global_colors::colors;
-use vm_core::hud_data::HUDData;
+use vm_core::derived::hud_data::HUDData;
 
 use crate::font::LoadedFont;
 

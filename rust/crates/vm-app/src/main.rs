@@ -39,9 +39,9 @@ use std::time::{Duration, Instant};
 use vm_app::{AppShell, SupervisorOutcome};
 
 use tauri::Emitter;
-use vm_core::event::ui_state_events;
-use vm_core::logger;
-use vm_core::ui_state_bus::UIStateBus;
+use vm_core::base::event::ui_state_events;
+use vm_core::base::logger;
+use vm_core::base::bus::ui_state_bus::UIStateBus;
 
 mod form_dispatch;
 
@@ -170,18 +170,18 @@ fn desktop_main(debug: bool) -> i32 {
     // 走 config_manager 内的日志兜底 — 语义不丢; 托盘重建核的后续装载经此达前端
     if let Some(f) = form.as_ref() {
         let handle = f.app_handle();
-        let sink: std::sync::Arc<dyn Fn(&vm_core::config_manager::ConfigDialog) + Send + Sync> =
-            std::sync::Arc::new(move |d: &vm_core::config_manager::ConfigDialog| {
+        let sink: std::sync::Arc<dyn Fn(&vm_core::config::config_manager::ConfigDialog) + Send + Sync> =
+            std::sync::Arc::new(move |d: &vm_core::config::config_manager::ConfigDialog| {
                 let lang = vm_core::lang::Lang::init_lang();
                 let payload = match d {
-                    vm_core::config_manager::ConfigDialog::ParseError => {
+                    vm_core::config::config_manager::ConfigDialog::ParseError => {
                         vm_webui::bridge::ConfigDialogPayload {
                             kind: "parse-error",
                             title: lang.m_config_error_title.to_string(),
                             message: lang.m_config_error_content.to_string(),
                         }
                     }
-                    vm_core::config_manager::ConfigDialog::MergeReport(message) => {
+                    vm_core::config::config_manager::ConfigDialog::MergeReport(message) => {
                         vm_webui::bridge::ConfigDialogPayload {
                             kind: "merge-report",
                             title: lang.m_config_merged_title.to_string(),
@@ -193,7 +193,7 @@ fn desktop_main(debug: bool) -> i32 {
                     logger::warn("ConfigManager", &format!("弹窗事件发送失败: {e}"));
                 }
             });
-        vm_core::config_manager::set_config_dialog_sink(sink);
+        vm_core::config::config_manager::set_config_dialog_sink(sink);
     }
 
     // Java Controller(true) 的自启动分支 (autoStartGameMode=true): 不显设置窗
@@ -292,7 +292,7 @@ fn desktop_main(debug: bool) -> i32 {
         // 再经 sink 补发, 一次即止 (首启模板升级的合并报告由此达用户)
         if !startup_dialog_replayed && form.is_web_ready() {
             startup_dialog_replayed = true;
-            if vm_core::config_manager::replay_pending_config_dialog() {
+            if vm_core::config::config_manager::replay_pending_config_dialog() {
                 logger::info("App", "启动期配置弹窗已补发前端 (web 就绪)");
             }
         }
@@ -373,8 +373,8 @@ fn publish_ui_ready(bus: &Arc<UIStateBus>) {
 /// 值域 = switch 行的 "true"/"false" 字符串 — Boolean.parseBoolean 语义
 /// (equalsIgnoreCase("true"), 其余恒 false)
 fn read_debug_log_flag() -> bool {
-    use vm_core::config_api::ConfigProvider as _;
-    let cs = vm_core::configuration_service::ConfigurationService::new(None);
+    use vm_core::config::config_api::ConfigProvider as _;
+    let cs = vm_core::config::configuration_service::ConfigurationService::new(None);
     cs.init_config();
     cs.get_config("debugLog")
         .unwrap_or_default()

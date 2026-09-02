@@ -174,7 +174,7 @@ impl CompiledFormulaSet {
         store: &mut StateStore,
         now_ms: u64,
         interval_ms: f64,
-        fm_data: Option<&crate::fmdata::FmData>,
+        fm_data: Option<&crate::fm::data::FmData>,
     ) -> FormulaResults {
         let mut results = FormulaResults {
             values: vec![f64::NAN; self.formulas.len()],
@@ -408,7 +408,7 @@ pub fn try_eval_single(
     store: &mut StateStore,
     now_ms: u64,
     interval_ms: f64,
-    fm_data: Option<&crate::fmdata::FmData>,
+    fm_data: Option<&crate::fm::data::FmData>,
 ) -> Result<f64, CompileError> {
     // 单公式命名空间: 空 slots (无公式间引用), site 从 0 起
     let slots = HashMap::new();

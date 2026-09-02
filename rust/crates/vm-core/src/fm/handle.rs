@@ -2,12 +2,12 @@
 
 use std::sync::Mutex;
 
-use crate::fmdata::{FmData, EngineLoad};
+use crate::fm::data::{FmData, EngineLoad};
 use crate::fm::status::FMStatus;
 use crate::fm::piston_model::CompressorStageParams;
 
 // PORT: 原 BlkxPlaceholder 零字段占位已按 blkx/mod.rs 字段波次陷阱注 5 的排期
-// (构造点波次 = FMLoader 波次) 兑现切换为真实 crate::fmdata::FmData 聚合 struct;
+// (构造点波次 = FMLoader 波次) 兑现切换为真实 crate::fm::data::FmData 聚合 struct;
 // engLoad 会话态的就地改写已由 eng_load_state 字段承接 (见下)。
 
 /// 不可变的 FM 句柄 —— "当前飞机的 FM 加载结果"的单一真相（P2 重构，取代 Controller 上

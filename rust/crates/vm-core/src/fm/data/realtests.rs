@@ -35,20 +35,20 @@ fn fm_root() -> String {
 
 /// 真机 JSON 全量解析 (blkx→json 迁移: name 取文件名分量, 对齐旧 parse 的
 /// display 约定; read_file_name 只进 fmdata 版本串)
-fn parse_real(path: &str) -> Result<crate::fmdata::FmData, String> {
+fn parse_real(path: &str) -> Result<crate::fm::data::FmData, String> {
     let name = std::path::Path::new(path)
         .file_name()
         .map(|s| s.to_string_lossy().into_owned())
         .unwrap_or_default();
-    crate::fmdata::FmData::parse_named_json(path, &name)
+    crate::fm::data::FmData::parse_named_json(path, &name)
 }
 
 /// 中央文件 JSON → 燃油修正 (读失败/serde 失败 → 默认无修正)
-fn fuel_mod_from_json(path: &str) -> crate::fmdata::types::FuelModification {
+fn fuel_mod_from_json(path: &str) -> crate::fm::data::types::FuelModification {
     std::fs::read_to_string(path)
         .ok()
         .and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok())
-        .map(|root| crate::fmdata::json::extract_fuel_modifications_json(&root))
+        .map(|root| crate::fm::data::json::extract_fuel_modifications_json(&root))
         .unwrap_or_default()
 }
 
@@ -91,7 +91,7 @@ mod spitfire {
     use super::GETLOAD_WIRED;
     use super::fm_root;
     use super::{fuel_mod_from_json, parse_real};
-    use crate::fmdata::FuelType;
+    use crate::fm::data::FuelType;
     use crate::fm::power_extractor::{extract_stages, extract_stages_with_fuel};
     use crate::fm::piston_model::optimal_power_advanced;
     use std::path::Path;
@@ -505,7 +505,7 @@ mod tempest {
     use super::GETLOAD_WIRED;
     use super::fm_root;
     use super::{fuel_mod_from_json, parse_real};
-    use crate::fmdata::FuelType;
+    use crate::fm::data::FuelType;
     use crate::fm::power_extractor::extract_stages;
     use crate::fm::piston_model::optimal_power_advanced;
     use std::path::Path;
@@ -921,7 +921,7 @@ mod fuzzer {
     //! JavaRandom/mutate 与 Java 端逐位一致 (oracle 对拍, 见下方测试)。
 
     use super::fm_root;
-    use crate::fmdata::FmData;
+    use crate::fm::data::FmData;
     use std::path::{Path, PathBuf};
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::time::Instant;

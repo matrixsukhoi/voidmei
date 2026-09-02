@@ -4,7 +4,7 @@
 //! Used for decoupled communication between UI panels (e.g., switch State sync).
 //! Thread-safe using ConcurrentHashMap + CopyOnWriteArrayList.
 //!
-//! B 类适配总览 (主 agent 裁决, 底座 = crate::bus 的 EventBus/Subscription):
+//! B 类适配总览 (主 agent 裁决, 底座 = crate::base::bus 的 EventBus/Subscription):
 //! - Java `ConcurrentHashMap<String, List<Consumer<Object>>>` 的按 eventType
 //!   路由 → 每事件类型一条 `Arc<EventBus<UiStateEvent>>` (路由保真: 订阅方
 //!   只收自己订阅的类型, 等价 Java 先按类型查表再调用, 无广播串台);
@@ -35,8 +35,8 @@ use std::collections::{HashMap, VecDeque};
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::{Arc, RwLock};
 
-use crate::bus::{EventBus, Subscription};
-use crate::logger;
+use crate::base::bus::{EventBus, Subscription};
+use crate::base::logger;
 
 /// 路由表锁中毒消息 (Java 无锁; 对应持锁线程崩溃后的一致性未知面)
 const MAP_LOCK_MSG: &str = "UIStateBus 路由表锁中毒";

@@ -1,8 +1,8 @@
 use super::*;
 use crate::audio::voice_alert_type;
-use crate::bus::EventBus;
-use crate::event::event_payload::EventPayload;
-use crate::voice_resource_manager::SoundError;
+use crate::base::bus::EventBus;
+use crate::base::event::event_payload::EventPayload;
+use crate::audio::voice_resource_manager::SoundError;
 use std::sync::atomic::AtomicUsize;
 
 static DIR_N: AtomicUsize = AtomicUsize::new(0);
@@ -919,7 +919,7 @@ fn check_load_factor_dynamic_limits() {
 
     let mut b = FmData::default();
     // 正 g 限 = 1.2*(2*raw1/(g*6000) - 1) = 12 → raw1 = 11*g*6000/2
-    b.raw_wing_crit_overload = Some([0.0, 11.0 * crate::g * 6000.0 / 2.0]);
+    b.raw_wing_crit_overload = Some([0.0, 11.0 * crate::base::physics_constants::g * 6000.0 / 2.0]);
     vw.fmdata = Some(b);
     vw.nofuelweight = 5000.0;
     vw.st.mfuel = 1000.0; // currentWeight = 6000

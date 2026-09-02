@@ -1,14 +1,14 @@
 //! 对应 Java: `src/prog/OverlayContext.java` (一比一翻译)
 //!
-//! import 映射: `parser.Blkx` → [`crate::fmdata::FmData`];
-//! `prog.config.ConfigProvider` → [`crate::config_api::ConfigProvider`];
+//! import 映射: `parser.Blkx` → [`crate::fm::data::FmData`];
+//! `prog.config.ConfigProvider` → [`crate::config::config_api::ConfigProvider`];
 //! `prog.fm.FMManager` → [`crate::fm::FMManager`];
 //! `prog.Controller` / `prog.Service` → **泛型参数 TC/S** (见 [`ControllerRef`] 注)。
 
 use std::sync::Arc;
 
-use crate::fmdata::FmData;
-use crate::config_api::ConfigProvider;
+use crate::fm::data::FmData;
+use crate::config::config_api::ConfigProvider;
 use crate::fm::FMManager;
 
 /// `prog.Controller` 在本文件的消费面 trait (依赖桩)。
@@ -172,7 +172,7 @@ impl<TC, S> OverlayContext<TC, S> {
 /// → Rust `&dyn ActivationContext`), 预设工厂零改动即可消费本上下文。
 // PORT: 方法体转发到同名固有方法/字段 —— Rust 方法解析固有 impl 优先于 trait
 // impl, 此处 self.get_bool(key) 调的是上方固有方法, 无自递归。
-impl<TC, S> crate::activation_strategy::ActivationContext for OverlayContext<TC, S> {
+impl<TC, S> crate::activation::strategy::ActivationContext for OverlayContext<TC, S> {
     fn get_bool(&self, key: &str) -> bool {
         self.get_bool(key)
     }

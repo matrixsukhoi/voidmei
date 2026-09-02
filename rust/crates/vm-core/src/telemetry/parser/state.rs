@@ -2,10 +2,10 @@
 //! /state 遥测 JSON 的子串提取解析 (速度/高度/G/舵面/引擎数组)。
 //!
 //! PORT: Java 类 → pub struct + pub 字段 (§0.7, 不造 getter);
-//! getString/getDataInt/getDataFloat 接已译 crate::string_helper,
+//! getString/getDataInt/getDataFloat 接已译 crate::base::string_helper,
 //! -65535 哨兵引用其 I_INVALID 定义。
 
-use crate::string_helper::{get_data_float, get_data_int, get_string, I_INVALID};
+use crate::base::string_helper::{get_data_float, get_data_int, get_string, I_INVALID};
 
 /// 遥测侧每引擎数组容量 (throttles/power/pitch/thrust/efficiency)。
 /// 2026-08 全量普查 (TestFMAllBoundaries): 真机 FM 引擎数极值 14 (b_66b, 含助推器块),

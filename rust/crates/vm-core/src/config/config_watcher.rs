@@ -104,7 +104,7 @@ impl ConfigWatcherService {
             loop {
                 // PORT: javax.swing.Timer 默认 initialDelay == delay →
                 // 首轮 check 在一个完整周期后 (先睡后查), 之后每周期重复 (setRepeats 默认 true)
-                crate::exception_helper::sleep_quietly(&stop_flag, interval_ms);
+                crate::base::exception_helper::sleep_quietly(&stop_flag, interval_ms);
                 if stop_flag.load(Ordering::SeqCst) {
                     break;
                 }
@@ -122,7 +122,7 @@ impl ConfigWatcherService {
                         .cloned()
                         .or_else(|| panic.downcast_ref::<&str>().map(|s| s.to_string()))
                         .unwrap_or_else(|| "未知 panic 载荷".to_string());
-                    crate::logger::error_default(&format!("ConfigWatcher 回调异常: {}", msg));
+                    crate::base::logger::error_default(&format!("ConfigWatcher 回调异常: {}", msg));
                 }
             }
         });

@@ -10,7 +10,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use vm_core::config_loader::{GroupConfig, RowConfig};
+use vm_core::config::config_loader::{GroupConfig, RowConfig};
 
 // =====================================================================
 // RowRenderer.java 的占位翻译 (完整翻译归后续 C 类渲染器批次)
@@ -31,7 +31,7 @@ use vm_core::config_loader::{GroupConfig, RowConfig};
 /// 否则即复刻 VoiceWarning 式泄漏 (LIFETIMES §2.1/§6.3)。Java 原形是把
 /// CONFIG_CHANGED/VOICE_PACKS_REFRESH 订阅挂到返回的 panel 上、经
 /// HierarchyListener 注销 (VoiceRowRenderer.java:264-335); Rust 正确形态
-/// 是订阅 guard (`crate::ui_state_bus` 的 `Subscription`, Drop 即注销,
+/// 是订阅 guard (`crate::base::bus::ui_state_bus` 的 `Subscription`, Drop 即注销,
 /// ui_state_bus.rs:115) 由返回的组件 `R` 持有, 以 Drop 取代 HierarchyListener。
 pub trait RowRenderer<R> {
     /// Renders a config row into a UI component.

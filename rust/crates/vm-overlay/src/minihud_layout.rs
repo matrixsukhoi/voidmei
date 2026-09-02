@@ -181,7 +181,7 @@ impl<T> ModernHUDLayoutEngine<T> {
             return;
         }
         if stack.contains(&id) {
-            vm_core::logger::info(
+            vm_core::base::logger::info(
                 "ModernLayout",
                 &format!("Cycle detected in layout dependency: {id}"),
             );
@@ -254,13 +254,13 @@ impl<T> ModernHUDLayoutEngine<T> {
 
     /// Java `logTopology()`
     pub fn log_topology(&self) {
-        vm_core::logger::info("ModernLayout", "Topology Order: ");
+        vm_core::base::logger::info("ModernLayout", "Topology Order: ");
         for node in &self.sorted_nodes {
             let parent = match node.get_parent() {
                 None => "ROOT".to_string(),
                 Some(p) => p.borrow().id.clone(),
             };
-            vm_core::logger::info(
+            vm_core::base::logger::info(
                 "ModernLayout",
                 &format!(" -> {} (Parent: {})", node.borrow().id, parent),
             );
@@ -340,7 +340,7 @@ impl<T> ModernHUDLayoutEngine<T> {
         // (Java: window.setSize(newWidth, newHeight); — 宿主职责)
         self.set_render_offset(offset_x, offset_y);
 
-        vm_core::logger::info(
+        vm_core::base::logger::info(
             "ModernLayout",
             &format!(
                 "Auto-sized window: Content[{},{} {}x{}] -> Window[{}x{}] Offset[{},{}]",
@@ -694,7 +694,7 @@ where
     // Apply Global Debug Setting
     let show_crosshair = cfg.display_crosshair;
     let layout_width = if show_crosshair { base_width * 2 } else { base_width };
-    vm_core::logger::info(
+    vm_core::base::logger::info(
         "MinimalHUD",
         &format!(
             "initModernLayout: showCrosshair={show_crosshair}, layoutWidth={layout_width}"
@@ -728,7 +728,7 @@ where
     let mut compass = Some(parts.compass_gauge);
     let mut crosshair = parts.crosshair_gauge;
 
-    vm_core::logger::info(
+    vm_core::base::logger::info(
         "MinimalHUD",
         &format!(
             "initModernLayout: Adding nodes. Components: {}",

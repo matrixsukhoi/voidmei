@@ -27,7 +27,7 @@ pub struct DataField {
 
     // --- Zero-GC Pipeline Support ---
     // PORT: Java `char[32] buffer + int length` 零 GC 复用缓冲 → String。
-    // 已译版 `crate::format` 返回 String (无缓冲复写入 API), 故 buffer 直接改为
+    // 已译版 `crate::base::format` 返回 String (无缓冲复写入 API), 故 buffer 直接改为
     // String 承接格式化产物; length 字段保留 int 语义 (有效字符数)。
     // 全部写入点 (C 类, 本批均未译):
     //   - FieldOverlay.java:208-215 (format/formatTime 落盘 + na-when 时 '-' 单字符)

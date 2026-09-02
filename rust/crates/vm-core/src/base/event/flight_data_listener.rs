@@ -1,6 +1,6 @@
 //! 对应 Java: `src/prog/event/FlightDataListener.java`
 
-use crate::event::flight_data_event::FlightDataEvent;
+use crate::base::event::flight_data_event::FlightDataEvent;
 
 /// Interface for consuming Data Plane events.
 /// PORT: Java interface → Rust trait (§1 多实现接口); 参数按 Java 引用传递语义

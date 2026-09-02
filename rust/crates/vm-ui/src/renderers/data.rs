@@ -28,7 +28,7 @@
 //! 若未来 DATA 行 :target 撞组字段名 (fontSize 等), Rust 会多写组字段 (Java 不会)
 //! — 需要时可加 DATA 专属消息臂调本文件语义收敛差异。
 
-use vm_core::config_loader::RowConfig;
+use vm_core::config::config_loader::RowConfig;
 use crate::row_renderer_registry::RenderContext;
 
 /// Java Boolean.parseBoolean: 仅忽略大小写的 "true" 为真

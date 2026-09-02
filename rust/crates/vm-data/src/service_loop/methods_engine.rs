@@ -13,7 +13,7 @@
 
 use super::{read_data, write_data, Service};
 use vm_core::fm::FMHandle;
-use vm_core::piston_power_model::find_optimal_stage_index;
+use vm_core::fm::piston_model::find_optimal_stage_index;
 
 impl Service {
     /// 获取最大转速（优先 FM, 无 FM 时自适应学习）。
@@ -188,12 +188,12 @@ mod tests {
     use super::super::ServiceConfig;
     use std::path::Path;
     use std::sync::Arc;
-    use vm_core::fmdata::FmData;
-    use vm_core::bus::EventBus;
-    use vm_core::flight_data_bus::FlightDataBus;
+    use vm_core::fm::data::FmData;
+    use vm_core::base::bus::EventBus;
+    use vm_core::base::bus::flight_data_bus::FlightDataBus;
     use vm_core::formula::registry::FormulaView as _; // var_value 取数
     use vm_core::fm::FMManager;
-    use vm_core::piston_power_model::CompressorStageParams;
+    use vm_core::fm::piston_model::CompressorStageParams;
 
     fn new_service() -> Service {
         let fm = Arc::new(FMManager::new(Arc::new(EventBus::new())));

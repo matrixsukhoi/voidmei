@@ -756,7 +756,7 @@ fn feed_host(log: &Rc<RefCell<Vec<String>>>) -> OverlayHost {
 }
 
 fn feed_fm() -> Arc<FMManager> {
-    Arc::new(FMManager::new(Arc::new(vm_core::bus::EventBus::new())))
+    Arc::new(FMManager::new(Arc::new(vm_core::base::bus::EventBus::new())))
 }
 
 /// 工厂初态 = initPreview 形态 (恒可见 + 空数据 — 注册期 = Java 无实例形态;

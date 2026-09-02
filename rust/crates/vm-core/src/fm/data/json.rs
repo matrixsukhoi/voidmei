@@ -527,7 +527,7 @@ pub(crate) fn get_in_json(v: &Value, label: &str) -> String {
 
 use super::FmData;
 use crate::lang::Lang;
-use crate::logger;
+use crate::base::logger;
 
 impl FmData {
     /// (path, name) 具名入口 (JSON) — Blkx::parse_named 的 JSON 对应物:

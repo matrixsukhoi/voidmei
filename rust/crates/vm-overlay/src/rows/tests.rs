@@ -351,7 +351,7 @@ fn mech_row_update_parts_and_on_data() {
     assert!(row.update_parts("F60", "BRK", "GEA", true), "仅襟翼段变化");
 
     // on_data_update: base.text 保持, is_warning 直写 (Java:66-69)
-    let mut b = vm_core::hud_data::Builder::default();
+    let mut b = vm_core::derived::hud_data::Builder::default();
     b.flaps_wing_str = "W 75".into();
     b.airbrake_str = "".into();
     b.gear_str = "GEA".into();

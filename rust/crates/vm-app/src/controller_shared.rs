@@ -4,9 +4,9 @@ use std::collections::BTreeMap;
 use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 
-use vm_core::configuration_service::ControllerIntervals;
+use vm_core::config::configuration_service::ControllerIntervals;
 use crate::controller_state::ControllerState;
-use vm_core::logger;
+use vm_core::base::logger;
 
 /// FlightDataBus 事件流静默判定阈值 (审查 B1 补偿, 见
 /// [`ControllerShared::last_flight_event_ms`] 注): player_live 轮每 ~50ms 发布

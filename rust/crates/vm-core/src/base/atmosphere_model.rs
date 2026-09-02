@@ -28,7 +28,7 @@
 // PORT: Java `private AtmosphereModel() {}` (final 工具类, 私有构造器防实例化)
 // → Rust 自由函数模块无实例化概念, 天然满足
 
-use crate::physics_constants::{
+use crate::base::physics_constants::{
     KELVIN_OFFSET, PRESSURE_ALTITUDE_COEFF, PRESSURE_ALTITUDE_EXP, R_SPECIFIC_AIR,
     SEA_LEVEL_DENSITY, SEA_LEVEL_PRESSURE, TEMP_LAPSE_RATE,
 };

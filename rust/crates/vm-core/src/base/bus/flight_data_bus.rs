@@ -22,9 +22,9 @@ use std::any::Any;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::Arc;
 
-use crate::bus::{EventBus, Subscription};
-use crate::event::flight_data_event::FlightDataEvent;
-use crate::event::flight_data_listener::FlightDataListener;
+use crate::base::bus::{EventBus, Subscription};
+use crate::base::event::flight_data_event::FlightDataEvent;
+use crate::base::event::flight_data_listener::FlightDataListener;
 
 /// Event Bus for Flight Data communication. (类注释见模块头, 逐字保留)
 ///

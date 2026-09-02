@@ -141,7 +141,7 @@ fn build_aux_window(
         Some(Ok(())) | None => {}
         // 定位失败不阻开窗 (窗口仍由系统默认放置)
         Some(Err(e)) => {
-            vm_core::logger::warn("WebWindows", &format!("辅助窗口定位失败 ({label}): {e}"));
+            vm_core::base::logger::warn("WebWindows", &format!("辅助窗口定位失败 ({label}): {e}"));
         }
     }
     let _ = win.set_focus();

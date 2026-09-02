@@ -1,6 +1,6 @@
 //! 对应 Java: `src/ui/window/comparison/logic/rules/MultiListIndexRule.java` (一比一翻译)
 
-use crate::comparison::comparison_rule::ComparisonRule;
+use crate::ui_support::comparison::comparison_rule::ComparisonRule;
 
 /// Rule that extracts a value from a specific position in nested lists.
 ///

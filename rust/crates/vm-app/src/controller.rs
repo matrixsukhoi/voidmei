@@ -6,20 +6,20 @@ use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use vm_core::bus::Subscription;
-use vm_core::config_api::ConfigProvider;
-use vm_core::configuration_service::ConfigurationService;
+use vm_core::base::bus::Subscription;
+use vm_core::config::config_api::ConfigProvider;
+use vm_core::config::configuration_service::ConfigurationService;
 use crate::controller_state::ControllerState;
-use vm_core::event::flight_data_event::FlightDataEvent;
-use vm_core::event::ui_state_events;
-use vm_core::flight_data_bus::FlightDataBus;
-use vm_core::flight_log::FlightLogSlot;
+use vm_core::base::event::flight_data_event::FlightDataEvent;
+use vm_core::base::event::ui_state_events;
+use vm_core::base::bus::flight_data_bus::FlightDataBus;
+use vm_core::derived::flight_log::FlightLogSlot;
 use vm_core::fm::{FMManager, FMStatus};
-use vm_core::http_helper::HttpHelper;
+use vm_core::telemetry::http::HttpHelper;
 use vm_core::lang::Lang;
-use vm_core::logger;
-use vm_core::ui_state_bus::UIStateBus;
-use vm_core::voice_resource_manager::VoiceResourceManager;
+use vm_core::base::logger;
+use vm_core::base::bus::ui_state_bus::UIStateBus;
+use vm_core::audio::voice_resource_manager::VoiceResourceManager;
 
 use vm_data::service_loop::{
     flight_log_snapshot, start as spawn_service_thread, Service, ServiceAnalyzerSource,
@@ -43,7 +43,7 @@ use crate::win32::ChannelFocusBridge;
 /// "停 tick" — Rust 以清槽表达 (槽 None ⇒ Service 轮询 logTick 短路)。
 /// true 分支无 Java 写点, 空实现。
 struct LogonSink(FlightLogSlot);
-impl vm_core::flight_log::ControllerLogSink for LogonSink {
+impl vm_core::derived::flight_log::ControllerLogSink for LogonSink {
     fn set_logon(&self, logon: bool) {
         if !logon {
             *self.0.lock().expect("flight_log 槽锁中毒") = None;
@@ -84,7 +84,7 @@ pub struct Controller {
     ui_cmd_tx: Sender<UiCommand>,
     env: Env,
     /// stop 步2 退订的订阅句柄 (RAII Drop = unsubscribe, 对位 Java unsubscribe+置 null)
-    subs: Vec<Subscription<vm_core::ui_state_bus::UiStateEvent>>,
+    subs: Vec<Subscription<vm_core::base::bus::ui_state_bus::UiStateEvent>>,
     fm_sub: Option<Subscription<vm_core::fm::FMHandle>>,
     /// live 事件活跃度订阅 (B1 补偿信号, 见 ControllerShared.last_flight_event_ms;
     /// start 建 / stop 退 — 回调在 Service 发布线程, 只写原子时间戳不碰 UI)
@@ -154,14 +154,14 @@ impl Controller {
         let tx = main_event_tx.clone();
         c.subs.push(ui_bus.subscribe(
             ui_state_events::CONFIG_CHANGED,
-            move |ev: &vm_core::ui_state_bus::UiStateEvent| {
+            move |ev: &vm_core::base::bus::ui_state_bus::UiStateEvent| {
                 let _ = tx.send(MainEvent::ConfigChanged(ev.data.clone().unwrap_or_default()));
             },
         ));
         let tx = main_event_tx.clone();
         c.subs.push(ui_bus.subscribe(
             ui_state_events::UI_READY,
-            move |_ev: &vm_core::ui_state_bus::UiStateEvent| {
+            move |_ev: &vm_core::base::bus::ui_state_bus::UiStateEvent| {
                 let _ = tx.send(MainEvent::UiReady);
             },
         ));
@@ -337,7 +337,7 @@ impl Controller {
                 .get_config("autoHideOnFocusLoss")
                 .map(|v| java_parse_boolean(&v))
                 .unwrap_or(false);
-            let mut fm = vm_core::focus_monitor::FocusMonitor::new(
+            let mut fm = vm_core::platform::focus_monitor::FocusMonitor::new(
                 Arc::new(vm_overlay::platform_extras::WindowsFocusDetector),
                 Arc::new(ChannelFocusBridge {
                     tx: self.ui_cmd_tx.clone(),
@@ -548,7 +548,7 @@ impl Controller {
         // FlightLog 本体的降级行为不动 (vm-core tests.rs "records/ 缺失" 用例钉住)。
         // 创建失败 (只读介质等) 不拦截 — 后续 init 按原降级路径走。
         let _ = std::fs::create_dir_all("records");
-        let mut log = vm_core::flight_log::FlightLog::new();
+        let mut log = vm_core::derived::flight_log::FlightLog::new();
         log.init(
             Arc::new(LogonSink(Arc::clone(&self.flight_log))),
             &snap,
@@ -561,7 +561,7 @@ impl Controller {
                 "enableAltInformation",
                 self.config.get_config("enableAltInformation"),
             )]))),
-            Arc::new(|t: &str| logger::info("FlightLog", t)) as vm_core::flight_log::NotifySink,
+            Arc::new(|t: &str| logger::info("FlightLog", t)) as vm_core::derived::flight_log::NotifySink,
             Arc::new(ServiceAnalyzerSource::new(data)),
         );
         // 注: init 失败路径的 xc.logon=false (FlightLog.java:409) 被 Java openpad:375

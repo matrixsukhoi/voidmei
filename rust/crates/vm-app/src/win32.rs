@@ -8,20 +8,20 @@ use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use vm_core::activation_strategy::{ActivationContext, ActivationStrategy};
-use vm_core::bus::Subscription;
-use vm_core::config_api::ConfigProvider;
-use vm_core::event::event_payload::EventPayload;
-use vm_core::event::flight_data_event::FlightDataEvent;
-use vm_core::event::ui_state_events;
-use vm_core::flight_data_bus::FlightDataBus;
+use vm_core::activation::strategy::{ActivationContext, ActivationStrategy};
+use vm_core::base::bus::Subscription;
+use vm_core::config::config_api::ConfigProvider;
+use vm_core::base::event::event_payload::EventPayload;
+use vm_core::base::event::flight_data_event::FlightDataEvent;
+use vm_core::base::event::ui_state_events;
+use vm_core::base::bus::flight_data_bus::FlightDataBus;
 use vm_core::fm::FMManager;
 use vm_core::formula::registry::FormulaView as _; // var_value 取数唯一接口 (W10 后 TelemetrySource 已删)
-use vm_core::hud_calculator::HudColors;
+use vm_core::derived::hud_calculator::HudColors;
 use vm_core::lang::Lang;
-use vm_core::logger;
-use vm_core::ui_state_bus::UIStateBus;
-use vm_core::voice_resource_manager::VoiceResourceManager;
+use vm_core::base::logger;
+use vm_core::base::bus::ui_state_bus::UIStateBus;
+use vm_core::audio::voice_resource_manager::VoiceResourceManager;
 
 use vm_overlay::host::OverlayHost;
 use vm_overlay::hotkey::HotkeyEvent;
@@ -187,7 +187,7 @@ pub(crate) struct ChannelFocusBridge {
     pub(crate) shared: Arc<ControllerShared>,
 }
 
-impl vm_core::focus_monitor::AlwaysOnTopCoordinatorApi for ChannelFocusBridge {
+impl vm_core::platform::focus_monitor::AlwaysOnTopCoordinatorApi for ChannelFocusBridge {
     fn is_overlays_hidden(&self) -> bool {
         self.shared.overlays_hidden.load(Ordering::SeqCst)
     }
@@ -458,7 +458,7 @@ pub(crate) fn feed_overlays_live(
     payload: &EventPayload,
     shared: &ControllerShared,
     fm: &FMManager,
-    settings: &vm_core::config_api::HudSettingsSnapshot,
+    settings: &vm_core::config::config_api::HudSettingsSnapshot,
     lang: &Lang,
     attitude_feed: &mut AttitudeFeedState,
 ) {
@@ -694,7 +694,7 @@ pub fn win32_thread_main(cfg: Win32ThreadConfig) {
     // FM_CHANGED 载荷 = FMHandle (fm_manager 强类型总线, Java instanceof 过滤由
     // 类型免除)。blkx 深拷一次进通道 (FMHandle.blkx 值字段 → 句柄侧 Arc<Blkx>;
     // 换机事件低频, 成本可忽略)
-    let (fm_data_tx, fm_data_rx) = std::sync::mpsc::channel::<Option<vm_core::fmdata::FmData>>();
+    let (fm_data_tx, fm_data_rx) = std::sync::mpsc::channel::<Option<vm_core::fm::data::FmData>>();
     let _fm_changed_sub = fm.fm_changed_bus().subscribe(move |h| {
         let _ = fm_data_tx.send(h.fmdata.clone());
     });

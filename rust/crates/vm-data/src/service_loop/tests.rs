@@ -7,7 +7,7 @@ use std::net::{TcpListener, TcpStream};
 use std::process::{Child, Command, Stdio};
 use std::sync::atomic::AtomicU32;
 use std::time::Duration;
-use vm_core::bus::EventBus;
+use vm_core::base::bus::EventBus;
 use vm_core::fm::status::FMStatus;
 
 /// 真机抓取的 /state 快照 (state.rs / service_fields.rs 测试同源,
@@ -257,7 +257,7 @@ fn update_speed_ratio_and_stall_speed_oracle() {
     if !std::path::Path::new(&phys).exists() {
         return; // data/ 未解包
     }
-    let fmdata = vm_core::fmdata::FmData::parse_named_json(&phys, "fm/spitfire_f24.blk").unwrap();
+    let fmdata = vm_core::fm::data::FmData::parse_named_json(&phys, "fm/spitfire_f24.blk").unwrap();
     let fm = FMHandle::ready(Some("spitfire_f24".to_string()), Some(fmdata), 0.0, 0.0, None);
 
     // W3: 两方法消解 — 公式接管 (formula_step 驱动, oracle 数值不变);
@@ -614,7 +614,7 @@ fn mock_e2e_s2_preview_live() {
 
 /// ControllerLogSink no-op (本测试不覆盖 init 失败路径, 见 vm-core flight_log 测试)
 struct NopSink;
-impl vm_core::flight_log::ControllerLogSink for NopSink {
+impl vm_core::derived::flight_log::ControllerLogSink for NopSink {
     fn set_logon(&self, _logon: bool) {}
 }
 
@@ -655,7 +655,7 @@ fn flight_log_tick_writes_rows_and_close_flushes() {
             d.s_indic.as_mut().unwrap().r#type = Some("bf-109e-4".to_string());
         }
         // FlightLog init (表头落盘) 并入槽 = Java openpad 的 Log=new + init
-        let mut fl = vm_core::flight_log::FlightLog::new();
+        let mut fl = vm_core::derived::flight_log::FlightLog::new();
         let snap = flight_log_snapshot(&read_data(&svc.data));
         fl.init(
             Arc::new(NopSink),
@@ -755,7 +755,7 @@ fn formula_step_evaluates_and_guards_mach() {
     }
     // (3) 有 FM: 接管生效 (READY 句柄; blkx 最小有效形态)
     let fmdata = {
-        let mut b = vm_core::fmdata::FmData::default();
+        let mut b = vm_core::fm::data::FmData::default();
         b.valid = true;
         b
     };

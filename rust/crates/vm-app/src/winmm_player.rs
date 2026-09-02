@@ -1,5 +1,5 @@
 //! vm-app 语音播放平台件: winmm **waveOut 每路独立流**实现
-//! `vm_core::voice_resource_manager::{SoundPlayer, SoundClip}` (D7 注入面的组装腿)。
+//! `vm_core::audio::voice_resource_manager::{SoundPlayer, SoundClip}` (D7 注入面的组装腿)。
 //!
 //! ## 播放模型裁决 (语音子系统装配批, 2026-08-28)
 //!
@@ -38,9 +38,9 @@
 #[cfg(not(target_os = "windows"))]
 use std::path::Path;
 #[cfg(not(target_os = "windows"))]
-use vm_core::voice_resource_manager::SoundClip;
+use vm_core::audio::voice_resource_manager::SoundClip;
 
-use vm_core::voice_resource_manager::{SoundError, SoundPlayer};
+use vm_core::audio::voice_resource_manager::{SoundError, SoundPlayer};
 
 // =====================================================================
 // WAV PCM 解析 (纯函数, 跨平台可测 — vm-overlay parse_wav_duration 的姊妹面)
@@ -183,8 +183,8 @@ mod winmm {
     use std::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
     use std::sync::Mutex;
 
-    use vm_core::logger;
-    use vm_core::voice_resource_manager::{SoundClip, SoundError, SoundPlayer};
+    use vm_core::base::logger;
+    use vm_core::audio::voice_resource_manager::{SoundClip, SoundError, SoundPlayer};
 
     use super::{parse_wav_pcm, scale_pcm_into};
     use windows::core::PSTR;

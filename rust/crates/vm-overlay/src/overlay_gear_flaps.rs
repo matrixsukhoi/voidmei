@@ -14,8 +14,8 @@ use crate::host::{OverlaySpec, ReinitFn};
 use crate::reinit::ReinitParams;
 use crate::render2d::PixCanvas;
 use crate::primitives::{ring1px, text_shaded_auto};
-use vm_core::format::java_round_f64;
-use vm_core::format::java_round_f32;
+use vm_core::base::format::java_round_f64;
+use vm_core::base::format::java_round_f32;
 use vm_core::formula::registry::FormulaView;
 use vm_core::lang::Lang;
 
@@ -263,7 +263,7 @@ pub fn gear_flaps_overlay_spec(
             (Ok(n), Ok(l)) => (Rc::new(n), Rc::new(l)),
             (r, _) => {
                 if let Err(e) = r {
-                    vm_core::logger::error("GearFlaps", &format!("reinit 字体重载失败: {}", e));
+                    vm_core::base::logger::error("GearFlaps", &format!("reinit 字体重载失败: {}", e));
                 }
                 return None;
             }

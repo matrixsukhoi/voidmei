@@ -1,6 +1,6 @@
 use super::*;
-use crate::config_loader::ConfigValue;
-use crate::ui_state_bus::UiStateEvent;
+use crate::config::config_loader::ConfigValue;
+use crate::base::bus::ui_state_bus::UiStateEvent;
 use std::fs;
 use std::path::Path;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -33,13 +33,13 @@ fn svc_bus(
 ) -> (
     ConfigurationService,
     Arc<Mutex<Vec<UiStateEvent>>>,
-    crate::bus::Subscription<UiStateEvent>,
+    crate::base::bus::Subscription<UiStateEvent>,
 ) {
-    let bus = Arc::new(crate::ui_state_bus::UIStateBus::new());
+    let bus = Arc::new(crate::base::bus::ui_state_bus::UIStateBus::new());
     let log = Arc::new(Mutex::new(Vec::new()));
     let l2 = Arc::clone(&log);
     let sub = bus.subscribe(
-        crate::event::ui_state_events::CONFIG_CHANGED,
+        crate::base::event::ui_state_events::CONFIG_CHANGED,
         move |ev: &UiStateEvent| l2.lock().unwrap().push(ev.clone()),
     );
     let s = ConfigurationService::new(Some(bus));
@@ -177,11 +177,11 @@ fn set_config_event_payloads_via_bus() {
 #[test]
 fn set_config_without_layout_noop() {
     // 单总线 + 记录器订阅保活 + 未装载布局的服务
-    let bus = Arc::new(crate::ui_state_bus::UIStateBus::new());
+    let bus = Arc::new(crate::base::bus::ui_state_bus::UIStateBus::new());
     let log = Arc::new(Mutex::new(Vec::new()));
     let l2 = Arc::clone(&log);
     let _sub = bus.subscribe(
-        crate::event::ui_state_events::CONFIG_CHANGED,
+        crate::base::event::ui_state_events::CONFIG_CHANGED,
         move |ev: &UiStateEvent| l2.lock().unwrap().push(ev.clone()),
     );
     let s = ConfigurationService::new(Some(bus));
@@ -269,7 +269,7 @@ fn reset_all_layout_defaults_no_change() {
 /// 沙箱用例加大暴露窗口后实测复现; group_position_read_write_roundtrip 同款锁)
 #[test]
 fn import_reset_failure_paths() {
-    let _cwd = crate::config_manager::CWD_LOCK.lock().expect("cwd 测试锁中毒");
+    let _cwd = crate::config::config_manager::CWD_LOCK.lock().expect("cwd 测试锁中毒");
     let _guard = UserCfgGuard;
     let (s, log, _sub) = svc_bus("(panel \"P\")");
     assert!(!s.import_config("definitely_missing_zzz.cfg"));
@@ -285,7 +285,7 @@ fn group_position_read_write_roundtrip() {
     // 跨模块 CWD 锁 (config_manager::CWD_LOCK, 审查 B4): 落盘走全局路径
     // ./ui_layout.user.cfg, 须与 config_manager 的 chdir 型沙箱测试互斥 —
     // 并行时本测试的落盘会写进他人沙箱 (实测曾打挂 reset_to_factory 断言)
-    let _cwd = crate::config_manager::CWD_LOCK.lock().expect("cwd 测试锁中毒");
+    let _cwd = crate::config::config_manager::CWD_LOCK.lock().expect("cwd 测试锁中毒");
     let _guard = UserCfgGuard; // save_group_position 落盘 → Drop 清理 ./ui_layout.user.cfg
     let s = svc("(panel \"飞行信息\" :x 0.0602 :y 0.1188)");
     // 读: 归一化原值 (忽略大小写, 对齐视图 getGroupConfig 语义)

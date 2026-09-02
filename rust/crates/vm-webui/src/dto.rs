@@ -3,7 +3,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use vm_core::config_loader::{ConfigValue, GroupConfig, RowConfig};
+use vm_core::config::config_loader::{ConfigValue, GroupConfig, RowConfig};
 
 /// 一个设置 panel (= Java WebTabbedPane 一页)
 #[derive(Debug, Clone, Serialize)]

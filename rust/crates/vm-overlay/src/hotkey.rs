@@ -37,7 +37,7 @@ use std::collections::HashMap;
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex};
 
-use vm_core::logger;
+use vm_core::base::logger;
 
 #[cfg(target_os = "windows")]
 use std::cell::RefCell;

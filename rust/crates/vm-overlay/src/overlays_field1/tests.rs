@@ -205,22 +205,22 @@ fn butt_line_width2_aa_coverage() {
 #[test]
 fn vis_expr_semantics() {
     let t = MockTele::default(); // piston=true, jet=false
-    assert!(!vm_core::row_def::Cond::IsJetEngine.eval(&t, 0.0));
-    assert!(vm_core::row_def::Cond::IsPistonEngine.eval(&t, 0.0));
-    assert!(!vm_core::row_def::Cond::HasWep.eval(&t, 0.0));
-    assert!(vm_core::row_def::Cond::Gt(0.0).eval(&t, 0.1));
-    assert!(!vm_core::row_def::Cond::Gt(0.0).eval(&t, 0.0));
-    assert!(vm_core::row_def::Cond::Lte(0.0).eval(&t, 0.0));
-    assert!(vm_core::row_def::Cond::Eq(1.0).eval(&t, 1.00001));
-    assert!(!vm_core::row_def::Cond::Eq(1.0).eval(&t, 1.0002));
+    assert!(!vm_core::ui_support::row_def::Cond::IsJetEngine.eval(&t, 0.0));
+    assert!(vm_core::ui_support::row_def::Cond::IsPistonEngine.eval(&t, 0.0));
+    assert!(!vm_core::ui_support::row_def::Cond::HasWep.eval(&t, 0.0));
+    assert!(vm_core::ui_support::row_def::Cond::Gt(0.0).eval(&t, 0.1));
+    assert!(!vm_core::ui_support::row_def::Cond::Gt(0.0).eval(&t, 0.0));
+    assert!(vm_core::ui_support::row_def::Cond::Lte(0.0).eval(&t, 0.0));
+    assert!(vm_core::ui_support::row_def::Cond::Eq(1.0).eval(&t, 1.00001));
+    assert!(!vm_core::ui_support::row_def::Cond::Eq(1.0).eval(&t, 1.0002));
     // f64 边界: 字面量 1.0001-1.0 实际差 ≈ 9.9999e-5 < 0.0001 → 视为相等
     // (vm-core 求值器测试同款 oracle: "(= value 1)" 对 1.0001 为 true)
-    assert!(vm_core::row_def::Cond::Eq(1.0).eval(&t, 1.0001));
-    assert!(!vm_core::row_def::Cond::NotEq(1.0).eval(&t, 1.0001));
-    assert!(!vm_core::row_def::Cond::NotEq(1.0).eval(&t, 1.0));
-    let not_jet = vm_core::row_def::Cond::Not(Box::new(vm_core::row_def::Cond::IsJetEngine));
+    assert!(vm_core::ui_support::row_def::Cond::Eq(1.0).eval(&t, 1.0001));
+    assert!(!vm_core::ui_support::row_def::Cond::NotEq(1.0).eval(&t, 1.0001));
+    assert!(!vm_core::ui_support::row_def::Cond::NotEq(1.0).eval(&t, 1.0));
+    let not_jet = vm_core::ui_support::row_def::Cond::Not(Box::new(vm_core::ui_support::row_def::Cond::IsJetEngine));
     assert!(not_jet.eval(&t, 0.0));
-    let and = vm_core::row_def::Cond::And(Box::new(vm_core::row_def::Cond::IsPistonEngine), Box::new(vm_core::row_def::Cond::NotEq(1.0)));
+    let and = vm_core::ui_support::row_def::Cond::And(Box::new(vm_core::ui_support::row_def::Cond::IsPistonEngine), Box::new(vm_core::ui_support::row_def::Cond::NotEq(1.0)));
     assert!(and.eval(&t, 0.98));
     assert!(!and.eval(&t, 1.0));
 }
@@ -375,7 +375,7 @@ fn marked_gauge_vertical_geometry() {
 // ---- PowerInfo ----
 
 /// 测试 defs: 从仓库 ui_layout.cfg 编译 "动力信息" 19 行 (与生产同源)
-fn defs19() -> std::sync::Arc<Vec<vm_core::row_def::RowDef>> {
+fn defs19() -> std::sync::Arc<Vec<vm_core::ui_support::row_def::RowDef>> {
     std::sync::Arc::new(crate::flight_info::cfg_rows("动力信息"))
 }
 
@@ -384,7 +384,7 @@ fn defs19() -> std::sync::Arc<Vec<vm_core::row_def::RowDef>> {
 /// TIME_MM_SS) 与原静态表逐值一致 — cfg 是行定义唯一来源的守卫锚
 #[test]
 fn power_field_defs_snapshot() {
-    use vm_core::row_def::{Cond, DisplayMode, FormatKind};
+    use vm_core::ui_support::row_def::{Cond, DisplayMode, FormatKind};
     let defs = crate::flight_info::cfg_rows("动力信息");
     assert_eq!(defs.len(), 19);
     assert_eq!(defs[0].label, "功  率");
@@ -455,7 +455,7 @@ fn power_info_update_paths() {
     t.manifold = 44.6;
     assert!(st.update(300, &t));
     let m = st.fields().iter().find(|x| x.label == "进气压").unwrap();
-    let inhg = vm_core::format::format(44.6 * 760.0 / 25.4, 1);
+    let inhg = vm_core::base::format::format(44.6 * 760.0 / 25.4, 1);
     assert_eq!(m.unit, format!("P/{inhg}''"));
     assert_eq!(m.buffer, "44.6");
     assert_eq!(m.precision, 1);

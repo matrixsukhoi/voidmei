@@ -1,6 +1,6 @@
 use super::*;
 use crate::renderers::test_util::MapCtx;
-use vm_core::config_loader::ConfigValue;
+use vm_core::config::config_loader::ConfigValue;
 
 fn switch_row(prop: Option<&str>, value: Option<bool>) -> RowConfig {
     let mut r = RowConfig::new("开关".into(), None, "%s".into());

@@ -14,7 +14,7 @@
 //! 保真保留; 玩家定位实际由 getPlayerLoc/getPlayerDir 正则路径承担 (Service 在用)。
 
 use super::char_len_at;
-use crate::string_helper::{get_data_float, get_data_int};
+use crate::base::string_helper::{get_data_float, get_data_int};
 
 /// Java `while (t.charAt(eix) != c) eix++;` 的整字符步进等价 (§2.1, 域 ASCII)
 macro_rules! scan_until {

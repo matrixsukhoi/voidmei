@@ -20,19 +20,19 @@
 //!
 //! PORT: Java `public final class FMLoader` + `private FMLoader() {}` 私有构造器的
 //! 纯静态工具类 → Rust 模块自由函数 (fm_data_paths.rs 同款先例); "唯一解析点"
-//! = [`crate::fmdata::reader`] 全量装载 (blkx→json 迁移: FM 数据源为 JSON)。
+//! = [`crate::fm::data::reader`] 全量装载 (blkx→json 迁移: FM 数据源为 JSON)。
 //! PORT: 线程模型 — Java 在 FM-Loader 线程调用 → 保持同步函数, 线程由
 //! Manager/调用方管 (无自起线程)。
 
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use crate::fmdata::json::{extract_fuel_modifications_json, get_last_string_ci};
-use crate::fmdata::{FmData, FuelModification, FuelType};
+use crate::fm::data::json::{extract_fuel_modifications_json, get_last_string_ci};
+use crate::fm::data::{FmData, FuelModification, FuelType};
 use crate::fm::data_paths;
 use crate::fm::handle::FMHandle;
 use crate::fm::power_extractor::{extract_stages_with_fuel, is_piston_engine};
-use crate::logger;
+use crate::base::logger;
 use crate::fm::piston_model::peak_wep_power;
 
 /// 白盒测试计数器：FMLoader.load 真正执行（进入加载流程）的次数

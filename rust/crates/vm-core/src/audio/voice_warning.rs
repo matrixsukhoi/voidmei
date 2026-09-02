@@ -73,17 +73,17 @@ use std::time::{Duration, Instant};
 
 use crate::audio::voice_pack_config::VOICE_PREFIX;
 use crate::audio::{VoiceAlertType, VoicePackConfig};
-use crate::fmdata::FmData;
-use crate::bus::Subscription;
-use crate::config_api::ConfigProvider;
-use crate::event::flight_data_event::FlightDataEvent;
-use crate::event::ui_state_events;
-use crate::flight_data_bus::FlightDataBus;
+use crate::fm::data::FmData;
+use crate::base::bus::Subscription;
+use crate::config::config_api::ConfigProvider;
+use crate::base::event::flight_data_event::FlightDataEvent;
+use crate::base::event::ui_state_events;
+use crate::base::bus::flight_data_bus::FlightDataBus;
 use crate::fm::FMManager;
-use crate::logger;
-use crate::parser::{Indicators, State};
-use crate::ui_state_bus::{UIStateBus, UiStateEvent};
-use crate::voice_resource_manager::{SoundClip, SoundPlayer, VoiceResourceManager};
+use crate::base::logger;
+use crate::telemetry::parser::{Indicators, State};
+use crate::base::bus::ui_state_bus::{UIStateBus, UiStateEvent};
+use crate::audio::voice_resource_manager::{SoundClip, SoundPlayer, VoiceResourceManager};
 
 /// clip 槽位锁中毒消息 (Java 无锁; 对应持锁线程崩溃后的一致性未知面)
 const CLIP_LOCK_MSG: &str = "VoiceAlert clip 锁中毒";
@@ -1365,7 +1365,7 @@ impl VoiceWarning {
 /// 角落偏差: 进入时 doit 已 false 则立即返回; Java 的 sleepQuietly(1000) 是
 /// 无条件睡眠 (init(None)/已停机角落会残留 1 秒线程) — 无 join 方, 外部行为
 /// 无差异。
-/// PORT: [`crate::exception_helper::sleep_quietly`] 的 stop 语义是 **true=停**,
+/// PORT: [`crate::base::exception_helper::sleep_quietly`] 的 stop 语义是 **true=停**,
 /// 本类 doit 是 **true=运行**, 极性相反且 AtomicBool 无反视图可复用, 就地写
 /// 翻转版 (§6 跨文件观察, 只上报不越文件修; 双审查复核属实):
 /// other_service.rs:366 与 flight_log.rs:926 把 true=运行 的标志 (is_run/

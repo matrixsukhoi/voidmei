@@ -20,7 +20,7 @@
 //! 消息 → 仅在解析出合法完整色串时发 ColorPicked (部分输入静默)。D9 后提交时机
 //! 归 web 壳 (JS 输入框), Message::ColorPicked 消息形状不变。
 
-use vm_core::config_loader::{ConfigValue, GroupConfig, RowConfig};
+use vm_core::config::config_loader::{ConfigValue, GroupConfig, RowConfig};
 use crate::row_renderer_registry::RenderContext;
 
 use super::{find_row_path, row_by_path, row_by_path_mut};

@@ -9,12 +9,12 @@
 
 use super::types::EngineLoad;
 use super::FmData;
-use crate::g;
+use crate::base::physics_constants::g;
 
 /// 通用 sweep 插值承接说明 (对应 Java 私有方法 `interpolateSweepDouble`, L718-737):
 /// 原码将 sweepLevels 逐元素拷入临时数组后做区间线性插值。按项目规约
 /// (CLAUDE.md "Use Interpolation for all interpolation / Never duplicate") 与任务指令,
-/// 本文件统一改经 [`crate::interpolation::interp_sweep_level`] (该函数即 Java
+/// 本文件统一改经 [`crate::base::interpolation::interp_sweep_level`] (该函数即 Java
 /// `Interpolation.interpSweepLevel` 的一比一翻译), 区间比较与线性公式逐句同构。
 /// 语义差 (病态域, 真机 FM 不可达, 两处标注):
 /// 1. 原码 `range == 0` 精确判零返回 values[i], lerp 为 `|Δ| < 1e-9` 提前返回 y0 —
@@ -46,7 +46,7 @@ impl FmData {
             .iter()
             .map(|l| (l.sweep, l.no_flaps.as_ref().unwrap().aoa_crit_high))
             .collect();
-        crate::interpolation::interp_sweep_level(
+        crate::base::interpolation::interp_sweep_level(
             vwing,
             Some(&pairs),
             |p| p.1,
@@ -68,7 +68,7 @@ impl FmData {
             .iter()
             .map(|l| (l.sweep, l.no_flaps.as_ref().unwrap().aoa_crit_low))
             .collect();
-        crate::interpolation::interp_sweep_level(
+        crate::base::interpolation::interp_sweep_level(
             vwing,
             Some(&pairs),
             |p| p.1,
@@ -82,7 +82,7 @@ impl FmData {
         if self.sweep_levels.as_ref().is_none_or(|l| l.len() <= 1) {
             return self.vne;
         }
-        crate::interpolation::interp_sweep_level(
+        crate::base::interpolation::interp_sweep_level(
             vwing,
             self.sweep_levels.as_deref(),
             |l| l.vne,
@@ -96,7 +96,7 @@ impl FmData {
         if self.sweep_levels.as_ref().is_none_or(|l| l.len() <= 1) {
             return self.vne_mach;
         }
-        crate::interpolation::interp_sweep_level(
+        crate::base::interpolation::interp_sweep_level(
             vwing,
             self.sweep_levels.as_deref(),
             |l| l.vne_mach,

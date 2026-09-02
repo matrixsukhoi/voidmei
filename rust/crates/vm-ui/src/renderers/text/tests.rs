@@ -1,7 +1,7 @@
 use super::*;
 use crate::main_form::{update, Message};
 use crate::renderers::test_util::{state_from_cfg, MapCtx};
-use vm_core::config_loader::ConfigValue;
+use vm_core::config::config_loader::ConfigValue;
 
 fn text_row(prop: Option<&str>, value: Option<&str>) -> RowConfig {
     let mut r = RowConfig::new("端口".into(), None, "%s".into());

@@ -28,8 +28,8 @@
 
 use crate::primitives::vline_1px;
 use crate::primitives;
-use vm_core::format;
-use vm_core::format::java_round_f32;
+use vm_core::base::format;
+use vm_core::base::format::java_round_f32;
 use crate::global_colors::colors;
 use crate::font::LoadedFont;
 use crate::render2d::PixCanvas;

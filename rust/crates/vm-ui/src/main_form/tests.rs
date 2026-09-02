@@ -1,5 +1,5 @@
 use super::*;
-use vm_core::config_loader::ConfigValue;
+use vm_core::config::config_loader::ConfigValue;
 
 const TEST_CFG: &str = r#"(panel "面板A" :panel-columns 2
   (group "组1"
@@ -27,14 +27,14 @@ fn tmp_path(name: &str) -> String {
 fn mk_state(
     name: &str,
     persist: Option<String>,
-) -> (MainFormState, Arc<Mutex<Vec<UiStateEvent>>>, vm_core::bus::Subscription<UiStateEvent>) {
+) -> (MainFormState, Arc<Mutex<Vec<UiStateEvent>>>, vm_core::base::bus::Subscription<UiStateEvent>) {
     let p = tmp_path(name);
     std::fs::write(&p, TEST_CFG).unwrap();
-    let bus = Arc::new(vm_core::ui_state_bus::UIStateBus::new());
+    let bus = Arc::new(vm_core::base::bus::ui_state_bus::UIStateBus::new());
     let seen: Arc<Mutex<Vec<UiStateEvent>>> = Arc::new(Mutex::new(Vec::new()));
     let s2 = Arc::clone(&seen);
     let sub = bus.subscribe(
-        vm_core::event::ui_state_events::CONFIG_CHANGED,
+        vm_core::base::event::ui_state_events::CONFIG_CHANGED,
         move |m: &UiStateEvent| {
             s2.lock().unwrap().push(m.clone());
         },
@@ -147,11 +147,11 @@ fn color_picked_writes_decimal_bus_and_persists() {
         r##"(panel "P" (item "告警色" :type color :target "fontWarn" :value "#FF2400FF"))"##,
     )
     .unwrap();
-    let bus = Arc::new(vm_core::ui_state_bus::UIStateBus::new());
+    let bus = Arc::new(vm_core::base::bus::ui_state_bus::UIStateBus::new());
     let seen: Arc<Mutex<Vec<UiStateEvent>>> = Arc::new(Mutex::new(Vec::new()));
     let s2 = Arc::clone(&seen);
     let _sub = bus.subscribe(
-        vm_core::event::ui_state_events::CONFIG_CHANGED,
+        vm_core::base::event::ui_state_events::CONFIG_CHANGED,
         move |m: &UiStateEvent| {
             s2.lock().unwrap().push(m.clone());
         },
@@ -188,7 +188,7 @@ fn color_picked_writes_decimal_bus_and_persists() {
 fn solo_state(name: &str, cfg: &str, persist: Option<String>) -> MainFormState {
     let p = tmp_path(name);
     std::fs::write(&p, cfg).unwrap();
-    let bus = Arc::new(vm_core::ui_state_bus::UIStateBus::new());
+    let bus = Arc::new(vm_core::base::bus::ui_state_bus::UIStateBus::new());
     let config = ConfigurationService::new(Some(Arc::clone(&bus)));
     config.load_layout(&p);
     MainFormState::new(config, bus, persist)
@@ -285,7 +285,7 @@ fn persist_after_external_reload_keeps_external_values() {
 
     // 交互 2: e2=false → 落盘必须保留外部 e1=true (旧实现写陈旧快照会回滚 e1)
     update(&mut state, Message::Toggle { panel: "P".into(), key: "e2".into(), value: false });
-    let reread = vm_core::config_loader::load_config(&persist);
+    let reread = vm_core::config::config_loader::load_config(&persist);
     let vals: Vec<(String, bool)> = reread[0]
         .rows
         .iter()
@@ -347,19 +347,19 @@ fn counts_and_first_row_of_type() {
 fn write_context_fmprint_special_publishes() {
     let p = tmp_path("fmp");
     std::fs::write(&p, r#"(panel "p" (item "fm" :type switch :target "enableFMPrint" :value true))"#).unwrap();
-    let bus = Arc::new(vm_core::ui_state_bus::UIStateBus::new());
+    let bus = Arc::new(vm_core::base::bus::ui_state_bus::UIStateBus::new());
     // 路由总线: 两类事件各挂一探针, 共享 seen (实际送达序 = publish 序)
     let seen: Arc<Mutex<Vec<UiStateEvent>>> = Arc::new(Mutex::new(Vec::new()));
     let s2 = Arc::clone(&seen);
     let _sub_cfg = bus.subscribe(
-        vm_core::event::ui_state_events::CONFIG_CHANGED,
+        vm_core::base::event::ui_state_events::CONFIG_CHANGED,
         move |m: &UiStateEvent| {
             s2.lock().unwrap().push(m.clone());
         },
     );
     let s3 = Arc::clone(&seen);
     let _sub_fm = bus.subscribe(
-        vm_core::event::ui_state_events::FM_PRINT_SWITCH_CHANGED,
+        vm_core::base::event::ui_state_events::FM_PRINT_SWITCH_CHANGED,
         move |m: &UiStateEvent| {
             s3.lock().unwrap().push(m.clone());
         },
@@ -411,7 +411,7 @@ fn button_action_confirm_executes_reset() {
     }
     let _sandbox = Sandbox { orig, dir: dir.clone() };
 
-    let bus = Arc::new(vm_core::ui_state_bus::UIStateBus::new());
+    let bus = Arc::new(vm_core::base::bus::ui_state_bus::UIStateBus::new());
     let config = ConfigurationService::new(Some(Arc::clone(&bus)));
     config.load_layout("ui_layout.cfg");
     let mut state = MainFormState::new(

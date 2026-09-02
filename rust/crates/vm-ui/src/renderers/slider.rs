@@ -13,7 +13,7 @@
 //!   (D9 后 web 壳沿用同一消息约定)。
 //! - min >= max 防崩溃守卫: max = min + 100 (Java L33-37)。
 
-use vm_core::config_loader::{ConfigValue, GroupConfig, RowConfig};
+use vm_core::config::config_loader::{ConfigValue, GroupConfig, RowConfig};
 use crate::renderer_config_helper;
 use crate::row_renderer_registry::RenderContext;
 

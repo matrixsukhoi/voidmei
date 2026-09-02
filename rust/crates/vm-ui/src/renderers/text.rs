@@ -14,7 +14,7 @@
 //! 逐键提交 (终态等价)。D9 后提交时机归 web 壳 (JS 输入框), Message::Combo
 //! 消息形状不变。
 
-use vm_core::config_loader::{GroupConfig, RowConfig};
+use vm_core::config::config_loader::{GroupConfig, RowConfig};
 use crate::renderer_config_helper;
 use crate::row_renderer_registry::RenderContext;
 

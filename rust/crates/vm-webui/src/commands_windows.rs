@@ -18,16 +18,16 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use vm_core::fmdata::json::extract_fuel_modifications_json;
-use vm_core::fmdata::{FmData, FuelModification, FuelType};
-use vm_core::comparison::comparison_rules::ComparisonRules;
-use vm_core::file_utils::get_file_name_no_ex;
+use vm_core::fm::data::json::extract_fuel_modifications_json;
+use vm_core::fm::data::{FmData, FuelModification, FuelType};
+use vm_core::ui_support::comparison::comparison_rules::ComparisonRules;
+use vm_core::base::file_utils::get_file_name_no_ex;
 use vm_core::fm::data_paths;
 use vm_core::fm::loader;
-use vm_core::fm_power_extractor::{extract_stages_with_fuel, is_piston_engine};
+use vm_core::fm::power_extractor::{extract_stages_with_fuel, is_piston_engine};
 use vm_core::lang::Lang;
-use vm_core::logger;
-use vm_core::piston_power_model::generate_power_curve_advanced;
+use vm_core::base::logger;
+use vm_core::fm::piston_model::generate_power_curve_advanced;
 
 use crate::dto::{
     ComparisonDataDto, ComparisonRowDto, InflectionPointDto, PowerCurveDataDto, PowerCurveDto,

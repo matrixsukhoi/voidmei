@@ -4,7 +4,7 @@
 //! 设计: doc/formula_system_design.md §11
 
 use super::definition::FormulaDef;
-use crate::sexp_parser::{AtomType, SExp, SExpParser};
+use crate::config::sexp_parser::{AtomType, SExp, SExpParser};
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -54,7 +54,7 @@ pub fn parse_rules(src: &str) -> Vec<super::rules::RuleDef> {
 }
 
 /// :actions ((voice "k") (toast "t") (flag "f")) 解析
-fn keyword_actions(list: &crate::sexp_parser::SList) -> Vec<super::rules::RuleAction> {
+fn keyword_actions(list: &crate::config::sexp_parser::SList) -> Vec<super::rules::RuleAction> {
     use super::rules::RuleAction;
     let mut out = Vec::new();
     // 找 :actions 关键字的值 (内层 list of list)
@@ -82,11 +82,11 @@ fn keyword_actions(list: &crate::sexp_parser::SList) -> Vec<super::rules::RuleAc
     out
 }
 
-fn keyword_f64(list: &crate::sexp_parser::SList, kw: &str, def: f64) -> f64 {
+fn keyword_f64(list: &crate::config::sexp_parser::SList, kw: &str, def: f64) -> f64 {
     keyword_string(list, kw).and_then(|v| v.trim().parse().ok()).unwrap_or(def)
 }
 
-fn parse_one(list: &crate::sexp_parser::SList) -> Option<FormulaDef> {
+fn parse_one(list: &crate::config::sexp_parser::SList) -> Option<FormulaDef> {
     let head = list.children.first()?.as_atom().get_string();
     if head != "formula" {
         return None;
@@ -176,7 +176,7 @@ fn escape(s: &str) -> String {
 
 // --- SList 取值小工具 (config_loader 同族函数为私有, 此处自带, 不侵入) ---
 
-fn positional_string(list: &crate::sexp_parser::SList, idx: usize) -> Option<String> {
+fn positional_string(list: &crate::config::sexp_parser::SList, idx: usize) -> Option<String> {
     let a = list.children.get(idx)?.as_atom();
     if matches!(a.r#type, AtomType::String | AtomType::Symbol | AtomType::Keyword) {
         Some(a.value.clone())
@@ -185,7 +185,7 @@ fn positional_string(list: &crate::sexp_parser::SList, idx: usize) -> Option<Str
     }
 }
 
-fn keyword_string(list: &crate::sexp_parser::SList, kw: &str) -> Option<String> {
+fn keyword_string(list: &crate::config::sexp_parser::SList, kw: &str) -> Option<String> {
     let mut i = 0;
     while i + 1 < list.children.len() {
         let k = list.children[i].as_atom();
@@ -197,7 +197,7 @@ fn keyword_string(list: &crate::sexp_parser::SList, kw: &str) -> Option<String> 
     None
 }
 
-fn keyword_int(list: &crate::sexp_parser::SList, kw: &str, def: i32) -> i32 {
+fn keyword_int(list: &crate::config::sexp_parser::SList, kw: &str, def: i32) -> i32 {
     keyword_string(list, kw).and_then(|v| v.trim().parse().ok()).unwrap_or(def)
 }
 

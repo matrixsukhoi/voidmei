@@ -26,8 +26,8 @@ impl RenderCtx {
         let font_size = 24 + font_add;
         RenderCtx {
             font_size,
-            label_font_size: vm_core::format::java_round_f32(font_size as f32 / 2.0),
-            unit_font_size: vm_core::format::java_round_f32(font_size as f32 / 2.0),
+            label_font_size: vm_core::base::format::java_round_f32(font_size as f32 / 2.0),
+            unit_font_size: vm_core::base::format::java_round_f32(font_size as f32 / 2.0),
             column_num,
             num_height,
         }
@@ -53,7 +53,7 @@ impl RenderCtx {
 
     /// 列步进 Math.round(5f * fontSize)
     pub fn advance_x(&self) -> i32 {
-        vm_core::format::java_round_f32(5f32 * self.font_size as f32)
+        vm_core::base::format::java_round_f32(5f32 * self.font_size as f32)
     }
 
     /// 行步进 Math.round(1 * numHeight) = numHeight

@@ -30,15 +30,15 @@ use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 use std::time::Duration;
 
-use vm_core::config_api::ConfigProvider; // get_config/set_config trait 面 (根+tests 经 glob 消费)
-use vm_core::configuration_service::{ConfigurationService, GlobalColors};
-use vm_core::event::ui_state_events;
-use vm_core::flight_data_bus::FlightDataBus;
+use vm_core::config::config_api::ConfigProvider; // get_config/set_config trait 面 (根+tests 经 glob 消费)
+use vm_core::config::configuration_service::{ConfigurationService, GlobalColors};
+use vm_core::base::event::ui_state_events;
+use vm_core::base::bus::flight_data_bus::FlightDataBus;
 use vm_core::fm::FMManager;
 use vm_core::lang::Lang;
-use vm_core::logger;
-use vm_core::ui_state_bus::UIStateBus;
-use vm_core::voice_resource_manager::VoiceResourceManager;
+use vm_core::base::logger;
+use vm_core::base::bus::ui_state_bus::UIStateBus;
+use vm_core::audio::voice_resource_manager::VoiceResourceManager;
 
 use vm_overlay::hotkey::{HotkeyEvent, HotkeyManager};
 
@@ -54,9 +54,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 #[cfg(test)]
 use std::time::Instant;
 #[cfg(test)]
-use vm_core::config_api::HudSettingsSnapshot;
+use vm_core::config::config_api::HudSettingsSnapshot;
 #[cfg(test)]
-use vm_core::event::event_payload::EventPayload;
+use vm_core::base::event::event_payload::EventPayload;
 #[cfg(test)]
 use vm_core::fm::FMStatus;
 #[cfg(test)]
@@ -233,7 +233,7 @@ impl AppShell {
             config,
             ui_bus,
             flight_bus: Arc::new(FlightDataBus::new()),
-            fm: Arc::new(FMManager::new(Arc::new(vm_core::bus::EventBus::new()))),
+            fm: Arc::new(FMManager::new(Arc::new(vm_core::base::bus::EventBus::new()))),
             hotkey,
             hotkey_rx,
             debounce_delay: Duration::from_millis(CONFIG_DEBOUNCE_MS),

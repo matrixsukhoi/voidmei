@@ -7,11 +7,11 @@ use std::sync::{mpsc, Arc, Mutex, RwLock};
 use std::thread;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::bus::EventBus;
-use crate::event::ui_state_events;
+use crate::base::bus::EventBus;
+use crate::base::event::ui_state_events;
 use crate::fm::loader;
 use crate::fm::handle::FMHandle;
-use crate::logger;
+use crate::base::logger;
 
 /// FM 管理器（单例）—— "当前飞机 / FM 加载状态"的单一真相源（P2 重构，issue #55）。
 ///

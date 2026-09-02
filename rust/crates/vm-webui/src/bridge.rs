@@ -6,11 +6,11 @@ use serde::Serialize;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Wry};
-use vm_core::bus::Subscription;
-use vm_core::event::ui_state_events;
+use vm_core::base::bus::Subscription;
+use vm_core::base::event::ui_state_events;
 use vm_core::fm::FmChangedBus;
-use vm_core::logger;
-use vm_core::ui_state_bus::{UIStateBus, UiStateEvent};
+use vm_core::base::logger;
+use vm_core::base::bus::ui_state_bus::{UIStateBus, UiStateEvent};
 
 /// CONFIG_CHANGED → 前端 `config-changed` 事件 (data = 变更键, 如 "ui_layout.cfg")
 /// 前端收到后重拉 get_layout_tree (reset/import 后的整树刷新对位 Java rebuild)。

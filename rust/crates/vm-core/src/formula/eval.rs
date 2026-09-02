@@ -18,7 +18,7 @@ pub struct EvalCtx<'a> {
     /// 对齐 service_fields.rs L368 `ratio=freq/1000f`
     pub interval_ms: f64,
     /// 当前 FM (FM 查表函数族 fm_vne 等的表源; None → NaN 隔离)
-    pub fm_data: Option<&'a crate::fmdata::FmData>,
+    pub fm_data: Option<&'a crate::fm::data::FmData>,
 }
 
 /// 状态原语的私有状态 (键 = (公式槽, 调用点 site))
@@ -351,7 +351,7 @@ fn eval_stateful(fid: FnId, vals: &[f64], site: u32, ctx: &EvalCtx, store: &mut 
 /// (0 级/无 FM → MAX/125), 与被替代代码位级一致。
 /// 共享实现里的 unwrap panic (Java NPE 保真) 以 catch_unwind 收敛为 NaN —
 /// 生产 READY 链表恒 Some 不可达, 防御仅为公式用户免崩 Service 线程。
-fn eval_ctx_fn(fid: FnId, vals: &[f64], fmdata: Option<&crate::fmdata::FmData>) -> f64 {
+fn eval_ctx_fn(fid: FnId, vals: &[f64], fmdata: Option<&crate::fm::data::FmData>) -> f64 {
     use FnId as F;
     let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| match fid {
         F::FmFlapAllowSpeed => {

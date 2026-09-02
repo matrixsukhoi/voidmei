@@ -3,8 +3,8 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-use vm_core::config_api::{ConfigProvider, HudSettingsSnapshot, OverlaySettings};
-use vm_core::configuration_service::{ConfigurationService, GlobalColors};
+use vm_core::config::config_api::{ConfigProvider, HudSettingsSnapshot, OverlaySettings};
+use vm_core::config::configuration_service::{ConfigurationService, GlobalColors};
 
 use crate::controller_shared::ControllerShared;
 use crate::env::{java_parse_boolean, Env};
@@ -82,8 +82,8 @@ pub struct OverlayInputs {
     /// 恒 false — 用户关仪表 Rust 恒显全部, 启动首帧即错, 审查轮 1-B)
     pub engine_disables: [bool; 7],
     /// W-D cfg 驱动行定义 (行开关过滤后)
-    pub flight_rows: std::sync::Arc<Vec<vm_core::row_def::RowDef>>,
-    pub power_rows: std::sync::Arc<Vec<vm_core::row_def::RowDef>>,
+    pub flight_rows: std::sync::Arc<Vec<vm_core::ui_support::row_def::RowDef>>,
+    pub power_rows: std::sync::Arc<Vec<vm_core::ui_support::row_def::RowDef>>,
 }
 
 impl OverlayInputs {
@@ -101,12 +101,12 @@ impl OverlayInputs {
         let fm_print = config.get_overlay_settings("FM拆包数据");
         let attitude = config.get_overlay_settings("地平仪");
         let flight = config.get_overlay_settings("飞行信息");
-        let compile_rows = |title: &str| -> std::sync::Arc<Vec<vm_core::row_def::RowDef>> {
+        let compile_rows = |title: &str| -> std::sync::Arc<Vec<vm_core::ui_support::row_def::RowDef>> {
             match config.get_overlay_settings(title).get_group_config() {
                 Some(gc) => {
                     // 行开关 (is_field_disabled = Java isFieldDisabled): value=false
                     // 的 data 行不进面板 — Rust 侧此前 no-op, W-D 接线修复
-                    let rows = vm_core::row_def::rows_from_group(gc, &|r| {
+                    let rows = vm_core::ui_support::row_def::rows_from_group(gc, &|r| {
                         let key = r.property.clone().unwrap_or_else(|| r.label.clone());
                         ConfigProvider::is_field_disabled(config, &key)
                     });

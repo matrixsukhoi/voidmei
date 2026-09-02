@@ -21,9 +21,9 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use crate::layout::RenderCtx;
-use vm_core::format;
+use vm_core::base::format;
 use vm_core::formula::registry::FormulaView;
-use vm_core::row_def::RowDef;
+use vm_core::ui_support::row_def::RowDef;
 
 use crate::font::Canvas;
 use crate::host::{OverlaySpec, ReinitFn};
@@ -180,7 +180,7 @@ pub fn flight_info_overlay_spec(
         match reinit_handle.borrow_mut().reinit(&reinit_fonts, fa, col, defs) {
             Ok(size) => Some(size),
             Err(e) => {
-                vm_core::logger::error("FlightInfo", &format!("reinit 资源重建失败: {}", e));
+                vm_core::base::logger::error("FlightInfo", &format!("reinit 资源重建失败: {}", e));
                 None
             }
         }
@@ -213,7 +213,7 @@ pub fn flight_info_overlay_spec(
                 render_fields_fixed(canvas, &texts, ctx, fonts, &pal, aa());
                 if !cv.composite_straight_frame(&canvas.buf) {
                     // 不可达 (spec 尺寸 = Canvas 尺寸 = host 画布尺寸); 防御性留痕
-                    vm_core::logger::warn("FlightInfo", "整帧桥尺寸不符, 本帧丢弃");
+                    vm_core::base::logger::warn("FlightInfo", "整帧桥尺寸不符, 本帧丢弃");
                 }
             }),
             reinit: Some(reinit),
@@ -251,14 +251,14 @@ pub(crate) fn canonical_var_name(name: &str) -> Option<String> {
 
 /// 测试面: 从仓库 ui_layout.cfg 编译面板行 (W-D 守卫测试的数据源)
 #[cfg(test)]
-pub(crate) fn cfg_rows(panel: &str) -> Vec<vm_core::row_def::RowDef> {
+pub(crate) fn cfg_rows(panel: &str) -> Vec<vm_core::ui_support::row_def::RowDef> {
     let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../../ui_layout.cfg");
-    let groups = vm_core::config_loader::load_config(path);
+    let groups = vm_core::config::config_loader::load_config(path);
     let gc = groups
         .iter()
         .find(|g| g.title == panel)
         .unwrap_or_else(|| panic!("ui_layout.cfg 应含面板 {panel}"));
-    vm_core::row_def::rows_from_group(gc, &|_| false)
+    vm_core::ui_support::row_def::rows_from_group(gc, &|_| false)
 }
 
 #[cfg(test)]

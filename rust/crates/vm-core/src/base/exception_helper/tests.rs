@@ -144,7 +144,7 @@ fn close_quietly_some_drops_resource() {
     assert!(closed.load(Ordering::SeqCst), "close_quietly 应触发 Drop (= close)");
 }
 
-// ---- log_and_continue: 接 crate::logger, 控制流不变 ----
+// ---- log_and_continue: 接 crate::base::logger, 控制流不变 ----
 
 #[test]
 fn log_and_continue_does_not_panic() {
@@ -214,10 +214,10 @@ fn child_log_and_continue_debug_channel() {
         return;
     }
     // DEBUG 级: 闸门开 → stderr 首行 (Debug repr) + Caused by 链
-    crate::logger::set_min_level(crate::logger::Level::Debug);
+    crate::base::logger::set_min_level(crate::base::logger::Level::Debug);
     log_and_continue(&ChainedErr(TestIoError("root".to_string())), "闸门上下文");
     // INFO 级 (默认): 闸门关 → 仅 WARN 行, stderr 无 printStackTrace 通道输出
-    crate::logger::set_min_level(crate::logger::Level::Info);
+    crate::base::logger::set_min_level(crate::base::logger::Level::Info);
     log_and_continue(&TestIoError("quiet".to_string()), "闸门上下文");
 }
 

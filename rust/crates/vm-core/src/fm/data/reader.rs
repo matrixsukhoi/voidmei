@@ -23,10 +23,10 @@
 use super::json::JsonSrc;
 use super::types::{EngineLoad, FmParts, SweepLevel};
 use super::FmData;
-use crate::g;
+use crate::base::physics_constants::g;
 use crate::lang::Lang;
-use crate::logger;
-use crate::parser::state::MAX_ENG_NUM;
+use crate::base::logger;
+use crate::telemetry::parser::state::MAX_ENG_NUM;
 
 /// [`java_format`] 的实参 (getload fmdata 串构造专用)。
 enum FmtArg {
@@ -34,7 +34,7 @@ enum FmtArg {
     S(String),
     /// Java `%d` (int)
     D(i32),
-    /// Java `%.Mf` (无宽度域; M 位小数 HALF_UP — crate::format 同源语义)
+    /// Java `%.Mf` (无宽度域; M 位小数 HALF_UP — crate::base::format 同源语义)
     F(f64, u8),
 }
 
@@ -107,7 +107,7 @@ fn java_format(tpl: &str, args: &[FmtArg]) -> String {
                 if let FmtArg::F(v, _p) = arg {
                     // 最短往返十进制 HALF_UP (java_f, 非 FastNumberFormatter 的
                     // 二进制半舍入 — 2.675 → "2.68" oracle 钉死)
-                    out.push_str(&crate::format::java_f(*v, prec as usize));
+                    out.push_str(&crate::base::format::java_f(*v, prec as usize));
                 } else {
                     panic!("java_format: %f 收到非 F 实参 (模板 {tpl})");
                 }
@@ -268,10 +268,10 @@ impl FmData {
                 &format!(
                     "Load{} Water/Oil: [{}, {}] WEP/Rec: [{}, {}]",
                     i,
-                    crate::format::format(eng_load[i].water_limit, 1),
-                    crate::format::format(eng_load[i].oil_limit, 1),
-                    crate::format::format(eng_load[i].work_time, 1),
-                    crate::format::format(eng_load[i].recover_time, 1)
+                    crate::base::format::format(eng_load[i].water_limit, 1),
+                    crate::base::format::format(eng_load[i].oil_limit, 1),
+                    crate::base::format::format(eng_load[i].work_time, 1),
+                    crate::base::format::format(eng_load[i].recover_time, 1)
                 ),
             );
         }
@@ -441,7 +441,7 @@ impl FmData {
                     "Jet Engine Thrust Table loaded ({}x{}), peak AFT={} kgf",
                     self.alt_thr_num,
                     self.vel_thr_num,
-                    crate::format::format(self.peak_thr_aft, 0)
+                    crate::base::format::format(self.peak_thr_aft, 0)
                 ),
             );
         } else {

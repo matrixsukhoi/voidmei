@@ -6,8 +6,8 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use vm_core::config_manager;
-use vm_core::configuration_service::ConfigurationService;
+use vm_core::config::config_manager;
+use vm_core::config::configuration_service::ConfigurationService;
 use vm_ui::main_form::{self, MainFormState, Message};
 use vm_app::{AppShell, UiCommand};
 use vm_webui::dto::{FormMessageDto, PanelDto};
@@ -106,7 +106,7 @@ fn dispatch_form(
                         continue;
                     }
                     if let Some(stripped) =
-                        vm_core::file_utils::get_file_name_no_ex(Some(&name))
+                        vm_core::base::file_utils::get_file_name_no_ex(Some(&name))
                     {
                         names.push(stripped.to_string());
                     }
@@ -121,11 +121,11 @@ fn dispatch_form(
         RequestKind::ImportConfig { path } => {
             // Java ConfigImportDialog → ConfigManager.importConfig (备份 + 模板哈希合并)。
             // 成功后由 controller 侧重载 + CONFIG_CHANGED 广播 (前端经 config-changed 重拉树)
-            let ok = vm_core::config_manager::import_config(&path);
+            let ok = vm_core::config::config_manager::import_config(&path);
             if ok {
                 // 重载服务树 + 快照 (对位 Java import 后 rebuild; 与核共享的 config 服务)
                 let mut s = shell.borrow_mut();
-                let user_cfg = vm_core::config_manager::get_user_config_path().to_string();
+                let user_cfg = vm_core::config::config_manager::get_user_config_path().to_string();
                 if let Some(c) = s.controller.as_mut() {
                     c.config.load_layout(&user_cfg);
                 }
@@ -134,7 +134,7 @@ fn dispatch_form(
                 // 广播整树变更 (前端重拉 + overlay 全量刷新, reset 链同款全局键)
                 let s = shell.borrow();
                 s.ui_bus.publish(
-                    vm_core::event::ui_state_events::CONFIG_CHANGED,
+                    vm_core::base::event::ui_state_events::CONFIG_CHANGED,
                     Some("ConfigImport"),
                     Some("ui_layout.cfg"),
                 );
@@ -176,7 +176,7 @@ fn java_parse_boolean(s: &str) -> bool {
 /// cfg 读取对位 Java RenderContext (DynamicDataPage.java:155-174):
 /// getString(key, def) = getConfig 为 null/空 → def; getBool(key, false) 同。
 fn route_open_action(action: &str, shell: &Rc<RefCell<AppShell>>) -> Option<WebWindowRequest> {
-    use vm_core::config_api::ConfigProvider as _;
+    use vm_core::config::config_api::ConfigProvider as _;
 
     let get_string = |key: &str, default: &str| -> String {
         let s = shell
@@ -283,10 +283,10 @@ fn form_message(
 /// 返回保活线程 JoinHandle (审查 B-B1 修复): Java 局部 clip 引用出作用域后
 /// 原生 line 靠 GC finalizer 非确定性延迟释放而自然播完; Rust 确定性 Drop
 /// (RAII close → waveOutReset+Close) 会掐断刚提交的播放 — clip 交
-/// [`vm_core::voice_warning::hold_clip_until_done`] 持至播完 (对位 GC 延迟
+/// [`vm_core::audio::voice_warning::hold_clip_until_done`] 持至播完 (对位 GC 延迟
 /// 语义)。生产调用点忽略返回值; 测试 join 后断言收尾。
 fn preview_voice_clip(
-    mgr: &vm_core::voice_resource_manager::VoiceResourceManager,
+    mgr: &vm_core::audio::voice_resource_manager::VoiceResourceManager,
     key: &str,
     pack: &str,
 ) -> Option<std::thread::JoinHandle<()>> {
@@ -295,7 +295,7 @@ fn preview_voice_clip(
     if let Some(clip) = mgr.load_clip(&p_key, Some(pack)) {
         clip.set_frame_position(0);
         clip.start();
-        Some(vm_core::voice_warning::hold_clip_until_done(clip))
+        Some(vm_core::audio::voice_warning::hold_clip_until_done(clip))
     } else {
         None
     }
@@ -373,7 +373,7 @@ mod tests {
     /// 按给定 cfg 文本建壳 (min_shell 的可配置版; 测试并行各自独立 tmp 文件)
     fn shell_with_cfg(cfg_text: &str, tag: &str) -> Rc<RefCell<AppShell>> {
         use vm_app::ShellParts;
-        let ui_bus = Arc::new(vm_core::ui_state_bus::UIStateBus::new());
+        let ui_bus = Arc::new(vm_core::base::bus::ui_state_bus::UIStateBus::new());
         let config = ConfigurationService::new(Some(Arc::clone(&ui_bus)));
         let cfg = std::env::temp_dir().join(format!(
             "vm_app_formdisp_{tag}_{}.cfg",
@@ -387,8 +387,8 @@ mod tests {
             env,
             config,
             ui_bus,
-            flight_bus: Arc::new(vm_core::flight_data_bus::FlightDataBus::new()),
-            fm: Arc::new(vm_core::fm::FMManager::new(Arc::new(vm_core::bus::EventBus::new()))),
+            flight_bus: Arc::new(vm_core::base::bus::flight_data_bus::FlightDataBus::new()),
+            fm: Arc::new(vm_core::fm::FMManager::new(Arc::new(vm_core::base::bus::EventBus::new()))),
             hotkey,
             hotkey_rx,
             debounce_delay: std::time::Duration::from_millis(30),
@@ -450,7 +450,7 @@ mod tests {
         calls: Arc<Mutex<Vec<String>>>,
         closed: std::sync::atomic::AtomicBool,
     }
-    impl vm_core::voice_resource_manager::SoundClip for MockClip {
+    impl vm_core::audio::voice_resource_manager::SoundClip for MockClip {
         fn start(&self) {
             self.calls.lock().unwrap().push("start".into());
         }
@@ -482,7 +482,7 @@ mod tests {
     impl Drop for MockClip {
         fn drop(&mut self) {
             // RAII 兜底契约 (trait 文档); trait 方法全限定调用 (模块未 use SoundClip)
-            vm_core::voice_resource_manager::SoundClip::close(self);
+            vm_core::audio::voice_resource_manager::SoundClip::close(self);
         }
     }
 
@@ -491,13 +491,13 @@ mod tests {
         opened: Arc<Mutex<Vec<std::path::PathBuf>>>,
         calls: Arc<Mutex<Vec<String>>>,
     }
-    impl vm_core::voice_resource_manager::SoundPlayer for MockPlayer {
+    impl vm_core::audio::voice_resource_manager::SoundPlayer for MockPlayer {
         fn open_clip(
             &self,
             path: &std::path::Path,
         ) -> Result<
-            Box<dyn vm_core::voice_resource_manager::SoundClip>,
-            vm_core::voice_resource_manager::SoundError,
+            Box<dyn vm_core::audio::voice_resource_manager::SoundClip>,
+            vm_core::audio::voice_resource_manager::SoundError,
         > {
             self.opened.lock().unwrap().push(path.to_path_buf());
             Ok(Box::new(MockClip {
@@ -510,7 +510,7 @@ mod tests {
     /// mock_voice_mgr 的返回束: (管理器, open_clip 路径记录, 控制面调用记录, voice 根)
     /// — 四元组直书触发 clippy type_complexity, 别名收口
     type MockVoiceFixture = (
-        vm_core::voice_resource_manager::VoiceResourceManager,
+        vm_core::audio::voice_resource_manager::VoiceResourceManager,
         Arc<Mutex<Vec<std::path::PathBuf>>>,
         Arc<Mutex<Vec<String>>>,
         std::path::PathBuf,
@@ -526,7 +526,7 @@ mod tests {
         std::fs::write(root.join("jarvis/aoaCrit.wav"), b"").unwrap();
         let opened: Arc<Mutex<Vec<std::path::PathBuf>>> = Arc::new(Mutex::new(Vec::new()));
         let calls: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
-        let mgr = vm_core::voice_resource_manager::VoiceResourceManager::new_with_voice_dir(
+        let mgr = vm_core::audio::voice_resource_manager::VoiceResourceManager::new_with_voice_dir(
             Box::new(MockPlayer {
                 opened: Arc::clone(&opened),
                 calls: Arc::clone(&calls),
@@ -624,7 +624,7 @@ mod tests {
             closed: Arc<AtomicBool>,
             calls: Arc<Mutex<Vec<String>>>,
         }
-        impl vm_core::voice_resource_manager::SoundClip for LatchClip {
+        impl vm_core::audio::voice_resource_manager::SoundClip for LatchClip {
             fn start(&self) {
                 self.calls.lock().unwrap().push("start".into());
             }
@@ -654,7 +654,7 @@ mod tests {
         impl Drop for LatchClip {
             fn drop(&mut self) {
                 // RAII 兜底契约 (trait 文档); trait 方法全限定调用 (测试 fn 内无 use)
-                vm_core::voice_resource_manager::SoundClip::close(self);
+                vm_core::audio::voice_resource_manager::SoundClip::close(self);
             }
         }
         struct LatchPlayer {
@@ -662,13 +662,13 @@ mod tests {
             closed: Arc<AtomicBool>,
             calls: Arc<Mutex<Vec<String>>>,
         }
-        impl vm_core::voice_resource_manager::SoundPlayer for LatchPlayer {
+        impl vm_core::audio::voice_resource_manager::SoundPlayer for LatchPlayer {
             fn open_clip(
                 &self,
                 _path: &std::path::Path,
             ) -> Result<
-                Box<dyn vm_core::voice_resource_manager::SoundClip>,
-                vm_core::voice_resource_manager::SoundError,
+                Box<dyn vm_core::audio::voice_resource_manager::SoundClip>,
+                vm_core::audio::voice_resource_manager::SoundError,
             > {
                 Ok(Box::new(LatchClip {
                     running: Arc::clone(&self.running),
@@ -685,7 +685,7 @@ mod tests {
         let running = Arc::new(AtomicBool::new(true));
         let closed = Arc::new(AtomicBool::new(false));
         let calls: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
-        let mgr = vm_core::voice_resource_manager::VoiceResourceManager::new_with_voice_dir(
+        let mgr = vm_core::audio::voice_resource_manager::VoiceResourceManager::new_with_voice_dir(
             Box::new(LatchPlayer {
                 running: Arc::clone(&running),
                 closed: Arc::clone(&closed),
@@ -754,7 +754,7 @@ mod tests {
     /// 写壳内核 cfg 键 (controller 与表单态共享同一 ConfigurationService —
     /// 对位 Java ButtonRowRenderer 经 RenderContext 读 configService)
     fn set_cfg(shell: &Rc<RefCell<AppShell>>, key: &str, value: &str) {
-        use vm_core::config_api::ConfigProvider as _;
+        use vm_core::config::config_api::ConfigProvider as _;
         let s = shell.borrow();
         let c = s.controller.as_ref().expect("rebuild 后应有核");
         c.config.set_config(key, value);

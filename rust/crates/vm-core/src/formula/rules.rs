@@ -190,7 +190,7 @@ mod tests {
 
     /// 快照 (Session radio_alt 可配)
     fn snap(alt: f64) -> VarSnapshot {
-        let ind0 = crate::parser::Indicators::default();
+        let ind0 = crate::telemetry::parser::Indicators::default();
         let raw0 = crate::formula::registry::RawInputs { state: None, indic: Some(&ind0), fmdata: None };
         let sess = crate::formula::registry::SessionInputs { radio_alt: alt, ..Default::default() };
         assemble_snapshot(&raw0, &sess, &MetaInputs::default())

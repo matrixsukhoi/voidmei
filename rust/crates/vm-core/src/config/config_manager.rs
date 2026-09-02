@@ -28,9 +28,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, LazyLock, Mutex};
 
-use crate::config_loader::{load_config, save_config, GroupConfig, RowConfig};
+use crate::config::config_loader::{load_config, save_config, GroupConfig, RowConfig};
 use crate::lang::Lang;
-use crate::logger;
+use crate::base::logger;
 
 const TEMPLATE_PATH: &str = "./ui_layout.cfg";
 const USER_PATH: &str = "./ui_layout.user.cfg";

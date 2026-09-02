@@ -156,7 +156,7 @@ fn draw_curve_pixels() {
 // ---- spec 工厂 (Controller.java:746-752 registerWithStrategy) ----
 
 fn feed_fm() -> Arc<FMManager> {
-    Arc::new(FMManager::new(Arc::new(vm_core::bus::EventBus::new())))
+    Arc::new(FMManager::new(Arc::new(vm_core::base::bus::EventBus::new())))
 }
 
 /// 工厂初态 = initPreview 形态 (恒可见); spec 尺寸 = setBounds 字面量 900×500;

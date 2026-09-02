@@ -15,8 +15,8 @@ use crate::gauges_bars::LabeledLinearGauge;
 use crate::host::{OverlaySpec, ReinitFn};
 use crate::reinit::ReinitParams;
 use crate::overlay_gauges::{GaugeBarStyle, GaugeMarker, MarkedGauge, MarkerType};
-use vm_core::event::EventPayload;
-use vm_core::format::{self, java_round_f64, java_round_f32};
+use vm_core::base::event::EventPayload;
+use vm_core::base::format::{self, java_round_f64, java_round_f32};
 use vm_core::formula::registry::FormulaView;
 use vm_core::lang::Lang;
 // EngineControlOverlay.java:50 DEFAULT_REFRESH_INTERVAL 的既有移植 (单一来源, 勿重复定义)
@@ -603,7 +603,7 @@ pub fn engine_control_overlay_spec(
         let new_font = match LoadedFont::new(&reinit_bold, half) {
             Ok(f) => Rc::new(f),
             Err(e) => {
-                vm_core::logger::error("EngineControl", &format!("reinit 字体重载失败: {}", e));
+                vm_core::base::logger::error("EngineControl", &format!("reinit 字体重载失败: {}", e));
                 return None;
             }
         };

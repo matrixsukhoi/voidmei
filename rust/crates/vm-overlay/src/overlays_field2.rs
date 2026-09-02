@@ -49,11 +49,11 @@ use std::rc::Rc;
 #[cfg(test)]
 use std::sync::Arc;
 #[cfg(test)]
-use vm_core::config_api::ConfigProvider;
+use vm_core::config::config_api::ConfigProvider;
 #[cfg(test)]
 use vm_core::fm::FMManager;
 #[cfg(test)]
-use vm_core::fmdata::{FmData, FmParts};
+use vm_core::fm::data::{FmData, FmParts};
 
 #[cfg(test)]
 mod tests;

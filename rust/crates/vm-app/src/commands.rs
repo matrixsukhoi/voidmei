@@ -1,7 +1,7 @@
 //! 跨线程命令/事件 (D8: 全部经 channel/bus) — UiCommand/TrayCommand/MainEvent/
 //! SupervisorOutcome/DebounceMsg 五枚举。重构波2 自 app_shell.rs 拆出。
 
-use vm_core::configuration_service::GlobalColors;
+use vm_core::config::configuration_service::GlobalColors;
 
 /// UI→shell 命令。**按变体有唯一属主** (见各变体注释); 主线程侧经
 /// [`crate::AppShell::dispatch`] 路由, win32 侧变体由发送方直达 [`crate::AppShell::ui_cmd_tx`]。

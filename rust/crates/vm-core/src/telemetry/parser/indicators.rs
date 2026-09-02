@@ -1,10 +1,10 @@
 //! Indicators 的 Rust 移植 (src/parser/Indicators.java)
 //! /indicators 座舱仪表遥测 JSON 的子串提取解析 (舵面/油门/引擎/燃油)。
 //!
-//! PORT: getString/getDataFloat 接已译 crate::string_helper;
+//! PORT: getString/getDataFloat 接已译 crate::base::string_helper;
 //! Java `Service.nastring` 静态常量按 CLASSIFY 裁决内联为本模块常量。
 
-use crate::string_helper::{get_data_float, get_string, F_INVALID};
+use crate::base::string_helper::{get_data_float, get_string, F_INVALID};
 
 /// 对应 Java `Service.nastring` (public static final String nastring = "-")
 /// PORT: CLASSIFY 裁决 — 引用 Service 静态常量需内联, 不引入未翻译的 prog.Service

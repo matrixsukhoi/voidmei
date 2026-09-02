@@ -1,7 +1,7 @@
 use super::*;
-use vm_core::config_api::overlay_settings::OverlaySettings;
-use vm_core::event::event_payload::EventPayload;
-use vm_core::hud_data::Builder;
+use vm_core::config::config_api::overlay_settings::OverlaySettings;
+use vm_core::base::event::event_payload::EventPayload;
+use vm_core::derived::hud_data::Builder;
 
 const FONTS: &str = "../../../fonts";
 
@@ -602,7 +602,7 @@ fn on_flight_data_throttle_gate() {
     let s = TestSettings::default();
     let payload = EventPayload::builder().build();
     let src = MockSrc { alt: 5300.0, sep: -13.2 };
-    let st = vm_core::parser::State::new();
+    let st = vm_core::telemetry::parser::State::new();
     let colors = HudColors::application_defaults();
     assert!(
         o.on_flight_data(1000, Some(&st), None, &payload, Some(&src), None, &s, &colors),
@@ -665,7 +665,7 @@ fn update_from_event_calculates_from_service() {
     let mut o = overlay();
     let s = TestSettings::default();
     let src = MockSrc { alt: 5300.0, sep: 0.0 };
-    let st = vm_core::parser::State::new();
+    let st = vm_core::telemetry::parser::State::new();
     let payload = EventPayload::builder().build();
     o.update_from_event(Some(&st), None, &payload, Some(&src), None, &s, &HudColors::application_defaults());
     // altStr = "ALT" + %6.0f(5300) (HUDCalculator 的标签前缀语义 — 标签开时
@@ -693,7 +693,7 @@ fn update_from_event_consumes_state_snapshot() {
     let mut o = overlay();
     let s = TestSettings::default();
     let src = MockSrc { alt: 5300.0, sep: 0.0 };
-    let mut st = vm_core::parser::State::new();
+    let mut st = vm_core::telemetry::parser::State::new();
     st.flaps = 50;
     st.airbrake = 100;
     let payload = EventPayload::builder().build();
@@ -781,7 +781,7 @@ fn overlay_spec_sizes_and_renders() {
     let s = TestSettings::default();
     // 参数仓 hud 快照与工厂 settings 同源 (生产面: inputs.hud == params.hud)
     let cell = Rc::new(RefCell::new(ReinitParams {
-        hud: vm_core::config_api::HudSettingsSnapshot::build(&s),
+        hud: vm_core::config::config_api::HudSettingsSnapshot::build(&s),
         ..Default::default()
     }));
     let (handle, mut spec) =

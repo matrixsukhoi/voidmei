@@ -1,6 +1,6 @@
 //! 对应 Java: `src/ui/window/comparison/logic/rules/SimpleRule.java` (一比一翻译)
 
-use crate::comparison::comparison_rule::ComparisonRule;
+use crate::ui_support::comparison::comparison_rule::ComparisonRule;
 
 /// Simple rule that extracts the first number from the value string.
 /// Skips array/list values (starting with '[').

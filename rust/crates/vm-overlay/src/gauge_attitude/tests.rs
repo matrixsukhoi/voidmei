@@ -16,8 +16,8 @@ fn a(c: &PixCanvas, x: i32, y: i32) -> u8 {
     px(c, x, y)[3]
 }
 
-fn hud(pitch: f64, roll: f64, slip: f64, valid: bool) -> vm_core::hud_data::HUDData {
-    vm_core::hud_data::Builder {
+fn hud(pitch: f64, roll: f64, slip: f64, valid: bool) -> vm_core::derived::hud_data::HUDData {
+    vm_core::derived::hud_data::Builder {
         pitch,
         roll,
         slip,

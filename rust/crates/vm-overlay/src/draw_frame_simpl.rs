@@ -24,7 +24,7 @@
 //! 对拍备案 (审查 W3): rustcmp 套件现覆盖 FlightInfo/gauges/MiniHUD, 本组件渲染
 //! 证据 = 单测级几何 oracle + 像素墨迹断言 (Java 语义逐式复算); FMUnpacked 同款。
 
-use vm_core::format::java_round_f32;
+use vm_core::base::format::java_round_f32;
 use crate::font::LoadedFont;
 use crate::global_colors::aa;
 use crate::host::{OverlayHost, OverlaySpec};
@@ -33,7 +33,7 @@ use crate::render2d::{LineCapStyle, PixCanvas};
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
-use vm_core::fmdata::FmData;
+use vm_core::fm::data::FmData;
 use vm_core::fm::FMManager;
 
 // ---------------------------------------------------------------------------
@@ -461,7 +461,7 @@ pub fn draw_frame_simpl_spec(
                     render_handle.borrow().draw(cv, &fonts, aa());
                 }));
                 if r.is_err() {
-                    vm_core::logger::error(
+                    vm_core::base::logger::error(
                         "DrawFrameSimpl",
                         "paint panic 已吞 (畸形 FM 推力表), 本帧空画布",
                     );
@@ -535,7 +535,7 @@ impl DrawFrameSimplFeed {
         if let Some(start) = self.exit_wait_start {
             // sleepQuietly(10000) 等待期: 线程沉睡不再迭代; 到点 break → dispose
             if now_ms.saturating_sub(start) >= 10_000 {
-                vm_core::logger::info("DrawFrameSimpl", "Exiting run loop, disposing");
+                vm_core::base::logger::info("DrawFrameSimpl", "Exiting run loop, disposing");
                 host.close(id); // 销毁链 (Java dispose: 注销 + 窗口销毁)
                 // openAll 跳过 / refreshPreviews 只跑 reinit, 死窗口不复活; 直到
                 // closeAll (entry.close → instance=null) 才允许重建

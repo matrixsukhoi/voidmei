@@ -6,9 +6,9 @@
 
 use super::definition::VarLookup;
 use super::functions::Value;
-use crate::fmdata::FmData;
-use crate::parser::{Indicators, State};
-use crate::string_helper::F_INVALID;
+use crate::fm::data::FmData;
+use crate::telemetry::parser::{Indicators, State};
+use crate::base::string_helper::F_INVALID;
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
@@ -328,10 +328,10 @@ fn build_registry() -> Registry {
         VarMeta { name: "fm.critical_speed", unit: "km/h", desc: "临界速度", category: C::Fm, origin: O::Fm, src: B(|b| b.critical_speed * 3.6) },
         VarMeta { name: "fm.vne", unit: "km/h", desc: "最大速度(VNE)", category: C::Fm, origin: O::Fm, src: B(|b| b.vne) },
         VarMeta { name: "fm.vne_mach", unit: "Ma", desc: "最大马赫数", category: C::Fm, origin: O::Fm, src: B(|b| b.vne_mach) },
-        VarMeta { name: "fm.full_fuel_pos_g", unit: "G", desc: "满油正过载限制", category: C::Fm, origin: O::Fm, src: B(|b| b.raw_wing_crit_overload.map_or(0.0, |r| 1.2 * (2.0 * r[1] / (crate::physics_constants::g * b.grossweight) - 1.0))) },
-        VarMeta { name: "fm.full_fuel_neg_g", unit: "G", desc: "满油负过载限制", category: C::Fm, origin: O::Fm, src: B(|b| b.raw_wing_crit_overload.map_or(0.0, |r| 1.2 * (2.0 * r[0] / (crate::physics_constants::g * b.grossweight) + 1.0))) },
-        VarMeta { name: "fm.half_fuel_pos_g", unit: "G", desc: "半油正过载限制", category: C::Fm, origin: O::Fm, src: B(|b| b.raw_wing_crit_overload.map_or(0.0, |r| 1.2 * (2.0 * r[1] / (crate::physics_constants::g * b.halfweight) - 1.0))) },
-        VarMeta { name: "fm.half_fuel_neg_g", unit: "G", desc: "半油负过载限制", category: C::Fm, origin: O::Fm, src: B(|b| b.raw_wing_crit_overload.map_or(0.0, |r| 1.2 * (2.0 * r[0] / (crate::physics_constants::g * b.halfweight) + 1.0))) },
+        VarMeta { name: "fm.full_fuel_pos_g", unit: "G", desc: "满油正过载限制", category: C::Fm, origin: O::Fm, src: B(|b| b.raw_wing_crit_overload.map_or(0.0, |r| 1.2 * (2.0 * r[1] / (crate::base::physics_constants::g * b.grossweight) - 1.0))) },
+        VarMeta { name: "fm.full_fuel_neg_g", unit: "G", desc: "满油负过载限制", category: C::Fm, origin: O::Fm, src: B(|b| b.raw_wing_crit_overload.map_or(0.0, |r| 1.2 * (2.0 * r[0] / (crate::base::physics_constants::g * b.grossweight) + 1.0))) },
+        VarMeta { name: "fm.half_fuel_pos_g", unit: "G", desc: "半油正过载限制", category: C::Fm, origin: O::Fm, src: B(|b| b.raw_wing_crit_overload.map_or(0.0, |r| 1.2 * (2.0 * r[1] / (crate::base::physics_constants::g * b.halfweight) - 1.0))) },
+        VarMeta { name: "fm.half_fuel_neg_g", unit: "G", desc: "半油负过载限制", category: C::Fm, origin: O::Fm, src: B(|b| b.raw_wing_crit_overload.map_or(0.0, |r| 1.2 * (2.0 * r[0] / (crate::base::physics_constants::g * b.halfweight) + 1.0))) },
         VarMeta { name: "fm.elevator_eff_speed", unit: "km/h", desc: "升降舵生效速度", category: C::Fm, origin: O::Fm, src: B(|b| b.elav_eff) },
         VarMeta { name: "fm.aileron_eff_speed", unit: "km/h", desc: "副翼生效速度", category: C::Fm, origin: O::Fm, src: B(|b| b.aileron_eff) },
         VarMeta { name: "fm.rudder_eff_speed", unit: "km/h", desc: "方向舵生效速度", category: C::Fm, origin: O::Fm, src: B(|b| b.rudder_eff) },
@@ -464,9 +464,9 @@ fn build_registry() -> Registry {
         VarMeta { name: "session_ms", unit: "ms", desc: "会话开始至今", category: C::Meta, origin: O::Meta, src: M(MetaVar::SessionMs) },
         VarMeta { name: "fm_loaded", unit: "", desc: "FM 已加载", category: C::Meta, origin: O::Meta, src: M(MetaVar::FmLoaded) },
         // ===== 物理常量 =====
-        VarMeta { name: "g", unit: "m/s²", desc: "重力加速度", category: C::Const, origin: O::Const, src: K(crate::physics_constants::g) },
-        VarMeta { name: "rho0", unit: "kg/m³", desc: "海平面空气密度", category: C::Const, origin: O::Const, src: K(crate::physics_constants::SEA_LEVEL_DENSITY) },
-        VarMeta { name: "P0", unit: "Pa", desc: "海平面气压", category: C::Const, origin: O::Const, src: K(crate::physics_constants::SEA_LEVEL_PRESSURE) },
+        VarMeta { name: "g", unit: "m/s²", desc: "重力加速度", category: C::Const, origin: O::Const, src: K(crate::base::physics_constants::g) },
+        VarMeta { name: "rho0", unit: "kg/m³", desc: "海平面空气密度", category: C::Const, origin: O::Const, src: K(crate::base::physics_constants::SEA_LEVEL_DENSITY) },
+        VarMeta { name: "P0", unit: "Pa", desc: "海平面气压", category: C::Const, origin: O::Const, src: K(crate::base::physics_constants::SEA_LEVEL_PRESSURE) },
     ];
 
     // 单名制 (W10): 变量只有一个名字; Java getter 名不进内核索引

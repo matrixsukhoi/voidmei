@@ -16,13 +16,13 @@
 
 use std::sync::{Arc, RwLock};
 
-use crate::config_api::{ConfigProvider, HUDSettings, OverlaySettings};
-use crate::config_loader::{self, ConfigValue, GroupConfig, RowConfig};
-use crate::config_manager;
-use crate::event::ui_state_events;
+use crate::config::config_api::{ConfigProvider, HUDSettings, OverlaySettings};
+use crate::config::config_loader::{self, ConfigValue, GroupConfig, RowConfig};
+use crate::config::config_manager;
+use crate::base::event::ui_state_events;
 use crate::lang::Lang;
-use crate::logger;
-use crate::ui_state_bus::UIStateBus;
+use crate::base::logger;
+use crate::base::bus::ui_state_bus::UIStateBus;
 
 /// RwLock 中毒消息 (Java 无锁; 对应持锁线程崩溃后的一致性未知面)
 const LC_LOCK_MSG: &str = "layoutConfigs 锁中毒";
@@ -32,7 +32,7 @@ const APP_LOCK_MSG: &str = "Application 状态锁中毒";
 pub type WriteHook = Box<dyn Fn(&str, &str) + Send + Sync>;
 
 // 重构波2: Application/Controller 消费面桩 + 抗锯齿值域枚举迁至 config/app_state.rs;
-// 旧路径 (crate::configuration_service::xxx) 经 re-export 保持有效
+// 旧路径 (crate::config::configuration_service::xxx) 经 re-export 保持有效
 pub use crate::config::app_state::{
     AppFont, ApplicationState, ControllerIntervals, GlobalColors, GraphAaSetting,
     InetSocketAddress, TextAaSetting,

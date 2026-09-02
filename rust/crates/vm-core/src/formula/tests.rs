@@ -6,7 +6,7 @@ use super::definition::{try_eval_single, CompileError, CompiledFormulaSet, Formu
 use super::eval::StateStore;
 use super::registry::{assemble_snapshot, registry, MetaInputs, VarOrigin, VarSnapshot};
 use super::FormulaManager;
-use crate::calc_helper::SimpleMovingAverage;
+use crate::base::calc_helper::SimpleMovingAverage;
 
 // ===== 工具: 快照与求值 ====
 
@@ -28,13 +28,13 @@ impl Default for TestTel {
 
 fn snap_of(tel: &TestTel) -> super::registry::VarSnapshot {
     let meta = MetaInputs { interval_ms: 50.0, freq: 20.0, ..Default::default() };
-    let mut st = crate::parser::State::default();
+    let mut st = crate::telemetry::parser::State::default();
     st.ias = tel.ias as i32;
     st.tas = tel.tas as i32;
     st.heightm = tel.alt;
     st.ny = tel.ny;
     st.mfuel = tel.mass_fuel;
-    let ind = crate::parser::Indicators::default();
+    let ind = crate::telemetry::parser::Indicators::default();
     let raw = super::registry::RawInputs { state: Some(&st), indic: Some(&ind), fmdata: None };
     let sess = super::registry::SessionInputs::default();
     assemble_snapshot(&raw, &sess, &meta)
@@ -263,7 +263,7 @@ fn compile_topo_order_correct() {
     assert!(set.formulas.iter().all(|f| f.err.is_none()));
     let _tel = TestTel::default();
     let meta = MetaInputs { interval_ms: 50.0, ..Default::default() };
-    let ind0 = crate::parser::Indicators::default();
+    let ind0 = crate::telemetry::parser::Indicators::default();
     let raw0 = super::registry::RawInputs { state: None, indic: Some(&ind0), fmdata: None };
     let snap = assemble_snapshot(&raw0, &super::registry::SessionInputs::default(), &meta);
     let mut store = StateStore::new();
@@ -315,7 +315,7 @@ fn compile_invalid_dep_propagates_nan() {
     ));
     let _tel = TestTel::default();
     let meta = MetaInputs::default();
-    let ind0 = crate::parser::Indicators::default();
+    let ind0 = crate::telemetry::parser::Indicators::default();
     let raw0 = super::registry::RawInputs { state: None, indic: Some(&ind0), fmdata: None };
     let snap = assemble_snapshot(&raw0, &super::registry::SessionInputs::default(), &meta);
     let mut store = StateStore::new();
@@ -379,9 +379,9 @@ fn registry_single_name_no_getter_aliases() {
 fn registry_snapshot_assemble() {
     let _tel = TestTel::default();
     let meta = MetaInputs { interval_ms: 50.0, freq: 20.0, fm_loaded: false, ..Default::default() };
-    let mut st0 = crate::parser::State::default();
+    let mut st0 = crate::telemetry::parser::State::default();
     st0.ias = 400;
-    let ind0 = crate::parser::Indicators::default();
+    let ind0 = crate::telemetry::parser::Indicators::default();
     let raw0 = super::registry::RawInputs { state: Some(&st0), indic: Some(&ind0), fmdata: None };
     let snap = assemble_snapshot(&raw0, &super::registry::SessionInputs::default(), &meta);
     let reg = registry();
@@ -428,10 +428,10 @@ fn manager_install_and_eval() {
     );
     let tel = TestTel::default();
     let meta = MetaInputs { interval_ms: 50.0, ..Default::default() };
-    let (r, _snap) = { let mut st0 = crate::parser::State::default();
+    let (r, _snap) = { let mut st0 = crate::telemetry::parser::State::default();
         st0.ias = tel.ias as i32;
         st0.tas = tel.tas as i32;
-        let ind0 = crate::parser::Indicators::default();
+        let ind0 = crate::telemetry::parser::Indicators::default();
         let raw0 = crate::formula::registry::RawInputs { state: Some(&st0), indic: Some(&ind0), fmdata: None };
         let sess0 = crate::formula::registry::SessionInputs::default();
         mgr.eval_frame(&raw0, &sess0, &meta, 0) };
@@ -449,17 +449,17 @@ fn manager_hot_update_retains_states() {
     mgr.install(&[def("p", "prev(ias)")]);
     let tel = TestTel::default();
     let meta = MetaInputs { interval_ms: 50.0, ..Default::default() };
-    let _ = { let mut st0 = crate::parser::State::default();
+    let _ = { let mut st0 = crate::telemetry::parser::State::default();
         st0.ias = tel.ias as i32;
-        let ind0 = crate::parser::Indicators::default();
+        let ind0 = crate::telemetry::parser::Indicators::default();
         let raw0 = crate::formula::registry::RawInputs { state: Some(&st0), indic: Some(&ind0), fmdata: None };
         let sess0 = crate::formula::registry::SessionInputs::default();
         mgr.eval_frame(&raw0, &sess0, &meta, 0) };
     // 热更新: 加一个公式, 原 p 的状态保留
     mgr.install(&[def("p", "prev(ias)"), def("q", "ias * 2")]);
-    let (r, _snap) = { let mut st0 = crate::parser::State::default();
+    let (r, _snap) = { let mut st0 = crate::telemetry::parser::State::default();
         st0.ias = tel.ias as i32;
-        let ind0 = crate::parser::Indicators::default();
+        let ind0 = crate::telemetry::parser::Indicators::default();
         let raw0 = crate::formula::registry::RawInputs { state: Some(&st0), indic: Some(&ind0), fmdata: None };
         let sess0 = crate::formula::registry::SessionInputs::default();
         mgr.eval_frame(&raw0, &sess0, &meta, 50) };
@@ -549,7 +549,7 @@ fn bench_eval_frame_50_formulas() {
     let n = 10_000;
     let t0 = std::time::Instant::now();
     for k in 0..n {
-        let ind0 = crate::parser::Indicators::default();
+        let ind0 = crate::telemetry::parser::Indicators::default();
     let raw0 = super::registry::RawInputs { state: None, indic: Some(&ind0), fmdata: None };
     let snap = assemble_snapshot(&raw0, &super::registry::SessionInputs::default(), &meta);
         let _ = set.eval_frame(&snap, &mut store, k, 50.0, None);
@@ -561,8 +561,8 @@ fn bench_eval_frame_50_formulas() {
 // ===== FM 查表函数族 (W1a; 与 vm-data methods_engine 测试同 oracle) =====
 
 /// 最小 mock blkx (与 vm-data service_loop::methods_engine::tests::spitfire_flap_blkx 同表)
-fn flap_fmdata() -> crate::fmdata::FmData {
-    use crate::fmdata::FmData;
+fn flap_fmdata() -> crate::fm::data::FmData {
+    use crate::fm::data::FmData;
     let mut b = FmData::default();
     b.valid = true;
     b.flaps_destruction_num = 2;
@@ -582,7 +582,7 @@ fn fm_table_functions_match_shared_impl() {
     let fmdata = flap_fmdata();
     let reg = registry();
     let mut store = StateStore::new();
-    let eval_with = |expr: &str, b: Option<&crate::fmdata::FmData>| {
+    let eval_with = |expr: &str, b: Option<&crate::fm::data::FmData>| {
         let mut st = StateStore::new();
         try_eval_single(expr, reg, &snap, &mut st, 0, 50.0, b).unwrap()
     };

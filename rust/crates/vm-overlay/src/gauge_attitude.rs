@@ -20,8 +20,8 @@
 //!
 //! 颜色 = Application.java:106-111 静态色直通 RGBA (与 gauges_bars 同源)。
 
-use vm_core::format::java_round_f64;
-use vm_core::format::java_round;
+use vm_core::base::format::java_round_f64;
+use vm_core::base::format::java_round;
 use crate::global_colors::{aa, colors};
 use crate::font::LoadedFont;
 
@@ -305,7 +305,7 @@ impl AttitudeIndicatorGauge {
 
     /// Java:192-224 onDataUpdate。pitch/roll/slip 注入 + aosX 换算 + 双值文本格式化。
     /// 返回是否变化 (脏检查)。
-    pub fn on_data_update(&mut self, data: &vm_core::hud_data::HUDData) -> bool {
+    pub fn on_data_update(&mut self, data: &vm_core::derived::hud_data::HUDData) -> bool {
         let slide_limit = 4 * self.font_size;
         // font_size=0 → 乘积 0 → aos_x=0, 与 Java else 分支数值一致, 无需分支)
         // PORT: Java:205 (int)(-slip * slideLimit / 30.0f) — double 链, (int) 窄化。

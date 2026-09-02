@@ -17,7 +17,7 @@
 
 use std::sync::{OnceLock, RwLock};
 
-use vm_core::configuration_service::GlobalColors;
+use vm_core::config::configuration_service::GlobalColors;
 
 static GLOBAL: OnceLock<RwLock<GlobalColors>> = OnceLock::new();
 

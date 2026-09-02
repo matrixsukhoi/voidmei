@@ -45,10 +45,10 @@ use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::exception_helper;
+use crate::base::exception_helper;
 use crate::lang::Lang;
-use crate::logger;
-use crate::parser::{HudMsg, MapInfo, MapObj};
+use crate::base::logger;
+use crate::telemetry::parser::{HudMsg, MapInfo, MapObj};
 
 /// Controller 的最小消息游标读取面 (PORT 注记 1: 后续批次 Controller 落地时
 /// 由其实现, 对应 Java `xc.lastEvt`/`xc.lastDmg` 两个字段的读取)。

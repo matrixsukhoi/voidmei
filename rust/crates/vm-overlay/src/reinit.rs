@@ -14,8 +14,8 @@
 
 use std::sync::Arc;
 
-use vm_core::config_api::HudSettingsSnapshot;
-use vm_core::row_def::RowDef;
+use vm_core::config::config_api::HudSettingsSnapshot;
+use vm_core::ui_support::row_def::RowDef;
 
 /// reinit 参数包 (纯值 Send; 各字段来源 = OverlayInputs 同源配置键)。
 /// PORT(取舍备案): 不整包重送 `OverlayInputs` — 颜色/AA 有专命令

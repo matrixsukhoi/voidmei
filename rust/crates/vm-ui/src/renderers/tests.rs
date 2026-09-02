@@ -1,5 +1,5 @@
 use super::*;
-use vm_core::config_loader::GroupConfig;
+use vm_core::config::config_loader::GroupConfig;
 
 // find_row_path: 按层定位 + 首个命中 (DFS 前序, 对位消息 key 的唯一来源行)
 #[test]

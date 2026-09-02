@@ -6,7 +6,7 @@
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::event::event_payload::EventPayload;
+use crate::base::event::event_payload::EventPayload;
 
 pub struct FlightDataEvent {
     payload: EventPayload,

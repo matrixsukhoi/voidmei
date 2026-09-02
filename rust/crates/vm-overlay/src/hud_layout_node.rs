@@ -244,7 +244,7 @@ impl<T> HUDLayoutNodeExt<T> for SharedNode<T> {
                 // nodes map 等), 节点将被 engine 的 get_parent()==None 根判定
                 // 误当 ROOT; Java 强引用下父被 child 保活, 不可能出现 —
                 // 告警暴露违约而非静默降级。
-                vm_core::logger::warn(
+                vm_core::base::logger::warn(
                     "HUDLayout",
                     &format!(
                         "节点 {} 的父节点已被 drop, get_parent() 退化为 None (调用方将按 ROOT 处理)",

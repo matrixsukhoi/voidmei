@@ -33,13 +33,13 @@ use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-use vm_core::bus::Subscription;
-use vm_core::config_api::ConfigProvider;
-use vm_core::config_loader::{save_config as save_layout_file, GroupConfig, RowConfig};
-use vm_core::configuration_service::ConfigurationService;
-use vm_core::ui_state_bus::{UIStateBus, UiStateEvent};
-use vm_core::event::ui_state_events;
-use vm_core::logger;
+use vm_core::base::bus::Subscription;
+use vm_core::config::config_api::ConfigProvider;
+use vm_core::config::config_loader::{save_config as save_layout_file, GroupConfig, RowConfig};
+use vm_core::config::configuration_service::ConfigurationService;
+use vm_core::base::bus::ui_state_bus::{UIStateBus, UiStateEvent};
+use vm_core::base::event::ui_state_events;
+use vm_core::base::logger;
 use crate::row_renderer_registry::RenderContext;
 
 use crate::renderers;
@@ -353,7 +353,7 @@ pub fn update(state: &mut MainFormState, message: Message) {
             let path = state
                 .persist_path
                 .clone()
-                .unwrap_or_else(|| vm_core::config_manager::get_user_config_path().to_string());
+                .unwrap_or_else(|| vm_core::config::config_manager::get_user_config_path().to_string());
             state.config.load_layout(&path);
             state.groups = state.config.get_layout_configs().unwrap_or_default();
             publish_config_changed(&state.ui_bus, "ui_layout.cfg");

@@ -7,9 +7,9 @@
 
 use std::sync::Arc;
 
-use vm_core::calc_helper::SimpleMovingAverage;
+use vm_core::base::calc_helper::SimpleMovingAverage;
 use vm_core::fm::FMHandle;
-use vm_core::parser::{Indicators, MapInfo, State};
+use vm_core::telemetry::parser::{Indicators, MapInfo, State};
 
 /// 字段全集。可见性: Java public → pub, 包私有 → pub(crate) (兄弟模块写入需要)。
 /// `fm` 为周期 FM 句柄快照 (R1 纪律: 单周期内全部 FM 派生量来自同一 Blkx 实例,

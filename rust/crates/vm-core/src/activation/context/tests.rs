@@ -3,8 +3,8 @@
 #![allow(clippy::arc_with_non_send_sync)]
 
 use super::*;
-use crate::activation_strategy::ActivationStrategy;
-use crate::bus::EventBus;
+use crate::activation::strategy::ActivationStrategy;
+use crate::base::bus::EventBus;
 use std::cell::RefCell;
 use std::collections::HashMap;
 

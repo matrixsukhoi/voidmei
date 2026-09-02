@@ -181,10 +181,10 @@ impl Service {
 mod tests {
     use super::*;
     use std::sync::Arc;
-    use vm_core::fmdata::{FmData, EngineLoad};
-    use vm_core::bus::EventBus;
+    use vm_core::fm::data::{FmData, EngineLoad};
+    use vm_core::base::bus::EventBus;
     use vm_core::fm::FMManager;
-    use vm_core::flight_data_bus::FlightDataBus;
+    use vm_core::base::bus::flight_data_bus::FlightDataBus;
 
     use crate::service_loop::ServiceConfig;
 
