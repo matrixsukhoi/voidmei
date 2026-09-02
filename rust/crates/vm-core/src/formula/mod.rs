@@ -101,15 +101,17 @@ impl FormulaManager {
         *self.current.write().expect("公式集锁中毒") = set;
     }
 
-    /// 帧求值: 组快照 → 拓扑序求值 → 结果 (Service 线程调用)。
+    /// 帧求值: 组快照 → 拓扑序求值 → (结果, 本帧快照) (Service 线程调用)。
     /// W6 直通化: 唯一数据入口 = 原始三元组 + C 级会话量。
+    /// 重构波4: 快照随返回值交出 (调用方复用, 免二次组装 — 原调用方
+    /// service_loop 为规则求值曾重复 assemble 一份)。
     pub fn eval_frame(
         &self,
         raw: &registry::RawInputs,
         session: &registry::SessionInputs,
         meta: &MetaInputs,
         now_ms: u64,
-    ) -> FormulaResults {
+    ) -> (FormulaResults, Arc<VarSnapshot>) {
         let set = self.current.read().expect("公式集锁中毒").clone();
         let snap = assemble_snapshot(raw, session, meta);
         let results = if set.formulas.is_empty() {
@@ -119,8 +121,9 @@ impl FormulaManager {
             set.eval_frame(&snap, &mut store, now_ms, meta.interval_ms, raw.fmdata)
         };
         // 快照缓存供编辑器试算 (求值后 move, 免克隆)
-        *self.last_snap.write().expect("快照锁中毒") = Arc::new(snap);
-        results
+        let snap = Arc::new(snap);
+        *self.last_snap.write().expect("快照锁中毒") = Arc::clone(&snap);
+        (results, snap)
     }
 
     /// 重置全部状态原语 (FM_CHANGED 换机 / 会话重置)

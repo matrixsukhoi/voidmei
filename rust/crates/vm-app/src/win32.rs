@@ -468,9 +468,9 @@ pub(crate) fn feed_overlays_live(
         return;
     }
     let live = shared.live.read().expect("live 锁中毒").clone();
-    let Some(data) = live else { return };
-    let Ok(guard) = data.read() else {
-        return; // 中毒帧跳过 (Java 无锁无此形态; §6 契约下 Service 线程仍在轮询)
+    let Some(frames) = live else { return };
+    let Some(frame) = frames.latest() else {
+        return; // 尚无首帧 (Service 已装配, 等待首个轮询周期)
     };
     let now = current_time_millis();
     let fm_handle = fm.current();
@@ -493,10 +493,10 @@ pub(crate) fn feed_overlays_live(
             };
             h.borrow_mut().on_flight_data(
                 now,
-                guard.s_state.as_ref(),
-                guard.s_indic.as_ref(),
+                frame.s_state.as_ref(),
+                frame.s_indic.as_ref(),
                 payload,
-                Some(&*guard),
+                Some(&*frame),
                 fmdata,
                 settings,
                 &colors,
@@ -504,7 +504,7 @@ pub(crate) fn feed_overlays_live(
         }
         // 2. 动力信息 (Java FieldOverlay.onFlightData 50ms 节流闩内置)
         if let Some(h) = handles.power_info.as_ref() {
-            h.borrow_mut().update(now, &*guard);
+            h.borrow_mut().update(now, &*frame);
         }
         // 3. 引擎控制 (节流闩 = refreshInterval 配置驱动; compressorStages 档位数 =
         //    Java FMManager.current().compressorStages, 非 READY/喷气机 → None)
@@ -513,18 +513,18 @@ pub(crate) fn feed_overlays_live(
                 .compressor_stages
                 .as_ref()
                 .map(|v| v.len() as i32);
-            h.borrow_mut().update(now, &*guard, payload, stages);
+            h.borrow_mut().update(now, &*frame, payload, stages);
         }
         // 4. 起落襟翼 (100ms 节流闩内置)
         if let Some(h) = handles.gear_flaps.as_ref() {
-            h.borrow_mut().update_tick(now, lang, &*guard);
+            h.borrow_mut().update_tick(now, lang, &*frame);
         }
         // 5. 操纵面 (50ms 节流内置; has_service = Java init(S) 的 xs!=null 数据门控,
         //    单实例形态下由喂入点随游戏窗口形态置位 — 见工厂头注 PORT(数据门控))
         // 飞行信息 (Java FlightInfoOverlay.onFlightData 字段行更新, 无节流 —
         // host 50ms 渲染节拍 + 像素指纹兜底; W2: 数据 = TelemetrySource 散字段)
         if let Some(h) = handles.flight_info.as_ref() {
-            h.borrow_mut().update(&*guard);
+            h.borrow_mut().update(&*frame);
         }
         if let Some(h) = handles.control_surfaces.as_ref() {
             let mut cs = h.borrow_mut();
@@ -532,11 +532,11 @@ pub(crate) fn feed_overlays_live(
             // W7: var_value 桥取值 (getter 实现已消解)
             cs.on_flight_data(
                 now,
-                guard.var_value("aileron").unwrap_or(0.0),
-                guard.var_value("elevator").unwrap_or(0.0),
-                guard.var_value("rudder").unwrap_or(0.0),
-                guard.var_value("wing_sweep").unwrap_or(0.0),
-                guard.var_value("wing_sweep_valid").unwrap_or(0.0) != 0.0,
+                frame.var_value("aileron").unwrap_or(0.0),
+                frame.var_value("elevator").unwrap_or(0.0),
+                frame.var_value("rudder").unwrap_or(0.0),
+                frame.var_value("wing_sweep").unwrap_or(0.0),
+                frame.var_value("wing_sweep_valid").unwrap_or(0.0) != 0.0,
             );
         }
         // 6. 地平仪 (节流 = freqMili 40ms 配置驱动, 喂入侧承载;
@@ -548,11 +548,11 @@ pub(crate) fn feed_overlays_live(
                     .and_then(|b| b.no_flaps_wing.as_ref())
                     .map(|w| (w.aoa_crit_high, w.aoa_crit_low));
                 h.borrow_mut().update_telemetry(
-                    guard.var_value("aoa").unwrap_or(0.0),
-                    guard.var_value("aos").unwrap_or(0.0),
-                    guard.var_value("aviahorizon_pitch").unwrap_or(0.0),
-                    guard.var_value("aviahorizon_roll").unwrap_or(0.0),
-                    guard.var_value("compass").unwrap_or(0.0),
+                    frame.var_value("aoa").unwrap_or(0.0),
+                    frame.var_value("aos").unwrap_or(0.0),
+                    frame.var_value("aviahorizon_pitch").unwrap_or(0.0),
+                    frame.var_value("aviahorizon_roll").unwrap_or(0.0),
+                    frame.var_value("compass").unwrap_or(0.0),
                     aoa_limits,
                 );
             }
@@ -804,14 +804,14 @@ pub fn win32_thread_main(cfg: Win32ThreadConfig) {
                         .read()
                         .expect("live 锁中毒")
                         .as_ref()
-                        .map(|data| {
-                            let d = data.read().unwrap_or_else(|e| e.into_inner());
+                        .and_then(|frames| frames.latest())
+                        .map(|f| {
                             // Java sState 恒非 null (Service 构造即建) — None 轮按
                             // 缺省 0 (同 Java State 字段初值)
                             DfsFlight {
-                                gear: d.s_state.as_ref().map(|s| s.gear).unwrap_or(0),
-                                speedv: d.var_value("speedv").unwrap_or(0.0),
-                                throttle: d.s_state.as_ref().map(|s| s.throttle).unwrap_or(0),
+                                gear: f.s_state.as_ref().map(|s| s.gear).unwrap_or(0),
+                                speedv: f.var_value("speedv").unwrap_or(0.0),
+                                throttle: f.s_state.as_ref().map(|s| s.throttle).unwrap_or(0),
                             }
                         });
                     dfs_feed.pump(

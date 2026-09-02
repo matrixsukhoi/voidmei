@@ -12,7 +12,6 @@ use vm_core::formula::registry::FormulaView as _; // var_value 取数唯一接�
 use vm_core::ui_state_bus::UIStateBus;
 use vm_core::voice_resource_manager::VoiceResourceManager;
 use vm_core::voice_warning::{VoiceWarning, VoiceWarningService};
-use vm_data::service_fields::ServiceData;
 use vm_core::flight_data_bus::FlightDataBus;
 use vm_core::fm::FMManager;
 
@@ -108,82 +107,91 @@ pub(crate) fn attach_snapshot_hooks(
 }
 
 /// VoiceWarning 对 Service 消费面的生产实现 (VoiceWarningService trait):
-/// 直接持有 live ServiceData 的 RwLock Arc (Java xS 引用在 openpad 时刻捕获的
-/// 对位 — S 实例持续存活, stop 清槽后数据不再更新但读不悬垂, 比 Java 更稳)。
-///
-/// PORT(备案, 审查 W2): 每 trait 方法独立 read 锁 + s_state/s_indic 各做一次
-/// 整结构深拷 (Java 无锁 volatile 直读的快照等价物) — run() 一轮 tick 约 20
-/// 次锁获取; 10Hz 节拍下总开销可忽略, 读锁共享无死锁面, 比 Java 无锁读更一致
-/// (无撕裂)。若后续提高节拍, 可改锁内一次性快照释放再算 (feed_overlays_live
-/// 的同族优化)。
+/// 波4 起持帧仓 — 每 trait 方法一次零锁 clone Arc 取整帧 (原 ~20 次读锁/
+/// tick + State/Indicators 整结构深拷的 B-W2 备案形态消亡); fatal_warn 写
+/// 真相源原子 (Service 帧发布时镜像入帧)。
 struct LiveVoiceService {
-    data: Arc<std::sync::RwLock<ServiceData>>,
+    frames: Arc<vm_data::frame::FrameStore>,
 }
 
 impl VoiceWarningService for LiveVoiceService {
     fn current_time_ms(&self) -> i64 {
-        self.data.read().unwrap_or_else(|e| e.into_inner()).current_time_ms
+        self.frames.latest().map(|f| f.current_time_ms).unwrap_or(0)
     }
     fn player_live(&self) -> bool {
-        self.data.read().unwrap_or_else(|e| e.into_inner()).player_live
+        self.frames.latest().is_some_and(|f| f.player_live)
     }
     fn set_fatal_warn(&self, v: bool) {
-        self.data.write().unwrap_or_else(|e| e.into_inner()).fatal_warn = v;
+        self.frames.set_fatal_warn(v);
     }
     fn is_downing_flap(&self) -> bool {
         // W-C: 直读公式槽, None→false
-        let d = self.data.read().unwrap_or_else(|e| e.into_inner());
-        d.var_value("is_downing_flap").unwrap_or(0.0) != 0.0
+        self.frames
+            .latest()
+            .is_some_and(|f| f.var_value("is_downing_flap").unwrap_or(0.0) != 0.0)
     }
     fn flap_allow_angle(&self) -> f64 {
         // W-C: 直读公式槽, None→MAX(无限制, 不触发告警)
-        let d = self.data.read().unwrap_or_else(|e| e.into_inner());
-        d.var_value("flap_allow_angle").unwrap_or(f64::MAX)
+        self.frames
+            .latest()
+            .and_then(|f| f.var_value("flap_allow_angle"))
+            .unwrap_or(f64::MAX)
     }
     fn flap_allow_speed(&self) -> f64 {
-        // W-C: 直读公式槽, None→MAX(无限制, 不触发告警)
-        let d = self.data.read().unwrap_or_else(|e| e.into_inner());
-        d.var_value("flap_allow_speed").unwrap_or(f64::MAX)
+        self.frames
+            .latest()
+            .and_then(|f| f.var_value("flap_allow_speed"))
+            .unwrap_or(f64::MAX)
     }
     fn total_fuel(&self) -> f64 {
-        self.data.read().unwrap_or_else(|e| e.into_inner()).total_fuel
+        self.frames.latest().map(|f| f.total_fuel).unwrap_or(0.0)
     }
     fn fuel_percent(&self) -> i32 {
-        self.data.read().unwrap_or_else(|e| e.into_inner()).fuel_percent
+        self.frames.latest().map(|f| f.fuel_percent).unwrap_or(0)
     }
     fn radio_alt(&self) -> f64 {
-        self.data.read().unwrap_or_else(|e| e.into_inner()).radio_alt
+        self.frames.latest().map(|f| f.radio_alt).unwrap_or(0.0)
     }
     fn d_radio_alt(&self) -> f64 {
-        self.data.read().unwrap_or_else(|e| e.into_inner()).d_radio_alt
+        self.frames.latest().map(|f| f.d_radio_alt).unwrap_or(0.0)
     }
     fn cur_load_min_work_time(&self) -> f64 {
-        self.data.read().unwrap_or_else(|e| e.into_inner()).cur_load_min_work_time
+        self.frames
+            .latest()
+            .map(|f| f.cur_load_min_work_time)
+            .unwrap_or(0.0)
     }
     fn maximum_thr_rpm(&self) -> f64 {
-        self.data.read().unwrap_or_else(|e| e.into_inner()).maximum_thr_rpm
+        self.frames.latest().map(|f| f.maximum_thr_rpm).unwrap_or(0.0)
     }
     fn get_maximum_rpm(&self) -> bool {
-        self.data.read().unwrap_or_else(|e| e.into_inner()).get_maximum_rpm
+        self.frames.latest().is_some_and(|f| f.get_maximum_rpm)
     }
     fn is_eng_jet(&self) -> bool {
         // Java Service.isEngJet() = iEngType == ENGINE_TYPE_JET (Service.java:874-876)
-        self.data.read().unwrap_or_else(|e| e.into_inner()).i_eng_type
-            == vm_data::service_fields::ENGINE_TYPE_JET
+        self.frames.latest().is_some_and(|f| {
+            f.i_eng_type == vm_data::service_fields::ENGINE_TYPE_JET
+        })
     }
     fn get_stall_speed(&self) -> f64 {
         // W-C: 直读公式槽, None→0(永不触发失速告警)
-        let d = self.data.read().unwrap_or_else(|e| e.into_inner());
-        d.var_value("stall_speed").unwrap_or(0.0)
+        self.frames
+            .latest()
+            .and_then(|f| f.var_value("stall_speed"))
+            .unwrap_or(0.0)
     }
     fn s_state(&self) -> vm_core::parser::State {
-        let d = self.data.read().unwrap_or_else(|e| e.into_inner());
-        // Java st 恒非 null (Service 构造即建); 槽内 None 仅畸形帧窗口 — 零值让步
-        d.s_state.as_ref().cloned().unwrap_or_default()
+        // Java st 恒非 null (Service 构造即建); 无帧/槽内 None 仅畸形帧窗口 — 零值让步
+        self.frames
+            .latest()
+            .and_then(|f| f.s_state.clone())
+            .unwrap_or_default()
     }
     fn s_indic(&self) -> vm_core::parser::Indicators {
-        let d = self.data.read().unwrap_or_else(|e| e.into_inner());
-        d.s_indic.as_ref().cloned().unwrap_or_default()
+        self.frames
+            .latest()
+            .and_then(|f| f.s_indic.clone())
+            .unwrap_or_default()
     }
 }
 
@@ -251,9 +259,9 @@ pub(crate) fn open_voice_warning(
     voice_config: &Arc<Mutex<HashMap<String, String>>>,
     fm: &Arc<FMManager>,
     flight_bus: &Arc<FlightDataBus>,
-    live: Option<Arc<std::sync::RwLock<ServiceData>>>,
+    live: Option<Arc<vm_data::frame::FrameStore>>,
 ) -> Option<VoiceWarnSession> {
-    let data = live?;
+    let frames = live?;
     let mut vw = VoiceWarning::new(
         // 原 VoiceConfigSnapshot (voice_* 全键快照) — SnapshotConfigProvider 三合一
         Arc::new(SnapshotConfigProvider::new(Arc::clone(voice_config)))
@@ -267,7 +275,7 @@ pub(crate) fn open_voice_warning(
         Arc::from(crate::winmm_player::make_player()) as Arc<dyn vm_core::voice_resource_manager::SoundPlayer>,
     );
     let doit = Arc::clone(&vw.doit);
-    vw.init(Some(Arc::new(LiveVoiceService { data })));
+    vw.init(Some(Arc::new(LiveVoiceService { frames })));
     let join = std::thread::Builder::new()
         .name("VoiceWarning".to_string())
         .spawn(move || vw.run())

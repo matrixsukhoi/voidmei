@@ -5,6 +5,22 @@ use vm_core::fm::FMHandle;
 
 static CFG_N: AtomicUsize = AtomicUsize::new(0);
 
+
+/// 测试助手 (波4): ServiceData → 帧仓 (发布一帧)。原 "手造 RwLock<ServiceData>
+/// 塞 live" 的测试形态改为帧仓; 需要中途改数据的用 update_live_frame 重发布。
+#[allow(dead_code)]
+fn frame_store_of(d: &ServiceData) -> Arc<vm_data::frame::FrameStore> {
+    let store = Arc::new(vm_data::frame::FrameStore::new());
+    store.publish(vm_data::frame::Frame::from_service_data(d));
+    store
+}
+
+/// 改 ServiceData 后重发布帧 (测试观测写点的等价物)
+#[allow(dead_code)]
+fn update_live_frame(store: &vm_data::frame::FrameStore, d: &ServiceData) {
+    store.publish(vm_data::frame::Frame::from_service_data(d));
+}
+
 /// tmp 配置文件 (vm-core configuration_service 测试同款惯例)
 fn tmp_cfg(content: &str) -> String {
     let n = CFG_N.fetch_add(1, Ordering::SeqCst);
@@ -146,8 +162,8 @@ fn drive_from_live_opens_overlays() {
         assert_eq!(c.state(), ControllerState::InGame);
     }
     // 手工装填 live 数据 (真机由 Service 线程写; ServiceData 公开字段面)
-    let data = Arc::new(std::sync::RwLock::new(live_service_data("test-plane")));
-    *shell.shared.live.write().unwrap() = Some(data);
+    let data = live_service_data("test-plane");
+    *shell.shared.live.write().unwrap() = Some(frame_store_of(&data));
     shell.controller.as_mut().unwrap().drive_from_live();
     assert_eq!(
         shell.controller.as_ref().unwrap().state(),
@@ -178,14 +194,15 @@ fn drive_from_live_exit_resets_session() {
         c.init_status_bar();
         c.change_s2();
     }
-    let data = Arc::new(std::sync::RwLock::new(live_service_data("p1")));
-    *shell.shared.live.write().unwrap() = Some(Arc::clone(&data));
+    let mut data = live_service_data("p1");
+    let live_store = frame_store_of(&data);
+    *shell.shared.live.write().unwrap() = Some(Arc::clone(&live_store));
     shell.controller.as_mut().unwrap().drive_from_live(); // 进 Preview + identify(p1)
     // flags 丢失 (Java Service.java:1780 路径): 仅 flag 翻假, 其余保留
     {
-        let mut d = data.write().unwrap();
-        d.s_state.as_mut().unwrap().flag = false;
-        d.s_indic.as_mut().unwrap().flag = false;
+        data.s_state.as_mut().unwrap().flag = false;
+        data.s_indic.as_mut().unwrap().flag = false;
+        update_live_frame(&live_store, &data);
     }
     shell.controller.as_mut().unwrap().drive_from_live();
     assert_eq!(
@@ -215,8 +232,8 @@ fn drive_from_live_silent_stream_exits_on_game_exit() {
         c.init_status_bar();
         c.change_s2();
     }
-    let data = Arc::new(std::sync::RwLock::new(live_service_data("p1")));
-    *shell.shared.live.write().unwrap() = Some(Arc::clone(&data));
+    let data = live_service_data("p1");
+    *shell.shared.live.write().unwrap() = Some(frame_store_of(&data));
     // 首轮事件新鲜 (100ms 前): 正常进 Preview + identify
     shell
         .shared
@@ -264,8 +281,8 @@ fn drive_from_live_silent_player_not_live_waits() {
         c.init_status_bar();
         c.change_s2();
     }
-    let data = Arc::new(std::sync::RwLock::new(live_service_data("p1")));
-    *shell.shared.live.write().unwrap() = Some(Arc::clone(&data));
+    let mut data = live_service_data("p1");
+    *shell.shared.live.write().unwrap() = Some(frame_store_of(&data));
     shell
         .shared
         .last_flight_event_ms
@@ -276,7 +293,10 @@ fn drive_from_live_silent_player_not_live_waits() {
         ControllerState::Preview
     );
     // 坠机/停机: playerLive 翻假 + 事件停发超阈值
-    data.write().unwrap().player_live = false;
+    data.player_live = false;
+    if let Some(store) = shell.shared.live.read().unwrap().as_ref() {
+        update_live_frame(store, &data);
+    }
     shell.shared.last_flight_event_ms.store(
         current_time_millis() - FLIGHT_SILENT_EXIT_MS - 100,
         Ordering::SeqCst,
@@ -298,8 +318,8 @@ fn aircraft_change_lightweight_swap() {
         c.init_status_bar();
         c.change_s2();
     }
-    let data = Arc::new(std::sync::RwLock::new(live_service_data("a1")));
-    *shell.shared.live.write().unwrap() = Some(Arc::clone(&data));
+    let mut data = live_service_data("a1");
+    *shell.shared.live.write().unwrap() = Some(frame_store_of(&data));
     let c = shell.controller.as_mut().unwrap();
     c.drive_from_live();
     assert_eq!(shell.fm.current_target_name().as_deref(), Some("a1"));
@@ -307,7 +327,10 @@ fn aircraft_change_lightweight_swap() {
     c.on_aircraft_changed(Some("a1"));
     assert_eq!(shell.fm.current_target_name().as_deref(), Some("a1"));
     // 换机: FM 目标切换 (identify), 不重启 Controller (state 保持 Preview)
-    *data.write().unwrap() = live_service_data("b2");
+    data = live_service_data("b2");
+    if let Some(store) = shell.shared.live.read().unwrap().as_ref() {
+        update_live_frame(store, &data);
+    }
     c.drive_from_live();
     assert_eq!(shell.fm.current_target_name().as_deref(), Some("b2"));
     assert_eq!(c.state(), ControllerState::Preview, "换机不重启生命周期");
@@ -345,10 +368,16 @@ fn flight_log_open_close_lifecycle() {
         // 生产语义: shared.live 即 handle.data 的同一 Arc (start() 内 clone);
         // fixture 手塞场景下需同步塞真 Service 侧 (open_flight_log 的机型名
         // 与 ServiceAnalyzerSource 都读 handle.data)
-        let svc_data =
-            Arc::clone(&shell.controller.as_ref().unwrap().service.as_ref().unwrap().data);
-        *shell.shared.live.write().unwrap() = Some(Arc::clone(&svc_data));
-        *svc_data.write().unwrap() = live_service_data("s1");
+        // 波4: live 槽 = 真 Service 的帧仓; ServiceAnalyzerSource/open_flight_log
+        // 仍读 handle.data (锁面), 手动发一帧驱动 drive 链
+        let handle = shell.controller.as_ref().unwrap().service.as_ref().unwrap();
+        *shell.shared.live.write().unwrap() = Some(Arc::clone(&handle.frames));
+        *handle.data.write().unwrap() = live_service_data("s1");
+        let frame = {
+            let d = handle.data.read().unwrap();
+            vm_data::frame::Frame::from_service_data(&d)
+        };
+        handle.frames.publish(frame);
         shell.pump();
         assert_eq!(
             shell.controller.as_ref().unwrap().state(),
@@ -373,7 +402,9 @@ fn flight_log_open_close_lifecycle() {
         );
 
         // 换机: 关旧开新 (onAircraftChanged:320-333) — 新文件名随新机型
-        *svc_data.write().unwrap() = live_service_data("b2");
+        let d2 = live_service_data("b2");
+        let handle = shell.controller.as_ref().unwrap().service.as_ref().unwrap();
+        *handle.data.write().unwrap() = d2;
         let c = shell.controller.as_mut().unwrap();
         c.on_aircraft_changed(Some("b2"));
         {
@@ -437,8 +468,8 @@ fn stop_five_step_order() {
     publish_ui_event(&shell.ui_bus, ui_state_events::UI_READY, "");
     pump_events(&mut shell);
     shell.dispatch(UiCommand::StartGame);
-    let data = Arc::new(std::sync::RwLock::new(live_service_data("s1")));
-    *shell.shared.live.write().unwrap() = Some(data);
+    let data = live_service_data("s1");
+    *shell.shared.live.write().unwrap() = Some(frame_store_of(&data));
     shell.pump(); // drive: Service live 数据 → InGame → Preview
     assert_eq!(
         shell.controller.as_ref().unwrap().state(),
@@ -941,8 +972,8 @@ fn change_s3_openpad_delay_guarded_on_exit() {
         c.init_status_bar();
         c.change_s2();
     }
-    let data = Arc::new(std::sync::RwLock::new(live_service_data("g1")));
-    *shell.shared.live.write().unwrap() = Some(data);
+    let data = live_service_data("g1");
+    *shell.shared.live.write().unwrap() = Some(frame_store_of(&data));
     shell
         .shared
         .last_flight_event_ms
@@ -1495,7 +1526,7 @@ fn feed_overlays_live_updates_all_handles() {
     }
     let shared = ControllerShared::new();
     shared.overlay_ctx_preview.store(false, Ordering::SeqCst); // 游戏窗口形态
-    *shared.live.write().unwrap() = Some(Arc::new(std::sync::RwLock::new(d)));
+    *shared.live.write().unwrap() = Some(frame_store_of(&d));
     let fm = FMManager::new(Arc::new(EventBus::new()));
     let settings = inputs.hud.clone();
     let payload = EventPayload::builder().build();
@@ -1535,9 +1566,11 @@ fn feed_overlays_live_updates_all_handles() {
     // preview 门控: overlay_ctx_preview=true → 整帧跳过 (值不推进)
     shared.overlay_ctx_preview.store(true, Ordering::SeqCst);
     {
-        let live = shared.live.read().unwrap().clone();
-        let mut st = live.as_ref().unwrap().write().unwrap();
-        st.s_state.as_mut().unwrap().throttle = 99;
+        // 改源数据后重发布帧 (原 RwLock 直写观测的帧仓等价物)
+        d.s_state.as_mut().unwrap().throttle = 99;
+        if let Some(store) = shared.live.read().unwrap().as_ref() {
+            update_live_frame(store, &d);
+        }
     }
     feed_overlays_live(&handles, &payload, &shared, &fm, &settings, &lang, &mut attitude_feed);
     let e = handles.engine_control.as_ref().unwrap().borrow();
@@ -1573,8 +1606,7 @@ fn feed_overlays_live_swallows_malformed_frame() {
     let shared = ControllerShared::new();
     shared.overlay_ctx_preview.store(false, Ordering::SeqCst);
     // State::new() 的 pitch/thrust 空 Vec — get_pitch 的 s.pitch[0] panic (保真)
-    *shared.live.write().unwrap() =
-        Some(Arc::new(std::sync::RwLock::new(live_service_data("bad"))));
+    *shared.live.write().unwrap() = Some(frame_store_of(&live_service_data("bad")));
     let fm = FMManager::new(Arc::new(EventBus::new()));
     let settings = test_overlay_inputs().hud;
     let payload = EventPayload::builder().build();
@@ -1946,7 +1978,7 @@ fn voice_warning_游戏模式会话_启动tick写fatal_warn并停机() {
     let mut sd = live_service_data("spitfire");
     sd.s_state.as_mut().unwrap().ias = 500;
     sd.s_state.as_mut().unwrap().gear = 100;
-    let data = Arc::new(std::sync::RwLock::new(sd));
+    let data = frame_store_of(&sd);
     let mut session = open_voice_warning(
         &shell.voice,
         &shell.ui_bus,
@@ -1960,7 +1992,7 @@ fn voice_warning_游戏模式会话_启动tick写fatal_warn并停机() {
     // voice_warning/tests.rs 同款修法), 超时即失败 — 不假通过
     let deadline = Instant::now() + Duration::from_secs(8);
     loop {
-        if data.read().unwrap().fatal_warn {
+        if data.fatal_warn() {
             break;
         }
         assert!(
@@ -2183,7 +2215,7 @@ fn voice_warning_装配面_播放计数与订阅生命周期() {
     let mut d = live_service_data("spitfire");
     d.s_state.as_mut().unwrap().ias = 200;
     d.s_state.as_mut().unwrap().aoa = 20.0;
-    let data = Arc::new(std::sync::RwLock::new(d));
+    let data = frame_store_of(&d);
 
     // 订阅在: 装配后 FlightDataBus +1 (initCompressorWarning 的 register)
     let base = shell.flight_bus.subscriber_count();
@@ -2219,7 +2251,7 @@ fn voice_warning_装配面_播放计数与订阅生命周期() {
     // 不能用 is_some() — ServiceData 初值即 Some(false), 0ms 即真 (假通过面)
     let deadline = Instant::now() + Duration::from_secs(8);
     loop {
-        if data.read().unwrap().fatal_warn {
+        if data.fatal_warn() {
             break;
         }
         assert!(
@@ -2290,8 +2322,7 @@ fn refresh_previews_stop_voice_warn_session() {
     let mut shell = fixture_full(30, cfg);
     // live 槽手工装填 (openpad 前提; 不起真 Service — 零值数据 player_live=false,
     // 告警静默, 只驱动会话生命周期; open_voice_warning 测试同款先例)
-    *shell.shared.live.write().unwrap() =
-        Some(Arc::new(std::sync::RwLock::new(ServiceData::default())));
+    *shell.shared.live.write().unwrap() = Some(frame_store_of(&ServiceData::default()));
     shell.spawn_win32_thread().expect("win32 线程启动");
     let base = probe_deliveries(&shell.ui_bus); // 无会话期送达 0
     shell.ui_cmd_tx.send(UiCommand::OpenAllOverlays).unwrap();

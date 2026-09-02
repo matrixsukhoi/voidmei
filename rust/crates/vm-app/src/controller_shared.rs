@@ -32,8 +32,10 @@ pub struct ControllerShared {
     /// 低频杂项标志 (showStatus/sessionAircraftType/currentFmHotkeyCode)
     pub flags: Mutex<ControllerFlags>,
     /// 游戏模式 Service 数据快照句柄 (start() 建 / stop() 清;
-    /// win32 线程 live 喂入 + 主线程 tick 驱动读)
-    pub live: RwLock<Option<Arc<RwLock<vm_data::service_fields::ServiceData>>>>,
+    /// win32 线程 live 喂入 + 主线程 tick 驱动读)。
+    /// 重构波4: 类型从 Arc<RwLock<ServiceData>> (共享锁读) 改为帧仓 —
+    /// 读者零锁取不可变整帧, feed_overlays_live 持锁跨计算的 B-W2 备案消亡
+    pub live: RwLock<Option<Arc<vm_data::frame::FrameStore>>>,
     /// OverlayContext.isPreviewMode 的跨线程替身 (Java: forPreviewMode/forGameMode
     /// 两种 ctx 构建)。语义 = **会话窗口形态** (审查 blocker 收口): openpad→false /
     /// CloseAll/重建核→true; RefreshPreviews 仅在激活探测期临时置 true (对位 Java

@@ -204,6 +204,8 @@ fn desktop_main(debug: bool) -> i32 {
     let mut startup_dialog_replayed = false;
     // StatusBar 面: 核状态变化 → 前端 controller-state (Init/Preview/Connected/InGame)
     let mut last_state = String::new();
+    // rule_triggers 的已消费帧序号 (帧序号去重, 见循环内 W5 注)
+    let mut rule_triggers_seen: u64 = 0;
     loop {
         let auto_started = first_iteration
             && shell
@@ -257,17 +259,18 @@ fn desktop_main(debug: bool) -> i32 {
         }
 
         // W5: 规则触发事件转发 (rule_triggers → 前端 toast; 消费链首段)。
-        // 读后清空防重发; 冷却态机已保证触发不刷屏
+        // 波4: 帧序号去重 (原 ServiceData 读后清空 drain 语义的帧仓等价物);
+        // 冷却态机已保证触发不刷屏
         {
             let triggers: Vec<_> = {
                 let shell = shell.borrow();
                 let live = shell.shared.live.read().expect("live 锁中毒").clone();
-                match live {
-                    Some(data) => {
-                        let mut d = data.write().expect("ServiceData 锁中毒");
-                        std::mem::take(&mut d.rule_triggers)
+                match live.as_ref().and_then(|frames| frames.latest()) {
+                    Some(f) if f.frame_seq != rule_triggers_seen => {
+                        rule_triggers_seen = f.frame_seq;
+                        f.rule_triggers.clone()
                     }
-                    None => Vec::new(),
+                    _ => Vec::new(),
                 }
             };
             for t in &triggers {
@@ -467,11 +470,17 @@ fn mock_smoke_main(debug: bool) -> i32 {
 
     // 断言 1: Service 收数 (s2 的 /state + /indicators 双 flag 真 + playerLive)
     let mut service_ok = false;
-    if let Some(data) = shell.shared.live.read().expect("live 锁中毒").clone() {
-        let d = data.read().unwrap_or_else(|e| e.into_inner());
-        service_ok = d.s_state.as_ref().is_some_and(|s| s.flag)
-            && d.s_indic.as_ref().is_some_and(|i| i.flag)
-            && d.player_live;
+    if let Some(f) = shell
+        .shared
+        .live
+        .read()
+        .expect("live 锁中毒")
+        .as_ref()
+        .and_then(|frames| frames.latest())
+    {
+        service_ok = f.s_state.as_ref().is_some_and(|s| s.flag)
+            && f.s_indic.as_ref().is_some_and(|i| i.flag)
+            && f.player_live;
     }
     // 断言 2: overlay present 帧数 > 0 (win32 渲染节拍计数, 见 ControllerShared 注)
     let frames = shell.shared.render_frames.load(std::sync::atomic::Ordering::SeqCst);

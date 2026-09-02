@@ -20,6 +20,8 @@ impl Default for Zb {
     }
 }
 
+/// 波4: Clone 供 Frame 帧快照整体克隆 (字段全值类型)
+#[derive(Clone)]
 pub struct MapInfo {
     s: String,
     pub grid_steps_x: f64,

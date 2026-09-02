@@ -49,7 +49,7 @@ fn var_value_formula_slot_and_single_name() {
     let mut d = ServiceData::default();
     d.formula_slots = mgr.current().slots_arc();
     let raw = vm_core::formula::registry::RawInputs::default();
-    d.formula_values = mgr.eval_frame(&raw, &Default::default(), &Default::default(), 0);
+    d.formula_values = mgr.eval_frame(&raw, &Default::default(), &Default::default(), 0).0;
     use vm_core::formula::registry::FormulaView as _;
     assert_eq!(d.var_value("mach"), Some(0.72));
     assert_eq!(d.var_value("getMach"), None, "getter 名不可达 (单名制, 边界外禁用)");

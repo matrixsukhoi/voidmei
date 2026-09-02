@@ -54,9 +54,7 @@ pub struct ServiceData {
         pub fuel_change: f64,
         pub(crate) fuel_lastchange_mili: i64,
         pub(crate) fuelchange_time: i64,
-    /// 外部写者: Controller.java:384 `S.startTime = System.currentTimeMillis()`
-    /// (openpad 写入 — elapsed_time 的会话起点基准)
-    pub start_time: i64,
+    // (start_time 已归 FrameStore 原子 — Controller openpad 写, 波4)
     pub elapsed_time: i64,
 
     pub noil_temp: f64,
@@ -74,9 +72,7 @@ pub struct ServiceData {
     // PORT(Java `private final FocusMonitor focusMonitor` 不迁移): 焦点监控器是
     // 轮询驱动的组件 (tick 由 run() 调), 归 service_loop 线程持有, 非数据快照成员。
 
-    // 对飞机结构有重大影响的警告
-    // PORT: Java `Boolean` 装箱 (可 null) → Option<bool> (§1); 初始化器 = false → Some(false)
-    pub fatal_warn: bool,
+    // (fatal_warn 已归 FrameStore 原子 — VoiceWarning set_fatal_warn 写, 波4)
 
     // sState转换后
     pub compass_delta: f64,
@@ -214,12 +210,10 @@ impl Default for ServiceData {
             fuel_change: 0.0,
             fuel_lastchange_mili: 0,
             fuelchange_time: 0,
-            start_time: 0,
             elapsed_time: 0,
             noil_temp: 0.0,
             nwater_temp: 0.0,
             wep_time: 0,
-            fatal_warn: false,
             compass_delta: 0.0,
             engine_num: 0,
             cur_load_min_work_time: 0.0,

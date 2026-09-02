@@ -45,6 +45,17 @@ fn write_data(data: &RwLock<ServiceData>) -> std::sync::RwLockWriteGuard<'_, Ser
     data.write().unwrap_or_else(|e| e.into_inner())
 }
 
+/// Java getManifoldPressureDisplay 的换算单源 (波4 合一: 原 session_inputs 与
+/// flight_log_snapshot 各写一份): 英制 → (manifold-1)*14.696 psi, 公制直读。
+/// (格式化精度两处不同 — 各自的显示语义, 只合换算)
+fn manifold_display(s: Option<&State>, imperial: bool) -> f64 {
+    if imperial {
+        s.map_or(0.0, |s| (s.manifoldpressure - 1.0) * 14.696)
+    } else {
+        s.map_or(0.0, |s| s.manifoldpressure)
+    }
+}
+
 /// C 级会话量收集 (W6: registry Session 通道的供值面 — 聚合/状态机产物
 /// 暂经 ServiceData 字段搬运, W8 公式化后逐项消亡)
 pub(crate) fn session_inputs(d: &ServiceData) -> vm_core::formula::registry::SessionInputs {
@@ -66,16 +77,8 @@ pub(crate) fn session_inputs(d: &ServiceData) -> vm_core::formula::registry::Ses
         avgeff: d.avgeff,
         // 原 getFuelPercent getter: i32 字段拓宽 (EngineControl 油量表数据源)
         fuel_percent: d.fuel_percent as f64,
-        // Java getManifoldPressureDisplay: 英制 → (manifold-1)*14.696 psi,
-        // 公制 → manifoldpressure 直读 (曾误走 trait default 恒 0, live 进气压行失真)
-        manifold_display: {
-            let s = d.s_state.as_ref();
-            if d.check_alt > 0 {
-                s.map_or(0.0, |s| (s.manifoldpressure - 1.0) * 14.696)
-            } else {
-                s.map_or(0.0, |s| s.manifoldpressure)
-            }
-        },
+        // Java getManifoldPressureDisplay (换算单源见 manifold_display)
+        manifold_display: manifold_display(d.s_state.as_ref(), d.check_alt > 0),
         is_imperial: d.check_alt > 0,
         is_jet: d.check_engine_flag && d.i_eng_type == ENGINE_TYPE_JET,
         // Java isPropEngine = PROP || TURBOPROP (isPistonEngine 才是 ==PROP);
@@ -173,8 +176,12 @@ impl Default for ServiceConfig {
 /// `deriver`/`http_client`/`focus_monitor` 线程独占 (无锁, 对应 Java 字段
 /// 仅轮询线程触碰)。
 pub struct Service {
-    /// 字段快照 (service_fields.rs; Java public 字段的 RwLock 形态)
+    /// 字段快照 (service_fields.rs; Java public 字段的 RwLock 形态)。
+    /// 重构波4: 仅 Service 线程内部读写 (短锁); 跨线程读者一律走 [`frames`]
     pub data: Arc<RwLock<ServiceData>>,
+    /// 不可变帧仓 (波4): 每周期 publish 处发布 `Arc<Frame>`, 跨线程读者零锁;
+    /// fatal_warn/start_time 的跨线程写点原子也归帧仓持有
+    pub frames: Arc<crate::frame::FrameStore>,
     /// Java `FMManager.getInstance()` 单例 → 构造注入
     fm_manager: Arc<FMManager>,
     /// Java `FlightDataBus.getInstance()` 单例 → 构造注入
@@ -234,6 +241,7 @@ impl Service {
         formula.load_from_files();
         let mut svc = Service {
             data: Arc::clone(&data),
+            frames: Arc::new(crate::frame::FrameStore::new()),
             fm_manager,
             bus,
             http_client: HttpHelper::new(&config.http_header),
@@ -739,7 +747,8 @@ impl Service {
         {
             let mut d = write_data(&self.data);
             d.fm = Arc::clone(&fm);
-            d.elapsed_time = d.current_time_ms - d.start_time;
+            // 波4: start_time 真相源原子化 (Controller openpad 写, 主线程)
+            d.elapsed_time = d.current_time_ms - self.frames.start_time_load();
             // Java updateSEP/updateAlt 的分母是 actualIntervalMs (run() L1804 的区间
             // 量化值, HTTP 慢于一个周期时 = 2*freq 及以上)——传 freq 会令卡顿轮
             // 加速度/SEP 成倍失真
@@ -896,14 +905,10 @@ impl Service {
                 fmdata: fm.fmdata.as_ref(),
             };
             let session = session_inputs(&d);
-            // 快照重建供规则求值 (formula.eval_frame 内部快照已 move 进缓存)
-            let snap = vm_core::formula::registry::assemble_snapshot(&raw, &session, &meta);
-            (
-                self.formula.eval_frame(&raw, &session, &meta, current_time_millis() as u64),
-                self.formula.current().slots_arc(),
-                snap,
-                meta.interval_ms,
-            )
+            // 重构波4: 快照随 eval_frame 返回 (原二次 assemble 已消)
+            let (results, snap) =
+                self.formula.eval_frame(&raw, &session, &meta, current_time_millis() as u64);
+            (results, self.formula.current().slots_arc(), snap, meta.interval_ms)
         };
         // L2 规则求值 (公式之后同快照; 触发事件写 ServiceData, 消费面 vm-app 接)
         let triggers =
@@ -1237,10 +1242,13 @@ impl Service {
                 }
                 _ => "--".to_string(),
             };
+            // 波4: 同一读快照构建不可变帧并原子发布 (跨线程读者自此零锁)
+            let frame = crate::frame::Frame::from_service_data(&d);
+            self.frames.publish(frame);
 
             EventPayload::builder()
                 .map_grid(map_grid)
-                .fatal_warn(d.fatal_warn)
+                .fatal_warn(self.frames.fatal_warn())
                 // W-C: 直读公式槽 (is_downing_flap 公式)
                 .is_downing_flap(d.var_value("is_downing_flap").unwrap_or(0.0) != 0.0)
                 // 批2: fueltime 文本现算 (镜像字段已拆)
@@ -1347,10 +1355,10 @@ pub fn flight_log_snapshot(d: &ServiceData) -> FlightLogSnapshot {
             |s| {
                 if s.manifoldpressure != 1.0 {
                     if d.check_alt > 0 {
-                        // 英制: 显示 Boost psi (%+.1f)
-                        format::java_f_plus((s.manifoldpressure - 1.0) * 14.696, 1)
+                        // 英制: 显示 Boost psi (%+.1f); 换算单源见 manifold_display
+                        format::java_f_plus(manifold_display(Some(s), true), 1)
                     } else {
-                        format::java_f(s.manifoldpressure, 2)
+                        format::java_f(manifold_display(Some(s), false), 2)
                     }
                 } else {
                     na.to_string()
@@ -1430,8 +1438,10 @@ impl AnalyzerService for ServiceAnalyzerSource {
 pub struct ServiceHandle {
     /// 停机标志 (调用方可预置/轮询)
     pub stop: Arc<AtomicBool>,
-    /// 数据快照共享句柄 (测试/调用方读 ServiceData)
+    /// 数据快照共享句柄 (Service 内部短锁面; 测试读)
     pub data: Arc<RwLock<ServiceData>>,
+    /// 帧仓 (波4: 跨线程读者的零锁取帧面 + fatal/start_time 写点)
+    pub frames: Arc<crate::frame::FrameStore>,
     join: Option<JoinHandle<()>>,
 }
 
@@ -1461,6 +1471,7 @@ impl Drop for ServiceHandle {
 pub fn start(service: Service) -> ServiceHandle {
     let stop = Arc::clone(&service.stop);
     let data = Arc::clone(&service.data);
+    let frames = Arc::clone(&service.frames);
     let join = std::thread::Builder::new()
         .name("Service".to_string())
         .spawn(move || service.run())
@@ -1468,6 +1479,7 @@ pub fn start(service: Service) -> ServiceHandle {
     ServiceHandle {
         stop,
         data,
+        frames,
         join: Some(join),
     }
 }

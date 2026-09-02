@@ -428,7 +428,7 @@ fn manager_install_and_eval() {
     );
     let tel = TestTel::default();
     let meta = MetaInputs { interval_ms: 50.0, ..Default::default() };
-    let r = { let mut st0 = crate::parser::State::default();
+    let (r, _snap) = { let mut st0 = crate::parser::State::default();
         st0.ias = tel.ias as i32;
         st0.tas = tel.tas as i32;
         let ind0 = crate::parser::Indicators::default();
@@ -457,7 +457,7 @@ fn manager_hot_update_retains_states() {
         mgr.eval_frame(&raw0, &sess0, &meta, 0) };
     // 热更新: 加一个公式, 原 p 的状态保留
     mgr.install(&[def("p", "prev(ias)"), def("q", "ias * 2")]);
-    let r = { let mut st0 = crate::parser::State::default();
+    let (r, _snap) = { let mut st0 = crate::parser::State::default();
         st0.ias = tel.ias as i32;
         let ind0 = crate::parser::Indicators::default();
         let raw0 = crate::formula::registry::RawInputs { state: Some(&st0), indic: Some(&ind0), fmdata: None };

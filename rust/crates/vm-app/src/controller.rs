@@ -358,7 +358,8 @@ impl Controller {
         // formulas.cfg+user 并进 live 集, 此处挂 Arc 供 vm-webui 命令线程访问
         vm_webui::commands_formula::publish_formula_bridge(Arc::clone(&service.formula));
         let handle = spawn_service_thread(service);
-        *self.shared.live.write().expect("live 锁中毒") = Some(Arc::clone(&handle.data));
+        // 波4: 跨线程读面 = 帧仓 (零锁); handle.data 的锁面仅供 Service 内部
+        *self.shared.live.write().expect("live 锁中毒") = Some(Arc::clone(&handle.frames));
         self.service = Some(handle);
         // B1 补偿信号接线 (ControllerShared.last_flight_event_ms 注): 新会话从 0 起,
         // live 事件只记到达时间 (回调在 Service 发布线程, 原子写无锁)
@@ -521,12 +522,9 @@ impl Controller {
         // 本处不再重复读键
         self.open_flight_log();
         // (elapsed_time 基准; 缺写者时 elapsed=epoch 巨值, 污染 FlightLog/CSV 首列)
+        // 波4: start_time 真相源 = 帧仓原子 (跨线程写点免锁)
         if let Some(handle) = self.service.as_ref() {
-            handle
-                .data
-                .write()
-                .unwrap_or_else(|e| e.into_inner())
-                .start_time = current_time_millis();
+            handle.frames.set_start_time(current_time_millis());
         }
     }
 
@@ -688,13 +686,13 @@ impl Controller {
     ///    Init (下方注释的"不能照跑"论证即为此让步, 特此声明稳态差异)。
     pub fn drive_from_live(&mut self) {
         let live = self.shared.live.read().expect("live 锁中毒").clone();
-        let Some(data) = live else { return };
-        let d = data.read().unwrap_or_else(|e| e.into_inner()); // 中毒穿透 (§6 契约)
-        let s_flag = d.s_state.as_ref().map(|s| s.flag).unwrap_or(false);
-        let i_flag = d.s_indic.as_ref().map(|i| i.flag).unwrap_or(false);
-        let i_type = d.s_indic.as_ref().and_then(|i| i.r#type.clone());
-        let player_live = d.player_live;
-        drop(d);
+        let Some(frames) = live else { return };
+        let Some(f) = frames.latest() else { return }; // 尚无首帧 = 等待数据
+        let s_flag = f.s_state.as_ref().map(|s| s.flag).unwrap_or(false);
+        let i_flag = f.s_indic.as_ref().map(|i| i.flag).unwrap_or(false);
+        let i_type = f.s_indic.as_ref().and_then(|i| i.r#type.clone());
+        let player_live = f.player_live;
+        drop(f);
         // B1 补偿判定先行: 事件流静默 + flags/playerLive 陈旧真值 = 串空 (游戏退出)。
         // 该轮对位 Java 串空分支 (L755-761): 只 S4toS1, 不 initStatusBar/changeS2
         // (两者在 Java 串非空分支内 — 若照跑, 退出后状态会被 initStatusBar 重新
