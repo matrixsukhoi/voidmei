@@ -16,7 +16,7 @@
 		// invalidate_clears_negative_cache_entry) — 与 fm 挂锁用例互斥后消除。
 		// (config_manager::tests 的 sandbox 有其私有 CWD_LOCK, 不在本 crate 保护面,
 		// 备案见其 B4 注释; 本文件不越文件修。)
-		let _fm_guard = crate::fm::test_guard::data_root();
+		let _fm_guard = crate::fm::test_support::data_root();
 		// 应 panic 测试经 catch_unwind 转发 ⇒ 锁可能被毒化, into_inner 容错
 		let _guard = CWD_LOCK.lock().unwrap_or_else(|p| p.into_inner());
 		let root: PathBuf = std::env::temp_dir().join(format!(

@@ -591,7 +591,7 @@ fn fm_table_functions_match_shared_impl() {
     assert_eq!(v, 83.33333333333334);
     // 共享实现直调等值 (双路径对拍)
     assert_eq!(
-        crate::hud_calculator::get_flap_allow_angle(270.0, false, Some(&fmdata)),
+        crate::fm::data::get_flap_allow_angle(270.0, false, Some(&fmdata)),
         v
     );
     // 速度: 60% 开度档间插值 → 284.0 (同 oracle)

@@ -29,11 +29,11 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::fmdata::json::{extract_fuel_modifications_json, get_last_string_ci};
 use crate::fmdata::{FmData, FuelModification, FuelType};
-use crate::fm::fm_data_paths;
+use crate::fm::data_paths;
 use crate::fm::handle::FMHandle;
-use crate::fm_power_extractor::{extract_stages_with_fuel, is_piston_engine};
+use crate::fm::power_extractor::{extract_stages_with_fuel, is_piston_engine};
 use crate::logger;
-use crate::piston_power_model::peak_wep_power;
+use crate::fm::piston_model::peak_wep_power;
 
 /// 白盒测试计数器：FMLoader.load 真正执行（进入加载流程）的次数
 // PORT: Java `private static volatile long loadCount` → AtomicU64 (§1 volatile →
@@ -123,7 +123,7 @@ fn try_load(name: &str) -> Result<FMHandle, String> {
 /// 剥尾 .blk 拼 .json → parse_named_json (plotdata 已内含) → 派生同文本链。
 fn try_load_json(name: &str) -> Result<FMHandle, String> {
     // 1. 中央文件不存在 → 确认机型不在库 → MISSING
-    let central = fm_data_paths::central_file(name);
+    let central = data_paths::central_file(name);
     if !central.exists() {
         return Ok(FMHandle::missing(Some(name.to_string())));
     }
@@ -176,7 +176,7 @@ fn try_load_json(name: &str) -> Result<FMHandle, String> {
         "{}.json",
         fmfile.strip_suffix(".blk").unwrap_or(&fmfile)
     );
-    let physical = fm_data_paths::physical_file(&physical_name);
+    let physical = data_paths::physical_file(&physical_name);
     let fmdata = match FmData::parse_named_json(&physical.to_string_lossy(), &fmfile) {
         Ok(b) => b,
         Err(_) => {
@@ -263,13 +263,13 @@ fn java_double_str(d: f64) -> String {
 // 另补边界: UNRESOLVED 计数、fmFile 回退/无后缀/燃油改装分支。
 //
 // 数据根策略 (PORT): cargo test 在同测试二进制内并行跑 #[test],
-// fm_data_paths::tests::java_main_sequence 会临时翻转全局 DATA_ROOT
+// data_paths::tests::java_main_sequence 会临时翻转全局 DATA_ROOT
 // (testroot/otherroot, Drop 恢复回 "./data")。load 内部 central_file 与
 // physical_file 各读一次 DATA_ROOT, "前后双检默认根 + 重试"无法闭合单次
 // load 内部的翻转窗口 (双检均通过但结果被污染, 审查 B blocker) —— 改为
 // **多根铺数据**: 合成文件铺满 DATA_ROOT 的全部可能取值 (ROOTS), load 在
 // 任何时刻读任何根, 命中/缺失判定恒定: 既无 flaky fail, 也无 "错误根下
-// 恰同结果" 的假通过窗口。共享串行锁 (crate::fm::test_guard) 已备位,
+// 恰同结果" 的假通过窗口。共享串行锁 (crate::fm::test_support) 已备位,
 // 本测试挂锁; java_main_sequence 本波次禁改 fm_data_paths.rs 无法接入
 // (接入仅一行, 见 test_guard 模块注释), 接入后铺根可退化为单根。
 // ⚠ 铺根依赖 java_main_sequence 的字面量根名 (其 Java 对拍期望值, 变更

@@ -5,7 +5,7 @@ use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 
 use vm_core::configuration_service::ControllerIntervals;
-use vm_core::controller_state::ControllerState;
+use crate::controller_state::ControllerState;
 use vm_core::logger;
 
 /// FlightDataBus 事件流静默判定阈值 (审查 B1 补偿, 见

@@ -162,7 +162,7 @@ impl FmData {
     pub fn get_version(&self) -> Option<String> {
         // 版本文件路径走 fm_data_paths (blkx→json 迁移顺带修正: 原硬编码
         // "./data/aces/version" 未随 setDataRoot 注入, 白盒测试根下读不到)
-        let file = crate::fm::fm_data_paths::version_file();
+        let file = crate::fm::data_paths::version_file();
         let mut tmp_data: Option<String> = None;
         if file.exists() {
             let mut sb = String::new();

@@ -238,8 +238,7 @@ fn desktop_main(debug: bool) -> i32 {
             let state = s.shared.state();
             let in_game = matches!(
                 state,
-                vm_core::controller_state::ControllerState::Connected
-                    | vm_core::controller_state::ControllerState::InGame
+                vm_app::ControllerState::Connected | vm_app::ControllerState::InGame
             );
             (
                 s.is_exit_requested(),

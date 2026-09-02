@@ -355,10 +355,10 @@ fn eval_ctx_fn(fid: FnId, vals: &[f64], fmdata: Option<&crate::fmdata::FmData>) 
     use FnId as F;
     let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| match fid {
         F::FmFlapAllowSpeed => {
-            crate::hud_calculator::get_flap_allow_speed(vals[0] as i32, vals[1] != 0.0, fmdata)
+            crate::fm::data::get_flap_allow_speed(vals[0] as i32, vals[1] != 0.0, fmdata)
         }
         F::FmFlapAllowAngle => {
-            crate::hud_calculator::get_flap_allow_angle(vals[0], vals[1] != 0.0, fmdata)
+            crate::fm::data::get_flap_allow_angle(vals[0], vals[1] != 0.0, fmdata)
         }
         _ => {
             let Some(b) = fmdata else { return f64::NAN };

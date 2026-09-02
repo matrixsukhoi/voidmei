@@ -4,7 +4,7 @@ use std::sync::Mutex;
 
 use crate::fmdata::{FmData, EngineLoad};
 use crate::fm::status::FMStatus;
-use crate::piston_power_model::CompressorStageParams;
+use crate::fm::piston_model::CompressorStageParams;
 
 // PORT: 原 BlkxPlaceholder 零字段占位已按 blkx/mod.rs 字段波次陷阱注 5 的排期
 // (构造点波次 = FMLoader 波次) 兑现切换为真实 crate::fmdata::FmData 聚合 struct;

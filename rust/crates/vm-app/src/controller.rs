@@ -9,7 +9,7 @@ use std::time::Duration;
 use vm_core::bus::Subscription;
 use vm_core::config_api::ConfigProvider;
 use vm_core::configuration_service::ConfigurationService;
-use vm_core::controller_state::ControllerState;
+use crate::controller_state::ControllerState;
 use vm_core::event::flight_data_event::FlightDataEvent;
 use vm_core::event::ui_state_events;
 use vm_core::flight_data_bus::FlightDataBus;

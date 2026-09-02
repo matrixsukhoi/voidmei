@@ -1,5 +1,5 @@
 	use super::*;
-	use crate::fm::fm_loader;
+	use crate::fm::loader;
 	use crate::fm::status::FMStatus;
 	use std::path::{Path, PathBuf};
 	use std::time::{Duration, Instant};
@@ -105,8 +105,8 @@
 		// 自身不碰 DATA_ROOT, 但须与同二进制并行的真加载方 (store_tests/loader
 		// 用例的 fetch_add 窗口) 互斥; 持锁先行测试会留下非零计数, 故挂锁后先
 		// 清零再断言 (fm_loader.rs W-B2 备案的兑现)
-		let _guard = crate::fm::test_guard::data_root();
-		fm_loader::reset_load_count();
+		let _guard = crate::fm::test_support::data_root();
+		loader::reset_load_count();
 		let m = FMManager::new(Arc::new(EventBus::new()));
 		m.identify(None);
 		m.identify(Some(""));
@@ -116,7 +116,7 @@
 		);
 		check(m.current_target_name().is_none(), "null/空名不建立目标");
 		check(
-			!m.is_loading() && fm_loader::get_load_count() == 0,
+			!m.is_loading() && loader::get_load_count() == 0,
 			"null/空名零任务零加载",
 		);
 	}
@@ -128,7 +128,7 @@
 	/// FmChangedBus 的 PORT 注)。
 	#[test]
 	fn negative_cache_hit_branch_and_sync_dispatch() {
-		let _guard = crate::fm::test_guard::data_root();
+		let _guard = crate::fm::test_support::data_root();
 		let _cleanup = CleanupOnDrop;
 		setup_synthetic_data();
 
@@ -140,7 +140,7 @@
 		});
 		let m = FMManager::new(Arc::clone(&bus));
 		m.reset();
-		fm_loader::reset_load_count();
+		loader::reset_load_count();
 		events.lock().unwrap().clear();
 
 		m.identify(Some("plane1"));
@@ -152,12 +152,12 @@
 			wait_for(|| m.current().is_missing_like() && !m.is_loading()),
 			"首次 ghost 落定 MISSING 并进负缓存",
 		);
-		check(fm_loader::get_load_count() == 2, "plane1 + ghost 共 2 次真实加载");
+		check(loader::get_load_count() == 2, "plane1 + ghost 共 2 次真实加载");
 
 		// 目标切走 (current 已是 MISSING, 句柄不在 → 真实重载回 READY)
 		m.identify(Some("plane1"));
 		check(wait_for(|| m.current().has_fm()), "切回 plane1 真实重载回 READY");
-		check(fm_loader::get_load_count() == 3, "切走又切回放行重载 (护栏不拦)");
+		check(loader::get_load_count() == 3, "切走又切回放行重载 (护栏不拦)");
 
 		// 再切 ghost: 负缓存命中 → 同步落 MISSING, 不发任务
 		events.lock().unwrap().clear();
@@ -167,7 +167,7 @@
 			"负缓存命中: identify 返回前同步落 MISSING, 无在途任务",
 		);
 		check(
-			fm_loader::get_load_count() == 3,
+			loader::get_load_count() == 3,
 			"负缓存命中不再触发磁盘加载",
 		);
 		// 同步派发: publish 在 identify 调用线程上逐订阅方执行完毕,
@@ -189,7 +189,7 @@
 			events.lock().unwrap().last().map(|h| h.status) == Some(FMStatus::NotAircraft),
 			"NOT_AIRCRAFT 分支同步派发 FM_CHANGED",
 		);
-		check(fm_loader::get_load_count() == 3, "坦克短路零磁盘加载");
+		check(loader::get_load_count() == 3, "坦克短路零磁盘加载");
 	}
 
 	/// 补充 (Java 测试未覆盖): invalidate 手动作废负缓存 —— 连 lastAttemptMs
@@ -197,13 +197,13 @@
 	/// 大小写/空白规范化后命中同一键; null 入参无操作。
 	#[test]
 	fn invalidate_clears_negative_cache_entry() {
-		let _guard = crate::fm::test_guard::data_root();
+		let _guard = crate::fm::test_support::data_root();
 		let _cleanup = CleanupOnDrop;
 		setup_synthetic_data();
 
 		let m = FMManager::new(Arc::new(EventBus::new()));
 		m.reset();
-		fm_loader::reset_load_count();
+		loader::reset_load_count();
 
 		m.identify(Some("ghost"));
 		check(
@@ -216,13 +216,13 @@
 		m.invalidate(Some("  GHOST  "));
 		m.identify(Some("plane1"));
 		check(wait_for(|| m.current().has_fm()), "换目标触发真实加载");
-		check(fm_loader::get_load_count() == 2, "作废后回切应重新走磁盘 (plane1+ghost)");
+		check(loader::get_load_count() == 2, "作废后回切应重新走磁盘 (plane1+ghost)");
 		m.identify(Some("ghost"));
 		check(
 			wait_for(|| m.current().status == FMStatus::Missing),
 			"重新加载后再次落定 MISSING",
 		);
-		check(fm_loader::get_load_count() == 3, "ghost 第二次真实加载");
+		check(loader::get_load_count() == 3, "ghost 第二次真实加载");
 
 		m.invalidate(None); // null 守卫: 无操作不 panic
 	}
@@ -238,7 +238,7 @@
 	/// 全程不动 DATA_ROOT (模块头注的竞态备案)。
 	#[test]
 	fn real_data_identify_chain() {
-		let _guard = crate::fm::test_guard::data_root();
+		let _guard = crate::fm::test_support::data_root();
 		let repo_data = format!("{}/../../../data", env!("CARGO_MANIFEST_DIR"));
 		let real_fm_dir = Path::new(&repo_data).join("aces/gamedata/flightmodels");
 		if !real_fm_dir.join("spitfire_f24.json").exists() {
@@ -285,7 +285,7 @@
 		});
 		let m = FMManager::new(Arc::clone(&bus));
 		m.reset();
-		fm_loader::reset_load_count();
+		loader::reset_load_count();
 
 		// identify 真机 (任意大小写) → loader 线程加载 → current() 快照 READY
 		m.identify(Some("Spitfire_F24"));
@@ -293,7 +293,7 @@
 			wait_for(|| m.current().has_fm() && !m.is_loading()),
 			"真机 spitfire_f24 应加载到 READY, 实际: {} (加载次数 {})",
 			m.current(),
-			fm_loader::get_load_count()
+			loader::get_load_count()
 		);
 		let snap = m.current();
 		assert_eq!(snap.name.as_deref(), Some("spitfire_f24"), "机型名规范化为小写");
@@ -303,7 +303,7 @@
 			Some("fm/spitfire_f24.blk"),
 			"物理文件 readFileName 链路锁死"
 		);
-		assert_eq!(fm_loader::get_load_count(), 1, "真机首载 1 次");
+		assert_eq!(loader::get_load_count(), 1, "真机首载 1 次");
 		assert_eq!(m.current_target_name().as_deref(), Some("spitfire_f24"));
 		check(
 			events.lock().unwrap().last().map(|h| h.status) == Some(FMStatus::Ready),
@@ -312,7 +312,7 @@
 
 		// 同目标重复 identify: 去重, 零加载
 		m.identify(Some("spitfire_f24"));
-		assert_eq!(fm_loader::get_load_count(), 1, "目标去重应零加载");
+		assert_eq!(loader::get_load_count(), 1, "目标去重应零加载");
 
 		// 缺失机型: 首次走 loader → MISSING 进负缓存
 		m.identify(Some("zzfm_no_such_plane"));
@@ -320,19 +320,19 @@
 			wait_for(|| m.current().status == FMStatus::Missing && !m.is_loading()),
 			"缺失机型应落定 MISSING"
 		);
-		assert_eq!(fm_loader::get_load_count(), 2);
+		assert_eq!(loader::get_load_count(), 2);
 
 		// 回切真机 (护栏放行: current.name != spitfire) → 重载 READY
 		m.identify(Some("spitfire_f24"));
 		assert!(wait_for(|| m.current().has_fm()), "回切真机应重新 READY");
-		assert_eq!(fm_loader::get_load_count(), 3);
+		assert_eq!(loader::get_load_count(), 3);
 
 		// 负缓存命中: 再切缺失机型 → 同步落 MISSING, 零加载, 事件同步派发
 		events.lock().unwrap().clear();
 		m.identify(Some("zzfm_no_such_plane"));
 		assert_eq!(m.current().status, FMStatus::Missing, "负缓存命中同步落 MISSING");
 		assert!(!m.is_loading(), "负缓存命中无在途任务");
-		assert_eq!(fm_loader::get_load_count(), 3, "负缓存命中零磁盘加载");
+		assert_eq!(loader::get_load_count(), 3, "负缓存命中零磁盘加载");
 		check(
 			events.lock().unwrap().last().map(|h| h.status) == Some(FMStatus::Missing),
 			"FM_CHANGED 同步派发 MISSING 句柄",
@@ -341,5 +341,5 @@
 		// NOT_AIRCRAFT 短路: 坦克 type 零磁盘加载, 同步落定
 		m.identify(Some("tankmodels/us_n4a3e8_76_sherman"));
 		assert_eq!(m.current().status, FMStatus::NotAircraft);
-		assert_eq!(fm_loader::get_load_count(), 3, "坦克短路零加载");
+		assert_eq!(loader::get_load_count(), 3, "坦克短路零加载");
 	}

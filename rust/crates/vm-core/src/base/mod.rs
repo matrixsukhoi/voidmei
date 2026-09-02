@@ -1,5 +1,6 @@
-//! 基座域: 事件总线基建/事件类型/日志/异常助手/字符串与文件工具/插值/物理常量。
+//! 基座域: 总线家族/事件类型/日志/异常助手/字符串与文件工具/插值/物理常量/标准大气模型。
 
+pub mod atmosphere_model;
 pub mod bus;
 pub mod calc_helper;
 pub mod event;

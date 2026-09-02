@@ -1,5 +1,5 @@
 //! Extracts engine parameters from parsed FM (Flight Model) data and converts
-//! them to the format required by [`crate::piston_power_model`].
+//! them to the format required by [`crate::fm::piston_model`].
 //!
 //! <p>This class bridges the gap between Blkx's raw data arrays and the
 //! structured CompressorStageParams objects needed for power calculations.
@@ -33,7 +33,7 @@
 
 use crate::atmosphere_model::{altitude_at_pressure, pressure};
 use crate::fmdata::{FmData, FuelModification, FuelType};
-use crate::piston_power_model::{
+use crate::fm::piston_model::{
     interpolate_power, supercharger_rpm_effect, torque_rpm_boost, CompressorStageParams,
 };
 

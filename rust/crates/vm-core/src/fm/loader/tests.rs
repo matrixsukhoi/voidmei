@@ -186,7 +186,7 @@ fn run_cases() {
 fn loader_contract_synthetic() {
     // DATA_ROOT 测试串行锁 (test_guard): 与未来接入该锁的 DATA_ROOT 相关
     // 测试互斥 (java_main_sequence 未接入期间的翻转免疫靠多根铺数据)
-    let _guard = crate::fm::test_guard::data_root();
+    let _guard = crate::fm::test_support::data_root();
     let _cleanup = CleanupOnDrop;
     setup_synthetic_data();
     run_cases();

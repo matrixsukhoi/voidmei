@@ -9,7 +9,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::bus::EventBus;
 use crate::event::ui_state_events;
-use crate::fm::fm_loader;
+use crate::fm::loader;
 use crate::fm::handle::FMHandle;
 use crate::logger;
 
@@ -436,7 +436,7 @@ fn run_load_job(inner: Arc<Inner>, target_name: String, epoch: u64) {
 		.lock()
 		.expect(LOCK_MSG)
 		.insert(target_name.clone(), current_time_millis());
-	let result = Arc::new(fm_loader::load(Some(&target_name)));
+	let result = Arc::new(loader::load(Some(&target_name)));
 	// 加载耗时期间目标也可能又变，过期结果不落 current
 	let target_now = inner.current_target.lock().expect(LOCK_MSG).clone();
 	if target_now.as_deref() != Some(target_name.as_str()) {
@@ -495,9 +495,9 @@ fn panic_message(payload: Box<dyn std::any::Any + Send>) -> String {
 //      store_tests 刻意不依赖真机 data/)。
 //
 // 并发隔离 (PORT): cargo test 同二进制并行跑 #[test] —— 本模块全部用例挂
-// crate::fm::test_guard::data_root() 串行锁 (DATA_ROOT / LOAD_COUNT 进程级全局,
+// crate::fm::test_support::data_root() 串行锁 (DATA_ROOT / LOAD_COUNT 进程级全局,
 // fm_loader.rs W-B2 备案的兑现); **不翻转 DATA_ROOT** (store_tests.rs 头注的
-// 竞态备案: 未挂锁的 fm_data_paths::java_main_sequence 首断言
+// 竞态备案: 未挂锁的 data_paths::java_main_sequence 首断言
 // `get_data_root()=="./data"` 会与翻转竞态) —— 对齐 fm_loader.rs/store_tests.rs
 // 的 "多根铺数据" 免疫策略: 所需文件铺满 DATA_ROOT 全部可能取值 (ROOTS), load
 // 在任何时刻读任何根, 命中/缺失判定恒定 (无 flaky fail, 无假通过窗口)。

@@ -1,4 +1,5 @@
-//! 事件总线基建: FlightDataBus/UIStateBus 的 Rust 化 (B 类适配层, 主 agent 设计)
+//! 总线家族 (波8 收拢: 泛型基建 EventBus + flight_data_bus/ui_state_bus 同居;
+//! 事件载荷类型在 base/event — 原三地分裂是"哪波改的就放哪"的历史痕迹)。
 //!
 //! 对齐 Java 语义: publish 为同步调用 (订阅者依次执行, 调用线程 = publish 线程,
 //! 对齐 Java FlightDataBus.publish 在 Service 线程、订阅者自行转 EDT 的模式);
@@ -11,6 +12,9 @@
 //! 已以 thread_local 重入检测 + pending 延迟补投根治 (ui_state_bus.rs);
 //! 本泛型层不动 — 强类型 FmChangedBus 的发布纪律 (锁外发布、禁再 publish)
 //! 由 fm_manager 满足。
+
+pub mod flight_data_bus;
+pub mod ui_state_bus;
 
 use std::sync::{Arc, Mutex, RwLock, Weak};
 

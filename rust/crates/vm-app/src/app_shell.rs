@@ -32,7 +32,6 @@ use std::time::Duration;
 
 use vm_core::config_api::ConfigProvider; // get_config/set_config trait 面 (根+tests 经 glob 消费)
 use vm_core::configuration_service::{ConfigurationService, GlobalColors};
-use vm_core::controller_state::ControllerState;
 use vm_core::event::ui_state_events;
 use vm_core::flight_data_bus::FlightDataBus;
 use vm_core::fm::FMManager;
@@ -69,6 +68,9 @@ use vm_overlay::host::OverlayHost;
 mod commands;
 mod controller;
 mod controller_shared;
+// Controller 生命周期枚举 (波8 自 vm-core 迁入: 唯一消费方是本 crate 的
+// Controller 本体, vm-core 根留清零)
+mod controller_state;
 mod debouncer;
 mod env;
 mod keys;
@@ -78,6 +80,7 @@ mod win32;
 
 pub use crate::commands::{DebounceMsg, MainEvent, SupervisorOutcome, TrayCommand, UiCommand};
 pub use crate::controller::{Controller, ControllerDeps};
+pub use crate::controller_state::ControllerState;
 pub use crate::controller_shared::{
     is_stale_refresh, ControllerFlags, ControllerShared, FLIGHT_SILENT_EXIT_MS,
 };

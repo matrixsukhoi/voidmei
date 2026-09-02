@@ -1,6 +1,6 @@
 use super::*;
 use crate::fmdata::json::extract_fuel_modifications_json;
-use crate::piston_power_model::optimal_power_advanced;
+use crate::fm::piston_model::optimal_power_advanced;
 
 /// Java 8 oracle 混合容差 (atmosphere_model.rs / piston_power_model.rs 同款):
 /// 1e-12·max(|expected|,1); Math.pow 跨 libm 允许最后几位 ULP 差异

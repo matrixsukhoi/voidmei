@@ -97,7 +97,7 @@ fn dispatch_form(
         RequestKind::GetFmList => {
             // Java FMListRowRenderer:48-62 扫 flightmodels 根的中央文件名 (去扩展);
             // blkx→json 迁移: 只收 .json (data/ 双格式同名并存, 不过滤会重复)
-            let dir = vm_core::fm::fm_data_paths::fm_dir();
+            let dir = vm_core::fm::data_paths::fm_dir();
             let mut names: Vec<String> = Vec::new();
             if let Ok(entries) = std::fs::read_dir(&dir) {
                 for e in entries.flatten() {

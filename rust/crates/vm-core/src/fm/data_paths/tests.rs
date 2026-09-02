@@ -116,7 +116,7 @@ fn java_main_sequence() {
     // set_data_root 生效窗口的互相击穿 (此前依赖注册序裕度, 见 fm/mod.rs
     // test_guard 模块注释的 B1 残余项备案) —— 接入后本用例成为挂锁方,
     // 与 fm_loader/fm_manager/store_tests 的 DATA_ROOT 用例全量互斥
-    let _guard = crate::fm::test_guard::data_root();
+    let _guard = crate::fm::test_support::data_root();
     let _reset = DataRootResetOnDrop;
 
     // (blkx→json 迁移终态: 扩展名断言已由 Java oracle 的 .blkx 改为 .json,

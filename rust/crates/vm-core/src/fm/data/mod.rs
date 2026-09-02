@@ -23,6 +23,7 @@
 mod model;
 // FM JSON 数据源 (wt_ext_cli --format Json 产物): 树寻址原语 + get_f64 数值
 // 直读族 + 中央文件燃油修正树版 + parse_named_json 族入口
+pub mod flap_limits;
 pub mod json;
 mod reader;
 mod types;
@@ -33,6 +34,7 @@ mod types;
 mod realtests;
 
 
+pub use flap_limits::{get_flap_allow_angle, get_flap_allow_speed};
 pub use types::{EngineLoad, FuelModification, FuelType, FmParts, SweepLevel};
 
 /// 对应 Java `public class Blkx` (L14) 的聚合 struct — 字段区宿主 (D4)。

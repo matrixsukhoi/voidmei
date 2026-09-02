@@ -7,7 +7,7 @@
 //!
 //! PORT(模块边界): impl Service 跨文件块, 方法一律 pub(super); calculate 内的
 //! 接线调用与 `mod methods_engine;` 声明归主线波次 (见交付说明)。
-//! PORT(同名陷阱): vm-core hud_calculator.rs 另有**私有** get_flap_allow_angle
+//! PORT(同名陷阱): vm-core fm/data/flap_limits.rs 另有**公共** get_flap_allow_angle
 //! —— 那是 HUDCalculator 版, 与本模块的 Service 版不同源, 互不复用互不可见;
 //! 本文件按 Java Service 版逐行直译。
 
@@ -171,7 +171,7 @@ impl Service {
         d.prev_optimal_compressor_stage = new_optimal;
     }
 
-    // (calc_k 随 flap 双胞胎合一移除 — vm-core hud_calculator::calc_k 共享实现)
+    // (calc_k 随 flap 双胞胎合一移除 — vm-core fm::data::flap_limits::calc_k 共享实现)
     // (getFlapAllowSpeed/getFlapAllowAngle W8 公式化后无生产调用方, 委托臂
     //  已删 — Java oracle 锚定测试直调 vm-core 共享实现, 见下方 tests)
 }
@@ -300,33 +300,33 @@ mod tests {
             None,
         );
         // 60%: 档间插值 → 284.0
-        assert_eq!(vm_core::hud_calculator::get_flap_allow_speed(60, true, fm.fmdata.as_ref()), 284.0);
+        assert_eq!(vm_core::fm::data::get_flap_allow_speed(60, true, fm.fmdata.as_ref()), 284.0);
         // 50%: 相等档位 (50 == 0.5*100) → 直接返回首档速度 290.0
-        assert_eq!(vm_core::hud_calculator::get_flap_allow_speed(50, false, fm.fmdata.as_ref()), 290.0);
+        assert_eq!(vm_core::fm::data::get_flap_allow_speed(50, false, fm.fmdata.as_ref()), 290.0);
         // 30% (i=-1): 下襟翼越级 → 首档速度 290.0; 非下襟翼 → Double.MAX_VALUE
-        assert_eq!(vm_core::hud_calculator::get_flap_allow_speed(30, true, fm.fmdata.as_ref()), 290.0);
-        assert_eq!(vm_core::hud_calculator::get_flap_allow_speed(30, false, fm.fmdata.as_ref()), f64::MAX);
+        assert_eq!(vm_core::fm::data::get_flap_allow_speed(30, true, fm.fmdata.as_ref()), 290.0);
+        assert_eq!(vm_core::fm::data::get_flap_allow_speed(30, false, fm.fmdata.as_ref()), f64::MAX);
         // 120%: 超表外插 (Java 无 clamp): 290 + 70*(-0.6) = 248.0
-        assert_eq!(vm_core::hud_calculator::get_flap_allow_speed(120, false, fm.fmdata.as_ref()), 248.0);
+        assert_eq!(vm_core::fm::data::get_flap_allow_speed(120, false, fm.fmdata.as_ref()), 248.0);
         // flapPercent=0 早退 (先于 blkx 判定)
-        assert_eq!(vm_core::hud_calculator::get_flap_allow_speed(0, true, fm.fmdata.as_ref()), f64::MAX);
+        assert_eq!(vm_core::fm::data::get_flap_allow_speed(0, true, fm.fmdata.as_ref()), f64::MAX);
 
         // 角度 (x/y 与速度版互换: 按速度查允许 flap 角度)
         // 270: 档间插值 → 83.33333333333334
-        assert_eq!(vm_core::hud_calculator::get_flap_allow_angle(270.0, false, fm.fmdata.as_ref()), 83.33333333333334);
+        assert_eq!(vm_core::fm::data::get_flap_allow_angle(270.0, false, fm.fmdata.as_ref()), 83.33333333333334);
         // 290: 相等 → 首档角 0.5*100 = 50.0
-        assert_eq!(vm_core::hud_calculator::get_flap_allow_angle(290.0, false, fm.fmdata.as_ref()), 50.0);
+        assert_eq!(vm_core::fm::data::get_flap_allow_angle(290.0, false, fm.fmdata.as_ref()), 50.0);
         // 350 (i=0 分支): 50 + 60*(-5/3) = -50 → normFlapAngle → 0
-        assert_eq!(vm_core::hud_calculator::get_flap_allow_angle(350.0, false, fm.fmdata.as_ref()), 0.0);
+        assert_eq!(vm_core::fm::data::get_flap_allow_angle(350.0, false, fm.fmdata.as_ref()), 0.0);
         // 100 (低速外插): 50 + (100-290)*(-5/3) = 366.6.. → 封顶 125
-        assert_eq!(vm_core::hud_calculator::get_flap_allow_angle(100.0, false, fm.fmdata.as_ref()), 125.0);
+        assert_eq!(vm_core::fm::data::get_flap_allow_angle(100.0, false, fm.fmdata.as_ref()), 125.0);
         // ias=0 早退
-        assert_eq!(vm_core::hud_calculator::get_flap_allow_angle(0.0, true, fm.fmdata.as_ref()), 125.0);
+        assert_eq!(vm_core::fm::data::get_flap_allow_angle(0.0, true, fm.fmdata.as_ref()), 125.0);
 
         // 无 FM (UNRESOLVED)
         let unr = FMHandle::UNRESOLVED;
-        assert_eq!(vm_core::hud_calculator::get_flap_allow_speed(50, false, unr.fmdata.as_ref()), f64::MAX);
-        assert_eq!(vm_core::hud_calculator::get_flap_allow_angle(300.0, false, unr.fmdata.as_ref()), 125.0);
+        assert_eq!(vm_core::fm::data::get_flap_allow_speed(50, false, unr.fmdata.as_ref()), f64::MAX);
+        assert_eq!(vm_core::fm::data::get_flap_allow_angle(300.0, false, unr.fmdata.as_ref()), 125.0);
     }
 
     // ---------------- getMaximumRPM ----------------
@@ -510,8 +510,8 @@ mod tests {
         // tmp 根/复位会覆盖本注入 — 持串行锁互斥 (见 lib.rs DATA_ROOT_TEST_LOCK)
         let _root_guard =
             crate::DATA_ROOT_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-        vm_core::fm::fm_data_paths::set_data_root(&root);
-        let fm = vm_core::fm::fm_loader::load(Some("spitfire_f24"));
+        vm_core::fm::data_paths::set_data_root(&root);
+        let fm = vm_core::fm::loader::load(Some("spitfire_f24"));
         let Some(fmdata) = fm.fmdata.as_ref() else {
             println!("SKIP: FMLoader 加载失败 ({})", fm.status);
             return;
@@ -532,7 +532,7 @@ mod tests {
         }
         // W8: check_flap 已公式化 — fm_flap_allow_speed 直查对拍 (首档相等分支)
         let flap_pct = (table[0][0] * 100.0) as i32;
-        let got = vm_core::hud_calculator::get_flap_allow_speed(flap_pct, false, Some(fmdata));
+        let got = vm_core::fm::data::get_flap_allow_speed(flap_pct, false, Some(fmdata));
         assert_eq!(got, table[0][1]);
 
         // getMaximumRPM 的 FM 直取: maximumThrRPM = blkx.maxRPM

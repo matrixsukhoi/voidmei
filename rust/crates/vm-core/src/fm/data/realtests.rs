@@ -59,10 +59,10 @@ fn fuel_mod_from_json(path: &str) -> crate::fmdata::types::FuelModification {
 /// 反向 (标注在而开关 true) 不判错: 翻开关先行、标注清理同波次补齐属正常顺序。
 #[test]
 fn getload_wired_follows_reader_todo() {
-    // reader.rs 随 fmdata 目录移至 src/fm/ 下 (路径同步 — 曾旧路径致 NotFound)
+    // 波8 fmdata→data 目录更名 (路径同步 — 曾旧路径致 NotFound)
     let reader_src = std::fs::read_to_string(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/src/fm/fmdata/reader.rs"
+        "/src/fm/data/reader.rs"
     ))
     .expect("reader.rs 源码可读");
     // PORT: 常量哨兵断言是 no-fake-test-pass 机制本体, 保真不削
@@ -92,8 +92,8 @@ mod spitfire {
     use super::fm_root;
     use super::{fuel_mod_from_json, parse_real};
     use crate::fmdata::FuelType;
-    use crate::fm_power_extractor::{extract_stages, extract_stages_with_fuel};
-    use crate::piston_power_model::optimal_power_advanced;
+    use crate::fm::power_extractor::{extract_stages, extract_stages_with_fuel};
+    use crate::fm::piston_model::optimal_power_advanced;
     use std::path::Path;
 
     // wtapc reference values at 300 km/h IAS, 15°C
@@ -506,8 +506,8 @@ mod tempest {
     use super::fm_root;
     use super::{fuel_mod_from_json, parse_real};
     use crate::fmdata::FuelType;
-    use crate::fm_power_extractor::extract_stages;
-    use crate::piston_power_model::optimal_power_advanced;
+    use crate::fm::power_extractor::extract_stages;
+    use crate::fm::piston_model::optimal_power_advanced;
     use std::path::Path;
 
     // wtapc reference values at 300 km/h IAS, 15C
@@ -616,7 +616,7 @@ mod tempest {
 
         // Extract stages with and without fuel modification
         let stages_no_fuel = extract_stages(Some(&fmdata));
-        let stages_with_fuel = crate::fm_power_extractor::extract_stages_with_fuel(
+        let stages_with_fuel = crate::fm::power_extractor::extract_stages_with_fuel(
             Some(&fmdata),
             Some(&fuel_mod),
         );
@@ -1581,10 +1581,10 @@ mod fuzzer {
             // TODO(port): fm_loader.rs/fm_data_paths (含 set_data_root) 已落地,
             // 但临时数据根注入的测试接线未做 — 腿2 整段挂起, 不做无覆盖的死代码
             // 移植。接线批次按 Java runLoaderLeg 补: 临时 data 根注入
-            // (fm_data_paths::set_data_root) + 中央文件真机原件拷入 + 物理文件名
+            // (data_paths::set_data_root) + 中央文件真机原件拷入 + 物理文件名
             // 取中央文件 fmFile 字段 (extractFmFile, 回退 fm/<机型>.blkx 约定,
             // FMLoader 拼 fmfile+"x") + step = max(1, mutants/LOADER_SAMPLES)
-            // 抽样 + fm_loader::load(plane), 断言句柄契约:
+            // 抽样 + loader::load(plane), 断言句柄契约:
             // status ∈ {READY,MISSING,CORRUPT} ∧ READY⇔blkx!=null
             // ∧ isMissingLike⇒blkx==null; finally 还原数据根 "./data" + rmtree
             println!("\n-- 腿2 跳过: FMLoader 接线属后续批次 TODO(port) --");

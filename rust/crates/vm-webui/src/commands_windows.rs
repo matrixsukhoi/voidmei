@@ -22,8 +22,8 @@ use vm_core::fmdata::json::extract_fuel_modifications_json;
 use vm_core::fmdata::{FmData, FuelModification, FuelType};
 use vm_core::comparison::comparison_rules::ComparisonRules;
 use vm_core::file_utils::get_file_name_no_ex;
-use vm_core::fm::fm_data_paths;
-use vm_core::fm::fm_loader;
+use vm_core::fm::data_paths;
+use vm_core::fm::loader;
 use vm_core::fm_power_extractor::{extract_stages_with_fuel, is_piston_engine};
 use vm_core::lang::Lang;
 use vm_core::logger;
@@ -55,7 +55,7 @@ fn to_json<T: serde::Serialize>(v: &T) -> Result<serde_json::Value, String> {
 /// 背景: name 是 fm/ 物理文件名（连字符, 如 a-10c）, 中央机型名是下划线
 /// （a_10c）——少数不同名机型 FMLoader 判 MISSING, 按物理文件直读。
 fn fallback_physical_file(name: &str) -> Option<PathBuf> {
-    let f = fm_data_paths::fm_dir().join(format!("fm/{name}.json"));
+    let f = data_paths::fm_dir().join(format!("fm/{name}.json"));
     if f.exists() { Some(f) } else { None }
 }
 
@@ -234,7 +234,7 @@ pub fn load_fm_lines(name: Option<&str>) -> Vec<String> {
     // P5 收编: 优先 FMLoader 标准链路（机型名 → 中央文件 → 物理文件 → 全量解析）。
     // 本方法只用 fmdata 文本 —— finalizeLoading 只清原始 data 文本，刻意保留 fmdata
     // （FMDataOverlay 依赖），故 READY 句柄的 blkx 直接可用，无需自行解析
-    let handle = fm_loader::load(Some(name));
+    let handle = loader::load(Some(name));
     let fmdata: String = if handle.has_fm() {
         handle.fmdata.and_then(|b| b.fmdata).unwrap_or_default()
     } else {
@@ -410,7 +410,7 @@ fn load_fuel_modification(fm_name: &str) -> Option<FuelModification> {
     // Try common extensions for Central file (blkx→json 迁移终态: 只 .json)
     let extensions = [".json"];
     for ext in extensions {
-        let cf = fm_data_paths::fm_dir().join(format!("{fm_name}{ext}"));
+        let cf = data_paths::fm_dir().join(format!("{fm_name}{ext}"));
         if cf.exists() {
             // Central file exists but failed to parse — continue without fuel mod
             // (原 catch(Exception) 分支注释语义)
@@ -461,7 +461,7 @@ fn error_curve(fm_name: &str, message: String) -> PowerCurveDto {
 /// 物理文件直读 (行为与收编前一致)。
 pub fn load_single_curve(fm_name: &str, wep_mode: bool, speed_kmh: i32) -> PowerCurveDto {
     // ---- 第一优先: FMLoader 标准链路（机型名 → 中央文件 → 物理文件）----
-    let handle = fm_loader::load(Some(fm_name));
+    let handle = loader::load(Some(fm_name));
     let (fmdata, stages) = if handle.has_fm() {
         // 活塞机句柄携带 extractStages 产物（已融入中央文件燃油修正）；
         // 喷气机 compressorStages 为 null → "不是活塞引擎" (Java :246-250)
@@ -845,7 +845,7 @@ pub fn power_curve_data_impl(
 /// (机型选择搜索下拉的数据源)。
 pub fn load_planes() -> Vec<String> {
     // P5: 路径收编到 FMDataPaths（fm/ 物理文件目录 = flightmodels 根下 "fm" 子目录）
-    let dir = fm_data_paths::fm_dir().join("fm");
+    let dir = data_paths::fm_dir().join("fm");
     let mut names: Vec<String> = Vec::new();
     if let Ok(entries) = std::fs::read_dir(&dir) {
         for e in entries.flatten() {
@@ -933,7 +933,7 @@ mod tests {
         if !std::path::Path::new(&root).join("aces/gamedata/flightmodels").exists() {
             return false;
         }
-        fm_data_paths::set_data_root(&root);
+        data_paths::set_data_root(&root);
         true
     }
 

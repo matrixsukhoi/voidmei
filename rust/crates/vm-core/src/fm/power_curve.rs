@@ -11,7 +11,7 @@
 // PORT: Java `private PowerCurveHelper() {}` (final 工具类, 私有构造器防实例化)
 // → Rust 自由函数模块无实例化概念, 天然满足
 
-use crate::piston_power_model::CompressorStageParams;
+use crate::fm::piston_model::CompressorStageParams;
 
 /// Checks if the stage has ConstRPM parameters defined.
 ///

@@ -29,7 +29,7 @@
 use std::sync::Arc;
 
 use crate::config_api::config_provider::ConfigProvider;
-use crate::lang::lang::Lang;
+use crate::lang::Lang;
 use crate::physics_constants::g;
 
 /// FlightAnalyzer 对 Service 的读取面 (PORT: D6 依赖倒置, 见模块头说明)。
