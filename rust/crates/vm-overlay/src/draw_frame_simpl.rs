@@ -24,6 +24,7 @@
 //! 对拍备案 (审查 W3): rustcmp 套件现覆盖 FlightInfo/gauges/MiniHUD, 本组件渲染
 //! 证据 = 单测级几何 oracle + 像素墨迹断言 (Java 语义逐式复算); FMUnpacked 同款。
 
+use vm_core::format::java_round_f32;
 use crate::font::LoadedFont;
 use crate::global_colors::aa;
 use crate::host::{OverlayHost, OverlaySpec};
@@ -60,11 +61,6 @@ fn find_max(x: &[f64]) -> f64 {
         }
     }
     max
-}
-
-/// Java `Math.round(float)` = floor(x + 0.5) (§2.3 — f32 路径)
-fn java_round_i32(x: f32) -> i32 {
-    (x + 0.5).floor() as i32
 }
 
 /// paintComponent 的几何段 (Java :557-592, init/initPreview 两处内联块同体)。
@@ -109,8 +105,8 @@ pub fn chart_geometry(b: &FmData) -> ChartGeom {
     let ymax = (((ymax_raw / 10.0) as i32) * 10) as f64;
     let dwidth = 800;
     let dheight = 400;
-    let xgap = java_round_i32(((xmax as i32 + 1 - xmin as i32) / 5) as f32 / 5.0) * 5;
-    let ygap = java_round_i32(((ymax as i32 + 1 - ymin as i32) / 5) as f32 / 5.0) * 5;
+    let xgap = java_round_f32(((xmax as i32 + 1 - xmin as i32) / 5) as f32 / 5.0) * 5;
+    let ygap = java_round_f32(((ymax as i32 + 1 - ymin as i32) / 5) as f32 / 5.0) * 5;
     let pxmin = xmin as i32;
     let pxmax = xmax as i32 + xgap;
     let pymin = ((ymin / 10.0) as i32) * 10;

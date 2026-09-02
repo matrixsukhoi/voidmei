@@ -16,6 +16,7 @@
 //! // PORT: Java HUDRow 接口 (HUDRow.java) 的 getPreferredSize 默认 (200, getHeight)
 //! 由 preferred_size 实现覆盖, 不单独建 trait —— Rust 侧该接口无第二实现需求。
 
+use crate::primitives;
 use crate::global_colors::colors;
 use vm_core::hud_data::HUDData;
 
@@ -25,45 +26,6 @@ use crate::render2d::PixCanvas;
 
 /// Java Color.YELLOW (HUDAkbRow.java:30-31 构造默认)
 const COLOR_YELLOW: [u8; 4] = [255, 255, 0, 255];
-
-/// 阴影双遍文本 (UIBaseElements.__drawStringShade drawFontShape=false 分支,
-/// Application.java:143 恒 false): 影 (x+1,y+1) colorShadeShape → 本色 (x,y)。
-/// 镜像 gauges_bars::text_shaded (同一 Java 出处, 模块私有故本地复刻)。
-fn text_shaded(
-    cv: &mut PixCanvas,
-    font: &LoadedFont,
-    x: i32,
-    y: i32,
-    s: &str,
-    c: [u8; 4],
-    aa: bool,
-) {
-    cv.draw_text(font, x + 1, y + 1, s, colors().shade_shape, aa);
-    cv.draw_text(font, x, y, s, c, aa);
-}
-
-/// Java Graphics.drawRect(x,y,w,h) + BasicStroke(1): 覆盖 x..x+w × y..y+h
-/// (含端点) 的 1px 环。负宽/负高整体不绘制, 零宽/零高退化 1px 线
-/// (Java 8 oracle, 镜像 gauges_bars::ring 同一语义)。
-fn ring(cv: &mut PixCanvas, x: i32, y: i32, w: i32, h: i32, color: [u8; 4]) {
-    if w < 0 || h < 0 {
-        return; // PORT: Java drawRect 负宽/负高不绘制 (oracle 0 像素)
-    }
-    if w == 0 || h == 0 {
-        if w == 0 && h > 0 {
-            cv.fill_rect(x, y, 1, h + 1, color); // 零宽退化竖线 行 y..y+h
-        } else if h == 0 && w > 0 {
-            cv.fill_rect(x, y, w + 1, 1, color); // 零高退化横线 列 x..x+w
-        }
-        return; // 双零无输出
-    }
-    cv.fill_rect(x, y, w + 1, 1, color); // 上边
-    cv.fill_rect(x, y + h, w + 1, 1, color); // 下边
-    if h > 1 {
-        cv.fill_rect(x, y + 1, 1, h - 1, color); // 左边
-        cv.fill_rect(x + w, y + 1, 1, h - 1, color); // 右边
-    }
-}
 
 /// UIBaseElements.drawHRect (UIBaseElements.java:97-112): shade 1px 外框环 +
 /// 内缩 1px 填充条。width<0 时框/条翻转到起点右侧 (Java 原样分支)。
@@ -80,7 +42,7 @@ fn draw_h_rect(
     if width >= 0 {
         // PORT: UIBaseElements.java:102-105 drawRect(x,y,width-1,height-1) 环 +
         // fillRect(x+bw, y+bw, width-2*bw, height-2*bw) 内芯
-        ring(cv, x, y, width - 1, height - 1, colors().shade_shape);
+        primitives::ring1px(cv, x, y, width - 1, height - 1, colors().shade_shape);
         cv.fill_rect(
             x + borderwidth,
             y + borderwidth,
@@ -90,7 +52,7 @@ fn draw_h_rect(
         );
     } else {
         // PORT: UIBaseElements.java:106-109 负宽分支: 环自 x+width 起, 填充同步翻转
-        ring(cv, x + width, y, -width - 1, height - 1, colors().shade_shape);
+        primitives::ring1px(cv, x + width, y, -width - 1, height - 1, colors().shade_shape);
         cv.fill_rect(
             x + borderwidth + width,
             y + borderwidth,
@@ -176,7 +138,7 @@ impl HUDTextRow {
         } else {
             colors().num
         };
-        text_shaded(cv, font, x, base_y, &self.text, c, aa);
+        primitives::text_shaded_auto(cv, font, x, base_y, &self.text, c, aa);
     }
 
     /// Java:66-83 getPreferredSize: 模板优先测量 (布局防抖), 空文本宽 0。
@@ -326,7 +288,7 @@ impl HUDAkbRow {
                 self.aoa_bar_color,
             );
             // PORT: Java:92 α 文字基线 liney - 1, 小字号
-            text_shaded(
+            primitives::text_shaded_auto(
                 cv,
                 small_font,
                 x + self.right_draw,
@@ -436,7 +398,7 @@ impl HUDEnergyRow {
 
         if self.show_energy {
             // PORT: Java:68 __drawStringShade(x + rightDraw, baseY, 1, energyText, smallFont, colorNum)
-            text_shaded(
+            primitives::text_shaded_auto(
                 cv,
                 small_font,
                 x + self.right_draw,
@@ -692,21 +654,21 @@ impl HUDMechanizationRow {
         // 襟翼/可变翼：始终占位推进 curX，隐藏时仅不绘制文字
         let flaps_width = seg_width(font, &self.flaps_template);
         if self.show_flaps && !self.flaps_wing_str.is_empty() {
-            text_shaded(cv, font, cur_x, base_y, &self.flaps_wing_str, c, aa);
+            primitives::text_shaded_auto(cv, font, cur_x, base_y, &self.flaps_wing_str, c, aa);
         }
         cur_x += flaps_width;
 
         // 减速板：始终占位推进 curX，隐藏时仅不绘制文字
         let brk_width = seg_width(font, &self.airbrake_template);
         if self.show_airbrake && !self.airbrake_str.is_empty() {
-            text_shaded(cv, font, cur_x, base_y, &self.airbrake_str, c, aa);
+            primitives::text_shaded_auto(cv, font, cur_x, base_y, &self.airbrake_str, c, aa);
         }
         cur_x += brk_width;
 
         // 起落架：始终占位推进 curX，隐藏时仅不绘制文字 (Java 注释原文;
         // 末段, 其后无推进消费)
         if self.show_gear && !self.gear_str.is_empty() {
-            text_shaded(cv, font, cur_x, base_y, &self.gear_str, c, aa);
+            primitives::text_shaded_auto(cv, font, cur_x, base_y, &self.gear_str, c, aa);
         }
     }
 

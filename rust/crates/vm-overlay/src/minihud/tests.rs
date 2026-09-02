@@ -763,7 +763,7 @@ fn reinit_config_rebuilds() {
 #[test]
 fn debug_frame_ring_geometry() {
     let mut cv = PixCanvas::new(20, 20).unwrap();
-    draw_rect_1px(&mut cv, 5, 5, 10, 6, [255, 255, 255, 255]);
+    crate::primitives::ring1px(&mut cv, 5, 5, 10, 6, [255, 255, 255, 255]);
     let a = |x: i32, y: i32| cv.pixmap().data()[((y * cv.width() + x) * 4) as usize + 3];
     assert_eq!(a(5, 5), 255, "左上角");
     assert_eq!(a(15, 5), 255, "右上角 (x+w 含端点)");

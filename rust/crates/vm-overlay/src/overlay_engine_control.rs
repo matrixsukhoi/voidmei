@@ -14,11 +14,9 @@ use crate::font::LoadedFont;
 use crate::gauges_bars::LabeledLinearGauge;
 use crate::host::{OverlaySpec, ReinitFn};
 use crate::reinit::ReinitParams;
-use crate::overlay_gauges::{
-    java_round_f32, java_round_f64, GaugeBarStyle, GaugeMarker, MarkedGauge, MarkerType,
-};
+use crate::overlay_gauges::{GaugeBarStyle, GaugeMarker, MarkedGauge, MarkerType};
 use vm_core::event::EventPayload;
-use vm_core::format;
+use vm_core::format::{self, java_round_f64, java_round_f32};
 use vm_core::formula::registry::FormulaView;
 use vm_core::lang::Lang;
 // EngineControlOverlay.java:50 DEFAULT_REFRESH_INTERVAL 的既有移植 (单一来源, 勿重复定义)

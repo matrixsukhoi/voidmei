@@ -6,6 +6,16 @@ pub fn java_round(x: f64) -> i64 {
     (x + 0.5).floor() as i64
 }
 
+/// Java Math.round(float)→int 窄版 (重构波3: 全仓 12 处私有副本收敛于此)
+pub fn java_round_f32(x: f32) -> i32 {
+    (x + 0.5).floor() as i32
+}
+
+/// Java Math.round(double) 经 (int) 窄化的常用形态
+pub fn java_round_f64(x: f64) -> i32 {
+    (x + 0.5).floor() as i32
+}
+
 /// 数值格式化, 对应 Java format(double, char[], int)
 /// precision: 0-5 位小数
 pub fn format(value: f64, precision: u8) -> String {

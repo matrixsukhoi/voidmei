@@ -20,19 +20,14 @@ pub struct RenderCtx {
     pub num_height: i32,
 }
 
-/// Java Math.round(float) = floor(x + 0.5)
-fn java_round_f(x: f32) -> i32 {
-    (x + 0.5).floor() as i32
-}
-
 impl RenderCtx {
     /// 对应 RenderContext.create: 字号派生关系固化在此
     pub fn new(font_add: i32, column_num: i32, num_height: i32) -> Self {
         let font_size = 24 + font_add;
         RenderCtx {
             font_size,
-            label_font_size: java_round_f(font_size as f32 / 2.0),
-            unit_font_size: java_round_f(font_size as f32 / 2.0),
+            label_font_size: vm_core::format::java_round_f32(font_size as f32 / 2.0),
+            unit_font_size: vm_core::format::java_round_f32(font_size as f32 / 2.0),
             column_num,
             num_height,
         }
@@ -58,7 +53,7 @@ impl RenderCtx {
 
     /// 列步进 Math.round(5f * fontSize)
     pub fn advance_x(&self) -> i32 {
-        java_round_f(5f32 * self.font_size as f32)
+        vm_core::format::java_round_f32(5f32 * self.font_size as f32)
     }
 
     /// 行步进 Math.round(1 * numHeight) = numHeight

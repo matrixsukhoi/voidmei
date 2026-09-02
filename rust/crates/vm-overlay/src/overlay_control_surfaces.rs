@@ -6,6 +6,7 @@
 //! (LIFETIMES §2.1 注销链), 本文件承载 paintComponent 的绘制序与
 //! onFlightData 的数据换算。
 
+use crate::primitives;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -43,22 +44,6 @@ fn draw_rect_perimeter(cv: &mut PixCanvas, x: i32, y: i32, w: i32, h: i32, color
     }
 }
 
-/// __drawStringShade 的 char[] 版 (UIBaseElements.java:46-55): 黑影 (x+1, y+1)
-/// → 本色 (x, y), 两遍 drawText; shadeWidth 只作用于 setStroke (对文本无效果), 不复刻
-fn draw_string_shade(
-    cv: &mut PixCanvas,
-    font: &LoadedFont,
-    x: i32,
-    y: i32,
-    s: &str,
-    color: [u8; 4],
-    aa: bool,
-) {
-    // drawshade (No Shape support for char[] yet, fallback to simple shade)
-    cv.draw_text(font, x + 1, y + 1, s, colors().shade_shape, aa);
-    cv.draw_text(font, x, y, s, color, aa);
-}
-
 /// __drawLabelBOSType 的 char[] 版 (UIBaseElements.java:260-273):
 /// 数字 (fontNum, colorNum) 基线 y = (2·y_offset + labelSize + unitSize) >> 1;
 /// 标签名 (fontLabel, colorLabel) 在 (x + lwidth, y_offset);
@@ -82,11 +67,11 @@ fn draw_label_bos_type(
     let lwidth = (lwwidth * num.size) >> 2;
     // y偏移式加下底边再减去自己字体大小的一半
     let num_y = (y_offset + y_offset + label.size + unit.size) >> 1;
-    draw_string_shade(cv, num, x_offset, num_y, s_num, colors().num, aa);
+    primitives::text_shaded_auto(cv, num, x_offset, num_y, s_num, colors().num, aa);
     // 标签名
-    draw_string_shade(cv, label, x_offset + lwidth, y_offset, s_label, colors().label, aa);
+    primitives::text_shaded_auto(cv, label, x_offset + lwidth, y_offset, s_label, colors().label, aa);
     // 单位名
-    draw_string_shade(cv, unit, x_offset + lwidth, y_offset + label.size, s_unit, colors().unit, aa);
+    primitives::text_shaded_auto(cv, unit, x_offset + lwidth, y_offset + label.size, s_unit, colors().unit, aa);
 }
 
 /// drawHBar (UIBaseElements.java:168-185) 的 val_width ≥ 0 分支 (调用域恒非负):
@@ -171,7 +156,7 @@ fn draw_h_bar_text_num(
         colors().label,
     );
     // 数字
-    draw_string_shade(
+    primitives::text_shaded_auto(
         cv,
         lbl_font,
         x + val_width,

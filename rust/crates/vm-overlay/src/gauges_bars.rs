@@ -26,57 +26,14 @@
 //!   1px 线规整后覆盖盒边界恰为整数像素边界 ([x,x+1]), AA 开关输出一致。
 //! - drawRect 环: 负宽/负高整体不绘制 (oracle 0 像素); 零宽/零高退化 1px 线。
 
+use crate::primitives::vline_1px;
+use crate::primitives;
+use vm_core::format;
+use vm_core::format::java_round_f32;
 use crate::global_colors::colors;
 use crate::font::LoadedFont;
 use crate::render2d::PixCanvas;
 
-
-/// Java Math.round(float): floor(x+0.5) (PORTING.md §2.3, Rust round 是半偶)
-fn java_round_f32(x: f32) -> i32 {
-    (x + 0.5).floor() as i32
-}
-
-/// Java (int) Math.round(double) 复合 (SpeedRatioBar.java:143)
-fn java_round_f64_to_i32(x: f64) -> i32 {
-    (x + 0.5).floor() as i32
-}
-
-/// Java Graphics.drawRect(x,y,w,h) + BasicStroke(1): 覆盖 x..x+w × y..y+h
-/// (含端点) 的 1px 环。负宽或负高整体不绘制 (Java 8 oracle 实测 0 像素 —
-/// "负尺寸时 4 条 drawLine 反向仍可见"的假设已证伪); 零宽/零高退化 1px 线
-/// (drawRect 的 4 条边线中零长度段无输出, 剩两段共线: oracle drawRect(50,10,0,20)
-/// = 列 50 行 10..30 的 1px 竖线; 双零则 4 段全零长度, 无输出)。
-fn ring(cv: &mut PixCanvas, x: i32, y: i32, w: i32, h: i32, color: [u8; 4]) {
-    if w < 0 || h < 0 {
-        return; // PORT: Java drawRect 负宽/负高不绘制 (镜像归一化假设已证伪)
-    }
-    if w == 0 || h == 0 {
-        if w == 0 && h > 0 {
-            vline_1px(cv, x, y, y + h, color, false);
-        } else if h == 0 && w > 0 {
-            cv.fill_rect(x, y, w + 1, 1, color);
-        }
-        return;
-    }
-    let bw = w + 1;
-    let bh = h + 1;
-    cv.fill_rect(x, y, bw, 1, color); // 上边
-    cv.fill_rect(x, y + h, bw, 1, color); // 下边
-    if bh > 2 {
-        cv.fill_rect(x, y + 1, 1, bh - 2, color); // 左边
-        cv.fill_rect(x + w, y + 1, 1, bh - 2, color); // 右边
-    }
-}
-
-/// BasicStroke(1, CAP_ROUND, JOIN_ROUND) 竖线: 列恰为 x, 行 y0..y1 端点含
-/// (宽 1 圆帽半径 0.5 不外伸 — Java drawLine 整数端点像素级语义)。
-/// aa=true 输出与 false 一致: 1px stroke 经 STROKE_NORMALIZE 规整后覆盖盒
-/// 边界 ([x,x+1]×[y0,y1]) 恰为整数像素边界, 无柔边 (宽 ≥2 的线才有半像素
-/// 柔边, 见 hline_butt2/vline_square2 的 AA ON 分支)。
-fn vline_1px(cv: &mut PixCanvas, x: i32, y0: i32, y1: i32, color: [u8; 4], _aa: bool) {
-    let (ya, yb) = if y0 <= y1 { (y0, y1) } else { (y1, y0) };
-    cv.fill_rect(x, ya, 1, yb - ya + 1, color);
-}
 
 /// LinearGauge.java:230-244 私有 drawRect 助手: shade 环 + fill 内芯。
 /// flip_logic=true 为横向 gauge 的竖直刻度 (LinearGauge.java:176 调用):
@@ -96,36 +53,13 @@ fn gauge_rect(
 ) {
     if !flip_logic {
         // PORT: LinearGauge.java:235-237 drawRect(x,y,w-1,h-1)=w×h 环 + fillRect(x+1,y+1,w-2,h-2)
-        ring(cv, x, y, w - 1, h - 1, shade);
+        primitives::ring1px(cv, x, y, w - 1, h - 1, shade);
         cv.fill_rect(x + 1, y + 1, w - 2, h - 2, fill);
     } else {
         // PORT: LinearGauge.java:240-242
-        ring(cv, x + w, y, -w - 1, h - 1, shade);
+        primitives::ring1px(cv, x + w, y, -w - 1, h - 1, shade);
         cv.fill_rect(x + 1 + w, y + 1, -w - 2, h - 2, fill); // 负高 → 不绘制
     }
-}
-
-/// 阴影双遍文本 (LinearGauge.drawTextShaded / UIBaseElements.__drawStringShade
-/// drawFontShape=false 分支, Application.java:143): 影 (x+1,y+1) shade → 本色 (x,y)
-#[allow(clippy::too_many_arguments)] // 对齐 Java drawTextShaded(g2d,x,y,s,f,c) + 显式 shade/aa
-fn text_shaded(
-    cv: &mut PixCanvas,
-    font: &LoadedFont,
-    x: i32,
-    y: i32,
-    s: &str,
-    c: [u8; 4],
-    shade: [u8; 4],
-    aa: bool,
-) {
-    cv.draw_text(font, x + 1, y + 1, s, shade, aa);
-    cv.draw_text(font, x, y, s, c, aa);
-}
-
-/// AA 柔边像素的覆盖率缩放: Java AA 管线合成式 = SrcOver(源 alpha × 覆盖率),
-/// 不透明色 oracle 值 cov=0.5 → a=128、cov=0.25 → a=64, 即 round(a·cov)
-fn cov_color(color: [u8; 4], cov: f32) -> [u8; 4] {
-    [color[0], color[1], color[2], ((color[3] as f32) * cov + 0.5) as u8]
 }
 
 /// BasicStroke(2, CAP_BUTT, JOIN_MITER) 水平线 (GraphicsUtil.createPreciseStroke(2))。
@@ -147,13 +81,13 @@ fn hline_butt2(cv: &mut PixCanvas, x0: i32, x1: i32, y: i32, color: [u8; 4], aa:
     }
     let mid = xb - xa - 1; // 整列覆盖段 (端点列半覆盖)
     if mid > 0 {
-        let soft = cov_color(color, 0.5);
+        let soft = primitives::cov_color(color, 0.5);
         cv.fill_rect(xa + 1, y, mid, 1, color);
         cv.fill_rect(xa + 1, y - 1, mid, 1, soft);
         cv.fill_rect(xa + 1, y + 1, mid, 1, soft);
     }
-    let soft = cov_color(color, 0.5);
-    let corner = cov_color(color, 0.25);
+    let soft = primitives::cov_color(color, 0.5);
+    let corner = primitives::cov_color(color, 0.25);
     for cx in [xa, xb] {
         cv.fill_rect(cx, y, 1, 1, soft);
         cv.fill_rect(cx, y - 1, 1, 1, corner);
@@ -174,8 +108,8 @@ fn vline_square2(cv: &mut PixCanvas, tx: i32, y0: i32, y1: i32, color: [u8; 4], 
         return;
     }
     let body = yb - ya + 1;
-    let soft = cov_color(color, 0.5);
-    let corner = cov_color(color, 0.25);
+    let soft = primitives::cov_color(color, 0.5);
+    let corner = primitives::cov_color(color, 0.25);
     if body > 0 {
         cv.fill_rect(tx, ya, 1, body, color);
         cv.fill_rect(tx - 1, ya, 1, body, soft);
@@ -324,7 +258,7 @@ impl LinearGauge {
         is_vert: bool,
     ) {
         // PORT: Java:196/222 drawRect(x,y,w-1,h-1) — 自 (x,y) 向下/右生长
-        ring(cv, x, y, w - 1, h - 1, shade);
+        primitives::ring1px(cv, x, y, w - 1, h - 1, shade);
         if is_vert {
             let val_h = if val > h { h } else { val };
             if val_h >= 0 {
@@ -377,7 +311,7 @@ impl LinearGauge {
                 Self::draw_bar(cv, x, y, thickness, length, pix_val, shade, colors().num, true);
                 let total_width = thickness + label_spacing + text_width;
                 gauge_rect(cv, x, sep_y, total_width, 3, shade, c, false);
-                text_shaded(
+                primitives::text_shaded(
                     cv, font_num, x + thickness + label_spacing, sep_y - 1,
                     &self.display_value, c, shade, aa,
                 );
@@ -387,13 +321,13 @@ impl LinearGauge {
                 Self::draw_bar(cv, bar_x, y, thickness, length, pix_val, shade, colors().num, true);
                 let total_width = text_width + label_spacing + thickness;
                 gauge_rect(cv, x, sep_y, total_width, 3, shade, c, false);
-                text_shaded(cv, font_num, x, sep_y - 1, &self.display_value, c, shade, aa);
+                primitives::text_shaded(cv, font_num, x, sep_y - 1, &self.display_value, c, shade, aa);
             }
         } else {
             // PORT: Java:170-180 横条 + 竖直分隔线(flip 环在条上方) + 条下方文本
             Self::draw_bar(cv, x, y, length, thickness, pix_val, shade, colors().num, false);
             gauge_rect(cv, x + pix_val - 2, y, 3, -thickness - font_num.size, shade, c, true);
-            text_shaded(
+            primitives::text_shaded(
                 cv, font_num, x + pix_val, y + thickness + font_num.size,
                 &self.display_value, c, shade, aa,
             );
@@ -437,9 +371,9 @@ impl LabeledLinearGauge {
         shade: [u8; 4],
         aa: bool,
     ) {
-        text_shaded(cv, font_num, x, y, &self.gauge.label, c, shade, aa);
+        primitives::text_shaded(cv, font_num, x, y, &self.gauge.label, c, shade, aa);
         let label_w = font_num.measure(&self.gauge.label);
-        text_shaded(cv, font_num, x + label_w, y, &self.gauge.display_value, c, shade, aa);
+        primitives::text_shaded(cv, font_num, x + label_w, y, &self.gauge.display_value, c, shade, aa);
     }
 
     /// Java:48-86 draw 覆写 (竖向走基类逻辑 + 前置标签宽度; 横向自绘修正分隔线)。
@@ -495,8 +429,8 @@ impl LabeledLinearGauge {
             //    BasicStroke(1); oracle 实测两种遗留 stroke 下 1px 竖线输出一致
             //    (列 x, 行 y0..y1 端点含硬边)。Rust 组装层若绘制顺序变化需回访此处
             let sep_height = thickness + font_num.size + 2;
-            vline_1px(cv, x + pix_val + 1, y, y + sep_height, shade_shadow, aa);
-            vline_1px(cv, x + pix_val, y, y + sep_height, c, aa);
+            vline_1px(cv, x + pix_val + 1, y, y + sep_height, shade_shadow);
+            vline_1px(cv, x + pix_val, y, y + sep_height, c);
 
             // 3. label+value 合成文本, 条下方 (Java:84)
             self.draw_value_text(
@@ -638,13 +572,13 @@ impl SpeedRatioBar {
 
             if let Some(f) = tick_font {
                 // PORT: Java:143 (int) Math.round(speedRatio * 100)
-                let display_value = java_round_f64_to_i32(self.speed_ratio * 100.0);
+                let display_value = format::java_round_f64(self.speed_ratio * 100.0);
                 let value_str = display_value.to_string();
                 let actual_text_width = f.measure(&value_str);
                 let text_right_edge = x - tick_extend - label_spacing;
                 let text_x = text_right_edge - actual_text_width;
                 let text_y = tick_y - 3; // 刻度上方 (Java:150)
-                text_shaded(cv, f, text_x, text_y, &value_str, colors().num, colors().shade_shape, aa);
+                primitives::text_shaded(cv, f, text_x, text_y, &value_str, colors().num, colors().shade_shape, aa);
             }
         }
 
@@ -769,7 +703,7 @@ impl FlapAngleBar {
         let str_width = font.measure(&self.display_text);
         // PORT: Java:81 int 除法向零截断 (strWidth 超宽时整体左移)
         let str_x = x + (total_width - str_width) / 2;
-        text_shaded(cv, font, str_x, text_y, &self.display_text, colors().num, colors().shade_shape, aa);
+        primitives::text_shaded(cv, font, str_x, text_y, &self.display_text, colors().num, colors().shade_shape, aa);
 
         // 条位于文本下方 (字号近似行高) (Java:84-85)
         let bar_y = y + font.size + 2;

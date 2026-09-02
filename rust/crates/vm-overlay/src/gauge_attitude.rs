@@ -20,6 +20,8 @@
 //!
 //! 颜色 = Application.java:106-111 静态色直通 RGBA (与 gauges_bars 同源)。
 
+use vm_core::format::java_round_f64;
+use vm_core::format::java_round;
 use crate::global_colors::{aa, colors};
 use crate::font::LoadedFont;
 
@@ -28,18 +30,6 @@ use crate::reinit::ReinitParams;
 use crate::render2d::{LineCapStyle, PixCanvas};
 use std::cell::RefCell;
 use std::rc::Rc;
-
-// Application.java:109 colorUnit = (166,166,166,220) — IndicatorGauge 文本负色 /
-/// Java Math.round(double)→long: floor(x+0.5) (§2.3, Rust round 是半偶)
-fn java_round_i64(x: f64) -> i64 {
-    (x + 0.5).floor() as i64
-}
-
-/// Java Point.setLocation(double,double) 取整: (int)floor(x+0.5)
-/// (AttitudeOverlay.rotatePointMatrix → AffineTransform.transform(Point[]) 的落点语义)
-fn java_round_i32(x: f64) -> i32 {
-    (x + 0.5).floor() as i32
-}
 
 /// AffineTransform.getRotateInstance(θ, ax, ay) 的点映射 (屏幕 y 向下, 正 θ = 视觉顺时针):
 /// p' = anchor + R(θ)·(p − anchor), R = [[cos, −sin],[sin, cos]]
@@ -69,7 +59,7 @@ fn fmt_f41(v: f64) -> String {
     if v.is_infinite() {
         return "Infinity".to_string();
     }
-    let ri = java_round_i64(v * 10.0); // 一位小数 ×10
+    let ri = java_round(v * 10.0); // 一位小数 ×10
     let mut s = if ri >= 10 {
         format!("{}.{}", ri / 10, ri % 10)
     } else {
@@ -327,14 +317,14 @@ impl AttitudeIndicatorGauge {
         let (round_horizon, s_attitude) = if data.pitch_valid {
             // PORT: Java:213 (int) Math.round(double) — long→int 强转是位截断 (§2.2),
             // Rust as i32 饱和 — 双转 (as u32) as i32 复刻取低 32 位
-            let rh = (java_round_i64(data.pitch) as u32) as i32;
+            let rh = (java_round(data.pitch) as u32) as i32;
             (rh, fmt_d3(rh.wrapping_abs())) // Math.abs(MIN_VALUE) 回绕保号 (§2.2)
         } else {
             (0, String::new())
         };
 
         // Sideslip 文本 — 恒显示, 1 位小数 (Java:220-223)
-        let slip_value = java_round_i64(data.slip * 10.0) as f64 / 10.0;
+        let slip_value = java_round(data.slip * 10.0) as f64 / 10.0;
         let round_slip = if slip_value >= 0.0 { 1 } else { -1 }; // 颜色判据, 保留符号 (Java:222)
         let s_sideslip = fmt_f41(slip_value.abs());
 
@@ -624,9 +614,9 @@ impl AttitudeOverlay {
     ) -> bool {
         let w = self.x_width;
         let h = self.x_height;
-        self.aoa_y = java_round_i64((aoa + MAX_AOA as f64) * h as f64 / (2 * MAX_AOA) as f64);
-        self.aos_x = java_round_i64((-aos + MAX_AOS as f64) * w as f64 / (2 * MAX_AOS) as f64);
-        self.pitch_y = java_round_i64((-pitch + MAX_AOA as f64) * h as f64 / (2 * MAX_AOA) as f64);
+        self.aoa_y = java_round((aoa + MAX_AOA as f64) * h as f64 / (2 * MAX_AOA) as f64);
+        self.aos_x = java_round((-aos + MAX_AOS as f64) * w as f64 / (2 * MAX_AOS) as f64);
+        self.pitch_y = java_round((-pitch + MAX_AOA as f64) * h as f64 / (2 * MAX_AOA) as f64);
 
         // (int) 是 double→int 饱和 (JLS 5.1.3), 故先 as i32 再拓宽, 非 as i64
         if self.show_direction {
@@ -637,8 +627,8 @@ impl AttitudeOverlay {
 
         match aoa_limits {
             Some((crit_high, crit_low)) if self.show_aoa_limits => {
-                self.aoa_limit_u = java_round_i64((crit_high + MAX_AOA as f64) * h as f64 / (2 * MAX_AOA) as f64);
-                self.aoa_limit_d = java_round_i64((crit_low + MAX_AOA as f64) * h as f64 / (2 * MAX_AOA) as f64);
+                self.aoa_limit_u = java_round((crit_high + MAX_AOA as f64) * h as f64 / (2 * MAX_AOA) as f64);
+                self.aoa_limit_d = java_round((crit_low + MAX_AOA as f64) * h as f64 / (2 * MAX_AOA) as f64);
             }
             _ => {
                 self.aoa_limit_u = AOA_LIMIT_OFF;
@@ -661,9 +651,9 @@ impl AttitudeOverlay {
         let d_tick = (90 / (TICK_LINE + 1)) as f64; // int 除 90/3=30
         for i in 0..TICK_LINE {
             let a = start + d_tick * (i + 1) as f64;
-            let y_up = java_round_i32(a / (2 * MAX_AOA) as f64 * h as f64);
+            let y_up = java_round_f64(a / (2 * MAX_AOA) as f64 * h as f64);
             // 对称刻度 (Java:430-434): −start − dTick·(i+1)
-            let y_dn = java_round_i32(-a / (2 * MAX_AOA) as f64 * h as f64);
+            let y_dn = java_round_f64(-a / (2 * MAX_AOA) as f64 * h as f64);
             p_s[(4 + 4 * i) as usize] = (-w, y_up);
             p_s[(4 + 4 * i + 1) as usize] = (w, y_up);
             p_s[(4 + 4 * i + 2) as usize] = (-w, y_dn);
@@ -684,7 +674,7 @@ impl AttitudeOverlay {
         let theta = roll.to_radians();
         for (i, p) in p_s.iter().enumerate() {
             let (rx, ry) = rotate_point(p.0 as f64, p.1 as f64, (w / 2) as f64, (h / 2) as f64, theta);
-            self.p_t[i] = (java_round_i32(rx), java_round_i32(ry));
+            self.p_t[i] = (java_round_f64(rx), java_round_f64(ry));
         }
 
         self.dirty = true;

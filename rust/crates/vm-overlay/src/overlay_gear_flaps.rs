@@ -13,7 +13,9 @@ use crate::font::LoadedFont;
 use crate::host::{OverlaySpec, ReinitFn};
 use crate::reinit::ReinitParams;
 use crate::render2d::PixCanvas;
-use crate::overlay_gauges::{java_round_f32, java_round_f64, ring1px, text_shaded};
+use crate::primitives::{ring1px, text_shaded_auto};
+use vm_core::format::java_round_f64;
+use vm_core::format::java_round_f32;
 use vm_core::formula::registry::FormulaView;
 use vm_core::lang::Lang;
 
@@ -78,7 +80,7 @@ fn draw_v_bar_text_num(
     // 指针横线 (drawHRect): colorLabel, 总宽 = width + 3*numFontSize
     draw_h_rect(cv, x, y - val_h - 1, w + 3 * num_font.size, 3, 1, colors().label);
     // 数值文本: shade (+1,+1) + 本色 colorLabel (基线 y-val_height-2)
-    text_shaded(cv, num_font, x + w, y - val_h - 2, num, colors().label, aa);
+    text_shaded_auto(cv, num_font, x + w, y - val_h - 2, num, colors().label, aa);
 }
 
 /// Throttling to prevent EDT task accumulation (gear/flaps are low-frequency data)

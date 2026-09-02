@@ -27,6 +27,7 @@ pub mod overlays_field1;
 pub mod overlays_field2;
 pub mod platform;
 pub mod platform_extras;
+pub mod primitives;
 pub mod reinit;
 pub mod render;
 pub mod render2d;

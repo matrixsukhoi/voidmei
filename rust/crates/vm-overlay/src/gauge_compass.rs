@@ -18,6 +18,7 @@
 //! 平滑/低通**——每轮 ~10Hz 轮询值直接驱动指针。Rust 侧同样直通 (update 即时重算);
 //! -65535 哨兵回退分支属数据层, 已落 vm-data::service_loop (update_compass), 不在本文件。
 
+use crate::primitives;
 use crate::global_colors::colors;
 use crate::font::LoadedFont;
 
@@ -153,23 +154,6 @@ fn label_positions(
             y + r + hud_font_size_small / 2 + hud_font_size,
         ),
     )
-}
-
-/// drawStringShade 双遍文本 (UIBaseElements.java:57-59 → __drawStringShade
-/// drawFontShape=false 分支, Application.java:143): 影 (x+1,y+1) shade → 本色 (x,y)
-#[allow(clippy::too_many_arguments)] // 对齐 Java drawStringShade(g2d,x,y,shadeWidth,s,f)+显式双色
-fn draw_string_shade(
-    cv: &mut PixCanvas,
-    font: &LoadedFont,
-    x: i32,
-    y: i32,
-    s: &str,
-    c: [u8; 4],
-    shade: [u8; 4],
-    aa: bool,
-) {
-    cv.draw_text(font, x + 1, y + 1, s, shade, aa);
-    cv.draw_text(font, x, y, s, c, aa);
 }
 
 /// drawPolygon 1px 描边 (CompassGauge.java:219-222, THIN_STROKE = BasicStroke(1),
@@ -369,8 +353,8 @@ impl CompassGauge {
                 self.hud_font_size,
                 self.hud_font_size_small,
             );
-            draw_string_shade(cv, f, cpx, cpy, &self.line_compass, colors().num, colors().shade_shape, aa);
-            draw_string_shade(cv, f, lpx, lpy, &self.line_loc, colors().num, colors().shade_shape, aa);
+            primitives::text_shaded(cv, f, cpx, cpy, &self.line_compass, colors().num, colors().shade_shape, aa);
+            primitives::text_shaded(cv, f, lpx, lpy, &self.line_loc, colors().num, colors().shade_shape, aa);
         }
         self.dirty = false;
     }

@@ -8,10 +8,10 @@
 //!   注册表; LIFETIMES §1.1 裁决 "Rust 若 overlay 归管理器独占拥有, Weak 注册表整体
 //!   不需要 — Drop 即注销, 僵尸窗口防护由所有权天然保证", 故只保留计数 + DialogHooks 钩子。
 //!
-//! 锁纪律 (LIFETIMES §3.3-1 根治裁决): Java OverlayEntry.close() 在 synchronized 锁内做
-//! saveCurrentPosition (写配置) + Window.dispose() (级联回调 Bus 注销拿别的锁), 靠 Java
-//! monitor 可重入侥幸不死锁; Rust Mutex 不可重入 — **锁内只摘/放槽位, 存位置与销毁链
-//! 一律锁外执行** (拿走 ownership 后自然无竞态)。
+//! 并发纪律 (重构波3 裁决): 本 host 恒留 win32 单线程 (全方法 &mut self 且整体
+//! !Send, 不存在第二条访问路径; 原 Java synchronized→Mutex 的形式保真已摘除 —
+//! 槽位 `Option<OverlaySlot>` 直存)。窗口操作 (系统调用) 与 render 闭包 (第三方
+//! 代码) 不在持有任何锁的上下文执行的历史约束随摘锁自动满足。
 //!
 //! 线程模型 (PORT 差异, 有意为之): Java 为每个 needsThread overlay 起一条 doit/sleep
 //! 轮询线程 (LIFETIMES §3.1 #13/#14, 游戏模式同时 5-8 条冗余 sleep 线程), 那是 Swing/EDT
@@ -26,7 +26,7 @@
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use crate::platform::{self, OverlayEvent, OverlayWindow, WindowConfig};
@@ -118,9 +118,8 @@ pub struct OverlayEntry {
     /// 语义对位 OverlayManager.java: open(:294-299) 跳过 / refreshPreview
     /// (:332-336) 只跑 reinitializer 不重建窗口 / close(:370 instance=null) 清除
     zombie: bool,
-    /// 窗口槽位 — PORT: Java entry 的 instance 字段 + synchronized(entry) monitor 合并;
-    /// 只允许锁内摘/放槽位, 销毁链锁外 (见模块头锁纪律)
-    slot: Mutex<Option<OverlaySlot>>,
+    /// 窗口槽位 (Java entry 的 instance 字段; monitor 无对应物 — 见模块头并发纪律)
+    slot: Option<OverlaySlot>,
     /// 复用画布 (Java overlay 后备缓冲; 首次 open 时创建)
     canvas: Option<PixCanvas>,
     /// 感兴趣的配置键前缀 (Java interestedPrefixes, 默认含自身 config_key)
@@ -259,7 +258,7 @@ impl OverlayHost {
             render: spec.render,
             reinit: spec.reinit,
             zombie: false,
-            slot: Mutex::new(None),
+            slot: None,
             canvas: None,
             fixed_pos: None,
         };
@@ -326,12 +325,12 @@ impl OverlayHost {
     }
 
     fn open_idx(&mut self, idx: usize) -> Result<bool, String> {
-        // 锁内: 只查槽位
-        if self.entries[idx].slot.lock().unwrap().is_some() || self.entries[idx].zombie {
+        // 槽位占用检查 (单线程独占)
+        if self.entries[idx].slot.is_some() || self.entries[idx].zombie {
             // 退场后 instance 僵留) 同跳过, 不重建死窗口 (OverlayManager.java:294-299)
             return Ok(false);
         }
-        // 锁外: 建窗口 (工厂可能慢/失败, 不占锁)
+        // 建窗口 (工厂可能慢/失败)
         self.materialize(idx, false)?;
         Ok(true)
     }
@@ -360,15 +359,15 @@ impl OverlayHost {
         let Some(idx) = self.entries.iter().position(|e| e.id == id) else {
             return false;
         };
-        // ① 锁内: 摘槽位 (take 走 ownership; 槽位 None = Java instance=null)
-        let taken = self.entries[idx].slot.lock().unwrap().take();
+        // ① 摘槽位 (take 走 ownership; 槽位 None = Java instance=null)
+        let taken = self.entries[idx].slot.take();
         // 僵尸清除 (Java close 末尾 instance=null): 无窗口的死实例同样要清标志,
         // 否则 closeAll 后的会话重开会被 open/refresh 的僵尸守卫误拦
         self.entries[idx].zombie = false;
         let Some(slot) = taken else {
             return false; // 未开: Java close() 首行 instance==null 直接 return
         };
-        // ② 锁外: 存位置 (Java saveCurrentPosition: 归一化屏幕坐标)
+        // ② 存位置 (Java saveCurrentPosition: 归一化屏幕坐标)
         let (wx, wy) = slot.window.position();
         let (sw, sh) = slot.window.screen_size();
         if sw > 0 && sh > 0 {
@@ -378,7 +377,7 @@ impl OverlayHost {
                 store.store(id, n.0, n.1);
             }
         }
-        // ③ 锁外: 销毁窗口 (drop = DestroyWindow; Java Window.dispose → 子类 dispose →
+        // ③ 销毁窗口 (drop = DestroyWindow; Java Window.dispose → 子类 dispose →
         //    unregisterOverlay 注销链由 Drop 天然完成, 顺序见 Drop 实现体)
         drop(slot);
         true
@@ -420,7 +419,7 @@ impl OverlayHost {
 
     fn refresh_preview_idx(&mut self, idx: usize) -> Result<(), String> {
         let should_open = (self.activation)(&self.entries[idx].config_key);
-        let active = self.entries[idx].slot.lock().unwrap().is_some();
+        let active = self.entries[idx].slot.is_some();
         let zombie = self.entries[idx].zombie;
         if should_open {
             // WYSIWYG reinitializer (Java refreshPreview → reinitializer)。
@@ -453,7 +452,7 @@ impl OverlayHost {
         match new_size {
             Some((w, h)) => self.resize_idx(idx, w, h)?,
             None => {
-                if let Some(slot) = self.entries[idx].slot.lock().unwrap().as_mut() {
+                if let Some(slot) = self.entries[idx].slot.as_mut() {
                     slot.last_frame = None;
                 }
             }
@@ -462,7 +461,7 @@ impl OverlayHost {
     }
 
     /// 改条目尺寸 (Java Window.setSize/setBounds): 更新 entry 宽高 + 重建画布
-    /// (present 缓冲与新尺寸一致); 活跃窗口锁外 set_size (系统调用, 锁内只摘/放)
+    /// (present 缓冲与新尺寸一致); 活跃窗口 set_size (系统调用)
     pub fn resize_entry(&mut self, id: &str, w: i32, h: i32) -> Result<(), String> {
         let idx = self
             .entries
@@ -480,19 +479,19 @@ impl OverlayHost {
             // 画布重建 (materialize 的 is_none 守卫不再重建 — 尺寸变更须显式换)
             self.entries[idx].canvas = Some(PixCanvas::new(w, h)?);
         }
-        // ① 锁内: 摘槽位
-        let taken = self.entries[idx].slot.lock().unwrap().take();
+        // ① 摘槽位
+        let taken = self.entries[idx].slot.take();
         let Some(mut sl) = taken else {
             return Ok(()); // 未开: entry 尺寸已更新, 建窗时生效
         };
-        // ② 锁外: 窗口 resize (系统调用)
+        // ② 窗口 resize (系统调用)
         if !same {
             sl.window.set_size(w, h);
         }
         // 旧指纹尺寸已失配, 清掉强制下一帧 present (同 Java reinit 后 repaint)
         sl.last_frame = None;
-        // ③ 锁内: 放回
-        self.entries[idx].slot.lock().unwrap().replace(sl);
+        // ③ 放回
+        self.entries[idx].slot = Some(sl);
         Ok(())
     }
 
@@ -500,7 +499,7 @@ impl OverlayHost {
     /// (重建 state + 尺寸跟随), 无闭包者退化为清指纹强制重绘
     pub fn reinit_active_overlays(&mut self) {
         for i in 0..self.entries.len() {
-            if self.entries[i].slot.lock().unwrap().is_some() {
+            if self.entries[i].slot.is_some() {
                 // 重建失败 (画布分配) 不中断其余条目 — reinit 非销毁链, 单条降级
                 let _ = self.reinit_idx(i);
             }
@@ -568,19 +567,14 @@ impl OverlayHost {
             window.set_topmost(false);
         }
         self.entries[idx].preview = preview;
-        // 锁内: 只放槽位 (并发已开则丢弃新建, 补偿锁外建窗的窗口期)。
-        // 丢弃路径的窗口销毁在锁外执行: drop → DestroyWindow → WNDPROC → 拿
-        // EVENT_QUEUES 锁, 若持槽位锁 drop 会形成 slot→EVENT_QUEUES 嵌套锁 (锁纪律)
-        {
-            let mut slot = self.entries[idx].slot.lock().unwrap();
-            if slot.is_some() {
-                drop(slot); // 先释放槽位锁
-                drop(window); // 再销毁新建窗口 (锁外销毁链)
-                return Ok(());
-            }
-            // visible=true: 窗口以 WS_VISIBLE 建立 (win.rs create)
-            *slot = Some(OverlaySlot { window, drag: None, last_frame: None, visible: true });
+        // 已开 (重复 open/并发窗口期) 则丢弃新建 (drop → DestroyWindow 销毁链;
+        // 重构波3 摘锁后无嵌套锁面, 保留重复占用检查作顺序防御)
+        if self.entries[idx].slot.is_some() {
+            drop(window);
+            return Ok(());
         }
+        // visible=true: 窗口以 WS_VISIBLE 建立 (win.rs create)
+        self.entries[idx].slot = Some(OverlaySlot { window, drag: None, last_frame: None, visible: true });
         Ok(())
     }
 
@@ -588,14 +582,14 @@ impl OverlayHost {
     pub fn is_active(&self, id: &str) -> bool {
         self.entries
             .iter()
-            .any(|e| e.id == id && e.slot.lock().unwrap().is_some())
+            .any(|e| e.id == id && e.slot.is_some())
     }
 
     /// 全部活跃 id, 按注册序 (Java getActiveOverlays)
     pub fn active_ids(&self) -> Vec<String> {
         self.entries
             .iter()
-            .filter(|e| e.slot.lock().unwrap().is_some())
+            .filter(|e| e.slot.is_some())
             .map(|e| e.id.clone())
             .collect()
     }
@@ -685,37 +679,36 @@ impl OverlayHost {
             return;
         };
         // 锁内: 只摘/放槽位; set_visible (系统调用) 在持槽位所有权下锁外执行
-        let taken = self.entries[idx].slot.lock().unwrap().take();
+        let taken = self.entries[idx].slot.take();
         let Some(mut sl) = taken else { return };
         set_slot_visible(&mut sl, visible);
-        self.entries[idx].slot.lock().unwrap().replace(sl);
+        self.entries[idx].slot = Some(sl);
     }
 
-    /// 遍历活跃槽位执行动作 — 锁内摘/放槽位, 窗口操作 (系统调用) 锁外 (模块头锁纪律)
+    /// 遍历活跃槽位执行动作 (单线程独占, 见模块头并发纪律)
     fn for_each_active_slot(&mut self, mut f: impl FnMut(&mut OverlaySlot)) {
         for i in 0..self.entries.len() {
-            let taken = self.entries[i].slot.lock().unwrap().take();
+            let taken = self.entries[i].slot.take();
             let Some(mut sl) = taken else { continue };
             f(&mut sl);
-            self.entries[i].slot.lock().unwrap().replace(sl);
+            self.entries[i].slot = Some(sl);
         }
     }
 
     /// 一轮消息泵: 逐窗口取事件 → 拖拽状态机; Close 事件走 close 销毁链 (锁外)。
     /// 返回本轮因 Close 事件被关闭的 id (Java 无对应返回, 测试/上层生命周期用)。
-    /// 锁纪律: poll_event (→DispatchMessageW→WNDPROC 回调) 与 set_position/position/
-    /// screen_size (系统调用) 均为外部代码, 不得持槽位锁执行 — 锁内只摘/放槽位,
-    /// 事件处理整体锁外; 拖拽落点保存推迟到循环尾写入 (统一"外部副作用锁外"纪律)。
+    /// poll_event (→DispatchMessageW→WNDPROC 回调) 与 set_position/position/screen_size
+    /// (系统调用) 均为外部代码; 事件处理在持槽位所有权下执行, 拖拽落点保存推迟到循环尾。
     pub fn pump_events(&mut self) -> Vec<String> {
         let mut closed: Vec<String> = Vec::new();
         let mut position_saves: Vec<(String, f64, f64)> = Vec::new();
         for i in 0..self.entries.len() {
-            // ① 锁内: 摘槽位
-            let taken = self.entries[i].slot.lock().unwrap().take();
+            // ① 摘槽位
+            let taken = self.entries[i].slot.take();
             let Some(mut sl) = taken else { continue };
             let mut close_req = false;
             let mut save: Option<(f64, f64)> = None;
-            // ② 锁外: 排空事件 + 拖拽状态机
+            // ② 排空事件 + 拖拽状态机
             while let Some(ev) = sl.window.poll_event() {
                 match ev {
                     OverlayEvent::Close => {
@@ -748,8 +741,8 @@ impl OverlayHost {
                     }
                 }
             }
-            // ③ 锁内: 放回槽位
-            self.entries[i].slot.lock().unwrap().replace(sl);
+            // ③ 放回槽位
+            self.entries[i].slot = Some(sl);
             if let Some((nx, ny)) = save {
                 position_saves.push((self.entries[i].id.clone(), nx, ny));
             }
@@ -773,17 +766,16 @@ impl OverlayHost {
 
     /// 一帧渲染: 清底 (preview 铺极淡黑底, PORT: Java applyPreviewStyle) → render 闭包 →
     /// 与上帧逐字节比较 → 变化才 present (脏检查, Java repaint 抑制 / 零无谓提交)。
-    /// 锁纪律: render 闭包是任意第三方代码 (一旦经捕获引用回环 host 即死锁, panic 则
-    /// Mutex 毒化级联 panic), present 是系统调用 — 二者均不得持槽位锁执行, 锁内只摘/放
+    /// render 闭包是任意第三方代码, present 是系统调用 — 在持槽位所有权下执行
     pub fn render_tick(&mut self) -> Result<(), String> {
         for i in 0..self.entries.len() {
             if self.entries[i].canvas.is_none() {
                 continue; // materialize 保证 canvas 先于窗口存在, 此处防御性跳过
             }
-            // ① 锁内: 摘槽位
-            let taken = self.entries[i].slot.lock().unwrap().take();
+            // ① 摘槽位
+            let taken = self.entries[i].slot.take();
             let Some(mut sl) = taken else { continue };
-            // ② 锁外: 渲染 + 脏检查 + present (entry 的 canvas/render 字段与 slot 无关)
+            // ② 渲染 + 脏检查 + present (entry 的 canvas/render 字段与 slot 无关)
             let mut result = Ok(());
             {
                 let entry = &mut self.entries[i];
@@ -808,9 +800,9 @@ impl OverlayHost {
                     }
                 }
             }
-            // ③ 锁内: 放回槽位 (present 失败也放回 — 槽位状态不因渲染失败丢失,
+            // ③ 放回槽位 (present 失败也放回 — 槽位状态不因渲染失败丢失,
             // 销毁与否由上层决定, 保真 Java 实例不因 paint 异常消失)
-            self.entries[i].slot.lock().unwrap().replace(sl);
+            self.entries[i].slot = Some(sl);
             result?;
         }
         Ok(())
@@ -836,7 +828,7 @@ impl OverlayHost {
     fn active_count(&self) -> usize {
         self.entries
             .iter()
-            .filter(|e| e.slot.lock().unwrap().is_some())
+            .filter(|e| e.slot.is_some())
             .count()
     }
 }

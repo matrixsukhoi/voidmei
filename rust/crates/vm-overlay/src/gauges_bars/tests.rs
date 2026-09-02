@@ -412,8 +412,8 @@ fn line_primitive_pixel_boxes() {
 
     // 1px: 列恰 x, 行 y0..y1 (AA 开关输出一致)
     let mut cv3 = PixCanvas::new(40, 40).unwrap();
-    vline_1px(&mut cv3, 12, 5, 15, colors().warning, false);
-    vline_1px(&mut cv3, 14, 5, 15, colors().warning, true);
+    vline_1px(&mut cv3, 12, 5, 15, colors().warning);
+    vline_1px(&mut cv3, 14, 5, 15, colors().warning);
     assert_eq!(a(&cv3, 12, 5), 100, "1px 线顶");
     assert_eq!(a(&cv3, 12, 15), 100, "1px 线底");
     assert_eq!(a(&cv3, 11, 10), 0, "1px 线左外");
@@ -427,14 +427,14 @@ fn line_primitive_pixel_boxes() {
 #[test]
 fn ring_negative_and_degenerate() {
     let mut cv = PixCanvas::new(40, 40).unwrap();
-    ring(&mut cv, 10, 10, -4, 20, colors().num);
-    ring(&mut cv, 10, 10, 20, -4, colors().num);
-    ring(&mut cv, 10, 10, -4, -9, colors().num);
+    primitives::ring1px(&mut cv, 10, 10, -4, 20, colors().num);
+    primitives::ring1px(&mut cv, 10, 10, 20, -4, colors().num);
+    primitives::ring1px(&mut cv, 10, 10, -4, -9, colors().num);
     assert!(cv.pixmap().data().iter().all(|&b| b == 0), "负宽/负高 0 像素");
 
     // 零宽: oracle drawRect(50,10,0,20) = 列 50 行 10..30 的 1px 竖线
     let mut cv2 = PixCanvas::new(40, 40).unwrap();
-    ring(&mut cv2, 20, 5, 0, 15, colors().num);
+    primitives::ring1px(&mut cv2, 20, 5, 0, 15, colors().num);
     assert_eq!(a(&cv2, 20, 5), 240, "零宽退化竖线顶");
     assert_eq!(a(&cv2, 20, 20), 240, "零宽退化竖线底 (行 y..y+h)");
     assert_eq!(a(&cv2, 20, 21), 0, "竖线底外");
@@ -442,7 +442,7 @@ fn ring_negative_and_degenerate() {
 
     // 零高: 1px 横线 列 x..x+w
     let mut cv3 = PixCanvas::new(40, 40).unwrap();
-    ring(&mut cv3, 5, 20, 15, 0, colors().num);
+    primitives::ring1px(&mut cv3, 5, 20, 15, 0, colors().num);
     assert_eq!(a(&cv3, 5, 20), 240, "零高退化横线左端");
     assert_eq!(a(&cv3, 20, 20), 240, "零高退化横线右端");
     assert_eq!(a(&cv3, 21, 20), 0, "横线右外");
@@ -450,7 +450,7 @@ fn ring_negative_and_degenerate() {
 
     // 双零: drawRect 的 4 条边线全为零长度段, 无输出
     let mut cv4 = PixCanvas::new(40, 40).unwrap();
-    ring(&mut cv4, 10, 10, 0, 0, colors().num);
+    primitives::ring1px(&mut cv4, 10, 10, 0, 0, colors().num);
     assert!(cv4.pixmap().data().iter().all(|&b| b == 0), "双零无输出");
 }
 

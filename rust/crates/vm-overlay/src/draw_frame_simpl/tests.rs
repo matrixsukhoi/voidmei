@@ -78,9 +78,9 @@ fn find_min_max_empty_slice_returns_java_sentinels() {
 /// java Math.round(float) 半-up 语义 (§2.3)
 #[test]
 fn java_round_i32_half_up() {
-    assert_eq!(java_round_i32(11.5), 12);
-    assert_eq!(java_round_i32(11.4), 11);
-    assert_eq!(java_round_i32(-11.5), -11, "floor(-11.5+0.5)=floor(-11)");
+    assert_eq!(java_round_f32(11.5), 12);
+    assert_eq!(java_round_f32(11.4), 11);
+    assert_eq!(java_round_f32(-11.5), -11, "floor(-11.5+0.5)=floor(-11)");
 }
 
 // ---- draw: 空缓存跳过 + 像素墨迹 (aa=false 精确断言) ----

@@ -35,6 +35,8 @@
 //!   inAction/disableAttitude) 保真保留 (§2.10 + hud_layout_node ignoreBounds
 //!   先例: write-only 状态不删), 各带 PORT 注。
 
+use crate::primitives;
+use vm_core::format::java_round_f32;
 use crate::global_colors::{aa, colors};
 use std::cell::RefCell;
 use std::path::{Path, PathBuf};
@@ -64,11 +66,6 @@ use crate::warning_overlay::WarningBlinkHost;
 // ---------------------------------------------------------------------------
 // Java Math / printf 复刻 (§2.3/§2.2; 各模块本地拷贝先例)
 // ---------------------------------------------------------------------------
-
-/// Java `Math.round(float)` → int: floor(x+0.5) (半偶舍入的 Rust f32::round 是错的)
-fn java_round_f32(x: f32) -> i32 {
-    (x + 0.5).floor() as i32
-}
 
 /// Java `(int) Math.round(double)`: round 返回 long, (int) 窄化取低 32 位
 /// (§2.2 双转; 值域内与饱和无差, 防御性对齐 Java 溢出行为)
@@ -1442,7 +1439,7 @@ impl MiniHudOverlay {
                     }
                     Some(color) => {
                         let r = node.get_pixel_rect();
-                        draw_rect_1px(cv, x, y, r.width, r.height, color);
+                        primitives::ring1px(cv, x, y, r.width, r.height, color);
                     }
                 }
             });
@@ -1461,28 +1458,6 @@ impl MiniHudOverlay {
 
     pub fn ctx(&self) -> &MinimalHudContext {
         &self.ctx
-    }
-}
-
-/// Java `Graphics.drawRect(x,y,w,h)` + BasicStroke(1) 的 1px 环:
-/// 覆盖 x..x+w × y..y+h (含端点)。rows.rs ring 同一语义 (模块私有故本地拷贝)。
-fn draw_rect_1px(cv: &mut PixCanvas, x: i32, y: i32, w: i32, h: i32, color: [u8; 4]) {
-    if w < 0 || h < 0 {
-        return;
-    }
-    if w == 0 || h == 0 {
-        if w == 0 && h > 0 {
-            cv.fill_rect(x, y, 1, h + 1, color); // 零宽退化竖线
-        } else if h == 0 && w > 0 {
-            cv.fill_rect(x, y, w + 1, 1, color); // 零高退化横线
-        }
-        return; // 双零无输出
-    }
-    cv.fill_rect(x, y, w + 1, 1, color); // 上边
-    cv.fill_rect(x, y + h, w + 1, 1, color); // 下边
-    if h > 1 {
-        cv.fill_rect(x, y + 1, 1, h - 1, color); // 左边
-        cv.fill_rect(x + w, y + 1, 1, h - 1, color); // 右边
     }
 }
 

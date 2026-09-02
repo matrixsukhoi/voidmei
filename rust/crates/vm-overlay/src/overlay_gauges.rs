@@ -2,6 +2,12 @@
 //! GaugeBarStyle, GaugeMarker, MarkerType}.java 的内容复刻)。
 //! 重构波2 自 overlays_field1.rs 拆出; 基元随本文件暂居 (波3 收敛 primitives.rs)。
 
+use crate::primitives::coverage;
+use crate::primitives::cov_color;
+use crate::primitives::text_shaded_auto;
+use crate::primitives::vline_1px;
+use crate::primitives::ring1px;
+use vm_core::format::java_round_f32;
 use std::rc::Rc;
 
 use crate::font::LoadedFont;
@@ -11,58 +17,6 @@ use crate::render2d::PixCanvas;
 // ---------------------------------------------------------------------------
 // 公共像素基元 (Java Graphics2D 语义; 与 gauges_bars 同源规则的局部实现)
 // ---------------------------------------------------------------------------
-
-/// Java Math.round(double) = floor(x+0.5) (PORTING.md §2.3)
-pub(crate) fn java_round_f64(x: f64) -> i32 {
-    (x + 0.5).floor() as i32
-}
-
-/// Java Math.round(float) = floor(x+0.5)
-pub(crate) fn java_round_f32(x: f32) -> i32 {
-    (x + 0.5).floor() as i32
-}
-
-/// Java Graphics.drawRect(x,y,w,h) + BasicStroke(1): 覆盖 x..x+w × y..y+h (含端点)
-/// 的 1px 环。负宽/负高整体不绘制, 零宽/零高退化 1px 线 — 语义与 gauges_bars::ring
-/// 一致 (crate 内私有, 此处局部复刻供本文件组件使用)
-pub(crate) fn ring1px(cv: &mut PixCanvas, x: i32, y: i32, w: i32, h: i32, color: [u8; 4]) {
-    if w < 0 || h < 0 {
-        return; // PORT: Java drawRect 负宽/负高不绘制
-    }
-    if w == 0 || h == 0 {
-        if w == 0 && h > 0 {
-            cv.fill_rect(x, y, 1, h + 1, color);
-        } else if h == 0 && w > 0 {
-            cv.fill_rect(x, y, w + 1, 1, color);
-        }
-        return;
-    }
-    cv.fill_rect(x, y, w + 1, 1, color); // 上边
-    cv.fill_rect(x, y + h, w + 1, 1, color); // 下边
-    if h > 1 {
-        cv.fill_rect(x, y + 1, 1, h - 1, color); // 左边
-        cv.fill_rect(x + w, y + 1, 1, h - 1, color); // 右边
-    }
-}
-
-/// BasicStroke(1) 竖线: 列恰为 x, 行 y0..y1 端点含 (gauges_bars::vline_1px 同款)
-pub(crate) fn vline_1px(cv: &mut PixCanvas, x: i32, y0: i32, y1: i32, color: [u8; 4]) {
-    let (ya, yb) = if y0 <= y1 { (y0, y1) } else { (y1, y0) };
-    cv.fill_rect(x, ya, 1, yb - ya + 1, color);
-}
-
-/// AA 柔边像素的覆盖率缩放 (Java AA 管线 = SrcOver(源 alpha × 覆盖率),
-/// gauges_bars::cov_color 同式)
-pub(crate) fn cov_color(color: [u8; 4], cov: f32) -> [u8; 4] {
-    [color[0], color[1], color[2], ((color[3] as f32) * cov + 0.5) as u8]
-}
-
-/// 像素区间 [p, p+1) 与覆盖盒 [lo, hi] 的重叠覆盖率
-pub(crate) fn coverage(p: i32, lo: f32, hi: f32) -> f32 {
-    let a = (p as f32).max(lo);
-    let b = ((p + 1) as f32).min(hi);
-    (b - a).clamp(0.0, 1.0)
-}
 
 /// BasicStroke(w, CAP_BUTT, JOIN_MITER) 轴对齐线 (GraphicsUtil.createPreciseStroke,
 /// MarkedGauge 的 tickStroke/borderStroke 族)。Java 调用点全部轴对齐 (竖/横)。
@@ -133,21 +87,6 @@ pub(crate) fn butt_line(
             put(cv, u, vv, cov_color(color, cu * cvv));
         }
     }
-}
-
-/// 阴影双遍文本 (UIBaseElements.__drawStringShade / MarkedGauge.drawTextShaded):
-/// 影 (x+1,y+1) colorShadeShape → 本色 (x,y)
-pub(crate) fn text_shaded(
-    cv: &mut PixCanvas,
-    font: &LoadedFont,
-    x: i32,
-    y: i32,
-    s: &str,
-    c: [u8; 4],
-    aa: bool,
-) {
-    cv.draw_text(font, x + 1, y + 1, s, colors().shade_shape, aa);
-    cv.draw_text(font, x, y, s, c, aa);
 }
 
 // ---------------------------------------------------------------------------
@@ -587,7 +526,7 @@ impl MarkedGauge {
                     style.stroke_width, m.color, aa);
                 if let Some(f) = tick_font {
                     if !m.label.is_empty() {
-                        text_shaded(cv, f, bar_x + thickness + 4, marker_y + 4,
+                        text_shaded_auto(cv, f, bar_x + thickness + 4, marker_y + 4,
                             &m.label, m.color, aa);
                     }
                 }
@@ -646,7 +585,7 @@ impl MarkedGauge {
                     style.stroke_width, m.color, aa);
                 if let Some(f) = tick_font {
                     if !m.label.is_empty() {
-                        text_shaded(cv, f, marker_x + 4,
+                        text_shaded_auto(cv, f, marker_x + 4,
                             bar_y + thickness + f.size, &m.label, m.color, aa);
                     }
                 }
@@ -688,13 +627,13 @@ impl MarkedGauge {
     ) {
         let mut label_w = 0;
         if !self.label.is_empty() {
-            text_shaded(cv, font, x, y, &self.label, c, aa);
+            text_shaded_auto(cv, font, x, y, &self.label, c, aa);
             label_w = font.measure(&self.label);
         }
         if self.value_len > 0 {
-            text_shaded(cv, font, x + label_w, y, &self.value_buffer, c, aa);
+            text_shaded_auto(cv, font, x + label_w, y, &self.value_buffer, c, aa);
         } else if !self.display_value.is_empty() {
-            text_shaded(cv, font, x + label_w, y, &self.display_value, c, aa);
+            text_shaded_auto(cv, font, x + label_w, y, &self.display_value, c, aa);
         }
     }
 }

@@ -15,6 +15,8 @@
 //!   Rust 侧由渲染器按 field key 缓存 + 每帧 update 同步 (脏检查在组件内)。
 //! - BOS 的 TextGauge 按 label 缓存 (Java gaugeCache, BOSStyleRenderer.java:18)。
 
+use crate::primitives;
+use vm_core::format::java_round_f32;
 use vm_core::configuration_service::GlobalColors;
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -78,11 +80,6 @@ pub struct RenderContext {
     pub text_aa: bool,
 }
 
-/// Java Math.round(float) = floor(x + 0.5) (§2.3)
-fn java_round_f(x: f32) -> i32 {
-    (x + 0.5).floor() as i32
-}
-
 impl RenderContext {
     /// 对应 RenderContext.create (RenderContext.java:68-81)。
     /// 契约: num_font.size 即 fontSize (Java fontSize == numFont.getSize());
@@ -132,7 +129,7 @@ impl RenderContext {
     /// 内置回退族, 降级为显式 Err (POC 裁决: 字体随应用分发, 损坏属安装事故)。
     pub fn load(fonts_dir: &std::path::Path, font_add: i32, column_num: i32) -> Result<Self, String> {
         let font_size = 24 + font_add;
-        let half = java_round_f(font_size as f32 / 2.0);
+        let half = java_round_f32(font_size as f32 / 2.0);
         let bold = fonts_dir.join("sarasa-mono-sc-bold.ttf");
         let regular = fonts_dir.join("sarasa-mono-sc-regular.ttf");
         // glyph 是 font.rs 唯一非 panic 的解析通道 (Face 解析失败 → None),
@@ -264,7 +261,7 @@ impl TextGauge {
         // 数值右对齐: charsWidth/stringWidth = Σround(advance) = measure (font.rs)
         let value = val_buffer.unwrap_or(self.value.as_str());
         let val_width = ctx.num_font.measure(value);
-        draw_text_shaded(
+        primitives::text_shaded(
             canvas,
             &ctx.num_font,
             x + lwidth - val_width - num_padding,
@@ -275,7 +272,7 @@ impl TextGauge {
             ctx.text_aa,
         );
         // 标签 (基线 y) — TextGauge.java:63
-        draw_text_shaded(
+        primitives::text_shaded(
             canvas,
             &ctx.label_font,
             x + lwidth,
@@ -286,7 +283,7 @@ impl TextGauge {
             ctx.text_aa,
         );
         // 单位 (基线 y + labelFontSize) — TextGauge.java:64
-        draw_text_shaded(
+        primitives::text_shaded(
             canvas,
             &ctx.unit_font,
             x + lwidth,
@@ -312,23 +309,6 @@ fn bos_value_text<'a>(base: &'a DataField, gauge_value: &'a str) -> &'a str {
 /// (vm-core 数据态映射: base.buffer/length ↔ gauge.valueBuffer/valueLen,
 /// base.current_value ↔ gauge.displayValue, 见 gauge_field.rs PORT 注)
 ///
-
-/// Java TextGauge.drawTextShaded / LinearGauge.drawTextShaded:
-/// (+1,+1) 阴影先画, 本色后画 (TextGauge.java:85-93)
-#[allow(clippy::too_many_arguments)] // 对齐 Java drawTextShaded(g2d,x,y,s,f,c)+显式 shade/aa
-fn draw_text_shaded(
-    canvas: &mut PixCanvas,
-    font: &LoadedFont,
-    x: i32,
-    y: i32,
-    text: &str,
-    color: [u8; 4],
-    shade: [u8; 4],
-    aa: bool,
-) {
-    canvas.draw_text(font, x + 1, y + 1, text, shade, aa);
-    canvas.draw_text(font, x, y, text, color, aa);
-}
 
 // ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------

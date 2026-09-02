@@ -7,6 +7,7 @@
 //!    实现 vm-core `voice_resource_manager::{SoundPlayer, SoundClip}` trait
 //!    (PORTING §3 库映射裁决: winmm PlaySound, "语音是整文件播放, 够用")
 
+use vm_core::format::java_round;
 use vm_core::logger;
 use vm_core::voice_resource_manager::SoundError;
 
@@ -32,13 +33,6 @@ pub struct DpiHelper {
     /// Physical screen dimensions (actual monitor pixels)
     physical_screen_width: i32,
     physical_screen_height: i32,
-}
-
-/// Java `Math.round(double)` = `floor(x + 0.5)`, 返回 long
-// PORT: Rust f64::round 是半偶舍入, 不可用 (§2.3); 与 format.rs /
-// piston_power_model.rs 的 java_round 同源实现
-fn java_round(x: f64) -> i64 {
-    (x + 0.5).floor() as i64
 }
 
 impl DpiHelper {

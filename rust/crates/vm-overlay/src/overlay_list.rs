@@ -23,6 +23,7 @@
 //! 间隙 (panel²)=0xE9141414, 行 (label over panel²) alpha=249, 表头 0xF93E3005 /
 //! 偶 0xF9181818 / 奇 0xF9222222。draw() 按 [`java2d_src_over`] 预合成最终单色直铺。
 
+use vm_core::format::java_round_f32;
 use crate::font::LoadedFont;
 use crate::render2d::PixCanvas;
 
@@ -54,11 +55,6 @@ pub const MARGIN_BOTTOM: i32 = 2;
 /// 直通 RGBA 组装 (java.awt.Color(r, g, b, a) 字节序)
 fn rgba(rgb: [u8; 3], alpha: u8) -> [u8; 4] {
     [rgb[0], rgb[1], rgb[2], alpha]
-}
-
-/// Java Math.round(float) = floor(x + 0.5) (PORTING.md §2.3)
-fn java_round_f(x: f32) -> i32 {
-    (x + 0.5).floor() as i32
 }
 
 /// Java2D AlphaComposite.SrcOver 的 8bit 整数路径 (TYPE_INT_ARGB 直通存储):
@@ -261,9 +257,9 @@ impl BaseListOverlay {
             doit: true,
             alpha: 180,
             is_preview: false,
-            width: java_round_f((default_fontsize * 36) as f32 * scale),
+            width: java_round_f32((default_fontsize * 36) as f32 * scale),
             height: default_fontsize * 72,
-            font_size: java_round_f(16.0 * scale),
+            font_size: java_round_f32(16.0 * scale),
             logical_height,
             refresh_interval_ms: 200,
             visible_now: true,
