@@ -16,6 +16,7 @@ use crate::lang::table;
 /// PORT: Java 原类在构造时读文件; 本移植数据来自静态表, 待 `crate::config::Config`
 /// 移植落地后可收敛复用。
 #[derive(Default)]
+#[derive(Clone)]
 pub struct Config;
 
 impl Config {
@@ -35,6 +36,7 @@ impl Config {
 // derive(Default) 以 ""/None 占位 — init_lang() 全量覆写后与 Java 终态一致。
 // 消费方只应使用 init_lang() 的产物 (Java 端同样在 Application 启动即调 initLang)。
 #[derive(Default)]
+#[derive(Clone)]
 pub struct Lang {
     pub app_name: &'static str,
     pub app_tooltips: &'static str,
@@ -863,6 +865,14 @@ impl Lang {
     // 直译 (读旧值写新值交错, 无法也不应改 struct 字面量)
     #[allow(clippy::field_reassign_with_default)]
     pub fn init_lang() -> Lang {
+        // 重构波6: 纯函数 (静态表数据源, 无运行时 cfg) — OnceLock 缓存首建,
+        // 调用点 (全仓 26 处) 零改动; clone = 365 个 &str 位拷贝 (原每次重建
+        // + 逐字段 update_language)。logger 的 OnceLock 不可变豁免同款形态
+        static LANG: std::sync::OnceLock<Lang> = std::sync::OnceLock::new();
+        LANG.get_or_init(Self::build_lang).clone()
+    }
+
+    fn build_lang() -> Lang {
         let mut lang = Lang::default();
 
         // PORT: Java 运行时读取该文件 (prog.config.Config + java.util.Properties UTF-8);

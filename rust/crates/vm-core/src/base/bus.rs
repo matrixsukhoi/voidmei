@@ -6,6 +6,11 @@
 //! (LIFETIMES.md §2 记录的现存 bug)。
 //! 锁纪律 (LIFETIMES: Java OverlayEntry 锁内回调是死锁风险点): listeners 列表锁
 //! 只在登记/清扫/快照时持有, 回调执行持的是各监听器自己的可变性锁, 二者不嵌套。
+//! PORT(重构波1 裁决注): 同事件类型嵌套同步 publish 会死锁 (阶段 2 持监听器
+//! Mutex 执行回调, 内层快照含执行中监听器 → 同线程二次 lock)。UIStateBus 层
+//! 已以 thread_local 重入检测 + pending 延迟补投根治 (ui_state_bus.rs);
+//! 本泛型层不动 — 强类型 FmChangedBus 的发布纪律 (锁外发布、禁再 publish)
+//! 由 fm_manager 满足。
 
 use std::sync::{Arc, Mutex, RwLock, Weak};
 

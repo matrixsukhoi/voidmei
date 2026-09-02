@@ -1,5 +1,7 @@
 //! Service 数据快照 (Java Service 实例字段区 + 取值视图)。
-//! 持有方: service_loop 的 RwLock<ServiceData> — Service 线程写, win32 线程只读。
+//! 持有方: service_loop 的 RwLock<ServiceData> — Service 线程内部短锁读写
+//! (重构波4); 跨线程读者 (win32 渲染/语音/主线程) 一律走 frame.rs 的
+//! FrameStore 不可变帧, 不再接触本锁。
 //! 取数唯一接口 = impl FormulaView (var_value 短名; 公式值优先, 其余直抵源头)。
 //! 批2 起不存格式化字符串 (显示文本由消费侧就地格式化)。
 

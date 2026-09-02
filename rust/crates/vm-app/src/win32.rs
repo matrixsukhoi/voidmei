@@ -438,16 +438,15 @@ pub(crate) struct AttitudeFeedState {
 /// OverlayManager.java:332-336)。
 ///
 /// PORT(MiniHUD 喂入形态, W-B 事件瘦身后): 转发链只送 EventPayload (瘦事件,
-/// 纯节拍+标量); state/indicators 由本函数持 live guard 借引用直传 hud_calculator
+/// 纯节拍+标量); state/indicators 取自 FrameStore 最近帧直传 hud_calculator
 /// (按喂入时刻取最新值, 与 Java EDT 读共享可变引用同一时序语义; 曾长期传
 /// None/None 致襟翼/油门/姿态/G 值全 0 = "bar 恒 0" 根因); HUDData 由
 /// minihud::update_from_event 现场计算 (hud_data 通道已删)。
 ///
-/// PORT(锁内计算形态备案, 审查 B-W2): 各 update 需要 &ServiceData 完整视图, 而
-/// 签名归 vm-overlay (不可越文件改) 且 ServiceData 无 Clone — 读锁跨纯计算段
-/// (无回调/IO/回写, 读锁共享不阻塞读者, 仅推迟 Service 写者排队)。与 Java 的 EDT
-/// 回退路径 (MiniHUDOverlay EDT 内直接读 Service 公开字段无锁计算) 同形态。
-/// vm-data 后续波次出 Clone/字段快照 API 后, 改锁内快照释放再算。
+/// PORT(B-W2 已兑现, 重构波4): 本函数原持 ServiceData 读锁跨纯计算段 (备形态
+/// 已消) — 现取 FrameStore 不可变帧 (零锁), 各 update 签名 &dyn FormulaView
+/// 直收 &Frame。与 Java 的 EDT 回退路径 (MiniHUDOverlay EDT 内直读 Service
+/// 公开字段无锁计算) 同形态。
 ///
 /// PORT(panic 边界): ServiceData 的保真 panic 点 (get_pitch/get_thrust 的空引擎
 /// 数组索引, service_fields.rs 注) 在畸形 s_state (update 失败 pitch/thrust 未填)
