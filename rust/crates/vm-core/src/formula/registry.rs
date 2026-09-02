@@ -245,15 +245,17 @@ pub fn assemble_snapshot(raw: &RawInputs, session: &SessionInputs, meta: &MetaIn
     VarSnapshot { values }
 }
 
-fn build_registry() -> Registry {
-    use VarCategory as C;
-    use VarOrigin as O;
-    use VarSrc::{Blk as B, Const as K, Indic as I, Meta as M, Session as SE, State as T};
+// 变量表分组子函数 (波14 拆解) 的短别名 — 单字母保持原表条目单行形态
+use VarCategory as C;
+use VarOrigin as O;
+use VarSrc::{Blk as B, Const as K, Indic as I, Meta as M, Session as SE, State as T};
 
-    // 哨兵守卫小件 (与原 getter 实现逐一对齐)
-    const FI: f64 = F_INVALID; // -65535 (float 域哨兵)
-    let vars: Vec<VarMeta> = vec![
-        // ===== /state 原始直通 (哨兵原样穿透, 守卫在消费侧/公式内联) =====
+/// 哨兵守卫小件 (与原 getter 实现逐一对齐) — -65535 (float 域哨兵)
+const FI: f64 = F_INVALID;
+
+/// /state 原始直通变量组 (哨兵原样穿透, 守卫在消费侧/公式内联)。
+fn state_direct_vars() -> Vec<VarMeta> {
+    vec![
         VarMeta { name: "ias", unit: "km/h", desc: "指示空速", category: C::Flight, origin: O::State, src: T(|s| s.ias as f64) },
         VarMeta { name: "tas", unit: "km/h", desc: "真空速", category: C::Flight, origin: O::State, src: T(|s| s.tas as f64) },
         VarMeta { name: "aoa", unit: "°", desc: "迎角", category: C::Flight, origin: O::State, src: T(|s| s.aoa) },
@@ -276,7 +278,12 @@ fn build_registry() -> Registry {
         } else { 0.0 }) },
         VarMeta { name: "has_booster", unit: "", desc: "有助推器(mfuel_1>0 且初始>0)", category: C::Engine, origin: O::State, src: T(|s| (s.mfuel_1 > 0.0 && s.mfuel0_1 > 0.0) as u8 as f64) },
         VarMeta { name: "engine_count", unit: "", desc: "引擎数(遥测)", category: C::Meta, origin: O::State, src: T(|s| s.engine_num as f64) },
-        // ===== /indicators 原始直通 =====
+    ]
+}
+
+/// /indicators 原始直通变量组。
+fn indic_direct_vars() -> Vec<VarMeta> {
+    vec![
         VarMeta { name: "indic_speed", unit: "m/s", desc: "校正速度(indicators.speed, m/s)", category: C::Flight, origin: O::Indicators, src: I(|i| i.speed) },
         VarMeta { name: "indic_vario", unit: "m/s", desc: "仪表升降速度(含哨兵)", category: C::Flight, origin: O::Indicators, src: I(|i| i.vario) },
         VarMeta { name: "radio_alt_raw", unit: "m", desc: "雷达高度原始值(含哨兵)", category: C::Flight, origin: O::Indicators, src: I(|i| i.radio_altitude) },
@@ -285,7 +292,12 @@ fn build_registry() -> Registry {
         VarMeta { name: "wing_sweep_valid", unit: "", desc: "变后掠翼有效", category: C::State, origin: O::Indicators, src: I(|i| (i.wsweep_indicator != FI) as u8 as f64) },
         VarMeta { name: "aviahorizon_pitch", unit: "°", desc: "地平仪俯仰", category: C::Flight, origin: O::Indicators, src: I(|i| i.aviahorizon_pitch) },
         VarMeta { name: "aviahorizon_roll", unit: "°", desc: "地平仪滚转", category: C::Flight, origin: O::Indicators, src: I(|i| i.aviahorizon_roll) },
-        // ===== /state 引擎/操纵面直通 (int 拓宽) =====
+    ]
+}
+
+/// /state 引擎/操纵面直通变量组 (int 拓宽)。
+fn state_engine_controls_vars() -> Vec<VarMeta> {
+    vec![
         VarMeta { name: "throttle", unit: "%", desc: "油门", category: C::Engine, origin: O::State, src: T(|s| s.throttle as f64) },
         VarMeta { name: "rpm", unit: "rpm", desc: "转速", category: C::Engine, origin: O::State, src: T(|s| s.rpm as f64) },
         VarMeta { name: "manifold_pressure", unit: "ata", desc: "进气压", category: C::Engine, origin: O::State, src: T(|s| s.manifoldpressure) },
@@ -300,7 +312,12 @@ fn build_registry() -> Registry {
         VarMeta { name: "aileron", unit: "", desc: "副翼", category: C::State, origin: O::State, src: T(|s| s.aileron as f64) },
         VarMeta { name: "elevator", unit: "", desc: "升降舵", category: C::State, origin: O::State, src: T(|s| s.elevator as f64) },
         VarMeta { name: "rudder", unit: "", desc: "方向舵", category: C::State, origin: O::State, src: T(|s| s.rudder as f64) },
-        // ===== C 级会话量 (聚合/状态机产物, W8 公式化后逐项消亡) =====
+    ]
+}
+
+/// C 级会话量变量组 (聚合/状态机产物, W8 公式化后逐项消亡)。
+fn session_vars() -> Vec<VarMeta> {
+    vec![
         VarMeta { name: "mass_fuel", unit: "kg", desc: "当前总油量(聚合)", category: C::Engine, origin: O::Derived, src: SE(|x| x.total_fuel) },
         VarMeta { name: "fuel_time_mili", unit: "ms", desc: "剩余油量时间(SMA 慢算)", category: C::Engine, origin: O::Derived, src: SE(|x| x.fuel_time_mili) },
         VarMeta { name: "horse_power", unit: "hp", desc: "总功率(引擎聚合)", category: C::Engine, origin: O::Derived, src: SE(|x| x.total_hp) },
@@ -324,7 +341,12 @@ fn build_registry() -> Registry {
         VarMeta { name: "is_piston_engine", unit: "", desc: "活塞引擎(投票)", category: C::Engine, origin: O::Derived, src: SE(|x| x.is_piston as u8 as f64) },
         VarMeta { name: "is_turboprop_engine", unit: "", desc: "涡桨引擎(投票)", category: C::Engine, origin: O::Derived, src: SE(|x| x.is_turboprop as u8 as f64) },
         VarMeta { name: "is_engine_check_done", unit: "", desc: "引擎检测完成(投票)", category: C::Engine, origin: O::Derived, src: SE(|x| x.engine_check_done as u8 as f64) },
-        // ===== FM 字段直通 (blkx 直绑, None 守卫对齐 adapter) =====
+    ]
+}
+
+/// FM 字段直通变量组 (blkx 直绑, None 守卫对齐 adapter)。
+fn fm_direct_vars() -> Vec<VarMeta> {
+    vec![
         VarMeta { name: "fm.empty_weight", unit: "kg", desc: "空重", category: C::Fm, origin: O::Fm, src: B(|b| b.emptyweight) },
         VarMeta { name: "fm.nofuel_weight", unit: "kg", desc: "无油重量", category: C::Fm, origin: O::Fm, src: B(|b| b.nofuelweight) },
         VarMeta { name: "fm.max_fuel_weight", unit: "kg", desc: "最大油量", category: C::Fm, origin: O::Fm, src: B(|b| b.maxfuelweight) },
@@ -383,10 +405,15 @@ fn build_registry() -> Registry {
         VarMeta { name: "fm.flap3_speed", unit: "km/h", desc: "襟翼档位3速度", category: C::Fm, origin: O::Fm, src: B(|b| flap_speed(b, 3)) },
         VarMeta { name: "fm.gear_destruction_speed", unit: "km/h", desc: "起落架损毁速度", category: C::Fm, origin: O::Fm, src: B(|b| b.gear_destruction_ind_speed) },
         VarMeta { name: "fm.engine_num", unit: "", desc: "引擎数(FM)", category: C::Fm, origin: O::Fm, src: B(|b| b.engine_num as f64) },
-        // ===== FM 字段补全 (2026-09): FmData 全部 pub 标量数值字段进公式 =====
-        // (Vec/表族不进帧变量: comp_* 表/推力表/eng_load 表由装载器与曲线窗口
-        //  消费, sweep_levels 经 fm_vne/fm_mne/fm_aoa_high 查表函数, 表容量类
-        //  标量在此给数量; FmParts.sq 是 wing/fuselage_area 的装载期拷贝, 不重复)
+    ]
+}
+
+/// FM 字段补全变量组 (2026-09): FmData 全部 pub 标量数值字段进公式
+/// (Vec/表族不进帧变量: comp_* 表/推力表/eng_load 表由装载器与曲线窗口
+///  消费, sweep_levels 经 fm_vne/fm_mne/fm_aoa_high 查表函数, 表容量类
+///  标量在此给数量; FmParts.sq 是 wing/fuselage_area 的装载期拷贝, 不重复)。
+fn fm_supplement_vars() -> Vec<VarMeta> {
+    vec![
         // -- 重量/燃油 --
         VarMeta { name: "fm.gross_weight", unit: "kg", desc: "满油全重", category: C::Fm, origin: O::Fm, src: B(|b| b.grossweight) },
         VarMeta { name: "fm.half_weight", unit: "kg", desc: "半油全重", category: C::Fm, origin: O::Fm, src: B(|b| b.halfweight) },
@@ -435,7 +462,13 @@ fn build_registry() -> Registry {
         VarMeta { name: "fm.static_thrust", unit: "kgf", desc: "海平面静推力", category: C::Fm, origin: O::Fm, src: B(|b| b.thr_max0) },
         // -- 负载档 --
         VarMeta { name: "fm.eng_load_count", unit: "", desc: "发动机耐久档数", category: C::Fm, origin: O::Fm, src: B(|b| b.max_eng_load as f64) },
-        // -- FmParts 补齐 (no/full_flaps 补 cl_after_crit/line_cl_coeff; fuselage/fin/stab 全字段) --
+    ]
+}
+
+/// FmParts 补齐变量组 (no/full_flaps 补 cl_after_crit/line_cl_coeff;
+/// fuselage/fin/stab 全字段)。
+fn fm_parts_supplement_vars() -> Vec<VarMeta> {
+    vec![
         VarMeta { name: "fm.no_flaps_wing_cl_after_crit", unit: "", desc: "失速后升力系数(无襟翼)", category: C::Fm, origin: O::Fm, src: B(|b| b.no_flaps_wing.as_ref().map_or(0.0, |p| p.cl_after_crit)) },
         VarMeta { name: "fm.no_flaps_wing_line_cl_coeff", unit: "", desc: "失速后升力线斜率(无襟翼)", category: C::Fm, origin: O::Fm, src: B(|b| b.no_flaps_wing.as_ref().map_or(0.0, |p| p.line_cl_coeff)) },
         VarMeta { name: "fm.full_flaps_wing_cl_after_crit", unit: "", desc: "失速后升力系数(满襟翼)", category: C::Fm, origin: O::Fm, src: B(|b| b.full_flaps_wing.as_ref().map_or(0.0, |p| p.cl_after_crit)) },
@@ -460,17 +493,35 @@ fn build_registry() -> Registry {
         VarMeta { name: "fm.stab_line_cl_coeff", unit: "", desc: "平尾升力线斜率", category: C::Fm, origin: O::Fm, src: B(|b| b.stab.as_ref().map_or(0.0, |p| p.line_cl_coeff)) },
         VarMeta { name: "fm.stab_aoa_crit_high", unit: "°", desc: "平尾临界迎角上限", category: C::Fm, origin: O::Fm, src: B(|b| b.stab.as_ref().map_or(0.0, |p| p.aoa_crit_high)) },
         VarMeta { name: "fm.stab_aoa_crit_low", unit: "°", desc: "平尾临界迎角下限", category: C::Fm, origin: O::Fm, src: B(|b| b.stab.as_ref().map_or(0.0, |p| p.aoa_crit_low)) },
-        // ===== 元变量 =====
+    ]
+}
+
+/// 元变量 + 物理常量变量组。
+fn meta_and_const_vars() -> Vec<VarMeta> {
+    vec![
         VarMeta { name: "interval_ms", unit: "ms", desc: "本帧轮询间隔", category: C::Meta, origin: O::Meta, src: M(MetaVar::IntervalMs) },
         VarMeta { name: "freq", unit: "Hz", desc: "轮询频率", category: C::Meta, origin: O::Meta, src: M(MetaVar::Freq) },
         VarMeta { name: "elapsed_ms", unit: "ms", desc: "会话经过时间", category: C::Meta, origin: O::Meta, src: M(MetaVar::ElapsedMs) },
         VarMeta { name: "session_ms", unit: "ms", desc: "会话开始至今", category: C::Meta, origin: O::Meta, src: M(MetaVar::SessionMs) },
         VarMeta { name: "fm_loaded", unit: "", desc: "FM 已加载", category: C::Meta, origin: O::Meta, src: M(MetaVar::FmLoaded) },
-        // ===== 物理常量 =====
         VarMeta { name: "g", unit: "m/s²", desc: "重力加速度", category: C::Const, origin: O::Const, src: K(crate::base::physics_constants::g) },
         VarMeta { name: "rho0", unit: "kg/m³", desc: "海平面空气密度", category: C::Const, origin: O::Const, src: K(crate::base::physics_constants::SEA_LEVEL_DENSITY) },
         VarMeta { name: "P0", unit: "Pa", desc: "海平面气压", category: C::Const, origin: O::Const, src: K(crate::base::physics_constants::SEA_LEVEL_PRESSURE) },
-    ];
+    ]
+}
+
+/// 组装注册表 — 波14 拆解: 按域分组子函数按原顺序拼接 (条目顺序即 VarId,
+/// 拼接序 = 原单一 vec! 字面量序, 零行为变化)。
+fn build_registry() -> Registry {
+    let mut vars: Vec<VarMeta> = Vec::new();
+    vars.extend(state_direct_vars());
+    vars.extend(indic_direct_vars());
+    vars.extend(state_engine_controls_vars());
+    vars.extend(session_vars());
+    vars.extend(fm_direct_vars());
+    vars.extend(fm_supplement_vars());
+    vars.extend(fm_parts_supplement_vars());
+    vars.extend(meta_and_const_vars());
 
     // 单名制 (W10): 变量只有一个名字; Java getter 名不进内核索引
     // (对拍文件边界映射见 vm-overlay fields.rs getter())

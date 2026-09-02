@@ -77,6 +77,7 @@ impl HudColors {
 /// HUDData 计算 (Java HUDCalculator.calculate 的 Rust 形态, W-B 事件瘦身后
 /// 直参: State/Indicators/payload 由调用方从共享 guard 借引用传入, 不经事件装箱)。
 /// `state.is_none() || source.is_none()` 早退对位 Java 的 null 守卫。
+/// 波14 拆解: 按数据主题提取为下方四个子函数, 调用序即语句序。
 #[allow(clippy::too_many_arguments)]
 pub fn calculate<S: HUDSettings>(
     state: Option<&State>,
@@ -95,6 +96,24 @@ pub fn calculate<S: HUDSettings>(
     };
     let s_indic = indic;
 
+    read_flight_data(&mut b, source, s_state, s_indic, payload, settings);
+    apply_fm_warnings(&mut b, source, fmdata, s_indic, settings, colors);
+    format_display_strings(&mut b, source, payload, settings, fmdata, s_indic);
+    compute_speed_bar(&mut b, source, fmdata);
+
+    b.build()
+}
+
+/// 遥测提取段: 原始飞行数据 / 姿态 / 操纵面与载具状态 / 能量与显示模式标志
+/// (calculate 的 Raw Flight Data ~ 标志段)。
+fn read_flight_data<S: HUDSettings>(
+    b: &mut Builder,
+    source: &dyn FormulaView,
+    s_state: &State,
+    s_indic: Option<&Indicators>,
+    payload: &EventPayload,
+    settings: &S,
+) {
     // --- Raw Flight Data ---
     b.ias = v(source, "ias");
     b.mach = v(source, "mach");
@@ -163,7 +182,18 @@ pub fn calculate<S: HUDSettings>(
     b.is_gear_down = b.gear > 0.0;
     b.is_flaps_down = b.flaps > 0.0;
     b.is_airbrake_active = b.airbrake > 0.0;
+}
 
+/// FM 派生警告段: VNE 警告 + FM 在场时的机动指数/AoA 警告色与迎角余量
+/// (无 FM 走降级分支) (calculate 的 Warning Logic 段)。
+fn apply_fm_warnings<S: HUDSettings>(
+    b: &mut Builder,
+    source: &dyn FormulaView,
+    fmdata: Option<&FmData>,
+    s_indic: Option<&Indicators>,
+    settings: &S,
+    colors: &HudColors,
+) {
     // --- Warning Logic (W-E: 公式路径唯一, 判定式在 formulas.cfg) ---
     let warn_vne = source
         .get_formula_value("warn_vne")
@@ -222,7 +252,19 @@ pub fn calculate<S: HUDSettings>(
         b.aoa_ratio = b.aoa / 30.0;
     }
     b.warn_vne = warn_vne;
+}
 
+/// 字符串格式化段: 速度/高度/AoA/能量/SEP/机动状态/构型 (襟翼-可变翼-减速板-
+/// 起落架) 显示串族 (calculate 的 Strings Formatting 段)。
+#[allow(clippy::too_many_arguments)]
+fn format_display_strings<S: HUDSettings>(
+    b: &mut Builder,
+    source: &dyn FormulaView,
+    payload: &EventPayload,
+    settings: &S,
+    fmdata: Option<&FmData>,
+    s_indic: Option<&Indicators>,
+) {
     // Warnings
     let radio_alt_valid = v(source, "radio_altitude_valid") != 0.0;
     let always_radar = settings.always_show_radar_altitude();
@@ -326,7 +368,11 @@ pub fn calculate<S: HUDSettings>(
     }
 
     b.warn_configuration = in_action;
+}
 
+/// 速度比例条段: 限速比/舵面锁定比/失速比 (calculate 的 Speed Ratio Bar 段)。
+/// valid_fmdata 在本段按同式重筛 (filter 纯函数, 与警告段等值)。
+fn compute_speed_bar(b: &mut Builder, source: &dyn FormulaView, fmdata: Option<&FmData>) {
     // --- Speed Ratio Bar Logic ---
     b.speed_bar_speed_ratio = v(source, "speed_limit_ratio");
     b.speed_bar_aileron_lock_ratio = v(source, "aileron_lock_ratio");
@@ -338,7 +384,7 @@ pub fn calculate<S: HUDSettings>(
     // If we have valid speed ratio, derive the current limit (VNE or MachLimit_IAS)
     if b.speed_bar_speed_ratio > 0.0001 && b.ias > 1.0 {
         current_limit = b.ias / b.speed_bar_speed_ratio;
-    } else if let Some(fmdata) = valid_fmdata {
+    } else if let Some(fmdata) = fmdata.filter(|x| x.valid) {
         // Fallback to static VNE
         let mut vwing = 0.0;
         if v(source, "wing_sweep_valid") != 0.0 {
@@ -353,8 +399,6 @@ pub fn calculate<S: HUDSettings>(
     } else {
         b.speed_bar_stall_ratio = 0.0;
     }
-
-    b.build()
 }
 
 

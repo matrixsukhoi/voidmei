@@ -98,14 +98,10 @@ fn parse_prop_line(line: &str) -> Option<(String, String)> {
     Some((k, v))
 }
 
-/// Java `findInStructure` (CompactComparisonWindow.java:388-394)
-fn find_in_structure(list: &[DisplayItem], key: &str) -> i64 {
-    for (i, item) in list.iter().enumerate() {
-        if !item.is_header && item.text == key {
-            return i as i64;
-        }
-    }
-    -1
+/// Java `findInStructure` (CompactComparisonWindow.java:388-394) —
+/// 波14: Java 的 -1 哨兵退役, 未找到 = None (position() 一步到位)。
+fn find_in_structure(list: &[DisplayItem], key: &str) -> Option<usize> {
+    list.iter().position(|item| !item.is_header && item.text == key)
 }
 
 /// initUI 的解析段 (CompactComparisonWindow.java:195-252): lines0 建结构 +
@@ -136,7 +132,7 @@ fn build_structure(
     }
 
     // 2. Parse lines1 and merge unique keys
-    let mut last_match_index: i64 = -1;
+    let mut last_match: Option<usize> = None; // 最近命中/插入位 (Java lastMatchIndex, -1 = None)
     // Find where the content starts (skip initial headers if possible, or just
     // merge)
     // Simple merge: scan lines1. If key exists, update index. If not, insert after
@@ -151,21 +147,20 @@ fn build_structure(
         if let Some((k, v)) = parse_prop_line(l) {
             map1.insert(k.clone(), v);
 
-            // Check struct
-            let idx = find_in_structure(&structure, &k);
-            if idx != -1 {
-                last_match_index = idx;
-            } else {
-                // Insert after last match
-                if last_match_index < structure.len() as i64 - 1 {
-                    structure.insert(
-                        (last_match_index + 1) as usize,
-                        DisplayItem { is_header: false, text: k },
-                    );
-                } else {
-                    structure.push(DisplayItem { is_header: false, text: k });
+            // Check struct (未命中 → 插入最近命中位之后; None 视作 -1+1=0)
+            match find_in_structure(&structure, &k) {
+                Some(idx) => last_match = Some(idx),
+                None => {
+                    // Insert after last match
+                    let insert_at = last_match.map_or(0, |i| i + 1);
+                    // Java `lastMatchIndex < size-1` 即插入位在表内 → insert, 否则尾部 push
+                    if insert_at < structure.len() {
+                        structure.insert(insert_at, DisplayItem { is_header: false, text: k });
+                    } else {
+                        structure.push(DisplayItem { is_header: false, text: k });
+                    }
+                    last_match = Some(insert_at); // 新键落位 (= Java 的 +=1)
                 }
-                last_match_index += 1;
             }
         }
     }
@@ -529,16 +524,17 @@ pub fn load_single_curve(fm_name: &str, wep_mode: bool, speed_kmh: i32) -> Power
     let mut min_power = f64::MAX;
     let mut peak_altitude = 0i32;
 
-    let mut i = 0i32;
-    while i <= max_alt_idx && (i as usize) < power_curve.len() {
-        if power_curve[i as usize] > max_power {
-            max_power = power_curve[i as usize];
+    // 原 while 双条件 (i ≤ max_alt_idx 且 i < len) → 独占上界取小, 含端点语义不变
+    let scan_len = ((max_alt_idx + 1) as usize).min(power_curve.len());
+    for (i, p) in power_curve[..scan_len].iter().enumerate() {
+        let i = i as i32;
+        if *p > max_power {
+            max_power = *p;
             peak_altitude = i * ALT_STEP;
         }
-        if power_curve[i as usize] < min_power {
-            min_power = power_curve[i as usize];
+        if *p < min_power {
+            min_power = *p;
         }
-        i += 1;
     }
 
     // Identify inflection points
@@ -560,13 +556,67 @@ pub fn load_single_curve(fm_name: &str, wep_mode: bool, speed_kmh: i32) -> Power
 
 /// Returns true if any point in the list is within {@code minSepM} meters of {@code altM}.
 /// (Java tooCloseToList, PowerCurveWindow.java:537-543)
-fn too_close_to_list(alt_m: i32, min_sep_m: i32, list: &[InflectionPointDto]) -> bool {
-    for p in list {
-        if (p.altitude_m - alt_m).abs() < min_sep_m {
-            return true;
+/// 波14 泛型化: 高度取值器 `alt_of` 由调用方给 (Phase3/4 传 DTO 的
+/// altitude_m, Phase1 候选传元组 alt 分量), 收编峰/谷臂内两份内联同型检查。
+fn too_close_to_list<T>(alt_m: i32, min_sep_m: i32, list: &[T], alt_of: impl Fn(&T) -> i32) -> bool {
+    list.iter().any(|p| (alt_of(p) - alt_m).abs() < min_sep_m)
+}
+
+/// Phase1 单侧极值扫描臂 (波14 从峰/谷两份逐字对称的内联臂收敛而来):
+/// 在 [hw, max_idx-hw] 逐点看 ±hw 斜率符号翻转 — `is_peak=true` 检测峰
+/// (先升后降), false 检测谷 (先降后升); 突出度超噪声阈值且与已收录点
+/// 间隔 ≥ min_sep_m 时, 收录窗口内最极值点 (峰取最大/谷取最小)。
+/// 候选形态沿用 Java double[]{altM, power} → (i32, f64) 元组。
+fn scan_extrema(
+    power_curve: &[f64],
+    max_idx: i32,
+    hw: i32,
+    noise_threshold: f64,
+    min_sep_m: i32,
+    is_peak: bool,
+) -> Vec<(i32, f64)> {
+    let mut candidates: Vec<(i32, f64)> = Vec::new();
+    for i in hw..=max_idx - hw {
+        let left = power_curve[(i - hw) as usize];
+        let center = power_curve[i as usize];
+        let right = power_curve[(i + hw) as usize];
+
+        let left_slope = center - left;
+        let right_slope = right - center;
+
+        // 斜率符号翻转方向: 峰 = 先升后降, 谷 = 先降后升 (互斥)
+        let sign_change = if is_peak {
+            left_slope > 0.0 && right_slope < 0.0
+        } else {
+            left_slope < 0.0 && right_slope > 0.0
+        };
+        // 突出度: 峰 = 中心高过两肩低者; 谷 = 中心低过两肩高者
+        let prominence = if is_peak {
+            center - left.min(right)
+        } else {
+            left.max(right) - center
+        };
+
+        if sign_change && prominence > noise_threshold {
+            // 窗口内最极值点 (峰最大/谷最小) 作为标注位置
+            let mut best_idx = i;
+            for j in i - hw..=i + hw {
+                let is_better = if is_peak {
+                    power_curve[j as usize] > power_curve[best_idx as usize]
+                } else {
+                    power_curve[j as usize] < power_curve[best_idx as usize]
+                };
+                if is_better {
+                    best_idx = j;
+                }
+            }
+            let alt_m = best_idx * ALT_STEP;
+            if !too_close_to_list(alt_m, min_sep_m, &candidates, |c| c.0) {
+                candidates.push((alt_m, power_curve[best_idx as usize]));
+            }
         }
     }
-    false
+    candidates
 }
 
 /// Java `identifyInflectionPointsForCurve` (PowerCurveWindow.java:397-535):
@@ -588,64 +638,12 @@ pub fn identify_inflection_points_for_curve(
     let hw = 4; // ±100m window (4 × 25m step)
 
     // ========== Phase 1: Collect peaks and valleys separately ==========
-    // Java double[]{altM, power} → (i32, f64) 元组
-    let mut peak_candidates: Vec<(i32, f64)> = Vec::new();
-    let mut valley_candidates: Vec<(i32, f64)> = Vec::new();
-
-    let mut i = hw;
-    while i <= max_idx - hw {
-        let left = power_curve[(i - hw) as usize];
-        let center = power_curve[i as usize];
-        let right = power_curve[(i + hw) as usize];
-
-        let left_slope = center - left;
-        let right_slope = right - center;
-
-        let slope_sign_change_peak = left_slope > 0.0 && right_slope < 0.0;
-        let slope_sign_change_valley = left_slope < 0.0 && right_slope > 0.0;
-
-        let peak_prominence = center - left.min(right);
-        let valley_prominence = left.max(right) - center;
-
-        if slope_sign_change_peak && peak_prominence > noise_threshold {
-            let mut best_idx = i;
-            for j in i - hw..=i + hw {
-                if power_curve[j as usize] > power_curve[best_idx as usize] {
-                    best_idx = j;
-                }
-            }
-            let alt_m = best_idx * ALT_STEP;
-            let mut too_close = false;
-            for prev in &peak_candidates {
-                if (prev.0 - alt_m).abs() < min_sep_m {
-                    too_close = true;
-                    break;
-                }
-            }
-            if !too_close {
-                peak_candidates.push((alt_m, power_curve[best_idx as usize]));
-            }
-        } else if slope_sign_change_valley && valley_prominence > noise_threshold {
-            let mut best_idx = i;
-            for j in i - hw..=i + hw {
-                if power_curve[j as usize] < power_curve[best_idx as usize] {
-                    best_idx = j;
-                }
-            }
-            let alt_m = best_idx * ALT_STEP;
-            let mut too_close = false;
-            for prev in &valley_candidates {
-                if (prev.0 - alt_m).abs() < min_sep_m {
-                    too_close = true;
-                    break;
-                }
-            }
-            if !too_close {
-                valley_candidates.push((alt_m, power_curve[best_idx as usize]));
-            }
-        }
-        i += 1;
-    }
+    // 峰/谷除比较方向外逐字对称 → 同一函数按方向扫两遍 (两臂条件互斥,
+    // 且两列表随后各按高度排序, 遍历合拆不影响结果)
+    let mut peak_candidates =
+        scan_extrema(power_curve, max_idx, hw, noise_threshold, min_sep_m, true);
+    let mut valley_candidates =
+        scan_extrema(power_curve, max_idx, hw, noise_threshold, min_sep_m, false);
 
     // Sort by altitude (ascending) — Java Double.compare(a[0], b[0]); 高度域为
     // 精确整数, i32 全序逐位一致
@@ -676,7 +674,7 @@ pub fn identify_inflection_points_for_curve(
     // ========== Phase 3: Add peaks (critical altitudes) ==========
     let mut stage_num = 1;
     for (alt_m, power) in &peak_candidates {
-        if too_close_to_list(*alt_m, min_sep_m, &result) {
+        if too_close_to_list(*alt_m, min_sep_m, &result, |p| p.altitude_m) {
             stage_num += 1;
             continue;
         }
@@ -696,10 +694,8 @@ pub fn identify_inflection_points_for_curve(
     let avg_slope = (power_curve[max_idx as usize] - power_curve[0]).abs() / (max_idx * ALT_STEP) as f64;
     let kink_threshold = (avg_slope * 2.5).max(0.08);
 
-    let mut i = kink_half_window;
-    while i <= max_idx - kink_half_window {
-        if too_close_to_list(i * ALT_STEP, min_sep_m, &result) {
-            i += 1;
+    for i in kink_half_window..=max_idx - kink_half_window {
+        if too_close_to_list(i * ALT_STEP, min_sep_m, &result, |p| p.altitude_m) {
             continue;
         }
 
@@ -715,9 +711,9 @@ pub fn identify_inflection_points_for_curve(
         if !is_peak_or_valley && slope_change > kink_threshold {
             let mut best_idx = i;
             let mut best_change = slope_change;
-            // 条件逐轮求值, i-2 可低于 hw 使循环体不执行
-            let mut j = i - 2;
-            while j <= i + 2 && j >= kink_half_window && j <= max_idx - kink_half_window {
+            // 邻域夹逼 [i-2, i+2] ∩ [hw, max_idx-hw]: i-2 可低于 hw,
+            // 下界抬到 kink_half_window 保循环体不越界 (原多条件 while 同语义)
+            for j in (i - 2).max(kink_half_window)..=(i + 2).min(max_idx - kink_half_window) {
                 let ls = (power_curve[j as usize]
                     - power_curve[(j - kink_half_window) as usize])
                     / (kink_half_window * ALT_STEP) as f64;
@@ -728,10 +724,9 @@ pub fn identify_inflection_points_for_curve(
                     best_change = sc;
                     best_idx = j;
                 }
-                j += 1;
             }
 
-            if !too_close_to_list(best_idx * ALT_STEP, min_sep_m, &result) {
+            if !too_close_to_list(best_idx * ALT_STEP, min_sep_m, &result, |p| p.altitude_m) {
                 result.push(InflectionPointDto {
                     kind: "kink".to_string(),
                     label: "Kink".to_string(),
@@ -740,7 +735,6 @@ pub fn identify_inflection_points_for_curve(
                 });
             }
         }
-        i += 1;
     }
 
     result

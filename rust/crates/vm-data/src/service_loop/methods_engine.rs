@@ -11,7 +11,7 @@
 //! —— 那是 HUDCalculator 版, 与本模块的 Service 版不同源, 互不复用互不可见;
 //! 本文件按 Java Service 版逐行直译。
 
-use super::{read_data, write_data, Service};
+use super::Service;
 use vm_core::fm::FMHandle;
 use vm_core::fm::piston_model::find_optimal_stage_index;
 
@@ -27,38 +27,39 @@ impl Service {
     pub(super) fn get_maximum_rpm_learn(&mut self, fm: &FMHandle) {
         // 简单状态推进 → 单写锁临界区 (无 IO/回调; s_state 不可变借用拆局部,
         // 对齐 check_engine_jet 形态)
-        let mut d = write_data(&self.data);
-        if !d.get_maximum_rpm {
-            // R2 守卫: blkx 非 null 即 READY（等价旧版 null+valid 双判）
-            if let Some(fmdata) = fm.fmdata.as_ref() {
-                // FM合法直接取FM
-                d.maximum_thr_rpm = fmdata.max_rpm;
-                // 使用最大允许RPM
-                // maximumThrRPM = fm.blkx.maxAllowedRPM;
-                d.get_maximum_rpm = true;
-            } else {
-                // 自适应获得(无FM)
-
-                // 获得最大转速，条件是以最大转速持续约20秒或者桨距
-                // Java ArithmeticException ↔ Rust 除零 panic (保真, 构造域恒 50)
-                if d.check_maxium_rpm < 20000 / d.freq {
-                    let (ias, rpm) = {
-                        let s = d.s_state.as_ref().unwrap();
-                        (s.ias, s.rpm)
-                    };
-                    if ias > 50 {
-                        if rpm as f64 >= d.maximum_thr_rpm {
-                            //       + ratio * (sState.RPM)
-                            d.maximum_thr_rpm =
-                                (d.ratio_1 * d.maximum_thr_rpm) + d.ratio * rpm as f64;
-                        }
-                        d.check_maxium_rpm += 1;
-                    }
-                } else {
+        self.apply(|d| {
+            if !d.get_maximum_rpm {
+                // R2 守卫: blkx 非 null 即 READY（等价旧版 null+valid 双判）
+                if let Some(fmdata) = fm.fmdata.as_ref() {
+                    // FM合法直接取FM
+                    d.maximum_thr_rpm = fmdata.max_rpm;
+                    // 使用最大允许RPM
+                    // maximumThrRPM = fm.blkx.maxAllowedRPM;
                     d.get_maximum_rpm = true;
+                } else {
+                    // 自适应获得(无FM)
+
+                    // 获得最大转速，条件是以最大转速持续约20秒或者桨距
+                    // Java ArithmeticException ↔ Rust 除零 panic (保真, 构造域恒 50)
+                    if d.check_maxium_rpm < 20000 / d.freq {
+                        let (ias, rpm) = {
+                            let s = d.s_state.as_ref().unwrap();
+                            (s.ias, s.rpm)
+                        };
+                        if ias > 50 {
+                            if rpm as f64 >= d.maximum_thr_rpm {
+                                //       + ratio * (sState.RPM)
+                                d.maximum_thr_rpm =
+                                    (d.ratio_1 * d.maximum_thr_rpm) + d.ratio * rpm as f64;
+                            }
+                            d.check_maxium_rpm += 1;
+                        }
+                    } else {
+                        d.get_maximum_rpm = true;
+                    }
                 }
             }
-        }
+        });
     }
 
     /// 计算最佳增压器档位。
@@ -79,19 +80,19 @@ impl Service {
         let stages = match stages {
             Some(s) if s.len() > 1 => s,
             _ => {
-                let mut d = write_data(&self.data);
-                d.optimal_compressor_stage = -1;
-                d.compressor_stage_mismatch = false;
-                d.prev_actual_compressor_stage = -1;
-                d.prev_optimal_compressor_stage = -1;
+                self.apply(|d| {
+                    d.optimal_compressor_stage = -1;
+                    d.compressor_stage_mismatch = false;
+                    d.prev_actual_compressor_stage = -1;
+                    d.prev_optimal_compressor_stage = -1;
+                });
                 return;
             }
         };
 
         // 读快照→锁外计算→短写锁写回 (§2.8): findOptimalStageIndex 逐档
         // powerAtAltitudeAdvanced 较重, 全程锁外
-        let (engine_num, throttles, alt, ias, compressorstage, mismatch_prev, prev_actual, prev_optimal) = {
-            let d = read_data(&self.data);
+        let (engine_num, throttles, alt, ias, compressorstage, mismatch_prev, prev_actual, prev_optimal) = self.with_snapshot(|d| {
             let s = d.s_state.as_ref().unwrap();
             (
                 d.engine_num,
@@ -104,7 +105,7 @@ impl Service {
                 d.prev_actual_compressor_stage,
                 d.prev_optimal_compressor_stage,
             )
-        };
+        });
 
         // Detect WEP mode and full throttle state (any engine throttle >= 100)
         let mut is_wep = false;
@@ -131,23 +132,25 @@ impl Service {
 
         // API didn't return compressor stage (e.g., some aircraft don't report it)
         if actual_stage < 0 {
-            let mut d = write_data(&self.data);
-            // Java L1305 的 optimalCompressorStage = newOptimal 先于本分支执行,
-            // 归位四字段不含它 (保真: 归位后 optimal 保留本轮新算值)
-            d.optimal_compressor_stage = new_optimal;
-            d.compressor_stage_mismatch = false;
-            d.prev_actual_compressor_stage = -1;
-            d.prev_optimal_compressor_stage = -1;
+            self.apply(|d| {
+                // Java L1305 的 optimalCompressorStage = newOptimal 先于本分支执行,
+                // 归位四字段不含它 (保真: 归位后 optimal 保留本轮新算值)
+                d.optimal_compressor_stage = new_optimal;
+                d.compressor_stage_mismatch = false;
+                d.prev_actual_compressor_stage = -1;
+                d.prev_optimal_compressor_stage = -1;
+            });
             return;
         }
 
         // If throttle < 100%, don't judge mismatch, force consistent
         if !is_full_throttle {
-            let mut d = write_data(&self.data);
-            d.optimal_compressor_stage = new_optimal;
-            d.compressor_stage_mismatch = false;
-            d.prev_actual_compressor_stage = -1;
-            d.prev_optimal_compressor_stage = -1;
+            self.apply(|d| {
+                d.optimal_compressor_stage = new_optimal;
+                d.compressor_stage_mismatch = false;
+                d.prev_actual_compressor_stage = -1;
+                d.prev_optimal_compressor_stage = -1;
+            });
             return;
         }
 
@@ -164,11 +167,12 @@ impl Service {
         };
 
         // Update tracking variables
-        let mut d = write_data(&self.data);
-        d.optimal_compressor_stage = new_optimal;
-        d.compressor_stage_mismatch = mismatch;
-        d.prev_actual_compressor_stage = actual_stage;
-        d.prev_optimal_compressor_stage = new_optimal;
+        self.apply(|d| {
+            d.optimal_compressor_stage = new_optimal;
+            d.compressor_stage_mismatch = mismatch;
+            d.prev_actual_compressor_stage = actual_stage;
+            d.prev_optimal_compressor_stage = new_optimal;
+        });
     }
 
     // (calc_k 随 flap 双胞胎合一移除 — vm-core fm::data::flap_limits::calc_k 共享实现)
@@ -185,7 +189,7 @@ impl Service {
 mod tests {
     #![allow(clippy::borrow_interior_mutable_const)] // UNRESOLVED 含 Mutex (见 handle.rs 注)
     use super::*;
-    use super::super::ServiceConfig;
+    use super::super::{write_data, ServiceConfig};
     use std::path::Path;
     use std::sync::Arc;
     use vm_core::fm::data::FmData;

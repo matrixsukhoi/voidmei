@@ -250,69 +250,21 @@ impl FlightLog {
 			return Err(stream_closed());
 		};
 		let mut bw = BufWriter::new(txt);
-		bw.write_all(lang.l1.as_bytes())?; // 1
+		// l1..l31 按序写出 (Java writeLabel 的 31 次 write, 顺序即 CSV 列序;
+		// 波14 平铺收敛为数组循环, 每次字节流逐次等价)
+		let labels = [
+			&lang.l1, &lang.l2, &lang.l3, &lang.l4, &lang.l5, &lang.l6, &lang.l7,
+			&lang.l8, &lang.l9, &lang.l10, &lang.l11, &lang.l12, &lang.l13, &lang.l14,
+			&lang.l15, &lang.l16, &lang.l17, &lang.l18, &lang.l19, &lang.l20, &lang.l21,
+			&lang.l22, &lang.l23, &lang.l24, &lang.l25, &lang.l26, &lang.l27, &lang.l28,
+			&lang.l29, &lang.l30, &lang.l31,
+		];
+		for label in labels {
+			bw.write_all(label.as_bytes())?;
+		}
 
-		bw.write_all(lang.l2.as_bytes())?; // 2
-
-		bw.write_all(lang.l3.as_bytes())?; // 3
-
-		bw.write_all(lang.l4.as_bytes())?; // 4
-
-		bw.write_all(lang.l5.as_bytes())?; // 5
-
-		bw.write_all(lang.l6.as_bytes())?; // 6
-
-		bw.write_all(lang.l7.as_bytes())?; // 7
-
-		bw.write_all(lang.l8.as_bytes())?; // 8
-
-		bw.write_all(lang.l9.as_bytes())?; // 9
-
-		bw.write_all(lang.l10.as_bytes())?; // 10
-
-		bw.write_all(lang.l11.as_bytes())?; // 11
-
-		bw.write_all(lang.l12.as_bytes())?; // 12
-
-		bw.write_all(lang.l13.as_bytes())?; // 13
-
-		bw.write_all(lang.l14.as_bytes())?; // 16
-
-		bw.write_all(lang.l15.as_bytes())?; // 14
-
-		bw.write_all(lang.l16.as_bytes())?; // 15
-
-		bw.write_all(lang.l17.as_bytes())?; // 16
-
-		bw.write_all(lang.l18.as_bytes())?; // 17
-
-		bw.write_all(lang.l19.as_bytes())?; // 18
-
-		bw.write_all(lang.l20.as_bytes())?; // 19
-
-		bw.write_all(lang.l21.as_bytes())?; // 20
-
-		bw.write_all(lang.l22.as_bytes())?; // 21
-
-		bw.write_all(lang.l23.as_bytes())?; // 22
-
-		bw.write_all(lang.l24.as_bytes())?; // 23
-
-		bw.write_all(lang.l25.as_bytes())?; // 24
-
-		bw.write_all(lang.l26.as_bytes())?; // 25
-
-		bw.write_all(lang.l27.as_bytes())?; // 26
-
-		bw.write_all(lang.l28.as_bytes())?; // 27
-
-		bw.write_all(lang.l29.as_bytes())?; // 28
-
-		bw.write_all(lang.l30.as_bytes())?; // 29
-
-		bw.write_all(lang.l31.as_bytes())?; // 30
-
-		bw.write_all(b"\n")?;
+		bw.write_all(b"
+")?;
 		bw.flush()?;
 		// bw.close();
 		Ok(())
@@ -479,10 +431,17 @@ impl FlightLog {
 		Ok(())
 	}
 
-	/// 对应 Java: `public void saveClimbData()`
-	pub fn save_climb_data(&mut self) {
-		// Application.debugPrint("climbdata save to "+ climbName);
-		let mut tcsv = match OpenOptions::new().append(true).create(true).open(&self.climb_name) {
+	/// saveClimbData/saveRollData/saveNyData 三胞胎的共用骨架 (波14 收敛):
+	/// 打开 CSV → 写表头 → 写数据; 失败路径逐一对齐 (创建失败 notify+warn+return,
+	/// 写失败按 warn_tag 区分)。
+	fn save_analysis_csv(
+		&mut self,
+		path: &str,
+		label_fn: fn(&mut File, &Lang) -> io::Result<()>,
+		data_fn: fn(&mut File, Option<&FlightAnalyzer>) -> io::Result<()>,
+		warn_tag: &str,
+	) {
+		let mut tcsv = match OpenOptions::new().append(true).create(true).open(path) {
 			Ok(f) => f,
 			Err(e) => {
 				self.notify_show(self.lang.lfail_create);
@@ -493,14 +452,22 @@ impl FlightLog {
 		// Application.debugPrint("打开文件成功");
 
 		let res = (|| {
-			FlightLog::write_climb_label(&mut tcsv, &self.lang)?;
-			FlightLog::write_climb_data(&mut tcsv, self.f_a.as_ref())?;
+			label_fn(&mut tcsv, &self.lang)?;
+			data_fn(&mut tcsv, self.f_a.as_ref())?;
 			// tcsv.close() — 句柄离开作用域即关闭
 			Ok::<(), io::Error>(())
 		})();
 		if let Err(e) = res {
-			warn_default(&format!("写入爬升数据失败: {e}"));
+			warn_default(&format!("写入{}数据失败: {e}", warn_tag));
 		}
+	}
+
+	/// 对应 Java: `public void saveClimbData()`
+	pub fn save_climb_data(&mut self) {
+		// Application.debugPrint("climbdata save to "+ climbName);
+		// 借用拆分: 路径先克隆, 供 &mut self 的共用骨架打开
+		let path = self.climb_name.clone();
+		self.save_analysis_csv(&path, FlightLog::write_climb_label, FlightLog::write_climb_data, "爬升");
 	}
 
 	/// 对应 Java: `void writeRollLabel(FileWriter txt) throws IOException`
@@ -548,24 +515,8 @@ impl FlightLog {
 	/// 对应 Java: `public void saveRollData()`
 	pub fn save_roll_data(&mut self) {
 		// Application.debugPrint("rolldata save to "+ climbName);
-		let mut tcsv = match OpenOptions::new().append(true).create(true).open(&self.roll_name) {
-			Ok(f) => f,
-			Err(e) => {
-				self.notify_show(self.lang.lfail_create);
-				warn_default(&format!("文件创建失败: {e}"));
-				return;
-			}
-		};
-		// Application.debugPrint("打开文件成功");
-
-		let res = (|| {
-			FlightLog::write_roll_label(&mut tcsv, &self.lang)?;
-			FlightLog::write_roll_data(&mut tcsv, self.f_a.as_ref())?;
-			Ok::<(), io::Error>(())
-		})();
-		if let Err(e) = res {
-			warn_default(&format!("写入滚转数据失败: {e}"));
-		}
+		let path = self.roll_name.clone();
+		self.save_analysis_csv(&path, FlightLog::write_roll_label, FlightLog::write_roll_data, "滚转");
 	}
 
 	/// 对应 Java: `void writeNyLabel(FileWriter txt) throws IOException`
@@ -617,24 +568,8 @@ impl FlightLog {
 	/// 对应 Java: `public void saveNyData()`
 	pub fn save_ny_data(&mut self) {
 		// Application.debugPrint("rolldata save to "+ climbName);
-		let mut tcsv = match OpenOptions::new().append(true).create(true).open(&self.load_name) {
-			Ok(f) => f,
-			Err(e) => {
-				self.notify_show(self.lang.lfail_create);
-				warn_default(&format!("文件创建失败: {e}"));
-				return;
-			}
-		};
-		// Application.debugPrint("打开文件成功");
-
-		let res = (|| {
-			FlightLog::write_ny_label(&mut tcsv, &self.lang)?;
-			FlightLog::write_ny_data(&mut tcsv, self.f_a.as_ref())?;
-			Ok::<(), io::Error>(())
-		})();
-		if let Err(e) = res {
-			warn_default(&format!("写入过载数据失败: {e}"));
-		}
+		let path = self.load_name.clone();
+		self.save_analysis_csv(&path, FlightLog::write_ny_label, FlightLog::write_ny_data, "过载");
 	}
 
 	/// 对应 Java: `public void init(Controller tc, Service s, prog.config.ConfigProvider config)`

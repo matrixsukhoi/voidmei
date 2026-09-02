@@ -5,9 +5,9 @@
 //! 会话态走向 (handle.rs "会话态提升" 裁决): Java 就地改写 `blkx.engLoad[i]`,
 //! Rust 改写 `fm.eng_load_state` 的 Mutex 锁内副本 (blkx 保持不可变解析产物)。
 //! 锁纪律: 锁内纯计算无 IO, 且与 ServiceData 的 RwLock **不嵌套** —— 输入先经
-//! read_data 快照、锁内算完释放、结果再经 write_data 写回 (单向 data→session
+//! with_snapshot 快照、锁内算完释放、结果再经 apply 写回 (单向 data→session
 //! 取值序, 杜绝 ABBA)。
-use super::{read_data, write_data, Service};
+use super::Service;
 use vm_core::fm::FMHandle;
 
 impl Service {
@@ -19,17 +19,17 @@ impl Service {
     pub(super) fn check_overheat(&mut self, fm: &FMHandle) {
         // 输入快照 (锁外取, §2.8): sState.power[0]/throttle + 温度/轮询周期。
         // power 空数组索引 panic = Java AIOOBE 同构 (run 顶层 catch_unwind 兜住)
-        let (power0, throttle, poll_cycle_duration_ms, nwater_temp, noil_temp) = {
-            let d = read_data(&self.data);
-            let s = d.s_state.as_ref().unwrap();
-            (
-                s.power[0],
-                s.throttle,
-                d.poll_cycle_duration_ms,
-                d.nwater_temp,
-                d.noil_temp,
-            )
-        };
+        let (power0, throttle, poll_cycle_duration_ms, nwater_temp, noil_temp) =
+            self.with_snapshot(|d| {
+                let s = d.s_state.as_ref().unwrap();
+                (
+                    s.power[0],
+                    s.throttle,
+                    d.poll_cycle_duration_ms,
+                    d.nwater_temp,
+                    d.noil_temp,
+                )
+            });
         /* 关发动机后，温度降到最低load后恢复 */
         let mut eng_off = false;
         if power0 == 0.0 && throttle > 0 {
@@ -123,8 +123,7 @@ impl Service {
             Some((cur_w_load, cur_o_load, min_work_time))
         })(); // —— eng_load_state 锁随闭包结束释放 (写回前必须放下, 锁不嵌套)
 
-        let mut d = write_data(&self.data);
-        match outcome {
+        self.apply(|d| match outcome {
             Some((_cur_w_load, _cur_o_load, min_work_time)) => {
                 // (curWLoad/curOLoad 字段已删: 全库无读者, 引擎载荷态真身
                 //  在 FMHandle.eng_load_state, 此处只落 min_work_time)
@@ -135,7 +134,7 @@ impl Service {
             None => {
                 d.cur_load_min_work_time = (99999 * 1000) as f64;
             }
-        }
+        });
     }
 
     /// 重置引擎耐久计时（engLoad 为共享会话状态, 就地改写语义见 FMHandle javadoc 声明,
@@ -180,6 +179,7 @@ impl Service {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::super::{read_data, write_data};
     use std::sync::Arc;
     use vm_core::fm::data::{FmData, EngineLoad};
     use vm_core::base::bus::EventBus;

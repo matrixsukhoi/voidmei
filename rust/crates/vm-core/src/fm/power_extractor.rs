@@ -102,12 +102,14 @@ pub fn extract_stages_with_fuel(
     // PORT: Java 对 comp* 数组直接索引 (compNumSteps>0 时 reader 在 getload
     // L998-1006/L1036 与 compNumSteps 同批分配, null 即 NPE 崩溃) — unwrap
     // 对齐该 NPE 语义 (§1: null → Option; 此处 None = 原程序已崩溃的病态输入)
-    let comp_alt = fmdata.comp_alt.as_ref().unwrap();
-    let comp_power = fmdata.comp_power.as_ref().unwrap();
-    let comp_ceil = fmdata.comp_ceil.as_ref().unwrap();
-    let comp_ceil_pwr = fmdata.comp_ceil_pwr.as_ref().unwrap();
-    let comp_rpm_ratio = fmdata.comp_rpm_ratio.as_ref().unwrap();
-    let comp_boost = fmdata.comp_boost.as_ref().unwrap();
+    let t = CompTables {
+        comp_alt: fmdata.comp_alt.as_ref().unwrap(),
+        comp_power: fmdata.comp_power.as_ref().unwrap(),
+        comp_ceil: fmdata.comp_ceil.as_ref().unwrap(),
+        comp_ceil_pwr: fmdata.comp_ceil_pwr.as_ref().unwrap(),
+        comp_rpm_ratio: fmdata.comp_rpm_ratio.as_ref().unwrap(),
+        comp_boost: fmdata.comp_boost.as_ref().unwrap(),
+    };
 
     // Detect ExactAltitudes:
     // 1. If explicitly defined in FM file, use that
@@ -124,25 +126,72 @@ pub fn extract_stages_with_fuel(
     let mut stages: Vec<CompressorStageParams> = vec![CompressorStageParams::default(); n];
 
     // --- Pass 1: Basic parameter extraction + Soviet octane ---
+    let mut stage_deck_power = vec![0.0f64; n];
+    pass1_basic_and_soviet(&mut stages, &mut stage_deck_power, fmdata, &t, spm, exact_altitudes);
+
+    // --- Pass 2: definition_alt_power_adjuster ---
+    let needs_rpm_adjustment = needs_rpm_adjustment(fmdata, default_rpm);
+    pass2_rpm_adjust(&mut stages, &mut stage_deck_power, fmdata, &t, default_rpm, spm, needs_rpm_adjustment);
+
+    // Set stage0DeckAlt for all stages (used in WEP non-ExactAltitudes mode)
+    let stage0_deck_alt = stages[0].deck_alt;
+    for stage in stages.iter_mut().take(n) {
+        stage.stage0_deck_alt = stage0_deck_alt;
+    }
+
+    // --- Pass 3: WEP parameters ---
+    pass3_wep_params(&mut stages, fmdata, &t, exact_altitudes);
+
+    // --- Pass 4: British octane (post-processing on WEP parameters) ---
+    // Applied after WEP extraction, matching WAPC order where
+    // brrritish_octane_adder modifies OctaneAfterburnerMult before wep_mulitiplierer
+    if let Some(fm) = fuel_mod {
+        apply_british_octane_bonus(&mut stages, fm, fmdata);
+    }
+
+    Some(stages)
+}
+
+/// extract_stages_with_fuel 顶部一次解开的 comp* 数组引用束 (各 Pass 共用;
+/// unwrap 对齐 Java NPE — compNumSteps>0 时 reader 在 getload 与之同批分配)。
+struct CompTables<'a> {
+    comp_alt: &'a [f64],
+    comp_power: &'a [f64],
+    comp_ceil: &'a [f64],
+    comp_ceil_pwr: &'a [f64],
+    comp_rpm_ratio: &'a [f64],
+    comp_boost: &'a [f64],
+}
+
+/// Pass 1: 基本参数提取 + 苏联辛烷值增益 — WAPC soviet_octane_adder 位置
+/// (对 Compressor 原始功率值预乘 spm, 先于 deck_power_maker 级联)。
+fn pass1_basic_and_soviet(
+    stages: &mut [CompressorStageParams],
+    stage_deck_power: &mut [f64],
+    fmdata: &FmData,
+    t: &CompTables,
+    spm: f64,
+    exact_altitudes: bool,
+) {
     // Soviet octane multiplier (spm) is applied to all power values read from blkx,
     // BEFORE the deck_power_maker cascade. This matches WAPC's soviet_octane_adder()
     // which modifies Compressor["Power_i"] and Main["Power"] before initialization.
-    let mut stage_deck_power = vec![0.0f64; n];
+    let n = stages.len();
 
     for i in 0..n {
         stages[i].stage_index = i as i32;
         stages[i].exact_altitudes = exact_altitudes;
 
         // Critical altitude and power (with Soviet octane applied to raw power)
-        stages[i].crit_alt = comp_alt[i];
-        stages[i].crit_power = comp_power[i] * spm;
+        stages[i].crit_alt = t.comp_alt[i];
+        stages[i].crit_power = t.comp_power[i] * spm;
 
         // Store originals before adjustment (also boosted, matching WAPC order:
         // soviet_octane_adder modifies Compressor values, then
         // definition_alt_power_adjuster stores Old_ copies)
-        stages[i].old_altitude = comp_alt[i];
-        stages[i].old_power = comp_power[i] * spm;
-        stages[i].old_power_new_rpm = comp_power[i] * spm;
+        stages[i].old_altitude = t.comp_alt[i];
+        stages[i].old_power = t.comp_power[i] * spm;
+        stages[i].old_power_new_rpm = t.comp_power[i] * spm;
 
         // ConstRPM parameters (Soviet octane applied if ConstRPM exists)
         // PORT: Java `blkx.compConstRpmAlt != null && i < compConstRpmAlt.length`;
@@ -157,11 +206,11 @@ pub fn extract_stages_with_fuel(
         }
 
         // Ceiling parameters (Soviet octane applied to power)
-        stages[i].ceiling_alt = comp_ceil[i];
-        stages[i].ceiling_power = comp_ceil_pwr[i] * spm;
+        stages[i].ceiling_alt = t.comp_ceil[i];
+        stages[i].ceiling_power = t.comp_ceil_pwr[i] * spm;
 
         // Power curve curvature
-        stages[i].curvature = or_one(comp_rpm_ratio[i]);
+        stages[i].curvature = or_one(t.comp_rpm_ratio[i]);
 
         // RAM effect coefficient
         stages[i].speed_manifold_mult = or_one(fmdata.speed_to_manifold_multiplier);
@@ -172,22 +221,33 @@ pub fn extract_stages_with_fuel(
             stage_deck_power[i] = (if fmdata.deck_power > 0.0 {
                 fmdata.deck_power
             } else {
-                comp_power[0] * 0.8
+                t.comp_power[0] * 0.8
             }) * spm;
         } else {
             stage_deck_power[i] = 0.8 * stage_deck_power[i - 1];
-            let min_deck = 0.8 * comp_power[i] * spm;
+            let min_deck = 0.8 * t.comp_power[i] * spm;
             if stage_deck_power[i] < min_deck {
                 stage_deck_power[i] = min_deck;
             }
         }
         stages[i].deck_power = stage_deck_power[i];
     }
+}
 
-    // --- Pass 2: definition_alt_power_adjuster ---
+/// Pass 2: definition_alt_power_adjuster — FM 功率/高度定义在更高转速 (WEP 或
+/// default RPM) 时向军用转速基线折算, 并级联重算后续级的甲板功率。
+fn pass2_rpm_adjust(
+    stages: &mut [CompressorStageParams],
+    stage_deck_power: &mut [f64],
+    fmdata: &FmData,
+    t: &CompTables,
+    default_rpm: f64,
+    spm: f64,
+    needs_rpm_adjustment: bool,
+) {
     // If FM power/altitude is defined for a higher RPM (WEP or default RPM) rather
     // than military RPM, adjust to military RPM baseline
-    let needs_rpm_adjustment = needs_rpm_adjustment(fmdata, default_rpm);
+    let n = stages.len();
 
     for i in 0..n {
         if needs_rpm_adjustment {
@@ -196,7 +256,7 @@ pub fn extract_stages_with_fuel(
                 fmdata,
                 i,
                 default_rpm,
-                &mut stage_deck_power,
+                stage_deck_power,
                 spm,
             );
             // After adjustment, update stageDeckPower and cascade to subsequent stages
@@ -204,7 +264,7 @@ pub fn extract_stages_with_fuel(
             // Recalculate deck power for subsequent stages based on adjusted values
             for j in (i + 1)..n {
                 let mut new_deck = 0.8 * stage_deck_power[j - 1];
-                let min_deck = 0.8 * comp_power[j] * spm;
+                let min_deck = 0.8 * t.comp_power[j] * spm;
                 if new_deck < min_deck {
                     new_deck = min_deck;
                 }
@@ -219,15 +279,17 @@ pub fn extract_stages_with_fuel(
                 stages[i].old_power / torque_rpm_boost(fmdata.military_rpm, default_rpm);
         }
     }
+}
 
-    // Set stage0DeckAlt for all stages (used in WEP non-ExactAltitudes mode)
-    let stage0_deck_alt = stages[0].deck_alt;
-    for stage in stages.iter_mut().take(n) {
-        stage.stage0_deck_alt = stage0_deck_alt;
-    }
-
-    // --- Pass 3: WEP parameters ---
-    for i in 0..n {
+/// Pass 3: WEP 参数 — WEP 乘数/临界高度/甲板高度/ConstRPM 高度 + 增压器增益
+/// 显式置 0 的级禁用 WEP 处理。
+fn pass3_wep_params(
+    stages: &mut [CompressorStageParams],
+    fmdata: &FmData,
+    t: &CompTables,
+    exact_altitudes: bool,
+) {
+    for i in 0..stages.len() {
         stages[i].wep_power_mult = calculate_wep_multiplier(fmdata, i);
         stages[i].wep_crit_alt = calculate_wep_critical_altitude(fmdata, &stages[i], i);
         stages[i].wep_deck_alt = calculate_wep_deck_altitude(fmdata, &stages[i], i);
@@ -241,21 +303,12 @@ pub fn extract_stages_with_fuel(
         // Only disable WEP if the field EXISTS and is explicitly 0
         // If field is missing, WEP uses global AfterburnerBoost (handled by calculateWepMultiplier)
         let has_boost = fmdata.has_comp_boost.as_ref().is_some_and(|hb| hb[i]);
-        if has_boost && comp_boost[i] == 0.0 {
+        if has_boost && t.comp_boost[i] == 0.0 {
             stages[i].wep_deck_alt = 0.0;
             stages[i].wep_crit_alt = stages[i].crit_alt;
             stages[i].wep_power_mult = 1.0;
         }
     }
-
-    // --- Pass 4: British octane (post-processing on WEP parameters) ---
-    // Applied after WEP extraction, matching WAPC order where
-    // brrritish_octane_adder modifies OctaneAfterburnerMult before wep_mulitiplierer
-    if let Some(fm) = fuel_mod {
-        apply_british_octane_bonus(&mut stages, fm, fmdata);
-    }
-
-    Some(stages)
 }
 
 // ==================== Soviet Octane ====================

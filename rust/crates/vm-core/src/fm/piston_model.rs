@@ -299,13 +299,14 @@ pub fn power_at_altitude_advanced(
     let wep_mult = if is_wep { params.wep_power_mult } else { 1.0 };
     let bounds = variabler(params, effective_alt, is_wep, wep_mult);
 
-    let higher_power = bounds[0];
-    let higher_alt = bounds[1];
-    let lower_power = bounds[2];
-    let lower_alt = bounds[3];
-    let curvature = bounds[4];
-
-    interpolate_power(higher_power, higher_alt, lower_power, lower_alt, effective_alt, curvature)
+    interpolate_power(
+        bounds.higher_power,
+        bounds.higher_alt,
+        bounds.lower_power,
+        bounds.lower_alt,
+        effective_alt,
+        bounds.curvature,
+    )
 }
 
 /// Calculates optimal power from multiple stages using the advanced algorithm.
@@ -456,6 +457,29 @@ pub fn peak_wep_power(stages: &[CompressorStageParams]) -> f64 {
     peak
 }
 
+/// variabler 的插值边界产出 (原 Java `double[5]` 的具名形态, 波14 消魔法下标)。
+#[derive(Debug, Clone, Copy)]
+struct InterpBounds {
+    /// 高参考点功率 (hp)
+    higher_power: f64,
+    /// 高参考点高度 (m)
+    higher_alt: f64,
+    /// 低参考点功率 (hp)
+    lower_power: f64,
+    /// 低参考点高度 (m)
+    lower_alt: f64,
+    /// 插值曲率指数 (典型 1.0)
+    curvature: f64,
+}
+
+/// ceil_scaled_alt — 天花板高度按 (参考高度与临界高度的气压比) 缩放。
+/// variabler 军用/WEP 两分支共 10 处同构计算收敛于此; 军用分支参考高度即
+/// crit_alt (Java 源字面保留 `pressure(crit)/pressure(crit)` 自比, 逐运算符
+/// 同序, 位级等价), WEP 分支参考 wep_crit_alt。
+fn ceil_scaled_alt(p: &CompressorStageParams, ref_alt: f64) -> f64 {
+    altitude_at_pressure(pressure(p.ceiling_alt) * (pressure(ref_alt) / pressure(p.crit_alt)))
+}
+
 /// WAPC variabler() port — determines interpolation bounds for a given altitude.
 ///
 /// This is the core logic that determines the shape of the power curve by
@@ -463,23 +487,37 @@ pub fn peak_wep_power(stages: &[CompressorStageParams]) -> f64 {
 /// interpolation, based on the relationship between the target altitude and
 /// the various FM-defined altitudes (critical, constRPM, ceiling, old/adjusted).
 ///
+/// 波14 拆解: 军用/WEP 两大对称分支提取为 [`variabler_military`]/
+/// [`variabler_wep`], 语句序零变化。
+///
 /// - `p`: stage parameters
 /// - `alt_ram`: effective altitude after RAM effect (m)
 /// - `is_wep`: true for WEP mode
 /// - `wep_mult`: WEP power multiplier (1.0 for military)
 ///
-/// Returns [f64; 5]: {higherPower, higherAlt, lowerPower, lowerAlt, curvature}
-// PORT: Java private static → 模块私有函数; 返回 double[5] → [f64; 5]
-fn variabler(p: &CompressorStageParams, alt_ram: f64, is_wep: bool, wep_mult: f64) -> [f64; 5] {
-    // PORT: Java 声明未初始化的局部变量 (所有分支先赋值后使用) → Rust let mut 无初值,
-    // 编译器静态检查所有路径均已赋值, 语义一致
-    let mut higher_power: f64;
-    let mut higher_alt: f64;
-    let mut lower_power: f64;
-    let mut lower_alt: f64;
+/// Returns [`InterpBounds`]
+// PORT: Java private static → 模块私有函数; 返回 double[5] → 具名结构体 InterpBounds
+fn variabler(p: &CompressorStageParams, alt_ram: f64, is_wep: bool, wep_mult: f64) -> InterpBounds {
+    if !is_wep {
+        variabler_military(p, alt_ram)
+    } else {
+        variabler_wep(p, alt_ram, wep_mult)
+    }
+}
+
+/// variabler 军用功率 (military) 分支 — 临界高度以下 / 调整临界~原始临界 /
+/// 原始临界以上三段选点 (WAPC variabler 的 !isWep 半区)。
+// PORT: Java 声明未初始化的局部变量 (所有分支先赋值后使用) → Rust let 无初值,
+// 编译器静态检查所有路径均已赋值, 语义一致。本分支各路径恰好单次赋值
+// (无 WEP 的 swap 段), 除 curvature 外无需 mut
+fn variabler_military(p: &CompressorStageParams, alt_ram: f64) -> InterpBounds {
+    let higher_power: f64;
+    let higher_alt: f64;
+    let lower_power: f64;
+    let lower_alt: f64;
     let mut curvature: f64 = 1.0;
 
-    if !is_wep {
+    {
         // ======================== MILITARY MODE ========================
         if alt_ram <= p.crit_alt {
             // --- Below or at critical altitude ---
@@ -532,9 +570,8 @@ fn variabler(p: &CompressorStageParams, alt_ram: f64, is_wep: bool, wep_mult: f6
                 // Ceiling useful, no constRPM above crit
                 if p.exact_altitudes {
                     higher_alt = p.old_altitude;
-                    let ceil_scaled_alt = altitude_at_pressure(
-                        pressure(p.ceiling_alt) * (pressure(p.crit_alt) / pressure(p.crit_alt)));
-                    higher_power = interpolate_power(p.ceiling_power, ceil_scaled_alt,
+                    let ceil_scaled = ceil_scaled_alt(p, p.crit_alt);
+                    higher_power = interpolate_power(p.ceiling_power, ceil_scaled,
                         p.old_power_new_rpm, p.crit_alt, p.old_altitude, curvature);
                 } else {
                     higher_alt = p.ceiling_alt;
@@ -545,9 +582,8 @@ fn variabler(p: &CompressorStageParams, alt_ram: f64, is_wep: bool, wep_mult: f6
                 curvature = p.curvature;
                 if p.exact_altitudes {
                     higher_alt = p.old_altitude;
-                    let ceil_scaled_alt = altitude_at_pressure(
-                        pressure(p.ceiling_alt) * (pressure(p.crit_alt) / pressure(p.crit_alt)));
-                    higher_power = interpolate_power(p.ceiling_power, ceil_scaled_alt,
+                    let ceil_scaled = ceil_scaled_alt(p, p.crit_alt);
+                    higher_power = interpolate_power(p.ceiling_power, ceil_scaled,
                         p.old_power_new_rpm, p.crit_alt, p.old_altitude, curvature);
                 } else {
                     higher_alt = p.ceiling_alt;
@@ -569,9 +605,8 @@ fn variabler(p: &CompressorStageParams, alt_ram: f64, is_wep: bool, wep_mult: f6
             } else if !const_rpm_above_crit_alt(p) {
                 if p.exact_altitudes {
                     lower_alt = p.old_altitude;
-                    let ceil_scaled_alt = altitude_at_pressure(
-                        pressure(p.ceiling_alt) * (pressure(p.crit_alt) / pressure(p.crit_alt)));
-                    lower_power = interpolate_power(p.ceiling_power, ceil_scaled_alt,
+                    let ceil_scaled = ceil_scaled_alt(p, p.crit_alt);
+                    lower_power = interpolate_power(p.ceiling_power, ceil_scaled,
                         p.old_power_new_rpm, p.crit_alt, p.old_altitude, curvature);
                     higher_alt = p.ceiling_alt;
                     higher_power = p.ceiling_power;
@@ -585,12 +620,11 @@ fn variabler(p: &CompressorStageParams, alt_ram: f64, is_wep: bool, wep_mult: f6
                 // constRPM above crit with ceiling
                 curvature = p.curvature;
                 if p.exact_altitudes {
-                    let ceil_scaled_alt = altitude_at_pressure(
-                        pressure(p.ceiling_alt) * (pressure(p.crit_alt) / pressure(p.crit_alt)));
+                    let ceil_scaled = ceil_scaled_alt(p, p.crit_alt);
                     higher_alt = p.ceiling_alt;
                     higher_power = p.ceiling_power;
                     lower_alt = p.old_altitude;
-                    lower_power = interpolate_power(p.ceiling_power, ceil_scaled_alt,
+                    lower_power = interpolate_power(p.ceiling_power, ceil_scaled,
                         p.old_power_new_rpm, p.crit_alt, p.old_altitude, curvature);
                 } else {
                     higher_alt = p.ceiling_alt;
@@ -600,7 +634,21 @@ fn variabler(p: &CompressorStageParams, alt_ram: f64, is_wep: bool, wep_mult: f6
                 }
             }
         }
-    } else {
+    }
+
+    InterpBounds { higher_power, higher_alt, lower_power, lower_alt, curvature }
+}
+
+/// variabler WEP 分支 — WEP 临界高度/原始高度的四段选点 + 上下界倒置安全交换
+/// (WAPC variabler 的 isWep 半区)。
+fn variabler_wep(p: &CompressorStageParams, alt_ram: f64, wep_mult: f64) -> InterpBounds {
+    let mut higher_power: f64;
+    let mut higher_alt: f64;
+    let mut lower_power: f64;
+    let mut lower_alt: f64;
+    let mut curvature: f64 = 1.0;
+
+    {
         // ======================== WEP MODE ========================
         let wep_crit_alt = p.wep_crit_alt;
 
@@ -665,10 +713,9 @@ fn variabler(p: &CompressorStageParams, alt_ram: f64, is_wep: bool, wep_mult: f6
                 // Power == deck power case
                 if p.exact_altitudes {
                     higher_alt = p.ceiling_alt;
-                    let ceil_scaled_alt = altitude_at_pressure(
-                        pressure(p.ceiling_alt) * (pressure(wep_crit_alt) / pressure(p.crit_alt)));
+                    let ceil_scaled = ceil_scaled_alt(p, wep_crit_alt);
                     higher_power = interpolate_power(
-                        p.ceiling_power * wep_mult, ceil_scaled_alt,
+                        p.ceiling_power * wep_mult, ceil_scaled,
                         p.crit_power * wep_mult, wep_crit_alt,
                         p.ceiling_alt, curvature);
                     lower_alt = wep_crit_alt;
@@ -734,10 +781,9 @@ fn variabler(p: &CompressorStageParams, alt_ram: f64, is_wep: bool, wep_mult: f6
             } else if !const_rpm_above_crit_alt(p) {
                 if p.exact_altitudes {
                     higher_alt = p.old_altitude;
-                    let ceil_scaled_alt = altitude_at_pressure(
-                        pressure(p.ceiling_alt) * (pressure(wep_crit_alt) / pressure(p.crit_alt)));
+                    let ceil_scaled = ceil_scaled_alt(p, wep_crit_alt);
                     higher_power = interpolate_power(
-                        p.ceiling_power * wep_mult, ceil_scaled_alt,
+                        p.ceiling_power * wep_mult, ceil_scaled,
                         p.old_power_new_rpm * wep_mult, wep_crit_alt,
                         p.old_altitude, curvature);
                 } else {
@@ -749,10 +795,9 @@ fn variabler(p: &CompressorStageParams, alt_ram: f64, is_wep: bool, wep_mult: f6
                 curvature = p.curvature;
                 if p.exact_altitudes {
                     higher_alt = p.old_altitude;
-                    let ceil_scaled_alt = altitude_at_pressure(
-                        pressure(p.ceiling_alt) * (pressure(wep_crit_alt) / pressure(p.crit_alt)));
+                    let ceil_scaled = ceil_scaled_alt(p, wep_crit_alt);
                     higher_power = interpolate_power(
-                        p.ceiling_power * wep_mult, ceil_scaled_alt,
+                        p.ceiling_power * wep_mult, ceil_scaled,
                         p.old_power_new_rpm * wep_mult, wep_crit_alt,
                         p.old_altitude, curvature);
                 } else {
@@ -773,10 +818,9 @@ fn variabler(p: &CompressorStageParams, alt_ram: f64, is_wep: bool, wep_mult: f6
                         * (pressure(p.old_altitude) / pressure(wep_crit_alt));
                 } else {
                     if p.exact_altitudes {
-                        let ceil_scaled_alt = altitude_at_pressure(
-                            pressure(p.ceiling_alt) * (pressure(wep_crit_alt) / pressure(p.crit_alt)));
+                        let ceil_scaled = ceil_scaled_alt(p, wep_crit_alt);
                         lower_power = interpolate_power(
-                            p.ceiling_power * wep_mult, ceil_scaled_alt,
+                            p.ceiling_power * wep_mult, ceil_scaled,
                             p.old_power_new_rpm * wep_mult, wep_crit_alt,
                             lower_alt, curvature);
                     } else {
@@ -809,8 +853,7 @@ fn variabler(p: &CompressorStageParams, alt_ram: f64, is_wep: bool, wep_mult: f6
                 higher_power = lower_power * (pressure(alt_ram) / pressure(lower_alt));
             } else if !const_rpm_above_crit_alt(p) {
                 if p.exact_altitudes {
-                    higher_alt = altitude_at_pressure(
-                        pressure(p.ceiling_alt) * (pressure(wep_crit_alt) / pressure(p.crit_alt)));
+                    higher_alt = ceil_scaled_alt(p, wep_crit_alt);
                     higher_power = p.ceiling_power * wep_mult;
                 } else {
                     higher_alt = p.ceiling_alt;
@@ -819,8 +862,7 @@ fn variabler(p: &CompressorStageParams, alt_ram: f64, is_wep: bool, wep_mult: f6
             } else {
                 curvature = p.curvature;
                 if p.exact_altitudes {
-                    higher_alt = altitude_at_pressure(
-                        pressure(p.ceiling_alt) * (pressure(wep_crit_alt) / pressure(p.crit_alt)));
+                    higher_alt = ceil_scaled_alt(p, wep_crit_alt);
                     higher_power = p.ceiling_power;
                 } else {
                     higher_alt = p.ceiling_alt;
@@ -840,7 +882,7 @@ fn variabler(p: &CompressorStageParams, alt_ram: f64, is_wep: bool, wep_mult: f6
         }
     }
 
-    [higher_power, higher_alt, lower_power, lower_alt, curvature]
+    InterpBounds { higher_power, higher_alt, lower_power, lower_alt, curvature }
 }
 
 // ==================== Parameter Data Class ====================

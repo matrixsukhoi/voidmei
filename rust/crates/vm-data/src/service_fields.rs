@@ -260,10 +260,7 @@ impl Default for ServiceData {
 }
 
 impl ServiceData {
-    /// Java `public boolean isPlayerLive()` (L232-234) — processPollingCycle 的存活闸门。
-    pub fn is_player_live(&self) -> bool {
-        self.player_live
-    }
+    // (isPlayerLive() 单行委托已内联: 唯一调用点直读 pub player_live 字段)
 }
 
 // --- FormulaView: 唯一取数接口 (批1: TelemetrySource 71 getter 层已删) ---

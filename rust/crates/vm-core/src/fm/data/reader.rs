@@ -16,6 +16,10 @@
 //! 曲线链 (loc..loc3/transUnit/getplotdata — Java DrawFrame 消费未迁移至 Rust,
 //! Rust 生产零消费) 已删。
 //!
+//! 波14 拆解: getload_from 按装载阶段提取为 load_* 子函数 (引擎/喷气推力表/
+//! 增压器/转速与负载/重量面积/升力系数/fmdata 摘要), 子函数按调用序排列,
+//! 语句序零变化。
+//!
 //! 构造入口在 json.rs: [`Blkx::parse_named_json`] (doLoad=true) /
 //! [`Blkx::parse_named_opts_json`] (中央文件只读) / [`Blkx::parse_str_json`]
 //! (fuzz 注入)。
@@ -117,6 +121,22 @@ fn java_format(tpl: &str, args: &[FmtArg]) -> String {
         i = j + 1;
     }
     out
+}
+
+/// load_lift_coeffs 的产出: 升力部件族 + 转动惯量/过载限制原值
+/// (fmdata 摘要段与部件落位共用, 编排层传递)。
+struct LiftLoad {
+    no_flaps_wing: FmParts,
+    full_flaps_wing: FmParts,
+    /// 摘要串用的 v50/v100 快照 (Java 存字段的引用共享, Rust 无字段消费方)
+    no_flaps_wing_v50: FmParts,
+    no_flaps_wing_v100: FmParts,
+    fuselage: FmParts,
+    fin: FmParts,
+    stab: FmParts,
+    sweep_levels: Vec<SweepLevel>,
+    moment_of_inertia: [f64; 3],
+    max_allow_gload: [f64; 2],
 }
 
 impl FmData {
@@ -323,11 +343,49 @@ impl FmData {
     /// 浮点字面量按 §2.12 (1.0f/1000.f 拓宽域, 精确值直书); `(int)` 强转按 §2.2。
     /// panic 语义 (§1): Java 由构造器 catch(Exception) 收敛 valid=false ↔ 本方法
     /// 的 panic 由 parse_named_opts_json 的 catch_unwind 收敛 Err (畸形输入防线)。
-    // PORT(allow needless_range_loop): 方法体多处 Java for(int i...) 直译 — i 进
-    // format! 键名 (ThrustMax.Altitude_{i} 等), 计数形态是本意
-    #[allow(clippy::needless_range_loop)]
+    /// 波14 拆解: 方法体按装载阶段提取为下方 load_* 子函数, 调用序即语句序。
     pub(crate) fn getload_from(&mut self, src: &JsonSrc) {
         let start_time = std::time::Instant::now(); // System.currentTimeMillis 计时面
+
+        let hdr_string = self.load_engine_section(src);
+        if self.is_jet {
+            self.load_jet_thrust_tables(src, &hdr_string);
+        } else {
+            self.load_compressor(src, &hdr_string);
+        }
+        self.load_rpm_and_engine_load(src, &hdr_string);
+
+        let (flaps_destruction, flaps_destruction_num) = self.load_areas_and_weights(src);
+        let parts = self.load_lift_coeffs(src);
+
+        let s = self.build_fmdata_summary(&parts, &flaps_destruction, flaps_destruction_num);
+
+        // 部件实体落位 (Java: 构造过程中的 new fm_parts 赋值在此集中)
+        self.no_flaps_wing = Some(parts.no_flaps_wing);
+        self.full_flaps_wing = Some(parts.full_flaps_wing);
+        self.sweep_levels = Some(parts.sweep_levels);
+        self.fuselage = Some(parts.fuselage);
+        self.fin = Some(parts.fin);
+        self.stab = Some(parts.stab);
+
+        self.fmdata = Some(s);
+
+        let duration = start_time.elapsed().as_millis() as i64;
+        logger::info(
+            "FmData",
+            &format!(
+                "Parsed FM file '{}' in {} ms (Engine Count: {}, Jet: {})",
+                self.read_file_name.clone().unwrap_or_default(),
+                duration,
+                self.engine_num,
+                self.is_jet
+            ),
+        );
+    }
+
+    /// 引擎段: 喷气判定 + Engine 头前缀选择 + 引擎计数 + WEP 转速乘数清位
+    /// (getload 开头, Java L856-865)。返回 hdr_string (喷气/增压器段共用键前缀)。
+    fn load_engine_section(&mut self, src: &JsonSrc) -> String {
         self.is_jet = false;
 
         // 读取推力高度
@@ -348,213 +406,228 @@ impl FmData {
             self.engine_num = self.count_engines(src);
         }
         self.engine_rpm_mult_wep = 1.0;
-        if self.is_jet {
-            self.aftb_coff = src.get_f64(&format!("{hdr_string}Main.AfterburnerBoost"));
-            self.thr_max0 = src.get_f64("ThrustMax.ThrustMax0");
+        hdr_string
+    }
 
-            self.alt_thr_num = 0;
-            let mut altitude_thr = [0.0f64; 30];
-            // Java for(init; cond; i++, altThrNum++) — update 在体后 (break 轮不增)
-            for i in 0..30 {
-                altitude_thr[i] = src.get_f64_exc(&format!("ThrustMax.Altitude_{i}"));
-                if altitude_thr[i] == f32::MAX as f64 {
-                    altitude_thr[i] = 0.0;
-                    break;
+    /// 喷气引擎段: 推力高度/速度表 + 工作模式表 + AFT 推力表预计算
+    /// (getload 的 is_jet 分支体, Java L866-919)。
+    // PORT(allow needless_range_loop): Java for(int i...) 直译 — i 进 format! 键名
+    #[allow(clippy::needless_range_loop)]
+    fn load_jet_thrust_tables(&mut self, src: &JsonSrc, hdr_string: &str) {
+        self.aftb_coff = src.get_f64(&format!("{hdr_string}Main.AfterburnerBoost"));
+        self.thr_max0 = src.get_f64("ThrustMax.ThrustMax0");
+
+        self.alt_thr_num = 0;
+        let mut altitude_thr = [0.0f64; 30];
+        // Java for(init; cond; i++, altThrNum++) — update 在体后 (break 轮不增)
+        for i in 0..30 {
+            altitude_thr[i] = src.get_f64_exc(&format!("ThrustMax.Altitude_{i}"));
+            if altitude_thr[i] == f32::MAX as f64 {
+                altitude_thr[i] = 0.0;
+                break;
+            }
+            self.alt_thr_num += 1;
+        }
+        self.altitude_thr = Some(altitude_thr);
+
+        // 读取推力速度
+        self.vel_thr_num = 0;
+        let mut velocity_thr = [0.0f64; 30];
+        for i in 0..30 {
+            velocity_thr[i] = src.get_f64_exc(&format!("ThrustMax.Velocity_{i}"));
+            if velocity_thr[i] == f32::MAX as f64 {
+                velocity_thr[i] = 0.0;
+                break;
+            }
+            self.vel_thr_num += 1;
+        }
+        self.velocity_thr = Some(velocity_thr);
+
+        // 读取发动机工作模式
+        self.mode_engine_num = 0;
+        let mut mode_engine_mult = [0.0f64; 10];
+        let mut mode_engine_rpm_mult = [0.0f64; 10];
+        for i in 0..10 {
+            mode_engine_mult[i] = src.get_f64_exc(&format!("Main.Mode{i}.ThrustMult"));
+            mode_engine_rpm_mult[i] = src.get_f64_exc(&format!("Main.Mode{i}.RPM"));
+            if mode_engine_mult[i] == f32::MAX as f64 {
+                mode_engine_mult[i] = 0.0;
+                mode_engine_rpm_mult[i] = 1.0;
+                break;
+            }
+            self.mode_engine_num += 1;
+        }
+
+        let mut engine_mult_wep = 1.0f64;
+        if self.mode_engine_num != 0 {
+            engine_mult_wep = mode_engine_mult[self.mode_engine_num as usize - 1];
+            self.engine_rpm_mult_wep =
+                mode_engine_rpm_mult[self.mode_engine_num as usize - 1];
+        }
+
+        // 预计算 AFT 推力表 (曲线窗口 + 峰值推力; MIL 表 Rust 无消费方, 已随
+        // 2026-09 死代码清理删除 — peak MIL 仅装载日志曾用)
+        let alt_n = self.alt_thr_num as usize;
+        let vel_n = self.vel_thr_num as usize;
+        let mut max_thr_aft: Vec<Vec<f64>> = vec![vec![0.0; vel_n]; alt_n];
+        let mut max_thr_aft_coff: Vec<Vec<f64>> = vec![vec![0.0; vel_n]; alt_n];
+        for i in 0..alt_n {
+            for j in 0..vel_n {
+                let thr_coff = src.get_f64(&format!("ThrustMax.ThrustMaxCoeff_{i}_{j}"));
+                max_thr_aft_coff[i][j] =
+                    src.get_f64(&format!("ThrustMax.ThrAftMaxCoeff_{i}_{j}"));
+                if max_thr_aft_coff[i][j] == 0.0 {
+                    max_thr_aft_coff[i][j] = 1.0;
                 }
-                self.alt_thr_num += 1;
+                max_thr_aft[i][j] =
+                    self.thr_max0 * thr_coff * self.aftb_coff
+                        * max_thr_aft_coff[i][j]
+                        * engine_mult_wep
+                        * self.engine_num as f64;
             }
-            self.altitude_thr = Some(altitude_thr);
+        }
+        // 预计算峰值推力
+        self.peak_thr_aft = self.calculate_peak_thrust(Some(&max_thr_aft));
+        self.max_thr_aft = Some(max_thr_aft);
+        self.max_thr_aft_coff = Some(max_thr_aft_coff);
 
-            // 读取推力速度
-            self.vel_thr_num = 0;
-            let mut velocity_thr = [0.0f64; 30];
-            for i in 0..30 {
-                velocity_thr[i] = src.get_f64_exc(&format!("ThrustMax.Velocity_{i}"));
-                if velocity_thr[i] == f32::MAX as f64 {
-                    velocity_thr[i] = 0.0;
-                    break;
-                }
-                self.vel_thr_num += 1;
+        logger::info(
+            "FmData",
+            &format!(
+                "Jet Engine Thrust Table loaded ({}x{}), peak AFT={} kgf",
+                self.alt_thr_num,
+                self.vel_thr_num,
+                crate::base::format::format(self.peak_thr_aft, 0)
+            ),
+        );
+    }
+
+    /// 增压器段 (radial inline): 9 组增压器数组 + WAPC 扩展参数 + WEP/功率参数
+    /// (getload 的非喷气分支体, Java L920-1038)。
+    // PORT(allow needless_range_loop): Java for(int i...) 直译 — i 进 format! 键名
+    #[allow(clippy::needless_range_loop)]
+    fn load_compressor(&mut self, src: &JsonSrc, hdr_string: &str) {
+        self.aftb_coff = src.get_f64(&format!("{hdr_string}Main.AfterburnerBoost"));
+        self.comp_num_steps = src.get_f64("Compressor.NumSteps") as i32;
+        self.speed_to_manifold_multiplier =
+            src.get_f64("Compressor.SpeedManifoldMultiplier");
+
+        // NegativeArraySizeException → 构造器 catch; as usize 巨量 → Vec
+        // 分配 panic 同被 parse_named_opts_json 收敛 (CORRUPT 同语义)
+        let n = self.comp_num_steps as usize;
+        let mut comp_alt = vec![0.0f64; n];
+        let mut comp_boost = vec![0.0f64; n];
+        let mut has_comp_boost = vec![false; n];
+        let mut comp_power = vec![0.0f64; n];
+        let mut comp_rpm_ratio = vec![0.0f64; n];
+        let mut comp_ceil = vec![0.0f64; n];
+        let mut comp_ceil_pwr = vec![0.0f64; n];
+        let mut comp_const_rpm_alt = vec![0.0f64; n];
+        let mut comp_const_rpm_power = vec![0.0f64; n];
+        for i in 0..n {
+            comp_alt[i] = src.get_f64(&format!("Compressor.Altitude{i}"));
+            comp_power[i] = src.get_f64(&format!("Compressor.Power{i}"));
+            comp_boost[i] = src.get_f64(&format!("Compressor.AfterburnerBoostMul{i}"));
+            has_comp_boost[i] =
+                src.get_str(&format!("Compressor.AfterburnerBoostMul{i}")) != "null";
+            comp_rpm_ratio[i] =
+                src.get_f64(&format!("Compressor.PowerConstRPMCurvature{i}"));
+            comp_ceil[i] = src.get_f64(&format!("Compressor.Ceiling{i}"));
+            comp_ceil_pwr[i] = src.get_f64(&format!("Compressor.PowerAtCeiling{i}"));
+            comp_const_rpm_alt[i] =
+                src.get_f64(&format!("Compressor.AltitudeConstRPM{i}"));
+            comp_const_rpm_power[i] =
+                src.get_f64(&format!("Compressor.PowerConstRPM{i}"));
+        }
+        self.comp_alt = Some(comp_alt);
+        self.comp_boost = Some(comp_boost);
+        self.has_comp_boost = Some(has_comp_boost);
+        self.comp_power = Some(comp_power);
+        self.comp_rpm_ratio = Some(comp_rpm_ratio);
+        self.comp_ceil = Some(comp_ceil);
+        self.comp_ceil_pwr = Some(comp_ceil_pwr);
+        self.comp_const_rpm_alt = Some(comp_const_rpm_alt);
+        self.comp_const_rpm_power = Some(comp_const_rpm_power);
+
+        // === Extended WAPC-compatible parameters ===
+        self.comp_pressure_at_rpm0 =
+            src.get_f64("Compressor.CompressorPressureAtRPM0");
+        self.comp_omega_factor_sq =
+            src.get_f64("Compressor.CompressorOmegaFactorSq");
+        self.has_comp_omega_factor_sq =
+            src.get_str("Compressor.CompressorOmegaFactorSq") != "null";
+
+        // ExactAltitudes: explicitly defined in FM file
+        let ea_str = src.get_str("Compressor.ExactAltitudes");
+        if ea_str != "null" {
+            self.explicit_exact_altitudes = Some(ea_str.trim() == "true");
+        }
+
+        // Per-stage manifold pressure and afterburner pressure boost
+        let mut comp_ata = vec![0.0f64; n];
+        let mut comp_afterburner_pressure_boost = vec![0.0f64; n];
+        for i in 0..n {
+            comp_ata[i] = src.get_f64(&format!("Compressor.ATA{i}"));
+            comp_afterburner_pressure_boost[i] =
+                src.get_f64(&format!("Compressor.AfterburnerPressureBoost{i}"));
+        }
+        self.comp_ata = Some(comp_ata);
+        self.comp_afterburner_pressure_boost = Some(comp_afterburner_pressure_boost);
+
+        // Iterate all ATA entries (ATA0..ATA9) and take the maximum
+        self.military_mp = 0.0;
+        for i in 0..10 {
+            let ata = src.get_f64(&format!("Compressor.ATA{i}"));
+            if ata > self.military_mp {
+                self.military_mp = ata;
             }
-            self.velocity_thr = Some(velocity_thr);
+        }
 
-            // 读取发动机工作模式
-            self.mode_engine_num = 0;
-            let mut mode_engine_mult = [0.0f64; 10];
-            let mut mode_engine_rpm_mult = [0.0f64; 10];
-            for i in 0..10 {
-                mode_engine_mult[i] = src.get_f64_exc(&format!("Main.Mode{i}.ThrustMult"));
-                mode_engine_rpm_mult[i] = src.get_f64_exc(&format!("Main.Mode{i}.RPM"));
-                if mode_engine_mult[i] == f32::MAX as f64 {
-                    mode_engine_mult[i] = 0.0;
-                    mode_engine_rpm_mult[i] = 1.0;
-                    break;
-                }
-                self.mode_engine_num += 1;
-            }
+        // WEP parameters from Main section
+        self.throttle_boost = src.get_f64(&format!("{hdr_string}Main.ThrottleBoost"));
+        if self.throttle_boost <= 0.0 {
+            self.throttle_boost = 1.0;
+        }
 
-            let mut engine_mult_wep = 1.0f64;
-            if self.mode_engine_num != 0 {
-                engine_mult_wep = mode_engine_mult[self.mode_engine_num as usize - 1];
-                self.engine_rpm_mult_wep =
-                    mode_engine_rpm_mult[self.mode_engine_num as usize - 1];
-            }
+        self.octane_afterburner_mult =
+            src.get_f64(&format!("{hdr_string}Main.OctaneAfterburnerMult"));
+        if self.octane_afterburner_mult <= 0.0 {
+            self.octane_afterburner_mult = 1.0;
+        }
 
-            // 预计算 AFT 推力表 (曲线窗口 + 峰值推力; MIL 表 Rust 无消费方, 已随
-            // 2026-09 死代码清理删除 — peak MIL 仅装载日志曾用)
-            let alt_n = self.alt_thr_num as usize;
-            let vel_n = self.vel_thr_num as usize;
-            let mut max_thr_aft: Vec<Vec<f64>> = vec![vec![0.0; vel_n]; alt_n];
-            let mut max_thr_aft_coff: Vec<Vec<f64>> = vec![vec![0.0; vel_n]; alt_n];
-            for i in 0..alt_n {
-                for j in 0..vel_n {
-                    let thr_coff = src.get_f64(&format!("ThrustMax.ThrustMaxCoeff_{i}_{j}"));
-                    max_thr_aft_coff[i][j] =
-                        src.get_f64(&format!("ThrustMax.ThrAftMaxCoeff_{i}_{j}"));
-                    if max_thr_aft_coff[i][j] == 0.0 {
-                        max_thr_aft_coff[i][j] = 1.0;
-                    }
-                    max_thr_aft[i][j] =
-                        self.thr_max0 * thr_coff * self.aftb_coff
-                            * max_thr_aft_coff[i][j]
-                            * engine_mult_wep
-                            * self.engine_num as f64;
-                }
-            }
-            // 预计算峰值推力
-            self.peak_thr_aft = self.calculate_peak_thrust(Some(&max_thr_aft));
-            self.max_thr_aft = Some(max_thr_aft);
-            self.max_thr_aft_coff = Some(max_thr_aft_coff);
+        // WEP manifold pressure (ata)
+        self.wep_manifold_pressure = src.get_f64("AfterburnerManifoldPressure");
 
-            logger::info(
-                "FmData",
-                &format!(
-                    "Jet Engine Thrust Table loaded ({}x{}), peak AFT={} kgf",
-                    self.alt_thr_num,
-                    self.vel_thr_num,
-                    crate::base::format::format(self.peak_thr_aft, 0)
-                ),
-            );
-        } else {
-            // radial inline
-            self.aftb_coff = src.get_f64(&format!("{hdr_string}Main.AfterburnerBoost"));
-            self.comp_num_steps = src.get_f64("Compressor.NumSteps") as i32;
-            self.speed_to_manifold_multiplier =
-                src.get_f64("Compressor.SpeedManifoldMultiplier");
+        // Sea level power from Main.Power
+        self.deck_power = src.get_f64(&format!("{hdr_string}Main.Power"));
 
-            // NegativeArraySizeException → 构造器 catch; as usize 巨量 → Vec
-            // 分配 panic 同被 parse_named_opts_json 收敛 (CORRUPT 同语义)
-            let n = self.comp_num_steps as usize;
-            let mut comp_alt = vec![0.0f64; n];
-            let mut comp_boost = vec![0.0f64; n];
-            let mut has_comp_boost = vec![false; n];
-            let mut comp_power = vec![0.0f64; n];
-            let mut comp_rpm_ratio = vec![0.0f64; n];
-            let mut comp_ceil = vec![0.0f64; n];
-            let mut comp_ceil_pwr = vec![0.0f64; n];
-            let mut comp_const_rpm_alt = vec![0.0f64; n];
-            let mut comp_const_rpm_power = vec![0.0f64; n];
-            for i in 0..n {
-                comp_alt[i] = src.get_f64(&format!("Compressor.Altitude{i}"));
-                comp_power[i] = src.get_f64(&format!("Compressor.Power{i}"));
-                comp_boost[i] = src.get_f64(&format!("Compressor.AfterburnerBoostMul{i}"));
-                has_comp_boost[i] =
-                    src.get_str(&format!("Compressor.AfterburnerBoostMul{i}")) != "null";
-                comp_rpm_ratio[i] =
-                    src.get_f64(&format!("Compressor.PowerConstRPMCurvature{i}"));
-                comp_ceil[i] = src.get_f64(&format!("Compressor.Ceiling{i}"));
-                comp_ceil_pwr[i] = src.get_f64(&format!("Compressor.PowerAtCeiling{i}"));
-                comp_const_rpm_alt[i] =
-                    src.get_f64(&format!("Compressor.AltitudeConstRPM{i}"));
-                comp_const_rpm_power[i] =
-                    src.get_f64(&format!("Compressor.PowerConstRPM{i}"));
-            }
-            self.comp_alt = Some(comp_alt);
-            self.comp_boost = Some(comp_boost);
-            self.has_comp_boost = Some(has_comp_boost);
-            self.comp_power = Some(comp_power);
-            self.comp_rpm_ratio = Some(comp_rpm_ratio);
-            self.comp_ceil = Some(comp_ceil);
-            self.comp_ceil_pwr = Some(comp_ceil_pwr);
-            self.comp_const_rpm_alt = Some(comp_const_rpm_alt);
-            self.comp_const_rpm_power = Some(comp_const_rpm_power);
+        // RPM parameters for determineDefaultRpm (BUG 2 fix)
+        self.shaft_rpm_max = src.get_f64(&format!("{hdr_string}Main.ShaftRPMMax"));
+        self.rpm_nom = src.get_f64(&format!("{hdr_string}Main.RPMNom"));
 
-            // === Extended WAPC-compatible parameters ===
-            self.comp_pressure_at_rpm0 =
-                src.get_f64("Compressor.CompressorPressureAtRPM0");
-            self.comp_omega_factor_sq =
-                src.get_f64("Compressor.CompressorOmegaFactorSq");
-            self.has_comp_omega_factor_sq =
-                src.get_str("Compressor.CompressorOmegaFactorSq") != "null";
-
-            // ExactAltitudes: explicitly defined in FM file
-            let ea_str = src.get_str("Compressor.ExactAltitudes");
-            if ea_str != "null" {
-                self.explicit_exact_altitudes = Some(ea_str.trim() == "true");
-            }
-
-            // Per-stage manifold pressure and afterburner pressure boost
-            let mut comp_ata = vec![0.0f64; n];
-            let mut comp_afterburner_pressure_boost = vec![0.0f64; n];
-            for i in 0..n {
-                comp_ata[i] = src.get_f64(&format!("Compressor.ATA{i}"));
-                comp_afterburner_pressure_boost[i] =
-                    src.get_f64(&format!("Compressor.AfterburnerPressureBoost{i}"));
-            }
-            self.comp_ata = Some(comp_ata);
-            self.comp_afterburner_pressure_boost = Some(comp_afterburner_pressure_boost);
-
-            // Iterate all ATA entries (ATA0..ATA9) and take the maximum
-            self.military_mp = 0.0;
-            for i in 0..10 {
-                let ata = src.get_f64(&format!("Compressor.ATA{i}"));
-                if ata > self.military_mp {
-                    self.military_mp = ata;
-                }
-            }
-
-            // WEP parameters from Main section
-            self.throttle_boost = src.get_f64(&format!("{hdr_string}Main.ThrottleBoost"));
-            if self.throttle_boost <= 0.0 {
-                self.throttle_boost = 1.0;
-            }
-
-            self.octane_afterburner_mult =
-                src.get_f64(&format!("{hdr_string}Main.OctaneAfterburnerMult"));
-            if self.octane_afterburner_mult <= 0.0 {
-                self.octane_afterburner_mult = 1.0;
-            }
-
-            // WEP manifold pressure (ata)
-            self.wep_manifold_pressure = src.get_f64("AfterburnerManifoldPressure");
-
-            // Sea level power from Main.Power
-            self.deck_power = src.get_f64(&format!("{hdr_string}Main.Power"));
-
-            // RPM parameters for determineDefaultRpm (BUG 2 fix)
-            self.shaft_rpm_max = src.get_f64(&format!("{hdr_string}Main.ShaftRPMMax"));
-            self.rpm_nom = src.get_f64(&format!("{hdr_string}Main.RPMNom"));
-
-            // GovernorMaxParam is in the Propeller/Propellor section
-            self.governor_max_param = 0.0;
-            let mut prop_section_for_gov = src.section("Propellor");
-            if prop_section_for_gov.is_null() {
-                prop_section_for_gov = src.section("Propeller");
-            }
-            if !prop_section_for_gov.is_null() {
-                let gov_str = prop_section_for_gov.get_in("GovernorMaxParam");
-                // null 返回, 前半恒真 — 直译保留判 "null")
-                if gov_str != "null" {
-                    // (f64 域) + NumberFormatException ignored
-                    if let Some(first) = gov_str.trim().split(',').next() {
-                        if let Ok(v) = first.trim().parse::<f64>() {
-                            self.governor_max_param = v;
-                        }
+        // GovernorMaxParam is in the Propeller/Propellor section
+        self.governor_max_param = 0.0;
+        let mut prop_section_for_gov = src.section("Propellor");
+        if prop_section_for_gov.is_null() {
+            prop_section_for_gov = src.section("Propeller");
+        }
+        if !prop_section_for_gov.is_null() {
+            let gov_str = prop_section_for_gov.get_in("GovernorMaxParam");
+            // null 返回, 前半恒真 — 直译保留判 "null")
+            if gov_str != "null" {
+                // (f64 域) + NumberFormatException ignored
+                if let Some(first) = gov_str.trim().split(',').next() {
+                    if let Ok(v) = first.trim().parse::<f64>() {
+                        self.governor_max_param = v;
                     }
                 }
             }
         }
+    }
 
+    /// 转速与引擎负载段: 最大转速 (WEP 乘数修正) + military/WEP RPM 提取 +
+    /// 版本号 + 耐久负载档 (getload, Java L1040-1054)。
+    fn load_rpm_and_engine_load(&mut self, src: &JsonSrc, hdr_string: &str) {
         // 读取最大转速和最大允许转速 (must be before extractRpmFromThrottleAuto)
         //
         self.max_rpm = src.get_f64("RPMAfterburner");
@@ -568,12 +641,17 @@ impl FmData {
 
         // Extract military/WEP RPM after maxRPM is available as fallback
         if !self.is_jet && self.comp_num_steps > 0 {
-            self.extract_rpm_from_throttle_auto(src, &hdr_string);
+            self.extract_rpm_from_throttle_auto(src, hdr_string);
         }
 
         self.version = self.get_version();
         self.init_engine_load(src);
+    }
 
+    /// 重量/阻力/襟翼限速/面积段: 重量族 + vne/舵面效率 + 襟翼损毁限速表 +
+    /// 面积三级回退族 (getload, Java L1055-1253)。
+    /// 返回 (襟翼损毁表, 档位数) — fmdata 摘要段按原局部变量复用。
+    fn load_areas_and_weights(&mut self, src: &JsonSrc) -> ([[f64; 2]; 6], usize) {
         self.emptyweight = src.get_f64("EmptyMass");
         self.vne = src.get_f64("Vne:");
         if self.vne == 0.0 {
@@ -723,7 +801,6 @@ impl FmData {
             "WingPlaneSweep0.Areas.Aileron",
         );
         self.a_fuselage = fallback3(
-
             "Areas.Fuselage",
             "FuselagePlane.Areas.Main",
             "WingPlaneSweep0.Areas.Main",
@@ -737,6 +814,14 @@ impl FmData {
             "WingPlaneSweep0.Areas.Main",
         );
 
+        (flaps_destruction, flaps_destruction_num)
+    }
+
+    /// 升力系数段: FmParts 部件族 (机翼/机身/垂尾/平尾/变后掠翼) + 安装角补偿 +
+    /// 升力面积因子/翼载/展弦比/诱导阻力 + 过载限制原值 (getload, Java L1254-1440)。
+    // PORT(allow needless_range_loop): Java for(int i...) 直译 — i 进 format! 键名
+    #[allow(clippy::needless_range_loop)]
+    fn load_lift_coeffs(&mut self, src: &JsonSrc) -> LiftLoad {
         let mut no_flaps_wing = FmParts::default();
         Self::get_parts_fm(src, "NoFlaps", &mut no_flaps_wing);
         if no_flaps_wing.aoa_crit_high == 0.0 {
@@ -913,7 +998,36 @@ impl FmData {
         // Save raw values for dynamic G-load calculation before conversion
         self.raw_wing_crit_overload = Some(max_allow_gload);
 
-        // ---- fmdata 摘要串构造 (Java L1464-1560 的 String.format 族) ----
+        LiftLoad {
+            no_flaps_wing,
+            full_flaps_wing,
+            no_flaps_wing_v50,
+            no_flaps_wing_v100,
+            fuselage,
+            fin,
+            stab,
+            sweep_levels,
+            moment_of_inertia,
+            max_allow_gload,
+        }
+    }
+
+    /// fmdata 摘要串构造 (getload, Java L1464-1560 的 String.format 族)。
+    /// Lang 依赖隔离在本段; 过载限制在中途换算 1.2 倍余量后写入 self.max_allow_gload
+    /// (原语句位置保真)。返回摘要串, 部件落位由编排层执行。
+    // PORT(allow needless_range_loop): Java for(int i...) 直译 — i 进 format! 实参
+    #[allow(clippy::needless_range_loop)]
+    fn build_fmdata_summary(
+        &mut self,
+        parts: &LiftLoad,
+        flaps_destruction: &[[f64; 2]; 6],
+        flaps_destruction_num: usize,
+    ) -> String {
+        let mut max_allow_gload = parts.max_allow_gload;
+        let moment_of_inertia = parts.moment_of_inertia;
+        let no_flaps_wing = &parts.no_flaps_wing;
+        let full_flaps_wing = &parts.full_flaps_wing;
+
         let lang = Lang::init_lang();
         let mut s = java_format(
             lang.b_fm_version,
@@ -1031,39 +1145,19 @@ impl FmData {
             ],
         ));
 
-        s = Self::write_parts_fm(s, &no_flaps_wing, &lang);
-        if no_flaps_wing_v50.cl_crit_high != 0.0 {
-            s = Self::write_parts_fm(s, &no_flaps_wing_v50, &lang);
+        s = Self::write_parts_fm(s, no_flaps_wing, &lang);
+        if parts.no_flaps_wing_v50.cl_crit_high != 0.0 {
+            s = Self::write_parts_fm(s, &parts.no_flaps_wing_v50, &lang);
         }
-        if no_flaps_wing_v100.cl_crit_high != 0.0 {
-            s = Self::write_parts_fm(s, &no_flaps_wing_v100, &lang);
+        if parts.no_flaps_wing_v100.cl_crit_high != 0.0 {
+            s = Self::write_parts_fm(s, &parts.no_flaps_wing_v100, &lang);
         }
-        s = Self::write_parts_fm(s, &full_flaps_wing, &lang);
-        s = Self::write_parts_fm(s, &fuselage, &lang);
-        s = Self::write_parts_fm(s, &fin, &lang);
-        s = Self::write_parts_fm(s, &stab, &lang);
+        s = Self::write_parts_fm(s, full_flaps_wing, &lang);
+        s = Self::write_parts_fm(s, &parts.fuselage, &lang);
+        s = Self::write_parts_fm(s, &parts.fin, &lang);
+        s = Self::write_parts_fm(s, &parts.stab, &lang);
 
-        // 部件实体落位 (Java: 构造过程中的 new fm_parts 赋值在此集中)
-        self.no_flaps_wing = Some(no_flaps_wing);
-        self.full_flaps_wing = Some(full_flaps_wing);
-        self.sweep_levels = Some(sweep_levels);
-        self.fuselage = Some(fuselage);
-        self.fin = Some(fin);
-        self.stab = Some(stab);
-
-        self.fmdata = Some(s);
-
-        let duration = start_time.elapsed().as_millis() as i64;
-        logger::info(
-            "FmData",
-            &format!(
-                "Parsed FM file '{}' in {} ms (Engine Count: {}, Jet: {})",
-                self.read_file_name.clone().unwrap_or_default(),
-                duration,
-                self.engine_num,
-                self.is_jet
-            ),
-        );
+        s
     }
 
     /// 对应 Java `public String WritePartsFm(String s, fm_parts p)` (L502-520)。

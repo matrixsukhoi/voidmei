@@ -164,6 +164,189 @@ pub struct MapObj {
     s: String,
 }
 
+// ---------------------------------------------------------------------------
+// parse_obj 的阶段扫描函数族 (波14 拆解: 按解析阶段拆分, 游标 eix 跨阶段传递,
+// 语句序零变化; Java parseObj 局部常量 quoteloc 直提为 QUOTELOC)
+// ---------------------------------------------------------------------------
+
+/// Java parseObj 局部常量 `int quoteloc = 1` 直提 (type 值跳过开引号的偏移)。
+const QUOTELOC: i32 = 1;
+
+/// parse_obj 提取的单条对象字段集 (sta/mov/slc/pla 写值段的共用载荷)。
+struct ObjFields {
+    r#type: String,
+    color: String,
+    colorg: [u8; 4],
+    blink: i32,
+    icon: String,
+    icon_bg: String,
+    x: f64,
+    y: f64,
+    dx: f64,
+    dy: f64,
+}
+
+/// type 字段扫描 (Java "先找type" 段); 入参为首个 '"' 的下标,
+/// 返回 (推进后 eix, type 值)。
+fn scan_obj_type(t: &str, bix: i32) -> (i32, String) {
+    let mut eix = bix + 5;
+    scan_until!(t, eix, b':');
+    let bix = eix + 1 + QUOTELOC;
+    eix = bix;
+    scan_until!(t, eix, b'"');
+    (eix, t[bix as usize..eix as usize].to_string())
+}
+
+/// color 字符串扫描 (跨三个引号后取值); 返回 (推进后 eix, color 值)。
+fn scan_obj_color(t: &str, eix: i32) -> (i32, String) {
+    let mut eix = eix + 2;
+    // 找三个引号
+    scan_until!(t, eix, b'"');
+    eix += 1;
+    scan_until!(t, eix, b'"');
+    eix += 1;
+    scan_until!(t, eix, b'"');
+    eix += 1;
+    let bix = eix;
+    scan_until!(t, eix, b'"');
+    (eix, t[bix as usize..eix as usize].to_string())
+}
+
+/// color[] 三元数组扫描 (RGB → RGBA, alpha 固定 255); 返回 (推进后 eix, colorg)。
+fn scan_obj_color_rgb(t: &str, eix: i32) -> (i32, [u8; 4]) {
+    let mut eix = eix + 2;
+    // 找2个引号
+    scan_until!(t, eix, b'"');
+    eix += 1;
+    scan_until!(t, eix, b'"');
+    eix += 1;
+    scan_until!(t, eix, b'[');
+    eix += 1;
+    let mut bix = eix;
+    scan_until!(t, eix, b',');
+    let red = get_data_int(Some(&t[bix as usize..eix as usize]));
+    eix += 1;
+    bix = eix;
+    scan_until!(t, eix, b',');
+    let green = get_data_int(Some(&t[bix as usize..eix as usize]));
+    eix += 1;
+    bix = eix;
+    scan_until!(t, eix, b']');
+    let blue = get_data_int(Some(&t[bix as usize..eix as usize]));
+    // Java 构造器对 0-255 外抛 IllegalArgumentException — 域内 color[] 恒 0-255, 不可达
+    (eix, [red as u8, green as u8, blue as u8, 255])
+}
+
+/// blink 字段扫描; 返回 (推进后 eix, blink 值)。
+fn scan_obj_blink(t: &str, eix: i32) -> (i32, i32) {
+    let mut eix = eix + 2;
+    // 找2个引号
+    scan_until!(t, eix, b'"');
+    eix += 1;
+    scan_until!(t, eix, b'"');
+    eix += 1;
+    scan_until!(t, eix, b':');
+    eix += 1;
+    let bix = eix;
+    scan_until!(t, eix, b',');
+    (eix, get_data_int(Some(&t[bix as usize..eix as usize])))
+}
+
+/// icon 字符串扫描 (跨三个引号后取值); 返回 (推进后 eix, icon 值)。
+fn scan_obj_icon(t: &str, eix: i32) -> (i32, String) {
+    let mut eix = eix + 1;
+    // 找三个引号
+    scan_until!(t, eix, b'"');
+    eix += 1;
+    scan_until!(t, eix, b'"');
+    eix += 1;
+    scan_until!(t, eix, b'"');
+    eix += 1;
+    let bix = eix;
+    scan_until!(t, eix, b'"');
+    (eix, t[bix as usize..eix as usize].to_string())
+}
+
+/// icon_bg 字符串扫描 (跨三个引号后取值); 返回 (推进后 eix, icon_bg 值)。
+fn scan_obj_icon_bg(t: &str, eix: i32) -> (i32, String) {
+    let mut eix = eix + 2;
+    // 找三个引号
+    scan_until!(t, eix, b'"');
+    eix += 1;
+    scan_until!(t, eix, b'"');
+    eix += 1;
+    scan_until!(t, eix, b'"');
+    eix += 1;
+    let bix = eix;
+    scan_until!(t, eix, b'"');
+    (eix, t[bix as usize..eix as usize].to_string())
+}
+
+/// x 坐标扫描 (到逗号为止); 返回 (推进后 eix, x 值)。
+fn scan_obj_x(t: &str, eix: i32) -> (i32, f64) {
+    let mut eix = eix + 2;
+    // 找2个引号
+    scan_until!(t, eix, b'"');
+    eix += 1;
+    scan_until!(t, eix, b'"');
+    eix += 1;
+    scan_until!(t, eix, b':');
+    eix += 1;
+    let bix = eix;
+    scan_until!(t, eix, b',');
+    (eix, get_data_float(Some(&t[bix as usize..eix as usize])))
+}
+
+/// y 坐标扫描 (到逗号或 '}' 为止) + 对象形态判定; 返回 (推进后 eix, y 值, flag)
+/// — flag 0 = 静态对象 (无 dx/dy), 1 = 动态对象。
+fn scan_obj_y(t: &str, eix: i32) -> (i32, f64, i32) {
+    let mut eix = eix + 1;
+    // 找2个引号
+    scan_until!(t, eix, b'"');
+    eix += 1;
+    scan_until!(t, eix, b'"');
+    eix += 1;
+    scan_until!(t, eix, b':');
+    eix += 1;
+    let bix = eix;
+    scan_until2!(t, eix, b',', b'}');
+    let y = get_data_float(Some(&t[bix as usize..eix as usize]));
+
+    // Java 的 if/else 语句赋值 → 等价表达式形态 (无副作用)
+    let flag = if t.as_bytes()[eix as usize] == b'}' { 0 } else { 1 };
+    (eix, y, flag)
+}
+
+/// dx 速度分量扫描 (到逗号或 '}' 为止); 返回 (推进后 eix, dx 值)。
+fn scan_obj_dx(t: &str, eix: i32) -> (i32, f64) {
+    let mut eix = eix + 1;
+    // 找2个引号
+    scan_until!(t, eix, b'"');
+    eix += 1;
+    scan_until!(t, eix, b'"');
+    eix += 1;
+    scan_until!(t, eix, b':');
+    eix += 1;
+    let bix = eix;
+    scan_until2!(t, eix, b',', b'}');
+    (eix, get_data_float(Some(&t[bix as usize..eix as usize])))
+}
+
+/// dy 速度分量扫描 (到逗号或 '}' 为止); 返回 (推进后 eix, dy 值)。
+fn scan_obj_dy(t: &str, eix: i32) -> (i32, f64) {
+    let mut eix = eix + 1;
+    // 找2个引号
+    scan_until!(t, eix, b'"');
+    eix += 1;
+    scan_until!(t, eix, b'"');
+    eix += 1;
+    scan_until!(t, eix, b':');
+    eix += 1;
+    let bix = eix;
+    scan_until2!(t, eix, b',', b'}');
+    (eix, get_data_float(Some(&t[bix as usize..eix as usize])))
+}
+
 impl MapObj {
     /// 对应 Java `new MapObj()`: 数组未分配 (≈ null), init 前调用 update 会 panic。
     /// PORT: Java `pla`/`slc` 也是裸声明 (null), 未 init 的 update 在 `slc.type=""` 即
@@ -200,99 +383,32 @@ impl MapObj {
         }
     }
 
+    /// 对应 Java `void parseObj(String t)` — 单个 {..} 切片的字段扫描与写值。
+    /// 波14 拆解: 扫描阶段提取为模块级 scan_obj_* 函数族 (游标 eix 跨阶段传递),
+    /// 写值阶段提取为 store_static_obj / store_moving_obj, 语句序零变化。
     fn parse_obj(&mut self, t: &str) {
-        let mut bix: i32;
-        let mut eix: i32;
-        let quoteloc = 1;
-        // Java 局部变量声明不初始化、分支内赋值 — Rust 延迟初始化对应 (§2.10)
-        let flag: i32;
-        let r#type: String;
-        let color: String;
-        let colorg: [u8; 4];
-        let blink: i32;
-        let icon: String;
-        let icon_bg: String;
-        let x: f64;
-        let y: f64;
-        let dx: f64;
-        let dy: f64;
-
+        // Java 局部变量声明不初始化、分支内赋值 — 拆分后各值由 scan_* 阶段
+        // 函数返回 (§2.10 延迟初始化对应)
         let mut is_player = false;
         let mut is_selected = false;
         // 先找type
-        bix = t.find('"').map_or(-1, |v| v as i32);
+        let bix = t.find('"').map_or(-1, |v| v as i32);
         if bix != -1 {
-            eix = bix + 5;
-            scan_until!(t, eix, b':');
-            bix = eix + 1 + quoteloc;
-            eix = bix;
-            scan_until!(t, eix, b'"');
-            r#type = t[bix as usize..eix as usize].to_string();
+            let (eix, r#type) = scan_obj_type(t, bix);
             // Application.debugPrint(type.charAt(3));
             // 继续向下搜索Color
-            eix += 2;
-            // 找三个引号
-            scan_until!(t, eix, b'"');
-            eix += 1;
-            scan_until!(t, eix, b'"');
-            eix += 1;
-            scan_until!(t, eix, b'"');
-            eix += 1;
-            bix = eix;
-            scan_until!(t, eix, b'"');
-            color = t[bix as usize..eix as usize].to_string();
+            let (eix, color) = scan_obj_color(t, eix);
 
             // 继续向下搜索Color[]
-            eix += 2;
-            // 找2个引号
-            scan_until!(t, eix, b'"');
-            eix += 1;
-            scan_until!(t, eix, b'"');
-            eix += 1;
-            scan_until!(t, eix, b'[');
-            eix += 1;
-            bix = eix;
-            scan_until!(t, eix, b',');
-            let red = get_data_int(Some(&t[bix as usize..eix as usize]));
-            // Application.debugPrint(red);
-            eix += 1;
-            bix = eix;
-            scan_until!(t, eix, b',');
-            let green = get_data_int(Some(&t[bix as usize..eix as usize]));
-            eix += 1;
-            bix = eix;
-            scan_until!(t, eix, b']');
-            let blue = get_data_int(Some(&t[bix as usize..eix as usize]));
-            // Java 构造器对 0-255 外抛 IllegalArgumentException — 域内 color[] 恒 0-255, 不可达
-            colorg = [red as u8, green as u8, blue as u8, 255];
+            let (eix, colorg) = scan_obj_color_rgb(t, eix);
             // Application.debugPrint(colorg);
 
             // 继续向下搜索blink
-            eix += 2;
-            // 找2个引号
-            scan_until!(t, eix, b'"');
-            eix += 1;
-            scan_until!(t, eix, b'"');
-            eix += 1;
-            scan_until!(t, eix, b':');
-            eix += 1;
-            bix = eix;
-            scan_until!(t, eix, b',');
-            blink = get_data_int(Some(&t[bix as usize..eix as usize]));
+            let (eix, blink) = scan_obj_blink(t, eix);
             // Application.debugPrint(blink);
 
             // 继续向下搜索icon
-            eix += 1;
-            // 找三个引号
-            scan_until!(t, eix, b'"');
-            eix += 1;
-            scan_until!(t, eix, b'"');
-            eix += 1;
-            scan_until!(t, eix, b'"');
-            eix += 1;
-            bix = eix;
-            scan_until!(t, eix, b'"');
-            icon = t[bix as usize..eix as usize].to_string();
+            let (eix, icon) = scan_obj_icon(t, eix);
             if icon == "Player" {
                 is_player = true;
             }
@@ -300,159 +416,129 @@ impl MapObj {
             // Application.debugPrint(icon);
 
             // 继续向下搜索icon_bg
-            eix += 2;
-            // 找三个引号
-            scan_until!(t, eix, b'"');
-            eix += 1;
-            scan_until!(t, eix, b'"');
-            eix += 1;
-            scan_until!(t, eix, b'"');
-            eix += 1;
-            bix = eix;
-            scan_until!(t, eix, b'"');
-            icon_bg = t[bix as usize..eix as usize].to_string();
+            let (eix, icon_bg) = scan_obj_icon_bg(t, eix);
             if icon_bg != "none" {
                 is_selected = true;
             }
             // Application.debugPrint(iconBg);
             // 继续向下搜索x
-            eix += 2;
-            // 找2个引号
-            scan_until!(t, eix, b'"');
-            eix += 1;
-            scan_until!(t, eix, b'"');
-            eix += 1;
-            scan_until!(t, eix, b':');
-            eix += 1;
-            bix = eix;
-            scan_until!(t, eix, b',');
-            x = get_data_float(Some(&t[bix as usize..eix as usize]));
+            let (eix, x) = scan_obj_x(t, eix);
             // Application.debugPrint(x);
             // 继续向下搜索y
-            eix += 1;
-            // 找2个引号
-            scan_until!(t, eix, b'"');
-            eix += 1;
-            scan_until!(t, eix, b'"');
-            eix += 1;
-            scan_until!(t, eix, b':');
-            eix += 1;
-            bix = eix;
-            scan_until2!(t, eix, b',', b'}');
-            y = get_data_float(Some(&t[bix as usize..eix as usize]));
-
-            if t.as_bytes()[eix as usize] == b'}' {
-                flag = 0;
-            } else {
-                flag = 1;
-            }
+            let (eix, y, flag) = scan_obj_y(t, eix);
 
             // Application.debugPrint(t.substring(bix,eix));
 
             // 再根据type判断是否取dx、dy
             // Application.debugPrint(flag);
 
+            let mut f = ObjFields {
+                r#type,
+                color,
+                colorg,
+                blink,
+                icon,
+                icon_bg,
+                x,
+                y,
+                // flag==0 路径不消费 dx/dy — 0.0 占位 (Java 该分支不赋值不使用)
+                dx: 0.0,
+                dy: 0.0,
+            };
+
             if flag == 0 {
                 // 进入staobj写值
-                if is_selected {
-                    self.slc.r#type = Some(r#type.clone());
-                    self.slc.color = Some(color.clone());
-                    self.slc.colorg = Some(colorg);
-                    self.slc.blink = blink;
-                    self.slc.icon = Some(icon.clone());
-                    self.slc.icon_bg = Some(icon_bg.clone());
-                    self.slc.x = x;
-                    self.slc.y = y;
-                    self.slc.dx = 0.0;
-                    self.slc.dy = 0.0;
-                } else {
-                    let cur = self.stacur as usize;
-                    self.sta[cur].r#type = Some(r#type.clone());
-                    self.sta[cur].color = Some(color.clone());
-                    self.sta[cur].colorg = Some(colorg);
-                    self.sta[cur].blink = blink;
-                    self.sta[cur].icon = Some(icon.clone());
-                    self.sta[cur].icon_bg = Some(icon_bg.clone());
-                    self.sta[cur].x = x;
-                    self.sta[cur].y = y;
-                    // Application.debugPrint("s写值成功" + sta[stacur].toString());
-                    self.stacur += 1;
-                }
+                self.store_static_obj(&f, is_selected);
             }
             if flag == 1 {
                 // 进入movobj判断
                 // 继续向下搜索y
                 // Application.debugPrint(t);
-                eix += 1;
-                // 找2个引号
-                // Application.debugPrint(t);
-                // Application.debugPrint("sad");
-                scan_until!(t, eix, b'"');
-                eix += 1;
-                scan_until!(t, eix, b'"');
-                eix += 1;
-                scan_until!(t, eix, b':');
-                eix += 1;
-                bix = eix;
-                scan_until2!(t, eix, b',', b'}');
+                let (eix, dx) = scan_obj_dx(t, eix);
                 // Application.debugPrint(t.substring(bix,eix));
-                dx = get_data_float(Some(&t[bix as usize..eix as usize]));
 
                 // 继续向下搜索y
-                eix += 1;
-                // 找2个引号
-                scan_until!(t, eix, b'"');
-                eix += 1;
-                scan_until!(t, eix, b'"');
-                eix += 1;
-                scan_until!(t, eix, b':');
-                eix += 1;
-                bix = eix;
-                scan_until2!(t, eix, b',', b'}');
+                let (_eix, dy) = scan_obj_dy(t, eix);
                 // Application.debugPrint(t.substring(bix,eix));
-                dy = get_data_float(Some(&t[bix as usize..eix as usize]));
-                if !is_player {
-                    if is_selected {
-                        self.slc.r#type = Some(r#type.clone());
-
-                        self.slc.color = Some(color.clone());
-                        self.slc.colorg = Some(colorg);
-                        self.slc.blink = blink;
-                        self.slc.icon = Some(icon.clone());
-                        self.slc.icon_bg = Some(icon_bg.clone());
-                        self.slc.x = x;
-                        self.slc.y = y;
-                        self.slc.dx = dx;
-                        self.slc.dy = dy;
-                    } else {
-                        let cur = self.movcur as usize;
-                        self.mov[cur].r#type = Some(r#type.clone());
-
-                        self.mov[cur].color = Some(color.clone());
-                        self.mov[cur].colorg = Some(colorg);
-                        self.mov[cur].blink = blink;
-                        self.mov[cur].icon = Some(icon.clone());
-                        self.mov[cur].icon_bg = Some(icon_bg.clone());
-                        self.mov[cur].x = x;
-                        self.mov[cur].y = y;
-                        // PORT: Java 的 mov 写值不含 dx/dy (仅 pla/slc 写), 保真保留
-                        // Application.debugPrint("m写值成功" + mov[movcur].toString());
-                        self.movcur += 1;
-                    }
-                } else {
-                    self.pla.r#type = Some(r#type.clone());
-                    self.pla.color = Some(color.clone());
-                    self.pla.colorg = Some(colorg);
-                    self.pla.blink = blink;
-                    self.pla.icon = Some(icon.clone());
-                    self.pla.icon_bg = Some(icon_bg.clone());
-                    self.pla.x = x;
-                    self.pla.y = y;
-                    self.pla.dx = dx;
-                    self.pla.dy = dy;
-                    // Application.debugPrint("玩家写值成功" + pla.toString());
-                }
+                f.dx = dx;
+                f.dy = dy;
+                self.store_moving_obj(&f, is_player, is_selected);
             }
+        }
+    }
+
+    /// 静态对象写值 (flag==0): 选中 → slc 槽, 否则 sta 数组顺序写并进位
+    /// (Java parseObj 的 staobj 分支)。
+    fn store_static_obj(&mut self, f: &ObjFields, is_selected: bool) {
+        if is_selected {
+            self.slc.r#type = Some(f.r#type.clone());
+            self.slc.color = Some(f.color.clone());
+            self.slc.colorg = Some(f.colorg);
+            self.slc.blink = f.blink;
+            self.slc.icon = Some(f.icon.clone());
+            self.slc.icon_bg = Some(f.icon_bg.clone());
+            self.slc.x = f.x;
+            self.slc.y = f.y;
+            self.slc.dx = 0.0;
+            self.slc.dy = 0.0;
+        } else {
+            let cur = self.stacur as usize;
+            self.sta[cur].r#type = Some(f.r#type.clone());
+            self.sta[cur].color = Some(f.color.clone());
+            self.sta[cur].colorg = Some(f.colorg);
+            self.sta[cur].blink = f.blink;
+            self.sta[cur].icon = Some(f.icon.clone());
+            self.sta[cur].icon_bg = Some(f.icon_bg.clone());
+            self.sta[cur].x = f.x;
+            self.sta[cur].y = f.y;
+            // Application.debugPrint("s写值成功" + sta[stacur].toString());
+            self.stacur += 1;
+        }
+    }
+
+    /// 动态对象写值 (flag==1): 玩家 → pla 槽, 选中 → slc 槽, 否则 mov 数组顺序写
+    /// (Java parseObj 的 movobj 判断分支)。
+    fn store_moving_obj(&mut self, f: &ObjFields, is_player: bool, is_selected: bool) {
+        if !is_player {
+            if is_selected {
+                self.slc.r#type = Some(f.r#type.clone());
+
+                self.slc.color = Some(f.color.clone());
+                self.slc.colorg = Some(f.colorg);
+                self.slc.blink = f.blink;
+                self.slc.icon = Some(f.icon.clone());
+                self.slc.icon_bg = Some(f.icon_bg.clone());
+                self.slc.x = f.x;
+                self.slc.y = f.y;
+                self.slc.dx = f.dx;
+                self.slc.dy = f.dy;
+            } else {
+                let cur = self.movcur as usize;
+                self.mov[cur].r#type = Some(f.r#type.clone());
+
+                self.mov[cur].color = Some(f.color.clone());
+                self.mov[cur].colorg = Some(f.colorg);
+                self.mov[cur].blink = f.blink;
+                self.mov[cur].icon = Some(f.icon.clone());
+                self.mov[cur].icon_bg = Some(f.icon_bg.clone());
+                self.mov[cur].x = f.x;
+                self.mov[cur].y = f.y;
+                // PORT: Java 的 mov 写值不含 dx/dy (仅 pla/slc 写), 保真保留
+                // Application.debugPrint("m写值成功" + mov[movcur].toString());
+                self.movcur += 1;
+            }
+        } else {
+            self.pla.r#type = Some(f.r#type.clone());
+            self.pla.color = Some(f.color.clone());
+            self.pla.colorg = Some(f.colorg);
+            self.pla.blink = f.blink;
+            self.pla.icon = Some(f.icon.clone());
+            self.pla.icon_bg = Some(f.icon_bg.clone());
+            self.pla.x = f.x;
+            self.pla.y = f.y;
+            self.pla.dx = f.dx;
+            self.pla.dy = f.dy;
+            // Application.debugPrint("玩家写值成功" + pla.toString());
         }
     }
 
