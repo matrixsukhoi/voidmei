@@ -19,7 +19,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use vm_core::blkx::json::extract_fuel_modifications_json;
-use vm_core::blkx::{extract_fuel_modifications, Blkx, FuelModification, FuelType};
+use vm_core::blkx::{Blkx, FuelModification, FuelType};
 use vm_core::comparison::comparison_rules::ComparisonRules;
 use vm_core::file_utils::get_file_name_no_ex;
 use vm_core::fm::fm_data_paths;
@@ -56,19 +56,7 @@ fn to_json<T: serde::Serialize>(v: &T) -> Result<serde_json::Value, String> {
 /// （a_10c）——少数不同名机型 FMLoader 判 MISSING, 按物理文件直读。
 fn fallback_physical_file(name: &str) -> Option<PathBuf> {
     let f = fm_data_paths::fm_dir().join(format!("fm/{name}.json"));
-    if f.exists() {
-        return Some(f);
-    }
-    let f = fm_data_paths::fm_dir().join(format!("fm/{name}.blkx"));
-    if f.exists() {
-        return Some(f);
-    }
-    let f = fm_data_paths::fm_dir().join(format!("fm/{name}.blk"));
-    if f.exists() {
-        Some(f)
-    } else {
-        None
-    }
+    if f.exists() { Some(f) } else { None }
 }
 
 // =====================================================================
@@ -253,11 +241,8 @@ pub fn load_fm_lines(name: Option<&str>) -> Vec<String> {
         // 名字空间差异回退: name 是 fm/ 物理文件名（连字符, 如 a-10c）, 中央机型名
         // 是下划线（a_10c）——少数不同名机型 FMLoader 判 MISSING, 按物理文件直读
         match fallback_physical_file(name) {
-            Some(f) => match Blkx::parse_named(&f.to_string_lossy(), name) {
-                Ok(mut b) => {
-                    b.get_all_plotdata();
-                    b.fmdata.unwrap_or_default()
-                }
+            Some(f) => match Blkx::parse_named_json(&f.to_string_lossy(), name) {
+                Ok(b) => b.fmdata.unwrap_or_default(),
                 Err(_) => {
                     // Java 构造器内 catch 产出 valid=false 对象 (fmdata=noblkx),
                     // 行为保真: 以 noblkx 文本顶位 (无冒号 → 解析段自然过滤)
@@ -422,22 +407,17 @@ const ALT_STEP: i32 = 25;
 /// 融入句柄的 compressorStages。路径统一走 `FMDataPaths::fmDir()` 拼装: 中央
 /// 文件在 flightmodels 根目录, 物理文件在其 fm/ 子目录。
 fn load_fuel_modification(fm_name: &str) -> Option<FuelModification> {
-    // Try common extensions for Central file (JSON 链优先, 过渡期回落 blkx 文本)
-    let extensions = [".json", ".blkx", ".Blx", ".blk"];
+    // Try common extensions for Central file (blkx→json 迁移终态: 只 .json)
+    let extensions = [".json"];
     for ext in extensions {
         let cf = fm_data_paths::fm_dir().join(format!("{fm_name}{ext}"));
         if cf.exists() {
             // Central file exists but failed to parse — continue without fuel mod
             // (原 catch(Exception) 分支注释语义)
-            let parsed = std::fs::read(&cf).ok().and_then(|bytes| {
-                let data = String::from_utf8_lossy(&bytes).into_owned();
-                if ext == ".json" {
-                    serde_json::from_str::<serde_json::Value>(&data)
-                        .ok()
-                        .map(|root| extract_fuel_modifications_json(&root))
-                } else {
-                    Some(extract_fuel_modifications(&data))
-                }
+            let parsed = std::fs::read_to_string(&cf).ok().and_then(|data| {
+                serde_json::from_str::<serde_json::Value>(&data)
+                    .ok()
+                    .map(|root| extract_fuel_modifications_json(&root))
             });
             if let Some(mod_) = parsed {
                 if mod_.r#type != FuelType::None {
@@ -495,16 +475,7 @@ pub fn load_single_curve(fm_name: &str, wep_mode: bool, speed_kmh: i32) -> Power
         let Some(f) = fallback_physical_file(fm_name) else {
             return error_curve(fm_name, format!("找不到FM文件: {fm_name}"));
         };
-        let is_json = f.extension().and_then(|s| s.to_str()) == Some("json");
-        let parsed = if is_json {
-            Blkx::parse_named_json(&f.to_string_lossy(), fm_name)
-        } else {
-            Blkx::parse_named(&f.to_string_lossy(), fm_name)
-                .map(|mut b| {
-                    b.get_all_plotdata();
-                    b
-                })
-        };
+        let parsed = Blkx::parse_named_json(&f.to_string_lossy(), fm_name);
         match parsed {
             Ok(b) => {
                 // Check if piston engine

@@ -1,21 +1,19 @@
-//! blkx — 对应 Java `src/parser/Blkx.java` (2029 行, B 类) 的 D4 拆分四模块:
-//! - `types.rs` — 5 个内部类 + Fuel Modification Support 静态函数区 (L34-660)【已译】
-//! - 本文件 (`mod.rs`) — Blkx 聚合 struct: **完整字段区** (L15 / L234-404 / L633-715,
-//!   D4: "Blx 聚合 struct" 的宿主; Rust 结构体字段不可跨文件拆分, 故字段区落此)【本波】
-//! - `model.rs` — getter/计算方法 (L523-631 的 findmax*/getVersion、L676-1660 的纯字段
-//!   计算面、L1978-2028 的 finalizeLoading/calculatePeakThrust/peakThrust)【本波】
-//! - `reader.rs` — 构造器 + 原语 + getload 全量装载 (L408-575/L817-1590/L1665-1906)
-//!   → `parse/parse_named/parse_named_opts -> Result<Blkx>`【getload 批次 +
-//!   getAllplotdata 批次 (transUnit/getAllplotdata/getplotdata) 均已译,
-//!   真机/合成英制位级对拍】
+//! blkx — 对应 Java `src/parser/Blkx.java` (2029 行, B 类) 的 D4 拆分模块
+//! (blkx→json 迁移终态: BlkText 文本解析链已删, FM 数据源为 JSON —
+//!  wt_ext_cli `--format Json` 产物, 迁移期 2832 对全量位级对拍验证等价):
+//! - `types.rs` — 5 个数据类 (XY/EngineLoad/FmParts/SweepLevel/FuelModification);
+//!   燃油修正只余 JSON 版 (json.rs), 文本版 cut_static 族已删
+//! - 本文件 (`mod.rs`) — Blkx 聚合 struct: 完整字段区 (结构体字段不可跨文件拆分)
+//! - `model.rs` — getter/计算方法 (findmax*/getVersion/finalizeLoading/peakThrust)
+//! - `reader.rs` — getload_from 族数据源泛型装载 + BlkSource trait (数值解析单源)
+//! - `json.rs` — JSON 后端: 树寻址原语 + parse_named_json 构造入口 + 燃油修正树版
 //!
 //! PORT: 反射段 (getValue/dumpVariables/getVariableMap, L1908-2000) 按 D4 裁决
 //! **不迁移** (getVariableMap 唯一下游 FormulaEvaluator 归 C 类; FMPowerExtractor
 //! 直读字段; dumpVariables 是调试工具) — 具体标注职责落在 reader.rs 波次。
 //!
-//! PORT (方法波次边界): 依赖原始文本抽取原语 getone/cut/getArray/getlastone/
-//! getoneinData (L1728-1900, 归 reader.rs 波次) 的方法族已随 getload 批次在
-//! reader.rs 落地 (真机 spitfire 位级对拍): getPartsFm (L408) /
+//! PORT (历史): 依赖原始文本抽取原语 getone/cut/getArray/getlastone/getoneinData
+//! (L1728-1900) 的方法族 — getPartsFm (L408) /
 //! extractRpmFromThrottleAuto (L431) / getEngineLoad (L477) / showEngineLoad (L496) /
 //! WritePartsFm (L502) / getdoubles (L523) / getdouble (L543) / getdouble_exc (L557) /
 //! initEngineLoad (L817) / getload (L855); getAllplotdata 批次补齐曲线族:
@@ -54,14 +52,8 @@ mod types;
 #[cfg(test)]
 mod realtests;
 
-// blkx 文本 vs JSON 解析器全量位级对拍 (blkx→json 迁移安全核心);
-// data/ 无 .json 配对自动跳过 (fmdatajson 产物)
-#[cfg(test)]
-mod parity;
 
-pub use types::{
-    extract_fuel_modifications, EngineLoad, FuelModification, FuelType, FmParts, SweepLevel, XY,
-};
+pub use types::{EngineLoad, FuelModification, FuelType, FmParts, SweepLevel, XY};
 
 /// 对应 Java `public class Blkx` (L14) 的聚合 struct — 字段区宿主 (D4)。
 ///

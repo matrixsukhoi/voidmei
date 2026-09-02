@@ -1,31 +1,24 @@
-//! 对应 Java: `src/parser/Blkx.java` L1665-1906 (D4 拆分: reader.rs)。
-//! 覆盖构造器解析逻辑与原始文本抽取原语:
-//! - 两个构造器 (L1665-1726) → [`Blkx::parse`]/[`Blkx::parse_str`] 纯函数
-//!   (Java 构造器以 `valid=false` 表达失败、不外抛; Result 化后 Err 携带等价诊断,
-//!   详见函数级注)
-//! - `cut` (L1728-1762, 包私有) → 本模块私有自由函数
-//! - `getArray`/`getlastone`/`getoneinData`/`getone` (L1764-1906) → `impl Blkx` 方法
+//! Blkx 的 getload 全量装载 (对应 Java `src/parser/Blkx.java` 的装载面, D4 拆分:
+//! reader.rs)。blkx→json 迁移终态: BlkText 文本解析链 (构造器/getone/cut 族) 已
+//! 随 JSON 数据源退役删除, 本模块只保留**数据源泛型**的字段填充逻辑 —
+//! - `getload_from<S: BlkSource>` — FM 全量装载 + fmdata 摘要串构造
+//!   (语句顺序/公式/Java bug 保真逐行直译; panic 由 parse_named_json 的
+//!   catch_unwind 收敛 Err)
+//! - `get_all_plotdata_from`/`trans_unit_from`/`getplotdata_from` — PASSPORT
+//!   五曲线抽取 + 英制换算
+//! - `get_parts_fm`/`get_engine_load`/`init_engine_load`/
+//!   `extract_rpm_from_throttle_auto` — 装载辅助
+//! - 尾部 [`BlkSource`] trait — 抽取原语抽象, 唯一后端 JsonSrc (json.rs);
+//!   数值解析 (Float.parseFloat 域) 是 trait 默认方法, 单源
 //!
-//! PORT (D4 裁决, 反射段 L1908-2000 **不迁移**):
-//! - `getValue` (L1914): 反射按点路径取字段 — 唯一下游 FormulaEvaluator 归 C 类;
-//! - `dumpVariables`/`dumpObject` (L1935/L1945): 反射 dump 调试工具;
-//! - `getVariableMap` (L1986): 反射扁平化字段供公式引擎 — 同样只服务 FormulaEvaluator,
-//!   FMPowerExtractor 主消费者直读字段不经反射。
-//!
-//! PORT (方法波次边界, 见 mod.rs): 构造器 `doLoad=true` 分支 (L1708-1718) 已落地 —
-//! [`Blkx::parse`]/[`Blkx::parse_named`] (Java 两参构造器) 走 getload 全量装载 +
-//! catch_unwind 收敛 (panic → Err ↔ Java valid=false); [`Blx::parse_named_opts`]
-//! (三参构造器) 显式 doLoad, FMLoader 中央文件传 false 只读。
-//! getAllplotdata 批次已落地: transUnit/getAllplotdata/getplotdata (L1590-1658,
-//! fm_loader 接线 + fuzz 腿1 管线恢复, 真机/合成英制 oracle 位级对拍)。
+//! 构造入口在 json.rs: [`Blkx::parse_named_json`] (doLoad=true) /
+//! [`Blkx::parse_named_opts_json`] (中央文件只读) / [`Blkx::parse_str_json`]
+//! (fuzz 注入)。
 //!
 //! PORT (§2.1): Java charAt/indexOf/substring 按 UTF-16 码元计数, 此处一律字节偏移
 //! + `as_bytes()` 索引 — 域内 (FM/中央文件) 为纯 ASCII (真机三文件 od/grep 实测),
 //!   字节索引与码元索引一致; 定界符 '{'/'}'/'='/'\n' 均为 ASCII, UTF-8 自同步,
-//!   逐字节比较不会误判多字节字符 (string_helper.rs / types.rs cut_static 先例)。
-//!   `toUpperCase()` 的索引漂移防护 (ß→SS 等病态大写变长输入) 与 Java 的守卫
-//!   逐条对应; 终点取子串经 `get()` 边界守卫, 病态漂移按"未找到"哨兵收敛
-//!   (types.rs cut_static 同款裁决: Rust UTF-8 字节域 ß 2→2 不漂移, 反而更对齐)。
+//!   逐字节比较不会误判多字节字符 (string_helper.rs 先例)。
 
 use super::types::{EngineLoad, FmParts, SweepLevel, XY};
 use super::Blkx;
@@ -135,214 +128,9 @@ fn java_format(tpl: &str, args: &[FmtArg]) -> String {
 }
 
 impl Blkx {
-    /// 对应 Java `public Blkx(String filepath, String name)` (L1665-1667) +
-    /// `public Blkx(String filepath, String name, boolean doLoad)` (L1669-1726)。
-    ///
-    /// 失败映射: Java 构造器不外抛, 以 `valid=false` 对象表达失败; Result 化后
-    /// 统一收敛为 `Err(诊断串)` — 文件不存在/读入失败/空文件/JSON 误喂各自携带
-    /// 与 Java 日志同文的诊断 (缺失与空文件在 Java 是静默路径, 诊断串为本侧补充),
-    /// `Ok(blkx)` 恒有 `blkx.valid == true`。FMLoader 波次已按 exists() 前置探测 +
-    /// Err 收敛区分 MISSING/CORRUPT (对齐 Java FMLoader L65/L102, 见 fm_loader.rs)。
-    ///
-    /// PORT: 单参入口的 `name` (Java readFileName) 取路径文件名分量 — Java 五处调用
-    /// 无一如此 (FMLoader L71 传 `name+".blk"`、L101 传 `fmfile` 相对路径 "fm/xxx.blk",
-    /// FMListRowRenderer L250 / CompactComparisonWindow L477 / PowerCurveWindow L262
-    /// 各传逻辑机型名); readFileName 下游进用户可见版本串 (getload L1471), 生产路径
-    /// (FMLoader) 一律走具名入口 [`Blkx::parse_named`]。本入口现仅测试消费。
-    // PORT: doLoad=true — Java 单测入口 `new Blkx(path, name)` 两参构造器即
-    // `this(filepath, name, true)` (L1665-1667), getload 全量装载随构造执行。
-    #[allow(dead_code)] // 具名入口 parse_named 已由 fm_loader 消费; 单参版仅测试消费
-    pub fn parse(filepath: &str) -> Result<Blkx, String> {
-        // Java 构造器头部的 `fmdata = Lang.noblkx;` (L1673) 在 from_read_data 内统一执行,
-        // 此处不再预构造 (曾遗留死赋值: 对象随即被丢弃, 白做一次 default+init_lang)
-        let sb = Self::read_to_string(filepath)?;
-        let name = std::path::Path::new(filepath)
-            .file_name()
-            .map(|s| s.to_string_lossy().into_owned())
-            .unwrap_or_default();
-        Self::from_read_data(&name, sb, true)
-    }
-
-    /// (path, name) 具名入口 — Java **两参**构造器 `Blkx(filepath, name)` 的
-    /// 调用约定 (= `this(filepath, name, true)`, doLoad=true 全量装载):
-    /// `readFileName` 由调用方显式给足 (FMLoader L101 物理文件传 fmfile 相对
-    /// 路径 "fm/xxx.blk"), 不取文件名分量 — readFileName 下游进用户可见版本串
-    /// (getload L1471)。
-    ///
-    /// FMLoader 波次 (fm/fm_loader.rs) 物理 FM 的加载点。
-    pub fn parse_named(filepath: &str, name: &str) -> Result<Blkx, String> {
-        Self::parse_named_opts(filepath, name, true)
-    }
-
-    /// Java **三参**构造器 `Blkx(filepath, name, doLoad)` — doLoad=false 的只读
-    /// 形态 (FMLoader L71 中央文件: 仅读头部/燃油改装, 不触发全量解析)。
-    pub fn parse_named_opts(filepath: &str, name: &str, do_load: bool) -> Result<Blkx, String> {
-        let sb = Self::read_to_string(filepath)?;
-        Self::from_read_data(name, sb, do_load)
-    }
-
-    /// 构造器共用的文件读入段 (L1675-1692): exists 探测 + readLine 语义拼接 +
-    /// 读失败/空文件/JSON 守卫前的 Err 收敛。
-    fn read_to_string(filepath: &str) -> Result<String, String> {
-        // Java 构造器头部的 `fmdata = Lang.noblkx;` (L1673) 在 from_read_data 内统一执行,
-        // 此处不再预构造 (曾遗留死赋值: 对象随即被丢弃, 白做一次 default+init_lang)
-        let file = std::path::Path::new(filepath);
-        if !file.exists() {
-            return Err(format!("FM文件不存在: {filepath}"));
-        }
-        let mut sb = String::new();
-        // 防御加固: 标记文件是否完整读入。原代码 IOException 后 data 为空串但 valid 仍置
-        // true, 假有效对象会流入后续解析流程 (Service/UI 拿到空 data 的 Blkx 当真 FM 用) —
-        // Java 以 readOk 标志落进下方 "!readOk || data.trim().isEmpty()" 守卫, 此处读失败
-        // 直接收敛为 Err 提前返回 (短路守卫首位, 结果一致)
-        // PORT: Java new BufferedReader(new FileReader(file)) 用平台默认字符集
-        // (中文 Windows=GBK, 坏字节解成 '?' 继续解析); Rust BufReader::lines() 为
-        // strict UTF-8, 非法字节产出 Err → 按读失败收敛 (域内 FM 文件纯 ASCII, 等价;
-        // model.rs get_version 同款裁决)。行语义: readLine 以 \n/\r/\r\n 为行界,
-        // lines() 仅按 \n 切并剥行尾单个 \r (单独 \r 不终止行) — 域内无单独 \r。
-        let read_res: std::io::Result<()> = (|| {
-            use std::io::{BufRead, BufReader};
-            let f = std::fs::File::open(file)?;
-            for line in BufReader::new(f).lines() {
-                sb.push_str(&line?);
-                sb.push('\n');
-            }
-            Ok(())
-        })();
-        if let Err(e) = read_res {
-            // crate 内暂无 Logger (model.rs 同款注), Err 串承载同一诊断文本
-            return Err(format!("FM文件读取: {e}"));
-        }
-        Ok(sb)
-    }
-
-    /// 供测试/fuzz 的注入入口: 以 `content` 直接充当构造器读入完成的 `data`
-    /// (跳过文件 IO 与 readLine 归一化 — 归一化只发生在文件路径 parse: 剥 \r、
-    /// 保证行尾 \n; 喂 \n 行界文本时与 `parse` 对同一文件的行为等价)。
-    /// PORT: Java 无此构造器 (任务指定的纯函数入口), 守卫逻辑与构造器尾段逐行同源;
-    /// doLoad=false 形态 (等价 Java 三参构造器 false — 中央文件只读/守卫与原语测试面,
-    /// 与 parse(true) 的差异: 不跑 getload 全量装载, fuzz 对 getload 的覆盖走 parse)。
-    #[allow(dead_code)] // 本波仅测试消费 (fuzz 套件后续波次接入)
-    pub fn parse_str(name: &str, content: &str) -> Result<Blkx, String> {
-        Self::from_read_data(name, content.to_string(), false)
-    }
-
-    /// 构造器尾段 L1694-1726: readFileName/data 赋值 + 空文件/JSON 守卫 + valid 置位。
-    /// `do_load` = Java 三参构造器的 doLoad: true → `try { getload(); valid=true }
-    /// catch (Exception) { error 日志; fmdata=noblkx; valid=false }` — getload 的
-    /// 任何 panic (畸形文件越界/解析错) 不允许外泄 (Java 防御加固原注释), 由
-    /// catch_unwind 收敛为 Err ↔ valid=false (FMLoader 收敛 CORRUPT 同语义)。
-    /// (Java 的 `!readOk ||` 短路首位由 parse 的提前 return 承接, 结果一致。)
-    // PORT: Java 保真 — `this.fmdata = ...` 构造器尾段逐行直译, 不改 struct 字面量
-    #[allow(clippy::field_reassign_with_default)]
-    fn from_read_data(name: &str, sb: String, do_load: bool) -> Result<Blkx, String> {
-        let mut b = Blkx::default();
-        b.fmdata = Some(Lang::init_lang().noblkx.to_string());
-        b.read_file_name = Some(name.to_string());
-        b.data = Some(sb);
-        let data = b.data.as_deref().unwrap(); // 上一行刚赋值, 恒 Some
-        // 防御加固: 读失败或空文件一律判无效, 不允许空 data 带着 valid=true 走后续解析
-        if java_trim(data).is_empty() {
-            return Err(format!("FM文件读取失败或内容为空: {name}"));
-        }
-        // 防御加固: 用户误喂 JSON 文件 (拖错文件/version 文件等) 时优雅判无效。
-        // Dagor .blk 格式不可能以 '{' 开头, JSON 对象一定以 '{' 开头, 以此快速识别
-        if java_trim(data).starts_with('{') {
-            return Err(format!("JSON 格式文件误作 FM 加载, 标记无效: {name}"));
-        }
-        if do_load {
-            //         Logger.error("Blkx", "FM 解析失败, 标记无效: " + name + " - " + e);
-            //         fmdata = Lang.noblkx; valid = false; }
-            // PORT(§6): panic 展开前的默认 hook 打印 = e.printStackTrace 对应物
-            // (service_loop catch_unwind 同款论证); AssertUnwindSafe = Java
-            // "半初始化对象不外泄" 的宽松契约
-            match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| b.getload())) {
-                Ok(()) => {
-                    b.valid = true;
-                }
-                Err(payload) => {
-                    let msg = if let Some(s) = payload.downcast_ref::<String>() {
-                        s.clone()
-                    } else if let Some(s) = payload.downcast_ref::<&'static str>() {
-                        (*s).to_string()
-                    } else {
-                        "null".to_string()
-                    };
-                    logger::error(
-                        "Blkx",
-                        &format!("FM 解析失败, 标记无效: {name} - {msg}"),
-                    );
-                    // 对象, 此行仅为日志面对齐的语义注记)
-                    return Err(format!("FM 解析失败, 标记无效: {name} - {msg}"));
-                }
-            }
-        } else {
-            b.valid = true;
-        }
-        Ok(b)
-    }
-
-    /// 对应 Java `public String getArray(String label)` (L1764-1804) —
-    /// 点分标签逐段 cut 后, 收集**所有**匹配行 (含行尾 '\n') 拼接; 无匹配返回 ""。
-    /// (BlkSource 迁移: 主体平移至 TextSrc::get_str_all, 此处薄委托)
-    pub fn get_array(&self, label: &str) -> String {
-        TextSrc::new(self.data.as_deref().unwrap()).get_str_all(label)
-    }
-
-    /// 对应 Java `public String getlastone(String label)` (L1806-1837) —
-    /// 点分标签逐段 cut 后, 取**最后一次**匹配的行值 (不含行尾 '\n');
-    /// 未找到或无 '=' 时 Java 返回 null → None。
-    pub fn getlastone(&self, label: &str) -> Option<String> {
-        // PORT: Java `String text = data` 为 null 时在 toUpperCase 处 NPE ↔ unwrap panic
-        let mut text: String = self.data.clone().unwrap();
-        // 第一步处理
-        let mut clsbix = 0usize;
-        for i in 0..label.len() {
-            if label.as_bytes()[i] == b'.' {
-                let cls = &label[clsbix..i];
-                text = cut(&text, cls);
-                clsbix = i + 1;
-            }
-        }
-        let label = &label[clsbix..];
-        // 第二步获得值
-        let mut bix = text.to_uppercase().rfind(&label.to_uppercase())?;
-        // 防御加固: 无 '=' 时按"未找到"返回 (原代码扫出末尾越界)
-        while bix < text.len() && text.as_bytes()[bix] != b'=' {
-            bix += 1;
-        }
-        if bix >= text.len() {
-            return None;
-        }
-        bix += 1;
-        let mut eix = bix;
-        // 防御加固: 行尾无换行时取到文本末尾 (substring 到 length() 合法), 不再扫越界
-        while eix < text.len() && text.as_bytes()[eix] != b'\n' {
-            eix += 1;
-        }
-        Some(text.get(bix..eix).unwrap_or("").to_string())
-    }
-
-    /// 对应 Java `public String getoneinData(String D, String label)` (L1839-1871) —
-    /// 同 getone 但数据源为显式传入的 D (子块文本); 未找到返回哨兵串 "null"。
-    /// (BlkSource 迁移: 主体平移至 TextSrc::get_in_text, 此处薄委托)
-    pub fn getonein_data(&self, d: &str, label: &str) -> String {
-        TextSrc::get_in_text(d, label)
-    }
-
-    /// 对应 Java `public String getone(String label)` (L1873-1906) —
-    /// 同 getoneinData 但数据源为 self.data, 且定位是**大小写敏感** indexOf
-    /// (toUpperCase 版本在源码里已被注释掉, oracle go_o2 钉死);
-    /// 未找到返回哨兵串 "null"。
-    /// (BlkSource 迁移: 主体平移至 TextSrc::get_str, 此处薄委托)
-    pub fn getone(&self, label: &str) -> String {
-        TextSrc::new(self.data.as_deref().unwrap()).get_str(label)
-    }
 
     // ------------------------------------------------------------------
-    // getdouble 族 (Java L523-569) — 已随 BlkSource 迁移为 trait 默认方法
-    // (get_f64/get_f64_exc/get_f64s): Float.parseFloat 域解析逻辑单源,
-    // 文本/JSON 后端共享, 见 reader.rs 尾部 trait 定义。
+    // getdouble 族 (Java L523-569) — getload 的数值抽取原语
     // ------------------------------------------------------------------
 
     // ------------------------------------------------------------------
@@ -351,8 +139,7 @@ impl Blkx {
     // ------------------------------------------------------------------
 
     /// 对应 Java `public void getPartsFm(String c, fm_parts p)` (L408-418)。
-    /// (BlkSource 迁移: 数据源泛型化, 静态形态)
-    fn get_parts_fm<S: BlkSource>(src: &S, c: &str, p: &mut FmParts) {
+    pub(crate) fn get_parts_fm<S: BlkSource>(src: &S, c: &str, p: &mut FmParts) {
         p.name = Some(c.to_string());
         p.cd_min = src.get_f64(&format!("{c}.CdMin"));
         p.cl0 = src.get_f64(&format!("{c}.Cl0"));
@@ -369,12 +156,13 @@ impl Blkx {
     /// 对应 Java `private void extractRpmFromThrottleAuto(String hdrString)`
     /// (L431-475)。形参 hdrString 在 Java 方法体内未被引用 — `_` 前缀保真保留
     /// (get_aoa_low_v_wing 同款先例)。
-    /// (BlkSource 迁移: 数据源泛型化)
     fn extract_rpm_from_throttle_auto<S: BlkSource>(&mut self, src: &S, _hdr_string: &str) {
         self.military_rpm = 0.0;
         self.wep_rpm = 0.0;
 
         // Try to find Propellor section within the engine type
+        // PORT: Java `cut(data, ...)` — data 为 null 时 cut 处 NPE ↔ unwrap panic
+        // (from_read_data 的 catch_unwind 收敛, §1)
         let mut prop_section = src.section("Propellor");
         if prop_section.is_null() {
             prop_section = src.section("Propeller");
@@ -423,7 +211,6 @@ impl Blkx {
 
     /// 对应 Java `public boolean getEngineLoad(engineLoad[] eL, int loadIndex)`
     /// (L477-494) — 读一个 Load 档; WaterLimit/OilLimit 为 0 即该档缺席。
-    /// (BlkSource 迁移: 数据源泛型化, 静态形态)
     fn get_engine_load<S: BlkSource>(src: &S, el: &mut [EngineLoad], load_index: usize) -> bool {
         let c = format!("Load{load_index}");
         el[load_index].water_limit = src.get_f64(&format!("{c}.WaterTemperature"));
@@ -443,7 +230,6 @@ impl Blkx {
 
     /// 对应 Java `public void initEngineLoad()` (L817-853)。
     /// `Application.maxEngLoad` = 10 (Java 常量, Application.java:67)。
-    /// (BlkSource 迁移: 数据源泛型化)
     fn init_engine_load<S: BlkSource>(&mut self, src: &S) {
         const APP_MAX_ENG_LOAD: usize = 10; // Application.maxEngLoad
         self.avg_eng_recovery_rate = 0.0;
@@ -524,19 +310,6 @@ impl Blkx {
     /// 的 panic 由 from_read_data 的 catch_unwind 收敛 Err (畸形输入防线)。
     // PORT(allow needless_range_loop): 方法体多处 Java for(int i...) 直译 — i 进
     // format! 键名 (ThrustMax.Altitude_{i} 等), 计数形态是本意
-    #[allow(clippy::needless_range_loop)]
-    pub fn getload(&mut self) {
-        // BlkSource 迁移: 文本后端包装。data 本地 clone 断开借用 (TextSrc 借它,
-        // getload_from 需 &mut self); data 为 None 时喂空串 — 泛型化前 getone
-        // 在此形态下 unwrap panic, TextSrc 空串与 cut/find 全部"未找到"收敛,
-        // 行为等价; 生产路径 from_read_data 先行赋值不可达
-        let data = self.data.clone().unwrap();
-        let src = TextSrc::new(&data);
-        self.getload_from(&src);
-    }
-
-    /// getload 的数据源泛型体 — 文本/JSON 后端共用同一份字段填充逻辑
-    /// (blkx→json 迁移的构造性对拍保证: 分歧只在 BlkSource 寻址层)。
     #[allow(clippy::needless_range_loop)]
     pub(crate) fn getload_from<S: BlkSource>(&mut self, src: &S) {
         let start_time = std::time::Instant::now(); // System.currentTimeMillis 计时面
@@ -936,7 +709,6 @@ impl Blkx {
 
         // 面积 — 三级回退族: 顶层键 → WingPlane.* → WingPlaneSweep0.*
         // PORT: 宏观直译 (Java 每段 3 行 if, 逐字段展开)
-        // (BlkSource 迁移: 闭包从 &Blkx 改捕 src)
         let fallback3 = |top: &str, plane: &str, sweep0: &str| -> f64 {
             let v = src.get_f64(top);
             if v != 0.0 {
@@ -951,46 +723,55 @@ impl Blkx {
         self.a_wing_left_in =
             fallback3("Areas.WingLeftIn", "WingPlane.Areas.LeftIn", "WingPlaneSweep0.Areas.LeftIn");
         self.a_wing_left_mid = fallback3(
+
             "Areas.WingLeftMid",
             "WingPlane.Areas.LeftMid",
             "WingPlaneSweep0.Areas.LeftMid",
         );
         self.a_wing_left_out = fallback3(
+
             "Areas.WingLeftOut",
             "WingPlane.Areas.LeftOut",
             "WingPlaneSweep0.Areas.LeftOut",
         );
         self.a_wing_left_cut = fallback3(
+
             "Areas.WingLeftCut",
             "WingPlane.Areas.LeftCut",
             "WingPlaneSweep0.Areas.LeftCut",
         );
         self.a_wing_right_in = fallback3(
+
             "Areas.WingRightIn",
             "WingPlane.Areas.RightIn",
             "WingPlaneSweep0.Areas.RightIn",
         );
         self.a_wing_right_mid = fallback3(
+
             "Areas.WingRightMid",
             "WingPlane.Areas.RightMid",
             "WingPlaneSweep0.Areas.RightMid",
         );
         self.a_wing_right_out = fallback3(
+
             "Areas.WingRightOut",
             "WingPlane.Areas.RightOut",
             "WingPlaneSweep0.Areas.RightOut",
         );
         self.a_wing_right_cut = fallback3(
+
             "Areas.WingRightCut",
             "WingPlane.Areas.RightCut",
             "WingPlaneSweep0.Areas.RightCut",
         );
         self.a_aileron = fallback3(
+
             "Areas.Aileron",
             "WingPlane.Areas.Aileron",
             "WingPlaneSweep0.Areas.Aileron",
         );
         self.a_fuselage = fallback3(
+
             "Areas.Fuselage",
             "FuselagePlane.Areas.Main",
             "WingPlaneSweep0.Areas.Main",
@@ -998,6 +779,7 @@ impl Blkx {
         // Java 源码将 AFuselage 三级回退段**原样重复了两遍** (L1252-1261) — 第二遍
         // 读到相同值, 净效果为同一赋值; 保真保留重复调用
         self.a_fuselage = fallback3(
+
             "Areas.Fuselage",
             "FuselagePlane.Areas.Main",
             "WingPlaneSweep0.Areas.Main",
@@ -1406,16 +1188,6 @@ impl Blkx {
     /// FMLoader.load 的 catch_unwind 收敛 CORRUPT (§1)。
     #[allow(unused_assignments)]
     #[allow(clippy::needless_range_loop)]
-    pub fn trans_unit(&mut self) {
-        // BlkSource 迁移: 文本后端包装 (getload 同款本地 clone 断借用)
-        let data = self.data.clone().unwrap();
-        let src = TextSrc::new(&data);
-        self.trans_unit_from(&src);
-    }
-
-    /// transUnit 的数据源泛型体 (BlkSource 迁移)。
-    #[allow(unused_assignments)]
-    #[allow(clippy::needless_range_loop)]
     fn trans_unit_from<S: BlkSource>(&mut self, src: &S) {
         let mut unit_system = "".to_string();
         unit_system = src.get_str("PASSPORT.UNITSYSTEM");
@@ -1462,14 +1234,6 @@ impl Blkx {
 
     /// 对应 Java `public void getAllplotdata()` (L1618-1625) — 五条 PASSPORT
     /// 曲线全量抽取 + 单位换算 (FMLoader.load 第 6 步, finalizeLoading 前)。
-    pub fn get_all_plotdata(&mut self) {
-        // BlkSource 迁移: 文本后端包装 (getload 同款本地 clone 断借用)
-        let data = self.data.clone().unwrap();
-        let src = TextSrc::new(&data);
-        self.get_all_plotdata_from(&src);
-    }
-
-    /// getAllplotdata 的数据源泛型体 (BlkSource 迁移)。
     pub(crate) fn get_all_plotdata_from<S: BlkSource>(&mut self, src: &S) {
         self.loc = Some(Self::getplotdata_from(src, "PASSPORT.ALT.minClimbTimeWep"));
         self.loc0 = Some(Self::getplotdata_from(src, "PASSPORT.ALT.minClimbTimeNom"));
@@ -1485,15 +1249,7 @@ impl Blkx {
     // PORT(allow needless_range_loop): Java for(int i...) 直译 — i 是行段
     // substring 的终点索引, 计数形态是本意
     #[allow(clippy::needless_range_loop)]
-    pub fn getplotdata(&self, t: &str) -> XY {
-        // BlkSource 迁移: 文本后端包装
-        let src = TextSrc::new(self.data.as_deref().unwrap());
-        Self::getplotdata_from(&src, t)
-    }
-
-    /// getplotdata 的数据源泛型体 (BlkSource 迁移, 静态形态)。
-    #[allow(clippy::needless_range_loop)]
-    fn getplotdata_from<S: BlkSource>(src: &S, t: &str) -> XY {
+    pub(crate) fn getplotdata_from<S: BlkSource>(src: &S, t: &str) -> XY {
         let mut line = 0usize;
         let t = src.get_str_all(t);
         for i in 0..t.len() {
@@ -1540,83 +1296,31 @@ impl Blkx {
     }
 }
 
-/// 对应 Java 包私有成员方法 `String cut(String t, String clslabel)` (L1728-1762) —
-/// 提取 `clslabel { ... }` 块的花括号内文本; 未找到返回哨兵串 "null"。
-/// PORT: 方法体不读任何实例状态 (t/clslabel 纯入参) → 模块私有自由函数
-/// (types.rs cut_static 同款先例); 注意与 cutStatic **不同源**: 成员版无
-/// "无空格 label{" 回退 (oracle cut_c5), 括号计数从 bix 起步且带 !=0 联合条件。
-fn cut(t: &str, clslabel: &str) -> String {
-    let tmp = t;
-    let mut i: usize;
-    let mut left = 0usize;
-    let mut right = 0usize;
-    let bix = match tmp.to_uppercase().find(&(clslabel.to_uppercase() + " {")) {
-        Some(b) => b,
-        None => return "null".to_string(),
-    };
-    // 防御加固: toUpperCase 可能使特殊 unicode 字符变长 (如 ß→SS), 大写串里量出的索引
-    // 不一定落在原串范围内; 索引失效时按"未找到块"返回 null 字符串, 与既有未找到路径一致
-    if bix >= tmp.len() {
-        return "null".to_string();
-    }
-    let mut cutleft = bix;
-    // 防御加固: 加长度上界——截断文件中块名后没有 '{' 时, 原代码会一直扫出字符串末尾抛
-    // StringIndexOutOfBoundsException; 越界按「未找到块」处理
-    while cutleft < tmp.len() && tmp.as_bytes()[cutleft] != b'{' {
-        cutleft += 1;
-    }
-    if cutleft >= tmp.len() {
-        return "null".to_string();
-    }
-    cutleft += 1;
-    // && left == right) break; } — 计数含块头 '{' (bix 起步, 早于 cutleft)
-    i = bix;
-    while i < tmp.len() {
-        if tmp.as_bytes()[i] == b'{' {
-            left += 1;
-        }
-        if tmp.as_bytes()[i] == b'}' {
-            right += 1;
-        }
-        if left != 0 && right != 0 && left == right {
-            break;
-        }
-        i += 1;
-    }
-    let cutright = i;
-    // 防御加固: 括号不配对/索引错位时 cutright 可能小于 cutleft, substring 会越界,
-    // 统一按"未找到块"返回 (正常文件 cutleft <= cutright, 行为不变)
-    // PORT: usize 下 cutright 恒 <= len, 首个条件不可达 — 保留判定对齐 Java 语义
-    if cutright > tmp.len() || cutleft > cutright {
-        return "null".to_string();
-    }
-    tmp.get(cutleft..cutright).unwrap_or("null").to_string()
-}
-
 // =====================================================================
-// BlkSource — getload 族的抽取原语抽象 (blkx→json 迁移的唯一分歧面)
+// BlkSource — getload_from 族的抽取原语抽象 (blkx→json 迁移终态)
 //
-// 设计: 后端 (TextSrc/JsonSrc) 只负责**寻址** — 把点分标签解析到"值文本";
-// 数值解析 (getdouble 族的 Float.parseFloat 域/多值 split) 是 trait 默认方法,
-// 单源共享。文本化协议: 多分量值 (JSON 数组 / 文本 p2 行) 统一成 "v0, v1"
-// 逗号串, 使 split(',') 逻辑对两后端行为一致 — 位级对拍的构造性保证。
+// 历史: 迁移期曾有 TextSrc(BlkText 文本)/JsonSrc(JSON 树) 双后端, 经 2832 对
+// 全量位级对拍验证等价后, 文本后端已随 Java 链路退役删除, 现仅剩 JsonSrc 一个
+// 实现。保留 trait 形态: 数值解析 (getdouble 族的 Float.parseFloat 域) 是默认
+// 方法单源, 后端只负责寻址 (点分标签 → 值文本, 多分量值统一 "a, b" 逗号串)。
 // =====================================================================
 
-/// getload/getplotdata 的数据源原语。语义契约逐条锚定 Blkx 旧文本原语
-/// (getone/get_array/cut, 见各后端实现注), 缺席一律返回 "null" 哨兵串。
+/// getload_from/getplotdata_from 的数据源原语。语义契约逐条锚定旧 BlkText
+/// 文本原语 (getone/get_array/cut, 见 json.rs 各映射注), 缺席返回 "null" 哨兵。
 pub(crate) trait BlkSource {
-    /// getone: 点分段 = section 链 (cut, CI), 末段 = 块内 leaf (CS 子串)。
+    /// getone: 点分段 = section 链 (cut, CI 后缀), 末段 = 块内 leaf (CS 子串)。
     fn get_str(&self, label: &str) -> String;
 
     /// get_array: 点分段同上, 末段收集**全部**匹配行 (含行尾 '\n') 拼接
-    /// (PASSPORT 曲线 "y, x\n" 行流, getplotdata 的 Double 域解析依赖此形态)。
+    /// (PASSPORT 曲线 "y, x\n" 行流, getplotdata_from 的 Double 域解析依赖此形态)。
     fn get_str_all(&self, label: &str) -> String;
 
     /// cut: 命名块的花括号内视图 (Propellor 回退/WingPlaneSweep 循环用)。
     fn section(&self, name: &str) -> BlkSection;
 
     /// getdouble (默认实现): `Float.parseFloat` 域 — 首段 trim 后 parse f32
-    /// 再拓宽 f64 (1.42f != 1.42, 模块注陷阱 2); 解析失败返回 0。
+    /// 再拓宽 f64 (1.42f != 1.42, Java Float 赋 double 的 24-bit 尾数域);
+    /// 解析失败返回 0。
     fn get_f64(&self, label: &str) -> f64 {
         let mut ret = 0.0;
         let one = self.get_str(label);
@@ -1670,11 +1374,9 @@ pub(crate) trait BlkSource {
     }
 }
 
-/// cut 的返回形态: 文本 = 块内字符串 ("null" ↔ Null), JSON = 子树。
-#[allow(dead_code)] // Json 变体属阶段 3 接线波次
+/// cut 的返回形态: JSON 子树 (未找到 ↔ Null)。
 pub(crate) enum BlkSection {
     Null,
-    Text(String),
     Json(serde_json::Value),
 }
 
@@ -1684,154 +1386,15 @@ impl BlkSection {
         matches!(self, BlkSection::Null)
     }
 
-    /// getonein_data: 块内 leaf 搜索 (点分段 cut 链 + 末段 CI 定位);
-    /// 未找到返回哨兵串 "null"。
+    /// getonein_data: 块内 leaf 搜索 (点分段 section 链 + 末段 CI 定位);
+    /// 未找到返回哨兵串 "null"。(实现委托 json.rs — 树寻址归 JSON 层)
     pub fn get_in(&self, label: &str) -> String {
         match self {
             BlkSection::Null => "null".to_string(),
-            BlkSection::Text(t) => TextSrc::get_in_text(t, label),
             BlkSection::Json(v) => super::json::get_in_json(v, label),
         }
     }
 }
 
-/// 文本后端 — Blkx 旧文本原语 (getone/get_array/cut) 的逐位平移宿主。
-/// 持 `&str` 借用 (原实现每次调用 clone 全文, 此处按需 to_string, 行为等价)。
-pub(crate) struct TextSrc<'a>(&'a str);
-
-impl<'a> TextSrc<'a> {
-    pub fn new(data: &'a str) -> Self {
-        TextSrc(data)
-    }
-
-    /// getone/getlastone/get_array 共用的第一步: 点分段逐段 cut,
-    /// 返回 (剩余文本, 末段标签)。
-    fn resolve_path<'l>(&self, label: &'l str) -> (String, &'l str) {
-        let mut text = self.0.to_string();
-        let mut clsbix = 0usize;
-        for i in 0..label.len() {
-            if label.as_bytes()[i] == b'.' {
-                let cls = &label[clsbix..i];
-                text = cut(&text, cls);
-                clsbix = i + 1;
-            }
-        }
-        (text, &label[clsbix..])
-    }
-
-    /// getonein_data 主体 (Java L1839-1871): 对显式文本块做点分段 cut 链 +
-    /// 末段 CI 定位; 未找到返回 "null"。
-    pub fn get_in_text(d: &str, label: &str) -> String {
-        let mut text: String = d.to_string();
-        let mut clsbix = 0usize;
-        for i in 0..label.len() {
-            if label.as_bytes()[i] == b'.' {
-                let cls = &label[clsbix..i];
-                text = cut(&text, cls);
-                clsbix = i + 1;
-            }
-        }
-        let label = &label[clsbix..];
-        let mut bix = match text.to_uppercase().find(&label.to_uppercase()) {
-            Some(i) => i,
-            None => return "null".to_string(),
-        };
-        // 防御加固: 无 '=' 时按"未找到"返回 (原代码扫出末尾越界)
-        while bix < text.len() && text.as_bytes()[bix] != b'=' {
-            bix += 1;
-        }
-        if bix >= text.len() {
-            return "null".to_string();
-        }
-        bix += 1;
-        let mut eix = bix;
-        // 防御加固: 末尾无换行符时取到文本末尾 (substring 到 length() 合法), 不再扫越界
-        while eix < text.len() && text.as_bytes()[eix] != b'\n' {
-            eix += 1;
-        }
-        text.get(bix..eix).unwrap_or("").to_string()
-    }
-}
-
-impl<'a> BlkSource for TextSrc<'a> {
-    /// getone (Java L1873-1906): 点分段 cut 链 (CI) + 末段 **CS** 子串定位
-    /// (toUpperCase 版本在 Java 源码里已被注释掉, oracle go_o2 钉死);
-    /// 未找到返回哨兵串 "null"。
-    fn get_str(&self, label: &str) -> String {
-        let (text, label) = self.resolve_path(label);
-        let mut bix = match text.find(label) {
-            Some(i) => i,
-            None => return "null".to_string(),
-        };
-        // 防御加固: 无 '=' 时按"未找到"返回 (原代码扫出末尾越界)
-        while bix < text.len() && text.as_bytes()[bix] != b'=' {
-            bix += 1;
-        }
-        if bix >= text.len() {
-            return "null".to_string();
-        }
-        bix += 1;
-        let mut eix = bix;
-        // 防御加固: 行尾无换行时取到文本末尾
-        while eix < text.len() && text.as_bytes()[eix] != b'\n' {
-            eix += 1;
-        }
-        text.get(bix..eix).unwrap_or("").to_string()
-    }
-
-    /// get_array (Java L1764-1804): 点分段 cut 链 + 收集**所有**匹配行
-    /// (含行尾 '\n') 拼接; 无匹配返回 ""。
-    #[allow(clippy::while_let_on_iterator)]
-    fn get_str_all(&self, label: &str) -> String {
-        let mut value = String::new();
-        let (mut text, label) = self.resolve_path(label);
-        // toUpperCase 每轮对剩余全文重算 (Java 同, O(匹配数×剩余长度) 保真保留)
-        let mut bix = text.to_uppercase().find(&label.to_uppercase());
-        while let Some(mut bi) = bix {
-            // 防御加固: 加长度上界——label 匹配处之后到文本末尾都没有 '=' (如匹配到块名/
-            // 注释/截断行) 时, 原代码会扫出末尾抛 StringIndexOutOfBoundsException;
-            // 越界时放弃剩余匹配, 返回已积累的 value (与"未找到"时返回空串的语义一致)
-            while bi < text.len() && text.as_bytes()[bi] != b'=' {
-                bi += 1;
-            }
-            if bi >= text.len() {
-                break;
-            }
-            bi += 1;
-            let mut eix = bi;
-            // 防御加固: 末尾无换行符 (init() 直喂的截断文本) 时取到文本末尾
-            while eix < text.len() && text.as_bytes()[eix] != b'\n' {
-                eix += 1;
-            }
-            if eix >= text.len() {
-                value.push_str(text.get(bi..).unwrap_or(""));
-                break;
-            }
-            value.push_str(text.get(bi..eix + 1).unwrap_or(""));
-            // PORT: Java text = text.substring(eix + 1) 共享底层 ↔ drain 原地移除前缀
-            text.drain(..eix + 1);
-            bix = text.to_uppercase().find(&label.to_uppercase());
-        }
-        value
-    }
-
-    /// cut 包装: 命名块文本 ("null" → Null)。
-    fn section(&self, name: &str) -> BlkSection {
-        let s = cut(self.0, name);
-        if s == "null" {
-            BlkSection::Null
-        } else {
-            BlkSection::Text(s)
-        }
-    }
-}
-
-// =====================================================================
-// Tests — 期望值来自 Java 8 oracle 对拍 (§5.1): Blkx.java L1665-1906 逐字提取
-// (sed 直提 + 构造器改名, 见 build/oracle/blkx_reader/src/parser/BlxReaderOracle.java)
-// 在 OpenJDK 1.8.0_342 (与 bin/ 现役 class 同版) 实测 dump; 字符串以 \n/\r/\t
-// 转义单行化后逐字断言。真机文件三份 (spitfire_f24 物理/中央 + bf-109e-4 物理)
-// od/grep 实测纯 ASCII 无 CR — Java UTF-16 长度/码元和 ↔ Rust 字节长度/字节和等价。
-// =====================================================================
 #[cfg(test)]
 mod tests;

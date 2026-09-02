@@ -1,5 +1,5 @@
 use super::*;
-use crate::blkx::extract_fuel_modifications;
+use crate::blkx::json::extract_fuel_modifications_json;
 use crate::piston_power_model::optimal_power_advanced;
 
 /// Java 8 oracle 混合容差 (atmosphere_model.rs / piston_power_model.rs 同款):
@@ -202,10 +202,17 @@ fn tempest_mkv() -> Blkx {
 }
 
 /// 中央文件文本 (types.rs 测试同款格式)
-const CENTRAL_SPITFIRE_F24: &str = "modifications {\n\t150_octan_fuel {\n\t\tinvertEnableLogic:b = false\n\t\teffects {\n\t\t\tafterburnerMult:r = 1.42\n\t\t\tafterburnerCompressorMult:r = 1.33\n\t\t}\n\t}\n}\n";
-const CENTRAL_YAK3: &str = "modifications {\n\tussr_fuel_b-100 {\n\t\teffects {\n\t\t\taddHorsePowers:r = 50\n\t\t}\n\t}\n}\n";
-/// tempest_mkv.blkx (flightmodels 根, 中央文件) — invertEnableLogic=true
-const CENTRAL_TEMPEST_MKV: &str = "modifications {\n\t150_octan_fuel {\n\t\tinvertEnableLogic:b = true\n\t\teffects {\n\t\t\tafterburnerMult:r = 0.4167\n\t\t\tafterburnerCompressorMult:r = 0.411\n\t\t}\n\t}\n}\n";
+/// 内嵌中央 JSON → 燃油修正 (serde 解析; 常量合法 JSON, unwrap 恒成功)
+fn fuel_mod_json(central: &str) -> crate::blkx::FuelModification {
+    let root: serde_json::Value = serde_json::from_str(central).unwrap();
+    extract_fuel_modifications_json(&root)
+}
+
+const CENTRAL_SPITFIRE_F24: &str = "{\"modifications\": {\"150_octan_fuel\": {\"invertEnableLogic\": false, \"effects\": {\"afterburnerMult\": 1.42, \"afterburnerCompressorMult\": 1.33}}}}";
+/// yak-3.json (flightmodels 根, 中央文件) — 苏联 B-100 油料
+const CENTRAL_YAK3: &str = "{\"modifications\": {\"ussr_fuel_b-100\": {\"effects\": {\"addHorsePowers\": 50.0}}}}";
+/// tempest_mkv.json (flightmodels 根, 中央文件) — invertEnableLogic=true
+const CENTRAL_TEMPEST_MKV: &str = "{\"modifications\": {\"150_octan_fuel\": {\"invertEnableLogic\": true, \"effects\": {\"afterburnerMult\": 0.4167, \"afterburnerCompressorMult\": 0.411}}}}";
 
 // ---- oracle: spitfire_f24 级参数 (无油料 + 150 辛烷) ----
 
@@ -235,7 +242,7 @@ fn java8_oracle_spitfire_f24_stages() {
     ));
 
     // 150 辛烷 (invertEnableLogic=false → 应用加成, 仅 WEP 参数变化)
-    let fuel = extract_fuel_modifications(CENTRAL_SPITFIRE_F24);
+    let fuel = fuel_mod_json(CENTRAL_SPITFIRE_F24);
     assert_eq!(fuel.r#type, FuelType::British150Octane);
     let stages = extract_stages_with_fuel(Some(&blkx), Some(&fuel)).unwrap();
     assert_stage("spit_fuel[0]", &stages[0], &exp(
@@ -261,7 +268,7 @@ fn java8_oracle_spitfire_f24_stages() {
 #[test]
 fn java8_oracle_spitfire_f24_power_curve() {
     let blkx = spitfire_f24();
-    let fuel = extract_fuel_modifications(CENTRAL_SPITFIRE_F24);
+    let fuel = fuel_mod_json(CENTRAL_SPITFIRE_F24);
     let stages = extract_stages_with_fuel(Some(&blkx), Some(&fuel)).unwrap();
 
     // Java 实测值 (wtapc 参考表的相同高度点)
@@ -328,7 +335,7 @@ fn java8_oracle_spitfire_f24_power_curve() {
 #[test]
 fn java8_oracle_yak3_soviet_fuel() {
     let blkx = yak3();
-    let fuel = extract_fuel_modifications(CENTRAL_YAK3);
+    let fuel = fuel_mod_json(CENTRAL_YAK3);
     assert_eq!(fuel.r#type, FuelType::SovietB100);
     assert_eq!(fuel.soviet_octane_hp_bonus, 50.0);
 
@@ -452,7 +459,7 @@ fn java8_oracle_tempest_mkv_stages() {
     ));
 
     // 150 辛烷 invertEnableLogic=true → 不加成 (与无油料完全一致)
-    let fuel = extract_fuel_modifications(CENTRAL_TEMPEST_MKV);
+    let fuel = fuel_mod_json(CENTRAL_TEMPEST_MKV);
     assert_eq!(fuel.r#type, FuelType::British150Octane);
     assert!(fuel.british_invert_logic);
     let stages = extract_stages_with_fuel(Some(&blkx), Some(&fuel)).unwrap();
@@ -798,7 +805,7 @@ fn java_test_port_parameter_extraction() {
 #[test]
 fn java_test_port_invert_enable_logic_behavior() {
     let blkx = spitfire_f24();
-    let fuel = extract_fuel_modifications(CENTRAL_SPITFIRE_F24);
+    let fuel = fuel_mod_json(CENTRAL_SPITFIRE_F24);
     // fuelMod != null 由类型系统保证; Java 的 `fuelMod == null` SKIP 分支不移植
 
     // Since invertEnableLogic is FALSE for Spitfire F24:
@@ -834,7 +841,7 @@ fn java_test_port_invert_enable_logic_behavior() {
 #[test]
 fn java_test_port_tempest_invert_enable_logic() {
     let blkx = tempest_mkv();
-    let fuel = extract_fuel_modifications(CENTRAL_TEMPEST_MKV);
+    let fuel = fuel_mod_json(CENTRAL_TEMPEST_MKV);
 
     // fuelMod != null 由类型系统保证; Java 的 SKIP 分支不移植
 

@@ -17,66 +17,53 @@ fn fm_dir_of(root: &str) -> String {
     format!("{root}/aces/gamedata/flightmodels")
 }
 
-/// 双格式同铺 (blkx→json 迁移: 文本/JSON 两条加载链共用本用例的契约断言)
-fn write_both(root: &str, rel: &str, blkx_text: &str, json_text: &str) {
-    std::fs::write(format!("{}/{rel}.blkx", fm_dir_of(root)), blkx_text).unwrap();
+/// 合成数据铺设 (blkx→json 迁移终态: 只铺 .json)
+fn write_json(root: &str, rel: &str, json_text: &str) {
     std::fs::write(format!("{}/{rel}.json", fm_dir_of(root)), json_text).unwrap();
 }
 
 /// 机型名统一 zzfmload_ 前缀: 各根下绝不与真机 FM / 其他测试文件重名
 fn write_central(root: &str, name: &str) {
-    // 最小中央文件 —— 只需 getlastone("fmfile")/get_last_string_ci("fmfile") 能命中
-    write_both(
+    // 最小中央文件 —— 只需 get_last_string_ci("fmfile") 能命中
+    write_json(
         root,
         name,
-        &format!("model:t = \"{name}\"\nfmFile:t = \"fm/{name}.blk\"\n"),
         &format!("{{\"model\": \"{name}\", \"fmFile\": \"fm/{name}.blk\"}}"),
     );
 }
 
 /// 中央文件无 fmFile 行 → 触发目录约定回退
 fn write_central_no_fmfile(root: &str, name: &str) {
-    write_both(
-        root,
-        name,
-        &format!("model:t = \"{name}\"\n"),
-        &format!("{{\"model\": \"{name}\"}}"),
-    );
+    write_json(root, name, &format!("{{\"model\": \"{name}\"}}"));
 }
 
 /// 中央文件 fmFile 值不带 .blk 后缀 → 触发补后缀分支
 fn write_central_noext(root: &str, name: &str) {
-    write_both(
+    write_json(
         root,
         name,
-        &format!("model:t = \"{name}\"\nfmFile:t = \"fm/{name}\"\n"),
         &format!("{{\"model\": \"{name}\", \"fmFile\": \"fm/{name}\"}}"),
     );
 }
 
-/// 中央文件带苏联燃油改装块 → 触发 extractFuelModifications(_json) + info 日志分支
+/// 中央文件带苏联燃油改装块 → 触发 extract_fuel_modifications_json + info 日志分支
 fn write_central_fuel(root: &str, name: &str) {
-    write_both(
+    write_json(
         root,
         name,
-        &format!(
-            "model:t = \"{name}\"\nfmFile:t = \"fm/{name}.blk\"\nmodifications {{\n\tussr_fuel_b-100 {{\n\t\teffects {{\n\t\t\taddHorsePowers:r = 50\n\t\t}}\n\t}}\n}}\n"
-        ),
         &format!(
             "{{\"model\": \"{name}\", \"fmFile\": \"fm/{name}.blk\", \"modifications\": {{\"ussr_fuel_b-100\": {{\"effects\": {{\"addHorsePowers\": 50.0}}}}}}}}"
         ),
     );
 }
 
-/// 最小物理 FM —— 非空且不以 '{' 开头即可全量解析：
-/// getload 对缺失字段全部按 0 处理（无 Jet/Compressor 块 → 按喷气形态、compNumSteps=0，
-/// extractStages 返回 null、peakThrust=0），最终 valid=true → READY。
-/// JSON 版是等价树 (顶层标量)。
+/// 最小物理 FM —— 顶层标量的等价树; getload 对缺失字段全按 0 处理
+/// （无 Jet/Compressor 块 → 按喷气形态、compNumSteps=0，extractStages 返回
+/// null、peakThrust=0），最终 valid=true → READY。
 fn write_physical(root: &str, name: &str) {
-    write_both(
+    write_json(
         root,
         &format!("fm/{name}"),
-        "synthetic-fm:t = \"x\"\nEmptyMass:r = 1000\nWingspan:r = 11\n",
         "{\"synthetic-fm\": \"x\", \"EmptyMass\": 1000.0, \"Wingspan\": 11.0}",
     );
 }
@@ -115,9 +102,7 @@ fn cleanup_synthetic_data() {
             "zzfmload_fuel",
             "zzfmload_badplane",
         ] {
-            let _ = std::fs::remove_file(format!("{}/{name}.blkx", fm_dir_of(root)));
             let _ = std::fs::remove_file(format!("{}/{name}.json", fm_dir_of(root)));
-            let _ = std::fs::remove_file(format!("{}/fm/{name}.blkx", fm_dir_of(root)));
             let _ = std::fs::remove_file(format!("{}/fm/{name}.json", fm_dir_of(root)));
         }
         // 自内向外逐层 prune 空目录 (remove_dir 对非空目录失败即止)
@@ -205,11 +190,6 @@ fn loader_contract_synthetic() {
     let _guard = crate::fm::test_guard::data_root();
     let _cleanup = CleanupOnDrop;
     setup_synthetic_data();
-    // blkx→json 迁移: 合成数据双格式同铺, 两条加载链共用契约断言各跑一遍
-    // (FORMAT 注入与 DATA_ROOT 同锁保护)
-    fm_data_paths::set_format(FmDataFormat::Blkx);
-    run_cases();
-    fm_data_paths::set_format(FmDataFormat::Json);
     run_cases();
 }
 

@@ -19,8 +19,8 @@
 //! </ul>
 //!
 //! PORT: Java `public final class FMLoader` + `private FMLoader() {}` 私有构造器的
-//! 纯静态工具类 → Rust 模块自由函数 (fm_data_paths.rs 同款先例); "唯一 new Blkx 点"
-//! = [`crate::blkx::Blkx::parse_named`] (blkx::reader 家族, 该波次补的具名入口)。
+//! 纯静态工具类 → Rust 模块自由函数 (fm_data_paths.rs 同款先例); "唯一解析点"
+//! = [`crate::blkx::Blkx::parse_named_json`] (blkx→json 迁移: FM 数据源为 JSON)。
 //! PORT: 线程模型 — Java 在 FM-Loader 线程调用 → 保持同步函数, 线程由
 //! Manager/调用方管 (无自起线程)。
 
@@ -28,8 +28,8 @@ use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::blkx::json::{extract_fuel_modifications_json, get_last_string_ci};
-use crate::blkx::{extract_fuel_modifications, Blkx, FuelModification, FuelType};
-use crate::fm::fm_data_paths::{self, FmDataFormat};
+use crate::blkx::{Blkx, FuelModification, FuelType};
+use crate::fm::fm_data_paths;
 use crate::fm::handle::FMHandle;
 use crate::fm_power_extractor::{extract_stages_with_fuel, is_piston_engine};
 use crate::logger;
@@ -113,12 +113,9 @@ pub fn load(plane_name: Option<&str>) -> FMHandle {
 
 /// Java `load` 的 try 块主体 — Err ≡ 会落入 catch(Throwable) 的异常路径。
 // PORT: Java catch 块收敛 CORRUPT 由外层 load 统一执行, 本函数只报错不处置
-// (blkx→json 迁移: 按 FmDataFormat 分派, 双链结构平行)
+// (blkx→json 迁移已终态: 文本链已删, 只剩 JSON 链)
 fn try_load(name: &str) -> Result<FMHandle, String> {
-    match fm_data_paths::format() {
-        FmDataFormat::Json => try_load_json(name),
-        FmDataFormat::Blkx => try_load_blkx(name),
-    }
+    try_load_json(name)
 }
 
 /// try_load 的 JSON 链 (blkx→json 迁移, 与文本链七步平行):
@@ -205,137 +202,6 @@ fn try_load_json(name: &str) -> Result<FMHandle, String> {
         ))
     } else {
         // 喷气机固定取加力峰值推力 (先取值再移动 blkx)
-        let peak = blkx.peak_thrust(true);
-        Ok(FMHandle::ready(
-            Some(name.to_string()),
-            Some(blkx),
-            0.0,
-            peak,
-            None,
-        ))
-    }
-}
-
-/// try_load 的文本链 (原实现原样; 对拍全绿观察期后随迁移终态移除)。
-fn try_load_blkx(name: &str) -> Result<FMHandle, String> {
-    // 1. 中央文件不存在 → 确认机型不在库 → MISSING
-    let central = fm_data_paths::central_file(name);
-    if !central.exists() {
-        return Ok(FMHandle::missing(Some(name.to_string())));
-    }
-
-    // 2. 只读解析中央文件（doLoad=false，不触发全量 FM 解析）
-    // PORT: Java 构造器失败不外抛 (产出 valid=false 对象) ↔ parse_named 返回 Err;
-    // 下游 `lookupBlkx.valid && lookupBlkx.data != null` 双条件在 Result 化后坍缩为
-    // Option 的 is_some (reader.rs 契约: Ok 恒 valid=true 且 data 非 None),
-    // `.ok()` 即 "valid=false 时整块跳过"
-    let lookup_blkx =
-        Blkx::parse_named_opts(&central.to_string_lossy(), &format!("{name}.blk"), false).ok();
-
-    // 3. 提取燃油改装修正（中央文件专属信息，物理文件里没有）
-    let mut fuel_mod: Option<FuelModification> = None;
-    let mut fmfile: Option<String> = None;
-    if let Some(lookup) = lookup_blkx.as_ref() {
-        // data 非 None 由 reader 契约保证 (见上 PORT 注), unwrap 恒成功
-        let data = lookup.data.as_deref().unwrap();
-        let fm = extract_fuel_modifications(data);
-        if fm.r#type != FuelType::None {
-            // PORT: Java `"…(HP bonus=" + fuelMod.sovietOctaneHpBonus + ")"` 的
-            // Double.toString 拼接形态 (整数值带 ".0" 尾) 由 java_double_str 复刻
-            logger::info(
-                "FMLoader",
-                &format!(
-                    "Fuel modification detected: {} (HP bonus={})",
-                    fm.r#type,
-                    java_double_str(fm.soviet_octane_hp_bonus)
-                ),
-            );
-        }
-        fuel_mod = Some(fm);
-
-        // 4. 从中央文件取物理 FM 文件相对路径（fmFile:t = "fm/xxx.blk"）
-        fmfile = lookup.getlastone("fmfile");
-        if let Some(f) = fmfile.as_deref() {
-            // 剥首尾引号并去前导 '/'
-            // PORT: Java `substring(indexOf("\"") + 1, length() - 1)` — indexOf 无引号
-            // 时 -1 → 起点 0 (剥末字符); 越界 (空串 / 起点越过终点) Java 抛
-            // StringIndexOutOfBoundsException → catch(Throwable) → CORRUPT, 此处
-            // 以 Err 复刻。§2.1: 域内 fmFile 值为 ASCII 路径, 字节偏移 ≡ UTF-16
-            // 码元偏移
-            if f.is_empty() {
-                return Err(format!("fmFile 值为空串: {name}"));
-            }
-            let start = match f.find('"') {
-                Some(i) => i + 1,
-                None => 0,
-            };
-            let end = f.len() - 1;
-            if start > end {
-                return Err(format!("fmFile 引号越界: {f}"));
-            }
-            let stripped = f[start..end].to_string();
-            if stripped.is_empty() {
-                return Err(format!("fmFile 剥引号后为空: {f}"));
-            }
-            fmfile = if stripped.as_bytes()[0] == b'/' {
-                Some(stripped[1..].to_string())
-            } else {
-                Some(stripped)
-            };
-        }
-    }
-    if fmfile.is_none() {
-        // 中央文件里没写 fmFile → 按目录约定回退
-        fmfile = Some(format!("fm/{name}.blk"));
-    }
-    let mut fmfile = fmfile.unwrap();
-    if !fmfile.contains(".blk") {
-        fmfile.push_str(".blk");
-    }
-
-    // 5. 全量解析物理 FM 文件（物理文件 = fmfile + "x"，即 .blkx）
-    // parse_named = Java 两参构造器 (doLoad=true): getload 全量装载 —
-    // engineNum/peakThr/comp*/翼数据/vne 族齐备; getload 内 panic (畸形文件)
-    // 由构造器 catch_unwind 收敛 Err → 此处 CORRUPT (Java valid=false 同位)
-    let physical = fm_data_paths::physical_file(&format!("{fmfile}x"));
-    let mut blkx = match Blkx::parse_named(&physical.to_string_lossy(), &fmfile) {
-        Ok(b) => b,
-        Err(_) => {
-            // 中央文件在库但物理文件缺失/解析失败 → CORRUPT（数据不完整）
-            logger::warn("FMLoader", &format!("FM文件不存在或解析失败: {name}"));
-            return Ok(FMHandle::corrupt(Some(name.to_string())));
-        }
-    };
-
-    // 6. plot 数据解析同样可能抛异常，必须留在 try 内（第二条循环路径）
-    // PORT: getAllplotdata 的 panic (畸形 UNITSYSTEM 行 sub_st 越界 / 曲线块
-    // 病态输入的切片越界) 由外层 load 的 catch_unwind 收敛 CORRUPT — 对齐
-    // Java L109 该调用在 catch(Throwable) 内的同一防线 (reader.rs 批次已译)
-    blkx.get_all_plotdata();
-    blkx.finalize_loading();
-
-    // 7. 按发动机类型提取派生数据（与旧 loadFMData 一致）
-    if is_piston_engine(Some(&blkx)) {
-        let stages = extract_stages_with_fuel(Some(&blkx), fuel_mod.as_ref());
-        // 多发飞机乘引擎数（与喷气推力计算口径一致）
-        // PORT: Java double * int 提升 double → as f64 (§2.4)
-        // PORT: Java extractStages 意外返回 null 时 peakWepPower(null) 首行
-        // `if (stages == null || stages.length == 0) return 0` 守卫返回 0,
-        // 不抛 NPE —— 产出 READY + stages=null/peakWep=0 的降级句柄 (PistonPowerModel
-        // L390-392)。None→空切片走 peak_wep_power 同一提前返回, 两语言失败模式
-        // 一致; 不变量: is_piston_engine 已保证 comp_num_steps>0 → extract_stages
-        // 必 Some, None 分支当前不可达 (谓词互补, fm_power_extractor.rs)
-        let peak_wep = peak_wep_power(stages.as_deref().unwrap_or(&[])) * blkx.engine_num as f64;
-        Ok(FMHandle::ready(
-            Some(name.to_string()),
-            Some(blkx),
-            peak_wep,
-            0.0,
-            stages,
-        ))
-    } else {
-        // 喷气机固定取加力峰值推力
-        // PORT: 参数求值顺序 — 先取值再移动 blkx (Rust 实参左到右求值会先移走)
         let peak = blkx.peak_thrust(true);
         Ok(FMHandle::ready(
             Some(name.to_string()),

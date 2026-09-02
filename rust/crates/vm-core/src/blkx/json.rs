@@ -41,7 +41,6 @@ fn first_of_merged(v: &Value) -> &Value {
 }
 
 /// merge 折叠数组的取末规则 — 文本 getlastone 命中的是最后一个同名行。
-#[allow(dead_code)] // 调用方 find_leaf_ci_last/get_last_string_ci 属阶段 3 接线波次
 fn last_of_merged(v: &Value) -> &Value {
     match v {
         Value::Array(arr) if !arr.is_empty() => &arr[arr.len() - 1],
@@ -84,12 +83,6 @@ pub(crate) fn find_section_ci<'a>(v: &'a Value, name: &str) -> Option<&'a Value>
         }
     }
     None
-}
-
-/// section 存在性 (WingPlaneSweep 循环探测用) — [`find_section_ci`] 的布尔形态。
-#[allow(dead_code)] // 调用方 JsonSrc::has_section 属阶段 3 接线波次
-pub(crate) fn has_section_ci(v: &Value, name: &str) -> bool {
-    find_section_ci(v, name).is_some()
 }
 
 /// leaf 键名匹配模式 — 文本原语对键名边界的不同要求 (parity 实测裁决):
@@ -183,7 +176,6 @@ pub(crate) fn find_leaf_ci<'a>(v: &'a Value, label: &str) -> Option<&'a Value> {
 ///
 /// 键 **CI 子串**匹配且值为标量/数组; merge 数组整体算一个条目、值取末元素
 /// (数组末元素 ≡ 文本最后出现的同名行)。
-#[allow(dead_code)] // 调用方 get_last_string_ci/fm_loader 属阶段 3 接线波次
 pub(crate) fn find_leaf_ci_last<'a>(v: &'a Value, label: &str) -> Option<&'a Value> {
     match v {
         Value::Object(map) => {
@@ -205,7 +197,6 @@ pub(crate) fn find_leaf_ci_last<'a>(v: &'a Value, label: &str) -> Option<&'a Val
 
 /// CI 全树取文档序最后一个字符串标量 (fm_loader 中央文件分支用, 不经 Blkx)。
 /// 返回**无引号**干净串 (JSON 字符串值本无引号; 文本链路的剥引号在 fm_loader)。
-#[allow(dead_code)] // 调用方 fm_loader JSON 分支属阶段 4 接线波次
 pub(crate) fn get_last_string_ci(root: &Value, key: &str) -> Option<String> {
     find_leaf_ci_last(root, key).and_then(|v| value_as_string(v))
 }
@@ -223,7 +214,8 @@ pub(crate) fn value_as_string(v: &Value) -> Option<String> {
 }
 
 /// JSON 数值 → Java `Float.parseFloat` 域的 f64 (getdouble 族位级对齐, 见模块注)。
-#[allow(dead_code)] // 调用方 JsonSrc::get_f64 属阶段 3 接线波次
+/// (仅单测消费: 生产路径的 f32 域收敛在 trait 默认方法 get_f64 的文本化协议里)
+#[cfg(test)]
 pub(crate) fn num_f32_domain(v: &Value) -> Option<f64> {
     v.as_f64().map(|d| d as f32 as f64)
 }
@@ -305,10 +297,6 @@ fn block_bool(block: &Value, key: &str) -> bool {
         None => false,
     }
 }
-
-// TODO(阶段3): Blkx::parse_named_json 族入口 + JsonSrc 的 BlkSource impl
-// (trait 于阶段 2 在 reader.rs 引入)。本文件现阶段只承载与 trait 无关的
-// 树底层原语与中央文件修正, 单测自成体系。
 
 // ==================== JsonSrc — BlkSource 的 JSON 后端 ====================
 

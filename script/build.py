@@ -15,7 +15,6 @@
   python script/build.py rustdist           rust 构建链后组装 Rust 版分发包 -> dist/VoidMei_Rust_*.zip
   python script/build.py fmdata             从 War Thunder 客户端解包并裁剪 FM 数据 (blkx 文本, Java 端数据源)
   python script/build.py fmdatajson         解包 JSON 版 FM 数据 (Rust 端数据源, 与 blkx 同名并存 data/)
-  python script/build.py fmparity           blkx vs JSON 解析器全量位级对拍 (data/ 需双格式)
   python script/build.py web                D9 前端构建 (pnpm → rust/crates/vm-webui/web/dist)
   python script/build.py rust               D9 Rust 构建链 (web 前端 + cargo release → voidmei.exe)
   python script/build.py clean              清理 bin/ build/ dist/
@@ -756,22 +755,6 @@ def cmd_fmdatajson():
     log("上传到 data 存储 (供 CI 组 Rust 包): gh release upload data \"%s\" dist/rust_data_manifest.json --clobber" % data_zip.name)
 
 
-def cmd_fmparity():
-    """blkx 文本 vs JSON 解析器全量位级对拍 (2832 对, 8 线程) —
-    blkx→json 迁移的安全门: data/ 需同时有 .blkx (fmdata) 与 .json (fmdatajson)。"""
-    target = DATA / "aces" / "gamedata" / "flightmodels"
-    json_cnt = sum(1 for _ in target.rglob("*.json")) if target.is_dir() else 0
-    if json_cnt == 0:
-        err("data/ 没有 JSON 格式 FM (先运行 python script/build.py fmdatajson), 对拍跳过")
-        sys.exit(1)
-    log("全量对拍: %d 个 json 配对 (release, 8 线程) ..." % json_cnt)
-    cargo = shutil.which("cargo")
-    if not cargo:
-        err("未找到 cargo (Rust 工具链, 见 rust/README.md)")
-        raise SystemExit(1)
-    run([cargo, "test", "-p", "vm-core", "--release", "fm_parity_full", "--", "--ignored"],
-        cwd=str(ROOT / "rust"))
-
 
 # ---------- clean ----------
 def cmd_clean():
@@ -838,7 +821,6 @@ def main():
     sub.add_parser("rustdist", help="组装 Rust 版分发包 (web+cargo 构建 → dist/VoidMei_Rust_*.zip)")
     sub.add_parser("fmdata", help="解包并裁剪 FM 数据 (blkx 文本, Java 端)")
     sub.add_parser("fmdatajson", help="解包 JSON 版 FM 数据 (Rust 端, 与 blkx 并存 data/)")
-    sub.add_parser("fmparity", help="blkx vs JSON 解析器全量位级对拍 (2832 对)")
     sub.add_parser("web", help="D9 前端构建 (pnpm → web/dist)")
     sub.add_parser("rust", help="D9 Rust 构建链 (web + cargo release)")
     sub.add_parser("clean", help="清理构建产物")
@@ -862,8 +844,6 @@ def main():
         cmd_fmdata()
     elif args.cmd == "fmdatajson":
         cmd_fmdatajson()
-    elif args.cmd == "fmparity":
-        cmd_fmparity()
     elif args.cmd == "web":
         cmd_web()
     elif args.cmd == "rust":

@@ -251,13 +251,13 @@ fn update_speed_ratio_and_stall_speed_oracle() {
 
     // 有 FM: 真机 spitfire 全量装载 (getload 波次产物)
     let phys = format!(
-        "{}/../../../data/aces/gamedata/flightmodels/fm/spitfire_f24.blkx",
+        "{}/../../../data/aces/gamedata/flightmodels/fm/spitfire_f24.json",
         env!("CARGO_MANIFEST_DIR")
     );
     if !std::path::Path::new(&phys).exists() {
         return; // data/ 未解包
     }
-    let blkx = vm_core::blkx::Blkx::parse(&phys).unwrap();
+    let blkx = vm_core::blkx::Blkx::parse_named_json(&phys, "fm/spitfire_f24.blk").unwrap();
     let fm = FMHandle::ready(Some("spitfire_f24".to_string()), Some(blkx), 0.0, 0.0, None);
 
     // W3: 两方法消解 — 公式接管 (formula_step 驱动, oracle 数值不变);

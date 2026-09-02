@@ -54,9 +54,6 @@ python script/build.py fmdata
 # JSON 版 FM 数据 (Rust 端数据源, 与 blkx 同名并存 data/, 产出 VoidMei_RustData zip)
 python script/build.py fmdatajson
 
-# blkx vs JSON 解析器全量位级对拍 (2832 对, data/ 需双格式, blkx→json 迁移安全门)
-python script/build.py fmparity
-
 # 清理构建产物
 python script/build.py clean
 

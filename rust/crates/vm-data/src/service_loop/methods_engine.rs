@@ -500,7 +500,7 @@ mod tests {
     #[test]
     fn real_fmloader_spitfire_pipeline() {
         let root = format!("{}/../../../data", env!("CARGO_MANIFEST_DIR"));
-        let central = format!("{root}/aces/gamedata/flightmodels/spitfire_f24.blkx");
+        let central = format!("{root}/aces/gamedata/flightmodels/spitfire_f24.json");
         if !Path::new(&central).is_file() {
             println!("SKIP: data/ 真机 FM 缺失");
             return;

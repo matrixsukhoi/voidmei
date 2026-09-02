@@ -2,7 +2,7 @@
 //!
 //! FMManager/FMLoader 白盒测试 —— issue #55 死循环回归（P2 单一真相源架构）
 //!
-//! 在 DATA_ROOT 临时根下合成最小中央/物理 blkx 文件（不依赖真机 data/，CI 可跑）：
+//! 在 DATA_ROOT 临时根下合成最小中央/物理 JSON 文件（不依赖真机 data/，CI 可跑）：
 //!   plane1/plane2 —— central + physical 齐全，可加载到 READY
 //!   badplane     —— 只有 central（物理文件缺失）→ CORRUPT
 //!   ghost        —— 什么都不放 → MISSING
@@ -115,31 +115,28 @@ fn create_temp_root() -> PathBuf {
     dir
 }
 
-/// 双格式同铺 (blkx→json 迁移: 默认格式已翻 Json, 合成数据双铺兼容两条链)
-fn write_both(dir: &Path, name: &str, blkx_text: &str, json_text: &str) {
-    std::fs::write(dir.join(format!("{name}.blkx")), blkx_text).unwrap();
+/// 合成数据铺设 (blkx→json 迁移终态: 只铺 .json)
+fn write_json(dir: &Path, name: &str, json_text: &str) {
     std::fs::write(dir.join(format!("{name}.json")), json_text).unwrap();
 }
 
-/// 最小中央文件 —— 只需 getlastone("fmfile")/get_last_string_ci("fmfile") 能命中
-/// （参考真机文件头 fmFile:t = "fm/xxx.blk"）
+/// 最小中央文件 —— 只需 get_last_string_ci("fmfile") 能命中（参考真机文件头
+/// fmFile: "fm/xxx.blk"）
 fn write_central(fm_dir: &Path, name: &str) {
-    write_both(
+    write_json(
         fm_dir,
         name,
-        &format!("model:t = \"{name}\"\nfmFile:t = \"fm/{name}.blk\"\n"),
         &format!("{{\"model\": \"{name}\", \"fmFile\": \"fm/{name}.blk\"}}"),
     );
 }
 
-/// 最小物理 FM —— 非空且不以 '{' 开头即可全量解析：
-/// getload 对缺失字段全部按 0 处理（无 Jet/Compressor 块 → 按喷气形态、compNumSteps=0，
-/// extractStages 返回 null、peakThrust=0），最终 valid=true → READY。
+/// 最小物理 FM —— 顶层标量的等价树; getload 对缺失字段全按 0 处理
+/// （无 Jet/Compressor 块 → 按喷气形态、compNumSteps=0，extractStages 返回
+/// null、peakThrust=0），最终 valid=true → READY。
 fn write_physical(fm_sub: &Path, name: &str) {
-    write_both(
+    write_json(
         fm_sub,
         name,
-        "synthetic-fm:t = \"x\"\nEmptyMass:r = 1000\nWingspan:r = 11\n",
         "{\"synthetic-fm\": \"x\", \"EmptyMass\": 1000.0, \"Wingspan\": 11.0}",
     );
 }

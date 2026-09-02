@@ -34,30 +34,27 @@
 		format!("{root}/aces/gamedata/flightmodels")
 	}
 
-	/// 双格式同铺 (blkx→json 迁移: 默认格式已翻 Json, 合成数据双铺兼容两条链)
-	fn write_both(root: &str, rel: &str, blkx_text: &str, json_text: &str) {
-		std::fs::write(format!("{}/{rel}.blkx", fm_dir_of(root)), blkx_text).unwrap();
+	/// 合成数据铺设 (blkx→json 迁移终态: 只铺 .json)
+	fn write_json(root: &str, rel: &str, json_text: &str) {
 		std::fs::write(format!("{}/{rel}.json", fm_dir_of(root)), json_text).unwrap();
 	}
 
-	/// 最小中央文件 —— 只需 getlastone("fmfile")/get_last_string_ci("fmfile") 能命中
+	/// 最小中央文件 —— 只需 get_last_string_ci("fmfile") 能命中
 	fn write_central(root: &str, name: &str) {
-		write_both(
+		write_json(
 			root,
 			name,
-			&format!("model:t = \"{name}\"\nfmFile:t = \"fm/{name}.blk\"\n"),
 			&format!("{{\"model\": \"{name}\", \"fmFile\": \"fm/{name}.blk\"}}"),
 		);
 	}
 
-	/// 最小物理 FM —— 非空且不以 '{' 开头即可全量解析：
-	/// getload 对缺失字段全部按 0 处理（无 Jet/Compressor 块 → 按喷气形态、compNumSteps=0，
-	/// extractStages 返回 null、peakThrust=0），最终 valid=true → READY。
+	/// 最小物理 FM —— 顶层标量的等价树; getload 对缺失字段全按 0 处理
+	/// （无 Jet/Compressor 块 → 按喷气形态、compNumSteps=0，extractStages 返回
+	/// null、peakThrust=0），最终 valid=true → READY。
 	fn write_physical(root: &str, name: &str) {
-		write_both(
+		write_json(
 			root,
 			&format!("fm/{name}"),
-			"synthetic-fm:t = \"x\"\nEmptyMass:r = 1000\nWingspan:r = 11\n",
 			"{\"synthetic-fm\": \"x\", \"EmptyMass\": 1000.0, \"Wingspan\": 11.0}",
 		);
 	}
@@ -76,9 +73,7 @@
 	fn cleanup_synthetic_data() {
 		for root in ROOTS {
 			let name = "plane1";
-			let _ = std::fs::remove_file(format!("{}/{name}.blkx", fm_dir_of(root)));
 			let _ = std::fs::remove_file(format!("{}/{name}.json", fm_dir_of(root)));
-			let _ = std::fs::remove_file(format!("{}/fm/{name}.blkx", fm_dir_of(root)));
 			let _ = std::fs::remove_file(format!("{}/fm/{name}.json", fm_dir_of(root)));
 			// 自内向外逐层 prune 空目录 (remove_dir 对非空目录失败即止)
 			for dir in [
@@ -246,26 +241,19 @@
 		let _guard = crate::fm::test_guard::data_root();
 		let repo_data = format!("{}/../../../data", env!("CARGO_MANIFEST_DIR"));
 		let real_fm_dir = Path::new(&repo_data).join("aces/gamedata/flightmodels");
-		if !real_fm_dir.join("spitfire_f24.blkx").exists() && !real_fm_dir.join("spitfire_f24.json").exists() {
+		if !real_fm_dir.join("spitfire_f24.json").exists() {
 			println!("跳过: 真机 data/ 不存在 ({})", real_fm_dir.display());
 			return;
 		}
 
-		// 多根铺数据: 真机 spitfire 中央+物理文件复制进 DATA_ROOT 全部可能取值
+		// 多根铺数据: 真机 spitfire 中央+物理 JSON 复制进 DATA_ROOT 全部可能取值
 		for root in ROOTS {
 			let dst = PathBuf::from(root).join("aces/gamedata/flightmodels");
 			std::fs::create_dir_all(dst.join("fm")).unwrap();
-			// 双格式复制 (blkx→json 迁移: 默认格式 Json; blkx 兜底 CI 无 json 数据时跳过)
-			let copied = [
-				("spitfire_f24.blkx", "spitfire_f24.blkx"),
-				("spitfire_f24.json", "spitfire_f24.json"),
-				("fm/spitfire_f24.blkx", "fm/spitfire_f24.blkx"),
-				("fm/spitfire_f24.json", "fm/spitfire_f24.json"),
-			];
-			for (src_rel, dst_rel) in copied {
-				let src = real_fm_dir.join(src_rel);
+			for rel in ["spitfire_f24.json", "fm/spitfire_f24.json"] {
+				let src = real_fm_dir.join(rel);
 				if src.exists() {
-					std::fs::copy(&src, dst.join(dst_rel)).unwrap();
+					std::fs::copy(&src, dst.join(rel)).unwrap();
 				}
 			}
 		}
@@ -277,9 +265,7 @@
 			fn drop(&mut self) {
 				for root in ROOTS {
 					let dst = PathBuf::from(root).join("aces/gamedata/flightmodels");
-					let _ = std::fs::remove_file(dst.join("spitfire_f24.blkx"));
 					let _ = std::fs::remove_file(dst.join("spitfire_f24.json"));
-					let _ = std::fs::remove_file(dst.join("fm/spitfire_f24.blkx"));
 					let _ = std::fs::remove_file(dst.join("fm/spitfire_f24.json"));
 					let _ = std::fs::remove_dir(dst.join("fm"));
 					let _ = std::fs::remove_dir(dst);

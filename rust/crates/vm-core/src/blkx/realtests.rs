@@ -9,13 +9,10 @@
 //! build.py 语义")。路径相对仓库根: cargo 测试经 `CARGO_MANIFEST_DIR` 上溯三级
 //! (reader.rs / sexp_parser.rs 测试同款约定)。
 //!
-//! PORT (波次状态): getload 批次与 getAllplotdata 批次均已落地 (reader.rs,
-//! `Blkx::parse` = Java doLoad=true 构造器), [`GETLOAD_WIRED`] 开关已置 true —
-//! 依赖 getload 字段的功率断言段与 fuzzer 腿1 管线 (getAllplotdata +
-//! finalizeLoading) 全部恢复。仍挂起: 腿2 的 FMLoader.load 抽样腿 —
-//! fm_loader.rs/fm_data_paths (含 set_data_root) 虽已落地, 临时数据根注入的
-//! 测试接线属后续批次 (见 fuzz 模块内 TODO(port)); 禁为此放宽阈值或删断言
-//! (§6: 跨文件依赖只标注不越文件修)。
+//! PORT (blkx→json 迁移终态): 功率断言走 parse_real (parse_named_json);
+//! fuzzer 变异对象为 JSON 原文 (合成种子承担 JavaRandom/mutate 移植对拍,
+//! 真机种子腿为变异鲁棒性烟雾)。仍挂起: 腿2 的 FMLoader.load 抽样腿
+//! (见 fuzz 模块内 TODO(port)); 禁为此放宽阈值或删断言 (§6)。
 //!
 //! oracle: fuzzer 的 JavaRandom/mutate 移植值来自 OpenJDK 1.8.0_342 实测 dump
 //! (build/oracle/rand/RandOracle.java, §5.1 双实现对拍方法论)。
@@ -34,6 +31,25 @@ fn fm_root() -> String {
         "{}/../../../data/aces/gamedata/flightmodels",
         env!("CARGO_MANIFEST_DIR")
     )
+}
+
+/// 真机 JSON 全量解析 (blkx→json 迁移: name 取文件名分量, 对齐旧 parse 的
+/// display 约定; read_file_name 只进 fmdata 版本串)
+fn parse_real(path: &str) -> Result<crate::blkx::Blkx, String> {
+    let name = std::path::Path::new(path)
+        .file_name()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    crate::blkx::Blkx::parse_named_json(path, &name)
+}
+
+/// 中央文件 JSON → 燃油修正 (读失败/serde 失败 → 默认无修正)
+fn fuel_mod_from_json(path: &str) -> crate::blkx::types::FuelModification {
+    std::fs::read_to_string(path)
+        .ok()
+        .and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok())
+        .map(|root| crate::blkx::json::extract_fuel_modifications_json(&root))
+        .unwrap_or_default()
 }
 
 /// GETLOAD_WIRED ↔ reader.rs getload TODO(port) 一致性 canary:
@@ -73,7 +89,8 @@ mod spitfire {
 
     use super::GETLOAD_WIRED;
     use super::fm_root;
-    use crate::blkx::{extract_fuel_modifications, Blkx, FuelType};
+    use super::{fuel_mod_from_json, parse_real};
+    use crate::blkx::FuelType;
     use crate::fm_power_extractor::{extract_stages, extract_stages_with_fuel};
     use crate::piston_power_model::optimal_power_advanced;
     use std::path::Path;
@@ -117,8 +134,8 @@ mod spitfire {
 
     fn spitfire_paths() -> (String, String) {
         // PORT: Rust 测试固定仓库相对路径 (fm_root 先例), data 缺失 return early
-        let central = format!("{}/spitfire_f24.blkx", fm_root());
-        let fm = format!("{}/fm/spitfire_f24.blkx", fm_root());
+        let central = format!("{}/spitfire_f24.json", fm_root());
+        let fm = format!("{}/fm/spitfire_f24.json", fm_root());
         (central, fm)
     }
 
@@ -137,15 +154,7 @@ mod spitfire {
         let mut t = Tally::new();
         println!("Testing fuel modification parsing...");
 
-        let central_data = match read_file(&central_path) {
-            Some(d) => d,
-            None => {
-                println!("  SKIP: Cannot read central file");
-                return;
-            }
-        };
-
-        let fuel_mod = extract_fuel_modifications(&central_data);
+        let fuel_mod = fuel_mod_from_json(&central_path);
 
         // Verify fuel type detected
         t.assert_true(
@@ -189,7 +198,7 @@ mod spitfire {
         // PORT: Blkx::parse 当前等价 doLoad=false (getload 属 reader 波次, 模块头注);
         // Java 显式传的 name ("spitfire_f24") 由 parse 取文件名分量承接 — 该值只在
         // getload L1471 版本串使用, 未落地前无行为差异 (reader.rs L51-56 注)
-        let blkx = match Blkx::parse(&fm_path) {
+        let blkx = match parse_real(&fm_path) {
             Ok(b) => b,
             Err(_) => {
                 println!("  SKIP: Cannot parse FM file");
@@ -223,8 +232,7 @@ mod spitfire {
         }
 
         // Extract WITH fuel modification
-        let central_data = read_file(&central_path).unwrap_or_default();
-        let fuel_mod = extract_fuel_modifications(&central_data);
+        let fuel_mod = fuel_mod_from_json(&central_path);
         let stages_with_fuel = extract_stages_with_fuel(Some(&blkx), Some(&fuel_mod));
 
         if let Some(stages) = stages_with_fuel.as_ref() {
@@ -258,15 +266,14 @@ mod spitfire {
         let mut t = Tally::new();
         println!("\nTesting invertEnableLogic behavior...");
 
-        let blkx = match Blkx::parse(&fm_path) {
+        let blkx = match parse_real(&fm_path) {
             Ok(b) => b,
             Err(_) => {
                 println!("  SKIP: Cannot load files");
                 return;
             }
         };
-        let central_data = read_file(&central_path).unwrap_or_default();
-        let fuel_mod = extract_fuel_modifications(&central_data);
+        let fuel_mod = fuel_mod_from_json(&central_path);
         // extractFuelModifications 各分支皆返 new FuelModification() (Blkx.java
         // L63 起), 该 null 检查在 Java 本就是死代码; Rust 端同样无此冗余检查,
         // 行为一致
@@ -322,15 +329,14 @@ mod spitfire {
         let mut t = Tally::new();
         println!("\nTesting power curve calculations vs wtapc...");
 
-        let blkx = match Blkx::parse(&fm_path) {
+        let blkx = match parse_real(&fm_path) {
             Ok(b) => b,
             Err(_) => {
                 println!("  SKIP: Cannot parse FM file");
                 return;
             }
         };
-        let central_data = read_file(&central_path).unwrap_or_default();
-        let fuel_mod = extract_fuel_modifications(&central_data);
+        let fuel_mod = fuel_mod_from_json(&central_path);
 
         // PORT: 功率曲线断言依赖 extract_stages (getload 字段前置), 未译前挂起
         if !GETLOAD_WIRED {
@@ -478,32 +484,6 @@ mod spitfire {
         }
     }
 
-    fn read_file(path: &str) -> Option<String> {
-        // PORT: 域内中央文件纯 ASCII (od 实测), BufReader::lines() strict UTF-8 等价
-        // (reader.rs 构造器同款裁决); IOException → println + return null ↔ None
-        use std::io::{BufRead, BufReader};
-        let mut sb = String::new();
-        let f = match std::fs::File::open(path) {
-            Ok(f) => f,
-            Err(_) => {
-                eprintln!("Error reading file: {path}");
-                return None;
-            }
-        };
-        for line in BufReader::new(f).lines() {
-            match line {
-                Ok(l) => {
-                    sb.push_str(&l);
-                    sb.push('\n');
-                }
-                Err(_) => {
-                    eprintln!("Error reading file: {path}");
-                    return None;
-                }
-            }
-        }
-        Some(sb)
-    }
 }
 
 // ==================== tempest ← test/TestTempestMk5Power.java ====================
@@ -523,7 +503,8 @@ mod tempest {
 
     use super::GETLOAD_WIRED;
     use super::fm_root;
-    use crate::blkx::{extract_fuel_modifications, Blkx, FuelType};
+    use super::{fuel_mod_from_json, parse_real};
+    use crate::blkx::FuelType;
     use crate::fm_power_extractor::extract_stages;
     use crate::piston_power_model::optimal_power_advanced;
     use std::path::Path;
@@ -563,8 +544,8 @@ mod tempest {
     }
 
     fn tempest_paths() -> (String, String) {
-        let central = format!("{}/tempest_mkv.blkx", fm_root());
-        let fm = format!("{}/fm/tempest_mkv.blkx", fm_root());
+        let central = format!("{}/tempest_mkv.json", fm_root());
+        let fm = format!("{}/fm/tempest_mkv.json", fm_root());
         (central, fm)
     }
 
@@ -585,15 +566,7 @@ mod tempest {
         let mut t = Tally::new();
         println!("Testing invertEnableLogic detection...");
 
-        let central_data = match read_file(&central_path) {
-            Some(d) => d,
-            None => {
-                println!("  SKIP: Cannot read central file");
-                return;
-            }
-        };
-
-        let fuel_mod = extract_fuel_modifications(&central_data);
+        let fuel_mod = fuel_mod_from_json(&central_path);
 
         // Verify fuel type detected
         t.assert_true(
@@ -624,15 +597,14 @@ mod tempest {
         let mut t = Tally::new();
         println!("\nTesting fuel modification behavior (invertEnableLogic=true)...");
 
-        let blkx = match Blkx::parse(&fm_path) {
+        let blkx = match parse_real(&fm_path) {
             Ok(b) => b,
             Err(_) => {
                 println!("  SKIP: Cannot load files");
                 return;
             }
         };
-        let central_data = read_file(&central_path).unwrap_or_default();
-        let fuel_mod = extract_fuel_modifications(&central_data);
+        let fuel_mod = fuel_mod_from_json(&central_path);
 
         // PORT: 以下依赖 extract_stages (getload 字段前置), getload 未译前挂起
         // (realtests 模块头注 GETLOAD_WIRED)
@@ -687,7 +659,7 @@ mod tempest {
         println!("\nTesting parameter extraction...");
 
         // (name 由文件名分量承接, 未落地前无行为差异, 见 spitfire 同款注)
-        let blkx = match Blkx::parse(&fm_path) {
+        let blkx = match parse_real(&fm_path) {
             Ok(b) => b,
             Err(_) => {
                 println!("  SKIP: Cannot parse FM file");
@@ -739,7 +711,7 @@ mod tempest {
         let mut t = Tally::new();
         println!("\nTesting military power curve vs wtapc...");
 
-        let blkx = match Blkx::parse(&fm_path) {
+        let blkx = match parse_real(&fm_path) {
             Ok(b) => b,
             Err(_) => {
                 println!("  SKIP: Cannot parse FM file");
@@ -806,7 +778,7 @@ mod tempest {
         let mut t = Tally::new();
         println!("\nTesting WEP power curve vs wtapc...");
 
-        let blkx = match Blkx::parse(&fm_path) {
+        let blkx = match parse_real(&fm_path) {
             Ok(b) => b,
             Err(_) => {
                 println!("  SKIP: Cannot parse FM file");
@@ -908,31 +880,6 @@ mod tempest {
         }
     }
 
-    fn read_file(path: &str) -> Option<String> {
-        // PORT: 域内中央文件纯 ASCII, strict UTF-8 等价 (spitfire 同款注)
-        use std::io::{BufRead, BufReader};
-        let mut sb = String::new();
-        let f = match std::fs::File::open(path) {
-            Ok(f) => f,
-            Err(_) => {
-                eprintln!("Error reading file: {path}");
-                return None;
-            }
-        };
-        for line in BufReader::new(f).lines() {
-            match line {
-                Ok(l) => {
-                    sb.push_str(&l);
-                    sb.push('\n');
-                }
-                Err(_) => {
-                    eprintln!("Error reading file: {path}");
-                    return None;
-                }
-            }
-        }
-        Some(sb)
-    }
 }
 
 // ==================== fuzzer ← test/FMParserFuzzer.java ====================
@@ -1463,15 +1410,11 @@ mod fuzzer {
     // ==================== 基线 ====================
 
     /// 原始种子必须 valid (真机数据本应可解析; 失败说明种子选择或环境有误)
+    /// (blkx→json 迁移: parse_str_json 内容注入, getload+plotdata 已内含;
+    ///  finalize_loading 是独立的第二相位)
     fn baseline_check(seed_text: &str, _seed_name: &str, c: &mut Counters) -> bool {
-        let tmp = temp_file("voidmei_fuzz_base_", ".blkx");
         let ok = (|| {
-            if std::fs::write(&tmp, seed_text).is_err() {
-                panic!("基线临时文件写入失败");
-            }
-            // PORT: Blkx::parse 当前等价 doLoad=false (realtests 模块头注);
-            // name 参数暂无消费方 (parse 无 name 入参, reader.rs L51-56 注)
-            let mut b = match Blkx::parse(tmp.to_str().unwrap()) {
+            let mut b = match Blkx::parse_str_json("fuzz_baseline.json", seed_text) {
                 Ok(b) => b,
                 Err(_) => {
                     println!("  [失败] 基线: 原始种子解析后 valid=false (不应发生)");
@@ -1480,15 +1423,12 @@ mod fuzzer {
                 }
             };
             // 同 run_direct_pipeline: Ok ⇒ valid==true 契约钉死
-            assert!(b.valid, "基线 parse 返回 Ok 但 valid=false (违反 reader.rs 契约)");
-            // 第 5/6 步完全一致 (getAllplotdata 批次已接入 reader.rs)
-            b.get_all_plotdata();
+            assert!(b.valid, "基线 parse 返回 Ok 但 valid=false (违反 json.rs 契约)");
             b.finalize_loading();
             println!("  [通过] 基线: 原始种子全管线解析成功");
             c.passed += 1;
             true
         })();
-        let _ = std::fs::remove_file(&tmp);
         ok
     }
 
@@ -1501,63 +1441,41 @@ mod fuzzer {
         mutant: &str,
         kind: i32,
         index: usize,
-        tmp_blkx: &str,
+        _tmp_blkx: &str,
         _seed_name: &str,
         c: &mut Counters,
     ) {
         c.fuzz_cases += 1;
-        if let Err(e) = std::fs::write(tmp_blkx, mutant) {
-            println!("  [失败] #{index} 写临时文件异常: {e}");
-            c.failed += 1;
-            return;
-        }
 
         let t0 = Instant::now();
-        // 构造器即 P1 加固边界: getload 包 try, 任何解析失败都应置 valid=false 而非抛出
-        // PORT: Blkx::parse 当前等价 doLoad=false (getload 未译, Err(诊断串) 即
-        // Java 的 valid=false); catch_unwind 承接断言① — 任何 panic 逃逸即失败。
-        // OutOfMemoryError 的单独分类 Rust 无对应 (分配失败不可捕获), 统一按
-        // 逃逸 panic 计; Java 堆栈首帧分类 (构造器/管线) 在此以两个执行相位
-        // (构造器 catch / 管线 catch) 天然区分
-        let mut b = {
-            let parsed = std::panic::catch_unwind(|| Blkx::parse(tmp_blkx));
-            match parsed {
-                Ok(r) => r,
-                Err(_) => {
-                    c.ctor_exceptions += 1;
-                    println!(
-                        "  [失败] #{index} ({}) 逃逸异常[构造器]: panic",
-                        STRATEGY_NAMES[kind as usize]
-                    );
-                    dump_mutant(mutant, index);
-                    c.failed += 1;
-                    return;
-                }
+        // blkx→json 迁移: parse_str_json 内容注入 (getload_from+plotdata 已内含且
+        // 内部自带 catch_unwind 收敛 Err); 外层 catch_unwind 承接断言① — 收敛
+        // 机制之外仍逃逸的 panic 即失败。原文本版的两相位 (构造器/管线) 中
+        // plotdata 已并入解析相位, finalize_loading 保留为独立第二相位
+        let parsed = std::panic::catch_unwind(|| Blkx::parse_str_json("fuzz.json", mutant));
+        match parsed {
+            Err(_) => {
+                c.ctor_exceptions += 1;
+                println!(
+                    "  [失败] #{index} ({}) 逃逸异常[构造器]: panic",
+                    STRATEGY_NAMES[kind as usize]
+                );
+                dump_mutant(mutant, index);
+                c.failed += 1;
+                return;
             }
-        };
-        match b {
-            Ok(ref mut b) => {
-                // 契约钉死 (reader.rs parse 文档化不变式 "Ok(blkx) 恒有 valid==true"):
-                // 若后续波次把 parse 改成 Ok 携带 valid=false (更贴 Java 构造器语义),
-                // 这里立即炸出 — valid_true 计数与断言③不再静默漂移
-                assert!(b.valid, "#{} parse 返回 Ok 但 valid=false (违反 reader.rs 契约)", index);
+            Ok(Err(_)) => {
+                // 断言③: 守卫/解析失败收敛 Err (= 文本版 valid=false) 时刻意
+                // 不访问任何解析字段 (对象应安全废弃)
+                c.valid_false += 1;
+            }
+            Ok(Ok(mut b)) => {
+                // 契约钉死 (json.rs 不变式 "Ok 恒 valid==true")
+                assert!(b.valid, "#{} parse 返回 Ok 但 valid=false (违反 json.rs 契约)", index);
                 c.valid_true += 1;
-                // 断言③: valid=true 时对象状态自洽 —— 原始文本已读入
-                if b.data.is_none() {
-                    println!(
-                        "  [失败] #{index} ({}) valid=true 但 data 为 null",
-                        STRATEGY_NAMES[kind as usize]
-                    );
-                    c.failed += 1;
-                    return;
-                }
-                // 与生产管线一致的后两步 (FMLoader.load 第 6 步):
-                // get_all_plotdata → finalize_loading; 任何 panic 逃逸即失败
-                // (断言①; Java 以堆栈首帧分类为"管线逃逸"同计, 此处单相位天然区分)
-                let piped = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    b.get_all_plotdata();
-                    b.finalize_loading();
-                }));
+                // finalize_loading 的独立 panic 面 (断言①)
+                let piped =
+                    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| b.finalize_loading()));
                 if piped.is_err() {
                     c.pipeline_exceptions += 1;
                     println!(
@@ -1568,10 +1486,6 @@ mod fuzzer {
                     c.failed += 1;
                     return;
                 }
-            }
-            Err(_) => {
-                // 断言③: valid=false 时刻意不访问任何解析字段 (只看布尔, 对象应安全废弃)
-                c.valid_false += 1;
             }
         }
         let ms = t0.elapsed().as_millis();
@@ -1604,8 +1518,8 @@ mod fuzzer {
     #[test]
     fn fuzz_blkx_text_mutations() {
         // Java main 由 build.py 传 --central/--fm; PORT: 固定仓库相对路径
-        let central_path = format!("{}/bf-109e-4.blkx", fm_root());
-        let fm_path = format!("{}/fm/bf-109e-4.blkx", fm_root());
+        let central_path = format!("{}/bf-109e-4.json", fm_root());
+        let fm_path = format!("{}/fm/bf-109e-4.json", fm_root());
         if !Path::new(&fm_path).is_file() {
             return; // data/ 未解包, 对齐 build.py run_fm_test 跳过语义 (模块头注)
         }
@@ -1844,39 +1758,29 @@ mod fuzzer {
         }
     }
 
-    /// 主循环消耗序对拍: 真机 bf-109e-4 种子 + Random(20260825) 单序列驱动,
-    /// 前 13 轮 (kind, 变异体 len, FNV) — 与 FMParserFuzzer.main 完全一致
-    /// (data/ 缺失自动跳过)
+    /// 主循环消耗序烟雾: 真机 bf-109e-4 JSON 种子 + Random(20260825) 单序列驱动
+    /// 13 轮变异, 断言种子指纹 + 每轮变异体可全管线解析 (无逃逸 panic)。
+    /// (blkx→json 迁移: 种子载体由 BlkText 换为 JSON 后, Java dump 的逐轮
+    ///  (kind, len, FNV) 期望表随之失效 — mutate/Random 的移植对拍职责由
+    ///  合成种子的 java8_oracle_mutate 腿承担; 本腿保留真实数据变异鲁棒性)
     #[test]
     fn java8_oracle_mutate_real_seed_loop() {
-        let fm_path = format!("{}/fm/bf-109e-4.blkx", fm_root());
+        let fm_path = format!("{}/fm/bf-109e-4.json", fm_root());
         if !Path::new(&fm_path).is_file() {
             return; // data/ 未解包 (build.py 跳过语义)
         }
         let seed_text = std::fs::read_to_string(&fm_path).unwrap();
-        assert_eq!((seed_text.len(), fnv1a64(&seed_text)), (20330, 1146191063156967770), "FMSEED");
+        // 种子身份指纹 (防 data 被静默更换; 换游戏版本重跑 fmdatajson 后需同步更新)
+        assert_eq!((seed_text.len(), fnv1a64(&seed_text)), (26387, 15339736856552207565), "FMSEED");
 
         let mut rnd = JavaRandom::new(20260825);
-        let expected: &[(i32, usize, u64)] = &[
-            (4, 20331, 5313828104632840632),
-            (0, 14708, 8058962357787809539),
-            (6, 20316, 8203565582052771237),
-            (6, 20255, 5400328901497606416),
-            (10, 20329, 1998539488944800904),
-            (3, 20288, 6508517486440081712),
-            (3, 20249, 2130435306533831717),
-            (5, 20335, 8718054119091888748),
-            (0, 16686, 8032083307401023499),
-            (9, 20334, 10074255328698501620),
-            (11, 20328, 15298364305686729812),
-            (4, 20331, 10586391935369260576),
-            (7, 20329, 16079856206592250275),
-        ];
-        for (i, &(kind, len, h)) in expected.iter().enumerate() {
+        for i in 0..13 {
             let k = rnd.next_int_bound(STRATEGY_NAMES.len()) as i32;
-            assert_eq!(k, kind, "LOOP {i} 策略号");
             let m = mutate(&seed_text, k, &mut rnd);
-            assert_eq!((m.len(), fnv1a64(&m)), (len, h), "LOOP {i} 变异体");
+            // 每轮变异体过全管线 (parse_str_json 内含 getload+plotdata, panic
+            // 收敛 Err 合法; 断言① 只针对逃逸 panic — 直接调用即断言)
+            let _ = Blkx::parse_str_json("fuzz_seed_loop.json", &m);
+            let _ = i;
         }
     }
 
@@ -1940,5 +1844,4 @@ mod fuzzer {
         }
     }
 }
-
 

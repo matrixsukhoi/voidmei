@@ -22,37 +22,34 @@ fn test_default_root() {
 fn test_central_file_normalization() {
     // -- 中央文件路径与小写规范化测试 --
     assert_equals(
-        "./data/aces/gamedata/flightmodels/spitfire_f24.blkx",
+        "./data/aces/gamedata/flightmodels/spitfire_f24.json",
         &norm(&central_file("spitfire_f24")),
         "小写机型名直接拼接",
     );
 
     // 大小写规范化: 任意大小写输入都归一到小写 (匹配游戏侧命名约定)
     assert_equals(
-        "./data/aces/gamedata/flightmodels/spitfire_f24.blkx",
+        "./data/aces/gamedata/flightmodels/spitfire_f24.json",
         &norm(&central_file("Spitfire_F24")),
         "大写输入应规范化为小写",
     );
     assert_equals(
-        "./data/aces/gamedata/flightmodels/spitfire_f24.blkx",
+        "./data/aces/gamedata/flightmodels/spitfire_f24.json",
         &norm(&central_file("SPITFIRE_F24")),
         "全大写输入应规范化为小写",
     );
 
-    // 统一小写 .blkx 扩展名 (旧代码 ".Blkx" 仅 Windows 大小写不敏感下碰巧可用)
+    // 统一小写 .json 扩展名 (blkx→json 迁移终态; Java oracle 原为 .blkx)
     let p = norm(&central_file("abc"));
-    assert!(
-        p.ends_with(".blkx") && !p.ends_with(".Blkx"),
-        "扩展名应为小写 .blkx, 实际: {p}"
-    );
+    assert!(p.ends_with(".json"), "扩展名应为小写 .json, 实际: {p}");
 }
 
 fn test_physical_file() {
     // -- 物理 FM 文件路径测试 --
     // physicalFile 接收带 x 的相对路径 (与 FMLoader 调用约定一致)
     assert_equals(
-        "./data/aces/gamedata/flightmodels/fm/spitfire_f24.blkx",
-        &norm(&physical_file("fm/spitfire_f24.blkx")),
+        "./data/aces/gamedata/flightmodels/fm/spitfire_f24.json",
+        &norm(&physical_file("fm/spitfire_f24.json")),
         "物理文件 = fmDir + 相对路径",
     );
 }
@@ -76,7 +73,7 @@ fn test_set_data_root_injection() {
     set_data_root("testroot");
     assert_equals("testroot", &get_data_root(), "getDataRoot 应返回注入值");
     assert_equals(
-        "testroot/aces/gamedata/flightmodels/plane1.blkx",
+        "testroot/aces/gamedata/flightmodels/plane1.json",
         &norm(&central_file("Plane1")),
         "注入后所有路径以新根为准",
     );
@@ -89,7 +86,7 @@ fn test_set_data_root_injection() {
     // 再注入一次验证可重复切换 (测试套件间隔离的基础)
     set_data_root("otherroot");
     assert_equals(
-        "otherroot/aces/gamedata/flightmodels/plane1.blkx",
+        "otherroot/aces/gamedata/flightmodels/plane1.json",
         &norm(&central_file("plane1")),
         "二次注入应生效",
     );
@@ -102,8 +99,6 @@ impl Drop for DataRootResetOnDrop {
     fn drop(&mut self) {
         // 还原默认根目录，避免影响同 JVM 内后续逻辑
         set_data_root("./data");
-        // 还原默认格式 (blkx→json 迁移: 本用例显式注入 Blkx 做 Java oracle 对拍)
-        set_format(FmDataFormat::Json);
     }
 }
 
@@ -124,21 +119,11 @@ fn java_main_sequence() {
     let _guard = crate::fm::test_guard::data_root();
     let _reset = DataRootResetOnDrop;
 
-    // Java oracle 的字面量断言基于 .blkx — 显式注入 Blkx 格式跑原序列
-    // (blkx→json 迁移: 默认格式已翻 Json, FORMAT 全局同受 data_root 锁保护)
-    set_format(FmDataFormat::Blkx);
+    // (blkx→json 迁移终态: 扩展名断言已由 Java oracle 的 .blkx 改为 .json,
+    //  Java 字面量保留在注释中供追溯)
     test_default_root();
     test_central_file_normalization();
     test_physical_file();
     test_fm_dir_and_version_file();
     test_set_data_root_injection();
-
-    // JSON 格式: 扩展名切换为 .json (其余路径逻辑共用)
-    set_format(FmDataFormat::Json);
-    set_data_root("./data");
-    assert_equals(
-        "./data/aces/gamedata/flightmodels/spitfire_f24.json",
-        &norm(&central_file("Spitfire_F24")),
-        "JSON 格式: 中央文件扩展名 .json",
-    );
 }
