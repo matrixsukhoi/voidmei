@@ -39,10 +39,9 @@ use std::time::{Duration, Instant};
 use vm_app::{AppShell, SupervisorOutcome};
 
 use tauri::Emitter;
-use vm_core::bus::EventBus;
-use vm_core::configuration_service::UiStateEvent;
 use vm_core::event::ui_state_events;
 use vm_core::logger;
+use vm_core::ui_state_bus::UIStateBus;
 
 mod form_dispatch;
 
@@ -368,12 +367,8 @@ fn desktop_main(debug: bool) -> i32 {
 }
 
 /// UI_READY 发布 (Java MainForm 首显 → uiReadyHandler → Preview 的触发面)
-fn publish_ui_ready(bus: &Arc<EventBus<UiStateEvent>>) {
-    bus.publish(&UiStateEvent {
-        event_type: ui_state_events::UI_READY.to_string(),
-        source: "MainForm".to_string(),
-        data: String::new(),
-    });
+fn publish_ui_ready(bus: &Arc<UIStateBus>) {
+    bus.publish(ui_state_events::UI_READY, Some("MainForm"), None);
 }
 
 /// debugLog cfg 键读取 (Java Application.debugLog 静态开关的配置化, 缺省 false)。

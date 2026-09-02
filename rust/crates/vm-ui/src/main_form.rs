@@ -33,10 +33,11 @@ use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-use vm_core::bus::EventBus;
+use vm_core::bus::Subscription;
 use vm_core::config_api::ConfigProvider;
 use vm_core::config_loader::{save_config as save_layout_file, GroupConfig, RowConfig};
-use vm_core::configuration_service::{ConfigurationService, UiStateEvent};
+use vm_core::configuration_service::ConfigurationService;
+use vm_core::ui_state_bus::{UIStateBus, UiStateEvent};
 use vm_core::event::ui_state_events;
 use vm_core::logger;
 use vm_core::row_renderer_registry::RenderContext;
@@ -90,7 +91,7 @@ pub struct MainFormState {
     /// 与 ConfigurationService 共享的 UI 事件总线 (Java UIStateBus 单例的注入式替代):
     /// 服务侧 setConfig 发布 CONFIG_CHANGED(key), 本侧保存链发布
     /// CONFIG_CHANGED("ui_layout.cfg") (DynamicDataPage.save, Java L252)
-    ui_bus: Arc<EventBus<UiStateEvent>>,
+    ui_bus: Arc<UIStateBus>,
     /// 持久化目标路径 (生产 = config_manager 用户配置路径); None = 不落盘
     /// (--headless 状态机驱动 / 测试注入 tmp 路径用 Some)
     persist_path: Option<String>,
@@ -111,7 +112,7 @@ pub struct MainFormState {
 impl MainFormState {
     pub fn new(
         config: ConfigurationService,
-        ui_bus: Arc<EventBus<UiStateEvent>>,
+        ui_bus: Arc<UIStateBus>,
         persist_path: Option<String>,
     ) -> Self {
         let groups = config.get_layout_configs().unwrap_or_default();
@@ -204,13 +205,13 @@ impl MainFormState {
 /// flush (对位 Java 回调直调 save()/rebuild(); Elm 下写路径在 update, 无重入面)。
 pub(crate) struct WriteContext<'a> {
     config: &'a ConfigurationService,
-    ui_bus: &'a EventBus<UiStateEvent>,
+    ui_bus: &'a UIStateBus,
     save_requested: Cell<bool>,
     rebuild_requested: Cell<bool>,
 }
 
 impl<'a> WriteContext<'a> {
-    pub(crate) fn new(config: &'a ConfigurationService, ui_bus: &'a EventBus<UiStateEvent>) -> Self {
+    pub(crate) fn new(config: &'a ConfigurationService, ui_bus: &'a UIStateBus) -> Self {
         WriteContext {
             config,
             ui_bus,
@@ -245,11 +246,11 @@ impl RenderContext for WriteContext<'_> {
         // (FM_PRINT_SWITCH_CHANGED 广播, 源串对位 Java "DynamicDataPage(RenderContext)")
         self.config.set_config(key, &value.to_string());
         if key == "enableFMPrint" {
-            self.ui_bus.publish(&UiStateEvent {
-                event_type: ui_state_events::FM_PRINT_SWITCH_CHANGED.to_string(),
-                source: "DynamicDataPage(RenderContext)".to_string(),
-                data: value.to_string(),
-            });
+            self.ui_bus.publish(
+                ui_state_events::FM_PRINT_SWITCH_CHANGED,
+                Some("DynamicDataPage(RenderContext)"),
+                Some(&value.to_string()),
+            );
         }
     }
     fn get_from_config_service(&self, key: &str, default_val: bool) -> bool {
@@ -475,12 +476,12 @@ fn persist_and_notify(state: &mut MainFormState) {
 }
 
 /// Java DynamicDataPage.save (L252): publish(CONFIG_CHANGED, 类简单名, "ui_layout.cfg")
-fn publish_config_changed(bus: &EventBus<UiStateEvent>, data: &str) {
-    bus.publish(&UiStateEvent {
-        event_type: ui_state_events::CONFIG_CHANGED.to_string(),
-        source: "DynamicDataPage".to_string(),
-        data: data.to_string(),
-    });
+fn publish_config_changed(bus: &UIStateBus, data: &str) {
+    bus.publish(
+        ui_state_events::CONFIG_CHANGED,
+        Some("DynamicDataPage"),
+        Some(data),
+    );
 }
 
 fn panel_index_by_title(groups: &[GroupConfig], title: &str) -> Option<usize> {
@@ -693,12 +694,15 @@ pub fn run_headless(persist_path: Option<String>) -> i32 {
         eprintln!("vm-ui: --headless 未找到 ui_layout.cfg (候选: ./ ../ ../../ ../../../)");
         return 2;
     };
-    let bus = Arc::new(EventBus::new());
+    let bus = Arc::new(UIStateBus::new());
     let seen: Arc<Mutex<Vec<UiStateEvent>>> = Arc::new(Mutex::new(Vec::new()));
     let s2 = Arc::clone(&seen);
-    let _sub = bus.subscribe(move |m: &UiStateEvent| {
-        s2.lock().unwrap().push(m.clone());
-    });
+    let _sub: Subscription<UiStateEvent> = bus.subscribe(
+        ui_state_events::CONFIG_CHANGED,
+        move |m: &UiStateEvent| {
+            s2.lock().unwrap().push(m.clone());
+        },
+    );
 
     let config = ConfigurationService::new(Some(Arc::clone(&bus)));
     config.load_layout(cfg_path);
@@ -797,7 +801,7 @@ pub fn run_headless(persist_path: Option<String>) -> i32 {
             .lock()
             .unwrap()
             .iter()
-            .any(|e| e.event_type == ui_state_events::CONFIG_CHANGED && e.data == "ui_layout.cfg");
+            .any(|e| e.event_type == ui_state_events::CONFIG_CHANGED && e.data.as_deref() == Some("ui_layout.cfg"));
         println!("vm-ui: [{}] Save 广播 CONFIG_CHANGED(\"ui_layout.cfg\")", verdict(published));
         failures += u32::from(!published);
     }

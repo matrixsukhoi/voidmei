@@ -8,45 +8,28 @@
 //! PORT: Application 静态字段 (loadAppCheck 写入面 / OverlaySettings 读取面) 与
 //! Controller 轮询间隔字段均属未翻译类 — 以本文件尾部的**消费面依赖桩**顶住
 //! (config_manager.rs 的 UIStateStorage 桩先例), 注入式持有, 不造全局 (§2.9)。
-//! PORT: UIStateBus 未翻译 (B 类后续批次) — 总线经构造器注入
-//! `Option<Arc<EventBus<UiStateEvent>>>`, Java `UIStateBus.getInstance()` 全局
-//! 单例读法收敛为依赖注入, 避免状态分裂; 订阅接线被 Rc<SExp> 阻塞, 见
-//! init_config 内 PORT 注释 (跨文件问题只标注不越文件修复, §6)。
+//! PORT(重构波1): UIStateBus 路由总线经构造器注入 `Option<Arc<UIStateBus>>`
+//! (Java `UIStateBus.getInstance()` 全局单例读法的依赖注入式收敛); 本服务
+//! 原"未路由裸 EventBus + 桩 UiStateEvent"形态已退役, 发布统一走
+//! ui_state_bus.rs 的路由总线与三参 publish。RESET_REQUEST 事件链由上层
+//! 直接调用 reset_all_layout_defaults() 顶替 (见 init_config 注释)。
 
 use std::sync::{Arc, RwLock};
 
-use crate::bus::EventBus;
 use crate::config_api::{ConfigProvider, HUDSettings, OverlaySettings};
 use crate::config_loader::{self, ConfigValue, GroupConfig, RowConfig};
 use crate::config_manager;
 use crate::event::ui_state_events;
 use crate::lang::Lang;
 use crate::logger;
+use crate::ui_state_bus::UIStateBus;
 
 /// RwLock 中毒消息 (Java 无锁; 对应持锁线程崩溃后的一致性未知面)
 const LC_LOCK_MSG: &str = "layoutConfigs 锁中毒";
 const APP_LOCK_MSG: &str = "Application 状态锁中毒";
 
-// =====================================================================
-// UIStateBus 消费面 (依赖桩, 非翻译)
-// =====================================================================
-
-/// UIStateBus 消息: Java `publish(eventType, source, data)` 弱类型三元组的
-/// 强类型化。eventType = 总线路由键 (Java 端 subscribe 按它分发); data 对应
-/// Java `Object` payload — 本文件全部发布点 (CONFIG_CHANGED 路由) 的 payload
-/// 恒为 String (config key / ACTION_RESET_*), 故收敛为 String。
-/// PORT: bus::EventBus 无 eventType 路由 (Java subscribe 按类型分发后才调
-/// handler) — 本总线广播给**全部**订阅者, 订阅方必须自行按 `event_type` 过滤,
-/// 否则跨类型串台。本类型是 UiStateEvent 的唯一定义点, 其他模块不得复制本地
-/// 副本 (统一消息类型上提见下 TODO)。
-/// TODO(port): UIStateBus 波次落地后切换到 crate 统一消息类型 (LIFETIMES:
-/// `enum UiEvent` + App.ui_events 方案)。
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct UiStateEvent {
-    pub event_type: String,
-    pub source: String,
-    pub data: String,
-}
+/// 配置写值钩子类型 (见 ServiceInner.write_hook 文档)
+pub type WriteHook = Box<dyn Fn(&str, &str) + Send + Sync>;
 
 // =====================================================================
 // java.awt.RenderingHints 抗锯齿常量 → 自定义枚举 (CLASSIFY 裁决)
@@ -91,7 +74,13 @@ struct ServiceInner {
     layout_configs: RwLock<Option<Vec<GroupConfig>>>,
     /// Application 静态态消费面 (依赖桩, 见文件尾 ApplicationState 文档)
     app: RwLock<ApplicationState>,
-    ui_state_bus: Option<Arc<EventBus<UiStateEvent>>>,
+    /// UIStateBus 路由总线 (重构波1: 原桩裸 EventBus 退役)
+    ui_state_bus: Option<Arc<UIStateBus>>,
+    /// 配置写值钩子 (重构波1): set_config 每键写树后、CONFIG_CHANGED 广播前
+    /// 同步调用 — App 层注册以直写跨线程快照 (voice_*/FM show* 键), 保证
+    /// 快照新值先于订阅者 (VoiceWarning reload) 执行。闭包只捕获 Send 快照,
+    /// 不触碰 !Send 配置树 (锁纪律同 §2.8: 钩子在放锁后调用)。
+    write_hook: RwLock<Option<WriteHook>>,
 }
 
 impl ConfigurationService {
@@ -100,7 +89,7 @@ impl ConfigurationService {
     // PORT: Java 保真 — Arc<ServiceInner> 复刻 Java this 引用的跨方法共享,
     // 内部 RwLock 字段按 Java 字段语义组织, 不为 Sync 约束改形状
     #[allow(clippy::arc_with_non_send_sync)]
-    pub fn new(ui_state_bus: Option<Arc<EventBus<UiStateEvent>>>) -> Self {
+    pub fn new(ui_state_bus: Option<Arc<UIStateBus>>) -> Self {
         // Initialize config class (property loader)
         // Note: Actual loading happens in initConfig()
         ConfigurationService {
@@ -108,8 +97,14 @@ impl ConfigurationService {
                 layout_configs: RwLock::new(None),
                 app: RwLock::new(ApplicationState::new()),
                 ui_state_bus,
+                write_hook: RwLock::new(None),
             }),
         }
+    }
+
+    /// 注册配置写值钩子 (见 ServiceInner.write_hook 文档); 覆盖式单装。
+    pub fn set_write_hook(&self, hook: WriteHook) {
+        *self.inner.write_hook.write().expect(APP_LOCK_MSG) = Some(hook);
     }
 
     /// Java: `public void initConfig()`
@@ -124,13 +119,12 @@ impl ConfigurationService {
 
         // Subscribe to global reset requests (EDA implementation)
         //           if (ACTION_RESET_REQUEST.equals(key)) resetAllLayoutDefaults(); })
-        // PORT(跨文件, §6 只标注): bus.rs 的 subscribe 要求回调 Send + 'static,
-        // 而 config_loader::GroupConfig 含 Rc<SExp> (visible_when/na_when) →
-        // 配置树 !Send, 本服务无法被订阅闭包捕获。接线待两选一裁决:
-        // (a) config_loader 的 Rc→Arc 化; (b) UIStateBus/AppState 波次收口
-        // (LIFETIMES §2.9)。接线前 RESET_REQUEST 事件链路由上层直接调用
-        // reset_all_layout_defaults() 顶替 (publish 侧不受影响, 已完整落地)。
-        // TODO(port): CONFIG_CHANGED 订阅接线 (见迁移报告)。
+        // PORT(重构波1 裁决): Java 构造器内的该订阅在 Rust 不接线 — 配置树
+        // !Send (Rc<SExp>) 无法被订阅闭包捕获, RESET_REQUEST 事件链由上层
+        // 直接调用 reset_all_layout_defaults() 顶替 (vm-ui main_form 的
+        // "resetConfig" 按钮, 生产无 ACTION_RESET_REQUEST 发布点);
+        // reset 内部的 RESET_COMPLETED 广播照常走注入总线。总线嵌套 publish
+        // 死锁已修 (ui_state_bus.rs), 该链路即便走总线也已安全。
     }
 
     /// Java: `public void loadLayout(String path)`
@@ -537,8 +531,13 @@ impl ServiceInner {
         }
         // PORT §2.8: Java 在改值点内联 publish (UIStateBus 同步执行 handler,
         // handler 可重入读配置); RwLock 不可重入 → 锁内只改值, 放锁后按原
-        // 产生顺序补发全部事件 (事件数量与顺序与 Java 一致)
+        // 产生顺序补发全部事件 (事件数量与顺序与 Java 一致)。
+        // 重构波1: 广播前先过写值钩子 — 跨线程快照 (voice_*/FM show*) 先于
+        // 订阅者拿到新值 (VoiceWarning reload 在 publish 栈内同步读快照)
         for k in events {
+            if let Some(hook) = self.write_hook.read().expect(APP_LOCK_MSG).as_ref() {
+                hook(&k, value);
+            }
             self.publish_config_changed(&k);
         }
     }
@@ -642,11 +641,11 @@ impl ServiceInner {
     /// PORT: 总线注入式 — 未注入时为无操作 (Java 全局单例恒存在)
     fn publish_config_changed(&self, data: &str) {
         if let Some(bus) = &self.ui_state_bus {
-            bus.publish(&UiStateEvent {
-                event_type: ui_state_events::CONFIG_CHANGED.to_string(),
-                source: "ConfigurationService".to_string(),
-                data: data.to_string(),
-            });
+            bus.publish(
+                ui_state_events::CONFIG_CHANGED,
+                Some("ConfigurationService"),
+                Some(data),
+            );
         }
     }
 

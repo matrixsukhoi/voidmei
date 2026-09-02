@@ -133,11 +133,11 @@ fn dispatch_form(
                 drop(s);
                 // 广播整树变更 (前端重拉 + overlay 全量刷新, reset 链同款全局键)
                 if let Ok(s) = shell.lock() {
-                    s.ui_bus.publish(&vm_core::configuration_service::UiStateEvent {
-                        event_type: vm_core::event::ui_state_events::CONFIG_CHANGED.to_string(),
-                        source: "ConfigImport".to_string(),
-                        data: "ui_layout.cfg".to_string(),
-                    });
+                    s.ui_bus.publish(
+                        vm_core::event::ui_state_events::CONFIG_CHANGED,
+                        Some("ConfigImport"),
+                        Some("ui_layout.cfg"),
+                    );
                 }
                 IpcReply::Ok(serde_json::json!({ "ok": true }))
             } else {
@@ -379,7 +379,7 @@ mod tests {
     #[allow(clippy::arc_with_non_send_sync)]
     fn shell_with_cfg(cfg_text: &str, tag: &str) -> Arc<Mutex<AppShell>> {
         use vm_app::ShellParts;
-        let ui_bus = Arc::new(vm_core::bus::EventBus::new());
+        let ui_bus = Arc::new(vm_core::ui_state_bus::UIStateBus::new());
         let config = ConfigurationService::new(Some(Arc::clone(&ui_bus)));
         let cfg = std::env::temp_dir().join(format!(
             "vm_app_formdisp_{tag}_{}.cfg",

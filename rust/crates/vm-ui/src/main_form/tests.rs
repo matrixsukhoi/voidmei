@@ -30,12 +30,15 @@ fn mk_state(
 ) -> (MainFormState, Arc<Mutex<Vec<UiStateEvent>>>, vm_core::bus::Subscription<UiStateEvent>) {
     let p = tmp_path(name);
     std::fs::write(&p, TEST_CFG).unwrap();
-    let bus = Arc::new(EventBus::new());
+    let bus = Arc::new(vm_core::ui_state_bus::UIStateBus::new());
     let seen: Arc<Mutex<Vec<UiStateEvent>>> = Arc::new(Mutex::new(Vec::new()));
     let s2 = Arc::clone(&seen);
-    let sub = bus.subscribe(move |m: &UiStateEvent| {
-        s2.lock().unwrap().push(m.clone());
-    });
+    let sub = bus.subscribe(
+        vm_core::event::ui_state_events::CONFIG_CHANGED,
+        move |m: &UiStateEvent| {
+            s2.lock().unwrap().push(m.clone());
+        },
+    );
     let config = ConfigurationService::new(Some(Arc::clone(&bus)));
     config.load_layout(&p);
     (MainFormState::new(config, bus, persist), seen, sub)
@@ -45,7 +48,7 @@ fn events_of(seen: &Arc<Mutex<Vec<UiStateEvent>>>) -> Vec<(String, String)> {
     seen.lock()
         .unwrap()
         .iter()
-        .map(|e| (e.event_type.clone(), e.data.clone()))
+        .map(|e| (e.event_type.clone(), e.data.clone().unwrap_or_default()))
         .collect()
 }
 
@@ -144,12 +147,15 @@ fn color_picked_writes_decimal_bus_and_persists() {
         r##"(panel "P" (item "告警色" :type color :target "fontWarn" :value "#FF2400FF"))"##,
     )
     .unwrap();
-    let bus = Arc::new(EventBus::new());
+    let bus = Arc::new(vm_core::ui_state_bus::UIStateBus::new());
     let seen: Arc<Mutex<Vec<UiStateEvent>>> = Arc::new(Mutex::new(Vec::new()));
     let s2 = Arc::clone(&seen);
-    let _sub = bus.subscribe(move |m: &UiStateEvent| {
-        s2.lock().unwrap().push(m.clone());
-    });
+    let _sub = bus.subscribe(
+        vm_core::event::ui_state_events::CONFIG_CHANGED,
+        move |m: &UiStateEvent| {
+            s2.lock().unwrap().push(m.clone());
+        },
+    );
     let config = ConfigurationService::new(Some(Arc::clone(&bus)));
     config.load_layout(&p);
     let mut state = MainFormState::new(config, bus, Some(persist.clone()));
@@ -182,7 +188,7 @@ fn color_picked_writes_decimal_bus_and_persists() {
 fn solo_state(name: &str, cfg: &str, persist: Option<String>) -> MainFormState {
     let p = tmp_path(name);
     std::fs::write(&p, cfg).unwrap();
-    let bus = Arc::new(EventBus::new());
+    let bus = Arc::new(vm_core::ui_state_bus::UIStateBus::new());
     let config = ConfigurationService::new(Some(Arc::clone(&bus)));
     config.load_layout(&p);
     MainFormState::new(config, bus, persist)
@@ -341,12 +347,23 @@ fn counts_and_first_row_of_type() {
 fn write_context_fmprint_special_publishes() {
     let p = tmp_path("fmp");
     std::fs::write(&p, r#"(panel "p" (item "fm" :type switch :target "enableFMPrint" :value true))"#).unwrap();
-    let bus = Arc::new(EventBus::new());
+    let bus = Arc::new(vm_core::ui_state_bus::UIStateBus::new());
+    // 路由总线: 两类事件各挂一探针, 共享 seen (实际送达序 = publish 序)
     let seen: Arc<Mutex<Vec<UiStateEvent>>> = Arc::new(Mutex::new(Vec::new()));
     let s2 = Arc::clone(&seen);
-    let _sub = bus.subscribe(move |m: &UiStateEvent| {
-        s2.lock().unwrap().push(m.clone());
-    });
+    let _sub_cfg = bus.subscribe(
+        vm_core::event::ui_state_events::CONFIG_CHANGED,
+        move |m: &UiStateEvent| {
+            s2.lock().unwrap().push(m.clone());
+        },
+    );
+    let s3 = Arc::clone(&seen);
+    let _sub_fm = bus.subscribe(
+        vm_core::event::ui_state_events::FM_PRINT_SWITCH_CHANGED,
+        move |m: &UiStateEvent| {
+            s3.lock().unwrap().push(m.clone());
+        },
+    );
     let config = ConfigurationService::new(Some(Arc::clone(&bus)));
     config.load_layout(&p);
 
@@ -394,7 +411,7 @@ fn button_action_confirm_executes_reset() {
     }
     let _sandbox = Sandbox { orig, dir: dir.clone() };
 
-    let bus = Arc::new(EventBus::new());
+    let bus = Arc::new(vm_core::ui_state_bus::UIStateBus::new());
     let config = ConfigurationService::new(Some(Arc::clone(&bus)));
     config.load_layout("ui_layout.cfg");
     let mut state = MainFormState::new(

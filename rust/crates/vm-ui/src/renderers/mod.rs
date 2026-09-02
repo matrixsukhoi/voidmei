@@ -82,7 +82,6 @@ pub(crate) mod test_util {
     use std::collections::HashMap;
     use std::sync::Arc;
 
-    use vm_core::bus::EventBus;
     use vm_core::configuration_service::ConfigurationService;
     use vm_core::row_renderer_registry::RenderContext;
 
@@ -144,7 +143,7 @@ pub(crate) mod test_util {
         // 掺 PID: 防两个测试进程并发跑时同名临时文件 truncate/read 竞争 (config_loader 实测同款踩坑)
         let p = std::env::temp_dir().join(format!("vm_ui_renderers_{}_{name}.cfg", std::process::id()));
         std::fs::write(&p, cfg).unwrap();
-        let bus = Arc::new(EventBus::new());
+        let bus = Arc::new(vm_core::ui_state_bus::UIStateBus::new());
         let config = ConfigurationService::new(Some(Arc::clone(&bus)));
         config.load_layout(p.to_str().unwrap());
         crate::main_form::MainFormState::new(config, bus, persist)

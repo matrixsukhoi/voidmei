@@ -32,9 +32,9 @@ use std::thread::JoinHandle;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use vm_core::activation_strategy::{ActivationContext, ActivationStrategy};
-use vm_core::bus::{EventBus, Subscription};
+use vm_core::bus::Subscription;
 use vm_core::config_api::{ConfigProvider, HudSettingsSnapshot, OverlaySettings};
-use vm_core::configuration_service::{ConfigurationService, ControllerIntervals, GlobalColors, UiStateEvent};
+use vm_core::configuration_service::{ConfigurationService, ControllerIntervals, GlobalColors};
 use vm_core::controller_state::ControllerState;
 use vm_core::event::event_payload::EventPayload;
 use vm_core::event::flight_data_event::FlightDataEvent;
@@ -49,7 +49,7 @@ use vm_core::hud_calculator::HudColors;
 use vm_core::lang::Lang;
 use vm_core::logger;
 use vm_core::formula::registry::FormulaView as _; // var_value 取数唯一接口 (W10 后 TelemetrySource 已删)
-use vm_core::ui_state_bus::UIStateBus;
+use vm_core::ui_state_bus::{UIStateBus, UiStateEvent};
 use vm_core::voice_resource_manager::VoiceResourceManager;
 use vm_core::voice_warning::{VoiceWarning, VoiceWarningService};
 
@@ -747,7 +747,7 @@ impl From<&OverlayInputs> for vm_overlay::ReinitParams {
 /// Controller 构造依赖 (AppShell 分发; 对位 Java 构造器从单例/静态取的全部输入)
 pub struct ControllerDeps {
     pub config: ConfigurationService,
-    pub ui_bus: Arc<EventBus<UiStateEvent>>,
+    pub ui_bus: Arc<UIStateBus>,
     pub flight_bus: Arc<FlightDataBus>,
     pub fm: Arc<FMManager>,
     pub hotkey: Arc<Mutex<HotkeyManager>>,
@@ -843,19 +843,21 @@ impl Controller {
         c.bind_fm_hotkey_initial();
 
         // AppShell::handle_main_event, 对位 Java handler 内联执行的语义)
+        // 重构波1: 路由总线按 event_type 精确订阅 (原桩总线广播+手工过滤退役)
         let tx = main_event_tx.clone();
-        c.subs.push(ui_bus.subscribe(move |ev: &UiStateEvent| {
-            // 桩总线无路由 (bus.rs 广播), 订阅方按 event_type 过滤
-            if ev.event_type == ui_state_events::CONFIG_CHANGED {
-                let _ = tx.send(MainEvent::ConfigChanged(ev.data.clone()));
-            }
-        }));
+        c.subs.push(ui_bus.subscribe(
+            ui_state_events::CONFIG_CHANGED,
+            move |ev: &UiStateEvent| {
+                let _ = tx.send(MainEvent::ConfigChanged(ev.data.clone().unwrap_or_default()));
+            },
+        ));
         let tx = main_event_tx.clone();
-        c.subs.push(ui_bus.subscribe(move |ev: &UiStateEvent| {
-            if ev.event_type == ui_state_events::UI_READY {
+        c.subs.push(ui_bus.subscribe(
+            ui_state_events::UI_READY,
+            move |_ev: &UiStateEvent| {
                 let _ = tx.send(MainEvent::UiReady);
-            }
-        }));
+            },
+        ));
         let tx = main_event_tx.clone();
         c.fm_sub = Some(fm.fm_changed_bus().subscribe(move |handle| {
             // 摘要转发由主线程记日志, TODO(port) 接 toast)
@@ -1466,7 +1468,7 @@ pub struct ShellParts {
     pub env: Env,
     /// 初始配置服务 (生产: new + initConfig; 测试: tmp cfg load_layout)
     pub config: ConfigurationService,
-    pub ui_bus: Arc<EventBus<UiStateEvent>>,
+    pub ui_bus: Arc<UIStateBus>,
     pub flight_bus: Arc<FlightDataBus>,
     pub fm: Arc<FMManager>,
     pub hotkey: HotkeyManager,
@@ -1480,7 +1482,7 @@ pub struct ShellParts {
 /// fm/flight_bus/ui_bus/hotkey/debouncer。
 pub struct AppShell {
     pub env: Env,
-    pub ui_bus: Arc<EventBus<UiStateEvent>>,
+    pub ui_bus: Arc<UIStateBus>,
     pub flight_bus: Arc<FlightDataBus>,
     pub fm: Arc<FMManager>,
     pub hotkey: Arc<Mutex<HotkeyManager>>,
@@ -1490,14 +1492,10 @@ pub struct AppShell {
     /// VoiceWarning 告警线程) 经同一 Arc 共享。voice 目录 "voice" 与
     /// form_dispatch 旧局部实例一致 (Java "./voice/")。
     pub voice: Arc<VoiceResourceManager>,
-    /// Java `UIStateBus.getInstance()` 在 VoiceWarning.configHandler 订阅面的
-    /// 落位: 配置服务桩总线 (未路由 EventBus, !Send 侧) 与 vm-core 路由总线
-    /// (UIStateBus) 类型分裂 (ui_state_bus.rs 头注已上报), 转发桥见
-    /// [`AppShell::handle_main_event`] 的 ConfigChanged 分支
-    pub voice_bus: Arc<UIStateBus>,
     /// voice_* 配置键快照 ([`VoiceConfigSnapshot`] 的数据面; 配置 !Send 恒留
     /// 主线程, VoiceWarning 的 reload 链经快照跨线程读 — FlightLogConfig 单键
-    /// 快照先例的全键版)
+    /// 快照先例的全键版)。重构波1: 常规写值经 ConfigurationService 的
+    /// write_hook 在广播前直写 (快照新值先于订阅者), 本字段随核重建全量重刷
     pub voice_config: Arc<Mutex<HashMap<String, String>>>,
     /// FM拆包数据 show* 配置键快照 ([`FmFieldConfigSnapshot`] 的数据面;
     /// FMUnpackedData 的 generate_lines 每 tick 读, CONFIG_CHANGED 逐键刷新)
@@ -1565,7 +1563,7 @@ impl AppShell {
             env.app_port_bkp = p + 1111;
             env.port_override = Some(p);
         }
-        let ui_bus = Arc::new(EventBus::new());
+        let ui_bus = Arc::new(UIStateBus::new());
         let config = ConfigurationService::new(Some(Arc::clone(&ui_bus)));
         // Java Controller 构造器: configService.initConfig() 装载设置文件
         config.init_config();
@@ -1581,7 +1579,7 @@ impl AppShell {
             config,
             ui_bus,
             flight_bus: Arc::new(FlightDataBus::new()),
-            fm: Arc::new(FMManager::new(Arc::new(EventBus::new()))),
+            fm: Arc::new(FMManager::new(Arc::new(vm_core::bus::EventBus::new()))),
             hotkey,
             hotkey_rx,
             debounce_delay: Duration::from_millis(CONFIG_DEBOUNCE_MS),
@@ -1613,15 +1611,15 @@ impl AppShell {
             winmm_player::make_player(),
             "voice".to_string(),
         ));
-        // VoiceWarning 的 configHandler 订阅面 (Java UIStateBus 单例落位) +
-        // voice_* 配置键快照 (跨线程读面, 初始全量填充)
-        let voice_bus = Arc::new(UIStateBus::new());
+        // voice_* / FM show* 配置键快照 (跨线程读面, 初始全量填充);
+        // 常规写值经 write_hook 在 CONFIG_CHANGED 广播前直写快照
         let voice_config: Arc<Mutex<HashMap<String, String>>> =
             Arc::new(Mutex::new(HashMap::new()));
         refresh_voice_config_snapshot(&config, &voice_config);
         let fm_field_config: Arc<Mutex<HashMap<String, String>>> =
             Arc::new(Mutex::new(HashMap::new()));
         refresh_fm_field_config_snapshot(&config, &fm_field_config);
+        attach_snapshot_hooks(&config, &voice_config, &fm_field_config);
         let debounce =
             ConfigDebouncer::spawn(debounce_delay, ui_cmd_tx.clone(), Arc::clone(&shared));
         AppShell {
@@ -1631,7 +1629,6 @@ impl AppShell {
             fm,
             hotkey: Arc::new(Mutex::new(hotkey)),
             voice,
-            voice_bus,
             voice_config,
             fm_field_config,
             shared,
@@ -1675,6 +1672,8 @@ impl AppShell {
             None => {
                 let config = ConfigurationService::new(Some(Arc::clone(&self.ui_bus)));
                 config.init_config();
+                // 快照写值钩子随新配置树重挂 (voice_*/FM show* 直写面)
+                attach_snapshot_hooks(&config, &self.voice_config, &self.fm_field_config);
                 // 模板回退 (vm-ui main.rs 同款分歧备案: CWD 无用户 cfg 时以仓库模板自愈)
                 if config.get_layout_configs().is_none_or(|g| g.is_empty()) {
                     match locate_template_cfg() {
@@ -1748,7 +1747,6 @@ impl AppShell {
             shared: Arc::clone(&self.shared),
             activation: Arc::clone(&self.activation),
             voice: Arc::clone(&self.voice),
-            voice_bus: Arc::clone(&self.voice_bus),
             voice_config: Arc::clone(&self.voice_config),
             fm_field_config: Arc::clone(&self.fm_field_config),
             ui_cmd_rx,
@@ -1845,32 +1843,10 @@ impl AppShell {
                 // win32 激活面同步 (配置已由发布方写毕, 最后写胜出 — 见缓存头注)
                 refresh_activation_cache(&c.config, &self.activation);
                 // Java VoiceWarning.configHandler 的触发链 (UIStateBus 单例 →
-                // CONFIG_CHANGED(voice_*) → alert.reload): 桩总线 (configuration_
-                // service 的 EventBus) 与 vm-core UIStateBus 类型分裂, 此处单点
-                // 转发 — 先同步 voice_* 快照 (reload 读到新值), 再发布到 voice_bus
-                // (VoiceWarning 订阅方在 publish 调用线程 = 主线程同步执行,
-                // 对位 Java handler 在 EDT 发布线程内联执行)
-                if key.starts_with("voice_") {
-                    let val = c.config.get_config(&key).unwrap_or_default();
-                    self.voice_config
-                        .lock()
-                        .expect("voice 配置快照锁中毒")
-                        .insert(key.clone(), val);
-                    self.voice_bus.publish(
-                        ui_state_events::CONFIG_CHANGED,
-                        Some("ConfigurationService"),
-                        Some(&key),
-                    );
-                }
-                // FM show* 快照逐键刷新 (FMUnpackedData generate_lines 的跨线程
-                // 读面; Java 每轮直读配置, 此处最后写胜出 — 激活缓存同款等价)
-                if FM_FIELD_KEYS.contains(&key.as_str()) {
-                    let val = c.config.get_config(&key).unwrap_or_default();
-                    self.fm_field_config
-                        .lock()
-                        .expect("FM 字段快照锁中毒")
-                        .insert(key.clone(), val);
-                }
+                // CONFIG_CHANGED(voice_*) → alert.reload) 重构波1 起由统一路由
+                // 总线直连 (ConfigurationService 发布 → VoiceWarning 订阅);
+                // voice_*/FM show* 快照已在 set_config 的 write_hook 广播前直写,
+                // 此处无需事后补刷 (原类型分裂时代的转发桥退役)
                 // WYSIWYG reinit 参数直送 (五色直送同款模式): 即时读配置重建参数包,
                 // 先于下方 RefreshPreviews(防抖)/ReinitActiveOverlays 入队 —
                 // 对位 Java refreshPreviews → reinitConfig 即时读配置的时序
@@ -2090,15 +2066,13 @@ impl Drop for AppShell {
 pub struct Win32ThreadConfig {
     pub env: Env,
     pub inputs: OverlayInputs,
-    pub ui_bus: Arc<EventBus<UiStateEvent>>,
+    pub ui_bus: Arc<UIStateBus>,
     pub flight_bus: Arc<FlightDataBus>,
     pub fm: Arc<FMManager>,
     pub shared: Arc<ControllerShared>,
     pub activation: ActivationCache,
     /// 共享语音资源管理器 (AppShell.voice; VoiceWarning 告警线程的 reload 面)
     pub voice: Arc<VoiceResourceManager>,
-    /// VoiceWarning configHandler 订阅面 (AppShell.voice_bus)
-    pub voice_bus: Arc<UIStateBus>,
     /// voice_* 配置键快照 (AppShell.voice_config; 配置 !Send 的跨线程桥)
     pub voice_config: Arc<Mutex<HashMap<String, String>>>,
     /// FM show* 配置键快照 (AppShell.fm_field_config; 同上跨线程桥,
@@ -2376,6 +2350,31 @@ fn refresh_fm_field_config_snapshot(
     }
 }
 
+/// 挂配置写值钩子 (重构波1): set_config 广播 CONFIG_CHANGED 前直写跨线程快照,
+/// 保证 VoiceWarning reload (publish 栈内同步读快照) 拿到新值 — 对位原
+/// handle_main_event 转发桥"先同步快照再发总线"的时序。调用点: AppShell 构造
+/// (initial_config) / 托盘 rebuild (新配置树)。
+fn attach_snapshot_hooks(
+    config: &ConfigurationService,
+    voice_config: &Arc<Mutex<HashMap<String, String>>>,
+    fm_field_config: &Arc<Mutex<HashMap<String, String>>>,
+) {
+    let voice = Arc::clone(voice_config);
+    let fm = Arc::clone(fm_field_config);
+    config.set_write_hook(Box::new(move |key, value| {
+        if key.starts_with("voice_") {
+            voice
+                .lock()
+                .expect("voice 配置快照锁中毒")
+                .insert(key.to_string(), value.to_string());
+        } else if FM_FIELD_KEYS.contains(&key) {
+            fm.lock()
+                .expect("FM 字段快照锁中毒")
+                .insert(key.to_string(), value.to_string());
+        }
+    }));
+}
+
 /// VoiceWarning 对 Service 消费面的生产实现 (VoiceWarningService trait):
 /// 直接持有 live ServiceData 的 RwLock Arc (Java xS 引用在 openpad 时刻捕获的
 /// 对位 — S 实例持续存活, stop 清槽后数据不再更新但读不悬垂, 比 Java 更稳)。
@@ -2516,7 +2515,7 @@ fn voice_warn_refresh_reaches(changed_key: Option<&str>) -> bool {
 /// 序, 需裁决)。
 fn open_voice_warning(
     voice: &Arc<VoiceResourceManager>,
-    voice_bus: &Arc<UIStateBus>,
+    ui_bus: &Arc<UIStateBus>,
     voice_config: &Arc<Mutex<HashMap<String, String>>>,
     fm: &Arc<FMManager>,
     flight_bus: &Arc<FlightDataBus>,
@@ -2528,7 +2527,7 @@ fn open_voice_warning(
             as Arc<dyn ConfigProvider + Send + Sync>,
         Arc::clone(voice),
         Arc::clone(fm),
-        Arc::clone(voice_bus),
+        Arc::clone(ui_bus),
         Arc::clone(flight_bus),
         // legacy_player: playWav/getClip 直开面 (全库无调用方), 独立 winmm 实例
         // 与 resource_manager 注入同一实现即等价 (voice_warning.rs PORT 注)
@@ -2956,7 +2955,6 @@ pub fn win32_thread_main(cfg: Win32ThreadConfig) {
         shared,
         activation,
         voice,
-        voice_bus,
         voice_config,
         fm_field_config,
         ui_cmd_rx,
@@ -3059,10 +3057,8 @@ pub fn win32_thread_main(cfg: Win32ThreadConfig) {
     // overlays_field2.rs 头注契约 "由组装层的事件循环驱动" — 句柄 !Send (Rc),
     // 经 channel 中转到本循环消费; 订阅句柄随线程 Drop = Java dispose 退订链) ----
     let (fm_toggle_tx, fm_toggle_rx) = std::sync::mpsc::channel::<()>();
-    let _fm_toggle_sub = ui_bus.subscribe(move |ev: &UiStateEvent| {
-        if ev.event_type == ui_state_events::FM_OVERLAY_TOGGLE {
-            let _ = fm_toggle_tx.send(());
-        }
+    let _fm_toggle_sub = ui_bus.subscribe(ui_state_events::FM_OVERLAY_TOGGLE, move |_ev| {
+        let _ = fm_toggle_tx.send(());
     });
     // FM_CHANGED 载荷 = FMHandle (fm_manager 强类型总线, Java instanceof 过滤由
     // 类型免除)。blkx 深拷一次进通道 (FMHandle.blkx 值字段 → 句柄侧 Arc<Blkx>;
@@ -3253,7 +3249,7 @@ pub fn win32_thread_main(cfg: Win32ThreadConfig) {
                             let live = shared.live.read().expect("live 锁中毒").clone();
                             match open_voice_warning(
                                 &voice,
-                                &voice_bus,
+                                &ui_bus,
                                 &voice_config,
                                 &fm,
                                 &flight_bus,
@@ -3399,11 +3395,7 @@ pub fn win32_thread_main(cfg: Win32ThreadConfig) {
         }
         // 热键事件 (钩子线程 → 本线程统一消费; Java jnativehook 派发线程直发 UIStateBus)
         while let Ok(hk) = hotkey_rx.try_recv() {
-            ui_bus.publish(&UiStateEvent {
-                event_type: hk.event_type.clone(),
-                source: "HotkeyManager".to_string(),
-                data: hk.key_code.to_string(),
-            });
+            ui_bus.publish(&hk.event_type, Some("HotkeyManager"), Some(&hk.key_code.to_string()));
         }
         std::thread::sleep(Duration::from_millis(10)); // 事件泵 10ms (host.run 同款)
     }

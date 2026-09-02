@@ -1,5 +1,6 @@
 use super::*;
 use std::sync::atomic::AtomicUsize;
+use vm_core::bus::EventBus; // FmChangedBus 底座 (EventBus<FMHandle>) 的构造面
 use vm_core::fm::FMHandle;
 
 static CFG_N: AtomicUsize = AtomicUsize::new(0);
@@ -55,7 +56,7 @@ fn fixture_with_debounce(ms: u64) -> AppShell {
 
 /// 全参 fixture (自定义 cfg 内容; 见 fixture_with_debounce 注)
 fn fixture_full(ms: u64, cfg: String) -> AppShell {
-    let ui_bus = Arc::new(EventBus::new());
+    let ui_bus = Arc::new(vm_core::ui_state_bus::UIStateBus::new());
     let config = ConfigurationService::new(Some(Arc::clone(&ui_bus)));
     config.load_layout(&cfg);
     let (hotkey, hotkey_rx) = HotkeyManager::with_channel();
@@ -71,7 +72,7 @@ fn fixture_full(ms: u64, cfg: String) -> AppShell {
         config,
         ui_bus,
         flight_bus: Arc::new(FlightDataBus::new()),
-        fm: Arc::new(FMManager::new(Arc::new(EventBus::new()))),
+        fm: Arc::new(FMManager::new(Arc::new(vm_core::bus::EventBus::new()))),
         hotkey,
         hotkey_rx,
         debounce_delay: Duration::from_millis(ms),
@@ -92,12 +93,8 @@ fn pump_events(shell: &mut AppShell) -> bool {
     handled
 }
 
-fn publish_ui_event(bus: &EventBus<UiStateEvent>, event_type: &str, data: &str) {
-    bus.publish(&UiStateEvent {
-        event_type: event_type.to_string(),
-        source: "MainForm".to_string(),
-        data: data.to_string(),
-    });
+fn publish_ui_event(bus: &vm_core::ui_state_bus::UIStateBus, event_type: &str, data: &str) {
+    bus.publish(event_type, Some("MainForm"), Some(data));
 }
 
 // ------------------------------------------------------------------
@@ -449,9 +446,12 @@ fn stop_five_step_order() {
     );
 
     let gen_before = shell.shared.preview_generation.load(Ordering::SeqCst);
-    let ui_subs_before = shell.ui_bus.subscriber_count();
+    // 路由总线按 event_type 计数 (原桩总线广播计数已随波1 退役)
+    let cfg_subs_before = shell.ui_bus.subscriber_count(ui_state_events::CONFIG_CHANGED);
+    let ready_subs_before = shell.ui_bus.subscriber_count(ui_state_events::UI_READY);
     let fm_subs_before = shell.fm.fm_changed_bus().subscriber_count();
-    assert!(ui_subs_before >= 2, "Controller 应持 config/uiReady 两订阅");
+    assert!(cfg_subs_before >= 1, "Controller 应持 CONFIG_CHANGED 订阅");
+    assert!(ready_subs_before >= 1, "Controller 应持 UI_READY 订阅");
     assert!(fm_subs_before >= 1, "Controller 应持 FM_CHANGED 订阅");
 
     // 步③注入: 游戏模式下 M 已被 start() 释放 (Java start:619-623 dispose M),
@@ -483,8 +483,15 @@ fn stop_five_step_order() {
         }
     }
     assert!(got_close, "步①应发 CloseAllOverlays (closepad 路径)");
-    // ②: 订阅全部退订
-    assert_eq!(shell.ui_bus.subscriber_count(), ui_subs_before - 2);
+    // ②: 订阅全部退订 (路由后按类型各 -1)
+    assert_eq!(
+        shell.ui_bus.subscriber_count(ui_state_events::CONFIG_CHANGED),
+        cfg_subs_before - 1
+    );
+    assert_eq!(
+        shell.ui_bus.subscriber_count(ui_state_events::UI_READY),
+        ready_subs_before - 1
+    );
     assert_eq!(
         shell.fm.fm_changed_bus().subscriber_count(),
         fm_subs_before - 1
@@ -860,7 +867,8 @@ fn fm_changed_missing_schedules_full_refresh() {
 #[test]
 fn tray_activate_rebuilds_controller() {
     let mut shell = fixture();
-    let before = shell.ui_bus.subscriber_count();
+    let before = shell.ui_bus.subscriber_count(ui_state_events::CONFIG_CHANGED)
+        + shell.ui_bus.subscriber_count(ui_state_events::UI_READY);
     shell.handle_main_event(MainEvent::Tray(TrayCommand::Activate));
     assert_eq!(
         shell.controller.as_ref().unwrap().state(),
@@ -868,7 +876,8 @@ fn tray_activate_rebuilds_controller() {
         "新核从 INIT 开始"
     );
     assert_eq!(
-        shell.ui_bus.subscriber_count(),
+        shell.ui_bus.subscriber_count(ui_state_events::CONFIG_CHANGED)
+            + shell.ui_bus.subscriber_count(ui_state_events::UI_READY),
         before,
         "旧核退订 + 新核订阅, 净计数不变 (无泄漏累积)"
     );
@@ -1940,7 +1949,7 @@ fn voice_warning_游戏模式会话_启动tick写fatal_warn并停机() {
     let data = Arc::new(std::sync::RwLock::new(sd));
     let mut session = open_voice_warning(
         &shell.voice,
-        &shell.voice_bus,
+        &shell.ui_bus,
         &shell.voice_config,
         &shell.fm,
         &shell.flight_bus,
@@ -1972,7 +1981,7 @@ fn voice_warning_live缺失_不起会话() {
     assert!(
         open_voice_warning(
             &shell.voice,
-            &shell.voice_bus,
+            &shell.ui_bus,
             &shell.voice_config,
             &shell.fm,
             &shell.flight_bus,
@@ -2026,10 +2035,10 @@ fn voice_warning_激活判定_配置开关与live门控() {
     );
 }
 
-/// configHandler 触发链 (转发桥): 配置发布 → Controller 转发 → 主线程同步
-/// voice_* 快照 + voice_bus 发布 (VoiceWarning 订阅面的送达源)
+/// configHandler 触发链 (重构波1): 配置写值 → write_hook 广播前直写快照 →
+/// CONFIG_CHANGED 直达统一路由总线 (VoiceWarning 订阅面; 原转发桥退役)
 #[test]
-fn voice_config_变更同步快照并转发voice_bus() {
+fn voice_config_变更同步快照并直达总线() {
     let cfg = fixture_cfg(
         "(panel \"T\" :visible true\n\
              \x20 (item \"vw\" :type combo :target \"voice_aoaCrit\" :value \"default|false\")\n\
@@ -2048,10 +2057,10 @@ fn voice_config_变更同步快照并转发voice_bus() {
         Some("default|false"),
         "初始快照应含配置树现值"
     );
-    // 探针挂 voice_bus (Java VoiceWarning.configHandler 的送达面)
+    // 探针挂统一总线 (Java VoiceWarning.configHandler 的送达面)
     let hits = Arc::new(std::sync::atomic::AtomicUsize::new(0));
     let h2 = Arc::clone(&hits);
-    let sub = shell.voice_bus.subscribe(
+    let sub = shell.ui_bus.subscribe(
         ui_state_events::CONFIG_CHANGED,
         move |msg: &vm_core::ui_state_bus::UiStateEvent| {
             if msg.data.as_deref() == Some("voice_aoaCrit") {
@@ -2059,14 +2068,14 @@ fn voice_config_变更同步快照并转发voice_bus() {
             }
         },
     );
-    // 发布方写配置树 (set_config 放锁后补发 CONFIG_CHANGED 到桩总线)
+    // 发布方写配置树: write_hook 同步直写快照 (广播前) → publish 直达订阅者
     shell
         .controller
         .as_ref()
         .unwrap()
         .config
         .set_config("voice_aoaCrit", "default|true");
-    pump_events(&mut shell); // Controller 转发 → handle_main_event → 快照 + voice_bus
+    // 快照在 publish 栈内已被 VoiceWarning reload 可见 — 此刻即新值, 无需 pump
     assert_eq!(
         shell
             .voice_config
@@ -2075,13 +2084,14 @@ fn voice_config_变更同步快照并转发voice_bus() {
             .get("voice_aoaCrit")
             .map(|s| s.as_str()),
         Some("default|true"),
-        "voice_* 变更应同步进跨线程快照 (reload 链读到新值的前提)"
+        "voice_* 变更应经 write_hook 同步进快照 (reload 链读到新值的前提)"
     );
     assert_eq!(
         hits.load(std::sync::atomic::Ordering::SeqCst),
         1,
-        "voice_bus 应收到恰好一次 CONFIG_CHANGED(voice_aoaCrit)"
+        "统一总线应收到恰好一次 CONFIG_CHANGED(voice_aoaCrit)"
     );
+    pump_events(&mut shell); // Controller 转发链照常 (无额外快照补写面)
     drop(sub);
 }
 
@@ -2146,7 +2156,7 @@ impl vm_core::voice_resource_manager::SoundClip for CountingClip {
 
 /// 装配面全链 (mock SoundPlayer, 不触音频设备):
 /// 1) enableVoiceWarn=true 会话建 → FlightDataBus 订阅在 (+1) +
-///    voice_bus configHandler 在 (发布送达 1);
+///    统一总线 configHandler 在 (发布送达 = Controller 常驻 1 + configHandler 1);
 /// 2) 告警键触发 play 路径: playerLive+IAS 200+AoA 20 (>默认线 15-1) →
 ///    aoaCrit start 计 1, init 的 start1 计 1;
 /// 3) stop (Java OverlayEntry.close) 后无僵尸订阅: 总线计数回基线 +
@@ -2179,7 +2189,7 @@ fn voice_warning_装配面_播放计数与订阅生命周期() {
     let base = shell.flight_bus.subscriber_count();
     let mut session = open_voice_warning(
         &mgr,
-        &shell.voice_bus,
+        &shell.ui_bus,
         &shell.voice_config,
         &shell.fm,
         &shell.flight_bus,
@@ -2191,15 +2201,16 @@ fn voice_warning_装配面_播放计数与订阅生命周期() {
         base + 1,
         "会话存活期 FlightDataBus 订阅应在"
     );
-    // configHandler 在: 发布送达数 = 1 (voice_bus 上仅 VoiceWarning 的订阅)
+    // configHandler 在: 发布送达数 = 2 (统一总线上 Controller 常驻订阅 1 +
+    // VoiceWarning configHandler 1; 原独立 voice_bus 时代 VoiceWarning 独占为 1)
     assert_eq!(
-        shell.voice_bus.publish(
+        shell.ui_bus.publish(
             ui_state_events::CONFIG_CHANGED,
             Some("test"),
             Some("voice_aoaCrit")
         ),
-        1,
-        "configHandler 应在订阅中 (送达 1)"
+        2,
+        "configHandler 应在订阅中 (Controller 1 + configHandler 1)"
     );
 
     // 等 tick (启动延迟 1s + 100ms 节拍; 轮询 8s 超时即失败 — 不假通过)。
@@ -2232,13 +2243,13 @@ fn voice_warning_装配面_播放计数与订阅生命周期() {
         "停机后 FlightDataBus 订阅应注销 (RAII)"
     );
     assert_eq!(
-        shell.voice_bus.publish(
+        shell.ui_bus.publish(
             ui_state_events::CONFIG_CHANGED,
             Some("test"),
             Some("voice_aoaCrit")
         ),
-        0,
-        "configHandler 应随线程退出注销 (Java 泄漏点的根治面)"
+        1,
+        "configHandler 应随线程退出注销, 仅剩 Controller 常驻订阅 (Java 泄漏点的根治面)"
     );
     let _ = std::fs::remove_dir_all(&dir);
 }
@@ -2282,12 +2293,12 @@ fn refresh_previews_stop_voice_warn_session() {
     *shell.shared.live.write().unwrap() =
         Some(Arc::new(std::sync::RwLock::new(ServiceData::default())));
     shell.spawn_win32_thread().expect("win32 线程启动");
-    let base = probe_deliveries(&shell.voice_bus); // 无会话期送达 0
+    let base = probe_deliveries(&shell.ui_bus); // 无会话期送达 0
     shell.ui_cmd_tx.send(UiCommand::OpenAllOverlays).unwrap();
     assert!(
-        wait_deliveries(&shell.voice_bus, base + 1),
+        wait_deliveries(&shell.ui_bus, base + 1),
         "OpenAllOverlays 应起 VoiceWarning 线程 (configHandler 送达 +1, 实测 {})",
-        probe_deliveries(&shell.voice_bus)
+        probe_deliveries(&shell.ui_bus)
     );
     // 游戏稳态 (openpad 后 overlay_ctx_preview=false) + WYSIWYG 键控刷新
     // (State=Preview 是 Java 同名态, 防过期守卫放行)
@@ -2301,9 +2312,9 @@ fn refresh_previews_stop_voice_warn_session() {
         })
         .unwrap();
     assert!(
-        wait_deliveries(&shell.voice_bus, base),
+        wait_deliveries(&shell.ui_bus, base),
         "RefreshPreviews(enableVoiceWarn) 应即时停语音会话 (退订回落, 实测 {})",
-        probe_deliveries(&shell.voice_bus)
+        probe_deliveries(&shell.ui_bus)
     );
     // 开方向不重建 (Java preview-ctx 怪癖同形态): 再次键控刷新计数不动
     let gen2 = shell.shared.preview_generation.load(std::sync::atomic::Ordering::SeqCst);
@@ -2316,7 +2327,7 @@ fn refresh_previews_stop_voice_warn_session() {
         .unwrap();
     std::thread::sleep(Duration::from_millis(200));
     assert_eq!(
-        probe_deliveries(&shell.voice_bus),
+        probe_deliveries(&shell.ui_bus),
         base,
         "开方向不得经 RefreshPreviews 重建 (Java 同形态, 重起等 OpenAllOverlays)"
     );

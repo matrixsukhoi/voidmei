@@ -6,21 +6,19 @@ use serde::Serialize;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Wry};
-use vm_core::bus::{EventBus, Subscription};
-use vm_core::configuration_service::UiStateEvent;
+use vm_core::bus::Subscription;
 use vm_core::event::ui_state_events;
 use vm_core::fm::FmChangedBus;
 use vm_core::logger;
+use vm_core::ui_state_bus::{UIStateBus, UiStateEvent};
 
 /// CONFIG_CHANGED → 前端 `config-changed` 事件 (data = 变更键, 如 "ui_layout.cfg")
 /// 前端收到后重拉 get_layout_tree (reset/import 后的整树刷新对位 Java rebuild)。
-pub fn bridge_config_changed(app: AppHandle<Wry>, bus: &EventBus<UiStateEvent>) -> Subscription<UiStateEvent> {
-    bus.subscribe(move |ev: &UiStateEvent| {
-        if ev.event_type == ui_state_events::CONFIG_CHANGED {
-            // 审查 W4: 静默吞 = 前端 cfg 树失刷新且无自愈路径 — 留告警面
-            if let Err(e) = app.emit("config-changed", ev.data.clone()) {
-                logger::warn("WebBridge", &format!("config-changed 事件发送失败: {e}"));
-            }
+pub fn bridge_config_changed(app: AppHandle<Wry>, bus: &UIStateBus) -> Subscription<UiStateEvent> {
+    bus.subscribe(ui_state_events::CONFIG_CHANGED, move |ev: &UiStateEvent| {
+        // 审查 W4: 静默吞 = 前端 cfg 树失刷新且无自愈路径 — 留告警面
+        if let Err(e) = app.emit("config-changed", ev.data.clone()) {
+            logger::warn("WebBridge", &format!("config-changed 事件发送失败: {e}"));
         }
     })
 }

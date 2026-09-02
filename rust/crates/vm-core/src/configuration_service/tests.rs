@@ -1,5 +1,6 @@
 use super::*;
 use crate::config_loader::ConfigValue;
+use crate::ui_state_bus::UiStateEvent;
 use std::fs;
 use std::path::Path;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -25,7 +26,8 @@ fn svc(content: &str) -> ConfigurationService {
     s
 }
 
-/// 带总线服务 + 事件记录器 (返回订阅句柄保活 — EventBus RAII, Drop 即退订)
+/// 带总线服务 + 事件记录器 (返回订阅句柄保活 — 订阅 RAII, Drop 即退订)。
+/// 总线 = 路由 UIStateBus (与生产同形态), 记录器按 CONFIG_CHANGED 路由订阅
 fn svc_bus(
     content: &str,
 ) -> (
@@ -33,10 +35,13 @@ fn svc_bus(
     Arc<Mutex<Vec<UiStateEvent>>>,
     crate::bus::Subscription<UiStateEvent>,
 ) {
-    let bus = Arc::new(EventBus::new());
+    let bus = Arc::new(crate::ui_state_bus::UIStateBus::new());
     let log = Arc::new(Mutex::new(Vec::new()));
     let l2 = Arc::clone(&log);
-    let sub = bus.subscribe(move |ev: &UiStateEvent| l2.lock().unwrap().push(ev.clone()));
+    let sub = bus.subscribe(
+        crate::event::ui_state_events::CONFIG_CHANGED,
+        move |ev: &UiStateEvent| l2.lock().unwrap().push(ev.clone()),
+    );
     let s = ConfigurationService::new(Some(bus));
     s.load_layout(&tmp_cfg(content));
     (s, log, sub)
@@ -160,11 +165,11 @@ fn set_config_event_payloads_via_bus() {
         events[0],
         UiStateEvent {
             event_type: "configChanged".to_string(),
-            source: "ConfigurationService".to_string(),
-            data: "k".to_string(),
+            source: Some("ConfigurationService".to_string()),
+            data: Some("k".to_string()),
         }
     );
-    assert_eq!(events[1].data, "pSwitch");
+    assert_eq!(events[1].data.as_deref(), Some("pSwitch"));
     assert_eq!(events[1].event_type, "configChanged");
 }
 
@@ -172,10 +177,13 @@ fn set_config_event_payloads_via_bus() {
 #[test]
 fn set_config_without_layout_noop() {
     // 单总线 + 记录器订阅保活 + 未装载布局的服务
-    let bus = Arc::new(EventBus::new());
+    let bus = Arc::new(crate::ui_state_bus::UIStateBus::new());
     let log = Arc::new(Mutex::new(Vec::new()));
     let l2 = Arc::clone(&log);
-    let _sub = bus.subscribe(move |ev: &UiStateEvent| l2.lock().unwrap().push(ev.clone()));
+    let _sub = bus.subscribe(
+        crate::event::ui_state_events::CONFIG_CHANGED,
+        move |ev: &UiStateEvent| l2.lock().unwrap().push(ev.clone()),
+    );
     let s = ConfigurationService::new(Some(bus));
     assert_eq!(s.get_layout_configs(), None);
     assert_eq!(s.get_config("any"), Some(String::new()));
@@ -240,8 +248,8 @@ fn reset_all_layout_defaults_phases_and_notify() {
     // Phase 3: 恰一条 RESET_COMPLETED, 顺序在 set 事件之后
     let events = log.lock().unwrap();
     assert_eq!(events.len(), 2);
-    assert_eq!(events[0].data, "k1");
-    assert_eq!(events[1].data, "RESET_COMPLETED");
+    assert_eq!(events[0].data.as_deref(), Some("k1"));
+    assert_eq!(events[1].data.as_deref(), Some("RESET_COMPLETED"));
     assert_eq!(events[1].event_type, "configChanged");
 }
 

@@ -207,11 +207,11 @@ fn in_flight_delivery_survives_clear_inside_handler() {
 
 // §2.8: 回调在路由表锁外执行 — handler 内重入订阅/清空/发布**另一**
 // 事件类型不死锁 (Java CHM/COW 无 monitor, 同步派发天然可重入)。
-// PORT(覆盖边界, 防假通过): 本测试嵌套发布走 FM_CHANGED ≠ 外层
-// CONFIG_CHANGED → 路由到不同底层 EventBus, 监听器锁集合不相交, 故
-// 安全; **同事件类型**嵌套同步 publish 当前必死锁 (见模块文档 PORT
-// 标注), 该路径无法写成会通过的测试 (发布线程直接挂起), 待 bus.rs
-// 修复后补钉 (嵌套同类型 + payload 递进终止, 对位 Java reset 链)。
+// PORT(重构波1 已修复): 同事件类型嵌套 publish 的死锁已由 UIStateBus 层
+// thread_local 重入检测 + pending 延迟补投根治 (见模块文档) — 本测试的
+// 跨类型嵌套走"立即递归"路径 (锁集合不相交, 对齐 Java 栈内同步); 同类型
+// 嵌套走"批次末补投"路径, 生产链 (reset 链) handler 只认特定 payload,
+// 无行为差。
 #[test]
 fn reentrant_publish_and_subscribe_inside_handler() {
     let bus = Arc::new(UIStateBus::new());
@@ -231,8 +231,7 @@ fn reentrant_publish_and_subscribe_inside_handler() {
     let _outer = bus.subscribe(ui_state_events::CONFIG_CHANGED, move |_| {
         o2.fetch_add(1, Ordering::SeqCst);
         // 重入发布: handler 内发布另一事件 (Java 同步派发的嵌套执行)。
-        // 跨类型 → 不同底层 EventBus, 锁不相交, 安全 (同类型则死锁,
-        // 见本测试 doc 注释的覆盖边界)
+        // 跨类型 → 立即递归派发 (锁不相交; 同类型则入 pending 批次末补投)
         b_out.publish(ui_state_events::FM_CHANGED, Some("nested"), None);
         // 重入订阅: 回调内登记新订阅, 须存外部槽位保活 (否则即订即弃);
         // l2 须在闭包体内克隆 — 外层 FnMut 可能多次执行, 不能整值移出

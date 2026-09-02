@@ -122,7 +122,7 @@ fn eval_fm_vars_nan_without_fm() {
 fn eval_functions() {
     let t = TestTel::default();
     assert_eq!(try_eval("clamp(11, 0, 10)", &t), 10.0);
-    assert_eq!(try_eval("round(3.14159, 2)", &t), 3.14);
+    assert_eq!(try_eval("round(1.23456, 2)", &t), 1.23);
     assert_eq!(try_eval("max(1, 2, 3)", &t), 3.0);
     assert_eq!(try_eval("lerp(5, 0, 0, 10, 10)", &t), 5.0);
     assert_eq!(try_eval("is_valid(100)", &t), 1.0);

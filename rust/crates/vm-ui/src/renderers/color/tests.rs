@@ -152,7 +152,6 @@ fn apply_unknown_key_is_noop() {
 fn apply_real_service_chain_updates_row_value() {
     use crate::main_form::WriteContext;
     use std::sync::Arc;
-    use vm_core::bus::EventBus;
     use vm_core::config_api::ConfigProvider;
     use vm_core::configuration_service::ConfigurationService;
 
@@ -162,7 +161,7 @@ fn apply_real_service_chain_updates_row_value() {
         r##"(panel "p" (item "告警色" :type color :target "fontWarn" :value "#FF2400FF"))"##,
     )
     .unwrap();
-    let bus = Arc::new(EventBus::new());
+    let bus = Arc::new(vm_core::ui_state_bus::UIStateBus::new());
     let config = ConfigurationService::new(Some(Arc::clone(&bus)));
     config.load_layout(p.to_str().unwrap());
 
