@@ -152,31 +152,49 @@ impl OverlayInputs {
     }
 }
 
-/// 注册快照 → WYSIWYG reinit 参数包 (同源配置键的子集投影; 颜色/AA 有专命令不入包)
+/// 注册快照 → WYSIWYG reinit 参数包 (同源配置键的子集投影; 颜色/AA 有专命令不入包)。
+/// F15: ReinitParams 分组嵌套, 本快照保持平铺 (spawn 期一次性构建, 无分组收益)
 impl From<&OverlayInputs> for vm_overlay::platform::reinit::ReinitParams {
     fn from(i: &OverlayInputs) -> Self {
+        use vm_overlay::platform::reinit::{
+            AttitudeGroup, EdgeGroup, EngineGroup, FmGroup, ListGroup,
+        };
         vm_overlay::platform::reinit::ReinitParams {
             dpi_scale: i.dpi_scale,
-            font_add_engine: i.font_add_engine,
-            engine_disables: i.engine_disables,
             service_loop_interval_ms: i.service_loop_interval_ms,
-            font_add_power: i.font_add_power,
-            power_columns: i.power_columns,
-            font_add_flight: i.font_add_flight,
-            flight_columns: i.flight_columns,
-            font_add_gear: i.font_add_gear,
-            gear_show_edge: i.gear_show_edge,
-            font_add_axis: i.font_add_axis,
-            axis_show_edge: i.axis_show_edge,
-            font_add_fm: i.font_add_fm,
-            attitude_width: i.attitude_width,
-            attitude_height: i.attitude_height,
             attitude_freq_ms: i.attitude_freq_ms,
-            attitude_show_direction: i.attitude_show_direction,
-            attitude_show_aoa_limits: i.attitude_show_aoa_limits,
+            engine: EngineGroup {
+                font_add: i.font_add_engine,
+                disables: i.engine_disables,
+            },
+            power: ListGroup {
+                font_add: i.font_add_power,
+                columns: i.power_columns,
+                rows: std::sync::Arc::clone(&i.power_rows),
+            },
+            flight: ListGroup {
+                font_add: i.font_add_flight,
+                columns: i.flight_columns,
+                rows: std::sync::Arc::clone(&i.flight_rows),
+            },
+            gear: EdgeGroup {
+                font_add: i.font_add_gear,
+                show_edge: i.gear_show_edge,
+            },
+            axis: EdgeGroup {
+                font_add: i.font_add_axis,
+                show_edge: i.axis_show_edge,
+            },
+            fm: FmGroup {
+                font_add: i.font_add_fm,
+            },
+            attitude: AttitudeGroup {
+                width: i.attitude_width,
+                height: i.attitude_height,
+                show_direction: i.attitude_show_direction,
+                show_aoa_limits: i.attitude_show_aoa_limits,
+            },
             hud: i.hud.clone(),
-            flight_rows: std::sync::Arc::clone(&i.flight_rows),
-            power_rows: std::sync::Arc::clone(&i.power_rows),
         }
     }
 }

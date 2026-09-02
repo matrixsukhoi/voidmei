@@ -147,7 +147,7 @@ fn config_change_non_preview_reinits_active() {
     match cmd_rp {
         UiCommand::ReinitOverlays { params } => {
             // fixture cfg 无地平仪组 → Java reinitConfig 缺省 150×300
-            assert_eq!(params.attitude_width, 150);
+            assert_eq!(params.attitude.width, 150);
         }
         other => panic!("应是 ReinitOverlays: {:?}", other),
     }
@@ -212,7 +212,7 @@ fn config_change_reinit_params_carry_written_config() {
     }
     let params = saw_reinit.expect("ReinitOverlays 应到达");
     // 写值即时进参数包 (初值 150, 写 222 — 证明非 spawn 期冻结快照)
-    assert_eq!(params.attitude_width, 222, "写值应即时进参数包");
+    assert_eq!(params.attitude.width, 222, "写值应即时进参数包");
 }
 
 /// Preview 态: ReinitOverlays 先于防抖的 RefreshPreviews 入队

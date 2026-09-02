@@ -38,6 +38,29 @@ use vm_core::config::config_loader::{GroupConfig, RowConfig};
 /// (与 config_api::config_provider::ConfigProvider::set_config 的同款裁决)。
 pub use crate::render_context::RenderContext;
 
+/// F7 字段表 (GroupConfig 值字段单一真相): 每项 = (枚举变体, cfg 键名, rust 字段名,
+/// 字段类型)。类型即 kind — 读写形态差异由 property_binder 的 GroupFieldAccess
+/// 按类型抹平。消费点: 本文件 property_binder (GroupField 12 域, 追加 rows) 与
+/// main_form.rs (PanelField — 直接消费 11 个值字段)。
+macro_rules! group_field_table {
+    ($m:ident) => {
+        $m! {
+            (Title, "title", title, String),
+            (X, "x", x, f64),
+            (Y, "y", y, f64),
+            (Alpha, "alpha", alpha, i32),
+            (Hotkey, "hotkey", hotkey, i32),
+            (Visible, "visible", visible, bool),
+            (FontName, "fontName", font_name, Option<String>),
+            (FontSize, "fontSize", font_size, i32),
+            (Columns, "columns", columns, i32),
+            (PanelColumns, "panelColumns", panel_columns, i32),
+            (SwitchKey, "switchKey", switch_key, Option<String>),
+        }
+    };
+}
+pub(crate) use group_field_table;
+
 /// PORT (D7 重设计): Java `prog.util.PropertyBinder` 是通用反射工具 —
 /// `target.getClass().getField(property)` 按名读/写任意对象的 public 字段。
 /// DECISIONS.md D7 弃译清单: "PropertyBinder → C 类重设计为编译期 match 注册表"。
@@ -55,43 +78,196 @@ pub use crate::render_context::RenderContext;
 /// boilerplate.
 mod property_binder {
     use vm_core::base::logger;
-    use vm_core::config::config_loader::GroupConfig;
+    use vm_core::config::config_loader::{GroupConfig, RowConfig};
 
-    /// 注册表键 → GroupConfig 字段选择子 (Java: getField 返回的 Field 对象)。
-    /// 覆盖 GroupConfig 全部 12 个 public 字段 (ConfigLoader.java:80-97);
-    /// GroupConfig 无父类字段, 故命中集合封闭。
-    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-    enum GroupField {
-        Title,        // String  title
-        X,            // double  x
-        Y,            // double  y
-        Alpha,        // int     alpha
-        Hotkey,       // int     hotkey
-        Visible,      // boolean visible
-        FontName,     // String  fontName
-        FontSize,     // int     fontSize
-        Columns,      // int     columns
-        PanelColumns, // int     panelColumns
-        SwitchKey,    // String  switchKey
-        Rows,         // List<RowConfig> rows
+    /// GroupConfig 字段值的类型抹平面 (F7): 字段的 Rust 类型决定读写形态 —
+    /// KIND_NAME 对位 Java Field.getType().getSimpleName() (仅用于异常文案);
+    /// to_field_value 对位 field.get() 的类型化镜像; from_binding_value 对位
+    /// field.set() 的类型检查 (不匹配 = Java 反射的 IllegalArgumentException
+    /// 路径 → None, 由调用方 warn + 忽略)。
+    trait GroupFieldAccess: Sized {
+        const KIND_NAME: &'static str;
+        fn to_field_value(&self) -> FieldValue<'_>;
+        fn from_binding_value(value: BindingValue) -> Option<Self>;
     }
 
-    impl GroupField {
-        /// Java `Field.getType().getSimpleName()` 等价物 (仅用于异常文案)
-        fn kind_name(self) -> &'static str {
-            match self {
-                GroupField::Title | GroupField::FontName | GroupField::SwitchKey => "String",
-                GroupField::X | GroupField::Y => "double",
-                GroupField::Alpha
-                | GroupField::Hotkey
-                | GroupField::FontSize
-                | GroupField::Columns
-                | GroupField::PanelColumns => "int",
-                GroupField::Visible => "boolean",
-                GroupField::Rows => "List",
+    impl GroupFieldAccess for String {
+        const KIND_NAME: &'static str = "String";
+        fn to_field_value(&self) -> FieldValue<'_> {
+            FieldValue::Str(self.as_str())
+        }
+        fn from_binding_value(value: BindingValue) -> Option<Self> {
+            match value {
+                BindingValue::Str(s) => Some(s),
+                _ => None,
             }
         }
     }
+
+    /// PORT: Java 引用字段可为 null (fontName 未设置时 field.get 返回 null,
+    /// instanceof String 不中 → 默认值) — Option 映射为 Null 变体, 语义一致;
+    /// 反射 set 装入非 null 值 → Option::Some。
+    impl GroupFieldAccess for Option<String> {
+        const KIND_NAME: &'static str = "String";
+        fn to_field_value(&self) -> FieldValue<'_> {
+            match self.as_deref() {
+                Some(s) => FieldValue::Str(s),
+                None => FieldValue::Null,
+            }
+        }
+        fn from_binding_value(value: BindingValue) -> Option<Self> {
+            match value {
+                BindingValue::Str(s) => Some(Some(s)),
+                _ => None,
+            }
+        }
+    }
+
+    /// PORT: Java 反射 Field.set 对 double 字段装 Integer 走拆箱+拓宽
+    /// (int→double, JLS 5.1.2) 成功写入 — JDK8 oracle 实测
+    /// (x.set(g, Integer.valueOf(5)) → x=5.0)。get_int 对 double 字段的
+    /// (Number).intValue() 截断是其读侧对偶。i32 as f64 精确无损。
+    impl GroupFieldAccess for f64 {
+        const KIND_NAME: &'static str = "double";
+        fn to_field_value(&self) -> FieldValue<'_> {
+            FieldValue::Double(*self)
+        }
+        fn from_binding_value(value: BindingValue) -> Option<Self> {
+            match value {
+                BindingValue::Int(i) => Some(i as f64),
+                _ => None,
+            }
+        }
+    }
+
+    impl GroupFieldAccess for i32 {
+        const KIND_NAME: &'static str = "int";
+        fn to_field_value(&self) -> FieldValue<'_> {
+            FieldValue::Int(*self)
+        }
+        fn from_binding_value(value: BindingValue) -> Option<Self> {
+            match value {
+                BindingValue::Int(i) => Some(i),
+                _ => None,
+            }
+        }
+    }
+
+    impl GroupFieldAccess for bool {
+        const KIND_NAME: &'static str = "boolean";
+        fn to_field_value(&self) -> FieldValue<'_> {
+            FieldValue::Bool(*self)
+        }
+        fn from_binding_value(value: BindingValue) -> Option<Self> {
+            match value {
+                BindingValue::Bool(b) => Some(b),
+                _ => None,
+            }
+        }
+    }
+
+    /// rows 无装箱值域: 读侧 Rows 标记占位, 写侧恒 None (落 set 的越型分支)
+    impl GroupFieldAccess for Vec<RowConfig> {
+        const KIND_NAME: &'static str = "List";
+        fn to_field_value(&self) -> FieldValue<'_> {
+            FieldValue::Rows
+        }
+        fn from_binding_value(_value: BindingValue) -> Option<Self> {
+            None
+        }
+    }
+
+    // 注: 宏卫生限制 — 经两次宏展开的 ident 不与另一层展开的局部名统一, 故不做
+    // 逐条目递归咀嚼, 全套在单次展开内生成 (局部名 group 同层)。
+
+    /// 字段表 → GroupField 全套 (单次展开: 枚举 + kind_name + resolve + get + set)
+    macro_rules! gen_group_field {
+        ($( ($V:ident, $key:literal, $f:ident, $TY:ty) ),* $(,)?) => {
+            /// 注册表键 → GroupConfig 字段选择子 (Java: getField 返回的 Field 对象)。
+            /// 覆盖 GroupConfig 全部 12 个 public 字段 (ConfigLoader.java:80-97);
+            /// GroupConfig 无父类字段, 故命中集合封闭。
+            #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+            enum GroupField {
+                $($V,)*
+            }
+
+            impl GroupField {
+                /// Java Field.getType().getSimpleName() 等价物 (仅用于异常文案)
+                fn kind_name(self) -> &'static str {
+                    match self {
+                        $(GroupField::$V => <$TY as GroupFieldAccess>::KIND_NAME,)*
+                    }
+                }
+            }
+
+            /// 注册表本体: 键 = Java 反射字段名 (精确匹配, getField 大小写敏感)。
+            /// Java: NoSuchFieldException → 上层 catch → false/null。
+            fn resolve(property: &str) -> Option<GroupField> {
+                match property {
+                    $($key => Some(GroupField::$V),)*
+                    _ => None,
+                }
+            }
+
+            /// Java: public static Object get(Object target, String property)
+            fn get<'a>(group: &'a GroupConfig, property: &str) -> Option<FieldValue<'a>> {
+                Some(match resolve(property)? {
+                    $(GroupField::$V => group.$f.to_field_value(),)*
+                })
+            }
+
+            /// Java: public static boolean set(Object target, String property, Object value)
+            ///
+            /// PORT: 越型组合 (Boolean/String 装入数值或 boolean 字段, Integer 装入
+            /// boolean/String/List 字段) = JDK8 oracle 实测的 IllegalArgumentException
+            /// 路径 (PropertyBinder 未捕获, 原样上抛)。cfg 是用户可编辑输入, 越型
+            /// 绑定不该 panic 主线程 (A5) — warn 日志 + 忽略该次绑定 (返回 false,
+            /// 调用方回落 row.value; write_* 的服务同步仍执行)
+            fn set(group: &mut GroupConfig, property: Option<&str>, value: BindingValue) -> bool {
+                let Some(property) = property else {
+                    return false;
+                };
+                let field = match resolve(property) {
+                    Some(f) => f,
+                    None => return false,
+                };
+                let value_kind = value.kind_name();
+                match (field, value) {
+                    $((GroupField::$V, v) => match <$TY as GroupFieldAccess>::from_binding_value(v) {
+                        Some(val) => {
+                            group.$f = val;
+                            true
+                        }
+                        None => {
+                            logger::warn(
+                                "RendererConfigHelper",
+                                &format!(
+                                    "越型绑定被忽略: {} 字段 '{}' 不能接受 {}",
+                                    field.kind_name(),
+                                    property,
+                                    value_kind
+                                ),
+                            );
+                            false
+                        }
+                    },)*
+                }
+            }
+        };
+    }
+
+    /// 值字段表 + rows 追加 = 12 域注册表 (rows 非 PropertyBinder 可写值字段,
+    /// 不进共享表 — 与 main_form 的 PanelField 域差一即在此)
+    macro_rules! registry_table {
+        ($( ($V:ident, $key:literal, $f:ident, $TY:ty) ),* $(,)?) => {
+            gen_group_field! {
+                $( ($V, $key, $f, $TY) , )*
+                (Rows, "rows", rows, Vec<RowConfig>),
+            }
+        };
+    }
+
+    group_field_table!(registry_table);
 
     /// Java: `PropertyBinder.get()` 返回的 Object — GroupConfig 字段值的类型化镜像。
     /// 五种实际形态 + Null; `List<RowConfig>` 仅以 Rows 标记占位 (三个类型化
@@ -129,26 +305,6 @@ mod property_binder {
         }
     }
 
-    /// 注册表本体: 键 = Java 反射字段名 (精确匹配, getField 大小写敏感)。
-    /// Java: NoSuchFieldException → 上层 catch → false/null。
-    fn resolve(property: &str) -> Option<GroupField> {
-        match property {
-            "title" => Some(GroupField::Title),
-            "x" => Some(GroupField::X),
-            "y" => Some(GroupField::Y),
-            "alpha" => Some(GroupField::Alpha),
-            "hotkey" => Some(GroupField::Hotkey),
-            "visible" => Some(GroupField::Visible),
-            "fontName" => Some(GroupField::FontName),
-            "fontSize" => Some(GroupField::FontSize),
-            "columns" => Some(GroupField::Columns),
-            "panelColumns" => Some(GroupField::PanelColumns),
-            "switchKey" => Some(GroupField::SwitchKey),
-            "rows" => Some(GroupField::Rows),
-            _ => None,
-        }
-    }
-
     /// Checks if a public field exists on the target object.
     ///
     /// Java: `public static boolean hasField(Object target, String property)`
@@ -156,36 +312,6 @@ mod property_binder {
     /// 分支结构承担 — Rust 侧 target 为非空引用、property 为 &str)。
     pub(super) fn has_field(_group: &GroupConfig, property: &str) -> bool {
         resolve(property).is_some()
-    }
-
-    /// Gets a field value from an object by field name.
-    ///
-    /// Java: `public static Object get(Object target, String property)`
-    ///
-    /// @param target   The object to read from
-    /// @param property The field name
-    /// @return The field value, or null if not found
-    fn get<'a>(group: &'a GroupConfig, property: &str) -> Option<FieldValue<'a>> {
-        Some(match resolve(property)? {
-            GroupField::Title => FieldValue::Str(group.title.as_str()),
-            GroupField::X => FieldValue::Double(group.x),
-            GroupField::Y => FieldValue::Double(group.y),
-            GroupField::Alpha => FieldValue::Int(group.alpha),
-            GroupField::Hotkey => FieldValue::Int(group.hotkey),
-            GroupField::Visible => FieldValue::Bool(group.visible),
-            GroupField::FontName => match group.font_name.as_deref() {
-                Some(s) => FieldValue::Str(s),
-                None => FieldValue::Null,
-            },
-            GroupField::FontSize => FieldValue::Int(group.font_size),
-            GroupField::Columns => FieldValue::Int(group.columns),
-            GroupField::PanelColumns => FieldValue::Int(group.panel_columns),
-            GroupField::SwitchKey => match group.switch_key.as_deref() {
-                Some(s) => FieldValue::Str(s),
-                None => FieldValue::Null,
-            },
-            GroupField::Rows => FieldValue::Rows,
-        })
     }
 
     /// Gets a field value as int.
@@ -219,92 +345,6 @@ mod property_binder {
         match get(group, property) {
             Some(FieldValue::Bool(b)) => b,
             _ => default_value,
-        }
-    }
-
-    /// Sets a field value on an object by field name.
-    ///
-    /// Java: `public static boolean set(Object target, String property, Object value)`
-    ///
-    /// @param target   The object to modify
-    /// @param property The field name
-    /// @param value    The value to set
-    /// @return true if successful, false otherwise
-    fn set(group: &mut GroupConfig, property: Option<&str>, value: BindingValue) -> bool {
-        let Some(property) = property else {
-            return false;
-        };
-        let field = match resolve(property) {
-            Some(f) => f,
-            None => return false,
-        };
-        match (field, value) {
-            (GroupField::Title, BindingValue::Str(s)) => {
-                group.title = s;
-                true
-            }
-            // PORT: Java String 字段可空; 反射 set 装入非 null 值 → Option::Some
-            (GroupField::FontName, BindingValue::Str(s)) => {
-                group.font_name = Some(s);
-                true
-            }
-            (GroupField::SwitchKey, BindingValue::Str(s)) => {
-                group.switch_key = Some(s);
-                true
-            }
-            (GroupField::Alpha, BindingValue::Int(i)) => {
-                group.alpha = i;
-                true
-            }
-            (GroupField::Hotkey, BindingValue::Int(i)) => {
-                group.hotkey = i;
-                true
-            }
-            (GroupField::FontSize, BindingValue::Int(i)) => {
-                group.font_size = i;
-                true
-            }
-            (GroupField::Columns, BindingValue::Int(i)) => {
-                group.columns = i;
-                true
-            }
-            (GroupField::PanelColumns, BindingValue::Int(i)) => {
-                group.panel_columns = i;
-                true
-            }
-            (GroupField::Visible, BindingValue::Bool(b)) => {
-                group.visible = b;
-                true
-            }
-            // PORT: Java 反射 Field.set 对 double 字段装 Integer 走拆箱+拓宽
-            // (int→double, JLS 5.1.2) 成功写入 — JDK8 oracle 实测
-            // (x.set(g, Integer.valueOf(5)) → x=5.0)。get_int 对 double 字段的
-            // (Number).intValue() 截断是其读侧对偶。i32 as f64 精确无损。
-            (GroupField::X, BindingValue::Int(i)) => {
-                group.x = i as f64;
-                true
-            }
-            (GroupField::Y, BindingValue::Int(i)) => {
-                group.y = i as f64;
-                true
-            }
-            // Java 剩余组合 (Boolean/String 装入数值或 boolean 字段, Integer 装入
-            // boolean/String/List 字段) = JDK8 oracle 实测的 IllegalArgumentException
-            // 路径 (PropertyBinder 未捕获, 原样上抛)。cfg 是用户可编辑输入, 越型
-            // 绑定不该 panic 主线程 (A5) — warn 日志 + 忽略该次绑定 (返回 false,
-            // 调用方回落 row.value; write_* 的服务同步仍执行)
-            (field, value) => {
-                logger::warn(
-                    "RendererConfigHelper",
-                    &format!(
-                        "越型绑定被忽略: {} 字段 '{}' 不能接受 {}",
-                        field.kind_name(),
-                        property,
-                        value.kind_name()
-                    ),
-                );
-                false
-            }
         }
     }
 

@@ -267,7 +267,7 @@ fn feed_overlays_live_updates_all_handles() {
         st.rpm_throttle = 60;
     }
     d.s_indic.as_mut().unwrap().aviahorizon_pitch = 5.0;
-    d.total_hp = 1200;
+    d.engine.total_hp = 1200;
     // W-E 后 warn_vne 只走公式槽 — 槽注入 1.0 作喂通哨 (state 经 guard 直传已由
     // throttle/airbrake 各 handle 断言覆盖)
     {

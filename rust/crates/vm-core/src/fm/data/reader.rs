@@ -26,7 +26,7 @@
 
 use super::json::JsonSrc;
 use super::types::{EngineLoad, FmParts, SweepLevel};
-use super::FmData;
+use super::{CompressorData, FmData};
 use crate::base::physics_constants::g;
 use crate::lang::Lang;
 use crate::base::logger;
@@ -515,39 +515,42 @@ impl FmData {
         // NegativeArraySizeException → 构造器 catch; as usize 巨量 → Vec
         // 分配 panic 同被 parse_named_opts_json 收敛 (CORRUPT 同语义)
         let n = self.comp_num_steps as usize;
-        let mut comp_alt = vec![0.0f64; n];
-        let mut comp_boost = vec![0.0f64; n];
-        let mut has_comp_boost = vec![false; n];
-        let mut comp_power = vec![0.0f64; n];
-        let mut comp_rpm_ratio = vec![0.0f64; n];
-        let mut comp_ceil = vec![0.0f64; n];
-        let mut comp_ceil_pwr = vec![0.0f64; n];
-        let mut comp_const_rpm_alt = vec![0.0f64; n];
-        let mut comp_const_rpm_power = vec![0.0f64; n];
+        let mut alt = vec![0.0f64; n];
+        let mut power = vec![0.0f64; n];
+        let mut boost = vec![0.0f64; n];
+        let mut rpm_ratio = vec![0.0f64; n];
+        let mut ceil = vec![0.0f64; n];
+        let mut ceil_pwr = vec![0.0f64; n];
+        let mut has_boost = vec![false; n];
+        let mut const_rpm_alt = vec![0.0f64; n];
+        let mut const_rpm_power = vec![0.0f64; n];
         for i in 0..n {
-            comp_alt[i] = src.get_f64(&format!("Compressor.Altitude{i}"));
-            comp_power[i] = src.get_f64(&format!("Compressor.Power{i}"));
-            comp_boost[i] = src.get_f64(&format!("Compressor.AfterburnerBoostMul{i}"));
-            has_comp_boost[i] =
+            alt[i] = src.get_f64(&format!("Compressor.Altitude{i}"));
+            power[i] = src.get_f64(&format!("Compressor.Power{i}"));
+            boost[i] = src.get_f64(&format!("Compressor.AfterburnerBoostMul{i}"));
+            has_boost[i] =
                 src.get_str(&format!("Compressor.AfterburnerBoostMul{i}")) != "null";
-            comp_rpm_ratio[i] =
+            rpm_ratio[i] =
                 src.get_f64(&format!("Compressor.PowerConstRPMCurvature{i}"));
-            comp_ceil[i] = src.get_f64(&format!("Compressor.Ceiling{i}"));
-            comp_ceil_pwr[i] = src.get_f64(&format!("Compressor.PowerAtCeiling{i}"));
-            comp_const_rpm_alt[i] =
+            ceil[i] = src.get_f64(&format!("Compressor.Ceiling{i}"));
+            ceil_pwr[i] = src.get_f64(&format!("Compressor.PowerAtCeiling{i}"));
+            const_rpm_alt[i] =
                 src.get_f64(&format!("Compressor.AltitudeConstRPM{i}"));
-            comp_const_rpm_power[i] =
+            const_rpm_power[i] =
                 src.get_f64(&format!("Compressor.PowerConstRPM{i}"));
         }
-        self.comp_alt = Some(comp_alt);
-        self.comp_boost = Some(comp_boost);
-        self.has_comp_boost = Some(has_comp_boost);
-        self.comp_power = Some(comp_power);
-        self.comp_rpm_ratio = Some(comp_rpm_ratio);
-        self.comp_ceil = Some(comp_ceil);
-        self.comp_ceil_pwr = Some(comp_ceil_pwr);
-        self.comp_const_rpm_alt = Some(comp_const_rpm_alt);
-        self.comp_const_rpm_power = Some(comp_const_rpm_power);
+        // 9 组表同批收拢 (波17 F5)
+        self.compressor = Some(CompressorData {
+            alt,
+            power,
+            boost,
+            rpm_ratio,
+            ceil,
+            ceil_pwr,
+            has_boost: Some(has_boost),
+            const_rpm_alt: Some(const_rpm_alt),
+            const_rpm_power: Some(const_rpm_power),
+        });
 
         // === Extended WAPC-compatible parameters ===
         self.comp_pressure_at_rpm0 =

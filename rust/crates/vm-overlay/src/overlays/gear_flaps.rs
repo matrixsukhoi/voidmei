@@ -217,7 +217,7 @@ pub fn gear_flaps_overlay_spec(
 ) -> Result<(GearFlapsHandle, OverlaySpec), String> {
     let (font_add, dpi_scale, show_edge) = {
         let p = params.borrow();
-        (p.font_add_gear, p.dpi_scale, p.gear_show_edge)
+        (p.gear.font_add, p.dpi_scale, p.gear.show_edge)
     };
     let state = GearFlapsState::new(font_add, dpi_scale, show_edge);
     let bold = fonts_dir.join("sarasa-mono-sc-bold.ttf");
@@ -242,7 +242,7 @@ pub fn gear_flaps_overlay_spec(
     let reinit: ReinitFn = Box::new(move || {
         let (fa, dpi, edge) = {
             let p = reinit_params.borrow();
-            (p.font_add_gear, p.dpi_scale, p.gear_show_edge)
+            (p.gear.font_add, p.dpi_scale, p.gear.show_edge)
         };
         let new_state = GearFlapsState::new(fa, dpi, edge);
         if !FontSlot::reload_group(&[

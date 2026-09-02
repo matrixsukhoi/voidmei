@@ -2,7 +2,7 @@
 //! BlkText 文本链已删, FM 数据为 wt_ext_cli `--format Json` 产物, 迁移期
 //! 2832 对全量位级对拍验证等价):
 //! - `types.rs` — 4 个数据类 (EngineLoad/FmParts/SweepLevel/FuelModification);
-//!   燃油修正只有 JSON 版 (json.rs)
+//!   燃油修正只有 JSON 版 (json.rs); 增压器表族见本文件 `CompressorData`
 //! - 本文件 (`mod.rs`) — Blkx 聚合 struct: 完整字段区 (结构体字段不可跨文件拆分)
 //! - `model.rs` — getter/计算方法 (findmax*/getVersion/peakThrust)
 //! - `reader.rs` — getload_from 装载主体 (JSON 直供, 抽取原语在 json.rs)
@@ -36,6 +36,42 @@ mod realtests;
 
 pub use flap_limits::{get_flap_allow_angle, get_flap_allow_speed};
 pub use types::{EngineLoad, FuelModification, FuelType, FmParts, SweepLevel};
+
+/// 增压器 9 组平行表 (波17 F5 收拢; 对应 Java Blkx L650-674 的
+/// `compAlt/compPower/compBoost/hasCompBoost/compRpmRatio/compCeiling/
+/// compCeilingPwr/compConstRpmAlt/compConstRpmPower` 数组族)。
+///
+/// 形态按消费语义分两层:
+/// - 外层 `FmData.compressor: Option<...>` — 喷气/未装载为 None;
+///   `comp_num_steps > 0` 时 reader 在 getload 与档数同批分配,
+///   消费方 unwrap 对齐 Java 直接解引用的 NPE 语义 (§1)
+/// - 前 6 表 (alt/power/boost/rpm_ratio/ceil/ceil_pwr) 消费方逐档
+///   直接索引, 恒与档数同批存在 → 平铺 Vec
+/// - 后 3 表 (has_boost/const_rpm_alt/const_rpm_power) Java 侧有显式
+///   null/长度判 → 保留 Option, None = 该参数族缺席
+// PORT: new double[compNumSteps] 运行时长度 → Vec; 刻意不 derive PartialEq
+// (与 FmData 同规约, Java 无 equals, 语义只有引用同一性)
+#[derive(Debug, Clone, Default)]
+pub struct CompressorData {
+    /// Compressor.Altitude{i} — 各级临界高度
+    pub alt: Vec<f64>,
+    /// Compressor.Power{i} — 各级临界功率
+    pub power: Vec<f64>,
+    /// Compressor.AfterburnerBoostMul{i} — 各级 WEP 增益乘数
+    pub boost: Vec<f64>,
+    /// Compressor.PowerConstRPMCurvature{i} — 功率曲线曲率
+    pub rpm_ratio: Vec<f64>,
+    /// Compressor.Ceiling{i} — 各级增压上限高度
+    pub ceil: Vec<f64>,
+    /// Compressor.PowerAtCeiling{i} — 上限高度功率
+    pub ceil_pwr: Vec<f64>,
+    /// AfterburnerBoostMul{i} 是否在 FM 文件显式存在 (vs 缺省 0)
+    pub has_boost: Option<Vec<bool>>,
+    /// Compressor.AltitudeConstRPM{i} — ConstRPM 模式高度 (可缺席)
+    pub const_rpm_alt: Option<Vec<f64>>,
+    /// Compressor.PowerConstRPM{i} — ConstRPM 模式功率 (可缺席)
+    pub const_rpm_power: Option<Vec<f64>>,
+}
 
 /// 对应 Java `public class Blkx` (L14) 的聚合 struct — 字段区宿主 (D4)。
 ///
@@ -148,17 +184,11 @@ pub struct FmData {
     pub engine_num: i32,
 
     // ---- L650-674 增压器 ----
-    // PORT: new double[compNumSteps] 运行时长度 → Vec
+    // 增压器档数标量 (喷气恒 0; 表族见 compressor)
     pub comp_num_steps: i32,
-    pub comp_alt: Option<Vec<f64>>,
-    pub comp_power: Option<Vec<f64>>,
-    pub comp_ceil: Option<Vec<f64>>,
-    pub comp_ceil_pwr: Option<Vec<f64>>,
-    pub comp_const_rpm_alt: Option<Vec<f64>>,
-    pub comp_const_rpm_power: Option<Vec<f64>>,
-    pub comp_boost: Option<Vec<f64>>,
-    pub has_comp_boost: Option<Vec<bool>>, // Whether AfterburnerBoostMul exists in FM file (vs defaulting to 0)
-    pub comp_rpm_ratio: Option<Vec<f64>>,
+    // 9 组增压器平行表收拢为单一结构体 (波17 F5: 消费方原先须 9 次
+    // 同步索引 + 9 次 unwrap; 现一次借用即得全部表, None 语义不变)
+    pub compressor: Option<CompressorData>,
     // 冲压系数
     pub speed_to_manifold_multiplier: f64,
     mode_engine_num: i32,

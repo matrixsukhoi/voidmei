@@ -32,7 +32,7 @@ use vm_core::fm::loader;
 use vm_core::lang::Lang;
 
 use crate::commands::to_json;
-use crate::dto::{ComparisonDataDto, ComparisonRowDto};
+use crate::dto::{ComparisonDataDto, ComparisonRowDto, Win};
 
 // =====================================================================
 // 跨域共用小件 (commands_powercurve / web_windows 引用)
@@ -171,9 +171,9 @@ fn build_structure(
 /// addComparisonRow 的胜负判定 (CompactComparisonWindow.java:104-114)。
 /// 入参用**展示串** (缺键已补 "-"), 与 Java 调用点一致 (extractValue("-") 无数字
 /// → None → 平局)。
-fn row_win(prop: &str, v0: &str, v1: &str, single_mode: bool) -> i32 {
+fn row_win(prop: &str, v0: &str, v1: &str, single_mode: bool) -> Win {
     // Determine Winner using rule system
-    let mut win = 0; // 0=draw, -1=left(v0), 1=right(v1)
+    let mut win = Win::Draw; // 平局缺省
     if let Some(rule) = ComparisonRules::get(prop) {
         if !single_mode {
             let d0 = rule.extract_value(Some(v0));
@@ -182,17 +182,17 @@ fn row_win(prop: &str, v0: &str, v1: &str, single_mode: bool) -> i32 {
                 if (d0 - d1).abs() > 0.001 {
                     let lower_is_better = rule.is_lower_better();
                     win = if d0 > d1 {
-                        if lower_is_better { 1 } else { -1 }
+                        if lower_is_better { Win::Right } else { Win::Left }
                     } else if lower_is_better {
-                        -1
+                        Win::Left
                     } else {
-                        1
+                        Win::Right
                     };
                 }
             }
         }
     }
-    // No rule → win=0 → draw (grey color)
+    // No rule → Draw (grey color)
     win
 }
 
@@ -342,7 +342,7 @@ pub fn comparison_data_impl(fm0_name: &str, fm1_name: Option<&str>) -> Compariso
                 text: item.text.clone(),
                 value0: None,
                 value1: None,
-                win: 0,
+                win: Win::Draw,
                 symbol: String::new(),
             });
             continue;
@@ -355,16 +355,14 @@ pub fn comparison_data_impl(fm0_name: &str, fm1_name: Option<&str>) -> Compariso
         // (原注释保留)
         let disp0 = v0.unwrap_or("-").to_string();
         let win = if single_mode {
-            0 // 单机模式无胜负 (Java addComparisonRow 的 !singleMode 守卫)
+            Win::Draw // 单机模式无胜负 (Java addComparisonRow 的 !singleMode 守卫)
         } else {
             row_win(k, &disp0, v1.unwrap_or("-"), single_mode)
         };
-        let sym = if win == -1 {
-            "▶"
-        } else if win == 1 {
-            "◀"
-        } else {
-            "-"
+        let sym = match win {
+            Win::Left => "▶",
+            Win::Right => "◀",
+            Win::Draw => "-",
         };
         rows.push(ComparisonRowDto {
             is_header: false,
@@ -506,31 +504,31 @@ mod tests {
 
     #[test]
     fn 胜负规则_接线_vm_core规则族() {
-        // 空重: lower better — v0 重 → 右胜 (win=1)
-        assert_eq!(row_win("空重(kg)", "5000.0", "4000.0", false), 1);
+        // 空重: lower better — v0 重 → 右胜 (Right)
+        assert_eq!(row_win("空重(kg)", "5000.0", "4000.0", false), Win::Right);
         // v0 轻 → 左胜
-        assert_eq!(row_win("空重(kg)", "3000.0", "4000.0", false), -1);
+        assert_eq!(row_win("空重(kg)", "3000.0", "4000.0", false), Win::Left);
         // 最大燃油重量: higher better
-        assert_eq!(row_win("最大燃油重量(kg)", "800.0", "500.0", false), -1);
+        assert_eq!(row_win("最大燃油重量(kg)", "800.0", "500.0", false), Win::Left);
         // 临界速度: ListIndexRule(1) — "[144, 1167]" 取 1167, higher better
-        assert_eq!(row_win("临界速度(km/h)", "[144, 1167]", "[144, 1300]", false), 1);
+        assert_eq!(row_win("临界速度(km/h)", "[144, 1167]", "[144, 1300]", false), Win::Right);
         // 允许过载: MultiListIndexRule(0,1) — "[8.5, -4.2], [10.1, -5.3]" 取 -4.2
         assert_eq!(
             row_win("允许过载(满/半油)", "[8.5, -4.2], [10.1, -5.3]", "[7.0, -3.0], [9.0, -4.0]", false),
-            1
+            Win::Right
         );
         // 主阻力面积因数: Lambda 取 '/' 后第二个数, lower better
-        assert_eq!(row_win("主阻力面积因数及加速度系数", "0.25 / 0.35", "0.20 / 0.30", false), 1);
+        assert_eq!(row_win("主阻力面积因数及加速度系数", "0.25 / 0.35", "0.20 / 0.30", false), Win::Right);
         // 散热/油冷器: SLASH_BOTH 求和, lower better — 0.5+0.6=1.1 vs 0.4+0.5=0.9
-        assert_eq!(row_win("散热/油冷器阻力系数", "0.5 / 0.6", "0.4 / 0.5", false), 1);
+        assert_eq!(row_win("散热/油冷器阻力系数", "0.5 / 0.6", "0.4 / 0.5", false), Win::Right);
         // |d0-d1| <= 0.001 → 平
-        assert_eq!(row_win("空重(kg)", "4000.0005", "4000.0", false), 0);
+        assert_eq!(row_win("空重(kg)", "4000.0005", "4000.0", false), Win::Draw);
         // 缺键补 "-" 后 extract 失败 → 平 (Java 调用点形态)
-        assert_eq!(row_win("空重(kg)", "-", "4000.0", false), 0);
+        assert_eq!(row_win("空重(kg)", "-", "4000.0", false), Win::Draw);
         // 无规则属性 → 平
-        assert_eq!(row_win("无规则属性", "1.0", "2.0", false), 0);
+        assert_eq!(row_win("无规则属性", "1.0", "2.0", false), Win::Draw);
         // 单机模式恒平 (Java !singleMode 守卫)
-        assert_eq!(row_win("空重(kg)", "5000.0", "4000.0", true), 0);
+        assert_eq!(row_win("空重(kg)", "5000.0", "4000.0", true), Win::Draw);
     }
 
     #[test]
@@ -583,7 +581,7 @@ mod tests {
             .expect("应含 最大燃油重量(kg) 行");
         assert!(fuel.value0.as_deref().unwrap_or("-").parse::<f64>().is_ok());
         // 单机模式: 全部平局, value1 恒 None
-        assert!(dto.rows.iter().all(|r| r.win == 0));
+        assert!(dto.rows.iter().all(|r| r.win == Win::Draw));
         assert!(dto.rows.iter().all(|r| r.value1.is_none()));
         // copy 文本单机形态
         assert!(dto.copy_text.starts_with("========== Aircraft Data: spitfire_f24"));
@@ -609,32 +607,34 @@ mod tests {
         let w0: f64 = fuel.value0.as_deref().unwrap().parse().unwrap();
         let w1: f64 = fuel.value1.as_deref().unwrap().parse().unwrap();
         let expect = if (w0 - w1).abs() > 0.001 {
-            if w0 > w1 { -1 } else { 1 }
+            if w0 > w1 { Win::Left } else { Win::Right }
         } else {
-            0
+            Win::Draw
         };
         assert_eq!(
             fuel.win, expect,
-            "最大燃油重量 higher-better: v0={w0} v1={w1} win 应为 {expect}"
+            "最大燃油重量 higher-better: v0={w0} v1={w1} win 应为 {expect:?}"
         );
         assert_eq!(
             fuel.symbol,
-            if expect == -1 { "▶" } else if expect == 1 { "◀" } else { "-" }
+            match expect {
+                Win::Left => "▶",
+                Win::Right => "◀",
+                Win::Draw => "-",
+            }
         );
         // 双机 copy 文本含胜负方名
         assert!(dto.copy_text.contains("vs"));
         assert!(dto.copy_text.contains("spitfire_f2"));
-        // 有胜负符号的行集合与 win!=0 一致
+        // 有胜负符号的行集合与 win!=Draw 一致
         for r in &dto.rows {
             if r.is_header {
                 continue;
             }
-            let expect_sym = if r.win == -1 {
-                "▶"
-            } else if r.win == 1 {
-                "◀"
-            } else {
-                "-"
+            let expect_sym = match r.win {
+                Win::Left => "▶",
+                Win::Right => "◀",
+                Win::Draw => "-",
             };
             assert_eq!(r.symbol, expect_sym);
         }

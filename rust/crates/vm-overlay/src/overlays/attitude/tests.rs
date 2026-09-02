@@ -437,7 +437,7 @@ fn attitude_overlay_spec_dpi_and_shared_state() {
     assert!(a(&cv, 110, 299) > 0 || a(&cv, 110, 300) > 0, "十字随 aoa 喂入下移");
 
     // WYSIWYG reinit: 宽 150→200 (150%) → 新尺寸 300×450 (setBounds 面)
-    cell.borrow_mut().attitude_width = 200;
+    cell.borrow_mut().attitude.width = 200;
     let (w1, h1) = (spec.reinit.as_mut().unwrap())().expect("reinit 应成功");
     assert_eq!((w1, h1), (300, 450));
     assert_eq!((h.borrow().x_width, h.borrow().x_height), (300, 450), "state 已换新几何");

@@ -116,6 +116,16 @@ impl LinearGauge {
         self.dirty = true;
     }
 
+    /// 风格缓存读取口 (组装层 preferred_size 直读; Java lengthCache 字段)
+    pub fn length_cache(&self) -> i32 {
+        self.length_cache
+    }
+
+    /// 风格缓存读取口 (同上; Java thicknessCache 字段)
+    pub fn thickness_cache(&self) -> i32 {
+        self.thickness_cache
+    }
+
     /// Java:40 update(value, displayValue)。返回值是否变化 (脏检查)。
     /// 契约: 仅覆盖 value/displayValue — Java onDataUpdate 同帧还会注入
     /// valueColor/displayValue 等字段 (MiniHUD ThrottleBar, Java:94-103), Rust 侧
@@ -429,6 +439,15 @@ impl SpeedRatioBar {
         self.dirty = true;
     }
 
+    /// width/height 读取口 (组装层 preferred_size 直读; Java 字段)
+    pub fn width(&self) -> i32 {
+        self.width
+    }
+
+    pub fn height(&self) -> i32 {
+        self.height
+    }
+
     /// Java:70-78 onDataUpdate 五比值注入。返回是否变化 (脏检查)。
     #[allow(clippy::too_many_arguments)]
     pub fn update(
@@ -588,6 +607,15 @@ impl FlapAngleBar {
         self.total_width = total_width;
         self.bar_height = bar_height;
         self.dirty = true;
+    }
+
+    /// totalWidth/barHeight 读取口 (组装层 preferred_size 直读; Java 字段)
+    pub fn total_width(&self) -> i32 {
+        self.total_width
+    }
+
+    pub fn bar_height(&self) -> i32 {
+        self.bar_height
     }
 
     /// Java:60-67 onDataUpdate: 角度对 + "%3.0f/%3.0f" 显示文本

@@ -13,11 +13,13 @@ use vm_core::formula::rules::RuleTriggered;
 use vm_core::formula::FormulaResults;
 use vm_core::telemetry::parser::{Indicators, MapInfo, State};
 
-use crate::service_fields::ServiceData;
+use crate::service_fields::{AltScalars, EngineScalars, FuelScalars, ServiceData};
 
 /// 一帧完整快照 (跨线程可见集; Service 私有状态量 — SMA/prev 族 — 不入帧)。
 /// State/Indicators/MapInfo 每帧整体克隆 (向量族 ~几 KB @20Hz, 可忽略;
 /// 换取读者永远拿到一致帧)。
+/// 波17 F14: 派生标量按语义聚合为 engine/fuel/altm 三组, 与 ServiceData
+/// 同持, 拷贝整组搬 (原 53 行手写字段拷贝收敛)。
 pub struct Frame {
     // API 对象整帧
     pub s_state: Option<State>,
@@ -35,47 +37,19 @@ pub struct Frame {
     /// 跨线程写点的原子镜像 (VoiceWarning set_fatal_warn / Controller openpad)
     pub fatal_warn: bool,
     pub start_time: i64,
-    // 派生标量镜像 (ServiceData 同名字段)
+    // 派生标量组镜像 (ServiceData 同名组, 分组语义见 service_fields.rs)
+    pub engine: EngineScalars,
+    pub fuel: FuelScalars,
+    pub altm: AltScalars,
+    // 平铺杂项 (时钟/方向/会话量, 无成组语义)
     pub freq: i64,
     pub current_time_ms: i64,
-    pub get_maximum_rpm: bool,
-    pub total_hp: i32,
-    pub total_hp_eff: i32,
-    pub total_thrust: i32,
-    pub total_fuel: f64,
-    pub low_acc_fuel: bool,
-    pub fueltime: i64,
     pub actual_interval_ms: i64,
-    pub alt: f64,
-    pub altp: f64,
     pub elapsed_time: i64,
-    pub noil_temp: f64,
-    pub nwater_temp: f64,
-    pub wep_time: i64,
     pub compass_delta: f64,
-    pub engine_num: i32,
     pub cur_load_min_work_time: f64,
-    pub check_alt: i32,
-    pub i_eng_type: i32,
-    pub nitrokg: f64,
-    pub nitro_consump: f64,
-    pub nitro_eng_nr: i32,
-    pub s_wep_time_val: i64,
-    pub optimal_compressor_stage: i32,
-    pub compressor_stage_mismatch: bool,
-    pub check_engine_flag: bool,
     pub player_live: bool,
-    pub altmeterp: f64,
-    pub altmeter: f64,
-    pub thurst_percent: f64,
-    pub fuel_percent: i32,
-    pub avgeff: f64,
-    pub t_eng_response: f64,
-    pub maximum_thr_rpm: f64,
     pub n_vy: f64,
-    pub radio_alt: f64,
-    pub p_radio_alt: f64,
-    pub d_radio_alt: f64,
     // 公式产物
     pub formula_values: FormulaResults,
     pub formula_slots: Arc<std::collections::HashMap<String, u16>>,
@@ -97,46 +71,18 @@ impl Frame {
             frame_seq: 0, // FrameStore::publish 覆写
             fatal_warn: false, // FrameStore::publish 镜像真值
             start_time: 0,     // FrameStore::publish 镜像真值
+            // 派生标量三组整组搬 (波17 F14)
+            engine: d.engine.clone(),
+            fuel: d.fuel.clone(),
+            altm: d.altm.clone(),
             freq: d.freq,
             current_time_ms: d.current_time_ms,
-            get_maximum_rpm: d.get_maximum_rpm,
-            total_hp: d.total_hp,
-            total_hp_eff: d.total_hp_eff,
-            total_thrust: d.total_thrust,
-            total_fuel: d.total_fuel,
-            low_acc_fuel: d.low_acc_fuel,
-            fueltime: d.fueltime,
             actual_interval_ms: d.actual_interval_ms,
-            alt: d.alt,
-            altp: d.altp,
             elapsed_time: d.elapsed_time,
-            noil_temp: d.noil_temp,
-            nwater_temp: d.nwater_temp,
-            wep_time: d.wep_time,
             compass_delta: d.compass_delta,
-            engine_num: d.engine_num,
             cur_load_min_work_time: d.cur_load_min_work_time,
-            check_alt: d.check_alt,
-            i_eng_type: d.i_eng_type,
-            nitrokg: d.nitrokg,
-            nitro_consump: d.nitro_consump,
-            nitro_eng_nr: d.nitro_eng_nr,
-            s_wep_time_val: d.s_wep_time_val,
-            optimal_compressor_stage: d.optimal_compressor_stage,
-            compressor_stage_mismatch: d.compressor_stage_mismatch,
-            check_engine_flag: d.check_engine_flag,
             player_live: d.player_live,
-            altmeterp: d.altmeterp,
-            altmeter: d.altmeter,
-            thurst_percent: d.thurst_percent,
-            fuel_percent: d.fuel_percent,
-            avgeff: d.avgeff,
-            t_eng_response: d.t_eng_response,
-            maximum_thr_rpm: d.maximum_thr_rpm,
             n_vy: d.n_vy,
-            radio_alt: d.radio_alt,
-            p_radio_alt: d.p_radio_alt,
-            d_radio_alt: d.d_radio_alt,
             formula_values: d.formula_values.clone(),
             formula_slots: Arc::clone(&d.formula_slots),
             rule_triggers: d.rule_triggers.clone(),

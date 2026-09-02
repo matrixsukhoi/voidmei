@@ -298,6 +298,35 @@ impl VoiceAlert {
 }
 
 // =====================================================================
+// WarningSlot (F4: 告警三元组收编)
+// =====================================================================
+
+/// 告警槽位 (F4): `Option<Arc<VoiceAlert>>` + 告警线 + 计数 三元组收编。
+/// 原平铺形态 (xxxWarn / xxxCheck / xxxLine 各自命名字段) 模式重复。
+/// - `line`: 告警线/阈值; 无静态线的组不使用 (恒 0, 阈值在 check 内动态取/内联);
+///   舵效组存 FM f64 值经 i32 截断后的速度线 (保 Java float→int 语义)。
+/// - `check`: 去抖/持续计数 (ms); 舵效组复用为 0/1 边沿锁存标记; 无计数的组
+///   不使用 (恒 0)。原 i32 计数 (fuelPCheck/oofCheck) 值域 (0,2000] 远离回绕,
+///   收宽为 i64 无行为差异。
+#[derive(Default)]
+struct WarningSlot {
+    alert: Option<Arc<VoiceAlert>>,
+    line: f64,
+    check: i64,
+}
+
+impl WarningSlot {
+    /// 装配: 挂告警实例, line/check 归零 (init 腿随后按原逻辑覆写)
+    fn armed(alert: Arc<VoiceAlert>) -> Self {
+        WarningSlot {
+            alert: Some(alert),
+            line: 0.0,
+            check: 0,
+        }
+    }
+}
+
+// =====================================================================
 // VoiceWarning 本体
 // =====================================================================
 
@@ -338,8 +367,6 @@ pub struct VoiceWarning {
     legacy_player: Arc<dyn SoundPlayer>,
 
     pub aoa_warning_line: f64,
-    pub ias_warning_line: f64,
-    pub mach_warning_line: f64,
 
     /// Java: `private ConcurrentHashMap<String, VoiceAlert> alerts`
     /// (UI 线程热重载，Service 线程播放) — 与 configHandler 闭包共享所有权
@@ -356,20 +383,18 @@ pub struct VoiceWarning {
     aoa_high: Option<Arc<VoiceAlert>>,
     // (Java `private Controller xc` — write-only 字段无读取点, 不落地, 见模块头)
 
-    // 速度相关
-    ias_warn: Option<Arc<VoiceAlert>>,
-    mach_warn: Option<Arc<VoiceAlert>>,
+    // 速度相关 (F4: ias/mach = alert+告警线; stall 无附属字段, 平铺保留)
+    ias: WarningSlot,
+    mach: WarningSlot,
     stall_warn: Option<Arc<VoiceAlert>>,
 
-    // 起落架/襟翼/减速板
-    gear_warning_line: f64,
-    gear_warn: Option<Arc<VoiceAlert>>,
-    flap_warn: Option<Arc<VoiceAlert>>,
+    // 起落架/襟翼/减速板 (F4: gear = alert+限速线+损坏计时; flap = alert+损坏
+    // 计时, 无静态线 — flapAllowSpeed 每轮动态取; brake 无附属字段, 平铺保留)
+    gear: WarningSlot,
+    flap: WarningSlot,
     brake_warn: Option<Arc<VoiceAlert>>,
     is_gear_alive: bool,
     is_flap_alive: bool,
-    gear_check: i64,
-    flap_check: i64,
 
     // 过载
     pub ny_warning_line0: f64,
@@ -384,42 +409,30 @@ pub struct VoiceWarning {
     fmdata: Option<FmData>,
     nofuelweight: f64,
 
-    // 引擎相关
+    // 引擎相关 (F4/A6: engFail = alert + "引擎损坏后"腿的独立计数器)
     eng_warn: Option<Arc<VoiceAlert>>,
-    eng_fail: Option<Arc<VoiceAlert>>,
+    eng_fail: WarningSlot,
     eng_fail_invert: Option<Arc<VoiceAlert>>,
     rpm_low_warn: Option<Arc<VoiceAlert>>,
     rpm_high_warn: Option<Arc<VoiceAlert>>,
     pub eng_damage: bool,
 
-    // 燃油相关
-    lowfuel_warning_line: i32,
-    fuel_warn: Option<Arc<VoiceAlert>>,
-    fuel_prs_warn: Option<Arc<VoiceAlert>>,
-    oof_warn: Option<Arc<VoiceAlert>>,
-    fuel_check: i64,
-    fuel_p_check: i32,
-    oof_check: i32,
+    // 燃油相关 (F4: fuel = alert+低油量线+去抖; fuel_prs/oof = alert+去抖,
+    // 无静态线 — 油压门限在 check 内联)
+    fuel: WarningSlot,
+    fuel_prs: WarningSlot,
+    oof: WarningSlot,
 
     // 高度相关
     height_warn: Option<Arc<VoiceAlert>>,
     terrain_warn: Option<Arc<VoiceAlert>>,
     vario_warn: Option<Arc<VoiceAlert>>,
 
-    // 舵效相关
-    rudder_eff_ias: i32,
-    elevator_eff_ias: i32,
-    aileron_eff_ias: i32,
-    rudder_eff: Option<Arc<VoiceAlert>>,
-    elevator_eff: Option<Arc<VoiceAlert>>,
-    aileron_eff: Option<Arc<VoiceAlert>>,
-    /// Java 声明带 `= false` 初始化器; 原版只写不读 (elevator 告警触发块在 Java
-    /// 源码中即缺失, 保真保留写点)
-    // DEAD(kept): Java §2.10 有意保留的只写不读字段, 保真保留写点
-    #[allow(dead_code)]
-    elevator_eff_check: bool,
-    aileron_eff_check: bool,
-    rudder_eff_check: bool,
+    // 舵效相关 (F4: = alert + 速度线 + 0/1 边沿锁存; elevator 的锁存位原版只写
+    // 不读 — 告警触发块在 Java 源码中即缺失, 保真保留写点, 见 check 方法)
+    rudder: WarningSlot,
+    elevator: WarningSlot,
+    aileron: WarningSlot,
 
     // 增压器档位告警
     compressor_stage_warn: Option<Arc<VoiceAlert>>,
@@ -462,53 +475,38 @@ impl VoiceWarning {
             flight_data_bus,
             legacy_player,
             aoa_warning_line: 0.0,
-            ias_warning_line: 0.0,
-            mach_warning_line: 0.0,
             alerts: Arc::new(Mutex::new(HashMap::new())),
             config_subscription: None,
             aoa_crit: None,
             aoa_high: None,
-            ias_warn: None,
-            mach_warn: None,
+            ias: WarningSlot::default(),
+            mach: WarningSlot::default(),
             stall_warn: None,
-            gear_warning_line: 0.0,
-            gear_warn: None,
-            flap_warn: None,
+            gear: WarningSlot::default(),
+            flap: WarningSlot::default(),
             brake_warn: None,
             is_gear_alive: false,
             is_flap_alive: false,
-            gear_check: 0,
-            flap_check: 0,
             ny_warning_line0: 0.0,
             ny_warning_line1: 0.0,
             ny_warn: None,
             fmdata: None,
             nofuelweight: 0.0,
             eng_warn: None,
-            eng_fail: None,
+            eng_fail: WarningSlot::default(),
             eng_fail_invert: None,
             rpm_low_warn: None,
             rpm_high_warn: None,
             eng_damage: false,
-            lowfuel_warning_line: 0,
-            fuel_warn: None,
-            fuel_prs_warn: None,
-            oof_warn: None,
-            fuel_check: 0,
-            fuel_p_check: 0,
-            oof_check: 0,
+            fuel: WarningSlot::default(),
+            fuel_prs: WarningSlot::default(),
+            oof: WarningSlot::default(),
             height_warn: None,
             terrain_warn: None,
             vario_warn: None,
-            rudder_eff_ias: 0,
-            elevator_eff_ias: 0,
-            aileron_eff_ias: 0,
-            rudder_eff: None,
-            elevator_eff: None,
-            aileron_eff: None,
-            elevator_eff_check: false,
-            aileron_eff_check: false,
-            rudder_eff_check: false,
+            rudder: WarningSlot::default(),
+            elevator: WarningSlot::default(),
+            aileron: WarningSlot::default(),
             compressor_stage_warn: None,
             current_mismatch: Arc::new(AtomicBool::new(false)),
             last_mismatch: false,
@@ -635,11 +633,11 @@ impl VoiceWarning {
 
     /// 初始化速度告警
     fn init_speed_warnings(&mut self) {
-        self.ias_warn = Some(self.new_alert(
+        self.ias = WarningSlot::armed(self.new_alert(
             "warn_ias",
             VoiceAlertType::WarnIas.get_cooldown_seconds() as i64,
         ));
-        self.mach_warn = Some(self.new_alert(
+        self.mach = WarningSlot::armed(self.new_alert(
             "warn_mach",
             VoiceAlertType::WarnMach.get_cooldown_seconds() as i64,
         ));
@@ -652,27 +650,27 @@ impl VoiceWarning {
         // 无 FM → 告警线保持 MAX_VALUE（速度/马赫告警关闭）
         let fm = self.fm_manager.current();
         let b = fm.fmdata.as_ref();
-        self.ias_warning_line = 0.0;
-        self.mach_warning_line = 0.0;
+        self.ias.line = 0.0;
+        self.mach.line = 0.0;
         if let Some(b) = b {
-            self.ias_warning_line = b.vne * 0.95;
-            self.mach_warning_line = b.vne_mach * 0.95;
+            self.ias.line = b.vne * 0.95;
+            self.mach.line = b.vne_mach * 0.95;
         }
-        if self.ias_warning_line == 0.0 {
-            self.ias_warning_line = f32::MAX as f64;
+        if self.ias.line == 0.0 {
+            self.ias.line = f32::MAX as f64;
         }
-        if self.mach_warning_line == 0.0 {
-            self.mach_warning_line = f32::MAX as f64;
+        if self.mach.line == 0.0 {
+            self.mach.line = f32::MAX as f64;
         }
     }
 
     /// 初始化结构告警（起落架、襟翼、过载、减速板）
     fn init_structure_warnings(&mut self) {
-        self.gear_warn = Some(self.new_alert(
+        self.gear = WarningSlot::armed(self.new_alert(
             "warn_gear",
             VoiceAlertType::WarnGear.get_cooldown_seconds() as i64,
         ));
-        self.flap_warn = Some(self.new_alert(
+        self.flap = WarningSlot::armed(self.new_alert(
             "warn_flap",
             VoiceAlertType::WarnFlap.get_cooldown_seconds() as i64,
         ));
@@ -692,12 +690,12 @@ impl VoiceWarning {
         let b = fm.fmdata.clone();
 
         // 起落架速度限制
-        self.gear_warning_line = 0.0;
+        self.gear.line = 0.0;
         if let Some(bb) = b.as_ref() {
-            self.gear_warning_line = bb.gear_destruction_ind_speed;
+            self.gear.line = bb.gear_destruction_ind_speed;
         }
-        if self.gear_warning_line == 0.0 {
-            self.gear_warning_line = 450.0;
+        if self.gear.line == 0.0 {
+            self.gear.line = 450.0;
         }
 
         // 过载限制
@@ -724,7 +722,7 @@ impl VoiceWarning {
             "warn_engineoverheat",
             VoiceAlertType::WarnEngineoverheat.get_cooldown_seconds() as i64,
         ));
-        self.eng_fail = Some(self.new_alert(
+        self.eng_fail = WarningSlot::armed(self.new_alert(
             "fail_engine",
             VoiceAlertType::FailEngine.get_cooldown_seconds() as i64,
         ));
@@ -742,19 +740,20 @@ impl VoiceWarning {
 
     /// 初始化燃油告警
     fn init_fuel_warnings(&mut self) {
-        self.lowfuel_warning_line = 10;
-        self.fuel_warn = Some(self.new_alert(
+        self.fuel = WarningSlot::armed(self.new_alert(
             "warn_lowfuel",
             VoiceAlertType::WarnLowfuel.get_cooldown_seconds() as i64,
         ));
-        self.fuel_prs_warn = Some(self.new_alert(
+        self.fuel_prs = WarningSlot::armed(self.new_alert(
             "warn_lowpressure",
             VoiceAlertType::WarnLowpressure.get_cooldown_seconds() as i64,
         ));
-        self.oof_warn = Some(self.new_alert(
+        self.oof = WarningSlot::armed(self.new_alert(
             "fail_nofuel",
             VoiceAlertType::FailNofuel.get_cooldown_seconds() as i64,
         ));
+        // 低油量线 (Java int 10 → f64 无损)
+        self.fuel.line = 10.0;
     }
 
     /// 初始化高度告警
@@ -775,31 +774,31 @@ impl VoiceWarning {
 
     /// 初始化舵效告警
     fn init_control_effectiveness_warnings(&mut self) {
-        self.rudder_eff = Some(self.new_alert(
+        self.rudder = WarningSlot::armed(self.new_alert(
             "rudderEff",
             VoiceAlertType::RudderEff.get_cooldown_seconds() as i64,
         ));
-        self.elevator_eff = Some(self.new_alert(
+        self.elevator = WarningSlot::armed(self.new_alert(
             "elevatorEff",
             VoiceAlertType::ElevatorEff.get_cooldown_seconds() as i64,
         ));
-        self.aileron_eff = Some(self.new_alert(
+        self.aileron = WarningSlot::armed(self.new_alert(
             "aileronEff",
             VoiceAlertType::AileronEff.get_cooldown_seconds() as i64,
         ));
 
-        self.rudder_eff_ias = 65535;
-        self.elevator_eff_ias = 65535;
-        self.aileron_eff_ias = 65535;
+        self.rudder.line = 65535.0;
+        self.elevator.line = 65535.0;
+        self.aileron.line = 65535.0;
 
         // R1 快照（P3 迁移）: 开头取一次 FM 句柄, blkx 非 null 即 READY;
         // 无 FM → 舵效告警线保持 65535（告警关闭）
         let fm = self.fm_manager.current();
         if let Some(b) = fm.fmdata.as_ref() {
-            // 与 Rust `as i32` 逐位同语义, 无需双转 (§2.2)
-            self.rudder_eff_ias = b.rudder_eff as i32;
-            self.elevator_eff_ias = b.elav_eff as i32;
-            self.aileron_eff_ias = b.aileron_eff as i32;
+            // Java float→int 截断语义: 先 `as i32` 再拓宽入 f64 槽位 (§2.2)
+            self.rudder.line = b.rudder_eff as i32 as f64;
+            self.elevator.line = b.elav_eff as i32 as f64;
+            self.aileron.line = b.aileron_eff as i32 as f64;
         }
     }
 
@@ -922,8 +921,8 @@ impl VoiceWarning {
                 vwing = self.indic.wsweep_indicator;
             }
             self.aoa_warning_line = b.get_aoa_high_v_wing(vwing, flaps);
-            self.ias_warning_line = b.get_vne_v_wing(vwing) * 0.95;
-            self.mach_warning_line = b.get_mne_v_wing(vwing) * 0.95;
+            self.ias.line = b.get_vne_v_wing(vwing) * 0.95;
+            self.mach.line = b.get_mne_v_wing(vwing) * 0.95;
         }
     }
 
@@ -965,13 +964,13 @@ impl VoiceWarning {
     fn check_speed_warning(&mut self, t: i64) -> bool {
         let mut fatal = false;
 
-        if self.st.ias as f64 >= self.ias_warning_line {
-            self.alert(&self.ias_warn, "iasWarn").play_once(t);
+        if self.st.ias as f64 >= self.ias.line {
+            self.alert(&self.ias.alert, "iasWarn").play_once(t);
             fatal = true;
         }
 
-        if self.st.m >= self.mach_warning_line {
-            self.alert(&self.mach_warn, "machWarn").play_once(t);
+        if self.st.m >= self.mach.line {
+            self.alert(&self.mach.alert, "machWarn").play_once(t);
             fatal = true;
         }
 
@@ -983,11 +982,8 @@ impl VoiceWarning {
     ///
     /// @return true 如果是致命告警
     fn check_gear_warning(&mut self, t: i64) -> bool {
-        if self.is_gear_alive
-            && (self.st.gear > 0)
-            && self.st.ias as f64 >= self.gear_warning_line
-        {
-            self.alert(&self.gear_warn, "gearWarn").play_once(t);
+        if self.is_gear_alive && (self.st.gear > 0) && self.st.ias as f64 >= self.gear.line {
+            self.alert(&self.gear.alert, "gearWarn").play_once(t);
             return true;
         }
         false
@@ -1019,7 +1015,7 @@ impl VoiceWarning {
             && (xs.flap_allow_angle() - self.st.flaps as f64) < 8.0;
 
         if cond1 || cond2 {
-            self.alert(&self.flap_warn, "flapWarn").play_once(t);
+            self.alert(&self.flap.alert, "flapWarn").play_once(t);
             return true;
         }
         false
@@ -1050,22 +1046,22 @@ impl VoiceWarning {
         let xs = Arc::clone(self.xs());
         // 无油告警
         if xs.total_fuel() == 0.0 {
-            let old = self.oof_check;
-            self.oof_check += 1;
+            let old = self.oof.check;
+            self.oof.check += 1;
             if old > 16 {
-                self.oof_check = 0;
-                self.alert(&self.oof_warn, "oofWarn").play_once(t);
+                self.oof.check = 0;
+                self.alert(&self.oof.alert, "oofWarn").play_once(t);
             }
         }
 
-        // 低油量告警
-        if xs.fuel_percent() <= self.lowfuel_warning_line {
+        // 低油量告警 (line 为原 i32 阈值的 f64 无损拓宽, i32→f64 比较语义不变)
+        if xs.fuel_percent() as f64 <= self.fuel.line {
             // 持续 16 tick 以上，解决退出游戏时的误告警
-            let old = self.fuel_check;
-            self.fuel_check += 1;
+            let old = self.fuel.check;
+            self.fuel.check += 1;
             if old > 16 {
-                self.fuel_check = 0;
-                self.alert(&self.fuel_warn, "fuelWarn").play_once(t);
+                self.fuel.check = 0;
+                self.alert(&self.fuel.alert, "fuelWarn").play_once(t);
             }
         }
     }
@@ -1098,28 +1094,36 @@ impl VoiceWarning {
 
     /// 燃油压力告警检测
     /// 原位置：run() 第 583-600 行
+    ///
+    /// A6 (fuelPCheck 拆分): 原版"油压低"与"引擎损坏后"两腿共用一个计数器 —
+    /// fp==0 且 throttle>2 时两腿同 tick 各 +100 (合计 +200), 油压低腿的 else
+    /// 清零还会把损坏腿的累积一并清掉。拆分为 fuel_prs.check / eng_fail.check
+    /// 两个独立计数器消除该隐形耦合; 损坏腿此后严格按自身 10 tick 计满 (原版
+    /// 受油压低腿的加速/清零扰动)。损坏腿播放时清零, 避免下一轮损坏周期从
+    /// 残留值起立即触发。
     fn check_fuel_pressure_warning(&mut self, t: i64) {
         // 油压过低检测
         if (self.indic.fuel_pressure >= 0.0)
             && (self.st.throttle as f64 - self.indic.fuel_pressure * 10.0) > 2.0
         {
-            // PORT: Java 复合赋值 `fuelPCheck += sleepTime` (int += long) 隐式窄化
-            // 强转 — 值域 (0,2000] 内与直接加等价, 无回绕面 (§2.2)
-            self.fuel_p_check += SLEEP_TIME as i32;
-            if self.fuel_p_check >= 2000 {
-                self.fuel_p_check = 0;
-                self.alert(&self.fuel_prs_warn, "fuelPrsWarn").play_once(t);
+            // 原版 Java 复合赋值 `fuelPCheck += sleepTime` (int += long) 隐式
+            // 窄化 — 值域 (0,2000] 无回绕面; 收编为 i64 后窄化面消失 (§2.2)
+            self.fuel_prs.check += SLEEP_TIME;
+            if self.fuel_prs.check >= 2000 {
+                self.fuel_prs.check = 0;
+                self.alert(&self.fuel_prs.alert, "fuelPrsWarn").play_once(t);
                 self.eng_damage = true;
             }
         } else {
-            self.fuel_p_check = 0;
+            self.fuel_prs.check = 0;
         }
 
-        // 引擎损坏后油压为0的告警
+        // 引擎损坏后油压为0的告警 (独立计数, 不受油压低腿清零/加速影响)
         if self.eng_damage && self.indic.fuel_pressure == 0.0 {
-            self.fuel_p_check += SLEEP_TIME as i32;
-            if self.fuel_p_check >= 1000 {
-                self.alert(&self.eng_fail, "engFail").play_once(t);
+            self.eng_fail.check += SLEEP_TIME;
+            if self.eng_fail.check >= 1000 {
+                self.eng_fail.check = 0;
+                self.alert(&self.eng_fail.alert, "engFail").play_once(t);
                 self.eng_damage = false;
             }
         }
@@ -1223,24 +1227,24 @@ impl VoiceWarning {
     /// 舵效告警检测（副翼和方向舵）
     /// 原位置：run() 第 653-669 行
     fn check_control_effectiveness_warning(&mut self, t: i64) {
-        // 副翼舵效
-        if self.st.ias >= self.aileron_eff_ias {
-            if !self.aileron_eff_check {
-                self.alert(&self.aileron_eff, "aileronEff").play_once(t);
+        // 副翼舵效 (check 复用为 0/1 边沿锁存: 越线首帧播放, 持续越线不重播)
+        if self.st.ias as f64 >= self.aileron.line {
+            if self.aileron.check == 0 {
+                self.alert(&self.aileron.alert, "aileronEff").play_once(t);
             }
-            self.aileron_eff_check = true;
+            self.aileron.check = 1;
         } else {
-            self.aileron_eff_check = false;
+            self.aileron.check = 0;
         }
 
         // 方向舵舵效
-        if self.st.ias >= self.rudder_eff_ias {
-            if !self.rudder_eff_check {
-                self.alert(&self.rudder_eff, "rudderEff").play_once(t);
+        if self.st.ias as f64 >= self.rudder.line {
+            if self.rudder.check == 0 {
+                self.alert(&self.rudder.alert, "rudderEff").play_once(t);
             }
-            self.rudder_eff_check = true;
+            self.rudder.check = 1;
         } else {
-            self.rudder_eff_check = false;
+            self.rudder.check = 0;
         }
     }
 
@@ -1277,27 +1281,27 @@ impl VoiceWarning {
     fn update_structure_health(&mut self) {
         let xs = Arc::clone(self.xs());
         // 起落架完好性判断
-        if self.is_gear_alive && self.st.ias as f64 > self.gear_warning_line {
+        if self.is_gear_alive && self.st.ias as f64 > self.gear.line {
             // 超速持续 10 秒后标记为损坏
-            self.gear_check += SLEEP_TIME;
-            if self.gear_check >= GEAR_DAMAGE_THRESHOLD_MS {
-                self.gear_check = 0;
+            self.gear.check += SLEEP_TIME;
+            if self.gear.check >= GEAR_DAMAGE_THRESHOLD_MS {
+                self.gear.check = 0;
                 self.is_gear_alive = false;
             }
         } else {
-            self.gear_check = 0;
+            self.gear.check = 0;
         }
 
         // 襟翼完好性判断
         if self.is_flap_alive && self.st.ias as f64 > xs.flap_allow_speed() {
             // 超速持续 15 秒后标记为损坏
-            self.flap_check += SLEEP_TIME;
-            if self.flap_check >= FLAP_DAMAGE_THRESHOLD_MS {
-                self.flap_check = 0;
+            self.flap.check += SLEEP_TIME;
+            if self.flap.check >= FLAP_DAMAGE_THRESHOLD_MS {
+                self.flap.check = 0;
                 self.is_flap_alive = false;
             }
         } else {
-            self.flap_check = 0;
+            self.flap.check = 0;
         }
 
         // 收起后恢复

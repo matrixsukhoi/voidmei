@@ -73,9 +73,10 @@ fn var_value_booster_wep_fuel_registry_vars() {
     // fuel_percent 走 SessionInputs 搬运
     assert_eq!(d.var_value("fuel_percent"), Some(0.0));
     // 无助推器 (哨兵) → 归零
+    use vm_core::base::string_helper::F_INVALID;
     let mut d2 = ServiceData::default();
     let mut s2 = vm_core::telemetry::parser::State::default();
-    s2.mfuel_1 = -65535.0;
+    s2.mfuel_1 = F_INVALID;
     d2.s_state = Some(s2);
     assert_eq!(d2.var_value("booster_fuel_kg"), Some(0.0));
     assert_eq!(d2.var_value("has_booster"), Some(0.0));

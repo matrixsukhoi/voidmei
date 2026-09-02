@@ -11,6 +11,23 @@
 //! PORT: Java 静态可变全局 → Rust struct 实例 (禁 `static mut`); 调用方持有 `Lang`,
 //! 后续若需全局单例由 AppState 收口 (LIFETIMES 静态可变全局)。
 //! PORT: 类依赖 `prog.Application` 仅存在于注释, 无实际耦合, 不引入。
+//!
+//! ## 平铺 362 字段的设计裁决 (波17 F12, 不改造)
+//!
+//! `Lang` 的 362 个 pub 字段保留平铺, 不做分组嵌套 (`lang.main_form.xxx` 形态):
+//! - **键名单点映射**: 字段名 = cur.properties 键的 snake_case 直译
+//!   (eThurst→e_thurst / mP5FMChoose→m_p5_fm_choose), 三点同步
+//!   (struct 字段 + init_lang 赋值 + table 表项) 可机械对照逐行完成;
+//!   分组嵌套会切断键名↔字段名的直译关系, 还需引入分组归属表
+//! - **消费面**: 全库 14 文件 110 处 `lang.<field>` 直读
+//!   (vm-app/vm-core/vm-overlay), 分组波及全库而零行为收益
+//! - **分组语义已由前缀+节注释承载**: m_* MainForm / e_* EngineInfo /
+//!   f_* FlightInfo / d_f* DrawFrame / g_* GearAndFlaps / s_* StatusBar /
+//!   v_* StickValue / c_* Controller / b_* FM 解包调试 / l1..l31 日志行,
+//!   struct 内已有对应 `// 节名` 注释
+//!
+//! 改动守则: 新增键 = struct 字段 + init_lang 一行 + table.rs 表项三处同步;
+//! 字段名一律取键名 snake_case, 不自造分组名; 消费方只读 `lang.<field>`。
 
 
 pub mod table;

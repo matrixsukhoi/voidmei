@@ -574,11 +574,7 @@ fn update_from_event_dispatches() {
 
     // len 族: rightDraw=154 (updateLegacyComponents L487-495 手算)
     assert_eq!(o.maneuver_index_len, 114); // round(0.37/0.5*154)=round(113.96)
-    assert_eq!(o.maneuver_index_len10, 31); // round(0.1/0.5*154)=round(30.8)
-    assert_eq!(o.maneuver_index_len20, 62); // round(61.6)
-    assert_eq!(o.maneuver_index_len30, 92); // round(92.4)
-    assert_eq!(o.maneuver_index_len40, 123); // round(123.2)
-    assert_eq!(o.maneuver_index_len50, 154); // round(154.0)
+    assert_eq!(o.tick_scale.ticks, [31, 62, 92, 123, 154]); // 各档 round(档位/0.5*154)
 
     let (disp, val, vc) = match &*inner_of(&o, &o.throttle_bar) {
         MiniHudComponentInner::ThrottleBar(t) => {

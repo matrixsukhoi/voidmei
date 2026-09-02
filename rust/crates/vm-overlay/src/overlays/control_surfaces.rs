@@ -509,7 +509,7 @@ pub fn control_surfaces_overlay_spec(
 ) -> Result<(ControlSurfacesHandle, OverlaySpec), String> {
     let (font_add, dpi_scale, enable_axis_edge) = {
         let p = params.borrow();
-        (p.font_add_axis, p.dpi_scale, p.axis_show_edge)
+        (p.axis.font_add, p.dpi_scale, p.axis.show_edge)
     };
     let mut cs = ControlSurfacesOverlay::new();
     // win_x/win_y = 0: 窗口定位归 host 位置存档 (HudSettingsSnapshot 同规)
@@ -535,7 +535,7 @@ pub fn control_surfaces_overlay_spec(
     let reinit: ReinitFn = Box::new(move || {
         let (fa, dpi, edge) = {
             let p = reinit_params.borrow();
-            (p.font_add_axis, p.dpi_scale, p.axis_show_edge)
+            (p.axis.font_add, p.dpi_scale, p.axis.show_edge)
         };
         let mut cs = reinit_handle.borrow_mut();
         cs.reinit_config(fa, dpi, edge, 0, 0);

@@ -618,6 +618,32 @@ impl HUDMechanizationRow {
 // HUDManeuverRow (G 值 + 机动指数条)
 // ---------------------------------------------------------------------------
 
+/// 机动条满量程 (Java lenN = N/0.5 × rightDraw 系列公式的 0.5)
+pub const MANEUVER_FULL_SCALE: f64 = 0.5;
+
+/// 刻度档位表 0.1~0.5 (阈值本就是数据; 原 len10..len50 五连平行字段的来源)
+pub const MANEUVER_TICK_STEPS: [f64; 5] = [0.1, 0.2, 0.3, 0.4, 0.5];
+
+/// 机动指数刻度尺: 各档刻度到条右端的距离 (F10 收敛 len10..len50 平行字段)。
+/// 档 i 距离 = round(档位/满量程 × rightDraw), 由 minihud 的 legacy 链计算注入。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct TickScale {
+    /// 各档距离, 序 = [`MANEUVER_TICK_STEPS`]
+    pub ticks: [i32; 5],
+}
+
+impl TickScale {
+    /// 点亮档位的距离迭代: 档 0 恒亮 (Java:87 len10 恒画), 档 i 在
+    /// index ≥ 前一档档位时亮 (Java:88-102 的 0.1~0.4 逐级阈值)
+    pub fn lit_lens(&self, index: f64) -> impl Iterator<Item = i32> + '_ {
+        self.ticks
+            .iter()
+            .enumerate()
+            .filter(move |&(i, _)| i == 0 || index >= MANEUVER_TICK_STEPS[i - 1])
+            .map(|(_, &len)| len)
+    }
+}
+
 /// Row 4: G 力文字 + 机动指数条 (HUDManeuverRow.java:9)。
 /// Java 的 strokeThick/strokeThin (BasicStroke, CAP_ROUND+JOIN_ROUND,
 /// MinimalHUDContext.java:147-148 造: 宽 halfLine+2 / halfLine) 在 Rust 侧
@@ -631,11 +657,8 @@ pub struct HUDManeuverRow {
     pub maneuver_index: f64,
     /// 当前值条长 (右端固定 x+rightDraw, 向左延展)
     pub maneuver_index_len: i32,
-    pub maneuver_index_len10: i32,
-    pub maneuver_index_len20: i32,
-    pub maneuver_index_len30: i32,
-    pub maneuver_index_len40: i32,
-    pub maneuver_index_len50: i32,
+    /// 各档刻度距离 (0.1~0.5 档位表见 [`MANEUVER_TICK_STEPS`])
+    pub tick_scale: TickScale,
     /// strokeThick 宽 (影线)
     pub stroke_thick_w: f32,
     /// strokeThin 宽 (主线)
@@ -665,11 +688,7 @@ impl HUDManeuverRow {
             line_width,
             maneuver_index: 0.0,
             maneuver_index_len: 0,
-            maneuver_index_len10: 0,
-            maneuver_index_len20: 0,
-            maneuver_index_len30: 0,
-            maneuver_index_len40: 0,
-            maneuver_index_len50: 0,
+            tick_scale: TickScale::default(),
             stroke_thick_w,
             stroke_thin_w,
             show_g_load: true,
@@ -704,40 +723,27 @@ impl HUDManeuverRow {
         self.show_maneuver_bar = v;
     }
 
-    /// Java:58-68 update (len 族 = 各阈值刻度到右端距离)
-    #[allow(clippy::too_many_arguments)] // 对齐 Java update 9 参
+    /// Java:58-68 update (len = 当前条长, tick_scale = 各阈值刻度到右端距离)
     pub fn update(
         &mut self,
         text: &str,
         is_warning: bool,
         maneuver_index: f64,
         len: i32,
-        len10: i32,
-        len20: i32,
-        len30: i32,
-        len40: i32,
-        len50: i32,
+        tick_scale: TickScale,
     ) -> bool {
         // 先判后写, 全字段参与 (与 HUDAkbRow::update 同口径): G 文字低频变化而
-        // 机动条/刻度逐帧变化, 漏比 index 与 len 族会让按返回值门控重绘的
+        // 机动条/刻度逐帧变化, 漏比 index 与刻度尺会让按返回值门控重绘的
         // 组装侧几乎永不重绘条与刻度
         let changed = self.base.text != text
             || self.base.is_warning != is_warning
             || self.maneuver_index != maneuver_index
             || self.maneuver_index_len != len
-            || self.maneuver_index_len10 != len10
-            || self.maneuver_index_len20 != len20
-            || self.maneuver_index_len30 != len30
-            || self.maneuver_index_len40 != len40
-            || self.maneuver_index_len50 != len50;
+            || self.tick_scale != tick_scale;
         self.base.update(text, is_warning);
         self.maneuver_index = maneuver_index;
         self.maneuver_index_len = len;
-        self.maneuver_index_len10 = len10;
-        self.maneuver_index_len20 = len20;
-        self.maneuver_index_len30 = len30;
-        self.maneuver_index_len40 = len40;
-        self.maneuver_index_len50 = len50;
+        self.tick_scale = tick_scale;
         changed
     }
 
@@ -789,18 +795,9 @@ impl HUDManeuverRow {
             colors().num
         };
 
-        // PORT: Java:87-102 len10 恒画; 0.1~0.4 阈值逐级点亮
-        Self::draw_line_mark(
-            cv,
-            x,
-            base_y,
-            self.right_draw,
-            self.half_line,
-            self.line_width,
-            self.maneuver_index_len10,
-            mark_color,
-        );
-        if self.maneuver_index >= 0.1 {
+        // PORT: Java:87-102 刻度档 0 恒画 (len10), 其余 index ≥ 前档阈值逐级点亮
+        // (点亮判定与档位表收敛在 TickScale::lit_lens, 绘制序 = 档位升序)
+        for len in self.tick_scale.lit_lens(self.maneuver_index) {
             Self::draw_line_mark(
                 cv,
                 x,
@@ -808,43 +805,7 @@ impl HUDManeuverRow {
                 self.right_draw,
                 self.half_line,
                 self.line_width,
-                self.maneuver_index_len20,
-                mark_color,
-            );
-        }
-        if self.maneuver_index >= 0.2 {
-            Self::draw_line_mark(
-                cv,
-                x,
-                base_y,
-                self.right_draw,
-                self.half_line,
-                self.line_width,
-                self.maneuver_index_len30,
-                mark_color,
-            );
-        }
-        if self.maneuver_index >= 0.3 {
-            Self::draw_line_mark(
-                cv,
-                x,
-                base_y,
-                self.right_draw,
-                self.half_line,
-                self.line_width,
-                self.maneuver_index_len40,
-                mark_color,
-            );
-        }
-        if self.maneuver_index >= 0.4 {
-            Self::draw_line_mark(
-                cv,
-                x,
-                base_y,
-                self.right_draw,
-                self.half_line,
-                self.line_width,
-                self.maneuver_index_len50,
+                len,
                 mark_color,
             );
         }

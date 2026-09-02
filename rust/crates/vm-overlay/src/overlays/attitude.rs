@@ -686,10 +686,10 @@ pub type AttitudeOverlayHandle = Rc<RefCell<AttitudeOverlay>>;
 fn attitude_geom(p: &ReinitParams) -> (i32, i32, bool, bool) {
     let dpi = p.dpi_scale;
     (
-        (p.attitude_width as f64 * dpi + 0.5).floor() as i32,
-        (p.attitude_height as f64 * dpi + 0.5).floor() as i32,
-        p.attitude_show_direction,
-        p.attitude_show_aoa_limits,
+        (p.attitude.width as f64 * dpi + 0.5).floor() as i32,
+        (p.attitude.height as f64 * dpi + 0.5).floor() as i32,
+        p.attitude.show_direction,
+        p.attitude.show_aoa_limits,
     )
 }
 

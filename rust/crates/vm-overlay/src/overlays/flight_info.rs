@@ -151,12 +151,12 @@ pub fn flight_info_overlay_spec(
 ) -> Result<(FlightInfoHandle, OverlaySpec), String> {
     let (font_add, column) = {
         let p = params.borrow();
-        (p.font_add_flight, p.flight_columns)
+        (p.flight.font_add, p.flight.columns)
     };
     let ctx = RenderCtx::new(font_add, column, default_num_height(font_add));
     let fonts = FontTriple::load(fonts_dir, &ctx)?;
     // preview 初值: cfg 行定义的 preview 值
-    let defs = { let p = params.borrow(); Arc::clone(&p.flight_rows) };
+    let defs = { let p = params.borrow(); Arc::clone(&p.flight.rows) };
     let rows: Vec<(String, String, String)> = preview_rows(&defs);
     // 窗口尺寸: 全行高度 (POC run_live 同款 — visible-when 变化不重建窗口,
     // 空行区域透明无碍)
@@ -176,7 +176,7 @@ pub fn flight_info_overlay_spec(
     let reinit: ReinitFn = Box::new(move || {
         let (fa, col, defs) = {
             let p = reinit_params.borrow();
-            (p.font_add_flight, p.flight_columns, Arc::clone(&p.flight_rows))
+            (p.flight.font_add, p.flight.columns, Arc::clone(&p.flight.rows))
         };
         match reinit_handle.borrow_mut().reinit(&reinit_fonts, fa, col, defs) {
             Ok(size) => Some(size),

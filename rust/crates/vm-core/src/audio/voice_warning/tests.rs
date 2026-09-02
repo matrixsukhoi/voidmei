@@ -420,7 +420,7 @@ fn init_registers_alerts_and_fail_engine_overwrite() {
     ));
     assert!(!Arc::ptr_eq(
         map.get("fail_engine").unwrap(),
-        vw.eng_fail.as_ref().unwrap()
+        vw.eng_fail.alert.as_ref().unwrap()
     ));
     assert!(map.contains_key("start1"));
     drop(map);
@@ -434,15 +434,15 @@ fn init_registers_alerts_and_fail_engine_overwrite() {
 fn init_default_lines_without_fm() {
     let TestEnv { vw, .. } = env();
     assert_eq!(vw.aoa_warning_line, 15.0);
-    assert_eq!(vw.ias_warning_line, f32::MAX as f64);
-    assert_eq!(vw.mach_warning_line, f32::MAX as f64);
-    assert_eq!(vw.gear_warning_line, 450.0);
+    assert_eq!(vw.ias.line, f32::MAX as f64);
+    assert_eq!(vw.mach.line, f32::MAX as f64);
+    assert_eq!(vw.gear.line, 450.0);
     assert_eq!(vw.ny_warning_line0, -4.0);
     assert_eq!(vw.ny_warning_line1, 10.0);
-    assert_eq!(vw.rudder_eff_ias, 65535);
-    assert_eq!(vw.elevator_eff_ias, 65535);
-    assert_eq!(vw.aileron_eff_ias, 65535);
-    assert_eq!(vw.lowfuel_warning_line, 10);
+    assert_eq!(vw.rudder.line, 65535.0);
+    assert_eq!(vw.elevator.line, 65535.0);
+    assert_eq!(vw.aileron.line, 65535.0);
+    assert_eq!(vw.fuel.line, 10.0);
     assert!(vw.is_gear_alive && vw.is_flap_alive && !vw.eng_damage);
 }
 
@@ -648,8 +648,8 @@ fn check_speed_warning_ias_mach_fatal() {
         log,
         ..
     } = env();
-    vw.ias_warning_line = 500.0;
-    vw.mach_warning_line = 0.8;
+    vw.ias.line = 500.0;
+    vw.mach.line = 0.8;
     vw.st.ias = 600;
     vw.st.m = 0.9;
 
@@ -663,8 +663,8 @@ fn check_speed_warning_ias_mach_fatal() {
         log: log2,
         ..
     } = env();
-    vw2.ias_warning_line = 500.0;
-    vw2.mach_warning_line = 0.8;
+    vw2.ias.line = 500.0;
+    vw2.mach.line = 0.8;
     vw2.st.ias = 400;
     vw2.st.m = 0.5;
     assert!(!vw2.check_speed_warning(0));
@@ -792,21 +792,21 @@ fn check_fuel_pressure_warning_chain() {
     assert_eq!(starts(&log, "warn_lowpressure"), 1);
 
     // 引擎损坏后油压归零 → fail_engine, 损坏标记清除。
-    // 注意 Java 两块共用 fuelPCheck 计数器: fp=0 时低油压块条件仍真
-    // (throttle-0 > 2), 每次调用两块各 +100 → 第 5 次调用即达 1000 门限
+    // A6 拆分后两计数器独立: fp=0 时低油压块条件仍真 (throttle-0 > 2) 但只记
+    // 自己的计数, fail_engine 由独立计数满 1000 → 第 10 次调用触发
     vw.indic.fuel_pressure = 0.0;
-    for _ in 0..4 {
+    for _ in 0..9 {
         vw.check_fuel_pressure_warning(0);
     }
     assert_eq!(starts(&log, "fail_engine"), 0);
-    vw.check_fuel_pressure_warning(0); // 第 5 次: 累计 1000
+    vw.check_fuel_pressure_warning(0); // 第 10 次: 独立累计 1000
     assert!(!vw.eng_damage);
     assert_eq!(starts(&log, "fail_engine"), 1);
 
-    // 条件消失 → 计数清零
+    // 条件消失 → 油压低计数清零 (损坏腿计数已随播放清零)
     vw.indic.fuel_pressure = 10.0; // 100 - 100 = 0, 不 > 2
     vw.check_fuel_pressure_warning(0);
-    assert_eq!(vw.fuel_p_check, 0);
+    assert_eq!(vw.fuel_prs.check, 0);
 }
 
 // 倒飞断油 (fail_engine 冷却 5s 的 invert 实例) + 转速低/高
@@ -937,8 +937,8 @@ fn control_effectiveness_edge_latch() {
         log,
         ..
     } = env();
-    vw.aileron_eff_ias = 300;
-    vw.rudder_eff_ias = 400;
+    vw.aileron.line = 300.0;
+    vw.rudder.line = 400.0;
     vw.st.ias = 350;
 
     vw.check_control_effectiveness_warning(0);
@@ -1045,13 +1045,13 @@ fn update_dynamic_parameters_keeps_lines_without_fm() {
     vw.st.flaps = 30;
     let (aoa, ias, mach) = (
         vw.aoa_warning_line,
-        vw.ias_warning_line,
-        vw.mach_warning_line,
+        vw.ias.line,
+        vw.mach.line,
     );
     vw.update_dynamic_parameters();
     assert_eq!(vw.aoa_warning_line, aoa);
-    assert_eq!(vw.ias_warning_line, ias);
-    assert_eq!(vw.mach_warning_line, mach);
+    assert_eq!(vw.ias.line, ias);
+    assert_eq!(vw.mach.line, mach);
 }
 
 // ---- run() 主循环 (§2.13 线程映射) ----

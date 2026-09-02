@@ -26,8 +26,8 @@ impl Service {
                     s.power[0],
                     s.throttle,
                     d.poll_cycle_duration_ms,
-                    d.nwater_temp,
-                    d.noil_temp,
+                    d.engine.nwater_temp,
+                    d.engine.noil_temp,
                 )
             });
         /* 关发动机后，温度降到最低load后恢复 */
@@ -233,8 +233,8 @@ mod tests {
         let s = d.s_state.as_mut().unwrap();
         s.power = vec![power0];
         s.throttle = throttle;
-        d.nwater_temp = nwater;
-        d.noil_temp = noil;
+        d.engine.nwater_temp = nwater;
+        d.engine.noil_temp = noil;
         d.poll_cycle_duration_ms = 50; // run() 轮询的量化产物 (直驱需手工模拟)
     }
 

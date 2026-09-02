@@ -572,7 +572,7 @@ pub fn engine_control_overlay_spec(
 ) -> Result<(EngineControlHandle, OverlaySpec), String> {
     let (font_add, dpi_scale, interval_ms, disables) = {
         let p = params.borrow();
-        (p.font_add_engine, p.dpi_scale, p.service_loop_interval_ms, p.engine_disables)
+        (p.engine.font_add, p.dpi_scale, p.service_loop_interval_ms, p.engine.disables)
     };
     let interval_str = interval_ms.to_string();
     // init 链 (game 实例): initGaugeFields + calculateLayout + updateGaugesPreview
@@ -598,7 +598,7 @@ pub fn engine_control_overlay_spec(
     let reinit: ReinitFn = Box::new(move || {
         let (fa, dpi, iv, dis) = {
             let p = reinit_params.borrow();
-            (p.font_add_engine, p.dpi_scale, p.service_loop_interval_ms, p.engine_disables)
+            (p.engine.font_add, p.dpi_scale, p.service_loop_interval_ms, p.engine.disables)
         };
         let new_state = build_engine_state(&reinit_lang, fa, dpi, &iv.to_string(), &dis);
         let half = java_round_f32(new_state.font_size as f32 / 2.0);

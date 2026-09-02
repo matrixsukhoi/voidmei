@@ -113,7 +113,7 @@ pub struct SessionInputs {
     pub nitro_kg: f64,
     pub wep_time: f64,
     pub heat_tolerance: f64,
-    pub thurst_percent: f64,
+    pub thrust_percent: f64, // 更名自 thurst_percent (typo, 波17 G8); 对外键 "power_percent" 不变
     pub t_eng_response: f64,
     pub avgeff: f64,
     pub manifold_display: f64,
@@ -330,7 +330,7 @@ fn session_vars() -> Vec<VarMeta> {
         VarMeta { name: "wep_kg", unit: "kg", desc: "WEP 剩余工质(消耗状态机)", category: C::Engine, origin: O::Derived, src: SE(|x| x.nitro_kg) },
         VarMeta { name: "wep_time", unit: "s", desc: "WEP 剩余时间(消耗状态机)", category: C::Engine, origin: O::Derived, src: SE(|x| x.wep_time) },
         VarMeta { name: "heat_tolerance", unit: "", desc: "耐热阈值", category: C::Engine, origin: O::Derived, src: SE(|x| x.heat_tolerance) },
-        VarMeta { name: "power_percent", unit: "%", desc: "推力/功率百分比", category: C::Engine, origin: O::Derived, src: SE(|x| x.thurst_percent) },
+        VarMeta { name: "power_percent", unit: "%", desc: "推力/功率百分比", category: C::Engine, origin: O::Derived, src: SE(|x| x.thrust_percent) },
         VarMeta { name: "engine_response", unit: "", desc: "引擎响应速率(惯性)", category: C::Engine, origin: O::Derived, src: SE(|x| x.t_eng_response) },
         VarMeta { name: "prop_efficiency", unit: "%", desc: "螺旋桨效率(聚合比)", category: C::Engine, origin: O::Derived, src: SE(|x| x.avgeff) },
         VarMeta { name: "manifold_pressure_display", unit: "", desc: "进气压显示值(公/英制)", category: C::Engine, origin: O::Derived, src: SE(|x| x.manifold_display) },

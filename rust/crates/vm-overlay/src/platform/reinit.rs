@@ -11,13 +11,88 @@
 //! 送渲染线程的线程局部仓 (`Rc<RefCell<ReinitParams>>`) → 各 spec 工厂的
 //! reinit 闭包 (OverlaySpec.reinit) 读取最新值重建 state, 返回新 (w,h) 由 host
 //! resize_entry 落窗口 — 对位 Java reinitConfig 的 setBounds 副作用。
+//!
+//! F15 分组嵌套: 各 overlay 组配置收为子结构 (共用形态共享类型, 各组自带
+//! Default 的 Java 回退值 — 加字段只改本组); 顶层只留跨组消费面 (DPI/轮询节流/
+//! 地平仪喂入节流/MiniHUD 快照)。
 
 use std::sync::Arc;
 
 use vm_core::config::config_api::HudSettingsSnapshot;
 use vm_core::ui_support::row_def::RowDef;
 
-/// reinit 参数包 (纯值 Send; 各字段来源 = OverlayInputs 同源配置键)。
+/// 引擎控制组 (getOverlaySettings("引擎控制"))。
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct EngineGroup {
+    /// 字号增量 (getFontSizeAdd)
+    pub font_add: i32,
+    /// 7 仪表 disable 开关 (ENGINE_DISABLE_KEYS 序)
+    pub disables: [bool; 7],
+}
+
+/// 列表型面板组 (动力信息/飞行信息共用形态): 字号增量 + 列数 + W-D 行定义。
+#[derive(Debug, Clone, PartialEq)]
+pub struct ListGroup {
+    /// 字号增量 (getFontSizeAdd)
+    pub font_add: i32,
+    /// 列数 (动力 hudColumns / 飞行 flightInfoColumn)
+    pub columns: i32,
+    /// W-D cfg 驱动行定义 (主线程从 ui_layout.cfg 编译, 行开关过滤后随包进渲染线程)
+    pub rows: Arc<Vec<RowDef>>,
+}
+
+impl Default for ListGroup {
+    /// 缺省 = Java 无配置回退: fontadd=0 / 单列 / 空行表
+    fn default() -> Self {
+        ListGroup {
+            font_add: 0,
+            columns: 1,
+            rows: Arc::new(Vec::new()),
+        }
+    }
+}
+
+/// 边框开关组 (起落襟翼/操纵面共用形态): 字号增量 + 边缘模式。
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct EdgeGroup {
+    /// 字号增量 (getFontSizeAdd)
+    pub font_add: i32,
+    /// 边缘开关 (起落襟翼 enablegearAndFlapsEdge / 操纵面 enableAxisEdge, cfg 缺省 false)
+    pub show_edge: bool,
+}
+
+/// FM拆包数据组: 字号增量 (getOverlaySettings("FM拆包数据").getFontSizeAdd;
+/// cfg 该组无字号滑条, 恒走 OverlaySettings 默认 0 — setupFont 的 14+add 面)
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct FmGroup {
+    pub font_add: i32,
+}
+
+/// 地平仪组 (getOverlaySettings("地平仪"))。喂入节流 freq_ms 在顶层 —
+/// 宿主 attitude_feed 消费, 不属绘制面组。
+#[derive(Debug, Clone, PartialEq)]
+pub struct AttitudeGroup {
+    /// 宽高 (attitudeIndicatorWidth/Height, 工厂内再 DPI 缩放)
+    pub width: i32,
+    pub height: i32,
+    /// 开关族 (attitudeIndicatorDisplayDirection/DisplayAoALimits)
+    pub show_direction: bool,
+    pub show_aoa_limits: bool,
+}
+
+impl Default for AttitudeGroup {
+    /// 缺省 = Java reinitConfig 回退值 (AttitudeOverlay.java:232-248)
+    fn default() -> Self {
+        AttitudeGroup {
+            width: 150,
+            height: 300,
+            show_direction: false,
+            show_aoa_limits: true,
+        }
+    }
+}
+
+/// reinit 参数包 (纯值 Send; 各组来源 = OverlayInputs 同源配置键)。
 /// PORT(取舍备案): 不整包重送 `OverlayInputs` — 颜色/AA 有专命令
 /// (SetGlobalColors/SetAa), 本包只收 reinit 实际消费面。
 ///
@@ -35,69 +110,47 @@ use vm_core::ui_support::row_def::RowDef;
 ///   (gauge_attitude.rs "PORT(精确定性)" 注同源)。
 #[derive(Debug, Clone, PartialEq)]
 pub struct ReinitParams {
+    /// Application.dpiScale (各组几何的 DPI 缩放共用)
     pub dpi_scale: f64,
-    /// 引擎控制: 字号增量 (getOverlaySettings("引擎控制").getFontSizeAdd)
-    pub font_add_engine: i32,
-    /// 引擎控制: 7 仪表 disable 开关 (ENGINE_DISABLE_KEYS 序)
-    pub engine_disables: [bool; 7],
-    /// 引擎控制/Service 轮询间隔 (loadRefreshInterval 读 dataPollIntervalMs)
+    /// Service 轮询间隔 (loadRefreshInterval 读 dataPollIntervalMs;
+    /// 引擎控制 refreshInterval 同源)
     pub service_loop_interval_ms: i64,
-    /// 动力信息: 字号增量 + 列数
-    pub font_add_power: i32,
-    pub power_columns: i32,
-    /// 飞行信息: 字号增量 + 列数
-    pub font_add_flight: i32,
-    pub flight_columns: i32,
-    /// 起落襟翼: 字号增量 + 边缘开关 (enablegearAndFlapsEdge)
-    pub font_add_gear: i32,
-    pub gear_show_edge: bool,
-    /// 操纵面: 字号增量 + 边缘开关 (enableAxisEdge)
-    pub font_add_axis: i32,
-    pub axis_show_edge: bool,
-    /// FM拆包数据: 字号增量 (getOverlaySettings("FM拆包数据").getFontSizeAdd;
-    /// cfg 该组无字号滑条, 恒走 OverlaySettings 默认 0 — setupFont 的 14+add 面)
-    pub font_add_fm: i32,
-    /// 地平仪: 宽高 (attitudeIndicatorWidth/Height, 工厂内再 DPI 缩放) +
-    /// 喂入节流 (attitudeIndicatorFreqMs) + 开关族
-    pub attitude_width: i32,
-    pub attitude_height: i32,
+    /// 地平仪喂入节流 (attitudeIndicatorFreqMs; 宿主 attitude_feed 消费)
     pub attitude_freq_ms: i64,
-    pub attitude_show_direction: bool,
-    pub attitude_show_aoa_limits: bool,
+    /// 引擎控制组
+    pub engine: EngineGroup,
+    /// 动力信息组
+    pub power: ListGroup,
+    /// 飞行信息组
+    pub flight: ListGroup,
+    /// 起落襟翼组
+    pub gear: EdgeGroup,
+    /// 操纵面组
+    pub axis: EdgeGroup,
+    /// FM拆包数据组
+    pub fm: FmGroup,
+    /// 地平仪组
+    pub attitude: AttitudeGroup,
     /// MiniHUD 全量设置快照 (reinit_config 的 S: HUDSettings 实参)
     pub hud: HudSettingsSnapshot,
-    /// W-D cfg 驱动行定义 (主线程从 ui_layout.cfg 编译, 行开关过滤后随包进渲染线程)
-    pub flight_rows: Arc<Vec<RowDef>>,
-    pub power_rows: Arc<Vec<RowDef>>,
 }
 
 impl Default for ReinitParams {
-    /// 缺省 = Java 各 reinitConfig 的无配置回退值 (地平仪 150×300/40ms/
-    /// direction false / AoA 极限 true, AttitudeOverlay.java:232-248; 其余组
-    /// fontadd=0/单列/边框关)
+    /// 缺省 = Java 各 reinitConfig 的无配置回退值 (组内值见各组 Default;
+    /// 顶层 dpi=1.0 / 轮询 50ms / 地平仪节流 40ms)
     fn default() -> Self {
         ReinitParams {
             dpi_scale: 1.0,
-            font_add_engine: 0,
-            engine_disables: [false; 7],
             service_loop_interval_ms: 50,
-            font_add_power: 0,
-            power_columns: 1,
-            font_add_flight: 0,
-            flight_columns: 1,
-            font_add_gear: 0,
-            gear_show_edge: false,
-            font_add_axis: 0,
-            axis_show_edge: false,
-            font_add_fm: 0,
-            attitude_width: 150,
-            attitude_height: 300,
             attitude_freq_ms: 40,
-            attitude_show_direction: false,
-            attitude_show_aoa_limits: true,
+            engine: Default::default(),
+            power: Default::default(),
+            flight: Default::default(),
+            gear: Default::default(),
+            axis: Default::default(),
+            fm: Default::default(),
+            attitude: Default::default(),
             hud: HudSettingsSnapshot::default(),
-            flight_rows: Arc::new(Vec::new()),
-            power_rows: Arc::new(Vec::new()),
         }
     }
 }

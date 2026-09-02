@@ -519,7 +519,7 @@ pub fn fm_unpacked_data_overlay_spec(
 ) -> Result<(FmUnpackedDataHandle, OverlaySpec), String> {
     let (font_add, dpi_scale) = {
         let p = params.borrow();
-        (p.font_add_fm, p.dpi_scale)
+        (p.fm.font_add, p.dpi_scale)
     };
     // Application.defaultFontsize = 12 (Lang defaultFontSize, Application.java:93)
     let mut ov = FmUnpackedDataOverlay::new(logical_height, dpi_scale, 12);
@@ -539,7 +539,7 @@ pub fn fm_unpacked_data_overlay_spec(
     let reinit_fm = Arc::clone(fm);
     let reinit_regular = regular_path;
     let reinit: ReinitFn = Box::new(move || {
-        let fa = reinit_params.borrow().font_add_fm;
+        let fa = reinit_params.borrow().fm.font_add;
         if !reinit_font.reload(&reinit_regular, 14 + fa) {
             return None;
         }

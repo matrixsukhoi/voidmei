@@ -887,8 +887,8 @@ fn gear_flaps_draw_pixels() {
 fn params_cell(mutate: impl FnOnce(&mut ReinitParams)) -> Rc<RefCell<ReinitParams>> {
     let mut p = ReinitParams::default();
     // W-D: 行定义走 cfg (与生产同源)
-    p.flight_rows = std::sync::Arc::new(crate::overlays::flight_info::cfg_rows("飞行信息"));
-    p.power_rows = std::sync::Arc::new(crate::overlays::flight_info::cfg_rows("动力信息"));
+    p.flight.rows = std::sync::Arc::new(crate::overlays::flight_info::cfg_rows("飞行信息"));
+    p.power.rows = std::sync::Arc::new(crate::overlays::flight_info::cfg_rows("动力信息"));
     mutate(&mut p);
     Rc::new(RefCell::new(p))
 }
@@ -900,7 +900,7 @@ fn live_spec_handles_share_state_with_render() {
     let fonts = std::path::Path::new(FONTS);
     // PowerInfo: 功率 1200 → 首字段 buffer
     let (h_power, mut spec) =
-        power_info_overlay_spec(fonts, &params_cell(|p| p.power_columns = 2)).unwrap();
+        power_info_overlay_spec(fonts, &params_cell(|p| p.power.columns = 2)).unwrap();
     let t = MockTele { horse_power: 1200.0, ..MockTele::default() };
     assert!(h_power.borrow_mut().update(100, &t));
     assert_eq!(h_power.borrow().fields()[0].buffer, "1200");
@@ -925,7 +925,7 @@ fn live_spec_handles_share_state_with_render() {
         Rc::clone(&lang_rc),
         &params_cell(|p| {
             p.service_loop_interval_ms = 50;
-            p.engine_disables = [true; 7];
+            p.engine.disables = [true; 7];
         }),
     )
     .unwrap();
@@ -962,7 +962,7 @@ fn power_info_reinit_grows_with_font_add() {
     let cell = params_cell(|_| {});
     let (_h, mut spec) = power_info_overlay_spec(fonts, &cell).unwrap();
     let h0 = spec.height;
-    cell.borrow_mut().font_add_power = 6;
+    cell.borrow_mut().power.font_add = 6;
     let (w1, h1) = (spec.reinit.as_mut().unwrap())().expect("reinit 应成功");
     assert!(
         h1 > h0,
@@ -981,11 +981,11 @@ fn engine_control_reinit_resizes_for_font_and_disables() {
     let (h, mut spec) =
         engine_control_overlay_spec(fonts, Rc::new(lang()), &cell).unwrap();
     let h0 = spec.height;
-    cell.borrow_mut().font_add_engine = 6;
+    cell.borrow_mut().engine.font_add = 6;
     let (_, h1) = (spec.reinit.as_mut().unwrap())().expect("reinit 应成功");
     assert!(h1 > h0, "字号增量后高度应变大 ({} → {})", h0, h1);
     // 全关: 存活仪表 0 → 布局显著变矮 (state 已重建, live 值复位为预览半量程)
-    cell.borrow_mut().engine_disables = [true; 7];
+    cell.borrow_mut().engine.disables = [true; 7];
     let (_, h2) = (spec.reinit.as_mut().unwrap())().expect("reinit 应成功");
     assert!(h2 < h1, "全关仪表后应显著变矮 ({} → {})", h1, h2);
     assert!(h.borrow().gauge_by_key("throttle").is_none(), "全关后 throttle 仪表移除");
@@ -998,12 +998,12 @@ fn gear_flaps_reinit_grows_with_font_and_edge() {
     let cell = params_cell(|_| {});
     let (h, mut spec) = gear_flaps_overlay_spec(fonts, &cell).unwrap();
     let (w0, h0) = (spec.width, spec.height);
-    cell.borrow_mut().gear_show_edge = true;
+    cell.borrow_mut().gear.show_edge = true;
     let (we, _) = (spec.reinit.as_mut().unwrap())().expect("reinit 应成功");
     assert_eq!(we - w0, 20, "enablegearAndFlapsEdge → sw=10 双侧外扩");
     // 字号 0→6: 更高 (state 重建, 预览复位: flap 50%)
-    cell.borrow_mut().font_add_gear = 6;
-    cell.borrow_mut().gear_show_edge = false;
+    cell.borrow_mut().gear.font_add = 6;
+    cell.borrow_mut().gear.show_edge = false;
     let (_, h2) = (spec.reinit.as_mut().unwrap())().expect("reinit 应成功");
     assert!(h2 > h0, "字号增量后高度应变大 ({} → {})", h0, h2);
     assert_eq!(h.borrow().flap_pix, h.borrow().bar_height * 50 / 100, "reinit 复位预览 50%");
@@ -1719,7 +1719,7 @@ fn control_surfaces_overlay_spec_shared_state() {
     assert!(cv.pixmap().data().iter().any(|&b| b != 0));
 
     // WYSIWYG reinit: fontAdd 0→6 → fs=30 → w=180, twidth=300, theight=225
-    cell.borrow_mut().font_add_axis = 6;
+    cell.borrow_mut().axis.font_add = 6;
     let (w1, h1) = (spec.reinit.as_mut().unwrap())().expect("reinit 应成功");
     assert_eq!((w1, h1), (300, 225), "字号 6 的内容区 (fs=30)");
     assert_eq!(h.borrow().font_size, 30, "state 已换新几何");

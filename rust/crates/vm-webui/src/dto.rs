@@ -100,6 +100,26 @@ fn config_value_to_json(v: &ConfigValue) -> serde_json::Value {
 // 展示域, 换语义标 (kind/color 字符串) 不进数据面。
 // =====================================================================
 
+/// 对比行胜负 (Java win 的 -1/0/1): Left=左胜(v0) Draw=平 Right=右胜(v1)。
+/// 序列化保持整数 (经 `into = i32`), 前端按数值消费
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(into = "i32")]
+pub enum Win {
+    Left,
+    Draw,
+    Right,
+}
+
+impl From<Win> for i32 {
+    fn from(w: Win) -> i32 {
+        match w {
+            Win::Left => -1,
+            Win::Draw => 0,
+            Win::Right => 1,
+        }
+    }
+}
+
 /// 对比窗口一行 (Java CompactComparisonWindow.DisplayItem + addComparisonRow
 /// 的展示面: 行类型/属性名/两侧值/胜负)
 #[derive(Debug, Clone, Serialize)]
@@ -113,8 +133,8 @@ pub struct ComparisonRowDto {
     pub value0: Option<String>,
     /// FM1 侧值 (单机模式恒 None)
     pub value1: Option<String>,
-    /// 胜负: -1=左胜(v0) 0=平 1=右胜(v1) (Java win)
-    pub win: i32,
+    /// 胜负 (Java win): Left=左胜(v0) Draw=平 Right=右胜(v1)
+    pub win: Win,
     /// 符号列: "-" / "▶" / "◀" (Java addComparisonRow)
     pub symbol: String,
 }
@@ -134,13 +154,27 @@ pub struct ComparisonDataDto {
     pub copy_text: String,
 }
 
+/// 拐点族 (Java 以 marker Color 区分三族, web 侧换语义标着色)
+/// 序列化输出小写字符串, 与前端着色映射一致
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub enum InflectionKind {
+    /// 峰/临界高度 (金)
+    #[serde(rename = "peak")]
+    Peak,
+    /// 级间过渡谷 (蓝)
+    #[serde(rename = "valley")]
+    Valley,
+    /// 斜率拐点 (紫)
+    #[serde(rename = "kink")]
+    Kink,
+}
+
 /// 功率曲线拐点标注 (Java PowerCurveWindow.InflectionPoint; Color 换语义标)
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InflectionPointDto {
-    /// "peak" (峰/临界高度, 金) | "valley" (级间过渡, 蓝) | "kink" (斜率拐点, 紫)
-    /// — Java 以 marker Color 区分三族, web 侧换语义标着色
-    pub kind: String,
+    /// 拐点族 (序列化 "peak"/"valley"/"kink") — 三族语义见 [`InflectionKind`]
+    pub kind: InflectionKind,
     /// 标注文本 (Java label: "1档" / "1→2档" / "Kink")
     pub label: String,
     pub altitude_m: i32,

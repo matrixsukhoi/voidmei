@@ -188,10 +188,10 @@ pub fn power_info_overlay_spec(
 ) -> Result<(PowerInfoHandle, OverlaySpec), String> {
     let (font_add, column_num) = {
         let p = params.borrow();
-        (p.font_add_power, p.power_columns)
+        (p.power.font_add, p.power.columns)
     };
     let ctx = Rc::new(RefCell::new(RenderContext::load(fonts_dir, font_add, column_num)?));
-    let state = PowerInfoState::new({ let p = params.borrow(); std::sync::Arc::clone(&p.power_rows) });
+    let state = PowerInfoState::new({ let p = params.borrow(); std::sync::Arc::clone(&p.power.rows) });
     let (w, h) = state.preferred_size(&ctx.borrow());
     let handle: PowerInfoHandle = Rc::new(RefCell::new(state));
     let render_handle = Rc::clone(&handle);
@@ -204,7 +204,7 @@ pub fn power_info_overlay_spec(
     let reinit: ReinitFn = Box::new(move || {
         let (fa, col, defs) = {
             let p = reinit_params.borrow();
-            (p.font_add_power, p.power_columns, std::sync::Arc::clone(&p.power_rows))
+            (p.power.font_add, p.power.columns, std::sync::Arc::clone(&p.power.rows))
         };
         // 行定义随包更新 (行开关变更即时生效); preview 值回填, live 下一帧覆写
         reinit_handle.borrow_mut().rebind_defs(defs);

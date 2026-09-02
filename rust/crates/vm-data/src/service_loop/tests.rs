@@ -57,9 +57,9 @@ fn constructor_wiring_matches_java() {
     assert_eq!(d.dir, Some([0.0; 2]));
     // radioAltValid 写入点已随 W-B 事件瘦身删除 (有效位改走公式变量)
     assert!(!d.player_live);
-    assert_eq!(d.i_eng_type, ENGINE_TYPE_UNKNOWN);
-    assert_eq!(d.fueltime, i64::MAX, "Long.MAX_VALUE");
-    assert_eq!(d.maximum_thr_rpm, 1.0);
+    assert_eq!(d.engine.engine_type, EngineType::Unknown);
+    assert_eq!(d.fuel.fueltime, i64::MAX, "Long.MAX_VALUE");
+    assert_eq!(d.engine.maximum_thr_rpm, 1.0);
     assert_eq!(d.cur_load_min_work_time, 99999000.0);
     assert!(d.fuel_time_sma.is_some());
     // lastMapPollTimeMs/lastMainLoopTimeMs ≈ 构造时刻 (原 FuelCheckMili 字段已删)
@@ -67,7 +67,7 @@ fn constructor_wiring_matches_java() {
     assert!((d.last_map_poll_time_ms - now).abs() < 60_000);
     assert!((d.last_main_loop_time_ms - now).abs() < 60_000);
     // R2 守卫: fresh manager 的 current = UNRESOLVED → nitro 族归零
-    assert_eq!(d.nitrokg, 0.0);
+    assert_eq!(d.engine.nitrokg, 0.0);
     assert!(d.fm.fmdata.is_none());
     // 构造期 publish 已发生 (resetvaria 尾部; mapinfo 此刻仍 null → "--",
     // sState 构造在 resetvaria 后 → state=None) —— 由下方事件测试覆盖
@@ -141,8 +141,8 @@ fn process_polling_cycle_full_chain() {
         assert_eq!(d.var_value("mach").unwrap_or(0.0), 0.0, "无 FM 公式 invalid → None → 0");
         // updateAlt 写回: alt←H,m; mock 无 radio_altitude 键 → 哨兵 →
         // radioAlt=alt (radioAltValid 写入点已随 W-B 删除)
-        assert_eq!(d.alt, 46.0);
-        assert_eq!(d.radio_alt, 46.0);
+        assert_eq!(d.altm.alt, 46.0);
+        assert_eq!(d.altm.radio_alt, 46.0);
         // mapGrid: loc=[0,0] + mapinfo(构造后仍全 0) → 'A' + 1
     }
     // identify 已建立目标 (规范化小写); loader 线程尝试磁盘加载 (data/ 缺失
@@ -180,7 +180,7 @@ fn update_compass_fallback_and_update_alt_branches() {
         d.actual_interval_ms = 100;
         // 冻结英制状态机 (notCheckInch=true), checkAlt>0 → 英尺转米分支
         d.not_check_inch = true;
-        d.check_alt = 500;
+        d.altm.check_alt = 500;
     }
     svc.calculate();
     {
@@ -193,18 +193,18 @@ fn update_compass_fallback_and_update_alt_branches() {
             d.compass_delta
         );
         // updateAlt: altp←alt(初值 0), alt←H,m; altmeterp←0, altmeter←10
-        assert_eq!(d.altp, 0.0);
-        assert_eq!(d.alt, 46.0);
-        assert_eq!(d.altmeterp, 0.0);
-        assert_eq!(d.altmeter, 10.0);
+        assert_eq!(d.altm.altp, 0.0);
+        assert_eq!(d.altm.alt, 46.0);
+        assert_eq!(d.altm.altmeterp, 0.0);
+        assert_eq!(d.altm.altmeter, 10.0);
         // radio_altitude 有效 + checkAlt>0 → 英制英尺转米
         // (radioAltValid 断言已随 W-B 写入点删除而移除)
-        assert!((d.radio_alt - 1000.0 * 0.3048).abs() < 1e-9);
+        assert!((d.altm.radio_alt - 1000.0 * 0.3048).abs() < 1e-9);
         // dRadioAlt = ratio_1*0 + ratio*1000*(radioAlt-0)/100 (freq=50;
         // 生产 ratio 仍是 freq/1000 的 float 除法拓宽值, 期望对齐该域)
         let ratio = (50f32 / 1000.0f32) as f64;
         let expect_dralt = ratio * 1000.0 * (1000.0 * 0.3048) / 100.0;
-        assert!((d.d_radio_alt - expect_dralt).abs() < 1e-9);
+        assert!((d.altm.d_radio_alt - expect_dralt).abs() < 1e-9);
     }
 
     // 英制状态机活分支: notCheckInch=false + altmeter 跳变量 >> |2·Vy·interval|
@@ -212,18 +212,18 @@ fn update_compass_fallback_and_update_alt_branches() {
     {
         let mut d = write_data(&svc.data);
         d.not_check_inch = false;
-        d.check_alt = 0;
-        d.altmeter = 0.0;
-        d.altmeterp = 0.0;
+        d.altm.check_alt = 0;
+        d.altm.altmeter = 0.0;
+        d.altm.altmeterp = 0.0;
     }
     svc.calculate();
     {
         let d = read_data(&svc.data);
-        assert_eq!(d.check_alt, 100, "checkAlt += actualIntervalMs");
+        assert_eq!(d.altm.check_alt, 100, "checkAlt += actualIntervalMs");
         assert!(!d.not_check_inch, "|100| ≤ 10000 不置 notCheckInch");
         // altmeterp ← 改写前的 altmeter (手工置 0), altmeter ← 本轮解析值 10
-        assert_eq!(d.altmeterp, 0.0);
-        assert_eq!(d.altmeter, 10.0);
+        assert_eq!(d.altm.altmeterp, 0.0);
+        assert_eq!(d.altm.altmeter, 10.0);
     }
 }
 
@@ -315,8 +315,8 @@ fn engine_state_and_fuel_full_chain() {
         let s = d.s_state.as_mut().unwrap();
         s.engine_num = 1;
         s.throttles[0] = 110;
-        d.check_engine_flag = true;
-        d.i_eng_type = ENGINE_TYPE_PROP;
+        d.engine.check_engine_flag = true;
+        d.engine.engine_type = EngineType::Prop;
         d.poll_cycle_duration_ms = 50; // run() 轮询的量化产物 (直驱 calculate 需手工模拟)
     }
     svc.calculate();
@@ -324,47 +324,47 @@ fn engine_state_and_fuel_full_chain() {
     {
         let d = read_data(&svc.data);
         // updateEngineState (活塞分支, python oracle)
-        assert_eq!(d.total_hp, 1597, "(int) 1597.8");
-        assert_eq!(d.total_thrust, 840, "thrust 1 = 840 kgs");
-        assert_eq!(d.total_hp_eff, 1412, "840·g·speedv(126.111…)/735 截断");
-        assert!((d.avgeff - 88.41577958672511).abs() < 1e-9, "avgeff (实际 {})", d.avgeff);
-        // thurst_percent: 无 FM (UNRESOLVED) → peak=0 且 maxTotalHp 已积累但
+        assert_eq!(d.engine.total_hp, 1597, "(int) 1597.8");
+        assert_eq!(d.engine.total_thrust, 840, "thrust 1 = 840 kgs");
+        assert_eq!(d.engine.total_hp_eff, 1412, "840·g·speedv(126.111…)/735 截断");
+        assert!((d.engine.avgeff - 88.41577958672511).abs() < 1e-9, "avgeff (实际 {})", d.engine.avgeff);
+        // thrust_percent: 无 FM (UNRESOLVED) → peak=0 且 maxTotalHp 已积累但
         // 首轮 pThurst 置换后分支不触发? — maxTotalHp 分支: peakPower=0 且
-        // maxTotalHp=70 != 0 → thurstPercent = 100*1597/70 = 2281.4…
+        // maxTotalHp=70 != 0 → thrustPercent = 100*1597/70 = 2281.4…
         // (Java 同式回退, 无 FM 域的已知大数形态)
-        // thurst_percent: 无 FM (UNRESOLVED) → peak=0 走 maxTotalHp 回退 — 两轮
+        // thrust_percent: 无 FM (UNRESOLVED) → peak=0 走 maxTotalHp 回退 — 两轮
         // EMA: 首轮 max=70, 次轮 max=(int)(0.95*70+0.05*1412)=137 → 100*1597/137
         // (State::update 已从遥测键推断 engineNum=1/throttles[0]=110, 首轮即完整计算)
-        assert!((d.thurst_percent - 100.0 * 1597.0 / 137.0).abs() < 1e-9);
+        assert!((d.engine.thrust_percent - 100.0 * 1597.0 / 137.0).abs() < 1e-9);
         // maxTotal 平滑 (EMA ratio=0.05), 两轮: 42 → (int)(0.95*42+0.05*840)=81
         assert_eq!(d.max_total_thr, 81, "第二轮 EMA (0.95*42+0.05*840)");
         assert_eq!(d.max_total_hp, 137, "(int)(0.95*70+0.05*1412)");
         // updateWepTime: 两轮都进 WEP, 但首轮 pollCycleDurationMs=0 (run() 未跑),
         // 仅第二轮 (手工置 50) 计入 → 50
-        assert_eq!(d.wep_time, 50, "次轮 WEP 计时 (首轮 pollCycle=0)");
-        assert_eq!(d.nitro_eng_nr, 1);
-        assert_eq!(d.nitrokg, 0.0, "R2 守卫: 无 FM nitrokg=0");
+        assert_eq!(d.engine.wep_time, 50, "次轮 WEP 计时 (首轮 pollCycle=0)");
+        assert_eq!(d.engine.nitro_eng_nr, 1);
+        assert_eq!(d.engine.nitrokg, 0.0, "R2 守卫: 无 FM nitrokg=0");
         // updateTemp: INDIC_MOCK 无温度键 (哨兵) → 回退 sState
-        assert_eq!(d.noil_temp, 90.0, "oil temp 1 = 90");
-        assert_eq!(d.nwater_temp, 121.0, "water temp 1 = 121");
+        assert_eq!(d.engine.noil_temp, 90.0, "oil temp 1 = 90");
+        assert_eq!(d.engine.nwater_temp, 121.0, "water temp 1 = 121");
         // updateFuel: fuelnum=0 → lowAccFuel + mfuel 回退
-        assert_eq!(d.total_fuel, 197.0, "Mfuel 回退");
-        assert!(d.low_acc_fuel);
-        assert_eq!(d.fuel_percent, 26, "(int)(100*197/734)");
+        assert_eq!(d.fuel.total_fuel, 197.0, "Mfuel 回退");
+        assert!(d.fuel.low_acc_fuel);
+        assert_eq!(d.fuel.fuel_percent, 26, "(int)(100*197/734)");
     }
 
     // 喷气分支: iEngType 翻 JET → totalHp 归 0
     {
         let mut d = write_data(&svc.data);
-        d.i_eng_type = ENGINE_TYPE_JET;
+        d.engine.engine_type = EngineType::Jet;
     }
     let fm = svc.fm_manager.current(); // UNRESOLVED
     svc.update_engine_state(&fm);
     {
         let d = read_data(&svc.data);
-        assert_eq!(d.total_hp, 0, "喷气分支不产马力");
-        assert_eq!(d.total_thrust, 840);
-        assert_eq!(d.avgeff, 0.0);
+        assert_eq!(d.engine.total_hp, 0, "喷气分支不产马力");
+        assert_eq!(d.engine.total_thrust, 840);
+        assert_eq!(d.engine.avgeff, 0.0);
     }
 }
 
@@ -384,15 +384,15 @@ fn check_engine_jet_voting_state_machine() {
     }
     {
         let d = read_data(&svc.data);
-        assert!(!d.check_engine_flag, "99 票未收敛");
+        assert!(!d.engine.check_engine_flag, "99 票未收敛");
         assert_eq!(d.check_engine_type, 99);
         assert_eq!(d.check_pitch, 99, "桨距有效 (非哨兵) 是正票 (Java: != -65535 → ++)");
     }
     svc.check_engine_jet(); // 第 100 票
     {
         let d = read_data(&svc.data);
-        assert!(d.check_engine_flag);
-        assert_eq!(d.i_eng_type, ENGINE_TYPE_PROP, "磁电机正票 → 活塞");
+        assert!(d.engine.check_engine_flag);
+        assert_eq!(d.engine.engine_type, EngineType::Prop, "磁电机正票 → 活塞");
     }
 
     // 涡桨/喷气分流: 磁电机负票 + 桨距正票 → 涡桨; 桨距哨兵 → 喷气
@@ -407,8 +407,8 @@ fn check_engine_jet_voting_state_machine() {
         svc2.check_engine_jet();
     }
     assert_eq!(
-        read_data(&svc2.data).i_eng_type,
-        ENGINE_TYPE_TURBOPROP,
+        read_data(&svc2.data).engine.engine_type,
+        EngineType::Turboprop,
         "磁电机负 + 桨距正 → 涡桨"
     );
 
@@ -417,14 +417,14 @@ fn check_engine_jet_voting_state_machine() {
         let mut d = write_data(&svc3.data);
         let s = d.s_state.as_mut().unwrap();
         s.magenato = -1;
-        s.pitch = vec![-65535.0];
+        s.pitch = vec![F_INVALID];
     }
     for _ in 0..100 {
         svc3.check_engine_jet();
     }
     assert_eq!(
-        read_data(&svc3.data).i_eng_type,
-        ENGINE_TYPE_JET,
+        read_data(&svc3.data).engine.engine_type,
+        EngineType::Jet,
         "磁电机负 + 桨距哨兵 → 喷气"
     );
 }
@@ -640,9 +640,9 @@ fn flight_log_tick_writes_rows_and_close_flushes() {
         {
             let mut d = write_data(&svc.data);
             d.elapsed_time = 120000;
-            d.check_alt = 15;
-            d.alt = 1500.0;
-            d.total_thrust = 3400;
+            d.altm.check_alt = 15;
+            d.altm.alt = 1500.0;
+            d.engine.total_thrust = 3400;
             if let Some(s) = d.s_state.as_mut() {
                 s.ny = 1.5;
                 s.wx = -140.7;
@@ -736,7 +736,7 @@ fn formula_step_evaluates_and_guards_mach() {
         s.engine_num = 1;
         s.ias = 474;
         s.heightm = 46.0;
-        d.alt = 46.0; // 生产链由 Deriver 写回段先置 (= s.heightm 直通)
+        d.altm.alt = 46.0; // 生产链由 Deriver 写回段先置 (= s.heightm 直通)
         d.actual_interval_ms = 50;
     }
     // (2) 无 FM: mach 公式 invalid() → 不接管 (原 hasFM 守卫语义由公式表达)
@@ -810,9 +810,9 @@ fn frame_replay_formula_matches_oracle() {
     for i in 0..20 {
         feed_and_calculate(&mut svc, i);
         let d = svc.data.read().unwrap();
-        // altitude 链: d.alt = values.altitude = s.heightm 直通
+        // altitude 链: d.altm.alt = values.altitude = s.heightm 直通
         let h = 46.0 + i as f64 * 50.0;
-        assert_eq!(d.alt, h, "帧 {i}: altitude 直通");
+        assert_eq!(d.altm.alt, h, "帧 {i}: altitude 直通");
         let ias = (474 + i * 2) as f64;
         let ias_per_mach = 3.6
             * (1.4f64 / 1.225 * 101325.0 * (1.0f64 - 0.0000225577 * h).powf(5.25588))

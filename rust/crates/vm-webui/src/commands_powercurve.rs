@@ -16,7 +16,7 @@ use vm_core::fm::piston_model::generate_power_curve_advanced;
 
 use crate::commands::to_json;
 use crate::commands_comparison::{fallback_physical_file, normalize_secondary};
-use crate::dto::{InflectionPointDto, PowerCurveDataDto, PowerCurveDto};
+use crate::dto::{InflectionKind, InflectionPointDto, PowerCurveDataDto, PowerCurveDto};
 
 // Chart dimensions (数据相关常量; 窗口尺寸/边距是像素域归前端)
 // Maximum altitude for chart display (m)
@@ -286,7 +286,7 @@ pub fn identify_inflection_points_for_curve(
 
         let label = format!("{from_stage}→{to_stage}档");
         result.push(InflectionPointDto {
-            kind: "valley".to_string(),
+            kind: InflectionKind::Valley,
             label,
             altitude_m: *alt_m,
             power: *power,
@@ -303,7 +303,7 @@ pub fn identify_inflection_points_for_curve(
 
         let label = format!("{stage_num}档");
         result.push(InflectionPointDto {
-            kind: "peak".to_string(),
+            kind: InflectionKind::Peak,
             label,
             altitude_m: *alt_m,
             power: *power,
@@ -350,7 +350,7 @@ pub fn identify_inflection_points_for_curve(
 
             if !too_close_to_list(best_idx * ALT_STEP, min_sep_m, &result, |p| p.altitude_m) {
                 result.push(InflectionPointDto {
-                    kind: "kink".to_string(),
+                    kind: InflectionKind::Kink,
                     label: "Kink".to_string(),
                     altitude_m: best_idx * ALT_STEP,
                     power: power_curve[best_idx as usize],
@@ -493,8 +493,10 @@ mod tests {
             })
             .collect();
         let pts = identify_inflection_points_for_curve(&curve, 200.0);
-        let peaks: Vec<&InflectionPointDto> = pts.iter().filter(|p| p.kind == "peak").collect();
-        let valleys: Vec<&InflectionPointDto> = pts.iter().filter(|p| p.kind == "valley").collect();
+        let peaks: Vec<&InflectionPointDto> =
+            pts.iter().filter(|p| p.kind == InflectionKind::Peak).collect();
+        let valleys: Vec<&InflectionPointDto> =
+            pts.iter().filter(|p| p.kind == InflectionKind::Valley).collect();
         assert_eq!(peaks.len(), 2, "双峰: {pts:?}");
         assert_eq!(valleys.len(), 1, "一谷: {pts:?}");
         // Phase 3 按高度升序编档号
@@ -519,10 +521,11 @@ mod tests {
             .collect();
         let pts = identify_inflection_points_for_curve(&curve, 650.0);
         assert!(
-            pts.iter().all(|p| p.kind != "peak" && p.kind != "valley"),
+            pts.iter().all(|p| p.kind != InflectionKind::Peak && p.kind != InflectionKind::Valley),
             "同向曲线不应有峰谷: {pts:?}"
         );
-        let kinks: Vec<&InflectionPointDto> = pts.iter().filter(|p| p.kind == "kink").collect();
+        let kinks: Vec<&InflectionPointDto> =
+            pts.iter().filter(|p| p.kind == InflectionKind::Kink).collect();
         assert!(!kinks.is_empty(), "应有 Kink: {pts:?}");
         // 拐点位于 100 档 (2500m) 邻域
         assert!((kinks[0].altitude_m - 2500).abs() <= 100, "{kinks:?}");
@@ -559,7 +562,7 @@ mod tests {
         assert!((0..=10000).contains(&c0.peak_altitude));
         // 拐点: 增压器级 → 至少一个峰
         assert!(
-            c0.inflection_points.iter().any(|p| p.kind == "peak"),
+            c0.inflection_points.iter().any(|p| p.kind == InflectionKind::Peak),
             "应有峰标注: {:?}",
             c0.inflection_points
         );

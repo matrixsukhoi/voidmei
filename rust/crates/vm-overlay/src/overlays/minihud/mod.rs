@@ -48,6 +48,7 @@ pub use ctx::{MiniHudFonts, MinimalHudContext};
 use crate::render::primitives;
 use vm_core::base::format::pad_width;
 use crate::render::palette::{aa, colors};
+use crate::overlays::rows::{MANEUVER_FULL_SCALE, MANEUVER_TICK_STEPS, TickScale};
 use std::cell::RefCell;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
@@ -153,11 +154,8 @@ pub struct MiniHudOverlay {
     /// update_legacy_components 更新, update_components 预览路径读
     maneuver_index: f64,
     maneuver_index_len: i32,
-    maneuver_index_len10: i32,
-    maneuver_index_len20: i32,
-    maneuver_index_len30: i32,
-    maneuver_index_len40: i32,
-    maneuver_index_len50: i32,
+    /// 各档刻度距离 (原 len10..len50 五连字段收敛, 档位表在 rows.rs)
+    tick_scale: TickScale,
 
     // Java public boolean warnRH / warnVne (updateFromEvent 写; 外层消费)
     pub warn_rh: bool,
@@ -220,11 +218,7 @@ impl MiniHudOverlay {
             hud_check_mili: 0,
             maneuver_index: 0.0,
             maneuver_index_len: 0,
-            maneuver_index_len10: 0,
-            maneuver_index_len20: 0,
-            maneuver_index_len30: 0,
-            maneuver_index_len40: 0,
-            maneuver_index_len50: 0,
+            tick_scale: TickScale::default(),
             warn_rh: false,
             warn_vne: false,
             refresh_interval: service_loop_interval_ms,
@@ -432,18 +426,10 @@ impl MiniHudOverlay {
         });
         // Row 4: Maneuver (G)
         let l4 = self.lines[4].clone();
-        let (mi, l, l10, l20, l30, l40, l50) = (
-            self.maneuver_index,
-            self.maneuver_index_len,
-            self.maneuver_index_len10,
-            self.maneuver_index_len20,
-            self.maneuver_index_len30,
-            self.maneuver_index_len40,
-            self.maneuver_index_len50,
-        );
+        let (mi, l, ticks) = (self.maneuver_index, self.maneuver_index_len, self.tick_scale);
         self.hud_rows[4].map_inner(|inner| {
             if let MiniHudComponentInner::Row4(r) = inner {
-                r.update(&l4, false, mi, l, l10, l20, l30, l40, l50);
+                r.update(&l4, false, mi, l, ticks);
             }
         });
     }
@@ -524,9 +510,6 @@ impl MiniHudOverlay {
     }
 
     /// Java updateLegacyComponents(HUDData) (L470-496)
-    // PORT(allow eq_op): lenN = N/0.5 系列统一公式在 N=0.5 时字面为 0.5/0.5
-    // (Java HUDManeuverRow 调用点原样), 保真保留字面结构
-    #[allow(clippy::eq_op)]
     fn update_legacy_components(&mut self, data: &HUDData) {
         // Row 0, 1, 2 are refactored (Akb, Energy, Mechanization). They use
         // onDataUpdate.
@@ -540,31 +523,24 @@ impl MiniHudOverlay {
         // Row 4: Maneuver
         // ManeuverRow update signature is complex.
         let (ms, mi) = (data.maneuver_state_str.clone(), data.maneuver_index);
-        let (l, l10, l20, l30, l40, l50) = (
-            self.maneuver_index_len,
-            self.maneuver_index_len10,
-            self.maneuver_index_len20,
-            self.maneuver_index_len30,
-            self.maneuver_index_len40,
-            self.maneuver_index_len50,
-        );
+        let (l, ticks) = (self.maneuver_index_len, self.tick_scale);
         self.hud_rows[4].map_inner(|inner| {
             if let MiniHudComponentInner::Row4(r) = inner {
-                r.update(&ms, false, mi, l, l10, l20, l30, l40, l50);
+                r.update(&ms, false, mi, l, ticks);
             }
         });
         // Note: maneuverIndexLen variables are member fields of MinimalHUD
         // calculated in legacy loop.
         let right_draw = self.ctx.right_draw;
         // PORT: (int) Math.round(double) — round→long→(int) 窄化 (§2.2 双转);
-        // 求值序 (index / 0.5) * rightDraw 与 Java 左结合一致
+        // 求值序 (index / 0.5) * rightDraw 与 Java 左结合一致; 各档刻度走
+        // 档位表 (N=0.5 档字面 0.5/0.5 由表驱动消解)
         self.maneuver_index_len =
-            java_round_long_narrowed(data.maneuver_index / 0.5 * right_draw as f64);
-        self.maneuver_index_len10 = java_round_long_narrowed(0.1 / 0.5 * right_draw as f64);
-        self.maneuver_index_len20 = java_round_long_narrowed(0.2 / 0.5 * right_draw as f64);
-        self.maneuver_index_len30 = java_round_long_narrowed(0.3 / 0.5 * right_draw as f64);
-        self.maneuver_index_len40 = java_round_long_narrowed(0.4 / 0.5 * right_draw as f64);
-        self.maneuver_index_len50 = java_round_long_narrowed(0.5 / 0.5 * right_draw as f64);
+            java_round_long_narrowed(data.maneuver_index / MANEUVER_FULL_SCALE * right_draw as f64);
+        self.tick_scale = TickScale {
+            ticks: MANEUVER_TICK_STEPS
+                .map(|step| java_round_long_narrowed(step / MANEUVER_FULL_SCALE * right_draw as f64)),
+        };
     }
 
     /// Java paintComponent 主体 (L241-256): doLayout + render + drawBlinkX。

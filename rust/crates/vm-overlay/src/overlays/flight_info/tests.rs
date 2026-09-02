@@ -9,8 +9,8 @@ fn fonts_dir() -> std::path::PathBuf {
 fn params_cell(mutate: impl FnOnce(&mut ReinitParams)) -> Rc<RefCell<ReinitParams>> {
     let mut p = ReinitParams::default();
     // W-D: 行定义走 cfg (与生产同源)
-    p.flight_rows = std::sync::Arc::new(cfg_rows("飞行信息"));
-    p.power_rows = std::sync::Arc::new(cfg_rows("动力信息"));
+    p.flight.rows = std::sync::Arc::new(cfg_rows("飞行信息"));
+    p.power.rows = std::sync::Arc::new(cfg_rows("动力信息"));
     mutate(&mut p);
     Rc::new(RefCell::new(p))
 }
@@ -106,7 +106,7 @@ fn reinit_grows_with_font_add_and_keeps_rows() {
     // 行集保持 preview 全行 (字号断言与行过滤无关; live 行为另测)
     let rows_before = handle.borrow().rows().to_vec();
     let h0 = spec.height;
-    cell.borrow_mut().font_add_flight = 6;
+    cell.borrow_mut().flight.font_add = 6;
     let (w1, h1) = (spec.reinit.as_mut().unwrap())().expect("reinit 应成功");
     assert!(h1 > h0, "字号增量后高度应变大 ({} → {})", h0, h1);
     assert!(w1 > 0);

@@ -173,16 +173,17 @@ impl VoiceWarningService for LiveVoiceService {
             .unwrap_or(f64::MAX)
     }
     fn total_fuel(&self) -> f64 {
-        self.frames.latest().map(|f| f.total_fuel).unwrap_or(0.0)
+        // 波17 F14: 派生标量按语义分组 (fuel/engine/altm), 字段路径随组
+        self.frames.latest().map(|f| f.fuel.total_fuel).unwrap_or(0.0)
     }
     fn fuel_percent(&self) -> i32 {
-        self.frames.latest().map(|f| f.fuel_percent).unwrap_or(0)
+        self.frames.latest().map(|f| f.fuel.fuel_percent).unwrap_or(0)
     }
     fn radio_alt(&self) -> f64 {
-        self.frames.latest().map(|f| f.radio_alt).unwrap_or(0.0)
+        self.frames.latest().map(|f| f.altm.radio_alt).unwrap_or(0.0)
     }
     fn d_radio_alt(&self) -> f64 {
-        self.frames.latest().map(|f| f.d_radio_alt).unwrap_or(0.0)
+        self.frames.latest().map(|f| f.altm.d_radio_alt).unwrap_or(0.0)
     }
     fn cur_load_min_work_time(&self) -> f64 {
         self.frames
@@ -191,15 +192,16 @@ impl VoiceWarningService for LiveVoiceService {
             .unwrap_or(0.0)
     }
     fn maximum_thr_rpm(&self) -> f64 {
-        self.frames.latest().map(|f| f.maximum_thr_rpm).unwrap_or(0.0)
+        self.frames.latest().map(|f| f.engine.maximum_thr_rpm).unwrap_or(0.0)
     }
     fn get_maximum_rpm(&self) -> bool {
-        self.frames.latest().is_some_and(|f| f.get_maximum_rpm)
+        self.frames.latest().is_some_and(|f| f.engine.get_maximum_rpm)
     }
     fn is_eng_jet(&self) -> bool {
-        // Java Service.isEngJet() = iEngType == ENGINE_TYPE_JET (Service.java:874-876)
+        // Java Service.isEngJet() = iEngType == ENGINE_TYPE_JET (Service.java:874-876);
+        // 波17 F1: i32 常量族 → EngineType 枚举
         self.frames.latest().is_some_and(|f| {
-            f.i_eng_type == vm_data::service_fields::ENGINE_TYPE_JET
+            f.engine.engine_type == vm_data::service_fields::EngineType::Jet
         })
     }
     fn get_stall_speed(&self) -> f64 {

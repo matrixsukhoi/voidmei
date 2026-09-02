@@ -82,15 +82,17 @@ fn spitfire_f24() -> FmData {
     b.comp_omega_factor_sq = 1.0;
     b.has_comp_omega_factor_sq = true;
     b.explicit_exact_altitudes = Some(true);
-    b.comp_alt = Some(vec![4100.0, 8100.0]);
-    b.comp_power = Some(vec![1510.0, 1340.0]);
-    b.comp_ceil = Some(vec![10000.0, 12000.0]);
-    b.comp_ceil_pwr = Some(vec![600.0, 830.0]);
-    b.comp_rpm_ratio = Some(vec![0.5, 0.5]);
-    b.comp_boost = Some(vec![1.01f32 as f64, 0.98f32 as f64]);
-    b.has_comp_boost = Some(vec![true, true]);
-    b.comp_const_rpm_alt = Some(vec![18034.6f32 as f64, 18034.6f32 as f64]);
-    b.comp_const_rpm_power = Some(vec![200.0, 200.0]);
+    b.compressor = Some(CompressorData {
+        alt: vec![4100.0, 8100.0],
+        power: vec![1510.0, 1340.0],
+        ceil: vec![10000.0, 12000.0],
+        ceil_pwr: vec![600.0, 830.0],
+        rpm_ratio: vec![0.5, 0.5],
+        boost: vec![1.01f32 as f64, 0.98f32 as f64],
+        has_boost: Some(vec![true, true]),
+        const_rpm_alt: Some(vec![18034.6f32 as f64, 18034.6f32 as f64]),
+        const_rpm_power: Some(vec![200.0, 200.0]),
+    });
     b.comp_afterburner_pressure_boost = Some(vec![0.0, 0.0]);
     b
 }
@@ -116,15 +118,17 @@ fn yak3() -> FmData {
     b.comp_omega_factor_sq = 0.0;
     b.has_comp_omega_factor_sq = true;
     b.explicit_exact_altitudes = Some(true);
-    b.comp_alt = Some(vec![300.0, 2600.0]);
-    b.comp_power = Some(vec![1310.0, 1240.0]);
-    b.comp_ceil = Some(vec![5000.0, 9000.0]);
-    b.comp_ceil_pwr = Some(vec![670.0, 510.0]);
-    b.comp_rpm_ratio = Some(vec![1.0, 1.0]);
-    b.comp_boost = Some(vec![1.0, 1.0]);
-    b.has_comp_boost = Some(vec![true, true]);
-    b.comp_const_rpm_alt = Some(vec![18300.0, 18300.0]);
-    b.comp_const_rpm_power = Some(vec![1310.0, 1240.0]);
+    b.compressor = Some(CompressorData {
+        alt: vec![300.0, 2600.0],
+        power: vec![1310.0, 1240.0],
+        ceil: vec![5000.0, 9000.0],
+        ceil_pwr: vec![670.0, 510.0],
+        rpm_ratio: vec![1.0, 1.0],
+        boost: vec![1.0, 1.0],
+        has_boost: Some(vec![true, true]),
+        const_rpm_alt: Some(vec![18300.0, 18300.0]),
+        const_rpm_power: Some(vec![1310.0, 1240.0]),
+    });
     b.comp_afterburner_pressure_boost = Some(vec![0.0, 0.0]);
     b
 }
@@ -151,15 +155,17 @@ fn spitfire_ix() -> FmData {
     b.comp_omega_factor_sq = 1.0;
     b.has_comp_omega_factor_sq = true;
     b.explicit_exact_altitudes = Some(true);
-    b.comp_alt = Some(vec![3600.0, 6800.0]);
-    b.comp_power = Some(vec![1440.0, 1340.0]);
-    b.comp_ceil = Some(vec![10000.0, 9090.0]);
-    b.comp_ceil_pwr = Some(vec![500.0, 930.0]);
-    b.comp_rpm_ratio = Some(vec![0.5, 0.5]);
-    b.comp_boost = Some(vec![1.0f32 as f64, 0.97f32 as f64]);
-    b.has_comp_boost = Some(vec![true, true]);
-    b.comp_const_rpm_alt = Some(vec![18034.6f32 as f64, -2000.0]);
-    b.comp_const_rpm_power = Some(vec![200.0, 950.0]);
+    b.compressor = Some(CompressorData {
+        alt: vec![3600.0, 6800.0],
+        power: vec![1440.0, 1340.0],
+        ceil: vec![10000.0, 9090.0],
+        ceil_pwr: vec![500.0, 930.0],
+        rpm_ratio: vec![0.5, 0.5],
+        boost: vec![1.0f32 as f64, 0.97f32 as f64],
+        has_boost: Some(vec![true, true]),
+        const_rpm_alt: Some(vec![18034.6f32 as f64, -2000.0]),
+        const_rpm_power: Some(vec![200.0, 950.0]),
+    });
     b.comp_afterburner_pressure_boost = Some(vec![0.0, 0.0]);
     b
 }
@@ -188,15 +194,17 @@ fn tempest_mkv() -> FmData {
     b.comp_omega_factor_sq = 0.0; // 显式 0 (文件存在该键)
     b.has_comp_omega_factor_sq = true;
     b.explicit_exact_altitudes = Some(true);
-    b.comp_alt = Some(vec![1447.0, 4981.0]);
-    b.comp_power = Some(vec![2065.0, 1735.0]);
-    b.comp_ceil = Some(vec![1447.1f32 as f64, 9144.0]);
-    b.comp_ceil_pwr = Some(vec![2064.97f32 as f64, 1015.0]);
-    b.comp_rpm_ratio = Some(vec![0.5, 0.5]);
-    b.comp_boost = Some(vec![1.0, 1.0]);
-    b.has_comp_boost = Some(vec![true, true]);
-    b.comp_const_rpm_alt = Some(vec![18093.2f32 as f64, 18093.2f32 as f64]);
-    b.comp_const_rpm_power = Some(vec![2001.08f32 as f64, 2001.08f32 as f64]);
+    b.compressor = Some(CompressorData {
+        alt: vec![1447.0, 4981.0],
+        power: vec![2065.0, 1735.0],
+        ceil: vec![1447.1f32 as f64, 9144.0],
+        ceil_pwr: vec![2064.97f32 as f64, 1015.0],
+        rpm_ratio: vec![0.5, 0.5],
+        boost: vec![1.0, 1.0],
+        has_boost: Some(vec![true, true]),
+        const_rpm_alt: Some(vec![18093.2f32 as f64, 18093.2f32 as f64]),
+        const_rpm_power: Some(vec![2001.08f32 as f64, 2001.08f32 as f64]),
+    });
     b.comp_afterburner_pressure_boost = Some(vec![0.0, 0.0]); // 键缺失 → 0
     b
 }
@@ -546,13 +554,16 @@ fn java8_oracle_synthetic_branches() {
     // syn1: AfterburnerBoostMul1=0 显式禁 WEP + deckPower=0 走 0.8*compPower[0]
     let mut syn1 = FmData::default();
     syn1.comp_num_steps = 2;
-    syn1.comp_alt = Some(vec![4100.0, 8100.0]);
-    syn1.comp_power = Some(vec![1510.0, 1340.0]);
-    syn1.comp_ceil = Some(vec![10000.0, 12000.0]);
-    syn1.comp_ceil_pwr = Some(vec![600.0, 830.0]);
-    syn1.comp_rpm_ratio = Some(vec![0.5, 0.5]);
-    syn1.comp_boost = Some(vec![0.9, 0.0]);
-    syn1.has_comp_boost = Some(vec![true, true]);
+    syn1.compressor = Some(CompressorData {
+        alt: vec![4100.0, 8100.0],
+        power: vec![1510.0, 1340.0],
+        ceil: vec![10000.0, 12000.0],
+        ceil_pwr: vec![600.0, 830.0],
+        rpm_ratio: vec![0.5, 0.5],
+        boost: vec![0.9, 0.0],
+        has_boost: Some(vec![true, true]),
+        ..Default::default()
+    });
     syn1.military_rpm = 2600.0;
     syn1.wep_rpm = 2750.0;
     syn1.military_mp = 1.61;
@@ -586,14 +597,20 @@ fn java8_oracle_synthetic_branches() {
     ));
 
     // syn2: 旧格式 (无 OmegaFactorSq) + ShaftRPMMax 优先 + ConstRPM 调整
+    // (hasBoost 缺席 → None, 消费方 is_some_and=false)
     let mut syn2 = FmData::default();
     syn2.comp_num_steps = 1;
-    syn2.comp_alt = Some(vec![5000.0]);
-    syn2.comp_power = Some(vec![1500.0]);
-    syn2.comp_ceil = Some(vec![10000.0]);
-    syn2.comp_ceil_pwr = Some(vec![700.0]);
-    syn2.comp_rpm_ratio = Some(vec![1.2]);
-    syn2.comp_boost = Some(vec![1.05]);
+    syn2.compressor = Some(CompressorData {
+        alt: vec![5000.0],
+        power: vec![1500.0],
+        ceil: vec![10000.0],
+        ceil_pwr: vec![700.0],
+        rpm_ratio: vec![1.2],
+        boost: vec![1.05],
+        const_rpm_alt: Some(vec![1000.0]),
+        const_rpm_power: Some(vec![1450.0]),
+        ..Default::default()
+    });
     syn2.military_rpm = 2400.0;
     syn2.wep_rpm = 2700.0;
     syn2.shaft_rpm_max = 2695.0;
@@ -610,8 +627,6 @@ fn java8_oracle_synthetic_branches() {
     syn2.comp_omega_factor_sq = 0.0;
     syn2.has_comp_omega_factor_sq = false;
     syn2.explicit_exact_altitudes = None; // → !hasCompOmegaFactorSq = true
-    syn2.comp_const_rpm_alt = Some(vec![1000.0]);
-    syn2.comp_const_rpm_power = Some(vec![1450.0]);
     let stages = extract_stages(Some(&syn2)).unwrap();
     assert_stage("syn2[0]", &stages[0], &exp(
         3571.0, 1427.2405762633953, 1_310.624_962_826_641, -1610.7846991254821, 1.2,
@@ -625,12 +640,15 @@ fn java8_oracle_synthetic_branches() {
     // syn3: militaryMP=0 → wepCritAlt 走 critAlt*0.9 前需先过 mult≈1 早退 (此处 mult=1)
     let mut syn3_base = FmData::default();
     syn3_base.comp_num_steps = 1;
-    syn3_base.comp_alt = Some(vec![3000.0]);
-    syn3_base.comp_power = Some(vec![1200.0]);
-    syn3_base.comp_ceil = Some(vec![8000.0]);
-    syn3_base.comp_ceil_pwr = Some(vec![500.0]);
-    syn3_base.comp_rpm_ratio = Some(vec![0.0]);
-    syn3_base.comp_boost = Some(vec![1.0]);
+    syn3_base.compressor = Some(CompressorData {
+        alt: vec![3000.0],
+        power: vec![1200.0],
+        ceil: vec![8000.0],
+        ceil_pwr: vec![500.0],
+        rpm_ratio: vec![0.0],
+        boost: vec![1.0],
+        ..Default::default()
+    });
     syn3_base.military_rpm = 2600.0;
     syn3_base.wep_rpm = 2600.0;
     syn3_base.military_mp = 0.0;
@@ -700,13 +718,18 @@ fn java8_oracle_synthetic_branches() {
     //       AfterburnerPressureBoost>0 + compConstRpm 数组短于级数 (i<len 守卫)
     let mut syn6 = FmData::default();
     syn6.comp_num_steps = 2;
-    syn6.comp_alt = Some(vec![5000.0, 8000.0]);
-    syn6.comp_power = Some(vec![1500.0, 1300.0]);
-    syn6.comp_ceil = Some(vec![10000.0, 11000.0]);
-    syn6.comp_ceil_pwr = Some(vec![700.0, 600.0]);
-    syn6.comp_rpm_ratio = Some(vec![1.0, 1.0]);
-    syn6.comp_boost = Some(vec![1.05, 1.02]);
-    syn6.has_comp_boost = Some(vec![false, false]);
+    syn6.compressor = Some(CompressorData {
+        alt: vec![5000.0, 8000.0],
+        power: vec![1500.0, 1300.0],
+        ceil: vec![10000.0, 11000.0],
+        ceil_pwr: vec![700.0, 600.0],
+        rpm_ratio: vec![1.0, 1.0],
+        boost: vec![1.05, 1.02],
+        has_boost: Some(vec![false, false]),
+        // 数组短于级数 (1 < 2) — 验证 i<len 守卫
+        const_rpm_alt: Some(vec![1200.0]),
+        const_rpm_power: Some(vec![1450.0]),
+    });
     syn6.military_rpm = 2400.0;
     syn6.wep_rpm = 2600.0;
     syn6.military_mp = 1.42;
@@ -720,8 +743,6 @@ fn java8_oracle_synthetic_branches() {
     syn6.comp_omega_factor_sq = 0.1;
     syn6.has_comp_omega_factor_sq = true;
     syn6.explicit_exact_altitudes = Some(false);
-    syn6.comp_const_rpm_alt = Some(vec![1200.0]);
-    syn6.comp_const_rpm_power = Some(vec![1450.0]);
     syn6.comp_afterburner_pressure_boost = Some(vec![1.08, 1.05]);
     let stages = extract_stages(Some(&syn6)).unwrap();
     assert_stage("syn6[0]", &stages[0], &exp(
@@ -777,12 +798,11 @@ fn java_test_port_parameter_extraction() {
     let fmdata = spitfire_f24();
     // assertClose(name, actual, expected, tolerance) — Java 断言逐条
     assert_eq!(fmdata.comp_num_steps as f64, 2.0, "compressor NumSteps");
-    let comp_alt = fmdata.comp_alt.as_ref().unwrap();
-    let comp_power = fmdata.comp_power.as_ref().unwrap();
-    assert!((comp_alt[0] - 4100.0).abs() <= 0.0, "Stage 0 altitude");
-    assert!((comp_alt[1] - 8100.0).abs() <= 0.0, "Stage 1 altitude");
-    assert!((comp_power[0] - 1510.0).abs() <= 0.0, "Stage 0 power");
-    assert!((comp_power[1] - 1340.0).abs() <= 0.0, "Stage 1 power");
+    let comp = fmdata.compressor.as_ref().unwrap();
+    assert!((comp.alt[0] - 4100.0).abs() <= 0.0, "Stage 0 altitude");
+    assert!((comp.alt[1] - 8100.0).abs() <= 0.0, "Stage 1 altitude");
+    assert!((comp.power[0] - 1510.0).abs() <= 0.0, "Stage 0 power");
+    assert!((comp.power[1] - 1340.0).abs() <= 0.0, "Stage 1 power");
     assert!((fmdata.aftb_coff - 1.41).abs() <= 0.01, "AfterburnerBoost");
     assert!(
         (fmdata.wep_manifold_pressure - 2.22).abs() <= 0.01,
@@ -872,7 +892,7 @@ fn java_test_port_tempest_invert_enable_logic() {
 
     // assertClose(name, actual, expected, tolerance) — Java 断言逐条
     assert_eq!(fmdata.comp_num_steps as f64, 2.0, "compressor NumSteps");
-    let comp_alt = fmdata.comp_alt.as_ref().unwrap();
+    let comp_alt = &fmdata.compressor.as_ref().unwrap().alt;
     // 期望值须跟随游戏 FM 数据版本更新 (WT 2.57.1.103 中 Altitude0 已从 1730 → 1447)
     assert!((comp_alt[0] - 1447.0).abs() <= 50.0, "Stage 0 altitude");
     assert!((comp_alt[1] - 5000.0).abs() <= 200.0, "Stage 1 altitude");

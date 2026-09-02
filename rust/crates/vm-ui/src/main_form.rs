@@ -46,6 +46,9 @@ use vm_core::base::event::ui_state_events;
 use vm_core::base::logger;
 use crate::render_context::RenderContext;
 
+// F7: GroupConfig 字段表 (GroupField/PanelField 两域的单一真相)
+use crate::renderer_config_helper::group_field_table;
+
 use crate::renderers;
 
 // --headless 无窗口验收工具 (E10 提离; bin 入口经 main_form::headless 引用)
@@ -477,11 +480,17 @@ fn panel_index_by_title(groups: &[GroupConfig], title: &str) -> Option<usize> {
 
 /// 快照 ← 服务树的按键回拷 (clone-split 收敛的值面):
 /// 服务树 set_config 后是该 key 的全局真相 (所有同 key 行 + switchKey 组可见性),
-/// 快照只更新了交互命中的 panel。PORT: 两树同源同构 (new() 克隆而来, 运行期无
-/// 结构变更), 按位 zip 安全; 服务树整体克隆一次 (交互频率 ~Hz, 可接受)。
+/// 快照只更新了交互命中的 panel。服务树整体克隆一次 (交互频率 ~Hz, 可接受)。
+/// A4: 组配对按 title 查找 (对位 Java rebuild 的 findGroupByTitle)。原按位 zip
+/// 依赖两树同构 — 外部整树替换 (import/reset/watcher) 后长度/顺序可漂移: 长度
+/// 不等即静默截断, 顺序错位即把值镜像进不相干组。现按 title 首个精确匹配
+/// (group_by_title 语义): 本地组在服务树无同名组时跳过 — 多出的组不再被错误
+/// 配对 (与旧 zip 的截断同效), 服务树多出的组本就不在快照域, 天然不受影响。
 fn mirror_key_from_service(config: &ConfigurationService, groups: &mut [GroupConfig], key: &str) {
     let svc = config.get_layout_configs().unwrap_or_default();
-    for (g, sg) in groups.iter_mut().zip(svc.iter()) {
+    for g in groups.iter_mut() {
+        // 按 title 在服务树定位对应组; 找不到跳过 (不镜像进错位组)
+        let Some(sg) = group_by_title(&svc, &g.title) else { continue };
         if g.switch_key.as_deref() == Some(key) {
             g.visible = sg.visible;
         }
@@ -505,114 +514,68 @@ fn mirror_rows(rows: &mut [RowConfig], svc: &[RowConfig], key: &str) {
 // 挂起编辑重放的支撑类型 (persist 以服务树为基, 见 MainFormState 字段文档)
 // =====================================================================
 
-/// PropertyBinder 可写的组字段 (键集合 = renderer_config_helper.rs 的 D7 注册表
-/// 11 个非 rows 字段); persist 时按字段从快照 panel 拷入服务树 panel。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum PanelField {
-    Title,
-    X,
-    Y,
-    Alpha,
-    Hotkey,
-    Visible,
-    FontName,
-    FontSize,
-    Columns,
-    PanelColumns,
-    SwitchKey,
+/// 表驱动的统一值拷贝 (F7): 克隆面抹平 String/Option 与 Copy 数值的差异 —
+/// 生成处统一写 .dup() (直接 .clone() 会触发 Copy 类型的 clippy::clone_on_copy)
+trait FieldDup {
+    fn dup(&self) -> Self;
 }
 
-impl PanelField {
-    /// 把 src 面板的本字段值拷入 dst
-    fn copy(self, dst: &mut GroupConfig, src: &GroupConfig) {
-        match self {
-            PanelField::Title => dst.title = src.title.clone(),
-            PanelField::X => dst.x = src.x,
-            PanelField::Y => dst.y = src.y,
-            PanelField::Alpha => dst.alpha = src.alpha,
-            PanelField::Hotkey => dst.hotkey = src.hotkey,
-            PanelField::Visible => dst.visible = src.visible,
-            PanelField::FontName => dst.font_name = src.font_name.clone(),
-            PanelField::FontSize => dst.font_size = src.font_size,
-            PanelField::Columns => dst.columns = src.columns,
-            PanelField::PanelColumns => dst.panel_columns = src.panel_columns,
-            PanelField::SwitchKey => dst.switch_key = src.switch_key.clone(),
-        }
+impl<T: Clone> FieldDup for T {
+    fn dup(&self) -> Self {
+        self.clone()
     }
 }
 
-/// panel 的组字段捕捉 (渲染器写链前后的差异检测)
-#[derive(Debug, Clone, PartialEq)]
-struct PanelFields {
-    title: String,
-    x: f64,
-    y: f64,
-    alpha: i32,
-    hotkey: i32,
-    visible: bool,
-    font_name: Option<String>,
-    font_size: i32,
-    columns: i32,
-    panel_columns: i32,
-    switch_key: Option<String>,
+// F7 表驱动: 与 renderer_config_helper.rs 共用字段表 (11 个值字段), 单次展开生成
+// 全套 — 枚举 + copy + 捕捉结构体 + diff (变体序/copy 字段集/diff 序 = 表序,
+// 与原手写一致)。rows 不在表内 → PanelField 域天然 = 11 个非 rows 字段
+// (与 D7 注册表的非 rows 子集一致)。
+// 注: 宏卫生限制 — 经两次宏展开的 ident 不与另一层展开的局部名统一, 故不做
+// 逐条目递归咀嚼, 全套在单次展开内生成 (局部名 dst/src/g/self/other/v 同层)。
+macro_rules! gen_panel_fields {
+    ($( ($V:ident, $key:literal, $f:ident, $TY:ty) ),* $(,)?) => {
+        /// PropertyBinder 可写的组字段 (键集合 = renderer_config_helper.rs 的 D7
+        /// 注册表 11 个非 rows 字段); persist 时按字段从快照 panel 拷入服务树 panel。
+        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+        enum PanelField {
+            $($V,)*
+        }
+
+        impl PanelField {
+            /// 把 src 面板的本字段值拷入 dst
+            fn copy(self, dst: &mut GroupConfig, src: &GroupConfig) {
+                match self {
+                    $(PanelField::$V => dst.$f = src.$f.dup(),)*
+                }
+            }
+        }
+
+        /// panel 的组字段捕捉 (渲染器写链前后的差异检测)
+        #[derive(Debug, Clone, PartialEq)]
+        struct PanelFields {
+            $($f: $TY,)*
+        }
+
+        impl PanelFields {
+            fn capture(g: &GroupConfig) -> Self {
+                PanelFields {
+                    $($f: g.$f.dup(),)*
+                }
+            }
+
+            /// 两次捕捉之间被渲染器改动的字段 (字段表序)
+            fn diff(&self, other: &Self) -> Vec<PanelField> {
+                let mut v = Vec::new();
+                $(if self.$f != other.$f {
+                    v.push(PanelField::$V);
+                })*
+                v
+            }
+        }
+    };
 }
 
-impl PanelFields {
-    fn capture(g: &GroupConfig) -> Self {
-        PanelFields {
-            title: g.title.clone(),
-            x: g.x,
-            y: g.y,
-            alpha: g.alpha,
-            hotkey: g.hotkey,
-            visible: g.visible,
-            font_name: g.font_name.clone(),
-            font_size: g.font_size,
-            columns: g.columns,
-            panel_columns: g.panel_columns,
-            switch_key: g.switch_key.clone(),
-        }
-    }
-
-    /// 两次捕捉之间被渲染器改动的字段
-    fn diff(&self, other: &Self) -> Vec<PanelField> {
-        let mut v = Vec::new();
-        if self.title != other.title {
-            v.push(PanelField::Title);
-        }
-        if self.x != other.x {
-            v.push(PanelField::X);
-        }
-        if self.y != other.y {
-            v.push(PanelField::Y);
-        }
-        if self.alpha != other.alpha {
-            v.push(PanelField::Alpha);
-        }
-        if self.hotkey != other.hotkey {
-            v.push(PanelField::Hotkey);
-        }
-        if self.visible != other.visible {
-            v.push(PanelField::Visible);
-        }
-        if self.font_name != other.font_name {
-            v.push(PanelField::FontName);
-        }
-        if self.font_size != other.font_size {
-            v.push(PanelField::FontSize);
-        }
-        if self.columns != other.columns {
-            v.push(PanelField::Columns);
-        }
-        if self.panel_columns != other.panel_columns {
-            v.push(PanelField::PanelColumns);
-        }
-        if self.switch_key != other.switch_key {
-            v.push(PanelField::SwitchKey);
-        }
-        v
-    }
-}
+group_field_table!(gen_panel_fields);
 
 fn group_by_title<'a>(groups: &'a [GroupConfig], title: &str) -> Option<&'a GroupConfig> {
     groups.iter().find(|g| g.title == title)

@@ -481,11 +481,12 @@ fn maneuver_row_tick_thresholds() {
     let (x, y) = (10, 5);
     let (right_draw, half_line, line_width) = (60, 2, 2);
     let base_y = y + f.metrics().ascent;
+    let ticks = TickScale { ticks: [10, 20, 30, 40, 50] };
 
     let mut row = HUDManeuverRow::new(4, 30, right_draw, half_line, line_width, 4.0, 2.0);
     // showGLoad=false: 排除主文字, 刻度列纯净 (色取主文字色规范语义)
     row.set_show_g_load(false);
-    row.update("2.0", false, 0.35, 5, 10, 20, 30, 40, 50);
+    row.update("2.0", false, 0.35, 5, ticks);
     let mut cv = PixCanvas::new(100, 60).unwrap();
     row.draw(&mut cv, x, y, &f, false);
 
@@ -507,7 +508,7 @@ fn maneuver_row_tick_thresholds() {
     // 阈值边界: index=0.4 → len50 点亮 (>= 含等)
     let mut row2 = HUDManeuverRow::new(4, 30, right_draw, half_line, line_width, 4.0, 2.0);
     row2.set_show_g_load(false);
-    row2.update("2.0", false, 0.4, 5, 10, 20, 30, 40, 50);
+    row2.update("2.0", false, 0.4, 5, ticks);
     let mut cv2 = PixCanvas::new(100, 60).unwrap();
     row2.draw(&mut cv2, x, y, &f, false);
     assert_eq!(a(&cv2, x + right_draw - 50, tick_top + 2), 240, "0.4 含等点亮");
@@ -526,7 +527,7 @@ fn maneuver_row_bar_double_stroke_layers() {
 
     let mut row = HUDManeuverRow::new(4, 30, right_draw, half_line, line_width, 4.0, 2.0);
     row.set_show_g_load(false); // 排除文字, 条区纯净
-    row.update("2.0", false, 0.35, 30, 10, 20, 30, 40, 50);
+    row.update("2.0", false, 0.35, 30, TickScale { ticks: [10, 20, 30, 40, 50] });
     let mut cv = PixCanvas::new(100, 60).unwrap();
     row.draw(&mut cv, x, y, &f, false);
 
@@ -556,7 +557,7 @@ fn maneuver_row_gates_and_preferred_size() {
     let line_y = base_y + 2 + 2;
 
     let mut row = HUDManeuverRow::new(4, 30, 60, 2, 2, 4.0, 2.0);
-    row.update("2.0", false, 0.35, 30, 10, 20, 30, 40, 50);
+    row.update("2.0", false, 0.35, 30, TickScale { ticks: [10, 20, 30, 40, 50] });
     let (w, h) = row.preferred_size(&f);
     assert_eq!(w, (f.measure("2.0")).max(60 + 5));
     assert_eq!(h, 30);
@@ -571,7 +572,7 @@ fn maneuver_row_gates_and_preferred_size() {
 
     // G 文字关: 仅条 (index=0.25 → len10/20/30 刻度点亮, 列 ≥ x+30 不入左区)
     let mut row2 = HUDManeuverRow::new(4, 30, 60, 2, 2, 4.0, 2.0);
-    row2.update("2.0", false, 0.25, 30, 10, 20, 30, 40, 50);
+    row2.update("2.0", false, 0.25, 30, TickScale { ticks: [10, 20, 30, 40, 50] });
     row2.set_show_g_load(false);
     let mut cv2 = PixCanvas::new(100, 60).unwrap();
     row2.draw(&mut cv2, x, y, &f, false);
@@ -594,20 +595,21 @@ fn update_changed_covers_all_fields() {
     assert!(en.update("1001", false, "E200"), "仅 base 文字变化仍报 changed");
     assert!(en.update("1001", true, "E200"), "仅警告态变化仍报 changed");
 
-    // HUDManeuverRow
+    // HUDManeuverRow (刻度尺整体 + 单档距离均须参与比较)
+    let t = |ticks: [i32; 5]| TickScale { ticks };
     let mut mn = HUDManeuverRow::new(4, 30, 60, 2, 2, 4.0, 2.0);
-    mn.update("2.0", false, 0.1, 5, 10, 20, 30, 40, 50);
+    mn.update("2.0", false, 0.1, 5, t([10, 20, 30, 40, 50]));
     assert!(
-        !mn.update("2.0", false, 0.1, 5, 10, 20, 30, 40, 50),
+        !mn.update("2.0", false, 0.1, 5, t([10, 20, 30, 40, 50])),
         "全同值无变化"
     );
-    assert!(mn.update("2.0", false, 0.2, 5, 10, 20, 30, 40, 50), "仅 index 变化");
-    assert!(mn.update("2.0", false, 0.2, 6, 10, 20, 30, 40, 50), "仅 len 变化");
-    assert!(mn.update("2.0", false, 0.2, 6, 11, 20, 30, 40, 50), "仅 len10 变化");
-    assert!(mn.update("2.0", false, 0.2, 6, 11, 21, 30, 40, 50), "仅 len20 变化");
-    assert!(mn.update("2.0", false, 0.2, 6, 11, 21, 31, 40, 50), "仅 len30 变化");
-    assert!(mn.update("2.0", false, 0.2, 6, 11, 21, 31, 41, 50), "仅 len40 变化");
-    assert!(mn.update("2.0", false, 0.2, 6, 11, 21, 31, 41, 51), "仅 len50 变化");
-    assert!(mn.update("2.1", false, 0.2, 6, 11, 21, 31, 41, 51), "仅文字变化");
-    assert!(mn.update("2.1", true, 0.2, 6, 11, 21, 31, 41, 51), "仅警告态变化");
+    assert!(mn.update("2.0", false, 0.2, 5, t([10, 20, 30, 40, 50])), "仅 index 变化");
+    assert!(mn.update("2.0", false, 0.2, 6, t([10, 20, 30, 40, 50])), "仅 len 变化");
+    assert!(mn.update("2.0", false, 0.2, 6, t([11, 20, 30, 40, 50])), "仅 len10 变化");
+    assert!(mn.update("2.0", false, 0.2, 6, t([11, 21, 30, 40, 50])), "仅 len20 变化");
+    assert!(mn.update("2.0", false, 0.2, 6, t([11, 21, 31, 40, 50])), "仅 len30 变化");
+    assert!(mn.update("2.0", false, 0.2, 6, t([11, 21, 31, 41, 50])), "仅 len40 变化");
+    assert!(mn.update("2.0", false, 0.2, 6, t([11, 21, 31, 41, 51])), "仅 len50 变化");
+    assert!(mn.update("2.1", false, 0.2, 6, t([11, 21, 31, 41, 51])), "仅文字变化");
+    assert!(mn.update("2.1", true, 0.2, 6, t([11, 21, 31, 41, 51])), "仅警告态变化");
 }

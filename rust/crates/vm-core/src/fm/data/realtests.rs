@@ -206,11 +206,12 @@ mod spitfire {
         }
 
         // Verify expected FM parameters
+        let comp = fmdata.compressor.as_ref().unwrap();
         t.assert_close("compressor NumSteps", fmdata.comp_num_steps as f64, 2.0, 0.0);
-        t.assert_close("Stage 0 altitude", fmdata.comp_alt.as_ref().unwrap()[0], 4100.0, 0.0);
-        t.assert_close("Stage 1 altitude", fmdata.comp_alt.as_ref().unwrap()[1], 8100.0, 0.0);
-        t.assert_close("Stage 0 power", fmdata.comp_power.as_ref().unwrap()[0], 1510.0, 0.0);
-        t.assert_close("Stage 1 power", fmdata.comp_power.as_ref().unwrap()[1], 1340.0, 0.0);
+        t.assert_close("Stage 0 altitude", comp.alt[0], 4100.0, 0.0);
+        t.assert_close("Stage 1 altitude", comp.alt[1], 8100.0, 0.0);
+        t.assert_close("Stage 0 power", comp.power[0], 1510.0, 0.0);
+        t.assert_close("Stage 1 power", comp.power[1], 1340.0, 0.0);
         t.assert_close("AfterburnerBoost", fmdata.aftb_coff, 1.41, 0.01);
         t.assert_close("AfterburnerManifoldPressure", fmdata.wep_manifold_pressure, 2.22, 0.01);
         t.assert_close("SpeedManifoldMultiplier", fmdata.speed_to_manifold_multiplier, 0.8, 0.01);
@@ -630,13 +631,14 @@ mod tempest {
         }
 
         // Verify expected FM parameters (specific to Tempest Mk V)
+        let comp = fmdata.compressor.as_ref().unwrap();
         t.assert_close("compressor NumSteps", fmdata.comp_num_steps as f64, 2.0, 0.0);
         // Stage 0 critical altitude: 期望值须跟随游戏 FM 数据版本更新
         // (WT 2.57.1.103 中 tempest_mkv 的 Altitude0 已从 1730 调整为 1447;
         //  fmdata 更新后若此处 FAIL, 先 grep blkx 原始值区分数据变更与程序回归)
-        t.assert_close("Stage 0 altitude", fmdata.comp_alt.as_ref().unwrap()[0], 1447.0, 50.0);
+        t.assert_close("Stage 0 altitude", comp.alt[0], 1447.0, 50.0);
         // Stage 1 critical altitude should be around 5000m
-        t.assert_close("Stage 1 altitude", fmdata.comp_alt.as_ref().unwrap()[1], 5000.0, 200.0);
+        t.assert_close("Stage 1 altitude", comp.alt[1], 5000.0, 200.0);
         t.finish();
     }
 

@@ -1,6 +1,6 @@
 //! MiniHUD 组件装配层 (HUDComponent.java + AbstractHUDComponent.java):
 //! - MiniHudComponentInner: 组件清单的异构装箱 (Java 各组件类按具名槽位装箱)
-//! - MiniHudComponent: 内件 + visible + 字体共享 + 风格缓存 (组装 seam)
+//! - MiniHudComponent: 内件 + visible + 字体共享 (组装 seam; 风格派生量经组件 getter 直读)
 //! - CompCell: 共享句柄 (Rc<RefCell>), overlay 具名字段与布局节点图双持
 //! - MiniHudOverlay 的装配方法: 组件创建/风格注入/模板推送/布局引擎组 parts
 //!
@@ -64,25 +64,15 @@ pub enum MiniHudComponentInner {
     Crosshair(CrosshairGauge),
 }
 
-/// 组装层组件 = 内件 + AbstractHUDComponent.visible + 字体共享 + 风格缓存。
-/// 风格缓存: Java 组件的 width/height/totalWidth/lengthCache 等字段参与
-/// getPreferredSize, Rust 移植未暴露 → 组装层在 set_style 时镜像 (值同源同步,
-/// 只读回放, 不构成第二真相)。
+/// 组装层组件 = 内件 + AbstractHUDComponent.visible + 字体共享。
+/// preferred_size 所需的风格派生量 (totalWidth/width/lengthCache 等) 由
+/// 各组件 getter 直读内件 (bars.rs), 不设组装层镜像 — 镜像需 set_style 时
+/// 成对手工回写, 漏一处 preferred_size 即静默错位。
 pub struct MiniHudComponent {
     pub inner: MiniHudComponentInner,
     /// AbstractHUDComponent.visible (布局引擎 render/getContentBounds 门控)
     visible: bool,
     fonts: Rc<MiniHudFonts>,
-    /// FlapAngleBar total_width (Java: totalWidth; preferred 用)
-    flap_total_width: i32,
-    /// FlapAngleBar bar_height (Java: barHeight)
-    flap_bar_height: i32,
-    /// SpeedRatioBar width/height (Java 字段; Rust 组件私有)
-    speed_w: i32,
-    speed_h: i32,
-    /// Throttle LinearGauge lengthCache/thicknessCache (setStyleContext 注入)
-    throttle_length: i32,
-    throttle_thickness: i32,
 }
 
 impl MiniHudComponent {
@@ -91,12 +81,6 @@ impl MiniHudComponent {
             inner,
             visible: true, // AbstractHUDComponent.visible 初始 true
             fonts,
-            flap_total_width: 0,
-            flap_bar_height: 0,
-            speed_w: 10,   // SpeedRatioBar::new 缺省 (Java:26-27)
-            speed_h: 100,
-            throttle_length: 100, // LinearGauge::new 缺省 (Java:79-80)
-            throttle_thickness: 10,
         }
     }
 
@@ -145,19 +129,19 @@ impl MiniHudComponent {
             }
             // FlapAngleBar.java:47-51: w = totalWidth>0 ? totalWidth : 200;
             // h = (font!=null ? font.size : 12) + barHeight + 5 (font = drawFontSmall)
-            MiniHudComponentInner::FlapBar(_) => Dimension::new(
-                if self.flap_total_width > 0 { self.flap_total_width } else { 200 },
-                self.fonts.small.size + self.flap_bar_height + 5,
+            MiniHudComponentInner::FlapBar(b) => Dimension::new(
+                if b.total_width() > 0 { b.total_width() } else { 200 },
+                self.fonts.small.size + b.bar_height() + 5,
             ),
             // SpeedRatioBar.java:54-56
-            MiniHudComponentInner::SpeedRatioBar(_) => {
-                Dimension::new(self.speed_w, self.speed_h)
+            MiniHudComponentInner::SpeedRatioBar(s) => {
+                Dimension::new(s.width(), s.height())
             }
             // LinearGauge.java:61-76 (vertical): textMetric = fontNum.size*2 + thickness;
             // height = lengthCache (fontNum = drawFontSSmall)
-            MiniHudComponentInner::ThrottleBar(_) => Dimension::new(
-                self.fonts.s_small.size * 2 + self.throttle_thickness,
-                self.throttle_length,
+            MiniHudComponentInner::ThrottleBar(t) => Dimension::new(
+                self.fonts.s_small.size * 2 + t.thickness_cache(),
+                t.length_cache(),
             ),
             // AttitudeIndicatorGauge.java:63-66
             MiniHudComponentInner::Attitude(a) => {
@@ -279,12 +263,6 @@ impl CompCell {
     /// (现有调用已守此纪律)
     pub(super) fn map_inner<R>(&self, f: impl FnOnce(&mut MiniHudComponentInner) -> R) -> R {
         f(&mut self.0.borrow_mut().inner)
-    }
-
-    /// 组件整体借出口: inner 之外还要改组装层镜像字段 (speed_w/flap_total_width/
-    /// throttle_length 等风格缓存) 的混合写面专用, 其余场景用 [`Self::map_inner`]
-    fn map_comp<R>(&self, f: impl FnOnce(&mut MiniHudComponent) -> R) -> R {
-        f(&mut self.0.borrow_mut())
     }
 
     /// AbstractHUDComponent.setVisible 的句柄侧便捷口 (组装层/测试)
@@ -532,8 +510,8 @@ impl MiniHudOverlay {
     /// compass → attitude)
     fn style_gauges<S: HUDSettings>(&mut self, settings: &S) {
         let ctx = &self.ctx;
-        self.speed_ratio_bar.map_comp(|c| {
-            if let MiniHudComponentInner::SpeedRatioBar(s) = &mut c.inner {
+        self.speed_ratio_bar.map_inner(|inner| {
+            if let MiniHudComponentInner::SpeedRatioBar(s) = inner {
                 // Width: similar to throttle bar or slightly thinner?
                 let mut w = (ctx.hud_font_size as f64 * 0.25) as i32;
                 let h = (ctx.hud_font_size as f64 * 5.5) as i32;
@@ -541,8 +519,6 @@ impl MiniHudOverlay {
                     w = 6;
                 }
                 s.set_style_context(w, h);
-                c.speed_w = w;
-                c.speed_h = h;
             }
         });
         self.crosshair_gauge.map_inner(|inner| {
@@ -552,13 +528,11 @@ impl MiniHudOverlay {
                 g.set_style_context(settings.get_crosshair_scale());
             }
         });
-        self.flap_angle_bar.map_comp(|c| {
-            if let MiniHudComponentInner::FlapBar(b) = &mut c.inner {
+        self.flap_angle_bar.map_inner(|inner| {
+            if let MiniHudComponentInner::FlapBar(b) = inner {
                 // Dynamic width
                 let responsive_width = (ctx.hud_font_size as f64 * 6.0) as i32;
                 b.set_style_context(responsive_width, ctx.line_width + 2);
-                c.flap_total_width = responsive_width;
-                c.flap_bar_height = ctx.line_width + 2;
             }
         });
         self.compass_gauge.map_inner(|inner| {
@@ -628,15 +602,13 @@ impl MiniHudOverlay {
     /// applyStyleToComponents 尾段: throttleBar 的响应式高度
     fn style_throttle_bar(&mut self) {
         let ctx = &self.ctx;
-        self.throttle_bar.map_comp(|c| {
-            if let MiniHudComponentInner::ThrottleBar(t) = &mut c.inner {
+        self.throttle_bar.map_inner(|inner| {
+            if let MiniHudComponentInner::ThrottleBar(t) = inner {
                 // Re-calc explicit height for ThrottleBar if needed or use existing
                 // throttley_max
                 // Standardizing to relative size: 4.8 lines high (closer to legacy 4.75)
                 let responsive_height = (ctx.hud_font_size as f64 * 4.8) as i32;
                 t.set_style_context(responsive_height, ctx.bar_width);
-                c.throttle_length = responsive_height;
-                c.throttle_thickness = ctx.bar_width;
             }
         });
     }

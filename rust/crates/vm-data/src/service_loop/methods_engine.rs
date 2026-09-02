@@ -28,14 +28,14 @@ impl Service {
         // 简单状态推进 → 单写锁临界区 (无 IO/回调; s_state 不可变借用拆局部,
         // 对齐 check_engine_jet 形态)
         self.apply(|d| {
-            if !d.get_maximum_rpm {
+            if !d.engine.get_maximum_rpm {
                 // R2 守卫: blkx 非 null 即 READY（等价旧版 null+valid 双判）
                 if let Some(fmdata) = fm.fmdata.as_ref() {
                     // FM合法直接取FM
-                    d.maximum_thr_rpm = fmdata.max_rpm;
+                    d.engine.maximum_thr_rpm = fmdata.max_rpm;
                     // 使用最大允许RPM
                     // maximumThrRPM = fm.blkx.maxAllowedRPM;
-                    d.get_maximum_rpm = true;
+                    d.engine.get_maximum_rpm = true;
                 } else {
                     // 自适应获得(无FM)
 
@@ -47,15 +47,15 @@ impl Service {
                             (s.ias, s.rpm)
                         };
                         if ias > 50 {
-                            if rpm as f64 >= d.maximum_thr_rpm {
+                            if rpm as f64 >= d.engine.maximum_thr_rpm {
                                 //       + ratio * (sState.RPM)
-                                d.maximum_thr_rpm =
-                                    (d.ratio_1 * d.maximum_thr_rpm) + d.ratio * rpm as f64;
+                                d.engine.maximum_thr_rpm =
+                                    (d.ratio_1 * d.engine.maximum_thr_rpm) + d.ratio * rpm as f64;
                             }
                             d.check_maxium_rpm += 1;
                         }
                     } else {
-                        d.get_maximum_rpm = true;
+                        d.engine.get_maximum_rpm = true;
                     }
                 }
             }
@@ -81,8 +81,8 @@ impl Service {
             Some(s) if s.len() > 1 => s,
             _ => {
                 self.apply(|d| {
-                    d.optimal_compressor_stage = -1;
-                    d.compressor_stage_mismatch = false;
+                    d.engine.optimal_compressor_stage = -1;
+                    d.engine.compressor_stage_mismatch = false;
                     d.prev_actual_compressor_stage = -1;
                     d.prev_optimal_compressor_stage = -1;
                 });
@@ -95,13 +95,13 @@ impl Service {
         let (engine_num, throttles, alt, ias, compressorstage, mismatch_prev, prev_actual, prev_optimal) = self.with_snapshot(|d| {
             let s = d.s_state.as_ref().unwrap();
             (
-                d.engine_num,
+                d.engine.engine_num,
                 s.throttles.clone(),
-                d.alt,
+                d.altm.alt,
                 // (曾误走 trait default 恒 0, 增压器最优档判定失真)
                 s.ias as f64,
                 s.compressorstage,
-                d.compressor_stage_mismatch,
+                d.engine.compressor_stage_mismatch,
                 d.prev_actual_compressor_stage,
                 d.prev_optimal_compressor_stage,
             )
@@ -135,8 +135,8 @@ impl Service {
             self.apply(|d| {
                 // Java L1305 的 optimalCompressorStage = newOptimal 先于本分支执行,
                 // 归位四字段不含它 (保真: 归位后 optimal 保留本轮新算值)
-                d.optimal_compressor_stage = new_optimal;
-                d.compressor_stage_mismatch = false;
+                d.engine.optimal_compressor_stage = new_optimal;
+                d.engine.compressor_stage_mismatch = false;
                 d.prev_actual_compressor_stage = -1;
                 d.prev_optimal_compressor_stage = -1;
             });
@@ -146,8 +146,8 @@ impl Service {
         // If throttle < 100%, don't judge mismatch, force consistent
         if !is_full_throttle {
             self.apply(|d| {
-                d.optimal_compressor_stage = new_optimal;
-                d.compressor_stage_mismatch = false;
+                d.engine.optimal_compressor_stage = new_optimal;
+                d.engine.compressor_stage_mismatch = false;
                 d.prev_actual_compressor_stage = -1;
                 d.prev_optimal_compressor_stage = -1;
             });
@@ -168,8 +168,8 @@ impl Service {
 
         // Update tracking variables
         self.apply(|d| {
-            d.optimal_compressor_stage = new_optimal;
-            d.compressor_stage_mismatch = mismatch;
+            d.engine.optimal_compressor_stage = new_optimal;
+            d.engine.compressor_stage_mismatch = mismatch;
             d.prev_actual_compressor_stage = actual_stage;
             d.prev_optimal_compressor_stage = new_optimal;
         });
@@ -248,8 +248,8 @@ mod tests {
     /// update_optimal 的周期输入注入 (engine_num=1 单发)
     fn set_cycle_inputs(svc: &Service, alt: f64, ias: i32, compressorstage: i32, throttle: i32) {
         let mut d = svc.data.write().unwrap();
-        d.alt = alt;
-        d.engine_num = 1;
+        d.altm.alt = alt;
+        d.engine.engine_num = 1;
         let s = d.s_state.as_mut().unwrap();
         s.ias = ias;
         s.compressorstage = compressorstage;
@@ -352,13 +352,13 @@ mod tests {
         {
             let d = svc.data.read().unwrap();
             // python: 0.9499999992549419*1.0 + 0.05000000074505806*3001
-            assert_eq!(d.maximum_thr_rpm, 151.00000223517418);
+            assert_eq!(d.engine.maximum_thr_rpm, 151.00000223517418);
             assert_eq!(d.check_maxium_rpm, 1);
-            assert!(!d.get_maximum_rpm);
+            assert!(!d.engine.get_maximum_rpm);
         }
         svc.get_maximum_rpm_learn(&unr);
         // python: 0.9499999992549419*151.00000223517418 + 0.05000000074505806*3001
-        assert_eq!(svc.data.read().unwrap().maximum_thr_rpm, 293.50000424683094);
+        assert_eq!(svc.data.read().unwrap().engine.maximum_thr_rpm, 293.50000424683094);
         assert_eq!(svc.data.read().unwrap().check_maxium_rpm, 2);
 
         // IAS <= 50: 不学习不进位 (Java int 比较无浮点提升)
@@ -371,7 +371,7 @@ mod tests {
         {
             let d = svc.data.read().unwrap();
             assert_eq!(d.check_maxium_rpm, 399);
-            assert!(!d.get_maximum_rpm);
+            assert!(!d.engine.get_maximum_rpm);
         }
 
         // 计满 (20000/freq = 400): 与 IAS 无关直接置完成
@@ -381,14 +381,14 @@ mod tests {
             d.check_maxium_rpm = 400;
         }
         svc.get_maximum_rpm_learn(&unr);
-        assert!(svc.data.read().unwrap().get_maximum_rpm);
+        assert!(svc.data.read().unwrap().engine.get_maximum_rpm);
 
         // 置位守卫 (Java `if (!getMaximumRPM)`): 计满置位后方法整体短路 —
         // 即使 FM 到位也不再覆盖学习值 (Java 同语义)
         let fm = stage_fm(None);
         svc.get_maximum_rpm_learn(&fm);
         assert_eq!(
-            svc.data.read().unwrap().maximum_thr_rpm,
+            svc.data.read().unwrap().engine.maximum_thr_rpm,
             293.50000424683094,
             "置位后 FM 不覆盖 (方法短路)"
         );
@@ -401,8 +401,8 @@ mod tests {
         let fm = stage_fm(None);
         svc.get_maximum_rpm_learn(&fm);
         let d = svc.data.read().unwrap();
-        assert_eq!(d.maximum_thr_rpm, 3000.0, "fmdata.maxRPM 直取");
-        assert!(d.get_maximum_rpm, "同轮置位");
+        assert_eq!(d.engine.maximum_thr_rpm, 3000.0, "fmdata.maxRPM 直取");
+        assert!(d.engine.get_maximum_rpm, "同轮置位");
     }
 
     // ---------------- updateOptimalCompressorStage ----------------
@@ -414,8 +414,8 @@ mod tests {
         // 预置非默认值验证归位
         {
             let mut d = svc.data.write().unwrap();
-            d.optimal_compressor_stage = 1;
-            d.compressor_stage_mismatch = true;
+            d.engine.optimal_compressor_stage = 1;
+            d.engine.compressor_stage_mismatch = true;
             d.prev_actual_compressor_stage = 1;
             d.prev_optimal_compressor_stage = 1;
         }
@@ -423,17 +423,17 @@ mod tests {
         svc.update_optimal_compressor_stage(&FMHandle::UNRESOLVED);
         {
             let d = svc.data.read().unwrap();
-            assert_eq!(d.optimal_compressor_stage, -1);
-            assert!(!d.compressor_stage_mismatch);
+            assert_eq!(d.engine.optimal_compressor_stage, -1);
+            assert!(!d.engine.compressor_stage_mismatch);
             assert_eq!(d.prev_actual_compressor_stage, -1);
             assert_eq!(d.prev_optimal_compressor_stage, -1);
         }
         // 单级 (hasFM 但 stages.len() <= 1): 同归位
         svc.update_optimal_compressor_stage(&stage_fm(Some(vec![CompressorStageParams::default()])));
-        assert_eq!(svc.data.read().unwrap().optimal_compressor_stage, -1);
+        assert_eq!(svc.data.read().unwrap().engine.optimal_compressor_stage, -1);
         // blkx 在而 stages 缺席 (喷气/未提取形态): 同归位
         svc.update_optimal_compressor_stage(&stage_fm(None));
-        assert_eq!(svc.data.read().unwrap().optimal_compressor_stage, -1);
+        assert_eq!(svc.data.read().unwrap().engine.optimal_compressor_stage, -1);
     }
 
     /// 状态机主体 (Java 8 oracle: alt0→档0, alt3000→档1)
@@ -447,31 +447,31 @@ mod tests {
         svc.update_optimal_compressor_stage(&fm);
         {
             let d = svc.data.read().unwrap();
-            assert_eq!(d.optimal_compressor_stage, 0);
+            assert_eq!(d.engine.optimal_compressor_stage, 0);
             // actual (compressorstage 1 → 0-based 0) == optimal 0 → 不失配
-            assert!(!d.compressor_stage_mismatch);
+            assert!(!d.engine.compressor_stage_mismatch);
             assert_eq!(d.prev_actual_compressor_stage, 0);
             assert_eq!(d.prev_optimal_compressor_stage, 0);
         }
 
         // 无变化轮: mismatch 保持前值 (人为置 true 验证保持语义)
-        svc.data.write().unwrap().compressor_stage_mismatch = true;
+        svc.data.write().unwrap().engine.compressor_stage_mismatch = true;
         svc.update_optimal_compressor_stage(&fm);
-        assert!(svc.data.read().unwrap().compressor_stage_mismatch);
+        assert!(svc.data.read().unwrap().engine.compressor_stage_mismatch);
         assert_eq!(svc.data.read().unwrap().prev_actual_compressor_stage, 0);
 
         // 实际档切到 2 (1-based → 0-based 1) ≠ optimal 0 → 失配
         set_cycle_inputs(&svc, 0.0, 474, 2, 110);
         svc.update_optimal_compressor_stage(&fm);
-        assert!(svc.data.read().unwrap().compressor_stage_mismatch);
+        assert!(svc.data.read().unwrap().engine.compressor_stage_mismatch);
 
         // alt=3000 (oracle 档 1) + 非 WEP 满油门 (100): actual 1 == optimal 1 → 解除
         set_cycle_inputs(&svc, 3000.0, 474, 2, 100);
         svc.update_optimal_compressor_stage(&fm);
         {
             let d = svc.data.read().unwrap();
-            assert_eq!(d.optimal_compressor_stage, 1);
-            assert!(!d.compressor_stage_mismatch);
+            assert_eq!(d.engine.optimal_compressor_stage, 1);
+            assert!(!d.engine.compressor_stage_mismatch);
         }
 
         // API 未回报档位 (compressorstage=0 → actual=-1): 三字段归位,
@@ -480,8 +480,8 @@ mod tests {
         svc.update_optimal_compressor_stage(&fm);
         {
             let d = svc.data.read().unwrap();
-            assert_eq!(d.optimal_compressor_stage, 0);
-            assert!(!d.compressor_stage_mismatch);
+            assert_eq!(d.engine.optimal_compressor_stage, 0);
+            assert!(!d.engine.compressor_stage_mismatch);
             assert_eq!(d.prev_actual_compressor_stage, -1);
             assert_eq!(d.prev_optimal_compressor_stage, -1);
         }
@@ -491,8 +491,8 @@ mod tests {
         svc.update_optimal_compressor_stage(&fm);
         {
             let d = svc.data.read().unwrap();
-            assert_eq!(d.optimal_compressor_stage, 1);
-            assert!(!d.compressor_stage_mismatch);
+            assert_eq!(d.engine.optimal_compressor_stage, 1);
+            assert!(!d.engine.compressor_stage_mismatch);
             assert_eq!(d.prev_actual_compressor_stage, -1);
         }
     }
@@ -541,8 +541,8 @@ mod tests {
 
         // getMaximumRPM 的 FM 直取: maximumThrRPM = blkx.maxRPM
         svc.get_maximum_rpm_learn(&fm);
-        assert_eq!(svc.data.read().unwrap().maximum_thr_rpm, fmdata.max_rpm);
-        assert!(svc.data.read().unwrap().get_maximum_rpm);
+        assert_eq!(svc.data.read().unwrap().engine.maximum_thr_rpm, fmdata.max_rpm);
+        assert!(svc.data.read().unwrap().engine.get_maximum_rpm);
 
         // updateOptimal: 真机 stages 与协作者 find_optimal_stage_index 对拍
         // (锁参数组装 alt/isWep/getIAS()/true/15.0 与写回; 档位功率公式属
@@ -553,7 +553,7 @@ mod tests {
                 svc.update_optimal_compressor_stage(&fm);
                 let expect = find_optimal_stage_index(st, 0.0, true, 474.0, true, 15.0) as i32;
                 let d = svc.data.read().unwrap();
-                assert_eq!(d.optimal_compressor_stage, expect);
+                assert_eq!(d.engine.optimal_compressor_stage, expect);
                 assert_eq!(d.prev_optimal_compressor_stage, expect);
             }
             _ => println!("SKIP: 单级/无增压器 (stages 缺席)"),
