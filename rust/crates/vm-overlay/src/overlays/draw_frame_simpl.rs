@@ -414,7 +414,7 @@ impl DrawFrameSimpl {
 // ---------------------------------------------------------------------------
 
 /// 推力曲线共享句柄 (flight_info/control_surfaces 先例: render 闭包与事件循环
-/// 共享 state; Rc 恒留 win32 线程)
+/// 共享 state; Rc 恒留渲染线程)
 pub type DrawFrameSimplHandle = Rc<RefCell<DrawFrameSimpl>>;
 
 /// 推力曲线 OverlaySpec + live 句柄 (Java Controller.java:745-752: 键 thrustdFS,
@@ -484,7 +484,7 @@ pub struct DfsFlight {
     pub throttle: i32,
 }
 
-/// DrawFrameSimpl 的 run() 循环驱动侧 (Java :737-767 单线程对位, win32 循环调用)。
+/// DrawFrameSimpl 的 run() 循环驱动侧 (Java :737-767 单线程对位, 渲染线程循环调用)。
 ///
 /// 每轮: 自管可见性落窗 (`shouldShow = isPreview || visible` 的 setVisible 拉起/
 /// 隐藏 + repaint — repaint 归 host 渲染节拍脏检查) → `displayFmKey != 0` 时

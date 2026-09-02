@@ -642,7 +642,7 @@ fn tray_about_requests_modal_without_rebuild() {
 }
 
 /// 分相监督循环: 退出请求 → Exit (EndGame/托盘 Exit 的相位出口;
-/// 阻断自动 spawn win32 — 纯状态机断言, 不开真窗)
+/// 阻断自动 spawn 渲染线程 — 纯状态机断言, 不开真窗)
 #[test]
 fn supervisor_phase_returns_exit_on_request() {
     let mut shell = fixture();

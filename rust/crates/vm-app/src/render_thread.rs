@@ -1,4 +1,6 @@
-//! win32 线程 (D8: host 泵 + 托盘 + 热键事件消费)。重构波2 自 app_shell.rs 拆出。
+//! 渲染线程 (D8: host 泵 + 托盘 + 热键事件消费)。重构波2 自 app_shell.rs 拆出,
+//! 波16 自 win32.rs 更名 — 本文件是渲染线程**装配层**, 真正的 Win32 API 胶水
+//! 在 vm-overlay::platform (窗口/托盘/热键) 与本 crate 的 winmm_player。
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -24,16 +26,21 @@ use vm_core::base::logger;
 use vm_core::base::bus::ui_state_bus::{UiStateEvent, UIStateBus};
 use vm_core::audio::voice_resource_manager::VoiceResourceManager;
 
-use vm_overlay::platform::host::OverlayHost;
+use vm_overlay::platform::host::{OverlayHost, OverlaySpec};
 use vm_overlay::platform::hotkey::HotkeyEvent;
-use vm_overlay::{
-    attitude_overlay_spec, control_surfaces_overlay_spec, draw_frame_simpl_spec,
-    engine_control_overlay_spec, flight_info_overlay_spec, fm_unpacked_data_overlay_spec,
-    gear_flaps_overlay_spec, minihud_overlay_spec, power_info_overlay_spec, OverlaySpec,
-    AttitudeOverlayHandle, ControlSurfacesHandle, DfsFlight, DrawFrameSimplFeed,
-    DrawFrameSimplHandle, EngineControlHandle, FlightInfoHandle, FmUnpackedDataHandle,
-    FmUnpackedFeed, GearFlapsHandle, MiniHudHandle, PowerInfoHandle,
+use vm_overlay::overlays::attitude::{attitude_overlay_spec, AttitudeOverlayHandle};
+use vm_overlay::overlays::control_surfaces::{control_surfaces_overlay_spec, ControlSurfacesHandle};
+use vm_overlay::overlays::draw_frame_simpl::{
+    draw_frame_simpl_spec, DfsFlight, DrawFrameSimplFeed, DrawFrameSimplHandle,
 };
+use vm_overlay::overlays::engine_control::{engine_control_overlay_spec, EngineControlHandle};
+use vm_overlay::overlays::flight_info::{flight_info_overlay_spec, FlightInfoHandle};
+use vm_overlay::overlays::fm_unpacked::{
+    fm_unpacked_data_overlay_spec, FmUnpackedDataHandle, FmUnpackedFeed,
+};
+use vm_overlay::overlays::gear_flaps::{gear_flaps_overlay_spec, GearFlapsHandle};
+use vm_overlay::overlays::minihud::{minihud_overlay_spec, MiniHudHandle};
+use vm_overlay::overlays::power_info::{power_info_overlay_spec, PowerInfoHandle};
 
 #[cfg(target_os = "windows")]
 use vm_overlay::platform::tray::{TrayConfig, TrayIcon, TrayHandler};
@@ -48,8 +55,8 @@ use crate::voice_setup::{
     VoiceWarnSession,
 };
 
-/// win32 线程装配输入 (全部 Send; 配置以快照形态入线程, 见模块头)
-pub struct Win32ThreadConfig {
+/// 渲染线程装配输入 (全部 Send; 配置以快照形态入线程, 见模块头)
+pub struct RenderThreadConfig {
     pub env: Env,
     pub inputs: OverlayInputs,
     pub ui_bus: Arc<UIStateBus>,
@@ -66,11 +73,11 @@ pub struct Win32ThreadConfig {
     pub hotkey_rx: Receiver<HotkeyEvent>,
     pub main_event_tx: Sender<MainEvent>,
     /// overlay 初始位置快照 (id → 归一化; 主线程 spawn 前从 GroupConfig.x/y 取,
-    /// win32 线程不能碰 !Send 配置树 — 见 ChannelPositionStore 头注)
+    /// 渲染线程不能碰 !Send 配置树 — 见 ChannelPositionStore 头注)
     pub position_snapshot: HashMap<String, (f64, f64)>,
 }
 
-/// win32 线程内注册的 overlay 数据句柄 (Rc — 恒留本线程)。
+/// 渲染线程内注册的 overlay 数据句柄 (Rc — 恒留本线程)。
 /// None = spec 工厂失败 (字体缺失等, 注册点已 logger::error), 喂入跳过
 pub(crate) struct OverlayHandles {
     /// MiniHUD live 喂入口 (Java onFlightData → EDT 的单线程 host 对位)
@@ -88,14 +95,14 @@ pub(crate) struct OverlayHandles {
     /// 飞行信息 (Java FlightInfoOverlay.onFlightData 字段行; POC 专径收编批接入)
     pub(crate) flight_info: Option<FlightInfoHandle>,
     /// FM拆包数据 (Java FMUnpackedDataOverlay: FM_CHANGED 重载 + 热键切换自管可见;
-    /// 无 FlightDataBus 订阅 — 不进 feed_overlays_live, 事件面在 win32 循环驱动)
+    /// 无 FlightDataBus 订阅 — 不进 feed_overlays_live, 事件面在渲染线程循环驱动)
     pub(crate) fm_unpacked: Option<FmUnpackedDataHandle>,
     /// 推力曲线 (Java DrawFrameSimpl: FM_CHANGED 重载 (两会话) + 热键切换自管可见
     /// (仅游戏); run 循环含 displayFmKey==0 收腿退场 — DrawFrameSimplFeed 驱动)
     pub(crate) draw_frame_simpl: Option<DrawFrameSimplHandle>,
 }
 
-/// CloseAllOverlays 时数据面回 preview 静态初值 (win32 命令处理点调用)。
+/// CloseAllOverlays 时数据面回 preview 静态初值 (渲染线程命令处理点调用)。
 /// 覆盖面 = reinit 闭包只重建几何/资源、不重建数据态的 4 个 overlay:
 /// 动力信息 (RenderContext 重载)、飞行信息 (字体/画布重载, rows 保留)、
 /// 舵面值 (几何派生)、地平仪 (尺寸/开关)。
@@ -127,7 +134,7 @@ pub(crate) fn reset_handles_preview_values(handles: &OverlayHandles) {
     }
 }
 
-/// Java OverlayContext 的 win32 侧替身: 激活探测访问面
+/// Java OverlayContext 的渲染线程侧替身: 激活探测访问面
 /// (get_bool/isDebug/isJet/isPreviewMode/has_blkx — activation_strategy.rs trait 注)
 pub(crate) struct HostActivationCtx {
     pub(crate) activation: ActivationCache,
@@ -179,9 +186,9 @@ pub(crate) fn strategy_for(config_key: &str) -> ActivationStrategy {
 }
 
 /// FocusMonitor 的通道桥 (轮 2-C 收口): Service 轮询线程内 FocusMonitor tick →
-/// coordinator 回调 → UiCommand 送 win32 线程执行 host hide/show (配置/窗口
+/// coordinator 回调 → UiCommand 送渲染线程执行 host hide/show (配置/窗口
 /// !Send 不能进 Service 线程 — ChannelPositionStore 同款模式)。
-/// is_overlays_hidden 读 ControllerShared 镜像 (win32 处理命令时同步)
+/// is_overlays_hidden 读 ControllerShared 镜像 (渲染线程处理命令时同步)
 pub(crate) struct ChannelFocusBridge {
     pub(crate) tx: Sender<UiCommand>,
     pub(crate) shared: Arc<ControllerShared>,
@@ -199,9 +206,9 @@ impl vm_core::platform::focus_monitor::AlwaysOnTopCoordinatorApi for ChannelFocu
     }
 }
 
-/// 位置存档后端 (win32 线程侧): 启动快照直读 + 保存经 MainEvent 回传主线程落盘。
+/// 位置存档后端 (渲染线程侧): 启动快照直读 + 保存经 MainEvent 回传主线程落盘。
 /// PORT(线程桥): Java overlay 直接持 OverlaySettings (EDT 单世界); Rust 配置树
-/// !Send 不能进 win32 线程, 位置面拆成 读=启动快照 (位置仅拖拽改变, 而拖拽存档
+/// !Send 不能进渲染线程, 位置面拆成 读=启动快照 (位置仅拖拽改变, 而拖拽存档
 /// 双写快照, 快照不滞后) 写=回传 (PositionSaved → save_group_position 落盘,
 /// 对齐 Java saveWindowPosition 即时 saveLayoutConfig)。
 struct ChannelPositionStore {
@@ -225,7 +232,7 @@ impl vm_overlay::platform::host::PositionStore for ChannelPositionStore {
     }
 }
 
-/// Java Controller.registerGameModeOverlays (651-753) 的 win32 侧一次性注册
+/// Java Controller.registerGameModeOverlays (651-753) 的渲染线程侧一次性注册
 /// (live 模式 overlay 全集: 真实遥测数据态; 旧名 register_game_mode_overlays)。
 /// PORT(偏差备案): Java 每 Controller 重建 OverlayManager + 重注册; Rust host 跨
 /// 重建存活 (D8), 条目是无状态配置记录 (id/config_key/尺寸/渲染闭包), 重建语义
@@ -327,7 +334,7 @@ pub(crate) fn register_live_overlays(
         || attitude_overlay_spec(params),
     );
     // FM拆包数据 (Java:726-743, 键 enableFMPrint, previewEnabled=true) — 本批补齐
-    // (P5 组装契约三点销号; 事件面/tick 泵在 win32 循环驱动, 见 win32_thread_main)
+    // (P5 组装契约三点销号; 事件面/tick 泵在渲染线程循环驱动, 见 render_thread_main)
     handles.fm_unpacked = register_one(
         host,
         shared,
@@ -347,7 +354,7 @@ pub(crate) fn register_live_overlays(
     );
     // 推力曲线 (Java:745-752 registerWithStrategy("thrustdFS"), 键 =
     // enableFMPrint && jetOnly, previewEnabled=true/needsThread) — 本批补齐
-    // (D8 降级清单 P6 尾巴收口; 事件面/run 泵在 win32 循环驱动)。
+    // (D8 降级清单 P6 尾巴收口; 事件面/run 泵在渲染线程循环驱动)。
     // 无 with_interest 追加键 (键集为空, Java 同); 固定几何在注册成功后落
     handles.draw_frame_simpl =
         register_one(host, shared, "推力曲线", &[], || draw_frame_simpl_spec(fonts, fm));
@@ -371,7 +378,7 @@ pub(crate) struct OverlayRegSetup<'a> {
     pub(crate) inputs: &'a OverlayInputs,
     /// WYSIWYG reinit 参数仓 (CONFIG_CHANGED 后 ReinitOverlays 命令覆写;
     /// 各 spec 工厂 reinit 闭包持引用读取 — 见 vm-overlay reinit.rs 头注)
-    pub(crate) params: &'a Rc<RefCell<vm_overlay::ReinitParams>>,
+    pub(crate) params: &'a Rc<RefCell<vm_overlay::platform::reinit::ReinitParams>>,
     pub(crate) lang: &'a Rc<Lang>,
     pub(crate) shared: &'a ControllerShared,
     /// FM拆包数据: reinit 闭包的 blkx 直读源 (Java FMManager.getInstance())
@@ -448,7 +455,7 @@ pub(crate) struct AttitudeFeedState {
 
 /// 全部窗口 overlay 的 live 喂入 (Java 各 overlay init(S) 时自订 FlightDataBus 的
 /// 单点对位; Rust 订阅生命周期由 OpenAllOverlays/CloseAllOverlays 承载, 本函数在
-/// 订阅期由 win32 渲染节拍调用, drain_latest 只留最新帧 = EDT repaint 合并)。
+/// 订阅期由渲染线程节拍调用, drain_latest 只留最新帧 = EDT repaint 合并)。
 ///
 /// PORT(preview 门控): Java preview 实例 (initPreview) 不订阅 FlightDataBus, 恒显
 /// previewValue 静态; Rust host 单条目跨 open/refresh_preview 存活 (D8), 预览窗口
@@ -471,7 +478,7 @@ pub(crate) struct AttitudeFeedState {
 ///
 /// PORT(panic 边界): ServiceData 的保真 panic 点 (get_pitch/get_thrust 的空引擎
 /// 数组索引, service_fields.rs 注) 在畸形 s_state (update 失败 pitch/thrust 未填)
-/// 下可达 — Java NPE 由 AWT EDT 吞掉 (UI 存活), Rust win32 线程 panic 会杀整个
+/// 下可达 — Java NPE 由 AWT EDT 吞掉 (UI 存活), Rust 渲染线程 panic 会杀整个
 /// host 泵, 故整帧 catch_unwind (AssertUnwindSafe: 状态可能半更新, 对位 Java
 /// EDT 半更新后吞 NPE 的形态), ERROR 留痕丢帧继续。
 pub(crate) fn feed_overlays_live(
@@ -586,7 +593,7 @@ pub(crate) fn feed_overlays_live(
     }
 }
 
-/// win32 线程入口 (D8 拓扑): OverlayHost 泵 + 托盘 + 热键事件消费。
+/// 渲染线程入口 (D8 拓扑): OverlayHost 泵 + 托盘 + 热键事件消费。
 ///
 /// PORT(热键拓扑豁免记录, hotkey.rs 头注 D8 偏差): WH_KEYBOARD_LL 钩子固化在
 /// HotkeyManager 自管的独立钩子线程 (jnativehook 独立派发线程的保真形态);
@@ -594,11 +601,11 @@ pub(crate) fn feed_overlays_live(
 /// 豁免期内钩子事件经 channel 汇入本线程统一消费 — 与托盘/overlay 共享的
 /// 泵约束 (安装线程需泵) 由钩子线程自泵满足, 行为面一致。
 /// 跟踪项 (审查 B-W4): 豁免收口 = hotkey.rs 提供外部线程装钩入口; 且
-/// FM_OVERLAY_TOGGLE 的发布线程从 Java 的钩子线程变为本 win32 线程 (经
+/// FM_OVERLAY_TOGGLE 的发布线程从 Java 的钩子线程变为本渲染线程 (经
 /// hotkey_rx 中转后 publish ui_bus) — DrawFrameSimpl/FMUnpacked 的订阅消费
 /// (渲染节拍块) 已按此拓扑接线, 后续 DrawFrame (P6 批三) 照此办理。
-pub fn win32_thread_main(cfg: Win32ThreadConfig) {
-    let mut session = Win32Session::new(cfg);
+pub fn render_thread_main(cfg: RenderThreadConfig) {
+    let mut session = RenderSession::new(cfg);
     let mut last_render = Instant::now();
     loop {
         // 托盘消息泵 (创建线程亲和, tray.rs 头注)
@@ -723,7 +730,7 @@ pub fn win32_thread_main(cfg: Win32ThreadConfig) {
                 }
             }
         }
-        // UI 命令 (生命周期/WYSIWYG 的 win32 属主面; 重分支见 Win32Session::on_*)
+        // UI 命令 (生命周期/WYSIWYG 的渲染线程属主面; 重分支见 RenderSession::on_*)
         while let Ok(cmd) = session.ui_cmd_rx.try_recv() {
             match cmd {
                 UiCommand::OpenAllOverlays => session.on_open_all(),
@@ -754,10 +761,10 @@ pub fn win32_thread_main(cfg: Win32ThreadConfig) {
                     session.shared.overlays_hidden.store(false, Ordering::SeqCst);
                 },
                 UiCommand::Shutdown => {
-                    logger::info("AppShell", "win32 线程退出 (Shutdown)");
+                    logger::info("AppShell", "渲染线程退出 (Shutdown)");
                     // Drop 序: return 后 session 按字段声明序销毁 — flight_sub (退订)
                     // → tray (NIM_DELETE 防僵尸 — tray.rs 退出契约) → … → host
-                    // (窗口销毁最后)。字段序即为此保持 (见 Win32Session 头注),
+                    // (窗口销毁最后)。字段序即为此保持 (见 RenderSession 头注),
                     // 调整序前必读
                     return;
                 }
@@ -777,7 +784,7 @@ pub fn win32_thread_main(cfg: Win32ThreadConfig) {
     }
 }
 
-/// win32 线程会话: [`win32_thread_main`] 的装配产物 + 命令处理面
+/// 渲染线程会话: [`render_thread_main`] 的装配产物 + 命令处理面
 /// (原内联在入口函数的部件归拢, 重构波15)。
 ///
 /// ⚠ **Drop 序契约**: Shutdown return 后 session 按字段声明序销毁 — "序敏感段"
@@ -786,7 +793,7 @@ pub fn win32_thread_main(cfg: Win32ThreadConfig) {
 /// 线程) → flight_sub (live 订阅退订) → tray (NIM_DELETE 防僵尸, tray.rs 退出
 /// 契约) → 数据态/Rc → **host (窗口销毁最后)**。调整字段序前必读 Shutdown
 /// 分支注; 依赖段 (Arc 克隆/接收端) 无 Drop 契约。
-struct Win32Session {
+struct RenderSession {
     // ---- 序敏感段 (字段序 = Drop 序, 见头注) ----
     /// DrawFrameSimpl 的 run() 循环泵 (1000ms 节流 + 自管可见性 +
     /// displayFmKey==0 收腿退场, 见 DrawFrameSimplFeed 头注)
@@ -821,7 +828,7 @@ struct Win32Session {
     /// live 喂入用设置快照 (ReinitOverlays 命令同步覆写)
     hud_settings: HudSettingsSnapshot,
     /// WYSIWYG reinit 参数仓 (各 spec 工厂 reinit 闭包读取)
-    params: Rc<RefCell<vm_overlay::ReinitParams>>,
+    params: Rc<RefCell<vm_overlay::platform::reinit::ReinitParams>>,
     /// 标签源 (GearFlaps update_tick / engine reinit 闭包共用; Lang !Clone)
     lang: Rc<Lang>,
     /// 注册成功的 overlay 数据句柄全集
@@ -846,11 +853,11 @@ struct Win32Session {
     snapshots: ConfigSnapshots,
 }
 
-impl Win32Session {
-    /// 会话装配 (原 win32_thread_main 装配段整段原序搬迁: 五色注入 → host/
+impl RenderSession {
+    /// 会话装配 (原 render_thread_main 装配段整段原序搬迁: 五色注入 → host/
     /// 激活探测 → 注册面 → 设置快照 → 托盘 → 订阅与泵; 字段序 = Drop 序)
-    fn new(cfg: Win32ThreadConfig) -> Self {
-        let Win32ThreadConfig {
+    fn new(cfg: RenderThreadConfig) -> Self {
+        let RenderThreadConfig {
             env,
             inputs,
             ui_bus,
@@ -904,7 +911,7 @@ impl Win32Session {
         let lang = Rc::new(Lang::init_lang());
         // WYSIWYG reinit 参数仓 (初始 = 注册快照投影; CONFIG_CHANGED 后
         // UiCommand::ReinitOverlays 覆写, 各 spec 工厂 reinit 闭包读取)
-        let params = Rc::new(RefCell::new(vm_overlay::ReinitParams::from(&inputs)));
+        let params = Rc::new(RefCell::new(vm_overlay::platform::reinit::ReinitParams::from(&inputs)));
         register_live_overlays(
             &mut host,
             &mut handles,
@@ -1183,7 +1190,7 @@ impl Win32Session {
     }
 
     /// ReinitOverlays 命令处理: WYSIWYG reinit 参数仓覆写 (不直接触发刷新)
-    fn on_reinit_overlays(&mut self, new_params: Box<vm_overlay::ReinitParams>) {
+    fn on_reinit_overlays(&mut self, new_params: Box<vm_overlay::platform::reinit::ReinitParams>) {
         self.attitude_feed.freq_ms = new_params.attitude_freq_ms;
         self.hud_settings = new_params.hud.clone();
         *self.params.borrow_mut() = *new_params;

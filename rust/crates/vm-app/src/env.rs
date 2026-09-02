@@ -19,11 +19,11 @@ pub struct Env {
     pub http_header: String,
     /// Application.appPort (Lang.httpPort parseInt, 失败 8111; :559-563)
     pub app_port: u16,
-    /// 字体目录探测 (Java initFont 的 AWT 注册 → Rust 字体文件路径供给, D8: 字体→win32 线程)
+    /// 字体目录探测 (Java initFont 的 AWT 注册 → Rust 字体文件路径供给, D8: 字体→渲染线程)
     pub fonts_dir: PathBuf,
     /// 托盘图标 (Application.initSystemTray: "image/16x16.png")
     pub icon_path: PathBuf,
-    /// 屏幕快照 (Application.getScreenSize/DPIHelper; D8: 屏幕尺寸→win32 线程启动快照)
+    /// 屏幕快照 (Application.getScreenSize/DPIHelper; D8: 屏幕尺寸→渲染线程启动快照)
     pub dpi: DpiHelper,
     /// Application.debug (OverlayContext.isDebug 的来源)
     pub debug: bool,

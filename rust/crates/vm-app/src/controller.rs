@@ -33,7 +33,7 @@ use crate::commands::{MainEvent, UiCommand};
 use crate::controller_shared::{ControllerShared, FLIGHT_SILENT_EXIT_MS};
 use crate::env::Env;
 use crate::voice_setup::SnapshotConfigProvider;
-use crate::win32::ChannelFocusBridge;
+use crate::render_thread::ChannelFocusBridge;
 
 // =====================================================================
 // FlightLog 接线辅助 (Controller.java:366-376/402-411 的依赖注入面)
@@ -112,7 +112,7 @@ impl Controller {
     /// Java Controller(boolean isInitialLaunch) 构造器 (Controller.java:469-610)。
     /// PORT(侧序): configService.initConfig() 与 initDynamicOverlays 的文件装载
     /// 挪至 AppShell 构造面 (配置服务先于 Controller 存在, 免测试写盘副作用);
-    /// overlayManager 注册挪至 win32 线程一次性注册 (host 跨重建存活, 条目为
+    /// overlayManager 注册挪至渲染线程一次性注册 (host 跨重建存活, 条目为
     /// 无状态配置记录 — 见 register_live_overlays 头注)。
     pub fn new(deps: ControllerDeps, is_initial_launch: bool) -> Controller {
         let ControllerDeps {
@@ -243,7 +243,7 @@ impl Controller {
 
     /// Java:601/608 "FM-Detect" 一次性线程 → detectAndIdentify (865-877)。
     /// PORT: selectedFM0 在主线程预读 (配置 !Send 不入线程); HttpHelper/FMManager Send。
-    /// spawn 失败降级 (E9c, 对齐 win32 侧 Result 面): 记日志跳过本次探测
+    /// spawn 失败降级 (E9c, 对齐渲染线程侧 Result 面): 记日志跳过本次探测
     fn spawn_fm_detect(&self) {
         let selected = self.config.get_config("selectedFM0").unwrap_or_default();
         let http_header = self.env.http_header.clone();
@@ -351,7 +351,7 @@ impl Controller {
         // FocusMonitor 装配 (轮 2-C 收口, Java Controller.java:353-360 语义:
         // 会话启动按 cfg 启停 — 与 Service 同生共死, closepad 停 Service 即失效,
         // 等价 Java openpad 时 setEnabled + closepad setEnabled(false)):
-        // tick 在 Service 轮询线程, 失焦回调经通道桥送 win32 执行 host hide/show
+        // tick 在 Service 轮询线程, 失焦回调经通道桥送渲染线程执行 host hide/show
         {
             let auto_hide = self
                 .config

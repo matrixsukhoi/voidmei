@@ -171,7 +171,7 @@ impl PowerInfoState {
 // 双形态), 测试面经手工 OverlaySpec 顶位。
 // Java 各 overlay init(S) 时自订 FlightDataBus (LIFETIMES §2.1), preview 实例
 // (initPreview) 不订阅保持 previewValue 静态。Rust host 单条目跨 open/refresh_preview
-// 存活 (D8), 两形态共用一份 state — live 喂入由 win32 线程持句柄执行, preview 期
+// 存活 (D8), 两形态共用一份 state — live 喂入由渲染线程持句柄执行, preview 期
 // 喂入门控见 app_shell 的 feed_overlays_live (overlay_ctx_preview 标志)。
 
 /// 动力信息共享句柄 (render 闭包 + 喂入方各持克隆)

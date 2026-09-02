@@ -18,7 +18,7 @@ use vm_core::fm::FMManager;
 use crate::keys::FM_FIELD_KEYS;
 
 /// 配置跨线程快照对 (E9b): AppShell 原平铺的 voice_config/fm_field_config
-/// 双字段收敛体。配置服务 !Send 恒留主线程, VoiceWarning 告警线程与 win32 线程
+/// 双字段收敛体。配置服务 !Send 恒留主线程, VoiceWarning 告警线程与渲染线程
 /// (FMUnpackedData generate_lines) 经值快照跨线程读; 常规写值经 write_hook 在
 /// CONFIG_CHANGED 广播前直写 (快照新值先于订阅者), 托盘 rebuild 随新配置树
 /// 全量重刷。
@@ -225,7 +225,7 @@ impl VoiceWarningService for LiveVoiceService {
 }
 
 /// VoiceWarning 会话句柄 (Java OverlayEntry 的 instance+thread 二位一体):
-/// OpenAllOverlays 建 / CloseAllOverlays 停; Drop 兜底停 (win32 线程局部声明,
+/// OpenAllOverlays 建 / CloseAllOverlays 停; Drop 兜底停 (渲染线程局部声明,
 /// Shutdown return 时逆序 drop 自动收线程)。
 pub(crate) struct VoiceWarnSession {
     pub(crate) doit: Arc<AtomicBool>,
@@ -267,7 +267,7 @@ pub(crate) fn voice_warn_refresh_reaches(changed_key: Option<&str>) -> bool {
 /// None = Java init(S=null) 的 doit=false 短路, 不起线程)。
 /// 线程名对位 Java 默认 "Thread-N" — 取语义名便于排障。
 ///
-/// PORT(备案, 审查 W3): init 在 win32 线程同步执行 ~20 个 new_alert→reload→
+/// PORT(备案, 审查 W3): init 在渲染线程同步执行 ~20 个 new_alert→reload→
 /// load_clip (文件读 + waveOutOpen 每路开设备), OpenAllOverlays 处理期间事件
 /// 泵阻塞几十至百 ms (一次性) — Java 对位 OverlayEntry.open 在 EDT 调 init 同
 /// 样阻塞 EDT, 形态保真; 若后续观察到 openpad 卡顿再议预加载 (偏离 Java 时

@@ -139,7 +139,7 @@ impl ConfigurationService {
     }
 
     /// 五色运行时快照 (Java 组件直接读 Application.colorNum 等静态;
-    /// Rust 侧配置 !Send 不能进 win32 线程, 组装层启动/WYSIWYG 色变时取快照
+    /// Rust 侧配置 !Send 不能进渲染线程, 组装层启动/WYSIWYG 色变时取快照
     /// 注入 vm-overlay 的 global_colors 仓)
     pub fn global_colors(&self) -> GlobalColors {
         let app = self.inner.app.read().expect("app 状态锁中毒");
@@ -154,7 +154,7 @@ impl ConfigurationService {
 
     /// 组装层位置桥 (归一化直读): Java overlay init 时经 OverlaySettings.loadPosition
     /// 取 gc.x/y (ConfigurationService.java:430-457 读的同一组字段)。Rust host 在
-    /// win32 线程不碰 !Send 配置树 — 组装层启动时经此取快照 (vm-app
+    /// 渲染线程不碰 !Send 配置树 — 组装层启动时经此取快照 (vm-app
     /// ChannelPositionStore); 返回归一化 (0..1) 坐标, 无同题分组 = None
     /// (host 居中兜底, 对齐 Java gc=null 的 center 分支)。
     pub fn group_position(&self, section: &str) -> Option<(f64, f64)> {

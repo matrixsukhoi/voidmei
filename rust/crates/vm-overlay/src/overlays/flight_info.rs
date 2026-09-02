@@ -72,7 +72,7 @@ pub fn build_texts(defs: &[RowDef], s: &dyn FormulaView) -> Vec<(String, String,
     out
 }
 
-/// FlightInfo 共享句柄 (win32 线程内; live 喂数经 [`FlightInfoState::update`])
+/// FlightInfo 共享句柄 (渲染线程内; live 喂数经 [`FlightInfoState::update`])
 pub type FlightInfoHandle = Rc<RefCell<FlightInfoState>>;
 
 /// preview 静态行 (工厂初值与 [`FlightInfoState::reset_preview_rows`] 同源,

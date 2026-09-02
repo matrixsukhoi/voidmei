@@ -30,7 +30,7 @@ pub struct ConfigDebouncer {
 
 /// 防抖任务体 (Java Controller.java:525-536/573-576): refreshPreviews(key)/
 /// refreshAllPreviews()。loadFromConfig 已挪至主线程调度点 (配置 !Send, 见模块头);
-/// 此处只取世代号快照送刷新命令, 消费侧 win32 做守卫。
+/// 此处只取世代号快照送刷新命令, 消费侧渲染线程做守卫。
 fn refresh_cmd(msg: DebounceMsg, shared: &ControllerShared) -> UiCommand {
     let generation = shared.preview_generation.load(Ordering::SeqCst);
     let changed_key = match msg {
@@ -48,7 +48,7 @@ fn refresh_cmd(msg: DebounceMsg, shared: &ControllerShared) -> UiCommand {
 
 impl ConfigDebouncer {
     /// `delay` 可注入 (测试用短间隔; 生产 [`CONFIG_DEBOUNCE_MS`])。
-    /// 输出直送 win32 线程 UiCommand 通道 (D8 修正★2: 刷新动作离开本线程)。
+    /// 输出直送渲染线程 UiCommand 通道 (D8 修正★2: 刷新动作离开本线程)。
     pub fn spawn(delay: Duration, out: Sender<UiCommand>, shared: Arc<ControllerShared>) -> Self {
         let (tx, rx) = std::sync::mpsc::channel::<DebounceMsg>();
         let join = std::thread::Builder::new()
@@ -56,7 +56,7 @@ impl ConfigDebouncer {
             .spawn(move || {
                 while let Ok(first) = rx.recv() {
                     // leading: 首条立即刷 (跟手关键; 时序上 ReinitOverlays 参数仓
-                    // 覆写先入队, 本命令紧随 → win32 消费序参数恒新)
+                    // 覆写先入队, 本命令紧随 → 渲染线程消费序参数恒新)
                     let _ = out.send(refresh_cmd(first, &shared));
                     let mut last: Option<DebounceMsg> = None;
                     // 安静期窗口: 每到一条即重排 (cancel+reschedule 的电平等价)

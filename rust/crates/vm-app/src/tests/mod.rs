@@ -1,11 +1,11 @@
 //! vm-app 集成测试 (波11 分片: 共享夹具/助手在本文件, 用例按主题分片 —
-//! lifecycle / debounce_config / win32_feeds / voice; 分片经 `use super::*`
+//! lifecycle / debounce_config / render_feeds / voice; 分片经 `use super::*`
 //! 取共享面, 先例 vm-overlay overlays/fields_tests)。
 
 mod debounce_config;
 mod lifecycle;
 mod voice;
-mod win32_feeds;
+mod render_feeds;
 
 use super::*;
 
@@ -73,7 +73,7 @@ fn auto_start_cfg() -> String {
 /// AppShell 测试装配: tmp cfg (无 init_config 写盘副作用) + 30ms 短防抖 +
 /// **网络隔离** (Service 指向 9 号死端口 — 连接立即拒绝; FM-Detect 探测关闭
 /// — 8111 可能被 mock/游戏占用, 项目惯例端口占用即隔离, 不做假通过);
-/// 不起 win32 线程 — ui_cmd 接收端留在 shell 内供测试观察。
+/// 不起渲染线程 — ui_cmd 接收端留在 shell 内供测试观察。
 fn fixture() -> AppShell {
     fixture_with_debounce(30)
 }
@@ -91,7 +91,7 @@ fn fixture_full(ms: u64, cfg: String) -> AppShell {
     let mut env = Env::probe(&Lang::init_lang(), false);
     env.app_port = 9; // discard 端口: 无服务监听, connect 立即 RST
     // 字体目录钉在仓库根 (cargo 测试 CWD=crate 根, CWD 相对探测不稳;
-    // win32 线程注册面的 spec 工厂需要真实字体文件)
+    // 渲染线程注册面的 spec 工厂需要真实字体文件)
     env.fonts_dir =
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../fonts");
     let mut shell = AppShell::with_parts(ShellParts {

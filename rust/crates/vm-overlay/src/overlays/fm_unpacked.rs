@@ -4,7 +4,7 @@
 //! FM 调试列表: BaseOverlay 斑马纹基座 + blkx 字段直读清单 (D4 砍反射段后的
 //! 等价实现)。UIStateBus 订阅 (FM_OVERLAY_TOGGLE/FM_CHANGED) 对应
 //! [`FmUnpackedDataOverlay::toggle`]/[`FmUnpackedDataOverlay::reload_fm_data`],
-//! 由组装层的事件循环驱动 (vm-app win32 线程: 总线订阅转 channel → 循环内消费);
+//! 由组装层的事件循环驱动 (vm-app 渲染线程: 总线订阅转 channel → 循环内消费);
 //! dispose 的退订由所有权 Drop 根治 (LIFETIMES §2.3), 无需显式方法。
 //!
 //! P5 组装契约三点已销号 (原 "host::OverlaySpec 不可表达" 豁口):
@@ -480,7 +480,7 @@ fn is_field_enabled(config: Option<&dyn ConfigProvider>, field_key: &str) -> boo
 // ---------------------------------------------------------------------------
 
 /// FM拆包数据共享句柄 (flight_info/control_surfaces 先例: render 闭包与
-/// 事件循环共享 state; Rc 恒留 win32 线程)
+/// 事件循环共享 state; Rc 恒留渲染线程)
 pub type FmUnpackedDataHandle = Rc<RefCell<FmUnpackedDataOverlay>>;
 
 /// FM拆包数据 OverlaySpec + live 句柄 (Java Controller.java:726 注册键
@@ -501,7 +501,7 @@ pub type FmUnpackedDataHandle = Rc<RefCell<FmUnpackedDataOverlay>>;
 /// — Rust 对位 = refresh_preview 冷激活的 reinit 闭包直读 current; (b) run() 线程
 /// **预览同样在跑** (needsThread=true, OverlayManager.refreshPreview :326-331 也
 /// new Thread(instance).start()) — 每 200ms generateLines → 数据/高度自适应生效,
-/// Rust 对位 = FmUnpackedFeed::pump 不做会话门控 (win32 循环调用点)。
+/// Rust 对位 = FmUnpackedFeed::pump 不做会话门控 (渲染线程循环调用点)。
 /// 游戏形态 (is_preview=false + 隐藏起步) 由组装层在 OpenAllOverlays 处置位 —
 /// 单实例形态下 ControlSurfaces has_service 的同款会话翻转模式。
 ///
@@ -572,7 +572,7 @@ pub fn fm_unpacked_data_overlay_spec(
 ///
 /// PORT(会话域, 审查 B2-2): Java needsThread=true — 游戏实例 (OverlayEntry.open
 /// :303-309) 与**预览实例** (refreshPreview :326-331) 都起 run 线程, 两会话均
-/// 200ms 轮询装载; 调用方 (win32 循环) 不做 preview 门控, 仅条目未激活
+/// 200ms 轮询装载; 调用方 (渲染线程循环) 不做 preview 门控, 仅条目未激活
 /// (host 槽位空 = Java 无实例) 时跳过。
 ///
 /// PORT(panic 边界): tick 内 generateLines 的保真 panic 点 (flap AIOOBE /

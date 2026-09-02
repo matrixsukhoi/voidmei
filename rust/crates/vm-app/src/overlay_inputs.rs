@@ -1,4 +1,4 @@
-//! 激活缓存 + 注册参数快照 (win32 线程的配置面)。重构波2 自 app_shell.rs 拆出。
+//! 激活缓存 + 注册参数快照 (渲染线程的配置面)。重构波2 自 app_shell.rs 拆出。
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -25,7 +25,7 @@ pub const ACTIVATION_KEYS: [&str; 9] = [
 ];
 
 /// key → 原始配置串 (get_config 值域, Some("") 表缺失 — ConfigurationService 先例)。
-/// 主线程刷新 (rebuild + 每次 CONFIG_CHANGED), win32 激活探测读。
+/// 主线程刷新 (rebuild + 每次 CONFIG_CHANGED), 渲染线程激活探测读。
 pub type ActivationCache = Arc<Mutex<HashMap<String, String>>>;
 
 /// 主线程从配置服务重建激活缓存 (Java: shouldActivate 经 ctx.get_bool →
@@ -38,11 +38,11 @@ pub(crate) fn refresh_activation_cache(config: &ConfigurationService, cache: &Ac
     }
 }
 
-/// overlay 注册面的 Send 参数快照 (win32 线程一次性注册用, D8: 字体→win32 线程)。
+/// overlay 注册面的 Send 参数快照 (渲染线程一次性注册用, D8: 字体→渲染线程)。
 /// PORT(WYSIWYG 收口, 原审查 A-W4): 本快照仍只喂 spawn 期初始注册; 配置变更后的
-/// 重建经 [`vm_overlay::ReinitParams`] 走 `UiCommand::ReinitOverlays` (见 vm-overlay reinit.rs
-/// 头注) — 主线程 CONFIG_CHANGED 时即时重建参数包直送 win32 线程的线程局部仓,
-/// 各 spec 工厂的 reinit 闭包消费, 不再冻结在 spawn 时刻。
+/// 重建经 [`vm_overlay::platform::reinit::ReinitParams`] 走 `UiCommand::ReinitOverlays`
+/// (见 vm-overlay reinit.rs 头注) — 主线程 CONFIG_CHANGED 时即时重建参数包直送
+/// 渲染线程的线程局部仓, 各 spec 工厂的 reinit 闭包消费, 不再冻结在 spawn 时刻。
 pub struct OverlayInputs {
     pub dpi_scale: f64,
     /// MiniHUD 全量设置快照
@@ -75,7 +75,7 @@ pub struct OverlayInputs {
     /// EngineControl loadRefreshInterval 读的 dataPollIntervalMs 亦同源)
     pub service_loop_interval_ms: i64,
     /// 全局五色快照 (Java Application.colorNum 族静态; cfg fontNum/fontLabel/
-    /// fontUnit/fontWarn/fontShade → win32 线程 global_colors 仓)
+    /// fontUnit/fontWarn/fontShade → 渲染线程 global_colors 仓)
     pub colors: GlobalColors,
     /// AA 开关快照 (cfg AAEnable, Java cfg 缺省 false; → global_aa 仓)
     pub aa: bool,
@@ -142,7 +142,7 @@ impl OverlayInputs {
             aa: config.application_state().aa_enable,
             engine_disables: std::array::from_fn(|i| {
                 config
-                    .get_config(vm_overlay::ENGINE_DISABLE_KEYS[i])
+                    .get_config(vm_overlay::overlays::engine_control::ENGINE_DISABLE_KEYS[i])
                     .map(|v| java_parse_boolean(&v))
                     .unwrap_or(false)
             }),
@@ -153,9 +153,9 @@ impl OverlayInputs {
 }
 
 /// 注册快照 → WYSIWYG reinit 参数包 (同源配置键的子集投影; 颜色/AA 有专命令不入包)
-impl From<&OverlayInputs> for vm_overlay::ReinitParams {
+impl From<&OverlayInputs> for vm_overlay::platform::reinit::ReinitParams {
     fn from(i: &OverlayInputs) -> Self {
-        vm_overlay::ReinitParams {
+        vm_overlay::platform::reinit::ReinitParams {
             dpi_scale: i.dpi_scale,
             font_add_engine: i.font_add_engine,
             engine_disables: i.engine_disables,

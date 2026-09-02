@@ -85,7 +85,7 @@ fn wysiwyg_config_change_refreshes_via_debounce() {
     // MainForm 侧配置写入 (服务内联发布 CONFIG_CHANGED — vm-ui 链同源)
     publish_ui_event(&shell.ui_bus, ui_state_events::CONFIG_CHANGED, "showSpeedBar");
     assert!(pump_events(&mut shell), "CONFIG_CHANGED 应经转发到达监督循环");
-    // 防抖产出直达 win32 命令通道 — 接收端留在 shell (未 spawn win32)。
+    // 防抖产出直达渲染线程命令通道 — 接收端留在 shell (未 spawn 渲染线程)。
     // 容忍 UI_READY→preview() 的 Preview-Refresh 线程全量刷新 (None) 抢先入队
     let mut keyed = None;
     let mut generation_seen = 0u64;
@@ -137,7 +137,7 @@ fn config_change_non_preview_reinits_active() {
     };
     assert_eq!(cmd, UiCommand::SetGlobalColors(all_white));
     // WYSIWYG reinit 参数直送 (ReinitActiveOverlays 前置): 参数包随命令进
-    // win32 线程 (配置 !Send — 五色直送同款模式)
+    // 渲染线程 (配置 !Send — 五色直送同款模式)
     let cmd_rp = shell
         .ui_cmd_rx
         .as_ref()
@@ -216,7 +216,7 @@ fn config_change_reinit_params_carry_written_config() {
 }
 
 /// Preview 态: ReinitOverlays 先于防抖的 RefreshPreviews 入队
-/// (win32 消费序 = 参数先刷新, 再跑各 overlay reinit — Java refreshPreviews →
+/// (渲染线程消费序 = 参数先刷新, 再跑各 overlay reinit — Java refreshPreviews →
 /// reinitConfig 读即时配置的时序等价)
 #[test]
 fn preview_reinit_params_precede_debounced_refresh() {
@@ -288,7 +288,7 @@ fn fm_changed_missing_schedules_full_refresh() {
 // 托盘重建 (Application.ctr 替换)
 // ------------------------------------------------------------------
 
-/// 激活缓存随配置装载 (win32 激活面的 WYSIWYG 输入)
+/// 激活缓存随配置装载 (渲染线程激活面的 WYSIWYG 输入)
 #[test]
 fn activation_cache_tracks_config() {
     let shell = fixture();
@@ -313,7 +313,7 @@ fn activation_cache_tracks_config() {
 }
 
 // ------------------------------------------------------------------
-// win32 线程生命周期 (真实窗口冒烟)
+// 渲染线程生命周期 (真实窗口冒烟)
 // ------------------------------------------------------------------
 
 /// RefreshPreviews 不翻转会话窗口形态 (审查 blocker 回归锚): 游戏稳态
@@ -339,7 +339,7 @@ fn refresh_previews_keep_session_window_mode() {
         true
     }
     let mut shell = fixture();
-    shell.spawn_win32_thread().expect("win32 线程启动");
+    shell.spawn_render_thread().expect("渲染线程启动");
     *shell.shared.state.write().unwrap() = ControllerState::Preview;
     let gen = shell.shared.preview_generation.load(Ordering::SeqCst);
     // 模拟游戏形态 (openpad → OpenAllOverlays 处理点置 false)
@@ -359,7 +359,7 @@ fn refresh_previews_keep_session_window_mode() {
         "CloseAll 后窗口形态应回预览态"
     );
     shell.send_ui(UiCommand::Shutdown);
-    let join = shell.win32.take().unwrap();
+    let join = shell.render.take().unwrap();
     assert!(join.join().is_ok());
 }
 

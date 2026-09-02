@@ -1,7 +1,7 @@
-//! vm-app 组装层 (P5 批十四 W1): AppShell + Controller 生命周期核心 + win32 线程入口。
+//! vm-app 组装层 (P5 批十四 W1): AppShell + Controller 生命周期核心 + 渲染线程入口。
 //! 波11 lib 化: 入口文件名 app_shell.rs → lib.rs (Cargo 标准), form_dispatch 自 bin 收编。
 //! 重构波2 九劈: 内容按职责拆至子模块 (env/commands/controller_shared/debouncer/
-//! overlay_inputs/controller/voice_setup/win32/keys), 本文件保留 AppShell 装配、
+//! overlay_inputs/controller/voice_setup/render_thread/keys), 本文件保留 AppShell 装配、
 //! handle_main_event/dispatch/pump/rebuild/shutdown 主体与 lib 根 re-export。
 //!
 //! 对应 Java:
@@ -14,8 +14,8 @@
 //! 线程拓扑 (DECISIONS.md D8):
 //! - 主线程: AppShell 监督循环 (`run_supervisor`/`run_supervisor_phase`) +
 //!   vm-webui ShellForm (Tauri web 设置壳, D9) 的事件泵迭代 — main.rs 单循环驱动。
-//! - win32 线程: OverlayHost 全部 overlay 窗口 + 托盘消息窗口 + 热键事件消费
-//!   (单泵共享; 热键钩子线程豁免记录见 `win32::win32_thread_main` 头注)。
+//! - 渲染线程: OverlayHost 全部 overlay 窗口 + 托盘消息窗口 + 热键事件消费
+//!   (单泵共享; 热键钩子线程豁免记录见 `render_thread::render_thread_main` 头注)。
 //! - Service 线程: vm-data service_loop (8111 轮询, Controller 波次仅负责启停)。
 //! - ConfigDebounce 线程: 200ms 防抖 (Java static configDebouncer 的跨重建存活语义)。
 //!
@@ -23,7 +23,7 @@
 //! **ConfigurationService 是 !Send** (config_loader 树含 Rc<SExp>, 见
 //! configuration_service.rs init_config 的 PORT 注) — 因此:
 //! 1. 配置服务恒留主线程, Controller 订阅闭包只做"转发到监督通道" (Send 安全);
-//! 2. win32 线程需要的配置面以 Send 快照送达 ([`HudSettingsSnapshot`] +
+//! 2. 渲染线程需要的配置面以 Send 快照送达 ([`HudSettingsSnapshot`] +
 //!   [`ActivationCache`]), 快照刷新由监督循环在 CONFIG_CHANGED 到达时执行。
 
 use std::collections::HashMap;
@@ -79,7 +79,7 @@ mod env;
 mod keys;
 mod overlay_inputs;
 mod voice_setup;
-mod win32;
+mod render_thread;
 
 pub use crate::commands::{DebounceMsg, MainEvent, SupervisorOutcome, TrayCommand, UiCommand};
 pub use crate::controller::{Controller, ControllerDeps};
@@ -94,7 +94,7 @@ pub use crate::keys::{
     OVERLAY_SECTIONS,
 };
 pub use crate::overlay_inputs::{ActivationCache, OverlayInputs, ACTIVATION_KEYS};
-pub use crate::win32::{win32_thread_main, Win32ThreadConfig};
+pub use crate::render_thread::{render_thread_main, RenderThreadConfig};
 
 // 根消费的 pub(crate) 项 (私有引入; tests 经 `use super::*` 同样可见)
 use crate::env::locate_template_cfg;
@@ -107,7 +107,7 @@ use vm_core::base::java_compat::current_time_millis;
 #[cfg(test)]
 use crate::voice_setup::open_voice_warning;
 #[cfg(test)]
-use crate::win32::{
+use crate::render_thread::{
     feed_overlays_live, register_live_overlays, reset_handles_preview_values, strategy_for,
     AttitudeFeedState, ChannelFocusBridge, HostActivationCtx, OverlayHandles, OverlayRegSetup,
 };
@@ -155,9 +155,9 @@ pub struct AppShell {
     /// 见 [`ConfigSnapshots`] 头注 — 随核重建全量重刷 + write_hook 广播前直写)
     pub config_snapshots: ConfigSnapshots,
     pub shared: Arc<ControllerShared>,
-    /// 激活缓存 (win32 线程激活探测的配置面)
+    /// 激活缓存 (渲染线程激活探测的配置面)
     pub activation: ActivationCache,
-    /// UI 命令通道发送端 (win32 线程接收端在 spawn 时移交)。
+    /// UI 命令通道发送端 (渲染线程接收端在 spawn 时移交)。
     /// E9a 私有化: 外部一律经 [`AppShell::send_ui`] 受控发送, 禁绕过
     /// [`AppShell::dispatch`] 直发 (线程内持有的克隆见 Controller/debouncer)
     ui_cmd_tx: Sender<UiCommand>,
@@ -169,8 +169,8 @@ pub struct AppShell {
     debounce: ConfigDebouncer,
     /// 可重建应用核 (Java Application.ctr; 托盘 Activate 时整体替换)
     pub controller: Option<Controller>,
-    /// win32 线程句柄 (spawn_win32_thread 后 Some)
-    win32: Option<JoinHandle<()>>,
+    /// 渲染线程句柄 (spawn_render_thread 后 Some)
+    render: Option<JoinHandle<()>>,
     /// 公式管理器共享 cell (E11 注入形态统一, 原全局桥收敛位): desktop 启动桥
     /// 注入 load 过的实例, Controller::start 会话覆盖 Service 实例; ShellForm
     /// 构造时经参数接线同源 (vm-webui 直算命令经 tauri State 读)
@@ -260,7 +260,7 @@ impl AppShell {
         let (ui_cmd_tx, ui_cmd_rx) = std::sync::mpsc::channel::<UiCommand>();
         let (main_event_tx, main_event_rx) = std::sync::mpsc::channel::<MainEvent>();
         let shared = Arc::new(ControllerShared::new());
-        // 激活缓存初建 (win32 线程激活探测输入)
+        // 激活缓存初建 (渲染线程激活探测输入)
         let activation: ActivationCache = Arc::new(Mutex::new(HashMap::new()));
         refresh_activation_cache(&config, &activation);
         // 语音资源管理共享实例 (Java getInstance() 单例; 播放器 = winmm waveOut 腿)
@@ -289,7 +289,7 @@ impl AppShell {
             main_event_rx,
             debounce,
             controller: None,
-            win32: None,
+            render: None,
             formula_shared: vm_webui::ipc::FormulaShared::default(),
             release_main_form: Box::new(|| {
                 // 默认无 MainForm (W2 前): 记日志占位
@@ -308,7 +308,7 @@ impl AppShell {
         self.probe_network = on;
     }
 
-    /// UI 命令受控发送面 (E9a): 外部发送 win32 属主命令的唯一入口 —
+    /// UI 命令受控发送面 (E9a): 外部发送渲染线程属主命令的唯一入口 —
     /// 发送失败 (接收端已关) 静默, 与原直发 `let _ =` 语义一致
     pub fn send_ui(&self, cmd: UiCommand) {
         let _ = self.ui_cmd_tx.send(cmd);
@@ -343,7 +343,7 @@ impl AppShell {
                 config
             }
         };
-        refresh_activation_cache(&config, &self.activation); // win32 激活面同步
+        refresh_activation_cache(&config, &self.activation); // 渲染线程激活面同步
         // voice_*/FM show* 快照随新配置树全量重刷 (VoiceWarning 与 generate_lines 读面)
         self.config_snapshots.refresh(&config);
         self.shared.reset_for_rebuild();
@@ -366,11 +366,11 @@ impl AppShell {
         ));
     }
 
-    /// 起 win32 线程 (D8 拓扑: host 泵 + 托盘 + 热键事件消费; 单泵共享)。
+    /// 起渲染线程 (D8 拓扑: host 泵 + 托盘 + 热键事件消费; 单泵共享)。
     /// 配置以 Send 快照 (`OverlayInputs` + `activation`) 入线程 — 服务本体 !Send。
-    pub fn spawn_win32_thread(&mut self) -> Result<(), String> {
-        if self.win32.is_some() {
-            return Err("win32 线程已存在".into());
+    pub fn spawn_render_thread(&mut self) -> Result<(), String> {
+        if self.render.is_some() {
+            return Err("渲染线程已存在".into());
         }
         let ui_cmd_rx = self
             .ui_cmd_rx
@@ -383,7 +383,7 @@ impl AppShell {
         let controller = self.controller.as_ref().ok_or("controller 未构造")?;
         let inputs = OverlayInputs::build(&controller.config, &self.env, &self.shared);
         // 初始位置快照 (Java overlay init 时 loadPosition 读 gc.x/y; 配置 !Send
-        // → 一次性快照进 win32 线程, 保存经 MainEvent::PositionSaved 回传落盘)
+        // → 一次性快照进渲染线程, 保存经 MainEvent::PositionSaved 回传落盘)
         let position_snapshot: HashMap<String, (f64, f64)> = OVERLAY_SECTIONS
             .iter()
             .filter_map(|(id, section)| {
@@ -393,7 +393,7 @@ impl AppShell {
                     .map(|p| (id.to_string(), p))
             })
             .collect();
-        let cfg = Win32ThreadConfig {
+        let cfg = RenderThreadConfig {
             env: self.env.clone(),
             inputs,
             ui_bus: Arc::clone(&self.ui_bus),
@@ -409,10 +409,10 @@ impl AppShell {
             position_snapshot,
         };
         let join = std::thread::Builder::new()
-            .name("win32-pump".to_string())
-            .spawn(move || win32_thread_main(cfg))
-            .map_err(|e| format!("win32 线程创建失败: {}", e))?;
-        self.win32 = Some(join);
+            .name("render-pump".to_string())
+            .spawn(move || render_thread_main(cfg))
+            .map_err(|e| format!("渲染线程创建失败: {}", e))?;
+        self.render = Some(join);
         Ok(())
     }
 
@@ -440,7 +440,7 @@ impl AppShell {
                 }
                 self.exit_requested = true;
             }
-            // win32 属主变体不经 dispatch (发送方经 send_ui 直达); 防御性转发
+            // 渲染线程属主变体不经 dispatch (发送方经 send_ui 直达); 防御性转发
             other => {
                 self.send_ui(other);
             }
@@ -450,7 +450,7 @@ impl AppShell {
     /// 监督事件处理 (Controller 订阅转发 + 托盘动作的落地点; 主线程)
     pub fn handle_main_event(&mut self, ev: MainEvent) {
         match ev {
-            // overlay 位置存档落盘 (win32 线程拖拽松手/销毁链回传; Java
+            // overlay 位置存档落盘 (渲染线程拖拽松手/销毁链回传; Java
             // DraggableOverlay.saveCurrentPosition → saveWindowPosition +
             // saveLayoutConfig — 归一化直写, 免像素往返)
             MainEvent::PositionSaved { section, x, y } => {
@@ -472,7 +472,7 @@ impl AppShell {
                 }
                 // 全局五色直送 (fontNum/fontLabel/fontUnit/fontWarn/fontShade —
                 // Java 经 font 前缀全局键触发全量刷新; 配置 !Send 色值随命令进
-                // win32 线程, 下帧渲染即新色, 不需重建窗口)。
+                // 渲染线程, 下帧渲染即新色, 不需重建窗口)。
                 // 即时读 cfg 键而非 global_colors() 快照: app 状态五色由
                 // load_from_config_ 刷新 (时序在下游), 发布方 (ColorRowRenderer)
                 // 此刻已写服务树值
@@ -496,7 +496,7 @@ impl AppShell {
                     };
                     self.send_ui(UiCommand::SetGlobalColors(g));
                 }
-                // win32 激活面同步 (配置已由发布方写毕, 最后写胜出 — 见缓存头注)
+                // 渲染线程激活面同步 (配置已由发布方写毕, 最后写胜出 — 见缓存头注)
                 refresh_activation_cache(&c.config, &self.activation);
                 // Java VoiceWarning.configHandler 的触发链 (UIStateBus 单例 →
                 // CONFIG_CHANGED(voice_*) → alert.reload) 重构波1 起由统一路由
@@ -506,7 +506,7 @@ impl AppShell {
                 // WYSIWYG reinit 参数直送 (五色直送同款模式): 即时读配置重建参数包,
                 // 先于下方 RefreshPreviews(防抖)/ReinitActiveOverlays 入队 —
                 // 对位 Java refreshPreviews → reinitConfig 即时读配置的时序
-                let params = vm_overlay::ReinitParams::from(&OverlayInputs::build(
+                let params = vm_overlay::platform::reinit::ReinitParams::from(&OverlayInputs::build(
                     &c.config,
                     &self.env,
                     &self.shared,
@@ -614,19 +614,19 @@ impl AppShell {
 
     /// 阻塞监督循环 (无 MainForm 场景: --live / 冒烟; Java 托盘+EDT 泵的对位)。
     /// Exit 托盘命令或通道关闭即返回 (进程退出归调用方)。
-    /// 防呆 (审查 A-W3): 生产入口必须先起 win32 线程 (托盘/overlay/热键泵);
+    /// 防呆 (审查 A-W3): 生产入口必须先起渲染线程 (托盘/overlay/热键泵);
     /// 未 spawn 直接 run = 无托盘无窗口且 TrayCommand::Exit 永不可达 (通道不关
-    /// 则循环不退) — 此处对未启动的 win32 线程自动补 spawn。
+    /// 则循环不退) — 此处对未启动的渲染线程自动补 spawn。
     /// spawn 失败 = Exit 兜底 (审查 B-W4): 线程创建失败/核缺失属 OS 级资源问题;
     /// 若仅告警继续, 监督循环无退出面 (本 shell 自持 main_event_tx, 通道恒不
     /// Disconnected) → 只能外部 kill。无桌面环境的冒烟不受影响: 托盘/窗口创建
     /// 失败在线程**内部**逐项降级 (warn + 继续跑), 走不到本兜底。
     pub fn run_supervisor(mut self) {
-        if self.win32.is_none() && self.ui_cmd_rx.is_some() {
-            if let Err(e) = self.spawn_win32_thread() {
+        if self.render.is_none() && self.ui_cmd_rx.is_some() {
+            if let Err(e) = self.spawn_render_thread() {
                 logger::error(
                     "AppShell",
-                    &format!("win32 线程启动失败, 无监督退出面, 转退出: {}", e),
+                    &format!("渲染线程启动失败, 无监督退出面, 转退出: {}", e),
                 );
                 self.exit_requested = true;
             }
@@ -650,14 +650,14 @@ impl AppShell {
     /// Controller 的 Service 驱动状态机推进。
     /// 返回: Exit = 进程退出请求 (EndGame/托盘 Exit); MainFormRequested = 托盘
     /// Activate 已重建核并请求弹设置窗 (主循环回相 A 重开 iced 窗口)。
-    /// win32 线程未启动时自动补 spawn (run_supervisor 同款防呆; spawn 失败转
+    /// 渲染线程未启动时自动补 spawn (run_supervisor 同款防呆; spawn 失败转
     /// Exit 兜底, 见其注释 — 无退出面的悬空监督不可达)。
     pub fn run_supervisor_phase(&mut self) -> SupervisorOutcome {
-        if self.win32.is_none() && self.ui_cmd_rx.is_some() {
-            if let Err(e) = self.spawn_win32_thread() {
+        if self.render.is_none() && self.ui_cmd_rx.is_some() {
+            if let Err(e) = self.spawn_render_thread() {
                 logger::error(
                     "AppShell",
-                    &format!("win32 线程启动失败, 无监督退出面, 转退出: {}", e),
+                    &format!("渲染线程启动失败, 无监督退出面, 转退出: {}", e),
                 );
                 self.exit_requested = true;
             }
@@ -682,7 +682,7 @@ impl AppShell {
         }
     }
 
-    /// 全量收尾: 旧核五步 → win32 线程 (先托盘 NIM_DELETE 后窗口, tray.rs 退出
+    /// 全量收尾: 旧核五步 → 渲染线程 (先托盘 NIM_DELETE 后窗口, tray.rs 退出
     /// 契约) → 防抖线程 → 热键钩子。幂等 (controller 置 None / 各 join take 判空),
     /// Drop 兜底与显式调用双保险。
     pub fn shutdown(&mut self) {
@@ -691,7 +691,7 @@ impl AppShell {
         }
         self.controller = None;
         self.send_ui(UiCommand::Shutdown);
-        if let Some(j) = self.win32.take() {
+        if let Some(j) = self.render.take() {
             let _ = j.join();
         }
         self.debounce.shutdown();
@@ -703,9 +703,9 @@ impl AppShell {
 
 impl Drop for AppShell {
     /// 兜底收尾 (审查 A-W4/B-W1): 不经 shutdown() 直接 drop (W2 iced 外部驱动
-    /// 路径可能) 时, win32/防抖线程不泄漏、热键钩子必卸 — shutdown 幂等, 与
+    /// 路径可能) 时, 渲染/防抖线程不泄漏、热键钩子必卸 — shutdown 幂等, 与
     /// run_supervisor 尾部的显式调用双保险, 二次调用全部空转。
-    /// (win32 线程唯一出口是 UiCommand::Shutdown; 若仅 drop 发送端, 线程的
+    /// (渲染线程唯一出口是 UiCommand::Shutdown; 若仅 drop 发送端, 线程的
     /// try_recv 恒 Disconnected 但循环仍 10ms 空转 — 必须显式 send。)
     fn drop(&mut self) {
         self.shutdown();

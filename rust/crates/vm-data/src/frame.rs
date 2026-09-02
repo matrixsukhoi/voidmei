@@ -1,5 +1,5 @@
 //! 不可变帧快照 (重构波4): Service 线程每周期末构建 `Arc<Frame>` 经
-//! [`FrameStore`] 原子发布; 跨线程读者 (win32 渲染/语音/主线程) 零锁取整帧。
+//! [`FrameStore`] 原子发布; 跨线程读者 (渲染线程/语音/主线程) 零锁取整帧。
 //! 取代原 `Arc<RwLock<ServiceData>>` 的共享读面 — 锁争用与持锁跨计算段
 //! (feed_overlays_live 的 B-W2 备案) 一并消亡; Service 线程内部仍持
 //! ServiceData 短锁读写 (单写者, 竞态面不变)。
@@ -186,7 +186,7 @@ impl FormulaView for Frame {
 pub struct FrameStore {
     inner: RwLock<Option<Arc<Frame>>>,
     seq: std::sync::atomic::AtomicU64,
-    /// fatal_warn 跨线程写点 (VoiceWarning set_fatal_warn, win32 线程写;
+    /// fatal_warn 跨线程写点 (VoiceWarning set_fatal_warn, 渲染线程写;
     /// Service 帧发布时镜像入 Frame)
     fatal_warn: std::sync::atomic::AtomicBool,
     /// start_time 跨线程写点 (Controller openpad, 主线程写; Service 每帧读)

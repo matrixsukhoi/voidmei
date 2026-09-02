@@ -1,13 +1,13 @@
-//! win32 线程/overlay 注册喂入/配置键表校验 (波11 自 tests.rs 分片)
+//! 渲染线程/overlay 注册喂入/配置键表校验 (波11 自 tests.rs 分片)
 
 use super::*;
 
-/// win32 线程: 注册不 panic → 刷新命令消费 → Shutdown → join 干净退出
+/// 渲染线程: 注册不 panic → 刷新命令消费 → Shutdown → join 干净退出
 /// (JoinHandle 无泄漏; 真实 Win32 窗口/托盘创建, 无桌面环境时托盘缺失仍可跑)
 #[test]
-fn win32_thread_shutdown_joins_cleanly() {
+fn render_thread_shutdown_joins_cleanly() {
     let mut shell = fixture();
-    shell.spawn_win32_thread().expect("win32 线程启动");
+    shell.spawn_render_thread().expect("渲染线程启动");
     // Preview 态 + 有效世代号 → 全量刷新命令 (守卫放行路径, 不 stale)
     *shell.shared.state.write().unwrap() = ControllerState::Preview;
     let gen = shell.shared.preview_generation.load(Ordering::SeqCst);
@@ -23,21 +23,21 @@ fn win32_thread_shutdown_joins_cleanly() {
     });
     std::thread::sleep(Duration::from_millis(60));
     shell.send_ui(UiCommand::Shutdown);
-    let join = shell.win32.take().unwrap();
-    assert!(join.join().is_ok(), "win32 线程应干净退出");
-    assert!(shell.win32.is_none());
+    let join = shell.render.take().unwrap();
+    assert!(join.join().is_ok(), "渲染线程应干净退出");
+    assert!(shell.render.is_none());
 }
 
 // ------------------------------------------------------------------
 // 组装接线 (本批新增面)
 // ------------------------------------------------------------------
 
-/// win32 渲染帧计数: 预览刷新打开 overlay 后 present 帧数递增
+/// 渲染线程帧计数: 预览刷新打开 overlay 后 present 帧数递增
 /// (--mock-smoke 核心断言的库内等价; 字体目录钉仓库根, 见 fixture 注)
 #[test]
-fn win32_render_frames_advance_with_active_overlays() {
+fn render_frames_advance_with_active_overlays() {
     let mut shell = fixture();
-    shell.spawn_win32_thread().expect("win32 线程启动");
+    shell.spawn_render_thread().expect("渲染线程启动");
     // Preview 态 + 有效世代号 → 全量刷新 (MiniHUD crosshairSwitch=true 激活)
     *shell.shared.state.write().unwrap() = ControllerState::Preview;
     let gen = shell.shared.preview_generation.load(Ordering::SeqCst);
@@ -49,7 +49,7 @@ fn win32_render_frames_advance_with_active_overlays() {
     std::thread::sleep(Duration::from_millis(800));
     let frames = shell.shared.render_frames.load(Ordering::SeqCst);
     shell.send_ui(UiCommand::Shutdown);
-    let join = shell.win32.take().unwrap();
+    let join = shell.render.take().unwrap();
     assert!(join.join().is_ok());
     assert!(
         frames > 0,
@@ -60,7 +60,7 @@ fn win32_render_frames_advance_with_active_overlays() {
 /// 逐 overlay present 计数: 游戏模式全开 (open_all) 后 6 注册键全部 present>0
 /// (--mock-smoke 断言 3 的库内等价; 字体目录钉仓库根, 见 fixture 注)
 #[test]
-fn win32_overlay_present_counts_per_registered_overlay() {
+fn render_overlay_present_counts_per_registered_overlay() {
     let all_on_cfg = fixture_cfg(
         "(panel \"T\" :visible true\n\
              \x20 (item \"a\" :type switch :target \"crosshairSwitch\" :value true)\n\
@@ -72,7 +72,7 @@ fn win32_overlay_present_counts_per_registered_overlay() {
             ",
     );
     let mut shell = fixture_full(30, all_on_cfg);
-    shell.spawn_win32_thread().expect("win32 线程启动");
+    shell.spawn_render_thread().expect("渲染线程启动");
     shell.send_ui(UiCommand::OpenAllOverlays);
     // 泵消费 (10ms 节拍) + 6 窗物化 + 至少数个 50ms 渲染节拍
     std::thread::sleep(Duration::from_millis(1200));
@@ -83,7 +83,7 @@ fn win32_overlay_present_counts_per_registered_overlay() {
         .expect("overlay_present 锁中毒")
         .clone();
     shell.send_ui(UiCommand::Shutdown);
-    let join = shell.win32.take().unwrap();
+    let join = shell.render.take().unwrap();
     assert!(join.join().is_ok());
     for id in [
         "enableEngineControl",
@@ -120,7 +120,7 @@ fn register_live_overlays_nine_window_entries() {
     let shell = fixture();
     let lang = Rc::new(Lang::init_lang());
     let inputs = test_overlay_inputs();
-    let params = Rc::new(RefCell::new(vm_overlay::ReinitParams::from(&inputs)));
+    let params = Rc::new(RefCell::new(vm_overlay::platform::reinit::ReinitParams::from(&inputs)));
     register_live_overlays(
         &mut host,
         &mut handles,
@@ -194,46 +194,46 @@ fn feed_overlays_live_updates_all_handles() {
     let fonts = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../fonts");
     let lang = Rc::new(Lang::init_lang());
     let inputs = test_overlay_inputs();
-    let (h_mini, _) = vm_overlay::minihud_overlay_spec(
+    let (h_mini, _) = vm_overlay::overlays::minihud::minihud_overlay_spec(
         false,
         50,
         &inputs.hud,
         1.0,
         &fonts.join("sarasa-mono-sc-bold.ttf"),
-        &Rc::new(RefCell::new(vm_overlay::ReinitParams::default())),
+        &Rc::new(RefCell::new(vm_overlay::platform::reinit::ReinitParams::default())),
     )
     .unwrap();
-    let (h_power, _) = vm_overlay::power_info_overlay_spec(
+    let (h_power, _) = vm_overlay::overlays::power_info::power_info_overlay_spec(
         &fonts,
-        &Rc::new(RefCell::new(vm_overlay::ReinitParams::from(&inputs))),
+        &Rc::new(RefCell::new(vm_overlay::platform::reinit::ReinitParams::from(&inputs))),
     )
     .unwrap();
-    let (h_engine, _) = vm_overlay::engine_control_overlay_spec(
+    let (h_engine, _) = vm_overlay::overlays::engine_control::engine_control_overlay_spec(
         &fonts,
         Rc::clone(&lang),
-        &Rc::new(RefCell::new(vm_overlay::ReinitParams {
+        &Rc::new(RefCell::new(vm_overlay::platform::reinit::ReinitParams {
             service_loop_interval_ms: 50,
             ..Default::default()
         })),
     )
     .unwrap();
-    let (h_gear, _) = vm_overlay::gear_flaps_overlay_spec(
+    let (h_gear, _) = vm_overlay::overlays::gear_flaps::gear_flaps_overlay_spec(
         &fonts,
-        &Rc::new(RefCell::new(vm_overlay::ReinitParams::default())),
+        &Rc::new(RefCell::new(vm_overlay::platform::reinit::ReinitParams::default())),
     )
     .unwrap();
-    let (h_att, _) = vm_overlay::attitude_overlay_spec(&Rc::new(RefCell::new(
-        vm_overlay::ReinitParams::default(),
+    let (h_att, _) = vm_overlay::overlays::attitude::attitude_overlay_spec(&Rc::new(RefCell::new(
+        vm_overlay::platform::reinit::ReinitParams::default(),
     )))
     .unwrap();
-    let (h_cs, _) = vm_overlay::control_surfaces_overlay_spec(
+    let (h_cs, _) = vm_overlay::overlays::control_surfaces::control_surfaces_overlay_spec(
         &fonts,
-        &Rc::new(RefCell::new(vm_overlay::ReinitParams::default())),
+        &Rc::new(RefCell::new(vm_overlay::platform::reinit::ReinitParams::default())),
     )
     .unwrap();
-    let (h_fi, _) = vm_overlay::flight_info_overlay_spec(
+    let (h_fi, _) = vm_overlay::overlays::flight_info::flight_info_overlay_spec(
         &fonts,
-        &Rc::new(RefCell::new(vm_overlay::ReinitParams::from(&inputs))),
+        &Rc::new(RefCell::new(vm_overlay::platform::reinit::ReinitParams::from(&inputs))),
     )
     .unwrap();
     let handles = OverlayHandles {
@@ -339,9 +339,9 @@ fn feed_overlays_live_swallows_malformed_frame() {
     let fonts = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../fonts");
     let lang = Lang::init_lang();
     // 只接 PowerInfo (get_pitch 空 Vec panic 点; 其余 handle 缺省 None)
-    let (h_power, _) = vm_overlay::power_info_overlay_spec(
+    let (h_power, _) = vm_overlay::overlays::power_info::power_info_overlay_spec(
         &fonts,
-        &Rc::new(RefCell::new(vm_overlay::ReinitParams::from(&test_overlay_inputs()))),
+        &Rc::new(RefCell::new(vm_overlay::platform::reinit::ReinitParams::from(&test_overlay_inputs()))),
     )
     .unwrap();
     let handles = OverlayHandles {
@@ -460,19 +460,19 @@ fn overlay_sections_hit_ui_layout_cfg() {
     }
 }
 
-/// win32 CloseAllOverlays 数据面重置 (reset_handles_preview_values 接线面):
+/// 渲染线程 CloseAllOverlays 数据面重置 (reset_handles_preview_values 接线面):
 /// 四个 reinit 闭包不重建数据态的 overlay, live 残留 → preview 静态初值。
-/// 语义断言在 vm-overlay 各单测, 此处锁 win32 处理点的调用面 (托盘 live→preview
+/// 语义断言在 vm-overlay 各单测, 此处锁渲染线程处理点的调用面 (托盘 live→preview
 /// 后重开的预览窗不得显示上次 live 数据 — TODO 项根治的回归面)
 #[test]
 fn reset_handles_preview_values_clears_live_residue() {
     let fonts = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../fonts");
-    let cell = Rc::new(RefCell::new(vm_overlay::ReinitParams::default()));
-    let (power, _) = vm_overlay::power_info_overlay_spec(&fonts, &cell).unwrap();
-    let (flight, _) = vm_overlay::flight_info_overlay_spec(&fonts, &cell).unwrap();
-    let (axis, _) = vm_overlay::control_surfaces_overlay_spec(&fonts, &cell).unwrap();
-    let (att, _) = vm_overlay::attitude_overlay_spec(&cell).unwrap();
-    let (fm_unpacked, _) = vm_overlay::fm_unpacked_data_overlay_spec(
+    let cell = Rc::new(RefCell::new(vm_overlay::platform::reinit::ReinitParams::default()));
+    let (power, _) = vm_overlay::overlays::power_info::power_info_overlay_spec(&fonts, &cell).unwrap();
+    let (flight, _) = vm_overlay::overlays::flight_info::flight_info_overlay_spec(&fonts, &cell).unwrap();
+    let (axis, _) = vm_overlay::overlays::control_surfaces::control_surfaces_overlay_spec(&fonts, &cell).unwrap();
+    let (att, _) = vm_overlay::overlays::attitude::attitude_overlay_spec(&cell).unwrap();
+    let (fm_unpacked, _) = vm_overlay::overlays::fm_unpacked::fm_unpacked_data_overlay_spec(
         &fonts,
         1080,
         &cell,
@@ -525,7 +525,7 @@ fn reset_handles_preview_values_clears_live_residue() {
         .borrow_mut()
         .update(v);
     handles.power_info.as_ref().unwrap().borrow_mut().last_refresh_time = 999;
-    // 重置 (win32 CloseAllOverlays 处理点同款)
+    // 重置 (渲染线程 CloseAllOverlays 处理点同款)
     reset_handles_preview_values(&handles);
     // 四路断言: 全部回 preview 态
     {
@@ -594,7 +594,7 @@ fn fm_unpacked_interest_keys_verbatim_java_controller() {
     );
 }
 
-/// FM show* 配置键快照: 构造期全量落 + CONFIG_CHANGED 逐键同步 (win32 线程
+/// FM show* 配置键快照: 构造期全量落 + CONFIG_CHANGED 逐键同步 (渲染线程
 /// generate_lines 的跨线程读面; voice_config 同族)
 #[test]
 fn fm_field_config_snapshot_syncs_config_changed() {

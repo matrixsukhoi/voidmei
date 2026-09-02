@@ -30,7 +30,7 @@
 //!   Drop 按任务契约卸钩收线程。
 //! - PORT(D8 拓扑偏差, 批十四组装时处理): 本实现固化自管独立 "HotkeyHook"
 //!   线程 + 私有消息泵 (对齐 jnativehook 独立钩子线程语义); D8 规定热键
-//!   WH_KEYBOARD_LL 最终并入与 overlay/托盘共享的 win32 单泵线程。组装时
+//!   WH_KEYBOARD_LL 最终并入与 overlay/托盘共享的渲染单泵线程。组装时
 //!   需提供在外部线程装钩的入口或豁免并记录。
 
 use std::collections::HashMap;

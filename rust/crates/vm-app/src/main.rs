@@ -7,8 +7,8 @@
 //!    cfg 键 debugLog (`read_debug_log_flag`); debugLog 重定向
 //!    (output.log/error.log, :550-553) 同源
 //! 2. Lang.initLang + 端口/屏幕探测    → `AppShell::new` → `Env::probe`
-//! 3. initFont (字体)                 → Env.fonts_dir → win32 线程 (D8: 字体→win32)
-//! 4. initSystemTray                  → win32 线程内 (D8 单泵共享)
+//! 3. initFont (字体)                 → Env.fonts_dir → 渲染线程 (D8: 字体→渲染线程)
+//! 4. initSystemTray                  → 渲染线程内 (D8 单泵共享)
 //! 5. SwingUtilities.invokeLater(EDT): initWebLaf + `new Controller(true)` + checkUpdate
 //!    → 主线程组装: rebuild_controller(true) (AppShell::new 内) + web MainForm;
 //!    checkUpdate → 前端 (web 就绪后异步一次, web/src/dialogs.tsx 的
@@ -110,11 +110,11 @@ fn desktop_main(debug: bool) -> i32 {
             return 1;
         }
     };
-    // D8: win32 线程先行 (托盘 + overlay host + 热键泵)。预览模式全开语义 =
+    // D8: 渲染线程先行 (托盘 + overlay host + 热键泵)。预览模式全开语义 =
     // UI_READY → Preview() → RefreshPreviews 命令由主循环泵触发,
     // 对齐 Java autoStartGameMode=false 默认 (MainForm 先行, 预览窗随后)
-    if let Err(e) = shell.spawn_win32_thread() {
-        logger::error("App", &format!("win32 线程启动失败: {e}"));
+    if let Err(e) = shell.spawn_render_thread() {
+        logger::error("App", &format!("渲染线程启动失败: {e}"));
         return 1;
     }
 
@@ -449,7 +449,7 @@ fn live_main(debug: bool, port_override: Option<u16>) -> i32 {
             return 1;
         }
     };
-    // 阻塞监督循环 (内含 win32 自动补启防呆; Exit 托盘命令/通道关闭退出)
+    // 阻塞监督循环 (内含渲染线程自动补启防呆; Exit 托盘命令/通道关闭退出)
     shell.run_supervisor();
     0
 }
@@ -507,9 +507,9 @@ fn mock_smoke_main(debug: bool) -> i32 {
             return 1;
         }
     };
-    // win32 线程 (overlay host + 托盘); 失败如实报错 (帧断言必依赖它)
-    if let Err(e) = shell.spawn_win32_thread() {
-        println!("[mock-smoke] FAIL: win32 线程启动失败: {e}");
+    // 渲染线程 (overlay host + 托盘); 失败如实报错 (帧断言必依赖它)
+    if let Err(e) = shell.spawn_render_thread() {
+        println!("[mock-smoke] FAIL: 渲染线程启动失败: {e}");
         drop(shell);
         stop_mock(&mut mock, SMOKE_PORT);
         return 1;
@@ -536,7 +536,7 @@ fn mock_smoke_main(debug: bool) -> i32 {
             && f.s_indic.as_ref().is_some_and(|i| i.flag)
             && f.player_live;
     }
-    // 断言 2: overlay present 帧数 > 0 (win32 渲染节拍计数, 见 ControllerShared 注)
+    // 断言 2: overlay present 帧数 > 0 (渲染线程节拍计数, 见 ControllerShared 注)
     let frames = shell.shared.render_frames.load(std::sync::atomic::Ordering::SeqCst);
     // 断言 3: 全部注册 overlay 逐窗 present>0 (QA 冒烟判据; drop 前取走快照)
     let overlay_counts = shell
@@ -546,7 +546,7 @@ fn mock_smoke_main(debug: bool) -> i32 {
         .expect("overlay_present 锁中毒")
         .clone();
 
-    // 清理: 先收应用 (Drop = 五步销毁 + win32 join + 防抖 + 热键), 再停 mock
+    // 清理: 先收应用 (Drop = 五步销毁 + 渲染线程 join + 防抖 + 热键), 再停 mock
     drop(shell);
     stop_mock(&mut mock, SMOKE_PORT);
 

@@ -4,8 +4,8 @@
 //! **为什么是全局** (§2.9 禁裸全局的豁免备案): Java 原文即全局静态, 组件
 //! (gauge/bars/rows/renderers ~185 引用点) 直接读; 机械保真优先, Rust 以
 //! `OnceLock<RwLock<GlobalColors>>` 收敛为受控全局 — 写点仅两处:
-//! win32 线程启动快照注入 + UiCommand::SetGlobalColors (WYSIWYG 色变),
-//! 读点全在渲染路径 (win32 线程 50ms 节拍内)。
+//! 渲染线程启动快照注入 + UiCommand::SetGlobalColors (WYSIWYG 色变),
+//! 读点全在渲染路径 (渲染线程 50ms 节拍内)。
 //!
 //! 初始值 = Java 静态字段初始值 ([`GlobalColors::JAVA_DEFAULT`]) — cfg
 //! (ui_layout.cfg:379-383 fontNum/fontLabel/fontUnit/fontWarn/fontShade) 经
@@ -27,7 +27,7 @@ static GLOBAL: OnceLock<RwLock<GlobalColors>> = OnceLock::new();
 /// overlay 变硬边。曾与五色同病: 生产渲染 6 处钉死 true, 审查轮 1-A 修复
 static GLOBAL_AA: OnceLock<RwLock<bool>> = OnceLock::new();
 
-/// 注入运行时色 (win32 线程启动快照 / WYSIWYG 色变命令)
+/// 注入运行时色 (渲染线程启动快照 / WYSIWYG 色变命令)
 pub fn set(c: GlobalColors) {
     *global().write().expect("global_colors 锁中毒") = c;
 }

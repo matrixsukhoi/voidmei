@@ -1,6 +1,6 @@
 //! Service 数据快照 (Java Service 实例字段区 + 取值视图)。
 //! 持有方: service_loop 的 RwLock<ServiceData> — Service 线程内部短锁读写
-//! (重构波4); 跨线程读者 (win32 渲染/语音/主线程) 一律走 frame.rs 的
+//! (重构波4); 跨线程读者 (渲染线程/语音/主线程) 一律走 frame.rs 的
 //! FrameStore 不可变帧, 不再接触本锁。
 //! 取数唯一接口 = impl FormulaView (var_value 短名; 公式值优先, 其余直抵源头)。
 //! 批2 起不存格式化字符串 (显示文本由消费侧就地格式化)。
@@ -147,7 +147,7 @@ pub struct ServiceData {
 
     /// 公式系统一帧求值结果 (公式名→槽号的定位见 CompiledFormulaSet.slots;
     /// 无 Java 对应, 公式系统设计 doc/formula_system_design.md §2 裁决 A1/A2:
-    /// Service 线程单点求值, win32 线程经本 RwLock 只读)。
+    /// Service 线程单点求值, 渲染线程经本 RwLock 只读)。
     pub formula_values: vm_core::formula::FormulaResults,
     /// 公式名→结果槽 (formula_step 与 values 同步写; overlay 绑定解析用)
     pub formula_slots: std::sync::Arc<std::collections::HashMap<String, u16>>,

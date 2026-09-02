@@ -17,7 +17,7 @@
 //!
 //! **线程亲和**: `pump()` 与 `Drop` 都必须在创建线程调用 — `PeekMessageW` 只搜调用
 //! 线程的消息队列 (跨线程泵则托盘回调永不分派); `DestroyWindow` 不能销毁其他线程
-//! 创建的窗口 (跨线程 Drop 则窗口+WNDPROC 可达性泄漏)。D8 拓扑下托盘归单 win32 泵线程拥有。
+//! 创建的窗口 (跨线程 Drop 则窗口+WNDPROC 可达性泄漏)。D8 拓扑下托盘归单渲染泵线程拥有。
 
 #![allow(non_snake_case)]
 
@@ -457,7 +457,7 @@ pub struct TrayIcon {
 }
 
 // Send 允许跨线程移动, 但线程亲和仍在: pump()/Drop 必须回到创建线程调用
-// (见模块文档; D8 拓扑下托盘全程留在单 win32 泵线程)
+// (见模块文档; D8 拓扑下托盘全程留在单渲染泵线程)
 unsafe impl Send for TrayIcon {}
 
 /// 窗口类注册 (多次注册同类: 已存在视为成功 — 对齐 win.rs 先例)。

@@ -4,8 +4,9 @@
 use vm_core::config::configuration_service::GlobalColors;
 
 /// UI→shell 命令。**按变体有唯一属主** (见各变体注释); 主线程侧经
-/// [`crate::AppShell::dispatch`] 路由, win32 侧变体由发送方经 [`crate::AppShell::send_ui`]
-/// 受控直达 (E9a: 通道发送端私有, 禁外部绕过 dispatch 裸发)。
+/// [`crate::AppShell::dispatch`] 路由, 渲染线程侧变体由发送方经
+/// [`crate::AppShell::send_ui`] 受控直达 (E9a: 通道发送端私有,
+/// 禁外部绕过 dispatch 裸发)。
 #[derive(Debug, Clone, PartialEq)]
 pub enum UiCommand {
     /// MainForm.confirm "开始游戏" (MainForm.java:265-278) — **主线程属主**
@@ -14,42 +15,43 @@ pub enum UiCommand {
     /// MainForm 底部"结束游戏"按钮 (MainForm.java:92-98 保存 + System.exit(0)) —
     /// **主线程属主** (退出经 exit_requested, 见 dispatch 处理注)
     EndGame,
-    /// Java OverlayManager.openAll (Controller.openpad, Controller.java:363) — win32 属主
+    /// Java OverlayManager.openAll (Controller.openpad, Controller.java:363) — 渲染线程属主
     OpenAllOverlays,
-    /// Java OverlayManager.closeAll (closepad/endPreview/stop 步1) — win32 属主
+    /// Java OverlayManager.closeAll (closepad/endPreview/stop 步1) — 渲染线程属主
     CloseAllOverlays,
-    /// WYSIWYG 刷新 (Java refreshPreviews(changedKey)/refreshAllPreviews) — win32 属主。
-    /// `generation` = 发送时 previewGeneration 快照, win32 消费侧做防过期守卫
+    /// WYSIWYG 刷新 (Java refreshPreviews(changedKey)/refreshAllPreviews) — 渲染线程属主。
+    /// `generation` = 发送时 previewGeneration 快照, 渲染线程消费侧做防过期守卫
     /// (D8 修正★2: Java 在 ConfigDebounce 线程直碰 Swing 组件, Rust 改在本线程刷新)。
     /// `changed_key`: None = 全量刷新 (refreshAllPreviews / ACTION_RESET_COMPLETED)。
     RefreshPreviews {
         changed_key: Option<String>,
         generation: u64,
     },
-    /// Java OverlayManager.reinitActiveOverlays (非 PREVIEW 态配置变更) — win32 属主
+    /// Java OverlayManager.reinitActiveOverlays (非 PREVIEW 态配置变更) — 渲染线程属主
     ReinitActiveOverlays,
     /// WYSIWYG reinit 参数直送 (PORT 新增命令, 五色直送同款模式): 主线程
-    /// CONFIG_CHANGED 时即时读配置重建 [`vm_overlay::ReinitParams`] (纯值 Send),
-    /// 先于 RefreshPreviews/ReinitActiveOverlays 入队 — win32 线程存入线程局部
-    /// 参数仓供各 spec 工厂 reinit 闭包读取 (配置 !Send, 值随命令进线程) — win32 属主
+    /// CONFIG_CHANGED 时即时读配置重建 [`vm_overlay::platform::reinit::ReinitParams`]
+    /// (纯值 Send), 先于 RefreshPreviews/ReinitActiveOverlays 入队 — 渲染线程存入
+    /// 线程局部参数仓供各 spec 工厂 reinit 闭包读取 (配置 !Send, 值随命令进线程)
+    /// — 渲染线程属主
     /// Box: 参数包 ~272B 远大于其余变体, 装箱拉平枚举尺寸 (clippy large_enum_variant)
-    ReinitOverlays { params: Box<vm_overlay::ReinitParams> },
+    ReinitOverlays { params: Box<vm_overlay::platform::reinit::ReinitParams> },
     /// 游戏失焦隐藏全部 overlay (Java FocusMonitor → hideAllOverlays;
-    /// 不销毁实例) — win32 属主
+    /// 不销毁实例) — 渲染线程属主
     HideAllOverlays,
-    /// 游戏复焦恢复 (Java showAllOverlays) — win32 属主
+    /// 游戏复焦恢复 (Java showAllOverlays) — 渲染线程属主
     ShowAllOverlays,
     /// AA 开关更新 (cfg AAEnable — Java 同开同关 graph/text 两 hint, Rust 仓单值;
-    /// 直读 cfg 即时值, 配置 !Send) — win32 属主
+    /// 直读 cfg 即时值, 配置 !Send) — 渲染线程属主
     SetAa(bool),
     /// 全局五色更新 (Java: 改色 → CONFIG_CHANGED(font 前缀全局键) → 刷新;
-    /// Rust 配置 !Send, 色值随命令直送 win32 线程的 global_colors 仓) — win32 属主
+    /// Rust 配置 !Send, 色值随命令直送渲染线程的 global_colors 仓) — 渲染线程属主
     SetGlobalColors(GlobalColors),
-    /// win32 线程退出 (host 停泵 + 托盘 NIM_DELETE)
+    /// 渲染线程退出 (host 停泵 + 托盘 NIM_DELETE)
     Shutdown,
 }
 
-/// 托盘动作 (win32 线程 AppTrayHandler → 主线程监督循环)
+/// 托盘动作 (渲染线程 AppTrayHandler → 主线程监督循环)
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TrayCommand {
     /// 左键/"设置" (Application.java:251-273: ctr.stop(); ctr = new Controller())
@@ -82,7 +84,7 @@ pub enum MainEvent {
     },
     /// 托盘动作
     Tray(TrayCommand),
-    /// overlay 位置存档 (win32 线程拖拽松手/销毁链 → 主线程落盘)。
+    /// overlay 位置存档 (渲染线程拖拽松手/销毁链 → 主线程落盘)。
     /// section = 配置组标题 (Java OverlaySettings 按 sectionName 查 GroupConfig),
     /// 坐标归一化 (Java saveWindowPosition 的 gc.x/y 量纲)
     PositionSaved { section: String, x: f64, y: f64 },

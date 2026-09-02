@@ -355,7 +355,7 @@ mod tests {
         ));
         std::fs::write(&cfg, cfg_text).unwrap();
         config.load_layout(cfg.to_str().unwrap());
-        let (hotkey, hotkey_rx) = vm_overlay::HotkeyManager::with_channel();
+        let (hotkey, hotkey_rx) = vm_overlay::platform::hotkey::HotkeyManager::with_channel();
         let env = crate::Env::probe(&vm_core::lang::Lang::init_lang(), false);
         Rc::new(RefCell::new(AppShell::with_parts(ShellParts {
             env,

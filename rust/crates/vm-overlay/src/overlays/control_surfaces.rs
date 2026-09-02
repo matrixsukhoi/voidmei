@@ -498,7 +498,7 @@ pub type ControlSurfacesHandle = Rc<RefCell<ControlSurfacesOverlay>>;
 /// host 无边框层 — spec 尺寸 = 内容区 content_width×content_height (draw 的画布
 /// 断言钉内容尺寸, Swing 裁剪语义)。
 /// PORT(数据门控): Java init(S) 置 xs!=null (has_service) 才更新数据、initPreview
-/// 置 false; Rust 单实例形态下由 win32 命令处理点按**会话窗口形态**切换 has_service
+/// 置 false; Rust 单实例形态下由渲染线程命令处理点按**会话窗口形态**切换 has_service
 /// (app_shell OpenAllOverlays→true / CloseAllOverlays→false, 对位 init(S)/实例销毁;
 /// 喂入点 feed_overlays_live 幂等置 true) — 初值随 init_preview 为 false。
 /// PORT(WYSIWYG): reinit 闭包 = reinit_config 的几何段 (字号/edge → 宽高派生) +

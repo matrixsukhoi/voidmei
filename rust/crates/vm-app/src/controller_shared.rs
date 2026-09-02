@@ -20,26 +20,26 @@ pub const FLIGHT_SILENT_EXIT_MS: i64 = 2000;
 pub struct ControllerShared {
     /// Java Controller.java:42 `AtomicLong previewGeneration`
     pub preview_generation: AtomicU64,
-    /// Java `public ControllerState State` — 主线程写, win32 线程读 (stale 守卫)。
+    /// Java `public ControllerState State` — 主线程写, 渲染线程读 (stale 守卫)。
     /// Java 无锁靠 EDT 单线程; Rust 以 RwLock 承载跨线程读
     pub state: RwLock<ControllerState>,
     /// Java loadAppCheck 写入的轮询间隔组 (ConfigurationService.load_app_check 目标)
     pub intervals: Mutex<ControllerIntervals>,
     /// host.overlays_hidden 的跨线程镜像 (Java AlwaysOnTopCoordinator.
-    /// overlaysHidden volatile — FocusMonitor 经通道桥查询; win32 处理
+    /// overlaysHidden volatile — FocusMonitor 经通道桥查询; 渲染线程处理
     /// Hide/Show 命令时与 host 同步置位)
     pub overlays_hidden: AtomicBool,
     /// 低频杂项标志 (showStatus/sessionAircraftType/currentFmHotkeyCode)
     pub flags: Mutex<ControllerFlags>,
     /// 游戏模式 Service 数据快照句柄 (start() 建 / stop() 清;
-    /// win32 线程 live 喂入 + 主线程 tick 驱动读)。
+    /// 渲染线程 live 喂入 + 主线程 tick 驱动读)。
     /// 重构波4: 类型从 Arc<RwLock<ServiceData>> (共享锁读) 改为帧仓 —
     /// 读者零锁取不可变整帧, feed_overlays_live 持锁跨计算的 B-W2 备案消亡
     pub live: RwLock<Option<Arc<vm_data::frame::FrameStore>>>,
     /// OverlayContext.isPreviewMode 的跨线程替身 (Java: forPreviewMode/forGameMode
     /// 两种 ctx 构建)。语义 = **会话窗口形态** (审查 blocker 收口): openpad→false /
     /// CloseAll/重建核→true; RefreshPreviews 仅在激活探测期临时置 true (对位 Java
-    /// refreshPreviews 传 forPreviewMode ctx, 见 win32 命令处理点 PORT 注)。
+    /// refreshPreviews 传 forPreviewMode ctx, 见渲染线程命令处理点 PORT 注)。
     pub overlay_ctx_preview: AtomicBool,
     /// 最后一次 FlightDataEvent 到达时间 (ms epoch; 0 = 本核会话未见)。
     /// PORT(B1 补偿): vm-data 不外泄原始串 (http_client 轮询线程独占),
@@ -50,7 +50,7 @@ pub struct ControllerShared {
     /// [`FLIGHT_SILENT_EXIT_MS`] 且 flags/playerLive 陈旧真值 → 判定会话结束。
     /// vm-data 后续波次补 raw_strings_valid 外泄后回收本补偿。
     pub last_flight_event_ms: AtomicI64,
-    /// overlay present 帧数 (win32 线程 50ms 渲染节拍, 活跃 overlay 存在时 +1;
+    /// overlay present 帧数 (渲染线程 50ms 渲染节拍, 活跃 overlay 存在时 +1;
     /// host 跨重建存活 → 跨核单调累积, 冒烟断言面)。host 无逐窗 present 计数
     /// 外泄 (render_tick Result 不分首帧/脏检查抑制), 以"活跃窗口在场的成功
     /// render_tick 次数"为 present 帧数的保守代理 (首帧必 present, 计数≥它)。
@@ -132,7 +132,7 @@ impl Default for ControllerShared {
     }
 }
 
-/// 防过期守卫 (win32 线程消费 UiCommand::RefreshPreviews 时调用)。
+/// 防过期守卫 (渲染线程消费 UiCommand::RefreshPreviews 时调用)。
 /// PORT: Java Controller.refreshPreviews 的 invokeLater 内守卫
 /// (Controller.java:894: `State != PREVIEW || previewGeneration.get() != generation`)。
 /// Java 防抖路径 (configChanged/fmChanged 任务体) 无此守卫 (★2 违规波及面),

@@ -60,7 +60,7 @@ use crate::base::java_compat::current_time_millis;
 /// crate 绑定实现; 非 Windows 平台恒 true 的 OS 分派 (Java `os.name` 判定,
 /// Rust 可用 `cfg!(windows)` 表达) 是 FocusDetector.java 本体的 A 类机械翻译,
 /// 随其自身波次落地, 不随 Windows 腿顺延 P4。
-/// 已收口: WindowsFocusDetector 已实装 (vm-overlay platform_extras.rs,
+/// 已收口: WindowsFocusDetector 已实装 (vm-overlay platform/focus.rs,
 /// GetForegroundWindow 链), impl FocusDetector 生产可用; trait 归属维持本文件。
 ///
 /// 实现合同 (锁内回调): 本方法在集成方 `Mutex<FocusMonitor>` 锁内被调

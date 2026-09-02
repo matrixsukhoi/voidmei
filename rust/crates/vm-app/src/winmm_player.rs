@@ -16,7 +16,7 @@
 //! javax.sound.sampled 的多 line 由系统混音器合成 ⇒ Java 语义 = 并发混音。
 //!
 //! ⇒ **裁决: 并发混音 → waveOut 每路独立流** (每 Clip 一个 HWAVEOUT;
-//! Vista+ 会话混音器自动合成多路)。vm-overlay platform_extras 的 PlaySound 腿
+//! Vista+ 会话混音器自动合成多路)。vm-overlay platform/sound 的 PlaySound 腿
 //! 是单通道抢占制 (P4 期 PORTING §3 "整文件播放够用" 的旧裁决), 无法满足
 //! 并发混音, 组装层弃用之; 该腿与其测试原地保留, 回收归 vm-overlay 波次备案。
 //!

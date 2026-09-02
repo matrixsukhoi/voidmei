@@ -1,4 +1,4 @@
-//! HudSettingsSnapshot — HUDSettings 的 Send 快照 (win32 线程注册面输入)。
+//! HudSettingsSnapshot — HUDSettings 的 Send 快照 (渲染线程注册面输入)。
 //! PORT(移仓备案): 原居 vm-app app_shell.rs; WYSIWYG reinit 链接通后
 //! vm-overlay 的 spec 工厂 reinit 闭包需按快照重建 MiniHUD (reinit_config 泛型
 //! S: HUDSettings 的实参), 快照随 trait 同居本仓 (vm-app 经 vm_core:: 引用)。
@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use super::{HUDSettings, OverlaySettings};
 
 /// MiniHUD 注册所需的 HUDSettings 全量值快照。
-/// PORT: ConfigurationService (!Send, Rc<SExp> 配置树) 不能进 win32 线程,
+/// PORT: ConfigurationService (!Send, Rc<SExp> 配置树) 不能进渲染线程,
 /// 主线程 (AppShell) 构建本纯值快照随 [`Win32ThreadConfig`] 送入。
 /// `get_window_x/y`: 窗口定位归 OverlayHost 位置存档 (host.materialize),
 /// ctx.window_x/y 在 Rust 端无消费点 — 返回 0 (保位)。

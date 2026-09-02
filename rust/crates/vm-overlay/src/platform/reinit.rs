@@ -2,13 +2,13 @@
 //!
 //! PORT(WYSIWYG 断链修复): Java 链 CONFIG_CHANGED → 防抖 → refreshPreviews(key) →
 //! 各 overlay `reinitConfig()` (重读配置 + 重建 Font + 重算布局 + setBounds 改窗口
-//! 尺寸)。Rust 侧配置树 !Send 不能进 win32 线程, 原实现注册面是 spawn 时一次性
+//! 尺寸)。Rust 侧配置树 !Send 不能进渲染线程, 原实现注册面是 spawn 时一次性
 //! 快照 (`OverlayInputs`), CONFIG_CHANGED 后无刷新通道 — 快照冻结, reinit 无人调,
 //! 窗口尺寸注册期定死三层断链。
 //!
-//! 修复形态 (五色直送/AA 开关同款 "配置 !Send, 值随命令进 win32 线程" 模式):
+//! 修复形态 (五色直送/AA 开关同款 "配置 !Send, 值随命令进渲染线程" 模式):
 //! 主线程 CONFIG_CHANGED 时即时读配置重建本参数包 → `UiCommand::ReinitOverlays`
-//! 送 win32 线程的线程局部仓 (`Rc<RefCell<ReinitParams>>`) → 各 spec 工厂的
+//! 送渲染线程的线程局部仓 (`Rc<RefCell<ReinitParams>>`) → 各 spec 工厂的
 //! reinit 闭包 (OverlaySpec.reinit) 读取最新值重建 state, 返回新 (w,h) 由 host
 //! resize_entry 落窗口 — 对位 Java reinitConfig 的 setBounds 副作用。
 
@@ -66,7 +66,7 @@ pub struct ReinitParams {
     pub attitude_show_aoa_limits: bool,
     /// MiniHUD 全量设置快照 (reinit_config 的 S: HUDSettings 实参)
     pub hud: HudSettingsSnapshot,
-    /// W-D cfg 驱动行定义 (主线程从 ui_layout.cfg 编译, 行开关过滤后随包进 win32)
+    /// W-D cfg 驱动行定义 (主线程从 ui_layout.cfg 编译, 行开关过滤后随包进渲染线程)
     pub flight_rows: Arc<Vec<RowDef>>,
     pub power_rows: Arc<Vec<RowDef>>,
 }

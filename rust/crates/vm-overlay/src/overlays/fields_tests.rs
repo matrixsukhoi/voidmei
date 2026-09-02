@@ -1,14 +1,19 @@
 //! Field 系 overlay 组件的域级集成测试 (波10 合并: 原 overlays_field1/field2
 //! 壳下 tests.rs 迁此 — 共享 bold/px/字体助手与跨组件用例, 先例 fm::store_tests)。
-//! 取数面 = overlays/mod.rs 的 re-export + 下方显式 use (原壳的 cfg(test) 转发)。
+//! 取数面 = 下方显式 use (波16 裁撤 mod.rs 转发面, 单一真相路径)。
 
-use super::*;
-// 原两个壳的测试转发面 (显式化)
+use super::control_surfaces::{control_surfaces_overlay_spec, ControlSurfacesOverlay, CsFonts};
+use super::engine_control::{engine_control_overlay_spec, EngineControlState};
+use super::fm_unpacked::{
+    add_lines, fm_unpacked_data_overlay_spec, generate_lines, FmUnpackedDataOverlay, FmUnpackedFeed,
+};
+use super::gauges::{GaugeBarStyle, GaugeMarker, MarkedGauge, MarkerType};
+use super::gear_flaps::{gear_flaps_overlay_spec, GearFlapsState};
+use super::power_info::{power_info_overlay_spec, PowerInfoState};
 use crate::render::canvas::PixCanvas;
 use crate::render::font::LoadedFont;
 use crate::render::palette::{aa, colors};
 use crate::render::renderers::{BosStyleRenderer, RenderContext};
-use crate::overlays::fm_unpacked::{add_lines, generate_lines};
 #[cfg(test)]
 use crate::render::primitives::butt_line;
 use vm_core::base::format::{java_format_f, java_string_format, FmtArg};
@@ -1887,7 +1892,7 @@ fn fm_unpacked_feed_game_flow() {
     .unwrap();
     host.register(spec);
     host.open_all().unwrap();
-    // 游戏形态 (win32 OpenAllOverlays 处理点同款): isPreview=false + 隐藏起步
+    // 游戏形态 (渲染线程 OpenAllOverlays 处理点同款): isPreview=false + 隐藏起步
     {
         let mut fm = h.borrow_mut();
         fm.base.is_preview = false;
@@ -1988,7 +1993,7 @@ fn fm_unpacked_field_switches_change_height() {
     );
 }
 
-/// reset_preview (win32 CloseAllOverlays → reset_handles_preview_values 调用面):
+/// reset_preview (渲染线程 CloseAllOverlays → reset_handles_preview_values 调用面):
 /// live 行残留 → 预览重开为空面板 (Java closeAll 销毁实例 + 预览工厂新建)
 #[test]
 fn fm_unpacked_reset_preview_clears_live_lines() {

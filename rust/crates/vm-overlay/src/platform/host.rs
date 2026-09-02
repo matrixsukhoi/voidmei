@@ -8,7 +8,7 @@
 //!   注册表; LIFETIMES §1.1 裁决 "Rust 若 overlay 归管理器独占拥有, Weak 注册表整体
 //!   不需要 — Drop 即注销, 僵尸窗口防护由所有权天然保证", 故只保留计数 + DialogHooks 钩子。
 //!
-//! 并发纪律 (重构波3 裁决): 本 host 恒留 win32 单线程 (全方法 &mut self 且整体
+//! 并发纪律 (重构波3 裁决): 本 host 恒留渲染单线程 (全方法 &mut self 且整体
 //! !Send, 不存在第二条访问路径; 原 Java synchronized→Mutex 的形式保真已摘除 —
 //! 槽位 `Option<OverlaySlot>` 直存)。窗口操作 (系统调用) 与 render 闭包 (第三方
 //! 代码) 不在持有任何锁的上下文执行的历史约束随摘锁自动满足。
@@ -39,7 +39,7 @@ pub type RenderFn = Box<dyn FnMut(&mut PixCanvas)>;
 /// 重建 state/字体/几何, 返回 Some((w,h)) = 新窗口尺寸 (Java setBounds 副作用,
 /// host 走 resize_entry 落窗口), None = 尺寸不变或重建失败 (闭包内自行留痕)。
 /// PORT: 闭包内部读线程局部 [`crate::platform::reinit::ReinitParams`] 仓取最新参数
-/// (配置 !Send, 值随 UiCommand 进 win32 线程 — 五色直送同款模式)
+/// (配置 !Send, 值随 UiCommand 进渲染线程 — 五色直送同款模式)
 pub type ReinitFn = Box<dyn FnMut() -> Option<(i32, i32)>>;
 
 /// 窗口工厂 (依赖注入点: 生产用 platform::create, 测试注入 mock 做事件分流/销毁序模拟)
@@ -58,7 +58,7 @@ pub trait DialogHooks {
 }
 
 /// 位置存档后端 — Java overlay 持 OverlaySettings(loadPosition/saveWindowPosition)
-/// 直读写 GroupConfig.x/y; Rust 配置树 !Send 不能进 win32 线程, host 经此 trait
+/// 直读写 GroupConfig.x/y; Rust 配置树 !Send 不能进渲染线程, host 经此 trait
 /// 解耦: 组装层注入"快照 + 回传"实现 (vm-app ChannelPositionStore), 测试注入 mock。
 /// 坐标恒归一化 (0..1) — 与 host 内存档同量纲; id→配置 section 的映射归组装层。
 pub trait PositionStore {

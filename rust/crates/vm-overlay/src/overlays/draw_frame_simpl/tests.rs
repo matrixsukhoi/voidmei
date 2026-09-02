@@ -236,7 +236,7 @@ fn dfs_feed_game_visibility_flow() {
         draw_frame_simpl_spec(std::path::Path::new("../../../fonts"), &feed_fm()).unwrap();
     host.register(spec);
     host.open_all().unwrap();
-    // 游戏形态 (win32 OpenAllOverlays 处理点同款): init = 隐藏起步
+    // 游戏形态 (渲染线程 OpenAllOverlays 处理点同款): init = 隐藏起步
     h.borrow_mut().init(None);
     let mut feed = DrawFrameSimplFeed::new();
     log.borrow_mut().clear();
@@ -299,7 +299,7 @@ fn dfs_feed_auto_exit_when_gear_up() {
     // run 线程已死: 后续 pump 短路 (Java dispose 后实例僵在 entry 直至 closeAll)
     feed.pump(&mut host, "thrustdFS", &h, 20_000, 0, None);
     assert_eq!(log.borrow().len(), 1);
-    // CloseAll 会话收尾 (win32 处理点同序: dfs_feed.reset + host.close_all —
+    // CloseAll 会话收尾 (渲染线程处理点同序: dfs_feed.reset + host.close_all —
     // close 清僵尸 instance=null) → 会话重开 run 循环重生 (Java 实例销毁后重建)
     feed.reset();
     host.close_all();

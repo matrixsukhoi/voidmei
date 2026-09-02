@@ -2,7 +2,7 @@
 //! 取代原 fields.rs 静态表 — cfg 是行定义唯一来源 (公式设计 §8 裁决),
 //! 显示元数据 (label/unit/precision/preview) 与取数表达式 (:target 短名)
 //! 单点维护。编译在主线程完成 (RowConfig 持 Rc<SExp> 不可跨线程),
-//! 产物 owned/Send, 经 ReinitParams 通道进 win32 线程。
+//! 产物 owned/Send, 经 ReinitParams 通道进渲染线程。
 
 use crate::config::config_loader::{GroupConfig, RowConfig};
 use crate::formula::registry::FormulaView;

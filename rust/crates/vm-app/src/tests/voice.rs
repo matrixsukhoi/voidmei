@@ -117,7 +117,7 @@ fn voice_warning_live缺失_不起会话() {
 }
 
 /// 激活策略 (config("enableVoiceWarn") + live_only): cfg 开关 + 会话窗口形态
-/// 双门控 — openpad (preview=false) 且 cfg true 才激活; 生产消费点 = win32 线程
+/// 双门控 — openpad (preview=false) 且 cfg true 才激活; 生产消费点 = 渲染线程
 /// OpenAllOverlays 命令处理 (同 host 窗口条目同源探测)
 #[test]
 fn voice_warning_激活判定_配置开关与live门控() {
@@ -409,7 +409,7 @@ fn refresh_previews_stop_voice_warn_session() {
     // live 槽手工装填 (openpad 前提; 不起真 Service — 零值数据 player_live=false,
     // 告警静默, 只驱动会话生命周期; open_voice_warning 测试同款先例)
     *shell.shared.live.write().unwrap() = Some(frame_store_of(&ServiceData::default()));
-    shell.spawn_win32_thread().expect("win32 线程启动");
+    shell.spawn_render_thread().expect("渲染线程启动");
     let base = probe_deliveries(&shell.ui_bus); // 无会话期送达 0
     shell.send_ui(UiCommand::OpenAllOverlays);
     assert!(
@@ -443,6 +443,6 @@ fn refresh_previews_stop_voice_warn_session() {
         "开方向不得经 RefreshPreviews 重建 (Java 同形态, 重起等 OpenAllOverlays)"
     );
     shell.send_ui(UiCommand::Shutdown);
-    let join = shell.win32.take().unwrap();
-    assert!(join.join().is_ok(), "win32 线程应干净退出");
+    let join = shell.render.take().unwrap();
+    assert!(join.join().is_ok(), "渲染线程应干净退出");
 }
