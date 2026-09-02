@@ -18,6 +18,7 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
+use vm_core::blkx::json::extract_fuel_modifications_json;
 use vm_core::blkx::{extract_fuel_modifications, Blkx, FuelModification, FuelType};
 use vm_core::comparison::comparison_rules::ComparisonRules;
 use vm_core::file_utils::get_file_name_no_ex;
@@ -48,11 +49,16 @@ fn to_json<T: serde::Serialize>(v: &T) -> Result<serde_json::Value, String> {
     serde_json::to_value(v).map_err(|e| e.to_string())
 }
 
-/// 名字空间差异回退的物理文件定位: 依次尝试 `fm/<name>.blkx` / `fm/<name>.blk`,
-/// 都不存在返回 None (name 原样使用 — Java 拼串不做大小写规范化)。
+/// 名字空间差异回退的物理文件定位: 依次尝试 `fm/<name>.json` (JSON 链, 主) /
+/// `fm/<name>.blkx` / `fm/<name>.blk` (过渡期回落), 都不存在返回 None
+/// (name 原样使用 — Java 拼串不做大小写规范化)。
 /// 背景: name 是 fm/ 物理文件名（连字符, 如 a-10c）, 中央机型名是下划线
 /// （a_10c）——少数不同名机型 FMLoader 判 MISSING, 按物理文件直读。
 fn fallback_physical_file(name: &str) -> Option<PathBuf> {
+    let f = fm_data_paths::fm_dir().join(format!("fm/{name}.json"));
+    if f.exists() {
+        return Some(f);
+    }
     let f = fm_data_paths::fm_dir().join(format!("fm/{name}.blkx"));
     if f.exists() {
         return Some(f);
@@ -416,25 +422,30 @@ const ALT_STEP: i32 = 25;
 /// 融入句柄的 compressorStages。路径统一走 `FMDataPaths::fmDir()` 拼装: 中央
 /// 文件在 flightmodels 根目录, 物理文件在其 fm/ 子目录。
 fn load_fuel_modification(fm_name: &str) -> Option<FuelModification> {
-    // Try common extensions for Central file
-    let extensions = [".blkx", ".Blkx", ".blk"];
+    // Try common extensions for Central file (JSON 链优先, 过渡期回落 blkx 文本)
+    let extensions = [".json", ".blkx", ".Blx", ".blk"];
     for ext in extensions {
         let cf = fm_data_paths::fm_dir().join(format!("{fm_name}{ext}"));
         if cf.exists() {
             // Central file exists but failed to parse — continue without fuel mod
             // (原 catch(Exception) 分支注释语义)
-            match std::fs::read(&cf) {
-                Ok(bytes) => {
-                    let data = String::from_utf8_lossy(&bytes).into_owned();
-                    let mod_ = extract_fuel_modifications(&data);
-                    if mod_.r#type != FuelType::None {
-                        logger::info("PowerCurveWindow", &format!("Fuel modification: {}", mod_.r#type));
-                    }
-                    return Some(mod_);
+            let parsed = std::fs::read(&cf).ok().and_then(|bytes| {
+                let data = String::from_utf8_lossy(&bytes).into_owned();
+                if ext == ".json" {
+                    serde_json::from_str::<serde_json::Value>(&data)
+                        .ok()
+                        .map(|root| extract_fuel_modifications_json(&root))
+                } else {
+                    Some(extract_fuel_modifications(&data))
                 }
-                Err(e) => {
-                    logger::debug("PowerCurveWindow", &format!("Failed to parse Central file: {e}"));
+            });
+            if let Some(mod_) = parsed {
+                if mod_.r#type != FuelType::None {
+                    logger::info("PowerCurveWindow", &format!("Fuel modification: {}", mod_.r#type));
                 }
+                return Some(mod_);
+            } else {
+                logger::debug("PowerCurveWindow", "Failed to parse Central file");
             }
         }
     }
@@ -479,13 +490,23 @@ pub fn load_single_curve(fm_name: &str, wep_mode: bool, speed_kmh: i32) -> Power
         }
         (handle.blkx.unwrap(), handle.compressor_stages)
     } else {
-        // ---- 回退: 按物理文件名直读 fm/<name>.blkx（连字符机型, 见方法注释）----
+        // ---- 回退: 按物理文件名直读（连字符机型, 见方法注释; JSON 优先,
+        //      过渡期回落 blkx 文本链 — 对拍全绿观察期后收窄为 .json）----
         let Some(f) = fallback_physical_file(fm_name) else {
             return error_curve(fm_name, format!("找不到FM文件: {fm_name}"));
         };
-        match Blkx::parse_named(&f.to_string_lossy(), fm_name) {
-            Ok(mut b) => {
-                b.get_all_plotdata();
+        let is_json = f.extension().and_then(|s| s.to_str()) == Some("json");
+        let parsed = if is_json {
+            Blkx::parse_named_json(&f.to_string_lossy(), fm_name)
+        } else {
+            Blkx::parse_named(&f.to_string_lossy(), fm_name)
+                .map(|mut b| {
+                    b.get_all_plotdata();
+                    b
+                })
+        };
+        match parsed {
+            Ok(b) => {
                 // Check if piston engine
                 if !is_piston_engine(Some(&b)) {
                     return error_curve(fm_name, format!("{fm_name} 不是活塞引擎"));
@@ -857,11 +878,16 @@ pub fn load_planes() -> Vec<String> {
     let mut names: Vec<String> = Vec::new();
     if let Ok(entries) = std::fs::read_dir(&dir) {
         for e in entries.flatten() {
+            // 只收 .json (blkx→json 迁移: data/ 为双格式同名并存, 不过滤会
+            // 每机型重复两项)
+            let name = e.file_name().to_string_lossy().into_owned();
+            if !name.ends_with(".json") {
+                continue;
+            }
             // Strip extensions —— 用 FileUtils 统一按最后一个 '.' 剥后缀。
             // 原来的 .replace(".blk","") 链会把小写 ".blkx" 剥成残留尾字母 "x"
             // （如 "a_4h.blkx" → "a_4hx"），而 fmdata 解包产物全为小写 .blkx
             // (原注释保留)
-            let name = e.file_name().to_string_lossy().into_owned();
             if let Some(stripped) = get_file_name_no_ex(Some(&name)) {
                 names.push(stripped.to_string());
             }
@@ -870,6 +896,7 @@ pub fn load_planes() -> Vec<String> {
     // Java Arrays.stream(...).sorted() — String 自然序 (UTF-16 码元); 域内文件名
     // 为 ASCII, Rust sort() (字节序) 逐位一致 (§2.1)
     names.sort();
+    names.dedup();
     names
 }
 
@@ -1160,14 +1187,20 @@ mod tests {
             "fmdata 应含 ------ 分节: {:?}",
             &dto.rows[..5.min(dto.rows.len())]
         );
-        // fmdata 首行把文件名与首个属性粘成一行 (Java 同形态): 键 "FM文件",
-        // 值含 "空重(kg): <数字>" — 单独的 "空重(kg)" 行在 Java 侧也不存在
+        // fmdata 首行 = "FM文件: <fmfile> - <版本\n>" — bFmVersion 模板尾无换行,
+        // 版本串 (version 文件 readLine 拼接) 自带 \n, 故首行在版本处断行。
+        // (旧断言 "首行与空重粘一行" 是 version 读不到的环境假象: get_version
+        // 曾硬编码 ./data 相对 cwd, cargo 测试 cwd 下读不到 → 空版本串粘住
+        // 下一行; 走 fm_data_paths 后与 Java 生产一致, 空重独立成行)
         let fmfile = dto
             .rows
             .iter()
             .find(|r| !r.is_header && r.text == "FM文件")
             .expect("应含 FM文件 首行");
-        assert!(fmfile.value0.as_deref().unwrap_or("").contains("空重(kg): "));
+        assert!(
+            fmfile.value0.as_deref().unwrap_or("").contains("fm/spitfire_f24.blk"),
+            "FM文件 行值应含物理文件相对路径"
+        );
         // 规则属性存在且值为数字 (Blkx.getload 格式化产物)
         let fuel = dto
             .rows
@@ -1334,3 +1367,4 @@ mod tests {
         assert!(dto.rows.is_empty(), "noblkx 行不产 DTO 行: {:?}", dto.rows);
     }
 }
+

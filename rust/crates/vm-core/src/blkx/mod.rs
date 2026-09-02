@@ -43,6 +43,9 @@
 //!    (fm/handle.rs PORT 注预留; 其 BlkxPlaceholder → Blkx 切换亦在该波次)。
 
 mod model;
+// FM JSON 数据源 (wt_ext_cli --format Json 产物): 树底层原语 + 中央文件燃油修正树版;
+// 阶段 3 补 BlkSource impl 与 parse_named_json 族入口 (blkx→json 迁移)
+pub mod json;
 mod reader;
 mod types;
 
@@ -50,6 +53,11 @@ mod types;
 // FMParserFuzzer 三套 Java 测试的一比一移植; data/ 缺失自动跳过 (对齐 build.py)
 #[cfg(test)]
 mod realtests;
+
+// blkx 文本 vs JSON 解析器全量位级对拍 (blkx→json 迁移安全核心);
+// data/ 无 .json 配对自动跳过 (fmdatajson 产物)
+#[cfg(test)]
+mod parity;
 
 pub use types::{
     extract_fuel_modifications, EngineLoad, FuelModification, FuelType, FmParts, SweepLevel, XY,

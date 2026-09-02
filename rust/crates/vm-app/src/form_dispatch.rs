@@ -95,12 +95,16 @@ fn dispatch_form(
             IpcReply::Ok(serde_json::json!({ "ok": true }))
         }
         RequestKind::GetFmList => {
-            // Java FMListRowRenderer:48-62 扫 flightmodels/fm 的 .blkx 文件名 (去扩展)
+            // Java FMListRowRenderer:48-62 扫 flightmodels 根的中央文件名 (去扩展);
+            // blkx→json 迁移: 只收 .json (data/ 双格式同名并存, 不过滤会重复)
             let dir = vm_core::fm::fm_data_paths::fm_dir();
             let mut names: Vec<String> = Vec::new();
             if let Ok(entries) = std::fs::read_dir(&dir) {
                 for e in entries.flatten() {
                     let name = e.file_name().to_string_lossy().into_owned();
+                    if !name.ends_with(".json") {
+                        continue;
+                    }
                     if let Some(stripped) =
                         vm_core::file_utils::get_file_name_no_ex(Some(&name))
                     {
@@ -109,6 +113,7 @@ fn dispatch_form(
                 }
             }
             names.sort();
+            names.dedup();
             serde_json::to_value(names)
                 .map(IpcReply::Ok)
                 .unwrap_or_else(|e| IpcReply::Err(e.to_string()))

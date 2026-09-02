@@ -13,6 +13,32 @@
 use std::path::PathBuf;
 use std::sync::RwLock;
 
+/// FM 数据格式 — blkx→json 迁移 (过渡期双格式, 终态 Json):
+/// - [`FmDataFormat::Blkx`]: BlkText 文本 (wt_ext_cli `--format BlkText`, Java 端
+///   数据源, `build.py fmdata` 产线);
+/// - [`FmDataFormat::Json`]: blk 树 1:1 镜像 JSON (wt_ext_cli `--format Json`,
+///   Rust 端数据源, `build.py fmdatajson` 产线; 全量位级对拍 2832/2832 绿)。
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum FmDataFormat {
+    Blkx,
+    Json,
+}
+
+/// FM 数据格式 (默认 Json — Rust 运行链); 测试注入与 DATA_ROOT 同锁保护。
+// 过渡期机制: 双解析器并存 (reader.rs 文本 / json.rs JSON), FmDataFormat 决定
+// fm_loader 走哪条; 对拍全绿观察一个发布周期后删除文本链, 此全局随之退役。
+static FORMAT: RwLock<Option<FmDataFormat>> = RwLock::new(None);
+
+/// 当前 FM 数据格式 (未注入 = 默认 Json)。
+pub fn format() -> FmDataFormat {
+    FORMAT.read().unwrap().unwrap_or(FmDataFormat::Json)
+}
+
+/// 注入 FM 数据格式 (白盒测试用: 双格式用例各跑一遍)。
+pub fn set_format(f: FmDataFormat) {
+    *FORMAT.write().unwrap() = Some(f);
+}
+
 /// FM 数据根目录；volatile 供测试运行时注入临时目录
 // PORT: Java `private static volatile String dataRoot = "./data"` → 进程级
 // RwLock<Option<String>> (None ≡ 默认 "./data"; String 堆分配非 const 可构造,
@@ -57,14 +83,20 @@ pub fn fm_dir() -> PathBuf {
 }
 
 /// 中央文件（机型入口文件）路径：
-/// &lt;root&gt;/aces/gamedata/flightmodels/&lt;name 小写&gt;.blkx。
+/// &lt;root&gt;/aces/gamedata/flightmodels/&lt;name 小写&gt;.&lt;格式扩展名&gt;。
 /// 机型名做小写规范化（大小写不敏感匹配游戏侧命名）。
 // PORT: Java `String.toLowerCase()` 绑定默认 Locale (土耳其语 locale 下 I→ı
 // 的变异存在); Rust `to_lowercase` 无 Locale (≡ Locale.ROOT)。机型名域为
 // ASCII, 二者逐字符一致 (config_loader.rs 同款先例), 且无 Locale 形态恰为
 // "匹配游戏侧小写命名"的规范意图。
+// 扩展名随 FmDataFormat: Blkx=".blkx" (fmdata 产线) / Json=".json"
+// (fmdatajson 产线, wt_ext_cli --blk_extension json 产物为小写)。
 pub fn central_file(plane_name: &str) -> PathBuf {
-    fm_dir().join(format!("{}.blkx", plane_name.to_lowercase()))
+    let ext = match format() {
+        FmDataFormat::Blkx => "blkx",
+        FmDataFormat::Json => "json",
+    };
+    fm_dir().join(format!("{}.{ext}", plane_name.to_lowercase()))
 }
 
 /// 物理 FM 文件路径。{@code fmFileWithX} 为中央文件 fmFile 字段解析出的相对路径

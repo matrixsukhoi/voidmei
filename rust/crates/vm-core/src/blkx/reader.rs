@@ -284,51 +284,9 @@ impl Blkx {
 
     /// 对应 Java `public String getArray(String label)` (L1764-1804) —
     /// 点分标签逐段 cut 后, 收集**所有**匹配行 (含行尾 '\n') 拼接; 无匹配返回 ""。
+    /// (BlkSource 迁移: 主体平移至 TextSrc::get_str_all, 此处薄委托)
     pub fn get_array(&self, label: &str) -> String {
-        let mut value = String::new();
-        // PORT: Java `String text = data` 为 null 时在 toUpperCase 处 NPE ↔ unwrap panic
-        let mut text: String = self.data.clone().unwrap();
-        // 第一步处理
-        let mut clsbix = 0usize;
-        for i in 0..label.len() {
-            if label.as_bytes()[i] == b'.' {
-                let cls = &label[clsbix..i];
-                text = cut(&text, cls);
-                clsbix = i + 1;
-            }
-        }
-        let label = &label[clsbix..];
-        // Application.debugPrint(text);
-        // 第二步获得值
-        // PORT: Java label 形参重赋 label.substring(clsbix) ↔ 变量遮蔽;
-        // toUpperCase 每轮对剩余全文重算 (Java 同, O(匹配数×剩余长度) 保真保留)
-        let mut bix = text.to_uppercase().find(&label.to_uppercase());
-        while let Some(mut bi) = bix {
-            // 防御加固: 加长度上界——label 匹配处之后到文本末尾都没有 '=' (如匹配到块名/注释/
-            // 截断行) 时, 原代码会扫出末尾抛 StringIndexOutOfBoundsException; 越界时放弃剩余
-            // 匹配, 返回已积累的 value (与"未找到"时返回空串的语义一致)
-            while bi < text.len() && text.as_bytes()[bi] != b'=' {
-                bi += 1;
-            }
-            if bi >= text.len() {
-                break;
-            }
-            bi += 1;
-            let mut eix = bi;
-            // 防御加固: 末尾无换行符 (init() 直喂的截断文本) 时取到文本末尾, 原代码此处越界
-            while eix < text.len() && text.as_bytes()[eix] != b'\n' {
-                eix += 1;
-            }
-            if eix >= text.len() {
-                value.push_str(text.get(bi..).unwrap_or(""));
-                break;
-            }
-            value.push_str(text.get(bi..eix + 1).unwrap_or(""));
-            // PORT: Java text = text.substring(eix + 1) 共享底层 ↔ drain 原地移除前缀
-            text.drain(..eix + 1);
-            bix = text.to_uppercase().find(&label.to_uppercase());
-        }
-        value
+        TextSrc::new(self.data.as_deref().unwrap()).get_str_all(label)
     }
 
     /// 对应 Java `public String getlastone(String label)` (L1806-1837) —
@@ -367,143 +325,25 @@ impl Blkx {
 
     /// 对应 Java `public String getoneinData(String D, String label)` (L1839-1871) —
     /// 同 getone 但数据源为显式传入的 D (子块文本); 未找到返回哨兵串 "null"。
-    #[allow(dead_code)] // 调用方 getload L444/L1073 属 reader.rs 后续波次
+    /// (BlkSource 迁移: 主体平移至 TextSrc::get_in_text, 此处薄委托)
     pub fn getonein_data(&self, d: &str, label: &str) -> String {
-        let mut text: String = d.to_string();
-        // 第一步处理
-        let mut clsbix = 0usize;
-        for i in 0..label.len() {
-            if label.as_bytes()[i] == b'.' {
-                let cls = &label[clsbix..i];
-                text = cut(&text, cls);
-                clsbix = i + 1;
-            }
-        }
-        let label = &label[clsbix..];
-        // Application.debugPrint(label);
-        // 第二步获得值
-        let mut bix = match text.to_uppercase().find(&label.to_uppercase()) {
-            Some(i) => i,
-            None => return "null".to_string(),
-        };
-        // 防御加固: 无 '=' 时按"未找到"返回 (原代码扫出末尾越界)
-        while bix < text.len() && text.as_bytes()[bix] != b'=' {
-            bix += 1;
-        }
-        if bix >= text.len() {
-            return "null".to_string();
-        }
-        bix += 1;
-        let mut eix = bix;
-        // 防御加固: 行尾无换行时取到文本末尾, 不再扫越界
-        while eix < text.len() && text.as_bytes()[eix] != b'\n' {
-            eix += 1;
-        }
-        text.get(bix..eix).unwrap_or("").to_string()
+        TextSrc::get_in_text(d, label)
     }
 
     /// 对应 Java `public String getone(String label)` (L1873-1906) —
     /// 同 getoneinData 但数据源为 self.data, 且定位是**大小写敏感** indexOf
-    /// (toUpperCase 版本在源码里已被注释掉, 见下); 未找到返回哨兵串 "null"。
-    #[allow(dead_code)] // 调用方 getload (L527+ 多处) 属 reader.rs 后续波次
+    /// (toUpperCase 版本在源码里已被注释掉, oracle go_o2 钉死);
+    /// 未找到返回哨兵串 "null"。
+    /// (BlkSource 迁移: 主体平移至 TextSrc::get_str, 此处薄委托)
     pub fn getone(&self, label: &str) -> String {
-        // PORT: Java `String text = data` 为 null 时在 indexOf 处 NPE ↔ unwrap panic
-        let mut text: String = self.data.clone().unwrap();
-        // 第一步处理
-        let mut clsbix = 0usize;
-        for i in 0..label.len() {
-            if label.as_bytes()[i] == b'.' {
-                let cls = &label[clsbix..i];
-                text = cut(&text, cls);
-                clsbix = i + 1;
-            }
-        }
-        let label = &label[clsbix..];
-        // Application.debugPrint(text);
-        // 第二步获得值
-        // bix = text.toUpperCase().indexOf(label.toUpperCase());
-        // getoneinData 的 toUpperCase 定位不同, 源码本意, oracle go_o2 钉死)
-        let mut bix = match text.find(label) {
-            Some(i) => i,
-            None => return "null".to_string(),
-        };
-        // 防御加固: 无 '=' 时按"未找到"返回 (原代码扫出末尾越界)
-        while bix < text.len() && text.as_bytes()[bix] != b'=' {
-            bix += 1;
-        }
-        if bix >= text.len() {
-            return "null".to_string();
-        }
-        bix += 1;
-        let mut eix = bix;
-        // 防御加固: 行尾无换行时取到文本末尾, 不再扫越界
-        while eix < text.len() && text.as_bytes()[eix] != b'\n' {
-            eix += 1;
-        }
-        text.get(bix..eix).unwrap_or("").to_string()
+        TextSrc::new(self.data.as_deref().unwrap()).get_str(label)
     }
 
     // ------------------------------------------------------------------
-    // getdouble 族 (Java L523-569) — getload 的数值抽取原语
+    // getdouble 族 (Java L523-569) — 已随 BlkSource 迁移为 trait 默认方法
+    // (get_f64/get_f64_exc/get_f64s): Float.parseFloat 域解析逻辑单源,
+    // 文本/JSON 后端共享, 见 reader.rs 尾部 trait 定义。
     // ------------------------------------------------------------------
-
-    /// 对应 Java `public double getdouble(String c)` (L543-555)。
-    /// PORT(模块注 2 陷阱): Java `Float.parseFloat` 赋 double (24-bit 尾数域,
-    /// 1.42f != 1.42) → `parse::<f32>() as f64`, 勿改 f64 直解;
-    /// parseFloat 自剥前后空白 (JLS) ↔ Rust 先 trim 再 parse。
-    fn getdouble(&self, c: &str) -> f64 {
-        let mut ret = 0.0;
-        let one = self.getone(c);
-        if one != "null" {
-            let tmp: Vec<&str> = one.split(',').collect();
-            match tmp.first().and_then(|s| s.trim().parse::<f32>().ok()) {
-                Some(v) => ret = v as f64,
-                None => return 0.0,
-            }
-        }
-        ret
-    }
-
-    /// 对应 Java `public double getdouble_exc(String c)` (L557-569) —
-    /// 缺席哨兵 = Float.MAX_VALUE (调用方以 `== Float.MAX_VALUE` 判截断);
-    /// 解析失败返回 0 (Java catch 路径)。
-    fn getdouble_exc(&self, c: &str) -> f64 {
-        let mut ret = f32::MAX as f64;
-        let one = self.getone(c);
-        if one != "null" {
-            let tmp: Vec<&str> = one.split(',').collect();
-            match tmp.first().and_then(|s| s.trim().parse::<f32>().ok()) {
-                Some(v) => ret = v as f64,
-                None => return 0.0,
-            }
-        }
-        ret
-    }
-
-    /// 对应 Java `public double[] getdoubles(String c, double[] ret, int num)`
-    /// (L523-541)。就地写 `ret[..num]`, 返回 None ↔ Java 返回 null:
-    /// - `num <= 0` → null;
-    /// - 键缺席 (getone "null") → **返回 Some(()) 且 ret 不动** (调用方依赖
-    ///   "找不到键时保持 0 初值" 的语义, 如 MomentOfInertia);
-    /// - 段数不足/解析失败 → null (Java tmp[i] 越界或 parseFloat 抛 → catch;
-    ///   此时已写入的前缀保留 — 部分写入保真)。
-    fn getdoubles(&self, c: &str, ret: &mut [f64], num: usize) -> Option<()> {
-        if num == 0 {
-            return None;
-        }
-        let one = self.getone(c);
-        if one != "null" {
-            let tmp: Vec<&str> = one.split(',').collect();
-            for (i, slot) in ret.iter_mut().enumerate().take(num) {
-                // 双路径同为 catch → null
-                *slot = tmp
-                    .get(i)
-                    .and_then(|s| s.trim().parse::<f32>().ok())
-                    .map(|v| v as f64)?;
-            }
-        }
-        Some(())
-    }
 
     // ------------------------------------------------------------------
     // getPartsFm / extractRpmFromThrottleAuto / getEngineLoad / initEngineLoad
@@ -511,40 +351,39 @@ impl Blkx {
     // ------------------------------------------------------------------
 
     /// 对应 Java `public void getPartsFm(String c, fm_parts p)` (L408-418)。
-    fn get_parts_fm(&self, c: &str, p: &mut FmParts) {
+    /// (BlkSource 迁移: 数据源泛型化, 静态形态)
+    fn get_parts_fm<S: BlkSource>(src: &S, c: &str, p: &mut FmParts) {
         p.name = Some(c.to_string());
-        p.cd_min = self.getdouble(&format!("{c}.CdMin"));
-        p.cl0 = self.getdouble(&format!("{c}.Cl0"));
-        p.cl_crit_high = self.getdouble(&format!("{c}.ClCritHigh"));
-        p.cl_crit_low = self.getdouble(&format!("{c}.ClCritLow"));
+        p.cd_min = src.get_f64(&format!("{c}.CdMin"));
+        p.cl0 = src.get_f64(&format!("{c}.Cl0"));
+        p.cl_crit_high = src.get_f64(&format!("{c}.ClCritHigh"));
+        p.cl_crit_low = src.get_f64(&format!("{c}.ClCritLow"));
 
-        p.cl_after_crit = self.getdouble(&format!("{c}.ClAfterCrit"));
-        p.line_cl_coeff = self.getdouble(&format!("{c}.lineClCoeff"));
+        p.cl_after_crit = src.get_f64(&format!("{c}.ClAfterCrit"));
+        p.line_cl_coeff = src.get_f64(&format!("{c}.lineClCoeff"));
 
-        p.aoa_crit_high = self.getdouble(&format!("{c}.alphaCritHigh"));
-        p.aoa_crit_low = self.getdouble(&format!("{c}.alphaCritLow"));
+        p.aoa_crit_high = src.get_f64(&format!("{c}.alphaCritHigh"));
+        p.aoa_crit_low = src.get_f64(&format!("{c}.alphaCritLow"));
     }
 
     /// 对应 Java `private void extractRpmFromThrottleAuto(String hdrString)`
     /// (L431-475)。形参 hdrString 在 Java 方法体内未被引用 — `_` 前缀保真保留
     /// (get_aoa_low_v_wing 同款先例)。
-    fn extract_rpm_from_throttle_auto(&mut self, _hdr_string: &str) {
+    /// (BlkSource 迁移: 数据源泛型化)
+    fn extract_rpm_from_throttle_auto<S: BlkSource>(&mut self, src: &S, _hdr_string: &str) {
         self.military_rpm = 0.0;
         self.wep_rpm = 0.0;
 
         // Try to find Propellor section within the engine type
-        // PORT: Java `cut(data, ...)` — data 为 null 时 cut 处 NPE ↔ unwrap panic
-        // (from_read_data 的 catch_unwind 收敛, §1)
-        let data = self.data.clone().unwrap();
-        let mut prop_section = cut(&data, "Propellor");
-        if prop_section == "null" {
-            prop_section = cut(&data, "Propeller");
+        let mut prop_section = src.section("Propellor");
+        if prop_section.is_null() {
+            prop_section = src.section("Propeller");
         }
 
-        if prop_section != "null" {
+        if !prop_section.is_null() {
             for k in 0..20 {
                 let key = format!("ThrottleRPMAuto{k}");
-                let val = self.getonein_data(&prop_section, &key);
+                let val = prop_section.get_in(&key);
                 if val == "null" {
                     continue;
                 }
@@ -584,18 +423,19 @@ impl Blkx {
 
     /// 对应 Java `public boolean getEngineLoad(engineLoad[] eL, int loadIndex)`
     /// (L477-494) — 读一个 Load 档; WaterLimit/OilLimit 为 0 即该档缺席。
-    fn get_engine_load(&self, el: &mut [EngineLoad], load_index: usize) -> bool {
+    /// (BlkSource 迁移: 数据源泛型化, 静态形态)
+    fn get_engine_load<S: BlkSource>(src: &S, el: &mut [EngineLoad], load_index: usize) -> bool {
         let c = format!("Load{load_index}");
-        el[load_index].water_limit = self.getdouble(&format!("{c}.WaterTemperature"));
+        el[load_index].water_limit = src.get_f64(&format!("{c}.WaterTemperature"));
         if el[load_index].water_limit == 0.0 {
             return false;
         }
-        el[load_index].oil_limit = self.getdouble(&format!("{c}.OilTemperature"));
+        el[load_index].oil_limit = src.get_f64(&format!("{c}.OilTemperature"));
         if el[load_index].oil_limit == 0.0 {
             return false;
         }
-        el[load_index].work_time = self.getdouble(&format!("{c}.WorkTime"));
-        el[load_index].recover_time = self.getdouble(&format!("{c}.RecoverTime"));
+        el[load_index].work_time = src.get_f64(&format!("{c}.WorkTime"));
+        el[load_index].recover_time = src.get_f64(&format!("{c}.RecoverTime"));
         el[load_index].cur_water_work_time_mili = el[load_index].work_time * 1000.0;
         el[load_index].cur_oil_work_time_mili = el[load_index].work_time * 1000.0;
         true
@@ -603,7 +443,8 @@ impl Blkx {
 
     /// 对应 Java `public void initEngineLoad()` (L817-853)。
     /// `Application.maxEngLoad` = 10 (Java 常量, Application.java:67)。
-    fn init_engine_load(&mut self) {
+    /// (BlkSource 迁移: 数据源泛型化)
+    fn init_engine_load<S: BlkSource>(&mut self, src: &S) {
         const APP_MAX_ENG_LOAD: usize = 10; // Application.maxEngLoad
         self.avg_eng_recovery_rate = 0.0;
         let mut eng_load: Vec<EngineLoad> = vec![EngineLoad::default(); APP_MAX_ENG_LOAD];
@@ -616,7 +457,7 @@ impl Blkx {
             if idx >= eng_load.len() {
                 break;
             }
-            let ok = self.get_engine_load(&mut eng_load, idx);
+            let ok = Self::get_engine_load(src, &mut eng_load, idx);
             self.max_eng_load += 1;
             if !ok {
                 break;
@@ -624,7 +465,7 @@ impl Blkx {
         }
         // 检视反馈 (Java 同款): 档位数达容量退出时探测下一档, 存在即显式告警截断
         if self.max_eng_load as usize >= eng_load.len()
-            && self.getdouble(&format!("Load{}.WaterTemperature", eng_load.len())) != 0.0
+            && src.get_f64(&format!("Load{}.WaterTemperature", eng_load.len())) != 0.0
         {
             logger::warn(
                 "Blkx",
@@ -685,23 +526,36 @@ impl Blkx {
     // format! 键名 (ThrustMax.Altitude_{i} 等), 计数形态是本意
     #[allow(clippy::needless_range_loop)]
     pub fn getload(&mut self) {
+        // BlkSource 迁移: 文本后端包装。data 本地 clone 断开借用 (TextSrc 借它,
+        // getload_from 需 &mut self); data 为 None 时喂空串 — 泛型化前 getone
+        // 在此形态下 unwrap panic, TextSrc 空串与 cut/find 全部"未找到"收敛,
+        // 行为等价; 生产路径 from_read_data 先行赋值不可达
+        let data = self.data.clone().unwrap();
+        let src = TextSrc::new(&data);
+        self.getload_from(&src);
+    }
+
+    /// getload 的数据源泛型体 — 文本/JSON 后端共用同一份字段填充逻辑
+    /// (blkx→json 迁移的构造性对拍保证: 分歧只在 BlkSource 寻址层)。
+    #[allow(clippy::needless_range_loop)]
+    pub(crate) fn getload_from<S: BlkSource>(&mut self, src: &S) {
         let start_time = std::time::Instant::now(); // System.currentTimeMillis 计时面
         self.is_jet = false;
 
         // 读取推力高度
         self.engine_num = 1;
         let mut hdr_string = "EngineType0.".to_string();
-        let res = self.getone("EngineType0.Main.Type");
+        let res = src.get_str("EngineType0.Main.Type");
         if res.contains("Jet") {
             // 判断喷气
             self.is_jet = true;
             // 防御加固 (Java 同款): 引擎数上限 = State.maxEngNum (遥测数组容量,
             // 解析上限=可消费上限), 病态文件 O(n²) 全串扫描防护
-            while self.getone(&format!("Engine{}", self.engine_num)) != "null" {
+            while src.get_str(&format!("Engine{}", self.engine_num)) != "null" {
                 self.engine_num += 1;
                 if self.engine_num >= MAX_ENG_NUM as i32 {
                     // 检视反馈 (Java 同款): 超限截断显式告警, 不静默
-                    if self.getone(&format!("Engine{}", self.engine_num)) != "null" {
+                    if src.get_str(&format!("Engine{}", self.engine_num)) != "null" {
                         logger::warn(
                             "Blkx",
                             &format!(
@@ -718,15 +572,15 @@ impl Blkx {
         } else {
             if res == "null" {
                 hdr_string = "Engine0.".to_string();
-                if self.getone("Engine0.Main.Type").contains("Jet") {
+                if src.get_str("Engine0.Main.Type").contains("Jet") {
                     self.is_jet = true;
                 }
             }
             // 遍历引擎数量（适用于所有非喷气引擎，包括活塞引擎）
-            while self.getone(&format!("Engine{}", self.engine_num)) != "null" {
+            while src.get_str(&format!("Engine{}", self.engine_num)) != "null" {
                 self.engine_num += 1;
                 if self.engine_num >= MAX_ENG_NUM as i32 {
-                    if self.getone(&format!("Engine{}", self.engine_num)) != "null" {
+                    if src.get_str(&format!("Engine{}", self.engine_num)) != "null" {
                         logger::warn(
                             "Blkx",
                             &format!(
@@ -743,14 +597,14 @@ impl Blkx {
         }
         self.engine_rpm_mult_wep = 1.0;
         if self.is_jet {
-            self.aftb_coff = self.getdouble(&format!("{hdr_string}Main.AfterburnerBoost"));
-            self.thr_max0 = self.getdouble("ThrustMax.ThrustMax0");
+            self.aftb_coff = src.get_f64(&format!("{hdr_string}Main.AfterburnerBoost"));
+            self.thr_max0 = src.get_f64("ThrustMax.ThrustMax0");
 
             self.alt_thr_num = 0;
             let mut altitude_thr = [0.0f64; 30];
             // Java for(init; cond; i++, altThrNum++) — update 在体后 (break 轮不增)
             for i in 0..30 {
-                altitude_thr[i] = self.getdouble_exc(&format!("ThrustMax.Altitude_{i}"));
+                altitude_thr[i] = src.get_f64_exc(&format!("ThrustMax.Altitude_{i}"));
                 if altitude_thr[i] == f32::MAX as f64 {
                     altitude_thr[i] = 0.0;
                     break;
@@ -763,7 +617,7 @@ impl Blkx {
             self.vel_thr_num = 0;
             let mut velocity_thr = [0.0f64; 30];
             for i in 0..30 {
-                velocity_thr[i] = self.getdouble_exc(&format!("ThrustMax.Velocity_{i}"));
+                velocity_thr[i] = src.get_f64_exc(&format!("ThrustMax.Velocity_{i}"));
                 if velocity_thr[i] == f32::MAX as f64 {
                     velocity_thr[i] = 0.0;
                     break;
@@ -777,8 +631,8 @@ impl Blkx {
             let mut mode_engine_mult = [0.0f64; 10];
             let mut mode_engine_rpm_mult = [0.0f64; 10];
             for i in 0..10 {
-                mode_engine_mult[i] = self.getdouble_exc(&format!("Main.Mode{i}.ThrustMult"));
-                mode_engine_rpm_mult[i] = self.getdouble_exc(&format!("Main.Mode{i}.RPM"));
+                mode_engine_mult[i] = src.get_f64_exc(&format!("Main.Mode{i}.ThrustMult"));
+                mode_engine_rpm_mult[i] = src.get_f64_exc(&format!("Main.Mode{i}.RPM"));
                 if mode_engine_mult[i] == f32::MAX as f64 {
                     mode_engine_mult[i] = 0.0;
                     mode_engine_rpm_mult[i] = 1.0;
@@ -806,9 +660,9 @@ impl Blkx {
             for i in 0..alt_n {
                 for j in 0..vel_n {
                     max_thr_coff[i][j] =
-                        self.getdouble(&format!("ThrustMax.ThrustMaxCoeff_{i}_{j}"));
+                        src.get_f64(&format!("ThrustMax.ThrustMaxCoeff_{i}_{j}"));
                     max_thr_aft_coff[i][j] =
-                        self.getdouble(&format!("ThrustMax.ThrAftMaxCoeff_{i}_{j}"));
+                        src.get_f64(&format!("ThrustMax.ThrAftMaxCoeff_{i}_{j}"));
                     if max_thr_aft_coff[i][j] == 0.0 {
                         max_thr_aft_coff[i][j] = 1.0;
                     }
@@ -840,10 +694,10 @@ impl Blkx {
             );
         } else {
             // radial inline
-            self.aftb_coff = self.getdouble(&format!("{hdr_string}Main.AfterburnerBoost"));
-            self.comp_num_steps = self.getdouble("Compressor.NumSteps") as i32;
+            self.aftb_coff = src.get_f64(&format!("{hdr_string}Main.AfterburnerBoost"));
+            self.comp_num_steps = src.get_f64("Compressor.NumSteps") as i32;
             self.speed_to_manifold_multiplier =
-                self.getdouble("Compressor.SpeedManifoldMultiplier");
+                src.get_f64("Compressor.SpeedManifoldMultiplier");
 
             // NegativeArraySizeException → 构造器 catch; as usize 巨量 → Vec
             // 分配 panic 同被 from_read_data 收敛 (CORRUPT 同语义)
@@ -858,19 +712,19 @@ impl Blkx {
             let mut comp_const_rpm_alt = vec![0.0f64; n];
             let mut comp_const_rpm_power = vec![0.0f64; n];
             for i in 0..n {
-                comp_alt[i] = self.getdouble(&format!("Compressor.Altitude{i}"));
-                comp_power[i] = self.getdouble(&format!("Compressor.Power{i}"));
-                comp_boost[i] = self.getdouble(&format!("Compressor.AfterburnerBoostMul{i}"));
+                comp_alt[i] = src.get_f64(&format!("Compressor.Altitude{i}"));
+                comp_power[i] = src.get_f64(&format!("Compressor.Power{i}"));
+                comp_boost[i] = src.get_f64(&format!("Compressor.AfterburnerBoostMul{i}"));
                 has_comp_boost[i] =
-                    self.getone(&format!("Compressor.AfterburnerBoostMul{i}")) != "null";
+                    src.get_str(&format!("Compressor.AfterburnerBoostMul{i}")) != "null";
                 comp_rpm_ratio[i] =
-                    self.getdouble(&format!("Compressor.PowerConstRPMCurvature{i}"));
-                comp_ceil[i] = self.getdouble(&format!("Compressor.Ceiling{i}"));
-                comp_ceil_pwr[i] = self.getdouble(&format!("Compressor.PowerAtCeiling{i}"));
+                    src.get_f64(&format!("Compressor.PowerConstRPMCurvature{i}"));
+                comp_ceil[i] = src.get_f64(&format!("Compressor.Ceiling{i}"));
+                comp_ceil_pwr[i] = src.get_f64(&format!("Compressor.PowerAtCeiling{i}"));
                 comp_const_rpm_alt[i] =
-                    self.getdouble(&format!("Compressor.AltitudeConstRPM{i}"));
+                    src.get_f64(&format!("Compressor.AltitudeConstRPM{i}"));
                 comp_const_rpm_power[i] =
-                    self.getdouble(&format!("Compressor.PowerConstRPM{i}"));
+                    src.get_f64(&format!("Compressor.PowerConstRPM{i}"));
             }
             self.comp_alt = Some(comp_alt);
             self.comp_boost = Some(comp_boost);
@@ -884,14 +738,14 @@ impl Blkx {
 
             // === Extended WAPC-compatible parameters ===
             self.comp_pressure_at_rpm0 =
-                self.getdouble("Compressor.CompressorPressureAtRPM0");
+                src.get_f64("Compressor.CompressorPressureAtRPM0");
             self.comp_omega_factor_sq =
-                self.getdouble("Compressor.CompressorOmegaFactorSq");
+                src.get_f64("Compressor.CompressorOmegaFactorSq");
             self.has_comp_omega_factor_sq =
-                self.getone("Compressor.CompressorOmegaFactorSq") != "null";
+                src.get_str("Compressor.CompressorOmegaFactorSq") != "null";
 
             // ExactAltitudes: explicitly defined in FM file
-            let ea_str = self.getone("Compressor.ExactAltitudes");
+            let ea_str = src.get_str("Compressor.ExactAltitudes");
             if ea_str != "null" {
                 self.explicit_exact_altitudes = Some(ea_str.trim() == "true");
             }
@@ -900,9 +754,9 @@ impl Blkx {
             let mut comp_ata = vec![0.0f64; n];
             let mut comp_afterburner_pressure_boost = vec![0.0f64; n];
             for i in 0..n {
-                comp_ata[i] = self.getdouble(&format!("Compressor.ATA{i}"));
+                comp_ata[i] = src.get_f64(&format!("Compressor.ATA{i}"));
                 comp_afterburner_pressure_boost[i] =
-                    self.getdouble(&format!("Compressor.AfterburnerPressureBoost{i}"));
+                    src.get_f64(&format!("Compressor.AfterburnerPressureBoost{i}"));
             }
             self.comp_ata = Some(comp_ata);
             self.comp_afterburner_pressure_boost = Some(comp_afterburner_pressure_boost);
@@ -910,43 +764,42 @@ impl Blkx {
             // Iterate all ATA entries (ATA0..ATA9) and take the maximum
             self.military_mp = 0.0;
             for i in 0..10 {
-                let ata = self.getdouble(&format!("Compressor.ATA{i}"));
+                let ata = src.get_f64(&format!("Compressor.ATA{i}"));
                 if ata > self.military_mp {
                     self.military_mp = ata;
                 }
             }
 
             // WEP parameters from Main section
-            self.throttle_boost = self.getdouble(&format!("{hdr_string}Main.ThrottleBoost"));
+            self.throttle_boost = src.get_f64(&format!("{hdr_string}Main.ThrottleBoost"));
             if self.throttle_boost <= 0.0 {
                 self.throttle_boost = 1.0;
             }
 
             self.octane_afterburner_mult =
-                self.getdouble(&format!("{hdr_string}Main.OctaneAfterburnerMult"));
+                src.get_f64(&format!("{hdr_string}Main.OctaneAfterburnerMult"));
             if self.octane_afterburner_mult <= 0.0 {
                 self.octane_afterburner_mult = 1.0;
             }
 
             // WEP manifold pressure (ata)
-            self.wep_manifold_pressure = self.getdouble("AfterburnerManifoldPressure");
+            self.wep_manifold_pressure = src.get_f64("AfterburnerManifoldPressure");
 
             // Sea level power from Main.Power
-            self.deck_power = self.getdouble(&format!("{hdr_string}Main.Power"));
+            self.deck_power = src.get_f64(&format!("{hdr_string}Main.Power"));
 
             // RPM parameters for determineDefaultRpm (BUG 2 fix)
-            self.shaft_rpm_max = self.getdouble(&format!("{hdr_string}Main.ShaftRPMMax"));
-            self.rpm_nom = self.getdouble(&format!("{hdr_string}Main.RPMNom"));
+            self.shaft_rpm_max = src.get_f64(&format!("{hdr_string}Main.ShaftRPMMax"));
+            self.rpm_nom = src.get_f64(&format!("{hdr_string}Main.RPMNom"));
 
             // GovernorMaxParam is in the Propeller/Propellor section
             self.governor_max_param = 0.0;
-            let data = self.data.clone().unwrap();
-            let mut prop_section_for_gov = cut(&data, "Propellor");
-            if prop_section_for_gov == "null" {
-                prop_section_for_gov = cut(&data, "Propeller");
+            let mut prop_section_for_gov = src.section("Propellor");
+            if prop_section_for_gov.is_null() {
+                prop_section_for_gov = src.section("Propeller");
             }
-            if prop_section_for_gov != "null" {
-                let gov_str = self.getonein_data(&prop_section_for_gov, "GovernorMaxParam");
+            if !prop_section_for_gov.is_null() {
+                let gov_str = prop_section_for_gov.get_in("GovernorMaxParam");
                 // null 返回, 前半恒真 — 直译保留判 "null")
                 if gov_str != "null" {
                     // (f64 域) + NumberFormatException ignored
@@ -961,8 +814,8 @@ impl Blkx {
 
         // 读取最大转速和最大允许转速 (must be before extractRpmFromThrottleAuto)
         //
-        self.max_rpm = self.getdouble("RPMAfterburner");
-        let max_rpm_normal = self.getdouble(" RPMMax");
+        self.max_rpm = src.get_f64("RPMAfterburner");
+        let max_rpm_normal = src.get_f64(" RPMMax");
         if self.max_rpm < max_rpm_normal {
             self.max_rpm = max_rpm_normal;
         }
@@ -972,76 +825,76 @@ impl Blkx {
 
         // Extract military/WEP RPM after maxRPM is available as fallback
         if !self.is_jet && self.comp_num_steps > 0 {
-            self.extract_rpm_from_throttle_auto(&hdr_string);
+            self.extract_rpm_from_throttle_auto(src, &hdr_string);
         }
-        self.max_allowed_rpm = self.getdouble("RPMMaxAllowed");
+        self.max_allowed_rpm = src.get_f64("RPMMaxAllowed");
 
         self.version = self.get_version();
-        self.init_engine_load();
+        self.init_engine_load(src);
 
-        self.emptyweight = self.getdouble("EmptyMass");
-        self.vne = self.getdouble("Vne:");
+        self.emptyweight = src.get_f64("EmptyMass");
+        self.vne = src.get_f64("Vne:");
         if self.vne == 0.0 {
-            self.vne = self.getdouble("WingPlane.Strength.VNE");
+            self.vne = src.get_f64("WingPlane.Strength.VNE");
             if self.vne == 0.0 {
-                self.vne = self.getdouble("WingPlaneSweep0.Strength.VNE");
+                self.vne = src.get_f64("WingPlaneSweep0.Strength.VNE");
             }
         }
 
-        self.vne_mach = self.getdouble("VneMach");
+        self.vne_mach = src.get_f64("VneMach");
         if self.vne_mach == 0.0 {
-            self.vne_mach = self.getdouble("WingPlane.Strength.MNE");
+            self.vne_mach = src.get_f64("WingPlane.Strength.MNE");
             if self.vne_mach == 0.0 {
-                self.vne_mach = self.getdouble("WingPlaneSweep0.Strength.MNE");
+                self.vne_mach = src.get_f64("WingPlaneSweep0.Strength.MNE");
             }
         }
 
-        self.aileron_eff = self.getdouble("AileronEffectiveSpeed");
-        self.aileron_power_loss = self.getdouble("AileronPowerLoss");
-        self.rudder_eff = self.getdouble("RudderEffectiveSpeed");
-        self.rudder_power_loss = self.getdouble("RudderPowerLoss");
-        self.elav_eff = self.getdouble("ElevatorsEffectiveSpeed");
-        self.elav_power_loss = self.getdouble("ElevatorPowerLoss");
-        self.maxfuelweight = self.getdouble("MaxFuelMass0");
+        self.aileron_eff = src.get_f64("AileronEffectiveSpeed");
+        self.aileron_power_loss = src.get_f64("AileronPowerLoss");
+        self.rudder_eff = src.get_f64("RudderEffectiveSpeed");
+        self.rudder_power_loss = src.get_f64("RudderPowerLoss");
+        self.elav_eff = src.get_f64("ElevatorsEffectiveSpeed");
+        self.elav_power_loss = src.get_f64("ElevatorPowerLoss");
+        self.maxfuelweight = src.get_f64("MaxFuelMass0");
 
-        self.clmax = self.getdouble("NoFlaps.ClCritHigh");
-        self.flap_clmax = self.getdouble("FullFlaps.ClCritHigh");
+        self.clmax = src.get_f64("NoFlaps.ClCritHigh");
+        self.flap_clmax = src.get_f64("FullFlaps.ClCritHigh");
 
-        self.aoa_high = self.getdouble("NoFlaps.alphaCritHigh");
-        self.aoa_low = self.getdouble("NoFlaps.alphaCritLow");
+        self.aoa_high = src.get_f64("NoFlaps.alphaCritHigh");
+        self.aoa_low = src.get_f64("NoFlaps.alphaCritLow");
 
-        self.flap_aoa_high = self.getdouble("FullFlaps.alphaCritHigh");
-        self.flap_aoa_low = self.getdouble("FullFlaps.alphaCritLow");
+        self.flap_aoa_high = src.get_f64("FullFlaps.alphaCritHigh");
+        self.flap_aoa_low = src.get_f64("FullFlaps.alphaCritLow");
 
-        self.nitro_decr = self.getdouble("NitroConsumption");
-        self.nitro = self.getdouble("MaxNitro");
-        self.oil = self.getdouble("OilMass");
+        self.nitro_decr = src.get_f64("NitroConsumption");
+        self.nitro = src.get_f64("MaxNitro");
+        self.oil = src.get_f64("OilMass");
 
         self.grossweight = self.emptyweight + self.maxfuelweight + self.nitro + self.oil;
         self.halfweight = self.emptyweight + self.maxfuelweight / 2.0 + self.nitro + self.oil;
         self.nofuelweight = self.emptyweight + self.nitro + self.oil;
 
-        self.radiator_cd = self.getdouble("RadiatorCd");
-        self.oil_radiator_cd = self.getdouble("OilRadiatorCd");
-        self.oswalds_efficiency_number = self.getdouble("OswaldsEfficiencyNumber");
+        self.radiator_cd = src.get_f64("RadiatorCd");
+        self.oil_radiator_cd = src.get_f64("OilRadiatorCd");
+        self.oswalds_efficiency_number = src.get_f64("OswaldsEfficiencyNumber");
 
-        self.swept_wing_angle = self.getdouble("SweptWingAngle");
+        self.swept_wing_angle = src.get_f64("SweptWingAngle");
         if self.swept_wing_angle == 0.0 {
-            self.swept_wing_angle = self.getdouble("WingPlane.SweptAngle");
+            self.swept_wing_angle = src.get_f64("WingPlane.SweptAngle");
             if self.swept_wing_angle == 0.0 {
-                self.swept_wing_angle = self.getdouble("WingPlaneSweep0.SweptAngle");
+                self.swept_wing_angle = src.get_f64("WingPlaneSweep0.SweptAngle");
             }
         }
 
-        self.wing_taper_ratio = self.getdouble("WingTaperRatio");
+        self.wing_taper_ratio = src.get_f64("WingTaperRatio");
         if self.wing_taper_ratio == 0.0 {
-            self.wing_taper_ratio = self.getdouble("WingPlane.TaperRatio");
+            self.wing_taper_ratio = src.get_f64("WingPlane.TaperRatio");
             if self.wing_taper_ratio == 0.0 {
-                self.wing_taper_ratio = self.getdouble("WingPlaneSweep0.TaperRatio");
+                self.wing_taper_ratio = src.get_f64("WingPlaneSweep0.TaperRatio");
             }
         }
 
-        self.critical_speed = self.getdouble("CriticalSpeed");
+        self.critical_speed = src.get_f64("CriticalSpeed");
 
         // +1 留给 1.25x 襟翼档位插值哨兵行，避免5档襟翼飞机(如F-82E/P-51B/P-51A-36)
         // 数组越界
@@ -1053,7 +906,7 @@ impl Blkx {
                 // 在实参求值内; 键缺席时行保持 0 → [1]==0 → continue (档位不进位)
                 let key = format!("FlapsDestructionIndSpeedP{p}");
                 p += 1;
-                let _ = self.getdoubles(&key, &mut flaps_destruction[flaps_destruction_num], 2);
+                let _ = src.get_f64s(&key, &mut flaps_destruction[flaps_destruction_num], 2);
                 if flaps_destruction[flaps_destruction_num][1] == 0.0 {
                     continue;
                 }
@@ -1062,7 +915,7 @@ impl Blkx {
         }
         if flaps_destruction_num == 0 {
             let mut tmp = [0.0f64; 4];
-            let _ = self.getdoubles("FlapsDestructionIndSpeedP", &mut tmp, 4);
+            let _ = src.get_f64s("FlapsDestructionIndSpeedP", &mut tmp, 4);
             flaps_destruction[0][0] = tmp[0];
             flaps_destruction[0][1] = tmp[1];
             flaps_destruction[1][0] = tmp[2];
@@ -1071,7 +924,7 @@ impl Blkx {
         }
         if flaps_destruction_num == 0 {
             flaps_destruction[0][0] = 1.0;
-            flaps_destruction[0][1] = self.getdouble("FlapsDestructionIndSpeed");
+            flaps_destruction[0][1] = src.get_f64("FlapsDestructionIndSpeed");
         }
         // 125襟翼档位插值，辅助运算
         flaps_destruction[flaps_destruction_num][0] = 1.25;
@@ -1079,73 +932,65 @@ impl Blkx {
         self.flaps_destruction_ind_speed = Some(flaps_destruction);
         self.flaps_destruction_num = flaps_destruction_num as i32;
 
-        self.gear_destruction_ind_speed = self.getdouble("GearDestructionIndSpeed");
+        self.gear_destruction_ind_speed = src.get_f64("GearDestructionIndSpeed");
 
         // 面积 — 三级回退族: 顶层键 → WingPlane.* → WingPlaneSweep0.*
         // PORT: 宏观直译 (Java 每段 3 行 if, 逐字段展开)
-        let fallback3 = |b: &Blkx, top: &str, plane: &str, sweep0: &str| -> f64 {
-            let v = b.getdouble(top);
+        // (BlkSource 迁移: 闭包从 &Blkx 改捕 src)
+        let fallback3 = |top: &str, plane: &str, sweep0: &str| -> f64 {
+            let v = src.get_f64(top);
             if v != 0.0 {
                 return v;
             }
-            let v = b.getdouble(plane);
+            let v = src.get_f64(plane);
             if v != 0.0 {
                 return v;
             }
-            b.getdouble(sweep0)
+            src.get_f64(sweep0)
         };
         self.a_wing_left_in =
-            fallback3(self, "Areas.WingLeftIn", "WingPlane.Areas.LeftIn", "WingPlaneSweep0.Areas.LeftIn");
+            fallback3("Areas.WingLeftIn", "WingPlane.Areas.LeftIn", "WingPlaneSweep0.Areas.LeftIn");
         self.a_wing_left_mid = fallback3(
-            self,
             "Areas.WingLeftMid",
             "WingPlane.Areas.LeftMid",
             "WingPlaneSweep0.Areas.LeftMid",
         );
         self.a_wing_left_out = fallback3(
-            self,
             "Areas.WingLeftOut",
             "WingPlane.Areas.LeftOut",
             "WingPlaneSweep0.Areas.LeftOut",
         );
         self.a_wing_left_cut = fallback3(
-            self,
             "Areas.WingLeftCut",
             "WingPlane.Areas.LeftCut",
             "WingPlaneSweep0.Areas.LeftCut",
         );
         self.a_wing_right_in = fallback3(
-            self,
             "Areas.WingRightIn",
             "WingPlane.Areas.RightIn",
             "WingPlaneSweep0.Areas.RightIn",
         );
         self.a_wing_right_mid = fallback3(
-            self,
             "Areas.WingRightMid",
             "WingPlane.Areas.RightMid",
             "WingPlaneSweep0.Areas.RightMid",
         );
         self.a_wing_right_out = fallback3(
-            self,
             "Areas.WingRightOut",
             "WingPlane.Areas.RightOut",
             "WingPlaneSweep0.Areas.RightOut",
         );
         self.a_wing_right_cut = fallback3(
-            self,
             "Areas.WingRightCut",
             "WingPlane.Areas.RightCut",
             "WingPlaneSweep0.Areas.RightCut",
         );
         self.a_aileron = fallback3(
-            self,
             "Areas.Aileron",
             "WingPlane.Areas.Aileron",
             "WingPlaneSweep0.Areas.Aileron",
         );
         self.a_fuselage = fallback3(
-            self,
             "Areas.Fuselage",
             "FuselagePlane.Areas.Main",
             "WingPlaneSweep0.Areas.Main",
@@ -1153,50 +998,48 @@ impl Blkx {
         // Java 源码将 AFuselage 三级回退段**原样重复了两遍** (L1252-1261) — 第二遍
         // 读到相同值, 净效果为同一赋值; 保真保留重复调用
         self.a_fuselage = fallback3(
-            self,
             "Areas.Fuselage",
             "FuselagePlane.Areas.Main",
             "WingPlaneSweep0.Areas.Main",
         );
 
         let mut no_flaps_wing = FmParts::default();
-        self.get_parts_fm("NoFlaps", &mut no_flaps_wing);
+        Self::get_parts_fm(src, "NoFlaps", &mut no_flaps_wing);
         if no_flaps_wing.aoa_crit_high == 0.0 {
-            self.get_parts_fm("FlapsPolar0", &mut no_flaps_wing);
+            Self::get_parts_fm(src, "FlapsPolar0", &mut no_flaps_wing);
         }
 
         let mut full_flaps_wing = FmParts::default();
-        self.get_parts_fm("FullFlaps", &mut full_flaps_wing);
+        Self::get_parts_fm(src, "FullFlaps", &mut full_flaps_wing);
         if full_flaps_wing.aoa_crit_high == 0.0 {
-            self.get_parts_fm("FlapsPolar1", &mut full_flaps_wing);
+            Self::get_parts_fm(src, "FlapsPolar1", &mut full_flaps_wing);
         }
 
         // 可变翼: 动态检测 WingPlaneSweep 数量
-        let data = self.data.clone().unwrap();
         let mut sweep_levels: Vec<SweepLevel> = Vec::new();
         for i in 0..10 {
             let prefix = format!("WingPlaneSweep{i}");
-            let block = cut(&data, &prefix);
-            if block == "null" {
+            let block = src.section(&prefix);
+            if block.is_null() {
                 break;
             }
 
             let mut level = SweepLevel::default();
-            level.sweep = self.getdouble(&format!("{prefix}.Sweep:r"));
-            level.vne = self.getdouble(&format!("{prefix}.Strength.VNE"));
-            level.vne_mach = self.getdouble(&format!("{prefix}.Strength.MNE"));
+            level.sweep = src.get_f64(&format!("{prefix}.Sweep:r"));
+            level.vne = src.get_f64(&format!("{prefix}.Strength.VNE"));
+            level.vne_mach = src.get_f64(&format!("{prefix}.Strength.MNE"));
 
             let mut no_flaps = FmParts::default();
-            self.get_parts_fm(&format!("{prefix}.NoFlaps"), &mut no_flaps);
+            Self::get_parts_fm(src, &format!("{prefix}.NoFlaps"), &mut no_flaps);
             if no_flaps.aoa_crit_high == 0.0 {
-                self.get_parts_fm(&format!("{prefix}.FlapsPolar0"), &mut no_flaps);
+                Self::get_parts_fm(src, &format!("{prefix}.FlapsPolar0"), &mut no_flaps);
             }
             level.no_flaps = Some(no_flaps);
 
             let mut full_flaps = FmParts::default();
-            self.get_parts_fm(&format!("{prefix}.FullFlaps"), &mut full_flaps);
+            Self::get_parts_fm(src, &format!("{prefix}.FullFlaps"), &mut full_flaps);
             if full_flaps.aoa_crit_high == 0.0 {
-                self.get_parts_fm(&format!("{prefix}.FlapsPolar1"), &mut full_flaps);
+                Self::get_parts_fm(src, &format!("{prefix}.FlapsPolar1"), &mut full_flaps);
             }
             level.full_flaps = Some(full_flaps);
 
@@ -1226,45 +1069,45 @@ impl Blkx {
         }
 
         let mut fuselage = FmParts::default();
-        self.get_parts_fm("Fuselage", &mut fuselage);
+        Self::get_parts_fm(src, "Fuselage", &mut fuselage);
         if fuselage.aoa_crit_high == 0.0 {
-            self.get_parts_fm("FuselagePlane.Polar", &mut fuselage);
+            Self::get_parts_fm(src, "FuselagePlane.Polar", &mut fuselage);
         }
         self.aoa_fuselage_high = fuselage.aoa_crit_high;
         self.aoa_fuselage_low = fuselage.aoa_crit_low;
 
         let mut fin = FmParts::default();
-        self.get_parts_fm("Fin", &mut fin);
+        Self::get_parts_fm(src, "Fin", &mut fin);
         if fin.aoa_crit_high == 0.0 {
-            self.get_parts_fm("HorStabPlane.Polar", &mut fin);
+            Self::get_parts_fm(src, "HorStabPlane.Polar", &mut fin);
         }
 
         let mut stab = FmParts::default();
-        self.get_parts_fm("Stab", &mut stab);
+        Self::get_parts_fm(src, "Stab", &mut stab);
         if stab.aoa_crit_high == 0.0 {
-            self.get_parts_fm("VerStabPlane.Polar", &mut stab);
+            Self::get_parts_fm(src, "VerStabPlane.Polar", &mut stab);
         }
 
         // 获得安装角
-        self.wing_angle = self.getdouble("\nWingAngle");
+        self.wing_angle = src.get_f64("\nWingAngle");
         if self.wing_angle == 0.0 {
-            self.wing_angle = self.getdouble("WingPlane. Angle");
+            self.wing_angle = src.get_f64("WingPlane. Angle");
             if self.wing_angle == 0.0 {
-                self.wing_angle = self.getdouble("WingPlaneSweep0. Angle");
+                self.wing_angle = src.get_f64("WingPlaneSweep0. Angle");
             }
         }
 
-        self.stab_angle = self.getdouble("StabAngle");
+        self.stab_angle = src.get_f64("StabAngle");
         // PORT(Java bug 保真): 本行判据是 WingAngle 而非 StabAngle — VerStabPlane 的
         // 角度会错写进 WingAngle, StabAngle 拿不到回退值; 源码如此, 不修 (§6 上报)
         if self.wing_angle == 0.0 {
-            self.wing_angle = self.getdouble("VerStabPlane.Angle");
+            self.wing_angle = src.get_f64("VerStabPlane.Angle");
         }
 
-        self.keel_angle = self.getdouble("KeelAngle");
+        self.keel_angle = src.get_f64("KeelAngle");
         // PORT(Java bug 保真): 同上 — 判据 WingAngle 而非 KeelAngle
         if self.wing_angle == 0.0 {
-            self.wing_angle = self.getdouble("FuselagePlane.Angle");
+            self.wing_angle = src.get_f64("FuselagePlane.Angle");
         }
 
         // 计算安装角补偿
@@ -1280,7 +1123,7 @@ impl Blkx {
         stab.aoa_crit_low -= self.stab_angle;
 
         let mut moment_of_inertia = [0.0f64; 3];
-        let _ = self.getdoubles("MomentOfInertia", &mut moment_of_inertia, 3);
+        let _ = src.get_f64s("MomentOfInertia", &mut moment_of_inertia, 3);
         self.moment_of_inertia = Some(moment_of_inertia);
 
         // 最大升力面积因子载荷计算(气动升力系数x部件面积除以满油重量）
@@ -1325,11 +1168,11 @@ impl Blkx {
         self.cd_s = self.a_wing * no_flaps_wing.cd_min + self.a_fuselage * fuselage.cd_min;
 
         // 翼展
-        self.wingspan = self.getdouble("Wingspan");
+        self.wingspan = src.get_f64("Wingspan");
         if self.wingspan == 0.0 {
-            self.wingspan = self.getdouble("WingPlane.Span");
+            self.wingspan = src.get_f64("WingPlane.Span");
             if self.wingspan == 0.0 {
-                self.wingspan = self.getdouble("WingPlaneSweep0.Span");
+                self.wingspan = src.get_f64("WingPlaneSweep0.Span");
             }
         }
 
@@ -1339,9 +1182,9 @@ impl Blkx {
         self.ind_cd_f = 1.0 / (std::f64::consts::PI * self.aspect_ratio * self.oswalds_efficiency_number);
 
         let mut max_allow_gload = [0.0f64; 2];
-        let _ = self.getdoubles("WingCritOverload", &mut max_allow_gload, 2);
+        let _ = src.get_f64s("WingCritOverload", &mut max_allow_gload, 2);
         if max_allow_gload[0] == 0.0 {
-            let _ = self.getdoubles("Strength.CritOverload", &mut max_allow_gload, 2);
+            let _ = src.get_f64s("Strength.CritOverload", &mut max_allow_gload, 2);
         }
 
         // Save raw values for dynamic G-load calculation before conversion
@@ -1439,11 +1282,11 @@ impl Blkx {
 
         // 获得襟翼偏转角度(上偏和下偏)
         let mut aileron_defl = [0.0f64; 2];
-        if self
-            .getdoubles("AileronAngles", &mut aileron_defl, 2)
+        if src
+            .get_f64s("AileronAngles", &mut aileron_defl, 2)
             .is_none()
         {
-            let _ = self.getdoubles("Ailerons.AnglesRoll", &mut aileron_defl, 2);
+            let _ = src.get_f64s("Ailerons.AnglesRoll", &mut aileron_defl, 2);
         }
         self.aileron_defl = Some(aileron_defl);
 
@@ -1564,8 +1407,18 @@ impl Blkx {
     #[allow(unused_assignments)]
     #[allow(clippy::needless_range_loop)]
     pub fn trans_unit(&mut self) {
+        // BlkSource 迁移: 文本后端包装 (getload 同款本地 clone 断借用)
+        let data = self.data.clone().unwrap();
+        let src = TextSrc::new(&data);
+        self.trans_unit_from(&src);
+    }
+
+    /// transUnit 的数据源泛型体 (BlkSource 迁移)。
+    #[allow(unused_assignments)]
+    #[allow(clippy::needless_range_loop)]
+    fn trans_unit_from<S: BlkSource>(&mut self, src: &S) {
         let mut unit_system = "".to_string();
-        unit_system = self.getone("PASSPORT.UNITSYSTEM");
+        unit_system = src.get_str("PASSPORT.UNITSYSTEM");
         unit_system = self.sub_st(&unit_system);
         // 字节 find ≡ UTF-16 indexOf, §2.1)。getone 未找到时返回哨兵 "null",
         // sub_st 剥首尾得 "ul" 同样不含 "Imperial" → 空转 (DumpPlot 腿A 钉死;
@@ -1610,12 +1463,20 @@ impl Blkx {
     /// 对应 Java `public void getAllplotdata()` (L1618-1625) — 五条 PASSPORT
     /// 曲线全量抽取 + 单位换算 (FMLoader.load 第 6 步, finalizeLoading 前)。
     pub fn get_all_plotdata(&mut self) {
-        self.loc = Some(self.getplotdata("PASSPORT.ALT.minClimbTimeWep"));
-        self.loc0 = Some(self.getplotdata("PASSPORT.ALT.minClimbTimeNom"));
-        self.loc1 = Some(self.getplotdata("PASSPORT.ALT.maxSpeedWep"));
-        self.loc2 = Some(self.getplotdata("PASSPORT.ALT.maxSpeedNom"));
-        self.loc3 = Some(self.getplotdata("PASSPORT.IAS.maxRollRateLeft"));
-        self.trans_unit();
+        // BlkSource 迁移: 文本后端包装 (getload 同款本地 clone 断借用)
+        let data = self.data.clone().unwrap();
+        let src = TextSrc::new(&data);
+        self.get_all_plotdata_from(&src);
+    }
+
+    /// getAllplotdata 的数据源泛型体 (BlkSource 迁移)。
+    pub(crate) fn get_all_plotdata_from<S: BlkSource>(&mut self, src: &S) {
+        self.loc = Some(Self::getplotdata_from(src, "PASSPORT.ALT.minClimbTimeWep"));
+        self.loc0 = Some(Self::getplotdata_from(src, "PASSPORT.ALT.minClimbTimeNom"));
+        self.loc1 = Some(Self::getplotdata_from(src, "PASSPORT.ALT.maxSpeedWep"));
+        self.loc2 = Some(Self::getplotdata_from(src, "PASSPORT.ALT.maxSpeedNom"));
+        self.loc3 = Some(Self::getplotdata_from(src, "PASSPORT.IAS.maxRollRateLeft"));
+        self.trans_unit_from(src);
     }
 
     /// 对应 Java `public XY getplotdata(String t)` (L1627-1658) — 抽取点分
@@ -1625,8 +1486,16 @@ impl Blkx {
     // substring 的终点索引, 计数形态是本意
     #[allow(clippy::needless_range_loop)]
     pub fn getplotdata(&self, t: &str) -> XY {
+        // BlkSource 迁移: 文本后端包装
+        let src = TextSrc::new(self.data.as_deref().unwrap());
+        Self::getplotdata_from(&src, t)
+    }
+
+    /// getplotdata 的数据源泛型体 (BlkSource 迁移, 静态形态)。
+    #[allow(clippy::needless_range_loop)]
+    fn getplotdata_from<S: BlkSource>(src: &S, t: &str) -> XY {
         let mut line = 0usize;
-        let t = self.get_array(t);
+        let t = src.get_str_all(t);
         for i in 0..t.len() {
             if t.as_bytes()[i] == b'\n' {
                 line += 1;
@@ -1722,6 +1591,239 @@ fn cut(t: &str, clslabel: &str) -> String {
         return "null".to_string();
     }
     tmp.get(cutleft..cutright).unwrap_or("null").to_string()
+}
+
+// =====================================================================
+// BlkSource — getload 族的抽取原语抽象 (blkx→json 迁移的唯一分歧面)
+//
+// 设计: 后端 (TextSrc/JsonSrc) 只负责**寻址** — 把点分标签解析到"值文本";
+// 数值解析 (getdouble 族的 Float.parseFloat 域/多值 split) 是 trait 默认方法,
+// 单源共享。文本化协议: 多分量值 (JSON 数组 / 文本 p2 行) 统一成 "v0, v1"
+// 逗号串, 使 split(',') 逻辑对两后端行为一致 — 位级对拍的构造性保证。
+// =====================================================================
+
+/// getload/getplotdata 的数据源原语。语义契约逐条锚定 Blkx 旧文本原语
+/// (getone/get_array/cut, 见各后端实现注), 缺席一律返回 "null" 哨兵串。
+pub(crate) trait BlkSource {
+    /// getone: 点分段 = section 链 (cut, CI), 末段 = 块内 leaf (CS 子串)。
+    fn get_str(&self, label: &str) -> String;
+
+    /// get_array: 点分段同上, 末段收集**全部**匹配行 (含行尾 '\n') 拼接
+    /// (PASSPORT 曲线 "y, x\n" 行流, getplotdata 的 Double 域解析依赖此形态)。
+    fn get_str_all(&self, label: &str) -> String;
+
+    /// cut: 命名块的花括号内视图 (Propellor 回退/WingPlaneSweep 循环用)。
+    fn section(&self, name: &str) -> BlkSection;
+
+    /// getdouble (默认实现): `Float.parseFloat` 域 — 首段 trim 后 parse f32
+    /// 再拓宽 f64 (1.42f != 1.42, 模块注陷阱 2); 解析失败返回 0。
+    fn get_f64(&self, label: &str) -> f64 {
+        let mut ret = 0.0;
+        let one = self.get_str(label);
+        if one != "null" {
+            let tmp: Vec<&str> = one.split(',').collect();
+            match tmp.first().and_then(|s| s.trim().parse::<f32>().ok()) {
+                Some(v) => ret = v as f64,
+                None => return 0.0,
+            }
+        }
+        ret
+    }
+
+    /// getdouble_exc (默认实现): 缺席哨兵 = Float.MAX_VALUE
+    /// (调用方以 `== f32::MAX as f64` 判截断); 解析失败返回 0 (Java catch 路径)。
+    fn get_f64_exc(&self, label: &str) -> f64 {
+        let mut ret = f32::MAX as f64;
+        let one = self.get_str(label);
+        if one != "null" {
+            let tmp: Vec<&str> = one.split(',').collect();
+            match tmp.first().and_then(|s| s.trim().parse::<f32>().ok()) {
+                Some(v) => ret = v as f64,
+                None => return 0.0,
+            }
+        }
+        ret
+    }
+
+    /// getdoubles (默认实现): 就地写 `ret[..num]`, 返回 None ↔ Java 返回 null:
+    /// - `num <= 0` → null;
+    /// - 键缺席 (get_str "null") → **返回 Some(()) 且 ret 不动** (调用方依赖
+    ///   "找不到键时保持 0 初值" 的语义, 如 MomentOfInertia);
+    /// - 段数不足/解析失败 → null (Java tmp[i] 越界或 parseFloat 抛 → catch;
+    ///   此时已写入的前缀保留 — 部分写入保真)。
+    fn get_f64s(&self, label: &str, ret: &mut [f64], num: usize) -> Option<()> {
+        if num == 0 {
+            return None;
+        }
+        let one = self.get_str(label);
+        if one != "null" {
+            let tmp: Vec<&str> = one.split(',').collect();
+            for (i, slot) in ret.iter_mut().enumerate().take(num) {
+                // 双路径同为 catch → null
+                *slot = tmp
+                    .get(i)
+                    .and_then(|s| s.trim().parse::<f32>().ok())
+                    .map(|v| v as f64)?;
+            }
+        }
+        Some(())
+    }
+}
+
+/// cut 的返回形态: 文本 = 块内字符串 ("null" ↔ Null), JSON = 子树。
+#[allow(dead_code)] // Json 变体属阶段 3 接线波次
+pub(crate) enum BlkSection {
+    Null,
+    Text(String),
+    Json(serde_json::Value),
+}
+
+impl BlkSection {
+    /// 文本版 cut 哨兵 `"null"` 的等价判断。
+    pub fn is_null(&self) -> bool {
+        matches!(self, BlkSection::Null)
+    }
+
+    /// getonein_data: 块内 leaf 搜索 (点分段 cut 链 + 末段 CI 定位);
+    /// 未找到返回哨兵串 "null"。
+    pub fn get_in(&self, label: &str) -> String {
+        match self {
+            BlkSection::Null => "null".to_string(),
+            BlkSection::Text(t) => TextSrc::get_in_text(t, label),
+            BlkSection::Json(v) => super::json::get_in_json(v, label),
+        }
+    }
+}
+
+/// 文本后端 — Blkx 旧文本原语 (getone/get_array/cut) 的逐位平移宿主。
+/// 持 `&str` 借用 (原实现每次调用 clone 全文, 此处按需 to_string, 行为等价)。
+pub(crate) struct TextSrc<'a>(&'a str);
+
+impl<'a> TextSrc<'a> {
+    pub fn new(data: &'a str) -> Self {
+        TextSrc(data)
+    }
+
+    /// getone/getlastone/get_array 共用的第一步: 点分段逐段 cut,
+    /// 返回 (剩余文本, 末段标签)。
+    fn resolve_path<'l>(&self, label: &'l str) -> (String, &'l str) {
+        let mut text = self.0.to_string();
+        let mut clsbix = 0usize;
+        for i in 0..label.len() {
+            if label.as_bytes()[i] == b'.' {
+                let cls = &label[clsbix..i];
+                text = cut(&text, cls);
+                clsbix = i + 1;
+            }
+        }
+        (text, &label[clsbix..])
+    }
+
+    /// getonein_data 主体 (Java L1839-1871): 对显式文本块做点分段 cut 链 +
+    /// 末段 CI 定位; 未找到返回 "null"。
+    pub fn get_in_text(d: &str, label: &str) -> String {
+        let mut text: String = d.to_string();
+        let mut clsbix = 0usize;
+        for i in 0..label.len() {
+            if label.as_bytes()[i] == b'.' {
+                let cls = &label[clsbix..i];
+                text = cut(&text, cls);
+                clsbix = i + 1;
+            }
+        }
+        let label = &label[clsbix..];
+        let mut bix = match text.to_uppercase().find(&label.to_uppercase()) {
+            Some(i) => i,
+            None => return "null".to_string(),
+        };
+        // 防御加固: 无 '=' 时按"未找到"返回 (原代码扫出末尾越界)
+        while bix < text.len() && text.as_bytes()[bix] != b'=' {
+            bix += 1;
+        }
+        if bix >= text.len() {
+            return "null".to_string();
+        }
+        bix += 1;
+        let mut eix = bix;
+        // 防御加固: 末尾无换行符时取到文本末尾 (substring 到 length() 合法), 不再扫越界
+        while eix < text.len() && text.as_bytes()[eix] != b'\n' {
+            eix += 1;
+        }
+        text.get(bix..eix).unwrap_or("").to_string()
+    }
+}
+
+impl<'a> BlkSource for TextSrc<'a> {
+    /// getone (Java L1873-1906): 点分段 cut 链 (CI) + 末段 **CS** 子串定位
+    /// (toUpperCase 版本在 Java 源码里已被注释掉, oracle go_o2 钉死);
+    /// 未找到返回哨兵串 "null"。
+    fn get_str(&self, label: &str) -> String {
+        let (text, label) = self.resolve_path(label);
+        let mut bix = match text.find(label) {
+            Some(i) => i,
+            None => return "null".to_string(),
+        };
+        // 防御加固: 无 '=' 时按"未找到"返回 (原代码扫出末尾越界)
+        while bix < text.len() && text.as_bytes()[bix] != b'=' {
+            bix += 1;
+        }
+        if bix >= text.len() {
+            return "null".to_string();
+        }
+        bix += 1;
+        let mut eix = bix;
+        // 防御加固: 行尾无换行时取到文本末尾
+        while eix < text.len() && text.as_bytes()[eix] != b'\n' {
+            eix += 1;
+        }
+        text.get(bix..eix).unwrap_or("").to_string()
+    }
+
+    /// get_array (Java L1764-1804): 点分段 cut 链 + 收集**所有**匹配行
+    /// (含行尾 '\n') 拼接; 无匹配返回 ""。
+    #[allow(clippy::while_let_on_iterator)]
+    fn get_str_all(&self, label: &str) -> String {
+        let mut value = String::new();
+        let (mut text, label) = self.resolve_path(label);
+        // toUpperCase 每轮对剩余全文重算 (Java 同, O(匹配数×剩余长度) 保真保留)
+        let mut bix = text.to_uppercase().find(&label.to_uppercase());
+        while let Some(mut bi) = bix {
+            // 防御加固: 加长度上界——label 匹配处之后到文本末尾都没有 '=' (如匹配到块名/
+            // 注释/截断行) 时, 原代码会扫出末尾抛 StringIndexOutOfBoundsException;
+            // 越界时放弃剩余匹配, 返回已积累的 value (与"未找到"时返回空串的语义一致)
+            while bi < text.len() && text.as_bytes()[bi] != b'=' {
+                bi += 1;
+            }
+            if bi >= text.len() {
+                break;
+            }
+            bi += 1;
+            let mut eix = bi;
+            // 防御加固: 末尾无换行符 (init() 直喂的截断文本) 时取到文本末尾
+            while eix < text.len() && text.as_bytes()[eix] != b'\n' {
+                eix += 1;
+            }
+            if eix >= text.len() {
+                value.push_str(text.get(bi..).unwrap_or(""));
+                break;
+            }
+            value.push_str(text.get(bi..eix + 1).unwrap_or(""));
+            // PORT: Java text = text.substring(eix + 1) 共享底层 ↔ drain 原地移除前缀
+            text.drain(..eix + 1);
+            bix = text.to_uppercase().find(&label.to_uppercase());
+        }
+        value
+    }
+
+    /// cut 包装: 命名块文本 ("null" → Null)。
+    fn section(&self, name: &str) -> BlkSection {
+        let s = cut(self.0, name);
+        if s == "null" {
+            BlkSection::Null
+        } else {
+            BlkSection::Text(s)
+        }
+    }
 }
 
 // =====================================================================

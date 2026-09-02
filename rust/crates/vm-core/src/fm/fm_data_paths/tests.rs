@@ -102,6 +102,8 @@ impl Drop for DataRootResetOnDrop {
     fn drop(&mut self) {
         // 还原默认根目录，避免影响同 JVM 内后续逻辑
         set_data_root("./data");
+        // 还原默认格式 (blkx→json 迁移: 本用例显式注入 Blkx 做 Java oracle 对拍)
+        set_format(FmDataFormat::Json);
     }
 }
 
@@ -122,9 +124,21 @@ fn java_main_sequence() {
     let _guard = crate::fm::test_guard::data_root();
     let _reset = DataRootResetOnDrop;
 
+    // Java oracle 的字面量断言基于 .blkx — 显式注入 Blkx 格式跑原序列
+    // (blkx→json 迁移: 默认格式已翻 Json, FORMAT 全局同受 data_root 锁保护)
+    set_format(FmDataFormat::Blkx);
     test_default_root();
     test_central_file_normalization();
     test_physical_file();
     test_fm_dir_and_version_file();
     test_set_data_root_injection();
+
+    // JSON 格式: 扩展名切换为 .json (其余路径逻辑共用)
+    set_format(FmDataFormat::Json);
+    set_data_root("./data");
+    assert_equals(
+        "./data/aces/gamedata/flightmodels/spitfire_f24.json",
+        &norm(&central_file("Spitfire_F24")),
+        "JSON 格式: 中央文件扩展名 .json",
+    );
 }

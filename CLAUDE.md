@@ -3,6 +3,7 @@
 # 代码里的注释要简洁精炼
 # 不要跑e2e测试, 不要跑冒烟测试
 # 不要补充或新增更多测试了
+# rust版本还没发布, 正在重构, 不用担心兼容性问题, 可以随便改架构. 
 
 
 # CLAUDE.md
@@ -49,6 +50,12 @@ python script/build.py rustdist
 # 游戏版本更新后: 解包并裁剪 FM 数据 (更新项目内 ./data, 产出 data zip + manifest)
 # 游戏目录自动探测 (注册表 > Steam 库 > 常见路径, 缓存 .wt_game_dir), 也可 WT_GAME_DIR 显式指定
 python script/build.py fmdata
+
+# JSON 版 FM 数据 (Rust 端数据源, 与 blkx 同名并存 data/, 产出 VoidMei_RustData zip)
+python script/build.py fmdatajson
+
+# blkx vs JSON 解析器全量位级对拍 (2832 对, data/ 需双格式, blkx→json 迁移安全门)
+python script/build.py fmparity
 
 # 清理构建产物
 python script/build.py clean

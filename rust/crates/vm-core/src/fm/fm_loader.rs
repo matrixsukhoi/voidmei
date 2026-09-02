@@ -27,8 +27,9 @@
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::atomic::{AtomicU64, Ordering};
 
+use crate::blkx::json::{extract_fuel_modifications_json, get_last_string_ci};
 use crate::blkx::{extract_fuel_modifications, Blkx, FuelModification, FuelType};
-use crate::fm::fm_data_paths;
+use crate::fm::fm_data_paths::{self, FmDataFormat};
 use crate::fm::handle::FMHandle;
 use crate::fm_power_extractor::{extract_stages_with_fuel, is_piston_engine};
 use crate::logger;
@@ -112,7 +113,111 @@ pub fn load(plane_name: Option<&str>) -> FMHandle {
 
 /// Java `load` 的 try 块主体 — Err ≡ 会落入 catch(Throwable) 的异常路径。
 // PORT: Java catch 块收敛 CORRUPT 由外层 load 统一执行, 本函数只报错不处置
+// (blkx→json 迁移: 按 FmDataFormat 分派, 双链结构平行)
 fn try_load(name: &str) -> Result<FMHandle, String> {
+    match fm_data_paths::format() {
+        FmDataFormat::Json => try_load_json(name),
+        FmDataFormat::Blkx => try_load_blkx(name),
+    }
+}
+
+/// try_load 的 JSON 链 (blkx→json 迁移, 与文本链七步平行):
+/// 中央 .json → serde 树直取 fmfile/燃油修正 (无引号剥壳) → 物理文件
+/// 剥尾 .blk 拼 .json → parse_named_json (plotdata 已内含) → 派生同文本链。
+fn try_load_json(name: &str) -> Result<FMHandle, String> {
+    // 1. 中央文件不存在 → 确认机型不在库 → MISSING
+    let central = fm_data_paths::central_file(name);
+    if !central.exists() {
+        return Ok(FMHandle::missing(Some(name.to_string())));
+    }
+
+    // 2~4. 中央文件 serde 树: 燃油修正 + fmfile (CI 末次; JSON 字符串值本无
+    // 引号, 免文本链的剥引号; 仅剥前导 '/')
+    let mut fuel_mod: Option<FuelModification> = None;
+    let mut fmfile: Option<String> = None;
+    let parsed = std::fs::read_to_string(&central)
+        .ok()
+        .and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok());
+    if let Some(root) = parsed.as_ref() {
+        let fm = extract_fuel_modifications_json(root);
+        if fm.r#type != FuelType::None {
+            logger::info(
+                "FMLoader",
+                &format!(
+                    "Fuel modification detected: {} (HP bonus={})",
+                    fm.r#type,
+                    java_double_str(fm.soviet_octane_hp_bonus)
+                ),
+            );
+        }
+        fuel_mod = Some(fm);
+        fmfile = get_last_string_ci(root, "fmfile");
+        if let Some(f) = fmfile.as_deref() {
+            if f.is_empty() {
+                return Err(format!("fmFile 值为空串: {name}"));
+            }
+            fmfile = if f.starts_with('/') {
+                Some(f[1..].to_string())
+            } else {
+                Some(f.to_string())
+            };
+        }
+    }
+    if fmfile.is_none() {
+        // 中央文件里没写 fmFile → 按目录约定回退
+        fmfile = Some(format!("fm/{name}.blk"));
+    }
+    let mut fmfile = fmfile.unwrap();
+    if !fmfile.contains(".blk") {
+        fmfile.push_str(".blk");
+    }
+
+    // 5. 全量解析物理 FM 文件 (JSON 版映射: 剥尾 .blk 拼 .json, 不再补 x;
+    //    display_name 传映射前 fmfile 串 — read_file_name/fmdata 版本行与
+    //    文本链逐字节一致, parity 同款 name 协议)
+    let physical_name = format!(
+        "{}.json",
+        fmfile.strip_suffix(".blk").unwrap_or(&fmfile)
+    );
+    let physical = fm_data_paths::physical_file(&physical_name);
+    let mut blkx = match Blkx::parse_named_json(&physical.to_string_lossy(), &fmfile) {
+        Ok(b) => b,
+        Err(_) => {
+            // 中央文件在库但物理文件缺失/解析失败 → CORRUPT（数据不完整）
+            logger::warn("FMLoader", &format!("FM文件不存在或解析失败: {name}"));
+            return Ok(FMHandle::corrupt(Some(name.to_string())));
+        }
+    };
+
+    // 6. plotdata 已在 parse_named_json 内完成 (JSON 侧不保留树)
+    blkx.finalize_loading();
+
+    // 7. 按发动机类型提取派生数据（与文本链一致）
+    if is_piston_engine(Some(&blkx)) {
+        let stages = extract_stages_with_fuel(Some(&blkx), fuel_mod.as_ref());
+        let peak_wep = peak_wep_power(stages.as_deref().unwrap_or(&[])) * blkx.engine_num as f64;
+        Ok(FMHandle::ready(
+            Some(name.to_string()),
+            Some(blkx),
+            peak_wep,
+            0.0,
+            stages,
+        ))
+    } else {
+        // 喷气机固定取加力峰值推力 (先取值再移动 blkx)
+        let peak = blkx.peak_thrust(true);
+        Ok(FMHandle::ready(
+            Some(name.to_string()),
+            Some(blkx),
+            0.0,
+            peak,
+            None,
+        ))
+    }
+}
+
+/// try_load 的文本链 (原实现原样; 对拍全绿观察期后随迁移终态移除)。
+fn try_load_blkx(name: &str) -> Result<FMHandle, String> {
     // 1. 中央文件不存在 → 确认机型不在库 → MISSING
     let central = fm_data_paths::central_file(name);
     if !central.exists() {

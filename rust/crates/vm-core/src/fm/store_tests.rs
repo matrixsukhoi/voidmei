@@ -115,18 +115,33 @@ fn create_temp_root() -> PathBuf {
     dir
 }
 
-/// 最小中央文件 —— 只需 getlastone("fmfile") 能命中（参考真机文件头 fmFile:t = "fm/xxx.blk"）
+/// 双格式同铺 (blkx→json 迁移: 默认格式已翻 Json, 合成数据双铺兼容两条链)
+fn write_both(dir: &Path, name: &str, blkx_text: &str, json_text: &str) {
+    std::fs::write(dir.join(format!("{name}.blkx")), blkx_text).unwrap();
+    std::fs::write(dir.join(format!("{name}.json")), json_text).unwrap();
+}
+
+/// 最小中央文件 —— 只需 getlastone("fmfile")/get_last_string_ci("fmfile") 能命中
+/// （参考真机文件头 fmFile:t = "fm/xxx.blk"）
 fn write_central(fm_dir: &Path, name: &str) {
-    let content = format!("model:t = \"{name}\"\nfmFile:t = \"fm/{name}.blk\"\n");
-    std::fs::write(fm_dir.join(format!("{name}.blkx")), content).unwrap();
+    write_both(
+        fm_dir,
+        name,
+        &format!("model:t = \"{name}\"\nfmFile:t = \"fm/{name}.blk\"\n"),
+        &format!("{{\"model\": \"{name}\", \"fmFile\": \"fm/{name}.blk\"}}"),
+    );
 }
 
 /// 最小物理 FM —— 非空且不以 '{' 开头即可全量解析：
 /// getload 对缺失字段全部按 0 处理（无 Jet/Compressor 块 → 按喷气形态、compNumSteps=0，
 /// extractStages 返回 null、peakThrust=0），最终 valid=true → READY。
 fn write_physical(fm_sub: &Path, name: &str) {
-    let content = format!("synthetic-fm:t = \"{name}\"\nEmptyMass:r = 1000\nWingspan:r = 11\n");
-    std::fs::write(fm_sub.join(format!("{name}.blkx")), content).unwrap();
+    write_both(
+        fm_sub,
+        name,
+        "synthetic-fm:t = \"x\"\nEmptyMass:r = 1000\nWingspan:r = 11\n",
+        "{\"synthetic-fm\": \"x\", \"EmptyMass\": 1000.0, \"Wingspan\": 11.0}",
+    );
 }
 
 fn setup_synthetic_data(tmp_root: &Path) {

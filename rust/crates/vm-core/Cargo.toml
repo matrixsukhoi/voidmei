@@ -5,7 +5,9 @@ edition.workspace = true
 description = "VoidMei 纯逻辑层: util/parser/物理计算 (Java A 类一比一翻译目标)"
 
 [dependencies]
-serde_json = { workspace = true }
+# preserve_order: FM JSON (wt_ext_cli) 的 Map 用插入序 — 文本原语 getone/getlastone 的
+# "首个/末个匹配"语义依赖键的文档序, 默认 BTreeMap 排序会破坏位级对拍
+serde_json = { workspace = true, features = ["preserve_order"] }
 indexmap = { workspace = true }
 # Logger 时间戳: SimpleDateFormat("HH:mm:ss.SSS") 本地时区语义 (P3 批四)
 chrono = { version = "0.4", default-features = false, features = ["clock"] }

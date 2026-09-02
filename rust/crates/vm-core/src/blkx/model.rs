@@ -167,7 +167,9 @@ impl Blkx {
     // IO 失败 ExceptionHelper.logAndContinue 吞掉保留半程 sb ↔ Err 分支中断循环
     // (crate 内暂无 Logger, 吞错语义一致, 见 mod.rs 波次注)
     pub fn get_version(&self) -> Option<String> {
-        let file = std::path::Path::new("./data/aces/version");
+        // 版本文件路径走 fm_data_paths (blkx→json 迁移顺带修正: 原硬编码
+        // "./data/aces/version" 未随 setDataRoot 注入, 白盒测试根下读不到)
+        let file = crate::fm::fm_data_paths::version_file();
         let mut tmp_data: Option<String> = None;
         if file.exists() {
             let mut sb = String::new();
