@@ -5,7 +5,7 @@
 use std::path::{Path, PathBuf};
 
 use vm_core::lang::Lang;
-use vm_overlay::platform::extras::DpiHelper;
+use vm_overlay::platform::dpi::DpiHelper;
 
 /// Application.java:60-129 静态字段中"启动一次后只读"组的落位
 /// (LIFETIMES §1.2 → Env; 配置驱动可变组归 ConfigurationService 的 ApplicationState)。

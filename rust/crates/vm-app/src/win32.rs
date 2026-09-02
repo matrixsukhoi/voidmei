@@ -44,7 +44,8 @@ use crate::env::Env;
 use crate::keys::{FM_UNPACKED_INTEREST_KEYS, MINIHUD_INTEREST_KEYS, OVERLAY_SECTIONS};
 use crate::overlay_inputs::{ActivationCache, OverlayInputs};
 use crate::voice_setup::{
-    open_voice_warning, voice_warn_refresh_reaches, SnapshotConfigProvider, VoiceWarnSession,
+    open_voice_warning, voice_warn_refresh_reaches, ConfigSnapshots, SnapshotConfigProvider,
+    VoiceWarnSession,
 };
 
 /// win32 线程装配输入 (全部 Send; 配置以快照形态入线程, 见模块头)
@@ -58,11 +59,9 @@ pub struct Win32ThreadConfig {
     pub activation: ActivationCache,
     /// 共享语音资源管理器 (AppShell.voice; VoiceWarning 告警线程的 reload 面)
     pub voice: Arc<VoiceResourceManager>,
-    /// voice_* 配置键快照 (AppShell.voice_config; 配置 !Send 的跨线程桥)
-    pub voice_config: Arc<Mutex<HashMap<String, String>>>,
-    /// FM show* 配置键快照 (AppShell.fm_field_config; 同上跨线程桥,
-    /// FMUnpackedData generate_lines 的读面)
-    pub fm_field_config: Arc<Mutex<HashMap<String, String>>>,
+    /// 配置跨线程快照对 (AppShell.config_snapshots; 配置 !Send 的跨线程桥 —
+    /// voice_* 供 VoiceWarning reload, FM show* 供 FMUnpackedData generate_lines)
+    pub snapshots: ConfigSnapshots,
     pub ui_cmd_rx: Receiver<UiCommand>,
     pub hotkey_rx: Receiver<HotkeyEvent>,
     pub main_event_tx: Sender<MainEvent>,
@@ -843,8 +842,8 @@ struct Win32Session {
     /// 激活缓存 (本身即 Arc, cfg 同源克隆)
     activation: ActivationCache,
     voice: Arc<VoiceResourceManager>,
-    /// voice_* 配置键快照 (VoiceWarning reload 读面)
-    voice_config: Arc<Mutex<HashMap<String, String>>>,
+    /// 配置跨线程快照对 (voice_* = VoiceWarning reload 读面; E9b 收敛)
+    snapshots: ConfigSnapshots,
 }
 
 impl Win32Session {
@@ -860,8 +859,7 @@ impl Win32Session {
             shared,
             activation,
             voice,
-            voice_config,
-            fm_field_config,
+            snapshots,
             ui_cmd_rx,
             hotkey_rx,
             main_event_tx,
@@ -917,7 +915,7 @@ impl Win32Session {
                 lang: &lang,
                 shared: &shared,
                 fm: &fm,
-                fm_field_config: &fm_field_config,
+                fm_field_config: &snapshots.fm_field,
             },
         );
         // live 喂入用设置快照 (注册面同源; ReinitOverlays 命令同步覆写 — MiniHUD
@@ -1011,7 +1009,7 @@ impl Win32Session {
             shared,
             activation,
             voice,
-            voice_config,
+            snapshots,
         }
     }
 
@@ -1079,7 +1077,7 @@ impl Win32Session {
                 match open_voice_warning(
                     &self.voice,
                     &self.ui_bus,
-                    &self.voice_config,
+                    &self.snapshots.voice,
                     &self.fm,
                     &self.flight_bus,
                     live,

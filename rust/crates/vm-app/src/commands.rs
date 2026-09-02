@@ -4,7 +4,8 @@
 use vm_core::config::configuration_service::GlobalColors;
 
 /// UI→shell 命令。**按变体有唯一属主** (见各变体注释); 主线程侧经
-/// [`crate::AppShell::dispatch`] 路由, win32 侧变体由发送方直达 [`crate::AppShell::ui_cmd_tx`]。
+/// [`crate::AppShell::dispatch`] 路由, win32 侧变体由发送方经 [`crate::AppShell::send_ui`]
+/// 受控直达 (E9a: 通道发送端私有, 禁外部绕过 dispatch 裸发)。
 #[derive(Debug, Clone, PartialEq)]
 pub enum UiCommand {
     /// MainForm.confirm "开始游戏" (MainForm.java:265-278) — **主线程属主**

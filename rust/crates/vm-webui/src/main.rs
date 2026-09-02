@@ -13,7 +13,11 @@ fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let pick = |name: &str| args.iter().position(|a| a == name).and_then(|i| args.get(i + 1)).and_then(|v| v.parse::<u64>().ok());
 
-    let mut form = match ShellForm::new(ShellForm::default_dispatcher()) {
+    // formula cell 用缺省 (壳自验收不涉公式编辑器面; E11 签名注入)
+    let mut form = match ShellForm::new(
+        ShellForm::default_dispatcher(),
+        vm_webui::ipc::FormulaShared::default(),
+    ) {
         Ok(f) => f,
         Err(e) => {
             eprintln!("vm-webui-selftest: {e}");

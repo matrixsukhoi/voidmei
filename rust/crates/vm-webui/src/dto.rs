@@ -95,7 +95,7 @@ fn config_value_to_json(v: &ConfigValue) -> serde_json::Value {
 
 // =====================================================================
 // P6 web 窗口域 DTO: 对比 / 功率曲线 两窗口的数据命令返回面
-// (commands_windows.rs 构造, 前端 AntD Table + SVG 消费)。
+// (commands_comparison.rs 构造, 前端 AntD Table + SVG 消费)。
 // Java 侧对应 JDialog/WebFrame 窗口类的字段区; 颜色/像素字段 (Color/坐标) 是
 // 展示域, 换语义标 (kind/color 字符串) 不进数据面。
 // =====================================================================

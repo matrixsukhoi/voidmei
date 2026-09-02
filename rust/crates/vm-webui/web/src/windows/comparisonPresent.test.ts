@@ -1,6 +1,6 @@
 /**
  * 对比窗口纯展示函数测试: 数据→渲染映射 (行值配色/网格轨道/选择器过滤/recent 维护)。
- * (IPC/React 面依赖 webview, 不在此测 — Rust 侧 commands_windows 已有数据面单测。)
+ * (IPC/React 面依赖 webview, 不在此测 — Rust 侧 commands_comparison/commands_powercurve 已有数据面单测。)
  */
 import { describe, expect, it } from 'vitest'
 import { CMP_COLORS, filterPlanes, gridTemplate, pushRecent, rowColors } from './comparisonPresent'

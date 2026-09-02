@@ -1,36 +1,26 @@
 //! 公式系统命令层 (公式管理编辑器 tab 的全部后端面)。
 //!
-//! 全部**直算模式** (commands_windows 先例): 计算面只依赖 vm-core 的
+//! 全部**直算模式** (commands_comparison 先例): 计算面只依赖 vm-core 的
 //! formula 模块 (FormulaManager 自身线程安全), 不经主线程 dispatcher,
-//! vm-app 的 form_dispatch 零改动。共享态 = 全局桥 [`BRIDGE`]:
-//! vm-app 装配 Service 后调 [`publish_formula_bridge`] 挂入 Arc 句柄。
+//! vm-app 的 form_dispatch 零改动。
+//!
+//! 共享态 (E11 注入形态统一): [`FormulaShared`] — FormRuntime 字段, 经 tauri
+//! State 分发到本层 (vm-app 装配方写: 启动桥注入 + 会话 start 覆盖 Service
+//! 实例), 原 commands_formula 全局静态桥已退役。
 //!
 //! 设计: doc/formula_system_design.md §9 (偏离备案: 原设计 CRUD 走
 //! dispatcher 类, 实施时发现 FormulaManager 全方法线程安全, 直算更简)。
 
-use std::sync::{Arc, OnceLock, RwLock};
+use std::sync::Arc;
 
 use vm_core::formula::{FormulaDef, FormulaManager};
 
-// =====================================================================
-// 全局桥 (vm-app 装配时发布)
-// =====================================================================
+use crate::ipc::FormulaShared;
 
-static BRIDGE: OnceLock<RwLock<Option<Arc<FormulaManager>>>> = OnceLock::new();
-
-/// 装配入口: vm-app 在构造 Service 后调用 (幂等覆盖, 支持控制器重建)
-pub fn publish_formula_bridge(mgr: Arc<FormulaManager>) {
-    let cell = BRIDGE.get_or_init(|| RwLock::new(None));
-    *cell.write().expect("公式桥锁中毒") = Some(mgr);
+/// 当前 manager (State 同源读 — 不经主线程 dispatcher)
+fn manager(state: &FormulaShared) -> Arc<FormulaManager> {
+    state.get()
 }
-
-fn bridge() -> Option<Arc<FormulaManager>> {
-    BRIDGE
-        .get()
-        .and_then(|c| c.read().expect("公式桥锁中毒").clone())
-}
-
-const NO_BRIDGE: &str = "公式系统未接线 (Service 未装配)";
 
 /// 编辑器试算的状态原语参数 (三处 try_eval 共用): now_ms=0 = 时间基准从零跑,
 /// interval_ms=50 = 近似 Service 轮询间隔
@@ -120,8 +110,10 @@ pub struct FormulaEvalDto {
 
 /// 公式列表 (含编译错误标注)
 #[tauri::command]
-pub async fn get_formula_list() -> Result<Vec<FormulaItemDto>, String> {
-    let mgr = bridge().ok_or(NO_BRIDGE)?;
+pub async fn get_formula_list(
+    state: tauri::State<'_, FormulaShared>,
+) -> Result<Vec<FormulaItemDto>, String> {
+    let mgr = manager(&state);
     let set = mgr.current();
     Ok(set
         .formulas
@@ -136,8 +128,11 @@ pub async fn get_formula_list() -> Result<Vec<FormulaItemDto>, String> {
 
 /// 单公式校验 (语法/未知符号/arity; 空快照即可 — 不求值状态原语)
 #[tauri::command]
-pub async fn formula_validate(expr: String) -> Result<FormulaEvalDto, String> {
-    let mgr = bridge().ok_or(NO_BRIDGE)?;
+pub async fn formula_validate(
+    expr: String,
+    state: tauri::State<'_, FormulaShared>,
+) -> Result<FormulaEvalDto, String> {
+    let mgr = manager(&state);
     let snap = mgr.last_snapshot();
     // fm_blkx=None: 编辑器试算暂无 FM 句柄 (W3 补桥), 查表函数得 NaN
     let r = mgr.try_eval(&expr, &snap, TRY_EVAL_NOW_MS, TRY_EVAL_INTERVAL_MS, None);
@@ -149,8 +144,11 @@ pub async fn formula_validate(expr: String) -> Result<FormulaEvalDto, String> {
 
 /// 单公式试算 (最近一帧快照; 状态原语从零跑 — 编辑期近似)
 #[tauri::command]
-pub async fn formula_try_eval(expr: String) -> Result<FormulaEvalDto, String> {
-    let mgr = bridge().ok_or(NO_BRIDGE)?;
+pub async fn formula_try_eval(
+    expr: String,
+    state: tauri::State<'_, FormulaShared>,
+) -> Result<FormulaEvalDto, String> {
+    let mgr = manager(&state);
     let snap = mgr.last_snapshot();
     // fm_blkx=None: 编辑器试算暂无 FM 句柄 (W3 补桥), 查表函数得 NaN
     let r = mgr.try_eval(&expr, &snap, TRY_EVAL_NOW_MS, TRY_EVAL_INTERVAL_MS, None);
@@ -162,7 +160,9 @@ pub async fn formula_try_eval(expr: String) -> Result<FormulaEvalDto, String> {
 
 /// 变量目录 (统一命名空间: 系统变量 + 公式产出变量, 设计 §5 — 公式即变量)
 #[tauri::command]
-pub async fn get_var_catalog() -> Result<Vec<VarCatalogEntryDto>, String> {
+pub async fn get_var_catalog(
+    state: tauri::State<'_, FormulaShared>,
+) -> Result<Vec<VarCatalogEntryDto>, String> {
     let mut out: Vec<VarCatalogEntryDto> = vm_core::formula::registry()
         .catalog()
         .into_iter()
@@ -177,8 +177,9 @@ pub async fn get_var_catalog() -> Result<Vec<VarCatalogEntryDto>, String> {
             overrides_system: false,
         })
         .collect();
-    // 公式产出变量 (bridge 未接线时自然只有系统变量)
-    if let Some(mgr) = bridge() {
+    // 公式产出变量 (State 恒有 manager — 出厂空集时循环体自然为空)
+    {
+        let mgr = manager(&state);
         let set = mgr.current();
         let snap = mgr.last_snapshot();
         let reg = vm_core::formula::registry();
@@ -212,8 +213,10 @@ pub async fn get_var_catalog() -> Result<Vec<VarCatalogEntryDto>, String> {
 
 /// 最近一帧变量快照 (试算面板 "当前数据" 列)
 #[tauri::command]
-pub async fn get_last_var_snapshot() -> Result<serde_json::Value, String> {
-    let mgr = bridge().ok_or(NO_BRIDGE)?;
+pub async fn get_last_var_snapshot(
+    state: tauri::State<'_, FormulaShared>,
+) -> Result<serde_json::Value, String> {
+    let mgr = manager(&state);
     let snap = mgr.last_snapshot();
     let reg = vm_core::formula::registry();
     let names: Vec<String> = reg.vars.iter().map(|v| v.name.to_string()).collect();
@@ -230,8 +233,11 @@ pub async fn get_last_var_snapshot() -> Result<serde_json::Value, String> {
 
 /// 全量保存 + 热更新 (编辑器保存链)
 #[tauri::command]
-pub async fn save_formulas(items: Vec<FormulaItemDto>) -> Result<FormulaEvalDto, String> {
-    let mgr = bridge().ok_or(NO_BRIDGE)?;
+pub async fn save_formulas(
+    items: Vec<FormulaItemDto>,
+    state: tauri::State<'_, FormulaShared>,
+) -> Result<FormulaEvalDto, String> {
+    let mgr = manager(&state);
     let defs: Vec<FormulaDef> = items.iter().map(def_of).collect();
     match mgr.save_all(&defs) {
         Ok(()) => Ok(FormulaEvalDto { ok: true, value: None, error: None }),
@@ -241,8 +247,10 @@ pub async fn save_formulas(items: Vec<FormulaItemDto>) -> Result<FormulaEvalDto,
 
 /// 恢复出厂公式
 #[tauri::command]
-pub async fn reset_formulas() -> Result<FormulaEvalDto, String> {
-    let mgr = bridge().ok_or(NO_BRIDGE)?;
+pub async fn reset_formulas(
+    state: tauri::State<'_, FormulaShared>,
+) -> Result<FormulaEvalDto, String> {
+    let mgr = manager(&state);
     match mgr.reset_to_builtin() {
         Ok(()) => Ok(FormulaEvalDto { ok: true, value: None, error: None }),
         Err(e) => Ok(FormulaEvalDto { ok: false, value: None, error: Some(e) }),

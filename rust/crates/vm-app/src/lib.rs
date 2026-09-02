@@ -99,9 +99,7 @@ pub use crate::win32::{win32_thread_main, Win32ThreadConfig};
 // 根消费的 pub(crate) 项 (私有引入; tests 经 `use super::*` 同样可见)
 use crate::env::locate_template_cfg;
 use crate::overlay_inputs::refresh_activation_cache;
-use crate::voice_setup::{
-    attach_snapshot_hooks, refresh_fm_field_config_snapshot, refresh_voice_config_snapshot,
-};
+pub use crate::voice_setup::ConfigSnapshots; // AppShell pub 字段类型 (E9b)
 
 // tests.rs 专用符号 (经 `use super::*` 抵达; cfg(test) 免非测试构建 unused 警告)
 #[cfg(test)]
@@ -153,19 +151,16 @@ pub struct AppShell {
     /// VoiceWarning 告警线程) 经同一 Arc 共享。voice 目录 "voice" 与
     /// form_dispatch 旧局部实例一致 (Java "./voice/")。
     pub voice: Arc<VoiceResourceManager>,
-    /// voice_* 配置键快照 ([`crate::voice_setup::SnapshotConfigProvider`] 的数据面;
-    /// 配置 !Send 恒留主线程, VoiceWarning 的 reload 链经快照跨线程读 — FlightLogConfig 单键
-    /// 快照先例的全键版)。重构波1: 常规写值经 ConfigurationService 的
-    /// write_hook 在广播前直写 (快照新值先于订阅者), 本字段随核重建全量重刷
-    pub voice_config: Arc<Mutex<HashMap<String, String>>>,
-    /// FM拆包数据 show* 配置键快照 ([`crate::voice_setup::SnapshotConfigProvider`] 的数据面;
-    /// FMUnpackedData 的 generate_lines 每 tick 读, CONFIG_CHANGED 逐键刷新)
-    pub fm_field_config: Arc<Mutex<HashMap<String, String>>>,
+    /// 配置跨线程快照对 (voice_* + FM show*; E9b 收敛原平铺双字段,
+    /// 见 [`ConfigSnapshots`] 头注 — 随核重建全量重刷 + write_hook 广播前直写)
+    pub config_snapshots: ConfigSnapshots,
     pub shared: Arc<ControllerShared>,
     /// 激活缓存 (win32 线程激活探测的配置面)
     pub activation: ActivationCache,
-    /// UI 命令通道发送端 (win32 线程接收端在 spawn 时移交; 移交前测试可观察)
-    pub ui_cmd_tx: Sender<UiCommand>,
+    /// UI 命令通道发送端 (win32 线程接收端在 spawn 时移交)。
+    /// E9a 私有化: 外部一律经 [`AppShell::send_ui`] 受控发送, 禁绕过
+    /// [`AppShell::dispatch`] 直发 (线程内持有的克隆见 Controller/debouncer)
+    ui_cmd_tx: Sender<UiCommand>,
     ui_cmd_rx: Option<Receiver<UiCommand>>,
     hotkey_rx: Option<Receiver<HotkeyEvent>>,
     /// 监督事件通道 (Controller 订阅转发 + 托盘动作汇聚于此)
@@ -176,6 +171,10 @@ pub struct AppShell {
     pub controller: Option<Controller>,
     /// win32 线程句柄 (spawn_win32_thread 后 Some)
     win32: Option<JoinHandle<()>>,
+    /// 公式管理器共享 cell (E11 注入形态统一, 原全局桥收敛位): desktop 启动桥
+    /// 注入 load 过的实例, Controller::start 会话覆盖 Service 实例; ShellForm
+    /// 构造时经参数接线同源 (vm-webui 直算命令经 tauri State 读)
+    pub formula_shared: vm_webui::ipc::FormulaShared,
     /// stop 步3 / start 的设置窗释放闭包 (W2 接 iced MainForm; 默认记日志)
     pub release_main_form: Box<dyn FnMut()>,
     /// Exit 托盘命令 → run_supervisor 退出标志
@@ -269,15 +268,8 @@ impl AppShell {
             winmm_player::make_player(),
             "voice".to_string(),
         ));
-        // voice_* / FM show* 配置键快照 (跨线程读面, 初始全量填充);
-        // 常规写值经 write_hook 在 CONFIG_CHANGED 广播前直写快照
-        let voice_config: Arc<Mutex<HashMap<String, String>>> =
-            Arc::new(Mutex::new(HashMap::new()));
-        refresh_voice_config_snapshot(&config, &voice_config);
-        let fm_field_config: Arc<Mutex<HashMap<String, String>>> =
-            Arc::new(Mutex::new(HashMap::new()));
-        refresh_fm_field_config_snapshot(&config, &fm_field_config);
-        attach_snapshot_hooks(&config, &voice_config, &fm_field_config);
+        // voice_* / FM show* 配置键快照对 (跨线程读面, 初始全量填充 + 挂写值钩子)
+        let config_snapshots = ConfigSnapshots::new(&config);
         let debounce =
             ConfigDebouncer::spawn(debounce_delay, ui_cmd_tx.clone(), Arc::clone(&shared));
         AppShell {
@@ -287,8 +279,7 @@ impl AppShell {
             fm,
             hotkey: Arc::new(Mutex::new(hotkey)),
             voice,
-            voice_config,
-            fm_field_config,
+            config_snapshots,
             shared,
             activation,
             ui_cmd_tx,
@@ -299,6 +290,7 @@ impl AppShell {
             debounce,
             controller: None,
             win32: None,
+            formula_shared: vm_webui::ipc::FormulaShared::default(),
             release_main_form: Box::new(|| {
                 // 默认无 MainForm (W2 前): 记日志占位
                 logger::info("AppShell", "释放设置窗 (默认空操作 — W2 接线前)");
@@ -316,6 +308,12 @@ impl AppShell {
         self.probe_network = on;
     }
 
+    /// UI 命令受控发送面 (E9a): 外部发送 win32 属主命令的唯一入口 —
+    /// 发送失败 (接收端已关) 静默, 与原直发 `let _ =` 语义一致
+    pub fn send_ui(&self, cmd: UiCommand) {
+        let _ = self.ui_cmd_tx.send(cmd);
+    }
+
     /// 托盘重建/初始构造 (Java Application.java:251-273 mouseClicked 与 main:590)。
     /// `is_initial_launch`: true=初始启动 (尊重 autoStartGameMode), false=托盘恢复
     /// (恒弹设置窗语义 — Java Controller(false))。
@@ -331,7 +329,7 @@ impl AppShell {
                 let config = ConfigurationService::new(Some(Arc::clone(&self.ui_bus)));
                 config.init_config();
                 // 快照写值钩子随新配置树重挂 (voice_*/FM show* 直写面)
-                attach_snapshot_hooks(&config, &self.voice_config, &self.fm_field_config);
+                self.config_snapshots.attach_hooks(&config);
                 // 模板回退 (vm-ui main.rs 同款分歧备案: CWD 无用户 cfg 时以仓库模板自愈)
                 if config.get_layout_configs().is_none_or(|g| g.is_empty()) {
                     match locate_template_cfg() {
@@ -346,10 +344,8 @@ impl AppShell {
             }
         };
         refresh_activation_cache(&config, &self.activation); // win32 激活面同步
-        // voice_* 快照随新配置树全量重刷 (VoiceWarning 跨线程配置读面)
-        refresh_voice_config_snapshot(&config, &self.voice_config);
-        // FM show* 快照同批重刷 (FMUnpackedData 的 generate_lines 读面)
-        refresh_fm_field_config_snapshot(&config, &self.fm_field_config);
+        // voice_*/FM show* 快照随新配置树全量重刷 (VoiceWarning 与 generate_lines 读面)
+        self.config_snapshots.refresh(&config);
         self.shared.reset_for_rebuild();
         self.controller = Some(Controller::new(
             ControllerDeps {
@@ -364,6 +360,7 @@ impl AppShell {
                 main_event_tx: self.main_event_tx.clone(),
                 env: self.env.clone(),
                 probe_network: self.probe_network,
+                formula_shared: self.formula_shared.clone(),
             },
             is_initial_launch,
         ));
@@ -405,8 +402,7 @@ impl AppShell {
             shared: Arc::clone(&self.shared),
             activation: Arc::clone(&self.activation),
             voice: Arc::clone(&self.voice),
-            voice_config: Arc::clone(&self.voice_config),
-            fm_field_config: Arc::clone(&self.fm_field_config),
+            snapshots: self.config_snapshots.clone(),
             ui_cmd_rx,
             hotkey_rx,
             main_event_tx: self.main_event_tx.clone(),
@@ -444,9 +440,9 @@ impl AppShell {
                 }
                 self.exit_requested = true;
             }
-            // win32 属主变体不经 dispatch (发送方直达 ui_cmd_tx); 防御性转发
+            // win32 属主变体不经 dispatch (发送方经 send_ui 直达); 防御性转发
             other => {
-                let _ = self.ui_cmd_tx.send(other);
+                self.send_ui(other);
             }
         }
     }
@@ -465,7 +461,9 @@ impl AppShell {
             // Java configChangedHandler (Controller.java:498-544)
             MainEvent::ConfigChanged(key) => {
                 let is_reset_completed = key == ui_state_events::ACTION_RESET_COMPLETED;
-                let Some(c) = self.controller.as_mut() else { return };
+                // 分支内对核只读 (handle_fm_hotkey_config_change/load_from_config_ 均
+                // &self) — as_ref 使 send_ui(&self) 共享借用共存
+                let Some(c) = self.controller.as_ref() else { return };
                 if key == "displayFmKey" || key == "enableFMPrint" {
                     c.handle_fm_hotkey_config_change();
                 }
@@ -486,7 +484,7 @@ impl AppShell {
                         .get_config("AAEnable")
                         .map(|v| java_parse_boolean(&v))
                         .unwrap_or(false);
-                    let _ = self.ui_cmd_tx.send(UiCommand::SetAa(on));
+                    self.send_ui(UiCommand::SetAa(on));
                 }
                 if GLOBAL_COLOR_KEYS.contains(&key.as_str()) {
                     let g = GlobalColors {
@@ -496,7 +494,7 @@ impl AppShell {
                         warning: c.config.get_color_config("fontWarn"),
                         shade_shape: c.config.get_color_config("fontShade"),
                     };
-                    let _ = self.ui_cmd_tx.send(UiCommand::SetGlobalColors(g));
+                    self.send_ui(UiCommand::SetGlobalColors(g));
                 }
                 // win32 激活面同步 (配置已由发布方写毕, 最后写胜出 — 见缓存头注)
                 refresh_activation_cache(&c.config, &self.activation);
@@ -513,9 +511,7 @@ impl AppShell {
                     &self.env,
                     &self.shared,
                 ));
-                let _ = self
-                    .ui_cmd_tx
-                    .send(UiCommand::ReinitOverlays { params: Box::new(params) });
+                self.send_ui(UiCommand::ReinitOverlays { params: Box::new(params) });
                 if c.state() == ControllerState::Preview {
                     // loadFromConfig 在调度点先行 (Java 在任务体首行; 配置 !Send
                     // 不能进防抖线程, 值等价 — 发布→调度间配置无二次变更面)
@@ -527,7 +523,7 @@ impl AppShell {
                         &format!("ACTION: Controller: Reloading config ({})", key),
                     );
                     c.load_from_config_();
-                    let _ = self.ui_cmd_tx.send(UiCommand::ReinitActiveOverlays);
+                    self.send_ui(UiCommand::ReinitActiveOverlays);
                 }
             }
             // Java uiReadyHandler (547-552): UI Ready → Preview
@@ -694,7 +690,7 @@ impl AppShell {
             old.stop(&mut self.release_main_form);
         }
         self.controller = None;
-        let _ = self.ui_cmd_tx.send(UiCommand::Shutdown);
+        self.send_ui(UiCommand::Shutdown);
         if let Some(j) = self.win32.take() {
             let _ = j.join();
         }

@@ -4,7 +4,7 @@
 //! 原 D1 批次的 iced 0.13 view 层 (run_shell_form/MainFormHooks/update_app/view_app
 //! 及各渲染器 view_row) 已整体删除。本 crate 只保留纯数据面:
 //! - [`main_form`] — Message/MainFormState/update 写回链 + persist_and_notify 落盘
-//!   + run_headless 无窗口状态机驱动
+//!   (无窗口验收工具在 main_form::headless, E10 提离核心)
 //! - [`renderers`] — 各行类型的 apply 写回链、纯数据函数与行定位助手
 //! - [`render_context`] — 写链上下文契约 (RenderContext trait, 生产实现 =
 //!   main_form::WriteContext)

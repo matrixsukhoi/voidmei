@@ -7,7 +7,7 @@
 //!   `setLocationRelativeTo(owner)` → 新窗中心对齐主窗);
 //! - `dispose()` → 窗口 X/CLOSE 按钮 (`getCurrentWindow().close()` → lib.rs
 //!   on_window_event 非 main label 分支 destroy);
-//! - 数据不在本层 — 前端窗口加载后经 W1 (`commands_windows::comparison_data` /
+//! - 数据不在本层 — 前端窗口加载后经 W1 (`commands_comparison::comparison_data` /
 //!   `power_curve_data` / `fm_list`) 拉取, URL query 携带开窗参数
 //!   (Java 构造器入参的传递面)。
 //!
@@ -23,7 +23,7 @@ use std::path::PathBuf;
 
 use tauri::{AppHandle, Manager, PhysicalPosition, WebviewUrl, WebviewWindowBuilder, Wry};
 
-use crate::commands_windows::{comparison_title, normalize_secondary};
+use crate::commands_comparison::{comparison_title, normalize_secondary};
 use crate::MAIN_LABEL;
 
 /// 对比窗口 label (capabilities/aux-windows.json 的 windows 域)
@@ -39,7 +39,7 @@ const POWER_CURVE_SIZE: (f64, f64) = (1080.0, 800.0);
 
 /// Java CompactComparisonWindow 构造器标题 (CompactComparisonWindow.java:40):
 /// fm1 归一化后为 None = 单机数据视图 "Aircraft Data: x", 否则 "Comparison: x vs y"。
-/// 波13: title 构造与 fm1 归一化收敛到 commands_windows (与 DTO title 同源)。
+/// 波13: title 构造与 fm1 归一化收敛到 commands_comparison (与 DTO title 同源)。
 fn comparison_window_title(fm0: &str, fm1: Option<&str>) -> String {
     comparison_title(fm0, normalize_secondary(fm0, fm1))
 }

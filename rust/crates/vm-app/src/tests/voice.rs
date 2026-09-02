@@ -74,7 +74,7 @@ fn voice_warning_游戏模式会话_启动tick写fatal_warn并停机() {
     let mut session = open_voice_warning(
         &shell.voice,
         &shell.ui_bus,
-        &shell.voice_config,
+        &shell.config_snapshots.voice,
         &shell.fm,
         &shell.flight_bus,
         Some(Arc::clone(&data)),
@@ -106,7 +106,7 @@ fn voice_warning_live缺失_不起会话() {
         open_voice_warning(
             &shell.voice,
             &shell.ui_bus,
-            &shell.voice_config,
+            &shell.config_snapshots.voice,
             &shell.fm,
             &shell.flight_bus,
             None,
@@ -173,7 +173,8 @@ fn voice_config_变更同步快照并直达总线() {
     // 快照初值 = 配置树当前值 (with_parts 全量填充)
     assert_eq!(
         shell
-            .voice_config
+            .config_snapshots
+            .voice
             .lock()
             .unwrap()
             .get("voice_aoaCrit")
@@ -202,7 +203,8 @@ fn voice_config_变更同步快照并直达总线() {
     // 快照在 publish 栈内已被 VoiceWarning reload 可见 — 此刻即新值, 无需 pump
     assert_eq!(
         shell
-            .voice_config
+            .config_snapshots
+            .voice
             .lock()
             .unwrap()
             .get("voice_aoaCrit")
@@ -306,7 +308,7 @@ fn voice_warning_装配面_播放计数与订阅生命周期() {
     let mut session = open_voice_warning(
         &mgr,
         &shell.ui_bus,
-        &shell.voice_config,
+        &shell.config_snapshots.voice,
         &shell.fm,
         &shell.flight_bus,
         Some(Arc::clone(&data)),
@@ -409,7 +411,7 @@ fn refresh_previews_stop_voice_warn_session() {
     *shell.shared.live.write().unwrap() = Some(frame_store_of(&ServiceData::default()));
     shell.spawn_win32_thread().expect("win32 线程启动");
     let base = probe_deliveries(&shell.ui_bus); // 无会话期送达 0
-    shell.ui_cmd_tx.send(UiCommand::OpenAllOverlays).unwrap();
+    shell.send_ui(UiCommand::OpenAllOverlays);
     assert!(
         wait_deliveries(&shell.ui_bus, base + 1),
         "OpenAllOverlays 应起 VoiceWarning 线程 (configHandler 送达 +1, 实测 {})",
@@ -419,13 +421,10 @@ fn refresh_previews_stop_voice_warn_session() {
     // (State=Preview 是 Java 同名态, 防过期守卫放行)
     *shell.shared.state.write().unwrap() = ControllerState::Preview;
     let gen = shell.shared.preview_generation.load(std::sync::atomic::Ordering::SeqCst);
-    shell
-        .ui_cmd_tx
-        .send(UiCommand::RefreshPreviews {
-            changed_key: Some("enableVoiceWarn".to_string()),
-            generation: gen,
-        })
-        .unwrap();
+    shell.send_ui(UiCommand::RefreshPreviews {
+        changed_key: Some("enableVoiceWarn".to_string()),
+        generation: gen,
+    });
     assert!(
         wait_deliveries(&shell.ui_bus, base),
         "RefreshPreviews(enableVoiceWarn) 应即时停语音会话 (退订回落, 实测 {})",
@@ -433,20 +432,17 @@ fn refresh_previews_stop_voice_warn_session() {
     );
     // 开方向不重建 (Java preview-ctx 怪癖同形态): 再次键控刷新计数不动
     let gen2 = shell.shared.preview_generation.load(std::sync::atomic::Ordering::SeqCst);
-    shell
-        .ui_cmd_tx
-        .send(UiCommand::RefreshPreviews {
-            changed_key: Some("enableVoiceWarn".to_string()),
-            generation: gen2,
-        })
-        .unwrap();
+    shell.send_ui(UiCommand::RefreshPreviews {
+        changed_key: Some("enableVoiceWarn".to_string()),
+        generation: gen2,
+    });
     std::thread::sleep(Duration::from_millis(200));
     assert_eq!(
         probe_deliveries(&shell.ui_bus),
         base,
         "开方向不得经 RefreshPreviews 重建 (Java 同形态, 重起等 OpenAllOverlays)"
     );
-    shell.ui_cmd_tx.send(UiCommand::Shutdown).unwrap();
+    shell.send_ui(UiCommand::Shutdown);
     let join = shell.win32.take().unwrap();
     assert!(join.join().is_ok(), "win32 线程应干净退出");
 }

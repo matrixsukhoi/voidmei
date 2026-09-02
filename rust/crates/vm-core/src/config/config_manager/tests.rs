@@ -1,5 +1,14 @@
 use super::*;
 use crate::config::config_loader::ConfigValue;
+// ui_state 桩 (波16 E5 抽出至 ui_state_storage.rs; load/save 两个名经上方
+// glob 亦可达, 这里显式列出测试消费面, 自包含不依赖本体 use)
+use crate::config::ui_state_storage::{
+    set_ui_state_dir_override, ui_state_config_dir, ui_state_config_file,
+    ui_state_load_template_hash, ui_state_read_properties, ui_state_save_template_hash,
+    UI_STATE_APP_NAME,
+};
+use std::env;
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::MutexGuard;
 

@@ -250,7 +250,7 @@ export function hasNewerVersion(local: string, latest: string): boolean {
 }
 
 // ---------------------------------------------------------------------------
-// 批3 web 窗口域: 对比/功率曲线窗口的数据 IPC (commands_windows.rs W1 直算命令)
+// 批3 web 窗口域: 对比/功率曲线窗口的数据 IPC (commands_comparison/commands_powercurve W1 直算命令)
 // ---------------------------------------------------------------------------
 
 /** 对比窗口一行 (ComparisonRowDto; camelCase) */

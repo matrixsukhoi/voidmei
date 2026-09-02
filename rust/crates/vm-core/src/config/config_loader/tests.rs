@@ -117,7 +117,7 @@ fn java_double_to_string_jdk_4511638_domain_divergence() {
 }
 
 /// getKeyCodeFromText — en_US locale oracle (中文 JDK 的 AWT 属性表本地化
-/// 会导致 "Space" 解析失败, 属 Java 侧环境差异, 见 key_text_table PORT 注释)
+/// 会导致 "Space" 解析失败, 属 Java 侧环境差异, 见 key_text.rs key_text_table PORT 注释)
 #[test]
 fn key_code_from_text_matches_java8_oracle() {
     let cases = [

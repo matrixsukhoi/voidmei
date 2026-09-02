@@ -21,7 +21,7 @@
 | 12 | 保真残留退役 | 死代码清扫（整文件/整模块/死函数/死字段）、AA 开关真缺陷修复、端口溢出策略收敛、孤儿注释清理 | ✅ 1135082 (净 -2548 行, 1256 绿, clippy 0) |
 | 13 | 重复收敛 | java 兼容助手族全库唯一化（base::java_compat）、printf 族归 base::format、像素基元归 primitives、power_curve 切换、WEP 四胞胎、跨 crate 常量/扫描/fm1 规则收敛 | ✅ 7889747 (~1600 行重复出库, 1256 绿, clippy 0) |
 | 14 | 长函数拆解·计算层 | getload_from(775)/variabler(376)/calculate(277)/parse_obj(254)/build_registry(233)/extract_stages(184)/process_polling_cycle(176)/identify_inflection(172) | ✅ 45d1827 (编排层化+锁样板 46 处, 1256 绿, clippy 0) |
-| 15 | 长函数拆解·装配层 | win32_thread_main(454)/desktop_main(260)/TrayIcon::new(160)/minihud update_components(155)+apply_style(124)/9 段注册样板/9 份 spec 工厂脚手架 |
+| 15 | 长函数拆解·装配层 | win32_thread_main(454)/desktop_main(260)/TrayIcon::new(160)/minihud update_components(155)+apply_style(124)/9 段注册样板/9 份 spec 工厂脚手架 | ✅ 0ba5f03 (FontSlot/spec_common/map_inner, 1256 绿, clippy 0) |
 | 16 | 结构归位 | vm-overlay 根壳退役、minihud.rs 四拆、commands_windows 三域拆分、config_manager 拆 ui_state_storage/key_text、extras.rs 三拆、win32.rs 更名、AppShell 收口 |
 | 17 | 数据形态升级 | EngineType 枚举化、is_imperial()、F_INVALID 哨兵统一、WarningSlot、CompressorData、GroupConfig 表驱动、DTO 枚举化、镜像字段删除 |
 | 18 | 文档焕新 | Java 引用注释清扫（3534 处分批）、rust/README 新人导览重写、crate 级架构地图 |

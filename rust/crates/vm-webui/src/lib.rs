@@ -18,18 +18,19 @@
 
 pub mod bridge;
 pub mod commands;
+pub mod commands_comparison;
 pub mod commands_formula;
-pub mod commands_windows;
+pub mod commands_powercurve;
 pub mod dto;
 pub mod ipc;
 pub mod web_windows;
 
-use std::sync::mpsc;
+use std::sync::{mpsc, Arc};
 use std::time::Instant;
 
 use tauri::{App, Emitter, Manager, WebviewWindow, Wry};
 
-use ipc::{FormRuntime, IpcReply, IpcRequest, RequestKind};
+use ipc::{FormRuntime, FormulaShared, IpcReply, IpcRequest, RequestKind};
 
 /// 主窗口 label (tauri.conf.json app.windows[0])
 const MAIN_LABEL: &str = "main";
@@ -51,7 +52,9 @@ pub struct ShellForm {
 impl ShellForm {
     /// 构建常驻隐藏的 MainForm 壳 (build 不 run — 泵权归调用方)。
     /// Err = WebView2 不可用等致命面 (调用方降级监督模式, D9 风险表)。
-    pub fn new(dispatcher: Dispatcher) -> Result<Self, String> {
+    /// `formula`: 公式编辑器直算面的共享 cell (E11 — 由调用方 (vm-app AppShell)
+    /// 持有并注入, 与会话覆盖写点同源; 命令线程经 tauri State 读)。
+    pub fn new(dispatcher: Dispatcher, formula: FormulaShared) -> Result<Self, String> {
         let (tx, rx) = mpsc::channel::<IpcRequest>();
         let app = tauri::Builder::default()
             .plugin(tauri_plugin_dialog::init())
@@ -75,11 +78,11 @@ impl ShellForm {
                 commands::get_app_version,
                 // 批3: FMLIST 行 对比按钮 → 对比 web 窗口 (经主线程 dispatcher 开窗)
                 commands::open_comparison_window,
-                // P6 web 窗口域 (对比/功率曲线/机型选择; 直连 vm-core,
-                // 不经主线程 dispatcher — 见 commands_windows 模块头)
-                commands_windows::comparison_data,
-                commands_windows::power_curve_data,
-                commands_windows::fm_list,
+                // P6 web 窗口数据域 (对比/功率曲线/机型选择; 直连 vm-core,
+                // 不经主线程 dispatcher — 见 commands_comparison 模块头)
+                commands_comparison::comparison_data,
+                commands_powercurve::power_curve_data,
+                commands::fm_list,
                 // 公式管理编辑器 (直算: 只依赖 vm-core formula 模块, 见模块头)
                 commands_formula::get_formula_list,
                 commands_formula::formula_validate,
@@ -117,6 +120,11 @@ impl ShellForm {
         // 批3: dispatcher 开辅助 web 窗口用的 AppHandle (主线程同步建窗, 见 web_windows)
         let mut rt = FormRuntime::default();
         rt.app_handle = Some(app.handle().clone());
+        rt.formula = formula;
+        // E11 状态分发: 直算命令 (公式编辑器/About 回执) 经 tauri State 跨线程读
+        // FormRuntime 的共享字段 — 与主线程 rt 同源, 不经 mpsc dispatcher
+        app.manage(rt.formula.clone());
+        app.manage(Arc::clone(&rt.about_modal_until));
         Ok(ShellForm {
             app,
             rx,
@@ -193,5 +201,15 @@ impl ShellForm {
     /// bench 辅助: 清零 echo 记录 (每轮 show 前调用)
     pub fn reset_echo(&mut self) {
         self.echo_at = None;
+    }
+
+    /// 标记/清除 About Modal 展示期 (主循环 B1 豁免面; 见 FormRuntime 同名方法)
+    pub fn set_about_modal_open(&self, open: bool) {
+        self.rt.set_about_modal_open(open);
+    }
+
+    /// About Modal 是否处于展示期 (60s 上界内)
+    pub fn about_modal_open(&self) -> bool {
+        self.rt.about_modal_open()
     }
 }

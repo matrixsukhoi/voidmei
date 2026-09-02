@@ -4,7 +4,10 @@
 //! (Send+Clone), 真正的执行体 `dispatch` 在主线程被 `ShellForm::pump_once` 驱动 —
 //! 绝不跨线程接触 AppShell。dispatch 为纯函数 + 可注入运行时, 不开 webview 即可单测。
 
-use std::time::Instant;
+use std::sync::{Arc, Mutex, RwLock};
+use std::time::{Duration, Instant};
+
+use vm_core::formula::FormulaManager;
 
 use crate::dto::FormMessageDto;
 
@@ -52,14 +55,82 @@ pub enum IpcReply {
     Err(String),
 }
 
-/// dispatch 运行时 (阶段①壳态; 阶段②由 vm-app 注入 shell+form 真实现)
-#[derive(Default)]
+/// 公式管理器共享 cell (E11 注入形态统一 — 原 commands_formula 全局桥的收敛位):
+/// [`FormRuntime`] 字段持有, 同一实例经 tauri State 分发给公式编辑器**直算命令**
+/// (命令线程直接读, 不经主线程 dispatcher — FormulaManager 全方法线程安全)。
+/// 写点在 vm-app: 启动桥注入 load 过的实例 / 会话 start 覆盖 Service 实例。
+#[derive(Clone, Default)]
+pub struct FormulaShared {
+    cell: Arc<RwLock<Arc<FormulaManager>>>,
+}
+
+impl FormulaShared {
+    /// 换装 manager (vm-app 启动桥/会话覆盖写点)
+    pub fn set(&self, mgr: Arc<FormulaManager>) {
+        *self.cell.write().expect("公式 cell 锁中毒") = mgr;
+    }
+
+    /// 当前 manager (直算命令面读)
+    pub fn get(&self) -> Arc<FormulaManager> {
+        self.cell.read().expect("公式 cell 锁中毒").clone()
+    }
+}
+
+/// About Modal 展示期共享 cell (B1 — 原 bridge.rs 静态 ABOUT_MODAL_UNTIL 的
+/// FormRuntime 并入形态): 主循环经 ShellForm 标记/查询, 前端关闭回执命令经
+/// tauri State 清零 (同 FormulaShared 分发模式)
+pub type AboutModalShared = Arc<Mutex<Option<Instant>>>;
+
+/// 阅读窗口上界 (Java showAbout 通知最长 24s, 放宽到 60s — 防遗忘态永久豁免
+/// InGame 收窗)
+const ABOUT_READ_WINDOW: Duration = Duration::from_secs(60);
+
+/// dispatch 运行时 (阶段①壳态; 阶段②由 vm-app 注入 shell+form 真实现)。
+/// E11 起 crate 内跨线程状态统一收敛为本 struct 的字段 (经 ShellForm 主线程
+/// 访问 / 经 tauri State 命令线程访问), 不再有模块级静态可变态。
 pub struct FormRuntime {
     /// 前端就绪时刻 (UiReady 首次到达)
     pub web_ready_at: Option<Instant>,
     /// Tauri AppHandle (批3: ShellForm 构造期注入 — dispatcher 开辅助 web 窗口
     /// 用; 窗口创建必须主线程, dispatcher 恰在主线程泵内执行, 无死锁面)
     pub app_handle: Option<tauri::AppHandle<tauri::Wry>>,
+    /// 公式编辑器直算面的共享 manager (缺省 = 出厂空集, vm-app 装配方注入真实例)
+    pub formula: FormulaShared,
+    /// About Modal 展示期 (60s 阅读窗口上界; 见 AboutModalShared)
+    pub about_modal_until: AboutModalShared,
+}
+
+impl Default for FormRuntime {
+    fn default() -> Self {
+        FormRuntime {
+            web_ready_at: None,
+            app_handle: None,
+            formula: FormulaShared::default(),
+            about_modal_until: Arc::new(Mutex::new(None)),
+        }
+    }
+}
+
+impl FormRuntime {
+    /// 标记/清除 About Modal 展示期 (true = 开 60s 窗口; false = 立即清除)。
+    /// 主循环 emit `about-requested` 时开启, 前端 Modal 关闭回执提前清零 —
+    /// InGame 收窗分支读 [`Self::about_modal_open`] 豁免收窗 (B1: Java 通知
+    /// 弹窗独立于 MainForm 可见性, 游戏中托盘"关于"恒可读, 不随 mStart 收窗闪没)
+    pub fn set_about_modal_open(&self, open: bool) {
+        let mut until = self
+            .about_modal_until
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        *until = if open { Some(Instant::now() + ABOUT_READ_WINDOW) } else { None };
+    }
+
+    /// About Modal 是否处于展示期 (60s 上界内)
+    pub fn about_modal_open(&self) -> bool {
+        self.about_modal_until
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .is_some_and(|deadline| Instant::now() < deadline)
+    }
 }
 
 /// 请求执行体 (纯函数, 主线程调用; 单测不开 webview)。

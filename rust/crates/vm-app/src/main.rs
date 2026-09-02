@@ -132,21 +132,24 @@ fn desktop_main(debug: bool) -> i32 {
     // 消失, Rc 仅留 dispatcher 注入用; Dispatcher 闭包无 Send 界, Rc 即可)
     let shell = Rc::new(RefCell::new(shell));
 
-    // 公式系统启动桥: Service 未装配的空闲/preview 期, 公式编辑器 tab 也要
-    // 可用 — 先发布独立 manager (装载出厂+用户文件); 进游戏模式装配 Service
-    // 时 app_shell.rs start() 覆盖为会话实例 (编辑保存已落盘, 会话装载不丢)
+    // 公式系统启动桥 (E11 注入形态统一 → AppShell 共享 cell): Service 未装配的
+    // 空闲/preview 期, 公式编辑器 tab 也要可用 — 先注入独立 manager (装载出厂+
+    // 用户文件); 进游戏模式 Controller::start 覆盖为会话实例 (编辑保存已落盘,
+    // 会话装载不丢)
     {
         let mgr = std::sync::Arc::new(vm_core::formula::FormulaManager::new());
         mgr.load_from_files();
-        vm_webui::commands_formula::publish_formula_bridge(mgr);
+        shell.borrow().formula_shared.set(mgr);
     }
 
     // Tauri 壳: 常驻隐藏, build 即后台预热 (不阻塞; 首显等 is_web_ready);
-    // dispatcher = 表单写链真实现 (数据面请求经 MainFormState/UiCommand)
-    let mut form = match vm_webui::ShellForm::new(form_dispatch::make_dispatcher(
-        &shell,
-        Rc::clone(&form_cell),
-    )) {
+    // dispatcher = 表单写链真实现 (数据面请求经 MainFormState/UiCommand);
+    // formula cell 传入接线 (E11): 命令线程经 tauri State 读到同源实例
+    let formula_shared = shell.borrow().formula_shared.clone();
+    let mut form = match vm_webui::ShellForm::new(
+        form_dispatch::make_dispatcher(&shell, Rc::clone(&form_cell)),
+        formula_shared,
+    ) {
         Ok(f) => Some(f),
         Err(e) => {
             logger::error("App", &format!("Web 设置壳不可用, 降级无窗监督: {e}"));
@@ -270,7 +273,7 @@ fn desktop_main(debug: bool) -> i32 {
         // 或 60s 上界清除标记
         if shell.borrow_mut().take_about_request() {
             if form.is_web_ready() {
-                vm_webui::bridge::set_about_modal_open(true);
+                form.set_about_modal_open(true);
             }
             let lang = vm_core::lang::Lang::init_lang();
             let payload = vm_webui::bridge::AboutPayload {
@@ -407,7 +410,7 @@ fn window_visibility_step(
         form.show();
         *initial_shown = true;
         publish_ui_ready(ui_bus);
-    } else if visible && in_game && !vm_webui::bridge::about_modal_open() {
+    } else if visible && in_game && !form.about_modal_open() {
         // 开始 (托盘 Start / StartGame; mStart): 收窗, 对位 confirm 的
         // setVisible(false)。About Modal 展示期豁免 (B1): Java 通知弹窗独立
         // 于 MainForm 可见性, 游戏中托盘"关于"恒可读 — Modal 关闭回执/超时

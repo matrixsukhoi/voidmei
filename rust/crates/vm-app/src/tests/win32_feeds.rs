@@ -11,24 +11,18 @@ fn win32_thread_shutdown_joins_cleanly() {
     // Preview 态 + 有效世代号 → 全量刷新命令 (守卫放行路径, 不 stale)
     *shell.shared.state.write().unwrap() = ControllerState::Preview;
     let gen = shell.shared.preview_generation.load(Ordering::SeqCst);
-    shell
-        .ui_cmd_tx
-        .send(UiCommand::RefreshPreviews {
-            changed_key: None,
-            generation: gen,
-        })
-        .unwrap();
+    shell.send_ui(UiCommand::RefreshPreviews {
+        changed_key: None,
+        generation: gen,
+    });
     std::thread::sleep(Duration::from_millis(150)); // 泵消费 + 渲染一拍
     // 过期命令: 世代号 +1 → 消费侧丢弃 (守卫路径)
-    shell
-        .ui_cmd_tx
-        .send(UiCommand::RefreshPreviews {
-            changed_key: None,
-            generation: gen + 1,
-        })
-        .unwrap();
+    shell.send_ui(UiCommand::RefreshPreviews {
+        changed_key: None,
+        generation: gen + 1,
+    });
     std::thread::sleep(Duration::from_millis(60));
-    shell.ui_cmd_tx.send(UiCommand::Shutdown).unwrap();
+    shell.send_ui(UiCommand::Shutdown);
     let join = shell.win32.take().unwrap();
     assert!(join.join().is_ok(), "win32 线程应干净退出");
     assert!(shell.win32.is_none());
@@ -47,17 +41,14 @@ fn win32_render_frames_advance_with_active_overlays() {
     // Preview 态 + 有效世代号 → 全量刷新 (MiniHUD crosshairSwitch=true 激活)
     *shell.shared.state.write().unwrap() = ControllerState::Preview;
     let gen = shell.shared.preview_generation.load(Ordering::SeqCst);
-    shell
-        .ui_cmd_tx
-        .send(UiCommand::RefreshPreviews {
-            changed_key: None,
-            generation: gen,
-        })
-        .unwrap();
+    shell.send_ui(UiCommand::RefreshPreviews {
+        changed_key: None,
+        generation: gen,
+    });
     // 泵消费 (10ms 节拍) + 窗口物化 + 至少数个 50ms 渲染节拍
     std::thread::sleep(Duration::from_millis(800));
     let frames = shell.shared.render_frames.load(Ordering::SeqCst);
-    shell.ui_cmd_tx.send(UiCommand::Shutdown).unwrap();
+    shell.send_ui(UiCommand::Shutdown);
     let join = shell.win32.take().unwrap();
     assert!(join.join().is_ok());
     assert!(
@@ -82,7 +73,7 @@ fn win32_overlay_present_counts_per_registered_overlay() {
     );
     let mut shell = fixture_full(30, all_on_cfg);
     shell.spawn_win32_thread().expect("win32 线程启动");
-    shell.ui_cmd_tx.send(UiCommand::OpenAllOverlays).unwrap();
+    shell.send_ui(UiCommand::OpenAllOverlays);
     // 泵消费 (10ms 节拍) + 6 窗物化 + 至少数个 50ms 渲染节拍
     std::thread::sleep(Duration::from_millis(1200));
     let counts = shell
@@ -91,7 +82,7 @@ fn win32_overlay_present_counts_per_registered_overlay() {
         .lock()
         .expect("overlay_present 锁中毒")
         .clone();
-    shell.ui_cmd_tx.send(UiCommand::Shutdown).unwrap();
+    shell.send_ui(UiCommand::Shutdown);
     let join = shell.win32.take().unwrap();
     assert!(join.join().is_ok());
     for id in [
@@ -140,7 +131,7 @@ fn register_live_overlays_nine_window_entries() {
             lang: &lang,
             shared: &shell.shared,
             fm: &shell.fm,
-            fm_field_config: &shell.fm_field_config,
+            fm_field_config: &shell.config_snapshots.fm_field,
         },
     );
     // 注册面逐窗计数落键: 9 键全部以 0 落位 (present 计数起点)
@@ -617,9 +608,18 @@ fn fm_field_config_snapshot_syncs_config_changed() {
     let mut shell = fixture_full(30, cfg);
     // 构造期: 16 键全量落 (无 cfg 项的键 = 空串, isFieldEnabled 空串→默认启用,
     // Java getConfig 返回 null 的对位)
-    assert_eq!(shell.fm_field_config.lock().unwrap().len(), FM_FIELD_KEYS.len());
     assert_eq!(
-        shell.fm_field_config.lock().unwrap().get("showWeight").map(|s| s.as_str()),
+        shell.config_snapshots.fm_field.lock().unwrap().len(),
+        FM_FIELD_KEYS.len()
+    );
+    assert_eq!(
+        shell
+            .config_snapshots
+            .fm_field
+            .lock()
+            .unwrap()
+            .get("showWeight")
+            .map(|s| s.as_str()),
         Some("true"),
         "初始快照应含配置树现值"
     );
@@ -632,7 +632,13 @@ fn fm_field_config_snapshot_syncs_config_changed() {
         .set_config("showWeight", "false");
     pump_events(&mut shell); // Controller 转发 → handle_main_event → 快照同步
     assert_eq!(
-        shell.fm_field_config.lock().unwrap().get("showWeight").map(|s| s.as_str()),
+        shell
+            .config_snapshots
+            .fm_field
+            .lock()
+            .unwrap()
+            .get("showWeight")
+            .map(|s| s.as_str()),
         Some("false"),
         "show* 变更应同步进跨线程快照 (generate_lines 读到新值的前提)"
     );
@@ -645,7 +651,12 @@ fn fm_field_config_snapshot_syncs_config_changed() {
         .set_config("enableFMPrint", "false");
     pump_events(&mut shell);
     assert!(
-        !shell.fm_field_config.lock().unwrap().contains_key("enableFMPrint"),
+        !shell
+            .config_snapshots
+            .fm_field
+            .lock()
+            .unwrap()
+            .contains_key("enableFMPrint"),
         "enableFMPrint 走激活缓存, 不入 show* 快照"
     );
 }

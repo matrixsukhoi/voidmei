@@ -13,7 +13,7 @@ fn main() {
             .position(|a| a == "--persist")
             .and_then(|i| args.get(i + 1))
             .cloned();
-        std::process::exit(vm_ui::main_form::run_headless(persist));
+        std::process::exit(vm_ui::main_form::headless::run_headless(persist));
     }
     eprintln!("用法: vm-ui --headless [--persist <path>]");
     eprintln!("D9: 设置窗 (MainForm) 渲染已归 vm-webui web 壳 (vm-app 组装), 本 bin 仅作无窗口状态机验证");

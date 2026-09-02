@@ -1,10 +1,11 @@
 //! 事件桥 (D9 阶段③): EventBus (Rust 侧) → tauri emit (前端)。
 //! 订阅闭包要求 Send (`vm-core/src/bus.rs:45`), AppHandle 满足 — publish 发生在
 //! 任意线程 (set_config 的主线程 / watcher 线程) 都能转发。
+//!
+//! E11 后本 crate 无模块级静态可变态: 原 About Modal 展示期静态
+//! (ABOUT_MODAL_UNTIL) 已并入 FormRuntime 字段 (ipc.rs, 经 tauri State 分发)。
 
 use serde::Serialize;
-use std::sync::Mutex;
-use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Wry};
 use vm_core::base::bus::Subscription;
 use vm_core::base::event::ui_state_events;
@@ -53,35 +54,13 @@ pub struct AboutPayload {
     pub contents: [String; 3],
 }
 
-/// About Modal 展示期标记 (审查 B1): 主循环 emit `about-requested` 时开启一个
-/// 60s 阅读窗口 (Java 三段通知展示时长 8/16/24s 的宽裕上界 — 防遗忘态永久豁免
-/// InGame 收窗), 前端 Modal 关闭回调经 [`about_modal_closed`] 提前清零; 主循环
-/// 的 InGame 收窗分支读取本标记 — Java 通知弹窗独立于 MainForm 可见性, 游戏中
-/// 托盘"关于"恒可读, 不随 mStart 收窗闪没。
-static ABOUT_MODAL_UNTIL: Mutex<Option<Instant>> = Mutex::new(None);
-
-/// 阅读窗口上界 (Java showAbout 通知最长 24s, 放宽到 60s)
-const ABOUT_READ_WINDOW: Duration = Duration::from_secs(60);
-
-/// 标记/清除 About Modal 展示期 (true = 开 60s 窗口; false = 立即清除)
-pub fn set_about_modal_open(open: bool) {
-    let mut until = ABOUT_MODAL_UNTIL.lock().unwrap_or_else(|e| e.into_inner());
-    *until = if open { Some(Instant::now() + ABOUT_READ_WINDOW) } else { None };
-}
-
-/// About Modal 是否处于展示期 (60s 上界内)
-pub fn about_modal_open() -> bool {
-    ABOUT_MODAL_UNTIL
-        .lock()
-        .unwrap_or_else(|e| e.into_inner())
-        .is_some_and(|deadline| Instant::now() < deadline)
-}
-
-/// 前端 About Modal 关闭回执 (dialogs.tsx afterClose → invoke): 清展示期标记,
-/// 恢复 InGame 收窗。薄命令直改静态, 不经主线程 dispatcher (commands_windows 先例)
+/// 前端 About Modal 关闭回执 (dialogs.tsx afterClose → invoke): 清展示期标记
+/// (FormRuntime 字段, 经 tauri State 同源读写), 恢复 InGame 收窗。薄命令直改,
+/// 不经主线程 dispatcher (commands_comparison 先例); 展示期语义见 ipc.rs
+/// FormRuntime::set_about_modal_open (B1 审查背景注)
 #[tauri::command]
-pub fn about_modal_closed() {
-    set_about_modal_open(false);
+pub fn about_modal_closed(state: tauri::State<'_, crate::ipc::AboutModalShared>) {
+    *state.lock().unwrap_or_else(|e| e.into_inner()) = None;
 }
 
 /// config_manager 弹窗载荷 (ConfigManager.java:425-477, 经 ConfigDialog sink

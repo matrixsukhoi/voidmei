@@ -71,6 +71,10 @@ pub struct ControllerDeps {
     /// 单测环境该端口可能被 mock/游戏占用 (项目惯例: 端口占用即跳过/隔离),
     /// 测试置 false 使 FM-Detect/Preview 刷新只走 selectedFM0 兜底, 不触网。
     pub probe_network: bool,
+    /// 公式管理器共享 cell (E11 注入形态统一, AppShell 分发同源实例): start 装配
+    /// Service 时把会话实例换入 — vm-webui 公式编辑器直算命令经 tauri State 读,
+    /// 不经主线程 dispatcher (对位原 commands_formula 全局桥的覆盖写点)
+    pub formula_shared: vm_webui::ipc::FormulaShared,
 }
 
 /// 可重建应用核 (Java Controller; 恒留主线程 — config 字段 !Send)
@@ -100,6 +104,8 @@ pub struct Controller {
     pub(crate) main_form_alive: bool,
     /// 网络探测开关 (ControllerDeps.probe_network, 测试注入面)
     probe_network: bool,
+    /// 公式管理器共享 cell (ControllerDeps.formula_shared — start 会话覆盖写点)
+    formula_shared: vm_webui::ipc::FormulaShared,
 }
 
 impl Controller {
@@ -121,6 +127,7 @@ impl Controller {
             main_event_tx,
             env,
             probe_network,
+            formula_shared,
         } = deps;
 
         load_from_config(&config, &shared, &voice);
@@ -147,6 +154,7 @@ impl Controller {
             service: None,
             main_form_alive: false,
             probe_network,
+            formula_shared,
         };
         c.bind_fm_hotkey_initial();
 
@@ -204,6 +212,13 @@ impl Controller {
         c
     }
 
+    /// UI 命令受控发送 (E9a): AppShell::send_ui 的核内对位 — 本核持通道克隆
+    /// (构造时经 ControllerDeps 分发), 发送失败静默与原直发语义一致;
+    /// 进线程闭包的克隆 (Preview/Openpad 延迟线程) 属线程私有传递面, 例外
+    fn send_ui(&self, cmd: UiCommand) {
+        let _ = self.ui_cmd_tx.send(cmd);
+    }
+
     /// Java:479-489 构造器内的 FM 热键绑定
     fn bind_fm_hotkey_initial(&mut self) {
         let enable =
@@ -228,15 +243,18 @@ impl Controller {
 
     /// Java:601/608 "FM-Detect" 一次性线程 → detectAndIdentify (865-877)。
     /// PORT: selectedFM0 在主线程预读 (配置 !Send 不入线程); HttpHelper/FMManager Send。
+    /// spawn 失败降级 (E9c, 对齐 win32 侧 Result 面): 记日志跳过本次探测
     fn spawn_fm_detect(&self) {
         let selected = self.config.get_config("selectedFM0").unwrap_or_default();
         let http_header = self.env.http_header.clone();
         let fm = Arc::clone(&self.fm);
         let probe = self.probe_network;
-        std::thread::Builder::new()
+        if let Err(e) = std::thread::Builder::new()
             .name("FM-Detect".to_string())
             .spawn(move || detect_and_identify(&selected, &http_header, &fm, probe))
-            .expect("FM-Detect 线程创建失败");
+        {
+            logger::error("Controller", &format!("FM-Detect 线程创建失败, 跳过: {}", e));
+        }
     }
 
     /// Java:447-454 loadFromConfig — loadAppCheck + showStatus 同步
@@ -341,7 +359,7 @@ impl Controller {
                 .map(|v| java_parse_boolean(&v))
                 .unwrap_or(false);
             let mut fm = vm_core::platform::focus_monitor::FocusMonitor::new(
-                Arc::new(vm_overlay::platform::extras::WindowsFocusDetector),
+                Arc::new(vm_overlay::platform::focus::WindowsFocusDetector),
                 Arc::new(ChannelFocusBridge {
                     tx: self.ui_cmd_tx.clone(),
                     shared: Arc::clone(&self.shared),
@@ -357,9 +375,10 @@ impl Controller {
         // FlightLog 槽注入 (Service 轮询线程每轮 logTick, Service.java:1824-1828;
         // Controller.java:44 logon/Log 字段的共享面) — spawn 前随其余注入一次
         service.set_flight_log(Arc::clone(&self.flight_log));
-        // 公式系统桥 (公式编辑器 tab 的直算命令面): Service 构造时已装载
-        // formulas.cfg+user 并进 live 集, 此处挂 Arc 供 vm-webui 命令线程访问
-        vm_webui::commands_formula::publish_formula_bridge(Arc::clone(&service.formula));
+        // 公式系统会话覆盖 (E11): Service 构造时已装载 formulas.cfg+user 并进
+        // live 集, 此处换入共享 cell 供 vm-webui 命令线程访问 (启动桥实例退役,
+        // 编辑保存已落盘由会话装载承接)
+        self.formula_shared.set(Arc::clone(&service.formula));
         let handle = spawn_service_thread(service);
         // 波4: 跨线程读面 = 帧仓 (零锁); handle.data 的锁面仅供 Service 内部
         *self.shared.live.write().expect("live 锁中毒") = Some(Arc::clone(&handle.frames));
@@ -389,7 +408,7 @@ impl Controller {
             if self.service.is_some() {
                 self.closepad(); // 游戏模式: closepad 完整清理
             } else {
-                let _ = self.ui_cmd_tx.send(UiCommand::CloseAllOverlays);
+                self.send_ui(UiCommand::CloseAllOverlays);
             }
         }
         // 2. 取消事件订阅 (防重建后旧实例响应; RAII Drop = unsubscribe, Java 781-795;
@@ -427,7 +446,7 @@ impl Controller {
         let fm = Arc::clone(&self.fm);
         let tx = self.ui_cmd_tx.clone();
         let probe = self.probe_network;
-        std::thread::Builder::new()
+        if let Err(e) = std::thread::Builder::new()
             .name("Preview-Refresh".to_string())
             .spawn(move || {
                 logger::debug(
@@ -440,7 +459,12 @@ impl Controller {
                     generation,
                 });
             })
-            .expect("Preview-Refresh 线程创建失败");
+        {
+            logger::error(
+                "Controller",
+                &format!("Preview-Refresh 线程创建失败, 跳过本次刷新: {}", e),
+            );
+        }
     }
 
     /// Java:912-920 endPreview() — Preview 退出 (MainForm.confirm 前半)。
@@ -449,7 +473,7 @@ impl Controller {
         self.shared
             .preview_generation
             .fetch_add(1, Ordering::SeqCst); // 作废在途回调
-        let _ = self.ui_cmd_tx.send(UiCommand::CloseAllOverlays);
+        self.send_ui(UiCommand::CloseAllOverlays);
         self.config.save_config();
         self.shared.set_state(ControllerState::Init);
     }
@@ -503,7 +527,7 @@ impl Controller {
         let tx = self.ui_cmd_tx.clone();
         let shared = Arc::clone(&self.shared);
         let generation = self.shared.preview_generation.load(Ordering::SeqCst);
-        std::thread::Builder::new()
+        if let Err(e) = std::thread::Builder::new()
             .name("Openpad-Delay".to_string())
             .spawn(move || {
                 std::thread::sleep(Duration::from_millis(100));
@@ -516,7 +540,12 @@ impl Controller {
                 // openpad 的 overlay 面 (Java:363 openAll); 其余面见 openpad_rest
                 let _ = tx.send(UiCommand::OpenAllOverlays);
             })
-            .expect("Openpad-Delay 线程创建失败");
+        {
+            logger::error(
+                "Controller",
+                &format!("Openpad-Delay 线程创建失败, 本次不开面板: {}", e),
+            );
+        }
         self.openpad_rest();
     }
 
@@ -617,7 +646,7 @@ impl Controller {
 
     /// Java closepad (388-421) — overlay 关闭 (命令) + 其余收尾面
     pub fn closepad(&mut self) {
-        let _ = self.ui_cmd_tx.send(UiCommand::CloseAllOverlays);
+        self.send_ui(UiCommand::CloseAllOverlays);
         self.close_flight_log();
     }
 

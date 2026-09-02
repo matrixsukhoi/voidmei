@@ -344,24 +344,21 @@ fn refresh_previews_keep_session_window_mode() {
     let gen = shell.shared.preview_generation.load(Ordering::SeqCst);
     // 模拟游戏形态 (openpad → OpenAllOverlays 处理点置 false)
     shell.shared.overlay_ctx_preview.store(false, Ordering::SeqCst);
-    shell
-        .ui_cmd_tx
-        .send(UiCommand::RefreshPreviews {
-            changed_key: None,
-            generation: gen,
-        })
-        .unwrap();
+    shell.send_ui(UiCommand::RefreshPreviews {
+        changed_key: None,
+        generation: gen,
+    });
     assert!(
         wait_flag(&shell.shared.overlay_ctx_preview, false),
         "游戏稳态刷新预览后 live 门控应恢复开启 (原 bug: 置 true 后 live 冻结)"
     );
     // CloseAll (stop/end_preview/S4toS1 的公共出口) → 回预览态
-    shell.ui_cmd_tx.send(UiCommand::CloseAllOverlays).unwrap();
+    shell.send_ui(UiCommand::CloseAllOverlays);
     assert!(
         wait_flag(&shell.shared.overlay_ctx_preview, true),
         "CloseAll 后窗口形态应回预览态"
     );
-    shell.ui_cmd_tx.send(UiCommand::Shutdown).unwrap();
+    shell.send_ui(UiCommand::Shutdown);
     let join = shell.win32.take().unwrap();
     assert!(join.join().is_ok());
 }

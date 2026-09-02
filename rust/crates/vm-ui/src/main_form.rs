@@ -2,10 +2,9 @@
 //!
 //! **D9 变更**: 设置窗换 Tauri 2 web 壳 (vm-webui) — 原 iced view 段 (view/
 //! panel_section/build_rows/grid_section + ReadContext) 已删, 表单渲染归 web 壳;
-//! 本模块仅存数据层 (Message/MainFormState/update/persist 写回链/run_headless)。
+//! 本模块仅存数据层 (Message/MainFormState/update/persist 写回链); --headless
+//! 无窗口验收工具已提离至 [`headless`] 子模块 (E10, 不与状态机核心混排)。
 //! 下述 Elm/view 布局描述为 D1 历史备案。
-//!
-//! C 类语义复刻 (非机械翻译): Swing/WebLaF 无 Rust 对应物, 以 Elm 架构对位 —
 //! - Java MainForm 的 WebTabbedPane 每 panel 一页 → 本 view 顺序平铺各 panel 区块
 //!   (滚动列); tab 切换/窗口尺寸自适应属窗口管理层, 后续批次。
 //! - Java DynamicDataPage.buildContainer 的 (group ...) 卡片/网格 → 原 build_rows
@@ -31,18 +30,26 @@
 
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
-use vm_core::base::bus::Subscription;
+// tests.rs 经 `use super::*` 消费的事件面符号 (cfg(test) 免非测试构建 unused 警告)
+#[cfg(test)]
+use std::sync::Mutex;
+#[cfg(test)]
+use vm_core::base::bus::ui_state_bus::UiStateEvent;
+
 use vm_core::config::config_api::ConfigProvider;
 use vm_core::config::config_loader::{save_config as save_layout_file, GroupConfig, RowConfig};
 use vm_core::config::configuration_service::ConfigurationService;
-use vm_core::base::bus::ui_state_bus::{UIStateBus, UiStateEvent};
+use vm_core::base::bus::ui_state_bus::UIStateBus;
 use vm_core::base::event::ui_state_events;
 use vm_core::base::logger;
 use crate::render_context::RenderContext;
 
 use crate::renderers;
+
+// --headless 无窗口验收工具 (E10 提离; bin 入口经 main_form::headless 引用)
+pub mod headless;
 
 // =====================================================================
 // 消息
@@ -642,156 +649,6 @@ fn label_row_mut<'a>(rows: &'a mut [RowConfig], label: &str) -> Option<&'a mut R
         }
     }
     None
-}
-
-// =====================================================================
-// --headless 状态机驱动 (无窗口, 读真实 ui_layout.cfg)
-// =====================================================================
-
-/// 仓库模板 ui_layout.cfg 的 CWD 相对候选 (cargo run 自 rust/ 或手工自仓库根)。
-pub fn locate_template_cfg() -> Option<&'static str> {
-    const CANDIDATES: &[&str] = &[
-        "./ui_layout.cfg",
-        "../ui_layout.cfg",
-        "../../ui_layout.cfg",
-        "../../../ui_layout.cfg",
-    ];
-    CANDIDATES
-        .iter()
-        .copied()
-        .find(|p| std::path::Path::new(p).exists())
-}
-
-/// 无窗口状态机测试: 构建真实表单 → 驱动固定 Message 序列 → 断言 WYSIWYG 链路。
-/// 返回进程退出码 (0 = 全部通过)。
-///
-/// `persist_path` (CLI `--persist <path>`): 固定序列落盘到指定路径 — D9 换框架
-/// 验收工具 (相同序列在新旧 UI 层各跑一次 → ui_layout.user.cfg 逐字节 diff=0)。
-/// None = 不落盘 (原纯链路断言形态)。
-pub fn run_headless(persist_path: Option<String>) -> i32 {
-    let Some(cfg_path) = locate_template_cfg() else {
-        eprintln!("vm-ui: --headless 未找到 ui_layout.cfg (候选: ./ ../ ../../ ../../../)");
-        return 2;
-    };
-    let bus = Arc::new(UIStateBus::new());
-    let seen: Arc<Mutex<Vec<UiStateEvent>>> = Arc::new(Mutex::new(Vec::new()));
-    let s2 = Arc::clone(&seen);
-    let _sub: Subscription<UiStateEvent> = bus.subscribe(
-        ui_state_events::CONFIG_CHANGED,
-        move |m: &UiStateEvent| {
-            s2.lock().unwrap().push(m.clone());
-        },
-    );
-
-    let config = ConfigurationService::new(Some(Arc::clone(&bus)));
-    config.load_layout(cfg_path);
-    if persist_path.is_some() {
-        println!(
-            "vm-ui: --persist 基线模式, 固定序列将落盘至 {}",
-            persist_path.as_deref().unwrap_or_default()
-        );
-    }
-    let mut state = MainFormState::new(config, Arc::clone(&bus), persist_path);
-    println!(
-        "vm-ui: --headless 表单构建成功: {} panels / {} rows (源: {cfg_path})",
-        state.panel_count(),
-        state.row_count()
-    );
-    let mut failures = 0u32;
-    let verdict = |ok: bool| if ok { "PASS" } else { "FAIL" };
-
-    // 1) 开关链路: 翻转 → 服务/快照/总线事件
-    if let Some((panel, key)) = state.first_row_of_type("SWITCH") {
-        let before = state.service_string(&key);
-        let new_val = !before.eq_ignore_ascii_case("true");
-        update(&mut state, Message::Toggle { panel, key: key.clone(), value: new_val });
-        let after = state.service_string(&key);
-        let ok = after == new_val.to_string();
-        println!("vm-ui: [{}] Toggle {key}: 服务 {before:?} → {after:?} (期望 {new_val})", verdict(ok));
-        failures += u32::from(!ok);
-    } else {
-        println!("vm-ui: [SKIP] cfg 无 SWITCH 行");
-    }
-
-    // 2) 反相开关链路: 显示 true → 落库 false
-    if let Some((panel, key)) = state.first_row_of_type("SWITCH_INV") {
-        update(&mut state, Message::Toggle { panel, key: key.clone(), value: true });
-        let after = state.service_string(&key);
-        let ok = after == "false";
-        println!("vm-ui: [{}] SwitchInv {key}: 显示 true → 服务 {after:?} (期望 false)", verdict(ok));
-        failures += u32::from(!ok);
-    } else {
-        println!("vm-ui: [SKIP] cfg 无 SWITCH_INV 行");
-    }
-
-    // 3) 滑条链路: 区间中点 → 快照行值 + 服务值 (不落盘)
-    if let Some((panel, key)) = state.first_row_of_type("SLIDER") {
-        let row = state.snapshot_row(&panel, &key);
-        let (min, max) = row.as_ref().map_or((0, 100), |r| (r.min_val, r.max_val));
-        let (min, max) = renderers::slider::effective_range(min, max);
-        let v = min + (max - min) / 2;
-        update(&mut state, Message::Slider { panel: panel.clone(), key: key.clone(), value: v });
-        let row_ok = state.snapshot_row(&panel, &key).is_some_and(|r| r.get_int() == v);
-        let svc = state.service_string(&key);
-        let ok = row_ok && svc == v.to_string();
-        println!("vm-ui: [{}] Slider {key}={v}: 快照行值+服务 {svc:?} (期望 {})", verdict(ok), v);
-        failures += u32::from(!ok);
-    } else {
-        println!("vm-ui: [SKIP] cfg 无 SLIDER 行");
-    }
-
-    // 4) 下拉链路: 重选当前值 → 服务保持 + 快照 Str
-    if let Some((panel, key)) = state.first_row_of_type("COMBO") {
-        let current = state.service_string(&key);
-        update(&mut state, Message::Combo { panel: panel.clone(), key: key.clone(), value: current.clone() });
-        let svc = state.service_string(&key);
-        let row_ok = state
-            .snapshot_row(&panel, &key)
-            .is_some_and(|r| r.get_str() == current);
-        let ok = svc == current && row_ok;
-        println!("vm-ui: [{}] Combo {key}={current:?}: 服务 {svc:?} + 快照行值", verdict(ok));
-        failures += u32::from(!ok);
-    } else {
-        println!("vm-ui: [SKIP] cfg 无 COMBO 行");
-    }
-
-    // 5) 颜色链路: 选色 → 主键十进制写服务 + 快照行值 (分键 keyR/G/B/A 为忠实
-    //    no-op 写, cfg 无对应行, 语义由 color.rs MapCtx 单测断言)
-    if let Some((panel, key)) = state.first_row_of_type("COLOR") {
-        let rgba = [232u8, 147, 50, 200];
-        let decimal = "232, 147, 50, 200";
-        update(&mut state, Message::ColorPicked { panel: panel.clone(), key: key.clone(), value: rgba });
-        let svc = state.service_string(&key);
-        let row_ok = state
-            .snapshot_row(&panel, &key)
-            .is_some_and(|r| r.get_str() == decimal);
-        let ok = svc == decimal && row_ok;
-        println!("vm-ui: [{}] ColorPicked {key}: 服务 {svc:?} + 快照行值 (期望 {decimal:?})", verdict(ok));
-        failures += u32::from(!ok);
-    } else {
-        println!("vm-ui: [SKIP] cfg 无 COLOR 行");
-    }
-
-    // 6) 保存链路: 广播 CONFIG_CHANGED("ui_layout.cfg")
-    {
-        seen.lock().unwrap().clear();
-        update(&mut state, Message::Save);
-        let published = seen
-            .lock()
-            .unwrap()
-            .iter()
-            .any(|e| e.event_type == ui_state_events::CONFIG_CHANGED && e.data.as_deref() == Some("ui_layout.cfg"));
-        println!("vm-ui: [{}] Save 广播 CONFIG_CHANGED(\"ui_layout.cfg\")", verdict(published));
-        failures += u32::from(!published);
-    }
-
-    if failures == 0 {
-        println!("vm-ui: --headless 状态机全部通过");
-        0
-    } else {
-        eprintln!("vm-ui: --headless 失败 {failures} 项");
-        1
-    }
 }
 
 // =====================================================================

@@ -50,13 +50,14 @@ pub use overlays::minihud::{
 pub use overlays::power_info::{power_info_overlay_spec, PowerInfoHandle, PowerInfoState};
 pub use overlays::rows::{HUDAkbRow, HUDEnergyRow, HUDManeuverRow, HUDTextRow};
 pub use overlays::warning::{WarningBlinkHost, WarningOverlay};
-pub use platform::extras::{parse_wav_duration, DpiHelper};
+pub use platform::dpi::DpiHelper;
 pub use platform::hotkey::{
     vk_to_vc, ChannelHotkeySink, HotkeyEvent, HotkeyEventSink, HotkeyManager, VC_CAPS_LOCK,
     VC_NUM_LOCK, VC_P, VC_SCROLL_LOCK, VC_UNDEFINED,
 };
 pub use platform::host::{DialogHooks, OverlayEntry, OverlayHost, OverlaySpec, RenderFn, ReinitFn, WindowFactory};
 pub use platform::reinit::ReinitParams;
+pub use platform::sound::parse_wav_duration;
 #[cfg(target_os = "windows")]
 pub use platform::tray::{TrayConfig, TrayHandler, TrayIcon};
 pub use render::canvas::{LineCapStyle, PixCanvas};

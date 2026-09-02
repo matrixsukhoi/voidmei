@@ -1,5 +1,7 @@
 //! tauri command 薄壳: 前端 invoke → mpsc → 主线程 dispatch → oneshot 回执。
 //! 本文件只做转发 (Send 面), 业务语义全在 ipc::dispatch (主线程纯函数)。
+//! 例外 (不经 dispatcher 的直算命令, 与窗口数据域同款模式):
+//! [`get_app_version`] (静态值) / [`fm_list`] (目录扫描, 见其注释)。
 
 use std::sync::mpsc;
 
@@ -7,6 +9,11 @@ use serde_json::Value;
 
 use crate::dto::FormMessageDto;
 use crate::ipc::{IpcReply, IpcRequest, RequestKind};
+
+/// Serialize → invoke 返回值 (直算命令薄壳共用, 三域拆分时自 commands_windows 收编)
+pub(crate) fn to_json<T: serde::Serialize>(v: &T) -> Result<serde_json::Value, String> {
+    serde_json::to_value(v).map_err(|e| e.to_string())
+}
 
 /// managed 状态: 主线程通道的发送端 (command 线程持有, Send+Clone)
 pub struct IpcState {
@@ -128,4 +135,51 @@ pub fn app_version() -> &'static str {
 #[tauri::command]
 pub fn get_app_version() -> String {
     app_version().to_string()
+}
+
+/// FM 机型列表 (GridSelectorDialog.loadPlanes 搜索下拉; fm/ 物理文件目录)。
+///
+/// 与本文件 [`get_fm_list`] 双命令并存, 接线按窗口对号不可混用:
+/// 设置页 FMLIST 行走 get_fm_list (mpsc → 主线程 dispatcher, 对位 Java
+/// FMListRowRenderer); 对比/功率曲线窗口的机型下拉走本命令 (直连 vm-core,
+/// 对位 GridSelectorDialog.loadPlanes)。当前两者数据面同源 (fm/ 目录 FileUtils
+/// 剥后缀全枚举 + 排序), 差在通道 — dispatcher 版受主线程泵节流, 直连版即时;
+/// 未来演化路径也不同, 前端用错源会造成两窗口列表不一致。
+/// (直算模式与 W3 备案见 commands_comparison 模块头)
+#[tauri::command]
+pub async fn fm_list() -> Result<serde_json::Value, String> {
+    to_json(&vm_core::fm::data_paths::list_fm_names("fm"))
+}
+
+/// 真机数据根注入 (数据域测试共用: data/ 缺失 → false, 调用方打印真因后 SKIP)
+#[cfg(test)]
+pub(crate) fn ensure_real_data() -> bool {
+    // vm-webui 位于 rust/crates/vm-webui → 仓库根 = ../../.. (realtests 同款)
+    let root = format!("{}/../../../data", env!("CARGO_MANIFEST_DIR"));
+    if !std::path::Path::new(&root).join("aces/gamedata/flightmodels").exists() {
+        return false;
+    }
+    vm_core::fm::data_paths::set_data_root(&root);
+    true
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn 真机_fm列表_物理文件目录() {
+        if !ensure_real_data() {
+            println!("SKIP: 真机 data/ 不存在 (fm_list 无数据源)");
+            return;
+        }
+        let planes = vm_core::fm::data_paths::list_fm_names("fm");
+        assert!(planes.len() > 100, "fm/ 目录应有千级机型: {}", planes.len());
+        assert!(planes.contains(&"spitfire_f24".to_string()), "应含 spitfire_f24");
+        assert!(planes.contains(&"a-10c".to_string()), "应含连字符机型 a-10c");
+        // 已排序
+        let mut sorted = planes.clone();
+        sorted.sort();
+        assert_eq!(planes, sorted);
+    }
 }

@@ -17,6 +17,60 @@ use vm_core::fm::FMManager;
 
 use crate::keys::FM_FIELD_KEYS;
 
+/// 配置跨线程快照对 (E9b): AppShell 原平铺的 voice_config/fm_field_config
+/// 双字段收敛体。配置服务 !Send 恒留主线程, VoiceWarning 告警线程与 win32 线程
+/// (FMUnpackedData generate_lines) 经值快照跨线程读; 常规写值经 write_hook 在
+/// CONFIG_CHANGED 广播前直写 (快照新值先于订阅者), 托盘 rebuild 随新配置树
+/// 全量重刷。
+#[derive(Clone)]
+pub struct ConfigSnapshots {
+    /// voice_* 配置键快照 ([`SnapshotConfigProvider`] 数据面; VoiceWarning
+    /// 的 reload 链跨线程读)
+    pub voice: Arc<Mutex<HashMap<String, String>>>,
+    /// FM拆包数据 show* 配置键快照 (FMUnpackedData 的 generate_lines 每
+    /// tick 读, CONFIG_CHANGED 逐键刷新)
+    pub fm_field: Arc<Mutex<HashMap<String, String>>>,
+}
+
+impl ConfigSnapshots {
+    /// 全量初建 (AppShell 构造点): 两快照填充 + 挂写值钩子
+    pub fn new(config: &ConfigurationService) -> Self {
+        let voice = Arc::new(Mutex::new(HashMap::new()));
+        refresh_voice_config_snapshot(config, &voice);
+        let fm_field = Arc::new(Mutex::new(HashMap::new()));
+        refresh_fm_field_config_snapshot(config, &fm_field);
+        let me = ConfigSnapshots { voice, fm_field };
+        me.attach_hooks(config);
+        me
+    }
+
+    /// 两快照全量重刷 (调用点: 托盘 rebuild 新配置树)
+    pub fn refresh(&self, config: &ConfigurationService) {
+        refresh_voice_config_snapshot(config, &self.voice);
+        refresh_fm_field_config_snapshot(config, &self.fm_field);
+    }
+
+    /// 挂配置写值钩子: set_config 广播 CONFIG_CHANGED 前直写跨线程快照,
+    /// 保证 VoiceWarning reload (publish 栈内同步读快照) 拿到新值。
+    /// 调用点: 构造 (initial_config) / 托盘 rebuild (新配置树)。
+    pub fn attach_hooks(&self, config: &ConfigurationService) {
+        let voice = Arc::clone(&self.voice);
+        let fm = Arc::clone(&self.fm_field);
+        config.set_write_hook(Box::new(move |key, value| {
+            if key.starts_with("voice_") {
+                voice
+                    .lock()
+                    .expect("voice 配置快照锁中毒")
+                    .insert(key.to_string(), value.to_string());
+            } else if FM_FIELD_KEYS.contains(&key) {
+                fm.lock()
+                    .expect("FM 字段快照锁中毒")
+                    .insert(key.to_string(), value.to_string());
+            }
+        }));
+    }
+}
+
 /// ConfigurationService (!Send, 主线程独占) 的快照适配器 (重构波2 三合一:
 /// 原 FlightLogConfig 单键快照 / VoiceConfigSnapshot voice_* 全键版 /
 /// FmFieldConfigSnapshot FM show* 版 — 同型只读 ConfigProvider, 合一收敛)。
@@ -56,8 +110,8 @@ impl ConfigProvider for SnapshotConfigProvider {
 }
 
 /// 全量刷新 voice_* 快照: 键集 = VoiceAlertType 全部告警键 (含 start1) 加前缀。
-/// 调用点: AppShell 构造 / 托盘 rebuild (新配置树) — 均主线程。
-pub(crate) fn refresh_voice_config_snapshot(
+/// 调用点: [`ConfigSnapshots::new`] / [`ConfigSnapshots::refresh`] — 均主线程。
+fn refresh_voice_config_snapshot(
     config: &ConfigurationService,
     snapshot: &Arc<Mutex<HashMap<String, String>>>,
 ) {
@@ -71,7 +125,7 @@ pub(crate) fn refresh_voice_config_snapshot(
 }
 
 /// 全量刷新 FM show* 快照 (调用点同 voice: 构造 / 托盘 rebuild)
-pub(crate) fn refresh_fm_field_config_snapshot(
+fn refresh_fm_field_config_snapshot(
     config: &ConfigurationService,
     snapshot: &Arc<Mutex<HashMap<String, String>>>,
 ) {
@@ -79,31 +133,6 @@ pub(crate) fn refresh_fm_field_config_snapshot(
     for key in FM_FIELD_KEYS {
         m.insert(key.to_string(), config.get_config(key).unwrap_or_default());
     }
-}
-
-/// 挂配置写值钩子 (重构波1): set_config 广播 CONFIG_CHANGED 前直写跨线程快照,
-/// 保证 VoiceWarning reload (publish 栈内同步读快照) 拿到新值 — 对位原
-/// handle_main_event 转发桥"先同步快照再发总线"的时序。调用点: AppShell 构造
-/// (initial_config) / 托盘 rebuild (新配置树)。
-pub(crate) fn attach_snapshot_hooks(
-    config: &ConfigurationService,
-    voice_config: &Arc<Mutex<HashMap<String, String>>>,
-    fm_field_config: &Arc<Mutex<HashMap<String, String>>>,
-) {
-    let voice = Arc::clone(voice_config);
-    let fm = Arc::clone(fm_field_config);
-    config.set_write_hook(Box::new(move |key, value| {
-        if key.starts_with("voice_") {
-            voice
-                .lock()
-                .expect("voice 配置快照锁中毒")
-                .insert(key.to_string(), value.to_string());
-        } else if FM_FIELD_KEYS.contains(&key) {
-            fm.lock()
-                .expect("FM 字段快照锁中毒")
-                .insert(key.to_string(), value.to_string());
-        }
-    }));
 }
 
 /// VoiceWarning 对 Service 消费面的生产实现 (VoiceWarningService trait):
