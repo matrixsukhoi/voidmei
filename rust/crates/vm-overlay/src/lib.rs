@@ -1,92 +1,70 @@
-//! vm-overlay: overlay 渲染与平台窗口层 (POC 语义复刻成果)
-pub mod config;
-pub mod draw_frame_simpl;
-pub mod flight_info;
-pub mod font;
-pub mod gauge_attitude;
-pub mod global_colors;
-pub mod gauge_compass;
-pub mod gauge_crosshair;
-pub mod gauges_bars;
-pub mod host;
-pub mod hotkey;
-// 重构波2 自 vm-core 下沉 (本 crate 唯一消费的 UI 支撑面)
-pub mod hud_layout_node;
-pub mod layout;
-pub mod minihud;
-pub mod minihud_layout;
-pub mod overlay_list;
-// 重构波2 六劈: overlays_field1/2 内容的承载模块 (壳模块转发 re-export)
-mod overlay_control_surfaces;
-mod overlay_engine_control;
-mod overlay_fm_unpacked;
-mod overlay_gauges;
-mod overlay_gear_flaps;
-mod overlay_power_info;
-pub mod overlays_field1;
-pub mod overlays_field2;
-pub mod platform;
-pub mod platform_extras;
-pub mod primitives;
-pub mod reinit;
-pub mod render;
-pub mod render2d;
-pub mod renderers;
-pub mod rows;
-pub mod ui_constants;
-pub mod ui_model;
-#[cfg(target_os = "windows")]
-pub mod tray;
-pub mod warning_overlay;
+//! vm-overlay: overlay 渲染与平台窗口层 (POC 语义复刻成果)。
+//! 波10 分域: platform(窗口/托盘/热键/host) / render(canvas/fields/renderers/font/
+//! palette/primitives) / overlays(~17 组件, 原 overlays_field1/2 壳退役) /
+//! layout(布局引擎+常量) / ui_model(数据字段模型)。
+//! 根 re-export 面保持既有符号路径 (外部消费 `vm_overlay::X` 零感知)。
 
-pub use config::{load_pos, save_pos};
-pub use gauge_attitude::{
-    attitude_overlay_spec, AttitudeIndicatorGauge, AttitudeOverlay, AttitudeOverlayHandle,
-};
-pub use gauge_compass::CompassGauge;
-pub use gauge_crosshair::CrosshairGauge;
-pub use gauges_bars::{FlapAngleBar, LabeledLinearGauge, LinearGauge, SpeedRatioBar};
-pub use host::{DialogHooks, OverlayEntry, OverlayHost, OverlaySpec, RenderFn, ReinitFn, WindowFactory};
-pub use reinit::ReinitParams;
-pub use hotkey::{
-    vk_to_vc, ChannelHotkeySink, HotkeyEvent, HotkeyEventSink, HotkeyManager, VC_CAPS_LOCK,
-    VC_NUM_LOCK, VC_P, VC_SCROLL_LOCK, VC_UNDEFINED,
-};
-pub use minihud::{
-    minihud_overlay_spec, CompCell, MiniHudComponent, MiniHudComponentInner, MiniHudFonts,
-    MiniHudHandle, MiniHudOverlay, MinimalHudContext,
-};
-pub use minihud_layout::{
+// ---- 域模块 (5) ----
+pub mod layout;
+pub mod overlays;
+pub mod platform;
+pub mod render;
+pub mod ui_model;
+
+// ---- 根 re-export 面 (既有公共 API, 指向分域后位置) ----
+pub use layout::hud_layout_node;
+pub use layout::minihud_layout::{
     build_mihud_layout, debug_frame_color, java_string_hashcode, AutoSizingPlan,
     BuiltMiniHudLayout, CfgDefault, HasVisibility, MiniHudComp, MiniHudCfgItem, MiniHudItemType,
     MiniHudLayoutConfig, MiniHudNodeSpec, MiniHudParts, ModernHUDLayoutEngine,
     ENABLE_LAYOUT_DEBUG_ITEM, LAYOUT_PADDING, MINIHUD_NODE_SPECS, MINIHUD_PANEL_ITEMS,
 };
-pub use overlay_list::{BaseListOverlay, ZebraList};
-pub use flight_info::{build_texts, flight_info_overlay_spec, FlightInfoHandle};
-pub use overlays_field1::{
-    engine_control_overlay_spec, gear_flaps_overlay_spec,
-    ENGINE_DISABLE_KEYS,
-    power_info_overlay_spec, EngineControlHandle, EngineControlState, EngineGauge, EngineGaugeDef, GaugeBarStyle,
-    GaugeMarker, GaugeType, GearFlapsHandle, GearFlapsState, MarkedGauge, MarkerType,
-    PowerInfoHandle, PowerInfoState, ENGINE_GAUGE_DEFS, ENGINE_REFRESH_MULTIPLIER, FIELD_OVERLAY_REFRESH_INTERVAL_MS,
-    GEAR_FLAPS_REFRESH_INTERVAL_MS, };
-pub use draw_frame_simpl::{
+pub use overlays::attitude::{
+    attitude_overlay_spec, AttitudeIndicatorGauge, AttitudeOverlay, AttitudeOverlayHandle,
+};
+pub use overlays::bars::{FlapAngleBar, LabeledLinearGauge, LinearGauge, SpeedRatioBar};
+pub use overlays::compass::CompassGauge;
+pub use overlays::control_surfaces::{
+    control_surfaces_overlay_spec, ControlSurfacesHandle, ControlSurfacesOverlay, CsFonts,
+    REFRESH_INTERVAL_MS,
+};
+pub use overlays::draw_frame_simpl::{
     draw_frame_simpl_spec, DfsFlight, DrawFrameSimplFeed, DrawFrameSimplHandle, DrawFrameSimpl,
 };
-pub use overlays_field2::{
-    control_surfaces_overlay_spec, fm_unpacked_data_overlay_spec, ControlSurfacesHandle,
-    ControlSurfacesOverlay, CsFonts, FmUnpackedDataHandle, FmUnpackedDataOverlay,
-    FmUnpackedFeed, REFRESH_INTERVAL_MS,
+pub use overlays::engine_control::{
+    engine_control_overlay_spec, EngineControlHandle, EngineControlState, EngineGauge,
+    EngineGaugeDef, ENGINE_DISABLE_KEYS, ENGINE_GAUGE_DEFS, ENGINE_REFRESH_MULTIPLIER, GaugeType,
 };
-pub use platform_extras::{parse_wav_duration, DpiHelper};
-pub use render::{draw_fields, render_fields, render_fields_fixed, FieldText, FontTriple, RenderColors, DEFAULT_COLORS};
-pub use render2d::{to_premul_bgra, LineCapStyle, PixCanvas};
-pub use renderers::{
+pub use overlays::flight_info::{build_texts, flight_info_overlay_spec, FlightInfoHandle};
+pub use overlays::fm_unpacked::{
+    fm_unpacked_data_overlay_spec, FmUnpackedDataHandle, FmUnpackedDataOverlay, FmUnpackedFeed,
+};
+pub use overlays::gear_flaps::{
+    gear_flaps_overlay_spec, GearFlapsHandle, GearFlapsState, FIELD_OVERLAY_REFRESH_INTERVAL_MS,
+    GEAR_FLAPS_REFRESH_INTERVAL_MS,
+};
+pub use overlays::list::{BaseListOverlay, ZebraList};
+pub use overlays::minihud::{
+    minihud_overlay_spec, CompCell, MiniHudComponent, MiniHudComponentInner, MiniHudFonts,
+    MiniHudHandle, MiniHudOverlay, MinimalHudContext,
+};
+pub use overlays::power_info::{power_info_overlay_spec, PowerInfoHandle, PowerInfoState};
+pub use overlays::rows::{HUDAkbRow, HUDEnergyRow, HUDManeuverRow, HUDTextRow};
+pub use overlays::warning::{WarningBlinkHost, WarningOverlay};
+pub use platform::extras::{parse_wav_duration, DpiHelper};
+pub use platform::hotkey::{
+    vk_to_vc, ChannelHotkeySink, HotkeyEvent, HotkeyEventSink, HotkeyManager, VC_CAPS_LOCK,
+    VC_NUM_LOCK, VC_P, VC_SCROLL_LOCK, VC_UNDEFINED,
+};
+pub use platform::host::{DialogHooks, OverlayEntry, OverlayHost, OverlaySpec, RenderFn, ReinitFn, WindowFactory};
+pub use platform::position::{load_pos, save_pos};
+pub use platform::reinit::ReinitParams;
+#[cfg(target_os = "windows")]
+pub use platform::tray::{TrayConfig, TrayHandler, TrayIcon};
+pub use render::canvas::{to_premul_bgra, LineCapStyle, PixCanvas};
+pub use render::fields::{draw_fields, render_fields, render_fields_fixed, FieldText, FontTriple, RenderColors, DEFAULT_COLORS};
+pub use render::palette;
+pub use render::renderers::{
     BosStyleRenderer, Field, OverlayRenderer, RenderContext, RenderPalette, TextGauge,
     APPLICATION_COLORS, WHITE,
 };
-pub use rows::{HUDAkbRow, HUDEnergyRow, HUDManeuverRow, HUDTextRow};
-#[cfg(target_os = "windows")]
-pub use tray::{TrayConfig, TrayHandler, TrayIcon};
-pub use warning_overlay::{WarningBlinkHost, WarningOverlay};

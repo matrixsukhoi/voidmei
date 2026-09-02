@@ -26,7 +26,7 @@ use vm_data::service_loop::{
     ServiceConfig, ServiceHandle,
 };
 
-use vm_overlay::hotkey::{HotkeyManager, VC_P};
+use vm_overlay::platform::hotkey::{HotkeyManager, VC_P};
 
 use crate::commands::{MainEvent, UiCommand};
 use crate::controller_shared::{ControllerShared, FLIGHT_SILENT_EXIT_MS};
@@ -338,7 +338,7 @@ impl Controller {
                 .map(|v| java_parse_boolean(&v))
                 .unwrap_or(false);
             let mut fm = vm_core::platform::focus_monitor::FocusMonitor::new(
-                Arc::new(vm_overlay::platform_extras::WindowsFocusDetector),
+                Arc::new(vm_overlay::platform::extras::WindowsFocusDetector),
                 Arc::new(ChannelFocusBridge {
                     tx: self.ui_cmd_tx.clone(),
                     shared: Arc::clone(&self.shared),

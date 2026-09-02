@@ -23,8 +23,8 @@ use vm_core::base::logger;
 use vm_core::base::bus::ui_state_bus::UIStateBus;
 use vm_core::audio::voice_resource_manager::VoiceResourceManager;
 
-use vm_overlay::host::OverlayHost;
-use vm_overlay::hotkey::HotkeyEvent;
+use vm_overlay::platform::host::OverlayHost;
+use vm_overlay::platform::hotkey::HotkeyEvent;
 use vm_overlay::{
     attitude_overlay_spec, control_surfaces_overlay_spec, draw_frame_simpl_spec,
     engine_control_overlay_spec, flight_info_overlay_spec, fm_unpacked_data_overlay_spec,
@@ -35,7 +35,7 @@ use vm_overlay::{
 };
 
 #[cfg(target_os = "windows")]
-use vm_overlay::tray::{TrayConfig, TrayIcon, TrayHandler};
+use vm_overlay::platform::tray::{TrayConfig, TrayIcon, TrayHandler};
 
 use crate::commands::{MainEvent, TrayCommand, UiCommand};
 use crate::controller_shared::{is_stale_refresh, ControllerShared};
@@ -209,7 +209,7 @@ struct ChannelPositionStore {
     tx: Sender<MainEvent>,
 }
 
-impl vm_overlay::host::PositionStore for ChannelPositionStore {
+impl vm_overlay::platform::host::PositionStore for ChannelPositionStore {
     fn load(&mut self, id: &str) -> Option<(f64, f64)> {
         self.snapshot.get(id).copied()
     }
@@ -484,7 +484,7 @@ pub(crate) fn feed_overlays_live(
             // 读 flaps/throttle/gear/airbrake/aoa/ny/姿态), 不再装箱重建事件
             // AoA 告警/状态色 = 全局仓 (Java HUDCalculator.java:132-155 每次计算
             // 直读 Application 静态; 曾传编译期常量冻结 — 审查轮 1-B)
-            let gc = vm_overlay::global_colors::colors();
+            let gc = vm_overlay::render::palette::colors();
             let colors = HudColors {
                 color_warning: gc.warning,
                 color_num: gc.num,
@@ -597,8 +597,8 @@ pub fn win32_thread_main(cfg: Win32ThreadConfig) {
     // 全局五色注入 (Java Application.colorNum 族静态的运行时值; cfg 经
     // loadFromConfig 覆盖, 此前组件用编译期 Java 初始默认 — 人工验收发现的
     // 颜色不一致根源)。须先于任何组件渲染
-    vm_overlay::global_colors::set(inputs.colors);
-    vm_overlay::global_colors::set_aa(inputs.aa);
+    vm_overlay::render::palette::set(inputs.colors);
+    vm_overlay::render::palette::set_aa(inputs.aa);
 
     // ---- host 构建 + 激活探测 (Java new OverlayManager + ActivationStrategy) ----
     let mut host = OverlayHost::new();
@@ -1001,8 +1001,8 @@ pub fn win32_thread_main(cfg: Win32ThreadConfig) {
                 }
                 // 全局五色更新: 仓内直写, 下帧渲染生效 (reinit 标脏不必须 —
                 // 色变本身改变渲染输出, host 像素指纹自然触发重绘)
-                UiCommand::SetGlobalColors(c) => vm_overlay::global_colors::set(c),
-                UiCommand::SetAa(on) => vm_overlay::global_colors::set_aa(on),
+                UiCommand::SetGlobalColors(c) => vm_overlay::render::palette::set(c),
+                UiCommand::SetAa(on) => vm_overlay::render::palette::set_aa(on),
                 // FocusMonitor 通道桥目标 (Java hideAllOverlays/showAllOverlays;
                 // host 幂等标志防重复, shared 镜像供桥回读)
                 UiCommand::HideAllOverlays => {

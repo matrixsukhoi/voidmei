@@ -40,7 +40,7 @@ use vm_core::base::logger;
 use vm_core::base::bus::ui_state_bus::UIStateBus;
 use vm_core::audio::voice_resource_manager::VoiceResourceManager;
 
-use vm_overlay::hotkey::{HotkeyEvent, HotkeyManager};
+use vm_overlay::platform::hotkey::{HotkeyEvent, HotkeyManager};
 
 // tests.rs 经 `use super::*` 消费的外部符号 (cfg(test) 免非测试构建的 unused 警告)
 #[cfg(test)]
@@ -62,7 +62,7 @@ use vm_core::fm::FMStatus;
 #[cfg(test)]
 use vm_data::service_fields::ServiceData;
 #[cfg(test)]
-use vm_overlay::host::OverlayHost;
+use vm_overlay::platform::host::OverlayHost;
 
 // ---- 重构波2 子模块 (pub use 保持 main.rs/form_dispatch.rs 的 vm_app::X 路径) ----
 mod commands;

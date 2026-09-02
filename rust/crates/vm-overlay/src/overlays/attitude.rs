@@ -1,0 +1,852 @@
+//! gauge_attitude: 地平仪家族 C 类语义复刻 (最复杂件: 旋转/侧滑/pitch 刻度/双模式)
+//!
+//! | Rust | Java 源 | 语义要点 |
+//! |---|---|---|
+//! | AttitudeIndicatorGauge | ui/component/AttitudeIndicatorGauge.java | MiniHUD 地平仪: 牵引线 + 旋转 marks (下半圆弧 + 3 刻度) + pitch/侧滑双值文本; 随体/离体双模式仅翻转符号表 |
+//! | AttitudeOverlay | ui/overlay/AttitudeOverlay.java | 独立地平仪窗: 橙色地面多边形 (±2 宽被窗口裁剪) + 4 条 pitch 刻度 + 中线/下半圆 + 侧滑球十字 + 攻角极限线 + 航向指针对 |
+//!
+//! Java Graphics2D 变换的复刻策略 (D7: 矢量基元走 tiny-skia):
+//! - **旋转 marks** (IndicatorGauge): Java setTransform(rotate(θ, target)) 后连续光栅化。
+//!   PixCanvas 整数基元吃不下连续旋转坐标, 故弧与刻度线均按 stroke 区域的精确几何
+//!   轮廓折线单次 fill (arc_stroke_outline / line_stroke_outline, Minkowski 和):
+//!   弧 = 外弧→端帽→内弧→端帽; 线段 = 矩形体+双半圆帽 (stadium)。
+//!   单次合成避免半透明色 (alpha<255) 分段叠加加深伪影, 且保住 Java 连续变换的
+//!   亚像素定位; 每遍内绘制序 (弧→3 线) 与 Java drawMarks 一致。
+//! - **旋转多边形** (Overlay): Java 逐点 AffineTransform.transform 后 Point.setLocation
+//!   取整 (floor(x+0.5)), 再 fillPolygon —— 端点先取整再连直边, 非 "连续旋转后填充",
+//!   Rust 侧同序复刻 (java_round_i32), 像素级关键差异。
+//! - **窗口裁剪** (Overlay): Swing 面板自动裁剪到 [0,w)×[0,h); Rust 侧 Pixmap 光栅化
+//!   天然裁剪到画布界, 画布取 w×h 即得等效 clip。
+//!
+//! 颜色 = Application.java:106-111 静态色直通 RGBA (与 gauges_bars 同源)。
+
+use vm_core::base::format::java_round_f64;
+use vm_core::base::format::java_round;
+use crate::render::palette::{aa, colors};
+use crate::render::font::LoadedFont;
+
+use crate::platform::host::{OverlaySpec, ReinitFn};
+use crate::platform::reinit::ReinitParams;
+use crate::render::canvas::{LineCapStyle, PixCanvas};
+use std::cell::RefCell;
+use std::rc::Rc;
+
+/// AffineTransform.getRotateInstance(θ, ax, ay) 的点映射 (屏幕 y 向下, 正 θ = 视觉顺时针):
+/// p' = anchor + R(θ)·(p − anchor), R = [[cos, −sin],[sin, cos]]
+fn rotate_point(px: f64, py: f64, ax: f64, ay: f64, theta: f64) -> (f64, f64) {
+    let (s, c) = theta.sin_cos();
+    let (dx, dy) = (px - ax, py - ay);
+    (ax + c * dx - s * dy, ay + s * dx + c * dy)
+}
+
+/// Java String.format("%3d", v): 右对齐宽 3 空格补左 (超宽原样)
+fn fmt_d3(v: i32) -> String {
+    let mut s = format!("{}", v);
+    while s.chars().count() < 3 {
+        s.insert(0, ' ');
+    }
+    s
+}
+
+/// Java String.format("%-4.1f", v): 左对齐宽 4, 1 位小数 HALF_UP。
+/// 舍入按 floor(v*10 + 0.5) (Math.round 式); 与 Java Formatter 的精确十进制
+/// HALF_UP 在 f64 乘法 ±1 ulp 边界值上可能差 1 个末位 (与 fmt_pct3 同类的已知容差,
+/// 真实侧滑显示值不落在该边界)。
+fn fmt_f41(v: f64) -> String {
+    if v.is_nan() {
+        return "NaN ".to_string();
+    }
+    if v.is_infinite() {
+        return "Infinity".to_string();
+    }
+    let ri = java_round(v * 10.0); // 一位小数 ×10
+    let mut s = if ri >= 10 {
+        format!("{}.{}", ri / 10, ri % 10)
+    } else {
+        format!("0.{}", ri)
+    };
+    while s.chars().count() < 4 {
+        s.push(' ');
+    }
+    s
+}
+
+/// 阴影双遍文本 (UIBaseElements.__drawStringShade drawFontShape=false 分支,
+/// Application.java:143 默认 false): 影 (x+1,y+1) shade → 本色 (x,y)。
+/// (gauges_bars::text_shaded 私有, 本模块同式)
+fn text_shade(
+    cv: &mut PixCanvas,
+    font: &LoadedFont,
+    x: i32,
+    y: i32,
+    s: &str,
+    c: [u8; 4],
+    aa: bool,
+) {
+    cv.draw_text(font, x + 1, y + 1, s, colors().shade_shape, aa);
+    cv.draw_text(font, x, y, s, c, aa);
+}
+
+/// 圆弧 stroke 的精确几何区域轮廓折线: 圆弧中心线 (cx,cy,r, a1→a1+sweep) ⊖ 半径
+/// half=w/2 圆盘 = 外弧 (r+half) → 末端圆帽 (CAP_ROUND) → 内弧 (r−half) → 始端圆帽,
+/// 单闭合折线。fill 一次完成 → 半透明色单次 SrcOver 合成, 无分段叠加伪影
+/// (Java drawArc + BasicStroke(CAP_ROUND) 的 stroke 区域即此 Minkowski 和)。
+/// 角度约定同 render2d::stroke_arc: point(φ) = (cx + r·cosφ, cy − r·sinφ),
+/// 正 sweep = 视觉逆时针; 负 sweep 归一化为正 (区域与参数方向无关)。
+fn arc_stroke_outline(cx: f32, cy: f32, r: f32, a1: f32, sweep: f32, w: f32) -> Vec<(f32, f32)> {
+    let (a1, sweep) = if sweep < 0.0 {
+        (a1 + sweep, -sweep)
+    } else {
+        (a1, sweep)
+    };
+    let a2 = a1 + sweep;
+    let half = w / 2.0;
+    let r_out = r + half;
+    // PORT: r−half<0 (线宽≥2r) 时内弧塌到圆心, 退化扇形近似 Java stroke 的满盘;
+    // 真实布局 r≥5、w≤6 不可达, 备查
+    let r_in = (r - half).max(0.0);
+    const STEP: f32 = 4.0; // 折线步进: 弦矢 ≈ r·(1−cos2°) ≈ 0.0006r, 亚像素
+    let n = ((sweep / STEP).ceil() as i32).max(1) as usize;
+    let pt = |radius: f32, ang: f32| -> (f32, f32) {
+        let t = ang.to_radians();
+        (cx + radius * t.cos(), cy - radius * t.sin())
+    };
+    // CAP_ROUND 端帽绕【弧端点】(非弧心) 的半圆: 帽点 = 弧端点 + half·u(ψ),
+    // ψ 沿扇区外侧从径向外 u(a) 扫到径向内 u(a+180) (对下半圆扇区两帽均经上方)
+    let cap_pt = |ex: f32, ey: f32, psi: f32| -> (f32, f32) {
+        let t = psi.to_radians();
+        (ex + half * t.cos(), ey - half * t.sin())
+    };
+    let mut pts = Vec::with_capacity(n * 4 + 4);
+    for i in 0..=n {
+        pts.push(pt(r_out, a1 + sweep * i as f32 / n as f32)); // 外弧 a1→a2
+    }
+    let (ex2, ey2) = pt(r, a2); // 末端的弧端点 (cx+r·cos a2, cy−r·sin a2)
+    for i in 1..=n {
+        pts.push(cap_pt(ex2, ey2, a2 + 180.0 * i as f32 / n as f32)); // 末端帽
+    }
+    for i in 1..=n {
+        pts.push(pt(r_in, a2 - sweep * i as f32 / n as f32)); // 内弧 a2→a1
+    }
+    let (ex1, ey1) = pt(r, a1); // 始端的弧端点
+    for i in 1..=n {
+        pts.push(cap_pt(ex1, ey1, a1 + 180.0 + 180.0 * i as f32 / n as f32)); // 始端帽
+    }
+    pts
+}
+
+/// 线段 stroke 的精确几何区域轮廓折线 (stadium): 中心线段 ⊕ 半径 half=w/2 圆盘
+/// = 矩形体 + 两端 CAP_ROUND 半圆帽, 单闭合折线一次 fill。
+/// 端点保持 f64 (Java setTransform 旋转下线端是连续坐标, 走整数基元会丢亚像素
+/// 定位与 AA 柔边, 故旋转刻度线不走 draw_line_cap 而用本精确轮廓)。
+/// 零长度线段退化为圆点 (Java BasicStroke CAP_ROUND 零长线画点, 行为一致)。
+fn line_stroke_outline(x0: f64, y0: f64, x1: f64, y1: f64, w: f64) -> Vec<(f32, f32)> {
+    let half = w / 2.0;
+    let (dx, dy) = (x1 - x0, y1 - y0);
+    let len = dx.hypot(dy);
+    const N: usize = 16; // 半圆 16 段: 矢高 ≈ r·(1−cos5.6°) ≈ 0.005r, 亚像素
+    let mut pts = Vec::with_capacity(N * 2 + 2);
+    if len == 0.0 {
+        // 圆点: 完整圆周折线
+        for i in 0..N {
+            let a = std::f64::consts::TAU * i as f64 / N as f64;
+            pts.push(((x0 + half * a.cos()) as f32, (y0 + half * a.sin()) as f32));
+        }
+        return pts;
+    }
+    let (tx, ty) = (dx / len, dy / len); // 切向
+    let (nx, ny) = (-ty * half, tx * half); // 法向 × half
+    // 上侧边: P0+n → P1+n
+    pts.push(((x0 + nx) as f32, (y0 + ny) as f32));
+    pts.push(((x1 + nx) as f32, (y1 + ny) as f32));
+    // P1 端帽: +n 绕过 +t 到 −n (φ: 0→π)
+    for i in 1..=N {
+        // sin_cos 返回 (sin, cos) — 帽点 = P1 + n·cosφ + t·half·sinφ
+        let (s, c) = (std::f64::consts::PI * i as f64 / N as f64).sin_cos();
+        pts.push((
+            (x1 + nx * c + tx * half * s) as f32,
+            (y1 + ny * c + ty * half * s) as f32,
+        ));
+    }
+    // 下侧边: P1−n → P0−n
+    pts.push(((x1 - nx) as f32, (y1 - ny) as f32));
+    pts.push(((x0 - nx) as f32, (y0 - ny) as f32));
+    // P0 端帽: −n 绕过 −t 到 +n (φ: 0→π, 方向取 −t)
+    for i in 1..=N {
+        let (s, c) = (std::f64::consts::PI * i as f64 / N as f64).sin_cos();
+        pts.push((
+            (x0 - nx * c - tx * half * s) as f32,
+            (y0 - ny * c - ty * half * s) as f32,
+        ));
+    }
+    pts
+}
+
+// ---------------------------------------------------------------------------
+// AttitudeIndicatorGauge (MiniHUD 组件)
+// ---------------------------------------------------------------------------
+
+/// MiniHUD 地平仪 (AttitudeIndicatorGauge.java:16)。
+///
+/// 双模式 (Java:41-56, 仅翻转符号表; **代码与注释矛盾处以代码为准** —
+/// Java:100-108 注释声称 body 态 signSlip=+1 / earth 态 −1, 且 pitch/slip 的
+/// 移动方向描述全部反写; 代码 L112-122 实为下表, 本复刻忠实代码):
+/// - 随体 body-fixed (默认): signPitch=−1, signSlip=−1, rollSign=+1
+/// - 离体 earth-fixed: signPitch=+1, signSlip=+1, rollSign=−1
+pub struct AttitudeIndicatorGauge {
+    // 风格上下文 (Java:23-29 setStyleContext 注入; font 仅参与 size 度量, 存字号)
+    compass_diameter: i32,
+    compass_radius: i32,
+    compass_inner_mark_radius: i32,
+    line_width: i32,
+    half_line: i32,
+    font_size: i32,
+    // 状态 (Java:31-42)
+    pitch: f64,
+    roll_deg: f64,
+    aos_x: i32,
+    s_attitude: String,
+    round_horizon: i32,
+    s_sideslip: String,
+    round_slip: i32,
+    pitch_valid: bool,
+    inertial_mode: bool,
+    // 脏检查 (W3 契约, Java 无此字段 — C 类组装层门控)
+    dirty: bool,
+}
+
+impl AttitudeIndicatorGauge {
+    /// Java:44-48 构造 (sAttitude/sSideslip 空串, inertialMode=false, 其余字段 0)
+    pub fn new() -> Self {
+        AttitudeIndicatorGauge {
+            compass_diameter: 0,
+            compass_radius: 0,
+            compass_inner_mark_radius: 0,
+            line_width: 0,
+            half_line: 0,
+            font_size: 0,
+            pitch: 0.0,
+            roll_deg: 0.0,
+            aos_x: 0,
+            s_attitude: String::new(),
+            round_horizon: 0,
+            s_sideslip: String::new(),
+            round_slip: 0,
+            pitch_valid: false,
+            inertial_mode: false,
+            dirty: true,
+        }
+    }
+
+    /// Java:59-61 getId
+    pub fn id(&self) -> &'static str {
+        "gauge.attitude"
+    }
+
+    /// Java:63-66 getPreferredSize = compassDiameter × compassDiameter
+    pub fn preferred_size(&self) -> (i32, i32) {
+        (self.compass_diameter, self.compass_diameter)
+    }
+
+    /// Java:68-76 setStyleContext (Font 参数在 Rust 侧折为其 size —— 该对象在类内
+    /// 仅消费 getSize() 与 getFontMetrics 度量, draw 时实际字体经参数传入)。
+    /// PORT: Java 单一 font 字段同源; Rust 侧 font_size (供 on_data_update 的 aosX
+    /// 换算) 与 draw 传入的 font (gap/『888』模板宽度) 分离 — 组装层须保证两者
+    /// 出自同一字号, 否则 aosX 与文本布局口径分裂
+    pub fn set_style_context(
+        &mut self,
+        compass_diameter: i32,
+        compass_radius: i32,
+        compass_inner_mark_radius: i32,
+        line_width: i32,
+        half_line: i32,
+        font_size: i32,
+    ) {
+        self.compass_diameter = compass_diameter;
+        self.compass_radius = compass_radius;
+        self.compass_inner_mark_radius = compass_inner_mark_radius;
+        self.line_width = line_width;
+        self.half_line = half_line;
+        self.font_size = font_size;
+        self.dirty = true;
+    }
+
+    /// Java:54-56 setInertialMode
+    pub fn set_inertial_mode(&mut self, inertial: bool) {
+        if self.inertial_mode != inertial {
+            self.inertial_mode = inertial;
+            self.dirty = true;
+        }
+    }
+
+    /// Java:78-84 update (legacy 直调通道, 不触 sSideslip/roundSlip)
+    pub fn update(
+        &mut self,
+        pitch: f64,
+        roll_deg: f64,
+        aos_x: i32,
+        s_attitude: &str,
+        round_horizon: i32,
+    ) -> bool {
+        let changed = self.pitch != pitch
+            || self.roll_deg != roll_deg
+            || self.aos_x != aos_x
+            || self.s_attitude != s_attitude
+            || self.round_horizon != round_horizon;
+        self.pitch = pitch;
+        self.roll_deg = roll_deg;
+        self.aos_x = aos_x;
+        self.s_attitude.clear();
+        self.s_attitude.push_str(s_attitude);
+        self.round_horizon = round_horizon;
+        self.dirty |= changed;
+        changed
+    }
+
+    /// Java:192-224 onDataUpdate。pitch/roll/slip 注入 + aosX 换算 + 双值文本格式化。
+    /// 返回是否变化 (脏检查)。
+    pub fn on_data_update(&mut self, data: &vm_core::derived::hud_data::HUDData) -> bool {
+        let slide_limit = 4 * self.font_size;
+        // font_size=0 → 乘积 0 → aos_x=0, 与 Java else 分支数值一致, 无需分支)
+        // PORT: Java:205 (int)(-slip * slideLimit / 30.0f) — double 链, (int) 窄化。
+        // JLS 5.1.3: double→int 是饱和 (NaN→0, 超界→±MAX), 与 Rust as i32 语义一致
+        // (§2.2 的位截断规则只适用整数间窄化), 无需双转
+        let aos_x = (-data.slip * slide_limit as f64 / 30.0) as i32;
+
+        // Attitude 文本 — 仅 pitchValid 时显示 (Java:210-218)
+        let (round_horizon, s_attitude) = if data.pitch_valid {
+            // PORT: Java:213 (int) Math.round(double) — long→int 强转是位截断 (§2.2),
+            // Rust as i32 饱和 — 双转 (as u32) as i32 复刻取低 32 位
+            let rh = (java_round(data.pitch) as u32) as i32;
+            (rh, fmt_d3(rh.wrapping_abs())) // Math.abs(MIN_VALUE) 回绕保号 (§2.2)
+        } else {
+            (0, String::new())
+        };
+
+        // Sideslip 文本 — 恒显示, 1 位小数 (Java:220-223)
+        let slip_value = java_round(data.slip * 10.0) as f64 / 10.0;
+        let round_slip = if slip_value >= 0.0 { 1 } else { -1 }; // 颜色判据, 保留符号 (Java:222)
+        let s_sideslip = fmt_f41(slip_value.abs());
+
+        let changed = self.pitch != data.pitch
+            || self.roll_deg != data.roll
+            || self.aos_x != aos_x
+            || self.s_attitude != s_attitude
+            || self.round_horizon != round_horizon
+            || self.s_sideslip != s_sideslip
+            || self.round_slip != round_slip
+            || self.pitch_valid != data.pitch_valid;
+        self.pitch = data.pitch;
+        self.roll_deg = data.roll;
+        self.aos_x = aos_x;
+        self.round_horizon = round_horizon;
+        self.s_attitude = s_attitude;
+        self.s_sideslip = s_sideslip;
+        self.round_slip = round_slip;
+        self.pitch_valid = data.pitch_valid;
+        self.dirty |= changed;
+        changed
+    }
+
+    pub fn is_dirty(&self) -> bool {
+        self.dirty
+    }
+
+    /// Java:91-125 目标点 (天地基准符号中心): (x,y) 组件左上 → center →
+    /// pitch/侧滑偏移出 target。双模式符号表 = Java:112-122 代码值。
+    pub fn target_point(&self, x: i32, y: i32) -> (i32, i32) {
+        let radius = self.compass_diameter / 2;
+        let center_x = x + radius;
+        let center_y = y + radius;
+        let (sign_pitch, sign_slip): (i32, i32) = if self.inertial_mode {
+            (1, 1) // earth: signPitch=+1, signSlip=+1 (Java:114-115 代码值)
+        } else {
+            (-1, -1) // body: signPitch=−1, signSlip=−1 (Java:119-120 代码值)
+        };
+        // PORT: Java:124 signSlip * aosX * 3 / 2 — int 链 ((sign·aos)·3)/2 向零截断,
+        // 乘法回绕 (aosX 病态饱和到 ±2^31 时 ×3 溢出, Java 静默回绕)
+        let target_x = center_x + sign_slip.wrapping_mul(self.aos_x).wrapping_mul(3) / 2;
+        // PORT: Java:125 signPitch * (int)(pitch / 2) — double→int 窄化为饱和 (同上, 非 §2.2 截断)
+        let target_y = center_y + sign_pitch * (self.pitch / 2.0) as i32;
+        (target_x, target_y)
+    }
+
+    /// 滚转角 (度, 含模式符号): Java:98/116/121/138 rollSign * toRadians(rollDeg)
+    fn roll_theta(&self) -> f64 {
+        let roll_sign = if self.inertial_mode { -1.0 } else { 1.0 };
+        roll_sign * self.roll_deg.to_radians()
+    }
+
+    /// Java:87-168 draw。font=None 跳过文本 (Java:154 font==null 守卫)。
+    pub fn draw(
+        &mut self,
+        cv: &mut PixCanvas,
+        x: i32,
+        y: i32,
+        font: Option<&LoadedFont>,
+        aa: bool,
+    ) {
+        let radius = self.compass_diameter / 2;
+        let center_x = x + radius;
+        let center_y = y + radius;
+        let theta = self.roll_theta();
+        let (target_x, target_y) = self.target_point(x, y);
+        let lw = self.line_width as f32;
+
+        // 1. 牵引线 (地面/牵引基准线, Java:127-134): 粗 shade → 细 colorLabel
+        //    BasicStroke(lw+2 / lw, CAP_ROUND, JOIN_ROUND)
+        cv.draw_line(
+            center_x, center_y, target_x, target_y,
+            lw + 2.0, colors().shade_shape, aa,
+        );
+        cv.draw_line(center_x, center_y, target_x, target_y, lw, colors().label, aa);
+
+        // 2. 旋转 marks (Java:136-151): rotate(θ, target) 后 下半圆弧 + 3 刻度,
+        //    粗 shade → 细 colorNum。端点/圆心/角度按同一旋转变换预计算。
+        self.draw_marks(cv, target_x, target_y, theta, aa);
+
+        // 3. 文本 (Java:153-167, 已恢复原 transform — 不随滚转旋转)
+        if let Some(font) = font {
+            let gap = font.size / 4;
+
+            // Pitch 角 — 右侧 (Java:158-159)
+            let pitch_color = if self.round_horizon >= 0 {
+                colors().num
+            } else {
+                colors().unit
+            };
+            text_shade(cv, font, target_x + gap, target_y - 1, &self.s_attitude, pitch_color, aa);
+
+            // Sideslip 角 — 左侧, "888" 模板宽锁定左缘 (Java:161-166)
+            if !self.s_sideslip.is_empty() {
+                let template_width = font.measure("888");
+                let slip_color = if self.round_slip >= 0 {
+                    colors().num
+                } else {
+                    colors().unit
+                };
+                text_shade(
+                    cv, font, target_x - gap - template_width, target_y - 1,
+                    &self.s_sideslip, slip_color, aa,
+                );
+            }
+        }
+        self.dirty = false;
+    }
+
+    /// Java:141-151+170-181: 旋转 marks。粗 (lw+2) shade → 细 (lw) colorNum,
+    /// 双遍 CAP_ROUND。中心参数是 target (Java:144/149 drawMarks(g2d, targetX, targetY, ...))。
+    fn draw_marks(&self, cv: &mut PixCanvas, target_x: i32, target_y: i32, theta: f64, aa: bool) {
+        let hbs = self.half_line + 1;
+        let cd = self.compass_diameter;
+        let cr = self.compass_radius;
+        let inner = self.compass_inner_mark_radius;
+        let lw = self.line_width as f32;
+
+        // 弧 (Java:173-174): drawArc(cx−cr+hbs, cy−cr+hbs, cd, cd, −180, 180)
+        // → 盒中心 (cx−cr+hbs+cd/2, ...), 半径 cd/2, 下半圆 (render2d oracle:
+        // drawArc(−180,180) 走 9点→6点→3点)。旋转下: 圆心绕 target 旋转、
+        // 角度区间平移 −θ (u(φ)→u(φ−θ), 见模块头)。
+        let box_x = (target_x - cr + hbs) as f64;
+        let box_y = (target_y - cr + hbs) as f64;
+        let arc_cx = box_x + cd as f64 / 2.0;
+        let arc_cy = box_y + cd as f64 / 2.0;
+        let arc_r = cd as f64 / 2.0;
+        let (rc_x, rc_y) = rotate_point(arc_cx, arc_cy, target_x as f64, target_y as f64, theta);
+        let theta_deg = theta.to_degrees();
+        let a1 = -180.0 - theta_deg;
+
+        // 3 刻度线端点 (Java:175-180, int 坐标; cr/2 为 int 除)
+        let ticks: [((i32, i32), (i32, i32)); 3] = [
+            ((target_x + hbs, target_y - cr / 2 + hbs), (target_x + hbs, target_y - inner + hbs)), // 顶部竖刻度
+            ((target_x + cr + hbs, target_y + hbs), (target_x + inner + hbs, target_y + hbs)),     // 右横刻度
+            ((target_x - cr + hbs, target_y + hbs), (target_x - inner + hbs, target_y + hbs)),    // 左横刻度
+        ];
+
+        for &(width, color) in &[(lw + 2.0, colors().shade_shape), (lw, colors().num)] {
+            // 粗遍 (Java:142-144) / 细遍 (Java:147-149); 每遍内先弧后线 (drawMarks 序)
+            // PORT: arc_r==0 (compassDiameter=0) 时 Java BasicStroke(CAP_ROUND) 对零尺寸弧
+            // 仍画直径 lineWidth 的圆帽点 (弧两端点重合), Rust 此处整体跳过 — 仅退化布局
+            // (preferredSize 0×0 组件不可见) 可达, 不复刻
+            if arc_r > 0.0 {
+                let outline = arc_stroke_outline(
+                    rc_x as f32, rc_y as f32, arc_r as f32, a1 as f32, 180.0, width,
+                );
+                cv.fill_path(&outline, color, aa);
+            }
+            for &((x0, y0), (x1, y1)) in &ticks {
+                // 端点连续旋转 (Java setTransform 语义), stadium 精确轮廓填充
+                let (rx0, ry0) = rotate_point(x0 as f64, y0 as f64, target_x as f64, target_y as f64, theta);
+                let (rx1, ry1) = rotate_point(x1 as f64, y1 as f64, target_x as f64, target_y as f64, theta);
+                let outline = line_stroke_outline(rx0, ry0, rx1, ry1, width as f64);
+                cv.fill_path(&outline, color, aa);
+            }
+        }
+    }
+}
+
+impl Default for AttitudeIndicatorGauge {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+// ---------------------------------------------------------------------------
+// AttitudeOverlay (独立地平仪窗组件)
+// ---------------------------------------------------------------------------
+
+/// tickLine (AttitudeOverlay.java:88): pitch 刻度对数, 2 对 = 4 条
+pub const TICK_LINE: i32 = 2;
+/// MaxAoA (Java:89): 俯仰/攻角满量程 ±30°
+pub const MAX_AOA: i32 = 30;
+/// MaxAoS (Java:90): 侧滑满量程 ±15°
+pub const MAX_AOS: i32 = 15;
+/// BASE_WIDTH/HEIGHT (Java:92-93): 构造期缺省尺寸 (reinit 前用)
+pub const BASE_WIDTH: i32 = 100;
+pub const BASE_HEIGHT: i32 = 200;
+/// locater 调用点常量 (AttitudeOverlay.java:211/331): 中心参考弧径 / 侧滑球十字臂长
+const CENTER_ROUND: i32 = 12;
+const LOCATOR_SIZE: i32 = 6;
+/// 攻角极限线关闭时的哨兵 y (Java:404-405 = −10, 画在窗口外被裁剪 → 不可见)
+const AOA_LIMIT_OFF: i64 = -10;
+
+/// 独立地平仪 (AttitudeOverlay.java:26)。C 类复刻只保留绘制语义核心:
+/// drawTick 的数据换算 (L375-448) + locater 的图层序 (L134-185);
+/// 窗口/拖动/WebLaF 边框阴影/EDT 节流属组装层, 不在本组件。
+/// 画布 = [0, x_width)×[0, x_height) 的 Pixmap, Swing 面板裁剪由光栅化界天然给出。
+/// PORT: Java 侧 init() 的匿名 topPanel (:325-332) 与 initpanel() 塞入的匿名子面板
+/// (:200-215) **两级 paintComponent 都调 locater** — 半透明层 (α220/42/100) 可能双重
+/// 合成 (地面有效 α≈246 而非单遍 220), 除非 WebLaF opaque 默认压制其中一级。
+/// 本复刻锚定**单遍** locater 语义; C 类像素对拍验收前需 Java 端截图 oracle 确认
+/// 真实合成遍数, 若确系双遍则对拍容差须按双遍基准校准。
+pub struct AttitudeOverlay {
+    /// 绘制区尺寸 (Java xWidth/xHeight, reinitConfig 已含 DPI 缩放的终值)
+    pub x_width: i32,
+    pub x_height: i32,
+    /// showDirection (attitudeIndicatorDisplayDirection, 默认 false)
+    pub show_direction: bool,
+    /// showAoALimits (attitudeIndicatorDisplayAoALimits, 默认 true)
+    pub show_aoa_limits: bool,
+    // drawTick 计算缓存 (Java:55-71 public long 字段, 保留 long 语义)
+    /// 侧滑球十字 x = round((−aos+15)·w/30)
+    pub aos_x: i64,
+    /// 侧滑球十字 y = round((aoa+30)·h/60)
+    pub aoa_y: i64,
+    /// 地平线平移量 = round((−pitch+30)·h/60)
+    pub pitch_y: i64,
+    /// 航向指针分量 (showDirection 时非零)
+    pub compass_x: i64,
+    pub compass_y: i64,
+    /// 攻角极限线 y (哨兵 −10 = 不显示)
+    pub aoa_limit_u: i64,
+    pub aoa_limit_d: i64,
+    /// 旋转+取整后的点集 (Java pT: pT[0..4] 地面多边形角点, pT[4..12] 刻度线端点对)
+    pub p_t: [(i32, i32); (4 + TICK_LINE * 4) as usize],
+    dirty: bool,
+}
+
+impl AttitudeOverlay {
+    /// Java:28-97 字段初始化 (xWidth=BASE_WIDTH, xHeight=BASE_HEIGHT,
+    /// showDirection=false, showAoALimits=true — 与 reinit 两分支的默认一致)
+    pub fn new() -> Self {
+        AttitudeOverlay {
+            x_width: BASE_WIDTH,
+            x_height: BASE_HEIGHT,
+            show_direction: false,
+            show_aoa_limits: true,
+            aos_x: 0,
+            aoa_y: 0,
+            pitch_y: 0,
+            compass_x: 0,
+            compass_y: 0,
+            aoa_limit_u: AOA_LIMIT_OFF,
+            aoa_limit_d: AOA_LIMIT_OFF,
+            p_t: [(0, 0); (4 + TICK_LINE * 4) as usize],
+            dirty: true,
+        }
+    }
+
+    /// reinitConfig 的绘制相关子集 (Java:230-270): 尺寸为调用方完成 DPI 缩放后的
+    /// 终值 (Java:237-238 round(base·dpiScale))。
+    pub fn reinit(&mut self, x_width: i32, x_height: i32, show_direction: bool, show_aoa_limits: bool) {
+        self.x_width = x_width;
+        self.x_height = x_height;
+        self.show_direction = show_direction;
+        self.show_aoa_limits = show_aoa_limits;
+        self.dirty = true;
+    }
+
+    pub fn is_dirty(&self) -> bool {
+        self.dirty
+    }
+
+    /// 数据面回构造器初值 (Java closeAll = 实例销毁 + refreshPreview 工厂新建
+    /// 实例; D8 单条目跨重建存活的补口 — live 会话残留的姿态点集在 preview
+    /// 重开前清除, 否则预览窗地平仪冻结在上次 live 姿态)。几何保留
+    /// (xWidth/xHeight/开关 — reinit 闭包负责刷新)。
+    pub fn reset_preview(&mut self) {
+        self.aos_x = 0;
+        self.aoa_y = 0;
+        self.pitch_y = 0;
+        self.compass_x = 0;
+        self.compass_y = 0;
+        self.aoa_limit_u = AOA_LIMIT_OFF;
+        self.aoa_limit_d = AOA_LIMIT_OFF;
+        self.p_t = [(0, 0); (4 + TICK_LINE * 4) as usize];
+        self.dirty = true;
+    }
+
+    /// drawTick (Java:375-448): 遥测换算 + 地面多边形/刻度点集的平移旋转。
+    /// `aoa_limits` = FM 的 (NoFlapsWing.AoACritHigh, AoACritLow);
+    /// None = 无 FM —— Java blkx==null 分支, 极限线取哨兵 −10 (画在窗口外)。
+    /// show_aoa_limits=false 同走哨兵 (Java:398 条件 b != null && showAoALimits)。
+    /// PORT: 恒置脏恒返回 true = Java drawTick 末尾无条件 root.repaint() 的语义
+    /// (40ms 节流在 onFlightData 组装层); 变化检测非本组件行为, 组装层按需自做。
+    #[allow(clippy::too_many_arguments)] // 对齐 Java drawTick 的输入面
+    pub fn update_telemetry(
+        &mut self,
+        aoa: f64,
+        aos: f64,
+        pitch: f64,
+        roll: f64,
+        compass: f64,
+        aoa_limits: Option<(f64, f64)>,
+    ) -> bool {
+        let w = self.x_width;
+        let h = self.x_height;
+        self.aoa_y = java_round((aoa + MAX_AOA as f64) * h as f64 / (2 * MAX_AOA) as f64);
+        self.aos_x = java_round((-aos + MAX_AOS as f64) * w as f64 / (2 * MAX_AOS) as f64);
+        self.pitch_y = java_round((-pitch + MAX_AOA as f64) * h as f64 / (2 * MAX_AOA) as f64);
+
+        // (int) 是 double→int 饱和 (JLS 5.1.3), 故先 as i32 再拓宽, 非 as i64
+        if self.show_direction {
+            let rads = compass.to_radians();
+            self.compass_x = (((w / 4) as f64 * rads.sin()) as i32) as i64;
+            self.compass_y = (((w / 4) as f64 * rads.cos()) as i32) as i64;
+        }
+
+        match aoa_limits {
+            Some((crit_high, crit_low)) if self.show_aoa_limits => {
+                self.aoa_limit_u = java_round((crit_high + MAX_AOA as f64) * h as f64 / (2 * MAX_AOA) as f64);
+                self.aoa_limit_d = java_round((crit_low + MAX_AOA as f64) * h as f64 / (2 * MAX_AOA) as f64);
+            }
+            _ => {
+                self.aoa_limit_u = AOA_LIMIT_OFF;
+                self.aoa_limit_d = AOA_LIMIT_OFF;
+            }
+        }
+
+        // 地面多边形角点 (Java:408-418): ±2 宽 (越界部分被窗口裁剪), 地面厚
+        // 180/MaxAoA·h = 6h; int 坐标
+        let mut p_s = [(0i32, 0i32); (4 + TICK_LINE * 4) as usize];
+        let ground_h = 180 / MAX_AOA * h; // int 除 180/30=6 (整)
+        p_s[0] = (-2 * w, 0);
+        p_s[1] = (2 * w, 0);
+        p_s[2] = (2 * w, ground_h);
+        p_s[3] = (-2 * w, ground_h);
+
+        // pitch 刻度 (Java:420-435): start=−90, dTick=90/(tickLine+1)=30 →
+        // ±30°/±60° 刻度对; y = round((角)/(2·MaxAoA)·h)
+        let start = -90.0f64;
+        let d_tick = (90 / (TICK_LINE + 1)) as f64; // int 除 90/3=30
+        for i in 0..TICK_LINE {
+            let a = start + d_tick * (i + 1) as f64;
+            let y_up = java_round_f64(a / (2 * MAX_AOA) as f64 * h as f64);
+            // 对称刻度 (Java:430-434): −start − dTick·(i+1)
+            let y_dn = java_round_f64(-a / (2 * MAX_AOA) as f64 * h as f64);
+            p_s[(4 + 4 * i) as usize] = (-w, y_up);
+            p_s[(4 + 4 * i + 1) as usize] = (w, y_up);
+            p_s[(4 + 4 * i + 2) as usize] = (-w, y_dn);
+            p_s[(4 + 4 * i + 3) as usize] = (w, y_dn);
+        }
+
+        // 平移 (Java:437-440): x += w/2 (int 除), y += Pitch (long→int 窄化)
+        for p in &mut p_s {
+            p.0 += w / 2;
+            // PORT: Java p.y += Pitch 复合赋值隐式 (int)(y+long) — 位截断 (§2.2),
+            // Rust as i32 饱和, 双转 (as u32) as i32 复刻取低 32 位
+            p.1 = ((p.1 as i64 + self.pitch_y) as u32) as i32;
+        }
+
+        // 旋转 (Java:442 rotatePointMatrix): 绕 pC=(w/2, h/2) 旋转 roll 度后
+        // Point.setLocation 取整 floor(x+0.5)。
+        // PORT: Java pC = new Point(xWidth/2, xHeight/2) 是 int 除 (奇尺寸圆心取整)
+        let theta = roll.to_radians();
+        for (i, p) in p_s.iter().enumerate() {
+            let (rx, ry) = rotate_point(p.0 as f64, p.1 as f64, (w / 2) as f64, (h / 2) as f64, theta);
+            self.p_t[i] = (java_round_f64(rx), java_round_f64(ry));
+        }
+
+        self.dirty = true;
+        true
+    }
+
+    /// locater (Java:134-185, 调用点 Java:211/331): 图层序绘制。
+    /// 画布必须为 x_width×x_height (裁剪语义), 由调用方保证 — 防呆断言
+    /// (更大画布会让 ±2w 地面多边形画出窗口界, 背离 Swing 裁剪语义)。
+    pub fn draw(&mut self, cv: &mut PixCanvas, aa: bool) {
+        debug_assert!(
+            cv.width() == self.x_width && cv.height() == self.x_height,
+            "画布须为 {}×{}, 实为 {}×{}",
+            self.x_width, self.x_height, cv.width(), cv.height()
+        );
+        let w = self.x_width;
+        let h = self.x_height;
+        // 调用点实参 (Java:211): x=(int)AoS, y=(int)AoA — long→int 位截断 (§2.2 双转)
+        let x = (self.aos_x as u32) as i32;
+        let y = (self.aoa_y as u32) as i32;
+        let cr_half = CENTER_ROUND / 2; // 6
+
+        // 1. 地面多边形 (最底层, colorUnit) (Java:137-139)
+        //    PORT(精确定性): Java :85 声明 transParentWhite=colorUnit, :253-254
+        //    读 attitudeIndicatorUseNumColor 覆盖为 colorNum — 但该字段全文件仅
+        //    声明+赋值两处, 无任何读取者 (键被读、值写进死字段) → 无可观测
+        //    行为, 不复刻 (本处恒 colorUnit 与 Java 可见行为一致)
+        let poly: [(f32, f32); 4] = [
+            (self.p_t[0].0 as f32, self.p_t[0].1 as f32),
+            (self.p_t[1].0 as f32, self.p_t[1].1 as f32),
+            (self.p_t[2].0 as f32, self.p_t[2].1 as f32),
+            (self.p_t[3].0 as f32, self.p_t[3].1 as f32),
+        ];
+        cv.fill_path(&poly, colors().unit, aa);
+
+        // 2. 边框 (BasicStroke(1) 裸 = CAP_SQUARE/JOIN_MITER, shade) (Java:141-147)
+        for &(x0, y0, x1, y1) in &[
+            (0, 0, 0, h),
+            (0, 0, w, 0),
+            (0, h - 1, w - 1, h - 1),
+            (w - 1, 0, w - 1, h - 1),
+        ] {
+            cv.draw_line_cap(x0, y0, x1, y1, 1.0, colors().shade_shape, LineCapStyle::Square, aa);
+        }
+
+        // 3. pitch 刻度线 (仍 1px shade): 4 条 = 2·tickLine 对 (Java:149-152)
+        for i in 0..(2 * TICK_LINE) as usize {
+            let (x0, y0) = self.p_t[4 + 2 * i];
+            let (x1, y1) = self.p_t[4 + 2 * i + 1];
+            cv.draw_line_cap(x0, y0, x1, y1, 1.0, colors().shade_shape, LineCapStyle::Square, aa);
+        }
+
+        // 4. 中心参考 (BasicStroke(3), colorNum) (Java:154-166)
+        let mid_y = h / 2 - 1;
+        for &(x0, x1) in &[
+            (w / 2 - cr_half - w / 8 - 1, w / 2 - cr_half - 1), // 左内段
+            (w / 2 + cr_half, w / 2 + cr_half + w / 8 - 1),     // 右内段
+            (0, w / 8 - 1),                                     // 左外段
+            (w - w / 8 + 1, w),                                 // 右外段
+        ] {
+            cv.draw_line_cap(x0, mid_y, x1, mid_y, 3.0, colors().num, LineCapStyle::Square, aa);
+        }
+        // 中心下半圆: drawArc(w/2−7, h/2−7, 12, 12, −180, 180) 的弧心 = 盒角+半径
+        // = (w/2−1, h/2−1), r=6 (stroke_arc 收圆心而非盒角)
+        cv.stroke_arc(
+            w / 2 - 1, h / 2 - 1, CENTER_ROUND / 2,
+            -180.0, 0.0, 3.0, colors().num, LineCapStyle::Square, aa,
+        );
+
+        // 5. 侧滑球十字 (BasicStroke(2), colorNum 承袭) (Java:168-171)
+        let ls_half = LOCATOR_SIZE / 2; // 3
+        cv.draw_line_cap(x - ls_half - 1, y - 1, x + ls_half - 1, y - 1, 2.0, colors().num, LineCapStyle::Square, aa);
+        cv.draw_line_cap(x - 1, y - ls_half - 1, x - 1, y + ls_half - 1, 2.0, colors().num, LineCapStyle::Square, aa);
+
+        // 6. 攻角极限线 (colorWarning, 仍 2px) (Java:173-176); 哨兵 −10 落在窗口外被裁
+        // PORT: Java (int) AoALimitU/D — long→int 位截断 (§2.2 双转)
+        let lu = (self.aoa_limit_u as u32) as i32;
+        let ld = (self.aoa_limit_d as u32) as i32;
+        cv.draw_line_cap(0, lu, w - 1, lu, 2.0, colors().warning, LineCapStyle::Square, aa);
+        cv.draw_line_cap(0, ld, w - 1, ld, 2.0, colors().warning, LineCapStyle::Square, aa);
+
+        // 7. 航向指针对 (Java:178-184): colorNum 正向 + warning 反向
+        if self.show_direction {
+            let (ccx, ccy) = (w / 2, h / 2);
+            // PORT: Java (int)(width/2 ± compassX) — long 加法后 →int 位截断 (§2.2 双转)
+            let px = ((ccx as i64 + self.compass_x) as u32) as i32;
+            let py = ((ccy as i64 + self.compass_y) as u32) as i32;
+            let mx = ((ccx as i64 - self.compass_x) as u32) as i32;
+            let my = ((ccy as i64 - self.compass_y) as u32) as i32;
+            cv.draw_line_cap(ccx, ccy, px, py, 2.0, colors().num, LineCapStyle::Square, aa);
+            cv.draw_line_cap(ccx, ccy, mx, my, 2.0, colors().warning, LineCapStyle::Square, aa);
+        }
+        self.dirty = false;
+    }
+}
+
+impl Default for AttitudeOverlay {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+// ---------------------------------------------------------------------------
+// OverlayHost 挂载 (Java Controller.java:690 registerWithPreview("enableAttitudeIndicator"))
+// ---------------------------------------------------------------------------
+
+/// 地平仪共享句柄 (minihud_overlay_spec 先例: render 闭包与喂入方共享 state)
+pub type AttitudeOverlayHandle = Rc<RefCell<AttitudeOverlay>>;
+
+/// 地平仪 OverlaySpec + live 句柄。参数为 reinitConfig (:230-270) 的配置面,
+/// 经 [`ReinitParams`] 仓读取: base 宽高 = attitudeIndicatorWidth/Height
+/// (cfg 缺省 150/300), 工厂内完成 DPI 缩放 (Java :237-238 round(base·dpiScale),
+/// §2.3 floor(x+0.5)); show_direction/show_aoa_limits = attitudeIndicatorDisplay
+/// Direction (false) / ...DisplayAoALimits (true)。
+/// PORT(边框不承载): Java totalWidth = xWidth+4+sw·2 的 sw 边距是 WebLaF 窗口装饰
+/// (enableAttitudeIndicatorEdge, 默认 false), host 无边框层 — spec 尺寸 = 内容区
+/// x_width×x_height (draw 的画布断言钉内容尺寸, 裁剪语义)。
+/// 初始态 = 未飞形态 (AoA/AoS/Pitch 0, drawTick 未跑), 预览/游戏共用; live 由喂入方
+/// update_telemetry 推进 (40ms 节流归组装层, Java onFlightData freqMili)。
+/// PORT(WYSIWYG): reinit 闭包 = reinit_config 的绘制相关子集 (宽高/开关), 喂入
+/// 节流 freqMili 由组装层随参数仓同步 (app_shell ReinitOverlays 处理点)
+pub fn attitude_overlay_spec(
+    params: &Rc<RefCell<ReinitParams>>,
+) -> Result<(AttitudeOverlayHandle, OverlaySpec), String> {
+    let (x_width, x_height, show_direction, show_aoa_limits) = {
+        let p = params.borrow();
+        let dpi = p.dpi_scale;
+        (
+            (p.attitude_width as f64 * dpi + 0.5).floor() as i32,
+            (p.attitude_height as f64 * dpi + 0.5).floor() as i32,
+            p.attitude_show_direction,
+            p.attitude_show_aoa_limits,
+        )
+    };
+    let mut overlay = AttitudeOverlay::new();
+    overlay.reinit(x_width, x_height, show_direction, show_aoa_limits);
+    let handle: AttitudeOverlayHandle = Rc::new(RefCell::new(overlay));
+    let render_handle = Rc::clone(&handle);
+    // reinit 闭包: DPI 缩放后的新宽高 + 开关族 → state reinit + 新尺寸 (setBounds)
+    let reinit_handle = Rc::clone(&handle);
+    let reinit_params = Rc::clone(params);
+    let reinit: ReinitFn = Box::new(move || {
+        let (xw, xh, dir, aoa) = {
+            let p = reinit_params.borrow();
+            let dpi = p.dpi_scale;
+            (
+                (p.attitude_width as f64 * dpi + 0.5).floor() as i32,
+                (p.attitude_height as f64 * dpi + 0.5).floor() as i32,
+                p.attitude_show_direction,
+                p.attitude_show_aoa_limits,
+            )
+        };
+        reinit_handle.borrow_mut().reinit(xw, xh, dir, aoa);
+        Some((xw, xh))
+    });
+    Ok((
+        handle,
+        OverlaySpec {
+            // Java LinkedHashMap 键 = configKey (Controller.java:690)
+            id: "enableAttitudeIndicator".to_string(),
+            config_key: "enableAttitudeIndicator".to_string(),
+            width: x_width,
+            height: x_height,
+            render: Box::new(move |cv: &mut PixCanvas| {
+                // aa = 运行时全局仓 (cfg AAEnable 可关 — Application.java:102 仅是
+                // 声明默认, 审查轮 1-A 曾误当生产不变式钉死 true)
+                render_handle.borrow_mut().draw(cv, aa());
+            }),
+            reinit: Some(reinit),
+        },
+    ))
+}
+
+#[cfg(test)]
+mod tests;
