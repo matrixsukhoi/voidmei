@@ -22,8 +22,8 @@
 //!   (风格/模板/可见性写入口) + engine 节点负载 (渲染读出口), Java 引用共享语义落地。
 //! - `Math.round` 双语义 (§2.3): Math.round(float)→int 与 Math.round(double)→long→
 //!   (int) 窄化 (§2.2 双转) 分别落 [`java_round_f32`]/[`java_round_long_narrowed`]。
-//! - `String.format` 的 %N.Mf / %Ns / %Nd → 本地 [`java_f`]/[`pad_width`] 复刻
-//!   (hud_calculator.rs 同款, 模块私有故本地拷贝 — rows.rs text_shaded 同先例)。
+//! - `String.format` 的 %N.Mf / %Ns / %Nd → vm_core::base::format 收敛点
+//!   (`java_f`/`pad_width`, 重构波13 收割本地副本)。
 //! - Application 静态色 (colorNum/colorShadeShape) → gauges_bars 常量 (同源)。
 //! - Application.dpiScale (LIFETIMES §1.2 Env 只读) → 参数注入 (调用方持 Env)。
 //! - Font(family, BOLD, size) 的家族名 → Rust 按字体文件路径加载 (font.rs 只吃
@@ -36,7 +36,7 @@
 //!   先例: write-only 状态不删), 各带 PORT 注。
 
 use crate::render::primitives;
-use vm_core::base::format::java_round_f32;
+use vm_core::base::format::{java_f, java_round_f32, pad_width};
 use crate::render::palette::{aa, colors};
 use std::cell::RefCell;
 use std::path::{Path, PathBuf};
@@ -64,7 +64,7 @@ use crate::overlays::rows::{HUDAkbRow, HUDEnergyRow, HUDMechanizationRow, HUDMan
 use crate::overlays::warning::WarningBlinkHost;
 
 // ---------------------------------------------------------------------------
-// Java Math / printf 复刻 (§2.3/§2.2; 各模块本地拷贝先例)
+// Java Math / printf 复刻 (§2.3/§2.2; 取整族收敛 vm_core::base::format)
 // ---------------------------------------------------------------------------
 
 /// Java `(int) Math.round(double)`: round 返回 long, (int) 窄化取低 32 位
@@ -74,100 +74,10 @@ fn java_round_long_narrowed(x: f64) -> i32 {
     (l as u32) as i32
 }
 
-/// Java printf 宽度语义: 不足补空格 (默认右对齐, '-' 左对齐), 超宽不截断。
-/// 宽度按字符计 (数值输出纯 ASCII; 含 CJK/箭头的调用点见 refresh_templates)。
-fn pad_width(mut s: String, width: usize, left_align: bool) -> String {
-    let len = s.chars().count();
-    if len >= width {
-        return s;
-    }
-    let fill = " ".repeat(width - len);
-    if left_align {
-        s.push_str(&fill);
-    } else {
-        s.insert_str(0, &fill);
-    }
-    s
-}
-
-/// Java `String.format("%N.Mf", d)` 的数值部分 (%f): 对**最短往返十进制**做
-/// HALF_UP (2.675→"2.68"), 与 Rust `{:.N}` 的二进制值半偶舍入双重分歧。
-/// hud_calculator.rs java_f 的本地拷贝 (模块私有故复制, rows.rs text_shade 先例)。
-fn java_f(d: f64, prec: usize) -> String {
-    if d.is_nan() {
-        return "NaN".to_string();
-    }
-    if d.is_infinite() {
-        return if d > 0.0 { "Infinity".to_string() } else { "-Infinity".to_string() };
-    }
-    // 负号含 -0.0: Java 舍入到零的负数仍输出 "-0"/"-0.0" (oracle 验证)
-    let neg = d.is_sign_negative();
-    let a = d.abs();
-    // Rust `{:e}` 即最短往返科学计数 (与 Java Double.toString 同一最短表示)
-    let sci = format!("{a:e}");
-    let epos = sci.find('e').unwrap();
-    let exp10: i32 = sci[epos + 1..].parse().unwrap();
-    let digits = sci[..epos].replace('.', "");
-    let digits = digits.as_bytes();
-    let n = digits.len() as i32;
-
-    let mut out = String::new();
-    if exp10 > 25 {
-        // 巨整数域: digits + 隐含尾零 (+ 小数点补零)
-        out.push_str(&sci[..epos].replace('.', ""));
-        out.push_str(&"0".repeat((exp10 - n + 1) as usize));
-        if prec > 0 {
-            out.push('.');
-            out.push_str(&"0".repeat(prec));
-        }
-    } else {
-        // 最短表示的 i 号数字 (1-based, place = 10^(exp10-i+1)); 越界补 0
-        let digit_at = |i: i32| -> u128 {
-            if i < 1 {
-                0
-            } else {
-                let idx = (i - 1) as usize;
-                if idx < digits.len() {
-                    u128::from(digits[idx] - b'0')
-                } else {
-                    0
-                }
-            }
-        };
-        // 保留到 10^-prec 位: i ≤ exp10 + 1 + prec; 判定位 = 其后一位
-        // (HALF_UP: ≥5 进位, 再后的剩余数字 < 1 单位不影响判定; 进位可级联)
-        let keep = exp10 + 1 + prec as i32;
-        let mut scaled: u128 = 0;
-        if keep > 0 {
-            for i in 1..=keep {
-                scaled = scaled * 10 + digit_at(i);
-            }
-        }
-        if digit_at(keep + 1) >= 5 {
-            scaled += 1;
-        }
-        let p10 = 10u128.pow(prec as u32);
-        let int_part = scaled / p10;
-        let frac = scaled % p10;
-        out.push_str(&int_part.to_string());
-        if prec > 0 {
-            out.push('.');
-            let fs = frac.to_string();
-            for _ in fs.len()..prec {
-                out.push('0');
-            }
-            out.push_str(&fs);
-        }
-    }
-    if neg {
-        out.insert(0, '-');
-    }
-    out
-}
-
-/// Java `String.format("%Nd", v)`: 十进制右对齐补空格 (v 为 i32, 无舍入)
+/// Java `String.format("%Nd", v)` = pad_width(十进制) 组合: 右对齐补空格
+/// (v 为 i32, 无舍入; 算法本体在 vm_core::base::format::pad_width)
 fn fmt_d(v: i32, width: usize) -> String {
-    pad_width(format!("{v}"), width, false)
+    pad_width(v.to_string(), width, false)
 }
 
 // ---------------------------------------------------------------------------

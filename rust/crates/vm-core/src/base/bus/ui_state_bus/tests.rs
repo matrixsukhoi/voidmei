@@ -304,10 +304,11 @@ fn self_unsubscribe_during_delivery_snapshot_semantics() {
     assert_eq!(other.load(Ordering::SeqCst), 2);
 }
 
-// Java e.getMessage() 对位物: String 载荷 / &str 载荷 / 无文本载荷 → "null"
+// Java e.getMessage() 对位物 (共享助手 exception_helper::panic_message):
+// String 载荷 / &str 载荷 / 无文本载荷 → "null"
 #[test]
 fn panic_message_downcast_shapes() {
-    assert_eq!(panic_message(Box::new("boom".to_string())), "boom");
-    assert_eq!(panic_message(Box::new("static str")), "static str");
-    assert_eq!(panic_message(Box::new(42u32)), "null");
+    assert_eq!(panic_message_box(Box::new("boom".to_string())), "boom");
+    assert_eq!(panic_message_box(Box::new("static str")), "static str");
+    assert_eq!(panic_message_box(Box::new(42u32)), "null");
 }

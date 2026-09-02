@@ -35,7 +35,8 @@
 //! 即发即忘)。
 
 use std::sync::Arc;
-use std::time::{SystemTime, UNIX_EPOCH};
+
+use crate::base::java_compat::current_time_millis;
 
 /// 对应 Java: `src/prog/util/FocusDetector.java` (接口签名照 Java)。
 /// 分类: 本 trait 为 FocusMonitor 的消费面, 定义于本文件; FocusDetector.java
@@ -178,10 +179,9 @@ impl FocusMonitor {
             return;
         }
 
-        // PORT: System.currentTimeMillis → SystemTime (§3 库映射,
-        // event/flight_data_event.rs 同款): as_millis 的 u128 经 `as i64` 截断;
-        // 时钟早于 epoch 时 duration_since 报错 → 取 0。now 与 last_check_time
-        // 均为非负 epoch 毫秒, 差值不可能 i64 溢出, 普通 `-` 即可 (§2.2)。
+        // PORT: System.currentTimeMillis 复刻收敛于 base::java_compat (§3 库映射):
+        // as_millis 的 u128 经 `as i64` 截断; 时钟早于 epoch 时取 0。now 与
+        // last_check_time 均为非负 epoch 毫秒, 差值不可能 i64 溢出, 普通 `-` 即可 (§2.2)。
         let now = current_time_millis();
         if now - self.last_check_time < CHECK_INTERVAL_MS {
             return;
@@ -200,14 +200,6 @@ impl FocusMonitor {
             }
         }
     }
-}
-
-/// System.currentTimeMillis 的复刻 (语义说明见 tick 内 PORT 注)。
-fn current_time_millis() -> i64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_millis() as i64)
-        .unwrap_or(0)
 }
 
 // =====================================================================

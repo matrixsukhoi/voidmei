@@ -217,10 +217,11 @@ fn instances_are_independent_no_global() {
     assert_eq!(hits.load(Ordering::SeqCst), 1);
 }
 
-// panic 载荷文本提取 (&str / String / 其它)
+// panic 载荷文本提取 (&str / String / 其它) — 共享助手 exception_helper::panic_message
 #[test]
 fn panic_message_extraction() {
-    assert_eq!(panic_message(Box::new("boom")), "boom");
-    assert_eq!(panic_message(Box::new("fmt 42".to_string())), "fmt 42");
-    assert_eq!(panic_message(Box::new(7i32)), "unknown");
+    assert_eq!(panic_message_box(Box::new("boom")), "boom");
+    assert_eq!(panic_message_box(Box::new("fmt 42".to_string())), "fmt 42");
+    // 非字符串载荷无 Java 对应 → "null" (统一兜底, 见 panic_message 文档)
+    assert_eq!(panic_message_box(Box::new(7i32)), "null");
 }

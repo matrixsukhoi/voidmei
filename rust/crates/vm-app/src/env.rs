@@ -1,9 +1,8 @@
 //! Env — Application 静态只读区落位 (D8 表: 启动一次后只读 → 构造注入) +
-//! 启动探测辅助 (字体目录/模板 cfg/DPI/时间戳)。
+//! 启动探测辅助 (字体目录/模板 cfg/DPI)。
 //! 重构波2 自 app_shell.rs 拆出。
 
 use std::path::{Path, PathBuf};
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use vm_core::lang::Lang;
 use vm_overlay::platform::extras::DpiHelper;
@@ -88,16 +87,5 @@ fn detect_dpi() -> DpiHelper {
 fn detect_dpi() -> DpiHelper {
     DpiHelper::fallback(1920, 1080, "非 Windows 屏幕探测未移植 (x11 波次)")
 }
-
-/// Java `Boolean.parseBoolean`: 忽略大小写等于 "true" 才为真
-pub(crate) fn java_parse_boolean(s: &str) -> bool {
-    s.eq_ignore_ascii_case("true")
-}
-
-/// Java `System.currentTimeMillis()` (service_loop 同款: u128→i64 截断, epoch 前取 0)
-pub(crate) fn current_time_millis() -> i64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_millis() as i64)
-        .unwrap_or(0)
-}
+// Java 标准库语义助手已收敛 vm_core::base::java_compat
+// (java_parse_boolean / current_time_millis), 本模块不再持本地副本。

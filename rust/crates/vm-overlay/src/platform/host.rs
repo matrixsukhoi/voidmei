@@ -147,8 +147,9 @@ const GLOBAL_CONFIG_KEYS: [&str; 5] =
     ["AAEnable", "simpleFont", "Interval", "voiceVolume", "ui_layout.cfg"];
 const GLOBAL_CONFIG_PREFIXES: [&str; 2] = ["Global", "font"];
 
-/// Java OverlayManager.isGlobalConfig: null 恒真; 全局键集合或前缀命中
-fn is_global_config(key: Option<&str>) -> bool {
+/// 全局配置判定: None 恒真; 全局键集合或前缀命中。
+/// 全库唯一真相 (voice_setup 的 voice_warn_refresh_reaches 在此基础上追加 enableVoiceWarn)。
+pub fn is_global_config(key: Option<&str>) -> bool {
     let Some(k) = key else { return true };
     GLOBAL_CONFIG_KEYS.contains(&k) || GLOBAL_CONFIG_PREFIXES.iter().any(|p| k.starts_with(p))
 }

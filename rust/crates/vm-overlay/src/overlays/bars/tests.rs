@@ -364,7 +364,7 @@ fn flap_angle_bar_overspeed_and_guard() {
 fn line_primitive_pixel_boxes() {
     // butt2 AA OFF: 列 10..19, 行 14..15
     let mut cv = PixCanvas::new(40, 40).unwrap();
-    hline_butt2(&mut cv, 10, 20, 15, colors().num, false);
+    butt_line(&mut cv, 10, 15, 20, 15, 2, colors().num, false);
     assert_eq!(a(&cv, 10, 14), 240, "butt2 左端列");
     assert_eq!(a(&cv, 19, 15), 240, "butt2 右端列 (oracle: 端点列不点亮)");
     assert_eq!(a(&cv, 20, 15), 0, "butt2 右端外");
@@ -375,7 +375,7 @@ fn line_primitive_pixel_boxes() {
     // butt2 AA ON: 覆盖盒 [10.5,20.5]×[14.5,16.5] → 3 行柔边 + 端点列半覆盖
     // (oracle: 21 列×3 行 = 63 非零像素)
     let mut cvs = PixCanvas::new(40, 40).unwrap();
-    hline_butt2(&mut cvs, 10, 20, 15, colors().num, true);
+    butt_line(&mut cvs, 10, 15, 20, 15, 2, colors().num, true);
     assert_eq!(a(&cvs, 15, 15), 240, "AA 中行全值");
     assert_eq!(a(&cvs, 15, 14), 120, "AA 上柔边行 a=round(240·0.5)");
     assert_eq!(a(&cvs, 15, 16), 120, "AA 下柔边行");

@@ -6,6 +6,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
 
+use vm_core::base::java_compat::{java_parse_boolean, java_parse_int_or};
 use vm_core::config::config_manager;
 use vm_core::config::configuration_service::ConfigurationService;
 use vm_ui::main_form::{self, MainFormState, Message};
@@ -95,25 +96,10 @@ fn dispatch_form(
             IpcReply::Ok(serde_json::json!({ "ok": true }))
         }
         RequestKind::GetFmList => {
-            // Java FMListRowRenderer:48-62 扫 flightmodels 根的中央文件名 (去扩展);
-            // blkx→json 迁移: 只收 .json (data/ 双格式同名并存, 不过滤会重复)
-            let dir = vm_core::fm::data_paths::fm_dir();
-            let mut names: Vec<String> = Vec::new();
-            if let Ok(entries) = std::fs::read_dir(&dir) {
-                for e in entries.flatten() {
-                    let name = e.file_name().to_string_lossy().into_owned();
-                    if !name.ends_with(".json") {
-                        continue;
-                    }
-                    if let Some(stripped) =
-                        vm_core::base::file_utils::get_file_name_no_ex(Some(&name))
-                    {
-                        names.push(stripped.to_string());
-                    }
-                }
-            }
-            names.sort();
-            names.dedup();
+            // Java FMListRowRenderer:48-62 扫 flightmodels 根的中央文件名 (去扩展)。
+            // 收敛点 list_fm_names: 只收 .json (blkx→json 迁移, data/ 双格式同名
+            // 并存不过滤会重复), 排序去重, 目录不存在 → 空 vec
+            let names = vm_core::fm::data_paths::list_fm_names("");
             serde_json::to_value(names)
                 .map(IpcReply::Ok)
                 .unwrap_or_else(|e| IpcReply::Err(e.to_string()))
@@ -155,20 +141,8 @@ pub enum WebWindowRequest {
     PowerCurve { fm0: String, fm1: Option<String>, speed_kmh: i32, wep: bool },
 }
 
-/// Java `Integer.parseInt` 语义 (ButtonRowRenderer.java:89-95): 可选 '-' + 纯
-/// ASCII 数字 (无 '+', 无空白, 空串非法), 非法/溢出 → 调用方 catch 给 default
-fn java_parse_int_or(s: &str, default: i32) -> i32 {
-    let digits = s.strip_prefix('-').unwrap_or(s);
-    if digits.is_empty() || !digits.bytes().all(|b| b.is_ascii_digit()) {
-        return default;
-    }
-    s.parse::<i32>().unwrap_or(default) // 溢出: Java 抛异常→catch→default, 同效
-}
-
-/// Java `Boolean.parseBoolean`: 仅忽略大小写的 "true" 为真
-fn java_parse_boolean(s: &str) -> bool {
-    s.eq_ignore_ascii_case("true")
-}
+// Java 标准库语义助手 (java_parse_int_or / java_parse_boolean) 已收敛
+// vm_core::base::java_compat, 本模块不再持本地副本。
 
 /// open* 按钮分派 (Java ButtonRowRenderer.java:64-106 按钮体): 读 cfg 组装开窗
 /// 入参; 非 open* 键返回 None (走原表单链)。纯流程函数 — cfg 读写可注入观测。
@@ -833,8 +807,10 @@ mod tests {
             params(route_open_action("openPowerCurve", &shell)),
             ("spitfire_f24".into(), Some("p-51c-10-nt".into()), 350, true)
         );
-        // parseInt 异常面: 非数字 / 空白 / '+' 前缀 → 0 (Java 均抛 NumberFormatException)
-        for bad in ["abc", " 350", "+350"] {
+        // parseInt 异常面: 非数字 / 空白 → 0 (Java 抛 NumberFormatException)。
+        // '+' 前缀在 Java 7+ 为合法正号 (收敛点 java_parse_int 保真, 原本地副本
+        // 误拒 → 旧断言 "+350"→0 与 Java 8 实测不符, 随收割修正)
+        for bad in ["abc", " 350"] {
             set_cfg(&shell, "powerCurveSpeed", bad);
             assert_eq!(
                 params(route_open_action("openPowerCurve", &shell)).2,
@@ -842,6 +818,8 @@ mod tests {
                 "非法速度串应回 0: {bad}"
             );
         }
+        set_cfg(&shell, "powerCurveSpeed", "+350");
+        assert_eq!(params(route_open_action("openPowerCurve", &shell)).2, 350);
         // Boolean.parseBoolean: "1" 非 true; "TRUE" 忽略大小写真
         set_cfg(&shell, "powerCurveSpeed", "350");
         set_cfg(&shell, "powerCurveWep", "1");

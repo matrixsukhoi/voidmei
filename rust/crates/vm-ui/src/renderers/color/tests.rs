@@ -1,6 +1,7 @@
 use super::*;
 use crate::renderers::test_util::MapCtx;
 use vm_core::config::config_loader::RowConfig;
+use vm_core::ui_support::color::{parse_color, try_parse_color};
 
 const DEF: [u8; 4] = [1, 2, 3, 4];
 

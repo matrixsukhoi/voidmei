@@ -13,7 +13,7 @@ use crate::render::font::LoadedFont;
 use crate::platform::host::{OverlaySpec, ReinitFn};
 use crate::platform::reinit::ReinitParams;
 use crate::render::canvas::PixCanvas;
-use crate::render::primitives::{ring1px, text_shaded_auto};
+use crate::render::primitives::{draw_h_rect, ring1px, text_shaded_auto};
 use vm_core::base::format::java_round_f64;
 use vm_core::base::format::java_round_f32;
 use vm_core::formula::registry::FormulaView;
@@ -42,18 +42,6 @@ fn draw_v_bar(
     } else {
         ring1px(cv, x, y, w - 1, -h - 1, colors().shade_shape); // 负高 → 不绘制
         cv.fill_rect(x + bw, y + bw, w - 2 * bw, -val_h - 2 * bw, c);
-    }
-}
-
-/// UIBaseElements.drawHRect (UIBaseElements.java:96-111): 横向条 (shade 环 + c 内芯)
-#[allow(clippy::too_many_arguments)] // 对齐 Java drawHRect(g2d,x,y,width,height,borderwidth,c)
-fn draw_h_rect(cv: &mut PixCanvas, x: i32, y: i32, w: i32, h: i32, bw: i32, c: [u8; 4]) {
-    if w >= 0 {
-        ring1px(cv, x, y, w - 1, h - 1, colors().shade_shape);
-        cv.fill_rect(x + bw, y + bw, w - 2 * bw, h - 2 * bw, c);
-    } else {
-        ring1px(cv, x + w, y, -w - 1, h - 1, colors().shade_shape);
-        cv.fill_rect(x + bw + w, y + bw, -w - 2 * bw, h - 2 * bw, c);
     }
 }
 

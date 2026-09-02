@@ -34,6 +34,7 @@ use crate::fm::handle::FMHandle;
 use crate::fm::power_extractor::{extract_stages_with_fuel, is_piston_engine};
 use crate::base::logger;
 use crate::fm::piston_model::peak_wep_power;
+use crate::base::exception_helper::panic_message;
 
 /// 白盒测试计数器：FMLoader.load 真正执行（进入加载流程）的次数
 // PORT: Java `private static volatile long loadCount` → AtomicU64 (§1 volatile →
@@ -230,21 +231,10 @@ impl std::fmt::Display for LoadThrowable {
 
 impl std::error::Error for LoadThrowable {}
 
-/// panic 载荷提取 (catch_unwind 的 `Box<dyn Any + Send>`)
-fn panic_message(payload: &(dyn std::any::Any + Send)) -> String {
-    if let Some(s) = payload.downcast_ref::<&str>() {
-        (*s).to_string()
-    } else if let Some(s) = payload.downcast_ref::<String>() {
-        s.clone()
-    } else {
-        "unknown panic payload".to_string()
-    }
-}
-
 /// Java `"" + double` 字符串拼接 (Double.toString) 形态 — 整数值带 ".0" 尾
 /// (50.0 而非 50), 供日志文本逐字保真。
-// PORT: 完整复刻在 configuration_service::java_double_to_string (私有, 不越文件
-// 引用); 此处按域收窄 — sovietOctaneHpBonus 来自 FM 文件 addHorsePowers 行,
+// PORT: 完整复刻在 base::java_compat::java_double_to_string; 此处按域收窄 —
+// sovietOctaneHpBonus 来自 FM 文件 addHorsePowers 行,
 /// 为小整数或短小数, `{:.1}`(整数)/`{}`(小数) 两分支与 Java 一一对应
 fn java_double_str(d: f64) -> String {
     if d.is_finite() && d == d.trunc() && d.abs() < 1e16 {

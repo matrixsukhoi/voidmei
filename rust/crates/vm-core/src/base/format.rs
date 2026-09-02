@@ -1,5 +1,11 @@
 //! FastNumberFormatter 的 Rust 移植 (src/ui/util/FastNumberFormatter.java)
 //! 语义逐行对齐: 半舍入 (floor(x+0.5)), 负零抑制, NaN→"N/A", TIME_MM_SS
+//!
+//! java_printf 子模块: Java `String.format` printf 引擎 (Lang 模板域唯一真相)。
+
+mod java_printf;
+
+pub use java_printf::{java_format_f, java_string_format, FmtArg};
 
 /// Java Math.round(double) = floor(x + 0.5)
 pub fn java_round(x: f64) -> i64 {
@@ -225,6 +231,41 @@ pub fn java_f_plus(d: f64, prec: usize) -> String {
     } else {
         format!("+{}", java_f(d, prec))
     }
+}
+
+/// Java `String.format("%.0f", d)` 的整数化 (重构波13 上收, 原 vm-overlay
+/// FlapAngleBar::fmt_pct3 / CompassGauge::fmt_heading3 的共同内核)。
+/// 舍入 = 精确二进制小数 HALF_UP (`m − floor(m) ≥ 0.5`, m=|d| — 不能写
+/// v+0.5: 0.49999999999999994+0.5 会进到 1.0, Java oracle 输出 "0");
+/// 负零与舍到零的负数保 '-'; NaN/±∞ 输出常量 "NaN"/"Infinity"/"-Infinity"。
+/// 与 [`java_f`] 的刻意差异 (两脉各有 oracle 钉死的消费域, 不可互换):
+/// 舍入结果 ≥ 2^63 时按**精确十进制**展开 (`{:.0}`; org.json 畸形遥测可达,
+/// as i64 饱和串 9223372036854775807 是错误输出), [`java_f`] 则按最短往返
+/// 表示展开 — 该巨值域属 Java 8 旧 dtoa 已知未决域, 两模型输出不同。
+/// 消费方 (vm-overlay "%3.0f" 家族) 配 [`pad_width`] 组合右对齐。
+pub fn java_f0_exact(d: f64) -> String {
+    if d.is_nan() {
+        return "NaN".to_string();
+    }
+    // PORT: Formatter 对 ±∞ 输出常量 (org.json "1e999"→inf 可达)
+    if d.is_infinite() {
+        return if d > 0.0 { "Infinity".to_string() } else { "-Infinity".to_string() };
+    }
+    // 负号判定含 -0.0 (Java Formatter 对负零输出 "-0", v < 0.0 对 -0.0 为 false)
+    let neg = d < 0.0 || (d == 0.0 && d.is_sign_negative());
+    let m = d.abs();
+    let f = m.floor();
+    let r = if m - f >= 0.5 { f + 1.0 } else { f };
+    // r ≥ 2^63 超 i64 域, 按完整十进制展开 (此域 ULP≥2048, m 必为整值, 无舍入分歧)
+    let mut s = if r >= 9_223_372_036_854_775_808.0 {
+        format!("{:.0}", r)
+    } else {
+        format!("{}", r as i64)
+    };
+    if neg {
+        s.insert(0, '-');
+    }
+    s
 }
 
 #[cfg(test)]

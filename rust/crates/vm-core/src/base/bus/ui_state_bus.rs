@@ -29,7 +29,6 @@
 //! - §2.9 全局态: Java `getInstance()` 静态单例解散, 实例由 App 层拥有并经
 //!   构造器注入 (configuration_service.rs 的总线注入先例)。
 
-use std::any::Any;
 use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
 use std::panic::{catch_unwind, AssertUnwindSafe};
@@ -37,6 +36,7 @@ use std::sync::{Arc, RwLock};
 
 use crate::base::bus::{EventBus, Subscription};
 use crate::base::logger;
+use crate::base::exception_helper::panic_message_box;
 
 /// 路由表锁中毒消息 (Java 无锁; 对应持锁线程崩溃后的一致性未知面)
 const MAP_LOCK_MSG: &str = "UIStateBus 路由表锁中毒";
@@ -151,7 +151,7 @@ impl UIStateBus {
                     &format!(
                         "Error in handler for {}: {}",
                         et,
-                        panic_message(payload)
+                        panic_message_box(payload)
                     ),
                 );
             }
@@ -323,19 +323,6 @@ impl UIStateBus {
             .get(event_type)
             .map(|bus| bus.subscriber_count())
             .unwrap_or(0)
-    }
-}
-
-/// Java `e.getMessage()` 的对位物: catch_unwind 载荷 → 字符串。
-/// 无字符串载荷 (如算术溢出类 panic) → 字面 "null", 对齐 Java
-/// getMessage()==null 时 `"..." + null` 的拼接结果。
-fn panic_message(payload: Box<dyn Any + Send>) -> String {
-    if let Some(s) = payload.downcast_ref::<String>() {
-        s.clone()
-    } else if let Some(s) = payload.downcast_ref::<&'static str>() {
-        (*s).to_string()
-    } else {
-        "null".to_string()
     }
 }
 

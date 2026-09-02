@@ -17,6 +17,7 @@ use std::rc::Rc;
 use std::sync::RwLock;
 
 use crate::config::sexp_parser::{AtomType, SExp, SExpParser, SList};
+use crate::base::java_compat::{java_double_to_string, java_parse_boolean, java_parse_int, java_trim};
 
 // --- Java `Object value` 的类型域 (extractValue 实际产出) ---
 
@@ -181,52 +182,10 @@ fn legacy_screen_size() -> Result<(i32, i32), String> {
         .ok_or_else(|| "java.awt.HeadlessException: getScreenSize 未注入 (vm-app 应调用 set_legacy_screen_size)".to_string())
 }
 
-/// Java `String.trim()`: 剥首尾所有 `<= U+0020` 的字符 (含 \n/\r/\t,
-/// 不含 NBSP) — 与 Rust `str::trim` (Unicode White_Space) 不同, blkx/reader 同款。
-fn java_trim(s: &str) -> &str {
-    s.trim_matches(|c: char| (c as u32) <= 0x20)
-}
-
-/// Java `Integer.parseInt(String)` (radix 10) 复刻:
-/// 可选 +/-, 至少一位数字, 溢出/空/非法 → Err (= NumberFormatException)。
-/// PORT: Java Character.digit 接受 Unicode Nd 数字 (如 '٥'); parseInt 无 trim —
-/// 域内 cfg 值为 ASCII, §2.15 (catch 吞异常给默认值由调用方 unwrap_or 完成)。
-fn java_parse_int(s: &str) -> Result<i32, ()> {
-    let b = s.as_bytes();
-    let (neg, digits) = match b.first() {
-        Some(b'-') => (true, &b[1..]),
-        Some(b'+') => (false, &b[1..]),
-        _ => (false, b),
-    };
-    if digits.is_empty() {
-        return Err(());
-    }
-    let mut acc: i64 = 0;
-    for &d in digits {
-        if !d.is_ascii_digit() {
-            return Err(());
-        }
-        acc = acc * 10 + i64::from(d - b'0');
-        if acc > i32::MAX as i64 + 1 {
-            return Err(()); // 溢出 — Java 抛 NumberFormatException (§2.2 静默回绕不适用: parseInt 是解析不是运算)
-        }
-    }
-    if neg {
-        acc = -acc;
-    }
-    if !(i32::MIN as i64..=i32::MAX as i64).contains(&acc) {
-        return Err(());
-    }
-    Ok(acc as i32)
-}
-
-/// Java `Boolean.parseBoolean(String)` = equalsIgnoreCase("true") — 非 "true" 一律 false。
-fn java_parse_boolean(s: &str) -> bool {
-    s.eq_ignore_ascii_case("true")
-}
-
-/// Java `String.valueOf(value)` (value 非 null) — 各装箱类型的 toString 格式
-fn config_value_to_string(v: &ConfigValue) -> String {
+/// Java `String.valueOf(value)` (value 非 null) — 各装箱类型的 toString 格式。
+/// PORT: config 域唯一实现 (configuration_service 原同名族副本已收敛于此);
+/// Double 分支走 base::java_compat::java_double_to_string。
+pub(crate) fn config_value_to_string(v: &ConfigValue) -> String {
     match v {
         ConfigValue::Bool(b) => b.to_string(),
         ConfigValue::Int(i) => i.to_string(),
@@ -318,69 +277,6 @@ fn java_format_f4(d: f64) -> String {
         out.insert(0, '-');
     }
     out
-}
-
-/// Java `Double.toString(double)` 一比一复刻 (getStr/String.valueOf(Double) 与
-/// saveConfig serializeAtom 的 Double 分支共用):
-/// - 10^-3 ≤ |d| < 10^7 → 十进制平原式, 恒至少一位小数 ("1.0");
-/// - 否则科学计数 "D.DDDE±x" ('E' 后仅负指数带 '-', 正指数无 '+');
-/// - 最短可区分数字串; NaN/±0/±Inf 特判。
-///
-/// PORT: 数字串取 Rust `{:e}` 最短往返表示, 与 Java FloatingDecimal 在
-/// JDK-4511638 域 (极罕见多位尾数) 外逐位一致 — cfg 值域 oracle 对拍无差异。
-fn java_double_to_string(d: f64) -> String {
-    if d.is_nan() {
-        return "NaN".to_string();
-    }
-    if d == 0.0 {
-        return if d.is_sign_negative() { "-0.0".to_string() } else { "0.0".to_string() };
-    }
-    if d.is_infinite() {
-        return if d > 0.0 { "Infinity".to_string() } else { "-Infinity".to_string() };
-    }
-    let neg = d.is_sign_negative();
-    let a = d.abs();
-    // "{:e}" → "D.DDDe±n"; a > 0 有限, 恒此形态 (最短往返数字, 无尾随零)
-    let sci = format!("{:e}", a);
-    let epos = sci.find('e').unwrap();
-    let mant = &sci[..epos];
-    let exp10: i32 = sci[epos + 1..].parse().unwrap();
-    let digits: String = mant.chars().filter(|c| *c != '.').collect();
-    let mut s = String::new();
-    if (-3..=6).contains(&exp10) {
-        // 平原式
-        if exp10 >= 0 {
-            let ip = exp10 as usize + 1; // 整数部分位数
-            if digits.len() > ip {
-                s.push_str(&digits[..ip]);
-                s.push('.');
-                s.push_str(&digits[ip..]);
-            } else {
-                s.push_str(&digits);
-                s.push_str(&"0".repeat(ip - digits.len()));
-                s.push_str(".0"); // 恒至少一位小数
-            }
-        } else {
-            s.push_str("0.");
-            s.push_str(&"0".repeat((-exp10 - 1) as usize));
-            s.push_str(&digits);
-        }
-    } else {
-        // 科学计数
-        s.push_str(&digits[..1]);
-        s.push('.');
-        if digits.len() > 1 {
-            s.push_str(&digits[1..]);
-        } else {
-            s.push('0');
-        }
-        s.push('E');
-        s.push_str(&exp10.to_string());
-    }
-    if neg {
-        s.insert(0, '-');
-    }
-    s
 }
 
 // --- jnativehook 键码文本 (NativeKeyEvent.getKeyText) ---

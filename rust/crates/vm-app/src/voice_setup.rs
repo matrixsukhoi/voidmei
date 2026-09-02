@@ -224,22 +224,12 @@ impl Drop for VoiceWarnSession {
 /// Java OverlayManager.refreshPreviews 对 `isGlobalConfig(key) ||
 /// entry.isInterestedIn(key)` 的条目调 refreshPreview (OverlayManager.java
 /// :201-207)。voice_warn 非 host 条目无注册面可挂 interest — 此处复刻同款
-/// 判定: 全局键集/前缀 = host.rs GLOBAL_CONFIG_KEYS/PREFIXES 同源 (Java
-/// OverlayManager.java:217-227); interest 集 = Java 默认 own key
-/// ("enableVoiceWarn", registerWithStrategy 无 withInterest 追加,
-/// Controller.java:716-723)。None = refreshAllPreviews 全条目触达。
+/// 判定: 全局键集/前缀 (含 None 恒真) 走 host::is_global_config 全库唯一
+/// 真相; interest 集 = Java 默认 own key ("enableVoiceWarn",
+/// registerWithStrategy 无 withInterest 追加, Controller.java:716-723)。
 pub(crate) fn voice_warn_refresh_reaches(changed_key: Option<&str>) -> bool {
-    match changed_key {
-        None => true,
-        Some(k) => {
-            const GLOBAL_KEYS: [&str; 5] =
-                ["AAEnable", "simpleFont", "Interval", "voiceVolume", "ui_layout.cfg"];
-            const GLOBAL_PREFIXES: [&str; 2] = ["Global", "font"];
-            GLOBAL_KEYS.contains(&k)
-                || GLOBAL_PREFIXES.iter().any(|p| k.starts_with(p))
-                || k == "enableVoiceWarn"
-        }
-    }
+    vm_overlay::platform::host::is_global_config(changed_key)
+        || changed_key == Some("enableVoiceWarn")
 }
 
 /// Java OverlayEntry.open (OverlayManager.java:294-312) 的 VoiceWarning 专项:

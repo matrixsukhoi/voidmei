@@ -24,13 +24,15 @@ pub use overlay_settings::GenericOverlaySettingsImpl;
 use std::sync::{Arc, RwLock};
 
 use crate::config::config_api::{ConfigProvider, HUDSettings, OverlaySettings};
-use crate::config::config_loader::{self, ConfigValue, GroupConfig, RowConfig};
+use crate::config::config_loader::{self, config_value_to_string, ConfigValue, GroupConfig, RowConfig};
 use crate::config::config_manager;
 use crate::base::event::ui_state_events;
 use crate::base::ports::bkp_port;
 use crate::lang::Lang;
 use crate::base::logger;
 use crate::base::bus::ui_state_bus::UIStateBus;
+use crate::base::java_compat::{java_parse_boolean, java_trim};
+use crate::ui_support::color::parse_color;
 
 /// RwLock 中毒消息 (Java 无锁; 对应持锁线程崩溃后的一致性未知面)
 const LC_LOCK_MSG: &str = "layoutConfigs 锁中毒";
@@ -158,9 +160,7 @@ impl ConfigurationService {
     pub fn group_position(&self, section: &str) -> Option<(f64, f64)> {
         let configs = self.inner.layout_configs.read().expect(LC_LOCK_MSG);
         let list = configs.as_ref()?;
-        list.iter()
-            .find(|gc| section.eq_ignore_ascii_case(&gc.title))
-            .map(|gc| (gc.x, gc.y))
+        group_index_by_title(list, section, true).map(|i| (list[i].x, list[i].y))
     }
 
     /// 组装层位置桥 (归一化直写): 与视图 save_window_position 同源
@@ -172,13 +172,11 @@ impl ConfigurationService {
         {
             let mut configs = self.inner.layout_configs.write().expect(LC_LOCK_MSG);
             if let Some(list) = configs.as_mut() {
-                for gc in list.iter_mut() {
-                    if section.eq_ignore_ascii_case(&gc.title) {
-                        gc.x = nx;
-                        gc.y = ny;
-                        hit = true;
-                        break;
-                    }
+                // 命中首个同题分组写回 (Java 原状)
+                if let Some(i) = group_index_by_title(list, section, true) {
+                    list[i].x = nx;
+                    list[i].y = ny;
+                    hit = true;
                 }
             }
         }
@@ -258,14 +256,9 @@ impl ConfigurationService {
     /// equals 与下方视图的 equalsIgnoreCase 是两条不同查找 (Java 原状)。
     pub fn find_group_by_title(&self, group_title: &str) -> Option<GroupConfig> {
         let configs = self.inner.layout_configs.read().expect(LC_LOCK_MSG);
-        if let Some(list) = configs.as_ref() {
-            for gc in list {
-                if group_title == gc.title {
-                    return Some(gc.clone());
-                }
-            }
-        }
-        None
+        configs
+            .as_ref()
+            .and_then(|list| group_index_by_title(list, group_title, false).map(|i| list[i].clone()))
     }
 
     /// Java: `public void loadAppCheck(Controller c)` — 解析并应用配置到应用与
@@ -402,7 +395,7 @@ impl ConfigurationService {
 
     /// Java: `public Color getColorConfig(String key)`
     /// PORT: java.awt.Color → [u8;4] RGBA (POC 先例; #RRGGBBAA 字节序经
-    /// ColorHelper.parseColor 保真, 见本地 parse_color)
+    /// ColorHelper.parseColor 保真, 见 ui_support::color)
     pub fn get_color_config(&self, key: &str) -> [u8; 4] {
         let val = self.inner.get_config_j(key);
         parse_color(&val, COLOR_WHITE)
@@ -593,7 +586,7 @@ impl ServiceInner {
                                 "Resetting {} ({}) to default: {}",
                                 row.label,
                                 row.property.as_deref().unwrap_or("no-key"),
-                                config_value_to_java_string(row.default_value.as_ref().expect(
+                                config_value_to_string(row.default_value.as_ref().expect(
                                     "Phase 1 已保证 defaultValue 非 null"
                                 ))
                             ),
@@ -645,19 +638,14 @@ impl ServiceInner {
     }
 
     /// GenericOverlaySettingsImpl.getGroupConfig 的查找体:
-    /// Java `sectionName.equalsIgnoreCase(gc.title)`。
+    /// Java `sectionName.equalsIgnoreCase(gc.title)` (走 [`group_index_by_title`])。
     /// PORT: Java 逐字符简单大小写折叠 — 标题域 ASCII/CJK 下
     /// eq_ignore_ascii_case 等价 (CJK 无大小写)
     fn find_group_ignore_case(&self, section_name: &str) -> Option<GroupConfig> {
         let configs = self.layout_configs.read().expect(LC_LOCK_MSG);
-        if let Some(list) = configs.as_ref() {
-            for gc in list {
-                if section_name.eq_ignore_ascii_case(&gc.title) {
-                    return Some(gc.clone());
-                }
-            }
-        }
-        None
+        configs
+            .as_ref()
+            .and_then(|list| group_index_by_title(list, section_name, true).map(|i| list[i].clone()))
     }
 
     /// 就地写回分组 x/y (saveWindowPosition 的写面), 返回新值供日志
@@ -668,16 +656,11 @@ impl ServiceInner {
         y: f64,
     ) -> Option<(f64, f64)> {
         let mut configs = self.layout_configs.write().expect(LC_LOCK_MSG);
-        if let Some(list) = configs.as_mut() {
-            for gc in list.iter_mut() {
-                if section_name.eq_ignore_ascii_case(&gc.title) {
-                    gc.x = x;
-                    gc.y = y;
-                    return Some((gc.x, gc.y));
-                }
-            }
-        }
-        None
+        let list = configs.as_mut()?;
+        let i = group_index_by_title(list, section_name, true)?;
+        list[i].x = x;
+        list[i].y = y;
+        Some((list[i].x, list[i].y))
     }
 
     fn screen_size(&self) -> (i32, i32) {
@@ -832,96 +815,24 @@ fn row_by_path_children<'a>(row: &'a mut RowConfig, path: &[usize]) -> Option<&'
     row_by_path_children(child, &path[1..])
 }
 
+/// "按标题查组"唯一底层: 返回 list 中首个命中分组的索引。
+/// `ignore_case` 对应 Java 两条查找原状 (equals vs equalsIgnoreCase):
+/// group_position / save_group_position / find_group_ignore_case /
+/// set_group_position_ignore_case 走忽略大小写, find_group_by_title 走精确等值。
+fn group_index_by_title(list: &[GroupConfig], title: &str, ignore_case: bool) -> Option<usize> {
+    list.iter().position(|gc| {
+        if ignore_case {
+            title.eq_ignore_ascii_case(&gc.title)
+        } else {
+            title == gc.title
+        }
+    })
+}
+
 
 // =====================================================================
-// Java 语义本地辅助 (私有) — 与 config_loader/config_manager 同款复刻
+// Java 语义本地辅助 (私有) — 通用件已收敛到 base::java_compat
 // =====================================================================
-
-/// Java `String.trim()`: 剥首尾所有 `<= U+0020` 的字符 — 与 Rust `str::trim`
-/// (Unicode White_Space, 会剥 U+3000 等) 不同; config_loader/config_manager 同款。
-fn java_trim(s: &str) -> &str {
-    s.trim_matches(|c: char| (c as u32) <= 0x20)
-}
-
-/// Java `Boolean.parseBoolean(String)` = equalsIgnoreCase("true") — 非 "true" 一律 false。
-fn java_parse_boolean(s: &str) -> bool {
-    s.eq_ignore_ascii_case("true")
-}
-
-/// Java `String.valueOf(Object)` 的 ConfigValue 域 (Boolean/Integer/Double/String
-/// 各自 toString)。PORT: config_loader 的同款为私有未导出 — 本地同构副本,
-/// 待其导出后收敛。
-fn config_value_to_java_string(v: &ConfigValue) -> String {
-    match v {
-        ConfigValue::Bool(b) => b.to_string(),
-        ConfigValue::Int(i) => i.to_string(),
-        ConfigValue::Double(d) => java_double_to_string(*d),
-        ConfigValue::Str(s) => s.clone(),
-    }
-}
-
-/// Java `Double.toString(double)` 一比一复刻 — 与 config_loader 私有同名函数
-/// 同实现 (其未导出, 本文件无法跨模块复用):
-/// - 10^-3 ≤ |d| < 10^7 → 十进制平原式, 恒至少一位小数 ("1.0");
-/// - 否则科学计数 "D.DDDE±x" ('E' 后仅负指数带 '-', 正指数无 '+');
-/// - 最短可区分数字串; NaN/±0/±Inf 特判。
-///
-/// PORT: 数字串取 Rust `{:e}` 最短往返表示, 与 Java FloatingDecimal 在
-/// JDK-4511638 域 (极罕见多位尾数) 外逐位一致 — cfg 值域 oracle 对拍无差异。
-fn java_double_to_string(d: f64) -> String {
-    if d.is_nan() {
-        return "NaN".to_string();
-    }
-    if d == 0.0 {
-        return if d.is_sign_negative() { "-0.0".to_string() } else { "0.0".to_string() };
-    }
-    if d.is_infinite() {
-        return if d > 0.0 { "Infinity".to_string() } else { "-Infinity".to_string() };
-    }
-    let neg = d.is_sign_negative();
-    let a = d.abs();
-    // "{:e}" → "D.DDDe±n"; a > 0 有限, 恒此形态 (最短往返数字, 无尾随零)
-    let sci = format!("{:e}", a);
-    let epos = sci.find('e').unwrap();
-    let mant = &sci[..epos];
-    let exp10: i32 = sci[epos + 1..].parse().unwrap();
-    let digits: String = mant.chars().filter(|c| *c != '.').collect();
-    let mut s = String::new();
-    if (-3..=6).contains(&exp10) {
-        // 平原式
-        if exp10 >= 0 {
-            let ip = exp10 as usize + 1; // 整数部分位数
-            if digits.len() > ip {
-                s.push_str(&digits[..ip]);
-                s.push('.');
-                s.push_str(&digits[ip..]);
-            } else {
-                s.push_str(&digits);
-                s.push_str(&"0".repeat(ip - digits.len()));
-                s.push_str(".0"); // 恒至少一位小数
-            }
-        } else {
-            s.push_str("0.");
-            s.push_str(&"0".repeat((-exp10 - 1) as usize));
-            s.push_str(&digits);
-        }
-    } else {
-        // 科学计数
-        s.push_str(&digits[..1]);
-        s.push('.');
-        if digits.len() > 1 {
-            s.push_str(&digits[1..]);
-        } else {
-            s.push('0');
-        }
-        s.push('E');
-        s.push_str(&exp10.to_string());
-    }
-    if neg {
-        s.insert(0, '-');
-    }
-    s
-}
 
 /// Java `Double.parseDouble(String)` 复刻 (消费域收敛版):
 /// - JLS/FloatingDecimal: 先 `String.trim()` (<= U+0020), 允许尾缀 d/D/f/F;
@@ -936,101 +847,11 @@ fn java_parse_double(s: &str) -> Result<f64, ()> {
 }
 
 // =====================================================================
-// prog.util.ColorHelper 的消费面内联 (依赖桩, 非独立翻译)
+// prog.util.ColorHelper 的消费面 (解析本体已收敛到 ui_support::color)
 // =====================================================================
 
 /// java.awt.Color.WHITE — ColorHelper.parseColor 的默认色 (loadAppCheck 调用点)
 const COLOR_WHITE: [u8; 4] = [255, 255, 255, 255];
-
-/// Java: `ColorHelper.parseColor(String text, Color defaultColor)`
-/// 支持 hex (#RRGGBB / #RRGGBBAA) 与十进制 (R, G, B / R, G, B, A),
-/// 失败回默认色 (never throws)。
-/// PORT: java.awt.Color → [u8;4] RGBA (POC 先例, §3 字节序: R,G,B,A 序);
-/// ColorHelper 未翻译 — 一比一内联 (该文件波次落地后收敛)。
-fn parse_color(text: &str, default_color: [u8; 4]) -> [u8; 4] {
-    if java_trim(text).is_empty() {
-        return default_color;
-    }
-
-    let trimmed = java_trim(text);
-
-    // Try hex format first
-    if trimmed.starts_with('#') {
-        return parse_hex_color(trimmed, default_color);
-    }
-
-    // Try decimal format
-    parse_decimal_color(trimmed, default_color)
-}
-
-/// Java: `ColorHelper.parseHexColor(String hex, Color defaultColor)`
-fn parse_hex_color(hex: &str, default_color: [u8; 4]) -> [u8; 4] {
-    // PORT §2.1: substring 按 UTF-16 码元、parseInt 遇非 ASCII 抛异常 → 默认;
-    // Rust 字节切片遇多字节字符会 panic — 整段 ASCII 校验把该路径收敛到默认
-    let h = &hex[1..]; // Remove #  ('#' 单字节, 切片安全)
-    if !h.is_ascii() {
-        return default_color;
-    }
-    let b = h.as_bytes();
-    let two = |i: usize| u8::from_str_radix(&h[i..i + 2], 16);
-    if b.len() == 6 {
-        // #RRGGBB - no alpha (new Color(r,g,b) → alpha 255)
-        match (two(0), two(2), two(4)) {
-            (Ok(r), Ok(g), Ok(bl)) => [r, g, bl, 255],
-            _ => default_color,
-        }
-    } else if b.len() == 8 {
-        // #RRGGBBAA - with alpha
-        match (two(0), two(2), two(4), two(6)) {
-            (Ok(r), Ok(g), Ok(bl), Ok(a)) => [r, g, bl, a],
-            _ => default_color,
-        }
-    } else {
-        default_color
-    }
-}
-
-/// Java: `ColorHelper.parseDecimalColor(String decimal, Color defaultColor)`
-fn parse_decimal_color(decimal: &str, default_color: [u8; 4]) -> [u8; 4] {
-    // [ \t\n\x0B\f\r] (默认无 UNICODE_CHARACTER_CLASS)
-    let cleaned: String = decimal
-        .chars()
-        .filter(|c| !matches!(c, ' ' | '\t' | '\n' | '\u{b}' | '\u{c}' | '\r'))
-        .collect();
-    let mut parts: Vec<&str> = cleaned.split(',').collect();
-    while parts.last() == Some(&"") {
-        parts.pop();
-    }
-
-    if parts.len() >= 3 {
-        let (r, g, bl) = match (parts[0].parse::<i32>(), parts[1].parse::<i32>(), parts[2].parse::<i32>()) {
-            (Ok(r), Ok(g), Ok(b)) => (r, g, b),
-            _ => return default_color,
-        };
-        let a = if parts.len() >= 4 {
-            match parts[3].parse::<i32>() {
-                Ok(v) => v,
-                Err(_) => return default_color,
-            }
-        } else {
-            255
-        };
-
-        // Clamp values to valid range
-        return [
-            clamp(r, 0, 255) as u8,
-            clamp(g, 0, 255) as u8,
-            clamp(bl, 0, 255) as u8,
-            clamp(a, 0, 255) as u8,
-        ];
-    }
-    default_color
-}
-
-/// Java: `ColorHelper.clamp(int value, int min, int max)` = Math.max(min, Math.min(max, value))
-fn clamp(value: i32, min: i32, max: i32) -> i32 {
-    std::cmp::max(min, std::cmp::min(max, value))
-}
 
 // =====================================================================
 // Tests — Java 侧无对应单测 (ConfigurationService 为手动验证), 本组为移植

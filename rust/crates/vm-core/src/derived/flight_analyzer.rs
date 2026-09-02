@@ -31,6 +31,7 @@ use std::sync::Arc;
 use crate::config::config_api::config_provider::ConfigProvider;
 use crate::lang::Lang;
 use crate::base::physics_constants::g;
+use crate::base::java_compat::{java_float_to_string, java_parse_boolean};
 
 /// FlightAnalyzer 对 Service 的读取面 (PORT: D6 依赖倒置, 见模块头说明)。
 /// 方法名 = Java 字段名 (§0 规则 7 的 crate 边界变体)。
@@ -369,12 +370,6 @@ impl FlightAnalyzer {
     }
 }
 
-/// Java `Boolean.parseBoolean` — 本地同构副本
-/// (configuration_service.rs 的 java_parse_boolean 为私有未导出, 待其导出后收敛)。
-fn java_parse_boolean(s: &str) -> bool {
-    s.eq_ignore_ascii_case("true")
-}
-
 /// Java 8 `Math.round(double)` 一比一 (JDK 8 源码位级算法, 非朴素 floor(x+0.5)):
 /// JDK 7 起 (JDK-8010430) 对半点邻域做了修正 — Java 8 oracle 实测
 /// `Math.round(0.49999999999999994d) == 0`, 而朴素 `(x + 0.5).floor()` 给 1
@@ -398,67 +393,6 @@ fn java_math_round(a: f64) -> i64 {
         // |a| < 2^-64 量级 / a 已是数学整数 / Inf / NaN
         a as i64
     }
-}
-
-/// Java 8 `Float.toString(float)` 一比一 (analyze 通知里 `(int)X / 10.0f` 的字符串拼接):
-/// 10^-3 ≤ |f| < 10^7 → 十进制平原式恒至少一位小数 ("12.0"); 否则 "D.DDDE±x"
-/// ('E' 后仅负指数带 '-'); 最短可区分数字串; NaN/±0/±Inf 特判。
-/// PORT: 数字串取 Rust `{:e}` 最短往返表示 — 与 Java FloatingDecimal 在
-/// JDK-4511638 域 (极罕见多位尾数) 外逐位一致 (config_loader.rs 私有同名
-/// java_double_to_string 的 f32 同构副本, 待其导出后收敛)。
-fn java_float_to_string(f: f32) -> String {
-    if f.is_nan() {
-        return "NaN".to_string();
-    }
-    if f == 0.0 {
-        return if f.is_sign_negative() { "-0.0".to_string() } else { "0.0".to_string() };
-    }
-    if f.is_infinite() {
-        return if f > 0.0 { "Infinity".to_string() } else { "-Infinity".to_string() };
-    }
-    let neg = f.is_sign_negative();
-    let a = f.abs();
-    // "{:e}" → "D.DDDe±n"; a > 0 有限恒此形态 (最短往返数字, 无尾随零)
-    let sci = format!("{:e}", a);
-    let epos = sci.find('e').unwrap();
-    let mant = &sci[..epos];
-    let exp10: i32 = sci[epos + 1..].parse().unwrap();
-    let digits: String = mant.chars().filter(|c| *c != '.').collect();
-    let mut s = String::new();
-    if (-3..=6).contains(&exp10) {
-        // 平原式
-        if exp10 >= 0 {
-            let ip = exp10 as usize + 1; // 整数部分位数
-            if digits.len() > ip {
-                s.push_str(&digits[..ip]);
-                s.push('.');
-                s.push_str(&digits[ip..]);
-            } else {
-                s.push_str(&digits);
-                s.push_str(&"0".repeat(ip - digits.len()));
-                s.push_str(".0"); // 恒至少一位小数
-            }
-        } else {
-            s.push_str("0.");
-            s.push_str(&"0".repeat((-exp10 - 1) as usize));
-            s.push_str(&digits);
-        }
-    } else {
-        // 科学计数
-        s.push_str(&digits[..1]);
-        s.push('.');
-        if digits.len() > 1 {
-            s.push_str(&digits[1..]);
-        } else {
-            s.push('0');
-        }
-        s.push('E');
-        s.push_str(&exp10.to_string());
-    }
-    if neg {
-        s.insert(0, '-');
-    }
-    s
 }
 
 /// Java `String.format("%.1f", d)` 一比一 (updateEMChart 通知)。

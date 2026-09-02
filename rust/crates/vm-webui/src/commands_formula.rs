@@ -32,6 +32,11 @@ fn bridge() -> Option<Arc<FormulaManager>> {
 
 const NO_BRIDGE: &str = "公式系统未接线 (Service 未装配)";
 
+/// 编辑器试算的状态原语参数 (三处 try_eval 共用): now_ms=0 = 时间基准从零跑,
+/// interval_ms=50 = 近似 Service 轮询间隔
+const TRY_EVAL_NOW_MS: u64 = 0;
+const TRY_EVAL_INTERVAL_MS: f64 = 50.0;
+
 // =====================================================================
 // DTO
 // =====================================================================
@@ -135,7 +140,7 @@ pub async fn formula_validate(expr: String) -> Result<FormulaEvalDto, String> {
     let mgr = bridge().ok_or(NO_BRIDGE)?;
     let snap = mgr.last_snapshot();
     // fm_blkx=None: 编辑器试算暂无 FM 句柄 (W3 补桥), 查表函数得 NaN
-    let r = mgr.try_eval(&expr, &snap, 0, 50.0, None);
+    let r = mgr.try_eval(&expr, &snap, TRY_EVAL_NOW_MS, TRY_EVAL_INTERVAL_MS, None);
     Ok(match r {
         Ok(_) => FormulaEvalDto { ok: true, value: None, error: None },
         Err(e) => FormulaEvalDto { ok: false, value: None, error: Some(e) },
@@ -148,7 +153,7 @@ pub async fn formula_try_eval(expr: String) -> Result<FormulaEvalDto, String> {
     let mgr = bridge().ok_or(NO_BRIDGE)?;
     let snap = mgr.last_snapshot();
     // fm_blkx=None: 编辑器试算暂无 FM 句柄 (W3 补桥), 查表函数得 NaN
-    let r = mgr.try_eval(&expr, &snap, 0, 50.0, None);
+    let r = mgr.try_eval(&expr, &snap, TRY_EVAL_NOW_MS, TRY_EVAL_INTERVAL_MS, None);
     Ok(match r {
         Ok(v) => FormulaEvalDto { ok: true, value: Some(v), error: None },
         Err(e) => FormulaEvalDto { ok: false, value: None, error: Some(e) },
@@ -183,7 +188,7 @@ pub async fn get_var_catalog() -> Result<Vec<VarCatalogEntryDto>, String> {
             }
             // 最近帧值: 试算路径 (独立状态仓+无 FM 句柄, 编辑期近似)
             let value = mgr
-                .try_eval(&f.def.expr, &snap, 0, 50.0, None)
+                .try_eval(&f.def.expr, &snap, TRY_EVAL_NOW_MS, TRY_EVAL_INTERVAL_MS, None)
                 .unwrap_or(f64::NAN);
             out.push(VarCatalogEntryDto {
                 name: f.def.name.clone(),
@@ -211,10 +216,7 @@ pub async fn get_last_var_snapshot() -> Result<serde_json::Value, String> {
     let mgr = bridge().ok_or(NO_BRIDGE)?;
     let snap = mgr.last_snapshot();
     let reg = vm_core::formula::registry();
-    let mut names = Vec::with_capacity(reg.len());
-    for v in &reg.vars {
-        names.push(v.name.to_string());
-    }
+    let names: Vec<String> = reg.vars.iter().map(|v| v.name.to_string()).collect();
     // values 是 f64 — NaN/inf JSON 不合法, 序列化为 null
     let values: Vec<Option<f64>> = snap.values.iter().map(|v| {
         if v.is_finite() {

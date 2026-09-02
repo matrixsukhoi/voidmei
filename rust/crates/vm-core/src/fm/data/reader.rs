@@ -288,6 +288,33 @@ impl FmData {
     // getload (Java L855-1590) — FM 全量数据装载 (doLoad=true 的方法体)
     // ------------------------------------------------------------------
 
+    /// 引擎计数循环 (getload_from 喷气/非喷气两分支逐字同款, 收敛于此):
+    /// Engine1.. 逐个探测直到 "null"; 防御加固 (Java 同款): 引擎数上限 =
+    /// State.maxEngNum (遥测数组容量, 解析上限=可消费上限), 病态文件 O(n²)
+    /// 全串扫描防护, 超限截断显式告警不静默。
+    fn count_engines(&self, src: &JsonSrc) -> i32 {
+        let mut engine_num = 1;
+        while src.get_str(&format!("Engine{}", engine_num)) != "null" {
+            engine_num += 1;
+            if engine_num >= MAX_ENG_NUM as i32 {
+                // 检视反馈 (Java 同款): 超限截断显式告警, 不静默
+                if src.get_str(&format!("Engine{}", engine_num)) != "null" {
+                    logger::warn(
+                        "FmData",
+                        &format!(
+                            "引擎数超过解析上限 {}, Engine{}+ 被截断 (如为真实机型请上调 State.maxEngNum), FM: {}",
+                            MAX_ENG_NUM,
+                            engine_num,
+                            self.read_file_name.clone().unwrap_or_default()
+                        ),
+                    );
+                }
+                break;
+            }
+        }
+        engine_num
+    }
+
     /// 对应 Java `public void getload()` (L855-1590) — 翼/引擎/增压器/推力表/
     /// vne/面积/重量族的全量装载 + fmdata 摘要串构造。
     ///
@@ -304,32 +331,12 @@ impl FmData {
         self.is_jet = false;
 
         // 读取推力高度
-        self.engine_num = 1;
         let mut hdr_string = "EngineType0.".to_string();
         let res = src.get_str("EngineType0.Main.Type");
         if res.contains("Jet") {
             // 判断喷气
             self.is_jet = true;
-            // 防御加固 (Java 同款): 引擎数上限 = State.maxEngNum (遥测数组容量,
-            // 解析上限=可消费上限), 病态文件 O(n²) 全串扫描防护
-            while src.get_str(&format!("Engine{}", self.engine_num)) != "null" {
-                self.engine_num += 1;
-                if self.engine_num >= MAX_ENG_NUM as i32 {
-                    // 检视反馈 (Java 同款): 超限截断显式告警, 不静默
-                    if src.get_str(&format!("Engine{}", self.engine_num)) != "null" {
-                        logger::warn(
-                            "FmData",
-                            &format!(
-                                "引擎数超过解析上限 {}, Engine{}+ 被截断 (如为真实机型请上调 State.maxEngNum), FM: {}",
-                                MAX_ENG_NUM,
-                                self.engine_num,
-                                self.read_file_name.clone().unwrap_or_default()
-                            ),
-                        );
-                    }
-                    break;
-                }
-            }
+            self.engine_num = self.count_engines(src);
         } else {
             if res == "null" {
                 hdr_string = "Engine0.".to_string();
@@ -338,23 +345,7 @@ impl FmData {
                 }
             }
             // 遍历引擎数量（适用于所有非喷气引擎，包括活塞引擎）
-            while src.get_str(&format!("Engine{}", self.engine_num)) != "null" {
-                self.engine_num += 1;
-                if self.engine_num >= MAX_ENG_NUM as i32 {
-                    if src.get_str(&format!("Engine{}", self.engine_num)) != "null" {
-                        logger::warn(
-                            "FmData",
-                            &format!(
-                                "引擎数超过解析上限 {}, Engine{}+ 被截断 (如为真实机型请上调 State.maxEngNum), FM: {}",
-                                MAX_ENG_NUM,
-                                self.engine_num,
-                                self.read_file_name.clone().unwrap_or_default()
-                            ),
-                        );
-                    }
-                    break;
-                }
-            }
+            self.engine_num = self.count_engines(src);
         }
         self.engine_rpm_mult_wep = 1.0;
         if self.is_jet {

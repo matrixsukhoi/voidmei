@@ -22,6 +22,7 @@
 //! 注意与 vm-overlay `render::renderers::RenderContext` (ui/renderer/RenderContext.java,
 //! 布局公式上下文) 是**同名不同物**的两个 Java 类型。
 
+use vm_core::base::java_compat::java_parse_int;
 use vm_core::config::config_loader::{GroupConfig, RowConfig};
 
 /// Context object providing callbacks and state for rendering.
@@ -331,39 +332,6 @@ mod property_binder {
     pub(super) fn set_bool(group: &mut GroupConfig, property: Option<&str>, value: bool) -> bool {
         set(group, property, BindingValue::Bool(value))
     }
-}
-
-/// Java `Integer.parseInt(String)` (radix 10) 复刻:
-/// 可选 +/-, 至少一位数字, 溢出/空/非法 → Err (= NumberFormatException)。
-/// PORT: config_loader.rs 已有同实现但为私有, 本文件禁改他文件 (PORTING §6
-/// 只标注上报) → 暂存本地副本, 后续统一上提时二选一。
-fn java_parse_int(s: &str) -> Result<i32, ()> {
-    let b = s.as_bytes();
-    let (neg, digits) = match b.first() {
-        Some(b'-') => (true, &b[1..]),
-        Some(b'+') => (false, &b[1..]),
-        _ => (false, b),
-    };
-    if digits.is_empty() {
-        return Err(());
-    }
-    let mut acc: i64 = 0;
-    for &d in digits {
-        if !d.is_ascii_digit() {
-            return Err(());
-        }
-        acc = acc * 10 + i64::from(d - b'0');
-        if acc > i32::MAX as i64 + 1 {
-            return Err(()); // 溢出 — Java 抛 NumberFormatException
-        }
-    }
-    if neg {
-        acc = -acc;
-    }
-    if !(i32::MIN as i64..=i32::MAX as i64).contains(&acc) {
-        return Err(());
-    }
-    Ok(acc as i32)
 }
 
 /// 读取字符串配置值

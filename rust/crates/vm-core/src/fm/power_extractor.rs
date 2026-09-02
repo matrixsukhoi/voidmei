@@ -41,6 +41,21 @@ use crate::fm::piston_model::{
 /// Applied when addHorsePowers == 50 (WAPC soviet_octane_adder convention).
 const SOVIET_OCTANE_POWER_MULT: f64 = 1.018;
 
+/// 有效值回退: x > 0 取 x, 否则 fallback — FM 字段 0/缺省即"未定义"的
+/// WAPC 惯用形态 (本文件 10+ 处 `if x > 0.0 { x } else { v }` 收敛)。
+fn pos_or(x: f64, fallback: f64) -> f64 {
+    if x > 0.0 {
+        x
+    } else {
+        fallback
+    }
+}
+
+/// [`pos_or`] 的 1.0 回退常用形态 (缺省乘数 = 不增益)。
+fn or_one(x: f64) -> f64 {
+    pos_or(x, 1.0)
+}
+
 /// Extracts compressor stage parameters from a parsed Blkx FM file.
 ///
 /// - `blkx`: parsed FM file data
@@ -146,18 +161,10 @@ pub fn extract_stages_with_fuel(
         stages[i].ceiling_power = comp_ceil_pwr[i] * spm;
 
         // Power curve curvature
-        stages[i].curvature = if comp_rpm_ratio[i] > 0.0 {
-            comp_rpm_ratio[i]
-        } else {
-            1.0
-        };
+        stages[i].curvature = or_one(comp_rpm_ratio[i]);
 
         // RAM effect coefficient
-        stages[i].speed_manifold_mult = if fmdata.speed_to_manifold_multiplier > 0.0 {
-            fmdata.speed_to_manifold_multiplier
-        } else {
-            1.0
-        };
+        stages[i].speed_manifold_mult = or_one(fmdata.speed_to_manifold_multiplier);
 
         // Deck power: WAPC deck_power_maker logic
         // Stage 0: Main.Power (with Soviet octane); Stage 1+: 0.8× previous stage DECK power
@@ -348,11 +355,7 @@ fn adjust_power_and_altitude(
     }
 
     // Calculate supercharger effect to find adjusted critical altitude
-    let pressure_at_rpm0 = if fmdata.comp_pressure_at_rpm0 > 0.0 {
-        fmdata.comp_pressure_at_rpm0
-    } else {
-        0.3
-    };
+    let pressure_at_rpm0 = pos_or(fmdata.comp_pressure_at_rpm0, 0.3);
     // WAPC: missing → 1.0; explicit 0 → 0
     let omega_factor_sq = if fmdata.has_comp_omega_factor_sq {
         fmdata.comp_omega_factor_sq
@@ -446,31 +449,38 @@ fn adjust_power_and_altitude(
 /// </pre>
 fn calculate_wep_multiplier(fmdata: &FmData, stage_index: usize) -> f64 {
     let comp_boost = fmdata.comp_boost.as_ref().unwrap(); // PORT: unwrap=Java NPE, 见函数头注
-    let afterburner_boost = if fmdata.aftb_coff > 0.0 {
-        fmdata.aftb_coff
-    } else {
-        1.0
-    };
-    let octane_mult = if fmdata.octane_afterburner_mult > 0.0 {
-        fmdata.octane_afterburner_mult
-    } else {
-        1.0
-    };
+    let afterburner_boost = or_one(fmdata.aftb_coff);
+    let octane_mult = or_one(fmdata.octane_afterburner_mult);
     let boost_effect = 1.0 + (afterburner_boost - 1.0) * octane_mult;
 
-    let throttle_boost = if fmdata.throttle_boost > 0.0 {
-        fmdata.throttle_boost
-    } else {
-        1.0
-    };
-    let stage_mult = if comp_boost[stage_index] > 0.0 {
-        comp_boost[stage_index]
-    } else {
-        1.0
-    };
+    let throttle_boost = or_one(fmdata.throttle_boost);
+    let stage_mult = or_one(comp_boost[stage_index]);
     let rpm_boost = torque_rpm_boost(fmdata.military_rpm, fmdata.wep_rpm);
 
     boost_effect * throttle_boost * stage_mult * rpm_boost
+}
+
+/// WEP 增压器强度公共段: `base_strength × RPM 效率 × 级后燃压力增益`
+/// (WEP 临界/甲板/ConstRPM 高度与英油重算四处逐字同款, 收敛于此)。
+/// 系数回退: omega 未定义 → 1.0 (WAPC: missing → 1.0; explicit 0 → 0);
+/// comp_pressure_at_rpm0 ≤ 0 → 0.3; 级压力增益缺失/为 0 → 1.0。
+fn wep_supercharger_strength(fmdata: &FmData, base_strength: f64, stage_index: usize) -> f64 {
+    let omega_factor_sq = if fmdata.has_comp_omega_factor_sq {
+        fmdata.comp_omega_factor_sq
+    } else {
+        1.0
+    };
+    let rpm_effect = supercharger_rpm_effect(
+        fmdata.military_rpm,
+        fmdata.wep_rpm,
+        pos_or(fmdata.comp_pressure_at_rpm0, 0.3),
+        omega_factor_sq,
+    );
+    let pressure_boost = match fmdata.comp_afterburner_pressure_boost.as_ref() {
+        Some(v) if stage_index < v.len() && v[stage_index] > 0.0 => v[stage_index],
+        _ => 1.0,
+    };
+    base_strength * rpm_effect * pressure_boost
 }
 
 /// Calculates the WEP critical altitude using supercharger pressure model.
@@ -493,33 +503,9 @@ fn calculate_wep_critical_altitude(
     }
 
     // Use the adjusted (military) critical altitude for strength calculation
-    let crit_pressure = pressure(stage.crit_alt);
-    let supercharger_strength = military_mp / crit_pressure;
+    let supercharger_strength = military_mp / pressure(stage.crit_alt);
 
-    // WAPC: missing → 1.0; explicit 0 → 0
-    let omega_factor_sq = if fmdata.has_comp_omega_factor_sq {
-        fmdata.comp_omega_factor_sq
-    } else {
-        1.0
-    };
-    let rpm_effect = supercharger_rpm_effect(
-        fmdata.military_rpm,
-        fmdata.wep_rpm,
-        if fmdata.comp_pressure_at_rpm0 > 0.0 {
-            fmdata.comp_pressure_at_rpm0
-        } else {
-            0.3
-        },
-        omega_factor_sq,
-    );
-
-    let pressure_boost = match fmdata.comp_afterburner_pressure_boost.as_ref() {
-        Some(v) if stage_index < v.len() && v[stage_index] > 0.0 => v[stage_index],
-        _ => 1.0,
-    };
-
-    let wep_supercharger_strength = supercharger_strength * rpm_effect * pressure_boost;
-    let wep_crit_pressure = wep_mp / wep_supercharger_strength;
+    let wep_crit_pressure = wep_mp / wep_supercharger_strength(fmdata, supercharger_strength, stage_index);
     // PORT: Java Math.round(double)=floor(x+0.5) 返回 long 再拓宽 double (§2.3)
     java_round(altitude_at_pressure(wep_crit_pressure)) as f64
 }
@@ -544,29 +530,9 @@ fn calculate_wep_deck_altitude(
     }
 
     let deck_strength = military_mp / pressure(stage.deck_alt);
-    let omega_factor_sq = if fmdata.has_comp_omega_factor_sq {
-        fmdata.comp_omega_factor_sq
-    } else {
-        1.0
-    };
-    let rpm_effect = supercharger_rpm_effect(
-        fmdata.military_rpm,
-        fmdata.wep_rpm,
-        if fmdata.comp_pressure_at_rpm0 > 0.0 {
-            fmdata.comp_pressure_at_rpm0
-        } else {
-            0.3
-        },
-        omega_factor_sq,
-    );
-    let pressure_boost = match fmdata.comp_afterburner_pressure_boost.as_ref() {
-        Some(v) if stage_index < v.len() && v[stage_index] > 0.0 => v[stage_index],
-        _ => 1.0,
-    };
-
-    let wep_deck_strength = deck_strength * rpm_effect * pressure_boost;
     // PORT: Java Math.round(double)=floor(x+0.5) 返回 long 再拓宽 double (§2.3)
-    java_round(altitude_at_pressure(wep_mp / wep_deck_strength)) as f64
+    java_round(altitude_at_pressure(wep_mp / wep_supercharger_strength(fmdata, deck_strength, stage_index)))
+        as f64
 }
 
 /// Calculates the WEP ConstRPM altitude for non-ExactAltitudes FMs.
@@ -583,28 +549,7 @@ fn calculate_wep_const_rpm_altitude(
     }
 
     let const_rpm_strength = military_mp / pressure(stage.const_rpm_alt);
-    let omega_factor_sq = if fmdata.has_comp_omega_factor_sq {
-        fmdata.comp_omega_factor_sq
-    } else {
-        1.0
-    };
-    let rpm_effect = supercharger_rpm_effect(
-        fmdata.military_rpm,
-        fmdata.wep_rpm,
-        if fmdata.comp_pressure_at_rpm0 > 0.0 {
-            fmdata.comp_pressure_at_rpm0
-        } else {
-            0.3
-        },
-        omega_factor_sq,
-    );
-    let pressure_boost = match fmdata.comp_afterburner_pressure_boost.as_ref() {
-        Some(v) if stage_index < v.len() && v[stage_index] > 0.0 => v[stage_index],
-        _ => 1.0,
-    };
-
-    let wep_const_rpm_strength = const_rpm_strength * rpm_effect * pressure_boost;
-    altitude_at_pressure(wep_mp / wep_const_rpm_strength)
+    altitude_at_pressure(wep_mp / wep_supercharger_strength(fmdata, const_rpm_strength, stage_index))
 }
 
 // ==================== British Octane (Post-processing) ====================
@@ -642,25 +587,13 @@ fn apply_british_octane_bonus(
 
     // Recompute WEP power multiplier with fuel's afterburnerMult replacing OctaneAfterburnerMult
     // WAPC: Main["OctaneAfterburnerMult"] = fuel's afterburnerMult
-    let afterburner_boost = if fmdata.aftb_coff > 0.0 {
-        fmdata.aftb_coff
-    } else {
-        1.0
-    };
-    let throttle_boost = if fmdata.throttle_boost > 0.0 {
-        fmdata.throttle_boost
-    } else {
-        1.0
-    };
+    let afterburner_boost = or_one(fmdata.aftb_coff);
+    let throttle_boost = or_one(fmdata.throttle_boost);
     let rpm_boost = torque_rpm_boost(fmdata.military_rpm, fmdata.wep_rpm);
 
     let comp_boost = fmdata.comp_boost.as_ref().unwrap(); // PORT: unwrap=Java NPE, 见函数头注
     for i in 0..stages.len() {
-        let stage_mult = if comp_boost[i] > 0.0 {
-            comp_boost[i]
-        } else {
-            1.0
-        };
+        let stage_mult = or_one(comp_boost[i]);
 
         // Handle stages with explicitly disabled WEP
         let has_boost = fmdata.has_comp_boost.as_ref().is_some_and(|hb| hb[i]);
@@ -682,33 +615,9 @@ fn apply_british_octane_bonus(
                 + (fmdata.wep_manifold_pressure - fmdata.military_mp)
                     * fuel_mod.british_afterburner_compressor_mult;
 
-            let crit_pressure = pressure(stages[i].crit_alt);
-            let supercharger_strength = fmdata.military_mp / crit_pressure;
-
-            let omega_factor_sq = if fmdata.has_comp_omega_factor_sq {
-                fmdata.comp_omega_factor_sq
-            } else {
-                1.0
-            };
-            let rpm_effect = supercharger_rpm_effect(
-                fmdata.military_rpm,
-                fmdata.wep_rpm,
-                if fmdata.comp_pressure_at_rpm0 > 0.0 {
-                    fmdata.comp_pressure_at_rpm0
-                } else {
-                    0.3
-                },
-                omega_factor_sq,
-            );
-
-            let base_pressure_boost = match fmdata.comp_afterburner_pressure_boost.as_ref() {
-                Some(v) if i < v.len() && v[i] > 0.0 => v[i],
-                _ => 1.0,
-            };
-
-            let wep_supercharger_strength =
-                supercharger_strength * rpm_effect * base_pressure_boost;
-            let wep_crit_pressure = octane_mp / wep_supercharger_strength;
+            let supercharger_strength = fmdata.military_mp / pressure(stages[i].crit_alt);
+            let wep_crit_pressure =
+                octane_mp / wep_supercharger_strength(fmdata, supercharger_strength, i);
             // PORT: Java Math.round(double)=floor(x+0.5) 返回 long 再拓宽 double (§2.3)
             stages[i].wep_crit_alt = java_round(altitude_at_pressure(wep_crit_pressure)) as f64;
         }
@@ -738,11 +647,7 @@ pub fn get_wep_boost_factor(fmdata: Option<&FmData>) -> f64 {
         Some(b) => b,
         None => return 1.0,
     };
-    if fmdata.aftb_coff > 0.0 {
-        fmdata.aftb_coff
-    } else {
-        1.0
-    }
+    or_one(fmdata.aftb_coff)
 }
 
 /// Gets the RAM effect coefficient from FM data.
@@ -756,11 +661,7 @@ pub fn get_speed_manifold_multiplier(fmdata: Option<&FmData>) -> f64 {
         Some(b) => b,
         None => return 1.0,
     };
-    if fmdata.speed_to_manifold_multiplier > 0.0 {
-        fmdata.speed_to_manifold_multiplier
-    } else {
-        1.0
-    }
+    or_one(fmdata.speed_to_manifold_multiplier)
 }
 
 // ==================== Java Math.round 复刻 (§2.3) ====================

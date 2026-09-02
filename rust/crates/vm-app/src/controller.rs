@@ -26,11 +26,12 @@ use vm_data::service_loop::{
     ServiceConfig, ServiceHandle,
 };
 
+use vm_core::base::java_compat::{current_time_millis, java_parse_boolean};
 use vm_overlay::platform::hotkey::{HotkeyManager, VC_P};
 
 use crate::commands::{MainEvent, UiCommand};
 use crate::controller_shared::{ControllerShared, FLIGHT_SILENT_EXIT_MS};
-use crate::env::{current_time_millis, java_parse_boolean, Env};
+use crate::env::Env;
 use crate::voice_setup::SnapshotConfigProvider;
 use crate::win32::ChannelFocusBridge;
 

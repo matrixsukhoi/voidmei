@@ -77,10 +77,10 @@ pub const GLOBAL_COLOR_KEYS: [&str; 5] = ["fontNum", "fontLabel", "fontUnit", "f
 /// 字面量, Controller.java:656-714; MiniHUD 经 getHUDSettings → sectionName
 /// "MiniHUD", ConfigurationService.java:569)。位置持久化按此映射读写
 /// GroupConfig.x/y; 测试 overlay_sections_hit_ui_layout_cfg 以 cfg 为源核对。
-/// (flightInfoSwitch 走 window.rs 专径无 host 条目, 不列; enableVoiceWarn/
-/// thrustdFS 非窗口条目同不列; enableFMPrint 本批落 host 注册面 —
-/// FMUnpackedDataOverlay extends BaseOverlay, loadPosition/saveWindowPosition
-/// 经 OverlaySettings("FM拆包数据") — Controller.java:731)
+/// **键列 = live 模式窗口条目单一来源**: main.rs 冒烟的逐窗断言集、win32.rs
+/// 注册面备案均由此派生, 新增窗口条目只改本表一处。
+/// (flightInfoSwitch 原走 POC window.rs 专径, 后收编为正式条目; enableVoiceWarn/
+/// thrustdFS 非常规窗口条目不列 — 见 win32.rs register_live_overlays 备案)
 pub const OVERLAY_SECTIONS: [(&str, &str); 8] = [
     ("enableEngineControl", "引擎控制"),
     ("engineInfoSwitch", "动力信息"),

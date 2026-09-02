@@ -28,6 +28,7 @@ use crate::render::font::LoadedFont;
 use crate::platform::host::{OverlaySpec, ReinitFn};
 use crate::platform::reinit::ReinitParams;
 use crate::render::canvas::{LineCapStyle, PixCanvas};
+use crate::render::primitives::{arc_stroke_outline, line_stroke_outline, text_shaded_auto};
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -71,116 +72,8 @@ fn fmt_f41(v: f64) -> String {
     s
 }
 
-/// 阴影双遍文本 (UIBaseElements.__drawStringShade drawFontShape=false 分支,
-/// Application.java:143 默认 false): 影 (x+1,y+1) shade → 本色 (x,y)。
-/// (gauges_bars::text_shaded 私有, 本模块同式)
-fn text_shade(
-    cv: &mut PixCanvas,
-    font: &LoadedFont,
-    x: i32,
-    y: i32,
-    s: &str,
-    c: [u8; 4],
-    aa: bool,
-) {
-    cv.draw_text(font, x + 1, y + 1, s, colors().shade_shape, aa);
-    cv.draw_text(font, x, y, s, c, aa);
-}
-
-/// 圆弧 stroke 的精确几何区域轮廓折线: 圆弧中心线 (cx,cy,r, a1→a1+sweep) ⊖ 半径
-/// half=w/2 圆盘 = 外弧 (r+half) → 末端圆帽 (CAP_ROUND) → 内弧 (r−half) → 始端圆帽,
-/// 单闭合折线。fill 一次完成 → 半透明色单次 SrcOver 合成, 无分段叠加伪影
-/// (Java drawArc + BasicStroke(CAP_ROUND) 的 stroke 区域即此 Minkowski 和)。
-/// 角度约定同 render2d::stroke_arc: point(φ) = (cx + r·cosφ, cy − r·sinφ),
-/// 正 sweep = 视觉逆时针; 负 sweep 归一化为正 (区域与参数方向无关)。
-fn arc_stroke_outline(cx: f32, cy: f32, r: f32, a1: f32, sweep: f32, w: f32) -> Vec<(f32, f32)> {
-    let (a1, sweep) = if sweep < 0.0 {
-        (a1 + sweep, -sweep)
-    } else {
-        (a1, sweep)
-    };
-    let a2 = a1 + sweep;
-    let half = w / 2.0;
-    let r_out = r + half;
-    // PORT: r−half<0 (线宽≥2r) 时内弧塌到圆心, 退化扇形近似 Java stroke 的满盘;
-    // 真实布局 r≥5、w≤6 不可达, 备查
-    let r_in = (r - half).max(0.0);
-    const STEP: f32 = 4.0; // 折线步进: 弦矢 ≈ r·(1−cos2°) ≈ 0.0006r, 亚像素
-    let n = ((sweep / STEP).ceil() as i32).max(1) as usize;
-    let pt = |radius: f32, ang: f32| -> (f32, f32) {
-        let t = ang.to_radians();
-        (cx + radius * t.cos(), cy - radius * t.sin())
-    };
-    // CAP_ROUND 端帽绕【弧端点】(非弧心) 的半圆: 帽点 = 弧端点 + half·u(ψ),
-    // ψ 沿扇区外侧从径向外 u(a) 扫到径向内 u(a+180) (对下半圆扇区两帽均经上方)
-    let cap_pt = |ex: f32, ey: f32, psi: f32| -> (f32, f32) {
-        let t = psi.to_radians();
-        (ex + half * t.cos(), ey - half * t.sin())
-    };
-    let mut pts = Vec::with_capacity(n * 4 + 4);
-    for i in 0..=n {
-        pts.push(pt(r_out, a1 + sweep * i as f32 / n as f32)); // 外弧 a1→a2
-    }
-    let (ex2, ey2) = pt(r, a2); // 末端的弧端点 (cx+r·cos a2, cy−r·sin a2)
-    for i in 1..=n {
-        pts.push(cap_pt(ex2, ey2, a2 + 180.0 * i as f32 / n as f32)); // 末端帽
-    }
-    for i in 1..=n {
-        pts.push(pt(r_in, a2 - sweep * i as f32 / n as f32)); // 内弧 a2→a1
-    }
-    let (ex1, ey1) = pt(r, a1); // 始端的弧端点
-    for i in 1..=n {
-        pts.push(cap_pt(ex1, ey1, a1 + 180.0 + 180.0 * i as f32 / n as f32)); // 始端帽
-    }
-    pts
-}
-
-/// 线段 stroke 的精确几何区域轮廓折线 (stadium): 中心线段 ⊕ 半径 half=w/2 圆盘
-/// = 矩形体 + 两端 CAP_ROUND 半圆帽, 单闭合折线一次 fill。
-/// 端点保持 f64 (Java setTransform 旋转下线端是连续坐标, 走整数基元会丢亚像素
-/// 定位与 AA 柔边, 故旋转刻度线不走 draw_line_cap 而用本精确轮廓)。
-/// 零长度线段退化为圆点 (Java BasicStroke CAP_ROUND 零长线画点, 行为一致)。
-fn line_stroke_outline(x0: f64, y0: f64, x1: f64, y1: f64, w: f64) -> Vec<(f32, f32)> {
-    let half = w / 2.0;
-    let (dx, dy) = (x1 - x0, y1 - y0);
-    let len = dx.hypot(dy);
-    const N: usize = 16; // 半圆 16 段: 矢高 ≈ r·(1−cos5.6°) ≈ 0.005r, 亚像素
-    let mut pts = Vec::with_capacity(N * 2 + 2);
-    if len == 0.0 {
-        // 圆点: 完整圆周折线
-        for i in 0..N {
-            let a = std::f64::consts::TAU * i as f64 / N as f64;
-            pts.push(((x0 + half * a.cos()) as f32, (y0 + half * a.sin()) as f32));
-        }
-        return pts;
-    }
-    let (tx, ty) = (dx / len, dy / len); // 切向
-    let (nx, ny) = (-ty * half, tx * half); // 法向 × half
-    // 上侧边: P0+n → P1+n
-    pts.push(((x0 + nx) as f32, (y0 + ny) as f32));
-    pts.push(((x1 + nx) as f32, (y1 + ny) as f32));
-    // P1 端帽: +n 绕过 +t 到 −n (φ: 0→π)
-    for i in 1..=N {
-        // sin_cos 返回 (sin, cos) — 帽点 = P1 + n·cosφ + t·half·sinφ
-        let (s, c) = (std::f64::consts::PI * i as f64 / N as f64).sin_cos();
-        pts.push((
-            (x1 + nx * c + tx * half * s) as f32,
-            (y1 + ny * c + ty * half * s) as f32,
-        ));
-    }
-    // 下侧边: P1−n → P0−n
-    pts.push(((x1 - nx) as f32, (y1 - ny) as f32));
-    pts.push(((x0 - nx) as f32, (y0 - ny) as f32));
-    // P0 端帽: −n 绕过 −t 到 +n (φ: 0→π, 方向取 −t)
-    for i in 1..=N {
-        let (s, c) = (std::f64::consts::PI * i as f64 / N as f64).sin_cos();
-        pts.push((
-            (x0 - nx * c - tx * half * s) as f32,
-            (y0 - ny * c - ty * half * s) as f32,
-        ));
-    }
-    pts
-}
+// 阴影双遍文本本地副本 (text_shade) 与旋转 stroke 精确轮廓 (arc/line_stroke_outline)
+// 已收敛 render::primitives (重构波13: text_shaded_auto 同式, 轮廓族迁居)。
 
 // ---------------------------------------------------------------------------
 // AttitudeIndicatorGauge (MiniHUD 组件)
@@ -415,7 +308,7 @@ impl AttitudeIndicatorGauge {
             } else {
                 colors().unit
             };
-            text_shade(cv, font, target_x + gap, target_y - 1, &self.s_attitude, pitch_color, aa);
+            text_shaded_auto(cv, font, target_x + gap, target_y - 1, &self.s_attitude, pitch_color, aa);
 
             // Sideslip 角 — 左侧, "888" 模板宽锁定左缘 (Java:161-166)
             if !self.s_sideslip.is_empty() {
@@ -425,7 +318,7 @@ impl AttitudeIndicatorGauge {
                 } else {
                     colors().unit
                 };
-                text_shade(
+                text_shaded_auto(
                     cv, font, target_x - gap - template_width, target_y - 1,
                     &self.s_sideslip, slip_color, aa,
                 );

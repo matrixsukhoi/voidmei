@@ -1,9 +1,9 @@
 //! 公共像素基元 + MarkedGauge 仪表组件族 (ui/component/gauge/{MarkedGauge,
 //! GaugeBarStyle, GaugeMarker, MarkerType}.java 的内容复刻)。
-//! 重构波2 自 overlays_field1.rs 拆出; 基元随本文件暂居 (波3 收敛 primitives.rs)。
+//! 重构波2 自 overlays_field1.rs 拆出; 基元已随波3/波13 收敛 primitives.rs
+//! (butt_line 波13 迁出)。
 
-use crate::render::primitives::coverage;
-use crate::render::primitives::cov_color;
+use crate::render::primitives::butt_line;
 use crate::render::primitives::text_shaded_auto;
 use crate::render::primitives::vline_1px;
 use crate::render::primitives::ring1px;
@@ -13,81 +13,6 @@ use std::rc::Rc;
 use crate::render::font::LoadedFont;
 use crate::render::palette::colors;
 use crate::render::canvas::PixCanvas;
-
-// ---------------------------------------------------------------------------
-// 公共像素基元 (Java Graphics2D 语义; 与 gauges_bars 同源规则的局部实现)
-// ---------------------------------------------------------------------------
-
-/// BasicStroke(w, CAP_BUTT, JOIN_MITER) 轴对齐线 (GraphicsUtil.createPreciseStroke,
-/// MarkedGauge 的 tickStroke/borderStroke 族)。Java 调用点全部轴对齐 (竖/横)。
-/// aa=false: 中心规则 — 像素中心落在覆盖盒 [xa,xb]×[y±w/2] 内才点亮 (w=2 水平线 =
-/// 行 y-1..y × 列 xa..xb-1, 与 gauges_bars::hline_butt2 文档一致);
-/// aa=true: STROKE_NORMALIZE 规整到像素中心后按分离覆盖模型 (cov_x × cov_y)
-/// 缩放 alpha (w=2 = 行 y 全值/行 y±1 半值/端点列半覆盖/四角 1/4, 同 hline_butt2)。
-#[allow(clippy::too_many_arguments)] // 对齐 Java drawLine(x0,y0,x1,y1)+线宽/色/AA 三元组
-pub(crate) fn butt_line(
-    cv: &mut PixCanvas,
-    x0: i32,
-    y0: i32,
-    x1: i32,
-    y1: i32,
-    w: i32,
-    color: [u8; 4],
-    aa: bool,
-) {
-    // PORT: Java BasicStroke(0)=hairline 1px; w<=0 钳到 1 (render2d::stroke_of 同款)
-    let w = if w <= 0 { 1 } else { w };
-    let half = w as f32 / 2.0;
-    let vert = x0 == x1;
-    // 沿线方向 (u) 与横截方向 (v) 的整数端点
-    let (ua, ub, v) = if vert {
-        let (ya, yb) = if y0 <= y1 { (y0, y1) } else { (y1, y0) };
-        (ya, yb, x0)
-    } else {
-        let (xa, xb) = if x0 <= x1 { (x0, x1) } else { (x1, x0) };
-        (xa, xb, y0)
-    };
-    if ub <= ua {
-        return; // PORT: 零长度 CAP_BUTT 线不绘制 (Java strokedShape 零长度段无输出)
-    }
-    let put = |cv: &mut PixCanvas, u: i32, vpos: i32, c: [u8; 4]| {
-        if vert {
-            cv.fill_rect(vpos, u, 1, 1, c);
-        } else {
-            cv.fill_rect(u, vpos, 1, 1, c);
-        }
-    };
-    if !aa {
-        // 中心规则: 沿线像素中心 u+0.5 ∈ [ua, ub] → u ∈ [ua, ub-1];
-        // 横截像素中心 v+0.5 ∈ [v-half, v+half] → 逐行判定 (整数边界用含等号)
-        let u_hi = ub - 1;
-        for u in ua..=u_hi {
-            for vv in (v - w - 1)..=(v + w + 1) {
-                let c = vv as f32 + 0.5;
-                if c >= v as f32 - half && c <= v as f32 + half {
-                    put(cv, u, vv, color);
-                }
-            }
-        }
-        return;
-    }
-    // AA: 规整后覆盖盒 沿线 [ua+0.5, ub+0.5] × 横截 [v-half+0.5, v+half+0.5]
-    let (alo, ahi) = (ua as f32 + 0.5, ub as f32 + 0.5);
-    let (clo, chi) = (v as f32 - half + 0.5, v as f32 + half + 0.5);
-    for u in (ua - 1)..=(ub + 1) {
-        let cu = coverage(u, alo, ahi);
-        if cu <= 0.0 {
-            continue;
-        }
-        for vv in (v - w - 1)..=(v + w + 1) {
-            let cvv = coverage(vv, clo, chi);
-            if cvv <= 0.0 {
-                continue;
-            }
-            put(cv, u, vv, cov_color(color, cu * cvv));
-        }
-    }
-}
 
 // ---------------------------------------------------------------------------
 // MarkerType (ui/component/gauge/MarkerType.java)

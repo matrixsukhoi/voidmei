@@ -22,6 +22,7 @@ pub use simple_rule::SimpleRule;
 // find_all_bracket_lists 处。
 
 use crate::telemetry::parser::char_len_at;
+use crate::base::java_compat::java_trim;
 
 /// Java 正则 `\d`: [0-9] (无 UNICODE_CHARACTER_CLASS 标志的 ASCII 定义)。
 /// UTF-8 多字节字符的首/续字节均 ≥ 0x80, 不会被误判为数字。
@@ -143,21 +144,9 @@ pub(super) fn java_split_comma(s: &str) -> Vec<&str> {
     parts
 }
 
-/// Java `String.trim()`: 去两端 ≤ U+0020 的字符。此类字符在 UTF-8 中均为单字节
-/// (≤ 0x20), 多字节字符的所有字节均 > 0x20, 故按字节裁剪与按字符裁剪等价且
-/// 落点必为字符边界。
-pub(super) fn java_trim(s: &str) -> &str {
-    let b = s.as_bytes();
-    let mut start = 0usize;
-    while start < b.len() && b[start] <= b' ' {
-        start += 1;
-    }
-    let mut end = b.len();
-    while end > start && b[end - 1] <= b' ' {
-        end -= 1;
-    }
-    &s[start..end]
-}
+// Java String.trim 复刻收敛于 base::java_compat (本模块原字节版私有副本已删,
+// 语义等价: ≤ U+0020 的字符在 UTF-8 中均为单字节, 按字符与按字节裁剪等价);
+// 子模块经 `super::java_trim` 引用上述导入。
 
 #[cfg(test)]
 mod tests;

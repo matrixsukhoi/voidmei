@@ -18,13 +18,13 @@
 //!   CopyOnWriteArrayList 迭代语义一致: 本轮发布开始后新增/退订的订阅者
 //!   不影响已开始的遍历。
 
-use std::any::Any;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::Arc;
 
 use crate::base::bus::{EventBus, Subscription};
 use crate::base::event::flight_data_event::FlightDataEvent;
 use crate::base::event::flight_data_listener::FlightDataListener;
+use crate::base::exception_helper::panic_message_box;
 
 /// Event Bus for Flight Data communication. (类注释见模块头, 逐字保留)
 ///
@@ -72,7 +72,7 @@ impl FlightDataBus {
             if let Err(panic_val) = catch_unwind(AssertUnwindSafe(|| listener(event))) {
                 eprintln!(
                     "[FlightDataBus] Error in listener: {}",
-                    panic_message(panic_val)
+                    panic_message_box(panic_val)
                 );
             }
         })
@@ -116,19 +116,6 @@ impl FlightDataBus {
     /// PORT: Rust 底座新增, Java 无对应成员。
     pub fn subscriber_count(&self) -> usize {
         self.inner.subscriber_count()
-    }
-}
-
-/// panic 载荷 → 文本, 对齐 Java `"Error in listener: " + e.getMessage()` 的拼接。
-/// PORT: `panic!("boom")` 载荷为 &str, `panic!("{}x", n)` 为 String, 其余无 Java
-/// 对应 (Java 异常恒有类型名) → "unknown" 兜底。
-fn panic_message(p: Box<dyn Any + Send>) -> String {
-    if let Some(s) = p.downcast_ref::<&'static str>() {
-        (*s).to_string()
-    } else if let Some(s) = p.downcast_ref::<String>() {
-        s.clone()
-    } else {
-        "unknown".to_string()
     }
 }
 

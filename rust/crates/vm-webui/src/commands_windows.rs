@@ -21,7 +21,7 @@ use std::path::PathBuf;
 use vm_core::fm::data::json::extract_fuel_modifications_json;
 use vm_core::fm::data::{FmData, FuelModification, FuelType};
 use vm_core::ui_support::comparison::comparison_rules::ComparisonRules;
-use vm_core::base::file_utils::get_file_name_no_ex;
+use vm_core::base::java_compat::java_trim;
 use vm_core::fm::data_paths;
 use vm_core::fm::loader;
 use vm_core::fm::power_extractor::{extract_stages_with_fuel, is_piston_engine};
@@ -37,11 +37,21 @@ use crate::dto::{
 // 公共小件
 // =====================================================================
 
-/// Java `String.trim` 语义: 剥两端 <= U+0020 的码点。Rust `str::trim` 会多剥
-/// NBSP 等 Unicode 空白 (§2.1 陷阱), fmdata 文本/机型名域为中文+ASCII, 逐字符
-/// 复刻 Java 行为 (blkx/reader.rs 同款私有先例)。
-fn java_trim(s: &str) -> &str {
-    s.trim_matches(|c: char| c <= '\u{20}')
+/// fm1 归一化 (单源): None/空串/与 fm0 同名 → None (单机模式)。
+/// 原型 = PowerCurveWindow.java:183 构造器裁决 (fm1 空/==fm0 = 单曲线);
+/// 波13 统一 comparison 侧 (此前只判空) — 同名对比无信息量, 并入单机视图,
+/// 与窗口 title/query/DTO 三面保持一致。
+pub(crate) fn normalize_secondary<'a>(fm0: &str, fm1: Option<&'a str>) -> Option<&'a str> {
+    fm1.filter(|s| !s.is_empty() && *s != fm0)
+}
+
+/// 对比窗口标题 (CompactComparisonWindow.java:40 构造器): DTO title 与
+/// web_windows 窗口 title 同源 (波13 收敛, 归一化由调用方先行)。
+pub(crate) fn comparison_title(fm0: &str, fm1: Option<&str>) -> String {
+    match fm1 {
+        Some(n) => format!("Comparison: {fm0} vs {n}"),
+        None => format!("Aircraft Data: {fm0}"),
+    }
 }
 
 /// Serialize → invoke 返回值 (命令薄壳共用)
@@ -312,10 +322,9 @@ fn build_copy_text(
 
 /// 对比窗口数据装配 (initUI 的数据段, CompactComparisonWindow.java:186-275)
 pub fn comparison_data_impl(fm0_name: &str, fm1_name: Option<&str>) -> ComparisonDataDto {
-    let single_mode = match fm1_name {
-        None => true,
-        Some(s) => s.is_empty(),
-    };
+    // fm1 归一化 (空串/同名 → 单机模式, 波13 统一 — 见 normalize_secondary)
+    let fm1_name = normalize_secondary(fm0_name, fm1_name);
+    let single_mode = fm1_name.is_none();
 
     // Get Data
     let lines0 = load_fm_lines(Some(fm0_name));
@@ -368,11 +377,7 @@ pub fn comparison_data_impl(fm0_name: &str, fm1_name: Option<&str>) -> Compariso
         });
     }
 
-    let title = if single_mode {
-        format!("Aircraft Data: {fm0_name}")
-    } else {
-        format!("Comparison: {fm0_name} vs {}", fm1_name.unwrap_or(""))
-    };
+    let title = comparison_title(fm0_name, fm1_name);
     let copy_text = build_copy_text(
         fm0_name,
         fm1_name.unwrap_or(""),
@@ -384,7 +389,7 @@ pub fn comparison_data_impl(fm0_name: &str, fm1_name: Option<&str>) -> Compariso
 
     ComparisonDataDto {
         fm0_name: fm0_name.to_string(),
-        fm1_name: if single_mode { None } else { Some(fm1_name.unwrap_or("").to_string()) },
+        fm1_name: fm1_name.map(str::to_string),
         single_mode,
         title,
         rows,
@@ -806,11 +811,8 @@ pub fn power_curve_data_impl(
     speed_kmh: i32,
     wep_mode: bool,
 ) -> PowerCurveDataDto {
-    // Treat fm1Name == fm0Name as single curve mode (构造器 :183)
-    let fm1_name = match fm1_name {
-        Some(n) if !n.is_empty() && n != fm0_name => Some(n),
-        _ => None,
-    };
+    // Treat fm1Name == fm0Name as single curve mode (构造器 :183, normalize_secondary)
+    let fm1_name = normalize_secondary(fm0_name, fm1_name);
 
     // Load FM0 (primary curve)
     let curve0 = load_single_curve(fm0_name, wep_mode, speed_kmh);
@@ -840,37 +842,12 @@ pub fn power_curve_data_impl(
 
 // =====================================================================
 // 4. FM 机型列表 (GridSelectorDialog.java)
+//
+// Java `loadPlanes` (:151-163): fm/ 物理文件目录列表 (机型选择搜索下拉的
+// 数据源)。波13: 目录扫描收敛到 `data_paths::list_fm_names("fm")`
+// (fm/ = flightmodels 根下 "fm" 子目录; .json 过滤 + FileUtils 剥后缀 +
+// 排序去重, 与原本地实现语义一比一)。
 // =====================================================================
-
-/// Java `loadPlanes` (GridSelectorDialog.java:151-163): fm/ 物理文件目录列表
-/// (机型选择搜索下拉的数据源)。
-pub fn load_planes() -> Vec<String> {
-    // P5: 路径收编到 FMDataPaths（fm/ 物理文件目录 = flightmodels 根下 "fm" 子目录）
-    let dir = data_paths::fm_dir().join("fm");
-    let mut names: Vec<String> = Vec::new();
-    if let Ok(entries) = std::fs::read_dir(&dir) {
-        for e in entries.flatten() {
-            // 只收 .json (blkx→json 迁移: data/ 为双格式同名并存, 不过滤会
-            // 每机型重复两项)
-            let name = e.file_name().to_string_lossy().into_owned();
-            if !name.ends_with(".json") {
-                continue;
-            }
-            // Strip extensions —— 用 FileUtils 统一按最后一个 '.' 剥后缀。
-            // 原来的 .replace(".blk","") 链会把小写 ".blkx" 剥成残留尾字母 "x"
-            // （如 "a_4h.blkx" → "a_4hx"），而 fmdata 解包产物全为小写 .blkx
-            // (原注释保留)
-            if let Some(stripped) = get_file_name_no_ex(Some(&name)) {
-                names.push(stripped.to_string());
-            }
-        }
-    }
-    // Java Arrays.stream(...).sorted() — String 自然序 (UTF-16 码元); 域内文件名
-    // 为 ASCII, Rust sort() (字节序) 逐位一致 (§2.1)
-    names.sort();
-    names.dedup();
-    names
-}
 
 // =====================================================================
 // tauri command 薄壳 (直接计算, 不经主线程 dispatcher — 见模块头分工说明)
@@ -916,7 +893,7 @@ pub async fn power_curve_data(
 /// 未来演化路径也不同, 前端用错源会造成两窗口列表不一致。
 #[tauri::command]
 pub async fn fm_list() -> Result<serde_json::Value, String> {
-    to_json(&load_planes())
+    to_json(&data_paths::list_fm_names("fm"))
 }
 
 // =====================================================================
@@ -1132,7 +1109,7 @@ mod tests {
             println!("SKIP: 真机 data/ 不存在 (fm_list 无数据源)");
             return;
         }
-        let planes = load_planes();
+        let planes = data_paths::list_fm_names("fm");
         assert!(planes.len() > 100, "fm/ 目录应有千级机型: {}", planes.len());
         assert!(planes.contains(&"spitfire_f24".to_string()), "应含 spitfire_f24");
         assert!(planes.contains(&"a-10c".to_string()), "应含连字符机型 a-10c");

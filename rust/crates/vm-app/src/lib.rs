@@ -35,6 +35,7 @@ use std::time::Duration;
 use vm_core::config::config_api::ConfigProvider; // get_config/set_config trait 面 (根+tests 经 glob 消费)
 use vm_core::config::configuration_service::{ConfigurationService, GlobalColors};
 use vm_core::base::event::ui_state_events;
+use vm_core::base::java_compat::java_parse_boolean;
 use vm_core::base::bus::flight_data_bus::FlightDataBus;
 use vm_core::fm::FMManager;
 use vm_core::lang::Lang;
@@ -96,7 +97,7 @@ pub use crate::overlay_inputs::{ActivationCache, OverlayInputs, ACTIVATION_KEYS}
 pub use crate::win32::{win32_thread_main, Win32ThreadConfig};
 
 // 根消费的 pub(crate) 项 (私有引入; tests 经 `use super::*` 同样可见)
-use crate::env::{java_parse_boolean, locate_template_cfg};
+use crate::env::locate_template_cfg;
 use crate::overlay_inputs::refresh_activation_cache;
 use crate::voice_setup::{
     attach_snapshot_hooks, refresh_fm_field_config_snapshot, refresh_voice_config_snapshot,
@@ -104,7 +105,7 @@ use crate::voice_setup::{
 
 // tests.rs 专用符号 (经 `use super::*` 抵达; cfg(test) 免非测试构建 unused 警告)
 #[cfg(test)]
-use crate::env::current_time_millis;
+use vm_core::base::java_compat::current_time_millis;
 #[cfg(test)]
 use crate::voice_setup::open_voice_warning;
 #[cfg(test)]

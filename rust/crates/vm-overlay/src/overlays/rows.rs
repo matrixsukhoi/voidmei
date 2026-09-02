@@ -15,7 +15,7 @@
 //! // PORT: Java HUDRow 接口 (HUDRow.java) 的 getPreferredSize 默认 (200, getHeight)
 //! 由 preferred_size 实现覆盖, 不单独建 trait —— Rust 侧该接口无第二实现需求。
 
-use crate::render::primitives;
+use crate::render::primitives::{self, draw_h_rect};
 use crate::render::palette::colors;
 use vm_core::derived::hud_data::HUDData;
 
@@ -25,42 +25,6 @@ use crate::render::canvas::PixCanvas;
 
 /// Java Color.YELLOW (HUDAkbRow.java:30-31 构造默认)
 const COLOR_YELLOW: [u8; 4] = [255, 255, 0, 255];
-
-/// UIBaseElements.drawHRect (UIBaseElements.java:97-112): shade 1px 外框环 +
-/// 内缩 1px 填充条。width<0 时框/条翻转到起点右侧 (Java 原样分支)。
-/// borderwidth 调用点恒 1 (HUDAkbRow.java:91), 参数保留对齐 Java 签名。
-fn draw_h_rect(
-    cv: &mut PixCanvas,
-    x: i32,
-    y: i32,
-    width: i32,
-    height: i32,
-    borderwidth: i32,
-    c: [u8; 4],
-) {
-    if width >= 0 {
-        // PORT: UIBaseElements.java:102-105 drawRect(x,y,width-1,height-1) 环 +
-        // fillRect(x+bw, y+bw, width-2*bw, height-2*bw) 内芯
-        primitives::ring1px(cv, x, y, width - 1, height - 1, colors().shade_shape);
-        cv.fill_rect(
-            x + borderwidth,
-            y + borderwidth,
-            width - 2 * borderwidth,
-            height - 2 * borderwidth,
-            c,
-        );
-    } else {
-        // PORT: UIBaseElements.java:106-109 负宽分支: 环自 x+width 起, 填充同步翻转
-        primitives::ring1px(cv, x + width, y, -width - 1, height - 1, colors().shade_shape);
-        cv.fill_rect(
-            x + borderwidth + width,
-            y + borderwidth,
-            -width - 2 * borderwidth,
-            height - 2 * borderwidth,
-            c,
-        );
-    }
-}
 
 // ---------------------------------------------------------------------------
 // HUDTextRow (族基类 → 组合基座)

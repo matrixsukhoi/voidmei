@@ -23,6 +23,7 @@ use std::path::PathBuf;
 
 use tauri::{AppHandle, Manager, PhysicalPosition, WebviewUrl, WebviewWindowBuilder, Wry};
 
+use crate::commands_windows::{comparison_title, normalize_secondary};
 use crate::MAIN_LABEL;
 
 /// 对比窗口 label (capabilities/aux-windows.json 的 windows 域)
@@ -37,12 +38,10 @@ const COMPARISON_SIZE: (f64, f64) = (560.0, 680.0);
 const POWER_CURVE_SIZE: (f64, f64) = (1080.0, 800.0);
 
 /// Java CompactComparisonWindow 构造器标题 (CompactComparisonWindow.java:40):
-/// fm1 空 = 单机数据视图 "Aircraft Data: x", 否则 "Comparison: x vs y"
-pub fn comparison_window_title(fm0: &str, fm1: Option<&str>) -> String {
-    match fm1 {
-        Some(n) if !n.is_empty() => format!("Comparison: {fm0} vs {n}"),
-        _ => format!("Aircraft Data: {fm0}"),
-    }
+/// fm1 归一化后为 None = 单机数据视图 "Aircraft Data: x", 否则 "Comparison: x vs y"。
+/// 波13: title 构造与 fm1 归一化收敛到 commands_windows (与 DTO title 同源)。
+fn comparison_window_title(fm0: &str, fm1: Option<&str>) -> String {
+    comparison_title(fm0, normalize_secondary(fm0, fm1))
 }
 
 /// URL query 最小转义: 机型名域为 [a-z0-9_-], 防御 '&'/'#' 等破坏参数结构
@@ -71,19 +70,20 @@ fn aux_url(params: &[(&str, String)]) -> String {
     url
 }
 
-/// 对比窗口 query (fm1 空/None = 单机数据视图, 不带参数)
+/// 对比窗口 query (fm1 归一化后 None = 单机数据视图, 不带参数; 归一规则与
+/// title 同源, 保证标题与前端拿到的参数一致)
 fn comparison_query(fm0: &str, fm1: Option<&str>) -> String {
     let mut params = vec![("win", "comparison".to_string()), ("fm0", fm0.to_string())];
-    if let Some(n) = fm1.filter(|s| !s.is_empty()) {
+    if let Some(n) = normalize_secondary(fm0, fm1) {
         params.push(("fm1", n.to_string()));
     }
     aux_url(&params)
 }
 
-/// 功率曲线 query。fm1 == fm0 归一为单曲线 (Java PowerCurveWindow.java:183
+/// 功率曲线 query。fm1 空/==fm0 归一为单曲线 (Java PowerCurveWindow.java:183
 /// 构造器裁决, 提前在 URL 层生效)
 fn power_curve_query(fm0: &str, fm1: Option<&str>, speed_kmh: i32, wep: bool) -> String {
-    let fm1 = fm1.filter(|s| !s.is_empty() && *s != fm0);
+    let fm1 = normalize_secondary(fm0, fm1);
     let mut params = vec![
         ("win", "powercurve".to_string()),
         ("fm0", fm0.to_string()),

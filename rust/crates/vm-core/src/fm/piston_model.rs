@@ -33,6 +33,12 @@
 // → Rust 自由函数模块无实例化概念, 天然满足
 
 use crate::base::atmosphere_model::{altitude_at_pressure, pressure, ram_effect_altitude};
+// PowerCurveHelper 判定函数的正式翻译 (fm/power_curve.rs, 逐函数同实现) —
+// 原内联副本已删, 同 crate 模块互引无循环依赖障碍
+use crate::fm::power_curve::{
+    ceiling_is_useful, const_rpm_above_crit_alt, const_rpm_below_crit_alt, const_rpm_below_deck,
+    const_rpm_below_wep_crit_alt, has_const_rpm, power_is_deck_power,
+};
 
 // ==================== Torque/RPM Calculations ====================
 
@@ -241,6 +247,9 @@ pub fn wep_critical_altitude(
     let supercharger_strength = military_mp / crit_pressure;
 
     // WEP mode supercharger strength is boosted
+    // 注: power_extractor::wep_supercharger_strength 是本公式的 fmdata 直取版
+    // (RPM 效率/级压力增益由其内部回退推导); 本函数两系数是公开参数
+    // (Java 原签名如此, 调用方自算), 形态不同不并轨, 仅共享乘法骨架。
     let wep_supercharger_strength =
         supercharger_strength * supercharger_rpm_effect * afterburner_pressure_boost;
 
@@ -1017,72 +1026,6 @@ impl std::fmt::Display for CompressorStageParams {
 // PORT: Rust f64::round 是半偶舍入, 不可用; 与 format.rs 的 java_round 同源实现
 fn java_round(x: f64) -> i64 {
     (x + 0.5).floor() as i64
-}
-
-// ==================== PowerCurveHelper 静态导入内联 ====================
-// PORT: Java 源文件 `import static prog.util.PowerCurveHelper.*;` — 该工具类在
-// 流水线后续波次翻译 (rust 侧 power_curve_helper.rs 当前为占位), 其被本文件用到的
-// 8 个函数按 PowerCurveHelper.java 逐字内联为私有函数 (7 个被直接调用 +
-// hasCeiling 作为 ceilingIsUseful 的内部依赖)。待 power_curve_helper.rs
-// 落地后应切换为 crate::fm::power_curve 调用并删除这些内联副本 (Rust 同 crate
-// 模块互相引用合法, 无循环依赖障碍)。constRpmBelowOldCritAlt 未被本文件使用, 不内联。
-
-/// Checks if the stage has ConstRPM parameters defined.
-///
-/// Note: constRpmAlt=0 is a valid value (ConstRPM at sea level), so we only
-/// check constRpmPower. WAPC's ConstRPM_is() checks key existence, not altitude value.
-/// When FM doesn't define ConstRPM, both constRpmAlt and constRpmPower default to 0.
-fn has_const_rpm(p: &CompressorStageParams) -> bool {
-    p.const_rpm_power > 0.0
-}
-
-/// ConstRPM bend point is below the critical altitude.
-/// This creates a two-segment curve below crit alt: deck→constRPM then constRPM→crit.
-fn const_rpm_below_crit_alt(p: &CompressorStageParams) -> bool {
-    has_const_rpm(p) && (p.const_rpm_alt - p.crit_alt) < -1.0
-}
-
-/// ConstRPM bend point is below the WEP critical altitude.
-fn const_rpm_below_wep_crit_alt(p: &CompressorStageParams) -> bool {
-    has_const_rpm(p) && (p.const_rpm_alt - p.wep_crit_alt) < -1.0
-}
-
-/// ConstRPM bends above critical altitude — used with ceiling parameters
-/// to create a curved decay above crit alt (e.g., P-63).
-fn const_rpm_above_crit_alt(p: &CompressorStageParams) -> bool {
-    has_const_rpm(p)
-        && p.const_rpm_alt == p.crit_alt
-        && p.crit_power - p.ceiling_power > 1.0
-        && p.curvature > 1.0
-}
-
-/// ConstRPM altitude is at or below sea level.
-fn const_rpm_below_deck(p: &CompressorStageParams) -> bool {
-    has_const_rpm(p) && p.const_rpm_alt <= 0.0
-}
-
-/// Checks if ceiling parameters exist.
-fn has_ceiling(p: &CompressorStageParams) -> bool {
-    p.ceiling_alt > 0.0 && p.ceiling_power > 0.0
-}
-
-/// Ceiling parameters are meaningful — altitude gap and power gap are both
-/// significant enough to affect the curve shape.
-///
-/// Uses the original FM altitude/power (before definition_alt_power_adjuster)
-/// to match WAPC's Ceiling_is_useful() which compares against Altitude[i] / Power[i],
-/// not the adjusted critAlt / critPower.
-fn ceiling_is_useful(p: &CompressorStageParams) -> bool {
-    // PORT: Java 三目两臂均 double
-    let reference_alt = if p.old_altitude > 0.0 { p.old_altitude } else { p.crit_alt };
-    let reference_power = if p.old_power > 0.0 { p.old_power } else { p.crit_power };
-    has_ceiling(p) && (p.ceiling_alt - reference_alt) >= 2.0 && (reference_power - p.ceiling_power) >= 2.0
-}
-
-/// Critical altitude equals deck altitude — the power curve is flat from sea level.
-/// Deck→crit interpolation is skipped; curve goes directly to ceiling.
-fn power_is_deck_power(p: &CompressorStageParams) -> bool {
-    (p.crit_alt - p.deck_alt).abs() < 1.0
 }
 
 // =====================================================================

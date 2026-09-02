@@ -23,26 +23,9 @@ use vm_core::lang::Lang;
 // UIBaseElements 绘制族 (ControlSurfaces 消费面, UIBaseElements.java)
 // ---------------------------------------------------------------------------
 
-/// Java Graphics.drawRect(x, y, w-1, h-1) + BasicStroke(1) 的 1px 周界:
-/// 单遍描边路径覆盖 [x, x+w)×[y, y+h) 边缘一圈, 每像素恰好一次 (半透明色
-/// 不重叠加深)。以四条互不重叠 fill_rect 精确复现 (fill 整数坐标无 AA 歧义)。
-fn draw_rect_perimeter(cv: &mut PixCanvas, x: i32, y: i32, w: i32, h: i32, color: [u8; 4]) {
-    // PORT: 调用域 (drawHBar/drawVRect) w/h 恒 > 0; Java 负尺寸 drawRect
-    // 朝反方向画, 本组件不可达, 不复刻
-    if w <= 0 || h <= 0 {
-        return;
-    }
-    cv.fill_rect(x, y, w, 1, color); // 顶边
-    if h > 1 {
-        cv.fill_rect(x, y + h - 1, w, 1, color); // 底边
-    }
-    if h > 2 {
-        cv.fill_rect(x, y + 1, 1, h - 2, color); // 左边
-        if w > 1 {
-            cv.fill_rect(x + w - 1, y + 1, 1, h - 2, color); // 右边
-        }
-    }
-}
+// drawHBar/drawVRect 的 1px 周界本地副本 draw_rect_perimeter 已删 (波13):
+// ≡ primitives::ring1px(x, y, w-1, h-1) 逐像素等价 (含 w/h≤0 不绘制域,
+// ring1px 传 w-1/h-1 后同为负 → 不绘制; 零退化线在本组件调用域不可达)。
 
 /// __drawLabelBOSType 的 char[] 版 (UIBaseElements.java:260-273):
 /// 数字 (fontNum, colorNum) 基线 y = (2·y_offset + labelSize + unitSize) >> 1;
@@ -89,7 +72,7 @@ fn draw_h_bar(
     c: [u8; 4],
 ) {
     // 外边框 (BasicStroke(borderwidth=1, CAP_ROUND, JOIN_ROUND) 的 1px 周界等效)
-    draw_rect_perimeter(cv, x, y, width, height, colors().shade_shape);
+    primitives::ring1px(cv, x, y, width - 1, height - 1, colors().shade_shape);
     // 内部条
     cv.fill_rect(
         x + borderwidth,
@@ -112,7 +95,8 @@ fn draw_v_rect_negative(
     borderwidth: i32,
     c: [u8; 4],
 ) {
-    draw_rect_perimeter(cv, x, y, width, height, colors().shade_shape);
+    // 负高分支: height<0 → ring1px 的 h-1<0 不绘制 (同原 perimeter 守卫语义)
+    primitives::ring1px(cv, x, y, width - 1, height - 1, colors().shade_shape);
     cv.fill_rect(
         x + borderwidth,
         y + borderwidth,

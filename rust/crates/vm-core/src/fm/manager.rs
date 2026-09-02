@@ -5,13 +5,14 @@ use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::atomic::{AtomicI32, AtomicU64, Ordering};
 use std::sync::{mpsc, Arc, Mutex, RwLock};
 use std::thread;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::base::bus::EventBus;
 use crate::base::event::ui_state_events;
 use crate::fm::loader;
 use crate::fm::handle::FMHandle;
 use crate::base::logger;
+use crate::base::java_compat::current_time_millis;
+use crate::base::exception_helper::panic_message_box;
 
 /// FM 管理器（单例）—— "当前飞机 / FM 加载状态"的单一真相源（P2 重构，issue #55）。
 ///
@@ -368,7 +369,7 @@ impl FMManager {
 				"FMManager",
 				&format!(
 					"FM_CHANGED 订阅方执行失败: {}",
-					panic_message(payload)
+					panic_message_box(payload)
 				),
 			);
 		}
@@ -392,7 +393,7 @@ fn new_loader() -> mpsc::Sender<LoaderJob> {
 						"FMManager",
 						&format!(
 							"FM-Loader 任务执行失败: {}",
-							panic_message(payload)
+							panic_message_box(payload)
 						),
 					);
 				}
@@ -456,28 +457,6 @@ fn run_load_job(inner: Arc<Inner>, target_name: String, epoch: u64) {
 	}
 	// PORT: 全部锁释放后才发布 (§2.8 — 订阅方可重入 current()/identify())
 	FMManager::publish_fm_changed(&inner.fm_changed, &result);
-}
-
-/// Java `System.currentTimeMillis()` 的 crate 先例形态
-/// (event/flight_data_event.rs 同款): SystemTime → as_millis u128 → as i64 截断;
-/// 时钟早于 epoch 时 Java 可得负值而 duration_since 报错 → 取 0。
-/// 时间戳差值域 (epoch 毫秒) 远离 i64 溢出, 普通减法即可 (§2.2 无涉)。
-fn current_time_millis() -> i64 {
-	SystemTime::now()
-		.duration_since(UNIX_EPOCH)
-		.map(|d| d.as_millis() as i64)
-		.unwrap_or(0)
-}
-
-/// panic 载荷提取 (ui_state_bus.rs 同款私有助手, 不越文件共用)
-fn panic_message(payload: Box<dyn std::any::Any + Send>) -> String {
-	if let Some(s) = payload.downcast_ref::<String>() {
-		s.clone()
-	} else if let Some(s) = payload.downcast_ref::<&'static str>() {
-		(*s).to_string()
-	} else {
-		"null".to_string()
-	}
 }
 
 // =====================================================================

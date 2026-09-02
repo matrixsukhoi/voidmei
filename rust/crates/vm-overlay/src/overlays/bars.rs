@@ -12,22 +12,16 @@
 //! 统一为可复用 String 缓存 (update 仅在内容变化时重写)。
 //!
 //! 轴对齐整数端点线不走 tiny-skia 矢量光栅化, 按 Java 8 oracle 实测像素盒直填
-//! (期望值逐像素钉死在 line_primitive_pixel_boxes):
+//! (期望值逐像素钉死在 line_primitive_pixel_boxes; 基元与完整 oracle 注记在
+//! render::primitives, 重构波13 自本文件收敛):
 //! - AA OFF (ANTIALIAS_OFF): 像素中心规则 — 像素中心落在 stroke 覆盖盒内才点亮。
-//!   CAP_BUTT 宽 2 水平线 drawLine(xa,y,xb,y) = 行 y-1..y × 列 xa..xb-1
-//!   (右端列不点亮, oracle: 20 列/40px); CAP_SQUARE 宽 2 竖线 = 列 tx-1..tx ×
-//!   行 y0-1..y1 (方帽几何 [y0-1,y1+1] 光栅后下端行不点亮, oracle: 22 行);
-//!   1px 线 = 恰该列/行, 端点含。
 //! - AA ON (生产 graphAASetting 恒 ON, Application.java:102, 无运行时关闭路径):
-//!   整数端点经 STROKE_NORMALIZE 规整到像素中心 (+0.5,+0.5 偏移), 宽 2 线呈
-//!   3 行/列柔边 — 不透明色 a=128/255/128、端点列/行半覆盖、角点 1/4 (a=64,
-//!   oracle: 21 列×3 行=63 非零像素) — 用覆盖率缩放 alpha 的解析盒复刻
-//!   (cov_color, 等价 Java AA 的 SrcOver×coverage 合成)。
-//!   1px 线规整后覆盖盒边界恰为整数像素边界 ([x,x+1]), AA 开关输出一致。
+//!   整数端点经 STROKE_NORMALIZE 规整到像素中心, 宽 2 线呈 3 行/列柔边,
+//!   用覆盖率缩放 alpha 的解析盒复刻 (cov_color, 等价 Java AA 的 SrcOver×coverage
+//!   合成); 1px 线 AA 开关输出一致。
 //! - drawRect 环: 负宽/负高整体不绘制 (oracle 0 像素); 零宽/零高退化 1px 线。
 
-use crate::render::primitives::vline_1px;
-use crate::render::primitives;
+use crate::render::primitives::{self, butt_line, vline_1px, vline_square2};
 use vm_core::base::format;
 use vm_core::base::format::java_round_f32;
 use crate::render::palette::colors;
@@ -62,65 +56,9 @@ fn gauge_rect(
     }
 }
 
-/// BasicStroke(2, CAP_BUTT, JOIN_MITER) 水平线 (GraphicsUtil.createPreciseStroke(2))。
-/// aa=false (ANTIALIAS_OFF, 中心规则): 覆盖盒 [xa,xb]×[y-1,y+1] → 列 xa..xb-1
-/// (右端列不点亮; 1px 默认 stroke 的 Bresenham 端点含像素不适用于宽>1 的
-/// strokedShape 路径, oracle: drawLine(5,15,25,15) 覆盖列 5..24 共 20 列),
-/// 行 y-1..y。
-/// aa=true (生产 graphAA 恒 ON): STROKE_NORMALIZE 规整到像素中心后覆盖盒
-/// [xa+0.5,xb+0.5]×[y-0.5,y+1.5] → 3 行柔边: 行 y 全值, 行 y±1 半值,
-/// 端点列 xa/xb 半覆盖, 四角 1/4 (oracle: 63 非零像素, 角点 a=64)。
-fn hline_butt2(cv: &mut PixCanvas, x0: i32, x1: i32, y: i32, color: [u8; 4], aa: bool) {
-    let (xa, xb) = if x0 <= x1 { (x0, x1) } else { (x1, x0) };
-    if xb <= xa {
-        return; // 零长度 CAP_BUTT 线不绘制 (Java strokedShape 零长度段无输出)
-    }
-    if !aa {
-        cv.fill_rect(xa, y - 1, xb - xa, 2, color);
-        return;
-    }
-    let mid = xb - xa - 1; // 整列覆盖段 (端点列半覆盖)
-    if mid > 0 {
-        let soft = primitives::cov_color(color, 0.5);
-        cv.fill_rect(xa + 1, y, mid, 1, color);
-        cv.fill_rect(xa + 1, y - 1, mid, 1, soft);
-        cv.fill_rect(xa + 1, y + 1, mid, 1, soft);
-    }
-    let soft = primitives::cov_color(color, 0.5);
-    let corner = primitives::cov_color(color, 0.25);
-    for cx in [xa, xb] {
-        cv.fill_rect(cx, y, 1, 1, soft);
-        cv.fill_rect(cx, y - 1, 1, 1, corner);
-        cv.fill_rect(cx, y + 1, 1, 1, corner);
-    }
-}
-
-/// 裸 BasicStroke(2) (默认 CAP_SQUARE) 竖线 (FlapAngleBar.java:110-125 tick)。
-/// aa=false (中心规则): 覆盖盒 [tx-1,tx+1]×[ya-1,yb+1] → 列 tx-1..tx, 行
-/// ya-1..yb (方帽两端各外伸 1px 的几何经中心规则光栅后上端外伸、下端不外伸,
-/// oracle: drawLine(40,5,40,25) 覆盖列 39..40、行 4..25 共 22 行)。
-/// aa=true: 覆盖盒 [tx-0.5,tx+1.5]×[ya-0.5,yb+1.5] → 3 列柔边: 列 tx 全值,
-/// 列 tx±1 半值, 端行 ya-1/yb+1 半覆盖, 角点 1/4 (oracle: 行 4..26 端行半透明)。
-fn vline_square2(cv: &mut PixCanvas, tx: i32, y0: i32, y1: i32, color: [u8; 4], aa: bool) {
-    let (ya, yb) = if y0 <= y1 { (y0, y1) } else { (y1, y0) };
-    if !aa {
-        cv.fill_rect(tx - 1, ya - 1, 2, yb - ya + 2, color);
-        return;
-    }
-    let body = yb - ya + 1;
-    let soft = primitives::cov_color(color, 0.5);
-    let corner = primitives::cov_color(color, 0.25);
-    if body > 0 {
-        cv.fill_rect(tx, ya, 1, body, color);
-        cv.fill_rect(tx - 1, ya, 1, body, soft);
-        cv.fill_rect(tx + 1, ya, 1, body, soft);
-    }
-    for ry in [ya - 1, yb + 1] {
-        cv.fill_rect(tx, ry, 1, 1, soft);
-        cv.fill_rect(tx - 1, ry, 1, 1, corner);
-        cv.fill_rect(tx + 1, ry, 1, 1, corner);
-    }
-}
+// hline_butt2/vline_square2 已收敛 primitives.rs (波13): 水平 w=2 线直接
+// butt_line(w=2) — 逐像素等价 (oracle 见 primitives 文档); 方帽竖线为独立基元
+// vline_square2。
 
 // ---------------------------------------------------------------------------
 // LinearGauge
@@ -542,13 +480,13 @@ impl SpeedRatioBar {
         // 1. 副翼锁舵刻度 (左) (Java:95-101)
         if self.aileron_lock_ratio > 0.0 && self.aileron_lock_ratio < 1.0 {
             let lock_y = self.ratio_y(y, self.aileron_lock_ratio);
-            hline_butt2(cv, x - 4, x + w / 2, lock_y, colors().num, aa);
+            butt_line(cv, x - 4, lock_y, x + w / 2, lock_y, 2, colors().num, aa);
         }
 
         // 2. 方向舵锁舵刻度 (右) (Java:104-110)
         if self.rudder_lock_ratio > 0.0 && self.rudder_lock_ratio < 1.0 {
             let lock_y = self.ratio_y(y, self.rudder_lock_ratio);
-            hline_butt2(cv, x + w / 2, x + w + 4, lock_y, colors().num, aa);
+            butt_line(cv, x + w / 2, lock_y, x + w + 4, lock_y, 2, colors().num, aa);
         }
 
         // 3. 背景 colorNum 全条 = 剩余范围 (Java:113-114)
@@ -568,7 +506,7 @@ impl SpeedRatioBar {
             let label_spacing = 2;
             let tick_start_x = x - tick_extend - label_spacing - template_width;
             let tick_width = template_width + label_spacing + tick_extend + w;
-            hline_butt2(cv, tick_start_x, tick_start_x + tick_width - 1, tick_y, colors().num, aa);
+            butt_line(cv, tick_start_x, tick_y, tick_start_x + tick_width - 1, tick_y, 2, colors().num, aa);
 
             if let Some(f) = tick_font {
                 // PORT: Java:143 (int) Math.round(speedRatio * 100)
@@ -595,7 +533,7 @@ impl SpeedRatioBar {
         // 6. 马赫单位红线 (Java:172-178)
         if self.unit_mach_ratio > 0.0 && self.unit_mach_ratio < 1.0 {
             let mach_y = self.ratio_y(y, self.unit_mach_ratio);
-            hline_butt2(cv, x, x + w, mach_y, colors().warning, aa);
+            butt_line(cv, x, mach_y, x + w, mach_y, 2, colors().warning, aa);
         }
         // 无边框 (Java:180, 对齐 FlapAngleBar 风格)
         self.dirty = false;
@@ -627,28 +565,10 @@ const TICK_POSITIONS: [i32; 4] = [20, 33, 60, 100];
 /// 满刻度 (Java:33)
 const MAX_SCALE: i32 = 125;
 
-/// Java String.format("%3.0f") 语义: HALF_UP 舍入 0 位小数 (按精确十进制值,
-/// 不能用 v+0.5 — f64 中 0.49999999999999994+0.5 会进到 1.0, Java oracle 实测
-/// 输出 "  0"), 负号对舍到零的结果保留 (oracle: -0.0 → "-0"), 右对齐宽 3 空格补,
-/// NaN → "NaN" (Java Formatter 输出)
+/// Java String.format("%3.0f") = java_f0_exact + 宽 3 右对齐组合
+/// (整数化算法本体在 vm_core::base::format, 重构波13 收割)
 fn fmt_pct3(v: f64) -> String {
-    if v.is_nan() {
-        return "NaN".to_string();
-    }
-    // 负号判定含 -0.0 (Java Formatter 对负零输出 "-0", v < 0.0 对 -0.0 为 false)
-    let neg = v < 0.0 || (v == 0.0 && v.is_sign_negative());
-    // HALF_UP (远离零): 小数部分与 0.5 的比较取 v-floor(v) 的精确 f64 值
-    let m = v.abs();
-    let f = m.floor();
-    let r = if m - f >= 0.5 { f + 1.0 } else { f };
-    let mut s = format!("{}", r as i64);
-    if neg {
-        s.insert(0, '-');
-    }
-    while s.len() < 3 {
-        s.insert(0, ' ');
-    }
-    s
+    format::pad_width(format::java_f0_exact(v), 3, false)
 }
 
 impl FlapAngleBar {

@@ -151,5 +151,27 @@ pub fn close_quietly<T>(closeable: Option<T>) {
     }
 }
 
+/// catch_unwind panic 载荷 → 文本, Java `e.getMessage()` 的对位物 (全库唯一)。
+/// downcast 三分支: `&'static str` (panic!("boom")) / String (panic!("{}x", n)) /
+/// 其他 (Java 异常恒有类型名, Rust 非字符串载荷无对应 → "null", 对齐 Java
+/// getMessage()==null 时 `"..." + null` 的拼接结果)。
+/// 此前 flight_data_bus/ui_state_bus/fm_loader/fm_manager 四处私有同构副本
+/// (仅兜底文案不同: "unknown"/"null"/"unknown panic payload") 收敛于此。
+pub fn panic_message(payload: &(dyn std::any::Any + Send)) -> String {
+    if let Some(s) = payload.downcast_ref::<&'static str>() {
+        (*s).to_string()
+    } else if let Some(s) = payload.downcast_ref::<String>() {
+        s.clone()
+    } else {
+        "null".to_string()
+    }
+}
+
+/// [`panic_message`] 的 Box 形态: catch_unwind 的直接产物就是
+/// `Box<dyn Any + Send>`, 免调用方手动解引用。
+pub fn panic_message_box(payload: Box<dyn std::any::Any + Send>) -> String {
+    panic_message(payload.as_ref())
+}
+
 #[cfg(test)]
 mod tests;

@@ -1,5 +1,5 @@
 //! 三件平台小件合一文件 (P4 平台件收官批的任务边界裁决, §0.6 一文件一模块
-//! 在此让位于批内合一):
+//! 在此让位于批内合一; 待波16 按域拆分):
 //! 1. DPI 检测 — Java `src/prog/util/DPIHelper.java` (scale/logical 尺寸语义保真)
 //! 2. Windows 前台焦点检测 — Java `src/prog/util/WindowsFocusDetector.java`,
 //!    实现 vm-core `focus_monitor::FocusDetector` trait (Windows 腿落地)

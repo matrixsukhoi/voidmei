@@ -11,8 +11,8 @@ use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock};
 use std::thread::JoinHandle;
-use std::time::{SystemTime, UNIX_EPOCH};
 
+use vm_core::base::java_compat::current_time_millis;
 use vm_core::base::calc_helper::SimpleMovingAverage;
 use vm_core::base::event::event_payload::EventPayload;
 use vm_core::base::event::flight_data_event::FlightDataEvent;
@@ -121,28 +121,8 @@ fn write_back(d: &mut ServiceData, name: &str, v: f64) {
     }
 }
 
-/// Java `System.currentTimeMillis()` 的 crate 先例形态
-/// (fm_manager.rs / flight_data_event.rs 同款): SystemTime → as_millis u128 →
-/// as i64 截断; 时钟早于 epoch 时 Java 可得负值而 duration_since 报错 → 取 0。
-fn current_time_millis() -> i64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_millis() as i64)
-        .unwrap_or(0)
-}
-
-/// panic 载荷 → 文本 (fm_manager.rs 同款私有助手, 不越文件共用)。
-/// 对齐 Java `"Service error: " + e.getClass().getSimpleName() + " at " + ...`
-/// 的 "类型名" 槽位: Rust panic 无类型名, 以消息文本顶位 (见 run 的 PORT 注)。
-fn panic_message(payload: Box<dyn std::any::Any + Send>) -> String {
-    if let Some(s) = payload.downcast_ref::<String>() {
-        s.clone()
-    } else if let Some(s) = payload.downcast_ref::<&'static str>() {
-        (*s).to_string()
-    } else {
-        "null".to_string()
-    }
-}
+// Java 标准库/panic 语义助手已收敛 vm_core (java_compat::current_time_millis /
+// exception_helper::panic_message_box), 本模块不再持本地副本。
 
 /// Service 的构造参数集 —— 取代 Java 构造器从 `Controller xc` / `Application`
 /// 静态字段读取的全部输入 (环 1 断裂 + §2.9 全局态解散):
@@ -433,7 +413,10 @@ impl Service {
                     // PORT: Rust panic 无类型名/栈帧槽位, 以消息文本顶位
                     logger::error(
                         "Service",
-                        &format!("Service error: {} at unknown", panic_message(payload)),
+                        &format!(
+                            "Service error: {} at unknown",
+                            exception_helper::panic_message_box(payload)
+                        ),
                     );
                     // PORT: 可中断恢复睡眠 (§2.13); 置位即提前醒并在此退出
                     // (Java 吞中断后丢失退出信号属已知 bug, 电平标志根治)

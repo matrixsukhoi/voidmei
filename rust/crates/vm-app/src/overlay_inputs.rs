@@ -3,11 +3,12 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
+use vm_core::base::java_compat::java_parse_boolean;
 use vm_core::config::config_api::{ConfigProvider, HudSettingsSnapshot, OverlaySettings};
 use vm_core::config::configuration_service::{ConfigurationService, GlobalColors};
 
 use crate::controller_shared::ControllerShared;
-use crate::env::{java_parse_boolean, Env};
+use crate::env::Env;
 
 /// 激活策略引用的全部配置键 (Java registerGameModeOverlays 的
 /// ActivationStrategy.config(...) 实参 + 复合策略依赖键)

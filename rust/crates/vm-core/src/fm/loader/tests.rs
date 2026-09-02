@@ -201,13 +201,14 @@ fn java_double_str_matches_java_concat() {
     assert_eq!(java_double_str(-0.0), "-0.0");
 }
 
-/// panic 载荷提取的边界形态
+/// panic 载荷提取的边界形态 (共享助手 exception_helper::panic_message)
 #[test]
 fn panic_message_payload_kinds() {
     let p: Box<dyn std::any::Any + Send> = Box::new("boom");
     assert_eq!(panic_message(p.as_ref()), "boom", "&str 载荷");
     let p: Box<dyn std::any::Any + Send> = Box::new(String::from("bang"));
     assert_eq!(panic_message(p.as_ref()), "bang", "String 载荷");
+    // 非字符串载荷无 Java 对应 → "null" (统一兜底, 见 panic_message 文档)
     let p: Box<dyn std::any::Any + Send> = Box::new(42i32);
-    assert_eq!(panic_message(p.as_ref()), "unknown panic payload", "非字符串载荷");
+    assert_eq!(panic_message(p.as_ref()), "null", "非字符串载荷");
 }

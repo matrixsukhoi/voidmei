@@ -46,8 +46,6 @@ pub use control_surfaces::{
 pub use fm_unpacked::{
     fm_unpacked_data_overlay_spec, FmUnpackedDataHandle, FmUnpackedDataOverlay, FmUnpackedFeed,
 };
-// draw_frame_simpl 经本域路径消费 (pub(crate) 项保持 crate 内可见)
-pub(crate) use fm_unpacked::java_format_f;
 
 // Field 系组件域级集成测试 (波10 合并原 field1/2 壳下 tests.rs; 先例 fm::store_tests)
 #[cfg(test)]

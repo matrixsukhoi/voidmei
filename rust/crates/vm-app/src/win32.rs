@@ -10,6 +10,7 @@ use std::time::{Duration, Instant};
 
 use vm_core::activation::strategy::{ActivationContext, ActivationStrategy};
 use vm_core::base::bus::Subscription;
+use vm_core::base::java_compat::{current_time_millis, java_parse_boolean};
 use vm_core::config::config_api::ConfigProvider;
 use vm_core::base::event::event_payload::EventPayload;
 use vm_core::base::event::flight_data_event::FlightDataEvent;
@@ -39,7 +40,7 @@ use vm_overlay::platform::tray::{TrayConfig, TrayIcon, TrayHandler};
 
 use crate::commands::{MainEvent, TrayCommand, UiCommand};
 use crate::controller_shared::{is_stale_refresh, ControllerShared};
-use crate::env::{current_time_millis, java_parse_boolean, Env};
+use crate::env::Env;
 use crate::keys::{FM_UNPACKED_INTEREST_KEYS, MINIHUD_INTEREST_KEYS, OVERLAY_SECTIONS};
 use crate::overlay_inputs::{ActivationCache, OverlayInputs};
 use crate::voice_setup::{
@@ -231,17 +232,16 @@ impl vm_overlay::platform::host::PositionStore for ChannelPositionStore {
 /// 重建存活 (D8), 条目是无状态配置记录 (id/config_key/尺寸/渲染闭包), 重建语义
 /// 由激活探测 (实时配置) + 命令通道承载 — 重注册无信息增量。
 ///
-/// 注册键 10/10 落位 (P6 收口 + 人工验收补口 + 本批 enableFMPrint/thrustdFS):
-/// - 窗口条目 9: enableEngineControl / engineInfoSwitch / crosshairSwitch /
-///   flightInfoSwitch (POC window.rs 专径收编, vm-overlay flight_info.rs) /
-///   enablegearAndFlaps / enableAxis / enableAttitudeIndicator /
-///   enableFMPrint (FMUnpackedData, P5 组装契约三点销号 — 动态窗口高经
-///   FmUnpackedFeed pump 落 resize_entry, 逐条目可见性经 host set_entry_visible,
-///   spec 工厂 vm-overlay fm_unpacked_data_overlay_spec) /
-///   thrustdFS (DrawFrameSimpl, 本批全量翻译装配 — vm-overlay draw_frame_simpl.rs:
-///   激活策略 config("enableFMPrint").and(jetOnly) 经 [`strategy_for`] 实际生效,
+/// 注册键 10/10 落位 (P6 收口 + 人工验收补口 + enableFMPrint/thrustdFS):
+/// - 窗口条目 9 = keys.rs [`OVERLAY_SECTIONS`] 的 8 键 (本函数逐键注册; 位置组
+///   映射/main.rs 冒烟断言集同源该表, 新增窗口条目只改 keys.rs 一处) +
+///   thrustdFS (DrawFrameSimpl — vm-overlay draw_frame_simpl.rs: 激活策略
+///   config("enableFMPrint").and(jetOnly) 经 [`strategy_for`] 实际生效,
 ///   固定几何 (0, screenH-500, 900, 500) 经 host set_entry_fixed_pos,
 ///   run 循环 (自管可见性 + displayFmKey==0 收腿退场) 经 DrawFrameSimplFeed)。
+/// - 特注 enableFMPrint (FMUnpackedData, 8 键之一) — P5 组装契约三点销号:
+///   动态窗口高经 FmUnpackedFeed pump 落 resize_entry, 逐条目可见性经 host
+///   set_entry_visible, spec 工厂 vm-overlay fm_unpacked_data_overlay_spec。
 /// - 非窗口 1 (键在激活缓存 ACTIVATION_KEYS / strategy_for 留有映射, 不建窗口):
 ///   - enableVoiceWarn: VoiceWarning 为线程形态非窗口 — 装配在 OpenAllOverlays/
 ///     CloseAllOverlays 命令处理点 ([`open_voice_warning`]/VoiceWarnSession,

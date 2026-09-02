@@ -1,6 +1,7 @@
 use super::*;
 use crate::config::config_loader::ConfigValue;
 use crate::base::bus::ui_state_bus::UiStateEvent;
+use crate::base::java_compat::java_double_to_string;
 use std::fs;
 use std::path::Path;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -735,8 +736,8 @@ fn java_double_to_string_matches_java8_oracle() {
     assert_eq!(java_double_to_string(f64::INFINITY), "Infinity");
     assert_eq!(java_double_to_string(f64::NEG_INFINITY), "-Infinity");
     // ConfigValue 面 (reset 日志的 default 回显文本)
-    assert_eq!(config_value_to_java_string(&ConfigValue::Double(1.0e7)), "1.0E7");
-    assert_eq!(config_value_to_java_string(&ConfigValue::Double(20.0)), "20.0");
+    assert_eq!(config_value_to_string(&ConfigValue::Double(1.0e7)), "1.0E7");
+    assert_eq!(config_value_to_string(&ConfigValue::Double(20.0)), "20.0");
 }
 
 /// Double.equals = doubleToLongBits 位级: NaN==NaN true、+0.0!=-0.0;

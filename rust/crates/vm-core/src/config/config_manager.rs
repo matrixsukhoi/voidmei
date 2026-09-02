@@ -34,6 +34,7 @@ use std::sync::{Arc, LazyLock, Mutex};
 use crate::config::config_loader::{load_config, save_config, GroupConfig, RowConfig};
 use crate::lang::Lang;
 use crate::base::logger;
+use crate::base::java_compat::java_trim;
 
 const TEMPLATE_PATH: &str = "./ui_layout.cfg";
 const USER_PATH: &str = "./ui_layout.user.cfg";
@@ -457,12 +458,6 @@ pub(crate) static CWD_LOCK: Mutex<()> = Mutex::new(());
 /// Gets the path to the template config file.
 pub fn get_template_config_path() -> &'static str {
     TEMPLATE_PATH
-}
-
-/// Java `String.trim()`: 剥首尾所有 `<= U+0020` 的字符 — 与 Rust `str::trim`
-/// (Unicode White_Space, 会剥 U+3000 等) 不同; config_loader.rs 同款复刻。
-fn java_trim(s: &str) -> &str {
-    s.trim_matches(|c: char| (c as u32) <= 0x20)
 }
 
 /// 配置弹窗请求 (Java showParseErrorDialog/showMergeReport 的弹窗参数面):

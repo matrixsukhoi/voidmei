@@ -24,11 +24,10 @@
 //! 对拍备案 (审查 W3): rustcmp 套件现覆盖 FlightInfo/gauges/MiniHUD, 本组件渲染
 //! 证据 = 单测级几何 oracle + 像素墨迹断言 (Java 语义逐式复算); FMUnpacked 同款。
 
-use vm_core::base::format::java_round_f32;
+use vm_core::base::format::{java_format_f, java_round_f32};
 use crate::render::font::LoadedFont;
 use crate::render::palette::aa;
 use crate::platform::host::{OverlayHost, OverlaySpec};
-use crate::overlays::java_format_f;
 use crate::render::canvas::{LineCapStyle, PixCanvas};
 use std::cell::RefCell;
 use std::rc::Rc;

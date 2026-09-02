@@ -23,6 +23,7 @@ use crate::render::palette::colors;
 use crate::render::font::LoadedFont;
 
 use crate::render::canvas::{LineCapStyle, PixCanvas};
+use vm_core::base::format;
 
 
 /// Java (int) double 强转语义: 向零截断, NaN→0, ±∞ 饱和到 MIN/MAX —
@@ -39,36 +40,11 @@ fn java_to_radians_f32(deg: f64) -> f32 {
     (deg / 180.0 * std::f64::consts::PI) as f32
 }
 
-/// Java String.format("%3.0f") 语义 (CompassGauge.java:95):
-/// HALF_UP 舍入 0 位小数 (按精确十进制值), 负零保号, 右对齐宽 3 空格补;
-/// NaN→"NaN", ±∞→"Infinity"/"-Infinity", |v|≥2^63→完整十进制 (畸形遥测可达,
-/// as i64 饱和串 9223372036854775807 是错误输出)。
-/// (与 gauges_bars::fmt_pct3 同式, 该函数私有不可复用故复制, FlapAngleBar 已钉死边界 oracle)
+/// Java String.format("%3.0f") (CompassGauge.java:95) = java_f0_exact + 宽 3
+/// 右对齐组合 (±∞ 常量与 |v|≥2^63 完整十进制展开的语义注记见
+/// vm_core::base::format::java_f0_exact, 重构波13 收割)
 fn fmt_heading3(v: f64) -> String {
-    if v.is_nan() {
-        return "NaN".to_string();
-    }
-    // PORT: Formatter 对 ±∞ 输出常量 "Infinity"/"-Infinity" (org.json "1e999"→inf 可达)
-    if v.is_infinite() {
-        return if v > 0.0 { "Infinity" } else { "-Infinity" }.to_string();
-    }
-    let neg = v < 0.0 || (v == 0.0 && v.is_sign_negative());
-    let m = v.abs();
-    let f = m.floor();
-    let r = if m - f >= 0.5 { f + 1.0 } else { f };
-    // PORT: r ≥ 2^63 超 i64 域, 按完整十进制展开 (此域 ULP≥2048, m 必为整值, {:.0} 无舍入分歧)
-    let mut s = if r >= 9_223_372_036_854_775_808.0 {
-        format!("{:.0}", r)
-    } else {
-        format!("{}", r as i64)
-    };
-    if neg {
-        s.insert(0, '-');
-    }
-    while s.len() < 3 {
-        s.insert(0, ' ');
-    }
-    s
+    format::pad_width(format::java_f0_exact(v), 3, false)
 }
 
 /// 指针末端偏移 compassDx/Dy (CompassGauge.java:92-93)。

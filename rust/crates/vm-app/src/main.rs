@@ -37,7 +37,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use vm_app::form_dispatch;
-use vm_app::{AppShell, SupervisorOutcome};
+use vm_app::{AppShell, SupervisorOutcome, OVERLAY_SECTIONS};
 
 use tauri::Emitter;
 use vm_core::base::event::ui_state_events;
@@ -501,23 +501,13 @@ fn mock_smoke_main(debug: bool) -> i32 {
     if frames == 0 {
         return fail("overlay present 帧数为 0 (窗口未开/渲染未跑)".to_string());
     }
-    // live 模式注册全集 (register_live_overlays 的 8 键; 缺键 = 注册失败)。
-    // enableFMPrint 默认开 (ui_layout.cfg:262 :value true) → 窗口条目在场;
+    // live 模式注册全集 = keys.rs OVERLAY_SECTIONS 键列 (单一来源; 缺键 = 注册
+    // 失败)。enableFMPrint 默认开 (ui_layout.cfg:262 :value true) → 窗口条目在场;
     // 游戏形态隐藏起步 (FMUnpackedData 自管可见性) 不影响 present 计数
     // (active 判定 = 槽位存在, 渲染节拍照常)
-    const LIVE_OVERLAYS: [&str; 8] = [
-        "enableEngineControl",
-        "engineInfoSwitch",
-        "crosshairSwitch",
-        "enablegearAndFlaps",
-        "enableAxis",
-        "enableAttitudeIndicator",
-        "flightInfoSwitch",
-        "enableFMPrint",
-    ];
     let mut missing = Vec::new();
     let mut zero = Vec::new();
-    for id in LIVE_OVERLAYS {
+    for id in OVERLAY_SECTIONS.iter().map(|(id, _)| *id) {
         match overlay_counts.get(id) {
             None => missing.push(id),
             Some(0) => zero.push(id),

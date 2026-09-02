@@ -81,6 +81,35 @@ pub fn version_file() -> PathBuf {
     PathBuf::from(get_data_root()).join("aces/version")
 }
 
+/// 扫描 flightmodels 下指定子目录的 *.json 文件名 (去扩展名, 排序去重)。
+/// `subdir` = "" 即 flightmodels 根 (中央文件), "fm" = 物理文件子目录。
+/// 只收 .json (blkx→json 迁移: data/ 双格式同名并存, 不过滤会每机型重复两项);
+/// 目录不存在/不可读 → 空 vec; 排序 = 文件名字节序 (域内 ASCII, 与 Java
+/// 自然序逐位一致)。机型列表 (GetFmList / loadPlanes) 的语义收敛点。
+pub fn list_fm_names(subdir: &str) -> Vec<String> {
+    let dir = if subdir.is_empty() {
+        fm_dir()
+    } else {
+        fm_dir().join(subdir)
+    };
+    let mut names: Vec<String> = Vec::new();
+    if let Ok(entries) = std::fs::read_dir(&dir) {
+        for e in entries.flatten() {
+            let name = e.file_name().to_string_lossy().into_owned();
+            if !name.ends_with(".json") {
+                continue;
+            }
+            // 按最后一个 '.' 剥后缀 (FileUtils 语义)
+            if let Some(stripped) = crate::base::file_utils::get_file_name_no_ex(Some(&name)) {
+                names.push(stripped.to_string());
+            }
+        }
+    }
+    names.sort();
+    names.dedup();
+    names
+}
+
 // =====================================================================
 // Tests — 对应 Java: test/TestFMDataPaths.java (一比一移植)
 //

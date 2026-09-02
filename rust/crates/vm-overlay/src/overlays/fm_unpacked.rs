@@ -18,6 +18,9 @@
 //! (ZebraList 首个生产消费者) 的渲染证据 = 单测级 oracle 色/几何 (WebLaF 离屏
 //! 实测值, overlay_list tests) + 本模块墨迹断言; rustcmp 场景面扩充随渲染对拍
 //! 工具批另行安排。
+//!
+//! printf 引擎: 本地 FmtArg/java_string_format/java_format_f 副本已收割至
+//! vm_core::base::format (重构波13, Java 8 oracle 对拍等价)。
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -33,193 +36,12 @@ use crate::render::canvas::PixCanvas;
 use vm_core::fm::data::{FmData, FmParts};
 use vm_core::config::config_api::ConfigProvider;
 use vm_core::fm::FMManager;
+use vm_core::base::format::{java_string_format, FmtArg};
 use vm_core::base::physics_constants::g;
 use vm_core::lang::Lang;
 
-// ---------------------------------------------------------------------------
-// Java String.format 最小面 (Lang 模板域: %s / %d / %.0f~%.3f / %%)
-// ---------------------------------------------------------------------------
-
-/// printf 实参 (FMUnpackedDataOverlay.generateLines 传入 Lang 模板的三类占位)
-#[derive(Clone, Copy, Debug)]
-pub(crate) enum FmtArg<'a> {
-    /// %s — null 实参以 "null" 文本呈现 (Java Formatter 行为)
-    S(&'a str),
-    /// %d — 襟翼档位序号 (i32 十进制)
-    D(i32),
-    /// %.Nf — 精度由模板解析
-    F(f64),
-}
-
-/// Java `String.format(template, args...)` 一比一 (Lang.bXXX 模板 + 实参)。
-/// 支持域: `%s`/`%d`/`%.0f`~`%.9f`/`%%`; 其余转换符 Java 抛
-/// UnknownFormatConversionException ↔ 此处 panic; `%d` 位点收浮点/字符串实参
-/// Java 抛 IllegalFormatConversionException ↔ 此处同 panic (模板与实参由本模块
-/// 成对提供, 用户改 lang 文件破坏配对时两语言同为崩溃语义)。
-/// `%s` 位点收数值实参在 Java 合法 (toString 输出), 本实现防御 panic — 域内
-/// 实参编译期成对不可达。
-pub(crate) fn java_string_format(template: &str, args: &[FmtArg]) -> String {
-    let mut out = String::new();
-    let mut arg_i = 0usize;
-    let bytes = template.as_bytes();
-    let mut i = 0usize;
-    while i < bytes.len() {
-        let b = bytes[i];
-        if b != b'%' {
-            // PORT: 模板为 ASCII 控制符 + CJK 文本, 非控制字节段整段透传
-            // (按字节推进仅发生在 ASCII 控制符处, UTF-8 多字节序列不越界)
-            let start = i;
-            while i < bytes.len() && bytes[i] != b'%' {
-                i += 1;
-            }
-            out.push_str(&template[start..i]);
-            continue;
-        }
-        // '%' 分发
-        let next = bytes.get(i + 1).copied();
-        match next {
-            Some(b'%') => {
-                out.push('%'); // %% → 字面 %
-                i += 2;
-            }
-            Some(b's') | Some(b'd') => {
-                let arg = args.get(arg_i).unwrap_or_else(|| {
-                    panic!("String.format 实参不足: {template:?} 第 {arg_i} 个占位")
-                });
-                arg_i += 1;
-                match *arg {
-                    FmtArg::S(s) => match next {
-                        Some(b's') => out.push_str(s),
-                        _ => panic!(
-                            "String.format %d 收到字符串实参 (IllegalFormatConversionException): {template:?}"
-                        ),
-                    },
-                    // Integer 的 %s/%d 位点 Java 均合法 (toString / 十进制)
-                    FmtArg::D(v) => out.push_str(&v.to_string()),
-                    FmtArg::F(_) => match next {
-                        Some(b'd') => panic!(
-                            "String.format %d 收到浮点实参 (IllegalFormatConversionException): {template:?}"
-                        ),
-                        // Java %s 收 Double 合法 (toString), 本实现防御 panic — 域内不可达
-                        _ => panic!("模板 %s 位点收到数值实参 (域外防御): {template:?}"),
-                    },
-                }
-                i += 2;
-            }
-            Some(b'.') => {
-                // %.Nf
-                let mut j = i + 2;
-                let mut prec: u32 = 0;
-                while j < bytes.len() && bytes[j].is_ascii_digit() {
-                    prec = prec * 10 + u32::from(bytes[j] - b'0');
-                    j += 1;
-                }
-                if j >= bytes.len() || bytes[j] != b'f' {
-                    panic!("String.format 未支持的转换符: {template:?} @ {i}");
-                }
-                // PORT: Java BigDecimal 任意精度合法, 本实现 u128 尾数累加上界 ≤9
-                // (下方 as u8 截断与 10u128.pow 回绕均在此拦截); 超域仅模板漂移
-                // 可达 → debug 断言, release 不引入 Java 没有的崩溃
-                debug_assert!(prec <= 9, "String.format 精度超域 (.{prec}f > .9f): {template:?}");
-                let arg = args.get(arg_i).unwrap_or_else(|| {
-                    panic!("String.format 实参不足: {template:?} 第 {arg_i} 个占位")
-                });
-                arg_i += 1;
-                match *arg {
-                    FmtArg::F(v) => out.push_str(&java_format_f(v, prec as u8)),
-                    FmtArg::S(_) | FmtArg::D(_) => {
-                        panic!("模板 %.Nf 位点收到非数值实参: {template:?}")
-                    }
-                }
-                i = j + 1;
-            }
-            _ => panic!("String.format 未支持的转换符: {template:?} @ {i}"),
-        }
-    }
-    out
-}
-
-/// Java `String.format("%.{prec}f", d)` 一比一。
-/// 语义模型 (vm-core flight_analyzer.rs java_format_f1 / config_loader.rs
-/// java_format_f4 同源, Java 8 oracle 实证): 等价
-/// `new BigDecimal(Double.toString(d)).setScale(prec, HALF_UP)` — 对**最短往返
-/// 十进制表示**做 HALF_UP (5.25 → "5.3"), 而非精确二进制值展开; Rust `{:.N}`
-/// 是对精确值的半偶舍入, 双重分歧 (2.675 → Java "2.68" vs Rust "2.67")。
-/// NaN/Infinity 原样; 负号含 -0.0 (neg = is_sign_negative, Java Formatter 亦保留)。
-/// 巨整数域 (exp10 > 25, double 间距 > 1 恒无有效小数): digits + 隐含尾零 + ".0"×prec。
-pub(crate) fn java_format_f(d: f64, prec: u8) -> String {
-    // 域界断言: prec≤9 时 u128 尾数 (整数部 ≤26 位 + 小数 9 位) 恒不溢出;
-    // ≥39 时 10u128.pow 溢出 (Java BigDecimal 无此界, 属模板漂移信号)
-    debug_assert!(prec <= 9, "java_format_f 精度超域: {prec}");
-    if d.is_nan() {
-        return "NaN".to_string();
-    }
-    if d.is_infinite() {
-        return if d > 0.0 { "Infinity".to_string() } else { "-Infinity".to_string() };
-    }
-    let neg = d.is_sign_negative(); // 含 -0.0 → "-0.0" (Java 亦然)
-    let a = d.abs();
-    let sci = format!("{:e}", a); // 最短往返表示 "D.DDDe±k"
-    let epos = sci.find('e').unwrap();
-    let mant = &sci[..epos];
-    let exp10: i32 = sci[epos + 1..].parse().unwrap();
-    let digits = mant.replace('.', "");
-    let digits = digits.as_bytes();
-    let n = digits.len() as i32;
-
-    let mut out = String::new();
-    if exp10 > 25 {
-        // 巨整数域: 全整数输出 + prec 位零小数 (域内 FM 数值不可达, 防御分支)
-        out.push_str(&sci[..epos].replace('.', ""));
-        out.push_str(&"0".repeat((exp10 - n + 1) as usize));
-        if prec > 0 {
-            out.push('.');
-            out.push_str(&"0".repeat(prec as usize));
-        }
-    } else {
-        // 最短表示的 i 号数字 (1-based, place = 10^(exp10-i+1)); 越界补 0
-        let digit_at = |i: i32| -> u128 {
-            if i < 1 {
-                0
-            } else {
-                let idx = (i - 1) as usize;
-                if idx < digits.len() {
-                    u128::from(digits[idx] - b'0')
-                } else {
-                    0
-                }
-            }
-        };
-        // 保留到 10^-prec 位: i ≤ exp10 + 1 + prec; 判定位 = 其后一位 (HALF_UP:
-        // ≥5 进位, 再后的剩余数字 < 1 单位不影响判定)
-        let keep = exp10 + 1 + prec as i32;
-        let mut scaled: u128 = 0; // = 整数 × 10^prec + 小数
-        if keep > 0 {
-            for i in 1..=keep {
-                scaled = scaled * 10 + digit_at(i);
-            }
-        }
-        if digit_at(keep + 1) >= 5 {
-            scaled += 1; // HALF_UP (含精确 .5 进位; 进位可级联到整数部分)
-        }
-        let div = 10u128.pow(prec as u32);
-        let int_part = scaled / div;
-        let frac = scaled % div;
-        out.push_str(&int_part.to_string());
-        if prec > 0 {
-            out.push('.');
-            let s = frac.to_string();
-            for _ in s.len()..prec as usize {
-                out.push('0');
-            }
-            out.push_str(&s);
-        }
-    }
-    if neg {
-        out.insert(0, '-');
-    }
-    out
-}
+// Java String.format printf 引擎与 FmtArg 收敛于 vm_core::base::format
+// (重构波13 收割本地副本, Lang 模板域: %s / %d / %.0f~%.9f / %%)
 
 // ---------------------------------------------------------------------------
 // FmUnpackedDataOverlay (ui/overlay/FMUnpackedDataOverlay.java)

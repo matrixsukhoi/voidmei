@@ -43,12 +43,12 @@ use std::io::{self, BufRead, BufReader, Write};
 use std::net::{SocketAddr, TcpStream};
 use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 use std::sync::Arc;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::base::exception_helper;
 use crate::lang::Lang;
 use crate::base::logger;
 use crate::telemetry::parser::{HudMsg, MapInfo, MapObj};
+use crate::base::java_compat::current_time_millis;
 
 /// Controller 的最小消息游标读取面 (PORT 注记 1: 后续批次 Controller 落地时
 /// 由其实现, 对应 Java `xc.lastEvt`/`xc.lastDmg` 两个字段的读取)。
@@ -450,17 +450,6 @@ impl OtherService {
 			// Application.debugPrint("otherService执行了");
 		}
 	}
-}
-
-/// Java `System.currentTimeMillis()` 的 crate 先例形态
-/// (fm_manager.rs 同款): SystemTime → as_millis u128 → as i64 截断;
-/// 时钟早于 epoch 时 Java 可得负值而 duration_since 报错 → 取 0。
-/// 时间戳差值域 (epoch 毫秒) 远离 i64 溢出, 普通减法即可 (§2.2 无涉)。
-fn current_time_millis() -> i64 {
-	SystemTime::now()
-		.duration_since(UNIX_EPOCH)
-		.map(|d| d.as_millis() as i64)
-		.unwrap_or(0)
 }
 
 // ============================================================================

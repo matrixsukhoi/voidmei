@@ -8,9 +8,10 @@ use crate::render::canvas::PixCanvas;
 use crate::render::font::LoadedFont;
 use crate::render::palette::{aa, colors};
 use crate::render::renderers::{BosStyleRenderer, RenderContext};
-use crate::overlays::fm_unpacked::{add_lines, generate_lines, java_string_format, FmtArg};
+use crate::overlays::fm_unpacked::{add_lines, generate_lines};
 #[cfg(test)]
-use crate::overlays::gauges::butt_line;
+use crate::render::primitives::butt_line;
+use vm_core::base::format::{java_format_f, java_string_format, FmtArg};
 use crate::platform::host::OverlayHost;
 use crate::platform::reinit::ReinitParams;
 use crate::layout::ui_constants::ENGINE_DEFAULT_REFRESH_MS;
@@ -181,7 +182,7 @@ fn payload(is_jet: bool, engine_check_done: bool, optimal: i32) -> EventPayload 
 // ---- butt_line (GraphicsUtil.createPreciseStroke 像素盒约定) ----
 
 /// w=2 CAP_BUTT 约定钉死: aa=false = 行 y-1..y × 列 xa..xb-1 (右端列不点亮);
-/// w=2 竖线镜像 = 列 x-1..x × 行 ya..yb-1 (与 gauges_bars::hline_butt2 文档互证)
+/// w=2 竖线镜像 = 列 x-1..x × 行 ya..yb-1 (与 primitives::butt_line 文档互证)
 #[test]
 fn butt_line_width2_center_rule() {
     let white = [255u8, 255, 255, 255];
