@@ -2,7 +2,7 @@
 
 use std::sync::Mutex;
 
-use crate::blkx::{Blkx, EngineLoad};
+use crate::fmdata::{FmData, EngineLoad};
 use crate::fm::status::FMStatus;
 use crate::piston_power_model::CompressorStageParams;
 
@@ -49,7 +49,7 @@ pub struct FMHandle {
     /// 加载结果状态
     pub status: FMStatus,
     /// 解析完成的 FM 对象；仅 {@link FMStatus#READY} 时非 null
-    pub blkx: Option<Blkx>,
+    pub fmdata: Option<FmData>,
     /// 活塞机 WEP 峰值功率（hp，已乘引擎数）；非活塞/未就绪为 0
     pub peak_wep_power: f64,
     /// 喷气机加力峰值推力（kgf）；活塞机/未就绪为 0
@@ -73,7 +73,7 @@ impl Clone for FMHandle {
         FMHandle {
             name: self.name.clone(),
             status: self.status,
-            blkx: self.blkx.clone(),
+            fmdata: self.fmdata.clone(),
             peak_wep_power: self.peak_wep_power,
             peak_thrust: self.peak_thrust,
             compressor_stages: self.compressor_stages.clone(),
@@ -101,7 +101,7 @@ impl FMHandle {
     pub const UNRESOLVED: FMHandle = FMHandle {
         name: None,
         status: FMStatus::Unresolved,
-        blkx: None,
+        fmdata: None,
         peak_wep_power: 0.0,
         peak_thrust: 0.0,
         compressor_stages: None,
@@ -113,7 +113,7 @@ impl FMHandle {
     // PORT: Java 引用类型参数 (String/Blkx/数组) 隐式可传 null → 显式 Option (§1)
     pub fn ready(
         name: Option<String>,
-        blkx: Option<Blkx>,
+        fmdata: Option<FmData>,
         peak_wep_power: f64,
         peak_thrust: f64,
         compressor_stages: Option<Vec<CompressorStageParams>>,
@@ -121,11 +121,11 @@ impl FMHandle {
         // 会话态初始化 (会话态提升的唯一种子点): 从解析产物克隆, blkx 本体
         // 保持不可变; blkx=None 或 eng_load=None (initEngineLoad 未产出) → None
         // (先取后 move, struct 字面量内 blkx 已被字段吃掉)
-        let eng_load_state = Mutex::new(blkx.as_ref().and_then(|b| b.eng_load.clone()));
+        let eng_load_state = Mutex::new(fmdata.as_ref().and_then(|b| b.eng_load.clone()));
         FMHandle {
             name,
             status: FMStatus::Ready,
-            blkx,
+            fmdata,
             peak_wep_power,
             peak_thrust,
             compressor_stages,
@@ -138,7 +138,7 @@ impl FMHandle {
         FMHandle {
             name,
             status: FMStatus::Missing,
-            blkx: None,
+            fmdata: None,
             peak_wep_power: 0.0,
             peak_thrust: 0.0,
             compressor_stages: None,
@@ -152,7 +152,7 @@ impl FMHandle {
         FMHandle {
             name,
             status: FMStatus::NotAircraft,
-            blkx: None,
+            fmdata: None,
             peak_wep_power: 0.0,
             peak_thrust: 0.0,
             compressor_stages: None,
@@ -165,7 +165,7 @@ impl FMHandle {
         FMHandle {
             name,
             status: FMStatus::Corrupt,
-            blkx: None,
+            fmdata: None,
             peak_wep_power: 0.0,
             peak_thrust: 0.0,
             compressor_stages: None,
@@ -177,7 +177,7 @@ impl FMHandle {
     /// 注意不要直接判 {@code status == READY} 以外的字段——blkx 为 null 的句柄
     /// （UNRESOLVED/LOADING/MISSING/CORRUPT）对调用方一律视为"无 FM"。
     pub fn has_fm(&self) -> bool {
-        self.status == FMStatus::Ready && self.blkx.is_some()
+        self.status == FMStatus::Ready && self.fmdata.is_some()
     }
 
     /// 是否属于"缺失类"状态（MISSING 或 CORRUPT）。

@@ -30,9 +30,9 @@ impl Service {
         let mut d = write_data(&self.data);
         if !d.get_maximum_rpm {
             // R2 守卫: blkx 非 null 即 READY（等价旧版 null+valid 双判）
-            if let Some(blkx) = fm.blkx.as_ref() {
+            if let Some(fmdata) = fm.fmdata.as_ref() {
                 // FM合法直接取FM
-                d.maximum_thr_rpm = blkx.max_rpm;
+                d.maximum_thr_rpm = fmdata.max_rpm;
                 // 使用最大允许RPM
                 // maximumThrRPM = fm.blkx.maxAllowedRPM;
                 d.get_maximum_rpm = true;
@@ -188,7 +188,7 @@ mod tests {
     use super::super::ServiceConfig;
     use std::path::Path;
     use std::sync::Arc;
-    use vm_core::blkx::Blkx;
+    use vm_core::fmdata::FmData;
     use vm_core::bus::EventBus;
     use vm_core::flight_data_bus::FlightDataBus;
     use vm_core::formula::registry::FormulaView as _; // var_value 取数
@@ -203,8 +203,8 @@ mod tests {
 
     /// 真机 spitfire_f24 的襟翼毁伤表 (hud_calculator/tests.rs spitfire_blkx
     /// 同源: Java getload 实测 [0.5,290]/[1.0,260] + 1.25x 哨兵行)
-    fn spitfire_flap_blkx() -> Blkx {
-        let mut b = Blkx::default();
+    fn spitfire_flap_fmdata() -> FmData {
+        let mut b = FmData::default();
         // 对齐 READY 句柄生产形态 (R2: blkx 非 null 即 READY → valid 恒真);
         // 合一后的共享实现保留 Java 的 !valid → 125 防御分支 (设计 §7)
         b.valid = true;
@@ -236,7 +236,7 @@ mod tests {
     }
 
     fn stage_fm(stages: Option<Vec<CompressorStageParams>>) -> FMHandle {
-        let mut b = Blkx::default();
+        let mut b = FmData::default();
         b.max_rpm = 3000.0;
         FMHandle::ready(Some("mock".to_string()), Some(b), 0.0, 0.0, stages)
     }
@@ -294,39 +294,39 @@ mod tests {
     fn flap_allow_speed_angle_oracle() {
         let fm = FMHandle::ready(
             Some("mock".to_string()),
-            Some(spitfire_flap_blkx()),
+            Some(spitfire_flap_fmdata()),
             0.0,
             0.0,
             None,
         );
         // 60%: 档间插值 → 284.0
-        assert_eq!(vm_core::hud_calculator::get_flap_allow_speed(60, true, fm.blkx.as_ref()), 284.0);
+        assert_eq!(vm_core::hud_calculator::get_flap_allow_speed(60, true, fm.fmdata.as_ref()), 284.0);
         // 50%: 相等档位 (50 == 0.5*100) → 直接返回首档速度 290.0
-        assert_eq!(vm_core::hud_calculator::get_flap_allow_speed(50, false, fm.blkx.as_ref()), 290.0);
+        assert_eq!(vm_core::hud_calculator::get_flap_allow_speed(50, false, fm.fmdata.as_ref()), 290.0);
         // 30% (i=-1): 下襟翼越级 → 首档速度 290.0; 非下襟翼 → Double.MAX_VALUE
-        assert_eq!(vm_core::hud_calculator::get_flap_allow_speed(30, true, fm.blkx.as_ref()), 290.0);
-        assert_eq!(vm_core::hud_calculator::get_flap_allow_speed(30, false, fm.blkx.as_ref()), f64::MAX);
+        assert_eq!(vm_core::hud_calculator::get_flap_allow_speed(30, true, fm.fmdata.as_ref()), 290.0);
+        assert_eq!(vm_core::hud_calculator::get_flap_allow_speed(30, false, fm.fmdata.as_ref()), f64::MAX);
         // 120%: 超表外插 (Java 无 clamp): 290 + 70*(-0.6) = 248.0
-        assert_eq!(vm_core::hud_calculator::get_flap_allow_speed(120, false, fm.blkx.as_ref()), 248.0);
+        assert_eq!(vm_core::hud_calculator::get_flap_allow_speed(120, false, fm.fmdata.as_ref()), 248.0);
         // flapPercent=0 早退 (先于 blkx 判定)
-        assert_eq!(vm_core::hud_calculator::get_flap_allow_speed(0, true, fm.blkx.as_ref()), f64::MAX);
+        assert_eq!(vm_core::hud_calculator::get_flap_allow_speed(0, true, fm.fmdata.as_ref()), f64::MAX);
 
         // 角度 (x/y 与速度版互换: 按速度查允许 flap 角度)
         // 270: 档间插值 → 83.33333333333334
-        assert_eq!(vm_core::hud_calculator::get_flap_allow_angle(270.0, false, fm.blkx.as_ref()), 83.33333333333334);
+        assert_eq!(vm_core::hud_calculator::get_flap_allow_angle(270.0, false, fm.fmdata.as_ref()), 83.33333333333334);
         // 290: 相等 → 首档角 0.5*100 = 50.0
-        assert_eq!(vm_core::hud_calculator::get_flap_allow_angle(290.0, false, fm.blkx.as_ref()), 50.0);
+        assert_eq!(vm_core::hud_calculator::get_flap_allow_angle(290.0, false, fm.fmdata.as_ref()), 50.0);
         // 350 (i=0 分支): 50 + 60*(-5/3) = -50 → normFlapAngle → 0
-        assert_eq!(vm_core::hud_calculator::get_flap_allow_angle(350.0, false, fm.blkx.as_ref()), 0.0);
+        assert_eq!(vm_core::hud_calculator::get_flap_allow_angle(350.0, false, fm.fmdata.as_ref()), 0.0);
         // 100 (低速外插): 50 + (100-290)*(-5/3) = 366.6.. → 封顶 125
-        assert_eq!(vm_core::hud_calculator::get_flap_allow_angle(100.0, false, fm.blkx.as_ref()), 125.0);
+        assert_eq!(vm_core::hud_calculator::get_flap_allow_angle(100.0, false, fm.fmdata.as_ref()), 125.0);
         // ias=0 早退
-        assert_eq!(vm_core::hud_calculator::get_flap_allow_angle(0.0, true, fm.blkx.as_ref()), 125.0);
+        assert_eq!(vm_core::hud_calculator::get_flap_allow_angle(0.0, true, fm.fmdata.as_ref()), 125.0);
 
         // 无 FM (UNRESOLVED)
         let unr = FMHandle::UNRESOLVED;
-        assert_eq!(vm_core::hud_calculator::get_flap_allow_speed(50, false, unr.blkx.as_ref()), f64::MAX);
-        assert_eq!(vm_core::hud_calculator::get_flap_allow_angle(300.0, false, unr.blkx.as_ref()), 125.0);
+        assert_eq!(vm_core::hud_calculator::get_flap_allow_speed(50, false, unr.fmdata.as_ref()), f64::MAX);
+        assert_eq!(vm_core::hud_calculator::get_flap_allow_angle(300.0, false, unr.fmdata.as_ref()), 125.0);
     }
 
     // ---------------- getMaximumRPM ----------------
@@ -397,7 +397,7 @@ mod tests {
         let fm = stage_fm(None);
         svc.get_maximum_rpm_learn(&fm);
         let d = svc.data.read().unwrap();
-        assert_eq!(d.maximum_thr_rpm, 3000.0, "blkx.maxRPM 直取");
+        assert_eq!(d.maximum_thr_rpm, 3000.0, "fmdata.maxRPM 直取");
         assert!(d.get_maximum_rpm, "同轮置位");
     }
 
@@ -512,14 +512,14 @@ mod tests {
             crate::DATA_ROOT_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         vm_core::fm::fm_data_paths::set_data_root(&root);
         let fm = vm_core::fm::fm_loader::load(Some("spitfire_f24"));
-        let Some(blkx) = fm.blkx.as_ref() else {
+        let Some(fmdata) = fm.fmdata.as_ref() else {
             println!("SKIP: FMLoader 加载失败 ({})", fm.status);
             return;
         };
 
         // checkFlap: 真机表直查 (首档精确相等分支, 无插值)
-        let table = blkx.flaps_destruction_ind_speed.as_ref().unwrap();
-        let num = blkx.flaps_destruction_num;
+        let table = fmdata.flaps_destruction_ind_speed.as_ref().unwrap();
+        let num = fmdata.flaps_destruction_num;
         assert!(num >= 1, "真机襟翼表至少 1 档");
         let mut svc = new_service();
         {
@@ -532,12 +532,12 @@ mod tests {
         }
         // W8: check_flap 已公式化 — fm_flap_allow_speed 直查对拍 (首档相等分支)
         let flap_pct = (table[0][0] * 100.0) as i32;
-        let got = vm_core::hud_calculator::get_flap_allow_speed(flap_pct, false, Some(blkx));
+        let got = vm_core::hud_calculator::get_flap_allow_speed(flap_pct, false, Some(fmdata));
         assert_eq!(got, table[0][1]);
 
         // getMaximumRPM 的 FM 直取: maximumThrRPM = blkx.maxRPM
         svc.get_maximum_rpm_learn(&fm);
-        assert_eq!(svc.data.read().unwrap().maximum_thr_rpm, blkx.max_rpm);
+        assert_eq!(svc.data.read().unwrap().maximum_thr_rpm, fmdata.max_rpm);
         assert!(svc.data.read().unwrap().get_maximum_rpm);
 
         // updateOptimal: 真机 stages 与协作者 find_optimal_stage_index 对拍

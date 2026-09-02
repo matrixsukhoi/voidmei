@@ -1,5 +1,5 @@
-//! types.rs 单测 — blkx→json 迁移后保留面: 5 个数据类的 Java 语义保真
-//! (文本版燃油修正/cut_static 族及其 oracle 用例已随文本链退役删除,
+//! types.rs 单测 — blkx→json 迁移后保留面: 4 个数据类的 Java 语义保真
+//! (文本版燃油修正/cut_static 族与 XY 曲线容器已随文本链/曲线链退役删除,
 //!  JSON 版等价分支在 json/tests.rs)。
 
 use super::*;
@@ -23,17 +23,6 @@ fn fuel_modification_default_matches_java_initializers() {
     assert_eq!(m.r#type, FuelType::None);
     // Default trait 与 new() 同源 (Java 只有一个构造路径)
     assert_eq!(FuelModification::default().british_afterburner_mult, 1.0);
-}
-
-/// XY::new — 定长零填充数组 + cur=0 (Java 构造器 L227-231)
-#[test]
-fn xy_new_zero_fills_arrays() {
-    let xy = XY::new(5);
-    assert_eq!(xy.x, vec![0.0; 5]);
-    assert_eq!(xy.y, vec![0.0; 5]);
-    assert_eq!(xy.cur, 0);
-    let empty = XY::new(0);
-    assert!(empty.x.is_empty() && empty.y.is_empty(), "num=0 空数组");
 }
 
 /// EngineLoad — Java 隐式零初始化 (§2.10)

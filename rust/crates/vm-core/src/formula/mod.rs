@@ -116,7 +116,7 @@ impl FormulaManager {
             FormulaResults { values: Vec::new() }
         } else {
             let mut store = self.store.lock().expect("状态仓锁中毒");
-            set.eval_frame(&snap, &mut store, now_ms, meta.interval_ms, raw.blkx)
+            set.eval_frame(&snap, &mut store, now_ms, meta.interval_ms, raw.fmdata)
         };
         // 快照缓存供编辑器试算 (求值后 move, 免克隆)
         *self.last_snap.write().expect("快照锁中毒") = Arc::new(snap);
@@ -142,10 +142,10 @@ impl FormulaManager {
         snap: &VarSnapshot,
         now_ms: u64,
         interval_ms: f64,
-        fm_blkx: Option<&crate::blkx::Blkx>,
+        fm_data: Option<&crate::fmdata::FmData>,
     ) -> Result<f64, String> {
         let mut store = StateStore::new();
-        definition::try_eval_single(expr, registry(), snap, &mut store, now_ms, interval_ms, fm_blkx)
+        definition::try_eval_single(expr, registry(), snap, &mut store, now_ms, interval_ms, fm_data)
             .map_err(|e| e.to_string())
     }
 

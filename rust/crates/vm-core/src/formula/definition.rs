@@ -174,7 +174,7 @@ impl CompiledFormulaSet {
         store: &mut StateStore,
         now_ms: u64,
         interval_ms: f64,
-        fm_blkx: Option<&crate::blkx::Blkx>,
+        fm_data: Option<&crate::fmdata::FmData>,
     ) -> FormulaResults {
         let mut results = FormulaResults {
             values: vec![f64::NAN; self.formulas.len()],
@@ -182,7 +182,7 @@ impl CompiledFormulaSet {
         for &slot in &self.order {
             let f = &self.formulas[slot as usize];
             if let Some(rexpr) = &f.rexpr {
-                let ctx = EvalCtx { snap, results: &results, now_ms, interval_ms, fm_blkx };
+                let ctx = EvalCtx { snap, results: &results, now_ms, interval_ms, fm_data };
                 let v = eval(rexpr, &ctx, store).num();
                 results.values[slot as usize] = v;
             }
@@ -408,14 +408,14 @@ pub fn try_eval_single(
     store: &mut StateStore,
     now_ms: u64,
     interval_ms: f64,
-    fm_blkx: Option<&crate::blkx::Blkx>,
+    fm_data: Option<&crate::fmdata::FmData>,
 ) -> Result<f64, CompileError> {
     // 单公式命名空间: 空 slots (无公式间引用), site 从 0 起
     let slots = HashMap::new();
     let mut next_site = 0u32;
     let (rexpr, _sites) = resolve_formula(expr_src, reg, &slots, "", &mut next_site)?;
     let empty = FormulaResults { values: Vec::new() };
-    let ctx = EvalCtx { snap, results: &empty, now_ms, interval_ms, fm_blkx };
+    let ctx = EvalCtx { snap, results: &empty, now_ms, interval_ms, fm_data };
     Ok(eval(&rexpr, &ctx, store).num())
 }
 

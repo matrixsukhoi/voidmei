@@ -28,7 +28,7 @@ pub mod configuration_service;
 pub mod exception_helper;
 pub mod logger;
 pub mod bus;
-pub mod blkx;
+pub mod fmdata;
 pub mod audio;
 pub mod comparison;
 pub mod config_api;

@@ -2194,7 +2194,7 @@ impl ActivationContext for HostActivationCtx {
         // Java OverlayContext.isJet: Blkx != null && Blkx.isJet
         self.fm
             .current()
-            .blkx
+            .fmdata
             .as_ref()
             .map(|b| b.is_jet)
             .unwrap_or(false)
@@ -2202,8 +2202,8 @@ impl ActivationContext for HostActivationCtx {
     fn is_preview_mode(&self) -> bool {
         self.shared.overlay_ctx_preview.load(Ordering::SeqCst)
     }
-    fn has_blkx(&self) -> bool {
-        self.fm.current().blkx.is_some()
+    fn has_fmdata(&self) -> bool {
+        self.fm.current().fmdata.is_some()
     }
 }
 
@@ -2846,7 +2846,7 @@ fn feed_overlays_live(
     // getload 已落地 (reader.rs, 真机位级对拍): READY 句柄的 blkx 翼数据/
     // is_v_wing 恒被 populate, 原过渡期降级守卫 (is_v_wing=None → 无 FM 路径)
     // 已随该波次移除 — VNE/AoA 告警/flapAllowAngle/机动指数全量走 FM 数据
-    let blkx = fm_handle.blkx.as_ref();
+    let fmdata = fm_handle.fmdata.as_ref();
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         // 1. MiniHUD (Java MiniHUDOverlay.onFlightData → invokeLater)
         if let Some(h) = handles.minihud.as_ref() {
@@ -2866,7 +2866,7 @@ fn feed_overlays_live(
                 guard.s_indic.as_ref(),
                 payload,
                 Some(&*guard),
-                blkx,
+                fmdata,
                 settings,
                 &colors,
             );
@@ -2913,7 +2913,7 @@ fn feed_overlays_live(
         if let Some(h) = handles.attitude.as_ref() {
             if now - attitude_feed.last_ms > attitude_feed.freq_ms {
                 attitude_feed.last_ms = now;
-                let aoa_limits = blkx
+                let aoa_limits = fmdata
                     .and_then(|b| b.no_flaps_wing.as_ref())
                     .map(|w| (w.aoa_crit_high, w.aoa_crit_low));
                 h.borrow_mut().update_telemetry(
@@ -3067,9 +3067,9 @@ pub fn win32_thread_main(cfg: Win32ThreadConfig) {
     // FM_CHANGED 载荷 = FMHandle (fm_manager 强类型总线, Java instanceof 过滤由
     // 类型免除)。blkx 深拷一次进通道 (FMHandle.blkx 值字段 → 句柄侧 Arc<Blkx>;
     // 换机事件低频, 成本可忽略)
-    let (fm_blkx_tx, fm_blkx_rx) = std::sync::mpsc::channel::<Option<vm_core::blkx::Blkx>>();
+    let (fm_data_tx, fm_data_rx) = std::sync::mpsc::channel::<Option<vm_core::fmdata::FmData>>();
     let _fm_changed_sub = fm.fm_changed_bus().subscribe(move |h| {
-        let _ = fm_blkx_tx.send(h.blkx.clone());
+        let _ = fm_data_tx.send(h.fmdata.clone());
     });
     // FMUnpackedData 的 run() 轮询泵 (Java BaseOverlay.run 线程的单线程驱动侧,
     // 200ms 节流 + 可见门控 + 高度自适应, 见 FmUnpackedFeed 头注)
@@ -3141,18 +3141,18 @@ pub fn win32_thread_main(cfg: Win32ThreadConfig) {
                     }
                 }
             }
-            while let Ok(blkx) = fm_blkx_rx.try_recv() {
+            while let Ok(fmdata) = fm_data_rx.try_recv() {
                 if fm_live {
                     if let Some(h) = handles.fm_unpacked.as_ref() {
                         // FM_CHANGED handler reloadFMData (:130-136)
-                        h.borrow_mut().reload_fm_data(blkx.clone().map(Arc::new));
+                        h.borrow_mut().reload_fm_data(fmdata.clone().map(Arc::new));
                     }
                 }
                 // DrawFrameSimpl 的 FM_CHANGED (Java initFmHandleCache :79-88 被
                 // init 与 initPreview 共用) — 两会话均刷新缓存 (预览实例同样订阅,
                 // repaint 由渲染节拍脏检查承接)
                 if let Some(h) = handles.draw_frame_simpl.as_ref() {
-                    h.borrow_mut().reload_fm(blkx.map(Arc::new));
+                    h.borrow_mut().reload_fm(fmdata.map(Arc::new));
                 }
             }
             if host.is_active("enableFMPrint") {
@@ -3221,12 +3221,12 @@ pub fn win32_thread_main(cfg: Win32ThreadConfig) {
                         let mut fmov = h.borrow_mut();
                         fmov.base.is_preview = false;
                         fmov.visible = false;
-                        fmov.reload_fm_data(fm.current().blkx.clone().map(Arc::new));
+                        fmov.reload_fm_data(fm.current().fmdata.clone().map(Arc::new));
                     }
                     // 推力曲线游戏形态 (Java init :514-528 的单实例对位):
                     // initFmHandleCache (current 快照) + isPreview=false + 隐藏起步
                     if let Some(h) = handles.draw_frame_simpl.as_ref() {
-                        h.borrow_mut().init(fm.current().blkx.clone().map(Arc::new));
+                        h.borrow_mut().init(fm.current().fmdata.clone().map(Arc::new));
                     }
                     if let Err(e) = host.open_all() {
                         logger::error("OverlayHost", &format!("open_all: {}", e));

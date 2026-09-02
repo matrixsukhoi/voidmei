@@ -1,5 +1,5 @@
 use super::*;
-use crate::blkx::json::extract_fuel_modifications_json;
+use crate::fmdata::json::extract_fuel_modifications_json;
 use crate::piston_power_model::optimal_power_advanced;
 
 /// Java 8 oracle 混合容差 (atmosphere_model.rs / piston_power_model.rs 同款):
@@ -62,8 +62,8 @@ fn exp(
 /// spitfire_f24.blkx (fm) — TestSpitfireF24Power 的被测机
 // PORT: Blkx 含 Java-private 字段 (blkx 模块树内可见, mod.rs 设计), 外部
 /// struct 字面量 + ..default() 不可用 → default() 后逐 pub 字段赋值
-fn spitfire_f24() -> Blkx {
-    let mut b = Blkx::default();
+fn spitfire_f24() -> FmData {
+    let mut b = FmData::default();
     b.comp_num_steps = 2;
     b.is_jet = false;
     b.military_rpm = 2600.0;
@@ -96,8 +96,8 @@ fn spitfire_f24() -> Blkx {
 }
 
 /// yak-3.blkx (fm) — 苏联 B-100 油料 (spm=1.018) 路径
-fn yak3() -> Blkx {
-    let mut b = Blkx::default();
+fn yak3() -> FmData {
+    let mut b = FmData::default();
     b.comp_num_steps = 2;
     b.is_jet = false;
     b.military_rpm = 2700.0;
@@ -131,8 +131,8 @@ fn yak3() -> Blkx {
 
 /// spitfire_ix.blkx (fm) — Merlin 66: RPMNom=3000 > military=2850,
 /// 触发 definition_alt_power_adjuster (含 deck/ceiling 调整与级联)
-fn spitfire_ix() -> Blkx {
-    let mut b = Blkx::default();
+fn spitfire_ix() -> FmData {
+    let mut b = FmData::default();
     b.comp_num_steps = 2;
     b.is_jet = false;
     b.military_rpm = 2850.0;
@@ -166,8 +166,8 @@ fn spitfire_ix() -> Blkx {
 
 /// tempest_mkv.blkx (fm) — Sabre II: invertEnableLogic=true 机型 (150 辛烷为默认,
 /// FM 本身已含 150 辛烷值), RPMMax=3701/RPMAfterburner=3701, GovernorMaxParam=3700
-fn tempest_mkv() -> Blkx {
-    let mut b = Blkx::default();
+fn tempest_mkv() -> FmData {
+    let mut b = FmData::default();
     b.comp_num_steps = 2;
     b.is_jet = false;
     // militaryRPM/wepRPM/governorMaxParam 在 Blkx.getload 中走 Double.parseDouble
@@ -203,7 +203,7 @@ fn tempest_mkv() -> Blkx {
 
 /// 中央文件文本 (types.rs 测试同款格式)
 /// 内嵌中央 JSON → 燃油修正 (serde 解析; 常量合法 JSON, unwrap 恒成功)
-fn fuel_mod_json(central: &str) -> crate::blkx::FuelModification {
+fn fuel_mod_json(central: &str) -> crate::fmdata::FuelModification {
     let root: serde_json::Value = serde_json::from_str(central).unwrap();
     extract_fuel_modifications_json(&root)
 }
@@ -218,11 +218,11 @@ const CENTRAL_TEMPEST_MKV: &str = "{\"modifications\": {\"150_octan_fuel\": {\"i
 
 #[test]
 fn java8_oracle_spitfire_f24_stages() {
-    let blkx = spitfire_f24();
+    let fmdata = spitfire_f24();
     let speed_mm = 0.8f32 as f64;
 
     // 无油料
-    let stages = extract_stages(Some(&blkx)).unwrap();
+    let stages = extract_stages(Some(&fmdata)).unwrap();
     assert_eq!(stages.len(), 2);
     assert_stage("spit_nofuel[0]", &stages[0], &exp(
         4100.0, 1510.0, 1360.0, 0.0, 0.5,
@@ -244,7 +244,7 @@ fn java8_oracle_spitfire_f24_stages() {
     // 150 辛烷 (invertEnableLogic=false → 应用加成, 仅 WEP 参数变化)
     let fuel = fuel_mod_json(CENTRAL_SPITFIRE_F24);
     assert_eq!(fuel.r#type, FuelType::British150Octane);
-    let stages = extract_stages_with_fuel(Some(&blkx), Some(&fuel)).unwrap();
+    let stages = extract_stages_with_fuel(Some(&fmdata), Some(&fuel)).unwrap();
     assert_stage("spit_fuel[0]", &stages[0], &exp(
         4100.0, 1510.0, 1360.0, 0.0, 0.5,
         1502.0, 1.6120470661360677, speed_mm,
@@ -267,9 +267,9 @@ fn java8_oracle_spitfire_f24_stages() {
 
 #[test]
 fn java8_oracle_spitfire_f24_power_curve() {
-    let blkx = spitfire_f24();
+    let fmdata = spitfire_f24();
     let fuel = fuel_mod_json(CENTRAL_SPITFIRE_F24);
-    let stages = extract_stages_with_fuel(Some(&blkx), Some(&fuel)).unwrap();
+    let stages = extract_stages_with_fuel(Some(&fmdata), Some(&fuel)).unwrap();
 
     // Java 实测值 (wtapc 参考表的相同高度点)
     let mil = [
@@ -334,13 +334,13 @@ fn java8_oracle_spitfire_f24_power_curve() {
 
 #[test]
 fn java8_oracle_yak3_soviet_fuel() {
-    let blkx = yak3();
+    let fmdata = yak3();
     let fuel = fuel_mod_json(CENTRAL_YAK3);
     assert_eq!(fuel.r#type, FuelType::SovietB100);
     assert_eq!(fuel.soviet_octane_hp_bonus, 50.0);
 
     // 无油料: 无 WEP 机型 (aftbCoff=1 → wepMult=1, WEP 曲线与军用一致)
-    let stages = extract_stages(Some(&blkx)).unwrap();
+    let stages = extract_stages(Some(&fmdata)).unwrap();
     assert_stage("yak3_nofuel[0]", &stages[0], &exp(
         300.0, 1310.0, 1290.0, 0.0, 1.0,
         300.0, 1.0, 1.0,
@@ -359,7 +359,7 @@ fn java8_oracle_yak3_soviet_fuel() {
     ));
 
     // B-100 (addHorsePowers=50): 全功率值 ×1.018
-    let stages = extract_stages_with_fuel(Some(&blkx), Some(&fuel)).unwrap();
+    let stages = extract_stages_with_fuel(Some(&fmdata), Some(&fuel)).unwrap();
     assert_stage("yak3_fuel[0]", &stages[0], &exp(
         300.0, 1333.58, 1313.22, 0.0, 1.0,
         300.0, 1.0, 1.0,
@@ -382,11 +382,11 @@ fn java8_oracle_yak3_soviet_fuel() {
 
 #[test]
 fn java8_oracle_spitfire_ix_rpm_adjuster() {
-    let blkx = spitfire_ix();
+    let fmdata = spitfire_ix();
     let speed_mm = 0.65f32 as f64;
     let deck_alt_adj = -614.535_722_854_266_6;
 
-    let stages = extract_stages(Some(&blkx)).unwrap();
+    let stages = extract_stages(Some(&fmdata)).unwrap();
     assert_stage("spix_nofuel[0]", &stages[0], &exp(
         3035.0, 1414.9355361480882, 1297.5481529514284, deck_alt_adj, 0.5,
         1986.0, 1.2894766986926651, speed_mm,
@@ -413,7 +413,7 @@ fn java8_oracle_spitfire_ix_rpm_adjuster() {
         r#type: FuelType::British150Octane,
         ..Default::default()
     };
-    let stages = extract_stages_with_fuel(Some(&blkx), Some(&fuel)).unwrap();
+    let stages = extract_stages_with_fuel(Some(&fmdata), Some(&fuel)).unwrap();
     assert_stage("spix_fuel[0]", &stages[0], &exp(
         3035.0, 1414.9355361480882, 1297.5481529514284, deck_alt_adj, 0.5,
         419.0, 1.501_031_452_684_01, speed_mm,
@@ -436,10 +436,10 @@ fn java8_oracle_spitfire_ix_rpm_adjuster() {
 
 #[test]
 fn java8_oracle_tempest_mkv_stages() {
-    let blkx = tempest_mkv();
+    let fmdata = tempest_mkv();
     let speed_mm = 0.7f32 as f64;
 
-    let stages = extract_stages(Some(&blkx)).unwrap();
+    let stages = extract_stages(Some(&fmdata)).unwrap();
     assert_eq!(stages.len(), 2);
     assert_stage("temp_nofuel[0]", &stages[0], &exp(
         1447.0, 2065.0, 1995.0, 0.0, 0.5,
@@ -462,7 +462,7 @@ fn java8_oracle_tempest_mkv_stages() {
     let fuel = fuel_mod_json(CENTRAL_TEMPEST_MKV);
     assert_eq!(fuel.r#type, FuelType::British150Octane);
     assert!(fuel.british_invert_logic);
-    let stages = extract_stages_with_fuel(Some(&blkx), Some(&fuel)).unwrap();
+    let stages = extract_stages_with_fuel(Some(&fmdata), Some(&fuel)).unwrap();
     assert_stage("temp_fuel[0]", &stages[0], &exp(
         1447.0, 2065.0, 1995.0, 0.0, 0.5,
         -276.0, 1.2362353427420838, speed_mm,
@@ -485,8 +485,8 @@ fn java8_oracle_tempest_mkv_stages() {
 
 #[test]
 fn java8_oracle_tempest_mkv_power_curve() {
-    let blkx = tempest_mkv();
-    let stages = extract_stages(Some(&blkx)).unwrap();
+    let fmdata = tempest_mkv();
+    let stages = extract_stages(Some(&fmdata)).unwrap();
 
     // Java 实测值 (invert=true 机型, 油料不改变结果, 与 Java 测试同用无油料级)
     let mil = [
@@ -544,7 +544,7 @@ fn java8_oracle_tempest_mkv_power_curve() {
 #[test]
 fn java8_oracle_synthetic_branches() {
     // syn1: AfterburnerBoostMul1=0 显式禁 WEP + deckPower=0 走 0.8*compPower[0]
-    let mut syn1 = Blkx::default();
+    let mut syn1 = FmData::default();
     syn1.comp_num_steps = 2;
     syn1.comp_alt = Some(vec![4100.0, 8100.0]);
     syn1.comp_power = Some(vec![1510.0, 1340.0]);
@@ -586,7 +586,7 @@ fn java8_oracle_synthetic_branches() {
     ));
 
     // syn2: 旧格式 (无 OmegaFactorSq) + ShaftRPMMax 优先 + ConstRPM 调整
-    let mut syn2 = Blkx::default();
+    let mut syn2 = FmData::default();
     syn2.comp_num_steps = 1;
     syn2.comp_alt = Some(vec![5000.0]);
     syn2.comp_power = Some(vec![1500.0]);
@@ -623,7 +623,7 @@ fn java8_oracle_synthetic_branches() {
     ));
 
     // syn3: militaryMP=0 → wepCritAlt 走 critAlt*0.9 前需先过 mult≈1 早退 (此处 mult=1)
-    let mut syn3_base = Blkx::default();
+    let mut syn3_base = FmData::default();
     syn3_base.comp_num_steps = 1;
     syn3_base.comp_alt = Some(vec![3000.0]);
     syn3_base.comp_power = Some(vec![1200.0]);
@@ -698,7 +698,7 @@ fn java8_oracle_synthetic_branches() {
 
     // syn6: 显式 ExactAltitudes=false + ConstRPM → wepConstRpmAlt 分支 +
     //       AfterburnerPressureBoost>0 + compConstRpm 数组短于级数 (i<len 守卫)
-    let mut syn6 = Blkx::default();
+    let mut syn6 = FmData::default();
     syn6.comp_num_steps = 2;
     syn6.comp_alt = Some(vec![5000.0, 8000.0]);
     syn6.comp_power = Some(vec![1500.0, 1300.0]);
@@ -753,48 +753,48 @@ fn java8_oracle_null_and_guard_boundaries() {
     assert!(extract_stages_with_fuel(None, None).is_none());
 
     // compNumSteps<=0 → null
-    let zero_steps = Blkx::default(); // comp_num_steps 默认 0
+    let zero_steps = FmData::default(); // comp_num_steps 默认 0
     assert!(!is_piston_engine(Some(&zero_steps)));
     assert!(extract_stages(Some(&zero_steps)).is_none());
 
     // isJet → false
-    let mut jet = Blkx::default();
+    let mut jet = FmData::default();
     jet.comp_num_steps = 1;
     jet.is_jet = true;
     assert!(!is_piston_engine(Some(&jet)));
 
     // 有数据时工具函数直读 (Java spitfire 实测: wepBoost=1.41(f32) speedMM=0.8(f32))
-    let blkx = spitfire_f24();
-    assert!(is_piston_engine(Some(&blkx)));
-    check("spit wepBoost", get_wep_boost_factor(Some(&blkx)), 1.409_999_966_621_399);
-    check("spit speedMM", get_speed_manifold_multiplier(Some(&blkx)), 0.800_000_011_920_929);
+    let fmdata = spitfire_f24();
+    assert!(is_piston_engine(Some(&fmdata)));
+    check("spit wepBoost", get_wep_boost_factor(Some(&fmdata)), 1.409_999_966_621_399);
+    check("spit speedMM", get_speed_manifold_multiplier(Some(&fmdata)), 0.800_000_011_920_929);
 }
 
 // ---- TestSpitfireF24Power.testParameterExtraction 断言移植 (fixture 自检) ----
 
 #[test]
 fn java_test_port_parameter_extraction() {
-    let blkx = spitfire_f24();
+    let fmdata = spitfire_f24();
     // assertClose(name, actual, expected, tolerance) — Java 断言逐条
-    assert_eq!(blkx.comp_num_steps as f64, 2.0, "compressor NumSteps");
-    let comp_alt = blkx.comp_alt.as_ref().unwrap();
-    let comp_power = blkx.comp_power.as_ref().unwrap();
+    assert_eq!(fmdata.comp_num_steps as f64, 2.0, "compressor NumSteps");
+    let comp_alt = fmdata.comp_alt.as_ref().unwrap();
+    let comp_power = fmdata.comp_power.as_ref().unwrap();
     assert!((comp_alt[0] - 4100.0).abs() <= 0.0, "Stage 0 altitude");
     assert!((comp_alt[1] - 8100.0).abs() <= 0.0, "Stage 1 altitude");
     assert!((comp_power[0] - 1510.0).abs() <= 0.0, "Stage 0 power");
     assert!((comp_power[1] - 1340.0).abs() <= 0.0, "Stage 1 power");
-    assert!((blkx.aftb_coff - 1.41).abs() <= 0.01, "AfterburnerBoost");
+    assert!((fmdata.aftb_coff - 1.41).abs() <= 0.01, "AfterburnerBoost");
     assert!(
-        (blkx.wep_manifold_pressure - 2.22).abs() <= 0.01,
+        (fmdata.wep_manifold_pressure - 2.22).abs() <= 0.01,
         "AfterburnerManifoldPressure"
     );
     assert!(
-        (blkx.speed_to_manifold_multiplier - 0.8).abs() <= 0.01,
+        (fmdata.speed_to_manifold_multiplier - 0.8).abs() <= 0.01,
         "SpeedManifoldMultiplier"
     );
 
     // assertNotNull + has 2 stages
-    let stages = extract_stages(Some(&blkx));
+    let stages = extract_stages(Some(&fmdata));
     assert!(stages.is_some(), "extracted stages without fuel");
     let stages = stages.unwrap();
     assert_eq!(stages.len(), 2, "has 2 stages");
@@ -804,15 +804,15 @@ fn java_test_port_parameter_extraction() {
 
 #[test]
 fn java_test_port_invert_enable_logic_behavior() {
-    let blkx = spitfire_f24();
+    let fmdata = spitfire_f24();
     let fuel = fuel_mod_json(CENTRAL_SPITFIRE_F24);
     // fuelMod != null 由类型系统保证; Java 的 `fuelMod == null` SKIP 分支不移植
 
     // Since invertEnableLogic is FALSE for Spitfire F24:
     // - The modification represents ADDING 150 octane fuel
     // - WEP parameters SHOULD be boosted when fuel is applied
-    let stages_no_fuel = extract_stages(Some(&blkx)).unwrap();
-    let stages_with_fuel = extract_stages_with_fuel(Some(&blkx), Some(&fuel)).unwrap();
+    let stages_no_fuel = extract_stages(Some(&fmdata)).unwrap();
+    let stages_with_fuel = extract_stages_with_fuel(Some(&fmdata), Some(&fuel)).unwrap();
 
     // With invertEnableLogic=false, fuel mod SHOULD change WEP params
     let mut wep_changed = false;
@@ -840,7 +840,7 @@ fn java_test_port_invert_enable_logic_behavior() {
 /// testParameterExtraction 断言逐条移植
 #[test]
 fn java_test_port_tempest_invert_enable_logic() {
-    let blkx = tempest_mkv();
+    let fmdata = tempest_mkv();
     let fuel = fuel_mod_json(CENTRAL_TEMPEST_MKV);
 
     // fuelMod != null 由类型系统保证; Java 的 SKIP 分支不移植
@@ -850,8 +850,8 @@ fn java_test_port_tempest_invert_enable_logic() {
     assert!(fuel.british_invert_logic, "invertEnableLogic is true (150 octane is default)");
 
     // With invertEnableLogic=true, fuel mod should NOT change WEP params
-    let stages_no_fuel = extract_stages(Some(&blkx)).unwrap();
-    let stages_with_fuel = extract_stages_with_fuel(Some(&blkx), Some(&fuel)).unwrap();
+    let stages_no_fuel = extract_stages(Some(&fmdata)).unwrap();
+    let stages_with_fuel = extract_stages_with_fuel(Some(&fmdata), Some(&fuel)).unwrap();
     let mut wep_unchanged = true;
     for i in 0..stages_no_fuel.len() {
         let no_fuel_mult = stages_no_fuel[i].wep_power_mult;
@@ -871,8 +871,8 @@ fn java_test_port_tempest_invert_enable_logic() {
     );
 
     // assertClose(name, actual, expected, tolerance) — Java 断言逐条
-    assert_eq!(blkx.comp_num_steps as f64, 2.0, "compressor NumSteps");
-    let comp_alt = blkx.comp_alt.as_ref().unwrap();
+    assert_eq!(fmdata.comp_num_steps as f64, 2.0, "compressor NumSteps");
+    let comp_alt = fmdata.comp_alt.as_ref().unwrap();
     // 期望值须跟随游戏 FM 数据版本更新 (WT 2.57.1.103 中 Altitude0 已从 1730 → 1447)
     assert!((comp_alt[0] - 1447.0).abs() <= 50.0, "Stage 0 altitude");
     assert!((comp_alt[1] - 5000.0).abs() <= 200.0, "Stage 1 altitude");
@@ -883,8 +883,8 @@ fn java_test_port_tempest_invert_enable_logic() {
 /// (wtapc 参考表, 300 km/h IAS, 15C)
 #[test]
 fn java_test_port_tempest_power_curve() {
-    let blkx = tempest_mkv();
-    let stages = extract_stages(Some(&blkx)).unwrap();
+    let fmdata = tempest_mkv();
+    let stages = extract_stages(Some(&fmdata)).unwrap();
 
     let wtapc_mil = [
         (0.0, 1982.4), (1000.0, 2031.5), (1730.0, 2064.7),

@@ -1,5 +1,5 @@
 use super::*;
-use crate::blkx::{FmParts, SweepLevel};
+use crate::fmdata::{FmParts, SweepLevel};
 use crate::config_api::overlay_settings::OverlaySettings;
 use crate::event::event_payload::EventPayload;
 
@@ -225,8 +225,8 @@ fn mk_indic(aviahp: f64, aviar: f64, wsweep: f64) -> Indicators {
 
 /// oracle: spit_flds — 真机 spitfire_f24 经 Java getload 后 calculate 消费的字段
 /// (Rust Blkx::parse 等价 doLoad=false, 手工复原同一 FM 状态)
-fn spitfire_blkx() -> Blkx {
-    let mut b = Blkx::default();
+fn spitfire_fmdata() -> FmData {
+    let mut b = FmData::default();
     b.valid = true;
     b.is_v_wing = Some(false);
     b.nofuelweight = f64::from_bits(0x40ac_0566_6680_0000); // 3586.7000007629395
@@ -248,8 +248,8 @@ fn spitfire_blkx() -> Blkx {
 }
 
 /// oracle: vw_flds — 手搓可变翼 FM (Java doLoad=false + 逐字段赋值)
-fn vwing_blkx() -> Blkx {
-    let mut vw = Blkx::default();
+fn vwing_fmdata() -> FmData {
+    let mut vw = FmData::default();
     vw.valid = true;
     vw.is_v_wing = Some(true);
     vw.nofuelweight = 3000.0;
@@ -295,8 +295,8 @@ fn vwing_blkx() -> Blkx {
 }
 
 /// oracle: dw_flds — 手搓降序行 FM (覆盖 else 分支 i-1 精确相等早退)
-fn descending_blkx() -> Blkx {
-    let mut dw = Blkx::default();
+fn descending_fmdata() -> FmData {
+    let mut dw = FmData::default();
     dw.valid = true;
     dw.is_v_wing = Some(false);
     dw.nofuelweight = 2500.0;
@@ -417,7 +417,7 @@ fn s4_full_telemetry_without_fm() {
     assert_eq!(h.flaps, 50.0);
     assert_eq!(h.gear, 100.0);
     assert_eq!(h.airbrake, 80.0);
-    assert_eq!(h.flap_allow_angle, 125.0); // blkx=null 短路
+    assert_eq!(h.flap_allow_angle, 125.0); // fmdata=null 短路
     assert_eq!(h.energy_m.to_bits(), 0x4097_c6f0_5397_829c);
     assert_eq!(h.g_load.to_bits(), 0x4004_cccc_cccc_cccd);
     assert_eq!(h.maneuver_index, 0.0);
@@ -463,7 +463,7 @@ fn s5_spitfire_real_fm_values() {
     let st = mk_state(0.35, 100, 0, 55, 100, 350.0, 1.0, 1.0);
     let ind = mk_indic(-2.5, 15.0, -65535.0);
     let payload = EventPayload::builder().build();
-    let fm = spitfire_blkx();
+    let fm = spitfire_fmdata();
     let h = calculate(Some(&st), Some(&ind), &payload, Some(&src), Some(&fm), &hud, &COLORS);
 
     assert_eq!(h.pitch.to_bits(), 0x4004_0000_0000_0000); // 2.5 = -(-2.5)
@@ -521,7 +521,7 @@ fn s6_mach_mode_and_stall_warning() {
         .time_str(String::new()).build();
     let st = mk_state(-65535.0, 50, 100, 0, 0, 60.0, 30.5, 0.25);
     let ind = mk_indic(3.0, -65535.0, -65535.0);
-    let fm = spitfire_blkx();
+    let fm = spitfire_fmdata();
     let h = calculate(Some(&st), Some(&ind), &payload, Some(&src), Some(&fm), &hud, &COLORS);
 
     assert!(h.is_mach_mode);
@@ -555,7 +555,7 @@ fn s6_mach_mode_and_stall_warning() {
 #[test]
 fn s7_vwing_flap_allow_angle_branches() {
     let hud = MockHud { aoa_warn_ratio: 0.85, aoa_bar_warn_ratio: 0.95, ..Default::default() };
-    let vw = vwing_blkx();
+    let vw = vwing_fmdata();
     // (ias, 期望 flapAllowAngle 位级, 期望 warnVne)
     let cases: &[(f64, u64, bool)] = &[
         (0.0, 0x405f_4000_0000_0000, false),   // 125 (ias==0 短路)
@@ -593,7 +593,7 @@ fn s7_vwing_flap_allow_angle_branches() {
 #[test]
 fn s9_descending_rows_early_return_and_clamp() {
     let hud = MockHud { aoa_warn_ratio: 0.85, aoa_bar_warn_ratio: 0.95, ..Default::default() };
-    let dw = descending_blkx();
+    let dw = descending_fmdata();
     let st = mk_state(0.2, 105, 40, 30, 60, 520.0, 6.2, -0.8);
     let ind = mk_indic(2.0, -3.0, -65535.0);
     let payload = EventPayload::builder().map_grid("B2".to_string())
@@ -639,7 +639,7 @@ fn s9_descending_rows_early_return_and_clamp() {
 #[test]
 fn s10_invalid_fm_short_circuits() {
     let hud = MockHud { aoa_warn_ratio: 0.85, aoa_bar_warn_ratio: 0.95, ..Default::default() };
-    let mut bad = descending_blkx();
+    let mut bad = descending_fmdata();
     bad.valid = false;
     let src = mk_src(250.0, 0.5, 1000.0, 300.0, 1.0, 90.0, 2000.0, 0.0, 0.0, 0.0, 0.0,
         110.0, true, false, 0.0);

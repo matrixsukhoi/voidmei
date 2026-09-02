@@ -32,7 +32,7 @@
 // → Rust 自由函数模块无实例化概念, 天然满足
 
 use crate::atmosphere_model::{altitude_at_pressure, pressure};
-use crate::blkx::{Blkx, FuelModification, FuelType};
+use crate::fmdata::{FmData, FuelModification, FuelType};
 use crate::piston_power_model::{
     interpolate_power, supercharger_rpm_effect, torque_rpm_boost, CompressorStageParams,
 };
@@ -49,8 +49,8 @@ const SOVIET_OCTANE_POWER_MULT: f64 = 1.018;
 // PORT: Java `extractStages(Blkx)` / `extractStages(Blkx, FuelModification)` 重载 →
 // Rust 无函数重载, 双参版更名 extract_stages_with_fuel (interpolation.rs 的
 // interp1d_extrapolate 先例); Java 可 null 的对象参数 → Option<&Blkx> (§1)
-pub fn extract_stages(blkx: Option<&Blkx>) -> Option<Vec<CompressorStageParams>> {
-    extract_stages_with_fuel(blkx, None)
+pub fn extract_stages(fmdata: Option<&FmData>) -> Option<Vec<CompressorStageParams>> {
+    extract_stages_with_fuel(fmdata, None)
 }
 
 /// Extracts compressor stage parameters from a parsed Blkx FM file,
@@ -66,16 +66,16 @@ pub fn extract_stages(blkx: Option<&Blkx>) -> Option<Vec<CompressorStageParams>>
 ///
 /// Returns array of CompressorStageParams, or None if not a piston engine
 pub fn extract_stages_with_fuel(
-    blkx: Option<&Blkx>,
+    fmdata: Option<&FmData>,
     fuel_mod: Option<&FuelModification>,
 ) -> Option<Vec<CompressorStageParams>> {
     // PORT: Java `blkx == null || blkx.compNumSteps <= 0 → return null`;
     // ? 运算符承接 null 分支, i32<=0 守卫同时排除 as usize 的负值风险 (§2.2)
-    let blkx = blkx?;
-    if blkx.comp_num_steps <= 0 {
+    let fmdata = fmdata?;
+    if fmdata.comp_num_steps <= 0 {
         return None;
     }
-    let n = blkx.comp_num_steps as usize;
+    let n = fmdata.comp_num_steps as usize;
 
     // === Soviet octane: compute power multiplier ===
     // Applied to raw Compressor power values BEFORE deck_power_maker and
@@ -87,24 +87,24 @@ pub fn extract_stages_with_fuel(
     // PORT: Java 对 comp* 数组直接索引 (compNumSteps>0 时 reader 在 getload
     // L998-1006/L1036 与 compNumSteps 同批分配, null 即 NPE 崩溃) — unwrap
     // 对齐该 NPE 语义 (§1: null → Option; 此处 None = 原程序已崩溃的病态输入)
-    let comp_alt = blkx.comp_alt.as_ref().unwrap();
-    let comp_power = blkx.comp_power.as_ref().unwrap();
-    let comp_ceil = blkx.comp_ceil.as_ref().unwrap();
-    let comp_ceil_pwr = blkx.comp_ceil_pwr.as_ref().unwrap();
-    let comp_rpm_ratio = blkx.comp_rpm_ratio.as_ref().unwrap();
-    let comp_boost = blkx.comp_boost.as_ref().unwrap();
+    let comp_alt = fmdata.comp_alt.as_ref().unwrap();
+    let comp_power = fmdata.comp_power.as_ref().unwrap();
+    let comp_ceil = fmdata.comp_ceil.as_ref().unwrap();
+    let comp_ceil_pwr = fmdata.comp_ceil_pwr.as_ref().unwrap();
+    let comp_rpm_ratio = fmdata.comp_rpm_ratio.as_ref().unwrap();
+    let comp_boost = fmdata.comp_boost.as_ref().unwrap();
 
     // Detect ExactAltitudes:
     // 1. If explicitly defined in FM file, use that
     // 2. Otherwise, if CompressorOmegaFactorSq is missing, set true (old format)
-    let exact_altitudes = if let Some(explicit) = blkx.explicit_exact_altitudes {
+    let exact_altitudes = if let Some(explicit) = fmdata.explicit_exact_altitudes {
         explicit
     } else {
-        !blkx.has_comp_omega_factor_sq
+        !fmdata.has_comp_omega_factor_sq
     };
 
     // Determine "default RPM" — the RPM at which FM power values are defined
-    let default_rpm = determine_default_rpm(blkx);
+    let default_rpm = determine_default_rpm(fmdata);
 
     let mut stages: Vec<CompressorStageParams> = vec![CompressorStageParams::default(); n];
 
@@ -133,11 +133,11 @@ pub fn extract_stages_with_fuel(
         // PORT: Java `blkx.compConstRpmAlt != null && i < compConstRpmAlt.length`;
         // compConstRpmPower 与 compConstRpmAlt 同批分配 (getload L1005-1006),
         // 前者非空后者必非空 — unwrap 对齐 NPE
-        if let Some(const_rpm_alt) = blkx.comp_const_rpm_alt.as_ref() {
+        if let Some(const_rpm_alt) = fmdata.comp_const_rpm_alt.as_ref() {
             if i < const_rpm_alt.len() {
                 stages[i].const_rpm_alt = const_rpm_alt[i];
                 stages[i].const_rpm_power =
-                    blkx.comp_const_rpm_power.as_ref().unwrap()[i] * spm;
+                    fmdata.comp_const_rpm_power.as_ref().unwrap()[i] * spm;
             }
         }
 
@@ -153,8 +153,8 @@ pub fn extract_stages_with_fuel(
         };
 
         // RAM effect coefficient
-        stages[i].speed_manifold_mult = if blkx.speed_to_manifold_multiplier > 0.0 {
-            blkx.speed_to_manifold_multiplier
+        stages[i].speed_manifold_mult = if fmdata.speed_to_manifold_multiplier > 0.0 {
+            fmdata.speed_to_manifold_multiplier
         } else {
             1.0
         };
@@ -162,8 +162,8 @@ pub fn extract_stages_with_fuel(
         // Deck power: WAPC deck_power_maker logic
         // Stage 0: Main.Power (with Soviet octane); Stage 1+: 0.8× previous stage DECK power
         if i == 0 {
-            stage_deck_power[i] = (if blkx.deck_power > 0.0 {
-                blkx.deck_power
+            stage_deck_power[i] = (if fmdata.deck_power > 0.0 {
+                fmdata.deck_power
             } else {
                 comp_power[0] * 0.8
             }) * spm;
@@ -180,13 +180,13 @@ pub fn extract_stages_with_fuel(
     // --- Pass 2: definition_alt_power_adjuster ---
     // If FM power/altitude is defined for a higher RPM (WEP or default RPM) rather
     // than military RPM, adjust to military RPM baseline
-    let needs_rpm_adjustment = needs_rpm_adjustment(blkx, default_rpm);
+    let needs_rpm_adjustment = needs_rpm_adjustment(fmdata, default_rpm);
 
     for i in 0..n {
         if needs_rpm_adjustment {
             adjust_power_and_altitude(
                 &mut stages[i],
-                blkx,
+                fmdata,
                 i,
                 default_rpm,
                 &mut stage_deck_power,
@@ -209,7 +209,7 @@ pub fn extract_stages_with_fuel(
         stages[i].old_power_new_rpm = stages[i].old_power;
         if needs_rpm_adjustment {
             stages[i].old_power_new_rpm =
-                stages[i].old_power / torque_rpm_boost(blkx.military_rpm, default_rpm);
+                stages[i].old_power / torque_rpm_boost(fmdata.military_rpm, default_rpm);
         }
     }
 
@@ -221,19 +221,19 @@ pub fn extract_stages_with_fuel(
 
     // --- Pass 3: WEP parameters ---
     for i in 0..n {
-        stages[i].wep_power_mult = calculate_wep_multiplier(blkx, i);
-        stages[i].wep_crit_alt = calculate_wep_critical_altitude(blkx, &stages[i], i);
-        stages[i].wep_deck_alt = calculate_wep_deck_altitude(blkx, &stages[i], i);
+        stages[i].wep_power_mult = calculate_wep_multiplier(fmdata, i);
+        stages[i].wep_crit_alt = calculate_wep_critical_altitude(fmdata, &stages[i], i);
+        stages[i].wep_deck_alt = calculate_wep_deck_altitude(fmdata, &stages[i], i);
 
         // WEP ConstRPM altitude (for non-ExactAltitudes FMs like F2G-1)
         if !exact_altitudes && stages[i].const_rpm_alt != 0.0 && stages[i].const_rpm_power > 0.0 {
-            stages[i].wep_const_rpm_alt = calculate_wep_const_rpm_altitude(blkx, &stages[i], i);
+            stages[i].wep_const_rpm_alt = calculate_wep_const_rpm_altitude(fmdata, &stages[i], i);
         }
 
         // Handle AfterburnerBoostMul explicitly set to 0 (no WEP for this stage)
         // Only disable WEP if the field EXISTS and is explicitly 0
         // If field is missing, WEP uses global AfterburnerBoost (handled by calculateWepMultiplier)
-        let has_boost = blkx.has_comp_boost.as_ref().is_some_and(|hb| hb[i]);
+        let has_boost = fmdata.has_comp_boost.as_ref().is_some_and(|hb| hb[i]);
         if has_boost && comp_boost[i] == 0.0 {
             stages[i].wep_deck_alt = 0.0;
             stages[i].wep_crit_alt = stages[i].crit_alt;
@@ -245,7 +245,7 @@ pub fn extract_stages_with_fuel(
     // Applied after WEP extraction, matching WAPC order where
     // brrritish_octane_adder modifies OctaneAfterburnerMult before wep_mulitiplierer
     if let Some(fm) = fuel_mod {
-        apply_british_octane_bonus(&mut stages, fm, blkx);
+        apply_british_octane_bonus(&mut stages, fm, fmdata);
     }
 
     Some(stages)
@@ -290,8 +290,8 @@ fn compute_soviet_power_multiplier(fuel_mod: Option<&FuelModification>) -> f64 {
 
 /// Checks if the FM defines power values at a higher RPM than military RPM.
 /// If so, the power/altitude values need to be adjusted down to military RPM baseline.
-fn needs_rpm_adjustment(blkx: &Blkx, default_rpm: f64) -> bool {
-    (default_rpm - blkx.military_rpm) > 5.0
+fn needs_rpm_adjustment(fmdata: &FmData, default_rpm: f64) -> bool {
+    (default_rpm - fmdata.military_rpm) > 5.0
 }
 
 /// Determines the "default RPM" — the RPM at which FM file power values are defined.
@@ -303,23 +303,23 @@ fn needs_rpm_adjustment(blkx: &Blkx, default_rpm: f64) -> bool {
 ///   <li>GovernorMaxParam: if far from military RPM</li>
 ///   <li>Fallback: military RPM (no adjustment needed)</li>
 /// </ol>
-fn determine_default_rpm(blkx: &Blkx) -> f64 {
+fn determine_default_rpm(fmdata: &FmData) -> f64 {
     // Priority 1: ShaftRPMMax close to WEP but far from military
-    if blkx.shaft_rpm_max > 0.0
-        && (blkx.shaft_rpm_max - blkx.military_rpm) > 5.0
-        && (blkx.shaft_rpm_max - blkx.wep_rpm) < 5.0
+    if fmdata.shaft_rpm_max > 0.0
+        && (fmdata.shaft_rpm_max - fmdata.military_rpm) > 5.0
+        && (fmdata.shaft_rpm_max - fmdata.wep_rpm) < 5.0
     {
-        return blkx.shaft_rpm_max;
+        return fmdata.shaft_rpm_max;
     }
     // Priority 2: RPMNom far from military
-    if blkx.rpm_nom > 0.0 && (blkx.rpm_nom - blkx.military_rpm) > 5.0 {
-        return blkx.rpm_nom;
+    if fmdata.rpm_nom > 0.0 && (fmdata.rpm_nom - fmdata.military_rpm) > 5.0 {
+        return fmdata.rpm_nom;
     }
     // Priority 3: GovernorMaxParam far from military
-    if blkx.governor_max_param > 0.0 && (blkx.governor_max_param - blkx.military_rpm) > 5.0 {
-        return blkx.governor_max_param;
+    if fmdata.governor_max_param > 0.0 && (fmdata.governor_max_param - fmdata.military_rpm) > 5.0 {
+        return fmdata.governor_max_param;
     }
-    blkx.military_rpm
+    fmdata.military_rpm
 }
 
 /// Adjusts power and critical altitude from default RPM to military RPM.
@@ -337,36 +337,36 @@ fn determine_default_rpm(blkx: &Blkx) -> f64 {
 // 命名 _spm 为 Rust 未用形参约定 (审查意见: 收窄原函数级 #[allow(unused_variables)])
 fn adjust_power_and_altitude(
     stage: &mut CompressorStageParams,
-    blkx: &Blkx,
+    fmdata: &FmData,
     i: usize,
     default_rpm: f64,
     stage_deck_power: &mut [f64],
     _spm: f64,
 ) {
-    let military_mp = blkx.military_mp;
+    let military_mp = fmdata.military_mp;
     if military_mp <= 0.0 {
         return;
     }
 
-    let rpm_boost = torque_rpm_boost(blkx.military_rpm, default_rpm);
+    let rpm_boost = torque_rpm_boost(fmdata.military_rpm, default_rpm);
     if rpm_boost <= 0.0 || (rpm_boost - 1.0).abs() < 0.001 {
         return;
     }
 
     // Calculate supercharger effect to find adjusted critical altitude
-    let pressure_at_rpm0 = if blkx.comp_pressure_at_rpm0 > 0.0 {
-        blkx.comp_pressure_at_rpm0
+    let pressure_at_rpm0 = if fmdata.comp_pressure_at_rpm0 > 0.0 {
+        fmdata.comp_pressure_at_rpm0
     } else {
         0.3
     };
     // WAPC: missing → 1.0; explicit 0 → 0
-    let omega_factor_sq = if blkx.has_comp_omega_factor_sq {
-        blkx.comp_omega_factor_sq
+    let omega_factor_sq = if fmdata.has_comp_omega_factor_sq {
+        fmdata.comp_omega_factor_sq
     } else {
         1.0
     };
     let default_mil_rpm_effect = supercharger_rpm_effect(
-        blkx.military_rpm,
+        fmdata.military_rpm,
         default_rpm,
         pressure_at_rpm0,
         omega_factor_sq,
@@ -387,10 +387,10 @@ fn adjust_power_and_altitude(
 
     // Adjust power: interpolate on original curve at new crit alt, then divide by RPM boost
     // Note: deckPowerRatio uses raw blkx values — the spm cancels in the ratio
-    let comp_power = blkx.comp_power.as_ref().unwrap(); // PORT: unwrap=Java NPE, 见函数头注
-    let comp_alt = blkx.comp_alt.as_ref().unwrap();
-    let deck_power_ratio = if blkx.deck_power > 0.0 && stage.old_power > 0.0 {
-        blkx.deck_power / comp_power[0]
+    let comp_power = fmdata.comp_power.as_ref().unwrap(); // PORT: unwrap=Java NPE, 见函数头注
+    let comp_alt = fmdata.comp_alt.as_ref().unwrap();
+    let deck_power_ratio = if fmdata.deck_power > 0.0 && stage.old_power > 0.0 {
+        fmdata.deck_power / comp_power[0]
     } else {
         0.8
     };
@@ -450,22 +450,22 @@ fn adjust_power_and_altitude(
 ///          x AfterburnerBoostMul[i]
 ///          x torque_rpm_boost(military_RPM, WEP_RPM)
 /// </pre>
-fn calculate_wep_multiplier(blkx: &Blkx, stage_index: usize) -> f64 {
-    let comp_boost = blkx.comp_boost.as_ref().unwrap(); // PORT: unwrap=Java NPE, 见函数头注
-    let afterburner_boost = if blkx.aftb_coff > 0.0 {
-        blkx.aftb_coff
+fn calculate_wep_multiplier(fmdata: &FmData, stage_index: usize) -> f64 {
+    let comp_boost = fmdata.comp_boost.as_ref().unwrap(); // PORT: unwrap=Java NPE, 见函数头注
+    let afterburner_boost = if fmdata.aftb_coff > 0.0 {
+        fmdata.aftb_coff
     } else {
         1.0
     };
-    let octane_mult = if blkx.octane_afterburner_mult > 0.0 {
-        blkx.octane_afterburner_mult
+    let octane_mult = if fmdata.octane_afterburner_mult > 0.0 {
+        fmdata.octane_afterburner_mult
     } else {
         1.0
     };
     let boost_effect = 1.0 + (afterburner_boost - 1.0) * octane_mult;
 
-    let throttle_boost = if blkx.throttle_boost > 0.0 {
-        blkx.throttle_boost
+    let throttle_boost = if fmdata.throttle_boost > 0.0 {
+        fmdata.throttle_boost
     } else {
         1.0
     };
@@ -474,25 +474,25 @@ fn calculate_wep_multiplier(blkx: &Blkx, stage_index: usize) -> f64 {
     } else {
         1.0
     };
-    let rpm_boost = torque_rpm_boost(blkx.military_rpm, blkx.wep_rpm);
+    let rpm_boost = torque_rpm_boost(fmdata.military_rpm, fmdata.wep_rpm);
 
     boost_effect * throttle_boost * stage_mult * rpm_boost
 }
 
 /// Calculates the WEP critical altitude using supercharger pressure model.
 fn calculate_wep_critical_altitude(
-    blkx: &Blkx,
+    fmdata: &FmData,
     stage: &CompressorStageParams,
     stage_index: usize,
 ) -> f64 {
     // If WEP power multiplier ≈ 1.0, WEP is effectively military — no altitude shift
-    let wep_mult = calculate_wep_multiplier(blkx, stage_index);
+    let wep_mult = calculate_wep_multiplier(fmdata, stage_index);
     if (wep_mult - 1.0).abs() < 0.001 {
         return stage.crit_alt;
     }
 
-    let military_mp = blkx.military_mp;
-    let wep_mp = blkx.wep_manifold_pressure;
+    let military_mp = fmdata.military_mp;
+    let wep_mp = fmdata.wep_manifold_pressure;
 
     if military_mp <= 0.0 || wep_mp <= 0.0 {
         return stage.crit_alt * 0.9;
@@ -503,23 +503,23 @@ fn calculate_wep_critical_altitude(
     let supercharger_strength = military_mp / crit_pressure;
 
     // WAPC: missing → 1.0; explicit 0 → 0
-    let omega_factor_sq = if blkx.has_comp_omega_factor_sq {
-        blkx.comp_omega_factor_sq
+    let omega_factor_sq = if fmdata.has_comp_omega_factor_sq {
+        fmdata.comp_omega_factor_sq
     } else {
         1.0
     };
     let rpm_effect = supercharger_rpm_effect(
-        blkx.military_rpm,
-        blkx.wep_rpm,
-        if blkx.comp_pressure_at_rpm0 > 0.0 {
-            blkx.comp_pressure_at_rpm0
+        fmdata.military_rpm,
+        fmdata.wep_rpm,
+        if fmdata.comp_pressure_at_rpm0 > 0.0 {
+            fmdata.comp_pressure_at_rpm0
         } else {
             0.3
         },
         omega_factor_sq,
     );
 
-    let pressure_boost = match blkx.comp_afterburner_pressure_boost.as_ref() {
+    let pressure_boost = match fmdata.comp_afterburner_pressure_boost.as_ref() {
         Some(v) if stage_index < v.len() && v[stage_index] > 0.0 => v[stage_index],
         _ => 1.0,
     };
@@ -532,40 +532,40 @@ fn calculate_wep_critical_altitude(
 
 /// Calculates the WEP deck altitude.
 fn calculate_wep_deck_altitude(
-    blkx: &Blkx,
+    fmdata: &FmData,
     stage: &CompressorStageParams,
     stage_index: usize,
 ) -> f64 {
     // If WEP power multiplier ≈ 1.0, WEP is effectively military — no deck shift
-    let wep_mult = calculate_wep_multiplier(blkx, stage_index);
+    let wep_mult = calculate_wep_multiplier(fmdata, stage_index);
     if (wep_mult - 1.0).abs() < 0.001 {
         return stage.deck_alt;
     }
 
-    let military_mp = blkx.military_mp;
-    let wep_mp = blkx.wep_manifold_pressure;
+    let military_mp = fmdata.military_mp;
+    let wep_mp = fmdata.wep_manifold_pressure;
 
     if military_mp <= 0.0 || wep_mp <= 0.0 {
         return 0.0;
     }
 
     let deck_strength = military_mp / pressure(stage.deck_alt);
-    let omega_factor_sq = if blkx.has_comp_omega_factor_sq {
-        blkx.comp_omega_factor_sq
+    let omega_factor_sq = if fmdata.has_comp_omega_factor_sq {
+        fmdata.comp_omega_factor_sq
     } else {
         1.0
     };
     let rpm_effect = supercharger_rpm_effect(
-        blkx.military_rpm,
-        blkx.wep_rpm,
-        if blkx.comp_pressure_at_rpm0 > 0.0 {
-            blkx.comp_pressure_at_rpm0
+        fmdata.military_rpm,
+        fmdata.wep_rpm,
+        if fmdata.comp_pressure_at_rpm0 > 0.0 {
+            fmdata.comp_pressure_at_rpm0
         } else {
             0.3
         },
         omega_factor_sq,
     );
-    let pressure_boost = match blkx.comp_afterburner_pressure_boost.as_ref() {
+    let pressure_boost = match fmdata.comp_afterburner_pressure_boost.as_ref() {
         Some(v) if stage_index < v.len() && v[stage_index] > 0.0 => v[stage_index],
         _ => 1.0,
     };
@@ -577,34 +577,34 @@ fn calculate_wep_deck_altitude(
 
 /// Calculates the WEP ConstRPM altitude for non-ExactAltitudes FMs.
 fn calculate_wep_const_rpm_altitude(
-    blkx: &Blkx,
+    fmdata: &FmData,
     stage: &CompressorStageParams,
     stage_index: usize,
 ) -> f64 {
-    let military_mp = blkx.military_mp;
-    let wep_mp = blkx.wep_manifold_pressure;
+    let military_mp = fmdata.military_mp;
+    let wep_mp = fmdata.wep_manifold_pressure;
 
     if military_mp <= 0.0 || wep_mp <= 0.0 || stage.const_rpm_alt == 0.0 {
         return 0.0;
     }
 
     let const_rpm_strength = military_mp / pressure(stage.const_rpm_alt);
-    let omega_factor_sq = if blkx.has_comp_omega_factor_sq {
-        blkx.comp_omega_factor_sq
+    let omega_factor_sq = if fmdata.has_comp_omega_factor_sq {
+        fmdata.comp_omega_factor_sq
     } else {
         1.0
     };
     let rpm_effect = supercharger_rpm_effect(
-        blkx.military_rpm,
-        blkx.wep_rpm,
-        if blkx.comp_pressure_at_rpm0 > 0.0 {
-            blkx.comp_pressure_at_rpm0
+        fmdata.military_rpm,
+        fmdata.wep_rpm,
+        if fmdata.comp_pressure_at_rpm0 > 0.0 {
+            fmdata.comp_pressure_at_rpm0
         } else {
             0.3
         },
         omega_factor_sq,
     );
-    let pressure_boost = match blkx.comp_afterburner_pressure_boost.as_ref() {
+    let pressure_boost = match fmdata.comp_afterburner_pressure_boost.as_ref() {
         Some(v) if stage_index < v.len() && v[stage_index] > 0.0 => v[stage_index],
         _ => 1.0,
     };
@@ -632,7 +632,7 @@ fn calculate_wep_const_rpm_altitude(
 fn apply_british_octane_bonus(
     stages: &mut [CompressorStageParams],
     fuel_mod: &FuelModification,
-    blkx: &Blkx,
+    fmdata: &FmData,
 ) {
     let is_british = fuel_mod.r#type == FuelType::British150Octane
         || fuel_mod.r#type == FuelType::British100Spitfire;
@@ -654,19 +654,19 @@ fn apply_british_octane_bonus(
 
     // Recompute WEP power multiplier with fuel's afterburnerMult replacing OctaneAfterburnerMult
     // WAPC: Main["OctaneAfterburnerMult"] = fuel's afterburnerMult
-    let afterburner_boost = if blkx.aftb_coff > 0.0 {
-        blkx.aftb_coff
+    let afterburner_boost = if fmdata.aftb_coff > 0.0 {
+        fmdata.aftb_coff
     } else {
         1.0
     };
-    let throttle_boost = if blkx.throttle_boost > 0.0 {
-        blkx.throttle_boost
+    let throttle_boost = if fmdata.throttle_boost > 0.0 {
+        fmdata.throttle_boost
     } else {
         1.0
     };
-    let rpm_boost = torque_rpm_boost(blkx.military_rpm, blkx.wep_rpm);
+    let rpm_boost = torque_rpm_boost(fmdata.military_rpm, fmdata.wep_rpm);
 
-    let comp_boost = blkx.comp_boost.as_ref().unwrap(); // PORT: unwrap=Java NPE, 见函数头注
+    let comp_boost = fmdata.comp_boost.as_ref().unwrap(); // PORT: unwrap=Java NPE, 见函数头注
     for i in 0..stages.len() {
         let stage_mult = if comp_boost[i] > 0.0 {
             comp_boost[i]
@@ -675,7 +675,7 @@ fn apply_british_octane_bonus(
         };
 
         // Handle stages with explicitly disabled WEP
-        let has_boost = blkx.has_comp_boost.as_ref().is_some_and(|hb| hb[i]);
+        let has_boost = fmdata.has_comp_boost.as_ref().is_some_and(|hb| hb[i]);
         if has_boost && comp_boost[i] == 0.0 {
             continue;
         }
@@ -686,34 +686,34 @@ fn apply_british_octane_bonus(
 
         // Recalculate WEP critical altitude with fuel's compressor boost
         // WAPC: Octane_MP = Military_MP + (WEP_MP - Military_MP) × afterburnerCompressorMult
-        if blkx.military_mp > 0.0
-            && blkx.wep_manifold_pressure > 0.0
+        if fmdata.military_mp > 0.0
+            && fmdata.wep_manifold_pressure > 0.0
             && (stages[i].wep_power_mult - 1.0).abs() > 0.001
         {
-            let octane_mp = blkx.military_mp
-                + (blkx.wep_manifold_pressure - blkx.military_mp)
+            let octane_mp = fmdata.military_mp
+                + (fmdata.wep_manifold_pressure - fmdata.military_mp)
                     * fuel_mod.british_afterburner_compressor_mult;
 
             let crit_pressure = pressure(stages[i].crit_alt);
-            let supercharger_strength = blkx.military_mp / crit_pressure;
+            let supercharger_strength = fmdata.military_mp / crit_pressure;
 
-            let omega_factor_sq = if blkx.has_comp_omega_factor_sq {
-                blkx.comp_omega_factor_sq
+            let omega_factor_sq = if fmdata.has_comp_omega_factor_sq {
+                fmdata.comp_omega_factor_sq
             } else {
                 1.0
             };
             let rpm_effect = supercharger_rpm_effect(
-                blkx.military_rpm,
-                blkx.wep_rpm,
-                if blkx.comp_pressure_at_rpm0 > 0.0 {
-                    blkx.comp_pressure_at_rpm0
+                fmdata.military_rpm,
+                fmdata.wep_rpm,
+                if fmdata.comp_pressure_at_rpm0 > 0.0 {
+                    fmdata.comp_pressure_at_rpm0
                 } else {
                     0.3
                 },
                 omega_factor_sq,
             );
 
-            let base_pressure_boost = match blkx.comp_afterburner_pressure_boost.as_ref() {
+            let base_pressure_boost = match fmdata.comp_afterburner_pressure_boost.as_ref() {
                 Some(v) if i < v.len() && v[i] > 0.0 => v[i],
                 _ => 1.0,
             };
@@ -734,9 +734,9 @@ fn apply_british_octane_bonus(
 /// - `blkx`: parsed FM file data
 ///
 /// Returns true if piston engine (has compressor stages), false otherwise
-pub fn is_piston_engine(blkx: Option<&Blkx>) -> bool {
+pub fn is_piston_engine(fmdata: Option<&FmData>) -> bool {
     // PORT: Java `blkx != null && !blkx.isJet && blkx.compNumSteps > 0`
-    blkx.is_some_and(|b| !b.is_jet && b.comp_num_steps > 0)
+    fmdata.is_some_and(|b| !b.is_jet && b.comp_num_steps > 0)
 }
 
 /// Gets the global WEP boost factor from FM data.
@@ -744,14 +744,14 @@ pub fn is_piston_engine(blkx: Option<&Blkx>) -> bool {
 /// - `blkx`: parsed FM file data
 ///
 /// Returns WEP boost factor, or 1.0 if not available
-pub fn get_wep_boost_factor(blkx: Option<&Blkx>) -> f64 {
+pub fn get_wep_boost_factor(fmdata: Option<&FmData>) -> f64 {
     // PORT: Java `if (blkx == null) return 1.0;`
-    let blkx = match blkx {
+    let fmdata = match fmdata {
         Some(b) => b,
         None => return 1.0,
     };
-    if blkx.aftb_coff > 0.0 {
-        blkx.aftb_coff
+    if fmdata.aftb_coff > 0.0 {
+        fmdata.aftb_coff
     } else {
         1.0
     }
@@ -762,14 +762,14 @@ pub fn get_wep_boost_factor(blkx: Option<&Blkx>) -> f64 {
 /// - `blkx`: parsed FM file data
 ///
 /// Returns SpeedManifoldMultiplier, or 1.0 if not available
-pub fn get_speed_manifold_multiplier(blkx: Option<&Blkx>) -> f64 {
+pub fn get_speed_manifold_multiplier(fmdata: Option<&FmData>) -> f64 {
     // PORT: Java `if (blkx == null) return 1.0;`
-    let blkx = match blkx {
+    let fmdata = match fmdata {
         Some(b) => b,
         None => return 1.0,
     };
-    if blkx.speed_to_manifold_multiplier > 0.0 {
-        blkx.speed_to_manifold_multiplier
+    if fmdata.speed_to_manifold_multiplier > 0.0 {
+        fmdata.speed_to_manifold_multiplier
     } else {
         1.0
     }

@@ -18,8 +18,8 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use vm_core::blkx::json::extract_fuel_modifications_json;
-use vm_core::blkx::{Blkx, FuelModification, FuelType};
+use vm_core::fmdata::json::extract_fuel_modifications_json;
+use vm_core::fmdata::{FmData, FuelModification, FuelType};
 use vm_core::comparison::comparison_rules::ComparisonRules;
 use vm_core::file_utils::get_file_name_no_ex;
 use vm_core::fm::fm_data_paths;
@@ -236,12 +236,12 @@ pub fn load_fm_lines(name: Option<&str>) -> Vec<String> {
     // （FMDataOverlay 依赖），故 READY 句柄的 blkx 直接可用，无需自行解析
     let handle = fm_loader::load(Some(name));
     let fmdata: String = if handle.has_fm() {
-        handle.blkx.and_then(|b| b.fmdata).unwrap_or_default()
+        handle.fmdata.and_then(|b| b.fmdata).unwrap_or_default()
     } else {
         // 名字空间差异回退: name 是 fm/ 物理文件名（连字符, 如 a-10c）, 中央机型名
         // 是下划线（a_10c）——少数不同名机型 FMLoader 判 MISSING, 按物理文件直读
         match fallback_physical_file(name) {
-            Some(f) => match Blkx::parse_named_json(&f.to_string_lossy(), name) {
+            Some(f) => match FmData::parse_named_json(&f.to_string_lossy(), name) {
                 Ok(b) => b.fmdata.unwrap_or_default(),
                 Err(_) => {
                     // Java 构造器内 catch 产出 valid=false 对象 (fmdata=noblkx),
@@ -462,20 +462,20 @@ fn error_curve(fm_name: &str, message: String) -> PowerCurveDto {
 pub fn load_single_curve(fm_name: &str, wep_mode: bool, speed_kmh: i32) -> PowerCurveDto {
     // ---- 第一优先: FMLoader 标准链路（机型名 → 中央文件 → 物理文件）----
     let handle = fm_loader::load(Some(fm_name));
-    let (blkx, stages) = if handle.has_fm() {
+    let (fmdata, stages) = if handle.has_fm() {
         // 活塞机句柄携带 extractStages 产物（已融入中央文件燃油修正）；
         // 喷气机 compressorStages 为 null → "不是活塞引擎" (Java :246-250)
         if handle.compressor_stages.is_none() {
             return error_curve(fm_name, format!("{fm_name} 不是活塞引擎"));
         }
-        (handle.blkx.unwrap(), handle.compressor_stages)
+        (handle.fmdata.unwrap(), handle.compressor_stages)
     } else {
         // ---- 回退: 按物理文件名直读（连字符机型, 见方法注释; JSON 优先,
         //      过渡期回落 blkx 文本链 — 对拍全绿观察期后收窄为 .json）----
         let Some(f) = fallback_physical_file(fm_name) else {
             return error_curve(fm_name, format!("找不到FM文件: {fm_name}"));
         };
-        let parsed = Blkx::parse_named_json(&f.to_string_lossy(), fm_name);
+        let parsed = FmData::parse_named_json(&f.to_string_lossy(), fm_name);
         match parsed {
             Ok(b) => {
                 // Check if piston engine
@@ -510,10 +510,10 @@ pub fn load_single_curve(fm_name: &str, wep_mode: bool, speed_kmh: i32) -> Power
         generate_power_curve_advanced(&stages, wep_mode, speed_kmh as f64, true, 15.0, ALT_STEP);
 
     // Multi-engine aircraft: multiply each point by engine count
-    if blkx.engine_num > 1 {
+    if fmdata.engine_num > 1 {
         // Java double * int 提升 double → as f64 (§2.4)
         for p in power_curve.iter_mut() {
-            *p *= blkx.engine_num as f64;
+            *p *= fmdata.engine_num as f64;
         }
     }
 

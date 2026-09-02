@@ -1,22 +1,15 @@
 //! 对应 Java: `src/parser/Blkx.java` 的 getter/计算方法区 (D4 拆分: model.rs)。
 //!
-//! 本波覆盖 (字段区见 mod.rs `Blkx`):
-//! - L523-631 中不依赖原始文本抽取原语的部分: `findmaxWaterLoad`/`findmaxOilLoad`/
-//!   `getVersion`
-//! - L676-1660 的纯字段计算面: `getAoAHighVWing`/`getAoALowVWing`/`getVNEVWing`/
-//!   `getMNEVWing`/`getMaxAllowGloadForWeight`/`subSt`/`getperformancedata`/`init`
-//! - L1978-2028 (D4 行号表外的字段态方法, getload 依赖面提前落地):
-//!   `finalizeLoading`/`calculatePeakThrust`/`peakThrust`
+//! 覆盖 (字段区见 mod.rs `Blkx`): findmaxWaterLoad/findmaxOilLoad/getVersion、
+//! 可变翼插值 getter (getAoAHigh/LowVWing/getVNE/MNEVWing)、
+//! getMaxAllowGloadForWeight、calculatePeakThrust/peakThrust。
 //!
-//! PORT: 依赖 getone/cut/getArray 等 reader.rs 波次原语的方法 (getPartsFm/
-//! extractRpmFromThrottleAuto/getEngineLoad/showEngineLoad/WritePartsFm/getdoubles/
-//! getdouble/getdouble_exc/initEngineLoad/getload/transUnit/getAllplotdata/
-//! getplotdata) 不在本波, 见 mod.rs 模块级波次边界注。
+//! PORT (2026-09 死代码清理): subSt (transUnit 专用)/init/finalizeLoading
+//! (原始文本 data 串的陪葬)/getperformancedata (Java 空方法) 已删。
 
 use super::types::EngineLoad;
-use super::Blkx;
+use super::FmData;
 use crate::g;
-use crate::lang::Lang;
 
 /// 通用 sweep 插值承接说明 (对应 Java 私有方法 `interpolateSweepDouble`, L718-737):
 /// 原码将 sweepLevels 逐元素拷入临时数组后做区间线性插值。按项目规约
@@ -31,7 +24,7 @@ use crate::lang::Lang;
 ///
 /// 求值时机保真: AoA 两 getter 以 (sweep, 值) 对的急切构造复刻 Java 预拷全表
 /// (任何档位 noFlaps 为 null 即 NPE); vne/mach 提取器无 null 路径, 闭包直取等价。
-impl Blkx {
+impl FmData {
     /* 计算可变翼 */
     /// 对应 Java `public double getAoAHighVWing(double vwing, int flaps_percent)` (L740-757)。
     pub fn get_aoa_high_v_wing(&self, vwing: f64, flaps_percent: i32) -> f64 {
@@ -188,36 +181,8 @@ impl Blkx {
             }
             // PORT: Java 打开失败 (FileNotFoundException) 同被吞掉, sb 保持 ""
             tmp_data = Some(sb);
-        } else {
         }
         tmp_data
-    }
-
-    /// 对应 Java `public void getperformancedata(String t)` (L1581-1583, 空方法)。
-    pub fn getperformancedata(&self, _t: &str) {}
-
-    /// 对应 Java `public String subSt(String t)` (L1585-1588) — 剥首尾各一字符。
-    // PORT: Java substring(1, length-1) 按 UTF-16 码元; 域内输入为 FM 行值
-    // (PASSPORT.UNITSYSTEM 等, ASCII) — 字节切片等价 (§2.1); len<2 时 Java 抛
-    // StringIndexOutOfBoundsException ↔ 切片范围 panic 同构
-    pub fn sub_st(&self, t: &str) -> String {
-        t[1..t.len() - 1].to_string()
-    }
-
-    /// 对应 Java `public void init(String t)` (L1660-1663)。
-    // PORT: Java `fmdata = Lang.noblkx` 读启动期 initLang() 已覆写的静态字段;
-    // Rust 无全局 Lang 状态 (§2.9 AppState 属后续波次), 以 init_lang() 静态表
-    // 快照现取 — lang/table.rs 与 cur.properties 逐键 oracle 对拍, 值一致
-    pub fn init(&mut self, t: &str) {
-        self.data = Some(t.to_string());
-        self.fmdata = Some(Lang::init_lang().noblkx.to_string());
-    }
-
-    /// 对应 Java `public void finalizeLoading()` (L1978-1981)。
-    /// Releases the large raw data string after parsing is complete to save memory.
-    pub fn finalize_loading(&mut self) {
-        self.data = None;
-        // We keep fmdata as it is used by FMDataOverlay
     }
 
     /// 对应 Java `private double calculatePeakThrust(double[][] table)` (L2007-2019)。
@@ -246,15 +211,9 @@ impl Blkx {
     }
 
     /// 对应 Java `public double peakThrust(boolean isAfterburner)` (L2026-2028)。
-    /// 获取峰值推力
-    /// @param isAfterburner true=加力推力，false=军用推力
-    /// @return 峰值推力(kgf)
-    pub fn peak_thrust(&self, is_afterburner: bool) -> f64 {
-        if is_afterburner {
-            self.peak_thr_aft
-        } else {
-            self.peak_thr_mil
-        }
+    /// 加力峰值推力 (kgf) — 军用 (false) 路径无生产消费方, 2026-09 收敛为单路。
+    pub fn peak_thrust(&self) -> f64 {
+        self.peak_thr_aft
     }
 }
 

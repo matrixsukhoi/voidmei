@@ -1,13 +1,11 @@
 //! 对应 Java: `src/parser/Blkx.java` L34-660 的内部类区 (D4 拆分: types.rs)。
-//! 覆盖 5 个内部类 + Fuel Modification Support 静态函数区:
-//! - `FuelModification` (static 内部类, L34-49) + `extractFuelModifications`/
-//!   `cutStatic`/`getDoubleFromBlock`/`getBoolFromBlock` (static, L63-218)
-//! - `XY` (L222-232) / `engineLoad` (L246-253) / `fm_parts` (L329-350) /
-//!   `SweepLevel` (L356-362) — 非静态内部类, 均未引用 Blkx.this 外部状态
-//!   (纯语法糖) → 独立 struct, 无需父引用参数 (§1 内部类规则逐个审视结论)。
+//! 覆盖 4 个内部类:
+//! - `FuelModification` (static 内部类, L34-49; 提取逻辑在 json.rs 树版)
+//! - `engineLoad` (L246-253) / `fm_parts` (L329-350) / `SweepLevel` (L356-362)
+//!   — 非静态内部类, 均未引用 Blkx.this 外部状态 (纯语法糖) → 独立 struct
 //!
-//! PORT: 本波不含 Blkx 字段区/方法 (L234-241/L255-326/L364-660 的 public 字段与
-//! getPartsFm 等) — 属 model.rs/mod.rs 字段波次, 见 mod.rs 骨架注释。
+//! PORT: `XY` (L222-232, PASSPORT 曲线容器) 已随曲线链删除 — Java DrawFrame
+//! 的消费未迁移至 Rust, Rust 生产零消费 (2026-09 死代码清理)。
 
 use std::fmt;
 
@@ -93,30 +91,6 @@ impl fmt::Display for FuelType {
 }
 
 // ==================== End Fuel Modification Support ====================
-
-/// 对应 Java `public class XY` (L222-232)。
-/// PORT: Java 非静态内部类, 但构造器与字段均未引用 Blkx.this 外部状态
-/// (纯语法糖) → 独立 struct, 无父引用参数。
-#[derive(Debug, Clone)]
-pub struct XY {
-    pub x: Vec<f64>,
-    pub y: Vec<f64>,
-    pub cur: i32,
-}
-
-impl XY {
-    /// 对应 Java 包私有构造器 `XY(int num)` (L227-231)。
-    // PORT: Java int num 为负时 new double[num] 抛 NegativeArraySizeException —
-    // usize 在类型层排除负值 (域内 num 恒为非负表格长度);
-    // Java 数组零初始化 ↔ vec![0.0; num] (§2.10)。
-    pub fn new(num: usize) -> Self {
-        XY {
-            x: vec![0.0; num],
-            y: vec![0.0; num],
-            cur: 0,
-        }
-    }
-}
 
 /// 对应 Java `public class engineLoad` (L246-253, 源文件类名即小驼峰)。
 /// PORT: 非静态内部类, 六个 double 字段无任何 Blkx 外部引用 → 独立 struct;

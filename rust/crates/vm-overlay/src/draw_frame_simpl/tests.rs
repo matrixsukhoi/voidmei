@@ -26,8 +26,8 @@ fn premul(c: [u8; 4]) -> [u8; 4] {
 
 /// 测试用喷气机 FM (3 高度档 × 3 速度档推力表; Java paintComponent 消费面:
 /// velocityThr/maxThrAft/altitudeThr + alt/velThrNum)
-fn jet_blkx() -> Blkx {
-    let mut b = Blkx::default();
+fn jet_fmdata() -> FmData {
+    let mut b = FmData::default();
     b.is_jet = true;
     b.vel_thr_num = 3;
     b.alt_thr_num = 3;
@@ -55,7 +55,7 @@ fn jet_blkx() -> Blkx {
 /// ggx4=800/(460-100), ggy4=400/(3360-1200); rgbx=(int)(255/4)=63
 #[test]
 fn chart_geometry_oracle() {
-    let g = chart_geometry(&jet_blkx());
+    let g = chart_geometry(&jet_fmdata());
     assert_eq!((g.dwidth, g.dheight), (800, 400));
     assert_eq!((g.xmin, g.xmax, g.ymin, g.ymax), (100.0, 400.0, 1200.0, 3000.0));
     assert_eq!((g.xgap, g.ygap), (60, 360));
@@ -98,7 +98,7 @@ fn draw_blank_without_fm_data() {
     let mut cv = PixCanvas::new(900, 500).unwrap();
     DrawFrameSimpl::new().draw(&mut cv, &fonts, false);
     assert!(cv.pixmap().data().iter().all(|&b| b == 0), "无句柄全空");
-    let mut b0 = jet_blkx();
+    let mut b0 = jet_fmdata();
     b0.vel_thr_num = 0;
     let mut d = DrawFrameSimpl::new();
     d.reload_fm(Some(Arc::new(b0)));
@@ -116,7 +116,7 @@ fn draw_curve_pixels() {
     let (f12, f16, f18) = dfs_fonts();
     let fonts = DfsFonts { num12: &f12, text16: &f16, text18: &f18, text12: &f12 };
     let mut d = DrawFrameSimpl::new();
-    d.reload_fm(Some(Arc::new(jet_blkx())));
+    d.reload_fm(Some(Arc::new(jet_fmdata())));
     let mut cv = PixCanvas::new(900, 500).unwrap();
     d.draw(&mut cv, &fonts, false);
 
@@ -181,7 +181,7 @@ fn draw_frame_simpl_spec_shape_and_factory_state() {
     (spec.render)(&mut cv);
     assert!(cv.pixmap().data().iter().all(|&b| b == 0), "空缓存空画布");
     // FM_CHANGED 装载后渲染通道出曲线 (render 闭包共享句柄)
-    h.borrow_mut().reload_fm(Some(Arc::new(jet_blkx())));
+    h.borrow_mut().reload_fm(Some(Arc::new(jet_fmdata())));
     let mut cv2 = PixCanvas::new(spec.width, spec.height).unwrap();
     (spec.render)(&mut cv2);
     assert!(cv2.pixmap().data().iter().any(|&b| b != 0), "曲线墨迹");
@@ -356,7 +356,7 @@ fn dfs_present_frames_in_both_modes() {
         draw_frame_simpl_spec(std::path::Path::new("../../../fonts"), &feed_fm()).unwrap();
     host.register(spec);
     // jet FM 装载 (FM_CHANGED reload 面) — 曲线数据就位
-    h.borrow_mut().reload_fm(Some(Arc::new(jet_blkx())));
+    h.borrow_mut().reload_fm(Some(Arc::new(jet_fmdata())));
     // 游戏模式: open_all materialize → 首帧 present (指纹 None→Some)
     host.open_all().unwrap();
     host.render_tick().unwrap();

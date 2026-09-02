@@ -7,7 +7,7 @@
 
 use std::sync::Arc;
 
-use crate::blkx::Blkx;
+use crate::fmdata::FmData;
 use crate::config_api::ConfigProvider;
 use crate::fm::FMManager;
 
@@ -56,7 +56,7 @@ pub struct OverlayContext<TC, S> {
     // 分叉的用法; 后续波次确需会话态时复议 Option<Arc<Blkx>> (现被
     // fm/handle.rs blkx: Option<Blkx> 所有权形态挡住, 待 reader 波次内部
     // 可变性裁决一并处理)。
-    pub blkx: Option<Blkx>,
+    pub fmdata: Option<FmData>,
     pub is_preview_mode: bool,
     /// 配置提供者，用于访问配置而不依赖 Controller
     // PORT: Java 接口引用 → Arc<dyn ConfigProvider> 共享句柄 (LIFETIMES §7
@@ -104,7 +104,7 @@ impl<TC, S> OverlayContext<TC, S> {
     /// Check if this is a jet aircraft.
     // PORT: Java `Blkx != null && Blkx.isJet` 短路 → map_or (None 时不触字段)。
     pub fn is_jet(&self) -> bool {
-        self.blkx.as_ref().is_some_and(|b| b.is_jet)
+        self.fmdata.as_ref().is_some_and(|b| b.is_jet)
     }
 
     /// Check if debug mode is enabled.
@@ -143,7 +143,7 @@ impl<TC, S> OverlayContext<TC, S> {
         OverlayContext::builder()
             .controller(Some(Arc::clone(&tc)))
             .service(tc.service())
-            .blkx(fm.current().blkx.clone())
+            .fmdata(fm.current().fmdata.clone())
             .config_provider(Some(tc.get_config_service()))
             .preview_mode(false)
             .build()
@@ -160,7 +160,7 @@ impl<TC, S> OverlayContext<TC, S> {
         OverlayContext::builder()
             .controller(Some(Arc::clone(&tc)))
             .service(tc.service())
-            .blkx(fm.current().blkx.clone())
+            .fmdata(fm.current().fmdata.clone())
             .config_provider(Some(tc.get_config_service()))
             .preview_mode(true)
             .build()
@@ -185,8 +185,8 @@ impl<TC, S> crate::activation_strategy::ActivationContext for OverlayContext<TC,
     fn is_preview_mode(&self) -> bool {
         self.is_preview_mode
     }
-    fn has_blkx(&self) -> bool {
-        self.blkx.is_some()
+    fn has_fmdata(&self) -> bool {
+        self.fmdata.is_some()
     }
 }
 
@@ -199,7 +199,7 @@ pub struct Builder<TC, S> {
     pub tc: Option<Arc<TC>>,
     pub s: Option<Arc<S>>,
     // 同 OverlayContext.blkx 字段注: 构造时快照 fork, 勿读/勿依赖会话态。
-    pub blkx: Option<Blkx>,
+    pub fmdata: Option<FmData>,
     pub is_preview_mode: bool,
     pub config_provider: Option<Arc<dyn ConfigProvider>>,
 }
@@ -210,7 +210,7 @@ impl<TC, S> Builder<TC, S> {
         Builder {
             tc: None,
             s: None,
-            blkx: None,
+            fmdata: None,
             is_preview_mode: false,
             config_provider: None,
         }
@@ -229,8 +229,8 @@ impl<TC, S> Builder<TC, S> {
     }
 
     /// Java `Builder Blkx(Blkx Blkx)`
-    pub fn blkx(&mut self, blkx: Option<Blkx>) -> &mut Self {
-        self.blkx = blkx;
+    pub fn fmdata(&mut self, fmdata: Option<FmData>) -> &mut Self {
+        self.fmdata = fmdata;
         self
     }
 
@@ -263,7 +263,7 @@ impl<TC, S> Builder<TC, S> {
         OverlayContext {
             tc: self.tc.clone(),
             s: self.s.clone(),
-            blkx: self.blkx.clone(),
+            fmdata: self.fmdata.clone(),
             is_preview_mode: self.is_preview_mode,
             config_provider: self.config_provider.clone(),
         }

@@ -18,7 +18,7 @@ pub struct EvalCtx<'a> {
     /// 对齐 service_fields.rs L368 `ratio=freq/1000f`
     pub interval_ms: f64,
     /// 当前 FM (FM 查表函数族 fm_vne 等的表源; None → NaN 隔离)
-    pub fm_blkx: Option<&'a crate::blkx::Blkx>,
+    pub fm_data: Option<&'a crate::fmdata::FmData>,
 }
 
 /// 状态原语的私有状态 (键 = (公式槽, 调用点 site))
@@ -142,7 +142,7 @@ pub fn eval(expr: &RExpr, ctx: &EvalCtx, store: &mut StateStore) -> Value {
                 if vals.iter().any(|v| v.is_nan()) {
                     return Value::Num(f64::NAN);
                 }
-                Value::Num(eval_ctx_fn(fid, &vals, ctx.fm_blkx))
+                Value::Num(eval_ctx_fn(fid, &vals, ctx.fm_data))
             } else {
                 let vals: Vec<Value> = args.iter().map(|a| eval(a, ctx, store)).collect();
                 eval_pure(fid, &vals)
@@ -351,17 +351,17 @@ fn eval_stateful(fid: FnId, vals: &[f64], site: u32, ctx: &EvalCtx, store: &mut 
 /// (0 级/无 FM → MAX/125), 与被替代代码位级一致。
 /// 共享实现里的 unwrap panic (Java NPE 保真) 以 catch_unwind 收敛为 NaN —
 /// 生产 READY 链表恒 Some 不可达, 防御仅为公式用户免崩 Service 线程。
-fn eval_ctx_fn(fid: FnId, vals: &[f64], blkx: Option<&crate::blkx::Blkx>) -> f64 {
+fn eval_ctx_fn(fid: FnId, vals: &[f64], fmdata: Option<&crate::fmdata::FmData>) -> f64 {
     use FnId as F;
     let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| match fid {
         F::FmFlapAllowSpeed => {
-            crate::hud_calculator::get_flap_allow_speed(vals[0] as i32, vals[1] != 0.0, blkx)
+            crate::hud_calculator::get_flap_allow_speed(vals[0] as i32, vals[1] != 0.0, fmdata)
         }
         F::FmFlapAllowAngle => {
-            crate::hud_calculator::get_flap_allow_angle(vals[0], vals[1] != 0.0, blkx)
+            crate::hud_calculator::get_flap_allow_angle(vals[0], vals[1] != 0.0, fmdata)
         }
         _ => {
-            let Some(b) = blkx else { return f64::NAN };
+            let Some(b) = fmdata else { return f64::NAN };
             match fid {
                 F::FmVne => b.get_vne_v_wing(vals[0]),
                 F::FmMne => b.get_mne_v_wing(vals[0]),

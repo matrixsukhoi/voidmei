@@ -35,7 +35,7 @@ fn snap_of(tel: &TestTel) -> super::registry::VarSnapshot {
     st.ny = tel.ny;
     st.mfuel = tel.mass_fuel;
     let ind = crate::parser::Indicators::default();
-    let raw = super::registry::RawInputs { state: Some(&st), indic: Some(&ind), blkx: None };
+    let raw = super::registry::RawInputs { state: Some(&st), indic: Some(&ind), fmdata: None };
     let sess = super::registry::SessionInputs::default();
     assemble_snapshot(&raw, &sess, &meta)
 }
@@ -264,7 +264,7 @@ fn compile_topo_order_correct() {
     let _tel = TestTel::default();
     let meta = MetaInputs { interval_ms: 50.0, ..Default::default() };
     let ind0 = crate::parser::Indicators::default();
-    let raw0 = super::registry::RawInputs { state: None, indic: Some(&ind0), blkx: None };
+    let raw0 = super::registry::RawInputs { state: None, indic: Some(&ind0), fmdata: None };
     let snap = assemble_snapshot(&raw0, &super::registry::SessionInputs::default(), &meta);
     let mut store = StateStore::new();
     let r = set.eval_frame(&snap, &mut store, 0, 50.0, None);
@@ -316,7 +316,7 @@ fn compile_invalid_dep_propagates_nan() {
     let _tel = TestTel::default();
     let meta = MetaInputs::default();
     let ind0 = crate::parser::Indicators::default();
-    let raw0 = super::registry::RawInputs { state: None, indic: Some(&ind0), blkx: None };
+    let raw0 = super::registry::RawInputs { state: None, indic: Some(&ind0), fmdata: None };
     let snap = assemble_snapshot(&raw0, &super::registry::SessionInputs::default(), &meta);
     let mut store = StateStore::new();
     let r = set.eval_frame(&snap, &mut store, 0, 50.0, None);
@@ -382,7 +382,7 @@ fn registry_snapshot_assemble() {
     let mut st0 = crate::parser::State::default();
     st0.ias = 400;
     let ind0 = crate::parser::Indicators::default();
-    let raw0 = super::registry::RawInputs { state: Some(&st0), indic: Some(&ind0), blkx: None };
+    let raw0 = super::registry::RawInputs { state: Some(&st0), indic: Some(&ind0), fmdata: None };
     let snap = assemble_snapshot(&raw0, &super::registry::SessionInputs::default(), &meta);
     let reg = registry();
     let ias = reg.lookup("ias").unwrap();
@@ -432,7 +432,7 @@ fn manager_install_and_eval() {
         st0.ias = tel.ias as i32;
         st0.tas = tel.tas as i32;
         let ind0 = crate::parser::Indicators::default();
-        let raw0 = crate::formula::registry::RawInputs { state: Some(&st0), indic: Some(&ind0), blkx: None };
+        let raw0 = crate::formula::registry::RawInputs { state: Some(&st0), indic: Some(&ind0), fmdata: None };
         let sess0 = crate::formula::registry::SessionInputs::default();
         mgr.eval_frame(&raw0, &sess0, &meta, 0) };
     let set = mgr.current();
@@ -452,7 +452,7 @@ fn manager_hot_update_retains_states() {
     let _ = { let mut st0 = crate::parser::State::default();
         st0.ias = tel.ias as i32;
         let ind0 = crate::parser::Indicators::default();
-        let raw0 = crate::formula::registry::RawInputs { state: Some(&st0), indic: Some(&ind0), blkx: None };
+        let raw0 = crate::formula::registry::RawInputs { state: Some(&st0), indic: Some(&ind0), fmdata: None };
         let sess0 = crate::formula::registry::SessionInputs::default();
         mgr.eval_frame(&raw0, &sess0, &meta, 0) };
     // 热更新: 加一个公式, 原 p 的状态保留
@@ -460,7 +460,7 @@ fn manager_hot_update_retains_states() {
     let r = { let mut st0 = crate::parser::State::default();
         st0.ias = tel.ias as i32;
         let ind0 = crate::parser::Indicators::default();
-        let raw0 = crate::formula::registry::RawInputs { state: Some(&st0), indic: Some(&ind0), blkx: None };
+        let raw0 = crate::formula::registry::RawInputs { state: Some(&st0), indic: Some(&ind0), fmdata: None };
         let sess0 = crate::formula::registry::SessionInputs::default();
         mgr.eval_frame(&raw0, &sess0, &meta, 50) };
     let set = mgr.current();
@@ -550,7 +550,7 @@ fn bench_eval_frame_50_formulas() {
     let t0 = std::time::Instant::now();
     for k in 0..n {
         let ind0 = crate::parser::Indicators::default();
-    let raw0 = super::registry::RawInputs { state: None, indic: Some(&ind0), blkx: None };
+    let raw0 = super::registry::RawInputs { state: None, indic: Some(&ind0), fmdata: None };
     let snap = assemble_snapshot(&raw0, &super::registry::SessionInputs::default(), &meta);
         let _ = set.eval_frame(&snap, &mut store, k, 50.0, None);
     }
@@ -561,9 +561,9 @@ fn bench_eval_frame_50_formulas() {
 // ===== FM 查表函数族 (W1a; 与 vm-data methods_engine 测试同 oracle) =====
 
 /// 最小 mock blkx (与 vm-data service_loop::methods_engine::tests::spitfire_flap_blkx 同表)
-fn flap_blkx() -> crate::blkx::Blkx {
-    use crate::blkx::Blkx;
-    let mut b = Blkx::default();
+fn flap_fmdata() -> crate::fmdata::FmData {
+    use crate::fmdata::FmData;
+    let mut b = FmData::default();
     b.valid = true;
     b.flaps_destruction_num = 2;
     let mut rows = [[0.0f64; 2]; 6];
@@ -579,27 +579,27 @@ fn flap_blkx() -> crate::blkx::Blkx {
 fn fm_table_functions_match_shared_impl() {
     let t = TestTel::default();
     let snap = snap_of(&t);
-    let blkx = flap_blkx();
+    let fmdata = flap_fmdata();
     let reg = registry();
     let mut store = StateStore::new();
-    let eval_with = |expr: &str, b: Option<&crate::blkx::Blkx>| {
+    let eval_with = |expr: &str, b: Option<&crate::fmdata::FmData>| {
         let mut st = StateStore::new();
         try_eval_single(expr, reg, &snap, &mut st, 0, 50.0, b).unwrap()
     };
     // 角度插值: 270 km/h → 83.333... (methods_engine::flap_allow_speed_angle_oracle 同值)
-    let v = eval_with("fm_flap_allow_angle(270, 0)", Some(&blkx));
+    let v = eval_with("fm_flap_allow_angle(270, 0)", Some(&fmdata));
     assert_eq!(v, 83.33333333333334);
     // 共享实现直调等值 (双路径对拍)
     assert_eq!(
-        crate::hud_calculator::get_flap_allow_angle(270.0, false, Some(&blkx)),
+        crate::hud_calculator::get_flap_allow_angle(270.0, false, Some(&fmdata)),
         v
     );
     // 速度: 60% 开度档间插值 → 284.0 (同 oracle)
-    assert_eq!(eval_with("fm_flap_allow_speed(60, 1)", Some(&blkx)), 284.0);
+    assert_eq!(eval_with("fm_flap_allow_speed(60, 1)", Some(&fmdata)), 284.0);
     // vne: 无 sweep 表 → 直通 vne
-    assert_eq!(eval_with("fm_vne(0)", Some(&blkx)), 800.0);
+    assert_eq!(eval_with("fm_vne(0)", Some(&fmdata)), 800.0);
     // flap=0 → MAX (业务默认与被替代代码一致, 不 NaN 化)
-    assert_eq!(eval_with("fm_flap_allow_speed(0, 1)", Some(&blkx)), f64::MAX);
+    assert_eq!(eval_with("fm_flap_allow_speed(0, 1)", Some(&fmdata)), f64::MAX);
     // 无 FM → 查表族 NaN 隔离 (flap 两函数除外: 业务默认 125/MAX)
     assert!(eval_with("fm_vne(0)", None).is_nan());
     assert_eq!(eval_with("fm_flap_allow_angle(270, 0)", None), 125.0);

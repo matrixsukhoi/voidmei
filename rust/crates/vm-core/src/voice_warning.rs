@@ -73,7 +73,7 @@ use std::time::{Duration, Instant};
 
 use crate::audio::voice_pack_config::VOICE_PREFIX;
 use crate::audio::{VoiceAlertType, VoicePackConfig};
-use crate::blkx::Blkx;
+use crate::fmdata::FmData;
 use crate::bus::Subscription;
 use crate::config_api::ConfigProvider;
 use crate::event::flight_data_event::FlightDataEvent;
@@ -384,7 +384,7 @@ pub struct VoiceWarning {
     /// Java O(1) 引用别名 — 仅 init 时一次 (每 tick 的
     /// update_dynamic_parameters 走 as_ref 无拷); fm/handle.rs 已预留
     /// Arc<FMHandle>/Arc<Blkx> 共享裁决, P4/P5 组装时回收
-    blkx: Option<Blkx>,
+    fmdata: Option<FmData>,
     nofuelweight: f64,
 
     // 引擎相关
@@ -484,7 +484,7 @@ impl VoiceWarning {
             ny_warning_line0: 0.0,
             ny_warning_line1: 0.0,
             ny_warn: None,
-            blkx: None,
+            fmdata: None,
             nofuelweight: 0.0,
             eng_warn: None,
             eng_fail: None,
@@ -630,7 +630,7 @@ impl VoiceWarning {
         // R1 快照（P3 迁移）: 开头取一次 FM 句柄, blkx 非 null 即 READY;
         // 无 FM（未识别/加载中/MISSING）→ 保持默认告警线 15
         let fm = self.fm_manager.current();
-        if let Some(b) = fm.blkx.as_ref() {
+        if let Some(b) = fm.fmdata.as_ref() {
             self.aoa_warning_line = b.no_flaps_wing.as_ref().unwrap().aoa_crit_high;
         }
     }
@@ -653,7 +653,7 @@ impl VoiceWarning {
         // R1 快照（P3 迁移）: 开头取一次 FM 句柄, blkx 非 null 即 READY;
         // 无 FM → 告警线保持 MAX_VALUE（速度/马赫告警关闭）
         let fm = self.fm_manager.current();
-        let b = fm.blkx.as_ref();
+        let b = fm.fmdata.as_ref();
         self.ias_warning_line = 0.0;
         self.mach_warning_line = 0.0;
         if let Some(b) = b {
@@ -691,7 +691,7 @@ impl VoiceWarning {
         // 无 FM → 起落架限速/过载限制走默认值
         // PORT: Java 持 blkx 引用跨 tick 存活 → 按值克隆 (本类只读, 见字段注)
         let fm = self.fm_manager.current();
-        let b = fm.blkx.clone();
+        let b = fm.fmdata.clone();
 
         // 起落架速度限制
         self.gear_warning_line = 0.0;
@@ -703,11 +703,11 @@ impl VoiceWarning {
         }
 
         // 过载限制
-        self.blkx = b;
-        self.nofuelweight = self.blkx.as_ref().map_or(0.0, |b| b.nofuelweight);
+        self.fmdata = b;
+        self.nofuelweight = self.fmdata.as_ref().map_or(0.0, |b| b.nofuelweight);
         self.ny_warning_line0 = 0.0;
         self.ny_warning_line1 = 0.0;
-        if let Some(bb) = self.blkx.as_ref() {
+        if let Some(bb) = self.fmdata.as_ref() {
             let g = bb.max_allow_gload.unwrap();
             self.ny_warning_line0 = g[0];
             self.ny_warning_line1 = g[1];
@@ -797,7 +797,7 @@ impl VoiceWarning {
         // R1 快照（P3 迁移）: 开头取一次 FM 句柄, blkx 非 null 即 READY;
         // 无 FM → 舵效告警线保持 65535（告警关闭）
         let fm = self.fm_manager.current();
-        if let Some(b) = fm.blkx.as_ref() {
+        if let Some(b) = fm.fmdata.as_ref() {
             // 与 Rust `as i32` 逐位同语义, 无需双转 (§2.2)
             self.rudder_eff_ias = b.rudder_eff as i32;
             self.elevator_eff_ias = b.elav_eff as i32;
@@ -917,7 +917,7 @@ impl VoiceWarning {
         // 线程的 run() 循环里周期执行, 纯 volatile 读）; blkx 非 null 即 READY,
         // 无 FM → 跳过动态告警线更新（沿用 init 时/上次的值）
         let fm = self.fm_manager.current();
-        let b = fm.blkx.as_ref();
+        let b = fm.fmdata.as_ref();
         if let Some(b) = b {
             // (hud_calculator.rs 同款先例)
             if b.is_v_wing.unwrap() {
@@ -1194,7 +1194,7 @@ impl VoiceWarning {
         let mut current_ny_max = self.ny_warning_line1;
 
         if self
-            .blkx
+            .fmdata
             .as_ref()
             .is_some_and(|b| b.raw_wing_crit_overload.is_some())
             && self.nofuelweight > 0.0
@@ -1205,7 +1205,7 @@ impl VoiceWarning {
             // 分支返回 maxAllowGload (可为 null) → Java 在 dynamicLimits[0] 处
             // NPE (Blkx.java:809-810); 此处 None ≡ 该 NPE, panic 对位
             let dynamic_limits = self
-                .blkx
+                .fmdata
                 .as_ref()
                 .unwrap()
                 .get_max_allow_gload_for_weight(current_weight)

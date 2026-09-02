@@ -32,7 +32,7 @@ use crate::render2d::{LineCapStyle, PixCanvas};
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
-use vm_core::blkx::Blkx;
+use vm_core::fmdata::FmData;
 use vm_core::fm::FMManager;
 
 // ---------------------------------------------------------------------------
@@ -90,7 +90,7 @@ pub struct ChartGeom {
 }
 
 /// 坐标系/点列换算 (调用侧已做 b==null || velThrNum==0 守卫)
-pub fn chart_geometry(b: &Blkx) -> ChartGeom {
+pub fn chart_geometry(b: &FmData) -> ChartGeom {
     // 绘制坐标系
     let vt = b.velocity_thr.as_ref().unwrap(); // loader 契约: velThrNum>0 必有表
     let xn: Vec<f64> = vt[..b.vel_thr_num as usize].to_vec();
@@ -316,7 +316,7 @@ pub struct DrawFrameSimpl {
     /// Self-managed visibility state (Java :109, 游戏模式初始 false)
     pub visible: bool,
     /// fmHandle 缓存 (Java :104 volatile; 非 READY 句柄 blkx=null → None)
-    fm_blkx: Option<Arc<Blkx>>,
+    fm_data: Option<Arc<FmData>>,
 }
 
 impl Default for DrawFrameSimpl {
@@ -331,16 +331,16 @@ impl DrawFrameSimpl {
         DrawFrameSimpl {
             is_preview: false,
             visible: true,
-            fm_blkx: None,
+            fm_data: None,
         }
     }
 
     /// init (Java :514-628) 的数据/状态面 (窗口操作归 host):
     /// initFmHandleCache (current 快照, :74) + isPreview=false + 隐藏起步。
     /// toggle 的 UIStateBus 订阅归组装层 (仅游戏 init 挂接)。
-    pub fn init(&mut self, current_blkx: Option<Arc<Blkx>>) {
+    pub fn init(&mut self, current_fm: Option<Arc<FmData>>) {
         // P3/R3: 改用句柄缓存 (原 Blkx = xc.getBlkx() 在加载未落定时可能拿到 null)
-        self.fm_blkx = current_blkx;
+        self.fm_data = current_fm;
         self.is_preview = false;
         // Game mode: initially hidden
         self.visible = false;
@@ -348,17 +348,17 @@ impl DrawFrameSimpl {
 
     /// initPreview (Java :630-721): isPreview=true + 恒可见 + 同一句柄缓存
     /// (initFmHandleCache 共用 — preview 实例同样订阅 FM_CHANGED)
-    pub fn init_preview(&mut self, current_blkx: Option<Arc<Blkx>>) {
+    pub fn init_preview(&mut self, current_fm: Option<Arc<FmData>>) {
         self.is_preview = true;
         // Preview mode: always visible, no toggle subscription
         self.visible = true;
-        self.fm_blkx = current_blkx;
+        self.fm_data = current_fm;
     }
 
     /// FM_CHANGED handler (Java :79-88, init/initPreview 均订阅):
     /// 句柄换 blkx + panel.repaint (Rust 由渲染节拍脏检查承接)
-    pub fn reload_fm(&mut self, blkx: Option<Arc<Blkx>>) {
-        self.fm_blkx = blkx;
+    pub fn reload_fm(&mut self, fmdata: Option<Arc<FmData>>) {
+        self.fm_data = fmdata;
     }
 
     /// FM_OVERLAY_TOGGLE handler (Java :526-529, 仅游戏 init 挂接)
@@ -383,7 +383,7 @@ impl DrawFrameSimpl {
     /// panel.paintComponent (Java :544-607, init/initPreview 同体) — 无 FM 或
     /// velThrNum==0 直接跳过 (null 守卫 :554-555)
     pub fn draw(&self, cv: &mut PixCanvas, fonts: &DfsFonts, aa: bool) {
-        let b = match self.fm_blkx.as_deref() {
+        let b = match self.fm_data.as_deref() {
             Some(b) if b.vel_thr_num != 0 => b,
             _ => return,
         };
@@ -438,7 +438,7 @@ pub fn draw_frame_simpl_spec(
     let f18 = Rc::new(RefCell::new(Rc::new(LoadedFont::new(&regular, 18)?)));
     let mut dfs = DrawFrameSimpl::new();
     // initFmHandleCache (:74): fmHandle = FMManager.current() 快照
-    dfs.init_preview(fm.current().blkx.clone().map(Arc::new));
+    dfs.init_preview(fm.current().fmdata.clone().map(Arc::new));
     let handle: DrawFrameSimplHandle = Rc::new(RefCell::new(dfs));
     let render_handle = Rc::clone(&handle);
     let (r12, r16, r18) = (Rc::clone(&f12), Rc::clone(&f16), Rc::clone(&f18));

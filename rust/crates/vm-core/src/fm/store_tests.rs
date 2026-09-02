@@ -200,7 +200,7 @@ fn test_identify_dedup(m: &mut FMManager) {
         ),
     );
     // PORT: Java `m.current().blkx != null` 引用非空判 ↔ Option::is_some
-    check(m.current().has_fm() && m.current().blkx.is_some(), "READY 句柄应携带 blkx");
+    check(m.current().has_fm() && m.current().fmdata.is_some(), "READY 句柄应携带 fmdata");
     check(
         m.current_target_name().as_deref() == Some("plane1"),
         "目标名应规范化为小写 plane1",
@@ -436,7 +436,7 @@ fn test_concurrent_identify(m: &mut FMManager) {
     );
 
     // 无论最终是谁，句柄必须完整可用
-    check(mgr.current().has_fm(), "最终句柄应为 READY 且携带 blkx");
+    check(mgr.current().has_fm(), "最终句柄应为 READY 且携带 fmdata");
 }
 
 // ==================== main (Java main 顺序执行) ====================

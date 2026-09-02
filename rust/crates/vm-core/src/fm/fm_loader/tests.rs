@@ -142,19 +142,18 @@ fn run_cases() {
     let h = load(Some("ZZFMLOAD_PLANE1"));
     check(h.status == FMStatus::Ready, "合成齐全机型应 READY");
     check(h.name.as_deref() == Some("zzfmload_plane1"), "机型名规范化为小写");
-    check(h.has_fm() && h.blkx.is_some(), "READY 句柄应携带 blkx");
+    check(h.has_fm() && h.fmdata.is_some(), "READY 句柄应携带 fmdata");
     // readFileName 传参链锁死 (物理侧; 消费者 ui_model/fm_data_adapter.rs
     // get_fm_version —— 中央侧 name+".blk" 进 getload 版本串, 波次未落地
     // 暂无观察点)
     check(
-        h.blkx.as_ref().unwrap().read_file_name.as_deref() == Some("fm/zzfmload_plane1.blk"),
+        h.fmdata.as_ref().unwrap().read_file_name.as_deref() == Some("fm/zzfmload_plane1.blk"),
         "物理文件 readFileName = fmfile 相对路径 (Java L101)",
     );
     // PORT: getload 未落地 (try_load 步骤5 TODO) — 数值字段暂为 0,
     // getload 波次落地后此断言需更新为真实喷气/活塞口径
     check(h.peak_wep_power == 0.0 && h.peak_thrust == 0.0, "getload 未落地: 功率/推力暂为 0");
     check(h.compressor_stages.is_none(), "无 Compressor 块 → stages 为 None");
-    check(h.blkx.as_ref().unwrap().data.is_none(), "finalizeLoading 后 data 应释放");
     check(get_load_count() == 1, "READY 路径 loadCount=1");
 
     // -- CORRUPT: central 在库但物理文件缺失 (TestFMStore badplane) --

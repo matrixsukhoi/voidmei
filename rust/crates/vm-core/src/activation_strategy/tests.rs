@@ -9,7 +9,7 @@ struct MockCtx {
     debug: bool,
     jet: bool,
     preview_mode: bool,
-    blkx: bool,
+    fmdata: bool,
     bools: HashMap<&'static str, bool>,
     get_bool_calls: Cell<usize>,
 }
@@ -20,7 +20,7 @@ impl MockCtx {
             debug: false,
             jet: false,
             preview_mode: false,
-            blkx: false,
+            fmdata: false,
             bools: HashMap::new(),
             get_bool_calls: Cell::new(0),
         }
@@ -46,8 +46,8 @@ impl ActivationContext for MockCtx {
     fn is_preview_mode(&self) -> bool {
         self.preview_mode
     }
-    fn has_blkx(&self) -> bool {
-        self.blkx
+    fn has_fmdata(&self) -> bool {
+        self.fmdata
     }
 }
 
@@ -61,7 +61,7 @@ fn test_always_and_never() {
     all_on.debug = true;
     all_on.jet = true;
     all_on.preview_mode = true;
-    all_on.blkx = true;
+    all_on.fmdata = true;
     assert!(ActivationStrategy::always().should_activate(&all_on));
     assert!(!ActivationStrategy::never().should_activate(&all_on));
 }
@@ -89,9 +89,9 @@ fn test_context_flag_presets() {
     assert!(ActivationStrategy::jet_only().should_activate(&on));
     assert!(!ActivationStrategy::jet_only().should_activate(&MockCtx::new()));
 
-    on.blkx = true;
-    assert!(ActivationStrategy::blkx_available().should_activate(&on));
-    assert!(!ActivationStrategy::blkx_available().should_activate(&MockCtx::new()));
+    on.fmdata = true;
+    assert!(ActivationStrategy::fmdata_available().should_activate(&on));
+    assert!(!ActivationStrategy::fmdata_available().should_activate(&MockCtx::new()));
 
     // previewOnly / gameModeOnly 互为补集 (ctx.isPreviewMode 字段)
     let mut preview = MockCtx::new();

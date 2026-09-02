@@ -12,7 +12,7 @@ fn test_unresolved_sentinel() {
     let h = &FMHandle::UNRESOLVED;
     check(h.name.is_none(), "哨兵 name 应为 null");
     check(h.status == FMStatus::Unresolved, "哨兵 status 应为 UNRESOLVED");
-    check(h.blkx.is_none(), "哨兵 blkx 应为 null");
+    check(h.fmdata.is_none(), "哨兵 fmdata 应为 null");
     check(h.peak_wep_power == 0.0, "哨兵 peakWepPower 应为 0");
     check(h.peak_thrust == 0.0, "哨兵 peakThrust 应为 0");
     check(h.compressor_stages.is_none(), "哨兵 compressorStages 应为 null");
@@ -25,7 +25,7 @@ fn test_ready_handle() {
     // dummy Blkx: 路径不存在的文件 → 对象非 null 即可 (hasFM 只看 status 与 blkx 非空)
     // PORT: Java `new parser.Blkx("__no_such_file__.blkx", "dummy")` 构造出的
     // valid=false 空壳对象 ↔ Blkx::default() (字段全默认值)
-    let dummy = Blkx::default();
+    let dummy = FmData::default();
     let stages = [CompressorStageParams::default()];
     let h = FMHandle::ready(
         Some("plane1".to_string()),
@@ -39,7 +39,7 @@ fn test_ready_handle() {
     check(h.name.as_deref() == Some("plane1"), "name 应保留规范化机型名");
     // PORT: Java `h.blkx == dummy` 引用同一性 → 所有权模型无引用同一性可判,
     // 退化为存在性检查 (值即传入值)
-    check(h.blkx.is_some(), "blkx 应携带解析对象");
+    check(h.fmdata.is_some(), "fmdata 应携带解析对象");
     check(h.peak_wep_power == 1850.5, "peakWepPower 应保留传入值");
     check(h.peak_thrust == 0.0, "活塞机 peakThrust 应为 0");
     // PORT: Java `h.compressorStages == stages` 引用同一性 → 内容相等
@@ -48,13 +48,13 @@ fn test_ready_handle() {
         h.compressor_stages.as_deref() == Some(stages.as_slice()),
         "compressorStages 应保留传入引用",
     );
-    check(h.has_fm(), "READY 且 blkx 非空 → hasFM 为 true");
+    check(h.has_fm(), "READY 且 fmdata 非空 → hasFM 为 true");
     check(!h.is_missing_like(), "READY 不是 missing-like");
 
     // 喷气机形态: stages=null, peakThrust>0
     let jet = FMHandle::ready(
         Some("me262".to_string()),
-        Some(Blkx::default()),
+        Some(FmData::default()),
         0.0,
         1800.0,
         None,
@@ -70,7 +70,7 @@ fn test_missing_handle() {
     let h = FMHandle::missing(Some("ghost".to_string()));
     check(h.status == FMStatus::Missing, "missing() 工厂 status 应为 MISSING");
     check(h.name.as_deref() == Some("ghost"), "name 应为机型名");
-    check(h.blkx.is_none(), "MISSING 不携带 blkx");
+    check(h.fmdata.is_none(), "MISSING 不携带 fmdata");
     check(h.peak_wep_power == 0.0 && h.peak_thrust == 0.0, "MISSING 功率/推力应为 0");
     check(!h.has_fm(), "MISSING hasFM 应为 false");
     check(h.is_missing_like(), "MISSING isMissingLike 应为 true");
@@ -81,7 +81,7 @@ fn test_corrupt_handle() {
     let h = FMHandle::corrupt(Some("badplane".to_string()));
     check(h.status == FMStatus::Corrupt, "corrupt() 工厂 status 应为 CORRUPT");
     check(h.name.as_deref() == Some("badplane"), "name 应为机型名");
-    check(h.blkx.is_none(), "CORRUPT 不携带 blkx");
+    check(h.fmdata.is_none(), "CORRUPT 不携带 fmdata");
     check(!h.has_fm(), "CORRUPT hasFM 应为 false");
     check(h.is_missing_like(), "CORRUPT isMissingLike 应为 true");
 }
@@ -95,7 +95,7 @@ fn test_not_aircraft_handle() {
         h.name.as_deref() == Some("tankmodels/us_n4a3e8_76_sherman"),
         "name 应保留原始载具名",
     );
-    check(h.blkx.is_none(), "NOT_AIRCRAFT 不携带 blkx");
+    check(h.fmdata.is_none(), "NOT_AIRCRAFT 不携带 fmdata");
     check(!h.has_fm(), "NOT_AIRCRAFT hasFM 应为 false (HUD 走降级)");
     check(
         !h.is_missing_like(),
@@ -106,8 +106,8 @@ fn test_not_aircraft_handle() {
 fn test_missing_like_semantics() {
     // -- isMissingLike 全枚举覆盖测试 --
     check(!FMHandle::UNRESOLVED.is_missing_like(), "UNRESOLVED 不是 missing-like");
-    check(FMHandle::missing(Some("x".into())).blkx.is_none(), "MISSING 永不携带 blkx");
-    check(FMHandle::corrupt(Some("x".into())).blkx.is_none(), "CORRUPT 永不携带 blkx");
+    check(FMHandle::missing(Some("x".into())).fmdata.is_none(), "MISSING 永不携带 fmdata");
+    check(FMHandle::corrupt(Some("x".into())).fmdata.is_none(), "CORRUPT 永不携带 fmdata");
     check(FMHandle::corrupt(Some("x".into())).is_missing_like(), "CORRUPT 属于 missing-like");
     check(FMHandle::missing(Some("x".into())).is_missing_like(), "MISSING 属于 missing-like");
     check(
@@ -149,9 +149,9 @@ fn missing_like_semantics() {
 /// 边界补充 (Java 测试未覆盖): status=READY 但 blkx=null 的防御分支 ——
 /// hasFM 必须为 false (javadoc 明示 "对调用方一律视为无 FM")
 #[test]
-fn ready_with_null_blkx_has_no_fm() {
+fn ready_with_null_fmdata_has_no_fm() {
     let h = FMHandle::ready(Some("x".to_string()), None, 100.0, 0.0, None);
-    check(!h.has_fm(), "READY 但 blkx 为 null → hasFM 应为 false");
+    check(!h.has_fm(), "READY 但 fmdata 为 null → hasFM 应为 false");
 }
 
 /// Java 8 oracle 对拍 (§5.1 A 类): toString 五形态 + 六态枚举名, 期望值为
@@ -163,7 +163,7 @@ fn java8_oracle_tostring() {
     assert_eq!(
         FMHandle::ready(
             Some("plane1".to_string()),
-            Some(Blkx::default()),
+            Some(FmData::default()),
             1850.5,
             0.0,
             Some(vec![CompressorStageParams::default()]),

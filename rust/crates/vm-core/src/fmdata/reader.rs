@@ -1,40 +1,32 @@
 //! Blkx 的 getload 全量装载 (对应 Java `src/parser/Blkx.java` 的装载面, D4 拆分:
-//! reader.rs)。blkx→json 迁移终态: BlkText 文本解析链 (构造器/getone/cut 族) 已
-//! 随 JSON 数据源退役删除, 本模块只保留**数据源泛型**的字段填充逻辑 —
-//! - `getload_from<S: BlkSource>` — FM 全量装载 + fmdata 摘要串构造
+//! reader.rs)。JSON 数据源直供 — BlkText 文本链已随 blkx→json 迁移退役删除
+//! (迁移期 2832 对全量位级对拍验证等价):
+//! - `getload_from(&JsonSrc)` — FM 全量装载 + fmdata 摘要串构造
 //!   (语句顺序/公式/Java bug 保真逐行直译; panic 由 parse_named_json 的
 //!   catch_unwind 收敛 Err)
-//! - `get_all_plotdata_from`/`trans_unit_from`/`getplotdata_from` — PASSPORT
-//!   五曲线抽取 + 英制换算
 //! - `get_parts_fm`/`get_engine_load`/`init_engine_load`/
 //!   `extract_rpm_from_throttle_auto` — 装载辅助
-//! - 尾部 [`BlkSource`] trait — 抽取原语抽象, 唯一后端 JsonSrc (json.rs);
-//!   数值解析 (Float.parseFloat 域) 是 trait 默认方法, 单源
+//!
+//! 抽取原语在 json.rs 的 JsonSrc: get_f64 族**数值直读** (Number → as_f64 →
+//! as f32 → widen, 免字符串往返)、get_str 文本形态 ("null" 哨兵/Bool 形态)、
+//! section 子树引用。
+//!
+//! 2026-09 死代码清理: Java 遗留死存储 (cl_a/aileron_defl/wx 族/平铺 aoa 族/
+//! v50/v100 快照字段/oilload/wtload/tmload 装箱遗留/MIL 推力表等) 与 PASSPORT
+//! 曲线链 (loc..loc3/transUnit/getplotdata — Java DrawFrame 消费未迁移至 Rust,
+//! Rust 生产零消费) 已删。
 //!
 //! 构造入口在 json.rs: [`Blkx::parse_named_json`] (doLoad=true) /
 //! [`Blkx::parse_named_opts_json`] (中央文件只读) / [`Blkx::parse_str_json`]
 //! (fuzz 注入)。
-//!
-//! PORT (§2.1): Java charAt/indexOf/substring 按 UTF-16 码元计数, 此处一律字节偏移
-//! + `as_bytes()` 索引 — 域内 (FM/中央文件) 为纯 ASCII (真机三文件 od/grep 实测),
-//!   字节索引与码元索引一致; 定界符 '{'/'}'/'='/'\n' 均为 ASCII, UTF-8 自同步,
-//!   逐字节比较不会误判多字节字符 (string_helper.rs 先例)。
 
-use super::types::{EngineLoad, FmParts, SweepLevel, XY};
-use super::Blkx;
+use super::json::JsonSrc;
+use super::types::{EngineLoad, FmParts, SweepLevel};
+use super::FmData;
 use crate::g;
 use crate::lang::Lang;
 use crate::logger;
 use crate::parser::state::MAX_ENG_NUM;
-
-/// Java `String.trim()`: 剥首尾所有 `<= U+0020` 的字符 (含 \n/\r/\t 与 C0 控制符,
-/// **不含** NBSP U+00A0)。
-/// PORT: Rust `str::trim` 剥 Unicode White_Space (NBSP 会被剥掉) — 构造器的
-/// 空文件/JSON 判定必须用 Java 语义 (oracle ctor_n7: 内容 "\u{A0}{x\n" 的文件
-/// Java trim 后非空且不以 '{' 开头 → valid=true)。
-fn java_trim(s: &str) -> &str {
-    s.trim_matches(|c: char| (c as u32) <= 0x20)
-}
 
 /// [`java_format`] 的实参 (getload fmdata 串构造专用)。
 enum FmtArg {
@@ -50,7 +42,7 @@ enum FmtArg {
 /// (Java L1464-1560)。模板来自 Lang 运行时表 (可被 lang/cur.properties 覆盖),
 /// 不能编译期展开, 故运行时扫描 `%` 转换: `%s`/`%d`/`%.Mf`/`%%` (getload 用到的
 /// 全部形态; 宽度域未用不支持)。参数耗尽 = Java MissingFormatArgumentException
-/// → panic (由 from_read_data 的 catch_unwind 收敛, 同一防线)。
+/// → panic (由 parse_named_opts_json 的 catch_unwind 收敛, 同一防线)。
 fn java_format(tpl: &str, args: &[FmtArg]) -> String {
     let mut out = String::new();
     let mut ai = 0usize;
@@ -127,11 +119,7 @@ fn java_format(tpl: &str, args: &[FmtArg]) -> String {
     out
 }
 
-impl Blkx {
-
-    // ------------------------------------------------------------------
-    // getdouble 族 (Java L523-569) — getload 的数值抽取原语
-    // ------------------------------------------------------------------
+impl FmData {
 
     // ------------------------------------------------------------------
     // getPartsFm / extractRpmFromThrottleAuto / getEngineLoad / initEngineLoad
@@ -139,7 +127,7 @@ impl Blkx {
     // ------------------------------------------------------------------
 
     /// 对应 Java `public void getPartsFm(String c, fm_parts p)` (L408-418)。
-    pub(crate) fn get_parts_fm<S: BlkSource>(src: &S, c: &str, p: &mut FmParts) {
+    pub(crate) fn get_parts_fm(src: &JsonSrc, c: &str, p: &mut FmParts) {
         p.name = Some(c.to_string());
         p.cd_min = src.get_f64(&format!("{c}.CdMin"));
         p.cl0 = src.get_f64(&format!("{c}.Cl0"));
@@ -156,13 +144,13 @@ impl Blkx {
     /// 对应 Java `private void extractRpmFromThrottleAuto(String hdrString)`
     /// (L431-475)。形参 hdrString 在 Java 方法体内未被引用 — `_` 前缀保真保留
     /// (get_aoa_low_v_wing 同款先例)。
-    fn extract_rpm_from_throttle_auto<S: BlkSource>(&mut self, src: &S, _hdr_string: &str) {
+    fn extract_rpm_from_throttle_auto(&mut self, src: &JsonSrc, _hdr_string: &str) {
         self.military_rpm = 0.0;
         self.wep_rpm = 0.0;
 
         // Try to find Propellor section within the engine type
         // PORT: Java `cut(data, ...)` — data 为 null 时 cut 处 NPE ↔ unwrap panic
-        // (from_read_data 的 catch_unwind 收敛, §1)
+        // (parse_named_opts_json 的 catch_unwind 收敛, §1)
         let mut prop_section = src.section("Propellor");
         if prop_section.is_null() {
             prop_section = src.section("Propeller");
@@ -211,7 +199,7 @@ impl Blkx {
 
     /// 对应 Java `public boolean getEngineLoad(engineLoad[] eL, int loadIndex)`
     /// (L477-494) — 读一个 Load 档; WaterLimit/OilLimit 为 0 即该档缺席。
-    fn get_engine_load<S: BlkSource>(src: &S, el: &mut [EngineLoad], load_index: usize) -> bool {
+    fn get_engine_load(src: &JsonSrc, el: &mut [EngineLoad], load_index: usize) -> bool {
         let c = format!("Load{load_index}");
         el[load_index].water_limit = src.get_f64(&format!("{c}.WaterTemperature"));
         if el[load_index].water_limit == 0.0 {
@@ -230,7 +218,7 @@ impl Blkx {
 
     /// 对应 Java `public void initEngineLoad()` (L817-853)。
     /// `Application.maxEngLoad` = 10 (Java 常量, Application.java:67)。
-    fn init_engine_load<S: BlkSource>(&mut self, src: &S) {
+    fn init_engine_load(&mut self, src: &JsonSrc) {
         const APP_MAX_ENG_LOAD: usize = 10; // Application.maxEngLoad
         self.avg_eng_recovery_rate = 0.0;
         let mut eng_load: Vec<EngineLoad> = vec![EngineLoad::default(); APP_MAX_ENG_LOAD];
@@ -254,7 +242,7 @@ impl Blkx {
             && src.get_f64(&format!("Load{}.WaterTemperature", eng_load.len())) != 0.0
         {
             logger::warn(
-                "Blkx",
+                "FmData",
                 &format!(
                     "发动机负载档位数超过数组容量 {}, Load{}+ 被截断 (如为真实机型请上调 Application.maxEngLoad), FM: {}",
                     eng_load.len(),
@@ -276,7 +264,7 @@ impl Blkx {
                     eng_load[i].work_time / eng_load[i].recover_time;
             }
             logger::debug(
-                "Blkx",
+                "FmData",
                 &format!(
                     "Load{} Water/Oil: [{}, {}] WEP/Rec: [{}, {}]",
                     i,
@@ -307,11 +295,11 @@ impl Blkx {
     /// AFuselage 重复读两遍、Stab/KeelAngle 段误写 WingAngle 的 bug 均保真保留);
     /// 浮点字面量按 §2.12 (1.0f/1000.f 拓宽域, 精确值直书); `(int)` 强转按 §2.2。
     /// panic 语义 (§1): Java 由构造器 catch(Exception) 收敛 valid=false ↔ 本方法
-    /// 的 panic 由 from_read_data 的 catch_unwind 收敛 Err (畸形输入防线)。
+    /// 的 panic 由 parse_named_opts_json 的 catch_unwind 收敛 Err (畸形输入防线)。
     // PORT(allow needless_range_loop): 方法体多处 Java for(int i...) 直译 — i 进
     // format! 键名 (ThrustMax.Altitude_{i} 等), 计数形态是本意
     #[allow(clippy::needless_range_loop)]
-    pub(crate) fn getload_from<S: BlkSource>(&mut self, src: &S) {
+    pub(crate) fn getload_from(&mut self, src: &JsonSrc) {
         let start_time = std::time::Instant::now(); // System.currentTimeMillis 计时面
         self.is_jet = false;
 
@@ -330,7 +318,7 @@ impl Blkx {
                     // 检视反馈 (Java 同款): 超限截断显式告警, 不静默
                     if src.get_str(&format!("Engine{}", self.engine_num)) != "null" {
                         logger::warn(
-                            "Blkx",
+                            "FmData",
                             &format!(
                                 "引擎数超过解析上限 {}, Engine{}+ 被截断 (如为真实机型请上调 State.maxEngNum), FM: {}",
                                 MAX_ENG_NUM,
@@ -355,7 +343,7 @@ impl Blkx {
                 if self.engine_num >= MAX_ENG_NUM as i32 {
                     if src.get_str(&format!("Engine{}", self.engine_num)) != "null" {
                         logger::warn(
-                            "Blkx",
+                            "FmData",
                             &format!(
                                 "引擎数超过解析上限 {}, Engine{}+ 被截断 (如为真实机型请上调 State.maxEngNum), FM: {}",
                                 MAX_ENG_NUM,
@@ -413,8 +401,6 @@ impl Blkx {
                 }
                 self.mode_engine_num += 1;
             }
-            self.mode_engine_mult = Some(mode_engine_mult);
-            self.mode_engine_rpm_mult = Some(mode_engine_rpm_mult);
 
             let mut engine_mult_wep = 1.0f64;
             if self.mode_engine_num != 0 {
@@ -423,45 +409,38 @@ impl Blkx {
                     mode_engine_rpm_mult[self.mode_engine_num as usize - 1];
             }
 
-            // 读取推力系数包络
+            // 预计算 AFT 推力表 (曲线窗口 + 峰值推力; MIL 表 Rust 无消费方, 已随
+            // 2026-09 死代码清理删除 — peak MIL 仅装载日志曾用)
             let alt_n = self.alt_thr_num as usize;
             let vel_n = self.vel_thr_num as usize;
-            let mut max_thr_coff: Vec<Vec<f64>> = vec![vec![0.0; vel_n]; alt_n];
-            let mut max_thr: Vec<Vec<f64>> = vec![vec![0.0; vel_n]; alt_n];
             let mut max_thr_aft: Vec<Vec<f64>> = vec![vec![0.0; vel_n]; alt_n];
             let mut max_thr_aft_coff: Vec<Vec<f64>> = vec![vec![0.0; vel_n]; alt_n];
             for i in 0..alt_n {
                 for j in 0..vel_n {
-                    max_thr_coff[i][j] =
-                        src.get_f64(&format!("ThrustMax.ThrustMaxCoeff_{i}_{j}"));
+                    let thr_coff = src.get_f64(&format!("ThrustMax.ThrustMaxCoeff_{i}_{j}"));
                     max_thr_aft_coff[i][j] =
                         src.get_f64(&format!("ThrustMax.ThrAftMaxCoeff_{i}_{j}"));
                     if max_thr_aft_coff[i][j] == 0.0 {
                         max_thr_aft_coff[i][j] = 1.0;
                     }
-                    max_thr[i][j] =
-                        self.thr_max0 * max_thr_coff[i][j] * self.engine_num as f64;
-                    max_thr_aft[i][j] = self.thr_max0 * max_thr_coff[i][j] * self.aftb_coff
-                        * max_thr_aft_coff[i][j]
-                        * engine_mult_wep
-                        * self.engine_num as f64;
+                    max_thr_aft[i][j] =
+                        self.thr_max0 * thr_coff * self.aftb_coff
+                            * max_thr_aft_coff[i][j]
+                            * engine_mult_wep
+                            * self.engine_num as f64;
                 }
             }
             // 预计算峰值推力
-            self.peak_thr_mil = self.calculate_peak_thrust(Some(&max_thr));
             self.peak_thr_aft = self.calculate_peak_thrust(Some(&max_thr_aft));
-            self.max_thr_coff = Some(max_thr_coff);
-            self.max_thr = Some(max_thr);
             self.max_thr_aft = Some(max_thr_aft);
             self.max_thr_aft_coff = Some(max_thr_aft_coff);
 
             logger::info(
-                "Blkx",
+                "FmData",
                 &format!(
-                    "Jet Engine Thrust Table loaded ({}x{}), peak MIL={} kgf, AFT={} kgf",
+                    "Jet Engine Thrust Table loaded ({}x{}), peak AFT={} kgf",
                     self.alt_thr_num,
                     self.vel_thr_num,
-                    crate::format::format(self.peak_thr_mil, 0),
                     crate::format::format(self.peak_thr_aft, 0)
                 ),
             );
@@ -473,7 +452,7 @@ impl Blkx {
                 src.get_f64("Compressor.SpeedManifoldMultiplier");
 
             // NegativeArraySizeException → 构造器 catch; as usize 巨量 → Vec
-            // 分配 panic 同被 from_read_data 收敛 (CORRUPT 同语义)
+            // 分配 panic 同被 parse_named_opts_json 收敛 (CORRUPT 同语义)
             let n = self.comp_num_steps as usize;
             let mut comp_alt = vec![0.0f64; n];
             let mut comp_boost = vec![0.0f64; n];
@@ -600,7 +579,6 @@ impl Blkx {
         if !self.is_jet && self.comp_num_steps > 0 {
             self.extract_rpm_from_throttle_auto(src, &hdr_string);
         }
-        self.max_allowed_rpm = src.get_f64("RPMMaxAllowed");
 
         self.version = self.get_version();
         self.init_engine_load(src);
@@ -630,15 +608,6 @@ impl Blkx {
         self.elav_power_loss = src.get_f64("ElevatorPowerLoss");
         self.maxfuelweight = src.get_f64("MaxFuelMass0");
 
-        self.clmax = src.get_f64("NoFlaps.ClCritHigh");
-        self.flap_clmax = src.get_f64("FullFlaps.ClCritHigh");
-
-        self.aoa_high = src.get_f64("NoFlaps.alphaCritHigh");
-        self.aoa_low = src.get_f64("NoFlaps.alphaCritLow");
-
-        self.flap_aoa_high = src.get_f64("FullFlaps.alphaCritHigh");
-        self.flap_aoa_low = src.get_f64("FullFlaps.alphaCritLow");
-
         self.nitro_decr = src.get_f64("NitroConsumption");
         self.nitro = src.get_f64("MaxNitro");
         self.oil = src.get_f64("OilMass");
@@ -656,14 +625,6 @@ impl Blkx {
             self.swept_wing_angle = src.get_f64("WingPlane.SweptAngle");
             if self.swept_wing_angle == 0.0 {
                 self.swept_wing_angle = src.get_f64("WingPlaneSweep0.SweptAngle");
-            }
-        }
-
-        self.wing_taper_ratio = src.get_f64("WingTaperRatio");
-        if self.wing_taper_ratio == 0.0 {
-            self.wing_taper_ratio = src.get_f64("WingPlane.TaperRatio");
-            if self.wing_taper_ratio == 0.0 {
-                self.wing_taper_ratio = src.get_f64("WingPlaneSweep0.TaperRatio");
             }
         }
 
@@ -829,25 +790,16 @@ impl Blkx {
         }
         self.is_v_wing = Some(sweep_levels.len() > 1);
 
-        // 向后兼容: 填充旧字段
-        // PORT: Java 引用共享 (V50 = sweepLevels.get(1).noFlaps) → 值克隆
-        // (mod.rs 字段区裁决: 解析后只读)
+        // 向后兼容: 拼摘要串用的 v50/v100 快照 (Java 存字段的引用共享, Rust 无
+        // 字段消费方 — 2026-09 死代码清理后仅局部变量; full_flaps 版 Java 亦死)
         let mut no_flaps_wing_v50 = FmParts::default();
         let mut no_flaps_wing_v100 = FmParts::default();
-        let mut full_flaps_wing_v50 = FmParts::default();
-        let mut full_flaps_wing_v100 = FmParts::default();
         if sweep_levels.len() >= 2 {
             no_flaps_wing_v50 = sweep_levels[1].no_flaps.clone().unwrap_or_default();
-            full_flaps_wing_v50 = sweep_levels[1].full_flaps.clone().unwrap_or_default();
-            self.vne_v50 = sweep_levels[1].vne;
-            self.vne_mach_v50 = sweep_levels[1].vne_mach;
         }
         if sweep_levels.len() >= 3 {
             let last = sweep_levels.len() - 1;
             no_flaps_wing_v100 = sweep_levels[last].no_flaps.clone().unwrap_or_default();
-            full_flaps_wing_v100 = sweep_levels[last].full_flaps.clone().unwrap_or_default();
-            self.vne_v100 = sweep_levels[last].vne;
-            self.vne_mach_v100 = sweep_levels[last].vne_mach;
         }
 
         let mut fuselage = FmParts::default();
@@ -855,8 +807,6 @@ impl Blkx {
         if fuselage.aoa_crit_high == 0.0 {
             Self::get_parts_fm(src, "FuselagePlane.Polar", &mut fuselage);
         }
-        self.aoa_fuselage_high = fuselage.aoa_crit_high;
-        self.aoa_fuselage_low = fuselage.aoa_crit_low;
 
         let mut fin = FmParts::default();
         Self::get_parts_fm(src, "Fin", &mut fin);
@@ -1055,23 +1005,6 @@ impl Blkx {
         max_allow_gload[1] = 1.2 * (2.0 * max_allow_gload[1] / (g * self.grossweight) - 1.0);
         self.max_allow_gload = Some(max_allow_gload);
 
-        // 计算滚转率
-
-        // 先计算Cla
-        // (死存储保真: cl_a 写入后无读取方, Java 亦然 — mod.rs allow(dead_code))
-        self.cl_a = (no_flaps_wing.cl_crit_high - no_flaps_wing.cl0)
-            / no_flaps_wing.aoa_crit_high;
-
-        // 获得襟翼偏转角度(上偏和下偏)
-        let mut aileron_defl = [0.0f64; 2];
-        if src
-            .get_f64s("AileronAngles", &mut aileron_defl, 2)
-            .is_none()
-        {
-            let _ = src.get_f64s("Ailerons.AnglesRoll", &mut aileron_defl, 2);
-        }
-        self.aileron_defl = Some(aileron_defl);
-
         // 三轴转动惯量的值的顺序和三舵的要保持一致, 即pitch, roll, yaw
         s.push_str(&java_format(
             lang.b_inertia,
@@ -1122,10 +1055,6 @@ impl Blkx {
         // 部件实体落位 (Java: 构造过程中的 new fm_parts 赋值在此集中)
         self.no_flaps_wing = Some(no_flaps_wing);
         self.full_flaps_wing = Some(full_flaps_wing);
-        self.no_flaps_wing_v50 = Some(no_flaps_wing_v50);
-        self.no_flaps_wing_v100 = Some(no_flaps_wing_v100);
-        self.full_flaps_wing_v50 = Some(full_flaps_wing_v50);
-        self.full_flaps_wing_v100 = Some(full_flaps_wing_v100);
         self.sweep_levels = Some(sweep_levels);
         self.fuselage = Some(fuselage);
         self.fin = Some(fin);
@@ -1135,7 +1064,7 @@ impl Blkx {
 
         let duration = start_time.elapsed().as_millis() as i64;
         logger::info(
-            "Blkx",
+            "FmData",
             &format!(
                 "Parsed FM file '{}' in {} ms (Engine Count: {}, Jet: {})",
                 self.read_file_name.clone().unwrap_or_default(),
@@ -1168,231 +1097,6 @@ impl Blkx {
             ],
         ));
         s
-    }
-
-    // ------------------------------------------------------------------
-    // transUnit / getAllplotdata / getplotdata (Java L1590-1658) —
-    // PASSPORT 曲线抽取 + 英制单位换算 (getAllplotdata 批次)
-    // ------------------------------------------------------------------
-
-    /// 对应 Java `public void transUnit()` (L1590-1616) — 英制单位系 FM 的
-    /// PASSPORT 曲线换算 (高度英尺→米 0.3048 / 速度英里每小时→公里 1.609344)。
-    ///
-    /// PORT: Java `loc.y[i] * 0.3048f` — float 字面量先取 f32 值再拓宽
-    /// double 参与乘法 (24-bit 尾数域, `(0.3048f32 as f64) ≠ 0.3048f64`);
-    /// oracle (DumpPlot 腿B, OpenJDK 1.8.0_342): 1000 * 0.3048f =
-    /// 304.80000376701355, 321.84 * 1.609344f = 517.9512747573852, 位级一致。
-    ///
-    /// PORT: loc..loc3 未赋值 (Java null) 时 NPE ↔ unwrap panic — 生产调用点
-    /// 是 get_all_plotdata 尾部 (五字段刚赋值, 不可达); 直连时的 panic 由
-    /// FMLoader.load 的 catch_unwind 收敛 CORRUPT (§1)。
-    #[allow(unused_assignments)]
-    #[allow(clippy::needless_range_loop)]
-    fn trans_unit_from<S: BlkSource>(&mut self, src: &S) {
-        let mut unit_system = "".to_string();
-        unit_system = src.get_str("PASSPORT.UNITSYSTEM");
-        unit_system = self.sub_st(&unit_system);
-        // 字节 find ≡ UTF-16 indexOf, §2.1)。getone 未找到时返回哨兵 "null",
-        // sub_st 剥首尾得 "ul" 同样不含 "Imperial" → 空转 (DumpPlot 腿A 钉死;
-        // 真机 FM 键名恒小写 camelCase, getone 大小写敏感 → metric 数据不走换算)
-        if unit_system.find("Imperial").is_some() {
-            // Application.debugPrint("英制");
-            // PORT: Java for (int i = 0; i < loc.cur; i++) — cur 在循环体内
-            // 不被修改, 绑定一次等价 (i32 计数 → usize 供数组索引);
-            // `loc.y[i] = loc.y[i] * 0.3048f` 的赋值形态 → `*=` (clippy
-            // manual_assign, 单操作数乘法逐位等价)
-            let loc = self.loc.as_mut().unwrap();
-            let cur = loc.cur as usize;
-            for i in 0..cur {
-                loc.y[i] *= 0.3048f32 as f64;
-            }
-            let loc0 = self.loc0.as_mut().unwrap();
-            let cur = loc0.cur as usize;
-            for i in 0..cur {
-                loc0.y[i] *= 0.3048f32 as f64;
-            }
-            let loc1 = self.loc1.as_mut().unwrap();
-            let cur = loc1.cur as usize;
-            for i in 0..cur {
-                loc1.y[i] *= 0.3048f32 as f64;
-                loc1.x[i] *= 1.609344f32 as f64;
-            }
-            let loc2 = self.loc2.as_mut().unwrap();
-            let cur = loc2.cur as usize;
-            for i in 0..cur {
-                loc2.y[i] *= 0.3048f32 as f64;
-                loc2.x[i] *= 1.609344f32 as f64;
-            }
-            let loc3 = self.loc3.as_mut().unwrap();
-            let cur = loc3.cur as usize;
-            for i in 0..cur {
-                loc3.y[i] *= 1.609344f32 as f64;
-                // Application.debugPrint(loc3.x[i]+" "+loc3.y[i]);
-            }
-        }
-    }
-
-    /// 对应 Java `public void getAllplotdata()` (L1618-1625) — 五条 PASSPORT
-    /// 曲线全量抽取 + 单位换算 (FMLoader.load 第 6 步, finalizeLoading 前)。
-    pub(crate) fn get_all_plotdata_from<S: BlkSource>(&mut self, src: &S) {
-        self.loc = Some(Self::getplotdata_from(src, "PASSPORT.ALT.minClimbTimeWep"));
-        self.loc0 = Some(Self::getplotdata_from(src, "PASSPORT.ALT.minClimbTimeNom"));
-        self.loc1 = Some(Self::getplotdata_from(src, "PASSPORT.ALT.maxSpeedWep"));
-        self.loc2 = Some(Self::getplotdata_from(src, "PASSPORT.ALT.maxSpeedNom"));
-        self.loc3 = Some(Self::getplotdata_from(src, "PASSPORT.IAS.maxRollRateLeft"));
-        self.trans_unit_from(src);
-    }
-
-    /// 对应 Java `public XY getplotdata(String t)` (L1627-1658) — 抽取点分
-    /// 标签曲线块 (getArray 多行累积) 的逐行 (y, x) 对; 无匹配时空表
-    /// (cur=0, 数组长度 0)。
-    // PORT(allow needless_range_loop): Java for(int i...) 直译 — i 是行段
-    // substring 的终点索引, 计数形态是本意
-    #[allow(clippy::needless_range_loop)]
-    pub(crate) fn getplotdata_from<S: BlkSource>(src: &S, t: &str) -> XY {
-        let mut line = 0usize;
-        let t = src.get_str_all(t);
-        for i in 0..t.len() {
-            if t.as_bytes()[i] == b'\n' {
-                line += 1;
-            }
-        }
-        let mut lo = XY::new(line);
-        let mut bix = 0usize;
-        for i in 0..t.len() {
-            if t.as_bytes()[i] == b'\n' {
-                // 切片 ≡ substring (bix <= i < len 恒合法, 此处无防御加固点)
-                let temp = &t[bix..i];
-                // PORT: Java split(", ") 丢弃尾部空串, Rust split 保留 — 本方法
-                // 只消费 tmp[0]/tmp[1], 尾部空串差异的所有分叉 (Java 长度 <2
-                // 跳过 / Rust tmp[1]="" 解析失败丢弃) 最终都不写入数据点, 等价
-                let tmp: Vec<&str> = temp.split(", ").collect();
-                // 防御加固 (P6 fuzz 发现): 畸形曲线行 (缺逗号/数字混入字符) 原代码
-                // 直接 parseDouble 抛异常炸穿调用方 (对比窗口回退路径未包 try)。
-                // 改为跳过畸形行 (曲线少一个点), 完好行照常解析——仅曲线块受损的
-                // 文件仍可按 READY 用发动机数据
-                if tmp.len() >= 2 {
-                    // lo.x[lo.cur] = Double.parseDouble(tmp[1].trim()); lo.cur++;
-                    // — Double 域 (f64, 与 getdouble 族的 Float 域不同!);
-                    // NumberFormatException catch → 丢弃该数据点。
-                    // PORT: Java 在 y 写入后 x 解析失败会留下不可观察的脏 y[cur]
-                    // (cur 未自增, 消费方只读 [0, cur)), Rust 双成功才写入,
-                    // 可观察行为一致; trim 用 java_trim (Java String.trim 语义)
-                    if let (Ok(y), Ok(x)) = (
-                        java_trim(tmp[0]).parse::<f64>(),
-                        java_trim(tmp[1]).parse::<f64>(),
-                    ) {
-                        let cur = lo.cur as usize;
-                        lo.y[cur] = y;
-                        lo.x[cur] = x;
-                        lo.cur += 1;
-                    }
-                }
-                // 缺逗号的行: 同样跳过 (曲线少一个点)
-                bix = i + 1;
-            }
-        }
-        lo
-    }
-}
-
-// =====================================================================
-// BlkSource — getload_from 族的抽取原语抽象 (blkx→json 迁移终态)
-//
-// 历史: 迁移期曾有 TextSrc(BlkText 文本)/JsonSrc(JSON 树) 双后端, 经 2832 对
-// 全量位级对拍验证等价后, 文本后端已随 Java 链路退役删除, 现仅剩 JsonSrc 一个
-// 实现。保留 trait 形态: 数值解析 (getdouble 族的 Float.parseFloat 域) 是默认
-// 方法单源, 后端只负责寻址 (点分标签 → 值文本, 多分量值统一 "a, b" 逗号串)。
-// =====================================================================
-
-/// getload_from/getplotdata_from 的数据源原语。语义契约逐条锚定旧 BlkText
-/// 文本原语 (getone/get_array/cut, 见 json.rs 各映射注), 缺席返回 "null" 哨兵。
-pub(crate) trait BlkSource {
-    /// getone: 点分段 = section 链 (cut, CI 后缀), 末段 = 块内 leaf (CS 子串)。
-    fn get_str(&self, label: &str) -> String;
-
-    /// get_array: 点分段同上, 末段收集**全部**匹配行 (含行尾 '\n') 拼接
-    /// (PASSPORT 曲线 "y, x\n" 行流, getplotdata_from 的 Double 域解析依赖此形态)。
-    fn get_str_all(&self, label: &str) -> String;
-
-    /// cut: 命名块的花括号内视图 (Propellor 回退/WingPlaneSweep 循环用)。
-    fn section(&self, name: &str) -> BlkSection;
-
-    /// getdouble (默认实现): `Float.parseFloat` 域 — 首段 trim 后 parse f32
-    /// 再拓宽 f64 (1.42f != 1.42, Java Float 赋 double 的 24-bit 尾数域);
-    /// 解析失败返回 0。
-    fn get_f64(&self, label: &str) -> f64 {
-        let mut ret = 0.0;
-        let one = self.get_str(label);
-        if one != "null" {
-            let tmp: Vec<&str> = one.split(',').collect();
-            match tmp.first().and_then(|s| s.trim().parse::<f32>().ok()) {
-                Some(v) => ret = v as f64,
-                None => return 0.0,
-            }
-        }
-        ret
-    }
-
-    /// getdouble_exc (默认实现): 缺席哨兵 = Float.MAX_VALUE
-    /// (调用方以 `== f32::MAX as f64` 判截断); 解析失败返回 0 (Java catch 路径)。
-    fn get_f64_exc(&self, label: &str) -> f64 {
-        let mut ret = f32::MAX as f64;
-        let one = self.get_str(label);
-        if one != "null" {
-            let tmp: Vec<&str> = one.split(',').collect();
-            match tmp.first().and_then(|s| s.trim().parse::<f32>().ok()) {
-                Some(v) => ret = v as f64,
-                None => return 0.0,
-            }
-        }
-        ret
-    }
-
-    /// getdoubles (默认实现): 就地写 `ret[..num]`, 返回 None ↔ Java 返回 null:
-    /// - `num <= 0` → null;
-    /// - 键缺席 (get_str "null") → **返回 Some(()) 且 ret 不动** (调用方依赖
-    ///   "找不到键时保持 0 初值" 的语义, 如 MomentOfInertia);
-    /// - 段数不足/解析失败 → null (Java tmp[i] 越界或 parseFloat 抛 → catch;
-    ///   此时已写入的前缀保留 — 部分写入保真)。
-    fn get_f64s(&self, label: &str, ret: &mut [f64], num: usize) -> Option<()> {
-        if num == 0 {
-            return None;
-        }
-        let one = self.get_str(label);
-        if one != "null" {
-            let tmp: Vec<&str> = one.split(',').collect();
-            for (i, slot) in ret.iter_mut().enumerate().take(num) {
-                // 双路径同为 catch → null
-                *slot = tmp
-                    .get(i)
-                    .and_then(|s| s.trim().parse::<f32>().ok())
-                    .map(|v| v as f64)?;
-            }
-        }
-        Some(())
-    }
-}
-
-/// cut 的返回形态: JSON 子树 (未找到 ↔ Null)。
-pub(crate) enum BlkSection {
-    Null,
-    Json(serde_json::Value),
-}
-
-impl BlkSection {
-    /// 文本版 cut 哨兵 `"null"` 的等价判断。
-    pub fn is_null(&self) -> bool {
-        matches!(self, BlkSection::Null)
-    }
-
-    /// getonein_data: 块内 leaf 搜索 (点分段 section 链 + 末段 CI 定位);
-    /// 未找到返回哨兵串 "null"。(实现委托 json.rs — 树寻址归 JSON 层)
-    pub fn get_in(&self, label: &str) -> String {
-        match self {
-            BlkSection::Null => "null".to_string(),
-            BlkSection::Json(v) => super::json::get_in_json(v, label),
-        }
     }
 }
 

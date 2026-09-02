@@ -40,7 +40,7 @@ use std::cell::RefCell;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
-use vm_core::blkx::Blkx;
+use vm_core::fmdata::FmData;
 use vm_core::config_api::HUDSettings;
 use vm_core::event::event_payload::EventPayload;
 use vm_core::hud_calculator::{self, HudColors};
@@ -1323,7 +1323,7 @@ impl MiniHudOverlay {
         indic: Option<&Indicators>,
         payload: &EventPayload,
         service: Option<&dyn FormulaView>,
-        blkx: Option<&Blkx>,
+        fmdata: Option<&FmData>,
         settings: &S,
         colors: &HudColors,
     ) -> bool {
@@ -1334,7 +1334,7 @@ impl MiniHudOverlay {
         }
         self.last_refresh_time = now_ms;
 
-        self.update_from_event(state, indic, payload, service, blkx, settings, colors);
+        self.update_from_event(state, indic, payload, service, fmdata, settings, colors);
         // root.repaint() → 宿主 render_tick (脏检查逐字节, 无需显式标脏)
         true
     }
@@ -1347,13 +1347,13 @@ impl MiniHudOverlay {
         indic: Option<&Indicators>,
         payload: &EventPayload,
         service: Option<&dyn FormulaView>,
-        blkx: Option<&Blkx>,
+        fmdata: Option<&FmData>,
         settings: &S,
         colors: &HudColors,
     ) {
         // (Java 的 FMManager.current().blkx 快照语义由调用方以 blkx=None 表达 —
         // 非 READY 句柄降级)
-        let data = hud_calculator::calculate(state, indic, payload, service, blkx, settings, colors);
+        let data = hud_calculator::calculate(state, indic, payload, service, fmdata, settings, colors);
 
         // Dispatch to Reactive Components
         for comp in &self.components {

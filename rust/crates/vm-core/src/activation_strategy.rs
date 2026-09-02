@@ -25,7 +25,7 @@ pub trait ActivationContext {
     /// 对应 Java public 字段 `OverlayContext.isPreviewMode` (字段访问 → trait 方法)。
     fn is_preview_mode(&self) -> bool;
     /// 对应 Java public 字段 null 检查 `ctx.Blkx != null`。
-    fn has_blkx(&self) -> bool;
+    fn has_fmdata(&self) -> bool;
 }
 
 /// Strategy interface for determining if an overlay should be activated.
@@ -142,9 +142,9 @@ impl ActivationStrategy {
     }
 
     /// Activate when Blkx data is available.
-    pub fn blkx_available() -> ActivationStrategy {
+    pub fn fmdata_available() -> ActivationStrategy {
         ActivationStrategy {
-            f: Arc::new(|ctx| ctx.has_blkx()),
+            f: Arc::new(|ctx| ctx.has_fmdata()),
         }
     }
 }

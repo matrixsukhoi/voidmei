@@ -376,9 +376,9 @@ impl Service {
             d.fuel_time_sma = Some(SimpleMovingAverage::new(4));
 
             // R2 守卫: 无 FM 时保持 nitrokg/nitroConsump 归零值（与 updateWepTime 的守卫配套）
-            if let Some(blkx) = &fm.blkx {
-                d.nitrokg = blkx.nitro;
-                d.nitro_consump = blkx.nitro_decr;
+            if let Some(fmdata) = &fm.fmdata {
+                d.nitrokg = fmdata.nitro;
+                d.nitro_consump = fmdata.nitro_decr;
                 // pL[i].curWaterWorkTimeMili = pL[i].curWaterWorkTimeMili; —— 自赋值
                 // 无操作 (保真保留为注释; 真正的会话态改写在 reset_eng_load)
             }
@@ -886,14 +886,14 @@ impl Service {
             let meta = vm_core::formula::MetaInputs {
                 interval_ms: d.actual_interval_ms.max(1) as f64,
                 freq: d.freq as f64,
-                fm_loaded: fm.blkx.is_some(),
+                fm_loaded: fm.fmdata.is_some(),
                 ..Default::default()
             };
             // W6 直通: 原始三元组 + C 级会话量 (FMDataSource/adapter 三层已删)
             let raw = vm_core::formula::registry::RawInputs {
                 state: d.s_state.as_ref(),
                 indic: d.s_indic.as_ref(),
-                blkx: fm.blkx.as_ref(),
+                fmdata: fm.fmdata.as_ref(),
             };
             let session = session_inputs(&d);
             // 快照重建供规则求值 (formula.eval_frame 内部快照已 move 进缓存)
@@ -1009,8 +1009,8 @@ impl Service {
         d.nitro_eng_nr = nitro_eng_nr;
         d.wep_time = wep_time;
         // R2 守卫: 无 FM 时 blkx=null, nitrokg 归 0（显示 "-"）
-        d.nitrokg = if let Some(blkx) = fm.blkx.as_ref() {
-            let v = blkx.nitro - (d.wep_time as f64 * d.nitro_consump) / 1000.0;
+        d.nitrokg = if let Some(fmdata) = fm.fmdata.as_ref() {
+            let v = fmdata.nitro - (d.wep_time as f64 * d.nitro_consump) / 1000.0;
             if v < 0.0 { 0.0 } else { v }
         } else {
             0.0
@@ -1020,9 +1020,9 @@ impl Service {
         // 其余分支保持上轮值 (保真)。
         // (int)(((blkx.nitro / blkx.nitroDecr - wepTime / 1000)) / nitroEngNr)
         // —— wepTime/1000 是 long 整除后才并入 double
-        if let Some(blkx) = fm.blkx.as_ref() {
-            if blkx.nitro != 0.0 && nitro_eng_nr != 0 {
-                d.s_wep_time_val = ((blkx.nitro / blkx.nitro_decr
+        if let Some(fmdata) = fm.fmdata.as_ref() {
+            if fmdata.nitro != 0.0 && nitro_eng_nr != 0 {
+                d.s_wep_time_val = ((fmdata.nitro / fmdata.nitro_decr
                     - (wep_time as i64 / 1000) as f64)
                     / nitro_eng_nr as f64) as i32 as i64;
             }
@@ -1158,8 +1158,8 @@ impl Service {
             d.p_thurst_percent = d.thurst_percent;
 
             // R1: 峰值缓存直取句柄 (非 READY 两者 0 → 走 maxTotal 回退)
-            let peak_power = if fm.blkx.is_some() { fm.peak_wep_power } else { 0.0 };
-            let peak = if fm.blkx.is_some() { fm.peak_thrust } else { 0.0 };
+            let peak_power = if fm.fmdata.is_some() { fm.peak_wep_power } else { 0.0 };
+            let peak = if fm.fmdata.is_some() { fm.peak_thrust } else { 0.0 };
 
             if is_jet {
                 // Jet: current thrust / peak afterburner thrust

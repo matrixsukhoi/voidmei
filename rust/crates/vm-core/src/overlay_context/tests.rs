@@ -70,7 +70,7 @@ fn test_builder_defaults_match_java() {
     let ctx: OverlayContext<MockController, MockService> = Builder::new().build();
     assert!(ctx.tc.is_none(), "tc 默认 null");
     assert!(ctx.s.is_none(), "S 默认 null");
-    assert!(ctx.blkx.is_none(), "Blkx 默认 null");
+    assert!(ctx.fmdata.is_none(), "FmData 默认 null");
     assert!(!ctx.is_preview_mode, "isPreviewMode 默认 false");
     assert!(ctx.config_provider.is_none(), "configProvider 默认 null");
     // builder() 静态工厂与 Builder::new 等价 (Java OverlayContext.builder())
@@ -127,16 +127,16 @@ fn test_is_jet_null_short_circuit() {
 
     // Blkx 非 null + isJet=false → false
     let ctx: OverlayContext<MockController, MockService> = OverlayContext::builder()
-        .blkx(Some(Blkx::default()))
+        .fmdata(Some(FmData::default()))
         .build();
     assert!(!ctx.is_jet());
 
     // Blkx 非 null + isJet=true → true
     // (Blkx 含 blkx 模块树私有字段, 结构体字面量 FUS 不可用; is_jet 为 pub 可赋值)
-    let mut jet_blkx = Blkx::default();
-    jet_blkx.is_jet = true;
+    let mut jet_fmdata = FmData::default();
+    jet_fmdata.is_jet = true;
     let ctx: OverlayContext<MockController, MockService> = OverlayContext::builder()
-        .blkx(Some(jet_blkx))
+        .fmdata(Some(jet_fmdata))
         .build();
     assert!(ctx.is_jet());
 }
@@ -217,7 +217,7 @@ fn test_for_live_wiring() {
     assert!(ctx.tc.is_some() && Arc::ptr_eq(ctx.tc.as_ref().unwrap(), &tc));
     assert!(ctx.s.is_some() && Arc::ptr_eq(ctx.s.as_ref().unwrap(), &svc));
     // 未 identify 的 FMManager → UNRESOLVED 句柄 blkx=null (javadoc: 消费方 null 容忍)
-    assert!(ctx.blkx.is_none());
+    assert!(ctx.fmdata.is_none());
     assert!(!ctx.is_preview_mode, "游戏模式 previewMode=false");
     assert!(ctx.get_bool("showSpeedBar"), "configProvider 自动取自 getConfigService");
 }
@@ -229,7 +229,7 @@ fn test_for_preview_mode_wiring() {
     let tc = mock_controller("k", "true", false);
     let ctx = OverlayContext::for_preview_mode(&fm, Arc::clone(&tc));
     assert!(ctx.is_preview_mode, "预览模式 previewMode=true");
-    assert!(ctx.blkx.is_none());
+    assert!(ctx.fmdata.is_none());
     assert!(ctx.s.is_none(), "tc.S 为 null 时如实透传 null");
     assert!(ctx.get_bool("k"));
 }
@@ -246,20 +246,20 @@ fn test_activation_context_impl_semantics() {
     assert!(ActivationStrategy::config("enableVoiceWarn").should_activate(&ctx));
     assert!(!ActivationStrategy::config("noSuchKey").should_activate(&ctx));
     // has_blkx: Blkx 字段 null 检查
-    assert!(!ActivationStrategy::blkx_available().should_activate(&ctx));
+    assert!(!ActivationStrategy::fmdata_available().should_activate(&ctx));
     // is_preview_mode 字段 / is_jet 字段 (带配置: 组合链左侧 config 先求值, 无
     // provider 会像 Java 一样 NPE)
     let jet_config = Arc::new(MapConfig::new());
     jet_config.set_config("enableVoiceWarn", "true");
-    let mut jet_blkx = Blkx::default();
-    jet_blkx.is_jet = true;
+    let mut jet_fmdata = FmData::default();
+    jet_fmdata.is_jet = true;
     let mut jet = OverlayContext::<MockController, MockService>::builder();
-    jet.blkx(Some(jet_blkx)).preview_mode(true).config_provider(Some(jet_config));
+    jet.fmdata(Some(jet_fmdata)).preview_mode(true).config_provider(Some(jet_config));
     let jet_ctx = jet.build();
     assert!(ActivationStrategy::jet_only().should_activate(&jet_ctx));
     assert!(ActivationStrategy::preview_only().should_activate(&jet_ctx));
     assert!(!ActivationStrategy::live_only().should_activate(&jet_ctx));
-    assert!(ActivationStrategy::blkx_available().should_activate(&jet_ctx));
+    assert!(ActivationStrategy::fmdata_available().should_activate(&jet_ctx));
     // Controller.java:723 使用形态: config(...).and(gameModeOnly()) —— 预览态不激活
     let voice = ActivationStrategy::config("enableVoiceWarn").and(&ActivationStrategy::live_only());
     assert!(voice.should_activate(&ctx), "游戏态 + 配置 true → 激活");

@@ -7,15 +7,14 @@
 //! - 浮点一律 f32 的 ryu 最短往返表示 (必带小数点, 如 `619.0`);
 //! - 键序 = blk 文档序 (serde_json preserve_order, 见 Cargo.toml 注)。
 //!
-//! # 数值位级对齐 (对拍根基)
+//! # 数值位级对齐 (getdouble 族 = Float.parseFloat 域)
 //!
-//! 文本链路的 getdouble 族是 `Float.parseFloat` 域: 十进制串 → 最近 f32 →
-//! widen f64 (reader.rs 模块注陷阱 2)。JSON 链路: wt_blk 以 ryu 输出 f32 的
-//! **最短往返十进制** → serde_json 解析为最近 f64 → `as f32` 恢复原 f32 →
-//! widen f64。中间多经一次 f64 舍入不改变结果: 最短往返串到 f32 的恢复
-//! 经更细粒度的 f64 中转仍是同一最近 f32 (double rounding 对 round-trip
-//! 最短串安全)。整数 (blk `:i` 型) 两侧同经 parseFloat("900")/as_f64 精确域。
-//! 全量对拍测试 (parity) 为最终裁决。
+//! get_f64 族数值直读: `Number` → `as_f64` → `as f32` → widen f64。
+//! wt_blk 以 ryu 输出 f32 的**最短往返十进制** → serde 解析为最近 f64 →
+//! `as f32` 恢复原 f32 — 最短往返串经更细粒度的 f64 中转仍恢复同一最近
+//! f32 (double rounding 对 round-trip 最短串安全; 2026-09 对全语料 2832
+//! 文件逐数值实测 `串→parse::<f32>` 与 `as_f64→as f32` 双链位级一致)。
+//! 整数 (blk `:i` 型) 走精确域; String 数字形态按 parseFloat 保真解析。
 //!
 //! # 与文本原语的语义对应 (已知松散性差异, 对拍裁决)
 //!
@@ -27,7 +26,6 @@
 
 use serde_json::Value;
 
-use super::reader::{BlkSection, BlkSource};
 use super::types::{FuelModification, FuelType};
 
 // ==================== 树底层原语 ====================
@@ -110,7 +108,7 @@ fn key_matches(key: &str, label: &str, mode: KeyMatch) -> bool {
 /// 子树 DFS 前序首个 leaf (任意键) — 复刻文本"命中块名行后跨行扫到块内首个
 /// `=` 行"的取值行为 (引擎计数 getone("EngineN") 依赖: 块名行无 '=', 原代码
 /// 扫进块内首个值行; parity 实测 a-10a 双发被数成单发)。
-fn first_leaf_in<'a>(v: &'a Value) -> Option<&'a Value> {
+fn first_leaf_in(v: &Value) -> Option<&Value> {
     match v {
         Value::Object(map) => {
             for (_k, val) in map {
@@ -198,7 +196,7 @@ pub(crate) fn find_leaf_ci_last<'a>(v: &'a Value, label: &str) -> Option<&'a Val
 /// CI 全树取文档序最后一个字符串标量 (fm_loader 中央文件分支用, 不经 Blkx)。
 /// 返回**无引号**干净串 (JSON 字符串值本无引号; 文本链路的剥引号在 fm_loader)。
 pub(crate) fn get_last_string_ci(root: &Value, key: &str) -> Option<String> {
-    find_leaf_ci_last(root, key).and_then(|v| value_as_string(v))
+    find_leaf_ci_last(root, key).and_then(value_as_string)
 }
 
 /// 标量值 → getone 行值文本形态 (无引号域):
@@ -213,11 +211,28 @@ pub(crate) fn value_as_string(v: &Value) -> Option<String> {
     }
 }
 
-/// JSON 数值 → Java `Float.parseFloat` 域的 f64 (getdouble 族位级对齐, 见模块注)。
-/// (仅单测消费: 生产路径的 f32 域收敛在 trait 默认方法 get_f64 的文本化协议里)
-#[cfg(test)]
+/// JSON 标量 → Java `Float.parseFloat` 域的 f64 (24-bit 尾数, 1.42f != 1.42;
+/// 位级论证见模块注)。Number 直读; String 数字形态按文本链 parseFloat 保真;
+/// Bool → None (文本链 "true".parse 失败同返 None)。
 pub(crate) fn num_f32_domain(v: &Value) -> Option<f64> {
-    v.as_f64().map(|d| d as f32 as f64)
+    match v {
+        Value::Number(n) => n.as_f64().map(|d| d as f32 as f64),
+        Value::String(s) => s.trim().parse::<f32>().ok().map(|f| f as f64),
+        _ => None,
+    }
+}
+
+/// leaf → **首分量**数值 (f32 域)。等价旧文本化协议 "leaf_to_text → split(',')
+/// 首段 → parseFloat" 的取首语义, 免除字符串往返: p2/p3 数组取首元素、
+/// 嵌套数组 (merge 曲线) 取首 pair 首元素、标量 merge 数组取首元素。
+fn first_number_f32(v: &Value) -> Option<f64> {
+    match v {
+        Value::Array(arr) => match arr.first()? {
+            Value::Array(pair) => pair.first().and_then(num_f32_domain),
+            e => num_f32_domain(e),
+        },
+        e => num_f32_domain(e),
+    }
 }
 
 // ==================== 中央文件燃油修正 (树版) ====================
@@ -366,98 +381,125 @@ fn numberish_to_string(v: &Value) -> String {
     value_as_string(v).unwrap_or_default()
 }
 
-impl BlkSource for JsonSrc {
-    /// getone 等价: 点分段 = section 链 (find_section_ci, CI 子串 — 对齐文本
-    /// cut 链), 末段 = 块内 leaf (find_leaf_cs, CS 子串) + 怪癖整形。
-    fn get_str(&self, label: &str) -> String {
+impl JsonSrc {
+    /// 点分标签的 section 链走位: 前缀段逐段 find_section_ci 下钻,
+    /// 返回 (终节点, 末段 label); 链断 → None。
+    fn walk_sections<'a, 'b>(&'a self, label: &'b str) -> Option<(&'a Value, &'b str)> {
         let mut node: &Value = &self.root;
         let mut clsbix = 0usize;
         for i in 0..label.len() {
             if label.as_bytes()[i] == b'.' {
-                match find_section_ci(node, &label[clsbix..i]) {
-                    Some(n) => node = n,
-                    None => return "null".to_string(),
-                }
+                node = find_section_ci(node, &label[clsbix..i])?;
                 clsbix = i + 1;
             }
         }
-        let (last, root_only, mode) = shape_leaf_label(&label[clsbix..]);
-        let hit = if root_only {
+        Some((node, &label[clsbix..]))
+    }
+
+    /// getone 寻址: section 链 + 末段 leaf 定位 (怪癖整形 + CS 子串)。
+    /// 返回**原始 leaf 值** — 数组三形态由消费方处理 (get_str → leaf_to_text,
+    /// get_f64 族 → first_number_f32)。
+    fn find_getone_leaf<'a>(&'a self, label: &str) -> Option<&'a Value> {
+        let (node, rest) = self.walk_sections(label)?;
+        let (last, root_only, mode) = shape_leaf_label(rest);
+        if root_only {
             // 仅根层键 (文本 "\n" 前缀 = 列 0 行首, 嵌套块行必缩进不可达)
             match &self.root {
                 Value::Object(map) => map
                     .keys()
                     .find(|k| key_matches(k, last, mode))
                     .and_then(|k| map.get(k))
-                    .filter(|v| !is_section(v))
-                    .and_then(leaf_to_text),
+                    .filter(|v| !is_section(v)),
                 _ => None,
             }
         } else {
-            find_leaf_mode(node, last, mode, false).and_then(leaf_to_text)
+            find_leaf_mode(node, last, mode, false)
+        }
+    }
+
+    /// getone 等价: 寻址同上, 值文本化 (显示串/Bool 形态/"null" 哨兵)。
+    /// 数值抽取请走 get_f64 族 (数值直读, 免字符串往返)。
+    pub(crate) fn get_str(&self, label: &str) -> String {
+        self.find_getone_leaf(label)
+            .and_then(leaf_to_text)
+            .unwrap_or_else(|| "null".to_string())
+    }
+
+    /// getdouble 等价 (数值直读): 寻址同 getone, 取首分量 (f32 域);
+    /// 缺席/解析失败 → 0 (Java catch 路径)。
+    pub(crate) fn get_f64(&self, label: &str) -> f64 {
+        self.find_getone_leaf(label)
+            .and_then(first_number_f32)
+            .unwrap_or(0.0)
+    }
+
+    /// getdouble_exc 等价: 缺席哨兵 = Float.MAX_VALUE (调用方以
+    /// `== f32::MAX as f64` 判截断); 命中但解析失败返回 0 (Java catch 路径)。
+    pub(crate) fn get_f64_exc(&self, label: &str) -> f64 {
+        match self.find_getone_leaf(label) {
+            None => f32::MAX as f64,
+            Some(v) => first_number_f32(v).unwrap_or(0.0),
+        }
+    }
+
+    /// getdoubles 等价 (数值直读): 就地写 `ret[..num]`, 返回 None ↔ Java null:
+    /// - `num <= 0` → null;
+    /// - 键缺席 → **Some(()) 且 ret 不动** (调用方依赖 "找不到键时保持 0 初值");
+    /// - 分量不足/非数值 → None (此时已写入的前缀保留 — 部分写入保真)。
+    /// 分量序列 = 旧文本化协议 "leaf_to_text join(', ') 再 split" 的等价拆分
+    /// (数组三形态): p2/p3 数组逐元素、嵌套数组 (merge 曲线) 取首 pair、
+    /// 标量 merge 数组取首元素。
+    pub(crate) fn get_f64s(&self, label: &str, ret: &mut [f64], num: usize) -> Option<()> {
+        if num == 0 {
+            return None;
+        }
+        let Some(leaf) = self.find_getone_leaf(label) else {
+            return Some(()); // 键缺席: ret 保持初值
         };
-        hit.unwrap_or_else(|| "null".to_string())
+        let comps: Vec<&Value> = match leaf {
+            Value::Array(arr) if !arr.is_empty() => match &arr[0] {
+                Value::Array(pair) => pair.iter().collect(),
+                Value::String(_) | Value::Bool(_) => vec![&arr[0]],
+                _ => arr.iter().collect(),
+            },
+            // 空数组 ≡ 空行值 "": 首段 parse 失败 → None (部分写入 0 个)
+            Value::Array(_) => Vec::new(),
+            other => vec![other],
+        };
+        for (i, slot) in ret.iter_mut().enumerate().take(num) {
+            // 分量越界/非数值 = Java tmp[i] 越界或 parseFloat 抛 → catch null
+            *slot = comps.get(i).and_then(|v| num_f32_domain(v))?;
+        }
+        Some(())
     }
 
-    /// get_array 等价 (PASSPORT 曲线): 点分段同上, 末段键的 merge 数组
-    /// ([[y, x], ...]) 逐对序列化 "y, x\n" 行流 — getplotdata 的 Double 域
-    /// 解析逻辑与文本后端单源共享。末段定位是 **CI** (对齐 get_array 的
-    /// toUpperCase find, 与 getone 末段的 CS 不同)。
-    fn get_str_all(&self, label: &str) -> String {
-        let mut node: &Value = &self.root;
-        let mut clsbix = 0usize;
-        for i in 0..label.len() {
-            if label.as_bytes()[i] == b'.' {
-                match find_section_ci(node, &label[clsbix..i]) {
-                    Some(n) => node = n,
-                    None => return String::new(),
-                }
-                clsbix = i + 1;
-            }
-        }
-        let (last, _root_only, _mode) = shape_leaf_label(&label[clsbix..]);
-        // 曲线键的两种值形态 (wt_blk 序列化, parity 实测):
-        // - 同名 p2 多行 → merge 嵌套数组 [[y, x], ...] → 逐 pair 一行;
-        // - 同名 p2 单行 (yak-3 的 minClimbTimeNom) → 标量数组 [y, x] → 整体一对;
-        // 非数组形态 → 空串 (文本版 get_array 无匹配行同返空)
-        let mut out = String::new();
-        if let Some(v) = find_leaf_ci(node, last) {
-            if let Value::Array(arr) = v {
-                match arr.first() {
-                    Some(Value::Array(_)) => {
-                        for pair in arr {
-                            if let Value::Array(xy) = pair {
-                                if xy.len() >= 2 {
-                                    out.push_str(&format!(
-                                        "{}, {}\n",
-                                        numberish_to_string(&xy[0]),
-                                        numberish_to_string(&xy[1])
-                                    ));
-                                }
-                            }
-                        }
-                    }
-                    _ => {
-                        if arr.len() >= 2 {
-                            out.push_str(&format!(
-                                "{}, {}\n",
-                                numberish_to_string(&arr[0]),
-                                numberish_to_string(&arr[1])
-                            ));
-                        }
-                    }
-                }
-            }
-        }
-        out
-    }
-
-    /// cut 等价: DFS 前序 CI 子串找 section, 返回子树 (clone; 文件 ≤100KB,
-    /// 调用点仅 Propellor 回退/WingPlaneSweep 循环, 低频)。
-    fn section(&self, name: &str) -> BlkSection {
+    /// cut 等价: DFS 前序 CI 找 section, 返回子树**引用** (零拷贝)。
+    pub(crate) fn section(&self, name: &str) -> BlkSection<'_> {
         match find_section_ci(&self.root, name) {
-            Some(v) => BlkSection::Json(v.clone()),
+            Some(v) => BlkSection::Json(v),
             None => BlkSection::Null,
+        }
+    }
+}
+
+/// cut 的返回形态: JSON 子树引用 (未找到 ↔ Null)。
+pub(crate) enum BlkSection<'a> {
+    Null,
+    Json(&'a Value),
+}
+
+impl BlkSection<'_> {
+    /// 文本版 cut 哨兵 `"null"` 的等价判断。
+    pub fn is_null(&self) -> bool {
+        matches!(self, BlkSection::Null)
+    }
+
+    /// getonein_data: 块内 leaf 搜索 (点分段 section 链 + 末段 CI 定位);
+    /// 未找到返回哨兵串 "null"。
+    pub fn get_in(&self, label: &str) -> String {
+        match self {
+            BlkSection::Null => "null".to_string(),
+            BlkSection::Json(v) => get_in_json(v, label),
         }
     }
 }
@@ -483,14 +525,14 @@ pub(crate) fn get_in_json(v: &Value, label: &str) -> String {
 
 // ==================== parse 入口 (Java 构造器等价) ====================
 
-use super::Blkx;
+use super::FmData;
 use crate::lang::Lang;
 use crate::logger;
 
-impl Blkx {
+impl FmData {
     /// (path, name) 具名入口 (JSON) — Blkx::parse_named 的 JSON 对应物:
-    /// doLoad=true 全量装载 + PASSPORT 曲线 (getload_from + get_all_plotdata_from)。
-    pub fn parse_named_json(filepath: &str, name: &str) -> Result<Blkx, String> {
+    /// doLoad=true 全量装载 (getload_from)。
+    pub fn parse_named_json(filepath: &str, name: &str) -> Result<FmData, String> {
         Self::parse_named_opts_json(filepath, name, true)
     }
 
@@ -499,7 +541,7 @@ impl Blkx {
     /// 守卫与文本版互为镜像: 空文件 → Err; 内容不以 '{' 开头 (blkx 文本误喂)
     /// → Err (文本版守卫语义的反转面); serde 解析失败 → Err; doLoad=true 的
     /// getload panic 由 catch_unwind 收敛 Err。
-    pub fn parse_named_opts_json(filepath: &str, name: &str, do_load: bool) -> Result<Blkx, String> {
+    pub fn parse_named_opts_json(filepath: &str, name: &str, do_load: bool) -> Result<FmData, String> {
         let file = std::path::Path::new(filepath);
         if !file.exists() {
             return Err(format!("FM文件不存在: {filepath}"));
@@ -507,15 +549,13 @@ impl Blkx {
         let content = std::fs::read_to_string(file)
             .map_err(|e| format!("FM文件读取: {e}"))?;
         let src = Self::json_guard_and_load(name, &content)?;
-        let mut b = Blkx::default();
+        let mut b = FmData::default();
         b.fmdata = Some(Lang::init_lang().noblkx.to_string());
         b.read_file_name = Some(name.to_string());
         if do_load {
-            // 与文本版 from_read_data 同防线: getload/plotdata 的 panic 收敛 Err
-            let load = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                b.getload_from(&src);
-                b.get_all_plotdata_from(&src);
-            }));
+            // 与文本版 from_read_data 同防线: getload 的 panic 收敛 Err
+            let load =
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| b.getload_from(&src)));
             match load {
                 Ok(()) => b.valid = true,
                 Err(payload) => {
@@ -527,7 +567,7 @@ impl Blkx {
                         "null".to_string()
                     };
                     logger::error(
-                        "Blkx",
+                        "FmData",
                         &format!("FM 解析失败, 标记无效: {name} - {msg}"),
                     );
                     return Err(format!("FM 解析失败, 标记无效: {name} - {msg}"));
@@ -541,13 +581,12 @@ impl Blkx {
 
     /// 测试/fuzz 注入入口 (JSON): content 直接充当文件内容。
     #[cfg(test)]
-    pub fn parse_str_json(name: &str, content: &str) -> Result<Blkx, String> {
+    pub fn parse_str_json(name: &str, content: &str) -> Result<FmData, String> {
         let src = Self::json_guard_and_load(name, content)?;
-        let mut b = Blkx::default();
+        let mut b = FmData::default();
         b.fmdata = Some(Lang::init_lang().noblkx.to_string());
         b.read_file_name = Some(name.to_string());
         b.getload_from(&src);
-        b.get_all_plotdata_from(&src);
         b.valid = true;
         Ok(b)
     }

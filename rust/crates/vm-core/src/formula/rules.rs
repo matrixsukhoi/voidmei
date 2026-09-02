@@ -116,7 +116,7 @@ impl RuleEngine {
                 Err(_) => continue, // 坏规则隔离
             };
             // 规则条件暂不含 FM 查表函数 (阶段 5 后续), fm_blkx=None
-            let ctx = EvalCtx { snap, results, now_ms, interval_ms, fm_blkx: None };
+            let ctx = EvalCtx { snap, results, now_ms, interval_ms, fm_data: None };
             let v = eval(cond, &ctx, &mut super::eval::StateStore::new()).num();
             // 条件 NaN = 不可判定, 视为假 (不累计不触发)
             let active = !v.is_nan() && v != 0.0;
@@ -191,7 +191,7 @@ mod tests {
     /// 快照 (Session radio_alt 可配)
     fn snap(alt: f64) -> VarSnapshot {
         let ind0 = crate::parser::Indicators::default();
-        let raw0 = crate::formula::registry::RawInputs { state: None, indic: Some(&ind0), blkx: None };
+        let raw0 = crate::formula::registry::RawInputs { state: None, indic: Some(&ind0), fmdata: None };
         let sess = crate::formula::registry::SessionInputs { radio_alt: alt, ..Default::default() };
         assemble_snapshot(&raw0, &sess, &MetaInputs::default())
     }

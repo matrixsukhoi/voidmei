@@ -35,20 +35,20 @@ fn fm_root() -> String {
 
 /// 真机 JSON 全量解析 (blkx→json 迁移: name 取文件名分量, 对齐旧 parse 的
 /// display 约定; read_file_name 只进 fmdata 版本串)
-fn parse_real(path: &str) -> Result<crate::blkx::Blkx, String> {
+fn parse_real(path: &str) -> Result<crate::fmdata::FmData, String> {
     let name = std::path::Path::new(path)
         .file_name()
         .map(|s| s.to_string_lossy().into_owned())
         .unwrap_or_default();
-    crate::blkx::Blkx::parse_named_json(path, &name)
+    crate::fmdata::FmData::parse_named_json(path, &name)
 }
 
 /// 中央文件 JSON → 燃油修正 (读失败/serde 失败 → 默认无修正)
-fn fuel_mod_from_json(path: &str) -> crate::blkx::types::FuelModification {
+fn fuel_mod_from_json(path: &str) -> crate::fmdata::types::FuelModification {
     std::fs::read_to_string(path)
         .ok()
         .and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok())
-        .map(|root| crate::blkx::json::extract_fuel_modifications_json(&root))
+        .map(|root| crate::fmdata::json::extract_fuel_modifications_json(&root))
         .unwrap_or_default()
 }
 
@@ -61,7 +61,7 @@ fn fuel_mod_from_json(path: &str) -> crate::blkx::types::FuelModification {
 fn getload_wired_follows_reader_todo() {
     let reader_src = std::fs::read_to_string(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/src/blkx/reader.rs"
+        "/src/fmdata/reader.rs"
     ))
     .expect("reader.rs 源码可读");
     // PORT: 常量哨兵断言是 no-fake-test-pass 机制本体, 保真不削
@@ -90,7 +90,7 @@ mod spitfire {
     use super::GETLOAD_WIRED;
     use super::fm_root;
     use super::{fuel_mod_from_json, parse_real};
-    use crate::blkx::FuelType;
+    use crate::fmdata::FuelType;
     use crate::fm_power_extractor::{extract_stages, extract_stages_with_fuel};
     use crate::piston_power_model::optimal_power_advanced;
     use std::path::Path;
@@ -198,7 +198,7 @@ mod spitfire {
         // PORT: Blkx::parse 当前等价 doLoad=false (getload 属 reader 波次, 模块头注);
         // Java 显式传的 name ("spitfire_f24") 由 parse 取文件名分量承接 — 该值只在
         // getload L1471 版本串使用, 未落地前无行为差异 (reader.rs L51-56 注)
-        let blkx = match parse_real(&fm_path) {
+        let fmdata = match parse_real(&fm_path) {
             Ok(b) => b,
             Err(_) => {
                 println!("  SKIP: Cannot parse FM file");
@@ -214,7 +214,7 @@ mod spitfire {
         }
 
         // Extract WITHOUT fuel modification
-        let stages_no_fuel = extract_stages(Some(&blkx));
+        let stages_no_fuel = extract_stages(Some(&fmdata));
         t.assert_not_null("extracted stages without fuel", &stages_no_fuel);
         t.assert_true(
             "has 2 stages",
@@ -233,7 +233,7 @@ mod spitfire {
 
         // Extract WITH fuel modification
         let fuel_mod = fuel_mod_from_json(&central_path);
-        let stages_with_fuel = extract_stages_with_fuel(Some(&blkx), Some(&fuel_mod));
+        let stages_with_fuel = extract_stages_with_fuel(Some(&fmdata), Some(&fuel_mod));
 
         if let Some(stages) = stages_with_fuel.as_ref() {
             println!("\n  === With Fuel Modification ===");
@@ -246,14 +246,14 @@ mod spitfire {
         }
 
         // Verify expected FM parameters
-        t.assert_close("compressor NumSteps", blkx.comp_num_steps as f64, 2.0, 0.0);
-        t.assert_close("Stage 0 altitude", blkx.comp_alt.as_ref().unwrap()[0], 4100.0, 0.0);
-        t.assert_close("Stage 1 altitude", blkx.comp_alt.as_ref().unwrap()[1], 8100.0, 0.0);
-        t.assert_close("Stage 0 power", blkx.comp_power.as_ref().unwrap()[0], 1510.0, 0.0);
-        t.assert_close("Stage 1 power", blkx.comp_power.as_ref().unwrap()[1], 1340.0, 0.0);
-        t.assert_close("AfterburnerBoost", blkx.aftb_coff, 1.41, 0.01);
-        t.assert_close("AfterburnerManifoldPressure", blkx.wep_manifold_pressure, 2.22, 0.01);
-        t.assert_close("SpeedManifoldMultiplier", blkx.speed_to_manifold_multiplier, 0.8, 0.01);
+        t.assert_close("compressor NumSteps", fmdata.comp_num_steps as f64, 2.0, 0.0);
+        t.assert_close("Stage 0 altitude", fmdata.comp_alt.as_ref().unwrap()[0], 4100.0, 0.0);
+        t.assert_close("Stage 1 altitude", fmdata.comp_alt.as_ref().unwrap()[1], 8100.0, 0.0);
+        t.assert_close("Stage 0 power", fmdata.comp_power.as_ref().unwrap()[0], 1510.0, 0.0);
+        t.assert_close("Stage 1 power", fmdata.comp_power.as_ref().unwrap()[1], 1340.0, 0.0);
+        t.assert_close("AfterburnerBoost", fmdata.aftb_coff, 1.41, 0.01);
+        t.assert_close("AfterburnerManifoldPressure", fmdata.wep_manifold_pressure, 2.22, 0.01);
+        t.assert_close("SpeedManifoldMultiplier", fmdata.speed_to_manifold_multiplier, 0.8, 0.01);
         t.finish();
     }
 
@@ -266,7 +266,7 @@ mod spitfire {
         let mut t = Tally::new();
         println!("\nTesting invertEnableLogic behavior...");
 
-        let blkx = match parse_real(&fm_path) {
+        let fmdata = match parse_real(&fm_path) {
             Ok(b) => b,
             Err(_) => {
                 println!("  SKIP: Cannot load files");
@@ -288,8 +288,8 @@ mod spitfire {
         // - The modification represents ADDING 150 octane fuel
         // - WEP parameters SHOULD be boosted when fuel is applied
 
-        let stages_no_fuel = extract_stages(Some(&blkx));
-        let stages_with_fuel = extract_stages_with_fuel(Some(&blkx), Some(&fuel_mod));
+        let stages_no_fuel = extract_stages(Some(&fmdata));
+        let stages_with_fuel = extract_stages_with_fuel(Some(&fmdata), Some(&fuel_mod));
 
         if let (Some(no_fuel), Some(with_fuel)) = (stages_no_fuel.as_ref(), stages_with_fuel.as_ref()) {
             // With invertEnableLogic=false, fuel mod SHOULD change WEP params
@@ -329,7 +329,7 @@ mod spitfire {
         let mut t = Tally::new();
         println!("\nTesting power curve calculations vs wtapc...");
 
-        let blkx = match parse_real(&fm_path) {
+        let fmdata = match parse_real(&fm_path) {
             Ok(b) => b,
             Err(_) => {
                 println!("  SKIP: Cannot parse FM file");
@@ -345,7 +345,7 @@ mod spitfire {
         }
 
         // Use stages WITH fuel modification (since wtapc uses full upgrades)
-        let stages = match extract_stages_with_fuel(Some(&blkx), Some(&fuel_mod)) {
+        let stages = match extract_stages_with_fuel(Some(&fmdata), Some(&fuel_mod)) {
             Some(s) => s,
             None => {
                 println!("  SKIP: Cannot extract stages");
@@ -504,7 +504,7 @@ mod tempest {
     use super::GETLOAD_WIRED;
     use super::fm_root;
     use super::{fuel_mod_from_json, parse_real};
-    use crate::blkx::FuelType;
+    use crate::fmdata::FuelType;
     use crate::fm_power_extractor::extract_stages;
     use crate::piston_power_model::optimal_power_advanced;
     use std::path::Path;
@@ -597,7 +597,7 @@ mod tempest {
         let mut t = Tally::new();
         println!("\nTesting fuel modification behavior (invertEnableLogic=true)...");
 
-        let blkx = match parse_real(&fm_path) {
+        let fmdata = match parse_real(&fm_path) {
             Ok(b) => b,
             Err(_) => {
                 println!("  SKIP: Cannot load files");
@@ -614,9 +614,9 @@ mod tempest {
         }
 
         // Extract stages with and without fuel modification
-        let stages_no_fuel = extract_stages(Some(&blkx));
+        let stages_no_fuel = extract_stages(Some(&fmdata));
         let stages_with_fuel = crate::fm_power_extractor::extract_stages_with_fuel(
-            Some(&blkx),
+            Some(&fmdata),
             Some(&fuel_mod),
         );
 
@@ -659,7 +659,7 @@ mod tempest {
         println!("\nTesting parameter extraction...");
 
         // (name 由文件名分量承接, 未落地前无行为差异, 见 spitfire 同款注)
-        let blkx = match parse_real(&fm_path) {
+        let fmdata = match parse_real(&fm_path) {
             Ok(b) => b,
             Err(_) => {
                 println!("  SKIP: Cannot parse FM file");
@@ -674,7 +674,7 @@ mod tempest {
         }
 
         // Since invertEnableLogic=true, we can extract with or without fuel mod - same result
-        let stages = extract_stages(Some(&blkx));
+        let stages = extract_stages(Some(&fmdata));
         t.assert_not_null("extracted stages", &stages);
         t.assert_true(
             "has 2 stages",
@@ -692,13 +692,13 @@ mod tempest {
         }
 
         // Verify expected FM parameters (specific to Tempest Mk V)
-        t.assert_close("compressor NumSteps", blkx.comp_num_steps as f64, 2.0, 0.0);
+        t.assert_close("compressor NumSteps", fmdata.comp_num_steps as f64, 2.0, 0.0);
         // Stage 0 critical altitude: 期望值须跟随游戏 FM 数据版本更新
         // (WT 2.57.1.103 中 tempest_mkv 的 Altitude0 已从 1730 调整为 1447;
         //  fmdata 更新后若此处 FAIL, 先 grep blkx 原始值区分数据变更与程序回归)
-        t.assert_close("Stage 0 altitude", blkx.comp_alt.as_ref().unwrap()[0], 1447.0, 50.0);
+        t.assert_close("Stage 0 altitude", fmdata.comp_alt.as_ref().unwrap()[0], 1447.0, 50.0);
         // Stage 1 critical altitude should be around 5000m
-        t.assert_close("Stage 1 altitude", blkx.comp_alt.as_ref().unwrap()[1], 5000.0, 200.0);
+        t.assert_close("Stage 1 altitude", fmdata.comp_alt.as_ref().unwrap()[1], 5000.0, 200.0);
         t.finish();
     }
 
@@ -711,7 +711,7 @@ mod tempest {
         let mut t = Tally::new();
         println!("\nTesting military power curve vs wtapc...");
 
-        let blkx = match parse_real(&fm_path) {
+        let fmdata = match parse_real(&fm_path) {
             Ok(b) => b,
             Err(_) => {
                 println!("  SKIP: Cannot parse FM file");
@@ -727,7 +727,7 @@ mod tempest {
 
         // For Tempest Mk V, since invertEnableLogic=true, fuel mod doesn't change anything
         // Use stages directly without fuel modification (or with - same result)
-        let stages = match extract_stages(Some(&blkx)) {
+        let stages = match extract_stages(Some(&fmdata)) {
             Some(s) => s,
             None => {
                 println!("  SKIP: Cannot extract stages");
@@ -778,7 +778,7 @@ mod tempest {
         let mut t = Tally::new();
         println!("\nTesting WEP power curve vs wtapc...");
 
-        let blkx = match parse_real(&fm_path) {
+        let fmdata = match parse_real(&fm_path) {
             Ok(b) => b,
             Err(_) => {
                 println!("  SKIP: Cannot parse FM file");
@@ -792,7 +792,7 @@ mod tempest {
             return;
         }
 
-        let stages = match extract_stages(Some(&blkx)) {
+        let stages = match extract_stages(Some(&fmdata)) {
             Some(s) => s,
             None => {
                 println!("  SKIP: Cannot extract stages");
@@ -887,7 +887,7 @@ mod tempest {
 mod fuzzer {
     //! blkx 文本变异 Fuzz 测试 (P6) —— FM 物理文件解析管线的防御性验收
     //!
-    //! 种子取项目内 data/ 的真机 blkx (默认 fm/bf-109e-4.blkx —— 中等体积且带
+    //! 种子取项目内 data/ 的真机 JSON (默认 fm/bf-109e-4.json —— 中等体积且带
     //! PASSPORT.ALT/IAS 曲线数组, 能覆盖 getAllplotdata 的 parseDouble/split 路径;
     //! 注意 spitfire_f24.blkx 无 PASSPORT 块, 用它当种子会让腿1的管线阶段空转),
     //! 对其施加字节级/行级/结构级/语义级四类变异, 每个变异体走完整生产管线:
@@ -909,7 +909,7 @@ mod fuzzer {
     //! 固定种子 (默认 20260825) 保证可复现; --seed/--iterations 可覆盖。
     //!
     //! 运行方式: python script/build.py test fuzz-blkx
-    //!   (build.py 会传 --central <data/.../bf-109e-4.blkx> --fm <data/.../fm/bf-109e-4.blkx>;
+    //!   (build.py 会传 --central <data/.../bf-109e-4.json> --fm <data/.../fm/bf-109e-4.json>;
     //!    data/ 缺失时 build.py 的 run_fm_test 机制自动跳过整套)
     //!
     //! PORT: 本移植固定 --central/--fm 为仓库相对路径 (realtests 模块头注);
@@ -920,7 +920,7 @@ mod fuzzer {
     //! JavaRandom/mutate 与 Java 端逐位一致 (oracle 对拍, 见下方测试)。
 
     use super::fm_root;
-    use crate::blkx::Blkx;
+    use crate::fmdata::FmData;
     use std::path::{Path, PathBuf};
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::time::Instant;
@@ -1410,11 +1410,10 @@ mod fuzzer {
     // ==================== 基线 ====================
 
     /// 原始种子必须 valid (真机数据本应可解析; 失败说明种子选择或环境有误)
-    /// (blkx→json 迁移: parse_str_json 内容注入, getload+plotdata 已内含;
-    ///  finalize_loading 是独立的第二相位)
+    /// (blkx→json 迁移: parse_str_json 内容注入, getload 已内含)
     fn baseline_check(seed_text: &str, _seed_name: &str, c: &mut Counters) -> bool {
         let ok = (|| {
-            let mut b = match Blkx::parse_str_json("fuzz_baseline.json", seed_text) {
+            let b = match FmData::parse_str_json("fuzz_baseline.json", seed_text) {
                 Ok(b) => b,
                 Err(_) => {
                     println!("  [失败] 基线: 原始种子解析后 valid=false (不应发生)");
@@ -1424,7 +1423,6 @@ mod fuzzer {
             };
             // 同 run_direct_pipeline: Ok ⇒ valid==true 契约钉死
             assert!(b.valid, "基线 parse 返回 Ok 但 valid=false (违反 json.rs 契约)");
-            b.finalize_loading();
             println!("  [通过] 基线: 原始种子全管线解析成功");
             c.passed += 1;
             true
@@ -1434,25 +1432,23 @@ mod fuzzer {
 
     // ==================== 腿1: Blkx 直连全管线 ====================
 
-    /// 单变异体执行: 写临时文件 → new Blkx (含 getload) → valid 时接
-    /// getAllplotdata + finalizeLoading (与 FMLoader.load 第 5/6 步一致)。
-    /// 断言① 逃逸 Throwable 即失败; ② 单体 5s 限时; ③ valid=false 不触碰解析字段。
+    /// 单变异体执行: parse_str_json 内容注入 (getload 内含且自带 catch_unwind
+    /// 收敛 Err)。断言① 逃逸 panic 即失败; ② 单体 5s 限时; ③ valid=false
+    /// (收敛 Err) 不触碰解析字段。
     fn run_direct_pipeline(
         mutant: &str,
         kind: i32,
         index: usize,
-        _tmp_blkx: &str,
+        _tmp_fmdata: &str,
         _seed_name: &str,
         c: &mut Counters,
     ) {
         c.fuzz_cases += 1;
 
         let t0 = Instant::now();
-        // blkx→json 迁移: parse_str_json 内容注入 (getload_from+plotdata 已内含且
-        // 内部自带 catch_unwind 收敛 Err); 外层 catch_unwind 承接断言① — 收敛
-        // 机制之外仍逃逸的 panic 即失败。原文本版的两相位 (构造器/管线) 中
-        // plotdata 已并入解析相位, finalize_loading 保留为独立第二相位
-        let parsed = std::panic::catch_unwind(|| Blkx::parse_str_json("fuzz.json", mutant));
+        // 外层 catch_unwind 承接断言① — 收敛机制之外仍逃逸的 panic 即失败
+        // (原文本版两相位中的 plotdata/finalize_loading 已随曲线链/data 串退役)
+        let parsed = std::panic::catch_unwind(|| FmData::parse_str_json("fuzz.json", mutant));
         match parsed {
             Err(_) => {
                 c.ctor_exceptions += 1;
@@ -1469,23 +1465,10 @@ mod fuzzer {
                 // 不访问任何解析字段 (对象应安全废弃)
                 c.valid_false += 1;
             }
-            Ok(Ok(mut b)) => {
+            Ok(Ok(b)) => {
                 // 契约钉死 (json.rs 不变式 "Ok 恒 valid==true")
                 assert!(b.valid, "#{} parse 返回 Ok 但 valid=false (违反 json.rs 契约)", index);
                 c.valid_true += 1;
-                // finalize_loading 的独立 panic 面 (断言①)
-                let piped =
-                    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| b.finalize_loading()));
-                if piped.is_err() {
-                    c.pipeline_exceptions += 1;
-                    println!(
-                        "  [失败] #{index} ({}) 逃逸异常[管线]: panic",
-                        STRATEGY_NAMES[kind as usize]
-                    );
-                    dump_mutant(mutant, index);
-                    c.failed += 1;
-                    return;
-                }
             }
         }
         let ms = t0.elapsed().as_millis();
@@ -1509,14 +1492,14 @@ mod fuzzer {
         if !build_dir.is_dir() {
             return; // 无 build 目录 (如 CI 精简环境) 时静默跳过, 不影响测试结果
         }
-        let out = build_dir.join(format!("fuzz_fail_{index}.blkx"));
+        let out = build_dir.join(format!("fuzz_fail_{index}.json"));
         let _ = std::fs::write(&out, mutant);
     }
 
     // ==================== main ====================
 
     #[test]
-    fn fuzz_blkx_text_mutations() {
+    fn fuzz_fmdata_text_mutations() {
         // Java main 由 build.py 传 --central/--fm; PORT: 固定仓库相对路径
         let central_path = format!("{}/bf-109e-4.json", fm_root());
         let fm_path = format!("{}/fm/bf-109e-4.json", fm_root());
@@ -1526,7 +1509,7 @@ mod fuzzer {
         let iterations = DEFAULT_ITERATIONS;
         let seed = DEFAULT_SEED;
 
-        println!("=== blkx 文本变异 Fuzz 测试 ===\n");
+        println!("=== fmdata 文本变异 Fuzz 测试 ===\n");
 
         // 静态表 (parse 内部自取), crate 暂无 Logger, 无需降噪
 
@@ -1576,15 +1559,15 @@ mod fuzzer {
 
         // ---- 腿1: 每个变异体直接走 Blkx 全管线 ----
         println!(
-            "-- 腿1: Blkx 全管线 (构造器 + getAllplotdata + finalizeLoading) x{} --",
+            "-- 腿1: FmData 全管线 (构造器 + getAllplotdata + finalizeLoading) x{} --",
             mutants.len()
         );
-        let tmp_blkx = temp_file("voidmei_fuzz_", ".blkx");
-        let tmp_str = tmp_blkx.to_string_lossy().into_owned();
+        let tmp_fmdata = temp_file("voidmei_fuzz_", ".json");
+        let tmp_str = tmp_fmdata.to_string_lossy().into_owned();
         for i in 0..mutants.len() {
             run_direct_pipeline(&mutants[i], kinds[i], i, &tmp_str, &seed_name, &mut c);
         }
-        let _ = std::fs::remove_file(&tmp_blkx);
+        let _ = std::fs::remove_file(&tmp_fmdata);
         println!(
             "  完成: valid=true {} 个, valid=false {} 个, 逃逸异常 {} 个",
             c.valid_true,
@@ -1779,7 +1762,7 @@ mod fuzzer {
             let m = mutate(&seed_text, k, &mut rnd);
             // 每轮变异体过全管线 (parse_str_json 内含 getload+plotdata, panic
             // 收敛 Err 合法; 断言① 只针对逃逸 panic — 直接调用即断言)
-            let _ = Blkx::parse_str_json("fuzz_seed_loop.json", &m);
+            let _ = FmData::parse_str_json("fuzz_seed_loop.json", &m);
             let _ = i;
         }
     }

@@ -27,8 +27,8 @@
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use crate::blkx::json::{extract_fuel_modifications_json, get_last_string_ci};
-use crate::blkx::{Blkx, FuelModification, FuelType};
+use crate::fmdata::json::{extract_fuel_modifications_json, get_last_string_ci};
+use crate::fmdata::{FmData, FuelModification, FuelType};
 use crate::fm::fm_data_paths;
 use crate::fm::handle::FMHandle;
 use crate::fm_power_extractor::{extract_stages_with_fuel, is_piston_engine};
@@ -177,7 +177,7 @@ fn try_load_json(name: &str) -> Result<FMHandle, String> {
         fmfile.strip_suffix(".blk").unwrap_or(&fmfile)
     );
     let physical = fm_data_paths::physical_file(&physical_name);
-    let mut blkx = match Blkx::parse_named_json(&physical.to_string_lossy(), &fmfile) {
+    let fmdata = match FmData::parse_named_json(&physical.to_string_lossy(), &fmfile) {
         Ok(b) => b,
         Err(_) => {
             // 中央文件在库但物理文件缺失/解析失败 → CORRUPT（数据不完整）
@@ -186,26 +186,24 @@ fn try_load_json(name: &str) -> Result<FMHandle, String> {
         }
     };
 
-    // 6. plotdata 已在 parse_named_json 内完成 (JSON 侧不保留树)
-    blkx.finalize_loading();
-
-    // 7. 按发动机类型提取派生数据（与文本链一致）
-    if is_piston_engine(Some(&blkx)) {
-        let stages = extract_stages_with_fuel(Some(&blkx), fuel_mod.as_ref());
-        let peak_wep = peak_wep_power(stages.as_deref().unwrap_or(&[])) * blkx.engine_num as f64;
+    // 6. 按发动机类型提取派生数据（与文本链一致; finalizeLoading 已随原始
+    //    data 串退役 — JSON 链 parse 内完成全部装载）
+    if is_piston_engine(Some(&fmdata)) {
+        let stages = extract_stages_with_fuel(Some(&fmdata), fuel_mod.as_ref());
+        let peak_wep = peak_wep_power(stages.as_deref().unwrap_or(&[])) * fmdata.engine_num as f64;
         Ok(FMHandle::ready(
             Some(name.to_string()),
-            Some(blkx),
+            Some(fmdata),
             peak_wep,
             0.0,
             stages,
         ))
     } else {
         // 喷气机固定取加力峰值推力 (先取值再移动 blkx)
-        let peak = blkx.peak_thrust(true);
+        let peak = fmdata.peak_thrust();
         Ok(FMHandle::ready(
             Some(name.to_string()),
-            Some(blkx),
+            Some(fmdata),
             0.0,
             peak,
             None,

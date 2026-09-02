@@ -289,13 +289,13 @@ impl vm_core::formula::registry::FormulaView for ServiceData {
         let v = match src {
             VarSrc::State(f) => self.s_state.as_ref().map(f)?,
             VarSrc::Indic(f) => self.s_indic.as_ref().map(f)?,
-            VarSrc::Blk(f) => self.fm.blkx.as_ref().map(f)?,
+            VarSrc::Blk(f) => self.fm.fmdata.as_ref().map(f)?,
             VarSrc::Session(f) => f(&crate::service_loop::session_inputs(self)),
             VarSrc::Const(c) => *c,
             VarSrc::Meta(m) => match m {
                 vm_core::formula::registry::MetaVar::IntervalMs => self.actual_interval_ms.max(1) as f64,
                 vm_core::formula::registry::MetaVar::Freq => self.freq as f64,
-                vm_core::formula::registry::MetaVar::FmLoaded => (self.fm.blkx.is_some()) as u8 as f64,
+                vm_core::formula::registry::MetaVar::FmLoaded => (self.fm.fmdata.is_some()) as u8 as f64,
                 _ => 0.0,
             },
         };

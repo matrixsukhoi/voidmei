@@ -917,10 +917,10 @@ fn check_load_factor_dynamic_limits() {
     assert!(!vw.check_load_factor_warning(0), "静态线内不触发");
     assert_eq!(starts(&log, "warn_loadfactor"), 0);
 
-    let mut b = Blkx::default();
+    let mut b = FmData::default();
     // 正 g 限 = 1.2*(2*raw1/(g*6000) - 1) = 12 → raw1 = 11*g*6000/2
     b.raw_wing_crit_overload = Some([0.0, 11.0 * crate::g * 6000.0 / 2.0]);
-    vw.blkx = Some(b);
+    vw.fmdata = Some(b);
     vw.nofuelweight = 5000.0;
     vw.st.mfuel = 1000.0; // currentWeight = 6000
     assert!(vw.check_load_factor_warning(3000), "动态上限 ~12, ny=15 应触发");

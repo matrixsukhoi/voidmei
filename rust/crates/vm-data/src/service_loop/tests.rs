@@ -68,7 +68,7 @@ fn constructor_wiring_matches_java() {
     assert!((d.last_main_loop_time_ms - now).abs() < 60_000);
     // R2 守卫: fresh manager 的 current = UNRESOLVED → nitro 族归零
     assert_eq!(d.nitrokg, 0.0);
-    assert!(d.fm.blkx.is_none());
+    assert!(d.fm.fmdata.is_none());
     // 构造期 publish 已发生 (resetvaria 尾部; mapinfo 此刻仍 null → "--",
     // sState 构造在 resetvaria 后 → state=None) —— 由下方事件测试覆盖
 }
@@ -257,8 +257,8 @@ fn update_speed_ratio_and_stall_speed_oracle() {
     if !std::path::Path::new(&phys).exists() {
         return; // data/ 未解包
     }
-    let blkx = vm_core::blkx::Blkx::parse_named_json(&phys, "fm/spitfire_f24.blk").unwrap();
-    let fm = FMHandle::ready(Some("spitfire_f24".to_string()), Some(blkx), 0.0, 0.0, None);
+    let fmdata = vm_core::fmdata::FmData::parse_named_json(&phys, "fm/spitfire_f24.blk").unwrap();
+    let fm = FMHandle::ready(Some("spitfire_f24".to_string()), Some(fmdata), 0.0, 0.0, None);
 
     // W3: 两方法消解 — 公式接管 (formula_step 驱动, oracle 数值不变);
     // d.fm 生产链由 calculate 开头注入 (R1 快照), 直调此处补注
@@ -754,12 +754,12 @@ fn formula_step_evaluates_and_guards_mach() {
         assert_eq!(d.s_state.as_ref().unwrap().ias, 474);
     }
     // (3) 有 FM: 接管生效 (READY 句柄; blkx 最小有效形态)
-    let blkx = {
-        let mut b = vm_core::blkx::Blkx::default();
+    let fmdata = {
+        let mut b = vm_core::fmdata::FmData::default();
         b.valid = true;
         b
     };
-    let fm_ready = vm_core::fm::FMHandle::ready(Some("mock".into()), Some(blkx), 0.0, 0.0, None);
+    let fm_ready = vm_core::fm::FMHandle::ready(Some("mock".into()), Some(fmdata), 0.0, 0.0, None);
     svc.formula_step(&fm_ready);
     let d = svc.data.read().unwrap();
     let ias_per_mach = 3.6

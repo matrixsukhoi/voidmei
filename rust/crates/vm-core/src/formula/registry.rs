@@ -6,7 +6,7 @@
 
 use super::definition::VarLookup;
 use super::functions::Value;
-use crate::blkx::Blkx;
+use crate::fmdata::FmData;
 use crate::parser::{Indicators, State};
 use crate::string_helper::F_INVALID;
 use std::collections::HashMap;
@@ -82,7 +82,7 @@ pub enum VarSrc {
     /// /indicators 原始字段直通
     Indic(fn(&Indicators) -> f64),
     /// FM (blkx) 字段直通
-    Blk(fn(&Blkx) -> f64),
+    Blk(fn(&FmData) -> f64),
     /// C 级会话量 (聚合/状态机产物, W8 消解)
     Session(fn(&SessionInputs) -> f64),
     Const(f64),
@@ -94,7 +94,7 @@ pub enum VarSrc {
 pub struct RawInputs<'a> {
     pub state: Option<&'a State>,
     pub indic: Option<&'a Indicators>,
-    pub blkx: Option<&'a Blkx>,
+    pub fmdata: Option<&'a FmData>,
 }
 
 /// C 级会话量暂存通道 (W6): 聚合/状态机产物经此供值, W8 公式化后逐项消亡。
@@ -226,7 +226,7 @@ pub fn assemble_snapshot(raw: &RawInputs, session: &SessionInputs, meta: &MetaIn
         let x = match &v.src {
             VarSrc::State(f) => raw.state.map_or(f64::NAN, |s| f(s)),
             VarSrc::Indic(f) => raw.indic.map_or(f64::NAN, |i| f(i)),
-            VarSrc::Blk(f) => raw.blkx.map_or(f64::NAN, |b| f(b)),
+            VarSrc::Blk(f) => raw.fmdata.map_or(f64::NAN, |b| f(b)),
             VarSrc::Session(f) => f(session),
             VarSrc::Const(c) => *c,
             VarSrc::Meta(m) => match m {
@@ -380,6 +380,83 @@ fn build_registry() -> Registry {
         VarMeta { name: "fm.flap3_speed", unit: "km/h", desc: "襟翼档位3速度", category: C::Fm, origin: O::Fm, src: B(|b| flap_speed(b, 3)) },
         VarMeta { name: "fm.gear_destruction_speed", unit: "km/h", desc: "起落架损毁速度", category: C::Fm, origin: O::Fm, src: B(|b| b.gear_destruction_ind_speed) },
         VarMeta { name: "fm.engine_num", unit: "", desc: "引擎数(FM)", category: C::Fm, origin: O::Fm, src: B(|b| b.engine_num as f64) },
+        // ===== FM 字段补全 (2026-09): FmData 全部 pub 标量数值字段进公式 =====
+        // (Vec/表族不进帧变量: comp_* 表/推力表/eng_load 表由装载器与曲线窗口
+        //  消费, sweep_levels 经 fm_vne/fm_mne/fm_aoa_high 查表函数, 表容量类
+        //  标量在此给数量; FmParts.sq 是 wing/fuselage_area 的装载期拷贝, 不重复)
+        // -- 重量/燃油 --
+        VarMeta { name: "fm.gross_weight", unit: "kg", desc: "满油全重", category: C::Fm, origin: O::Fm, src: B(|b| b.grossweight) },
+        VarMeta { name: "fm.half_weight", unit: "kg", desc: "半油全重", category: C::Fm, origin: O::Fm, src: B(|b| b.halfweight) },
+        VarMeta { name: "fm.oil_mass", unit: "kg", desc: "滑油量", category: C::Fm, origin: O::Fm, src: B(|b| b.oil) },
+        VarMeta { name: "fm.nitro_consumption", unit: "kg/min", desc: "WEP 工质消耗率", category: C::Fm, origin: O::Fm, src: B(|b| b.nitro_decr) },
+        // -- 几何/安装角 --
+        VarMeta { name: "fm.wingspan", unit: "m", desc: "翼展", category: C::Fm, origin: O::Fm, src: B(|b| b.wingspan) },
+        VarMeta { name: "fm.wing_angle", unit: "°", desc: "机翼安装角", category: C::Fm, origin: O::Fm, src: B(|b| b.wing_angle) },
+        VarMeta { name: "fm.stab_angle", unit: "°", desc: "平尾安装角", category: C::Fm, origin: O::Fm, src: B(|b| b.stab_angle) },
+        VarMeta { name: "fm.keel_angle", unit: "°", desc: "垂尾安装角", category: C::Fm, origin: O::Fm, src: B(|b| b.keel_angle) },
+        VarMeta { name: "fm.aileron_area", unit: "m²", desc: "副翼面积", category: C::Fm, origin: O::Fm, src: B(|b| b.a_aileron) },
+        VarMeta { name: "fm.wing_area_left_in", unit: "m²", desc: "左翼内侧面积", category: C::Fm, origin: O::Fm, src: B(|b| b.a_wing_left_in) },
+        VarMeta { name: "fm.wing_area_left_mid", unit: "m²", desc: "左翼中段面积", category: C::Fm, origin: O::Fm, src: B(|b| b.a_wing_left_mid) },
+        VarMeta { name: "fm.wing_area_left_out", unit: "m²", desc: "左翼外侧面积", category: C::Fm, origin: O::Fm, src: B(|b| b.a_wing_left_out) },
+        VarMeta { name: "fm.wing_area_left_cut", unit: "m²", desc: "左翼切角面积", category: C::Fm, origin: O::Fm, src: B(|b| b.a_wing_left_cut) },
+        VarMeta { name: "fm.wing_area_right_in", unit: "m²", desc: "右翼内侧面积", category: C::Fm, origin: O::Fm, src: B(|b| b.a_wing_right_in) },
+        VarMeta { name: "fm.wing_area_right_mid", unit: "m²", desc: "右翼中段面积", category: C::Fm, origin: O::Fm, src: B(|b| b.a_wing_right_mid) },
+        VarMeta { name: "fm.wing_area_right_out", unit: "m²", desc: "右翼外侧面积", category: C::Fm, origin: O::Fm, src: B(|b| b.a_wing_right_out) },
+        VarMeta { name: "fm.wing_area_right_cut", unit: "m²", desc: "右翼切角面积", category: C::Fm, origin: O::Fm, src: B(|b| b.a_wing_right_cut) },
+        VarMeta { name: "fm.is_v_wing", unit: "", desc: "变后掠翼(FM 判定)", category: C::Fm, origin: O::Fm, src: B(|b| b.is_v_wing.map_or(f64::NAN, |v| v as u8 as f64)) },
+        VarMeta { name: "fm.is_jet", unit: "", desc: "喷气引擎(FM 判定, 换机即变)", category: C::Fm, origin: O::Fm, src: B(|b| b.is_jet as u8 as f64) },
+        // -- 襟翼 --
+        VarMeta { name: "fm.flap4_speed", unit: "km/h", desc: "襟翼档位4速度", category: C::Fm, origin: O::Fm, src: B(|b| flap_speed(b, 4)) },
+        VarMeta { name: "fm.flaps_destruction_count", unit: "", desc: "襟翼损毁档位数", category: C::Fm, origin: O::Fm, src: B(|b| b.flaps_destruction_num as f64) },
+        // -- 转速/活塞功率 --
+        VarMeta { name: "fm.max_rpm", unit: "rpm", desc: "最大转速", category: C::Fm, origin: O::Fm, src: B(|b| b.max_rpm) },
+        VarMeta { name: "fm.military_rpm", unit: "rpm", desc: "军用功率转速", category: C::Fm, origin: O::Fm, src: B(|b| b.military_rpm) },
+        VarMeta { name: "fm.wep_rpm", unit: "rpm", desc: "WEP 转速", category: C::Fm, origin: O::Fm, src: B(|b| b.wep_rpm) },
+        VarMeta { name: "fm.shaft_rpm_max", unit: "rpm", desc: "桨轴最大转速", category: C::Fm, origin: O::Fm, src: B(|b| b.shaft_rpm_max) },
+        VarMeta { name: "fm.rpm_nom", unit: "rpm", desc: "额定转速", category: C::Fm, origin: O::Fm, src: B(|b| b.rpm_nom) },
+        VarMeta { name: "fm.governor_max_param", unit: "", desc: "调速器上限参数", category: C::Fm, origin: O::Fm, src: B(|b| b.governor_max_param) },
+        VarMeta { name: "fm.deck_power", unit: "hp", desc: "海平面额定功率", category: C::Fm, origin: O::Fm, src: B(|b| b.deck_power) },
+        VarMeta { name: "fm.military_manifold_pressure", unit: "ata", desc: "军用进气压(ATA 最大值)", category: C::Fm, origin: O::Fm, src: B(|b| b.military_mp) },
+        VarMeta { name: "fm.throttle_boost", unit: "", desc: "WEP 油门增推系数", category: C::Fm, origin: O::Fm, src: B(|b| b.throttle_boost) },
+        VarMeta { name: "fm.octane_afterburner_mult", unit: "", desc: "辛烷值 WEP 乘数", category: C::Fm, origin: O::Fm, src: B(|b| b.octane_afterburner_mult) },
+        VarMeta { name: "fm.wep_manifold_pressure", unit: "ata", desc: "WEP 进气压", category: C::Fm, origin: O::Fm, src: B(|b| b.wep_manifold_pressure) },
+        VarMeta { name: "fm.afterburner_boost_coeff", unit: "", desc: "加力推力系数", category: C::Fm, origin: O::Fm, src: B(|b| b.aftb_coff) },
+        // -- 增压器标量 (comp_alt/power 等表族由 fm_power_extractor 装载期消费) --
+        VarMeta { name: "fm.compressor_steps", unit: "", desc: "增压器档数", category: C::Fm, origin: O::Fm, src: B(|b| b.comp_num_steps as f64) },
+        VarMeta { name: "fm.speed_manifold_multiplier", unit: "", desc: "冲压进气系数", category: C::Fm, origin: O::Fm, src: B(|b| b.speed_to_manifold_multiplier) },
+        VarMeta { name: "fm.comp_pressure_at_rpm0", unit: "", desc: "零转速增压器压力", category: C::Fm, origin: O::Fm, src: B(|b| b.comp_pressure_at_rpm0) },
+        VarMeta { name: "fm.comp_omega_factor_sq", unit: "", desc: "增压器转速因子²", category: C::Fm, origin: O::Fm, src: B(|b| b.comp_omega_factor_sq) },
+        VarMeta { name: "fm.explicit_exact_altitudes", unit: "", desc: "精确高度标志(未定义=NaN)", category: C::Fm, origin: O::Fm, src: B(|b| b.explicit_exact_altitudes.map_or(f64::NAN, |v| v as u8 as f64)) },
+        // -- 喷气 --
+        VarMeta { name: "fm.peak_thrust_aft", unit: "kgf", desc: "加力峰值推力", category: C::Fm, origin: O::Fm, src: B(|b| b.peak_thr_aft) },
+        VarMeta { name: "fm.static_thrust", unit: "kgf", desc: "海平面静推力", category: C::Fm, origin: O::Fm, src: B(|b| b.thr_max0) },
+        // -- 负载档 --
+        VarMeta { name: "fm.eng_load_count", unit: "", desc: "发动机耐久档数", category: C::Fm, origin: O::Fm, src: B(|b| b.max_eng_load as f64) },
+        // -- FmParts 补齐 (no/full_flaps 补 cl_after_crit/line_cl_coeff; fuselage/fin/stab 全字段) --
+        VarMeta { name: "fm.no_flaps_wing_cl_after_crit", unit: "", desc: "失速后升力系数(无襟翼)", category: C::Fm, origin: O::Fm, src: B(|b| b.no_flaps_wing.as_ref().map_or(0.0, |p| p.cl_after_crit)) },
+        VarMeta { name: "fm.no_flaps_wing_line_cl_coeff", unit: "", desc: "失速后升力线斜率(无襟翼)", category: C::Fm, origin: O::Fm, src: B(|b| b.no_flaps_wing.as_ref().map_or(0.0, |p| p.line_cl_coeff)) },
+        VarMeta { name: "fm.full_flaps_wing_cl_after_crit", unit: "", desc: "失速后升力系数(满襟翼)", category: C::Fm, origin: O::Fm, src: B(|b| b.full_flaps_wing.as_ref().map_or(0.0, |p| p.cl_after_crit)) },
+        VarMeta { name: "fm.full_flaps_wing_line_cl_coeff", unit: "", desc: "失速后升力线斜率(满襟翼)", category: C::Fm, origin: O::Fm, src: B(|b| b.full_flaps_wing.as_ref().map_or(0.0, |p| p.line_cl_coeff)) },
+        VarMeta { name: "fm.fuselage_cl0", unit: "", desc: "机身零升力系数", category: C::Fm, origin: O::Fm, src: B(|b| b.fuselage.as_ref().map_or(0.0, |p| p.cl0)) },
+        VarMeta { name: "fm.fuselage_cl_crit_high", unit: "", desc: "机身临界升力系数上限", category: C::Fm, origin: O::Fm, src: B(|b| b.fuselage.as_ref().map_or(0.0, |p| p.cl_crit_high)) },
+        VarMeta { name: "fm.fuselage_cl_crit_low", unit: "", desc: "机身临界升力系数下限", category: C::Fm, origin: O::Fm, src: B(|b| b.fuselage.as_ref().map_or(0.0, |p| p.cl_crit_low)) },
+        VarMeta { name: "fm.fuselage_cl_after_crit", unit: "", desc: "机身失速后升力系数", category: C::Fm, origin: O::Fm, src: B(|b| b.fuselage.as_ref().map_or(0.0, |p| p.cl_after_crit)) },
+        VarMeta { name: "fm.fuselage_line_cl_coeff", unit: "", desc: "机身升力线斜率", category: C::Fm, origin: O::Fm, src: B(|b| b.fuselage.as_ref().map_or(0.0, |p| p.line_cl_coeff)) },
+        VarMeta { name: "fm.fuselage_aoa_crit_low", unit: "°", desc: "机身临界迎角下限", category: C::Fm, origin: O::Fm, src: B(|b| b.fuselage.as_ref().map_or(0.0, |p| p.aoa_crit_low)) },
+        VarMeta { name: "fm.fin_cl0", unit: "", desc: "垂尾零升力系数", category: C::Fm, origin: O::Fm, src: B(|b| b.fin.as_ref().map_or(0.0, |p| p.cl0)) },
+        VarMeta { name: "fm.fin_cl_crit_high", unit: "", desc: "垂尾临界升力系数上限", category: C::Fm, origin: O::Fm, src: B(|b| b.fin.as_ref().map_or(0.0, |p| p.cl_crit_high)) },
+        VarMeta { name: "fm.fin_cl_crit_low", unit: "", desc: "垂尾临界升力系数下限", category: C::Fm, origin: O::Fm, src: B(|b| b.fin.as_ref().map_or(0.0, |p| p.cl_crit_low)) },
+        VarMeta { name: "fm.fin_cl_after_crit", unit: "", desc: "垂尾失速后升力系数", category: C::Fm, origin: O::Fm, src: B(|b| b.fin.as_ref().map_or(0.0, |p| p.cl_after_crit)) },
+        VarMeta { name: "fm.fin_line_cl_coeff", unit: "", desc: "垂尾升力线斜率", category: C::Fm, origin: O::Fm, src: B(|b| b.fin.as_ref().map_or(0.0, |p| p.line_cl_coeff)) },
+        VarMeta { name: "fm.fin_aoa_crit_high", unit: "°", desc: "垂尾临界迎角上限", category: C::Fm, origin: O::Fm, src: B(|b| b.fin.as_ref().map_or(0.0, |p| p.aoa_crit_high)) },
+        VarMeta { name: "fm.fin_aoa_crit_low", unit: "°", desc: "垂尾临界迎角下限", category: C::Fm, origin: O::Fm, src: B(|b| b.fin.as_ref().map_or(0.0, |p| p.aoa_crit_low)) },
+        VarMeta { name: "fm.stab_cl0", unit: "", desc: "平尾零升力系数", category: C::Fm, origin: O::Fm, src: B(|b| b.stab.as_ref().map_or(0.0, |p| p.cl0)) },
+        VarMeta { name: "fm.stab_cl_crit_high", unit: "", desc: "平尾临界升力系数上限", category: C::Fm, origin: O::Fm, src: B(|b| b.stab.as_ref().map_or(0.0, |p| p.cl_crit_high)) },
+        VarMeta { name: "fm.stab_cl_crit_low", unit: "", desc: "平尾临界升力系数下限", category: C::Fm, origin: O::Fm, src: B(|b| b.stab.as_ref().map_or(0.0, |p| p.cl_crit_low)) },
+        VarMeta { name: "fm.stab_cl_after_crit", unit: "", desc: "平尾失速后升力系数", category: C::Fm, origin: O::Fm, src: B(|b| b.stab.as_ref().map_or(0.0, |p| p.cl_after_crit)) },
+        VarMeta { name: "fm.stab_line_cl_coeff", unit: "", desc: "平尾升力线斜率", category: C::Fm, origin: O::Fm, src: B(|b| b.stab.as_ref().map_or(0.0, |p| p.line_cl_coeff)) },
+        VarMeta { name: "fm.stab_aoa_crit_high", unit: "°", desc: "平尾临界迎角上限", category: C::Fm, origin: O::Fm, src: B(|b| b.stab.as_ref().map_or(0.0, |p| p.aoa_crit_high)) },
+        VarMeta { name: "fm.stab_aoa_crit_low", unit: "°", desc: "平尾临界迎角下限", category: C::Fm, origin: O::Fm, src: B(|b| b.stab.as_ref().map_or(0.0, |p| p.aoa_crit_low)) },
         // ===== 元变量 =====
         VarMeta { name: "interval_ms", unit: "ms", desc: "本帧轮询间隔", category: C::Meta, origin: O::Meta, src: M(MetaVar::IntervalMs) },
         VarMeta { name: "freq", unit: "Hz", desc: "轮询频率", category: C::Meta, origin: O::Meta, src: M(MetaVar::Freq) },
@@ -402,7 +479,7 @@ fn build_registry() -> Registry {
 }
 
 /// 襟翼档位速度表取值 (fm.flapN_speed 共用; adapter 同款守卫)
-fn flap_speed(b: &Blkx, idx: usize) -> f64 {
+fn flap_speed(b: &FmData, idx: usize) -> f64 {
     if b.flaps_destruction_num as usize > idx {
         b.flaps_destruction_ind_speed
             .as_ref()

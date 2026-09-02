@@ -33,7 +33,7 @@
 //! catch_unwind (§6 循环级会额外丢整轮事件发布, 降级幅度不同) — 归 vm-data Service
 //! (D6) 波次落实, 过渡期警告见 calculate() 内 unwrap 处。
 
-use crate::blkx::Blkx;
+use crate::fmdata::FmData;
 use crate::config_api::HUDSettings;
 use crate::event::event_payload::EventPayload;
 use crate::hud_data::HUDData;
@@ -83,7 +83,7 @@ pub fn calculate<S: HUDSettings>(
     indic: Option<&Indicators>,
     payload: &EventPayload,
     source: Option<&dyn FormulaView>,
-    blkx: Option<&Blkx>,
+    fmdata: Option<&FmData>,
     settings: &S,
     colors: &HudColors,
 ) -> HUDData {
@@ -170,8 +170,8 @@ pub fn calculate<S: HUDSettings>(
         .map(|v| v != 0.0)
         .unwrap_or(false);
 
-    let valid_blkx = blkx.filter(|x| x.valid);
-    if let Some(blkx) = valid_blkx {
+    let valid_fmdata = fmdata.filter(|x| x.valid);
+    if let Some(fmdata) = valid_fmdata {
         // W-E: 公式路径唯一 (公式式含同款零除守卫)
         b.maneuver_index = source.get_formula_value("maneuver_index").unwrap_or(0.0);
 
@@ -187,13 +187,13 @@ pub fn calculate<S: HUDSettings>(
         // PORT: Java 保真 — `blkx.isVWing && sIndic != null` 的直译 (is_some 检查 +
         // unwrap 取值), 不改成 if-let 以保持与 Java 源逐行对应
         #[allow(clippy::unnecessary_unwrap)]
-        if blkx.is_v_wing.unwrap() && s_indic.is_some() {
+        if fmdata.is_v_wing.unwrap() && s_indic.is_some() {
             vwing = s_indic.unwrap().wsweep_indicator;
         }
 
         // AoA Warnings
         let max_available_aoa =
-            blkx.get_aoa_high_v_wing(vwing, if b.flaps > 0.0 { b.flaps as i32 } else { 0 });
+            fmdata.get_aoa_high_v_wing(vwing, if b.flaps > 0.0 { b.flaps as i32 } else { 0 });
         let available_aoa = max_available_aoa - b.aoa;
 
         if available_aoa < settings.get_aoa_warning_ratio() * max_available_aoa {
@@ -293,7 +293,7 @@ pub fn calculate<S: HUDSettings>(
 
     if b.flaps > 0.0 {
         b.flaps_wing_str = format!("F{}", pad_width(java_f(b.flaps, 0), 3, false));
-    } else if blkx.is_some() && blkx.unwrap().is_v_wing.unwrap() && s_indic.is_some() {
+    } else if fmdata.is_some() && fmdata.unwrap().is_v_wing.unwrap() && s_indic.is_some() {
         b.flaps_wing_str = format!(
             "W{}",
             pad_width(java_f(s_indic.unwrap().wsweep_indicator * 100.0, 0), 3, false)
@@ -315,7 +315,7 @@ pub fn calculate<S: HUDSettings>(
             // Bar enabled -> Hide text (keep Brk/Gear)
             b.mechanization_str = format!("{}{brk}{gear}", pad_width(String::new(), 4, false));
         }
-    } else if blkx.is_some() && blkx.unwrap().is_v_wing.unwrap() && s_indic.is_some() {
+    } else if fmdata.is_some() && fmdata.unwrap().is_v_wing.unwrap() && s_indic.is_some() {
         // approx logic (Java 行尾注释)
         b.mechanization_str = format!(
             "W{}{brk}{gear}",
@@ -338,13 +338,13 @@ pub fn calculate<S: HUDSettings>(
     // If we have valid speed ratio, derive the current limit (VNE or MachLimit_IAS)
     if b.speed_bar_speed_ratio > 0.0001 && b.ias > 1.0 {
         current_limit = b.ias / b.speed_bar_speed_ratio;
-    } else if let Some(blkx) = valid_blkx {
+    } else if let Some(fmdata) = valid_fmdata {
         // Fallback to static VNE
         let mut vwing = 0.0;
         if v(source, "wing_sweep_valid") != 0.0 {
             vwing = v(source, "wing_sweep");
         }
-        current_limit = blkx.get_vne_v_wing(vwing);
+        current_limit = fmdata.get_vne_v_wing(vwing);
     }
 
     let stall_speed = v(source, "stall_speed");
@@ -365,15 +365,15 @@ pub fn calculate<S: HUDSettings>(
 /// 生产链两调用方的 blkx 均来自 READY 句柄, valid 恒真, 该分支不可达 —
 /// Service 版测试 mock 需 valid=true 对齐生产形态)。
 /// PORT: 形参 isDowningFlap 在 Java 方法体内未使用 — 签名保真, `_` 前缀消告警。
-pub fn get_flap_allow_angle(ias: f64, _is_downing_flap: bool, blkx: Option<&Blkx>) -> f64 {
+pub fn get_flap_allow_angle(ias: f64, _is_downing_flap: bool, fmdata: Option<&FmData>) -> f64 {
     if ias == 0.0 {
         return 125.0;
     }
-    let blkx = match blkx {
+    let fmdata = match fmdata {
         None => return 125.0,
         Some(b) => b,
     };
-    if !blkx.valid {
+    if !fmdata.valid {
         return 125.0;
     }
 
@@ -381,10 +381,10 @@ pub fn get_flap_allow_angle(ias: f64, _is_downing_flap: bool, blkx: Option<&Blkx
     // 为 null → NPE) — unwrap panic 复刻同一硬失败 (§1)。⚠ 过渡期同 is_v_wing:
     // Blkx::parse 的 valid=true 不保证本字段 Some (getload L1189-1218 未译),
     // 接线 service_loop 前须等 getload 波次落地。
-    let speeds = blkx.flaps_destruction_ind_speed.as_ref().unwrap();
+    let speeds = fmdata.flaps_destruction_ind_speed.as_ref().unwrap();
 
     let mut i: i32 = 0;
-    while i < blkx.flaps_destruction_num - 1 {
+    while i < fmdata.flaps_destruction_num - 1 {
         if ias > speeds[i as usize][1] {
             break;
         }
@@ -425,16 +425,16 @@ pub fn get_flap_allow_angle(ias: f64, _is_downing_flap: bool, blkx: Option<&Blkx
 /// (methods_engine) 曾有逐行同构拷贝, 统一走本实现; 签名对齐 angle 版
 /// 收 Option<&Blkx>。flapPercent==0/无 FM → f64::MAX (Java Double.MAX_VALUE,
 /// 与 resetvaria 侧 Float.MAX_VALUE 刻意不同, 保真)。
-pub fn get_flap_allow_speed(flap_percent: i32, is_downing_flap: bool, blkx: Option<&Blkx>) -> f64 {
+pub fn get_flap_allow_speed(flap_percent: i32, is_downing_flap: bool, fmdata: Option<&FmData>) -> f64 {
     if flap_percent == 0 {
         return f64::MAX;
     }
-    let blkx = match blkx {
+    let fmdata = match fmdata {
         None => return f64::MAX,
         Some(b) => b,
     };
-    let flaps_destruction_num = blkx.flaps_destruction_num;
-    let table = blkx.flaps_destruction_ind_speed.as_ref().unwrap();
+    let flaps_destruction_num = fmdata.flaps_destruction_num;
+    let table = fmdata.flaps_destruction_ind_speed.as_ref().unwrap();
     let mut i: i32 = 0;
     while i < flaps_destruction_num - 1 {
         if (flap_percent as f64) < table[i as usize][0] * 100.0 {

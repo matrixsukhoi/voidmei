@@ -48,7 +48,7 @@ impl Service {
                 .eng_load_state
                 .lock()
                 .unwrap_or_else(|e| e.into_inner());
-            let (blkx, p_l) = match (fm.blkx.as_ref(), session.as_deref_mut()) {
+            let (fmdata, p_l) = match (fm.fmdata.as_ref(), session.as_deref_mut()) {
                 (Some(b), Some(p)) => (b, p),
                 // R2 hasFM 守卫（P3 修复 NPE 点）: 旧版 Controller.getBlkx() 可能返回
                 // invalid 但非 null 的实例, 此处裸调 engLoad 不会炸; P2 桥接后 MISSING/CORRUPT
@@ -62,8 +62,8 @@ impl Service {
             let mut min_work_time = (99999 * 1000) as f64;
 
             // 水冷
-            let cur_w_load = blkx.findmax_water_load(p_l, nwater_temp);
-            for i in 0..blkx.max_eng_load {
+            let cur_w_load = fmdata.findmax_water_load(p_l, nwater_temp);
+            for i in 0..fmdata.max_eng_load {
                 if i < cur_w_load {
                     if p_l[i as usize].work_time != 0.0 {
                         p_l[i as usize].cur_water_work_time_mili -= poll_cycle_duration_ms as f64;
@@ -92,8 +92,8 @@ impl Service {
             }
 
             // 油冷
-            let cur_o_load = blkx.findmax_oil_load(p_l, noil_temp);
-            for i in 0..blkx.max_eng_load {
+            let cur_o_load = fmdata.findmax_oil_load(p_l, noil_temp);
+            for i in 0..fmdata.max_eng_load {
                 if i < cur_o_load {
                     if p_l[i as usize].work_time != 0.0 {
                         p_l[i as usize].cur_oil_work_time_mili -= poll_cycle_duration_ms as f64;
@@ -149,7 +149,7 @@ impl Service {
     // 保持不可变解析产物); 锁内纯赋值无 IO。
     pub(super) fn reset_eng_load(fm: &FMHandle) {
         // R2 hasFM 守卫: blkx 非 null 即 READY, 无 FM 时无耐久数据可重置
-        if let Some(blkx) = &fm.blkx {
+        if let Some(fmdata) = &fm.fmdata {
             let mut session = fm
                 .eng_load_state
                 .lock()
@@ -158,8 +158,8 @@ impl Service {
             // expect panic 同构
             let p_l = session
                 .as_deref_mut()
-                .expect("PORT: Java NPE — blkx.engLoad 为 null");
-            for idx in 0..blkx.max_eng_load {
+                .expect("PORT: Java NPE — fmdata.engLoad 为 null");
+            for idx in 0..fmdata.max_eng_load {
                 p_l[idx as usize].cur_water_work_time_mili =
                     p_l[idx as usize].work_time * 1000.0;
                 p_l[idx as usize].cur_oil_work_time_mili =
@@ -181,7 +181,7 @@ impl Service {
 mod tests {
     use super::*;
     use std::sync::Arc;
-    use vm_core::blkx::{Blkx, EngineLoad};
+    use vm_core::fmdata::{FmData, EngineLoad};
     use vm_core::bus::EventBus;
     use vm_core::fm::FMManager;
     use vm_core::flight_data_bus::FlightDataBus;
@@ -199,12 +199,12 @@ mod tests {
     /// 或由参数覆写)。maxEngLoad=2。
     // PORT: Blkx 含 blkx 模块私有字段 → 跨 crate 无法用 struct 字面量 +
     // ..Default::default() (E0451), 走 default() 后逐字段赋值 (tests.rs 同款形态)
-    fn test_blkx(
+    fn test_fmdata(
         cur_water0: f64,
         cur_oil0: f64,
         cur_water1: f64,
         cur_oil1: f64,
-    ) -> Blkx {
+    ) -> FmData {
         let mk = |water_limit: f64,
                   oil_limit: f64,
                   work_time: f64,
@@ -218,13 +218,13 @@ mod tests {
             cur_water_work_time_mili: cur_water,
             cur_oil_work_time_mili: cur_oil,
         };
-        let mut blkx = Blkx::default();
-        blkx.eng_load = Some(vec![
+        let mut fmdata = FmData::default();
+        fmdata.eng_load = Some(vec![
             mk(80.0, 60.0, 300.0, 600.0, cur_water0, cur_oil0),
             mk(60.0, 50.0, 60.0, 30.0, cur_water1, cur_oil1),
         ]);
-        blkx.max_eng_load = 2;
-        blkx
+        fmdata.max_eng_load = 2;
+        fmdata
     }
 
     /// 喂 checkOverheat 的输入面: power[0]/throttle/两温度/轮询周期 50ms
@@ -253,8 +253,8 @@ mod tests {
         let mut svc = new_service();
         seed_inputs(&mut svc, 1500.0, 100, 90.0, 70.0);
         // 解析产物形态初值: 档0 水/油 300000, 档1 60000
-        let blkx = test_blkx(300000.0, 300000.0, 60000.0, 60000.0);
-        let fm = FMHandle::ready(Some("test-plane".into()), Some(blkx), 0.0, 0.0, None);
+        let fmdata = test_fmdata(300000.0, 300000.0, 60000.0, 60000.0);
+        let fm = FMHandle::ready(Some("test-plane".into()), Some(fmdata), 0.0, 0.0, None);
 
         svc.check_overheat(&fm);
 
@@ -267,7 +267,7 @@ mod tests {
         assert_eq!(d.cur_load_min_work_time, 59950.0, "minWorkTime 汇聚最小值");
         // blkx 本体保持不可变解析产物 (会话态提升契约)
         assert_eq!(
-            fm.blkx.as_ref().unwrap().eng_load.as_ref().unwrap()[1]
+            fm.fmdata.as_ref().unwrap().eng_load.as_ref().unwrap()[1]
                 .cur_water_work_time_mili,
             60000.0
         );
@@ -280,8 +280,8 @@ mod tests {
         let mut svc = new_service();
         seed_inputs(&mut svc, 1500.0, 100, 70.0, 40.0);
         // 档0 水 200000 (<300000 恢复), 油同; 档1 60000 已满不恢复
-        let blkx = test_blkx(200000.0, 200000.0, 60000.0, 60000.0);
-        let fm = FMHandle::ready(Some("test-plane".into()), Some(blkx), 0.0, 0.0, None);
+        let fmdata = test_fmdata(200000.0, 200000.0, 60000.0, 60000.0);
+        let fm = FMHandle::ready(Some("test-plane".into()), Some(fmdata), 0.0, 0.0, None);
 
         svc.check_overheat(&fm);
 
@@ -304,8 +304,8 @@ mod tests {
         let mut svc = new_service();
         seed_inputs(&mut svc, 0.0, 90, 70.0, 40.0);
         // 耐久已耗损 (水 12345 / 油 23456)
-        let blkx = test_blkx(12345.0, 23456.0, 999.0, 888.0);
-        let fm = FMHandle::ready(Some("test-plane".into()), Some(blkx), 0.0, 0.0, None);
+        let fmdata = test_fmdata(12345.0, 23456.0, 999.0, 888.0);
+        let fm = FMHandle::ready(Some("test-plane".into()), Some(fmdata), 0.0, 0.0, None);
 
         svc.check_overheat(&fm);
 
@@ -325,8 +325,8 @@ mod tests {
         let mut svc = new_service();
         // 水温 90 → curWLoad=2 (引擎关了但还热), power=0/throttle=90 → engOff
         seed_inputs(&mut svc, 0.0, 90, 90.0, 40.0);
-        let blkx = test_blkx(100000.0, 100000.0, 100000.0, 100000.0);
-        let fm = FMHandle::ready(Some("test-plane".into()), Some(blkx), 0.0, 0.0, None);
+        let fmdata = test_fmdata(100000.0, 100000.0, 100000.0, 100000.0);
+        let fm = FMHandle::ready(Some("test-plane".into()), Some(fmdata), 0.0, 0.0, None);
 
         svc.check_overheat(&fm);
 
@@ -359,8 +359,8 @@ mod tests {
     /// resetEngLoad: 全档 curWater/OilWorkTimeMili 重置 WorkTime*1000
     #[test]
     fn reset_eng_load_restores_full_work_time() {
-        let blkx = test_blkx(1.0, 2.0, 3.0, 4.0);
-        let fm = FMHandle::ready(Some("test-plane".into()), Some(blkx), 0.0, 0.0, None);
+        let fmdata = test_fmdata(1.0, 2.0, 3.0, 4.0);
+        let fm = FMHandle::ready(Some("test-plane".into()), Some(fmdata), 0.0, 0.0, None);
         // 会话态先耗损 (ready 克隆的是解析产物, 直接改写会话态模拟飞行耗损)
         {
             let mut s = fm.eng_load_state.lock().unwrap();

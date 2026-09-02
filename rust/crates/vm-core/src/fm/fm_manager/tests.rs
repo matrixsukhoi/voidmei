@@ -297,9 +297,9 @@
 		);
 		let snap = m.current();
 		assert_eq!(snap.name.as_deref(), Some("spitfire_f24"), "机型名规范化为小写");
-		assert!(snap.blkx.is_some(), "READY 快照应携带 blkx");
+		assert!(snap.fmdata.is_some(), "READY 快照应携带 fmdata");
 		assert_eq!(
-			snap.blkx.as_ref().unwrap().read_file_name.as_deref(),
+			snap.fmdata.as_ref().unwrap().read_file_name.as_deref(),
 			Some("fm/spitfire_f24.blk"),
 			"物理文件 readFileName 链路锁死"
 		);

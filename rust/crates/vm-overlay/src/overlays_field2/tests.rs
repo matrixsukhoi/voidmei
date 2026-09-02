@@ -295,8 +295,8 @@ impl ConfigProvider for MapConfig {
 }
 
 /// 全字段齐备的测试 blkx (期望值 = Java 8 oracle 手算, HALF_UP 判别值混入)
-fn full_blkx() -> Blkx {
-    let mut b = Blkx::default();
+fn full_fmdata() -> FmData {
+    let mut b = FmData::default();
     b.read_file_name = Some("spitfire_mk24".to_string());
     b.version = Some("2.35.0.9".to_string());
     b.emptyweight = 3050.0;
@@ -383,7 +383,7 @@ fn full_blkx() -> Blkx {
 /// generateLines 全量 (config None → 全启用) 的逐行 oracle
 #[test]
 fn generate_lines_full_field_list() {
-    let lines = generate_lines(Some(&full_blkx()), None);
+    let lines = generate_lines(Some(&full_fmdata()), None);
     let expect_prefix = [
         "FM文件: spitfire_mk24 - 2.35.0.9",
         "空重(kg): 3050.0",
@@ -435,7 +435,7 @@ fn generate_lines_no_data_and_null_fields() {
         vec!["FM Data Preview".to_string(), "[No Data Loaded]".to_string()]
     );
     // readFileName/version 为 null → %s 打 "null" (Java Formatter 行为)
-    let mut b = Blkx::default();
+    let mut b = FmData::default();
     b.emptyweight = 1.0;
     let lines = generate_lines(Some(&b), None);
     assert_eq!(lines[0], "FM文件: null - null");
@@ -449,7 +449,7 @@ fn generate_lines_field_switches() {
     cfg.set("showCritSpeed", "FALSE"); // parseBoolean 忽略大小写 → false
     cfg.set("showLift", ""); // 空串 → 默认启用
     cfg.set("showDrag", "yes"); // 非 "true" → false
-    let lines = generate_lines(Some(&full_blkx()), Some(&cfg));
+    let lines = generate_lines(Some(&full_fmdata()), Some(&cfg));
     assert!(!lines.iter().any(|l| l.starts_with("空重")), "showWeight=false 关");
     assert!(!lines.iter().any(|l| l.starts_with("临界速度")), "FALSE (忽略大小写) 关");
     assert!(lines.iter().any(|l| l.starts_with("主升力面积")), "空串默认开");
@@ -462,7 +462,7 @@ fn generate_lines_field_switches() {
 /// nitro ≤ 0 段隐藏 (Java :212 blkx.nitro > 0 门控)
 #[test]
 fn generate_lines_nitro_gate() {
-    let mut b = full_blkx();
+    let mut b = full_fmdata();
     b.nitro = 0.0;
     let lines = generate_lines(Some(&b), None);
     assert!(!lines.iter().any(|l| l.contains("加力")));
@@ -496,7 +496,7 @@ fn fm_overlay_toggle_visibility_gating() {
 
     ov.toggle();
     assert!(ov.is_visible_now());
-    ov.reload_fm_data(Some(Arc::new(full_blkx())));
+    ov.reload_fm_data(Some(Arc::new(full_fmdata())));
     assert!(ov.tick(), "首帧脏 (lastData=null → 行清单入基座)");
     assert!(ov.base.window_visible);
     assert!(!ov.tick(), "同数据 equals → 不脏");
@@ -515,7 +515,7 @@ fn fm_overlay_reload_and_reinit() {
     ov.toggle(); // 可见化以走取数分支
 
     // last_data 为基座私有字段, 内容经 generate_lines() 断言、刷新经脏标志断言
-    ov.reload_fm_data(Some(Arc::new(full_blkx())));
+    ov.reload_fm_data(Some(Arc::new(full_fmdata())));
     assert!(ov.tick());
     assert!(ov.generate_lines()[0].starts_with("FM文件: spitfire"));
 
@@ -528,7 +528,7 @@ fn fm_overlay_reload_and_reinit() {
     assert!(!ov.tick(), "同清单 → 不脏");
 
     // reinit_config: FMManager.current() 快照注入 (Java :146-147)
-    let mut b = Blkx::default();
+    let mut b = FmData::default();
     b.read_file_name = Some("tempest_mk5".to_string());
     ov.reinit_config(Some(Arc::new(b)), &f);
     assert!(ov.tick(), "reinit 换机 → 清单变化 → 脏");
@@ -810,7 +810,7 @@ fn fm_unpacked_preview_session_pumps_data() {
     host.refresh_preview().unwrap();
     // 预览期的 FM 装载面 (Java previewInitializer 的 setBlkx(current) /
     // reinitConfig 直读 — 事件订阅仅游戏 init, reload 不走)
-    h.borrow_mut().reinit_config(Some(Arc::new(full_blkx())), &font(REGULAR, 14));
+    h.borrow_mut().reinit_config(Some(Arc::new(full_fmdata())), &font(REGULAR, 14));
     let mut feed = FmUnpackedFeed::new();
     log.borrow_mut().clear();
     // 泵 (无会话门控): preview 取数 → 高度自适应 resize + 拉起 (幂等可见)
@@ -860,7 +860,7 @@ fn fm_unpacked_feed_game_flow() {
     assert_eq!(h.borrow().base.height, 864, "隐藏分支不取数, 高度保持 init 值");
     assert!(log.borrow().is_empty(), "无窗口动作 (幂等守卫)");
     // ② FM_CHANGED reload + 热键切换可见
-    h.borrow_mut().reload_fm_data(Some(Arc::new(full_blkx())));
+    h.borrow_mut().reload_fm_data(Some(Arc::new(full_fmdata())));
     h.borrow_mut().toggle();
     // ③ 可见分支首 tick: 取数 → dirty → adjustPosition → resize + 拉起窗口
     feed.pump(&mut host, "enableFMPrint", &h, 1_300);
@@ -925,7 +925,7 @@ fn fm_unpacked_field_switches_change_height() {
         &fm,
     )
     .unwrap();
-    h_off.borrow_mut().reload_fm_data(Some(Arc::new(full_blkx())));
+    h_off.borrow_mut().reload_fm_data(Some(Arc::new(full_fmdata())));
     h_off.borrow_mut().tick();
     assert_eq!(h_off.borrow().base.height, row_h, "全关 = 仅 FM 版本一行的高度");
     // 全开 (config None → isFieldEnabled 默认启用)
@@ -937,7 +937,7 @@ fn fm_unpacked_field_switches_change_height() {
         &fm,
     )
     .unwrap();
-    h_on.borrow_mut().reload_fm_data(Some(Arc::new(full_blkx())));
+    h_on.borrow_mut().reload_fm_data(Some(Arc::new(full_fmdata())));
     h_on.borrow_mut().tick();
     assert!(
         h_on.borrow().base.height > 20 * row_h,
@@ -964,7 +964,7 @@ fn fm_unpacked_reset_preview_clears_live_lines() {
         let mut fm = h.borrow_mut();
         fm.base.is_preview = false;
         fm.visible = true;
-        fm.reload_fm_data(Some(Arc::new(full_blkx())));
+        fm.reload_fm_data(Some(Arc::new(full_fmdata())));
         assert!(fm.tick(), "数据到达 (dirty)");
     }
     // 行内容入画: 文本带存在白色墨迹 (斑马行白字)
@@ -993,7 +993,7 @@ fn fm_unpacked_reset_preview_clears_live_lines() {
 /// 句柄 blkx=None → 清空 (占位容忍); 返回 None (无 setBounds, 高度待下次数据
 /// 变更自纠); 清指纹后 render 通道可用
 #[test]
-fn fm_unpacked_reinit_clears_blkx_and_keeps_render() {
+fn fm_unpacked_reinit_clears_fmdata_and_keeps_render() {
     let (h, mut spec) = fm_unpacked_data_overlay_spec(
         std::path::Path::new("../../../fonts"),
         1080,
@@ -1002,7 +1002,7 @@ fn fm_unpacked_reinit_clears_blkx_and_keeps_render() {
         &feed_fm(),
     )
     .unwrap();
-    h.borrow_mut().reload_fm_data(Some(Arc::new(full_blkx())));
+    h.borrow_mut().reload_fm_data(Some(Arc::new(full_fmdata())));
     assert!(h.borrow().generate_lines().len() >= 44, "重载后有数据");
     assert!(
         (spec.reinit.as_mut().unwrap())().is_none(),

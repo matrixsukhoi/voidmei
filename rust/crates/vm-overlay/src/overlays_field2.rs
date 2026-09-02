@@ -36,7 +36,7 @@ use crate::render2d::{LineCapStyle, PixCanvas};
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
-use vm_core::blkx::{Blkx, FmParts};
+use vm_core::fmdata::{FmData, FmParts};
 use vm_core::config_api::ConfigProvider;
 use vm_core::format as fast_number_format;
 use vm_core::fm::FMManager;
@@ -848,7 +848,7 @@ pub struct FmUnpackedDataOverlay {
     /// Self-managed visibility state (game mode toggle) (Java :42)
     pub visible: bool,
     /// FMDataAdapter.getBlkx() 的等价持有 (None = 未加载 → 占位清单)
-    blkx: Option<Arc<Blkx>>,
+    fmdata: Option<Arc<FmData>>,
     /// Java :39 config = c.getConfigProvider() (None ↔ Java null 容忍)
     config: Option<Arc<dyn ConfigProvider>>,
 }
@@ -860,7 +860,7 @@ impl FmUnpackedDataOverlay {
         FmUnpackedDataOverlay {
             base: BaseListOverlay::new(logical_height, dpi_scale, default_fontsize),
             visible: true,
-            blkx: None,
+            fmdata: None,
             config: None,
         }
     }
@@ -904,16 +904,16 @@ impl FmUnpackedDataOverlay {
     /// 数据刷新由下一 tick 周期完成 (Java 注释 :135)。
     /// PORT: Java :131 的 `payload instanceof FMHandle` 过滤由组装层承担 —
     /// P5 事件路由时非 FMHandle 载荷应保留旧 blkx 不调用本方法。
-    pub fn reload_fm_data(&mut self, blkx: Option<Arc<Blkx>>) {
-        self.blkx = blkx;
+    pub fn reload_fm_data(&mut self, fmdata: Option<Arc<FmData>>) {
+        self.fmdata = fmdata;
         // Data will be refreshed on next run() cycle
     }
 
     /// reinitConfig (Java :142-151): adapter 直读 FMManager.current() 换新
     /// (调用方传入 current().blkx; 非 READY 句柄 blkx 为 null → None,
     /// setBlkx(null) 清空 → 占位容忍) + setupFont。
-    pub fn reinit_config(&mut self, current_blkx: Option<Arc<Blkx>>, font: &LoadedFont) {
-        self.blkx = current_blkx;
+    pub fn reinit_config(&mut self, current_fm: Option<Arc<FmData>>, font: &LoadedFont) {
+        self.fmdata = current_fm;
         // Font and display settings are handled by BaseOverlay
         self.base.setup_font(font);
     }
@@ -946,15 +946,15 @@ impl FmUnpackedDataOverlay {
     /// 门控位, 再以当前 blkx/config 快照生成行清单。
     pub fn tick(&mut self) -> bool {
         self.base.visible_now = self.visible;
-        let blkx = self.blkx.clone();
+        let fmdata = self.fmdata.clone();
         let config = self.config.clone();
         self.base
-            .tick(move || Some(generate_lines(blkx.as_deref(), config.as_deref())))
+            .tick(move || Some(generate_lines(fmdata.as_deref(), config.as_deref())))
     }
 
     /// generateLines (Java :157-278) — 独立函数便于直测。
     pub fn generate_lines(&self) -> Vec<String> {
-        generate_lines(self.blkx.as_deref(), self.config.as_deref())
+        generate_lines(self.fmdata.as_deref(), self.config.as_deref())
     }
 
     /// updateUI 渲染段委托基座 (BaseOverlay.java:263-269)
@@ -965,10 +965,10 @@ impl FmUnpackedDataOverlay {
 
 /// generateLines (Java :157-278): 按 ui_layout.cfg 开关过滤的 blkx 字段清单。
 /// Lang 模板取 init_lang() 快照 (Java 读全局静态字段, 值同源 cur.properties)。
-fn generate_lines(blkx: Option<&Blkx>, config: Option<&dyn ConfigProvider>) -> Vec<String> {
+fn generate_lines(fmdata: Option<&FmData>, config: Option<&dyn ConfigProvider>) -> Vec<String> {
     let lang = Lang::init_lang();
     let mut lines: Vec<String> = Vec::new();
-    let blkx = match blkx {
+    let fmdata = match fmdata {
         None => {
             lines.push("FM Data Preview".to_string());
             lines.push("[No Data Loaded]".to_string());
@@ -982,8 +982,8 @@ fn generate_lines(blkx: Option<&Blkx>, config: Option<&dyn ConfigProvider>) -> V
     let fm_version = java_string_format(
         lang.b_fm_version,
         &[
-            FmtArg::S(blkx.read_file_name.as_deref().unwrap_or("null")),
-            FmtArg::S(blkx.version.as_deref().unwrap_or("null")),
+            FmtArg::S(fmdata.read_file_name.as_deref().unwrap_or("null")),
+            FmtArg::S(fmdata.version.as_deref().unwrap_or("null")),
         ],
     );
     add_lines(&mut lines, &fm_version);
@@ -992,7 +992,7 @@ fn generate_lines(blkx: Option<&Blkx>, config: Option<&dyn ConfigProvider>) -> V
     if is_field_enabled(config, "showWeight") {
         let weight = java_string_format(
             lang.b_weight,
-            &[FmtArg::F(blkx.emptyweight), FmtArg::F(blkx.maxfuelweight)],
+            &[FmtArg::F(fmdata.emptyweight), FmtArg::F(fmdata.maxfuelweight)],
         );
         add_lines(&mut lines, &weight);
     }
@@ -1001,19 +1001,19 @@ fn generate_lines(blkx: Option<&Blkx>, config: Option<&dyn ConfigProvider>) -> V
     if is_field_enabled(config, "showCritSpeed") {
         let crit_speed = java_string_format(
             lang.b_crit_speed,
-            &[FmtArg::F(blkx.critical_speed * 3.6), FmtArg::F(blkx.vne)],
+            &[FmtArg::F(fmdata.critical_speed * 3.6), FmtArg::F(fmdata.vne)],
         );
         add_lines(&mut lines, &crit_speed);
     }
 
     // ==================== G-Load Limits (combined full/half fuel) ====================
     if is_field_enabled(config, "showGLoadLimits") {
-        if let Some(raw) = blkx.raw_wing_crit_overload {
+        if let Some(raw) = fmdata.raw_wing_crit_overload {
             // PORT: 与 getMaxAllowGloadForWeight 同式内联 (Java 源如此, 不收敛去重)
-            let full_neg = 1.2 * (2.0 * raw[0] / (g * blkx.grossweight) + 1.0);
-            let full_pos = 1.2 * (2.0 * raw[1] / (g * blkx.grossweight) - 1.0);
-            let half_neg = 1.2 * (2.0 * raw[0] / (g * blkx.halfweight) + 1.0);
-            let half_pos = 1.2 * (2.0 * raw[1] / (g * blkx.halfweight) - 1.0);
+            let full_neg = 1.2 * (2.0 * raw[0] / (g * fmdata.grossweight) + 1.0);
+            let full_pos = 1.2 * (2.0 * raw[1] / (g * fmdata.grossweight) - 1.0);
+            let half_neg = 1.2 * (2.0 * raw[0] / (g * fmdata.halfweight) + 1.0);
+            let half_pos = 1.2 * (2.0 * raw[1] / (g * fmdata.halfweight) - 1.0);
             let load_factor = java_string_format(
                 lang.b_allow_load_factor,
                 &[FmtArg::F(full_neg), FmtArg::F(full_pos), FmtArg::F(half_neg), FmtArg::F(half_pos)],
@@ -1028,8 +1028,8 @@ fn generate_lines(blkx: Option<&Blkx>, config: Option<&dyn ConfigProvider>) -> V
     // 唯一主循环上 — P5 组装必须对逐 overlay tick/render 包 catch_unwind
     // (PORTING §6 先例), 本 panic 与 java_string_format 错配 panic 均属此契约
     if is_field_enabled(config, "showFlapLimits") {
-        if let Some(table) = blkx.flaps_destruction_ind_speed {
-            for i in 0..blkx.flaps_destruction_num {
+        if let Some(table) = fmdata.flaps_destruction_ind_speed {
+            for i in 0..fmdata.flaps_destruction_num {
                 let flap_limit = java_string_format(
                     lang.b_flap_restrict,
                     &[
@@ -1048,22 +1048,22 @@ fn generate_lines(blkx: Option<&Blkx>, config: Option<&dyn ConfigProvider>) -> V
         let eff_speed = java_string_format(
             lang.b_eff_speed_and_power_loss,
             &[
-                FmtArg::F(blkx.elav_eff),
-                FmtArg::F(blkx.aileron_eff),
-                FmtArg::F(blkx.rudder_eff),
-                FmtArg::F(blkx.elav_power_loss),
-                FmtArg::F(blkx.aileron_power_loss),
-                FmtArg::F(blkx.rudder_power_loss),
+                FmtArg::F(fmdata.elav_eff),
+                FmtArg::F(fmdata.aileron_eff),
+                FmtArg::F(fmdata.rudder_eff),
+                FmtArg::F(fmdata.elav_power_loss),
+                FmtArg::F(fmdata.aileron_power_loss),
+                FmtArg::F(fmdata.rudder_power_loss),
             ],
         );
         add_lines(&mut lines, &eff_speed);
     }
 
     // ==================== Nitro (only if present) ====================
-    if is_field_enabled(config, "showNitro") && blkx.nitro > 0.0 {
+    if is_field_enabled(config, "showNitro") && fmdata.nitro > 0.0 {
         let nitro = java_string_format(
             lang.b_nitro,
-            &[FmtArg::F(blkx.nitro), FmtArg::F(blkx.nitro / (blkx.nitro_decr * 60.0))],
+            &[FmtArg::F(fmdata.nitro), FmtArg::F(fmdata.nitro / (fmdata.nitro_decr * 60.0))],
         );
         add_lines(&mut lines, &nitro);
     }
@@ -1071,7 +1071,7 @@ fn generate_lines(blkx: Option<&Blkx>, config: Option<&dyn ConfigProvider>) -> V
     // ==================== Heat Recovery ====================
     if is_field_enabled(config, "showHeatRecovery") {
         let heat_recovery =
-            java_string_format(lang.b_average_heat_recovery, &[FmtArg::F(blkx.avg_eng_recovery_rate)]);
+            java_string_format(lang.b_average_heat_recovery, &[FmtArg::F(fmdata.avg_eng_recovery_rate)]);
         add_lines(&mut lines, &heat_recovery);
     }
 
@@ -1080,8 +1080,8 @@ fn generate_lines(blkx: Option<&Blkx>, config: Option<&dyn ConfigProvider>) -> V
         let max_lift_load = java_string_format(
             lang.b_max_lift_load350,
             &[
-                FmtArg::F((blkx.no_flap_wll + 1.0) / 2.0),
-                FmtArg::F((blkx.full_flap_wll + 1.0) / 2.0),
+                FmtArg::F((fmdata.no_flap_wll + 1.0) / 2.0),
+                FmtArg::F((fmdata.full_flap_wll + 1.0) / 2.0),
             ],
         );
         add_lines(&mut lines, &max_lift_load);
@@ -1089,7 +1089,7 @@ fn generate_lines(blkx: Option<&Blkx>, config: Option<&dyn ConfigProvider>) -> V
 
     // ==================== Inertia ====================
     if is_field_enabled(config, "showInertia") {
-        if let Some(m) = blkx.moment_of_inertia {
+        if let Some(m) = fmdata.moment_of_inertia {
             if m.len() >= 3 {
                 let inertia = java_string_format(
                     lang.b_inertia,
@@ -1105,13 +1105,13 @@ fn generate_lines(blkx: Option<&Blkx>, config: Option<&dyn ConfigProvider>) -> V
         let lift = java_string_format(
             lang.b_lift,
             &[
-                FmtArg::F(blkx.a_wing),
-                FmtArg::F(blkx.a_fuselage),
-                FmtArg::F(blkx.no_flap_wll),
-                FmtArg::F(blkx.full_flap_wll),
-                FmtArg::F(blkx.oswalds_efficiency_number),
-                FmtArg::F(blkx.aspect_ratio),
-                FmtArg::F(blkx.swept_wing_angle),
+                FmtArg::F(fmdata.a_wing),
+                FmtArg::F(fmdata.a_fuselage),
+                FmtArg::F(fmdata.no_flap_wll),
+                FmtArg::F(fmdata.full_flap_wll),
+                FmtArg::F(fmdata.oswalds_efficiency_number),
+                FmtArg::F(fmdata.aspect_ratio),
+                FmtArg::F(fmdata.swept_wing_angle),
             ],
         );
         add_lines(&mut lines, &lift);
@@ -1122,12 +1122,12 @@ fn generate_lines(blkx: Option<&Blkx>, config: Option<&dyn ConfigProvider>) -> V
         let drag = java_string_format(
             lang.b_drag,
             &[
-                FmtArg::F(blkx.cd_s),
-                FmtArg::F(blkx.cd_s / (blkx.halfweight / 1000.0)),
-                FmtArg::F(blkx.ind_cd_f),
-                FmtArg::F(blkx.halfweight * blkx.ind_cd_f),
-                FmtArg::F(blkx.radiator_cd),
-                FmtArg::F(blkx.oil_radiator_cd),
+                FmtArg::F(fmdata.cd_s),
+                FmtArg::F(fmdata.cd_s / (fmdata.halfweight / 1000.0)),
+                FmtArg::F(fmdata.ind_cd_f),
+                FmtArg::F(fmdata.halfweight * fmdata.ind_cd_f),
+                FmtArg::F(fmdata.radiator_cd),
+                FmtArg::F(fmdata.oil_radiator_cd),
             ],
         );
         add_lines(&mut lines, &drag);
@@ -1135,19 +1135,19 @@ fn generate_lines(blkx: Option<&Blkx>, config: Option<&dyn ConfigProvider>) -> V
 
     // ==================== FM Parts Sections ====================
     if is_field_enabled(config, "showNoFlapsWing") {
-        add_fm_parts(&mut lines, &lang, blkx.no_flaps_wing.as_ref());
+        add_fm_parts(&mut lines, &lang, fmdata.no_flaps_wing.as_ref());
     }
     if is_field_enabled(config, "showFullFlapsWing") {
-        add_fm_parts(&mut lines, &lang, blkx.full_flaps_wing.as_ref());
+        add_fm_parts(&mut lines, &lang, fmdata.full_flaps_wing.as_ref());
     }
     if is_field_enabled(config, "showFuselage") {
-        add_fm_parts(&mut lines, &lang, blkx.fuselage.as_ref());
+        add_fm_parts(&mut lines, &lang, fmdata.fuselage.as_ref());
     }
     if is_field_enabled(config, "showFin") {
-        add_fm_parts(&mut lines, &lang, blkx.fin.as_ref());
+        add_fm_parts(&mut lines, &lang, fmdata.fin.as_ref());
     }
     if is_field_enabled(config, "showStab") {
-        add_fm_parts(&mut lines, &lang, blkx.stab.as_ref());
+        add_fm_parts(&mut lines, &lang, fmdata.stab.as_ref());
     }
 
     // If no fields are enabled or all filtered out, show a placeholder
@@ -1283,8 +1283,8 @@ pub fn fm_unpacked_data_overlay_spec(
             }
         };
         // P3: 直读 FMManager 句柄 (blkx None → 清空 → 占位容忍)
-        let blkx = reinit_fm.current().blkx.clone().map(Arc::new);
-        reinit_handle.borrow_mut().reinit_config(blkx, &new_font);
+        let fmdata = reinit_fm.current().fmdata.clone().map(Arc::new);
+        reinit_handle.borrow_mut().reinit_config(fmdata, &new_font);
         *reinit_font.borrow_mut() = new_font;
         None
     });
