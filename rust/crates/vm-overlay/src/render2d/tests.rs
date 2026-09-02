@@ -1,6 +1,6 @@
 use super::*;
 use crate::font::Canvas;
-use crate::window::to_premul_bgra;
+use crate::render2d::to_premul_bgra;
 
 const FONT: &str = "../../../fonts/sarasa-mono-sc-bold.ttf";
 

@@ -14,6 +14,11 @@ pub mod fm_loader;
 pub mod fm_manager;
 pub mod handle;
 pub mod status;
+// 重构波2 吸收: FM 数据 (fmdata) + 功率模型族原顶层平铺, 归入本域
+pub mod fmdata;
+pub mod fm_power_extractor;
+pub mod piston_power_model;
+pub mod power_curve_helper;
 
 pub use fm_manager::{FMManager, FmChangedBus};
 pub use handle::FMHandle;

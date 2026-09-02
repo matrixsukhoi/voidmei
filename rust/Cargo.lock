@@ -4755,7 +4755,6 @@ dependencies = [
 name = "vm-data"
 version = "0.2.0"
 dependencies = [
- "serde_json",
  "vm-core",
 ]
 
@@ -4764,12 +4763,10 @@ name = "vm-overlay"
 version = "0.2.0"
 dependencies = [
  "png 0.18.1",
- "serde_json",
  "swash",
  "tiny-skia",
  "ttf-parser",
  "vm-core",
- "vm-data",
  "windows 0.62.2",
 ]
 

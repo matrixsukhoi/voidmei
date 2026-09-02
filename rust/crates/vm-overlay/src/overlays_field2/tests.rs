@@ -584,19 +584,20 @@ fn five_overlays_mount_into_overlay_host() {
         let size = (cfg.width, cfg.height);
         Ok(Box::new(MiniWin { presents: Rc::clone(&p_counter), size }) as Box<dyn OverlayWindow>)
     }));
-    let fonts_dir = std::path::Path::new("../../../fonts");
-    let lang = Lang::init_lang();
 
-    // ① PowerInfo (Java 注册键 engineInfoSwitch, field1 预览工厂)
-    host.register(crate::overlays_field1::power_info_preview_spec(fonts_dir, 0, 1, std::sync::Arc::new(Vec::new())).unwrap());
-    // ② EngineControl (enableEngineControl)
-    host.register(
-        crate::overlays_field1::engine_control_preview_spec(fonts_dir, &lang, 0, 1.0).unwrap(),
-    );
-    // ③ GearFlaps (enablegearAndFlaps)
-    host.register(
-        crate::overlays_field1::gear_flaps_preview_spec(fonts_dir, 0, 1.0, false).unwrap(),
-    );
+    // ①~③ field1 三键 (engineInfoSwitch/enableEngineControl/enablegearAndFlaps):
+    // POC 预览工厂已随重构波2 退役, 此处以最小手工 spec 顶位 (host 通道语义
+    // 与内容函数无关, 真实内容渲染由 ④⑤ + field1 自有测试覆盖)
+    for key in ["engineInfoSwitch", "enableEngineControl", "enablegearAndFlaps"] {
+        host.register(OverlaySpec {
+            id: key.into(),
+            config_key: key.into(),
+            width: 40,
+            height: 12,
+            render: Box::new(|_cv| {}),
+            reinit: None,
+        });
+    }
     // ④ ControlSurfaces (Java 键 enableAxis): draw 内容函数手工包进 render 闭包
     //    (P5 组装契约 (c) 预览工厂留组装层, 此处同形态验证)
     let mut cs = ControlSurfacesOverlay::new();

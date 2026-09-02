@@ -2,7 +2,7 @@
 //! 逐段绘制顺序严格对齐 Java: value(阴影+本体) → label(阴影+本体) → unit(阴影+本体)
 
 use crate::font::{Canvas, LoadedFont};
-use vm_core::layout::RenderCtx;
+use crate::layout::RenderCtx;
 
 /// 运行时颜色 (对应 Application.colorNum 等, 当前 ui_layout.cfg 默认值)
 pub struct RenderColors {

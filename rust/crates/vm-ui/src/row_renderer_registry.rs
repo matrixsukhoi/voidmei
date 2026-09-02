@@ -10,7 +10,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::config_loader::{GroupConfig, RowConfig};
+use vm_core::config_loader::{GroupConfig, RowConfig};
 
 // =====================================================================
 // RowRenderer.java 的占位翻译 (完整翻译归后续 C 类渲染器批次)

@@ -22,8 +22,8 @@ use std::rc::Rc;
 use crate::font::LoadedFont;
 use crate::global_colors::colors;
 use crate::render2d::PixCanvas;
-use vm_core::layout::RenderCtx;
-use vm_core::ui_model::{DataField, GaugeField};
+use crate::layout::RenderCtx;
+use crate::ui_model::{DataField, GaugeField};
 
 // ---------------------------------------------------------------------------
 // 调色板 (Application.java:108-111 静态默认色, TextGauge 直接引用)

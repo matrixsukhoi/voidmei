@@ -46,7 +46,7 @@ use vm_core::event::event_payload::EventPayload;
 use vm_core::hud_calculator::{self, HudColors};
 use vm_core::parser::{Indicators, State};
 use vm_core::hud_data::HUDData;
-use vm_core::hud_layout_node::{Dimension, HasPreferredSize, HUDLayoutNodeExt};
+use crate::hud_layout_node::{Dimension, HasPreferredSize, HUDLayoutNodeExt};
 use vm_core::formula::registry::FormulaView;
 
 use crate::font::LoadedFont;

@@ -1,7 +1,7 @@
 use super::*;
 use std::cell::Cell;
 use std::rc::Rc;
-use vm_core::hud_layout_node::Dimension;
+use crate::hud_layout_node::Dimension;
 
 /// 测试组件: 固定尺寸 + 可见开关 (对齐 HUDComponent 两方法契约)
 struct VisComp {

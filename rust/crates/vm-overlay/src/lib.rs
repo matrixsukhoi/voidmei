@@ -10,9 +10,19 @@ pub mod gauge_crosshair;
 pub mod gauges_bars;
 pub mod host;
 pub mod hotkey;
+// 重构波2 自 vm-core 下沉 (本 crate 唯一消费的 UI 支撑面)
+pub mod hud_layout_node;
+pub mod layout;
 pub mod minihud;
 pub mod minihud_layout;
 pub mod overlay_list;
+// 重构波2 六劈: overlays_field1/2 内容的承载模块 (壳模块转发 re-export)
+mod overlay_control_surfaces;
+mod overlay_engine_control;
+mod overlay_fm_unpacked;
+mod overlay_gauges;
+mod overlay_gear_flaps;
+mod overlay_power_info;
 pub mod overlays_field1;
 pub mod overlays_field2;
 pub mod platform;
@@ -22,10 +32,11 @@ pub mod render;
 pub mod render2d;
 pub mod renderers;
 pub mod rows;
+pub mod ui_constants;
+pub mod ui_model;
 #[cfg(target_os = "windows")]
 pub mod tray;
 pub mod warning_overlay;
-pub mod window;
 
 pub use config::{load_pos, save_pos};
 pub use gauge_attitude::{
@@ -53,9 +64,9 @@ pub use minihud_layout::{
 pub use overlay_list::{BaseListOverlay, ZebraList};
 pub use flight_info::{build_texts, flight_info_overlay_spec, FlightInfoHandle};
 pub use overlays_field1::{
-    engine_control_overlay_spec, engine_control_preview_spec, gear_flaps_overlay_spec,
+    engine_control_overlay_spec, gear_flaps_overlay_spec,
     ENGINE_DISABLE_KEYS,
-    gear_flaps_preview_spec, power_info_overlay_spec, power_info_preview_spec, EngineControlHandle, EngineControlState, EngineGauge, EngineGaugeDef, GaugeBarStyle,
+    power_info_overlay_spec, EngineControlHandle, EngineControlState, EngineGauge, EngineGaugeDef, GaugeBarStyle,
     GaugeMarker, GaugeType, GearFlapsHandle, GearFlapsState, MarkedGauge, MarkerType,
     PowerInfoHandle, PowerInfoState, ENGINE_GAUGE_DEFS, ENGINE_REFRESH_MULTIPLIER, FIELD_OVERLAY_REFRESH_INTERVAL_MS,
     GEAR_FLAPS_REFRESH_INTERVAL_MS, };
@@ -69,7 +80,7 @@ pub use overlays_field2::{
 };
 pub use platform_extras::{parse_wav_duration, DpiHelper};
 pub use render::{draw_fields, render_fields, render_fields_fixed, FieldText, FontTriple, RenderColors, DEFAULT_COLORS};
-pub use render2d::{LineCapStyle, PixCanvas};
+pub use render2d::{to_premul_bgra, LineCapStyle, PixCanvas};
 pub use renderers::{
     BosStyleRenderer, Field, OverlayRenderer, RenderContext, RenderPalette, TextGauge,
     APPLICATION_COLORS, WHITE,
@@ -78,4 +89,3 @@ pub use rows::{HUDAkbRow, HUDEnergyRow, HUDManeuverRow, HUDTextRow};
 #[cfg(target_os = "windows")]
 pub use tray::{TrayConfig, TrayHandler, TrayIcon};
 pub use warning_overlay::{WarningBlinkHost, WarningOverlay};
-pub use window::{run, OverlayMode};

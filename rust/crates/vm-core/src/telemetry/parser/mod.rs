@@ -1,8 +1,9 @@
 //! src/parser 数据类 (A 类, CLASSIFY 第二批第 6 步): 8111 遥测 / 地图 / HUD 消息的
 //! 手写子串提取解析器。Blkx / FlightAnalyzer / FlightLog 属 B 类后续批次, 不在本模块。
 //! PORT: Java 包内默认可见性 (zb/getLine/parseObj 等) → Rust 模块内私有; 跨文件消费的
-//! 公共 API 保持 pub。vm-data 里 serde_json 版 parse_state 是 POC 存量 (并存遗留),
-//! 本模块按 Java 子串提取语义保真翻译, 二者互不影响。
+//! 公共 API 保持 pub。
+//! (重构波2 注): 早期 vm-data 曾并存 serde_json 版 parse_state (POC 存量), 已随
+//! 数据链统一到本模块的 State/Indicators 退役 — 现在全库 8111 遥测解析唯一入口在此。
 
 pub mod hud_msg;
 pub mod indicators;

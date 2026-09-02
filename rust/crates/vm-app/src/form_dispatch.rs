@@ -4,7 +4,7 @@
 
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use vm_core::config_manager;
 use vm_core::configuration_service::ConfigurationService;
@@ -33,8 +33,8 @@ pub fn build_form_state(shell: &AppShell) -> MainFormState {
 }
 
 /// dispatcher 构造 (注入 ShellForm; 主线程调用, 无 Send 约束)
-pub fn make_dispatcher(shell: &Arc<Mutex<AppShell>>, cell: FormCell) -> vm_webui::Dispatcher {
-    let shell = Arc::clone(shell);
+pub fn make_dispatcher(shell: &Rc<RefCell<AppShell>>, cell: FormCell) -> vm_webui::Dispatcher {
+    let shell = Rc::clone(shell);
     Box::new(move |kind, rt| dispatch_form(kind, rt, &shell, &cell))
 }
 
@@ -42,7 +42,7 @@ pub fn make_dispatcher(shell: &Arc<Mutex<AppShell>>, cell: FormCell) -> vm_webui
 fn dispatch_form(
     kind: RequestKind,
     rt: &mut FormRuntime,
-    shell: &Arc<Mutex<AppShell>>,
+    shell: &Rc<RefCell<AppShell>>,
     cell: &FormCell,
 ) -> IpcReply {
     match kind {
@@ -81,7 +81,7 @@ fn dispatch_form(
             // Java VoiceResourceManager.getInstance().get_available_packs():
             // "default" + voice/ 子目录。共享实例 = shell.voice (AppShell 字段,
             // Java 单例落位, winmm waveOut 播放器; 试听/告警装配复用同一实例)
-            let mgr = Arc::clone(&shell.lock().expect("AppShell 锁中毒").voice);
+            let mgr = Arc::clone(&shell.borrow().voice);
             serde_json::to_value(mgr.get_available_packs())
                 .map(IpcReply::Ok)
                 .unwrap_or_else(|e| IpcReply::Err(e.to_string()))
@@ -90,7 +90,7 @@ fn dispatch_form(
             // Java VoiceRowRenderer.java:126-136 试听按钮 (按钮体提取为
             // preview_voice_clip 以注入 mock 播放器断言 load/play 与 pack 传递);
             // 忽略 enable 态 (preview 语义), 失败无声, 回执恒 Ok (Java 按钮无失败反馈面)
-            let mgr = Arc::clone(&shell.lock().expect("AppShell 锁中毒").voice);
+            let mgr = Arc::clone(&shell.borrow().voice);
             let _ = preview_voice_clip(&mgr, &key, &pack); // 保活线程自持至播完
             IpcReply::Ok(serde_json::json!({ "ok": true }))
         }
@@ -124,7 +124,7 @@ fn dispatch_form(
             let ok = vm_core::config_manager::import_config(&path);
             if ok {
                 // 重载服务树 + 快照 (对位 Java import 后 rebuild; 与核共享的 config 服务)
-                let mut s = shell.lock().expect("AppShell 锁中毒");
+                let mut s = shell.borrow_mut();
                 let user_cfg = vm_core::config_manager::get_user_config_path().to_string();
                 if let Some(c) = s.controller.as_mut() {
                     c.config.load_layout(&user_cfg);
@@ -132,13 +132,12 @@ fn dispatch_form(
                 *cell.borrow_mut() = Some(build_form_state(&s));
                 drop(s);
                 // 广播整树变更 (前端重拉 + overlay 全量刷新, reset 链同款全局键)
-                if let Ok(s) = shell.lock() {
-                    s.ui_bus.publish(
-                        vm_core::event::ui_state_events::CONFIG_CHANGED,
-                        Some("ConfigImport"),
-                        Some("ui_layout.cfg"),
-                    );
-                }
+                let s = shell.borrow();
+                s.ui_bus.publish(
+                    vm_core::event::ui_state_events::CONFIG_CHANGED,
+                    Some("ConfigImport"),
+                    Some("ui_layout.cfg"),
+                );
                 IpcReply::Ok(serde_json::json!({ "ok": true }))
             } else {
                 IpcReply::Err(format!("导入失败: {path} (备份已创建, 原配置未动)"))
@@ -176,13 +175,12 @@ fn java_parse_boolean(s: &str) -> bool {
 ///
 /// cfg 读取对位 Java RenderContext (DynamicDataPage.java:155-174):
 /// getString(key, def) = getConfig 为 null/空 → def; getBool(key, false) 同。
-fn route_open_action(action: &str, shell: &Arc<Mutex<AppShell>>) -> Option<WebWindowRequest> {
+fn route_open_action(action: &str, shell: &Rc<RefCell<AppShell>>) -> Option<WebWindowRequest> {
     use vm_core::config_api::ConfigProvider as _;
 
     let get_string = |key: &str, default: &str| -> String {
         let s = shell
-            .lock()
-            .expect("AppShell 锁中毒")
+            .borrow()
             .controller
             .as_ref()
             .and_then(|c| c.config.get_config(key))
@@ -238,7 +236,7 @@ fn open_web_window(req: &WebWindowRequest, rt: &FormRuntime) -> IpcReply {
 /// StartGame/EndGame 附带 shell 命令 (对位原 iced 壳 hooks 的 tc 侧序列)。
 fn form_message(
     dto: FormMessageDto,
-    shell: &Arc<Mutex<AppShell>>,
+    shell: &Rc<RefCell<AppShell>>,
     cell: &FormCell,
     rt: &FormRuntime,
 ) -> IpcReply {
@@ -260,9 +258,7 @@ fn form_message(
                 Message::StartGame => UiCommand::StartGame,
                 _ => UiCommand::EndGame,
             };
-            if let Ok(mut s) = shell.lock() {
-                s.dispatch(cmd);
-            }
+            shell.borrow_mut().dispatch(cmd);
             IpcReply::Ok(serde_json::json!({ "ok": true }))
         }
         _ => {
@@ -329,6 +325,7 @@ fn to_message(dto: FormMessageDto) -> Message {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Mutex; // mock 播放器记录面 (原顶层 use 转发, Rc 化后局部补)
 
     /// dto→Message 映射完整性: IPC 序列正确性的前提 (与 iced 基线 diff=0 验收配套)
     #[test]
@@ -361,11 +358,9 @@ mod tests {
         assert!(matches!(to_message(FormMessageDto::CancelPending), Message::CancelPending));
     }
 
-    /// 最小壳装配 (app_shell tests fixture 的 bin 侧本地版 — dispatcher 需真 shell)
-    /// PORT(allow arc_with_non_send_sync): main.rs 同款 — Arc 复刻 Java this
-    /// 引用共享 (dispatcher 注入面), 不为 lint 改 Rc
-    #[allow(clippy::arc_with_non_send_sync)]
-    fn min_shell() -> Arc<Mutex<AppShell>> {
+    /// 最小壳装配 (app_shell tests fixture 的 bin 侧本地版 — dispatcher 需真 shell;
+    /// Rc 单线程共享 = 生产 main.rs 同款形态)
+    fn min_shell() -> Rc<RefCell<AppShell>> {
         // 最小 cfg (原内联文本; tag 与 open* 测试的 tmp 文件互不覆盖)
         shell_with_cfg(
             "(panel \"T\" :visible true\n\
@@ -376,8 +371,7 @@ mod tests {
     }
 
     /// 按给定 cfg 文本建壳 (min_shell 的可配置版; 测试并行各自独立 tmp 文件)
-    #[allow(clippy::arc_with_non_send_sync)]
-    fn shell_with_cfg(cfg_text: &str, tag: &str) -> Arc<Mutex<AppShell>> {
+    fn shell_with_cfg(cfg_text: &str, tag: &str) -> Rc<RefCell<AppShell>> {
         use vm_app::ShellParts;
         let ui_bus = Arc::new(vm_core::ui_state_bus::UIStateBus::new());
         let config = ConfigurationService::new(Some(Arc::clone(&ui_bus)));
@@ -389,7 +383,7 @@ mod tests {
         config.load_layout(cfg.to_str().unwrap());
         let (hotkey, hotkey_rx) = vm_overlay::HotkeyManager::with_channel();
         let env = vm_app::Env::probe(&vm_core::lang::Lang::init_lang(), false);
-        Arc::new(Mutex::new(AppShell::with_parts(ShellParts {
+        Rc::new(RefCell::new(AppShell::with_parts(ShellParts {
             env,
             config,
             ui_bus,
@@ -735,18 +729,15 @@ mod tests {
 
     /// 建核 (route_open_action 读 controller.config — with_parts 不建核, 须显式
     /// rebuild; 注入的 tmp cfg 被首核原样复用, 无写盘副作用)
-    fn with_controller(shell: Arc<Mutex<AppShell>>) -> Arc<Mutex<AppShell>> {
-        shell
-            .lock()
-            .expect("AppShell 锁中毒")
-            .rebuild_controller(true);
+    fn with_controller(shell: Rc<RefCell<AppShell>>) -> Rc<RefCell<AppShell>> {
+        shell.borrow_mut().rebuild_controller(true);
         shell
     }
 
     /// OPEN_ROWS_CFG 壳 + 建核 (set_config 只改树中已有行 — vm-core
     /// ServiceInner.set_config 逐行匹配的 Java 保真语义, 故 set_cfg 透传
     /// 断言需行在位; 缺行→缺省分支用 with_controller(min_shell()) 单独断)
-    fn min_shell_with_controller() -> Arc<Mutex<AppShell>> {
+    fn min_shell_with_controller() -> Rc<RefCell<AppShell>> {
         with_controller(shell_with_cfg(OPEN_ROWS_CFG, "openrows"))
     }
 
@@ -762,9 +753,9 @@ mod tests {
 
     /// 写壳内核 cfg 键 (controller 与表单态共享同一 ConfigurationService —
     /// 对位 Java ButtonRowRenderer 经 RenderContext 读 configService)
-    fn set_cfg(shell: &Arc<Mutex<AppShell>>, key: &str, value: &str) {
+    fn set_cfg(shell: &Rc<RefCell<AppShell>>, key: &str, value: &str) {
         use vm_core::config_api::ConfigProvider as _;
-        let s = shell.lock().expect("AppShell 锁中毒");
+        let s = shell.borrow();
         let c = s.controller.as_ref().expect("rebuild 后应有核");
         c.config.set_config(key, value);
     }

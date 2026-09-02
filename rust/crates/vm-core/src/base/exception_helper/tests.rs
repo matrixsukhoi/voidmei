@@ -226,12 +226,16 @@ fn child_log_and_continue_debug_channel() {
 /// (默认) 不输出该通道; (3) WARN 行两级都放行 (不受闸门影响)。
 #[test]
 fn log_and_continue_debug_gate() {
+    // 子进程测试名按 module_path! 拼接 (随目录移动自适应); --exact 需不带
+    // crate 名前缀的路径 (曾硬编码旧路径致拉起空跑)
+    let child_test = format!(
+        "{}::child_log_and_continue_debug_channel",
+        module_path!()
+            .strip_prefix(concat!(env!("CARGO_CRATE_NAME"), "::"))
+            .unwrap_or(module_path!())
+    );
     let out = std::process::Command::new(std::env::current_exe().expect("定位测试二进制失败"))
-        .args([
-            "--exact",
-            "exception_helper::tests::child_log_and_continue_debug_channel",
-            "--nocapture",
-        ])
+        .args(["--exact", child_test.as_str(), "--nocapture"])
         .output()
         .expect("拉起子进程失败");
     assert!(out.status.success(), "子进程测试失败: {out:?}");

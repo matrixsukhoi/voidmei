@@ -83,7 +83,7 @@ pub(crate) mod test_util {
     use std::sync::Arc;
 
     use vm_core::configuration_service::ConfigurationService;
-    use vm_core::row_renderer_registry::RenderContext;
+    use crate::row_renderer_registry::RenderContext;
 
     #[derive(Default)]
     pub(crate) struct MapCtx {

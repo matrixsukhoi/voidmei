@@ -9,11 +9,9 @@ name = "vm_overlay"
 
 [dependencies]
 vm-core = { workspace = true }
-vm-data = { workspace = true }
 png = { workspace = true }
 swash = { workspace = true }
 ttf-parser = { workspace = true }
-serde_json = { workspace = true }
 tiny-skia = "0.12.0"
 
 [target.'cfg(windows)'.dependencies]

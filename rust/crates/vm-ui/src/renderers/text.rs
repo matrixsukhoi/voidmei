@@ -15,8 +15,8 @@
 //! 消息形状不变。
 
 use vm_core::config_loader::{GroupConfig, RowConfig};
-use vm_core::renderer_config_helper;
-use vm_core::row_renderer_registry::RenderContext;
+use crate::renderer_config_helper;
+use crate::row_renderer_registry::RenderContext;
 
 /// 显示值 (Java L20-30 读链)。
 pub fn read_current(row: &RowConfig, panel: &GroupConfig, ctx: &dyn RenderContext) -> String {

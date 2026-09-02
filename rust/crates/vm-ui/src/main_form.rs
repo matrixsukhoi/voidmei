@@ -40,7 +40,7 @@ use vm_core::configuration_service::ConfigurationService;
 use vm_core::ui_state_bus::{UIStateBus, UiStateEvent};
 use vm_core::event::ui_state_events;
 use vm_core::logger;
-use vm_core::row_renderer_registry::RenderContext;
+use crate::row_renderer_registry::RenderContext;
 
 use crate::renderers;
 

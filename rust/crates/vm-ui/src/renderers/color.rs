@@ -21,7 +21,7 @@
 //! 归 web 壳 (JS 输入框), Message::ColorPicked 消息形状不变。
 
 use vm_core::config_loader::{ConfigValue, GroupConfig, RowConfig};
-use vm_core::row_renderer_registry::RenderContext;
+use crate::row_renderer_registry::RenderContext;
 
 use super::{find_row_path, row_by_path, row_by_path_mut};
 

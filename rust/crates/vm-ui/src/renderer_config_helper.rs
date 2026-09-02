@@ -22,7 +22,7 @@
 //! 注意与 `crate::layout::RenderContext` (ui/renderer/RenderContext.java, 布局公式
 //! 上下文) 是**同名不同物**的两个 Java 类型。
 
-use crate::config_loader::{GroupConfig, RowConfig};
+use vm_core::config_loader::{GroupConfig, RowConfig};
 
 /// Context object providing callbacks and state for rendering.
 ///
@@ -53,7 +53,7 @@ pub use crate::row_renderer_registry::RenderContext;
 /// Allows dynamic get/set of object fields by name, eliminating switch-case
 /// boilerplate.
 mod property_binder {
-    use crate::config_loader::GroupConfig;
+    use vm_core::config_loader::GroupConfig;
 
     /// 注册表键 → GroupConfig 字段选择子 (Java: getField 返回的 Field 对象)。
     /// 覆盖 GroupConfig 全部 12 个 public 字段 (ConfigLoader.java:80-97);

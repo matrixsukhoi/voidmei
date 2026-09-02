@@ -509,9 +509,9 @@ fn power_info_reset_preview_restores_statics() {
     assert_eq!(st.last_refresh_time, 0, "节流基准复位 (重进游戏首帧不误吞)");
 }
 
-/// BOS 网格绘制 + 预览闭包工厂: 出像素且尺寸正确
+/// BOS 网格绘制: 出像素 (工厂闭包形态由 live 工厂测试覆盖)
 #[test]
-fn power_info_draw_and_preview_spec() {
+fn power_info_draw_renders() {
     let ctx = RenderContext::load(std::path::Path::new(FONTS), 0, 2).unwrap();
     let st = PowerInfoState::new(defs19());
     let (w, h) = st.preferred_size(&ctx);
@@ -519,12 +519,6 @@ fn power_info_draw_and_preview_spec() {
     let mut renderer = BosStyleRenderer::default();
     st.draw(&mut cv, &ctx, &mut renderer);
     assert!(cv.pixmap().data().iter().any(|&b| b != 0), "预览网格非空");
-    // 工厂闭包 (OverlayHost 渲染闭包形态)
-    let mut spec = power_info_preview_spec(std::path::Path::new(FONTS), 0, 2, defs19()).unwrap();
-    assert_eq!((spec.width, spec.height), (w, h));
-    let mut cv2 = PixCanvas::new(spec.width, spec.height).unwrap();
-    (spec.render)(&mut cv2);
-    assert_eq!(cv2.to_premul_bgra(), cv.to_premul_bgra(), "工厂闭包与直绘一致");
 }
 
 // ---- EngineControl ----
@@ -767,17 +761,6 @@ fn engine_control_draw_layout() {
     assert_eq!(alpha(&cv2, bar1_x, 72), colors().shade_shape[3], "jet 保留竖条");
 }
 
-/// 预览闭包工厂: 尺寸/内容 (半量程 + optimal 示例标记)
-#[test]
-fn engine_control_preview_spec_renders() {
-    let l = lang();
-    let mut spec = engine_control_preview_spec(std::path::Path::new(FONTS), &l, 0, 1.0).unwrap();
-    assert_eq!((spec.width, spec.height), (192, 306));
-    let mut cv = PixCanvas::new(spec.width, spec.height).unwrap();
-    (spec.render)(&mut cv);
-    assert!(cv.pixmap().data().iter().any(|&b| b != 0));
-}
-
 // ---- GearFlaps ----
 
 /// reinitConfig 几何 + drawTick 状态机 (含 gear<0 保留旧告警)
@@ -864,16 +847,6 @@ fn gear_flaps_draw_pixels() {
     // 告警 "起落架": 基线 (width=48, fontSize=24), fontLabel
     let warn_zone = (48..100).any(|x| (10..25).any(|y| alpha(&cv, x, y) > 0));
     assert!(warn_zone, "起落架告警文本存在");
-}
-
-/// 预览闭包工厂: 尺寸 (含边框) + 内容非空
-#[test]
-fn gear_flaps_preview_spec_renders() {
-    let mut spec = gear_flaps_preview_spec(std::path::Path::new(FONTS), 0, 1.0, true).unwrap();
-    assert_eq!((spec.width, spec.height), (164, 140));
-    let mut cv = PixCanvas::new(spec.width, spec.height).unwrap();
-    (spec.render)(&mut cv);
-    assert!(cv.pixmap().data().iter().any(|&b| b != 0));
 }
 
 // ---- live 喂数形态工厂 (句柄共享: render 闭包与喂入方同一 state) ----

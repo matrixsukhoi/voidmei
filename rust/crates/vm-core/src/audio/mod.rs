@@ -5,6 +5,9 @@
 
 pub mod voice_alert_type;
 pub mod voice_pack_config;
+// 重构波2 吸收: 原顶层 voice_warning / voice_resource_manager 归入本域
+pub mod voice_resource_manager;
+pub mod voice_warning;
 
 pub use voice_alert_type::VoiceAlertType;
 pub use voice_pack_config::VoicePackConfig;

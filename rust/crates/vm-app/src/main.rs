@@ -33,7 +33,7 @@
 use std::cell::RefCell;
 use std::path::PathBuf;
 use std::rc::Rc;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use vm_app::{AppShell, SupervisorOutcome};
@@ -128,12 +128,9 @@ fn desktop_main(debug: bool) -> i32 {
         Rc::new(RefCell::new(Some(init)))
     };
 
-    // AppShell 主线程持有 (D8: 含 !Send 配置树恒留主线程 — 原 iced 相 A/B
-    // 形态下的 hooks 闭包共享点已随单循环消失, Arc 仅留 dispatcher 注入用)
-    // PORT(allow arc_with_non_send_sync): 同 configuration_service.rs 先例 —
-    // Arc 复刻 Java this 引用共享, 不为 lint 改 Rc
-    #[allow(clippy::arc_with_non_send_sync)]
-    let shell = Arc::new(Mutex::new(shell));
+    // AppShell 主线程持有 (D8: 含 !Send 配置树恒留主线程 — 原共享点已随单循环
+    // 消失, Rc 仅留 dispatcher 注入用; Dispatcher 闭包无 Send 界, Rc 即可)
+    let shell = Rc::new(RefCell::new(shell));
 
     // 公式系统启动桥: Service 未装配的空闲/preview 期, 公式编辑器 tab 也要
     // 可用 — 先发布独立 manager (装载出厂+用户文件); 进游戏模式装配 Service
@@ -159,7 +156,7 @@ fn desktop_main(debug: bool) -> i32 {
     // 事件桥: CONFIG_CHANGED → 前端 config-changed (reset/import 后整树刷新);
     // FM_CHANGED → fm-changed (MISSING/CORRUPT toast, 对位 NotificationService);
     // Subscription RAII — 与主循环同生命周期
-    let fm_changed_bus = shell.lock().expect("AppShell 锁中毒").fm.fm_changed_bus();
+    let fm_changed_bus = shell.borrow().fm.fm_changed_bus();
     let _bridge_sub = form.as_ref().map(|f| {
         (
             vm_webui::bridge::bridge_config_changed(f.app_handle(), &ui_bus),
@@ -210,8 +207,7 @@ fn desktop_main(debug: bool) -> i32 {
     loop {
         let auto_started = first_iteration
             && shell
-                .lock()
-                .expect("AppShell 锁中毒")
+                .borrow()
                 .controller
                 .as_ref()
                 .is_some_and(|c| c.service.is_some());
@@ -223,7 +219,7 @@ fn desktop_main(debug: bool) -> i32 {
         // 壳不可用降级: 阻塞监督 (事件驱动响应快); 托盘请求设置窗时无窗可开,
         // 核已重建, 记日志继续 (run_supervisor 形态同款)
         let Some(form) = form.as_mut() else {
-            match shell.lock().expect("AppShell 锁中毒").run_supervisor_phase() {
+            match shell.borrow_mut().run_supervisor_phase() {
                 SupervisorOutcome::Exit => break,
                 SupervisorOutcome::MainFormRequested => logger::info(
                     "App",
@@ -234,7 +230,7 @@ fn desktop_main(debug: bool) -> i32 {
         };
 
         let (exit, form_req, in_game, state_str) = {
-            let mut s = shell.lock().expect("AppShell 锁中毒");
+            let mut s = shell.borrow_mut();
             s.pump();
             // live 模式运行判定 (收窗面): Connected/InGame = start() 后的形态
             let state = s.shared.state();
@@ -264,7 +260,7 @@ fn desktop_main(debug: bool) -> i32 {
         // 读后清空防重发; 冷却态机已保证触发不刷屏
         {
             let triggers: Vec<_> = {
-                let shell = shell.lock().expect("AppShell 锁中毒");
+                let shell = shell.borrow();
                 let live = shell.shared.live.read().expect("live 锁中毒").clone();
                 match live {
                     Some(data) => {
@@ -310,7 +306,7 @@ fn desktop_main(debug: bool) -> i32 {
         // 未注册, 事件会丢且标记无人清, 不标记防 InGame 恒不收窗), 下方 InGame
         // 收窗分支凭标记豁免; 前端 Modal 关闭回执 (about_modal_closed 命令)
         // 或 60s 上界清除标记
-        if shell.lock().expect("AppShell 锁中毒").take_about_request() {
+        if shell.borrow_mut().take_about_request() {
             if form.is_web_ready() {
                 vm_webui::bridge::set_about_modal_open(true);
             }
@@ -337,7 +333,7 @@ fn desktop_main(debug: bool) -> i32 {
             // 表单态随之重建 (与核共享新 config 服务, 对位原相 A 重开窗的重新构造),
             // show 幂等 (可能已可见) + UI_READY → 新核进 Preview
             {
-                let s = shell.lock().expect("AppShell 锁中毒");
+                let s = shell.borrow();
                 *form_cell.borrow_mut() = Some(form_dispatch::build_form_state(&s));
             }
             form.show();
@@ -362,7 +358,7 @@ fn desktop_main(debug: bool) -> i32 {
         let visible = form.is_main_visible();
         std::thread::sleep(Duration::from_millis(if visible { 10 } else { 50 }));
     }
-    shell.lock().expect("AppShell 锁中毒").shutdown();
+    shell.borrow_mut().shutdown();
     0
 }
 

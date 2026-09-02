@@ -29,7 +29,7 @@
 //! — 需要时可加 DATA 专属消息臂调本文件语义收敛差异。
 
 use vm_core::config_loader::RowConfig;
-use vm_core::row_renderer_registry::RenderContext;
+use crate::row_renderer_registry::RenderContext;
 
 /// Java Boolean.parseBoolean: 仅忽略大小写的 "true" 为真
 fn java_parse_boolean(s: &str) -> bool {

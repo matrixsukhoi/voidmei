@@ -8,11 +8,11 @@
 //!
 //! 锚点公式 (doc/minihud贡献者开发手册.md §3.2):
 //! **Self.Point(SelfAnchor) = Parent.Point(ParentAnchor) + Offset(Unit × LineHeight)**
-//! —— 求解体 = [`vm_core::hud_layout_node`] 的 `solve()` (已移植), 本引擎是它的
+//! —— 求解体 = [`crate::hud_layout_node`] 的 `solve()` (已移植), 本引擎是它的
 //! 驱动方 (拓扑排序 → 逐节点按父矩形求解)。
 //!
 //! 映射裁决:
-//! - 节点图 = `SharedNode<T>` (vm_core::hud_layout_node, Rc+RefCell 共享句柄);
+//! - 节点图 = `SharedNode<T>` (crate::hud_layout_node, Rc+RefCell 共享句柄);
 //!   engine 的 nodes 容器**强持全部节点** (hud_layout_node.rs PORT 备案: 否则
 //!   Weak 父升级失败会让节点被误判为 ROOT)。
 //! - Java `HashMap<String,HUDLayoutNode>` → `Vec<(String, SharedNode<T>)>` (线性
@@ -33,10 +33,10 @@
 
 use std::collections::HashSet;
 
-use vm_core::hud_layout_node::{
+use crate::hud_layout_node::{
     HasPreferredSize, HUDLayoutNode, HUDLayoutNodeExt, Rectangle, SharedNode,
 };
-use vm_core::layout::Anchor;
+use crate::layout::Anchor;
 
 /// HUDComponent 接口的布局引擎侧最小 seam (Java src/ui/component/HUDComponent.java
 /// 接口两方法: getPreferredSize 已入 vm-core `HasPreferredSize`; isVisible 由本模块

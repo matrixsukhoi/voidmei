@@ -11,3 +11,6 @@
 
 pub mod main_form;
 pub mod renderers;
+// 重构波2 自 vm-core 下沉 (本 crate 唯一消费的设置面板支撑面)
+pub mod renderer_config_helper;
+pub mod row_renderer_registry;

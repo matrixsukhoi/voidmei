@@ -14,8 +14,8 @@
 //! - min >= max 防崩溃守卫: max = min + 100 (Java L33-37)。
 
 use vm_core::config_loader::{ConfigValue, GroupConfig, RowConfig};
-use vm_core::renderer_config_helper;
-use vm_core::row_renderer_registry::RenderContext;
+use crate::renderer_config_helper;
+use crate::row_renderer_registry::RenderContext;
 
 use super::{find_row_path, row_by_path, row_by_path_mut};
 

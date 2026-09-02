@@ -1,0 +1,279 @@
+//! VoiceWarning 装配 (Java Controller.java:716-723 注册 → OverlayManager
+//! .open/close 的线程启停; 语音子系统装配批)。重构波2 自 app_shell.rs 拆出。
+
+use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
+use std::thread::JoinHandle;
+
+use vm_core::config_api::ConfigProvider;
+use vm_core::configuration_service::ConfigurationService;
+use vm_core::formula::registry::FormulaView as _; // var_value 取数唯一接口
+use vm_core::ui_state_bus::UIStateBus;
+use vm_core::voice_resource_manager::VoiceResourceManager;
+use vm_core::voice_warning::{VoiceWarning, VoiceWarningService};
+use vm_data::service_fields::ServiceData;
+use vm_core::flight_data_bus::FlightDataBus;
+use vm_core::fm::FMManager;
+
+use crate::keys::FM_FIELD_KEYS;
+
+/// ConfigurationService (!Send, 主线程独占) 的快照适配器 (重构波2 三合一:
+/// 原 FlightLogConfig 单键快照 / VoiceConfigSnapshot voice_* 全键版 /
+/// FmFieldConfigSnapshot FM show* 版 — 同型只读 ConfigProvider, 合一收敛)。
+/// get = 查 map, set/is_field_disabled 无调用方 (Java 侧 VoiceWarning.reload 与
+/// generateLines 经 configProvider 只读)。
+pub(crate) struct SnapshotConfigProvider(Arc<Mutex<HashMap<String, String>>>);
+
+impl SnapshotConfigProvider {
+    /// 现有快照 map 直接包装 (voice_*/FM show* 场景: map 由 AppShell 持有刷新)
+    pub(crate) fn new(map: Arc<Mutex<HashMap<String, String>>>) -> Self {
+        SnapshotConfigProvider(map)
+    }
+
+    /// 键值对构造 (FlightLogConfig 单键场景: None 值不落键 = get 返回 None,
+    /// 与原 Option<String> 语义一致)
+    pub(crate) fn from_pairs(pairs: impl IntoIterator<Item = (&'static str, Option<String>)>) -> Self {
+        let mut m = HashMap::new();
+        for (k, v) in pairs {
+            if let Some(v) = v {
+                m.insert(k.to_string(), v);
+            }
+        }
+        SnapshotConfigProvider::new(Arc::new(Mutex::new(m)))
+    }
+}
+
+impl ConfigProvider for SnapshotConfigProvider {
+    fn get_config(&self, key: &str) -> Option<String> {
+        self.0.lock().expect("配置快照锁中毒").get(key).cloned()
+    }
+    fn set_config(&self, _key: &str, _value: &str) {
+        // Java 侧经 configProvider 只读 (reload 的 getConfig / generateLines)
+    }
+    fn is_field_disabled(&self, _key: &str) -> bool {
+        false
+    }
+}
+
+/// 全量刷新 voice_* 快照: 键集 = VoiceAlertType 全部告警键 (含 start1) 加前缀。
+/// 调用点: AppShell 构造 / 托盘 rebuild (新配置树) — 均主线程。
+pub(crate) fn refresh_voice_config_snapshot(
+    config: &ConfigurationService,
+    snapshot: &Arc<Mutex<HashMap<String, String>>>,
+) {
+    let mut m = snapshot.lock().expect("voice 配置快照锁中毒");
+    for ty in vm_core::audio::voice_alert_type::ALL {
+        // with_voice_prefix: "voice_" + key (无前缀时补, 有则原样)
+        let cfg_key = vm_core::audio::VoicePackConfig::with_voice_prefix(Some(ty.get_key()))
+            .expect("告警键非 null");
+        m.insert(cfg_key.clone(), config.get_config(&cfg_key).unwrap_or_default());
+    }
+}
+
+/// 全量刷新 FM show* 快照 (调用点同 voice: 构造 / 托盘 rebuild)
+pub(crate) fn refresh_fm_field_config_snapshot(
+    config: &ConfigurationService,
+    snapshot: &Arc<Mutex<HashMap<String, String>>>,
+) {
+    let mut m = snapshot.lock().expect("FM 字段快照锁中毒");
+    for key in FM_FIELD_KEYS {
+        m.insert(key.to_string(), config.get_config(key).unwrap_or_default());
+    }
+}
+
+/// 挂配置写值钩子 (重构波1): set_config 广播 CONFIG_CHANGED 前直写跨线程快照,
+/// 保证 VoiceWarning reload (publish 栈内同步读快照) 拿到新值 — 对位原
+/// handle_main_event 转发桥"先同步快照再发总线"的时序。调用点: AppShell 构造
+/// (initial_config) / 托盘 rebuild (新配置树)。
+pub(crate) fn attach_snapshot_hooks(
+    config: &ConfigurationService,
+    voice_config: &Arc<Mutex<HashMap<String, String>>>,
+    fm_field_config: &Arc<Mutex<HashMap<String, String>>>,
+) {
+    let voice = Arc::clone(voice_config);
+    let fm = Arc::clone(fm_field_config);
+    config.set_write_hook(Box::new(move |key, value| {
+        if key.starts_with("voice_") {
+            voice
+                .lock()
+                .expect("voice 配置快照锁中毒")
+                .insert(key.to_string(), value.to_string());
+        } else if FM_FIELD_KEYS.contains(&key) {
+            fm.lock()
+                .expect("FM 字段快照锁中毒")
+                .insert(key.to_string(), value.to_string());
+        }
+    }));
+}
+
+/// VoiceWarning 对 Service 消费面的生产实现 (VoiceWarningService trait):
+/// 直接持有 live ServiceData 的 RwLock Arc (Java xS 引用在 openpad 时刻捕获的
+/// 对位 — S 实例持续存活, stop 清槽后数据不再更新但读不悬垂, 比 Java 更稳)。
+///
+/// PORT(备案, 审查 W2): 每 trait 方法独立 read 锁 + s_state/s_indic 各做一次
+/// 整结构深拷 (Java 无锁 volatile 直读的快照等价物) — run() 一轮 tick 约 20
+/// 次锁获取; 10Hz 节拍下总开销可忽略, 读锁共享无死锁面, 比 Java 无锁读更一致
+/// (无撕裂)。若后续提高节拍, 可改锁内一次性快照释放再算 (feed_overlays_live
+/// 的同族优化)。
+struct LiveVoiceService {
+    data: Arc<std::sync::RwLock<ServiceData>>,
+}
+
+impl VoiceWarningService for LiveVoiceService {
+    fn current_time_ms(&self) -> i64 {
+        self.data.read().unwrap_or_else(|e| e.into_inner()).current_time_ms
+    }
+    fn player_live(&self) -> bool {
+        self.data.read().unwrap_or_else(|e| e.into_inner()).player_live
+    }
+    fn set_fatal_warn(&self, v: bool) {
+        self.data.write().unwrap_or_else(|e| e.into_inner()).fatal_warn = v;
+    }
+    fn is_downing_flap(&self) -> bool {
+        // W-C: 直读公式槽, None→false
+        let d = self.data.read().unwrap_or_else(|e| e.into_inner());
+        d.var_value("is_downing_flap").unwrap_or(0.0) != 0.0
+    }
+    fn flap_allow_angle(&self) -> f64 {
+        // W-C: 直读公式槽, None→MAX(无限制, 不触发告警)
+        let d = self.data.read().unwrap_or_else(|e| e.into_inner());
+        d.var_value("flap_allow_angle").unwrap_or(f64::MAX)
+    }
+    fn flap_allow_speed(&self) -> f64 {
+        // W-C: 直读公式槽, None→MAX(无限制, 不触发告警)
+        let d = self.data.read().unwrap_or_else(|e| e.into_inner());
+        d.var_value("flap_allow_speed").unwrap_or(f64::MAX)
+    }
+    fn total_fuel(&self) -> f64 {
+        self.data.read().unwrap_or_else(|e| e.into_inner()).total_fuel
+    }
+    fn fuel_percent(&self) -> i32 {
+        self.data.read().unwrap_or_else(|e| e.into_inner()).fuel_percent
+    }
+    fn radio_alt(&self) -> f64 {
+        self.data.read().unwrap_or_else(|e| e.into_inner()).radio_alt
+    }
+    fn d_radio_alt(&self) -> f64 {
+        self.data.read().unwrap_or_else(|e| e.into_inner()).d_radio_alt
+    }
+    fn cur_load_min_work_time(&self) -> f64 {
+        self.data.read().unwrap_or_else(|e| e.into_inner()).cur_load_min_work_time
+    }
+    fn maximum_thr_rpm(&self) -> f64 {
+        self.data.read().unwrap_or_else(|e| e.into_inner()).maximum_thr_rpm
+    }
+    fn get_maximum_rpm(&self) -> bool {
+        self.data.read().unwrap_or_else(|e| e.into_inner()).get_maximum_rpm
+    }
+    fn is_eng_jet(&self) -> bool {
+        // Java Service.isEngJet() = iEngType == ENGINE_TYPE_JET (Service.java:874-876)
+        self.data.read().unwrap_or_else(|e| e.into_inner()).i_eng_type
+            == vm_data::service_fields::ENGINE_TYPE_JET
+    }
+    fn get_stall_speed(&self) -> f64 {
+        // W-C: 直读公式槽, None→0(永不触发失速告警)
+        let d = self.data.read().unwrap_or_else(|e| e.into_inner());
+        d.var_value("stall_speed").unwrap_or(0.0)
+    }
+    fn s_state(&self) -> vm_core::parser::State {
+        let d = self.data.read().unwrap_or_else(|e| e.into_inner());
+        // Java st 恒非 null (Service 构造即建); 槽内 None 仅畸形帧窗口 — 零值让步
+        d.s_state.as_ref().cloned().unwrap_or_default()
+    }
+    fn s_indic(&self) -> vm_core::parser::Indicators {
+        let d = self.data.read().unwrap_or_else(|e| e.into_inner());
+        d.s_indic.as_ref().cloned().unwrap_or_default()
+    }
+}
+
+/// VoiceWarning 会话句柄 (Java OverlayEntry 的 instance+thread 二位一体):
+/// OpenAllOverlays 建 / CloseAllOverlays 停; Drop 兜底停 (win32 线程局部声明,
+/// Shutdown return 时逆序 drop 自动收线程)。
+pub(crate) struct VoiceWarnSession {
+    pub(crate) doit: Arc<AtomicBool>,
+    join: Option<JoinHandle<()>>,
+}
+
+impl VoiceWarnSession {
+    /// Java OverlayEntry.close: thread.interrupt() 的电平形态 — doit 翻 false
+    /// + join (run 的分片睡眠 10ms 轮询, 退出时延 ≤ 一片)
+    pub(crate) fn stop(&mut self) {
+        self.doit.store(false, Ordering::SeqCst);
+        if let Some(j) = self.join.take() {
+            let _ = j.join();
+        }
+    }
+}
+
+impl Drop for VoiceWarnSession {
+    fn drop(&mut self) {
+        self.stop();
+    }
+}
+
+/// voice_warn 条目的 refreshPreviews 触达判定 (审查 W1 修复的配套):
+/// Java OverlayManager.refreshPreviews 对 `isGlobalConfig(key) ||
+/// entry.isInterestedIn(key)` 的条目调 refreshPreview (OverlayManager.java
+/// :201-207)。voice_warn 非 host 条目无注册面可挂 interest — 此处复刻同款
+/// 判定: 全局键集/前缀 = host.rs GLOBAL_CONFIG_KEYS/PREFIXES 同源 (Java
+/// OverlayManager.java:217-227); interest 集 = Java 默认 own key
+/// ("enableVoiceWarn", registerWithStrategy 无 withInterest 追加,
+/// Controller.java:716-723)。None = refreshAllPreviews 全条目触达。
+pub(crate) fn voice_warn_refresh_reaches(changed_key: Option<&str>) -> bool {
+    match changed_key {
+        None => true,
+        Some(k) => {
+            const GLOBAL_KEYS: [&str; 5] =
+                ["AAEnable", "simpleFont", "Interval", "voiceVolume", "ui_layout.cfg"];
+            const GLOBAL_PREFIXES: [&str; 2] = ["Global", "font"];
+            GLOBAL_KEYS.contains(&k)
+                || GLOBAL_PREFIXES.iter().any(|p| k.starts_with(p))
+                || k == "enableVoiceWarn"
+        }
+    }
+}
+
+/// Java OverlayEntry.open (OverlayManager.java:294-312) 的 VoiceWarning 专项:
+/// factory.get() + init(this, S) + needsThread → new Thread(instance).start()。
+/// `live`: shared.live 槽现值 (openpad 必在 start() 之后, Some 是生产形态;
+/// None = Java init(S=null) 的 doit=false 短路, 不起线程)。
+/// 线程名对位 Java 默认 "Thread-N" — 取语义名便于排障。
+///
+/// PORT(备案, 审查 W3): init 在 win32 线程同步执行 ~20 个 new_alert→reload→
+/// load_clip (文件读 + waveOutOpen 每路开设备), OpenAllOverlays 处理期间事件
+/// 泵阻塞几十至百 ms (一次性) — Java 对位 OverlayEntry.open 在 EDT 调 init 同
+/// 样阻塞 EDT, 形态保真; 若后续观察到 openpad 卡顿再议预加载 (偏离 Java 时
+/// 序, 需裁决)。
+pub(crate) fn open_voice_warning(
+    voice: &Arc<VoiceResourceManager>,
+    ui_bus: &Arc<UIStateBus>,
+    voice_config: &Arc<Mutex<HashMap<String, String>>>,
+    fm: &Arc<FMManager>,
+    flight_bus: &Arc<FlightDataBus>,
+    live: Option<Arc<std::sync::RwLock<ServiceData>>>,
+) -> Option<VoiceWarnSession> {
+    let data = live?;
+    let mut vw = VoiceWarning::new(
+        // 原 VoiceConfigSnapshot (voice_* 全键快照) — SnapshotConfigProvider 三合一
+        Arc::new(SnapshotConfigProvider::new(Arc::clone(voice_config)))
+            as Arc<dyn ConfigProvider + Send + Sync>,
+        Arc::clone(voice),
+        Arc::clone(fm),
+        Arc::clone(ui_bus),
+        Arc::clone(flight_bus),
+        // legacy_player: playWav/getClip 直开面 (全库无调用方), 独立 winmm 实例
+        // 与 resource_manager 注入同一实现即等价 (voice_warning.rs PORT 注)
+        Arc::from(crate::winmm_player::make_player()) as Arc<dyn vm_core::voice_resource_manager::SoundPlayer>,
+    );
+    let doit = Arc::clone(&vw.doit);
+    vw.init(Some(Arc::new(LiveVoiceService { data })));
+    let join = std::thread::Builder::new()
+        .name("VoiceWarning".to_string())
+        .spawn(move || vw.run())
+        .expect("VoiceWarning 线程创建失败");
+    Some(VoiceWarnSession {
+        doit,
+        join: Some(join),
+    })
+}

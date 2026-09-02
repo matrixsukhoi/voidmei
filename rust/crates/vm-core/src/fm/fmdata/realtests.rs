@@ -59,9 +59,10 @@ fn fuel_mod_from_json(path: &str) -> crate::fmdata::types::FuelModification {
 /// 反向 (标注在而开关 true) 不判错: 翻开关先行、标注清理同波次补齐属正常顺序。
 #[test]
 fn getload_wired_follows_reader_todo() {
+    // reader.rs 随 fmdata 目录移至 src/fm/ 下 (路径同步 — 曾旧路径致 NotFound)
     let reader_src = std::fs::read_to_string(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/src/fmdata/reader.rs"
+        "/src/fm/fmdata/reader.rs"
     ))
     .expect("reader.rs 源码可读");
     // PORT: 常量哨兵断言是 no-fake-test-pass 机制本体, 保真不削

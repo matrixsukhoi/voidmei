@@ -1,54 +1,44 @@
-//! vm-core: VoidMei 纯逻辑层 (Java src/prog/util + src/parser 的一比一翻译目标)
-//! POC 期已移植的模块在此汇合; A 类翻译流水线产物落在本 crate。
+//! vm-core: VoidMei 纯逻辑层。
+//! 重构波2 起按域分组 (原 47 个平铺模块 → 8 域 + 4 根留);
+//! 根部 `pub use` shim 保 `crate::x` / `vm_core::x` 旧路径全部有效。
+//! UI 面 (renderer_config_helper/row_renderer_registry → vm-ui;
+//! ui_model/hud_layout_node/layout/ui_constants → vm-overlay) 已随本波下沉消费 crate。
 
-// PhysicsConstants.g 的转发 (单一来源在 physics_constants, 试运行审查裁决)
-pub use physics_constants::{g, G};
+// PhysicsConstants.g 的转发 (单一来源在 base::physics_constants, 试运行审查裁决)
+pub use base::physics_constants::{g, G};
 
+// ---- 域模块 ----
+pub mod base;      // 总线/事件/日志/通用工具/插值/物理常量
+pub mod config;    // 配置栈: 装载/S 表达式/合并迁移/监视/门面/总线
+pub mod telemetry; // 8111 HTTP 客户端 + 遥测解析器
+pub mod fm;        // FM 管理栈 + FM 数据 (fmdata) + 功率模型族
+pub mod formula;   // 公式系统 (L0 registry/L1 编译/L2 规则引擎)
+pub mod derived;   // HUD 派生量/飞行分析/日志/事件总线/慢速轮询
+pub mod audio;     // 语音告警判定/资源管理/告警类型
+pub mod uisupport; // 双消费 UI 支撑 (行定义/机型对比)
+pub mod platform;  // 平台检测 (游戏失焦)
+
+// ---- 根留 (无域归属的顶层小件) ----
 pub mod activation_strategy;
 pub mod atmosphere_model;
-pub mod voice_warning;
-pub mod voice_resource_manager;
-pub mod row_renderer_registry;
-pub mod renderer_config_helper;
-pub mod hud_layout_node;
-pub mod overlay_context;
-pub mod other_service;
-pub mod hud_calculator;
-pub mod http_helper;
-pub mod focus_monitor;
-pub mod flight_log;
-pub mod flight_analyzer;
-pub mod ui_state_bus;
-pub mod flight_data_bus;
-pub mod formula;
-pub mod config_loader;
-pub mod config_manager;
-pub mod config_watcher;
-pub mod configuration_service;
-pub mod exception_helper;
-pub mod logger;
-pub mod bus;
-pub mod fmdata;
-pub mod audio;
-pub mod comparison;
-pub mod config_api;
 pub mod controller_state;
-pub mod hud_data;
 pub mod lang;
-pub mod parser;
-pub mod ui_constants;
-pub mod ui_model;
-pub mod calc_helper;
-pub mod event;
-pub mod file_utils;
-pub mod fm;
-pub mod fm_power_extractor;
-pub mod power_curve_helper;
-pub mod piston_power_model;
-pub mod sexp_parser;
-pub mod row_def;
-pub mod format;
-pub mod interpolation;
-pub mod layout;
-pub mod physics_constants;
-pub mod string_helper;
+pub mod overlay_context;
+
+// ---- 根 re-export shim (旧 crate::x 路径的兼容面 = 有策展的公共 API) ----
+pub use audio::{voice_resource_manager, voice_warning};
+pub use base::{
+    bus, calc_helper, event, exception_helper, file_utils, format, interpolation, logger,
+    physics_constants, string_helper,
+};
+pub use config::{
+    app_state, config_api, config_loader, config_manager, config_watcher,
+    configuration_service, sexp_parser, ui_state_bus,
+};
+pub use derived::{
+    flight_analyzer, flight_data_bus, flight_log, hud_calculator, hud_data, other_service,
+};
+pub use fm::{fm_power_extractor, fmdata, piston_power_model, power_curve_helper};
+pub use platform::focus_monitor;
+pub use telemetry::{http_helper, parser};
+pub use uisupport::{comparison, row_def};

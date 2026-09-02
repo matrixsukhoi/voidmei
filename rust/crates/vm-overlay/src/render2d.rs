@@ -114,6 +114,27 @@ fn pixmap_of(width: i32, height: i32) -> Option<tiny_skia::Pixmap> {
     tiny_skia::Pixmap::new(width as u32, height as u32)
 }
 
+/// 直通 RGBA 画布 ([`crate::font::Canvas`], 非预乘) → 预乘 BGRA
+/// (UpdateLayeredWindow 的格式)。原 window.rs (POC 死代码, 已删) 的参照实现,
+/// 由双路文本对拍测试钉死与 [`PixCanvas::to_premul_bgra`] 的逐字节等价。
+pub fn to_premul_bgra(canvas: &crate::font::Canvas) -> Vec<u8> {
+    let n = canvas.buf.len() / 4;
+    let mut out = vec![0u8; canvas.buf.len()];
+    for i in 0..n {
+        let (r, g, b, a) = (
+            canvas.buf[i * 4] as u32,
+            canvas.buf[i * 4 + 1] as u32,
+            canvas.buf[i * 4 + 2] as u32,
+            canvas.buf[i * 4 + 3] as u32,
+        );
+        out[i * 4] = (b * a / 255) as u8;
+        out[i * 4 + 1] = (g * a / 255) as u8;
+        out[i * 4 + 2] = (r * a / 255) as u8;
+        out[i * 4 + 3] = a as u8;
+    }
+    out
+}
+
 impl PixCanvas {
     pub fn new(width: i32, height: i32) -> Result<Self, String> {
         let pm = pixmap_of(width, height).ok_or_else(|| format!("非法画布尺寸 {width}x{height}"))?;
@@ -155,8 +176,9 @@ impl PixCanvas {
     }
 
     /// 预乘 RGBA → 预乘 BGRA (UpdateLayeredWindow / XRender ARGB32 呈现格式)。
-    /// 存储已是预乘, 此处仅做字节序转换。文本路径与 window.rs 的
-    /// to_premul_bgra(直通 Canvas) 逐字节等价 — 由双路文本对拍测试钉死;
+    /// 存储已是预乘, 此处仅做字节序转换。文本路径与本文件自由函数
+    /// [`to_premul_bgra`](self::to_premul_bgra)(直通 Canvas 参照) 逐字节等价 —
+    /// 由双路文本对拍测试钉死;
     /// 形状路径存在 tiny-skia 预乘取整 vs 截断镜像的 ±1 LSB 系统差 (对拍需容差)。
     pub fn to_premul_bgra(&self) -> Vec<u8> {
         let src = self.pm.data();
