@@ -8,8 +8,8 @@ Java 版 (159 文件 Swing) → Rust 全量迁移产物。设计档案: `build/m
 
 | crate | 职责 |
 |---|---|
-| vm-core | 纯逻辑: 物理/parser/config 栈/fm 栈/总线/voice/logger (Java A+B 类) |
-| vm-data | 8111 轮询/派生量/Service 链 (catch_unwind 护航) |
+| vm-core | 纯逻辑, 按域分组: base(总线/日志/工具)/config(配置栈)/telemetry(HTTP+parser)/fm(管理栈+fmdata+功率)/formula(公式系统)/derived(HUD 派生)/audio(语音)/uisupport/platform (Java A+B 类) |
+| vm-data | 8111 轮询/派生量/Service 链 (catch_unwind 护航); FrameStore 不可变帧 = 跨线程唯一读面 |
 | vm-overlay | 平台窗口(ULW 多窗口)/渲染(render2d+tiny-skia)/全部 overlay 组件/托盘/热键 |
 | vm-ui | MainForm **数据层** (main_form 状态机 + renderers 写回链; D9 起 view 归 web 壳) |
 | vm-webui | MainForm **Tauri 2 web 壳** (D9): 常驻隐藏预热窗口 + IPC(dto/commands) + `web/` React/AntD 前端 |
@@ -63,6 +63,9 @@ python script/build.py rust   # web + cargo release (一键)
 
 ## 验收状态
 
+- 2026-09-02 (六波架构重构): UIStateBus 死锁根治+统一路由 / vm-core 九域分组+UI 面下沉 /
+  overlay 基元收敛+host 摘锁 / Frame 帧快照 (跨线程读者零锁) / HTTP 单线程阻塞重写 /
+  Lang 缓存 — 六提交 92e2e63..3a579bf, 1,292 测试全绿, clippy 无新增
 - 2026-08-27: 1,239 测试 / e2e 三场景 PASS / 像素对拍无结构偏差 / 真窗共存验证
 - 2026-08-28 (D9 阶段①): tauri 壳五项 POC PASS — 预热重开 12-18ms (目标<300ms)、
   show/hide×500 长跑、同进程共存 (mock-smoke 7 overlay × 116 帧)、CJK、干净退出;

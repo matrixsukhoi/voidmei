@@ -1,6 +1,7 @@
 # *** 使用中文思考 ***
 # 如果子agent出现了没有读写权限的情况, 及时停止子agent
 # 代码里的注释要简洁精炼
+# java->rust已经迁移完了, 不需要再和java对齐了
 # 不要跑e2e测试, 不要跑冒烟测试
 # 不要补充或新增更多测试了
 # rust版本还没发布, 正在重构, 不用担心兼容性问题, 可以随便改架构. 
@@ -72,8 +73,12 @@ java -jar VoidMei.jar
 
 **Unit tests** available for utility classes in `test/`. Integration testing is manual via the running application or mock server.
 
-**Rust 全量迁移 (已完成)**: `rust/` 是 Java 版的全量迁移产物 (cargo workspace 五 crate,
-1,239 测试, e2e 三场景 PASS)。构建/运行/对拍/e2e 见 `rust/README.md`;
+**Rust 全量迁移 (已完成 + 六波架构重构完成)**: `rust/` 是 Java 版的全量迁移产物
+(cargo workspace 六 crate, 1,292 测试)。2026-09 六波重构后架构: vm-core 按域分组
+(base/config/telemetry/fm/formula/derived/audio/uisupport/platform, 根 re-export shim
+保旧路径); UI 面下沉消费 crate; 跨线程数据读面 = vm-data `FrameStore` 不可变帧快照
+(零锁); UIStateBus 统一路由总线 (嵌套 publish 安全); HTTP 单线程阻塞客户端。
+构建/运行/对拍/e2e 见 `rust/README.md`;
 迁移设计档案: `build/migration/` (PORTING 宪法/CLASSIFY/LIFETIMES/DECISIONS/PROGRESS),
 迁移文档: `doc/overlay_java_to_rust_migration.md` (§11 执行记录+人工验收清单)。
 Java 端离屏导出器: `java -classpath "bin;dep/*" ui.debug.OverlayPngExport`。

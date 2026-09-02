@@ -13,7 +13,7 @@
 //! [`crate::host::OverlaySpec`] 的 render (FnMut(&mut PixCanvas)) 即挂入 OverlayHost;
 //! 各 `*_overlay_spec` 工厂给出 live 喂入形态的现成闭包。
 //!
-//! 字段定义快照模式沿用 vm-core `fields.rs` (POC 先例): ui_layout.cfg 对应 panel 段
+//! 字段定义快照模式 (POC fields.rs 先例已随 W-D cfg 驱动化退役): ui_layout.cfg 对应 panel 段
 //! 的 (item :type data ...) 逐行转常量表, 不运行时解析 cfg。
 //!
 //! 视觉语义逐项对照 Java paintComponent/drawTick/drawGauges; Java char[] 零 GC buffer

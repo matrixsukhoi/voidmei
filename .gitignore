@@ -16,6 +16,7 @@ formulas.user.cfg*
 output.log
 error.log
 gpu_compat.properties
+# vm-overlay config.rs 位置持久化 (运行时生成, CWD 相对)
 build.manifest
 sources.txt
 # 构建产物
@@ -39,3 +40,4 @@ script/voidmeil4j.gen.xml
 node_modules/
 
 *.pyc
+user_pos.json
