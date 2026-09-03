@@ -21,15 +21,15 @@ use vm_core::derived::flight_analyzer::AnalyzerService;
 use vm_core::derived::flight_log::{FlightLogSlot, FlightLogSnapshot};
 use vm_core::fm::{FMHandle, FMManager};
 use vm_core::formula::registry::FormulaView as _; // var_value 取数唯一接口
-use vm_core::telemetry::client::GameApiClient; // 波20: ureq 化更名
-use vm_core::telemetry::parser::{Indicators, MapInfo, MapObj, State};
+use vm_core::game_api::client::GameApiClient; // 波20: ureq 化更名
+use vm_core::game_api::parser::{Indicators, MapInfo, MapObj, State};
 // format 别名避开 tests.rs 的 format! 宏歧义 (overlay_control_surfaces 同款先例)
 use vm_core::base::{
     exception_helper, format as jfmt, logger, physics_constants::G, ports::bkp_port,
 };
 
 use crate::service_fields::{EngineType, ServiceData, NASTRING};
-use vm_core::telemetry::parser::F_INVALID; // 波20: 哨兵常量迁至 parser
+use vm_core::game_api::parser::F_INVALID; // 波20: 哨兵常量迁至 parser
 
 /// 温度族无效哨兵 (波17 F3 具名化, 原 updateTemp 的 `-65534f` 字面量):
 /// 比 F_INVALID 宽一档 — 缺数据判定用 `<= 本值`, 同时兜住 -65534 与 -65535

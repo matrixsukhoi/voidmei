@@ -643,7 +643,7 @@ fn on_flight_data_throttle_gate() {
         alt: 5300.0,
         sep: -13.2,
     };
-    let st = vm_core::telemetry::parser::State::new();
+    let st = vm_core::game_api::parser::State::new();
     let colors = HudColors::application_defaults();
     assert!(
         o.on_flight_data(
@@ -707,7 +707,7 @@ fn on_flight_data_throttle_gate() {
 // ===== 现场计算: service 喂入 → calculate 现算 =====
 
 /// MockSrc: TelemetrySource 全量最小实现 (签名漂移即编译失败, 同
-/// telemetry_source.rs MockTelemetry 形态)
+/// 既有 parser 测试 mock 形态)
 struct MockSrc {
     alt: f64,
     sep: f64,
@@ -747,7 +747,7 @@ fn update_from_event_calculates_from_service() {
         alt: 5300.0,
         sep: 0.0,
     };
-    let st = vm_core::telemetry::parser::State::new();
+    let st = vm_core::game_api::parser::State::new();
     let payload = EventPayload::builder().build();
     o.update_from_event(
         Some(&st),
@@ -786,7 +786,7 @@ fn update_from_event_consumes_state_snapshot() {
         alt: 5300.0,
         sep: 0.0,
     };
-    let mut st = vm_core::telemetry::parser::State::new();
+    let mut st = vm_core::game_api::parser::State::new();
     st.flaps = 50;
     st.airbrake = 100;
     let payload = EventPayload::builder().build();

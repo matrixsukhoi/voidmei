@@ -13,9 +13,9 @@ fn var_value_null_state_defaults() {
 #[test]
 fn var_value_state_passthrough() {
     let mut d = ServiceData::default();
-    d.s_state = Some(vm_core::telemetry::parser::State::default());
+    d.s_state = Some(vm_core::game_api::parser::State::default());
     d.s_state.as_mut().unwrap().ias = 474;
-    d.s_indic = Some(vm_core::telemetry::parser::Indicators::default());
+    d.s_indic = Some(vm_core::game_api::parser::Indicators::default());
     use vm_core::formula::registry::FormulaView as _;
     assert_eq!(d.var_value("ias"), Some(474.0));
     assert_eq!(
@@ -28,8 +28,8 @@ fn var_value_state_passthrough() {
 #[test]
 fn var_value_wing_sweep_sentinel_zero() {
     let mut d = ServiceData::default();
-    d.s_indic = Some(vm_core::telemetry::parser::Indicators::default());
-    use vm_core::telemetry::parser::F_INVALID; // 波20: 哨兵常量迁至 parser
+    d.s_indic = Some(vm_core::game_api::parser::Indicators::default());
+    use vm_core::game_api::parser::F_INVALID; // 波20: 哨兵常量迁至 parser
     d.s_indic.as_mut().unwrap().wsweep_indicator = F_INVALID;
     use vm_core::formula::registry::FormulaView as _;
     assert_eq!(d.var_value("wing_sweep"), Some(0.0), "哨兵归零");
@@ -69,7 +69,7 @@ fn var_value_formula_slot_and_single_name() {
 #[test]
 fn var_value_booster_wep_fuel_registry_vars() {
     let mut d = ServiceData::default();
-    let mut s = vm_core::telemetry::parser::State::default();
+    let mut s = vm_core::game_api::parser::State::default();
     s.mfuel_1 = 300.0;
     s.mfuel0_1 = 400.0;
     d.s_state = Some(s);
@@ -90,9 +90,9 @@ fn var_value_booster_wep_fuel_registry_vars() {
     // fuel_percent 走 SessionInputs 搬运
     assert_eq!(d.var_value("fuel_percent"), Some(0.0));
     // 无助推器 (哨兵) → 归零
-    use vm_core::telemetry::parser::F_INVALID; // 波20: 哨兵常量迁至 parser
+    use vm_core::game_api::parser::F_INVALID; // 波20: 哨兵常量迁至 parser
     let mut d2 = ServiceData::default();
-    let mut s2 = vm_core::telemetry::parser::State::default();
+    let mut s2 = vm_core::game_api::parser::State::default();
     s2.mfuel_1 = F_INVALID;
     d2.s_state = Some(s2);
     assert_eq!(d2.var_value("booster_fuel_kg"), Some(0.0));

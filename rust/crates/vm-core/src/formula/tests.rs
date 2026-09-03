@@ -38,13 +38,13 @@ fn snap_of(tel: &TestTel) -> super::registry::VarSnapshot {
         freq: 20.0,
         ..Default::default()
     };
-    let mut st = crate::telemetry::parser::State::default();
+    let mut st = crate::game_api::parser::State::default();
     st.ias = tel.ias as i32;
     st.tas = tel.tas as i32;
     st.heightm = tel.alt;
     st.ny = tel.ny;
     st.mfuel = tel.mass_fuel;
-    let ind = crate::telemetry::parser::Indicators::default();
+    let ind = crate::game_api::parser::Indicators::default();
     let raw = super::registry::RawInputs {
         state: Some(&st),
         indic: Some(&ind),
@@ -360,7 +360,7 @@ fn compile_topo_order_correct() {
         interval_ms: 50.0,
         ..Default::default()
     };
-    let ind0 = crate::telemetry::parser::Indicators::default();
+    let ind0 = crate::game_api::parser::Indicators::default();
     let raw0 = super::registry::RawInputs {
         state: None,
         indic: Some(&ind0),
@@ -420,7 +420,7 @@ fn compile_invalid_dep_propagates_nan() {
     ));
     let _tel = TestTel::default();
     let meta = MetaInputs::default();
-    let ind0 = crate::telemetry::parser::Indicators::default();
+    let ind0 = crate::game_api::parser::Indicators::default();
     let raw0 = super::registry::RawInputs {
         state: None,
         indic: Some(&ind0),
@@ -505,9 +505,9 @@ fn registry_snapshot_assemble() {
         fm_loaded: false,
         ..Default::default()
     };
-    let mut st0 = crate::telemetry::parser::State::default();
+    let mut st0 = crate::game_api::parser::State::default();
     st0.ias = 400;
-    let ind0 = crate::telemetry::parser::Indicators::default();
+    let ind0 = crate::game_api::parser::Indicators::default();
     let raw0 = super::registry::RawInputs {
         state: Some(&st0),
         indic: Some(&ind0),
@@ -571,10 +571,10 @@ fn manager_install_and_eval() {
         ..Default::default()
     };
     let (r, _snap) = {
-        let mut st0 = crate::telemetry::parser::State::default();
+        let mut st0 = crate::game_api::parser::State::default();
         st0.ias = tel.ias as i32;
         st0.tas = tel.tas as i32;
-        let ind0 = crate::telemetry::parser::Indicators::default();
+        let ind0 = crate::game_api::parser::Indicators::default();
         let raw0 = crate::formula::registry::RawInputs {
             state: Some(&st0),
             indic: Some(&ind0),
@@ -601,9 +601,9 @@ fn manager_hot_update_retains_states() {
         ..Default::default()
     };
     let _ = {
-        let mut st0 = crate::telemetry::parser::State::default();
+        let mut st0 = crate::game_api::parser::State::default();
         st0.ias = tel.ias as i32;
-        let ind0 = crate::telemetry::parser::Indicators::default();
+        let ind0 = crate::game_api::parser::Indicators::default();
         let raw0 = crate::formula::registry::RawInputs {
             state: Some(&st0),
             indic: Some(&ind0),
@@ -615,9 +615,9 @@ fn manager_hot_update_retains_states() {
     // 热更新: 加一个公式, 原 p 的状态保留
     mgr.install(&[def("p", "prev(ias)"), def("q", "ias * 2")]);
     let (r, _snap) = {
-        let mut st0 = crate::telemetry::parser::State::default();
+        let mut st0 = crate::game_api::parser::State::default();
         st0.ias = tel.ias as i32;
-        let ind0 = crate::telemetry::parser::Indicators::default();
+        let ind0 = crate::game_api::parser::Indicators::default();
         let raw0 = crate::formula::registry::RawInputs {
             state: Some(&st0),
             indic: Some(&ind0),
@@ -726,7 +726,7 @@ fn bench_eval_frame_50_formulas() {
     let n = 10_000;
     let t0 = std::time::Instant::now();
     for k in 0..n {
-        let ind0 = crate::telemetry::parser::Indicators::default();
+        let ind0 = crate::game_api::parser::Indicators::default();
         let raw0 = super::registry::RawInputs {
             state: None,
             indic: Some(&ind0),

@@ -135,9 +135,9 @@ fn publish_ui_event(
 /// 构造 drive_from_live 判定所需的 live ServiceData 快照
 /// (真机由 Service.update 写; 测试直填公开字段 — flags/type/playerLive)
 fn live_service_data(plane: &str) -> ServiceData {
-    let mut st = vm_core::telemetry::parser::State::new();
+    let mut st = vm_core::game_api::parser::State::new();
     st.flag = true;
-    let mut ind = vm_core::telemetry::parser::Indicators::new();
+    let mut ind = vm_core::game_api::parser::Indicators::new();
     ind.flag = true;
     ind.r#type = Some(plane.to_string());
     let mut d = ServiceData::default();

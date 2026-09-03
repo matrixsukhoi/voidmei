@@ -57,7 +57,7 @@ fn alpha(cv: &PixCanvas, x: i32, y: i32) -> u8 {
 }
 
 /// 测试用 TelemetrySource mock: 相关字段可配, 其余 0/false
-/// (对齐 vm-core telemetry_source.rs 测试 mock 的全签名锁定模式)
+/// (全签名锁定模式 — 对齐既有 parser 测试 mock 家族)
 struct MockTele {
     throttle: f64,
     rpm_throttle: f64,

@@ -208,7 +208,7 @@ mod tests {
 
     /// 快照 (Session radio_alt 可配)
     fn snap(alt: f64) -> VarSnapshot {
-        let ind0 = crate::telemetry::parser::Indicators::default();
+        let ind0 = crate::game_api::parser::Indicators::default();
         let raw0 = crate::formula::registry::RawInputs {
             state: None,
             indic: Some(&ind0),

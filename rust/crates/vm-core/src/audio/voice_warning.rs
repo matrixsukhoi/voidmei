@@ -82,7 +82,7 @@ use crate::base::logger;
 use crate::config::config_api::ConfigProvider;
 use crate::fm::data::FmData;
 use crate::fm::FMManager;
-use crate::telemetry::parser::{Indicators, State};
+use crate::game_api::parser::{Indicators, State};
 
 /// clip 槽位锁中毒消息 (Java 无锁; 对应持锁线程崩溃后的一致性未知面)
 const CLIP_LOCK_MSG: &str = "VoiceAlert clip 锁中毒";

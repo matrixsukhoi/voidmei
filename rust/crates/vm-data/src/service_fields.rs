@@ -11,7 +11,7 @@ use std::sync::Arc;
 
 use vm_core::base::calc_helper::SimpleMovingAverage;
 use vm_core::fm::FMHandle;
-use vm_core::telemetry::parser::{Indicators, MapInfo, State};
+use vm_core::game_api::parser::{Indicators, MapInfo, State};
 
 /// Java `ENGINE_TYPE_*` int 常量的枚举收敛 (波17 F1)。
 /// 序列化兼容: `as_i32()` 输出与原常量数值逐一致 — Prop=0 / Jet=1 /

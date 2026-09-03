@@ -16,7 +16,7 @@ use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use crate::telemetry::parser::Indicators;
+use crate::game_api::parser::Indicators;
 
 /// 对应 Java HttpHelper.nstring (失败复位空串)
 pub const NSTRING: &str = "";

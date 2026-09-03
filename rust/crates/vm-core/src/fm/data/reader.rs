@@ -31,7 +31,7 @@ use crate::base::format::{java_string_format, FmtArg};
 use crate::base::logger;
 use crate::base::physics_constants::g;
 use crate::lang::Lang;
-use crate::telemetry::parser::state::MAX_ENG_NUM;
+use crate::game_api::parser::state::MAX_ENG_NUM;
 
 /// load_lift_coeffs 的产出: 升力部件族 + 转动惯量/过载限制原值
 /// (fmdata 摘要段与部件落位共用, 编排层传递)。

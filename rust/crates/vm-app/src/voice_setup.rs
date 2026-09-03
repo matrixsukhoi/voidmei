@@ -233,14 +233,14 @@ impl VoiceWarningService for LiveVoiceService {
             .and_then(|f| f.var_value("stall_speed"))
             .unwrap_or(0.0)
     }
-    fn s_state(&self) -> vm_core::telemetry::parser::State {
+    fn s_state(&self) -> vm_core::game_api::parser::State {
         // Java st 恒非 null (Service 构造即建); 无帧/槽内 None 仅畸形帧窗口 — 零值让步
         self.frames
             .latest()
             .and_then(|f| f.s_state.clone())
             .unwrap_or_default()
     }
-    fn s_indic(&self) -> vm_core::telemetry::parser::Indicators {
+    fn s_indic(&self) -> vm_core::game_api::parser::Indicators {
         self.frames
             .latest()
             .and_then(|f| f.s_indic.clone())

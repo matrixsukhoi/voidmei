@@ -19,7 +19,7 @@ use vm_core::config::configuration_service::ConfigurationService;
 use vm_core::derived::flight_log::FlightLogSlot;
 use vm_core::fm::{FMManager, FMStatus};
 use vm_core::lang::Lang;
-use vm_core::telemetry::client::GameApiClient; // 波20: ureq 化更名
+use vm_core::game_api::client::GameApiClient; // 波20: ureq 化更名
 
 use vm_data::service_loop::{
     flight_log_snapshot, start as spawn_service_thread, Service, ServiceAnalyzerSource,

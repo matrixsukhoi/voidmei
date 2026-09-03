@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
-use crate::telemetry::parser::char_len_at;
+use crate::game_api::parser::char_len_at;
 use crate::ui_support::comparison::comparison_rule::ComparisonRule;
 use crate::ui_support::comparison::rules::{
     try_number_ends, LambdaRule, ListIndexRule, MultiListIndexRule, SimpleRule,

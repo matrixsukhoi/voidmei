@@ -62,7 +62,7 @@ use vm_core::derived::hud_calculator::{self, HudColors};
 use vm_core::derived::hud_data::HUDData;
 use vm_core::fm::data::FmData;
 use vm_core::formula::registry::FormulaView;
-use vm_core::telemetry::parser::{Indicators, State};
+use vm_core::game_api::parser::{Indicators, State};
 
 use crate::layout::minihud_layout::{AutoSizingPlan, BuiltMiniHudLayout, ModernHUDLayoutEngine};
 use crate::overlays::spec_common::keyed_spec;

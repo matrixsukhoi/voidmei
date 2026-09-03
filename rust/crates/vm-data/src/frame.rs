@@ -11,7 +11,7 @@ use vm_core::fm::FMHandle;
 use vm_core::formula::registry::{self, FormulaView, MetaVar, VarSrc};
 use vm_core::formula::rules::RuleTriggered;
 use vm_core::formula::FormulaResults;
-use vm_core::telemetry::parser::{Indicators, MapInfo, State};
+use vm_core::game_api::parser::{Indicators, MapInfo, State};
 
 use crate::service_fields::{AltScalars, EngineScalars, FuelScalars, ServiceData};
 

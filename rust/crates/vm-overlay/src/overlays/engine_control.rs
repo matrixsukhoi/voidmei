@@ -386,7 +386,7 @@ impl EngineControlState {
     /// (None = 句柄非 READY / 无增压器 → Java null)。
     /// PORT: updateResult 的 legacy Map<String,String> 分支 (→
     /// updateGaugeByType/updateGaugesFromData) 弃译 — 生产不可达
-    /// (Service 恒实现 TelemetrySource, telemetrySource != null 恒真)。
+    /// (数据源恒存在 — W10 单名制后经 FormulaView 取数, 无 null 分支)。
     /// PORT: System.currentTimeMillis 由调用方注入 now_ms (field2 先例); 返回
     /// false = 节流跳过 (Java 原方法 void, 宿主可据此省重绘)
     pub fn update(

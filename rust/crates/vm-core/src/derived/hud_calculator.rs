@@ -40,7 +40,7 @@ use crate::derived::hud_data::Builder;
 use crate::derived::hud_data::HUDData;
 use crate::fm::data::FmData;
 use crate::formula::registry::FormulaView;
-use crate::telemetry::parser::{Indicators, State};
+use crate::game_api::parser::{Indicators, State};
 
 /// W7: var_value 桥取值 (NaN→0, 对齐原 getter map_or(0.0) 零值帧语义)
 fn v(s: &dyn FormulaView, name: &str) -> f64 {
