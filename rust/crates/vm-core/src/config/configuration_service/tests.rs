@@ -704,7 +704,7 @@ fn inet_socket_address_overflow_port_panics() {
     let _ = InetSocketAddress::new("host", 65536);
 }
 
-/// Double.toString 本地副本 — 期望值来自 Java 8 oracle 逐字面量对拍
+/// Double.toString 本地副本 — 期望值来自 历史基线 逐字面量对拍
 /// (config_loader 同款 battery; 科学计数域 0.0001/1e7 为修复覆盖点)
 #[test]
 fn java_double_to_string_matches_java8_oracle() {

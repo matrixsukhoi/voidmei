@@ -3,7 +3,7 @@
 //! 映射裁决:
 //! - Java 引用语义 (节点被 engine map / 父 children / 局部变量共享引用) →
 //!   `Rc<RefCell<HUDLayoutNode<T>>>` 共享句柄 (Java 本类无线程同步, 布局图仅在
-//!   渲染线程触碰 → Rc 而非 Arc, 见 LIFETIMES.md §5 "UI 单写者")。
+//!   渲染线程触碰 → Rc 而非 Arc, 见 "UI 单写者")。
 //! - 父子双向边: children 强持 Rc (父拥有子), parent 用 `Weak` 反向回指 ——
 //!   Java 的 GC 环 (parent↔child) 在 Rust 显式断环; 正常图中父节点必被
 //!   engine map 或自身祖先的 children 强持, Weak 升级不会失败。
@@ -28,7 +28,7 @@ use crate::layout::Anchor;
 
 /// A node in the Modern HUD Layout graph.
 /// Wraps a HUDComponent and defines its dependency-based positioning.
-// PORT: Java 字段 `HUDComponent component` → 泛型 `T` (C 类接口未移植,
+// Java 字段 `HUDComponent component` → 泛型 `T` (C 类接口未移植,
 // 泛型负载保持); public final 字段保持 pub。
 pub struct HUDLayoutNode<T> {
     // Identity
@@ -36,7 +36,7 @@ pub struct HUDLayoutNode<T> {
     pub component: T,
 
     // Topology
-    // PORT: Java `HUDLayoutNode parent` (可空引用) → Option<Weak<..>>
+    // Java `HUDLayoutNode parent` (可空引用) → Option<Weak<..>>
     // (Weak 指向句柄 Rc 的内部类型 RefCell<HUDLayoutNode<T>>);
     // children 对应 `List<HUDLayoutNode>` (强引用表)。
     parent: Option<Weak<RefCell<HUDLayoutNode<T>>>>,
@@ -105,7 +105,7 @@ impl Rectangle {
 }
 
 /// HUDComponent 接口 (C 类) 中布局所需的尺寸契约。
-/// PORT: Java solve() 经 `component.getPreferredSize()` 取 java.awt.Dimension;
+/// Java solve() 经 `component.getPreferredSize()` 取 java.awt.Dimension;
 /// C 类 HUDComponent 重设计落地前以此最小 seam 解耦。
 ///
 /// # 实现约束 (审查 B3)
@@ -119,7 +119,7 @@ pub trait HasPreferredSize {
 impl<T> HUDLayoutNode<T> {
     /// Java 构造器 `new HUDLayoutNode(id, component)`;
     /// 直接返回共享句柄 (Java 引用即共享)。
-    /// 字段缺省值对齐 Java 隐式初始化 (§2.10): unit 0.0 / 锚 TOP_LEFT /
+    /// 字段缺省值对齐 Java 隐式初始化: unit 0.0 / 锚 TOP_LEFT /
     /// pixelRect 全 0 / dirty true。
     pub fn new(id: impl Into<String>, component: T) -> SharedNode<T> {
         Rc::new(RefCell::new(HUDLayoutNode {
@@ -160,7 +160,7 @@ impl<T> HUDLayoutNode<T> {
 }
 
 /// Java HUDLayoutNode 实例方法面 → 句柄上的扩展 trait。
-/// PORT: Rust 稳定接收者不含 `self: &Rc<RefCell<Self>>`, 借 trait impl
+/// Rust 稳定接收者不含 `self: &Rc<RefCell<Self>>`, 借 trait impl
 /// `Rc<RefCell<HUDLayoutNode<T>>>` 保持 `node.set_parent(..)` 方法调用形态。
 pub trait HUDLayoutNodeExt<T> {
     /// Java `setParent(HUDLayoutNode)` (可空参数 → Option; `return this` → 返回句柄克隆)
@@ -176,12 +176,12 @@ pub trait HUDLayoutNodeExt<T> {
     fn get_parent(&self) -> Option<SharedNode<T>>;
 
     /// Java `getChildren()`
-    /// PORT: Java 返回 live 可变 List; Rust 返回 Rc 快照 Vec
+    /// Java 返回 live 可变 List; Rust 返回 Rc 快照 Vec
     /// (全库消费点只遍历, 遍历期改图需重取)。
     fn get_children(&self) -> Vec<SharedNode<T>>;
 
     /// Java `getPixelRect()`
-    /// PORT: Java 返回 live Rectangle 引用; 全库消费点 (ModernHUDLayoutEngine
+    /// Java 返回 live Rectangle 引用; 全库消费点 (ModernHUDLayoutEngine
     /// 4 处 — 审查勘误, 翻译者报告误记 3 处) 均只读
     /// → 返回 Copy 快照。
     fn get_pixel_rect(&self) -> Rectangle;
@@ -227,7 +227,7 @@ impl<T> HUDLayoutNodeExt<T> for SharedNode<T> {
     }
 
     fn get_parent(&self) -> Option<SharedNode<T>> {
-        // PORT: Java 强引用直返 → Weak 升级 (正常图中父必被强持, 升级不失败)
+        // Java 强引用直返 → Weak 升级 (正常图中父必被强持, 升级不失败)
         let weak = self.borrow().parent.clone();
         match &weak {
             Some(w) => w.upgrade().or_else(|| {
@@ -268,7 +268,7 @@ impl<T> HUDLayoutNodeExt<T> for SharedNode<T> {
         let mut target_y = HUDLayoutNode::<T>::get_anchor_y(parent_rect, this.parent_anchor);
 
         // 2. Add Unit Offset
-        // PORT: Java `(int)(unitX * lineHeight)` = JLS 5.1.3 向零截断 + 饱和
+        // Java `(int)(unitX * lineHeight)` = JLS 5.1.3 向零截断 + 饱和
         // (NaN→0, 越界→MIN/MAX); Rust `as i32` 同语义, 一致。
         target_x += (this.unit_x * line_height) as i32;
         target_y += (this.unit_y * line_height) as i32;

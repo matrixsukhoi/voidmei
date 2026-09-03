@@ -6,7 +6,7 @@ fn bits(v: Option<f64>) -> Option<u64> {
 
 #[test]
 fn extracts_plain_number() {
-    // oracle: "4644.0" → 4644.0
+    // 基线: "4644.0" → 4644.0
     let r = SimpleRule::lower_is_better();
     assert_eq!(r.extract_value(Some("4644.0")), Some(4644.0));
     assert_eq!(
@@ -17,7 +17,7 @@ fn extracts_plain_number() {
 
 #[test]
 fn extracts_with_trailing_garbage() {
-    // oracle: "-123.45xyz" → -123.45 (首个匹配, 后缀忽略)
+    // 基线: "-123.45xyz" → -123.45 (首个匹配, 后缀忽略)
     assert_eq!(
         bits(SimpleRule::new(true).extract_value(Some("-123.45xyz"))),
         Some((-4584984598449173299_i64) as u64)
@@ -26,7 +26,7 @@ fn extracts_with_trailing_garbage() {
 
 #[test]
 fn skips_array_values() {
-    // oracle: "[144, 1167]" → null; 前导空格则不视为数组 (startsWith('[') 判定)
+    // 基线: "[144, 1167]" → null; 前导空格则不视为数组 (startsWith('[') 判定)
     assert_eq!(
         SimpleRule::lower_is_better().extract_value(Some("[144, 1167]")),
         None
@@ -47,7 +47,7 @@ fn null_and_empty_return_none() {
 
 #[test]
 fn decimal_point_edges() {
-    // oracle: ".5"→5.0 (无前导数字, 匹配到 "5"); "12."→12.0 (点后无数字, 点不入匹配);
+    // 基线: ".5"→5.0 (无前导数字, 匹配到 "5"); "12."→12.0 (点后无数字, 点不入匹配);
     // "1.2.3"→1.2 (贪婪小数段)
     assert_eq!(
         SimpleRule::lower_is_better().extract_value(Some(".5")),
@@ -65,7 +65,7 @@ fn decimal_point_edges() {
 
 #[test]
 fn minus_sign_edges() {
-    // oracle: "- 5"→5.0 ('-' 后非数字, 起点右移); "--5"→-5.0 (第二个 '-' 生效)
+    // 基线: "- 5"→5.0 ('-' 后非数字, 起点右移); "--5"→-5.0 (第二个 '-' 生效)
     assert_eq!(
         SimpleRule::lower_is_better().extract_value(Some("- 5")),
         Some(5.0)
@@ -78,7 +78,7 @@ fn minus_sign_edges() {
 
 #[test]
 fn cjk_and_scientific_notation() {
-    // oracle: "千米5"→5.0 (\d 为 ASCII 定义, 多字节字符跳过);
+    // 基线: "千米5"→5.0 (\d 为 ASCII 定义, 多字节字符跳过);
     // "1e3"→1.0 (模式无指数部分, 首个匹配 "1")
     assert_eq!(
         SimpleRule::lower_is_better().extract_value(Some("千米5")),
@@ -92,7 +92,7 @@ fn cjk_and_scientific_notation() {
 
 #[test]
 fn zero_and_negative_zero() {
-    // oracle: "0"→+0.0; "-0"→-0.0 (位型保真)
+    // 基线: "0"→+0.0; "-0"→-0.0 (位型保真)
     assert_eq!(
         bits(SimpleRule::lower_is_better().extract_value(Some("0"))),
         Some(0)
@@ -105,7 +105,7 @@ fn zero_and_negative_zero() {
 
 #[test]
 fn extreme_magnitudes_round_like_java() {
-    // oracle: 47 个 9 → 1.0E47; 0.00…01 (1e-49) → 1.0E-49 — 十进制正确舍入
+    // 基线: 47 个 9 → 1.0E47; 0.00…01 (1e-49) → 1.0E-49 — 十进制正确舍入
     assert_eq!(
         bits(
             SimpleRule::lower_is_better()

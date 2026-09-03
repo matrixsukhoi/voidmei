@@ -5,7 +5,7 @@ use crate::ui_support::comparison::comparison_rule::ComparisonRule;
 /// Rule that extracts a value from a specific index in a list/array format.
 ///
 /// Example: "[144, 1167]" with index=1 extracts 1167
-// PORT: `private static final Pattern LIST_PATTERN / NUMBER_PATTERN` (与
+// `private static final Pattern LIST_PATTERN / NUMBER_PATTERN` (与
 /// MultiListIndexRule 逐字相同) → super 共享扫描函数。
 pub struct ListIndexRule {
     index: i32,
@@ -13,8 +13,8 @@ pub struct ListIndexRule {
 }
 
 impl ListIndexRule {
-    /// @param index the 0-based index to extract from the list
-    /// @param lower_is_better true if lower values are better
+    /// - `index`: the 0-based index to extract from the list
+    /// - `lower_is_better`: true if lower values are better
     pub fn new(index: i32, lower_is_better: bool) -> Self {
         Self {
             index,
@@ -52,6 +52,6 @@ impl ComparisonRule for ListIndexRule {
 }
 
 // =====================================================================
-// Tests — 期望值取自 Java 8 oracle 实测 (原类直跑, 逐位对拍)。
+// Tests — 期望值取自 历史基线 (原类直跑, 逐位对拍)。
 #[cfg(test)]
 mod tests;

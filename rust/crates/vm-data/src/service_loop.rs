@@ -174,7 +174,7 @@ pub struct Service {
     /// HTTP 客户端 —— 轮询线程独占
     http_client: GameApiClient,
     /// 焦点监控器。
-    /// PORT: vm-core FocusMonitor 构造需注入 detector/coordinator 两依赖
+    /// vm-core FocusMonitor 构造需注入 detector/coordinator 两依赖
     /// (Java 无参 new 的对应物缺位), 由调用方按需注入; None 时 tick 短路
     /// (Java 默认 enabled=false 时 tick 本就空转, 行为等价)。
     focus_monitor: Option<vm_core::platform::focus_monitor::FocusMonitor>,
@@ -213,7 +213,7 @@ fn request_dest_bkp(config: &ServiceConfig) -> SocketAddr {
 impl Service {
     /// 读快照助手 (锁样板三段式第一步): 取读锁执行 f, 闭包结束即释放。
     /// 锁纪律: 临界区内不调回调/不做 IO —— f 内只做字段读取与纯内存计算;
-    /// 需要回调/IO 的判定先经本助手快照, 出锁后再动 (§2.8)。
+    /// 需要回调/IO 的判定先经本助手快照, 出锁后再动。
     fn with_snapshot<T>(&self, f: impl FnOnce(&ServiceData) -> T) -> T {
         f(&read_data(&self.data))
     }
@@ -225,7 +225,7 @@ impl Service {
         f(&mut write_data(&self.data))
     }
 
-    /// PORT: `Controller xc` 参数解散为 (config, fm_manager, bus) 三注入
+    /// `Controller xc` 参数解散为 (config, fm_manager, bus) 三注入
     /// (环 1 断裂; freq ← config.service_loop_interval_ms)。
     /// 语句顺序逐行保持——clearvaria() 在 mapinfo/sState 构造**之前**执行,
     /// 其尾部的 publishFlightDataEvent 因此读到 mapinfo=null/sState=null
@@ -401,14 +401,14 @@ impl Service {
 
     /// 主循环。消费 `self` (move 进线程)。
     ///
-    /// PORT(§2.13): Java `while(true)` 唯一出口是 `Thread.sleep` 抛
+    /// Java `while(true)` 唯一出口是 `Thread.sleep` 抛
     /// InterruptedException → break; Rust 以 stop 电平标志轮询复刻
     /// (sleep_quietly 提前返回 + 循环内检查)。Java 恢复期 sleep 吞中断的
     /// 失效窗口 (LIFETIMES 审查修正 7) 在电平标志下天然消失。
     pub fn run(mut self) {
         // Main polling loop with exception recovery
         loop {
-            // PORT(§6 契约): Java 顶层 catch (Exception e) → catch_unwind。
+            // Java 顶层 catch (Exception e) → catch_unwind。
             // AssertUnwindSafe: 与 Java "异常后对象处于不一致状态继续用" 同一
             // 宽松契约 (flight_data_bus.rs 同款论证)。
             match catch_unwind(AssertUnwindSafe(|| self.poll_once())) {
@@ -421,7 +421,7 @@ impl Service {
                 Err(payload) => {
                     // Unexpected error - log and recover after short delay
                     // (e.getStackTrace().length > 0 ? e.getStackTrace()[0] : "unknown")
-                    // PORT: Rust panic 无类型名/栈帧槽位, 以消息文本顶位
+                    // Rust panic 无类型名/栈帧槽位, 以消息文本顶位
                     logger::error(
                         "Service",
                         &format!(
@@ -429,7 +429,7 @@ impl Service {
                             exception_helper::panic_message_box(payload)
                         ),
                     );
-                    // PORT: 可中断恢复睡眠 (§2.13); 置位即提前醒并在此退出
+                    // 可中断恢复睡眠; 置位即提前醒并在此退出
                     // (Java 吞中断后丢失退出信号属已知 bug, 电平标志根治)
                     exception_helper::sleep_quietly(&self.stop, 1000);
                     if self.stop.load(Ordering::SeqCst) {
@@ -664,7 +664,7 @@ impl Service {
     }
 
     /// 加油检测段: 低速且油量较 prev 增加超过 1kg → 判定地面加油, 重置全部
-    /// 模拟状态量 (resetvaria)。日志与 reset 均在读锁释放后 (§2.8)。
+    /// 模拟状态量 (resetvaria)。日志与 reset 均在读锁释放后。
     fn refuel_check(&mut self) {
         let (refueled, total_fuel, total_fuel_prev) = self.with_snapshot(|d| {
             let speedv = d.var_value("speedv").unwrap_or(0.0);
@@ -676,7 +676,7 @@ impl Service {
         });
         if refueled {
             // Resetting simulation variables.", ...)
-            // —— Formatter %.1f HALF_UP → jfmt::format (§2.3)
+            // —— Formatter %.1f HALF_UP → jfmt::format
             logger::info(
                 "Service",
                 &format!(
@@ -702,7 +702,7 @@ impl Service {
     }
 
     /// 死亡检测段: 推力/转速/空速全零 → 判定坠毁停车, 撤销 playerLive。
-    /// 日志与写回在读锁释放后 (§2.8)。
+    /// 日志与写回在读锁释放后。
     fn check_death(&mut self) {
         let dead = self.with_snapshot(|d| {
             let s = d.s_state.as_ref().unwrap();
@@ -809,7 +809,7 @@ impl Service {
                     > (2.0 * vy * actual_interval_ms as f64).abs()
                 {
                     // checkAlt += actualIntervalMs —— int += long 复合赋值隐式窄化
-                    // 为 (int)(long 和) 低 32 位截断 (§2.2 双转)
+                    // 为 (int)(long 和) 低 32 位截断
                     d.altm.check_alt = (((d.altm.check_alt as i64).wrapping_add(actual_interval_ms))
                         as u64 as u32) as i32;
                 } else {
@@ -929,7 +929,7 @@ impl Service {
     /// 慢计算: 油量变化率/剩余油量时间 + **totalFuelPrev 追赶** (加油检测分支的
     /// prev 写点 — 未移植时 prev 恒 0, totalFuel 非零即每轮误判"加油"触发
     /// resetvaria, player_live 永假)。
-    /// @param dtime (500/freq)*freq
+    /// - `dtime`: (500/freq)*freq
     fn slow_calculate(&mut self, dtime: i64) {
         // 单一写锁临界区: fuelTimeSMA 的 addNewData 需 &mut (状态量更新), 临界区内
         // 仅纯内存计算无 IO/回调 (Java 本方法无锁直写, §2.8 锁粒度等价收紧)
@@ -987,7 +987,7 @@ impl Service {
     // updateFuel — EngineInfo/EngineControl 面板的功率/动力量/油量/温度数据源
     // ------------------------------------------------------------------
 
-    /// @param fm 本周期 FM 句柄快照（R1 下传）
+    /// - `fm`: 本周期 FM 句柄快照（R1 下传）
     fn update_wep_time(&mut self, fm: &FMHandle) {
         // 输入快照 (锁外判, §2.8): engineNum/throttles 读一轮
         let (n, nitro_eng_nr, wep_time) = self.with_snapshot(|d| {
@@ -1099,7 +1099,7 @@ impl Service {
 
     /// 计算总功率/推力及推力百分比。EngineInfo/EngineControl 的核心数据源。
     ///
-    /// @param fm 本周期 FM 句柄快照（R1 下传）
+    /// - `fm`: 本周期 FM 句柄快照（R1 下传）
     fn update_engine_state(&mut self, fm: &FMHandle) {
         self.check_engine_jet();
         // speedv (校正 TAS m/s) — W-C: 直读公式槽 (formula_step 已先行)
@@ -1487,13 +1487,13 @@ impl ServiceHandle {
 
 impl Drop for ServiceHandle {
     fn drop(&mut self) {
-        // 兜底: 忘记显式 stop 也不泄漏线程 (§2.13 电平标志的优势形态)
+        // 兜底: 忘记显式 stop 也不泄漏线程
         self.stop();
     }
 }
 
 /// 在独立线程启动 Service 轮询 (调用方持 [`ServiceHandle`] 管理生命周期)。
-/// PORT: Java `S1.setPriority(Thread.MAX_PRIORITY)` —— Rust std 线程无优先级
+/// Java `S1.setPriority(Thread.MAX_PRIORITY)` —— Rust std 线程无优先级
 /// 概念, 不复刻 (Windows 下可后续经 SetThreadPriority 补, C 类窗口波次裁决)。
 pub fn start(service: Service) -> ServiceHandle {
     let stop = Arc::clone(&service.stop);

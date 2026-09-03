@@ -1,14 +1,14 @@
 use super::*;
 
 /// Java `Double.parseDouble` 的等价闭包: 其内部先 String.trim() 再解析
-/// (Java 8 oracle: " 3.5 " → 3.5; "abc" → NumberFormatException → catch → null)。
+/// (历史基线: " 3.5 " → 3.5; "abc" → NumberFormatException → catch → null)。
 fn parse_double_like(x: &str) -> Option<f64> {
     super::super::java_trim(x).parse::<f64>().ok()
 }
 
 #[test]
 fn null_and_empty_return_none() {
-    // oracle: LAMBDA <null>/[] → null (extractor 不被调用)
+    // 基线: LAMBDA <null>/[] → null (extractor 不被调用)
     let r = LambdaRule::new(Box::new(parse_double_like), false);
     assert_eq!(r.extract_value(None), None);
     assert_eq!(r.extract_value(Some("")), None);
@@ -16,7 +16,7 @@ fn null_and_empty_return_none() {
 
 #[test]
 fn delegates_to_extractor_with_parse_double_trim_semantics() {
-    // oracle: " 3.5 " → 3.5 (parseDouble 内部 trim)
+    // 基线: " 3.5 " → 3.5 (parseDouble 内部 trim)
     let r = LambdaRule::new(Box::new(parse_double_like), false);
     assert_eq!(
         r.extract_value(Some(" 3.5 ")).map(|v| v.to_bits()),
@@ -26,7 +26,7 @@ fn delegates_to_extractor_with_parse_double_trim_semantics() {
 
 #[test]
 fn extractor_parse_failure_returns_none() {
-    // oracle: "abc" → parse 抛异常被 catch → null ↔ Rust parse 失败 → None
+    // 基线: "abc" → parse 抛异常被 catch → null ↔ Rust parse 失败 → None
     let r = LambdaRule::new(Box::new(parse_double_like), false);
     assert_eq!(r.extract_value(Some("abc")), None);
 }
@@ -34,7 +34,7 @@ fn extractor_parse_failure_returns_none() {
 #[test]
 fn extractor_panic_swallowed_like_java_exception() {
     // Java catch (Exception) → return null 的对应路径: 提取器 panic 被吞。
-    // PORT: Rust 默认 panic hook 会向 stderr 打印 "boom" (Java 静默 catch 无
+    // Rust 默认 panic hook 会向 stderr 打印 "boom" (Java 静默 catch 无
     // 输出) —— 换成仅对本文构造的 "boom" payload 静默的过滤 hook, 其余
     // panic 链式透传给原 hook (不干扰并行测试的失败诊断), 结束后还原。
     use std::sync::Arc;

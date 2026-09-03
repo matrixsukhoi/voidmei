@@ -42,7 +42,7 @@ fn test_central_file_normalization() {
         "全大写输入应规范化为小写",
     );
 
-    // 统一小写 .json 扩展名 (blkx→json 迁移终态; Java oracle 原为 .blkx)
+    // 统一小写 .json 扩展名 (blkx→json 迁移终态; 历史基线 原为 .blkx)
     let p = norm(&central_file("abc"));
     assert!(p.ends_with(".json"), "扩展名应为小写 .json, 实际: {p}");
 }
@@ -105,7 +105,7 @@ impl Drop for DataRootResetOnDrop {
     }
 }
 
-// PORT: Java main() 在单 JVM 内顺序执行五个测试方法 (test_set_data_root_injection
+// Java main() 在单 JVM 内顺序执行五个测试方法 (test_set_data_root_injection
 // 依赖前序默认根状态, 且会改写全局); cargo test 默认多线程并行跑 #[test],
 // 拆成多个 #[test] 会与全局注入竞态 —— 故收敛为单个 #[test] 复刻 main() 的
 // 顺序执行, 五个方法体与断言逐条保留。
@@ -122,7 +122,7 @@ fn java_main_sequence() {
     let _guard = crate::fm::test_support::data_root();
     let _reset = DataRootResetOnDrop;
 
-    // (blkx→json 迁移终态: 扩展名断言已由 Java oracle 的 .blkx 改为 .json,
+    // (blkx→json 迁移终态: 扩展名断言已由 历史基线 的 .blkx 改为 .json,
     //  Java 字面量保留在注释中供追溯)
     test_default_root();
     test_central_file_normalization();

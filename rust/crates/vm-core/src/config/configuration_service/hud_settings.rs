@@ -10,7 +10,7 @@ use super::*;
 // =====================================================================
 
 pub struct HUDSettingsImpl {
-    /// PORT: extends → 组合 (§1); 父类方法经 base 委托 (Java 单实现继承)
+    /// extends → 组合; 父类方法经 base 委托 (Java 单实现继承)
     base: GenericOverlaySettingsImpl,
 }
 

@@ -12,10 +12,10 @@
 //! PORT (blkx→json 迁移终态): 功率断言走 parse_real (parse_named_json);
 //! fuzzer 变异对象为 JSON 原文 (合成种子承担 JavaRandom/mutate 移植对拍,
 //! 真机种子腿为变异鲁棒性烟雾)。仍挂起: 腿2 的 FMLoader.load 抽样腿
-//! (见 fuzz 模块内腿2 TODO 备案); 禁为此放宽阈值或删断言 (§6)。
+//! (见 fuzz 模块内腿2 TODO 备案); 禁为此放宽阈值或删断言。
 //!
-//! oracle: fuzzer 的 JavaRandom/mutate 移植值来自 OpenJDK 1.8.0_342 实测 dump
-//! (build/oracle/rand/RandOracle.java, §5.1 双实现对拍方法论)。
+//! 基线: fuzzer 的 JavaRandom/mutate 移植值来自 OpenJDK 1.8.0_342 实测 dump
+//! (build/基线/rand/RandOracle.java, §5.1 双实现对拍方法论)。
 
 /// 项目内真机 FM 数据根 (cargo 测试 cwd 无关; data/ 缺失由各测试自行 return early,
 /// 对齐 build.py 跳过语义 — reader.rs real 先例)
@@ -121,7 +121,7 @@ mod spitfire {
     }
 
     fn spitfire_paths() -> (String, String) {
-        // PORT: Rust 测试固定仓库相对路径 (fm_root 先例), data 缺失 return early
+        // Rust 测试固定仓库相对路径 (fm_root 先例), data 缺失 return early
         let central = format!("{}/spitfire_f24.json", fm_root());
         let fm = format!("{}/fm/spitfire_f24.json", fm_root());
         (central, fm)
@@ -980,10 +980,10 @@ mod fuzzer {
     //!   (build.py 会传 --central <data/.../bf-109e-4.json> --fm <data/.../fm/bf-109e-4.json>;
     //!    data/ 缺失时 build.py 的 run_fm_test 机制自动跳过整套)
     //!
-    //! PORT: 本移植固定 --central/--fm 为仓库相对路径 (realtests 模块头注);
+    //! 本移植固定 --central/--fm 为仓库相对路径 (realtests 模块头注);
     //! 腿1 全管线 (构造器 + getAllplotdata + finalizeLoading) 已全量执行;
     //! 腿2 (FMLoader.load 抽样) 仍挂起, 接线方案见 run_fuzzer 内腿2 TODO 备案。
-    //! JavaRandom/mutate 与 Java 端逐位一致 (oracle 对拍, 见下方测试)。
+    //! JavaRandom/mutate 与 Java 端逐位一致 (历史基线, 见下方测试)。
 
     use super::fm_root;
     use crate::fm::data::FmData;
@@ -1050,8 +1050,8 @@ mod fuzzer {
 
     /// java.util.Random (OpenJDK 8) 的逐位移植 — 48-bit LCG。
     /// FMParserFuzzer 的 "固定种子保证可复现" 依赖与 Java 完全一致的随机序列
-    /// (oracle: build/oracle/rand/RandOracle.java 在 OpenJDK 1.8.0_342 实测
-    /// dump, 下方 java8_oracle_java_random 对拍钉死)
+    /// (基线: build/基线/rand/RandOracle.java 在 OpenJDK 1.8.0_342 实测
+    /// dump, 下方 java8_基线_java_random 对拍钉死)
     struct JavaRandom {
         /// 已 scramble 的 48-bit 内部状态 (Java private seed 字段)
         seed: u64,
@@ -1070,7 +1070,7 @@ mod fuzzer {
         /// `seed = (seed * 0x5DEECE66DL + 0xBL) & ((1L << 48) - 1);`
         /// `return (int)(seed >>> (48 - bits));`
         fn next(&mut self, bits: u32) -> i32 {
-            // PORT: Java long 乘加静默回绕 ↔ wrapping_mul/wrapping_add (§2.2)
+            // Java long 乘加静默回绕 ↔ wrapping_mul/wrapping_add
             self.seed = self.seed.wrapping_mul(0x5DEECE66D).wrapping_add(0xB) & ((1 << 48) - 1);
             (self.seed >> (48 - bits)) as i32
         }
@@ -1082,7 +1082,7 @@ mod fuzzer {
 
         /// Java `public int nextInt(int n)` (n > 0):
         /// 2 的幂走 `(n * (long)next(31)) >> 31` 快路径, 否则模拒采样;
-        /// 拒绝条件 `bits - val + (n-1) < 0` 是 Java int 溢出回绕判定 (§2.2)
+        /// 拒绝条件 `bits - val + (n-1) < 0` 是 Java int 溢出回绕判定
         fn next_int_bound(&mut self, n: usize) -> usize {
             debug_assert!(n > 0);
             let n = n as i32;
@@ -1093,9 +1093,9 @@ mod fuzzer {
             loop {
                 let bits = self.next(31);
                 let val = bits % n;
-                // PORT: 拒绝判定显式加括号 — Rust 一元 `!` 优先级高于 `<`, 无括号会
+                // 拒绝判定显式加括号 — Rust 一元 `!` 优先级高于 `<`, 无括号会
                 // 解析为 `(~x) < 0`; 对 i32 恰与 `!(x < 0)` 补码等价 (~x<0 ⟺ x>=0),
-                // RIB oracle 已钉死行为, 括号只为杜绝后续改类型/"修正"写法时引入真 bug
+                // RIB 基线 已钉死行为, 括号只为杜绝后续改类型/"修正"写法时引入真 bug
                 if !(bits.wrapping_sub(val).wrapping_add(n - 1) < 0) {
                     return val as usize;
                 }
@@ -1104,7 +1104,7 @@ mod fuzzer {
 
         /// Java `public long nextLong()`: `((long)next(32) << 32) + next(32)`
         fn next_long(&mut self) -> i64 {
-            // PORT: Java long 移位/加法静默回绕 ↔ wrapping (§2.2)
+            // Java long 移位/加法静默回绕 ↔ wrapping
             ((self.next(32) as i64) << 32).wrapping_add(self.next(32) as i64)
         }
 
@@ -1118,7 +1118,7 @@ mod fuzzer {
         fn next_double(&mut self) -> f64 {
             let hi = self.next(26) as u64; // 0..2^26-1, 非负
             let lo = self.next(27) as u64; // 0..2^27-1, 非负
-                                           // PORT: Rust 无十六进制浮点字面量, 2^-53 以除法表达 (精确幂次, 逐位一致)
+                                           // Rust 无十六进制浮点字面量, 2^-53 以除法表达 (精确幂次, 逐位一致)
             (((hi << 27) + lo) as f64) / ((1u64 << 53) as f64)
         }
     }
@@ -1144,7 +1144,7 @@ mod fuzzer {
         }
     }
 
-    /// PORT(§2.1): Java String 按 UTF-16 码元索引/length; 种子域纯 ASCII (od 实测)
+    /// Java String 按 UTF-16 码元索引/length; 种子域纯 ASCII (od 实测)
     /// 下字节索引与码元索引一致。随机偏移统一吸附到 char 边界, 病态非 ASCII 输入
     /// 下防 UTF-8 切片 panic (输出与 Java UTF-16 语义允许微偏, 域内无差异)
     fn floor_char_boundary(s: &str, i: usize) -> usize {
@@ -1258,7 +1258,7 @@ mod fuzzer {
         let n = 1 + rnd.next_int_bound(3);
         for _ in 0..n {
             let i = rnd.next_int_bound(lines.len());
-            // 行内无 \n 且域内 ASCII, Rust trim() 同域 (§2.1)
+            // 行内无 \n 且域内 ASCII, Rust trim() 同域
             if !lines[i].trim().is_empty() {
                 lines[i] = format!("//{}", lines[i]);
             }
@@ -1275,7 +1275,7 @@ mod fuzzer {
         let w = rnd.next_int_bound(lines.len());
         let end = lines.len().min(w + 30);
         for line in lines.iter_mut().take(end).skip(w) {
-            // PORT: crate 无 regex 依赖, 手写等价扫描 (空格/制表符是 ASCII 单字节,
+            // crate 无 regex 依赖, 手写等价扫描 (空格/制表符是 ASCII 单字节,
             // 前缀必在 char 边界收尾)
             let n = line
                 .as_bytes()
@@ -1412,7 +1412,7 @@ mod fuzzer {
             .collect()
     }
 
-    /// FNV-1a 64 位摘要 — oracle 对拍用 (build/oracle/rand/RandOracle.java 同款
+    /// FNV-1a 64 位摘要 — 历史基线用 (build/基线/rand/RandOracle.java 同款
     /// 实现; vm-core 无 md5 依赖, 双语言各 10 行即可逐字节对拍)
     fn fnv1a64(s: &str) -> u64 {
         let mut h: u64 = 0xcbf29ce484222325;
@@ -1514,7 +1514,7 @@ mod fuzzer {
     }
 
     /// 失败现场留存: 把出问题的变异体写到 build/ 下供人工复现 (build/ 已 gitignore)。
-    /// PORT: Java `new File("build")` 同为 cwd 相对 — Java 经 build.py 跑时 cwd=仓库根
+    /// Java `new File("build")` 同为 cwd 相对 — Java 经 build.py 跑时 cwd=仓库根
     /// (build/ 在场, 留存生效), cargo test 时 cwd=crate 根 (rust/crates/vm-core/build/
     /// 通常不存在 → 静默跳过); 仅影响失败现场留存位置, 不影响断言
     fn dump_mutant(mutant: &str, index: usize) {
@@ -1530,7 +1530,7 @@ mod fuzzer {
 
     #[test]
     fn fuzz_fmdata_text_mutations() {
-        // Java main 由 build.py 传 --central/--fm; PORT: 固定仓库相对路径
+        // Java main 由 build.py 传 --central/--fm; 固定仓库相对路径
         let central_path = format!("{}/bf-109e-4.json", fm_root());
         let fm_path = format!("{}/fm/bf-109e-4.json", fm_root());
         if !Path::new(&fm_path).is_file() {
@@ -1545,7 +1545,7 @@ mod fuzzer {
 
         // 读文件用平台默认字符集 —— 与 Blx 构造器内 FileReader 一致,
         // 保证"读出->变异->写回->Blkx 再读"对非 ASCII 字节往返一致
-        // PORT: 平台字符集 (中文 Windows=GBK) ↔ UTF-8; 种子域纯 ASCII (od 实测,
+        // 平台字符集 (中文 Windows=GBK) ↔ UTF-8; 种子域纯 ASCII (od 实测,
         // reader.rs 先例), 等价。域假设被打破 (未来数据版本混入非 ASCII 字节) 时
         // 显式炸明原因 — Java 平台字符集解码不失败, 不以 io 错误面目误导排查
         let seed_text = String::from_utf8(std::fs::read(&fm_path).expect("种子文件读取"))
@@ -1634,8 +1634,8 @@ mod fuzzer {
     }
 
     // =====================================================================
-    // 边界/oracle 测试 — 期望值来自 OpenJDK 1.8.0_342 实测 dump
-    // (build/oracle/rand/RandOracle.java: java.util.Random 原语流 + 经反射调用
+    // 边界/基线 测试 — 期望值来自 OpenJDK 1.8.0_342 实测 dump
+    // (build/基线/rand/RandOracle.java: java.util.Random 原语流 + 经反射调用
     // bin/FMParserFuzzer 的私有 mutate; 摘要为 FNV-1a 64, 双语言同实现)
     // =====================================================================
 
@@ -1735,7 +1735,7 @@ mod fuzzer {
         );
     }
 
-    /// mutate 逐策略对拍: 合成种子 (与 oracle 驱动同串, 覆盖引号/数值/花括号/
+    /// mutate 逐策略对拍: 合成种子 (与 基线 驱动同串, 覆盖引号/数值/花括号/
     /// 等号/缩进/多行特征), 每策略 3 个种子值 (s*1000003, s=1..3), 断言 (len, FNV)
     #[test]
     fn java8_oracle_mutate_synthetic_seed() {
@@ -1744,7 +1744,7 @@ mod fuzzer {
         assert_eq!(fnv1a64(seed), 2180320431869783377, "SEED 摘要");
 
         // (kind, Random 种子值, 变异体 len, FNV-1a) — Java FMParserFuzzer.mutate
-        // 反射实测 dump (build/oracle/rand/dump.txt 的 MUT 行)
+        // 反射实测 dump (build/基线/rand/dump.txt 的 MUT 行)
         let expected: &[(i32, u64, usize, u64)] = &[
             (0, 1000003, 101, 7942275050905475666),
             (0, 2000006, 62, 6008632289986650139),
@@ -1797,7 +1797,7 @@ mod fuzzer {
     /// 13 轮变异, 断言种子指纹 + 每轮变异体可全管线解析 (无逃逸 panic)。
     /// (blkx→json 迁移: 种子载体由 BlkText 换为 JSON 后, Java dump 的逐轮
     ///  (kind, len, FNV) 期望表随之失效 — mutate/Random 的移植对拍职责由
-    ///  合成种子的 java8_oracle_mutate 腿承担; 本腿保留真实数据变异鲁棒性)
+    ///  合成种子的 java8_基线_mutate 腿承担; 本腿保留真实数据变异鲁棒性)
     #[test]
     fn java8_oracle_mutate_real_seed_loop() {
         let fm_path = format!("{}/fm/bf-109e-4.json", fm_root());

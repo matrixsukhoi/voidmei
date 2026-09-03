@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use super::{HUDSettings, OverlaySettings};
 
 /// MiniHUD 注册所需的 HUDSettings 全量值快照。
-/// PORT: ConfigurationService (!Send, Rc<SExp> 配置树) 不能进渲染线程,
+/// ConfigurationService (!Send, Rc<SExp> 配置树) 不能进渲染线程,
 /// 主线程 (AppShell) 构建本纯值快照随 [`Win32ThreadConfig`] 送入。
 /// `get_window_x/y`: 窗口定位归 OverlayHost 位置存档 (host.materialize),
 /// ctx.window_x/y 在 Rust 端无消费点 — 返回 0 (保位)。
@@ -85,7 +85,7 @@ impl HudSettingsSnapshot {
             attitude_indicator_inertial_mode: s.is_attitude_indicator_inertial_mode(),
             gpu_compatibility_mode: s.is_gpu_compatibility_mode(),
             always_show_radar_altitude: s.always_show_radar_altitude(),
-            // PORT: 不取 get_font_name — 其 defaultFont 回退分支是 vm-core 保真
+            // 不取 get_font_name — 其 defaultFont 回退分支是 vm-core 保真
             // NPE (Application.defaultFont null, init_font 接线前不可达);
             // MiniHUD ctx 只消费 num 字体 (get_num_font), text 字体空串顶位
             font_name: String::new(),

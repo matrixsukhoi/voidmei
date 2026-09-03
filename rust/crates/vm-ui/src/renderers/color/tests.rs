@@ -13,13 +13,13 @@ fn color_row(prop: Option<&str>, value: Option<&str>) -> RowConfig {
     r
 }
 
-// ---- parse_color: hex 域 (oracle: #FF5500/#ff5500aa/#FFGG00/#FFF/#/#FF5500A) ----
+// ---- parse_color: hex 域 (基线: #FF5500/#ff5500aa/#FFGG00/#FFF/#/#FF5500A) ----
 #[test]
 fn parse_hex_formats() {
     assert_eq!(try_parse_color("#FF5500"), Some([255, 85, 0, 255]));
     assert_eq!(try_parse_color("#ff5500aa"), Some([255, 85, 0, 170])); // 小写
     assert_eq!(parse_color(" #FF5500 ", DEF), [255, 85, 0, 255]); // trim
-                                                                  // oracle: 非法数字/长度 → 默认
+                                                                  // 基线: 非法数字/长度 → 默认
     assert_eq!(parse_color("#FFGG00", DEF), DEF);
     assert_eq!(parse_color("#FFF", DEF), DEF);
     assert_eq!(parse_color("#", DEF), DEF);
@@ -30,7 +30,7 @@ fn parse_hex_formats() {
     assert_eq!(parse_color("#FF中文", DEF), DEF);
 }
 
-// ---- parse_color: 十进制域 (oracle: 钳位/尾逗号/非法串/分号) ----
+// ---- parse_color: 十进制域 (基线: 钳位/尾逗号/非法串/分号) ----
 #[test]
 fn parse_decimal_formats() {
     assert_eq!(try_parse_color("255, 85, 0, 170"), Some([255, 85, 0, 170]));
@@ -39,11 +39,11 @@ fn parse_decimal_formats() {
         try_parse_color(" 255 , 85 , 0 , 170 "),
         Some([255, 85, 0, 170])
     );
-    // oracle: 尾逗号 → Java split 丢弃尾部空串 → 3 段
+    // 基线: 尾逗号 → Java split 丢弃尾部空串 → 3 段
     assert_eq!(try_parse_color("255, 85, 0,"), Some([255, 85, 0, 255]));
-    // oracle: 越界钳位 [0,255]
+    // 基线: 越界钳位 [0,255]
     assert_eq!(try_parse_color("300, -5, 0, 999"), Some([255, 0, 0, 255]));
-    // oracle: 非法串 → 默认
+    // 基线: 非法串 → 默认
     assert_eq!(parse_color("1,,3", DEF), DEF);
     assert_eq!(parse_color("a,b,c", DEF), DEF);
     assert_eq!(parse_color("256,10,10", DEF), [255, 10, 10, 255]); // 钳位不回默认
@@ -53,7 +53,7 @@ fn parse_decimal_formats() {
     assert_eq!(parse_color("-FF,0,0", DEF), DEF);
 }
 
-// ---- 空白/trim 的 Java 语义 (oracle: nbsp/vt/全角空格) ----
+// ---- 空白/trim 的 Java 语义 (基线: nbsp/vt/全角空格) ----
 #[test]
 fn java_trim_and_whitespace_semantics() {
     // nbsp 前缀: Java trim 不去 (>0x20) → 十进制路径解析失败 → 默认

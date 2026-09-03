@@ -12,8 +12,8 @@
 //! 1. 尝试 PropertyBinder 写入
 //! 2. 同步到 ConfigurationService（用于 overlay 控制键）
 //!
-//! PORT: Java 类仅含 static 方法 → Rust 模块自由函数 (exception_helper/string_helper 先例)。
-//! PORT: 形参类型 `RowRenderer.RenderContext` (RowRenderer 嵌套接口) 的
+//! Java 类仅含 static 方法 → Rust 模块自由函数 (exception_helper/string_helper 先例)。
+//! 形参类型 `RowRenderer.RenderContext` (RowRenderer 嵌套接口) 的
 //! trait 定义落位于 [`crate::render_context`] (D9 后 RowRenderer 策略接口已退役,
 //! 契约独立成文件), 本文件 re-export 引入 — 对应 Java 侧 import 语句。
 //! 全 crate 必须共用该单一类型: 各 apply 写链与读写助手收到的 `&dyn RenderContext`
@@ -25,13 +25,13 @@ use vm_core::config::config_loader::{GroupConfig, RowConfig};
 
 /// Context object providing callbacks and state for rendering.
 ///
-/// PORT: 定义在 [`crate::render_context::RenderContext`] (Java 为
+/// 定义在 [`crate::render_context::RenderContext`] (Java 为
 /// `ui.layout.renderer.RowRenderer.RenderContext` 嵌套接口, 唯一实现是
 /// DynamicDataPage 的匿名类), 此处 re-export 使本助手六方法与
 /// 各渲染器 apply 写链的契约类型归一 (对应 Java 侧 import 语句)。
-/// PORT: 方法签名取 `&self` (非 `&mut`): Java 实现的 syncToConfigService →
+/// 方法签名取 `&self` (非 `&mut`): Java 实现的 syncToConfigService →
 /// ConfigurationService.setConfig → **同步** publish CONFIG_CHANGED →
-/// DynamicDataPage 自身的 handler rebuild() 重入 (§2.8) — `&mut` 版在
+/// DynamicDataPage 自身的 handler rebuild() 重入 — `&mut` 版在
 /// RefCell 实现下即借用 panic; 共享与重入安全由实现侧内部可变性承担
 /// (与 config_api::config_provider::ConfigProvider::set_config 的同款裁决)。
 pub use crate::render_context::RenderContext;
@@ -69,7 +69,7 @@ pub(crate) use group_field_table;
 /// - `field.get()` + `instanceof` → [`get`] 返回 [`FieldValue`] + 类型化 getter
 ///   的 match 臂 (instanceof 不中 = 默认值);
 /// - `field.set()` 的类型检查 → [`set`] 的 match 臂 (不匹配 = Java 未受检
-///   IllegalArgumentException 上抛 → panic!, PORTING §1)。
+///   IllegalArgumentException 上抛 → panic!, )。
 ///
 /// Utility class for reflection-based property binding.
 /// Allows dynamic get/set of object fields by name, eliminating switch-case
@@ -102,7 +102,7 @@ mod property_binder {
         }
     }
 
-    /// PORT: Java 引用字段可为 null (fontName 未设置时 field.get 返回 null,
+    /// Java 引用字段可为 null (fontName 未设置时 field.get 返回 null,
     /// instanceof String 不中 → 默认值) — Option 映射为 Null 变体, 语义一致;
     /// 反射 set 装入非 null 值 → Option::Some。
     impl GroupFieldAccess for Option<String> {
@@ -121,8 +121,8 @@ mod property_binder {
         }
     }
 
-    /// PORT: Java 反射 Field.set 对 double 字段装 Integer 走拆箱+拓宽
-    /// (int→double, JLS 5.1.2) 成功写入 — JDK8 oracle 实测
+    /// Java 反射 Field.set 对 double 字段装 Integer 走拆箱+拓宽
+    /// (int→double, JLS 5.1.2) 成功写入 — JDK8 历史基线
     /// (x.set(g, Integer.valueOf(5)) → x=5.0)。get_int 对 double 字段的
     /// (Number).intValue() 截断是其读侧对偶。i32 as f64 精确无损。
     impl GroupFieldAccess for f64 {
@@ -216,8 +216,8 @@ mod property_binder {
 
             /// Java: public static boolean set(Object target, String property, Object value)
             ///
-            /// PORT: 越型组合 (Boolean/String 装入数值或 boolean 字段, Integer 装入
-            /// boolean/String/List 字段) = JDK8 oracle 实测的 IllegalArgumentException
+            /// 越型组合 (Boolean/String 装入数值或 boolean 字段, Integer 装入
+            /// boolean/String/List 字段) = JDK8 历史基线的 IllegalArgumentException
             /// 路径 (PropertyBinder 未捕获, 原样上抛)。cfg 是用户可编辑输入, 越型
             /// 绑定不该 panic 主线程 (A5) — warn 日志 + 忽略该次绑定 (返回 false,
             /// 调用方回落 row.value; write_* 的服务同步仍执行)
@@ -270,7 +270,7 @@ mod property_binder {
     /// Java: `PropertyBinder.get()` 返回的 Object — GroupConfig 字段值的类型化镜像。
     /// 五种实际形态 + Null; `List<RowConfig>` 仅以 Rows 标记占位 (三个类型化
     /// getter 均按 instanceof 不中处理)。
-    /// PORT: Java 引用字段可为 null (fieldName 未设置时 field.get 返回 null,
+    /// Java 引用字段可为 null (fieldName 未设置时 field.get 返回 null,
     /// instanceof String 不中 → 默认值) — Rust 侧 GroupConfig 的 Option<String>
     /// 映射为 Null 变体, 语义一致。
     #[derive(Debug, Clone, Copy, PartialEq)]
@@ -296,9 +296,9 @@ mod property_binder {
         /// 装箱类名 (仅用于异常文案)
         fn kind_name(&self) -> &'static str {
             match self {
-                BindingValue::Int(_) => "java.lang.Integer",
-                BindingValue::Bool(_) => "java.lang.Boolean",
-                BindingValue::Str(_) => "java.lang.String",
+                BindingValue::Int(_) => "Integer",
+                BindingValue::Bool(_) => "Boolean",
+                BindingValue::Str(_) => "String",
             }
         }
     }
@@ -318,8 +318,8 @@ mod property_binder {
     pub(super) fn get_int(group: &GroupConfig, property: &str, default_value: i32) -> i32 {
         match get(group, property) {
             Some(FieldValue::Int(i)) => i,
-            // PORT: Java double→int (JLS 5.1.3: NaN→0, 越界饱和, 向零截断) 与
-            // Rust `as i32` 逐位一致 (§2.2 的 long→int 双转陷阱不适用于浮点)
+            // Java double→int (JLS 5.1.3: NaN→0, 越界饱和, 向零截断) 与
+            // Rust `as i32` 逐位一致
             Some(FieldValue::Double(d)) => d as i32,
             // Str/Bool/Rows/Null/未命中: instanceof Number 不中 → 默认值
             _ => default_value,
@@ -357,8 +357,8 @@ mod property_binder {
     ///
     /// Java: `public static boolean setString(Object target, String property, String value)`
     ///
-    /// PORT: Java setString(prop, null) 对 String 字段成功写 null (引用字段
-    /// 接受 null, JDK8 oracle 实测 fontName→null); Rust `&str` 无法表达 null —
+    /// Java setString(prop, null) 对 String 字段成功写 null (引用字段
+    /// 接受 null, JDK8 历史基线 fontName→null); Rust `&str` 无法表达 null —
     /// 唯一调用方 ComboRowRenderer 域内恒非 null, 不可达。
     pub(super) fn set_string(group: &mut GroupConfig, property: Option<&str>, value: &str) -> bool {
         set(group, property, BindingValue::Str(value.to_string()))
@@ -374,13 +374,13 @@ mod property_binder {
 
 /// 读取字符串配置值
 ///
-/// @param ctx        渲染上下文
-/// @param groupConfig 组配置
-/// @param row        行配置
-/// @param defaultVal 默认值
-/// @return 配置值
+/// - `ctx`: 渲染上下文
+/// - `groupConfig`: 组配置
+/// - `row`: 行配置
+/// - `defaultVal`: 默认值
+/// 返回: 配置值
 ///
-/// PORT: Java defaultVal 为可空 String; 唯一调用方 ComboRowRenderer 传
+/// Java defaultVal 为可空 String; 唯一调用方 ComboRowRenderer 传
 /// row.getStr() (String.valueOf, 恒非 null) → Rust 收窄为 &str, 行为域内等价。
 pub fn read_string(
     ctx: &dyn RenderContext,
@@ -388,7 +388,7 @@ pub fn read_string(
     row: &RowConfig,
     default_val: &str,
 ) -> String {
-    // PORT: Java 两段 if (row.property != null && hasField) / else if (property != null)
+    // Java 两段 if (row.property != null && hasField) / else if (property != null)
     // 的短路与分支顺序原样保持 — 绑定命中(即使类型不符)后不再落 ConfigurationService
     if let Some(property) = row.property.as_deref() {
         if property_binder::has_field(group_config, property) {
@@ -401,11 +401,11 @@ pub fn read_string(
 
 /// 读取整数配置值
 ///
-/// @param ctx        渲染上下文
-/// @param groupConfig 组配置
-/// @param row        行配置
-/// @param defaultVal 默认值
-/// @return 配置值
+/// - `ctx`: 渲染上下文
+/// - `groupConfig`: 组配置
+/// - `row`: 行配置
+/// - `defaultVal`: 默认值
+/// 返回: 配置值
 pub fn read_int(
     ctx: &dyn RenderContext,
     group_config: &GroupConfig,
@@ -426,11 +426,11 @@ pub fn read_int(
 
 /// 读取布尔配置值
 ///
-/// @param ctx        渲染上下文
-/// @param groupConfig 组配置
-/// @param row        行配置
-/// @param defaultVal 默认值
-/// @return 配置值
+/// - `ctx`: 渲染上下文
+/// - `groupConfig`: 组配置
+/// - `row`: 行配置
+/// - `defaultVal`: 默认值
+/// 返回: 配置值
 pub fn read_bool(
     ctx: &dyn RenderContext,
     group_config: &GroupConfig,
@@ -448,11 +448,11 @@ pub fn read_bool(
 
 /// 写入字符串配置值
 ///
-/// @param ctx        渲染上下文
-/// @param groupConfig 组配置
-/// @param property   属性名
-/// @param value      新值
-/// @return 是否成功写入 PropertyBinder
+/// - `ctx`: 渲染上下文
+/// - `groupConfig`: 组配置
+/// - `property`: 属性名
+/// - `value`: 新值
+/// 返回: 是否成功写入 PropertyBinder
 pub fn write_string(
     ctx: &dyn RenderContext,
     group_config: &mut GroupConfig,
@@ -469,11 +469,11 @@ pub fn write_string(
 
 /// 写入整数配置值
 ///
-/// @param ctx        渲染上下文
-/// @param groupConfig 组配置
-/// @param property   属性名
-/// @param value      新值
-/// @return 是否成功写入 PropertyBinder
+/// - `ctx`: 渲染上下文
+/// - `groupConfig`: 组配置
+/// - `property`: 属性名
+/// - `value`: 新值
+/// 返回: 是否成功写入 PropertyBinder
 pub fn write_int(
     ctx: &dyn RenderContext,
     group_config: &mut GroupConfig,
@@ -490,11 +490,11 @@ pub fn write_int(
 
 /// 写入布尔配置值
 ///
-/// @param ctx        渲染上下文
-/// @param groupConfig 组配置
-/// @param property   属性名
-/// @param value      新值
-/// @return 是否成功写入 PropertyBinder
+/// - `ctx`: 渲染上下文
+/// - `groupConfig`: 组配置
+/// - `property`: 属性名
+/// - `value`: 新值
+/// 返回: 是否成功写入 PropertyBinder
 pub fn write_bool(
     ctx: &dyn RenderContext,
     group_config: &mut GroupConfig,

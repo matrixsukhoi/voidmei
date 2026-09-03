@@ -1,4 +1,4 @@
-// PORT: Java 保真 — 测试桩 Arc<RefCell<..>> 复刻 Java 引用共享 (单线程测试),
+// Java 保真 — 测试桩 Arc<RefCell<..>> 复刻 Java 引用共享 (单线程测试),
 // 非 Send+Sync 是桩实现细节, 不改用 Mutex
 #![allow(clippy::arc_with_non_send_sync)]
 

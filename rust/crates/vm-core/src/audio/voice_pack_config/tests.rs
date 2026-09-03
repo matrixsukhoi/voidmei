@@ -126,7 +126,7 @@ fn test_parsing_consistency_with_original() {
         if let Some(v) = val {
             if !v.is_empty() {
                 if v.contains('|') {
-                    // PORT: Java split("\\|") 无 limit 会丢弃尾部空串 —
+                    // Java split("\\|") 无 limit 会丢弃尾部空串 —
                     // 弹出尾部空串复刻该语义, 保证副本忠实于 Java 旧逻辑
                     let mut parts: Vec<&str> = v.split('|').collect();
                     while parts.last().copied() == Some("") {

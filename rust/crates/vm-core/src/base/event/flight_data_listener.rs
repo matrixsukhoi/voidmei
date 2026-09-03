@@ -3,7 +3,7 @@
 use crate::base::event::flight_data_event::FlightDataEvent;
 
 /// Interface for consuming Data Plane events.
-/// PORT: Java interface → Rust trait (§1 多实现接口); 参数按 Java 引用传递语义
+/// Java interface → Rust trait; 参数按 Java 引用传递语义
 /// 取 `&FlightDataEvent` (同一事件对象按序发布给多个订阅者, 只读)。
 pub trait FlightDataListener {
     /// 对应 Java `void onFlightData(FlightDataEvent event)`。

@@ -77,7 +77,7 @@ impl FmData {
         self.wep_rpm = 0.0;
 
         // Try to find Propellor section within the engine type
-        // PORT: Java `cut(data, ...)` — data 为 null 时 cut 处 NPE ↔ unwrap panic
+        // Java `cut(data, ...)` — data 为 null 时 cut 处 NPE ↔ unwrap panic
         // (parse_named_opts_json 的 catch_unwind 收敛, §1)
         let mut prop_section = src.section("Propellor");
         if prop_section.is_null() {
@@ -248,7 +248,7 @@ impl FmData {
     /// PORT 纪律: 逐行直译, 语句顺序与 Java 一致 (含源码自身的重复段/死存储 —
     /// AFuselage 重复读两遍、Stab/KeelAngle 段误写 WingAngle 的 bug 均保真保留);
     /// 浮点字面量按 §2.12 (1.0f/1000.f 拓宽域, 精确值直书); `(int)` 强转按 §2.2。
-    /// panic 语义 (§1): Java 由构造器 catch(Exception) 收敛 valid=false ↔ 本方法
+    /// panic 语义: Java 由构造器 catch(Exception) 收敛 valid=false ↔ 本方法
     /// 的 panic 由 parse_named_opts_json 的 catch_unwind 收敛 Err (畸形输入防线)。
     /// 波14 拆解: 方法体按装载阶段提取为下方 load_* 子函数, 调用序即语句序。
     pub(crate) fn getload_from(&mut self, src: &JsonSrc) {
@@ -639,7 +639,7 @@ impl FmData {
         self.gear_destruction_ind_speed = src.get_f64("GearDestructionIndSpeed");
 
         // 面积 — 三级回退族: 顶层键 → WingPlane.* → WingPlaneSweep0.*
-        // PORT: 宏观直译 (Java 每段 3 行 if, 逐字段展开)
+        // 宏观直译 (Java 每段 3 行 if, 逐字段展开)
         let fallback3 = |top: &str, plane: &str, sweep0: &str| -> f64 {
             let v = src.get_f64(top);
             if v != 0.0 {
@@ -802,7 +802,7 @@ impl FmData {
 
         self.stab_angle = src.get_f64("StabAngle");
         // PORT(Java bug 保真): 本行判据是 WingAngle 而非 StabAngle — VerStabPlane 的
-        // 角度会错写进 WingAngle, StabAngle 拿不到回退值; 源码如此, 不修 (§6 上报)
+        // 角度会错写进 WingAngle, StabAngle 拿不到回退值; 源码如此, 不修
         if self.wing_angle == 0.0 {
             self.wing_angle = src.get_f64("VerStabPlane.Angle");
         }

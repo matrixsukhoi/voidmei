@@ -216,9 +216,9 @@ fn inner_of<'a>(
     std::cell::Ref::map(cell.0.borrow(), |c| &c.inner)
 }
 
-// ===== java_f / pad_width oracle =====
+// ===== java_f / pad_width 基线 =====
 
-/// Java 8 oracle: String.format 的 %f HALF_UP 与宽度填充
+/// 历史基线: String.format 的 %f HALF_UP 与宽度填充
 #[test]
 fn java_f_oracle() {
     assert_eq!(fmt_f(0.85, 2), "0.85");
@@ -236,7 +236,7 @@ fn java_f_oracle() {
     assert_eq!(fmt_d(110, 3), "110");
 }
 
-// ===== MinimalHUDContext oracle =====
+// ===== MinimalHUDContext 基线 =====
 
 /// crossScale=113, dpi=1.0 全链手算 (MinimalHUDContext.java:96-153 逐行)。
 #[test]
@@ -309,7 +309,7 @@ fn ctx_min_font_size_clamp() {
     assert_eq!(ctx.bar_width, 2);
 }
 
-// ===== refreshTemplates 预览串 oracle =====
+// ===== refreshTemplates 预览串 基线 =====
 
 #[test]
 fn refresh_templates_preview_strings() {

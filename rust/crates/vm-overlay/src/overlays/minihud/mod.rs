@@ -26,12 +26,12 @@
 //! - Java `List<HUDComponent> components` (initComponentsLayout 添加序) 与布局引擎
 //!   节点图**共享同一批组件对象** → [`CompCell`](Rc<RefCell>) 双持: overlay 具名字段
 //!   (风格/模板/可见性写入口) + engine 节点负载 (渲染读出口), Java 引用共享语义落地。
-//! - `Math.round` 双语义 (§2.3): Math.round(float)→int 与 Math.round(double)→long→
-//!   (int) 窄化 (§2.2 双转) 分别落 java_round_f32/[`java_round_long_narrowed`]。
+//! - `Math.round` 双语义: Math.round(float)→int 与 Math.round(double)→long→
+//!   (int) 窄化 分别落 java_round_f32/[`java_round_long_narrowed`]。
 //! - `String.format` 的 %N.Mf / %Ns / %Nd → vm_core::base::format 收敛点
 //!   (`java_f`/`pad_width`, 重构波13 收割本地副本)。
 //! - Application 静态色 (colorNum/colorShadeShape) → gauges_bars 常量 (同源)。
-//! - Application.dpiScale (LIFETIMES §1.2 Env 只读) → 参数注入 (调用方持 Env)。
+//! - Application.dpiScale → 参数注入 (调用方持 Env)。
 //! - Font(family, BOLD, size) 的家族名 → Rust 按字体文件路径加载 (font.rs 只吃
 //!   文件); MonoNumFont 的 cfg 缺省 "Sarasa Mono SC" 映射到随包
 //!   sarasa-mono-sc-bold.ttf, 由调用方解析路径。
@@ -72,11 +72,11 @@ use crate::platform::reinit::ReinitParams;
 use crate::render::canvas::PixCanvas;
 
 // ---------------------------------------------------------------------------
-// Java Math / printf 复刻 (§2.3/§2.2; 取整族收敛 vm_core::base::format)
+// Java Math / printf 复刻
 // ---------------------------------------------------------------------------
 
 /// Java `(int) Math.round(double)`: round 返回 long, (int) 窄化取低 32 位
-/// (§2.2 双转; 值域内与饱和无差, 防御性对齐 Java 溢出行为)
+///
 fn java_round_long_narrowed(x: f64) -> i32 {
     let l = (x + 0.5).floor() as i64;
     (l as u32) as i32
@@ -187,7 +187,7 @@ impl MiniHudOverlay {
         // Java initComponentsLayout 之前各组件字段为 null → 首轮 reinitConfig 的
         // applyStyle/updateComponents 对组件全空转 (initModernLayout 空表早退)。
         // Rust 无 null: 占位组件即刻可查 (空引擎不渲染), initComponentsLayout
-        // 建齐真身后整体替换 — 调用序列与 Java 逐行对应。
+        // 建齐真身后整体替换。
         let ng = Self::named_gauge_cells(&fonts, ctx.round_compass);
         let empty_engine = ModernHUDLayoutEngine::new(ctx.width, ctx.height);
         let mut overlay = MiniHudOverlay {
@@ -241,7 +241,7 @@ impl MiniHudOverlay {
 
         overlay.init_components_layout(settings);
 
-        // PORT: Java 读 service 字段 — 游戏模式 S1.start() 先于 overlay 激活
+        // Java 读 service 字段 — 游戏模式 S1.start() 先于 overlay 激活
         // (Controller), sState 可能已轮询出值, throttle 分支可吃到
         // 真值; 组装层此阶段无遥测口可传 → None, throttle 闪 0, 由下一放行的
         // on_flight_data (≤refreshInterval) 覆盖, 影响 ≤1 帧
@@ -251,7 +251,7 @@ impl MiniHudOverlay {
     }
 
     /// Java reinitConfig() — ctx 快照重建 + 模板 + 风格 + 布局引擎重建。
-    /// PORT: setBounds 的窗口几何副作用归 OverlayHost (spec 尺寸取
+    /// setBounds 的窗口几何副作用归 OverlayHost (spec 尺寸取
     /// applyAutoSizing 计划); Java 先 setBounds 再被 applyAutoSizing 的
     /// window.setSize 覆盖, 净效果 = 内容包围盒 + 2×LAYOUT_PADDING。
     pub fn reinit_config<S: HUDSettings>(&mut self, settings: &S) -> Result<(), String> {
@@ -271,7 +271,7 @@ impl MiniHudOverlay {
         // This ensures getContentBounds() sees the correct visible components
         //
         self.apply_style_to_components(settings);
-        // PORT: Java 此处 updateComponents() 读 service 字段 — 游戏模式 WYSIWYG
+        // Java 此处 updateComponents() 读 service 字段 — 游戏模式 WYSIWYG
         // reinit 时 sState 可非 null (throttle 吃真值); Rust 恒传 None → 油门条
         // 闪 0, 下一放行 on_flight_data (≤refreshInterval) 修复, 影响 ≤1 帧
         self.update_components(settings, None);
@@ -300,7 +300,7 @@ impl MiniHudOverlay {
             self.update_row_values();
         }
 
-        // PORT: Java `service != null && service.sState != null` — sState 空判
+        // Java `service != null && service.sState != null` — sState 空判
         // 折入 TelemetrySource 实现域 (Service 批次); getThrottle 返回 double
         // 而 Java 读 int 字段 sState.throttle → as i32 (JLS 5.1.3 同义)
         let mut throttle_value = 0;
@@ -544,7 +544,7 @@ impl MiniHudOverlay {
         // Note: maneuverIndexLen variables are member fields of MinimalHUD
         // calculated in legacy loop.
         let right_draw = self.ctx.right_draw;
-        // PORT: (int) Math.round(double) — round→long→(int) 窄化 (§2.2 双转);
+        // (int) Math.round(double) — round→long→(int) 窄化;
         // 求值序 (index / 0.5) * rightDraw 与 Java 左结合一致; 各档刻度走
         // 档位表 (N=0.5 档字面 0.5/0.5 由表驱动消解)
         self.maneuver_index_len =

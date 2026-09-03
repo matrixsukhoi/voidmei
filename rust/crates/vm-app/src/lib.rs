@@ -19,7 +19,7 @@
 //! - Service 线程: vm-data service_loop (8111 轮询, Controller 波次仅负责启停)。
 //! - ConfigDebounce 线程: 200ms 防抖 (Java static configDebouncer 的跨重建存活语义)。
 //!
-//! 跨线程纪律 (LIFETIMES §7 / D8): 全部经 channel/bus, 禁全局静态可变态。
+//! 跨线程纪律: 全部经 channel/bus, 禁全局静态可变态。
 //! **ConfigurationService 是 !Send** (config_loader 树含 Rc<SExp>, 见
 //! configuration_service.rs init_config 的 PORT 注) — 因此:
 //! 1. 配置服务恒留主线程, Controller 订阅闭包只做"转发到监督通道" (Send 安全);
@@ -137,7 +137,7 @@ pub struct ShellParts {
 }
 
 /// Java Application.java 静态单例带 + `public static Controller ctr` 的收敛体。
-/// 恒留主线程; 跨重建存活件 (Java 单例语义, LIFETIMES §4.2 "托盘重建时存活"):
+/// 恒留主线程; 跨重建存活件 (Java 单例语义, "托盘重建时存活"):
 /// fm/flight_bus/ui_bus/hotkey/debouncer。
 pub struct AppShell {
     pub env: Env,

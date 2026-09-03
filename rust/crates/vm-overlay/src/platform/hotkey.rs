@@ -2,12 +2,12 @@
 //! Unified global hotkey manager.
 //! Centralizes all hotkey listeners to avoid duplicate registrations.
 //!
-//! 平台层复刻说明 (PORTING.md §3 库映射表: jnativehook → 自实现 WH_KEYBOARD_LL):
+//! 平台层复刻说明:
 //! - Java 侧 `GlobalScreen.registerNativeHook()` 的 Windows 原生实现 (libuiohook)
 //!   = 在**独立钩子线程**上 `SetWindowsHookExW(WH_KEYBOARD_LL)` + 该线程内部
 //!   `GetMessageW` 消息循环; 键事件在钩子回调里做 VK→VC 转换后同步 dispatch 给
 //!   Java 监听器 (即 `nativeKeyPressed` 跑在 jnativehook 线程上, VoidMei 的
-//!   FM_OVERLAY_TOGGLE 因此发布在非主线程 —— LIFETIMES §2.2)。
+//!   FM_OVERLAY_TOGGLE 因此发布在非主线程 —— )。
 //!   本文件逐层对应: `init()` 起独立钩子线程装钩子跑消息泵; 回调内 vk_to_vc
 //!   转换 + NumLock 过滤 + 绑定表查找, 之后经 `HotkeyEventSink` (**Send 边界**)
 //!   送出; Drop / shutdown 投 WM_QUIT 退泵 → 钩子线程卸钩退出。
@@ -19,9 +19,9 @@
 //!   0xe4b0, 每项交错 [u16 VC, u16 VK] 取首列; 扩展键开关取自 0x1800072b0
 //!   处 keycode_to_scancode 的跳转表), 并以 jar 内 NativeKeyEvent.class 的
 //!   常量 (javap -constants) 逐一核对 —— 两源一致才算数。
-//! - PORT: Java `Application.silenceNativeHookLogger()` (关 jnativehook 的 JUL
+//! - Java `Application.silenceNativeHookLogger()` (关 jnativehook 的 JUL
 //!   日志) 在 Rust 无对应物, 不移植。
-//! - PORT(§2.9): Java `getInstance()` 懒加载单例 (跨 Controller 重建存活) 解散,
+//! - Java `getInstance()` 懒加载单例 (跨 Controller 重建存活) 解散,
 //!   实例由 App 层拥有并注入; "绑定表跨重建存活"由所有者持同一实例保证。
 //!   事件出口 `UIStateBus.publish(eventType, HotkeyManager.this, Integer code)`
 //!   → sink trait (source 字段不随行, 由接线层补; payload=VC 键码保留)。
@@ -152,7 +152,7 @@ pub struct HotkeyEvent {
 /// 回调只在钩子线程上执行 (对齐 jnativehook 派发线程), 实现方自行负责
 /// 跨线程投递 (Java 订阅方同样"自行 invokeLater")。
 /// 回调 panic 不得依赖传播中断派发: 调用方 catch_unwind 捕获记日志后继续
-/// (对齐 UIStateBus 对订阅方异常逐个 catch 不中断, LIFETIMES §2.2)。
+/// (对齐 UIStateBus 对订阅方异常逐个 catch 不中断, )。
 /// Sync 约束是 Rust 侧要求: sink 以 Arc 克隆进钩子线程 (Arc<T>: Send 需
 /// T: Send + Sync), 非行为语义 — Java 的 bus 单例天然"跨线程共享"。
 pub trait HotkeyEventSink: Send + Sync {
@@ -174,7 +174,7 @@ impl ChannelHotkeySink {
 
 impl HotkeyEventSink for ChannelHotkeySink {
     fn on_hotkey(&self, event: &HotkeyEvent) {
-        // PORT: Java publish 无失败路径; send 仅在接收端已 drop 时失败,
+        // Java publish 无失败路径; send 仅在接收端已 drop 时失败,
         // 对应 Java "订阅方全撤后 publish 静默" — 忽略错误保持静默
         if let Ok(tx) = self.0.lock() {
             let _ = tx.send(event.clone());
@@ -210,7 +210,7 @@ impl HookHandle {
             }
         }
         if let Some(j) = self.join {
-            // PORT: sink 回调内触发 drop/stop 时不能 join 自身 — WM_QUIT 已投,
+            // sink 回调内触发 drop/stop 时不能 join 自身 — WM_QUIT 已投,
             // 回调返回后线程自然退出, 此处放弃等待 (Java 无此形态, Rust 所有权
             // 防御; 正常路径 (任意其他线程 drop) 均走 join)
             if j.thread().id() != std::thread::current().id() {
@@ -222,7 +222,7 @@ impl HookHandle {
 
 pub struct HotkeyManager {
     /// Java: `private final Map<Integer, String> keyBindings = new ConcurrentHashMap<>();`
-    /// (钩子线程读 / 调用方写, 读多写少; CHM → Mutex<HashMap>, LIFETIMES §3.2)
+    /// (钩子线程读 / 调用方写, 读多写少; CHM → Mutex<HashMap>, )
     key_bindings: Arc<Mutex<HashMap<i32, String>>>,
     /// Java: `private boolean initialized = false;`
     hook: Option<HookHandle>,
@@ -233,7 +233,7 @@ pub struct HotkeyManager {
 
 impl HotkeyManager {
     /// 对应 Java `private HotkeyManager()` + `getInstance()`。
-    /// PORT: 单例解散 (§2.9) — 由 App 层持有实例; 事件出口构造时注入。
+    /// 单例解散 — 由 App 层持有实例; 事件出口构造时注入。
     pub fn new(sink: Arc<dyn HotkeyEventSink>) -> Self {
         HotkeyManager {
             key_bindings: Arc::new(Mutex::new(HashMap::new())),
@@ -243,7 +243,7 @@ impl HotkeyManager {
     }
 
     /// channel 出口便捷构造: `(manager, receiver)`。
-    /// PORT: Java 无此形态 (走 UIStateBus 单例); Rust 用 mpsc 承担 Send 边界,
+    /// Java 无此形态 (走 UIStateBus 单例); Rust 用 mpsc 承担 Send 边界,
     /// 接线方 (vm-app 主循环) 持 Receiver 消费, 对位 "订阅方自行跨线程"。
     pub fn with_channel() -> (Self, Receiver<HotkeyEvent>) {
         let (sink, rx) = ChannelHotkeySink::new();
@@ -253,7 +253,7 @@ impl HotkeyManager {
     /// Initialize the native hook and register the key listener.
     /// Safe to call multiple times - only initializes once.
     ///
-    /// PORT: Java void + 失败仅记日志 (initialized 保持 false 可重入);
+    /// Java void + 失败仅记日志 (initialized 保持 false 可重入);
     /// Rust 显式 Result, 语义同形 (重复 init → Ok 早退)。
     pub fn init(&mut self) -> Result<(), String> {
         if self.hook.is_some() {
@@ -320,7 +320,7 @@ impl HotkeyManager {
 
     /// Shutdown the hotkey manager.
     ///
-    /// PORT: Java 只摘监听器 (GlobalScreen 全局钩子进程级常驻); Rust 实例自持
+    /// Java 只摘监听器 (GlobalScreen 全局钩子进程级常驻); Rust 实例自持
     /// 钩子, 等价动作为停泵卸钩 (见模块头注释)。
     pub fn shutdown(&mut self) {
         let Some(h) = self.hook.take() else {
@@ -356,7 +356,7 @@ struct HookCtx {
 }
 
 // 钩子回调上下文: WH_KEYBOARD_LL 回调只会在安装它的线程上执行 (即本管理器
-// 起的钩子线程), thread_local 即按实例隔离, 无裸全局 (§2.9)。
+// 起的钩子线程), thread_local 即按实例隔离, 无裸全局。
 // 初始化已是 const block (该 lint 建议的最终形态), clippy 1.97.0 的
 // missing_const_for_thread_local 不跳过 const block 形态仍触发 (最简
 // `const { RefCell::new(0) }` 实验同报) — 确系误报, allow 收口 (审查 A-B2;
@@ -372,7 +372,7 @@ thread_local! {
 #[cfg(target_os = "windows")]
 unsafe extern "system" fn keyboard_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     // 低级钩子契约: code < 0 (非 HC_ACTION) 必须直通系统。
-    // PORT: DLL 的派发点位于 nCode<0 检查之前 (nCode<0 时仍会派发键事件);
+    // DLL 的派发点位于 nCode<0 检查之前 (nCode<0 时仍会派发键事件);
     // 但 WH_KEYBOARD_LL 的 nCode 恒为 HC_ACTION(0), 该分支运行时不可达,
     // Rust 收进门内更符合 Win32 文档要求, 零行为差异。
     if code >= 0 {
@@ -392,7 +392,7 @@ unsafe extern "system" fn keyboard_proc(code: i32, wparam: WPARAM, lparam: LPARA
                 // (锁内只取拷贝, sink 在锁外调 — §2.8 锁内不执行回调)
                 let hit = HOOK_CTX.with(|c| {
                     c.borrow().as_ref().and_then(|ctx| {
-                        // PORT: Java CHM 无中毒概念; Mutex 中毒 (持锁 panic,
+                        // Java CHM 无中毒概念; Mutex 中毒 (持锁 panic,
                         // 理论不可达) 按未绑定跳过
                         let et = ctx.bindings.lock().ok()?.get(&vc).cloned()?;
                         Some((ctx.sink.clone(), et))
@@ -404,8 +404,8 @@ unsafe extern "system" fn keyboard_proc(code: i32, wparam: WPARAM, lparam: LPARA
                         &format!("Hotkey pressed: {} -> {}", vc, event_type),
                     );
                     // UIStateBus.getInstance().publish(eventType, this, code)
-                    // PORT: Java UIStateBus 对订阅方异常逐个 catch 不中断
-                    // (LIFETIMES §2.2); 回调 panic 跨 extern "system" 边界
+                    // Java UIStateBus 对订阅方异常逐个 catch 不中断
+                    //; 回调 panic 跨 extern "system" 边界
                     // unwind 会 abort 进程, 此处捕获记日志后继续走钩子链
                     let event = HotkeyEvent {
                         event_type,
@@ -471,7 +471,7 @@ fn spawn_hook_thread(
             };
 
             // 消息泵: LL 钩子的回调由本线程 GetMessage 驱动。
-            // PORT: libuiohook hook_run 语义 — >0 继续, 0 = WM_QUIT, -1 = 错误, 均退出
+            // libuiohook hook_run 语义 — >0 继续, 0 = WM_QUIT, -1 = 错误, 均退出
             let mut msg = MSG::default();
             loop {
                 let r = unsafe { GetMessageW(&mut msg, None, 0, 0) }.0;
@@ -511,7 +511,7 @@ fn spawn_hook_thread(
     }
 }
 
-/// 非 Windows: X11 XGrabKey 路径未移植 (PORTING.md §3 只落地 Windows 实现,
+/// 非 Windows: X11 XGrabKey 路径未移植 (只落地 Windows 实现,
 /// 项目分发形态即 Windows EXE)。init 显式失败, 不装假钩子; 绑定面照常可用。
 #[cfg(not(target_os = "windows"))]
 fn spawn_hook_thread(

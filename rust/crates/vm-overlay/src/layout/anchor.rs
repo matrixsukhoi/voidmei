@@ -1,5 +1,5 @@
 //! Anchor 的 Rust 移植 (src/ui/layout/Anchor.java)。
-//! PORT: Java 枚举常量 SCREAMING_SNAKE (TOP_LEFT) → Rust 变体 PascalCase
+//! Java 枚举常量 SCREAMING_SNAKE (TOP_LEFT) → Rust 变体 PascalCase
 //! (TopLeft); `this == TOP_LEFT` 引用判定 → matches! (枚举值比较等价)。
 
 /// Defines anchor points for component alignment.

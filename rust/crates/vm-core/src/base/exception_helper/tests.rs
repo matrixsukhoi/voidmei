@@ -26,7 +26,7 @@ fn sleep_quietly_zero_millis_returns_immediately() {
     assert!(t0.elapsed().as_millis() < 50);
 }
 
-// ---- sleep_quietly: 停机路径 (§2.13 中断映射) ----
+// ---- sleep_quietly: 停机路径 ----
 
 #[test]
 fn sleep_quietly_returns_immediately_when_flag_pre_set() {

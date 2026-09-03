@@ -118,7 +118,7 @@ pub fn supercharger_rpm_effect(
 
     let rpm_diff = wep_rpm - military_rpm;
     let base = 1.0 + ((1.0 - compressor_pressure_at_rpm0) / military_rpm) * rpm_diff;
-    // Math.pow 与 f64::powf 语义一致 (§2.3)
+    // Math.pow 与 f64::powf 语义一致
     base.powf(1.0 + compressor_omega_factor_sq)
 }
 
@@ -163,7 +163,7 @@ pub fn interpolate_power(
     }
 
     // Determine power difference based on altitude direction
-    // PORT: Java 三目两臂均 double, 无数值提升
+    // Java 三目两臂均 double, 无数值提升
     let power_diff = if target_alt >= lower_alt {
         higher_power - lower_power
     } else {
@@ -290,7 +290,7 @@ pub fn power_at_altitude_advanced(
         );
     }
 
-    // PORT: Java 三目 `isWep ? params.wepPowerMult : 1.0` 两臂均 double
+    // Java 三目 `isWep ? params.wepPowerMult : 1.0` 两臂均 double
     let wep_mult = if is_wep { params.wep_power_mult } else { 1.0 };
     let bounds = variabler(params, effective_alt, is_wep, wep_mult);
 
@@ -797,7 +797,7 @@ fn variabler_wep(p: &CompressorStageParams, alt_ram: f64, wep_mult: f64) -> Inte
         } else if (java_round(wep_crit_alt) as f64) < alt_ram
             && alt_ram <= (java_round(p.old_altitude) as f64)
         {
-            // PORT: Java Math.round(double)=floor(x+0.5) (§2.3), 返回 long 后与 double
+            // Java Math.round(double)=floor(x+0.5), 返回 long 后与 double
             // 比较时提升回 double — 此处 as f64 复刻该提升
             // --- Above WEP crit alt but below old mil altitude ---
             // Determine lower bound power at WEP crit alt
@@ -997,7 +997,7 @@ fn variabler_wep(p: &CompressorStageParams, alt_ram: f64, wep_mult: f64) -> Inte
 /// WEP Critical Altitude: Usually lower than military critical altitude
 /// because WEP demands higher manifold pressure that the supercharger
 /// cannot maintain as high.
-// 公开可变字段, 不造 getter (PORTING §0.7)
+// 公开可变字段, 不造 getter
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct CompressorStageParams {
     /// Critical altitude in meters - altitude where power starts dropping
@@ -1062,7 +1062,7 @@ pub struct CompressorStageParams {
     pub exact_altitudes: bool,
 }
 
-// Default 非全零: curvature/wep_power_mult/speed_manifold_mult 默认 1.0, 其余 0/false (§2.10)
+// Default 非全零: curvature/wep_power_mult/speed_manifold_mult 默认 1.0, 其余 0/false
 impl Default for CompressorStageParams {
     fn default() -> Self {
         Self {

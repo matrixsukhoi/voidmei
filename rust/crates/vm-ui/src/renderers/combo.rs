@@ -9,7 +9,7 @@
 //! - 写: row.value 存新串 → writeString (组字段 fontName + 服务同步) → onSave。
 //! - INPUT/TEXT 文本行同走本写链 (经 Message::Combo 路由, 等价备案见 tests)。
 //!
-//! PORT: "_FONTS_" 的 AWT 系统字体族枚举无 Rust 对应物 (以当前值单选占位,
+//! "_FONTS_" 的 AWT 系统字体族枚举无 Rust 对应物 (以当前值单选占位,
 //! 显示不回退); Java 下拉弹出互斥逻辑 (registerComboBox/dismissActivePopups) 属
 //! 窗口管理层, 不迁移。
 

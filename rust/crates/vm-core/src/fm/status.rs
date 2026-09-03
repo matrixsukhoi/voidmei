@@ -1,7 +1,7 @@
 //! 对应 Java: `src/prog/fm/FMStatus.java` (一比一翻译)
-//! PORT: Java 枚举常量全大写 (UNRESOLVED/NOT_AIRCRAFT) → Rust 驼峰
+//! Java 枚举常量全大写 (UNRESOLVED/NOT_AIRCRAFT) → Rust 驼峰
 //! (Unresolved/NotAircraft), 语义不变 (sexp_parser.rs 同款先例);
-//! Java 枚举默认 toString()=常量名 的字符串形态由 Display 保留 (Java 8 oracle 对拍)。
+//! Java 枚举默认 toString()=常量名 的字符串形态由 Display 保留 (历史基线 对拍)。
 
 use std::fmt;
 
@@ -40,7 +40,7 @@ pub enum FMStatus {
 
 /// 对应 Java 枚举默认 `toString()` = 常量名 (`name()`)。
 /// `FMHandle.toString()` 的字符串拼接依赖此形态。
-// PORT: Java 8 oracle 实测 (build/oracle, 临时文件已删): 六态 toString/name 均
+// 历史基线 (build/基线, 临时文件已删): 六态 toString/name 均
 // 为声明名, NOT_AIRCRAFT 含下划线
 impl fmt::Display for FMStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -59,7 +59,7 @@ impl fmt::Display for FMStatus {
 // =====================================================================
 // Tests — FMStatus 无 Java 独立测试文件; 公共面 (Display=Java toString 形态)
 // 按"每个公共函数写边界测试"规则补齐。六态互异由 Rust enum 判别式唯一性 +
-// 派生 PartialEq 编译期保证, 不写空转测试 (§5)。
+// 派生 PartialEq 编译期保证, 不写空转测试。
 // =====================================================================
 #[cfg(test)]
 mod tests;

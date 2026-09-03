@@ -4,7 +4,7 @@ use crate::ui_support::comparison::comparison_rule::ComparisonRule;
 
 /// Simple rule that extracts the first number from the value string.
 /// Skips array/list values (starting with '[').
-// PORT: Java `private static final Pattern NUMBER_PATTERN` (与 ListIndexRule/
+// Java `private static final Pattern NUMBER_PATTERN` (与 ListIndexRule/
 /// MultiListIndexRule 逐字相同) → super::find_number 共享扫描函数。
 pub struct SimpleRule {
     lower_is_better: bool,
@@ -37,7 +37,7 @@ impl ComparisonRule for SimpleRule {
         }
 
         //           return Double.parseDouble(m.group(1)); } } catch (Exception e) { // ignore }
-        // PORT: 组1 文本仅含 [-.0-9], parse 对其不可能失败; Java catch 吞异常
+        // 组1 文本仅含 [-.0-9], parse 对其不可能失败; Java catch 吞异常
         // 继续走到末尾 return null ↔ Rust `.ok()`。
         if let Some(num) = super::find_number(raw_value) {
             if let Ok(v) = num.parse::<f64>() {
@@ -53,6 +53,6 @@ impl ComparisonRule for SimpleRule {
 }
 
 // =====================================================================
-// Tests — 期望值取自 Java 8 oracle 实测 (原类直跑, 逐位对拍)。
+// Tests — 期望值取自 历史基线 (原类直跑, 逐位对拍)。
 #[cfg(test)]
 mod tests;

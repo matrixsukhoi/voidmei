@@ -15,7 +15,7 @@
 //! - §2.8 锁重入: 路由表锁内只做查表/登记/清空, 回调一律在锁外执行 ——
 //!   handler 内可重入 subscribe/clear/**跨事件类型** publish 不死锁 (对齐
 //!   Java CHM/COW 无 monitor 的可重入语义);
-//!   PORT(§2.8 已修复, 重构波1): **同事件类型的嵌套同步 publish 曾死锁** —
+//!   **同事件类型的嵌套同步 publish 曾死锁** —
 //!   bus.rs publish 持各监听器自己的 Mutex 执行回调 (bus.rs "阶段 2"), 内层
 //!   同类型 publish 的升级快照必含正在执行的监听器 → 同线程对同一
 //!   std::sync::Mutex 二次 lock 永久阻塞 (Java 无 monitor 天然可重入)。
@@ -45,7 +45,7 @@ const MAP_LOCK_MSG: &str = "UIStateBus 路由表锁中毒";
 /// Java 等价链路 (reset 链) 深度恒为 1, 64 已极宽裕)
 const MAX_PENDING: usize = 64;
 
-// 线程局部重入状态 (§2.8 死锁修复, 见模块文档):
+// 线程局部重入状态:
 // - `depth`: publish 调用栈深度 (1 = 最外层, 负责排空 pending)
 // - `in_flight`: 正在派发中的事件类型集合 — 同类型再 publish 即入队
 // - `pending`: 延迟补投队列 (最外层派发完成后按序排空)
@@ -62,7 +62,7 @@ thread_local! {
 /// PORT(重构波1): 本类型是全 crate 唯一定义点 — configuration_service.rs
 /// 的同名依赖桩 (裸 String 三字段) 已删, 该服务的总线注入改为
 /// `Option<Arc<UIStateBus>>` (路由总线), 发布统一走本类型三参形态。
-/// PORT: 消息三字段均 String 域 (publish(event, sourceId, configKey) 裁决);
+/// 消息三字段均 String 域 (publish(event, sourceId, configKey) 裁决);
 /// Java payload 的异构类型 (FM_CHANGED=FMHandle, FM_PRINT_SWITCH_CHANGED=
 /// Boolean, FM_OVERLAY_TOGGLE=Integer) 暂以字符串/None 顶位 (FM_CHANGED
 /// 实际走 FmChangedBus 强类型专用通道, 见 fm_manager.rs)。
@@ -86,9 +86,9 @@ pub struct UIStateBus {
     /// = new ConcurrentHashMap<>();` — 键 = 事件类型, 值 = 该类型的监听器表
     /// (Arc<EventBus> 提供 Weak+RAII 语义, 对位 CopyOnWriteArrayList 的
     /// 读多写少 + 迭代快照)。映射只做 get/entry/contains_key/clear, 从不迭代
-    /// (§2.5 无涉)。
-    /// PORT: Java `private static final UIStateBus INSTANCE` 单例字段随
-    /// getInstance() 一并解散 (§2.9) — 实例由 App 层拥有并注入, 不造全局。
+    ///。
+    /// Java `private static final UIStateBus INSTANCE` 单例字段随
+    /// getInstance() 一并解散 — 实例由 App 层拥有并注入, 不造全局。
     map: RwLock<HashMap<String, Arc<EventBus<UiStateEvent>>>>,
 }
 
@@ -100,7 +100,7 @@ impl Default for UIStateBus {
 
 impl UIStateBus {
     /// 对应 Java `private UIStateBus()` (私有构造) + `getInstance()`。
-    /// PORT: 单例读法 → 显式构造 (§2.9; 消费方持 `Arc<UIStateBus>` 注入)。
+    /// 单例读法 → 显式构造。
     pub fn new() -> Self {
         UIStateBus {
             map: RwLock::new(HashMap::new()),
@@ -109,10 +109,10 @@ impl UIStateBus {
 
     /// Subscribe to an event type.
     ///
-    /// @param eventType The event type identifier (e.g., "fmPrintSwitchChanged")
-    /// @param handler   The handler to invoke when the event is published
+    /// - `eventType`: The event type identifier (e.g., "fmPrintSwitchChanged")
+    /// - `handler`: The handler to invoke when the event is published
     ///
-    /// PORT: Java `Consumer<Object>` 只收 data → Rust 回调收整个
+    /// Java `Consumer<Object>` 只收 data → Rust 回调收整个
     /// `&UiStateEvent` (消息 struct 化), 订阅方按需取 `msg.data`;
     /// 返回 RAII 订阅句柄, Drop 即注销 (对位 Java 靠 unsubscribe 防泄漏)。
     pub fn subscribe<F>(&self, event_type: &str, handler: F) -> Subscription<UiStateEvent>
@@ -157,15 +157,15 @@ impl UIStateBus {
             }
         });
 
-        // PORT: source 位 Java 反射取 handler 类简单名 (匿名类如 Controller$$Lambda),
-        // Rust 闭包无名且禁引反射 (§1) → None (日志渲染 "Unknown")
+        // source 位 Java 反射取 handler 类简单名 (匿名类如 Controller$$Lambda),
+        // Rust 闭包无名且禁引反射 → None (日志渲染 "Unknown")
         logger::event("SUBSCRIBE", event_type, None, None);
         sub
     }
 
     /// Unsubscribe a handler from an event type.
     ///
-    /// PORT: Java 以 Consumer 引用等值 remove; Rust 闭包无身份 → 以 RAII 句柄
+    /// Java 以 Consumer 引用等值 remove; Rust 闭包无身份 → 以 RAII 句柄
     /// Drop 注销 (bus.rs 机制)。event_type 仅复刻 Java 的 "键存在才记日志"
     /// 分支 (handlers != null); 若调用方传了与订阅不符的类型, Java 只是无操作,
     /// Rust 侧句柄所有权仍会被消费 (等价于退订成功) — 全库无此错用形态。
@@ -188,14 +188,14 @@ impl UIStateBus {
 
     /// Publish an event to all subscribers with explicit source.
     ///
-    /// @param eventType The event type identifier
-    /// @param source    The object initiating the event (for logging)
-    /// @param data      The event payload
+    /// - `eventType`: The event type identifier
+    /// - `source`: The object initiating the event (for logging)
+    /// - `data`: The event payload
     ///
     /// 返回送达数 (bus.rs 诊断扩展; Java void)。同步派发: 调用线程 =
     /// 发布线程逐个执行订阅方代码 (对齐 Java)。
     ///
-    /// PORT(§2.8 死锁修复, 重构波1): 同事件类型嵌套同步 publish 不再死锁 —
+    /// 同事件类型嵌套同步 publish 不再死锁 —
     /// 派发中的类型再 publish 时入 pending 队列, 由**最外层** publish 在
     /// 直接派发完成后按序排空补投 (送达时机由 Java 的"栈内立即"变为
     /// "当前批次末"; Java 真实链 (reset 链) 的 handler 只认特定 payload,
@@ -269,7 +269,7 @@ impl UIStateBus {
     /// 单条消息的直接派发 (查表 + bus.rs 两阶段 publish); 前后维护 in_flight
     /// 集合供同类型重入判定。
     fn dispatch_now(&self, ev: &UiStateEvent) -> usize {
-        // 持读锁只做查表克隆随即放锁 — 回调在锁外执行 (§2.8); 迭代快照语义
+        // 持读锁只做查表克隆随即放锁 — 回调在锁外执行; 迭代快照语义
         // 由 bus.rs publish 的升级快照承担 (对位 Java COW for 循环起始取快照)。
         let bus = self
             .map
@@ -300,7 +300,7 @@ impl UIStateBus {
 
     /// Publish an event to all subscribers (legacy).
     ///
-    /// PORT: Java 两参重载 publish(eventType, data) → publish(eventType, null, data);
+    /// Java 两参重载 publish(eventType, data) → publish(eventType, null, data);
     /// Rust 无重载, 加 `_legacy` 后缀 (logger.rs `_default` 更名先例)。
     pub fn publish_legacy(&self, event_type: &str, data: Option<&str>) -> usize {
         self.publish(event_type, None, data)

@@ -156,7 +156,7 @@ fn run_cases() {
         h.fmdata.as_ref().unwrap().read_file_name.as_deref() == Some("fm/zzfmload_plane1.blk"),
         "物理文件 readFileName = fmfile 相对路径 (Java L101)",
     );
-    // PORT: getload 未落地 (try_load 步骤5 TODO) — 数值字段暂为 0,
+    // getload 未落地 (try_load 步骤5 TODO) — 数值字段暂为 0,
     // getload 波次落地后此断言需更新为真实喷气/活塞口径
     check(
         h.peak_wep_power == 0.0 && h.peak_thrust == 0.0,

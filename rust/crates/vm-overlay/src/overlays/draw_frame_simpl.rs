@@ -17,12 +17,12 @@
 //! - UIStateBus 订阅 (FM_OVERLAY_TOGGLE 仅游戏 init 挂接 / FM_CHANGED 两会话均挂
 //!   — initFmHandleCache 被 init 与 initPreview 共用) 对应
 //!   [`DrawFrameSimpl::toggle`]/[`DrawFrameSimpl::reload_fm`], 由组装层事件循环驱动;
-//!   dispose 的退订由所有权 Drop 根治 (LIFETIMES §2.3);
+//!   dispose 的退订由所有权 Drop 根治;
 //! - run() 线程循环 (needsThread=true: OverlayEntry.open 与 refreshPreview 均起线程)
 //!   由 [`DrawFrameSimplFeed`] 单线程驱动。
 //!
 //! 对拍备案 (审查 W3): rustcmp 套件现覆盖 FlightInfo/gauges/MiniHUD, 本组件渲染
-//! 证据 = 单测级几何 oracle + 像素墨迹断言 (Java 语义逐式复算); FMUnpacked 同款。
+//! 证据 = 单测级几何 基线 + 像素墨迹断言 (Java 语义逐式复算); FMUnpacked 同款。
 
 use crate::overlays::spec_common::{keyed_spec, FontSlot};
 use crate::platform::host::{OverlayHost, OverlaySpec};
@@ -139,7 +139,7 @@ pub fn chart_geometry(b: &FmData) -> ChartGeom {
 
 /// 三档字号字体组 (Java Application.defaultFontName / defaultNumfontName 的 PLAIN
 /// 族: 标题 fontsize+6 / 轴单位 fontsize+4 / 刻度数字与图例 fontsize=12。
-/// PORT: Java 字族 YaHei/Roboto → Rust 固定 sarasa regular —
+/// Java 字族 YaHei/Roboto → Rust 固定 sarasa regular —
 /// fm_unpacked_data_overlay_spec 同款先例, cfg 缺省字体名时零偏差)
 pub struct DfsFonts<'a> {
     /// 刻度数字 (defaultNumfontName PLAIN 12)
@@ -255,7 +255,7 @@ fn draw_xy(
 }
 
 /// drawPoint: 逐高度行绘点 + 连线。
-/// PORT: drawOval(x-1, y-1, 2, 2) 的 2×2 圆轮廓 ≈ 2×2 墨迹点 (PixCanvas 无椭圆
+/// drawOval(x-1, y-1, 2, 2) 的 2×2 圆轮廓 ≈ 2×2 墨迹点 (PixCanvas 无椭圆
 /// 原语, fill_rect 覆盖同外接盒)
 #[allow(clippy::too_many_arguments)] // 对齐 Java drawPoint(g, x, y, dwidth, dheight, ggx, ggy, ix, iy, pxmin, pymin, C)
 fn draw_point(
@@ -511,7 +511,7 @@ pub fn draw_frame_simpl_spec(
                 };
                 // PORT(panic 边界): 畸形 FM 短行的索引 panic (Java AIOOBE 由事件线程吞,
                 // 窗口存活) 不许毒化 host 槽位锁 — catch_unwind 吞帧留空画布
-                // (FmUnpackedFeed tick 包 catch_unwind 的同族契约, PORTING §6)
+                // (FmUnpackedFeed tick 包 catch_unwind 的同族契约, )
                 let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                     render_handle.borrow().draw(cv, &fonts, aa());
                 }));
@@ -627,7 +627,7 @@ impl DrawFrameSimplFeed {
 }
 
 // ---------------------------------------------------------------------------
-// 测试: 几何 oracle / 像素墨迹 / run 泵 (toggle + 自动退场) / host 固定几何
+// 测试: 几何 基线 / 像素墨迹 / run 泵 (toggle + 自动退场) / host 固定几何
 // ---------------------------------------------------------------------------
 
 #[cfg(test)]

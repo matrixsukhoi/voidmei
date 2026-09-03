@@ -44,7 +44,7 @@ pub struct Indicators {
     pub water_temperature: f64,
     pub engine_temperature: f64,
     pub mixture: f64,
-    /// PORT: Java `public double fuel[]` 裸声明, 未 init 的 update 在 `fuel[0]=..` 即
+    /// Java `public double fuel[]` 裸声明, 未 init 的 update 在 `fuel[0]=..` 即
     /// NPE; Rust [f64;5] 在 new() 即有效, 静默写 0.0 域 — 生产路径 Service 恒先 init,
     /// 不可达偏差 (state.rs 引擎数组用空 Vec 对齐 panic, 二者策略异, 保留各自形状)
     pub fuel: [f64; 5],
@@ -146,7 +146,7 @@ impl Indicators {
             // 手写时代的 "去首尾引号" 步骤退役 (serde 给裸串);
             // 缺键 (畸形响应) → "" (走下游兜底分支)。
             // (波21: Java 时代的 stype 截 8 字段是死代码, 已删)
-            // PORT: toUpperCase() 默认 Locale (tr 语料 'i'→'İ' 差异) —
+            // toUpperCase() 默认 Locale (tr 语料 'i'→'İ' 差异) —
             // Rust to_uppercase 与 locale 无关; 域内机型名 ASCII, 无行为差
             let up = v
                 .get("type")

@@ -10,12 +10,12 @@
 //! - WARN: 警告信息（不影响运行但需关注）
 //! - ERROR: 错误信息（影响功能）
 //!
-//! PORT: Java 类仅含 static 成员 → Rust 模块级自由函数 + 静态
+//! Java 类仅含 static 成员 → Rust 模块级自由函数 + 静态
 //! (format.rs / string_helper.rs 先例); Java 方法重载 (两参/单参) →
 //! Rust 无重载, 主名留给两参版 (信息完整形态), 单参版加 `_default` 后缀
 //! (语义 = javadoc "使用默认组件"; interpolation.rs / fm_power_extractor.rs
 //! 的重载更名先例)。
-//! PORT: §2.9 全局可变静态禁令 → DECISIONS.md **D5 显式豁免 (唯一例外)**:
+//! §2.9 全局可变静态禁令 → DECISIONS.md **D5 显式豁免 (唯一例外)**:
 //! 日志是横切面 + e2e 断言 (script/e2e_assert.py A1~A6) 依赖其输出格式,
 //! 允许全局单例。currentLevel 需运行期 setMinLevel 变更, 采用 const 构造的
 //! RwLock 静态 (RwLock::new 自 Rust 1.63 起 const 化, 无需再包一层
@@ -78,7 +78,7 @@ static CURRENT_LEVEL: RwLock<Level> = RwLock::new(Level::Info);
 
 // 对应 Java `private static final SimpleDateFormat dateFormat =
 // new SimpleDateFormat("HH:mm:ss.SSS");`
-// PORT: SimpleDateFormat 共享静态实例本非线程安全 (Java 侧现存隐患),
+// SimpleDateFormat 共享静态实例本非线程安全 (Java 侧现存隐患),
 // Rust 以无状态的 chrono 每次格式化等价替代; 默认时区语义一致
 // (SimpleDateFormat 取 JVM 默认时区 = 系统本地时区 ↔ chrono::Local)。
 // 落地在 log() 内的 timestamp 调用点。
@@ -180,7 +180,7 @@ pub(crate) fn clear_redirects_for_test() {
 }
 
 /// 获取当前日志级别
-/// @return 当前日志级别
+/// 返回: 当前日志级别
 pub fn get_level() -> Level {
     current_level()
 }
@@ -214,7 +214,7 @@ pub fn error(component: &str, message: &str) {
 
 /// 记录错误信息和异常详情
 /// 在 DEBUG 级别时打印完整堆栈
-/// PORT: Java `Throwable` → `&dyn std::error::Error`; `getMessage()` ↔ `to_string()`
+/// Java `Throwable` → `&dyn std::error::Error`; `getMessage()` ↔ `to_string()`
 /// (Rust 无 null message 形态, Java "msg: null" 拼接分支不可达);
 /// `printStackTrace()` (打到 System.err) ↔ stderr 写 `{t:?}` — Rust 错误类型
 /// 不携带 Java 形堆栈, 以 Debug repr 顶位 (调用方错误类型的 Debug 决定形态)。
@@ -249,7 +249,7 @@ pub fn error_default_with_throwable(message: &str, t: &dyn std::error::Error) {
 }
 
 /// Specialized logging for event transactions.
-/// PORT: Java `(Object source, Object target)` 的 `getClass().getSimpleName()` /
+/// Java `(Object source, Object target)` 的 `getClass().getSimpleName()` /
 /// `toString()` 反射取值在 Rust 无对应 (禁引反射库, §1), 由调用方直接给出字符串:
 /// source 传类简单名 (如 "FMManager"), target 传 toString 结果 (如
 /// "FMHandle[MISSING he_162]"); null 语义 ↔ `Option::None` ("Unknown"/"Global")。
@@ -274,12 +274,12 @@ fn log(level: Level, component: &str, message: &str) {
         // setDebugLog 重定向态下改走文件 (write_out 内吞错, 见其注)。
         // Java %n 是平台行分隔符 (Windows \r\n) ↔ 此处固定 \n — e2e 断言按行
         // 解析 (splitlines/rstrip), 两者等价; 见 port_notes。
-        // PORT: Java 8 System.out 按平台默认字符集编码 (zh-CN Windows=GBK),
+        // Java 8 System.out 按平台默认字符集编码 (zh-CN Windows=GBK),
         // Rust stdout 恒 UTF-8 — e2e_assert.py 以 utf-8+errors=replace 读取, 兼容
         // 且更优; 已接受偏差, 与 %n 条目并列备案。
-        // PORT: Java PrintStream 按设计吞掉 IOException 永不抛出, 而 println!/
+        // Java PrintStream 按设计吞掉 IOException 永不抛出, 而 println!/
         // eprintln! 写失败 (broken pipe / Windows GUI 子系统无控制台句柄) 会 panic —
-        // 故写入面统一吞错对齐之 (§6 catch_unwind 只兜 Service, 日志调用不该炸调用线程)。
+        // 故写入面统一吞错对齐之。
         write_out(&format_line(level, component, message, &timestamp));
     }
 }
@@ -288,7 +288,7 @@ fn log(level: Level, component: &str, message: &str) {
 /// - INFO:    `System.out.printf("[%s] [%-10s] %s%n", timestamp, component, message)`
 /// - 非 INFO: `System.out.printf("[%s] [%-10s] [%-5s] %s%n", timestamp, component, level, message)`
 ///
-/// PORT: `%-10s`/`%-5s` 左对齐补空格只补不截; Java 宽度按 UTF-16 码元计,
+/// `%-10s`/`%-5s` 左对齐补空格只补不截; Java 宽度按 UTF-16 码元计,
 /// Rust `{:<10}` 按字符计 — 域内组件名全 ASCII ("Service"/"EventBus"/"App"...), 无差异。
 fn format_line(level: Level, component: &str, message: &str, timestamp: &str) -> String {
     if level == Level::Info {

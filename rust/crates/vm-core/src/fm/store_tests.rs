@@ -18,16 +18,16 @@
 //!   测试); TestFMStore 的 FMLoader 同步面亦已移植于 `fm/fm_loader.rs` tests。
 //! - 数据根方案 = **Java 原文直译**: `Files.createTempDirectory("voidmei_fmtest")`
 //!   + `FMDataPaths.setDataRoot(tmpRoot.toString())` (TestFMStore.java L40-43,
-//!     finally L57-59 还原 "./data" + rmtree)。临时根为**绝对路径**, 对进程级
-//!     CWD 的任意翻转天然免疫 —— 这是审查 A blocker B1 的修复: 前一版"多根铺
-//!     数据"方案把 ROOTS 铺在**相对路径** (`./data`/`testroot`/`otherroot`) 上,
-//!     而同测试二进制内 config_manager::tests::sandbox() 持其**私有** CWD_LOCK
-//!     后 `env::set_current_dir(临时目录)` —— CWD 是进程级的, 该锁与
-//!     fm::test_guard 不互斥, 相对路径的铺数据/落盘/load 解析全部随瞬时 CWD
-//!     漂移 (实测形态 A: create_dir_all/write 撞上 sandbox 并发建删的目录树,
-//!     Os 183/3 panic; 形态 B: load 的 central miss → MISSING 进负缓存 → 断言
-//!     失败)。Java 原版对 DATA_ROOT 与 CWD 双免疫 (独立 JVM + 绝对临时根),
-//!     直译即恢复行为保真。
+//!   finally L57-59 还原 "./data" + rmtree)。临时根为**绝对路径**, 对进程级
+//!   CWD 的任意翻转天然免疫 —— 这是审查 A blocker B1 的修复: 前一版"多根铺
+//!   数据"方案把 ROOTS 铺在**相对路径** (`./data`/`testroot`/`otherroot`) 上,
+//!   而同测试二进制内 config_manager::tests::sandbox() 持其**私有** CWD_LOCK
+//!   后 `env::set_current_dir(临时目录)` —— CWD 是进程级的, 该锁与
+//!   fm::test_guard 不互斥, 相对路径的铺数据/落盘/load 解析全部随瞬时 CWD
+//!   漂移 (实测形态 A: create_dir_all/write 撞上 sandbox 并发建删的目录树,
+//!   Os 183/3 panic; 形态 B: load 的 central miss → MISSING 进负缓存 → 断言
+//!   失败)。Java 原版对 DATA_ROOT 与 CWD 双免疫 (独立 JVM + 绝对临时根),
+//!   直译即恢复行为保真。
 //! - 本测试全程持 test_guard 串行锁: 与 loader::tests / manager::tests
 //!   的挂锁用例互斥 (LOAD_COUNT 计数与 DATA_ROOT 互不污染; 锁释放前 DATA_ROOT
 //!   已还原回 "./data", 挂锁方看到的恒为干净初态)。
@@ -46,7 +46,7 @@
 //!   复刻 Java 单例生命周期下的用例隔离方式。FM_CHANGED 广播通道
 //!   `FmChangedBus` 构造注入 (TestFMStore 无事件面断言, 零订阅即可)。
 //! - Java `Thread.sleep(300/200)` ("给潜在误发任务留出现形时间") →
-//!   `thread::sleep` 同值保留 (§2.13 中断语义不适用于测试线程)。
+//!   `thread::sleep` 同值保留。
 //! - Java `check(boolean, String)` 计数式软断言 (全部执行完才判失败) →
 //!   assert! 宏 (失败即 panic), 描述文本逐字保留 (handle.rs 先例)。
 //!
@@ -54,7 +54,7 @@
 //! 文件内重复移植了 TestFMStore 全套用例, 其审查/修复轮已收缩回 manager 私有
 //! 面 (真机 data/ 断言链 + 负缓存事件派发 + invalidate/null 边界) —— 本文件是
 //! wf-p3-batch5 为 TestFMStore 指定的落点 (item fm_store_tests 的 out),
-//! 二者不再重叠。跨文件备案 (§6 只标注不越文件修): fm_manager.rs tests 的
+//! 二者不再重叠。跨文件备案: fm_manager.rs tests 的
 //! identify_null_and_empty_are_ignored 断言 `get_load_count() == 0` 但既不
 //! reset_load_count() 也不挂 test_guard 锁 —— `--test-threads=1` 顺序执行时
 //! 被先行用例的 LOAD_COUNT 残留确定性击穿 (实测复现一次), 修复属 fm_manager
@@ -104,7 +104,7 @@ fn new_manager() -> FMManager {
 
 /// Java `Files.createTempDirectory("voidmei_fmtest")`: 前缀 + 唯一后缀的
 /// **绝对**临时目录 (resolve 到系统 temp, 与 CWD 无关)。
-/// PORT: std 无 create_temp_dir (禁新增 tempfile 依赖), 以 pid + 原子计数
+/// std 无 create_temp_dir (禁新增 tempfile 依赖), 以 pid + 原子计数
 /// 复刻唯一性; 先清可能的崩溃残留 (Java 随机名无此态, 防御性多余动作)
 fn create_temp_root() -> PathBuf {
     static N: AtomicU32 = AtomicU32::new(0);
@@ -199,7 +199,7 @@ fn test_identify_dedup(m: &mut FMManager) {
             loader::get_load_count()
         ),
     );
-    // PORT: Java `m.current().blkx != null` 引用非空判 ↔ Option::is_some
+    // Java `m.current().blkx != null` 引用非空判 ↔ Option::is_some
     check(
         m.current().has_fm() && m.current().fmdata.is_some(),
         "READY 句柄应携带 fmdata",
@@ -400,7 +400,7 @@ fn test_not_aircraft_short_circuit(m: &mut FMManager) {
 /** 用例⑤ reset：清一切（含负缓存），停掉 pending 任务 */
 fn test_reset(m: &mut FMManager) {
     // -- 用例⑤ reset --
-    // PORT: Java 此用例刻意不带前置 reset —— 承接用例④b 的残留状态
+    // Java 此用例刻意不带前置 reset —— 承接用例④b 的残留状态
     m.identify(Some("ghost"));
     check(
         wait_for(|| m.current().status == FMStatus::Missing),
@@ -431,7 +431,7 @@ fn test_concurrent_identify(m: &mut FMManager) {
     m.reset();
     loader::reset_load_count();
 
-    // PORT: scoped thread + Builder 保名 (join 由 scope 收尾保证, 时序等价)
+    // scoped thread + Builder 保名 (join 由 scope 收尾保证, 时序等价)
     let mgr: &FMManager = &*m;
     std::thread::scope(|s| {
         let t1 = std::thread::Builder::new()
@@ -454,7 +454,7 @@ fn test_concurrent_identify(m: &mut FMManager) {
         t2.join().unwrap();
     });
 
-    // PORT: Java 字符串拼接把 null 引用转为 "null" ↔ unwrap_or("null")
+    // Java 字符串拼接把 null 引用转为 "null" ↔ unwrap_or("null")
     let ok = wait_for(|| {
         !mgr.is_loading()
             && mgr.current_target_name().is_some()
@@ -480,7 +480,7 @@ fn test_concurrent_identify(m: &mut FMManager) {
 
 // ==================== main (Java main 顺序执行) ====================
 
-// PORT: Java main() 在单 JVM 内顺序执行八个用例 (共享单例 + 全局 DATA_ROOT/
+// Java main() 在单 JVM 内顺序执行八个用例 (共享单例 + 全局 DATA_ROOT/
 // loadCount), cargo test 并行跑 #[test] 会与之竞态 —— 收敛为单个 #[test]
 // 复刻 main() 的顺序执行 (data_paths::java_main_sequence 先例)。
 #[test]
@@ -501,7 +501,7 @@ fn java_main_sequence() {
     // load 的 central/physical 解析不再随 CWD 漂移
     data_paths::set_data_root(&tmp_root.to_string_lossy());
 
-    // PORT: Rust Lang 为静态表, blkx 构造内部自取 (blkx/model.rs 先例), 无全局 init
+    // Rust Lang 为静态表, blkx 构造内部自取 (blkx/model.rs 先例), 无全局 init
 
     let mut m = new_manager();
     let m = &mut m;

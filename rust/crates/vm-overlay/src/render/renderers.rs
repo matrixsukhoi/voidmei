@@ -2,7 +2,7 @@
 //!
 //! | Java (src/ui/renderer/) | 本文件 | 语义要点 |
 //! |---|---|---|
-//! | OverlayRenderer 接口 | [`OverlayRenderer`] trait | 多实现接口 → trait dyn (§1) |
+//! | OverlayRenderer 接口 | [`OverlayRenderer`] trait | 多实现接口 → trait dyn |
 //! | RenderContext | [`RenderContext`] | 几何公式复用 vm-core `RenderCtx`, 本层挂字体/调色板 (AA 绘制期直读 palette 仓) |
 //! | BOSStyleRenderer | [`BosStyleRenderer`] | 多列网格 + TextGauge 按 label 缓存 |
 //!
@@ -138,7 +138,6 @@ impl RenderContext {
     pub fn num_height(&self) -> i32 {
         self.geom.num_height
     }
-
 }
 
 // ---------------------------------------------------------------------------
@@ -224,7 +223,7 @@ impl TextGauge {
         shade_width: i32,
         val_buffer: Option<&str>,
     ) {
-        // PORT: Java 在此构建 BasicStroke(shadeWidth, ROUND, ROUND) 但从未
+        // Java 在此构建 BasicStroke(shadeWidth, ROUND, ROUND) 但从未
         // g2d.setStroke — 仅作 stroke!=null 旗标决定画不画阴影, 首帧后恒非 null
         // → 恒画 (+1,+1) 阴影。shade_width 参数保留接口位, 视觉无作用。
         let _ = shade_width;
@@ -294,11 +293,11 @@ pub struct BosStyleRenderer {
 impl BosStyleRenderer {
     /// updateOffset (BOSStyleRenderer)
     fn update_offset(&self, visible_index: i32, offset: &mut [i32; 2], ctx: &RenderContext) {
-        // PORT: columnNum==0 时 Java % 直接抛 ArithmeticException — Rust i32 取余
+        // columnNum==0 时 Java % 直接抛 ArithmeticException — Rust i32 取余
         // 同样 panic (行为对等), 显式 assert 换取可诊断信息。ui_layout.cfg 列数
         // 滑条 :min 1 使配置路径不可达, 仅程序化误用触达。
         // (calculate_preferred_size 经 vm-core RenderCtx::total_height 的同型除零
-        // 属 vm-core 侧, 本文件不越界修 — PORTING.md §6。)
+        // 属 vm-core 侧, 本文件不越界修 — 。)
         assert!(
             ctx.column_num() > 0,
             "BOSStyleRenderer: columnNum==0 (Java 同位置 ArithmeticException)"
@@ -352,7 +351,7 @@ impl OverlayRenderer for BosStyleRenderer {
             };
             gauge.update(&base.current_value);
             // Java: field.unit != null && !equals(gauge.unit) → setUnit
-            // PORT: Rust String 恒非 null, 条件退化为不等比较
+            // Rust String 恒非 null, 条件退化为不等比较
             if base.unit != gauge.unit {
                 gauge.set_unit(&base.unit);
             }

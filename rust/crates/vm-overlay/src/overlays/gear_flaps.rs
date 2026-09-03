@@ -131,7 +131,7 @@ impl GearFlapsState {
     /// onFlightData → drawTick (GearFlapsOverlay) 的单事件语义:
     /// 100ms 节流闩 → (数据回调内) drawTick: 起落架/减速板
     /// 状态文本 + 襟翼像素/文本。
-    /// PORT: System.currentTimeMillis 由调用方注入 now_ms (field2 先例); 返回
+    /// System.currentTimeMillis 由调用方注入 now_ms (field2 先例); 返回
     /// false = 节流跳过 (Java 原方法 void, 宿主可据此省重绘)
     pub fn update_tick(&mut self, now_ms: i64, lang: &Lang, s: &dyn FormulaView) -> bool {
         // 节流防高频事件任务堆积
@@ -204,7 +204,7 @@ impl GearFlapsState {
             aa,
         );
         // 告警文本: (width, baseline=fontSize), fontLabel, 无阴影
-        // PORT: Java 判 warnText != null (恒真, 空串绘制无输出), 空串等价无绘制
+        // Java 判 warnText != null (恒真, 空串绘制无输出), 空串等价无绘制
         cv.draw_text(
             font_label,
             self.width,

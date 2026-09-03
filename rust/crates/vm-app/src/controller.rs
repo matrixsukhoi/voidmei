@@ -243,7 +243,7 @@ impl Controller {
     }
 
     /// "FM-Detect" 一次性线程 → detect_and_identify。
-    /// PORT: selectedFM0 在主线程预读 (配置 !Send 不入线程); GameApiClient/FMManager Send。
+    /// selectedFM0 在主线程预读 (配置 !Send 不入线程); GameApiClient/FMManager Send。
     /// spawn 失败降级 (E9c, 对齐渲染线程侧 Result 面): 记日志跳过本次探测
     fn spawn_fm_detect(&self) {
         let selected = self.config.get_config("selectedFM0").unwrap_or_default();
@@ -360,7 +360,7 @@ impl Controller {
                 http_header: self.env.http_header.clone(),
             },
             Arc::clone(&self.fm),
-            // FlightDataBus 单例语义 (LIFETIMES §1.1): AppShell 分发同一 Arc
+            // FlightDataBus 单例语义: AppShell 分发同一 Arc
             Arc::clone(&self.flight_bus),
         );
         // FocusMonitor 装配 (轮 2-C 收口, Java openpad/closepad 语义:
@@ -415,7 +415,7 @@ impl Controller {
         self.config.save_layout_config();
     }
 
-    /// Controller 五步销毁 (对位 Java stop(), LIFETIMES §4.2 规范)。
+    /// Controller 五步销毁 (对位 Java stop(), 规范)。
     /// 顺序逐字保留; 步3 释放设置窗经注入闭包 (MainForm 归主线程 web 壳, 组装层接线)。
     pub fn stop(&mut self, release_main_form: &mut dyn FnMut()) {
         // 1. 先关闭所有 overlay (预览/游戏模式) — 必须在 dispose MainForm 之前
@@ -457,7 +457,7 @@ impl Controller {
         logger::info("Controller", "Enabling Preview mode...");
         self.shared.set_state(ControllerState::Preview);
         let generation = self.shared.preview_generation.load(Ordering::SeqCst);
-        // PORT: loadFromConfig 在主线程先行 (Java 在后台线程写 Controller 字段 =
+        // loadFromConfig 在主线程先行 (Java 在后台线程写 Controller 字段 =
         // ★2 违规族; 值等价 — 配置已由发布方写毕), 线程内只做网络探测 + 送命令
         self.load_from_config_();
         let selected = self.config.get_config("selectedFM0").unwrap_or_default();
@@ -514,7 +514,7 @@ impl Controller {
     // ------------------------------------------------------------------
 
     /// initStatusBar — INIT → CONNECTED。
-    /// PORT: StatusBar 窗口未移植 (Java 状态条组件), 只保状态转移。
+    /// StatusBar 窗口未移植 (Java 状态条组件), 只保状态转移。
     pub fn init_status_bar(&mut self) {
         if self.shared.state() == ControllerState::Init {
             self.shared.set_state(ControllerState::Connected);
@@ -708,7 +708,7 @@ impl Controller {
     }
 
     /// Service 轮询驱动的状态机推进 (AppShell::pump 调用)。
-    /// PORT: Java Service.processPollingCycle 内联调用 c.initStatusBar/changeS2/
+    /// Java Service.processPollingCycle 内联调用 c.initStatusBar/changeS2/
     /// changeS3/S4toS1 (vm-data 侧不再回调 Controller — 本方法轮询帧快照
     /// 顶替该调用面)。strState/strIndic 原始串在 HttpHelper
     /// 内部不可见: "flag 丢失" 分支 (串非空 + update 后 flag=false)

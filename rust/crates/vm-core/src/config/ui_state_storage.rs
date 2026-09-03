@@ -32,9 +32,9 @@ pub(crate) fn set_ui_state_dir_override(dir: Option<PathBuf>) {
 /// Windows: %APPDATA%\\voidmei (无 APPDATA 则 ~\\.voidmei);
 /// Linux: $XDG_CONFIG_HOME/voidmei (空/缺省则 ~/.config/voidmei);
 /// 其余 (macOS): ~/.voidmei。
-/// PORT: Java `System.getProperty("os.name")` 运行期判定 ↔ Rust cfg! 编译期目标
+/// Java `System.getProperty("os.name")` 运行期判定 ↔ Rust cfg! 编译期目标
 /// 三平台二进制等价; `user.home` ↔ USERPROFILE/HOME 环境变量。
-/// PORT: Java getenv 判 null (空串可用) ↔ env::var().ok() 只滤未设置; XDG 的
+/// Java getenv 判 null (空串可用) ↔ env::var().ok() 只滤未设置; XDG 的
 /// `!= null && !isEmpty()` ↔ ok().filter非空 — 两处判定严格对齐 Java。
 pub(crate) fn ui_state_config_dir() -> PathBuf {
     #[cfg(test)]
@@ -50,7 +50,7 @@ pub(crate) fn ui_state_config_dir() -> PathBuf {
         };
         v.unwrap_or_else(|_| ".".to_string())
     };
-    // PORT: Java 是字符串拼接 `base + File.separator + tail` — 基座为空串时
+    // Java 是字符串拼接 `base + File.separator + tail` — 基座为空串时
     // (如 APPDATA="") 得 "\voidmei" (当前盘根的绝对路径); PathBuf::from("").join(tail)
     // 会折叠成相对路径 voidmei, 故同样以拼接复刻
     let join = |base: String, tail: String| -> String {
@@ -253,7 +253,7 @@ pub(crate) fn ui_state_load_template_hash() -> Option<String> {
 }
 
 /// Java UIStateStorage.saveTemplateHash(hash): 载入既有键保留他键 → set → store。
-/// PORT: Java Properties.setProperty(key, null) 抛 NullPointerException 且
+/// Java Properties.setProperty(key, null) 抛 NullPointerException 且
 /// ConfigManager 无 catch → None 入参以 panic 复刻 (与 Java 同为调用方崩溃面)。
 /// 写出格式 `key=value` 行, 非 ASCII 以 \\uXXXX 转义; Java store 额外写 #日期 行且
 /// 行分隔符随平台 — 桩不写日期行/固定 \n (双向 load 语义等价)。

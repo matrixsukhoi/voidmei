@@ -14,7 +14,7 @@
 //! PORT (依赖注入): Java 的两处进程级静态依赖本波次均不可达, 解散为构造参数:
 //! - `FocusDetector.isWarThunderFocused()` (静态工具; FocusDetector.java 本体
 //!   为 A 类, 仅 Windows 腿 JNA→Win32 为 C 类) → 本文件定义 [`FocusDetector`]
-//!   trait (接口签名照 Java), Windows 实现留 P4 (// PORT: 见 trait 注);
+//!   trait (接口签名照 Java), Windows 实现留 P4 (// 见 trait 注);
 //! - `AlwaysOnTopCoordinator.getInstance()` (Swing 窗口单例 → C 类) →
 //!   [`AlwaysOnTopCoordinatorApi`] 最小接口 = FocusMonitor 的全部访问面 (3 方法),
 //!   真实协调器落地时 impl 接线 (overlay_context.rs `ControllerRef` /
@@ -28,7 +28,7 @@
 //! Rust 以 `&mut self` 表达独占写, 集成方 (vm-data Service) 以
 //! `Arc<Mutex<FocusMonitor>>` 承载跨线程共享。§2.8 重入面: 本类方法互不调用,
 //! 无二锁自身 Mutex 的风险; 但 set_enabled/tick 在集成方锁内回调注入的
-//! trait 对象 (LIFETIMES §3.3 "锁内回调外部代码" 模式), 各 trait 的非阻塞
+//! trait 对象, 各 trait 的非阻塞
 //! 合同见其 doc —— 实现若同步等待 UI 线程, 会与 EDT 上 set_enabled
 //! (stop() 托盘路径) 成 AB-BA 死锁 (Java 无此险: 本类无锁 + invokeLater
 //! 即发即忘)。
@@ -39,8 +39,8 @@ use crate::base::java_compat::current_time_millis;
 
 /// 对应 Java: `src/prog/util/FocusDetector.java` (接口签名照 Java)。
 /// 分类: 本 trait 为 FocusMonitor 的消费面, 定义于本文件; FocusDetector.java
-/// 本体 (os.name OS 分派) 为 **A 类** (CLASSIFY.md:110) 另立波次, 仅
-/// WindowsFocusDetector.java (JNA→Win32) 为 C 类/P4 (CLASSIFY.md:122)。
+/// 本体 (os.name OS 分派) 为 **A 类** 另立波次, 仅
+/// WindowsFocusDetector.java (JNA→Win32) 为 C 类/P4。
 ///
 /// 跨平台前台窗口焦点检测器。
 /// 纯工具类，不维护状态，不创建线程。
@@ -50,8 +50,8 @@ use crate::base::java_compat::current_time_millis;
 ///
 /// 性能提升：从 PowerShell 方案的 300-400ms 降至 JNA 方案的 3-5ms。
 ///
-/// PORT: Java 静态方法 `static boolean isWarThunderFocused()` → trait 实例方法
-/// (§1 interface→trait dyn: dyn 注入需要 receiver); Windows JNA 实现
+/// Java 静态方法 `static boolean isWarThunderFocused()` → trait 实例方法
+///; Windows JNA 实现
 /// (WindowsFocusDetector.java: GetForegroundWindow → GetWindowThreadProcessId →
 /// OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION=0x1000) +
 /// QueryFullProcessImageName 取进程名, 与 "aces.exe" 忽略大小写比较; 无前台
@@ -70,7 +70,7 @@ pub trait FocusDetector: Send + Sync {
     ///
     /// 安全降级原则：检测失败或非 Windows 平台时返回 true，不误隐藏 overlay。
     ///
-    /// @return true 如果 War Thunder 为前台窗口，或非 Windows 平台，或检测失败
+    /// 返回: true 如果 War Thunder 为前台窗口，或非 Windows 平台，或检测失败
     fn is_war_thunder_focused(&self) -> bool;
 }
 
@@ -79,7 +79,7 @@ pub trait FocusDetector: Send + Sync {
 /// (setEnabled 禁用分支 isOverlaysHidden/showAllOverlays + tick 变化分支
 /// showAllOverlays/hideAllOverlays, 去重共 3 方法)。
 ///
-/// PORT: Coordinator 是 Swing 窗口 z 序协调器 (C 类, P4 语义复刻), 本波次以
+/// Coordinator 是 Swing 窗口 z 序协调器 (C 类, P4 语义复刻), 本波次以
 /// 消费方最小接口代餐; hide/showAllOverlays 各自的 overlaysHidden 幂等标志与
 /// EDT 派发属协调器自身职责, 不在本文件
 /// 复刻。
@@ -93,7 +93,7 @@ pub trait FocusDetector: Send + Sync {
 /// set_enabled (stop() 托盘路径) 成 AB-BA 死锁 (见模块头)。
 pub trait AlwaysOnTopCoordinatorApi: Send + Sync {
     /// Java: `public boolean isOverlaysHidden()` — 检查overlay是否因游戏失焦而被隐藏。
-    /// @return true如果overlay当前被隐藏
+    /// 返回: true如果overlay当前被隐藏
     fn is_overlays_hidden(&self) -> bool;
 
     /// Java: `public void hideAllOverlays()` — 隐藏所有已注册的overlay窗口（不销毁实例）。
@@ -116,20 +116,20 @@ pub struct FocusMonitor {
     /// 是否启用焦点监控
     enabled: bool,
 
-    /// PORT: Java `FocusDetector.isWarThunderFocused()` 静态直调 → 构造注入 (见模块头)
+    /// Java `FocusDetector.isWarThunderFocused()` 静态直调 → 构造注入 (见模块头)
     detector: Arc<dyn FocusDetector>,
 
-    /// PORT: Java `AlwaysOnTopCoordinator.getInstance()` 单例 → 构造注入 (见模块头)
+    /// Java `AlwaysOnTopCoordinator.getInstance()` 单例 → 构造注入 (见模块头)
     coordinator: Arc<dyn AlwaysOnTopCoordinatorApi>,
 }
 
 /// 焦点检测间隔（毫秒），200ms足够响应用户切换窗口
-// PORT: Java `private static final long` → const (§1)
+// Java `private static final long` → const
 const CHECK_INTERVAL_MS: i64 = 200;
 
 impl FocusMonitor {
     /// 对应 Java: `new FocusMonitor()` (Service 构造点)。
-    /// PORT: 追加依赖注入两参数 (见模块头); 字段默认值 §2.10 原样显式化 ——
+    /// 追加依赖注入两参数 (见模块头); 字段默认值 §2.10 原样显式化 ——
     /// long 0 / `lastFocusState = true` 显式初始化 / `enabled = false`。
     pub fn new(
         detector: Arc<dyn FocusDetector>,
@@ -147,7 +147,7 @@ impl FocusMonitor {
     /// 启用/禁用焦点监控。
     /// 禁用时会恢复所有被隐藏的overlay。
     ///
-    /// @param enabled true启用焦点监控，false禁用
+    /// - `enabled`: true启用焦点监控，false禁用
     pub fn set_enabled(&mut self, enabled: bool) {
         self.enabled = enabled;
         if enabled {
@@ -157,7 +157,7 @@ impl FocusMonitor {
             self.last_check_time = 0;
         } else {
             // 禁用时确保overlay可见
-            // PORT: Java 两处 `getInstance()` 取同一单例 → 同一字段两次访问
+            // Java 两处 `getInstance()` 取同一单例 → 同一字段两次访问
             if self.coordinator.is_overlays_hidden() {
                 self.coordinator.show_all_overlays();
             }
@@ -166,7 +166,7 @@ impl FocusMonitor {
 
     /// 检查焦点监控是否启用。
     ///
-    /// @return true如果启用
+    /// 返回: true如果启用
     pub fn is_enabled(&self) -> bool {
         self.enabled
     }
@@ -178,9 +178,9 @@ impl FocusMonitor {
             return;
         }
 
-        // PORT: System.currentTimeMillis 复刻收敛于 base::java_compat (§3 库映射):
+        // System.currentTimeMillis 复刻收敛于 base::java_compat:
         // as_millis 的 u128 经 `as i64` 截断; 时钟早于 epoch 时取 0。now 与
-        // last_check_time 均为非负 epoch 毫秒, 差值不可能 i64 溢出, 普通 `-` 即可 (§2.2)。
+        // last_check_time 均为非负 epoch 毫秒, 差值不可能 i64 溢出, 普通 `-` 即可。
         let now = current_time_millis();
         if now - self.last_check_time < CHECK_INTERVAL_MS {
             return;

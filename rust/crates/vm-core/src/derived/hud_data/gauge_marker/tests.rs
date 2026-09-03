@@ -1,6 +1,6 @@
 use super::*;
 
-/// Java 8 oracle `GMdefault`: builder() 不设任何字段的产物。
+/// 历史基线 `GMdefault`: builder() 不设任何字段的产物。
 #[test]
 fn builder_defaults_match_java() {
     let d = GaugeMarker::builder().build();
@@ -35,7 +35,7 @@ fn fluent_build_sets_all_fields() {
     assert_eq!(m.side, -1);
 }
 
-/// Java 8 oracle `visible(...)` 边界表: 含 NaN 两端开区间行为。
+/// 历史基线 `visible(...)` 边界表: 含 NaN 两端开区间行为。
 #[test]
 fn is_visible_boundaries_match_java() {
     let cases = [
@@ -56,19 +56,19 @@ fn is_visible_boundaries_match_java() {
     }
 }
 
-/// Java 8 oracle: `with_same=true`、`with_plus_5e5=true`
+/// 历史基线: `with_same=true`、`with_plus_5e5=true`
 /// (|0.5+0.00005 - 0.5| = 4.999999999999449e-5 < 1e-4 → 同实例)。
 #[test]
 fn with_ratio_returns_self_when_delta_below_epsilon() {
     let m = GaugeMarker::builder().ratio(0.5).build();
     assert!(matches!(m.with_ratio(0.5), Cow::Borrowed(_)));
     assert!(matches!(m.with_ratio(0.5 + 0.00005), Cow::Borrowed(_)));
-    // 9e-5 < 1e-4 → 同实例 (oracle with_9e5=true)
+    // 9e-5 < 1e-4 → 同实例 (基线 with_9e5=true)
     let m0 = GaugeMarker::builder().ratio(0.0).build();
     assert!(matches!(m0.with_ratio(0.00009), Cow::Borrowed(_)));
 }
 
-/// Java 8 oracle `with_exact_1e4=false`: 严格小于判定, delta == 1e-4 时已换新实例。
+/// 历史基线 `with_exact_1e4=false`: 严格小于判定, delta == 1e-4 时已换新实例。
 #[test]
 fn with_ratio_new_instance_at_exact_epsilon() {
     let m0 = GaugeMarker::builder().ratio(0.0).build();
@@ -77,7 +77,7 @@ fn with_ratio_new_instance_at_exact_epsilon() {
     assert!(matches!(m0.with_ratio(0.0001), Cow::Owned(_)));
 }
 
-/// Java 8 oracle `new_ratio=0.75 ...`: 换 ratio 后其余字段原样保留
+/// 历史基线 `new_ratio=0.75 ...`: 换 ratio 后其余字段原样保留
 /// (走 Builder 重建路径, 未显式设置处为 Builder 默认的拷贝源值)。
 #[test]
 fn with_ratio_copies_other_fields() {

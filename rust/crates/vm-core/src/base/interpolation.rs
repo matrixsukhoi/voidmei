@@ -7,7 +7,7 @@
 //! 对应 Java: `src/prog/util/Interpolation.java` (一比一翻译)
 
 // Prevent instantiation
-// PORT: Java 私有构造器防实例化 → Rust 自由函数模块无实例化概念, 天然满足
+// Java 私有构造器防实例化 → Rust 自由函数模块无实例化概念, 天然满足
 
 /// Linear interpolation between two points.
 /// Given a value x, interpolates y value on the line through (x0,y0) and (x1,y1).
@@ -58,7 +58,7 @@ pub fn interp1d(x: f64, xs: &[f64], ys: &[f64]) -> f64 {
 /// - `extrapolate` If true, extrapolate beyond boundaries; if false, clamp
 ///
 /// Returns the interpolated y value.
-// PORT: Java 重载 interp1d(x, xs, ys, extrapolate) → Rust 无函数重载, 更名 interp1d_extrapolate
+// Java 重载 interp1d(x, xs, ys, extrapolate) → Rust 无函数重载, 更名 interp1d_extrapolate
 pub fn interp1d_extrapolate(x: f64, xs: &[f64], ys: &[f64], extrapolate: bool) -> f64 {
     let n = xs.len();
     if n == 0 {
@@ -99,9 +99,9 @@ pub fn interp1d_extrapolate(x: f64, xs: &[f64], ys: &[f64], extrapolate: bool) -
 /// - `zz` 2D array of z values, indexed as zz[xIndex][yIndex]
 ///
 /// Returns the bilinearly interpolated z value.
-// PORT: Java double[][] 锯齿数组 → &[&[f64]]; Java zz == null → Option::None;
+// Java double[][] 锯齿数组 → &[&[f64]]; Java zz == null → Option::None;
 //       内层数组过短时索引 panic, 对应 Java ArrayIndexOutOfBoundsException
-// PORT: Java `int ix = 0; double tx = 0;` (及 iy/ty) 的初始 0 值为死值 (if/else 各分支均先赋值),
+// Java `int ix = 0; double tx = 0;` (及 iy/ty) 的初始 0 值为死值 (if/else 各分支均先赋值),
 //       保留字面初始化以对齐源码; allow 收窄到各 let 语句, 避免函数级 allow
 //       掩盖未来新增代码的 unused_assignments 警告
 pub fn interp2d(x: f64, y: f64, xs: &[f64], ys: &[f64], zz: Option<&[&[f64]]>) -> f64 {
@@ -114,7 +114,7 @@ pub fn interp2d(x: f64, y: f64, xs: &[f64], ys: &[f64], zz: Option<&[&[f64]]>) -
     let zz = zz.unwrap();
 
     // Clamp x to bounds and find interval
-    // PORT: Java int 索引允许负值过渡 (nx==1 走上方分支时 ix = nx-2 = -1,
+    // Java int 索引允许负值过渡 (nx==1 走上方分支时 ix = nx-2 = -1,
     //       由下方单元素分支修正后才使用); usize 在 nx-2 处会下溢 panic, 故用 isize 中转
     #[allow(unused_assignments)]
     let mut ix: isize = 0;
@@ -190,7 +190,7 @@ pub fn interp2d(x: f64, y: f64, xs: &[f64], ys: &[f64], zz: Option<&[&[f64]]>) -
 /// - `default_value` Value to return if list is null or empty
 ///
 /// Returns the interpolated value at the given sweep position.
-// PORT: Java 泛型 List<T> → Option<&[T]> (null → None); ToDoubleFunction<T> → impl Fn(&T) -> f64
+// Java 泛型 List<T> → Option<&[T]> (null → None); ToDoubleFunction<T> → impl Fn(&T) -> f64
 pub fn interp_sweep_level<T>(
     vwing: f64,
     levels: Option<&[T]>,
@@ -198,7 +198,7 @@ pub fn interp_sweep_level<T>(
     sweep_extractor: impl Fn(&T) -> f64,
     default_value: f64,
 ) -> f64 {
-    // PORT: Java `levels == null || levels.isEmpty()` 两分支同返 default, 合并为一个 match
+    // Java `levels == null || levels.isEmpty()` 两分支同返 default, 合并为一个 match
     let levels = match levels {
         Some(l) if !l.is_empty() => l,
         _ => return default_value,
@@ -237,9 +237,9 @@ pub fn interp_sweep_level<T>(
 ///
 /// Returns index i such that xs[i] <= x < xs[i+1], or 0 if x < xs[0],
 /// or n-2 if x >= xs[n-1].
-// PORT: Java 包私有 static → Rust 模块私有 (同文件 tests 模块可直接测试)
+// Java 包私有 static → Rust 模块私有 (同文件 tests 模块可直接测试)
 fn find_interval(x: f64, xs: &[f64]) -> usize {
-    // PORT: Java int 的 lo/hi 可为 -1 (空数组时 hi = -1), usize 会下溢 panic, 用 isize 复刻
+    // Java int 的 lo/hi 可为 -1 (空数组时 hi = -1), usize 会下溢 panic, 用 isize 复刻
     let mut lo: isize = 0;
     let mut hi: isize = xs.len() as isize - 1;
 

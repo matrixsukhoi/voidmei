@@ -2,9 +2,9 @@
 //! Centralizes physics-related constants for consistency and maintainability.
 //!
 //! 对应 Java: `prog.util.PhysicsConstants` (final 类, 纯常量容器)。
-//! PORT: Java 用 private 构造器阻止实例化——Rust 模块即命名空间,
+//! Java 用 private 构造器阻止实例化——Rust 模块即命名空间,
 //! 不定义 struct 天然无法实例化, 原语义由模块边界保真。
-//! PORT: lib.rs 已收敛为 `pub use physics_constants::{g, G};` 转发 (主 agent P1 裁决)。
+//! lib.rs 已收敛为 `pub use physics_constants::{g, G};` 转发 (主 agent P1 裁决)。
 
 // === Gravitational Constants ===
 
@@ -14,7 +14,7 @@ pub const G: f64 = 9.80;
 
 /// Alias for gravitational acceleration, matching physics notation.
 /// Use this in formulas where lowercase 'g' is conventional.
-// PORT: Java 允许小写字段名 `g`; Rust 常量规范要求大写, 这里为保持
+// Java 允许小写字段名 `g`; Rust 常量规范要求大写, 这里为保持
 // 公式书写惯例 (E = v²/2g) 原样保留小写, 仅抑制命名 lint。
 #[allow(non_upper_case_globals)]
 pub const g: f64 = G;
@@ -47,7 +47,7 @@ pub const R_SPECIFIC_AIR: f64 = 287.0500676;
 /// T(K) = T(°C) + KELVIN_OFFSET
 pub const KELVIN_OFFSET: f64 = 273.15;
 
-// PORT: Java `private PhysicsConstants() {}` (Prevent instantiation)
+// Java `private PhysicsConstants() {}` (Prevent instantiation)
 // 在 Rust 中无对应物也不需要——本模块只含常量, 无实例化入口。
 
 #[cfg(test)]

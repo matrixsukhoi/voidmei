@@ -1,5 +1,5 @@
 //! MarkerType 的 Rust 移植 (src/ui/component/gauge/MarkerType.java)。
-//! PORT: Java 枚举常量 SCREAMING_SNAKE (LINE_FULL) → Rust 变体 PascalCase
+//! Java 枚举常量 SCREAMING_SNAKE (LINE_FULL) → Rust 变体 PascalCase
 //! (LineFull), 命名映射规则同类名 (non_camel_case_types lint)。
 
 /// Enumeration of marker types for MarkedGauge component.

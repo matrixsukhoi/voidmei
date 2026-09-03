@@ -30,7 +30,7 @@ use super::{OverlayEvent, WindowConfig};
 
 /// WNDPROC 按 hwnd 分流的事件队列表 (多窗口支持)
 /// key = HWND.0 as isize; create 时登记条目, Drop 时销毁条目
-/// PORT: POC 期是全进程单队列 (EVENT_QUEUE), 多窗口下事件会串台;
+/// POC 期是全进程单队列 (EVENT_QUEUE), 多窗口下事件会串台;
 /// Java 无此层 (Swing 事件按组件分发), 此处等价于"每窗口自己的事件流"
 static EVENT_QUEUES: LazyLock<Mutex<HashMap<isize, VecDeque<OverlayEvent>>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
@@ -338,7 +338,7 @@ impl super::OverlayWindow for WinOverlay {
     }
 
     fn set_topmost(&mut self, on: bool) {
-        // PORT: Java Window.setAlwaysOnTop — AlwaysOnTopCoordinator
+        // Java Window.setAlwaysOnTop — AlwaysOnTopCoordinator
         // suspendAll/restoreAll 的底层动作; 创建即 WS_EX_TOPMOST (POC 全窗口置顶), 此处运行时切换
         unsafe {
             let after = if on {
@@ -359,7 +359,7 @@ impl super::OverlayWindow for WinOverlay {
     }
 
     fn set_visible(&mut self, visible: bool) {
-        // PORT: Java Window.setVisible — AlwaysOnTopCoordinator.hideAllOverlays/
+        // Java Window.setVisible — AlwaysOnTopCoordinator.hideAllOverlays/
         // showAllOverlays (FocusMonitor 游戏失焦自动隐藏) 的底层动作。
         // 显示用 SW_SHOWNOACTIVATE (配 WS_EX_NOACTIVATE): 恢复显示不抢焦点
         // (Java 侧 overlay setFocusable(false) 的等价防护)
@@ -449,7 +449,7 @@ impl super::OverlayWindow for WinOverlay {
     fn screen_size(&self) -> (i32, i32) {
         unsafe {
             // 以窗口所在显示器为准 (多屏时位置归一化稳定)。
-            // PORT: Java 侧统一除以启动主屏 Application.screenWidth/Height
+            // Java 侧统一除以启动主屏 Application.screenWidth/Height
             // (ConfigurationService), 此处为 MonitorFromWindow — 单屏
             // 行为一致; 多屏下跨显示器拖拽后存/取的归一化基准可能不同 (已知有意偏差,
             // 对接 Java 版迁移来的归一化配置时需注意语义差异)

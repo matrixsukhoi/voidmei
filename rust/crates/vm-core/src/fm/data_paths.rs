@@ -14,22 +14,22 @@ use std::path::PathBuf;
 use std::sync::RwLock;
 
 /// FM 数据根目录；volatile 供测试运行时注入临时目录
-// PORT: Java `private static volatile String dataRoot = "./data"` → 进程级
+// Java `private static volatile String dataRoot = "./data"` → 进程级
 // RwLock<Option<String>> (None ≡ 默认 "./data"; String 堆分配非 const 可构造,
 // 静态初始化只能走 Option —— config_loader::LEGACY_SCREEN_SIZE 注入点同款先例)。
 // volatile 的"无锁读+写即时可见" ↔ RwLock 读写锁: 本面只有低频注入 + 路径拼装读,
 // 无行为差异; 临界区仅 clone/赋值, 无 panic 路径 → 锁永不会中毒, read/write 的
 // unwrap 必不失败 (后续若往临界区加逻辑需复核此前提)。表示层唯一差异: 无法区分
 // "从未注入"与"显式设回默认"—— 全库无调用点
-// 依赖该区分。LIFETIMES §1.3(c)/§7 的长期方案是 App.fm_data_root 构造时定死,
+// 依赖该区分。(c)/§7 的长期方案是 App.fm_data_root 构造时定死,
 // 当前批次 crate 尚无 App/Env 容器, 先按原静态语义落地, AppState 波次收编。
 static DATA_ROOT: RwLock<Option<String>> = RwLock::new(None);
 
-// PORT: Java `public final class` + `private FMDataPaths() {}` 私有构造器
+// Java `public final class` + `private FMDataPaths() {}` 私有构造器
 // (防实例化/防继承的纯静态工具类) → Rust 模块自由函数, 无实例可造, 约束天然成立。
 
 /// FM 数据根目录（默认 "./data"，与程序工作区约定一致）
-// PORT: Java volatile 读返回活引用 (零拷贝) ↔ 读锁临界区内 clone 出快照 ——
+// Java volatile 读返回活引用 (零拷贝) ↔ 读锁临界区内 clone 出快照 ——
 // 根路径为短字符串且读写皆低频, 无行为差异。
 pub fn get_data_root() -> String {
     DATA_ROOT
@@ -46,7 +46,7 @@ pub fn set_data_root(root: &str) {
 }
 
 /// flightmodels 目录：&lt;root&gt;/aces/gamedata/flightmodels
-// PORT: `new File(parent, child)` 与 `PathBuf::join` 对相对 child 均为
+// `new File(parent, child)` 与 `PathBuf::join` 对相对 child 均为
 // 分隔符拼接, 语义等价。两处平台差异均不在本类域内:
 // ① Java Win32 normalize 会把 child 里的 '/' 折叠为 '\' (Rust 原样保留 '/'),
 //   仅影响裸字符串形态, 文件访问两分隔符等价, 消费方测试统一 norm('/');
@@ -59,7 +59,7 @@ pub fn fm_dir() -> PathBuf {
 /// 中央文件（机型入口文件）路径：
 /// &lt;root&gt;/aces/gamedata/flightmodels/&lt;name 小写&gt;.json。
 /// 机型名做小写规范化（大小写不敏感匹配游戏侧命名）。
-// PORT: Java `String.toLowerCase()` 绑定默认 Locale (土耳其语 locale 下 I→ı
+// Java `String.toLowerCase()` 绑定默认 Locale (土耳其语 locale 下 I→ı
 // 的变异存在); Rust `to_lowercase` 无 Locale (≡ Locale.ROOT)。机型名域为
 // ASCII, 二者逐字符一致 (config_loader.rs 同款先例), 且无 Locale 形态恰为
 // "匹配游戏侧小写命名"的规范意图。

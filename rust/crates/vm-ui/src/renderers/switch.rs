@@ -9,7 +9,7 @@
 //! - SWITCH_INV: 显示值取反落库 + row.value 存显示值。
 //! - DATA 行开关同走本写链 (经 Message::Toggle 路由, 等价备案见 tests)。
 //!
-//! PORT: Java 的 gpuCompatibilityMode 特例 (SwitchRowRenderer, 经
+//! Java 的 gpuCompatibilityMode 特例 (SwitchRowRenderer, 经
 //! GPUCompatibilityHelper 存独立文件 + 重启对话框) 不迁移 — 该类在 D7 弃译清单。
 
 use crate::render_context::RenderContext;

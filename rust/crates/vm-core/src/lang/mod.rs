@@ -6,11 +6,11 @@
 //! `prog.config.Config("./lang/cur.properties")` (java.util.Properties, UTF-8) 逐键填充,
 //! `updateLanguage()` 对缺失/空值键统一回退为 `""`。
 //!
-//! PORT: 按迁移任务裁决, Properties 运行时加载固化为静态表 [`crate::lang::table`]
-//! (键值 = Java 加载后的实际值, Java 8 oracle 实测生成); 字段类型为 `&'static str`。
-//! PORT: Java 静态可变全局 → Rust struct 实例 (禁 `static mut`); 调用方持有 `Lang`,
+//! 按迁移任务裁决, Properties 运行时加载固化为静态表 [`crate::lang::table`]
+//! (键值 = Java 加载后的实际值, 历史基线生成); 字段类型为 `&'static str`。
+//! Java 静态可变全局 → Rust struct 实例 (禁 `static mut`); 调用方持有 `Lang`,
 //! 后续若需全局单例由 AppState 收口 (LIFETIMES 静态可变全局)。
-//! PORT: 类依赖 `prog.Application` 仅存在于注释, 无实际耦合, 不引入。
+//! 类依赖 `prog.Application` 仅存在于注释, 无实际耦合, 不引入。
 //!
 //! ## 平铺 362 字段的设计裁决 (波17 F12, 不改造)
 //!
@@ -32,14 +32,14 @@
 pub mod table;
 
 /// `prog.config.Config` 的最小只读替身 (仅 `getValue` 语义)。
-/// PORT: Java 原类在构造时读文件; 本移植数据来自静态表, 待 `crate::config::Config`
+/// Java 原类在构造时读文件; 本移植数据来自静态表, 待 `crate::config::Config`
 /// 移植落地后可收敛复用。
 #[derive(Default, Clone)]
 pub struct Config;
 
 impl Config {
     /// 对应 Java: `new prog.config.Config(filePath)`
-    /// PORT: 不再读文件, 参数仅保留调用点原貌
+    /// 不再读文件, 参数仅保留调用点原貌
     pub fn new(_file_path: &str) -> Config {
         Config
     }
@@ -50,7 +50,7 @@ impl Config {
     }
 }
 
-// PORT: Java 静态字段隐式初始化为 null (PORTING §2.10); Rust 无 null 字符串,
+// Java 静态字段隐式初始化为 null; Rust 无 null 字符串,
 // derive(Default) 以 ""/None 占位 — init_lang() 全量覆写后与 Java 终态一致。
 // 消费方只应使用 init_lang() 的产物 (Java 端同样在 Application 启动即调 initLang)。
 #[derive(Default, Clone)]
@@ -475,7 +475,7 @@ pub struct Lang {
 impl Lang {
     /// 对应 Java: `public static String updateLanguage(String key, String dft)`
     /// 取语言配置值; 空值 (缺失键或空串值) 时返回 `""`。
-    /// PORT: Java 在空值分支把 dft 覆写为 "" 再返回 —— 传入的默认值实际永不生效
+    /// Java 在空值分支把 dft 覆写为 "" 再返回 —— 传入的默认值实际永不生效
     /// (原行为保真保留); 形参因永不读取改名 `_dft` 消未用告警。
     pub fn update_language(lanuage_config: &Config, key: &str, _dft: &str) -> &'static str {
         let v = lanuage_config.get_value(key);
@@ -489,7 +489,7 @@ impl Lang {
     }
 
     /// 对应 Java: `public static void initLang()` — 建表并挨个更新全部字段
-    // PORT: Java 保真 — initLang 逐行 `lang.f = updateLanguage(cfg, "k", lang.f)`
+    // Java 保真 — initLang 逐行 `lang.f = updateLanguage(cfg, "k", lang.f)`
     // 直译 (读旧值写新值交错, 无法也不应改 struct 字面量)
     #[allow(clippy::field_reassign_with_default)]
     pub fn init_lang() -> Lang {
@@ -503,7 +503,7 @@ impl Lang {
     fn build_lang() -> Lang {
         let mut lang = Lang::default();
 
-        // PORT: Java 运行时读取该文件 (prog.config.Config + java.util.Properties UTF-8);
+        // Java 运行时读取该文件 (prog.config.Config + java.util.Properties UTF-8);
         // 本移植固化为静态表 (见 table.rs), Config 为 getValue 语义的只读替身
         lang.lanuage_config = Config::new("./lang/cur.properties");
         let cfg = &lang.lanuage_config;
@@ -1094,6 +1094,6 @@ impl Lang {
     }
 }
 
-// ---------- 边界测试 (期望值 = Java 8 oracle 实测, 生成方法见 table.rs 头部) ----------
+// ---------- 边界测试 (期望值 = 历史基线, 生成方法见 table.rs 头部) ----------
 #[cfg(test)]
 mod tests;

@@ -15,7 +15,7 @@
 //! 刻线外端 = cx±lineLength = cx±width, 远超圆半径 halfW — 线臂伸出组件外框
 //! 半宽 (Java 原样, 画布裁剪负责截断)。
 //!
-//! PORT: Java useTexture 纹理路径不迁移 — Rust 只做软件矢量路径:
+//! Java useTexture 纹理路径不迁移 — Rust 只做软件矢量路径:
 //! - getPreferredSize 的 useTexture 分支 (返回 crossWidthVario×2);
 //! - draw 的 drawImage 分支;
 //! - setTextureStyle。
@@ -61,7 +61,7 @@ impl CrosshairGauge {
     }
 
     /// 首选尺寸。
-    /// PORT: useTexture 分支返回 crossWidthVario×2 — 纹理路径不迁移, 恒软件口径
+    /// useTexture 分支返回 crossWidthVario×2 — 纹理路径不迁移, 恒软件口径
     pub fn preferred_size(&self) -> (i32, i32) {
         (self.width, self.width)
     }
@@ -69,7 +69,7 @@ impl CrosshairGauge {
     /// setStyleContext (软件绘制路径)
     pub fn set_style_context(&mut self, width: i32) {
         self.width = width;
-        // PORT: Java 置 useTexture=false — Rust 无纹理态可置
+        // Java 置 useTexture=false — Rust 无纹理态可置
     }
 
     /// setColors (MiniHUD 现不调用, 默认色即生产色, 保留供组装层覆写)
@@ -88,7 +88,7 @@ impl CrosshairGauge {
     /// (生产恒 ON; false 供非 AA 像素对拍路径)。
     pub fn draw(&mut self, cv: &mut PixCanvas, x: i32, y: i32, aa: bool) {
         // 左上角 (x, y) 换中心 (int 截断)
-        // PORT: Java drawW 的纹理分支不迁移, 恒 width
+        // Java drawW 的纹理分支不迁移, 恒 width
         let draw_w = self.width;
         let center_x = x + draw_w / 2;
         let center_y = y + draw_w / 2;

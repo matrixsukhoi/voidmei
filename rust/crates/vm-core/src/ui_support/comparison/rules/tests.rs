@@ -2,7 +2,7 @@ use super::*;
 
 #[test]
 fn java_split_comma_matches_java_oracle() {
-    // Java 8 oracle 实测:
+    // 历史基线:
     // "1,2,".split(",")=[1, 2]; "1,,2"→[1, , 2]; ",,,".length=0;
     // "".split(",")=[ ]; ",".length=0; " "→[ ]; "1".split(",")=[1]; "a,,b,"→[a,,b]
     assert_eq!(java_split_comma("1,2,"), vec!["1", "2"]);

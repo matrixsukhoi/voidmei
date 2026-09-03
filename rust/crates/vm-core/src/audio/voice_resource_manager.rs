@@ -3,9 +3,9 @@
 //! Manages audio resources and voice packs.
 //! Handles loading, caching, and retrieving audio clips.
 //!
-//! PORT: Java `private static final INSTANCE` 单例 + `getInstance()` → 调用方持有
-//! (LIFETIMES §1.1 收敛方案; §2.9 禁再造全局静态), 构造器由 private 改 pub。
-//! PORT: 声音播放经 [`SoundPlayer`] trait 注入 (D7 裁决: vm-core 无平台依赖,
+//! Java `private static final INSTANCE` 单例 + `getInstance()` → 调用方持有
+//!, 构造器由 private 改 pub。
+//! 声音播放经 [`SoundPlayer`] trait 注入 (D7 裁决: vm-core 无平台依赖,
 //! trait 签名覆盖 Java 用的播放能力; mock 实现做测试, winmm 实现留 P4 平台件)。
 
 use std::fs::{self, File};
@@ -35,16 +35,16 @@ pub type SoundError = Box<dyn std::error::Error + Send + Sync>;
 /// 资源管理说明：
 /// AudioInputStream 在 Clip.open() 后可以安全关闭，
 /// 因为 Clip 会将音频数据复制到内存中，不再需要流。
-/// PORT: 流的开关生命周期整体移入 [`SoundPlayer::open_clip`] 的实现侧
+/// 流的开关生命周期整体移入 [`SoundPlayer::open_clip`] 的实现侧
 /// (winmm/P4 平台件); 关闭失败时实现应按 Java finally 块语义以 debug 级记录
 /// ("VoiceResourceManager", "关闭 AudioInputStream 失败")。
 ///
-/// PORT: RAII 兜底契约 (Java Clip 原生行资源靠 GC finalizer 兜底, Rust 无 GC —
+/// RAII 兜底契约 (Java Clip 原生行资源靠 GC finalizer 兜底, Rust 无 GC —
 /// LIFETIMES 审查将 Clip 句柄泄漏严重度上调): 实现应在 Drop 中等价调用 close()
 /// 释放原生资源; 显式 close() 之后的 Drop 必须幂等 (Java line close 状态机语义)。
 ///
-/// PORT: 本 trait 仅要求 Send 非 Sync 是刻意的最小约束 — 消费端跨线程共享
-/// clip 必须经 Mutex 独占访问 (对齐 LIFETIMES §3.2 Java Clip 并发使用面),
+/// 本 trait 仅要求 Send 非 Sync 是刻意的最小约束 — 消费端跨线程共享
+/// clip 必须经 Mutex 独占访问 (对齐 Java Clip 并发使用面),
 /// 不可 RwLock 共享 &clip (play/stop/close 均为独占变异操作)。
 pub trait SoundClip: Send {
     /// Java: `clip.start()`
@@ -77,7 +77,7 @@ pub trait SoundPlayer: Send + Sync {
 
 /// Java: `public class VoiceResourceManager`
 ///
-/// PORT: 跨线程共享 (Java 单例被 Service/EDT 并发调) — 字段均为线程安全类型,
+/// 跨线程共享 (Java 单例被 Service/EDT 并发调) — 字段均为线程安全类型,
 /// struct 自动满足 Send + Sync。
 pub struct VoiceResourceManager {
     /// Java: `private static final String VOICE_DIR = "./voice/"`
@@ -85,10 +85,10 @@ pub struct VoiceResourceManager {
     voice_dir: String,
     /// Application 静态字段的消费面 (依赖桩, 非翻译):
     /// Java `public static int voiceVolumn = 100` (Application.java 声明默认值)。
-    /// Java 非 volatile 跨线程读写 (配置线程写 / 播放线程读, LIFETIMES §1.2 现存隐患)
+    /// Java 非 volatile 跨线程读写 (配置线程写 / 播放线程读, 现存隐患)
     /// → AtomicI32 修正可见性。
-    /// PORT: 与 configuration_service::ApplicationState.voice_volumn 是两处消费面,
-    /// 统一收口归 vm-app 波次 (§2.9 状态分裂禁令), 落地前由调用方负责同步两者。
+    /// 与 configuration_service::ApplicationState.voice_volumn 是两处消费面,
+    /// 统一收口归 vm-app 波次, 落地前由调用方负责同步两者。
     /// 注意对端是裸 pub i32 — 若配置线程写它的同时播放线程读它, 即 Rust 数据竞争
     /// (UB, Java 侧只是非 volatile 可见性隐患); 收口波次必须收敛为单一原子/
     /// ArcSwap 源, 禁止两处各持一份可写副本。
@@ -99,7 +99,7 @@ pub struct VoiceResourceManager {
 
 impl VoiceResourceManager {
     /// Java: `private VoiceResourceManager()` + `public static VoiceResourceManager getInstance()`
-    /// PORT: 单例 → 调用方持有; 播放器注入。
+    /// 单例 → 调用方持有; 播放器注入。
     pub fn new(player: Box<dyn SoundPlayer>) -> Self {
         Self::new_with_voice_dir(player, VOICE_DIR.to_string())
     }
@@ -117,7 +117,7 @@ impl VoiceResourceManager {
         };
         let dir = PathBuf::from(&voice_dir);
         if !dir.exists() {
-            // PORT: Java mkdirs() 返回值未检查 (失败静默继续)
+            // Java mkdirs() 返回值未检查 (失败静默继续)
             let _ = fs::create_dir_all(&dir);
         }
         VoiceResourceManager {
@@ -147,12 +147,12 @@ impl VoiceResourceManager {
         if voice_dir.exists() && voice_dir.is_dir() {
             // listFiles IO 失败返回 null ↔ read_dir 返回 Err, 均跳过循环体
             if let Ok(entries) = fs::read_dir(&voice_dir) {
-                // PORT: Java listFiles() 顺序未定义 (NTFS B-tree ≈ 字典序) —
-                // read_dir 顺序同样由文件系统决定, 不排序保持同族语义 (§2.5)
+                // Java listFiles() 顺序未定义 (NTFS B-tree ≈ 字典序) —
+                // read_dir 顺序同样由文件系统决定, 不排序保持同族语义
                 for entry in entries.flatten() {
                     // Java File.isDirectory() 跟随符号链接 (symlink/junction 指向目录
                     // 也计入) → fs::metadata(entry.path()) 跟随语义。
-                    // PORT: DirEntry::metadata 是 symlink_metadata 等价 (不遍历链接),
+                    // DirEntry::metadata 是 symlink_metadata 等价 (不遍历链接),
                     // 用它会漏列符号链接语音包, 故显式走 path 级 metadata
                     if fs::metadata(entry.path())
                         .map(|m| m.is_dir())
@@ -167,7 +167,7 @@ impl VoiceResourceManager {
     }
 
     /// Checks if a resource exists for the given pack and key.
-    // PORT: Java String 入参可为 null → Option<&str> (§1 null 映射)
+    // Java String 入参可为 null → Option<&str>
     pub fn has_resource(&self, warning_name: &str, pack_name: Option<&str>) -> bool {
         if let Some(p) = pack_name {
             if !p.is_empty() && p != "default" {
@@ -186,7 +186,7 @@ impl VoiceResourceManager {
         if pack_name == Some("default") {
             return PathBuf::from(format!("{}{warning_name}.wav", self.voice_dir)).exists();
         }
-        // PORT: Java 字符串拼接 null → 字面 "null" ("./voice/null/x.wav"), 逐字保真
+        // Java 字符串拼接 null → 字面 "null" ("./voice/null/x.wav"), 逐字保真
         let p = pack_name.unwrap_or("null");
         PathBuf::from(format!("{}{p}/{warning_name}.wav", self.voice_dir)).exists()
     }
@@ -198,26 +198,26 @@ impl VoiceResourceManager {
             .file_name()
             .map(|n| n.to_string_lossy().into_owned())
             .unwrap_or_default();
-        // PORT: 路径以 '.'/'..' 结尾时 Java getName() 返回 "."/"..", Rust
+        // 路径以 '.'/'..' 结尾时 Java getName() 返回 "."/"..", Rust
         // Path::file_name() 对 CurDir/ParentDir 返回 None → ""; 调用源为
         // JFileChooser 文件选择器 (VoiceGlobalRenderer), 该边界不可达
-        // PORT: Java toLowerCase() 用系统默认 locale, Rust to_lowercase 为 locale
+        // Java toLowerCase() 用系统默认 locale, Rust to_lowercase 为 locale
         // 无关 (ROOT 语义; 仅 tr 等 locale 的 'I'→'ı' 映射差异, 不复刻)
         if pack_name.to_lowercase().ends_with(".zip") {
-            // PORT: 命中处尾 4 字节必为 ASCII ".zip" 变体, 字节切片 == UTF-16 码元切片 (§2.1)
+            // 命中处尾 4 字节必为 ASCII ".zip" 变体, 字节切片 == UTF-16 码元切片
             let new_len = pack_name.len() - 4;
             pack_name.truncate(new_len);
         }
 
         let pack_dir = PathBuf::from(format!("{}{pack_name}", self.voice_dir));
         if !pack_dir.exists() {
-            // PORT: Java mkdirs() 返回值未检查 (失败静默继续)
+            // Java mkdirs() 返回值未检查 (失败静默继续)
             let _ = fs::create_dir_all(&pack_dir);
         }
 
         if let Err(e) = self.extract_pack(zip_file, &pack_dir) {
             //      e.printStackTrace();
-            // PORT: 消息面等价 — Java 两参版手工拼 "msg: {message}" 与
+            // 消息面等价 — Java 两参版手工拼 "msg: {message}" 与
             // error_with_throwable 的 "{msg}: {t}" 模板逐字相同; 堆栈输出收窄:
             // Java printStackTrace 无条件, error_with_throwable 带 DEBUG 级闸门
             // (logger 侧约定, 默认 INFO 级下不打)
@@ -226,7 +226,7 @@ impl VoiceResourceManager {
     }
 
     /// installPack 的解压主体 (Java try-with-resources 块, 异常上抛给调用方 catch)。
-    /// PORT: Java ZipInputStream 为本地文件头流式读取; zip crate 走 ZipArchive
+    /// Java ZipInputStream 为本地文件头流式读取; zip crate 走 ZipArchive
     /// (中心目录) — 规范 zip 两者条目集与顺序一致, 纯流式 zip (无中心目录) 除外。
     fn extract_pack(&self, zip_file: &Path, pack_dir: &Path) -> Result<(), SoundError> {
         let file = File::open(zip_file)?;
@@ -262,10 +262,10 @@ impl VoiceResourceManager {
     /// AudioInputStream 在 Clip.open() 后可以安全关闭，
     /// 因为 Clip 会将音频数据复制到内存中，不再需要流。
     ///
-    /// @param warningName The filename base (e.g. "aoaCrit")
-    /// @param packName    The voice pack name (e.g. "jarvis")
-    /// @return The loaded Clip, or null if failed.
-    // PORT: Clip 句柄 → Box<dyn SoundClip>; Java null 返回值 → Option;
+    /// - `warningName`: The filename base (e.g. "aoaCrit")
+    /// - `packName`: The voice pack name (e.g. "jarvis")
+    /// 返回: The loaded Clip, or null if failed.
+    // Clip 句柄 → Box<dyn SoundClip>; Java null 返回值 → Option;
     // AudioInputStream 的 finally 关闭移入 SoundPlayer::open_clip 实现侧
     // (见 SoundClip trait 文档, 原注释保留于彼处)。
     pub fn load_clip(
@@ -296,9 +296,9 @@ impl VoiceResourceManager {
             }
             Err(e) => {
                 //      + e.getMessage()); e.printStackTrace();
-                // PORT: " -> " 分隔符不符合 error_with_throwable 的 "{msg}: {t}" 模板,
+                // " -> " 分隔符不符合 error_with_throwable 的 "{msg}: {t}" 模板,
                 // 为逐字复刻日志行直接拼 Display。
-                // PORT: printStackTrace 收窄非逐字复刻 — Java 无条件打 stderr, 此处
+                // printStackTrace 收窄非逐字复刻 — Java 无条件打 stderr, 此处
                 // 套 logger 侧 DEBUG 级闸门 (对齐 error_with_throwable 的既有约定,
                 // 默认 INFO 级下不打); 写入用 `let _ = writeln!` 吞错 (eprintln!
                 // 在 GUI 子系统/broken pipe 会 panic, Java PrintStream 永不抛, 见
@@ -319,9 +319,9 @@ impl VoiceResourceManager {
     /// 1. 优先尝试指定的 Pack 路径
     /// 2. 回退到 default（根目录）
     ///
-    /// @param warningName 告警名称
-    /// @param packName 语音包名称
-    /// @return 文件对象，如果不存在返回 null
+    /// - `warningName`: 告警名称
+    /// - `packName`: 语音包名称
+    /// 返回: 文件对象，如果不存在返回 null
     fn resolve_audio_file(&self, warning_name: &str, pack_name: Option<&str>) -> Option<PathBuf> {
         // 1. 尝试 Pack 路径
         if let Some(p) = pack_name {
@@ -343,7 +343,7 @@ impl VoiceResourceManager {
     }
 
     /// Applies global volume setting to a clip.
-    // PORT: Java applyVolume(Clip) 的 null 入参 → Option<&dyn SoundClip>
+    // Java applyVolume(Clip) 的 null 入参 → Option<&dyn SoundClip>
     pub fn apply_volume(&self, clip: Option<&dyn SoundClip>) {
         let clip = match clip {
             Some(c) => c,
@@ -352,7 +352,7 @@ impl VoiceResourceManager {
         //      clip.getControl(FloatControl.Type.MASTER_GAIN); if (gainControl == null)
         //      return; ... } catch (Exception e) { // Control not supported }
         // — 获取失败面 (抛异常/强转失败/null) 收敛为 master_gain_range() -> None,
-        // 空 catch 语义保真 (§2.7)
+        // 空 catch 语义保真
         let Some((gmin, gmax)) = clip.master_gain_range() else {
             return; // Control not supported
         };
@@ -387,10 +387,10 @@ impl VoiceResourceManager {
 }
 
 /// Java: `new File(zipEntry.getName()).getName()` — zip 条目名取末段 (拍平用)。
-/// PORT: Java 在 Windows 上 '/' 与 '\\' 均为路径分隔符 — 手工取末段对齐该行为
+/// Java 在 Windows 上 '/' 与 '\\' 均为路径分隔符 — 手工取末段对齐该行为
 /// ('.'/'..' 段不做组件规范化, 忠于 Java 字符串级 basename; Rust Path::file_name
-/// 会吞并 CurDir 段, 语义不同故不用)。'/'/'\\' 均 ASCII, i+1 必为字符边界 (§2.1)。
-/// PORT: 尾部 '/' 的条目名 (如 "a/b/") 此处返回 "" 而 Java getName() 返回 "b" —
+/// 会吞并 CurDir 段, 语义不同故不用)。'/'/'\\' 均 ASCII, i+1 必为字符边界。
+/// 尾部 '/' 的条目名 (如 "a/b/") 此处返回 "" 而 Java getName() 返回 "b" —
 /// 该形态条目已被上方 isDirectory 过滤, 不可达。
 fn file_name_of(path: &str) -> &str {
     match path.rfind(['/', '\\']) {

@@ -1,7 +1,3 @@
-// PORT: Java 保真 — 测试构造沿用 Java `new X(); x.f = v;` 逐字段赋值形态,
-// 不改成 struct 字面量以保持与 Java 测试源逐行对应
-#![allow(clippy::field_reassign_with_default)]
-
 use super::*;
 use std::net::{TcpListener, TcpStream};
 use std::process::{Child, Command, Stdio};
@@ -11,7 +7,7 @@ use vm_core::base::bus::EventBus;
 use vm_core::fm::status::FMStatus;
 
 /// 真机抓取的 /state 快照 (state.rs / service_fields.rs 测试同源,
-/// 断言值 = Java 8 oracle 实测; mock 契约: 冒号后一空格)
+/// 断言值 = 历史基线; mock 契约: 冒号后一空格)
 const STATE_MOCK: &str = "{\"valid\": true,\"aileron, %\": -48,\"elevator, %\": 20,\"rudder, %\": -47,\"flaps, %\": 0,\"gear, %\": 0,\"H, m\": 46,\"TAS, km/h\": 454,\"IAS, km/h\": 474,\"M\": 0.39,\"AoA, deg\": -1.6,\"AoS, deg\": -5.9,\"Ny\": 0.35,\"Vy, m/s\": -7.3,\"Wx, deg/s\": -34,\"Mfuel, kg\": 197,\"Mfuel0, kg\": 734,\"throttle 1, %\": 110,\"RPM throttle 1, %\": 100,\"mixture 1, %\": 100,\"radiator 1, %\": 42,\"magneto 1\": 3,\"power 1, hp\": 1597.8,\"RPM 1\": 3001,\"manifold pressure 1, atm\": 2.24,\"water temp 1, C\": 121,\"oil temp 1, C\": 90,\"pitch 1, deg\": 35.5,\"thrust 1, kgs\": 840,\"efficiency 1, %\": 87}";
 
 /// p51d /indicators 快照 (s2_preview_live 场景同源数据的手工裁剪版,
@@ -116,7 +112,7 @@ fn process_polling_cycle_full_chain() {
 
     svc.process_polling_cycle();
 
-    // sState 解析 (Java 8 oracle 值)
+    // sState 解析 (历史基线 值)
     {
         let d = svc.data.read().unwrap();
         let s = d.s_state.as_ref().unwrap();
@@ -231,7 +227,7 @@ fn update_compass_fallback_and_update_alt_branches() {
 }
 
 /// updateSpeedRatio/updateStallSpeed (Java L1185-1231 / L1236-1266) —
-/// MiniHUD 速度比值 bar 的数据源。无 FM 归零 / 有 FM 走 python 位级 oracle
+/// MiniHUD 速度比值 bar 的数据源。无 FM 归零 / 有 FM 走 python 位级 基线
 /// (真机 spitfire_f24 blkx 的 getload f32 拓宽域值 + STATE_MOCK ias=474/
 /// heightm=46: iasRatio 0.5417… > machRatio 0.4460… 走 ias 分支; 失速
 /// flaps 0/50 两档)。data/ 缺失时仅跑无 FM 域 (对齐 build.py 跳过语义)。
@@ -277,13 +273,13 @@ fn update_speed_ratio_and_stall_speed_oracle() {
         None,
     );
 
-    // W3: 两方法消解 — 公式接管 (formula_step 驱动, oracle 数值不变);
+    // W3: 两方法消解 — 公式接管 (formula_step 驱动, 基线 数值不变);
     // d.fm 生产链由 calculate 开头注入 (R1 快照), 直调此处补注
     svc.data.write().unwrap().fm = Arc::new(fm.clone());
     svc.formula_step(&fm);
     {
         let d = read_data(&svc.data);
-        // python oracle (f32 拓宽域公式直算, 位级)
+        // python 基线 (f32 拓宽域公式直算, 位级)
         assert_eq!(
             d.var_value("speed_limit_ratio").unwrap_or(f64::NAN),
             0.5417142857142857,
@@ -336,7 +332,7 @@ fn update_speed_ratio_and_stall_speed_oracle() {
 
 /// updateWepTime/updateTemp/checkEngineJet/updateEngineState/updateFuel
 /// (Java L707-723/L726-737/L484-514/L883-962/L964-984) 全链 — EngineInfo/
-/// EngineControl 的功率/动力量/油量/温度数据源。python oracle (f32 域):
+/// EngineControl 的功率/动力量/油量/温度数据源。python 基线 (f32 域):
 /// STATE_MOCK power1=1597.8hp/thrust1=840kgs/throttle1=110 + INDIC_MOCK
 /// speed=131.007797 → speedv=126.111… → hpEff=1412/avgeff=88.42。
 #[test]
@@ -361,7 +357,7 @@ fn engine_state_and_fuel_full_chain() {
 
     {
         let d = read_data(&svc.data);
-        // updateEngineState (活塞分支, python oracle)
+        // updateEngineState (活塞分支, python 基线)
         assert_eq!(d.engine.total_hp, 1597, "(int) 1597.8");
         assert_eq!(d.engine.total_thrust, 840, "thrust 1 = 840 kgs");
         assert_eq!(
@@ -856,7 +852,7 @@ fn feed_and_calculate(svc: &mut Service, i: usize) {
     svc.calculate();
 }
 
-/// 20 帧回放: 整链无 panic + mach 公式值逐帧 = 手算 oracle (与 Deriver 同式)
+/// 20 帧回放: 整链无 panic + mach 公式值逐帧 = 手算 基线 (与 Deriver 同式)
 #[test]
 fn frame_replay_formula_matches_oracle() {
     let mut svc = new_service();
@@ -1081,7 +1077,7 @@ fn w2_deriver_takeover_bitexact_oracle() {
 
 /// 面板 :target 短名端到端取值 — live 显示回归锚: 公式槽直达公式真值
 /// (曾 getter 双名断链致飞行信息 7 行消失/动力 3 行恒 0; W10 单名制)。
-/// 数据同 oracle 回放 (无 FM — mach/total_weight 公式 invalid → None,
+/// 数据同 基线 回放 (无 FM — mach/total_weight 公式 invalid → None,
 /// 消费面 unwrap_or(0) 对位 Java 无 FM 显示 0.00)
 #[test]
 fn panel_targets_via_short_names() {

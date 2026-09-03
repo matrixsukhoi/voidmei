@@ -1,6 +1,6 @@
 use super::*;
 
-/// 边界测试: get_file_name_no_ex (期望值经 Java 8 oracle 对拍)
+/// 边界测试: get_file_name_no_ex (期望值经 历史基线 对拍)
 #[test]
 fn get_file_name_no_ex_boundaries() {
     // null → null
@@ -26,7 +26,7 @@ fn get_file_name_no_ex_boundaries() {
         get_file_name_no_ex(Some("my.file.v1.bin")),
         Some("my.file.v1")
     );
-    // CJK: Java 按码元切 / Rust 按字节切, 落在同一字符边界 (§2.1, oracle 对拍)
+    // CJK: Java 按码元切 / Rust 按字节切, 落在同一字符边界
     assert_eq!(get_file_name_no_ex(Some("文件.tar")), Some("文件"));
     assert_eq!(get_file_name_no_ex(Some("文件名")), Some("文件名"));
 }

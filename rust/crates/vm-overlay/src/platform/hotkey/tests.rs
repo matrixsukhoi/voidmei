@@ -1,6 +1,6 @@
 use super::*;
 
-// ---- vk_to_vc: 值域锚定 javap 提取的 NativeKeyEvent 常量 (Java oracle) ----
+// ---- vk_to_vc: 值域锚定 javap 提取的 NativeKeyEvent 常量 (历史基线) ----
 
 /// 字母/数字/F 键/编辑键 (VK 域 → VC 域) 与 jar 常量逐一相等
 #[test]
@@ -329,7 +329,7 @@ mod win {
 
     /// sink 回调 panic 不得 abort 进程 (panic 跨 extern "system" 边界
     /// unwind 即 abort) 也不得中断钩子链 — 对齐 Java UIStateBus 逐个
-    /// catch 不中断 (LIFETIMES §2.2); 本测试不崩 = catch_unwind 生效
+    /// catch 不中断; 本测试不崩 = catch_unwind 生效
     struct PanickingSink;
     impl HotkeyEventSink for PanickingSink {
         fn on_hotkey(&self, _event: &HotkeyEvent) {

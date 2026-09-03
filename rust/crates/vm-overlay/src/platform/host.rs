@@ -1,11 +1,11 @@
 //! OverlayHost: 多窗口 overlay 管理 (Java OverlayManager + AlwaysOnTopCoordinator 合并语义)
 //!
-//! PORT: Java 两个类的职责合并 —
+//! Java 两个类的职责合并 —
 //! - OverlayManager: LinkedHashMap 注册表 + per-entry open/close/
 //!   refreshPreview 生命周期; Rust 侧 `entries: Vec<OverlayEntry>` 保插入序 (对应
-//!   LinkedHashMap, HashMap 每次迭代随机故不可用, PORTING §2.5)。
+//!   LinkedHashMap, HashMap 每次迭代随机故不可用, )。
 //! - AlwaysOnTopCoordinator: pendingDialogs 计数 + 窗口
-//!   注册表; LIFETIMES §1.1 裁决 "Rust 若 overlay 归管理器独占拥有, Weak 注册表整体
+//!   注册表; 裁决 "Rust 若 overlay 归管理器独占拥有, Weak 注册表整体
 //!   不需要 — Drop 即注销, 僵尸窗口防护由所有权天然保证", 故只保留计数 + DialogHooks 钩子。
 //!
 //! 并发纪律 (重构波3 裁决): 本 host 恒留渲染单线程 (全方法 &mut self 且整体
@@ -14,7 +14,7 @@
 //! 代码) 不在持有任何锁的上下文执行的历史约束随摘锁自动满足。
 //!
 //! 线程模型 (PORT 差异, 有意为之): Java 为每个 needsThread overlay 起一条 doit/sleep
-//! 轮询线程 (LIFETIMES §3.1 #13/#14, 游戏模式同时 5-8 条冗余 sleep 线程), 那是 Swing/EDT
+//! 轮询线程, 那是 Swing/EDT
 //! 模型所迫; Win32 消息队列本就以线程为单位 (一个线程天然泵全部 HWND), 故合并为
 //! 单线程泵全部窗口消息 + 脏检查渲染 — 即 LIFETIMES "per-overlay 线程全部废除, 迁移
 //! 事件驱动" 裁决的落地。
@@ -37,14 +37,14 @@ pub type RenderFn = Box<dyn FnMut(&mut PixCanvas)>;
 /// WYSIWYG reinitializer 闭包 (各 overlay 的 reinitConfig 执行面):
 /// 重建 state/字体/几何, 返回 Some((w,h)) = 新窗口尺寸 (setBounds 副作用,
 /// host 走 resize_entry 落窗口), None = 尺寸不变或重建失败 (闭包内自行留痕)。
-/// PORT: 闭包内部读线程局部 [`crate::platform::reinit::ReinitParams`] 仓取最新参数
+/// 闭包内部读线程局部 [`crate::platform::reinit::ReinitParams`] 仓取最新参数
 /// (配置 !Send, 值随 UiCommand 进渲染线程 — 五色直送同款模式)
 pub type ReinitFn = Box<dyn FnMut() -> Option<(i32, i32)>>;
 
 /// 窗口工厂 (依赖注入点: 生产用 platform::create, 测试注入 mock 做事件分流/销毁序模拟)
 pub type WindowFactory = Box<dyn Fn(WindowConfig) -> Result<Box<dyn OverlayWindow>, String>>;
 
-/// dialog 协调钩子 — PORT: Java AlwaysOnTopCoordinator.dialogWillShow/dialogDidDismiss 的
+/// dialog 协调钩子 — Java AlwaysOnTopCoordinator.dialogWillShow/dialogDidDismiss 的
 /// suspendAll/restoreAll 语义 (计数归零恢复置顶 + 清 popover)。
 /// POC 无对话框阶段: 全部窗口恒 TOPMOST (win.rs 创建即 WS_EX_TOPMOST), 空实现合法;
 /// 引入设置主窗后由其实现 (遍历各窗口调 `OverlayWindow::set_topmost`, 等价 Java 的
@@ -72,7 +72,7 @@ const PREVIEW_BG: [u8; 4] = [0x00, 0x00, 0x00, 0x0A];
 /// 注册用描述 (注册不建实例)
 pub struct OverlaySpec {
     /// 唯一实例键 (Java entries LinkedHashMap 的 key; 亦为位置存档键)。
-    /// PORT: Java 三个 register 重载均以 configKey 作 LinkedHashMap 键 — 同 configKey
+    /// Java 三个 register 重载均以 configKey 作 LinkedHashMap 键 — 同 configKey
     /// 后注册者整体替换前者 (只余一个 entry); Rust 以 id 为键, 同 config_key 不同 id
     /// 的两个 spec 可并存双窗。当前全库恒等 id==config_key (keyed_spec 唯一生产
     /// 构造点, spec_common.rs), 分叉语义未被使用
@@ -88,7 +88,7 @@ pub struct OverlaySpec {
 }
 
 /// 窗口槽位: 活跃窗口 + 拖拽/指纹/可见态 (无轮询线程可停 —
-/// LIFETIMES §4.2: Drop 即完整销毁链)
+/// : Drop 即完整销毁链)
 struct OverlaySlot {
     window: Box<dyn OverlayWindow>,
     /// 拖拽状态机: 按下时 (root - win_pos) 偏移
@@ -191,7 +191,7 @@ pub struct OverlayHost {
     /// 游戏失焦隐藏标志 — Java 侧需 volatile 因 FocusMonitor 在 Service 线程调用;
     /// host 为单线程独占 (&mut self), 服务线程经消息送主循环调用, 普通 bool 即可
     overlays_hidden: bool,
-    /// 停机标志 (LIFETIMES §3.2 → AtomicBool)。
+    /// 停机标志。
     /// Arc + stop_handle() 跨线程可达: host 本体 !Send, 上层 Controller/Service 线程
     /// 持句柄请求退出
     stop: Arc<AtomicBool>,
@@ -225,7 +225,7 @@ impl OverlayHost {
     }
 
     /// 注入激活探测 (读 OverlayContext 配置)。
-    /// PORT: Java ActivationStrategy.config(key) = Boolean.parseBoolean(getConfig(key)),
+    /// Java ActivationStrategy.config(key) = Boolean.parseBoolean(getConfig(key)),
     /// 配置缺失 (null) 解析为 false — 未配置的 overlay 默认**不激活**; POC 未接配置层,
     /// 默认探测 `|_| true` 全启用, 接配置层时必须恢复"缺省 false"语义, 否则 open_all
     /// 会打开全部未配置 overlay。
@@ -270,7 +270,7 @@ impl OverlayHost {
         };
         match self.entries.iter().position(|e| e.id == entry.id) {
             Some(idx) => {
-                // PORT: Java LinkedHashMap.put 替换后旧实例被孤儿化 (窗口漏在屏幕上,
+                // Java LinkedHashMap.put 替换后旧实例被孤儿化 (窗口漏在屏幕上,
                 // Java 的 bug); Rust 所有权下旧窗口随条目 Drop 销毁, 但静默 Drop 不走
                 // close 销毁链会丢位置存档 — 故先按 close 链收尾 (存位置 + drop),
                 // 同键位置存档跨替换保留, 新条目 materialize 时恢复
@@ -357,7 +357,7 @@ impl OverlayHost {
     }
 
     /// 关闭单个 overlay — 销毁序: 存位置 → 销毁窗口 → 清僵尸标志。
-    /// 槽位摘取期间完成存位置/销毁链 (单线程独占, 无锁 — LIFETIMES §3.3-1);
+    /// 槽位摘取期间完成存位置/销毁链 (单线程独占, 无锁 — );
     /// 无轮询线程可停, drop(window) = dispose 注销链
     pub fn close(&mut self, id: &str) -> bool {
         let Some(idx) = self.entries.iter().position(|e| e.id == id) else {
@@ -540,8 +540,8 @@ impl OverlayHost {
         match initial {
             Some((nx, ny)) => {
                 let (sw, sh) = window.screen_size();
-                // PORT: Java (int) Math.round = floor(x+0.5);
-                // Rust f64::round 是半偶舍入, 恰为 .5 时窗口位置差 1px (PORTING §2.3)
+                // Java (int) Math.round = floor(x+0.5);
+                // Rust f64::round 是半偶舍入, 恰为 .5 时窗口位置差 1px
                 window.set_position(
                     (nx * sw as f64 + 0.5).floor() as i32,
                     (ny * sh as f64 + 0.5).floor() as i32,
@@ -773,7 +773,7 @@ impl OverlayHost {
         closed
     }
 
-    /// 一帧渲染: 清底 (preview 铺极淡黑底, PORT: Java applyPreviewStyle) → render 闭包 →
+    /// 一帧渲染: 清底 (preview 铺极淡黑底, Java applyPreviewStyle) → render 闭包 →
     /// 与上帧逐字节比较 → 变化才 present (脏检查, Java repaint 抑制 / 零无谓提交)。
     /// render 闭包是任意第三方代码, present 是系统调用 — 在持槽位所有权下执行
     pub fn render_tick(&mut self) -> Result<(), String> {

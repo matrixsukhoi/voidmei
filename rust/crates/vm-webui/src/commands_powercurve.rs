@@ -136,7 +136,7 @@ pub fn load_single_curve(fm_name: &str, wep_mode: bool, speed_kmh: i32) -> Power
 
     // Multi-engine aircraft: multiply each point by engine count
     if fmdata.engine_num > 1 {
-        // Java double * int 提升 double → as f64 (§2.4)
+        // Java double * int 提升 double → as f64
         for p in power_curve.iter_mut() {
             *p *= fmdata.engine_num as f64;
         }

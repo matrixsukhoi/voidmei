@@ -1,7 +1,7 @@
 //! 全局五色仓 — Java `Application.colorNum/colorLabel/colorUnit/colorWarning/
 //! colorShadeShape` 静态字段的 Rust 对位物。
 //!
-//! **为什么是全局** (§2.9 禁裸全局的豁免备案): Java 原文即全局静态, 组件
+//! **为什么是全局**: Java 原文即全局静态, 组件
 //! (gauge/bars/rows/renderers ~185 引用点) 直接读; 机械保真优先, Rust 以
 //! `OnceLock<RwLock<GlobalColors>>` 收敛为受控全局 — 写点仅两处:
 //! 渲染线程启动快照注入 + UiCommand::SetGlobalColors (WYSIWYG 色变),

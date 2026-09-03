@@ -131,7 +131,7 @@ impl Default for ControllerShared {
 }
 
 /// 防过期守卫 (渲染线程消费 UiCommand::RefreshPreviews 时调用)。
-/// PORT: Java refreshPreviews 的 UI 线程派发内守卫
+/// Java refreshPreviews 的 UI 线程派发内守卫
 /// (`State != PREVIEW || previewGeneration.get() != generation`)。
 /// Java 防抖路径 (configChanged/fmChanged 任务体) 无此守卫 (★2 违规波及面),
 /// Rust 统一经本守卫 — 世代号不匹配或已离开 PREVIEW 即丢弃。

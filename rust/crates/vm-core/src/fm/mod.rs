@@ -4,7 +4,7 @@
 //! power_curve)。
 //! 波8 域内语义分层: 剥 fm_ 前缀 (域已表达)、fmdata→data (消解与 data_paths 的
 //! 拼写分裂)、power_curve_helper→power_curve。
-//! PORT: 类型顶层 re-export 镜像 Java `import prog.fm.FMStatus` 的扁平引用
+//! 类型顶层 re-export 镜像 Java `import prog.fm.FMStatus` 的扁平引用
 //! (event/mod.rs 同款先例); Java `FMHandle.UNRESOLVED` 是关联常量, 经
 //! `FMHandle::UNRESOLVED` 访问, 无需 (也无法) 顶层 re-export。
 //! Java `FMDataPaths.xxx`/`FMLoader.xxx` 静态方法 → `data_paths::xxx()`/

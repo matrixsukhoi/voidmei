@@ -16,16 +16,16 @@ use crate::ui_support::comparison::rules::{
 ///
 /// Users can add rules by editing the static initializer block.
 /// Properties without rules will show as a draw (grey color).
-// PORT: Java `private static final Map rules` + 类加载 static 初始化块 →
+// Java `private static final Map rules` + 类加载 static 初始化块 →
 // std OnceLock (首次访问执行一次, audio/voice_alert_type.rs 同款先例);
-// HashMap 仅做 get/containsKey, 无迭代顺序依赖 (PORTING.md §2.5), std HashMap
+// HashMap 仅做 get/containsKey, 无迭代顺序依赖, std HashMap
 // 即可。规则实例经 Box::leak 取 &'static —— 与 Java 静态字段"进程生命周期持有"
 // 语义一致。注册表要求 Sync, 存 `dyn ComparisonRule + Send + Sync`, 对外经
 // 自动 trait 削减协变回 `&'static dyn ComparisonRule`。
 pub struct ComparisonRules;
 
 // Pattern to extract second number from "A / B" format
-// (ComparisonRules.java SLASH_SECOND 常量原注释, 逐字保留 — PORTING.md §0.2)
+// (ComparisonRules.java SLASH_SECOND 常量原注释, 逐字保留 — )
 
 /// `/\s*(-?\d+(\.\d+)?)` (SLASH_SECOND) 的 find(), 返回组1。
 /// 波21: 手写回溯匹配器退役, regex crate 直接承载 (JAVA_WS = ASCII \s)。
@@ -36,7 +36,7 @@ fn find_slash_second(s: &str) -> Option<&str> {
 }
 
 // Pattern to extract both numbers from "A / B" format
-// (ComparisonRules.java SLASH_BOTH 常量原注释, 逐字保留 — PORTING.md §0.2)
+// (ComparisonRules.java SLASH_BOTH 常量原注释, 逐字保留 — )
 
 /// `(-?\d+(\.\d+)?)\s*/\s*(-?\d+(\.\d+)?)` (SLASH_BOTH) 的 find(), 返回 (组1, 组3)。
 /// regex crate 的 leftmost-first + 贪婪回溯次序与 java.util.regex 一致
@@ -162,8 +162,8 @@ fn build_rules() -> HashMap<&'static str, &'static (dyn ComparisonRule + Send + 
 impl ComparisonRules {
     /// Get the comparison rule for a property name.
     ///
-    /// @param property_name the property name (e.g., "空重(kg)")
-    /// @return the rule, or null if no rule is defined (will show as draw)
+    /// - `property_name`: the property name (e.g., "空重(kg)")
+    /// 返回: the rule, or null if no rule is defined (will show as draw)
     pub fn get(property_name: &str) -> Option<&'static dyn ComparisonRule> {
         rules()
             .get(property_name)
@@ -172,15 +172,15 @@ impl ComparisonRules {
 
     /// Check if a rule exists for the given property.
     ///
-    /// @param property_name the property name
-    /// @return true if a rule is defined
+    /// - `property_name`: the property name
+    /// 返回: true if a rule is defined
     pub fn has_rule(property_name: &str) -> bool {
         rules().contains_key(property_name)
     }
 }
 
 // =====================================================================
-// Tests — 期望值取自 Java 8 oracle 实测 (经 ComparisonRules.get 原类直跑,
+// Tests — 期望值取自 历史基线 (经 ComparisonRules.get 原类直跑,
 // Double.doubleToLongBits 逐位对拍)。
 #[cfg(test)]
 mod tests;

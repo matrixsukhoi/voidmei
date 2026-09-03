@@ -8,7 +8,7 @@
 //! - 常量命名清晰表达含义
 //! - 分组组织便于查找
 //!
-//! PORT: Java final class + 私有构造 `private UIConstants() { // 禁止实例化 }`
+//! Java final class + 私有构造 `private UIConstants() { // 禁止实例化 }`
 //! → Rust 模块本身不可实例化, 天然满足"禁止实例化"语义。
 //! Java `static final int` → `pub const i32`, `static final long` → `pub const i64`。
 

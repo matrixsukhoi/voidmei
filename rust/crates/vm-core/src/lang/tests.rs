@@ -67,9 +67,9 @@ fn init_lang_whitespace_semantics() {
     let lang = Lang::init_lang();
     assert_eq!(lang.m_display_overlay, "显示Overlay: "); // 尾随空格保留
     assert_eq!(lang.f_a_roll1, "速度  "); // 两个尾随空格 (oracle)
-                                          // 值全为 ASCII 空白 → Properties 前导空白全跳过 → 空串 (oracle)
+                                          // 值全为 ASCII 空白 → Properties 前导空白全跳过 → 空串 (基线)
     assert_eq!(lang.m_p4attitude_indicator_panel_blank, "");
-    // 分隔符后前导空格被跳过: appTooltips 值无前导空格 (oracle)
+    // 分隔符后前导空格被跳过: appTooltips 值无前导空格 (基线)
     assert_eq!(lang.app_tooltips, "WT8111端口信息分析、显示、记录工具");
     assert!(lang.aboutcontent.ends_with("\n\r"));
 }
@@ -90,7 +90,7 @@ fn init_lang_alignment_padding_survives() {
     let v = lang.m_p1_temp_notification_blank;
     assert_eq!(v.chars().count(), 36);
     assert!(v.chars().all(|c| c == '\u{3000}'));
-    // mP4PanelFont = 面板显示字体 + 44 个 ASCII 尾随空格 (oracle len=50)
+    // mP4PanelFont = 面板显示字体 + 44 个 ASCII 尾随空格 (基线 len=50)
     let v = lang.m_p4_panel_font;
     assert_eq!(v.chars().count(), 50);
     assert!(v.starts_with("面板显示字体"));

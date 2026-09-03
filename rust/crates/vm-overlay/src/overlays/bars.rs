@@ -6,18 +6,18 @@
 //! - FlapAngleBar — 襟翼三色分区条 + 固定角度刻度。
 //!
 //! 绘制目标 = render2d::PixCanvas; 颜色/坐标公式逐项对照 Java paint 逻辑
-//! (关键处 // PORT: 标注)。Java char[] 零 GC buffer 模式在 Rust 侧
+//! (关键处 // 标注)。Java char[] 零 GC buffer 模式在 Rust 侧
 //! 统一为可复用 String 缓存 (update 仅在内容变化时重写)。
 //!
-//! 轴对齐整数端点线不走 tiny-skia 矢量光栅化, 按 Java 8 oracle 实测像素盒直填
-//! (期望值逐像素钉死在 line_primitive_pixel_boxes; 基元与完整 oracle 注记在
+//! 轴对齐整数端点线不走 tiny-skia 矢量光栅化, 按 历史基线像素盒直填
+//! (期望值逐像素钉死在 line_primitive_pixel_boxes; 基元与完整 基线 注记在
 //! render::primitives, 重构波13 自本文件收敛):
 //! - AA OFF (ANTIALIAS_OFF): 像素中心规则 — 像素中心落在 stroke 覆盖盒内才点亮。
 //! - AA ON (生产 graphAASetting 恒 ON, 无运行时关闭路径):
 //!   整数端点经 STROKE_NORMALIZE 规整到像素中心, 宽 2 线呈 3 行/列柔边,
 //!   用覆盖率缩放 alpha 的解析盒复刻 (cov_color, 等价 Java AA 的 SrcOver×coverage
 //!   合成); 1px 线 AA 开关输出一致。
-//! - drawRect 环: 负宽/负高整体不绘制 (oracle 0 像素); 零宽/零高退化 1px 线。
+//! - drawRect 环: 负宽/负高整体不绘制 (基线 0 像素); 零宽/零高退化 1px 线。
 
 use crate::render::canvas::PixCanvas;
 use crate::render::font::LoadedFont;
@@ -29,7 +29,7 @@ use vm_core::base::format::java_round_f32;
 /// LinearGauge 私有 drawRect 助手: shade 环 + fill 内芯。
 /// flip_logic=true 为横向 gauge 的竖直刻度:
 /// drawRect(x+w, y, -w-1, h-1) 负宽 → 整体不绘制, fillRect 负宽同样不绘制 —
-/// 该分隔线在 Java 中【完全不可见】(oracle 实测), 横向 LinearGauge 只剩
+/// 该分隔线在 Java 中【完全不可见】(历史基线), 横向 LinearGauge 只剩
 /// 条 + 条下方文本。
 #[allow(clippy::too_many_arguments)] // 签名对齐 Java 私有 drawRect(g2d,x,y,w,h,shade,fill,flip)
 fn gauge_rect(
@@ -43,18 +43,18 @@ fn gauge_rect(
     flip_logic: bool,
 ) {
     if !flip_logic {
-        // PORT: drawRect(x,y,w-1,h-1)=w×h 环 + fillRect(x+1,y+1,w-2,h-2)
+        // drawRect(x,y,w-1,h-1)=w×h 环 + fillRect(x+1,y+1,w-2,h-2)
         primitives::ring1px(cv, x, y, w - 1, h - 1, shade);
         cv.fill_rect(x + 1, y + 1, w - 2, h - 2, fill);
     } else {
-        // PORT: flip 分支的 drawRect 负宽环
+        // flip 分支的 drawRect 负宽环
         primitives::ring1px(cv, x + w, y, -w - 1, h - 1, shade);
         cv.fill_rect(x + 1 + w, y + 1, -w - 2, h - 2, fill); // 负高 → 不绘制
     }
 }
 
 // hline_butt2/vline_square2 已收敛 primitives.rs (波13): 水平 w=2 线直接
-// butt_line(w=2) — 逐像素等价 (oracle 见 primitives 文档); 方帽竖线为独立基元
+// butt_line(w=2) — 逐像素等价 (基线 见 primitives 文档); 方帽竖线为独立基元
 // vline_square2。
 
 // ---------------------------------------------------------------------------
@@ -182,7 +182,7 @@ impl LinearGauge {
     /// pixVal = Math.round((float)curValue * length / maxValue), max<=0 → 0
     fn pix_value(&self, length: i32) -> i32 {
         if self.max_value > 0 {
-            // PORT: Java (float) 提升链保持 f32 (§2.12)
+            // Java (float) 提升链保持 f32
             java_round_f32(self.cur_value as f32 * length as f32 / self.max_value as f32)
         } else {
             0
@@ -202,18 +202,18 @@ impl LinearGauge {
         fill: [u8; 4],
         is_vert: bool,
     ) {
-        // PORT: drawRect(x,y,w-1,h-1) — 自 (x,y) 向下/右生长
+        // drawRect(x,y,w-1,h-1) — 自 (x,y) 向下/右生长
         primitives::ring1px(cv, x, y, w - 1, h - 1, shade);
         if is_vert {
             let val_h = if val > h { h } else { val };
             if val_h >= 0 {
-                // PORT: fillRect(x+1, y+h-1-valH, w-2, valH) — 底部对齐内芯
+                // fillRect(x+1, y+h-1-valH, w-2, valH) — 底部对齐内芯
                 cv.fill_rect(x + 1, y + h - 1 - val_h, w - 2, val_h, fill);
             }
         } else {
             let val_w = if val > w { w } else { val };
             if val_w >= 0 {
-                // PORT: fillRect(x+1, y+1, valW-2, h-2) — valW<2 时负宽不绘制
+                // fillRect(x+1, y+1, valW-2, h-2) — valW<2 时负宽不绘制
                 cv.fill_rect(x + 1, y + 1, val_w - 2, h - 2, fill);
             }
         }
@@ -238,7 +238,7 @@ impl LinearGauge {
         aa: bool,
     ) {
         let pix_val = self.pix_value(length);
-        // PORT: 值色覆盖 / shade 恒为 colorShadeShape; 条填充恒 colorNum
+        // 值色覆盖 / shade 恒为 colorShadeShape; 条填充恒 colorNum
         let c = self.value_color.unwrap_or(colors().num);
         let shade = colors().shade_shape;
 
@@ -247,12 +247,12 @@ impl LinearGauge {
             let text_width = font_num.measure(&self.display_value);
             let label_spacing = 2;
 
-            // PORT: 分隔线 y = 底 - 1 - pixVal
+            // 分隔线 y = 底 - 1 - pixVal
             // (极端 curValue 下 i32 加减 Java 静默回绕 / Rust panic §2.2, 不可达, 备查)
             let sep_y = y + length - 1 - pix_val;
 
             if self.tick_on_right {
-                // PORT: 条在左, 刻度(分隔线+文本)在右
+                // 条在左, 刻度(分隔线+文本)在右
                 Self::draw_bar(
                     cv,
                     x,
@@ -277,7 +277,7 @@ impl LinearGauge {
                     aa,
                 );
             } else {
-                // PORT: 刻度(文本+分隔线)在左, 条在右 (默认)
+                // 刻度(文本+分隔线)在左, 条在右 (默认)
                 let bar_x = x + text_width + label_spacing;
                 Self::draw_bar(
                     cv,
@@ -304,7 +304,7 @@ impl LinearGauge {
                 );
             }
         } else {
-            // PORT: 横条 + 竖直分隔线(flip 环在条上方) + 条下方文本
+            // 横条 + 竖直分隔线(flip 环在条上方) + 条下方文本
             Self::draw_bar(
                 cv,
                 x,
@@ -342,7 +342,7 @@ impl LinearGauge {
 }
 
 // ---------------------------------------------------------------------------
-// LabeledLinearGauge (组合 + 委托, PORTING.md §1 extends 映射)
+// LabeledLinearGauge (组合 + 委托, extends 映射)
 // ---------------------------------------------------------------------------
 
 /// 带前置标签的 LinearGauge。
@@ -404,7 +404,7 @@ impl LabeledLinearGauge {
     ) {
         let g = &self.gauge;
         if g.vertical {
-            // PORT: 基类逻辑, 文本宽度换 label+value 合成 (条与分隔线右移)
+            // 基类逻辑, 文本宽度换 label+value 合成 (条与分隔线右移)
             let pix_val = g.pix_value(length);
             let c = g.value_color.unwrap_or(colors().num);
             let shade = colors().shade_shape;
@@ -452,7 +452,7 @@ impl LabeledLinearGauge {
                 self.draw_value_text(cv, x, sep_y - 1, font_num, c, shade, aa);
             }
         } else {
-            // PORT: 横向修正版
+            // 横向修正版
             let pix_val = g.pix_value(length);
             let c = colors().num;
             let shade_shadow = colors().shade_shape;
@@ -472,10 +472,10 @@ impl LabeledLinearGauge {
 
             // 2. 竖直分隔线: 条顶延伸到文本底
             //    sepHeight = thickness + fontSize + 2; 影线 x+pixVal+1 / 主线 x+pixVal
-            //    PORT: Java 此处未 setStroke, 线宽承袭调用链遗留 stroke — 唯一消费链
+            //    Java 此处未 setStroke, 线宽承袭调用链遗留 stroke — 唯一消费链
             //    GaugeField→EngineControlOverlay/LinearGaugeRenderer 的绘制序中前置
             //    gauge 恒 set 1px 族 stroke, 首个 gauge 前为 Graphics2D 默认
-            //    BasicStroke(1); oracle 实测两种遗留 stroke 下 1px 竖线输出一致
+            //    BasicStroke(1); 历史基线两种遗留 stroke 下 1px 竖线输出一致
             //    (列 x, 行 y0..y1 端点含硬边)。Rust 组装层若绘制顺序变化需回访此处
             let sep_height = thickness + font_num.size + 2;
             vline_1px(cv, x + pix_val + 1, y, y + sep_height, shade_shadow);
@@ -584,10 +584,10 @@ impl SpeedRatioBar {
     }
 
     /// lockY = y + height - Math.round((float)(height * ratio))
-    /// PORT: 极端 |ratio| 下 java_round_f32 饱和到 i32::MAX/MIN 后的加减在
-    /// Java 静默回绕 (§2.2), Rust debug 会 panic — 真实遥测幅度不可达, 记录备查
+    /// 极端 |ratio| 下 java_round_f32 饱和到 i32::MAX/MIN 后的加减在
+    /// Java 静默回绕, Rust debug 会 panic — 真实遥测幅度不可达, 记录备查
     fn ratio_y(&self, y: i32, ratio: f64) -> i32 {
-        // PORT: Java double 乘法后 (float) 强转, 再 Math.round(float)
+        // Java double 乘法后 (float) 强转, 再 Math.round(float)
         y + self.height - java_round_f32((self.height as f64 * ratio) as f32)
     }
 
@@ -653,7 +653,7 @@ impl SpeedRatioBar {
             );
 
             if let Some(f) = tick_font {
-                // PORT: (int) Math.round(speedRatio * 100)
+                // (int) Math.round(speedRatio * 100)
                 let display_value = format::java_round_f64(self.speed_ratio * 100.0);
                 let value_str = display_value.to_string();
                 let actual_text_width = f.measure(&value_str);
@@ -796,7 +796,7 @@ impl FlapAngleBar {
         let ascent = font.metrics().ascent;
         let text_y = y + ascent;
         let str_width = font.measure(&self.display_text);
-        // PORT: int 除法向零截断 (strWidth 超宽时整体左移)
+        // int 除法向零截断 (strWidth 超宽时整体左移)
         let str_x = x + (total_width - str_width) / 2;
         primitives::text_shaded(
             cv,
@@ -813,7 +813,7 @@ impl FlapAngleBar {
         let bar_y = y + font.size + 2;
 
         // 三区宽度: used=已用(shade), margin=安全裕度(colorNum), overspeed=超速(warning)
-        // PORT: (int)(double) 截断
+        // (int)(double) 截断
         let mut used_width = (self.current_angle * total_width as f64 / MAX_SCALE as f64) as i32;
         let margin_width = if self.current_angle <= self.max_safe_angle {
             // 正常: 有安全裕度
@@ -830,9 +830,9 @@ impl FlapAngleBar {
         overspeed_width = overspeed_width.max(0);
 
         // 刻度: colorLabel, 裸 BasicStroke(2) 方帽
-        // PORT: tx = x + tick*totalWidth/MAX_SCALE 是 int 算术 (整除);
+        // tx = x + tick*totalWidth/MAX_SCALE 是 int 算术 (整除);
         // 100 刻度全高, 其余 1/4 高; 线自 barY-ext-2 到 barY (先于分区绘制, 与条重叠段被覆盖)
-        // PORT: tick*total_width 在极端 total_width 下 Java 静默回绕 / Rust panic (§2.2),
+        // tick*total_width 在极端 total_width 下 Java 静默回绕 / Rust panic,
         // 真实布局幅度不可达, 记录备查
         for &tick in &TICK_POSITIONS {
             let tx = x + tick * total_width / MAX_SCALE;

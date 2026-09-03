@@ -18,10 +18,10 @@
 //!       本类无副作用、可任意重入。</li>
 //! </ul>
 //!
-//! PORT: Java `public final class FMLoader` + `private FMLoader() {}` 私有构造器的
+//! Java `public final class FMLoader` + `private FMLoader() {}` 私有构造器的
 //! 纯静态工具类 → Rust 模块自由函数 (fm_data_paths.rs 同款先例); "唯一解析点"
 //! = [`crate::fm::data::reader`] 全量装载 (blkx→json 迁移: FM 数据源为 JSON)。
-//! PORT: 线程模型 — Java 在 FM-Loader 线程调用 → 保持同步函数, 线程由
+//! 线程模型 — Java 在 FM-Loader 线程调用 → 保持同步函数, 线程由
 //! Manager/调用方管 (无自起线程)。
 
 use std::panic::{catch_unwind, AssertUnwindSafe};
@@ -37,8 +37,8 @@ use crate::fm::piston_model::peak_wep_power;
 use crate::fm::power_extractor::{extract_stages_with_fuel, is_piston_engine};
 
 /// 白盒测试计数器：FMLoader.load 真正执行（进入加载流程）的次数
-// PORT: Java `private static volatile long loadCount` → AtomicU64 (§1 volatile →
-// AtomicXxx; LIFETIMES §1.3 裁决 "测试用 AtomicU64 注入或删")。Java 的 `loadCount++`
+// Java `private static volatile long loadCount` → AtomicU64 (§1 volatile →
+// AtomicXxx; 裁决 "测试用 AtomicU64 注入或删")。Java 的 `loadCount++`
 // 是 volatile 复合赋值 (非原子, 并发下本就是竞态噪声计数), fetch_add 为其正确超集
 static LOAD_COUNT: AtomicU64 = AtomicU64::new(0);
 
@@ -55,10 +55,10 @@ pub fn reset_load_count() {
 /// 加载指定机型的 FM 数据。任何一步失败都返回 MISSING/CORRUPT 句柄，绝不抛出、
 /// 绝不返回 null。
 ///
-/// @param planeName 机型名（任意大小写/空白，内部规范化）
-/// @return 加载结果句柄；name 为空时返回 UNRESOLVED
-// PORT: Java `String` 可 null 入参 → Option<&str> (§1)。
-// PORT: Java catch(Throwable) (含 OOM/NPE/StringIndexOutOfBounds) → 双通道收敛:
+/// - `planeName`: 机型名（任意大小写/空白，内部规范化）
+/// 返回: 加载结果句柄；name 为空时返回 UNRESOLVED
+// Java `String` 可 null 入参 → Option<&str>。
+// Java catch(Throwable) (含 OOM/NPE/StringIndexOutOfBounds) → 双通道收敛:
 // ① 常规失败走 try_load 的 Result Err; ② panic (blkx 原语在 data=None 上 unwrap
 // 对应 Java NPE, reader.rs NPE 保真注) 经 catch_unwind 兜底 —— 两者统一记
 // ERROR 日志后收敛 CORRUPT, 不允许炸穿 loader 线程导致任务队列停摆
@@ -68,7 +68,7 @@ pub fn load(plane_name: Option<&str>) -> FMHandle {
         None | Some("") => return FMHandle::UNRESOLVED,
         Some(p) => p,
     };
-    // PORT: Java `planeName.toLowerCase().trim()` — toLowerCase 绑定默认 Locale,
+    // Java `planeName.toLowerCase().trim()` — toLowerCase 绑定默认 Locale,
     // 机型名域为 ASCII, Rust to_lowercase (≡ Locale.ROOT) 逐字符一致
     // (fm_data_paths.rs 同款先例); trim 差异同类: Java String.trim 只剥
     // <= U+0020 的 C0 控制符, Rust str::trim 剥 Unicode White_Space (含 NBSP
@@ -84,7 +84,7 @@ pub fn load(plane_name: Option<&str>) -> FMHandle {
         Ok(Err(t)) => {
             // OOM 也一并捕获（记 ERROR 便于排查）：不允许异常炸穿 loader 线程导致任务队列停摆，
             // 统一收敛为 CORRUPT 句柄进负缓存
-            // PORT: Java 3 参 error 的 "message + ": " + getMessage()" 双拼形态
+            // Java 3 参 error 的 "message + ": " + getMessage()" 双拼形态
             // (消息串已含 t 的 toString, 再拼一次 getMessage) 由 error_with_throwable
             // 复刻; 消息本体 = `"FM加载异常(" + name + "): " + t` 逐字
             logger::error_with_throwable(
@@ -96,7 +96,7 @@ pub fn load(plane_name: Option<&str>) -> FMHandle {
         }
         Err(panic_payload) => {
             // panic 载荷 (unwrap 越界等) ≈ Java 运行时异常的 toString 形态
-            // PORT: 可见输出差异备案 — Rust 默认 panic hook 在 catch_unwind 捕获前
+            // 可见输出差异备案 — Rust 默认 panic hook 在 catch_unwind 捕获前
             // 已把 "thread ... panicked at ..." 打到 stderr (不受日志级别控制),
             // Java catch(Throwable) 只有 Logger.error 单通道; 句柄契约 (CORRUPT
             // 收敛) 不受影响。不在库内 set_hook 全局压制 (会伤测试输出), 留待
@@ -113,7 +113,7 @@ pub fn load(plane_name: Option<&str>) -> FMHandle {
 }
 
 /// Java `load` 的 try 块主体 — Err ≡ 会落入 catch(Throwable) 的异常路径。
-// PORT: Java catch 块收敛 CORRUPT 由外层 load 统一执行, 本函数只报错不处置
+// Java catch 块收敛 CORRUPT 由外层 load 统一执行, 本函数只报错不处置
 // (blkx→json 迁移已终态: 文本链已删, 只剩 JSON 链)
 fn try_load(name: &str) -> Result<FMHandle, String> {
     try_load_json(name)
@@ -209,7 +209,7 @@ fn try_load_json(name: &str) -> Result<FMHandle, String> {
 /// catch(Throwable) 通道的载荷 — 携带诊断串以喂给
 /// [`logger::error_with_throwable`] (复刻 Java "message: getMessage" 双拼 +
 /// DEBUG 级 printStackTrace 形态)。
-// PORT: Rust 错误域 (parse 的 Err<String> / panic 载荷) 无 Java 形堆栈,
+// Rust 错误域 (parse 的 Err<String> / panic 载荷) 无 Java 形堆栈,
 /// Display ≡ getMessage, Debug repr 顶 printStackTrace 位 (logger.rs 同款注)
 struct LoadThrowable(String);
 
@@ -230,7 +230,7 @@ impl std::error::Error for LoadThrowable {}
 
 /// Java `"" + double` 字符串拼接 (Double.toString) 形态 — 整数值带 ".0" 尾
 /// (50.0 而非 50), 供日志文本逐字保真。
-// PORT: 完整复刻在 base::java_compat::java_double_to_string; 此处按域收窄 —
+// 完整复刻在 base::java_compat::java_double_to_string; 此处按域收窄 —
 // sovietOctaneHpBonus 来自 FM 文件 addHorsePowers 行,
 /// 为小整数或短小数, `{:.1}`(整数)/`{}`(小数) 两分支与 Java 一一对应
 fn java_double_str(d: f64) -> String {

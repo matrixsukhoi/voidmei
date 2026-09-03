@@ -10,7 +10,7 @@
 //! | draw_line_cap | GraphicsUtil.createPreciseStroke (CAP_BUTT+JOIN_MITER) | 刻度线精确端点 |
 //! | fill_circle | Graphics.fillOval | 圆特例: 内切于 fillOval(cx-r,cy-r,2r,2r) |
 //! | stroke_circle | Graphics.drawOval | 同上描边 (CompassGauge 双层描圆) |
-//! | stroke_arc | Graphics.drawArc | 0°=3 点钟, 正角=视觉逆时针 (Java oracle 实测) |
+//! | stroke_arc | Graphics.drawArc | 0°=3 点钟, 正角=视觉逆时针 (Java 历史基线) |
 //! | fill_path | Graphics.fillPolygon | 偶奇填充规则, 自动闭合 |
 //! | draw_text | Graphics.drawString | font.rs swash 光栅化/字形缓存共用 |
 //!
@@ -21,7 +21,7 @@
 //! render.rs 的 FlightInfoOverlay 仍走 Canvas 直通管线 (POC 对拍基线勿动),
 //! 本层为并行新增, 后续 C 类组件批统一使用 PixCanvas。
 //!
-//! C 类像素对拍容差 (Java oracle 固有系统差, 勿逐字节断言): Java fillOval/drawOval
+//! C 类像素对拍容差 (历史基线 固有系统差, 勿逐字节断言): Java fillOval/drawOval
 //! 非 AA 光栅相对几何圆有 ~0.5-1px 内缩; 预乘取整路径存在 ±1 LSB 色差
 //! (tiny-skia 取整式 vs 截断式镜像)。
 
@@ -49,7 +49,7 @@ fn ts_color(color: [u8; 4]) -> tiny_skia::Color {
 fn solid_paint(color: [u8; 4], aa: bool) -> tiny_skia::Paint<'static> {
     let mut p = tiny_skia::Paint::default();
     p.set_color(ts_color(color));
-    // PORT: aa=false ↔ Java ANTIALIAS_OFF (graphAASetting), tiny-skia 走非 AA 扫描线
+    // aa=false ↔ Java ANTIALIAS_OFF (graphAASetting), tiny-skia 走非 AA 扫描线
     p.anti_alias = aa;
     p
 }
@@ -58,7 +58,7 @@ fn solid_paint(color: [u8; 4], aa: bool) -> tiny_skia::Paint<'static> {
 /// CAP_BUTT/CAP_SQUARE 恒配 JOIN_MITER (createPreciseStroke / 裸 BasicStroke 默认)
 fn stroke_of(width: f32, cap: LineCapStyle) -> tiny_skia::Stroke {
     tiny_skia::Stroke {
-        // PORT: Java BasicStroke(0)=hairline 最细 1px 线, 负宽构造即抛异常;
+        // Java BasicStroke(0)=hairline 最细 1px 线, 负宽构造即抛异常;
         // tiny-skia width<=0 渲染为空 — 统一钳到 1.0 对齐 hairline 语义
         width: if width <= 0.0 { 1.0 } else { width },
         // Java BasicStroke 默认 miterlimit 10.0 (GraphicsUtil 两族均不覆盖该参)
@@ -334,10 +334,10 @@ impl PixCanvas {
     }
 
     /// Java Graphics.drawArc(cx-r, cy-r, 2r, 2r, start, end-start) 的圆特例。
-    /// 角度约定 (Java 8 oracle 实测): 0°=3 点钟, 正角=**视觉逆时针**
+    /// 角度约定 (历史基线): 0°=3 点钟, 正角=**视觉逆时针**
     /// (drawArc(0,90) 走 3点→12点右上象限), 即 point(θ)=(cx+r·cosθ, cy−r·sinθ);
     /// 从 start_angle 扫到 end_angle, 负 sweep = 顺时针反向弧 (同 Java 负 arcAngle),
-    /// 零 sweep 不绘制 (Java drawArc(start,0) oracle 实测 0 像素), |sweep|≥360 整圆。
+    /// 零 sweep 不绘制 (Java drawArc(start,0) 历史基线 0 像素), |sweep|≥360 整圆。
     /// cap 对齐调用方线型: AttitudeIndicatorGauge.drawMarks 的
     /// drawArc(...,-180,180) 下半圆 = stroke_arc(cx,cy,r,-180,0,Round);
     /// AttitudeOverlay.locater 的同弧用裸 BasicStroke(3) → Square
@@ -357,7 +357,7 @@ impl PixCanvas {
         if r <= 0 {
             return;
         }
-        // PORT: Java drawArc 角度是 int 入参, NaN/±inf 在 Java 调用点 (int) 强转即归 0;
+        // Java drawArc 角度是 int 入参, NaN/±inf 在 Java 调用点 (int) 强转即归 0;
         // Rust f32 直收需消毒 — 非有限角度不绘制 (防 -inf 死循环 / NaN 进光栅化 UB)
         if !start_angle.is_finite() || !end_angle.is_finite() {
             return;
@@ -394,7 +394,7 @@ impl PixCanvas {
         if points.len() < 3 {
             return;
         }
-        // PORT: Java fillPolygon 坐标是 int[], NaN 在调用点 (int) 强转已归 0;
+        // Java fillPolygon 坐标是 int[], NaN 在调用点 (int) 强转已归 0;
         // Rust f32 直收需消毒 — 含非有限坐标的多边形整体不绘制 (避免 tiny-skia 静默 UB)
         if points
             .iter()
@@ -506,11 +506,10 @@ impl PixCanvas {
             }
         }
     }
-
 }
 
 /// 圆弧 → ≤90° 三次贝塞尔段 (SVG kappa 近似: K = 4/3·tan(Δθ/4))
-/// Java drawArc 角度语义 (oracle 实测): point(θ) = (cx + r·cosθ, cy − r·sinθ)
+/// Java drawArc 角度语义 (历史基线): point(θ) = (cx + r·cosθ, cy − r·sinθ)
 /// — y 分量取负 (角度按数学逆时针解释, 与屏幕 y 向下无关), 正 sweep 视觉逆时针;
 /// sweep 可负 = 反向 (顺时针) 弧, kappa 随 seg 变号自动反向
 fn append_arc(

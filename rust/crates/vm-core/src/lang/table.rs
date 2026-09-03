@@ -1,17 +1,17 @@
 //! `lang/cur.properties` 的静态快照 — 键值 = Java `java.util.Properties` 加载后的实际值。
 //!
 //! 来源文件: 项目根 `lang/cur.properties` (UTF-8)。
-//! 生成方法 (Java 8 oracle 实测, 非手工推算):
+//! 生成方法 (历史基线, 非手工推算):
 //! ```text
 //! new Properties().load(new InputStreamReader(new FileInputStream("lang/cur.properties"), "utf-8"))
 //! ```
-//! 逐键 base64 dump 后转义为 Rust 字面量。已内化的 Properties 语义 (oracle 验证):
+//! 逐键 base64 dump 后转义为 Rust 字面量。已内化的 Properties 语义 (基线 验证):
 //! - 文件中的 \n 转义已展开为真实控制字符; \\n 为字面 反斜杠+n (mResetConfirmContent)
 //! - 分隔符 `=` 后的前导 ASCII 空白被跳过 (noblkx 的前导空格不进值); 尾部空白保留
 //! - 值全为 ASCII 空白的键 (mP4attitudeIndicatorPanelBlank) 加载后为空串
 //! - 全角空格 U+3000 不是 Properties 空白, 原样保留 (表中写作 \u{3000})
 //!
-//! PORT: Java 迭代顺序为 Hashtable 无序; 此处按键排序存储 (getValue 语义与顺序无关)。
+//! Java 迭代顺序为 Hashtable 无序; 此处按键排序存储 (getValue 语义与顺序无关)。
 //! 漂移守护: `tests::table_matches_cur_properties_source` 与源文件逐键对拍,
 //! 源 properties 改动后未再生本表即测试失败。
 

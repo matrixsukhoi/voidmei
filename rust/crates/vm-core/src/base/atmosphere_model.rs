@@ -25,7 +25,7 @@
 //!
 //! 对应 Java: `src/prog/util/AtmosphereModel.java` (一比一翻译)
 
-// PORT: Java `private AtmosphereModel() {}` (final 工具类, 私有构造器防实例化)
+// Java `private AtmosphereModel() {}` (final 工具类, 私有构造器防实例化)
 // → Rust 自由函数模块无实例化概念, 天然满足
 
 use crate::base::physics_constants::{
@@ -141,7 +141,7 @@ pub fn ram_effect_altitude(
 
     let p = pressure(altitude_m);
     let rho = density(p, sea_level_temp_c, altitude_m);
-    // PORT: Java 三目 `isIAS ? iasToTas(...) : speedKmh` 两臂均为 double, 无数值提升
+    // Java 三目 `isIAS ? iasToTas(...) : speedKmh` 两臂均为 double, 无数值提升
     let tas_kmh = if is_ias {
         ias_to_tas(speed_kmh, rho)
     } else {

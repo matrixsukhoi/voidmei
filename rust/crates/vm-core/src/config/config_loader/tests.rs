@@ -2,7 +2,7 @@ use super::*;
 use std::fs;
 use std::path::Path;
 
-// ---- Java 语义辅助的 oracle 对拍 (Java 8, build/oracle 实测) ----
+// ---- Java 语义辅助的 历史基线 (Java 8, build/历史基线) ----
 
 /// 定点小数显示 — 波21 显示引擎退役后按 Rust {:.4} (精确二进制值 nearest-even)
 /// 重录; 精确半点 (0.03125 等 dyadic 值) 取偶。
@@ -59,9 +59,9 @@ fn fmt_f_prec4_huge_value_exact_expansion() {
 }
 
 /// Double.toString — 最短区分 + [1e-3, 1e7) 平原式 / 恒一位小数 / E 计数。
-/// 全部期望值来自 Java 8 oracle 逐字面量对拍。
+/// 全部期望值来自 历史基线 逐字面量对拍。
 #[test]
-// approx_constant: 3.14159 是 Java oracle 对拍表字面量, 禁换 std PI
+// approx_constant: 3.14159 是 历史基线 对拍表字面量, 禁换 std PI
 #[allow(clippy::approx_constant)]
 fn java_double_to_string_matches_java8_oracle() {
     let cases = [
@@ -76,7 +76,7 @@ fn java_double_to_string_matches_java8_oracle() {
         (1.2345e7, "1.2345E7"),
         (-2.5e-9, "-2.5E-9"),
         (0.85, "0.85"),
-        // PORT: Java oracle 对拍表字面量, 禁换 std::f64::consts::PI (对拍的就是这个字面量)
+        // 历史基线 对拍表字面量, 禁换 std::f64::consts::PI (对拍的就是这个字面量)
         #[allow(clippy::approx_constant)]
         (3.14159, "3.14159"),
         (2.5e9, "2.5E9"),
@@ -101,11 +101,11 @@ fn java_double_to_string_matches_java8_oracle() {
 }
 
 /// JDK-4511638 域: Java 8 FloatingDecimal 对个别位形**不是最短表示** —
-/// oracle: Double.toString(1e23) = "9.999999999999999E22" (17 位) 而最短往返是
+/// 基线: Double.toString(1e23) = "9.999999999999999E22" (17 位) 而最短往返是
 /// "1E23"; Double.toString(5e-324) = "4.9E-324" 而最短是 "5E-324"。
-/// 本实现取最短往返 (Rust {:e}), 在这些 oracle 位形上与 Java 有末位差异 —
+/// 本实现取最短往返 (Rust {:e}), 在这些 基线 位形上与 Java 有末位差异 —
 /// cfg :value 域 (手写短小数) 不可达, 已在迁移报告上报; 本测试固化已知分歧面。
-/// (9.999999999999999E-4 经 oracle 复核 Java 亦给最短 "9.999999999999998E-4",
+/// (9.999999999999999E-4 经 基线 复核 Java 亦给最短 "9.999999999999998E-4",
 /// 归入上方一致 battery。)
 #[test]
 fn java_double_to_string_jdk_4511638_domain_divergence() {
@@ -114,7 +114,7 @@ fn java_double_to_string_jdk_4511638_domain_divergence() {
     assert_eq!(java_double_to_string(4.9e-324), "5.0E-324");
 }
 
-/// getKeyCodeFromText — en_US locale oracle (中文 JDK 的 AWT 属性表本地化
+/// getKeyCodeFromText — en_US locale 基线 (中文 JDK 的 AWT 属性表本地化
 /// 会导致 "Space" 解析失败, 属 Java 侧环境差异, 见 key_text.rs key_text_table PORT 注释)
 #[test]
 fn key_code_from_text_matches_java8_oracle() {
@@ -155,7 +155,7 @@ fn key_code_from_text_matches_java8_oracle() {
     }
 }
 
-/// getKeyText: 表内条目 + 未知码 default 分支 (英文 canonical, en_US oracle)
+/// getKeyText: 表内条目 + 未知码 default 分支 (英文 canonical, en_US 基线)
 #[test]
 fn key_text_known_and_unknown() {
     let cases = [
@@ -349,7 +349,7 @@ fn malformed_value_list_aborts_load_with_partial_groups() {
 
 /// getKeywordDouble/Int 的 isAtom 守卫 (Java L139-141): 值为列表时跳过本关键字
 /// 继续循环 → 默认值 + panel 完整加载 (不 abort), 后续重复关键字仍可命中。
-/// 期望值全部来自 Java 8 oracle 实测 (build/oracle/cfgguard, ojdkbuild8 1.8.0_342)。
+/// 期望值全部来自 历史基线 (build/基线/cfgguard, ojdkbuild8 1.8.0_342)。
 #[test]
 fn keyword_list_value_tolerated_like_java() {
     // :x (1 2) → x=0.1 默认, 两组完整 (Java: groups=2, A.x=0.1000)
@@ -363,7 +363,7 @@ fn keyword_list_value_tolerated_like_java() {
     assert_eq!(groups[0].rows.len(), 1);
     assert!((groups[1].x - 0.7).abs() < 1e-12);
 
-    // :x (1 2) :x 0.5 → 守卫跳过列表后命中第二个关键字 → 0.5 (Java oracle)
+    // :x (1 2) :x 0.5 → 守卫跳过列表后命中第二个关键字 → 0.5 (历史基线)
     let cfg = "(panel \"A\" :x (1 2) :x 0.5)\n";
     let p = tmp("kwlist_dup.cfg");
     fs::write(&p, cfg).unwrap();
@@ -371,7 +371,7 @@ fn keyword_list_value_tolerated_like_java() {
     assert_eq!(groups.len(), 1);
     assert!((groups[0].x - 0.5).abs() < 1e-12);
 
-    // :alpha (200) → getKeywordInt 委托同路径 → 默认 150, 两组完整 (Java oracle)
+    // :alpha (200) → getKeywordInt 委托同路径 → 默认 150, 两组完整 (历史基线)
     let cfg = "(panel \"A\" :alpha (200))\n(panel \"B\")\n";
     let p = tmp("kwlist_alpha.cfg");
     fs::write(&p, cfg).unwrap();
@@ -379,13 +379,13 @@ fn keyword_list_value_tolerated_like_java() {
     assert_eq!(groups.len(), 2);
     assert_eq!(groups[0].alpha, 150);
 
-    // :font-size (3) → 默认 0 (Java oracle: fontSize=0)
+    // :font-size (3) → 默认 0 (历史基线: fontSize=0)
     let cfg = "(panel \"A\" :font-size (3))\n";
     let p = tmp("kwlist_fs.cfg");
     fs::write(&p, cfg).unwrap();
     assert_eq!(load_config(&p)[0].font_size, 0);
 
-    // item 内 :min (1 2) :max 9 → min=0 默认, max=9, 行完整 (Java oracle)
+    // item 内 :min (1 2) :max 9 → min=0 默认, max=9, 行完整 (历史基线)
     let cfg = "(panel \"A\" (item \"sl\" :type slider :min (1 2) :max 9 :value 4))\n";
     let p = tmp("kwlist_min.cfg");
     fs::write(&p, cfg).unwrap();
@@ -396,7 +396,7 @@ fn keyword_list_value_tolerated_like_java() {
 }
 
 /// 守卫只挡 List — 非数值 atom 的 getDouble() 仍抛 NumberFormatException
-/// → panic → 外层 catch → 部分组 (Java 8 oracle: ":x abc" → 1 组保留 A)
+/// → panic → 外层 catch → 部分组 (历史基线: ":x abc" → 1 组保留 A)
 #[test]
 fn keyword_non_numeric_atom_aborts_load_like_java() {
     let cfg = "(panel \"A\" (item \"ok\" :type switch :value true))\n\
@@ -460,9 +460,9 @@ fn legacy_pixel_coord_uses_injected_screen_size() {
     assert!(load_config(&p).is_empty());
 }
 
-// ---- 固定样本: Java oracle 双实现对拍 (en_US locale, Java 8) ----
+// ---- 固定样本: 历史基线 双实现对拍 (en_US locale, Java 8) ----
 
-/// 与 Java oracle DumpCfg 完全同构的模型转储 (逐字段对拍辅助)
+/// 与 历史基线 DumpCfg 完全同构的模型转储 (逐字段对拍辅助)
 fn dump_val(v: &Option<ConfigValue>) -> String {
     match v {
         None => "N".to_string(),
@@ -533,7 +533,7 @@ fn dump_groups(groups: &[GroupConfig]) -> String {
     sb
 }
 
-/// 固定样本 (Java oracle 输入, en_US locale)
+/// 固定样本 (历史基线 输入, en_US locale)
 const SAMPLE_CFG: &str = r#"(panel "采样Alpha"
   :x 0.03125
   :y 0.123456
@@ -566,7 +566,7 @@ const SAMPLE_CFG: &str = r#"(panel "采样Alpha"
 )
 "#;
 
-/// Java ConfigLoader.loadConfig(样本) 的模型转储 (oracle 逐字节)
+/// Java ConfigLoader.loadConfig(样本) 的模型转储 (基线 逐字节)
 const SAMPLE_DUMP_JAVA: &str = concat!(
     "GROUP|采样Alpha|x=0.03125|y=0.123456|alpha=200|hotkey=57|visible=false|font=[DIN Pro 400]|fontSize=3|columns=1|panelColumns=3|switchKey=[panelSwitch]|rows=1
 ",
@@ -715,7 +715,7 @@ const SAMPLE_DUMP_RELOAD_JAVA: &str = concat!(
 ",
 );
 
-/// 解析对拍: 固定样本 → 模型转储 == Java oracle 转储 (逐字段)
+/// 解析对拍: 固定样本 → 模型转储 == 历史基线 转储 (逐字段)
 /// (三个 sample 用例各用独立文件名 — cargo test 并行下共用路径有撕裂读窗口)
 #[test]
 fn sample_parse_dump_matches_java_oracle() {
@@ -726,7 +726,7 @@ fn sample_parse_dump_matches_java_oracle() {
     assert_eq!(dump, SAMPLE_DUMP_JAVA);
 }
 
-/// 写回对拍: 固定样本 → saveConfig 输出 == Java oracle 输出 (逐字节, 平台行尾)
+/// 写回对拍: 固定样本 → saveConfig 输出 == 历史基线 输出 (逐字节, 平台行尾)
 #[test]
 fn sample_save_bytes_match_java_oracle() {
     let p_in = tmp("sample_save.cfg");
@@ -737,7 +737,7 @@ fn sample_save_bytes_match_java_oracle() {
     save_config(&p_out, &groups);
     let bytes = fs::read(&p_out).unwrap();
     let text = String::from_utf8(bytes).unwrap();
-    // LF 归一后与 oracle 逐字节一致
+    // LF 归一后与 基线 逐字节一致
     assert_eq!(
         text.replace(super::line_separator(), "\n"),
         SAMPLE_SAVED_JAVA
@@ -748,7 +748,7 @@ fn sample_save_bytes_match_java_oracle() {
     }
 }
 
-/// round-trip: 重读模型 == Java 重读转储; 再存字节稳定 (Java oracle 同构验证)
+/// round-trip: 重读模型 == Java 重读转储; 再存字节稳定 (历史基线 同构验证)
 #[test]
 fn sample_round_trip_matches_java_oracle() {
     let p_in = tmp("sample_rt_in.cfg");
@@ -768,7 +768,7 @@ fn sample_round_trip_matches_java_oracle() {
 
 /// 仓库真实 ui_layout.cfg 的解析→保存→再解析 round-trip (tmp 文件):
 /// 自洽性断言 (load∘save 不变量), 输入随仓库演化 — Java 侧同一不变量
-/// 已由 oracle 验证 (模型与字节双稳定), 此处固化 Rust 侧行为一致。
+/// 已由 基线 验证 (模型与字节双稳定), 此处固化 Rust 侧行为一致。
 #[test]
 fn repo_ui_layout_round_trip_self_consistent() {
     let cfg_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../ui_layout.cfg");

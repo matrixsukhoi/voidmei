@@ -12,7 +12,7 @@ use vm_core::fm::FMHandle;
 impl Service {
     /// 引擎过热/耐久度检查。
     ///
-    /// @param fm 本周期 FM 句柄快照（R1 下传, 单周期内同一 Blkx 实例）
+    /// - `fm`: 本周期 FM 句柄快照（R1 下传, 单周期内同一 Blkx 实例）
     pub(super) fn check_overheat(&mut self, fm: &FMHandle) {
         // 输入快照 (锁外取, §2.8): sState.power[0]/throttle + 温度/轮询周期。
         // power 空数组索引 panic = Java AIOOBE 同构 (run 顶层 catch_unwind 兜住)
@@ -134,7 +134,7 @@ impl Service {
     /// 重置引擎耐久计时（engLoad 为共享会话状态, 就地改写语义见 FMHandle javadoc 声明,
     /// "换机 = 新 Blx 实例" 天然保证会话态不串机, 此处保持就地改写不变）。
     ///
-    /// @param fm 本周期 FM 句柄快照（R1 下传）
+    /// - `fm`: 本周期 FM 句柄快照（R1 下传）
     // PORT(形态): Java 为实例方法 resetEngLoad(FMHandle fm),
     // 方法体不触碰任何 Service 实例字段 → 关联函数形态, 与 reset_varia 的既有
     // 调用点 `Self::reset_eng_load(&fm)` 零改动衔接。
@@ -182,7 +182,7 @@ mod tests {
     /// 两档 engLoad 的测试 blkx (WaterLimit 80/60, OilLimit 60/50,
     /// WorkTime 300/60, RecoverTime 600/30; cur 初值 = 解析产物形态 WorkTime*1000
     /// 或由参数覆写)。maxEngLoad=2。
-    // PORT: Blkx 含 blkx 模块私有字段 → 跨 crate 无法用 struct 字面量 +
+    // Blkx 含 blkx 模块私有字段 → 跨 crate 无法用 struct 字面量 +
     // ..Default::default() (E0451), 走 default() 后逐字段赋值 (tests.rs 同款形态)
     fn test_fmdata(cur_water0: f64, cur_oil0: f64, cur_water1: f64, cur_oil1: f64) -> FmData {
         let mk = |water_limit: f64,

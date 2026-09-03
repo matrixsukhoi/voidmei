@@ -3,7 +3,7 @@
 //!
 //! 副翼/升降舵/方向舵/可变翼位置: 边框+十字游标 (locater) + 4 行 BOS 标签 +
 //! 底部方向舵横条; 50ms 节流。窗口/拖动/FlightDataBus 注册归组装层
-//! (LIFETIMES §2.1 注销链), 本文件承载内容绘制的图层序与
+//!, 本文件承载内容绘制的图层序与
 //! onFlightData 的数据换算。
 
 use crate::render::primitives;
@@ -126,7 +126,7 @@ fn draw_v_rect_negative(
 /// drawHBarTextNum 的 char[] 版: 横条 +
 /// 值游标竖线 (drawVRect, colorLabel) + 值数字 (__drawStringShade, colorLabel)。
 /// numFont 尺寸取 label 字体 (调用点 lblFont/numFont 均传 fontLabel)。
-/// PORT: lbl 实参传入但 drawHBarText 内的标签绘制在 Java 源已注释
+/// lbl 实参传入但 drawHBarText 内的标签绘制在 Java 源已注释
 ///, 本复刻同忽略。
 #[allow(clippy::too_many_arguments)] // 对齐 Java drawHBarTextNum(g2d, x, y, w, h, val, border, c, lbl, num, len, lblFont, numFont)
 fn draw_h_bar_text_num(
@@ -242,7 +242,7 @@ impl Default for ControlSurfacesOverlay {
 
 impl ControlSurfacesOverlay {
     /// 构造器 (setTitle("舵面值") 归窗口层)。字段按 Java 隐式
-    /// 初始化 (§2.10): 数值 0 / 引用空态 → 空串。
+    /// 初始化: 数值 0 / 引用空态 → 空串。
     pub fn new() -> Self {
         ControlSurfacesOverlay {
             last_refresh_time: 0,
@@ -331,9 +331,9 @@ impl ControlSurfacesOverlay {
     /// reinitConfig 的派生量:
     /// fontSize = round((24 + fontadd) · dpiScale); width = fontSize·6;
     /// rudderValPix = 150·width/200; twidth/theight; sw; total; px/py/locate。
-    /// PORT: Java 的 `static private int fontadd` 为伪单例 (LIFETIMES §1.3
+    /// Java 的 `static private int fontadd` 为伪单例 (
     /// 已判存疑), 此处按参数传入 (实例字段化); 重绘归组装层。
-    /// PORT: strokeSize 只在 init 赋值, reinitConfig 不刷新 — fontadd
+    /// strokeSize 只在 init 赋值, reinitConfig 不刷新 — fontadd
     /// 变更后 Java 保留旧 strokeSize 的行为原样保留 (调用方需重 init 才更新)。
     pub fn reinit_config(
         &mut self,
@@ -344,9 +344,9 @@ impl ControlSurfacesOverlay {
         win_y: i32,
     ) {
         // Apply DPI scaling to font size for crisp rendering on high-DPI displays
-        // Math.round(double) = floor(x + 0.5) (§2.3)
+        // Math.round(double) = floor(x + 0.5)
         self.font_size = ((24.0 + font_add as f64) * dpi_scale + 0.5).floor() as i32;
-        // Math.round(fontSize / 2.0f) = floor(x + 0.5) 的 float 路径 (§2.3)
+        // Math.round(fontSize / 2.0f) = floor(x + 0.5) 的 float 路径
         self.label_font_size = (self.font_size as f32 / 2.0 + 0.5).floor() as i32;
 
         self.width = self.font_size * 6;
@@ -387,7 +387,7 @@ impl ControlSurfacesOverlay {
 
     /// onFlightData 的单事件语义: 50ms 节流 → (数据回调内)
     /// xs != null 才更新数据; 返回值 = 是否需要重绘 (Java 末尾无条件重绘)。
-    /// PORT: System.currentTimeMillis 由调用方注入 (now_ms), 便于测试。
+    /// System.currentTimeMillis 由调用方注入 (now_ms), 便于测试。
     pub fn on_flight_data(
         &mut self,
         now_ms: i64,

@@ -18,7 +18,7 @@
 //!   engine 的 nodes 容器**强持全部节点** (hud_layout_node.rs PORT 备案: 否则
 //!   Weak 父升级失败会让节点被误判为 ROOT)。
 //! - Java `HashMap<String,HUDLayoutNode>` → `Vec<(String, SharedNode<T>)>` (线性
-//!   查找, MiniHUD 节点 <15)。PORT(§2.5): HashMap 迭代序 = String hash 桶序,
+//!   查找, MiniHUD 节点 <15)。HashMap 迭代序 = String hash 桶序,
 //!   逐 id 复刻不现实; roots 遍历序决定跨根渲染序 → 以插入序 (addNode 调用序)
 //!   近似, 保稳定可测。对拍帧实证 (审查 A 实测): 双根 (row0 链 与 crosshair) 的
 //!   preferred 矩形**相交** (crosshair x282-508 vs speedBar x339-426/y92-246),
@@ -57,9 +57,9 @@ pub trait HasVisibility {
 /// 1. LineHeight based scaling (DPI independent).
 /// 2. Topological dependency resolution.
 /// 3. Anchor-based positioning.
-// PORT: Java `Map<String, HUDLayoutNode> nodes` → Vec 对 (id, 共享句柄)。
+// Java `Map<String, HUDLayoutNode> nodes` → Vec 对 (id, 共享句柄)。
 pub struct ModernHUDLayoutEngine<T> {
-    /// ID -> Node (PORT: HashMap → Vec, 见模块头映射裁决; 同 id put 覆盖位置不变)
+    /// ID -> Node (HashMap → Vec, 见模块头映射裁决; 同 id put 覆盖位置不变)
     nodes: Vec<(String, SharedNode<T>)>,
     line_height: f64,
     canvas_width: i32,
@@ -286,7 +286,7 @@ impl<T> ModernHUDLayoutEngine<T> {
         let mut has_content = false;
 
         for node in &self.sorted_nodes {
-            // PORT: Java `node.component != null && ...` 的 null 检查 — Rust T 非可空
+            // Java `node.component != null && ...` 的 null 检查 — Rust T 非可空
             if node.borrow().component.is_visible() {
                 has_content = true;
                 let r = node.get_pixel_rect();
@@ -416,7 +416,7 @@ pub struct AutoSizingPlan {
 }
 
 /// Java `String.hashCode()` (JLS: h = 31*h + c, UTF-16 码元)。
-/// PORT(§2.1): 引擎 id 全为 ASCII → `chars()` 与 UTF-16 码元序列等价;
+/// 引擎 id 全为 ASCII → `chars()` 与 UTF-16 码元序列等价;
 /// §2.2: hash 溢出 Java 静默回绕 → wrapping_mul/add。
 pub fn java_string_hashcode(s: &str) -> i32 {
     let mut h: i32 = 0;
@@ -446,7 +446,7 @@ pub fn debug_frame_color(id: &str) -> [u8; 4] {
 // 布局开关系集 (cfg → 纯值结构)
 // ---------------------------------------------------------------------------
 
-/// PORT: Java 侧 = MiniHUDOverlay 直接持 HUDSettings (initModernLayout 读
+/// Java 侧 = MiniHUDOverlay 直接持 HUDSettings (initModernLayout 读
 /// isDisplayCrosshair / getBool("enableLayoutDebug", false)); Rust 以纯值结构
 /// 解耦配置源。两层缺省 (审查 B3): [`Default`] = cfg 树健康时的 :default 快照;
 /// [`from_bool_source`] 缺键 = Java getBool 的**字面兜底参数** (整树缺失/损坏
@@ -711,7 +711,7 @@ where
     engine.set_line_height(line_height);
 
     // 组件恒非空; Rust 以 rows (组件清单主体) 为空近似该守卫。
-    // PORT: Java 此处裸 return — 尾部 doLayout/applyAutoSizing/logTopology 三步
+    // Java 此处裸 return — 尾部 doLayout/applyAutoSizing/logTopology 三步
     // 均不执行 (窗口保持宿主 setBounds 初始值, renderOffset 保持 (0,0), 无对应
     // 日志); sizing=None 由宿主解释为"不自动尺寸" (审查 A1/B1)。
     let mut rows: Vec<Option<T>> = parts.rows.into_iter().map(Some).collect();

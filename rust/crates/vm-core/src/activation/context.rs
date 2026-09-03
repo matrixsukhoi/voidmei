@@ -13,10 +13,10 @@ use crate::fm::FMManager;
 
 /// `prog.Controller` 在本文件的消费面 trait (依赖桩)。
 ///
-/// PORT: Java 字段 `Controller tc` / `Controller.S` / `Controller.getConfigService()`
+/// Java 字段 `Controller tc` / `Controller.S` / `Controller.getConfigService()`
 /// 的两个依赖方向在本波次均不可达 —— Controller 是 C 类 (CLASSIFY.md: 编排核心,
 /// 语义复刻不走逐行, 步骤 16 收口), Service 链落 vm-data (D6) 而 vm-core 不得反向
-/// 依赖。故 OverlayContext 以泛型 `<TC, S>` 持柄 (§1 组合替代继承), 本 trait 只
+/// 依赖。故 OverlayContext 以泛型 `<TC, S>` 持柄, 本 trait 只
 /// 约束本文件实际访问面 (focus_monitor 波次 trait FocusDetector / ui_model 的
 /// config_stub 同款先例): 真实 Controller 波次为本 trait 提供实现即可对接
 /// build() 回退与两个快速工厂。
@@ -32,22 +32,22 @@ pub trait ControllerRef<S> {
 /// Eliminates the need to pass multiple parameters to overlay methods.
 ///
 /// 配置访问通过 ConfigProvider 接口而不是 Controller，遵循依赖倒置原则。
-// PORT: Java `public final` 引用字段 → pub 字段; 可 null 引用 → Option (§1),
+// Java `public final` 引用字段 → pub 字段; 可 null 引用 → Option,
 // 共享语义 (多 overlay/线程持同一 Controller/Service/配置服务) → Arc。
 // §0.7: pub 字段结构体无法复刻 "私有构造器 + Builder" 的编译期约束,
 // Builder 仍是规范构造入口 (调用方约定, handle.rs 同款先例)。
-// 纪律注 (LIFETIMES §4 环 2): Java 侧 ctx 是瞬时对象 —— 每次 openAll/
+// 纪律注: Java 侧 ctx 是瞬时对象 —— 每次 openAll/
 // refreshAllPreviews 新建、仅 ActivationStrategy 消费后即弃。Rust 侧必须保持
 // 瞬时: 禁止把 ctx 或其 tc/s 的 Arc 克隆存入长命 overlay 字段 —— Controller
 // (持 OverlayManager→overlays) 与 overlay(持 Arc<Controller>) 一旦成环, 无 GC
 // 兜底, 每次托盘重建泄漏一整棵 Controller 树 (目标形态: overlay 持
-// Arc<ConfigStore> + channel, LIFETIMES §4 首选方案)。
+// Arc<ConfigStore> + channel, 首选方案)。
 pub struct OverlayContext<TC, S> {
     pub tc: Option<Arc<TC>>,
     /// Java 字段名 `S` (单字母大写) → snake_case `s`
     pub s: Option<Arc<S>>,
     /// Java 字段名与类型同名 (`Blkx Blkx`) → 字段 `fmdata`
-    // PORT: Java 持 FMManager.current() 句柄内同一 Blkx 实例的引用拷 ——
+    // Java 持 FMManager.current() 句柄内同一 Blkx 实例的引用拷 ——
     // Service 线程对 engLoad 等会话态的就地改写对持有者可见
     // (fm/manager.rs); Rust 为构造时深拷快照 fork, 与 FMManager 内实例
     // 的后续突变互不可见。当前消费面仅 null 检查 + isJet() (grep 实证:
@@ -59,7 +59,7 @@ pub struct OverlayContext<TC, S> {
     pub fmdata: Option<FmData>,
     pub is_preview_mode: bool,
     /// 配置提供者，用于访问配置而不依赖 Controller
-    // PORT: Java 接口引用 → Arc<dyn ConfigProvider> 共享句柄 (LIFETIMES §7
+    // Java 接口引用 → Arc<dyn ConfigProvider> 共享句柄 (
     // `config: Arc<ConfigStore>` 形态)。刻意不加 Send + Sync 约束: 现实现
     // ConfigurationService 经 config_loader::GroupConfig 含 Rc<SExp> (!Send,
     // configuration_service.rs 已备案的 Rc→Arc 待裁决项), 加约会把该
@@ -73,14 +73,14 @@ pub struct OverlayContext<TC, S> {
     pub config_provider: Option<Arc<dyn ConfigProvider>>,
 }
 
-// 结构体字面量对位 (§0.7: 编译期私有性不可复刻, 构造入口约定走 Builder)。
+// 结构体字面量对位。
 impl<TC, S> OverlayContext<TC, S> {
     /// Get a boolean config value.
     /// 通过 ConfigProvider 接口访问配置，而不是通过 Controller。
-    // PORT: Java `Boolean.parseBoolean(s)` = 忽略大小写整串等于 "true" 才真
+    // Java `Boolean.parseBoolean(s)` = 忽略大小写整串等于 "true" 才真
     // (null/空串/带空白/其余串均 false; 不 trim, 与 parseFloat 不同, §6);
     // eq_ignore_ascii_case 在 "true" 全 ASCII 域与 equalsIgnoreCase 逐字符等价。
-    // configProvider 为 null 时 Java 在 getConfig 调用处 NPE → expect panic (§1)。
+    // configProvider 为 null 时 Java 在 getConfig 调用处 NPE → expect panic。
     pub fn get_bool(&self, key: &str) -> bool {
         self.config_provider
             .as_ref()
@@ -92,7 +92,7 @@ impl<TC, S> OverlayContext<TC, S> {
 
     /// Get a string config value.
     /// 通过 ConfigProvider 接口访问配置，而不是通过 Controller。
-    // PORT: Java 返回可 null String → Option<String> (ConfigProvider 契约的
+    // Java 返回可 null String → Option<String> (ConfigProvider 契约的
     // null/空串两种 "未设置" 形态原样透传); configProvider 为 null 同样 NPE → panic。
     pub fn get_string(&self, key: &str) -> Option<String> {
         self.config_provider
@@ -102,13 +102,13 @@ impl<TC, S> OverlayContext<TC, S> {
     }
 
     /// Check if this is a jet aircraft.
-    // PORT: Java `Blkx != null && Blkx.isJet` 短路 → map_or (None 时不触字段)。
+    // Java `Blkx != null && Blkx.isJet` 短路 → map_or (None 时不触字段)。
     pub fn is_jet(&self) -> bool {
         self.fmdata.as_ref().is_some_and(|b| b.is_jet)
     }
 
     /// Check if debug mode is enabled.
-    // PORT: Java 读全局静态 `Application.debug` (C 类, 本 crate 无对应物)。
+    // Java 读全局静态 `Application.debug` (C 类, 本 crate 无对应物)。
     // §2.9 禁在本文件自设 OnceLock 全局 (状态分裂), 故先返回其声明初始值 ——
     // 该字段全库零写入点 (grep 实证: 读者仅 Application / Controller /
     // MainForm / 本方法), 生产可观测行为恒 false, 与此处返回值一致。
@@ -130,7 +130,7 @@ impl<TC, S> OverlayContext<TC, S> {
     /// 旧版经 Controller.getBlkx() 是 JIT 加载器, 可能同步触发文件解析阻塞 UI;
     /// 现在加载由 FMManager.identify 后台驱动, 此处仅读结果。非 READY 句柄 fmdata=None,
     /// 消费方（ActivationStrategy / isJet() 等）均已 null 容忍。
-    // PORT: Java `FMManager.getInstance()` 单例已解散 (fm/manager.rs §2.9 裁决:
+    // Java `FMManager.getInstance()` 单例已解散 (fm/manager.rs §2.9 裁决:
     // 显式构造注入) → 追加 fm 参数; `Controller tc` 引用形参 → Arc<TC> 共享柄。
     // current() 的 fmdata 为句柄私有值, Java 引用拷贝 ↔ Rust clone (FmData 深拷,
     // 低频路径: 仅 overlay 开启/刷新时构造, 非 ~10Hz 热点; engLoad 会话态共享
@@ -169,7 +169,7 @@ impl<TC, S> OverlayContext<TC, S> {
 /// [`OverlayContext`] 实现 activation 消费面的最小 trait [`ActivationContext`]
 /// (Java `ActivationStrategy.shouldActivate(OverlayContext)` → Rust
 /// `&dyn ActivationContext`), 预设工厂零改动即可消费本上下文。
-// PORT: 方法体转发到同名固有方法/字段 —— Rust 方法解析固有 impl 优先于 trait
+// 方法体转发到同名固有方法/字段 —— Rust 方法解析固有 impl 优先于 trait
 // impl, 此处 self.get_bool(key) 调的是上方固有方法, 无自递归。
 impl<TC, S> crate::activation::strategy::ActivationContext for OverlayContext<TC, S> {
     fn get_bool(&self, key: &str) -> bool {
@@ -190,11 +190,11 @@ impl<TC, S> crate::activation::strategy::ActivationContext for OverlayContext<TC
 }
 
 /// Builder for OverlayContext.
-// PORT: Java `public static class Builder` 嵌套类 → 独立 struct; 可 null 引用
-// 字段/参数 → Option (§1), 级联 `return this` → `&mut Self` (build 后 builder
+// Java `public static class Builder` 嵌套类 → 独立 struct; 可 null 引用
+// 字段/参数 → Option, 级联 `return this` → `&mut Self` (build 后 builder
 // 存活可复用, 对齐 Java)。
 pub struct Builder<TC, S> {
-    // Java 字段隐式默认 null/false (§2.10) → new() 显式初始化
+    // Java 字段隐式默认 null/false → new() 显式初始化
     pub tc: Option<Arc<TC>>,
     pub s: Option<Arc<S>>,
     // 同 OverlayContext.fmdata 字段注: 构造时快照 fork, 勿读/勿依赖会话态。
@@ -250,7 +250,7 @@ impl<TC, S> Builder<TC, S> {
 
     /// Java `public OverlayContext build()` —— 非 static, 写回 this 后经私有构造器
     /// 组装 (builder 存活可复用)。
-    // PORT: Java 构造器按引用拷贝 builder 字段 (`this.tc = builder.tc`) ↔ Rust
+    // Java 构造器按引用拷贝 builder 字段 (`this.tc = builder.tc`) ↔ Rust
     // clone (Arc 克隆 O(1); FmData 深拷, 低频构造路径, 见 for_live 注)。
     pub fn build(&mut self) -> OverlayContext<TC, S>
     where

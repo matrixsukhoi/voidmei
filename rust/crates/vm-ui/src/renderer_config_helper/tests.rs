@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 /// DynamicDataPage 匿名 RenderContext (DynamicDataPage.java:126-175) 的最小 mock:
 /// 字符串值表 + 读/写调用记录 (get_*/sync_* 语义逐条复刻该实现)。
-/// PORT: 唯一删略点 — 真实 syncToConfigService 的 enableFMPrint 特例
+/// 唯一删略点 — 真实 syncToConfigService 的 enableFMPrint 特例
 /// (DynamicDataPage.java:148-151 还会 publish FM_PRINT_SWITCH_CHANGED,
 /// Rust 侧事件常量已译 event/ui_state_events.rs) 未复刻: 全库无该事件
 /// 订阅者 (LIFETIMES 审查#10)。C 类落地真实 RenderContext 时**勿照本
@@ -293,7 +293,7 @@ fn write_type_mismatch_is_ignored_not_panic() {
 }
 
 // Java 反射拓宽 (JLS 5.1.2): field.set(double 字段, Integer) 成功写入
-// 5.0 (JDK8 oracle 实测) — slider 绑 x/y 是 cfg 可达路径, 非异常路径
+// 5.0 (JDK8 历史基线) — slider 绑 x/y 是 cfg 可达路径, 非异常路径
 #[test]
 fn write_int_widens_into_double_field_like_java() {
     let mut group = GroupConfig::new("g".to_string());
@@ -311,7 +311,7 @@ fn write_int_widens_into_double_field_like_java() {
     );
 }
 
-// Boolean 装入 double 字段: JDK8 oracle 实测仍抛 IllegalArgumentException
+// Boolean 装入 double 字段: JDK8 历史基线仍抛 IllegalArgumentException
 // (只拓宽数值包装类, Boolean 不参与) — A5 修复后同走忽略路径
 #[test]
 fn write_bool_into_double_field_is_ignored() {

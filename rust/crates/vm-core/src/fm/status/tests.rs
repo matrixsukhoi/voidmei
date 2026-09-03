@@ -1,7 +1,7 @@
 use super::*;
 
-/// Java 8 oracle 对拍 (§5.1): 枚举默认 toString()=name() 的六个常量名
-/// (build/oracle/FMHandleOracle.java 在 OpenJDK 1.8.0_342 dump, 用完已删)
+/// 历史基线 对拍: 枚举默认 toString()=name() 的六个常量名
+/// (build/基线/FMHandleOracle.java 在 OpenJDK 1.8.0_342 dump, 用完已删)
 #[test]
 fn display_matches_java_constant_names() {
     assert_eq!(FMStatus::Unresolved.to_string(), "UNRESOLVED");

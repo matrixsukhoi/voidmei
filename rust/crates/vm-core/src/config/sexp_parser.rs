@@ -9,12 +9,12 @@
 //! - Keywords: :x, :type
 //! - Symbols: panel, group
 //!
-//! PORT: Java `interface SExp` (仅 SList/SAtom 两个封闭实现) → `enum SExp`。
+//! Java `interface SExp` (仅 SList/SAtom 两个封闭实现) → `enum SExp`。
 //! Java 引用可别名 — ConfigLoader.getKeywordSExp 把子树原对象直接存进
 //! RowConfig.visibleWhen / naWhen — 故节点统一 `Rc<SExp>` 共享。
 //! Rc 而非 Arc: 配置解析单线程。注意 Rc<SExp> 树 Send 但 !Sync —
 //! 可整体 move 跨线程交接 (如热重载线程→UI 线程), 禁止跨线程共享同一棵树。
-//! PORT: Java 枚举常量全大写 (STRING/LPAREN) → Rust 驼峰 (String/LParen), 语义不变。
+//! Java 枚举常量全大写 (STRING/LPAREN) → Rust 驼峰 (String/LParen), 语义不变。
 
 use std::fmt;
 use std::rc::Rc;
@@ -42,7 +42,7 @@ impl SExp {
     }
 
     /// Java: SList.asList() 返回 this; SAtom.asList() 抛 IllegalStateException("Not a list")
-    /// PORT: 未受检异常 → panic (PORTING.md §1)
+    /// 未受检异常 → panic
     pub fn as_list(&self) -> &SList {
         match self {
             SExp::List(l) => l,
@@ -140,14 +140,14 @@ impl SAtom {
     }
 
     /// Java: `public int getInt() { return (int) getDouble(); }`
-    /// PORT: Rust `f64 as i32` = JLS 5.1.3 (NaN→0, ±Inf/越界饱和到 i32 极值, 向零截断)
-    /// — Java 8 oracle 实测逐值一致 (3.99→3 / 1e10→MAX / NaN→0)
+    /// Rust `f64 as i32` = JLS 5.1.3 (NaN→0, ±Inf/越界饱和到 i32 极值, 向零截断)
+    /// — 历史基线逐值一致 (3.99→3 / 1e10→MAX / NaN→0)
     pub fn get_int(&self) -> i32 {
         self.get_double() as i32
     }
 
     /// Java: `public boolean getBool() { return Boolean.parseBoolean(value); }`
-    /// PORT: 即 equalsIgnoreCase("true") — Java 8 oracle: "TRUE"/"True"→true, 带空格→false;
+    /// 即 equalsIgnoreCase("true") — 历史基线: "TRUE"/"True"→true, 带空格→false;
     /// 非 ASCII 字符无单字符大写映射到 't'/'r'/'u'/'e', eq_ignore_ascii_case 等价
     pub fn get_bool(&self) -> bool {
         self.value.eq_ignore_ascii_case("true")
@@ -217,7 +217,7 @@ impl Token {
     }
 }
 
-/// Java `Character.isWhitespace(char)` 复刻 (JDK 8, build/oracle 实测)。
+/// Java `Character.isWhitespace(char)` 复刻 (JDK 8, build/历史基线)。
 /// 与 Rust `char::is_whitespace` (Unicode White_Space) 的差异:
 /// - U+0085/U+00A0/U+2007/U+202F (无断行空格): Rust true, **Java false**
 /// - U+001C..U+001F (信息分隔符): **Java true**, Rust false
@@ -265,7 +265,7 @@ impl SExpParser {
         // 4. Whitespace (ignored)
         // 5. Atoms: everything else
 
-        // PORT: §2.1 — Java charAt 按 UTF-16 码元推进; 此处收集为 Vec<char> 按码点索引,
+        // §2.1 — Java charAt 按 UTF-16 码元推进; 此处收集为 Vec<char> 按码点索引,
         // BMP 内逐步等价, 定界符全 ASCII。Rust &str 不可能含孤立代理对 (Java String 可),
         // 该差异在合法 UTF-8 输入域内不可达。
         let chars: Vec<char> = input.chars().collect();

@@ -5,7 +5,7 @@
 //! 等价实现)。UIStateBus 订阅 (FM_OVERLAY_TOGGLE/FM_CHANGED) 对应
 //! [`FmUnpackedDataOverlay::toggle`]/[`FmUnpackedDataOverlay::reload_fm_data`],
 //! 由组装层的事件循环驱动 (vm-app 渲染线程: 总线订阅转 channel → 循环内消费);
-//! dispose 的退订由所有权 Drop 根治 (LIFETIMES §2.3), 无需显式方法。
+//! dispose 的退订由所有权 Drop 根治, 无需显式方法。
 //!
 //! P5 组装契约三点已销号 (原 "host::OverlaySpec 不可表达" 豁口):
 //! (a) 动态窗口高 — host `resize_entry` 基建 + [`FmUnpackedFeed::pump`] 在
@@ -15,12 +15,12 @@
 //! [`fm_unpacked_data_overlay_spec`] (flight_info/field_overlays 先例形态)。
 //!
 //! 对拍备案 (审查 W3): rustcmp 套件覆盖 FlightInfo/gauges/MiniHUD; FMUnpackedData
-//! (ZebraList 首个生产消费者) 的渲染证据 = 单测级 oracle 色/几何 (WebLaF 离屏
+//! (ZebraList 首个生产消费者) 的渲染证据 = 单测级 基线 色/几何 (WebLaF 离屏
 //! 实测值, overlay_list tests) + 本模块墨迹断言; rustcmp 场景面扩充随渲染对拍
 //! 工具批另行安排。
 //!
 //! printf 引擎: 本地 FmtArg/java_string_format/java_format_f 副本已收割至
-//! vm_core::base::format (重构波13, Java 8 oracle 对拍等价)。
+//! vm_core::base::format (重构波13, 历史基线 对拍等价)。
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -52,7 +52,7 @@ use vm_core::lang::Lang;
 /// (Java extends BaseOverlay — §1 禁强行继承, 公共行为已上提基座):
 /// 自管可见性 (游戏模式热键切换) + blkx 字段直读清单。
 ///
-/// PORT: Java 经 FMDataAdapter 持 volatile blkx; Rust 直持 `Arc<FmData>`
+/// Java 经 FMDataAdapter 持 volatile blkx; Rust 直持 `Arc<FmData>`
 /// 快照 (单写者(事件循环) + tick 前快照承接 volatile 赋值语义)。
 pub struct FmUnpackedDataOverlay {
     /// BaseOverlay 基座 (run 循环状态机: 脏检查/高度自适应/可见门控)
@@ -114,7 +114,7 @@ impl FmUnpackedDataOverlay {
     /// FM_CHANGED handler 的 reloadFMData: 句柄换 blkx 快照。
     /// 非 READY 句柄 blkx=null → None → 占位 "[No Data Loaded]" (null 容忍)。
     /// 数据刷新由下一 tick 周期完成 (Java 注释)。
-    /// PORT: Java 的 `payload instanceof FMHandle` 过滤由组装层承担 —
+    /// Java 的 `payload instanceof FMHandle` 过滤由组装层承担 —
     /// P5 事件路由时非 FMHandle 载荷应保留旧 blkx 不调用本方法。
     pub fn reload_fm_data(&mut self, fmdata: Option<Arc<FmData>>) {
         self.fmdata = fmdata;
@@ -199,7 +199,7 @@ pub(crate) fn generate_lines(
     };
 
     // ==================== FM Version (always shown) ====================
-    // PORT: Java %s 收 null 字段打印 "null" (Formatter 行为), Option 展开对齐
+    // Java %s 收 null 字段打印 "null" (Formatter 行为), Option 展开对齐
     let fm_version = java_string_format(
         ctx.lang.b_fm_version,
         &[
@@ -217,7 +217,7 @@ pub(crate) fn generate_lines(
     }
 
     // If no fields are enabled or all filtered out, show a placeholder
-    // PORT: fmVersion 恒入列 使本分支在 Java 亦不可达, 保真保留
+    // fmVersion 恒入列 使本分支在 Java 亦不可达, 保真保留
     if lines.is_empty() {
         lines.push("FM Data Preview".to_string());
         lines.push("[No Fields Enabled]".to_string());
@@ -284,7 +284,7 @@ fn add_crit_speed(lines: &mut Vec<String>, ctx: &LineCtx) {
 /// G-Load Limits (combined full/half fuel)
 fn add_g_load_limits(lines: &mut Vec<String>, ctx: &LineCtx) {
     if let Some(raw) = ctx.fmdata.raw_wing_crit_overload {
-        // PORT: 与 getMaxAllowGloadForWeight 同式内联 (Java 源如此, 不收敛去重)
+        // 与 getMaxAllowGloadForWeight 同式内联 (Java 源如此, 不收敛去重)
         let full_neg = 1.2 * (2.0 * raw[0] / (g * ctx.fmdata.grossweight) + 1.0);
         let full_pos = 1.2 * (2.0 * raw[1] / (g * ctx.fmdata.grossweight) - 1.0);
         let half_neg = 1.2 * (2.0 * raw[0] / (g * ctx.fmdata.halfweight) + 1.0);
@@ -303,10 +303,10 @@ fn add_g_load_limits(lines: &mut Vec<String>, ctx: &LineCtx) {
 }
 
 /// Flap Speed Limits (襟翼段限速)
-/// PORT: Java AIOOBE (num > 6) ↔ Rust 索引 panic 同构 (§1 崩溃语义)。
+/// Java AIOOBE (num > 6) ↔ Rust 索引 panic 同构。
 /// 线程模型差异: Java 仅杀死本 overlay 的 run 轮询线程, Rust tick/draw 在
 /// 唯一主循环上 — P5 组装必须对逐 overlay tick/render 包 catch_unwind
-/// (PORTING §6 先例), 本 panic 与 java_string_format 错配 panic 均属此契约
+///, 本 panic 与 java_string_format 错配 panic 均属此契约
 fn add_flap_limits(lines: &mut Vec<String>, ctx: &LineCtx) {
     if let Some(table) = ctx.fmdata.flaps_destruction_ind_speed {
         for i in 0..ctx.fmdata.flaps_destruction_num {
@@ -480,7 +480,7 @@ fn add_fm_parts(lines: &mut Vec<String>, lang: &Lang, p: Option<&FmParts>) {
 }
 
 /// addLines: 按 \n 拆行, 逐行 trim, 跳过空行。
-/// PORT: Java String.trim 只剥 ≤ U+0020 的字符 (§2.1), Rust `str::trim` 会
+/// Java String.trim 只剥 ≤ U+0020 的字符, Rust `str::trim` 会
 /// 多剥 U+3000 等全角空白 — 用 trim_matches 精确复刻 Java 语义。
 pub(crate) fn add_lines(lines: &mut Vec<String>, formatted: &str) {
     for line in formatted.split('\n') {
@@ -606,7 +606,7 @@ pub fn fm_unpacked_data_overlay_spec(
 ///
 /// PORT(panic 边界): tick 内 generateLines 的保真 panic 点 (flap AIOOBE /
 /// java_string_format 错配, 见 generate_lines 的 PORT 注) 由本泵 catch_unwind
-/// 兜住 (PORTING §6 先例 — 不杀 host 泵); panic 后置 doit=false = Java "异常
+/// 兜住; panic 后置 doit=false = Java "异常
 /// 杀死本 overlay 的 run 线程" 的冻结形态对位 (后续 tick 短路, 应用存活)。
 pub struct FmUnpackedFeed {
     /// 节流基准 (Java run 循环的 sleep(200) 节拍; 0 = 首轮放行)

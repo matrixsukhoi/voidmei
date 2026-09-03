@@ -3,12 +3,12 @@
 //! Main configuration Service implementing ConfigProvider.
 //! Handles loading, saving, and accessing application configuration.
 //!
-//! PORT: Java 内部类 GenericOverlaySettingsImpl / HUDSettingsImpl → 独立 struct
+//! Java 内部类 GenericOverlaySettingsImpl / HUDSettingsImpl → 独立 struct
 //! (任务裁决; 波11 三分至 overlay_settings.rs / hud_settings.rs 子文件);
-//! 子类对父类的 extends → 组合 + 委托 (§1 继承禁令)。
-//! PORT: Application 静态字段 (loadAppCheck 写入面 / OverlaySettings 读取面) 与
+//! 子类对父类的 extends → 组合 + 委托。
+//! Application 静态字段 (loadAppCheck 写入面 / OverlaySettings 读取面) 与
 //! Controller 轮询间隔字段均属未翻译类 — 以 config/app_state.rs 的**消费面依赖桩**
-//! 顶住 (config_manager.rs 的 UIStateStorage 桩先例), 注入式持有, 不造全局 (§2.9)。
+//! 顶住 (config_manager.rs 的 UIStateStorage 桩先例), 注入式持有, 不造全局。
 //! PORT(重构波1): UIStateBus 路由总线经构造器注入 `Option<Arc<UIStateBus>>`
 //! (Java `UIStateBus.getInstance()` 全局单例读法的依赖注入式收敛); 本服务
 //! 原"未路由裸 EventBus + 桩 UiStateEvent"形态已退役, 发布统一走
@@ -56,10 +56,10 @@ pub use crate::config::app_state::{
 
 /// Java: `public class ConfigurationService implements ConfigProvider`
 ///
-/// PORT: `private List<GroupConfig> layoutConfigs` (可 null) →
+/// `private List<GroupConfig> layoutConfigs` (可 null) →
 /// `RwLock<Option<Vec<GroupConfig>>>`; 字段共享给 OverlaySettings 视图
 /// (Java 内部类隐式外部引用) → `Arc<ServiceInner>`。
-/// PORT: setConfig/saveWindowPosition 等写方法在 Java 以非同步实例方法触达
+/// setConfig/saveWindowPosition 等写方法在 Java 以非同步实例方法触达
 /// 共享字段, Rust trait 契约 (&self) 由内部可变性承担 (config_api 裁决);
 /// 锁纪律 §2.8: 锁内只改值, 广播在放锁后 (Java publish 内联执行 handler,
 /// handler 可重入读配置 — Mutex/RwLock 不可重入)。
@@ -83,8 +83,8 @@ struct ServiceInner {
 
 impl ConfigurationService {
     /// Java: `public ConfigurationService()` — 构造器为空。
-    /// PORT: 参数为 UIStateBus 注入 (Java 读全局单例; §2.9 禁再造全局)。
-    // PORT: Java 保真 — Arc<ServiceInner> 复刻 Java this 引用的跨方法共享,
+    /// 参数为 UIStateBus 注入 (Java 读全局单例; §2.9 禁再造全局)。
+    // Java 保真 — Arc<ServiceInner> 复刻 Java this 引用的跨方法共享,
     // 内部 RwLock 字段按 Java 字段语义组织, 不为 Sync 约束改形状
     #[allow(clippy::arc_with_non_send_sync)]
     pub fn new(ui_state_bus: Option<Arc<UIStateBus>>) -> Self {
@@ -199,8 +199,8 @@ impl ConfigurationService {
 
     /// Imports configuration from an external file.
     ///
-    /// @param sourcePath Path to the config file to import
-    /// @return true if import was successful
+    /// - `sourcePath`: Path to the config file to import
+    /// 返回: true if import was successful
     ///
     /// Java: `public boolean importConfig(String sourcePath)`
     pub fn import_config(&self, source_path: &str) -> bool {
@@ -218,7 +218,7 @@ impl ConfigurationService {
 
     /// Resets configuration to factory defaults.
     ///
-    /// @return true if reset was successful
+    /// 返回: true if reset was successful
     ///
     /// Java: `public boolean resetToFactory()`
     pub fn reset_to_factory(&self) -> bool {
@@ -235,7 +235,7 @@ impl ConfigurationService {
     }
 
     /// Java: `public List<GroupConfig> getLayoutConfigs()`
-    /// PORT: Java 返回活 List 引用 (可 null) — RwLock 内存储无法经 &self 长期
+    /// Java 返回活 List 引用 (可 null) — RwLock 内存储无法经 &self 长期
     /// 借出, 返回快照副本 (Option 对应 null 形态); 当前无跨期持有消费方。
     pub fn get_layout_configs(&self) -> Option<Vec<GroupConfig>> {
         self.inner.layout_configs.read().expect(LC_LOCK_MSG).clone()
@@ -244,11 +244,11 @@ impl ConfigurationService {
     /// 根据 groupTitle 查找最新的 GroupConfig
     /// 用于 UI 组件在 rebuild 时获取最新配置，解决导入配置后引用陈旧的问题
     ///
-    /// @param groupTitle 要查找的 GroupConfig 的标题
-    /// @return 找到的 GroupConfig，如果未找到则返回 null
+    /// - `groupTitle`: 要查找的 GroupConfig 的标题
+    /// 返回: 找到的 GroupConfig，如果未找到则返回 null
     ///
     /// Java: `public GroupConfig findGroupByTitle(String groupTitle)`
-    /// PORT: Java groupTitle 可 null (折叠为不可达, &str 无 null); 大小写敏感
+    /// Java groupTitle 可 null (折叠为不可达, &str 无 null); 大小写敏感
     /// equals 与下方视图的 equalsIgnoreCase 是两条不同查找 (Java 原状)。
     pub fn find_group_by_title(&self, group_title: &str) -> Option<GroupConfig> {
         let configs = self.inner.layout_configs.read().expect(LC_LOCK_MSG);
@@ -259,7 +259,7 @@ impl ConfigurationService {
 
     /// Java: `public void loadAppCheck(Controller c)` — 解析并应用配置到应用与
     /// Controller 状态 (替代 Controller.loadFromConfig())。
-    /// PORT: Controller 未翻译 — 6 个轮询间隔字段以消费面桩 `ControllerIntervals`
+    /// Controller 未翻译 — 6 个轮询间隔字段以消费面桩 `ControllerIntervals`
     /// 经 &mut 传入 (Java 直写 c 字段); Application 静态写入落在内部 ApplicationState。
     pub fn load_app_check(&self, c: &mut ControllerIntervals) {
         let mut service_loop_interval_ms: i64 = 50;
@@ -371,7 +371,7 @@ impl ConfigurationService {
             }
         }
 
-        // PORT: C 类接线 (AWT GraphicsEnvironment 注册 fonts/ 目录字体并解析
+        // C 类接线 (AWT GraphicsEnvironment 注册 fonts/ 目录字体并解析
         // defaultFont / WebLaF 全局字体注入), vm-app/vm-ui 波次处理;
         // 落地前 ApplicationState.default_font 维持 None。
         // TODO(port): init_font + update_weblaf_fonts 接线 (get_font_name 的
@@ -386,7 +386,7 @@ impl ConfigurationService {
     }
 
     /// Java: `public Color getColorConfig(String key)`
-    /// PORT: java.awt.Color → [u8;4] RGBA (POC 先例; #RRGGBBAA 字节序经
+    /// java.awt.Color → [u8;4] RGBA (POC 先例; #RRGGBBAA 字节序经
     /// ColorHelper.parseColor 保真, 见 ui_support::color)
     pub fn get_color_config(&self, key: &str) -> [u8; 4] {
         let val = self.inner.get_config_j(key);
@@ -552,7 +552,7 @@ impl ServiceInner {
     /// Java: `public boolean resetAllLayoutDefaults()`
     fn reset_all_layout_defaults(&self) -> bool {
         let mut changed = false;
-        // PORT: RwLock 下引用不可跨锁存活, 以 (组下标, 行路径) 定位 (单线程内等价)
+        // RwLock 下引用不可跨锁存活, 以 (组下标, 行路径) 定位 (单线程内等价)
         let mut pending: Vec<(usize, Vec<usize>)> = Vec::new();
 
         // Phase 1: Collect changes (Prepare)
@@ -603,7 +603,7 @@ impl ServiceInner {
 
     /// Java: `public void saveLayoutConfig()` (视图亦经外部类调用)
     fn save_layout_config(&self) {
-        // PORT: 读锁内做 IO — **不变量**: config_loader::save_config 不得发事件
+        // 读锁内做 IO — **不变量**: config_loader::save_config 不得发事件
         // 或回读本服务配置, 否则读锁自死锁 (§2.8; Java 无锁, 此串行化是 Rust
         // 新增保守面); 当前实现满足 (无回调重入面)。
         let configs = self.layout_configs.read().expect(LC_LOCK_MSG);
@@ -620,7 +620,7 @@ impl ServiceInner {
     }
 
     /// Java: `UIStateBus.getInstance().publish(CONFIG_CHANGED, "ConfigurationService", data)`
-    /// PORT: 总线注入式 — 未注入时为无操作 (Java 全局单例恒存在)
+    /// 总线注入式 — 未注入时为无操作 (Java 全局单例恒存在)
     fn publish_config_changed(&self, data: &str) {
         if let Some(bus) = &self.ui_state_bus {
             bus.publish(
@@ -633,7 +633,7 @@ impl ServiceInner {
 
     /// GenericOverlaySettingsImpl.getGroupConfig 的查找体:
     /// Java `sectionName.equalsIgnoreCase(gc.title)` (走 [`group_index_by_title`])。
-    /// PORT: Java 逐字符简单大小写折叠 — 标题域 ASCII/CJK 下
+    /// Java 逐字符简单大小写折叠 — 标题域 ASCII/CJK 下
     /// eq_ignore_ascii_case 等价 (CJK 无大小写)
     fn find_group_ignore_case(&self, section_name: &str) -> Option<GroupConfig> {
         let configs = self.layout_configs.read().expect(LC_LOCK_MSG);
@@ -684,7 +684,7 @@ impl ServiceInner {
 }
 
 /// Java: `private RowConfig findRowRecursive(List<RowConfig> rows, String key)`
-/// PORT: 借用版自由函数 — 输入切片生命周期透传 (调用方持快照或锁守卫)
+/// 借用版自由函数 — 输入切片生命周期透传 (调用方持快照或锁守卫)
 fn find_row_recursive<'a>(rows: &'a [RowConfig], key: &str) -> Option<&'a RowConfig> {
     for row in rows {
         // Priority 1: Match property target exactly
@@ -706,7 +706,7 @@ fn find_row_recursive<'a>(rows: &'a [RowConfig], key: &str) -> Option<&'a RowCon
 }
 
 /// Java: `private void updateRowsRecursive(List<RowConfig> rows, String key, String value)`
-/// PORT: 事件 publish 由调用方放锁后补发 (events 收集, §2.8)
+/// 事件 publish 由调用方放锁后补发 (events 收集, §2.8)
 fn update_rows_recursive(rows: &mut [RowConfig], key: &str, value: &str, events: &mut Vec<String>) {
     for row in rows.iter_mut() {
         if row.property.as_deref() == Some(key) || (row.property.is_none() && key == row.label) {
@@ -755,7 +755,7 @@ fn config_value_java_equals(default_v: &ConfigValue, value: &ConfigValue) -> boo
 }
 
 /// Java: `private void collectResetCandidatesRecursive(List<RowConfig> rows, List<RowConfig> pendingChanges)`
-/// PORT: Java 收集对象引用; Rust 收集 (组下标, 行路径) — 单线程内两者等价
+/// Java 收集对象引用; Rust 收集 (组下标, 行路径) — 单线程内两者等价
 /// (引用在 Java 端也仅用于 Phase 2 的原位回写)
 fn collect_reset_candidates_recursive(
     rows: &[RowConfig],

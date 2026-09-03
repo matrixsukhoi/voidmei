@@ -69,7 +69,7 @@ fn render_ids<T: HasPreferredSize + HasVisibility>(e: &ModernHUDLayoutEngine<T>)
     ids
 }
 
-/// Java String.hashCode oracle (JLS 31 多项式; 值为 Java 8 实测, §6)
+/// Java String.hashCode 基线 (JLS 31 多项式; 值为 Java 8 实测, §6)
 #[test]
 fn java_string_hashcode_matches_java_oracle() {
     assert_eq!(java_string_hashcode(""), 0);
@@ -84,7 +84,7 @@ fn java_string_hashcode_matches_java_oracle() {
     assert_eq!(java_string_hashcode("speedBar"), -2131211700);
 }
 
-/// drawDebug 颜色 (Java 8 实测 oracle): hash 低 24 位拆 RGB;
+/// drawDebug 颜色 (Java 8 实测 基线): hash 低 24 位拆 RGB;
 /// sum<380 提亮 +100, >=380 原样。speedBar 覆盖负 hash 分支。
 #[test]
 fn debug_frame_color_brightens_only_dark_ids() {
@@ -352,7 +352,7 @@ fn clear_resets_engine() {
     assert_eq!(e.get_content_bounds(), Rectangle::with_bounds(0, 0, 1, 1));
 }
 
-/// cfg 快照 oracle: 逐项对照 ui_layout.cfg (panel "MiniHUD" L45-94)。
+/// cfg 快照 基线: 逐项对照 ui_layout.cfg (panel "MiniHUD" L45-94)。
 /// 波12 起常量表仅测试消费, 自 minihud_layout.rs 移入本文件 (生产代码不持
 /// ui_layout.cfg 的第二份手工快照 — 配置真值走 ReinitParams/cfg 树)。
 ///
@@ -717,7 +717,7 @@ fn cfg_snapshot_matches_ui_layout_panel() {
     assert!(!cfg.enable_layout_debug);
 }
 
-/// 全树构建几何 oracle (lh=24, 组件统一 40x20, 画布 base 300x200):
+/// 全树构建几何 基线 (lh=24, 组件统一 40x20, 画布 base 300x200):
 /// displayCrosshair=true → 画布 600 宽; DFS 序 = 挂载序。
 #[test]
 fn build_full_tree_topology_and_geometry() {

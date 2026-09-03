@@ -29,7 +29,7 @@ fn fixed(w: i32, h: i32) -> FixedComp {
     FixedComp { w, h }
 }
 
-/// Java 字段缺省值 (隐式初始化) 的直译核对 (§2.10)。
+/// Java 字段缺省值 (隐式初始化) 的直译核对。
 #[test]
 fn initial_defaults_match_java() {
     let n = HUDLayoutNode::new("gauge", fixed(30, 10));
@@ -102,7 +102,7 @@ fn fluent_setters_return_self_and_apply() {
     assert_eq!(g.self_anchor, Anchor::Center);
 }
 
-/// solve 锚点数学的 Java oracle 对拍。
+/// solve 锚点数学的 历史基线 对拍。
 /// 公共参数: parentRect=(100,200,50,40), lineHeight=20, unit=(0.5,-1.0),
 /// size=(30,10) → 偏移 (int)(0.5*20)=10, (int)(-1.0*20)=-20。
 #[test]
@@ -168,7 +168,7 @@ fn solve_anchor_math_matches_java() {
     }
 }
 
-/// §2.4 oracle: Java `(int)` double 强转 = 向零截断 (非 floor)。
+/// §2.4 基线: Java `(int)` double 强转 = 向零截断 (非 floor)。
 /// 0.04*20=0.8 → 0; -0.04*20=-0.8 → 0 (floor 会给 -1, 是错的)。
 /// 0.09*20=1.8 → 1; -0.09*20=-1.8 → -1。
 #[test]

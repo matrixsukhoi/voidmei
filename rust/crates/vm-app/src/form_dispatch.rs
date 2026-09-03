@@ -48,9 +48,7 @@ fn dispatch_form(
 ) -> IpcReply {
     match kind {
         // 壳态请求走默认实现 (UiReady/WindowEcho)
-        RequestKind::UiReady | RequestKind::WindowEcho => {
-            ipc::dispatch(kind, rt)
-        }
+        RequestKind::UiReady | RequestKind::WindowEcho => ipc::dispatch(kind, rt),
         RequestKind::GetLayoutTree => {
             let panels: Vec<PanelDto> = cell
                 .borrow()

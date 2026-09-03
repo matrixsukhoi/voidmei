@@ -17,7 +17,7 @@
 //!
 //! ⇒ **裁决: 并发混音 → waveOut 每路独立流** (每 Clip 一个 HWAVEOUT;
 //! Vista+ 会话混音器自动合成多路)。vm-overlay platform/sound 的 PlaySound 腿
-//! 是单通道抢占制 (P4 期 PORTING §3 "整文件播放够用" 的旧裁决), 无法满足
+//! 是单通道抢占制 (P4 期 "整文件播放够用" 的旧裁决), 无法满足
 //! 并发混音, 组装层弃用之; 该腿与其测试原地保留, 回收归 vm-overlay 波次备案。
 //!
 //! ## 与 Java 语义的对齐/取舍
@@ -94,7 +94,7 @@ fn parse_wav_pcm(bytes: &[u8]) -> Result<WavPcm<'_>, SoundError> {
             let end = body.saturating_add(size).min(bytes.len());
             data = Some(&bytes[body..end]);
         }
-        // 奇数尺寸的 pad 字节一并跳过; PORT: 32 位目标上 body+size (u32 虚标)
+        // 奇数尺寸的 pad 字节一并跳过; 32 位目标上 body+size (u32 虚标)
         // 可使 usize 回绕 → 理论死循环, checked 加法, 溢出视为越过文件尾结束遍历
         match body.checked_add(size).and_then(|n| n.checked_add(size & 1)) {
             Some(n) => i = n,
@@ -260,7 +260,7 @@ mod winmm {
         fn open_clip(&self, path: &Path) -> Result<Box<dyn SoundClip>, SoundError> {
             let bytes = std::fs::read(path)?;
             let wav = parse_wav_pcm(&bytes)?;
-            // PORT: 畸形头 rate 可虚标近 u32::MAX, rate×blockAlign 的 u32 乘法
+            // 畸形头 rate 可虚标近 u32::MAX, rate×blockAlign 的 u32 乘法
             // 溢出 (debug panic/release 回绕) — 对齐 open_clip 其余错误面: 拒绝 →
             // Err → loadClip catch → None
             let avg_bytes = wav

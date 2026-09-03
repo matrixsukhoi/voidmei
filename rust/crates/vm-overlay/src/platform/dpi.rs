@@ -7,8 +7,8 @@ use vm_core::base::logger;
 
 /// 对应 Java: `public final class DPIHelper`
 ///
-/// PORT: Java 是静态字段 + `synchronized init()` 幂等 + `ensureInitialized()`
-/// 惰性初始化 —— 三者都服务于"静态可变全局"这一载体 (LIFETIMES §1.2 DPI/Screen
+/// Java 是静态字段 + `synchronized init()` 幂等 + `ensureInitialized()`
+/// 惰性初始化 —— 三者都服务于"静态可变全局"这一载体 (DPI/Screen
 /// 组归 Env, 启动后只读); Rust 改值语义: 构造一次由调用方持有, 幂等由
 /// "只构造一次"承担, 懒初始化模式随之消解。
 #[derive(Debug, Clone)]
@@ -27,7 +27,7 @@ pub struct DpiHelper {
 impl DpiHelper {
     /// 对应 Java: `init()` try 块成功路径 — 检测值注入 (跨平台纯构造,
     /// 供测试与非 Windows 集成方使用)。
-    /// PORT: 成功日志在此发出 (Java init 尾部的 Logger.info)。
+    /// 成功日志在此发出 (Java init 尾部的 Logger.info)。
     pub fn from_detection(
         physical_width: i32,
         physical_height: i32,
@@ -36,7 +36,7 @@ impl DpiHelper {
     ) -> Self {
         // Calculate logical screen dimensions
         // Physical pixels / scale factor = logical pixels
-        // PORT: Java `if (scaleX > 0)` 分支顺序原样; `(int) Math.round(...)` 的
+        // Java `if (scaleX > 0)` 分支顺序原样; `(int) Math.round(...)` 的
         // long→int 截断以 `as i32` 复刻 (屏幕像素域, 无溢出面)
         let logical_w = if scale_x > 0.0 {
             java_round(physical_width as f64 / scale_x) as i32
@@ -49,7 +49,7 @@ impl DpiHelper {
             physical_height
         };
         // Log DPI detection results
-        // PORT: Java String.format("%.2fx%.2f, %dx%d ...") → {:.2}/{}
+        // Java String.format("%.2fx%.2f, %dx%d ...") → {:.2}/{}
         logger::info(
             "DPIHelper",
             &format!(
@@ -68,7 +68,7 @@ impl DpiHelper {
     }
 
     /// 对应 Java: `init()` catch 块 — 检测失败回退 100% 缩放。
-    /// PORT: Java catch 的 `e.getMessage()` → reason 参数。
+    /// Java catch 的 `e.getMessage()` → reason 参数。
     pub fn fallback(physical_width: i32, physical_height: i32, reason: &str) -> Self {
         // Fallback to 100% scaling if detection fails
         logger::warn(
@@ -198,7 +198,7 @@ mod win {
                         dy as f64 / 96.0,
                     ),
                     // Fallback to 100% scaling if detection fails (Java catch 块)
-                    // PORT: Java catch 重读 Toolkit.getScreenSize() (可再抛 →
+                    // Java catch 重读 Toolkit.getScreenSize() (可再抛 →
                     // initialized 保持 false); 此处复用已读的 GetSystemMetrics 值 —
                     // 该 API 无失败再抛面, 差异仅在无显示器退化会话 (不可达环境)
                     Err(e) => DpiHelper::fallback(
@@ -212,12 +212,12 @@ mod win {
 
         /// 指定窗口的 DPI (Per-Monitor V2: 跨显示器迁移后的实时值)。
         /// GetDpiForWindow 失败 (无效句柄) 返回 0 → Java catch 同款回退。
-        /// PORT: 窗口 DPI 无 x/y 之分, scaleX=scaleY (Java transform 理论可
+        /// 窗口 DPI 无 x/y 之分, scaleX=scaleY (Java transform 理论可
         /// 分离, 实践恒等); 物理尺寸仍取主屏, 对齐 Java Toolkit.getScreenSize()
         /// 的主屏语义 (Java Application.screenWidth/Height 同源)。
         ///
         /// PORT (超出 Java 面的新增 API): Java DPIHelper 仅启动期主屏一次性检测
-        /// (LIFETIMES §1.2 DPI 归 Env, 启动后只读), 无每窗口变体 — 本构造器仅供
+        ///, 无每窗口变体 — 本构造器仅供
         /// 运行时 DPI 语义的扩展需求; Java 对拍/移植路径只允许
         /// `from_detection(w, h, 1.0, 1.0)` 复刻 exe 行为 (见 init() PORT 注)。
         /// 又: 混合缩放多屏下"窗口 DPI × 主屏物理尺寸"的组合语义错位

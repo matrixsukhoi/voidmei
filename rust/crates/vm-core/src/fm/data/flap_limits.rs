@@ -13,7 +13,7 @@ use super::FmData;
 /// 现统一走本实现 (含 Java 的 `!blkx.valid → 125` 防御分支;
 /// 生产链两调用方的 blkx 均来自 READY 句柄, valid 恒真, 该分支不可达 —
 /// Service 版测试 mock 需 valid=true 对齐生产形态)。
-/// PORT: 形参 isDowningFlap 在 Java 方法体内未使用 — 签名保真, `_` 前缀消告警。
+/// 形参 isDowningFlap 在 Java 方法体内未使用 — 签名保真, `_` 前缀消告警。
 pub fn get_flap_allow_angle(ias: f64, _is_downing_flap: bool, fmdata: Option<&FmData>) -> f64 {
     if ias == 0.0 {
         return 125.0;
@@ -26,8 +26,8 @@ pub fn get_flap_allow_angle(ias: f64, _is_downing_flap: bool, fmdata: Option<&Fm
         return 125.0;
     }
 
-    // PORT: Java 直接解引用 FlapsDestructionIndSpeed (doLoad=false 构造的 blkx 上
-    // 为 null → NPE) — unwrap panic 复刻同一硬失败 (§1)。⚠ 过渡期同 is_v_wing:
+    // Java 直接解引用 FlapsDestructionIndSpeed (doLoad=false 构造的 blkx 上
+    // 为 null → NPE) — unwrap panic 复刻同一硬失败。⚠ 过渡期同 is_v_wing:
     // Blkx::parse 的 valid=true 不保证本字段 Some (getload 该段未译),
     // 接线 service_loop 前须等 getload 波次落地。
     let speeds = fmdata.flaps_destruction_ind_speed.as_ref().unwrap();
@@ -45,7 +45,7 @@ pub fn get_flap_allow_angle(ias: f64, _is_downing_flap: bool, fmdata: Option<&Fm
     let y0: f64;
     let y1: f64;
     let t: f64;
-    // PORT: Java `* 100.0f` (float 字面量提升 double) — 100 精确可表示, 值同 100.0
+    // Java `* 100.0f` (float 字面量提升 double) — 100 精确可表示, 值同 100.0
     if i == 0 {
         x0 = speeds[i as usize][1];
         y0 = speeds[i as usize][0] * 100.0;

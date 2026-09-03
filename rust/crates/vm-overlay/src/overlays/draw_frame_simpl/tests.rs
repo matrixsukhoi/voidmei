@@ -45,7 +45,7 @@ fn jet_fmdata() -> FmData {
     b
 }
 
-// ---- chart_geometry: Java :557-592 公式逐式 oracle ----
+// ---- chart_geometry: Java :557-592 公式逐式 基线 ----
 
 /// 手算期望 (jet_blkx 输入): xn=[100,200,400] → xmin/xmax=100/400;
 /// ymin=findMin(row2)=1200, ymax=findMax(row0)=3000 (对齐 10 后不变);
@@ -78,7 +78,7 @@ fn find_min_max_empty_slice_returns_java_sentinels() {
     assert_eq!(find_max(&[5.0, -3.0, 9.0]), 9.0);
 }
 
-/// java Math.round(float) 半-up 语义 (§2.3)
+/// java Math.round(float) 半-up 语义
 #[test]
 fn java_round_i32_half_up() {
     assert_eq!(java_round_f32(11.5), 12);

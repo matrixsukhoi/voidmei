@@ -319,7 +319,7 @@ impl FlightAnalyzer {
 }
 
 /// Java 8 `Math.round(double)` 一比一 (JDK 8 源码位级算法, 非朴素 floor(x+0.5)):
-/// JDK 7 起 (JDK-8010430) 对半点邻域做了修正 — Java 8 oracle 实测
+/// JDK 7 起 (JDK-8010430) 对半点邻域做了修正 — 历史基线
 /// `Math.round(0.49999999999999994d) == 0`, 而朴素 `(x + 0.5).floor()` 给 1。
 /// NaN → 0, ±Inf → Long.MAX/MIN (else 支 `a as i64` 与 Java (long) 转换语义一致)。
 fn java_math_round(a: f64) -> i64 {

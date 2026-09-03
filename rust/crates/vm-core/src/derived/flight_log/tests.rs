@@ -214,7 +214,7 @@ fn init_standard(root: &Path) -> FlightLog {
     fl
 }
 
-// ---- 1. Java 8 oracle 对拍: Double.toString (javac 1.8.0_342 实测 dump) ----
+// ---- 1. 历史基线 对拍: Double.toString (javac 1.8.0_342 实测 dump) ----
 #[test]
 fn java_double_to_string_matches_java8_oracle() {
     let cases: &[(f64, &str)] = &[
@@ -315,7 +315,7 @@ fn label_row_is_lang_l1_to_l31_concatenation() {
     });
 }
 
-// ---- 5. 数据行列序/分隔 (float/double 列走 Java toString, 已由 oracle 测试锁定) ----
+// ---- 5. 数据行列序/分隔 (float/double 列走 Java toString, 已由 基线 测试锁定) ----
 #[test]
 fn data_row_column_order_and_separators() {
     with_temp_cwd("datarow", true, |root| {

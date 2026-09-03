@@ -30,8 +30,8 @@ impl FmData {
     pub fn get_aoa_high_v_wing(&self, vwing: f64, flaps_percent: i32) -> f64 {
         if vwing == 0.0 {
             /* 计算flaps */
-            // PORT: Java 直接解引用 NoFlapsWing/FullFlapsWing (未加载时 NPE) —
-            // unwrap panic 复刻同一崩溃语义 (§1 RuntimeException→panic)
+            // Java 直接解引用 NoFlapsWing/FullFlapsWing (未加载时 NPE) —
+            // unwrap panic 复刻同一崩溃语义
             let no_flaps = self.no_flaps_wing.as_ref().unwrap();
             let full_flaps = self.full_flaps_wing.as_ref().unwrap();
             return no_flaps.aoa_crit_high
@@ -57,7 +57,7 @@ impl FmData {
     }
 
     /// 对应 Java `public double getAoALowVWing(double vwing, int flaps_percent)`。
-    /// PORT: Java 形参 flaps_percent 保留但未用 (无 vwing==0 襟翼混合分支, 与 High 版
+    /// Java 形参 flaps_percent 保留但未用 (无 vwing==0 襟翼混合分支, 与 High 版
     /// 的不对称是源码本意) — Rust 以 `_` 前缀消未用告警, 签名保真。
     pub fn get_aoa_low_v_wing(&self, vwing: f64, _flaps_percent: i32) -> f64 {
         if self.sweep_levels.as_ref().is_none_or(|l| l.len() <= 1) {
@@ -110,10 +110,10 @@ impl FmData {
     /// Calculates the maximum allowable G-load range based on current aircraft weight.
     /// As fuel burns off, the aircraft can sustain higher G-loads within structural limits.
     ///
-    /// @param currentWeight Current total weight in kg (typically nofuelweight + mfuel)
-    /// @return double[2]: [0]=negative G limit (e.g., -4.5), [1]=positive G limit (e.g., +11.2)
-    // PORT: Java 回退分支原样返回字段引用 (可能为 null, 调用方 VoiceWarning 先行
-    // 判 rawWingCritOverload != null 才调用) → Option<[f64; 2]> 透传 None (§1 null→Option)
+    /// - `currentWeight`: Current total weight in kg (typically nofuelweight + mfuel)
+    /// 返回: double[2]: [0]=negative G limit (e.g., -4.5), [1]=positive G limit (e.g., +11.2)
+    // Java 回退分支原样返回字段引用 (可能为 null, 调用方 VoiceWarning 先行
+    // 判 rawWingCritOverload != null 才调用) → Option<[f64; 2]> 透传 None
     pub fn get_max_allow_gload_for_weight(&self, current_weight: f64) -> Option<[f64; 2]> {
         if self.raw_wing_crit_overload.is_none() || current_weight <= 0.0 {
             return self.max_allow_gload; // Fallback to static values
@@ -125,7 +125,7 @@ impl FmData {
     }
 
     /// 对应 Java `public int findmaxWaterLoad(engineLoad[] eL, double water)`。
-    // PORT: eL 短于 max_eng_load 时 Java AIOOBE ↔ 切片索引 panic 同构
+    // eL 短于 max_eng_load 时 Java AIOOBE ↔ 切片索引 panic 同构
     pub fn findmax_water_load(&self, e_l: &[EngineLoad], water: f64) -> i32 {
         for i in 0..self.max_eng_load {
             // 大于还是小于等于呢？
@@ -154,7 +154,7 @@ impl FmData {
     }
 
     /// 对应 Java `public String getVersion()` — 读 `./data/aces/version`。
-    // PORT: Java FileReader 用平台默认字符集 (中文 Windows=GBK) 读完全程; Rust
+    // Java FileReader 用平台默认字符集 (中文 Windows=GBK) 读完全程; Rust
     // BufReader::lines() 为 strict UTF-8, 非法字节产出 Err → break 保留半程 sb —
     // 版本文件为 ASCII 版本号, 域内等价。行语义: readLine 以 \n/\r/\r\n 为行界,
     // lines() 仅按 \n 切并剥行尾单个 \r (单独 \r 不终止行) — CRLF 文件等价。
@@ -175,12 +175,12 @@ impl FmData {
                             sb.push_str(&s);
                             sb.push('\n');
                         }
-                        // PORT: Java IOException catch → logAndContinue, sb 保留半程
+                        // Java IOException catch → logAndContinue, sb 保留半程
                         Err(_) => break,
                     }
                 }
             }
-            // PORT: Java 打开失败 (FileNotFoundException) 同被吞掉, sb 保持 ""
+            // Java 打开失败 (FileNotFoundException) 同被吞掉, sb 保持 ""
             tmp_data = Some(sb);
         }
         tmp_data
@@ -188,9 +188,9 @@ impl FmData {
 
     /// 对应 Java `private double calculatePeakThrust(double[][] table)`。
     /// 遍历推力表找全局最大值
-    /// @param table 推力表 [altitude][velocity]
-    /// @return 峰值推力(kgf)
-    // PORT: Java private → pub(super) (blkx 模块树内可见: getload 落地为本模块树
+    /// - `table`: 推力表 [altitude][velocity]
+    /// 返回: 峰值推力(kgf)
+    // Java private → pub(super) (blkx 模块树内可见: getload 落地为本模块树
     // 的兄弟 impl, 对应"类内可见"); Java double[][] 传 null →
     // Option<&[Vec<f64>]>; 内层行短于 vel_thr_num 时 Java AIOOBE ↔ 索引 panic
     pub(super) fn calculate_peak_thrust(&self, table: Option<&[Vec<f64>]>) -> f64 {
@@ -218,7 +218,7 @@ impl FmData {
 }
 
 // =====================================================================
-// Tests — 期望值来自 Java 8 oracle 对拍 (§5.1): build/oracle/BlkxModelOracle.java
+// Tests — 期望值来自 历史基线 对拍: build/基线/BlkxModelOracle.java
 // 逐字提取的运行脚本在 OpenJDK 1.8.0_342 (与 bin/ 现役 class 同版) 实测 dump,
 // double 以 doubleToLongBits 十六进制输出, Rust 侧 to_bits() 逐位断言。
 // =====================================================================

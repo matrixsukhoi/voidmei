@@ -8,7 +8,7 @@ use vm_core::lang::Lang;
 use vm_overlay::platform::dpi::DpiHelper;
 
 /// Java Application 静态字段中"启动一次后只读"组的落位
-/// (LIFETIMES §1.2 → Env; 配置驱动可变组归 ConfigurationService 的 ApplicationState)。
+///。
 #[derive(Debug, Clone)]
 pub struct Env {
     /// Application.version (Java 读 MANIFEST; Rust 编译期注入)

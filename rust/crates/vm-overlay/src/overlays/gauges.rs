@@ -216,7 +216,7 @@ impl MarkedGauge {
 
     /// update(int, char[], int) 零 GC 通道。
     /// len 上限 32 (Java arraycopy 前 clamp)。
-    /// PORT: Java 调用方显式传 len (可短于 buf); Rust 无 stale tail, len 即 buf 全长 —
+    /// Java 调用方显式传 len (可短于 buf); Rust 无 stale tail, len 即 buf 全长 —
     /// 本文件唯一调用点 (EngineControl) 两语义等价, 通用 API 语义略窄, 仅记录
     pub fn update_buffer(&mut self, value: i32, buf: &str) {
         self.current_value = value as f64;
@@ -237,7 +237,7 @@ impl MarkedGauge {
     /// clamp 到 [0, length]; maxValue<=0 → 0 (MarkedGauge 两分支共用)
     pub(crate) fn pix_value(&self, length: i32) -> i32 {
         if self.max_value > 0.0 {
-            // PORT: Java 先 double 乘除再 (float) 强转再 round — f64 算完 as f32 (§2.12)
+            // Java 先 double 乘除再 (float) 强转再 round — f64 算完 as f32
             let v = java_round_f32(((self.current_value * length as f64) / self.max_value) as f32);
             v.clamp(0, length)
         } else {
@@ -251,7 +251,7 @@ impl MarkedGauge {
     }
 
     /// draw(g2d, x, y, length, thickness, fontLabel, fontValue) 显式尺寸版
-    ///。PORT: Java fontLabel 形参在竖/横两分支均未
+    ///。Java fontLabel 形参在竖/横两分支均未
     /// 参与绘制 (文本一律 fontValue), Rust 单字体参数; 2 参 draw()/getPreferredSize
     /// 为 Swing 尺寸协议 (D7 弃译清单), 不迁。
     #[allow(clippy::too_many_arguments)] // 对齐 Java draw(g2d,x,y,length,thickness,fontLabel,fontValue)
@@ -435,7 +435,7 @@ impl MarkedGauge {
         // 6. 分隔线: 影线 x+pixVal+1 / 主线 x+pixVal, 行 y..y+sepHeight
         let sep_height = thickness + font_value.size + 2;
         let text_color = style.fill_color;
-        // PORT: Java 此处未 setStroke — 分隔线线宽承袭: 本帧画过标记则 tickStroke
+        // Java 此处未 setStroke — 分隔线线宽承袭: 本帧画过标记则 tickStroke
         // (createPreciseStroke(strokeWidth), CAP_BUTT); 否则承袭进入时遗留 stroke
         // (调用链前置组件的 1px 族, 见 gauges_bars LabeledLinearGauge 横向同款注)。
         // 按此确定性复刻两条路径
@@ -492,7 +492,7 @@ impl MarkedGauge {
         tick_font: Option<&LoadedFont>,
         aa: bool,
     ) {
-        // PORT: Java (int)(length * clamp(ratio)) 截断向零
+        // Java (int)(length * clamp(ratio)) 截断向零
         let marker_y = bar_y + length - (length as f64 * Self::clamp01(m.ratio)) as i32;
         match m.marker_type {
             MarkerType::LineFull => {

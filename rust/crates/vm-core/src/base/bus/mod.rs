@@ -4,7 +4,7 @@
 //! 对齐 Java 语义: publish 为同步调用 (订阅者依次执行, 调用线程 = publish 线程,
 //! 对齐 Java FlightDataBus.publish 在 Service 线程、订阅者自行转 UI 线程的模式);
 //! RAII Subscription Drop 即注销 —— 根治 Java 版 VoiceWarning 式忘记 unregister 泄漏
-//! (LIFETIMES.md §2 记录的现存 bug)。
+//!。
 //! 锁纪律 (LIFETIMES: Java OverlayEntry 锁内回调是死锁风险点): listeners 列表锁
 //! 只在登记/清扫/快照时持有, 回调执行持的是各监听器自己的可变性锁, 二者不嵌套。
 //! PORT(重构波1 裁决注): 同事件类型嵌套同步 publish 会死锁 (阶段 2 持监听器

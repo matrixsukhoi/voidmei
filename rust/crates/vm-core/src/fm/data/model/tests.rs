@@ -1,11 +1,7 @@
-// PORT: Java 保真 — 测试构造沿用 Java `new X(); x.f = v;` 逐字段赋值形态,
-// 不改成 struct 字面量以保持与 Java 测试源逐行对应
-#![allow(clippy::field_reassign_with_default)]
-
 use super::*;
 use crate::fm::data::types::{FmParts, SweepLevel};
 
-/// oracle 场景: 3 档可变翼 (sweep 0/0.5/1) + 静态守卫字段 (与 BlkxModelOracle 一致)
+/// 基线 场景: 3 档可变翼 (sweep 0/0.5/1) + 静态守卫字段 (与 BlkxModelOracle 一致)
 fn oracle_sweep_fmdata() -> FmData {
     let mut b = FmData::default();
     let sweeps = [0.0, 0.5, 1.0];
@@ -38,7 +34,7 @@ fn oracle_sweep_fmdata() -> FmData {
     b
 }
 
-/// oracle: vne_025/000/050/120/nan — 区间插值/下界/节点/上界钳位/NaN 落末档
+/// 基线: vne_025/000/050/120/nan — 区间插值/下界/节点/上界钳位/NaN 落末档
 #[test]
 fn java8_oracle_get_vne_v_wing() {
     let b = oracle_sweep_fmdata();
@@ -69,7 +65,7 @@ fn java8_oracle_get_vne_v_wing() {
     );
 }
 
-/// oracle: mne_025/150 — Mach 限值插值与上界钳位
+/// 基线: mne_025/150 — Mach 限值插值与上界钳位
 #[test]
 fn java8_oracle_get_mne_v_wing() {
     let b = oracle_sweep_fmdata();
@@ -85,7 +81,7 @@ fn java8_oracle_get_mne_v_wing() {
     );
 }
 
-/// oracle: aoah_v0_* / aoah_v025 / aoah_v075 — vwing==0 襟翼混合 + 档位插值
+/// 基线: aoah_v0_* / aoah_v025 / aoah_v075 — vwing==0 襟翼混合 + 档位插值
 #[test]
 fn java8_oracle_get_aoa_high_v_wing() {
     let b = oracle_sweep_fmdata();
@@ -123,7 +119,7 @@ fn java8_oracle_get_aoa_high_v_wing() {
     );
 }
 
-/// oracle: aoal_v000/v025/vneg — Low 版无 vwing==0 混合分支 (源码不对称保真)
+/// 基线: aoal_v000/v025/vneg — Low 版无 vwing==0 混合分支 (源码不对称保真)
 #[test]
 fn java8_oracle_get_aoa_low_v_wing() {
     let b = oracle_sweep_fmdata();
@@ -144,7 +140,7 @@ fn java8_oracle_get_aoa_low_v_wing() {
     );
 }
 
-/// oracle: guard_null_* / guard_one_* — sweepLevels null 或 ≤1 档回落静态字段
+/// 基线: guard_null_* / guard_one_* — sweepLevels null 或 ≤1 档回落静态字段
 #[test]
 fn java8_oracle_sweep_guards_null_and_single() {
     let mut b = oracle_sweep_fmdata();
@@ -209,7 +205,7 @@ fn java8_oracle_sweep_guards_null_and_single() {
     );
 }
 
-/// oracle: gload_fallback/w0/wneg/calc/calc2 — 动态 G 限与回退
+/// 基线: gload_fallback/w0/wneg/calc/calc2 — 动态 G 限与回退
 #[test]
 fn java8_oracle_get_max_allow_gload_for_weight() {
     let mut c = FmData::default();
@@ -252,7 +248,7 @@ fn java8_oracle_get_max_allow_gload_for_weight() {
     );
 }
 
-/// oracle: fmw_*/fmo_*/fm_max0 — 档位检索 (严格小于) 与越界返回 max_eng_load
+/// 基线: fmw_*/fmo_*/fm_max0 — 档位检索 (严格小于) 与越界返回 max_eng_load
 #[test]
 fn java8_oracle_findmax_water_and_oil_load() {
     let mut d = FmData::default();
@@ -314,7 +310,7 @@ fn java8_oracle_findmax_water_and_oil_load() {
     );
 }
 
-/// oracle: pt_aft — 峰值推力 (MIL 路径无生产消费方已删, 2026-09 收敛单路)
+/// 基线: pt_aft — 峰值推力 (MIL 路径无生产消费方已删, 2026-09 收敛单路)
 #[test]
 fn java8_oracle_peak_thrust() {
     let mut e = FmData::default();
@@ -366,7 +362,7 @@ fn calculate_peak_thrust_short_row_panics() {
     let _ = e.calculate_peak_thrust(Some(&short));
 }
 
-/// Java 隐式初始化 (§2.10): 数值 0 / bool false / 引用 null↔None 抽样
+/// Java 隐式初始化: 数值 0 / bool false / 引用 null↔None 抽样
 #[test]
 fn default_matches_java_implicit_init() {
     let b = FmData::default();
@@ -391,7 +387,7 @@ fn default_matches_java_implicit_init() {
     assert_eq!(b.throttle_boost, 0.0, "getload 才会补 1.0 默认");
 }
 
-/// 未加载对象解引用: Java NPE ↔ unwrap panic (§1 崩溃语义保真)
+/// 未加载对象解引用: Java NPE ↔ unwrap panic
 #[test]
 #[should_panic]
 fn unloaded_aoa_blend_panics_like_npe() {
@@ -411,7 +407,7 @@ fn get_version_missing_file_returns_none() {
     );
 }
 
-/// oracle bits 数组解包小工具
+/// 基线 bits 数组解包小工具
 fn b(a: &Option<[f64; 2]>) -> [u64; 2] {
     let a = a.as_ref().unwrap();
     [a[0].to_bits(), a[1].to_bits()]

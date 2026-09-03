@@ -27,9 +27,9 @@ pub fn java_parse_boolean(s: &str) -> bool {
 /// - 否则科学计数 "D.DDDE±x" ('E' 后仅负指数带 '-', 正指数无 '+');
 /// - 最短可区分数字串; NaN/±0/±Inf 特判。
 ///
-/// PORT: 数字串取 Rust `{:e}` 最短往返表示, 与 Java FloatingDecimal 在
+/// 数字串取 Rust `{:e}` 最短往返表示, 与 Java FloatingDecimal 在
 /// JDK-4511638 域 (极罕见多位尾数, 如 1e23 Java 给 "9.999999999999999E22")
-/// 外逐位一致 — cfg/遥测值域 oracle 对拍无差异 (分歧已由
+/// 外逐位一致 — cfg/遥测值域 历史基线无差异 (分歧已由
 /// config_loader/configuration_service/flight_log 三处测试固化)。
 pub fn java_double_to_string(d: f64) -> String {
     if d.is_nan() {
@@ -96,7 +96,7 @@ pub fn java_double_to_string(d: f64) -> String {
 
 /// Java `System.currentTimeMillis()`: SystemTime → as_millis u128 → as i64 截断;
 /// 时钟早于 epoch 时 Java 可得负值而 duration_since 报错 → 取 0。
-/// 时间戳差值域 (epoch 毫秒) 远离 i64 溢出, 普通减法即可 (§2.2 无涉)。
+/// 时间戳差值域 (epoch 毫秒) 远离 i64 溢出, 普通减法即可。
 pub fn current_time_millis() -> i64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)

@@ -6,7 +6,7 @@ use crate::fm::data::{EngineLoad, FmData};
 use crate::fm::piston_model::CompressorStageParams;
 use crate::fm::status::FMStatus;
 
-// PORT: 原 BlkxPlaceholder 零字段占位已按 blkx/mod.rs 字段波次陷阱注 5 的排期
+// 原 BlkxPlaceholder 零字段占位已按 blkx/mod.rs 字段波次陷阱注 5 的排期
 // (构造点波次 = FMLoader 波次) 兑现切换为真实 crate::fm::data::FmData 聚合 struct;
 // engLoad 会话态的就地改写已由 eng_load_state 字段承接 (见下)。
 
@@ -27,11 +27,11 @@ use crate::fm::status::FMStatus;
 /// "换机 = 新句柄实例" 的不串机保证原样保留。
 ///
 /// <p>构造只经静态工厂，字段全 final，线程安全（volatile 发布由 {@link FMManager} 负责）。
-// PORT: Java final 类 + 全 final 字段 → Rust 字段无 mut 即不可变; #[derive(Clone)]
+// Java final 类 + 全 final 字段 → Rust 字段无 mut 即不可变; #[derive(Clone)]
 // 对应 Java "引用可自由赋值传递" 的可用性 —— 注意 Java 赋值是 O(1) 共享, Rust Clone
 // 是深拷贝。已裁决 (fm_manager.rs "Arc 共享在此销号"): 分发走 Arc<FMHandle>
 // 共享, Clone 仅为字段级可用性保留。
-// PORT: 刻意不 derive PartialEq —— Java FMHandle 无 equals 覆写, 语义只有引用同一性,
+// 刻意不 derive PartialEq —— Java FMHandle 无 equals 覆写, 语义只有引用同一性,
 // 且全库无句柄 == 比较使用点 (审查已 grep 确认); 后续批次 (FMManager 等) 勿顺手补
 // derive, 以免与 Java 引用语义分叉。
 // PORT(会话态提升, blkx/mod.rs 字段波次陷阱注 5 的兑现): Java Blkx.engLoad 是
@@ -40,7 +40,7 @@ use crate::fm::status::FMStatus;
 // 只读, 无法落写 —— 会话态提升到本句柄的 eng_load_state (内部可变性 Mutex),
 // blkx 本体保持不可变解析产物。初始化全在 ready() 内完成 (blkx.eng_load 克隆),
 // FMLoader/fm_manager 调用方零改动。
-// PORT: §0.7 pub 字段结构体无法复刻 "私有构造器 + 仅静态工厂" 的编译期约束,
+// §0.7 pub 字段结构体无法复刻 "私有构造器 + 仅静态工厂" 的编译期约束,
 // 工厂仍是规范构造入口 (调用方约定, 语义不变)。
 #[derive(Debug)]
 pub struct FMHandle {
@@ -90,9 +90,9 @@ impl Clone for FMHandle {
 impl FMHandle {
     /// 哨兵句柄：未识别到机型时的初始值。字段值恒为
     /// name=null / status=UNRESOLVED / blkx=null / 功率推力全 0。
-    // PORT: Java `public static final FMHandle UNRESOLVED = new FMHandle(null,
+    // Java `public static final FMHandle UNRESOLVED = new FMHandle(null,
     // FMStatus.UNRESOLVED, null, 0, 0, null)` (经私有构造器的单例共享引用) →
-    // 关联常量 (§1 static final 常量→const); 值全空且不可变, 常量内联与单例共享
+    // 关联常量; 值全空且不可变, 常量内联与单例共享
     // 无行为差异 (Java 侧无人对句柄做引用同一性 == 比较)。
     // PORT(allow 借用警告): eng_load_state (Mutex) 使常量含内部可变性 —
     // clippy 建议 static 化, 但 const 的按值内联语义被全库使用点依赖
@@ -113,7 +113,7 @@ impl FMHandle {
     };
 
     /// 加载成功句柄（仅 READY 允许携带 blkx）
-    // PORT: Java 引用类型参数 (String/Blkx/数组) 隐式可传 null → 显式 Option (§1)
+    // Java 引用类型参数 (String/Blkx/数组) 隐式可传 null → 显式 Option
     pub fn ready(
         name: Option<String>,
         fmdata: Option<FmData>,
@@ -193,9 +193,9 @@ impl FMHandle {
 }
 
 /// 对应 Java `toString()` 覆写: `"FMHandle[" + status + " " + name + "]"`。
-// PORT: Java 字符串拼接把 null 引用转为 "null" (JLS 字符串转换), 枚举拼接调
+// Java 字符串拼接把 null 引用转为 "null" (JLS 字符串转换), 枚举拼接调
 // 默认 toString()=常量名 —— Option::unwrap_or("null") + FMStatus 的 Display 复刻。
-// Java 8 oracle 实测对拍见 tests::java8_oracle_tostring。
+// 历史基线对拍见 tests::java8_基线_tostring。
 impl std::fmt::Display for FMHandle {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(

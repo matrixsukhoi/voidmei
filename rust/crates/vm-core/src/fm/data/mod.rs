@@ -16,7 +16,7 @@
 //! (会话状态由 FMHandle.eng_load_state 承接)、wx* 死存储、cl_a/aileron_defl、
 //! 原始文本 data 串 (init/finalizeLoading 一并退役)。
 //!
-//! PORT: 反射段 (getValue/dumpVariables) 按 D4 裁决不迁移。
+//! 反射段 (getValue/dumpVariables) 按 D4 裁决不迁移。
 //! interpolateSweepDouble 由 crate::base::interpolation::interp_sweep_level 承接
 //! (单一来源规约, 见 model.rs 函数级注)。
 
@@ -43,12 +43,12 @@ pub use types::{EngineLoad, FmParts, FuelModification, FuelType, SweepLevel};
 /// 形态按消费语义分两层:
 /// - 外层 `FmData.compressor: Option<...>` — 喷气/未装载为 None;
 ///   `comp_num_steps > 0` 时 reader 在 getload 与档数同批分配,
-///   消费方 unwrap 对齐 Java 直接解引用的 NPE 语义 (§1)
+///   消费方 unwrap 对齐 Java 直接解引用的 NPE 语义
 /// - 前 6 表 (alt/power/boost/rpm_ratio/ceil/ceil_pwr) 消费方逐档
 ///   直接索引, 恒与档数同批存在 → 平铺 Vec
 /// - 后 3 表 (has_boost/const_rpm_alt/const_rpm_power) Java 侧有显式
 ///   null/长度判 → 保留 Option, None = 该参数族缺席
-// PORT: new double[compNumSteps] 运行时长度 → Vec; 刻意不 derive PartialEq
+// new double[compNumSteps] 运行时长度 → Vec; 刻意不 derive PartialEq
 // (与 FmData 同规约, Java 无 equals, 语义只有引用同一性)
 #[derive(Debug, Clone, Default)]
 pub struct CompressorData {
@@ -77,7 +77,7 @@ pub struct CompressorData {
 /// 字段区覆盖 Java 实例字段的存活子集 (死字段见模块头注), 类型对齐:
 /// double→f64 / int→i32 / String 与对象引用的 null-未赋值态→Option;
 /// 定长数组 `new double[N]`→`[f64; N]`, 变长/jagged→Vec。
-// PORT: Java private 字段 → 无 pub (fmdata 模块树内可见); 刻意不 derive
+// Java private 字段 → 无 pub (fmdata 模块树内可见); 刻意不 derive
 // PartialEq — Java 无 equals 覆写, 语义只有引用同一性 (FMHandle 同款先例)。
 #[derive(Debug, Clone, Default)]
 pub struct FmData {
@@ -120,11 +120,11 @@ pub struct FmData {
     pub oswalds_efficiency_number: f64,
 
     /// Dynamic list of sweep levels, ordered by sweep ratio (0.0 to 1.0)
-    // PORT: Java List<SweepLevel> null-未赋值 → Option<Vec<..>>
+    // Java List<SweepLevel> null-未赋值 → Option<Vec<..>>
     pub sweep_levels: Option<Vec<SweepLevel>>,
     pub no_flaps_wing: Option<FmParts>,
     pub full_flaps_wing: Option<FmParts>,
-    // PORT: Java Boolean 装箱 (getload 前为 null, 拆箱 NPE) → Option<bool>
+    // Java Boolean 装箱 (getload 前为 null, 拆箱 NPE) → Option<bool>
     pub is_v_wing: Option<bool>,
     pub fuselage: Option<FmParts>,
     pub fin: Option<FmParts>,
@@ -151,13 +151,13 @@ pub struct FmData {
     pub version: Option<String>,
     pub avg_eng_recovery_rate: f64,
     pub flaps_destruction_num: i32,
-    // PORT: Java new double[6][2] (+1 行是 1.25x 襟翼插值哨兵, 见 getload) →
+    // Java new double[6][2] (+1 行是 1.25x 襟翼插值哨兵, 见 getload) →
     // 定长 [[f64; 2]; 6]
     pub flaps_destruction_ind_speed: Option<[[f64; 2]; 6]>,
     pub halfweight: f64,
 
     // ---- 喷气推力表 ----
-    // PORT: Java new double[30] 定长缓冲 → [f64; N]; 有效数据前缀长度由
+    // Java new double[30] 定长缓冲 → [f64; N]; 有效数据前缀长度由
     // alt_thr_num/vel_thr_num/mode_engine_num 记录
     pub altitude_thr: Option<[f64; 30]>,
     pub velocity_thr: Option<[f64; 30]>,

@@ -60,7 +60,7 @@ const MENU_ID_EXIT: usize = 1003; // PORT: Java close 菜单项 (Lang.close)
 /// 托盘触发的 UI 动作回调 (组装层注入; 托盘不依赖具体 UI 实现)
 pub trait TrayHandler: Send {
     /// 左键点击 / 菜单"设置": 重建应用核并弹出设置窗体。
-    /// PORT: Application mouseClicked BUTTON1 →
+    /// Application mouseClicked BUTTON1 →
     /// `ctr.stop(); ctr = new Controller()` (MainForm 随 Controller 重建显示)。
     /// 快速重复点击由托盘层 CAS 防重入拦截 (见 [`dispatch_activate`]),
     /// handler 侧只会串行收到。
@@ -70,7 +70,7 @@ pub trait TrayHandler: Send {
     /// Java 菜单无对应项 — P5 组装层的拆分入口)
     fn start(&mut self);
 
-    /// 菜单"退出": PORT: Application close MenuItem →
+    /// 菜单"退出": Application close MenuItem →
     /// `tray.remove(icon); System.exit(0)` — 图标移除由 [`TrayIcon`] 的 Drop 完成,
     /// 进程退出由本回调完成 (Java System.exit 的归属方)。
     ///
@@ -79,7 +79,7 @@ pub trait TrayHandler: Send {
     /// 留下僵尸托盘图标 (Java close 项是 `tray.remove(icon)` 显式在 `System.exit(0)` 之前)
     fn exit(&mut self);
 
-    /// 菜单"关于": PORT: Application about MenuItem →
+    /// 菜单"关于": Application about MenuItem →
     /// `NotificationService.showAbout(Lang.aboutcontent×3)` 三段 toast。
     /// Java 不重建 Controller (纯展示动作); 组装层转发前端 About Modal (web 形态)。
     fn about(&mut self);
@@ -161,7 +161,7 @@ static TRAY_HANDLER_GEN: std::sync::atomic::AtomicU64 = std::sync::atomic::Atomi
 /// 与 Drop 的作废判定互斥 — 回调仅在泵线程串行 (WNDPROC 唯一入口), 单值够用
 static TRAY_HANDLER_INFLIGHT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
-/// PORT: Application `trayClickProcessing = new AtomicBoolean(false)` —
+/// Application `trayClickProcessing = new AtomicBoolean(false)` —
 /// 托盘点击 CAS 防重入标志 (Java static → 进程级静态, 跨 Controller 重建存活)
 static TRAY_CLICK_PROCESSING: AtomicBool = AtomicBool::new(false);
 
@@ -193,10 +193,10 @@ fn uninstall_handler(gen: u64) {
 }
 
 /// 取出 handler 锁外执行回调。
-/// 锁纪律 (LIFETIMES §3.3): Mutex 不可重入, handler 若再进托盘层二次 lock 会死锁
+/// 锁纪律: Mutex 不可重入, handler 若再进托盘层二次 lock 会死锁
 /// (Java synchronized 可重入无此问题) — 锁内只摘槽位, 回调整体锁外;
 /// 嵌套进入时槽位为空 → 安全空转。
-/// PORT: Java AWT EDT 对监听器异常的兜底 (捕获打印不中断) → catch_unwind,
+/// Java AWT EDT 对监听器异常的兜底 (捕获打印不中断) → catch_unwind,
 /// 回调 panic 不允许穿越 FFI 边界 (extern "system" 内 unwind = UB)
 fn with_handler(f: impl FnOnce(&mut dyn TrayHandler)) {
     let mut slot = TRAY_HANDLER.lock().unwrap();
@@ -215,7 +215,7 @@ fn with_handler(f: impl FnOnce(&mut dyn TrayHandler)) {
 }
 
 /// 左键/菜单"设置"分发: CAS 防重入 + finally 语义复位, 原样照搬 Java。
-/// PORT: Application mouseClicked BUTTON1:
+/// Application mouseClicked BUTTON1:
 /// `compareAndSet(false,true)` 失败 → 记日志忽略; 成功 → 重建 → finally `set(false)`
 fn dispatch_activate() {
     // 使用CAS操作防止快速重复点击导致多次创建Controller
@@ -538,7 +538,7 @@ unsafe fn load_icon_or_default(path: &Path) -> Result<(HICON, bool), String> {
 
 impl TrayIcon {
     /// 创建托盘: 隐藏窗口 → 菜单 → 图标 → NIM_ADD。
-    /// NIM_ADD 失败不致命: PORT: Java `tray.add(icon)` 抛 AWTException →
+    /// NIM_ADD 失败不致命: Java `tray.add(icon)` 抛 AWTException →
     /// ExceptionHelper.logAndContinue("系统托盘") + debugPrint(Lang.failaddtoTray)
     /// — 程序无托盘继续运行, 返回 Ok(added=false)
     pub fn new(handler: Box<dyn TrayHandler>, cfg: TrayConfig) -> Result<TrayIcon, String> {
@@ -634,10 +634,10 @@ impl TrayIcon {
 
             let added = Shell_NotifyIconW(NIM_ADD, &nid).as_bool();
             if !added {
-                // PORT: Java 两条失败日志 — `ExceptionHelper.logAndContinue(e1, "系统托盘")`
+                // Java 两条失败日志 — `ExceptionHelper.logAndContinue(e1, "系统托盘")`
                 // (WARN, 组件"系统托盘"; Shell_NotifyIconW 只回 BOOL 无异常对象, 以描述代)
                 vm_core::base::logger::warn("系统托盘", "托盘加入失败 (NIM_ADD), 程序继续运行");
-                // PORT: Java `debugPrint(Lang.failaddtoTray)` → Logger.info("Legacy", ...)
+                // Java `debugPrint(Lang.failaddtoTray)` → Logger.info("Legacy", ...)
                 vm_core::base::logger::info(
                     "Legacy",
                     vm_core::lang::Lang::init_lang().failaddto_tray,
@@ -660,7 +660,7 @@ impl TrayIcon {
     }
 
     /// 一轮消息泵: 分派本线程队列里发往托盘窗口的消息 (回调在调用线程执行)。
-    /// PORT: Java AWT EDT 泵的等价物 — 组装层主循环每帧调用
+    /// Java AWT EDT 泵的等价物 — 组装层主循环每帧调用
     /// (对齐 host.rs pump_events 的"调用方驱动"模式)
     pub fn pump(&mut self) {
         unsafe {
@@ -681,7 +681,7 @@ impl TrayIcon {
 impl Drop for TrayIcon {
     fn drop(&mut self) {
         unsafe {
-            // PORT: Java close MenuItem 的 tray.remove(icon) — 退出前删图标防僵尸占位
+            // Java close MenuItem 的 tray.remove(icon) — 退出前删图标防僵尸占位
             if self.added {
                 let nid = NOTIFYICONDATAW {
                     cbSize: std::mem::size_of::<NOTIFYICONDATAW>() as u32,
@@ -705,7 +705,7 @@ impl Drop for TrayIcon {
         // handler 槽位摘除: 世代身份守卫 (新实例已重装则不动其 handler;
         // 本代在途执行则作废其回填权, 防"已下线 handler 复活")
         uninstall_handler(self.handler_gen);
-        // PORT: Java trayClickProcessing 是 static 且不复位 (JVM 即退无需复位) —
+        // Java trayClickProcessing 是 static 且不复位 (JVM 即退无需复位) —
         // Drop 不碰 CAS 标志; 若在途点击尚未走完 finally, 标志由 dispatch_activate 复位
     }
 }

@@ -197,14 +197,14 @@ impl State {
                 self.thrust[i] = v_i32(&v, &format!("thrust {}, kgs", i + 1));
                 self.pitch[i] = v_f64(&v, &format!("pitch {}, deg", i + 1));
 
-                // PORT: Java `efficiency[i] = getDataInt(...)` — int 拓宽进 double 数组元素
+                // Java `efficiency[i] = getDataInt(...)` — int 拓宽进 double 数组元素
                 self.efficiency[i] = v_i32(&v, &format!("efficiency {}, %", i + 1)) as f64;
 
                 if self.thrust[i] == I_INVALID {
                     break;
                 }
 
-                // PORT: Java `tmpThrust += thrust[i]` — int 累加进 double
+                // Java `tmpThrust += thrust[i]` — int 累加进 double
                 tmp_thrust += self.thrust[i] as f64;
                 total_engine_num += 1;
             }

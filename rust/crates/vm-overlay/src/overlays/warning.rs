@@ -5,7 +5,7 @@
 //! 影层 BasicStroke(5) 偏移 ±2 → 前景层 BasicStroke(3) 偏移 ±1, 均
 //! CAP_ROUND+JOIN_ROUND; 颜色取全局静态色 colorShadeShape / colorNum。
 //!
-//! PORT: Java WarningOverlay 本体无文本输出 (仅 X 图形) — "警告文本"语义由
+//! Java WarningOverlay 本体无文本输出 (仅 X 图形) — "警告文本"语义由
 //! HUD 行族 (row/ 组件的 isWarning 着色) 与语音链路 (VoiceWarning) 承担,
 //! 不在本文件; X 由 Service.fatalWarn (VoiceWarning 置位) 经
 //! EventPayload.fatalWarn 触发 (blinkX = ...)。
@@ -123,7 +123,7 @@ impl WarningBlinkHost {
     /// serviceLoopIntervalMs 为 long: 1000/interval 是 long
     /// 整除, >>3 后 (int) 截断高位; 结果 0 钳 1。
     /// interval=0 在 Java 抛 ArithmeticException (init 崩溃), Rust i64 除零
-    /// panic 同为致命语义 (PORTING §1 非受检异常映射), 见 should_panic 测试。
+    /// panic 同为致命语义, 见 should_panic 测试。
     pub fn new(service_loop_interval_ms: i64) -> Self {
         let mut blink_ticks = ((1000i64 / service_loop_interval_ms) >> 3) as i32;
         if blink_ticks == 0 {
@@ -160,7 +160,7 @@ impl WarningBlinkHost {
         if self.blink_x {
             self.warning
                 .draw(cv, 0, 0, width, height, self.blink_acting, aa);
-            // PORT: Java 静默回绕 (§2.2) — ~10Hz 下 i32 计 ~6.8 年回绕,
+            // Java 静默回绕 — ~10Hz 下 i32 计 ~6.8 年回绕,
             // wrapping_add + % (两语言同为向零取余) 精确对齐 Java 溢出后行为
             self.blink_check_ticks = self.blink_check_ticks.wrapping_add(1);
             if self.blink_check_ticks % self.blink_ticks == 0 {

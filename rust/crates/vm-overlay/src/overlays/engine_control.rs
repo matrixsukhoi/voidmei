@@ -35,9 +35,7 @@ pub enum GaugeType {
     Fuel,
 }
 
-impl GaugeType {
-
-}
+impl GaugeType {}
 
 /// Lang 标签访问器 (cfg 无 lang 快照, EngineControl 标签全部来自 Lang 静态字段)
 fn lbl_throttle(l: &Lang) -> &'static str {
@@ -64,7 +62,7 @@ fn lbl_fuel_per(l: &Lang) -> &'static str {
 
 /// 单个仪表定义 (EngineControlOverlay.initGaugeFields 的 addGaugeIfEnabled 参数快照,
 /// ui_layout.cfg "引擎控制"→"发动机元素" 组的 switch-inv :target 即 disableKey)。
-/// PORT: 无 PartialEq — label 是 fn 指针, 地址比较无意义 (rustc 同款告警)
+/// 无 PartialEq — label 是 fn 指针, 地址比较无意义 (rustc 同款告警)
 #[derive(Debug, Clone, Copy)]
 pub struct EngineGaugeDef {
     /// 开关键 ("true" 时该仪表不建)
@@ -283,7 +281,7 @@ impl EngineControlState {
         }
         // calculateLayout
         let width = font_size * WIDTH_MULTIPLIER;
-        // PORT: Java `(fontsize * 4 + (fontsize * 9) >> 1)` — JLS 移位优先级低于加法
+        // Java `(fontsize * 4 + (fontsize * 9) >> 1)` — JLS 移位优先级低于加法
         // → (13*fontsize)>>1 (同款陷阱, 勿加括号)
         let height =
             ((font_size * 4 + font_size * 9) >> 1) + (row_num + 1) * (font_size + (font_size >> 2));
@@ -317,11 +315,11 @@ impl EngineControlState {
             interval_val = cfg_str("Interval"); // Legacy key fallback
         }
         if !interval_val.is_empty() {
-            // parseLongSafe: null/空/解析异常 → defaultVal (§2.15)
+            // parseLongSafe: null/空/解析异常 → defaultVal
             let service_loop_interval_ms = interval_val
                 .parse::<i64>()
                 .unwrap_or(ENGINE_DEFAULT_REFRESH_MS);
-            // PORT: Java (long)(long * double) 经 f64 再截断, 保持同路径
+            // Java (long)(long * double) 经 f64 再截断, 保持同路径
             self.refresh_interval =
                 (service_loop_interval_ms as f64 * ENGINE_REFRESH_MULTIPLIER) as i64;
         }
@@ -361,10 +359,10 @@ impl EngineControlState {
     /// = updateStateFromPayload + updateGaugesZeroGC。
     /// compressor_stages = FMManager.current().compressorStages 的档位数快照
     /// (None = 句柄非 READY / 无增压器 → Java null)。
-    /// PORT: updateResult 的 legacy Map<String,String> 分支 (→
+    /// updateResult 的 legacy Map<String,String> 分支 (→
     /// updateGaugeByType/updateGaugesFromData) 弃译 — 生产不可达
     /// (数据源恒存在 — W10 单名制后经 FormulaView 取数, 无 null 分支)。
-    /// PORT: System.currentTimeMillis 由调用方注入 now_ms (field2 先例); 返回
+    /// System.currentTimeMillis 由调用方注入 now_ms (field2 先例); 返回
     /// false = 节流跳过 (Java 原方法 void, 宿主可据此省重绘)
     pub fn update(
         &mut self,
@@ -503,7 +501,7 @@ impl EngineControlState {
                 }
             }
             if has_val {
-                // PORT: Java (int) val 截断向零; 值域 0..120, as i32 语义一致
+                // Java (int) val 截断向零; 值域 0..120, as i32 语义一致
                 let int_val = val as i32;
                 let text = if g.gauge_type == GaugeType::Compressor {
                     format::format((int_val + 1) as f64, 0)

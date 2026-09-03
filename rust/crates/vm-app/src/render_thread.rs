@@ -291,7 +291,7 @@ pub(crate) fn register_live_overlays(
         || power_info_overlay_spec(fonts, params),
     );
     // MiniHUD (键 crosshairSwitch; HUDSettings 经快照)
-    // PORT: service_present=false (注册时 Service 尚未建; 该标志影响 preview 行为集,
+    // service_present=false (注册时 Service 尚未建; 该标志影响 preview 行为集,
     // live 重接线批次随 spec 工厂参数化回收)
     handles.minihud = register_one(host, shared, "MiniHUD", &MINIHUD_INTEREST_KEYS, || {
         minihud_overlay_spec(
@@ -366,7 +366,7 @@ pub(crate) fn register_live_overlays(
     });
     // Java init/initPreview 的 setBounds(0, screenH-500, 900, 500) — 每次
     // 实例化固定几何 (thrustdFSX/Y 只写不读, 不参与定位)。
-    // PORT: Java Toolkit.getScreenSize() 在生产 JVM 标志 -Dsun.java2d.
+    // Java Toolkit.getScreenSize() 在生产 JVM 标志 -Dsun.java2d.
     // uiScale=1 下与 DPIHelper 逻辑高同值 (恒等), 取逻辑高
     if handles.draw_frame_simpl.is_some() {
         host.set_entry_fixed_pos("thrustdFS", 0, env.dpi.get_logical_screen_height() - 500);

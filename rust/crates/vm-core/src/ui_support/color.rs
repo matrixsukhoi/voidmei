@@ -3,7 +3,7 @@
 //! (cfg `:value` 为 hex, 用户编辑后存十进制 — 双格式互通的原因)。
 //!
 //! 重构波13 收敛点: vm-ui/renderers/color.rs 与 config/configuration_service
-//! 的两份同族实现归一至此。以 vm-ui 侧实现为准 (Java 8 oracle 测试锚定,
+//! 的两份同族实现归一至此。以 vm-ui 侧实现为准 (历史基线 测试锚定,
 //! 2026-08-26 对拍用例现锚于 vm-ui renderers/color tests 与 configuration_service
 //! tests 的 color_parse_matrix); 两份实现比对语义等价, 差异仅在 Option 形态
 //! (vm-core 旧版直接回落默认) 与切片写法, 无行为分歧。
@@ -54,7 +54,7 @@ fn parse_hex_color(hex: &str) -> Option<[u8; 4]> {
 fn parse_decimal_color(decimal: &str) -> Option<[u8; 4]> {
     // replaceAll("\\s+", "") — 内部空白一并剔除
     let cleaned: String = decimal.chars().filter(|c| !is_java_ws(*c)).collect();
-    // Java String.split(","): 尾部空串丢弃 (oracle "255, 85, 0," → 3 段 → a=255;
+    // Java String.split(","): 尾部空串丢弃 (基线 "255, 85, 0," → 3 段 → a=255;
     // Rust split 原样保留 → 需模拟, 否则尾部逗号串解析失败偏离 Java)
     let mut parts: Vec<&str> = cleaned.split(',').collect();
     while parts.last().is_some_and(|p| p.is_empty()) {
@@ -76,7 +76,7 @@ fn parse_decimal_color(decimal: &str) -> Option<[u8; 4]> {
 }
 
 /// Java `replaceAll("\\s+")` 的字符集 [ \t\n\x0B\f\r]。
-/// PORT: Rust is_ascii_whitespace 不含 \x0B, 显式对齐 (oracle vt-internal 用例)
+/// Rust is_ascii_whitespace 不含 \x0B, 显式对齐 (基线 vt-internal 用例)
 fn is_java_ws(c: char) -> bool {
     matches!(c, ' ' | '\t' | '\n' | '\u{000B}' | '\u{000C}' | '\r')
 }

@@ -38,15 +38,15 @@ pub trait OverlayWindow {
     /// 运行时切换穿透 (预留: 目前创建时按模式一次定型)
     #[allow(dead_code)]
     fn set_click_through(&mut self, on: bool);
-    /// 运行时切换置顶 (PORT: Java Window.setAlwaysOnTop — AlwaysOnTopCoordinator
+    /// 运行时切换置顶 (Java Window.setAlwaysOnTop — AlwaysOnTopCoordinator
     /// suspendAll/restoreAll 的底层动作; POC 全窗口恒 TOPMOST, 无对话框阶段不会被调用)
     fn set_topmost(&mut self, _on: bool) {}
-    /// 运行时切换可见性 (PORT: Java Window.setVisible — AlwaysOnTopCoordinator
+    /// 运行时切换可见性 (Java Window.setVisible — AlwaysOnTopCoordinator
     /// hideAllOverlays/showAllOverlays (FocusMonitor 游戏失焦自动隐藏) 的底层动作;
     /// Java isDisplayable 守卫由所有权天然保证: 槽位存在 = 窗口未销毁,
-    /// 已销毁窗口不存在"复活"路径 — LIFETIMES §6.1 僵尸窗口防护)
+    /// 已销毁窗口不存在"复活"路径 — 僵尸窗口防护)
     fn set_visible(&mut self, _visible: bool) {}
-    /// 运行时改窗口尺寸 (PORT: Java Window.setSize/setBounds — WYSIWYG
+    /// 运行时改窗口尺寸 (Java Window.setSize/setBounds — WYSIWYG
     /// reinitConfig 重算布局后 setBounds 的底层动作; x11 波次前缺省空实现)
     fn set_size(&mut self, _w: i32, _h: i32) {}
     /// 非阻塞取事件, 无事件返回 None

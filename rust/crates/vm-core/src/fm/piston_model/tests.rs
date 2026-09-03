@@ -1,7 +1,3 @@
-// PORT: Java 保真 — 测试构造沿用 Java `new X(); x.f = v;` 逐字段赋值形态,
-// 不改成 struct 字面量以保持与 Java 测试源逐行对应
-#![allow(clippy::field_reassign_with_default)]
-
 use super::*;
 
 /// Tests for PistonPowerModel.
@@ -10,7 +6,7 @@ use super::*;
 ///
 /// Run with: ./script/test.sh
 ///
-/// PORT: Java 断言助手 assertClose/assertTrue (计数式 pass/fail) → Rust
+/// Java 断言助手 assertClose/assertTrue (计数式 pass/fail) → Rust
 /// assert! 宏 (失败即 panic); `Math.abs(a-e) <= tol` 判定式逐字保留。
 /// Java 的 printf 信息输出 (非断言) 移植不保留
 fn assert_close(name: &str, actual: f64, expected: f64, tolerance: f64) {
@@ -362,7 +358,7 @@ fn test_no_wep_aircraft_identical_curves() {
 
     // WEP and military curves must be identical at every altitude
     let mut all_match = true;
-    // PORT: Java `for (int alt = 0; alt <= 10000; alt += 500)` int 步进循环
+    // Java `for (int alt = 0; alt <= 10000; alt += 500)` int 步进循环
     for alt in (0..=10000i32).step_by(500) {
         let alt_f = alt as f64;
         let mil_power = optimal_power_advanced(&stages, alt_f, false, 0.0, false, 15.0);
@@ -453,7 +449,7 @@ fn test_peak_wep_power() {
     assert_close("empty array returns 0", peak_empty, 0.0, 0.001);
 
     // Test 4: Null array returns 0
-    // PORT: Java null 参数在 Rust 切片模型下无对应 (无 null 切片),
+    // Java null 参数在 Rust 切片模型下无对应 (无 null 切片),
     // 空切片走同一 `stages.length == 0` 提前返回路径, 行为等价 (0)
     // (与 Test 3 同路径, 保留用例编号以对齐 Java 测试文本)
 
@@ -479,8 +475,8 @@ fn test_peak_wep_power() {
     );
 }
 
-/// Java 8 oracle 对拍 (PORTING.md §5.1 A 类策略):
-/// 期望值 = build/oracle/PistonPowerOracle{,2}.java 在 OpenJDK 1.8.0_342 上
+/// 历史基线 对拍:
+/// 期望值 = build/基线/PistonPowerOracle{,2}.java 在 OpenJDK 1.8.0_342 上
 /// dump 的 %.17g 实测值 (临时文件, 用完已删除)。容差取混合式 1e-12·max(|expected|,1)
 /// (|expected|<1 时退化为绝对容差): Math.pow 跨 libm 实现允许最后几位 ULP 差异,
 /// 远小于业务断言容差。覆盖 variabler 军用/WEP 全部分支形态。

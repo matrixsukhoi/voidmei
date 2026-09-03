@@ -3,13 +3,13 @@
 //! Loader for dynamic overlay configuration files.
 //! Refactored to use S-Expression (Lisp-like) syntax.
 //!
-//! PORT: Java `public Object value` (Boolean/Integer/Double/String/null 动态类型)
-//! → `Option<ConfigValue>` 枚举 (§2.11: 原 Object 单态化为封闭 4+1 域)。
-//! PORT: 异常控制流 (§2.7) — Java loadConfig/saveConfig 的 `catch (Exception e)
+//! Java `public Object value` (Boolean/Integer/Double/String/null 动态类型)
+//! → `Option<ConfigValue>` 枚举。
+//! 异常控制流 — Java loadConfig/saveConfig 的 `catch (Exception e)
 //! { e.printStackTrace(); }` 吞掉一切异常后**返回已累积的部分结果**:
 //! 解析期 panic (asAtom/getDouble 的 IllegalStateException/NumberFormatException)
 //! 经 catch_unwind 复刻, IO 错误经 Result 复刻, 二者统一打印 stderr 后继续。
-//! PORT: jnativehook 键码表 (getKeyText/getKeyCodeFromText) 已抽出至
+//! jnativehook 键码表 (getKeyText/getKeyCodeFromText) 已抽出至
 //! key_text.rs (波16 E6)。
 
 use std::fs;
@@ -99,11 +99,11 @@ impl RowConfig {
 
     /// Java: `public int getInt()`
     /// null 值时 Java `value.toString()` 抛 NullPointerException, 被
-    /// `catch (Exception e)` 兜住 → 0 (§2.7 异常控制流, 语义在此收敛为常量)。
+    /// `catch (Exception e)` 兜住 → 0。
     pub fn get_int(&self) -> i32 {
         match &self.value {
             // Int 原值; Double 走 JLS 5.1.3 (Rust `as i32` 同义, 见 sexp_parser
-            // get_int 的 oracle 对拍注释)
+            // get_int 的 历史基线注释)
             Some(ConfigValue::Int(i)) => *i,
             Some(ConfigValue::Double(d)) => *d as i32,
             // 波21: Integer.parseInt 复刻退役, std parse (域内 cfg ASCII 语义等价)
@@ -113,7 +113,7 @@ impl RowConfig {
     }
 
     /// Java: `public boolean getBool()`
-    /// PORT: null 值时 Java `value.toString()` 抛 NullPointerException **无 catch 传播** —
+    /// null 值时 Java `value.toString()` 抛 NullPointerException **无 catch 传播** —
     /// 保持 panic (调用方 ConfigurationService 波次须知晓此契约)。
     pub fn get_bool(&self) -> bool {
         match &self.value {
@@ -171,7 +171,7 @@ impl GroupConfig {
 
 /// `java.awt.Toolkit.getDefaultToolkit().getScreenSize()` 的注入点
 /// (loadConfig 的 legacy 像素坐标换算专用)。
-/// PORT: AWT 平台调用 (C 类), vm-core 无从自取 — vm-app 启动时以实际屏幕尺寸注入;
+/// AWT 平台调用 (C 类), vm-core 无从自取 — vm-app 启动时以实际屏幕尺寸注入;
 /// 未注入时按 Java headless 形态处理: `Toolkit.getDefaultToolkit()` 抛
 /// HeadlessException (未受检) → 外层 catch → 打印 + 返回部分结果。
 static LEGACY_SCREEN_SIZE: RwLock<Option<(i32, i32)>> = RwLock::new(None);
@@ -189,7 +189,7 @@ fn legacy_screen_size() -> Result<(i32, i32), String> {
 }
 
 /// Java `String.valueOf(value)` (value 非 null) — 各装箱类型的 toString 格式。
-/// PORT: config 域唯一实现 (configuration_service 原同名族副本已收敛于此);
+/// config 域唯一实现 (configuration_service 原同名族副本已收敛于此);
 /// Double 分支走 base::java_compat::java_double_to_string。
 pub(crate) fn config_value_to_string(v: &ConfigValue) -> String {
     match v {
@@ -242,9 +242,9 @@ fn get_keyword_double(list: &SList, keyword: &str, def: f64) -> f64 {
             && curr.as_atom().get_string().eq_ignore_ascii_case(keyword)
         {
             // Java 有 isAtom 守卫: 值为列表时跳过本关键字继续循环
-            // (后续重复关键字仍可命中, Java 8 oracle: ":x (1 2) :x 0.5" → 0.5);
+            // (后续重复关键字仍可命中, 历史基线: ":x (1 2) :x 0.5" → 0.5);
             // 非数值 atom 的 getDouble() 抛 NumberFormatException → panic 复刻,
-            // 由 load_config 的 catch 兜住返回部分组 (Java 8 oracle: ":x abc" 同流)
+            // 由 load_config 的 catch 兜住返回部分组 (历史基线: ":x abc" 同流)
             let next = &list.children[i + 1];
             if next.is_atom() {
                 return next.as_atom().get_double();
@@ -370,7 +370,7 @@ fn build_groups_from_file(path: &str, groups: &mut Vec<GroupConfig>) -> Result<(
         group.y = get_keyword_double(panel_exp, ":y", 0.1);
 
         // Legacy coord conversion
-        // PORT: Java `java.awt.Toolkit.getDefaultToolkit().getScreenSize()` —
+        // Java `java.awt.Toolkit.getDefaultToolkit().getScreenSize()` —
         // AWT 平台调用 (C 类), 经 set_legacy_screen_size 注入 (见函数注释);
         // 未注入时以 HeadlessException 形态中断本文件加载 (Java headless 同流)。
         if group.x > 2.0 {
@@ -422,7 +422,7 @@ fn process_panel_children(target_list: &mut Vec<RowConfig>, parent_list: &SList)
             // Create a HEADER row
             let mut label = "Group".to_string();
             if list.children.len() > 1 {
-                // PORT: Java 无 isAtom 守卫 — 第二子节点为列表时 asAtom() 抛
+                // Java 无 isAtom 守卫 — 第二子节点为列表时 asAtom() 抛
                 // IllegalStateException → panic, 外层 catch 兜住 (保真)
                 label = list.children[1].as_atom().get_string().to_string();
             }
@@ -440,7 +440,7 @@ fn process_panel_children(target_list: &mut Vec<RowConfig>, parent_list: &SList)
             // (item "Label" :k v ...)
             let mut label = "Item".to_string();
             if list.children.len() > 1 {
-                // PORT: 同上, 无 isAtom 守卫
+                // 同上, 无 isAtom 守卫
                 label = list.children[1].as_atom().get_string().to_string();
             }
 
@@ -448,7 +448,7 @@ fn process_panel_children(target_list: &mut Vec<RowConfig>, parent_list: &SList)
             let raw_type = get_keyword_string(list, ":type", Some("DATA")).unwrap();
 
             // Map logical types to internal types
-            // PORT: Java String.toUpperCase() 默认 locale — ASCII 域内与 Rust 一致
+            // Java String.toUpperCase() 默认 locale — ASCII 域内与 Rust 一致
             row.r#type = raw_type.to_uppercase().replace('-', "_"); // switch-inv -> SWITCH_INV
 
             row.property = get_keyword_string(list, ":target", None);
@@ -521,7 +521,7 @@ fn extract_value(list: &SList, keyword: &str) -> Option<ConfigValue> {
             && curr.as_atom().is_keyword()
             && curr.as_atom().get_string().eq_ignore_ascii_case(keyword)
         {
-            // PORT: Java asAtom() 无 isAtom 守卫 — 列表值 (如 :value (a b)) 抛
+            // Java asAtom() 无 isAtom 守卫 — 列表值 (如 :value (a b)) 抛
             // IllegalStateException → panic, 外层 catch 兜住 (保真)
             let val = list.children[i + 1].as_atom();
             if val.r#type == AtomType::Boolean {
@@ -552,7 +552,7 @@ fn is_symbol(exp: &SExp, name: &str) -> bool {
 
 /// Java: `public static void saveConfig(String path, List<GroupConfig> groups)`
 ///
-/// PORT: FileOutputStream 打开失败 → FileNotFoundException → printStackTrace → 静默
+/// FileOutputStream 打开失败 → FileNotFoundException → printStackTrace → 静默
 /// 返回; 写入期 IO 错误 Java PrintWriter 自吞 (checkError 无人调用) → `let _ =` 等价。
 /// 行终止符 = 平台 line.separator (java_line_separator)。
 pub fn save_config(path: &str, groups: &[GroupConfig]) {
@@ -642,7 +642,7 @@ fn write_children(pw: &mut String, rows: &[RowConfig], indent: &str) {
             pw.push_str("(item ");
             pw.push_str(&quote(Some(&row.label)));
 
-            // PORT: Java toLowerCase() 默认 locale — ASCII 域内一致
+            // Java toLowerCase() 默认 locale — ASCII 域内一致
             let lisp_type = row.r#type.to_lowercase().replace('_', "-");
             pw.push_str(&format!(" :type {lisp_type}"));
 
@@ -780,7 +780,7 @@ fn serialize_atom_str(s: Option<&str>) -> String {
 }
 
 /// Java: `private static boolean isNumeric(String s)`
-/// PORT: Character.isDigit 是 Unicode Nd — cfg 值域 ASCII, §2.1 域内等价;
+/// Character.isDigit 是 Unicode Nd — cfg 值域 ASCII, §2.1 域内等价;
 /// s == null 分支已由调用方 Option 分流 (Java null → false, 此处不可达 None)。
 fn is_numeric(s: &str) -> bool {
     if s.is_empty() {

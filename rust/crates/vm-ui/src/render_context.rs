@@ -8,7 +8,7 @@
 
 /// Context object providing callbacks and state for rendering.
 ///
-/// PORT: 方法取 `&self` (Java 实例方法语义; DynamicDataPage 的匿名实现经共享
+/// 方法取 `&self` (Java 实例方法语义; DynamicDataPage 的匿名实现经共享
 /// 引用改外部状态, Rust 实现侧以内部可变性对位)。
 pub trait RenderContext {
     /// Called when user changes a value and config should be saved

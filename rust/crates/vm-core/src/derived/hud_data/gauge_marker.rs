@@ -1,11 +1,11 @@
 //! GaugeMarker 的 Rust 移植 (src/ui/component/gauge/GaugeMarker.java)。
 //!
-//! PORT: java.awt.Color 数据字段 → [u8;4] RGBA (POC 先例);
-//!      Builder 默认 Color.RED = (255,0,0,255) (Java 8 oracle 实测)。
+//! java.awt.Color 数据字段 → [u8;4] RGBA (POC 先例);
+//!      Builder 默认 Color.RED = (255,0,0,255) (历史基线)。
 //!      Java Color 引用理论上可 null, 本域构造路径只有 Builder 默认 RED /
-//!      显式传值, 无 null 使用点 → 非 Option (§2.10 按 0 默认处理保真)。
-//! PORT: Java 字段/方法名 `type` 是 Rust 关键字 → `r#type`。
-//! PORT: `withRatio` 未变化时 "return this (零分配)" / 变化时新实例的可观测
+//!      显式传值, 无 null 使用点 → 非 Option。
+//! Java 字段/方法名 `type` 是 Rust 关键字 → `r#type`。
+//! `withRatio` 未变化时 "return this (零分配)" / 变化时新实例的可观测
 //!      区分 (Java `==` 身份判定) → `Cow::Borrowed(self)` / `Cow::Owned(new)`。
 
 use std::borrow::Cow;
@@ -30,7 +30,7 @@ use super::marker_type::MarkerType;
 ///     .color(Application.colorWarning)
 ///     .build();
 /// </pre>
-// PORT: Java 未覆写 equals, `==` 是引用同一性; PartialEq 仅为测试断言设施 (§2.6,
+// Java 未覆写 equals, `==` 是引用同一性; PartialEq 仅为测试断言设施 (§2.6,
 // 详见 hud_data.rs HUDData 同款注释)。
 #[derive(Debug, Clone, PartialEq)]
 pub struct GaugeMarker {
@@ -75,9 +75,9 @@ impl GaugeMarker {
     /// This is the preferred method for updating marker positions in the render loop
     /// as it avoids allocation when the marker is already at the target ratio.
     ///
-    /// @param newRatio The new position ratio
-    /// @return A new GaugeMarker with updated ratio, or this if ratio unchanged
-    // PORT: Java `return this` → Cow::Borrowed(self); `new Builder()...build()` → Cow::Owned。
+    /// - `newRatio`: The new position ratio
+    /// 返回: A new GaugeMarker with updated ratio, or this if ratio unchanged
+    // Java `return this` → Cow::Borrowed(self); `new Builder()...build()` → Cow::Owned。
     pub fn with_ratio(&self, new_ratio: f64) -> Cow<'_, GaugeMarker> {
         if (new_ratio - self.ratio).abs() < 0.0001 {
             return Cow::Borrowed(self); // No change, return self (zero allocation)
@@ -98,14 +98,14 @@ impl GaugeMarker {
 
     /// Checks if this marker should be visible (ratio in valid range).
     ///
-    /// @return true if ratio is in [0, 1] and marker should be drawn
+    /// 返回: true if ratio is in [0, 1] and marker should be drawn
     pub fn is_visible(&self) -> bool {
         self.ratio >= 0.0 && self.ratio <= 1.0
     }
 
     /// Creates a new Builder for constructing GaugeMarker instances.
     ///
-    /// @return A new Builder instance
+    /// 返回: A new Builder instance
     pub fn builder() -> Builder {
         Builder::default() // PORT: Java `new Builder()` 带字段默认值
     }
@@ -125,7 +125,7 @@ pub struct Builder {
 }
 
 impl Default for Builder {
-    /// Java 字段初始化器默认值 (Java 8 oracle 实测):
+    /// Java 字段初始化器默认值 (历史基线):
     /// id="", LINE_FULL, ratio=-1 (Hidden by default), RED, label="", 0.5f, 0。
     fn default() -> Self {
         Builder {

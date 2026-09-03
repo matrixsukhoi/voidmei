@@ -6,7 +6,7 @@ use super::*;
 ///
 /// Run with: ./script/test.sh
 ///
-/// PORT: Java 断言助手 assertClose/assertTrue (计数式 pass/fail) → Rust
+/// Java 断言助手 assertClose/assertTrue (计数式 pass/fail) → Rust
 /// assert! 宏 (失败即 panic); `Math.abs(a-e) <= tol` 判定式逐字保留
 fn assert_close(name: &str, actual: f64, expected: f64, tolerance: f64) {
     assert!(
@@ -59,7 +59,7 @@ fn test_altitude_at_pressure() {
     ); // ISA formula result
 
     // Inverse function property
-    // PORT: Java `for (int alt = 0; alt <= 15000; alt += 1000)` int 循环
+    // Java `for (int alt = 0; alt <= 15000; alt += 1000)` int 循环
     for alt in (0..=15000i32).step_by(1000) {
         let alt_f = alt as f64;
         let p = pressure(alt_f);
@@ -129,7 +129,7 @@ fn test_ram_effect() {
     assert_true("lower mult = less RAM", less_efficient > with_ram);
 
     // Typical values check
-    // PORT: Java 此处另有 printf 打印 typical 值 (信息输出, 非断言), 测试移植不保留
+    // Java 此处另有 printf 打印 typical 值 (信息输出, 非断言), 测试移植不保留
     let typical = ram_effect_altitude(5000.0, 15.0, 500.0, true, 0.9);
     assert_true(
         "typical RAM ~1000-1500m reduction",
@@ -199,8 +199,8 @@ fn run_test_temperature() {
     test_temperature();
 }
 
-/// Java 8 oracle 对拍 (PORTING.md §5.1 A 类策略):
-/// 期望值 = build/oracle/AtmosphereOracle.java 在 OpenJDK 1.8.0_342 上
+/// 历史基线 对拍:
+/// 期望值 = build/基线/AtmosphereOracle.java 在 OpenJDK 1.8.0_342 上
 /// dump 的 %.17g 实测值 (用完已删除)。容差取混合式 1e-12·max(|expected|,1)
 /// (|expected|<1 时退化为绝对容差): Math.pow 跨 libm 实现允许最后几位
 /// ULP 差异, 远小于业务断言容差。

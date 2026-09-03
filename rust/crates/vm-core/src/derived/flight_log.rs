@@ -556,7 +556,7 @@ impl FlightLog {
         self.analyze_service = Some(analyze_service);
         self.doit.store(false, Ordering::SeqCst);
         // Application.debugPrint("flightlog初始化了");
-        // — 时间仅用于文件名。PORT: Calendar.HOUR 是 12 小时制 (0..11, 正午/午夜为 0),
+        // — 时间仅用于文件名。Calendar.HOUR 是 12 小时制 (0..11, 正午/午夜为 0),
         // 原代码刻意/无意未用 HOUR_OF_DAY — 保真取 hour % 12; 时区 = 本地 (chrono::Local)。
         self.lang = Lang::init_lang();
         let now = Local::now();
@@ -565,7 +565,7 @@ impl FlightLog {
         let hour = (now.hour() % 12) as i64;
         let minute = now.minute() as i64;
         let second = now.second() as i64;
-        // PORT: Java String.toUpperCase() 取默认 locale (土耳其语 'i'→'İ' 会分叉);
+        // Java String.toUpperCase() 取默认 locale (土耳其语 'i'→'İ' 会分叉);
         // Rust to_uppercase 无 locale — 机型名 (ASCII) 两端一致
         let mut name = s.indic_type.to_uppercase();
         // 修复: 原为引用比较(name == "NO COCKPIT")永不为 true, 无座舱视角的飞行记录会以
@@ -612,7 +612,7 @@ impl FlightLog {
             warn_default(&format!("写入标签失败: {e}"));
         }
         // (write/flush/close 抛 IOException("Stream closed"), 见 stream_closed)
-        // PORT: 独立 append 句柄 (见 csv 字段注释); 打开失败 ⇒ None (null writer 模型)
+        // 独立 append 句柄 (见 csv 字段注释); 打开失败 ⇒ None (null writer 模型)
         self.csv_writter = match OpenOptions::new()
             .append(true)
             .create(true)
@@ -663,7 +663,7 @@ impl FlightLog {
             self.notify_show(self.lang.lfail_write);
             warn_default(&format!("写入日志数据失败: {e}"));
         }
-        // long 静默回绕 (§2.2, 10Hz 下 2900 万年才触顶, 保真取 wrapping)
+        // long 静默回绕
         let t = self.write_time;
         self.write_time = self.write_time.wrapping_add(1);
         if t % 1024 == 0 {

@@ -150,7 +150,7 @@ pub struct ServiceData {
     // public static URL urlstate;
     // public static URL urlindicators;
     /// Java `public double loc[]` — null 直到 resetvaria 赋 `new double[2]`;
-    /// MapObj.getPlayerLoc 按 &mut [f64;2] 写入 → 定长 [f64; 2] (§1)
+    /// MapObj.getPlayerLoc 按 &mut [f64;2] 写入 → 定长 [f64; 2]
     pub loc: Option<[f64; 2]>,
     pub dir: Option<[f64; 2]>,
     pub calc_period: i64,
@@ -234,7 +234,7 @@ pub struct ServiceData {
 }
 
 /// 无效占位串 "-" (原 nastring 常量)。
-/// PORT: indicators.rs 已按 CLASSIFY 裁决内联为私有 NA_STRING (不越文件改, §6);
+/// indicators.rs 已按 CLASSIFY 裁决内联为私有 NA_STRING (不越文件改, §6);
 /// 本处为规范定义, 后续波次统一收敛引用点。
 pub const NASTRING: &str = "-";
 
@@ -365,7 +365,7 @@ impl vm_core::formula::registry::FormulaView for ServiceData {
 
 // =====================================================================
 // Tests — 公共项边界测试 (§5.2 B 类单测; 断言值 = Java 语义逐行推导,
-// mock 快照与 state.rs/indicators.rs 的 Java 8 oracle 数据同源)
+// mock 快照与 state.rs/indicators.rs 的 历史基线 数据同源)
 // =====================================================================
 #[cfg(test)]
 mod tests;

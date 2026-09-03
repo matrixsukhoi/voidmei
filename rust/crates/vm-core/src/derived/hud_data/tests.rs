@@ -1,10 +1,6 @@
-// PORT: Java 保真 — 测试构造沿用 Java `new X(); x.f = v;` 逐字段赋值形态,
-// 不改成 struct 字面量以保持与 Java 测试源逐行对应
-#![allow(clippy::field_reassign_with_default)]
-
 use super::*;
 
-/// Java 8 oracle: `new HUDData.Builder()` 的全部默认值
+/// 历史基线: `new HUDData.Builder()` 的全部默认值
 /// (ias=0.0 ... throttle=0, pitchValid=false, 三色 GREEN, 全部空串, sb_rudder=0.0)。
 #[test]
 fn builder_defaults_match_java() {

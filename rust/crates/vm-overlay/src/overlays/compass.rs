@@ -26,7 +26,7 @@ use crate::render::canvas::{LineCapStyle, PixCanvas};
 use vm_core::base::format;
 
 /// Java (int) double 强转语义: 向零截断, NaN→0, ±∞ 饱和到 MIN/MAX —
-/// 与 Rust `as i32` (饱和转换) 逐例一致 (PORTING §2.2 的 long 位截断差异不适用于浮点)
+/// 与 Rust `as i32` (饱和转换) 逐例一致
 #[inline]
 fn trunc_i32(v: f64) -> i32 {
     v as i32
@@ -47,7 +47,7 @@ fn fmt_heading3(v: f64) -> String {
 }
 
 /// 指针末端偏移 compassDx/Dy。
-/// PORT: (radius * 1.3f) 先做 f32 乘 (int×float 提升 float), 再提升 f64 乘 sin/cos;
+/// (radius * 1.3f) 先做 f32 乘 (int×float 提升 float), 再提升 f64 乘 sin/cos;
 /// 注意此处 1.3f 与 draw 内机标线的 double 1.3 精度不同
 fn compass_dxy(radius: i32, compass_rads: f32) -> (i32, i32) {
     let outer = radius as f32 * 1.3f32;
@@ -78,10 +78,10 @@ fn fixed_segment(cx: i32, cy: i32, r: i32) -> ((i32, i32), (i32, i32)) {
 
 /// 北三角三顶点: tip 在圆外 (r+0.35r), 底边中点在圆周上,
 /// 底边沿圆切向 (cosθ, sinθ) 展开半宽 0.30r。角 0 = 12 点钟 (北)。
-/// PORT: (int)(radius*0.35)/(int)(radius*0.30) 的 f64 积截断值
+/// (int)(radius*0.35)/(int)(radius*0.30) 的 f64 积截断值
 /// 直接进入几何 (r=20 → 6/6 而非 7/6, 0.35/0.30 的 f64 表示略小于精确值);
 /// radius + triangle_height 为 int 加法, 极端半径下 Java 静默回绕 / Rust debug
-/// panic (§2.2), 真实布局幅度不可达, 备查
+/// panic, 真实布局幅度不可达, 备查
 fn north_triangle(cx: i32, cy: i32, radius: i32, angle_rads: f64) -> [(i32, i32); 3] {
     let triangle_height = trunc_i32(radius as f64 * 0.35);
     let triangle_half_base = trunc_i32(radius as f64 * 0.30);
@@ -112,8 +112,8 @@ fn north_angle(inertial_mode: bool, compass_rads: f32) -> f64 {
 
 /// 文本标签基线位置:
 /// compass = (x+lw+3, y+HUDFontSize - (r-HUDFontSize)/2), loc = (x+lw+3, y+r+small/2+big)。
-/// PORT: (r - HUDFontSize)/2 与 HUDFontSizeSmall/2 均为 int 除法 (向零截断);
-/// 各 int 加减链极端参数下 Java 静默回绕 (§2.2), 真实布局幅度不可达, 备查
+/// (r - HUDFontSize)/2 与 HUDFontSizeSmall/2 均为 int 除法 (向零截断);
+/// 各 int 加减链极端参数下 Java 静默回绕, 真实布局幅度不可达, 备查
 fn label_positions(
     x: i32,
     y: i32,
@@ -206,7 +206,7 @@ impl CompassGauge {
     }
 
     /// getPreferredSize: 半径 ×2 圆, 无额外留白。
-    /// PORT: radius*2 int 乘法极端半径下 Java 静默回绕 / Rust debug panic (§2.2),
+    /// radius*2 int 乘法极端半径下 Java 静默回绕 / Rust debug panic,
     /// 真实布局幅度不可达, 备查
     pub fn preferred_size(&self) -> (i32, i32) {
         (self.radius * 2, self.radius * 2)
@@ -229,7 +229,7 @@ impl CompassGauge {
     }
 
     /// setStyleContext。Rust 侧变化置脏。
-    /// PORT: Java 此处不重算 compassDx/Dy — 半径变化后到下一次 onDataUpdate 前,
+    /// Java 此处不重算 compassDx/Dy — 半径变化后到下一次 onDataUpdate 前,
     /// 指针末端仍用旧半径的偏移 (tip 用新 r), 该一帧错位是 Java 原生行为, 保真保留
     pub fn set_style_context(
         &mut self,
@@ -292,9 +292,9 @@ impl CompassGauge {
         for i in 0..3 {
             fp[i] = (pts[i].0 as f32, pts[i].1 as f32);
         }
-        // PORT: fillPolygon (偶奇填充) colorUnit
+        // fillPolygon (偶奇填充) colorUnit
         cv.fill_path(&fp, colors().unit, aa);
-        // PORT: drawPolygon THIN_STROKE colorShadeShape
+        // drawPolygon THIN_STROKE colorShadeShape
         stroke_polygon_thin(cv, &pts, colors().shade_shape, aa);
     }
 

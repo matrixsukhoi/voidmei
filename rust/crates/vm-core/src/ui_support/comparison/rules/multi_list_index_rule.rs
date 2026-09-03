@@ -5,7 +5,7 @@ use crate::ui_support::comparison::comparison_rule::ComparisonRule;
 /// Rule that extracts a value from a specific position in nested lists.
 ///
 /// Example: "[4.5, 11.2], [5.0, 12.0]" with listIndex=0, itemIndex=1 extracts 11.2
-// PORT: `private static final Pattern LIST_PATTERN / NUMBER_PATTERN` (与
+// `private static final Pattern LIST_PATTERN / NUMBER_PATTERN` (与
 /// ListIndexRule 逐字相同) → super 共享扫描函数。
 pub struct MultiListIndexRule {
     list_index: i32,
@@ -14,9 +14,9 @@ pub struct MultiListIndexRule {
 }
 
 impl MultiListIndexRule {
-    /// @param list_index the 0-based index of the list to use
-    /// @param item_index the 0-based index within that list
-    /// @param lower_is_better true if lower values are better
+    /// - `list_index`: the 0-based index of the list to use
+    /// - `item_index`: the 0-based index within that list
+    /// - `lower_is_better`: true if lower values are better
     pub fn new(list_index: i32, item_index: i32, lower_is_better: bool) -> Self {
         Self {
             list_index,
@@ -59,6 +59,6 @@ impl ComparisonRule for MultiListIndexRule {
 }
 
 // =====================================================================
-// Tests — 期望值取自 Java 8 oracle 实测 (原类直跑, 逐位对拍)。
+// Tests — 期望值取自 历史基线 (原类直跑, 逐位对拍)。
 #[cfg(test)]
 mod tests;

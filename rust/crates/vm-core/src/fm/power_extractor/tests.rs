@@ -2,7 +2,7 @@ use super::*;
 use crate::fm::data::json::extract_fuel_modifications_json;
 use crate::fm::piston_model::optimal_power_advanced;
 
-/// Java 8 oracle 混合容差 (atmosphere_model.rs / piston_power_model.rs 同款):
+/// 历史基线 混合容差 (atmosphere_model.rs / piston_power_model.rs 同款):
 /// 1e-12·max(|expected|,1); Math.pow 跨 libm 允许最后几位 ULP 差异
 fn check(name: &str, actual: f64, expected: f64) {
     let diff = (actual - expected).abs();
@@ -72,8 +72,8 @@ fn assert_stage(tag: &str, a: &CompressorStageParams, e: &CompressorStageParams)
     assert_eq!(a.exact_altitudes, e.exact_altitudes, "{tag}.exactAltitudes");
 }
 
-/// 期望值构造助手 (Java oracle dump 的 stage 全字段)
-// PORT: Java 保真 — 20 参逐字段对应 oracle dump, 不打包成结构体
+/// 期望值构造助手 (历史基线 dump 的 stage 全字段)
+// Java 保真 — 20 参逐字段对应 基线 dump, 不打包成结构体
 #[allow(clippy::too_many_arguments)]
 fn exp(
     crit_alt: f64,
@@ -124,7 +124,7 @@ fn exp(
 // ---- 真机 fixture (FM 参数取自 data/aces/gamedata/flightmodels/, f32 拓宽见模块注) ----
 
 /// spitfire_f24.blkx (fm) — TestSpitfireF24Power 的被测机
-// PORT: Blkx 含 Java-private 字段 (blkx 模块树内可见, mod.rs 设计), 外部
+// Blkx 含 Java-private 字段 (blkx 模块树内可见, mod.rs 设计), 外部
 /// struct 字面量 + ..default() 不可用 → default() 后逐 pub 字段赋值
 fn spitfire_f24() -> FmData {
     let mut b = FmData::default();
@@ -287,7 +287,7 @@ const CENTRAL_YAK3: &str =
 /// tempest_mkv.json (flightmodels 根, 中央文件) — invertEnableLogic=true
 const CENTRAL_TEMPEST_MKV: &str = "{\"modifications\": {\"150_octan_fuel\": {\"invertEnableLogic\": true, \"effects\": {\"afterburnerMult\": 0.4167, \"afterburnerCompressorMult\": 0.411}}}}";
 
-// ---- oracle: spitfire_f24 级参数 (无油料 + 150 辛烷) ----
+// ---- 基线: spitfire_f24 级参数 (无油料 + 150 辛烷) ----
 
 #[test]
 fn java8_oracle_spitfire_f24_stages() {
@@ -408,7 +408,7 @@ fn java8_oracle_spitfire_f24_stages() {
     );
 }
 
-// ---- oracle: spitfire_f24 功率曲线 (300 km/h IAS, 15C) + TestSpitfireF24Power 断言移植 ----
+// ---- 基线: spitfire_f24 功率曲线 (300 km/h IAS, 15C) + TestSpitfireF24Power 断言移植 ----
 
 #[test]
 fn java8_oracle_spitfire_f24_power_curve() {
@@ -464,10 +464,10 @@ fn java8_oracle_spitfire_f24_power_curve() {
         );
     }
 
-    // 峰值: Java oracle 精确对拍
+    // 峰值: 历史基线 精确对拍
     let mut mil_peak = 0.0f64;
     let mut wep_peak = 0.0f64;
-    // PORT: Java `for (int alt = 0; alt <= 10000; alt += 50)` int 步进循环
+    // Java `for (int alt = 0; alt <= 10000; alt += 50)` int 步进循环
     for alt in (0..=10000i32).step_by(50) {
         let alt_f = alt as f64;
         let m = optimal_power_advanced(&stages, alt_f, false, 300.0, true, 15.0);
@@ -495,7 +495,7 @@ fn java8_oracle_spitfire_f24_power_curve() {
     );
 }
 
-// ---- oracle: yak-3 苏联 B-100 油料 (soviet_octane_adder, spm=1.018) ----
+// ---- 基线: yak-3 苏联 B-100 油料 (soviet_octane_adder, spm=1.018) ----
 
 #[test]
 fn java8_oracle_yak3_soviet_fuel() {
@@ -579,7 +579,7 @@ fn java8_oracle_yak3_soviet_fuel() {
     );
 }
 
-// ---- oracle: spitfire_ix RPM 调整 (definition_alt_power_adjuster) ----
+// ---- 基线: spitfire_ix RPM 调整 (definition_alt_power_adjuster) ----
 
 #[test]
 fn java8_oracle_spitfire_ix_rpm_adjuster() {
@@ -705,7 +705,7 @@ fn java8_oracle_spitfire_ix_rpm_adjuster() {
     );
 }
 
-// ---- oracle: tempest_mkv (invertEnableLogic=true 机型, 无 RPM 调整路径) ----
+// ---- 基线: tempest_mkv (invertEnableLogic=true 机型, 无 RPM 调整路径) ----
 
 #[test]
 fn java8_oracle_tempest_mkv_stages() {
@@ -826,7 +826,7 @@ fn java8_oracle_tempest_mkv_stages() {
     );
 }
 
-// ---- oracle: tempest_mkv 功率曲线 (300 km/h IAS, 15C) + TestTempestMk5Power 断言移植 ----
+// ---- 基线: tempest_mkv 功率曲线 (300 km/h IAS, 15C) + TestTempestMk5Power 断言移植 ----
 
 #[test]
 fn java8_oracle_tempest_mkv_power_curve() {
@@ -877,10 +877,10 @@ fn java8_oracle_tempest_mkv_power_curve() {
         );
     }
 
-    // 50 m 步进峰值: Java oracle 精确对拍 (1730 非步进点, 峰在 1700)
+    // 50 m 步进峰值: 历史基线 精确对拍 (1730 非步进点, 峰在 1700)
     let mut mil_peak = 0.0f64;
     let mut wep_peak = 0.0f64;
-    // PORT: Java `for (int alt = 0; alt <= 10000; alt += 50)` int 步进循环
+    // Java `for (int alt = 0; alt <= 10000; alt += 50)` int 步进循环
     for alt in (0..=10000i32).step_by(50) {
         let alt_f = alt as f64;
         let m = optimal_power_advanced(&stages, alt_f, false, 300.0, true, 15.0);
@@ -896,7 +896,7 @@ fn java8_oracle_tempest_mkv_power_curve() {
     check("temp wepPeak", wep_peak, 2_441.076_377_387_389);
 }
 
-// ---- oracle: synthetic 分支 (Java 直接设 public 字段构造, 双精度字面量, 无 f32 拓宽) ----
+// ---- 基线: synthetic 分支 (Java 直接设 public 字段构造, 双精度字面量, 无 f32 拓宽) ----
 
 #[test]
 fn java8_oracle_synthetic_branches() {
@@ -1180,7 +1180,7 @@ fn java8_oracle_synthetic_branches() {
     );
 }
 
-// ---- oracle: null / 守卫边界 ----
+// ---- 基线: null / 守卫边界 ----
 
 #[test]
 fn java8_oracle_null_and_guard_boundaries() {

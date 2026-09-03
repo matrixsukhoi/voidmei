@@ -88,7 +88,7 @@ fn linear_gauge_vertical_clamp_over_range() {
 }
 
 /// 横向 LinearGauge: 填充列截断 (valW-2)、flip 分隔线【不渲染】(Java
-/// drawRect 负宽 oracle 0 像素)、文本在条下方 — 只剩条 + 条下文本。
+/// drawRect 负宽 基线 0 像素)、文本在条下方 — 只剩条 + 条下文本。
 #[test]
 fn linear_gauge_horizontal_separator_invisible() {
     let f = font();
@@ -103,7 +103,7 @@ fn linear_gauge_horizontal_separator_invisible() {
     assert_eq!(a(&cv, 58, 24), 240, "填充右端");
     assert_eq!(a(&cv, 60, 22), 0, "填充右外 (valW-2 截断)");
     // flip 分隔线 (LinearGauge.java:176): drawRect(x+pixVal-2, y, 3, -thickness-fontSize)
-    // = drawRect(58, 20, -4, ·) 负宽 → Java 整体不绘制 (oracle 实测 0 像素)。
+    // = drawRect(58, 20, -4, ·) 负宽 → Java 整体不绘制 (历史基线 0 像素)。
     // 条顶边框行 y=20 只有 shade 单层, 无 shade 叠 shade 加深, 分隔线区域
     // (列 57..61) 与条内无异。
     assert_eq!(a(&cv, 57, 20), 42, "条顶边框单层 shade (无分隔线叠色)");
@@ -393,12 +393,12 @@ fn flap_angle_bar_overspeed_and_guard() {
     );
 }
 
-/// 线基元几何 (期望值 = Java 8 oracle 实测像素盒):
+/// 线基元几何 (期望值 = 历史基线像素盒):
 /// - butt2 AA OFF: drawLine(10,·,20,·) 覆盖列 10..19 — 右端列不点亮
 ///   (宽>1 的 strokedShape 中心规则光栅, 端点含像素仅 1px Bresenham 快速路径)
 /// - square2 AA OFF: drawLine(·,10,·,25) 覆盖列 tx-1..tx / 行 9..25 —
 ///   方帽下端行不点亮
-/// - AA ON: 宽 2 线 3 行/列柔边, oracle 不透明色 a=128/255/128 角点 a=64,
+/// - AA ON: 宽 2 线 3 行/列柔边, 基线 不透明色 a=128/255/128 角点 a=64,
 ///   此处按 cov_color 同式 (colors().num a=240 → 120/60; LABEL 166 → 83/42)
 #[test]
 fn line_primitive_pixel_boxes() {
@@ -413,7 +413,7 @@ fn line_primitive_pixel_boxes() {
     assert_eq!(a(&cv, 9, 15), 0, "butt2 左外");
 
     // butt2 AA ON: 覆盖盒 [10.5,20.5]×[14.5,16.5] → 3 行柔边 + 端点列半覆盖
-    // (oracle: 21 列×3 行 = 63 非零像素)
+    // (基线: 21 列×3 行 = 63 非零像素)
     let mut cvs = PixCanvas::new(40, 40).unwrap();
     butt_line(&mut cvs, 10, 15, 20, 15, 2, colors().num, true);
     assert_eq!(a(&cvs, 15, 15), 240, "AA 中行全值");
@@ -442,7 +442,7 @@ fn line_primitive_pixel_boxes() {
     assert_eq!(a(&cv2, 31, 15), 0, "square2 右外");
 
     // square2 AA ON: 覆盖盒 [29.5,31.5]×[9.5,26.5] → 3 列柔边, 端行半透明
-    // (oracle: 行 4..26 端行半透明, 列 a=128/255/128)
+    // (基线: 行 4..26 端行半透明, 列 a=128/255/128)
     let mut cv2s = PixCanvas::new(40, 40).unwrap();
     vline_square2(&mut cv2s, 30, 10, 25, colors().label, true);
     assert_eq!(a(&cv2s, 30, 15), 166, "AA 中列全值");
@@ -466,7 +466,7 @@ fn line_primitive_pixel_boxes() {
     assert_eq!(a(&cv3, 15, 10), 0, "1px AA ON 右外");
 }
 
-/// drawRect 负/零尺寸语义 (Java 8 oracle): 负宽/负高整体不绘制;
+/// drawRect 负/零尺寸语义 (历史基线): 负宽/负高整体不绘制;
 /// 零宽退化 1px 竖线 (列 x, 行 y..y+h)、零高退化 1px 横线、双零无输出
 #[test]
 fn ring_negative_and_degenerate() {
@@ -479,7 +479,7 @@ fn ring_negative_and_degenerate() {
         "负宽/负高 0 像素"
     );
 
-    // 零宽: oracle drawRect(50,10,0,20) = 列 50 行 10..30 的 1px 竖线
+    // 零宽: 基线 drawRect(50,10,0,20) = 列 50 行 10..30 的 1px 竖线
     let mut cv2 = PixCanvas::new(40, 40).unwrap();
     primitives::ring1px(&mut cv2, 20, 5, 0, 15, colors().num);
     assert_eq!(a(&cv2, 20, 5), 240, "零宽退化竖线顶");
@@ -511,10 +511,10 @@ fn fmt_pct3_rounding_and_padding() {
     assert_eq!(fmt_pct3(0.5), "  0", "波21: 精确半点 nearest-even 取偶");
     assert_eq!(fmt_pct3(-0.5), " -0", "波21: nearest-even (Rust 舍入)");
     assert_eq!(fmt_pct3(-2.4), " -2");
-    // oracle: String.format("%3.0f", -0.0) 数值部分 "-0" (负零保号), 宽 3 补成 " -0"
+    // 基线: String.format("%3.0f", -0.0) 数值部分 "-0" (负零保号), 宽 3 补成 " -0"
     assert_eq!(fmt_pct3(-0.0), " -0", "负零保号 (Java oracle, 宽 3 含符号)");
     assert_eq!(fmt_pct3(-0.4), " -0", "负值舍到零保负号");
-    // oracle: 0.5 的 f64 前驱按精确十进制 HALF_UP 舍到 0
+    // 基线: 0.5 的 f64 前驱按精确十进制 HALF_UP 舍到 0
     // (v+0.5 在 f64 中进到 1.0 的舍入路径已修正)
     assert_eq!(fmt_pct3(0.49999999999999994), "  0");
     assert_eq!(fmt_pct3(f64::NAN), "NaN");

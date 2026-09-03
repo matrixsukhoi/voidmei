@@ -10,13 +10,13 @@ use super::*;
 
 /// Java: `private class GenericOverlaySettingsImpl implements OverlaySettings`
 ///
-/// PORT: 内部类持外部类实例 (ConfigurationService.this) → 持共享内核 Arc。
+/// 内部类持外部类实例 (ConfigurationService.this) → 持共享内核 Arc。
 pub struct GenericOverlaySettingsImpl {
     /// Java: `protected final String sectionName`
     pub(crate) section_name: String,
     pub(super) service: Arc<ServiceInner>,
     /// trait get_group_config 的借出载体: 视图构建时的分组快照。
-    /// PORT: Java 每次调用 getGroupConfig() 重查并返回**活引用**; RwLock 内
+    /// Java 每次调用 getGroupConfig() 重查并返回**活引用**; RwLock 内
     /// 存储无法经 &self 借出引用 — 本 trait 方法返回构建时快照 (config_api
     /// 注释认可的快照契约); 其余读取方法均逐调用重查保真 (见
     /// get_group_config_snapshot)。需最新快照的调用方重建视图 (Java 端
@@ -58,7 +58,7 @@ impl OverlaySettings for GenericOverlaySettingsImpl {
             // PORT §2.3: Math.round(double)=floor(x+0.5); §2.2: (int) 窄化 =
             // 低 32 位 (双转复刻)
             let px = ((gc.x * f64::from(screen_w) + 0.5).floor() as i64) as u32 as i32;
-            // PORT: Java String.format %.4f (HALF_UP) vs Rust {:.4} (半偶) —
+            // Java String.format %.4f (HALF_UP) vs Rust {:.4} (半偶) —
             // 仅第 5 位小数恰为半点时日志文本有差异 (debug 级, 坐标域罕见)
             logger::debug(
                 "OverlaySettings",
@@ -111,7 +111,7 @@ impl OverlaySettings for GenericOverlaySettingsImpl {
     /// Java: `public void saveWindowPosition(double x, double y)`
     fn save_window_position(&self, x: f64, y: f64) {
         let (screen_w, screen_h) = self.service.screen_size();
-        // PORT: 查找+判定+写回收敛在同一写锁作用域 (Java 引用一经获取即稳定)
+        // 查找+判定+写回收敛在同一写锁作用域 (Java 引用一经获取即稳定)
         let mut wrote: Option<(f64, f64)> = None;
         let mut gc_ok = false;
         {

@@ -282,7 +282,7 @@ fn energy_row_side_text_and_gates() {
 #[test]
 fn mech_row_template_parse_and_preferred_size() {
     let f = main_font();
-    // Java getStringWidth(tpl + " ") 的拼接串直译 oracle
+    // Java getStringWidth(tpl + " ") 的拼接串直译 基线
     let seg = |t: &str| f.measure(&format!("{t} "));
 
     let row = HUDMechanizationRow::new(2, 30);

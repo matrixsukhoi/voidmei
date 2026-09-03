@@ -4,7 +4,7 @@
 //! - `engineLoad` / `fm_parts` / `SweepLevel`
 //!   — 非静态内部类, 均未引用 Blkx.this 外部状态 (纯语法糖) → 独立 struct
 //!
-//! PORT: `XY` (PASSPORT 曲线容器) 已随曲线链删除 — Java DrawFrame
+//! `XY` (PASSPORT 曲线容器) 已随曲线链删除 — Java DrawFrame
 //! 的消费未迁移至 Rust, Rust 生产零消费 (2026-09 死代码清理)。
 
 use std::fmt;
@@ -25,7 +25,7 @@ use std::fmt;
 ///   }
 /// }
 /// </pre>
-// PORT: 刻意不 derive PartialEq — Java 无 equals 覆写, 语义只有引用同一性,
+// 刻意不 derive PartialEq — Java 无 equals 覆写, 语义只有引用同一性,
 // 全库使用点 (FMLoader/FMPowerExtractor/PowerCurveWindow) 均只比较 type 枚举
 // 与读数值字段, 从不比较 FuelModification 整体 (FMHandle 同款先例)。
 #[derive(Debug, Clone)]
@@ -39,7 +39,7 @@ pub struct FuelModification {
     /// Whether British fuel has invertEnableLogic (means high octane is default)
     pub british_invert_logic: bool,
     /// Fuel modification type
-    // PORT: Java 字段名 `type` 是 Rust 关键字 → `r#type` (gauge_marker.rs 先例)
+    // Java 字段名 `type` 是 Rust 关键字 → `r#type` (gauge_marker.rs 先例)
     pub r#type: FuelType,
 }
 
@@ -64,9 +64,9 @@ impl FuelModification {
 }
 
 /// 对应 Java `public enum FuelModification.FuelType`。
-// PORT: Java 枚举常量全大写 → Rust 驼峰 (FMStatus 先例); Java 枚举默认
+// Java 枚举常量全大写 → Rust 驼峰 (FMStatus 先例); Java 枚举默认
 // toString()=常量名 的字符串形态由 Display 保留 (FMLoader 日志
-// "Fuel modification detected: " + fuelMod.type 依赖, Java 8 oracle 对拍)。
+// "Fuel modification detected: " + fuelMod.type 依赖, 历史基线 对拍)。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FuelType {
     None,
@@ -93,8 +93,8 @@ impl fmt::Display for FuelType {
 // ==================== End Fuel Modification Support ====================
 
 /// 对应 Java `public class engineLoad` (源文件类名即小驼峰)。
-/// PORT: 非静态内部类, 六个 double 字段无任何 Blkx 外部引用 → 独立 struct;
-/// Java 字段隐式零初始化 → Default 复刻 (§2.10)。类名 engineLoad → EngineLoad (§0.5)。
+/// 非静态内部类, 六个 double 字段无任何 Blkx 外部引用 → 独立 struct;
+/// Java 字段隐式零初始化 → Default 复刻。类名 engineLoad → EngineLoad。
 #[derive(Debug, Clone, Default)]
 pub struct EngineLoad {
     pub water_limit: f64,
@@ -106,8 +106,8 @@ pub struct EngineLoad {
 }
 
 /// 对应 Java `public class fm_parts` (源文件类名即小写下划线)。
-/// PORT: 非静态内部类, 未引用 Blkx 外部状态 → 独立 struct;
-/// 类名 fm_parts → FmParts (§0.5)。Java 字段隐式零初始化/null → Default;
+/// 非静态内部类, 未引用 Blkx 外部状态 → 独立 struct;
+/// 类名 fm_parts → FmParts。Java 字段隐式零初始化/null → Default;
 /// name 未赋值的 null ↔ None (唯一赋值点是 getPartsFm, 后续波次)。
 #[derive(Debug, Clone, Default)]
 pub struct FmParts {
@@ -134,7 +134,7 @@ pub struct FmParts {
 /// 对应 Java `public class SweepLevel`。
 /// Represents a single sweep level with its associated aerodynamic data.
 /// Used for variable-sweep wing aircraft (e.g., F-14 with 4 sweep levels).
-/// PORT: 非静态内部类, 持有的两个 fm_parts 是构造后即赋值的值字段而非
+/// 非静态内部类, 持有的两个 fm_parts 是构造后即赋值的值字段而非
 /// Blkx 外部引用 → 独立 struct; noFlaps/fullFlaps 在 `new SweepLevel()` 后、
 /// 构造器赋值前为 null ↔ Option<FmParts> + Default (None)。
 /// Java 的引用共享 (`NoFlapsWing_V50 = sweepLevels.get(1).noFlaps`) 由后续
@@ -155,7 +155,7 @@ pub struct SweepLevel {
 
 // =====================================================================
 // Tests — Java 无内部类独立测试; 公共面按"每个公共项写边界测试"规则补齐,
-// 期望值来自 Java 8 oracle 对拍 (§5.1): Blkx.java L34-218 逐字提取为独立
+// 期望值来自 历史基线 对拍: Blkx.java L34-218 逐字提取为独立
 // 可编译类 (该段零外部依赖), OpenJDK 1.8.0_342 实测 dump, 临时文件用完已删。
 // =====================================================================
 #[cfg(test)]

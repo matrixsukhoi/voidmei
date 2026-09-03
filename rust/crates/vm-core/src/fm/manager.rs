@@ -32,7 +32,7 @@ use crate::fm::loader;
 /// {@link UIStateEvents#FM_CHANGED} 在 loader 线程同步派发，订阅方碰 Swing 必须自行
 /// invokeLater。
 ///
-/// PORT(单例解散, §2.9 / LIFETIMES §1.1): Java `static final INSTANCE` +
+/// PORT(单例解散, §2.9 / ): Java `static final INSTANCE` +
 /// `getInstance()` → 调用方持有的 struct (AppState 收编), 跨 Controller 重建共享
 /// 同一 FM 状态的语义由调用方持同一实例/Arc 表达。TestFMStore 用例移植见
 /// fm/store_tests.rs (主 agent 预置, 对接本 API; 本模块 tests 不重复移植)。
@@ -42,7 +42,7 @@ use crate::fm::loader;
 /// PORT(volatile 映射, LIFETIMES 审查修正 ★1 + §7 草案): `current` 并非单写者 ——
 /// identify 的 NOT_AIRCRAFT/负缓存分支在 Service/FM-Detect 调用线程直接写, loader
 /// 线程完成后也写, 语义 = "多写者 + 原子替换" → `RwLock<Arc<FMHandle>>`
-/// (LIFETIMES §7 草案 `ArcSwap<Arc<FmHandle>>` 的 std 等价形态, 禁新增依赖不引
+/// (草案 `ArcSwap<Arc<FmHandle>>` 的 std 等价形态, 禁新增依赖不引
 /// arc-swap): 读侧 O(1) clone Arc = Java volatile 读返回共享引用, 且消费者共享
 /// 同一句柄实例 —— blkx.engLoad 是 Service 线程 ~10Hz 就地改写的共享会话态
 /// (handle.rs javadoc / blkx 波次陷阱注 5), 每读深拷会让消费者拿到 fork、对快照的
@@ -59,7 +59,7 @@ pub struct FMManager {
 }
 
 /// FM_CHANGED 广播通道类型。
-/// PORT: Java `UIStateBus.getInstance().publish(FM_CHANGED, this, handle)` 的
+/// Java `UIStateBus.getInstance().publish(FM_CHANGED, this, handle)` 的
 /// 字符串路由 + 弱类型 payload → 专用强类型通道: 消息 = payload 本体 (Java 订阅方
 /// `Consumer<Object>` 收到的 data 即 FMHandle, 不含 eventType), 订阅方持同一 Arc
 /// 经 [`EventBus::subscribe`] 订阅 (RAII Subscription, Drop 即退订)。ui_state_bus.rs
@@ -67,7 +67,7 @@ pub struct FMManager {
 /// 句柄" 的决策上报主 agent), 本波次禁越文件改 ui_state_bus.rs —— 专用通道是保住
 /// 句柄载荷语义的唯一路径; 未来若主 agent 扩展 UiStateEvent, 切换点集中在
 /// Inner.fm_changed 字段类型与 [`FMManager::new`] 参数。
-/// PORT(§2.8 禁令, 审查 B W2): 订阅方回调内**禁止同步重入** [`FMManager::identify`]
+/// 订阅方回调内**禁止同步重入** [`FMManager::identify`]
 /// 或对本总线再次 publish —— bus.rs 的 publish 持各监听器自身 Mutex 执行回调,
 /// 同线程同总线二次 lock 同一 Mutex = 永久挂死 (Java monitor 可重入无此形态;
 /// ui_state_bus.rs 对同形态有明文已知破损注)。Java 对等调用链不可达
@@ -86,25 +86,25 @@ const LOCK_MSG: &str = "FMManager 状态锁中毒";
 
 struct Inner {
     /// 当前句柄；加载期间保留旧句柄（HUD 用旧 FM 平滑过渡），完成后原子 swap
-    // PORT: Java `volatile FMHandle current = FMHandle.UNRESOLVED` →
+    // Java `volatile FMHandle current = FMHandle.UNRESOLVED` →
     // RwLock<Arc<FMHandle>>, 读侧 O(1) clone Arc 快照且共享同一实例
     // (见模块 doc 的 ★1/§7 裁决)
     current: RwLock<Arc<FMHandle>>,
     /// 当前识别目标（规范化小写机型名）；null = 尚未识别
-    // PORT: Java `volatile String currentTarget = null` → Mutex<Option<String>>
-    // (LIFETIMES §7 草案 target 形态; 低频写、读写皆短临界区)
+    // Java `volatile String currentTarget = null` → Mutex<Option<String>>
+    //
     current_target: Mutex<Option<String>>,
     /// 负缓存：isMissingLike 的机型 → 失败时间戳。命中则 identify 不再发加载任务
-    // PORT: Java `ConcurrentHashMap<String, Long>` → Mutex<HashMap> (LIFETIMES
-    // §3.2 "访问频率不高" 裁决); 只做 contains/insert/remove/clear, 迭代顺序无涉 (§2.5)
+    // Java `ConcurrentHashMap<String, Long>` → Mutex<HashMap> (LIFETIMES
+    // §3.2 "访问频率不高" 裁决); 只做 contains/insert/remove/clear, 迭代顺序无涉
     negative_cache: Mutex<HashMap<String, i64>>,
     /// 速率护栏：机型 → 最近一次真正执行 FMLoader.load 的时刻
     last_attempt_ms: Mutex<HashMap<String, i64>>,
     /// 在途任务计数（提交 ++ / 任务 finally --），支撑 isLoading() 纯读观测
-    // PORT: Java `AtomicInteger` → AtomicI32; volatile 复合语义 → SeqCst
+    // Java `AtomicInteger` → AtomicI32; volatile 复合语义 → SeqCst
     in_flight: AtomicI32,
     /// 单线程串行加载器：天然免除并发加载同一/不同机型的竞态
-    // PORT: Java `volatile ExecutorService loader = newLoader()` (单线程 daemon
+    // Java `volatile ExecutorService loader = newLoader()` (单线程 daemon
     // executor "FM-Loader", reset 时整体换新) → 专用线程 + mpsc 无界通道的发送端;
     // Mutex 守护 reset 换新 vs submitLoad 取用的竞态 (Java volatile 读写的对位)
     loader: Mutex<mpsc::Sender<LoaderJob>>,
@@ -115,7 +115,7 @@ struct Inner {
     loader_epoch: AtomicU64,
     /// reset 串行化锁 (无 Java 对应字段): Java `synchronized reset()` 的 monitor
     /// 仅互斥并发 reset (identify 等本就无锁) → 专用锁复刻; 恒最外层获取,
-    /// 锁序 reset_lock → 状态锁, 无环 (§2.8)
+    /// 锁序 reset_lock → 状态锁, 无环
     reset_lock: Mutex<()>,
     /// FM_CHANGED 广播通道 (构造注入, 非全局) —— 见 [`FmChangedBus`] 的 PORT 注
     fm_changed: Arc<FmChangedBus>,
@@ -126,7 +126,7 @@ struct Inner {
 const RETRY_INTERVAL_MS: i64 = 60_000;
 
 impl FMManager {
-    /// 单例解散后的显式构造 (§2.9): 调用方持 Arc<FMManager> 注入;
+    /// 单例解散后的显式构造: 调用方持 Arc<FMManager> 注入;
     /// FM_CHANGED 通道为参数注入 (store_tests.rs new_manager 先例)。
     pub fn new(fm_changed: Arc<FmChangedBus>) -> Self {
         FMManager {
@@ -152,7 +152,7 @@ impl FMManager {
     }
 
     /// 当前 FM 句柄（纯 volatile 读，无锁）。未识别时返回 UNRESOLVED 哨兵。
-    // PORT: Java volatile 读返回共享引用 (O(1)) ↔ 读锁 + Arc 引用计数克隆
+    // Java volatile 读返回共享引用 (O(1)) ↔ 读锁 + Arc 引用计数克隆
     // (模块 doc ★1/§7 裁决: 快照与发布方共享同一句柄实例, blkx 会话态改写不丢);
     // Deref 使 `.status/.name/has_fm()` 与 Display 调用点与按值返回零差异
     pub fn current(&self) -> Arc<FMHandle> {
@@ -171,13 +171,13 @@ impl FMManager {
 
     /// 识别（并按需异步加载）机型 —— 唯一入口。高频调用安全：目标未变时零成本返回。
     ///
-    /// @param planeName 机型名（任意大小写/空白，内部规范化）；None/空直接忽略
+    /// - `planeName`: 机型名（任意大小写/空白，内部规范化）；None/空直接忽略
     pub fn identify(&self, plane_name: Option<&str>) {
         let plane_name = match plane_name {
             None | Some("") => return,
             Some(p) => p,
         };
-        // PORT: Java `toLowerCase().trim()` — 默认 Locale 的 toLowerCase ↔
+        // Java `toLowerCase().trim()` — 默认 Locale 的 toLowerCase ↔
         // to_lowercase (≡Locale.ROOT), 机型名域为 ASCII 逐字符一致; trim 的
         // C0 vs Unicode White_Space 差异在该域不可达 (fm_loader.rs 同款先例注)
         let name = plane_name.to_lowercase().trim().to_string();
@@ -208,7 +208,7 @@ impl FMManager {
         // flightmodels，直接落 NOT_AIRCRAFT 句柄——不发加载任务（省一次注定失败的
         // 磁盘查找）、不进负缓存（不是数据缺失而是不适用）、不弹缺失 toast。
         // 修复: 陆战时误把坦克当"FM 缺失的新飞机"弹提示。
-        // PORT: Java `name.indexOf('/') >= 0` ↔ contains('/') ('/' 单字符, 语义全等)
+        // Java `name.indexOf('/') >= 0` ↔ contains('/') ('/' 单字符, 语义全等)
         if name.contains('/') {
             let handle = Arc::new(FMHandle::not_aircraft(Some(name.clone())));
             *self.inner.current.write().expect(LOCK_MSG) = Arc::clone(&handle);
@@ -223,7 +223,7 @@ impl FMManager {
 
         // 负缓存：确认 MISSING/CORRUPT 的机型不再发加载任务（issue #55 死循环根治点）。
         // 直接落 MISSING 句柄并广播，让 HUD 立即知道当前机型无 FM 可用
-        // PORT(§2.8): 先取 bool 再分支 —— 若把 lock().contains_key() 直接挂 if
+        // 先取 bool 再分支 —— 若把 lock().contains_key() 直接挂 if
         // 条件, 临时守卫会存活到分支体结束, publish 期间持锁 + 订阅方重入
         // identify() 取同一 Mutex 即死锁 (Java CHM 无 monitor 无此形态)
         let cached_missing = self
@@ -236,7 +236,7 @@ impl FMManager {
             let handle = Arc::new(FMHandle::missing(Some(name.clone())));
             *self.inner.current.write().expect(LOCK_MSG) = Arc::clone(&handle);
             *self.inner.current_target.lock().expect(LOCK_MSG) = Some(name);
-            // PORT: 同 NOT_AIRCRAFT 分支 —— 发布本地快照 (W3b 备案)
+            // 同 NOT_AIRCRAFT 分支 —— 发布本地快照 (W3b 备案)
             Self::publish_fm_changed(&self.inner.fm_changed, &handle);
             return;
         }
@@ -296,7 +296,7 @@ impl FMManager {
 
     /// 测试用：清一切状态（current/target/负缓存/护栏计数）并停掉排队中的任务，
     /// 重建 loader 线程供后续用例使用。
-    // PORT: Java `synchronized reset()` — monitor 仅串行化并发 reset → 专用
+    // Java `synchronized reset()` — monitor 仅串行化并发 reset → 专用
     // reset_lock (锁序恒最外层, 见 Inner.reset_lock 注; Mutex 不可重入, §2.8)
     pub fn reset(&self) {
         let _reset_guard = self.inner.reset_lock.lock().expect(LOCK_MSG);
@@ -318,7 +318,7 @@ impl FMManager {
     fn submit_load(&self, target_name: &str) {
         self.inner.in_flight.fetch_add(1, Ordering::SeqCst);
         // 持锁窗口内原子地取 "世代号 + 发送端" (与 reset 的换代互斥, 见 reset 注);
-        // 锁内无回调执行 (§2.8)
+        // 锁内无回调执行
         let (epoch, tx) = {
             let loader = self.inner.loader.lock().expect(LOCK_MSG);
             (
@@ -330,7 +330,7 @@ impl FMManager {
         let target_name = target_name.to_string();
         let job: LoaderJob = Box::new(move || run_load_job(inner, target_name, epoch));
         if let Err(reject) = tx.send(job) {
-            // PORT: Java 对已 shutdown 的 executor `execute()` 抛
+            // Java 对已 shutdown 的 executor `execute()` 抛
             // RejectedExecutionException 向调用方传播 (Service 顶层 catch 兜底),
             // 计数不回退 (increment 已做, 任务 finally 不再执行)。本实现中接收端
             // 存活期覆盖发送端 (Inner 持有 tx), 该路径不可达 —— 防御性记 ERROR 而
@@ -341,19 +341,19 @@ impl FMManager {
 
     /// 广播句柄变化。本类无锁（reset 外），此处发布天然在锁外、在 loader 线程执行；
     /// UIStateBus 内部线程安全，订阅方是同步回调 —— 碰 Swing 必须自行 invokeLater。
-    // PORT: Java 方法体 `UIStateBus.getInstance().publish(UIStateEvents.FM_CHANGED,
+    // Java 方法体 `UIStateBus.getInstance().publish(UIStateEvents.FM_CHANGED,
     // this, handle)` —— `this` 仅作日志 source, 方法不触其他实例态 → 收敛为关联
     // 函数, 接收者换成注入的 FM_CHANGED 通道 (identify 同步分支在调用线程派发,
     // loader 分支在 FM-Loader 线程派发, 与 Java 两处发布线程一致)。
-    // PORT: Java UIStateBus.publish 首行 `Logger.event("PUBLISH", eventType,
+    // Java UIStateBus.publish 首行 `Logger.event("PUBLISH", eventType,
     // source, data)` 随路由丢失 (专用通道不经 UIStateBus), 在此复刻 —— source =
     // Java this 的类简单名 "FMManager", data = handle.toString() (logger.rs e2e
     // 钉子 "PUBLISH: FMManager -> FMHandle[MISSING he_162]: fmChanged" 的口径)。
-    // PORT: Java UIStateBus.publish 逐 handler catch(Exception) —— 发布方永不因
+    // Java UIStateBus.publish 逐 handler catch(Exception) —— 发布方永不因
     // 订阅方失败上抛; bus.rs 裸 EventBus 无订阅侧 catch_unwind 垫片
     // (ui_state_bus.rs 先例), 此处在发布侧兜底对齐该语义。遗留上报: 订阅方 panic
     // 仍会打滥其监听器 Mutex, 后续对同一订阅者的 publish 在 bus 内部 panic 并被
-    // 此处吞掉 (送达性损失) —— bus.rs 基建议题, 不越文件修 (§6)。
+    // 此处吞掉 (送达性损失) —— bus.rs 基建议题, 不越文件修。
     fn publish_fm_changed(bus: &FmChangedBus, handle: &FMHandle) {
         logger::event(
             "PUBLISH",
@@ -374,7 +374,7 @@ impl FMManager {
 
 /// Java `newLoader()`: `Executors.newSingleThreadExecutor(r -> new Thread(r,
 /// "FM-Loader").setDaemon(true))`。
-// PORT: 单线程 daemon executor → 专用线程 + mpsc 无界通道 (LIFETIMES §7 草案
+// 单线程 daemon executor → 专用线程 + mpsc 无界通道 (草案
 // loader_tx 形态)。Rust 线程不阻塞进程退出 (main 返回即终止) ≈ daemon; 任务异常
 // 由 catch_unwind 吞掉记日志 —— 对齐 Java executor "线程死亡自动补替、队列不丢"
 // 的效果 (Java 未捕获异常堆栈打印由 ERROR 日志顶位)
@@ -397,10 +397,10 @@ fn new_loader() -> mpsc::Sender<LoaderJob> {
 }
 
 /// loader 任务体 —— Java submitLoad 内 lambda 的对位物。
-/// PORT: Java 任务闭包捕获单例 `this` → 捕获 Arc<Inner>; epoch 为 shutdownNow
+/// Java 任务闭包捕获单例 `this` → 捕获 Arc<Inner>; epoch 为 shutdownNow
 /// 队列清空的复刻载体 (无 Java 对应参数, 见 Inner.loader_epoch 注)。
 fn run_load_job(inner: Arc<Inner>, target_name: String, epoch: u64) {
-    // PORT: 排队后、执行前遇 reset (换代) → 直接放弃 = Java shutdownNow 的队列
+    // 排队后、执行前遇 reset (换代) → 直接放弃 = Java shutdownNow 的队列
     // 清空; 运行中任务不中断 (Java interrupt 同样止不住磁盘解析)。
     // 世代检查刻意置于 finally 守卫建立**之前** (审查 A/B W1): Java 被清队任务
     // 根本不运行 (lambda 不执行, finally 不减计数), 仅运行中任务事后补减 ——
@@ -409,8 +409,8 @@ fn run_load_job(inner: Arc<Inner>, target_name: String, epoch: u64) {
     if inner.loader_epoch.load(Ordering::SeqCst) != epoch {
         return;
     }
-    // PORT: finally 的 "含早退 return 与 panic 双路径必执行" 语义由 Drop guard
-    // 承接 (§1 finally→Drop 映射)
+    // finally 的 "含早退 return 与 panic 双路径必执行" 语义由 Drop guard
+    // 承接
     struct InFlightDecrement<'a>(&'a AtomicI32);
     impl Drop for InFlightDecrement<'_> {
         fn drop(&mut self) {
@@ -438,7 +438,7 @@ fn run_load_job(inner: Arc<Inner>, target_name: String, epoch: u64) {
     *inner.current.write().expect(LOCK_MSG) = Arc::clone(&result);
     if result.is_missing_like() {
         // 失败结果进负缓存：此后同名 identify 不再触发磁盘加载
-        // PORT: Java `negativeCache.put(result.name, ...)` — name 为 null 时 CHM
+        // Java `negativeCache.put(result.name, ...)` — name 为 null 时 CHM
         // 抛 NPE, 但 load(非空名) 恒返回非 null name, 不可达; Option 防御性跳过
         if let Some(result_name) = result.name.clone() {
             inner
@@ -448,7 +448,7 @@ fn run_load_job(inner: Arc<Inner>, target_name: String, epoch: u64) {
                 .insert(result_name, current_time_millis());
         }
     }
-    // PORT: 全部锁释放后才发布 (§2.8 — 订阅方可重入 current()/identify())
+    // 全部锁释放后才发布 (§2.8 — 订阅方可重入 current()/identify())
     FMManager::publish_fm_changed(&inner.fm_changed, &result);
 }
 

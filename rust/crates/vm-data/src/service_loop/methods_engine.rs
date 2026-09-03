@@ -19,7 +19,7 @@ impl Service {
     /// PORT(命名避让, service_fields.rs 字段区备注): Java 字段 getMaximumRPM
     /// (boolean) 与本方法构成 Java 同名重载; 字段已更名 maximum_rpm_learned
     /// (波19), 方法名 get_maximum_rpm_learn 不再撞名。
-    /// @param fm 本周期 FM 句柄快照（R1 下传）
+    /// - `fm`: 本周期 FM 句柄快照（R1 下传）
     pub(super) fn get_maximum_rpm_learn(&mut self, fm: &FMHandle) {
         // 简单状态推进 → 单写锁临界区 (无 IO/回调; s_state 不可变借用拆局部,
         // 对齐 check_engine_jet 形态)
@@ -64,7 +64,7 @@ impl Service {
     /// Uses state-change detection to only update mismatch status when actual or optimal changes.
     /// Results are published via FlightDataBus for voice warning.
     ///
-    /// @param fm 本周期 FM 句柄快照（R1 下传）
+    /// - `fm`: 本周期 FM 句柄快照（R1 下传）
     /// (calculate 链尾)
     pub(super) fn update_optimal_compressor_stage(&mut self, fm: &FMHandle) {
         // R1: 从周期句柄直接取增压器参数（不再经 @Deprecated 桥接方法）;
@@ -89,7 +89,7 @@ impl Service {
             }
         };
 
-        // 读快照→锁外计算→短写锁写回 (§2.8): findOptimalStageIndex 逐档
+        // 读快照→锁外计算→短写锁写回: findOptimalStageIndex 逐档
         // powerAtAltitudeAdvanced 较重, 全程锁外
         let (
             engine_num,
@@ -184,11 +184,11 @@ impl Service {
 
     // (calc_k 随 flap 双胞胎合一移除 — vm-core fm::data::flap_limits::calc_k 共享实现)
     // (getFlapAllowSpeed/getFlapAllowAngle W8 公式化后无生产调用方, 委托臂
-    //  已删 — Java oracle 锚定测试直调 vm-core 共享实现, 见下方 tests)
+    //  已删 — 历史基线 锚定测试直调 vm-core 共享实现, 见下方 tests)
 }
 
 // =====================================================================
-// Tests — 断言值 = Java 8 oracle (javac dump 类) + python 位精确手算;
+// Tests — 断言值 = 历史基线 (javac dump 类) + python 位精确手算;
 // mock 快照与 service_loop/tests.rs 同源 (STATE_MOCK/INDIC_MOCK 本地拷贝,
 // 跨 cfg 模块引用常量不可行, 项目先例)
 // =====================================================================
@@ -228,7 +228,7 @@ mod tests {
         b
     }
 
-    /// 两级增压器 (Java 8 oracle dump 用同参数, build/tmp_oracle 用后即删)
+    /// 两级增压器 (历史基线 dump 用同参数, build/tmp_基线 用后即删)
     fn two_stage_params() -> Vec<CompressorStageParams> {
         vec![
             CompressorStageParams {
@@ -325,7 +325,7 @@ mod tests {
 
     // ---------------- getFlapAllowSpeed / getFlapAllowAngle ----------------
 
-    /// 襟翼允许速度/角度的公式族 (python 位精确 oracle + 分支覆盖)
+    /// 襟翼允许速度/角度的公式族 (python 位精确 基线 + 分支覆盖)
     #[test]
     fn flap_allow_speed_angle_oracle() {
         let fm = FMHandle::ready(
@@ -509,13 +509,13 @@ mod tests {
         assert_eq!(svc.data.read().unwrap().engine.optimal_compressor_stage, -1);
     }
 
-    /// 状态机主体 (Java 8 oracle: alt0→档0, alt3000→档1)
+    /// 状态机主体 (历史基线: alt0→档0, alt3000→档1)
     #[test]
     fn update_optimal_compressor_stage_state_machine() {
         let mut svc = new_service();
         let fm = stage_fm(Some(two_stage_params()));
 
-        // WEP + 满油门 (110); alt=0 → Java 8 oracle 档 0
+        // WEP + 满油门 (110); alt=0 → 历史基线 档 0
         set_cycle_inputs(&svc, 0.0, 474, 1, 110);
         svc.update_optimal_compressor_stage(&fm);
         {
@@ -538,7 +538,7 @@ mod tests {
         svc.update_optimal_compressor_stage(&fm);
         assert!(svc.data.read().unwrap().engine.compressor_stage_mismatch);
 
-        // alt=3000 (oracle 档 1) + 非 WEP 满油门 (100): actual 1 == optimal 1 → 解除
+        // alt=3000 (基线 档 1) + 非 WEP 满油门 (100): actual 1 == optimal 1 → 解除
         set_cycle_inputs(&svc, 3000.0, 474, 2, 100);
         svc.update_optimal_compressor_stage(&fm);
         {
@@ -572,7 +572,7 @@ mod tests {
 
     // ---------------- 真机 FM (data/ 缺失跳过, 项目惯例) ----------------
 
-    /// 真机 spitfire_f24 经 FMLoader 管道的数据流 (公式级位精确 oracle 已由
+    /// 真机 spitfire_f24 经 FMLoader 管道的数据流 (公式级位精确 基线 已由
     /// mock 表测试锁定, 此处锁 FMLoader→方法接线; data/ 缺失或加载失败跳过)
     #[test]
     fn real_fmloader_spitfire_pipeline() {

@@ -13,7 +13,6 @@ pub enum EngineType {
 }
 
 impl EngineType {
-
     /// Java isJetEngine: 仅喷气
     pub fn is_jet(self) -> bool {
         matches!(self, EngineType::Jet)

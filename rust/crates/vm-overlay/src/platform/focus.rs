@@ -59,7 +59,7 @@ mod win {
             // 无法获取进程名（权限不足等），安全降级
             None => true,
             // War Thunder 的进程名为 "aces.exe" (LIFETIMES: Windows 用 aces)
-            // PORT: Java equalsIgnoreCase 走 Unicode 单字符大小写映射 (如 'ſ'
+            // Java equalsIgnoreCase 走 Unicode 单字符大小写映射 (如 'ſ'
             // U+017F 判等于 's'), eq_ignore_ascii_case 仅 ASCII — Windows 进程
             // 镜像名域为 ASCII, 该差异不可达, 取 ASCII 版避免全串 Unicode 折开
             Some(name) => "aces.exe".eq_ignore_ascii_case(&name),
@@ -99,7 +99,7 @@ mod win {
         if ok.is_err() {
             return None;
         }
-        // PORT: Java String(char[]) 对未配对代理原样保留 (无 U+FFFD 替换),
+        // Java String(char[]) 对未配对代理原样保留 (无 U+FFFD 替换),
         // from_utf16_lossy 则替换为 U+FFFD — 存在串级分歧, 但两侧结果都不可能
         // 等于 "aces.exe", 比对布尔不变 (真实进程路径为合法 UTF-16, 分歧不可达)
         let full_path = String::from_utf16_lossy(&buffer[..size as usize]);
@@ -107,7 +107,7 @@ mod win {
     }
 
     /// Java: `fullPath.lastIndexOf('\\')` + substring — 提取路径尾文件名。
-    /// PORT (§2.1): '\\' 是 ASCII 字节, rfind 的字节索引与 Java UTF-16 索引
+    /// '\\' 是 ASCII 字节, rfind 的字节索引与 Java UTF-16 索引
     /// 在 ASCII 分隔符处等价, 切点必落在字符边界上。
     pub fn file_name_after_last_backslash(path: &str) -> &str {
         match path.rfind('\\') {

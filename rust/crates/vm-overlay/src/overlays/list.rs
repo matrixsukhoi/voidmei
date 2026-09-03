@@ -15,10 +15,10 @@
 //! - 文本基线 = 行顶 + 2 + ascent (preferred 高度下 CENTER 对齐零余量,
 //!   BasicLabelUI paint 的 textY + fm.getAscent())
 //!
-//! 合成模型 (Java 8 + WebLaF oracle 实测, dep/weblaf-complete-1.29.jar 离屏 paint):
+//! 合成模型 (Java 8 + WebLaF 历史基线, dep/weblaf-complete-1.29.jar 离屏 paint):
 //! dataPanel (WebPanel opaque) 的背景 fillRect 在 WebPanelUI 链上被画**两遍**
 //! (ComponentUI.update 一次 + LafUtils.fillVisibleBackground 一次), 行 label 背景
-//! 再叠第三层 — 全部 SrcOver 叠加, 非"不透明组件整块替换"。alpha=180 时 oracle:
+//! 再叠第三层 — 全部 SrcOver 叠加, 非"不透明组件整块替换"。alpha=180 时 基线:
 //! 间隙 (panel²)=0xE9141414, 行 (label over panel²) alpha=249, 表头 0xF93E3005 /
 //! 偶 0xF9181818 / 奇 0xF9222222。draw() 按 [`java2d_src_over`] 预合成最终单色直铺。
 
@@ -48,7 +48,7 @@ pub const MARGIN_TOP: i32 = 2;
 pub const MARGIN_LEFT: i32 = 6;
 /// 下边距 (行高组成部分)
 pub const MARGIN_BOTTOM: i32 = 2;
-// PORT: margin 右分量 6 只影响 WebLabel preferred 宽 (行被拉伸至全宽后不可见),
+// margin 右分量 6 只影响 WebLabel preferred 宽 (行被拉伸至全宽后不可见),
 // 不单独立常量; 文本超宽由画布边界裁剪 (Java 组件 clip 等效)
 
 /// 直通 RGBA 组装 (java.awt.Color(r, g, b, a) 字节序)
@@ -58,7 +58,7 @@ fn rgba(rgb: [u8; 3], alpha: u8) -> [u8; 4] {
 
 /// Java2D AlphaComposite.SrcOver 的 8bit 整数路径 (TYPE_INT_ARGB 直通存储):
 /// 载入预乘 round(c·a/255) → 合成 o = s + round(d·(255−sa)/255) → 直通存储
-/// round(o·255/oa)。WebLaF 双遍背景的 oracle 值由此式逐值复现 (间隙 0xE9141414 /
+/// round(o·255/oa)。WebLaF 双遍背景的 基线 值由此式逐值复现 (间隙 0xE9141414 /
 /// 表头 0xF93E3005 / 偶 0xF9181818 / 奇 0xF9222222, 含可区分色探针
 /// panel(200,100,50,180)²+label(25,25,25,180)=(249,74,46,32))
 fn java2d_src_over(s: [u8; 4], d: [u8; 4]) -> [u8; 4] {
@@ -108,7 +108,7 @@ impl ZebraList {
     }
 
     /// setHeaderMatcher。
-    /// PORT: Java 的 null 检查由 Rust 类型系统免除 (Box<dyn Fn> 无 null 态)
+    /// Java 的 null 检查由 Rust 类型系统免除 (Box<dyn Fn> 无 null 态)
     pub fn set_header_matcher(&mut self, matcher: Box<dyn Fn(&str) -> bool>) {
         self.header_matcher = matcher;
     }
@@ -148,7 +148,7 @@ impl ZebraList {
     /// (Java 窗口边界硬裁剪), panel_h 之外的行整体不画。
     /// alpha 与 Java render 的第 4 参一致 (来自 BaseOverlay.alpha, 默认 180)。
     ///
-    /// PORT: 合成栈为三层 SrcOver (见模块头注 oracle 实测) — dataPanel 底色连画
+    /// 合成栈为三层 SrcOver (见模块头注 历史基线) — dataPanel 底色连画
     /// 两遍 (透明窗起点), 行 label 背景叠第三层。此处预合成最终单色直铺, 与
     /// Java 内部预乘值逐位一致 (免 tiny-skia 多层叠的 ±1 LSB 漂移);
     /// alpha=255 时合成退化为恒等 (直铺原色)。
@@ -263,7 +263,7 @@ impl BaseListOverlay {
     /// fontSize = round(16 * scaleFactor); width = round(defaultFontsize * 36 * scaleFactor);
     /// height = defaultFontsize * 72 (初始字段值, 首次数据到达即被 adjustPosition 接管)。
     pub fn new(logical_height: i32, dpi_scale: f64, default_fontsize: i32) -> Self {
-        // PORT: 双精度算完 (float) 强转 — f64 运算后 as f32
+        // 双精度算完 (float) 强转 — f64 运算后 as f32
         let scale = ((logical_height as f64 / 1440.0) * dpi_scale) as f32;
         BaseListOverlay {
             doit: true,
@@ -312,13 +312,13 @@ impl BaseListOverlay {
     where
         F: FnOnce() -> Option<Vec<String>>,
     {
-        // PORT: while(doit) 循环条件 + shouldExit() break
+        // while(doit) 循环条件 + shouldExit() break
         if !self.doit || self.should_exit {
             return false;
         }
         if self.is_preview || self.visible_now {
             let mut dirty = false;
-            // PORT: currentData != null && !currentData.equals(lastData);
+            // currentData != null && !currentData.equals(lastData);
             // null 数据不更新 lastData (Java 同 — null 时不进 if)
             if let Some(cur) = supplier() {
                 if self.last_data.as_ref() != Some(&cur) {
@@ -326,7 +326,7 @@ impl BaseListOverlay {
                     dirty = true;
                 }
             }
-            // PORT: 仅不可见时 setVisible(true) — 重复调用会触发 DWM
+            // 仅不可见时 setVisible(true) — 重复调用会触发 DWM
             // 全量合成导致 DX12 游戏卡顿 (Issue #54), 故置位而非无条件调用
             self.window_visible = true;
             if dirty {
@@ -339,7 +339,7 @@ impl BaseListOverlay {
         }
     }
 
-    /// lastData 清空 — PORT: Java `protected List<String> lastData` 的子类可达面
+    /// lastData 清空 — Java `protected List<String> lastData` 的子类可达面
     /// (组合形态下私有字段经本方法开放)。closeAll 后 preview 重开的"新实例
     /// lastData=null 空面板"语义 (FMUnpackedData reset_preview 消费): 不清则预览
     /// 窗渲染上次 live 行
@@ -360,7 +360,7 @@ impl BaseListOverlay {
             preferred = max_h;
         }
         if (self.height - preferred).abs() > 2 {
-            // PORT: setSize(width, preferredHeight) — 仅高度
+            // setSize(width, preferredHeight) — 仅高度
             self.height = preferred;
         }
     }

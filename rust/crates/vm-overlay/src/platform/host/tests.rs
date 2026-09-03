@@ -196,7 +196,7 @@ fn reregister_active_overlay_runs_close_chain() {
                                            // 位置存档跨替换保留: 重开 (win1) 从存档恢复而非居中
     assert!(host.open("a").unwrap());
     let (nx, ny) = host.saved_position("a").unwrap();
-    // PORT: Java Math.round = floor(x+0.5) 复刻 (PORTING §2.3)
+    // Java Math.round = floor(x+0.5) 复刻
     let rx = (nx * 1920.0 + 0.5).floor() as i32;
     let ry = (ny * 1080.0 + 0.5).floor() as i32;
     assert!(mock
@@ -234,7 +234,7 @@ fn open_skips_when_already_active() {
     assert!(host.open("nope").is_err()); // 未注册的 id 报错
 }
 
-// ===== close 销毁序 (LIFETIMES §3.3-1: 锁内摘槽, 锁外销毁链) =====
+// ===== close 销毁序 =====
 
 /// close 顺序: 读位置 → 存归一化位置 → 销毁窗口; 槽位清空
 #[test]

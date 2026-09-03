@@ -110,7 +110,7 @@ fn get_value_hit_and_miss() {
 
 #[test]
 fn table_size_and_unique_sorted() {
-    // Java 8 oracle 实测: cur.properties 加载后共 362 键, 无重复
+    // 历史基线: cur.properties 加载后共 362 键, 无重复
     // (源文件改动需重新生成本表, 由下方对拍测试强制)
     // 波20 清场: oSkeyWord1/2 (OtherService 专用, 未接线) 已删 → 360
     assert_eq!(LANGUAGE_PROPERTIES.len(), 360);
@@ -123,11 +123,11 @@ fn table_size_and_unique_sorted() {
 
 #[test]
 fn ideographic_space_alignment_preserved() {
-    // oracle: mP1TempNotificationBlank = 36 个 U+3000 (对齐占位串)
+    // 基线: mP1TempNotificationBlank = 36 个 U+3000 (对齐占位串)
     let v = config_get_value("mP1TempNotificationBlank");
     assert_eq!(v.chars().count(), 36);
     assert!(v.chars().all(|c| c == '\u{3000}'));
-    // oracle: mP4FMPanelBlank = 19 个 U+3000 + 20 个 ASCII 空格 (尾部空白保留)
+    // 基线: mP4FMPanelBlank = 19 个 U+3000 + 20 个 ASCII 空格 (尾部空白保留)
     let v = config_get_value("mP4FMPanelBlank");
     assert_eq!(v.chars().count(), 39);
     assert!(v.starts_with("\u{3000}\u{3000}\u{3000}"));
@@ -136,14 +136,14 @@ fn ideographic_space_alignment_preserved() {
 
 #[test]
 fn properties_escape_semantics() {
-    // oracle: 文件值 `...？\\n此操作...` → 字面 反斜杠+n, 不是换行
+    // 基线: 文件值 `...？\\n此操作...` → 字面 反斜杠+n, 不是换行
     assert_eq!(
         config_get_value("mResetConfirmContent"),
         "确定要重置所有配置项吗？\\n此操作不可撤销。"
     );
-    // oracle: aboutcontent 以 \n\r 转义结尾 → 真实 CR LF
+    // 基线: aboutcontent 以 \n\r 转义结尾 → 真实 CR LF
     assert!(config_get_value("aboutcontent").ends_with("\n\r"));
-    // oracle: noblkx 分隔符后的前导空格被 Properties 跳过
+    // 基线: noblkx 分隔符后的前导空格被 Properties 跳过
     assert_eq!(
         config_get_value("noblkx"),
         "找不到blkx文件\n请使用最新WT拆包aces.vromfs.bin"

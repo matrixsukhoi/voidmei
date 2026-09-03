@@ -181,9 +181,11 @@ fn boolean_atoms_exact_case() {
 fn number_atom_classification() {
     // 波22: std parse 语义 — hex 浮点与 f/d 尾缀不再识别 (Java 域特性退役),
     // 小写 nan/infinity/INF 则开始被识别 (std 大小写不敏感)
-    assert!(atom_types("123 12.34 -5 +5 1e5 1E-5 .5 5. NaN -NaN nan Infinity -Infinity inf")
-        .iter()
-        .all(|(_, t)| *t == AtomType::Number));
+    assert!(
+        atom_types("123 12.34 -5 +5 1e5 1E-5 .5 5. NaN -NaN nan Infinity -Infinity inf")
+            .iter()
+            .all(|(_, t)| *t == AtomType::Number)
+    );
     assert!(
         atom_types("5,5 abc 12.34.56 1_000 5f 5d 1e5f 0x8 0x1p1 e5 5-")
             .iter()
@@ -273,7 +275,7 @@ fn info_separators_and_mongolian_vowel_split_atoms() {
     assert_eq!(parse_str("a\rb"), vec!["a", "b"]);
 }
 
-// ---- SAtom getters (Java 8 oracle 数值) ----
+// ---- SAtom getters (历史基线 数值) ----
 
 #[test]
 fn get_double_oracle_table() {
@@ -347,7 +349,7 @@ fn get_double_panics_on_invalid() {
 
 #[test]
 fn get_int_jls_saturation_semantics() {
-    // Java (int) double = JLS 5.1.3; Rust f64 as i32 同义 — oracle 逐值核对
+    // Java (int) double = JLS 5.1.3; Rust f64 as i32 同义 — 基线 逐值核对
     let cases = [
         ("3.99", 3),
         ("-3.99", -3),
@@ -371,7 +373,7 @@ fn get_int_jls_saturation_semantics() {
 
 #[test]
 fn get_bool_matches_java_parse_boolean() {
-    // oracle: "TRUE"/"True" → true; 带空格/其他串 → false
+    // 基线: "TRUE"/"True" → true; 带空格/其他串 → false
     for s in ["true", "TRUE", "True"] {
         assert!(SAtom::new(s.into(), AtomType::Boolean).get_bool(), "{}", s);
     }

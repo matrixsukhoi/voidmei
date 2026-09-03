@@ -83,9 +83,9 @@ pub struct DisplayItem {
 // Regex to parse: "Property Name: Value [Unit]"
 // Example: "空重(kg): 4644.0" -> Prop="空重(kg)", Val=4644.0
 // Example: "临界速度(km/h): [144, 1167]" -> Prop="...", Val="[144, 1167]" (Complex)
-// (CompactComparisonWindow.java PROP_PATTERN 原注释, 逐字保留 — PORTING.md §0.2)
+// (CompactComparisonWindow.java PROP_PATTERN 原注释, 逐字保留 — )
 //
-// PORT: `([^:]+):\s*(.*)` 的 matches() (全串匹配) — `[^:]+` 无法跨越 ':', 故
+// `([^:]+):\s*(.*)` 的 matches() (全串匹配) — `[^:]+` 无法跨越 ':', 故
 // 第一个冒号即分界且要求 ≥1 个前置字符; `\s*` 吞组2头部空白 + group(2).trim()
 // 归并为 java_trim (Java \s ⊂ trim 字符集, §2.1)
 fn parse_prop_line(line: &str) -> Option<(String, String)> {

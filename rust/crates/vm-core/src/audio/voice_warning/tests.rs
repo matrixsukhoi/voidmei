@@ -1,7 +1,7 @@
 use super::*;
-use crate::audio::voice_resource_manager::SoundPlayer;
 use crate::audio::voice_alert_type;
 use crate::audio::voice_resource_manager::SoundError;
+use crate::audio::voice_resource_manager::SoundPlayer;
 use crate::base::bus::EventBus;
 use crate::base::event::event_payload::EventPayload;
 use std::path::{Path, PathBuf};
@@ -19,7 +19,7 @@ fn tmp_dir() -> PathBuf {
 /// snapshot_state 同款逐字段副本, 本文件内自备 mock 用)
 fn snapshot_state(s: &State) -> State {
     State {
-        valid: s.valid.clone(),
+        valid: s.valid,
         flag: s.flag,
         engine_num: s.engine_num,
         aileron: s.aileron,
@@ -43,7 +43,7 @@ fn snapshot_state(s: &State) -> State {
         mixture: s.mixture,
         compressorstage: s.compressorstage,
         magneto: s.magneto,
-        power: s.power.clone(),
+        power: s.power,
         rpm: s.rpm,
         manifoldpressure: s.manifoldpressure,
         watertemp: s.watertemp,
@@ -52,12 +52,12 @@ fn snapshot_state(s: &State) -> State {
         mfuel_1: s.mfuel_1,
         mfuel0: s.mfuel0,
         mfuel0_1: s.mfuel0_1,
-        pitch: s.pitch.clone(),
-        thrust: s.thrust.clone(),
-        efficiency: s.efficiency.clone(),
+        pitch: s.pitch,
+        thrust: s.thrust,
+        efficiency: s.efficiency,
         airbrake: s.airbrake,
         total_thr: s.total_thr,
-        throttles: s.throttles.clone(),
+        throttles: s.throttles,
     }
 }
 
@@ -65,7 +65,7 @@ fn snapshot_state(s: &State) -> State {
 /// VoiceWarning 无 army 读者; vm-data snapshot_indicators 同款形状)
 fn snapshot_indicators(i: &Indicators) -> Indicators {
     let mut s = Indicators::new();
-    s.valid = i.valid.clone();
+    s.valid = i.valid;
     s.r#type = i.r#type.clone();
     s.flag = i.flag;
     s.speed = i.speed;
@@ -549,7 +549,7 @@ fn config_changed_reloads_registered_alert() {
     assert!(vw.aoa_high.as_ref().unwrap().is_playing(0));
 }
 
-// ---- 订阅注销 (Java 泄漏根治 — LIFETIMES §2.1) ----
+// ---- 订阅注销 (Java 泄漏根治 — ) ----
 
 // dispose 显式注销两条总线订阅
 #[test]
@@ -1021,7 +1021,7 @@ fn update_dynamic_parameters_keeps_lines_without_fm() {
     assert_eq!(vw.mach.line, mach);
 }
 
-// ---- run() 主循环 (§2.13 线程映射) ----
+// ---- run() 主循环 ----
 
 // 启动延迟后正常打点 (写 fatalWarn), 停机标志翻转后循环退出
 #[test]

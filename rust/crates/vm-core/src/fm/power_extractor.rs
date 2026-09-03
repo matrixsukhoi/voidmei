@@ -67,7 +67,7 @@ pub fn extract_stages_with_fuel(
     fmdata: Option<&FmData>,
     fuel_mod: Option<&FuelModification>,
 ) -> Option<Vec<CompressorStageParams>> {
-    // compNumSteps<=0 → None; i32<=0 守卫同时排除 as usize 的负值风险 (§2.2)
+    // compNumSteps<=0 → None; i32<=0 守卫同时排除 as usize 的负值风险
     let fmdata = fmdata?;
     if fmdata.comp_num_steps <= 0 {
         return None;
@@ -82,7 +82,7 @@ pub fn extract_stages_with_fuel(
     let spm = compute_soviet_power_multiplier(fuel_mod);
 
     // comp* 平行表与 compNumSteps 同批分配 (compNumSteps>0 时必已就绪) —
-    // unwrap 对齐 NPE 语义 (§1): None = 病态输入
+    // unwrap 对齐 NPE 语义: None = 病态输入
     // 波17 F5: 9 组平行表收拢为 CompressorData, 一次借用即得全部表
     let comp = fmdata.compressor.as_ref().unwrap();
 
@@ -398,7 +398,7 @@ fn adjust_power_and_altitude(
     // Adjust critical altitude: remove the extra supercharger boost from higher RPM
     let fake_supercharger_strength = military_mp / pressure(stage.crit_alt);
     let real_supercharger_strength = fake_supercharger_strength / default_mil_rpm_effect;
-    // PORT: Java Math.round(double)=floor(x+0.5) 返回 long 再拓宽 double (§2.3)
+    // Java Math.round(double)=floor(x+0.5) 返回 long 再拓宽 double
     let adjusted_crit_alt = java_round(altitude_at_pressure(
         military_mp / real_supercharger_strength,
     )) as f64;
@@ -532,7 +532,7 @@ fn calculate_wep_critical_altitude(
 
     let wep_crit_pressure =
         wep_mp / wep_supercharger_strength(fmdata, supercharger_strength, stage_index);
-    // PORT: Java Math.round(double)=floor(x+0.5) 返回 long 再拓宽 double (§2.3)
+    // Java Math.round(double)=floor(x+0.5) 返回 long 再拓宽 double
     java_round(altitude_at_pressure(wep_crit_pressure)) as f64
 }
 
@@ -557,7 +557,7 @@ fn calculate_wep_deck_altitude(
     }
 
     let deck_strength = military_mp / pressure(stage.deck_alt);
-    // PORT: Java Math.round(double)=floor(x+0.5) 返回 long 再拓宽 double (§2.3)
+    // Java Math.round(double)=floor(x+0.5) 返回 long 再拓宽 double
     java_round(altitude_at_pressure(
         wep_mp / wep_supercharger_strength(fmdata, deck_strength, stage_index),
     )) as f64
@@ -644,7 +644,7 @@ fn apply_british_octane_bonus(
             let supercharger_strength = fmdata.military_mp / pressure(stages[i].crit_alt);
             let wep_crit_pressure =
                 octane_mp / wep_supercharger_strength(fmdata, supercharger_strength, i);
-            // PORT: Java Math.round(double)=floor(x+0.5) 返回 long 再拓宽 double (§2.3)
+            // Java Math.round(double)=floor(x+0.5) 返回 long 再拓宽 double
             stages[i].wep_crit_alt = java_round(altitude_at_pressure(wep_crit_pressure)) as f64;
         }
     }
@@ -688,7 +688,7 @@ pub fn get_speed_manifold_multiplier(fmdata: Option<&FmData>) -> f64 {
 }
 
 // =====================================================================
-// Tests — Java 8 oracle 对拍 (PORTING.md §5.1 A 类策略, 断言源移植自
+// Tests — 历史基线 对拍 (A 类策略, 断言源移植自
 // TestSpitfireF24Power / TestTempestMk5Power)。
 //
 // 真机 fixture (spitfire_f24 / yak-3 / spitfire_ix / tempest_mkv) 按真实

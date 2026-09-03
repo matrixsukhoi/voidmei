@@ -45,7 +45,7 @@ fn e2e_warn_err_marked(line: &str) -> bool {
     line.contains("[WARN ]") || line.contains("[ERROR]")
 }
 
-/// Java oracle: 两条 printf 格式串的逐字节期望 (各 level 全覆盖)
+/// 历史基线: 两条 printf 格式串的逐字节期望 (各 level 全覆盖)
 #[test]
 fn java8_printf_format_all_levels() {
     // INFO: printf("[%s] [%-10s] %s%n", ts, component, message)

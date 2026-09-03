@@ -144,7 +144,7 @@ impl AttitudeIndicatorGauge {
 
     /// setStyleContext (Font 参数折为 size —— 类内仅消费 getSize()/getFontMetrics
     /// 度量, draw 时实际字体经参数传入)。
-    /// PORT: font_size (供 on_data_update 的 aos_x 换算) 与 draw 传入的 font
+    /// font_size (供 on_data_update 的 aos_x 换算) 与 draw 传入的 font
     /// (gap/『888』模板宽度) 分离 — 组装层须保证两者出自同一字号, 否则 aos_x
     /// 与文本布局口径分裂
     pub fn set_style_context(
@@ -202,14 +202,14 @@ impl AttitudeIndicatorGauge {
     pub fn on_data_update(&mut self, data: &vm_core::derived::hud_data::HUDData) -> bool {
         let slide_limit = 4 * self.font_size;
         // font_size=0 → 乘积 0 → aos_x=0, 无需分支
-        // PORT: Java (int)(-slip * slideLimit / 30.0f) — double 链, (int) 窄化。
+        // Java (int)(-slip * slideLimit / 30.0f) — double 链, (int) 窄化。
         // JLS 5.1.3: double→int 是饱和 (NaN→0, 超界→±MAX), 与 Rust as i32 语义一致
-        // (§2.2 的位截断规则只适用整数间窄化), 无需双转
+        //, 无需双转
         let aos_x = (-data.slip * slide_limit as f64 / 30.0) as i32;
 
         // Attitude 文本 — 仅 pitch_valid 时显示
         let (round_horizon, s_attitude) = if data.pitch_valid {
-            // PORT: Java (int) Math.round(double) — long→int 强转是位截断 (§2.2),
+            // Java (int) Math.round(double) — long→int 强转是位截断,
             // Rust as i32 饱和 — 双转 (as u32) as i32 复刻取低 32 位
             let rh = (java_round(data.pitch) as u32) as i32;
             (rh, fmt_d3(rh.wrapping_abs())) // Math.abs(MIN_VALUE) 回绕保号 (§2.2)
@@ -257,10 +257,10 @@ impl AttitudeIndicatorGauge {
         } else {
             (-1, -1) // body: signPitch=−1, signSlip=−1
         };
-        // PORT: Java signSlip * aosX * 3 / 2 — int 链 ((sign·aos)·3)/2 向零截断,
+        // Java signSlip * aosX * 3 / 2 — int 链 ((sign·aos)·3)/2 向零截断,
         // 乘法回绕 (aosX 病态饱和到 ±2^31 时 ×3 溢出, Java 静默回绕)
         let target_x = center_x + sign_slip.wrapping_mul(self.aos_x).wrapping_mul(3) / 2;
-        // PORT: Java signPitch * (int)(pitch / 2) — double→int 窄化为饱和 (同上, 非 §2.2 截断)
+        // Java signPitch * (int)(pitch / 2) — double→int 窄化为饱和 (同上, 非 §2.2 截断)
         let target_y = center_y + sign_pitch * (self.pitch / 2.0) as i32;
         (target_x, target_y)
     }
@@ -364,7 +364,7 @@ impl AttitudeIndicatorGauge {
         let lw = self.line_width as f32;
 
         // 弧: drawArc(cx−cr+hbs, cy−cr+hbs, cd, cd, −180, 180)
-        // → 盒中心 (cx−cr+hbs+cd/2, ...), 半径 cd/2, 下半圆 (render2d oracle:
+        // → 盒中心 (cx−cr+hbs+cd/2, ...), 半径 cd/2, 下半圆 (render2d 基线:
         // drawArc(−180,180) 走 9点→6点→3点)。旋转下: 圆心绕 target 旋转、
         // 角度区间平移 −θ (u(φ)→u(φ−θ), 见模块头)。
         let box_x = (target_x - cr + hbs) as f64;
@@ -394,7 +394,7 @@ impl AttitudeIndicatorGauge {
 
         for &(width, color) in &[(lw + 2.0, colors().shade_shape), (lw, colors().num)] {
             // 粗遍 / 细遍; 每遍内先弧后线 (drawMarks 序)
-            // PORT: arc_r==0 (compassDiameter=0) 时 Java BasicStroke(CAP_ROUND) 对零尺寸弧
+            // arc_r==0 (compassDiameter=0) 时 Java BasicStroke(CAP_ROUND) 对零尺寸弧
             // 仍画直径 lineWidth 的圆帽点 (弧两端点重合), Rust 此处整体跳过 — 仅退化布局
             // (preferredSize 0×0 组件不可见) 可达, 不复刻
             if arc_r > 0.0 {
@@ -459,7 +459,7 @@ const AOA_LIMIT_OFF: i64 = -10;
 /// 独立地平仪窗。C 类复刻只保留绘制语义核心: drawTick 的数据换算 + locater 的
 /// 图层序; 窗口/拖动/边框阴影/渲染节流属组装层, 不在本组件。
 /// 画布 = [0, x_width)×[0, x_height) 的 Pixmap, 裁剪由光栅化界天然给出。
-/// PORT: Java 侧两级 paintComponent 都调 locater — 半透明层 (α220/42/100) 可能
+/// Java 侧两级 paintComponent 都调 locater — 半透明层 (α220/42/100) 可能
 /// 双重合成 (地面有效 α≈246 而非单遍 220), 除非 WebLaF opaque 默认压制其中一级。
 /// 本复刻锚定**单遍** locater 语义 (像素对拍基准即单遍)。
 pub struct AttitudeOverlay {
@@ -548,7 +548,7 @@ impl AttitudeOverlay {
     /// `aoa_limits` = FM 的 (NoFlapsWing.AoACritHigh, AoACritLow);
     /// None = 无 FM —— 极限线取哨兵 −10 (画在窗口外)。
     /// show_aoa_limits=false 同走哨兵 (条件 = 有 FM 且开关开)。
-    /// PORT: 恒置脏恒返回 true = 每次数据到即重绘的语义 (40ms 节流归组装层);
+    /// 恒置脏恒返回 true = 每次数据到即重绘的语义 (40ms 节流归组装层);
     /// 变化检测非本组件行为, 组装层按需自做。
     #[allow(clippy::too_many_arguments)] // 输入面对齐 drawTick 原型
     pub fn update_telemetry(
@@ -613,13 +613,13 @@ impl AttitudeOverlay {
         // 平移: x += w/2 (int 除), y += Pitch (long→int 窄化)
         for p in &mut p_s {
             p.0 += w / 2;
-            // PORT: Java p.y += Pitch 复合赋值隐式 (int)(y+long) — 位截断 (§2.2),
+            // Java p.y += Pitch 复合赋值隐式 (int)(y+long) — 位截断,
             // Rust as i32 饱和, 双转 (as u32) as i32 复刻取低 32 位
             p.1 = ((p.1 as i64 + self.pitch_y) as u32) as i32;
         }
 
         // 旋转: 绕 pC=(w/2, h/2) 旋转 roll 度后取整 floor(x+0.5)。
-        // PORT: pC 取 int 除 (奇尺寸圆心取整)
+        // pC 取 int 除 (奇尺寸圆心取整)
         let theta = roll.to_radians();
         for (i, p) in p_s.iter().enumerate() {
             let (rx, ry) = rotate_point(
@@ -650,7 +650,7 @@ impl AttitudeOverlay {
         );
         let w = self.x_width;
         let h = self.x_height;
-        // 调用点实参: x=(int)AoS, y=(int)AoA — long→int 位截断 (§2.2 双转)
+        // 调用点实参: x=(int)AoS, y=(int)AoA — long→int 位截断
         let x = (self.aos_x as u32) as i32;
         let y = (self.aoa_y as u32) as i32;
         let cr_half = CENTER_ROUND / 2; // 6
@@ -760,7 +760,7 @@ impl AttitudeOverlay {
         );
 
         // 6. 攻角极限线 (colorWarning, 仍 2px); 哨兵 −10 落在窗口外被裁
-        // PORT: Java (int) AoALimitU/D — long→int 位截断 (§2.2 双转)
+        // Java (int) AoALimitU/D — long→int 位截断
         let lu = (self.aoa_limit_u as u32) as i32;
         let ld = (self.aoa_limit_d as u32) as i32;
         cv.draw_line_cap(
@@ -787,7 +787,7 @@ impl AttitudeOverlay {
         // 7. 航向指针对: colorNum 正向 + warning 反向
         if self.show_direction {
             let (ccx, ccy) = (w / 2, h / 2);
-            // PORT: Java (int)(width/2 ± compassX) — long 加法后 →int 位截断 (§2.2 双转)
+            // Java (int)(width/2 ± compassX) — long 加法后 →int 位截断
             let px = ((ccx as i64 + self.compass_x) as u32) as i32;
             let py = ((ccy as i64 + self.compass_y) as u32) as i32;
             let mx = ((ccx as i64 - self.compass_x) as u32) as i32;

@@ -32,7 +32,7 @@ pub(super) fn find_number(s: &str) -> Option<&str> {
 }
 
 // Matches numbers (including negative and decimal) within brackets
-// (ListIndexRule.java LIST_PATTERN 常量原注释, 逐字保留 — PORTING.md §0.2)
+// (ListIndexRule.java LIST_PATTERN 常量原注释, 逐字保留 — )
 
 /// LIST_PATTERN `\[([^\]]+)\]` 的 find() 首次匹配, 返回组1 (括号内文本)。
 pub(super) fn find_bracket_list(s: &str) -> Option<&str> {
@@ -41,7 +41,7 @@ pub(super) fn find_bracket_list(s: &str) -> Option<&str> {
 }
 
 // Matches each bracketed list
-// (MultiListIndexRule.java LIST_PATTERN 常量原注释, 逐字保留 — PORTING.md §0.2)
+// (MultiListIndexRule.java LIST_PATTERN 常量原注释, 逐字保留 — )
 
 /// LIST_PATTERN 的 `while (m.find())` 循环: captures_iter 不重叠, 收集全部组1。
 pub(super) fn find_all_bracket_lists(s: &str) -> Vec<&str> {
@@ -52,7 +52,7 @@ pub(super) fn find_all_bracket_lists(s: &str) -> Vec<&str> {
 }
 
 /// Java `String.split(",")` (limit=0):
-/// - 无 ',' 时原样返回 `[input]` (空串 → `[""]`, Java oracle 实测);
+/// - 无 ',' 时原样返回 `[input]` (空串 → `[""]`, Java 历史基线);
 /// - 有 ',' 时移除尾部空段 (可全部移空, `",,,"` → 长度 0)。
 ///
 /// ListIndexRule/MultiListIndexRule 的 `index < parts.length` 边界依赖此语义。

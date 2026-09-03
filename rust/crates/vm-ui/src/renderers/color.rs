@@ -8,7 +8,7 @@
 //!
 //! **波13 变更**: parse_color/try_parse_color 解析本体收敛到
 //! `vm_core::ui_support::color` (唯一真相, 与 configuration_service 共用);
-//! 边缘语义 (Java 8 oracle 对拍, 2026-08-26) 的测试锚点仍在下方 tests。
+//! 边缘语义 (历史基线 对拍, 2026-08-26) 的测试锚点仍在下方 tests。
 //!
 //! ColorHelper 语义:
 //! - parse_color: hex (#RRGGBB / #RRGGBBAA) 与十进制 ("R, G, B[, A]") 双格式,
@@ -31,7 +31,7 @@ use super::{find_row_path, row_by_path, row_by_path_mut};
 pub const WHITE: [u8; 4] = [255, 255, 255, 255];
 
 /// Java toDecimalString: 存储格式 "R, G, B, A"。
-/// PORT: Java null 分支 ("255, 255, 255, 255") 在 Rust 类型下不可达。
+/// Java null 分支 ("255, 255, 255, 255") 在 Rust 类型下不可达。
 pub fn to_decimal_string(c: &[u8; 4]) -> String {
     format!("{}, {}, {}, {}", c[0], c[1], c[2], c[3])
 }
@@ -65,7 +65,7 @@ pub fn apply(panel: &mut GroupConfig, key: &str, rgba: [u8; 4], ctx: &dyn Render
 }
 
 // =====================================================================
-// Tests — ColorHelper 边缘语义全部取自 Java 8 oracle 对拍 (默认色 1,2,3,4)
+// Tests — ColorHelper 边缘语义全部取自 历史基线 对拍 (默认色 1,2,3,4)
 // =====================================================================
 #[cfg(test)]
 mod tests;

@@ -15,7 +15,7 @@
 //! PORT (依赖注入面, Java 进程级静态依赖的解散 — focus_monitor.rs 先例):
 //! - `VoiceResourceManager.getInstance()` / `FMManager.getInstance()` /
 //!   `UIStateBus.getInstance()` / `FlightDataBus.getInstance()` 四个全局单例
-//!   → 构造参数注入 (§2.9 禁再造全局静态; 组装层持同一 Arc 表达单例语义)。
+//!   → 构造参数注入。
 //! - `prog.Service` (vm-data, C 类波次; vm-core 禁依赖 vm-data — D3/D6 分层) →
 //!   本文件定义消费面 trait [`VoiceWarningService`] (Java 对 xS 的全部字段/
 //!   方法访问点逐项签名化)。
@@ -24,7 +24,7 @@
 //!   不落字段/参数; configProvider 在 Java 经 `c.getConfigService()` 取得,
 //!   Rust 由构造注入。
 //!
-//! PORT (Java 现存泄漏根治, LIFETIMES §2.1/§6.3.1 — 本文件主任务):
+//! PORT (Java 现存泄漏根治, §6.3.1 — 本文件主任务):
 //! Java 版两个订阅在生产路径均泄漏: (1) dispose() 本身
 //! 只退订 FlightDataListener, 漏退订 UIStateBus configHandler
 //! (订阅无对应 unsubscribe); (2) 该 dispose() 根本无人调用 — VoiceWarning 非
@@ -34,7 +34,7 @@
 //! 随重建累积)。Rust 版两个订阅均以 RAII Subscription 字段由 VoiceWarning 持有:
 //! dispose() 显式注销 + Drop 兜底, 泄漏在类型层面不可能发生。
 //!
-//! PORT (线程/同步映射, LIFETIMES §3.2):
+//! PORT (线程/同步映射, ):
 //! - `volatile Boolean doit` → `Arc<AtomicBool>` (doit 标志族裁决; Java 缺省
 //!   null — init 前调 run() 会 NPE, 折衷为 false 并以此注记, init 成功后不可达);
 //! - `volatile Clip clip / boolean available / isAct / long lastTimePlay` →
@@ -48,7 +48,7 @@
 //!   实现契约: is_running/set_frame_position/start/stop/close 在持锁下调用,
 //!   须非长阻塞 — 否则 UI 线程 reload() 同锁等待 (无死锁面, 仅延迟耦合);
 //! - `ConcurrentHashMap<String, VoiceAlert> alerts` → `Mutex<HashMap<..>>`
-//!   (LIFETIMES §3.2 "访问频率不高" 裁决; 只做 get/insert, 无迭代序依赖 §2.5);
+//!;
 //! - `volatile boolean currentMismatch` → `Arc<AtomicBool>` (FlightDataBus
 //!   回调写 / run 读)。
 //!
@@ -162,15 +162,15 @@ pub trait VoiceWarningService: Send + Sync {
 /// - reload() 方法使用 synchronized
 /// - playOnce() 不需要同步（只读 clip 引用，播放操作由底层 Clip 保证）
 ///
-/// PORT: Java 非静态内部类持外层 VoiceWarning.this (构造器副作用 alerts.put +
+/// Java 非静态内部类持外层 VoiceWarning.this (构造器副作用 alerts.put +
 /// reload 依赖外层字段) → 独立 struct, 注册与首次 reload 移至父侧工厂
 /// [`VoiceWarning::new_alert`], reload 的外层依赖 (configProvider/
 /// VoiceResourceManager) 改为调用点参数传入。
-/// PORT: Clip → `Box<dyn SoundClip>` (D7 注入面); Java `catch (Exception)` 的
+/// Clip → `Box<dyn SoundClip>` (D7 注入面); Java `catch (Exception)` 的
 /// 播放/关闭异常腿在 trait 面不可失败, 相应 catch 分支不可达 (各处 PORT 注)。
 pub struct VoiceAlert {
     /// volatile 确保可见性
-    /// PORT: Java `private volatile Clip clip` → Mutex 承载独占访问 + 原子换引用
+    /// Java `private volatile Clip clip` → Mutex 承载独占访问 + 原子换引用
     clip: Mutex<Option<Box<dyn SoundClip>>>,
     /// volatile 确保可见性
     available: AtomicBool,
@@ -205,7 +205,7 @@ impl VoiceAlert {
     /// 重新加载音频资源（线程安全）
     /// 必须同步以防止多个线程同时 reload
     ///
-    /// PORT: `synchronized` 整方法 monitor → 持 clip 锁贯穿方法体 (临界区等价);
+    /// `synchronized` 整方法 monitor → 持 clip 锁贯穿方法体 (临界区等价);
     /// 外层 configProvider/VoiceResourceManager 单例取用 → 参数注入。
     pub fn reload(
         &self,
@@ -217,7 +217,7 @@ impl VoiceAlert {
         // 先关闭旧资源
         if let Some(old_clip) = clip_slot.as_ref() {
             //      catch (Exception e) { Logger.warn("VoiceAlert", "关闭旧 Clip 失败: " + key); }
-            // PORT: SoundClip 面不可失败 (D7), catch 腿不可达
+            // SoundClip 面不可失败 (D7), catch 腿不可达
             if old_clip.is_running() {
                 old_clip.stop();
             }
@@ -257,7 +257,7 @@ impl VoiceAlert {
         }
 
         //      catch (Exception e) { Logger.debug("VoiceAlert", "播放失败: " + key + " - " + e.getMessage()); }
-        // PORT: SoundClip 面不可失败, catch 腿不可达
+        // SoundClip 面不可失败, catch 腿不可达
         let c = c.as_ref().unwrap();
         c.set_frame_position(0);
         c.start();
@@ -271,7 +271,7 @@ impl VoiceAlert {
         }
 
         if self.is_act.load(Ordering::SeqCst) {
-            // PORT: Java long 时间差 (§2.2 时间差类运算) — wrapping 复刻静默回绕
+            // Java long 时间差 — wrapping 复刻静默回绕
             if time.wrapping_sub(self.last_time_play.load(Ordering::SeqCst)) <= self.cool_down_ms {
                 return true; // 在冷却期内
             }
@@ -286,7 +286,7 @@ impl VoiceAlert {
     pub fn close(&self) {
         let mut clip_slot = self.clip.lock().expect(CLIP_LOCK_MSG);
         if let Some(c) = clip_slot.as_ref() {
-            // PORT: SoundClip 面不可失败, 空 catch 腿不可达 (§2.7)
+            // SoundClip 面不可失败, 空 catch 腿不可达
             if c.is_running() {
                 c.stop();
             }
@@ -336,7 +336,7 @@ impl WarningSlot {
 
 /// Java: `public class VoiceWarning implements Runnable`
 ///
-/// PORT: Runnable → `run(&mut self)` 关联方法 (调用方 std::thread 持本结构)。
+/// Runnable → `run(&mut self)` 关联方法 (调用方 std::thread 持本结构)。
 /// 组装契约 (vm-data Controller 波次注意): run 需把整个结构 **move 进语音线程**,
 /// move 后 `dispose(&mut self)` 不可再达 — 停机路径 = move 前克隆 `pub doit`
 /// 的 Arc、外部翻 false, 线程退出时 Drop 兜底注销双订阅 (测试
@@ -371,7 +371,7 @@ pub struct VoiceWarning {
     /// (UI 线程热重载，Service 线程播放) — 与 configHandler 闭包共享所有权
     alerts: Arc<Mutex<HashMap<String, Arc<VoiceAlert>>>>,
     /// Java: `private Consumer<Object> configHandler` + UIStateBus 订阅
-    /// PORT: 闭包 + Subscription 二位一体; `configHandler == null` 判重 →
+    /// 闭包 + Subscription 二位一体; `configHandler == null` 判重 →
     /// `is_none()` (Java 版 handler 字段在 dispose 后不置 null, 但其泄漏的
     /// 旧 handler 引用的 alerts map 与新 init 重填的 map 是同一个 — Rust 侧
     /// map 为共享 Arc, 退订+重订后行为等价且不泄漏)
@@ -443,7 +443,7 @@ pub struct VoiceWarning {
     /// 0 = no pending warning, >0 = scheduled warning time
     pending_compressor_warn_time: i64,
     /// Java: `private FlightDataListener flightDataListener` + register/unregister
-    /// PORT: RAII Subscription (Drop 即注销); init 二次调用时旧句柄被覆盖 drop
+    /// RAII Subscription (Drop 即注销); init 二次调用时旧句柄被覆盖 drop
     /// = 自动退订 (Java 版此处会泄漏旧 listener — 顺手根治, 与 configHandler 同款)
     flight_data_subscription: Option<Subscription<FlightDataEvent>>,
 }
@@ -460,7 +460,7 @@ impl VoiceWarning {
         VoiceWarning {
             gcc_check_mili: 0,
             xs: None,
-            // PORT: Java `State st` 缺省 null (init 前读会 NPE) — 快照架构需要
+            // Java `State st` 缺省 null (init 前读会 NPE) — 快照架构需要
             // 占位值, 取零值 State; init 前 run()/check 不可达 (doit=false 门禁)
             st: State::new(),
             indic: Indicators::new(),
@@ -540,7 +540,7 @@ impl VoiceWarning {
     }
 
     /// Java: `public void init(Controller c, Service S)`
-    /// PORT: Controller 参数无消费面 (见模块头); `Service S` 可 null → Option。
+    /// Controller 参数无消费面 (见模块头); `Service S` 可 null → Option。
     pub fn init(&mut self, s: Option<Arc<dyn VoiceWarningService>>) {
         let Some(s) = s else {
             self.doit.store(false, Ordering::SeqCst);
@@ -548,7 +548,7 @@ impl VoiceWarning {
         };
         self.xs = Some(Arc::clone(&s));
 
-        // PORT: Java 捕获活引用; Rust 取首帧快照 (run 每轮再刷新)
+        // Java 捕获活引用; Rust 取首帧快照 (run 每轮再刷新)
         self.st = s.s_state();
         self.indic = s.s_indic();
 
@@ -681,7 +681,7 @@ impl VoiceWarning {
 
         // R1 快照（P3 迁移）: 开头取一次 FM 句柄, blkx 非 null 即 READY;
         // 无 FM → 起落架限速/过载限制走默认值
-        // PORT: Java 持 blkx 引用跨 tick 存活 → 按值克隆 (本类只读, 见字段注)
+        // Java 持 blkx 引用跨 tick 存活 → 按值克隆 (本类只读, 见字段注)
         let fm = self.fm_manager.current();
         let b = fm.fmdata.clone();
 
@@ -792,7 +792,7 @@ impl VoiceWarning {
         // 无 FM → 舵效告警线保持关闭值（告警关闭）
         let fm = self.fm_manager.current();
         if let Some(b) = fm.fmdata.as_ref() {
-            // Java float→int 截断语义: 先 `as i32` 再拓宽入 f64 槽位 (§2.2)
+            // Java float→int 截断语义: 先 `as i32` 再拓宽入 f64 槽位
             self.rudder.line = b.rudder_eff as i32 as f64;
             self.elevator.line = b.elav_eff as i32 as f64;
             self.aileron.line = b.aileron_eff as i32 as f64;
@@ -809,7 +809,7 @@ impl VoiceWarning {
 
         // 订阅 FlightDataBus 获取增压器档位不匹配事件
         //       FlightDataBus.getInstance().register(flightDataListener);
-        // PORT: 匿名 listener → RAII Subscription (见字段注的泄漏根治说明)
+        // 匿名 listener → RAII Subscription (见字段注的泄漏根治说明)
         let current_mismatch = Arc::clone(&self.current_mismatch);
         let sub = self
             .flight_data_bus
@@ -823,7 +823,7 @@ impl VoiceWarning {
     /// Cleans up resources when VoiceWarning is disposed.
     ///
     /// PORT (Java bug 修复): Java 版只退订 FlightDataListener, 漏退订 UIStateBus
-    /// 的 configHandler (LIFETIMES §2.1 泄漏, 见模块头) — Rust 版两个订阅都注销;
+    /// 的 configHandler — Rust 版两个订阅都注销;
     /// 即使忘记调 dispose, Drop 也会兜底注销。
     /// 组装契约: 仅在结构被 move 进语音线程**前**可调 (见结构体注); move 后
     /// 停机走外部翻 doit + Drop 兜底, 双订阅同样被注销。
@@ -868,7 +868,7 @@ impl VoiceWarning {
             let t = xs.current_time_ms();
 
             // 更新动态参数（可变翼等）
-            // PORT: Java 的 st/indic 是 Service 内原地改写的活引用 (init 捕获一次),
+            // Java 的 st/indic 是 Service 内原地改写的活引用 (init 捕获一次),
             // 此处按快照架构每轮刷新 (读到的 = 本轮开头的一致视图, 见模块头)
             self.st = xs.s_state();
             self.indic = xs.s_indic();
@@ -928,7 +928,7 @@ impl VoiceWarning {
     /// 攻角告警检测
     /// 原位置：run() 第 458-468 行
     ///
-    /// @return true 如果是致命告警
+    /// 返回: true 如果是致命告警
     fn check_aoa_warning(&mut self, t: i64) -> bool {
         let xs = Arc::clone(self.xs());
         if !xs.player_live() || self.st.ias <= 80 {
@@ -957,7 +957,7 @@ impl VoiceWarning {
     /// 速度告警检测（IAS 和 Mach）
     /// 原位置：run() 第 472-480 行
     ///
-    /// @return true 如果是致命告警
+    /// 返回: true 如果是致命告警
     fn check_speed_warning(&mut self, t: i64) -> bool {
         let mut fatal = false;
 
@@ -977,7 +977,7 @@ impl VoiceWarning {
     /// 起落架告警检测
     /// 原位置：run() 第 484-487 行
     ///
-    /// @return true 如果是致命告警
+    /// 返回: true 如果是致命告警
     fn check_gear_warning(&mut self, t: i64) -> bool {
         if self.is_gear_alive && (self.st.gear > 0) && self.st.ias as f64 >= self.gear.line {
             self.alert(&self.gear.alert, "gearWarn").play_once(t);
@@ -998,7 +998,7 @@ impl VoiceWarning {
     /// 襟翼告警检测
     /// 原位置：run() 第 495-505 行
     ///
-    /// @return true 如果是致命告警
+    /// 返回: true 如果是致命告警
     fn check_flap_warning(&mut self, t: i64) -> bool {
         let xs = Arc::clone(self.xs());
         // 条件1: 不是正在下襟翼的状态
@@ -1066,7 +1066,7 @@ impl VoiceWarning {
     /// 高度告警检测（含地形告警）
     /// 原位置：run() 第 568-581 行
     ///
-    /// @return true 如果是致命告警
+    /// 返回: true 如果是致命告警
     fn check_altitude_warning(&mut self, t: i64) -> bool {
         let xs = Arc::clone(self.xs());
         // 起落架未放下且玩家存活
@@ -1104,7 +1104,7 @@ impl VoiceWarning {
             && (self.st.throttle as f64 - self.indic.fuel_pressure * 10.0) > 2.0
         {
             // 原版 Java 复合赋值 `fuelPCheck += sleepTime` (int += long) 隐式
-            // 窄化 — 值域 (0,2000] 无回绕面; 收编为 i64 后窄化面消失 (§2.2)
+            // 窄化 — 值域 (0,2000] 无回绕面; 收编为 i64 后窄化面消失
             self.fuel_prs.check += SLEEP_TIME;
             if self.fuel_prs.check >= 2000 {
                 self.fuel_prs.check = 0;
@@ -1131,7 +1131,7 @@ impl VoiceWarning {
     fn check_inverted_flight_warning(&mut self, t: i64) {
         // 倒飞时油门大但推力低
         if self.st.ny < 0.0 && self.st.throttle > 50 {
-            // st.thrust[0] — Java int[16] 越界 AIOOBE ≡ Rust 索引 panic (§1)
+            // st.thrust[0] — Java int[16] 越界 AIOOBE ≡ Rust 索引 panic
             if self.st.thrust[0] < 50 {
                 self.alert(&self.eng_fail_invert, "engFailInvert")
                     .play_once(t);
@@ -1150,7 +1150,7 @@ impl VoiceWarning {
 
         // 定距桨特殊处理：不是喷气但桨距无效
         if !(!xs.is_eng_jet() && self.st.rpm_throttle < 0) {
-            // 时提升 (§2.12: f32 中间量显式保持)
+            // 时提升
             if (self.st.throttle - 30) as f64
                 > (self.st.rpm as f32 * 100.0f32) as f64 / xs.maximum_thr_rpm()
             {
@@ -1186,7 +1186,7 @@ impl VoiceWarning {
     /// 过载告警检测
     /// 原位置：run() 第 637-651 行
     ///
-    /// @return true 如果是致命告警
+    /// 返回: true 如果是致命告警
     fn check_load_factor_warning(&mut self, t: i64) -> bool {
         // 使用动态阈值
         let mut current_ny_min = self.ny_warning_line0;
@@ -1339,7 +1339,7 @@ pub fn hold_clip_until_done(clip: Box<dyn SoundClip>) -> std::thread::JoinHandle
 
 // =====================================================================
 // Tests — Java 侧无对应单测 (VoiceWarning 手动验证), 本组为 B 类行为钉子:
-// mock SoundPlayer + 总线注入, 断言 订阅→检测→播放 触发链 (PORTING §5.3)。
+// mock SoundPlayer + 总线注入, 断言 订阅→检测→播放 触发链。
 // =====================================================================
 #[cfg(test)]
 mod tests;

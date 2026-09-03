@@ -4,33 +4,33 @@
 //! Extracts raw data from FlightDataEvent (Data/State) and performs business
 //! logic calculations.
 //!
-//! # 三个解耦点 (CLASSIFY.md §23-3/6 裁决)
+//! # 三个解耦点
 //!
 //! 1. **MinimalHUDContext 字体参数**: Java `calculate(..., MinimalHUDContext ctx)`
 //!    的 `ctx` 形参在方法体内**从未被读取** (两个调用点一处传 null、
 //!    一处传实句柄, 行为无差) —— Rust 签名直接砍除该参数,
 //!    字体参数由 C 类组件层 (MiniHUD 波次) 自持, 本纯逻辑层不引入 C 类类型。
 //! 2. **Application 静态颜色 6 处 → 参数注入**: Java 读
-//!    `Application.colorWarning/colorNum/colorUnit` (LIFETIMES §1.2 配置驱动可变
+//!    `Application.colorWarning/colorNum/colorUnit` (配置驱动可变
 //!    全局, ConfigurationService 重写)。Rust 侧以 [`HudColors`]
 //!    参数注入, 调用方 (未来 Service 波次) 从 Theme/ConfigStore 快照取值;
 //!    `java.awt.Color.RED/WHITE` (throttleColor 两分支) 是 JDK 常量, 原样落地
 //!    为模块常量 [`COLOR_RED`]/[`COLOR_WHITE`]。
 //! 3. **离屏 FontMetrics 度量点**: `getStringWidth` 原实现自建 1x1 离屏
 //!    BufferedImage + 复用 Graphics2D (`synchronized(MEASURE_G)` 互斥 EDT 回退
-//!    路径与 Service 线程, LIFETIMES §3.2)。Rust 无 AWT, 度量能力由调用方注入
+//!    路径与 Service 线程, )。Rust 无 AWT, 度量能力由调用方注入
 //!    (vm-overlay font.rs 的 `FontHandle::measure`, 语义对齐
 //!    charWidth=round(advance) 累加); 每调用栈局部化后共享测量容器与锁天然
-//!    消亡 (LIFETIMES §3.2 建议 "更好是每调用栈局部分配")。
+//!    消亡。
 //!
-//! PORT: Java `String.format` 的 `%N.Mf`/`%Nd`/`%Ns` → 私有 [`java_f`]+[`pad_width`]
+//! Java `String.format` 的 `%N.Mf`/`%Nd`/`%Ns` → 私有 [`java_f`]+[`pad_width`]
 //! 复刻 (非 Rust `format!` 直换): Java %f 是对**最短往返十进制**做 HALF_UP
 //! (2.675→"2.68"), Rust `{:.N}` 是对精确二进制值半偶舍入 ("2.67") —— 双重分歧,
-//! 全部格式串已按 Java 8 oracle (build/oracle_hud) 逐值对拍。
-//! PORT: 默认 Locale 按非分组小数点处理 (zh-CN/en, 与 Application 运行域一致)。
-//! PORT: NPE→panic 的降级契约在调用点: Java Service 以 catch(Exception)
+//! 全部格式串已按 历史基线 (build/基线_hud) 逐值对拍。
+//! 默认 Locale 按非分组小数点处理 (zh-CN/en, 与 Application 运行域一致)。
+//! NPE→panic 的降级契约在调用点: Java Service 以 catch(Exception)
 //! 包裹 calculate, 失败仅 log、事件照发 (无 hudData); Rust 侧等价降级需**调用点粒度**
-//! catch_unwind (§6 循环级会额外丢整轮事件发布, 降级幅度不同) — 归 vm-data Service
+//! catch_unwind — 归 vm-data Service
 //! (D6) 波次落实, 过渡期警告见 calculate() 内 unwrap 处。
 /// flaps 的正哨兵 (Java AIOOBE 域产物, 与缺数据哨兵 -65535 同判无效)
 const FLAPS_INVALID_POS: i32 = 65535;
@@ -50,7 +50,7 @@ fn v(s: &dyn FormulaView, name: &str) -> f64 {
     s.var_value(name).unwrap_or(0.0)
 }
 
-/// `java.awt.Color.RED` = new Color(255, 0, 0) (alpha 255, Java 8 oracle)
+/// `java.awt.Color.RED` = new Color(255, 0, 0) (alpha 255, 历史基线)
 const COLOR_RED: [u8; 4] = [255, 0, 0, 255];
 /// `java.awt.Color.WHITE` = new Color(255, 255, 255) (alpha 255)
 const COLOR_WHITE: [u8; 4] = [255, 255, 255, 255];
@@ -210,15 +210,15 @@ fn apply_fm_warnings<S: HUDSettings>(
         b.maneuver_index = source.get_formula_value("maneuver_index").unwrap_or(0.0);
 
         let mut vwing = 0.0;
-        // PORT: Java `blkx.isVWing` (Boolean 装箱) 在布尔上下文自动拆箱, null → NPE
-        // (§1 非受检异常 → panic)。"不可达"仅对 Java 生产链成立: FMLoader.load L101
+        // Java `blkx.isVWing` (Boolean 装箱) 在布尔上下文自动拆箱, null → NPE
+        //。"不可达"仅对 Java 生产链成立: FMLoader.load L101
         // 两参构造 = doLoad=true → getload 必赋值 isVWing; doLoad=false 构造 (lookup
         // 用) 上为 null 会真 NPE, unwrap 忠实复刻两者。
         // getload 已落地 (reader.rs, 真机位级对拍): 生产链 READY 句柄的 is_v_wing
         // 恒 Some; None 仅剩手工构造的 doLoad=false 形态 (中央文件/旧测试) — 该
         // 形态调用本方法 = Java 对位 NPE, panic 由调用点 (vm-app feed 的整帧
         // catch_unwind) 收敛, 语义一致。
-        // PORT: Java 保真 — `blkx.isVWing && sIndic != null` 的直译 (is_some 检查 +
+        // Java 保真 — `blkx.isVWing && sIndic != null` 的直译 (is_some 检查 +
         // unwrap 取值), 不改成 if-let 以保持与 Java 源逐行对应
         #[allow(clippy::unnecessary_unwrap)]
         if fmdata.is_v_wing.unwrap() && s_indic.is_some() {
@@ -344,7 +344,7 @@ fn format_display_strings<S: HUDSettings>(
     if b.g_load > 1.5 || b.g_load < -0.5 {
         b.maneuver_state_str = format!("G{}", pad_width(fmt_f(b.g_load, 1), 5, false));
     } else {
-        // PORT: Java `time != null && !time.isEmpty()` — Rust String 无 null,
+        // Java `time != null && !time.isEmpty()` — Rust String 无 null,
         // EventPayload.timeStr 由 Builder 缺省 "--:--", null 分支坍缩
         let time = &payload.time_str;
         b.maneuver_state_str = if !time.is_empty() {
@@ -449,7 +449,7 @@ fn compute_speed_bar(b: &mut Builder, source: &dyn FormulaView, fmdata: Option<&
 /// 对应 Java `public static int getStringWidth(String text, java.awt.Font font)`
 /// (离屏 Graphics2D 度量, 模块头注 3 的解耦点)。
 ///
-/// PORT: `java.awt.Font` 参数化为泛型 `F` (字体句柄由调用方定义, 如 vm-overlay
+/// `java.awt.Font` 参数化为泛型 `F` (字体句柄由调用方定义, 如 vm-overlay
 /// 的 FontHandle); 度量闭包由调用方注入, 承接原 `MEASURE_G.setFont(font) +
 /// getFontMetrics().stringWidth(text)`。三重早退守卫 (text null/空、font null → 0)
 /// 与求值顺序逐条保持。

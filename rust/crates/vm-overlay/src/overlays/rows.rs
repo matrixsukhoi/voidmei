@@ -8,10 +8,10 @@
 //! - HUDManeuverRow — G 行: 左主文字 + 右机动指数条(thick 影线/thin 主线)与刻度。
 //!
 //! 绘制目标 = render2d::PixCanvas; Java extends HUDTextRow 统一映射为组合
-//! (`base: HUDTextRow` 字段, PORTING.md §1 禁止造继承); 颜色/坐标公式逐项对照
-//! Java paint 逻辑 (关键处 // PORT: 标注)。
+//! (`base: HUDTextRow` 字段, 禁止造继承); 颜色/坐标公式逐项对照
+//! Java paint 逻辑 (关键处 // 标注)。
 //!
-//! // PORT: Java HUDRow 接口 (HUDRow.java) 的 getPreferredSize 默认 (200, getHeight)
+//! // Java HUDRow 接口 (HUDRow.java) 的 getPreferredSize 默认 (200, getHeight)
 //! 由 preferred_size 实现覆盖, 不单独建 trait —— Rust 侧该接口无第二实现需求。
 
 use crate::render::palette::colors;
@@ -87,7 +87,7 @@ impl HUDTextRow {
     /// draw: Top-Left y → Baseline y 换算后阴影双遍文本。
     /// 警告 → colorWarning, 常态 → colorNum。
     pub fn draw(&self, cv: &mut PixCanvas, x: i32, y: i32, font: &LoadedFont, aa: bool) {
-        // PORT: ascent = getFontMetrics(font).getAscent(); baseY = y + ascent
+        // ascent = getFontMetrics(font).getAscent(); baseY = y + ascent
         let ascent = font.metrics().ascent;
         let base_y = y + ascent;
         let c = if self.is_warning {
@@ -101,7 +101,7 @@ impl HUDTextRow {
     /// getPreferredSize: 模板优先测量 (布局防抖), 空文本宽 0。
     /// 返回 (w, h) 对应 java.awt.Dimension。
     pub fn preferred_size(&self, font: &LoadedFont) -> (i32, i32) {
-        // PORT: w=200 起始, 但非空测量路径必覆盖 (getStringWidth 空串=0)
+        // w=200 起始, 但非空测量路径必覆盖 (getStringWidth 空串=0)
         let text_to_measure: &str = match &self.template {
             Some(t) if !t.is_empty() => t,
             _ => &self.text,
@@ -181,7 +181,7 @@ impl HUDAkbRow {
 
     /// onDataUpdate 的条长计算段 (69-72):
     /// aoaY = (int)(aoaRatio * aoaLength), 钳到 rightDraw。
-    /// // PORT: Java double→int 强转 (JLS 5.1.3) = NaN→0 + 超范围饱和到
+    /// // Java double→int 强转 (JLS 5.1.3) = NaN→0 + 超范围饱和到
     /// MIN/MAX, 与 Rust as i32 语义完全一致 — 两语言无差异 (§2.2 的截断/
     /// 回绕差异仅适用于 long→int 整数窄化, 不适用本处浮点转换)
     pub fn set_aoa_from_ratio(&mut self, aoa_ratio: f64) {
@@ -228,13 +228,13 @@ impl HUDAkbRow {
         small_font: &LoadedFont,
         aa: bool,
     ) {
-        // PORT: ascent 取主字体; liney = baseY + 1
+        // ascent 取主字体; liney = baseY + 1
         let ascent = font.metrics().ascent;
         let base_y = y + ascent;
         let liney = base_y + 1;
 
         if self.show_aoa {
-            // PORT: drawHRect(x + (rightDraw - aoaY), liney, aoaY, lineWidth+3, 1, aoaBarColor)
+            // drawHRect(x + (rightDraw - aoaY), liney, aoaY, lineWidth+3, 1, aoaBarColor)
             draw_h_rect(
                 cv,
                 x + (self.right_draw - self.aoa_y),
@@ -244,7 +244,7 @@ impl HUDAkbRow {
                 1,
                 self.aoa_bar_color,
             );
-            // PORT: α 文字基线 liney - 1, 小字号
+            // α 文字基线 liney - 1, 小字号
             primitives::text_shaded_auto(
                 cv,
                 small_font,
@@ -265,7 +265,7 @@ impl HUDAkbRow {
     /// (隐藏组件保留占位, 布局稳定)。
     pub fn preferred_size(&self, font: &LoadedFont, small_font: &LoadedFont) -> (i32, i32) {
         let mut w = self.base.preferred_size(font).0;
-        // PORT: aoaTemplate != null ? aoaTemplate : aoaText (无空串检查)
+        // aoaTemplate != null ? aoaTemplate : aoaText (无空串检查)
         let measure_aoa: &str = self.aoa_template.as_deref().unwrap_or(&self.aoa_text);
         let extra_w = self.right_draw + small_font.measure(measure_aoa);
         if extra_w > w {
@@ -349,12 +349,12 @@ impl HUDEnergyRow {
         small_font: &LoadedFont,
         aa: bool,
     ) {
-        // PORT: ascent 取主字体, 能量文字与主文字同基线 baseY
+        // ascent 取主字体, 能量文字与主文字同基线 baseY
         let ascent = font.metrics().ascent;
         let base_y = y + ascent;
 
         if self.show_energy {
-            // PORT: __drawStringShade(x + rightDraw, baseY, 1, energyText, smallFont, colorNum)
+            // __drawStringShade(x + rightDraw, baseY, 1, energyText, smallFont, colorNum)
             primitives::text_shaded_auto(
                 cv,
                 small_font,
@@ -374,7 +374,7 @@ impl HUDEnergyRow {
     /// getPreferredSize: 主文字宽与 rightDraw+能量宽取大。
     pub fn preferred_size(&self, font: &LoadedFont, small_font: &LoadedFont) -> (i32, i32) {
         let mut w = self.base.preferred_size(font).0;
-        // PORT: energyTemplate != null ? energyTemplate : energyText
+        // energyTemplate != null ? energyTemplate : energyText
         let measure_en: &str = self.energy_template.as_deref().unwrap_or(&self.energy_text);
         let extra_w = self.right_draw + small_font.measure(measure_en);
         if extra_w > w {
@@ -411,9 +411,9 @@ pub struct HUDMechanizationRow {
 }
 
 /// / 75-80 共用的三段切分: 0..4 / 4..7 / 7..10 各自 trim。
-/// // PORT: Java substring + length()>=10 按 UTF-16 码元; 输入域为
+/// // Java substring + length()>=10 按 UTF-16 码元; 输入域为
 /// HUDCalculator 的 mechanization 格式串 (纯 ASCII: F/W 前缀+数字+空格+BRK/GEA),
-/// 字节索引与 UTF-16 索引等价 (§2.1)。Java trim() 删两端 <=U+0020, Rust trim()
+/// 字节索引与 UTF-16 索引等价。Java trim() 删两端 <=U+0020, Rust trim()
 /// 删 Unicode 空白 — ASCII 域内等价。
 fn split_trim3(text: &str) -> Option<(String, String, String)> {
     let b = text.as_bytes();
@@ -422,7 +422,7 @@ fn split_trim3(text: &str) -> Option<(String, String, String)> {
     }
     let seg = |r: std::ops::Range<usize>| -> String {
         let bytes = &b[r];
-        // PORT: ASCII 域论证下 from_utf8 恒成功; debug_assert 让域漂移 (切分点落在
+        // ASCII 域论证下 from_utf8 恒成功; debug_assert 让域漂移 (切分点落在
         // 非 ASCII 字节) 在测试期响亮失败, release 静默回退空段保运行 (Java
         // substring 会切出乱码文本而非空串 — 域内不可达, 保真不受影响)
         debug_assert!(
@@ -439,7 +439,7 @@ fn split_trim3(text: &str) -> Option<(String, String, String)> {
 /// 拼接串宽按 模板宽 + 空格 advance 拆分。Rust 侧 font.measure 逐字符求和
 /// (font.rs charsWidth 口径), 拆分在 Rust 内部严格恒等; Java 侧等价性非规范
 /// 保证, 依据 = JDK8 无 layout 属性字体 stringWidth 的逐字符累加实现语义,
-/// 经 Java 8 oracle 实测 (1.8.0_342, 6 字号 × 6 段串 ALL-EQUAL) + 555×270
+/// 经 历史基线 (1.8.0_342, 6 字号 × 6 段串 ALL-EQUAL) + 555×270
 /// 整帧对拍右缘 dx=0 背书 (换字体/字号理论可差 1px)。免 draw 路径堆分配
 /// (Java 原码每帧拼新串 — Rust 以拆分复刻); 空模板段宽 0 (Java isEmpty 分支)。
 fn seg_width(font: &LoadedFont, template: &str) -> i32 {
@@ -562,9 +562,9 @@ impl HUDMechanizationRow {
     /// draw。三段沿 curX 依次推进: 模板非空段恒占位 (模板宽 + 尾随
     /// 空格), 数据非空且开关开才绘制文字; 段序 = 图层序, 同基线 baseY, 主字体。
     pub fn draw(&self, cv: &mut PixCanvas, x: i32, y: i32, font: &LoadedFont, aa: bool) {
-        // PORT: ascent = getFontMetrics(font).getAscent(); baseY = y + ascent
+        // ascent = getFontMetrics(font).getAscent(); baseY = y + ascent
         let base_y = y + font.metrics().ascent;
-        // PORT: isWarning ? colorWarning : colorNum (三段同色)
+        // isWarning ? colorWarning : colorNum (三段同色)
         let c = if self.base.is_warning {
             colors().warning
         } else {
@@ -743,7 +743,7 @@ impl HUDManeuverRow {
 
     /// drawLineMark: 列 x+rightDraw-len, 行
     /// baseY+halfLine .. baseY+halfLine+2*lineWidth 的 1px 竖刻度。
-    /// // PORT: Java 未 setColor/setStroke — 承袭 g2d 遗留状态。生产调用链
+    /// // Java 未 setColor/setStroke — 承袭 g2d 遗留状态。生产调用链
     /// 前置 super.draw → __drawStringShade 尾部 setColor(主文字色) +
     /// setStroke(BasicStroke(1,ROUND,ROUND)),
     /// 故刻度 = 主文字色 1px 线; showGLoad=false 时 Java 承袭更早组件状态
@@ -759,7 +759,7 @@ impl HUDManeuverRow {
         len: i32,
         color: [u8; 4],
     ) {
-        // PORT: y+halfLine+lineWidth+lineWidth → y+halfLine-lineWidth+lineWidth
+        // y+halfLine+lineWidth+lineWidth → y+halfLine-lineWidth+lineWidth
         // (后者 -lineWidth+lineWidth 相消 = halfLine), 端点含 1px 线 = 精确像素盒
         // (Java drawLine 端点序无关, fillRect 盒需取 top = min)
         let ya = base_y + half_line;
@@ -769,16 +769,16 @@ impl HUDManeuverRow {
 
     /// draw。图层序: G 文字先, 刻度线, 最后 thick 影线 + thin 主线。
     pub fn draw(&self, cv: &mut PixCanvas, x: i32, y: i32, font: &LoadedFont, aa: bool) {
-        // PORT: G 主文字
+        // G 主文字
         if self.show_g_load {
             self.base.draw(cv, x, y, font, aa);
         }
-        // PORT: 机动条开关关闭即返回
+        // 机动条开关关闭即返回
         if !self.show_maneuver_bar {
             return;
         }
 
-        // PORT: 基线换算 (刻度/条线相对 Baseline 定位)
+        // 基线换算 (刻度/条线相对 Baseline 定位)
         let ascent = font.metrics().ascent;
         let base_y = y + ascent;
 
@@ -789,7 +789,7 @@ impl HUDManeuverRow {
             colors().num
         };
 
-        // PORT: 刻度档 0 恒画 (len10), 其余 index ≥ 前档阈值逐级点亮
+        // 刻度档 0 恒画 (len10), 其余 index ≥ 前档阈值逐级点亮
         // (点亮判定与档位表收敛在 TickScale::lit_lens, 绘制序 = 档位升序)
         for len in self.tick_scale.lit_lens(self.maneuver_index) {
             Self::draw_line_mark(
@@ -804,7 +804,7 @@ impl HUDManeuverRow {
             );
         }
 
-        // PORT: 条线: newX = x+rightDraw, newY = baseY+halfLine,
+        // 条线: newX = x+rightDraw, newY = baseY+halfLine,
         // y = newY+lineWidth; thick(shade) 先画, thin(colorNum) 后画 (双层描边)
         let new_x = x + self.right_draw;
         let line_y = base_y + self.half_line + self.line_width;

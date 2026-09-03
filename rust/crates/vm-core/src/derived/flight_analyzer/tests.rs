@@ -1,7 +1,3 @@
-// PORT: Java 保真 — 测试构造沿用 Java `new X(); x.f = v;` 逐字段赋值形态,
-// 不改成 struct 字面量以保持与 Java 测试源逐行对应
-#![allow(clippy::field_reassign_with_default)]
-
 use super::*;
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -99,7 +95,7 @@ impl ConfigProvider for MapConfig {
 }
 
 /// 通知捕获器: 模拟 NotificationService.show
-// PORT: Java 保真 — 回调类型同 notify 字段, 不拆 type 别名
+// Java 保真 — 回调类型同 notify 字段, 不拆 type 别名
 #[allow(clippy::type_complexity)]
 fn capture_notify() -> (Arc<Mutex<Vec<String>>>, Arc<dyn Fn(&str) + Send + Sync>) {
     let captured: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(vec![]));
@@ -110,7 +106,7 @@ fn capture_notify() -> (Arc<Mutex<Vec<String>>>, Arc<dyn Fn(&str) + Send + Sync>
     (captured, cb)
 }
 
-// ---- Default (§2.10) ----
+// ---- Default ----
 
 #[test]
 fn default_arrays_full_length_zeroed_and_fields_null() {
@@ -246,13 +242,13 @@ fn analyze_next_stage_finalizes_average_and_records() {
     assert_eq!(fa.sep[5], 30.5 / (3.0 * g));
     assert_eq!(fa.curalt_stage, 6);
     assert_eq!(fa.count, 1);
-    // 新层数据: 100200ms → f32 除法 → 100.2f32 的 f64 展开 (§2.12)
+    // 新层数据: 100200ms → f32 除法 → 100.2f32 的 f64 展开
     assert_eq!(fa.time[6], 100.2); // 波21: f32 拓宽退役, f64 直算
     assert_eq!(fa.eff[6], 1100);
     assert_eq!(fa.sep[6], 12.3);
 }
 
-// analyze 通知 — Java 8 oracle 全串对拍 (见 /FA3 oracle: golden.txt)
+// analyze 通知 — 历史基线 全串对拍 (见 /FA3 基线: golden.txt)
 #[test]
 fn analyze_notification_message_delta1() {
     let svc = mock_service();
@@ -271,7 +267,7 @@ fn analyze_notification_message_delta1() {
     fa.analyze(6);
     let msgs = cap.lock().unwrap();
     assert_eq!(msgs.len(), 1);
-    // oracle: 到达 600米，用时 100秒，平均爬升率 0.9米/秒，记录完成
+    // 基线: 到达 600米，用时 100秒，平均爬升率 0.9米/秒，记录完成
     // (1000/100.2 = 9.98 → (int)9 → 9/10 = 0.9)
     assert_eq!(
         msgs[0],
@@ -301,7 +297,7 @@ fn analyze_notification_message_delta3() {
     fa.analyze(8); // delta3: 3000/100.5 = 29.85 → (int)29 → 2.9
     let msgs = cap.lock().unwrap();
     assert_eq!(msgs.len(), 3);
-    // oracle (FA.java M1 d=3 t=100.5): 2.9
+    // 基线 (FA.java M1 d=3 t=100.5): 2.9
     assert!(msgs[2].starts_with("到达 800米，用时 100秒，平均爬升率 2.9"));
     assert!(msgs[2].ends_with("米/秒，记录完成"));
     assert!(msgs[1].contains("爬升率 1.9"));
@@ -324,7 +320,7 @@ fn analyze_notification_zero_time_float_inf_domain() {
     );
     fa.analyze(1);
     let msgs = cap.lock().unwrap();
-    // oracle (FA.java M1 t=0.0): Java 输出 "2.14748368E8"; 本实现最短往返表示
+    // 基线 (FA.java M1 t=0.0): Java 输出 "2.14748368E8"; 本实现最短往返表示
     // 给 "2.1474837E8" (JDK-4511638 域已文档化分歧, 回读同一 f32, 见单测注记)
     assert_eq!(
         msgs[0],
@@ -351,7 +347,7 @@ fn get_speed_stage_boundaries() {
     let fa = FlightAnalyzer::default();
     assert_eq!(fa.get_speed_stage(0.0), 0);
     assert_eq!(fa.get_speed_stage(300.0), 30);
-    // Math.round 半值向上: 305/10 = 30.5 → 31 (§2.3)
+    // Math.round 半值向上: 305/10 = 30.5 → 31
     assert_eq!(fa.get_speed_stage(305.0), 31);
     assert_eq!(fa.get_speed_stage(295.4), 30); // 29.54 → 3EngineType::Prop
     assert_eq!(fa.get_speed_stage(295.0), 30); // 29.5 → floor(30.0) = 3EngineType::Prop
@@ -577,7 +573,7 @@ fn notification_dropped_when_notify_not_wired() {
 
 #[test]
 fn climb_value_fmt_matches_oracle() {
-    // oracle FA.java: (int)((d*1000)/t) / 10 的一位小数显示 (f64 直算)
+    // 基线 FA.java: (int)((d*1000)/t) / 10 的一位小数显示 (f64 直算)
     let cases: &[(f64, &str)] = &[
         (1.0 / 10.0, "0.1"),
         (9.0 / 10.0, "0.9"),
@@ -614,7 +610,7 @@ fn climb_value_fmt_matches_oracle() {
     }
 }
 
-// ---- Java 8 oracle: fmt_f(d, 1) (String.format("%.1f", double)) ----
+// ---- 历史基线: fmt_f(d, 1) (String.format("%.1f", double)) ----
 
 #[test]
 fn java_f_prec1_matches_java8_oracle() {
@@ -646,11 +642,11 @@ fn java_f_prec1_matches_java8_oracle() {
     assert_eq!(fmt_f(f64::NEG_INFINITY, 1), "-inf");
 }
 
-// ---- Java 8 oracle: java_math_round (Math.round) ----
+// ---- 历史基线: java_math_round (Math.round) ----
 
 #[test]
 fn java_math_round_matches_java8_oracle() {
-    // MR.java oracle (含 JDK-8010430 修正域: 0.49999999999999994 → 0)
+    // MR.java 基线 (含 JDK-8010430 修正域: 0.49999999999999994 → 0)
     let cases: &[(f64, i64)] = &[
         (0.5, 1),
         (2.5, 3),

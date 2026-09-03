@@ -103,7 +103,7 @@ fn test_generic_dispatch() {
     assert_eq!(read_all(&c, &["a", "b"]), vec![Some("x".to_string()), None]);
 }
 
-// LIFETIMES §7: 配置经 Arc<ConfigStore> 共享, 写路径必须经共享引用可用 —
+// : 配置经 Arc<ConfigStore> 共享, 写路径必须经共享引用可用 —
 // &mut self 签名在此调用形状下无法编译, 该架构约束由本测试钉死
 #[test]
 fn test_write_through_shared_reference() {
@@ -117,7 +117,7 @@ fn test_write_through_shared_reference() {
 
 // Java setConfig 写后同步 publish CONFIG_CHANGED, handler 内联重入 get_config
 // (ConfigurationService.java:295/322 + UIStateBus.java:58-70) — 实现须以
-// 短作用域内部借用支撑该重入形状 (§2.8), 不 panic 不死锁
+// 短作用域内部借用支撑该重入形状, 不 panic 不死锁
 #[test]
 fn test_set_config_reentrant_read_during_publish() {
     struct ReentrantConfig {
@@ -131,7 +131,7 @@ fn test_set_config_reentrant_read_during_publish() {
         }
 
         fn set_config(&self, key: &str, value: &str) {
-            // 短锁: 写入即释放借用 (§2.8 lock → 释放 → 后续动作)
+            // 短锁: 写入即释放借用
             self.values
                 .borrow_mut()
                 .insert(key.to_string(), value.to_string());

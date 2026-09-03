@@ -8,7 +8,7 @@
 //!
 //! 对应 Java: `src/prog/util/PowerCurveHelper.java` (一比一翻译)
 
-// PORT: Java `private PowerCurveHelper() {}` (final 工具类, 私有构造器防实例化)
+// Java `private PowerCurveHelper() {}` (final 工具类, 私有构造器防实例化)
 // → Rust 自由函数模块无实例化概念, 天然满足
 
 use crate::fm::piston_model::CompressorStageParams;

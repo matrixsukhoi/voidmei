@@ -26,7 +26,7 @@ pub struct DataField {
     pub current_value: String,
 
     // --- Zero-GC Pipeline Support ---
-    // PORT: Java `char[32] buffer + int length` 零 GC 复用缓冲 → String。
+    // Java `char[32] buffer + int length` 零 GC 复用缓冲 → String。
     // Rust 版 `crate::base::format` 返回 String (无缓冲复写入 API), 故 buffer 直接改为
     // String 承接格式化产物; length 字段保留 int 语义 (有效字符数)。
     // Java 侧写入点: FieldOverlay (format/formatTime 落盘 + na-when 时 '-' 单字符)、
@@ -51,8 +51,8 @@ pub struct DataField {
     pub precision_supplier: Option<Box<dyn Fn() -> i32>>, // Dynamic precision source
 }
 
-// PORT: Java 构造器 + 字段声明默认值 (visible=true / currentValue="---" /
-// length=0 / precision=0 / 各 supplier=null) 显式初始化 (§2.10);
+// Java 构造器 + 字段声明默认值 (visible=true / currentValue="---" /
+// length=0 / precision=0 / 各 supplier=null) 显式初始化;
 // key/label/configKey 为 final → Rust 无 const 字段, 以文档约定不可变。
 impl DataField {
     pub fn new(
@@ -85,7 +85,7 @@ impl DataField {
 
     /// Update the value with right-aligned formatting.
     pub fn set_value(&mut self, value: &str) {
-        // PORT: Java String.format("%5s", value) = 右对齐补空格到宽 5, 超宽不截断;
+        // Java String.format("%5s", value) = 右对齐补空格到宽 5, 超宽不截断;
         // Java 宽度按 UTF-16 码元计, Rust {:>5} 按字符计 —— 本字段值为 ASCII 数字域,
         // 两者一致
         self.current_value = format!("{:>5}", value);
@@ -96,7 +96,7 @@ impl DataField {
     }
 
     /// Update the value and visibility based on hideWhenNA setting.
-    // PORT: Java naString 形参可空 (equals(null) 恒 false → visible=true);
+    // Java naString 形参可空 (equals(null) 恒 false → visible=true);
     // 调用点 (FieldOverlay) 实际传 "-" 常量, 按 &str 非空收参
     pub fn set_value_with_visibility(&mut self, value: &str, na_string: &str) {
         self.set_value(value);

@@ -240,7 +240,7 @@ fn reentrant_publish_and_subscribe_inside_handler() {
     assert_eq!(late_hits.load(Ordering::SeqCst), 1); // 重入订阅下轮生效
 }
 
-// LIFETIMES §2.2: FM_CHANGED 发布线程 = FM-Loader 后台线程, 订阅方照常收到
+// : FM_CHANGED 发布线程 = FM-Loader 后台线程, 订阅方照常收到
 #[test]
 fn cross_thread_publish_from_loader_like_thread() {
     let bus = Arc::new(UIStateBus::new());

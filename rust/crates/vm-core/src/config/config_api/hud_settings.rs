@@ -5,7 +5,7 @@ use crate::config::config_api::overlay_settings::OverlaySettings;
 /// Interface for reading HUD-specific configurations.
 /// Decouples the UI layer from underlying key names and parsing logic.
 ///
-/// PORT: Java `extends OverlaySettings` → Rust supertrait 约束。
+/// Java `extends OverlaySettings` → Rust supertrait 约束。
 /// Java 源文件中以下三个方法以 @Override 显式重声明父接口方法, 对实现类是
 /// 零语义增量 (接口继承已含契约, 实现类只提供一个方法):
 /// ```text
@@ -14,7 +14,7 @@ use crate::config::config_api::overlay_settings::OverlaySettings;
 ///     @Override int getWindowY(int canvasHeight);
 ///     @Override void saveWindowPosition(double x, double y);
 /// ```
-/// PORT: Rust 子 trait 若按字面重声明同名同签名方法, 会造出两个独立分发槽
+/// Rust 子 trait 若按字面重声明同名同签名方法, 会造出两个独立分发槽
 /// (调用点歧义 + 上转 dyn 后分发到父 trait 版本), 反而偏离 Java 单 vtable 槽
 /// 语义 — 故不重声明, 契约由 supertrait `OverlaySettings` 唯一承载, 注释留痕。
 pub trait HUDSettings: OverlaySettings {
@@ -63,7 +63,7 @@ pub trait HUDSettings: OverlaySettings {
 
     fn is_attitude_indicator_inertial_mode(&self) -> bool;
 
-    /// PORT: 底层 GPUCompatibilityHelper 经 CLASSIFY 裁决"不迁移"(JVM 专属
+    /// 底层 GPUCompatibilityHelper 经 CLASSIFY 裁决"不迁移"(JVM 专属
     /// sun.java2d 属性, Rust 版无 JVM, 功能天然消亡); 接口方法按源文件原样保留,
     /// 未来 ConfigurationService 实现时可恒返回配置存储值/false。
     fn is_gpu_compatibility_mode(&self) -> bool;

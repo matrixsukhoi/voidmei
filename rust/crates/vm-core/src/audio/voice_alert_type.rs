@@ -13,10 +13,10 @@
 //! - 舵效类 (3): rudderEff, elevatorEff, aileronEff
 //! - 启动音效 (1): start1
 //!
-//! PORT: Java 枚举常量名 SCREAMING_SNAKE (AOA_CRIT) → Rust PascalCase (AoaCrit),
+//! Java 枚举常量名 SCREAMING_SNAKE (AOA_CRIT) → Rust PascalCase (AoaCrit),
 //! 下划线分词处按原分段还原 (FMStatus::NotAircraft 先例)。
-//! PORT: Java 枚举常量携带构造参数 (private final 字段); Rust 枚举带字段的
-//! 字段无法在 match 外直接读取, 故数据集中在 parts() 的 match 表 (§1 枚举带字段),
+//! Java 枚举常量携带构造参数 (private final 字段); Rust 枚举带字段的
+//! 字段无法在 match 外直接读取, 故数据集中在 parts() 的 match 表,
 //! 与 Java 常量声明逐一对应、顺序即声明序。
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -91,7 +91,7 @@ pub const ALL: [VoiceAlertType; 24] = [
     VoiceAlertType::Start1,
 ];
 
-// PORT: Java values() 由编译器从枚举声明生成, 变体与数据在声明点绑定不可能漂移;
+// Java values() 由编译器从枚举声明生成, 变体与数据在声明点绑定不可能漂移;
 // Rust 拆成 enum + ALL + parts() 三处维护, 此编译期断言绑定 ALL 与变体集:
 // 新增变体时 match 穷尽性强制加 arm, 计数与 ALL.len() 不符即编译失败,
 // 防止 ALL 静默漏项 (from_key/get_configurable_keys 将找不到新告警)。
@@ -161,21 +161,21 @@ impl VoiceAlertType {
     }
 
     /// 获取告警键名
-    /// @return 告警键名，如 "aoaCrit"
+    /// 返回: 告警键名，如 "aoaCrit"
     pub fn get_key(&self) -> &'static str {
         self.parts().0
     }
 
     /// 获取冷却时间（秒）
-    /// @return 冷却时间秒数
+    /// 返回: 冷却时间秒数
     pub fn get_cooldown_seconds(&self) -> i32 {
         self.parts().1
     }
 
     /// 根据 key 查找告警类型
-    /// @param key 告警键名
-    /// @return 对应的枚举值，找不到返回 null
-    // PORT: Java null 返回值/入参 → Option<VoiceAlertType> / Option<&str>。
+    /// - `key`: 告警键名
+    /// 返回: 对应的枚举值，找不到返回 null
+    // Java null 返回值/入参 → Option<VoiceAlertType> / Option<&str>。
     pub fn from_key(key: Option<&str>) -> Option<VoiceAlertType> {
         let key = key?;
         ALL.iter().copied().find(|t| t.parts().0 == key)

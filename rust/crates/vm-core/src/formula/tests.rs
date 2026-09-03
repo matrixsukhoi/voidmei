@@ -742,7 +742,7 @@ fn bench_eval_frame_50_formulas() {
     );
 }
 
-// ===== FM 查表函数族 (W1a; 与 vm-data methods_engine 测试同 oracle) =====
+// ===== FM 查表函数族 (W1a; 与 vm-data methods_engine 测试同 基线) =====
 
 /// 最小 mock blkx (与 vm-data service_loop::methods_engine::tests::spitfire_flap_blkx 同表)
 fn flap_fmdata() -> crate::fm::data::FmData {
@@ -770,7 +770,7 @@ fn fm_table_functions_match_shared_impl() {
         let mut st = StateStore::new();
         try_eval_single(expr, reg, &snap, &mut st, 0, 50.0, b).unwrap()
     };
-    // 角度插值: 270 km/h → 83.333... (methods_engine::flap_allow_speed_angle_oracle 同值)
+    // 角度插值: 270 km/h → 83.333... (methods_engine::flap_allow_speed_angle_基线 同值)
     let v = eval_with("fm_flap_allow_angle(270, 0)", Some(&fmdata));
     assert_eq!(v, 83.33333333333334);
     // 共享实现直调等值 (双路径对拍)
@@ -778,7 +778,7 @@ fn fm_table_functions_match_shared_impl() {
         crate::fm::data::get_flap_allow_angle(270.0, false, Some(&fmdata)),
         v
     );
-    // 速度: 60% 开度档间插值 → 284.0 (同 oracle)
+    // 速度: 60% 开度档间插值 → 284.0 (同 基线)
     assert_eq!(
         eval_with("fm_flap_allow_speed(60, 1)", Some(&fmdata)),
         284.0

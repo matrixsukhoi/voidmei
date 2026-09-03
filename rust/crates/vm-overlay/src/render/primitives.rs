@@ -1,6 +1,6 @@
 //! 公共像素基元 (重构波3 建, 波13 收割扩容): 多组件复制/同族的 Java Graphics2D
 //! 语义基元收敛单源。原分散于 gauges_bars/rows/minihud/overlay_gauges/renderers/
-//! gauge_compass/overlay_control_surfaces 的逐字级副本 (各副本 oracle 对拍等价)
+//! gauge_compass/overlay_control_surfaces 的逐字级副本 (各副本 历史基线等价)
 //! 统一于此; 波13 再收 draw_h_rect (rows/gear_flaps 双副本)、butt_line 族
 //! (原 gauges_bars::hline_butt2 为其 w=2 水平特化, 逐像素等价已并入)、
 //! vline_square2 与旋转 stroke 精确轮廓族 (attitude)。
@@ -11,9 +11,9 @@ use crate::render::font::LoadedFont;
 use crate::render::palette::colors;
 
 /// Java Graphics.drawRect(x,y,w,h) + BasicStroke(1): 覆盖 x..x+w × y..y+h
-/// (含端点) 的 1px 环。负宽或负高整体不绘制 (Java 8 oracle 实测 0 像素 —
+/// (含端点) 的 1px 环。负宽或负高整体不绘制 (历史基线 0 像素 —
 /// "负尺寸时 4 条 drawLine 反向仍可见"的假设已证伪); 零宽/零高退化 1px 线
-/// (drawRect 的 4 条边线中零长度段无输出, 剩两段共线: oracle drawRect(50,10,0,20)
+/// (drawRect 的 4 条边线中零长度段无输出, 剩两段共线: 基线 drawRect(50,10,0,20)
 /// = 列 50 行 10..30 的 1px 竖线; 双零则 4 段全零长度, 无输出)。
 pub(crate) fn ring1px(cv: &mut PixCanvas, x: i32, y: i32, w: i32, h: i32, color: [u8; 4]) {
     if w < 0 || h < 0 {
@@ -59,7 +59,7 @@ pub(crate) fn draw_h_rect(
     c: [u8; 4],
 ) {
     if width >= 0 {
-        // PORT: UIBaseElements drawRect(x,y,width-1,height-1) 环 +
+        // UIBaseElements drawRect(x,y,width-1,height-1) 环 +
         // fillRect(x+bw, y+bw, width-2*bw, height-2*bw) 内芯
         ring1px(cv, x, y, width - 1, height - 1, colors().shade_shape);
         cv.fill_rect(
@@ -70,7 +70,7 @@ pub(crate) fn draw_h_rect(
             c,
         );
     } else {
-        // PORT: UIBaseElements 负宽分支: 环自 x+width 起, 填充同步翻转
+        // UIBaseElements 负宽分支: 环自 x+width 起, 填充同步翻转
         ring1px(
             cv,
             x + width,
@@ -93,11 +93,11 @@ pub(crate) fn draw_h_rect(
 /// MarkedGauge 的 tickStroke/borderStroke 族)。Java 调用点全部轴对齐 (竖/横)。
 /// aa=false (ANTIALIAS_OFF, 中心规则): 像素中心落在覆盖盒 [xa,xb]×[y±w/2] 内才
 /// 点亮 (w=2 水平线 = 行 y-1..y × 列 xa..xb-1, 右端列不点亮; 1px 默认 stroke 的
-/// Bresenham 端点含像素不适用于宽>1 的 strokedShape 路径, oracle:
+/// Bresenham 端点含像素不适用于宽>1 的 strokedShape 路径, 基线:
 /// drawLine(5,15,25,15) 覆盖列 5..24 共 20 列)。
 /// aa=true (生产 graphAA 恒 ON): STROKE_NORMALIZE 规整到像素中心后按分离覆盖
 /// 模型 (cov_x × cov_y) 缩放 alpha (w=2 = 行 y 全值/行 y±1 半值/端点列半覆盖/
-/// 四角 1/4, oracle: 21 列×3 行=63 非零像素, 角点 a=64)。
+/// 四角 1/4, 基线: 21 列×3 行=63 非零像素, 角点 a=64)。
 /// (重构波13: 原 gauges_bars::hline_butt2 为本形态的 w=2 水平特化, 逐像素等价
 /// 已并入, 调用方直接传 w=2)
 #[allow(clippy::too_many_arguments)] // 对齐 Java drawLine(x0,y0,x1,y1)+线宽/色/AA 三元组
@@ -111,7 +111,7 @@ pub(crate) fn butt_line(
     color: [u8; 4],
     aa: bool,
 ) {
-    // PORT: Java BasicStroke(0)=hairline 1px; w<=0 钳到 1 (render2d::stroke_of 同款)
+    // Java BasicStroke(0)=hairline 1px; w<=0 钳到 1 (render2d::stroke_of 同款)
     let w = if w <= 0 { 1 } else { w };
     let half = w as f32 / 2.0;
     let vert = x0 == x1;
@@ -168,9 +168,9 @@ pub(crate) fn butt_line(
 /// 裸 BasicStroke(2) (默认 CAP_SQUARE) 竖线 (FlapAngleBar 的 tick)。
 /// aa=false (中心规则): 覆盖盒 [tx-1,tx+1]×[ya-1,yb+1] → 列 tx-1..tx, 行
 /// ya-1..yb (方帽两端各外伸 1px 的几何经中心规则光栅后上端外伸、下端不外伸,
-/// oracle: drawLine(40,5,40,25) 覆盖列 39..40、行 4..25 共 22 行)。
+/// 基线: drawLine(40,5,40,25) 覆盖列 39..40、行 4..25 共 22 行)。
 /// aa=true: 覆盖盒 [tx-0.5,tx+1.5]×[ya-0.5,yb+1.5] → 3 列柔边: 列 tx 全值,
-/// 列 tx±1 半值, 端行 ya-1/yb+1 半覆盖, 角点 1/4 (oracle: 行 4..26 端行半透明)。
+/// 列 tx±1 半值, 端行 ya-1/yb+1 半覆盖, 角点 1/4 (基线: 行 4..26 端行半透明)。
 /// (方帽 ≠ CAP_BUTT 的 [`butt_line`], 独立基元; 重构波13 自 gauges_bars 迁入)
 pub(crate) fn vline_square2(
     cv: &mut PixCanvas,
@@ -235,7 +235,7 @@ pub(crate) fn text_shaded_auto(
 }
 
 /// AA 柔边像素的覆盖率缩放: Java AA 管线合成式 = SrcOver(源 alpha × 覆盖率),
-/// 不透明色 oracle 值 cov=0.5 → a=128、cov=0.25 → a=64, 即 round(a·cov)
+/// 不透明色 基线 值 cov=0.5 → a=128、cov=0.25 → a=64, 即 round(a·cov)
 pub(crate) fn cov_color(color: [u8; 4], cov: f32) -> [u8; 4] {
     [
         color[0],
@@ -278,7 +278,7 @@ pub(crate) fn arc_stroke_outline(
     let a2 = a1 + sweep;
     let half = w / 2.0;
     let r_out = r + half;
-    // PORT: r−half<0 (线宽≥2r) 时内弧塌到圆心, 退化扇形近似 Java stroke 的满盘;
+    // r−half<0 (线宽≥2r) 时内弧塌到圆心, 退化扇形近似 Java stroke 的满盘;
     // 真实布局 r≥5、w≤6 不可达, 备查
     let r_in = (r - half).max(0.0);
     const STEP: f32 = 4.0; // 折线步进: 弦矢 ≈ r·(1−cos2°) ≈ 0.0006r, 亚像素

@@ -1,6 +1,6 @@
 use super::*;
 
-/// Java 8 oracle: 9 变体 × 6 谓词全真值表
+/// 历史基线: 9 变体 × 6 谓词全真值表
 /// (输出顺序 isLeft isRight isTop isBottom isCenterHorizontal isCenterVertical)。
 #[test]
 fn predicates_truth_table_matches_java() {

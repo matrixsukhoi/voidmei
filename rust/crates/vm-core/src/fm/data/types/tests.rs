@@ -28,7 +28,7 @@ fn fuel_modification_default_matches_java_initializers() {
     assert_eq!(FuelModification::default().british_afterburner_mult, 1.0);
 }
 
-/// EngineLoad — Java 隐式零初始化 (§2.10)
+/// EngineLoad — Java 隐式零初始化
 #[test]
 fn engine_load_default_all_zero() {
     let e = EngineLoad::default();

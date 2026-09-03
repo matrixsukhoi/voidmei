@@ -3,7 +3,7 @@
 //! Centralizes all UI State event identifiers for easy discovery and
 //! refactoring.
 //!
-//! PORT: Java final 类 + private 构造器 (纯常量容器, 禁实例化) → Rust 模块 pub const
+//! Java final 类 + private 构造器 (纯常量容器, 禁实例化) → Rust 模块 pub const
 //! (physics_constants.rs 先例); 无 struct 天然无法实例化, 原语义由模块边界保真。
 
 /// Published when the FM Print switch State changes.

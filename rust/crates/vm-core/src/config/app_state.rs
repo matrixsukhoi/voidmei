@@ -8,7 +8,7 @@
 
 /// 文本抗锯齿值域 (VALUE_TEXT_ANTIALIAS_ON / _OFF)。
 /// Gasp = VALUE_TEXT_ANTIALIAS_GASP — Application 的声明默认值,
-/// loadAppCheck 只写 On/Off, Gasp 仅为保真初始态 (§2.10)。
+/// loadAppCheck 只写 On/Off, Gasp 仅为保真初始态。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TextAaSetting {
     On,
@@ -89,8 +89,8 @@ impl GlobalColors {
 }
 
 /// 仅收录 ConfigurationService.java 读/写触达的成员; 声明默认值 =
-/// Application.java 字段初始化值 (§2.10 按有意保真)。
-/// PORT: Java 全局静态 → 服务持有的注入态 (§2.9 禁裸全局; vm-app 波次收口)。
+/// Application.java 字段初始化值。
+/// Java 全局静态 → 服务持有的注入态。
 #[derive(Debug, Clone, PartialEq)]
 pub struct ApplicationState {
     /// `public static long threadSleepTime = 33`

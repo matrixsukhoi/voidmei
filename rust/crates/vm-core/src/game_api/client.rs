@@ -128,12 +128,12 @@ impl GameApiClient {
 
         indicators_parser.update(&indicators_json);
 
-        // PORT: type 经 Indicators.update 已 toUpperCase; Java 的
+        // type 经 Indicators.update 已 toUpperCase; Java 的
         // `t != "No Cockpit"` 恒真 (NO COCKPIT), 波20 清场删除该死比较
         if indicators_parser.valid == Some(true) {
             if let Some(t) = indicators_parser.r#type.as_deref() {
                 if !t.is_empty() {
-                    // PORT: toLowerCase() 默认 Locale (域内机型名 ASCII, 无行为差);
+                    // toLowerCase() 默认 Locale (域内机型名 ASCII, 无行为差);
                     // Java trim() 剥 <= U+0020, Rust trim() 剥 Unicode 空白 ——
                     // 域内机型名无首尾空白, 等价
                     return Some(t.to_lowercase().trim().to_string());

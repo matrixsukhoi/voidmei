@@ -4,9 +4,9 @@
 //! and zero unnecessary String boxing of boolean/numeric values.
 //!
 //! Immutable — Service 轮询线程与渲染线程间跨线程传递安全。
-//! PORT: Java final class + public final 字段 = Rust pub struct + pub 字段 (§0.7),
+//! Java final class + public final 字段 = Rust pub struct + pub 字段,
 //! 不可变性由"构造后只经 &self 访问"保证 (Java 靠 final 引用)。
-//! PORT: Java 无 equals 覆写 (引用等值); 此处 derive PartialEq 仅为测试基建
+//! Java 无 equals 覆写 (引用等值); 此处 derive PartialEq 仅为测试基建
 //! (fields.rs 先例), 不改变翻译逻辑。
 
 /// Type-safe payload for flight data events. (radioAltValid 已删: 零消费方)
@@ -26,7 +26,7 @@ pub struct EventPayload {
 
 impl EventPayload {
     /// 对应 Java 公有构造器 `EventPayload(String, boolean, ..., boolean)`。
-    // PORT: Java 保真 — 参数表逐个对应 Java 构造器形参, 不打包成结构体
+    // Java 保真 — 参数表逐个对应 Java 构造器形参, 不打包成结构体
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         map_grid: String,

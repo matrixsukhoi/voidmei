@@ -29,7 +29,7 @@ fn test_unresolved_sentinel() {
 fn test_ready_handle() {
     // -- READY 句柄语义测试 --
     // dummy Blkx: 路径不存在的文件 → 对象非 null 即可 (hasFM 只看 status 与 blkx 非空)
-    // PORT: Java `new parser.Blkx("__no_such_file__.blkx", "dummy")` 构造出的
+    // Java `new parser.Blkx("__no_such_file__.blkx", "dummy")` 构造出的
     // valid=false 空壳对象 ↔ Blkx::default() (字段全默认值)
     let dummy = FmData::default();
     let stages = [CompressorStageParams::default()];
@@ -49,12 +49,12 @@ fn test_ready_handle() {
         h.name.as_deref() == Some("plane1"),
         "name 应保留规范化机型名",
     );
-    // PORT: Java `h.blkx == dummy` 引用同一性 → 所有权模型无引用同一性可判,
+    // Java `h.blkx == dummy` 引用同一性 → 所有权模型无引用同一性可判,
     // 退化为存在性检查 (值即传入值)
     check(h.fmdata.is_some(), "fmdata 应携带解析对象");
     check(h.peak_wep_power == 1850.5, "peakWepPower 应保留传入值");
     check(h.peak_thrust == 0.0, "活塞机 peakThrust 应为 0");
-    // PORT: Java `h.compressorStages == stages` 引用同一性 → 内容相等
+    // Java `h.compressorStages == stages` 引用同一性 → 内容相等
     // (CompressorStageParams 为 Copy 值, 内容比较等价)
     check(
         h.compressor_stages.as_deref() == Some(stages.as_slice()),
@@ -193,8 +193,8 @@ fn ready_with_null_fmdata_has_no_fm() {
     check(!h.has_fm(), "READY 但 fmdata 为 null → hasFM 应为 false");
 }
 
-/// Java 8 oracle 对拍 (§5.1 A 类): toString 五形态 + 六态枚举名, 期望值为
-/// build/oracle/FMHandleOracle.java 在 OpenJDK 1.8.0_342 的实测 dump
+/// 历史基线 对拍: toString 五形态 + 六态枚举名, 期望值为
+/// build/基线/FMHandleOracle.java 在 OpenJDK 1.8.0_342 的实测 dump
 /// (临时文件, 用完已删除)。
 #[test]
 fn java8_oracle_tostring() {

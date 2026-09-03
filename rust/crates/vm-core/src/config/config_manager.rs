@@ -7,23 +7,23 @@
 //! - ui_layout.user.cfg: User configuration, actual read/write target
 //! - ui_layout.user.cfg.bak: Automatic backup
 //!
-//! PORT: Java 类仅含 static 成员 → Rust 模块级自由函数 + 常量 (logger.rs 先例)。
-//! PORT: Java 方法重载 (mergeConfigs 两参/三参) → Rust 无重载, 主名留给三参版
+//! Java 类仅含 static 成员 → Rust 模块级自由函数 + 常量 (logger.rs 先例)。
+//! Java 方法重载 (mergeConfigs 两参/三参) → Rust 无重载, 主名留给三参版
 //! (信息完整形态), 两参版 `merge_configs_no_report` (logger.rs `_default` 后缀先例)。
-//! PORT (§2.7 异常控制流): initialize/importConfig 的 `catch (Exception e)` 是
+//! initialize/importConfig 的 `catch (Exception e)` 是
 //! **Java 侧即不可达的死分支** — ConfigLoader.loadConfig/saveConfig 内部自吞一切
 //! 异常返回部分结果 (config_loader.rs PORT 注), createBackup 自吞 IOException,
 //! mergeConfigs 纯内存无抛出面。Rust 对应函数无异常面, 分支折叠并就地标注。
-//! PORT: MessageDigest MD5 → 本文件内 RFC 1321 手写实现 (§3 禁重依赖;
+//! MessageDigest MD5 → 本文件内 RFC 1321 手写实现 (§3 禁重依赖;
 //! Java MessageDigest.getInstance("MD5") 为必支持算法, 语义逐字节一致)。
-//! PORT: prog.util.UIStateStorage 未译 (B 类后续波次) — 依赖桩 (非翻译) 已
+//! prog.util.UIStateStorage 未译 (B 类后续波次) — 依赖桩 (非翻译) 已
 //! 落地于 ui_state_storage.rs (波16 E5 抽出, md5.rs 同款先例), 顶住
 //! loadTemplateHash/saveTemplateHash 消费面, 见该文件头注。
-//! PORT: DialogService.showMessageDialog (C 类 Swing) → [`ConfigDialog`] sink
+//! DialogService.showMessageDialog (C 类 Swing) → [`ConfigDialog`] sink
 //! 转发 (vm-webui 波次装配): 组装层注入 tauri emit → 前端 Modal; 未装 sink
 //! (启动早期配置装载先于 web 壳构造 / 无窗形态) 记日志兜底, 语义不丢。
 
-// MD5 (RFC 1321) 手写实现 (§3 禁重依赖; 波11 抽出至 md5.rs)
+// MD5 (RFC 1321) 手写实现
 use md5::{Digest, Md5}; // 波21: 手写 RFC 1321 复刻退役, RustCrypto md-5
 
 // UIStateStorage 依赖桩 (波16 E5 抽出至 ui_state_storage.rs)
@@ -45,7 +45,7 @@ const BACKUP_PATH: &str = "./ui_layout.user.cfg.bak";
 
 /// Records details about what was merged during a config merge operation.
 /// (Java: `public static class MergeReport`)
-/// PORT: Java 字段初始化 `= new ArrayList<>()` ↔ derive(Default)。
+/// Java 字段初始化 `= new ArrayList<>()` ↔ derive(Default)。
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct MergeReport {
     pub added_panels: Vec<String>,
@@ -64,7 +64,7 @@ impl MergeReport {
 
 /// Initializes configuration by handling first-run, template change detection, or parse errors.
 ///
-/// @return List of GroupConfig to use for the application
+/// 返回: List of GroupConfig to use for the application
 pub fn initialize() -> Vec<GroupConfig> {
     let template_file = Path::new(TEMPLATE_PATH);
     let user_file = Path::new(USER_PATH);
@@ -94,7 +94,7 @@ pub fn initialize() -> Vec<GroupConfig> {
     }
 
     // Try to load user config
-    // PORT (§2.7): Java `try { loadConfig } catch (Exception e) { 解析错误弹窗+模板回退 }`
+    // Java `try { loadConfig } catch (Exception e) { 解析错误弹窗+模板回退 }`
     // 为死分支 — loadConfig 内部 catch(Exception) 自吞 (部分组返回), 本方法层面无异常面。
     let user_configs = load_config(USER_PATH);
 
@@ -134,8 +134,8 @@ pub fn initialize() -> Vec<GroupConfig> {
 
 /// Calculates the MD5 hash of a file.
 ///
-/// @param filePath Path to the file
-/// @return Hex string of the MD5 hash, or null on error
+/// - `filePath`: Path to the file
+/// 返回: Hex string of the MD5 hash, or null on error
 fn calculate_file_hash(file_path: &str) -> Option<String> {
     // (getInstance 对 MD5 不抛 NoSuchAlgorithmException — 必支持算法; 读文件 IO 是唯一异常面)
     match fs::read(file_path) {
@@ -165,10 +165,10 @@ fn calculate_file_hash(file_path: &str) -> Option<String> {
 /// - columns, desc, format: Use template (latest definition)
 /// - New config items: Insert with default values from template
 ///
-/// @param template The template configuration (source of truth for structure)
-/// @param user The user configuration (source of truth for user values)
-/// @param report Records what was merged (can be null for silent merge)
-/// @return Merged configuration
+/// - `template`: The template configuration (source of truth for structure)
+/// - `user`: The user configuration (source of truth for user values)
+/// - `report`: Records what was merged (can be null for silent merge)
+/// 返回: Merged configuration
 pub fn merge_configs(
     template: &[GroupConfig],
     user: &[GroupConfig],
@@ -198,7 +198,7 @@ pub fn merge_configs(
             }
         } else {
             // Merge existing panel
-            // PORT: Java 保真 — `userPanel == null` 判空 + else 分支直接用引用的直译
+            // Java 保真 — `userPanel == null` 判空 + else 分支直接用引用的直译
             #[allow(clippy::unnecessary_unwrap)]
             let merged_panel =
                 merge_panel(template_panel, user_panel.unwrap(), report.as_deref_mut());
@@ -238,7 +238,7 @@ fn merge_panel(
     merged.switch_key = template.switch_key.clone();
 
     // Merge rows (pass panel title for report context)
-    // PORT: Java 传 `template.title` 两次 (panelTitle 与 groupPath 同值, 后者未被读)
+    // Java 传 `template.title` 两次 (panelTitle 与 groupPath 同值, 后者未被读)
     merged.rows = merge_rows(
         &template.rows,
         &user.rows,
@@ -252,9 +252,9 @@ fn merge_panel(
 
 /// Merges row configurations recursively.
 ///
-/// @param panelTitle The panel title (for report display context)
-/// @param groupPath Current path in hierarchy (e.g. "MiniHUD" or "MiniHUD/hud面板设置")
-/// PORT: Java 的 groupPath 形参在方法体内从未被读取 (死参数, 保签名) — `_` 前缀消未用告警。
+/// - `panelTitle`: The panel title (for report display context)
+/// - `groupPath`: Current path in hierarchy (e.g. "MiniHUD" or "MiniHUD/hud面板设置")
+/// Java 的 groupPath 形参在方法体内从未被读取 (死参数, 保签名) — `_` 前缀消未用告警。
 fn merge_rows(
     template_rows: &[RowConfig],
     user_rows: &[RowConfig],
@@ -273,7 +273,7 @@ fn merge_rows(
 
         // Skip merge tracking for items without valid keys (e.g., info-only items with empty labels)
         // These items have no user-modifiable values and don't need precise matching
-        // PORT (§2.10): Java `key == null` 不可达 — getRowKey 的 property 分支之外恒返回
+        // Java `key == null` 不可达 — getRowKey 的 property 分支之外恒返回
         // 非空容器 label (Rust String 无 null), 折叠为 isEmpty 判定
         if key.is_empty() {
             merged.push(template_row.clone());
@@ -292,7 +292,7 @@ fn merge_rows(
             }
         } else {
             // Merge existing row
-            // PORT: Java 保真 — `userRow == null` 判空 + else 分支直接用引用的直译
+            // Java 保真 — `userRow == null` 判空 + else 分支直接用引用的直译
             #[allow(clippy::unnecessary_unwrap)]
             let merged_row = merge_row(
                 template_row,
@@ -374,7 +374,7 @@ fn merge_row(
     merged.value = user.value.clone();
 
     // Merge children recursively (pass report through for nested items)
-    // PORT (§2.10): Java `user.children != null ? user.children : new ArrayList<>()`
+    // Java `user.children != null ? user.children : new ArrayList<>()`
     // — RowConfig.children 声明默认非 null (loadConfig 路径恒有实例), Rust Vec 恒为
     // 空容器, null 回退分支折叠
     if !template.children.is_empty() {
@@ -409,8 +409,8 @@ pub fn create_backup() {
 
 /// Imports configuration from an external file.
 ///
-/// @param sourcePath Path to the config file to import
-/// @return true if import was successful
+/// - `sourcePath`: Path to the config file to import
+/// 返回: true if import was successful
 pub fn import_config(source_path: &str) -> bool {
     if !Path::new(source_path).exists() {
         logger::error(
@@ -420,7 +420,7 @@ pub fn import_config(source_path: &str) -> bool {
         return false;
     }
 
-    // PORT (§2.7): Java 外层 `try { ... } catch (Exception e) { return false; }` 为死分支
+    // Java 外层 `try { ... } catch (Exception e) { return false; }` 为死分支
     // — 体内 createBackup/loadConfig/mergeConfigs/saveConfig 均自吞异常 (见模块头注)。
 
     // Create backup before import
@@ -450,7 +450,7 @@ pub fn import_config(source_path: &str) -> bool {
 
 /// Resets configuration to factory defaults by copying template to user config.
 ///
-/// @return true if reset was successful
+/// 返回: true if reset was successful
 pub fn reset_to_factory() -> bool {
     // Create backup before reset
     create_backup();

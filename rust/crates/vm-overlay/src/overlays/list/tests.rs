@@ -180,7 +180,7 @@ fn draw_panel_bg_and_clipped_rows() {
     );
 }
 
-/// 默认 alpha=180 的三层合成 (Java 8 + WebLaF oracle): 间隙 = panel², 行 =
+/// 默认 alpha=180 的三层合成 (Java 8 + WebLaF 基线): 间隙 = panel², 行 =
 /// label over panel² — 直通值间隙 0xE9141414 / 表头 0xF93E3005 / 偶 0xF9181818 /
 /// 奇 0xF9222222; PixCanvas 预乘存储 = round(直通×a/255) 与 Java 内部预乘逐位一致
 #[test]
@@ -192,7 +192,7 @@ fn draw_default_alpha_premultiplied() {
     let rows_h = 3 * row_h;
     let mut cv = PixCanvas::new(60, rows_h + 5).unwrap();
     z.draw(&mut cv, 0, 0, 60, rows_h + 5, &ls, &f, 180, false);
-    // 直通域 oracle 复现 (合成模型自检, 与像素断言分层定位错误)
+    // 直通域 基线 复现 (合成模型自检, 与像素断言分层定位错误)
     let panel = rgba(PANEL_BG_RGB, 180);
     let panel2 = java2d_src_over(panel, java2d_src_over(panel, [0, 0, 0, 0]));
     assert_eq!(panel2, [20, 20, 20, 233], "间隙 = panel² = 0xE9141414");
@@ -396,7 +396,7 @@ fn render_to_canvas() {
     let mut cv = PixCanvas::new(80, h).unwrap();
     ov.render(&mut cv, &f, false);
     let row_h = ZebraList::row_height(&f);
-    // 预合成直铺: 表头 oracle 0xF93E3005=(249,62,48,5) → 预乘 61/47/5;
+    // 预合成直铺: 表头 基线 0xF93E3005=(249,62,48,5) → 预乘 61/47/5;
     // 偶行 0xF9181818=(249,24,24,24) → 预乘 23 (render2d 头注预乘语义)
     assert_eq!(
         px(&cv, 0, 0),

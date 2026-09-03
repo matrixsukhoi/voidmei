@@ -23,7 +23,6 @@ impl Value {
             Value::Table(_) => f64::NAN,
         }
     }
-
 }
 
 /// 函数编号 (编译期 resolve, 求值期 match 分派)

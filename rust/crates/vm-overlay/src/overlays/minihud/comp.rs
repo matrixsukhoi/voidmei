@@ -285,7 +285,7 @@ impl CompCell {
 
 impl HasPreferredSize for CompCell {
     fn preferred_size(&self) -> Dimension {
-        // PORT: 与节点图的 RefCell 相互独立 (组件内省不回指节点图, 审查 B3 约束)
+        // 与节点图的 RefCell 相互独立 (组件内省不回指节点图, 审查 B3 约束)
         self.0.borrow().preferred_size()
     }
 }
@@ -416,7 +416,7 @@ impl MiniHudOverlay {
         });
         self.hud_rows[2].map_inner(|inner| {
             if let MiniHudComponentInner::Row2(r) = inner {
-                // PORT: Java MiniHUDOverlay 强转 HUDTextRow, 但 setTemplate 非
+                // Java MiniHUDOverlay 强转 HUDTextRow, 但 setTemplate 非
                 // final 且被 HUDMechanizationRow 同签名覆写 → 虚分派走覆写 (super + 三段
                 // 模板重解析)。须调完整 set_template 而非仅基座, 否则模板变化时三段
                 // 占位宽滞留旧值 (Java 会重解析)
@@ -503,7 +503,7 @@ impl MiniHudOverlay {
 
         // 布局/定尺寸前确保全部组件已 styled/updated (Java 注释原文)
         self.apply_style_to_components(settings);
-        // PORT: 同 init 尾部 — Java 读 service 字段, 此处 None (throttle 闪 0,
+        // 同 init 尾部 — Java 读 service 字段, 此处 None (throttle 闪 0,
         // 下一放行 on_flight_data 修复, ≤1 帧)
         self.update_components(settings, None);
 
@@ -546,7 +546,7 @@ impl MiniHudOverlay {
         });
         self.crosshair_gauge.map_inner(|inner| {
             if let MiniHudComponentInner::Crosshair(g) = inner {
-                // PORT: Java useTextureCrosshair 纹理分支不迁移 —
+                // Java useTextureCrosshair 纹理分支不迁移 —
                 // gauge_crosshair.rs 裁决, 软件路径即唯一视觉语义
                 g.set_style_context(settings.get_crosshair_scale());
             }
@@ -589,7 +589,7 @@ impl MiniHudOverlay {
         let ctx = &self.ctx;
         self.hud_rows[0].map_inner(|inner| {
             if let MiniHudComponentInner::Row0(r) = inner {
-                // PORT: (int) ctx.aoaLength — double→int 截断 (JLS 5.1.3)
+                // (int) ctx.aoaLength — double→int 截断 (JLS 5.1.3)
                 r.set_style(ctx.right_draw, ctx.line_width, ctx.aoa_length as i32);
             }
         });

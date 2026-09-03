@@ -3,7 +3,7 @@ use crate::base::event::event_payload::EventPayload;
 use crate::config::config_api::overlay_settings::OverlaySettings;
 use crate::fm::data::{FmParts, SweepLevel};
 
-// Java 8 oracle: build/oracle_hud (HudOracle.java, 本仓库)。
+// 历史基线: build/基线_hud (HudOracle.java, 本仓库)。
 // 位级断言 (to_bits) 锁定浮点链的运算顺序保真。
 
 // ==== Java MockSrc 的 Rust 同构 mock (字段集一致, 未用 getter 恒 0/false) ====
@@ -56,7 +56,7 @@ impl FormulaView for MockSrc {
         })
     }
 
-    // 公式槽直供 (生产 = ServiceData.formula_values; mock 按场景喂 oracle 值)
+    // 公式槽直供 (生产 = ServiceData.formula_values; mock 按场景喂 基线 值)
     fn get_formula_value(&self, name: &str) -> Option<f64> {
         Some(match name {
             "energy_m" => self.energy_m,
@@ -267,7 +267,7 @@ impl HUDSettings for MockHud {
     }
 }
 
-// PORT: Java 保真 — 测试状态构造器逐字段喂值, 不打包成结构体
+// Java 保真 — 测试状态构造器逐字段喂值, 不打包成结构体
 #[allow(clippy::too_many_arguments)]
 fn mk_state(
     aos: f64,
@@ -301,7 +301,7 @@ fn mk_indic(aviahp: f64, aviar: f64, wsweep: f64) -> Indicators {
     i
 }
 
-/// oracle: spit_flds — 真机 spitfire_f24 经 Java getload 后 calculate 消费的字段
+/// 基线: spit_flds — 真机 spitfire_f24 经 Java getload 后 calculate 消费的字段
 /// (Rust Blkx::parse 等价 doLoad=false, 手工复原同一 FM 状态)
 fn spitfire_fmdata() -> FmData {
     let mut b = FmData::default();
@@ -328,7 +328,7 @@ fn spitfire_fmdata() -> FmData {
     b
 }
 
-/// oracle: vw_flds — 手搓可变翼 FM (Java doLoad=false + 逐字段赋值)
+/// 基线: vw_flds — 手搓可变翼 FM (Java doLoad=false + 逐字段赋值)
 fn vwing_fmdata() -> FmData {
     let mut vw = FmData::default();
     vw.valid = true;
@@ -384,7 +384,7 @@ fn vwing_fmdata() -> FmData {
     vw
 }
 
-/// oracle: dw_flds — 手搓降序行 FM (覆盖 else 分支 i-1 精确相等早退)
+/// 基线: dw_flds — 手搓降序行 FM (覆盖 else 分支 i-1 精确相等早退)
 fn descending_fmdata() -> FmData {
     let mut dw = FmData::default();
     dw.valid = true;
@@ -415,7 +415,7 @@ const COLORS: HudColors = HudColors {
     color_unit: [166, 166, 166, 220],
 };
 
-// ---- s1: state 缺失 → Builder 全默认 (oracle s1_null_event 早退守卫) ----
+// ---- s1: state 缺失 → Builder 全默认 (基线 s1_null_event 早退守卫) ----
 #[test]
 fn s1_no_state_returns_builder_defaults() {
     let src = mk_src(
@@ -426,13 +426,13 @@ fn s1_no_state_returns_builder_defaults() {
     let payload = EventPayload::builder().build();
     let h = calculate(None, None, &payload, Some(&src), None, &hud, &COLORS);
     assert_eq!(h, Builder::default().build());
-    // 关键默认哨兵 (对齐 oracle 逐项): 三色 GREEN、全部空串、数值 0
+    // 关键默认哨兵 (对齐 基线 逐项): 三色 GREEN、全部空串、数值 0
     assert_eq!(h.aoa_color, [0, 255, 0, 255]);
     assert_eq!(h.speed_str, "");
     assert_eq!(h.maneuver_index, 0.0);
 }
 
-// ---- s2: source=null → 同一早退 (oracle s2_null_source) ----
+// ---- s2: source=null → 同一早退 (基线 s2_null_source) ----
 #[test]
 fn s2_null_source_returns_builder_defaults() {
     let (st, ind) = (State::new(), Indicators::new());
@@ -442,7 +442,7 @@ fn s2_null_source_returns_builder_defaults() {
     assert_eq!(h, Builder::default().build());
 }
 
-// ---- s3: sIndic=null, blkx=null (oracle s3_no_state; W-B 后 state 由早退
+// ---- s3: sIndic=null, blkx=null (基线 s3_no_state; W-B 后 state 由早退
 // 守卫保证在场, 原 "sState=null 仍继续算" 窗口已并入 s1 的早退) ----
 #[test]
 fn s3_no_indic_keeps_defaults_and_formats() {
@@ -460,7 +460,7 @@ fn s3_no_indic_keeps_defaults_and_formats() {
     let st = State::new();
     let h = calculate(Some(&st), None, &payload, Some(&src), None, &hud, &COLORS);
 
-    // aviahp/aviar 缺省 0 → pitch/roll = -0.0 (oracle 位级: 8000000000000000)
+    // aviahp/aviar 缺省 0 → pitch/roll = -0.0 (基线 位级: 8000000000000000)
     assert_eq!(h.pitch.to_bits(), 0x8000_0000_0000_0000);
     assert_eq!(h.roll.to_bits(), 0x8000_0000_0000_0000);
     assert!(h.pitch_valid);
@@ -486,7 +486,7 @@ fn s3_no_indic_keeps_defaults_and_formats() {
     assert!(!h.warn_configuration);
 }
 
-// ---- s4: 全量 state/indic, blkx=null (oracle s4_full_no_fm) ----
+// ---- s4: 全量 state/indic, blkx=null (基线 s4_full_no_fm) ----
 #[test]
 fn s4_full_telemetry_without_fm() {
     let hud = MockHud {
@@ -563,7 +563,7 @@ fn s4_full_telemetry_without_fm() {
     assert_eq!(h.speed_bar_rudder_lock_ratio, 0.66);
 }
 
-// ---- s5: 真机 spitfire FM (oracle s5_spitfire + spit_flds) ----
+// ---- s5: 真机 spitfire FM (基线 s5_spitfire + spit_flds) ----
 #[test]
 fn s5_spitfire_real_fm_values() {
     let hud = MockHud {
@@ -575,7 +575,7 @@ fn s5_spitfire_real_fm_values() {
         610.0, 0.52, 3200.0, 4900.0, 5.1, 10.5, 9800.0, 0.0, 0.0, 0.0, 0.0, 144.0, false, false,
         0.0,
     );
-    // 公式槽 oracle 值 (数学由 vm-data 位级对拍锚定, 此处锚定 HUD 接线)
+    // 公式槽 基线 值 (数学由 vm-data 位级对拍锚定, 此处锚定 HUD 接线)
     src.maneuver = f64::from_bits(0x3fb6_c29b_2566_fa68);
     src.flap_angle = 0.0;
     src.warn_v = 1.0;
@@ -625,7 +625,7 @@ fn s5_spitfire_real_fm_values() {
     assert_eq!(h.speed_bar_stall_ratio.to_bits(), 0x3fc5_10ad_33c8_ff1f);
 }
 
-// ---- s6: mach 模式 + 标签禁用 + 失速警告 (oracle s6_mach_stall) ----
+// ---- s6: mach 模式 + 标签禁用 + 失速警告 (基线 s6_mach_stall) ----
 #[test]
 fn s6_mach_mode_and_stall_warning() {
     let hud = MockHud {
@@ -691,7 +691,7 @@ fn s6_mach_mode_and_stall_warning() {
     assert!(!h.warn_configuration);
 }
 
-// ---- s7: 手搓 vwing, ias 扫掠 getFlapAllowAngle 全分支 (oracle s7_vw_ias*) ----
+// ---- s7: 手搓 vwing, ias 扫掠 getFlapAllowAngle 全分支 (基线 s7_vw_ias*) ----
 #[test]
 fn s7_vwing_flap_allow_angle_branches() {
     let hud = MockHud {
@@ -715,7 +715,7 @@ fn s7_vwing_flap_allow_angle_branches() {
             ias, 0.75, 4000.0, 600.0, 3.3, 45.0, 6000.0, 0.0, 0.0, 0.0, 0.0, 120.0, false, true,
             0.6,
         );
-        // 公式槽 oracle 值
+        // 公式槽 基线 值
         src.flap_angle = f64::from_bits(want_angle);
         src.warn_v = want_vne as u8 as f64;
         src.maneuver = f64::from_bits(0x3fbe_1e1e_1e1e_1e20);
@@ -733,7 +733,7 @@ fn s7_vwing_flap_allow_angle_branches() {
         );
         assert_eq!(h.flap_allow_angle.to_bits(), want_angle, "ias={ias}");
         assert_eq!(h.warn_vne, want_vne, "ias={ias}");
-        // vwing=0.6 插值链 (oracle 恒定值)
+        // vwing=0.6 插值链 (基线 恒定值)
         assert_eq!(
             h.maneuver_index.to_bits(),
             0x3fbe_1e1e_1e1e_1e20,
@@ -751,7 +751,7 @@ fn s7_vwing_flap_allow_angle_branches() {
     }
 }
 
-// ---- s9: 降序行 — i-1 精确相等早退 + 越界钳位 (oracle s9_dw_ias*) ----
+// ---- s9: 降序行 — i-1 精确相等早退 + 越界钳位 (基线 s9_dw_ias*) ----
 #[test]
 fn s9_descending_rows_early_return_and_clamp() {
     let hud = MockHud {
@@ -777,7 +777,7 @@ fn s9_descending_rows_early_return_and_clamp() {
         s
     };
 
-    // ias=640: i=0 分支, 外推 t=-1 → norm 0 (oracle s9_dw_ias640 全量)
+    // ias=640: i=0 分支, 外推 t=-1 → norm 0 (基线 s9_dw_ias640 全量)
     let h = calculate(
         Some(&st),
         Some(&ind),
@@ -813,10 +813,10 @@ fn s9_descending_rows_early_return_and_clamp() {
     );
     assert_eq!(h.flap_allow_angle, 50.0, "行值精确相等早退");
     assert_eq!(h.speed_str, "SPD   300");
-    // vneMach 未赋值 (=0) → mach 0.6 >= 0*0.95 恒真 (oracle 同: warnVne=true)
+    // vneMach 未赋值 (=0) → mach 0.6 >= 0*0.95 恒真 (基线 同: warnVne=true)
     assert!(h.warn_vne);
 
-    // ias=150: i=2 分支外推 t=125 恰触上界 → norm 保持 125 (oracle)
+    // ias=150: i=2 分支外推 t=125 恰触上界 → norm 保持 125 (基线)
     let h = calculate(
         Some(&st),
         Some(&ind),
@@ -829,7 +829,7 @@ fn s9_descending_rows_early_return_and_clamp() {
     assert_eq!(h.flap_allow_angle, 125.0);
 }
 
-// ---- s10: 无效 blkx → flapAllowAngle=125 + else 分支 (oracle s10_invalid_fm) ----
+// ---- s10: 无效 blkx → flapAllowAngle=125 + else 分支 (基线 s10_invalid_fm) ----
 #[test]
 fn s10_invalid_fm_short_circuits() {
     let hud = MockHud {
@@ -873,7 +873,7 @@ fn s10_invalid_fm_short_circuits() {
     assert_eq!(h.speed_bar_stall_ratio.to_bits(), 0x405b_8000_0000_0000);
 }
 
-// ---- fmt: String.format 语义电池 (oracle fmt|* 行, HALF_UP/宽度/负零) ----
+// ---- fmt: String.format 语义电池 (基线 fmt|* 行, HALF_UP/宽度/负零) ----
 #[test]
 fn java8_oracle_format_battery() {
     // M%5.2f

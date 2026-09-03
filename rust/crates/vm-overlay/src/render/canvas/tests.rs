@@ -50,7 +50,7 @@ fn fill_rect_partial_alpha_and_negative() {
     c.fill_rect(5, 5, 10, 10, [200, 100, 50, 128]);
     // 预乘 ≈ c*a/255 (tiny-skia 取整式, 与截断式在此值一致): 100/50/25, a=128
     assert_eq!(px(&c, 10, 10), [100, 50, 25, 128]);
-    // PORT: Java 负宽高 fillRect 静默不绘制
+    // Java 负宽高 fillRect 静默不绘制
     c.fill_rect(0, 0, -5, 5, [255, 255, 255, 255]);
     c.fill_rect(0, 0, 5, -5, [255, 255, 255, 255]);
     assert_eq!(px(&c, 1, 1), [0, 0, 0, 0]);
@@ -100,7 +100,7 @@ fn fill_circle_geometry() {
     assert_eq!(px(&c, 10, 10), [0, 0, 0, 0], "外接盒角 (距心 20.5)");
 }
 
-/// strokeArc 下半圆 (Java oracle: drawArc(-180,180) 弧体在下半 —
+/// strokeArc 下半圆 (历史基线: drawArc(-180,180) 弧体在下半 —
 /// drawArc(0,0,40,40,-180,180) downPixels=171 顶部空, 正角=视觉逆时针,
 /// -180→0 途经 -90°=6 点): 弧底/两端覆盖, 上半无弧
 #[test]
@@ -127,7 +127,7 @@ fn stroke_arc_lower_semicircle() {
     assert_eq!(px(&c, 32, 32), [0, 0, 0, 0], "圆心无弧");
 }
 
-/// Java drawArc 方向 oracle: drawArc(0,90) 覆盖 12点→3点右上象限,
+/// Java drawArc 方向 基线: drawArc(0,90) 覆盖 12点→3点右上象限,
 /// drawArc(0,-90) 走 3点→6点右下短弧 (负 extent = 顺时针反向)
 #[test]
 fn stroke_arc_direction_quadrants() {
@@ -154,7 +154,7 @@ fn stroke_arc_direction_quadrants() {
     assert_eq!(px(&c2, 32, 12), [0, 0, 0, 0], "12 点无弧");
 }
 
-/// sweep 边界语义: 零 extent 不绘制 (Java drawArc(start,0) oracle 0 像素);
+/// sweep 边界语义: 零 extent 不绘制 (Java drawArc(start,0) 基线 0 像素);
 /// NaN/±inf 入参消毒不绘制不挂死 (Java int 入参无此态);
 /// |sweep|≥360 (含负向) = 整圆
 #[test]

@@ -86,7 +86,7 @@ impl PowerInfoState {
     /// 50ms 节流闩 → (数据回调内) 零 GC 路径: 取值 →
     /// visible-when → 动态精度 → 动态单位 → 可见时格式化 (na-when → "-",
     /// TIME_MM_SS → formatTime, 其余 format(val, precision))。
-    /// PORT: System.currentTimeMillis 由调用方注入 now_ms (field2 先例, 便于测试);
+    /// System.currentTimeMillis 由调用方注入 now_ms (field2 先例, 便于测试);
     /// 返回值 = 是否执行了更新 (false = 节流跳过, Java 原方法 void, 宿主可据此省重绘)
     pub fn update(&mut self, now_ms: i64, s: &dyn FormulaView) -> bool {
         // 节流防高频事件任务堆积
@@ -136,7 +136,7 @@ impl PowerInfoState {
                 } else {
                     field.buffer = format::format(val, field.precision as u8);
                 }
-                // 缓冲内容为 ASCII 数字域, 字符数 = UTF-16 码元数 (§2.1)
+                // 缓冲内容为 ASCII 数字域, 字符数 = UTF-16 码元数
                 field.length = field.buffer.chars().count() as i32;
             }
         }
@@ -153,7 +153,7 @@ impl PowerInfoState {
     /// 内容绘制 (FieldOverlay.paintComponent → renderer.render; PowerInfo 的
     /// createRenderer = BOSStyleRenderer)
     pub fn draw(&self, cv: &mut PixCanvas, ctx: &RenderContext, renderer: &mut BosStyleRenderer) {
-        // PORT: Java BosStyleRenderer 直接迭代 fieldManager 列表零分配; Rust render
+        // Java BosStyleRenderer 直接迭代 fieldManager 列表零分配; Rust render
         // 契约收 `&[Field]` 且 Field 借用 DataField — 缓冲无法与 state 同域复用
         // (state 内自引用 / 渲染闭包内不变性, 均编译期否决), 故每帧 collect 19 项
         // (20Hz 下一笔小分配)。零分配化需 render 契约改迭代器/Rc 化 — 留惯用化 pass
@@ -169,7 +169,7 @@ impl PowerInfoState {
 // PORT(重构波2): POC 时代的三个 preview_spec 工厂 (state move 进闭包的静态
 // 预览专径) 已退役 — 生产预览/live 统一走下方 overlay_spec 工厂 (host 单条目
 // 双形态), 测试面经手工 OverlaySpec 顶位。
-// Java 各 overlay init(S) 时自订 FlightDataBus (LIFETIMES §2.1), preview 实例
+// Java 各 overlay init(S) 时自订 FlightDataBus, preview 实例
 // (initPreview) 不订阅保持 previewValue 静态。Rust host 单条目跨 open/refresh_preview
 // 存活 (D8), 两形态共用一份 state — live 喂入由渲染线程持句柄执行, preview 期
 // 喂入门控见 app_shell 的 feed_overlays_live (overlay_ctx_preview 标志)。

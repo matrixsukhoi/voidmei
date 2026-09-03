@@ -6,10 +6,10 @@
 use crate::base::java_compat::java_trim;
 
 /// jnativehook 2.2.2 `NativeKeyEvent.getKeyText` 的 VC 码→文本表 (139 项),
-/// bytecode ldc 默认值 + en_US locale Java 8 oracle 全量对拍生成。
-/// PORT: 原实现经 `Toolkit.getProperty("AWT.xxx", 默认值)` 查 JDK 的 awt.properties —
+/// bytecode ldc 默认值 + en_US locale 历史基线 全量对拍生成。
+/// 原实现经 `Toolkit.getProperty("AWT.xxx", 默认值)` 查 JDK 的 awt.properties —
 /// **随 JDK locale 本地化** (zh JDK: 1→"Esc"、54→"未知 keyCode: 0x36"), 本表为
-/// 英文 canonical 默认值 (en_US oracle); 中文 JDK 上 Java 侧 hotkey 往返取不到
+/// 英文 canonical 默认值 (en_US 基线); 中文 JDK 上 Java 侧 hotkey 往返取不到
 /// 英文名属环境差异, 非 C 类接线可解 — 已在迁移报告中上报。
 fn key_text_table(code: i32) -> Option<&'static str> {
     match code {

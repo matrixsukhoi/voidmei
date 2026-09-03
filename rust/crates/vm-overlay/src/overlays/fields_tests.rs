@@ -251,7 +251,7 @@ fn vis_expr_semantics() {
     assert!(vm_core::ui_support::row_def::Cond::Eq(1.0).eval(&t, 1.00001));
     assert!(!vm_core::ui_support::row_def::Cond::Eq(1.0).eval(&t, 1.0002));
     // f64 边界: 字面量 1.0001-1.0 实际差 ≈ 9.9999e-5 < 0.0001 → 视为相等
-    // (vm-core 求值器测试同款 oracle: "(= value 1)" 对 1.0001 为 true)
+    // (vm-core 求值器测试同款 基线: "(= value 1)" 对 1.0001 为 true)
     assert!(vm_core::ui_support::row_def::Cond::Eq(1.0).eval(&t, 1.0001));
     assert!(!vm_core::ui_support::row_def::Cond::NotEq(1.0).eval(&t, 1.0001));
     assert!(!vm_core::ui_support::row_def::Cond::NotEq(1.0).eval(&t, 1.0));
@@ -1350,7 +1350,7 @@ fn premul(c: [u8; 4]) -> [u8; 4] {
     ]
 }
 
-// ---- java_format_f / java_string_format: Java 8 oracle 对拍 ----
+// ---- java_format_f / java_string_format: 历史基线 对拍 ----
 
 /// 精确二进制值 nearest-even (波21: Rust {:.N} 语义, HALF_UP 复刻退役)
 #[test]
@@ -1697,7 +1697,7 @@ impl ConfigProvider for MapConfig {
     }
 }
 
-/// 全字段齐备的测试 blkx (期望值 = Java 8 oracle 手算, HALF_UP 判别值混入)
+/// 全字段齐备的测试 blkx (期望值 = 历史基线 手算, HALF_UP 判别值混入)
 fn full_fmdata() -> FmData {
     let mut b = FmData::default();
     b.read_file_name = Some("spitfire_mk24".to_string());
@@ -1783,7 +1783,7 @@ fn full_fmdata() -> FmData {
     b
 }
 
-/// generateLines 全量 (config None → 全启用) 的逐行 oracle
+/// generateLines 全量 (config None → 全启用) 的逐行 基线
 #[test]
 fn generate_lines_full_field_list() {
     let lines = generate_lines(Some(&full_fmdata()), None);
