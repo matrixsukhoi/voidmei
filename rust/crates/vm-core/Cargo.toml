@@ -16,6 +16,10 @@ zip = { version = "8", default-features = false, features = ["deflate-flate2"] }
 # zip 的 deflate-flate2 不带后端选择, 显式启用 miniz_oxide 纯 Rust 后端 (特性合一)
 flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
 ureq = { version = "2.12", default-features = false }
+# md5: templateConfigHash 内容指纹 (波21 引入, 替代手写 RFC 1321 复刻 md5.rs)
+md-5 = "0.10"
+# regex: 机型对比规则/测试对拍的匹配器 (波21 引入, 替代手写 java.util.regex 复刻)
+regex = "1"
 
 [lints]
 workspace = true

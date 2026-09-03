@@ -56,9 +56,3 @@ pub(crate) fn v_xy(v: &serde_json::Value, key: &str) -> (f64, f64) {
     (x, y)
 }
 
-/// r[i..] 首字符的 UTF-8 字节数; i 越界返回 0。
-/// PORT: Java 循环 `eix++` 逐 UTF-16 码元推进, 此处按整字符推进 —
-/// BMP 内等价。map_obj 正则路径与 ui_support/comparison 共用。
-pub(crate) fn char_len_at(r: &str, i: usize) -> usize {
-    r[i..].chars().next().map_or(0, char::len_utf8)
-}

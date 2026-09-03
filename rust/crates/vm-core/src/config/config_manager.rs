@@ -24,7 +24,7 @@
 //! (启动早期配置装载先于 web 壳构造 / 无窗形态) 记日志兜底, 语义不丢。
 
 // MD5 (RFC 1321) 手写实现 (§3 禁重依赖; 波11 抽出至 md5.rs)
-use super::md5::md5_digest;
+use md5::{Digest, Md5}; // 波21: 手写 RFC 1321 复刻退役, RustCrypto md-5
 
 // UIStateStorage 依赖桩 (波16 E5 抽出至 ui_state_storage.rs)
 use super::ui_state_storage::{ui_state_load_template_hash, ui_state_save_template_hash};
@@ -140,7 +140,8 @@ fn calculate_file_hash(file_path: &str) -> Option<String> {
     // (getInstance 对 MD5 不抛 NoSuchAlgorithmException — 必支持算法; 读文件 IO 是唯一异常面)
     match fs::read(file_path) {
         Ok(content) => {
-            let hash = md5_digest(&content);
+            // 波21: 手写 RFC 1321 复刻退役, RustCrypto md-5 (语义恒等, RFC 向量测试钉住)
+            let hash = Md5::digest(&content);
             let mut sb = String::new();
             for b in hash {
                 sb.push_str(&format!("{b:02x}"));

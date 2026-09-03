@@ -41,8 +41,10 @@ fn md5_rfc1321_test_vectors() {
 }
 
 /// calculate_file_hash 的字节级直通 (hex 化与文件版同一逻辑)
+/// 波21: 手写 md5_digest 退役, 直用 md-5 crate (RFC 向量继续钉住)
 fn calculate_file_hash_on_bytes(b: &[u8]) -> String {
-    md5_digest(b).iter().map(|x| format!("{x:02x}")).collect()
+    use md5::{Digest, Md5};
+    Md5::digest(b).iter().map(|x| format!("{x:02x}")).collect()
 }
 
 fn tmp(name: &str) -> String {
@@ -364,7 +366,7 @@ fn tmp_dir(name: &str) -> PathBuf {
 }
 
 fn md5_hex(b: &[u8]) -> String {
-    md5_digest(b).iter().map(|x| format!("{x:02x}")).collect()
+    calculate_file_hash_on_bytes(b)
 }
 
 const TPL_V1: &str = "(panel \"面板A\"\n  :x 0.1 :y 0.2 :alpha 100 :visible true :switch-key \"swA\"\n      :font \"F\" :font-size 3 :columns 1 :panel-columns 4 :hotkey \"P\"\n  (item \"甲\" :type switch :target \"k1\" :value true)\n  (item \"乙\" :type slider :target \"k2\" :min 1 :max 9 :value 5 :unit \"px\")\n)\n";

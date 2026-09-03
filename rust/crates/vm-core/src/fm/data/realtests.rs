@@ -1388,83 +1388,29 @@ mod fuzzer {
     }
 
     /// Java `RE_NUM = Pattern.compile("\\d+\\.?\\d*(?:[eE][-+]?\\d+)?")` 的
-    /// find() 全序列手写移植 (vm-core 无 regex 依赖): 最左非重叠匹配, ASCII \d,
-    /// 逐原子贪婪 + 可选指数组整体匹配/整体放弃 — 与 java.util.regex 回溯语义
-    /// 一致 (见 num_and_quoted_scanner_boundaries 边界测试); 收集上限 5000
+    /// find() 全序列 (波21: 手写扫描器退役, regex crate 承载;
+    /// [0-9] 显式 ASCII 对齐 java.util.regex 无 UNICODE 标志的 \d)。
+    /// 收集上限 5000
     fn find_num_matches(s: &str) -> Vec<(usize, usize)> {
-        let b = s.as_bytes();
-        let mut out = Vec::new();
-        let mut i = 0;
-        while i < b.len() {
-            if b[i].is_ascii_digit() {
-                let start = i;
-                while i < b.len() && b[i].is_ascii_digit() {
-                    i += 1; // \d+
-                }
-                if i < b.len() && b[i] == b'.' {
-                    i += 1; // \.? (贪婪)
-                    while i < b.len() && b[i].is_ascii_digit() {
-                        i += 1; // \d*
-                    }
-                }
-                // (?:[eE][-+]?\d+)? — 完整匹配才整体消费, 否则回退到 i (可选组匹配空)
-                let save = i;
-                if i < b.len() && (b[i] == b'e' || b[i] == b'E') {
-                    let mut j = i + 1;
-                    if j < b.len() && (b[j] == b'+' || b[j] == b'-') {
-                        j += 1;
-                    }
-                    if j < b.len() && b[j].is_ascii_digit() {
-                        while j < b.len() && b[j].is_ascii_digit() {
-                            j += 1;
-                        }
-                        i = j;
-                    } else {
-                        i = save;
-                    }
-                }
-                out.push((start, i));
-                if out.len() >= 5000 {
-                    break;
-                }
-            } else {
-                i += 1;
-            }
-        }
-        out
+        static RE: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
+            regex::Regex::new(r"[0-9]+\.?[0-9]*(?:[eE][-+]?[0-9]+)?").unwrap()
+        });
+        RE.find_iter(s)
+            .map(|m| (m.start(), m.end()))
+            .take(5000)
+            .collect()
     }
 
     /// Java `RE_QUOTED = Pattern.compile("\"([^\"\\n\\r]{1,60})\"")` 的 find() 全序列
-    /// 手写移植: 引号内 ≤60 个非引号/非换行字符; {1,60} 贪婪 — 取最长合法 run 后
-    /// 必须紧跟闭合引号 (回溯缩短不可能命中, 见边界测试); 收集上限 5000
+    /// (波21: 手写扫描器退役, regex crate 承载); 收集上限 5000
     fn find_quoted_matches(s: &str) -> Vec<(usize, usize)> {
-        let b = s.as_bytes();
-        let mut out = Vec::new();
-        let mut i = 0;
-        while i < b.len() {
-            if b[i] == b'"' {
-                let start = i;
-                let mut j = i + 1;
-                while j < b.len()
-                    && (j - start - 1) < 60
-                    && b[j] != b'"'
-                    && b[j] != b'\n'
-                    && b[j] != b'\r'
-                {
-                    j += 1;
-                }
-                if j < b.len() && b[j] == b'"' {
-                    out.push((start, j + 1));
-                    i = j + 1;
-                    if out.len() >= 5000 {
-                        break;
-                    }
-                    continue;
-                }
-            }
-            i += 1;
-        }
-        out
+        static RE: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
+            regex::Regex::new(r#""([^"\n\r]{1,60})""#).unwrap()
+        });
+        RE.find_iter(s)
+            .map(|m| (m.start(), m.end()))
+            .take(5000)
+            .collect()
     }
 
     /// FNV-1a 64 位摘要 — oracle 对拍用 (build/oracle/rand/RandOracle.java 同款

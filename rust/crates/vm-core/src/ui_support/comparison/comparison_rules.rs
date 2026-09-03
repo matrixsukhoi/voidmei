@@ -1,12 +1,15 @@
-//! 对应 Java: `src/ui/window/comparison/logic/ComparisonRules.java` (一比一翻译)
+//! 对应 Java: `src/ui/window/comparison/logic/ComparisonRules.java`
+//! 波21: SLASH_* 手写回溯匹配器退役, 模式原样落 regex crate
+//! (leftmost-first + 贪婪次序与 java.util.regex find() 一致)。
 
 use std::collections::HashMap;
-use std::sync::OnceLock;
+use std::sync::{LazyLock, OnceLock};
 
-use crate::game_api::parser::char_len_at;
+use regex::Regex;
+
 use crate::ui_support::comparison::comparison_rule::ComparisonRule;
 use crate::ui_support::comparison::rules::{
-    try_number_ends, LambdaRule, ListIndexRule, MultiListIndexRule, SimpleRule,
+    JAVA_WS, LambdaRule, ListIndexRule, MultiListIndexRule, SimpleRule,
 };
 
 /// Registry of comparison rules for FM properties.
@@ -21,85 +24,38 @@ use crate::ui_support::comparison::rules::{
 // 自动 trait 削减协变回 `&'static dyn ComparisonRule`。
 pub struct ComparisonRules;
 
-/// Java 正则 `\s`: [ \t\n\x0B\x0C\r] (ASCII 定义)
-fn is_java_ws(b: u8) -> bool {
-    matches!(b, b' ' | b'\t' | b'\n' | 0x0B | 0x0C | b'\r')
-}
-
 // Pattern to extract second number from "A / B" format
 // (ComparisonRules.java SLASH_SECOND 常量原注释, 逐字保留 — PORTING.md §0.2)
 
-/// `/\s*(-?\d+(\.\d+)?)` (SLASH_SECOND) 的 `Matcher.find()`, 返回组1。
-/// '/' 非空白且数字首字符非空白 → `\s*` 贪婪无有效回溯, 确定性。
+/// `/\s*(-?\d+(\.\d+)?)` (SLASH_SECOND) 的 find(), 返回组1。
+/// 波21: 手写回溯匹配器退役, regex crate 直接承载 (JAVA_WS = ASCII \s)。
 fn find_slash_second(s: &str) -> Option<&str> {
-    let b = s.as_bytes();
-    let mut i = 0usize;
-    while i < s.len() {
-        if b[i] == b'/' {
-            let mut p = i + 1;
-            while p < s.len() && is_java_ws(b[p]) {
-                p += char_len_at(s, p);
-            }
-            if let Some((_, end)) = try_number_ends(s, p) {
-                return Some(&s[p..end]);
-            }
-        }
-        i += char_len_at(s, i);
-    }
-    None
+    static RE: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(&format!(r"/[{}]*(-?[0-9]+(\.[0-9]+)?)", JAVA_WS)).unwrap()
+    });
+    RE.captures(s).map(|c| c.get(1).unwrap().as_str())
 }
 
 // Pattern to extract both numbers from "A / B" format
 // (ComparisonRules.java SLASH_BOTH 常量原注释, 逐字保留 — PORTING.md §0.2)
 
-/// `(-?\d+(\.\d+)?)\s*/\s*(-?\d+(\.\d+)?)` (SLASH_BOTH) 的 `Matcher.find()`,
-/// 返回 (组1, 组3)。尝试序与 java.util.regex 一致: 先按贪婪吞小数段, 再重试
-/// `(\.\d+)?` 放弃小数段的分支。
-///
-/// 注意: 该"放弃小数段"分支在本模式中**结构性恒败** —— 有小数段时 int_end 处
-/// 必是 '.', 而 '.' 既非 `\s` 也非 '/', `\s*/\s*` 无法在其上起步 (Java 正则的
-/// 对应回溯同样恒败, 双方行为一致; 分支保留以镜像回溯次序)。因此形如
-/// "12.3.4/5" 的输入实际靠 find() 起点右移命中: 起点推进到内层数字 '3' 后
-/// 匹配 "3.4/5" → 3.4+5=8.4 (leftmost-first 起点推进语义, 非回溯)。
+/// `(-?\d+(\.\d+)?)\s*/\s*(-?\d+(\.\d+)?)` (SLASH_BOTH) 的 find(), 返回 (组1, 组3)。
+/// regex crate 的 leftmost-first + 贪婪回溯次序与 java.util.regex 一致
+/// ("12.3.4/5" 类输入靠起点右移命中 "3.4/5", 原手写注释的论证同样适用)。
 fn find_slash_both(s: &str) -> Option<(&str, &str)> {
-    let mut i = 0usize;
-    while i < s.len() {
-        if let Some((int_end, full_end)) = try_number_ends(s, i) {
-            // 贪婪: 带小数段
-            if let Some(second) = slash_suffix_number(s, full_end) {
-                return Some((&s[i..full_end], second));
-            }
-            // 回溯: `(\.\d+)?` 不吞 (结构性恒败: int_end 处是 '.', 非 `\s` 非 '/',
-            // 镜像 Java 回溯次序保留)
-            if full_end != int_end {
-                if let Some(second) = slash_suffix_number(s, int_end) {
-                    return Some((&s[i..int_end], second));
-                }
-            }
-        }
-        i += char_len_at(s, i);
-    }
-    None
-}
-
-/// `\s*/\s*(num)` 从 pos 起的匹配, 成功返回第二个数字 (组4) 的文本。
-/// 两处 `\s*` 的后继原子 ('/' 与数字首字符) 均非空白, 贪婪即终态。
-fn slash_suffix_number(s: &str, pos: usize) -> Option<&str> {
-    let b = s.as_bytes();
-    let mut p = pos;
-    while p < s.len() && is_java_ws(b[p]) {
-        p += char_len_at(s, p);
-    }
-    if p < s.len() && b[p] == b'/' {
-        p += 1;
-        while p < s.len() && is_java_ws(b[p]) {
-            p += char_len_at(s, p);
-        }
-        if let Some((_, end)) = try_number_ends(s, p) {
-            return Some(&s[p..end]);
-        }
-    }
-    None
+    static RE: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(&format!(
+            r"(-?[0-9]+(\.[0-9]+)?)[{}]*/[{}]*(-?[0-9]+(\.[0-9]+)?)",
+            JAVA_WS, JAVA_WS
+        ))
+        .unwrap()
+    });
+    RE.captures(s).map(|c| {
+        (
+            c.get(1).unwrap().as_str(),
+            c.get(3).unwrap().as_str(),
+        )
+    })
 }
 
 fn rules() -> &'static HashMap<&'static str, &'static (dyn ComparisonRule + Send + Sync)> {
