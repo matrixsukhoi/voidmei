@@ -62,6 +62,18 @@ pub fn factory_default() -> AppConfig {
     serde_json::from_str(FACTORY_DEFAULT_JSON).expect("factory_default.json 损坏 (编译期资产)")
 }
 
+/// 出厂默认的进程级缓存 (5k 行 JSON 的 serde 解析 ~百 µs 级,
+/// W2 起 pages 为渲染线程注册/reinit 的热路径 — 只解析一次)
+pub fn factory() -> &'static AppConfig {
+    static CACHE: std::sync::OnceLock<AppConfig> = std::sync::OnceLock::new();
+    CACHE.get_or_init(factory_default)
+}
+
+/// 出厂 pages 的共享句柄便捷面 (OverlayInputs/测试用)
+pub fn factory_pages_arc() -> std::sync::Arc<Vec<crate::config::json_model::PageDoc>> {
+    std::sync::Arc::new(factory().pages.clone())
+}
+
 // =====================================================================
 // 合成
 // =====================================================================

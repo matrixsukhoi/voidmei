@@ -133,6 +133,8 @@ pub struct ReinitParams {
     pub attitude: AttitudeGroup,
     /// MiniHUD 全量设置快照 (reinit_config 的 S: HUDSettings 实参)
     pub hud: HudSettingsSnapshot,
+    /// HUD 页面清单 (PageDoc 驱动建树的 Send 快照; W2 = MiniHUD 出厂页)
+    pub pages: std::sync::Arc<Vec<vm_core::config::json_model::PageDoc>>,
 }
 
 impl Default for ReinitParams {
@@ -151,6 +153,7 @@ impl Default for ReinitParams {
             fm: Default::default(),
             attitude: Default::default(),
             hud: HudSettingsSnapshot::default(),
+            pages: std::sync::Arc::new(Vec::new()),
         }
     }
 }

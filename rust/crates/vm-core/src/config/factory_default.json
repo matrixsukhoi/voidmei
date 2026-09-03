@@ -5659,5 +5659,191 @@
         }
       ]
     }
+  ],
+  "pages": [
+    {
+      "id": "minihud-default",
+      "name": "MiniHUD",
+      "switchKey": "crosshairSwitch",
+      "pos": [
+        0.3891,
+        0.7042
+      ],
+      "padding": 45,
+      "font": {
+        "family": "Sarasa Mono SC",
+        "sizeAdd": 0,
+        "scaleSource": "crosshairScale"
+      },
+      "contentVersion": 1,
+      "components": [
+        {
+          "id": "row0",
+          "type": "core.minihud.row0",
+          "pos": [
+            2.1,
+            3.5
+          ],
+          "anchor": [
+            "TopLeft",
+            "TopLeft"
+          ],
+          "parent": null,
+          "enabled": true,
+          "props": null
+        },
+        {
+          "id": "flap",
+          "type": "core.minihud.flapBar",
+          "pos": [
+            0.0,
+            -0.1
+          ],
+          "anchor": [
+            "BottomLeft",
+            "TopLeft"
+          ],
+          "parent": "row0",
+          "enabled": true,
+          "props": null
+        },
+        {
+          "id": "row1",
+          "type": "core.minihud.row1",
+          "pos": [
+            0.0,
+            0.1
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "row0",
+          "enabled": true,
+          "props": null
+        },
+        {
+          "id": "row2",
+          "type": "core.minihud.row2",
+          "pos": [
+            0.0,
+            0.1
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "row1",
+          "enabled": true,
+          "props": null
+        },
+        {
+          "id": "row3",
+          "type": "core.minihud.row3",
+          "pos": [
+            0.0,
+            0.1
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "row2",
+          "enabled": true,
+          "props": null
+        },
+        {
+          "id": "row4",
+          "type": "core.minihud.row4",
+          "pos": [
+            0.0,
+            0.1
+          ],
+          "anchor": [
+            "TopLeft",
+            "BottomLeft"
+          ],
+          "parent": "row3",
+          "enabled": true,
+          "props": null
+        },
+        {
+          "id": "attitude",
+          "type": "core.gauge.attitude",
+          "pos": [
+            0.0,
+            0.5
+          ],
+          "anchor": [
+            "TopRight",
+            "BottomRight"
+          ],
+          "parent": "row2",
+          "enabled": true,
+          "props": null
+        },
+        {
+          "id": "compass",
+          "type": "core.gauge.compass",
+          "pos": [
+            0.0,
+            0.1
+          ],
+          "anchor": [
+            "TopRight",
+            "BottomRight"
+          ],
+          "parent": "row2",
+          "enabled": true,
+          "props": null
+        },
+        {
+          "id": "speedBar",
+          "type": "core.minihud.speedBar",
+          "pos": [
+            -0.3,
+            0.0
+          ],
+          "anchor": [
+            "BottomRight",
+            "BottomLeft"
+          ],
+          "parent": "row4",
+          "enabled": true,
+          "props": null
+        },
+        {
+          "id": "throttle",
+          "type": "core.minihud.throttleBar",
+          "pos": [
+            -0.3,
+            0.0
+          ],
+          "anchor": [
+            "BottomRight",
+            "BottomLeft"
+          ],
+          "parent": "row4",
+          "enabled": true,
+          "props": null
+        },
+        {
+          "id": "crosshair",
+          "type": "core.decor.crosshair",
+          "pos": [
+            0.0,
+            0.0
+          ],
+          "anchor": [
+            "MiddleRight",
+            "MiddleRight"
+          ],
+          "parent": null,
+          "visibleWhen": "displayCrosshair",
+          "enabled": true,
+          "props": null
+        }
+      ]
+    }
   ]
 }

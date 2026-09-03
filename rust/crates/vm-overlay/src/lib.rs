@@ -11,3 +11,4 @@ pub mod overlays;
 pub mod platform;
 pub mod render;
 pub mod ui_model;
+pub mod widgets;

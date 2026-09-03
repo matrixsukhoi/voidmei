@@ -231,6 +231,7 @@ fn test_overlay_inputs() -> OverlayInputs {
                 .config
                 .get_hud_settings(),
         ),
+        pages: vm_core::config::json_store::factory_pages_arc(),
         font_add_engine: 0,
         font_add_power: 0,
         power_columns: 1,

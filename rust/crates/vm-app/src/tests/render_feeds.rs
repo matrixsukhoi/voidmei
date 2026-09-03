@@ -213,9 +213,10 @@ fn feed_overlays_live_updates_all_handles() {
         &inputs.hud,
         1.0,
         &fonts.join("sarasa-mono-sc-bold.ttf"),
-        &Rc::new(RefCell::new(
-            vm_overlay::platform::reinit::ReinitParams::default(),
-        )),
+        &Rc::new(RefCell::new(vm_overlay::platform::reinit::ReinitParams {
+            pages: vm_core::config::json_store::factory_pages_arc(),
+            ..Default::default()
+        })),
     )
     .unwrap();
     let (h_power, _) = vm_overlay::overlays::power_info::power_info_overlay_spec(

@@ -8,6 +8,7 @@ description = "VoidMei overlay 层: 平台窗口/渲染"
 name = "vm_overlay"
 
 [dependencies]
+serde_json = { workspace = true }
 vm-core = { workspace = true }
 png = { workspace = true }
 swash = { workspace = true }

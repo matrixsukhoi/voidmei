@@ -181,6 +181,11 @@ impl ConfigurationService {
         hit
     }
 
+    /// HUD 页面清单 (运行树 pages; W2 = 出厂页直通, delta 页面区 W4 接入)
+    pub fn pages(&self) -> std::sync::Arc<Vec<crate::config::json_model::PageDoc>> {
+        std::sync::Arc::new(json_store::factory().pages.clone())
+    }
+
     /// 行类型查询 (panel 作用域): 写链判 SWITCH_INV 反转用。
     /// 无 :target 行以 label 匹配 (与服务侧 update_rows_recursive 同一谓词)。
     pub fn row_type(&self, panel_title: &str, key: &str) -> Option<String> {

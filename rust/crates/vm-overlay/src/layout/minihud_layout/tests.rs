@@ -1,5 +1,6 @@
 use super::*;
-use crate::layout::hud_layout_node::Dimension;
+use crate::layout::hud_layout_node::{Dimension, HUDLayoutNode};
+use crate::layout::Anchor;
 use std::cell::Cell;
 use std::rc::Rc;
 
@@ -706,184 +707,235 @@ fn cfg_snapshot_matches_ui_layout_panel() {
     // 布局调试开关 (panel 外「杂项→调试」组单列快照)
     assert_eq!(ENABLE_LAYOUT_DEBUG_ITEM.target, "enableLayoutDebug");
     assert_eq!(ENABLE_LAYOUT_DEBUG_ITEM.default, CfgDefault::Bool(false));
-    // cfg 驱动读取: 缺键 = Java getBool 字面兜底 (displayCrosshair **false**,
-    // 非 cfg :default true — 整树缺失时 Java 关准星; 两层缺省见 from_bool_source)
-    let cfg = MiniHudLayoutConfig::from_bool_source(|_| None);
-    assert!(!cfg.display_crosshair);
-    assert!(!cfg.enable_layout_debug);
-    // override 生效; 未覆盖键走字面兜底
-    let cfg = MiniHudLayoutConfig::from_bool_source(|k| (k == "displayCrosshair").then_some(true));
-    assert!(cfg.display_crosshair);
-    assert!(!cfg.enable_layout_debug);
 }
 
-/// 全树构建几何 基线 (lh=24, 组件统一 40x20, 画布 base 300x200):
-/// displayCrosshair=true → 画布 600 宽; DFS 序 = 挂载序。
-#[test]
-fn build_full_tree_topology_and_geometry() {
-    let parts = MiniHudParts {
-        rows: (0..5).map(|_| vis(40, 20)).collect(),
-        flap_angle_bar: vis(40, 20),
-        speed_ratio_bar: vis(40, 20),
-        throttle_bar: vis(40, 20),
-        attitude_indicator_gauge: vis(40, 20),
-        compass_gauge: vis(40, 20),
-        crosshair_gauge: Some(vis(40, 20)),
+// ===========================================================================
+// PageDoc 数据驱动建树 (build_page_layout; 原 build_mihud_layout 常量拓扑族
+// 的接替 — 组件经注册表工厂创建, 几何以锚点关系式钉 doc 拓扑值)
+// ===========================================================================
+
+use crate::overlays::minihud::MinimalHudContext;
+use crate::widgets::{build_page_layout, BuiltPageLayout, FactoryCtx, PageBuildInputs};
+use vm_core::config::config_api::HudSettingsSnapshot;
+use vm_core::config::json_model::{ComponentDoc, PageDoc};
+
+fn page_font_path() -> std::path::PathBuf {
+    std::path::Path::new("../../../fonts").join("sarasa-mono-sc-bold.ttf")
+}
+
+/// 出厂页 (minihud-default)
+fn factory_page() -> PageDoc {
+    vm_core::config::json_store::factory()
+        .pages
+        .iter()
+        .find(|d| d.id == "minihud-default")
+        .cloned()
+        .expect("出厂页 minihud-default 应存在")
+}
+
+/// 建树 settings 快照 (crosshairScale=113, 行开关全开 — cfg :default 同源;
+/// 建树几何只消费 crossScale 派生量, 开关族不影响 build)
+fn page_snap() -> HudSettingsSnapshot {
+    HudSettingsSnapshot {
+        num_font: "Sarasa Mono SC".into(),
+        crosshair_scale: 113,
+        crosshair_name: "软件渲染准星".into(),
+        display_crosshair: true,
+        draw_hud_text: true,
+        show_attitude_gauge: true,
+        enable_flap_angle_bar: true,
+        show_speed_bar: true,
+        draw_hud_mach: true,
+        show_hud_speed: true,
+        show_hud_aoa: true,
+        show_hud_altitude: true,
+        show_hud_energy: true,
+        show_hud_flaps: true,
+        show_hud_airbrake: true,
+        show_hud_gear: true,
+        show_hud_sep: true,
+        show_hud_g_load: true,
+        show_hud_maneuver_bar: true,
+        ..Default::default()
+    }
+}
+
+/// 建树助手 (lh=24, 画布显式传 — 对齐原 build 测试的 300x200/600x200 口径)
+fn build_page(
+    doc: &PageDoc,
+    visible_src: &dyn Fn(&str) -> Option<bool>,
+    canvas_w: i32,
+    canvas_h: i32,
+) -> BuiltPageLayout {
+    let ctx = MinimalHudContext::create(&page_snap(), 1.0, &page_font_path()).unwrap();
+    let fonts = Rc::new(ctx.fonts.clone());
+    let fctx = FactoryCtx { ctx: &ctx, fonts };
+    let inputs = PageBuildInputs {
+        doc,
+        fctx: &fctx,
+        visible_src,
+        canvas_w,
+        canvas_h,
+        line_height: 24.0,
+        debug: false,
     };
-    let built = build_mihud_layout(&MiniHudLayoutConfig::default(), parts, 300, 200, 24.0);
-    assert_eq!(MINIHUD_NODE_SPECS.len(), 11);
-    // DFS 前序: row 链循环 (L699-713) 先于右挂件 (L719-731), 故
-    // row2.children=[row3, attitude, compass] 挂载序 → row3 子树 (含
-    // row4 的 speedBar/throttle) 全部先于 attitude/compass; crosshair 根最后
+    build_page_layout(&inputs)
+}
+
+/// 出厂页全树: 11 组件 cell/节点全建, DFS 前序 = factory components 挂载序;
+/// 逐节点锚点关系式手算 (单位偏移 ×24 截断 + 锚点对齐 — 组件尺寸字体相关
+/// 不入字面量表, 关系式即 doc 拓扑值的 oracle)。
+#[test]
+fn page_layout_full_tree_topology_and_geometry() {
+    let doc = factory_page();
+    let built = build_page(&doc, &|_| Some(true), 600, 200);
+    assert_eq!(built.cells.len(), 11);
+    // DFS 前序: row 链 (row0→flap→row1..row4) 先于 row2 右挂件
+    // (attitude/compass), row4 子 (speedBar/throttle) 先于 attitude/compass
+    // (挂载序), crosshair 根最后
     assert_eq!(
         render_ids(&built.engine),
         [
-            "row0",
-            "flap",
-            "row1",
-            "row2",
-            "row3",
-            "row4",
-            "speedBar",
-            "throttle",
-            "attitude",
-            "compass",
-            "crosshair"
+            "row0", "flap", "row1", "row2", "row3", "row4", "speedBar", "throttle",
+            "attitude", "compass", "crosshair"
         ]
     );
-    // 逐节点 rect 手算 (单位偏移 ×24 后 (int) 截断, 锚点公式见各注释)
-    let expect: [(&str, Rectangle); 11] = [
-        ("row0", Rectangle::with_bounds(50, 84, 40, 20)), // (2.1,3.5)*24 → (50.4,84)→(50,84)
-        ("flap", Rectangle::with_bounds(50, 62, 40, 20)), // row0 顶 (50,84)+(-0.1*24=-2.4→-2), 底锚上移 h=20
-        ("row1", Rectangle::with_bounds(50, 106, 40, 20)), // row0 底 (50,104)+2.4→2
-        ("row2", Rectangle::with_bounds(50, 128, 40, 20)), // row1 底 (50,126)+2
-        ("attitude", Rectangle::with_bounds(50, 160, 40, 20)), // row2 右下 (90,148)+0.5*24=12, TOP_RIGHT: x=90-40
-        ("compass", Rectangle::with_bounds(50, 150, 40, 20)),  // (90,148)+2.4→2, TOP_RIGHT
-        ("row3", Rectangle::with_bounds(50, 150, 40, 20)),     // row2 底 (50,148)+2
-        ("row4", Rectangle::with_bounds(50, 172, 40, 20)),     // row3 底 (50,170)+2
-        ("speedBar", Rectangle::with_bounds(3, 172, 40, 20)), // row4 左下 (50,192)+(-0.3*24=-7.2→-7), BOTTOM_RIGHT: (43-40,192-20)
-        ("throttle", Rectangle::with_bounds(3, 172, 40, 20)), // 同 speedBar (Java 同位互斥可见)
-        ("crosshair", Rectangle::with_bounds(560, 90, 40, 20)), // 画布 600x200 MIDDLE_RIGHT (600,100), 自锚减半宽/半高
-    ];
-    for (id, rect) in expect {
+    let rect = |id: &str| built.engine.get_node(id).unwrap().get_pixel_rect();
+    // row0 根: TopLeft/TopLeft 于 canvas(0,0) + (2.1,3.5)*24 = (50.4,84)→(50,84)
+    assert_eq!((rect("row0").x, rect("row0").y), (50, 84));
+    // flap: BottomLeft 挂 row0 TopLeft + (0,-0.1)*24=-2.4→-2 → 底贴 row0 顶上 2px
+    assert_eq!(rect("flap").x, rect("row0").x);
+    assert_eq!(rect("flap").y + rect("flap").height, rect("row0").y - 2);
+    // row 链: TopLeft 挂前一行 BottomLeft + (0,0.1)*24=2.4→2
+    for (prev, next) in [("row0", "row1"), ("row1", "row2"), ("row2", "row3"), ("row3", "row4")] {
         assert_eq!(
-            built.engine.get_node(id).unwrap().get_pixel_rect(),
-            rect,
-            "{id}"
+            rect(next).y - (rect(prev).y + rect(prev).height),
+            2,
+            "{next} 链间距 0.1×24 截断"
         );
     }
-    // crosshair 为根 (父=None)
-    assert!(built
-        .engine
-        .get_node("crosshair")
-        .unwrap()
-        .get_parent()
-        .is_none());
-    // 内容包围盒 (3,62)~(600,192) → padding 45 自动尺寸
-    assert_eq!(
-        built.sizing,
-        Some(AutoSizingPlan {
-            new_width: 687,
-            new_height: 220,
-            offset_x: 42,
-            offset_y: -17
-        })
-    );
-}
-
-/// displayCrosshair=false: 画布不翻倍, crosshair 节点不建 (cfg 驱动分支)。
-#[test]
-fn build_without_crosshair() {
-    let parts = MiniHudParts {
-        rows: (0..5).map(|_| vis(40, 20)).collect(),
-        flap_angle_bar: vis(40, 20),
-        speed_ratio_bar: vis(40, 20),
-        throttle_bar: vis(40, 20),
-        attitude_indicator_gauge: vis(40, 20),
-        compass_gauge: vis(40, 20),
-        crosshair_gauge: None,
-    };
-    let cfg = MiniHudLayoutConfig {
-        display_crosshair: false,
-        ..Default::default()
-    };
-    let built = build_mihud_layout(&cfg, parts, 300, 200, 24.0);
-    assert!(built.engine.get_node("crosshair").is_none());
-    assert_eq!(
-        built.engine.get_node("row0").unwrap().get_pixel_rect(),
-        Rectangle::with_bounds(50, 84, 40, 20)
-    );
-    // maxX 回落到 90 (attitude/compass/文本列右缘), 包围盒 (3,62,87,130)
-    assert_eq!(
-        built.sizing,
-        Some(AutoSizingPlan {
-            new_width: 177,
-            new_height: 220,
-            offset_x: 42,
-            offset_y: -17
-        })
-    );
-}
-
-/// 行数不足的退化拓扑: rows=2 → 无 row2/row4;
-/// attitude/compass 不建 (Java if(row2!=null)); speedBar/throttle 的父
-/// row4 缺席 → setParent(null) 退化为根 (Java setParent 可空参数)。
-#[test]
-fn build_short_rows_variant() {
-    let parts = MiniHudParts {
-        rows: vec![vis(40, 20), vis(40, 20)],
-        flap_angle_bar: vis(40, 20),
-        speed_ratio_bar: vis(40, 20),
-        throttle_bar: vis(40, 20),
-        attitude_indicator_gauge: vis(40, 20),
-        compass_gauge: vis(40, 20),
-        crosshair_gauge: None,
-    };
-    let cfg = MiniHudLayoutConfig {
-        display_crosshair: false,
-        ..Default::default()
-    };
-    let built = build_mihud_layout(&cfg, parts, 300, 200, 24.0);
-    assert_eq!(
-        render_ids(&built.engine),
-        ["row0", "flap", "row1", "speedBar", "throttle"]
-    );
-    for id in ["row2", "row3", "row4", "attitude", "compass", "crosshair"] {
-        assert!(built.engine.get_node(id).is_none(), "{id}");
+    // attitude/compass: TopRight 挂 row2 BottomRight + (0,0.5)/ (0,0.1) ×24
+    let row2_bottom = rect("row2").y + rect("row2").height;
+    let row2_right = rect("row2").x + rect("row2").width;
+    assert_eq!(rect("attitude").y - row2_bottom, 12); // 0.5*24
+    assert_eq!(rect("attitude").x + rect("attitude").width, row2_right);
+    assert_eq!(rect("compass").y - row2_bottom, 2); // 0.1*24=2.4→2
+    assert_eq!(rect("compass").x + rect("compass").width, row2_right);
+    // speedBar/throttle: BottomRight 挂 row4 BottomLeft + (-0.3,0)*24=-7.2→-7
+    let row4_bottom = rect("row4").y + rect("row4").height;
+    for id in ["speedBar", "throttle"] {
+        assert_eq!(rect(id).y + rect(id).height, row4_bottom, "{id} 底贴 row4 底");
+        assert_eq!(rect(id).x + rect(id).width, rect("row4").x - 7, "{id} 左让 7px");
     }
-    // speedBar 根: 父矩形退化为 canvasRect, BottomLeft 锚 (0,200) + (-7.2→-7, 0)
-    // → BOTTOM_RIGHT 自锚 (0-7-40, 200-20)
-    assert_eq!(
-        built.engine.get_node("speedBar").unwrap().get_pixel_rect(),
-        Rectangle::with_bounds(-47, 180, 40, 20)
-    );
-    // 包围盒 (-47,62)~(90,200) → (-47,62,137,138)
-    assert_eq!(
-        built.sizing,
-        Some(AutoSizingPlan {
-            new_width: 227,
-            new_height: 228,
-            offset_x: 92,
-            offset_y: -17
-        })
-    );
+    // crosshair 独立根: MiddleRight 自/父锚 → 右缘贴画布, 垂直居中
+    assert!(built.engine.get_node("crosshair").unwrap().get_parent().is_none());
+    assert!(built.engine.get_node("row0").unwrap().get_parent().is_none());
+    let ch = rect("crosshair");
+    assert_eq!(ch.x + ch.width, 600);
+    assert_eq!(ch.y + ch.height / 2, 100);
+    // padding 45 (doc.padding) 进自动尺寸: 窗口 = 包围盒 + 2×45, 偏移推到 45
+    let bounds = built.engine.get_content_bounds();
+    let plan = built.sizing.unwrap();
+    assert_eq!(plan.new_width, bounds.width + 90);
+    assert_eq!(plan.new_height, bounds.height + 90);
+    assert_eq!((plan.offset_x, plan.offset_y), (45 - bounds.x, 45 - bounds.y));
 }
 
-/// 空 rows 守卫 (Java components.isEmpty() 裸 return): 空引擎, 不自动尺寸
-/// (sizing=None, 窗口/renderOffset 保持宿主原状), 无任何节点。
+/// displayCrosshair=false (visibleWhen 求值 false): crosshair 节点与 cell
+/// 都不建 (W2 建树门控); 求值源缺键 (None) 同样不建 — Java getBool 字面
+/// 兜底 false 语义 (整树缺失时关准星)。
 #[test]
-fn build_empty_rows_returns_empty_engine() {
-    let parts = MiniHudParts {
-        rows: Vec::new(),
-        flap_angle_bar: vis(10, 10),
-        speed_ratio_bar: vis(10, 10),
-        throttle_bar: vis(10, 10),
-        attitude_indicator_gauge: vis(10, 10),
-        compass_gauge: vis(10, 10),
-        crosshair_gauge: Some(vis(10, 10)),
+fn page_layout_without_crosshair() {
+    let doc = factory_page();
+    let built = build_page(&doc, &|k| (k == "displayCrosshair").then_some(false), 300, 200);
+    assert_eq!(built.cells.len(), 10);
+    assert!(!built.cells.contains_key("crosshair"));
+    assert!(built.engine.get_node("crosshair").is_none());
+    // 行链几何不受裁剪影响
+    let row0 = built.engine.get_node("row0").unwrap().get_pixel_rect();
+    assert_eq!((row0.x, row0.y), (50, 84));
+    // padding 语义同全树
+    let bounds = built.engine.get_content_bounds();
+    let plan = built.sizing.unwrap();
+    assert_eq!(plan.new_width, bounds.width + 90);
+    assert_eq!(plan.offset_x, 45 - bounds.x);
+
+    // 求值源缺键 → unwrap_or(false) 不建 (原 MiniHudLayoutConfig::from_bool_source
+    // 两层缺省的字面兜底分支)
+    let built2 = build_page(&doc, &|_| None, 300, 200);
+    assert_eq!(built2.cells.len(), 10);
+    assert!(built2.engine.get_node("crosshair").is_none());
+}
+
+/// 父组件缺席 (用户编辑删父) → 子组件退化根, 不无故消失 (W2 宽容裁决;
+/// 原 build 的 speedBar/throttle setParent(null) 语义泛化到全部组件)。
+#[test]
+fn page_layout_missing_parent_degrades_to_root() {
+    let mut doc = factory_page();
+    doc.components.retain(|c| c.id != "row4"); // 删父, speedBar/throttle 悬空
+    let built = build_page(&doc, &|_| Some(true), 300, 200);
+    // 悬空子仍在 (cells/节点), 退化根
+    for id in ["speedBar", "throttle"] {
+        assert!(built.cells.contains_key(id), "{id} 不应因删父消失");
+        assert!(
+            built.engine.get_node(id).unwrap().get_parent().is_none(),
+            "{id} 父缺席应退化根"
+        );
+    }
+    // 根锚: BottomLeft 于 canvas (0,200) + (-0.3*24=-7.2→-7, 0),
+    // 自锚 BottomRight → 底贴画布底, 右缘 = -7
+    for id in ["speedBar", "throttle"] {
+        let r = built.engine.get_node(id).unwrap().get_pixel_rect();
+        assert_eq!(r.y + r.height, 200, "{id} 底贴画布底");
+        assert_eq!(r.x + r.width, -7, "{id} 右缘 = 0-7");
+    }
+    // row 链不受影响 (row3 的父 row2 在场)
+    assert!(built.engine.get_node("row3").unwrap().get_parent().is_some());
+}
+
+/// 硬开关 enabled=false 与未注册类型: 组件不建 (warn 跳过, 出厂页不可达分支)。
+#[test]
+fn page_layout_skips_disabled_and_unknown_types() {
+    let doc = PageDoc {
+        id: "t".into(),
+        padding: 45,
+        components: vec![
+            ComponentDoc {
+                id: "off".into(),
+                r#type: "core.minihud.row0".into(),
+                enabled: false, // 硬开关关 → 不建
+                ..Default::default()
+            },
+            ComponentDoc {
+                id: "on".into(),
+                r#type: "core.minihud.row1".into(),
+                enabled: true,
+                ..Default::default()
+            },
+            ComponentDoc {
+                id: "bogus".into(),
+                r#type: "core.nope.ghost".into(), // 未注册 → 工厂失败跳过
+                ..Default::default()
+            },
+        ],
+        ..Default::default()
     };
-    let built = build_mihud_layout(&MiniHudLayoutConfig::default(), parts, 300, 200, 24.0);
+    let built = build_page(&doc, &|_| None, 300, 200);
+    assert_eq!(built.cells.len(), 1);
+    assert!(built.cells.contains_key("on"));
+    for id in ["off", "bogus"] {
+        assert!(!built.cells.contains_key(id), "{id} 应跳过");
+        assert!(built.engine.get_node(id).is_none());
+    }
+}
+
+/// 空 components: 空引擎, 不自动尺寸 (sizing=None, 窗口/renderOffset 保持
+/// 宿主原状) — 原 Java components.isEmpty() 裸 return 分支。
+#[test]
+fn page_layout_empty_components_no_sizing() {
+    let doc = PageDoc::default();
+    let built = build_page(&doc, &|_| Some(true), 300, 200);
+    assert!(built.cells.is_empty());
     assert!(built.engine.get_node("row0").is_none());
-    assert!(built.engine.get_node("flap").is_none());
     assert!(built.sizing.is_none());
 }

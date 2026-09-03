@@ -47,6 +47,8 @@ pub struct OverlayInputs {
     pub dpi_scale: f64,
     /// MiniHUD 全量设置快照
     pub hud: HudSettingsSnapshot,
+    /// HUD 页面清单 (PageDoc 驱动建树; 主线程出厂 ⊕ delta 后快照)
+    pub pages: std::sync::Arc<Vec<vm_core::config::json_model::PageDoc>>,
     /// 引擎控制面板字号增量 (getOverlaySettings("引擎控制").get_font_size_add)
     pub font_add_engine: i32,
     /// 动力信息字号增量 + 列数 (getOverlaySettings("动力信息"))
@@ -120,6 +122,7 @@ impl OverlayInputs {
         OverlayInputs {
             dpi_scale: env.dpi.get_scale(),
             hud: HudSettingsSnapshot::build(&config.get_hud_settings()),
+            pages: config.pages(),
             font_add_engine: engine.get_font_size_add(),
             font_add_power: power.get_font_size_add(),
             power_columns: power.get_int("hudColumns", 1),
@@ -193,6 +196,8 @@ impl From<&OverlayInputs> for vm_overlay::platform::reinit::ReinitParams {
                 show_direction: i.attitude_show_direction,
                 show_aoa_limits: i.attitude_show_aoa_limits,
             },
+            pages: std::sync::Arc::clone(&i.pages),
+
             hud: i.hud.clone(),
         }
     }

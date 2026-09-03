@@ -850,6 +850,7 @@ fn synthesize_factory_plus_delta_upgrade_semantics() {
             panel("A", vec![row("x", "SWITCH", Some("k1"), Some(ConfigValue::Bool(true)))]),
             panel("B", vec![row("y", "SWITCH", Some("k2"), Some(ConfigValue::Bool(true)))]),
         ],
+        pages: Vec::new(), // 本测试只消费 panels 合成面
     };
     let mut delta = UserDelta::default();
     // 用户只改了 A.k1 (模拟老版本时代的 delta)

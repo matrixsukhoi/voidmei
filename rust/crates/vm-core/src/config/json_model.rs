@@ -203,22 +203,116 @@ impl GroupConfig {
 }
 
 // =====================================================================
-// 出厂文件顶层
+// HUD 页面 (画布即窗口; 出厂页与用户页同构)
 // =====================================================================
 
-/// factory_default.json 顶层 (用户 delta 见 json_store::UserDelta)
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+/// 页面级字体语义 (坐标 = line_height 倍数的换算基)
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
-pub struct AppConfig {
-    pub version: u32,
-    pub panels: Vec<GroupConfig>,
+pub struct PageFont {
+    pub family: String,
+    /// 字号微调 (cfg fontSize 行同源)
+    pub size_add: i32,
+    /// 整页缩放源键 ("crosshairScale"; 缺省 100 = 不缩放)
+    pub scale_source: String,
 }
 
+/// 一个组件实例 (页面 components 数组序 = 拓扑建树序 = z 序)
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct ComponentDoc {
+    /// 页内唯一 id (= 布局节点 id = 链式挂载的父引用键)
+    pub id: String,
+    /// 注册表类型名 ("core.minihud.row0" / "core.fields.grid" …)
+    #[serde(rename = "type")]
+    pub r#type: String,
+    /// 坐标 (line_height 倍数; 相对父锚点偏移)
+    pub pos: [f64; 2],
+    /// [self, parent] 锚点名 ("TopLeft"…; 缺省 ["TopLeft","TopLeft"])
+    pub anchor: [String; 2],
+    /// 父组件 id (None = 根, 挂页面虚拟画布)
+    pub parent: Option<String>,
+    /// 显示条件 (中缀; 求值变量 = 配置 bool 快照 → 遥测短名)
+    pub visible_when: Option<String>,
+    /// 硬开关 (false = 组件不建)
+    pub enabled: bool,
+    /// 类型静态属性 (注册表 props_schema 校验)
+    pub props: serde_json::Value,
+}
+
+impl Default for ComponentDoc {
+    fn default() -> Self {
+        ComponentDoc {
+            id: String::new(),
+            r#type: String::new(),
+            pos: [0.0, 0.0],
+            anchor: [String::new(), String::new()],
+            parent: None,
+            visible_when: None,
+            enabled: true,
+            props: serde_json::Value::Null,
+        }
+    }
+}
+
+/// 一个 HUD 页面 (= 一个 overlay 窗口)
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct PageDoc {
+    /// 稳定 id (= host entry id = 位置存档键)
+    pub id: String,
+    pub name: String,
+    /// 激活开关键 (None = 恒显调试页)
+    pub switch_key: Option<String>,
+    /// 归一化窗口位置 [x, y] (拖拽存档写回)
+    pub pos: Option<[f64; 2]>,
+    /// 包围盒 padding (窗口 = 内容包围盒 + 2×padding)
+    pub padding: i32,
+    pub font: PageFont,
+    /// 出厂页内容版本戳 (升级提示比对; 用户页恒 0)
+    pub content_version: u32,
+    pub components: Vec<ComponentDoc>,
+}
+
+#[allow(clippy::derivable_impls)] // version=1 语义
 impl Default for AppConfig {
     fn default() -> Self {
         AppConfig {
             version: 1,
             panels: Vec::new(),
+            pages: Vec::new(),
         }
     }
 }
+
+impl Default for PageDoc {
+    fn default() -> Self {
+        PageDoc {
+            id: String::new(),
+            name: String::new(),
+            switch_key: None,
+            pos: None,
+            padding: 45,
+            font: PageFont::default(),
+            content_version: 0,
+            components: Vec::new(),
+        }
+    }
+}
+
+// =====================================================================
+// 出厂文件顶层
+// =====================================================================
+
+/// factory_default.json 顶层 (用户 delta 见 json_store::UserDelta)
+/// (Default 手写: version 缺省 1 非零值, 不可派生)
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct AppConfig {
+    pub version: u32,
+    pub panels: Vec<GroupConfig>,
+    /// HUD 出厂页面 (W2+: 逐 overlay 复刻; 旧 overlay 迁完前二者并存)
+    pub pages: Vec<PageDoc>,
+}
+
+

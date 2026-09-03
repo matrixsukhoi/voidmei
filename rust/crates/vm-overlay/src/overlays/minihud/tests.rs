@@ -1,13 +1,28 @@
 use super::*;
 use vm_core::base::event::event_payload::EventPayload;
 use vm_core::base::format::fmt_f;
-use vm_core::config::config_api::overlay_settings::OverlaySettings;
-use vm_core::derived::hud_data::Builder;
+use vm_core::config::config_api::OverlaySettings;
+use vm_core::derived::hud_data::{Builder, HUDData};
+use vm_core::game_api::parser::State;
+
+use crate::overlays::bars::{FlapAngleBar, LinearGauge};
+use crate::overlays::rows::{HUDAkbRow, HUDEnergyRow, HUDMechanizationRow, HUDTextRow};
+use crate::render::canvas::PixCanvas;
 
 const FONTS: &str = "../../../fonts";
 
 fn font_path() -> PathBuf {
     Path::new(FONTS).join("sarasa-mono-sc-bold.ttf")
+}
+
+/// 出厂页 (factory_default.json 的 minihud-default; init/reinit 的 doc 实参)
+fn doc() -> vm_core::config::json_model::PageDoc {
+    vm_core::config::json_store::factory()
+        .pages
+        .iter()
+        .find(|d| d.id == "minihud-default")
+        .cloned()
+        .expect("出厂页 minihud-default 应存在")
 }
 
 // ===== 测试设置 (cfg :default 快照, FakeHud 同款形态) =====
@@ -205,15 +220,15 @@ impl HUDSettings for TestSettings {
 }
 
 fn overlay() -> MiniHudOverlay {
-    MiniHudOverlay::init(false, 100, &TestSettings::default(), 1.0, &font_path()).unwrap()
-}
-
-/// 组件内件读取助手 (测试断言用; Ref 借用源自 cell 参数)
-fn inner_of<'a>(
-    _o: &MiniHudOverlay,
-    cell: &'a CompCell,
-) -> std::cell::Ref<'a, MiniHudComponentInner> {
-    std::cell::Ref::map(cell.0.borrow(), |c| &c.inner)
+    MiniHudOverlay::init(
+        false,
+        100,
+        &TestSettings::default(),
+        1.0,
+        &font_path(),
+        &doc(),
+    )
+    .unwrap()
 }
 
 // ===== java_f / pad_width 基线 =====
@@ -340,7 +355,7 @@ fn refresh_templates_preview_strings() {
     s.sep_label_disabled = true;
     s.radar_alt = true;
     s.enable_flap_bar = false;
-    let o2 = MiniHudOverlay::init(false, 100, &s, 1.0, &font_path()).unwrap();
+    let o2 = MiniHudOverlay::init(false, 100, &s, 1.0, &font_path(), &doc()).unwrap();
     assert_eq!(o2.lines[0], "  360", "%5s 无前缀");
     assert_eq!(o2.lines[1], "R 1024", "雷达: R + %5s");
     assert_eq!(o2.lines[2], "F100BRKGEAR");
@@ -349,64 +364,27 @@ fn refresh_templates_preview_strings() {
 
 // ===== 组件清单与布局 =====
 
-/// initComponentsLayout 的 components 添加序 (Java L529-582) 与节点集
+/// 出厂页建树: 11 组件 cell 全在 (displayCrosshair=true) + 引擎节点集
+/// (原 initComponentsLayout 分发序断言 — W2 后分发面 = cells 表)
 #[test]
 fn components_order_and_nodes() {
     let o = overlay();
-    // 分发序 = [flap, speedBar, compass, attitude, crosshair, row0..4, throttle]
-    assert_eq!(o.components.len(), 11);
-    let name = |c: &CompCell| match &*inner_of(&o, c) {
-        MiniHudComponentInner::Row0(_) => "row0",
-        MiniHudComponentInner::Row1(_) => "row1",
-        MiniHudComponentInner::Row2(_) => "row2",
-        MiniHudComponentInner::Row3(_) => "row3",
-        MiniHudComponentInner::Row4(_) => "row4",
-        MiniHudComponentInner::FlapBar(_) => "flap",
-        MiniHudComponentInner::SpeedRatioBar(_) => "speedBar",
-        MiniHudComponentInner::ThrottleBar(_) => "throttle",
-        MiniHudComponentInner::Attitude(_) => "attitude",
-        MiniHudComponentInner::Compass(_) => "compass",
-        MiniHudComponentInner::Crosshair(_) => "crosshair",
-    };
-    let ids: Vec<&str> = o.components.iter().map(name).collect();
-    assert_eq!(
-        ids,
-        vec![
-            "flap",
-            "speedBar",
-            "compass",
-            "attitude",
-            "crosshair",
-            "row0",
-            "row1",
-            "row2",
-            "row3",
-            "row4",
-            "throttle"
-        ]
-    );
-    // 节点集 (displayCrosshair=true 全建, Java initModernLayout 拓扑)
-    for id in [
-        "row0",
-        "row1",
-        "row2",
-        "row3",
-        "row4",
-        "flap",
-        "attitude",
-        "compass",
-        "speedBar",
-        "throttle",
-        "crosshair",
-    ] {
+    let ids = [
+        "row0", "row1", "row2", "row3", "row4", "flap", "attitude", "compass", "speedBar",
+        "throttle", "crosshair",
+    ];
+    assert_eq!(o.cells.len(), 11);
+    for id in ids {
+        assert!(o.cells.contains_key(id), "cell {id} 应存在");
         assert!(o.layout.engine.get_node(id).is_some(), "节点 {id} 应存在");
     }
-    // displayCrosshair=false: crosshair 节点不建, 组件仍在分发清单
+    // displayCrosshair=false: visibleWhen 不满足 → crosshair 节点和 cell 都不建
     let mut s = TestSettings::default();
     s.display_crosshair = false;
-    let o2 = MiniHudOverlay::init(false, 100, &s, 1.0, &font_path()).unwrap();
+    let o2 = MiniHudOverlay::init(false, 100, &s, 1.0, &font_path(), &doc()).unwrap();
+    assert_eq!(o2.cells.len(), 10, "W2: 建树门控 → crosshair cell 不建");
+    assert!(!o2.cells.contains_key("crosshair"), "crosshair cell 不建");
     assert!(o2.layout.engine.get_node("crosshair").is_none());
-    assert_eq!(o2.components.len(), 11, "Java 组件恒入清单 (L545-546)");
 }
 
 /// updateComponents 可见性开关族 (Java L309-373)
@@ -414,97 +392,107 @@ fn components_order_and_nodes() {
 fn visibility_switches_from_settings() {
     let mut s = TestSettings::default();
     s.show_speed_bar = false; // 油门条/速度条互斥 (手册 §9.1)
-    let o = MiniHudOverlay::init(false, 100, &s, 1.0, &font_path()).unwrap();
-    assert!(o.throttle_bar.is_visible());
-    assert!(!o.speed_ratio_bar.is_visible());
+    let o = MiniHudOverlay::init(false, 100, &s, 1.0, &font_path(), &doc()).unwrap();
+    assert!(o.cells.get("throttle").unwrap().is_visible());
+    assert!(!o.cells.get("speedBar").unwrap().is_visible());
 
     let mut s2 = TestSettings::default();
     s2.show_attitude = false; // 罗盘/姿态互斥 (Java L316-322)
-    let o2 = MiniHudOverlay::init(false, 100, &s2, 1.0, &font_path()).unwrap();
-    assert!(o2.compass_gauge.is_visible());
-    assert!(!o2.attitude_indicator_gauge.is_visible());
+    let o2 = MiniHudOverlay::init(false, 100, &s2, 1.0, &font_path(), &doc()).unwrap();
+    assert!(o2.cells.get("compass").unwrap().is_visible());
+    assert!(!o2.cells.get("attitude").unwrap().is_visible());
 
     let mut s3 = TestSettings::default();
     s3.draw_hud_text = false; // master 总闸
-    let o3 = MiniHudOverlay::init(false, 100, &s3, 1.0, &font_path()).unwrap();
-    assert!(!o3.flap_angle_bar.is_visible());
-    assert!(!o3.hud_rows[0].is_visible());
-    assert!(!o3.hud_rows[4].is_visible());
+    let o3 = MiniHudOverlay::init(false, 100, &s3, 1.0, &font_path(), &doc()).unwrap();
+    assert!(!o3.cells.get("flap").unwrap().is_visible());
+    assert!(!o3.cells.get("row0").unwrap().is_visible());
+    assert!(!o3.cells.get("row4").unwrap().is_visible());
     assert!(
-        o3.crosshair_gauge.is_visible(),
+        o3.cells.get("crosshair").unwrap().is_visible(),
         "准星不受 drawHUDtext 管 (L323-324)"
     );
 
     // 行级独立开关: row0 只开 AoA (L342-346)
     let mut s4 = TestSettings::default();
     s4.show_speed = false;
-    let o4 = MiniHudOverlay::init(false, 100, &s4, 1.0, &font_path()).unwrap();
-    assert!(o4.hud_rows[0].is_visible(), "row0Speed || row0Aoa");
-    let (sp, ao) = match &*inner_of(&o4, &o4.hud_rows[0]) {
-        MiniHudComponentInner::Row0(r) => (r.show_speed, r.show_aoa),
-        _ => unreachable!(),
-    };
-    assert!(!sp);
-    assert!(ao);
+    let o4 = MiniHudOverlay::init(false, 100, &s4, 1.0, &font_path(), &doc()).unwrap();
+    assert!(o4.cells.get("row0").unwrap().is_visible(), "row0Speed || row0Aoa");
+    let r = o4.cells.get("row0").unwrap().downcast_ref::<HUDAkbRow>().unwrap();
+    assert!(!r.show_speed);
+    assert!(r.show_aoa);
 
     // row2 行级 = 三开关之或 (全关 → 行隐藏); 分段子开关下发 (Java L360-362)
     let mut s5 = TestSettings::default();
     s5.show_flaps = false;
     s5.show_brk = false;
     s5.show_gear = false;
-    let o5 = MiniHudOverlay::init(false, 100, &s5, 1.0, &font_path()).unwrap();
-    assert!(!o5.hud_rows[2].is_visible());
-    let (sf, sb, sg) = match &*inner_of(&o5, &o5.hud_rows[2]) {
-        MiniHudComponentInner::Row2(r) => (r.show_flaps, r.show_airbrake, r.show_gear),
-        _ => unreachable!(),
-    };
-    assert!(!(sf || sb || sg), "三子开关全关");
+    let o5 = MiniHudOverlay::init(false, 100, &s5, 1.0, &font_path(), &doc()).unwrap();
+    assert!(!o5.cells.get("row2").unwrap().is_visible());
+    let r5 = o5
+        .cells
+        .get("row2")
+        .unwrap()
+        .downcast_ref::<HUDMechanizationRow>()
+        .unwrap();
+    assert!(
+        !(r5.show_flaps || r5.show_airbrake || r5.show_gear),
+        "三子开关全关"
+    );
 
     // 单开襟翼: 行可见, 减速板/起落架子开关关 (分段绘制效态归 rows.rs 测试)
     let mut s6 = TestSettings::default();
     s6.show_brk = false;
     s6.show_gear = false;
-    let o6 = MiniHudOverlay::init(false, 100, &s6, 1.0, &font_path()).unwrap();
-    assert!(o6.hud_rows[2].is_visible());
-    let (sf, sb, sg) = match &*inner_of(&o6, &o6.hud_rows[2]) {
-        MiniHudComponentInner::Row2(r) => (r.show_flaps, r.show_airbrake, r.show_gear),
-        _ => unreachable!(),
-    };
-    assert!((sf, sb, sg) == (true, false, false));
+    let o6 = MiniHudOverlay::init(false, 100, &s6, 1.0, &font_path(), &doc()).unwrap();
+    assert!(o6.cells.get("row2").unwrap().is_visible());
+    let r6 = o6
+        .cells
+        .get("row2")
+        .unwrap()
+        .downcast_ref::<HUDMechanizationRow>()
+        .unwrap();
+    assert!((r6.show_flaps, r6.show_airbrake, r6.show_gear) == (true, false, false));
 }
 
 /// 预览模式 (init service_present=false) 行 0/1 吃 lines 预览串; 油门条 0
 #[test]
 fn preview_rows_fed_from_lines() {
     let o = overlay();
-    let (txt, aoa) = match &*inner_of(&o, &o.hud_rows[0]) {
-        MiniHudComponentInner::Row0(r) => (r.base.text.clone(), r.aoa_text.clone()),
-        _ => unreachable!(),
-    };
-    assert_eq!(txt, "M 0.85");
-    assert_eq!(aoa, "α 20");
-    let (txt, en) = match &*inner_of(&o, &o.hud_rows[1]) {
-        MiniHudComponentInner::Row1(r) => (r.base.text.clone(), r.energy_text.clone()),
-        _ => unreachable!(),
-    };
-    assert_eq!(txt, "ALT  1024");
-    assert_eq!(en, "E114514");
+    let r0 = o.cells.get("row0").unwrap().downcast_ref::<HUDAkbRow>().unwrap();
+    assert_eq!(r0.base.text, "M 0.85");
+    assert_eq!(r0.aoa_text, "α 20");
+    let r1 = o
+        .cells
+        .get("row1")
+        .unwrap()
+        .downcast_ref::<HUDEnergyRow>()
+        .unwrap();
+    assert_eq!(r1.base.text, "ALT  1024");
+    assert_eq!(r1.energy_text, "E114514");
     // Row2 预览: update("    BRKGEAR") 合并串解析回三段 (HUDMechanizationRow.java:48-61;
     // enableFlapAngleBar=true → 襟翼段 4 空格 → 空)
-    let (fw, ab, g) = match &*inner_of(&o, &o.hud_rows[2]) {
-        MiniHudComponentInner::Row2(r) => (
-            r.flaps_wing_str.clone(),
-            r.airbrake_str.clone(),
-            r.gear_str.clone(),
+    let r2 = o
+        .cells
+        .get("row2")
+        .unwrap()
+        .downcast_ref::<HUDMechanizationRow>()
+        .unwrap();
+    assert_eq!(
+        (
+            r2.flaps_wing_str.as_str(),
+            r2.airbrake_str.as_str(),
+            r2.gear_str.as_str()
         ),
-        _ => unreachable!(),
-    };
-    assert_eq!((fw.as_str(), ab.as_str(), g.as_str()), ("", "BRK", "GEA"));
-    let thr = match &*inner_of(&o, &o.throttle_bar) {
-        MiniHudComponentInner::ThrottleBar(t) => t.display_value.clone(),
-        _ => unreachable!(),
-    };
-    assert_eq!(thr, "  0", "预览无 service → throttleValue=0, %3d");
+        ("", "BRK", "GEA")
+    );
+    let thr = o
+        .cells
+        .get("throttle")
+        .unwrap()
+        .downcast_ref::<LinearGauge>()
+        .unwrap();
+    assert_eq!(thr.display_value, "  0", "预览无 service → throttleValue=0, %3d");
 }
 
 // ===== 事件驱动更新 =====
@@ -536,22 +524,30 @@ fn sample_data() -> HUDData {
 }
 
 /// W-B 事件瘦身后事件不再携带 HUDData (update_from_event 恒现场 calculate),
-/// 手造 HUDData 的分发链以直调分发段 (组件 on_data_update + legacy 桥 + blink
-/// + 油门条, 同 update_from_event 尾段) 覆盖, 断言原样保留
+/// 手造 HUDData 的分发链以直调分发段 (组件 on_data_update + 全局状态 +
+/// maneuver 会话量, 同 update_from_event 尾段) 覆盖, 断言原样保留
 fn dispatch_data(o: &mut MiniHudOverlay, data: &HUDData, fatal: bool) {
-    for comp in &o.components {
-        comp.0.borrow_mut().on_data_update(data);
+    let env = UpdateEnv {
+        data,
+        maneuver_len: o.maneuver_index_len,
+        maneuver_ticks: o.tick_scale,
+    };
+    for cell in o.cells.values() {
+        cell.on_data_update(&env);
     }
     o.warn_vne = data.warn_vne;
     o.warn_rh = data.warn_altitude;
     o.warning.set_blink_x(fatal);
-    if o.hud_rows.len() >= 5 {
-        o.update_legacy_components(data);
-    }
-    let mut c = o.throttle_bar.0.borrow_mut();
-    if let MiniHudComponentInner::ThrottleBar(t) = &mut c.inner {
-        t.update(data.throttle, &fmt_d(data.throttle, 3));
-    }
+    // maneuver 会话量 (update_from_event 尾段 — 更新在分发后, Row4 用上一帧 len)
+    o.maneuver_index = data.maneuver_index;
+    let right_draw = o.ctx.right_draw;
+    o.maneuver_index_len = java_round_long_narrowed(
+        data.maneuver_index / MANEUVER_FULL_SCALE * right_draw as f64,
+    );
+    o.tick_scale = TickScale {
+        ticks: MANEUVER_TICK_STEPS
+            .map(|step| java_round_long_narrowed(step / MANEUVER_FULL_SCALE * right_draw as f64)),
+    };
 }
 
 /// updateFromEvent: HUDData 消费 + len 族 + 布尔状态 + blink (L433-468)
@@ -561,64 +557,61 @@ fn update_from_event_dispatches() {
     let data = sample_data();
     dispatch_data(&mut o, &data, true);
 
-    let (txt, warn, aoa, aoa_y) = match &*inner_of(&o, &o.hud_rows[0]) {
-        MiniHudComponentInner::Row0(r) => (
-            r.base.text.clone(),
-            r.base.is_warning,
-            r.aoa_text.clone(),
-            r.aoa_y,
-        ),
-        _ => unreachable!(),
-    };
-    assert_eq!(txt, "M0.72");
-    assert!(warn, "warnVne → 主文字警告态");
-    assert_eq!(aoa, "14");
+    let r0 = o.cells.get("row0").unwrap().downcast_ref::<HUDAkbRow>().unwrap();
+    assert_eq!(r0.base.text, "M0.72");
+    assert!(r0.base.is_warning, "warnVne → 主文字警告态");
+    assert_eq!(r0.aoa_text, "14");
     // aoaY = (int)(0.55 × (int)aoaLength=135) = 74, 未达 rightDraw=154 钳制线
-    assert_eq!(aoa_y, 74);
+    assert_eq!(r0.aoa_y, 74);
 
-    let (alt, en) = match &*inner_of(&o, &o.hud_rows[1]) {
-        MiniHudComponentInner::Row1(r) => (r.base.text.clone(), r.energy_text.clone()),
-        _ => unreachable!(),
-    };
-    assert_eq!(alt, "R 245");
+    let r1 = o
+        .cells
+        .get("row1")
+        .unwrap()
+        .downcast_ref::<HUDEnergyRow>()
+        .unwrap();
+    assert_eq!(r1.base.text, "R 245");
     assert!(o.warn_rh, "warnAltitude → warnRH");
-    assert_eq!(en, "E3200");
+    assert_eq!(r1.energy_text, "E3200");
 
-    let (fw, ab, g, mech_warn) = match &*inner_of(&o, &o.hud_rows[2]) {
-        MiniHudComponentInner::Row2(r) => (
-            r.flaps_wing_str.clone(),
-            r.airbrake_str.clone(),
-            r.gear_str.clone(),
-            r.base.is_warning,
-        ),
-        _ => unreachable!(),
-    };
+    let r2 = o
+        .cells
+        .get("row2")
+        .unwrap()
+        .downcast_ref::<HUDMechanizationRow>()
+        .unwrap();
     // HUDMechanizationRow.onDataUpdate 三段直取 (Java:66-68; base.text 不动)
     assert_eq!(
-        (fw.as_str(), ab.as_str(), g.as_str()),
+        (
+            r2.flaps_wing_str.as_str(),
+            r2.airbrake_str.as_str(),
+            r2.gear_str.as_str()
+        ),
         ("F100", "BRK", "GEA")
     );
-    assert!(mech_warn, "warnConfiguration");
+    assert!(r2.base.is_warning, "warnConfiguration");
 
-    let sep = match &*inner_of(&o, &o.hud_rows[3]) {
-        MiniHudComponentInner::Row3(r) => r.text.clone(),
-        _ => unreachable!(),
-    };
-    assert_eq!(sep, " 12");
+    let sep = o
+        .cells
+        .get("row3")
+        .unwrap()
+        .downcast_ref::<HUDTextRow>()
+        .unwrap();
+    assert_eq!(sep.text, " 12");
 
     // len 族: rightDraw=154 (updateLegacyComponents L487-495 手算)
     assert_eq!(o.maneuver_index_len, 114); // round(0.37/0.5*154)=round(113.96)
     assert_eq!(o.tick_scale.ticks, [31, 62, 92, 123, 154]); // 各档 round(档位/0.5*154)
 
-    let (disp, val, vc) = match &*inner_of(&o, &o.throttle_bar) {
-        MiniHudComponentInner::ThrottleBar(t) => {
-            (t.display_value.clone(), t.cur_value, t.value_color)
-        }
-        _ => unreachable!(),
-    };
-    assert_eq!((val, disp.as_str()), (87, " 87"), "%3d(87)");
+    let thr = o
+        .cells
+        .get("throttle")
+        .unwrap()
+        .downcast_ref::<LinearGauge>()
+        .unwrap();
+    assert_eq!((thr.cur_value, thr.display_value.as_str()), (87, " 87"), "%3d(87)");
     assert_eq!(
-        vc,
+        thr.value_color,
         Some([0, 255, 0, 255]),
         "onDataUpdate 注入 throttleColor"
     );
@@ -643,19 +636,10 @@ fn on_flight_data_throttle_gate() {
         alt: 5300.0,
         sep: -13.2,
     };
-    let st = vm_core::game_api::parser::State::new();
+    let st = State::new();
     let colors = HudColors::application_defaults();
     assert!(
-        o.on_flight_data(
-            1000,
-            Some(&st),
-            None,
-            &payload,
-            Some(&src),
-            None,
-            &s,
-            &colors
-        ),
+        o.on_flight_data(1000, Some(&st), None, &payload, Some(&src), None, &s, &colors),
         "首帧 (0→1000)"
     );
     assert!(
@@ -697,11 +681,13 @@ fn on_flight_data_throttle_gate() {
         ),
         "+100ms 放行"
     );
-    let txt = match &*inner_of(&o, &o.hud_rows[3]) {
-        MiniHudComponentInner::Row3(r) => r.text.clone(),
-        _ => unreachable!(),
-    };
-    assert_eq!(txt, "SEP↓-13 ", "放行帧已更新 (现场 calculate 的 sep_str)");
+    let sep = o
+        .cells
+        .get("row3")
+        .unwrap()
+        .downcast_ref::<HUDTextRow>()
+        .unwrap();
+    assert_eq!(sep.text, "SEP↓-13 ", "放行帧已更新 (现场 calculate 的 sep_str)");
 }
 
 // ===== 现场计算: service 喂入 → calculate 现算 =====
@@ -738,7 +724,8 @@ impl FormulaView for MockSrc {
 }
 
 /// Java L442-447 同窗口: HUDCalculator.calculate 现算 (service 喂入;
-/// W-B 早退守卫要求 state 在场, 传中性全零 State)
+/// W-B 早退守卫要求 state 在场, 传中性 State; throttle 现经 sState.throttle
+/// 进 HUDData → LinearGauge.on_data_update)
 #[test]
 fn update_from_event_calculates_from_service() {
     let mut o = overlay();
@@ -747,7 +734,8 @@ fn update_from_event_calculates_from_service() {
         alt: 5300.0,
         sep: 0.0,
     };
-    let st = vm_core::game_api::parser::State::new();
+    let mut st = State::new();
+    st.throttle = 64;
     let payload = EventPayload::builder().build();
     o.update_from_event(
         Some(&st),
@@ -761,18 +749,21 @@ fn update_from_event_calculates_from_service() {
     // altStr = "ALT" + %6.0f(5300) (HUDCalculator 的标签前缀语义 — 标签开时
     // refreshTemplates 的 lines[1] 同格式, Java L177 注释 "Format must match
     // HUDCalculator" 即此对齐契约)
-    let alt = match &*inner_of(&o, &o.hud_rows[1]) {
-        MiniHudComponentInner::Row1(r) => r.base.text.clone(),
-        _ => unreachable!(),
-    };
-    assert_eq!(alt, "ALT  5300");
-    // update_components 侧的 service 分支: throttle = 64 → " 64" (Java L395-401)
-    o.update_components(&s, Some(&src));
-    let thr = match &*inner_of(&o, &o.throttle_bar) {
-        MiniHudComponentInner::ThrottleBar(t) => t.display_value.clone(),
-        _ => unreachable!(),
-    };
-    assert_eq!(thr, " 64");
+    let r1 = o
+        .cells
+        .get("row1")
+        .unwrap()
+        .downcast_ref::<HUDEnergyRow>()
+        .unwrap();
+    assert_eq!(r1.base.text, "ALT  5300");
+    // throttle = 64 → " 64" (sState.throttle → data.throttle → 组件)
+    let thr = o
+        .cells
+        .get("throttle")
+        .unwrap()
+        .downcast_ref::<LinearGauge>()
+        .unwrap();
+    assert_eq!(thr.display_value, " 64");
 }
 
 /// state 快照直传 → hud_calculator 的 sState 整块生效 (flaps/airbrake 到
@@ -800,11 +791,13 @@ fn update_from_event_consumes_state_snapshot() {
         &HudColors::application_defaults(),
     );
     // FlapAngleBar: flaps=50 / allowAngle=125 (无 FM 缺省) → " 50/125"
-    let flap = match &*inner_of(&o, &o.flap_angle_bar) {
-        MiniHudComponentInner::FlapBar(f) => f.display_text().to_string(),
-        _ => unreachable!(),
-    };
-    assert_eq!(flap, " 50/125", "襟翼条应吃到 sState.flaps");
+    let flap = o
+        .cells
+        .get("flap")
+        .unwrap()
+        .downcast_ref::<FlapAngleBar>()
+        .unwrap();
+    assert_eq!(flap.display_text(), " 50/125", "襟翼条应吃到 sState.flaps");
     // airbrake=100 → warnVne (sState 块生效的旁证)
     assert!(o.warn_vne, "减速板 100% → warnVne");
 }
@@ -827,7 +820,8 @@ fn draw_renders_content() {
     // debug 开启 (enableLayoutDebug): 调试框路径不 panic 且仍渲染
     let mut s = TestSettings::default();
     s.layout_debug = true;
-    let mut o2 = MiniHudOverlay::init(false, 100, &s, 1.0, &font_path()).unwrap();
+    let mut o2 =
+        MiniHudOverlay::init(false, 100, &s, 1.0, &font_path(), &doc()).unwrap();
     let plan2 = o2.sizing().unwrap();
     let mut cv2 = PixCanvas::new(plan2.new_width, plan2.new_height).unwrap();
     o2.draw(&mut cv2, false);
@@ -838,19 +832,19 @@ fn draw_renders_content() {
 #[test]
 fn reinit_config_rebuilds() {
     let mut o = overlay();
-    assert!(o.speed_ratio_bar.is_visible());
+    assert!(o.cells.get("speedBar").unwrap().is_visible());
     let mut s = TestSettings::default();
     s.show_speed_bar = false;
     s.draw_hud_mach = false;
     s.font_size_add = 4; // hudFontSize 28 → 32
-    o.reinit_config(&s).unwrap();
-    assert!(!o.speed_ratio_bar.is_visible());
-    assert!(o.throttle_bar.is_visible());
+    o.reinit_config(&s, &doc()).unwrap();
+    assert!(!o.cells.get("speedBar").unwrap().is_visible());
+    assert!(o.cells.get("throttle").unwrap().is_visible());
     assert_eq!(o.fonts.draw.size, 32, "ctx 重建 → 字体档换新");
     // 模板已刷新 (mach 关 → SPD 前缀)
-    let tpl = match &*inner_of(&o, &o.hud_rows[0]) {
-        MiniHudComponentInner::Row0(r) => r.base.template.clone(),
-        _ => unreachable!(),
+    let tpl = {
+        let r0 = o.cells.get("row0").unwrap().downcast_ref::<HUDAkbRow>().unwrap();
+        r0.base.template.clone()
     };
     assert_eq!(tpl.as_deref(), Some("SPD  360"));
     // 重建后渲染仍工作
@@ -880,9 +874,11 @@ fn debug_frame_ring_geometry() {
 #[test]
 fn overlay_spec_sizes_and_renders() {
     let s = TestSettings::default();
-    // 参数仓 hud 快照与工厂 settings 同源 (生产面: inputs.hud == params.hud)
+    // 参数仓 hud 快照与工厂 settings 同源 (生产面: inputs.hud == params.hud);
+    // pages = 出厂页 (spec 工厂按 id 取 minihud-default)
     let cell = Rc::new(RefCell::new(ReinitParams {
-        hud: vm_core::config::config_api::HudSettingsSnapshot::build(&s),
+        hud: HudSettingsSnapshot::build(&s),
+        pages: vm_core::config::json_store::factory_pages_arc(),
         ..Default::default()
     }));
     let (handle, mut spec) =
