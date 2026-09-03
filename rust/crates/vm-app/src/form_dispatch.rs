@@ -7,7 +7,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use crate::{AppShell, UiCommand};
-use vm_core::base::java_compat::{java_parse_boolean, java_parse_int_or};
+use vm_core::base::java_compat::java_parse_boolean;
 use vm_core::config::config_manager;
 use vm_core::config::configuration_service::ConfigurationService;
 use vm_ui::main_form::{self, MainFormState, Message};
@@ -184,7 +184,7 @@ fn route_open_action(action: &str, shell: &Rc<RefCell<AppShell>>) -> Option<WebW
         "openPowerCurve" => Some(WebWindowRequest::PowerCurve {
             fm0: get_string("selectedFM0", "bf-109f-4"),
             fm1: Some(get_string("selectedFM1", "")),
-            speed_kmh: java_parse_int_or(&get_string("powerCurveSpeed", "0"), 0),
+            speed_kmh: get_string("powerCurveSpeed", "0").parse().unwrap_or(0),
             wep: java_parse_boolean(&get_string("powerCurveWep", "false")),
         }),
         _ => None,
@@ -938,13 +938,13 @@ mod tests {
         );
     }
 
-    /// java_parse_int_or 边界: 负数 / 溢出 / 空串 (Java parseInt 抛异常 → catch 0)
+    /// parse 回退边界: 负数 / 溢出 / 空串 (原 java_parse_int_or 已退役, std parse 同语义)
     #[test]
-    fn java_parse_int_边界() {
-        assert_eq!(java_parse_int_or("-25", 7), -25);
-        assert_eq!(java_parse_int_or("", 7), 7);
-        assert_eq!(java_parse_int_or("-", 7), 7);
-        assert_eq!(java_parse_int_or("99999999999", 7), 7); // 溢出 → 异常 → 7
-        assert_eq!(java_parse_int_or("0", 7), 0);
+    fn parse_int_边界() {
+        assert_eq!("-25".parse::<i32>().unwrap_or(7), -25);
+        assert_eq!("".parse::<i32>().unwrap_or(7), 7);
+        assert_eq!("-".parse::<i32>().unwrap_or(7), 7);
+        assert_eq!("99999999999".parse::<i32>().unwrap_or(7), 7); // 溢出 → 异常 → 7
+        assert_eq!("0".parse::<i32>().unwrap_or(7), 0);
     }
 }

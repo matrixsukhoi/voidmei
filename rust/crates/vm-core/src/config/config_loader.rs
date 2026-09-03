@@ -22,7 +22,7 @@ use crate::config::sexp_parser::{AtomType, SExp, SExpParser, SList};
 // 键码↔文本映射 (波16 E6 抽出至 key_text.rs; :hotkey 装载/写回消费)
 use super::key_text::{get_key_code_from_text, get_key_text};
 use crate::base::format::java_f;
-use crate::base::java_compat::{java_double_to_string, java_parse_boolean, java_parse_int};
+use crate::base::java_compat::{java_double_to_string, java_parse_boolean};
 
 // --- Java `Object value` 的类型域 (extractValue 实际产出) ---
 
@@ -106,7 +106,8 @@ impl RowConfig {
             // get_int 的 oracle 对拍注释)
             Some(ConfigValue::Int(i)) => *i,
             Some(ConfigValue::Double(d)) => *d as i32,
-            Some(v) => java_parse_int(&config_value_to_string(v)).unwrap_or(0),
+            // 波21: Integer.parseInt 复刻退役, std parse (域内 cfg ASCII 语义等价)
+            Some(v) => config_value_to_string(v).parse::<i32>().unwrap_or(0),
             None => 0,
         }
     }
@@ -199,10 +200,10 @@ pub(crate) fn config_value_to_string(v: &ConfigValue) -> String {
     }
 }
 
-/// Java `System.getProperty("line.separator")` — PrintWriter.println 的行终止符。
-/// PORT: 平台相关 (Windows "\r\n" / 类 Unix "\n"), 与同平台 Java 输出逐字节一致;
-/// loadConfig 的 readLine 对 \r\n/\r/\n 三形都归一, 故 round-trip 与平台无关。
-fn java_line_separator() -> &'static str {
+/// 平台行终止符 (原 Java System.getProperty("line.separator") 语义, 波21 去前缀)。
+/// 平台相关 (Windows "\r\n" / 类 Unix "\n"); loadConfig 的 readLine 对
+/// \r\n/\r/\n 三形都归一, 故 round-trip 与平台无关。
+fn line_separator() -> &'static str {
     if cfg!(windows) {
         "\r\n"
     } else {
@@ -561,7 +562,7 @@ pub fn save_config(path: &str, groups: &[GroupConfig]) {
     };
 
     let mut pw = String::new();
-    let jls = java_line_separator();
+    let jls = line_separator();
 
     for group in groups {
         pw.push_str("(panel ");
@@ -618,7 +619,7 @@ pub fn save_config(path: &str, groups: &[GroupConfig]) {
 
 /// Java writeChildren
 fn write_children(pw: &mut String, rows: &[RowConfig], indent: &str) {
-    let jls = java_line_separator();
+    let jls = line_separator();
     for row in rows {
         if row.r#type == "HEADER" {
             pw.push_str(indent);
@@ -743,7 +744,7 @@ fn write_attr_line(pw: &mut String, indent: &str, key: &str, val: AttrVal<'_>) {
         AttrVal::Int(i) => pw.push_str(&i.to_string()), // String.valueOf(Integer)
         AttrVal::Bool(b) => pw.push_str(&b.to_string()), // String.valueOf(Boolean)
     }
-    pw.push_str(java_line_separator()); // pw.println(serializeAtom(val))
+    pw.push_str(line_separator()); // pw.println(serializeAtom(val))
 }
 
 /// Java: `private static String quote(String s)`

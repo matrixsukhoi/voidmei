@@ -214,7 +214,7 @@ impl VoiceWarningService for LiveVoiceService {
             .map(|f| f.engine.maximum_thr_rpm)
             .unwrap_or(0.0)
     }
-    fn get_maximum_rpm(&self) -> bool {
+    fn maximum_rpm_learned(&self) -> bool {
         self.frames
             .latest()
             .is_some_and(|f| f.engine.maximum_rpm_learned)
@@ -226,7 +226,7 @@ impl VoiceWarningService for LiveVoiceService {
             .latest()
             .is_some_and(|f| f.engine.engine_type == vm_data::service_fields::EngineType::Jet)
     }
-    fn get_stall_speed(&self) -> f64 {
+    fn stall_speed(&self) -> f64 {
         // W-C: 直读公式槽, None→0(永不触发失速告警)
         self.frames
             .latest()

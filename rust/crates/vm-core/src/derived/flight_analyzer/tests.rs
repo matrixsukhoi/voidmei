@@ -470,10 +470,10 @@ fn update_em_chart_stage_out_of_range_ignored() {
 #[test]
 fn get_no_zeros_num_counts_nonzero() {
     let fa = FlightAnalyzer::default();
-    assert_eq!(fa.get_no_zeros_num_i32(&[0, 1, 0, -3, 100]), 3);
-    assert_eq!(fa.get_no_zeros_num_i32(&[0; 256]), 0);
-    assert_eq!(fa.get_no_zeros_num_f64(&[0.0, 0.5, -0.1, 0.0]), 2);
-    assert_eq!(fa.get_no_zeros_num_f64(&[]), 0);
+    assert_eq!(fa.get_no_zeros_num(&[0, 1, 0, -3, 100]), 3);
+    assert_eq!(fa.get_no_zeros_num(&[0i32; 256]), 0);
+    assert_eq!(fa.get_no_zeros_num(&[0.0, 0.5, -0.1, 0.0]), 2);
+    assert_eq!(fa.get_no_zeros_num::<f64>(&[]), 0);
 }
 
 // ---- removeZeroes / removeRollRatesZeroes / removeLoadZeroes ----

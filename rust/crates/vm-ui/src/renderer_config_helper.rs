@@ -21,7 +21,6 @@
 //! 注意与 vm-overlay `render::renderers::RenderContext` (布局公式上下文)
 //! 是**同名不同物**的两个 Java 类型。
 
-use vm_core::base::java_compat::java_parse_int;
 use vm_core::config::config_loader::{GroupConfig, RowConfig};
 
 /// Context object providing callbacks and state for rendering.
@@ -419,7 +418,8 @@ pub fn read_int(
         }
         let val = ctx.get_string_from_config_service(property, &default_val.to_string());
         // §2.15: catch 吞异常给默认值 → unwrap_or
-        return java_parse_int(&val).unwrap_or(default_val);
+        // 波21: Integer.parseInt 复刻退役, std parse
+        return val.parse::<i32>().unwrap_or(default_val);
     }
     default_val
 }

@@ -234,14 +234,14 @@ pub struct ServiceData {
     /// checkEngineJet 投票状态机: 桨距有效性正负票计数
     pub(crate) check_pitch: i32,
     /// Java 包私有 `Boolean portOcupied = false` (装箱 → Option, 初始化器 false)
-    pub(crate) port_ocupied: bool,
+    pub(crate) port_occupied: bool,
     // EMA 峰值缓存 (updateEngineState 的 thrust_percent 回退分母)
     pub(crate) max_total_thr: i32,
     pub(crate) max_total_hp: i32,
     /// thrust_percent 的上轮值 (t_eng_response 差分输入)
     pub(crate) p_thrust_percent: f64,
     /// getMaximumRPM 学习状态机计数
-    pub(crate) check_maxium_rpm: i64,
+    pub(crate) check_maximum_rpm: i64,
     /// Previous actual compressor stage for change detection (0-based, -1 = invalid)
     /// Java 初始化器 `= -1`
     pub(crate) prev_actual_compressor_stage: i32,
@@ -292,7 +292,7 @@ impl Default for ServiceData {
     /// `efficiency` = vec![None; State::MAX_ENG_NUM] / `FuelCheckMili`·
     /// `lastMapPollTimeMs`·`lastMainLoopTimeMs` = 构造时刻; resetvaria
     /// 另置 `fueltime=Long.MAX_VALUE` / `maximumThrRPM=1` / `iastotascoff=1` /
-    /// `flapAllowSpeed`=`flapAllowAngle`=(f32::MAX as f64, Java Float.MAX_VALUE 拓宽) /
+    /// `flapAllowSpeed`=`flapAllowAngle`=f64::MAX /
     /// `curLoadMinWorkTime=99999*1000` /
     /// `iEngType=ENGINE_TYPE_UNKNOWN` / `radioAltValid=Some(false)` / `svalid="false"` /
     /// `loc`=`dir`=[0.0;2] / 7 个 SMA 构造 (窗口 1000/freq, fuelTimeSMA=4, 见字段区
@@ -327,11 +327,11 @@ impl Default for ServiceData {
             n_vy: 0.0,
             check_engine_type: 0,
             check_pitch: 0,
-            port_ocupied: false,
+            port_occupied: false,
             max_total_thr: 0,
             max_total_hp: 0,
             p_thrust_percent: 0.0,
-            check_maxium_rpm: 0,
+            check_maximum_rpm: 0,
             prev_actual_compressor_stage: -1,
             prev_optimal_compressor_stage: -1,
             mapinfo: None,

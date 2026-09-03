@@ -52,7 +52,6 @@ fn text_row_colors_and_translation() {
     let f = main_font();
     let mut row = HUDTextRow::new(2, 30);
     assert_eq!(row.id(), "row.2");
-    assert_eq!(row.get_height(), 30);
 
     // 常态 colorNum (a=240)
     assert!(row.update("875", false));

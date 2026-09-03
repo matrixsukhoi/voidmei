@@ -46,7 +46,7 @@ pub struct State {
     pub oilradiator: i32,
     pub mixture: i32,
     pub compressorstage: i32,
-    pub magenato: i32,
+    pub magneto: i32,
     pub power: Vec<f64>,
     pub rpm: i32,
     pub manifoldpressure: f64,
@@ -93,7 +93,7 @@ impl State {
             oilradiator: 0,
             mixture: 0,
             compressorstage: 0,
-            magenato: 0,
+            magneto: 0,
             power: Vec::new(),
             rpm: 0,
             manifoldpressure: 0.0,
@@ -190,7 +190,7 @@ impl State {
                 self.compressorstage = 0;
             }
 
-            self.magenato = v_i32(&v, "magneto 1");
+            self.magneto = v_i32(&v, "magneto 1");
 
             self.watertemp = v_f64(&v, "water temp 1, C");
 

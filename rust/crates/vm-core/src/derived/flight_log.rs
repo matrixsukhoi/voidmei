@@ -82,8 +82,8 @@ pub struct FlightLogSnapshot {
     pub radiator: String,
     pub mixture: String,
     pub compressorstage: i32,
-    /// 磁电机开关 (字段名沿 Java 原文拼写 magenato, 非 magneto)
-    pub magenato: i32,
+    /// 磁电机开关 (字段名沿 Java 原文拼写 magneto, 非 magneto)
+    pub magneto: i32,
     pub manifoldpressure: String,
     pub flaps: String,
     pub elevator: i32,
@@ -281,7 +281,7 @@ impl FlightLog {
 
         write!(bw, "{},", xs.compressorstage)?; // 22
 
-        write!(bw, "{},", xs.magenato)?; // 23
+        write!(bw, "{},", xs.magneto)?; // 23
 
         write!(bw, "{},", xs.manifoldpressure)?; // 24
 

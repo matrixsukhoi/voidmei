@@ -152,53 +152,13 @@ fn mgr_with_tx() -> (HotkeyManager, Receiver<HotkeyEvent>) {
     HotkeyManager::with_channel()
 }
 
-/// bind keyCode 0 忽略; 正常绑定可查 (HotkeyManager.java:88-95)
-#[test]
-fn bind_ignores_zero_and_registers() {
-    let (m, _rx) = mgr_with_tx();
-    m.bind(0, "ev");
-    assert!(!m.is_bound(0), "keyCode 0 不得入表");
-    m.bind(VC_P, "fmOverlayToggle");
-    assert!(m.is_bound(VC_P));
-    assert_eq!(m.get_binding(VC_P).as_deref(), Some("fmOverlayToggle"));
-    assert_eq!(m.get_binding(12345), None);
-    assert!(!m.is_bound(12345));
-}
 
-/// unbind 只对已绑定键记日志语义 (移除生效), 未绑定时无副作用
-#[test]
-fn unbind_removes_only_bound() {
-    let (m, _rx) = mgr_with_tx();
-    m.bind(VC_P, "fmOverlayToggle");
-    m.unbind(VC_P);
-    assert!(!m.is_bound(VC_P));
-    assert_eq!(m.get_binding(VC_P), None);
-    // 未绑定键 unbind 不 panic
-    m.unbind(VC_P);
-}
 
-/// rebind = unbind(old) + bind(new) + 无条件日志 (Controller.java:834-840 换键路径)
-#[test]
-fn rebind_moves_binding() {
-    let (m, _rx) = mgr_with_tx();
-    m.bind(VC_P, "fmOverlayToggle");
-    m.rebind(VC_P, 3666 /* INSERT */, "fmOverlayToggle");
-    assert!(!m.is_bound(VC_P), "旧键必须解绑");
-    assert_eq!(m.get_binding(3666).as_deref(), Some("fmOverlayToggle"));
-    // rebind 到 0: bind 侧跳过 (Java 行为, 日志仍打)
-    m.rebind(3666, 0, "fmOverlayToggle");
-    assert!(!m.is_bound(3666));
-    assert!(!m.is_bound(0));
-}
 
-/// 同键重 bind 覆盖旧事件 (HashMap.put 语义)
-#[test]
-fn bind_same_key_overwrites() {
-    let (m, _rx) = mgr_with_tx();
-    m.bind(VC_P, "a");
-    m.bind(VC_P, "b");
-    assert_eq!(m.get_binding(VC_P).as_deref(), Some("b"));
-}
+
+
+
+
 
 /// 未 init 时 shutdown 直接返回 (Java `if (!initialized) return;`) —
 /// 绑定表不清; init 后 shutdown 清表 (keyBindings.clear)

@@ -332,13 +332,6 @@ impl HotkeyManager {
             .unwrap_or(false)
     }
 
-    /// Get the event type bound to a key code.
-    pub fn get_binding(&self, key_code: i32) -> Option<String> {
-        self.key_bindings
-            .lock()
-            .ok()
-            .and_then(|m| m.get(&key_code).cloned())
-    }
 
     /// Shutdown the hotkey manager.
     ///
@@ -436,11 +429,8 @@ unsafe extern "system" fn keyboard_proc(code: i32, wparam: WPARAM, lparam: LPARA
                     if let Err(p) = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                         sink.on_hotkey(&event);
                     })) {
-                        let msg = p
-                            .downcast_ref::<&str>()
-                            .map(|s| (*s).to_string())
-                            .or_else(|| p.downcast_ref::<String>().cloned())
-                            .unwrap_or_else(|| "unknown panic".to_string());
+                        // 波21: 本地 downcast 副本收敛至 panic_message_box (全库唯一)
+                        let msg = vm_core::base::exception_helper::panic_message_box(p);
                         logger::error("HotkeyManager", &format!("Hotkey sink 回调 panic: {}", msg));
                     }
                 }

@@ -41,7 +41,7 @@ fn snapshot_state(s: &State) -> State {
         oilradiator: s.oilradiator,
         mixture: s.mixture,
         compressorstage: s.compressorstage,
-        magenato: s.magenato,
+        magneto: s.magneto,
         power: s.power.clone(),
         rpm: s.rpm,
         manifoldpressure: s.manifoldpressure,
@@ -232,7 +232,7 @@ struct MockSvcData {
     d_radio_alt: f64,
     cur_load_min_work_time: f64,
     maximum_thr_rpm: f64,
-    get_maximum_rpm: bool,
+    maximum_rpm_learned: bool,
     is_eng_jet: bool,
     stall_speed: f64,
     st: State,
@@ -258,7 +258,7 @@ impl MockSvcData {
             // Java Service 缺省 99999*1000
             cur_load_min_work_time: 99999.0 * 1000.0,
             maximum_thr_rpm: 1.0,
-            get_maximum_rpm: false,
+            maximum_rpm_learned: false,
             is_eng_jet: false,
             stall_speed: 0.0,
             st,
@@ -309,13 +309,13 @@ impl VoiceWarningService for MockSvc {
     fn maximum_thr_rpm(&self) -> f64 {
         self.data.lock().unwrap().maximum_thr_rpm
     }
-    fn get_maximum_rpm(&self) -> bool {
-        self.data.lock().unwrap().get_maximum_rpm
+    fn maximum_rpm_learned(&self) -> bool {
+        self.data.lock().unwrap().maximum_rpm_learned
     }
     fn is_eng_jet(&self) -> bool {
         self.data.lock().unwrap().is_eng_jet
     }
-    fn get_stall_speed(&self) -> f64 {
+    fn stall_speed(&self) -> f64 {
         self.data.lock().unwrap().stall_speed
     }
     fn s_state(&self) -> State {
@@ -824,7 +824,7 @@ fn check_inverted_flight_and_rpm_warnings() {
     assert_eq!(starts(&log, "warn_lowrpm"), 1);
 
     // 转速高: 自适应已学习 + RPM*100/maxRPM >= 105
-    svc.edit(|d| d.get_maximum_rpm = true);
+    svc.edit(|d| d.maximum_rpm_learned = true);
     vw.st.rpm = 1100; // 110 >= 105; 70 > 110 为假 → 低转速不再触发
     vw.check_rpm_warning(10_000); // warn_lowrpm 冷却 10s
     assert_eq!(starts(&log, "warn_highrpm"), 1);

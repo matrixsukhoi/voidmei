@@ -32,8 +32,11 @@
 //! 包裹 calculate, 失败仅 log、事件照发 (无 hudData); Rust 侧等价降级需**调用点粒度**
 //! catch_unwind (§6 循环级会额外丢整轮事件发布, 降级幅度不同) — 归 vm-data Service
 //! (D6) 波次落实, 过渡期警告见 calculate() 内 unwrap 处。
+/// flaps 的正哨兵 (Java AIOOBE 域产物, 与缺数据哨兵 -65535 同判无效)
+const FLAPS_INVALID_POS: i32 = 65535;
 
 use crate::base::event::event_payload::EventPayload;
+use crate::game_api::parser::F_INVALID; // 波21: 哨兵字面量收敛
 use crate::base::format::{java_f, pad_width};
 use crate::config::config_api::HUDSettings;
 use crate::derived::hud_data::Builder;
@@ -132,14 +135,14 @@ fn read_flight_data<S: HUDSettings>(
         aviar = s_indic.aviahorizon_roll;
     }
 
-    b.pitch_valid = aviahp != -65535.0;
+    b.pitch_valid = aviahp != F_INVALID;
     if b.pitch_valid {
         b.pitch = -aviahp;
     } else {
         b.pitch = 0.0;
     }
 
-    if aviar != -65535.0 {
+    if aviar != F_INVALID {
         b.roll = -aviar;
     } else {
         b.roll = 0.0;
@@ -147,12 +150,13 @@ fn read_flight_data<S: HUDSettings>(
 
     // --- AoS / System State --- (state 由早退守卫保证在场)
     {
-        if s_state.aos != -65535.0 {
+        if s_state.aos != F_INVALID {
             b.slip = s_state.aos;
         }
 
         b.throttle = s_state.throttle;
-        if s_state.flaps == 65535 || s_state.flaps == -65535 {
+        // 波21 具名化: flaps 双哨兵 (Java 65535 正哨兵 + -65535 缺数据哨兵同判无效)
+        if s_state.flaps == FLAPS_INVALID_POS || s_state.flaps == F_INVALID as i32 {
             b.flaps = 0.0;
         } else {
             b.flaps = s_state.flaps as f64;

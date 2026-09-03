@@ -183,7 +183,7 @@ fn sample_snapshot() -> FlightLogSnapshot {
         radiator: "0".into(),
         mixture: "60".into(),
         compressorstage: 1,
-        magenato: 1,
+        magneto: 1,
         manifoldpressure: "1.15".into(),
         flaps: "0".into(),
         elevator: -20,

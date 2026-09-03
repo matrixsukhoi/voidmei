@@ -3,7 +3,7 @@
 //! (波16 E6 自 config_loader.rs 抽出 — 139 项 VC 码表与配置装载无关,
 //! md5.rs 抽出同款先例)
 
-use crate::base::java_compat::{java_parse_int, java_trim};
+use crate::base::java_compat::java_trim;
 
 /// jnativehook 2.2.2 `NativeKeyEvent.getKeyText` 的 VC 码→文本表 (139 项),
 /// bytecode ldc 默认值 + en_US locale Java 8 oracle 全量对拍生成。
@@ -181,9 +181,10 @@ pub(crate) fn get_key_code_from_text(text: Option<&str>) -> i32 {
     }
     let t = java_trim(text);
     // 1. Try numeric
-    match java_parse_int(t) {
+    // 波21: Integer.parseInt 复刻退役, std parse
+    match t.parse::<i32>() {
         Ok(i) => i,
-        Err(()) => {
+        Err(_) => {
             // 2. Brute force lookup in common JNativeHook VC codes (typically < 256)
             for i in 1..256i32 {
                 // Java equalsIgnoreCase — 键名域 ASCII, eq_ignore_ascii_case 等价

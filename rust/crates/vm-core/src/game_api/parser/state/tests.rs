@@ -33,7 +33,7 @@ fn update_full_snapshot() {
     assert_eq!(st.radiator, 42);
     assert_eq!(st.mixture, 100);
     assert_eq!(st.compressorstage, 0); // 缺键哨兵归一化
-    assert_eq!(st.magenato, 3);
+    assert_eq!(st.magneto, 3);
     assert_eq!(st.rpm, 3001);
     assert_eq!(st.manifoldpressure, 2.24);
     assert_eq!(st.watertemp, 121.0);
@@ -98,7 +98,7 @@ fn update_sentinel_normalizations() {
     assert_eq!(st.rpm_throttle, -1);
     assert_eq!(st.mixture, -1);
     assert_eq!(st.compressorstage, 0);
-    assert_eq!(st.magenato, 1);
+    assert_eq!(st.magneto, 1);
     // 无任何 thrust N 键 → 引擎循环第一轮即 break, engineNum=0
     assert_eq!(st.engine_num, 0);
 }

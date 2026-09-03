@@ -63,7 +63,6 @@ impl MapInfo {
         }
     }
 
-    pub fn init(&mut self) {}
 
     pub fn update(&mut self, s: &str) {
         // 畸形/空 JSON → Null, 全部取数走缺键分支 (0.0, 对齐手写时代 find 不到)

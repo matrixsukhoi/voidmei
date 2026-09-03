@@ -265,8 +265,8 @@ impl Service {
         svc.clear_varia();
         svc.apply(|d| {
             d.mapinfo = Some(MapInfo::new());
-            // 结果 float 拓宽存入 double 字段 (§2.12 浮点字面量保持)
-            let ratio = (d.freq as f32 / 1000.0f32) as f64;
+            // 波21: f32 除法域复刻退役, f64 直算 (第 9 位起漂移, 显示不可见)
+            let ratio = d.freq as f64 / 1000.0;
             d.ratio = ratio;
             d.ratio_1 = 1.0 - ratio;
             d.s_state = Some(State::new());
@@ -331,7 +331,7 @@ impl Service {
             d.dir = Some([0.0; 2]);
             d.player_live = false;
             d.engine.engine_type = EngineType::Unknown;
-            d.check_maxium_rpm = 0;
+            d.check_maximum_rpm = 0;
             d.compass_delta = 0.0;
             d.engine.maximum_rpm_learned = false;
             d.altm.d_radio_alt = 0.0;
@@ -445,9 +445,9 @@ impl Service {
     /// 返回值: Java 的 InterruptedException 出口 → [`Flow::Interrupted`]。
     fn poll_once(&mut self) -> Flow {
         let now = current_time_millis();
-        let (freq, port_ocupied, last_main_loop_time_ms) = self.apply(|d| {
+        let (freq, port_occupied, last_main_loop_time_ms) = self.apply(|d| {
             d.current_time_ms = now;
-            (d.freq, d.port_ocupied, d.last_main_loop_time_ms)
+            (d.freq, d.port_occupied, d.last_main_loop_time_ms)
         });
         // long diffTime = currentTimeMs - lastMainLoopTimeMs;
         let diff_time = now - last_main_loop_time_ms;
@@ -455,7 +455,7 @@ impl Service {
             // 尝试GET数据
             // (HTTP IO 在锁外, §2.8; portOcupied 拆箱 None → panic 复刻 Java NPE,
             //  由 run 的 catch_unwind 兜住——字段初始化器 false 使 None 不可达)
-            if !port_ocupied {
+            if !port_occupied {
                 self.http_client.get_req_result(request_dest(&self.config));
             } else {
                 self.http_client
@@ -480,13 +480,13 @@ impl Service {
             // (每轮一次 — 1024 行 flush 节奏在 FlightLog 内)
             self.flight_log_tick();
         }
-        let (freq, port_ocupied, last_map_poll_time_ms) =
-            self.with_snapshot(|d| (d.freq, d.port_ocupied, d.last_map_poll_time_ms));
+        let (freq, port_occupied, last_map_poll_time_ms) =
+            self.with_snapshot(|d| (d.freq, d.port_occupied, d.last_map_poll_time_ms));
         // long diffTime1 = currentTimeMs - lastMapPollTimeMs;
         let diff_time1 = now - last_map_poll_time_ms;
         if diff_time1 >= 10 * freq {
             self.apply(|d| d.last_map_poll_time_ms = now);
-            if !port_ocupied {
+            if !port_occupied {
                 self.http_client
                     .get_req_map_obj_result(request_dest(&self.config));
             } else {
@@ -591,7 +591,7 @@ impl Service {
         if con_state == -1 {
             // 端口连接可能有问题，切换端口
             // Application.debugPrint("切换端口\n");
-            self.apply(|d| d.port_ocupied = !d.port_ocupied);
+            self.apply(|d| d.port_occupied = !d.port_occupied);
         }
     }
 
@@ -616,13 +616,13 @@ impl Service {
     /// (grid 定位依赖)。判定输入先快照 (锁外判, §2.8), HTTP IO 在锁外。
     fn detect_player_live(&mut self) {
         // 读取本轮判定所需快照 (锁外判, §2.8)
-        let (i_type, total_thr, s_rpm, player_live, port_ocupied) = self.with_snapshot(|d| {
+        let (i_type, total_thr, s_rpm, player_live, port_occupied) = self.with_snapshot(|d| {
             (
                 d.s_indic.as_ref().unwrap().r#type.clone(),
                 d.s_state.as_ref().unwrap().total_thr,
                 d.s_state.as_ref().unwrap().rpm,
                 d.player_live,
-                d.port_ocupied,
+                d.port_occupied,
             )
         });
         // toUpperCase; Rust 侧 Indicators::update 恒产 Some (缺失→""),
@@ -630,7 +630,7 @@ impl Service {
         if i_type.as_deref() != Some("DUMMY_PLANE") && ((total_thr != 0.0) || (s_rpm != 0)) {
             if !player_live {
                 // else getReqMapInfoResult(requestDestBkp);
-                let dest = if !port_ocupied {
+                let dest = if !port_occupied {
                     request_dest(&self.config)
                 } else {
                     request_dest_bkp(&self.config)
@@ -1066,11 +1066,11 @@ impl Service {
         self.apply(|d| {
             if !d.engine.check_engine_flag {
                 // 输入快照先行 (s 的不可变借用与 d 的字段写互斥, 拆两段)
-                let (magenato, pitch0) = {
+                let (magneto, pitch0) = {
                     let s = d.s_state.as_ref().unwrap();
-                    (s.magenato, s.pitch[0])
+                    (s.magneto, s.pitch[0])
                 };
-                if magenato < 0 {
+                if magneto < 0 {
                     d.check_engine_type -= 1;
                 } else {
                     d.check_engine_type += 1;
@@ -1341,8 +1341,8 @@ pub fn flight_log_snapshot(d: &ServiceData) -> FlightLogSnapshot {
             },
         ),
         total_hp_eff_str: if d.engine.total_hp_eff >= 100000 {
-            // %.2f of /1e6 — int/float float 除法域再拓宽 (§2.12)
-            jfmt::java_f((d.engine.total_hp_eff as f32 / 1000000.0f32) as f64, 2)
+            // 波21: f32 除法域退役, f64 直算 (%.2f 显示下不可见)
+            jfmt::java_f(d.engine.total_hp_eff as f64 / 1000000.0, 2)
         } else {
             d.engine.total_hp_eff.to_string()
         },
@@ -1364,7 +1364,7 @@ pub fn flight_log_snapshot(d: &ServiceData) -> FlightLogSnapshot {
         radiator: col(&|s| int_na(s.radiator)),
         mixture: col(&|s| int_na(s.mixture)),
         compressorstage: st.map(|s| s.compressorstage).unwrap_or(0),
-        magenato: st.map(|s| s.magenato).unwrap_or(0),
+        magneto: st.map(|s| s.magneto).unwrap_or(0),
         manifoldpressure: st.map_or_else(
             || "null".to_string(),
             |s| {

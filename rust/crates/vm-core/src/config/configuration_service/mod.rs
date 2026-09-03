@@ -275,13 +275,12 @@ impl ConfigurationService {
             }
         }
         c.service_loop_interval_ms = service_loop_interval_ms;
-        // PORT §2.14: Java `(long)(serviceLoopIntervalMs * 2f)` — long×float 提升
-        // float(f32) 后窄化 long (JLS 5.1.2 ↔ Rust as: NaN→0/饱和/向零, 同义)
-        c.engine_info_interval_ms = (service_loop_interval_ms as f32 * 2f32) as i64;
-        c.flight_info_interval_ms = (service_loop_interval_ms as f32 * 1.5f32) as i64;
-        c.altitude_interval_ms = (service_loop_interval_ms as f32 * 1.5f32) as i64;
-        c.gear_flaps_interval_ms = (service_loop_interval_ms as f32 * 2f32) as i64;
-        c.control_input_interval_ms = (service_loop_interval_ms as f32 * 1f32) as i64;
+        // 波21: Java long×float 提升窄化的仪式性 f32 退役 (值域 <2^24 精确, 行为不变)
+        c.engine_info_interval_ms = (service_loop_interval_ms as f64 * 2.0) as i64;
+        c.flight_info_interval_ms = (service_loop_interval_ms as f64 * 1.5) as i64;
+        c.altitude_interval_ms = (service_loop_interval_ms as f64 * 1.5) as i64;
+        c.gear_flaps_interval_ms = (service_loop_interval_ms as f64 * 2.0) as i64;
+        c.control_input_interval_ms = service_loop_interval_ms;
         // 先取颜色 (短锁完成, 不与 Application 写锁嵌套 — 全库嵌套锁序单向 app→layout)
         let color_num = self.get_color_config("fontNum");
         let color_label = self.get_color_config("fontLabel");

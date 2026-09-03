@@ -19,7 +19,6 @@
 //! 字段无法在 match 外直接读取, 故数据集中在 parts() 的 match 表 (§1 枚举带字段),
 //! 与 Java 常量声明逐一对应、顺序即声明序。
 
-use std::sync::OnceLock;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VoiceAlertType {
@@ -130,24 +129,6 @@ const _: () = assert!(
     "VoiceAlertType::ALL 与枚举变体集数量不一致: 新增变体需同步 ALL 数组"
 );
 
-// 缓存的 key 列表，避免重复计算
-// PORT: Java static final CONFIGURABLE_KEYS + 静态初始化块 (类加载时执行一次)
-// → std OnceLock (首次访问执行一次), 语义等价;
-// Collections.unmodifiableList ↔ &'static 切片天然只读。
-static CONFIGURABLE_KEYS: OnceLock<Vec<&'static str>> = OnceLock::new();
-
-fn configurable_keys() -> &'static [&'static str] {
-    CONFIGURABLE_KEYS.get_or_init(|| {
-        // 静态初始化，Java 8 兼容
-        let mut keys: Vec<&'static str> = Vec::new();
-        for type_ in ALL {
-            if !keys.contains(&type_.parts().0) {
-                keys.push(type_.parts().0);
-            }
-        }
-        keys
-    })
-}
 
 impl VoiceAlertType {
     /// Java private final 字段 (key, cooldownSeconds) 的唯一读取点;
@@ -193,25 +174,8 @@ impl VoiceAlertType {
         self.parts().1
     }
 
-    /// 获取冷却时间（毫秒）
-    /// @return 冷却时间毫秒数
-    pub fn get_cooldown_ms(&self) -> i64 {
-        self.parts().1 as i64 * 1000
-    }
 
-    /// 获取所有用于 UI 配置的告警 key 列表
-    /// 注意：每个 key 只出现一次（如 fail_engine 只列一次）
-    ///
-    /// @return 不可变的 key 列表
-    pub fn get_configurable_keys() -> &'static [&'static str] {
-        configurable_keys()
-    }
 
-    /// 获取所有 key 列表（等同于 getConfigurableKeys，用于 VoiceGlobalRenderer）
-    /// @return 不可变的所有 key 列表
-    pub fn get_all_keys() -> &'static [&'static str] {
-        configurable_keys()
-    }
 
     /// 根据 key 查找告警类型
     /// @param key 告警键名
@@ -222,12 +186,6 @@ impl VoiceAlertType {
         ALL.iter().copied().find(|t| t.parts().0 == key)
     }
 
-    /// 获取告警总数
-    /// @return 可配置的告警数量
-    pub fn get_alert_count() -> i32 {
-        // Java List.size() 返回 int
-        configurable_keys().len() as i32
-    }
 }
 
 // =====================================================================

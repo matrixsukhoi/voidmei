@@ -254,30 +254,9 @@ impl FlightAnalyzer {
         }
     }
 
-    /// 非零元素计数 (Java 重载以 _i32/_f64 后缀区分)。
-    pub fn get_no_zeros_num_i32(&self, arr: &[i32]) -> i32 {
-        let mut ret = 0;
-        let mut i = 0usize;
-        while i < arr.len() {
-            if arr[i] != 0 {
-                ret += 1;
-            }
-            i += 1;
-        }
-        ret
-    }
-
-    /// 非零元素计数 (_f64 重载)。
-    pub fn get_no_zeros_num_f64(&self, arr: &[f64]) -> i32 {
-        let mut ret = 0;
-        let mut i = 0usize;
-        while i < arr.len() {
-            if arr[i] != 0.0 {
-                ret += 1;
-            }
-            i += 1;
-        }
-        ret
+    /// 非零元素计数 (波21: Java 重载 _i32/_f64 合一为泛型迭代器形态)。
+    pub fn get_no_zeros_num<T: PartialEq + Default + Copy>(&self, arr: &[T]) -> i32 {
+        arr.iter().filter(|&&v| v != T::default()).count() as i32
     }
 
     /// 抽稀: 保留非零样本, y 取三点滑动平均 (int 数组重载)。

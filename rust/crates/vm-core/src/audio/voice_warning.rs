@@ -63,6 +63,8 @@
 //! `0.95f32 as f64` (init/updateDynamicParameters 的告警线乘 0.95f 处);
 //! 其余 f 后缀字面量 (2.0f/8.0f/10.0f/0.75f/-8) 均为二进制精确值, f32→f64
 //! 与同名 f64 字面量逐位相等, 直接写 f64 字面量。
+/// 舵效告警线"关闭"值 (Java 65535.0 字面量具名化; 与缺数据哨兵 -65535 不同族)
+const RUDDER_ALARM_OFF: f64 = 65535.0;
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
@@ -141,11 +143,11 @@ pub trait VoiceWarningService: Send + Sync {
     /// Java: `xS.maximumThrRPM` (double)
     fn maximum_thr_rpm(&self) -> f64;
     /// Java: `xS.getMaximumRPM` (boolean 字段, 与同名方法区分)
-    fn get_maximum_rpm(&self) -> bool;
+    fn maximum_rpm_learned(&self) -> bool;
     /// Java: `xS.isEngJet()`
     fn is_eng_jet(&self) -> bool;
     /// Java: `xS.getStallSpeed()`
-    fn get_stall_speed(&self) -> f64;
+    fn stall_speed(&self) -> f64;
     /// Java: `st = xS.sState` (Service 构造即创建, 永非 null)
     fn s_state(&self) -> State;
     /// Java: `indic = xS.sIndic`
@@ -792,12 +794,13 @@ impl VoiceWarning {
             VoiceAlertType::AileronEff.get_cooldown_seconds() as i64,
         ));
 
-        self.rudder.line = 65535.0;
-        self.elevator.line = 65535.0;
-        self.aileron.line = 65535.0;
+        // 波21 具名化: 舵效告警线关闭值 (远超实际舵效, 恒不触发)
+        self.rudder.line = RUDDER_ALARM_OFF;
+        self.elevator.line = RUDDER_ALARM_OFF;
+        self.aileron.line = RUDDER_ALARM_OFF;
 
         // R1 快照（P3 迁移）: 开头取一次 FM 句柄, blkx 非 null 即 READY;
-        // 无 FM → 舵效告警线保持 65535（告警关闭）
+        // 无 FM → 舵效告警线保持关闭值（告警关闭）
         let fm = self.fm_manager.current();
         if let Some(b) = fm.fmdata.as_ref() {
             // Java float→int 截断语义: 先 `as i32` 再拓宽入 f64 槽位 (§2.2)
@@ -1168,7 +1171,7 @@ impl VoiceWarning {
         }
 
         // 高转速告警
-        if xs.get_maximum_rpm()
+        if xs.maximum_rpm_learned()
             && xs.maximum_thr_rpm() > 0.0
             && (self.st.rpm as f32 * 100.0f32) as f64 / xs.maximum_thr_rpm() >= 105.0
         {
@@ -1184,8 +1187,8 @@ impl VoiceWarning {
         if xs.player_live()
             && self.st.gear == 0
             && self.st.vy != 0.0
-            && xs.get_stall_speed() != 0.0
-            && self.st.ias as f64 <= xs.get_stall_speed()
+            && xs.stall_speed() != 0.0
+            && self.st.ias as f64 <= xs.stall_speed()
         {
             self.alert(&self.stall_warn, "stallWarn").play_once(t);
         }

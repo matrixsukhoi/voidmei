@@ -295,7 +295,7 @@ fn eval_stateful(fid: FnId, vals: &[f64], site: u32, ctx: &EvalCtx, store: &mut 
         }
         FnId::Vote => {
             // vote(up, down, n): 每帧 cnt += up - down; |cnt| >= n 冻结输出 ±1
-            // 对齐 check_engine_jet: magenato<0 → -1, 否则 +1, ±100 收敛
+            // 对齐 check_engine_jet: magneto<0 → -1, 否则 +1, ±100 收敛
             let (up, down, n) = (vals[0] != 0.0, vals[1] != 0.0, vals[2] as i64);
             let st = store.map.entry(key).or_insert(PrimState::Vote {
                 cnt: 0,

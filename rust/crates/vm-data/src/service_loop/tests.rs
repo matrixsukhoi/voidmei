@@ -44,8 +44,8 @@ fn constructor_wiring_matches_java() {
     let d = svc.data.read().unwrap();
     // 构造器: freq = serviceLoopIntervalMs
     assert_eq!(d.freq, 50);
-    // ratio = freq / 1000.0f (float 除法拓宽), ratio_1 = 1.0f - ratio
-    let ratio = (50f32 / 1000.0f32) as f64;
+    // 波21: ratio 的 f32 除法域复刻退役, f64 直算
+    let ratio = 50.0f64 / 1000.0;
     assert_eq!(d.ratio, ratio);
     assert_eq!(d.ratio_1, 1.0 - ratio);
     // mapinfo/sState/sIndic 构造 (构造器段, resetvaria 之后)
@@ -159,7 +159,7 @@ fn process_polling_cycle_full_chain() {
     // calcPeriod 后缀自增
     assert_eq!(svc.data.read().unwrap().calc_period, 1);
     // 未翻转端口 (响应有效)
-    assert!(!svc.data.read().unwrap().port_ocupied);
+    assert!(!svc.data.read().unwrap().port_occupied);
 }
 
 /// updateCompass 地图回退 + updateAlt 英制/无线电分支 (calculate 写回段,
@@ -204,8 +204,8 @@ fn update_compass_fallback_and_update_alt_branches() {
         // (radioAltValid 断言已随 W-B 写入点删除而移除)
         assert!((d.altm.radio_alt - 1000.0 * 0.3048).abs() < 1e-9);
         // dRadioAlt = ratio_1*0 + ratio*1000*(radioAlt-0)/100 (freq=50;
-        // 生产 ratio 仍是 freq/1000 的 float 除法拓宽值, 期望对齐该域)
-        let ratio = (50f32 / 1000.0f32) as f64;
+        // 波21: ratio 已 f64 直算, 期望同步)
+        let ratio = 50.0f64 / 1000.0;
         let expect_dralt = ratio * 1000.0 * (1000.0 * 0.3048) / 100.0;
         assert!((d.altm.d_radio_alt - expect_dralt).abs() < 1e-9);
     }
@@ -421,7 +421,7 @@ fn check_engine_jet_voting_state_machine() {
         let mut d = write_data(&svc.data);
         let s = d.s_state.as_mut().unwrap();
         // 活塞投票: 磁电机 3 (>=0 正票), 桨距 35.5 有效 (正票)
-        s.magenato = 3;
+        s.magneto = 3;
         s.pitch = vec![35.5];
     }
     for _ in 0..99 {
@@ -448,7 +448,7 @@ fn check_engine_jet_voting_state_machine() {
     {
         let mut d = write_data(&svc2.data);
         let s = d.s_state.as_mut().unwrap();
-        s.magenato = -1;
+        s.magneto = -1;
         s.pitch = vec![35.5];
     }
     for _ in 0..100 {
@@ -464,7 +464,7 @@ fn check_engine_jet_voting_state_machine() {
     {
         let mut d = write_data(&svc3.data);
         let s = d.s_state.as_mut().unwrap();
-        s.magenato = -1;
+        s.magneto = -1;
         s.pitch = vec![F_INVALID];
     }
     for _ in 0..100 {
@@ -484,9 +484,9 @@ fn port_flip_on_empty_response() {
     // http 缓冲保持初始 NSTRING ("") → 走等待连接分支
     assert!(svc.http_client.str_indic.is_empty());
     svc.process_polling_cycle();
-    assert!(svc.data.read().unwrap().port_ocupied);
+    assert!(svc.data.read().unwrap().port_occupied);
     svc.process_polling_cycle();
-    assert!(!svc.data.read().unwrap().port_ocupied);
+    assert!(!svc.data.read().unwrap().port_occupied);
 }
 
 /// §6 契约: 顶层 catch_unwind——单轮 panic (Boolean 拆箱 NPE 复刻) 不杀线程,
@@ -699,7 +699,7 @@ fn flight_log_tick_writes_rows_and_close_flushes() {
                 s.aileron = 15;
                 s.rudder = -5;
                 s.compressorstage = 1;
-                s.magenato = 1;
+                s.magneto = 1;
             }
             d.s_indic.as_mut().unwrap().r#type = Some("bf-109e-4".to_string());
         }

@@ -648,13 +648,8 @@ impl Controller {
         // 复刻 "崩方法不崩应用" 的 Java 净效果
         if let Err(payload) = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| log.close()))
         {
-            let msg = if let Some(s) = payload.downcast_ref::<String>() {
-                s.clone()
-            } else if let Some(s) = payload.downcast_ref::<&'static str>() {
-                (*s).to_string()
-            } else {
-                "null".to_string()
-            };
+            // 波21: 本地 downcast 副本收敛至 panic_message_box (全库唯一)
+            let msg = vm_core::base::exception_helper::panic_message_box(payload);
             logger::error(
                 "Controller",
                 &format!("FlightLog close 异常 (Java NPE 对位, 已吞): {msg}"),

@@ -117,11 +117,8 @@ impl ConfigWatcherService {
                 if let Err(panic) = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                     check(&file_path, &state, &on_reload);
                 })) {
-                    let msg = panic
-                        .downcast_ref::<String>()
-                        .cloned()
-                        .or_else(|| panic.downcast_ref::<&str>().map(|s| s.to_string()))
-                        .unwrap_or_else(|| "未知 panic 载荷".to_string());
+                    // 波21: 本地 downcast 副本收敛至 panic_message_box (全库唯一)
+                    let msg = crate::base::exception_helper::panic_message_box(panic);
                     crate::base::logger::error_default(&format!("ConfigWatcher 回调异常: {}", msg));
                 }
             }

@@ -12,7 +12,6 @@ const MAP_INFO_DEFAULT: &str = "{\"grid_size\": [57584.11328125, 64194.1953125],
 #[test]
 fn update_mock_format_correct_values() {
     let mut mi = MapInfo::new();
-    mi.init();
     mi.update(MAP_INFO_MOCK);
     assert_eq!(mi.grid_steps_x, 6400.0); // 偏移 bug 修好: 不再丢首位 '6'
     assert_eq!(mi.grid_steps_y, 6400.0);

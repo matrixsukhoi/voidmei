@@ -740,7 +740,7 @@ fn sample_save_bytes_match_java_oracle() {
     let bytes = fs::read(&p_out).unwrap();
     let text = String::from_utf8(bytes).unwrap();
     // LF 归一后与 oracle 逐字节一致
-    assert_eq!(text.replace(java_line_separator(), "\n"), SAMPLE_SAVED_JAVA);
+    assert_eq!(text.replace(super::line_separator(), "\n"), SAMPLE_SAVED_JAVA);
     // 行终止符与同平台 Java println 一致 (Windows CRLF)
     if cfg!(windows) {
         assert_eq!(text.matches('\r').count(), text.matches('\n').count());

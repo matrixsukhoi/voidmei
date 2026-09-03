@@ -21,46 +21,7 @@ pub fn java_parse_boolean(s: &str) -> bool {
     s.eq_ignore_ascii_case("true")
 }
 
-/// Java `Integer.parseInt(String)` (radix 10) 复刻:
-/// 可选 +/-, 至少一位数字, 溢出/空/非法 → Err (= NumberFormatException)。
-/// PORT: Java Character.digit 接受 Unicode Nd 数字 (如 '٥'); parseInt 无 trim —
-/// 域内 cfg 值为 ASCII, §2.15 (catch 吞异常给默认值由调用方 unwrap_or 完成)。
-// Err 载荷恒 () — NumberFormatException 无消费面, 调用方只区分成败
-#[allow(clippy::result_unit_err)]
-pub fn java_parse_int(s: &str) -> Result<i32, ()> {
-    let b = s.as_bytes();
-    let (neg, digits) = match b.first() {
-        Some(b'-') => (true, &b[1..]),
-        Some(b'+') => (false, &b[1..]),
-        _ => (false, b),
-    };
-    if digits.is_empty() {
-        return Err(());
-    }
-    let mut acc: i64 = 0;
-    for &d in digits {
-        if !d.is_ascii_digit() {
-            return Err(());
-        }
-        acc = acc * 10 + i64::from(d - b'0');
-        if acc > i32::MAX as i64 + 1 {
-            return Err(()); // 溢出 — Java 抛 NumberFormatException (§2.2 静默回绕不适用: parseInt 是解析不是运算)
-        }
-    }
-    if neg {
-        acc = -acc;
-    }
-    if !(i32::MIN as i64..=i32::MAX as i64).contains(&acc) {
-        return Err(());
-    }
-    Ok(acc as i32)
-}
 
-/// [`java_parse_int`] 的 catch-回退形态: Java
-/// `try { Integer.parseInt(s) } catch { default }` 惯用法的直译 (供 vm-app 等消费)。
-pub fn java_parse_int_or(s: &str, default: i32) -> i32 {
-    java_parse_int(s).unwrap_or(default)
-}
 
 /// Java `Double.toString(double)` 一比一复刻 (getStr/String.valueOf(Double) 与
 /// saveConfig serializeAtom 的 Double 分支共用):

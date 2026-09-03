@@ -37,7 +37,7 @@ impl Service {
 
                     // 获得最大转速，条件是以最大转速持续约20秒或者桨距
                     // Java ArithmeticException ↔ Rust 除零 panic (保真, 构造域恒 50)
-                    if d.check_maxium_rpm < 20000 / d.freq {
+                    if d.check_maximum_rpm < 20000 / d.freq {
                         let (ias, rpm) = {
                             let s = d.s_state.as_ref().unwrap();
                             (s.ias, s.rpm)
@@ -48,7 +48,7 @@ impl Service {
                                 d.engine.maximum_thr_rpm =
                                     (d.ratio_1 * d.engine.maximum_thr_rpm) + d.ratio * rpm as f64;
                             }
-                            d.check_maxium_rpm += 1;
+                            d.check_maximum_rpm += 1;
                         }
                     } else {
                         d.engine.maximum_rpm_learned = true;
@@ -411,8 +411,8 @@ mod tests {
     fn get_maximum_rpm_adaptive_learning() {
         let mut svc = new_service();
         let unr = FMHandle::UNRESOLVED;
-        // 构造后: maximumThrRPM=1.0 (resetvaria), ratio=f32(50/1000) 拓宽,
-        // ratio_1=1-ratio, checkMaxiumRPM=0
+        // 构造后: maximumThrRPM=1.0 (resetvaria), ratio=f64 直算 (波21 f32 复刻退役),
+        // ratio_1=1-ratio, checkMaximumRPM=0
         {
             let mut d = svc.data.write().unwrap();
             let s = d.s_state.as_mut().unwrap();
@@ -422,29 +422,29 @@ mod tests {
         svc.get_maximum_rpm_learn(&unr);
         {
             let d = svc.data.read().unwrap();
-            // python: 0.9499999992549419*1.0 + 0.05000000074505806*3001
-            assert_eq!(d.engine.maximum_thr_rpm, 151.00000223517418);
-            assert_eq!(d.check_maxium_rpm, 1);
+            // 波21 f64 直算: 0.95*1.0 + 0.05*3001 = 151 (精确)
+            assert_eq!(d.engine.maximum_thr_rpm, 151.0);
+            assert_eq!(d.check_maximum_rpm, 1);
             assert!(!d.engine.maximum_rpm_learned);
         }
         svc.get_maximum_rpm_learn(&unr);
-        // python: 0.9499999992549419*151.00000223517418 + 0.05000000074505806*3001
+        // 波21 f64 直算: 0.95*151 + 0.05*3001 = 293.5 (精确)
         assert_eq!(
             svc.data.read().unwrap().engine.maximum_thr_rpm,
-            293.50000424683094
+            293.5
         );
-        assert_eq!(svc.data.read().unwrap().check_maxium_rpm, 2);
+        assert_eq!(svc.data.read().unwrap().check_maximum_rpm, 2);
 
         // IAS <= 50: 不学习不进位 (Java int 比较无浮点提升)
         {
             let mut d = svc.data.write().unwrap();
             d.s_state.as_mut().unwrap().ias = 50;
-            d.check_maxium_rpm = 399;
+            d.check_maximum_rpm = 399;
         }
         svc.get_maximum_rpm_learn(&unr);
         {
             let d = svc.data.read().unwrap();
-            assert_eq!(d.check_maxium_rpm, 399);
+            assert_eq!(d.check_maximum_rpm, 399);
             assert!(!d.engine.maximum_rpm_learned);
         }
 
@@ -452,7 +452,7 @@ mod tests {
         {
             let mut d = svc.data.write().unwrap();
             d.s_state.as_mut().unwrap().ias = 474;
-            d.check_maxium_rpm = 400;
+            d.check_maximum_rpm = 400;
         }
         svc.get_maximum_rpm_learn(&unr);
         assert!(svc.data.read().unwrap().engine.maximum_rpm_learned);
@@ -463,7 +463,7 @@ mod tests {
         svc.get_maximum_rpm_learn(&fm);
         assert_eq!(
             svc.data.read().unwrap().engine.maximum_thr_rpm,
-            293.50000424683094,
+            293.5,
             "置位后 FM 不覆盖 (方法短路)"
         );
     }

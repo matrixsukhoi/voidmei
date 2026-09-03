@@ -52,6 +52,7 @@ const MOCK_READY_TIMEOUT_MS: u64 = 8_000;
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let debug = args.iter().any(|a| a == "--debug");
+    install_panic_hook();
 
     // Java Application.main:539-543 Logger 级别: debugLog || debug → DEBUG, 否则
     // INFO。debugLog 是 cfg 键 (批3裁决配置化, 缺省 false), 须先读配置再定级 —
@@ -85,6 +86,23 @@ fn main() {
         desktop_main(debug)
     };
     std::process::exit(code);
+}
+
+/// 波21 落地 (fm/loader.rs 与 ui_state_bus.rs 两处备案多年的
+/// "App 组装层统一处置"): 默认 panic hook 在 catch_unwind 捕获前把
+/// "thread ... panicked" 打到 stderr (不受日志级别控制), 与库内
+/// error_with_throwable 构成双报告噪音; App 层统一为 logger 单通道。
+/// 进程级副作用只在 bin 入口装 — cargo test 另起 harness 不受影响。
+fn install_panic_hook() {
+    std::panic::set_hook(Box::new(|info| {
+        let loc = info
+            .location()
+            .map(|l| format!("{}:{}", l.file(), l.line()))
+            .unwrap_or_else(|| "未知位置".to_string());
+        let payload = info.payload();
+        let msg = vm_core::base::exception_helper::panic_message(payload);
+        logger::error("Panic", &format!("panic at {loc}: {msg}"));
+    }));
 }
 
 // =====================================================================
