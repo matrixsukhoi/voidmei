@@ -29,7 +29,7 @@ impl HUDSettingsImpl {
         if val.is_empty() {
             def
         } else {
-            java_parse_double(&val).unwrap_or(def)
+            parse_double(&val).unwrap_or(def)
         }
     }
 
@@ -77,7 +77,7 @@ fn layout_first_double(list: &[GroupConfig], section: &str, property: &str) -> O
                         ConfigValue::Double(d) => return Some(*d),
                         other => {
                             //      catch (NumberFormatException e) { // ignore } → 继续循环
-                            if let Ok(d) = java_parse_double(&config_value_to_string(other)) {
+                            if let Ok(d) = parse_double(&config_value_to_string(other)) {
                                 return Some(d);
                             }
                         }

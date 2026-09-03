@@ -179,15 +179,13 @@ fn boolean_atoms_exact_case() {
 
 #[test]
 fn number_atom_classification() {
-    // oracle 实测 parseDouble 均收 (含 NaN/Infinity/十六进制/后缀)
-    assert!(atom_types(
-        "123 12.34 -5 +5 1e5 1E-5 .5 5. 5f 5d 1e5f NaN -NaN Infinity -Infinity 0x1p1 0X1.8P1"
-    )
-    .iter()
-    .all(|(_, t)| *t == AtomType::Number));
-    // oracle 实测 parseDouble 均拒 → SYMBOL
+    // 波22: std parse 语义 — hex 浮点与 f/d 尾缀不再识别 (Java 域特性退役),
+    // 小写 nan/infinity/INF 则开始被识别 (std 大小写不敏感)
+    assert!(atom_types("123 12.34 -5 +5 1e5 1E-5 .5 5. NaN -NaN nan Infinity -Infinity inf")
+        .iter()
+        .all(|(_, t)| *t == AtomType::Number));
     assert!(
-        atom_types("5,5 abc 12.34.56 1_000 nan infinity INF 0x8 e5 5-")
+        atom_types("5,5 abc 12.34.56 1_000 5f 5d 1e5f 0x8 0x1p1 e5 5-")
             .iter()
             .all(|(_, t)| *t == AtomType::Symbol)
     );
@@ -289,24 +287,7 @@ fn get_double_oracle_table() {
         ("+.5", 0.5),
         ("1e5", 100000.0),
         ("1E-5", 1.0e-5),
-        ("5f", 5.0),
-        ("5d", 5.0),
-        ("1.5F", 1.5),
-        ("5e2d", 500.0),
         ("5.e2", 500.0),
-        (".5f", 0.5),
-        ("5.d", 5.0),
-        ("0x1p1", 2.0),
-        ("0X1.8P1", 3.0),
-        ("0x.8p1", 1.0),
-        ("0x1.p1", 2.0),
-        ("0x8.p1", 16.0),
-        ("0x1p1f", 2.0),
-        ("0x1p-2", 0.25),
-        ("-0x1p2", -4.0),
-        ("+0x1p1", 2.0),
-        ("0x1P+2", 4.0),
-        ("0x1p-1075", 0.0), // oracle: 舍入到 0 (min subnormal 的一半, round-half-even)
         ("2147483647.9", 2147483647.9),
     ];
     for (s, want) in cases {
@@ -345,70 +326,23 @@ fn get_double_oracle_table() {
 }
 
 #[test]
-fn get_double_rejects_like_java() {
+fn get_double_rejects_invalid() {
+    // 波22: std parse 语义 (nan/infinity 大小写不敏感已被上面收编; hex 全拒)
     for s in [
-        "", "-", "+", "1e", "1e+", "1_000", "5,5", "nan", "infinity", "INF", "0x8", "0x8f", "0x1p",
-        "0x.p1", "5-", "..5", "5..", "e5", "E5", "+.e5", ".e2", "00x1p1", "0 x1", "0x1p 2", "1e 5",
-        "--5", "true", "5.5.5",
+        "", "-", "+", "1e", "1e+", "1_000", "5,5", "0x8", "0x8f", "0x1p", "0x.p1", "5-", "..5",
+        "5..", "e5", "E5", "+.e5", ".e2", "00x1p1", "0 x1", "0x1p 2", "1e 5", "--5", "true",
+        "5.5.5", "5f", "5d",
     ] {
-        assert!(
-            java_parse_double(s).is_err(),
-            "[{}] 应抛 NumberFormatException",
-            s
-        );
+        assert!(parse_double(s).is_err(), "[{}] 应解析失败", s);
     }
 }
 
 #[test]
-#[should_panic(expected = "For input string")]
-fn get_double_panics_like_java_number_format_exception() {
-    // STRING 原子非数字 → Java NumberFormatException (未受检) 传播
+#[should_panic(expected = "非法数值 atom")]
+fn get_double_panics_on_invalid() {
+    // 非法数值 atom 是 cfg 语法错误 → panic (load_config 的 catch_unwind 兜住);
+    // 波22: Java NumberFormatException 消息分支复刻退役, 统一中文消息
     SAtom::new("abc".into(), AtomType::String).get_double();
-}
-
-#[test]
-#[should_panic(expected = "empty String")]
-fn get_double_panics_on_empty_string() {
-    // Java 8 oracle: parseDouble("")/parseDouble("   ") 抛 NumberFormatException:
-    // empty String (小写 e) — 与非空非法串的 "For input string" 消息分支不同
-    SAtom::new(String::new(), AtomType::String).get_double();
-}
-
-#[test]
-#[should_panic(expected = "empty String")]
-fn get_double_panics_on_whitespace_only_string() {
-    SAtom::new("   ".into(), AtomType::String).get_double();
-}
-
-#[test]
-fn hex_extreme_exponent_bit_exact() {
-    // Java 8 oracle (1.8.0_342) doubleToLongBits 逐例核对 — 单次舍入语义。
-    // 直接 `m as f64 * 2f64.powi(shift)` 整体求幂会提前下溢: 前三例旧实现
-    // 分别得 0.0/0.0/2.2250738585072014e-308 (2 倍偏差)
-    let cases = [
-        ("0x40p-1080", 0x1u64),                        // 4.9E-324 最小次正规
-        ("0x1fffffffffffff8p-1077", 0x30000000000000), // 8.900295434028806E-308
-        ("0x10000000000000p-1075", 0x8000000000000),   // 1.1125369292536007E-308
-        ("0x3p-1075", 0x2),                            // 1.0E-323 half-even 舍入
-        ("0x1p-1074", 0x1),                            // 4.9E-324
-        ("0x1p-1075", 0x0),                            // 半 ulp 舍入到 0 (偶)
-        ("0x1p1023", 0x7fe0000000000000),              // 最大正规指数
-        ("0x1p1024", 0x7ff0000000000000),              // Infinity
-        ("0x1p-2000", 0x0),                            // 深度下溢
-        ("0x7fp1", 0x406fc00000000000),                // 254.0 常规域回归
-        ("0x1.0000000000001p0", 0x3ff0000000000001),   // 1.0000000000000002
-    ];
-    for (s, bits) in cases {
-        let got = java_parse_double(s).unwrap();
-        assert_eq!(
-            got.to_bits(),
-            bits,
-            "{} → {:x} != {:x}",
-            s,
-            got.to_bits(),
-            bits
-        );
-    }
 }
 
 #[test]

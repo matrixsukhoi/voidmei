@@ -831,14 +831,9 @@ fn group_index_by_title(list: &[GroupConfig], title: &str, ignore_case: bool) ->
 /// - JLS/FloatingDecimal: 先 `String.trim()` (<= U+0020), 允许尾缀 d/D/f/F;
 /// - "NaN"/"Infinity" (±) 与 Rust from_str 的 "nan"/"inf"(任意大小写) 集合有差
 ///   — cfg 值域不可达;
-/// - 十六进制浮点 ("0x1.8p1") Java 可解析而 Rust 不可 → Err ≡ NumberFormatException
-///   → 调用方回退默认 (cfg 域不可达, PORT §6 以 Java 8 oracle 为准的域内等价)。
-fn java_parse_double(s: &str) -> Result<f64, ()> {
-    let t = java_trim(s);
-    let core = t
-        .strip_suffix(|c: char| matches!(c, 'd' | 'D' | 'f' | 'F'))
-        .unwrap_or(t);
-    core.parse::<f64>().map_err(|_| ())
+/// 数值解析 (波22: 域收窄版复刻退役, std parse; cfg 值域普通十进制)。
+fn parse_double(s: &str) -> Result<f64, ()> {
+    java_trim(s).parse::<f64>().map_err(|_| ())
 }
 
 // =====================================================================

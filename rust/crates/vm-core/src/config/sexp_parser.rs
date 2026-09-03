@@ -133,17 +133,10 @@ impl SAtom {
     }
 
     /// Java: `public double getDouble() { return Double.parseDouble(value); }`
-    /// NumberFormatException (未受检) 传播为 panic (string_helper.rs 先例);
-    /// 消息按 Java 8 oracle 分支: 空白剥净后为空 → "empty String",
-    /// 非空非法 → For input string: "<trim 后串>" (FloatingDecimal 先 in.trim())
+    /// 非法数值 atom 是 cfg 语法错误 → panic (由 load_config 的 catch_unwind 兜住)。
+    /// (波22: 原 Java NumberFormatException 消息复刻退役)
     pub fn get_double(&self) -> f64 {
-        match java_parse_double(&self.value) {
-            Ok(v) => v,
-            Err(ParseDoubleErr::Empty) => panic!("empty String"),
-            Err(ParseDoubleErr::Invalid) => {
-                panic!("For input string: \"{}\"", java_trim(&self.value))
-            }
-        }
+        parse_double(&self.value).unwrap_or_else(|()| panic!("非法数值 atom: {:?}", self.value))
     }
 
     /// Java: `public int getInt() { return (int) getDouble(); }`
@@ -237,151 +230,12 @@ fn java_is_whitespace(c: char) -> bool {
     }
 }
 
-/// java_parse_double 的 Err 变体 — 对应 Java 8 NumberFormatException 消息 (oracle 实测):
-/// 空白剥净后为空串 → "empty String"; 非空非法串 → For input string: "..."
-#[derive(Debug)]
-enum ParseDoubleErr {
-    Empty,
-    Invalid,
-}
-
-/// Java `Double.parseDouble` 一比一复刻 (Java 8 oracle 双轮实测, build/oracle):
-/// - 先 trim 两端 <= U+0020 的字符 (Java 实现内 `in.trim()`; Rust `parse` 不 trim — 差异点)
-/// - `[sign] "NaN"` (符号被忽略: oracle -NaN 位形为正) / `[sign] "Infinity"` — 大小写敏感精确匹配
-/// - 十六进制: `0[xX] hexDigits[.hexDigits] (p|P)[sign]decDigits [fFdD]?`
-///   p 指数**必有** ("0x8" 拒), 后缀可挂 ("0x1p1f" 收)
-/// - 十进制: `[sign] (digits[.digits] | .digits) ([eE][sign]digits)? [fFdD]?`
-///   "5." ".5" "5.e2" "1e5f" 收; "1e" "1e+" "+" "" "1_000" "5,5" "nan" "infinity" 拒
-///
-/// Err 对应 NumberFormatException: isNumber 捕获→false, getDouble 传播→panic。
-/// PORT: 极端输入与 Java 8 FloatingDecimal 存在域外分歧 (cfg 数值域内不受影响):
-/// - >32 位十六进制尾数: u128 回绕 (§2.2 先例); >53 位尾数: as f64 预舍入
-/// - 超长十进制尾数: 可能差 1 ulp (JDK-4511638 域, Rust parse 正确舍入)
-/// - 次正规边界位形: 中间量若落入次正规区产生双重舍入 (需 ~250+ 位小数或
-///   |e10|>2000, 详见 hex 求值处注释); 正常指数域已按 oracle 位级对齐
-fn java_parse_double(s: &str) -> Result<f64, ParseDoubleErr> {
-    let t = java_trim(s);
-    if t.is_empty() {
-        // oracle: parseDouble(""/"   ") 抛 NumberFormatException: empty String
-        return Err(ParseDoubleErr::Empty);
-    }
-    let (neg, rest) = match t.as_bytes()[0] {
-        b'-' => (true, &t[1..]),
-        b'+' => (false, &t[1..]),
-        _ => (false, t),
-    };
-    if rest == "NaN" {
-        return Ok(f64::NAN);
-    }
-    if rest == "Infinity" {
-        return Ok(if neg {
-            f64::NEG_INFINITY
-        } else {
-            f64::INFINITY
-        });
-    }
-    if rest.starts_with("0x") || rest.starts_with("0X") {
-        let hex = &rest[2..];
-        // 尾缀 f/F/d/D 只剥一个 (oracle: "0x1p1f" 收); 剩余非法由下述校验拒绝
-        let hex = match hex.strip_suffix(|c: char| matches!(c, 'f' | 'F' | 'd' | 'D')) {
-            Some(h) => h,
-            None => hex,
-        };
-        // p|P 指数分隔必有 (oracle: "0x8"/"0x8f" 均拒)
-        let Some(ppos) = hex.find(['p', 'P']) else {
-            return Err(ParseDoubleErr::Invalid);
-        };
-        let (mant, exp) = hex.split_at(ppos);
-        let exp = &exp[1..]; // 去掉 p/P
-        let (int_part, frac_part) = match mant.split_once('.') {
-            Some((a, b)) => (a, b),
-            None => (mant, ""),
-        };
-        if !int_part.chars().all(|c| c.is_ascii_hexdigit())
-            || !frac_part.chars().all(|c| c.is_ascii_hexdigit())
-            || (int_part.is_empty() && frac_part.is_empty())
-        {
-            // oracle: "0x.p1" 拒 — 至少一位十六进制数字
-            return Err(ParseDoubleErr::Invalid);
-        }
-        let (exp_neg, exp_digits) = match exp.as_bytes().first() {
-            Some(b'-') => (true, &exp[1..]),
-            Some(b'+') => (false, &exp[1..]),
-            _ => (false, exp),
-        };
-        if exp_digits.is_empty() || !exp_digits.bytes().all(|b| b.is_ascii_digit()) {
-            // oracle: "0x1p" 拒 — 指数至少一位十进制数字
-            return Err(ParseDoubleErr::Invalid);
-        }
-        // 尾数按十六进制位累积 (≤32 位精确; 更长为域外极端输入, §2.2 回绕先例)
-        let mut m: u128 = 0;
-        let mut frac_bits: i64 = 0; // 小数每多一位十六进制 = 乘 16⁻¹ = 2⁻⁴
-        for ch in int_part.chars() {
-            m = m
-                .wrapping_mul(16)
-                .wrapping_add(u128::from(ch.to_digit(16).unwrap()));
-        }
-        for ch in frac_part.chars() {
-            m = m
-                .wrapping_mul(16)
-                .wrapping_add(u128::from(ch.to_digit(16).unwrap()));
-            frac_bits += 4;
-        }
-        let mut e10: i64 = 0;
-        // PORT: Java int/long 静默回绕 — 超长指数位串 (≥19 位) 回绕成小值 (§2.2 先例,
-        // 同上 m 尾数累积); 域外输入, 正常指数无差异
-        for b in exp_digits.bytes() {
-            e10 = e10.wrapping_mul(10).wrapping_add(i64::from(b - b'0'));
-        }
-        if exp_neg {
-            e10 = -e10;
-        }
-        // value = m × 2^(e10 − frac_bits)
-        let shift = e10.wrapping_sub(frac_bits);
-        // PORT: Java 单次舍入求值; 2^shift 整体先算会提前下溢/上溢 (oracle:
-        // "0x40p-1080"=4.9E-324 而直接 powi(-1080)=0) — 拆半连乘, 两因子均在
-        // 正规范围内精确表示, 仅最终乘积可能落次正规 (单次舍入, oracle 位级对齐:
-        // 0x40p-1080/0x10000000000000p-1075/0x1fffffffffffff8p-1077/0x3p-1075/
-        // 0x1p±1023/0x1p-2000 逐例核对)。|shift|>~2045 时中间量入次正规区,
-        // 双重舍入与 Java 可能差 1 ulp — 域外极端, cfg 无十六进制浮点字面量
-        let s1 = shift / 2; // i64 除法向零截断
-        let s2 = shift - s1;
-        let v = m as f64 * 2f64.powi(s1 as i32) * 2f64.powi(s2 as i32);
-        return Ok(if neg { -v } else { v });
-    }
-    // 十进制: 剥尾缀后先自校验文法再委托 Rust parse 取值
-    // (不能直接喂 Rust parse: 它还接受 "inf"/"NaN" 大小写不敏感 — 上面已拦截非数字形式)
-    let core = match rest.strip_suffix(|c: char| matches!(c, 'f' | 'F' | 'd' | 'D')) {
-        Some(c) => c,
-        None => rest,
-    };
-    let (mant, exp) = match core.find(['e', 'E']) {
-        Some(i) => (&core[..i], Some(&core[i + 1..])),
-        None => (core, None),
-    };
-    let (int_part, frac_part) = match mant.split_once('.') {
-        Some((a, b)) => (a, b),
-        None => (mant, ""),
-    };
-    if !int_part.bytes().all(|b| b.is_ascii_digit())
-        || !frac_part.bytes().all(|b| b.is_ascii_digit())
-        || (int_part.is_empty() && frac_part.is_empty())
-    {
-        // 至少一位数字 — "." / "e5" / "+.e5" / "5,5" / "1_000" / "5-3" 全拒
-        return Err(ParseDoubleErr::Invalid);
-    }
-    if let Some(e) = exp {
-        let digits = match e.as_bytes().first() {
-            Some(b'+') | Some(b'-') => &e[1..],
-            _ => e,
-        };
-        if digits.is_empty() || !digits.bytes().all(|b| b.is_ascii_digit()) {
-            // oracle: "1e" / "1e+" 拒
-            return Err(ParseDoubleErr::Invalid);
-        }
-    }
-    let v: f64 = core.parse().map_err(|_| ParseDoubleErr::Invalid)?;
-    Ok(if neg { -v } else { v })
+/// 数值解析 (波22: Java Double.parseDouble 一比一复刻退役, std `str::parse` 语义)。
+/// 前置 java_trim 保留 (cfg 值可带首尾空白, Rust parse 不 trim)。
+/// 随复刻退役的 Java 域特性 — cfg 值域 (普通十进制) 不可达, 已 grep 验证:
+/// 十六进制浮点 ("0x1p1")、f/d 尾缀 ("1.5f")、大小写敏感的 NaN/Infinity 精确匹配。
+fn parse_double(s: &str) -> Result<f64, ()> {
+    java_trim(s).parse::<f64>().map_err(|_| ())
 }
 
 // --- Parser ---
@@ -500,7 +354,7 @@ impl SExpParser {
 
     /// Java: `private boolean isNumber(String s)` — try parseDouble, 捕获 NFE 返回 false
     fn is_number(&self, s: &str) -> bool {
-        java_parse_double(s).is_ok()
+        parse_double(s).is_ok()
     }
 
     /// Java: `public List<SExp> parse(String input)`
