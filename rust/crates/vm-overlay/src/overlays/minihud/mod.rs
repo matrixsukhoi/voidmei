@@ -525,20 +525,20 @@ impl MiniHudOverlay {
     fn update_legacy_components(&mut self, data: &HUDData) {
         // Row 0, 1, 2 are refactored (Akb, Energy, Mechanization). They use
         // onDataUpdate.
-        // Row 3: SEP
-        let sep = data.sep_str.clone();
+        // Row 3: SEP (波22: 闭包直接借用 data, 免逐帧 clone)
+        let sep = &data.sep_str;
         self.hud_rows[3].map_inner(|inner| {
             if let MiniHudComponentInner::Row3(r) = inner {
-                r.update(&sep, false);
+                r.update(sep, false);
             }
         });
         // Row 4: Maneuver
         // ManeuverRow update signature is complex.
-        let (ms, mi) = (data.maneuver_state_str.clone(), data.maneuver_index);
+        let (ms, mi) = (&data.maneuver_state_str, data.maneuver_index);
         let (l, ticks) = (self.maneuver_index_len, self.tick_scale);
         self.hud_rows[4].map_inner(|inner| {
             if let MiniHudComponentInner::Row4(r) = inner {
-                r.update(&ms, false, mi, l, ticks);
+                r.update(ms, false, mi, l, ticks);
             }
         });
         // Note: maneuverIndexLen variables are member fields of MinimalHUD

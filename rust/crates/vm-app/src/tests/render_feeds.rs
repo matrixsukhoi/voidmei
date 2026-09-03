@@ -636,8 +636,9 @@ fn reset_handles_preview_values_clears_live_residue() {
         let defs = handles.flight_info.as_ref().unwrap().borrow().defs.clone();
         assert_eq!(rows.len(), defs.len(), "飞行信息回全量行");
         for (row, f) in rows.iter().zip(defs.iter()) {
+            // (波22: 行形态 = def 索引 + 值文本)
             assert_eq!(
-                row.2, f.preview_value,
+                row.1, f.preview_value,
                 "飞行信息值列回 preview 静态: {}",
                 f.label
             );

@@ -50,10 +50,12 @@ pub fn flight_value(s: &dyn FormulaView, target: &str) -> Option<f64> {
     vm_core::formula::target_value(&var, mult, s)
 }
 
-/// 行定义 → (label, unit, value) owned 行 (visible-when/na-when 求值)
-pub fn build_texts(defs: &[RowDef], s: &dyn FormulaView) -> Vec<(String, String, String)> {
+/// 行定义 → (def 索引, 值文本) 行 (visible-when/na-when 求值)。
+/// 波22 热路径: label/unit 是 defs 常量, 行只存索引 — 渲染时借用,
+/// 免逐帧 clone (20Hz × ~15 行 × 2 String)
+pub fn build_texts(defs: &[RowDef], s: &dyn FormulaView) -> Vec<(usize, String)> {
     let mut out = Vec::new();
-    for f in defs {
+    for (i, f) in defs.iter().enumerate() {
         // 解析不到按 0 处理 (Java 反射 getter 永不失败, 行只受 visible-when
         // 控制; 曾 None→continue 致 7 行整行消失 — live 显示回归根因之一)
         let raw = flight_value(s, &f.source).unwrap_or(0.0);
@@ -67,7 +69,7 @@ pub fn build_texts(defs: &[RowDef], s: &dyn FormulaView) -> Vec<(String, String,
             Some(cond) if cond.eval(s, raw) => "-".to_string(),
             _ => format::format(raw, f.precision),
         };
-        out.push((f.label.clone(), f.unit.clone(), text));
+        out.push((i, text));
     }
     out
 }
@@ -77,17 +79,18 @@ pub type FlightInfoHandle = Rc<RefCell<FlightInfoState>>;
 
 /// preview 静态行 (工厂初值与 [`FlightInfoState::reset_preview_rows`] 同源,
 /// 免两处漂移): 行定义全量, preview 值原样不经格式化
-fn preview_rows(defs: &[RowDef]) -> Vec<(String, String, String)> {
+fn preview_rows(defs: &[RowDef]) -> Vec<(usize, String)> {
     defs.iter()
-        .map(|f| (f.label.clone(), f.unit.clone(), f.preview_value.clone()))
+        .enumerate()
+        .map(|(i, f)| (i, f.preview_value.clone()))
         .collect()
 }
 
 pub struct FlightInfoState {
     /// 行定义 (cfg 驱动, 随 ReinitParams 更新)
     pub defs: Arc<Vec<RowDef>>,
-    /// owned 文本行 (preview 静态初值; live 由 update 覆写)
-    rows: Vec<(String, String, String)>,
+    /// 行集 (def 索引 + 值文本; preview 静态初值, live 由 update 覆写)
+    rows: Vec<(usize, String)>,
     /// POC 渲染栈三件套 (度量 + 字体 + 复用直通画布, 尺寸恒定零重分配)
     ctx: RenderCtx,
     fonts: FontTriple,
@@ -138,8 +141,8 @@ impl FlightInfoState {
         self.canvas = Canvas::new(w, h);
     }
 
-    /// 文本行只读访问 (测试/诊断面)
-    pub fn rows(&self) -> &[(String, String, String)] {
+    /// 行集只读访问 (def 索引 + 值文本; 测试/诊断面)
+    pub fn rows(&self) -> &[(usize, String)] {
         &self.rows
     }
 }
@@ -163,7 +166,7 @@ pub fn flight_info_overlay_spec(
         let p = params.borrow();
         Arc::clone(&p.flight.rows)
     };
-    let rows: Vec<(String, String, String)> = preview_rows(&defs);
+    let rows = preview_rows(&defs);
     // 窗口尺寸: 全行高度 (POC run_live 同款 — visible-when 变化不重建窗口,
     // 空行区域透明无碍)
     let (w, h) = (ctx.total_width(), ctx.total_height(rows.len() as i32));
@@ -207,19 +210,20 @@ pub fn flight_info_overlay_spec(
             h,
             Box::new(move |cv: &mut PixCanvas| {
                 let mut st = render_handle.borrow_mut();
-                // 借用拆分: rows 只读 / canvas 可变 (同结构不相交字段)
+                // 借用拆分: defs/rows 只读 / canvas 可变 (同结构不相交字段)
                 let FlightInfoState {
-                    defs: _,
+                    defs,
                     rows,
                     canvas,
                     ctx,
                     fonts,
                 } = &mut *st;
+                // label/unit 经索引向 defs 借用 (波22: 免逐帧 clone)
                 let texts: Vec<FieldText> = rows
                     .iter()
-                    .map(|(l, u, v)| FieldText {
-                        label: l,
-                        unit: u,
+                    .map(|(i, v)| FieldText {
+                        label: &defs[*i].label,
+                        unit: &defs[*i].unit,
                         value: v,
                     })
                     .collect();

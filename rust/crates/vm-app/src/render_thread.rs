@@ -635,7 +635,12 @@ pub fn render_thread_main(cfg: RenderThreadConfig) {
                     .lock()
                     .expect("overlay_present 锁中毒");
                 for id in &tick_active {
-                    *counts.entry(id.clone()).or_insert(0) += 1;
+                    // 波22: 命中路径免 id.clone (entry 强制 owned key)
+                    if let Some(c) = counts.get_mut(id) {
+                        *c += 1;
+                    } else {
+                        counts.insert(id.clone(), 1);
+                    }
                 }
             }
             // live 数据喂入 (只留最新帧; preview 期整帧跳过 — feed_overlays_live 门控)

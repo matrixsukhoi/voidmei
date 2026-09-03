@@ -72,9 +72,10 @@ fn update_applies_visibility() {
         n_live >= n_zero,
         "非零帧可见行应不少于全零帧 ({n_live} vs {n_zero})"
     );
-    // Mach 行真的回来了 (值 0.72 → 文本 "0.72")
+    // Mach 行真的回来了 (值 0.72 → 文本 "0.72") — 行存 def 索引, 经 FIELDS 回查 label
     let rows = handle.borrow().rows().to_vec();
-    let labels: Vec<&str> = rows.iter().map(|(l, _, _)| l.as_str()).collect();
+    let defs = cfg_rows("飞行信息");
+    let labels: Vec<&str> = rows.iter().map(|(i, _)| defs[*i].label.as_str()).collect();
     assert!(
         labels.contains(&"马赫数"),
         "非零 mach 帧行应可见: {labels:?}"
@@ -146,7 +147,8 @@ fn reset_preview_rows_restores_statics() {
     let defs = cfg_rows("飞行信息");
     assert_eq!(rows.len(), defs.len(), "回全量行 (visible-when 过滤清除)");
     for (row, f) in rows.iter().zip(defs.iter()) {
-        assert_eq!(row.0, f.label);
-        assert_eq!(row.2, f.preview_value, "值列回 preview 静态: {}", f.label);
+        // (波22: 行形态 = def 索引 + 值文本; 索引序与全量 defs 一一对应)
+        assert_eq!(defs[row.0].label, f.label);
+        assert_eq!(row.1, f.preview_value, "值列回 preview 静态: {}", f.label);
     }
 }
