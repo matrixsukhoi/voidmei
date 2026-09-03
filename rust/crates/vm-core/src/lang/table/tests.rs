@@ -112,7 +112,8 @@ fn get_value_hit_and_miss() {
 fn table_size_and_unique_sorted() {
     // Java 8 oracle 实测: cur.properties 加载后共 362 键, 无重复
     // (源文件改动需重新生成本表, 由下方对拍测试强制)
-    assert_eq!(LANGUAGE_PROPERTIES.len(), 362);
+    // 波20 清场: oSkeyWord1/2 (OtherService 专用, 未接线) 已删 → 360
+    assert_eq!(LANGUAGE_PROPERTIES.len(), 360);
     let mut seen = std::collections::HashSet::new();
     for (k, _) in LANGUAGE_PROPERTIES {
         assert!(seen.insert(*k), "重复键: {k}");

@@ -1,6 +1,7 @@
 use super::*;
 
 // ---- get_string: 游戏 8111 JSON (`"key": value` 冒号后带空格) 真实形态 ----
+// (波20 清场: get_string_builder 与 _c 变体系死代码, 对应用例已删)
 
 #[test]
 fn get_string_numeric_and_bool_values() {
@@ -57,7 +58,7 @@ fn get_string_truncated_tail() {
 
 #[test]
 fn get_string_first_occurrence() {
-    // indexOf 取第一次出现 (与 getStringBuilder 的 lastIndexOf 相对)
+    // indexOf 取第一次出现 (与原 getStringBuilder 的 lastIndexOf 相对)
     assert_eq!(
         get_string("{\"speed\": 1, \"speed\": 2}", "speed"),
         Some("1")
@@ -75,53 +76,6 @@ fn get_string_empty_needle() {
 fn get_string_no_colon_panics_like_java() {
     // 扫不到 ':' → Java substring 抛 StringIndexOutOfBoundsException ↔ panic
     get_string("{\"speed\"", "speed");
-}
-
-// ---- get_string_builder ----
-
-#[test]
-fn get_string_builder_writes_at_offset() {
-    let r = "{\"a\": 1, \"speed\": 7.5}";
-    let mut buf = [0u8; 8];
-    get_string_builder(r, "speed", &mut buf, 2);
-    assert_eq!(&buf[..2], &[0, 0]); // 偏移前不动
-    assert_eq!(&buf[2..5], b"7.5"); // 写入子串
-    assert_eq!(&buf[5..], &[0, 0, 0]); // 尾部不动
-}
-
-#[test]
-fn get_string_builder_last_occurrence() {
-    // lastIndexOf 定位最后一次出现
-    let r = "{\"speed\": 1, \"speed\": 2}";
-    let mut buf = [0u8; 4];
-    get_string_builder(r, "speed", &mut buf, 0);
-    assert_eq!(&buf[..1], b"2");
-    assert_eq!(&buf[1..], &[0, 0, 0]);
-}
-
-#[test]
-fn get_string_builder_not_found_untouched() {
-    let mut buf = [7u8; 4];
-    get_string_builder("{\"a\": 1}", "speed", &mut buf, 0);
-    assert_eq!(buf, [7, 7, 7, 7]);
-}
-
-#[test]
-fn get_string_builder_cjk_bytes() {
-    // PORT: Java char[] 按 UTF-16 码元写 (歼 = 1); UTF-8 缓冲下歼占 3 字节
-    let r = "{\"type\": \"歼\"}";
-    let mut buf = [0u8; 8];
-    get_string_builder(r, "type", &mut buf, 0);
-    assert_eq!(&buf[..5], "\"歼\"".as_bytes());
-    assert_eq!(&buf[5..], &[0, 0, 0]);
-}
-
-#[test]
-#[should_panic]
-fn get_string_builder_buffer_overflow_panics_like_java() {
-    // Java getChars 越界抛 IndexOutOfBoundsException ↔ panic
-    let mut buf = [0u8; 2];
-    get_string_builder("{\"speed\": 7.5}", "speed", &mut buf, 0);
 }
 
 // ---- 数值解析 ----
@@ -167,17 +121,6 @@ fn get_data_int_fraction_panics_like_java() {
 }
 
 #[test]
-fn get_data_c_variants() {
-    // C 版 (CharSequence 形参) 行为与非 C 版一致;
-    // getDataIntC 在 Java 源码里返回类型就是 double, 保真保留
-    assert_eq!(get_data_float_c(Some("2.5")), 2.5);
-    assert_eq!(get_data_float_c(None), -65535.0);
-    assert_eq!(get_data_int_c(Some("42")), 42.0);
-    assert_eq!(get_data_int_c(Some("42")) as i32, 42);
-    assert_eq!(get_data_int_c(None), -65535.0);
-}
-
-#[test]
 fn get_data_float_trims_whitespace_like_java() {
     // Java 8 oracle 实测: Float.parseFloat 忽略首尾空白
     assert_eq!(get_data_float(Some(" 1.5 ")), 1.5);
@@ -199,24 +142,9 @@ fn get_data_float_all_whitespace_panics_like_java() {
 
 #[test]
 #[should_panic]
-fn get_data_float_c_bad_number_panics_like_java() {
-    // C 版坏输入同样 panic (与 get_data_float 一致)
-    get_data_float_c(Some("abc"));
-}
-
-#[test]
-#[should_panic]
 fn get_data_int_leading_space_panics_like_java() {
     // Java 8 oracle 实测 Integer.parseInt(" 5") 抛 — parseInt 不 trim, 保真不加
     get_data_int(Some(" 5"));
-}
-
-#[test]
-#[should_panic]
-fn get_string_builder_empty_needle_panics_like_java() {
-    // srcBegin > srcEnd 抛 StringIndexOutOfBoundsException (oracle 实测) ↔ panic
-    let mut buf = [0u8; 8];
-    get_string_builder("ab", "", &mut buf, 0);
 }
 
 #[test]

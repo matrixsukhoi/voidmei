@@ -119,15 +119,6 @@ impl State {
         self.airbrake = 0;
     }
 
-    pub fn get_eng_num(&mut self, buf: &str) {
-        for i in 0..MAX_ENG_NUM {
-            self.thrust[i] = get_data_int(get_string(buf, &format!("thrust {}", i)));
-            if self.thrust[i] != I_INVALID {
-                self.engine_num += 1;
-            }
-        }
-    }
-
     pub fn update(&mut self, buf: &str) -> i32 {
         self.valid = get_string(buf, "valid").map(str::to_string);
         // System.out.println(valid);

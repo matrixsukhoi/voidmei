@@ -368,8 +368,6 @@ pub static LANGUAGE_PROPERTIES: &[(&str, &str)] = &[
     ("mUpdateAvailableTitle", "发现新版本"),
     ("mWaitHotkey", "等待按键..."),
     ("noblkx", "找不到blkx文件\n请使用最新WT拆包aces.vromfs.bin"),
-    ("oSkeyWord1", "热"),
-    ("oSkeyWord2", "温"),
     ("sCheck", "检测到飞机启动"),
     ("sEnter", "等待飞机启动.."),
     ("sTitle", "状态条"),

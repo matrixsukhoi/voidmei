@@ -112,18 +112,6 @@ fn update_multi_engine() {
 }
 
 #[test]
-fn get_eng_num_counts_zero_based_thrust_keys() {
-    // Java getEngNum 用 "thrust " + i (0 起始), 与 update 的 1 起始键名不同
-    let mut st = State::new();
-    st.init();
-    st.get_eng_num("{\"thrust 0\": 100,\"thrust 1\": 200,\"thrust 2\": 300}");
-    assert_eq!(st.engine_num, 3);
-    assert_eq!(st.thrust[0], 100);
-    assert_eq!(st.thrust[1], 200);
-    assert_eq!(st.thrust[3], -65535); // 缺失键 → 哨兵, 不计数
-}
-
-#[test]
 fn init_resets_arrays_and_sentinels() {
     let mut st = State::new();
     st.init();

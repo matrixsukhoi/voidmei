@@ -256,10 +256,6 @@ pub struct Lang {
     pub m_crosshair: &'static str,
     pub m_advanced_option: &'static str,
 
-    // OtherService
-    pub o_skey_word1: &'static str,
-    pub o_skey_word2: &'static str,
-
     // DrawFrame
     pub d_fprev: &'static str,
     pub d_fnext: &'static str,
@@ -938,8 +934,6 @@ impl Lang {
         lang.m_crosshair = Lang::update_language(cfg, "mCrosshair", lang.m_crosshair);
         lang.m_advanced_option =
             Lang::update_language(cfg, "mAdvancedOption", lang.m_advanced_option);
-        lang.o_skey_word1 = Lang::update_language(cfg, "oSkeyWord1", lang.o_skey_word1);
-        lang.o_skey_word2 = Lang::update_language(cfg, "oSkeyWord2", lang.o_skey_word2);
         lang.d_fprev = Lang::update_language(cfg, "dFprev", lang.d_fprev);
         lang.d_fnext = Lang::update_language(cfg, "dFnext", lang.d_fnext);
         lang.d_f_title1 = Lang::update_language(cfg, "dFTitle1", lang.d_f_title1);
