@@ -24,7 +24,8 @@
 | 15 | 长函数拆解·装配层 | win32_thread_main(454)/desktop_main(260)/TrayIcon::new(160)/minihud update_components(155)+apply_style(124)/9 段注册样板/9 份 spec 工厂脚手架 | ✅ 0ba5f03 (FontSlot/spec_common/map_inner, 1256 绿, clippy 0) |
 | 16 | 结构归位 | vm-overlay 根壳退役、minihud.rs 四拆、commands_windows 三域拆分、config_manager 拆 ui_state_storage/key_text、extras.rs 三拆、win32.rs 更名、AppShell 收口 | ✅ 1a3a9d8+3e750cd (阶段1 四路+阶段2 根壳退役/更名, 1256 绿, clippy 0) |
 | 17 | 数据形态升级 | EngineType 枚举化、is_imperial()、F_INVALID 哨兵统一、WarningSlot、CompressorData、GroupConfig 表驱动、DTO 枚举化、镜像字段删除 | ✅ e1f56fa (六域并行; A6 含边角语义变化已备案, 1256 绿, clippy 0) |
-| 18 | 文档焕新 | Java 引用注释清扫（3534 处分批）、rust/README 新人导览重写、crate 级架构地图 |
+| 18 | 文档焕新 | Java 引用注释清扫（3534 处分批）、rust/README 新人导览重写、crate 级架构地图 | ✅ ae8dd3c (行号锚 493→0, README 重写, 1256 绿, clippy 0) |
+| 19 | 复核收尾 | fresh-eyes 两路复核揪出的收敛漏网收割 + iced 残留/mirror 行级 zip/命名纠正 + 全库 fmt | ✅ c46d9fe (1256 绿, clippy 0, fmt 干净) |
 
 ## 登记表
 
@@ -185,3 +186,17 @@
 | H8 | Java 死字段移植群（minihud throttley 等） | 迁移宪法 §2.10 保真保留，统一 DEAD(kept) 标注 |
 | H9 | locate_template_cfg CWD 四级探测 | 仅 headless 工具使用 |
 | H10 | commands_windows 直算不下放 blocking 池 | comctl32 依赖实锤备案 |
+
+## 收官结论 (2026-09-04, 波19 后)
+
+- **登记兑现度**: 两路独立 fresh-eyes 复核 (对照本表逐条核验) 报告 ~95% 已真实解决;
+  复核揪出的 5 处收敛漏网 (java_round×2/sleep_while_run/FmtArg 第二实现/
+  java_format_f4/f1 算法级副本) 与 3 个新问题已在波19 全部收割。
+- **剩余 >150 行函数 (16 个) 裁决为可接受**: 均为数据表形态 (build_lang 362 项
+  i18n 赋值表 / fm_direct_vars 等公式注册表, 一行一条数据) 或刻意保守拆分的
+  物理敏感分支 (variabler_wep, 位级对拍护航); 《重构》关注的复杂度长度而非
+  行数长度, 这些不是逻辑函数。
+- **验收基线**: 1256 测试全绿 + clippy 0 + cargo fmt 全库统一。
+- **A6 边角语义变化备案** (波17): VoiceWarning 的 fuel_p_check 共享计数器拆分后,
+  引擎损坏告警严格 10 tick 计满 (原共享下交织场景 5~6 tick), 消除"油压 tick
+  加速触发损坏告警"的怪癖; 测试断言已同步并注明依据。
