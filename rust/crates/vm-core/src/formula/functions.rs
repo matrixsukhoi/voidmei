@@ -24,10 +24,6 @@ impl Value {
         }
     }
 
-    pub fn truthy(v: f64) -> bool {
-        // NaN 参与:
-        v != 0.0
-    }
 }
 
 /// 函数编号 (编译期 resolve, 求值期 match 分派)
@@ -128,52 +124,6 @@ pub fn resolve_fn(name: &str) -> Option<FnId> {
         "latch" => FnId::Latch,
         _ => return None,
     })
-}
-
-/// FnId → 注册名 (编辑器目录/诊断用)
-pub fn fn_name(fid: FnId) -> &'static str {
-    match fid {
-        FnId::Abs => "abs",
-        FnId::Min => "min",
-        FnId::Max => "max",
-        FnId::Sqrt => "sqrt",
-        FnId::Sin => "sin",
-        FnId::Cos => "cos",
-        FnId::Atan2 => "atan2",
-        FnId::Exp => "exp",
-        FnId::Ln => "ln",
-        FnId::Floor => "floor",
-        FnId::Ceil => "ceil",
-        FnId::Round => "round",
-        FnId::Clamp => "clamp",
-        FnId::IsValid => "is_valid",
-        FnId::Na => "na",
-        FnId::IsNan => "is_nan",
-        FnId::Lerp => "lerp",
-        FnId::Interp1d => "interp1d",
-        FnId::Interp1dEx => "interp1d_ex",
-        FnId::Interp2d => "interp2d",
-        FnId::IsaPressure => "isa_pressure",
-        FnId::IsaDensity => "isa_density",
-        FnId::IsaTemp => "isa_temp",
-        FnId::IasToTas => "ias_to_tas",
-        FnId::TasToIas => "tas_to_ias",
-        FnId::IasPerMach => "ias_per_mach",
-        FnId::Invalid => "invalid",
-        FnId::FmVne => "fm_vne",
-        FnId::FmMne => "fm_mne",
-        FnId::FmAoaHigh => "fm_aoa_high",
-        FnId::FmFlapAllowSpeed => "fm_flap_allow_speed",
-        FnId::FmFlapAllowAngle => "fm_flap_allow_angle",
-        FnId::Sma => "sma",
-        FnId::Prev => "prev",
-        FnId::Blend => "blend",
-        FnId::Deriv => "deriv",
-        FnId::Vote => "vote",
-        FnId::Stable => "stable",
-        FnId::LearnMax => "learn_max",
-        FnId::Latch => "latch",
-    }
 }
 
 /// 参数个数 (min, max); max = usize::MAX 表示变长 (min/max 二元起步)

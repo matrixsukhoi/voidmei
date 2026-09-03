@@ -64,7 +64,6 @@ impl ShellForm {
             .plugin(tauri_plugin_opener::init())
             .manage(commands::IpcState { tx })
             .invoke_handler(tauri::generate_handler![
-                commands::ping,
                 commands::ui_ready,
                 commands::window_echo,
                 commands::get_layout_tree,

@@ -72,7 +72,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use crate::audio::voice_pack_config::VOICE_PREFIX;
-use crate::audio::voice_resource_manager::{SoundClip, SoundPlayer, VoiceResourceManager};
+use crate::audio::voice_resource_manager::{SoundClip, VoiceResourceManager}; // 波22: SoundPlayer 随 legacy_player 退役
 use crate::audio::{VoiceAlertType, VoicePackConfig};
 use crate::base::bus::flight_data_bus::FlightDataBus;
 use crate::base::bus::ui_state_bus::{UIStateBus, UiStateEvent};
@@ -90,9 +90,6 @@ use crate::game_api::parser::{Indicators, State};
 const CLIP_LOCK_MSG: &str = "VoiceAlert clip 锁中毒";
 /// alerts 注册表锁中毒消息
 const ALERTS_LOCK_MSG: &str = "VoiceWarning alerts 注册表锁中毒";
-
-/// Java: `public static final int maxEndVoiceNum = 4;`
-pub const MAX_END_VOICE_NUM: i32 = 4;
 
 /// Java: `public static final long sleepTime = 100;` (主循环节拍, ms)
 pub const SLEEP_TIME: i64 = 100;
@@ -368,11 +365,6 @@ pub struct VoiceWarning {
     /// Java: `prog.event.FlightDataBus.getInstance()`
     flight_data_bus: Arc<FlightDataBus>,
     /// playWav/getClip 的 Java `AudioSystem` 直开面 — 两方法已随保真残留退役删除,
-    /// 字段与 `new` 第 6 参数仅为 vm-app voice_setup 装配腿签名锁定而留
-    // DEAD(kept): 装配签名由 vm-app voice_setup.rs 锁定, AppShell 收口波次连带退役
-    #[allow(dead_code)]
-    legacy_player: Arc<dyn SoundPlayer>,
-
     pub aoa_warning_line: f64,
 
     /// Java: `private ConcurrentHashMap<String, VoiceAlert> alerts`
@@ -464,8 +456,6 @@ impl VoiceWarning {
         fm_manager: Arc<FMManager>,
         ui_state_bus: Arc<UIStateBus>,
         flight_data_bus: Arc<FlightDataBus>,
-        // 见 legacy_player 字段注 (保留仅为 vm-app 装配腿签名兼容)
-        legacy_player: Arc<dyn SoundPlayer>,
     ) -> Self {
         VoiceWarning {
             gcc_check_mili: 0,
@@ -480,7 +470,6 @@ impl VoiceWarning {
             fm_manager,
             ui_state_bus,
             flight_data_bus,
-            legacy_player,
             aoa_warning_line: 0.0,
             alerts: Arc::new(Mutex::new(HashMap::new())),
             config_subscription: None,

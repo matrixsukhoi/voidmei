@@ -34,12 +34,6 @@ async fn roundtrip(tx: &mpsc::Sender<IpcRequest>, kind: RequestKind) -> Result<V
     }
 }
 
-/// 活性探测 (阶段① POC)
-#[tauri::command]
-pub async fn ping(state: tauri::State<'_, IpcState>, nonce: u64) -> Result<Value, String> {
-    roundtrip(&state.tx, RequestKind::Ping { nonce }).await
-}
-
 /// 前端就绪上报 (D9 预热链路)
 #[tauri::command]
 pub async fn ui_ready(state: tauri::State<'_, IpcState>) -> Result<Value, String> {

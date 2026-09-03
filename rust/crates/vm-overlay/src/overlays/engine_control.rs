@@ -36,30 +36,7 @@ pub enum GaugeType {
 }
 
 impl GaugeType {
-    /// Java GaugeType.values()[gf.gaugeType] 反查
-    pub fn from_ordinal(o: i32) -> GaugeType {
-        match o {
-            0 => GaugeType::Throttle,
-            1 => GaugeType::Pitch,
-            2 => GaugeType::Power,
-            3 => GaugeType::Mixture,
-            4 => GaugeType::Radiator,
-            5 => GaugeType::Compressor,
-            _ => GaugeType::Fuel,
-        }
-    }
 
-    pub fn ordinal(self) -> i32 {
-        match self {
-            GaugeType::Throttle => 0,
-            GaugeType::Pitch => 1,
-            GaugeType::Power => 2,
-            GaugeType::Mixture => 3,
-            GaugeType::Radiator => 4,
-            GaugeType::Compressor => 5,
-            GaugeType::Fuel => 6,
-        }
-    }
 }
 
 /// Lang 标签访问器 (cfg 无 lang 快照, EngineControl 标签全部来自 Lang 静态字段)

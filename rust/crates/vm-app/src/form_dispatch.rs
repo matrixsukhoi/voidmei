@@ -47,8 +47,8 @@ fn dispatch_form(
     cell: &FormCell,
 ) -> IpcReply {
     match kind {
-        // 壳态请求走默认实现 (Ping/UiReady/WindowEcho)
-        RequestKind::Ping { .. } | RequestKind::UiReady | RequestKind::WindowEcho => {
+        // 壳态请求走默认实现 (UiReady/WindowEcho)
+        RequestKind::UiReady | RequestKind::WindowEcho => {
             ipc::dispatch(kind, rt)
         }
         RequestKind::GetLayoutTree => {
@@ -931,10 +931,10 @@ mod tests {
             "resetConfig 应走表单链: {reply:?}"
         );
         // 对照组 2: 壳态请求照常 Ok (dispatcher 健在)
-        let reply = disp(RequestKind::Ping { nonce: 1 }, &mut rt);
+        let reply = disp(RequestKind::UiReady, &mut rt);
         assert!(
             matches!(reply, IpcReply::Ok(_)),
-            "Ping 不受拦截影响: {reply:?}"
+            "UiReady 不受拦截影响: {reply:?}"
         );
     }
 

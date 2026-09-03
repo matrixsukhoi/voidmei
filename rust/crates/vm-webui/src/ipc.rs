@@ -15,7 +15,6 @@ use crate::dto::FormMessageDto;
 #[derive(Debug, Clone)]
 pub enum RequestKind {
     /// 活性探测 (回 nonce)
-    Ping { nonce: u64 },
     /// 前端就绪上报 (D9 预热链路: web_ready_at 记录, bench-reopen 起点)
     UiReady,
     /// show 后活性回执 (bench: Rust show() emit → 前端听到 → 本回执)
@@ -142,10 +141,6 @@ impl FormRuntime {
 /// 由 vm-app 注入的 dispatcher 承担 — 本默认实现返回 Err (selftest 壳形态)。
 pub fn dispatch(kind: RequestKind, rt: &mut FormRuntime) -> IpcReply {
     match kind {
-        RequestKind::Ping { nonce } => IpcReply::Ok(serde_json::json!({
-            "nonce": nonce,
-            "pong": true,
-        })),
         RequestKind::UiReady => {
             if rt.web_ready_at.is_none() {
                 rt.web_ready_at = Some(Instant::now());
@@ -170,16 +165,6 @@ pub fn dispatch(kind: RequestKind, rt: &mut FormRuntime) -> IpcReply {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn ping_回投_nonce() {
-        let mut rt = FormRuntime::default();
-        let IpcReply::Ok(v) = dispatch(RequestKind::Ping { nonce: 42 }, &mut rt) else {
-            panic!("期望 Ok");
-        };
-        assert_eq!(v["nonce"], 42);
-        assert_eq!(v["pong"], true);
-    }
 
     #[test]
     fn ui_ready_只记录首次() {

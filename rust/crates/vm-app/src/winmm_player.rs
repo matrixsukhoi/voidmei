@@ -43,7 +43,7 @@ use vm_core::audio::voice_resource_manager::SoundClip;
 use vm_core::audio::voice_resource_manager::{SoundError, SoundPlayer};
 
 // =====================================================================
-// WAV PCM 解析 (纯函数, 跨平台可测 — vm-overlay parse_wav_duration 的姊妹面)
+// WAV PCM 解析 (纯函数, 跨平台可测 — vm-overlay parse_wav_duration 的原姊妹面)
 // =====================================================================
 
 /// 解析出的 PCM 播放参数 + 数据切片

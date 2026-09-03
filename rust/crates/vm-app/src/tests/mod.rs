@@ -19,7 +19,6 @@ static CFG_N: AtomicUsize = AtomicUsize::new(0);
 
 /// 测试助手 (波4): ServiceData → 帧仓 (发布一帧)。原 "手造 RwLock<ServiceData>
 /// 塞 live" 的测试形态改为帧仓; 需要中途改数据的用 update_live_frame 重发布。
-#[allow(dead_code)]
 fn frame_store_of(d: &ServiceData) -> Arc<vm_data::frame::FrameStore> {
     let store = Arc::new(vm_data::frame::FrameStore::new());
     store.publish(vm_data::frame::Frame::from_service_data(d));
@@ -27,7 +26,6 @@ fn frame_store_of(d: &ServiceData) -> Arc<vm_data::frame::FrameStore> {
 }
 
 /// 改 ServiceData 后重发布帧 (测试观测写点的等价物)
-#[allow(dead_code)]
 fn update_live_frame(store: &vm_data::frame::FrameStore, d: &ServiceData) {
     store.publish(vm_data::frame::Frame::from_service_data(d));
 }

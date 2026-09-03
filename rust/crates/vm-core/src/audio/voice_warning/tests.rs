@@ -1,4 +1,5 @@
 use super::*;
+use crate::audio::voice_resource_manager::SoundPlayer;
 use crate::audio::voice_alert_type;
 use crate::audio::voice_resource_manager::SoundError;
 use crate::base::bus::EventBus;
@@ -376,7 +377,7 @@ fn env() -> TestEnv {
         fm,
         Arc::clone(&ui_bus),
         Arc::clone(&fd_bus),
-        Arc::new(PlayerForward(Arc::clone(&player))) as Arc<dyn SoundPlayer>,
+        // (波22: legacy_player 死参数退役)
     );
     vw.init(Some(Arc::clone(&svc) as Arc<dyn VoiceWarningService>));
     TestEnv {

@@ -313,10 +313,6 @@ pub(crate) fn open_voice_warning(
         Arc::clone(fm),
         Arc::clone(ui_bus),
         Arc::clone(flight_bus),
-        // legacy_player: playWav/getClip 直开面 (全库无调用方), 独立 winmm 实例
-        // 与 resource_manager 注入同一实现即等价 (voice_warning.rs PORT 注)
-        Arc::from(crate::winmm_player::make_player())
-            as Arc<dyn vm_core::audio::voice_resource_manager::SoundPlayer>,
     );
     let doit = Arc::clone(&vw.doit);
     vw.init(Some(Arc::new(LiveVoiceService { frames })));

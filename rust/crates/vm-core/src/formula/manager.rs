@@ -149,17 +149,6 @@ impl FormulaManager {
         .map_err(|e| e.to_string())
     }
 
-    /// 当前公式定义列表 (编辑器载入)
-    pub fn current_defs(&self) -> Vec<FormulaDef> {
-        self.current
-            .read()
-            .expect("公式集锁中毒")
-            .formulas
-            .iter()
-            .map(|f| f.def.clone())
-            .collect()
-    }
-
     /// 保存全部公式并热更新 (编辑器保存链): 写用户文件 → 重新编译安装
     pub fn save_all(&self, defs: &[FormulaDef]) -> Result<(), String> {
         persistence::save_user(defs, persistence::USER_FORMULAS_PATH)

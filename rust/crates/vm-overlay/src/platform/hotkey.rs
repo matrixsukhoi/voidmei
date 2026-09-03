@@ -310,20 +310,6 @@ impl HotkeyManager {
         }
     }
 
-    /// Rebind a key from old code to new code.
-    pub fn rebind(&self, old_key_code: i32, new_key_code: i32, event_type: &str) {
-        self.unbind(old_key_code);
-        self.bind(new_key_code, event_type);
-        // PORT: Java 此行无条件输出 (即便 newKeyCode==0 被 bind 跳过也打日志) — 保真
-        logger::info(
-            "HotkeyManager",
-            &format!(
-                "Rebound {} -> {} for {}",
-                old_key_code, new_key_code, event_type
-            ),
-        );
-    }
-
     /// Check if a key code is currently bound.
     pub fn is_bound(&self, key_code: i32) -> bool {
         self.key_bindings

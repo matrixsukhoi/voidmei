@@ -13,15 +13,6 @@ pub enum EngineType {
 }
 
 impl EngineType {
-    /// 原常量数值 (既有 i32 消费面的输出值不变)
-    pub fn as_i32(self) -> i32 {
-        match self {
-            EngineType::Unknown => -1,
-            EngineType::Jet => 1,
-            EngineType::Prop => 0,
-            EngineType::Turboprop => 2,
-        }
-    }
 
     /// Java isJetEngine: 仅喷气
     pub fn is_jet(self) -> bool {

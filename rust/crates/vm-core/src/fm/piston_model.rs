@@ -1105,36 +1105,6 @@ impl CompressorStageParams {
             ..Default::default()
         }
     }
-
-    /// Creates a complete parameter set.
-    ///
-    /// - `crit_alt`: critical altitude (m)
-    /// - `crit_power`: power at critical altitude (hp)
-    /// - `deck_power`: sea level power (hp)
-    /// - `wep_crit_alt`: WEP critical altitude (m)
-    /// - `wep_power_mult`: WEP power multiplier
-    /// - `speed_manifold_mult`: RAM effect coefficient
-    /// - `stage_index`: supercharger stage index
-    pub fn new_full(
-        crit_alt: f64,
-        crit_power: f64,
-        deck_power: f64,
-        wep_crit_alt: f64,
-        wep_power_mult: f64,
-        speed_manifold_mult: f64,
-        stage_index: i32,
-    ) -> Self {
-        Self {
-            crit_alt,
-            crit_power,
-            deck_power,
-            wep_crit_alt,
-            wep_power_mult,
-            speed_manifold_mult,
-            stage_index,
-            ..Default::default()
-        }
-    }
 }
 
 // Display 取整语义: Java String.format %.0f 用 HALF_UP, Rust {:.0} 在 .5 精确界处

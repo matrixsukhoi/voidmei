@@ -210,12 +210,6 @@ impl CompiledFormulaSet {
         s
     }
 
-    /// 槽号 → 公式名
-    pub fn name_of(&self, slot: u16) -> Option<&str> {
-        self.formulas
-            .get(slot as usize)
-            .map(|f| f.def.name.as_str())
-    }
 }
 
 /// resolve_expr 的公开包装 (rules.rs 复用公式编译链编译 when 表达式)

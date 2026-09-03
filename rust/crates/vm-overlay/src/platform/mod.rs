@@ -73,6 +73,5 @@ pub mod focus;
 pub mod host;
 pub mod hotkey;
 pub mod reinit;
-pub mod sound;
 #[cfg(target_os = "windows")]
 pub mod tray;

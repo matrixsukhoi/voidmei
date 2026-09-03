@@ -139,10 +139,6 @@ impl RenderContext {
         self.geom.num_height
     }
 
-    /// getFieldWidth (RenderContext)
-    pub fn field_width(&self) -> i32 {
-        3 * self.geom.font_size
-    }
 }
 
 // ---------------------------------------------------------------------------
@@ -315,16 +311,6 @@ impl BosStyleRenderer {
             // Math.round(5 * fontSize) = 5*fontSize (整数恒等)
             offset[0] += 5 * ctx.font_size();
         }
-    }
-
-    /// 测试/诊断: 缓存内 TextGauge 数量
-    pub fn cached_gauge_count(&self) -> usize {
-        self.gauge_cache.len()
-    }
-
-    /// 测试/诊断: 缓存内指定 label 的当前 unit
-    pub fn cached_unit(&self, label: &str) -> Option<&str> {
-        self.gauge_cache.get(label).map(|g| g.unit.as_str())
     }
 
     /// 缓存释放钩子。注意与 LinearGaugeRenderer::clear 的失效语义不同: Java 的

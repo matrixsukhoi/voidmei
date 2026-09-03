@@ -507,14 +507,6 @@ impl PixCanvas {
         }
     }
 
-    /// 调试/像素对拍导出 (tiny-skia 自带去预乘 PNG 编码)
-    pub fn save_png(&self, path: &std::path::Path) -> Result<(), String> {
-        let bytes = self
-            .pm
-            .encode_png()
-            .map_err(|e| format!("PNG 编码失败: {e}"))?;
-        std::fs::write(path, bytes).map_err(|e| format!("写 {} 失败: {}", path.display(), e))
-    }
 }
 
 /// 圆弧 → ≤90° 三次贝塞尔段 (SVG kappa 近似: K = 4/3·tan(Δθ/4))

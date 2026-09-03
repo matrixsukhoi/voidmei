@@ -227,14 +227,6 @@ pub fn error_with_throwable(component: &str, message: &str, t: &dyn std::error::
 
 // ===== 单参数方法（使用默认组件） =====
 
-pub fn trace_default(message: &str) {
-    log(Level::Trace, DEFAULT_COMPONENT, message);
-}
-
-pub fn debug_default(message: &str) {
-    log(Level::Debug, DEFAULT_COMPONENT, message);
-}
-
 pub fn info_default(message: &str) {
     log(Level::Info, DEFAULT_COMPONENT, message);
 }
