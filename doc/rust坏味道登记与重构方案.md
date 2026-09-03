@@ -263,3 +263,33 @@ mock_8111.py 真 HTTP 互通验证); 未跑 script/rust_e2e.sh / --mock-smoke (�
 - java_double_to_string: cfg round-trip/CSV 的最短往返格式单点 (无 HALF_UP 问题);
 - java_printf (java_string_format/FmtArg): Lang i18n 数据驱动模板, 非显示引擎;
 - sexp_parser/公式解析器: 领域 DSL; 锁中毒穿透契约 (H5 相邻); url_escape (H4)。
+
+## 增补: 波22 — 现代化二轮 (2026-09-04, 第二次三路排查后)
+
+第二视角排查 (死参照系注释 / 死代码终极清点 / vm-ui·vm-app·平台层深扫), 五步提交:
+
+| 步 | 内容 | 关键项 |
+|---|---|---|
+| 22-1 | 死代码清点 | sound.rs PlaySound 腿 440 行 + Win32_Media_Audio feature 收缩 / 13 个死 pub fn (lib crate 的 pub rustc 不报 dead, grep 验证) / legacy_player 死参数退役 (3 文件签名) / canvas save_png / vm-webui ping 死命令 |
+| 22-2 | java_parse_double 整改 (用户追加裁决) | 两份 Double.parseDouble 复刻 (~131 行: sexp 完整版含 hex 浮点/尾缀/panic 消息保真 + 域收窄版) → std str::parse; Java 域特性 (hex/尾缀/大小写敏感 NaN) 退役备案, cfg 值域 grep 验证不可达 |
+| 22-3 | 热路径 | flight_info 逐帧整树重建 → 行存 def 索引, label/unit 渲染时借用 (免 20Hz×15 行×2 String clone) / minihud 两处冗余 clone 借用化 / render_thread counts 命中路径免 id.clone |
+| 22-4 | 死参照系注释全面清理 | §/CLASSIFY/LIFETIMES 死条款号 ~270 处删 / "Java 8 oracle" 碑文降格"历史基线" ~970 行 / PORT: 前缀退役 / 2 处生产"逐行对应 Java"枷锁解除 (hud_calculator 惯用化) / 5 测试保真声明+allow 撤除 / javadoc @param 127 行 Rust 惯例 / init_preview 委托去重 / kind_name / 空 MapCtx |
+| 22-5 | 文档收官 | 本节 |
+
+### 排查确认保留 (证据充分)
+
+- winmm waveOut 播放器 (windows crate binding + 并发契约已审查, WASAPI/rodio 反而更重);
+- 平台层零手写 FFI 声明 (全部 windows crate); ui_state_storage 桩 (生产活, TODO 有效);
+- x11.rs 占位 (非 Windows 编译腿); main_form clone-split (D9 后仍是活依赖面);
+- 8 条 TODO 全有效; 无孤儿依赖 (flate2 是 zip 的 feature 钉子)。
+
+### 超范围提示 (未动, 可另行立项)
+
+- 根 CLAUDE.md 的 Java 架构大段 (L146-767) 与 src/ Java 树 (Java 版仍是已发布产品);
+- build/migration/ 死档案三件套 (PORTING/CLASSIFY/LIFETIMES 8/26 冻结; DECISIONS/PROGRESS 是活 ADR 必须留)。
+
+### 教训备案 (批量注释正则)
+
+批次清理的"删空括号"正则误伤代码形态 `new State()` → `new State` (批次1), 复核发现后整批回滚重放
+(收紧正则后 273 行 vs 原 1114 行——原数字大半来自误伤); `//!` 行首修复也曾误转内联 `// !Send`。
+批量正则改注释必须逐批编译+抽样 diff 复核 (本记忆与 How-to-apply 一致)。
