@@ -125,7 +125,7 @@ impl GameApiClient {
         let indicators_json = self.get_text(dest, "/indicators")?;
 
         let mut indicators_parser = Indicators::new();
-        indicators_parser.init();
+
         indicators_parser.update(&indicators_json);
 
         // PORT: type 经 Indicators.update 已 toUpperCase; Java 的

@@ -33,7 +33,7 @@ pub trait AnalyzerService: Send + Sync {
     /// 载具机型名 (sIndic 引用缺失时 impl 须 panic, 见 trait 级义务 1)
     fn s_indic_type(&self) -> Option<String>;
     /// 引擎类型
-    fn i_eng_type(&self) -> i32;
+    fn eng_type(&self) -> crate::base::engine_type::EngineType;
     /// 经过时间 (毫秒)
     fn elapsed_time(&self) -> i64;
     fn total_hp(&self) -> i32;
@@ -49,7 +49,7 @@ pub const MAX_ALT_STAGE: i32 = 256;
 pub const MAX_IAS_STAGE: i32 = 256;
 
 pub struct FlightAnalyzer {
-    pub engine_type: i32,
+    pub engine_type: crate::base::engine_type::EngineType,
     /// 机型名 (原始字段名 `type` 为 Rust 关键字; null → None)
     pub r#type: Option<String>,
     pub time: Vec<f64>,  // 从第零层开始
@@ -87,7 +87,7 @@ pub struct FlightAnalyzer {
 impl Default for FlightAnalyzer {
     fn default() -> Self {
         FlightAnalyzer {
-            engine_type: 0,
+            engine_type: crate::base::engine_type::EngineType::Unknown,
             r#type: None,
             time: vec![0.0; MAX_ALT_STAGE as usize], // 从第零层开始
             power: vec![0; MAX_ALT_STAGE as usize],  // 从第一层开始
@@ -138,7 +138,7 @@ impl FlightAnalyzer {
 
         let xs = self.xs().clone();
         self.r#type = xs.s_indic_type();
-        self.engine_type = xs.i_eng_type();
+        self.engine_type = xs.eng_type();
         self.initalt_stage = stage;
         self.curalt_stage = self.initalt_stage;
         let idx = self.curalt_stage as usize;
@@ -153,7 +153,7 @@ impl FlightAnalyzer {
     // 唯一调用者 flight_log (logTick → analyzeData 每帧)
     pub(crate) fn analyze(&mut self, stage: i32) {
         let xs = self.xs().clone(); // Arc 浅拷贝, 避免与 &mut self 借用冲突
-        self.engine_type = xs.i_eng_type();
+        self.engine_type = xs.eng_type();
         if stage == self.curalt_stage + 1 {
             let idx = self.curalt_stage as usize;
             self.eff[idx] /= self.count;

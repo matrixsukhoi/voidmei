@@ -422,7 +422,9 @@ fn check_engine_jet_voting_state_machine() {
         let s = d.s_state.as_mut().unwrap();
         // 活塞投票: 磁电机 3 (>=0 正票), 桨距 35.5 有效 (正票)
         s.magneto = 3;
-        s.pitch = vec![35.5];
+        let mut pitch = [0.0; 16];
+        pitch[0] = 35.5;
+        s.pitch = pitch;
     }
     for _ in 0..99 {
         svc.check_engine_jet();
@@ -449,7 +451,9 @@ fn check_engine_jet_voting_state_machine() {
         let mut d = write_data(&svc2.data);
         let s = d.s_state.as_mut().unwrap();
         s.magneto = -1;
-        s.pitch = vec![35.5];
+        let mut pitch = [0.0; 16];
+        pitch[0] = 35.5;
+        s.pitch = pitch;
     }
     for _ in 0..100 {
         svc2.check_engine_jet();
@@ -465,7 +469,9 @@ fn check_engine_jet_voting_state_machine() {
         let mut d = write_data(&svc3.data);
         let s = d.s_state.as_mut().unwrap();
         s.magneto = -1;
-        s.pitch = vec![F_INVALID];
+        let mut pitch = [0.0; 16];
+        pitch[0] = F_INVALID;
+        s.pitch = pitch;
     }
     for _ in 0..100 {
         svc3.check_engine_jet();
@@ -532,7 +538,7 @@ fn catch_unwind_keeps_thread_alive() {
         let mut d = svc.data.write().unwrap();
         let s = d.s_state.as_mut().unwrap();
         s.engine_num = 2;
-        s.throttles = vec![];
+        s.throttles = [0; 16];
     }
 
     let mut handle = start(svc);

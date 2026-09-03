@@ -5,6 +5,7 @@
 pub mod atmosphere_model;
 pub mod bus;
 pub mod calc_helper;
+pub mod engine_type;
 pub mod event;
 pub mod exception_helper;
 pub mod file_utils;

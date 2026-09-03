@@ -7,12 +7,10 @@ const IND_MOCK: &str = "{\"valid\": true,\"army\": \"air\",\"type\": \"bf-109f-4
 #[test]
 fn update_full_snapshot() {
     let mut id = Indicators::new();
-    id.init();
     id.update(IND_MOCK);
     assert_eq!(id.valid, Some(true));
-    // type 裸串 toUpperCase; 9 字符不 >9 → stype 同 type
+    // type 裸串 toUpperCase (波21: Java 时代的 stype 截 8 死字段已删)
     assert_eq!(id.r#type.as_deref(), Some("BF-109F-4"));
-    assert_eq!(id.stype.as_deref(), Some("BF-109F-4"));
     assert!(id.flag);
     // pedals 显式取 pedals1 (快照无裸 pedals 键; 手写时代靠子串碰撞取到同值)
     assert_eq!(id.speed, 131.007797);
@@ -60,10 +58,10 @@ fn update_full_snapshot() {
 }
 
 #[test]
-fn init_sets_defaults() {
-    let mut id = Indicators::new();
-    id.init();
-    assert_eq!(id.valid, Some(false)); // 原 Service.nastring "-" 占位 → bool 化
+fn new_sets_defaults() {
+    // 波21: new+init 两段式退役 — 构造即就绪 (valid=None 表示未见过响应)
+    let id = Indicators::new();
+    assert_eq!(id.valid, None);
     assert_eq!(id.fuelnum, 0);
     assert_eq!(id.fuel, [0.0; 5]);
     assert!(!id.flag);
@@ -75,68 +73,43 @@ fn update_army_key_ignored() {
     // 波20: army=="tank" 死分支 (手写时代字符串带引号永不成立) 已随 army 字段删除 —
     // army 键存在与否不影响解析, 坦克/飞机统一按 type 识别 (FMManager 侧另有 NOT_AIRCRAFT 短路)
     let mut id = Indicators::new();
-    id.init();
     id.update("{\"valid\": true, \"army\": \"tank\", \"type\": \"tu-4\"}");
     assert!(id.flag);
     assert_eq!(id.r#type.as_deref(), Some("TU-4"));
 }
 
 #[test]
-fn update_missing_type_gives_empty_type_null_stype() {
-    // 防御分支: type 缺失 → "" ; stype 不赋值保持 None
+fn update_missing_type_gives_empty() {
+    // 防御分支: type 缺失 → ""
     let mut id = Indicators::new();
-    id.init();
     id.update("{\"valid\": true, \"speed\": 55.5}");
     assert!(id.flag);
     assert_eq!(id.r#type.as_deref(), Some(""));
-    assert!(id.stype.is_none());
     assert_eq!(id.speed, 55.5);
-}
-
-#[test]
-fn update_long_type_truncates_stype_to_8() {
-    let mut id = Indicators::new();
-    id.init();
-    id.update("{\"valid\": true, \"type\": \"aaaaaaaaaaaaaaaaaaaa\"}");
-    assert_eq!(id.r#type.as_deref(), Some("AAAAAAAAAAAAAAAAAAAA"));
-    assert_eq!(id.stype.as_deref(), Some("AAAAAAAA")); // >9 → 前 8 字符
-}
-
-#[test]
-fn update_short_type_keeps_stype_equal() {
-    let mut id = Indicators::new();
-    id.init();
-    id.update("{\"valid\": true, \"type\": \"a\"}");
-    assert_eq!(id.r#type.as_deref(), Some("A"));
-    assert_eq!(id.stype.as_deref(), Some("A"));
 }
 
 #[test]
 fn update_invalid_gives_no_cockpit() {
     let mut id = Indicators::new();
-    id.init();
     id.update("{\"valid\": false}");
     assert_eq!(id.r#type.as_deref(), Some("No Cockpit"));
-    assert_eq!(id.stype.as_deref(), Some("NoCockpit"));
+    assert!(id.is_no_cockpit()); // 波21: 字符串状态谓词化
     assert!(!id.flag);
     assert_eq!(id.speed, 0.0);
 }
 
 #[test]
-fn update_cjk_type_bmp_equivalent() {
-    // CJK 机型名 (BMP): 按 UTF-16 码元计数 ≈ 按字符计数, stype 截断语义等价
+fn update_cjk_type() {
+    // CJK 机型名: to_uppercase 对 CJK 无变化
     let mut id = Indicators::new();
-    id.init();
     id.update("{\"valid\": true, \"type\": \"歼-20\"}");
     assert_eq!(id.r#type.as_deref(), Some("歼-20"));
-    assert_eq!(id.stype.as_deref(), Some("歼-20"));
 }
 
 #[test]
 fn update_fuel_sentinel_zeroing() {
     // fuel1 哨兵 → 0 且不计数; fuel2 有效 (含 0.0) → 计数
     let mut id = Indicators::new();
-    id.init();
     id.update("{\"valid\": true, \"fuel1\": 12.5, \"fuel2\": 0.0, \"fuel3\": 7.5}");
     assert_eq!(id.fuel[1], 12.5);
     assert_eq!(id.fuel[2], 0.0);

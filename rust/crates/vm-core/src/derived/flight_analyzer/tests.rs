@@ -10,7 +10,7 @@ use std::sync::Mutex;
 
 struct MockState {
     indic_type: Option<String>,
-    eng_type: i32,
+    eng_type: crate::base::engine_type::EngineType,
     elapsed_ms: i64,
     total_hp: i32,
     total_thrust: i32,
@@ -28,7 +28,7 @@ impl AnalyzerService for MockService {
     fn s_indic_type(&self) -> Option<String> {
         self.state.lock().unwrap().indic_type.clone()
     }
-    fn i_eng_type(&self) -> i32 {
+    fn eng_type(&self) -> crate::base::engine_type::EngineType {
         self.state.lock().unwrap().eng_type
     }
     fn elapsed_time(&self) -> i64 {
@@ -52,7 +52,7 @@ fn mock_service() -> Arc<MockService> {
     Arc::new(MockService {
         state: Mutex::new(MockState {
             indic_type: Some("spitfire_f24".to_string()),
-            eng_type: 1,
+            eng_type: crate::base::engine_type::EngineType::Jet,
             elapsed_ms: 42000,
             total_hp: 2050,
             total_thrust: 0,
@@ -128,7 +128,7 @@ fn default_arrays_full_length_zeroed_and_fields_null() {
     assert!(fa.time.iter().all(|&v| v == 0.0));
     assert!(fa.power.iter().all(|&v| v == 0));
     assert!(fa.turn_load.iter().all(|&v| v == 0.0));
-    assert_eq!(fa.engine_type, 0);
+    assert_eq!(fa.engine_type, crate::base::engine_type::EngineType::Unknown);
     assert_eq!(fa.initalt_stage, 0);
     assert_eq!(fa.curalt_stage, 0);
     assert!(!fa.is_information);
@@ -143,7 +143,7 @@ fn init_records_stage_snapshot() {
     let mut fa = FlightAnalyzer::default();
     fa.init(5, svc, None);
     assert_eq!(fa.r#type.as_deref(), Some("spitfire_f24"));
-    assert_eq!(fa.engine_type, 1);
+    assert_eq!(fa.engine_type, crate::base::engine_type::EngineType::Jet);
     assert_eq!(fa.initalt_stage, 5);
     assert_eq!(fa.curalt_stage, 5);
     assert_eq!(fa.count, 1);
@@ -350,10 +350,10 @@ fn get_speed_stage_boundaries() {
     assert_eq!(fa.get_speed_stage(300.0), 30);
     // Math.round 半值向上: 305/10 = 30.5 → 31 (§2.3)
     assert_eq!(fa.get_speed_stage(305.0), 31);
-    assert_eq!(fa.get_speed_stage(295.4), 30); // 29.54 → 30
-    assert_eq!(fa.get_speed_stage(295.0), 30); // 29.5 → floor(30.0) = 30
+    assert_eq!(fa.get_speed_stage(295.4), 30); // 29.54 → 3EngineType::Prop
+    assert_eq!(fa.get_speed_stage(295.0), 30); // 29.5 → floor(30.0) = 3EngineType::Prop
     assert_eq!(fa.get_speed_stage(-6.0), -1); // -0.6 → floor(-0.1) = -1
-    assert_eq!(fa.get_speed_stage(-4.0), 0); // -0.4 → floor(0.1) = 0
+    assert_eq!(fa.get_speed_stage(-4.0), 0); // -0.4 → floor(0.1) = EngineType::Prop
     assert_eq!(fa.get_speed_stage(2559.9), 256); // 255.99 → 256 (调用方靠 <256 守卫)
     assert_eq!(fa.get_speed_stage(f64::NAN), 0);
 }
@@ -381,7 +381,7 @@ fn update_em_chart_roll_threshold_exactly_40_no_notify() {
     let mut fa = FlightAnalyzer::default();
     fa.notify = Some(cb);
     fa.roll_rate[30] = 50;
-    fa.update_em_chart(300.0, 1.0, 90, 10.0, 0, 6); // 90-50 = 40, 不 > 40
+    fa.update_em_chart(300.0, 1.0, 90, 10.0, 0, 6); // 90-50 = 40, 不 > 4EngineType::Prop
     assert_eq!(fa.roll_rate[30], 90); // 值仍更新
     assert!(cap.lock().unwrap().is_empty());
 }
@@ -436,7 +436,7 @@ fn update_em_chart_turn_threshold_exactly_3_no_notify() {
     let mut fa = FlightAnalyzer::default();
     fa.notify = Some(cb);
     fa.turn_load[30] = 3.5;
-    fa.update_em_chart(300.0, 6.5, 0, 1.0, 10, 0); // 6.5-3.5 = 3.0, 不 > 3.0
+    fa.update_em_chart(300.0, 6.5, 0, 1.0, 10, 0); // 6.5-3.5 = 3.0, 不 > 3.EngineType::Prop
     assert_eq!(fa.turn_load[30], 5.0); // 平均照常记录
     assert!(cap.lock().unwrap().is_empty());
 }
@@ -576,9 +576,9 @@ fn notification_dropped_when_notify_not_wired() {
 fn java_float_to_string_matches_java8_oracle() {
     // oracle FA.java: (int)((d*1000)/t) / 10.0f 的 Float.toString 输出
     let cases: &[(f32, &str)] = &[
-        (1.0f32 / 10.0f32, "0.1"),        // d=1 t=600
+        (1.0f32 / 10.0f32, "0.1"),        // d=1 t=60EngineType::Prop
         (9.0f32 / 10.0f32, "0.9"),        // d=1 t=100.5
-        (1.0f32 / 10.0f32, "0.1"),        // d=1 t=1000
+        (1.0f32 / 10.0f32, "0.1"),        // d=1 t=100EngineType::Prop
         (23.0f32 / 10.0f32, "2.3"),       // d=1 t=42
         (81.0f32 / 10.0f32, "8.1"),       // d=1 t=12.34
         (333.0f32 / 10.0f32, "33.3"),     // d=1 t=3
@@ -596,7 +596,7 @@ fn java_float_to_string_matches_java8_oracle() {
         (972.0f32 / 10.0f32, "97.2"),     // d=12 t=12.34
         (2400.0f32, "2400.0"),            // d=12 t=0.5
         (12000.0f32, "12000.0"),          // d=12 t=0.1
-        (426.0f32 / 10.0f32, "42.6"),     // d=256 t=600
+        (426.0f32 / 10.0f32, "42.6"),     // d=256 t=60EngineType::Prop
         (2547.0f32 / 10.0f32, "254.7"),   // d=256 t=100.5
         (6095.0f32 / 10.0f32, "609.5"),   // d=256 t=42
         (20745.0f32 / 10.0f32, "2074.5"), // d=256 t=12.34

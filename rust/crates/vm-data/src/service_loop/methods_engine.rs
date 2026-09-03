@@ -260,7 +260,7 @@ mod tests {
         let s = d.s_state.as_mut().unwrap();
         s.ias = ias;
         s.compressorstage = compressorstage;
-        s.throttles = vec![throttle];
+        s.throttles = [throttle, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     }
 
     // ---------------- checkWing (已删: 产物无消费者, registry wing_sweep_valid 直通替代) ----------------

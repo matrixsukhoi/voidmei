@@ -22,7 +22,6 @@ pub struct Indicators {
     /// JSON 真值即 bool; init 前为 None
     pub valid: Option<bool>,
     pub r#type: Option<String>,
-    pub stype: Option<String>,
     pub flag: bool,
     //	public boolean fuelpressure;
     pub speed: f64,
@@ -76,12 +75,20 @@ pub struct Indicators {
 }
 
 impl Indicators {
+    /// valid 无效时的 type 哨兵值 (原 Java 字符串字面量, 波21 具名化)
+    pub const NO_COCKPIT_TYPE: &'static str = "No Cockpit";
+
+    /// valid 无效 (游戏未进座舱/无仪表) 的哨兵判定
+    pub fn is_no_cockpit(&self) -> bool {
+        self.r#type.as_deref() == Some(Self::NO_COCKPIT_TYPE)
+    }
+
     /// 对应 Java `new Indicators()`: 标量字段取 Java 默认值
+    /// (波21: Java new+init 两段式退役, 构造即就绪)
     pub fn new() -> Self {
         Indicators {
             valid: None,
             r#type: None,
-            stype: None,
             flag: false,
             speed: 0.0,
             pedals: 0.0,
@@ -129,39 +136,24 @@ impl Indicators {
         }
     }
 
-    pub fn init(&mut self) {
-        self.valid = Some(false);
-        self.fuelnum = 0;
-        self.fuel = [0.0; 5];
-        self.flag = false;
-        //		fuelpressure=false;
-        self.mach = 0.0;
-    }
-
     pub fn update(&mut self, buf: &str) {
         // 畸形/空 JSON → Null, 全部取数走缺键分支 (等价手写时代 "找不到键")
         let v: Value = serde_json::from_str(buf).unwrap_or(Value::Null);
         self.valid = v.get("valid").and_then(Value::as_bool);
         if self.valid == Some(true) {
             self.flag = true;
-            // type 加工链: to_uppercase (下游 DUMMY_PLANE/FM 识别依赖大写) + stype 截 8;
-            // 手写时代的 "去首尾引号" 步骤退役 (serde 给裸串)。
-            // 缺键 (畸形响应) → type="" 且 stype 不赋值保持 None (对齐手写时代缺失分支)
-            match v.get("type").and_then(Value::as_str) {
-                None => self.r#type = Some(String::new()),
-                Some(t) => {
-                    // PORT: toUpperCase() 默认 Locale (tr 语料 'i'→'İ' 差异) —
-                    // Rust to_uppercase 与 locale 无关; 域内机型名 ASCII, 无行为差
-                    let up = t.to_uppercase();
-                    self.stype = Some(if up.chars().count() > 9 {
-                        // PORT: substring(0, 8) — 前 8 个 UTF-16 码元 ≈ BMP 前 8 字符
-                        up.chars().take(8).collect()
-                    } else {
-                        up.clone()
-                    });
-                    self.r#type = Some(up);
-                }
-            }
+            // type 加工链: to_uppercase (下游 DUMMY_PLANE/FM 识别依赖大写);
+            // 手写时代的 "去首尾引号" 步骤退役 (serde 给裸串);
+            // 缺键 (畸形响应) → "" (走下游兜底分支)。
+            // (波21: Java 时代的 stype 截 8 字段是死代码, 已删)
+            // PORT: toUpperCase() 默认 Locale (tr 语料 'i'→'İ' 差异) —
+            // Rust to_uppercase 与 locale 无关; 域内机型名 ASCII, 无行为差
+            let up = v
+                .get("type")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_uppercase();
+            self.r#type = Some(up);
 
             self.speed = v_f64(&v, "speed");
             // 快照无裸 pedals 键 (只有 pedals1~4): 显式取 pedals1
@@ -235,8 +227,7 @@ impl Indicators {
             self.ammo_counter3 = v_f64(&v, "ammo_counter3");
             self.mach = v_f64(&v, "mach");
         } else {
-            self.r#type = Some("No Cockpit".to_string());
-            self.stype = Some("NoCockpit".to_string());
+            self.r#type = Some(Self::NO_COCKPIT_TYPE.to_string());
 
             self.flag = false;
         }

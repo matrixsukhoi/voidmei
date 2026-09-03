@@ -66,7 +66,6 @@ fn snapshot_indicators(i: &Indicators) -> Indicators {
     let mut s = Indicators::new();
     s.valid = i.valid.clone();
     s.r#type = i.r#type.clone();
-    s.stype = i.stype.clone();
     s.flag = i.flag;
     s.speed = i.speed;
     s.pedals = i.pedals;
@@ -243,7 +242,7 @@ struct MockSvcData {
 impl MockSvcData {
     fn new() -> Self {
         let mut st = State::new();
-        st.init();
+
         MockSvcData {
             current_time_ms: 0,
             player_live: true,

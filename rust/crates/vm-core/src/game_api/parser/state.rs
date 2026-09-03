@@ -47,7 +47,8 @@ pub struct State {
     pub mixture: i32,
     pub compressorstage: i32,
     pub magneto: i32,
-    pub power: Vec<f64>,
+    /// 波21 定长化: 引擎五数组 [T; 16] (Copy, 帧克隆免堆分配)
+    pub power: [f64; MAX_ENG_NUM],
     pub rpm: i32,
     pub manifoldpressure: f64,
     pub watertemp: f64,
@@ -57,17 +58,18 @@ pub struct State {
     pub mfuel0: f64,
     /// 助推器燃料总量 (kg)，无助推器时为 -65535
     pub mfuel0_1: f64,
-    pub pitch: Vec<f64>,
-    pub thrust: Vec<i32>,
-    pub efficiency: Vec<f64>,
+    pub pitch: [f64; MAX_ENG_NUM],
+    pub thrust: [i32; MAX_ENG_NUM],
+    pub efficiency: [f64; MAX_ENG_NUM],
     pub airbrake: i32,
     pub total_thr: f64,
-    pub throttles: Vec<i32>,
+    pub throttles: [i32; MAX_ENG_NUM],
 }
 
 impl State {
-    /// 对应 Java `new State()`: 标量字段取 Java 默认值,
-    /// 引擎数组保持空 — 未 init 就 update 会 panic。
+    /// 对应 Java `new State()`: 标量字段取 Java 默认值, 引擎数组零初始化。
+    /// (波21: Java new+init 两段式退役 — 定长数组随构造即有效,
+    ///  "未 init 就 update panic" 的 NPE 保真随之消亡)
     pub fn new() -> Self {
         State {
             valid: None,
@@ -94,7 +96,7 @@ impl State {
             mixture: 0,
             compressorstage: 0,
             magneto: 0,
-            power: Vec::new(),
+            power: [0.0; MAX_ENG_NUM],
             rpm: 0,
             manifoldpressure: 0.0,
             watertemp: 0.0,
@@ -103,24 +105,13 @@ impl State {
             mfuel_1: 0.0,
             mfuel0: 0.0,
             mfuel0_1: 0.0,
-            pitch: Vec::new(),
-            thrust: Vec::new(),
-            efficiency: Vec::new(),
+            pitch: [0.0; MAX_ENG_NUM],
+            thrust: [0; MAX_ENG_NUM],
+            efficiency: [0.0; MAX_ENG_NUM],
             airbrake: 0,
             total_thr: 0.0,
-            throttles: Vec::new(),
+            throttles: [0; MAX_ENG_NUM],
         }
-    }
-
-    pub fn init(&mut self) {
-        self.valid = Some(false);
-        self.throttles = vec![0; MAX_ENG_NUM];
-        self.power = vec![0.0; MAX_ENG_NUM];
-        self.pitch = vec![0.0; MAX_ENG_NUM];
-        self.thrust = vec![0; MAX_ENG_NUM];
-        self.efficiency = vec![0.0; MAX_ENG_NUM];
-        self.engine_num = 0;
-        self.airbrake = 0;
     }
 
     /// 解析 /state JSON。返回值是调用方 (vm-data 轮询) 的协议信号:

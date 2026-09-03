@@ -8,7 +8,7 @@ const STATE_MOCK: &str = "{\"valid\": true,\"aileron, %\": -48,\"elevator, %\": 
 #[test]
 fn update_full_snapshot() {
     let mut st = State::new();
-    st.init();
+
     assert_eq!(st.update(STATE_MOCK), 0);
     assert_eq!(st.valid, Some(true));
     assert!(st.flag);
@@ -61,7 +61,7 @@ fn update_full_snapshot() {
 #[test]
 fn update_missing_valid_returns_minus_1() {
     let mut st = State::new();
-    st.init();
+
     assert_eq!(st.update("{\"IAS, km/h\": 100}"), -1);
     assert!(st.valid.is_none());
     assert!(!st.flag);
@@ -72,7 +72,7 @@ fn update_missing_valid_returns_minus_1() {
 fn update_malformed_json_returns_minus_1() {
     // 波20 serde 化: 畸形 JSON 等价 "缺 valid 键" → 端口翻转信号
     let mut st = State::new();
-    st.init();
+
     assert_eq!(st.update("{\"valid\": tru"), -1);
     assert_eq!(st.update(""), -1);
     assert!(st.valid.is_none());
@@ -81,7 +81,7 @@ fn update_malformed_json_returns_minus_1() {
 #[test]
 fn update_valid_false_keeps_fields() {
     let mut st = State::new();
-    st.init();
+
     assert_eq!(st.update("{\"valid\": false}"), 0);
     assert_eq!(st.valid, Some(false));
     assert!(!st.flag);
@@ -93,7 +93,7 @@ fn update_sentinel_normalizations() {
     // P-63 类自动桨: RPM throttle/mixture/compressorstage 缺键时哨兵归一化;
     // magneto 不归一化, 保留 -65535 (真键 "magneto 1")
     let mut st = State::new();
-    st.init();
+
     st.update("{\"valid\": true, \"magneto 1\": 1}");
     assert_eq!(st.rpm_throttle, -1);
     assert_eq!(st.mixture, -1);
@@ -106,7 +106,7 @@ fn update_sentinel_normalizations() {
 #[test]
 fn update_multi_engine() {
     let mut st = State::new();
-    st.init();
+
     st.update("{\"valid\": true, \"throttle 1, %\": 90, \"throttle 2, %\": 95, \"power 1, hp\": 1000.5, \"power 2, hp\": 1100.25, \"thrust 1, kgs\": 500, \"thrust 2, kgs\": 600, \"pitch 1, deg\": 30.5, \"pitch 2, deg\": 31.5, \"efficiency 1, %\": 80, \"efficiency 2, %\": 81}");
     assert_eq!(st.engine_num, 2);
     assert_eq!(st.total_thr, 1100.0);
@@ -122,10 +122,10 @@ fn update_multi_engine() {
 }
 
 #[test]
-fn init_resets_arrays_and_sentinels() {
-    let mut st = State::new();
-    st.init();
-    assert_eq!(st.valid, Some(false));
+fn new_zeroes_arrays() {
+    // 波21: 定长数组随构造零初始化 (两段式 init 退役)
+    let st = State::new();
+    assert_eq!(st.valid, None);
     assert_eq!(st.throttles.len(), MAX_ENG_NUM);
     assert_eq!(st.power.len(), MAX_ENG_NUM);
     assert_eq!(st.thrust.len(), MAX_ENG_NUM);

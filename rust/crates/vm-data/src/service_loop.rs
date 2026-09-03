@@ -270,9 +270,9 @@ impl Service {
             d.ratio = ratio;
             d.ratio_1 = 1.0 - ratio;
             d.s_state = Some(State::new());
-            d.s_state.as_mut().unwrap().init();
+
             d.s_indic = Some(Indicators::new());
-            d.s_indic.as_mut().unwrap().init();
+
         });
         svc
     }
@@ -1437,9 +1437,8 @@ impl AnalyzerService for ServiceAnalyzerSource {
             .expect("PORT: Java NPE — xs.sIndic 为 null 时 FlightAnalyzer.init 首行 NPE");
         s.r#type.clone()
     }
-    fn i_eng_type(&self) -> i32 {
-        // 序列化兼容: 枚举 → 原 i32 常量值 (F1)
-        read_data(&self.data).engine.engine_type.as_i32()
+    fn eng_type(&self) -> EngineType {
+        read_data(&self.data).engine.engine_type
     }
     fn elapsed_time(&self) -> i64 {
         read_data(&self.data).elapsed_time

@@ -211,7 +211,9 @@ mod tests {
     fn seed_inputs(svc: &mut Service, power0: f64, throttle: i32, nwater: f64, noil: f64) {
         let mut d = write_data(&svc.data);
         let s = d.s_state.as_mut().unwrap();
-        s.power = vec![power0];
+        let mut power = [0.0; vm_core::game_api::parser::state::MAX_ENG_NUM];
+        power[0] = power0;
+        s.power = power;
         s.throttle = throttle;
         d.engine.nwater_temp = nwater;
         d.engine.noil_temp = noil;

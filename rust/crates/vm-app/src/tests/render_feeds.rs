@@ -281,11 +281,11 @@ fn feed_overlays_live_updates_all_handles() {
         st.airbrake = 100;
         st.aileron = 100;
         st.aoa = 10.0;
-        st.pitch = vec![0.0; 8];
-        st.thrust = vec![0; 8];
-        st.power = vec![0.0; 8];
-        st.efficiency = vec![0.0; 8];
-        st.throttles = vec![0; 8];
+        st.pitch = [0.0; 16];
+        st.thrust = [0; 16];
+        st.power = [0.0; 16];
+        st.efficiency = [0.0; 16];
+        st.throttles = [0; 16];
         st.rpm_throttle = 60;
     }
     d.s_indic.as_mut().unwrap().aviahorizon_pitch = 5.0;

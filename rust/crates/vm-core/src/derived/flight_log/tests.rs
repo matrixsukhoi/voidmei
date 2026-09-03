@@ -91,8 +91,8 @@ impl AnalyzerService for RecordingService {
     fn s_indic_type(&self) -> Option<String> {
         Some("rec-type".into())
     }
-    fn i_eng_type(&self) -> i32 {
-        2
+    fn eng_type(&self) -> crate::base::engine_type::EngineType {
+        crate::base::engine_type::EngineType::Turboprop
     }
     fn elapsed_time(&self) -> i64 {
         // 活读证据: 每次调用值递增
