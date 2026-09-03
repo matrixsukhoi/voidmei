@@ -9,7 +9,7 @@ use regex::Regex;
 
 use crate::ui_support::comparison::comparison_rule::ComparisonRule;
 use crate::ui_support::comparison::rules::{
-    JAVA_WS, LambdaRule, ListIndexRule, MultiListIndexRule, SimpleRule,
+    LambdaRule, ListIndexRule, MultiListIndexRule, SimpleRule, JAVA_WS,
 };
 
 /// Registry of comparison rules for FM properties.
@@ -30,9 +30,8 @@ pub struct ComparisonRules;
 /// `/\s*(-?\d+(\.\d+)?)` (SLASH_SECOND) 的 find(), 返回组1。
 /// 波21: 手写回溯匹配器退役, regex crate 直接承载 (JAVA_WS = ASCII \s)。
 fn find_slash_second(s: &str) -> Option<&str> {
-    static RE: LazyLock<Regex> = LazyLock::new(|| {
-        Regex::new(&format!(r"/[{}]*(-?[0-9]+(\.[0-9]+)?)", JAVA_WS)).unwrap()
-    });
+    static RE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(&format!(r"/[{}]*(-?[0-9]+(\.[0-9]+)?)", JAVA_WS)).unwrap());
     RE.captures(s).map(|c| c.get(1).unwrap().as_str())
 }
 
@@ -50,12 +49,8 @@ fn find_slash_both(s: &str) -> Option<(&str, &str)> {
         ))
         .unwrap()
     });
-    RE.captures(s).map(|c| {
-        (
-            c.get(1).unwrap().as_str(),
-            c.get(3).unwrap().as_str(),
-        )
-    })
+    RE.captures(s)
+        .map(|c| (c.get(1).unwrap().as_str(), c.get(3).unwrap().as_str()))
 }
 
 fn rules() -> &'static HashMap<&'static str, &'static (dyn ComparisonRule + Send + Sync)> {

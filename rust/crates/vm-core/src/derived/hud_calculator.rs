@@ -36,13 +36,13 @@
 const FLAPS_INVALID_POS: i32 = 65535;
 
 use crate::base::event::event_payload::EventPayload;
-use crate::game_api::parser::F_INVALID; // 波21: 哨兵字面量收敛
-use crate::base::format::{java_f, pad_width};
+use crate::base::format::{fmt_f, pad_width};
 use crate::config::config_api::HUDSettings;
 use crate::derived::hud_data::Builder;
 use crate::derived::hud_data::HUDData;
 use crate::fm::data::FmData;
 use crate::formula::registry::FormulaView;
+use crate::game_api::parser::F_INVALID; // 波21: 哨兵字面量收敛
 use crate::game_api::parser::{Indicators, State};
 
 /// W7: var_value 桥取值 (NaN→0, 对齐原 getter map_or(0.0) 零值帧语义)
@@ -284,7 +284,7 @@ fn format_display_strings<S: HUDSettings>(
 
     // --- Strings Formatting (using Data) ---
     if b.is_mach_mode {
-        b.speed_str = format!("M{}", pad_width(java_f(b.mach, 2), 5, false));
+        b.speed_str = format!("M{}", pad_width(fmt_f(b.mach, 2), 5, false));
     } else {
         let spd_pre = if settings.is_speed_label_disabled() {
             ""
@@ -313,15 +313,15 @@ fn format_display_strings<S: HUDSettings>(
     if use_radar_alt {
         b.alt_str = format!(
             "{alt_pre}R{}",
-            pad_width(java_f(b.radio_altitude, 0), 5, false)
+            pad_width(fmt_f(b.radio_altitude, 0), 5, false)
         );
     } else {
-        b.alt_str = format!("{alt_pre}{}", pad_width(java_f(b.altitude, 0), 6, false));
+        b.alt_str = format!("{alt_pre}{}", pad_width(fmt_f(b.altitude, 0), 6, false));
     }
 
     // AoA 和 Energy 数据始终计算，显示/隐藏由组件级开关控制
-    b.aoa_str = format!("α{}", pad_width(java_f(b.aoa, 0), 3, false));
-    b.energy_str = format!("E{}", pad_width(java_f(b.energy_m, 0), 5, false));
+    b.aoa_str = format!("α{}", pad_width(fmt_f(b.aoa, 0), 3, false));
+    b.energy_str = format!("E{}", pad_width(fmt_f(b.energy_m, 0), 5, false));
 
     let sep_pre = if settings.is_sep_label_disabled() {
         ""
@@ -331,18 +331,18 @@ fn format_display_strings<S: HUDSettings>(
     if b.vertical_speed > 0.0 {
         b.sep_str = format!(
             "{sep_pre}↑{}",
-            pad_width(java_f(b.vertical_speed, 0), 4, true)
+            pad_width(fmt_f(b.vertical_speed, 0), 4, true)
         );
     } else {
         b.sep_str = format!(
             "{sep_pre}↓{}",
-            pad_width(java_f(b.vertical_speed, 0), 4, true)
+            pad_width(fmt_f(b.vertical_speed, 0), 4, true)
         );
     }
 
     // Maneuver / Time
     if b.g_load > 1.5 || b.g_load < -0.5 {
-        b.maneuver_state_str = format!("G{}", pad_width(java_f(b.g_load, 1), 5, false));
+        b.maneuver_state_str = format!("G{}", pad_width(fmt_f(b.g_load, 1), 5, false));
     } else {
         // PORT: Java `time != null && !time.isEmpty()` — Rust String 无 null,
         // EventPayload.timeStr 由 Builder 缺省 "--:--", null 分支坍缩
@@ -372,12 +372,12 @@ fn format_display_strings<S: HUDSettings>(
     }
 
     if b.flaps > 0.0 {
-        b.flaps_wing_str = format!("F{}", pad_width(java_f(b.flaps, 0), 3, false));
+        b.flaps_wing_str = format!("F{}", pad_width(fmt_f(b.flaps, 0), 3, false));
     } else if fmdata.is_some() && fmdata.unwrap().is_v_wing.unwrap() && s_indic.is_some() {
         b.flaps_wing_str = format!(
             "W{}",
             pad_width(
-                java_f(s_indic.unwrap().wsweep_indicator * 100.0, 0),
+                fmt_f(s_indic.unwrap().wsweep_indicator * 100.0, 0),
                 3,
                 false
             )
@@ -391,8 +391,7 @@ fn format_display_strings<S: HUDSettings>(
     if b.flaps > 0.0 {
         // Restore readable text if Bar is disabled
         if !settings.enable_flap_angle_bar() {
-            b.mechanization_str =
-                format!("F{}{brk}{gear}", pad_width(java_f(b.flaps, 0), 3, false));
+            b.mechanization_str = format!("F{}{brk}{gear}", pad_width(fmt_f(b.flaps, 0), 3, false));
         } else {
             // Bar enabled -> Hide text (keep Brk/Gear)
             b.mechanization_str = format!("{}{brk}{gear}", pad_width(String::new(), 4, false));
@@ -402,7 +401,7 @@ fn format_display_strings<S: HUDSettings>(
         b.mechanization_str = format!(
             "W{}{brk}{gear}",
             pad_width(
-                java_f(s_indic.unwrap().wsweep_indicator * 100.0, 0),
+                fmt_f(s_indic.unwrap().wsweep_indicator * 100.0, 0),
                 3,
                 false
             )

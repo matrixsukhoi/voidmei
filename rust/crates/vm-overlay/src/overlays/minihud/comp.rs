@@ -12,7 +12,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use vm_core::base::format::{java_f, pad_width};
+use vm_core::base::format::{fmt_f, pad_width};
 use vm_core::config::config_api::HUDSettings;
 use vm_core::derived::hud_data::HUDData;
 
@@ -357,7 +357,7 @@ impl MiniHudOverlay {
 
         if settings.draw_hud_mach() {
             // "M%5.2f" (0.85) — M 前缀在宽度域外
-            self.lines[0] = format!("M{}", pad_width(java_f(0.85, 2), 5, false));
+            self.lines[0] = format!("M{}", pad_width(fmt_f(0.85, 2), 5, false));
         } else {
             self.lines[0] = format!("{spd_pre}{}", pad_width("360".to_string(), 5, false));
         }
@@ -384,7 +384,7 @@ impl MiniHudOverlay {
         self.throttle_color = colors().shade_shape; // Application.colorShadeShape
         self.aoa_color = colors().num; // Application.colorNum
         self.aoa_bar_color = colors().num;
-        self.line_aoa = format!("α{}", pad_width(java_f(20.0, 0), 3, false));
+        self.line_aoa = format!("α{}", pad_width(fmt_f(20.0, 0), 3, false));
         self.rel_energy = "E114514".to_string();
 
         // Push new templates to existing components immediately

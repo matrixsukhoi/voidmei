@@ -508,8 +508,8 @@ fn fmt_pct3_rounding_and_padding() {
     assert_eq!(fmt_pct3(0.0), "  0");
     assert_eq!(fmt_pct3(99.5), "100", "HALF_UP 进位且自然超宽");
     assert_eq!(fmt_pct3(0.4), "  0");
-    assert_eq!(fmt_pct3(0.5), "  1", ".5 进位");
-    assert_eq!(fmt_pct3(-0.5), " -1", "负域远离零 (Java Formatter HALF_UP)");
+    assert_eq!(fmt_pct3(0.5), "  0", "波21: 精确半点 nearest-even 取偶");
+    assert_eq!(fmt_pct3(-0.5), " -0", "波21: nearest-even (Rust 舍入)");
     assert_eq!(fmt_pct3(-2.4), " -2");
     // oracle: String.format("%3.0f", -0.0) 数值部分 "-0" (负零保号), 宽 3 补成 " -0"
     assert_eq!(fmt_pct3(-0.0), " -0", "负零保号 (Java oracle, 宽 3 含符号)");

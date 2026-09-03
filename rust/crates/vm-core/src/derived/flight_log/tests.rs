@@ -252,47 +252,20 @@ fn java_double_to_string_matches_java8_oracle() {
     }
 }
 
-// ---- 2. Java 8 oracle 对拍: Float.toString ----
+// ---- 3. fuel time 列: elapsedTime / 60000 (波21: f32 复刻退役, f64 最短往返) ----
 #[test]
-fn java_float_to_string_matches_java8_oracle() {
-    let cases: &[(f32, &str)] = &[
-        (0.0, "0.0"),
-        (5.5, "5.5"),
-        (60000.0, "60000.0"),
-        (0.05, "0.05"),
-        (1e7, "1.0E7"),
-        (1e-4, "1.0E-4"),
-        (1234567.0, "1234567.0"),
-        // 注: f32 123456790 Java 8 输出 "1.23456792E8" (多一位非最短数字, 同上偏差类)
-        (1.0 / 3.0, "0.33333334"),
-        (9.999999, "9.999999"),
-        (0.001, "0.001"),
-        (0.000999, "9.99E-4"),
-    ];
-    for (v, expect) in cases {
-        assert_eq!(&java_float_to_string(*v), expect, "value = {v:e}");
-    }
-}
-
-// ---- 3. Java 8 oracle 对拍: elapsedTime / 60000.0f (long→float 提升) ----
-#[test]
-fn elapsed_minutes_matches_java8_oracle() {
+fn elapsed_minutes_f64() {
     let cases: &[(i64, &str)] = &[
         (0, "0.0"),
         (123456, "2.0576"),
         (3600000, "60.0"),
-        (1234567890123, "2.0576132E7"),
-        (2951479052, "49191.316"),
+        (1234567890123, "20576131.50205"),
+        (2951479052, "49191.317533333335"),
     ];
     for (ms, expect) in cases {
-        assert_eq!(
-            &java_float_to_string(*ms as f32 / 60000.0f32),
-            expect,
-            "ms = {ms}"
-        );
+        assert_eq!(&format!("{:?}", *ms as f64 / 60000.0), expect, "ms = {ms}");
     }
 }
-
 // ---- 4. 表头行格式: Lang.l1..l31 顺序拼接 + 换行 ----
 #[test]
 fn label_row_is_lang_l1_to_l31_concatenation() {

@@ -15,8 +15,8 @@
 
 use std::sync::Arc;
 
-use crate::base::format::java_f;
-use crate::base::java_compat::{java_float_to_string, java_parse_boolean};
+use crate::base::format::fmt_f;
+use crate::base::java_compat::java_parse_boolean;
 use crate::base::physics_constants::g;
 use crate::config::config_api::config_provider::ConfigProvider;
 use crate::lang::Lang;
@@ -142,7 +142,7 @@ impl FlightAnalyzer {
         self.initalt_stage = stage;
         self.curalt_stage = self.initalt_stage;
         let idx = self.curalt_stage as usize;
-        self.time[idx] = (xs.elapsed_time() as f32 / 1000.0f32) as f64;
+        self.time[idx] = xs.elapsed_time() as f64 / 1000.0; // 波21: f32 复刻退役
         self.power[idx] = xs.total_hp();
         self.thrust[idx] = xs.total_thrust();
         self.eff[idx] = xs.total_hp_eff();
@@ -161,7 +161,7 @@ impl FlightAnalyzer {
             self.curalt_stage += 1;
 
             let idx = self.curalt_stage as usize;
-            self.time[idx] = (xs.elapsed_time() as f32 / 1000.0f32) as f64;
+            self.time[idx] = xs.elapsed_time() as f64 / 1000.0; // 波21: f32 复刻退役
             self.power[idx] = xs.total_hp();
             self.thrust[idx] = xs.total_thrust();
             self.eff[idx] = xs.total_hp_eff();
@@ -169,8 +169,8 @@ impl FlightAnalyzer {
             self.count = 1;
             if self.is_information {
                 let lang = Lang::init_lang();
-                // climb = (int)((stage - initalt_stage) * 1000 / time[..]):
-                // int 除 float 得 float, 串化走 Float.toString
+                // climb = (int)((stage - initalt_stage) * 1000 / time[..]) / 10:
+                // 波21: f32 复刻退役, f64 直算 + fmt_f 一位小数
                 let climb = ((stage - self.initalt_stage) * 1000) as f64 / self.time[idx];
                 let msg = format!(
                     "{}{}{}{}{}{}{}",
@@ -179,7 +179,7 @@ impl FlightAnalyzer {
                     lang.f_a2,
                     self.time[idx] as i32,
                     lang.f_a3,
-                    java_float_to_string(climb as i32 as f32 / 10.0f32),
+                    fmt_f(climb as i32 as f64 / 10.0, 1), // Java (int) 截断语义保留 (inf 饱和 i32::MAX)
                     lang.f_a4
                 );
                 self.show(&msg);
@@ -242,9 +242,9 @@ impl FlightAnalyzer {
                         lang.f_a_turn1,
                         stage * 10,
                         lang.f_a_turn2,
-                        java_f((self.turn_load[s] + g_load) / 2.0, 1),
+                        fmt_f((self.turn_load[s] + g_load) / 2.0, 1),
                         lang.f_a_turn3,
-                        java_f((self.sep_loss[s] + sep) / 2.0, 1),
+                        fmt_f((self.sep_loss[s] + sep) / 2.0, 1),
                         lang.f_a_turn4
                     ));
                 }

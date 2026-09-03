@@ -55,4 +55,3 @@ pub(crate) fn v_xy(v: &serde_json::Value, key: &str) -> (f64, f64) {
         .unwrap_or(0.0);
     (x, y)
 }
-

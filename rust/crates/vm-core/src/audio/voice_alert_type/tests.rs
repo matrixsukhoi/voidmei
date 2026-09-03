@@ -53,6 +53,4 @@ fn test_alert_type_cooldowns() {
         0,
         "WARN_COMPRESSOR cooldown"
     );
-
 }
-

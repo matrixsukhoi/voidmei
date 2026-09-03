@@ -19,7 +19,6 @@
 //! 字段无法在 match 外直接读取, 故数据集中在 parts() 的 match 表 (§1 枚举带字段),
 //! 与 Java 常量声明逐一对应、顺序即声明序。
 
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VoiceAlertType {
     // 攻角类
@@ -129,7 +128,6 @@ const _: () = assert!(
     "VoiceAlertType::ALL 与枚举变体集数量不一致: 新增变体需同步 ALL 数组"
 );
 
-
 impl VoiceAlertType {
     /// Java private final 字段 (key, cooldownSeconds) 的唯一读取点;
     /// 各行即 Java 常量声明的构造参数。
@@ -174,9 +172,6 @@ impl VoiceAlertType {
         self.parts().1
     }
 
-
-
-
     /// 根据 key 查找告警类型
     /// @param key 告警键名
     /// @return 对应的枚举值，找不到返回 null
@@ -185,7 +180,6 @@ impl VoiceAlertType {
         let key = key?;
         ALL.iter().copied().find(|t| t.parts().0 == key)
     }
-
 }
 
 // =====================================================================

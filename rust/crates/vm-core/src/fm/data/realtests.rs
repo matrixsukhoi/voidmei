@@ -1404,9 +1404,8 @@ mod fuzzer {
     /// Java `RE_QUOTED = Pattern.compile("\"([^\"\\n\\r]{1,60})\"")` 的 find() 全序列
     /// (波21: 手写扫描器退役, regex crate 承载); 收集上限 5000
     fn find_quoted_matches(s: &str) -> Vec<(usize, usize)> {
-        static RE: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
-            regex::Regex::new(r#""([^"\n\r]{1,60})""#).unwrap()
-        });
+        static RE: std::sync::LazyLock<regex::Regex> =
+            std::sync::LazyLock::new(|| regex::Regex::new(r#""([^"\n\r]{1,60})""#).unwrap());
         RE.find_iter(s)
             .map(|m| (m.start(), m.end()))
             .take(5000)

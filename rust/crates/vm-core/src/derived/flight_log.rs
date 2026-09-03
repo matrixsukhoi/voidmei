@@ -22,7 +22,7 @@ use std::sync::{Arc, Mutex};
 
 use chrono::{Datelike, Local, Timelike};
 
-use crate::base::java_compat::{java_double_to_string, java_float_to_string};
+use crate::base::java_compat::java_double_to_string;
 use crate::base::logger::warn_default;
 use crate::base::physics_constants::g;
 use crate::config::config_api::ConfigProvider;
@@ -233,7 +233,7 @@ impl FlightLog {
         write!(
             bw,
             "{},",
-            java_float_to_string(xs.elapsed_time as f32 / 60000.0f32)
+            java_double_to_string(xs.elapsed_time as f64 / 60000.0) // 波21: f32 复刻退役并归 double 版
         )?; // 1
 
         tmp = xs.throttle.clone();

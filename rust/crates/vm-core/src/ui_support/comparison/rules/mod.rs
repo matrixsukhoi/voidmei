@@ -27,8 +27,7 @@ pub(crate) const JAVA_WS: &str = r" \t\n\x0B\x0C\r";
 
 /// NUMBER_PATTERN `(-?\d+(\.\d+)?)` — find() 首次匹配的组1。
 pub(super) fn find_number(s: &str) -> Option<&str> {
-    static RE: LazyLock<Regex> =
-        LazyLock::new(|| Regex::new(r"(-?[0-9]+(\.[0-9]+)?)").unwrap());
+    static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(-?[0-9]+(\.[0-9]+)?)").unwrap());
     RE.captures(s).map(|c| c.get(1).unwrap().as_str())
 }
 
@@ -47,7 +46,9 @@ pub(super) fn find_bracket_list(s: &str) -> Option<&str> {
 /// LIST_PATTERN 的 `while (m.find())` 循环: captures_iter 不重叠, 收集全部组1。
 pub(super) fn find_all_bracket_lists(s: &str) -> Vec<&str> {
     static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\[([^\]]+)\]").unwrap());
-    RE.captures_iter(s).map(|c| c.get(1).unwrap().as_str()).collect()
+    RE.captures_iter(s)
+        .map(|c| c.get(1).unwrap().as_str())
+        .collect()
 }
 
 /// Java `String.split(",")` (limit=0):

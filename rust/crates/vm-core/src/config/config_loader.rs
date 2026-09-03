@@ -21,7 +21,7 @@ use std::sync::RwLock;
 use crate::config::sexp_parser::{AtomType, SExp, SExpParser, SList};
 // 键码↔文本映射 (波16 E6 抽出至 key_text.rs; :hotkey 装载/写回消费)
 use super::key_text::{get_key_code_from_text, get_key_text};
-use crate::base::format::java_f;
+use crate::base::format::fmt_f;
 use crate::base::java_compat::{java_double_to_string, java_parse_boolean};
 
 // --- Java `Object value` 的类型域 (extractValue 实际产出) ---
@@ -570,8 +570,8 @@ pub fn save_config(path: &str, groups: &[GroupConfig]) {
         pw.push_str(jls);
 
         let indent = "  "; // 2 spaces base indent for panel attributes as per sample
-        let x_s = java_f(group.x, 4);
-        let y_s = java_f(group.y, 4);
+        let x_s = fmt_f(group.x, 4);
+        let y_s = fmt_f(group.y, 4);
         write_attr_line(&mut pw, indent, ":x", AttrVal::Str(Some(&x_s)));
         write_attr_line(&mut pw, indent, ":y", AttrVal::Str(Some(&y_s)));
         write_attr_line(&mut pw, indent, ":alpha", AttrVal::Int(group.alpha));

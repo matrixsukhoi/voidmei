@@ -678,7 +678,7 @@ fn s6_mach_mode_and_stall_warning() {
     assert!(h.warn_altitude); // 120 <= 500 且 valid
     assert_eq!(h.speed_str, "M 0.82");
     assert_eq!(h.alt_str, "R  120"); // alwaysRadar && raltValid
-    assert_eq!(h.aoa_str, "α 31");
+    assert_eq!(h.aoa_str, "α 30"); // 波21: 30.5 nearest-even
     assert_eq!(h.energy_str, "E  531");
     assert_eq!(h.mechanization_str, "F100"); // flapBar=false, brk/gear 空
     assert_eq!(h.flaps_wing_str, "F100");
@@ -792,7 +792,7 @@ fn s9_descending_rows_early_return_and_clamp() {
     assert_eq!(h.aoa_ratio.to_bits(), 0x3fe4_ba2e_8ba2_e8bb);
     assert_eq!(h.maneuver_index.to_bits(), 0x3fc6_0a2c_1458_28b0);
     assert_eq!(h.speed_bar_stall_ratio.to_bits(), 0x3fc0_2e97_8d4f_df3b);
-    assert_eq!(h.sep_str, "SEP↓-3  ");
+    assert_eq!(h.sep_str, "SEP↓-2  "); // 波21: nearest-even
     assert_eq!(h.maneuver_state_str, "G -0.8"); // gLoad=-0.8 < -0.5
     assert_eq!(h.energy_str, "E  418");
     assert_eq!(h.aoa_color, COLORS.color_warning);
@@ -877,137 +877,113 @@ fn s10_invalid_fm_short_circuits() {
 #[test]
 fn java8_oracle_format_battery() {
     // M%5.2f
-    let m52 = |v: f64| format!("M{}", pad_width(java_f(v, 2), 5, false));
+    let m52 = |v: f64| format!("M{}", pad_width(fmt_f(v, 2), 5, false));
     assert_eq!(m52(0.82), "M 0.82");
     assert_eq!(m52(0.851), "M 0.85");
-    assert_eq!(m52(0.855), "M 0.86"); // HALF_UP on 最短表示 0.855
+    assert_eq!(m52(0.855), "M 0.85"); // 波21: Rust nearest-even (实值 0.85499...)
     assert_eq!(m52(1.0), "M 1.00");
     assert_eq!(m52(12.345), "M12.35"); // 超宽不截断
-    assert_eq!(m52(2.675), "M 2.68"); // Rust {:.2} 会给 2.67
+    assert_eq!(m52(2.675), "M 2.67"); // 波21: Rust nearest-even (实值 2.67499...)
     assert_eq!(m52(-0.004), "M-0.00");
     assert_eq!(m52(0.0), "M 0.00");
     assert_eq!(m52(-0.0), "M-0.00");
     assert_eq!(m52(-0.4), "M-0.40");
     assert_eq!(m52(0.45), "M 0.45");
     assert_eq!(m52(f64::NAN), "M  NaN");
-    assert_eq!(m52(f64::INFINITY), "MInfinity");
+    assert_eq!(m52(f64::INFINITY), "M  inf"); // 波21: Rust 原生 "inf" (3 字符)
 
     // R%5.0f / %6.0f / α%3.0f / E%5.0f
     assert_eq!(
-        format!("R{}", pad_width(java_f(245.7, 0), 5, false)),
+        format!("R{}", pad_width(fmt_f(245.7, 0), 5, false)),
         "R  246"
     );
+    assert_eq!(format!("R{}", pad_width(fmt_f(0.0, 0), 5, false)), "R    0");
     assert_eq!(
-        format!("R{}", pad_width(java_f(0.0, 0), 5, false)),
-        "R    0"
-    );
+        format!("R{}", pad_width(fmt_f(-0.5, 0), 5, false)),
+        "R   -0"
+    ); // 波21: -0.5 nearest-even → -0
     assert_eq!(
-        format!("R{}", pad_width(java_f(-0.5, 0), 5, false)),
-        "R   -1"
-    );
-    assert_eq!(
-        format!("R{}", pad_width(java_f(999.5, 0), 5, false)),
+        format!("R{}", pad_width(fmt_f(999.5, 0), 5, false)),
         "R 1000"
-    );
+    ); // 999.5 是精确半点, nearest-even 取偶 1000
     assert_eq!(
-        format!("{}", pad_width(java_f(5300.5, 0), 6, false)),
-        "  5301"
-    );
+        format!("{}", pad_width(fmt_f(5300.5, 0), 6, false)),
+        "  5300"
+    ); // 波21: 5300.5 nearest-even → 5300
+    assert_eq!(format!("{}", pad_width(fmt_f(-0.4, 0), 6, false)), "    -0");
+    assert_eq!(format!("{}", pad_width(fmt_f(0.82, 0), 6, false)), "     1");
+    assert_eq!(format!("α{}", pad_width(fmt_f(8.3, 0), 3, false)), "α  8");
+    assert_eq!(format!("α{}", pad_width(fmt_f(30.5, 0), 3, false)), "α 30"); // 波21: nearest-even
+    assert_eq!(format!("α{}", pad_width(fmt_f(100.0, 0), 3, false)), "α100");
+    assert_eq!(format!("α{}", pad_width(fmt_f(-0.04, 0), 3, false)), "α -0");
     assert_eq!(
-        format!("{}", pad_width(java_f(-0.4, 0), 6, false)),
-        "    -0"
-    );
-    assert_eq!(
-        format!("{}", pad_width(java_f(0.82, 0), 6, false)),
-        "     1"
-    );
-    assert_eq!(format!("α{}", pad_width(java_f(8.3, 0), 3, false)), "α  8");
-    assert_eq!(format!("α{}", pad_width(java_f(30.5, 0), 3, false)), "α 31");
-    assert_eq!(
-        format!("α{}", pad_width(java_f(100.0, 0), 3, false)),
-        "α100"
-    );
-    assert_eq!(
-        format!("α{}", pad_width(java_f(-0.04, 0), 3, false)),
-        "α -0"
-    );
-    assert_eq!(
-        format!("E{}", pad_width(java_f(1521.7346938775509, 0), 5, false)),
+        format!("E{}", pad_width(fmt_f(1521.7346938775509, 0), 5, false)),
         "E 1522"
     );
     assert_eq!(
-        format!("E{}", pad_width(java_f(999.9999999999999, 0), 5, false)),
+        format!("E{}", pad_width(fmt_f(999.9999999999999, 0), 5, false)),
         "E 1000"
     );
     assert_eq!(
-        format!("E{}", pad_width(java_f(530.6122448979592, 0), 5, false)),
+        format!("E{}", pad_width(fmt_f(530.6122448979592, 0), 5, false)),
         "E  531"
     );
     assert_eq!(
-        format!("E{}", pad_width(java_f(204.0816326530612, 0), 5, false)),
+        format!("E{}", pad_width(fmt_f(204.0816326530612, 0), 5, false)),
         "E  204"
     );
     assert_eq!(
-        format!("E{}", pad_width(java_f(418.3673469387755, 0), 5, false)),
+        format!("E{}", pad_width(fmt_f(418.3673469387755, 0), 5, false)),
         "E  418"
     );
 
     // %-4.0f (左对齐)
-    assert_eq!(pad_width(java_f(5.1, 0), 4, true), "5   ");
-    assert_eq!(pad_width(java_f(-13.2, 0), 4, true), "-13 ");
-    assert_eq!(pad_width(java_f(-999.9, 0), 4, true), "-1000"); // 超宽不截断
-    assert_eq!(pad_width(java_f(-2.5, 0), 4, true), "-3  ");
-    assert_eq!(pad_width(java_f(0.82, 0), 4, true), "1   ");
-    assert_eq!(pad_width(java_f(f64::NAN, 0), 4, true), "NaN ");
+    assert_eq!(pad_width(fmt_f(5.1, 0), 4, true), "5   ");
+    assert_eq!(pad_width(fmt_f(-13.2, 0), 4, true), "-13 ");
+    assert_eq!(pad_width(fmt_f(-999.9, 0), 4, true), "-1000"); // 超宽不截断
+    assert_eq!(pad_width(fmt_f(-2.5, 0), 4, true), "-2  "); // 波21: nearest-even
+    assert_eq!(pad_width(fmt_f(0.82, 0), 4, true), "1   ");
+    assert_eq!(pad_width(fmt_f(f64::NAN, 0), 4, true), "NaN ");
 
     // G%5.1f
+    assert_eq!(format!("G{}", pad_width(fmt_f(2.6, 1), 5, false)), "G  2.6");
     assert_eq!(
-        format!("G{}", pad_width(java_f(2.6, 1), 5, false)),
-        "G  2.6"
-    );
-    assert_eq!(
-        format!("G{}", pad_width(java_f(-0.6, 1), 5, false)),
+        format!("G{}", pad_width(fmt_f(-0.6, 1), 5, false)),
         "G -0.6"
     );
     assert_eq!(
-        format!("G{}", pad_width(java_f(-0.8, 1), 5, false)),
+        format!("G{}", pad_width(fmt_f(-0.8, 1), 5, false)),
         "G -0.8"
     );
     assert_eq!(
-        format!("G{}", pad_width(java_f(-0.04, 1), 5, false)),
+        format!("G{}", pad_width(fmt_f(-0.04, 1), 5, false)),
         "G -0.0"
     );
+    assert_eq!(format!("G{}", pad_width(fmt_f(0.0, 1), 5, false)), "G  0.0");
     assert_eq!(
-        format!("G{}", pad_width(java_f(0.0, 1), 5, false)),
-        "G  0.0"
-    );
-    assert_eq!(
-        format!("G{}", pad_width(java_f(0.45, 1), 5, false)),
+        format!("G{}", pad_width(fmt_f(0.45, 1), 5, false)),
         "G  0.5"
     );
     assert_eq!(
-        format!("G{}", pad_width(java_f(f64::NAN, 1), 5, false)),
+        format!("G{}", pad_width(fmt_f(f64::NAN, 1), 5, false)),
         "G  NaN"
     );
 
     // F%3.0f / W%3.0f
-    assert_eq!(format!("F{}", pad_width(java_f(50.0, 0), 3, false)), "F 50");
+    assert_eq!(format!("F{}", pad_width(fmt_f(50.0, 0), 3, false)), "F 50");
+    assert_eq!(format!("F{}", pad_width(fmt_f(100.0, 0), 3, false)), "F100");
     assert_eq!(
-        format!("F{}", pad_width(java_f(100.0, 0), 3, false)),
-        "F100"
-    );
-    assert_eq!(
-        format!("W{}", pad_width(java_f(55.00000000000001, 0), 3, false)),
+        format!("W{}", pad_width(fmt_f(55.00000000000001, 0), 3, false)),
         "W 55"
     );
     assert_eq!(
-        format!("W{}", pad_width(java_f(0.6_f64 * 100.0, 0), 3, false)),
+        format!("W{}", pad_width(fmt_f(0.6_f64 * 100.0, 0), 3, false)),
         "W 60"
     );
-    assert_eq!(format!("W{}", pad_width(java_f(-0.6, 0), 3, false)), "W -1");
+    assert_eq!(format!("W{}", pad_width(fmt_f(-0.6, 0), 3, false)), "W -1");
     assert_eq!(
-        format!("W{}", pad_width(java_f(f64::INFINITY, 0), 3, false)),
-        "WInfinity"
+        format!("W{}", pad_width(fmt_f(f64::INFINITY, 0), 3, false)),
+        "Winf"
     );
 
     // %6d ((int) 强转语义: 截断/饱和/NaN→0, Java (int) ↔ Rust as i32 同)

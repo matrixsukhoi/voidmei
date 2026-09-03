@@ -152,14 +152,6 @@ fn mgr_with_tx() -> (HotkeyManager, Receiver<HotkeyEvent>) {
     HotkeyManager::with_channel()
 }
 
-
-
-
-
-
-
-
-
 /// 未 init 时 shutdown 直接返回 (Java `if (!initialized) return;`) —
 /// 绑定表不清; init 后 shutdown 清表 (keyBindings.clear)
 #[test]

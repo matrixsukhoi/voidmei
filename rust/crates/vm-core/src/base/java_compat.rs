@@ -21,8 +21,6 @@ pub fn java_parse_boolean(s: &str) -> bool {
     s.eq_ignore_ascii_case("true")
 }
 
-
-
 /// Java `Double.toString(double)` 一比一复刻 (getStr/String.valueOf(Double) 与
 /// saveConfig serializeAtom 的 Double 分支共用):
 /// - 10^-3 ≤ |d| < 10^7 → 十进制平原式, 恒至少一位小数 ("1.0");
@@ -54,75 +52,6 @@ pub fn java_double_to_string(d: f64) -> String {
     let neg = d.is_sign_negative();
     let a = d.abs();
     // "{:e}" → "D.DDDe±n"; a > 0 有限, 恒此形态 (最短往返数字, 无尾随零)
-    let sci = format!("{:e}", a);
-    let epos = sci.find('e').unwrap();
-    let mant = &sci[..epos];
-    let exp10: i32 = sci[epos + 1..].parse().unwrap();
-    let digits: String = mant.chars().filter(|c| *c != '.').collect();
-    let mut s = String::new();
-    if (-3..=6).contains(&exp10) {
-        // 平原式
-        if exp10 >= 0 {
-            let ip = exp10 as usize + 1; // 整数部分位数
-            if digits.len() > ip {
-                s.push_str(&digits[..ip]);
-                s.push('.');
-                s.push_str(&digits[ip..]);
-            } else {
-                s.push_str(&digits);
-                s.push_str(&"0".repeat(ip - digits.len()));
-                s.push_str(".0"); // 恒至少一位小数
-            }
-        } else {
-            s.push_str("0.");
-            s.push_str(&"0".repeat((-exp10 - 1) as usize));
-            s.push_str(&digits);
-        }
-    } else {
-        // 科学计数
-        s.push_str(&digits[..1]);
-        s.push('.');
-        if digits.len() > 1 {
-            s.push_str(&digits[1..]);
-        } else {
-            s.push('0');
-        }
-        s.push('E');
-        s.push_str(&exp10.to_string());
-    }
-    if neg {
-        s.insert(0, '-');
-    }
-    s
-}
-
-/// Java 8 `Float.toString(float)` 一比一 (analyze 通知里 `(int)X / 10.0f` 与
-/// flight_log 行格式保真共用) — [`java_double_to_string`] 的 f32 同构:
-/// 10^-3 ≤ |f| < 10^7 → 十进制平原式恒至少一位小数 ("12.0"); 否则 "D.DDDE±x"
-/// ('E' 后仅负指数带 '-'); 最短可区分数字串; NaN/±0/±Inf 特判。
-/// PORT: 数字串取 Rust `{:e}` 最短往返表示 — 与 Java FloatingDecimal 在
-/// JDK-4511638 域外逐位一致 (flight_analyzer/flight_log 的 oracle 测试固化)。
-pub fn java_float_to_string(f: f32) -> String {
-    if f.is_nan() {
-        return "NaN".to_string();
-    }
-    if f == 0.0 {
-        return if f.is_sign_negative() {
-            "-0.0".to_string()
-        } else {
-            "0.0".to_string()
-        };
-    }
-    if f.is_infinite() {
-        return if f > 0.0 {
-            "Infinity".to_string()
-        } else {
-            "-Infinity".to_string()
-        };
-    }
-    let neg = f.is_sign_negative();
-    let a = f.abs();
-    // "{:e}" → "D.DDDe±n"; a > 0 有限恒此形态 (最短往返数字, 无尾随零)
     let sci = format!("{:e}", a);
     let epos = sci.find('e').unwrap();
     let mant = &sci[..epos];

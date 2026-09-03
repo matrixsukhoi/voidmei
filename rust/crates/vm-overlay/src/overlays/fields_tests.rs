@@ -24,7 +24,7 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
 use vm_core::base::event::EventPayload;
-use vm_core::base::format::{java_format_f, java_string_format, FmtArg};
+use vm_core::base::format::{fmt_f, java_string_format, FmtArg};
 use vm_core::config::config_api::ConfigProvider;
 use vm_core::fm::data::{FmData, FmParts};
 use vm_core::fm::FMManager;
@@ -1352,34 +1352,30 @@ fn premul(c: [u8; 4]) -> [u8; 4] {
 
 // ---- java_format_f / java_string_format: Java 8 oracle 对拍 ----
 
-/// HALF_UP on 最短往返十进制 (Java Formatter 语义) vs Rust 半偶的判别值
+/// 精确二进制值 nearest-even (波21: Rust {:.N} 语义, HALF_UP 复刻退役)
 #[test]
-fn java_format_f_half_up_oracle() {
-    // String.format("%.1f", 5.25) = "5.3" (Rust {:.1} 半偶 → "5.2")
-    assert_eq!(java_format_f(5.25, 1), "5.3");
-    // String.format("%.2f", 2.675) = "2.68" (Rust → "2.67")
-    assert_eq!(java_format_f(2.675, 2), "2.68");
-    // String.format("%.0f", 0.5) = "1" / (2.5) = "3" (Rust → 0 / 2)
-    assert_eq!(java_format_f(0.5, 0), "1");
-    assert_eq!(java_format_f(2.5, 0), "3");
-    // 最短表示 2.675 的 %.1f = "2.7" (java_f 文档 oracle (base::format))
-    assert_eq!(java_format_f(2.675, 1), "2.7");
+fn fmt_f_rounding_oracle() {
+    assert_eq!(fmt_f(5.25, 1), "5.2"); // 精确半点取偶
+    assert_eq!(fmt_f(2.675, 2), "2.67"); // 实值 2.67499... 舍下
+    assert_eq!(fmt_f(0.5, 0), "0");
+    assert_eq!(fmt_f(2.5, 0), "2");
+    assert_eq!(fmt_f(2.675, 1), "2.7"); // 实值 .6749 一位小数仍进位
 }
 
 /// 常规/负数/补零/NaN/-0.0/整域
 #[test]
 fn java_format_f_domains() {
-    assert_eq!(java_format_f(3050.0, 1), "3050.0");
-    assert_eq!(java_format_f(-8.4, 1), "-8.4");
-    assert_eq!(java_format_f(9.0, 2), "9.00");
-    assert_eq!(java_format_f(0.105, 3), "0.105");
-    assert_eq!(java_format_f(-0.04, 1), "-0.0", "负号保留 (Java Formatter)");
-    assert_eq!(java_format_f(f64::NAN, 1), "NaN");
-    assert_eq!(java_format_f(f64::INFINITY, 0), "Infinity");
-    // 巨整数域: 1e26 → 全整数 + ".0"
-    assert_eq!(java_format_f(1e26, 1), "100000000000000000000000000.0");
+    assert_eq!(fmt_f(3050.0, 1), "3050.0");
+    assert_eq!(fmt_f(-8.4, 1), "-8.4");
+    assert_eq!(fmt_f(9.0, 2), "9.00");
+    assert_eq!(fmt_f(0.105, 3), "0.105");
+    assert_eq!(fmt_f(-0.04, 1), "-0.0", "负号保留 (Java Formatter)");
+    assert_eq!(fmt_f(f64::NAN, 1), "NaN");
+    assert_eq!(fmt_f(f64::INFINITY, 0), "inf"); // 波21: Rust 原生
+                                                // 巨整数域: Rust {:.1} 按精确二进制值展开 (1e26 的 IEEE 实值)
+    assert_eq!(fmt_f(1e26, 1), "100000000000000004764729344.0");
     // 小数 |x|<1 的 prec=0
-    assert_eq!(java_format_f(0.49999999999999994, 0), "0");
+    assert_eq!(fmt_f(0.49999999999999994, 0), "0");
 }
 
 /// java_string_format: %s/%d/%.Nf 顺序展开 + %% 字面 (bFlapRestrict 模板)
@@ -1800,9 +1796,9 @@ fn generate_lines_full_field_list() {
         "襟翼限速(km/h)0: 0% / 640",
         "襟翼限速(km/h)1: 95% / 520",
         "三舵有效速度(km/h): [ 升降580, 副翼640, 方向700 ]",
-        "三舵锁舵因数: [ 升降0.3, 副翼0.4, 方向0.5 ]", // %.1f HALF_UP ×3
+        "三舵锁舵因数: [ 升降0.2, 副翼0.3, 方向0.5 ]", // %.1f HALF_UP ×3
         "加力(kg)/时限(分钟): 120.0 / 1.0",
-        "平均耐热条恢复速率: 3.3", // %.1f HALF_UP 判别
+        "平均耐热条恢复速率: 3.2", // %.1f HALF_UP 判别
         "千米最大升力过载: 5.0 / 7.0(襟) @ 350IAS",
         "三轴转动惯量: [ P: 8000, R: 12000, Y: 25000 ]",
         "主升力面积: 25.8机翼, 5.4机身",

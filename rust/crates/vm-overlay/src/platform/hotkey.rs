@@ -332,7 +332,6 @@ impl HotkeyManager {
             .unwrap_or(false)
     }
 
-
     /// Shutdown the hotkey manager.
     ///
     /// PORT: Java 只摘监听器 (GlobalScreen 全局钩子进程级常驻); Rust 实例自持

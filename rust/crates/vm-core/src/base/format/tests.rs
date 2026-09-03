@@ -16,7 +16,8 @@ fn negative_zero_suppression() {
 }
 
 #[test]
-fn half_up_rounding() {
+fn rounding() {
+    // 波21: Rust nearest-even 语义
     assert_eq!(format(999.5, 0), "1000");
     assert_eq!(format(0.45, 1), "0.5");
     assert_eq!(format(0.44, 1), "0.4");

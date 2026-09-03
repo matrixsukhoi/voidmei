@@ -241,7 +241,7 @@ struct MockSvcData {
 
 impl MockSvcData {
     fn new() -> Self {
-        let mut st = State::new();
+        let st = State::new();
 
         MockSvcData {
             current_time_ms: 0,

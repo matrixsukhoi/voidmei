@@ -104,7 +104,7 @@ impl Service {
             let s = d.s_state.as_ref().unwrap();
             (
                 d.engine.engine_num,
-                s.throttles.clone(),
+                s.throttles, // [i32;16] Copy, 免 clone (波21 定长化红利)
                 d.altm.alt,
                 // (曾误走 trait default 恒 0, 增压器最优档判定失真)
                 s.ias as f64,
@@ -429,10 +429,7 @@ mod tests {
         }
         svc.get_maximum_rpm_learn(&unr);
         // 波21 f64 直算: 0.95*151 + 0.05*3001 = 293.5 (精确)
-        assert_eq!(
-            svc.data.read().unwrap().engine.maximum_thr_rpm,
-            293.5
-        );
+        assert_eq!(svc.data.read().unwrap().engine.maximum_thr_rpm, 293.5);
         assert_eq!(svc.data.read().unwrap().check_maximum_rpm, 2);
 
         // IAS <= 50: 不学习不进位 (Java int 比较无浮点提升)

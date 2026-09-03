@@ -32,7 +32,7 @@ use crate::render::palette::aa;
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
-use vm_core::base::format::{java_format_f, java_round_f32};
+use vm_core::base::format::{fmt_f, java_round_f32};
 use vm_core::fm::data::FmData;
 use vm_core::fm::FMManager;
 
@@ -448,7 +448,7 @@ impl DrawFrameSimpl {
                 aa,
             );
             // String.format("高度%.0fm", altitudeThr[i])
-            let name = format!("高度{}m", java_format_f(alt[i as usize], 0));
+            let name = format!("高度{}m", fmt_f(alt[i as usize], 0));
             draw_example(
                 cv,
                 fonts.text12,

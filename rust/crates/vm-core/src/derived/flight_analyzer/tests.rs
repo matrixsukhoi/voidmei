@@ -128,7 +128,10 @@ fn default_arrays_full_length_zeroed_and_fields_null() {
     assert!(fa.time.iter().all(|&v| v == 0.0));
     assert!(fa.power.iter().all(|&v| v == 0));
     assert!(fa.turn_load.iter().all(|&v| v == 0.0));
-    assert_eq!(fa.engine_type, crate::base::engine_type::EngineType::Unknown);
+    assert_eq!(
+        fa.engine_type,
+        crate::base::engine_type::EngineType::Unknown
+    );
     assert_eq!(fa.initalt_stage, 0);
     assert_eq!(fa.curalt_stage, 0);
     assert!(!fa.is_information);
@@ -160,14 +163,14 @@ fn init_records_stage_snapshot() {
 }
 
 #[test]
-fn init_elapsed_time_divides_in_f32_then_widens() {
+fn init_elapsed_time_divides_f64() {
     // §2.12: Java long/1000f 先转 float 除 (f32 精度) 再存 double[]
     let svc = mock_service();
     set_mock(&svc, 1, 0, 0.0); // 1ms
     let mut fa = FlightAnalyzer::default();
     fa.init(0, svc, None);
     // 0.001f32 的 f64 展开值 (float 除法精度, 非 0.001)
-    assert_eq!(fa.time[0], 0.0010000000474974513);
+    assert_eq!(fa.time[0], 0.001); // 波21: f32 拓宽退役
 }
 
 #[test]
@@ -244,7 +247,7 @@ fn analyze_next_stage_finalizes_average_and_records() {
     assert_eq!(fa.curalt_stage, 6);
     assert_eq!(fa.count, 1);
     // 新层数据: 100200ms → f32 除法 → 100.2f32 的 f64 展开 (§2.12)
-    assert_eq!(fa.time[6], 100.19999694824219);
+    assert_eq!(fa.time[6], 100.2); // 波21: f32 拓宽退役, f64 直算
     assert_eq!(fa.eff[6], 1100);
     assert_eq!(fa.sep[6], 12.3);
 }
@@ -269,7 +272,7 @@ fn analyze_notification_message_delta1() {
     let msgs = cap.lock().unwrap();
     assert_eq!(msgs.len(), 1);
     // oracle: 到达 600米，用时 100秒，平均爬升率 0.9米/秒，记录完成
-    // (1000/(f32 100.2 → f64 100.19999694824219) = 9.98 → (int)9 → 9/10.0f = 0.9)
+    // (1000/100.2 = 9.98 → (int)9 → 9/10 = 0.9)
     assert_eq!(
         msgs[0],
         "到达 600米，用时 100秒，平均爬升率 0.9米/秒，记录完成"
@@ -325,7 +328,7 @@ fn analyze_notification_zero_time_float_inf_domain() {
     // 给 "2.1474837E8" (JDK-4511638 域已文档化分歧, 回读同一 f32, 见单测注记)
     assert_eq!(
         msgs[0],
-        "到达 100米，用时 0秒，平均爬升率 2.1474837E8米/秒，记录完成"
+        "到达 100米，用时 0秒，平均爬升率 214748364.7米/秒，记录完成"
     );
 }
 
@@ -426,7 +429,7 @@ fn update_em_chart_turn_updates_and_notifies_half_up() {
     // 5.25/1.25 是精确半点: Java HALF_UP → 5.3/1.3, Rust {:.1} 半偶会给 5.2/1.2
     assert_eq!(
         msgs[0],
-        "速度  300km/h下的最大法向过载: 5.3G, 此时SEP为: 1.3m/s, 记录完成"
+        "速度  300km/h下的最大法向过载: 5.2G, 此时SEP为: 1.2m/s, 记录完成"
     );
 }
 
@@ -570,92 +573,77 @@ fn notification_dropped_when_notify_not_wired() {
     assert!(fa.notify.is_none());
 }
 
-// ---- Java 8 oracle: java_float_to_string (Float.toString) ----
+// ---- 爬升通知的 climb 值格式化 (波21: f32 Float.toString 复刻退役 → fmt_f) ----
 
 #[test]
-fn java_float_to_string_matches_java8_oracle() {
-    // oracle FA.java: (int)((d*1000)/t) / 10.0f 的 Float.toString 输出
-    let cases: &[(f32, &str)] = &[
-        (1.0f32 / 10.0f32, "0.1"),        // d=1 t=60EngineType::Prop
-        (9.0f32 / 10.0f32, "0.9"),        // d=1 t=100.5
-        (1.0f32 / 10.0f32, "0.1"),        // d=1 t=100EngineType::Prop
-        (23.0f32 / 10.0f32, "2.3"),       // d=1 t=42
-        (81.0f32 / 10.0f32, "8.1"),       // d=1 t=12.34
-        (333.0f32 / 10.0f32, "33.3"),     // d=1 t=3
-        (200.0f32, "200.0"),              // d=1 t=0.5
-        (1000.0f32, "1000.0"),            // d=1 t=0.1
-        (0.5f32, "0.5"),                  // d=3 t=600: (int)5 / 10.0f
-        (29.0f32 / 10.0f32, "2.9"),       // d=3 t=100.5
-        (71.0f32 / 10.0f32, "7.1"),       // d=3 t=42
-        (243.0f32 / 10.0f32, "24.3"),     // d=3 t=12.34
-        (600.0f32, "600.0"),              // d=3 t=0.5
-        (3000.0f32, "3000.0"),            // d=3 t=0.1
-        (20.0f32 / 10.0f32, "2.0"),       // d=12 t=600: (int)20 / 10.0f
-        (119.0f32 / 10.0f32, "11.9"),     // d=12 t=100.5
-        (285.0f32 / 10.0f32, "28.5"),     // d=12 t=42
-        (972.0f32 / 10.0f32, "97.2"),     // d=12 t=12.34
-        (2400.0f32, "2400.0"),            // d=12 t=0.5
-        (12000.0f32, "12000.0"),          // d=12 t=0.1
-        (426.0f32 / 10.0f32, "42.6"),     // d=256 t=60EngineType::Prop
-        (2547.0f32 / 10.0f32, "254.7"),   // d=256 t=100.5
-        (6095.0f32 / 10.0f32, "609.5"),   // d=256 t=42
-        (20745.0f32 / 10.0f32, "2074.5"), // d=256 t=12.34
-        (85333.0f32 / 10.0f32, "8533.3"), // d=256 t=3
-        (51200.0f32, "51200.0"),          // d=256 t=0.5
-        (256000.0f32, "256000.0"),        // d=256 t=0.1
-        (2560000.0f32, "2560000.0"),      // 平原式尾零补齐探针 (10^6 域, < 10^7)
-        (-20.0f32, "-20.0"),              // d=1 t=-5
-        // t=0 除零域: (int)+Inf = Integer.MAX_VALUE → /10.0f = 214748368.0f32。
-        // Java oracle 输出 "2.14748368E8" (9 位, JDK-4511638 域非最短表示);
-        // 本实现最短往返 8 位 "2.1474837E8" (回读同一 f32) — 与 config_loader
-        // java_double_to_string 对该域的已文档化分歧同一先例, 仅除零退化通知可达
-        (2147483647.0f32 / 10.0f32, "2.1474837E8"),
+fn climb_value_fmt_matches_oracle() {
+    // oracle FA.java: (int)((d*1000)/t) / 10 的一位小数显示 (f64 直算)
+    let cases: &[(f64, &str)] = &[
+        (1.0 / 10.0, "0.1"),
+        (9.0 / 10.0, "0.9"),
+        (23.0 / 10.0, "2.3"),
+        (81.0 / 10.0, "8.1"),
+        (333.0 / 10.0, "33.3"),
+        (200.0, "200.0"),
+        (1000.0, "1000.0"),
+        (0.5, "0.5"),
+        (29.0 / 10.0, "2.9"),
+        (71.0 / 10.0, "7.1"),
+        (243.0 / 10.0, "24.3"),
+        (600.0, "600.0"),
+        (3000.0, "3000.0"),
+        (20.0 / 10.0, "2.0"),
+        (119.0 / 10.0, "11.9"),
+        (285.0 / 10.0, "28.5"),
+        (972.0 / 10.0, "97.2"),
+        (2400.0, "2400.0"),
+        (12000.0, "12000.0"),
+        (426.0 / 10.0, "42.6"),
+        (2547.0 / 10.0, "254.7"),
+        (6095.0 / 10.0, "609.5"),
+        (20745.0 / 10.0, "2074.5"),
+        (85333.0 / 10.0, "8533.3"),
+        (51200.0, "51200.0"),
+        (256000.0, "256000.0"),
+        (2560000.0, "2560000.0"),
+        (-20.0, "-20.0"),
+        (2147483647.0 / 10.0, "214748364.7"), // 除零退化域 (Integer.MAX/10)
     ];
     for &(v, want) in cases {
-        assert_eq!(java_float_to_string(v), want, "Float.toString({v})");
+        assert_eq!(fmt_f(v, 1), want, "climb({v})");
     }
-    // 特殊值
-    assert_eq!(java_float_to_string(0.0f32), "0.0");
-    assert_eq!(java_float_to_string(-0.0f32), "-0.0");
-    assert_eq!(java_float_to_string(f32::NAN), "NaN");
-    assert_eq!(java_float_to_string(f32::INFINITY), "Infinity");
-    assert_eq!(java_float_to_string(f32::NEG_INFINITY), "-Infinity");
-    // 平原/科学分界: 10^7 上沿科学, 10^-3 下沿科学
-    assert_eq!(java_float_to_string(9999999.0f32), "9999999.0");
-    assert_eq!(java_float_to_string(0.001f32), "0.001");
-    assert_eq!(java_float_to_string(0.0001f32), "1.0E-4");
 }
 
-// ---- Java 8 oracle: java_f(d, 1) (String.format("%.1f", double)) ----
+// ---- Java 8 oracle: fmt_f(d, 1) (String.format("%.1f", double)) ----
 
 #[test]
 fn java_f_prec1_matches_java8_oracle() {
-    // MR.java oracle: 精确半点 5.25/1.25/0.25/0.75 → HALF_UP (Rust {:.1} 半偶会
-    // 给 5.2/1.2/0.2/0.8, 双重分歧点钉死)
+    // 波21 显示引擎退役: 按 Rust {:.1} (精确二进制值 nearest-even) 重录;
+    // 精确半点 5.25/1.25/0.25/0.75 取偶, 2.675 按实值 2.67499... 进位 (与半点不同)
     let cases: &[(f64, &str)] = &[
-        (3.25, "3.3"),
+        (3.25, "3.2"),
         (3.75, "3.8"),
-        (2.675, "2.7"), // 最短往返 "2.675" HALF_UP (精确二进制是 2.67499...)
+        (2.675, "2.7"),
         (0.05, "0.1"),
-        (0.15, "0.2"),
-        (9.999999, "10.0"), // 进位级联到整数
+        (0.15, "0.1"),
+        (9.999999, "10.0"),
         (1.0, "1.0"),
-        (6.05, "6.1"),
+        (6.05, "6.0"),
         (12.345, "12.3"),
         (0.0, "0.0"),
-        (5.25, "5.3"),
-        (1.25, "1.3"),
-        (0.25, "0.3"),
+        (5.25, "5.2"),
+        (1.25, "1.2"),
+        (0.25, "0.2"),
         (0.75, "0.8"),
         (2.35, "2.4"),
     ];
     for &(v, want) in cases {
-        assert_eq!(java_f(v, 1), want, "String.format(\"%.1f\", {v})");
+        assert_eq!(fmt_f(v, 1), want, "String.format(\"%.1f\", {v})");
     }
-    assert_eq!(java_f(-0.0, 1), "-0.0");
-    assert_eq!(java_f(f64::NAN, 1), "NaN");
-    assert_eq!(java_f(f64::INFINITY, 1), "Infinity");
-    assert_eq!(java_f(f64::NEG_INFINITY, 1), "-Infinity");
+    assert_eq!(fmt_f(-0.0, 1), "-0.0");
+    assert_eq!(fmt_f(f64::NAN, 1), "NaN");
+    assert_eq!(fmt_f(f64::INFINITY, 1), "inf");
+    assert_eq!(fmt_f(f64::NEG_INFINITY, 1), "-inf");
 }
 
 // ---- Java 8 oracle: java_math_round (Math.round) ----

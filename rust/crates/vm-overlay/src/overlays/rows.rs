@@ -64,7 +64,6 @@ impl HUDTextRow {
         format!("row.{}", self.index)
     }
 
-
     /// setStyle (仅 height; font 为 draw 参数)
     pub fn set_style(&mut self, height: i32) {
         self.height = height;

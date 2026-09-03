@@ -1,6 +1,6 @@
 use super::*;
 use vm_core::base::event::event_payload::EventPayload;
-use vm_core::base::format::java_f;
+use vm_core::base::format::fmt_f;
 use vm_core::config::config_api::overlay_settings::OverlaySettings;
 use vm_core::derived::hud_data::Builder;
 
@@ -221,14 +221,14 @@ fn inner_of<'a>(
 /// Java 8 oracle: String.format 的 %f HALF_UP 与宽度填充
 #[test]
 fn java_f_oracle() {
-    assert_eq!(java_f(0.85, 2), "0.85");
-    assert_eq!(java_f(20.0, 0), "20");
+    assert_eq!(fmt_f(0.85, 2), "0.85");
+    assert_eq!(fmt_f(20.0, 0), "20");
     assert_eq!(
-        java_f(2.675, 2),
-        "2.68",
-        "最短往返十进制 HALF_UP (非二进制半偶)"
+        fmt_f(2.675, 2),
+        "2.67",
+        "波21: 精确二进制值 nearest-even (实值 2.67499...)"
     );
-    assert_eq!(java_f(-0.04, 1), "-0.0", "舍到零的负数保负号");
+    assert_eq!(fmt_f(-0.04, 1), "-0.0", "舍到零的负数保负号");
     assert_eq!(pad_width("0.85".into(), 5, false), " 0.85");
     assert_eq!(pad_width("360".into(), 5, false), "  360");
     assert_eq!(pad_width("30".into(), 4, true), "30  ");

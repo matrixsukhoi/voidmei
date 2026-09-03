@@ -105,7 +105,7 @@ pub fn java_string_format(template: &str, args: &[FmtArg]) -> String {
                 });
                 arg_i += 1;
                 match *arg {
-                    FmtArg::F(v) => out.push_str(&java_format_f(v, prec as u8)),
+                    FmtArg::F(v) => out.push_str(&fmt_f(v, prec as u8)),
                     FmtArg::S(_) | FmtArg::D(_) => {
                         panic!("模板 %.Nf 位点收到非数值实参: {template:?}")
                     }
@@ -121,7 +121,7 @@ pub fn java_string_format(template: &str, args: &[FmtArg]) -> String {
 /// Java `String.format("%.{prec}f", d)` 复刻 — [`super::java_f`] 的 u8 精度
 /// 薄包装 (同一 HALF_UP 最短表示算法, 语义注记见该函数)。
 /// 域界断言: prec ≤ 9 (u128 尾数累加上界, 超域属模板漂移信号)。
-pub fn java_format_f(d: f64, prec: u8) -> String {
+pub fn fmt_f(d: f64, prec: u8) -> String {
     debug_assert!(prec <= 9, "java_format_f 精度超域: {prec}");
-    super::java_f(d, prec as usize)
+    super::fmt_f(d, prec as usize)
 }

@@ -4,8 +4,8 @@ use std::path::Path;
 
 // ---- Java 语义辅助的 oracle 对拍 (Java 8, build/oracle 实测) ----
 
-/// String.format("%.4f") — Formatter HALF_UP on 精确十进制展开。
-/// 0.03125/0.09375 是精确半点 (dyadic 奇分母 32), Rust {:.4} 半偶会给 0.0312/0.0937。
+/// 定点小数显示 — 波21 显示引擎退役后按 Rust {:.4} (精确二进制值 nearest-even)
+/// 重录; 精确半点 (0.03125 等 dyadic 值) 取偶。
 #[test]
 fn java_f_prec4_matches_java8_oracle() {
     let cases = [
@@ -13,51 +13,49 @@ fn java_f_prec4_matches_java8_oracle() {
         (0.3891, "0.3891"),
         (0.0602, "0.0602"),
         (0.3125, "0.3125"),
-        (0.03125, "0.0313"),
+        (0.03125, "0.0312"),
         (0.09375, "0.0938"),
-        (-0.03125, "-0.0313"),
+        (-0.03125, "-0.0312"),
         (0.15, "0.1500"),
         (0.85, "0.8500"),
         (1.0, "1.0000"),
         (2.5, "2.5000"),
         (0.00005, "0.0001"),
-        (0.00015, "0.0002"),
+        (0.00015, "0.0001"),
         (0.12345, "0.1235"),
         (0.1234501, "0.1235"),
         (-0.85, "-0.8500"),
-        (12345.67895, "12345.6790"),
+        (12345.67895, "12345.6789"),
         (9_999_999.499_999_998, "9999999.5000"),
         (9999999.5, "9999999.5000"),
         (10000000.0, "10000000.0000"),
-        (6.02214e23, "602214000000000000000000.0000"),
+        (6.02214e23, "602213999999999969067008.0000"),
         (-0.00004, "-0.0000"),
         (0.0, "0.0000"),
         (-0.0, "-0.0000"),
-        (2.00005, "2.0001"),
+        (2.00005, "2.0000"),
         (0.7, "0.7000"),
-        (0.28845, "0.2885"),
+        (0.28845, "0.2884"),
         (1.00005, "1.0001"),
         (0.0613, "0.0613"),
         (0.1299, "0.1299"),
         (0.0100, "0.0100"),
     ];
     for (d, want) in cases {
-        assert_eq!(java_f(d, 4), want, "{d} → 期望 {want}");
+        assert_eq!(fmt_f(d, 4), want, "{d} → 期望 {want}");
     }
-    // NaN/Infinity 分支 (Formatter 原样输出)
-    assert_eq!(java_f(f64::NAN, 4), "NaN");
-    assert_eq!(java_f(f64::INFINITY, 4), "Infinity");
-    assert_eq!(java_f(f64::NEG_INFINITY, 4), "-Infinity");
+    // NaN/∞ 分支 (Rust 原生输出; 波21 显示引擎退役, "Infinity"→"inf")
+    assert_eq!(fmt_f(f64::NAN, 4), "NaN");
+    assert_eq!(fmt_f(f64::INFINITY, 4), "inf");
+    assert_eq!(fmt_f(f64::NEG_INFINITY, 4), "-inf");
 }
 
-/// %.4f 的 JDK-4511638 已知分歧面固化 (Java 8 oracle 实测):
-/// Double.toString(1e23)="9.999999999999999E22" (17 位非最短) → Formatter 展开
-/// "%.4f" → "99999999999999990000000.0000"; 本实现取最短 "1E23" →
-/// "100000000000000000000000.0000"。对照: 6.02214e23 双方一致 (已在上方 battery)。
-/// saveConfig :x/:y 域 (0..1/像素坐标) 该量级不可达 — 见 base::format::java_f 的 JDK-4511638 注记。
+/// 巨值域展开: Rust {:.4} 按精确二进制值展开 (1e23 的 IEEE 表示实为
+/// 99999999999999991611392; 旧 Java 按非最短 toString 展开给
+/// "100000000000000000000000")。saveConfig :x/:y 域该量级不可达。
 #[test]
-fn java_f_prec4_jdk_4511638_domain_divergence() {
-    assert_eq!(java_f(1.0e23, 4), "100000000000000000000000.0000");
+fn fmt_f_prec4_huge_value_exact_expansion() {
+    assert_eq!(fmt_f(1.0e23, 4), "99999999999999991611392.0000");
 }
 
 /// Double.toString — 最短区分 + [1e-3, 1e7) 平原式 / 恒一位小数 / E 计数。
@@ -604,7 +602,7 @@ const SAMPLE_DUMP_JAVA: &str = concat!(
 const SAMPLE_SAVED_JAVA: &str = concat!(
     "(panel \"采样Alpha\"
 ",
-    "  :x 0.0313
+    "  :x 0.0312
 ",
     "  :y 0.1235
 ",
@@ -687,7 +685,7 @@ const SAMPLE_SAVED_JAVA: &str = concat!(
 /// Java 重读 (load(save(load))) 的模型转储 — 与首读的三处 Java 原生不对称:
 /// x/y 被 %.4f 重写 (0.03125→0.0313), 数字形字符串 "123" → Int, 缺省 :font null → ""
 const SAMPLE_DUMP_RELOAD_JAVA: &str = concat!(
-    "GROUP|采样Alpha|x=0.0313|y=0.1235|alpha=200|hotkey=57|visible=false|font=[DIN Pro 400]|fontSize=3|columns=1|panelColumns=3|switchKey=[panelSwitch]|rows=1
+    "GROUP|采样Alpha|x=0.0312|y=0.1235|alpha=200|hotkey=57|visible=false|font=[DIN Pro 400]|fontSize=3|columns=1|panelColumns=3|switchKey=[panelSwitch]|rows=1
 ",
     "  ROW|Header|type=HEADER|formula=N|format=[%s]|unit=[]|value=B:true|default=N|fgColor=N|desc=N|descImg=N|preview=N|hideWhenZero=false|precision=0|unitSource=N|precisionSource=N|targetName=N|visibleWhen=N|naWhen=N|property=N|min=0|max=100|groupColumns=3|children=10
 ",
@@ -740,7 +738,10 @@ fn sample_save_bytes_match_java_oracle() {
     let bytes = fs::read(&p_out).unwrap();
     let text = String::from_utf8(bytes).unwrap();
     // LF 归一后与 oracle 逐字节一致
-    assert_eq!(text.replace(super::line_separator(), "\n"), SAMPLE_SAVED_JAVA);
+    assert_eq!(
+        text.replace(super::line_separator(), "\n"),
+        SAMPLE_SAVED_JAVA
+    );
     // 行终止符与同平台 Java println 一致 (Windows CRLF)
     if cfg!(windows) {
         assert_eq!(text.matches('\r').count(), text.matches('\n').count());

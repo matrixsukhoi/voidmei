@@ -126,7 +126,7 @@ fn label_positions_int_division() {
 fn fmt_heading3_rounding() {
     assert_eq!(fmt_heading3(5.0), "  5");
     assert_eq!(fmt_heading3(359.6), "360", "HALF_UP 进位自然超宽");
-    assert_eq!(fmt_heading3(0.5), "  1");
+    assert_eq!(fmt_heading3(0.5), "  0"); // 波21: nearest-even 取偶
     assert_eq!(fmt_heading3(-0.4), " -0", "负值舍到零保负号");
     assert_eq!(fmt_heading3(-0.0), " -0");
     assert_eq!(fmt_heading3(f64::NAN), "NaN");
@@ -134,12 +134,12 @@ fn fmt_heading3_rounding() {
 }
 
 /// %3.0f 非有限与超 i64 域值 (畸形遥测 org.json "1e999"→inf / "1e19" 路径):
-/// Formatter 输出 "Infinity"/"-Infinity"/完整十进制, 不得出现 as i64 饱和串。
+/// Rust {:.0} 输出 "inf"/"-inf"/完整十进制, 不得出现 as i64 饱和串 (波21)。
 /// 1e19/2^63 均为整值 double, 精确十进制展开无舍入分歧
 #[test]
 fn fmt_heading3_infinite_and_huge() {
-    assert_eq!(fmt_heading3(f64::INFINITY), "Infinity");
-    assert_eq!(fmt_heading3(f64::NEG_INFINITY), "-Infinity");
+    assert_eq!(fmt_heading3(f64::INFINITY), "inf"); // 波21: Rust 原生
+    assert_eq!(fmt_heading3(f64::NEG_INFINITY), "-inf");
     assert_eq!(fmt_heading3(1e19), "10000000000000000000");
     assert_eq!(fmt_heading3(-1e19), "-10000000000000000000");
     assert_eq!(

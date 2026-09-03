@@ -36,17 +36,16 @@ impl MapObj {
     /// 键缺失/非数值/非数组/畸形 JSON 的对象跳过。
     fn player_pairs(json_text: &str, k1: &str, k2: &str) -> Vec<(f64, f64)> {
         let v: Value = serde_json::from_str(json_text).unwrap_or(Value::Null);
-        v.as_array()
-            .map_or(Vec::new(), |arr| {
-                arr.iter()
-                    .filter(|obj| obj.get("icon").and_then(Value::as_str) == Some("Player"))
-                    .filter_map(|obj| {
-                        let a = obj.get(k1).and_then(Value::as_f64)?;
-                        let b = obj.get(k2).and_then(Value::as_f64)?;
-                        Some((a, b))
-                    })
-                    .collect()
-            })
+        v.as_array().map_or(Vec::new(), |arr| {
+            arr.iter()
+                .filter(|obj| obj.get("icon").and_then(Value::as_str) == Some("Player"))
+                .filter_map(|obj| {
+                    let a = obj.get(k1).and_then(Value::as_f64)?;
+                    let b = obj.get(k2).and_then(Value::as_f64)?;
+                    Some((a, b))
+                })
+                .collect()
+        })
     }
 }
 

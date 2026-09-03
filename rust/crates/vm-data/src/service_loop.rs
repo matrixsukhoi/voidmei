@@ -109,7 +109,7 @@ fn format_fueltime(fueltime: i64) -> String {
             jfmt::java_d0((fueltime / 1000) % 60 / 10 * 10, 2)
         )
     } else {
-        jfmt::java_f((fueltime as f32 / 60000.0f32) as f64, 0)
+        jfmt::fmt_f(fueltime as f64 / 60000.0, 0) // 波21: f32 复刻退役
     }
 }
 
@@ -272,7 +272,6 @@ impl Service {
             d.s_state = Some(State::new());
 
             d.s_indic = Some(Indicators::new());
-
         });
         svc
     }
@@ -1312,18 +1311,18 @@ pub fn flight_log_snapshot(d: &ServiceData) -> FlightLogSnapshot {
         throttle: col(&|s| int_na(s.throttle)),
         ias: col(&|s| s.ias.to_string()),
         tas: col(&|s| s.tas.to_string()),
-        mach: col(&|s| jfmt::java_f(s.m, 2)),
-        salt: jfmt::java_f(d.altm.alt, 0),
+        mach: col(&|s| jfmt::fmt_f(s.m, 2)),
+        salt: jfmt::fmt_f(d.altm.alt, 0),
         watertemp: if d.engine.nwater_temp != F_INVALID {
-            jfmt::java_f(d.engine.nwater_temp, 0)
+            jfmt::fmt_f(d.engine.nwater_temp, 0)
         } else {
             na.to_string()
         },
-        oiltemp: jfmt::java_f(d.engine.noil_temp, 0),
-        vy: jfmt::java_f(d.n_vy, 1),
-        s_sep: jfmt::java_f(sep_rounded, 0),
+        oiltemp: jfmt::fmt_f(d.engine.noil_temp, 0),
+        vy: jfmt::fmt_f(d.n_vy, 1),
+        s_sep: jfmt::fmt_f(sep_rounded, 0),
         ny: st.map(|s| s.ny).unwrap_or(0.0),
-        wx: col(&|s| jfmt::java_f(s.wx.abs(), 0)),
+        wx: col(&|s| jfmt::fmt_f(s.wx.abs(), 0)),
         total_hp_str: if d.engine.total_hp == 0 {
             na.to_string()
         } else {
@@ -1336,13 +1335,13 @@ pub fn flight_log_snapshot(d: &ServiceData) -> FlightLogSnapshot {
                 if e0 == 0.0 {
                     na.to_string()
                 } else {
-                    jfmt::java_f(e0, 0)
+                    jfmt::fmt_f(e0, 0)
                 }
             },
         ),
         total_hp_eff_str: if d.engine.total_hp_eff >= 100000 {
             // 波21: f32 除法域退役, f64 直算 (%.2f 显示下不可见)
-            jfmt::java_f(d.engine.total_hp_eff as f64 / 1000000.0, 2)
+            jfmt::fmt_f(d.engine.total_hp_eff as f64 / 1000000.0, 2)
         } else {
             d.engine.total_hp_eff.to_string()
         },
@@ -1355,7 +1354,7 @@ pub fn flight_log_snapshot(d: &ServiceData) -> FlightLogSnapshot {
             |s| {
                 let p0 = s.pitch.first().copied().unwrap_or(F_INVALID);
                 if p0 != F_INVALID {
-                    jfmt::java_f(p0, 1)
+                    jfmt::fmt_f(p0, 1)
                 } else {
                     na.to_string()
                 }
@@ -1374,7 +1373,7 @@ pub fn flight_log_snapshot(d: &ServiceData) -> FlightLogSnapshot {
                         // 英制: 显示 Boost psi (%+.1f); 换算单源见 manifold_display
                         jfmt::java_f_plus(manifold_display(Some(s), true), 1)
                     } else {
-                        jfmt::java_f(manifold_display(Some(s), false), 2)
+                        jfmt::fmt_f(manifold_display(Some(s), false), 2)
                     }
                 } else {
                     na.to_string()
@@ -1387,14 +1386,14 @@ pub fn flight_log_snapshot(d: &ServiceData) -> FlightLogSnapshot {
         rudder: st.map(|s| s.rudder).unwrap_or(0),
         aoa: col(&|s| {
             if s.aoa != F_INVALID {
-                jfmt::java_f(s.aoa, 1)
+                jfmt::fmt_f(s.aoa, 1)
             } else {
                 na.to_string()
             }
         }),
         aos: col(&|s| {
             if s.aos != F_INVALID {
-                jfmt::java_f(s.aos, 1)
+                jfmt::fmt_f(s.aos, 1)
             } else {
                 na.to_string()
             }
