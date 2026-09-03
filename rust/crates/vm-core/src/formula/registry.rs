@@ -6,7 +6,7 @@
 
 use super::definition::VarLookup;
 use super::functions::Value;
-use crate::base::string_helper::F_INVALID;
+use crate::telemetry::parser::F_INVALID; // 波20: 哨兵常量随 string_helper 退役迁至 parser
 use crate::fm::data::FmData;
 use crate::telemetry::parser::{Indicators, State};
 use std::collections::HashMap;

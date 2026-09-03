@@ -174,7 +174,7 @@ impl HttpHelper {
 
         // PORT: type 经 Indicators.update 已 toUpperCase; Java 的
         // `t != "No Cockpit"` 恒真 (NO COCKPIT), 波20 清场删除该死比较
-        if indicators_parser.valid.as_deref() == Some("true") {
+        if indicators_parser.valid == Some(true) {
             if let Some(t) = indicators_parser.r#type.as_deref() {
                 if !t.is_empty() {
                     // PORT: toLowerCase() 默认 Locale (域内机型名 ASCII, 无行为差);

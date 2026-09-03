@@ -29,7 +29,7 @@ fn var_value_state_passthrough() {
 fn var_value_wing_sweep_sentinel_zero() {
     let mut d = ServiceData::default();
     d.s_indic = Some(vm_core::telemetry::parser::Indicators::default());
-    use vm_core::base::string_helper::F_INVALID;
+    use vm_core::telemetry::parser::F_INVALID; // 波20: 哨兵常量迁至 parser
     d.s_indic.as_mut().unwrap().wsweep_indicator = F_INVALID;
     use vm_core::formula::registry::FormulaView as _;
     assert_eq!(d.var_value("wing_sweep"), Some(0.0), "哨兵归零");
@@ -90,7 +90,7 @@ fn var_value_booster_wep_fuel_registry_vars() {
     // fuel_percent 走 SessionInputs 搬运
     assert_eq!(d.var_value("fuel_percent"), Some(0.0));
     // 无助推器 (哨兵) → 归零
-    use vm_core::base::string_helper::F_INVALID;
+    use vm_core::telemetry::parser::F_INVALID; // 波20: 哨兵常量迁至 parser
     let mut d2 = ServiceData::default();
     let mut s2 = vm_core::telemetry::parser::State::default();
     s2.mfuel_1 = F_INVALID;

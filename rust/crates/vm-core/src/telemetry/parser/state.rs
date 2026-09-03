@@ -1,24 +1,29 @@
-//! State 的 Rust 移植 (src/parser/State.java)
-//! /state 遥测 JSON 的子串提取解析 (速度/高度/G/舵面/引擎数组)。
+//! /state 遥测快照 (速度/高度/G/舵面/引擎数组)。
 //!
-//! PORT: Java 类 → pub struct + pub 字段 (§0.7, 不造 getter);
-//! getString/getDataInt/getDataFloat 接已译 crate::base::string_helper,
-//! -65535 哨兵引用其 I_INVALID 定义。
+//! 波20 serde 化: 原 getString/getDataInt 子串扫描 → serde_json::Value 全等键取数。
+//! 键名映射对照真机快照 (script/mock_scenarios/snapshots/plane_bf109f4.json):
+//! 手写时代的 needle 是子串前缀 (如 "TAS" 实际命中键 `"TAS, km/h"`、
+//! `"throttle"` 命中 `"throttle 1, %"`、`"\"M\""` 是键 `M` 的带引号消歧),
+//! serde 全等匹配必须用完整真键名 — 详见 update 内的键名注释。
+//!
+//! 行为变更 (波20 裁决): 数值 f32 单精度拓宽退役 (f64 直读);
+//! `valid` 改真实 bool (JSON 里就是 bool, 原字符串比较是手写解析的产物)。
 
-use crate::base::string_helper::{get_data_float, get_data_int, get_string, I_INVALID};
+use serde_json::Value;
+
+use super::{v_f64, v_i32, I_INVALID};
 
 /// 遥测侧每引擎数组容量 (throttles/power/pitch/thrust/efficiency)。
 /// 2026-08 全量普查 (TestFMAllBoundaries): 真机 FM 引擎数极值 14 (b_66b, 含助推器块),
 /// 原 8 会静默丢第 9+ 引擎数据; 上调至 16 (= Blkx 解析护栏, 见 Blkx.getload)。
 /// 下游消费循环均按实际 engineNum 遍历 (数据驱动), 扩容不影响小引擎机型行为
-// PORT: Java `public static final int maxEngNum`; 仅用作数组长度/循环上界 → usize
 pub const MAX_ENG_NUM: usize = 16;
 
 /// /state 遥测快照。字段顺序与 Java 声明一致。
 #[derive(Clone)]
 pub struct State {
-    /// Java `String valid` — getString 可返回 null (键缺失) → Option
-    pub valid: Option<String>,
+    /// JSON 真值即 bool; None = 响应缺 valid 键 (触发端口翻转信号)
+    pub valid: Option<bool>,
     pub flag: bool,
     pub engine_num: i32,
     pub aileron: i32,
@@ -61,8 +66,8 @@ pub struct State {
 }
 
 impl State {
-    /// 对应 Java `new State()`: 标量字段取 Java 默认值 (§2.10),
-    /// 引擎数组保持空 (≈ Java null) — 未 init 就 update/getEngNum 会像 Java 一样抛错。
+    /// 对应 Java `new State()`: 标量字段取 Java 默认值,
+    /// 引擎数组保持空 — 未 init 就 update 会 panic。
     pub fn new() -> Self {
         State {
             valid: None,
@@ -108,8 +113,7 @@ impl State {
     }
 
     pub fn init(&mut self) {
-        // System.out.println("state初始化了");
-        self.valid = Some("false".to_string());
+        self.valid = Some(false);
         self.throttles = vec![0; MAX_ENG_NUM];
         self.power = vec![0.0; MAX_ENG_NUM];
         self.pitch = vec![0.0; MAX_ENG_NUM];
@@ -119,80 +123,91 @@ impl State {
         self.airbrake = 0;
     }
 
+    /// 解析 /state JSON。返回值是调用方 (vm-data 轮询) 的协议信号:
+    /// - `-1`: 响应缺 valid 键 (含空串/畸形 JSON) → 端口翻转;
+    /// - `0`: 正常 (valid=true 填字段, valid=false 仅置 flag=false)。
     pub fn update(&mut self, buf: &str) -> i32 {
-        self.valid = get_string(buf, "valid").map(str::to_string);
-        // System.out.println(valid);
-        if self.valid.is_none() {
-            return -1;
+        // 畸形/空 JSON → Null, 全部取数走缺键分支 (等价手写时代 "找不到键")
+        let v: Value = serde_json::from_str(buf).unwrap_or(Value::Null);
+        let valid = v.get("valid").and_then(Value::as_bool);
+        match valid {
+            None => {
+                self.valid = None;
+                return -1;
+            }
+            Some(b) => self.valid = Some(b),
         }
-        if self.valid.as_deref() == Some("true") {
-            // 无异常的
+        if valid == Some(true) {
             self.flag = true;
 
-            self.aileron = get_data_int(get_string(buf, "aileron"));
-            self.elevator = get_data_int(get_string(buf, "elevator"));
-            self.rudder = get_data_int(get_string(buf, "rudder"));
-            self.flaps = get_data_int(get_string(buf, "flaps"));
-            self.airbrake = get_data_int(get_string(buf, "airbrake"));
-            self.gear = get_data_int(get_string(buf, "gear"));
-            self.tas = get_data_int(get_string(buf, "TAS"));
-            self.ias = get_data_int(get_string(buf, "IAS"));
-            self.m = get_data_float(get_string(buf, "\"M\""));
-            self.heightm = get_data_float(get_string(buf, "H, m"));
-            self.aoa = get_data_float(get_string(buf, "AoA"));
-            self.aos = get_data_float(get_string(buf, "AoS"));
-            self.ny = get_data_float(get_string(buf, "Ny"));
-            self.vy = get_data_float(get_string(buf, "Vy"));
-            self.wx = get_data_float(get_string(buf, "Wx"));
-            self.throttle = get_data_int(get_string(buf, "throttle"));
-            self.rpm_throttle = get_data_int(get_string(buf, "RPM throttle"));
+            // 舵面族 (快照真键带 ", %"/", deg" 单位后缀; 手写时代 needle 是裸前缀)
+            self.aileron = v_i32(&v, "aileron, %");
+            self.elevator = v_i32(&v, "elevator, %");
+            self.rudder = v_i32(&v, "rudder, %");
+            self.flaps = v_i32(&v, "flaps, %");
+            self.airbrake = v_i32(&v, "airbrake, %");
+            self.gear = v_i32(&v, "gear, %");
+            // 速度/高度族 (needle "TAS"/"IAS"/"H, m" → 真键带单位)
+            self.tas = v_i32(&v, "TAS, km/h");
+            self.ias = v_i32(&v, "IAS, km/h");
+            // needle "\"M\"" (带引号防命中 Mfuel) → 全等键 M
+            self.m = v_f64(&v, "M");
+            self.heightm = v_f64(&v, "H, m");
+            self.aoa = v_f64(&v, "AoA, deg");
+            self.aos = v_f64(&v, "AoS, deg");
+            self.ny = v_f64(&v, "Ny");
+            self.vy = v_f64(&v, "Vy, m/s");
+            self.wx = v_f64(&v, "Wx, deg/s");
+            // 油门族: State.throttle 是单值, 手写 needle "throttle" 首次命中
+            // "throttle 1, %" 键名 → 真键即 1 号引擎油门
+            self.throttle = v_i32(&v, "throttle 1, %");
+            self.rpm_throttle = v_i32(&v, "RPM throttle 1, %");
             if self.rpm_throttle == I_INVALID {
                 // 自动桨机型(如P-63)8111不返回该字段, 归一化为-1表示无桨距数据(与mixture约定一致),
                 // 防止哨兵值-65535泄漏到UI层撑爆桨距竖条
                 self.rpm_throttle = -1;
             }
 
-            self.radiator = get_data_int(get_string(buf, "radiator"));
+            self.radiator = v_i32(&v, "radiator 1, %");
 
-            self.rpm = get_data_int(get_string(buf, "RPM 1"));
+            self.rpm = v_i32(&v, "RPM 1");
 
-            self.manifoldpressure = get_data_float(get_string(buf, "manifold pressure 1"));
+            self.manifoldpressure = v_f64(&v, "manifold pressure 1, atm");
 
-            self.mfuel = get_data_float(get_string(buf, "Mfuel"));
-            self.mfuel_1 = get_data_float(get_string(buf, "Mfuel 1"));
-            self.mfuel0 = get_data_float(get_string(buf, "Mfuel0"));
-            self.mfuel0_1 = get_data_float(get_string(buf, "Mfuel0 1")); // 助推器燃料总量
+            self.mfuel = v_f64(&v, "Mfuel, kg");
+            self.mfuel_1 = v_f64(&v, "Mfuel 1, kg");
+            self.mfuel0 = v_f64(&v, "Mfuel0, kg");
+            self.mfuel0_1 = v_f64(&v, "Mfuel0 1, kg"); // 助推器燃料总量
 
-            self.oiltemp = get_data_float(get_string(buf, "oil temp"));
+            self.oiltemp = v_f64(&v, "oil temp 1, C");
 
-            // engineNum = 1;
-            self.mixture = get_data_int(get_string(buf, "mixture"));
+            self.mixture = v_i32(&v, "mixture 1, %");
             if self.mixture == I_INVALID {
                 self.mixture = -1;
             }
-            self.compressorstage = get_data_int(get_string(buf, "compressor stage"));
+            self.compressorstage = v_i32(&v, "compressor stage 1");
             if self.compressorstage == I_INVALID {
                 self.compressorstage = 0;
             }
 
-            self.magenato = get_data_int(get_string(buf, "magneto"));
+            self.magenato = v_i32(&v, "magneto 1");
 
-            self.watertemp = get_data_float(get_string(buf, "water temp"));
+            self.watertemp = v_f64(&v, "water temp 1, C");
 
             let mut tmp_thrust: f64 = 0.0;
 
             let mut total_engine_num: i32 = 0;
             for i in 0..MAX_ENG_NUM {
-                // System.out.println(engineType);
-                self.throttles[i] = get_data_int(get_string(buf, &format!("throttle {}", i + 1)));
-                self.power[i] = get_data_float(get_string(buf, &format!("power {}", i + 1)));
+                // 引擎号键 1 起始; thrust 缺键即终止 (先写哨兵再 break — 数组
+                // 产出契约保留, 下游按 engine_num 遍历不触达残留哨兵)
+                self.throttles[i] = v_i32(&v, &format!("throttle {}, %", i + 1));
+                self.power[i] = v_f64(&v, &format!("power {}, hp", i + 1));
 
-                self.thrust[i] = get_data_int(get_string(buf, &format!("thrust {}", i + 1)));
-                self.pitch[i] = get_data_float(get_string(buf, &format!("pitch {}", i + 1)));
+                self.thrust[i] = v_i32(&v, &format!("thrust {}, kgs", i + 1));
+                self.pitch[i] = v_f64(&v, &format!("pitch {}, deg", i + 1));
 
                 // PORT: Java `efficiency[i] = getDataInt(...)` — int 拓宽进 double 数组元素
-                self.efficiency[i] =
-                    get_data_int(get_string(buf, &format!("efficiency {}", i + 1))) as f64;
+                self.efficiency[i] = v_i32(&v, &format!("efficiency {}, %", i + 1)) as f64;
 
                 if self.thrust[i] == I_INVALID {
                     break;

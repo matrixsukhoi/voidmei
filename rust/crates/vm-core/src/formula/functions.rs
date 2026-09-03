@@ -5,7 +5,7 @@
 
 use crate::base::atmosphere_model;
 use crate::base::interpolation;
-use crate::base::string_helper::F_INVALID;
+use crate::telemetry::parser::F_INVALID; // 波20: 哨兵常量随 string_helper 退役迁至 parser
 use std::sync::Arc;
 
 /// 求值期的值类型: 数值 (bool 以 0.0/1.0 编码) 或命名表 (不透明, 仅插值函数实参)

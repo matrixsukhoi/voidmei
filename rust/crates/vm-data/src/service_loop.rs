@@ -29,7 +29,7 @@ use vm_core::base::{
 };
 
 use crate::service_fields::{EngineType, ServiceData, NASTRING};
-use vm_core::base::string_helper::F_INVALID;
+use vm_core::telemetry::parser::F_INVALID; // 波20: 哨兵常量迁至 parser
 
 /// 温度族无效哨兵 (波17 F3 具名化, 原 updateTemp 的 `-65534f` 字面量):
 /// 比 F_INVALID 宽一档 — 缺数据判定用 `<= 本值`, 同时兜住 -65534 与 -65535
