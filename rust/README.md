@@ -44,7 +44,7 @@ War Thunder HTTP API (127.0.0.1:8111)
 
 | crate | 依赖 | 职责 |
 |---|---|---|
-| vm-core | — | 纯逻辑 11 域：base(总线/事件/日志/工具/JDK 语义复刻 java_compat/数值格式化 format)/config(配置栈)/telemetry(HTTP+解析)/fm(管理栈+数据+功率模型)/formula(公式系统)/derived(HUD 派生)/audio(语音告警)/ui_support(行定义/机型对比/颜色)/platform(焦点检测)/lang(i18n)/activation(激活) |
+| vm-core | — | 纯逻辑 11 域：base(总线/事件/日志/工具/JDK 语义复刻 java_compat/数值格式化 format)/config(配置栈)/game_api(8111 客户端 ureq+serde 解析)/fm(管理栈+数据+功率模型)/formula(公式系统)/derived(HUD 派生)/audio(语音告警)/ui_support(行定义/机型对比/颜色)/platform(焦点检测)/lang(i18n)/activation(激活) |
 | vm-data | vm-core | 8111 轮询/派生量计算/Service 链；FrameStore 不可变帧 = 跨线程唯一读面 |
 | vm-overlay | vm-core | 五域：platform(win/x11/host/tray/hotkey/reinit)/render(canvas/fields/renderers/font/palette/primitives)/overlays(组件, spec_common 工厂脚手架)/layout(布局引擎)/ui_model |
 | vm-ui | vm-core | MainForm 数据层（main_form 状态机 + renderers 写回链；view 归 web 壳） |

@@ -94,7 +94,10 @@ fn get_req_result_injects_extra_header() {
     c.get_req_result(addr);
     h.join().unwrap();
     let got = String::from_utf8(seen.lock().unwrap().clone()).unwrap();
-    assert!(got.contains("User-Agent: VoidMei-Test"), "httpHeader 应注入: {got}");
+    assert!(
+        got.contains("User-Agent: VoidMei-Test"),
+        "httpHeader 应注入: {got}"
+    );
 }
 
 #[test]

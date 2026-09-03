@@ -4,7 +4,7 @@
 //! 锁纪律: 临界区内不调回调/不做 IO——先取副本→释放→计算→短锁写回。
 //! 顶层 catch_unwind: 单条畸形遥测 panic 不杀线程, 丢一轮继续 (锁中毒穿透
 //! 见 read_data/write_data)。
-//! HTTP/parser 用 vm-core 保真版 (HttpHelper / parser::{State, Indicators})。
+//! HTTP/parser 用 vm-core game_api 域 (GameApiClient / parser::{State, Indicators})。
 
 use std::net::SocketAddr;
 use std::panic::{catch_unwind, AssertUnwindSafe};
@@ -456,8 +456,7 @@ impl Service {
             // (HTTP IO 在锁外, §2.8; portOcupied 拆箱 None → panic 复刻 Java NPE,
             //  由 run 的 catch_unwind 兜住——字段初始化器 false 使 None 不可达)
             if !port_ocupied {
-                self.http_client
-                    .get_req_result(request_dest(&self.config));
+                self.http_client.get_req_result(request_dest(&self.config));
             } else {
                 self.http_client
                     .get_req_result(request_dest_bkp(&self.config));

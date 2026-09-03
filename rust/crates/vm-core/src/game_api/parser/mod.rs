@@ -25,11 +25,6 @@ pub const I_INVALID: i32 = -65535;
 /// 对应 Java `StringHelper.fInvalid` — 缺数键的浮点哨兵 (同上契约保留)。
 pub const F_INVALID: f64 = -65535.0;
 
-/// 全等键取字符串; 缺键/非字符串 → None。
-pub(crate) fn v_str<'a>(v: &'a serde_json::Value, key: &str) -> Option<&'a str> {
-    v.get(key).and_then(serde_json::Value::as_str)
-}
-
 /// 全等键取 f64; 缺键/非数值 → F_INVALID 哨兵 (对齐手写时代 "缺键→哨兵" 产出契约;
 /// 数值直接 f64 解析, 原 Float.parseFloat 的 f32 单精度拓宽位级复刻退役)。
 pub(crate) fn v_f64(v: &serde_json::Value, key: &str) -> f64 {

@@ -6,8 +6,8 @@
 
 use super::definition::VarLookup;
 use super::functions::Value;
-use crate::game_api::parser::F_INVALID; // 波20: 哨兵常量随 string_helper 退役迁至 parser
 use crate::fm::data::FmData;
+use crate::game_api::parser::F_INVALID; // 波20: 哨兵常量随 string_helper 退役迁至 parser
 use crate::game_api::parser::{Indicators, State};
 use std::collections::HashMap;
 use std::sync::OnceLock;

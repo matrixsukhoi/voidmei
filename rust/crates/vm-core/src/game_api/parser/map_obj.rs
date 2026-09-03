@@ -134,17 +134,12 @@ fn match_from<'a>(
                                                         r = skip_ws(t, r);
                                                         if b.get(r) == Some(&b':') {
                                                             r = skip_ws(t, r + 1);
-                                                            if let Some((r2, g3)) =
-                                                                try_number(t, r)
+                                                            if let Some((r2, g3)) = try_number(t, r)
                                                             {
                                                                 // 尾部 [^{}]*\}
                                                                 let e5 = nb_extent(t, r2);
-                                                                if e5 < t.len()
-                                                                    && b[e5] == b'}'
-                                                                {
-                                                                    return Some((
-                                                                        e5 + 1, g1, g3,
-                                                                    ));
+                                                                if e5 < t.len() && b[e5] == b'}' {
+                                                                    return Some((e5 + 1, g1, g3));
                                                                 }
                                                             }
                                                         }

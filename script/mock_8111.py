@@ -9,9 +9,10 @@ VoidMei 战雷 8111 端口模拟器（纯标准库实现, Python 3.8+, CI 可跑
   serve    启动模拟服务器 (默认端口 8111 = VoidMei 实际轮询端口, 备用 9222 由应用自行翻转)
   list     列出可用快照与场景
 
-=== 游戏端点响应的 byte-perfect 兼容性 (勿破坏!) =========================
-VoidMei 用 HttpHelper.sendGetFastBuf 裸 socket 读响应, StringHelper.getString
-做子串级朴素解析, 因此 mock 响应必须满足:
+=== 游戏端点响应的 byte-perfect 兼容性 (历史契约, 已随波20 失效) ==========
+注: 下述 4 条约束服务于旧 Java 解析器 (HttpHelper 裸 socket + StringHelper
+子串扫描)。Rust 波20 整改后客户端是 ureq + serde_json (标准解析), 约束不再是
+应用侧需求; 模拟器保持原响应形态不动 (快照/e2e 断言与该形态耦合):
   1. 恰好 6 行头: 状态行 + 4 个头 + 空行 (Java 端 readLine x6 跳头)
   2. 头标签避开 "type"/"valid" 子串 (否则 getString 抢先命中头字段)
   3. JSON 冒号后恰好一个空格 (getString 的 bix = 冒号后第 2 字符,

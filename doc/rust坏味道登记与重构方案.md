@@ -200,3 +200,40 @@
 - **A6 边角语义变化备案** (波17): VoiceWarning 的 fuel_p_check 共享计数器拆分后,
   引擎损坏告警严格 10 tick 计满 (原共享下交织场景 5~6 tick), 消除"油压 tick
   加速触发损坏告警"的怪癖; 测试断言已同步并注明依据。
+
+## 增补: 波20 — 8111 链现代化 (2026-09-03, 登记表收官后的独立整改)
+
+波19 收官后用户裁决对 8111 数据链全面整改 (原 telemetry 域整体退役),
+Java 保真移植时代的产物换为业界方案。分四步提交, 每步测试全绿:
+
+| 步 | 内容 | 关键退役 |
+|---|---|---|
+| 20-1 | 死代码清场 | map_service/OtherService 833 行 (无 wiring) + HudMsg 197 行 + MapObj 实例解析路径 ~570 行 (仅留 get_player_loc/dir 正则) + send_get_url/fm_cmd_set_alt/spd 死方法 + string_helper 死函数 + lang oSkeyWord 键 |
+| 20-2 | parser serde 化 | 手写子串扫描 (find 键名→扫冒号→取逗号) → serde_json::Value 全等键取数; string_helper 整文件退役 (哨兵常量迁 parser) |
+| 20-3 | HTTP ureq 化 | 手写 socket HTTP → ureq 2.12 (default-features=false, 无 TLS); http.rs→client.rs, HttpHelper→GameApiClient; 8111 硬编码→端口注入 |
+| 20-4 | 域更名 | telemetry → game_api (19 文件路径) |
+
+### 修好的保真怪癖 (原 oracle 锁定, 波20 裁决为有意变更)
+
+1. **MapInfo +3 偏移 bug**: 手写扫描 `bix = eix + 3` 系统性丢数值首字符/负号
+   (6400.0→400.0、-32768.0→32768.0), 下游地图几何首次得到正确输入。
+2. **f32 单精度位级复刻退役**: Float.parseFloat 的 f32 拓宽 (0.1→0.10000000149011612)
+   → serde f64 直读; w2_deriver 位级 oracle 重录 (第 8~10 位有效数字漂移)。
+3. **valid 真实 bool 化**: JSON 里就是 bool, 原字符串比较是手写解析的产物。
+4. **pedals 显式映射**: 快照无裸 pedals 键 (手写 needle 子串碰撞实际取 pedals1) → 显式 "pedals1"。
+5. **army=="tank" 死分支删除**: 手写时代字符串值带引号永不等于 "tank", 过滤名存实亡。
+6. **子串碰撞/值截断/find-rfind 不一致** 随手写扫描器整体消失; 键名对照真机快照
+   (script/mock_scenarios/snapshots/) 逐字段核对为全等真键。
+
+### 语义保留 (下游契约不动)
+
+- 哨兵 -65535 (I_INVALID/F_INVALID): hud_calculator/voice_warning/formula registry
+  的缺数据守卫判定契约, serde 版保持"缺键→哨兵"产出。
+- State::update 返回 -1 = 端口翻转协议 (vm-data 轮询依赖)。
+- str_state Arc<Mutex> 测试注入面; /state 失败双双空串复位; 250ms/500ms 超时上限。
+- 引擎数组"先写哨兵再 break"产出形态; 哨兵归一化 (rpm_throttle→-1 等)。
+
+### 验收
+
+cargo test --workspace 全绿 (1192 测试, 含 9222 mock_e2e 集成 — ureq 与
+mock_8111.py 真 HTTP 互通验证); 未跑 script/rust_e2e.sh / --mock-smoke (项目约束)。
