@@ -19,7 +19,7 @@ use vm_core::config::configuration_service::ConfigurationService;
 use vm_core::derived::flight_log::FlightLogSlot;
 use vm_core::fm::{FMManager, FMStatus};
 use vm_core::lang::Lang;
-use vm_core::telemetry::http::HttpHelper;
+use vm_core::telemetry::client::GameApiClient; // 波20: ureq 化更名
 
 use vm_data::service_loop::{
     flight_log_snapshot, start as spawn_service_thread, Service, ServiceAnalyzerSource,
@@ -243,16 +243,17 @@ impl Controller {
     }
 
     /// "FM-Detect" 一次性线程 → detect_and_identify。
-    /// PORT: selectedFM0 在主线程预读 (配置 !Send 不入线程); HttpHelper/FMManager Send。
+    /// PORT: selectedFM0 在主线程预读 (配置 !Send 不入线程); GameApiClient/FMManager Send。
     /// spawn 失败降级 (E9c, 对齐渲染线程侧 Result 面): 记日志跳过本次探测
     fn spawn_fm_detect(&self) {
         let selected = self.config.get_config("selectedFM0").unwrap_or_default();
         let http_header = self.env.http_header.clone();
         let fm = Arc::clone(&self.fm);
         let probe = self.probe_network;
+        let app_port = self.env.app_port;
         if let Err(e) = std::thread::Builder::new()
             .name("FM-Detect".to_string())
-            .spawn(move || detect_and_identify(&selected, &http_header, &fm, probe))
+            .spawn(move || detect_and_identify(&selected, &http_header, &fm, probe, app_port))
         {
             logger::error(
                 "Controller",
@@ -464,6 +465,7 @@ impl Controller {
         let fm = Arc::clone(&self.fm);
         let tx = self.ui_cmd_tx.clone();
         let probe = self.probe_network;
+        let app_port = self.env.app_port;
         if let Err(e) = std::thread::Builder::new()
             .name("Preview-Refresh".to_string())
             .spawn(move || {
@@ -471,7 +473,7 @@ impl Controller {
                     "Controller",
                     "Refreshing overlays for preview/config change...",
                 );
-                detect_and_identify(&selected, &http_header, &fm, probe);
+                detect_and_identify(&selected, &http_header, &fm, probe, app_port);
                 let _ = tx.send(UiCommand::RefreshPreviews {
                     changed_key: None,
                     generation,
@@ -802,11 +804,18 @@ fn load_from_config(
 
 /// detectAndIdentify — live 机型探测 → selectedFM0 兜底 → identify。
 /// `probe_network=false` 跳过 live 探测只走配置兜底 (测试注入面, 见 ControllerDeps)。
-fn detect_and_identify(selected_fm0: &str, http_header: &str, fm: &FMManager, probe_network: bool) {
+fn detect_and_identify(
+    selected_fm0: &str,
+    http_header: &str,
+    fm: &FMManager,
+    probe_network: bool,
+    app_port: u16,
+) {
     // getLiveAircraftType 自带异常兜底 (失败/无游戏 → None)
+    // 波20: 8111 硬编码改端口注入 (env.app_port, CLI/cfg 可覆写)
     let live = if probe_network {
-        let fetcher = HttpHelper::new(http_header);
-        fetcher.get_live_aircraft_type()
+        let fetcher = GameApiClient::new(http_header);
+        fetcher.get_live_aircraft_type(app_port)
     } else {
         None
     };

@@ -21,7 +21,7 @@ use vm_core::derived::flight_analyzer::AnalyzerService;
 use vm_core::derived::flight_log::{FlightLogSlot, FlightLogSnapshot};
 use vm_core::fm::{FMHandle, FMManager};
 use vm_core::formula::registry::FormulaView as _; // var_value 取数唯一接口
-use vm_core::telemetry::http::HttpHelper;
+use vm_core::telemetry::client::GameApiClient; // 波20: ureq 化更名
 use vm_core::telemetry::parser::{Indicators, MapInfo, MapObj, State};
 // format 别名避开 tests.rs 的 format! 宏歧义 (overlay_control_surfaces 同款先例)
 use vm_core::base::{
@@ -172,7 +172,7 @@ pub struct Service {
     /// Java `FlightDataBus.getInstance()` 单例 → 构造注入
     bus: Arc<FlightDataBus>,
     /// HTTP 客户端 —— 轮询线程独占
-    http_client: HttpHelper,
+    http_client: GameApiClient,
     /// 焦点监控器。
     /// PORT: vm-core FocusMonitor 构造需注入 detector/coordinator 两依赖
     /// (Java 无参 new 的对应物缺位), 由调用方按需注入; None 时 tick 短路
@@ -240,7 +240,7 @@ impl Service {
             frames: Arc::new(crate::frame::FrameStore::new()),
             fm_manager,
             bus,
-            http_client: HttpHelper::new(&config.http_header),
+            http_client: GameApiClient::new(&config.http_header),
             focus_monitor: None,
             flight_log: Arc::new(std::sync::Mutex::new(None)),
             formula,
@@ -457,10 +457,10 @@ impl Service {
             //  由 run 的 catch_unwind 兜住——字段初始化器 false 使 None 不可达)
             if !port_ocupied {
                 self.http_client
-                    .get_req_result(request_dest(&self.config), &self.stop);
+                    .get_req_result(request_dest(&self.config));
             } else {
                 self.http_client
-                    .get_req_result(request_dest_bkp(&self.config), &self.stop);
+                    .get_req_result(request_dest_bkp(&self.config));
             }
             let actual_interval_ms = (diff_time / freq) * freq;
             self.apply(|d| {

@@ -15,6 +15,7 @@ chrono = { version = "0.4", default-features = false, features = ["clock"] }
 zip = { version = "8", default-features = false, features = ["deflate-flate2"] }
 # zip 的 deflate-flate2 不带后端选择, 显式启用 miniz_oxide 纯 Rust 后端 (特性合一)
 flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
+ureq = { version = "2.12", default-features = false }
 
 [lints]
 workspace = true
