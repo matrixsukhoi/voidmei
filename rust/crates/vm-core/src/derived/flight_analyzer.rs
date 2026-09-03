@@ -1,30 +1,17 @@
-//! 对应 Java: `src/parser/FlightAnalyzer.java` (一比一翻译)
 //! 派生度量分析器: 爬升分段统计 (各高度级时间/功率/推力/有效功率/SEP 平均)
 //! + EM 图记录 (速度分段的滚转率 / 过载 / SEP 损失)。
 //!
-//! PORT (D6 依赖倒置): Java 持有 `Service xs` 共享引用, 而 Service 链落 vm-data
-//! (vm-data → vm-core 单向依赖, 本 crate 反向不可引) —— 此处以 trait
-//! [`AnalyzerService`] 暴露 init/analyze 实际读取的 7 个 Service 字段
-//! (sIndic.type / iEngType / elapsedTime / totalHp / totalThrust / totalHpEff / SEP),
-//! vm-data 的 service_fields 落地时 `impl AnalyzerService for Service` 接线
-//! (Java 侧为 public 字段直读, 收敛为 getter 是 crate 边界所需, 非语义变更)。
+//! 依赖倒置: Service 落 vm-data (vm-data → vm-core 单向依赖, 本 crate 反向不可引),
+//! 故以 trait [`AnalyzerService`] 暴露 init/analyze 实际读取的 7 个 Service 字段,
+//! 由 vm-data 的 service_fields 侧 impl 接线。
 //!
-//! PORT (FlightLog 接线合同, **已履行**): Java `analyze()` 每次调用**活读**
-//! xs.elapsedTime/totalHp/totalThrust/totalHpEff/SEP (FlightAnalyzer.java:55-59,65-66),
-//! 故 retained `Arc<dyn AnalyzerService>` 是唯一正确建模 —— `FlightLog` 集成时
-//! 应弃其 `FlightAnalyzerApi` 快照合同、直接持有本具体类型 (pub 字段面 + 包私有
-//! init/analyze 的 pub(crate) 同 crate 可见), 并在构造面携带
-//! `Arc<dyn AnalyzerService>`; 按快照合同适配会使 analyze 冻结在 init 时刻的值 (time[]
-//! 记录错误时刻、eff/sep 累加失真)。notify 两侧类型一致
-//! (`Arc<dyn Fn(&str) + Send + Sync>` = flight_log::NotifySink), 可共用同一 sink。
-//! (落地形态: FlightLog::init 第 5 参注入 Arc<dyn AnalyzerService>, vm-data 提供
-//! ServiceData 的 impl 适配器 ServiceAnalyzerSource; 活读防回归由
-//! flight_log.rs 的 analyze_flow 测试锁定 — RecordingService 每读递增。)
+//! 活读契约: `analyze()` 每次调用实时读取 elapsedTime/totalHp/totalThrust/
+//! totalHpEff/SEP, 故持有 `Arc<dyn AnalyzerService>` 而非快照 —— 按快照适配会使
+//! analyze 冻结在 init 时刻的值 (time[] 记录错误时刻、eff/sep 累加失真)。防回归由
+//! flight_log.rs 的 analyze_flow 测试锁定 (RecordingService 每读递增)。
+//! notify 与 flight_log::NotifySink 同类型, 共用同一 sink。
 //!
-//! PORT (CLASSIFY 裁决"注入回调"): `ui.util.NotificationService.show(String)` 是
-//! C 类 UI 静态入口 —— 本译以 [`FlightAnalyzer::notify`] 字段注入, 未接线 (None)
-//! 时通知丢弃, P4 NotificationService 落地后由调用方 (FlightLog/Controller) 接上。
-//! PORT: `Application.debugPrint(t)` = `Logger.info("Legacy", t)` (Application.java:213)。
+//! 通知出口: [`FlightAnalyzer::notify`] 注入回调, 未接线 (None) 时通知丢弃。
 
 use std::sync::Arc;
 
@@ -33,44 +20,36 @@ use crate::lang::Lang;
 use crate::base::physics_constants::g;
 use crate::base::java_compat::{java_float_to_string, java_parse_boolean};
 
-/// FlightAnalyzer 对 Service 的读取面 (PORT: D6 依赖倒置, 见模块头说明)。
-/// 方法名 = Java 字段名 (§0 规则 7 的 crate 边界变体)。
-/// `s_indic_type` 的 `Option` 对应 Java `sIndic.type` 可为 null (键缺失);
-/// `elapsed_time` 对应 Java `long elapsedTime` (毫秒)。
+/// FlightAnalyzer 对 Service 的读取面 (依赖倒置, 见模块头说明)。
+/// `s_indic_type` 的 `Option` 表达 type 键缺失; `elapsed_time` 单位毫秒。
 ///
-/// impl 侧两条硬性义务 (接线合同, vm-data service_fields 落地时遵守):
-/// 1. Java `xs.sIndic` 为 null 时 `init` 首行 `xs.sIndic.type` 直接 NPE — trait 的
-///    Option 只表达 "type 键缺失", **不得**用它吞掉 "sIndic 引用缺失": impl 须在
-///    sIndic 缺失时 panic (对齐 NPE) 或论证 Service 轮询链保证 sIndic 恒已初始化;
-/// 2. getter 逐字段调用对应 Java 逐字段读取时刻 (init 7 次 / analyze 5 次, 不成组),
+/// impl 侧两条硬性义务:
+/// 1. sIndic 缺失时 impl 须 panic (对齐 Java NPE) 或论证 Service 轮询链保证
+///    sIndic 恒已初始化 — Option 只表达 "type 键缺失", 不得吞掉 "引用缺失";
+/// 2. getter 逐字段调用对应逐字段读取时刻 (init 7 次 / analyze 5 次, 不成组),
 ///    impl 按 getter 粒度读锁/快照, 禁止假设 7 个 getter 恒在一次成组调用里。
 pub trait AnalyzerService: Send + Sync {
-    /// Java: `xs.sIndic.type` (sIndic 引用缺失时 impl 须 panic, 见 trait 级义务 1)
+    /// 载具机型名 (sIndic 引用缺失时 impl 须 panic, 见 trait 级义务 1)
     fn s_indic_type(&self) -> Option<String>;
-    /// Java: `xs.iEngType`
+    /// 引擎类型
     fn i_eng_type(&self) -> i32;
-    /// Java: `xs.elapsedTime`
+    /// 经过时间 (毫秒)
     fn elapsed_time(&self) -> i64;
-    /// Java: `xs.totalHp`
     fn total_hp(&self) -> i32;
-    /// Java: `xs.totalThrust`
     fn total_thrust(&self) -> i32;
-    /// Java: `xs.totalHpEff`
     fn total_hp_eff(&self) -> i32;
-    /// Java: `xs.SEP`
     fn sep(&self) -> f64;
 }
 
-/// Java: `public static final int maxAltStage = 256;`
-/// (Java 声明位于 type 与 time 字段之间, const 语法上移出 struct)
+/// 高度级数上限 (每级 100m)
 pub const MAX_ALT_STAGE: i32 = 256;
 
-/// Java: `public static final int maxIASStage = 256;` (获得速度区间, 0 表示非法, 0 - 2560km/h)
+/// 速度级数上限 (每级 10km/h, 0 表示非法, 0 - 2560km/h)
 pub const MAX_IAS_STAGE: i32 = 256;
 
 pub struct FlightAnalyzer {
     pub engine_type: i32,
-    /// Java: `public String type` (Rust 关键字, 原始名 `type`; null → None)
+    /// 机型名 (原始字段名 `type` 为 Rust 关键字; null → None)
     pub r#type: Option<String>,
     pub time: Vec<f64>,  // 从第零层开始
     pub power: Vec<i32>, // 从第一层开始
@@ -79,17 +58,16 @@ pub struct FlightAnalyzer {
     pub sep: Vec<f64>,
     pub initalt_stage: i32,
     pub curalt_stage: i32,
-    /// Java: 包私有 `boolean isInformation` → 同 crate 可见 (FlightLog 同包兄弟模块)
+    /// 高度级信息通知开关 (配置 enableAltInformation); 同 crate 可见 (FlightLog 专用)
     pub(crate) is_information: bool,
 
-    /// Java: `Service xs` — 未 init 即 analyze 在 Java 是 NullPointerException,
-    /// 此处 Option + expect panic 对应 (§1: 非受检异常 → panic!)。
+    /// Service 读取面 — 未 init 即 analyze 时 expect panic (对应 Java NullPointerException)
     xs: Option<Arc<dyn AnalyzerService + Send + Sync>>,
     /// 计数: 10Hz 轮询下 i32 溢出需 ~6.8 年停留在同一高度级, 域内不可达
     count: i32,
     config: Option<Arc<dyn ConfigProvider + Send + Sync>>,
 
-    // ---- 第二字段区 (Java 声明于 maxIASStage 之后) ----
+    // ---- EM 图记录 (速度分段) ----
     pub roll_rate: Vec<i32>,
     pub roll_alr: Vec<i32>,
 
@@ -98,14 +76,13 @@ pub struct FlightAnalyzer {
 
     pub sep_loss: Vec<f64>,
 
-    /// PORT: `ui.util.NotificationService.show` 的注入回调 (C 类, 见模块头)。
-    // PORT: Java 保真 — NotificationService.show 引用形态, 不拆 type 别名
+    /// 通知注入回调 (见模块头; None 时通知丢弃)
     #[allow(clippy::type_complexity)]
     pub notify: Option<Arc<dyn Fn(&str) + Send + Sync>>,
 }
 
-// PORT: Java `new FlightAnalyzer()` — 数值字段 0 / boolean false / 引用 null,
-// 五个 maxAltStage 数组立即按 256 长度零填充 (§2.10 隐式初始化显式化)。
+// 数值字段 0 / boolean false / 引用 None,
+// 两组 stage 数组立即按 256 长度零填充。
 impl Default for FlightAnalyzer {
     fn default() -> Self {
         FlightAnalyzer {
@@ -133,20 +110,19 @@ impl Default for FlightAnalyzer {
 }
 
 impl FlightAnalyzer {
-    /// Java `xs` 字段访问: init 前为 null (Java NPE ↔ Rust expect panic)。
+    /// Service 读取面访问: init 前为 None (未 init 即用 → panic, 对应 Java NPE)。
     fn xs(&self) -> &Arc<dyn AnalyzerService + Send + Sync> {
         self.xs.as_ref().expect("FlightAnalyzer 未 init 即访问 xs (Java NullPointerException)")
     }
 
-    /// Java: `void init(int stage, Service st, prog.config.ConfigProvider config)` (包私有)。
-    // 唯一调用者 flight_log (parser 同包, Controller.java:332 `Log.init` → 首帧 analyzeData)
+    /// 记录首个高度级快照并复位计数。
+    // 唯一调用者 flight_log (Log.init → 首帧 analyzeData)
     pub(crate) fn init(
         &mut self,
         stage: i32,
         st: Arc<dyn AnalyzerService + Send + Sync>,
         config: Option<Arc<dyn ConfigProvider + Send + Sync>>,
     ) {
-        // Application.debugPrint("analyzer初始化了");
         self.xs = Some(st);
         self.config = config;
         self.count = 1;
@@ -168,11 +144,10 @@ impl FlightAnalyzer {
         self.thrust[idx] = xs.total_thrust();
         self.eff[idx] = xs.total_hp_eff();
         self.sep[idx] = xs.sep();
-        // Application.debugPrint("已经记录stage"+curaltStage+"时间戳"+time[curaltStage]+"功率"+power[curaltStage]+"实功率"+eff[curaltStage]+"SEP"+sep[curaltStage]);
     }
 
-    /// Java: `void analyze(int stage)` (包私有)。
-    // 唯一调用者 flight_log (parser 同包, logTick → analyzeData 每帧)
+    /// 逐帧累积/切换高度级 (同层累加均值分量, 进层落账并开新层)。
+    // 唯一调用者 flight_log (logTick → analyzeData 每帧)
     pub(crate) fn analyze(&mut self, stage: i32) {
         let xs = self.xs().clone(); // Arc 浅拷贝, 避免与 &mut self 借用冲突
         self.engine_type = xs.i_eng_type();
@@ -180,7 +155,6 @@ impl FlightAnalyzer {
             let idx = self.curalt_stage as usize;
             self.eff[idx] /= self.count;
             self.sep[idx] /= self.count as f64 * g; // count * g: int 提升为 double
-            // Application.debugPrint("已经记录stage"+curaltStage+"时间戳"+time[curaltStage]+"功率"+power[curaltStage]+"推力"+thrust[curaltStage]+"实功率"+eff[curaltStage]+"SEP"+sep[curaltStage]);
             self.curalt_stage += 1;
 
             let idx = self.curalt_stage as usize;
@@ -192,8 +166,8 @@ impl FlightAnalyzer {
             self.count = 1;
             if self.is_information {
                 let lang = Lang::init_lang();
-                //       + (int) ((stage - initaltStage) * 1000 / time[..]) / 10.0f + Lang.fA4
-                // — (int) X / 10.0f 是 int 除 float 得 float, 字符串拼接走 Float.toString
+                // climb = (int)((stage - initalt_stage) * 1000 / time[..]):
+                // int 除 float 得 float, 串化走 Float.toString
                 let climb = ((stage - self.initalt_stage) * 1000) as f64 / self.time[idx];
                 let msg = format!(
                     "{}{}{}{}{}{}{}",
@@ -217,12 +191,12 @@ impl FlightAnalyzer {
 
     // 获得速度阶段
     pub fn get_speed_stage(&self, ias: f64) -> i32 {
-        // (int)(long) 双转: Java long→int 截断低 32 位 (§2.2); Rust as i32 饱和, 仅巨值域分歧
+        // Java (int)(long) 双转是低 32 位截断; Rust as i32 饱和, 仅巨值域分歧
         (java_math_round(ias / 10.0) as u32) as i32
     }
 
     // 使用舵面辅助判断
-    // Java 为 public (FlightAnalyzer.java:89), 一比一 pub — vm-data 经 FlightLog 之外直调时可用
+    // pub: FlightLog 之外的调用方 (如 vm-data) 可直调
     pub fn update_em_chart(
         &mut self,
         ias: f64,
@@ -257,7 +231,6 @@ impl FlightAnalyzer {
             }
 
             if g_load > 1.0 && sep < 5.0 && abs_elev >= self.turn_elev[s] {
-                // if (g_load > turn_load[stage] ) {
                 self.turn_elev[s] = abs_elev;
                 if self.is_information && (g_load - self.turn_load[s] > 3.0) {
                     let lang = Lang::init_lang();
@@ -274,13 +247,11 @@ impl FlightAnalyzer {
                 }
                 self.turn_load[s] = (self.turn_load[s] + g_load) / 2.0;
                 self.sep_loss[s] = (self.sep_loss[s] + sep) / 2.0;
-                // }
-                // showAllEMChart();
             }
         }
     }
 
-    /// Java: `public int getNoZerosNum(int[] arr)` (重载 → _i32 后缀)。
+    /// 非零元素计数 (Java 重载以 _i32/_f64 后缀区分)。
     pub fn get_no_zeros_num_i32(&self, arr: &[i32]) -> i32 {
         let mut ret = 0;
         let mut i = 0usize;
@@ -293,7 +264,7 @@ impl FlightAnalyzer {
         ret
     }
 
-    /// Java: `public int getNoZerosNum(double[] arr)` (重载 → _f64 后缀)。
+    /// 非零元素计数 (_f64 重载)。
     pub fn get_no_zeros_num_f64(&self, arr: &[f64]) -> i32 {
         let mut ret = 0;
         let mut i = 0usize;
@@ -306,15 +277,15 @@ impl FlightAnalyzer {
         ret
     }
 
-    /// Java: `public void removeZeroes(double[] x, double[] y, int[] oy)` (重载 → _i32 后缀)。
+    /// 抽稀: 保留非零样本, y 取三点滑动平均 (int 数组重载)。
     pub fn remove_zeroes_i32(&self, x: &mut [f64], y: &mut [f64], oy: &[i32]) {
         let mut j = 0;
         let mut i = 0usize;
         while i < oy.len() {
             if oy[i] != 0 {
                 x[j] = i as f64 * 10.0;
-                // PORT: Java 循环自 i=0 起 — oy[0]!=0 时 oy[i-1] 即 ArrayIndexOutOfBoundsException;
-                // Rust usize 下溢 (debug) / 回绕后越界 (release) 在同条件 panic, 行为对应
+                // 循环自 i=0 起 — oy[0]!=0 时 oy[i-1] 即越界 panic (对齐 Java
+                // ArrayIndexOutOfBoundsException 的同条件失败)
                 y[j] = (oy[i - 1] + oy[i] + oy[i + 1]) as f64 / 3.0;
                 j += 1;
             }
@@ -322,10 +293,10 @@ impl FlightAnalyzer {
         }
     }
 
-    /// Java: `public void removeZeroes(double[] x, double[] y, double[] oy)` (重载 → _f64 后缀)。
+    /// 抽稀: 保留非零样本, y 取三点滑动平均 (f64 数组重载)。
     pub fn remove_zeroes_f64(&self, x: &mut [f64], y: &mut [f64], oy: &[f64]) {
         let mut j = 0;
-        // PORT: Java for(i=1; i<oy.length-1; i++) ↔ i+1 < len (len=0 时 Java 判 1<-1 不进循环, 同)
+        // i 从 1 起止于 len-1 (len=0 时不进循环)
         let mut i = 1usize;
         while i + 1 < oy.len() {
             if oy[i] != 0.0 {
@@ -338,21 +309,17 @@ impl FlightAnalyzer {
     }
 
     pub fn remove_roll_rates_zeroes(&self, ias: &mut [f64], wx: &mut [f64]) {
-        // int j = 0;
         self.remove_zeroes_i32(ias, wx, &self.roll_rate);
     }
 
     pub fn remove_load_zeroes(&self, ias: &mut [f64], g_: &mut [f64], seploss: &mut [f64]) {
         let mut j = 0;
-        // PORT: Java for(i=1; i<turn_load.length-1; i++) ↔ i+1 < len (同 remove_zeroes_f64)
+        // i 从 1 起止于 len-1 (同 remove_zeroes_f64)
         let mut i = 1usize;
         while i + 1 < self.turn_load.len() {
             if self.turn_load[i] != 0.0 {
                 ias[j] = i as f64 * 10.0;
-                // g[j] = (double) turn_load[i];
-                // seploss[j] = (double) sep_loss[i];
-                // PORT: 参数名 Java 为 g (遮蔽 PhysicsConstants 的 static import g);
-                // Rust E0530 禁止绑定遮蔽常量, 加下划线后缀
+                // 参数名沿 Java 的 g; Rust E0530 禁止绑定遮蔽常量 g, 加下划线后缀
                 g_[j] = (self.turn_load[i - 1] + self.turn_load[i] + self.turn_load[i + 1]) / 3.0;
                 seploss[j] =
                     (self.sep_loss[i - 1] + self.sep_loss[i] + self.sep_loss[i + 1]) / 3.0;
@@ -362,7 +329,7 @@ impl FlightAnalyzer {
         }
     }
 
-    /// PORT: `ui.util.NotificationService.show(String)` 的注入位 (C 类, 见模块头)。
+    /// 通知出口 (见模块头)。
     fn show(&self, msg: &str) {
         if let Some(notify) = &self.notify {
             notify(msg);
@@ -372,8 +339,7 @@ impl FlightAnalyzer {
 
 /// Java 8 `Math.round(double)` 一比一 (JDK 8 源码位级算法, 非朴素 floor(x+0.5)):
 /// JDK 7 起 (JDK-8010430) 对半点邻域做了修正 — Java 8 oracle 实测
-/// `Math.round(0.49999999999999994d) == 0`, 而朴素 `(x + 0.5).floor()` 给 1
-/// (§2.3 先例形式的已知边界分歧; §6 以 Java 8 oracle 实测为准, 故按源码移植)。
+/// `Math.round(0.49999999999999994d) == 0`, 而朴素 `(x + 0.5).floor()` 给 1。
 /// NaN → 0, ±Inf → Long.MAX/MIN (else 支 `a as i64` 与 Java (long) 转换语义一致)。
 fn java_math_round(a: f64) -> i64 {
     let long_bits = a.to_bits();
@@ -395,7 +361,7 @@ fn java_math_round(a: f64) -> i64 {
     }
 }
 
-/// Java `String.format("%.1f", d)` 一比一 (updateEMChart 通知)。
+/// Java `String.format("%.1f", d)` 一比一 (update_em_chart 通知)。
 /// 语义模型 (config_loader.rs java_format_f4 同源, Java 8 oracle 实证): 等价
 /// `new BigDecimal(Double.toString(d)).setScale(1, HALF_UP)` — 对**最短往返十进制
 /// 表示**做 HALF_UP (2.675 → "2.7"), 而非精确二进制值展开; Rust `{:.1}` 是对

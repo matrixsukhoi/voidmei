@@ -1,4 +1,4 @@
-//! 对应 Java: `src/prog/fm/FMManager.java` (一比一翻译)
+//! FM 管理器实现。
 
 use std::collections::HashMap;
 use std::panic::{catch_unwind, AssertUnwindSafe};
@@ -123,14 +123,11 @@ struct Inner {
 
 /// 速率护栏窗口（毫秒）：同一机型在窗口内已真正执行过加载且结果仍挂在 current 上时，
 /// 跳过重复加载。纵深防御——正常防抖由"目标去重 + 负缓存"完成。
-// PORT: Java `private static final long` → const (§1 static final 常量)
 const RETRY_INTERVAL_MS: i64 = 60_000;
 
 impl FMManager {
-	/// 对应 Java 私有构造器 `private FMManager() {}` + `getInstance()` 工厂。
-	/// PORT: 单例获取 → 显式构造 (调用方持 Arc<FMManager> 注入, §2.9);
-	/// FM_CHANGED 通道为参数注入 (Java UIStateBus.getInstance() 全局单例取用的解散,
-	/// store_tests.rs new_manager 先例)。
+	/// 单例解散后的显式构造 (§2.9): 调用方持 Arc<FMManager> 注入;
+	/// FM_CHANGED 通道为参数注入 (store_tests.rs new_manager 先例)。
 	pub fn new(fm_changed: Arc<FmChangedBus>) -> Self {
 		FMManager {
 			inner: Arc::new(Inner {
@@ -148,9 +145,8 @@ impl FMManager {
 	}
 
 	/// FM_CHANGED 通道取回 —— 供订阅方 (Controller/AttitudeOverlay/DrawFrameSimpl/
-	/// FMUnpackedDataOverlay 波次) 订阅句柄变化。Java 订阅方走
-	/// `UIStateBus.getInstance().subscribe(FM_CHANGED, ...)`; 单例解散后由构造方
-	/// 分发同一 Arc, 本取回器是便捷对位物 (RAII Subscription, Drop 即退订)。
+	/// FMUnpackedDataOverlay 波次) 订阅句柄变化。构造方分发同一 Arc,
+	/// 本取回器是便捷入口 (RAII Subscription, Drop 即退订)。
 	pub fn fm_changed_bus(&self) -> Arc<FmChangedBus> {
 		Arc::clone(&self.inner.fm_changed)
 	}
@@ -168,16 +164,14 @@ impl FMManager {
 		self.inner.in_flight.load(Ordering::SeqCst) > 0
 	}
 
-	/// 当前识别目标名（规范化小写）；未识别返回 null
-	// PORT: Java String 可 null → Option<String> (§1)
+	/// 当前识别目标名（规范化小写）；未识别返回 None
 	pub fn current_target_name(&self) -> Option<String> {
 		self.inner.current_target.lock().expect(LOCK_MSG).clone()
 	}
 
 	/// 识别（并按需异步加载）机型 —— 唯一入口。高频调用安全：目标未变时零成本返回。
 	///
-	/// @param planeName 机型名（任意大小写/空白，内部规范化）；null/空直接忽略
-	// PORT: Java `String` 可 null 入参 → Option<&str> (§1)
+	/// @param planeName 机型名（任意大小写/空白，内部规范化）；None/空直接忽略
 	pub fn identify(&self, plane_name: Option<&str>) {
 		let plane_name = match plane_name {
 			None | Some("") => return,
@@ -348,8 +342,8 @@ impl FMManager {
 	// loader 分支在 FM-Loader 线程派发, 与 Java 两处发布线程一致)。
 	// PORT: Java UIStateBus.publish 首行 `Logger.event("PUBLISH", eventType,
 	// source, data)` 随路由丢失 (专用通道不经 UIStateBus), 在此复刻 —— source =
-	/// Java this 的类简单名 "FMManager", data = handle.toString() (logger.rs e2e
-	/// 钉子 "PUBLISH: FMManager -> FMHandle[MISSING he_162]: fmChanged" 的口径)。
+	// Java this 的类简单名 "FMManager", data = handle.toString() (logger.rs e2e
+	// 钉子 "PUBLISH: FMManager -> FMHandle[MISSING he_162]: fmChanged" 的口径)。
 	// PORT: Java UIStateBus.publish 逐 handler catch(Exception) —— 发布方永不因
 	// 订阅方失败上抛; bus.rs 裸 EventBus 无订阅侧 catch_unwind 垫片
 	// (ui_state_bus.rs 先例), 此处在发布侧兜底对齐该语义。遗留上报: 订阅方 panic

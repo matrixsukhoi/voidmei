@@ -19,7 +19,7 @@
 //!   bus.rs publish 持各监听器自己的 Mutex 执行回调 (bus.rs "阶段 2"), 内层
 //!   同类型 publish 的升级快照必含正在执行的监听器 → 同线程对同一
 //!   std::sync::Mutex 二次 lock 永久阻塞 (Java 无 monitor 天然可重入)。
-//!   Java 真实调用链: ButtonRowRenderer.java:55 publish(CONFIG_CHANGED,
+//!   Java 真实调用链: ButtonRowRenderer publish(CONFIG_CHANGED,
 //!   ACTION_RESET_REQUEST) → handler 同步调 resetAllLayoutDefaults() →
 //!   嵌套同步 publish(CONFIG_CHANGED, ACTION_RESET_COMPLETED)。修复在本层
 //!   (bus.rs 泛型不动, FmChangedBus 纪律完好): thread_local 重入检测 —
@@ -169,7 +169,7 @@ impl UIStateBus {
     /// Drop 注销 (bus.rs 机制)。event_type 仅复刻 Java 的 "键存在才记日志"
     /// 分支 (handlers != null); 若调用方传了与订阅不符的类型, Java 只是无操作,
     /// Rust 侧句柄所有权仍会被消费 (等价于退订成功) — 全库无此错用形态。
-    /// 翻译 Controller.stop() 五步退订 (Controller.java:783-793) 时注意:
+    /// 翻译 Controller.stop() 五步退订时注意:
     /// 其依赖的 '键不存在则跳过日志' 分支在此仍成立, 但 '错配键 = 无操作'
     /// 不成立 (退订总会发生)。
     pub fn unsubscribe(&self, event_type: &str, handler: Subscription<UiStateEvent>) {
@@ -202,10 +202,9 @@ impl UIStateBus {
     /// 无行为差)。跨类型嵌套保持立即递归执行 (锁集合不相交, 对齐 Java)。
     pub fn publish(&self, event_type: &str, source: Option<&str>, data: Option<&str>) -> usize {
         // PORT(日志渲染分歧备案): Java Logger.event 用 source.getClass()
-        // .getSimpleName(), 调用方传 String source 的点 (ConfigurationService
-        // .java:65/82/295/322/361, DynamicDataPage.java:149/252,
-        // ButtonRowRenderer.java:55) 实际打出 "String" 类简单名而非字符串
-        // 内容; Rust 调用方传 Some("ConfigurationService") 打出内容。本转发
+        // .getSimpleName(), 调用方传 String source 的点 (ConfigurationService /
+        // DynamicDataPage / ButtonRowRenderer) 实际打出 "String" 类简单名而非
+        // 字符串内容; Rust 调用方传 Some("ConfigurationService") 打出内容。本转发
         // 行为与 Java 一致 (分歧源于 logger.rs 已接受的字符串 source 设计),
         // 翻译上述调用方时须知此偏差。
         logger::event("PUBLISH", event_type, source, data);

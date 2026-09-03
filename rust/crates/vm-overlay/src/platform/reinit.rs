@@ -81,7 +81,7 @@ pub struct AttitudeGroup {
 }
 
 impl Default for AttitudeGroup {
-    /// 缺省 = Java reinitConfig 回退值 (AttitudeOverlay.java:232-248)
+    /// 缺省 = Java AttitudeOverlay reinitConfig 回退值
     fn default() -> Self {
         AttitudeGroup {
             width: 150,
@@ -105,7 +105,7 @@ impl Default for AttitudeGroup {
 /// - `flightInfoEdge` (Java FieldOverlay.edgeKey): reinitConfig 里只进
 ///   setShadeWidth 装饰层, **不进** setBounds 宽高 (width = getTotalWidth()),
 ///   Rust 无装饰层 → 无对应行为, 备案不修。
-/// - `attitudeIndicatorUseNumColor`: Java :253 读键写 transParentWhite — 但该
+/// - `attitudeIndicatorUseNumColor`: Java reinitConfig 读键写 transParentWhite — 但该
 ///   字段无读取者 (键被读、值写进死字段, 无可观测行为) — 不复刻
 ///   (gauge_attitude.rs "PORT(精确定性)" 注同源)。
 #[derive(Debug, Clone, PartialEq)]

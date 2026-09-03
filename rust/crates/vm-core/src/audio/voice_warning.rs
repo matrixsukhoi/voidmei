@@ -20,16 +20,16 @@
 //!   本文件定义消费面 trait [`VoiceWarningService`] (Java 对 xS 的全部字段/
 //!   方法访问点逐项签名化)。
 //! - `prog.Controller` (xc 字段 + init* 方法参数): xc 是 write-only 字段
-//!   (VoiceWarning.java:233/311, 全文件无读取点), init* 的 c 参数无消费 —
+//!   (全文件无读取点), init* 的 c 参数无消费 —
 //!   不落字段/参数; configProvider 在 Java 经 `c.getConfigService()` 取得,
 //!   Rust 由构造注入。
 //!
 //! PORT (Java 现存泄漏根治, LIFETIMES §2.1/§6.3.1 — 本文件主任务):
-//! Java 版两个订阅在生产路径均泄漏: (1) dispose() (VoiceWarning.java:506) 本身
-//! 只退订 FlightDataListener, 漏退订 UIStateBus configHandler (332 订阅无对应
-//! unsubscribe); (2) 该 dispose() 根本无人调用 — VoiceWarning 非
+//! Java 版两个订阅在生产路径均泄漏: (1) dispose() 本身
+//! 只退订 FlightDataListener, 漏退订 UIStateBus configHandler
+//! (订阅无对应 unsubscribe); (2) 该 dispose() 根本无人调用 — VoiceWarning 非
 //! java.awt.Window, OverlayEntry.close 的 `instance instanceof Window`
-//! (OverlayManager.java:362) 为 false。每次进出游戏模式 new 一个 VoiceWarning,
+//! 判定为 false。每次进出游戏模式 new 一个 VoiceWarning,
 //! 旧实例连同其全部 VoiceAlert/音频 clip 被两条总线永久持有 (含 Clip 原生句柄,
 //! 随重建累积)。Rust 版两个订阅均以 RAII Subscription 字段由 VoiceWarning 持有:
 //! dispose() 显式注销 + Drop 兜底, 泄漏在类型层面不可能发生。
@@ -54,7 +54,7 @@
 //!
 //! PORT (st/indic 活引用 → 快照刷新): Java 的 `st = xS.sState; indic = xS.sIndic`
 //! 捕获的是 Service 构造时创建、之后被 Service 线程**原地改写**的活对象引用
-//! (Service.java:1687-1689); Rust 快照架构 (vm-data ServiceData) 下由
+//! (Service 线程每轮轮询原地更新); Rust 快照架构 (vm-data ServiceData) 下由
 //! [`VoiceWarningService::s_state`]/`s_indic`] 返回当前副本, run() 每轮循环
 //! 开头刷新 — 与 Java "check 方法执行时读到最新遥测" 语义同类 (快照粒度 =
 //! 一个 tick, Java 逐字段读的竞态窗口同样存在且无同步)。
@@ -1205,7 +1205,7 @@ impl VoiceWarning {
             // rawWingCritOverload != null 且 nofuelweight > 0, currentWeight =
             // nofuelweight + mfuel 仍可 <= 0 (mfuel 可为负值/哨兵), 此时走回退
             // 分支返回 maxAllowGload (可为 null) → Java 在 dynamicLimits[0] 处
-            // NPE (Blkx.java:809-810); 此处 None ≡ 该 NPE, panic 对位
+            // NPE; 此处 None ≡ 该 NPE, panic 对位
             let dynamic_limits = self
                 .fmdata
                 .as_ref()
@@ -1340,7 +1340,7 @@ fn sleep_while_run(run: &AtomicBool, millis: u64) {
 
 /// fire-and-forget 播放的 clip 保活持有 (审查 B-B1 修复)。
 ///
-/// Java 形态 (VoiceRowRenderer.java:126-136 试听 / playWav): clip 局部引用
+/// Java 形态 (试听 / playWav): clip 局部引用
 /// start() 后出作用域, 原生 line 靠 GC finalizer **非确定性延迟释放**而自然
 /// 播完。Rust 的确定性 Drop (SoundClip RAII 兜底契约: Drop 等价 close →
 /// winmm waveOutReset+waveOutClose 立即停) 与 fire-and-forget 消费形态直接

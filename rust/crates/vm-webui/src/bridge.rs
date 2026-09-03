@@ -1,5 +1,5 @@
 //! 事件桥 (D9 阶段③): EventBus (Rust 侧) → tauri emit (前端)。
-//! 订阅闭包要求 Send (`vm-core/src/bus.rs:45`), AppHandle 满足 — publish 发生在
+//! 订阅闭包要求 Send (`vm-core` bus 订阅签名), AppHandle 满足 — publish 发生在
 //! 任意线程 (set_config 的主线程 / watcher 线程) 都能转发。
 //!
 //! E11 后本 crate 无模块级静态可变态: 原 About Modal 展示期静态
@@ -45,7 +45,7 @@ pub fn bridge_fm_changed(app: AppHandle<Wry>, bus: &FmChangedBus) -> Subscriptio
     })
 }
 
-/// 托盘"关于"载荷 (Application.java:236-245 三段 showAbout 文案 + 版本号,
+/// 托盘"关于"载荷 (Java Application.showAbout 三段文案 + 版本号,
 /// 组装层 main 循环 emit `about-requested` → 前端 Modal)
 #[derive(Serialize, Clone)]
 pub struct AboutPayload {
@@ -63,7 +63,7 @@ pub fn about_modal_closed(state: tauri::State<'_, crate::ipc::AboutModalShared>)
     *state.lock().unwrap_or_else(|e| e.into_inner()) = None;
 }
 
-/// config_manager 弹窗载荷 (ConfigManager.java:425-477, 经 ConfigDialog sink
+/// config_manager 弹窗载荷 (Java ConfigManager, 经 ConfigDialog sink
 /// 转发 → 前端 `config-dialog` 事件 → Modal.error / Modal.info)
 #[derive(Serialize, Clone)]
 pub struct ConfigDialogPayload {

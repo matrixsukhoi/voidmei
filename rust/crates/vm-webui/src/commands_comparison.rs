@@ -39,14 +39,14 @@ use crate::dto::{ComparisonDataDto, ComparisonRowDto, Win};
 // =====================================================================
 
 /// fm1 归一化 (单源): None/空串/与 fm0 同名 → None (单机模式)。
-/// 原型 = PowerCurveWindow.java:183 构造器裁决 (fm1 空/==fm0 = 单曲线);
+/// 原型 = Java 构造器裁决 (fm1 空/==fm0 = 单曲线);
 /// 波13 统一 comparison 侧 (此前只判空) — 同名对比无信息量, 并入单机视图,
 /// 与窗口 title/query/DTO 三面保持一致。
 pub(crate) fn normalize_secondary<'a>(fm0: &str, fm1: Option<&'a str>) -> Option<&'a str> {
     fm1.filter(|s| !s.is_empty() && *s != fm0)
 }
 
-/// 对比窗口标题 (CompactComparisonWindow.java:40 构造器): DTO title 与
+/// 对比窗口标题 (CompactComparisonWindow 构造器): DTO title 与
 /// web_windows 窗口 title 同源 (波13 收敛, 归一化由调用方先行)。
 pub(crate) fn comparison_title(fm0: &str, fm1: Option<&str>) -> String {
     match fm1 {
@@ -94,13 +94,13 @@ fn parse_prop_line(line: &str) -> Option<(String, String)> {
     Some((k, v))
 }
 
-/// Java `findInStructure` (CompactComparisonWindow.java:388-394) —
+/// Java `findInStructure` —
 /// 波14: Java 的 -1 哨兵退役, 未找到 = None (position() 一步到位)。
 fn find_in_structure(list: &[DisplayItem], key: &str) -> Option<usize> {
     list.iter().position(|item| !item.is_header && item.text == key)
 }
 
-/// initUI 的解析段 (CompactComparisonWindow.java:195-252): lines0 建结构 +
+/// initUI 的解析段: lines0 建结构 +
 /// dataMap0, lines1 合并独有键进结构、全量进 dataMap1。纯函数 (无 UI/文件)。
 fn build_structure(
     lines0: &[String],
@@ -168,7 +168,7 @@ fn build_structure(
 // 胜负判定 (vm-core comparison rules 接线)
 // =====================================================================
 
-/// addComparisonRow 的胜负判定 (CompactComparisonWindow.java:104-114)。
+/// addComparisonRow 的胜负判定。
 /// 入参用**展示串** (缺键已补 "-"), 与 Java 调用点一致 (extractValue("-") 无数字
 /// → None → 平局)。
 fn row_win(prop: &str, v0: &str, v1: &str, single_mode: bool) -> Win {
@@ -196,7 +196,7 @@ fn row_win(prop: &str, v0: &str, v1: &str, single_mode: bool) -> Win {
     win
 }
 
-/// determineWinner (buildCopyText 用, CompactComparisonWindow.java:434-442) —
+/// determineWinner (buildCopyText 用) —
 /// 与 row_win 的差异: 入参是**原始可空值** (null 判在规则前)。
 fn winner_name(
     prop: &str,
@@ -233,7 +233,7 @@ fn winner_name(
 // 数据装配
 // =====================================================================
 
-/// Java `loadFmLines` (CompactComparisonWindow.java:460-491): FMLoader 标准链路
+/// Java `loadFmLines`: FMLoader 标准链路
 /// 加载, MISSING 时按物理文件直读回退; 返回 fmdata 的非空白行。
 pub fn load_fm_lines(name: Option<&str>) -> Vec<String> {
     let name = match name {
@@ -258,7 +258,7 @@ pub fn load_fm_lines(name: Option<&str>) -> Vec<String> {
                     Lang::init_lang().noblkx.to_string()
                 }
             },
-            // fmdata=noblkx (Blkx.java:1671 构造器头部赋值) — 与上方解析失败分支
+            // fmdata=noblkx (Java 构造器头部赋值) — 与上方解析失败分支
             // 同文本顶位: load_fm_lines 返回 noblkx 两行 (无冒号 → 对比解析段全滤,
             // DTO 可观察结果不变; 直接消费行内容的调用点也与 Java 一致)
             None => Lang::init_lang().noblkx.to_string(),
@@ -276,7 +276,7 @@ pub fn load_fm_lines(name: Option<&str>) -> Vec<String> {
         .collect()
 }
 
-/// buildCopyText (CompactComparisonWindow.java:396-432): COPY 按钮文本
+/// buildCopyText: COPY 按钮文本
 fn build_copy_text(
     fm0_name: &str,
     fm1_name: &str,
@@ -319,7 +319,7 @@ fn build_copy_text(
     sb
 }
 
-/// 对比窗口数据装配 (initUI 的数据段, CompactComparisonWindow.java:186-275)
+/// 对比窗口数据装配 (initUI 的数据段)
 pub fn comparison_data_impl(fm0_name: &str, fm1_name: Option<&str>) -> ComparisonDataDto {
     // fm1 归一化 (空串/同名 → 单机模式, 波13 统一 — 见 normalize_secondary)
     let fm1_name = normalize_secondary(fm0_name, fm1_name);

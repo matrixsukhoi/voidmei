@@ -48,7 +48,7 @@ use vm_core::lang::Lang;
 // FmUnpackedDataOverlay (ui/overlay/FMUnpackedDataOverlay.java)
 // ---------------------------------------------------------------------------
 
-/// FM 调试列表 overlay (FMUnpackedDataOverlay.java:32)。组合 BaseListOverlay
+/// FM 调试列表 overlay。组合 BaseListOverlay
 /// (Java extends BaseOverlay — §1 禁强行继承, 公共行为已上提基座):
 /// 自管可见性 (游戏模式热键切换) + blkx 字段直读清单。
 ///
@@ -57,16 +57,16 @@ use vm_core::lang::Lang;
 pub struct FmUnpackedDataOverlay {
     /// BaseOverlay 基座 (run 循环状态机: 脏检查/高度自适应/可见门控)
     pub base: BaseListOverlay,
-    /// Self-managed visibility state (game mode toggle) (Java :42)
+    /// 自管可见态 (游戏模式热键切换)
     pub visible: bool,
     /// FMDataAdapter.getBlkx() 的等价持有 (None = 未加载 → 占位清单)
     fmdata: Option<Arc<FmData>>,
-    /// Java :39 config = c.getConfigProvider() (None ↔ Java null 容忍)
+    /// Java config = c.getConfigProvider() (None ↔ Java null 容忍)
     config: Option<Arc<dyn ConfigProvider>>,
 }
 
 impl FmUnpackedDataOverlay {
-    /// 构造 + BaseOverlay.init 几何 (Java :46-48 super() 与 :90 super.init 的
+    /// 构造 + BaseOverlay.init 几何 (super() 与 super.init 的
     /// 几何段合一; 行高度量 setup_font 由 init/reinit 时调用方补)。
     pub fn new(logical_height: i32, dpi_scale: f64, default_fontsize: i32) -> Self {
         FmUnpackedDataOverlay {
@@ -77,32 +77,32 @@ impl FmUnpackedDataOverlay {
         }
     }
 
-    /// 游戏模式 init (Java :57-94): config 注入 + 隐藏起步 + 表头谓词 +
+    /// 游戏模式 init: config 注入 + 隐藏起步 + 表头谓词 +
     /// BaseOverlay 数据供给挂接 (tick 内联)。UIStateBus 订阅 (toggle/FM_CHANGED)
     /// 归组装层事件循环, 对应 [`Self::toggle`]/[`Self::reload_fm_data`]。
     pub fn init(&mut self, config: Option<Arc<dyn ConfigProvider>>, font: &LoadedFont) {
         self.config = config;
-        // Java :64 this.isPreview = false — 继承自 BaseOverlay 的单一字段,
-        // 对应 base.is_preview (run 门控 :235 的唯一读取方)
+        // Java this.isPreview = false — 继承自 BaseOverlay 的单一字段,
+        // 对应 base.is_preview (run 门控的唯一读取方)
         self.base.is_preview = false;
 
-        // Game mode: initially hidden
+        // 游戏模式: 初始隐藏
         self.visible = false;
         self.base.setup_font(font);
 
-        // Set header matcher for styling (FM parts headers start with "------fm器件")
+        // 表头谓词 (FM 部件表头以 "------fm器件" 开头)
         self.base.set_header_matcher(Box::new(|line| {
             line.starts_with("FM文件") || line.starts_with("------fm器件")
         }));
     }
 
-    /// 预览模式 initPreview (Java :103-122): 恒可见 + 同表头谓词。
+    /// 预览模式 initPreview: 恒可见 + 同表头谓词。
     pub fn init_preview(&mut self, config: Option<Arc<dyn ConfigProvider>>, font: &LoadedFont) {
         self.config = config;
-        // Java :110 this.isPreview = true (BaseOverlay 单一字段, 同上)
+        // Java this.isPreview = true (BaseOverlay 单一字段, 同上)
         self.base.is_preview = true;
 
-        // Preview mode: always visible
+        // 预览模式: 恒可见
         self.visible = true;
         self.base.setup_font(font);
 
@@ -111,26 +111,26 @@ impl FmUnpackedDataOverlay {
         }));
     }
 
-    /// FM_CHANGED handler 的 reloadFMData (Java :130-136): 句柄换 blkx 快照。
+    /// FM_CHANGED handler 的 reloadFMData: 句柄换 blkx 快照。
     /// 非 READY 句柄 blkx=null → None → 占位 "[No Data Loaded]" (null 容忍)。
-    /// 数据刷新由下一 tick 周期完成 (Java 注释 :135)。
-    /// PORT: Java :131 的 `payload instanceof FMHandle` 过滤由组装层承担 —
+    /// 数据刷新由下一 tick 周期完成 (Java 注释)。
+    /// PORT: Java 的 `payload instanceof FMHandle` 过滤由组装层承担 —
     /// P5 事件路由时非 FMHandle 载荷应保留旧 blkx 不调用本方法。
     pub fn reload_fm_data(&mut self, fmdata: Option<Arc<FmData>>) {
         self.fmdata = fmdata;
-        // Data will be refreshed on next run() cycle
+        // 数据在下一 run() 周期刷新
     }
 
-    /// reinitConfig (Java :142-151): adapter 直读 FMManager.current() 换新
+    /// reinitConfig: adapter 直读 FMManager.current() 换新
     /// (调用方传入 current().blkx; 非 READY 句柄 blkx 为 null → None,
     /// setBlkx(null) 清空 → 占位容忍) + setupFont。
     pub fn reinit_config(&mut self, current_fm: Option<Arc<FmData>>, font: &LoadedFont) {
         self.fmdata = current_fm;
-        // Font and display settings are handled by BaseOverlay
+        // 字体/显示设置归 BaseOverlay
         self.base.setup_font(font);
     }
 
-    /// FM_OVERLAY_TOGGLE handler (Java :72-75): 翻转自管可见性。
+    /// FM_OVERLAY_TOGGLE handler: 翻转自管可见性。
     pub fn toggle(&mut self) {
         self.visible = !self.visible;
     }
@@ -149,7 +149,7 @@ impl FmUnpackedDataOverlay {
         self.base.clear_last_data();
     }
 
-    /// isVisibleNow 覆写 (Java :318-321)
+    /// isVisibleNow 覆写
     pub fn is_visible_now(&self) -> bool {
         self.visible
     }
@@ -164,18 +164,18 @@ impl FmUnpackedDataOverlay {
             .tick(move || Some(generate_lines(fmdata.as_deref(), config.as_deref())))
     }
 
-    /// generateLines (Java :157-278) — 独立函数便于直测。
+    /// generateLines — 独立函数便于直测。
     pub fn generate_lines(&self) -> Vec<String> {
         generate_lines(self.fmdata.as_deref(), self.config.as_deref())
     }
 
-    /// updateUI 渲染段委托基座 (BaseOverlay.java:263-269)
+    /// updateUI 渲染段委托基座
     pub fn render(&mut self, cv: &mut PixCanvas, font: &LoadedFont, aa: bool) {
         self.base.render(cv, font, aa);
     }
 }
 
-/// generateLines (Java :157-278): 按 ui_layout.cfg 开关过滤的 blkx 字段清单。
+/// generateLines: 按 ui_layout.cfg 开关过滤的 blkx 字段清单。
 /// Lang 模板取 init_lang() 快照 (Java 读全局静态字段, 值同源 cur.properties)。
 /// 15+ 个开关段改表驱动 (重构波15): 键-生成器对见 [`FM_FIELD_TABLE`],
 /// 各段内条件 (nitro>0 / Option 守卫) 原样留在生成器内。
@@ -211,7 +211,7 @@ pub(crate) fn generate_lines(fmdata: Option<&FmData>, config: Option<&dyn Config
     }
 
     // If no fields are enabled or all filtered out, show a placeholder
-    // PORT: fmVersion 恒入列 (:169) 使本分支在 Java 亦不可达, 保真保留
+    // PORT: fmVersion 恒入列 使本分支在 Java 亦不可达, 保真保留
     if lines.is_empty() {
         lines.push("FM Data Preview".to_string());
         lines.push("[No Fields Enabled]".to_string());
@@ -428,7 +428,7 @@ fn add_stab(lines: &mut Vec<String>, ctx: &LineCtx) {
     add_fm_parts(lines, ctx.lang, ctx.fmdata.stab.as_ref());
 }
 
-/// addFmParts (Java :283-290): 表头 + 4 数据行 (null 部件整段跳过)。
+/// addFmParts: 表头 + 4 数据行 (null 部件整段跳过)。
 fn add_fm_parts(lines: &mut Vec<String>, lang: &Lang, p: Option<&FmParts>) {
     let p = match p {
         None => return,
@@ -450,7 +450,7 @@ fn add_fm_parts(lines: &mut Vec<String>, lang: &Lang, p: Option<&FmParts>) {
     );
 }
 
-/// addLines (Java :296-303): 按 \n 拆行, 逐行 trim, 跳过空行。
+/// addLines: 按 \n 拆行, 逐行 trim, 跳过空行。
 /// PORT: Java String.trim 只剥 ≤ U+0020 的字符 (§2.1), Rust `str::trim` 会
 /// 多剥 U+3000 等全角空白 — 用 trim_matches 精确复刻 Java 语义。
 pub(crate) fn add_lines(lines: &mut Vec<String>, formatted: &str) {
@@ -462,7 +462,7 @@ pub(crate) fn add_lines(lines: &mut Vec<String>, formatted: &str) {
     }
 }
 
-/// isFieldEnabled (Java :309-316): config 缺失/键空 → 默认启用;
+/// isFieldEnabled: config 缺失/键空 → 默认启用;
 /// 否则 Boolean.parseBoolean (仅忽略大小写的 "true" 为真)。
 fn is_field_enabled(config: Option<&dyn ConfigProvider>, field_key: &str) -> bool {
     match config {
@@ -476,14 +476,14 @@ fn is_field_enabled(config: Option<&dyn ConfigProvider>, field_key: &str) -> boo
 }
 
 // ---------------------------------------------------------------------------
-// OverlayHost 挂载 (Java Controller.java:726-743 registerWithPreview("enableFMPrint"))
+// OverlayHost 挂载 (Java Controller registerWithPreview("enableFMPrint"))
 // ---------------------------------------------------------------------------
 
 /// FM拆包数据共享句柄 (flight_info/control_surfaces 先例: render 闭包与
 /// 事件循环共享 state; Rc 恒留渲染线程)
 pub type FmUnpackedDataHandle = Rc<RefCell<FmUnpackedDataOverlay>>;
 
-/// FM拆包数据 OverlaySpec + live 句柄 (Java Controller.java:726 注册键
+/// FM拆包数据 OverlaySpec + live 句柄 (Java Controller 注册键
 /// enableFMPrint, previewEnabled=true)。
 ///
 /// - `logical_height` — Application.logicalHeight 快照 (Env.dpi 探测; init 几何的
@@ -497,9 +497,9 @@ pub type FmUnpackedDataHandle = Rc<RefCell<FmUnpackedDataOverlay>>;
 /// 初始态 = initPreview 形态 (恒可见 + 空数据: 注册期 = Java 无实例形态 —
 /// LinkedHashMap 条目仅配置记录)。数据装载有两条面 (审查 B2-2 修正, 原注释
 /// "Java 预览实例无 run 线程" 为假前提): (a) 预览实例化时 Controller 的
-/// previewInitializer 先 setBlkx(current) 再 initPreview (Controller.java:734-737)
+/// previewInitializer 先 setBlkx(current) 再 initPreview
 /// — Rust 对位 = refresh_preview 冷激活的 reinit 闭包直读 current; (b) run() 线程
-/// **预览同样在跑** (needsThread=true, OverlayManager.refreshPreview :326-331 也
+/// **预览同样在跑** (needsThread=true, OverlayManager.refreshPreview 也
 /// new Thread(instance).start()) — 每 200ms generateLines → 数据/高度自适应生效,
 /// Rust 对位 = FmUnpackedFeed::pump 不做会话门控 (渲染线程循环调用点)。
 /// 游戏形态 (is_preview=false + 隐藏起步) 由组装层在 OpenAllOverlays 处置位 —
@@ -521,7 +521,7 @@ pub fn fm_unpacked_data_overlay_spec(
         let p = params.borrow();
         (p.fm.font_add, p.dpi_scale)
     };
-    // Application.defaultFontsize = 12 (Lang defaultFontSize, Application.java:93)
+    // Application.defaultFontsize = 12 (Lang defaultFontSize)
     let mut ov = FmUnpackedDataOverlay::new(logical_height, dpi_scale, 12);
     let regular_path = fonts_dir.join("sarasa-mono-sc-regular.ttf");
     let font = FontSlot::new("FMUnpackedData", &regular_path, 14 + font_add)?;
@@ -530,7 +530,7 @@ pub fn fm_unpacked_data_overlay_spec(
     let handle: FmUnpackedDataHandle = Rc::new(RefCell::new(ov));
     let render_handle = Rc::clone(&handle);
     let render_font = font.clone();
-    // reinit 闭包 (Java reinitConfig :142-151): setBlkx(current) + setupFont。
+    // reinit 闭包 (Java reinitConfig): setBlkx(current) + setupFont。
     // PORT(返回 None): Java reinitConfig 无 setBounds — 高度由下次数据变更的
     // adjustPosition 接管 (行高随新字体变化, 数据 dirty 时自纠); 此处仅清指纹
     let reinit_handle = Rc::clone(&handle);
@@ -565,13 +565,13 @@ pub fn fm_unpacked_data_overlay_spec(
 }
 
 /// FM拆包数据的组装面 tick 泵 — Java BaseOverlay.run() 线程循环 (while(doit)+
-/// sleep(200)) 的单线程驱动侧: 200ms 节流 (getRefreshInterval, BaseOverlay.java:221)
+/// sleep(200)) 的单线程驱动侧: 200ms 节流 (getRefreshInterval)
 /// → tick 单轮 (可见门控/取数/脏检查/高度自适应) → `base.window_visible` 落
 /// per-entry set_visible → 高度变化落 resize_entry (adjustPosition 的 setSize
 /// 副作用, 契约 (a)/(b) 接线)。
 ///
-/// PORT(会话域, 审查 B2-2): Java needsThread=true — 游戏实例 (OverlayEntry.open
-/// :303-309) 与**预览实例** (refreshPreview :326-331) 都起 run 线程, 两会话均
+/// PORT(会话域, 审查 B2-2): Java needsThread=true — 游戏实例 (OverlayEntry.open)
+/// 与**预览实例** (refreshPreview) 都起 run 线程, 两会话均
 /// 200ms 轮询装载; 调用方 (渲染线程循环) 不做 preview 门控, 仅条目未激活
 /// (host 槽位空 = Java 无实例) 时跳过。
 ///
@@ -604,7 +604,7 @@ impl FmUnpackedFeed {
         handle: &FmUnpackedDataHandle,
         now_ms: i64,
     ) {
-        // getRefreshInterval() = 200ms (BaseOverlay.java:221-223, 本组件未覆写;
+        // getRefreshInterval() = 200ms (本组件未覆写;
         // 读 base 字段 = 单一真相源)
         let interval_ms = handle.borrow().base.refresh_interval_ms as i64;
         if now_ms.saturating_sub(self.last_ms) < interval_ms {
@@ -627,7 +627,7 @@ impl FmUnpackedFeed {
             return;
         }
         let fm = handle.borrow();
-        // run() 双分支的 setVisible 落地 (:245-249; set_entry_visible 幂等)
+        // run() 双分支的 setVisible 落地 (set_entry_visible 幂等)
         host.set_entry_visible(id, fm.base.window_visible);
         // adjustPosition 的 setSize 副作用: 高度 (或宽) 变化才落 resize
         // (未变时避免清指纹引发无谓 present — Java 亦仅在变化时 setSize)

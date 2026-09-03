@@ -1,10 +1,10 @@
 //! draw_frame_simpl: 简化版 FM 曲线可视化窗口 (DrawFrameSimpl.java 全量翻译, P6 收口)
 //!
-//! | Rust | Java 源 | 语义要点 |
-//! |---|---|---|
-//! | [`DrawFrameSimpl`] | ui/overlay/DrawFrameSimpl.java | 推力-真空速曲线透明 overlay: FM 句柄缓存直绘 (panel paintComponent), 自管可见性 (preview 恒显 / 游戏模式热键切换), run() 循环 = 1000ms 节流 + displayFmKey==0 收腿 10s 自动退场 |
+//! - [`DrawFrameSimpl`] — 推力-真空速曲线透明 overlay: FM 句柄缓存直绘
+//!   (panel paintComponent), 自管可见性 (preview 恒显 / 游戏模式热键切换),
+//!   run() 循环 = 1000ms 节流 + displayFmKey==0 收腿 10s 自动退场。
 //!
-//! 死代码不搬 (P5 getdata 先例): `paintAction` (:112-170, 全工程无调用, 与 panel
+//! 死代码不搬 (P5 getdata 先例): `paintAction` (全工程无调用, 与 panel
 //! paintComponent 内联块重复) / `drawCoordinates`×2 + `searchMin/searchMax`×4 (依赖
 //! 恒 null 的 `FlightAnalyzer fA` 字段, 调用即 NPE) / 死字段 pixIndex/Index/useBlkx/
 //! ggx4/ggy4/Blkx/fX/fY (声明后无读写点)。
@@ -18,8 +18,8 @@
 //!   — initFmHandleCache 被 init 与 initPreview 共用) 对应
 //!   [`DrawFrameSimpl::toggle`]/[`DrawFrameSimpl::reload_fm`], 由组装层事件循环驱动;
 //!   dispose 的退订由所有权 Drop 根治 (LIFETIMES §2.3);
-//! - run() 线程循环 (needsThread=true: OverlayEntry.open 与 refreshPreview 均起线程,
-//!   OverlayManager.java:303-309/:326-331) 由 [`DrawFrameSimplFeed`] 单线程驱动。
+//! - run() 线程循环 (needsThread=true: OverlayEntry.open 与 refreshPreview 均起线程)
+//!   由 [`DrawFrameSimplFeed`] 单线程驱动。
 //!
 //! 对拍备案 (审查 W3): rustcmp 套件现覆盖 FlightInfo/gauges/MiniHUD, 本组件渲染
 //! 证据 = 单测级几何 oracle + 像素墨迹断言 (Java 语义逐式复算); FMUnpacked 同款。
@@ -40,7 +40,7 @@ use vm_core::fm::FMManager;
 // 几何/绘制原语 (Java findMin/findMax + drawXY/drawPoint/drawExample)
 // ---------------------------------------------------------------------------
 
-/// findMin (Java :172-180): 初值 Float.MAX_VALUE (非 Double — 保真)
+/// findMin: 初值 Float.MAX_VALUE (非 Double — 保真)
 fn find_min(x: &[f64]) -> f64 {
     let mut min = f32::MAX as f64;
     for &v in x {
@@ -51,7 +51,7 @@ fn find_min(x: &[f64]) -> f64 {
     min
 }
 
-/// findMax (Java :182-190): 初值 Float.MIN_VALUE = 最小正 subnormal ≈1.4e-45
+/// findMax: 初值 Float.MIN_VALUE = 最小正 subnormal ≈1.4e-45
 /// (非最负 — Java 命名陷阱, 保真; 域内推力恒正无数值差, 空数组返回值同构)
 fn find_max(x: &[f64]) -> f64 {
     let mut max = f64::from(f32::from_bits(1));
@@ -63,7 +63,7 @@ fn find_max(x: &[f64]) -> f64 {
     max
 }
 
-/// paintComponent 的几何段 (Java :557-592, init/initPreview 两处内联块同体)。
+/// 绘制几何段 (init/initPreview 在 Java 侧两处内联块同体)。
 /// 公式逐式保真 — pxmax/pymin 族与 drawXY 局部重算存在刻度差 (ygap 非 10 倍数时
 /// (int)(ygap/10)*10 ≠ ygap), Java 原样 (点列与网格线用不同比例尺)。
 pub struct ChartGeom {
@@ -152,7 +152,7 @@ pub struct DfsFonts<'a> {
     pub text12: &'a LoadedFont,
 }
 
-/// drawXY (Java :248-310): 坐标轴 + 刻度 + 单位。xName/yName 实参 Java 未消费
+/// drawXY: 坐标轴 + 刻度 + 单位。xName/yName 实参 Java 未消费
 /// (传参即死), 保形保留占位。线宽 3/1 交替 = setStroke(3)/setStroke(1) 的无状态
 /// 逐调用展开; 裸 BasicStroke = CAP_SQUARE/JOIN_MITER。
 #[allow(clippy::too_many_arguments)] // 签名对齐 Java drawXY(g, x, y, dwidth, dheight, title, xName, yName, xD, yD, xmin..ygap, fontsize)
@@ -245,7 +245,7 @@ fn draw_xy(
     cv.draw_text(fonts.text16, x - 5, y - 10, y_d, axis, aa);
 }
 
-/// drawPoint (Java :312-334): 逐高度行绘点 + 连线。
+/// drawPoint: 逐高度行绘点 + 连线。
 /// PORT: drawOval(x-1, y-1, 2, 2) 的 2×2 圆轮廓 ≈ 2×2 墨迹点 (PixCanvas 无椭圆
 /// 原语, fill_rect 覆盖同外接盒)
 #[allow(clippy::too_many_arguments)] // 对齐 Java drawPoint(g, x, y, dwidth, dheight, ggx, ggy, ix, iy, pxmin, pymin, C)
@@ -284,7 +284,7 @@ fn draw_point(
     }
 }
 
-/// drawExample (Java :336-343): 图例 (线段 + 文本)。fontsize 实参烘进字体对象。
+/// drawExample: 图例 (线段 + 文本)。fontsize 实参烘进字体对象。
 #[allow(clippy::too_many_arguments)] // 对齐 Java drawExample(g, x, y, dheight, C, name, fontsize) — 字号入字体
 fn draw_example(
     cv: &mut PixCanvas,
@@ -304,14 +304,14 @@ fn draw_example(
 // DrawFrameSimpl (ui/overlay/DrawFrameSimpl.java)
 // ---------------------------------------------------------------------------
 
-/// 简化版 FM 曲线 overlay (DrawFrameSimpl.java:35)。窗口/拖动/事件订阅归组装层,
+/// 简化版 FM 曲线 overlay (DrawFrameSimpl)。窗口/拖动/事件订阅归组装层,
 /// 本体承载: FM 句柄缓存 (paint 只读, 绝不查管理器 — P3/R3) + 自管可见性。
 pub struct DrawFrameSimpl {
-    /// Java :100 isPreview (preview 恒可见, 游戏模式走 toggle)
+    /// Java isPreview (preview 恒可见, 游戏模式走 toggle)
     pub is_preview: bool,
-    /// Self-managed visibility state (Java :109, 游戏模式初始 false)
+    /// Self-managed visibility state (游戏模式初始 false)
     pub visible: bool,
-    /// fmHandle 缓存 (Java :104 volatile; 非 READY 句柄 blkx=null → None)
+    /// fmHandle 缓存 (volatile; 非 READY 句柄 blkx=null → None)
     fm_data: Option<Arc<FmData>>,
 }
 
@@ -331,8 +331,8 @@ impl DrawFrameSimpl {
         }
     }
 
-    /// init (Java :514-628) 的数据/状态面 (窗口操作归 host):
-    /// initFmHandleCache (current 快照, :74) + isPreview=false + 隐藏起步。
+    /// init 的数据/状态面 (窗口操作归 host):
+    /// initFmHandleCache (current 快照,) + isPreview=false + 隐藏起步。
     /// toggle 的 UIStateBus 订阅归组装层 (仅游戏 init 挂接)。
     pub fn init(&mut self, current_fm: Option<Arc<FmData>>) {
         // P3/R3: 改用句柄缓存 (原 Blkx = xc.getBlkx() 在加载未落定时可能拿到 null)
@@ -342,7 +342,7 @@ impl DrawFrameSimpl {
         self.visible = false;
     }
 
-    /// initPreview (Java :630-721): isPreview=true + 恒可见 + 同一句柄缓存
+    /// initPreview: isPreview=true + 恒可见 + 同一句柄缓存
     /// (initFmHandleCache 共用 — preview 实例同样订阅 FM_CHANGED)
     pub fn init_preview(&mut self, current_fm: Option<Arc<FmData>>) {
         self.is_preview = true;
@@ -351,13 +351,13 @@ impl DrawFrameSimpl {
         self.fm_data = current_fm;
     }
 
-    /// FM_CHANGED handler (Java :79-88, init/initPreview 均订阅):
+    /// FM_CHANGED handler (init/initPreview 均订阅):
     /// 句柄换 blkx + panel.repaint (Rust 由渲染节拍脏检查承接)
     pub fn reload_fm(&mut self, fmdata: Option<Arc<FmData>>) {
         self.fm_data = fmdata;
     }
 
-    /// FM_OVERLAY_TOGGLE handler (Java :526-529, 仅游戏 init 挂接)
+    /// FM_OVERLAY_TOGGLE handler (仅游戏 init 挂接)
     pub fn toggle(&mut self) {
         self.visible = !self.visible;
     }
@@ -371,13 +371,13 @@ impl DrawFrameSimpl {
         self.is_preview = true;
     }
 
-    /// run() 的可见性判定 (Java :740): preview 恒显, 游戏模式用 toggle 态
+    /// run() 的可见性判定: preview 恒显, 游戏模式用 toggle 态
     pub fn should_show(&self) -> bool {
         self.is_preview || self.visible
     }
 
-    /// panel.paintComponent (Java :544-607, init/initPreview 同体) — 无 FM 或
-    /// velThrNum==0 直接跳过 (null 守卫 :554-555)
+    /// panel.paintComponent (init/initPreview 同体) — 无 FM 或
+    /// velThrNum==0 直接跳过 (null 守卫)
     pub fn draw(&self, cv: &mut PixCanvas, fonts: &DfsFonts, aa: bool) {
         let b = match self.fm_data.as_deref() {
             Some(b) if b.vel_thr_num != 0 => b,
@@ -410,20 +410,20 @@ impl DrawFrameSimpl {
 }
 
 // ---------------------------------------------------------------------------
-// OverlayHost 挂载 (Java Controller.java:746-752 registerWithStrategy("thrustdFS"))
+// OverlayHost 挂载 (Java Controller registerWithStrategy("thrustdFS"))
 // ---------------------------------------------------------------------------
 
 /// 推力曲线共享句柄 (flight_info/control_surfaces 先例: render 闭包与事件循环
 /// 共享 state; Rc 恒留渲染线程)
 pub type DrawFrameSimplHandle = Rc<RefCell<DrawFrameSimpl>>;
 
-/// 推力曲线 OverlaySpec + live 句柄 (Java Controller.java:745-752: 键 thrustdFS,
+/// 推力曲线 OverlaySpec + live 句柄 (Java Controller: 键 thrustdFS,
 /// 激活策略 config("enableFMPrint").and(jetOnly), previewEnabled=true)。
 ///
 /// 初始态 = initPreview 形态 (恒可见 — Java 预览工厂); 游戏形态 (is_preview=false +
 /// 隐藏起步 + 句柄重读) 由组装层在 OpenAllOverlays 处置 (单实例会话翻转模式,
 /// ControlSurfaces/FmUnpacked 同款)。尺寸恒 900×500 (setBounds 字面量, 无 reinit 面
-/// — Java reinitConfig :723-725 空实现); 定位经 host `set_entry_fixed_pos`。
+/// — Java reinitConfig  空实现); 定位经 host `set_entry_fixed_pos`。
 pub fn draw_frame_simpl_spec(
     fonts_dir: &std::path::Path,
     fm: &Arc<FMManager>,
@@ -433,7 +433,7 @@ pub fn draw_frame_simpl_spec(
     let f16 = FontSlot::new("DrawFrameSimpl", &regular, 16)?;
     let f18 = FontSlot::new("DrawFrameSimpl", &regular, 18)?;
     let mut dfs = DrawFrameSimpl::new();
-    // initFmHandleCache (:74): fmHandle = FMManager.current() 快照
+    // initFmHandleCache: fmHandle = FMManager.current() 快照
     dfs.init_preview(fm.current().fmdata.clone().map(Arc::new));
     let handle: DrawFrameSimplHandle = Rc::new(RefCell::new(dfs));
     let render_handle = Rc::clone(&handle);
@@ -454,7 +454,7 @@ pub fn draw_frame_simpl_spec(
                     text18: &n18,
                     text12: &n12,
                 };
-                // PORT(panic 边界): 畸形 FM 短行的索引 panic (Java AIOOBE 由 EDT 吞,
+                // PORT(panic 边界): 畸形 FM 短行的索引 panic (Java AIOOBE 由事件线程吞,
                 // 窗口存活) 不许毒化 host 槽位锁 — catch_unwind 吞帧留空画布
                 // (FmUnpackedFeed tick 包 catch_unwind 的同族契约, PORTING §6)
                 let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -473,10 +473,10 @@ pub fn draw_frame_simpl_spec(
 }
 
 // ---------------------------------------------------------------------------
-// run() 循环驱动 (Java :737-767)
+// run() 循环驱动
 // ---------------------------------------------------------------------------
 
-/// run() 退出分支的遥测输入 (Java :756 直读 `xc.S.sState.gear != 100 ||
+/// run() 退出分支的遥测输入 (直读 `xc.S.sState.gear != 100 ||
 /// (xc.S.speedv > 10 && xc.S.sState.throttle > 0)`)
 pub struct DfsFlight {
     pub gear: i32,
@@ -484,7 +484,7 @@ pub struct DfsFlight {
     pub throttle: i32,
 }
 
-/// DrawFrameSimpl 的 run() 循环驱动侧 (Java :737-767 单线程对位, 渲染线程循环调用)。
+/// DrawFrameSimpl 的 run() 循环驱动侧 (单线程对位, 渲染线程循环调用)。
 ///
 /// 每轮: 自管可见性落窗 (`shouldShow = isPreview || visible` 的 setVisible 拉起/
 /// 隐藏 + repaint — repaint 归 host 渲染节拍脏检查) → `displayFmKey != 0` 时

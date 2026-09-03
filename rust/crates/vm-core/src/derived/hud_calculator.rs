@@ -7,12 +7,12 @@
 //! # 三个解耦点 (CLASSIFY.md §23-3/6 裁决)
 //!
 //! 1. **MinimalHUDContext 字体参数**: Java `calculate(..., MinimalHUDContext ctx)`
-//!    的 `ctx` 形参在方法体内**从未被读取** (两个调用点 Service.java:472 传 null、
-//!    MiniHUDOverlay.java:446 传实句柄, 行为无差) —— Rust 签名直接砍除该参数,
+//!    的 `ctx` 形参在方法体内**从未被读取** (两个调用点一处传 null、
+//!    一处传实句柄, 行为无差) —— Rust 签名直接砍除该参数,
 //!    字体参数由 C 类组件层 (MiniHUD 波次) 自持, 本纯逻辑层不引入 C 类类型。
 //! 2. **Application 静态颜色 6 处 → 参数注入**: Java 读
 //!    `Application.colorWarning/colorNum/colorUnit` (LIFETIMES §1.2 配置驱动可变
-//!    全局, ConfigurationService.java:136-139 重写)。Rust 侧以 [`HudColors`]
+//!    全局, ConfigurationService 重写)。Rust 侧以 [`HudColors`]
 //!    参数注入, 调用方 (未来 Service 波次) 从 Theme/ConfigStore 快照取值;
 //!    `java.awt.Color.RED/WHITE` (throttleColor 两分支) 是 JDK 常量, 原样落地
 //!    为模块常量 [`COLOR_RED`]/[`COLOR_WHITE`]。
@@ -28,7 +28,7 @@
 //! (2.675→"2.68"), Rust `{:.N}` 是对精确二进制值半偶舍入 ("2.67") —— 双重分歧,
 //! 全部格式串已按 Java 8 oracle (build/oracle_hud) 逐值对拍。
 //! PORT: 默认 Locale 按非分组小数点处理 (zh-CN/en, 与 Application 运行域一致)。
-//! PORT: NPE→panic 的降级契约在调用点: Java Service.java:466-478 以 catch(Exception)
+//! PORT: NPE→panic 的降级契约在调用点: Java Service 以 catch(Exception)
 //! 包裹 calculate, 失败仅 log、事件照发 (无 hudData); Rust 侧等价降级需**调用点粒度**
 //! catch_unwind (§6 循环级会额外丢整轮事件发布, 降级幅度不同) — 归 vm-data Service
 //! (D6) 波次落实, 过渡期警告见 calculate() 内 unwrap 处。

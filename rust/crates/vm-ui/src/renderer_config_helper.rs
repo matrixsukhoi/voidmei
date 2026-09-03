@@ -13,14 +13,13 @@
 //! 2. 同步到 ConfigurationService（用于 overlay 控制键）
 //!
 //! PORT: Java 类仅含 static 方法 → Rust 模块自由函数 (exception_helper/string_helper 先例)。
-//! PORT: 形参类型 `RowRenderer.RenderContext` (RowRenderer.java:27-52 嵌套接口) 的
+//! PORT: 形参类型 `RowRenderer.RenderContext` (RowRenderer 嵌套接口) 的
 //! trait 定义落位于 [`crate::render_context`] (D9 后 RowRenderer 策略接口已退役,
-//! 契约独立成文件), 本文件 re-export 引入 — 对应 Java 侧 `import
-//! ui.layout.renderer.RowRenderer.RenderContext` (RendererConfigHelper.java:6)。
+//! 契约独立成文件), 本文件 re-export 引入 — 对应 Java 侧 import 语句。
 //! 全 crate 必须共用该单一类型: 各 apply 写链与读写助手收到的 `&dyn RenderContext`
 //! 要能直接互通 (两个同名 trait = 名义类型不兼容, 审查 blocker)。
-//! 注意与 vm-overlay `render::renderers::RenderContext` (ui/renderer/RenderContext.java,
-//! 布局公式上下文) 是**同名不同物**的两个 Java 类型。
+//! 注意与 vm-overlay `render::renderers::RenderContext` (布局公式上下文)
+//! 是**同名不同物**的两个 Java 类型。
 
 use vm_core::base::java_compat::java_parse_int;
 use vm_core::config::config_loader::{GroupConfig, RowConfig};
@@ -29,7 +28,7 @@ use vm_core::config::config_loader::{GroupConfig, RowConfig};
 ///
 /// PORT: 定义在 [`crate::render_context::RenderContext`] (Java 为
 /// `ui.layout.renderer.RowRenderer.RenderContext` 嵌套接口, 唯一实现是
-/// DynamicDataPage.java:126-175 的匿名类), 此处 re-export 使本助手六方法与
+/// DynamicDataPage 的匿名类), 此处 re-export 使本助手六方法与
 /// 各渲染器 apply 写链的契约类型归一 (对应 Java 侧 import 语句)。
 /// PORT: 方法签名取 `&self` (非 `&mut`): Java 实现的 syncToConfigService →
 /// ConfigurationService.setConfig → **同步** publish CONFIG_CHANGED →
@@ -184,7 +183,7 @@ mod property_binder {
     macro_rules! gen_group_field {
         ($( ($V:ident, $key:literal, $f:ident, $TY:ty) ),* $(,)?) => {
             /// 注册表键 → GroupConfig 字段选择子 (Java: getField 返回的 Field 对象)。
-            /// 覆盖 GroupConfig 全部 12 个 public 字段 (ConfigLoader.java:80-97);
+            /// 覆盖 GroupConfig 全部 12 个 public 字段;
             /// GroupConfig 无父类字段, 故命中集合封闭。
             #[derive(Debug, Clone, Copy, PartialEq, Eq)]
             enum GroupField {
@@ -361,7 +360,7 @@ mod property_binder {
     ///
     /// PORT: Java setString(prop, null) 对 String 字段成功写 null (引用字段
     /// 接受 null, JDK8 oracle 实测 fontName→null); Rust `&str` 无法表达 null —
-    /// 唯一调用方 ComboRowRenderer.java:60 域内恒非 null, 不可达。
+    /// 唯一调用方 ComboRowRenderer 域内恒非 null, 不可达。
     pub(super) fn set_string(group: &mut GroupConfig, property: Option<&str>, value: &str) -> bool {
         set(group, property, BindingValue::Str(value.to_string()))
     }

@@ -1,16 +1,15 @@
 //! rows: HUD 文本行组件族 C 类语义复刻 (MiniHUD 左侧数据列的 5 行)
 //!
-//! | Rust | Java 源 | 语义要点 |
-//! |---|---|---|
-//! | HUDTextRow | ui/component/row/HUDTextRow.java | 主文本行: 基线 = y+ascent, 警告色/常态色, 模板锁宽 |
-//! | HUDAkbRow | ui/component/row/HUDAkbRow.java | 速度行: 左主文字 + 右 AoA 横条(drawHRect)与 α 小字 |
-//! | HUDEnergyRow | ui/component/row/HUDEnergyRow.java | 高度行: 左主文字 + 右能量小字 (同基线) |
-//! | HUDMechanizationRow | ui/component/row/HUDMechanizationRow.java | Row 2 生产组件: 襟翼/减速板/起落架三段拆分, 模板占位推进 curX, 独立三开关 (Java 前代 HUDFlapsRow 已随波12 死代码清扫删除) |
-//! | HUDManeuverRow | ui/component/row/HUDManeuverRow.java | G 行: 左主文字 + 右机动指数条(thick 影线/thin 主线)与刻度 |
+//! - HUDTextRow — 主文本行: 基线 = y+ascent, 警告色/常态色, 模板锁宽。
+//! - HUDAkbRow — 速度行: 左主文字 + 右 AoA 横条(drawHRect)与 α 小字。
+//! - HUDEnergyRow — 高度行: 左主文字 + 右能量小字 (同基线)。
+//! - HUDMechanizationRow — Row 2 生产组件: 襟翼/减速板/起落架三段拆分,
+//!   模板占位推进 curX, 独立三开关 (Java 前代 HUDFlapsRow 已随波12 死代码清扫删除)。
+//! - HUDManeuverRow — G 行: 左主文字 + 右机动指数条(thick 影线/thin 主线)与刻度。
 //!
 //! 绘制目标 = render2d::PixCanvas; Java extends HUDTextRow 统一映射为组合
 //! (`base: HUDTextRow` 字段, PORTING.md §1 禁止造继承); 颜色/坐标公式逐项对照
-//! Java paint 逻辑 (关键处 // PORT: 注明行号)。
+//! Java paint 逻辑 (关键处 // PORT: 标注)。
 //!
 //! // PORT: Java HUDRow 接口 (HUDRow.java) 的 getPreferredSize 默认 (200, getHeight)
 //! 由 preferred_size 实现覆盖, 不单独建 trait —— Rust 侧该接口无第二实现需求。
@@ -23,16 +22,16 @@ use crate::render::font::LoadedFont;
 
 use crate::render::canvas::PixCanvas;
 
-/// Java Color.YELLOW (HUDAkbRow.java:30-31 构造默认)
+/// Java Color.YELLOW (构造默认)
 const COLOR_YELLOW: [u8; 4] = [255, 255, 0, 255];
 
 // ---------------------------------------------------------------------------
 // HUDTextRow (族基类 → 组合基座)
 // ---------------------------------------------------------------------------
 
-/// 简单文本行 (HUDTextRow.java:10)。上左角 (x,y) 入参, 内部换算基线。
+/// 简单文本行。上左角 (x,y) 入参, 内部换算基线。
 pub struct HUDTextRow {
-    /// 行号 (HUDTextRow.java:14, 调试/getId 用)
+    /// 行号 (调试/getId 用)
     pub index: i32,
     /// 主文字 (Java protected text, 构造置 "")
     pub text: String,
@@ -40,15 +39,15 @@ pub struct HUDTextRow {
     pub height: i32,
     /// 模板文字锁宽 (Java templateText, null=未设)
     pub template: Option<String>,
-    /// 警告态 → colorWarning, 否则 colorNum (HUDTextRow.java:46-50)
+    /// 警告态 → colorWarning, 否则 colorNum
     pub is_warning: bool,
     /// 组件可见性 (AbstractHUDComponent.visible, 布局引擎门控 — draw 本身不检查,
-    /// 对齐 ModernHUDLayoutEngine.java:160 的调用侧检查)
+    /// 对齐 ModernHUDLayoutEngine 的调用侧检查)
     pub visible: bool,
 }
 
 impl HUDTextRow {
-    /// Java:18-23 构造 (font 在 Rust 侧为 draw 参数, 不入结构体)
+    /// 构造 (font 在 Rust 侧为 draw 参数, 不入结构体)
     pub fn new(index: i32, height: i32) -> Self {
         HUDTextRow {
             index,
@@ -60,22 +59,22 @@ impl HUDTextRow {
         }
     }
 
-    /// Java:31-33 getId
+    /// getId
     pub fn id(&self) -> String {
         format!("row.{}", self.index)
     }
 
-    /// Java:54-56 getHeight
+    /// getHeight
     pub fn get_height(&self) -> i32 {
         self.height
     }
 
-    /// Java:25-28 setStyle (仅 height; font 为 draw 参数)
+    /// setStyle (仅 height; font 为 draw 参数)
     pub fn set_style(&mut self, height: i32) {
         self.height = height;
     }
 
-    /// Java:35-38 update(text, isWarning)。返回内容是否变化 (组装侧脏检查用,
+    /// update(text, isWarning)。返回内容是否变化 (组装侧脏检查用,
     /// Java 返回 void —— 行为等价, 附加元数据)。
     pub fn update(&mut self, text: &str, is_warning: bool) -> bool {
         let changed = self.text != text || self.is_warning != is_warning;
@@ -85,15 +84,15 @@ impl HUDTextRow {
         changed
     }
 
-    /// Java:61-63 setTemplate (null 语义由 None 承载)
+    /// setTemplate (null 语义由 None 承载)
     pub fn set_template(&mut self, template: Option<&str>) {
         self.template = template.map(|s| s.to_string());
     }
 
-    /// Java:41-51 draw: Top-Left y → Baseline y 换算后阴影双遍文本。
+    /// draw: Top-Left y → Baseline y 换算后阴影双遍文本。
     /// 警告 → colorWarning, 常态 → colorNum。
     pub fn draw(&self, cv: &mut PixCanvas, x: i32, y: i32, font: &LoadedFont, aa: bool) {
-        // PORT: Java:42-44 ascent = getFontMetrics(font).getAscent(); baseY = y + ascent
+        // PORT: ascent = getFontMetrics(font).getAscent(); baseY = y + ascent
         let ascent = font.metrics().ascent;
         let base_y = y + ascent;
         let c = if self.is_warning {
@@ -104,10 +103,10 @@ impl HUDTextRow {
         primitives::text_shaded_auto(cv, font, x, base_y, &self.text, c, aa);
     }
 
-    /// Java:66-83 getPreferredSize: 模板优先测量 (布局防抖), 空文本宽 0。
+    /// getPreferredSize: 模板优先测量 (布局防抖), 空文本宽 0。
     /// 返回 (w, h) 对应 java.awt.Dimension。
     pub fn preferred_size(&self, font: &LoadedFont) -> (i32, i32) {
-        // PORT: Java:67 w=200 起始, 但非空测量路径必覆盖 (getStringWidth 空串=0)
+        // PORT: w=200 起始, 但非空测量路径必覆盖 (getStringWidth 空串=0)
         let text_to_measure: &str = match &self.template {
             Some(t) if !t.is_empty() => t,
             _ => &self.text,
@@ -121,7 +120,7 @@ impl HUDTextRow {
 // HUDAkbRow (速度 + AoA 指示)
 // ---------------------------------------------------------------------------
 
-/// Row 0: 速度文字 + 攻角横条 (HUDAkbRow.java:9)。
+/// Row 0: 速度文字 + 攻角横条。
 pub struct HUDAkbRow {
     /// Java extends HUDTextRow → 组合基座
     pub base: HUDTextRow,
@@ -132,7 +131,7 @@ pub struct HUDAkbRow {
     /// 右侧绘制基准 X 偏移 (α 文字左缘 = x + rightDraw)
     pub right_draw: i32,
     pub line_width: i32,
-    /// Java:34 aoaLength 默认 100 (setStyle 注入生产值)
+    /// aoaLength 默认 100 (setStyle 注入生产值)
     pub aoa_length: i32,
     /// α 文字色 (Java aoaColor, 构造默认 YELLOW)
     pub aoa_color: [u8; 4],
@@ -140,14 +139,14 @@ pub struct HUDAkbRow {
     pub aoa_bar_color: [u8; 4],
     /// AoA 文字模板 (宽度估算用)
     pub aoa_template: Option<String>,
-    /// 组件级可见性开关: 速度文字 (HUDAkbRow.java:20)
+    /// 组件级可见性开关: 速度文字
     pub show_speed: bool,
-    /// 组件级可见性开关: 攻角指示器 (HUDAkbRow.java:22)
+    /// 组件级可见性开关: 攻角指示器
     pub show_aoa: bool,
 }
 
 impl HUDAkbRow {
-    /// Java:24-32 构造 (fonts 为 draw 参数)
+    /// 构造 (fonts 为 draw 参数)
     pub fn new(index: i32, height: i32, right_draw: i32, line_width: i32) -> Self {
         HUDAkbRow {
             base: HUDTextRow::new(index, height),
@@ -164,14 +163,14 @@ impl HUDAkbRow {
         }
     }
 
-    /// Java:47-53 setStyle (font/height 走 base, 此处为 AoA 专属几何)
+    /// setStyle (font/height 走 base, 此处为 AoA 专属几何)
     pub fn set_style(&mut self, right_draw: i32, line_width: i32, aoa_length: i32) {
         self.right_draw = right_draw;
         self.line_width = line_width;
         self.aoa_length = aoa_length;
     }
 
-    /// Java:38-40 可见性开关
+    /// 可见性开关
     pub fn set_show_speed(&mut self, v: bool) {
         self.show_speed = v;
     }
@@ -179,13 +178,13 @@ impl HUDAkbRow {
         self.show_aoa = v;
     }
 
-    /// Java:42-45 setTemplate(main, aoa)
+    /// setTemplate(main, aoa)
     pub fn set_template(&mut self, main: Option<&str>, aoa: Option<&str>) {
         self.base.set_template(main);
         self.aoa_template = aoa.map(|s| s.to_string());
     }
 
-    /// Java:56-73 onDataUpdate 的条长计算段 (69-72):
+    /// onDataUpdate 的条长计算段 (69-72):
     /// aoaY = (int)(aoaRatio * aoaLength), 钳到 rightDraw。
     /// // PORT: Java double→int 强转 (JLS 5.1.3) = NaN→0 + 超范围饱和到
     /// MIN/MAX, 与 Rust as i32 语义完全一致 — 两语言无差异 (§2.2 的截断/
@@ -197,7 +196,7 @@ impl HUDAkbRow {
         }
     }
 
-    /// Java:75-81 手动 update (预览模式路径; 游戏模式数据映射见 set_aoa_from_ratio)
+    /// 手动 update (预览模式路径; 游戏模式数据映射见 set_aoa_from_ratio)
     #[allow(clippy::too_many_arguments)] // 对齐 Java update(text,isWarning,aoaText,aoaY,aoaColor,aoaBarColor)
     pub fn update(
         &mut self,
@@ -224,7 +223,7 @@ impl HUDAkbRow {
         changed
     }
 
-    /// Java:84-99 draw。图层序: AoA 条+文字先, 速度主文字后 (重叠时主文字在上)。
+    /// draw。图层序: AoA 条+文字先, 速度主文字后 (重叠时主文字在上)。
     pub fn draw(
         &self,
         cv: &mut PixCanvas,
@@ -234,13 +233,13 @@ impl HUDAkbRow {
         small_font: &LoadedFont,
         aa: bool,
     ) {
-        // PORT: Java:85-87 ascent 取主字体; liney = baseY + 1
+        // PORT: ascent 取主字体; liney = baseY + 1
         let ascent = font.metrics().ascent;
         let base_y = y + ascent;
         let liney = base_y + 1;
 
         if self.show_aoa {
-            // PORT: Java:91 drawHRect(x + (rightDraw - aoaY), liney, aoaY, lineWidth+3, 1, aoaBarColor)
+            // PORT: drawHRect(x + (rightDraw - aoaY), liney, aoaY, lineWidth+3, 1, aoaBarColor)
             draw_h_rect(
                 cv,
                 x + (self.right_draw - self.aoa_y),
@@ -250,7 +249,7 @@ impl HUDAkbRow {
                 1,
                 self.aoa_bar_color,
             );
-            // PORT: Java:92 α 文字基线 liney - 1, 小字号
+            // PORT: α 文字基线 liney - 1, 小字号
             primitives::text_shaded_auto(
                 cv,
                 small_font,
@@ -267,11 +266,11 @@ impl HUDAkbRow {
         }
     }
 
-    /// Java:102-112 getPreferredSize: 主文字宽与 rightDraw+α宽取大
+    /// getPreferredSize: 主文字宽与 rightDraw+α宽取大
     /// (隐藏组件保留占位, 布局稳定)。
     pub fn preferred_size(&self, font: &LoadedFont, small_font: &LoadedFont) -> (i32, i32) {
         let mut w = self.base.preferred_size(font).0;
-        // PORT: Java:106 aoaTemplate != null ? aoaTemplate : aoaText (无空串检查)
+        // PORT: aoaTemplate != null ? aoaTemplate : aoaText (无空串检查)
         let measure_aoa: &str = self.aoa_template.as_deref().unwrap_or(&self.aoa_text);
         let extra_w = self.right_draw + small_font.measure(measure_aoa);
         if extra_w > w {
@@ -285,7 +284,7 @@ impl HUDAkbRow {
 // HUDEnergyRow (高度 + 能量)
 // ---------------------------------------------------------------------------
 
-/// Row 1: 高度文字 + 右侧能量读数 (HUDEnergyRow.java:8)。
+/// Row 1: 高度文字 + 右侧能量读数。
 pub struct HUDEnergyRow {
     pub base: HUDTextRow,
     /// 能量读数 (小字号, colorNum)
@@ -293,14 +292,14 @@ pub struct HUDEnergyRow {
     /// 能量文字左缘 = x + rightDraw
     pub right_draw: i32,
     pub energy_template: Option<String>,
-    /// 组件级可见性开关: 高度文字 (HUDEnergyRow.java:15)
+    /// 组件级可见性开关: 高度文字
     pub show_altitude: bool,
-    /// 组件级可见性开关: 能量读数 (HUDEnergyRow.java:17)
+    /// 组件级可见性开关: 能量读数
     pub show_energy: bool,
 }
 
 impl HUDEnergyRow {
-    /// Java:19-24 构造
+    /// 构造
     pub fn new(index: i32, height: i32, right_draw: i32) -> Self {
         HUDEnergyRow {
             base: HUDTextRow::new(index, height),
@@ -312,12 +311,12 @@ impl HUDEnergyRow {
         }
     }
 
-    /// Java:37-41 setStyle
+    /// setStyle
     pub fn set_style(&mut self, right_draw: i32) {
         self.right_draw = right_draw;
     }
 
-    /// Java:29-30 可见性开关
+    /// 可见性开关
     pub fn set_show_altitude(&mut self, v: bool) {
         self.show_altitude = v;
     }
@@ -325,13 +324,13 @@ impl HUDEnergyRow {
         self.show_energy = v;
     }
 
-    /// Java:32-35 setTemplate(main, energy)
+    /// setTemplate(main, energy)
     pub fn set_template(&mut self, main: Option<&str>, energy: Option<&str>) {
         self.base.set_template(main);
         self.energy_template = energy.map(|s| s.to_string());
     }
 
-    /// Java:56-59 update (预览/手动路径; 游戏模式 = altStr/warnAltitude/energyStr 映射)
+    /// update (预览/手动路径; 游戏模式 = altStr/warnAltitude/energyStr 映射)
     pub fn update(&mut self, text: &str, is_warning: bool, energy_text: &str) -> bool {
         // 先判后写, 全字段参与 (与 HUDAkbRow::update 同口径): 能量逐帧变化而
         // 高度文字稳定, 漏比 energy_text 会让按返回值门控重绘的组装侧冻结能量读数
@@ -344,8 +343,8 @@ impl HUDEnergyRow {
         changed
     }
 
-    /// Java:62-75 draw。图层序: 能量读数先, 高度主文字后。
-    /// 能量色恒 colorNum (Java:55 注释: 已统一, 不再传色)。
+    /// draw。图层序: 能量读数先, 高度主文字后。
+    /// 能量色恒 colorNum (注释: 已统一, 不再传色)。
     pub fn draw(
         &self,
         cv: &mut PixCanvas,
@@ -355,12 +354,12 @@ impl HUDEnergyRow {
         small_font: &LoadedFont,
         aa: bool,
     ) {
-        // PORT: Java:63-64 ascent 取主字体, 能量文字与主文字同基线 baseY
+        // PORT: ascent 取主字体, 能量文字与主文字同基线 baseY
         let ascent = font.metrics().ascent;
         let base_y = y + ascent;
 
         if self.show_energy {
-            // PORT: Java:68 __drawStringShade(x + rightDraw, baseY, 1, energyText, smallFont, colorNum)
+            // PORT: __drawStringShade(x + rightDraw, baseY, 1, energyText, smallFont, colorNum)
             primitives::text_shaded_auto(
                 cv,
                 small_font,
@@ -377,10 +376,10 @@ impl HUDEnergyRow {
         }
     }
 
-    /// Java:78-88 getPreferredSize: 主文字宽与 rightDraw+能量宽取大。
+    /// getPreferredSize: 主文字宽与 rightDraw+能量宽取大。
     pub fn preferred_size(&self, font: &LoadedFont, small_font: &LoadedFont) -> (i32, i32) {
         let mut w = self.base.preferred_size(font).0;
-        // PORT: Java:82 energyTemplate != null ? energyTemplate : energyText
+        // PORT: energyTemplate != null ? energyTemplate : energyText
         let measure_en: &str = self.energy_template.as_deref().unwrap_or(&self.energy_text);
         let extra_w = self.right_draw + small_font.measure(measure_en);
         if extra_w > w {
@@ -394,19 +393,19 @@ impl HUDEnergyRow {
 // HUDMechanizationRow (襟翼/减速板/起落架三段拆分行)
 // ---------------------------------------------------------------------------
 
-/// Row 2 组件级拆分：襟翼/可变翼 + 减速板 + 起落架 (HUDMechanizationRow.java:12)。
+/// Row 2 组件级拆分：襟翼/可变翼 + 减速板 + 起落架。
 /// 三个子组件各有一个独立的可见性开关 (Java javadoc 原文)。
 pub struct HUDMechanizationRow {
     /// Java extends HUDTextRow → 组合基座。draw 全覆写 (base.text 不参与渲染),
     /// base.is_warning 参与三段取色; setStyle/模板锁宽复用基座。
     pub base: HUDTextRow,
-    /// 组件级可见性开关：襟翼/可变翼 (Java:15)
+    /// 组件级可见性开关：襟翼/可变翼
     pub show_flaps: bool,
-    /// 组件级可见性开关：减速板 (Java:17)
+    /// 组件级可见性开关：减速板
     pub show_airbrake: bool,
-    /// 组件级可见性开关：起落架 (Java:19)
+    /// 组件级可见性开关：起落架
     pub show_gear: bool,
-    /// 三段数据串 (Java:21-23 构造置 "")
+    /// 三段数据串 (构造置 "")
     pub flaps_wing_str: String,
     pub airbrake_str: String,
     pub gear_str: String,
@@ -416,7 +415,7 @@ pub struct HUDMechanizationRow {
     pub gear_template: String,
 }
 
-/// Java:52-60 / 75-80 共用的三段切分: 0..4 / 4..7 / 7..10 各自 trim。
+/// / 75-80 共用的三段切分: 0..4 / 4..7 / 7..10 各自 trim。
 /// // PORT: Java substring + length()>=10 按 UTF-16 码元; 输入域为
 /// HUDCalculator 的 mechanization 格式串 (纯 ASCII: F/W 前缀+数字+空格+BRK/GEA),
 /// 字节索引与 UTF-16 索引等价 (§2.1)。Java trim() 删两端 <=U+0020, Rust trim()
@@ -440,7 +439,7 @@ fn split_trim3(text: &str) -> Option<(String, String, String)> {
     Some((seg(0..4), seg(4..7), seg(7..10)))
 }
 
-/// Java getStringWidth(template + " ", font) (HUDCalculator.java:337-345, 内部
+/// Java getStringWidth(template + " ", font) (内部
 /// FontMetrics.stringWidth — javadoc 明示串 advance 不必等于各字符 advance 之和):
 /// 拼接串宽按 模板宽 + 空格 advance 拆分。Rust 侧 font.measure 逐字符求和
 /// (font.rs charsWidth 口径), 拆分在 Rust 内部严格恒等; Java 侧等价性非规范
@@ -457,7 +456,7 @@ fn seg_width(font: &LoadedFont, template: &str) -> i32 {
 }
 
 impl HUDMechanizationRow {
-    /// Java:30-32 构造 (font 为 draw/preferred 参数, 不入结构体)
+    /// 构造 (font 为 draw/preferred 参数, 不入结构体)
     pub fn new(index: i32, height: i32) -> Self {
         HUDMechanizationRow {
             base: HUDTextRow::new(index, height),
@@ -473,7 +472,7 @@ impl HUDMechanizationRow {
         }
     }
 
-    /// Java:34-37 可见性开关
+    /// 可见性开关
     pub fn set_show_flaps(&mut self, v: bool) {
         self.show_flaps = v;
     }
@@ -484,7 +483,7 @@ impl HUDMechanizationRow {
         self.show_gear = v;
     }
 
-    /// Java:40-45 updateParts (游戏模式数据入口)。
+    /// updateParts (游戏模式数据入口)。
     /// super.update("", isWarning) 清空主文字（不使用）。
     pub fn update_parts(
         &mut self,
@@ -510,7 +509,7 @@ impl HUDMechanizationRow {
         changed
     }
 
-    /// Java:48-61 update(text, isWarning) 预览模式更新（兼容旧接口）。
+    /// update(text, isWarning) 预览模式更新（兼容旧接口）。
     /// 从合并字符串解析回子组件（预览用，格式: "F100BRKGEA" 或 "    BRKGEA"）
     ///。
     pub fn update(&mut self, text: &str, is_warning: bool) -> bool {
@@ -534,7 +533,7 @@ impl HUDMechanizationRow {
         changed
     }
 
-    /// Java:63-70 onDataUpdate: 直接写三段串 + isWarning (不走 update ——
+    /// onDataUpdate: 直接写三段串 + isWarning (不走 update ——
     /// base.text 保持不动, 不参与渲染)。
     pub fn on_data_update(&mut self, data: &HUDData) -> bool {
         let changed = self.flaps_wing_str != data.flaps_wing_str
@@ -551,8 +550,8 @@ impl HUDMechanizationRow {
         changed
     }
 
-    /// Java:72-81 setTemplate（预览模式），格式同旧 mechanizationStr
-    ///。空襟翼段回退 "F100" (Java:77)。
+    /// setTemplate（预览模式），格式同旧 mechanizationStr
+    ///。空襟翼段回退 "F100"。
     pub fn set_template(&mut self, template: Option<&str>) {
         self.base.set_template(template);
         if let Some((fw, ab, g)) = template.and_then(split_trim3) {
@@ -565,12 +564,12 @@ impl HUDMechanizationRow {
         }
     }
 
-    /// Java:83-113 draw。三段沿 curX 依次推进: 模板非空段恒占位 (模板宽 + 尾随
+    /// draw。三段沿 curX 依次推进: 模板非空段恒占位 (模板宽 + 尾随
     /// 空格), 数据非空且开关开才绘制文字; 段序 = 图层序, 同基线 baseY, 主字体。
     pub fn draw(&self, cv: &mut PixCanvas, x: i32, y: i32, font: &LoadedFont, aa: bool) {
-        // PORT: Java:85-86 ascent = getFontMetrics(font).getAscent(); baseY = y + ascent
+        // PORT: ascent = getFontMetrics(font).getAscent(); baseY = y + ascent
         let base_y = y + font.metrics().ascent;
-        // PORT: Java:95/104/111 isWarning ? colorWarning : colorNum (三段同色)
+        // PORT: isWarning ? colorWarning : colorNum (三段同色)
         let c = if self.base.is_warning {
             colors().warning
         } else {
@@ -600,8 +599,8 @@ impl HUDMechanizationRow {
         }
     }
 
-    /// Java:115-131 getPreferredSize: 三段模板宽之和 (襟翼/减速板含尾随空格,
-    /// 起落架无 — Java:128 原样); 隐藏段保留占位符。
+    /// getPreferredSize: 三段模板宽之和 (襟翼/减速板含尾随空格,
+    /// 起落架无 — Java 原样); 隐藏段保留占位符。
     pub fn preferred_size(&self, font: &LoadedFont) -> (i32, i32) {
         let mut w = 0;
         // 始终使用模板估算完整宽度，隐藏的组件保留占位符，保持布局稳定
@@ -633,8 +632,8 @@ pub struct TickScale {
 }
 
 impl TickScale {
-    /// 点亮档位的距离迭代: 档 0 恒亮 (Java:87 len10 恒画), 档 i 在
-    /// index ≥ 前一档档位时亮 (Java:88-102 的 0.1~0.4 逐级阈值)
+    /// 点亮档位的距离迭代: 档 0 恒亮 (len10 恒画), 档 i 在
+    /// index ≥ 前一档档位时亮 (的 0.1~0.4 逐级阈值)
     pub fn lit_lens(&self, index: f64) -> impl Iterator<Item = i32> + '_ {
         self.ticks
             .iter()
@@ -644,9 +643,9 @@ impl TickScale {
     }
 }
 
-/// Row 4: G 力文字 + 机动指数条 (HUDManeuverRow.java:9)。
+/// Row 4: G 力文字 + 机动指数条。
 /// Java 的 strokeThick/strokeThin (BasicStroke, CAP_ROUND+JOIN_ROUND,
-/// MinimalHUDContext.java:147-148 造: 宽 halfLine+2 / halfLine) 在 Rust 侧
+/// MinimalHUDContext 造: 宽 halfLine+2 / halfLine) 在 Rust 侧
 /// 仅宽度可变 → 存 f32 宽度, 线型由 PixCanvas::draw_line (Round) 固定。
 pub struct HUDManeuverRow {
     pub base: HUDTextRow,
@@ -663,14 +662,14 @@ pub struct HUDManeuverRow {
     pub stroke_thick_w: f32,
     /// strokeThin 宽 (主线)
     pub stroke_thin_w: f32,
-    /// 组件级可见性开关: G 力文字 (HUDManeuverRow.java:17)
+    /// 组件级可见性开关: G 力文字
     pub show_g_load: bool,
-    /// 组件级可见性开关: 机动条 (HUDManeuverRow.java:19)
+    /// 组件级可见性开关: 机动条
     pub show_maneuver_bar: bool,
 }
 
 impl HUDManeuverRow {
-    /// Java:34-42 构造 (strokes 以宽度入参, cap/join 恒 ROUND)
+    /// 构造 (strokes 以宽度入参, cap/join 恒 ROUND)
     #[allow(clippy::too_many_arguments)] // 对齐 Java 构造 8 参
     pub fn new(
         index: i32,
@@ -696,7 +695,7 @@ impl HUDManeuverRow {
         }
     }
 
-    /// Java:44-52 setStyle
+    /// setStyle
     #[allow(clippy::too_many_arguments)] // 对齐 Java setStyle 8 参
     pub fn set_style(
         &mut self,
@@ -715,7 +714,7 @@ impl HUDManeuverRow {
         self.stroke_thin_w = stroke_thin_w;
     }
 
-    /// Java:55-56 可见性开关
+    /// 可见性开关
     pub fn set_show_g_load(&mut self, v: bool) {
         self.show_g_load = v;
     }
@@ -723,7 +722,7 @@ impl HUDManeuverRow {
         self.show_maneuver_bar = v;
     }
 
-    /// Java:58-68 update (len = 当前条长, tick_scale = 各阈值刻度到右端距离)
+    /// update (len = 当前条长, tick_scale = 各阈值刻度到右端距离)
     pub fn update(
         &mut self,
         text: &str,
@@ -747,11 +746,11 @@ impl HUDManeuverRow {
         changed
     }
 
-    /// Java:117-120 drawLineMark: 列 x+rightDraw-len, 行
+    /// drawLineMark: 列 x+rightDraw-len, 行
     /// baseY+halfLine .. baseY+halfLine+2*lineWidth 的 1px 竖刻度。
     /// // PORT: Java 未 setColor/setStroke — 承袭 g2d 遗留状态。生产调用链
     /// 前置 super.draw → __drawStringShade 尾部 setColor(主文字色) +
-    /// setStroke(BasicStroke(1,ROUND,ROUND)) (UIBaseElements.java:23,38-43),
+    /// setStroke(BasicStroke(1,ROUND,ROUND)),
     /// 故刻度 = 主文字色 1px 线; showGLoad=false 时 Java 承袭更早组件状态
     /// (未钉死), Rust 统一取主文字色为规范语义。
     #[allow(clippy::too_many_arguments)] // 对齐 Java drawLineMark(g,x,y,len) + 展开的行内几何参数
@@ -765,7 +764,7 @@ impl HUDManeuverRow {
         len: i32,
         color: [u8; 4],
     ) {
-        // PORT: Java:118-119 y+halfLine+lineWidth+lineWidth → y+halfLine-lineWidth+lineWidth
+        // PORT: y+halfLine+lineWidth+lineWidth → y+halfLine-lineWidth+lineWidth
         // (后者 -lineWidth+lineWidth 相消 = halfLine), 端点含 1px 线 = 精确像素盒
         // (Java drawLine 端点序无关, fillRect 盒需取 top = min)
         let ya = base_y + half_line;
@@ -773,18 +772,18 @@ impl HUDManeuverRow {
         cv.fill_rect(x + right_draw - len, ya, 1, yb - ya + 1, color);
     }
 
-    /// Java:71-115 draw。图层序: G 文字先, 刻度线, 最后 thick 影线 + thin 主线。
+    /// draw。图层序: G 文字先, 刻度线, 最后 thick 影线 + thin 主线。
     pub fn draw(&self, cv: &mut PixCanvas, x: i32, y: i32, font: &LoadedFont, aa: bool) {
-        // PORT: Java:72-75 G 主文字
+        // PORT: G 主文字
         if self.show_g_load {
             self.base.draw(cv, x, y, font, aa);
         }
-        // PORT: Java:77-80 机动条开关关闭即返回
+        // PORT: 机动条开关关闭即返回
         if !self.show_maneuver_bar {
             return;
         }
 
-        // PORT: Java:83-85 基线换算 (刻度/条线相对 Baseline 定位)
+        // PORT: 基线换算 (刻度/条线相对 Baseline 定位)
         let ascent = font.metrics().ascent;
         let base_y = y + ascent;
 
@@ -795,7 +794,7 @@ impl HUDManeuverRow {
             colors().num
         };
 
-        // PORT: Java:87-102 刻度档 0 恒画 (len10), 其余 index ≥ 前档阈值逐级点亮
+        // PORT: 刻度档 0 恒画 (len10), 其余 index ≥ 前档阈值逐级点亮
         // (点亮判定与档位表收敛在 TickScale::lit_lens, 绘制序 = 档位升序)
         for len in self.tick_scale.lit_lens(self.maneuver_index) {
             Self::draw_line_mark(
@@ -810,7 +809,7 @@ impl HUDManeuverRow {
             );
         }
 
-        // PORT: Java:104-114 条线: newX = x+rightDraw, newY = baseY+halfLine,
+        // PORT: 条线: newX = x+rightDraw, newY = baseY+halfLine,
         // y = newY+lineWidth; thick(shade) 先画, thin(colorNum) 后画 (双层描边)
         let new_x = x + self.right_draw;
         let line_y = base_y + self.half_line + self.line_width;
@@ -834,7 +833,7 @@ impl HUDManeuverRow {
         );
     }
 
-    /// Java:123-128 getPreferredSize: 主文字宽与 rightDraw+5 取大。
+    /// getPreferredSize: 主文字宽与 rightDraw+5 取大。
     pub fn preferred_size(&self, font: &LoadedFont) -> (i32, i32) {
         let w = self.base.preferred_size(font).0;
         let w = if self.right_draw + 5 > w {

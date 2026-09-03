@@ -92,7 +92,7 @@ impl HudSettingsSnapshot {
             num_font_name: s.get_num_font_name(),
             font_size_add: s.get_font_size_add(),
             auto_hide_on_focus_loss: s.auto_hide_on_focus_loss(),
-            // minihud 走通用 getter 的键集 (initModernLayout L1293; 新键随接线补)
+            // minihud 走通用 getter 的键集 (initModernLayout; 新键随接线补)
             bools: HashMap::from([(
                 "enableLayoutDebug".to_string(),
                 s.get_bool("enableLayoutDebug", false),

@@ -1,4 +1,4 @@
-//! VoiceWarning 装配 (Java Controller.java:716-723 注册 → OverlayManager
+//! VoiceWarning 装配 (Java Controller 注册 → OverlayManager
 //! .open/close 的线程启停; 语音子系统装配批)。重构波2 自 app_shell.rs 拆出。
 
 use std::collections::HashMap;
@@ -198,7 +198,7 @@ impl VoiceWarningService for LiveVoiceService {
         self.frames.latest().is_some_and(|f| f.engine.get_maximum_rpm)
     }
     fn is_eng_jet(&self) -> bool {
-        // Java Service.isEngJet() = iEngType == ENGINE_TYPE_JET (Service.java:874-876);
+        // Java Service.isEngJet() = iEngType == ENGINE_TYPE_JET;
         // 波17 F1: i32 常量族 → EngineType 枚举
         self.frames.latest().is_some_and(|f| {
             f.engine.engine_type == vm_data::service_fields::EngineType::Jet
@@ -253,17 +253,17 @@ impl Drop for VoiceWarnSession {
 
 /// voice_warn 条目的 refreshPreviews 触达判定 (审查 W1 修复的配套):
 /// Java OverlayManager.refreshPreviews 对 `isGlobalConfig(key) ||
-/// entry.isInterestedIn(key)` 的条目调 refreshPreview (OverlayManager.java
-/// :201-207)。voice_warn 非 host 条目无注册面可挂 interest — 此处复刻同款
+/// entry.isInterestedIn(key)` 的条目调 refreshPreview。
+/// voice_warn 非 host 条目无注册面可挂 interest — 此处复刻同款
 /// 判定: 全局键集/前缀 (含 None 恒真) 走 host::is_global_config 全库唯一
 /// 真相; interest 集 = Java 默认 own key ("enableVoiceWarn",
-/// registerWithStrategy 无 withInterest 追加, Controller.java:716-723)。
+/// registerWithStrategy 无 withInterest 追加)。
 pub(crate) fn voice_warn_refresh_reaches(changed_key: Option<&str>) -> bool {
     vm_overlay::platform::host::is_global_config(changed_key)
         || changed_key == Some("enableVoiceWarn")
 }
 
-/// Java OverlayEntry.open (OverlayManager.java:294-312) 的 VoiceWarning 专项:
+/// Java OverlayEntry.open 的 VoiceWarning 专项:
 /// factory.get() + init(this, S) + needsThread → new Thread(instance).start()。
 /// `live`: shared.live 槽现值 (openpad 必在 start() 之后, Some 是生产形态;
 /// None = Java init(S=null) 的 doit=false 短路, 不起线程)。
@@ -271,8 +271,8 @@ pub(crate) fn voice_warn_refresh_reaches(changed_key: Option<&str>) -> bool {
 ///
 /// PORT(备案, 审查 W3): init 在渲染线程同步执行 ~20 个 new_alert→reload→
 /// load_clip (文件读 + waveOutOpen 每路开设备), OpenAllOverlays 处理期间事件
-/// 泵阻塞几十至百 ms (一次性) — Java 对位 OverlayEntry.open 在 EDT 调 init 同
-/// 样阻塞 EDT, 形态保真; 若后续观察到 openpad 卡顿再议预加载 (偏离 Java 时
+/// 泵阻塞几十至百 ms (一次性) — Java 对位 OverlayEntry.open 在 UI 线程调 init 同
+/// 样阻塞 UI 线程, 形态保真; 若后续观察到 openpad 卡顿再议预加载 (偏离 Java 时
 /// 序, 需裁决)。
 pub(crate) fn open_voice_warning(
     voice: &Arc<VoiceResourceManager>,

@@ -1,17 +1,17 @@
-//! 对应 Java: `src/parser/Blkx.java` L34-660 的内部类区 (D4 拆分: types.rs)。
+//! 对应 Java: `src/parser/Blkx.java` 的内部类区 (D4 拆分: types.rs)。
 //! 覆盖 4 个内部类:
-//! - `FuelModification` (static 内部类, L34-49; 提取逻辑在 json.rs 树版)
-//! - `engineLoad` (L246-253) / `fm_parts` (L329-350) / `SweepLevel` (L356-362)
+//! - `FuelModification` (static 内部类; 提取逻辑在 json.rs 树版)
+//! - `engineLoad` / `fm_parts` / `SweepLevel`
 //!   — 非静态内部类, 均未引用 Blkx.this 外部状态 (纯语法糖) → 独立 struct
 //!
-//! PORT: `XY` (L222-232, PASSPORT 曲线容器) 已随曲线链删除 — Java DrawFrame
+//! PORT: `XY` (PASSPORT 曲线容器) 已随曲线链删除 — Java DrawFrame
 //! 的消费未迁移至 Rust, Rust 生产零消费 (2026-09 死代码清理)。
 
 use std::fmt;
 
 // ==================== Fuel Modification Support ====================
 
-/// 对应 Java `public static class FuelModification` (L34-49)。
+/// 对应 Java `public static class FuelModification`。
 /// Represents fuel quality modifications extracted from Central file's
 /// "modifications" section. These upgrades affect engine power output.
 ///
@@ -63,7 +63,7 @@ impl FuelModification {
     }
 }
 
-/// 对应 Java `public enum FuelModification.FuelType` (L46-48)。
+/// 对应 Java `public enum FuelModification.FuelType`。
 // PORT: Java 枚举常量全大写 → Rust 驼峰 (FMStatus 先例); Java 枚举默认
 // toString()=常量名 的字符串形态由 Display 保留 (FMLoader 日志
 // "Fuel modification detected: " + fuelMod.type 依赖, Java 8 oracle 对拍)。
@@ -92,7 +92,7 @@ impl fmt::Display for FuelType {
 
 // ==================== End Fuel Modification Support ====================
 
-/// 对应 Java `public class engineLoad` (L246-253, 源文件类名即小驼峰)。
+/// 对应 Java `public class engineLoad` (源文件类名即小驼峰)。
 /// PORT: 非静态内部类, 六个 double 字段无任何 Blkx 外部引用 → 独立 struct;
 /// Java 字段隐式零初始化 → Default 复刻 (§2.10)。类名 engineLoad → EngineLoad (§0.5)。
 #[derive(Debug, Clone, Default)]
@@ -105,7 +105,7 @@ pub struct EngineLoad {
     pub cur_oil_work_time_mili: f64,
 }
 
-/// 对应 Java `public class fm_parts` (L329-350, 源文件类名即小写下划线)。
+/// 对应 Java `public class fm_parts` (源文件类名即小写下划线)。
 /// PORT: 非静态内部类, 未引用 Blkx 外部状态 → 独立 struct;
 /// 类名 fm_parts → FmParts (§0.5)。Java 字段隐式零初始化/null → Default;
 /// name 未赋值的 null ↔ None (唯一赋值点是 getPartsFm, 后续波次)。
@@ -132,7 +132,7 @@ pub struct FmParts {
     // public double oswaldEff;
 }
 
-/// 对应 Java `public class SweepLevel` (L356-362)。
+/// 对应 Java `public class SweepLevel`。
 /// Represents a single sweep level with its associated aerodynamic data.
 /// Used for variable-sweep wing aircraft (e.g., F-14 with 4 sweep levels).
 /// PORT: 非静态内部类, 持有的两个 fm_parts 是构造后即赋值的值字段而非

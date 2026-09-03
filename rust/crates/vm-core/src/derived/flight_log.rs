@@ -1,20 +1,16 @@
-//! 对应 Java: `src/parser/FlightLog.java` (一比一翻译, B 类: 文件 IO + 记录)
+//! 飞行数据 CSV 日志记录 (文件 IO + 记录)。
 //!
-//! 飞行数据 CSV 日志记录: 每次 logTick 由 Service 轮询线程驱动 (Service.java:1827),
-//! 写一行遥测快照; 换机/退出时 close() 落盘三份分析 CSV (climb/roll/ny)。
+//! 每次 logTick 由 Service 轮询线程驱动, 写一行遥测快照;
+//! 换机/退出时 close() 落盘三份分析 CSV (climb/roll/ny)。
 //!
-//! PORT (crate 边界, D6): Java 直接持有 `Service xs` / `Controller xc` / `FlightAnalyzer fA`
-//! 三个跨文件引用 —— Service 落 vm-data (本 crate 不可见), Controller 属后续批次。处理方式:
-//! - Service → 每次调用注入快照 [`FlightLogSnapshot`] (Java 在 Service 线程上实时读
-//!   xs 公有字段, 快照即该时刻字段值, 语义等价); vm-data 侧的快照构造面 =
-//!   `vm_data::service_loop::flight_log_snapshot`;
-//! - FlightAnalyzer → **已按 flight_analyzer.rs 模块头的集成合同弃快照 trait**:
-//!   直接持有同 crate 具体类型 [`FlightAnalyzer`] (pub 字段面 + pub(crate) 方法),
-//!   并注入 `Arc<dyn AnalyzerService>` 令 analyze 活读 Service 字段 (快照合同会把
-//!   time[]/eff/sep 冻结在 init 时刻, 见彼处论证);
+//! 依赖注入面 (Service/Controller 落 vm-data, 本 crate 不可见):
+//! - Service → 每次调用注入快照 [`FlightLogSnapshot`] (Service 轮询线程实时读字段的
+//!   该时刻值); vm-data 侧的快照构造面 = `vm_data::service_loop::flight_log_snapshot`;
+//! - FlightAnalyzer → 直接持有同 crate 具体类型 [`FlightAnalyzer`] (pub 字段面 +
+//!   pub(crate) 方法), 并注入 `Arc<dyn AnalyzerService>` 令 analyze 活读 Service
+//!   字段 (快照会把 time[]/eff/sep 冻结在 init 时刻, 见彼处论证);
 //! - Controller → [`ControllerLogSink`] 最小接口 (唯一用途 `xc.logon = false`);
-//! - NotificationService.show (C 类 UI 静态入口, CLASSIFY 裁决"翻译时须注入回调") →
-//!   [`NotifySink`] 回调注入 (FlightAnalyzer.notify 同类型, 共用同一 sink)。
+//! - 通知出口 → [`NotifySink`] 回调注入 (FlightAnalyzer.notify 同类型, 共用同一 sink)。
 //!
 //! 行格式保真: CSV 数值列的文本 = Java `String.concat` 的隐式 toString
 //! (Double.toString / Float.toString / Integer.toString), 见 [`java_double_to_string`]。
@@ -34,115 +30,84 @@ use crate::base::logger::warn_default;
 use crate::base::java_compat::{java_double_to_string, java_float_to_string};
 
 // ============================================================================
-// 依赖面 (crate 边界注入, 见模块头 PORT 注释)
+// 依赖面 (crate 边界注入, 见模块头)
 // ============================================================================
 
-/// 对应 Java `ui.util.NotificationService.show(String)` 的注入回调 (C 类 UI 静态入口,
-/// CLASSIFY 裁决: 翻译时须注入回调)。参数即通知文本 (Lang.xxx)。
+/// 通知回调注入面。参数即通知文本 (Lang.xxx)。
 pub type NotifySink = Arc<dyn Fn(&str) + Send + Sync>;
 
-/// FlightLog 对 Controller 的依赖面: Java 字段 `Controller xc` 的唯一用途是
-/// init 失败路径的 `xc.logon = false` (FlightLog.java:409, Controller.java:44
-/// `public boolean logon`)。PORT: Controller 属后续批次, 按 FocusMonitor/
-/// FocusDetector 先例在消费方定义最小接口; Rust 侧实现应为原子写 (跨线程)。
+/// FlightLog 对 Controller 的依赖面: 唯一用途是 init 失败路径的 `xc.logon = false`。
+/// Rust 侧实现应为原子写 (跨线程)。
 pub trait ControllerLogSink: Send + Sync {
-	/// Java: `xc.logon = <bool>` (公有字段直写)
+	/// 写日志开关位
 	fn set_logon(&self, logon: bool);
 }
 
-/// FlightLog 的跨线程共享槽: Java `Controller.Log` 字段 (Service 轮询线程每轮
-/// `c.Log.logTick()`, Controller 主线程 init/close 换入换出) 的 Rust 对位形态。
-/// 外层 Mutex 保护 Some/None 切换 (= Java 的 `Log = new/null`), 内层 Mutex 串行化
+/// FlightLog 的跨线程共享槽: Service 轮询线程每轮 `log_tick()`,
+/// 主线程 init/close 换入换出。
+/// 外层 Mutex 保护 Some/None 切换, 内层 Mutex 串行化
 /// tick/close 对实例的独占访问; 两侧均**不嵌套持锁** (先取 Arc 后释放外层), 无死锁。
 pub type FlightLogSlot = Arc<Mutex<Option<Arc<Mutex<FlightLog>>>>>;
 
-/// logTick 时刻 Service 公有字段的快照 (D6: Service 落 vm-data, 本 crate 以值注入;
-/// Java 在 Service 线程上实时读 `xs.` 字段, 快照即该时刻字段值, 语义等价)。
-/// 字段类型逐一对应 Java 声明 (Service.java / State.java)。
+/// logTick 时刻 Service 字段的快照 (Service 落 vm-data, 本 crate 以值注入)。
 #[derive(Debug, Clone, Default)]
 pub struct FlightLogSnapshot {
 	// ---- writeData 使用 (writeData 各列) ----
-	/// Java: `public long elapsedTime` (Service.java:90)
 	pub elapsed_time: i64,
-	/// Java: `public String throttle` (Service.java:144)
 	pub throttle: String,
-	/// Java: `public String IAS` (Service.java:135)
 	pub ias: String,
-	/// Java: `public String TAS` (Service.java:134)
 	pub tas: String,
-	/// Java: `public String M` (Service.java:136, 马赫数显示串)
+	/// 马赫数显示串
 	pub mach: String,
-	/// Java: `public String salt` (Service.java:107, 高度显示串)
+	/// 高度显示串 (字段名沿 Java 原名 salt)
 	pub salt: String,
-	/// Java: `public String watertemp` (Service.java:161)
 	pub watertemp: String,
-	/// Java: `public String oiltemp` (Service.java:162)
 	pub oiltemp: String,
-	/// Java: `public String Vy` (Service.java:141)
 	pub vy: String,
-	/// Java: `public String sSEP` (Service.java:108)
+	/// SEP 显示串
 	pub s_sep: String,
-	/// Java: `public double sState.Ny` (State.java:27)
 	pub ny: f64,
-	/// Java: `public String Wx` (Service.java:142)
+	/// 滚转率显示串
 	pub wx: String,
-	/// Java: `public String totalHpStr` (Service.java:54)
 	pub total_hp_str: String,
-	/// Java: `public String efficiency[]` 的 [0] (Service.java:169)
+	/// 效率串 (Java efficiency[] 的首元素)
 	pub efficiency_0: String,
-	/// Java: `public String totalHpEffStr` (Service.java:56)
 	pub total_hp_eff_str: String,
-	/// Java: `public String rpm` (Service.java:177)
 	pub rpm: String,
-	/// Java: `public int totalThrust` (Service.java:58)
 	pub total_thrust: i32,
-	/// Java: `public double acceleration` (Service.java:102)
 	pub acceleration: f64,
-	/// Java: `public String RPMthrottle` (Service.java:145)
 	pub rpm_throttle: String,
-	/// Java: `public String pitch[]` 的 [0] (Service.java:163)
+	/// 螺距串 (Java pitch[] 的首元素)
 	pub pitch_0: String,
-	/// Java: `public String radiator` (Service.java:146)
 	pub radiator: String,
-	/// Java: `public String mixture` (Service.java:147)
 	pub mixture: String,
-	/// Java: `public int sState.compressorstage` (State.java:35)
 	pub compressorstage: i32,
-	/// Java: `public int sState.magenato` (State.java:36, 原文拼写如此)
+	/// 磁电机开关 (字段名沿 Java 原文拼写 magenato, 非 magneto)
 	pub magenato: i32,
-	/// Java: `public String manifoldpressure` (Service.java:155)
 	pub manifoldpressure: String,
-	/// Java: `public String flaps` (Service.java:132)
 	pub flaps: String,
-	/// Java: `public int sState.elevator` (State.java:17)
 	pub elevator: i32,
-	/// Java: `public int sState.aileron` (State.java:16)
 	pub aileron: i32,
-	/// Java: `public int sState.rudder` (State.java:18)
 	pub rudder: i32,
-	/// Java: `public String AoA` (Service.java:137)
+	/// 攻角显示串
 	pub aoa: String,
-	/// Java: `public String AoS` (Service.java:138)
+	/// 侧滑角显示串
 	pub aos: String,
 	// ---- analyzeData 使用 ----
-	/// Java: `public double alt` (Service.java:74)
 	pub alt: f64,
-	/// Java: `public int checkAlt` (Service.java:64)
+	/// 高度检查计数 (启动稳定判定)
 	pub check_alt: i32,
-	/// Java: `public double IASv` (Service.java:99)
 	pub ias_v: f64,
-	/// Java: `public double SEP` (Service.java:103)
 	pub sep: f64,
-	/// Java: `public double sState.Wx` (State.java:29)
+	/// 滚转率数值
 	pub state_wx: f64,
 	// ---- init 使用 ----
-	/// Java: `public String sIndic.type` (Indicators.java:8)
+	/// 载具机型名
 	pub indic_type: String,
 }
 
-/// Java `BufferedWriter.ensureOpen()` 的 "Stream closed" IOException 复刻:
-/// BufferedWriter 包裹 null writer 时惰性成功, 首次 write/close 抛
-/// `IOException("Stream closed")` (非 NPE) — init 文件打开失败路径依赖此语义。
+/// "Stream closed" 错误的复刻: writer 句柄缺失时惰性, 首次 write/flush 报
+/// "Stream closed" IO 错误 (而非 panic) — init 文件打开失败路径依赖此行为。
 fn stream_closed() -> io::Error {
 	io::Error::other("Stream closed")
 }
@@ -151,61 +116,49 @@ fn stream_closed() -> io::Error {
 // FlightLog
 // ============================================================================
 
-/// 对应 Java: `public class FlightLog implements Runnable`
+/// 飞行日志记录器
 pub struct FlightLog {
-	/// Java: `public volatile boolean doit` (写触发, Controller.writeDown 置 true)。
-	/// PORT: LIFETIMES §3.2 裁决 volatile doit → Arc<AtomicBool> (跨线程持引用)。
+	/// 写触发 (Controller.writeDown 置 true)。跨线程共享 → AtomicBool。
 	pub doit: Arc<AtomicBool>,
-	/// Java: `public volatile boolean logon` (run 线程退出标志, close() 置 false)
+	/// 生命周期开关 (close() 置 false 通知停写)
 	pub logon: Arc<AtomicBool>,
-	/// Java: `public FileOutputStream resultsFile` — 创建/截断目标文件后即被弃置
-	/// (Java 从不 close, 句柄泄漏至 GC; 保真保留字段, Drop 时关闭)。
+	/// 创建/截断目标文件后即被弃置的句柄 (对齐 Java 从不 close 的行为;
+	/// Rust 侧 Drop 时关闭)。
 	pub results_file: Option<File>,
-	/// Java: `public FileWriter csv` (append 句柄; writeLabel 经它落盘)。
-	/// PORT: Java 的 csvWritter 与 csv 包裹**同一** FileWriter 对象; Rust 无共享
-	/// 别名句柄, 以同路径第二个 append 句柄代餐 (append 模式下字节流等价,
-	/// 标签先行 flush 后数据句柄才建, 顺序保持)。
+	/// append 句柄 (writeLabel 经它落盘)。
+	/// 与 csv_writter 是同路径的两个独立句柄 (Java 侧两 writer 包裹同一对象,
+	/// append 模式下字节流等价; 标签先行 flush 后数据句柄才建, 顺序保持)。
 	pub csv: Option<File>,
-	/// Java: `public String fileName`
 	pub file_name: String,
-	/// Java: `public FlightAnalyzer fA` → 直接持有具体类型 (集成合同, 见模块头 PORT)
+	/// 分析器 (直接持有具体类型, 见模块头)
 	pub f_a: Option<FlightAnalyzer>,
-	/// Java: `Controller xc` (唯一用途 `xc.logon = false`) → 最小接口注入
+	/// Controller 最小接口注入 (唯一用途 `xc.logon = false`)
 	xc: Option<Arc<dyn ControllerLogSink>>,
-	// PORT: Java 字段 `Service xs` 不落地 — D6 边界, 快照按调用注入;
-	// PORT: Java 字段 `Calendar c` 不落地 — 仅 init 用于文件名时间戳 (chrono::Local)。
-	/// Java: `boolean firstAnalyze = true`
+	// Service 字段不落地 — 快照按调用注入 (见模块头);
+	// 时间戳仅 init 用于文件名 (chrono::Local)。
+	/// 首帧分析标志 (true = 尚未构造 FlightAnalyzer)
 	first_analyze: bool,
-	/// Java: `private String climbName`
 	climb_name: String,
-	/// Java: `private String maneuverName` — 原文件即从未赋值/读取的死字段
-	// DEAD(kept): Java §2.10 死字段移植群, 有意保真保留
+	/// 死字段: 从未赋值/读取, 有意保真保留
 	#[allow(dead_code)]
 	maneuver_name: String,
-	/// Java: `private String rollName`
 	roll_name: String,
-	/// Java: `private String loadName`
 	load_name: String,
-	/// Java: `private BufferedWriter csvWritter`。
-	/// PORT: None 表示 Java 的 `new BufferedWriter(null)` (init 文件打开失败时的
-	/// "null writer", write/flush/close 抛 IOException("Stream closed"))。
+	/// 数据行 writer。None 表示 init 文件打开失败态 (write/flush 报
+	/// "Stream closed", 见 stream_closed)。
 	csv_writter: Option<BufWriter<File>>,
-	/// Java: `private long writeTime`
 	write_time: i64,
-	/// Java: `private prog.config.ConfigProvider config`
 	config: Option<Arc<dyn ConfigProvider + Send + Sync>>,
-	/// PORT: Java 读静态 Lang 字段 (Application 启动即装载); Rust Lang 为实例,
-	/// init 时取 `Lang::init_lang()` 当前值 (与"启动即装载"终态一致)。
+	/// init 时取 `Lang::init_lang()` 当前值 (Java 为启动即装载的静态字段)。
 	lang: Lang,
-	/// PORT: NotificationService.show 注入回调 (None = 未注入, 静默)
+	/// 通知注入回调 (None = 未注入, 静默)
 	notify: Option<NotifySink>,
-	/// `new FlightAnalyzer()` 依赖的 Service 活读面 (集成合同: analyze 每次调用
-	/// 活读 elapsedTime/totalHp 等 7 字段, 故注入 Arc 而非快照 — 见模块头 PORT)
+	/// FlightAnalyzer 依赖的 Service 活读面 (analyze 每次调用活读 7 字段,
+	/// 故注入 Arc 而非快照 — 见模块头)
 	analyze_service: Option<Arc<dyn AnalyzerService + Send + Sync>>,
 }
 
-/// 对应 Java: `new FlightLog()` — 字段默认值 (PORTING §2.10: 引用 null → Option::None,
-/// boolean false, long 0, firstAnalyze=true 为 Java 显式初始化值)
+/// 对应 `new FlightLog()` — 引用 None / boolean false / long 0 / first_analyze=true
 impl Default for FlightLog {
 	fn default() -> Self {
 		Self::new()
@@ -236,22 +189,21 @@ impl FlightLog {
 		}
 	}
 
-	/// 通知回调便捷调用 (Java: `ui.util.NotificationService.show(Lang.xxx)`)
+	/// 通知回调便捷调用
 	fn notify_show(&self, text: &str) {
 		if let Some(n) = &self.notify {
 			n(text);
 		}
 	}
 
-	/// 对应 Java: `void writeLabel(FileWriter txt) throws IOException`
+	/// 写 CSV 表头行
 	fn write_label(txt: Option<&mut File>, lang: &Lang) -> io::Result<()> {
 		let Some(txt) = txt else {
-			// → IOException("Stream closed") — init 文件打开失败路径即走这里
+			// → "Stream closed" — init 文件打开失败路径即走这里
 			return Err(stream_closed());
 		};
 		let mut bw = BufWriter::new(txt);
-		// l1..l31 按序写出 (Java writeLabel 的 31 次 write, 顺序即 CSV 列序;
-		// 波14 平铺收敛为数组循环, 每次字节流逐次等价)
+		// l1..l31 按序写出 (顺序即 CSV 列序; 平铺收敛为数组循环, 字节流逐次等价)
 		let labels = [
 			&lang.l1, &lang.l2, &lang.l3, &lang.l4, &lang.l5, &lang.l6, &lang.l7,
 			&lang.l8, &lang.l9, &lang.l10, &lang.l11, &lang.l12, &lang.l13, &lang.l14,
@@ -266,11 +218,10 @@ impl FlightLog {
 		bw.write_all(b"
 ")?;
 		bw.flush()?;
-		// bw.close();
 		Ok(())
 	}
 
-	/// 对应 Java: `void writeData(BufferedWriter bw) throws IOException`
+	/// 写一行遥测数据 (尾注 // N 为 CSV 列序)
 	#[allow(unused_assignments)]
 	fn write_data(bw: Option<&mut BufWriter<File>>, xs: &FlightLogSnapshot) -> io::Result<()> {
 		let Some(bw) = bw else {
@@ -342,8 +293,6 @@ impl FlightLog {
 		write!(bw, "{},", xs.aos)?; // 30
 
 		bw.write_all(b"\n")?;
-		// bw.flush();
-		// bw.close();
 		Ok(())
 	}
 
@@ -353,8 +302,7 @@ impl FlightLog {
 		if xs.check_alt.wrapping_abs() > 10 {
 			if self.first_analyze {
 				// 第一次分析，先取当前高度
-				// Java `new FlightAnalyzer()` — 同 crate 直接构造 (集成合同, 见模块头);
-				// notify 与 FlightLog 共用同一 sink (flight_analyzer.rs 模块头合同)
+				// notify 与 FlightLog 共用同一 sink
 				let mut fa = FlightAnalyzer::default();
 				fa.notify = self.notify.clone();
 				let src = self
@@ -367,7 +315,6 @@ impl FlightLog {
 			} else {
 				// 开始分析
 				let fa = self.f_a.as_mut().expect("PORT: Java 不变量 — firstAnalyze==false ⇒ fA!=null");
-				// 与 Rust as i32 语义一致
 				fa.analyze(stage);
 				fa.update_em_chart(
 					xs.ias_v,
@@ -384,7 +331,7 @@ impl FlightLog {
 
 	}
 
-	/// 对应 Java: `void writeClimbLabel(FileWriter txt) throws IOException`
+	/// 写爬升 CSV 表头
 	fn write_climb_label(txt: &mut File, lang: &Lang) -> io::Result<()> {
 		let mut bw = BufWriter::new(txt);
 		// 高度
@@ -404,14 +351,13 @@ impl FlightLog {
 
 		bw.write_all(b"\n")?;
 		bw.flush()?;
-		// bw.close();
 		Ok(())
 	}
 
-	/// 对应 Java: `void writeClimbData(FileWriter txt) throws IOException`
+	/// 写爬升 CSV 数据行
 	fn write_climb_data(txt: &mut File, f_a: Option<&FlightAnalyzer>) -> io::Result<()> {
 		let mut bw = BufWriter::new(txt);
-		// 逃逸 saveClimbData 的 catch 直达 close() 调用方) — §1 映射: panic!
+		// fA == null (全程未触发高度分析) 时 Java 抛 NPE 逃逸 catch → 此处 panic 对应
 		let f_a = f_a.unwrap_or_else(|| {
 			panic!("PORT: Java NPE — fA == null (全程未触发高度分析) 于 fA.curaltStage 抛 NullPointerException")
 		});
@@ -423,15 +369,12 @@ impl FlightLog {
 			write!(bw, "{}, ", f_a.power[i])?;
 			write!(bw, "{}, ", f_a.thrust[i])?;
 			writeln!(bw, "{}", java_double_to_string(f_a.sep[i]))?;
-
-			// bw.write("\n");
 		}
-		// Application.debugPrint(String.format("total %d climb data logged", fA.curaltStage));
 		bw.flush()?;
 		Ok(())
 	}
 
-	/// saveClimbData/saveRollData/saveNyData 三胞胎的共用骨架 (波14 收敛):
+	/// save_climb_data/save_roll_data/save_ny_data 三胞胎的共用骨架:
 	/// 打开 CSV → 写表头 → 写数据; 失败路径逐一对齐 (创建失败 notify+warn+return,
 	/// 写失败按 warn_tag 区分)。
 	fn save_analysis_csv(
@@ -678,7 +621,7 @@ impl FlightLog {
 		self.logon.store(false, Ordering::SeqCst);
 	}
 
-	/// 对应 Java: `public void logTick()` (Service 轮询线程直调, Service.java:1827)
+	/// 对应 Java: `public void logTick()` (Service 轮询线程直调)
 	pub fn log_tick(&mut self, xs: &FlightLogSnapshot) {
 		self.analyze_data(xs);
 		if let Err(e) = FlightLog::write_data(self.csv_writter.as_mut(), xs) {

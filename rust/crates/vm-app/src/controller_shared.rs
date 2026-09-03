@@ -18,10 +18,10 @@ pub const FLIGHT_SILENT_EXIT_MS: i64 = 2000;
 /// 每次托盘重建归零 — 旧核在途回调持旧世代号比对旧核, 靠 stop() 的 ++ 兜底);
 /// Rust 收敛为 AppShell 级单调 (跨重建不重置), 防过期判定只会更严, 无假接受面。
 pub struct ControllerShared {
-    /// Java Controller.java:42 `AtomicLong previewGeneration`
+    /// Java `AtomicLong previewGeneration` 实例字段
     pub preview_generation: AtomicU64,
     /// Java `public ControllerState State` — 主线程写, 渲染线程读 (stale 守卫)。
-    /// Java 无锁靠 EDT 单线程; Rust 以 RwLock 承载跨线程读
+    /// Java 无锁靠 UI 线程单线程; Rust 以 RwLock 承载跨线程读
     pub state: RwLock<ControllerState>,
     /// Java loadAppCheck 写入的轮询间隔组 (ConfigurationService.load_app_check 目标)
     pub intervals: Mutex<ControllerIntervals>,
@@ -45,7 +45,7 @@ pub struct ControllerShared {
     /// PORT(B1 补偿): vm-data 不外泄原始串 (http_client 轮询线程独占),
     /// 游戏退出 (HTTP 失败 → 串复位空串, http_helper NSTRING) 时 State/Indicators
     /// 的 update 不执行, flags 保留陈旧真值 — Java 的 "串空 → S4toS1" 路径
-    /// (Service.java:1785-1790) 在 flags 判定下不可达。以 "事件流静默超时"
+    /// 在 flags 判定下不可达。以 "事件流静默超时"
     /// 顶替: player_live 轮每 ~50ms 发布一帧, 游戏退出即停发; 静默超过
     /// [`FLIGHT_SILENT_EXIT_MS`] 且 flags/playerLive 陈旧真值 → 判定会话结束。
     /// vm-data 后续波次补 raw_strings_valid 外泄后回收本补偿。
@@ -61,15 +61,15 @@ pub struct ControllerShared {
     pub overlay_present: Mutex<BTreeMap<String, u64>>,
 }
 
-/// Controller 低频杂项字段 (Java Controller.java:122-134/196)
+/// Controller 低频杂项字段 (Java Controller 实例字段的收敛)
 #[derive(Debug, Clone)]
 #[derive(Default)]
 pub struct ControllerFlags {
     /// `private boolean showStatus` (loadFromConfig 同步; StatusBar 未移植, 仅保位)
     pub show_status: bool,
-    /// `private String sessionAircraftType` (onAircraftChanged 幂等去重, Controller.java:196)
+    /// `private String sessionAircraftType` (onAircraftChanged 幂等去重)
     pub session_aircraft_type: Option<String>,
-    /// `private int currentFmHotkeyCode` (热键重绑定跟踪, Controller.java:153)
+    /// `private int currentFmHotkeyCode` (热键重绑定跟踪)
     pub current_fm_hotkey_code: i32,
 }
 
@@ -90,9 +90,9 @@ impl ControllerShared {
         }
     }
 
-    /// 托盘重建新核前复位 (Java 构造器 L582 `State = ControllerState.INIT` 显式赋值;
+    /// 托盘重建新核前复位 (Java 构造器显式赋值 `State = ControllerState.INIT`;
     /// 审查 A-W1: sessionAircraftType 是 Controller 实例字段, Java 每次托盘重建随新
-    /// 实例归 null (Controller.java:196) — Rust flags 跨核共享, 需显式复位, 否则
+    /// 实例归 null — Rust flags 跨核共享, 需显式复位, 否则
     /// 重建后首个不同机型被误判 is_switch。overlay_ctx_preview 同理回预览态初值,
     /// 防残留游戏模式值影响 INIT 期的激活探测)
     pub fn reset_for_rebuild(&self) {
@@ -133,8 +133,8 @@ impl Default for ControllerShared {
 }
 
 /// 防过期守卫 (渲染线程消费 UiCommand::RefreshPreviews 时调用)。
-/// PORT: Java Controller.refreshPreviews 的 invokeLater 内守卫
-/// (Controller.java:894: `State != PREVIEW || previewGeneration.get() != generation`)。
+/// PORT: Java refreshPreviews 的 UI 线程派发内守卫
+/// (`State != PREVIEW || previewGeneration.get() != generation`)。
 /// Java 防抖路径 (configChanged/fmChanged 任务体) 无此守卫 (★2 违规波及面),
 /// Rust 统一经本守卫 — 世代号不匹配或已离开 PREVIEW 即丢弃。
 pub fn is_stale_refresh(shared: &ControllerShared, generation: u64) -> bool {

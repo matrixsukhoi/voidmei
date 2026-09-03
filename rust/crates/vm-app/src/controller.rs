@@ -36,11 +36,11 @@ use crate::voice_setup::SnapshotConfigProvider;
 use crate::render_thread::ChannelFocusBridge;
 
 // =====================================================================
-// FlightLog 接线辅助 (Controller.java:366-376/402-411 的依赖注入面)
+// FlightLog 接线辅助 (openpad/closepad 的依赖注入面)
 // =====================================================================
 
-/// Java `Controller.logon` 布尔 (Controller.java:44) 的写入面对位: 唯一写点 =
-/// FlightLog.init 失败路径的 `xc.logon = false` (FlightLog.java:409), 语义为
+/// Java `Controller.logon` 布尔的写入面对位: 唯一写点 =
+/// FlightLog.init 失败路径的 `xc.logon = false`, 语义为
 /// "停 tick" — Rust 以清槽表达 (槽 None ⇒ Service 轮询 logTick 短路)。
 /// true 分支无 Java 写点, 空实现。
 struct LogonSink(FlightLogSlot);
@@ -94,9 +94,9 @@ pub struct Controller {
     /// live 事件活跃度订阅 (B1 补偿信号, 见 ControllerShared.last_flight_event_ms;
     /// start 建 / stop 退 — 回调在 Service 发布线程, 只写原子时间戳不碰 UI)
     live_sub: Option<Subscription<FlightDataEvent>>,
-    /// FlightLog 共享槽 (Java Controller.java:44 `logon` + `Log` 字段二位一体的
-    /// 收敛形态): openpad/closepad/换机换入换出, Service 轮询线程每轮 logTick
-    /// (Service.java:1824-1828)。随核销毁 (stop 的 closepad 路径保存)
+    /// FlightLog 共享槽 (Java Controller `logon` + `Log` 字段二位一体的
+    /// 收敛形态): openpad/closepad/换机换入换出, Service 轮询线程每轮 logTick。
+    /// 随核销毁 (stop 的 closepad 路径保存)
     pub(crate) flight_log: FlightLogSlot,
     /// Service 线程句柄 (stop 步4: take + stop)
     pub service: Option<ServiceHandle>,
@@ -109,7 +109,7 @@ pub struct Controller {
 }
 
 impl Controller {
-    /// Java Controller(boolean isInitialLaunch) 构造器 (Controller.java:469-610)。
+    /// Controller 构造 (对位 Java Controller(isInitialLaunch) 构造器)。
     /// PORT(侧序): configService.initConfig() 与 initDynamicOverlays 的文件装载
     /// 挪至 AppShell 构造面 (配置服务先于 Controller 存在, 免测试写盘副作用);
     /// overlayManager 注册挪至渲染线程一次性注册 (host 跨重建存活, 条目为
@@ -219,7 +219,7 @@ impl Controller {
         let _ = self.ui_cmd_tx.send(cmd);
     }
 
-    /// Java:479-489 构造器内的 FM 热键绑定
+    /// 构造器内的 FM 热键初始绑定
     fn bind_fm_hotkey_initial(&mut self) {
         let enable =
             java_parse_boolean(&self.config.get_config("enableFMPrint").unwrap_or_default());
@@ -241,7 +241,7 @@ impl Controller {
         // load_app_check 自配置维护, 不双写
     }
 
-    /// Java:601/608 "FM-Detect" 一次性线程 → detectAndIdentify (865-877)。
+    /// "FM-Detect" 一次性线程 → detect_and_identify。
     /// PORT: selectedFM0 在主线程预读 (配置 !Send 不入线程); HttpHelper/FMManager Send。
     /// spawn 失败降级 (E9c, 对齐渲染线程侧 Result 面): 记日志跳过本次探测
     fn spawn_fm_detect(&self) {
@@ -257,12 +257,12 @@ impl Controller {
         }
     }
 
-    /// Java:447-454 loadFromConfig — loadAppCheck + showStatus 同步
+    /// loadFromConfig — loadAppCheck + showStatus 同步
     pub(crate) fn load_from_config_(&self) {
         load_from_config(&self.config, &self.shared, &self.voice);
     }
 
-    /// Java:823-847 handleFmHotkeyConfigChange — 解绑旧键/绑新键
+    /// FM 热键配置变更 — 解绑旧键/绑新键
     pub(crate) fn handle_fm_hotkey_config_change(&self) {
         let enable =
             java_parse_boolean(&self.config.get_config("enableFMPrint").unwrap_or_default());
@@ -295,7 +295,7 @@ impl Controller {
     // 模式切换 (状态机核心)
     // ------------------------------------------------------------------
 
-    /// Java:612-645 start() — INIT 守卫; 释放设置窗 → 起 Service → 存配置。
+    /// start() 进入游戏模式 — INIT 守卫; 释放设置窗 → 起 Service → 存配置。
     /// `release_main_form`: 步"释放设置窗"注入点 (M.stopRepaintTimer+dispose 的
     /// 主线程对位物, AppShell 传入真窗释放闭包)。
     pub fn start(&mut self, release_main_form: &mut dyn FnMut()) {
@@ -348,7 +348,7 @@ impl Controller {
             // FlightDataBus 单例语义 (LIFETIMES §1.1): AppShell 分发同一 Arc
             Arc::clone(&self.flight_bus),
         );
-        // FocusMonitor 装配 (轮 2-C 收口, Java Controller.java:353-360 语义:
+        // FocusMonitor 装配 (轮 2-C 收口, Java openpad/closepad 语义:
         // 会话启动按 cfg 启停 — 与 Service 同生共死, closepad 停 Service 即失效,
         // 等价 Java openpad 时 setEnabled + closepad setEnabled(false)):
         // tick 在 Service 轮询线程, 失焦回调经通道桥送渲染线程执行 host hide/show
@@ -372,8 +372,8 @@ impl Controller {
             );
             service.set_focus_monitor(fm);
         }
-        // FlightLog 槽注入 (Service 轮询线程每轮 logTick, Service.java:1824-1828;
-        // Controller.java:44 logon/Log 字段的共享面) — spawn 前随其余注入一次
+        // FlightLog 槽注入 (Service 轮询线程每轮 logTick;
+        // Java Controller logon/Log 字段的共享面) — spawn 前随其余注入一次
         service.set_flight_log(Arc::clone(&self.flight_log));
         // 公式系统会话覆盖 (E11): Service 构造时已装载 formulas.cfg+user 并进
         // live 集, 此处换入共享 cell 供 vm-webui 命令线程访问 (启动桥实例退役,
@@ -396,11 +396,11 @@ impl Controller {
         self.config.save_layout_config();
     }
 
-    /// Java Controller.stop() 五步销毁 (Controller.java:763-817, LIFETIMES §4.2 规范)。
+    /// Controller 五步销毁 (对位 Java stop(), LIFETIMES §4.2 规范)。
     /// 顺序逐字保留; 步3 释放设置窗经注入闭包 (MainForm 归主线程 iced, W2 接线)。
     pub fn stop(&mut self, release_main_form: &mut dyn FnMut()) {
         // 1. 先关闭所有 overlay (预览/游戏模式) — 必须在 dispose MainForm 之前
-        //    (Controller.java:763-779: previewGeneration++ 作废在途回调)
+        //    (previewGeneration++ 作废在途回调)
         if self.shared.state() == ControllerState::Preview {
             self.shared
                 .preview_generation
@@ -411,17 +411,17 @@ impl Controller {
                 self.send_ui(UiCommand::CloseAllOverlays);
             }
         }
-        // 2. 取消事件订阅 (防重建后旧实例响应; RAII Drop = unsubscribe, Java 781-795;
+        // 2. 取消事件订阅 (防重建后旧实例响应; RAII Drop = unsubscribe;
         //    live_sub 为 Rust 侧 B1 补偿订阅, 同步退订防旧核刷新新核时间戳)
         self.subs.clear();
         self.fm_sub = None;
         self.live_sub = None;
-        // 3. 清理 MainForm (Java:797-802 M.stopRepaintTimer + dispose + M=null)
+        // 3. 清理 MainForm (M.stopRepaintTimer + dispose + M=null)
         if self.main_form_alive {
             release_main_form();
             self.main_form_alive = false;
         }
-        // 4. 清理 Service 线程 (Java:804-809 S=null; S1.interrupt())
+        // 4. 清理 Service 线程 (S=null; S1.interrupt())
         *self.shared.live.write().expect("live 锁中毒") = None;
         if let Some(mut h) = self.service.take() {
             let clean = h.stop(); // stop 标志 + join (interrupt 的电平形态)
@@ -429,11 +429,11 @@ impl Controller {
                 logger::error("Controller", "Service 线程非正常退出 (§6 契约破坏观测点)");
             }
         }
-        // 5. 保存配置 (Java:811-814; save_config 为空实现 — 全量在 ui_layout.cfg)
+        // 5. 保存配置 (save_config 为空实现 — 全量在 ui_layout.cfg)
         self.config.save_config();
     }
 
-    /// Java:849-857 Preview() — State=PREVIEW; 世代号快照; 后台线程刷新预览。
+    /// 进入预览模式 — State=PREVIEW; 世代号快照; 后台线程刷新预览。
     pub fn preview(&mut self) {
         logger::info("Controller", "Enabling Preview mode...");
         self.shared.set_state(ControllerState::Preview);
@@ -467,7 +467,7 @@ impl Controller {
         }
     }
 
-    /// Java:912-920 endPreview() — Preview 退出 (MainForm.confirm 前半)。
+    /// 退出预览模式 (MainForm.confirm 前半)。
     pub fn end_preview(&mut self) {
         logger::info("Controller", "Exiting Preview mode...");
         self.shared
@@ -478,7 +478,7 @@ impl Controller {
         self.shared.set_state(ControllerState::Init);
     }
 
-    /// Java MainForm.confirm 的 tc 侧序列 (MainForm.java:265-278):
+    /// MainForm.confirm 的 tc 侧序列:
     /// endPreview → tc.saveConfig → tc.loadFromConfig → tc.start。
     /// (MainForm 自身的 saveConfig/hide 归 vm-ui 侧, W2 接线。)
     pub fn confirm_start_game(&mut self, release_main_form: &mut dyn FnMut()) {
@@ -493,22 +493,22 @@ impl Controller {
     // vm-data 侧调用点已由 AppShell::pump → drive_from_live 顶替)
     // ------------------------------------------------------------------
 
-    /// Java:155-175 initStatusBar — INIT → CONNECTED。
-    /// PORT: StatusBar 窗口未移植 (状态条是 Swing 组件, C 类后续), 只保状态转移。
+    /// initStatusBar — INIT → CONNECTED。
+    /// PORT: StatusBar 窗口未移植 (Java 状态条组件), 只保状态转移。
     pub fn init_status_bar(&mut self) {
         if self.shared.state() == ControllerState::Init {
             self.shared.set_state(ControllerState::Connected);
         }
     }
 
-    /// Java:177-188 changeS2 — CONNECTED → IN_GAME
+    /// changeS2 — CONNECTED → IN_GAME 状态转移
     pub fn change_s2(&mut self) {
         if self.shared.state() == ControllerState::Connected {
             self.shared.set_state(ControllerState::InGame);
         }
     }
 
-    /// Java:202-249 changeS3 — IN_GAME → PREVIEW; 识别 FM; 延迟开面板。
+    /// changeS3 — IN_GAME → PREVIEW; 识别 FM; 延迟开面板。
     pub fn change_s3(&mut self, indic_type: Option<&str>) {
         if self.shared.state() != ControllerState::InGame {
             return;
@@ -537,7 +537,7 @@ impl Controller {
                 if shared.preview_generation.load(Ordering::SeqCst) != generation {
                     return; // stop()/end_preview() 已作废本回调
                 }
-                // openpad 的 overlay 面 (Java:363 openAll); 其余面见 openpad_rest
+                // openpad 的 overlay 面 (openAll); 其余面见 openpad_rest
                 let _ = tx.send(UiCommand::OpenAllOverlays);
             })
         {
@@ -549,7 +549,7 @@ impl Controller {
         self.openpad_rest();
     }
 
-    /// Java openpad (344-386) 中非 overlay 窗口的其余面
+    /// openpad 中非 overlay 窗口的其余面
     fn openpad_rest(&mut self) {
         // FocusMonitor 随 Service 装配 (start() 内按 cfg 启停, 与会话同生共死),
         // 本处不再重复读键
@@ -561,9 +561,9 @@ impl Controller {
         }
     }
 
-    /// Java openpad 的 FlightLog 段 (Controller.java:366-376): enableLogging 开 →
+    /// openpad 的 FlightLog 段: enableLogging 开 →
     /// 通知 + `Log = new FlightLog(); Log.init(this, S, configService); logon = true`。
-    /// onAircraftChanged 换机开新 (331-333) 复用本方法。
+    /// onAircraftChanged 换机开新复用本方法。
     fn open_flight_log(&mut self) {
         if !java_parse_boolean(&self.config.get_config("enableLogging").unwrap_or_default()) {
             return;
@@ -587,7 +587,7 @@ impl Controller {
             &snap,
             // config !Send (ConfigurationService 主线程独占) 不能整件入 FlightLog
             // (Service 线程 tick); 消费面仅 FlightAnalyzer.init 一次性读
-            // "enableAltInformation" (flight_analyzer.rs:154-160, 此后 is_information
+            // "enableAltInformation" (flight_analyzer.rs, 此后 is_information
             // 固化不再读) — 单键快照与 Java 同一时刻同值, 语义等价
             // (原 FlightLogConfig 单键适配器 — 重构波2 SnapshotConfigProvider 三合一)
             Some(Arc::new(SnapshotConfigProvider::from_pairs([(
@@ -597,14 +597,14 @@ impl Controller {
             Arc::new(|t: &str| logger::info("FlightLog", t)) as vm_core::derived::flight_log::NotifySink,
             Arc::new(ServiceAnalyzerSource::new(data)),
         );
-        // 注: init 失败路径的 xc.logon=false (FlightLog.java:409) 被 Java openpad:375
+        // 注: init 失败路径的 xc.logon=false 被 Java openpad
         // 的无条件 logon=true 覆盖 (失败也 tick, 每轮 write 失败 warn — Java 行为),
         // 保真跟随无条件置 Some
         *self.flight_log.lock().expect("flight_log 槽锁中毒") = Some(Arc::new(Mutex::new(log)));
     }
 
-    /// Java closepad 的 FlightLog 段 (Controller.java:402-411): 保存通知 + 爬升档数
-    /// 判断弹 DrawFrame + `Log.close(); Log = null`。onAircraftChanged 关旧 (319-328)
+    /// closepad 的 FlightLog 段: 保存通知 + 爬升档数
+    /// 判断弹 DrawFrame + `Log.close(); Log = null`。onAircraftChanged 关旧
     /// 与 stop 的 closepad 路径复用本方法。
     fn close_flight_log(&mut self) {
         if !java_parse_boolean(&self.config.get_config("enableLogging").unwrap_or_default()) {
@@ -625,7 +625,7 @@ impl Controller {
         );
         // (爬升档数判断弹 DrawFrame 未移植, 对应的 Java bug 形态随 DrawFrame 一并豁免)
         // Log.close() 的 NPE 逃逸 closepad 时, 由 Service 轮询线程顶层 catch(Exception)
-        // 吞掉 (Service.java:1850) — 本方法在主线程 (pump) 无该兜底, catch_unwind
+        // 吞掉 — 本方法在主线程 (pump) 无该兜底, catch_unwind
         // 复刻 "崩方法不崩应用" 的 Java 净效果
         if let Err(payload) =
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| log.close()))
@@ -644,18 +644,18 @@ impl Controller {
         }
     }
 
-    /// Java closepad (388-421) — overlay 关闭 (命令) + 其余收尾面
+    /// closepad — overlay 关闭 (命令) + 其余收尾面
     pub fn closepad(&mut self) {
         self.send_ui(UiCommand::CloseAllOverlays);
         self.close_flight_log();
     }
 
-    /// Java:251-283 S4toS1 — PREVIEW → INIT (退出游戏)。
+    /// S4toS1 — PREVIEW → INIT (退出游戏)。
     pub fn s4to_s1(&mut self) {
         if self.shared.state() != ControllerState::Preview {
             return;
         }
-        // closepad 内含 FlightLog 保存 (Java:260 → 402-411)
+        // closepad 内含 FlightLog 保存
         self.closepad();
         self.fm.clear_target();
         self.shared
@@ -666,7 +666,7 @@ impl Controller {
         self.shared.set_state(ControllerState::Init);
     }
 
-    /// Java:298-342 onAircraftChanged — 换机轻量 swap (幂等, 不重启 Controller)。
+    /// 换机轻量 swap (幂等, 不重启 Controller)。
     pub fn on_aircraft_changed(&mut self, new_type: Option<&str>) {
         let Some(t) = new_type else { return };
         if t.is_empty() {
@@ -689,7 +689,7 @@ impl Controller {
                 t
             ),
         );
-        // 319-328 段含保存通知; 开新 = openpad 的 331-333 段; DrawFrame D8 豁免)
+        // 关旧含保存通知; 开新复用 openpad 的 FlightLog 段; DrawFrame D8 豁免)
         self.close_flight_log();
         self.open_flight_log();
     }
@@ -698,23 +698,23 @@ impl Controller {
     /// PORT: Java Service.processPollingCycle 内联调用 c.initStatusBar/changeS2/
     /// changeS3/S4toS1 (vm-data 侧不再回调 Controller — 本方法轮询帧快照
     /// 顶替该调用面)。strState/strIndic 原始串在 HttpHelper
-    /// 内部不可见: "flag 丢失" 分支 (Java:746-754, 串非空 + update 后 flag=false)
-    /// 以 flags 假值直接顶替; "串空" 分支 (Java:755-761, 游戏退出/8111 消失 →
+    /// 内部不可见: "flag 丢失" 分支 (串非空 + update 后 flag=false)
+    /// 以 flags 假值直接顶替; "串空" 分支 (游戏退出/8111 消失 →
     /// HTTP 失败 → 串复位空, update 不执行, flags 保留**陈旧真值**) 无法从
     /// ServiceData 观测 — 以事件流静默超时补偿 (last_flight_event_ms 注/B1):
     /// flags/playerLive 均真但事件停发超阈值 → 判定串空, S4toS1。
     /// 残余偏差 (PORT 备案): 坠机 (playerLive=false) 后再退出游戏的组合不触发
     /// (静默判定含 playerLive 真前置 — 防误杀 Java 的着陆停机等待态,
-    /// Service.java:746-754 sleep 等待路径), overlay 残留至托盘重建;
+    /// Java Service 的 sleep 等待路径), overlay 残留至托盘重建;
     /// vm-data 外泄 raw_strings_valid 后两分支可逐字保真。
     ///
     /// PORT(时序偏差声明, 审查 A-W3 — 均无观察面, StatusBar 未移植):
-    /// a) changeS2 仅在 flags 双真时调用; Java (Service.java:1718) 串非空轮内
+    /// a) changeS2 仅在 flags 双真时调用; Java 串非空轮内
     ///    update 后**无条件** changeS2 再判 flag — "串非空+flag 假" 轮 Java 停
     ///    IN_GAME (changeS2 已推), Rust 停 Connected/Init; flags 转真的下一轮
     ///    两者同轮可达 Preview, 收敛等价。
     /// b) 串空补偿分支 (下方 silent) return 前不跑 init_status_bar; Java 串空轮
-    ///    (Service.java:1711/1785-1790) 每轮仍先 initStatusBar (INIT→CONNECTED)
+    ///    每轮仍先 initStatusBar (INIT→CONNECTED)
     ///    再 S4toS1 — 游戏退出后 Java 稳态 CONNECTED (等待重连), Rust 稳态停
     ///    Init (下方注释的"不能照跑"论证即为此让步, 特此声明稳态差异)。
     pub fn drive_from_live(&mut self) {
@@ -727,7 +727,7 @@ impl Controller {
         let player_live = f.player_live;
         drop(f);
         // B1 补偿判定先行: 事件流静默 + flags/playerLive 陈旧真值 = 串空 (游戏退出)。
-        // 该轮对位 Java 串空分支 (L755-761): 只 S4toS1, 不 initStatusBar/changeS2
+        // 该轮对位 Java 串空分支: 只 S4toS1, 不 initStatusBar/changeS2
         // (两者在 Java 串非空分支内 — 若照跑, 退出后状态会被 initStatusBar 重新
         // 推到 Connected/InGame, s4to_s1 的 Preview 守卫即永久拦断)。
         // last=0 视为非静默 (flags 真值必经串非空轮, 该轮 player_live 置真即同轮
@@ -748,7 +748,7 @@ impl Controller {
                 self.fm.identify(t.as_deref());
                 self.on_aircraft_changed(i_type.as_deref());
             }
-            // else: Java 649 前的 playerLive 探测等待, 无 Controller 调用
+            // else: playerLive 探测等待, 无 Controller 调用
         } else {
             self.s4to_s1();
         }
@@ -760,7 +760,7 @@ impl Controller {
     }
 }
 
-/// Java:447-454 loadFromConfig (独立函数: 订阅转发面不持 config, 主线程统一调用)
+/// loadFromConfig (独立函数: 订阅转发面不持 config, 主线程统一调用)
 fn load_from_config(
     config: &ConfigurationService,
     shared: &ControllerShared,
@@ -783,7 +783,7 @@ fn load_from_config(
     }
 }
 
-/// Java:865-877 detectAndIdentify — live 机型探测 → selectedFM0 兜底 → identify。
+/// detectAndIdentify — live 机型探测 → selectedFM0 兜底 → identify。
 /// `probe_network=false` 跳过 live 探测只走配置兜底 (测试注入面, 见 ControllerDeps)。
 fn detect_and_identify(selected_fm0: &str, http_header: &str, fm: &FMManager, probe_network: bool) {
     // getLiveAircraftType 自带异常兜底 (失败/无游戏 → None)

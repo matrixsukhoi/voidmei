@@ -37,7 +37,7 @@ use super::ctx::MiniHudFonts;
 
 /// MiniHUD 组件清单的异构装箱 (Java 各组件类; Rust 组件已译于
 /// rows/gauges_bars/gauge_* 模块, 此处按 MiniHUDOverlay 的具名槽位装箱)。
-/// Java Row2 = HUDMechanizationRow (MiniHUDOverlay.java:561; 三段拆分:
+/// Java Row2 = HUDMechanizationRow (MiniHUDOverlay; 三段拆分:
 /// 襟翼/减速板/起落架独立开关 + 模板占位推进, rows.rs 同译)。
 pub enum MiniHudComponentInner {
     /// hudRows[0]: HUDAkbRow (速度 + AoA)
@@ -103,17 +103,17 @@ impl MiniHudComponent {
     /// 字体经 self.fonts 达成无参签名 — solve() 调用约束)
     pub fn preferred_size(&self) -> Dimension {
         match &self.inner {
-            // HUDAkbRow.java:102-112 (rows.rs preferred_size 同译)
+            // HUDAkbRow (rows.rs preferred_size 同译)
             MiniHudComponentInner::Row0(r) => {
                 let (w, h) = r.preferred_size(&self.fonts.draw, &self.fonts.small);
                 Dimension::new(w, h)
             }
-            // HUDEnergyRow.java:78-88
+            // HUDEnergyRow
             MiniHudComponentInner::Row1(r) => {
                 let (w, h) = r.preferred_size(&self.fonts.draw, &self.fonts.small);
                 Dimension::new(w, h)
             }
-            // HUDMechanizationRow.java:115-131 (三段模板占位宽之和)
+            // HUDMechanizationRow (三段模板占位宽之和)
             MiniHudComponentInner::Row2(r) => {
                 let (w, h) = r.preferred_size(&self.fonts.draw);
                 Dimension::new(w, h)
@@ -122,38 +122,38 @@ impl MiniHudComponent {
                 let (w, h) = r.preferred_size(&self.fonts.draw);
                 Dimension::new(w, h)
             }
-            // HUDManeuverRow.java:123-128
+            // HUDManeuverRow
             MiniHudComponentInner::Row4(r) => {
                 let (w, h) = r.preferred_size(&self.fonts.draw);
                 Dimension::new(w, h)
             }
-            // FlapAngleBar.java:47-51: w = totalWidth>0 ? totalWidth : 200;
+            // FlapAngleBar: w = totalWidth>0 ? totalWidth : 200;
             // h = (font!=null ? font.size : 12) + barHeight + 5 (font = drawFontSmall)
             MiniHudComponentInner::FlapBar(b) => Dimension::new(
                 if b.total_width() > 0 { b.total_width() } else { 200 },
                 self.fonts.small.size + b.bar_height() + 5,
             ),
-            // SpeedRatioBar.java:54-56
+            // SpeedRatioBar
             MiniHudComponentInner::SpeedRatioBar(s) => {
                 Dimension::new(s.width(), s.height())
             }
-            // LinearGauge.java:61-76 (vertical): textMetric = fontNum.size*2 + thickness;
+            // LinearGauge (vertical): textMetric = fontNum.size*2 + thickness;
             // height = lengthCache (fontNum = drawFontSSmall)
             MiniHudComponentInner::ThrottleBar(t) => Dimension::new(
                 self.fonts.s_small.size * 2 + t.thickness_cache(),
                 t.length_cache(),
             ),
-            // AttitudeIndicatorGauge.java:63-66
+            // AttitudeIndicatorGauge
             MiniHudComponentInner::Attitude(a) => {
                 let (w, h) = a.preferred_size();
                 Dimension::new(w, h)
             }
-            // CompassGauge.java:58-60
+            // CompassGauge
             MiniHudComponentInner::Compass(c) => {
                 let (w, h) = c.preferred_size();
                 Dimension::new(w, h)
             }
-            // CrosshairGauge.java:38-44 (软件分支)
+            // CrosshairGauge (软件分支)
             MiniHudComponentInner::Crosshair(c) => {
                 let (w, h) = c.preferred_size();
                 Dimension::new(w, h)
@@ -164,7 +164,7 @@ impl MiniHudComponent {
     /// HUDComponent.onDataUpdate(HUDData) — 各 Java 组件覆写的分发
     pub fn on_data_update(&mut self, data: &HUDData) {
         match &mut self.inner {
-            // HUDAkbRow.java:56-73: super.update(speedStr, warnVne) + aoa 族 +
+            // HUDAkbRow: super.update(speedStr, warnVne) + aoa 族 +
             // aoaY = (int)(aoaRatio*aoaLength) 钳 rightDraw (rows.rs set_aoa_from_ratio)
             MiniHudComponentInner::Row0(r) => {
                 r.base.update(&data.speed_str, data.warn_vne);
@@ -174,21 +174,21 @@ impl MiniHudComponent {
                 r.aoa_bar_color = data.aoa_bar_color;
                 r.set_aoa_from_ratio(data.aoa_ratio);
             }
-            // HUDEnergyRow.java:44-50
+            // HUDEnergyRow
             MiniHudComponentInner::Row1(r) => {
                 r.update(&data.alt_str, data.warn_altitude, &data.energy_str);
             }
-            // HUDMechanizationRow.java:63-70: 三段串直取 + isWarning 直写
+            // HUDMechanizationRow: 三段串直取 + isWarning 直写
             MiniHudComponentInner::Row2(r) => {
                 r.on_data_update(data);
             }
             // Row3/Row4 无 onDataUpdate 覆写 (default 空) — 数据走 updateLegacyComponents 桥
             MiniHudComponentInner::Row3(_) | MiniHudComponentInner::Row4(_) => {}
-            // FlapAngleBar.java:60-67
+            // FlapAngleBar
             MiniHudComponentInner::FlapBar(f) => {
                 f.update(data.flaps, data.flap_allow_angle);
             }
-            // SpeedRatioBar.java:70-78
+            // SpeedRatioBar
             MiniHudComponentInner::SpeedRatioBar(s) => {
                 s.update(
                     data.speed_bar_speed_ratio,
@@ -198,15 +198,15 @@ impl MiniHudComponent {
                     data.speed_bar_rudder_lock_ratio,
                 );
             }
-            // CompassGauge.java:83-99 (heading/mapGrid 两输入)
+            // CompassGauge (heading/mapGrid 两输入)
             MiniHudComponentInner::Compass(c) => {
                 c.update(data.heading, &data.map_grid);
             }
-            // AttitudeIndicatorGauge.java:192-224
+            // AttitudeIndicatorGauge
             MiniHudComponentInner::Attitude(a) => {
                 a.on_data_update(data);
             }
-            // LinearGauge.java:91-103 (label=="ThrottleBar" 分支)
+            // LinearGauge (label=="ThrottleBar" 分支)
             MiniHudComponentInner::ThrottleBar(t) => {
                 t.update(data.throttle, &fmt_d(data.throttle, 3));
                 t.set_value_color(Some(data.throttle_color));
@@ -226,15 +226,15 @@ impl MiniHudComponent {
             MiniHudComponentInner::Row2(r) => r.draw(cv, x, y, &f.draw, aa),
             MiniHudComponentInner::Row3(r) => r.draw(cv, x, y, &f.draw, aa),
             MiniHudComponentInner::Row4(r) => r.draw(cv, x, y, &f.draw, aa),
-            // FlapAngleBar: font=drawFontSmall (applyStyleToComponents L615)
+            // FlapAngleBar: font=drawFontSmall (applyStyleToComponents)
             MiniHudComponentInner::FlapBar(b) => b.draw(cv, x, y, Some(&f.small), aa),
-            // SpeedRatioBar: tickFont=drawFontSSmall (applyStyleToComponents L601)
+            // SpeedRatioBar: tickFont=drawFontSSmall (applyStyleToComponents)
             MiniHudComponentInner::SpeedRatioBar(s) => s.draw(cv, x, y, Some(&f.s_small), aa),
-            // LinearGauge: fontNum=drawFontSSmall (applyStyleToComponents L645)
+            // LinearGauge: fontNum=drawFontSSmall (applyStyleToComponents)
             MiniHudComponentInner::ThrottleBar(t) => t.draw(cv, x, y, &f.s_small, aa),
-            // Attitude: font=drawFontSmall (applyStyleToComponents L624)
+            // Attitude: font=drawFontSmall (applyStyleToComponents)
             MiniHudComponentInner::Attitude(a) => a.draw(cv, x, y, Some(&f.small), aa),
-            // Compass: fontSmall=drawFontSmall (applyStyleToComponents L618)
+            // Compass: fontSmall=drawFontSmall (applyStyleToComponents)
             MiniHudComponentInner::Compass(c) => c.draw(cv, x, y, Some(&f.small), aa),
             MiniHudComponentInner::Crosshair(c) => c.draw(cv, x, y, aa),
         }
@@ -326,7 +326,7 @@ impl MiniHudOverlay {
         }
     }
 
-    /// Java refreshTemplates() (L161-208)
+    /// Java refreshTemplates()
     pub(super) fn refresh_templates<S: HUDSettings>(&mut self, settings: &S) {
         let spd_pre = if settings.is_speed_label_disabled() { "" } else { "SPD" };
         let alt_pre = if settings.is_altitude_label_disabled() { "" } else { "ALT" };
@@ -370,7 +370,7 @@ impl MiniHudOverlay {
         }
     }
 
-    /// refreshTemplates 尾部的模板推送 (L201-207; 行句柄借用拆出)
+    /// refreshTemplates 尾部的模板推送 (行句柄借用拆出)
     pub(super) fn set_row_templates(&mut self) {
         let (l0, laoa, l1, lrel, l2, l3, l4) = (
             self.lines[0].clone(),
@@ -393,7 +393,7 @@ impl MiniHudOverlay {
         });
         self.hud_rows[2].map_inner(|inner| {
             if let MiniHudComponentInner::Row2(r) = inner {
-                // PORT: Java MiniHUDOverlay.java:204 强转 HUDTextRow, 但 setTemplate 非
+                // PORT: Java MiniHUDOverlay 强转 HUDTextRow, 但 setTemplate 非
                 // final 且被 HUDMechanizationRow 同签名覆写 → 虚分派走覆写 (super + 三段
                 // 模板重解析)。须调完整 set_template 而非仅基座, 否则模板变化时三段
                 // 占位宽滞留旧值 (Java 会重解析)
@@ -412,7 +412,7 @@ impl MiniHudOverlay {
         });
     }
 
-    /// Java initComponentsLayout() (L524-589)
+    /// Java initComponentsLayout()
     pub(super) fn init_components_layout<S: HUDSettings>(&mut self, settings: &S) {
         self.components.clear(); // Ensure list is clean on re-init
 
@@ -420,7 +420,7 @@ impl MiniHudOverlay {
         let cell = |inner: MiniHudComponentInner| CompCell::new(inner, Rc::clone(&fonts));
 
         // 0.~3. 六具名仪表 (构造集与 init 占位共用一份; 入表序 = Java 添加序:
-        // warningOverlay 已由 WarningBlinkHost 组合持有, Java:528)
+        // warningOverlay 已由 WarningBlinkHost 组合持有, )
         let ng = Self::named_gauge_cells(&fonts, self.ctx.round_compass);
         self.flap_angle_bar = ng.flap_angle_bar;
         self.components.push(self.flap_angle_bar.clone());
@@ -429,7 +429,7 @@ impl MiniHudOverlay {
         self.speed_ratio_bar = ng.speed_ratio_bar;
         self.components.push(self.speed_ratio_bar.clone());
 
-        // 1. Compass — 构造注入 ctx.roundCompass (Java:537)
+        // 1. Compass — 构造注入 ctx.roundCompass
         self.compass_gauge = ng.compass_gauge;
         self.components.push(self.compass_gauge.clone());
 
@@ -437,11 +437,11 @@ impl MiniHudOverlay {
         self.attitude_indicator_gauge = ng.attitude_indicator_gauge;
         self.components.push(self.attitude_indicator_gauge.clone());
 
-        // 3. Crosshair — 无条件入 components (节点是否建由 cfg 决定, Java:545-546)
+        // 3. Crosshair — 无条件入 components (节点是否建由 cfg 决定, )
         self.crosshair_gauge = ng.crosshair_gauge;
         self.components.push(self.crosshair_gauge.clone());
 
-        // 4. Rows (L549-578) — 构造第三参 height = ctx.hudFontSize (Java 各行构造)
+        // 4. Rows — 构造第三参 height = ctx.hudFontSize (Java 各行构造)
         let h = self.ctx.hud_font_size;
         let mut row0 = HUDAkbRow::new(0, h, self.ctx.right_draw, self.ctx.line_width);
         row0.set_template(Some(&self.lines[0]), Some(&self.line_aoa));
@@ -474,11 +474,11 @@ impl MiniHudOverlay {
             self.components.push(row.clone());
         }
 
-        // 5. Bars — throttleBar (Java:581: new LinearGauge("ThrottleBar", 110, true, false))
+        // 5. Bars — throttleBar (new LinearGauge("ThrottleBar", 110, true, false))
         self.throttle_bar = ng.throttle_bar;
         self.components.push(self.throttle_bar.clone());
 
-        // Ensure everything is styled and updated before layout & sizing (Java 注释)
+        // 布局/定尺寸前确保全部组件已 styled/updated (Java 注释原文)
         self.apply_style_to_components(settings);
         // PORT: 同 init 尾部 — Java 读 service 字段, 此处 None (throttle 闪 0,
         // 下一放行 on_flight_data 修复, ≤1 帧)
@@ -487,7 +487,7 @@ impl MiniHudOverlay {
         self.init_modern_layout(settings);
     }
 
-    /// Java applyStyleToComponents() (L591-647)
+    /// Java applyStyleToComponents()
     pub(super) fn apply_style_to_components<S: HUDSettings>(&mut self, settings: &S) {
         if self.components.is_empty() {
             // 恒在, 以 components 清单空近似同一守卫 (占位件随后被整体替换)
@@ -523,7 +523,7 @@ impl MiniHudOverlay {
         });
         self.crosshair_gauge.map_inner(|inner| {
             if let MiniHudComponentInner::Crosshair(g) = inner {
-                // PORT: Java useTextureCrosshair 纹理分支 (L605-607) 不迁移 —
+                // PORT: Java useTextureCrosshair 纹理分支不迁移 —
                 // gauge_crosshair.rs 裁决, 软件路径即唯一视觉语义
                 g.set_style_context(settings.get_crosshair_scale());
             }
@@ -613,14 +613,14 @@ impl MiniHudOverlay {
         });
     }
 
-    /// Java initModernLayout() (L652-763) — 树构建委托
+    /// Java initModernLayout() — 树构建委托
     /// minihud_layout::build_mihud_layout (spec 表快照), 此处组 parts。
     pub(super) fn init_modern_layout<S: HUDSettings>(&mut self, settings: &S) {
         let cfg = MiniHudLayoutConfig {
-            // Java L654: hudSettings.isDisplayCrosshair()
+            // hudSettings.isDisplayCrosshair()
             // (= getBool("displayCrosshair", false), ConfigurationService 兜底)
             display_crosshair: settings.is_display_crosshair(),
-            // Java L668: hudSettings.getBool("enableLayoutDebug", false)
+            // hudSettings.getBool("enableLayoutDebug", false)
             enable_layout_debug: settings.get_bool("enableLayoutDebug", false),
         };
         let parts = MiniHudParts {

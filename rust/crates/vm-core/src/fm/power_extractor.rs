@@ -1,7 +1,7 @@
 //! Extracts engine parameters from parsed FM (Flight Model) data and converts
 //! them to the format required by [`crate::fm::piston_model`].
 //!
-//! <p>This class bridges the gap between Blkx's raw data arrays and the
+//! <p>This module bridges the gap between FmData's raw data arrays and the
 //! structured CompressorStageParams objects needed for power calculations.
 //!
 //! <h3>WAPC Compatibility</h3>
@@ -25,11 +25,6 @@
 //! 4. brrritish_octane_adder()        ← modifies WEP parameters
 //! 5. wep_mulitiplierer()             ← uses modified WEP params
 //! </pre>
-//!
-//! 对应 Java: `src/prog/util/FMPowerExtractor.java` (一比一翻译)
-
-// PORT: Java `private FMPowerExtractor() {}` (final 工具类, 私有构造器防实例化)
-// → Rust 自由函数模块无实例化概念, 天然满足
 
 use crate::base::atmosphere_model::{altitude_at_pressure, pressure};
 use crate::fm::data::{CompressorData, FmData, FuelModification, FuelType};
@@ -61,9 +56,6 @@ fn or_one(x: f64) -> f64 {
 /// - `blkx`: parsed FM file data
 ///
 /// Returns array of CompressorStageParams, or None if not a piston engine
-// PORT: Java `extractStages(Blkx)` / `extractStages(Blkx, FuelModification)` 重载 →
-// Rust 无函数重载, 双参版更名 extract_stages_with_fuel (interpolation.rs 的
-// interp1d_extrapolate 先例); Java 可 null 的对象参数 → Option<&Blkx> (§1)
 pub fn extract_stages(fmdata: Option<&FmData>) -> Option<Vec<CompressorStageParams>> {
     extract_stages_with_fuel(fmdata, None)
 }
@@ -84,8 +76,7 @@ pub fn extract_stages_with_fuel(
     fmdata: Option<&FmData>,
     fuel_mod: Option<&FuelModification>,
 ) -> Option<Vec<CompressorStageParams>> {
-    // PORT: Java `blkx == null || blkx.compNumSteps <= 0 → return null`;
-    // ? 运算符承接 null 分支, i32<=0 守卫同时排除 as usize 的负值风险 (§2.2)
+    // compNumSteps<=0 → None; i32<=0 守卫同时排除 as usize 的负值风险 (§2.2)
     let fmdata = fmdata?;
     if fmdata.comp_num_steps <= 0 {
         return None;
@@ -96,12 +87,11 @@ pub fn extract_stages_with_fuel(
     // Applied to raw Compressor power values BEFORE deck_power_maker and
     // definition_alt_power_adjuster, matching WAPC call order:
     //   soviet_octane_adder() → definition_alt_power_adjuster() → deck_power_maker()
-    // PORT: Java L79 spm 计算(含 Logger.info)先于任何 comp* 数组解引用, 保持此顺序
+    // 顺序约束: spm 计算先于任何 comp* 数组解引用
     let spm = compute_soviet_power_multiplier(fuel_mod);
 
-    // PORT: Java 对 comp* 数组直接索引 (compNumSteps>0 时 reader 在 getload
-    // L998-1006/L1036 与 compNumSteps 同批分配, null 即 NPE 崩溃) — unwrap
-    // 对齐该 NPE 语义 (§1: null → Option; 此处 None = 原程序已崩溃的病态输入)
+    // comp* 平行表与 compNumSteps 同批分配 (compNumSteps>0 时必已就绪) —
+    // unwrap 对齐 NPE 语义 (§1): None = 病态输入
     // 波17 F5: 9 组平行表收拢为 CompressorData, 一次借用即得全部表
     let comp = fmdata.compressor.as_ref().unwrap();
 
@@ -149,7 +139,7 @@ pub fn extract_stages_with_fuel(
 /// Pass 1: 基本参数提取 + 苏联辛烷值增益 — WAPC soviet_octane_adder 位置
 /// (对 Compressor 原始功率值预乘 spm, 先于 deck_power_maker 级联)。
 /// `comp` 为 extract_stages_with_fuel 顶部一次解开的增压器表束
-/// (unwrap 对齐 Java NPE — compNumSteps>0 时 reader 在 getload 与之同批分配)。
+/// (unwrap 对齐 NPE — compNumSteps>0 时表必同批就绪)。
 fn pass1_basic_and_soviet(
     stages: &mut [CompressorStageParams],
     stage_deck_power: &mut [f64],
@@ -179,9 +169,7 @@ fn pass1_basic_and_soviet(
         stages[i].old_power_new_rpm = comp.power[i] * spm;
 
         // ConstRPM parameters (Soviet octane applied if ConstRPM exists)
-        // PORT: Java `blkx.compConstRpmAlt != null && i < compConstRpmAlt.length`;
-        // compConstRpmPower 与 compConstRpmAlt 同批分配 (getload L1005-1006),
-        // 前者非空后者必非空 — unwrap 对齐 NPE
+        // const_rpm_power 与 const_rpm_alt 同批分配, 后者非空前者必非空 — unwrap 对齐 NPE
         if let Some(const_rpm_alt) = comp.const_rpm_alt.as_ref() {
             if i < const_rpm_alt.len() {
                 stages[i].const_rpm_alt = const_rpm_alt[i];
@@ -370,10 +358,7 @@ fn determine_default_rpm(fmdata: &FmData) -> f64 {
 /// - `default_rpm`:    the RPM at which FM values are defined
 /// - `stage_deck_power`: deck power array for cascade
 /// - `_spm`:           Soviet power multiplier (applied to raw blkx power reads; unused here)
-// PORT: Java `int i` 循环索引, 仅用于 `i == 0` 判定 → usize (调用方循环变量)
-// PORT: Java 签名即携带未使用的 spm (oldPower/oldPowerNewRpm 均已在 Pass 1 预乘,
-// 比值中相消 — 见函数内 "the spm cancels in the ratio" 注释), 保真保留形参;
-// 命名 _spm 为 Rust 未用形参约定 (审查意见: 收窄原函数级 #[allow(unused_variables)])
+// _spm 形参保真保留: spm 已在 Pass 1 预乘, 比值中相消 (见函数内 "spm cancels" 注)
 fn adjust_power_and_altitude(
     stage: &mut CompressorStageParams,
     fmdata: &FmData,
@@ -422,7 +407,7 @@ fn adjust_power_and_altitude(
 
     // Adjust power: interpolate on original curve at new crit alt, then divide by RPM boost
     // Note: deckPowerRatio uses raw blkx values — the spm cancels in the ratio
-    let comp = fmdata.compressor.as_ref().unwrap(); // PORT: unwrap=Java NPE, 见函数头注
+    let comp = fmdata.compressor.as_ref().unwrap(); // unwrap 对齐 NPE, 见顶部批注
     let deck_power_ratio = if fmdata.deck_power > 0.0 && stage.old_power > 0.0 {
         fmdata.deck_power / comp.power[0]
     } else {
@@ -485,7 +470,7 @@ fn adjust_power_and_altitude(
 ///          x torque_rpm_boost(military_RPM, WEP_RPM)
 /// </pre>
 fn calculate_wep_multiplier(fmdata: &FmData, stage_index: usize) -> f64 {
-    let comp_boost = &fmdata.compressor.as_ref().unwrap().boost; // PORT: unwrap=Java NPE, 见函数头注
+    let comp_boost = &fmdata.compressor.as_ref().unwrap().boost; // unwrap 对齐 NPE, 见顶部批注
     let afterburner_boost = or_one(fmdata.aftb_coff);
     let octane_mult = or_one(fmdata.octane_afterburner_mult);
     let boost_effect = 1.0 + (afterburner_boost - 1.0) * octane_mult;
@@ -628,7 +613,7 @@ fn apply_british_octane_bonus(
     let throttle_boost = or_one(fmdata.throttle_boost);
     let rpm_boost = torque_rpm_boost(fmdata.military_rpm, fmdata.wep_rpm);
 
-    let comp = fmdata.compressor.as_ref().unwrap(); // PORT: unwrap=Java NPE, 见函数头注
+    let comp = fmdata.compressor.as_ref().unwrap(); // unwrap 对齐 NPE, 见顶部批注
     for i in 0..stages.len() {
         let stage_mult = or_one(comp.boost[i]);
 
@@ -669,7 +654,6 @@ fn apply_british_octane_bonus(
 ///
 /// Returns true if piston engine (has compressor stages), false otherwise
 pub fn is_piston_engine(fmdata: Option<&FmData>) -> bool {
-    // PORT: Java `blkx != null && !blkx.isJet && blkx.compNumSteps > 0`
     fmdata.is_some_and(|b| !b.is_jet && b.comp_num_steps > 0)
 }
 
@@ -679,7 +663,6 @@ pub fn is_piston_engine(fmdata: Option<&FmData>) -> bool {
 ///
 /// Returns WEP boost factor, or 1.0 if not available
 pub fn get_wep_boost_factor(fmdata: Option<&FmData>) -> f64 {
-    // PORT: Java `if (blkx == null) return 1.0;`
     let fmdata = match fmdata {
         Some(b) => b,
         None => return 1.0,
@@ -693,7 +676,6 @@ pub fn get_wep_boost_factor(fmdata: Option<&FmData>) -> f64 {
 ///
 /// Returns SpeedManifoldMultiplier, or 1.0 if not available
 pub fn get_speed_manifold_multiplier(fmdata: Option<&FmData>) -> f64 {
-    // PORT: Java `if (blkx == null) return 1.0;`
     let fmdata = match fmdata {
         Some(b) => b,
         None => return 1.0,
@@ -711,19 +693,16 @@ fn java_round(x: f64) -> i64 {
 }
 
 // =====================================================================
-// Tests — 移植 test/TestSpitfireF24Power.java + test/TestTempestMk5Power.java
-// 的 extractor 断言 + Java 8 oracle 对拍 (PORTING.md §5.1 A 类策略)。
+// Tests — Java 8 oracle 对拍 (PORTING.md §5.1 A 类策略, 断言源移植自
+// TestSpitfireF24Power / TestTempestMk5Power)。
 //
-// 真机数据 (spitfire_f24 / yak-3 / spitfire_ix / tempest_mkv) 因 reader.rs 波次
-// 未落地 (D4: Blkx 构造解析归 reader), fixture 按真实 data/ 文件的 FM 参数手工构造,
-// 全部数值 = Java 8 (OpenJDK 1.8.0_342) 以 bin/ 编译产物 + 真实
-// data/aces/gamedata/flightmodels/ 文件实测 dump 的 %.17g 值。
-// PORT: reader 波次落地后, 本组 fixture 应切换为 blkx::reader::parse 读真文件
-// (对齐 D4 验收: TestSpitfireF24Power/TestTempestMk5Power/FMParserFuzzer 移植,
-//  当前 FMParserFuzzer 仍欠)。
+// 真机 fixture (spitfire_f24 / yak-3 / spitfire_ix / tempest_mkv) 按真实
+// data/aces/gamedata/flightmodels/ 文件的 FM 参数手工构造, 全部数值 =
+// Java 8 (OpenJDK 1.8.0_342) 编译产物 + 真实数据文件实测 dump 的 %.17g 值。
+// TODO: 可切换 reader::parse 读真文件, 收窄 fixture 维护面。
 //
-// fixture 数值陷阱: Blkx 的 getdouble 族用 Float.parseFloat 赋值 double
-// (24-bit 尾数, mod.rs 波次注 2) — 真机字段须写 `1.61f32 as f64` 形式,
+// fixture 数值陷阱: FM 的 getdouble 族用 Float.parseFloat 赋值 double
+// (24-bit 尾数, 见 data/mod.rs) — 真机字段须写 `1.61f32 as f64` 形式,
 // 直接写 1.61f64 会对拍失败 (synthetic 组是 Java 双精度字面量直赋, 不带 f32 拓宽)。
 // =====================================================================
 #[cfg(test)]

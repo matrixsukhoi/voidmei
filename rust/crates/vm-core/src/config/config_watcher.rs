@@ -5,7 +5,7 @@
 //! 复用 exception_helper::sleep_quietly 的停机标志分片睡眠 (§2.13 判例)。
 //!
 //! PORT: Java 版回调在 EDT 上串行执行; Rust 版回调在本 watcher 线程执行,
-//! 需要碰 UI 的调用方自行转 UI 线程 (bus.rs "订阅者自行转 EDT" 同一约定,
+//! 需要碰 UI 的调用方自行转 UI 线程 (bus.rs "订阅者自行转 UI 线程" 同一约定,
 //! LIFETIMES §5.3 跨线程交汇点核对表)。
 
 use std::path::Path;

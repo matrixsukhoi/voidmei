@@ -1,4 +1,4 @@
-//! ConfigDebouncer — Java static configDebouncer 的线程化 (Controller.java:52-59)。
+//! ConfigDebouncer — Java Controller 静态 configDebouncer 的线程化。
 //! 重构波2 自 app_shell.rs 拆出。
 
 use std::sync::atomic::Ordering;
@@ -12,7 +12,7 @@ use vm_core::base::event::ui_state_events;
 use crate::commands::{DebounceMsg, UiCommand};
 use crate::controller_shared::ControllerShared;
 
-/// Java Controller.java:59 `CONFIG_DEBOUNCE_MS = 200` (Rust 为 leading+trailing 窗口,
+/// Java `CONFIG_DEBOUNCE_MS = 200` 常量 (Rust 为 leading+trailing 窗口,
 /// 见 [ConfigDebouncer] 头注: 200 = trailing 收尾间隔, leading 沿不受此延迟)
 pub const CONFIG_DEBOUNCE_MS: u64 = 200;
 
@@ -28,14 +28,14 @@ pub struct ConfigDebouncer {
     join: Option<JoinHandle<()>>,
 }
 
-/// 防抖任务体 (Java Controller.java:525-536/573-576): refreshPreviews(key)/
-/// refreshAllPreviews()。loadFromConfig 已挪至主线程调度点 (配置 !Send, 见模块头);
+/// 防抖任务体 (Java refreshPreviews(key)/refreshAllPreviews())。
+/// loadFromConfig 已挪至主线程调度点 (配置 !Send, 见模块头);
 /// 此处只取世代号快照送刷新命令, 消费侧渲染线程做守卫。
 fn refresh_cmd(msg: DebounceMsg, shared: &ControllerShared) -> UiCommand {
     let generation = shared.preview_generation.load(Ordering::SeqCst);
     let changed_key = match msg {
         DebounceMsg::ConfigKey(ref k) if k == ui_state_events::ACTION_RESET_COMPLETED => {
-            None // 全局重置: refreshAllPreviews (Controller.java:530)
+            None // 全局重置: refreshAllPreviews
         }
         DebounceMsg::ConfigKey(k) => Some(k),
         DebounceMsg::FmChanged => None, // FM_CHANGED: refreshAllPreviews

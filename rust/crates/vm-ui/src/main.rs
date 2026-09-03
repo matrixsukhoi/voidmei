@@ -1,5 +1,4 @@
-//! vm-ui bin: headless-only 状态机驱动入口 (D9: 窗口形态归 vm-webui web 壳,
-//! 原 iced 窗口启动段已删)。
+//! vm-ui bin: headless-only 状态机驱动入口 (D9: 窗口形态归 vm-webui web 壳)。
 //!
 //! 用法: `vm-ui --headless [--persist <path>]` — 无 `--headless` 时打印用法退出 1。
 //! 生产链 (表单窗口 + 主循环) 见 vm-app (组装 bin)。

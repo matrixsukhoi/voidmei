@@ -60,7 +60,7 @@ const MENU_ID_EXIT: usize = 1003; // PORT: Java close 菜单项 (Lang.close)
 /// 托盘触发的 UI 动作回调 (组装层注入; 托盘不依赖具体 UI 实现)
 pub trait TrayHandler: Send {
     /// 左键点击 / 菜单"设置": 重建应用核并弹出设置窗体。
-    /// PORT: Application.java:251-273 mouseClicked BUTTON1 →
+    /// PORT: Application mouseClicked BUTTON1 →
     /// `ctr.stop(); ctr = new Controller()` (MainForm 随 Controller 重建显示)。
     /// 快速重复点击由托盘层 CAS 防重入拦截 (见 [`dispatch_activate`]),
     /// handler 侧只会串行收到。
@@ -70,7 +70,7 @@ pub trait TrayHandler: Send {
     /// Java 菜单无对应项 — P5 组装层的拆分入口)
     fn start(&mut self);
 
-    /// 菜单"退出": PORT: Application.java:229-235 close MenuItem →
+    /// 菜单"退出": PORT: Application close MenuItem →
     /// `tray.remove(icon); System.exit(0)` — 图标移除由 [`TrayIcon`] 的 Drop 完成,
     /// 进程退出由本回调完成 (Java System.exit 的归属方)。
     ///
@@ -79,7 +79,7 @@ pub trait TrayHandler: Send {
     /// 留下僵尸托盘图标 (Java close 项是 `tray.remove(icon)` 显式在 `System.exit(0)` 之前)
     fn exit(&mut self);
 
-    /// 菜单"关于": PORT: Application.java:236-245 about MenuItem →
+    /// 菜单"关于": PORT: Application about MenuItem →
     /// `NotificationService.showAbout(Lang.aboutcontent×3)` 三段 toast。
     /// Java 不重建 Controller (纯展示动作); 组装层转发前端 About Modal (web 形态)。
     fn about(&mut self);
@@ -161,7 +161,7 @@ static TRAY_HANDLER_GEN: std::sync::atomic::AtomicU64 = std::sync::atomic::Atomi
 /// 与 Drop 的作废判定互斥 — 回调仅在泵线程串行 (WNDPROC 唯一入口), 单值够用
 static TRAY_HANDLER_INFLIGHT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
-/// PORT: Application.java:134 `trayClickProcessing = new AtomicBoolean(false)` —
+/// PORT: Application `trayClickProcessing = new AtomicBoolean(false)` —
 /// 托盘点击 CAS 防重入标志 (Java static → 进程级静态, 跨 Controller 重建存活)
 static TRAY_CLICK_PROCESSING: AtomicBool = AtomicBool::new(false);
 
@@ -215,7 +215,7 @@ fn with_handler(f: impl FnOnce(&mut dyn TrayHandler)) {
 }
 
 /// 左键/菜单"设置"分发: CAS 防重入 + finally 语义复位, 原样照搬 Java。
-/// PORT: Application.java:253-271 mouseClicked BUTTON1:
+/// PORT: Application mouseClicked BUTTON1:
 /// `compareAndSet(false,true)` 失败 → 记日志忽略; 成功 → 重建 → finally `set(false)`
 fn dispatch_activate() {
     // 使用CAS操作防止快速重复点击导致多次创建Controller

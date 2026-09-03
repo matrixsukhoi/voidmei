@@ -313,7 +313,7 @@ fn get_keyword_double(list: &SList, keyword: &str, def: f64) -> f64 {
             && curr.as_atom().is_keyword()
             && curr.as_atom().get_string().eq_ignore_ascii_case(keyword)
         {
-            // Java 有 isAtom 守卫 (L139-141): 值为列表时跳过本关键字继续循环
+            // Java 有 isAtom 守卫: 值为列表时跳过本关键字继续循环
             // (后续重复关键字仍可命中, Java 8 oracle: ":x (1 2) :x 0.5" → 0.5);
             // 非数值 atom 的 getDouble() 抛 NumberFormatException → panic 复刻,
             // 由 load_config 的 catch 兜住返回部分组 (Java 8 oracle: ":x abc" 同流)

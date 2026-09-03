@@ -408,7 +408,7 @@ impl super::OverlayWindow for WinOverlay {
         unsafe {
             // 以窗口所在显示器为准 (多屏时位置归一化稳定)。
             // PORT: Java 侧统一除以启动主屏 Application.screenWidth/Height
-            // (ConfigurationService.java:460-472), 此处为 MonitorFromWindow — 单屏
+            // (ConfigurationService), 此处为 MonitorFromWindow — 单屏
             // 行为一致; 多屏下跨显示器拖拽后存/取的归一化基准可能不同 (已知有意偏差,
             // 对接 Java 版迁移来的归一化配置时需注意语义差异)
             let mon = MonitorFromWindow(self.hwnd, MONITOR_DEFAULTTONEAREST);

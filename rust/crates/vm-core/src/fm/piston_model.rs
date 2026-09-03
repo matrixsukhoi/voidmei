@@ -26,15 +26,9 @@
 //! Accuracy: The original Python implementation claims ±1% accuracy for 95%+
 //! of aircraft when compared against War Thunder actual flight model
 //! calculations.
-//!
-//! 对应 Java: `src/prog/util/PistonPowerModel.java` (一比一翻译)
-
-// PORT: Java `private PistonPowerModel() {}` (final 工具类, 私有构造器防实例化)
-// → Rust 自由函数模块无实例化概念, 天然满足
 
 use crate::base::atmosphere_model::{altitude_at_pressure, pressure, ram_effect_altitude};
-// PowerCurveHelper 判定函数的正式翻译 (fm/power_curve.rs, 逐函数同实现) —
-// 原内联副本已删, 同 crate 模块互引无循环依赖障碍
+// PowerCurveHelper 判定函数集 (fm/power_curve.rs, 逐函数同实现)
 use crate::fm::power_curve::{
     ceiling_is_useful, const_rpm_above_crit_alt, const_rpm_below_crit_alt, const_rpm_below_deck,
     const_rpm_below_wep_crit_alt, has_const_rpm, power_is_deck_power,
@@ -319,8 +313,7 @@ pub fn power_at_altitude_advanced(
 /// - `sea_level_temp_c`: sea level temperature (°C)
 ///
 /// Returns maximum available power from any stage (hp)
-// PORT: Java `CompressorStageParams[]` 只读数组入参 → &[CompressorStageParams];
-// `stages == null` 在 Rust 切片模型下无对应, 空切片走同一提前返回路径 (0)
+// null 入参在切片模型下对应空切片, 同走提前返回 (0)
 pub fn optimal_power_advanced(
     stages: &[CompressorStageParams],
     altitude_m: f64,
@@ -357,7 +350,7 @@ pub fn optimal_power_advanced(
 /// - `sea_level_temp_c`: sea level temperature (°C)
 ///
 /// Returns optimal stage index (0-based), or 0 if single stage or invalid data
-// PORT: Java `int` 索引返回值 → usize (非负索引域, 行为等价); Java null 检查同上退化为长度判断
+// null 检查在切片模型下退化为长度判断 (同上)
 pub fn find_optimal_stage_index(
     stages: &[CompressorStageParams],
     altitude_m: f64,
@@ -431,13 +424,12 @@ pub fn generate_power_curve_advanced(
 ///
 /// Returns peak WEP power (hp)
 pub fn peak_wep_power(stages: &[CompressorStageParams]) -> f64 {
-    // PORT: Java `stages == null || stages.length == 0` → 空切片同走提前返回 (0)
+    // 空切片同走提前返回 (0)
     if stages.is_empty() {
         return 0.0;
     }
 
     // Traverse altitude × speed to find peak
-    // PORT: Java `for (int alt = 0; alt <= 10000; alt += 100)` int 步进循环
     let mut peak = 0.0f64;
     for alt in (0..=10000i32).step_by(100) {
         for speed in (0..=800i32).step_by(50) {
@@ -457,7 +449,7 @@ pub fn peak_wep_power(stages: &[CompressorStageParams]) -> f64 {
     peak
 }
 
-/// variabler 的插值边界产出 (原 Java `double[5]` 的具名形态, 波14 消魔法下标)。
+/// variabler 的插值边界产出 (五元组具名形态, 消魔法下标)。
 #[derive(Debug, Clone, Copy)]
 struct InterpBounds {
     /// 高参考点功率 (hp)
@@ -496,7 +488,6 @@ fn ceil_scaled_alt(p: &CompressorStageParams, ref_alt: f64) -> f64 {
 /// - `wep_mult`: WEP power multiplier (1.0 for military)
 ///
 /// Returns [`InterpBounds`]
-// PORT: Java private static → 模块私有函数; 返回 double[5] → 具名结构体 InterpBounds
 fn variabler(p: &CompressorStageParams, alt_ram: f64, is_wep: bool, wep_mult: f64) -> InterpBounds {
     if !is_wep {
         variabler_military(p, alt_ram)
@@ -507,9 +498,7 @@ fn variabler(p: &CompressorStageParams, alt_ram: f64, is_wep: bool, wep_mult: f6
 
 /// variabler 军用功率 (military) 分支 — 临界高度以下 / 调整临界~原始临界 /
 /// 原始临界以上三段选点 (WAPC variabler 的 !isWep 半区)。
-// PORT: Java 声明未初始化的局部变量 (所有分支先赋值后使用) → Rust let 无初值,
-// 编译器静态检查所有路径均已赋值, 语义一致。本分支各路径恰好单次赋值
-// (无 WEP 的 swap 段), 除 curvature 外无需 mut
+// let 无初值: 各路径恰好单次赋值 (无 WEP 的 swap 段), 除 curvature 外无需 mut
 fn variabler_military(p: &CompressorStageParams, alt_ram: f64) -> InterpBounds {
     let higher_power: f64;
     let higher_alt: f64;
@@ -904,7 +893,7 @@ fn variabler_wep(p: &CompressorStageParams, alt_ram: f64, wep_mult: f64) -> Inte
 /// WEP Critical Altitude: Usually lower than military critical altitude
 /// because WEP demands higher manifold pressure that the supercharger
 /// cannot maintain as high.
-// PORT: Java public 可变字段内部类 → pub struct + pub 字段 (§0.7, 不造 getter)
+// 公开可变字段, 不造 getter (PORTING §0.7)
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct CompressorStageParams {
     /// Critical altitude in meters - altitude where power starts dropping
@@ -970,9 +959,7 @@ pub struct CompressorStageParams {
     pub exact_altitudes: bool,
 }
 
-// PORT: Java 字段显式初始化器 (deckAlt=0, curvature=1.0, wepPowerMult=1.0,
-// speedManifoldMult=1.0; 其余 int=0/double=0.0/boolean=false 隐式初始化, §2.10)
-// → 手写 Default 覆盖派生默认值
+// Default 非全零: curvature/wep_power_mult/speed_manifold_mult 默认 1.0, 其余 0/false (§2.10)
 impl Default for CompressorStageParams {
     fn default() -> Self {
         Self {
@@ -1006,7 +993,6 @@ impl CompressorStageParams {
     /// - `crit_alt`: critical altitude (m)
     /// - `crit_power`: power at critical altitude (hp)
     /// - `deck_power`: sea level power (hp)
-    // PORT: Java 无参构造器 `new CompressorStageParams()` → `CompressorStageParams::default()`
     pub fn new(crit_alt: f64, crit_power: f64, deck_power: f64) -> Self {
         Self {
             crit_alt,
@@ -1048,10 +1034,8 @@ impl CompressorStageParams {
     }
 }
 
-// PORT: Java toString() 覆写 → Display trait (使 .to_string() 可用)。
-// 取整语义差异: Java String.format %.0f 用 HALF_UP, Rust {:.0} 在 .5 精确界处
-// 取整规则不同 (half-even); 非有限值输出亦不同 (Rust "inf" vs Java "Infinity") —
-// 仅展示用途, 测试断言值均非 .5 界, 非平界值行为等价
+// Display 取整语义: Java String.format %.0f 用 HALF_UP, Rust {:.0} 在 .5 精确界处
+// 取整规则不同 (half-even); 非有限值输出亦不同 — 仅展示用途, 非平界值行为等价
 impl std::fmt::Display for CompressorStageParams {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
@@ -1071,7 +1055,7 @@ fn java_round(x: f64) -> i64 {
 }
 
 // =====================================================================
-// Tests — 对应 Java: test/TestPistonPowerModel.java (一比一移植)
+// Tests
 // =====================================================================
 
 #[cfg(test)]

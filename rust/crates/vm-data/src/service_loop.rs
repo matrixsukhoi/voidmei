@@ -94,7 +94,7 @@ pub(crate) fn session_inputs(d: &ServiceData) -> vm_core::formula::registry::Ses
     }
 }
 
-/// fueltimeStr (Java formatDataAsStrings L265-278): 无效 → "-";
+/// fueltime 文本格式化: 无效 → "-";
 /// <100 分钟 → "%02d'%02d" (秒位向下取整到十位); 否则 "%.0f" 分钟
 /// ((float)fueltime/60000 的 float 除法域再拓宽, §2.12)。
 fn format_fueltime(fueltime: i64) -> String {
@@ -155,7 +155,7 @@ impl Default for ServiceConfig {
 ///
 /// 所有权: 整个 `Service` 被 move 进轮询线程 (run 的 `self`), 与 Java
 /// "Service 对象由轮询线程独占写" 一致; `data`/`bus`/`fm_manager`/`stop`
-/// 以 `Arc` 与调用方共享 (对应 Java public 字段被 EDT 混读 + 单例总线)。
+/// 以 `Arc` 与调用方共享 (对应 Java public 字段的跨线程混读 + 单例总线)。
 /// `deriver`/`http_client`/`focus_monitor` 线程独占 (无锁, 对应 Java 字段
 /// 仅轮询线程触碰)。
 pub struct Service {
@@ -169,16 +169,16 @@ pub struct Service {
     fm_manager: Arc<FMManager>,
     /// Java `FlightDataBus.getInstance()` 单例 → 构造注入
     bus: Arc<FlightDataBus>,
-    /// Java `public HttpHelper httpClient` (L1691 构造) —— 轮询线程独占
+    /// HTTP 客户端 —— 轮询线程独占
     http_client: HttpHelper,
-    /// Java `private final FocusMonitor focusMonitor = new FocusMonitor()` (L117)。
+    /// 焦点监控器。
     /// PORT: vm-core FocusMonitor 构造需注入 detector/coordinator 两依赖
     /// (Java 无参 new 的对应物缺位), 由调用方按需注入; None 时 tick 短路
     /// (Java 默认 enabled=false 时 tick 本就空转, 行为等价)。
     focus_monitor: Option<vm_core::platform::focus_monitor::FocusMonitor>,
     /// FlightLog 共享槽 (Java Controller.logon+Log 二位一体的收敛形态):
     /// Controller 侧 (vm-app) openpad/closepad/换机换入换出, 本线程每轮
-    /// logTick (Service.java:1824-1828)。None = 未开记录 (Java Log==null/logon=false)。
+    /// logTick。None = 未开记录。
     flight_log: FlightLogSlot,
     /// 公式系统 (无 Java 对应, doc/formula_system_design.md §2 裁决 A1):
     /// 本线程每帧求值单点; Arc 共享给编辑器保存链跨线程 install (热更新)。
@@ -223,9 +223,8 @@ impl Service {
         f(&mut write_data(&self.data))
     }
 
-    /// 对应 Java 构造器 `public Service(Controller xc)` (L1678-1699)。
     /// PORT: `Controller xc` 参数解散为 (config, fm_manager, bus) 三注入
-    /// (环 1 断裂; `freq = xc.serviceLoopIntervalMs` ← config 同名字段)。
+    /// (环 1 断裂; freq ← config.service_loop_interval_ms)。
     /// 语句顺序逐行保持——clearvaria() 在 mapinfo/sState 构造**之前**执行,
     /// 其尾部的 publishFlightDataEvent 因此读到 mapinfo=null/sState=null
     /// (事件载荷 state=None/mapGrid="--"), 与 Java 同一窗口。
@@ -280,16 +279,14 @@ impl Service {
         self.focus_monitor = Some(fm);
     }
 
-    /// 注入 FlightLog 共享槽 (Controller.start:633 建 Service 前, 对位 Java
-    /// Service 轮询读 `c.Log` 的共享字段; 见 struct 字段注)。
+    /// 注入 FlightLog 共享槽 (Controller 建 Service 前传入, 对位轮询线程
+    /// 读 Log 槽的共享字段; 见 struct 字段注)。
     pub fn set_flight_log(&mut self, slot: FlightLogSlot) {
         self.flight_log = slot;
     }
 
-    /// Service.java:1824-1828 的 logTick 调用面:
-    /// `if (c.logon) { FlightLog tempLog = c.Log; if (tempLog != null) tempLog.logTick(); }`
-    /// PORT: Controller.logon 与 c.Log 的二段判定收敛为槽 Some/None (Java 的
-    /// logon 自 openpad 置 true 后无清零写点, 与 Log 非 null 同生同灭)。
+    /// logTick 调用面: logon 与 Log 非 null 的二段判定收敛为槽 Some/None
+    /// (logon 自 openpad 置 true 后无清零写点, 与 Log 非 null 同生同灭)。
     /// 锁序: 槽锁 (clone 后即释) → data 读锁 (快照后即释) → log 锁, 三段不嵌套。
     pub fn flight_log_tick(&self) {
         let temp_log = self
@@ -303,17 +300,15 @@ impl Service {
     }
 
     // ------------------------------------------------------------------
-    // resetvaria / clearvaria / resetEngLoad (Java L1510-1666)
+    // resetvaria / clearvaria / resetEngLoad
     // ------------------------------------------------------------------
 
-    /// 对应 Java `public void clearvaria()` (L1662-1666)。
+    /// 清空变量 (原版置 sState/sIndic=null; Rust 侧二者此刻仍 None, 直接走重置)。
     fn clear_varia(&mut self) {
-        // sState = null;
-        // iIndic = null;
         self.reset_varia();
     }
 
-    /// 对应 Java `public void resetvaria()` (L1528-1660)。
+    /// 重置会话状态量 (构造/换机/加油检测时全量归零)。
     /// PORT(锁序 §2.8): Java 方法体直线赋值无锁; Rust 把字段写入收进一个
     /// write 临界区 (锁内无回调无 IO), `resetEngLoad`/SMA 重建/尾部 publish
     /// 均在锁外——publish 需要读锁, 与未释放的写锁同线程重入即死锁。
@@ -365,7 +360,7 @@ impl Service {
             d.engine.nitro_consump = 0.0;
             d.engine.nitro_eng_nr = 0;
 
-            // Java L1587-1593: 7 个 SMA 构造, 窗口 (int)(1000/freq), fuelTimeSMA=4。
+            // 7 个 SMA 构造, 窗口 (int)(1000/freq), fuelTimeSMA=4。
             // PORT(状态双主裁决, service_fields.rs 字段区 PORT 注): calc/diff/sep/
             // turnrds 四个 SMA 的真人在 Deriver (其 new/step 已按同窗口与同公式
             // 移植), ServiceData 侧对应槽位**保持 None**——防双胞胎真互相漂移;
@@ -384,7 +379,7 @@ impl Service {
 
         // (方法体已随 engLoad 会话态批次迁至 overheat.rs, 关联函数签名不变)
         Self::reset_eng_load(&fm);
-        // PORT(SMA 重建): Java L1587-1590 的 calc/diff/sep/turnrds 四 SMA 在本
+        // PORT(SMA 重建): calc/diff/sep/turnrds 四 SMA 在本
         // 调用点重建 = Deriver 整体重建 (真人在彼, 见上)
         let _freq = self.config.service_loop_interval_ms;
         // W2: Deriver 消解 — SMA 状态改由公式状态仓承载, 会话重置在此
@@ -395,19 +390,19 @@ impl Service {
     }
 
     // ------------------------------------------------------------------
-    // run() 主循环 (Java L1798-1862)
+    // run() 主循环
     // ------------------------------------------------------------------
 
-    /// 对应 Java `public void run()` (L1799-1861)。消费 `self` (move 进线程)。
+    /// 主循环。消费 `self` (move 进线程)。
     ///
     /// PORT(§2.13): Java `while(true)` 唯一出口是 `Thread.sleep` 抛
     /// InterruptedException → break; Rust 以 stop 电平标志轮询复刻
     /// (sleep_quietly 提前返回 + 循环内检查)。Java 恢复期 sleep 吞中断的
-    /// 失效窗口 (L1857, LIFETIMES 审查修正 7) 在电平标志下天然消失。
+    /// 失效窗口 (LIFETIMES 审查修正 7) 在电平标志下天然消失。
     pub fn run(mut self) {
         // Main polling loop with exception recovery
         loop {
-            // PORT(§6 契约): Java 顶层 `catch (Exception e)` (L1850) → catch_unwind。
+            // PORT(§6 契约): Java 顶层 catch (Exception e) → catch_unwind。
             // AssertUnwindSafe: 与 Java "异常后对象处于不一致状态继续用" 同一
             // 宽松契约 (flight_data_bus.rs 同款论证)。
             match catch_unwind(AssertUnwindSafe(|| self.poll_once())) {
@@ -439,7 +434,7 @@ impl Service {
         }
     }
 
-    /// run() 的 try 块体 (Java L1803-1844), 一轮轮询。
+    /// 一轮轮询 (主循环体)。
     /// 返回值: Java 的 InterruptedException 出口 → [`Flow::Interrupted`]。
     fn poll_once(&mut self) -> Flow {
         let now = current_time_millis();
@@ -475,7 +470,7 @@ impl Service {
             }
 
             // 记录
-            // (Service.java:1824-1828, 每轮一次 — 1024 行 flush 节奏在 FlightLog 内)
+            // (每轮一次 — 1024 行 flush 节奏在 FlightLog 内)
             self.flight_log_tick();
         }
         let (freq, port_ocupied, last_map_poll_time_ms) =
@@ -513,7 +508,7 @@ impl Service {
     }
 
     // ------------------------------------------------------------------
-    // processPollingCycle (Java L1701-1796)
+    // process_polling_cycle (轮询周期处理)
     // ------------------------------------------------------------------
 
     /// Processes one polling cycle: updates state, calculates data, and publishes events.
@@ -718,18 +713,14 @@ impl Service {
     }
 
     // ------------------------------------------------------------------
-    // calculate (Java L1115-1178) —— 派生量计算链 (公式系统 + 写回段)
+    // calculate —— 派生量计算链 (公式系统 + 写回段)
     // ------------------------------------------------------------------
 
-    /// 对应 Java `public void calculate()` (L1115-1178)。
-    ///
-    /// Java 链 17 个子方法中, updateClimbRate (L777) / updateSpeed (L840) /
-    /// updateTurn (L788) / updateSEP (L986) 四公式族 + mach (updateSpeedRatio
-    /// L1213-1215 的手动大气模型, R2 hasFM 守卫) 已由公式系统接管 (formula_step);
-    /// updateCompass (L1101, 含 compass==-65535 的地图方向回退) / updateAlt
-    /// (L739, 英制检测状态机 + 无线电高度有效性/英尺转米 + dRadioAlt 差分)
-    /// 在写回段逐行落地; 其余子方法 (WEP 时间/温度/过热/引擎状态/油量/最大
-    /// 转速/最佳增压器档位) 为本文件独立方法。
+    /// 派生量计算链编排。原 Java 链 17 个子方法中, 爬升率/速度/转弯/SEP 四
+    /// 公式族 + mach (手动大气模型, R2 hasFM 守卫) 已由公式系统接管 (formula_step);
+    /// 罗盘更新 (含 compass==-65535 的地图方向回退) 与高度链 (英制检测状态机 +
+    /// 无线电高度有效性/英尺转米 + dRadioAlt 差分) 在写回段逐行落地; 其余子方法
+    /// (WEP 时间/温度/过热/引擎状态/油量/最大转速/最佳增压器档位) 为本文件独立方法。
     fn calculate(&mut self) {
         // R1 周期快照（P3 迁移核心规则）: 整个 calculate 链路共用开头取到的一次 FM 句柄,
         // 并以参数下传给所有依赖 FM 的子方法 —— 保证单周期内全部 FM 派生量来自同一
@@ -742,18 +733,18 @@ impl Service {
             d.fm = Arc::clone(&fm);
             // 波4: start_time 真相源原子化 (Controller openpad 写, 主线程)
             d.elapsed_time = d.current_time_ms - self.frames.start_time_load();
-            // Java updateSEP/updateAlt 的分母是 actualIntervalMs (run() L1804 的区间
+            // updateSEP/updateAlt 的分母是 actualIntervalMs (主循环的区间
             // 量化值, HTTP 慢于一个周期时 = 2*freq 及以上)——传 freq 会令卡顿轮
             // 加速度/SEP 成倍失真
             d.actual_interval_ms
         });
 
-        // Java calculate 链头两步 (L1125-1129): 增加 WEP 时间 / 更新温度
+        // calculate 链头两步: 增加 WEP 时间 / 更新温度
         // (顺序在 updateCompass 之前 — Rust 侧 Deriver step 之前同位)
         self.update_wep_time(&fm);
         self.update_temp();
 
-        // Java calculate 链 L1130-1131: 检查过热, 计算引擎健康度 — overheat.rs
+        // calculate 链第三步: 检查过热, 计算引擎健康度 — overheat.rs
         // (engLoad 会话态走 FMHandle.eng_load_state, D 批次)
         self.check_overheat(&fm);
 
@@ -852,18 +843,18 @@ impl Service {
         // alt/n_vy 直通均已就绪)
         self.formula_step(&fm);
 
-        // Java calculate 链 L1134-1136: updateEngineState (总功率/推力/百分比)
+        // calculate 链: updateEngineState (总功率/推力/百分比)
         // + updateFuel (总油量) — EngineInfo/EngineControl 面板数据源。
         // PORT(W2): speedv 为公式接管值 (Deriver 消解), 读 ServiceData 散字段
         self.update_engine_state(&fm);
         self.update_fuel();
 
-        // Java calculate 链 L1168-1170 (updateSEP 之后): 襟翼判断 / 最大转速 —
+        // calculate 链 (updateSEP 之后): 襟翼判断 / 最大转速 —
         // methods_engine.rs (可变翼判断已删: registry wing_sweep_valid 直通替代)
         // (check_flap 已 W8 公式化 — is_downing_flap/flap_allow_* 走公式写回)
         self.get_maximum_rpm_learn(&fm);
 
-        // Java calculate 链尾 (L1173): 最佳增压器档位/失配提示 — methods_engine.rs
+        // calculate 链尾: 最佳增压器档位/失配提示 — methods_engine.rs
         // (公式步已提前至 updateEngineState 前 — speedv 本帧值依赖; 此处不再调)
         self.update_optimal_compressor_stage(&fm);
     }
@@ -920,11 +911,11 @@ impl Service {
     }
 
 
-    /// 对应 Java `public void slowcalculate(long dtime)` (L517-560) — 0.5 秒一次
+    /// 0.5 秒一次慢计算
     /// 慢计算: 油量变化率/剩余油量时间 + **totalFuelPrev 追赶** (加油检测分支的
     /// prev 写点 — 未移植时 prev 恒 0, totalFuel 非零即每轮误判"加油"触发
     /// resetvaria, player_live 永假)。
-    /// @param dtime (500/freq)*freq (Java 调用点 L1747)
+    /// @param dtime (500/freq)*freq
     fn slow_calculate(&mut self, dtime: i64) {
         // 单一写锁临界区: fuelTimeSMA 的 addNewData 需 &mut (状态量更新), 临界区内
         // 仅纯内存计算无 IO/回调 (Java 本方法无锁直写, §2.8 锁粒度等价收紧)
@@ -975,12 +966,10 @@ impl Service {
 
     // ------------------------------------------------------------------
     // updateWepTime / updateTemp / checkEngineJet / updateEngineState /
-    // updateFuel (Java L707-723 / L726-737 / L484-514 / L883-962 / L964-984)
-    // — EngineInfo/EngineControl 面板的功率/动力量/油量/温度数据源
+    // updateFuel — EngineInfo/EngineControl 面板的功率/动力量/油量/温度数据源
     // ------------------------------------------------------------------
 
-    /// 对应 Java `public void updateWepTime(FMHandle fm)` (L707-723)。
-    /// @param fm 本周期 FM 句柄快照（R1 下传, Java javadoc 原文）
+    /// @param fm 本周期 FM 句柄快照（R1 下传）
     fn update_wep_time(&mut self, fm: &FMHandle) {
         // 输入快照 (锁外判, §2.8): engineNum/throttles 读一轮
         let (n, nitro_eng_nr, wep_time) = self.with_snapshot(|d| {
@@ -1024,7 +1013,7 @@ impl Service {
         });
     }
 
-    /// 对应 Java `public void updateTemp()` (L726-737) — 更新温度，优先使用更精确的。
+    /// 更新温度，优先使用更精确的。
     fn update_temp(&mut self) {
         let (noil, nwater) = self.with_snapshot(|d| {
             let i = d.s_indic.as_ref().unwrap();
@@ -1048,8 +1037,7 @@ impl Service {
         });
     }
 
-    /// 对应 Java `public void checkEngineJet()` (L484-514) — 磁电机/桨距投票
-    /// 状态机 (~5 秒收敛), 置 iEngType + checkEngineFlag。
+    /// 磁电机/桨距投票状态机 (~5 秒收敛), 置 engine_type + check_engine_flag。
     fn check_engine_jet(&mut self) {
         // TODO:自适应方式获得,由磁电机判断. 只有活塞才有磁电机
         self.apply(|d| {
@@ -1087,10 +1075,9 @@ impl Service {
         });
     }
 
-    /// 对应 Java `public void updateEngineState(FMHandle fm)` (L883-962) —
     /// 计算总功率/推力及推力百分比。EngineInfo/EngineControl 的核心数据源。
     ///
-    /// @param fm 本周期 FM 句柄快照（R1 下传, Java javadoc 原文）
+    /// @param fm 本周期 FM 句柄快照（R1 下传）
     fn update_engine_state(&mut self, fm: &FMHandle) {
         self.check_engine_jet();
         // speedv (校正 TAS m/s) — W-C: 直读公式槽 (formula_step 已先行)
@@ -1180,7 +1167,7 @@ impl Service {
         });
     }
 
-    /// 对应 Java `public void updateFuel()` (L964-984) — 计算总油量。
+    /// 计算总油量。
     fn update_fuel(&mut self) {
         let (total_fuel, low_acc_fuel, fuel_percent) = self.with_snapshot(|d| {
             let i = d.s_indic.as_ref().unwrap();
@@ -1206,7 +1193,7 @@ impl Service {
         // Java updateFuel 尾部未回写 totalFuelPrev (slowcalculate 的差分输入),
     }
 
-    /// 发布飞行数据事件 (Java publishFlightDataEvent, L434-482): 同一读快照内
+    /// 发布飞行数据事件: 同一读快照内
     /// 构建不可变帧发布 FrameStore + 装箱标量 payload, 再广播 FlightDataEvent
     /// (回调 = 本 Service 线程同步逐个调用)。
     fn publish_flight_data_event(&mut self) {
@@ -1268,7 +1255,7 @@ enum Flow {
 
 /// logTick 时刻的 ServiceData → FlightLogSnapshot 构造面 (flight_log.rs 模块头
 /// PORT 注的 "vm-data 侧快照构造面")。字段逐一对应 ServiceData/State 字段
-/// (Service.java 的 xs 公有字段直读, 语义 = 读锁内一次成组快照)。
+/// (语义 = 读锁内一次成组快照)。
 pub fn flight_log_snapshot(d: &ServiceData) -> FlightLogSnapshot {
     // 批2: String 镜像层已拆 — CSV 列就地格式化 (语义与 Java formatDataAsStrings
     // 逐行对齐, java_f 族 = vm_core::base::format)。State 缺失的病态帧列值 "null"
@@ -1413,7 +1400,7 @@ impl AnalyzerService for ServiceAnalyzerSource {
 }
 
 // ------------------------------------------------------------------
-// start/stop 生命周期 (Java Controller.start:634 / stop:807 的 Service 侧)
+// start/stop 生命周期
 // ------------------------------------------------------------------
 
 /// Service 线程句柄: stop 置位 + join (对应 Java `S1.interrupt()` 后线程退出)。

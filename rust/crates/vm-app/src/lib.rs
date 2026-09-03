@@ -226,8 +226,8 @@ impl AppShell {
         // Java Controller 构造器: configService.initConfig() 装载设置文件
         config.init_config();
         if live {
-            // 对位 Java e2e 的 autoStartGameMode=true 配置 (Controller.java:589-606
-            // 自启动分支: 跳过 MainForm 直接 start Service)
+            // 对位 Java e2e 的 autoStartGameMode=true 配置
+            // (自启动分支: 跳过 MainForm 直接 start Service)
             config.set_config("autoStartGameMode", "true");
         }
         let (hotkey, hotkey_rx) = HotkeyManager::with_channel();
@@ -314,7 +314,7 @@ impl AppShell {
         let _ = self.ui_cmd_tx.send(cmd);
     }
 
-    /// 托盘重建/初始构造 (Java Application.java:251-273 mouseClicked 与 main:590)。
+    /// 托盘重建/初始构造 (Java 托盘 mouseClicked 与 main 的初始构造)。
     /// `is_initial_launch`: true=初始启动 (尊重 autoStartGameMode), false=托盘恢复
     /// (恒弹设置窗语义 — Java Controller(false))。
     pub fn rebuild_controller(&mut self, is_initial_launch: bool) {
@@ -426,10 +426,10 @@ impl AppShell {
                 }
             }
             UiCommand::EndGame => {
-                // Java MainForm.java:92-98 mCancel: MainForm.saveConfig + tc.saveConfig
+                // Java MainForm mCancel: MainForm.saveConfig + tc.saveConfig
                 // + System.exit(0)。tc.saveConfig 对位 Controller.config.save_config
-                // (空实现); saveLayoutConfig **不在** mCancel 链 (仅 start() 路径,
-                // Controller.java:640-641) — 设置窗内未确认落盘的 layout 改动随
+                // (空实现); saveLayoutConfig **不在** mCancel 链 (仅 start() 路径)
+                // — 设置窗内未确认落盘的 layout 改动随
                 // 退出丢弃, 勿在此加回 (审查 A-W1); System.exit(0) 的退出归属:
                 // 置 exit_requested — run_supervisor 路径经循环尾 shutdown() 收尾
                 // 退出 (比 Java 裸 exit 多做线程/托盘清理); W2 iced 外部驱动路径
@@ -458,7 +458,7 @@ impl AppShell {
                     c.config.save_group_position(&section, x, y);
                 }
             }
-            // Java configChangedHandler (Controller.java:498-544)
+            // Java configChangedHandler
             MainEvent::ConfigChanged(key) => {
                 let is_reset_completed = key == ui_state_events::ACTION_RESET_COMPLETED;
                 // 分支内对核只读 (handle_fm_hotkey_config_change/load_from_config_ 均
@@ -554,12 +554,12 @@ impl AppShell {
                 }
             }
             MainEvent::Tray(TrayCommand::Activate) => {
-                // Java Application.java:251-273: 旧核 stop + 新核构造。
+                // Java 托盘 mouseClicked: 旧核 stop + 新核构造。
                 // PORT(防重入窗口备案, 审查 A-W2): 托盘层 CAS (tray.rs dispatch_activate)
                 // 仅覆盖 handler.activate() 的 channel send (微秒级即复位), 远窄于
                 // Java CAS 覆盖整个 ctr.stop()+new Controller() 的窗口 — 快速双击
                 // 会向本通道投递**两条** Activate, 此处串行 rebuild×2 (串行 ≠ 只收到
-                // 一次)。与 Java 行为等价: Java 托盘回调同样在 EDT 串行, 第二次点击
+                // 一次)。与 Java 行为等价: Java 托盘回调同样在 UI 事件线程串行, 第二次点击
                 // 在第一次 finally 复位后到达, 同样重建两次; 最终态一致且无泄漏
                 // (第二次 rebuild 的 stop 收掉刚建核, ServiceHandle Drop 兜底 stop+join)。
                 self.rebuild_controller(false);
@@ -612,7 +612,7 @@ impl AppShell {
         std::mem::replace(&mut self.about_requested, false)
     }
 
-    /// 阻塞监督循环 (无 MainForm 场景: --live / 冒烟; Java 托盘+EDT 泵的对位)。
+    /// 阻塞监督循环 (无 MainForm 场景: --live / 冒烟; Java 托盘+UI 事件泵的对位)。
     /// Exit 托盘命令或通道关闭即返回 (进程退出归调用方)。
     /// 防呆 (审查 A-W3): 生产入口必须先起渲染线程 (托盘/overlay/热键泵);
     /// 未 spawn 直接 run = 无托盘无窗口且 TrayCommand::Exit 永不可达 (通道不关
@@ -646,7 +646,7 @@ impl AppShell {
     }
 
     /// 分相监督循环 (组装层主循环的相 B: MainForm 关闭后 — 开始游戏/窗口 X)。
-    /// 对位 Java: MainForm.dispose 后 EDT 事件循环继续 (托盘/overlay 存活),
+    /// 对位 Java: MainForm.dispose 后 UI 事件循环继续 (托盘/overlay 存活),
     /// Controller 的 Service 驱动状态机推进。
     /// 返回: Exit = 进程退出请求 (EndGame/托盘 Exit); MainFormRequested = 托盘
     /// Activate 已重建核并请求弹设置窗 (主循环回相 A 重开 iced 窗口)。

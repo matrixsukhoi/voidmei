@@ -21,9 +21,9 @@ use crate::fm::FMManager;
 /// config_stub 同款先例): 真实 Controller 波次为本 trait 提供实现即可对接
 /// build() 回退与两个快速工厂。
 pub trait ControllerRef<S> {
-    /// 对应 Java public 字段 `Controller.S` (Controller.java:90, 可 null 的 Service 引用)。
+    /// 对应 Java public 字段 `Controller.S` (可 null 的 Service 引用)。
     fn service(&self) -> Option<Arc<S>>;
-    /// 对应 Java `Controller.getConfigService()` (Controller.java:98, 返回
+    /// 对应 Java `Controller.getConfigService()` (返回
     /// ConfigurationService —— 即 ConfigProvider 实现的共享引用)。
     fn get_config_service(&self) -> Arc<dyn ConfigProvider>;
 }
@@ -46,15 +46,15 @@ pub struct OverlayContext<TC, S> {
     pub tc: Option<Arc<TC>>,
     /// Java 字段名 `S` (单字母大写) → snake_case `s`
     pub s: Option<Arc<S>>,
-    /// Java 字段名与类型同名 (`Blkx Blkx`) → 字段 `blkx`
+    /// Java 字段名与类型同名 (`Blkx Blkx`) → 字段 `fmdata`
     // PORT: Java 持 FMManager.current() 句柄内同一 Blkx 实例的引用拷 ——
-    // Service 线程对 blkx.engLoad 等会话态的就地改写对持有者可见
-    // (fm/fm_manager.rs:46); Rust 为构造时深拷快照 fork, 与 FMManager 内实例
+    // Service 线程对 engLoad 等会话态的就地改写对持有者可见
+    // (fm/manager.rs); Rust 为构造时深拷快照 fork, 与 FMManager 内实例
     // 的后续突变互不可见。当前消费面仅 null 检查 + isJet() (grep 实证:
-    // ActivationStrategy.java:91 / OverlayManager 全部使用点), 无会话态读取,
+    // ActivationStrategy / OverlayManager 全部使用点), 无会话态读取,
     // 保真成立。勿经本字段读 engLoad 会话态 —— 那是 Java 侧可做而此处静默
-    // 分叉的用法; 后续波次确需会话态时复议 Option<Arc<Blkx>> (现被
-    // fm/handle.rs blkx: Option<Blkx> 所有权形态挡住, 待 reader 波次内部
+    // 分叉的用法; 后续波次确需会话态时复议 Option<Arc<FmData>> (现被
+    // fm/handle.rs fmdata: Option<FmData> 所有权形态挡住, 待 reader 波次内部
     // 可变性裁决一并处理)。
     pub fmdata: Option<FmData>,
     pub is_preview_mode: bool,
@@ -62,7 +62,7 @@ pub struct OverlayContext<TC, S> {
     // PORT: Java 接口引用 → Arc<dyn ConfigProvider> 共享句柄 (LIFETIMES §7
     // `config: Arc<ConfigStore>` 形态)。刻意不加 Send + Sync 约束: 现实现
     // ConfigurationService 经 config_loader::GroupConfig 含 Rc<SExp> (!Send,
-    // configuration_service.rs L126 已备案的 Rc→Arc 待裁决项), 加约会把该
+    // configuration_service.rs 已备案的 Rc→Arc 待裁决项), 加约会把该
     // 接线提前堵死。注意 (审查 B 修正): trait object 未显式加 bound 时自动
     // trait 恒丢失 —— 无论具体实现是否 Send+Sync, 本签名下 OverlayContext
     // 恒 !Send+!Sync, 不存在 "跨线程搬运性随具体实现走"; Rc→Arc 裁决落地后
@@ -108,11 +108,10 @@ impl<TC, S> OverlayContext<TC, S> {
     }
 
     /// Check if debug mode is enabled.
-    // PORT: Java 读全局静态 `Application.debug` (Application.java:60, C 类步骤 16
-    // 收口, 本 crate 无对应物)。§2.9 禁在本文件自设 OnceLock 全局 (状态分裂),
-    // 故先返回其声明初始值 —— 该字段全库零写入点 (grep 实证: 读者仅
-    // Application.java:539 / Controller.java:228,262 / MainForm.java:336 / 本方法),
-    // 生产可观测行为恒 false, 与此处返回值一致。
+    // PORT: Java 读全局静态 `Application.debug` (C 类, 本 crate 无对应物)。
+    // §2.9 禁在本文件自设 OnceLock 全局 (状态分裂), 故先返回其声明初始值 ——
+    // 该字段全库零写入点 (grep 实证: 读者仅 Application / Controller /
+    // MainForm / 本方法), 生产可观测行为恒 false, 与此处返回值一致。
     // 已收口 (终态语义): Application.debug 全库零写入点 → 恒 false 即对齐;
     // env.debug 是 --debug 启动参 (对应 debugLog 而非本字段), 注入反而偏离 Java。
     pub fn is_debug(&self) -> bool {
@@ -127,15 +126,15 @@ impl<TC, S> OverlayContext<TC, S> {
     /// Quick factory for live mode context (对位 Java forGameMode; live=真实遥测数据态).
     /// configProvider 自动从 Controller 的 ConfigService 获取。
     ///
-    /// <p>P3 迁移: Blkx 直读 FMManager 当前句柄（EDT 上的纯 volatile 读, 无锁无 IO）。
-    /// 旧版经 Controller.getBlkx() 是 JIT 加载器, 可能在 EDT 触发同步文件解析;
-    /// 现在加载由 FMManager.identify 后台驱动, 此处仅读结果。非 READY 句柄 blkx=null,
+    /// <p>P3 迁移: FmData 直读 FMManager 当前句柄（RwLock 读 + Arc 克隆, 无 IO）。
+    /// 旧版经 Controller.getBlkx() 是 JIT 加载器, 可能同步触发文件解析阻塞 UI;
+    /// 现在加载由 FMManager.identify 后台驱动, 此处仅读结果。非 READY 句柄 fmdata=None,
     /// 消费方（ActivationStrategy / isJet() 等）均已 null 容忍。
-    // PORT: Java `FMManager.getInstance()` 单例已解散 (fm_manager.rs §2.9 裁决:
+    // PORT: Java `FMManager.getInstance()` 单例已解散 (fm/manager.rs §2.9 裁决:
     // 显式构造注入) → 追加 fm 参数; `Controller tc` 引用形参 → Arc<TC> 共享柄。
-    // current() 的 blkx 为句柄私有值, Java 引用拷贝 ↔ Rust clone (Blkx 深拷,
+    // current() 的 fmdata 为句柄私有值, Java 引用拷贝 ↔ Rust clone (FmData 深拷,
     // 低频路径: 仅 overlay 开启/刷新时构造, 非 ~10Hz 热点; engLoad 会话态共享
-    // 由 FMManager 的 Arc<FMHandle> 层承载, 见 fm_manager.rs ★1 注)。
+    // 由 FMManager 的 Arc<FMHandle> 层承载, 见 fm/manager.rs ★1 注)。
     pub fn for_live(fm: &FMManager, tc: Arc<TC>) -> OverlayContext<TC, S>
     where
         TC: ControllerRef<S>,
@@ -198,7 +197,7 @@ pub struct Builder<TC, S> {
     // Java 字段隐式默认 null/false (§2.10) → new() 显式初始化
     pub tc: Option<Arc<TC>>,
     pub s: Option<Arc<S>>,
-    // 同 OverlayContext.blkx 字段注: 构造时快照 fork, 勿读/勿依赖会话态。
+    // 同 OverlayContext.fmdata 字段注: 构造时快照 fork, 勿读/勿依赖会话态。
     pub fmdata: Option<FmData>,
     pub is_preview_mode: bool,
     pub config_provider: Option<Arc<dyn ConfigProvider>>,
@@ -249,7 +248,7 @@ impl<TC, S> Builder<TC, S> {
     /// Java `public OverlayContext build()` —— 非 static, 写回 this 后经私有构造器
     /// 组装 (builder 存活可复用)。
     // PORT: Java 构造器按引用拷贝 builder 字段 (`this.tc = builder.tc`) ↔ Rust
-    // clone (Arc 克隆 O(1); Blkx 深拷, 低频构造路径, 见 for_live 注)。
+    // clone (Arc 克隆 O(1); FmData 深拷, 低频构造路径, 见 for_live 注)。
     pub fn build(&mut self) -> OverlayContext<TC, S>
     where
         TC: ControllerRef<S>,

@@ -35,14 +35,9 @@ pub trait ActivationContext {
 // (Java 引用语义), 且 Arc 浅克隆 = Java 引用赋值 (Clone 派生即此意)。
 // 刻意不 derive PartialEq —— Java 函数式接口无 equals 语义, 比较只有引用
 // 同一性, 闭包无对应 (fm/handle.rs 同款裁决)。
-// Arc + Send + Sync (而非 Rc): shouldActivate 的调用线程不止 EDT ——
-// Controller.java:525-536/573-576 的 configDebouncer (单线程 daemon
-// "ConfigDebounce") 防抖任务在后台线程调 overlayManager.refreshAllPreviews()
-// → entry.refreshPreview(ctx) → strategy.shouldActivate(ctx)
-// (OverlayManager.java:115/124/314-315/291); Controller.java:855 的
-// refreshPreviews 亦注明只在后台线程调用 (LIFETIMES.md 线程清单含
-// ConfigDebounce)。Send/Sync 只约束闭包捕获物 (String 与嵌套策略), 不会
-// 约束按引用传入的 ActivationContext, 对步骤 14 的 OverlayContext 无泄漏。
+// Arc + Send + Sync (而非 Rc): 策略经共享激活缓存跨线程 —— 主线程建缓存,
+// 渲染线程构造并调用。Send/Sync 只约束闭包捕获物 (String 与嵌套策略),
+// 不会约束按引用传入的 ActivationContext, 对 OverlayContext 无泄漏。
 #[derive(Clone)]
 pub struct ActivationStrategy {
     // PORT: Java 保真 — `Predicate<ActivationContext>` 的 Rust 对应形态,

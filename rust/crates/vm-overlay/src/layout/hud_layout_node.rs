@@ -1,17 +1,17 @@
-//! 对应 Java: `src/ui/layout/HUDLayoutNode.java` (一比一翻译, B 类)。
+//! HUD 布局图节点 (Java HUDLayoutNode 一比一翻译, B 类)。
 //!
 //! 映射裁决:
 //! - Java 引用语义 (节点被 engine map / 父 children / 局部变量共享引用) →
 //!   `Rc<RefCell<HUDLayoutNode<T>>>` 共享句柄 (Java 本类无线程同步, 布局图仅在
-//!   EDT 触碰 → Rc 而非 Arc, 见 LIFETIMES.md §5 "UI 单写者")。
+//!   渲染线程触碰 → Rc 而非 Arc, 见 LIFETIMES.md §5 "UI 单写者")。
 //! - 父子双向边: children 强持 Rc (父拥有子), parent 用 `Weak` 反向回指 ——
 //!   Java 的 GC 环 (parent↔child) 在 Rust 显式断环; 正常图中父节点必被
 //!   engine map 或自身祖先的 children 强持, Weak 升级不会失败。
 //!   PORT(审查 B1/B2 备案): (a) 升级失败时 get_parent() 告警并返回 None,
-//!   engine 以 get_parent()==None 判根 (ModernHUDLayoutEngine.java:102) —
+//!   engine 以 get_parent()==None 判根 (ModernHUDLayoutEngine) —
 //!   engine 移植必须让 nodes map 强持全部节点, 否则节点被误判为 ROOT;
 //!   (b) 重复 setParent 可构造 A↔B children 强引用环, Rc 永不回收 (Java GC
-//!   可收环 + engine visit() 环检测仅日志跳过, ModernHUDLayoutEngine.java:111-114)
+//!   可收环 + engine visit() 环检测仅日志跳过, 见 ModernHUDLayoutEngine)
 //!   — engine 移植 visit() 环检测分支时须同时负责断环。
 //! - Java 实例方法 → `HUDLayoutNodeExt` 扩展 trait 挂在句柄上
 //!   (`self: &Rc<RefCell<Self>>` 非稳定接收者, trait shim 保持
@@ -177,7 +177,7 @@ pub trait HUDLayoutNodeExt<T> {
 
     /// Java `getPixelRect()`
     /// PORT: Java 返回 live Rectangle 引用; 全库消费点 (ModernHUDLayoutEngine
-    /// 4 处: L138/163/187/217 — 审查勘误, 翻译者报告误记 3 处) 均只读
+    /// 4 处 — 审查勘误, 翻译者报告误记 3 处) 均只读
     /// → 返回 Copy 快照。
     fn get_pixel_rect(&self) -> Rectangle;
 
@@ -291,9 +291,7 @@ impl<T> HUDLayoutNodeExt<T> for SharedNode<T> {
 
         this.pixel_rect
             .set_bounds(self_x, self_y, size.width, size.height);
-        // prog.util.Logger.info("LayoutDebug", String.format("Node %s: Anchor(%.1f,
-        // %.1f) -> Target(%d, %d) -> Self(%d, %d) [Size: %dx%d]",
-        // id, unitX, unitY, targetX, targetY, selfX, selfY, size.width, size.height));
+        // (Java 此处有 LayoutDebug info 日志, 未复刻)
         this.dirty = false;
     }
 }

@@ -2,7 +2,7 @@
 //! 事件载荷类型在 base/event — 原三地分裂是"哪波改的就放哪"的历史痕迹)。
 //!
 //! 对齐 Java 语义: publish 为同步调用 (订阅者依次执行, 调用线程 = publish 线程,
-//! 对齐 Java FlightDataBus.publish 在 Service 线程、订阅者自行转 EDT 的模式);
+//! 对齐 Java FlightDataBus.publish 在 Service 线程、订阅者自行转 UI 线程的模式);
 //! RAII Subscription Drop 即注销 —— 根治 Java 版 VoiceWarning 式忘记 unregister 泄漏
 //! (LIFETIMES.md §2 记录的现存 bug)。
 //! 锁纪律 (LIFETIMES: Java OverlayEntry 锁内回调是死锁风险点): listeners 列表锁

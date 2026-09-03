@@ -52,20 +52,20 @@ pub struct OverlayInputs {
     /// 动力信息字号增量 + 列数 (getOverlaySettings("动力信息"))
     pub font_add_power: i32,
     pub power_columns: i32,
-    /// 飞行信息字号增量 + 列数 (getOverlaySettings("飞行信息"); Java Controller:683)
+    /// 飞行信息字号增量 + 列数 (getOverlaySettings("飞行信息"))
     pub font_add_flight: i32,
     pub flight_columns: i32,
     /// 起落襟翼字号增量 + 边缘模式 (getOverlaySettings("起落襟翼"))
     pub font_add_gear: i32,
     pub gear_show_edge: bool,
-    /// 舵面值字号增量 + 边缘模式 (getOverlaySettings("舵面值"); Java :683)
+    /// 舵面值字号增量 + 边缘模式 (getOverlaySettings("舵面值"))
     pub font_add_axis: i32,
     pub axis_show_edge: bool,
-    /// FM拆包数据字号增量 (getOverlaySettings("FM拆包数据"); Java :731-736 —
+    /// FM拆包数据字号增量 (getOverlaySettings("FM拆包数据");
     /// cfg 该组无字号滑条, 恒默认 0, setupFont 的 14+add 面)
     pub font_add_fm: i32,
     /// 地平仪几何/开关 (getOverlaySettings("地平仪"); 缺省 = Java reinitConfig 默认:
-    /// 150×300 / 40ms / direction false / AoA 极限 true, AttitudeOverlay.java:232-248)
+    /// 150×300 / 40ms / direction false / AoA 极限 true)
     pub attitude_width: i32,
     pub attitude_height: i32,
     pub attitude_freq_ms: i64,

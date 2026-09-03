@@ -20,11 +20,11 @@ use vm_core::base::format::java_round_f32;
 use vm_core::formula::registry::FormulaView;
 use vm_core::lang::Lang;
 
-/// Throttling to prevent EDT task accumulation (FieldOverlay.java:37-38
-/// REFRESH_INTERVAL_MS) — 公共节流常量 (PowerInfo 等 FieldOverlay 族同源)
+/// 节流间隔 (FieldOverlay REFRESH_INTERVAL_MS) — 防高频事件任务堆积;
+/// 公共节流常量 (PowerInfo 等 FieldOverlay 族同源)
 pub const FIELD_OVERLAY_REFRESH_INTERVAL_MS: i64 = 50;
 
-/// UIBaseElements.drawVBar (UIBaseElements.java:112-130): 竖条 (底对齐, shade 环 +
+/// UIBaseElements.drawVBar (UIBaseElements): 竖条 (底对齐, shade 环 +
 /// c 内芯); val_height<0 分支为条自 y 向下生长 (GearFlaps 值域 0..100 不可达, 保真保留)
 #[allow(clippy::too_many_arguments)] // 对齐 Java drawVBar(g2d,x,y,width,height,val_height,borderwidth,c)
 fn draw_v_bar(
@@ -46,7 +46,7 @@ fn draw_v_bar(
     }
 }
 
-/// UIBaseElements.drawVBarTextNum (UIBaseElements.java:144-154): 竖条 + 随值指针横线 +
+/// UIBaseElements.drawVBarTextNum (UIBaseElements): 竖条 + 随值指针横线 +
 /// 数值文本。lbl 形参在 Java 中传入后未绘制 (drawVBarText 的标签绘制已注释), 保真保留
 #[allow(clippy::too_many_arguments)] // 对齐 Java drawVBarTextNum(g2d,x,y,width,height,val_height,borderwidth,c,lbl,num,lblFont,numFont)
 fn draw_v_bar_text_num(
@@ -72,13 +72,12 @@ fn draw_v_bar_text_num(
     text_shaded_auto(cv, num_font, x + w, y - val_h - 2, num, colors().label, aa);
 }
 
-/// Throttling to prevent EDT task accumulation (gear/flaps are low-frequency data)
-/// (GearFlapsOverlay.java:28-29 REFRESH_INTERVAL_MS)
+/// 节流间隔 (gear/flaps 为低频数据; GearFlapsOverlay REFRESH_INTERVAL_MS)
 pub const GEAR_FLAPS_REFRESH_INTERVAL_MS: i64 = 100;
 
-/// 起落襟翼面板状态: 几何 (reinitConfig) + 动态数据 (drawTick) + 绘制 (paintComponent)
+/// 起落襟翼面板状态: 几何 (reinitConfig) + 动态数据 (drawTick) + 绘制 (draw)
 pub struct GearFlapsState {
-    /// 节流基准 (GearFlapsOverlay.java:30 lastRefreshTime, System.currentTimeMillis 毫秒)
+    /// 节流基准 (GearFlapsOverlay lastRefreshTime, System.currentTimeMillis 毫秒)
     pub last_refresh_time: i64,
     pub font_size: i32,
     pub bar_width: i32,
@@ -101,7 +100,7 @@ pub struct GearFlapsState {
 }
 
 impl GearFlapsState {
-    /// reinitConfig 几何段 (GearFlapsOverlay.java:95-142)。
+    /// reinitConfig 几何段。
     /// show_edge = enablegearAndFlapsEdge 开关 (sw=10)
     pub fn new(font_add: i32, dpi_scale: f64, show_edge: bool) -> Self {
         // fontSize = round((24 + fontadd) * dpiScale)
@@ -130,15 +129,15 @@ impl GearFlapsState {
         }
     }
 
-    /// onFlightData → drawTick (GearFlapsOverlay.java:199-256) 的单事件语义:
-    /// 100ms 节流闩 → (invokeLater lambda 内) drawTick (:220-256): 起落架/减速板
+    /// onFlightData → drawTick (GearFlapsOverlay) 的单事件语义:
+    /// 100ms 节流闩 → (数据回调内) drawTick: 起落架/减速板
     /// 状态文本 + 襟翼像素/文本。
     /// PORT: System.currentTimeMillis 由调用方注入 now_ms (field2 先例); 返回
     /// false = 节流跳过 (Java 原方法 void, 宿主可据此省重绘)
     pub fn update_tick(&mut self, now_ms: i64, lang: &Lang, s: &dyn FormulaView) -> bool {
-        // Throttling prevents EDT task accumulation
+        // 节流防高频事件任务堆积
         if now_ms - self.last_refresh_time < GEAR_FLAPS_REFRESH_INTERVAL_MS {
-            return false; // Skip this update, too soon
+            return false; // 距上次更新太近, 跳过
         }
         self.last_refresh_time = now_ms;
         // Java (int) 强转截断; 值域 0..100
@@ -175,7 +174,7 @@ impl GearFlapsState {
         true
     }
 
-    /// paintComponent (GearFlapsOverlay.java:158-187)
+    /// paintComponent
     pub fn draw(
         &self,
         cv: &mut PixCanvas,
@@ -207,10 +206,10 @@ impl GearFlapsState {
 /// 起落襟翼共享句柄
 pub type GearFlapsHandle = Rc<RefCell<GearFlapsState>>;
 
-/// 起落襟翼 OverlaySpec + live 句柄 (Java Controller.java:709 注册键 enablegearAndFlaps)。
+/// 起落襟翼 OverlaySpec + live 句柄 (Java Controller 注册键 enablegearAndFlaps)。
 /// 初始态 = 襟翼 50% 无告警 (new 的预览初值), 游戏模式由喂入方 update_tick 推进。
 /// PORT(WYSIWYG): 字号/边缘开关随 [`ReinitParams`] 仓 — reinit 闭包重建几何 +
-/// 双字体 (Java reinitConfig :95-142), 返回新 (total_width, total_height)
+/// 双字体 (Java reinitConfig), 返回新 (total_width, total_height)
 pub fn gear_flaps_overlay_spec(
     fonts_dir: &std::path::Path,
     params: &Rc<RefCell<ReinitParams>>,

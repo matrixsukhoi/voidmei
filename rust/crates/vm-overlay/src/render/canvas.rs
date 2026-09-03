@@ -14,7 +14,7 @@
 //! | fill_path | Graphics.fillPolygon | 偶奇填充规则, 自动闭合 |
 //! | draw_text | Graphics.drawString | font.rs swash 光栅化/字形缓存共用 |
 //!
-//! AA 开关对齐 Application.graphAASetting / textAASetting (Application.java:101-102):
+//! AA 开关对齐 Application.graphAASetting / textAASetting:
 //! aa=false 走 tiny-skia 非 AA 扫描线光栅化 (硬边), 文本二值化阈值 128 与
 //! font.rs glyph() 一致。
 //!
@@ -236,7 +236,7 @@ impl PixCanvas {
     }
 
     /// Java Graphics.drawLine + BasicStroke(width, CAP_ROUND, JOIN_ROUND)
-    /// (LinearGauge.java:117 / CompassGauge.java:106 / AttitudeIndicatorGauge.java:185 主样式)
+    /// (LinearGauge / CompassGauge / AttitudeIndicatorGauge 主样式)
     #[allow(clippy::too_many_arguments)] // 签名对齐 Java drawLine(x0,y0,x1,y1)+线型三元组
     pub fn draw_line(
         &mut self,
@@ -298,7 +298,7 @@ impl PixCanvas {
         }
     }
 
-    /// Java Graphics.drawOval 的圆特例: 描边圆 (CompassGauge.java:128-132 双层描圆)
+    /// Java Graphics.drawOval 的圆特例: 描边圆 (CompassGauge 双层描圆)
     pub fn stroke_circle(&mut self, cx: i32, cy: i32, r: i32, width: f32, color: [u8; 4], aa: bool) {
         if r <= 0 {
             return;

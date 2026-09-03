@@ -1,4 +1,4 @@
-//! 对应 Java: `src/ui/model/DataField.java` (一比一翻译)
+//! 单个 overlay 显示字段模型 (Java DataField 一比一移植)。
 
 /// Represents a single data field displayed in an overlay.
 /// Generic version - can be used for any type of data display.
@@ -27,14 +27,11 @@ pub struct DataField {
 
     // --- Zero-GC Pipeline Support ---
     // PORT: Java `char[32] buffer + int length` 零 GC 复用缓冲 → String。
-    // 已译版 `crate::base::format` 返回 String (无缓冲复写入 API), 故 buffer 直接改为
+    // Rust 版 `crate::base::format` 返回 String (无缓冲复写入 API), 故 buffer 直接改为
     // String 承接格式化产物; length 字段保留 int 语义 (有效字符数)。
-    // 全部写入点 (C 类, 本批均未译):
-    //   - FieldOverlay.java:208-215 (format/formatTime 落盘 + na-when 时 '-' 单字符)
-    //   - EngineControlOverlay.java:533-541 (GaugeField 通道, format 后把
-    //     (buffer, length) 透传 gauge.update/markedGauge.update)
-    //   - src/ui/debug/OverlayPngExport.java:204-210 (PNG 调试导出)
-    // 读取点: BOSStyleRenderer.java:61 (gauge.draw(..., field.buffer, field.length))
+    // Java 侧写入点: FieldOverlay (format/formatTime 落盘 + na-when 时 '-' 单字符)、
+    // EngineControlOverlay (GaugeField 通道)、OverlayPngExport (PNG 调试导出);
+    // 读取点: BOSStyleRenderer 的 gauge.draw(..., field.buffer, field.length)
     // 及 EngineControlOverlay 的 gauge.update(intVal, buffer, length)。
     // 契约差异: Java 复用数组, length 之外是上一轮的陈旧内容 (读取方约定只看前
     // length 个码元); Rust String 恰为有效内容, 无 stale tail —— 消费方按前

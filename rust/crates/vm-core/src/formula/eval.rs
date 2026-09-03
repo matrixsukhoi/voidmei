@@ -15,7 +15,7 @@ pub struct EvalCtx<'a> {
     pub results: &'a FormulaResults,
     pub now_ms: u64,
     /// 本帧实际间隔 (ms) — blend/learn_max 的隐含 ratio = interval_ms/1000,
-    /// 对齐 service_fields.rs L368 `ratio=freq/1000f`
+    /// 对齐 service_fields 的 `ratio=freq/1000f`
     pub interval_ms: f64,
     /// 当前 FM (FM 查表函数族 fm_vne 等的表源; None → NaN 隔离)
     pub fm_data: Option<&'a crate::fm::data::FmData>,
@@ -28,12 +28,12 @@ enum PrimState {
     /// prev / blend / deriv 的上一帧记忆
     Prev(f64),
     PrevT { prev: f64, t: u64 },
-    /// vote: ±n 冻结投票, 对齐 service_loop.rs check_engine_jet L1095-1130
+    /// vote: ±n 冻结投票, 对齐 service_loop 的 check_engine_jet
     Vote { cnt: i64, frozen: Option<f64> },
-    /// stable: 值持续不变计时, 对齐 check_flap 的"维持1秒稳定" L53-67
+    /// stable: 值持续不变计时, 对齐 check_flap 的"维持1秒稳定"
     Stable { prev: f64, held_ms: f64, has_prev: bool },
     /// learn_max: 门控内软逼近最大值+超时锁定,
-    /// 对齐 methods_engine.rs get_maximum_rpm_learn L91-131
+    /// 对齐 methods_engine 的 get_maximum_rpm_learn
     LearnMax { cur: f64, elapsed_ms: f64, locked: bool },
 }
 
@@ -241,7 +241,7 @@ fn eval_stateful(fid: FnId, vals: &[f64], site: u32, ctx: &EvalCtx, store: &mut 
         }
         FnId::Blend => {
             // blend(x, ratio): out = (1-ratio)*prev + ratio*x, prev 初值 0
-            // 对齐 service_loop.rs L1190-1226 `ratio_1*x_prev + ratio*x`
+            // 对齐 service_loop 的 `ratio_1*x_prev + ratio*x`
             let (x, ratio) = (vals[0], vals[1]);
             let st = store.map.entry(key).or_insert(PrimState::Prev(0.0));
             match st {
@@ -296,7 +296,7 @@ fn eval_stateful(fid: FnId, vals: &[f64], site: u32, ctx: &EvalCtx, store: &mut 
         }
         FnId::Stable => {
             // stable(x, ms): x 持续不变达 ms → 1 (持续输出), 变化清零
-            // 对齐 check_flap "维持1秒稳定" 的计时语义 (L53-67)
+            // 对齐 check_flap "维持1秒稳定" 的计时语义
             let (x, ms) = (vals[0], vals[1]);
             let st = store
                 .map
@@ -318,7 +318,7 @@ fn eval_stateful(fid: FnId, vals: &[f64], site: u32, ctx: &EvalCtx, store: &mut 
         }
         FnId::LearnMax => {
             // learn_max(x, gate, timeout_ms): gate 真且 x>=cur 时
-            // cur = (1-ratio)*cur + ratio*x (ratio=interval_ms/1000, 对齐 L121-122);
+            // cur = (1-ratio)*cur + ratio*x (ratio=interval_ms/1000, 对齐 service_fields 的 ratio 定义);
             // gate 有效时长累计, 超 timeout_ms 锁定。初值 cur=0 (resetvaria maximumThrRPM 语义位级对拍阶段4校准)
             let (x, gate, timeout_ms) = (vals[0], vals[1] != 0.0, vals[2]);
             let ratio = (ctx.interval_ms / 1000.0).clamp(0.0, 1.0);

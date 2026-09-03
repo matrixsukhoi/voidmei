@@ -16,8 +16,8 @@
 //! (会话状态由 FMHandle.eng_load_state 承接)、wx* 死存储、cl_a/aileron_defl、
 //! 原始文本 data 串 (init/finalizeLoading 一并退役)。
 //!
-//! PORT: 反射段 (getValue/dumpVariables, L1908-2000) 按 D4 裁决不迁移。
-//! interpolateSweepDouble (L718) 由 crate::base::interpolation::interp_sweep_level 承接
+//! PORT: 反射段 (getValue/dumpVariables) 按 D4 裁决不迁移。
+//! interpolateSweepDouble 由 crate::base::interpolation::interp_sweep_level 承接
 //! (单一来源规约, 见 model.rs 函数级注)。
 
 mod model;
@@ -37,7 +37,7 @@ mod realtests;
 pub use flap_limits::{get_flap_allow_angle, get_flap_allow_speed};
 pub use types::{EngineLoad, FuelModification, FuelType, FmParts, SweepLevel};
 
-/// 增压器 9 组平行表 (波17 F5 收拢; 对应 Java Blkx L650-674 的
+/// 增压器 9 组平行表 (波17 F5 收拢; 对应 Java Blkx 的
 /// `compAlt/compPower/compBoost/hasCompBoost/compRpmRatio/compCeiling/
 /// compCeilingPwr/compConstRpmAlt/compConstRpmPower` 数组族)。
 ///
@@ -73,7 +73,7 @@ pub struct CompressorData {
     pub const_rpm_power: Option<Vec<f64>>,
 }
 
-/// 对应 Java `public class Blkx` (L14) 的聚合 struct — 字段区宿主 (D4)。
+/// 对应 Java `public class Blkx` 的聚合 struct — 字段区宿主 (D4)。
 ///
 /// 字段区覆盖 Java 实例字段的存活子集 (死字段见模块头注), 类型对齐:
 /// double→f64 / int→i32 / String 与对象引用的 null-未赋值态→Option;
@@ -82,33 +82,25 @@ pub struct CompressorData {
 // PartialEq — Java 无 equals 覆写, 语义只有引用同一性 (FMHandle 同款先例)。
 #[derive(Debug, Clone, Default)]
 pub struct FmData {
-    // ---- L15 / L234-241 ----
     pub valid: bool,
     pub read_file_name: Option<String>,
 
-    // ---- L243-244 ----
     // 发动机负载相关
     pub fmdata: Option<String>,
 
-    // ---- L255-273 ----
     pub eng_load: Option<Vec<EngineLoad>>,
     pub max_eng_load: i32,
 
-    // ---- L275-281 ----
     pub vne: f64,
     pub vne_mach: f64,
 
-    // ---- L292-293 ----
     pub emptyweight: f64,
 
-    // ---- L295 ----
     pub max_allow_gload: Option<[f64; 2]>,
 
-    // ---- L297-298 ----
     /// Raw wing critical overload values (Newtons) for dynamic G-load calculation
     pub raw_wing_crit_overload: Option<[f64; 2]>,
 
-    // ---- L300-327 ----
     pub aileron_eff: f64,
     pub aileron_power_loss: f64,
     pub rudder_eff: f64,
@@ -128,7 +120,6 @@ pub struct FmData {
     pub oil_radiator_cd: f64,
     pub oswalds_efficiency_number: f64,
 
-    // ---- L364-379 ----
     /// Dynamic list of sweep levels, ordered by sweep ratio (0.0 to 1.0)
     // PORT: Java List<SweepLevel> null-未赋值 → Option<Vec<..>>
     pub sweep_levels: Option<Vec<SweepLevel>>,
@@ -140,7 +131,6 @@ pub struct FmData {
     pub fin: Option<FmParts>,
     pub stab: Option<FmParts>,
 
-    // ---- L380-404 ----
     pub swept_wing_angle: f64,
     pub critical_speed: f64,
     pub a_wing_left_in: f64,
@@ -167,7 +157,7 @@ pub struct FmData {
     pub flaps_destruction_ind_speed: Option<[[f64; 2]; 6]>,
     pub halfweight: f64,
 
-    // ---- L633-648 喷气推力表 ----
+    // ---- 喷气推力表 ----
     // PORT: Java new double[30] 定长缓冲 → [f64; N]; 有效数据前缀长度由
     // alt_thr_num/vel_thr_num/mode_engine_num 记录
     pub altitude_thr: Option<[f64; 30]>,
@@ -183,7 +173,7 @@ pub struct FmData {
     pub peak_thr_aft: f64, // 加力峰值推力 (kgf)
     pub engine_num: i32,
 
-    // ---- L650-674 增压器 ----
+    // ---- 增压器 ----
     // 增压器档数标量 (喷气恒 0; 表族见 compressor)
     pub comp_num_steps: i32,
     // 9 组增压器平行表收拢为单一结构体 (波17 F5: 消费方原先须 9 次
@@ -197,7 +187,7 @@ pub struct FmData {
     pub gear_destruction_ind_speed: f64,
     pub max_rpm: f64,
 
-    // ---- L676-715 === Piston Engine Extended Parameters (for WAPC-compatible power calculations) === ----
+    // ---- Piston Engine Extended Parameters (for WAPC-compatible power calculations) ----
     // RPM parameters
     pub military_rpm: f64, // Military power RPM (from Propeller.ThrottleRPMAuto)
     pub wep_rpm: f64,      // WEP power RPM (from Propeller.ThrottleRPMAuto)

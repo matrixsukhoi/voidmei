@@ -1,19 +1,13 @@
 //! MainForm 的表单数据层 (src/ui/MainForm.java + src/ui/layout/DynamicDataPage.java)。
 //!
-//! **D9 变更**: 设置窗换 Tauri 2 web 壳 (vm-webui) — 原 iced view 段 (view/
-//! panel_section/build_rows/grid_section + ReadContext) 已删, 表单渲染归 web 壳;
+//! **D9 变更**: 设置窗换 Tauri 2 web 壳 (vm-webui) — 原 iced view 段已删,
+//! 表单渲染归 web 壳 (tab 分页/卡片网格布局均在 web 壳, 数据驱动不写死面板);
 //! 本模块仅存数据层 (Message/MainFormState/update/persist 写回链); --headless
 //! 无窗口验收工具已提离至 [`headless`] 子模块 (E10, 不与状态机核心混排)。
-//! 下述 Elm/view 布局描述为 D1 历史备案。
-//! - Java MainForm 的 WebTabbedPane 每 panel 一页 → 本 view 顺序平铺各 panel 区块
-//!   (滚动列); tab 切换/窗口尺寸自适应属窗口管理层, 后续批次。
-//! - Java DynamicDataPage.buildContainer 的 (group ...) 卡片/网格 → 原 build_rows
-//!   的组标题 + 列数分块 (数据驱动, 不写死任何面板; view 已删, 布局归 web 壳)。
 //! - WYSIWYG 更新链 (对齐 Java MainForm→UIStateBus→Controller.refreshPreviews):
 //!   值变更 → config.set_config (服务树更新 + 服务侧内联 publish CONFIG_CHANGED(key),
 //!   对位 Java ConfigurationService.setConfig) → 保存链 persist_and_notify 落盘 +
-//!   广播 CONFIG_CHANGED("ui_layout.cfg") (对位 DynamicDataPage.save L252)。
-//!   overlay 侧订阅接线属批十三。
+//!   广播 CONFIG_CHANGED("ui_layout.cfg") (对位 DynamicDataPage.save)。
 //!
 //! PORT(clone-split 备案): Java 页面树与服务树是同一对象引用 (findGroupByTitle 返
 //! 活引用); Rust 服务树锁内只能借出快照 → 本状态持 `groups` 快照与配置服务并存。
@@ -23,8 +17,8 @@
 //! 为最新, 不被陈旧快照覆盖, 对位 DynamicDataPage.rebuild 的 findGroupByTitle)。
 //!
 //! PORT(消息形状备案): 规格消息枚举为 Toggle(key,bool)/Slider(key,i32)/Combo(key,
-//! String); 本实现各补 `panel` 字段 — Java 渲染器闭包捕获 (row, groupConfig)
-//! (SwitchRowRenderer.java:40), PropertyBinder 字段写以 panel 级 GroupConfig 为目标,
+//! String); 本实现各补 `panel` 字段 — Java 渲染器闭包捕获 (row, groupConfig),
+//! PropertyBinder 字段写以 panel 级 GroupConfig 为目标,
 //! 同名 key 可分布于多个 panel (现行 ui_layout.cfg: fontSize×7 / fontName×2),
 //! 无 panel 无法保真定位写入目标。
 
@@ -58,7 +52,7 @@ pub mod headless;
 // 消息
 // =====================================================================
 
-/// 交互消息 (Elm 架构; panel = 行所属 panel 标题, 见模块文档形状备案)。
+/// 交互消息 (panel = 行所属 panel 标题, 见模块文档形状备案)。
 #[derive(Debug, Clone)]
 pub enum Message {
     /// 开关翻转 (value 为**显示值**, SWITCH_INV 落库取反) — SwitchRowRenderer 闭包
@@ -71,9 +65,9 @@ pub enum Message {
     ColorPicked { panel: String, key: String, value: [u8; 4] },
     /// 保存 (按钮/滑条拖拽释放) — DynamicDataPage.save / saveDynamicConfig
     Save,
-    /// 开始游戏 — MainForm.confirm (L265-278)
+    /// 开始游戏 — MainForm.confirm
     StartGame,
-    /// 结束游戏 — 底部按钮组 mCancel 的保存语义 (MainForm.java:92-98)
+    /// 结束游戏 — 底部按钮组 mCancel 的保存语义 (MainForm)
     EndGame,
     /// 刷新预览 — 主动广播 CONFIG_CHANGED, 对位 Controller.refreshPreviews 触发面
     RefreshPreviews,
@@ -98,7 +92,7 @@ pub struct MainFormState {
     groups: Vec<GroupConfig>,
     /// 与 ConfigurationService 共享的 UI 事件总线 (Java UIStateBus 单例的注入式替代):
     /// 服务侧 setConfig 发布 CONFIG_CHANGED(key), 本侧保存链发布
-    /// CONFIG_CHANGED("ui_layout.cfg") (DynamicDataPage.save, Java L252)
+    /// CONFIG_CHANGED("ui_layout.cfg") (DynamicDataPage.save)
     ui_bus: Arc<UIStateBus>,
     /// 持久化目标路径 (生产 = config_manager 用户配置路径); None = 不落盘
     /// (--headless 状态机驱动 / 测试注入 tmp 路径用 Some)
@@ -206,11 +200,11 @@ impl MainFormState {
 }
 
 // =====================================================================
-// RenderContext 实现 (Java DynamicDataPage.java:126-175 匿名类)
+// RenderContext 实现 (Java DynamicDataPage 匿名类)
 // =====================================================================
 
 /// 写侧上下文 (update 用): on_save 以标志位暂存, 由 [`with_panel`] 统一
-/// flush (对位 Java 回调直调 save(); Elm 下写路径在 update, 无重入面)。
+/// flush (对位 Java 回调直调 save(); 写路径在 update, 无重入面)。
 pub(crate) struct WriteContext<'a> {
     config: &'a ConfigurationService,
     ui_bus: &'a UIStateBus,
@@ -236,7 +230,7 @@ impl RenderContext for WriteContext<'_> {
         self.save_requested.set(true);
     }
     fn sync_to_config_service(&self, key: &str, value: bool) {
-        // Java L143-152: setConfig(key, Boolean.toString(value)) + enableFMPrint 特例
+        // Java: setConfig(key, Boolean.toString(value)) + enableFMPrint 特例
         // (FM_PRINT_SWITCH_CHANGED 广播, 源串对位 Java "DynamicDataPage(RenderContext)")
         self.config.set_config(key, &value.to_string());
         if key == "enableFMPrint" {
@@ -256,7 +250,6 @@ impl RenderContext for WriteContext<'_> {
         }
     }
     fn sync_string_to_config_service(&self, key: &str, value: &str) {
-        // Java L164-166
         self.config.set_config(key, value);
     }
     fn get_string_from_config_service(&self, key: &str, default_val: &str) -> String {
@@ -273,8 +266,7 @@ impl RenderContext for WriteContext<'_> {
 // update (WYSIWYG 更新链)
 // =====================================================================
 
-/// 表单消息驱动的状态更新 (D1 期为 iced update; D9 后由 web 壳经 vm-app
-/// dispatcher 投递同一消息集, 链路不变)。
+/// 表单消息驱动的状态更新 (web 壳经 vm-app dispatcher 投递消息集, 链路不变)。
 pub fn update(state: &mut MainFormState, message: Message) {
     match message {
         Message::Toggle { panel, key, value } => {
@@ -294,18 +286,17 @@ pub fn update(state: &mut MainFormState, message: Message) {
             });
         }
         Message::Save => {
-            // Java DynamicDataPage.save (L245-255): saveDynamicConfig + 广播
+            // Java DynamicDataPage.save: saveDynamicConfig + 广播
             persist_and_notify(state);
         }
         Message::StartGame => {
-            // Java MainForm.confirm (L265-278): ACTION 日志 + endPreview + saveConfig +
-            // loadFromConfig + tc.start() — Controller 未翻译 (批十三), 此处落保存链
+            // Java MainForm.confirm: ACTION 日志 + endPreview + saveConfig +
+            // loadFromConfig + tc.start() — 此处落保存链
             logger::info("MainForm", "ACTION: User confirmed start. Initializing Game Mode...");
             persist_and_notify(state);
         }
         Message::EndGame => {
-            // 对位 Java 底部 mCancel (MainForm.java:92-98) 的保存语义; 进程退出/托盘
-            // 回收归组装层 (批十三)
+            // 对位 Java 底部 mCancel 的保存语义; 进程退出/托盘回收归组装层 (vm-app)
             logger::info("MainForm", "ACTION: User requested end. Saving configuration...");
             persist_and_notify(state);
         }
@@ -331,9 +322,9 @@ pub fn update(state: &mut MainFormState, message: Message) {
             // refreshAllPreviews 语义 — "ui_layout.cfg" 全局键触发全量 WYSIWYG)
             let action = state.pending_action.take().unwrap_or_default();
             let ok = match action.as_str() {
-                // ButtonRowRenderer L121-147: resetToFactory (模板覆盖 + 备份)
+                // ButtonRowRenderer: resetToFactory (模板覆盖 + 备份)
                 "factoryReset" => state.config.reset_to_factory(),
-                // L38-62: publish(ACTION_RESET_REQUEST) → resetAllLayoutDefaults —
+                // ButtonRowRenderer: publish(ACTION_RESET_REQUEST) → resetAllLayoutDefaults —
                 // 总线订阅未接 (init_config 备案), 直调顶替 (configuration_service
                 // reset_all_layout_defaults 注释指定的顶替路径)
                 "resetConfig" => state.config.reset_all_layout_defaults(),
@@ -356,7 +347,7 @@ pub fn update(state: &mut MainFormState, message: Message) {
             state.pending_action = None; // 确认框 CANCEL_OPTION
         }
         Message::ColorPicked { panel, key, value } => {
-            // Java ColorRowRenderer.applyColorChange (L110-136): 主键十进制 + 分键
+            // Java ColorRowRenderer.applyColorChange: 主键十进制 + 分键
             // R/G/B/A 写服务 + row.value + onSave (即存, 每次 apply 落盘)
             with_panel(state, &panel, &key, |g, ctx| {
                 renderers::color::apply(g, &key, value, ctx)
@@ -417,7 +408,7 @@ fn with_panel(
     }
 }
 
-/// 保存链 (Java DynamicDataPage.save L245-255):
+/// 保存链 (Java DynamicDataPage.save):
 /// saveDynamicConfig → configService.saveLayoutConfig (落盘) + publish(CONFIG_CHANGED,
 /// "ui_layout.cfg")。
 fn persist_and_notify(state: &mut MainFormState) {
@@ -464,7 +455,7 @@ fn persist_and_notify(state: &mut MainFormState) {
     publish_config_changed(&state.ui_bus, "ui_layout.cfg");
 }
 
-/// Java DynamicDataPage.save (L252): publish(CONFIG_CHANGED, 类简单名, "ui_layout.cfg")
+/// Java DynamicDataPage.save: publish(CONFIG_CHANGED, 类简单名, "ui_layout.cfg")
 fn publish_config_changed(bus: &UIStateBus, data: &str) {
     bus.publish(
         ui_state_events::CONFIG_CHANGED,

@@ -7,7 +7,7 @@
 //!   = 在**独立钩子线程**上 `SetWindowsHookExW(WH_KEYBOARD_LL)` + 该线程内部
 //!   `GetMessageW` 消息循环; 键事件在钩子回调里做 VK→VC 转换后同步 dispatch 给
 //!   Java 监听器 (即 `nativeKeyPressed` 跑在 jnativehook 线程上, VoidMei 的
-//!   FM_OVERLAY_TOGGLE 因此发布在非 EDT 线程 —— LIFETIMES §2.2)。
+//!   FM_OVERLAY_TOGGLE 因此发布在非主线程 —— LIFETIMES §2.2)。
 //!   本文件逐层对应: `init()` 起独立钩子线程装钩子跑消息泵; 回调内 vk_to_vc
 //!   转换 + NumLock 过滤 + 绑定表查找, 之后经 `HotkeyEventSink` (**Send 边界**)
 //!   送出; Drop / shutdown 投 WM_QUIT 退泵 → 钩子线程卸钩退出。
@@ -66,14 +66,14 @@ use windows::Win32::UI::WindowsAndMessaging::{
 /// The native key code for the undefined key. (NativeKeyEvent.VC_UNDEFINED = 0x0000)
 pub const VC_UNDEFINED: i32 = 0x0000;
 
-/// FM overlay 热键默认键 'P' (Application.java:94 `displayFmKey = VC_P`)
+/// FM overlay 热键默认键 'P' (Application 的 `displayFmKey = VC_P`)
 pub const VC_P: i32 = 0x0019;
 
-/// HotkeyManager.java:64 / HotkeyRowRenderer.java:59 过滤用的三个 Lock 键
+/// HotkeyManager / HotkeyRowRenderer 过滤用的三个 Lock 键
 pub const VC_CAPS_LOCK: i32 = 0x003A;
-/// NumLock 伪事件过滤 (HotkeyManager.java:64)
+/// NumLock 伪事件过滤 (HotkeyManager)
 pub const VC_NUM_LOCK: i32 = 0x0045;
-/// HotkeyRowRenderer.java:60 采键时忽略
+/// HotkeyRowRenderer 采键时忽略
 pub const VC_SCROLL_LOCK: i32 = 0x0046;
 
 /// VK → VC 查找表: VK 索引 → jnativehook VC 码 (set-1 扫描码域)。
@@ -253,7 +253,6 @@ impl HotkeyManager {
 
     /// Initialize the native hook and register the key listener.
     /// Safe to call multiple times - only initializes once.
-    /// (HotkeyManager.java:41-79)
     ///
     /// PORT: Java void + 失败仅记日志 (initialized 保持 false 可重入);
     /// Rust 显式 Result, 语义同形 (重复 init → Ok 早退)。
@@ -279,7 +278,6 @@ impl HotkeyManager {
 
     /// Bind a key code to an event type.
     /// When the key is pressed, the event will be published to UIStateBus.
-    /// (HotkeyManager.java:88-95)
     pub fn bind(&self, key_code: i32, event_type: &str) {
         if key_code == 0 {
             logger::debug("HotkeyManager", "Ignoring bind for keyCode 0");
@@ -292,7 +290,7 @@ impl HotkeyManager {
         logger::info("HotkeyManager", &format!("Bound key {} -> {}", key_code, event_type));
     }
 
-    /// Unbind a key code. (HotkeyManager.java:102-107)
+    /// Unbind a key code.
     pub fn unbind(&self, key_code: i32) {
         let removed = self
             .key_bindings
@@ -304,7 +302,7 @@ impl HotkeyManager {
         }
     }
 
-    /// Rebind a key from old code to new code. (HotkeyManager.java:116-120)
+    /// Rebind a key from old code to new code.
     pub fn rebind(&self, old_key_code: i32, new_key_code: i32, event_type: &str) {
         self.unbind(old_key_code);
         self.bind(new_key_code, event_type);
@@ -315,17 +313,17 @@ impl HotkeyManager {
         );
     }
 
-    /// Check if a key code is currently bound. (HotkeyManager.java:125-127)
+    /// Check if a key code is currently bound.
     pub fn is_bound(&self, key_code: i32) -> bool {
         self.key_bindings.lock().map(|m| m.contains_key(&key_code)).unwrap_or(false)
     }
 
-    /// Get the event type bound to a key code. (HotkeyManager.java:132-134)
+    /// Get the event type bound to a key code.
     pub fn get_binding(&self, key_code: i32) -> Option<String> {
         self.key_bindings.lock().ok().and_then(|m| m.get(&key_code).cloned())
     }
 
-    /// Shutdown the hotkey manager. (HotkeyManager.java:139-152)
+    /// Shutdown the hotkey manager.
     ///
     /// PORT: Java 只摘监听器 (GlobalScreen 全局钩子进程级常驻); Rust 实例自持
     /// 钩子, 等价动作为停泵卸钩 (见模块头注释)。
@@ -375,7 +373,7 @@ thread_local! {
 }
 
 /// WH_KEYBOARD_LL 回调 = jnativehook 原生键盘钩子 → `nativeKeyPressed`
-/// (HotkeyManager.java:60-73) 的合体。
+/// 的合体。
 #[cfg(target_os = "windows")]
 unsafe extern "system" fn keyboard_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     // 低级钩子契约: code < 0 (非 HC_ACTION) 必须直通系统。
@@ -391,7 +389,7 @@ unsafe extern "system" fn keyboard_proc(code: i32, wparam: WPARAM, lparam: LPARA
             // int code = e.getKeyCode() — VK → VC 转换 (jnativehook 原生层职责)
             let vc = vk_to_vc(kb.vkCode, kb.flags.0 & LLKHF_EXTENDED.0 != 0) as i32;
 
-            // Filter out spurious NumLock events (HotkeyManager.java:63-66)
+            // Filter out spurious NumLock events (HotkeyManager 同款)
             // 注: 硬件 NumLock 带 E0 前缀, 但 VK_NUMLOCK(0x90) 不参与扩展 OR,
             // 转换后仍为 VC_NUM_LOCK(69) — 过滤依赖此不变量
             if vc != VC_NUM_LOCK {

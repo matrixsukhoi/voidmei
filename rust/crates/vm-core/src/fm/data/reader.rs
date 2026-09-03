@@ -1,5 +1,5 @@
-//! Blkx 的 getload 全量装载 (对应 Java `src/parser/Blkx.java` 的装载面, D4 拆分:
-//! reader.rs)。JSON 数据源直供 — BlkText 文本链已随 blkx→json 迁移退役删除
+//! Blkx 的 getload 全量装载 (D4 拆分: reader.rs)。JSON 数据源直供 —
+//! BlkText 文本链已随 blkx→json 迁移退役删除
 //! (迁移期 2832 对全量位级对拍验证等价):
 //! - `getload_from(&JsonSrc)` — FM 全量装载 + fmdata 摘要串构造
 //!   (语句顺序/公式/Java bug 保真逐行直译; panic 由 parse_named_json 的
@@ -42,8 +42,8 @@ enum FmtArg {
     F(f64, u8),
 }
 
-/// Java `String.format(tpl, args...)` 的受限子集 — getload 的 fmdata 摘要串构造
-/// (Java L1464-1560)。模板来自 Lang 运行时表 (可被 lang/cur.properties 覆盖),
+/// Java `String.format(tpl, args...)` 的受限子集 — getload 的 fmdata 摘要串构造。
+/// 模板来自 Lang 运行时表 (可被 lang/cur.properties 覆盖),
 /// 不能编译期展开, 故运行时扫描 `%` 转换: `%s`/`%d`/`%.Mf`/`%%` (getload 用到的
 /// 全部形态; 宽度域未用不支持)。参数耗尽 = Java MissingFormatArgumentException
 /// → panic (由 parse_named_opts_json 的 catch_unwind 收敛, 同一防线)。
@@ -143,10 +143,9 @@ impl FmData {
 
     // ------------------------------------------------------------------
     // getPartsFm / extractRpmFromThrottleAuto / getEngineLoad / initEngineLoad
-    // (Java L408-475 / L817-853)
     // ------------------------------------------------------------------
 
-    /// 对应 Java `public void getPartsFm(String c, fm_parts p)` (L408-418)。
+    /// 对应 Java `public void getPartsFm(String c, fm_parts p)`。
     pub(crate) fn get_parts_fm(src: &JsonSrc, c: &str, p: &mut FmParts) {
         p.name = Some(c.to_string());
         p.cd_min = src.get_f64(&format!("{c}.CdMin"));
@@ -161,8 +160,8 @@ impl FmData {
         p.aoa_crit_low = src.get_f64(&format!("{c}.alphaCritLow"));
     }
 
-    /// 对应 Java `private void extractRpmFromThrottleAuto(String hdrString)`
-    /// (L431-475)。形参 hdrString 在 Java 方法体内未被引用 — `_` 前缀保真保留
+    /// 对应 Java `private void extractRpmFromThrottleAuto(String hdrString)`。
+    /// 形参 hdrString 在 Java 方法体内未被引用 — `_` 前缀保真保留
     /// (get_aoa_low_v_wing 同款先例)。
     fn extract_rpm_from_throttle_auto(&mut self, src: &JsonSrc, _hdr_string: &str) {
         self.military_rpm = 0.0;
@@ -218,7 +217,7 @@ impl FmData {
     }
 
     /// 对应 Java `public boolean getEngineLoad(engineLoad[] eL, int loadIndex)`
-    /// (L477-494) — 读一个 Load 档; WaterLimit/OilLimit 为 0 即该档缺席。
+    /// — 读一个 Load 档; WaterLimit/OilLimit 为 0 即该档缺席。
     fn get_engine_load(src: &JsonSrc, el: &mut [EngineLoad], load_index: usize) -> bool {
         let c = format!("Load{load_index}");
         el[load_index].water_limit = src.get_f64(&format!("{c}.WaterTemperature"));
@@ -236,8 +235,8 @@ impl FmData {
         true
     }
 
-    /// 对应 Java `public void initEngineLoad()` (L817-853)。
-    /// `Application.maxEngLoad` = 10 (Java 常量, Application.java:67)。
+    /// 对应 Java `public void initEngineLoad()`。
+    /// `Application.maxEngLoad` = 10 (Java 常量)。
     fn init_engine_load(&mut self, src: &JsonSrc) {
         const APP_MAX_ENG_LOAD: usize = 10; // Application.maxEngLoad
         self.avg_eng_recovery_rate = 0.0;
@@ -305,7 +304,7 @@ impl FmData {
     }
 
     // ------------------------------------------------------------------
-    // getload (Java L855-1590) — FM 全量数据装载 (doLoad=true 的方法体)
+    // getload — FM 全量数据装载 (doLoad=true 的方法体)
     // ------------------------------------------------------------------
 
     /// 引擎计数循环 (getload_from 喷气/非喷气两分支逐字同款, 收敛于此):
@@ -335,7 +334,7 @@ impl FmData {
         engine_num
     }
 
-    /// 对应 Java `public void getload()` (L855-1590) — 翼/引擎/增压器/推力表/
+    /// 对应 Java `public void getload()` — 翼/引擎/增压器/推力表/
     /// vne/面积/重量族的全量装载 + fmdata 摘要串构造。
     ///
     /// PORT 纪律: 逐行直译, 语句顺序与 Java 一致 (含源码自身的重复段/死存储 —
@@ -384,7 +383,7 @@ impl FmData {
     }
 
     /// 引擎段: 喷气判定 + Engine 头前缀选择 + 引擎计数 + WEP 转速乘数清位
-    /// (getload 开头, Java L856-865)。返回 hdr_string (喷气/增压器段共用键前缀)。
+    /// (getload 开头)。返回 hdr_string (喷气/增压器段共用键前缀)。
     fn load_engine_section(&mut self, src: &JsonSrc) -> String {
         self.is_jet = false;
 
@@ -410,7 +409,7 @@ impl FmData {
     }
 
     /// 喷气引擎段: 推力高度/速度表 + 工作模式表 + AFT 推力表预计算
-    /// (getload 的 is_jet 分支体, Java L866-919)。
+    /// (getload 的 is_jet 分支体)。
     // PORT(allow needless_range_loop): Java for(int i...) 直译 — i 进 format! 键名
     #[allow(clippy::needless_range_loop)]
     fn load_jet_thrust_tables(&mut self, src: &JsonSrc, hdr_string: &str) {
@@ -503,7 +502,7 @@ impl FmData {
     }
 
     /// 增压器段 (radial inline): 9 组增压器数组 + WAPC 扩展参数 + WEP/功率参数
-    /// (getload 的非喷气分支体, Java L920-1038)。
+    /// (getload 的非喷气分支体)。
     // PORT(allow needless_range_loop): Java for(int i...) 直译 — i 进 format! 键名
     #[allow(clippy::needless_range_loop)]
     fn load_compressor(&mut self, src: &JsonSrc, hdr_string: &str) {
@@ -629,7 +628,7 @@ impl FmData {
     }
 
     /// 转速与引擎负载段: 最大转速 (WEP 乘数修正) + military/WEP RPM 提取 +
-    /// 版本号 + 耐久负载档 (getload, Java L1040-1054)。
+    /// 版本号 + 耐久负载档 (getload)。
     fn load_rpm_and_engine_load(&mut self, src: &JsonSrc, hdr_string: &str) {
         // 读取最大转速和最大允许转速 (must be before extractRpmFromThrottleAuto)
         //
@@ -652,7 +651,7 @@ impl FmData {
     }
 
     /// 重量/阻力/襟翼限速/面积段: 重量族 + vne/舵面效率 + 襟翼损毁限速表 +
-    /// 面积三级回退族 (getload, Java L1055-1253)。
+    /// 面积三级回退族 (getload)。
     /// 返回 (襟翼损毁表, 档位数) — fmdata 摘要段按原局部变量复用。
     fn load_areas_and_weights(&mut self, src: &JsonSrc) -> ([[f64; 2]; 6], usize) {
         self.emptyweight = src.get_f64("EmptyMass");
@@ -808,7 +807,7 @@ impl FmData {
             "FuselagePlane.Areas.Main",
             "WingPlaneSweep0.Areas.Main",
         );
-        // Java 源码将 AFuselage 三级回退段**原样重复了两遍** (L1252-1261) — 第二遍
+        // Java 源码将 AFuselage 三级回退段**原样重复了两遍** — 第二遍
         // 读到相同值, 净效果为同一赋值; 保真保留重复调用
         self.a_fuselage = fallback3(
 
@@ -821,7 +820,7 @@ impl FmData {
     }
 
     /// 升力系数段: FmParts 部件族 (机翼/机身/垂尾/平尾/变后掠翼) + 安装角补偿 +
-    /// 升力面积因子/翼载/展弦比/诱导阻力 + 过载限制原值 (getload, Java L1254-1440)。
+    /// 升力面积因子/翼载/展弦比/诱导阻力 + 过载限制原值 (getload)。
     // PORT(allow needless_range_loop): Java for(int i...) 直译 — i 进 format! 键名
     #[allow(clippy::needless_range_loop)]
     fn load_lift_coeffs(&mut self, src: &JsonSrc) -> LiftLoad {
@@ -1015,7 +1014,7 @@ impl FmData {
         }
     }
 
-    /// fmdata 摘要串构造 (getload, Java L1464-1560 的 String.format 族)。
+    /// fmdata 摘要串构造 (getload 的 String.format 族)。
     /// Lang 依赖隔离在本段; 过载限制在中途换算 1.2 倍余量后写入 self.max_allow_gload
     /// (原语句位置保真)。返回摘要串, 部件落位由编排层执行。
     // PORT(allow needless_range_loop): Java for(int i...) 直译 — i 进 format! 实参
@@ -1163,7 +1162,7 @@ impl FmData {
         s
     }
 
-    /// 对应 Java `public String WritePartsFm(String s, fm_parts p)` (L502-520)。
+    /// 对应 Java `public String WritePartsFm(String s, fm_parts p)`。
     /// Lang 形参: Java 读静态字段 → 快照传入 (blkx crate 先例)。
     fn write_parts_fm(s: String, p: &FmParts, lang: &Lang) -> String {
         let mut s = s;

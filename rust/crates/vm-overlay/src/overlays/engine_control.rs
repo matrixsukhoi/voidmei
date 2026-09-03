@@ -20,10 +20,10 @@ use vm_core::base::event::EventPayload;
 use vm_core::base::format::{self, java_round_f64, java_round_f32};
 use vm_core::formula::registry::FormulaView;
 use vm_core::lang::Lang;
-// EngineControlOverlay.java:50 DEFAULT_REFRESH_INTERVAL 的既有移植 (单一来源, 勿重复定义)
+// EngineControlOverlay DEFAULT_REFRESH_INTERVAL 的既有移植 (单一来源, 勿重复定义)
 use crate::layout::ui_constants::ENGINE_DEFAULT_REFRESH_MS;
 
-/// EngineControlOverlay.java:54-56 GaugeType 枚举 (ordinal 即 gaugeType 字段值)
+/// EngineControlOverlay GaugeType 枚举 (ordinal 即 gaugeType 字段值)
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GaugeType {
     Throttle,
@@ -102,9 +102,9 @@ pub struct EngineGaugeDef {
     pub is_horizontal: bool,
 }
 
-/// initGaugeFields (EngineControlOverlay.java:224-244) 的 7 条定义, 顺序原样
+/// initGaugeFields 的 7 条定义, 顺序原样
 /// 7 仪表 disable 键 (ENGINE_GAUGE_DEFS 顺序; Java initGaugeFields 读
-/// ui_layout.cfg:185-191 发动机元素组 switch-inv, 审查轮 1-B: 曾 never-wired
+/// ui_layout.cfg 发动机元素组 switch-inv, 审查轮 1-B: 曾 never-wired
 /// 恒显全部 7 条 — vm-app 经 OverlayInputs 按此表序传 [bool; 7])
 pub const ENGINE_DISABLE_KEYS: [&str; 7] = [
     "disableEngineInfoThrottle",
@@ -154,11 +154,11 @@ pub const ENGINE_GAUGE_DEFS: &[EngineGaugeDef] = &[
     },
 ];
 
-/// EngineControlOverlay.java:47-49 常量
+/// EngineControlOverlay 常量
 const BASE_FONT_SIZE: i32 = 24;
 const WIDTH_MULTIPLIER: i32 = 8;
-/// serviceLoopIntervalMs * 2 (EngineControlOverlay.java:51 ENGINE_REFRESH_MULTIPLIER);
-/// 默认间隔 100ms 复用 crate::layout::ui_constants::ENGINE_DEFAULT_REFRESH_MS (:50, 单一来源)
+/// serviceLoopIntervalMs * 2 (ENGINE_REFRESH_MULTIPLIER);
+/// 默认间隔 100ms 复用 crate::layout::ui_constants::ENGINE_DEFAULT_REFRESH_MS (单一来源)
 pub const ENGINE_REFRESH_MULTIPLIER: f64 = 2.0;
 
 /// 单个仪表的运行态 (Java GaugeField + 其 Swing 组件; Rust 组件直接拥有)
@@ -175,7 +175,7 @@ pub struct EngineGauge {
     pub marked_gauge: Option<MarkedGauge>,
 }
 
-/// isJetHiddenGauge (EngineControlOverlay.java:356-361)
+/// isJetHiddenGauge
 fn is_jet_hidden_gauge(t: GaugeType) -> bool {
     matches!(
         t,
@@ -185,7 +185,7 @@ fn is_jet_hidden_gauge(t: GaugeType) -> bool {
 
 /// 引擎控制面板状态: 布局 (fontsize/width/height) + 仪表表 + 喷气机门控状态机。
 /// 数据更新走 [`EngineControlState::update`] (onFlightData 路径), 绘制走
-/// [`EngineControlState::draw`] (paintComponent → drawGauges)。
+/// [`EngineControlState::draw`] (绘制入口 drawGauges)。
 pub struct EngineControlState {
     /// loadFontConfig: round((24+fontadd)*dpiScale)
     pub font_size: i32,
@@ -195,10 +195,10 @@ pub struct EngineControlState {
     pub height: i32,
     /// 横向仪表数 (calculateLayout 的高度公式项; Java 包内可见, reinitConfig 复算)
     pub row_num: i32,
-    /// 节流间隔 ms (EngineControlOverlay.java:61 refreshInterval, loadRefreshInterval
+    /// 节流间隔 ms (refreshInterval, loadRefreshInterval
     /// 配置驱动: dataPollIntervalMs×2 → legacy "Interval"×2, 双键空保持默认 100)
     pub refresh_interval: i64,
-    /// 节流基准 (:62 lastRefreshTime, System.currentTimeMillis 毫秒)
+    /// 节流基准 (lastRefreshTime, System.currentTimeMillis 毫秒)
     pub last_refresh_time: i64,
     pub(crate) gauges: Vec<EngineGauge>,
     is_jet: bool,
@@ -210,7 +210,7 @@ pub struct EngineControlState {
 
 impl EngineControlState {
     /// init → reinitConfig 链: loadFontConfig + loadRefreshInterval + initGaugeFields +
-    /// calculateLayout + 末尾 updateGaugesPreview (:179-188)。
+    /// calculateLayout + 末尾 updateGaugesPreview。
     /// cfg_true = `"true".equals(getConfigSafe(key))` 的配置探测 (POC 未接配置层,
     /// 恒 false 即全启用; 接配置层时传入 Boolean.parseBoolean 语义);
     /// cfg_str = getConfigSafe 的字符串读取 (loadRefreshInterval 专用, POC 传空串
@@ -222,10 +222,10 @@ impl EngineControlState {
         cfg_true: &dyn Fn(&str) -> bool,
         cfg_str: &dyn Fn(&str) -> String,
     ) -> Self {
-        // loadFontConfig (EngineControlOverlay.java:191-200); label 字体由 draw 的
+        // loadFontConfig; label 字体由 draw 的
         // 调用方持有 (Java fontLabel 字段)
         let font_size = java_round_f64((BASE_FONT_SIZE as f64 + font_add as f64) * dpi_scale);
-        // initGaugeFields (:224-244)
+        // initGaugeFields
         let mut gauges = Vec::new();
         let mut row_num = 0;
         for def in ENGINE_GAUGE_DEFS {
@@ -276,10 +276,10 @@ impl EngineControlState {
                 // columnNum 计数后从未参与公式 (Java 同, 仅循环结构保留)
             }
         }
-        // calculateLayout (:214-222)
+        // calculateLayout
         let width = font_size * WIDTH_MULTIPLIER;
         // PORT: Java `(fontsize * 4 + (fontsize * 9) >> 1)` — JLS 移位优先级低于加法
-        // → (13*fontsize)>>1 (LinearGaugeRenderer.java:71 同款陷阱, 勿加括号)
+        // → (13*fontsize)>>1 (同款陷阱, 勿加括号)
         let height =
             ((font_size * 4 + font_size * 9) >> 1) + (row_num + 1) * (font_size + (font_size >> 2));
         let mut st = EngineControlState {
@@ -294,15 +294,15 @@ impl EngineControlState {
             jet_label_updated: false,
             compressor_max_value_set: false,
         };
-        // reinitConfig 链内 loadRefreshInterval (:179/:202-212)
+        // reinitConfig 链内 loadRefreshInterval
         st.load_refresh_interval(cfg_str);
-        // reinitConfig 末尾 updateGaugesPreview (:187): 游戏模式与预览共用此初值 —
+        // reinitConfig 末尾 updateGaugesPreview: 游戏模式与预览共用此初值 —
         // 全仪表 maxValue/2 且可见, 首个有效事件 (引擎检测 ~5s) 前显示半量程条
         st.update_preview();
         st
     }
 
-    /// loadRefreshInterval (EngineControlOverlay.java:202-212): 先取
+    /// loadRefreshInterval: 先取
     /// dataPollIntervalMs, 空则回退 legacy "Interval"; 两键皆空保持现值 (默认 100)。
     /// reinit 时宿主可再次调用以随配置更新间隔
     pub fn load_refresh_interval(&mut self, cfg_str: &dyn Fn(&str) -> String) {
@@ -312,7 +312,7 @@ impl EngineControlState {
             interval_val = cfg_str("Interval"); // Legacy key fallback
         }
         if !interval_val.is_empty() {
-            // parseLongSafe (:301-309): null/空/解析异常 → defaultVal (§2.15)
+            // parseLongSafe: null/空/解析异常 → defaultVal (§2.15)
             let service_loop_interval_ms =
                 interval_val.parse::<i64>().unwrap_or(ENGINE_DEFAULT_REFRESH_MS);
             // PORT: Java (long)(long * double) 经 f64 再截断, 保持同路径
@@ -332,7 +332,7 @@ impl EngineControlState {
         self.is_jet
     }
 
-    /// updateGaugesPreview (EngineControlOverlay.java:588-606): val=maxValue/2,
+    /// updateGaugesPreview: val=maxValue/2,
     /// COMPRESSOR 显示 1 基档号, 标记示例 ratio 0.5, 全部可见
     pub fn update_preview(&mut self) {
         for g in &mut self.gauges {
@@ -349,13 +349,13 @@ impl EngineControlState {
         }
     }
 
-    /// onFlightData (EngineControlOverlay.java:371-381) 的单事件语义: 节流闩
-    /// (间隔 refreshInterval, 配置驱动) → (invokeLater lambda 内) updateResult
-    /// (:383-397) = updateStateFromPayload + updateGaugesZeroGC。
+    /// onFlightData 的单事件语义: 节流闩
+    /// (间隔 refreshInterval, 配置驱动) → (数据回调内) updateResult
+    /// = updateStateFromPayload + updateGaugesZeroGC。
     /// compressor_stages = FMManager.current().compressorStages 的档位数快照
     /// (None = 句柄非 READY / 无增压器 → Java null)。
-    /// PORT: updateResult 的 legacy Map<String,String> 分支 (:391-395 →
-    /// updateGaugeByType/updateGaugesFromData :547-586) 弃译 — 生产不可达
+    /// PORT: updateResult 的 legacy Map<String,String> 分支 (→
+    /// updateGaugeByType/updateGaugesFromData) 弃译 — 生产不可达
     /// (Service 恒实现 TelemetrySource, telemetrySource != null 恒真)。
     /// PORT: System.currentTimeMillis 由调用方注入 now_ms (field2 先例); 返回
     /// false = 节流跳过 (Java 原方法 void, 宿主可据此省重绘)
@@ -376,7 +376,7 @@ impl EngineControlState {
         true
     }
 
-    /// updateStateFromPayload (EngineControlOverlay.java:409-439)
+    /// updateStateFromPayload
     fn update_state_from_payload(
         &mut self,
         payload: &EventPayload,
@@ -409,7 +409,7 @@ impl EngineControlState {
         self.update_optimal_compressor_marker(payload, compressor_stages);
     }
 
-    /// updateOptimalCompressorMarker (EngineControlOverlay.java:445-468)
+    /// updateOptimalCompressorMarker
     fn update_optimal_compressor_marker(
         &mut self,
         payload: &EventPayload,
@@ -435,7 +435,7 @@ impl EngineControlState {
         }
     }
 
-    /// updateGaugesZeroGC (EngineControlOverlay.java:470-545)
+    /// updateGaugesZeroGC
     fn update_gauges_zero_gc(&mut self, s: &dyn FormulaView) {
         for g in &mut self.gauges {
             // 隐藏字段短路; COMPRESSOR/MIXTURE/PITCH 持续评估 (数据可能回归)
@@ -509,11 +509,10 @@ impl EngineControlState {
         }
     }
 
-    /// paintComponent → drawGauges (EngineControlOverlay.java:138-143/313-354):
+    /// drawGauges 绘制序:
     /// 起点 x=fontsize>>1, y=(fs*4)+((fs*6)>>1); 竖条画在 y-(4*fs), 横条画在 y+dy
     pub fn draw(&mut self, cv: &mut PixCanvas, font_label: &LoadedFont, aa: bool) {
         let fs = self.font_size;
-        // paintComponent (EngineControlOverlay.java:143)
         let x = fs >> 1;
         let y = (fs * 4) + ((fs * 6) >> 1);
         let is_jet = self.is_jet;
@@ -559,7 +558,7 @@ impl EngineControlState {
 /// 引擎控制共享句柄
 pub type EngineControlHandle = Rc<RefCell<EngineControlState>>;
 
-/// 引擎控制 OverlaySpec + live 句柄 (Java Controller.java:654 注册键 enableEngineControl)。
+/// 引擎控制 OverlaySpec + live 句柄 (注册键 enableEngineControl)。
 /// `lang` 以 Rc 共享 (reinit 闭包重建 state 需要标签源; Lang !Clone)。
 /// PORT(WYSIWYG): 字号/7 仪表 disable/轮询间隔随 [`ReinitParams`] 仓 — reinit
 /// 闭包整体重建 EngineControlState + fontLabel (Java reinitConfig: loadFontConfig +

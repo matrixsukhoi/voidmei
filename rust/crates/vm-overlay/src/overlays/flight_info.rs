@@ -1,7 +1,7 @@
 //! FlightInfoOverlay 的 host 工厂 — POC window.rs 专径收编进组装面。
 //!
 //! P6 人工验收缺口: 注册面 6/7 (flightInfoSwitch 走 POC bin 专径无窗口条目,
-//! 预览全开也轮不到它)。Java 对位 Controller.java:683-686
+//! 预览全开也轮不到它)。Java 对位 Controller
 //! `registerWithPreview("flightInfoSwitch", FlightInfoOverlay, init(this,S,
 //! getOverlaySettings("飞行信息")), ...)`。
 //!
@@ -102,7 +102,7 @@ impl FlightInfoState {
         self.rows = build_texts(&self.defs, s);
     }
 
-    /// reinitConfig 的资源重建段 (Java FieldOverlay.java:121-140 super 段):
+    /// reinitConfig 的资源重建段 (Java FieldOverlay super 段):
     /// 度量/字体/直通画布按新字号/列数重载, rows 保留 (Java 字段行绑定独立于字体)。
     /// 返回新 (w, h) (Java setBounds; 全行高度口径与工厂一致)
     pub fn reinit(
@@ -141,7 +141,7 @@ impl FlightInfoState {
     }
 }
 
-/// FlightInfo OverlaySpec + live 句柄 (Java Controller.java:683 注册键
+/// FlightInfo OverlaySpec + live 句柄 (Java Controller 注册键
 /// flightInfoSwitch; 字号/列数来自 getOverlaySettings("飞行信息") 组字段)。
 /// PORT(WYSIWYG): 字号/列数随 [`ReinitParams`] 仓, reinit 闭包走
 /// [`FlightInfoState::reinit`] 重建资源并返回新尺寸 (Java setBounds)

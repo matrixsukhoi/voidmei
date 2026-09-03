@@ -37,7 +37,7 @@ const COMPARISON_SIZE: (f64, f64) = (560.0, 680.0);
 /// 功率曲线窗口尺寸: Java `setSize(CHART_WIDTH + 80, CHART_HEIGHT + 150)`
 const POWER_CURVE_SIZE: (f64, f64) = (1080.0, 800.0);
 
-/// Java CompactComparisonWindow 构造器标题 (CompactComparisonWindow.java:40):
+/// Java CompactComparisonWindow 构造器标题:
 /// fm1 归一化后为 None = 单机数据视图 "Aircraft Data: x", 否则 "Comparison: x vs y"。
 /// 波13: title 构造与 fm1 归一化收敛到 commands_comparison (与 DTO title 同源)。
 fn comparison_window_title(fm0: &str, fm1: Option<&str>) -> String {
@@ -80,8 +80,8 @@ fn comparison_query(fm0: &str, fm1: Option<&str>) -> String {
     aux_url(&params)
 }
 
-/// 功率曲线 query。fm1 空/==fm0 归一为单曲线 (Java PowerCurveWindow.java:183
-/// 构造器裁决, 提前在 URL 层生效)
+/// 功率曲线 query。fm1 空/==fm0 归一为单曲线 (Java 构造器裁决,
+/// 提前在 URL 层生效)
 fn power_curve_query(fm0: &str, fm1: Option<&str>, speed_kmh: i32, wep: bool) -> String {
     let fm1 = normalize_secondary(fm0, fm1);
     let mut params = vec![

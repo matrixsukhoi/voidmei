@@ -303,7 +303,7 @@ pub fn eval_pure(fid: FnId, args: &[Value]) -> Value {
         F::TasToIas => atmosphere_model::tas_to_ias(nums[0], nums[1]),
         F::IasPerMach => {
             // ias(km/h)/mach = 1 时的声速组合分母: 3.6*sqrt(1.4/1.225*101325*(1-kh)^e)
-            // 与 derive.rs L116-120 / service_loop.rs L1299-1302 的手写 mach 式逐项一致
+            // 与 derive / service_loop 的手写 mach 式逐项一致
             let h = nums[0];
             3.6 * (1.4 / 1.225 * 101325.0 * (1.0 - 0.0000225577 * h).powf(5.25588)).sqrt()
         }

@@ -1,12 +1,10 @@
-//! 对应 Java: `src/prog/Service.java` calculate 链的三方法 + Service 版襟翼
-//! 允许速度/角度计算: checkFlap (L1042-1064, 已 W8 公式化) /
-//! getMaximumRPM (L1071-1099) / updateOptimalCompressorStage (L1276-1339) /
-//! getFlapAllowSpeed (L1354-1427) / getFlapAllowAngle (L1443-1508) 及其辅助
-//! calcK (L1341-1347) / normFlapAngle (L1429-1436)。
-//! (checkWing 已删: 产物无消费者, registry wing_sweep_valid 直通替代)
+//! calculate 链引擎族方法: 最大转速 (FM 直取, 无 FM 自适应学习) 与最佳
+//! 增压器档位/失配检测。原 Service 版襟翼族 (checkFlap/getFlapAllowSpeed/
+//! getFlapAllowAngle) 已 W8 公式化或合一至 vm-core 共享实现 (checkWing 已删:
+//! 产物无消费者, registry wing_sweep_valid 直通替代)。
 //!
 //! PORT(模块边界): impl Service 跨文件块, 方法一律 pub(super); calculate 内的
-//! 接线调用与 `mod methods_engine;` 声明归主线波次 (见交付说明)。
+//! 接线调用统一在 service_loop.rs。
 //! PORT(同名陷阱): vm-core fm/data/flap_limits.rs 另有**公共** get_flap_allow_angle
 //! —— 那是 HUDCalculator 版, 与本模块的 Service 版不同源, 互不复用互不可见;
 //! 本文件按 Java Service 版逐行直译。
@@ -21,9 +19,7 @@ impl Service {
     /// PORT(命名避让, service_fields.rs 字段区备注): Java 字段 getMaximumRPM
     /// (boolean) 与本方法构成同名重载; Rust 字段已占 get_maximum_rpm → 方法按
     /// 备案命名 get_maximum_rpm_learn。
-    /// @param fm 本周期 FM 句柄快照（R1 下传, Java javadoc 原文）
-    /// (对应 Java `public void getMaximumRPM(FMHandle fm)` L1071-1099;
-    ///  calculate 链位置: checkFlap 之后, Java L1166)
+    /// @param fm 本周期 FM 句柄快照（R1 下传）
     pub(super) fn get_maximum_rpm_learn(&mut self, fm: &FMHandle) {
         // 简单状态推进 → 单写锁临界区 (无 IO/回调; s_state 不可变借用拆局部,
         // 对齐 check_engine_jet 形态)
@@ -68,9 +64,8 @@ impl Service {
     /// Uses state-change detection to only update mismatch status when actual or optimal changes.
     /// Results are published via FlightDataBus for voice warning.
     ///
-    /// @param fm 本周期 FM 句柄快照（R1 下传, Java javadoc 原文）
-    /// (对应 Java `public void updateOptimalCompressorStage(FMHandle fm)`
-    ///  L1276-1339; calculate 链尾, Java L1173)
+    /// @param fm 本周期 FM 句柄快照（R1 下传）
+    /// (calculate 链尾)
     pub(super) fn update_optimal_compressor_stage(&mut self, fm: &FMHandle) {
         // R1: 从周期句柄直接取增压器参数（不再经 @Deprecated 桥接方法）;
         // 非 READY/喷气机/单级句柄为 null → 走下方无效分支归位
@@ -133,7 +128,7 @@ impl Service {
         // API didn't return compressor stage (e.g., some aircraft don't report it)
         if actual_stage < 0 {
             self.apply(|d| {
-                // Java L1305 的 optimalCompressorStage = newOptimal 先于本分支执行,
+                // optimalCompressorStage = newOptimal 先于本分支执行,
                 // 归位四字段不含它 (保真: 归位后 optimal 保留本轮新算值)
                 d.engine.optimal_compressor_stage = new_optimal;
                 d.engine.compressor_stage_mismatch = false;
@@ -475,7 +470,7 @@ mod tests {
         }
 
         // API 未回报档位 (compressorstage=0 → actual=-1): 三字段归位,
-        // optimal 保留本轮新算值 (Java L1305 先写后归位的语序保真)
+        // optimal 保留本轮新算值 (先写后归位的语序保真)
         set_cycle_inputs(&svc, 0.0, 474, 0, 110);
         svc.update_optimal_compressor_stage(&fm);
         {

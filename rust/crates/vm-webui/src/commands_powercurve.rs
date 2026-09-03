@@ -24,7 +24,7 @@ const MAX_DISPLAY_ALT: i32 = 10000;
 // Altitude step for curve generation (m)
 const ALT_STEP: i32 = 25;
 
-/// Java `loadFuelModification` (PowerCurveWindow.java:355-378): 尝试从中央文件
+/// Java `loadFuelModification`: 尝试从中央文件
 /// 载入燃油改装修正。P5 后仅回退路径调用 — 标准链路的燃油修正已由 FMLoader
 /// 融入句柄的 compressorStages。路径统一走 `FMDataPaths::fmDir()` 拼装: 中央
 /// 文件在 flightmodels 根目录, 物理文件在其 fm/ 子目录。
@@ -71,7 +71,7 @@ fn error_curve(fm_name: &str, message: String) -> PowerCurveDto {
     }
 }
 
-/// Java `loadSingleCurve` (PowerCurveWindow.java:234-315): 载入单个 FM 并生成
+/// Java `loadSingleCurve`: 载入单个 FM 并生成
 /// 功率-高度曲线。
 ///
 /// P5 收编: 优先走 `FMLoader::load` 标准链路 (中央文件 → fmFile 字段 → 物理文件
@@ -87,14 +87,13 @@ pub fn load_single_curve(fm_name: &str, wep_mode: bool, speed_kmh: i32) -> Power
     let handle = loader::load(Some(fm_name));
     let (fmdata, stages) = if handle.has_fm() {
         // 活塞机句柄携带 extractStages 产物（已融入中央文件燃油修正）；
-        // 喷气机 compressorStages 为 null → "不是活塞引擎" (Java :246-250)
+        // 喷气机 compressorStages 为 null → "不是活塞引擎" (Java 同位判定)
         if handle.compressor_stages.is_none() {
             return error_curve(fm_name, format!("{fm_name} 不是活塞引擎"));
         }
         (handle.fmdata.unwrap(), handle.compressor_stages)
     } else {
-        // ---- 回退: 按物理文件名直读（连字符机型, 见方法注释; JSON 优先,
-        //      过渡期回落 blkx 文本链 — 对拍全绿观察期后收窄为 .json）----
+        // ---- 回退: 按物理文件名直读 .json（连字符机型, 见方法注释）----
         let Some(f) = fallback_physical_file(fm_name) else {
             return error_curve(fm_name, format!("找不到FM文件: {fm_name}"));
         };
@@ -177,7 +176,7 @@ pub fn load_single_curve(fm_name: &str, wep_mode: bool, speed_kmh: i32) -> Power
 }
 
 /// Returns true if any point in the list is within {@code minSepM} meters of {@code altM}.
-/// (Java tooCloseToList, PowerCurveWindow.java:537-543)
+/// (Java tooCloseToList)
 /// 波14 泛型化: 高度取值器 `alt_of` 由调用方给 (Phase3/4 传 DTO 的
 /// altitude_m, Phase1 候选传元组 alt 分量), 收编峰/谷臂内两份内联同型检查。
 fn too_close_to_list<T>(alt_m: i32, min_sep_m: i32, list: &[T], alt_of: impl Fn(&T) -> i32) -> bool {
@@ -241,7 +240,7 @@ fn scan_extrema(
     candidates
 }
 
-/// Java `identifyInflectionPointsForCurve` (PowerCurveWindow.java:397-535):
+/// Java `identifyInflectionPointsForCurve`:
 /// 直接按曲线几何形态检测拐点 — 局部极大 (峰) / 局部极小 (谷, 级间过渡) /
 /// 凹凸翻转 (斜率 kink)。
 pub fn identify_inflection_points_for_curve(
@@ -362,7 +361,7 @@ pub fn identify_inflection_points_for_curve(
     result
 }
 
-/// Java `calculateDisplayRange` (PowerCurveWindow.java:320-342): 双曲线合并显示域
+/// Java `calculateDisplayRange`: 双曲线合并显示域
 fn calculate_display_range(curve0: &PowerCurveDto, curve1: &Option<PowerCurveDto>) -> (f64, f64) {
     let mut combined_max = 0.0f64;
     let mut combined_min = f64::MAX;
@@ -392,7 +391,7 @@ fn calculate_display_range(curve0: &PowerCurveDto, curve1: &Option<PowerCurveDto
     )
 }
 
-/// Java `buildErrorMessage` (PowerCurveWindow.java:649-670)
+/// Java `buildErrorMessage`
 fn build_error_message(curve0: &PowerCurveDto, curve1: &Option<PowerCurveDto>) -> Option<String> {
     let has_fm0 = curve0.valid;
     let has_fm1 = curve1.as_ref().map(|c| c.valid).unwrap_or(false);
@@ -420,14 +419,14 @@ fn build_error_message(curve0: &PowerCurveDto, curve1: &Option<PowerCurveDto>) -
     None
 }
 
-/// Java `loadPowerCurves` (PowerCurveWindow.java:199-212) + 构造器的单双模式裁决
+/// Java `loadPowerCurves` + 构造器的单双模式裁决
 pub fn power_curve_data_impl(
     fm0_name: &str,
     fm1_name: Option<&str>,
     speed_kmh: i32,
     wep_mode: bool,
 ) -> PowerCurveDataDto {
-    // Treat fm1Name == fm0Name as single curve mode (构造器 :183, normalize_secondary)
+    // Treat fm1Name == fm0Name as single curve mode (构造器裁决, normalize_secondary)
     let fm1_name = normalize_secondary(fm0_name, fm1_name);
 
     // Load FM0 (primary curve)

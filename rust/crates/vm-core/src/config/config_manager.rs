@@ -489,7 +489,7 @@ static CONFIG_DIALOG_SINK: LazyLock<Mutex<Option<ConfigDialogSink>>> =
 /// 的 ParseError/MergeReport 日志兜底之外再缓存最后一条; 组装层在 **web 就绪后**
 /// 经 [`replay_pending_config_dialog`] 补发 — 不在 sink 安装时点立即回放, 因彼时
 /// 前端 config-dialog 监听尚未注册 (App.tsx 就绪序: 监听注册 → ui_ready), 立即
-/// 回放会再丢一次。Java 升级首跑的用户可见合并报告 (ConfigManager.java:425-477)
+/// 回放会再丢一次。Java 升级首跑的用户可见合并报告 (ConfigManager)
 /// 由此在 web 形态达用户。
 static PENDING_CONFIG_DIALOG: Mutex<Option<ConfigDialog>> = Mutex::new(None);
 

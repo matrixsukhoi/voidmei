@@ -2,8 +2,6 @@
 //! TextGauge 的整数/float 运算 1:1 移植) + 锚点 (anchor) + HUD 布局节点
 //! (hud_layout_node) + MiniHUD 布局引擎 (minihud_layout) + DPI 常量 (ui_constants)。
 
-// ui/layout/Anchor.java 的挂载 (P2 批二): layout 是 lib.rs 已预挂的挂载点,
-// ui/layout 族文件以子模块形式挂入。
 pub mod anchor;
 pub mod hud_layout_node;
 pub mod minihud_layout;

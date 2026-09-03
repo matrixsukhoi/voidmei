@@ -11,8 +11,7 @@ use std::fmt;
 // PORT: Java 枚举常量全大写 (INIT/CONNECTED/IN_GAME/PREVIEW) → Rust 驼峰
 // (Init/Connected/InGame/Preview), 语义不变 (fm/status.rs 同款先例);
 // Java 枚举默认 toString()=常量名 的字符串形态由 Display 保留 ——
-// Controller.java:897 (`", state=" + State`) 与 OverlayManager.java:119
-// (`"(state=" + tc.State + ")"`) 的日志拼接依赖该形态。
+// 日志拼接 (`", state=" + State` / `"(state=" + tc.State + ")"`) 依赖该形态。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ControllerState {
     /// Initial State - waiting for status bar initialization

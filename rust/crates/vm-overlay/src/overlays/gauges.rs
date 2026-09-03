@@ -69,13 +69,13 @@ impl Default for GaugeMarker {
 }
 
 impl GaugeMarker {
-    /// withRatio (GaugeMarker.java:67-73): |new-old|<0.0001 返回自身 (零分配);
+    /// withRatio: |new-old|<0.0001 返回自身 (零分配);
     /// Rust 返回 bool 表示是否变化, 拷贝语义由调用方原位赋值等价实现
     pub fn with_ratio_changed(&self, new_ratio: f64) -> bool {
         (new_ratio - self.ratio).abs() >= 0.0001
     }
 
-    /// isVisible (GaugeMarker.java:80): ratio ∈ [0,1] 才绘制
+    /// isVisible: ratio ∈ [0,1] 才绘制
     pub fn is_visible(&self) -> bool {
         self.ratio >= 0.0 && self.ratio <= 1.0
     }
@@ -130,7 +130,7 @@ pub struct MarkedGauge {
     pub height: i32,
     pub bar_style: GaugeBarStyle,
     /// TICK_LABELED 标签字体 (Java tickFont 字段, setStyleContext 注入, null 则标签
-    /// 不画 — MarkedGauge.java:323/376 的 null 守卫)
+    /// 不画 — MarkedGauge 的 null 守卫)
     pub tick_font: Option<Rc<LoadedFont>>,
     /// 标记按加入顺序绘制
     pub markers: Vec<GaugeMarker>,
@@ -172,7 +172,7 @@ impl MarkedGauge {
         }
     }
 
-    /// setStyleContext (MarkedGauge.java:75-81)
+    /// setStyleContext
     pub fn set_style_context(
         &mut self,
         width: i32,
@@ -186,22 +186,22 @@ impl MarkedGauge {
         self.bar_style = style;
     }
 
-    /// setBarStyle (MarkedGauge.java:83-85)
+    /// setBarStyle
     pub fn set_bar_style(&mut self, style: GaugeBarStyle) {
         self.bar_style = style;
     }
 
-    /// setMaxValue (MarkedGauge.java:87-89) — double 量程 (0 到 maxValue)
+    /// setMaxValue — double 量程 (0 到 maxValue)
     pub fn set_max_value(&mut self, max_value: f64) {
         self.max_value = max_value;
     }
 
-    /// addMarker (MarkedGauge.java:98-100)
+    /// addMarker
     pub fn add_marker(&mut self, marker: GaugeMarker) {
         self.markers.push(marker);
     }
 
-    /// updateMarkerRatio (MarkedGauge.java:106-121): 按 id 原位更新; 未命中无操作;
+    /// updateMarkerRatio: 按 id 原位更新; 未命中无操作;
     /// |Δ|<0.0001 不写 (Java copy-on-write 零分配语义的等价物)
     pub fn update_marker_ratio(&mut self, marker_id: &str, new_ratio: f64) {
         for m in &mut self.markers {
@@ -214,7 +214,7 @@ impl MarkedGauge {
         }
     }
 
-    /// update(int, char[], int) 零 GC 通道 (MarkedGauge.java:124-131)。
+    /// update(int, char[], int) 零 GC 通道。
     /// len 上限 32 (Java arraycopy 前 clamp)。
     /// PORT: Java 调用方显式传 len (可短于 buf); Rust 无 stale tail, len 即 buf 全长 —
     /// 本文件唯一调用点 (EngineControl) 两语义等价, 通用 API 语义略窄, 仅记录
@@ -225,7 +225,7 @@ impl MarkedGauge {
         self.value_buffer = s;
     }
 
-    /// update(int, String) 字符串通道 (MarkedGauge.java:138-143): 置 valueLen=0
+    /// update(int, String) 字符串通道: 置 valueLen=0
     pub fn update_display(&mut self, value: i32, display_value: &str) {
         self.current_value = value as f64;
         self.display_value.clear();
@@ -247,13 +247,13 @@ impl MarkedGauge {
         }
     }
 
-    /// clamp (MarkedGauge.java:341-345): [0,1] 钳制 (NaN 穿透, 与 Java if 链一致)
+    /// clamp: [0,1] 钳制 (NaN 穿透, 与 Java if 链一致)
     fn clamp01(v: f64) -> f64 {
         v.clamp(0.0, 1.0)
     }
 
     /// draw(g2d, x, y, length, thickness, fontLabel, fontValue) 显式尺寸版
-    /// (MarkedGauge.java:186-197)。PORT: Java fontLabel 形参在竖/横两分支均未
+    ///。PORT: Java fontLabel 形参在竖/横两分支均未
     /// 参与绘制 (文本一律 fontValue), Rust 单字体参数; 2 参 draw()/getPreferredSize
     /// 为 Swing 尺寸协议 (D7 弃译清单), 不迁。
     #[allow(clippy::too_many_arguments)] // 对齐 Java draw(g2d,x,y,length,thickness,fontLabel,fontValue)
@@ -274,7 +274,7 @@ impl MarkedGauge {
         }
     }
 
-    /// drawVertical (MarkedGauge.java:204-265)
+    /// drawVertical
     #[allow(clippy::too_many_arguments)] // 对齐 Java drawVertical(g2d,x,y,length,thickness,fontLabel,fontValue)
     fn draw_vertical(
         &mut self,
@@ -330,7 +330,7 @@ impl MarkedGauge {
         }
     }
 
-    /// drawHorizontal (MarkedGauge.java:267-329)
+    /// drawHorizontal
     #[allow(clippy::too_many_arguments)] // 对齐 Java drawHorizontal(g2d,x,y,length,thickness,fontLabel,fontValue)
     fn draw_horizontal(
         &mut self,
@@ -399,7 +399,7 @@ impl MarkedGauge {
         }
     }
 
-    /// drawMarkerVertical (MarkedGauge.java:276-330): Y 位置 bottom=0 top=1
+    /// drawMarkerVertical: Y 位置 bottom=0 top=1
     #[allow(clippy::too_many_arguments)] // 对齐 Java drawMarkerVertical(g2d,barX,barY,length,thickness,m) + tickFont
     fn draw_marker_vertical(
         cv: &mut PixCanvas,
@@ -459,7 +459,7 @@ impl MarkedGauge {
         }
     }
 
-    /// drawMarkerHorizontal (MarkedGauge.java:332-381): X 位置 left=0 right=1
+    /// drawMarkerHorizontal: X 位置 left=0 right=1
     #[allow(clippy::too_many_arguments)] // 对齐 Java drawMarkerHorizontal(g2d,barX,barY,length,thickness,m) + tickFont
     fn draw_marker_horizontal(
         cv: &mut PixCanvas,
@@ -518,13 +518,13 @@ impl MarkedGauge {
         }
     }
 
-    /// drawSeparator (MarkedGauge.java:383-390): shade 环 (w×3) + fill 1px 内芯
+    /// drawSeparator: shade 环 (w×3) + fill 1px 内芯
     fn draw_separator(cv: &mut PixCanvas, x: i32, y: i32, width: i32, c: [u8; 4]) {
         ring1px(cv, x, y, width - 1, 3 - 1, colors().shade_shape);
         cv.fill_rect(x + 1, y + 1, width - 2, 3 - 2, c);
     }
 
-    /// getValueWidth (MarkedGauge.java:392-402): label + 当前值通道文本宽度;
+    /// getValueWidth: label + 当前值通道文本宽度;
     /// 字体 None → 30 (Java f==null); label 空 → 0
     fn value_width(&self, font: &LoadedFont) -> i32 {
         let label_w = if self.label.is_empty() {
@@ -540,7 +540,7 @@ impl MarkedGauge {
         label_w + value_w
     }
 
-    /// drawValueText (MarkedGauge.java:404-420): label (可选) + 值, 双遍阴影
+    /// drawValueText: label (可选) + 值, 双遍阴影
     fn draw_value_text(
         &self,
         cv: &mut PixCanvas,

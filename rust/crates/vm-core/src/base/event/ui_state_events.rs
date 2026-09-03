@@ -20,7 +20,7 @@ pub const CONFIG_CHANGED: &str = "configChanged";
 /// P2 重构新增：FMManager 管理的当前 FM 句柄发生变化（READY/MISSING/CORRUPT 落定，
 /// 或负缓存命中直接落 MISSING）。
 /// Payload: prog.fm.FMHandle（不可变句柄）。
-/// 发布线程 = FM-Loader 后台线程（同步派发），订阅方碰 Swing 必须自行 invokeLater。
+/// 发布线程 = FM-Loader 后台线程（同步派发），订阅方碰 UI 必须自行转主线程。
 pub const FM_CHANGED: &str = "fmChanged";
 
 /// Published when the Main Form is fully initialized and visible.

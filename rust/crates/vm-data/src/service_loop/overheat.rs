@@ -1,6 +1,5 @@
-//! 对应 Java: `src/prog/Service.java` 的 checkOverheat (L570-648) / resetEngLoad
-//! (L1510-1525) — 引擎过热/耐久度检查 + 耐久计时重置 (impl Service 跨文件块,
-//! 方法 pub(super); calculate 接线点见文件尾注)。
+//! 引擎过热/耐久度检查 (check_overheat) + 耐久计时重置 (reset_eng_load)
+//! (impl Service 跨文件块, 方法 pub(super); calculate 链 update_temp 之后接线)。
 //!
 //! 会话态走向 (handle.rs "会话态提升" 裁决): Java 就地改写 `blkx.engLoad[i]`,
 //! Rust 改写 `fm.eng_load_state` 的 Mutex 锁内副本 (blkx 保持不可变解析产物)。
@@ -14,8 +13,6 @@ impl Service {
     /// 引擎过热/耐久度检查。
     ///
     /// @param fm 本周期 FM 句柄快照（R1 下传, 单周期内同一 Blkx 实例）
-    // 接线点: calculate 链 updateTemp 之后 (主线波次, 见文件尾注) — 接线前
-    // dead_code 以 allow 静音 (service_fields.rs cur_w_load 同款先例), 接线后无感
     pub(super) fn check_overheat(&mut self, fm: &FMHandle) {
         // 输入快照 (锁外取, §2.8): sState.power[0]/throttle + 温度/轮询周期。
         // power 空数组索引 panic = Java AIOOBE 同构 (run 顶层 catch_unwind 兜住)
@@ -141,7 +138,7 @@ impl Service {
     /// "换机 = 新 Blx 实例" 天然保证会话态不串机, 此处保持就地改写不变）。
     ///
     /// @param fm 本周期 FM 句柄快照（R1 下传）
-    // PORT(形态): Java 为实例方法 `public void resetEngLoad(FMHandle fm)` (L1516),
+    // PORT(形态): Java 为实例方法 resetEngLoad(FMHandle fm),
     // 方法体不触碰任何 Service 实例字段 → 关联函数形态, 与 reset_varia 的既有
     // 调用点 `Self::reset_eng_load(&fm)` 零改动衔接。
     // PORT(会话态提升): 改写目标从 blkx.engLoad 换成 fm.eng_load_state (blkx 本体
@@ -167,10 +164,6 @@ impl Service {
         }
     }
 }
-
-// PORT(接线点, 主线 calculate 波次): Java calculate 链在 updateTemp 之后调用
-// checkOverheat (Service.java L1130-1131 附近), Rust 对位 =
-// service_loop.rs calculate 内 `self.update_temp();` 之后插 `self.check_overheat(&fm);`。
 
 // =====================================================================
 // Tests — 覆盖 checkOverheat 三场景 + R2 守卫 + resetEngLoad (Java 无独立
@@ -319,7 +312,7 @@ mod tests {
     }
 
     /// 场景 C 分流: engOff 但 curWLoad>0 且上一档 WorkTime>=0.1 → 不回满,
-    /// 走恢复分支 (Java L606/L634 的 pL[curLoad-1].WorkTime < 0.1 闸门)
+    /// 走恢复分支 (pL[curLoad-1].WorkTime < 0.1 闸门)
     #[test]
     fn overheat_eng_off_hot_engine_stays_depleting() {
         let mut svc = new_service();

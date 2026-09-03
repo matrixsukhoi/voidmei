@@ -153,7 +153,7 @@ impl ConfigurationService {
     }
 
     /// 组装层位置桥 (归一化直读): Java overlay init 时经 OverlaySettings.loadPosition
-    /// 取 gc.x/y (ConfigurationService.java:430-457 读的同一组字段)。Rust host 在
+    /// 取 gc.x/y (ConfigurationService 读的同一组字段)。Rust host 在
     /// 渲染线程不碰 !Send 配置树 — 组装层启动时经此取快照 (vm-app
     /// ChannelPositionStore); 返回归一化 (0..1) 坐标, 无同题分组 = None
     /// (host 居中兜底, 对齐 Java gc=null 的 center 分支)。
@@ -164,7 +164,7 @@ impl ConfigurationService {
     }
 
     /// 组装层位置桥 (归一化直写): 与视图 save_window_position 同源
-    /// (ConfigurationService.java:460-472 — 命中首个同题分组写回 + saveLayoutConfig,
+    /// (ConfigurationService — 命中首个同题分组写回 + saveLayoutConfig,
     /// 未命中只 warn), 差异仅在参数已是归一化坐标 (host 拖拽存档即归一化,
     /// 免像素/比例往返); 视图版带屏幕尺寸守卫, 本版无该守卫 (归一化无涉屏幕)。
     pub fn save_group_position(&self, section: &str, nx: f64, ny: f64) -> bool {

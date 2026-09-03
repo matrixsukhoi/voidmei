@@ -11,7 +11,7 @@ use super::types::EngineLoad;
 use super::FmData;
 use crate::base::physics_constants::g;
 
-/// 通用 sweep 插值承接说明 (对应 Java 私有方法 `interpolateSweepDouble`, L718-737):
+/// 通用 sweep 插值承接说明 (对应 Java 私有方法 `interpolateSweepDouble`):
 /// 原码将 sweepLevels 逐元素拷入临时数组后做区间线性插值。按项目规约
 /// (CLAUDE.md "Use Interpolation for all interpolation / Never duplicate") 与任务指令,
 /// 本文件统一改经 [`crate::base::interpolation::interp_sweep_level`] (该函数即 Java
@@ -26,7 +26,7 @@ use crate::base::physics_constants::g;
 /// (任何档位 noFlaps 为 null 即 NPE); vne/mach 提取器无 null 路径, 闭包直取等价。
 impl FmData {
     /* 计算可变翼 */
-    /// 对应 Java `public double getAoAHighVWing(double vwing, int flaps_percent)` (L740-757)。
+    /// 对应 Java `public double getAoAHighVWing(double vwing, int flaps_percent)`。
     pub fn get_aoa_high_v_wing(&self, vwing: f64, flaps_percent: i32) -> f64 {
         if vwing == 0.0 {
             /* 计算flaps */
@@ -40,7 +40,7 @@ impl FmData {
         if self.sweep_levels.as_ref().is_none_or(|l| l.len() <= 1) {
             return self.no_flaps_wing.as_ref().unwrap().aoa_crit_high;
         }
-        // Java L750-755: values[i]=noFlaps.AoACritHigh / sweeps[i]=sweep 预拷两表
+        // values[i]=noFlaps.AoACritHigh / sweeps[i]=sweep 预拷两表 (对位 Java 原实现)
         let levels = self.sweep_levels.as_deref().unwrap();
         let pairs: Vec<(f64, f64)> = levels
             .iter()
@@ -55,14 +55,14 @@ impl FmData {
         )
     }
 
-    /// 对应 Java `public double getAoALowVWing(double vwing, int flaps_percent)` (L759-771)。
+    /// 对应 Java `public double getAoALowVWing(double vwing, int flaps_percent)`。
     /// PORT: Java 形参 flaps_percent 保留但未用 (无 vwing==0 襟翼混合分支, 与 High 版
     /// 的不对称是源码本意) — Rust 以 `_` 前缀消未用告警, 签名保真。
     pub fn get_aoa_low_v_wing(&self, vwing: f64, _flaps_percent: i32) -> f64 {
         if self.sweep_levels.as_ref().is_none_or(|l| l.len() <= 1) {
             return self.no_flaps_wing.as_ref().unwrap().aoa_crit_low;
         }
-        // Java L763-768: values[i]=noFlaps.AoACritLow / sweeps[i]=sweep 预拷两表
+        // values[i]=noFlaps.AoACritLow / sweeps[i]=sweep 预拷两表 (对位 Java 原实现)
         let levels = self.sweep_levels.as_deref().unwrap();
         let pairs: Vec<(f64, f64)> = levels
             .iter()
@@ -77,7 +77,7 @@ impl FmData {
         )
     }
 
-    /// 对应 Java `public double getVNEVWing(double vwing)` (L773-785)。
+    /// 对应 Java `public double getVNEVWing(double vwing)`。
     pub fn get_vne_v_wing(&self, vwing: f64) -> f64 {
         if self.sweep_levels.as_ref().is_none_or(|l| l.len() <= 1) {
             return self.vne;
@@ -91,7 +91,7 @@ impl FmData {
         )
     }
 
-    /// 对应 Java `public double getMNEVWing(double vwing)` (L787-799)。
+    /// 对应 Java `public double getMNEVWing(double vwing)`。
     pub fn get_mne_v_wing(&self, vwing: f64) -> f64 {
         if self.sweep_levels.as_ref().is_none_or(|l| l.len() <= 1) {
             return self.vne_mach;
@@ -105,13 +105,13 @@ impl FmData {
         )
     }
 
-    /// 对应 Java `public double[] getMaxAllowGloadForWeight(double currentWeight)` (L808-815)。
+    /// 对应 Java `public double[] getMaxAllowGloadForWeight(double currentWeight)`。
     /// Calculates the maximum allowable G-load range based on current aircraft weight.
     /// As fuel burns off, the aircraft can sustain higher G-loads within structural limits.
     ///
     /// @param currentWeight Current total weight in kg (typically nofuelweight + mfuel)
     /// @return double[2]: [0]=negative G limit (e.g., -4.5), [1]=positive G limit (e.g., +11.2)
-    // PORT: Java 回退分支原样返回字段引用 (可能为 null, 调用方 VoiceWarning L839 先行
+    // PORT: Java 回退分支原样返回字段引用 (可能为 null, 调用方 VoiceWarning 先行
     // 判 rawWingCritOverload != null 才调用) → Option<[f64; 2]> 透传 None (§1 null→Option)
     pub fn get_max_allow_gload_for_weight(&self, current_weight: f64) -> Option<[f64; 2]> {
         if self.raw_wing_crit_overload.is_none() || current_weight <= 0.0 {
@@ -123,7 +123,7 @@ impl FmData {
         Some([negative_g, positive_g])
     }
 
-    /// 对应 Java `public int findmaxWaterLoad(engineLoad[] eL, double water)` (L581-591)。
+    /// 对应 Java `public int findmaxWaterLoad(engineLoad[] eL, double water)`。
     // PORT: eL 短于 max_eng_load 时 Java AIOOBE ↔ 切片索引 panic 同构
     pub fn findmax_water_load(&self, e_l: &[EngineLoad], water: f64) -> i32 {
         for i in 0..self.max_eng_load {
@@ -138,7 +138,7 @@ impl FmData {
         self.max_eng_load
     }
 
-    /// 对应 Java `public int findmaxOilLoad(engineLoad[] eL, double oil)` (L593-603)。
+    /// 对应 Java `public int findmaxOilLoad(engineLoad[] eL, double oil)`。
     pub fn findmax_oil_load(&self, e_l: &[EngineLoad], oil: f64) -> i32 {
         for i in 0..self.max_eng_load {
             // 大于还是小于等于呢？
@@ -152,7 +152,7 @@ impl FmData {
         self.max_eng_load
     }
 
-    /// 对应 Java `public String getVersion()` (L605-631) — 读 `./data/aces/version`。
+    /// 对应 Java `public String getVersion()` — 读 `./data/aces/version`。
     // PORT: Java FileReader 用平台默认字符集 (中文 Windows=GBK) 读完全程; Rust
     // BufReader::lines() 为 strict UTF-8, 非法字节产出 Err → break 保留半程 sb —
     // 版本文件为 ASCII 版本号, 域内等价。行语义: readLine 以 \n/\r/\r\n 为行界,
@@ -185,7 +185,7 @@ impl FmData {
         tmp_data
     }
 
-    /// 对应 Java `private double calculatePeakThrust(double[][] table)` (L2007-2019)。
+    /// 对应 Java `private double calculatePeakThrust(double[][] table)`。
     /// 遍历推力表找全局最大值
     /// @param table 推力表 [altitude][velocity]
     /// @return 峰值推力(kgf)
@@ -209,7 +209,7 @@ impl FmData {
         peak
     }
 
-    /// 对应 Java `public double peakThrust(boolean isAfterburner)` (L2026-2028)。
+    /// 对应 Java `public double peakThrust(boolean isAfterburner)`。
     /// 加力峰值推力 (kgf) — 军用 (false) 路径无生产消费方, 2026-09 收敛为单路。
     pub fn peak_thrust(&self) -> f64 {
         self.peak_thr_aft

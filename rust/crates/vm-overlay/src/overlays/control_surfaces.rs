@@ -3,7 +3,7 @@
 //!
 //! 副翼/升降舵/方向舵/可变翼位置: 边框+十字游标 (locater) + 4 行 BOS 标签 +
 //! 底部方向舵横条; 50ms 节流。窗口/拖动/FlightDataBus 注册归组装层
-//! (LIFETIMES §2.1 注销链), 本文件承载 paintComponent 的绘制序与
+//! (LIFETIMES §2.1 注销链), 本文件承载内容绘制的图层序与
 //! onFlightData 的数据换算。
 
 use crate::render::primitives;
@@ -28,7 +28,7 @@ use vm_core::lang::Lang;
 // ≡ primitives::ring1px(x, y, w-1, h-1) 逐像素等价 (含 w/h≤0 不绘制域,
 // ring1px 传 w-1/h-1 后同为负 → 不绘制; 零退化线在本组件调用域不可达)。
 
-/// __drawLabelBOSType 的 char[] 版 (UIBaseElements.java:260-273):
+/// __drawLabelBOSType 的 char[] 版:
 /// 数字 (fontNum, colorNum) 基线 y = (2·y_offset + labelSize + unitSize) >> 1;
 /// 标签名 (fontLabel, colorLabel) 在 (x + lwidth, y_offset);
 /// 单位名 (fontUnit, colorUnit) 在 (x + lwidth, y_offset + labelSize);
@@ -58,7 +58,7 @@ fn draw_label_bos_type(
     primitives::text_shaded_auto(cv, unit, x_offset + lwidth, y_offset + label.size, s_unit, colors().unit, aa);
 }
 
-/// drawHBar (UIBaseElements.java:168-185) 的 val_width ≥ 0 分支 (调用域恒非负):
+/// drawHBar 的 val_width ≥ 0 分支 (调用域恒非负):
 /// 外边框 drawRect(x, y, w-1, h-1) 阴影色 + 内部条 fillRect(x+b, y+b,
 /// val-2b, h-2b) 填充色; 负宽 fillRect 不绘制 (PixCanvas 同)。
 #[allow(clippy::too_many_arguments)] // 对齐 Java drawHBar(g2d, x, y, w, h, val, border, c)
@@ -84,7 +84,7 @@ fn draw_h_bar(
     );
 }
 
-/// drawVRect (UIBaseElements.java:80-95) 的 height < 0 分支 (drawHBarTextNum 的
+/// drawVRect 的 height < 0 分支 (drawHBarTextNum 的
 /// 游标线专用): 外边框从 (x,y) 向下展开 w × -h, 内部条缩 borderwidth。
 #[allow(clippy::too_many_arguments)] // 对齐 Java drawVRect(g2d, x, y, w, h, border, c)
 fn draw_v_rect_negative(
@@ -107,11 +107,11 @@ fn draw_v_rect_negative(
     );
 }
 
-/// drawHBarTextNum 的 char[] 版 (UIBaseElements.java:208-218): 横条 +
+/// drawHBarTextNum 的 char[] 版: 横条 +
 /// 值游标竖线 (drawVRect, colorLabel) + 值数字 (__drawStringShade, colorLabel)。
 /// numFont 尺寸取 label 字体 (调用点 lblFont/numFont 均传 fontLabel)。
 /// PORT: lbl 实参传入但 drawHBarText 内的标签绘制在 Java 源已注释
-/// (UIBaseElements.java:191-193), 本复刻同忽略。
+///, 本复刻同忽略。
 #[allow(clippy::too_many_arguments)] // 对齐 Java drawHBarTextNum(g2d, x, y, w, h, val, border, c, lbl, num, len, lblFont, numFont)
 fn draw_h_bar_text_num(
     cv: &mut PixCanvas,
@@ -156,7 +156,7 @@ fn draw_h_bar_text_num(
 // ControlSurfacesOverlay (ui/overlay/ControlSurfacesOverlay.java)
 // ---------------------------------------------------------------------------
 
-/// Throttling to prevent EDT task accumulation (Java:29)
+/// 节流间隔 — 防高频事件任务堆积
 pub const REFRESH_INTERVAL_MS: i64 = 50;
 
 /// ControlSurfaces 的三字体组 (Java init 字段 fontNum/fontLabel/fontUnit;
@@ -170,16 +170,16 @@ pub struct CsFonts<'a> {
     pub unit: &'a LoadedFont,
 }
 
-/// 操纵面位置指示 overlay (ControlSurfacesOverlay.java:27)。C 类复刻保留
-/// paintComponent 的绘制序 (:116-149) 与 onFlightData 的数据换算 (:280-312);
+/// 操纵面位置指示 overlay。C 类复刻保留
+/// 绘制序与 onFlightData 的数据换算语义;
 /// 窗口/拖动/FlightDataBus 注册归组装层。画布 = 内容区 (twidth × theight),
 /// WebLaF setShadeWidth(sw) 的边距由窗口层布局 (本组件不画)。
 pub struct ControlSurfacesOverlay {
-    /// 节流基准 (Java:31 lastRefreshTime, System.currentTimeMillis 毫秒)
+    /// 节流基准 (lastRefreshTime, System.currentTimeMillis 毫秒)
     pub last_refresh_time: i64,
-    /// 是否游戏模式 (Java :289 xs != null — preview 时为 false, 数据不更新)
+    /// 是否游戏模式 (xs != null — preview 时为 false, 数据不更新)
     pub has_service: bool,
-    // ---- init 时的 Lang 标签快照 (Java :96-103) ----
+    // ---- init 时的 Lang 标签快照 ----
     s_elevator_label: String,
     s_elevator_unit: String,
     s_aileron_label: String,
@@ -225,7 +225,7 @@ impl Default for ControlSurfacesOverlay {
 }
 
 impl ControlSurfacesOverlay {
-    /// 构造器 (Java :33-36, setTitle("舵面值") 归窗口层)。字段按 Java 隐式
+    /// 构造器 (setTitle("舵面值") 归窗口层)。字段按 Java 隐式
     /// 初始化 (§2.10): 数值 0 / 引用空态 → 空串。
     pub fn new() -> Self {
         ControlSurfacesOverlay {
@@ -262,7 +262,7 @@ impl ControlSurfacesOverlay {
         }
     }
 
-    /// init 的数据面 (Java :80-160, 窗口操作除外):
+    /// init 的数据面 (窗口操作除外):
     /// reinitConfig → 初值 50 → Lang 标签 → px/py/locateSize/strokeSize →
     /// live 模式标记 (Java s != null 分支; 真实翻转在组装层, 见 has_service)。
     /// * `win_x`/`win_y` — overlaySettings.getWindowX/Y(total) 的结果 (调用方取)。
@@ -278,7 +278,7 @@ impl ControlSurfacesOverlay {
         self.has_service = live;
         self.reinit_config(font_add, dpi_scale, enable_axis_edge, win_x, win_y);
 
-        // Initial Values (50) (Java :91-94)
+        // 初始值 50
         self.elevator_num = fast_number_format::format(50.0, 0);
         self.aileron_num = fast_number_format::format(50.0, 0);
         self.rudder_num = fast_number_format::format(50.0, 0);
@@ -300,7 +300,7 @@ impl ControlSurfacesOverlay {
         self.stroke_size = self.width / 60;
     }
 
-    /// initPreview (Java :162-168): init(null, settings) + 预览样式 (窗口层)。
+    /// initPreview: init(null, settings) + 预览样式 (窗口层)。
     pub fn init_preview(
         &mut self,
         font_add: i32,
@@ -312,12 +312,12 @@ impl ControlSurfacesOverlay {
         self.init(font_add, dpi_scale, enable_axis_edge, win_x, win_y, false);
     }
 
-    /// reinitConfig (Java :225-271) 的派生量:
+    /// reinitConfig 的派生量:
     /// fontSize = round((24 + fontadd) · dpiScale); width = fontSize·6;
     /// rudderValPix = 150·width/200; twidth/theight; sw; total; px/py/locate。
-    /// PORT: Java :50 的 `static private int fontadd` 为伪单例 (LIFETIMES §1.3
-    /// 已判存疑), 此处按参数传入 (实例字段化); repaint() 归组装层。
-    /// PORT: strokeSize 只在 init (:111) 赋值, reinitConfig 不刷新 — fontadd
+    /// PORT: Java 的 `static private int fontadd` 为伪单例 (LIFETIMES §1.3
+    /// 已判存疑), 此处按参数传入 (实例字段化); 重绘归组装层。
+    /// PORT: strokeSize 只在 init 赋值, reinitConfig 不刷新 — fontadd
     /// 变更后 Java 保留旧 strokeSize 的行为原样保留 (调用方需重 init 才更新)。
     pub fn reinit_config(
         &mut self,
@@ -369,8 +369,8 @@ impl ControlSurfacesOverlay {
         self.rudder_val_pix = (50 + 100) * self.width / 200;
     }
 
-    /// onFlightData (Java :280-312) 的单事件语义: 50ms 节流 → (EDT lambda 内)
-    /// xs != null 才更新数据; 返回值 = 是否需要重绘 (Java 末尾无条件 repaint)。
+    /// onFlightData 的单事件语义: 50ms 节流 → (数据回调内)
+    /// xs != null 才更新数据; 返回值 = 是否需要重绘 (Java 末尾无条件重绘)。
     /// PORT: System.currentTimeMillis 由调用方注入 (now_ms), 便于测试。
     pub fn on_flight_data(
         &mut self,
@@ -381,9 +381,9 @@ impl ControlSurfacesOverlay {
         wing_sweep: f64,
         wing_sweep_valid: bool,
     ) -> bool {
-        // Throttling prevents EDT task accumulation
+        // 节流防高频事件任务堆积
         if now_ms - self.last_refresh_time < REFRESH_INTERVAL_MS {
-            return false; // Skip this update, too soon
+            return false; // 距上次更新太近, 跳过
         }
         self.last_refresh_time = now_ms;
         if self.has_service {
@@ -392,7 +392,7 @@ impl ControlSurfacesOverlay {
         true
     }
 
-    /// onFlightData 的 invokeLater lambda 数据面 (Java :289-309):
+    /// onFlightData 的数据回调面:
     /// (int) 截断 ±100 域遥测 → 十字游标 (px/py) + 方向舵条 (rudderValPix) +
     /// FastNumberFormatter 整数格式化。
     pub fn update_flight_data(
@@ -419,7 +419,7 @@ impl ControlSurfacesOverlay {
         self.wing_sweep_num = fast_number_format::format(ws_val as f64, 0);
     }
 
-    /// locater (Java :177-205): 边框 (BasicStroke(1), colorShadeShape) +
+    /// locater: 边框 (BasicStroke(1), colorShadeShape) +
     /// 影子十字 (BasicStroke(stroke), colorShadeShape) + 主十字 (colorNum,
     /// 相对影子 -1px 偏移)。裸 BasicStroke = CAP_SQUARE/JOIN_MITER。
     /// 参数名对齐 Java: `x`,`y` = 游标中心; `r` = 边框边长 (width 字段);
@@ -440,10 +440,10 @@ impl ControlSurfacesOverlay {
         cv.draw_line_cap(x - 1, y - width / 2 - 1, x - 1, y + width / 2 - 1, stroke, colors().num, LineCapStyle::Square, aa);
     }
 
-    /// topPanel.paintComponent (Java :116-149) 的绘制序:
+    /// topPanel.paintComponent 的绘制序:
     /// locater → 4 行 BOS 标签 (升降舵/副翼/方向舵/可变翼, dy 步进 1.5·fontSize)
     /// → 底部方向舵横条 (drawHBarTextNum)。
-    /// 画布须为 content_width × content_height (Swing 裁剪语义, 防呆断言)。
+    /// 画布须为 content_width × content_height (窗口裁剪语义, 防呆断言)。
     pub fn draw(&self, cv: &mut PixCanvas, fonts: &CsFonts, aa: bool) {
         debug_assert!(
             cv.width() == self.content_width && cv.height() == self.content_height,
@@ -475,7 +475,7 @@ impl ControlSurfacesOverlay {
         );
 
         // 底部方向舵横条: drawHBarTextNum(g2d, 0, height, width, fontSize>>1,
-        // rudderValPix, 1, colorNum, lbl, num, fontLabel, fontLabel) (Java :146-148)
+        // rudderValPix, 1, colorNum, lbl, num, fontLabel, fontLabel)
         draw_h_bar_text_num(
             cv, fonts.label, fonts.label,
             0, self.height, self.width, self.font_size >> 1, self.rudder_val_pix, 1,
@@ -485,24 +485,24 @@ impl ControlSurfacesOverlay {
 }
 
 // ---------------------------------------------------------------------------
-// OverlayHost 挂载 (Java Controller.java:680 registerWithPreview("enableAxis"))
+// OverlayHost 挂载 (Java Controller registerWithPreview("enableAxis"))
 // ---------------------------------------------------------------------------
 
 /// 操纵面共享句柄 (minihud_overlay_spec 先例: render 闭包与喂入方共享 state)
 pub type ControlSurfacesHandle = Rc<RefCell<ControlSurfacesOverlay>>;
 
-/// 操纵面 OverlaySpec + live 句柄。参数为 init(:80-160)/reinitConfig (:225-271)
+/// 操纵面 OverlaySpec + live 句柄。参数为 init()/reinitConfig
 /// 的配置面, 经 [`ReinitParams`] 仓读取: font_add = "舵面值" panel 的 fontSize
 /// 增量, enable_axis_edge = enableAxisEdge (cfg 缺省 false)。
 /// PORT(边框不承载): Java totalWidth = twidth+sw·2 的 sw 是 WebLaF 窗口装饰边距,
 /// host 无边框层 — spec 尺寸 = 内容区 content_width×content_height (draw 的画布
-/// 断言钉内容尺寸, Swing 裁剪语义)。
+/// 断言钉内容尺寸, 窗口裁剪语义)。
 /// PORT(数据门控): Java init(S) 置 xs!=null (has_service) 才更新数据、initPreview
 /// 置 false; Rust 单实例形态下由渲染线程命令处理点按**会话窗口形态**切换 has_service
 /// (app_shell OpenAllOverlays→true / CloseAllOverlays→false, 对位 init(S)/实例销毁;
 /// 喂入点 feed_overlays_live 幂等置 true) — 初值随 init_preview 为 false。
 /// PORT(WYSIWYG): reinit 闭包 = reinit_config 的几何段 (字号/edge → 宽高派生) +
-/// 三字体重载 (Java :225-241 的 fontNum/fontLabel/fontUnit new Font)
+/// 三字体重载 (fontNum/fontLabel/fontUnit new Font)
 pub fn control_surfaces_overlay_spec(
     fonts_dir: &std::path::Path,
     params: &Rc<RefCell<ReinitParams>>,
@@ -514,7 +514,7 @@ pub fn control_surfaces_overlay_spec(
     let mut cs = ControlSurfacesOverlay::new();
     // win_x/win_y = 0: 窗口定位归 host 位置存档 (HudSettingsSnapshot 同规)
     cs.init_preview(font_add, dpi_scale, enable_axis_edge, 0, 0);
-    // 三字体 (Java init :96-103): num = NumFont BOLD(fontSize),
+    // 三字体 (Java init): num = NumFont BOLD(fontSize),
     // label = FontName BOLD(round(fontSize/2)), unit = NumFont PLAIN(round(fontSize/2))
     let bold_path = fonts_dir.join("sarasa-mono-sc-bold.ttf");
     let regular_path = fonts_dir.join("sarasa-mono-sc-regular.ttf");
@@ -553,7 +553,7 @@ pub fn control_surfaces_overlay_spec(
     });
     Ok((
         handle,
-        // Java LinkedHashMap 键 = configKey (Controller.java:680)
+        // Java LinkedHashMap 键 = configKey
         keyed_spec(
             "enableAxis",
             w,

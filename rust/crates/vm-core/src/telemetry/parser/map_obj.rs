@@ -595,7 +595,7 @@ impl Default for MapObj {
     }
 }
 
-// ---- 静态正则方法 (Service.java:1837 在用的 Player 定位路径) ----
+// ---- 静态正则方法 (Service 在用的 Player 定位路径) ----
 // PORT: PORTING.md 库映射 java.util.regex → regex crate, 但 vm-core 依赖清单不含
 // regex (本批无权改 Cargo.toml), 按原正则结构手写等价回溯匹配器; 三处模式同构
 // (\{[^{}]*K1\s*:\s*V1[^{}]*,[^{}]*K2\s*:\s*(NUM),[^{}]*K3\s*:\s*(NUM)[^{}]*\}),

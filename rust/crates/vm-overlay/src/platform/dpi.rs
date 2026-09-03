@@ -16,7 +16,7 @@ pub struct DpiHelper {
     /// DPI scale factors (1.0 = 100%, 2.0 = 200%)
     scale_x: f64,
     scale_y: f64,
-    /// Logical screen dimensions (what Swing sees)
+    /// Logical screen dimensions (逻辑像素, 窗口定位用)
     logical_screen_width: i32,
     logical_screen_height: i32,
     /// Physical screen dimensions (actual monitor pixels)
@@ -100,7 +100,7 @@ impl DpiHelper {
         self.scale_x
     }
 
-    /// Returns the logical screen width in pixels (what Swing sees / window positioning)
+    /// Returns the logical screen width in pixels (逻辑像素, 窗口定位用)
     pub fn get_logical_screen_width(&self) -> i32 {
         self.logical_screen_width
     }

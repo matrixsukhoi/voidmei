@@ -91,8 +91,8 @@ pub fn set_min_level(level: Level) {
     *CURRENT_LEVEL.write().expect("logger 级别锁中毒") = level;
 }
 
-// ===== stdout/stderr 文件重定向 (Application.setDebugLog/setErrLog, :362-382) =====
-// Java debugLog 开关 (Application.main:550-553) 把 System.setOut/setErr 指到
+// ===== stdout/stderr 文件重定向 (Application.setDebugLog/setErrLog) =====
+// Java debugLog 开关 (Application.main) 把 System.setOut/setErr 指到
 // ./output.log / ./error.log — Logger 的输出口径整体随 System.out 走, 故 Rust 侧
 // 由 Logger 输出面接管 (println!/eprintln! 的其余调用点为测试模式打字, 不走本面)。
 // D5 豁免同源 (见模块头): 横切面全局静态。
@@ -102,7 +102,7 @@ static OUT_REDIRECT: LazyLock<Mutex<Option<File>>> = LazyLock::new(|| Mutex::new
 /// stderr 重定向目标 (printStackTrace 面; None = 控制台 stderr)
 static ERR_REDIRECT: LazyLock<Mutex<Option<File>>> = LazyLock::new(|| Mutex::new(None));
 
-/// 对应 Java `setDebugLog(String path)` (Application.java:362-371):
+/// 对应 Java `setDebugLog(String path)` (Application):
 /// 建文件失败 (FileNotFoundException) → logAndContinue("日志文件") 后维持原输出,
 /// 不中断启动 (out=null 时 Java System.setOut(null) 会令后续打印 NPE, 属 Java 原
 /// 坑; Rust 侧失败即保持控制台输出, 有意加强)。
@@ -120,7 +120,7 @@ pub fn set_debug_log(path: &str) {
     }
 }
 
-/// 对应 Java `setErrLog(String path)` (Application.java:373-382), 同上语义
+/// 对应 Java `setErrLog(String path)` (Application), 同上语义
 pub fn set_err_log(path: &str) {
     let created = File::create(path);
     let mut slot = ERR_REDIRECT.lock().expect("logger stderr 重定向锁中毒");

@@ -3,16 +3,16 @@
 //!
 //! ## 播放模型裁决 (语音子系统装配批, 2026-08-28)
 //!
-//! 精读 VoiceWarning.java 的告警触发路径, 判定 Java 存在**多个 Clip 并发混音**:
+//! 精读 Java VoiceWarning 的告警触发路径, 判定 Java 存在**多个 Clip 并发混音**:
 //! 1. 每个 VoiceAlert 持有独立 Clip (`VoiceResourceManager.loadClip` 每次经
-//!    `AudioSystem.getLine` 新建 line, VoiceWarning.java:135);
+//!    `AudioSystem.getLine` 新建 line);
 //! 2. run() 单轮 (100ms tick) 内十余个 check* 互相独立、可同轮齐发 —— 其中
 //!    checkSpeedWarning 的 iasWarn 与 machWarn 是**同方法两个非互斥 if**
-//!    (VoiceWarning.java:620-627; 俯冲中 IAS≥vne*0.95 与 M≥限速可同时成立),
+//!    (俯冲中 IAS≥vne*0.95 与 M≥限速可同时成立),
 //!    另有 brake/engOverheat/stall/loadFactor/rudderEff/aileronEff 等同轮可达;
 //! 3. 跨轮重叠: 告警音普遍长于 100ms 节拍, 冷却只压制**同一**告警的重触发,
 //!    不同告警天然叠音 (如 engWarn 长音在播期间 stallWarn 起播);
-//! 4. MainForm 试听按钮 (VoiceRowRenderer.java:128-136) 与告警并发, 各持独立 Clip。
+//! 4. MainForm 试听按钮与告警并发, 各持独立 Clip。
 //! javax.sound.sampled 的多 line 由系统混音器合成 ⇒ Java 语义 = 并发混音。
 //!
 //! ⇒ **裁决: 并发混音 → waveOut 每路独立流** (每 Clip 一个 HWAVEOUT;

@@ -3,7 +3,7 @@
 //! | Rust | Java 源 | 语义要点 |
 //! |---|---|---|
 //! | [`ModernHUDLayoutEngine`] | src/ui/layout/ModernHUDLayoutEngine.java | DAG 依赖解析: DFS 前序拓扑排序 (根=无父节点, 父先子后) + 惰性 dirty 布局 + 可见节点包围盒/自动尺寸 |
-//! | [`MINIHUD_NODE_SPECS`] + [`build_mihud_layout`] | src/ui/overlay/MiniHUDOverlay.java initModernLayout (L652-763) | cfg 驱动组件树生成: Java 硬编码拓扑转常量 spec 表, build 按配置 (displayCrosshair) 与行数动态建树 |
+//! | [`MINIHUD_NODE_SPECS`] + [`build_mihud_layout`] | src/ui/overlay/MiniHUDOverlay.java initModernLayout | cfg 驱动组件树生成: Java 硬编码拓扑转常量 spec 表, build 按配置 (displayCrosshair) 与行数动态建树 |
 //!
 //! ui_layout.cfg panel "MiniHUD" 段的常量表快照 (原 MINIHUD_PANEL_ITEMS 族)
 //! 仅测试消费, 已随波12 移入 tests.rs — 生产布局不持 cfg 第二份手工快照。
@@ -390,7 +390,7 @@ impl<T> ModernHUDLayoutEngine<T> {
 
 /// PORT(hud_layout_node.rs 备案 b): 重复 setParent 可构造 children 强引用环
 /// (Rc 永不回收; Java GC 可收环)。[`ModernHUDLayoutEngine::visit_node`] 的环
-/// 检测分支保真 Java 只日志+跳过 (ModernHUDLayoutEngine.java:111-114),
+/// 检测分支保真 Java 只日志+跳过 (ModernHUDLayoutEngine),
 /// 断环职责由本引擎在 **drop 时**履行: 逐节点摘除父边 (同时从父 children 移除),
 /// engine 强持的引用环随 nodes map 一起释放。产品路径 (build_mihud_layout)
 /// 不可能构环, 此清扫仅覆盖对抗性直接 set_parent 的场景。
@@ -424,7 +424,7 @@ pub fn java_string_hashcode(s: &str) -> i32 {
 }
 
 /// Java `drawDebug` 的调试框颜色: id hashCode 低 24 位拆 RGB, 暗色提亮 +100
-/// (ModernHUDLayoutEngine.java:176-186)。alpha=255 (`new Color(r,g,b)` 不透明)。
+/// (ModernHUDLayoutEngine)。alpha=255 (`new Color(r,g,b)` 不透明)。
 pub fn debug_frame_color(id: &str) -> [u8; 4] {
     let hash = java_string_hashcode(id);
     // Ensure high brightness for visibility on dark background
@@ -469,9 +469,9 @@ impl Default for MiniHudLayoutConfig {
 
 impl MiniHudLayoutConfig {
     /// 从任意 bool 配置源构造 (键 = cfg :target 原样)。
-    /// 缺键/无法解析 → Java getBool 的字面兜底参数 (ConfigurationService.java:639
+    /// 缺键/无法解析 → Java getBool 的字面兜底参数 (ConfigurationService
     /// isDisplayCrosshair() = getBool("displayCrosshair", **false**);
-    /// MiniHUDOverlay.java:668 getBool("enableLayoutDebug", false))。
+    /// MiniHUDOverlay getBool("enableLayoutDebug", false))。
     /// cfg 树健康时 row 的 :default (displayCrosshair=true) 由 src 侧生效 —
     /// 与 [`MiniHudLayoutConfig::default`] 是两层不同缺省。
     pub fn from_bool_source(src: impl Fn(&str) -> Option<bool>) -> Self {
@@ -484,7 +484,7 @@ impl MiniHudLayoutConfig {
 }
 
 // ---------------------------------------------------------------------------
-// MiniHUD 组件树拓扑 (MiniHUDOverlay.initModernLayout L679-754 硬编码拓扑的快照)
+// MiniHUD 组件树拓扑 (MiniHUDOverlay.initModernLayout 硬编码拓扑的快照)
 // ---------------------------------------------------------------------------
 
 /// spec 行对应的组件槽位 (MiniHUDOverlay.initComponentsLayout 的组件清单)
@@ -520,10 +520,10 @@ pub struct MiniHudNodeSpec {
     pub self_anchor: Anchor,
 }
 
-/// MiniHUD 组件树拓扑常量 (MiniHUDOverlay.java:681-753 逐节点快照, addNode 顺序)。
-/// 行间链 (row1..row4) = Java 循环体 (0, 0.1) BOTTOM_LEFT/TOP_LEFT (L699-713);
-/// row2 依赖存在才建 attitude/compass (L716); speedBar/throttle 的父 row4 缺席时
-/// 退化为根 (L736/743 setParent(row4) 可空); crosshair 仅 displayCrosshair (L749)。
+/// MiniHUD 组件树拓扑常量 (MiniHUDOverlay 逐节点快照, addNode 顺序)。
+/// 行间链 (row1..row4) = Java 循环体 (0, 0.1) BOTTOM_LEFT/TOP_LEFT;
+/// row2 依赖存在才建 attitude/compass; speedBar/throttle 的父 row4 缺席时
+/// 退化为根 (setParent(row4) 可空); crosshair 仅 displayCrosshair。
 pub const MINIHUD_NODE_SPECS: &[MiniHudNodeSpec] = &[
     // 3. Row 0 (New Anchor for Left Block) — Position: 2.1, 3.5 units
     MiniHudNodeSpec { id: "row0", component: MiniHudComp::Row(0), parent: None, unit_x: 2.1, unit_y: 3.5, parent_anchor: Anchor::TopLeft, self_anchor: Anchor::TopLeft },
@@ -561,7 +561,7 @@ pub struct MiniHudParts<T> {
     pub crosshair_gauge: Option<T>,
 }
 
-/// Java MiniHUDOverlay.java:765 `private static final int LAYOUT_PADDING = 45`
+/// Java MiniHUDOverlay `private static final int LAYOUT_PADDING = 45`
 pub const LAYOUT_PADDING: i32 = 45;
 
 /// [`build_mihud_layout`] 的输出: 布局引擎 + 自动尺寸计划
@@ -573,10 +573,10 @@ pub struct BuiltMiniHudLayout<T> {
     pub sizing: Option<AutoSizingPlan>,
 }
 
-/// cfg 驱动组件树生成 (Java MiniHUDOverlay.initModernLayout L652-763 的树构建部分)。
+/// cfg 驱动组件树生成 (Java MiniHUDOverlay.initModernLayout 的树构建部分)。
 ///
 /// 语义保真分支:
-/// - `layoutWidth = showCrosshair ? base_width*2 : base_width` (L654-655);
+/// - `layoutWidth = showCrosshair ? base_width*2 : base_width`;
 /// - row 链按 `rows.len()` 截断 (Java 循环 `i=1..hudRows.size()`);
 /// - attitude/compass 仅当 "row2" 已建 (Java `if (row2 != null)`);
 /// - speedBar/throttle 无条件建, 父 "row4" 缺席时 setParent(None) → 根;
@@ -584,7 +584,7 @@ pub struct BuiltMiniHudLayout<T> {
 /// - 空 rows = Java `components.isEmpty()` 裸 return: **不执行尾部三步** (无
 ///   Auto-size/Topology 日志), sizing=None (窗口保持宿主初始值, renderOffset
 ///   保持缺省 (0,0));
-/// - 非空才走尾部 doLayout + applyAutoSizing(LAYOUT_PADDING) + logTopology (L757-762)。
+/// - 非空才走尾部 doLayout + applyAutoSizing(LAYOUT_PADDING) + logTopology。
 pub fn build_mihud_layout<T>(
     cfg: &MiniHudLayoutConfig,
     parts: MiniHudParts<T>,

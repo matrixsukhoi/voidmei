@@ -83,7 +83,7 @@ pub async fn get_voice_packs(state: tauri::State<'_, IpcState>) -> Result<Value,
     roundtrip(&state.tx, RequestKind::GetVoicePacks).await
 }
 
-/// 试听语音 (Java VoiceRowRenderer.java:126-136 播放按钮; key=voice_<alert> 配置键)
+/// 试听语音 (Java VoiceRowRenderer 播放按钮; key=voice_<alert> 配置键)
 #[tauri::command]
 pub async fn preview_voice(
     state: tauri::State<'_, IpcState>,
@@ -123,7 +123,7 @@ pub async fn open_comparison_window(
     roundtrip(&state.tx, RequestKind::OpenComparisonWindow { fm0, fm1 }).await
 }
 
-/// 应用版本号 (Java Application.readVersion, Application.java:442-449):
+/// 应用版本号 (Java Application.readVersion):
 /// MANIFEST Implementation-Version ↔ 构建期 VOIDMEI_VERSION 环境变量注入
 /// (build.py jar / CI 从 git tag 提取同源); 未注入 = 本地开发形态 → "dev"
 /// (checkUpdate 的 dev 守卫以此判定, 标题栏版本同源)。

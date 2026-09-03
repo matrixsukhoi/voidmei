@@ -7,17 +7,17 @@ use std::path::{Path, PathBuf};
 use vm_core::lang::Lang;
 use vm_overlay::platform::dpi::DpiHelper;
 
-/// Application.java:60-129 静态字段中"启动一次后只读"组的落位
+/// Java Application 静态字段中"启动一次后只读"组的落位
 /// (LIFETIMES §1.2 → Env; 配置驱动可变组归 ConfigurationService 的 ApplicationState)。
 #[derive(Debug, Clone)]
 pub struct Env {
     /// Application.version (Java 读 MANIFEST; Rust 编译期注入)
     pub version: String,
-    /// Application.appName = Lang.appName (Application.java:569)
+    /// Application.appName = Lang.appName
     pub app_name: String,
-    /// Application.httpHeader = Lang.httpHeader (:571)
+    /// Application.httpHeader = Lang.httpHeader
     pub http_header: String,
-    /// Application.appPort (Lang.httpPort parseInt, 失败 8111; :559-563)
+    /// Application.appPort (Lang.httpPort parseInt, 失败 8111)
     pub app_port: u16,
     /// 字体目录探测 (Java initFont 的 AWT 注册 → Rust 字体文件路径供给, D8: 字体→渲染线程)
     pub fonts_dir: PathBuf,
@@ -76,7 +76,7 @@ pub(crate) fn locate_template_cfg() -> Option<String> {
     })
 }
 
-/// Java Application.getScreenSize → DPIHelper.init() (DpiHelper.java:52)
+/// Java Application.getScreenSize → DPIHelper.init()
 #[cfg(target_os = "windows")]
 fn detect_dpi() -> DpiHelper {
     DpiHelper::init()

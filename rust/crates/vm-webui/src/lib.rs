@@ -1,6 +1,6 @@
 //! vm-webui lib 入口 (D9): Tauri 2 MainForm 壳, 窗口常驻隐藏预热 + 主线程手动泵。
 //!
-//! 与 D8 拓扑的接法 (vm-app 主循环, 对位原 iced 相A):
+//! 与 D8 拓扑的接法 (vm-app 主循环):
 //! ```text
 //! loop { shell.pump(); form.pump_once(); sleep(可见 ? 10ms : 50ms) }
 //! ```
@@ -94,7 +94,7 @@ impl ShellForm {
                 // 托盘关于 Modal 关闭回执 (bridge.rs; 审查 B1 — 恢复 InGame 收窗)
                 bridge::about_modal_closed
             ])
-            // 窗口 X = 退出 VoidMei (对位 Java MainForm.java:374
+            // 窗口 X = 退出 VoidMei (对位 Java MainForm 的
             // setDefaultCloseOperation(3)=EXIT_ON_CLOSE)。prevent_close 防
             // WebView2 默认销毁破坏常驻壳; hide 给即时视觉反馈, emit 交前端走
             // EndGame 干净退出链 (saveConfig + 主循环收尾, 覆盖 ✕/Alt+F4/任务栏关闭)。

@@ -77,7 +77,7 @@ pub struct GlobalColors {
 }
 
 impl GlobalColors {
-    /// Java Application.java:106-111 静态初始值 (cfg 加载前的默认;
+    /// Java Application 静态初始值 (cfg 加载前的默认;
     /// 与 vm-overlay 各组件原编译期常量逐字节一致)
     pub const JAVA_DEFAULT: GlobalColors = GlobalColors {
         num: [27, 255, 128, 240],

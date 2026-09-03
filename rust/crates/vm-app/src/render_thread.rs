@@ -80,7 +80,7 @@ pub struct RenderThreadConfig {
 /// 渲染线程内注册的 overlay 数据句柄 (Rc — 恒留本线程)。
 /// None = spec 工厂失败 (字体缺失等, 注册点已 logger::error), 喂入跳过
 pub(crate) struct OverlayHandles {
-    /// MiniHUD live 喂入口 (Java onFlightData → EDT 的单线程 host 对位)
+    /// MiniHUD live 喂入口 (对位 Java onFlightData 的 UI 线程单线程派发面)
     pub(crate) minihud: Option<MiniHudHandle>,
     /// 动力信息 (Java PowerInfoOverlay.onFlightData 50ms 节流)
     pub(crate) power_info: Option<PowerInfoHandle>,
@@ -173,7 +173,7 @@ impl ActivationContext for HostActivationCtx {
 }
 
 /// 注册键 → 激活策略 (Java registerWithPreview 默认 config(key);
-/// 两处复合策略来自 registerWithStrategy, Controller.java:717-752)
+/// 两处复合策略来自 Java registerWithStrategy)
 pub(crate) fn strategy_for(config_key: &str) -> ActivationStrategy {
     match config_key {
         "enableVoiceWarn" => ActivationStrategy::config(config_key)
@@ -207,7 +207,7 @@ impl vm_core::platform::focus_monitor::AlwaysOnTopCoordinatorApi for ChannelFocu
 }
 
 /// 位置存档后端 (渲染线程侧): 启动快照直读 + 保存经 MainEvent 回传主线程落盘。
-/// PORT(线程桥): Java overlay 直接持 OverlaySettings (EDT 单世界); Rust 配置树
+/// PORT(线程桥): Java overlay 直接持 OverlaySettings (UI 单线程单世界); Rust 配置树
 /// !Send 不能进渲染线程, 位置面拆成 读=启动快照 (位置仅拖拽改变, 而拖拽存档
 /// 双写快照, 快照不滞后) 写=回传 (PositionSaved → save_group_position 落盘,
 /// 对齐 Java saveWindowPosition 即时 saveLayoutConfig)。
@@ -232,7 +232,7 @@ impl vm_overlay::platform::host::PositionStore for ChannelPositionStore {
     }
 }
 
-/// Java Controller.registerGameModeOverlays (651-753) 的渲染线程侧一次性注册
+/// Java Controller.registerGameModeOverlays 的渲染线程侧一次性注册
 /// (live 模式 overlay 全集: 真实遥测数据态; 旧名 register_game_mode_overlays)。
 /// PORT(偏差备案): Java 每 Controller 重建 OverlayManager + 重注册; Rust host 跨
 /// 重建存活 (D8), 条目是无状态配置记录 (id/config_key/尺寸/渲染闭包), 重建语义
@@ -270,7 +270,7 @@ pub(crate) fn register_live_overlays(
         fm_field_config,
     } = setup;
     let fonts = &env.fonts_dir;
-    // 引擎控制 (Java:654-659, 键 enableEngineControl); dataPollIntervalMs 经
+    // 引擎控制 (键 enableEngineControl); dataPollIntervalMs 经
     // loadRefreshInterval ×2 → refreshInterval (preview 工厂传不了此参恒默认 100)
     handles.engine_control = register_one(
         host,
@@ -279,7 +279,7 @@ pub(crate) fn register_live_overlays(
         &["disableEngineInfo", "fontSize"],
         || engine_control_overlay_spec(fonts, Rc::clone(lang), params),
     );
-    // 动力信息 (Java:662-667, 键 engineInfoSwitch)
+    // 动力信息 (键 engineInfoSwitch)
     handles.power_info = register_one(
         host,
         shared,
@@ -287,7 +287,7 @@ pub(crate) fn register_live_overlays(
         &["fontName", "fontSize", "hudColumns", "S."],
         || power_info_overlay_spec(fonts, params),
     );
-    // MiniHUD (Java:671-679, 键 crosshairSwitch; HUDSettings 经快照)
+    // MiniHUD (键 crosshairSwitch; HUDSettings 经快照)
     // PORT: service_present=false (注册时 Service 尚未建; 该标志影响 preview 行为集,
     // live 重接线批次随 spec 工厂参数化回收)
     handles.minihud = register_one(host, shared, "MiniHUD", &MINIHUD_INTEREST_KEYS, || {
@@ -300,7 +300,7 @@ pub(crate) fn register_live_overlays(
             params,
         )
     });
-    // 飞行信息 (Java:683-686, 键 flightInfoSwitch) — POC window.rs 专径收编
+    // 飞行信息 (键 flightInfoSwitch) — POC window.rs 专径收编
     // (渲染栈复用 fields/layout/render 对拍三件套, 见 vm-overlay flight_info.rs)
     handles.flight_info = register_one(
         host,
@@ -309,7 +309,7 @@ pub(crate) fn register_live_overlays(
         &["flightInfo", "fontSize", "disableFlightInfo"],
         || flight_info_overlay_spec(fonts, params),
     );
-    // 起落襟翼 (Java:709-714, 键 enablegearAndFlaps)
+    // 起落襟翼 (键 enablegearAndFlaps)
     handles.gear_flaps = register_one(
         host,
         shared,
@@ -317,7 +317,7 @@ pub(crate) fn register_live_overlays(
         &["enablegearAndFlapsEdge", "fontSize"],
         || gear_flaps_overlay_spec(fonts, params),
     );
-    // 操纵面 (Java:680-687, 键 enableAxis) — 本批补齐 (批十四 A-W5 备案收口)
+    // 操纵面 (键 enableAxis) — 本批补齐 (批十四 A-W5 备案收口)
     handles.control_surfaces = register_one(
         host,
         shared,
@@ -325,7 +325,7 @@ pub(crate) fn register_live_overlays(
         &["enableAxisEdge", "fontSize"],
         || control_surfaces_overlay_spec(fonts, params),
     );
-    // 地平仪 (Java:690-697, 键 enableAttitudeIndicator) — 本批补齐 (同上)
+    // 地平仪 (键 enableAttitudeIndicator) — 本批补齐 (同上)
     handles.attitude = register_one(
         host,
         shared,
@@ -333,7 +333,7 @@ pub(crate) fn register_live_overlays(
         &["attitudeIndicator", "enableAttitudeIndicator"],
         || attitude_overlay_spec(params),
     );
-    // FM拆包数据 (Java:726-743, 键 enableFMPrint, previewEnabled=true) — 本批补齐
+    // FM拆包数据 (键 enableFMPrint, previewEnabled=true) — 本批补齐
     // (P5 组装契约三点销号; 事件面/tick 泵在渲染线程循环驱动, 见 render_thread_main)
     handles.fm_unpacked = register_one(
         host,
@@ -352,7 +352,7 @@ pub(crate) fn register_live_overlays(
             )
         },
     );
-    // 推力曲线 (Java:745-752 registerWithStrategy("thrustdFS"), 键 =
+    // 推力曲线 (Java registerWithStrategy("thrustdFS"), 键 =
     // enableFMPrint && jetOnly, previewEnabled=true/needsThread) — 本批补齐
     // (D8 降级清单 P6 尾巴收口; 事件面/run 泵在渲染线程循环驱动)。
     // 无 with_interest 追加键 (键集为空, Java 同); 固定几何在注册成功后落
@@ -412,8 +412,8 @@ fn register_one<H>(
     }
 }
 
-/// 托盘 handler: 动作转发主线程 (Java 托盘回调在 EDT, Rust 泵线程→channel)。
-/// 关于项 (Application.java:236-245) 已接线: About → 主循环 emit → 前端 Modal。
+/// 托盘 handler: 动作转发主线程 (Java 托盘回调在 UI 事件线程, Rust 泵线程→channel)。
+/// 关于项 (Java Application 的 about 菜单) 已接线: About → 主循环 emit → 前端 Modal。
 #[cfg(target_os = "windows")]
 struct AppTrayHandler {
     tx: Sender<MainEvent>,
@@ -437,7 +437,7 @@ impl TrayHandler for AppTrayHandler {
     }
 }
 
-/// 通道排空取最新 (live 数据合并: 对位 Java EDT repaint 合并 — 只留最新帧)
+/// 通道排空取最新 (live 数据合并: 对位 Java UI 线程 repaint 合并 — 只留最新帧)
 fn drain_latest<T>(rx: &Receiver<T>) -> Option<T> {
     let mut latest = rx.try_recv().ok()?;
     while let Ok(next) = rx.try_recv() {
@@ -446,7 +446,7 @@ fn drain_latest<T>(rx: &Receiver<T>) -> Option<T> {
     Some(latest)
 }
 
-/// 地平仪喂入节流状态 (Java AttitudeOverlay.java:96 freqMili + :352 freqCheckMili;
+/// 地平仪喂入节流状态 (Java AttitudeOverlay 的 freqMili + freqCheckMili 双参;
 /// update_telemetry 无节流闩 — 组件头注 "40ms 节流在 onFlightData 组装层")
 pub(crate) struct AttitudeFeedState {
     pub(crate) freq_ms: i64,
@@ -455,32 +455,31 @@ pub(crate) struct AttitudeFeedState {
 
 /// 全部窗口 overlay 的 live 喂入 (Java 各 overlay init(S) 时自订 FlightDataBus 的
 /// 单点对位; Rust 订阅生命周期由 OpenAllOverlays/CloseAllOverlays 承载, 本函数在
-/// 订阅期由渲染线程节拍调用, drain_latest 只留最新帧 = EDT repaint 合并)。
+/// 订阅期由渲染线程节拍调用, drain_latest 只留最新帧 = repaint 合并)。
 ///
 /// PORT(preview 门控): Java preview 实例 (initPreview) 不订阅 FlightDataBus, 恒显
 /// previewValue 静态; Rust host 单条目跨 open/refresh_preview 存活 (D8), 预览窗口
 /// 形态 (overlay_ctx_preview=true, CloseAll/重建核置位 — 会话窗口形态语义) 喂入
 /// 整帧跳过 — MiniHUD 此前的无条件喂入一并收口 (原 B-W3 备案族的收窄, 游戏内设
 /// 置窗期不再渗 live 数据)。游戏稳态 (openpad 后) 恒 false, RefreshPreviews 不再
-/// 翻转本标志 (Java refreshPreviews 对在场实例只调 reinitializer, 订阅不动 —
-/// OverlayManager.java:332-336)。
+/// 翻转本标志 (Java refreshPreviews 对在场实例只调 reinitializer, 订阅不动)。
 ///
 /// PORT(MiniHUD 喂入形态, W-B 事件瘦身后): 转发链只送 EventPayload (瘦事件,
 /// 纯节拍+标量); state/indicators 取自 FrameStore 最近帧直传 hud_calculator
-/// (按喂入时刻取最新值, 与 Java EDT 读共享可变引用同一时序语义; 曾长期传
+/// (按喂入时刻取最新值, 与 Java UI 线程读共享可变引用同一时序语义; 曾长期传
 /// None/None 致襟翼/油门/姿态/G 值全 0 = "bar 恒 0" 根因); HUDData 由
 /// minihud::update_from_event 现场计算 (hud_data 通道已删)。
 ///
 /// PORT(B-W2 已兑现, 重构波4): 本函数原持 ServiceData 读锁跨纯计算段 (备形态
 /// 已消) — 现取 FrameStore 不可变帧 (零锁), 各 update 签名 &dyn FormulaView
-/// 直收 &Frame。与 Java 的 EDT 回退路径 (MiniHUDOverlay EDT 内直读 Service
+/// 直收 &Frame。与 Java 的回退路径 (MiniHUDOverlay 在 UI 线程内直读 Service
 /// 公开字段无锁计算) 同形态。
 ///
 /// PORT(panic 边界): ServiceData 的保真 panic 点 (get_pitch/get_thrust 的空引擎
 /// 数组索引, service_fields.rs 注) 在畸形 s_state (update 失败 pitch/thrust 未填)
-/// 下可达 — Java NPE 由 AWT EDT 吞掉 (UI 存活), Rust 渲染线程 panic 会杀整个
+/// 下可达 — Java NPE 由 AWT 的 UI 事件线程吞掉 (UI 存活), Rust 渲染线程 panic 会杀整个
 /// host 泵, 故整帧 catch_unwind (AssertUnwindSafe: 状态可能半更新, 对位 Java
-/// EDT 半更新后吞 NPE 的形态), ERROR 留痕丢帧继续。
+/// UI 线程半更新后吞 NPE 的形态), ERROR 留痕丢帧继续。
 pub(crate) fn feed_overlays_live(
     handles: &OverlayHandles,
     payload: &EventPayload,
@@ -506,11 +505,11 @@ pub(crate) fn feed_overlays_live(
     // 已随该波次移除 — VNE/AoA 告警/flapAllowAngle/机动指数全量走 FM 数据
     let fmdata = fm_handle.fmdata.as_ref();
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        // 1. MiniHUD (Java MiniHUDOverlay.onFlightData → invokeLater)
+        // 1. MiniHUD (Java MiniHUDOverlay.onFlightData → UI 线程派发)
         if let Some(h) = handles.minihud.as_ref() {
             // W-B: State/Indicators 直接从共享 guard 借引用下传 (hud_calculator
             // 读 flaps/throttle/gear/airbrake/aoa/ny/姿态), 不再装箱重建事件
-            // AoA 告警/状态色 = 全局仓 (Java HUDCalculator.java:132-155 每次计算
+            // AoA 告警/状态色 = 全局仓 (Java HUDCalculator 每次计算
             // 直读 Application 静态; 曾传编译期常量冻结 — 审查轮 1-B)
             let gc = vm_overlay::render::palette::colors();
             let colors = HudColors {
@@ -661,9 +660,9 @@ pub fn render_thread_main(cfg: RenderThreadConfig) {
             while session.fm_toggle_rx.try_recv().is_ok() {
                 if fm_live {
                     if let Some(h) = session.handles.fm_unpacked.as_ref() {
-                        h.borrow_mut().toggle(); // FM_OVERLAY_TOGGLE handler (:72-75)
+                        h.borrow_mut().toggle(); // FM_OVERLAY_TOGGLE handler
                     }
-                    // DrawFrameSimpl toggle handler (Java :526-529, 仅游戏 init 挂接 —
+                    // DrawFrameSimpl toggle handler (仅游戏 init 挂接 —
                     // Java 双订阅方之二)
                     if let Some(h) = session.handles.draw_frame_simpl.as_ref() {
                         h.borrow_mut().toggle();
@@ -935,7 +934,7 @@ impl RenderSession {
             last_ms: 0,
         };
 
-        // ---- 托盘 (Java initSystemTray: 失败继续运行, Application.java:217-280) ----
+        // ---- 托盘 (Java initSystemTray: 失败继续运行) ----
         #[cfg(target_os = "windows")]
         let tray = {
             let handler = AppTrayHandler {
@@ -983,7 +982,7 @@ impl RenderSession {
         // FMUnpackedData 的 run() 轮询泵 (Java BaseOverlay.run 线程的单线程驱动侧,
         // 200ms 节流 + 可见门控 + 高度自适应, 见 FmUnpackedFeed 头注)
         let fm_unpacked_feed = FmUnpackedFeed::new();
-        // DrawFrameSimpl 的 run() 循环泵 (Java :737-767: 1000ms 节流 + 自管可见性 +
+        // DrawFrameSimpl 的 run() 循环泵 (1000ms 节流 + 自管可见性 +
         // displayFmKey==0 收腿 10s 退场, 见 DrawFrameSimplFeed 头注)
         let dfs_feed = DrawFrameSimplFeed::new();
 
@@ -1145,12 +1144,12 @@ impl RenderSession {
     /// 过期世代直接返回 (原 continue — 分支尾即迭代尾, 等价)
     fn on_refresh_previews(&mut self, changed_key: Option<String>, generation: u64) {
         if is_stale_refresh(&self.shared, generation) {
-            return; // 防过期守卫 (Java invokeLater 内守卫的根治位)
+            return; // 防过期守卫 (Java UI 线程派发内守卫的根治位)
         }
         // PORT(forPreviewMode 仅激活探测期, 审查 blocker 修复): Java
-        // refreshPreviews 以 forPreviewMode ctx 判定激活 (OverlayManager
-        // .java:203), 但对在场实例只调 reinitializer — 实例保留、
-        // FlightDataBus 订阅不动, live 流持续 (OverlayManager.java:332-336)。
+        // refreshPreviews 以 forPreviewMode ctx 判定激活,
+        // 但对在场实例只调 reinitializer — 实例保留、
+        // FlightDataBus 订阅不动, live 流持续。
         // 原实现把 overlay_ctx_preview 永久置 true: 游戏稳态 State=Preview
         // 下 FM_CHANGED/ConfigChanged 必经本分支 → feed_overlays_live
         // 永久 early-return, 全部 overlay 冻结在 FM 加载完成瞬间的值。
@@ -1161,8 +1160,8 @@ impl RenderSession {
         // Java refreshPreviews 对触达条目调 entry.refreshPreview
         // (forPreviewMode ctx): shouldBeOpen = config &&
         // gameModeOnly, preview ctx 下 gameModeOnly=false → 在场
-        // 即 close (关开关即时生效, Controller.java:498-536 →
-        // OverlayManager.java:320-340)。Rust 原实现只走 host 窗口
+        // 即 close (关开关即时生效, Java configChanged → refreshPreviews
+        // 在场条目重估)。Rust 原实现只走 host 窗口
         // 条目, voice_warn 无重估面 — 关掉开关后告警继续响到会话
         // 结束 (CloseAllOverlays 才停), 用户可感知偏差。补齐: 探测
         // 窗口内 (preview=true → live_only=false, 与 Java forPreviewMode

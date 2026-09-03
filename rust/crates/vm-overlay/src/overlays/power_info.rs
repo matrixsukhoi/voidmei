@@ -26,7 +26,7 @@ use crate::overlays::gear_flaps::FIELD_OVERLAY_REFRESH_INTERVAL_MS;
 /// 动力信息面板状态 (Java PowerInfoOverlay 的 fieldManager + bindDynamicFields 产物)。
 /// 预览 = 构造后不调 update (FieldOverlay.initPreview 不订阅事件, 字段保持 previewValue)。
 pub struct PowerInfoState {
-    /// 节流基准 (FieldOverlay.java:39 lastRefreshTime, System.currentTimeMillis 毫秒)
+    /// 节流基准 (FieldOverlay lastRefreshTime, System.currentTimeMillis 毫秒)
     pub last_refresh_time: i64,
     /// 行定义 (cfg 驱动, 随 ReinitParams 更新)
     pub defs: std::sync::Arc<Vec<vm_core::ui_support::row_def::RowDef>>,
@@ -36,7 +36,7 @@ pub struct PowerInfoState {
 }
 
 impl PowerInfoState {
-    /// initFields (FieldOverlay.java:145-155) + DefaultFieldManager.addField:
+    /// initFields (FieldOverlay) + DefaultFieldManager.addField:
     /// currentValue = previewValue 原样 (不经 %5s), hideWhenNA=true (EngineInfoConfig
     /// populateFromGroup 固定传 true), hideWhenZero=false (cfg 无 :hide-when-zero)
     pub fn new(defs: std::sync::Arc<Vec<vm_core::ui_support::row_def::RowDef>>) -> Self {
@@ -82,14 +82,14 @@ impl PowerInfoState {
         *self = Self::new(defs);
     }
 
-    /// FieldOverlay.onFlightData (FieldOverlay.java:166-217) 的单事件语义:
-    /// 50ms 节流闩 → (invokeLater lambda 内) 零 GC 路径 (:178-217): 取值 →
+    /// FieldOverlay.onFlightData (FieldOverlay) 的单事件语义:
+    /// 50ms 节流闩 → (数据回调内) 零 GC 路径: 取值 →
     /// visible-when → 动态精度 → 动态单位 → 可见时格式化 (na-when → "-",
     /// TIME_MM_SS → formatTime, 其余 format(val, precision))。
     /// PORT: System.currentTimeMillis 由调用方注入 now_ms (field2 先例, 便于测试);
     /// 返回值 = 是否执行了更新 (false = 节流跳过, Java 原方法 void, 宿主可据此省重绘)
     pub fn update(&mut self, now_ms: i64, s: &dyn FormulaView) -> bool {
-        // Throttling prevents EDT task accumulation
+        // 节流防高频事件任务堆积
         if now_ms - self.last_refresh_time < FIELD_OVERLAY_REFRESH_INTERVAL_MS {
             return false; // Skip this update, too soon
         }
@@ -99,7 +99,7 @@ impl PowerInfoState {
             let val = vm_core::formula::resolve_target(&def.source)
                 .and_then(|(var, mult)| vm_core::formula::target_value(&var, mult, s))
                 .unwrap_or(0.0);
-            // 2. 可见性: 无 :visible-when 恒可见 (PowerInfoOverlay.java:147)
+            // 2. 可见性: 无 :visible-when 恒可见
             field.visible = def.visible_when.as_ref().is_none_or(|e| e.eval(s, val));
             // 3+4. 动态精度/单位 (cfg 全表仅进气压 imperial_display 一条:
             //      英制 "P/x.x''"+1 位 / 公制 "Ata"+2 位; 仅变化时写)
@@ -144,7 +144,7 @@ impl PowerInfoState {
     }
 
     /// 首选尺寸 = BosStyleRenderer.calculatePreferredSize (只读 ctx + 可见计数,
-    /// 无渲染器状态参与 — BOSStyleRenderer.java:86-87)
+    /// 无渲染器状态参与 — BOSStyleRenderer)
     pub fn preferred_size(&self, ctx: &RenderContext) -> (i32, i32) {
         let visible = self.fields.iter().filter(|f| f.visible).count() as i32;
         (ctx.geom.total_width(), ctx.geom.total_height(visible))
@@ -177,7 +177,7 @@ impl PowerInfoState {
 /// 动力信息共享句柄 (render 闭包 + 喂入方各持克隆)
 pub type PowerInfoHandle = Rc<RefCell<PowerInfoState>>;
 
-/// 动力信息 OverlaySpec + live 句柄 (Java Controller.java:662 注册键 engineInfoSwitch)。
+/// 动力信息 OverlaySpec + live 句柄 (Java Controller 注册键 engineInfoSwitch)。
 /// 初始态 = previewValue (PowerInfoState::new), 游戏模式由喂入方 update 推进。
 /// PORT(WYSIWYG): 字号/列数随 [`ReinitParams`] 仓 — render 闭包经共享 ctx 单元
 /// 读取, reinit 闭包重建 RenderContext (Java reinitConfig 的 super 段: 字体 +

@@ -2,16 +2,16 @@
 //!
 //! | Java (src/ui/renderer/) | 本文件 | 语义要点 |
 //! |---|---|---|
-//! | OverlayRenderer.java:23/28 | [`OverlayRenderer`] trait | 多实现接口 → trait dyn (§1) |
-//! | RenderContext.java | [`RenderContext`] | 几何公式复用 vm-core `RenderCtx`, 本层挂字体/调色板 (AA 绘制期直读 palette 仓) |
-//! | BOSStyleRenderer.java | [`BosStyleRenderer`] | 多列网格 + TextGauge 按 label 缓存 |
+//! | OverlayRenderer 接口 | [`OverlayRenderer`] trait | 多实现接口 → trait dyn (§1) |
+//! | RenderContext | [`RenderContext`] | 几何公式复用 vm-core `RenderCtx`, 本层挂字体/调色板 (AA 绘制期直读 palette 仓) |
+//! | BOSStyleRenderer | [`BosStyleRenderer`] | 多列网格 + TextGauge 按 label 缓存 |
 //!
 //! 绘制委托目标分工: 条形 gauge 族 = `crate::overlays::bars` + engine_control
 //! (gauge 组件由渲染侧直接拥有, 不经字段模型 — GaugeField 数据类已随重构波12 删除);
 //! TextGauge (ui/component/TextGauge.java) 是 BOS 专属组件, 随本文件落地。
 //!
 //! 保真对象 = 像素级视觉输出与状态行为 (非代码结构):
-//! - BOS 的 TextGauge 按 label 缓存 (Java gaugeCache, BOSStyleRenderer.java:18)。
+//! - BOS 的 TextGauge 按 label 缓存 (Java gaugeCache)。
 
 use crate::render::primitives;
 use vm_core::base::format::java_round_f32;
@@ -25,7 +25,7 @@ use crate::layout::RenderCtx;
 use crate::ui_model::DataField;
 
 // ---------------------------------------------------------------------------
-// 调色板 (Application.java:108-111 静态默认色, TextGauge 直接引用)
+// 调色板 (Application 静态默认色, TextGauge 直接引用)
 // ---------------------------------------------------------------------------
 
 /// Application.colorNum / colorLabel / colorUnit / colorShadeShape 的运行时快照
@@ -46,18 +46,18 @@ pub struct RenderPalette {
 /// 方法、AA 经 [`crate::render::palette::aa`] 在绘制期直读运行时仓 (构造期快照
 /// 会冻结启动值: WYSIWYG 色变/SetAa 运行时可变, 见 palette 模块注)。
 pub struct RenderContext {
-    /// num = BOLD(fontSize) (Java RenderContext.java:72)
+    /// num = BOLD(fontSize) (Java RenderContext)
     pub num_font: Rc<LoadedFont>,
-    /// label = BOLD(round(fontSize/2)) (Java :73)
+    /// label = BOLD(round(fontSize/2))
     pub label_font: Rc<LoadedFont>,
-    /// unit = PLAIN(round(fontSize/2)) (Java :74)
+    /// unit = PLAIN(round(fontSize/2))
     pub unit_font: Rc<LoadedFont>,
-    /// 几何公式 (fontSize/columnNum/numHeight 及派生), RenderContext.java:104-121
+    /// 几何公式 (fontSize/columnNum/numHeight 及派生), 见 RenderContext
     pub geom: RenderCtx,
 }
 
 impl RenderContext {
-    /// 对应 RenderContext.create (RenderContext.java:68-81)。
+    /// 对应 RenderContext.create。
     /// 契约: num_font.size 即 fontSize (Java fontSize == numFont.getSize());
     /// numHeight 取 Toolkit.getFontMetrics(numFont).getHeight() 的 Rust 同源
     /// 度量 (font.rs: Java FontMetrics 语义 ascent+descent+leading)。
@@ -95,7 +95,7 @@ impl RenderContext {
 
     /// fromConfig/create 的字体装载通道 (POC 先例: render.rs FontTriple::load —
     /// Java 按族名创建 Font, Rust 按 sarasa 文件装载, num/label 用 bold, unit 用 regular)。
-    /// fontSize = 24 + font_add; label/unit = Math.round(fontSize / 2.0f) (Java :71-74)。
+    /// fontSize = 24 + font_add; label/unit = Math.round(fontSize / 2.0f)。
     ///
     /// 字体校验: LoadedFont::new 只做 fs::read 不校验 Face (font.rs 缺陷) — 此处
     /// 用 glyph 探针补齐本构造路径的防护: 损坏/无法解析的文件返回 Err, 而非在
@@ -133,7 +133,7 @@ impl RenderContext {
         self.geom.num_height
     }
 
-    /// getFieldWidth (RenderContext.java:104-106)
+    /// getFieldWidth (RenderContext)
     pub fn field_width(&self) -> i32 {
         3 * self.geom.font_size
     }
@@ -160,11 +160,11 @@ impl<'a> Field<'a> {
 }
 
 // ---------------------------------------------------------------------------
-// OverlayRenderer (OverlayRenderer.java:13)
+// OverlayRenderer (Java 同名接口)
 // ---------------------------------------------------------------------------
 
 pub trait OverlayRenderer {
-    /// Java render(g2d, fields, ctx, int[] offset) (OverlayRenderer.java:23)。
+    /// Java render(g2d, fields, ctx, int[] offset)。
     /// offset = [x, y] 双向通道: 进入为初值, 渲染推进后写回 (Java 原地改数组)。
     fn render(
         &mut self,
@@ -174,7 +174,7 @@ pub trait OverlayRenderer {
         offset: &mut [i32; 2],
     );
 
-    /// Java calculatePreferredSize(fields, ctx) → Dimension (OverlayRenderer.java:28),
+    /// Java calculatePreferredSize(fields, ctx) → Dimension,
     /// 返回 (width, height)。
     fn calculate_preferred_size(&mut self, fields: &[Field<'_>], ctx: &RenderContext) -> (i32, i32);
 }
@@ -183,7 +183,7 @@ pub trait OverlayRenderer {
 // TextGauge (ui/component/TextGauge.java)
 // ---------------------------------------------------------------------------
 
-/// 数值+标签+单位三元文本 (TextGauge.java:14)。
+/// 数值+标签+单位三元文本 (Java TextGauge)。
 pub struct TextGauge {
     pub label: String,
     pub unit: String,
@@ -191,7 +191,7 @@ pub struct TextGauge {
 }
 
 impl TextGauge {
-    /// TextGauge.java:24-29 (value 初值 "")
+    /// Java 构造 (value 初值 "")
     pub fn new(label: &str, unit: &str) -> Self {
         TextGauge {
             label: label.to_string(),
@@ -200,19 +200,17 @@ impl TextGauge {
         }
     }
 
-    /// TextGauge.java:30-32
     pub fn update(&mut self, value: &str) {
         self.value.clear();
         self.value.push_str(value);
     }
 
-    /// TextGauge.java:34-36
     pub fn set_unit(&mut self, unit: &str) {
         self.unit.clear();
         self.unit.push_str(unit);
     }
 
-    /// TextGauge.java:43-65。val_buffer = Some(缓冲) 对应 Java (valBuffer, valLen)
+    /// Java draw 本体。val_buffer = Some(缓冲) 对应 Java (valBuffer, valLen)
     /// 双参通道, None 走 value 字符串通道 (valLen==0)。
     pub fn draw(
         &self,
@@ -227,9 +225,9 @@ impl TextGauge {
         // g2d.setStroke — 仅作 stroke!=null 旗标决定画不画阴影, 首帧后恒非 null
         // → 恒画 (+1,+1) 阴影。shade_width 参数保留接口位, 视觉无作用。
         let _ = shade_width;
-        let lwidth = (13 * ctx.num_font.size) >> 2; // TextGauge.java:50
-        let center_y = (y + y + ctx.label_font.size + ctx.unit_font.size) >> 1; // :51
-        let num_padding = std::cmp::max(4, ctx.num_font.size / 4); // :52
+        let lwidth = (13 * ctx.num_font.size) >> 2;
+        let center_y = (y + y + ctx.label_font.size + ctx.unit_font.size) >> 1;
+        let num_padding = std::cmp::max(4, ctx.num_font.size / 4);
 
         // 数值右对齐: charsWidth/stringWidth = Σround(advance) = measure (font.rs)
         // AA 绘制期直读运行时仓 (cfg AAEnable 可关 — 构造期快照会冻结启动值)
@@ -245,7 +243,7 @@ impl TextGauge {
             ctx.palette().shade,
             aa(),
         );
-        // 标签 (基线 y) — TextGauge.java:63
+        // 标签 (基线 y)
         primitives::text_shaded(
             canvas,
             &ctx.label_font,
@@ -256,7 +254,7 @@ impl TextGauge {
             ctx.palette().shade,
             aa(),
         );
-        // 单位 (基线 y + labelFontSize) — TextGauge.java:64
+        // 单位 (基线 y + labelFontSize)
         primitives::text_shaded(
             canvas,
             &ctx.unit_font,
@@ -270,7 +268,7 @@ impl TextGauge {
     }
 }
 
-/// BOSStyleRenderer 侧的数值文本解析 (TextGauge.java:54 valBuffer!=null && valLen>0)
+/// BOSStyleRenderer 侧的数值文本解析 (Java 判定 valBuffer!=null && valLen>0)
 fn bos_value_text<'a>(base: &'a DataField, gauge_value: &'a str) -> &'a str {
     if base.length > 0 {
         base.buffer.as_str()
@@ -280,18 +278,18 @@ fn bos_value_text<'a>(base: &'a DataField, gauge_value: &'a str) -> &'a str {
 }
 
 // ---------------------------------------------------------------------------
-// BOSStyleRenderer (BOSStyleRenderer.java:15)
+// BOSStyleRenderer (Java 同名类)
 // ---------------------------------------------------------------------------
 
 /// BOS 风格: 多列网格 (数值右对齐 + 标签 + 单位), TextGauge 按 label 缓存。
 #[derive(Default)]
 pub struct BosStyleRenderer {
-    /// Java :18 gaugeCache (保持 stroke 缓存 → Rust 即组件复用)
+    /// Java gaugeCache (保持 stroke 缓存 → Rust 即组件复用)
     gauge_cache: HashMap<String, TextGauge>,
 }
 
 impl BosStyleRenderer {
-    /// updateOffset (BOSStyleRenderer.java:69-76)
+    /// updateOffset (BOSStyleRenderer)
     fn update_offset(&self, visible_index: i32, offset: &mut [i32; 2], ctx: &RenderContext) {
         // PORT: columnNum==0 时 Java % 直接抛 ArithmeticException — Rust i32 取余
         // 同样 panic (行为对等), 显式 assert 换取可诊断信息。ui_layout.cfg 列数
@@ -323,7 +321,7 @@ impl BosStyleRenderer {
     }
 
     /// 缓存释放钩子。注意与 LinearGaugeRenderer::clear 的失效语义不同: Java 的
-    /// gaugeCache 本就存活于渲染器实例 (FieldOverlay.java:66 构造时创建,
+    /// gaugeCache 本就存活于渲染器实例 (FieldOverlay 构造时创建,
     /// reinitConfig 不重建), TextGauge 的 value/unit 每帧全量同步 → 跨字段重建
     /// 无陈旧值问题; 本方法仅供调用方销毁/复用渲染器时显式释放。
     pub fn clear(&mut self) {
@@ -339,7 +337,7 @@ impl OverlayRenderer for BosStyleRenderer {
         ctx: &RenderContext,
         offset: &mut [i32; 2],
     ) {
-        // Java :22-28: setPaintMode + AA/速度 hint → 无几何作用, AA 走 ctx
+        // Java: setPaintMode + AA/速度 hint → 无几何作用, AA 走 ctx
         offset[0] = ctx.font_size() >> 1;
         offset[1] = ctx.font_size() >> 1;
         let mut visible_index = 0;
@@ -348,7 +346,7 @@ impl OverlayRenderer for BosStyleRenderer {
             if !base.visible {
                 continue;
             }
-            // Java :42-46 gaugeCache 按 label get-or-create (稳态零分配: 先查后插)
+            // Java gaugeCache 按 label get-or-create (稳态零分配: 先查后插)
             let gauge = match self.gauge_cache.get_mut(base.label.as_str()) {
                 Some(g) => g,
                 None => {
@@ -358,7 +356,7 @@ impl OverlayRenderer for BosStyleRenderer {
                 }
             };
             gauge.update(&base.current_value);
-            // Java :52: field.unit != null && !equals(gauge.unit) → setUnit
+            // Java: field.unit != null && !equals(gauge.unit) → setUnit
             // PORT: Rust String 恒非 null, 条件退化为不等比较
             if base.unit != gauge.unit {
                 gauge.set_unit(&base.unit);

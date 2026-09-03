@@ -4,14 +4,16 @@
 //! - comp: MiniHudComponent/CompCell/Inner 装配层 + 组件装配方法
 //! - 本文件: MiniHudOverlay 编排器 + minihud_overlay_spec 工厂
 //!
-//! | Rust | Java 源 | 语义要点 |
-//! |---|---|---|
-//! | [`MinimalHudContext`] | src/ui/overlay/MinimalHUDContext.java | 不可变配置快照: 全部派生量 (字号/线宽/罗盘直径/rightDraw) 从 crossScale×dpiScale 级联; 字体 = 三份 BOLD 字号档 |
-//! | [`MiniHudComponent`]+[`CompCell`] | ui/component/HUDComponent.java + AbstractHUDComponent.java | 组件接口的组装层 seam: getPreferredSize/isVisible/setVisible/onDataUpdate; 异构组件装箱为枚举 |
-//! | [`MiniHudOverlay`] | src/ui/overlay/MiniHUDOverlay.java | 编排器: 组件创建 → 风格/模板注入 → DAG 布局 (minihud_layout::build_mihud_layout) → 渲染循环 (doLayout+render+drawBlinkX) |
-//! | [`minihud_overlay_spec`] | Controller.java:671 registerWithPreview("crosshairSwitch") | OverlayHost 挂载: render 闭包持共享句柄, 数据侧经 [`MiniHudHandle`] 外部喂入 |
+//! - [`MinimalHudContext`] — 不可变配置快照: 全部派生量 (字号/线宽/罗盘直径/
+//!   rightDraw) 从 crossScale×dpiScale 级联; 字体 = 三份 BOLD 字号档。
+//! - [`MiniHudComponent`]+[`CompCell`] — 组件接口的组装层 seam:
+//!   getPreferredSize/isVisible/setVisible/onDataUpdate; 异构组件装箱为枚举。
+//! - [`MiniHudOverlay`] — 编排器: 组件创建 → 风格/模板注入 → DAG 布局
+//!   (minihud_layout::build_mihud_layout) → 渲染循环 (doLayout+render+drawBlinkX)。
+//! - [`minihud_overlay_spec`] — OverlayHost 挂载 (注册键 crosshairSwitch):
+//!   render 闭包持共享句柄, 数据侧经 [`MiniHudHandle`] 外部喂入。
 //!
-//! 渲染循环 (Java paintComponent L241-256):
+//! 渲染循环 (Java paintComponent):
 //! `engine.do_layout()` (惰性拓扑 + 锚点求解) → `engine.render(cb)` (可见节点按拓扑序
 //! 逐个 `component.draw(g,x,y)`, debug 开启时紧跟 1px 调试框) → `draw_blink_x`
 //! (致命警告 X, 压在 HUD 内容之上)。
@@ -33,7 +35,7 @@
 //! - Font(family, BOLD, size) 的家族名 → Rust 按字体文件路径加载 (font.rs 只吃
 //!   文件); MonoNumFont 的 cfg 缺省 "Sarasa Mono SC" 映射到随包
 //!   sarasa-mono-sc-bold.ttf, 由调用方解析路径。
-//! - crosshairImageScaled 纹理链 (MinimalHUDContext.java:161-178) 不迁移 —
+//! - crosshairImageScaled 纹理链 (MinimalHUDContext) 不迁移 —
 //!   gauge_crosshair.rs 头部裁决: 软件矢量路径是唯一视觉语义。
 //! - Java 死字段 (hudCheckMili/realSpdPitch/firstDraw/throttley/throttleColor/
 //!   inAction/disableAttitude) 保真保留 (§2.10 + hud_layout_node ignoreBounds
@@ -144,12 +146,12 @@ pub struct MiniHudOverlay {
     /// Java private boolean disableAttitude (恒 false; 姿态仪可见性入参)
     disable_attitude: bool,
     /// Java private double realSpdPitch (死字段 — 全库无读写, 声明保真保留)
-    #[allow(dead_code)] // PORT: Java MiniHUDOverlay.java:286 同名死字段
+    #[allow(dead_code)] // PORT: Java MiniHUDOverlay 同名死字段
     real_spd_pitch: f64,
     /// Java private boolean firstDraw (reinitConfig 写 true; 无读者)
     first_draw: bool,
     /// Java public long hudCheckMili (死字段 — 全库无读写, 声明保真保留)
-    #[allow(dead_code)] // PORT: Java MiniHUDOverlay.java:283 同名死字段
+    #[allow(dead_code)] // PORT: Java MiniHUDOverlay 同名死字段
     hud_check_mili: i64,
     /// update_legacy_components 更新, update_components 预览路径读
     maneuver_index: f64,
@@ -161,13 +163,13 @@ pub struct MiniHudOverlay {
     pub warn_rh: bool,
     pub warn_vne: bool,
 
-    // Throttling for refresh rate (Java:412-415)
+    // Throttling for refresh rate
     refresh_interval: i64,
     last_refresh_time: i64,
 }
 
 impl MiniHudOverlay {
-    /// Java init(Controller c, Service s, HUDSettings settings) (L217-281)。
+    /// Java init(Controller c, Service s, HUDSettings settings)。
     /// `service_loop_interval_ms` = controller.serviceLoopIntervalMs (blinkTicks/
     /// refreshInterval 同源); `service_present` = (s != null); Rust 侧 service /
     /// controller 不入结构 — 遥测经 [`on_flight_data`] 参数喂入 (单线程 host 模型,
@@ -237,7 +239,7 @@ impl MiniHudOverlay {
         overlay.init_components_layout(settings);
 
         // PORT: Java 读 service 字段 — 游戏模式 S1.start() 先于 overlay 激活
-        // (Controller.java:633-641), sState 可能已轮询出值, throttle 分支可吃到
+        // (Controller), sState 可能已轮询出值, throttle 分支可吃到
         // 真值; 组装层此阶段无遥测口可传 → None, throttle 闪 0, 由下一放行的
         // on_flight_data (≤refreshInterval) 覆盖, 影响 ≤1 帧
         overlay.update_components(settings, None);
@@ -245,8 +247,8 @@ impl MiniHudOverlay {
         Ok(overlay)
     }
 
-    /// Java reinitConfig() (L127-159) — ctx 快照重建 + 模板 + 风格 + 布局引擎重建。
-    /// PORT: setBounds (L143-146) 的窗口几何副作用归 OverlayHost (spec 尺寸取
+    /// Java reinitConfig() — ctx 快照重建 + 模板 + 风格 + 布局引擎重建。
+    /// PORT: setBounds 的窗口几何副作用归 OverlayHost (spec 尺寸取
     /// applyAutoSizing 计划); Java 先 setBounds 再被 applyAutoSizing 的
     /// window.setSize 覆盖, 净效果 = 内容包围盒 + 2×LAYOUT_PADDING。
     pub fn reinit_config<S: HUDSettings>(&mut self, settings: &S) -> Result<(), String> {
@@ -279,7 +281,7 @@ impl MiniHudOverlay {
         Ok(())
     }
 
-    /// Java updateComponents() (L309-402)。
+    /// Java updateComponents()。
     /// `service` = Java service 字段处的遥测读取口 (throttle 分支);
     /// 行 0/1 预览串分支按 Java 语义读 **service 字段在场性** (init 决定),
     /// 不随本参数摆动 (WYSIWYG 游戏内 reinit 亦不推预览串)。
@@ -305,7 +307,7 @@ impl MiniHudOverlay {
         self.push_throttle(throttle_value);
     }
 
-    /// updateComponents 仪表可见性段 (L311-323)
+    /// updateComponents 仪表可见性段
     fn update_component_visibility<S: HUDSettings>(&mut self, settings: &S) {
         let text_visible = settings.draw_hud_text();
 
@@ -323,7 +325,7 @@ impl MiniHudOverlay {
         self.speed_ratio_bar.set_visible(text_visible && show_speed);
     }
 
-    /// updateComponents 行可见性段 (L325-360; 调用方保证 hud_rows.len()>=5)
+    /// updateComponents 行可见性段 (调用方保证 hud_rows.len()>=5)
     fn update_row_visibility<S: HUDSettings>(&mut self, settings: &S) {
         // Java: master = drawHudText() 二次读取 (与 text_visible 同源, 保真保留)
         let master = settings.draw_hud_text();
@@ -379,7 +381,7 @@ impl MiniHudOverlay {
         });
     }
 
-    /// updateComponents 行值段 (L362-397; 调用方保证 hud_rows.len()>=5)。
+    /// updateComponents 行值段 (调用方保证 hud_rows.len()>=5)。
     /// 行 0/1 预览串仅 service 缺席 (init 的 service_present) 时推 — 游戏模式由
     /// onDataUpdate 事件路径覆写
     fn update_row_values(&mut self) {
@@ -446,7 +448,7 @@ impl MiniHudOverlay {
 
     // --- Event-Driven Update ---
 
-    /// Java onFlightData(FlightDataEvent) (L418-431)。
+    /// Java onFlightData(FlightDataEvent)。
     /// 返回 false = 节流跳过 (Java return); true = 已进入 updateFromEvent。
     /// `now_ms` = System.currentTimeMillis (宿主时钟注入, 可测)。
     /// W-B 事件瘦身后直参: State/Indicators/payload 由调用方从共享 guard 借引用传入。
@@ -462,10 +464,9 @@ impl MiniHudOverlay {
         settings: &S,
         colors: &HudColors,
     ) -> bool {
-        // Throttling prevents EDT task accumulation when events arrive faster
-        // than processing
+        // 节流防高频事件任务堆积
         if now_ms - self.last_refresh_time < self.refresh_interval {
-            return false; // Skip this update, too soon
+            return false; // 距上次更新太近, 跳过
         }
         self.last_refresh_time = now_ms;
 
@@ -474,7 +475,7 @@ impl MiniHudOverlay {
         true
     }
 
-    /// Java updateFromEvent(FlightDataEvent) (L433-468)
+    /// Java updateFromEvent(FlightDataEvent)
     #[allow(clippy::too_many_arguments)]
     fn update_from_event<S: HUDSettings>(
         &mut self,
@@ -498,7 +499,7 @@ impl MiniHudOverlay {
         // Update Legacy Components (Bridge) & Global State
         self.warn_vne = data.warn_vne;
         self.warn_rh = data.warn_altitude;
-        // blinkX = event.getPayload().fatalWarn (Java:458)
+        // blinkX = event.getPayload().fatalWarn
         self.warning.set_blink_x(payload.fatal_warn);
 
         if self.hud_rows.len() >= 5 {
@@ -509,7 +510,7 @@ impl MiniHudOverlay {
         self.push_throttle(data.throttle);
     }
 
-    /// Java updateLegacyComponents(HUDData) (L470-496)
+    /// Java updateLegacyComponents(HUDData)
     fn update_legacy_components(&mut self, data: &HUDData) {
         // Row 0, 1, 2 are refactored (Akb, Energy, Mechanization). They use
         // onDataUpdate.
@@ -543,7 +544,7 @@ impl MiniHudOverlay {
         };
     }
 
-    /// Java paintComponent 主体 (L241-256): doLayout + render + drawBlinkX。
+    /// Java paintComponent 主体: doLayout + render + drawBlinkX。
     /// aa = graphAASetting (生产恒 ON; false 供对拍)。
     pub fn draw(&mut self, cv: &mut PixCanvas, aa: bool) {
         // (render2d 口径)
@@ -552,7 +553,7 @@ impl MiniHudOverlay {
             let engine = &self.layout.engine;
             engine.render(|node, x, y, dbg| {
                 // dbg=None: component.draw(g, x, y); Some(color): drawDebug 的
-                // 1px 线框 (ModernHUDLayoutEngine.java:187-189 drawRect(x,y,w,h))
+                // 1px 线框 (ModernHUDLayoutEngine drawRect(x,y,w,h))
                 match dbg {
                     None => {
                         let comp = node.borrow().component.0.clone();
@@ -583,7 +584,7 @@ impl MiniHudOverlay {
 }
 
 // ---------------------------------------------------------------------------
-// OverlayHost 挂载 (Controller.java:671 registerWithPreview("crosshairSwitch"))
+// OverlayHost 挂载 (Controller registerWithPreview("crosshairSwitch"))
 // ---------------------------------------------------------------------------
 
 /// MiniHUD 的 OverlayHost 注册件: 返回 (共享句柄, spec)。
@@ -594,7 +595,7 @@ impl MiniHudOverlay {
 /// spec 尺寸 = applyAutoSizing 计划 (Java: setBounds 初值被 applyAutoSizing 的
 /// window.setSize 覆盖, 净效果 = 内容包围盒 + 2×LAYOUT_PADDING)。
 /// PORT(WYSIWYG 收口, 原"创建时快照冻结"备案): reinit 闭包随 [`ReinitParams`] 仓
-/// 走 reinit_config (ctx/模板/风格/布局引擎全量重建, Java L127-159), 新 sizing()
+/// 走 reinit_config (ctx/模板/风格/布局引擎全量重建), 新 sizing()
 /// 计划经返回值交 host resize_entry — 对位 Java reinitConfig→applyAutoSizing 的
 /// window.setSize 副作用, 窗口不再冻结在创建尺寸。
 /// `service_loop_interval_ms` / `service_present` 语义见 [`MiniHudOverlay::init`]。
@@ -639,7 +640,7 @@ pub fn minihud_overlay_spec<S: HUDSettings>(
     });
     Ok((
         handle,
-        // Java LinkedHashMap 键 = configKey (Controller.java:671)
+        // Java LinkedHashMap 键 = configKey
         keyed_spec(
             "crosshairSwitch",
             w,

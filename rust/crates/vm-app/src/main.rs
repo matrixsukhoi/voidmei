@@ -2,14 +2,14 @@
 //! 启动序, GPU 兼容段按 D5 消亡 (Java2D sun.java2d.* 属性专属, Rust 无对应物 —
 //! iced 走 tiny-skia 纯 CPU 软渲染, D1 决策本身即 GPU 兼容哲学)。
 //!
-//! Java Application.main (Application.java:534-604) 启动序对位:
-//! 1. Logger 级别 (debugLog||debug → DEBUG, :539-543) → `--debug` 参数 +
+//! Java Application.main 启动序对位:
+//! 1. Logger 级别 (debugLog||debug → DEBUG) → `--debug` 参数 +
 //!    cfg 键 debugLog (`read_debug_log_flag`); debugLog 重定向
-//!    (output.log/error.log, :550-553) 同源
+//!    (output.log/error.log) 同源
 //! 2. Lang.initLang + 端口/屏幕探测    → `AppShell::new` → `Env::probe`
 //! 3. initFont (字体)                 → Env.fonts_dir → 渲染线程 (D8: 字体→渲染线程)
 //! 4. initSystemTray                  → 渲染线程内 (D8 单泵共享)
-//! 5. SwingUtilities.invokeLater(EDT): initWebLaf + `new Controller(true)` + checkUpdate
+//! 5. Java UI 线程派发: initWebLaf + `new Controller(true)` + checkUpdate
 //!    → 主线程组装: rebuild_controller(true) (AppShell::new 内) + web MainForm;
 //!    checkUpdate → 前端 (web 就绪后异步一次, web/src/dialogs.tsx 的
 //!    VersionChecker; 版本源 get_app_version 命令, dev 守卫同 Java)。
@@ -167,7 +167,7 @@ fn desktop_main(debug: bool) -> i32 {
         )
     });
 
-    // config_manager 弹窗桥 (ConfigManager.java:425-477): ParseError/MergeReport →
+    // config_manager 弹窗桥 (Java ConfigManager 弹窗): ParseError/MergeReport →
     // 前端 config-dialog 事件 → Modal.error / Modal.info。sink 覆盖式单装 (Mutex);
     // 启动早期 (AppShell::new 的配置装载先于本点, 首跑合并报告常见于此) 的弹窗
     // 走 config_manager 内的日志兜底 — 语义不丢; 托盘重建核的后续装载经此达前端
@@ -264,7 +264,7 @@ fn desktop_main(debug: bool) -> i32 {
             break; // EndGame (mCancel IPC, 阶段②接线) / 托盘 Exit
         }
 
-        // 托盘"关于" (Application.java:236-245 三段 showAbout) → 前端 About Modal。
+        // 托盘"关于" (Java about 菜单三段 showAbout) → 前端 About Modal。
         // Java 的通知弹窗独立于 MainForm 可见性; web 形态 Modal 寄居设置窗 —
         // 窗隐藏期 (托盘驻留常态) 连带 show 设置窗, 否则 Modal 落在不可见窗内。
         // B1 修复: emit 前标记 Modal 展示期 (仅 web 就绪时 — 冷启动期前端监听

@@ -21,11 +21,10 @@
 //!   flight_log.rs `ControllerLogSink` 同款消费方桩先例)。
 //!
 //! PORT (线程模型): Java 侧本类字段被多线程读写 —— setEnabled(true) 跑在
-//! changeS3 的匿名延迟线程 (Controller.java:241-246 sleep 100ms → openpad:356),
-//! setEnabled(false) 主要跑在 Service 线程 (S4toS1 → closepad:390;
-//! onAircraftChanged:319 复用 closepad), 仅 stop() 路径 (Controller.java:773-774
-//! ← Application.java:265 托盘) 在 EDT; tick 由 Service 轮询线程调
-//! (Service.java:1821)。无任何同步原语 (现存可见性隐患, 保真不修);
+//! changeS3 的匿名延迟线程 (sleep 100ms → openpad),
+//! setEnabled(false) 主要跑在 Service 线程 (S4toS1 → closepad;
+//! onAircraftChanged 复用 closepad), 仅 stop() 路径 (托盘) 在 EDT;
+//! tick 由 Service 轮询线程调。无任何同步原语 (现存可见性隐患, 保真不修);
 //! Rust 以 `&mut self` 表达独占写, 集成方 (vm-data Service) 以
 //! `Arc<Mutex<FocusMonitor>>` 承载跨线程共享。§2.8 重入面: 本类方法互不调用,
 //! 无二锁自身 Mutex 的风险; 但 set_enabled/tick 在集成方锁内回调注入的
@@ -82,14 +81,14 @@ pub trait FocusDetector: Send + Sync {
 ///
 /// PORT: Coordinator 是 Swing 窗口 z 序协调器 (C 类, P4 语义复刻), 本波次以
 /// 消费方最小接口代餐; hide/showAllOverlays 各自的 overlaysHidden 幂等标志与
-/// EDT 派发属协调器自身职责 (AlwaysOnTopCoordinator.java:197-233), 不在本文件
+/// EDT 派发属协调器自身职责, 不在本文件
 /// 复刻。
 /// 后续: 真实协调器落地时为 AlwaysOnTopCoordinator 实现本 trait。
 ///
 /// 实现合同 (非阻塞, 硬性): 本 trait 全部方法在集成方 `Mutex<FocusMonitor>`
 /// 锁内被调 (set_enabled 禁用分支 / tick 变化分支, 见模块头线程模型注)。
 /// 真实实现必须非阻塞 —— 对齐 Java 语义 (窗口操作经 setVisibleOnEDT →
-/// invokeLater 即发即忘到 EDT, AlwaysOnTopCoordinator.java:197-233), 禁止
+/// invokeLater 即发即忘到 EDT), 禁止
 /// 同步等待 UI 线程、禁止回锁 FocusMonitor 或其集成方 Mutex, 否则与 EDT 上
 /// set_enabled (stop() 托盘路径) 成 AB-BA 死锁 (见模块头)。
 pub trait AlwaysOnTopCoordinatorApi: Send + Sync {
@@ -129,7 +128,7 @@ pub struct FocusMonitor {
 const CHECK_INTERVAL_MS: i64 = 200;
 
 impl FocusMonitor {
-    /// 对应 Java: `new FocusMonitor()` (构造点 Service.java:117)。
+    /// 对应 Java: `new FocusMonitor()` (Service 构造点)。
     /// PORT: 追加依赖注入两参数 (见模块头); 字段默认值 §2.10 原样显式化 ——
     /// long 0 / `lastFocusState = true` 显式初始化 / `enabled = false`。
     pub fn new(

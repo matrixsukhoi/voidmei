@@ -1,12 +1,12 @@
 //! ComboRowRenderer 的写回链语义复刻 (src/ui/layout/renderer/ComboRowRenderer.java)。
 //!
-//! **D9 变更**: 原 iced view_row 与读链 (read_current) 已删 (渲染归 vm-webui
-//! web 壳, 回显走整树 DTO), 本模块仅存选项解析 (resolve_options) + 写链 (apply)。
+//! **D9 变更**: 渲染与读链已删 (归 vm-webui web 壳, 回显走整树 DTO),
+//! 本模块仅存选项解析 (resolve_options) + 写链 (apply)。
 //!
 //! 语义保真:
-//! - 选项解析 (Java getComboOptions L68-87): ":source" 存于 row.format (loader 覆写);
+//! - 选项解析 (Java getComboOptions): ":source" 存于 row.format (loader 覆写);
 //!   "_FONTS_" / "_CROSSHAIRS_" 特例源, 其余按逗号字面量拆分。
-//! - 写 (Java L52-62): row.value 存新串 → writeString (组字段 fontName + 服务同步) → onSave。
+//! - 写: row.value 存新串 → writeString (组字段 fontName + 服务同步) → onSave。
 //! - INPUT/TEXT 文本行同走本写链 (经 Message::Combo 路由, 等价备案见 tests)。
 //!
 //! PORT: "_FONTS_" 的 AWT 系统字体族枚举无 Rust 对应物 (以当前值单选占位,
@@ -19,9 +19,9 @@ use crate::render_context::RenderContext;
 
 use super::{find_row_path, row_by_path, row_by_path_mut};
 
-/// 准星选项头部项 (Java L81-83: combined[0] = "软件渲染准星")
+/// 准星选项头部项 (Java: combined[0] = "软件渲染准星")
 const SOFTWARE_CROSSHAIR: &str = "软件渲染准星";
-/// Java L75: `File dir = new File("image/gunsight")` — 相对 CWD
+/// Java: `File("image/gunsight")` — 相对 CWD
 const CROSSHAIR_DIR: &str = "image/gunsight";
 
 /// 解析下拉选项 (Java getComboOptions)。current 仅为 _FONTS_ 占位所需。
@@ -29,13 +29,13 @@ pub fn resolve_options(source: &str, current: &str) -> Vec<String> {
     match source {
         "_FONTS_" => vec![current.to_string()],
         "_CROSSHAIRS_" => crosshair_options(CROSSHAIR_DIR),
-        // Java L86: optionSource.split(",") — 空串 → [""] (与 Java split 逐位一致)
+        // optionSource.split(",") — 空串 → [""] (与 Java split 逐位一致)
         _ => source.split(',').map(str::to_string).collect(),
     }
 }
 
-/// Java L76-85: 目录条目名去扩展名 + 头部"软件渲染准星"; 目录缺失 → 仅头部
-/// (dir.list() == null → files = new String[0])。dir 参数仅为测试可注入, 生产恒
+/// 目录条目名去扩展名 + 头部"软件渲染准星"; 目录缺失 → 仅头部
+/// (Java dir.list() == null → files = new String[0])。dir 参数仅为测试可注入, 生产恒
 /// [`CROSSHAIR_DIR`]。
 pub(crate) fn crosshair_options(dir: &str) -> Vec<String> {
     let mut opts = vec![SOFTWARE_CROSSHAIR.to_string()];
@@ -50,17 +50,17 @@ pub(crate) fn crosshair_options(dir: &str) -> Vec<String> {
     opts
 }
 
-/// 选中写回 (Java combo.addActionListener 闭包体 L52-62)。
+/// 选中写回 (Java combo.addActionListener 闭包体)。
 pub fn apply(panel: &mut GroupConfig, key: &str, value: &str, ctx: &dyn RenderContext) {
     let Some(path) = find_row_path(&panel.rows, key) else {
         return;
     };
     let prop = row_by_path(&panel.rows, &path).expect("find_row_path 已定位").property.clone();
-    // Java L57-58: Update memory model so it saves to ui_layout.cfg
+    // Update memory model so it saves to ui_layout.cfg
     row_by_path_mut(&mut panel.rows, &path)
         .expect("find_row_path 已定位")
         .value = Some(ConfigValue::Str(value.to_string()));
-    // Java L60: writeString (PropertyBinder 组字段 fontName + 服务同步)
+    // writeString (PropertyBinder 组字段 fontName + 服务同步)
     renderer_config_helper::write_string(ctx, panel, prop.as_deref(), value);
     ctx.on_save();
 }

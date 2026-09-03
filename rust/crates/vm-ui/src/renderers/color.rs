@@ -1,8 +1,8 @@
 //! ColorRowRenderer 的写回链语义复刻 (src/ui/layout/renderer/ColorRowRenderer.java)
 //! + ColorHelper 的格式化面 (src/prog/util/ColorHelper.java)。
 //!
-//! **D9 变更**: 原 iced view_row/swatch、读链 (read_current) 及取色器 HSB 数学
-//! (color_picker 模块) 已删 — 渲染与取色归 vm-webui web 壳 (JS 侧
+//! **D9 变更**: 原 iced view 层、读链 (read_current) 及取色器 HSB 数学
+//! 已删 — 渲染与取色归 vm-webui web 壳 (JS 侧
 //! parseColorValue/rgbaToHex 与 vm-core 解析语义对齐), 本模块仅存 ColorHelper
 //! 格式化 (to_decimal_string) + 写链 (apply)。
 //!
@@ -15,11 +15,11 @@
 //!   失败回落默认色 (cfg :value 为 hex, 用户编辑后存十进制 — 双格式互通的原因)。
 //! - to_decimal_string: 配置存储格式 (向后兼容)。
 //!
-//! 写回语义保真 (Java L110-136, apply):
-//! 主键存十进制 (Java L124) + legacy 分键 keyR/G/B/A (Java L127-130,
-//! 全库无读取方, 保真写入) + row.value=十进制串 (L133) + onSave (L135)。
+//! 写回语义保真 (Java apply):
+//! 主键存十进制 + legacy 分键 keyR/G/B/A (全库无读取方, 保真写入)
+//! + row.value=十进制串 + onSave。
 //!
-//! PORT(提交时机备案): Java hex 输入 Enter/失焦提交 (L55-63); web 壳 JS 输入框
+//! PORT(提交时机备案): Java hex 输入 Enter/失焦提交; web 壳 JS 输入框
 //! 同语义 (合法完整色串才提交), Message::ColorPicked 消息形状不变。
 
 use vm_core::config::config_loader::{ConfigValue, GroupConfig};
@@ -27,16 +27,16 @@ use crate::render_context::RenderContext;
 
 use super::{find_row_path, row_by_path, row_by_path_mut};
 
-/// Java Color.WHITE (ColorRowRenderer.java:35 解析回落的默认白)
+/// Java Color.WHITE (ColorRowRenderer 解析回落的默认白)
 pub const WHITE: [u8; 4] = [255, 255, 255, 255];
 
-/// Java toDecimalString (L126-131): 存储格式 "R, G, B, A"。
+/// Java toDecimalString: 存储格式 "R, G, B, A"。
 /// PORT: Java null 分支 ("255, 255, 255, 255") 在 Rust 类型下不可达。
 pub fn to_decimal_string(c: &[u8; 4]) -> String {
     format!("{}, {}, {}, {}", c[0], c[1], c[2], c[3])
 }
 
-/// 颜色变更写回 (Java applyColorChange L110-136)。经 main_form::update 的
+/// 颜色变更写回 (Java applyColorChange)。经 main_form::update 的
 /// ColorPicked 臂接线 (with_panel 模式, 与 switch/slider/combo 同构)。
 pub fn apply(panel: &mut GroupConfig, key: &str, rgba: [u8; 4], ctx: &dyn RenderContext) {
     let Some(path) = find_row_path(&panel.rows, key) else {
@@ -48,19 +48,19 @@ pub fn apply(panel: &mut GroupConfig, key: &str, rgba: [u8; 4], ctx: &dyn Render
         .clone();
     let unified = to_decimal_string(&rgba);
     if let Some(p) = prop.as_deref() {
-        // Java L124: 主键十进制存储 (向后兼容)
+        // 主键十进制存储 (向后兼容, 对位 Java apply)
         ctx.sync_string_to_config_service(p, &unified);
-        // Java L127-130: legacy 分键 (拆通道写; 全库无读取方, 纯兼容面, 保真写入)
+        // legacy 分键 (拆通道写; 全库无读取方, 纯兼容面, 保真写入)
         ctx.sync_string_to_config_service(&format!("{p}R"), &rgba[0].to_string());
         ctx.sync_string_to_config_service(&format!("{p}G"), &rgba[1].to_string());
         ctx.sync_string_to_config_service(&format!("{p}B"), &rgba[2].to_string());
         ctx.sync_string_to_config_service(&format!("{p}A"), &rgba[3].to_string());
     }
-    // Java L133: row.value = unified (内存模型)
+    // row.value = unified (内存模型)
     row_by_path_mut(&mut panel.rows, &path)
         .expect("find_row_path 已定位")
         .value = Some(ConfigValue::Str(unified));
-    // Java L135: onSave
+    // onSave
     ctx.on_save();
 }
 

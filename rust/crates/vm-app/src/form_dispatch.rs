@@ -73,7 +73,7 @@ fn dispatch_form(
             .unwrap_or_else(|e| IpcReply::Err(e.to_string())),
         RequestKind::FormMessage(dto) => form_message(dto, shell, cell, rt),
         RequestKind::OpenComparisonWindow { fm0, fm1 } => {
-            // FMLIST 行 对比按钮 (批3): Java FMListRowRenderer.java:124-144 View 键 —
+            // FMLIST 行 对比按钮 (批3): Java FMListRowRenderer 的 View 键 —
             // 选中机型单机视图 (fm1 恒 null) 开对比窗; 参数由前端显式传 (对位 Java
             // 按钮体直取 combo 当前项), 不读 cfg。空 fm1 由 web_windows 归一为单机模式
             open_web_window(&WebWindowRequest::Comparison { fm0, fm1 }, rt)
@@ -88,7 +88,7 @@ fn dispatch_form(
                 .unwrap_or_else(|e| IpcReply::Err(e.to_string()))
         }
         RequestKind::PreviewVoice { key, pack } => {
-            // Java VoiceRowRenderer.java:126-136 试听按钮 (按钮体提取为
+            // Java VoiceRowRenderer 试听按钮 (按钮体提取为
             // preview_voice_clip 以注入 mock 播放器断言 load/play 与 pack 传递);
             // 忽略 enable 态 (preview 语义), 失败无声, 回执恒 Ok (Java 按钮无失败反馈面)
             let mgr = Arc::clone(&shell.borrow().voice);
@@ -96,7 +96,7 @@ fn dispatch_form(
             IpcReply::Ok(serde_json::json!({ "ok": true }))
         }
         RequestKind::GetFmList => {
-            // Java FMListRowRenderer:48-62 扫 flightmodels 根的中央文件名 (去扩展)。
+            // Java FMListRowRenderer 扫 flightmodels 根的中央文件名 (去扩展)。
             // 收敛点 list_fm_names: 只收 .json (blkx→json 迁移, data/ 双格式同名
             // 并存不过滤会重复), 排序去重, 目录不存在 → 空 vec
             let names = vm_core::fm::data_paths::list_fm_names("");
@@ -144,10 +144,10 @@ pub enum WebWindowRequest {
 // Java 标准库语义助手 (java_parse_int_or / java_parse_boolean) 已收敛
 // vm_core::base::java_compat, 本模块不再持本地副本。
 
-/// open* 按钮分派 (Java ButtonRowRenderer.java:64-106 按钮体): 读 cfg 组装开窗
+/// open* 按钮分派 (Java ButtonRowRenderer 按钮体): 读 cfg 组装开窗
 /// 入参; 非 open* 键返回 None (走原表单链)。纯流程函数 — cfg 读写可注入观测。
 ///
-/// cfg 读取对位 Java RenderContext (DynamicDataPage.java:155-174):
+/// cfg 读取对位 Java RenderContext:
 /// getString(key, def) = getConfig 为 null/空 → def; getBool(key, false) 同。
 fn route_open_action(action: &str, shell: &Rc<RefCell<AppShell>>) -> Option<WebWindowRequest> {
     use vm_core::config::config_api::ConfigProvider as _;
@@ -163,12 +163,12 @@ fn route_open_action(action: &str, shell: &Rc<RefCell<AppShell>>) -> Option<WebW
     };
 
     match action {
-        // Java :69-70: selectedFM0 缺省 "a_4h", selectedFM1 缺省 "a6m5_zero"
+        // Java 缺省: selectedFM0 → "a_4h", selectedFM1 → "a6m5_zero"
         "openComparison" => Some(WebWindowRequest::Comparison {
             fm0: get_string("selectedFM0", "a_4h"),
             fm1: Some(get_string("selectedFM1", "a6m5_zero")),
         }),
-        // Java :85-98: fm0 缺省 "bf-109f-4", fm1 缺省 ""; speed parseInt 异常→0;
+        // Java 缺省: fm0 "bf-109f-4", fm1 ""; speed parseInt 异常→0;
         // wep = Boolean.parseBoolean(powerCurveWep)
         "openPowerCurve" => Some(WebWindowRequest::PowerCurve {
             fm0: get_string("selectedFM0", "bf-109f-4"),
@@ -248,7 +248,7 @@ fn form_message(
     }
 }
 
-/// Java VoiceRowRenderer.java:128-136 ▶ 按钮体: pKey = stripVoicePrefix(property),
+/// Java VoiceRowRenderer ▶ 按钮体: pKey = stripVoicePrefix(property),
 /// clip = loadClip(pKey, 当前选中包), 非 null → setFramePosition(0) + start。
 /// clip==null 静默返回 (Java 无声失败, 不弹错误); // ignoring enable state for preview
 /// (试听无视 enable 开关)。提取为独立纯流程函数 — 可注入 mock SoundPlayer 断言
@@ -388,7 +388,7 @@ mod tests {
         );
     }
 
-    /// 试听 (Java VoiceRowRenderer.java:126-136): voice_ 前缀 strip 后经共享
+    /// 试听 (Java VoiceRowRenderer): voice_ 前缀 strip 后经共享
     /// 实例 load_clip; CWD 无 voice/<key>.wav → clip==null 静默 (Java 同款无声
     /// 失败), 回执恒 Ok — 不假成功也不报错 (Java 按钮无失败反馈面)
     #[test]
@@ -734,7 +734,7 @@ mod tests {
         c.config.set_config(key, value);
     }
 
-    /// openComparison 读 cfg: 缺键/空值 → Java ButtonRowRenderer.java:69-70 缺省对
+    /// openComparison 读 cfg: 缺键/空值 → Java ButtonRowRenderer 缺省对
     /// (a_4h / a6m5_zero); 行在位非空 → 透传
     #[test]
     fn route_open_action_对比窗口_cfg与缺省() {
@@ -757,7 +757,7 @@ mod tests {
             })
         );
         // fm1 显式清空 → 仍回缺省 (Java getStringFromConfigService 空串→default
-        // 语义, DynamicDataPage.java:169-174 / RenderContext 各实现一致 — 单机
+        // 语义, RenderContext 各实现一致 — 单机
         // 模式 Some("") 在 Java openComparison 路径不可达, 修正中断 agent 的假设)
         set_cfg(&shell, "selectedFM1", "");
         assert_eq!(
@@ -773,7 +773,7 @@ mod tests {
         assert_eq!(route_open_action("importConfig", &shell), None);
     }
 
-    /// openPowerCurve 读 cfg (ButtonRowRenderer.java:85-98): 缺省 bf-109f-4 / "" /
+    /// openPowerCurve 读 cfg (Java ButtonRowRenderer): 缺省 bf-109f-4 / "" /
     /// speed 0 / wep false; speed 非法串 parseInt 异常→0; wep 仅 "true" (忽略
     /// 大小写) 为真 — Boolean.parseBoolean 语义 ("1" 为 false)
     #[test]

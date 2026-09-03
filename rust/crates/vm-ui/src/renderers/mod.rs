@@ -1,9 +1,8 @@
 //! RowRenderer 族的**写回链 + 纯数据层** (对应 src/ui/layout/renderer/ 的闭包体)。
 //!
-//! **D9 变更**: 原 iced view 分发层 (view_row/fallback_row 及各渲染器 view_row) 已删
-//! — 表单渲染归 vm-webui web 壳; Java 各渲染器的读链 (read_display/read_current)
-//! 亦随之退役 (波12: 回显由 web 壳经 GetLayoutTree 整树 DTO 承担, 前端 JS 自带
-//! 同语义取值/解析)。本层保留:
+//! **D9 变更**: 原 iced view 分发层已删 — 表单渲染归 vm-webui web 壳;
+//! Java 各渲染器的读链 (read_display/read_current) 亦随之退役 (波12: 回显由
+//! web 壳经 GetLayoutTree 整树 DTO 承担, 前端 JS 自带同语义取值/解析)。本层保留:
 //! - 各类型 apply 写回链 (`switch::apply`/`slider::apply`/`combo::apply`/`color::apply`,
 //!   对位 Java renderer 闭包体的配置写路径);
 //! - 纯数据函数 (`combo::resolve_options`/`slider::effective_range`/`color` 解析与
@@ -100,7 +99,7 @@ pub(crate) mod test_util {
                 .push(format!("sync:{key}={value}"));
         }
         fn get_from_config_service(&self, key: &str, default_val: bool) -> bool {
-            // DynamicDataPage.java:155-161 同语义
+            // DynamicDataPage 同语义
             match self.values.get(key) {
                 Some(v) if !v.is_empty() => v.eq_ignore_ascii_case("true"),
                 _ => default_val,
@@ -112,7 +111,7 @@ pub(crate) mod test_util {
                 .push(format!("syncStr:{key}={value}"));
         }
         fn get_string_from_config_service(&self, key: &str, default_val: &str) -> String {
-            // DynamicDataPage.java:169-174 同语义
+            // DynamicDataPage 同语义
             match self.values.get(key) {
                 Some(v) if !v.is_empty() => v.clone(),
                 _ => default_val.to_string(),

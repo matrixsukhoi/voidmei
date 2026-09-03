@@ -13,7 +13,7 @@ use vm_core::base::calc_helper::SimpleMovingAverage;
 use vm_core::fm::FMHandle;
 use vm_core::telemetry::parser::{Indicators, MapInfo, State};
 
-/// Java `public static final int ENGINE_TYPE_*` (L213-216) 的枚举收敛 (波17 F1)。
+/// Java `ENGINE_TYPE_*` int 常量的枚举收敛 (波17 F1)。
 /// 序列化兼容: `as_i32()` 输出与原常量数值逐一致 — Prop=0 / Jet=1 /
 /// Turboprop=2 / Unknown=-1 (AnalyzerService trait 等既有 i32 面走它)。
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -159,7 +159,7 @@ pub struct ServiceData {
     // fuelTimeSMA: resetvaria 构造 (窗口 4), slowcalculate 滚动
     // PORT(状态双主边界): Deriver (data/derive.rs) 自持 calc/turnrds/diff/sep 四个
     // SMA 及 an/turn_rds/speedv 族同源状态, 而 FlightValues 不携带 SMA 态 ——
-    // service_loop 波次必须裁决唯一状态主人 (Java resetvaria L1591-1597 重建 SMA 的
+    // service_loop 波次必须裁决唯一状态主人 (resetvaria 重建 SMA 的
     // 语义打在主人侧), 防 ServiceData 侧双胞胎永远 None / 两份真相互相漂移;
     pub fuel_time_sma: Option<SimpleMovingAverage>,
     // public static URL urlstate;
@@ -223,7 +223,6 @@ pub struct ServiceData {
         pub(crate) prev_optimal_compressor_stage: i32,
     pub mapinfo: Option<MapInfo>,
 
-    // ---- L219-236 (方法/常量区, 常量见 struct 后) ----
     pub player_live: bool,
 
     // PORT(Java `public Controller c` 不迁移): 环 1 (Controller↔Service) 按 LIFETIMES
@@ -250,7 +249,7 @@ pub struct ServiceData {
     pub rule_triggers: Vec<vm_core::formula::rules::RuleTriggered>,
 }
 
-/// Java `public static final String nastring = "-"` (L227)。
+/// 无效占位串 "-" (原 nastring 常量)。
 /// PORT: indicators.rs 已按 CLASSIFY 裁决内联为私有 NA_STRING (不越文件改, §6);
 /// 本处为规范定义, 后续波次统一收敛引用点。
 pub const NASTRING: &str = "-";
@@ -261,11 +260,11 @@ impl Default for ServiceData {
     ///   optimalCompressorStage 族 -1 / portOcupied=false / checkEngineFlag=false)。
     ///
     /// **service_loop 波次验收义务**: Default 是"声明态"而非"构造后态"。Java 构造器
-    /// `Service(xc)` (L1678-1703) 无条件跑 clearvaria→resetvaria, 真实初值还包括:
+    /// 构造器无条件跑 clearvaria→resetvaria, 真实初值还包括:
     /// `freq=serviceLoopIntervalMs` / `ratio=freq/1000f` / `ratio_1=1f-ratio` /
     /// `sState`/`sIndic` = new+init / `mapinfo` = new / `power`·`pitch`·`thrust`·
     /// `efficiency` = vec![None; State::MAX_ENG_NUM] / `FuelCheckMili`·
-    /// `lastMapPollTimeMs`·`lastMainLoopTimeMs` = 构造时刻; resetvaria (L1526-1660)
+    /// `lastMapPollTimeMs`·`lastMainLoopTimeMs` = 构造时刻; resetvaria
     /// 另置 `fueltime=Long.MAX_VALUE` / `maximumThrRPM=1` / `iastotascoff=1` /
     /// `flapAllowSpeed`=`flapAllowAngle`=(f32::MAX as f64, Java Float.MAX_VALUE 拓宽) /
     /// `curLoadMinWorkTime=99999*1000` /

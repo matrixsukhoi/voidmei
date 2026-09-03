@@ -9,19 +9,19 @@ use vm_core::config::configuration_service::GlobalColors;
 /// 禁外部绕过 dispatch 裸发)。
 #[derive(Debug, Clone, PartialEq)]
 pub enum UiCommand {
-    /// MainForm.confirm "开始游戏" (MainForm.java:265-278) — **主线程属主**
+    /// MainForm.confirm "开始游戏" — **主线程属主**
     /// (MainForm 侧 vm-ui W2 接线调 `AppShell::dispatch`)。
     StartGame,
-    /// MainForm 底部"结束游戏"按钮 (MainForm.java:92-98 保存 + System.exit(0)) —
+    /// MainForm 底部"结束游戏"按钮 (保存配置 + System.exit(0)) —
     /// **主线程属主** (退出经 exit_requested, 见 dispatch 处理注)
     EndGame,
-    /// Java OverlayManager.openAll (Controller.openpad, Controller.java:363) — 渲染线程属主
+    /// Java OverlayManager.openAll (Controller.openpad) — 渲染线程属主
     OpenAllOverlays,
     /// Java OverlayManager.closeAll (closepad/endPreview/stop 步1) — 渲染线程属主
     CloseAllOverlays,
     /// WYSIWYG 刷新 (Java refreshPreviews(changedKey)/refreshAllPreviews) — 渲染线程属主。
     /// `generation` = 发送时 previewGeneration 快照, 渲染线程消费侧做防过期守卫
-    /// (D8 修正★2: Java 在 ConfigDebounce 线程直碰 Swing 组件, Rust 改在本线程刷新)。
+    /// (D8 修正★2: Java 在 ConfigDebounce 线程直碰 UI 组件, Rust 改在本线程刷新)。
     /// `changed_key`: None = 全量刷新 (refreshAllPreviews / ACTION_RESET_COMPLETED)。
     RefreshPreviews {
         changed_key: Option<String>,
@@ -54,17 +54,17 @@ pub enum UiCommand {
 /// 托盘动作 (渲染线程 AppTrayHandler → 主线程监督循环)
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TrayCommand {
-    /// 左键/"设置" (Application.java:251-273: ctr.stop(); ctr = new Controller())
+    /// 左键/"设置" (Java 托盘: ctr.stop(); ctr = new Controller())
     Activate,
-    /// 菜单"开始" — PORT(多出能力, 非 Java 菜单项): Java 托盘菜单仅 about/close
-    /// (Application.java:223-247), 无"开始"项; Rust tray.rs 提供独立 start 入口,
+    /// 菜单"开始" — PORT(多出能力, 非 Java 菜单项): Java 托盘菜单仅 about/close,
+    /// 无"开始"项; Rust tray.rs 提供独立 start 入口,
     /// handler 语义 = Controller.start() 的服务启动部分 (保真)。多出面的回收
     /// 归 tray.rs 波次, 本侧仅忠实转发。
     Start,
-    /// 菜单"关于" (Application.java:236-245 about → NotificationService.showAbout×3;
+    /// 菜单"关于" (Java about 菜单项 → NotificationService.showAbout×3;
     /// 纯展示动作, 不重建核 — 组装层转发前端 About Modal)
     About,
-    /// 菜单"退出" (Application.java:229-235 close → System.exit(0) 的归属方)
+    /// 菜单"退出" (Java close 菜单项 → System.exit(0) 的归属方)
     Exit,
 }
 

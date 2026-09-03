@@ -9,8 +9,8 @@ use super::FmData;
 /// 对应 Java `private static double getFlapAllowAngle(double ias, boolean
 /// isDowningFlap, Blkx blkx)`。
 /// **双胞胎合一** (设计 §7): Service 侧 methods_engine 曾有一份逐行同构的
-/// Service 版 (Java Service.java L1108-1145 与 HUDCalculator.java:300-341
-/// 本就是两份拷贝), 现统一走本实现 (含 Java 的 `!blkx.valid → 125` 防御分支;
+/// Service 版 (Java 侧本就是两份逐行拷贝),
+/// 现统一走本实现 (含 Java 的 `!blkx.valid → 125` 防御分支;
 /// 生产链两调用方的 blkx 均来自 READY 句柄, valid 恒真, 该分支不可达 —
 /// Service 版测试 mock 需 valid=true 对齐生产形态)。
 /// PORT: 形参 isDowningFlap 在 Java 方法体内未使用 — 签名保真, `_` 前缀消告警。
@@ -28,7 +28,7 @@ pub fn get_flap_allow_angle(ias: f64, _is_downing_flap: bool, fmdata: Option<&Fm
 
     // PORT: Java 直接解引用 FlapsDestructionIndSpeed (doLoad=false 构造的 blkx 上
     // 为 null → NPE) — unwrap panic 复刻同一硬失败 (§1)。⚠ 过渡期同 is_v_wing:
-    // Blkx::parse 的 valid=true 不保证本字段 Some (getload L1189-1218 未译),
+    // Blkx::parse 的 valid=true 不保证本字段 Some (getload 该段未译),
     // 接线 service_loop 前须等 getload 波次落地。
     let speeds = fmdata.flaps_destruction_ind_speed.as_ref().unwrap();
 
@@ -69,7 +69,7 @@ pub fn get_flap_allow_angle(ias: f64, _is_downing_flap: bool, fmdata: Option<&Fm
 }
 
 /// 对应 Java `public double getFlapAllowSpeed(int flapPercent, Boolean isDowningFlap, FMHandle fm)`
-/// (Service.java L1354-1427) — 当前襟翼开度下的允许速度。
+/// (Java Service 版) — 当前襟翼开度下的允许速度。
 /// **双胞胎合一** (设计 §7): 与 getFlap_allow_angle 同族, Service 版
 /// (methods_engine) 曾有逐行同构拷贝, 统一走本实现; 签名对齐 angle 版
 /// 收 Option<&Blkx>。flapPercent==0/无 FM → f64::MAX (Java Double.MAX_VALUE,

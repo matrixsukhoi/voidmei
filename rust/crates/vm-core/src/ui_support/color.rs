@@ -15,7 +15,7 @@
 
 use crate::base::java_compat::java_trim;
 
-/// Java `ColorHelper.parseColor(String, Color)` (L41-55): 双格式解析, 失败回落 default。
+/// Java `ColorHelper.parseColor(String, Color)`: 双格式解析, 失败回落 default。
 pub fn parse_color(text: &str, default: [u8; 4]) -> [u8; 4] {
     try_parse_color(text).unwrap_or(default)
 }
@@ -33,7 +33,7 @@ pub fn try_parse_color(text: &str) -> Option<[u8; 4]> {
     }
 }
 
-/// Java `parseHexColor` (L64-86): "#RRGGBB" (alpha=255) / "#RRGGBBAA";
+/// Java `parseHexColor`: "#RRGGBB" (alpha=255) / "#RRGGBBAA";
 /// 其他长度/非法数字落穿 → None。
 fn parse_hex_color(hex: &str) -> Option<[u8; 4]> {
     let h = &hex[1..]; // '#' 恒 ASCII 单字节, [1..] 是合法切点
@@ -50,9 +50,9 @@ fn parse_hex_color(hex: &str) -> Option<[u8; 4]> {
     }
 }
 
-/// Java `parseDecimalColor` (L95-118): "R, G, B[, A]", 全空白剔除 + 钳位 [0,255]。
+/// Java `parseDecimalColor`: "R, G, B[, A]", 全空白剔除 + 钳位 [0,255]。
 fn parse_decimal_color(decimal: &str) -> Option<[u8; 4]> {
-    // Java L97: replaceAll("\\s+", "") — 内部空白一并剔除
+    // replaceAll("\\s+", "") — 内部空白一并剔除
     let cleaned: String = decimal.chars().filter(|c| !is_java_ws(*c)).collect();
     // Java String.split(","): 尾部空串丢弃 (oracle "255, 85, 0," → 3 段 → a=255;
     // Rust split 原样保留 → 需模拟, 否则尾部逗号串解析失败偏离 Java)
@@ -77,7 +77,7 @@ fn is_java_ws(c: char) -> bool {
     matches!(c, ' ' | '\t' | '\n' | '\u{000B}' | '\u{000C}' | '\r')
 }
 
-/// Java `clamp` (L167-169)
+/// Java `clamp`
 fn clamp_u8(v: i32) -> u8 {
     v.clamp(0, 255) as u8
 }

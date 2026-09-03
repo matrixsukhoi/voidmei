@@ -24,8 +24,8 @@ pub trait ConfigProvider {
     /// PORT: Java 写方法 → &self (非 &mut)。Java 中 ConfigurationService 单实例
     /// implements ConfigProvider, 经 getConfigProvider() 以共享引用分发给全部消费方
     /// (LIFETIMES §7 目标形态 `config: Arc<ConfigStore>` + 内部 RwLock — Arc 只能给 `&`);
-    /// 且 setConfig 在变更中途同步 publish CONFIG_CHANGED (ConfigurationService.java:295/322),
-    /// UIStateBus.publish 内联执行 handler (UIStateBus.java:58-70) 会重入读配置 —
+    /// 且 setConfig 在变更中途同步 publish CONFIG_CHANGED (ConfigurationService),
+    /// UIStateBus.publish 内联执行 handler (UIStateBus) 会重入读配置 —
     /// 调用侧包 Mutex/RefCell 的 &mut 方案在同线程重入下死锁/panic (§2.8),
     /// 故共享与重入安全由实现侧内部可变性承担: 短锁改值、放锁后再广播。
     fn set_config(&self, key: &str, value: &str);

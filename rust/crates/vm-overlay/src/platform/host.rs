@@ -1,10 +1,10 @@
 //! OverlayHost: 多窗口 overlay 管理 (Java OverlayManager + AlwaysOnTopCoordinator 合并语义)
 //!
 //! PORT: Java 两个类的职责合并 —
-//! - OverlayManager (OverlayManager.java): LinkedHashMap 注册表 + per-entry open/close/
+//! - OverlayManager: LinkedHashMap 注册表 + per-entry open/close/
 //!   refreshPreview 生命周期; Rust 侧 `entries: Vec<OverlayEntry>` 保插入序 (对应
 //!   LinkedHashMap, HashMap 每次迭代随机故不可用, PORTING §2.5)。
-//! - AlwaysOnTopCoordinator (AlwaysOnTopCoordinator.java): pendingDialogs 计数 + 窗口
+//! - AlwaysOnTopCoordinator: pendingDialogs 计数 + 窗口
 //!   注册表; LIFETIMES §1.1 裁决 "Rust 若 overlay 归管理器独占拥有, Weak 注册表整体
 //!   不需要 — Drop 即注销, 僵尸窗口防护由所有权天然保证", 故只保留计数 + DialogHooks 钩子。
 //!
@@ -19,10 +19,9 @@
 //! 单线程泵全部窗口消息 + 脏检查渲染 — 即 LIFETIMES "per-overlay 线程全部废除, 迁移
 //! 事件驱动" 裁决的落地。
 //!
-//! 防御外移记录: Java refreshAllPreviews 的 PREVIEW 状态防御检查
-//! (OverlayManager.java:117-121, 防 stale callback 建预览) 与 previewGeneration 世代号
-//! (Controller.java:42) 未落本层 — 生命周期状态机归上层 Controller, 该防御随
-//! Controller 批次移植时补齐, 此处仅记录防漏带。
+//! 防御外移记录: Java refreshAllPreviews 的 PREVIEW 状态防御检查 (防 stale callback
+//! 建预览) 与 previewGeneration 世代号未落本层 — 生命周期状态机归上层 Controller,
+//! 该防御随 Controller 批次移植时补齐, 此处仅记录防漏带。
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -32,11 +31,11 @@ use std::time::{Duration, Instant};
 use crate::platform::{self, OverlayEvent, OverlayWindow, WindowConfig};
 use crate::render::canvas::PixCanvas;
 
-/// 内容渲染闭包: 每帧把 overlay 内容画进画布 (对应 Java overlay 子类的 paintComponent)
+/// 内容渲染闭包: 每帧把 overlay 内容画进画布
 pub type RenderFn = Box<dyn FnMut(&mut PixCanvas)>;
 
-/// WYSIWYG reinitializer 闭包 (Java 各 overlay `reinitConfig()` 的执行面):
-/// 重建 state/字体/几何, 返回 Some((w,h)) = 新窗口尺寸 (Java setBounds 副作用,
+/// WYSIWYG reinitializer 闭包 (各 overlay 的 reinitConfig 执行面):
+/// 重建 state/字体/几何, 返回 Some((w,h)) = 新窗口尺寸 (setBounds 副作用,
 /// host 走 resize_entry 落窗口), None = 尺寸不变或重建失败 (闭包内自行留痕)。
 /// PORT: 闭包内部读线程局部 [`crate::platform::reinit::ReinitParams`] 仓取最新参数
 /// (配置 !Send, 值随 UiCommand 进渲染线程 — 五色直送同款模式)
@@ -49,7 +48,7 @@ pub type WindowFactory = Box<dyn Fn(WindowConfig) -> Result<Box<dyn OverlayWindo
 /// suspendAll/restoreAll 语义 (计数归零恢复置顶 + 清 popover)。
 /// POC 无对话框阶段: 全部窗口恒 TOPMOST (win.rs 创建即 WS_EX_TOPMOST), 空实现合法;
 /// 引入设置主窗后由其实现 (遍历各窗口调 `OverlayWindow::set_topmost`, 等价 Java 的
-/// setAlwaysOnTopOnEDT — 主循环单线程内调用, 无需 EDT 转发)。
+/// setAlwaysOnTopOnEDT — 主循环单线程内调用, 无需跨线程转发)。
 pub trait DialogHooks {
     /// 对话框将显示 (Java dialogWillShow: pendingDialogs++ → 清 popover → suspendAll)
     fn suspend_overlays(&mut self) {}
@@ -57,44 +56,43 @@ pub trait DialogHooks {
     fn restore_overlays(&mut self) {}
 }
 
-/// 位置存档后端 — Java overlay 持 OverlaySettings(loadPosition/saveWindowPosition)
-/// 直读写 GroupConfig.x/y; Rust 配置树 !Send 不能进渲染线程, host 经此 trait
+/// 位置存档后端 — 配置树 !Send 不能进渲染线程, host 经此 trait
 /// 解耦: 组装层注入"快照 + 回传"实现 (vm-app ChannelPositionStore), 测试注入 mock。
 /// 坐标恒归一化 (0..1) — 与 host 内存档同量纲; id→配置 section 的映射归组装层。
 pub trait PositionStore {
-    /// 读初始位置 (Java loadPosition: gc.x/y; None = 无组配置 → host 居中兜底)
+    /// 读初始位置 (GroupConfig.x/y; None = 无组配置 → host 居中兜底)
     fn load(&mut self, id: &str) -> Option<(f64, f64)>;
-    /// 写拖拽/销毁存档 (Java saveCurrentPosition → saveWindowPosition + 落盘)
+    /// 写拖拽/销毁存档 (归一化坐标落盘)
     fn store(&mut self, id: &str, x: f64, y: f64);
 }
 
 /// Java Application.previewColor = (0,0,0,10): 预览模式极淡黑底 (同 window.rs, 便于看清范围)
 const PREVIEW_BG: [u8; 4] = [0x00, 0x00, 0x00, 0x0A];
 
-/// 注册用描述 (Java register/registerWithPreview 的参数打包; 注册不建实例)
+/// 注册用描述 (注册不建实例)
 pub struct OverlaySpec {
     /// 唯一实例键 (Java entries LinkedHashMap 的 key; 亦为位置存档键)。
     /// PORT: Java 三个 register 重载均以 configKey 作 LinkedHashMap 键 — 同 configKey
     /// 后注册者整体替换前者 (只余一个 entry); Rust 以 id 为键, 同 config_key 不同 id
     /// 的两个 spec 可并存双窗。接 Controller 批次时保持 id==config_key 或显式核对此分叉
     pub id: String,
-    /// 激活策略引用的配置键 (Java ActivationStrategy.config(configKey))
+    /// 激活探测引用的配置键
     pub config_key: String,
     pub width: i32,
     pub height: i32,
     pub render: RenderFn,
-    /// WYSIWYG reinitializer (Java reinitConfig; None = 该 overlay 无 reinit 面,
+    /// WYSIWYG reinitializer (None = 该 overlay 无 reinit 面,
     /// 仅清像素指纹强制重绘)
     pub reinit: Option<ReinitFn>,
 }
 
-/// 窗口槽位: Java OverlayEntry 的 instance/thread 字段 (Rust 无轮询线程, thread 无对应物;
-/// LIFETIMES §4.2: 反射置 doit 停线程 → Rust 无线程可停, Drop 即完整销毁链)
+/// 窗口槽位: 活跃窗口 + 拖拽/指纹/可见态 (无轮询线程可停 —
+/// LIFETIMES §4.2: Drop 即完整销毁链)
 struct OverlaySlot {
     window: Box<dyn OverlayWindow>,
-    /// 拖拽状态机: 按下时 (root - win_pos) 偏移 (Java DraggableOverlay.dragStartX/Y)
+    /// 拖拽状态机: 按下时 (root - win_pos) 偏移
     drag: Option<(i32, i32)>,
-    /// 上帧像素指纹 (脏检查: 对应 Java repaint 抑制 / window.rs last_frame)
+    /// 上帧像素指纹 (脏检查: 无变化不 present; 同 window.rs last_frame)
     last_frame: Option<Vec<u8>>,
     /// 窗口当前可见态 (Java isVisible() 的替身记录): Win32 无查询面, 以本记录做
     /// 幂等守卫 (Issue #54 — 重复 setVisible(true) 触发 DWM 全量合成致 DX12 卡顿)。
@@ -103,36 +101,36 @@ struct OverlaySlot {
     visible: bool,
 }
 
-/// 注册表条目 (Java OverlayManager.OverlayEntry)
+/// 注册表条目: overlay 注册描述 + 活跃期槽位/画布
 pub struct OverlayEntry {
     pub id: String,
     pub config_key: String,
-    /// 实例创建模式: true=preview 可拖拽非穿透 (Java initPreview), false=live 穿透 (Java init)
+    /// 实例创建模式: true=preview 可拖拽非穿透, false=live 穿透
     pub preview: bool,
     width: i32,
     height: i32,
     render: RenderFn,
     reinit: Option<ReinitFn>,
-    /// 僵尸实例标志 (Java run() 自动退场形态: 窗口已 dispose 但 entry.instance
-    /// 僵留非 null — DrawFrameSimpl 的 displayFmKey==0 收腿退场是唯一置位点)。
-    /// 语义对位 OverlayManager.java: open(:294-299) 跳过 / refreshPreview
-    /// (:332-336) 只跑 reinitializer 不重建窗口 / close(:370 instance=null) 清除
+    /// 僵尸实例标志 (自动退场形态: 窗口已 dispose 但条目僵留 —
+    /// DrawFrameSimpl 的 displayFmKey==0 收腿退场是唯一置位点)。
+    /// 语义: open 跳过 / refresh_preview 只跑 reinitializer 不重建窗口 /
+    /// close 清除
     zombie: bool,
-    /// 窗口槽位 (Java entry 的 instance 字段; monitor 无对应物 — 见模块头并发纪律)
+    /// 窗口槽位 (并发纪律见模块头)
     slot: Option<OverlaySlot>,
-    /// 复用画布 (Java overlay 后备缓冲; 首次 open 时创建)
+    /// 复用画布 (后备缓冲; 首次 open 时创建)
     canvas: Option<PixCanvas>,
-    /// 感兴趣的配置键前缀 (Java interestedPrefixes, 默认含自身 config_key)
+    /// 感兴趣的配置键前缀 (默认含自身 config_key)
     interested_prefixes: Vec<String>,
-    /// 固定初始位置 (像素) — Java overlay init 的 setBounds 字面量形态
-    /// (DrawFrameSimpl 每次 init/initPreview 硬编码 (0, screenH-500)): materialize
-    /// 时优先于存档/居中, 且每次重新 materialize 都重 applying = Java 工厂每实例
-    /// setBounds 的等价面 (位置存档键 thrustdFSX/Y 只写不读, 不参与定位)
+    /// 固定初始位置 (像素) — 工厂 init 的 setBounds 字面量形态
+    /// (DrawFrameSimpl 每次 init 硬编码 (0, screenH-500)): materialize
+    /// 时优先于存档/居中, 且每次重新 materialize 都重 applying
+    /// (位置存档键 thrustdFSX/Y 只写不读, 不参与定位)
     fixed_pos: Option<(i32, i32)>,
 }
 
 impl OverlayEntry {
-    /// Java OverlayEntry.isInterestedIn: key==null 恒真; 等于自身键或命中前缀
+    /// 兴趣判定: None 恒真; 等于自身键或命中前缀
     fn is_interested_in(&self, changed: Option<&str>) -> bool {
         let Some(k) = changed else { return true };
         if k == self.config_key {
@@ -142,7 +140,7 @@ impl OverlayEntry {
     }
 }
 
-/// Java AlwaysOnTopCoordinator 的 GLOBAL_CONFIG_KEYS / GLOBAL_CONFIG_PREFIXES 原样搬移
+/// 全局配置键/前缀: 命中则所有条目都刷新 (与条目兴趣无关)
 const GLOBAL_CONFIG_KEYS: [&str; 5] =
     ["AAEnable", "simpleFont", "Interval", "voiceVolume", "ui_layout.cfg"];
 const GLOBAL_CONFIG_PREFIXES: [&str; 2] = ["Global", "font"];
@@ -155,7 +153,7 @@ pub fn is_global_config(key: Option<&str>) -> bool {
 }
 
 /// 槽位可见性落地: 幂等守卫 (与记录态相同即跳过, Issue #54 DWM 全量合成防抖),
-/// 命中才调系统 set_visible 并同步记录 (Java isVisible()/setVisible 对)
+/// 命中才调系统 set_visible 并同步记录
 fn set_slot_visible(sl: &mut OverlaySlot, visible: bool) {
     if sl.visible != visible {
         sl.visible = visible;
@@ -172,23 +170,22 @@ pub struct OverlayHost {
     /// 注册表: 插入序 (LinkedHashMap 语义), 同键重注册原位替换
     entries: Vec<OverlayEntry>,
     factory: WindowFactory,
-    /// 激活探测: config_key → 是否启用 (Java ActivationStrategy.config(key).shouldActivate(ctx))
+    /// 激活探测: config_key → 是否启用
     activation: Box<dyn Fn(&str) -> bool>,
     dialog_hooks: Box<dyn DialogHooks>,
-    /// Java AtomicInteger pendingDialogs
+    /// 挂起对话框计数
     pending_dialogs: i32,
     /// 会话内存档 (归一化屏幕坐标; 同会话拖拽/销毁存档, 优先于 position_store —
-    /// Java 同进程内 gc 内存值即最新)。跨进程持久化经 [`PositionStore`] 后端
+    /// 同进程内内存值即最新)。跨进程持久化经 [`PositionStore`] 后端
     saved_positions: HashMap<String, (f64, f64)>,
-    /// 位置存档后端 (Java OverlaySettings 的 GroupConfig.x/y; None = 纯内存档)
+    /// 位置存档后端 (None = 纯内存档)
     position_store: Option<Box<dyn PositionStore>>,
-    /// Java volatile boolean overlaysHidden (AlwaysOnTopCoordinator.java:38) —
-    /// 游戏失焦隐藏标志。Java 需 volatile 因 FocusMonitor 在 Service 线程调用;
-    /// Rust 侧 host 为单线程独占 (&mut self), 服务线程经消息送主循环调用, 普通 bool 即可
+    /// 游戏失焦隐藏标志 — Java 侧需 volatile 因 FocusMonitor 在 Service 线程调用;
+    /// host 为单线程独占 (&mut self), 服务线程经消息送主循环调用, 普通 bool 即可
     overlays_hidden: bool,
-    /// 停机标志 (Java doit volatile 族; LIFETIMES §3.2 → AtomicBool)。
+    /// 停机标志 (LIFETIMES §3.2 → AtomicBool)。
     /// Arc + stop_handle() 跨线程可达: host 本体 !Send, 上层 Controller/Service 线程
-    /// 持句柄请求退出 (Java doit 从别的线程置 false 的语义)
+    /// 持句柄请求退出
     stop: Arc<AtomicBool>,
 }
 
@@ -219,35 +216,35 @@ impl OverlayHost {
         }
     }
 
-    /// 注入激活探测 (Java ActivationStrategy 读 OverlayContext 配置)。
+    /// 注入激活探测 (读 OverlayContext 配置)。
     /// PORT: Java ActivationStrategy.config(key) = Boolean.parseBoolean(getConfig(key)),
     /// 配置缺失 (null) 解析为 false — 未配置的 overlay 默认**不激活**; POC 未接配置层,
     /// 默认探测 `|_| true` 全启用, 接配置层时必须恢复"缺省 false"语义, 否则 open_all
     /// 会打开全部未配置 overlay。
-    /// 签名只收 config_key: Java 复合策略 (Controller.java:717-723 enableVoiceWarn =
-    /// config+gameModeOnly, 746-752 thrustdFS = config+jetOnly) 由闭包捕获模式/发动机
-    /// 类型等外部状态等价实现 — 接口不给 ctx, Controller 批次移植时照此办理
+    /// 签名只收 config_key: Java 复合策略 (enableVoiceWarn = config+gameModeOnly,
+    /// thrustdFS = config+jetOnly) 由闭包捕获模式/发动机类型等外部状态等价实现 —
+    /// 接口不给 ctx, Controller 批次移植时照此办理
     pub fn with_activation(&mut self, probe: Box<dyn Fn(&str) -> bool>) -> &mut Self {
         self.activation = probe;
         self
     }
 
-    /// 注入 dialog 协调钩子 (PORT: Java AlwaysOnTopCoordinator 挂起/恢复; 空实现合法)
+    /// 注入 dialog 协调钩子 (挂起/恢复; 空实现合法)
     pub fn with_dialog_hooks(&mut self, hooks: Box<dyn DialogHooks>) -> &mut Self {
         self.dialog_hooks = hooks;
         self
     }
 
-    /// 注入位置存档后端 (Java overlay 的 OverlaySettings 位置面; 缺省纯内存档)
+    /// 注入位置存档后端 (缺省纯内存档)
     pub fn with_position_store(&mut self, store: Box<dyn PositionStore>) -> &mut Self {
         self.position_store = Some(store);
         self
     }
 
-    /// 注册 overlay (Java register: entries.put, 不建实例)
-    /// 同键重复注册 = LinkedHashMap.put 语义: 原位替换, 保留插入序
+    /// 注册 overlay (不建实例)
+    /// 同键重复注册原位替换, 保留插入序
     pub fn register(&mut self, spec: OverlaySpec) -> &mut Self {
-        // Java 构造器: 默认 interest 自身 key
+        // 默认 interest 含自身 key
         let interested_prefixes = vec![spec.config_key.clone()];
         let entry = OverlayEntry {
             interested_prefixes,
@@ -277,7 +274,7 @@ impl OverlayHost {
         self
     }
 
-    /// 给最后注册的条目加兴趣前缀 (Java withInterest: 影响 refreshPreviews(changedKey) 过滤)
+    /// 给最后注册的条目加兴趣前缀 (影响 refresh_preview_key(changed_key) 过滤)
     pub fn with_interest(&mut self, prefixes: &[&str]) -> &mut Self {
         if let Some(entry) = self.entries.last_mut() {
             for p in prefixes {
@@ -287,8 +284,8 @@ impl OverlayHost {
         self
     }
 
-    /// 条目固定初始位置 (P6 组装契约: Java overlay init 的 setBounds 字面量 —
-    /// DrawFrameSimpl 每次 init/initPreview 硬编码 (0, screenH-500), 位置存档键
+    /// 条目固定初始位置 (组装契约: setBounds 字面量 —
+    /// DrawFrameSimpl 每次硬编码 (0, screenH-500), 位置存档键
     /// thrustdFSX/Y 只写不读)。materialize 时优先于存档/居中生效, 每次
     /// re-materialize 重 applying。返回 false = 未注册条目。
     pub fn set_entry_fixed_pos(&mut self, id: &str, x: i32, y: i32) -> bool {
@@ -301,9 +298,9 @@ impl OverlayHost {
         }
     }
 
-    /// 条目僵尸化开关 (Java run() 自动退场: 窗口 dispose 后 instance 僵留)。
-    /// 置位后 open 跳过 / refreshPreview 不重建窗口 (只跑 reinitializer),
-    /// 直至 close 清除 (closeAll 或策略失活路径)。返回 false = 未注册条目。
+    /// 条目僵尸化开关 (自动退场: 窗口 dispose 后条目僵留)。
+    /// 置位后 open 跳过 / refresh_preview 不重建窗口 (只跑 reinitializer),
+    /// 直至 close 清除 (close_all 或策略失活路径)。返回 false = 未注册条目。
     pub fn set_entry_zombie(&mut self, id: &str, on: bool) -> bool {
         match self.entries.iter_mut().find(|e| e.id == id) {
             Some(entry) => {
@@ -314,7 +311,7 @@ impl OverlayHost {
         }
     }
 
-    /// 打开单个 overlay — 游戏模式 (Java OverlayEntry.open: 已开则跳过并记日志)
+    /// 打开单个 overlay — 游戏模式 (已开则跳过)
     /// 实例 = live 穿透窗口 (click_through=true), preview 标志置 false
     pub fn open(&mut self, id: &str) -> Result<bool, String> {
         let idx = self
@@ -328,7 +325,7 @@ impl OverlayHost {
     fn open_idx(&mut self, idx: usize) -> Result<bool, String> {
         // 槽位占用检查 (单线程独占)
         if self.entries[idx].slot.is_some() || self.entries[idx].zombie {
-            // 退场后 instance 僵留) 同跳过, 不重建死窗口 (OverlayManager.java:294-299)
+            // 僵尸条目 (退场后的死实例) 同跳过, 不重建死窗口
             return Ok(false);
         }
         // 建窗口 (工厂可能慢/失败)
@@ -336,7 +333,7 @@ impl OverlayHost {
         Ok(true)
     }
 
-    /// 打开全部 (Java openAll: 按 entries 序, shouldActivate(ctx) 为真才 open)
+    /// 打开全部 (按注册序, 激活探测为真才 open)
     pub fn open_all(&mut self) -> Result<(), String> {
         let plan: Vec<usize> = self
             .entries
@@ -351,24 +348,22 @@ impl OverlayHost {
         Ok(())
     }
 
-    /// 关闭单个 overlay — PORT: Java OverlayEntry.close() 销毁序
-    /// Java: saveCurrentPosition() → 反射 doit=false → Window.dispose() → thread.interrupt()
-    ///       → instance=null
-    /// Rust: 槽位摘取期间完成存位置/销毁链 (单线程独占, 无锁 — LIFETIMES §3.3-1);
-    ///       doit/interrupt 无对应物 (无轮询线程), drop(window) = dispose 注销链
+    /// 关闭单个 overlay — 销毁序: 存位置 → 销毁窗口 → 清僵尸标志。
+    /// 槽位摘取期间完成存位置/销毁链 (单线程独占, 无锁 — LIFETIMES §3.3-1);
+    /// 无轮询线程可停, drop(window) = dispose 注销链
     pub fn close(&mut self, id: &str) -> bool {
         let Some(idx) = self.entries.iter().position(|e| e.id == id) else {
             return false;
         };
-        // ① 摘槽位 (take 走 ownership; 槽位 None = Java instance=null)
+        // ① 摘槽位 (take 走 ownership; 槽位 None = 未开)
         let taken = self.entries[idx].slot.take();
-        // 僵尸清除 (Java close 末尾 instance=null): 无窗口的死实例同样要清标志,
-        // 否则 closeAll 后的会话重开会被 open/refresh 的僵尸守卫误拦
+        // 僵尸清除: 无窗口的死实例同样要清标志,
+        // 否则 close_all 后的会话重开会被 open/refresh 的僵尸守卫误拦
         self.entries[idx].zombie = false;
         let Some(slot) = taken else {
-            return false; // 未开: Java close() 首行 instance==null 直接 return
+            return false; // 未开: 无窗口可关
         };
-        // ② 存位置 (Java saveCurrentPosition: 归一化屏幕坐标)
+        // ② 存位置 (归一化屏幕坐标)
         let (wx, wy) = slot.window.position();
         let (sw, sh) = slot.window.screen_size();
         if sw > 0 && sh > 0 {
@@ -378,13 +373,12 @@ impl OverlayHost {
                 store.store(id, n.0, n.1);
             }
         }
-        // ③ 销毁窗口 (drop = DestroyWindow; Java Window.dispose → 子类 dispose →
-        //    unregisterOverlay 注销链由 Drop 天然完成, 顺序见 Drop 实现体)
+        // ③ 销毁窗口 (drop = DestroyWindow; 注销链由 Drop 天然完成)
         drop(slot);
         true
     }
 
-    /// 关闭全部 (Java closeAll: 按 entries 序逐个 close)
+    /// 关闭全部 (按注册序逐个 close)
     pub fn close_all(&mut self) {
         let ids: Vec<String> = self.entries.iter().map(|e| e.id.clone()).collect();
         for id in ids {
@@ -392,9 +386,9 @@ impl OverlayHost {
         }
     }
 
-    /// preview 模式生命周期 (Java OverlayEntry.refreshPreview):
+    /// preview 模式生命周期:
     /// 应开未开 → 建 preview 窗口 (可拖拽); 已开应开 → reinit (标脏强制重绘);
-    /// 已开不应开 → close (Java "Closing overlay (inactive strategy)")
+    /// 已开不应开 → close (策略失活)
     pub fn refresh_preview(&mut self) -> Result<(), String> {
         let all: Vec<usize> = (0..self.entries.len()).collect();
         for idx in all {
@@ -403,7 +397,7 @@ impl OverlayHost {
         Ok(())
     }
 
-    /// 按变更配置键刷新 (Java refreshPreviews(changedKey): 全局键或条目感兴趣才刷新)
+    /// 按变更配置键刷新: 全局键或条目感兴趣才刷新
     pub fn refresh_preview_key(&mut self, changed_key: Option<&str>) -> Result<(), String> {
         let targets: Vec<usize> = self
             .entries
@@ -423,27 +417,26 @@ impl OverlayHost {
         let active = self.entries[idx].slot.is_some();
         let zombie = self.entries[idx].zombie;
         if should_open {
-            // WYSIWYG reinitializer (Java refreshPreview → reinitializer)。
-            // PORT(冷激活补口): Java 工厂创建实例时读即时配置; Rust spec 工厂是
-            // 启动期一次性快照 — 未开实例先跑 reinit 把 state/尺寸刷到最新参数,
-            // 再 materialize 建窗 (否则首次激活冻结在旧配置尺寸)
+            // WYSIWYG reinitializer。
+            // PORT(冷激活补口): 工厂是启动期一次性快照 — 未开实例先跑 reinit
+            // 把 state/尺寸刷到最新参数, 再 materialize 建窗
+            // (否则首次激活冻结在旧配置尺寸)
             self.reinit_idx(idx)?;
-            // 僵尸实例 (Java instance != null): 只跑 reinitializer, 已 dispose 的
-            // 死窗口不重建 (OverlayManager.java:332-336 — 中途换配置不复活退场窗)
+            // 僵尸实例: 只跑 reinitializer, 已 dispose 的
+            // 死窗口不重建 (中途换配置不复活退场窗)
             if !active && !zombie {
                 self.materialize(idx, true)?;
             }
         } else if active || zombie {
-            // 策略再开才会建新实例; OverlayManager.java:337-340)
+            // 策略失活即关 (含僵尸条目); 再激活时才重建
             let id = self.entries[idx].id.clone();
             self.close(&id);
         }
         Ok(())
     }
 
-    /// 单条目 reinitializer (Java reinitConfig 的组装面): 跑工厂闭包重建 state,
-    /// 返回新尺寸则 resize (setBounds 副作用); 无论尺寸是否变化均清指纹强制重绘
-    /// (Java reinitConfig 末尾 repaint)
+    /// 单条目 reinitializer: 跑工厂闭包重建 state,
+    /// 返回新尺寸则 resize; 无论尺寸是否变化均清指纹强制重绘
     fn reinit_idx(&mut self, idx: usize) -> Result<(), String> {
         // 闭包是任意第三方代码 (槽位摘取期外执行, 无状态借用交叉)
         let new_size = match self.entries[idx].reinit.as_mut() {
@@ -461,7 +454,7 @@ impl OverlayHost {
         Ok(())
     }
 
-    /// 改条目尺寸 (Java Window.setSize/setBounds): 更新 entry 宽高 + 重建画布
+    /// 改条目尺寸: 更新 entry 宽高 + 重建画布
     /// (present 缓冲与新尺寸一致); 活跃窗口 set_size (系统调用)
     pub fn resize_entry(&mut self, id: &str, w: i32, h: i32) -> Result<(), String> {
         let idx = self
@@ -489,14 +482,14 @@ impl OverlayHost {
         if !same {
             sl.window.set_size(w, h);
         }
-        // 旧指纹尺寸已失配, 清掉强制下一帧 present (同 Java reinit 后 repaint)
+        // 旧指纹尺寸已失配, 清掉强制下一帧 present
         sl.last_frame = None;
         // ③ 放回
         self.entries[idx].slot = Some(sl);
         Ok(())
     }
 
-    /// 重初始化全部已开实例 (Java reinitActiveOverlays): 跑各条目 reinit 闭包
+    /// 重初始化全部已开实例: 跑各条目 reinit 闭包
     /// (重建 state + 尺寸跟随), 无闭包者退化为清指纹强制重绘
     pub fn reinit_active_overlays(&mut self) {
         for i in 0..self.entries.len() {
@@ -507,7 +500,7 @@ impl OverlayHost {
         }
     }
 
-    /// 建窗口并放入槽位 (open/refreshPreview 共用; 位置: 存档 → 屏幕居中, 同 window.rs)
+    /// 建窗口并放入槽位 (open/refresh_preview 共用; 位置: 存档 → 屏幕居中, 同 window.rs)
     fn materialize(&mut self, idx: usize, preview: bool) -> Result<(), String> {
         let id = self.entries[idx].id.clone();
         let (w, h) = (self.entries[idx].width, self.entries[idx].height);
@@ -522,8 +515,8 @@ impl OverlayHost {
             click_through: !preview,
         };
         let mut window = (self.factory)(cfg)?;
-        // 初始位置优先级: 条目固定几何 (Java setBounds 字面量 — DrawFrameSimpl) →
-        // 会话内存档 → 配置后端 (GroupConfig.x/y) → 屏幕居中 (Java gc=null 兜底)。
+        // 初始位置优先级: 条目固定几何 (setBounds 字面量 — DrawFrameSimpl) →
+        // 会话内存档 → 配置后端 (GroupConfig.x/y) → 屏幕居中 (无组配置兜底)。
         // 后端命中填入内存档: 后续同会话不再查, 且拖拽存档双写时内存/后端天然一致
         if let Some((fx, fy)) = self.entries[idx].fixed_pos {
             window.set_position(fx, fy);
@@ -539,7 +532,7 @@ impl OverlayHost {
         match initial {
             Some((nx, ny)) => {
                 let (sw, sh) = window.screen_size();
-                // PORT: Java (int) Math.round = floor(x+0.5) (ConfigurationService.java:433);
+                // PORT: Java (int) Math.round = floor(x+0.5);
                 // Rust f64::round 是半偶舍入, 恰为 .5 时窗口位置差 1px (PORTING §2.3)
                 window.set_position(
                     (nx * sw as f64 + 0.5).floor() as i32,
@@ -562,7 +555,7 @@ impl OverlayHost {
         preview: bool,
         mut window: Box<dyn OverlayWindow>,
     ) -> Result<(), String> {
-        // Java registerOverlay: 有挂起对话框则暂缓置顶 (AlwaysOnTopCoordinator.java:68-73)
+        // 有挂起对话框则暂缓置顶
         // — 防对话框期间新建的 overlay 盖住对话框 (该协调器存在意义正是修这个时序 bug)
         if self.pending_dialogs > 0 {
             window.set_topmost(false);
@@ -579,14 +572,14 @@ impl OverlayHost {
         Ok(())
     }
 
-    /// 是否激活 (Java isActive: entry != null && instance != null)
+    /// 是否激活 (条目存在且窗口已建)
     pub fn is_active(&self, id: &str) -> bool {
         self.entries
             .iter()
             .any(|e| e.id == id && e.slot.is_some())
     }
 
-    /// 全部活跃 id, 按注册序 (Java getActiveOverlays)
+    /// 全部活跃 id, 按注册序
     pub fn active_ids(&self) -> Vec<String> {
         self.entries
             .iter()
@@ -600,14 +593,14 @@ impl OverlayHost {
         self.saved_positions.get(id).copied()
     }
 
-    /// PORT: Java AlwaysOnTopCoordinator.dialogWillShow — pendingDialogs++ → suspendAll。
-    /// 置顶切换动作归 DialogHooks 实现方; POC 空实现 = 窗口恒 TOPMOST 不变
+    /// 对话框将显示 — pendingDialogs++ → suspendAll。
+    /// 置顶切换动作归 DialogHooks 实现方; 空实现 = 窗口恒 TOPMOST 不变
     pub fn dialog_will_show(&mut self) {
         self.pending_dialogs += 1;
         self.dialog_hooks.suspend_overlays();
     }
 
-    /// Java dialogDidDismiss: 计数递减, 归零 (含下溢复位) → restoreAll
+    /// 对话框已关闭: 计数递减, 归零 (含下溢复位) → restoreAll
     pub fn dialog_did_dismiss(&mut self) {
         self.pending_dialogs -= 1;
         if self.pending_dialogs <= 0 {
@@ -616,13 +609,13 @@ impl OverlayHost {
         }
     }
 
-    /// Java getPendingDialogCount
+    /// 挂起对话框计数查询
     pub fn pending_dialog_count(&self) -> i32 {
         self.pending_dialogs
     }
 
-    /// 请求主循环退出 (Java doit=false 停机语义)。
-    /// Ordering: Java volatile 顺序一致; Release/Acquire 建立同步保证停止标志的
+    /// 请求主循环退出 (停机标志置位)。
+    /// Ordering: Release/Acquire 建立同步保证停止标志的
     /// 可见性先于后续读取 (Relaxed 不建立同步, 弱内存平台停止可能不被及时观测)
     pub fn request_stop(&self) {
         self.stop.store(true, Ordering::Release);
@@ -633,17 +626,17 @@ impl OverlayHost {
     }
 
     /// 跨线程停机句柄 — host 本体 !Send (含 Box<dyn Fn>/Box<dyn OverlayWindow>),
-    /// 上层 Controller/Service 线程持此 Arc 请求退出 (Java doit 从别的线程置 false
-    /// 的语义; 状态仍由主循环 is_stop_requested/run 消费)
+    /// 上层 Controller/Service 线程持此 Arc 请求退出
+    /// (状态仍由主循环 is_stop_requested/run 消费)
     pub fn stop_handle(&self) -> Arc<AtomicBool> {
         Arc::clone(&self.stop)
     }
 
-    // ========== 游戏失焦时隐藏/显示 overlay (Java AlwaysOnTopCoordinator.java:191-253;
-    // FocusMonitor 200ms 节流探测器归 Service 轮询批次, 此处只落窗口动作面) ==========
+    // ========== 游戏失焦时隐藏/显示 overlay
+    // (FocusMonitor 200ms 节流探测器归 Service 轮询批次, 此处只落窗口动作面) ==========
 
     /// 隐藏所有已注册的 overlay 窗口（不销毁实例）。用于游戏失焦时自动隐藏 HUD。
-    /// Java: overlaysHidden 幂等标志 + isDisplayable/isVisible 守卫 — Rust 槽位存在 =
+    /// overlaysHidden 幂等标志 + isDisplayable/isVisible 守卫的落地 — 槽位存在 =
     /// 窗口未销毁 (所有权天然保证 isDisplayable); isVisible 守卫省略: 对已隐藏窗口
     /// 重复 set_visible(false) 幂等无害
     pub fn hide_all_overlays(&mut self) {
@@ -655,7 +648,7 @@ impl OverlayHost {
     }
 
     /// 显示所有被隐藏的 overlay 窗口（游戏重新获得焦点时恢复显示）。
-    /// 亦为 FocusMonitor.setEnabled(false) 的恢复路径 (FocusMonitor.java:43-47)
+    /// 亦为 FocusMonitor.setEnabled(false) 的恢复路径
     pub fn show_all_overlays(&mut self) {
         if !self.overlays_hidden {
             return;

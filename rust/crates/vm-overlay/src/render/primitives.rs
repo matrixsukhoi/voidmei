@@ -44,9 +44,9 @@ pub(crate) fn vline_1px(cv: &mut PixCanvas, x: i32, y0: i32, y1: i32, color: [u8
     cv.fill_rect(x, ya, 1, yb - ya + 1, color);
 }
 
-/// UIBaseElements.drawHRect (UIBaseElements.java:97-112): shade 1px 外框环 +
+/// UIBaseElements.drawHRect: shade 1px 外框环 +
 /// 内缩 borderwidth 填充条。width<0 时框/条翻转到起点右侧 (Java 原样分支)。
-/// borderwidth 调用点恒 1 (HUDAkbRow.java:91 / drawVBarTextNum), 参数保留
+/// borderwidth 调用点恒 1 (HUDAkbRow / drawVBarTextNum), 参数保留
 /// 对齐 Java 签名。(重构波13: rows/gear_flaps 双副本合一)
 #[allow(clippy::too_many_arguments)] // 对齐 Java drawHRect(g2d,x,y,width,height,borderwidth,c)
 pub(crate) fn draw_h_rect(
@@ -59,7 +59,7 @@ pub(crate) fn draw_h_rect(
     c: [u8; 4],
 ) {
     if width >= 0 {
-        // PORT: UIBaseElements.java:102-105 drawRect(x,y,width-1,height-1) 环 +
+        // PORT: UIBaseElements drawRect(x,y,width-1,height-1) 环 +
         // fillRect(x+bw, y+bw, width-2*bw, height-2*bw) 内芯
         ring1px(cv, x, y, width - 1, height - 1, colors().shade_shape);
         cv.fill_rect(
@@ -70,7 +70,7 @@ pub(crate) fn draw_h_rect(
             c,
         );
     } else {
-        // PORT: UIBaseElements.java:106-109 负宽分支: 环自 x+width 起, 填充同步翻转
+        // PORT: UIBaseElements 负宽分支: 环自 x+width 起, 填充同步翻转
         ring1px(cv, x + width, y, -width - 1, height - 1, colors().shade_shape);
         cv.fill_rect(
             x + borderwidth + width,
@@ -158,7 +158,7 @@ pub(crate) fn butt_line(
     }
 }
 
-/// 裸 BasicStroke(2) (默认 CAP_SQUARE) 竖线 (FlapAngleBar.java:110-125 tick)。
+/// 裸 BasicStroke(2) (默认 CAP_SQUARE) 竖线 (FlapAngleBar 的 tick)。
 /// aa=false (中心规则): 覆盖盒 [tx-1,tx+1]×[ya-1,yb+1] → 列 tx-1..tx, 行
 /// ya-1..yb (方帽两端各外伸 1px 的几何经中心规则光栅后上端外伸、下端不外伸,
 /// oracle: drawLine(40,5,40,25) 覆盖列 39..40、行 4..25 共 22 行)。
@@ -205,7 +205,7 @@ pub(crate) fn text_shaded(
 }
 
 /// 阴影双遍文本 — 全局 shade 版 (__drawStringShade 的 char[] fallback 形态):
-/// 影色恒取 global_colors 的 colorShadeShape (UIBaseElements.java:46-55;
+/// 影色恒取 global_colors 的 colorShadeShape (UIBaseElements;
 /// shadeWidth 只作用于 setStroke 对文本无效果, 不复刻)
 pub(crate) fn text_shaded_auto(
     cv: &mut PixCanvas,

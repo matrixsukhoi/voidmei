@@ -3,7 +3,7 @@
 //! Replaces the untyped Map<String, String> for compile-time safety
 //! and zero unnecessary String boxing of boolean/numeric values.
 //!
-//! Immutable — safe for cross-thread passing between Service and EDT.
+//! Immutable — Service 轮询线程与渲染线程间跨线程传递安全。
 //! PORT: Java final class + public final 字段 = Rust pub struct + pub 字段 (§0.7),
 //! 不可变性由"构造后只经 &self 访问"保证 (Java 靠 final 引用)。
 //! PORT: Java 无 equals 覆写 (引用等值); 此处 derive PartialEq 仅为测试基建

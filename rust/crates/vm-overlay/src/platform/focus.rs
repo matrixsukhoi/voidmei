@@ -19,8 +19,8 @@ mod win {
 
     use vm_core::platform::focus_monitor::FocusDetector;
 
-    /// 对应 Java: `src/prog/util/WindowsFocusDetector.java` (C 类/P4,
-    /// windows crate 绑定)。Windows 平台专用焦点检测器。
+    /// Windows 平台专用焦点检测器 (C 类/P4, windows crate 绑定 —
+    /// Java WindowsFocusDetector)。
     ///
     /// 实现合同 (锁内回调, focus_monitor.rs): 纯 Win32 调用 ~3-5ms,
     /// 不等待其他锁/线程, 满足非阻塞要求。

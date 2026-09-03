@@ -25,7 +25,7 @@ pub trait OverlaySettings {
     /// Save absolute pixel coordinates back to the relative coordinate system.
     ///
     /// PORT: Java 写方法 → &self (非 &mut): Java 实现是 ConfigurationService 的内部类
-    /// 视图, 写回目标 gc.x/gc.y 位于共享的 layoutConfigs (ConfigurationService.java:460-472),
+    /// 视图, 写回目标 gc.x/gc.y 位于共享的 layoutConfigs (ConfigurationService),
     /// 视图自身无独占状态; Rust 侧视图持共享句柄, 与 ConfigProvider::set_config 同方向
     /// (LIFETIMES §7 Arc<ConfigStore>), 写回由实现侧内部可变性完成。
     fn save_window_position(&self, x: f64, y: f64);

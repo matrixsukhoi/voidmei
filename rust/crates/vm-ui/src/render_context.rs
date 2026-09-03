@@ -1,8 +1,8 @@
 //! 表单上下文契约 (Java: `RowRenderer.RenderContext` 嵌套接口, 唯一实现是
-//! DynamicDataPage.java:126-175 的匿名类)。
+//! DynamicDataPage 的匿名类)。
 //!
 //! D9 后表单渲染归 vm-webui web 壳, 原 RowRenderer 策略接口与 RowRendererRegistry
-//! 注册表 (占位翻译, 无生产消费者) 已随渲染责任移交退役。本文件只保留写链所需的
+//! 注册表已随渲染责任移交退役。本文件只保留写链所需的
 //! 上下文契约: 各渲染器 apply 写回链与 [`crate::renderer_config_helper`] 读写助手
 //! 共用该单一类型 (生产实现 = `main_form::WriteContext`)。
 

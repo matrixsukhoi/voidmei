@@ -125,8 +125,8 @@ impl Report {
 /// 无窗口状态机测试: 构建真实表单 → 驱动固定 Message 序列 → 断言 WYSIWYG 链路。
 /// 返回进程退出码 (0 = 全部通过)。
 ///
-/// `persist_path` (CLI `--persist <path>`): 固定序列落盘到指定路径 — D9 换框架
-/// 验收工具 (相同序列在新旧 UI 层各跑一次 → ui_layout.user.cfg 逐字节 diff=0)。
+/// `persist_path` (CLI `--persist <path>`): 固定序列落盘到指定路径 — 换框架/
+/// 重构的基线 diff 验收 (固定序列跑出的 ui_layout.user.cfg 逐字节 diff=0)。
 /// None = 不落盘 (原纯链路断言形态)。
 pub fn run_headless(persist_path: Option<String>) -> i32 {
     let Some(cfg_path) = locate_template_cfg() else {
