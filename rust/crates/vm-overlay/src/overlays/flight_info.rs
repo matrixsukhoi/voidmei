@@ -276,15 +276,15 @@ pub(crate) fn canonical_var_name(name: &str) -> Option<String> {
     m.get(name).cloned()
 }
 
-/// 测试面: 从仓库 ui_layout.cfg 编译面板行 (W-D 守卫测试的数据源)
+/// 测试面: 从出厂默认 JSON 编译面板行 (W-D 守卫测试的数据源)
 #[cfg(test)]
 pub(crate) fn cfg_rows(panel: &str) -> Vec<vm_core::ui_support::row_def::RowDef> {
-    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../../ui_layout.cfg");
-    let groups = vm_core::config::config_loader::load_config(path);
-    let gc = groups
+    let app = vm_core::config::json_store::factory_default();
+    let gc = app
+        .panels
         .iter()
         .find(|g| g.title == panel)
-        .unwrap_or_else(|| panic!("ui_layout.cfg 应含面板 {panel}"));
+        .unwrap_or_else(|| panic!("factory_default.json 应含面板 {panel}"));
     vm_core::ui_support::row_def::rows_from_group(gc, &|_| false)
 }
 

@@ -31,40 +31,77 @@ fn update_live_frame(store: &vm_data::frame::FrameStore, d: &ServiceData) {
 }
 
 /// tmp 配置文件 (vm-core configuration_service 测试同款惯例)
-fn tmp_cfg(content: &str) -> String {
+fn tmp_cfg(name: &str) -> String {
     let n = CFG_N.fetch_add(1, Ordering::SeqCst);
-    let p = std::env::temp_dir()
-        .join(format!("vm_app_shell_{}_{n}.cfg", std::process::id()))
+    std::env::temp_dir()
+        .join(format!("vm_app_shell_{name}_{}_{n}.json", std::process::id()))
         .to_str()
         .unwrap()
-        .to_string();
-    std::fs::write(&p, content).unwrap();
-    p
+        .to_string()
 }
 
-/// 测试配置: crosshairSwitch 开 / enableEngineControl 关 / 无自启动
-fn test_cfg() -> String {
-    fixture_cfg(
-        "(panel \"T\" :visible true\n\
-             \x20 (item \"hud\" :type switch :target \"crosshairSwitch\" :value true)\n\
-             \x20 (item \"engine\" :type switch :target \"enableEngineControl\" :value false)\n\
-             \x20 (item \"auto\" :type switch :target \"autoStartGameMode\" :value false))\n\
-            ",
-    )
+/// 行/panel 构造速记
+fn trow(target: &str, value: bool) -> vm_core::config::json_model::RowConfig {
+    vm_core::config::json_model::RowConfig {
+        label: target.to_string(),
+        r#type: "SWITCH".to_string(),
+        property: Some(target.to_string()),
+        value: Some(vm_core::config::json_model::ConfigValue::Bool(value)),
+        default_value: Some(vm_core::config::json_model::ConfigValue::Bool(value)),
+        ..vm_core::config::json_model::RowConfig::default()
+    }
 }
 
-/// fixture 内容直装 (autoStartGameMode 变体等)
-fn fixture_cfg(content: &str) -> String {
-    tmp_cfg(content)
+fn tpanel(
+    title: &str,
+    rows: Vec<vm_core::config::json_model::RowConfig>,
+) -> vm_core::config::json_model::GroupConfig {
+    vm_core::config::json_model::GroupConfig {
+        title: title.to_string(),
+        visible: true,
+        rows,
+        ..vm_core::config::json_model::GroupConfig::default()
+    }
 }
 
-/// 自启动变体配置 (对位 --live / Java autoStartGameMode=true)
-fn auto_start_cfg() -> String {
-    fixture_cfg(
-        "(panel \"T\" :visible true\n\
-             \x20 (item \"auto\" :type switch :target \"autoStartGameMode\" :value true))\n\
-            ",
-    )
+/// 数值行 (slider 语义)
+fn tint(target: &str, value: i32) -> vm_core::config::json_model::RowConfig {
+    vm_core::config::json_model::RowConfig {
+        label: target.to_string(),
+        r#type: "SLIDER".to_string(),
+        property: Some(target.to_string()),
+        value: Some(vm_core::config::json_model::ConfigValue::Int(value)),
+        default_value: Some(vm_core::config::json_model::ConfigValue::Int(value)),
+        ..vm_core::config::json_model::RowConfig::default()
+    }
+}
+
+/// 字符串行 (combo 语义)
+fn tstr(target: &str, value: &str) -> vm_core::config::json_model::RowConfig {
+    vm_core::config::json_model::RowConfig {
+        label: target.to_string(),
+        r#type: "COMBO".to_string(),
+        property: Some(target.to_string()),
+        value: Some(vm_core::config::json_model::ConfigValue::Str(value.to_string())),
+        default_value: Some(vm_core::config::json_model::ConfigValue::Str(value.to_string())),
+        ..vm_core::config::json_model::RowConfig::default()
+    }
+}
+
+/// fixture 树 (crosshairSwitch=true / enableEngineControl=false / autoStart=false)
+fn test_panels() -> Vec<vm_core::config::json_model::GroupConfig> {
+    vec![tpanel(
+        "T",
+        vec![
+            trow("crosshairSwitch", true),
+            trow("enableEngineControl", false),
+            trow("autoStartGameMode", false),
+        ],
+    )]
+}
+
+fn auto_start_panels() -> Vec<vm_core::config::json_model::GroupConfig> {
+    vec![tpanel("T", vec![trow("autoStartGameMode", true)])]
 }
 
 /// AppShell 测试装配: tmp cfg (无 init_config 写盘副作用) + 30ms 短防抖 +
@@ -76,14 +113,14 @@ fn fixture() -> AppShell {
 }
 
 fn fixture_with_debounce(ms: u64) -> AppShell {
-    fixture_full(ms, test_cfg())
+    fixture_full(ms, test_panels())
 }
 
-/// 全参 fixture (自定义 cfg 内容; 见 fixture_with_debounce 注)
-fn fixture_full(ms: u64, cfg: String) -> AppShell {
+/// 全参 fixture (自定义树; 见 fixture_with_debounce 注)
+fn fixture_full(ms: u64, panels: Vec<vm_core::config::json_model::GroupConfig>) -> AppShell {
     let ui_bus = Arc::new(vm_core::base::bus::ui_state_bus::UIStateBus::new());
     let config = ConfigurationService::new(Some(Arc::clone(&ui_bus)));
-    config.load_layout(&cfg);
+    config.install_for_test(panels, &tmp_cfg("full"));
     let (hotkey, hotkey_rx) = HotkeyManager::with_channel();
     let mut env = Env::probe(&Lang::init_lang(), false);
     env.app_port = 9; // discard 端口: 无服务监听, connect 立即 RST
@@ -171,14 +208,13 @@ impl vm_overlay::platform::OverlayWindow for NullWin {
     }
 }
 
-/// 测试行定义: 仓库 ui_layout.cfg 两面板 (与生产 OverlayInputs::build 同源)
+/// 测试行定义: 出厂默认两面板 (与生产 OverlayInputs::build 同源)
 fn cfg_test_rows(panel: &str) -> std::sync::Arc<Vec<vm_core::ui_support::row_def::RowDef>> {
-    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../../ui_layout.cfg");
-    let groups = vm_core::config::config_loader::load_config(path);
+    let groups = vm_core::config::json_store::factory_default().panels;
     let gc = groups
         .iter()
         .find(|g| g.title == panel)
-        .unwrap_or_else(|| panic!("ui_layout.cfg 应含面板 {panel} (path={path})"));
+        .unwrap_or_else(|| panic!("factory_default.json 应含面板 {panel}"));
     let rows = vm_core::ui_support::row_def::rows_from_group(gc, &|_| false);
     assert!(!rows.is_empty(), "面板 {panel} 的 data 行不应为空");
     std::sync::Arc::new(rows)
@@ -229,23 +265,6 @@ fn spec_fm_size(shell: &AppShell) -> (i32, i32) {
         ((12 * 36) as f32 * scale as f32 + 0.5).floor() as i32,
         12 * 72,
     )
-}
-
-/// 提取 ui_layout.cfg 全部 :target 键值 (兴趣键命中核对的键空间源)
-fn cfg_target_keys(text: &str) -> Vec<String> {
-    let mut keys = Vec::new();
-    let mut rest = text;
-    while let Some(i) = rest.find(":target \"") {
-        rest = &rest[i + 9..];
-        match rest.find('"') {
-            Some(j) => {
-                keys.push(rest[..j].to_string());
-                rest = &rest[j..];
-            }
-            None => break,
-        }
-    }
-    keys
 }
 
 /// 计数 mock 播放器: start() 按告警键 (wav 文件名去扩展) 计数 — 装配面

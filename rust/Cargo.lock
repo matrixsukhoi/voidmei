@@ -4770,6 +4770,7 @@ dependencies = [
  "flate2",
  "md-5",
  "regex",
+ "serde",
  "serde_json",
  "ureq",
  "zip",
@@ -4798,6 +4799,7 @@ dependencies = [
 name = "vm-ui"
 version = "0.2.0"
 dependencies = [
+ "serde_json",
  "vm-core",
 ]
 

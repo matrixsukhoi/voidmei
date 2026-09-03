@@ -184,38 +184,8 @@ fn desktop_main(debug: bool) -> i32 {
         )
     });
 
-    // config_manager 弹窗桥 (Java ConfigManager 弹窗): ParseError/MergeReport →
-    // 前端 config-dialog 事件 → Modal.error / Modal.info。sink 覆盖式单装 (Mutex);
-    // 启动早期 (AppShell::new 的配置装载先于本点, 首跑合并报告常见于此) 的弹窗
-    // 走 config_manager 内的日志兜底 — 语义不丢; 托盘重建核的后续装载经此达前端
-    if let Some(f) = form.as_ref() {
-        let handle = f.app_handle();
-        let sink: std::sync::Arc<
-            dyn Fn(&vm_core::config::config_manager::ConfigDialog) + Send + Sync,
-        > = std::sync::Arc::new(move |d: &vm_core::config::config_manager::ConfigDialog| {
-            let lang = vm_core::lang::Lang::init_lang();
-            let payload = match d {
-                vm_core::config::config_manager::ConfigDialog::ParseError => {
-                    vm_webui::bridge::ConfigDialogPayload {
-                        kind: "parse-error",
-                        title: lang.m_config_error_title.to_string(),
-                        message: lang.m_config_error_content.to_string(),
-                    }
-                }
-                vm_core::config::config_manager::ConfigDialog::MergeReport(message) => {
-                    vm_webui::bridge::ConfigDialogPayload {
-                        kind: "merge-report",
-                        title: lang.m_config_merged_title.to_string(),
-                        message: message.clone(),
-                    }
-                }
-            };
-            if let Err(e) = tauri::Emitter::emit(&handle, "config-dialog", payload) {
-                logger::warn("ConfigManager", &format!("弹窗事件发送失败: {e}"));
-            }
-        });
-        vm_core::config::config_manager::set_config_dialog_sink(sink);
-    }
+    // (JSON 化退役: 旧 config_manager 的 ParseError/MergeReport 弹窗桥 —
+    // delta 损坏走 json_store 的 .corrupt 隔离 + 日志, 无弹窗面)
 
     // Java Controller(true) 的自启动分支 (autoStartGameMode=true): 不显设置窗
     // (UI_READY 不发布, live 模式不被 Preview 翻转)。仅 desktop 形态首迭代判定
@@ -383,14 +353,9 @@ fn pump_web_bridges(
         }
     }
 
-    // W2: 启动期 (sink 安装前) 的 config 弹窗缓存回放 — 等到 web 就绪
-    // (前端 config-dialog 监听已注册, 见 App.tsx 就绪序: 监听注册 → ui_ready)
-    // 再经 sink 补发, 一次即止 (首启模板升级的合并报告由此达用户)
+    // (JSON 化退役: 旧启动期 config 弹窗缓存回放 — 无弹窗面)
     if !*startup_dialog_replayed && form.is_web_ready() {
         *startup_dialog_replayed = true;
-        if vm_core::config::config_manager::replay_pending_config_dialog() {
-            logger::info("App", "启动期配置弹窗已补发前端 (web 就绪)");
-        }
     }
 }
 

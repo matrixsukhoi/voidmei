@@ -19,12 +19,13 @@ fn voice_共享实例跨核重建不变() {
 /// 消费面收敛 (app_shell.rs load_from_config 的 PORT 注)
 #[test]
 fn voice_volume_经load_from_config同步进管理器() {
-    let cfg = fixture_cfg(
-        "(panel \"T\" :visible true\n\
-             \x20 (item \"vol\" :type slider :target \"voiceVolume\" :min 0 :max 200 :value 42)\n\
-             \x20 (item \"auto\" :type switch :target \"autoStartGameMode\" :value false))\n\
-            ",
-    );
+    let cfg = vec![tpanel(
+        "T",
+        vec![
+            tint("voiceVolume", 42),
+            trow("autoStartGameMode", false),
+        ],
+    )];
     let shell = fixture_full(30, cfg);
     assert_eq!(
         shell.voice.voice_volumn(),
@@ -124,12 +125,13 @@ fn voice_warning_live缺失_不起会话() {
 /// OpenAllOverlays 命令处理 (同 host 窗口条目同源探测)
 #[test]
 fn voice_warning_激活判定_配置开关与live门控() {
-    let cfg = fixture_cfg(
-        "(panel \"T\" :visible true\n\
-             \x20 (item \"vw\" :type switch :target \"enableVoiceWarn\" :value true)\n\
-             \x20 (item \"auto\" :type switch :target \"autoStartGameMode\" :value false))\n\
-            ",
-    );
+    let cfg = vec![tpanel(
+        "T",
+        vec![
+            trow("enableVoiceWarn", true),
+            trow("autoStartGameMode", false),
+        ],
+    )];
     let mut shell = fixture_full(30, cfg);
     let mk_ctx = |shell: &AppShell| HostActivationCtx {
         activation: Arc::clone(&shell.activation),
@@ -169,12 +171,13 @@ fn voice_warning_激活判定_配置开关与live门控() {
 /// CONFIG_CHANGED 直达统一路由总线 (VoiceWarning 订阅面; 原转发桥退役)
 #[test]
 fn voice_config_变更同步快照并直达总线() {
-    let cfg = fixture_cfg(
-        "(panel \"T\" :visible true\n\
-             \x20 (item \"vw\" :type combo :target \"voice_aoaCrit\" :value \"default|false\")\n\
-             \x20 (item \"auto\" :type switch :target \"autoStartGameMode\" :value false))\n\
-            ",
-    );
+    let cfg = vec![tpanel(
+        "T",
+        vec![
+            tstr("voice_aoaCrit", "default|false"),
+            trow("autoStartGameMode", false),
+        ],
+    )];
     let mut shell = fixture_full(30, cfg);
     // 快照初值 = 配置树当前值 (with_parts 全量填充)
     assert_eq!(
@@ -410,11 +413,7 @@ fn refresh_previews_stop_voice_warn_session() {
             std::thread::sleep(Duration::from_millis(10));
         }
     }
-    let cfg = fixture_cfg(
-        "(panel \"T\" :visible true\n\
-         \x20 (item \"v\" :type switch :target \"enableVoiceWarn\" :value true))\n\
-        ",
-    );
+    let cfg = vec![tpanel("T", vec![trow("enableVoiceWarn", true)])];
     let mut shell = fixture_full(30, cfg);
     // live 槽手工装填 (openpad 前提; 不起真 Service — 零值数据 player_live=false,
     // 告警静默, 只驱动会话生命周期; open_voice_warning 测试同款先例)

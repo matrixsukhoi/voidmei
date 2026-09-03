@@ -5,6 +5,7 @@ edition.workspace = true
 description = "VoidMei 纯逻辑层: util/parser/物理计算 (Java A 类一比一翻译目标)"
 
 [dependencies]
+serde = { version = "1", features = ["derive"] }
 # preserve_order: FM JSON (wt_ext_cli) 的 Map 用插入序 — 文本原语 getone/getlastone 的
 # "首个/末个匹配"语义依赖键的文档序, 默认 BTreeMap 排序会破坏位级对拍
 serde_json = { workspace = true, features = ["preserve_order"] }

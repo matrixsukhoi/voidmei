@@ -193,10 +193,10 @@ fn config_change_non_preview_reinits_active() {
 #[test]
 fn config_change_reinit_params_carry_written_config() {
     // cfg 需含目标行 (Java setConfig 只改既有行, 无行即 no-op)
-    let cfg = fixture_cfg(
-        "(panel \"地平仪\" :visible true\n\
-             \x20 (item \"宽\" :type slider :target \"attitudeIndicatorWidth\" :value 150))\n",
-    );
+    let cfg = vec![tpanel(
+        "地平仪",
+        vec![tint("attitudeIndicatorWidth", 150)],
+    )];
     let mut shell = fixture_full(30, cfg);
     // 发布方 (渲染器) 已写配置树 — 本测试直接经 set_config 模拟写点
     shell

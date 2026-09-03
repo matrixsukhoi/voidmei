@@ -1,23 +1,6 @@
-//! ComboRowRenderer 的写回链语义复刻 (src/ui/layout/renderer/ComboRowRenderer.java)。
+//! ComboRowRenderer 的纯数据函数 (选项解析 + 颜色格式化)。
 //!
-//! **D9 变更**: 渲染与读链已删 (归 vm-webui web 壳, 回显走整树 DTO),
-//! 本模块仅存选项解析 (resolve_options) + 写链 (apply)。
-//!
-//! 语义保真:
-//! - 选项解析 (Java getComboOptions): ":source" 存于 row.format (loader 覆写);
-//!   "_FONTS_" / "_CROSSHAIRS_" 特例源, 其余按逗号字面量拆分。
-//! - 写: row.value 存新串 → writeString (组字段 fontName + 服务同步) → onSave。
-//! - INPUT/TEXT 文本行同走本写链 (经 Message::Combo 路由, 等价备案见 tests)。
-//!
-//! "_FONTS_" 的 AWT 系统字体族枚举无 Rust 对应物 (以当前值单选占位,
-//! 显示不回退); Java 下拉弹出互斥逻辑 (registerComboBox/dismissActivePopups) 属
-//! 窗口管理层, 不迁移。
-
-use crate::render_context::RenderContext;
-use crate::renderer_config_helper;
-use vm_core::config::config_loader::{ConfigValue, GroupConfig};
-
-use super::{find_row_path, row_by_path, row_by_path_mut};
+//! 写链已收敛至 main_form::write_control (JSON 配置变更, Phase 1)。
 
 /// 准星选项头部项 (Java: combined[0] = "软件渲染准星")
 const SOFTWARE_CROSSHAIR: &str = "软件渲染准星";
@@ -34,9 +17,8 @@ pub fn resolve_options(source: &str, current: &str) -> Vec<String> {
     }
 }
 
-/// 目录条目名去扩展名 + 头部"软件渲染准星"; 目录缺失 → 仅头部
-/// (Java dir.list() == null → files = new String[0])。dir 参数仅为测试可注入, 生产恒
-/// [`CROSSHAIR_DIR`]。
+/// 目录条目名去扩展名 + 头部"软件渲染准星"; 目录缺失 → 仅头部。
+/// dir 参数仅为测试可注入, 生产恒 [`CROSSHAIR_DIR`]。
 pub(crate) fn crosshair_options(dir: &str) -> Vec<String> {
     let mut opts = vec![SOFTWARE_CROSSHAIR.to_string()];
     if let Ok(entries) = std::fs::read_dir(dir) {
@@ -50,23 +32,8 @@ pub(crate) fn crosshair_options(dir: &str) -> Vec<String> {
     opts
 }
 
-/// 选中写回 (Java combo.addActionListener 闭包体)。
-pub fn apply(panel: &mut GroupConfig, key: &str, value: &str, ctx: &dyn RenderContext) {
-    let Some(path) = find_row_path(&panel.rows, key) else {
-        return;
-    };
-    let prop = row_by_path(&panel.rows, &path)
-        .expect("find_row_path 已定位")
-        .property
-        .clone();
-    // Update memory model so it saves to ui_layout.cfg
-    row_by_path_mut(&mut panel.rows, &path)
-        .expect("find_row_path 已定位")
-        .value = Some(ConfigValue::Str(value.to_string()));
-    // writeString (PropertyBinder 组字段 fontName + 服务同步)
-    renderer_config_helper::write_string(ctx, panel, prop.as_deref(), value);
-    ctx.on_save();
+/// 颜色配置存储格式 (旧 ColorHelper.toDecimalString): "R, G, B, A"。
+/// (旧 legacy 分键 fontNumR/G/B/A 写入已随 JSON 化退役 — 全库无读取方。)
+pub fn format_rgba_decimal(c: &[u8; 4]) -> String {
+    format!("{}, {}, {}, {}", c[0], c[1], c[2], c[3])
 }
-
-#[cfg(test)]
-mod tests;

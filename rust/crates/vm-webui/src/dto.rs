@@ -1,97 +1,11 @@
-//! cfg 树 DTO (D9 阶段②): `GroupConfig/RowConfig` (vm-core, 无 serde) → 前端 JSON。
-//! vm-core 零改动 — 映射集中在本模块。`r#type` 序列化为 "type"。
+//! cfg 树 DTO (D9 阶段② → JSON 化 Phase 1): 设置面板树由 vm-core 的
+//! serde 模型 (`json_model::GroupConfig/RowConfig`, camelCase) 直接序列化 —
+//! 本模块的 PanelDto/RowDto From 映射层已退役。保留: web 窗口域 DTO
+//! (对比/功率曲线) 与 FormMessageDto。
 
 use serde::{Deserialize, Serialize};
 
-use vm_core::config::config_loader::{ConfigValue, GroupConfig, RowConfig};
-
-/// 一个设置 panel (= Java WebTabbedPane 一页)
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PanelDto {
-    pub title: String,
-    pub x: f64,
-    pub y: f64,
-    pub alpha: i32,
-    pub hotkey: i32,
-    pub visible: bool,
-    pub font_name: Option<String>,
-    pub font_size: i32,
-    pub columns: i32,
-    pub panel_columns: i32,
-    pub switch_key: Option<String>,
-    pub rows: Vec<RowDto>,
-}
-
-/// 一行配置 (15 种 row type; children = HEADER 嵌套组)
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct RowDto {
-    pub label: String,
-    #[serde(rename = "type")]
-    pub row_type: String,
-    /// 绑定键 (无 :target 的行为 None — 前端以 label 为键)
-    pub property: Option<String>,
-    pub value: Option<serde_json::Value>,
-    pub default_value: Option<serde_json::Value>,
-    pub unit: String,
-    pub format: String,
-    pub desc: Option<String>,
-    pub desc_img: Option<String>,
-    pub min_val: i32,
-    pub max_val: i32,
-    pub group_columns: i32,
-    pub children: Vec<RowDto>,
-}
-
-impl From<&GroupConfig> for PanelDto {
-    fn from(g: &GroupConfig) -> Self {
-        PanelDto {
-            title: g.title.clone(),
-            x: g.x,
-            y: g.y,
-            alpha: g.alpha,
-            hotkey: g.hotkey,
-            visible: g.visible,
-            font_name: g.font_name.clone(),
-            font_size: g.font_size,
-            columns: g.columns,
-            panel_columns: g.panel_columns,
-            switch_key: g.switch_key.clone(),
-            rows: g.rows.iter().map(Into::into).collect(),
-        }
-    }
-}
-
-impl From<&RowConfig> for RowDto {
-    fn from(r: &RowConfig) -> Self {
-        RowDto {
-            label: r.label.clone(),
-            row_type: r.r#type.clone(),
-            property: r.property.clone(),
-            value: r.value.as_ref().map(config_value_to_json),
-            default_value: r.default_value.as_ref().map(config_value_to_json),
-            unit: r.unit.clone(),
-            format: r.format.clone(),
-            desc: r.desc.clone(),
-            desc_img: r.desc_img.clone(),
-            min_val: r.min_val,
-            max_val: r.max_val,
-            group_columns: r.group_columns,
-            children: r.children.iter().map(Into::into).collect(),
-        }
-    }
-}
-
-/// ConfigValue → JSON (Bool→bool, Int→number, Double→number, Str→string)
-fn config_value_to_json(v: &ConfigValue) -> serde_json::Value {
-    match v {
-        ConfigValue::Bool(b) => serde_json::Value::Bool(*b),
-        ConfigValue::Int(i) => serde_json::json!(i),
-        ConfigValue::Double(d) => serde_json::json!(d),
-        ConfigValue::Str(s) => serde_json::Value::String(s.clone()),
-    }
-}
+pub use vm_core::config::json_model::{GroupConfig as PanelDto, RowConfig as RowDto};
 
 // =====================================================================
 // P6 web 窗口域 DTO: 对比 / 功率曲线 两窗口的数据命令返回面
@@ -264,40 +178,29 @@ pub enum FormMessageDto {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use vm_core::config::json_model::ConfigValue;
 
-    fn sample_row() -> RowConfig {
-        RowConfig {
+    fn sample_row() -> RowDto {
+        RowDto {
             label: "显示hud数据".into(),
-            target_name: None,
-            formula: None,
-            format: String::new(),
-            unit: "px".into(),
-            value: Some(ConfigValue::Bool(true)),
-            default_value: Some(ConfigValue::Int(50)),
-            fg_color: None,
-            desc: Some("帮助".into()),
-            desc_img: Some("img.png".into()),
-            preview_value: None,
-            hide_when_zero: false,
-            precision: 2,
-            unit_source: None,
-            precision_source: None,
-            visible_when: None,
-            na_when: None,
             r#type: "SWITCH".into(),
             property: Some("drawHUDtext".into()),
+            value: Some(ConfigValue::Bool(true)),
+            default_value: Some(ConfigValue::Int(50)),
+            unit: "px".into(),
+            precision: 2,
+            desc: Some("帮助".into()),
+            desc_img: Some("img.png".into()),
             min_val: 1,
             max_val: 100,
-            group_columns: 0,
-            children: Vec::new(),
+            ..RowDto::default()
         }
     }
 
     #[test]
-    fn row_dto_字段映射_含_type_改名() {
-        let dto = RowDto::from(&sample_row());
-        let json = serde_json::to_value(&dto).unwrap();
-        assert_eq!(json["type"], "SWITCH"); // r#type → type (camelCase 化)
+    fn row_serde_camel_case_含_type() {
+        let json = serde_json::to_value(sample_row()).unwrap();
+        assert_eq!(json["type"], "SWITCH");
         assert_eq!(json["property"], "drawHUDtext");
         assert_eq!(json["value"], true);
         assert_eq!(json["defaultValue"], 50);
@@ -309,21 +212,20 @@ mod tests {
     }
 
     #[test]
-    fn panel_dto_树递归含子行() {
+    fn panel_serde_树递归含子行() {
         let mut parent = sample_row();
         parent.r#type = "HEADER".into();
         parent.property = None;
         parent.children = vec![sample_row()];
-        let g = GroupConfig {
+        let g = PanelDto {
             title: "hud面板设置".into(),
             rows: vec![parent],
-            ..GroupConfig::new("tmp".into())
+            ..PanelDto::default()
         };
-        let dto = PanelDto::from(&g);
-        assert_eq!(dto.title, "hud面板设置");
-        assert_eq!(dto.rows.len(), 1);
-        assert_eq!(dto.rows[0].children.len(), 1);
-        assert_eq!(dto.rows[0].children[0].row_type, "SWITCH");
+        let json = serde_json::to_value(&g).unwrap();
+        assert_eq!(json["title"], "hud面板设置");
+        assert_eq!(json["rows"].as_array().unwrap().len(), 1);
+        assert_eq!(json["rows"][0]["children"][0]["type"], "SWITCH");
     }
 
     #[test]

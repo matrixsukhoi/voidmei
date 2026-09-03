@@ -138,7 +138,16 @@ impl OverlaySettings for GenericOverlaySettingsImpl {
                     self.section_name, x, y, rx, ry
                 ),
             );
-            self.service.save_layout_config();
+            // delta 登记 (持久真相; 锁序: layout → delta 单向)
+            self.service
+                .delta
+                .write()
+                .expect(DELTA_LOCK_MSG)
+                .panels
+                .entry(self.section_name.clone())
+                .or_default()
+                .pos = Some([rx, ry]);
+            let _ = self.service.save_layout_config();
         } else {
             logger::warn(
                 "OverlaySettings",

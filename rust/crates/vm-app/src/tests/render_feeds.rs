@@ -61,16 +61,17 @@ fn render_frames_advance_with_active_overlays() {
 /// (--mock-smoke 断言 3 的库内等价; 字体目录钉仓库根, 见 fixture 注)
 #[test]
 fn render_overlay_present_counts_per_registered_overlay() {
-    let all_on_cfg = fixture_cfg(
-        "(panel \"T\" :visible true\n\
-             \x20 (item \"a\" :type switch :target \"crosshairSwitch\" :value true)\n\
-             \x20 (item \"b\" :type switch :target \"engineInfoSwitch\" :value true)\n\
-             \x20 (item \"c\" :type switch :target \"enableEngineControl\" :value true)\n\
-             \x20 (item \"d\" :type switch :target \"enablegearAndFlaps\" :value true)\n\
-             \x20 (item \"e\" :type switch :target \"enableAxis\" :value true)\n\
-             \x20 (item \"f\" :type switch :target \"enableAttitudeIndicator\" :value true))\n\
-            ",
-    );
+    let all_on_cfg = vec![tpanel(
+        "T",
+        vec![
+            trow("crosshairSwitch", true),
+            trow("engineInfoSwitch", true),
+            trow("enableEngineControl", true),
+            trow("enablegearAndFlaps", true),
+            trow("enableAxis", true),
+            trow("enableAttitudeIndicator", true),
+        ],
+    )];
     let mut shell = fixture_full(30, all_on_cfg);
     shell.spawn_render_thread().expect("渲染线程启动");
     shell.send_ui(UiCommand::OpenAllOverlays);
@@ -428,18 +429,16 @@ fn feed_overlays_live_swallows_malformed_frame() {
 /// 形式存在 (Java 端第 10 键 thrustdFS 无 cfg 项 — 策略读 enableFMPrint,
 /// DrawFrameSimpl 无独立开关, Java 同形态)
 #[test]
-fn activation_keys_match_ui_layout_cfg() {
-    let cfg_path = locate_template_cfg().expect("仓库模板 ui_layout.cfg 应可达 (上溯三级)");
-    let text = std::fs::read_to_string(&cfg_path).unwrap();
+fn activation_keys_match_factory_default() {
+    let keys = factory_target_keys();
     for key in ACTIVATION_KEYS {
-        let target = format!(":target \"{}\"", key);
         assert!(
-            text.contains(&target),
-            "激活键 {key} 应以 :target 开关项存在于 ui_layout.cfg"
+            keys.iter().any(|k| k == key),
+            "激活键 {key} 应以行绑定键存在于 factory_default.json"
         );
     }
-    // 6 个窗口条目键 (注册面) 与 cfg 面板一一对应 (10 panel 中 9 有 switch 键,
-    // thrustdFS 例外; 欢迎/飞行记录/全局设置 无 overlay 开关)
+    // 6 个窗口条目键 (注册面) 与出厂面板一一对应 (thrustdFS 例外 — 策略读
+    // enableFMPrint, 无独立开关)
     for key in [
         "crosshairSwitch",
         "flightInfoSwitch",
@@ -451,11 +450,25 @@ fn activation_keys_match_ui_layout_cfg() {
         "enableFMPrint",
         "enableVoiceWarn",
     ] {
-        assert!(
-            text.contains(&format!(":target \"{}\"", key)),
-            "键 {key} 缺失"
-        );
+        assert!(keys.iter().any(|k| k == key), "键 {key} 缺失");
     }
+}
+
+/// 出厂默认树的全量行绑定键 (含 HEADER 嵌套)
+fn factory_target_keys() -> Vec<String> {
+    fn walk(rows: &[vm_core::config::json_model::RowConfig], out: &mut Vec<String>) {
+        for r in rows {
+            if let Some(p) = &r.property {
+                out.push(p.clone());
+            }
+            walk(&r.children, out);
+        }
+    }
+    let mut out = Vec::new();
+    for p in &vm_core::config::json_store::factory_default().panels {
+        walk(&p.rows, &mut out);
+    }
+    out
 }
 
 /// MiniHUD 兴趣键 ↔ ui_layout.cfg 键空间核对 (审查 W1 回归锚): with_interest
@@ -464,15 +477,13 @@ fn activation_keys_match_ui_layout_cfg() {
 /// (正确键 showAttitudeGauge, ui_layout.cfg:63 / Java Controller.java:676)。
 /// 注: "S." (PowerInfo) 为 Java 原样搬移的死前缀, cfg 无此键族 — 不在本测试面。
 #[test]
-fn minihud_interest_keys_hit_ui_layout_cfg() {
-    let cfg_path = locate_template_cfg().expect("仓库模板 ui_layout.cfg 应可达 (上溯三级)");
-    let text = std::fs::read_to_string(&cfg_path).unwrap();
-    let keys = cfg_target_keys(&text);
-    assert!(!keys.is_empty(), "cfg 键空间非空 (解析自检)");
+fn minihud_interest_keys_hit_factory_default() {
+    let keys = factory_target_keys();
+    assert!(!keys.is_empty(), "出厂键空间非空 (解析自检)");
     for p in MINIHUD_INTEREST_KEYS {
         assert!(
             keys.iter().any(|k| k.starts_with(p)),
-            "MiniHUD 兴趣键 {p} 应命中 ui_layout.cfg 的 :target 键 (前缀匹配)"
+            "MiniHUD 兴趣键 {p} 应命中 factory_default.json 的行绑定键 (前缀匹配)"
         );
     }
 }
@@ -503,28 +514,19 @@ fn focus_bridge_sends_commands_and_mirrors_hidden() {
 /// 位置映射 ↔ ui_layout.cfg panel 标题核对: OVERLAY_SECTIONS 的 section 查不到
 /// GroupConfig → group_position 返回 None → 该 overlay 恒居中, 位置持久化静默失效
 #[test]
-fn overlay_sections_hit_ui_layout_cfg() {
-    let cfg_path = locate_template_cfg().expect("仓库模板 ui_layout.cfg 应可达 (上溯三级)");
-    let text = std::fs::read_to_string(&cfg_path).unwrap();
-    // 顶层 panel 标题集 (行首 `(panel "标题"`; GroupConfig.x/y 挂在顶层标题上)
-    let mut titles: Vec<&str> = Vec::new();
-    for line in text.lines() {
-        let t = line.trim_start();
-        if let Some(rest) = t.strip_prefix("(panel \"") {
-            if let Some(end) = rest.find('"') {
-                titles.push(&rest[..end]);
-            }
-        }
-    }
+fn overlay_sections_hit_factory_default() {
+    let factory = vm_core::config::json_store::factory_default();
+    let titles: Vec<&str> = factory.panels.iter().map(|p| p.title.as_str()).collect();
     assert!(
         titles.len() >= 6,
-        "cfg 顶层 panel 数量自检 (实得 {})",
+        "出厂 panel 数量自检 (实得 {})",
         titles.len()
     );
     for (id, section) in OVERLAY_SECTIONS {
+        let section: &str = section;
         assert!(
             titles.contains(&section),
-            "overlay {id} 的 section {section} 不在 ui_layout.cfg 顶层 panel 标题中 — \
+            "overlay {id} 的 section {section} 不在 factory_default.json panel 标题中 — \
                  位置读写将永远落空"
         );
     }
@@ -692,13 +694,14 @@ fn fm_unpacked_interest_keys_verbatim_java_controller() {
 /// generate_lines 的跨线程读面; voice_config 同族)
 #[test]
 fn fm_field_config_snapshot_syncs_config_changed() {
-    let cfg = fixture_cfg(
-        "(panel \"T\" :visible true\n\
-             \x20 (item \"w\" :type switch :target \"showWeight\" :value true)\n\
-             \x20 (item \"fm\" :type switch :target \"enableFMPrint\" :value true)\n\
-             \x20 (item \"auto\" :type switch :target \"autoStartGameMode\" :value false))\n\
-            ",
-    );
+    let cfg = vec![tpanel(
+        "T",
+        vec![
+            trow("showWeight", true),
+            trow("enableFMPrint", true),
+            trow("autoStartGameMode", false),
+        ],
+    )];
     let mut shell = fixture_full(30, cfg);
     // 构造期: 16 键全量落 (无 cfg 项的键 = 空串, isFieldEnabled 空串→默认启用,
     // Java getConfig 返回 null 的对位)

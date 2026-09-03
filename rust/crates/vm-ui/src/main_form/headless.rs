@@ -1,7 +1,7 @@
 //! --headless 状态机驱动 (无窗口验收工具, E10 自 main_form.rs 状态机核心提离)。
 //!
-//! 构建真实表单 (读真实 ui_layout.cfg) → 驱动固定 Message 序列 → 断言 WYSIWYG
-//! 链路。6 段同构的 first_row_of_type 块收敛为步骤表 ([`STEPS`]) 数组循环,
+//! 构建真实表单 (出厂默认 JSON) → 驱动固定 Message 序列 → 断言 WYSIWYG
+//! 链路。5 段同构的 first_row_of_type 块收敛为步骤表 ([`STEPS`]) 数组循环,
 //! verdict 文案与失败计数泛型化为 [`Report`]。仅 vm-ui bin (--headless) 与
 //! CI 验收消费, 不进状态机核心。
 
@@ -13,27 +13,12 @@ use vm_core::base::event::ui_state_events;
 use vm_core::config::configuration_service::ConfigurationService;
 
 use super::{update, MainFormState, Message};
-use crate::renderers;
-
-/// 仓库模板 ui_layout.cfg 的 CWD 相对候选 (cargo run 自 rust/ 或手工自仓库根)。
-pub fn locate_template_cfg() -> Option<&'static str> {
-    const CANDIDATES: &[&str] = &[
-        "./ui_layout.cfg",
-        "../ui_layout.cfg",
-        "../../ui_layout.cfg",
-        "../../../ui_layout.cfg",
-    ];
-    CANDIDATES
-        .iter()
-        .copied()
-        .find(|p| std::path::Path::new(p).exists())
-}
 
 /// 单步驱动器: 对定位到的 (panel, key) 行发消息并断言, 返回 (ok, 打印段全文)
 /// — 段文本由各驱动器自持, 保持逐段原输出形态
 type StepDrive = fn(&mut MainFormState, panel: &str, key: &str) -> (bool, String);
 
-/// 步骤表: (行类型, 驱动器) — 数据驱动的固定序列 (原 6 段同构块收敛)
+/// 步骤表: (行类型, 驱动器) — 数据驱动的固定序列 (原 5 段同构块收敛)
 const STEPS: &[(&str, StepDrive)] = &[
     ("SWITCH", step_switch),
     ("SWITCH_INV", step_switch_inv),
@@ -41,6 +26,15 @@ const STEPS: &[(&str, StepDrive)] = &[
     ("COMBO", step_combo),
     ("COLOR", step_color),
 ];
+
+/// min >= max 防崩溃守卫 (原 SliderRowRenderer.effective_range, 唯一消费点)
+fn effective_range(min: i32, max: i32) -> (i32, i32) {
+    if min >= max {
+        (min, min + 100)
+    } else {
+        (min, max)
+    }
+}
 
 /// 开关链路: 翻转 → 服务/快照/总线事件
 fn step_switch(state: &mut MainFormState, panel: &str, key: &str) -> (bool, String) {
@@ -84,7 +78,7 @@ fn step_switch_inv(state: &mut MainFormState, panel: &str, key: &str) -> (bool, 
 fn step_slider(state: &mut MainFormState, panel: &str, key: &str) -> (bool, String) {
     let row = state.snapshot_row(panel, key);
     let (min, max) = row.as_ref().map_or((0, 100), |r| (r.min_val, r.max_val));
-    let (min, max) = renderers::slider::effective_range(min, max);
+    let (min, max) = effective_range(min, max);
     let v = min + (max - min) / 2;
     update(
         state,
@@ -127,8 +121,7 @@ fn step_combo(state: &mut MainFormState, panel: &str, key: &str) -> (bool, Strin
     )
 }
 
-/// 颜色链路: 选色 → 主键十进制写服务 + 快照行值 (分键 keyR/G/B/A 为忠实
-/// no-op 写, cfg 无对应行, 语义由 color.rs MapCtx 单测断言)
+/// 颜色链路: 选色 → 主键十进制写服务 + 快照行值
 fn step_color(state: &mut MainFormState, panel: &str, key: &str) -> (bool, String) {
     let rgba = [232u8, 147, 50, 200];
     let decimal = "232, 147, 50, 200";
@@ -175,14 +168,10 @@ impl Report {
 /// 无窗口状态机测试: 构建真实表单 → 驱动固定 Message 序列 → 断言 WYSIWYG 链路。
 /// 返回进程退出码 (0 = 全部通过)。
 ///
-/// `persist_path` (CLI `--persist <path>`): 固定序列落盘到指定路径 — 换框架/
-/// 重构的基线 diff 验收 (固定序列跑出的 ui_layout.user.cfg 逐字节 diff=0)。
+/// `persist_path` (CLI `--persist <path>`): 固定序列的 delta 落盘到指定路径 —
+/// 换框架/重构的基线 diff 验收 (固定序列跑出的 delta JSON 逐字节 diff=0)。
 /// None = 不落盘 (原纯链路断言形态)。
 pub fn run_headless(persist_path: Option<String>) -> i32 {
-    let Some(cfg_path) = locate_template_cfg() else {
-        eprintln!("vm-ui: --headless 未找到 ui_layout.cfg (候选: ./ ../ ../../ ../../../)");
-        return 2;
-    };
     let bus = Arc::new(UIStateBus::new());
     let seen: Arc<Mutex<Vec<UiStateEvent>>> = Arc::new(Mutex::new(Vec::new()));
     let s2 = Arc::clone(&seen);
@@ -192,32 +181,32 @@ pub fn run_headless(persist_path: Option<String>) -> i32 {
         });
 
     let config = ConfigurationService::new(Some(Arc::clone(&bus)));
-    config.load_layout(cfg_path);
-    if persist_path.is_some() {
-        println!(
-            "vm-ui: --persist 基线模式, 固定序列将落盘至 {}",
-            persist_path.as_deref().unwrap_or_default()
-        );
-    }
-    let mut state = MainFormState::new(config, Arc::clone(&bus), persist_path);
+    // 落盘路径钉 tmp (防验收跑写脏工作区的 ./voidmei_config.json);
+    // 树 = 出厂默认 (工作区无 delta 文件时与 init_config 同结果)
+    let tmp = std::env::temp_dir()
+        .join(format!("vm_ui_headless_{}.json", std::process::id()))
+        .to_string_lossy()
+        .into_owned();
+    config.install_for_test(vm_core::config::json_store::factory_default().panels, &tmp);
+    let mut state = MainFormState::new(config, Arc::clone(&bus));
     println!(
-        "vm-ui: --headless 表单构建成功: {} panels / {} rows (源: {cfg_path})",
+        "vm-ui: --headless 表单构建成功: {} panels / {} rows (源: 出厂默认 ⊕ delta)",
         state.panel_count(),
         state.row_count()
     );
     let mut report = Report { failures: 0 };
 
-    // 1)~5) 行类型驱动链: 步骤表循环 (cfg 缺该类型行时 SKIP)
+    // 1)~5) 行类型驱动链: 步骤表循环 (出厂配置缺该类型行时 SKIP)
     for (row_type, drive) in STEPS {
         if let Some((panel, key)) = state.first_row_of_type(row_type) {
             let (ok, text) = drive(&mut state, &panel, &key);
             println!("vm-ui: [{}] {}", report.record(ok), text);
         } else {
-            println!("vm-ui: [SKIP] cfg 无 {row_type} 行");
+            println!("vm-ui: [SKIP] 出厂配置无 {row_type} 行");
         }
     }
 
-    // 6) 保存链路: 广播 CONFIG_CHANGED("ui_layout.cfg")
+    // 6) 保存链路: delta 落盘 + 广播 CONFIG_CHANGED("ui_layout.cfg")
     {
         seen.lock().unwrap().clear();
         update(&mut state, Message::Save);
@@ -229,6 +218,12 @@ pub fn run_headless(persist_path: Option<String>) -> i32 {
             "vm-ui: [{}] Save 广播 CONFIG_CHANGED(\"ui_layout.cfg\")",
             report.record(published)
         );
+    }
+
+    if let Some(p) = persist_path.as_deref() {
+        // 基线模式: 固定序列跑出的 delta 落盘到指定路径
+        state.config().save_delta_to(p);
+        println!("vm-ui: --persist 基线已落盘至 {p}");
     }
 
     if report.failures == 0 {

@@ -29,16 +29,15 @@ use crate::base::java_compat::{java_parse_boolean, java_trim};
 use crate::base::logger;
 use crate::base::ports::bkp_port;
 use crate::config::config_api::{ConfigProvider, HUDSettings, OverlaySettings};
-use crate::config::config_loader::{
-    self, config_value_to_string, ConfigValue, GroupConfig, RowConfig,
-};
-use crate::config::config_manager;
+use crate::config::json_model::{ConfigValue, GroupConfig, RowConfig};
+use crate::config::json_store::{self, UserDelta};
 use crate::lang::Lang;
 use crate::ui_support::color::parse_color;
 
 /// RwLock 中毒消息 (Java 无锁; 对应持锁线程崩溃后的一致性未知面)
 const LC_LOCK_MSG: &str = "layoutConfigs 锁中毒";
 const APP_LOCK_MSG: &str = "Application 状态锁中毒";
+const DELTA_LOCK_MSG: &str = "用户 delta 锁中毒";
 
 /// 配置写值钩子类型 (见 ServiceInner.write_hook 文档)
 pub type WriteHook = Box<dyn Fn(&str, &str) + Send + Sync>;
@@ -70,6 +69,12 @@ pub struct ConfigurationService {
 
 struct ServiceInner {
     layout_configs: RwLock<Option<Vec<GroupConfig>>>,
+    /// 重合成基 (生产 = 出厂默认; reset/import 后据此 ⊕ delta 重建运行树)
+    base_panels: RwLock<Vec<GroupConfig>>,
+    /// 用户 delta (持久真相: 运行树 = 出厂 ⊕ delta, 写点同步登记)
+    delta: RwLock<UserDelta>,
+    /// delta 落盘路径 (生产 = json_store::USER_CONFIG_PATH; 测试可注入 tmp)
+    user_path: RwLock<String>,
     /// Application 静态态消费面 (依赖桩, 见文件尾 ApplicationState 文档)
     app: RwLock<ApplicationState>,
     /// UIStateBus 路由总线 (重构波1: 原桩裸 EventBus 退役)
@@ -93,6 +98,9 @@ impl ConfigurationService {
         ConfigurationService {
             inner: Arc::new(ServiceInner {
                 layout_configs: RwLock::new(None),
+                base_panels: RwLock::new(Vec::new()),
+                delta: RwLock::new(UserDelta::default()),
+                user_path: RwLock::new(json_store::USER_CONFIG_PATH.to_string()),
                 app: RwLock::new(ApplicationState::new()),
                 ui_state_bus,
                 write_hook: RwLock::new(None),
@@ -105,39 +113,90 @@ impl ConfigurationService {
         *self.inner.write_hook.write().expect(APP_LOCK_MSG) = Some(hook);
     }
 
-    /// Java: `public void initConfig()`
+    /// Java: `public void initConfig()` — 出厂默认 ⊕ 用户 delta 合成装载。
     pub fn init_config(&self) {
-        // Load layout config using ConfigManager (handles first-run, upgrade, errors)
-        let configs = config_manager::initialize();
-        logger::info(
-            "ConfigurationService",
-            &format!("Loaded layout config with {} groups.", configs.len()),
-        );
-        *self.inner.layout_configs.write().expect(LC_LOCK_MSG) = Some(configs);
-
-        // Subscribe to global reset requests (EDA implementation)
-        //           if (ACTION_RESET_REQUEST.equals(key)) resetAllLayoutDefaults(); })
-        // PORT(重构波1 裁决): Java 构造器内的该订阅在 Rust 不接线 — 配置树
-        // !Send (Rc<SExp>) 无法被订阅闭包捕获, RESET_REQUEST 事件链由上层
-        // 直接调用 reset_all_layout_defaults() 顶替 (vm-ui main_form 的
-        // "resetConfig" 按钮, 生产无 ACTION_RESET_REQUEST 发布点);
-        // reset 内部的 RESET_COMPLETED 广播照常走注入总线。总线嵌套 publish
-        // 死锁已修 (ui_state_bus.rs), 该链路即便走总线也已安全。
+        let path = self.inner.user_path.read().expect(DELTA_LOCK_MSG).clone();
+        self.load_layout(&path);
     }
 
-    /// Java: `public void loadLayout(String path)`
+    /// 从 delta 文件装载合成 (对位旧 loadLayout; 语义 = parse delta +
+    /// synthesize 出厂 + 记住该路径为落盘目标)。
     pub fn load_layout(&self, path: &str) {
-        let configs = config_loader::load_config(path);
+        let delta = json_store::load_delta(path);
+        let factory = json_store::factory_default();
+        let configs = json_store::synthesize(&factory.panels, &delta);
         logger::info(
             "ConfigurationService",
-            &format!("Loaded layout config with {} groups.", configs.len()),
+            &format!("Loaded config (factory ⊕ delta) with {} panels.", configs.len()),
         );
+        *self.inner.user_path.write().expect(DELTA_LOCK_MSG) = path.to_string();
+        *self.inner.base_panels.write().expect(LC_LOCK_MSG) = factory.panels;
+        *self.inner.delta.write().expect(DELTA_LOCK_MSG) = delta;
         *self.inner.layout_configs.write().expect(LC_LOCK_MSG) = Some(configs);
     }
 
-    /// Java: `public void saveLayoutConfig()` (实现体在 ServiceInner, 视图共享)
+    /// delta 落盘 (旧 saveLayoutConfig; 失败仅日志 — 调用方无恢复面)
     pub fn save_layout_config(&self) {
-        self.inner.save_layout_config();
+        if let Err(e) = self.inner.save_layout_config() {
+            logger::warn("ConfigurationService", &format!("delta 落盘失败: {e}"));
+        }
+    }
+
+    /// delta → 运行树重合成 (import/reset 后内部已调, 外部重建快照用)
+    pub fn rebuild_from_delta(&self) {
+        self.inner.rebuild_from_delta_inner();
+    }
+
+    /// delta 落盘到显式路径 (headless --persist 基线验收用)
+    pub fn save_delta_to(&self, path: &str) {
+        let delta = self.inner.delta.read().expect(DELTA_LOCK_MSG).clone();
+        if let Err(e) = json_store::save_delta(path, &delta) {
+            logger::warn("ConfigurationService", &format!("delta 落盘失败: {e}"));
+        }
+    }
+
+    /// 组字段写 (PropertyBinder 反射的显式接替): 定位 panel → 写字段 + delta 登记。
+    /// 非组字段名或 panel 不存在 → false (调用方回落行值通道)。
+    pub fn set_group_field(&self, panel_title: &str, field: &str, value: ConfigValue) -> bool {
+        let mut hit = false;
+        {
+            let mut configs = self.inner.layout_configs.write().expect(LC_LOCK_MSG);
+            if let Some(list) = configs.as_mut() {
+                if let Some(i) = group_index_by_title(list, panel_title, true) {
+                    hit = json_store::set_panel_field(&mut list[i], field, value.clone());
+                }
+            }
+        }
+        if hit {
+            self.inner
+                .delta
+                .write()
+                .expect(DELTA_LOCK_MSG)
+                .panels
+                .entry(panel_title.to_string())
+                .or_default()
+                .fields
+                .insert(field.to_string(), value);
+        }
+        hit
+    }
+
+    /// 行类型查询 (panel 作用域): 写链判 SWITCH_INV 反转用。
+    /// 无 :target 行以 label 匹配 (与服务侧 update_rows_recursive 同一谓词)。
+    pub fn row_type(&self, panel_title: &str, key: &str) -> Option<String> {
+        let configs = self.inner.layout_configs.read().expect(LC_LOCK_MSG);
+        let list = configs.as_ref()?;
+        let i = group_index_by_title(list, panel_title, true)?;
+        find_row_recursive(&list[i].rows, key).map(|r| r.r#type.clone())
+    }
+
+    /// 测试/工具注入: 替换重合成基与落盘路径 (生产不走 — 出厂内嵌 + 工作区
+    /// 相对路径; 测试以小树充当出厂, 免依赖真实 factory_default.json)。
+    pub fn install_for_test(&self, panels: Vec<GroupConfig>, user_path: &str) {
+        *self.inner.base_panels.write().expect(LC_LOCK_MSG) = panels.clone();
+        *self.inner.user_path.write().expect(DELTA_LOCK_MSG) = user_path.to_string();
+        *self.inner.delta.write().expect(DELTA_LOCK_MSG) = UserDelta::default();
+        *self.inner.layout_configs.write().expect(LC_LOCK_MSG) = Some(panels);
     }
 
     /// 五色运行时快照 (Java 组件直接读 Application.colorNum 等静态;
@@ -165,10 +224,7 @@ impl ConfigurationService {
         group_index_by_title(list, section, true).map(|i| (list[i].x, list[i].y))
     }
 
-    /// 组装层位置桥 (归一化直写): 与视图 save_window_position 同源
-    /// (ConfigurationService — 命中首个同题分组写回 + saveLayoutConfig,
-    /// 未命中只 warn), 差异仅在参数已是归一化坐标 (host 拖拽存档即归一化,
-    /// 免像素/比例往返); 视图版带屏幕尺寸守卫, 本版无该守卫 (归一化无涉屏幕)。
+    /// 组装层位置桥 (归一化直写): 命中首个同题分组写回 + delta 登记 + 落盘。
     pub fn save_group_position(&self, section: &str, nx: f64, ny: f64) -> bool {
         let mut hit = false;
         {
@@ -183,6 +239,14 @@ impl ConfigurationService {
             }
         }
         if hit {
+            self.inner
+                .delta
+                .write()
+                .expect(DELTA_LOCK_MSG)
+                .panels
+                .entry(section.to_string())
+                .or_default()
+                .pos = Some([nx, ny]);
             logger::debug(
                 "OverlaySettings",
                 &format!("[{section}] saveGroupPosition: rel {nx:.4},{ny:.4}"),
@@ -197,41 +261,32 @@ impl ConfigurationService {
         hit
     }
 
-    /// Imports configuration from an external file.
-    ///
-    /// - `sourcePath`: Path to the config file to import
-    /// 返回: true if import was successful
-    ///
-    /// Java: `public boolean importConfig(String sourcePath)`
+    /// 导入外部 delta 文件 (覆盖当前 delta 后重新合成 + 落盘)。
+    /// 损坏文件不吞错 — 返回 false 由调用方提示。
     pub fn import_config(&self, source_path: &str) -> bool {
-        let success = config_manager::import_config(source_path);
-        if success {
-            // Reload configuration
-            let reloaded = config_loader::load_config(config_manager::get_user_config_path());
-            *self.inner.layout_configs.write().expect(LC_LOCK_MSG) = Some(reloaded);
-            // Notify all subscribers about the change
-            self.inner
-                .publish_config_changed(ui_state_events::ACTION_RESET_COMPLETED);
-        }
-        success
+        let Ok(imported) = json_store::read_delta_file(source_path) else {
+            logger::warn(
+                "ConfigurationService",
+                &format!("导入配置解析失败: {source_path}"),
+            );
+            return false;
+        };
+        *self.inner.delta.write().expect(DELTA_LOCK_MSG) = imported;
+        self.rebuild_from_delta();
+        self.save_layout_config();
+        self.inner
+            .publish_config_changed(ui_state_events::ACTION_RESET_COMPLETED);
+        true
     }
 
-    /// Resets configuration to factory defaults.
-    ///
-    /// 返回: true if reset was successful
-    ///
-    /// Java: `public boolean resetToFactory()`
+    /// 恢复出厂: 清空 delta + 重新合成 + 落盘。
     pub fn reset_to_factory(&self) -> bool {
-        let success = config_manager::reset_to_factory();
-        if success {
-            // Reload configuration
-            let reloaded = config_loader::load_config(config_manager::get_user_config_path());
-            *self.inner.layout_configs.write().expect(LC_LOCK_MSG) = Some(reloaded);
-            // Notify all subscribers about the change
-            self.inner
-                .publish_config_changed(ui_state_events::ACTION_RESET_COMPLETED);
-        }
-        success
+        *self.inner.delta.write().expect(DELTA_LOCK_MSG) = UserDelta::default();
+        self.rebuild_from_delta();
+        self.save_layout_config();
+        self.inner
+            .publish_config_changed(ui_state_events::ACTION_RESET_COMPLETED);
+        true
     }
 
     /// Java: `public List<GroupConfig> getLayoutConfigs()`
@@ -489,24 +544,47 @@ impl ServiceInner {
     }
 
     /// Java: `public void setConfig(String key, String value)` 主体
+    /// (JSON 化: 树更新 + delta 登记 同步 — delta 是持久真相)
     fn set_config(&self, key: &str, value: &str) {
-        // 1. Update LayoutConfigs (if exists)
+        // 1. Update LayoutConfigs (if exists) — 收集命中 (panel, 新值) 供 delta 登记
         let mut events: Vec<String> = Vec::new();
+        let mut row_hits: Vec<(String, ConfigValue)> = Vec::new();
+        let mut visible_hits: Vec<String> = Vec::new();
         {
             let mut configs = self.layout_configs.write().expect(LC_LOCK_MSG);
             if let Some(list) = configs.as_mut() {
                 for gc in list.iter_mut() {
                     // Check Rows - recursive update ALL matching instances
-                    update_rows_recursive(&mut gc.rows, key, value, &mut events);
+                    update_rows_recursive(&mut gc.rows, key, value, &mut events, &mut row_hits, gc.title.clone());
 
                     // Check Group SwitchKey
                     if let Some(sk) = &gc.switch_key {
                         if key == sk {
                             gc.visible = java_parse_boolean(value);
+                            visible_hits.push(gc.title.clone());
                             events.push(key.to_string());
                         }
                     }
                 }
+            }
+        }
+        // 2. delta 登记 (运行树与 delta 同步, 锁序: layout → delta 单向)
+        {
+            let mut delta = self.delta.write().expect(DELTA_LOCK_MSG);
+            for (panel, v) in &row_hits {
+                delta
+                    .panels
+                    .entry(panel.clone())
+                    .or_default()
+                    .rows
+                    .insert(key.to_string(), v.clone());
+            }
+            for panel in &visible_hits {
+                delta
+                    .panels
+                    .entry(panel.clone())
+                    .or_default()
+                    .visible = Some(java_parse_boolean(value));
             }
         }
         // PORT §2.8: Java 在改值点内联 publish (UIStateBus 同步执行 handler,
@@ -549,74 +627,50 @@ impl ServiceInner {
         false
     }
 
-    /// Java: `public boolean resetAllLayoutDefaults()`
+    /// Java: `public boolean resetAllLayoutDefaults()` — 行值回出厂。
+    /// delta 模式: 清各 panel 的行值 delta (组字段/位置保留 — Java 原语义只重置行)
+    /// + 出厂 ⊕ delta 重合成。
     fn reset_all_layout_defaults(&self) -> bool {
-        let mut changed = false;
-        // RwLock 下引用不可跨锁存活, 以 (组下标, 行路径) 定位 (单线程内等价)
-        let mut pending: Vec<(usize, Vec<usize>)> = Vec::new();
-
-        // Phase 1: Collect changes (Prepare)
+        let mut had_rows = false;
         {
-            let configs = self.layout_configs.read().expect(LC_LOCK_MSG);
-            if let Some(list) = configs.as_ref() {
-                for (gi, g) in list.iter().enumerate() {
-                    let mut path = Vec::new();
-                    collect_reset_candidates_recursive(&g.rows, gi, &mut path, &mut pending);
+            let mut delta = self.delta.write().expect(DELTA_LOCK_MSG);
+            for pd in delta.panels.values_mut() {
+                if !pd.rows.is_empty() {
+                    had_rows = true;
+                    pd.rows.clear();
                 }
             }
+            // 运行树行值与 delta 是同步登记的 — 树上偏离出厂默认的行值
+            // 必有 delta 条目, 清空 delta.rows 即全部回出厂
         }
-
-        // Phase 2: Apply changes (Commit)
-        if !pending.is_empty() {
-            let mut configs = self.layout_configs.write().expect(LC_LOCK_MSG);
-            if let Some(list) = configs.as_mut() {
-                for (gi, path) in &pending {
-                    if let Some(row) = row_by_path(list, *gi, path) {
-                        logger::info(
-                            "ConfigReset",
-                            &format!(
-                                "Resetting {} ({}) to default: {}",
-                                row.label,
-                                row.property.as_deref().unwrap_or("no-key"),
-                                config_value_to_string(
-                                    row.default_value
-                                        .as_ref()
-                                        .expect("Phase 1 已保证 defaultValue 非 null")
-                                )
-                            ),
-                        );
-                        row.value = row.default_value.clone();
-                    }
-                }
+        if had_rows {
+            logger::info("ConfigReset", "行值 delta 已清空, 重合成为出厂默认");
+            self.rebuild_from_delta_inner();
+            if let Err(e) = self.save_layout_config() {
+                logger::warn("ConfigReset", &format!("delta 落盘失败: {e}"));
             }
-            changed = true;
-        }
-
-        // Phase 3: Persist and Notify
-        if changed {
-            self.save_layout_config();
-            // Broadcast global reset event so all components refresh
             self.publish_config_changed(ui_state_events::ACTION_RESET_COMPLETED);
         }
-        changed
+        had_rows
     }
 
-    /// Java: `public void saveLayoutConfig()` (视图亦经外部类调用)
-    fn save_layout_config(&self) {
-        // 读锁内做 IO — **不变量**: config_loader::save_config 不得发事件
-        // 或回读本服务配置, 否则读锁自死锁 (§2.8; Java 无锁, 此串行化是 Rust
-        // 新增保守面); 当前实现满足 (无回调重入面)。
-        let configs = self.layout_configs.read().expect(LC_LOCK_MSG);
-        if let Some(list) = configs.as_ref() {
-            logger::info(
-                "ConfigurationService",
-                &format!(
-                    "ACTION: ConfigurationService: Saving to {}",
-                    config_manager::get_user_config_path()
-                ),
-            );
-            config_loader::save_config(config_manager::get_user_config_path(), list);
-        }
+    /// delta → 运行树重合成 (不改落盘; 基 = 当前会话装载的出厂树)
+    fn rebuild_from_delta_inner(&self) {
+        let delta = self.delta.read().expect(DELTA_LOCK_MSG).clone();
+        let base = self.base_panels.read().expect(LC_LOCK_MSG).clone();
+        let configs = json_store::synthesize(&base, &delta);
+        *self.layout_configs.write().expect(LC_LOCK_MSG) = Some(configs);
+    }
+
+    /// delta 落盘 (旧 saveLayoutConfig; 语义 = 只写用户差异)
+    fn save_layout_config(&self) -> Result<(), String> {
+        let path = self.user_path.read().expect(DELTA_LOCK_MSG).clone();
+        let delta = self.delta.read().expect(DELTA_LOCK_MSG).clone();
+        logger::info(
+            "ConfigurationService",
+            &format!("ACTION: ConfigurationService: Saving delta to {path}"),
+        );
+        json_store::save_delta(&path, &delta)
     }
 
     /// Java: `UIStateBus.getInstance().publish(CONFIG_CHANGED, "ConfigurationService", data)`
@@ -706,8 +760,16 @@ fn find_row_recursive<'a>(rows: &'a [RowConfig], key: &str) -> Option<&'a RowCon
 }
 
 /// Java: `private void updateRowsRecursive(List<RowConfig> rows, String key, String value)`
-/// 事件 publish 由调用方放锁后补发 (events 收集, §2.8)
-fn update_rows_recursive(rows: &mut [RowConfig], key: &str, value: &str, events: &mut Vec<String>) {
+/// 事件 publish 由调用方放锁后补发 (events 收集, §2.8);
+/// hits 收集 (panel, 更新后类型化值) 供 delta 登记
+fn update_rows_recursive(
+    rows: &mut [RowConfig],
+    key: &str,
+    value: &str,
+    events: &mut Vec<String>,
+    hits: &mut Vec<(String, ConfigValue)>,
+    panel_title: String,
+) {
     for row in rows.iter_mut() {
         if row.property.as_deref() == Some(key) || (row.property.is_none() && key == row.label) {
             // Update typed value based on existing type to maintain consistency
@@ -729,84 +791,13 @@ fn update_rows_recursive(rows: &mut [RowConfig], key: &str, value: &str, events:
                 // Double / Str / null → String (Java else 分支)
                 _ => Some(ConfigValue::Str(val_to_store)),
             };
+            hits.push((panel_title.clone(), row.value.clone().expect("上方刚赋值")));
             events.push(key.to_string());
         }
         if !row.children.is_empty() {
-            update_rows_recursive(&mut row.children, key, value, events);
+            update_rows_recursive(&mut row.children, key, value, events, hits, panel_title.clone());
         }
     }
-}
-
-/// Java `defaultValue.equals(value)` 的分派复刻: 按 defaultValue 运行时类型
-/// 走对应 equals — **Double.equals 是 doubleToLongBits 位级比较** (NaN==NaN
-/// 为 true、+0.0!=-0.0), 与 Rust 派生 PartialEq 的数值比较 (NaN!=NaN、
-/// 0.0==-0.0) 在这两类位形上相反; 异型 (如 Double vs Int) instanceof 恒 false。
-fn config_value_java_equals(default_v: &ConfigValue, value: &ConfigValue) -> bool {
-    match (default_v, value) {
-        (ConfigValue::Bool(a), ConfigValue::Bool(b)) => a == b,
-        (ConfigValue::Int(a), ConfigValue::Int(b)) => a == b,
-        (ConfigValue::Double(a), ConfigValue::Double(b)) => {
-            // doubleToLongBits 将全部 NaN 折叠为规范位形 → NaN 互等
-            (a.is_nan() && b.is_nan()) || a.to_bits() == b.to_bits()
-        }
-        (ConfigValue::Str(a), ConfigValue::Str(b)) => a == b,
-        _ => false,
-    }
-}
-
-/// Java: `private void collectResetCandidatesRecursive(List<RowConfig> rows, List<RowConfig> pendingChanges)`
-/// Java 收集对象引用; Rust 收集 (组下标, 行路径) — 单线程内两者等价
-/// (引用在 Java 端也仅用于 Phase 2 的原位回写)
-fn collect_reset_candidates_recursive(
-    rows: &[RowConfig],
-    group_index: usize,
-    path: &mut Vec<usize>,
-    pending: &mut Vec<(usize, Vec<usize>)>,
-) {
-    for (i, r) in rows.iter().enumerate() {
-        // Check self
-        // (value 为 null 时 equals 返回 false → 仍收集)
-        if let Some(dv) = &r.default_value {
-            let equal = r
-                .value
-                .as_ref()
-                .is_some_and(|v| config_value_java_equals(dv, v));
-            if !equal {
-                let mut p = path.clone();
-                p.push(i);
-                pending.push((group_index, p));
-            }
-        }
-        // Recurse
-        if !r.children.is_empty() {
-            path.push(i);
-            collect_reset_candidates_recursive(&r.children, group_index, path, pending);
-            path.pop();
-        }
-    }
-}
-
-/// 按 (组下标, 行路径) 定位行 (Phase 2 写面) — path[0] 索引组内 rows, 其后逐层 children
-fn row_by_path<'a>(
-    list: &'a mut [GroupConfig],
-    group_index: usize,
-    path: &[usize],
-) -> Option<&'a mut RowConfig> {
-    let gc = list.get_mut(group_index)?;
-    if path.is_empty() {
-        return None;
-    }
-    let row = gc.rows.get_mut(path[0])?;
-    row_by_path_children(row, &path[1..])
-}
-
-fn row_by_path_children<'a>(row: &'a mut RowConfig, path: &[usize]) -> Option<&'a mut RowConfig> {
-    if path.is_empty() {
-        return Some(row);
-    }
-    let &first = path.first()?;
-    let child = row.children.get_mut(first)?;
-    row_by_path_children(child, &path[1..])
 }
 
 /// "按标题查组"唯一底层: 返回 list 中首个命中分组的索引。

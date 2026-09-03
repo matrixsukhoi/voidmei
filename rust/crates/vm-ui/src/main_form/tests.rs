@@ -1,28 +1,61 @@
 use super::*;
-use vm_core::config::config_loader::ConfigValue;
+use vm_core::config::json_model::{ConfigValue, GroupConfig, RowConfig};
 
-const TEST_CFG: &str = r#"(panel "面板A" :panel-columns 2
-  (group "组1"
-    (item "开关" :type switch :target "k1" :value true)
-    (item "反相" :type switch-inv :target "k2" :value false)
-    (item "滑条" :type slider :target "fontSize" :min -10 :max 10 :value 0)
-    (item "下拉" :type combo :target "style" :source "A,B,C" :value "A")
-  )
-)
-(panel "面板B"
-  (item "开关B" :type switch :target "k1" :value true)
-)"#;
+/// 行构造速记
+fn row(label: &str, ty: &str, target: Option<&str>, value: Option<ConfigValue>) -> RowConfig {
+    RowConfig {
+        label: label.to_string(),
+        r#type: ty.to_string(),
+        property: target.map(str::to_string),
+        value: value.clone(),
+        default_value: value,
+        ..RowConfig::default()
+    }
+}
+
+fn panel(title: &str, rows: Vec<RowConfig>) -> GroupConfig {
+    GroupConfig {
+        title: title.to_string(),
+        rows,
+        ..GroupConfig::default()
+    }
+}
+
+/// 测试树: 面板A (组1 嵌套) + 面板B (跨 panel 同 key)
+fn test_panels() -> Vec<GroupConfig> {
+    vec![
+        GroupConfig {
+            panel_columns: 2,
+            rows: vec![RowConfig {
+                label: "组1".to_string(),
+                r#type: "HEADER".to_string(),
+                children: vec![
+                    row("开关", "SWITCH", Some("k1"), Some(ConfigValue::Bool(true))),
+                    row("反相", "SWITCH_INV", Some("k2"), Some(ConfigValue::Bool(false))),
+                    row("滑条", "SLIDER", Some("fontSize"), Some(ConfigValue::Int(0))),
+                    RowConfig {
+                        source: Some("A,B,C".to_string()),
+                        ..row("下拉", "COMBO", Some("style"), Some(ConfigValue::Str("A".into())))
+                    },
+                ],
+                ..RowConfig::default()
+            }],
+            ..panel("面板A", vec![])
+        },
+        panel("面板B", vec![row("开关B", "SWITCH", Some("k1"), Some(ConfigValue::Bool(true)))]),
+    ]
+}
 
 fn tmp_path(name: &str) -> String {
     // 掺 PID: 防两个测试进程并发跑时同名临时文件 truncate/read 竞争
     std::env::temp_dir()
-        .join(format!("vm_ui_main_form_{}_{name}.cfg", std::process::id()))
+        .join(format!("vm_ui_main_form_{}_{name}.json", std::process::id()))
         .to_str()
         .unwrap()
         .to_string()
 }
 
-/// 真实链路环境: 模板落 tmp → ConfigurationService 装载 + 总线录制订阅。
+/// 真实链路环境: 小树注入 (install_for_test) + 总线录制订阅。
 /// 返回订阅句柄 — 调用方须绑定保活 (`_sub`), RAII Drop 即注销。
 fn mk_state(
     name: &str,
@@ -32,8 +65,8 @@ fn mk_state(
     Arc<Mutex<Vec<UiStateEvent>>>,
     vm_core::base::bus::Subscription<UiStateEvent>,
 ) {
-    let p = tmp_path(name);
-    std::fs::write(&p, TEST_CFG).unwrap();
+    let p = persist.unwrap_or_else(|| tmp_path(name));
+    let _ = std::fs::remove_file(&p);
     let bus = Arc::new(vm_core::base::bus::ui_state_bus::UIStateBus::new());
     let seen: Arc<Mutex<Vec<UiStateEvent>>> = Arc::new(Mutex::new(Vec::new()));
     let s2 = Arc::clone(&seen);
@@ -44,8 +77,8 @@ fn mk_state(
         },
     );
     let config = ConfigurationService::new(Some(Arc::clone(&bus)));
-    config.load_layout(&p);
-    (MainFormState::new(config, bus, persist), seen, sub)
+    config.install_for_test(test_panels(), &p);
+    (MainFormState::new(config, bus), seen, sub)
 }
 
 fn events_of(seen: &Arc<Mutex<Vec<UiStateEvent>>>) -> Vec<(String, String)> {
@@ -56,8 +89,7 @@ fn events_of(seen: &Arc<Mutex<Vec<UiStateEvent>>>) -> Vec<(String, String)> {
         .collect()
 }
 
-// Toggle 全链: 服务树 + 快照 (含跨 panel 同 key 全局更新, 对位 setConfig 的
-// update_rows_recursive 全实例语义) + CONFIG_CHANGED(key) + 保存链广播
+// Toggle 全链: 服务树 + 快照 (含跨 panel 同 key 全局更新) + CONFIG_CHANGED(key)
 #[test]
 fn toggle_updates_service_snapshot_and_bus() {
     let (mut state, seen, _sub) = mk_state("toggle", None);
@@ -75,17 +107,13 @@ fn toggle_updates_service_snapshot_and_bus() {
         state.snapshot_row("面板A", "k1").unwrap().value,
         Some(ConfigValue::Bool(false))
     );
-    // Java setConfig 递归更新全部同 key 行 (面板B 的 k1 一并落库)
+    // set_config 递归更新全部同 key 行 (面板B 的 k1 一并落库)
     assert_eq!(
         state.snapshot_row("面板B", "k1").unwrap().value,
         Some(ConfigValue::Bool(false))
     );
     let evs = events_of(&seen);
     assert!(evs.contains(&(ui_state_events::CONFIG_CHANGED.into(), "k1".into())));
-    assert!(evs.contains(&(
-        ui_state_events::CONFIG_CHANGED.into(),
-        "ui_layout.cfg".into()
-    )));
 }
 
 // SwitchInv 反相链: 显示 true → 服务存 false + row.value 存显示值
@@ -109,9 +137,9 @@ fn toggle_switch_inv_inverts_on_write() {
     );
 }
 
-// Slider 实时链不落盘; Save 落盘后服务树收敛 (组字段 font_size 经 load_layout 回服务)
+// Slider 实时链不落盘; Save 落盘 (组字段 fontSize 的 delta 持久化)
 #[test]
-fn slider_live_then_save_persists_and_converges() {
+fn slider_live_then_save_persists() {
     let persist = tmp_path("slider_user");
     let _ = std::fs::remove_file(&persist);
     let (mut state, seen, _sub) = mk_state("slider", Some(persist.clone()));
@@ -124,12 +152,19 @@ fn slider_live_then_save_persists_and_converges() {
             value: 7,
         },
     );
-    // 实时链: 快照行值 + 组字段 + 服务值
+    // 实时链: 快照行值 + 组字段
     assert_eq!(
         state.snapshot_row("面板A", "fontSize").unwrap().get_int(),
         7
     );
-    assert_eq!(state.service_string("fontSize"), "7");
+    let group_a = state
+        .config()
+        .get_layout_configs()
+        .unwrap()
+        .into_iter()
+        .find(|g| g.title == "面板A")
+        .unwrap();
+    assert_eq!(group_a.font_size, 7, "组字段 fontSize 即时更新");
     // 拖拽语义: 不落盘 (on_release 前文件不存在)
     assert!(
         !std::path::Path::new(&persist).exists(),
@@ -137,24 +172,16 @@ fn slider_live_then_save_persists_and_converges() {
     );
     assert!(events_of(&seen).contains(&(ui_state_events::CONFIG_CHANGED.into(), "fontSize".into())));
 
-    // Save: 落盘 + 服务树重读收敛 (组字段 font_size 回到服务侧 — clone-split 收敛)
+    // Save: delta 落盘 (组字段进 delta.fields — 持久真相)
     update(&mut state, Message::Save);
     assert!(std::path::Path::new(&persist).exists());
-    let group_a = state
-        .config
-        .get_layout_configs()
-        .unwrap()
-        .into_iter()
-        .find(|g| g.title == "面板A")
-        .unwrap();
-    assert_eq!(
-        group_a.font_size, 7,
-        "组字段经落盘→load_layout 收敛回服务树"
-    );
+    let saved: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&persist).unwrap()).unwrap();
+    assert_eq!(saved["panels"]["面板A"]["fields"]["fontSize"], 7);
     let _ = std::fs::remove_file(&persist);
 }
 
-// Combo 选中链: row.value Str + 服务 + on_save 即落盘 (Java 每次交互即存)
+// Combo 选中链: row.value Str + 服务 + 即时落盘
 #[test]
 fn combo_pick_persists_immediately() {
     let persist = tmp_path("combo_user");
@@ -179,18 +206,11 @@ fn combo_pick_persists_immediately() {
     let _ = std::fs::remove_file(&persist);
 }
 
-// ColorPicked 全链: 主键十进制 + row.value + CONFIG_CHANGED(key) + on_save
-// 即落盘 + 保存链广播 (Java applyColorChange L110-136 → onSave)
+// ColorPicked 全链: 主键十进制 + row.value + CONFIG_CHANGED(key) + 即时落盘
 #[test]
 fn color_picked_writes_decimal_bus_and_persists() {
     let persist = tmp_path("color_user");
     let _ = std::fs::remove_file(&persist);
-    let p = tmp_path("color_src");
-    std::fs::write(
-        &p,
-        r##"(panel "P" (item "告警色" :type color :target "fontWarn" :value "#FF2400FF"))"##,
-    )
-    .unwrap();
     let bus = Arc::new(vm_core::base::bus::ui_state_bus::UIStateBus::new());
     let seen: Arc<Mutex<Vec<UiStateEvent>>> = Arc::new(Mutex::new(Vec::new()));
     let s2 = Arc::clone(&seen);
@@ -201,8 +221,19 @@ fn color_picked_writes_decimal_bus_and_persists() {
         },
     );
     let config = ConfigurationService::new(Some(Arc::clone(&bus)));
-    config.load_layout(&p);
-    let mut state = MainFormState::new(config, bus, Some(persist.clone()));
+    config.install_for_test(
+        vec![panel(
+            "P",
+            vec![row(
+                "告警色",
+                "COLOR",
+                Some("fontWarn"),
+                Some(ConfigValue::Str("#FF2400FF".into())),
+            )],
+        )],
+        &persist,
+    );
+    let mut state = MainFormState::new(config, bus);
 
     update(
         &mut state,
@@ -212,49 +243,40 @@ fn color_picked_writes_decimal_bus_and_persists() {
             value: [255, 36, 0, 128],
         },
     );
-    // 服务: 主键十进制 (Java L124 向后兼容存储格式)
+    // 服务: 主键十进制 (向后兼容存储格式)
     assert_eq!(state.service_string("fontWarn"), "255, 36, 0, 128");
-    // 快照行值 = 十进制串 (mirror_key_from_service 收敛)
+    // 快照行值 = 十进制串
     assert_eq!(
         state.snapshot_row("P", "fontWarn").unwrap().value,
         Some(ConfigValue::Str("255, 36, 0, 128".into()))
     );
-    // WYSIWYG 链: set→publish(key) + 保存链 publish("ui_layout.cfg")
     let evs = events_of(&seen);
     assert!(evs.contains(&(ui_state_events::CONFIG_CHANGED.into(), "fontWarn".into())));
-    assert!(evs.contains(&(
-        ui_state_events::CONFIG_CHANGED.into(),
-        "ui_layout.cfg".into()
-    )));
-    // Java L135 onSave: 即时落盘 + 服务树收敛
+    // 即时落盘 + 服务树收敛
     assert!(std::path::Path::new(&persist).exists());
     assert_eq!(
-        state.config.get_layout_configs().unwrap()[0].rows[0].get_str(),
+        state.config().get_layout_configs().unwrap()[0].rows[0].get_str(),
         "255, 36, 0, 128"
     );
     let _ = std::fs::remove_file(&persist);
 }
 
-/// 单段 cfg 的状态工厂 (无总线断言用例)
-fn solo_state(name: &str, cfg: &str, persist: Option<String>) -> MainFormState {
+/// 单树状态工厂 (无总线断言用例)
+fn solo_state(name: &str, panels: Vec<GroupConfig>) -> (MainFormState, String) {
     let p = tmp_path(name);
-    std::fs::write(&p, cfg).unwrap();
+    let _ = std::fs::remove_file(&p);
     let bus = Arc::new(vm_core::base::bus::ui_state_bus::UIStateBus::new());
     let config = ConfigurationService::new(Some(Arc::clone(&bus)));
-    config.load_layout(&p);
-    MainFormState::new(config, bus, persist)
+    config.install_for_test(panels, &p);
+    (MainFormState::new(config, bus), p)
 }
 
-// 无 :target 开关: label 为消息键 → write_bool(None) 回落 row.value + 即时落盘
-// (Java SwitchRowRenderer L64-67: writeBool(null) 失败回落 + onSave)
+// 无 :target 开关: label 为消息键 → set_config 的 label 命中臂 + 即时落盘
 #[test]
 fn toggle_without_target_falls_back_to_row_value() {
-    let persist = tmp_path("notgt_sw_user");
-    let _ = std::fs::remove_file(&persist);
-    let mut state = solo_state(
+    let (mut state, persist) = solo_state(
         "notgt_sw",
-        r#"(panel "P" (item "裸开关" :type switch :value true))"#,
-        Some(persist.clone()),
+        vec![panel("P", vec![row("裸开关", "SWITCH", None, Some(ConfigValue::Bool(true)))])],
     );
 
     update(
@@ -269,24 +291,21 @@ fn toggle_without_target_falls_back_to_row_value() {
         state.snapshot_row("P", "裸开关").unwrap().value,
         Some(ConfigValue::Bool(false))
     );
-    // Java 每次交互 onSave 即落盘; row.value 经挂起重放 → 服务树收敛
+    // 即时落盘 + 服务树收敛
     assert!(std::path::Path::new(&persist).exists());
     assert_eq!(
-        state.config.get_layout_configs().unwrap()[0].rows[0].value,
+        state.config().get_layout_configs().unwrap()[0].rows[0].value,
         Some(ConfigValue::Bool(false))
     );
     let _ = std::fs::remove_file(&persist);
 }
 
-// 无 :target 滑条: 内存链不落盘 (valueIsAdjusting), Save 落盘并收敛服务树
+// 无 :target 滑条: 内存链不落盘 (valueIsAdjusting), Save 落盘
 #[test]
 fn slider_without_target_memory_then_save() {
-    let persist = tmp_path("notgt_sl_user");
-    let _ = std::fs::remove_file(&persist);
-    let mut state = solo_state(
+    let (mut state, persist) = solo_state(
         "notgt_sl",
-        r#"(panel "P" (item "裸滑条" :type slider :min 0 :max 10 :value 3))"#,
-        Some(persist.clone()),
+        vec![panel("P", vec![row("裸滑条", "SLIDER", None, Some(ConfigValue::Int(3)))])],
     );
 
     update(
@@ -303,93 +322,9 @@ fn slider_without_target_memory_then_save() {
     update(&mut state, Message::Save);
     assert!(std::path::Path::new(&persist).exists());
     assert_eq!(
-        state.config.get_layout_configs().unwrap()[0].rows[0].get_int(),
+        state.config().get_layout_configs().unwrap()[0].rows[0].get_int(),
         7
     );
-    let _ = std::fs::remove_file(&persist);
-}
-
-// 无 :target 下拉: row.value + 即时落盘 (Java ComboRowRenderer L52-61)
-#[test]
-fn combo_without_target_persists_row_value() {
-    let persist = tmp_path("notgt_cb_user");
-    let _ = std::fs::remove_file(&persist);
-    let mut state = solo_state(
-        "notgt_cb",
-        r#"(panel "P" (item "裸下拉" :type combo :source "X,Y" :value "X"))"#,
-        Some(persist.clone()),
-    );
-
-    update(
-        &mut state,
-        Message::Combo {
-            panel: "P".into(),
-            key: "裸下拉".into(),
-            value: "Y".into(),
-        },
-    );
-    assert_eq!(
-        state.snapshot_row("P", "裸下拉").unwrap().value,
-        Some(ConfigValue::Str("Y".into()))
-    );
-    assert!(std::path::Path::new(&persist).exists());
-    assert_eq!(
-        state.config.get_layout_configs().unwrap()[0].rows[0].value,
-        Some(ConfigValue::Str("Y".into()))
-    );
-    let _ = std::fs::remove_file(&persist);
-}
-
-// 外部整树替换 (import/reset/watcher 模拟): 服务树被 load_layout 重载后, 后续
-// 交互的保存不得用陈旧快照覆盖外部值 (对位 DynamicDataPage.rebuild L94-100
-// findGroupByTitle 取最新树); 快照随保存重建
-#[test]
-fn persist_after_external_reload_keeps_external_values() {
-    let persist = tmp_path("ext_user");
-    let _ = std::fs::remove_file(&persist);
-    let cfg = r#"(panel "P"
-  (item "开关1" :type switch :target "e1" :value true)
-  (item "开关2" :type switch :target "e2" :value true)
-)"#;
-    let mut state = solo_state("ext", cfg, Some(persist.clone()));
-
-    // 交互 1: e1=false 交互即存
-    update(
-        &mut state,
-        Message::Toggle {
-            panel: "P".into(),
-            key: "e1".into(),
-            value: false,
-        },
-    );
-    assert!(std::path::Path::new(&persist).exists());
-
-    // 外部替换: 持久化路径被外部重写 (e1=true) 且服务树重载 — 快照变陈旧
-    std::fs::write(&persist, cfg).unwrap();
-    state.config.load_layout(&persist);
-
-    // 交互 2: e2=false → 落盘必须保留外部 e1=true (旧实现写陈旧快照会回滚 e1)
-    update(
-        &mut state,
-        Message::Toggle {
-            panel: "P".into(),
-            key: "e2".into(),
-            value: false,
-        },
-    );
-    let reread = vm_core::config::config_loader::load_config(&persist);
-    let vals: Vec<(String, bool)> = reread[0]
-        .rows
-        .iter()
-        .map(|r| (r.property.clone().unwrap(), r.get_bool()))
-        .collect();
-    assert_eq!(
-        vals,
-        vec![("e1".to_string(), true), ("e2".to_string(), false)],
-        "外部 e1=true 保留, 本交互 e2=false 落盘"
-    );
-    // 快照已随保存重建 (rebuild 语义)
-    assert!(state.snapshot_row("P", "e1").unwrap().get_bool());
     let _ = std::fs::remove_file(&persist);
 }
 
@@ -446,16 +381,10 @@ fn counts_and_first_row_of_type() {
     assert_eq!(state.first_row_of_type("COLOR"), None);
 }
 
-// enableFMPrint 特例: sync_to_config_service 额外广播 FM_PRINT_SWITCH_CHANGED
+// enableFMPrint 特例: 写链额外广播 FM_PRINT_SWITCH_CHANGED
 // (Java DynamicDataPage.java:148-151)
 #[test]
-fn write_context_fmprint_special_publishes() {
-    let p = tmp_path("fmp");
-    std::fs::write(
-        &p,
-        r#"(panel "p" (item "fm" :type switch :target "enableFMPrint" :value true))"#,
-    )
-    .unwrap();
+fn toggle_fmprint_special_publishes() {
     let bus = Arc::new(vm_core::base::bus::ui_state_bus::UIStateBus::new());
     // 路由总线: 两类事件各挂一探针, 共享 seen (实际送达序 = publish 序)
     let seen: Arc<Mutex<Vec<UiStateEvent>>> = Arc::new(Mutex::new(Vec::new()));
@@ -474,10 +403,23 @@ fn write_context_fmprint_special_publishes() {
         },
     );
     let config = ConfigurationService::new(Some(Arc::clone(&bus)));
-    config.load_layout(&p);
+    config.install_for_test(
+        vec![panel(
+            "p",
+            vec![row("fm", "SWITCH", Some("enableFMPrint"), Some(ConfigValue::Bool(true)))],
+        )],
+        &tmp_path("fmp"),
+    );
+    let mut state = MainFormState::new(config, Arc::clone(&bus));
 
-    let ctx = WriteContext::new(&config, &bus);
-    ctx.sync_to_config_service("enableFMPrint", false);
+    update(
+        &mut state,
+        Message::Toggle {
+            panel: "p".into(),
+            key: "enableFMPrint".into(),
+            value: false,
+        },
+    );
     let evs = events_of(&seen);
     assert_eq!(
         evs,
@@ -494,54 +436,28 @@ fn write_context_fmprint_special_publishes() {
     );
 }
 
-/// 动作按钮执行链 (审查轮 2-D 接线): ButtonAction 挂模态 → ConfirmPending
-/// 执行 reset + 整树收敛。
-/// reset 链操作 config_manager 全局路径 (CWD 相对) → tmp 沙箱 + 专用锁
-/// (进程级 CWD, 对齐 vm-core CWD_LOCK 纪律)。
-/// ⚠ 沙箱守卫纪律 (事故教训): Drop 里 **chdir 回 orig、remove 的必须是
-/// tmp dir** — 两目标分离存储, 清理对象写错会删工作区
+/// 动作按钮执行链: ButtonAction 挂模态 → ConfirmPending 执行 reset + 快照收敛。
+/// (JSON 化: 无 CWD 沙箱 — reset 不读磁盘模板, 树注入即基)
 #[test]
 fn button_action_confirm_executes_reset() {
-    use std::sync::Mutex as TestMutex;
-    static CWD_LOCK: TestMutex<()> = TestMutex::new(());
-    let _cwd_guard = CWD_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-
-    let dir = std::env::temp_dir().join(format!("vm_ui_btn_{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
-    // 沙箱放模板 (resetToFactory 读 ./ui_layout.cfg 覆盖用户配置)
-    let tpl = std::fs::read_to_string("../../../ui_layout.cfg").unwrap();
-    std::fs::write(dir.join("ui_layout.cfg"), &tpl).unwrap();
-    let orig = std::env::current_dir().unwrap();
-    std::env::set_current_dir(&dir).unwrap();
-    struct Sandbox {
-        orig: std::path::PathBuf, // chdir 回这里
-        dir: std::path::PathBuf,  // 只删这里 (tmp)
-    }
-    impl Drop for Sandbox {
-        fn drop(&mut self) {
-            let _ = std::env::set_current_dir(&self.orig);
-            let _ = std::fs::remove_dir_all(&self.dir);
-        }
-    }
-    let _sandbox = Sandbox {
-        orig,
-        dir: dir.clone(),
-    };
-
-    let bus = Arc::new(vm_core::base::bus::ui_state_bus::UIStateBus::new());
-    let config = ConfigurationService::new(Some(Arc::clone(&bus)));
-    config.load_layout("ui_layout.cfg");
-    let mut state = MainFormState::new(
-        config,
-        Arc::clone(&bus),
-        Some(
-            dir.join("ui_layout.user.cfg")
-                .to_string_lossy()
-                .into_owned(),
-        ),
+    let (mut state, _p) = solo_state(
+        "btn",
+        vec![panel(
+            "P",
+            vec![row("a", "SWITCH", Some("k1"), Some(ConfigValue::Bool(false)))],
+        )],
     );
-    let n_before = state.groups.len();
+
+    // 改动 → delta 登记
+    update(
+        &mut state,
+        Message::Toggle {
+            panel: "P".into(),
+            key: "k1".into(),
+            value: true,
+        },
+    );
+    assert_eq!(state.service_string("k1"), "true");
 
     // ① 按下 factoryReset → 挂起确认模态 (不执行)
     update(
@@ -551,13 +467,13 @@ fn button_action_confirm_executes_reset() {
         },
     );
     assert!(state.pending_action.is_some(), "确认模态应挂起");
-    assert_eq!(state.groups.len(), n_before, "未确认前不得重置");
+    assert_eq!(state.service_string("k1"), "true", "未确认前不得重置");
 
     // ② 取消 → 无副作用
     update(&mut state, Message::CancelPending);
     assert!(state.pending_action.is_none());
 
-    // ③ 再按 + 确认 → reset 执行 + 整树收敛 (模板组数回归)
+    // ③ 再按 + 确认 → reset 执行 (delta 清空 → 注入树原值)
     update(
         &mut state,
         Message::ButtonAction {
@@ -566,9 +482,49 @@ fn button_action_confirm_executes_reset() {
     );
     update(&mut state, Message::ConfirmPending);
     assert!(state.pending_action.is_none(), "执行后模态关闭");
-    assert!(
-        state.groups.len() >= 10,
-        "整树应从模板收敛 (实得 {} 组)",
-        state.groups.len()
+    assert_eq!(state.service_string("k1"), "false", "行值回注入树原值");
+    assert_eq!(state.panel_count(), 1, "快照随重置收敛");
+}
+
+/// resetConfig (行值重置) 分支: 只清行值 delta, 不动组字段
+#[test]
+fn button_action_reset_config_clears_row_values_only() {
+    let (mut state, _p) = solo_state(
+        "btn2",
+        vec![GroupConfig {
+            font_size: 0,
+            rows: vec![
+                row("a", "SWITCH", Some("k1"), Some(ConfigValue::Bool(false))),
+                row("fs", "SLIDER", Some("fontSize"), Some(ConfigValue::Int(0))),
+            ],
+            ..panel("P", vec![])
+        }],
     );
+    update(
+        &mut state,
+        Message::Slider {
+            panel: "P".into(),
+            key: "fontSize".into(),
+            value: 5,
+        },
+    );
+    update(
+        &mut state,
+        Message::Toggle {
+            panel: "P".into(),
+            key: "k1".into(),
+            value: true,
+        },
+    );
+    update(
+        &mut state,
+        Message::ButtonAction {
+            action: "resetConfig".into(),
+        },
+    );
+    update(&mut state, Message::ConfirmPending);
+    // 行值回出厂, 组字段保留 (Java resetAllLayoutDefaults 语义)
+    assert_eq!(state.service_string("k1"), "false");
+    let g = &state.groups()[0];
+    assert_eq!(g.font_size, 5, "组字段不在行值重置范围");
 }

@@ -8,10 +8,9 @@ use std::sync::Arc;
 
 use crate::{AppShell, UiCommand};
 use vm_core::base::java_compat::java_parse_boolean;
-use vm_core::config::config_manager;
 use vm_core::config::configuration_service::ConfigurationService;
 use vm_ui::main_form::{self, MainFormState, Message};
-use vm_webui::dto::{FormMessageDto, PanelDto};
+use vm_webui::dto::FormMessageDto;
 use vm_webui::ipc::{self, FormRuntime, IpcReply, RequestKind};
 
 /// 主线程共享的表单态 cell (Rc 单线程: dispatcher 与主循环同在主线程;
@@ -26,11 +25,7 @@ pub fn build_form_state(shell: &AppShell) -> MainFormState {
         .as_ref()
         .map(|c| c.config.clone())
         .unwrap_or_else(|| ConfigurationService::new(Some(Arc::clone(&shell.ui_bus))));
-    MainFormState::new(
-        config,
-        Arc::clone(&shell.ui_bus),
-        Some(config_manager::get_user_config_path().to_string()),
-    )
+    MainFormState::new(config, Arc::clone(&shell.ui_bus))
 }
 
 /// dispatcher 构造 (注入 ShellForm; 主线程调用, 无 Send 约束)
@@ -50,10 +45,11 @@ fn dispatch_form(
         // 壳态请求走默认实现 (UiReady/WindowEcho)
         RequestKind::UiReady | RequestKind::WindowEcho => ipc::dispatch(kind, rt),
         RequestKind::GetLayoutTree => {
-            let panels: Vec<PanelDto> = cell
+            // serde 模型直出 (Phase 1: dto 映射层退役)
+            let panels = cell
                 .borrow()
                 .as_ref()
-                .map(|f| f.groups().iter().map(Into::into).collect())
+                .map(|f| f.groups().to_vec())
                 .unwrap_or_default();
             serde_json::to_value(panels)
                 .map(IpcReply::Ok)
@@ -105,16 +101,16 @@ fn dispatch_form(
                 .unwrap_or_else(|e| IpcReply::Err(e.to_string()))
         }
         RequestKind::ImportConfig { path } => {
-            // Java ConfigImportDialog → ConfigManager.importConfig (备份 + 模板哈希合并)。
-            // 成功后由 controller 侧重载 + CONFIG_CHANGED 广播 (前端经 config-changed 重拉树)
-            let ok = vm_core::config::config_manager::import_config(&path);
+            // 导入 = 外部 delta 文件覆盖当前 delta + 重合成 + 落盘 (json_store 链)
+            let ok = {
+                let s = shell.borrow();
+                s.controller
+                    .as_ref()
+                    .is_some_and(|c| c.config.import_config(&path))
+            };
             if ok {
-                // 重载服务树 + 快照 (对位 Java import 后 rebuild; 与核共享的 config 服务)
-                let mut s = shell.borrow_mut();
-                let user_cfg = vm_core::config::config_manager::get_user_config_path().to_string();
-                if let Some(c) = s.controller.as_mut() {
-                    c.config.load_layout(&user_cfg);
-                }
+                // 重建表单快照 (对位 Java import 后 rebuild; 与核共享的 config 服务)
+                let s = shell.borrow_mut();
                 *cell.borrow_mut() = Some(build_form_state(&s));
                 drop(s);
                 // 广播整树变更 (前端重拉 + overlay 全量刷新, reset 链同款全局键)
@@ -126,7 +122,7 @@ fn dispatch_form(
                 );
                 IpcReply::Ok(serde_json::json!({ "ok": true }))
             } else {
-                IpcReply::Err(format!("导入失败: {path} (备份已创建, 原配置未动)"))
+                IpcReply::Err(format!("导入失败: {path} (解析错误, 原配置未动)"))
             }
         }
     }
@@ -367,27 +363,39 @@ mod tests {
         ));
     }
 
+    /// 最小树 (autoStartGameMode=false 单行)
+    fn min_panels() -> Vec<vm_core::config::json_model::GroupConfig> {
+        use vm_core::config::json_model::{ConfigValue, GroupConfig, RowConfig};
+        vec![GroupConfig {
+            title: "T".to_string(),
+            visible: true,
+            rows: vec![RowConfig {
+                label: "auto".to_string(),
+                r#type: "SWITCH".to_string(),
+                property: Some("autoStartGameMode".to_string()),
+                value: Some(ConfigValue::Bool(false)),
+                default_value: Some(ConfigValue::Bool(false)),
+                ..RowConfig::default()
+            }],
+            ..GroupConfig::default()
+        }]
+    }
+
     /// 最小壳装配 (app_shell tests fixture 的 bin 侧本地版 — dispatcher 需真 shell;
     /// Rc 单线程共享 = 生产 main.rs 同款形态)
     fn min_shell() -> Rc<RefCell<AppShell>> {
-        // 最小 cfg (原内联文本; tag 与 open* 测试的 tmp 文件互不覆盖)
-        shell_with_cfg(
-            "(panel \"T\" :visible true\n\
-             \x20 (item \"auto\" :type switch :target \"autoStartGameMode\" :value false))\n\
-            ",
-            "min",
-        )
+        // 最小树 (tag 与 open* 测试的 tmp 文件互不覆盖)
+        shell_with_cfg(min_panels(), "min")
     }
 
     /// 按给定 cfg 文本建壳 (min_shell 的可配置版; 测试并行各自独立 tmp 文件)
-    fn shell_with_cfg(cfg_text: &str, tag: &str) -> Rc<RefCell<AppShell>> {
+    fn shell_with_cfg(panels: Vec<vm_core::config::json_model::GroupConfig>, tag: &str) -> Rc<RefCell<AppShell>> {
         use crate::ShellParts;
         let ui_bus = Arc::new(vm_core::base::bus::ui_state_bus::UIStateBus::new());
         let config = ConfigurationService::new(Some(Arc::clone(&ui_bus)));
         let cfg =
-            std::env::temp_dir().join(format!("vm_app_formdisp_{tag}_{}.cfg", std::process::id()));
-        std::fs::write(&cfg, cfg_text).unwrap();
-        config.load_layout(cfg.to_str().unwrap());
+            std::env::temp_dir().join(format!("vm_app_formdisp_{tag}_{}.json", std::process::id()));
+        config.install_for_test(panels, cfg.to_str().unwrap());
         let (hotkey, hotkey_rx) = vm_overlay::platform::hotkey::HotkeyManager::with_channel();
         let env = crate::Env::probe(&vm_core::lang::Lang::init_lang(), false);
         Rc::new(RefCell::new(AppShell::with_parts(ShellParts {
@@ -746,22 +754,38 @@ mod tests {
         shell
     }
 
-    /// OPEN_ROWS_CFG 壳 + 建核 (set_config 只改树中已有行 — vm-core
+    /// open* 行树壳 + 建核 (set_config 只改树中已有行 — vm-core
     /// ServiceInner.set_config 逐行匹配的 Java 保真语义, 故 set_cfg 透传
     /// 断言需行在位; 缺行→缺省分支用 with_controller(min_shell()) 单独断)
     fn min_shell_with_controller() -> Rc<RefCell<AppShell>> {
-        with_controller(shell_with_cfg(OPEN_ROWS_CFG, "openrows"))
+        with_controller(shell_with_cfg(open_rows_panels(), "openrows"))
     }
 
     /// open* 相关键在位的 cfg (对位 ui_layout.cfg:272-278 的 fmlist/slider/switch
     /// 行 — set_config 只改树中已有行, 缺行的键走 Java 硬缺省分支)
-    const OPEN_ROWS_CFG: &str = concat!(
-        "(panel \"FM数据对比\" :visible true\n",
-        "  (item \"FM 0\" :type fmlist :target \"selectedFM0\" :value \"spitfire_f24\")\n",
-        "  (item \"FM 1\" :type fmlist :target \"selectedFM1\" :value \"p-51c-10-nt\")\n",
-        "  (item \"选定速度\" :type slider :target \"powerCurveSpeed\" :min 0 :max 800 :value 350)\n",
-        "  (item \"WEP模式\" :type switch :target \"powerCurveWep\" :value false))\n",
-    );
+    /// open* 相关键在位的树 (对位 ui_layout.cfg 的 fmlist/slider/switch 行)
+    fn open_rows_panels() -> Vec<vm_core::config::json_model::GroupConfig> {
+        use vm_core::config::json_model::{ConfigValue, GroupConfig, RowConfig};
+        let row = |label: &str, ty: &str, target: &str, v: ConfigValue| RowConfig {
+            label: label.to_string(),
+            r#type: ty.to_string(),
+            property: Some(target.to_string()),
+            value: Some(v.clone()),
+            default_value: Some(v),
+            ..RowConfig::default()
+        };
+        vec![GroupConfig {
+            title: "FM数据对比".to_string(),
+            visible: true,
+            rows: vec![
+                row("FM 0", "FMLIST", "selectedFM0", ConfigValue::Str("spitfire_f24".into())),
+                row("FM 1", "FMLIST", "selectedFM1", ConfigValue::Str("p-51c-10-nt".into())),
+                row("选定速度", "SLIDER", "powerCurveSpeed", ConfigValue::Int(350)),
+                row("WEP模式", "SWITCH", "powerCurveWep", ConfigValue::Bool(false)),
+            ],
+            ..GroupConfig::default()
+        }]
+    }
 
     /// 写壳内核 cfg 键 (controller 与表单态共享同一 ConfigurationService —
     /// 对位 Java ButtonRowRenderer 经 RenderContext 读 configService)

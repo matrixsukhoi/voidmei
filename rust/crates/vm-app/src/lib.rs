@@ -97,7 +97,6 @@ pub use crate::overlay_inputs::{ActivationCache, OverlayInputs, ACTIVATION_KEYS}
 pub use crate::render_thread::{render_thread_main, RenderThreadConfig};
 
 // 根消费的 pub(crate) 项 (私有引入; tests 经 `use super::*` 同样可见)
-use crate::env::locate_template_cfg;
 use crate::overlay_inputs::refresh_activation_cache;
 pub use crate::voice_setup::ConfigSnapshots; // AppShell pub 字段类型 (E9b)
 
@@ -327,8 +326,8 @@ impl AppShell {
         if let Some(old) = self.controller.as_mut() {
             old.stop(&mut self.release_main_form); // 旧核五步销毁
         }
-        // 首核复用注入配置 (AppShell::new 已 initConfig / 测试 tmp cfg — 免重复装载
-        // 与写盘副作用); 托盘重建核走磁盘新装载
+        // 首核复用注入配置 (AppShell::new 已 initConfig / 测试注入 — 免重复装载
+        // 与写盘副作用); 托盘重建核走磁盘新装载 (出厂默认内嵌, 无 CWD 模板回退面)
         let config = match self.initial_config.take() {
             Some(c) => c,
             None => {
@@ -336,16 +335,6 @@ impl AppShell {
                 config.init_config();
                 // 快照写值钩子随新配置树重挂 (voice_*/FM show* 直写面)
                 self.config_snapshots.attach_hooks(&config);
-                // 模板回退 (vm-ui main.rs 同款分歧备案: CWD 无用户 cfg 时以仓库模板自愈)
-                if config.get_layout_configs().is_none_or(|g| g.is_empty()) {
-                    match locate_template_cfg() {
-                        Some(p) => {
-                            logger::warn("AppShell", &format!("CWD 无用户配置, 回退模板 {}", p));
-                            config.load_layout(&p);
-                        }
-                        None => logger::warn("AppShell", "未找到 ui_layout.cfg, 配置面为空"),
-                    }
-                }
                 config
             }
         };

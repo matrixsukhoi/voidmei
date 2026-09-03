@@ -247,12 +247,13 @@ fn flight_log_open_close_lifecycle() {
     std::env::set_current_dir(&root).unwrap();
     let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         // enableLogging=true 配置 (fixture 其余键同 test_cfg)
-        let cfg = fixture_cfg(
-            "(panel \"T\" :visible true\n\
-                 \x20 (item \"log\" :type switch :target \"enableLogging\" :value true)\n\
-                 \x20 (item \"auto\" :type switch :target \"autoStartGameMode\" :value false))\n\
-                ",
-        );
+        let cfg = vec![tpanel(
+            "T",
+            vec![
+                trow("enableLogging", true),
+                trow("autoStartGameMode", false),
+            ],
+        )];
         let mut shell = fixture_full(30, cfg);
         // 进游戏: UI_READY → StartGame (spawn Service) → live → Preview
         publish_ui_event(&shell.ui_bus, ui_state_events::UI_READY, "");
@@ -630,7 +631,7 @@ fn change_s3_openpad_delay_guarded_on_exit() {
 /// --live/--mock-smoke 的配置注入对位, Controller.java:589-606)
 #[test]
 fn auto_start_live_skips_main_form() {
-    let shell = fixture_full(30, auto_start_cfg());
+    let shell = fixture_full(30, auto_start_panels());
     let c = shell.controller.as_ref().unwrap();
     assert!(!c.main_form_alive, "自启动路径 M 恒 null (Java:604-606)");
     assert!(c.service.is_some(), "自启动应直起 Service 线程");

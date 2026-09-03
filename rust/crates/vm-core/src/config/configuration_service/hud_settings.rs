@@ -77,7 +77,7 @@ fn layout_first_double(list: &[GroupConfig], section: &str, property: &str) -> O
                         ConfigValue::Double(d) => return Some(*d),
                         other => {
                             //      catch (NumberFormatException e) { // ignore } → 继续循环
-                            if let Ok(d) = parse_double(&config_value_to_string(other)) {
+                            if let Ok(d) = parse_double(&other.as_config_string()) {
                                 return Some(d);
                             }
                         }
@@ -126,12 +126,22 @@ impl OverlaySettings for HUDSettingsImpl {
         let (screen_w, screen_h) = self.base.service.screen_size();
         if gc.is_some() {
             // Rust f64 除零同义 — 与父类实现不同, 子类无 screen>0 守卫, 保真)
-            self.base.service.set_group_position_ignore_case(
+            if let Some((rx, ry)) = self.base.service.set_group_position_ignore_case(
                 &self.base.section_name,
                 x / f64::from(screen_w),
                 y / f64::from(screen_h),
-            );
-            self.base.service.save_layout_config();
+            ) {
+                self.base
+                    .service
+                    .delta
+                    .write()
+                    .expect(DELTA_LOCK_MSG)
+                    .panels
+                    .entry(self.base.section_name.clone())
+                    .or_default()
+                    .pos = Some([rx, ry]);
+                let _ = self.base.service.save_layout_config();
+            }
         } else {
             // (int) double: JLS 5.1.3 (NaN→0/饱和/向零) ↔ Rust as i32 同义
             self.base

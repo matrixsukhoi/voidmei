@@ -1,36 +1,47 @@
 use super::*;
 use crate::base::bus::ui_state_bus::UiStateEvent;
 use crate::base::java_compat::java_double_to_string;
-use crate::config::config_loader::ConfigValue;
-use std::fs;
-use std::path::Path;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use crate::config::json_model::AppConfig;
 use std::sync::Mutex;
 
-static CFG_N: AtomicUsize = AtomicUsize::new(0);
+// =====================================================================
+// 测试基建: 树注入 (对位旧 S-expr load_layout 的测试用途 — JSON 化后运行树
+// = 出厂 ⊕ delta, 测试直接注入小树充当"出厂")
+// =====================================================================
 
-fn tmp_cfg(content: &str) -> String {
-    let n = CFG_N.fetch_add(1, Ordering::SeqCst);
-    let p = std::env::temp_dir()
-        .join(format!("vm_core_cfgsvc_{}_{n}.cfg", std::process::id()))
-        .to_str()
-        .unwrap()
-        .to_string();
-    fs::write(&p, content).unwrap();
-    p
+/// 行构造速记
+fn row(label: &str, ty: &str, target: Option<&str>, value: Option<ConfigValue>) -> RowConfig {
+    RowConfig {
+        label: label.to_string(),
+        r#type: ty.to_string(),
+        property: target.map(str::to_string),
+        value: value.clone(),
+        default_value: value,
+        ..RowConfig::default()
+    }
 }
 
-/// 无总线服务 + 从临时 cfg 装载
-fn svc(content: &str) -> ConfigurationService {
+/// panel 构造速记 (额外字段经 ..default 定制)
+fn panel(title: &str, rows: Vec<RowConfig>) -> GroupConfig {
+    GroupConfig {
+        title: title.to_string(),
+        rows,
+        ..GroupConfig::default()
+    }
+}
+
+/// 无总线服务 + 树注入 (注入树 = 重合成基)
+fn svc_tree(panels: Vec<GroupConfig>) -> ConfigurationService {
     let s = ConfigurationService::new(None);
-    s.load_layout(&tmp_cfg(content));
+    *s.inner.base_panels.write().expect(LC_LOCK_MSG) = panels.clone();
+    *s.inner.layout_configs.write().expect(LC_LOCK_MSG) = Some(panels);
     s
 }
 
 /// 带总线服务 + 事件记录器 (返回订阅句柄保活 — 订阅 RAII, Drop 即退订)。
 /// 总线 = 路由 UIStateBus (与生产同形态), 记录器按 CONFIG_CHANGED 路由订阅
-fn svc_bus(
-    content: &str,
+fn svc_tree_bus(
+    panels: Vec<GroupConfig>,
 ) -> (
     ConfigurationService,
     Arc<Mutex<Vec<UiStateEvent>>>,
@@ -44,43 +55,39 @@ fn svc_bus(
         move |ev: &UiStateEvent| l2.lock().unwrap().push(ev.clone()),
     );
     let s = ConfigurationService::new(Some(bus));
-    s.load_layout(&tmp_cfg(content));
+    *s.inner.base_panels.write().expect(LC_LOCK_MSG) = panels.clone();
+    *s.inner.layout_configs.write().expect(LC_LOCK_MSG) = Some(panels);
     (s, log, sub)
 }
 
-/// 仓库根真实 ui_layout.cfg 装载 (config_loader 同款路径)
-fn repo_cfg_path() -> String {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../../ui_layout.cfg")
-        .to_str()
-        .unwrap()
-        .to_string()
-}
-
-/// reset/save 类用例会向 CWD 写 ./ui_layout.user.cfg (ConfigManager 路径常量
-/// 相对固定) — Drop 守卫清理。注: 不 chdir 沙箱, 因跨模块 CWD 测试锁尚无
-/// 共享基建 (config_manager.rs 测试注释 / 审查 B4), CWD 变更会与既有用例互扰。
-struct UserCfgGuard;
-impl Drop for UserCfgGuard {
-    fn drop(&mut self) {
-        let _ = fs::remove_file("./ui_layout.user.cfg");
-        let _ = fs::remove_file("./ui_layout.user.cfg.bak");
-    }
+/// 出厂默认树装载 (真实 factory_default.json — 对位旧 repo_cfg_path 用例)
+fn svc_factory() -> ConfigurationService {
+    svc_tree(json_store::factory_default().panels)
 }
 
 // ---- getConfig 优先级 / findRowRecursive ----
 
 #[test]
 fn get_config_priority_row_groupkey_missing() {
-    let s = svc("(panel \"G1\" :switch-key \"g1Switch\" :visible true\n\
-             \x20 (item \"s\" :type switch :target \"k1\" :value true)\n\
-             \x20 (item \"d\" :type data :target \"getIAS\" :unit \"Km/h\")\n\
-             \x20 (group \"Sub\" (item \"n\" :type switch :target \"k2\" :value false))\n\
-             \x20 (item \"onlyLabel\" :type info :value 7)\n)\
-            ");
+    let s = svc_tree(vec![GroupConfig {
+        switch_key: Some("g1Switch".to_string()),
+        visible: true,
+        rows: vec![
+            row("s", "SWITCH", Some("k1"), Some(ConfigValue::Bool(true))),
+            row("d", "DATA", Some("getIAS"), None),
+            RowConfig {
+                label: "Sub".to_string(),
+                r#type: "HEADER".to_string(),
+                children: vec![row("n", "SWITCH", Some("k2"), Some(ConfigValue::Bool(false)))],
+                ..RowConfig::default()
+            },
+            row("onlyLabel", "INFO", None, Some(ConfigValue::Int(7))),
+        ],
+        ..panel("G1", vec![])
+    }]);
     // 命中行 target
     assert_eq!(s.get_config("k1"), Some("true".to_string()));
-    // 嵌套 group 子行递归
+    // 嵌套 HEADER 子行递归
     assert_eq!(s.get_config("k2"), Some("false".to_string()));
     // 分组 switchKey → visible
     assert_eq!(s.get_config("g1Switch"), Some("true".to_string()));
@@ -94,7 +101,15 @@ fn get_config_priority_row_groupkey_missing() {
 
 #[test]
 fn switch_inv_inversion_cycle() {
-    let s = svc("(panel \"P\" (item \"i\" :type switch-inv :target \"disableX\" :value true))");
+    let s = svc_tree(vec![panel(
+        "P",
+        vec![row(
+            "i",
+            "SWITCH_INV",
+            Some("disableX"),
+            Some(ConfigValue::Bool(true)),
+        )],
+    )]);
     // getConfig = String.valueOf(!getBool()): value true → "false"
     assert_eq!(s.get_config("disableX"), Some("false".to_string()));
     // isFieldDisabled = !getBool(): value true → 未禁用
@@ -114,12 +129,19 @@ fn switch_inv_inversion_cycle() {
 
 #[test]
 fn set_config_updates_all_instances_and_types() {
-    let s = svc(
-        "(panel \"A\" (item \"i\" :type switch :target \"k1\" :value false))\n\
-             (panel \"B\" (item \"j\" :type switch :target \"k1\" :value false)\n\
-             \x20 (item \"s\" :type slider :target \"k2\" :value 1))\
-            ",
-    );
+    let s = svc_tree(vec![
+        panel(
+            "A",
+            vec![row("i", "SWITCH", Some("k1"), Some(ConfigValue::Bool(false)))],
+        ),
+        panel(
+            "B",
+            vec![
+                row("j", "SWITCH", Some("k1"), Some(ConfigValue::Bool(false))),
+                row("s", "SLIDER", Some("k2"), Some(ConfigValue::Int(1))),
+            ],
+        ),
+    ]);
     // 递归更新 ALL 匹配实例 (两个分组同名 key)
     s.set_config("k1", "true");
     let cfgs = s.get_layout_configs().unwrap();
@@ -135,11 +157,12 @@ fn set_config_updates_all_instances_and_types() {
 
 #[test]
 fn set_config_group_switchkey_visible_and_event() {
-    let (s, log, _sub) = svc_bus(
-        "(panel \"P\" :switch-key \"pSwitch\" :visible false\n\
-             \x20 (item \"x\" :type switch :target \"k\" :value true))\
-            ",
-    );
+    let (s, log, _sub) = svc_tree_bus(vec![GroupConfig {
+        switch_key: Some("pSwitch".to_string()),
+        visible: false,
+        rows: vec![row("x", "SWITCH", Some("k"), Some(ConfigValue::Bool(true)))],
+        ..panel("P", vec![])
+    }]);
     s.set_config("pSwitch", "true");
     assert_eq!(s.get_config("pSwitch"), Some("true".to_string()));
     assert!(s.get_layout_configs().unwrap()[0].visible);
@@ -151,11 +174,11 @@ fn set_config_group_switchkey_visible_and_event() {
 
 #[test]
 fn set_config_event_payloads_via_bus() {
-    let (s, log, _sub) = svc_bus(
-        "(panel \"P\" :switch-key \"pSwitch\"\n\
-             \x20 (item \"x\" :type switch :target \"k\" :value true))\
-            ",
-    );
+    let (s, log, _sub) = svc_tree_bus(vec![GroupConfig {
+        switch_key: Some("pSwitch".to_string()),
+        rows: vec![row("x", "SWITCH", Some("k"), Some(ConfigValue::Bool(true)))],
+        ..panel("P", vec![])
+    }]);
     s.set_config("k", "false");
     s.set_config("pSwitch", "true");
     let events = log.lock().unwrap();
@@ -172,10 +195,9 @@ fn set_config_event_payloads_via_bus() {
     assert_eq!(events[1].event_type, "configChanged");
 }
 
-/// initConfig/loadLayout 之前 (layoutConfigs == null): 全部读面为空、写面 no-op
+/// 装载之前 (layoutConfigs == null): 全部读面为空、写面 no-op
 #[test]
 fn set_config_without_layout_noop() {
-    // 单总线 + 记录器订阅保活 + 未装载布局的服务
     let bus = Arc::new(crate::base::bus::ui_state_bus::UIStateBus::new());
     let log = Arc::new(Mutex::new(Vec::new()));
     let l2 = Arc::clone(&log);
@@ -196,13 +218,16 @@ fn set_config_without_layout_noop() {
 
 #[test]
 fn is_field_disabled_matrix() {
-    let s = svc("(panel \"P\"\n\
-             \x20 (item \"inv1\" :type switch-inv :target \"disableX\" :value true)\n\
-             \x20 (item \"inv2\" :type switch-inv :target \"disableY\" :value false)\n\
-             \x20 (item \"sw\" :type switch :target \"boolFalse\" :value false)\n\
-             \x20 (item \"sw2\" :type switch :target \"boolTrue\" :value true)\n\
-             \x20 (item \"sl\" :type slider :target \"intRow\" :value 5)\n)\
-            ");
+    let s = svc_tree(vec![panel(
+        "P",
+        vec![
+            row("inv1", "SWITCH_INV", Some("disableX"), Some(ConfigValue::Bool(true))),
+            row("inv2", "SWITCH_INV", Some("disableY"), Some(ConfigValue::Bool(false))),
+            row("sw", "SWITCH", Some("boolFalse"), Some(ConfigValue::Bool(false))),
+            row("sw2", "SWITCH", Some("boolTrue"), Some(ConfigValue::Bool(true))),
+            row("sl", "SLIDER", Some("intRow"), Some(ConfigValue::Int(5))),
+        ],
+    )]);
     assert!(!s.is_field_disabled(""));
     // SWITCH_INV: !getBool
     assert!(!s.is_field_disabled("disableX")); // value true → !true
@@ -215,86 +240,106 @@ fn is_field_disabled_matrix() {
     assert!(!s.is_field_disabled("never-set"));
 }
 
-// ---- resetAllLayoutDefaults 三阶段 ----
+// ---- resetAllLayoutDefaults (JSON 化: 清行值 delta + 出厂重合成) ----
 
 #[test]
 fn reset_all_layout_defaults_phases_and_notify() {
-    let _guard = UserCfgGuard;
-    let (s, log, _sub) = svc_bus(
-        "(panel \"P\" :switch-key \"pSwitch\" :visible false\n\
-             \x20 (group \"G\"\n\
-             \x20   (item \"a\" :type switch :target \"k1\" :value true :default false)\n\
-             \x20   (item \"b\" :type slider :target \"k2\" :value 9 :default 7)\n\
-             \x20   (item \"c\" :type switch :target \"k3\" :value true :default true)\n\
-             \x20   (item \"d\" :type combo :target \"kc\" :default \"A\"))\n)\
-            ",
-    );
-    // value null + default "A": Java defaultValue.equals(null)=false → 仍收集
-    assert_eq!(s.get_config("kc"), Some("null".to_string())); // getStr 对 null → "null"
+    let (s, log, _sub) = svc_tree_bus(vec![GroupConfig {
+        switch_key: Some("pSwitch".to_string()),
+        visible: false,
+        rows: vec![RowConfig {
+            label: "G".to_string(),
+            r#type: "HEADER".to_string(),
+            children: vec![
+                row("a", "SWITCH", Some("k1"), Some(ConfigValue::Bool(false))),
+                row("b", "SLIDER", Some("k2"), Some(ConfigValue::Int(7))),
+                row("c", "SWITCH", Some("k3"), Some(ConfigValue::Bool(true))),
+            ],
+            ..RowConfig::default()
+        }],
+        ..panel("P", vec![])
+    }]);
+    s.set_config("k1", "true"); // 产生 delta + 一条普通变更事件
+    s.set_config("k2", "9");
+    assert_eq!(s.get_config("k1"), Some("true".to_string()));
+    assert_eq!(s.get_config("k2"), Some("9".to_string()));
 
-    s.set_config("k1", "true"); // 先产生一条普通变更事件
     assert!(s.reset_all_layout_defaults());
 
-    // Phase 2: 偏离 default 的行回写 default; 相同的 k3 不动
+    // 行值 delta 清空 → 出厂重合成: 偏离值回注入树原值
     assert_eq!(s.get_config("k1"), Some("false".to_string()));
     assert_eq!(s.get_config("k2"), Some("7".to_string()));
     assert_eq!(s.get_config("k3"), Some("true".to_string()));
-    assert_eq!(s.get_config("kc"), Some("A".to_string()));
     // 分组 visible 非 RowConfig, 不在重置范围
     assert_eq!(s.get_config("pSwitch"), Some("false".to_string()));
-    // Phase 3: 恰一条 RESET_COMPLETED, 顺序在 set 事件之后
+    // 恰一条 RESET_COMPLETED, 顺序在 set 事件之后
     let events = log.lock().unwrap();
-    assert_eq!(events.len(), 2);
+    assert_eq!(events.len(), 3);
     assert_eq!(events[0].data.as_deref(), Some("k1"));
-    assert_eq!(events[1].data.as_deref(), Some("RESET_COMPLETED"));
-    assert_eq!(events[1].event_type, "configChanged");
+    assert_eq!(events[2].data.as_deref(), Some("RESET_COMPLETED"));
+    assert_eq!(events[2].event_type, "configChanged");
 }
 
 #[test]
 fn reset_all_layout_defaults_no_change() {
-    let (s, log, _sub) =
-        svc_bus("(panel \"P\" (item \"a\" :type switch :target \"k1\" :value true :default true))");
+    let (s, log, _sub) = svc_tree_bus(vec![panel(
+        "P",
+        vec![row("a", "SWITCH", Some("k1"), Some(ConfigValue::Bool(true)))],
+    )]);
     assert!(!s.reset_all_layout_defaults());
     assert!(log.lock().unwrap().is_empty());
 }
 
-/// 失败路径: 源缺失 / 模板缺失 (crate CWD 无 ./ui_layout.cfg) → false 且不发事件。
-/// CWD 锁 (config_manager::CWD_LOCK): reset_to_factory 的模板存在性检查走全局
-/// ./ui_layout.cfg — 与 config_manager 的 chdir 型沙箱测试并行时, 进程 CWD 可能
-/// 已被切进沙箱 (沙箱内有模板) → reset 误判 true 打挂断言 (既有竞态, 本批新增
-/// 沙箱用例加大暴露窗口后实测复现; group_position_read_write_roundtrip 同款锁)
+/// 失败路径: import 源缺失/损坏 → false 且不发事件。
+/// (reset_to_factory 新语义 = 清 delta 重合成, 恒成功 — 不再有模板缺失失败面)
 #[test]
-fn import_reset_failure_paths() {
-    let _cwd = crate::config::config_manager::CWD_LOCK
-        .lock()
-        .expect("cwd 测试锁中毒");
-    let _guard = UserCfgGuard;
-    let (s, log, _sub) = svc_bus("(panel \"P\")");
-    assert!(!s.import_config("definitely_missing_zzz.cfg"));
-    assert!(!s.reset_to_factory());
+fn import_failure_paths() {
+    let (s, log, _sub) = svc_tree_bus(vec![panel("P", vec![])]);
+    assert!(!s.import_config("definitely_missing_zzz.json"));
     assert!(log.lock().unwrap().is_empty());
     assert_eq!(s.get_config("k"), Some(String::new()));
+}
+
+/// reset_to_factory: delta 清空 + 重合成 (位置/组字段一并回出厂)
+#[test]
+fn reset_to_factory_clears_delta() {
+    let (s, log, _sub) = svc_tree_bus(vec![GroupConfig {
+        x: 0.1,
+        y: 0.1,
+        rows: vec![row("a", "SWITCH", Some("k1"), Some(ConfigValue::Bool(false)))],
+        ..panel("P", vec![])
+    }]);
+    s.set_config("k1", "true");
+    s.save_group_position("P", 0.9, 0.9);
+    assert!(s.reset_to_factory());
+    assert_eq!(s.get_config("k1"), Some("false".to_string()));
+    assert_eq!(s.group_position("P"), Some((0.1, 0.1)));
+    let events = log.lock().unwrap();
+    assert_eq!(events.last().unwrap().data.as_deref(), Some("RESET_COMPLETED"));
 }
 
 // ---- 组装层位置桥 (group_position / save_group_position) ----
 
 #[test]
 fn group_position_read_write_roundtrip() {
-    // 跨模块 CWD 锁 (config_manager::CWD_LOCK, 审查 B4): 落盘走全局路径
-    // ./ui_layout.user.cfg, 须与 config_manager 的 chdir 型沙箱测试互斥 —
-    // 并行时本测试的落盘会写进他人沙箱 (实测曾打挂 reset_to_factory 断言)
-    let _cwd = crate::config::config_manager::CWD_LOCK
-        .lock()
-        .expect("cwd 测试锁中毒");
-    let _guard = UserCfgGuard; // save_group_position 落盘 → Drop 清理 ./ui_layout.user.cfg
-    let s = svc("(panel \"飞行信息\" :x 0.0602 :y 0.1188)");
+    let s = svc_tree(vec![GroupConfig {
+        x: 0.0602,
+        y: 0.1188,
+        ..panel("飞行信息", vec![])
+    }]);
     // 读: 归一化原值 (忽略大小写, 对齐视图 getGroupConfig 语义)
     assert_eq!(s.group_position("飞行信息"), Some((0.0602, 0.1188)));
     assert_eq!(s.group_position("FLIGHT 信息"), None); // 未命中 → None (host 居中兜底)
-                                                       // 写: 归一化直写 + 回读一致 (落盘副作用同 save_window_position 测试先例)
+                                                       // 写: 归一化直写 + 回读一致
     assert!(s.save_group_position("飞行信息", 0.25, 0.75));
     assert_eq!(s.group_position("飞行信息"), Some((0.25, 0.75)));
-    // 未命中写: false 不 panic (Java warn 分支)
+    // delta 同步登记 (持久真相)
+    let delta = s.inner.delta.read().expect(DELTA_LOCK_MSG);
+    assert_eq!(
+        delta.panels.get("飞行信息").and_then(|p| p.pos),
+        Some([0.25, 0.75])
+    );
+    // 未命中写: false 不 panic
     assert!(!s.save_group_position("不存在", 0.1, 0.1));
     // 与视图像素面一致性: 写归一化后 get_window_x 跟随 (同源字段)
     s.set_screen_size(1920, 1080);
@@ -305,7 +350,14 @@ fn group_position_read_write_roundtrip() {
 
 #[test]
 fn find_group_by_title_case_sensitive() {
-    let s = svc("(panel \"Alpha\" :x 0.5 :y 0.25)\n(panel \"beta\")");
+    let s = svc_tree(vec![
+        GroupConfig {
+            x: 0.5,
+            y: 0.25,
+            ..panel("Alpha", vec![])
+        },
+        panel("beta", vec![]),
+    ]);
     assert!(s.find_group_by_title("Alpha").is_some());
     assert!(s.find_group_by_title("alpha").is_none()); // equals 大小写敏感
     assert!(s.find_group_by_title("").is_none());
@@ -318,12 +370,11 @@ fn find_group_by_title_case_sensitive() {
     assert_eq!(v.get_window_y(0), 25);
 }
 
-// ---- 真实 ui_layout.cfg: 飞行信息视图 (任务必测项) ----
+// ---- 出厂默认: 飞行信息视图 (原真实 ui_layout.cfg 用例的 JSON 版) ----
 
 #[test]
-fn overlay_settings_flight_info_repo() {
-    let s = ConfigurationService::new(None);
-    s.load_layout(&repo_cfg_path());
+fn overlay_settings_flight_info_factory() {
+    let s = svc_factory();
     s.set_screen_size(1920, 1080);
     let v = s.get_overlay_settings("飞行信息");
 
@@ -334,7 +385,7 @@ fn overlay_settings_flight_info_repo() {
 
     // :font "Sarasa Mono SC" (面板级字体)
     assert_eq!(v.get_font_name(), "Sarasa Mono SC");
-    // 无 :font-size 面板属性 → 0 ("大小"滑条是行级 fontSize, 不影响 getFontSizeAdd)
+    // 无 :font-size 面板属性 → 0
     assert_eq!(v.get_font_size_add(), 0);
 
     // 组内行读取
@@ -350,13 +401,10 @@ fn overlay_settings_flight_info_repo() {
     );
 }
 
-/// 全局五色读链: cfg 五键 (ui_layout.cfg:379-383) 经 load_app_check 覆盖
-/// Application 静态初值 — global_colors() 应返回模板色而非 Java 默认。
-/// (人工验收: 组件曾用编译期 Java 初始值, 用户 cfg 改色后 Rust 不跟随)
+/// 全局五色读链: 出厂五键经 load_app_check 覆盖 Application 静态初值。
 #[test]
-fn global_colors_read_repo_template_cfg() {
-    let s = ConfigurationService::new(None);
-    s.load_layout(&repo_cfg_path());
+fn global_colors_read_factory() {
+    let s = svc_factory();
     let mut c = ControllerIntervals::default();
     s.load_app_check(&mut c);
     let g = s.global_colors();
@@ -373,7 +421,11 @@ fn global_colors_read_repo_template_cfg() {
 
 #[test]
 fn overlay_center_fallback_and_guard_branches() {
-    let s = svc("(panel \"A\" :x 0.9 :y 0.9)");
+    let s = svc_tree(vec![GroupConfig {
+        x: 0.9,
+        y: 0.9,
+        ..panel("A", vec![])
+    }]);
     s.set_screen_size(1920, 1080);
     // 分组不存在 → 居中回退 (int 除法)
     let v = s.get_overlay_settings("Zzz");
@@ -382,22 +434,24 @@ fn overlay_center_fallback_and_guard_branches() {
     // gc=null 分支 saveWindowPosition → warn (无保存、无崩溃)
     v.save_window_position(10.0, 10.0);
 
-    // 分组存在但 screen<=0 → Java gc!=null && sw>0 && sh>0 为假 → warn
-    let s2 = svc("(panel \"A\" :x 0.9 :y 0.9)");
+    // 分组存在但 screen<=0 → warn (不落 delta)
+    let s2 = svc_tree(vec![GroupConfig {
+        x: 0.9,
+        y: 0.9,
+        ..panel("A", vec![])
+    }]);
     s2.set_screen_size(0, 0);
-    s2.get_overlay_settings("A")
-        .save_window_position(10.0, 10.0);
+    s2.get_overlay_settings("A").save_window_position(10.0, 10.0);
 
     // screen=0 的读面: round(0.9*0)=0 (Java 同)
     assert_eq!(s2.get_overlay_settings("A").get_window_x(50), 0);
 }
 
-// ---- 真实 ui_layout.cfg: MiniHUD HUDSettings ----
+// ---- 出厂默认: MiniHUD HUDSettings ----
 
 #[test]
-fn hud_settings_repo_minihud() {
-    let s = ConfigurationService::new(None);
-    s.load_layout(&repo_cfg_path());
+fn hud_settings_factory_minihud() {
+    let s = svc_factory();
     s.set_screen_size(1920, 1080);
     let h = s.get_hud_settings();
 
@@ -405,12 +459,12 @@ fn hud_settings_repo_minihud() {
     assert_eq!(h.get_window_x(400), 747);
     assert_eq!(h.get_window_y(400), 761);
 
-    assert_eq!(h.get_crosshair_scale(), 113); // :value 113
+    assert_eq!(h.get_crosshair_scale(), 113); // value 113
     assert_eq!(h.get_crosshair_name(), "软件渲染准星");
-    assert!(h.is_display_crosshair()); // displayCrosshair=true
+    assert!(h.is_display_crosshair());
     assert!(!h.use_texture_crosshair()); // "软件渲染准星" → false
-    assert!(h.draw_hud_text()); // drawHUDtext=true
-    assert!(h.show_attitude_gauge()); // 默认 true (cfg 无该键)
+    assert!(h.draw_hud_text());
+    assert!(h.show_attitude_gauge());
 
     // AoA 比率: 布局优先 (Int 20 → 20>1 → 0.2; Int 25 → 0.25)
     assert!((h.get_aoa_warning_ratio() - 0.2).abs() < 1e-12);
@@ -419,7 +473,6 @@ fn hud_settings_repo_minihud() {
     // 字体链: MonoNumFont = "Sarasa Mono SC"
     assert_eq!(h.get_num_font(), "Sarasa Mono SC");
     assert_eq!(h.get_num_font_name(), "Sarasa Mono SC");
-    // getFontSizeAdd 走父类 (MiniHUD 无 :font-size → 0)
     assert_eq!(h.get_font_size_add(), 0);
 }
 
@@ -427,10 +480,13 @@ fn hud_settings_repo_minihud() {
 
 #[test]
 fn hud_crosshair_fallback_writeback() {
-    let s = svc("(panel \"Other\"\n\
-             \x20 (item \"cx\" :type slider :target \"crosshairX\" :value 500)\n\
-             \x20 (item \"cy\" :type slider :target \"crosshairY\" :value 300))\
-            ");
+    let s = svc_tree(vec![panel(
+        "Other",
+        vec![
+            row("cx", "SLIDER", Some("crosshairX"), Some(ConfigValue::Int(500))),
+            row("cy", "SLIDER", Some("crosshairY"), Some(ConfigValue::Int(300))),
+        ],
+    )]);
     s.set_screen_size(1920, 1080);
     let h = s.get_hud_settings();
     // 无 "MiniHUD" 分组 → crosshairX/Y 行优先, 缺省才用居中默认
@@ -443,7 +499,7 @@ fn hud_crosshair_fallback_writeback() {
     assert_eq!(s.get_config("crosshairY"), Some("-45".to_string()));
 
     // 行也不存在 → 居中默认 (int 除法)
-    let s2 = svc("(panel \"Other\")");
+    let s2 = svc_tree(vec![panel("Other", vec![])]);
     s2.set_screen_size(1920, 1080);
     let h2 = s2.get_hud_settings();
     assert_eq!(h2.get_window_x(400), (1920 - 400) / 2);
@@ -455,13 +511,15 @@ fn hud_crosshair_fallback_writeback() {
 #[test]
 fn hud_aoa_ratio_and_layout_first() {
     // 字符串值: parse 成功; Int 值: Number.doubleValue; >1 归一 /100
-    let s = svc("(panel \"MiniHUD\"\n\
-             \x20 (group \"G\"\n\
-             \x20   (item \"a\" :type info :target \"miniHUDaoaWarningRatio\" :value \"0.5\")\n\
-             \x20   (item \"b\" :type info :target \"miniHUDaoaBarWarningRatio\" :value 100)\n\
-             \x20   (item \"c\" :type info :target \"extraKey\" :value 2.5)\n\
-             \x20   (item \"d\" :type info :target \"edgeKey\" :value 1)\n)\
-            ");
+    let s = svc_tree(vec![panel(
+        "MiniHUD",
+        vec![
+            row("a", "INFO", Some("miniHUDaoaWarningRatio"), Some(ConfigValue::Str("0.5".into()))),
+            row("b", "INFO", Some("miniHUDaoaBarWarningRatio"), Some(ConfigValue::Int(100))),
+            row("c", "INFO", Some("extraKey"), Some(ConfigValue::Double(2.5))),
+            row("d", "INFO", Some("edgeKey"), Some(ConfigValue::Int(1))),
+        ],
+    )]);
     let h = s.get_hud_settings();
     assert!((h.get_aoa_warning_ratio() - 0.5).abs() < 1e-12); // 0.5 ≤ 1 → 原值
     assert!((h.get_aoa_bar_warning_ratio() - 1.0).abs() < 1e-12); // 100 → 1.0
@@ -469,25 +527,35 @@ fn hud_aoa_ratio_and_layout_first() {
     assert!((h.get_double_from_layout_first("MiniHUD", "edgeKey", 9.0) - 1.0).abs() < 1e-12); // Int 分支
 
     // 不可解析字符串 → catch ignore → Priority 2 全局 getDouble → 默认 25 → 0.25
-    let s2 = svc("(panel \"MiniHUD\" (group \"G\"\n\
-             \x20 (item \"a\" :type info :target \"miniHUDaoaWarningRatio\" :value \"abc\")))\
-            ");
+    let s2 = svc_tree(vec![panel(
+        "MiniHUD",
+        vec![row(
+            "a",
+            "INFO",
+            Some("miniHUDaoaWarningRatio"),
+            Some(ConfigValue::Str("abc".into())),
+        )],
+    )]);
     assert!((s2.get_hud_settings().get_aoa_warning_ratio() - 0.25).abs() < 1e-12);
 
-    // 段名不匹配 → Priority 1 落空; Priority 2 的 getDouble→getConfig 是
-    // 全局行查找 (不限段), 命中 Other 面板的同 target 行 → 90 → 0.9 (Java 同流)
-    let s3 = svc(
-        "(panel \"Other\" (item \"a\" :type info :target \"miniHUDaoaWarningRatio\" :value 90))",
-    );
+    // 段名不匹配 → Priority 1 落空; Priority 2 的全局行查找命中 Other 面板 → 90 → 0.9
+    let s3 = svc_tree(vec![panel(
+        "Other",
+        vec![row(
+            "a",
+            "INFO",
+            Some("miniHUDaoaWarningRatio"),
+            Some(ConfigValue::Int(90)),
+        )],
+    )]);
     assert!((s3.get_hud_settings().get_aoa_warning_ratio() - 0.9).abs() < 1e-12);
 }
 
-// ---- loadAppCheck: 真实 ui_layout.cfg 全同步链 (任务必测项) ----
+// ---- loadAppCheck: 出厂默认全同步链 ----
 
 #[test]
-fn load_app_check_repo_full_sync() {
-    let s = ConfigurationService::new(None);
-    s.load_layout(&repo_cfg_path());
+fn load_app_check_factory_full_sync() {
+    let s = svc_factory();
     let mut c = ControllerIntervals::default();
     s.load_app_check(&mut c);
     let app = s.application_state();
@@ -508,7 +576,7 @@ fn load_app_check_repo_full_sync() {
     assert_eq!(app.color_warning, [255, 36, 0, 255]);
     assert_eq!(app.color_shade_shape, [0, 0, 0, 255]);
 
-    // voiceVolume=100 / AAEnable=true → On/On (默认链路: 值在 → parseBoolean)
+    // voiceVolume=100 / AAEnable=true → On/On
     assert_eq!(app.voice_volumn, 100);
     assert!(app.aa_enable);
     assert_eq!(app.text_aa_setting, TextAaSetting::On);
@@ -538,7 +606,10 @@ fn load_app_check_repo_full_sync() {
 
 #[test]
 fn load_app_check_missing_keys_defaults() {
-    let s = svc("(panel \"P\" (item \"s\" :type switch :target \"someKey\" :value true))");
+    let s = svc_tree(vec![panel(
+        "P",
+        vec![row("s", "SWITCH", Some("someKey"), Some(ConfigValue::Bool(true)))],
+    )]);
     let mut c = ControllerIntervals::default();
     s.load_app_check(&mut c);
     let app = s.application_state();
@@ -577,12 +648,15 @@ fn load_app_check_missing_keys_defaults() {
 
 #[test]
 fn load_app_check_bad_values_recovery() {
-    let s = svc("(panel \"P\"\n\
-             \x20 (item \"i\" :type slider :target \"Interval\" :value 100)\n\
-             \x20 (item \"v\" :type slider :target \"voiceVolume\" :value 0)\n\
-             \x20 (item \"p\" :type data :target \"httpPort\" :value \"abc\")\n\
-             \x20 (item \"a\" :type switch :target \"AAEnable\" :value false))\
-            ");
+    let s = svc_tree(vec![panel(
+        "P",
+        vec![
+            row("i", "SLIDER", Some("Interval"), Some(ConfigValue::Int(100))),
+            row("v", "SLIDER", Some("voiceVolume"), Some(ConfigValue::Int(0))),
+            row("p", "DATA", Some("httpPort"), Some(ConfigValue::Str("abc".into()))),
+            row("a", "SWITCH", Some("AAEnable"), Some(ConfigValue::Bool(false))),
+        ],
+    )]);
     let mut c = ControllerIntervals::default();
     s.load_app_check(&mut c);
     let app = s.application_state();
@@ -603,10 +677,13 @@ fn load_app_check_bad_values_recovery() {
     assert_eq!(app.text_aa_setting, TextAaSetting::Off);
 
     // 新键非数值 → NumberFormatException → 50 (legacy 键不再回看)
-    let s2 = svc("(panel \"P\"\n\
-             \x20 (item \"n\" :type data :target \"dataPollIntervalMs\" :value \"xyz\")\n\
-             \x20 (item \"i\" :type slider :target \"Interval\" :value 300))\
-            ");
+    let s2 = svc_tree(vec![panel(
+        "P",
+        vec![
+            row("n", "DATA", Some("dataPollIntervalMs"), Some(ConfigValue::Str("xyz".into()))),
+            row("i", "SLIDER", Some("Interval"), Some(ConfigValue::Int(300))),
+        ],
+    )]);
     let mut c2 = ControllerIntervals::default();
     s2.load_app_check(&mut c2);
     assert_eq!(c2.service_loop_interval_ms, 50);
@@ -639,10 +716,18 @@ fn color_parse_matrix() {
 
 #[test]
 fn set_color_config_roundtrip() {
-    let s = svc("(panel \"P\" (item \"c\" :type color :target \"fontNum\" :value \"#FFFFFFFF\"))");
+    let s = svc_tree(vec![panel(
+        "P",
+        vec![row(
+            "c",
+            "COLOR",
+            Some("fontNum"),
+            Some(ConfigValue::Str("#FFFFFFFF".into())),
+        )],
+    )]);
     // 原值 hex 可读
     assert_eq!(s.get_color_config("fontNum"), [255, 255, 255, 255]);
-    // 写回十进制 "R, G, B, A" 格式 (Java: R + ", " + G + ...)
+    // 写回十进制 "R, G, B, A" 格式
     s.set_color_config("fontNum", [1, 2, 3, 4]);
     assert_eq!(s.get_config("fontNum"), Some("1, 2, 3, 4".to_string()));
     assert_eq!(s.get_color_config("fontNum"), [1, 2, 3, 4]);
@@ -652,9 +737,12 @@ fn set_color_config_roundtrip() {
 
 #[test]
 fn dyn_trait_dispatch() {
-    let s = svc("(panel \"MiniHUD\" :x 0.5 :y 0.5\n\
-             \x20 (item \"sw\" :type switch :target \"showSpeedBar\" :value false))\
-            ");
+    let s = svc_tree(vec![GroupConfig {
+        x: 0.5,
+        y: 0.5,
+        rows: vec![row("sw", "SWITCH", Some("showSpeedBar"), Some(ConfigValue::Bool(false)))],
+        ..panel("MiniHUD", vec![])
+    }]);
     s.set_screen_size(100, 100);
 
     // Box<dyn ConfigProvider> (面向接口编程)
@@ -672,16 +760,16 @@ fn dyn_trait_dispatch() {
     assert_eq!(base.get_font_size_add(), 0);
 }
 
-// ---- saveConfig 空方法 / saveLayoutConfig 空配置守卫 ----
+// ---- 空配置守卫 ----
 
 #[test]
 fn save_config_noop_and_empty_layout_guard() {
     let s = ConfigurationService::new(None);
     s.save_config();
-    s.save_layout_config(); // layoutConfigs == null → 无落盘/无日志副作用, 不崩溃
+    s.save_layout_config(); // layoutConfigs == null → 无落盘, 不崩溃
 }
 
-// ---- 修复波次: InetSocketAddress 桩抛出面 / Double.equals 位级 / toString ----
+// ---- InetSocketAddress 桩抛出面 / Double.toString ----
 
 #[test]
 fn inet_socket_address_port_bounds() {
@@ -690,8 +778,7 @@ fn inet_socket_address_port_bounds() {
     assert_eq!((b.host.as_str(), b.port), ("host", 65535));
 }
 
-/// JDK: port 越界 → IllegalArgumentException (非 NumberFormatException,
-/// 不被 loadAppCheck 的 catch 捕获) — Rust panic! 复刻
+/// JDK: port 越界 → IllegalArgumentException — Rust panic! 复刻
 #[test]
 #[should_panic(expected = "port out of range")]
 fn inet_socket_address_negative_port_panics() {
@@ -704,8 +791,8 @@ fn inet_socket_address_overflow_port_panics() {
     let _ = InetSocketAddress::new("host", 65536);
 }
 
-/// Double.toString 本地副本 — 期望值来自 历史基线 逐字面量对拍
-/// (config_loader 同款 battery; 科学计数域 0.0001/1e7 为修复覆盖点)
+/// Double.toString — 期望值来自历史基线逐字面量对拍。
+/// ConfigValue 面: as_config_string 的 Double 分支走同一实现。
 #[test]
 fn java_double_to_string_matches_java8_oracle() {
     let cases = [
@@ -728,68 +815,77 @@ fn java_double_to_string_matches_java8_oracle() {
     assert_eq!(java_double_to_string(f64::NAN), "NaN");
     assert_eq!(java_double_to_string(f64::INFINITY), "Infinity");
     assert_eq!(java_double_to_string(f64::NEG_INFINITY), "-Infinity");
-    // ConfigValue 面 (reset 日志的 default 回显文本)
-    assert_eq!(config_value_to_string(&ConfigValue::Double(1.0e7)), "1.0E7");
-    assert_eq!(config_value_to_string(&ConfigValue::Double(20.0)), "20.0");
+    assert_eq!(
+        ConfigValue::Double(1.0e7).as_config_string(),
+        "1.0E7"
+    );
+    assert_eq!(ConfigValue::Double(20.0).as_config_string(), "20.0");
 }
 
-/// Double.equals = doubleToLongBits 位级: NaN==NaN true、+0.0!=-0.0;
-/// 异型 instanceof 恒 false — 均与派生 PartialEq 相反 (Java 语义钉子)
+// ---- delta 合成/升级语义 (json_store 行为钉子) ----
+
+/// set_config 的 delta 同步登记: 未触碰的键不进 delta (升级跟随语义的地基)
 #[test]
-fn config_value_java_equals_double_bits() {
-    assert!(config_value_java_equals(
-        &ConfigValue::Double(f64::NAN),
-        &ConfigValue::Double(f64::NAN)
-    ));
-    assert!(!config_value_java_equals(
-        &ConfigValue::Double(0.0),
-        &ConfigValue::Double(-0.0)
-    ));
-    assert!(!config_value_java_equals(
-        &ConfigValue::Double(-0.0),
-        &ConfigValue::Double(0.0)
-    ));
-    assert!(config_value_java_equals(
-        &ConfigValue::Double(2.5),
-        &ConfigValue::Double(2.5)
-    ));
-    assert!(!config_value_java_equals(
-        &ConfigValue::Double(1.0),
-        &ConfigValue::Int(1)
-    ));
-    assert!(config_value_java_equals(
-        &ConfigValue::Int(1),
-        &ConfigValue::Int(1)
-    ));
-    assert!(config_value_java_equals(
-        &ConfigValue::Bool(true),
-        &ConfigValue::Bool(true)
-    ));
-    assert!(!config_value_java_equals(
-        &ConfigValue::Str("a".to_string()),
-        &ConfigValue::Str("b".to_string())
-    ));
+fn set_config_records_delta_only_for_touched_keys() {
+    let (s, _log, _sub) = svc_tree_bus(vec![panel(
+        "P",
+        vec![
+            row("a", "SWITCH", Some("k1"), Some(ConfigValue::Bool(true))),
+            row("b", "SWITCH", Some("k2"), Some(ConfigValue::Bool(true))),
+        ],
+    )]);
+    s.set_config("k1", "false");
+    let delta = s.inner.delta.read().expect(DELTA_LOCK_MSG);
+    let pd = delta.panels.get("P").unwrap();
+    assert_eq!(pd.rows.get("k1"), Some(&ConfigValue::Bool(false)));
+    assert!(!pd.rows.contains_key("k2"), "未改动的键不进 delta");
 }
 
-/// 收集判定端到端: value=-0.0 / default=+0.0 → Java equals 不等 → 收集
-/// (派生 PartialEq 会判等漏收)。cfg 文本无法到达该位形 (解析器 -0.0 折叠
-/// Int(0)), 故直接构造 RowConfig。
+/// 深合并语义: delta 只遮蔽触碰键, 出厂新键自动出现
 #[test]
-fn reset_collect_negative_zero_double() {
-    let mut r = RowConfig::new("z".to_string(), None, String::new());
-    r.value = Some(ConfigValue::Double(-0.0));
-    r.default_value = Some(ConfigValue::Double(0.0));
-    let mut pending = Vec::new();
-    let mut path = Vec::new();
-    collect_reset_candidates_recursive(&[r], 0, &mut path, &mut pending);
-    assert_eq!(pending.len(), 1);
+fn synthesize_factory_plus_delta_upgrade_semantics() {
+    let factory = AppConfig {
+        version: 1,
+        panels: vec![
+            panel("A", vec![row("x", "SWITCH", Some("k1"), Some(ConfigValue::Bool(true)))]),
+            panel("B", vec![row("y", "SWITCH", Some("k2"), Some(ConfigValue::Bool(true)))]),
+        ],
+    };
+    let mut delta = UserDelta::default();
+    // 用户只改了 A.k1 (模拟老版本时代的 delta)
+    delta
+        .panels
+        .entry("A".to_string())
+        .or_default()
+        .rows
+        .insert("k1".to_string(), ConfigValue::Bool(false));
 
-    // NaN 值 == NaN 默认 → Java equals 相等 → 不收集
-    let mut r2 = RowConfig::new("n".to_string(), None, String::new());
-    r2.value = Some(ConfigValue::Double(f64::NAN));
-    r2.default_value = Some(ConfigValue::Double(f64::NAN));
-    let mut pending2 = Vec::new();
-    let mut path2 = Vec::new();
-    collect_reset_candidates_recursive(&[r2], 0, &mut path2, &mut pending2);
-    assert!(pending2.is_empty());
+    let merged = json_store::synthesize(&factory.panels, &delta);
+    assert_eq!(merged[0].rows[0].value, Some(ConfigValue::Bool(false)), "用户值遮蔽出厂");
+    assert_eq!(merged[1].rows[0].value, Some(ConfigValue::Bool(true)), "未触碰面板原样");
+
+    // 升级: 出厂给 A 加新行 k3 → 合成后自动出现 (delta 无条目不遮蔽)
+    let mut factory_v2 = factory.clone();
+    factory_v2.panels[0].rows.push(row(
+        "z",
+        "SWITCH",
+        Some("k3"),
+        Some(ConfigValue::Bool(true)),
+    ));
+    let merged2 = json_store::synthesize(&factory_v2.panels, &delta);
+    assert_eq!(merged2[0].rows.len(), 2, "出厂新行自动出现");
+    assert_eq!(merged2[0].rows[0].value, Some(ConfigValue::Bool(false)), "老 delta 仍遮蔽");
+}
+
+/// 损坏 delta 隔离: rename .corrupt + 回退出厂
+#[test]
+fn corrupt_delta_quarantine() {
+    let dir = std::env::temp_dir().join(format!("vm_core_jsonstore_{}", std::process::id()));
+    let _ = std::fs::create_dir_all(&dir);
+    let p = dir.join("user.json");
+    std::fs::write(&p, "not a json {").unwrap();
+    let delta = json_store::load_delta(p.to_str().unwrap());
+    assert_eq!(delta, UserDelta::default());
+    assert!(dir.join("user.json.corrupt").exists(), "损坏文件已隔离");
+    let _ = std::fs::remove_dir_all(&dir);
 }

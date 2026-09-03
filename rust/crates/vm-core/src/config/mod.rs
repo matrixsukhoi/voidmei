@@ -1,12 +1,14 @@
-//! 配置域: ui_layout.cfg 装载 (config_loader + key_text 键码映射)/S 表达式解析/
-//! 双文件合并迁移 (config_manager + ui_state_storage 桩)/文件监视/门面服务。 (波21: 手写 md5 已换 md-5 crate)
+//! 配置域: JSON 模型 (json_model) + 出厂/用户 delta 存储 (json_store) +
+//! S 表达式解析 (sexp_parser — formulas.cfg 外壳的唯一解析器, 保留) +
+//! 应用态桩 (app_state) + 门面服务。
+//!
+//! 历史: ui_layout.cfg S-expr 体系 (config_loader/config_manager/
+//! ui_state_storage/config_watcher/key_text) 已整体迁移至 JSON (Phase 1) —
+//! 出厂默认内嵌 factory_default.json, 用户差异落 voidmei_config.json。
 
 pub mod app_state;
 pub mod config_api;
-pub mod config_loader;
-pub mod config_manager;
-pub mod config_watcher;
 pub mod configuration_service;
-pub mod key_text;
+pub mod json_model;
+pub mod json_store;
 pub mod sexp_parser;
-pub mod ui_state_storage;
