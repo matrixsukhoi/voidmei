@@ -237,3 +237,29 @@ Java 保真移植时代的产物换为业界方案。分四步提交, 每步测�
 
 cargo test --workspace 全绿 (1192 测试, 含 9222 mock_e2e 集成 — ureq 与
 mock_8111.py 真 HTTP 互通验证); 未跑 script/rust_e2e.sh / --mock-smoke (项目约束)。
+
+## 增补: 波21 — 现代化收官 (2026-09-04, 波20 后的全面现代化扫描)
+
+三路独立排查 (Java 复刻层 / 手写轮子 / 数据形态) 后用户裁决, 五步提交, 每步全绿:
+
+| 步 | 内容 | 关键退役 |
+|---|---|---|
+| 21-1 | 零争议速赢 | exception_helper 死函数 4 件套 / 3 处 downcast 副本收敛 / G8 typo 兑现 (magenato·check_maxium_rpm·port_occupied) / 死 getter+trait 更名漏网 / MapInfo::init 空体 / F_INVALID 裸字面量收敛 / get_no_zeros Java 重载形态迭代器化 / 仪式性 f32×3 (ratio·间隔乘法·f32::MAX 哨兵) / parse 族 std 化 / **App 层 panic hook 落地** (备案多年的 stderr 双报告) |
+| 21-2 | 手写匹配器收割 | map_obj Player 提取 serde 化 (~170 行 java.util.regex 引擎退役, whitespace 不容忍的缺陷语义一并修好) / comparison rules + realtests 落 **regex crate** (Cargo.lock 已含, 零增量) / md5.rs → **md-5** crate / char_len_at (UTF-16 步进复刻) 退役 |
+| 21-3 | 结构现代化 | State/Indicators **new+init 两段式退役** + 引擎数组 **[T;16] 定长化** (Copy, 帧克隆免堆) / stype 死字段+截 8 链删除 / No Cockpit 谓词化 (is_no_cockpit) / EngineType 迁 vm-core::base, AnalyzerService trait 摘除 i32 当枚举 |
+| 21-4 | 显示引擎退役 | java_f/FastNumberFormatter **HALF_UP → Rust format! 语义** (fmt_f 更名, 薄包装保 NaN→"N/A"/负零抑制域契约) / java_f_plus·java_f0_exact·pad_width·java_d0 薄包装化 / **f32 显示链全退** (fueltime·hp_eff·time[]·climb·CSV) / java_float_to_string 退役 (float 版, 合并入 double 版) / 显示 oracle 全面重录 |
+| 21-5 | 文档收官 | 本节 + 术语同步 |
+
+### 语义变更备案 (21-4, 用户裁决"完全现代化"接受)
+
+- 舍入: Java printf HALF_UP (按最短十进制串) → Rust nearest-even (按精确二进制值):
+  精确半点取偶 (0.5→"0", 30.5→"30"), 实值非半点处可反向 (2.675→"2.67");
+  ±∞ 输出 "inf" (原 "Infinity"); 1e23 类巨值按精确二进制展开 (原 Java 非最短 toString 展开)。
+- 显示末位与 CSV 列偶发漂移 (x.xx5 边界类, 用户无感); e2e 日志格式不受影响 (logger 独立链)。
+
+### 保留裁决 (现代化扫描后确认不动)
+
+- java_round 像素族 (floor(x+0.5)): 渲染几何舍入锚点, 非 printf 语义;
+- java_double_to_string: cfg round-trip/CSV 的最短往返格式单点 (无 HALF_UP 问题);
+- java_printf (java_string_format/FmtArg): Lang i18n 数据驱动模板, 非显示引擎;
+- sexp_parser/公式解析器: 领域 DSL; 锁中毒穿透契约 (H5 相邻); url_escape (H4)。
